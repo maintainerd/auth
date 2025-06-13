@@ -5,6 +5,7 @@ import (
 	"github.com/maintainerd/auth/config"
 	handler "github.com/maintainerd/auth/internal/handlers"
 	repository "github.com/maintainerd/auth/internal/repositories"
+	routes "github.com/maintainerd/auth/internal/routes"
 	service "github.com/maintainerd/auth/internal/services"
 )
 
@@ -20,8 +21,7 @@ func main() {
 	taskService := service.NewTaskService(taskRepo)
 	taskHandler := handler.NewTaskHandler(taskService)
 
-	r.GET("/tasks", taskHandler.GetTasks)
-	r.POST("/tasks", taskHandler.AddTask)
+	routes.RegisterTaskRoutes(r, taskHandler)
 
 	r.Run(":8080")
 }

@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/maintainerd/auth/internal/dtos"
 	"github.com/maintainerd/auth/internal/models"
 	"github.com/maintainerd/auth/internal/services"
 )
@@ -22,18 +23,42 @@ func (h *TaskHandler) GetTasks(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch tasks"})
 		return
 	}
-	c.JSON(http.StatusOK, tasks)
+
+	var response []dtos.TaskResponse
+	for _, task := range tasks {
+		response = append(response, dtos.TaskResponse{
+			ID:      task.ID,
+			Name:    task.Name,
+			Content: task.Content,
+		})
+	}
+
+	c.JSON(http.StatusOK, response)
 }
 
 func (h *TaskHandler) AddTask(c *gin.Context) {
-	var task models.Task
-	if err := c.ShouldBindJSON(&task); err != nil {
+	var req dtos.CreateTaskRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input"})
 		return
 	}
-	if err := h.service.AddTask(&task); err != nil {
+
+	task := &models.Task{
+		Name:    req.Name,
+		Content: req.Content,
+		// Note: TaskStatusID is not part of the Task model yet
+	}
+
+	if err := h.service.AddTask(task); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create task"})
 		return
 	}
-	c.JSON(http.StatusCreated, task)
+
+	response := dtos.TaskResponse{
+		ID:      task.ID,
+		Name:    task.Name,
+		Content: task.Content,
+	}
+
+	c.JSON(http.StatusCreated, response)
 }
