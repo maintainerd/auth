@@ -1,0 +1,58 @@
+# Binaries
+*.exe
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+
+# Go build artifacts
+/build/
+/bin/
+/dist/
+*.log
+
+# Vendor folder (only if you use `go mod vendor`)
+/vendor/
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Environment files
+.env
+
+# Go modules and cache
+/go.sum
+/go.work
+/go.work.sum
+
+# IDE/editor configs
+.vscode/
+.idea/
+*.swp
+
+# Dependency tools like Goose
+/goose-db/
+
+# Coverage/testing
+coverage.*
+*.coverprofile
+*.cov
+*.testresult
+
+# Logs
+*.log
+*.tmp
+debug/
+
+# Node-related (if using frontend in same repo)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Misc
+*.bak
+*.old
+*.orig
