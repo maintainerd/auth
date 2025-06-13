@@ -1,0 +1,3 @@
+[submodule "internal/contract"]
+	path = internal/contract
+	url = https://github.com/maintainerd/contract.git
