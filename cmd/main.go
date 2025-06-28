@@ -1,27 +1,26 @@
 package main
 
 import (
-	"github.com/gin-gonic/gin"
+	"log"
+
 	"github.com/maintainerd/auth/config"
-	handler "github.com/maintainerd/auth/internal/handlers"
-	repository "github.com/maintainerd/auth/internal/repositories"
-	routes "github.com/maintainerd/auth/internal/routes"
-	service "github.com/maintainerd/auth/internal/services"
+	"github.com/maintainerd/auth/internal/app"
+	"github.com/maintainerd/auth/internal/routes"
+
+	"github.com/gin-gonic/gin"
 )
 
 func main() {
-	config.InitDB()
+	db := config.InitDB()
 
-	// Seed initial data (dev only)
-	// seed.SeedTasks()
-
+	application := app.NewApp(db)
 	r := gin.Default()
 
-	taskRepo := repository.NewTaskRepository()
-	taskService := service.NewTaskService(taskRepo)
-	taskHandler := handler.NewTaskHandler(taskService)
+	routes.RegisterRoutes(r, &routes.HandlersCollection{
+		RoleHandler: application.RoleHandler,
+	})
 
-	routes.RegisterTaskRoutes(r, taskHandler)
-
-	r.Run(":8080")
+	if err := r.Run(":8080"); err != nil {
+		log.Fatal("Server failed:", err)
+	}
 }
