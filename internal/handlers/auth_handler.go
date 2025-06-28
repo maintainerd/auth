@@ -5,6 +5,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/maintainerd/auth/internal/services"
+	"github.com/maintainerd/auth/internal/utils"
 )
 
 type AuthHandler struct {
@@ -23,17 +24,17 @@ func (h *AuthHandler) Register(c *gin.Context) {
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		utils.Error(c, http.StatusBadRequest, "Invalid request", err.Error())
 		return
 	}
 
 	token, err := h.authService.Register(req.Username, req.Email, req.Password)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		utils.Error(c, http.StatusInternalServerError, "Registration failed", err.Error())
 		return
 	}
 
-	c.JSON(http.StatusCreated, gin.H{"token": token})
+	utils.Created(c, gin.H{"token": token}, "Registration successful")
 }
 
 func (h *AuthHandler) Login(c *gin.Context) {
@@ -43,15 +44,15 @@ func (h *AuthHandler) Login(c *gin.Context) {
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		utils.Error(c, http.StatusBadRequest, "Invalid request", err.Error())
 		return
 	}
 
 	token, err := h.authService.Login(req.Email, req.Password)
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
+		utils.Error(c, http.StatusUnauthorized, "Invalid credentials")
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"token": token})
+	utils.Success(c, gin.H{"token": token}, "Login successful")
 }

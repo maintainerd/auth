@@ -8,6 +8,7 @@ import (
 	"github.com/maintainerd/auth/internal/dtos"
 	"github.com/maintainerd/auth/internal/models"
 	"github.com/maintainerd/auth/internal/services"
+	"github.com/maintainerd/auth/internal/utils"
 )
 
 type RoleHandler struct {
@@ -21,22 +22,22 @@ func NewRoleHandler(service services.RoleService) *RoleHandler {
 func (h *RoleHandler) Create(c *gin.Context) {
 	var role models.Role
 	if err := c.ShouldBindJSON(&role); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		utils.Error(c, http.StatusBadRequest, "Invalid request", err.Error())
 		return
 	}
 
 	if err := h.service.Create(&role); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		utils.Error(c, http.StatusInternalServerError, "Failed to create role", err.Error())
 		return
 	}
 
-	c.JSON(http.StatusCreated, dtos.ToRoleDTO(&role))
+	utils.Created(c, dtos.ToRoleDTO(&role), "Role created successfully")
 }
 
 func (h *RoleHandler) GetAll(c *gin.Context) {
 	roles, err := h.service.GetAll()
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		utils.Error(c, http.StatusInternalServerError, "Failed to fetch roles", err.Error())
 		return
 	}
 
@@ -45,59 +46,58 @@ func (h *RoleHandler) GetAll(c *gin.Context) {
 		roleDTOs = append(roleDTOs, dtos.ToRoleDTO(&role))
 	}
 
-	c.JSON(http.StatusOK, roleDTOs)
+	utils.Success(c, roleDTOs, "Roles fetched successfully")
 }
 
 func (h *RoleHandler) GetByUUID(c *gin.Context) {
 	roleUUID, err := uuid.Parse(c.Param("role_uuid"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid role UUID"})
+		utils.Error(c, http.StatusBadRequest, "Invalid role UUID")
 		return
 	}
 
 	role, err := h.service.GetByUUID(roleUUID)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Role not found"})
+		utils.Error(c, http.StatusNotFound, "Role not found")
 		return
 	}
 
-	c.JSON(http.StatusOK, dtos.ToRoleDTO(role))
+	utils.Success(c, dtos.ToRoleDTO(role), "Role fetched successfully")
 }
 
 func (h *RoleHandler) Update(c *gin.Context) {
 	roleUUID, err := uuid.Parse(c.Param("role_uuid"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid role UUID"})
+		utils.Error(c, http.StatusBadRequest, "Invalid role UUID")
 		return
 	}
 
 	var role models.Role
 	if err := c.ShouldBindJSON(&role); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		utils.Error(c, http.StatusBadRequest, "Invalid request", err.Error())
 		return
 	}
 
 	if err := h.service.UpdateByUUID(roleUUID, &role); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		utils.Error(c, http.StatusInternalServerError, "Failed to update role", err.Error())
 		return
 	}
 
-	// Return updated role with correct UUID set
 	role.RoleUUID = roleUUID
-	c.JSON(http.StatusOK, dtos.ToRoleDTO(&role))
+	utils.Success(c, dtos.ToRoleDTO(&role), "Role updated successfully")
 }
 
 func (h *RoleHandler) Delete(c *gin.Context) {
 	roleUUID, err := uuid.Parse(c.Param("role_uuid"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid role UUID"})
+		utils.Error(c, http.StatusBadRequest, "Invalid role UUID")
 		return
 	}
 
 	if err := h.service.DeleteByUUID(roleUUID); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		utils.Error(c, http.StatusInternalServerError, "Failed to delete role", err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "Role deleted"})
+	utils.Success(c, nil, "Role deleted successfully")
 }
