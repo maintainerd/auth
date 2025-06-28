@@ -11,7 +11,7 @@ type HandlersCollection struct {
 }
 
 func RegisterRoutes(r *gin.Engine, h *HandlersCollection) {
-	api := r.Group("/api")
+	api := r.Group("/api/v1")
 	RegisterRoleRoutes(api, h.RoleHandler)
 	RegisterAuthRoutes(api, h.AuthHandler)
 }
