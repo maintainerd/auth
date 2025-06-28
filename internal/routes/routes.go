@@ -7,9 +7,11 @@ import (
 
 type HandlersCollection struct {
 	RoleHandler *handlers.RoleHandler
+	AuthHandler *handlers.AuthHandler
 }
 
 func RegisterRoutes(r *gin.Engine, h *HandlersCollection) {
 	api := r.Group("/api")
 	RegisterRoleRoutes(api, h.RoleHandler)
+	RegisterAuthRoutes(api, h.AuthHandler)
 }

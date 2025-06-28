@@ -18,6 +18,7 @@ func main() {
 
 	routes.RegisterRoutes(r, &routes.HandlersCollection{
 		RoleHandler: application.RoleHandler,
+		AuthHandler: application.AuthHandler,
 	})
 
 	if err := r.Run(":8080"); err != nil {
