@@ -1,30 +1,30 @@
 package app
 
 import (
-	"github.com/maintainerd/auth/internal/handlers"
-	"github.com/maintainerd/auth/internal/repositories"
-	"github.com/maintainerd/auth/internal/services"
+	"github.com/maintainerd/auth/internal/handler"
+	"github.com/maintainerd/auth/internal/repository"
+	"github.com/maintainerd/auth/internal/service"
 	"gorm.io/gorm"
 )
 
 type App struct {
 	DB          *gorm.DB
-	RoleHandler *handlers.RoleHandler
-	AuthHandler *handlers.AuthHandler
+	RoleHandler *handler.RoleHandler
+	AuthHandler *handler.AuthHandler
 }
 
 func NewApp(db *gorm.DB) *App {
-	// Repositories
-	roleRepo := repositories.NewRoleRepository(db)
-	userRepo := repositories.NewUserRepository(db)
+	// repository
+	roleRepo := repository.NewRoleRepository(db)
+	userRepo := repository.NewUserRepository(db)
 
-	// Services
-	roleService := services.NewRoleService(roleRepo)
-	authService := services.NewAuthService(userRepo)
+	// service
+	roleService := service.NewRoleService(roleRepo)
+	authService := service.NewAuthService(userRepo)
 
-	// Handlers
-	roleHandler := handlers.NewRoleHandler(roleService)
-	authHandler := handlers.NewAuthHandler(authService)
+	// handler
+	roleHandler := handler.NewRoleHandler(roleService)
+	authHandler := handler.NewAuthHandler(authService)
 
 	return &App{
 		DB:          db,

@@ -5,7 +5,7 @@ import (
 
 	"github.com/maintainerd/auth/config"
 	"github.com/maintainerd/auth/internal/app"
-	"github.com/maintainerd/auth/internal/routes"
+	"github.com/maintainerd/auth/internal/route"
 
 	"github.com/gin-gonic/gin"
 )
@@ -16,7 +16,7 @@ func main() {
 	application := app.NewApp(db)
 	r := gin.Default()
 
-	routes.RegisterRoutes(r, &routes.HandlersCollection{
+	route.Registerroute(r, &route.HandlerCollection{
 		RoleHandler: application.RoleHandler,
 		AuthHandler: application.AuthHandler,
 	})
