@@ -4,6 +4,7 @@ import (
 	"log"
 
 	"github.com/maintainerd/auth/config"
+	"github.com/maintainerd/auth/db/runner"
 	"github.com/maintainerd/auth/internal/app"
 	"github.com/maintainerd/auth/internal/route"
 
@@ -12,6 +13,12 @@ import (
 
 func main() {
 	db := config.InitDB()
+	connString := config.GetDBConnectionString()
+
+	// Run default seeders
+	targetVersion := "v1"
+	runner.RunDefaultMigrations(targetVersion, connString)
+	runner.RunDefaultSeeders(db, targetVersion)
 
 	application := app.NewApp(db)
 	r := gin.Default()
