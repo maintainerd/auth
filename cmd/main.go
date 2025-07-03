@@ -2,11 +2,14 @@ package main
 
 import (
 	"log"
+	"os"
 
 	"github.com/maintainerd/auth/config"
 	"github.com/maintainerd/auth/db/runner"
 	"github.com/maintainerd/auth/internal/app"
+	"github.com/maintainerd/auth/internal/repository"
 	"github.com/maintainerd/auth/internal/route"
+	"github.com/maintainerd/auth/internal/service"
 
 	"github.com/gin-gonic/gin"
 )
@@ -15,14 +18,28 @@ func main() {
 	db := config.InitDB()
 	connString := config.GetDBConnectionString()
 
-	// Run default seeders
-	targetVersion := "v1"
-	runner.RunDefaultMigrations(targetVersion, connString)
-	runner.RunDefaultSeeders(db, targetVersion)
+	appVersion := os.Getenv("APP_VERSION")
+	appMode := os.Getenv("APP_MODE")
 
+	if appMode == "micro" {
+		authConfigRepository := repository.NewAuthConfigRepository(db)
+		authConfigService := service.NewAuthConfigService(authConfigRepository)
+
+		_, err := authConfigService.GetLatestConfig()
+		if err != nil {
+			// Run default seeders
+			if appVersion == "v0.0.1" {
+				runner.RunDefaultMigrations(connString)
+				runner.RunDefaultSeeders(db, appVersion)
+			}
+		}
+	}
+
+	// App wiring
 	application := app.NewApp(db)
-	r := gin.Default()
 
+	// Routring
+	r := gin.Default()
 	route.Registerroute(r, &route.HandlerCollection{
 		RoleHandler: application.RoleHandler,
 		AuthHandler: application.AuthHandler,

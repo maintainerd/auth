@@ -1,17 +1,13 @@
 package runner
 
 import (
-	"fmt"
 	"log"
 	"os/exec"
 )
 
-func RunDefaultMigrations(targetVersion string, connectionString string) {
-	log.Println("🗄️ Running default migrations...")
-
-	dir := fmt.Sprintf("./db/migration/%s/default", targetVersion)
-	runMigrationDir(dir, connectionString)
-
+func RunDefaultMigrations(connectionString string) {
+	log.Println("🏃 Running default migrations...")
+	runMigrationDir("./db/migration/v1", connectionString)
 	log.Println("✅ Default migrations completed.")
 }
 
