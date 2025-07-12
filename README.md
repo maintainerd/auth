@@ -1,57 +1,125 @@
-## Packages
+<p align="center">
+  <img width="150" height="150" alt="logo" src="https://github.com/user-attachments/assets/3e9eec3d-8312-4f5c-b8cb-14d309a17fda" />
+</p>
 
-### Step 1 : Create the project
+<h1 align="center">Maintainerd Auth</h1>
+
+The `auth` service is a modular authentication platform built for the **Maintainerd** ecosystem. It aims to be a complete, production-grade identity layer that supports both **built-in authentication** and **external identity providers** such as **Auth0**, **Cognito**, and **Google**.
+
+> Designed from the ground up with **security**, **extensibility**, and **service-to-service communication** in mind using **gRPC**, **REST**, and **Go**.
+
+---
+
+## ✨ Features
+
+- 🧾 **gRPC-first API** with optional REST gateway (via `grpc-gateway`)
+- 🔐 **JWT-based authentication middleware** (in-progress)
+- 🧱 Modular architecture with clean separation of concerns
+- 🐘 PostgreSQL + GORM + Goose for schema management
+- 🧪 Auto-seeding for essential service records
+- ⚙️ Integration-ready for external providers like:
+  - AWS Cognito
+  - Auth0
+  - Google Identity
+- 🛡️ Future support for XSS/CSRF protection, OAuth2, OIDC, and SAML 2.0
+- 📦 Shared protobuf contract via Git submodule
+
+---
+
+## 🚀 Getting Started
+
+### ✅ Prerequisites
+
+* Go 1.21+
+* PostgreSQL
+* [Goose](https://github.com/pressly/goose)
+* `protoc`, `protoc-gen-go`, `protoc-gen-go-grpc`, `protoc-gen-grpc-gateway`
+* Make (optional but recommended)
+
+---
+
+## 📥 Clone the Repository
+
 ```bash
-go mod init github.com/maintainerd/auth
+git clone --recurse-submodules https://github.com/maintainerd/auth.git
+cd auth
 ```
 
-### Step 2 : Install dependencies
+If you forgot `--recurse-submodules`, run:
+
 ```bash
-go get -u github.com/gin-gonic/gin
-go get -u gorm.io/gorm
-go get -u gorm.io/driver/postgres
-go get github.com/joho/godotenv
-go get github.com/google/uuid
-go get google.golang.org/grpc@latest
-# For generating grpc
-go get google.golang.org/protobuf@latest
-go get google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
-go get google.golang.org/protobuf/cmd/protoc-gen-go@latest
-# Adding sub module
-git submodule add https://github.com/maintainerd/contract.git internal/contract
 git submodule update --init --recursive
-# Re-adding sub module
-git submodule deinit -f internal/contract
-rm -rf .git/modules/internal/contract
-rm -rf internal/contract
-git rm -f internal/contract
-# Removing sub module
-git rm -f internal/contract
-git config --remove-section submodule.internal/contract
-rm -rf internal/contract
-rm -rf .git/modules/internal/contract
-git commit -am "Remove submodule internal/contract"
 ```
 
-### Step 3: Install CLI
-```bash
-go install github.com/pressly/goose/v3/cmd/goose@latest
+---
+
+## ⚙️ Environment Configuration
+
+Create a `.env` or set these env vars directly:
+
+```env
+APP_MODE=development
+APP_VERSION=1.0.0
+DB_URL=postgres://user:password@localhost:5432/auth_db?sslmode=disable
 ```
 
-### Commands
-```bash
-# Create migration files
-goose -dir db/migrations create create_tasks_table sql
+---
 
-# Run app
-go run cmd/main.go
+## 🧱 Building & Running
+
+```bash
 make run
-
-# Run migrations
-make migrate-up
-make migrate-down
-
-# Run seeder
-make seed-local
 ```
 
+Or manually:
+
+```bash
+go run cmd/server/main.go
+```
+
+---
+
+## 🧭 Roadmap
+
+| Feature                               | Status          |
+| ------------------------------------- | --------------- |
+| Basic service registration            | ✅ Complete      |
+| gRPC and REST API via grpc-gateway    | ✅ Complete      |
+| JWT-based authentication & middleware | 🏗️ In Progress |
+| OAuth2 grant flows support            | 🔜 Planned      |
+| OIDC implementation                   | 🔜 Planned      |
+| Provider support (Cognito, Auth0)     | 🔜 Planned      |
+| SAML 2.0 federation support           | 🔜 Planned      |
+| CSRF and XSS protection middleware    | 🔜 Planned      |
+| Multi-tenant and RBAC capabilities    | 🔜 Planned      |
+
+---
+
+## 🧑‍💻 Contributing
+
+We welcome contributions!
+
+1. Fork this repo
+2. Create your feature branch (`git checkout -b feat/my-feature`)
+3. Commit your changes
+4. Push to your branch (`git push origin feat/my-feature`)
+5. Create a Pull Request
+
+See [`docs/contributing.md`](docs/contributing.md) for guidelines.
+
+---
+
+## 📜 License
+
+[MIT](LICENSE)
+
+---
+
+## 🔗 Related Projects
+
+* [`grpc-contract`](https://github.com/xreyc/grpc-contract) – Shared proto definitions
+* [`core`](https://github.com/maintainerd/core) – REST-to-gRPC API gateway
+
+---
+
+> Built with ❤️ by [@xreyc](https://github.com/xreyc) and the Maintainerd community.
