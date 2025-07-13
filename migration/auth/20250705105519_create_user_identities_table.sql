@@ -6,8 +6,8 @@ CREATE TABLE IF NOT EXISTS user_identities (
     user_identity_id    SERIAL PRIMARY KEY,
     user_identity_uuid  UUID NOT NULL UNIQUE,
     user_id             INTEGER NOT NULL,
-    provider_name       VARCHAR(100) NOT NULL, -- e.g., 'google', 'cognito', 'microsoft'
-    provider_user_id    VARCHAR(255) NOT NULL, -- external user ID (e.g., sub in OIDC)
+    provider_name       VARCHAR(100) NOT NULL, -- 'google', 'cognito', 'microsoft'
+    provider_user_id    VARCHAR(255) NOT NULL, -- external user
     email               VARCHAR(255),
     raw_profile         JSONB,
     created_at          TIMESTAMPTZ DEFAULT now()
@@ -17,8 +17,7 @@ CREATE TABLE IF NOT EXISTS user_identities (
 -- ADD CONSTRAINTS
 -- +goose StatementBegin
 ALTER TABLE user_identities
-    ADD CONSTRAINT fk_user_identities_user
-    FOREIGN KEY (user_id) REFERENCES users(user_id);
+    ADD CONSTRAINT fk_user_identities_user FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE;
 -- +goose StatementEnd
 
 -- ADD INDEXES

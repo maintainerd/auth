@@ -9,6 +9,7 @@ CREATE TABLE IF NOT EXISTS permissions (
     description         TEXT NOT NULL,
     is_active           BOOLEAN DEFAULT FALSE,
     is_default          BOOLEAN DEFAULT FALSE,
+    api_id              INTEGER NOT NULL,
     auth_container_id   INTEGER NOT NULL,
     created_at          TIMESTAMPTZ DEFAULT now(),
     updated_at          TIMESTAMPTZ DEFAULT now()
@@ -18,6 +19,8 @@ CREATE TABLE IF NOT EXISTS permissions (
 -- ADD CONSTRAINTS
 -- +goose StatementBegin
 ALTER TABLE permissions
+    ADD CONSTRAINT fk_permissions_api_id FOREIGN KEY (api_id) REFERENCES apis(api_id) ON DELETE CASCADE;
+ALTER TABLE permissions
     ADD CONSTRAINT fk_permissions_auth_container_id FOREIGN KEY (auth_container_id) REFERENCES auth_containers(auth_container_id) ON DELETE CASCADE;
 -- +goose StatementEnd
 
@@ -25,6 +28,7 @@ ALTER TABLE permissions
 -- +goose StatementBegin
 CREATE INDEX idx_permissions_permission_uuid ON permissions(permission_uuid);
 CREATE INDEX idx_permissions_name ON permissions(name);
+CREATE INDEX idx_permissions_api_id ON permissions(api_id);
 CREATE INDEX idx_permissions_auth_container_id ON permissions(auth_container_id);
 -- +goose StatementEnd
 
@@ -34,11 +38,13 @@ CREATE INDEX idx_permissions_auth_container_id ON permissions(auth_container_id)
 -- +goose StatementBegin
 DROP INDEX IF EXISTS idx_permissions_permission_uuid;
 DROP INDEX IF EXISTS idx_permissions_name;
+DROP INDEX IF EXISTS idx_permissions_api_id;
 DROP INDEX IF EXISTS idx_permissions_auth_container_id;
 -- +goose StatementEnd
 
 -- DROP CONSTRAINTS
 -- +goose StatementBegin
+ALTER TABLE permissions DROP CONSTRAINT IF EXISTS fk_permissions_api_id;
 ALTER TABLE permissions DROP CONSTRAINT IF EXISTS fk_permissions_auth_container_id;
 -- +goose StatementEnd
 

@@ -5,7 +5,7 @@
 CREATE TABLE IF NOT EXISTS services (
     service_id      SERIAL PRIMARY KEY,
     service_uuid    UUID NOT NULL UNIQUE,
-    service_name    VARCHAR(100) NOT NULL, -- 'default', 'auth', 'your-custom-service'
+    service_name    VARCHAR(100) NOT NULL, -- 'auth', 'your-custom-service'
     display_name    TEXT NOT NULL,
     description     TEXT NOT NULL,
     service_type    TEXT NOT NULL, -- 'default', 'custom'

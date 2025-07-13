@@ -20,8 +20,7 @@ CREATE TABLE IF NOT EXISTS user_tokens (
 -- ADD CONSTRAINTS
 -- +goose StatementBegin
 ALTER TABLE user_tokens
-    ADD CONSTRAINT fk_user_tokens_user
-    FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE;
+    ADD CONSTRAINT fk_user_tokens_user FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE;
 -- +goose StatementEnd
 
 -- ADD INDEXES

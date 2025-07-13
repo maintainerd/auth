@@ -21,7 +21,6 @@ CREATE TABLE IF NOT EXISTS auth_logs (
 -- +goose StatementBegin
 ALTER TABLE auth_logs
     ADD CONSTRAINT fk_auth_logs_user_id FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE;
-
 ALTER TABLE auth_logs
     ADD CONSTRAINT fk_auth_logs_auth_container_id FOREIGN KEY (auth_container_id) REFERENCES auth_containers(auth_container_id) ON DELETE CASCADE;
 -- +goose StatementEnd

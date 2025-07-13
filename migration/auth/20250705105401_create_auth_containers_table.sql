@@ -1,4 +1,5 @@
 -- +goose Up
+-- +goose ENVSUB ON
 
 -- CREATE TABLE
 -- +goose StatementBegin
@@ -7,6 +8,7 @@ CREATE TABLE IF NOT EXISTS auth_containers (
     auth_container_uuid UUID NOT NULL UNIQUE,
     name                VARCHAR(255) NOT NULL,
     description         TEXT NOT NULL,
+    identifier          TEXT NOT NULL,
     is_active           BOOLEAN DEFAULT FALSE,
     is_default          BOOLEAN DEFAULT FALSE,
     organization_id     INTEGER NOT NULL,
@@ -24,6 +26,7 @@ CREATE INDEX idx_auth_containers_is_default ON auth_containers(is_default);
 -- +goose StatementEnd
 
 -- +goose Down
+-- +goose ENVSUB ON
 
 -- DROP INDEXES
 -- +goose StatementBegin

@@ -5,7 +5,7 @@
 CREATE TABLE IF NOT EXISTS apis (
     api_id              SERIAL PRIMARY KEY,
     api_uuid            UUID NOT NULL UNIQUE,
-    api_name            VARCHAR(100) NOT NULL, -- 'default', 'your-custom-api'
+    api_name            VARCHAR(100) NOT NULL, -- 'auth', 'your-custom-api'
     display_name        TEXT NOT NULL,
     api_type            TEXT NOT NULL, -- 'default', 'custom'
     description         TEXT NOT NULL,
