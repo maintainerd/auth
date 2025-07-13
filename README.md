@@ -161,6 +161,7 @@ Open Source Authentication Platform Security Checklist (SOC 2-Oriented)
 
 
 For more detailed info [`doc/SECURITY.md`](doc/SECURITY.md).
+
 ---
 
 ## 🧑‍💻 Contributing
