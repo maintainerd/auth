@@ -159,6 +159,8 @@ Open Source Authentication Platform Security Checklist (SOC 2-Oriented)
 * [ ] Explain how to integrate with secure email providers (SMTP, etc.)
 * [ ] Document recommended secret rotation practices
 
+
+For more detailed info [`doc/SECURITY.md`](doc/SECURITY.md).
 ---
 
 ## 🧑‍💻 Contributing
