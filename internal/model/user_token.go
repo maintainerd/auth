@@ -7,25 +7,22 @@ import (
 )
 
 type UserToken struct {
-	TokenID   int64     `gorm:"primaryKey;column:token_id"`
-	TokenUUID uuid.UUID `gorm:"type:uuid;not null;unique;column:token_uuid;index:idx_user_tokens_token_uuid"`
+	TokenID   int64      `gorm:"column:token_id;primaryKey"`
+	TokenUUID uuid.UUID  `gorm:"column:token_uuid;type:uuid;not null;unique;index:idx_user_tokens_token_uuid"`
+	UserID    int64      `gorm:"column:user_id;type:integer;not null;index:idx_user_tokens_user_id"`
+	TokenType string     `gorm:"column:token_type;type:varchar(50);not null;index:idx_user_tokens_token_type"`
+	Token     string     `gorm:"column:token;type:text;not null"` // hashed
+	UserAgent *string    `gorm:"column:user_agent;type:text"`
+	IPAddress *string    `gorm:"column:ip_address;type:varchar(50)"`
+	IsRevoked bool       `gorm:"column:is_revoked;type:boolean;default:false"`
+	ExpiresAt *time.Time `gorm:"column:expires_at;type:timestamptz"`
+	CreatedAt time.Time  `gorm:"column:created_at;type:timestamptz;autoCreateTime"`
+	UpdatedAt *time.Time `gorm:"column:updated_at;type:timestamptz;autoUpdateTime"`
 
-	UserID    int64      `gorm:"not null;index:idx_user_tokens_user_id"`
-	TokenType string     `gorm:"type:varchar(50);not null;index:idx_user_tokens_token_type"`
-	Token     string     `gorm:"type:text;not null"`
-	UserAgent *string    `gorm:"type:text"`
-	IPAddress *string    `gorm:"type:varchar(50)"`
-	IsRevoked bool       `gorm:"default:false"`
-	ExpiresAt *time.Time `gorm:"column:expires_at"`
-
-	CreatedAt time.Time  `gorm:"autoCreateTime"`
-	UpdatedAt *time.Time `gorm:"autoUpdateTime"`
-
-	// Relations
-	User User `gorm:"foreignKey:UserID;references:UserID;constraint:OnDelete:CASCADE"`
+	// Relationships
+	User *User `gorm:"foreignKey:UserID;references:UserID;constraint:OnDelete:CASCADE"`
 }
 
-// TableName overrides the default table name
 func (UserToken) TableName() string {
 	return "user_tokens"
 }

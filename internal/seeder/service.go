@@ -9,17 +9,18 @@ import (
 	"gorm.io/gorm"
 )
 
-func SeedService(db *gorm.DB, appVersion string) {
+func SeedService(db *gorm.DB, appVersion string) (model.Service, error) {
+	var service model.Service
+
 	if appVersion == "" {
 		log.Printf("⚠️ Skipping Service seeding: version is empty")
-		return
+		return service, nil
 	}
 
-	var existing model.Service
-	err := db.Where("service_name = ?", "auth").First(&existing).Error
+	err := db.Where("service_name = ?", "auth").First(&service).Error
 
 	if err == gorm.ErrRecordNotFound {
-		service := model.Service{
+		service = model.Service{
 			ServiceUUID: uuid.New(),
 			ServiceName: "auth",
 			DisplayName: "Auth Service",
@@ -33,17 +34,18 @@ func SeedService(db *gorm.DB, appVersion string) {
 
 		if err := db.Create(&service).Error; err != nil {
 			log.Printf("❌ Failed to seed Default Service version '%s': %v", appVersion, err)
-			return
+			return model.Service{}, err
 		}
 
 		log.Printf("✅ Default Service version '%s' seeded successfully", appVersion)
-		return
+		return service, nil
 	}
 
 	if err != nil {
 		log.Printf("❌ Error checking existing Default Service: %v", err)
-		return
+		return model.Service{}, err
 	}
 
 	log.Printf("⚠️ Default Service already exists, skipping seeding")
+	return service, nil
 }

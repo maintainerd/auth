@@ -7,22 +7,23 @@ import (
 )
 
 type LoginAttempt struct {
-	LoginAttemptID   int64     `gorm:"primaryKey;column:login_attempt_id"`
-	LoginAttemptUUID uuid.UUID `gorm:"type:uuid;not null;unique;column:login_attempt_uuid"`
+	LoginAttemptID   int64     `gorm:"column:login_attempt_id;primaryKey"`
+	LoginAttemptUUID uuid.UUID `gorm:"column:login_attempt_uuid;type:uuid;not null;unique"`
+	UserID           *int64    `gorm:"column:user_id;type:integer;index:idx_login_attempts_user_id"` // nullable
+	Email            *string   `gorm:"column:email;type:varchar(255);index:idx_login_attempts_email"`
+	IPAddress        *string   `gorm:"column:ip_address;type:varchar(100)"`
+	UserAgent        *string   `gorm:"column:user_agent;type:text"`
+	IsSuccess        bool      `gorm:"column:is_success;type:boolean;default:false"`
+	AttemptedAt      time.Time `gorm:"column:attempted_at;type:timestamptz;default:now()"`
+	AuthContainerID  int64     `gorm:"column:auth_container_id;type:integer;not null;index:idx_login_attempts_auth_container_id"`
+	CreatedAt        time.Time `gorm:"column:created_at;type:timestamptz;autoCreateTime"`
+	UpdatedAt        time.Time `gorm:"column:updated_at;type:timestamptz;autoUpdateTime"`
 
-	UserID    *int64  `gorm:"index:idx_login_attempts_user_id"` // nullable
-	Email     *string `gorm:"type:varchar(255);index:idx_login_attempts_email"`
-	IPAddress *string `gorm:"type:varchar(100)"`
-	UserAgent *string `gorm:"type:text"`
-
-	IsSuccess   bool      `gorm:"default:false"`
-	AttemptedAt time.Time `gorm:"column:attempted_at;autoCreateTime"`
-
-	// Relation (optional)
-	User *User `gorm:"foreignKey:UserID;references:UserID;constraint:OnDelete:SET NULL"`
+	// Relationships
+	User          *User          `gorm:"foreignKey:UserID;references:UserID"`
+	AuthContainer *AuthContainer `gorm:"foreignKey:AuthContainerID;references:AuthContainerID;constraint:OnDelete:CASCADE"`
 }
 
-// TableName overrides the default table name
 func (LoginAttempt) TableName() string {
 	return "login_attempts"
 }
