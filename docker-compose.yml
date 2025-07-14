@@ -23,7 +23,7 @@ services:
       - "5433:5432"
     environment:
       POSTGRES_USER: devuser
-      POSTGRES_PASSWORD: Password@22
+      POSTGRES_PASSWORD: Pass123
       POSTGRES_DB: maintainerd
     volumes:
       - ../postgres-db:/var/lib/postgresql/data
@@ -33,7 +33,7 @@ services:
     container_name: redis-db
     ports:
       - "6379:6379"
-    command: ["redis-server", "--requirepass", "Password@22"]
+    command: ["redis-server", "--requirepass", "Pass123"]
     volumes:
       - ../redis-db:/data
 
