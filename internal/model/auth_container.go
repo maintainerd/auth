@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"gorm.io/gorm"
 )
 
 type AuthContainer struct {
@@ -24,4 +25,11 @@ type AuthContainer struct {
 
 func (AuthContainer) TableName() string {
 	return "auth_containers"
+}
+
+func (ac *AuthContainer) BeforeCreate(tx *gorm.DB) (err error) {
+	if ac.AuthContainerUUID == uuid.Nil {
+		ac.AuthContainerUUID = uuid.New()
+	}
+	return
 }

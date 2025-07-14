@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"gorm.io/gorm"
 )
 
 type API struct {
@@ -28,4 +29,11 @@ type API struct {
 
 func (API) TableName() string {
 	return "apis"
+}
+
+func (a *API) BeforeCreate(tx *gorm.DB) (err error) {
+	if a.APIUUID == uuid.Nil {
+		a.APIUUID = uuid.New()
+	}
+	return
 }

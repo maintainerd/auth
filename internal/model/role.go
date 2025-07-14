@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"gorm.io/gorm"
 )
 
 type Role struct {
@@ -24,4 +25,11 @@ type Role struct {
 
 func (Role) TableName() string {
 	return "roles"
+}
+
+func (r *Role) BeforeCreate(tx *gorm.DB) (err error) {
+	if r.RoleUUID == uuid.Nil {
+		r.RoleUUID = uuid.New()
+	}
+	return
 }

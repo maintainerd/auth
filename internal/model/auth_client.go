@@ -5,6 +5,7 @@ import (
 
 	"github.com/google/uuid"
 	"gorm.io/datatypes"
+	"gorm.io/gorm"
 )
 
 type AuthClient struct {
@@ -32,4 +33,11 @@ type AuthClient struct {
 
 func (AuthClient) TableName() string {
 	return "auth_clients"
+}
+
+func (ac *AuthClient) BeforeCreate(tx *gorm.DB) (err error) {
+	if ac.AuthClientUUID == uuid.Nil {
+		ac.AuthClientUUID = uuid.New()
+	}
+	return
 }

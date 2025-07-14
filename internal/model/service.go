@@ -5,6 +5,7 @@ import (
 
 	"github.com/google/uuid"
 	"gorm.io/datatypes"
+	"gorm.io/gorm"
 )
 
 type Service struct {
@@ -24,4 +25,11 @@ type Service struct {
 
 func (Service) TableName() string {
 	return "services"
+}
+
+func (s *Service) BeforeCreate(tx *gorm.DB) (err error) {
+	if s.ServiceUUID == uuid.Nil {
+		s.ServiceUUID = uuid.New()
+	}
+	return
 }

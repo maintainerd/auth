@@ -5,6 +5,7 @@ import (
 
 	"github.com/google/uuid"
 	"gorm.io/datatypes"
+	"gorm.io/gorm"
 )
 
 type UserIdentity struct {
@@ -23,4 +24,11 @@ type UserIdentity struct {
 
 func (UserIdentity) TableName() string {
 	return "user_identities"
+}
+
+func (ui *UserIdentity) BeforeCreate(tx *gorm.DB) (err error) {
+	if ui.UserIdentityUUID == uuid.Nil {
+		ui.UserIdentityUUID = uuid.New()
+	}
+	return
 }

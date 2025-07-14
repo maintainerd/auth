@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"gorm.io/gorm"
 )
 
 type Permission struct {
@@ -26,4 +27,11 @@ type Permission struct {
 
 func (Permission) TableName() string {
 	return "permissions"
+}
+
+func (p *Permission) BeforeCreate(tx *gorm.DB) (err error) {
+	if p.PermissionUUID == uuid.Nil {
+		p.PermissionUUID = uuid.New()
+	}
+	return
 }

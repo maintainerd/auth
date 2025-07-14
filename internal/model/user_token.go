@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"gorm.io/gorm"
 )
 
 type UserToken struct {
@@ -25,4 +26,11 @@ type UserToken struct {
 
 func (UserToken) TableName() string {
 	return "user_tokens"
+}
+
+func (ut *UserToken) BeforeCreate(tx *gorm.DB) (err error) {
+	if ut.TokenUUID == uuid.Nil {
+		ut.TokenUUID = uuid.New()
+	}
+	return
 }

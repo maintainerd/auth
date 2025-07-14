@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"gorm.io/gorm"
 )
 
 type User struct {
@@ -28,4 +29,11 @@ type User struct {
 
 func (User) TableName() string {
 	return "users"
+}
+
+func (u *User) BeforeCreate(tx *gorm.DB) (err error) {
+	if u.UserUUID == uuid.Nil {
+		u.UserUUID = uuid.New()
+	}
+	return
 }

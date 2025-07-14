@@ -12,6 +12,7 @@ type RoleRepository interface {
 	FindByUUID(roleUUID uuid.UUID) (*model.Role, error)
 	UpdateByUUID(roleUUID uuid.UUID, updatedRole *model.Role) error
 	DeleteByUUID(roleUUID uuid.UUID) error
+	FindByName(name string, authContainerID int64) (*model.Role, error)
 }
 
 type roleRepository struct {
@@ -47,4 +48,12 @@ func (r *roleRepository) UpdateByUUID(roleUUID uuid.UUID, updatedRole *model.Rol
 
 func (r *roleRepository) DeleteByUUID(roleUUID uuid.UUID) error {
 	return r.db.Where("role_uuid = ?", roleUUID).Delete(&model.Role{}).Error
+}
+
+func (r *roleRepository) FindByName(name string, authContainerID int64) (*model.Role, error) {
+	var role model.Role
+	err := r.db.
+		Where("name = ? AND auth_container_id = ?", name, authContainerID).
+		First(&role).Error
+	return &role, err
 }

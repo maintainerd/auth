@@ -5,6 +5,7 @@ import (
 
 	"github.com/google/uuid"
 	"gorm.io/datatypes"
+	"gorm.io/gorm"
 )
 
 type IdentityProvider struct {
@@ -27,4 +28,11 @@ type IdentityProvider struct {
 
 func (IdentityProvider) TableName() string {
 	return "identity_providers"
+}
+
+func (ip *IdentityProvider) BeforeCreate(tx *gorm.DB) (err error) {
+	if ip.IdentityProviderUUID == uuid.Nil {
+		ip.IdentityProviderUUID = uuid.New()
+	}
+	return
 }

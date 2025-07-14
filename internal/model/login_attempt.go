@@ -4,12 +4,13 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"gorm.io/gorm"
 )
 
 type LoginAttempt struct {
 	LoginAttemptID   int64     `gorm:"column:login_attempt_id;primaryKey"`
 	LoginAttemptUUID uuid.UUID `gorm:"column:login_attempt_uuid;type:uuid;not null;unique"`
-	UserID           *int64    `gorm:"column:user_id;type:integer;index:idx_login_attempts_user_id"` // nullable
+	UserID           *int64    `gorm:"column:user_id;type:integer;index:idx_login_attempts_user_id"`
 	Email            *string   `gorm:"column:email;type:varchar(255);index:idx_login_attempts_email"`
 	IPAddress        *string   `gorm:"column:ip_address;type:varchar(100)"`
 	UserAgent        *string   `gorm:"column:user_agent;type:text"`
@@ -26,4 +27,11 @@ type LoginAttempt struct {
 
 func (LoginAttempt) TableName() string {
 	return "login_attempts"
+}
+
+func (la *LoginAttempt) BeforeCreate(tx *gorm.DB) (err error) {
+	if la.LoginAttemptUUID == uuid.Nil {
+		la.LoginAttemptUUID = uuid.New()
+	}
+	return
 }
