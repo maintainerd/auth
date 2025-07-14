@@ -7,47 +7,25 @@ import (
 )
 
 type RoleRepository interface {
-	Create(role *model.Role) error
-	FindAll() ([]model.Role, error)
-	FindByUUID(roleUUID uuid.UUID) (*model.Role, error)
-	UpdateByUUID(roleUUID uuid.UUID, updatedRole *model.Role) error
-	DeleteByUUID(roleUUID uuid.UUID) error
+	BaseRepositoryMethods[model.Role]
 	FindByName(name string, authContainerID int64) (*model.Role, error)
+	FindAllByAuthContainerID(authContainerID int64) ([]model.Role, error)
+	FindDefaultRolesByAuthContainerID(authContainerID int64) ([]model.Role, error)
+	SetActiveStatusByUUID(roleUUID uuid.UUID, isActive bool) error
+	SetDefaultStatusByUUID(roleUUID uuid.UUID, isDefault bool) error
+	FindAllWithPermissionsByAuthContainerID(authContainerID int64) ([]model.Role, error)
 }
 
 type roleRepository struct {
+	*BaseRepository[model.Role]
 	db *gorm.DB
 }
 
 func NewRoleRepository(db *gorm.DB) RoleRepository {
-	return &roleRepository{db}
-}
-
-func (r *roleRepository) Create(role *model.Role) error {
-	return r.db.Create(role).Error
-}
-
-func (r *roleRepository) FindAll() ([]model.Role, error) {
-	var roles []model.Role
-	err := r.db.Find(&roles).Error
-	return roles, err
-}
-
-func (r *roleRepository) FindByUUID(roleUUID uuid.UUID) (*model.Role, error) {
-	var role model.Role
-	err := r.db.Where("role_uuid = ?", roleUUID).First(&role).Error
-	return &role, err
-}
-
-func (r *roleRepository) UpdateByUUID(roleUUID uuid.UUID, updatedRole *model.Role) error {
-	// Ensure we target the correct row by UUID
-	return r.db.Model(&model.Role{}).
-		Where("role_uuid = ?", roleUUID).
-		Updates(updatedRole).Error
-}
-
-func (r *roleRepository) DeleteByUUID(roleUUID uuid.UUID) error {
-	return r.db.Where("role_uuid = ?", roleUUID).Delete(&model.Role{}).Error
+	return &roleRepository{
+		BaseRepository: NewBaseRepository[model.Role](db, "role_uuid", "role_id"),
+		db:             db,
+	}
 }
 
 func (r *roleRepository) FindByName(name string, authContainerID int64) (*model.Role, error) {
@@ -56,4 +34,41 @@ func (r *roleRepository) FindByName(name string, authContainerID int64) (*model.
 		Where("name = ? AND auth_container_id = ?", name, authContainerID).
 		First(&role).Error
 	return &role, err
+}
+
+func (r *roleRepository) FindAllByAuthContainerID(authContainerID int64) ([]model.Role, error) {
+	var roles []model.Role
+	err := r.db.
+		Where("auth_container_id = ?", authContainerID).
+		Find(&roles).Error
+	return roles, err
+}
+
+func (r *roleRepository) FindDefaultRolesByAuthContainerID(authContainerID int64) ([]model.Role, error) {
+	var roles []model.Role
+	err := r.db.
+		Where("auth_container_id = ? AND is_default = true", authContainerID).
+		Find(&roles).Error
+	return roles, err
+}
+
+func (r *roleRepository) SetActiveStatusByUUID(roleUUID uuid.UUID, isActive bool) error {
+	return r.db.Model(&model.Role{}).
+		Where("role_uuid = ?", roleUUID).
+		Update("is_active", isActive).Error
+}
+
+func (r *roleRepository) SetDefaultStatusByUUID(roleUUID uuid.UUID, isDefault bool) error {
+	return r.db.Model(&model.Role{}).
+		Where("role_uuid = ?", roleUUID).
+		Update("is_default", isDefault).Error
+}
+
+func (r *roleRepository) FindAllWithPermissionsByAuthContainerID(authContainerID int64) ([]model.Role, error) {
+	var roles []model.Role
+	err := r.db.
+		Preload("Permissions").
+		Where("auth_container_id = ?", authContainerID).
+		Find(&roles).Error
+	return roles, err
 }

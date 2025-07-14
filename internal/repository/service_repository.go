@@ -7,36 +7,24 @@ import (
 )
 
 type ServiceRepository interface {
-	Create(service *model.Service) error
-	FindAll() ([]model.Service, error)
-	FindByUUID(serviceUUID uuid.UUID) (*model.Service, error)
+	BaseRepositoryMethods[model.Service]
 	FindByName(serviceName string) (*model.Service, error)
-	UpdateByUUID(serviceUUID uuid.UUID, updatedService *model.Service) error
-	DeleteByUUID(serviceUUID uuid.UUID) error
+	FindByType(serviceType string) ([]model.Service, error)
+	FindDefaultServices() ([]model.Service, error)
+	SetActiveStatusByUUID(serviceUUID uuid.UUID, isActive bool) error
+	SetDefaultStatusByUUID(serviceUUID uuid.UUID, isDefault bool) error
 }
 
 type serviceRepository struct {
+	*BaseRepository[model.Service]
 	db *gorm.DB
 }
 
 func NewServiceRepository(db *gorm.DB) ServiceRepository {
-	return &serviceRepository{db}
-}
-
-func (r *serviceRepository) Create(service *model.Service) error {
-	return r.db.Create(service).Error
-}
-
-func (r *serviceRepository) FindAll() ([]model.Service, error) {
-	var services []model.Service
-	err := r.db.Find(&services).Error
-	return services, err
-}
-
-func (r *serviceRepository) FindByUUID(serviceUUID uuid.UUID) (*model.Service, error) {
-	var service model.Service
-	err := r.db.Where("service_uuid = ?", serviceUUID).First(&service).Error
-	return &service, err
+	return &serviceRepository{
+		BaseRepository: NewBaseRepository[model.Service](db, "service_uuid", "service_id"),
+		db:             db,
+	}
 }
 
 func (r *serviceRepository) FindByName(serviceName string) (*model.Service, error) {
@@ -45,13 +33,26 @@ func (r *serviceRepository) FindByName(serviceName string) (*model.Service, erro
 	return &service, err
 }
 
-func (r *serviceRepository) UpdateByUUID(serviceUUID uuid.UUID, updatedService *model.Service) error {
-	return r.db.Model(&model.Service{}).
-		Where("service_uuid = ?", serviceUUID).
-		Updates(updatedService).Error
+func (r *serviceRepository) FindByType(serviceType string) ([]model.Service, error) {
+	var services []model.Service
+	err := r.db.Where("service_type = ?", serviceType).Find(&services).Error
+	return services, err
 }
 
-func (r *serviceRepository) DeleteByUUID(serviceUUID uuid.UUID) error {
-	return r.db.Where("service_uuid = ?", serviceUUID).
-		Delete(&model.Service{}).Error
+func (r *serviceRepository) FindDefaultServices() ([]model.Service, error) {
+	var services []model.Service
+	err := r.db.Where("is_default = true").Find(&services).Error
+	return services, err
+}
+
+func (r *serviceRepository) SetActiveStatusByUUID(serviceUUID uuid.UUID, isActive bool) error {
+	return r.db.Model(&model.Service{}).
+		Where("service_uuid = ?", serviceUUID).
+		Update("is_active", isActive).Error
+}
+
+func (r *serviceRepository) SetDefaultStatusByUUID(serviceUUID uuid.UUID, isDefault bool) error {
+	return r.db.Model(&model.Service{}).
+		Where("service_uuid = ?", serviceUUID).
+		Update("is_default", isDefault).Error
 }

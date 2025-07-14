@@ -7,38 +7,58 @@ import (
 )
 
 type UserRepository interface {
-	Create(user *model.User) error
-	FindByUUID(userUUID uuid.UUID) (*model.User, error)
-	FindByUsername(username string) (*model.User, error)
-	FindByEmail(email string) (*model.User, error)
+	BaseRepositoryMethods[model.User]
+	FindByUsername(username string, authContainerID int64) (*model.User, error)
+	FindByEmail(email string, authContainerID int64) (*model.User, error)
+	FindByUsernameOrEmail(identifier string, authContainerID int64) (*model.User, error)
+	SetEmailVerified(userUUID uuid.UUID, verified bool) error
+	SetActiveStatus(userUUID uuid.UUID, active bool) error
 }
 
 type userRepository struct {
+	*BaseRepository[model.User]
 	db *gorm.DB
 }
 
 func NewUserRepository(db *gorm.DB) UserRepository {
-	return &userRepository{db}
+	return &userRepository{
+		BaseRepository: NewBaseRepository[model.User](db, "user_uuid", "user_id"),
+		db:             db,
+	}
 }
 
-func (r *userRepository) Create(user *model.User) error {
-	return r.db.Create(user).Error
-}
-
-func (r *userRepository) FindByUUID(userUUID uuid.UUID) (*model.User, error) {
+func (r *userRepository) FindByUsername(username string, authContainerID int64) (*model.User, error) {
 	var user model.User
-	err := r.db.Where("user_uuid = ?", userUUID).First(&user).Error
+	err := r.db.
+		Where("username = ? AND auth_container_id = ?", username, authContainerID).
+		First(&user).Error
 	return &user, err
 }
 
-func (r *userRepository) FindByUsername(username string) (*model.User, error) {
+func (r *userRepository) FindByEmail(email string, authContainerID int64) (*model.User, error) {
 	var user model.User
-	err := r.db.Where("username = ?", username).First(&user).Error
+	err := r.db.
+		Where("email = ? AND auth_container_id = ?", email, authContainerID).
+		First(&user).Error
 	return &user, err
 }
 
-func (r *userRepository) FindByEmail(email string) (*model.User, error) {
+func (r *userRepository) FindByUsernameOrEmail(identifier string, authContainerID int64) (*model.User, error) {
 	var user model.User
-	err := r.db.Where("email = ?", email).First(&user).Error
+	err := r.db.
+		Where("(username = ? OR email = ?) AND auth_container_id = ?", identifier, identifier, authContainerID).
+		First(&user).Error
 	return &user, err
+}
+
+func (r *userRepository) SetEmailVerified(userUUID uuid.UUID, verified bool) error {
+	return r.db.Model(&model.User{}).
+		Where("user_uuid = ?", userUUID).
+		Update("is_email_verified", verified).Error
+}
+
+func (r *userRepository) SetActiveStatus(userUUID uuid.UUID, active bool) error {
+	return r.db.Model(&model.User{}).
+		Where("user_uuid = ?", userUUID).
+		Update("is_active", active).Error
 }
