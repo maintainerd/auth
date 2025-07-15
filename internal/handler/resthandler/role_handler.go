@@ -1,9 +1,10 @@
 package resthandler
 
 import (
+	"encoding/json"
 	"net/http"
 
-	"github.com/gin-gonic/gin"
+	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/dto"
 	"github.com/maintainerd/auth/internal/model"
@@ -19,25 +20,25 @@ func NewRoleHandler(service service.RoleService) *RoleHandler {
 	return &RoleHandler{service}
 }
 
-func (h *RoleHandler) Create(c *gin.Context) {
+func (h *RoleHandler) Create(w http.ResponseWriter, r *http.Request) {
 	var role model.Role
-	if err := c.ShouldBindJSON(&role); err != nil {
-		util.Error(c, http.StatusBadRequest, "Invalid request", err.Error())
+	if err := json.NewDecoder(r.Body).Decode(&role); err != nil {
+		util.Error(w, http.StatusBadRequest, "Invalid request", err.Error())
 		return
 	}
 
 	if err := h.service.Create(&role); err != nil {
-		util.Error(c, http.StatusInternalServerError, "Failed to create role", err.Error())
+		util.Error(w, http.StatusInternalServerError, "Failed to create role", err.Error())
 		return
 	}
 
-	util.Created(c, dto.ToRoleDTO(&role), "Role created successfully")
+	util.Created(w, dto.ToRoleDTO(&role), "Role created successfully")
 }
 
-func (h *RoleHandler) GetAll(c *gin.Context) {
+func (h *RoleHandler) GetAll(w http.ResponseWriter, r *http.Request) {
 	roles, err := h.service.GetAll()
 	if err != nil {
-		util.Error(c, http.StatusInternalServerError, "Failed to fetch roles", err.Error())
+		util.Error(w, http.StatusInternalServerError, "Failed to fetch roles", err.Error())
 		return
 	}
 
@@ -46,58 +47,58 @@ func (h *RoleHandler) GetAll(c *gin.Context) {
 		roledto = append(roledto, dto.ToRoleDTO(&role))
 	}
 
-	util.Success(c, roledto, "Roles fetched successfully")
+	util.Success(w, roledto, "Roles fetched successfully")
 }
 
-func (h *RoleHandler) GetByUUID(c *gin.Context) {
-	roleUUID, err := uuid.Parse(c.Param("role_uuid"))
+func (h *RoleHandler) GetByUUID(w http.ResponseWriter, r *http.Request) {
+	roleUUID, err := uuid.Parse(chi.URLParam(r, "role_uuid"))
 	if err != nil {
-		util.Error(c, http.StatusBadRequest, "Invalid role UUID")
+		util.Error(w, http.StatusBadRequest, "Invalid role UUID")
 		return
 	}
 
 	role, err := h.service.GetByUUID(roleUUID)
 	if err != nil {
-		util.Error(c, http.StatusNotFound, "Role not found")
+		util.Error(w, http.StatusNotFound, "Role not found")
 		return
 	}
 
-	util.Success(c, dto.ToRoleDTO(role), "Role fetched successfully")
+	util.Success(w, dto.ToRoleDTO(role), "Role fetched successfully")
 }
 
-func (h *RoleHandler) Update(c *gin.Context) {
-	roleUUID, err := uuid.Parse(c.Param("role_uuid"))
+func (h *RoleHandler) Update(w http.ResponseWriter, r *http.Request) {
+	roleUUID, err := uuid.Parse(chi.URLParam(r, "role_uuid"))
 	if err != nil {
-		util.Error(c, http.StatusBadRequest, "Invalid role UUID")
+		util.Error(w, http.StatusBadRequest, "Invalid role UUID")
 		return
 	}
 
 	var role model.Role
-	if err := c.ShouldBindJSON(&role); err != nil {
-		util.Error(c, http.StatusBadRequest, "Invalid request", err.Error())
+	if err := json.NewDecoder(r.Body).Decode(&role); err != nil {
+		util.Error(w, http.StatusBadRequest, "Invalid request", err.Error())
 		return
 	}
 
 	if err := h.service.UpdateByUUID(roleUUID, &role); err != nil {
-		util.Error(c, http.StatusInternalServerError, "Failed to update role", err.Error())
+		util.Error(w, http.StatusInternalServerError, "Failed to update role", err.Error())
 		return
 	}
 
 	role.RoleUUID = roleUUID
-	util.Success(c, dto.ToRoleDTO(&role), "Role updated successfully")
+	util.Success(w, dto.ToRoleDTO(&role), "Role updated successfully")
 }
 
-func (h *RoleHandler) Delete(c *gin.Context) {
-	roleUUID, err := uuid.Parse(c.Param("role_uuid"))
+func (h *RoleHandler) Delete(w http.ResponseWriter, r *http.Request) {
+	roleUUID, err := uuid.Parse(chi.URLParam(r, "role_uuid"))
 	if err != nil {
-		util.Error(c, http.StatusBadRequest, "Invalid role UUID")
+		util.Error(w, http.StatusBadRequest, "Invalid role UUID")
 		return
 	}
 
 	if err := h.service.DeleteByUUID(roleUUID); err != nil {
-		util.Error(c, http.StatusInternalServerError, "Failed to delete role", err.Error())
+		util.Error(w, http.StatusInternalServerError, "Failed to delete role", err.Error())
 		return
 	}
 
-	util.Success(c, nil, "Role deleted successfully")
+	util.Success(w, nil, "Role deleted successfully")
 }

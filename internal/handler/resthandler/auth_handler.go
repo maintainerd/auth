@@ -1,9 +1,9 @@
 package resthandler
 
 import (
+	"encoding/json"
 	"net/http"
 
-	"github.com/gin-gonic/gin"
 	"github.com/maintainerd/auth/internal/service"
 	"github.com/maintainerd/auth/internal/util"
 )
@@ -16,43 +16,54 @@ func NewAuthHandler(authService service.AuthService) *AuthHandler {
 	return &AuthHandler{authService}
 }
 
-func (h *AuthHandler) Register(c *gin.Context) {
+func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 	var req struct {
-		Username string `json:"username" binding:"required"`
-		Email    string `json:"email" binding:"required,email"`
-		Password string `json:"password" binding:"required,min=6"`
+		Username string `json:"username"`
+		Email    string `json:"email"`
+		Password string `json:"password"`
 	}
 
-	if err := c.ShouldBindJSON(&req); err != nil {
-		util.Error(c, http.StatusBadRequest, "Invalid request", err.Error())
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		util.Error(w, http.StatusBadRequest, "Invalid request", err.Error())
+		return
+	}
+
+	// Basic validation (Chi doesn't have built-in validation like Gin binding tags)
+	if req.Username == "" || req.Email == "" || req.Password == "" || len(req.Password) < 6 {
+		util.Error(w, http.StatusBadRequest, "Invalid request", "Missing or invalid fields")
 		return
 	}
 
 	token, err := h.authService.Register(req.Username, req.Email, req.Password)
 	if err != nil {
-		util.Error(c, http.StatusInternalServerError, "Registration failed", err.Error())
+		util.Error(w, http.StatusInternalServerError, "Registration failed", err.Error())
 		return
 	}
 
-	util.Created(c, gin.H{"token": token}, "Registration successful")
+	util.Created(w, map[string]string{"token": token}, "Registration successful")
 }
 
-func (h *AuthHandler) Login(c *gin.Context) {
+func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	var req struct {
-		Email    string `json:"email" binding:"required,email"`
-		Password string `json:"password" binding:"required"`
+		Email    string `json:"email"`
+		Password string `json:"password"`
 	}
 
-	if err := c.ShouldBindJSON(&req); err != nil {
-		util.Error(c, http.StatusBadRequest, "Invalid request", err.Error())
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		util.Error(w, http.StatusBadRequest, "Invalid request", err.Error())
+		return
+	}
+
+	if req.Email == "" || req.Password == "" {
+		util.Error(w, http.StatusBadRequest, "Invalid request", "Missing email or password")
 		return
 	}
 
 	token, err := h.authService.Login(req.Email, req.Password)
 	if err != nil {
-		util.Error(c, http.StatusUnauthorized, "Invalid credentials")
+		util.Error(w, http.StatusUnauthorized, "Invalid credentials")
 		return
 	}
 
-	util.Success(c, gin.H{"token": token}, "Login successful")
+	util.Success(w, map[string]string{"token": token}, "Login successful")
 }

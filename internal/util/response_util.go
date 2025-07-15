@@ -1,34 +1,47 @@
 package util
 
 import (
+	"encoding/json"
 	"net/http"
-
-	"github.com/gin-gonic/gin"
 )
 
-func Success(c *gin.Context, data interface{}, message string) {
-	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"data":    data,
-		"message": message,
+type response struct {
+	Success bool        `json:"success"`
+	Data    interface{} `json:"data,omitempty"`
+	Message string      `json:"message,omitempty"`
+	Error   string      `json:"error,omitempty"`
+	Details string      `json:"details,omitempty"`
+}
+
+func Success(w http.ResponseWriter, data interface{}, message string) {
+	writeJSON(w, http.StatusOK, response{
+		Success: true,
+		Data:    data,
+		Message: message,
 	})
 }
 
-func Created(c *gin.Context, data interface{}, message string) {
-	c.JSON(http.StatusCreated, gin.H{
-		"success": true,
-		"data":    data,
-		"message": message,
+func Created(w http.ResponseWriter, data interface{}, message string) {
+	writeJSON(w, http.StatusCreated, response{
+		Success: true,
+		Data:    data,
+		Message: message,
 	})
 }
 
-func Error(c *gin.Context, status int, err string, details ...string) {
-	resp := gin.H{
-		"success": false,
-		"error":   err,
+func Error(w http.ResponseWriter, status int, err string, details ...string) {
+	resp := response{
+		Success: false,
+		Error:   err,
 	}
 	if len(details) > 0 {
-		resp["details"] = details[0]
+		resp.Details = details[0]
 	}
-	c.JSON(status, resp)
+	writeJSON(w, status, resp)
+}
+
+func writeJSON(w http.ResponseWriter, status int, payload interface{}) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	_ = json.NewEncoder(w).Encode(payload)
 }

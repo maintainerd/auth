@@ -1,11 +1,11 @@
 package route
 
 import (
-	"github.com/gin-gonic/gin"
+	"github.com/go-chi/chi/v5"
 	"github.com/maintainerd/auth/internal/handler/resthandler"
 )
 
-func RegisterAuthroute(router *gin.RouterGroup, authHandler *resthandler.AuthHandler) {
-	router.POST("/register", authHandler.Register)
-	router.POST("/login", authHandler.Login)
+func RegisterAuthRoute(r chi.Router, authHandler *resthandler.AuthHandler) {
+	r.Post("/register", authHandler.Register)
+	r.Post("/login", authHandler.Login)
 }

@@ -1,18 +1,19 @@
 package route
 
 import (
-	"github.com/gin-gonic/gin"
+	"github.com/go-chi/chi/v5"
 	"github.com/maintainerd/auth/internal/handler/resthandler"
 	"github.com/maintainerd/auth/internal/middleware"
 )
 
-func RegisterRoleroute(router *gin.RouterGroup, roleHandler *resthandler.RoleHandler) {
-	protected := router.Group("/roles")
-	protected.Use(middleware.JWTAuthMiddleware())
+func RegisterRoleRoute(r chi.Router, roleHandler *resthandler.RoleHandler) {
+	r.Route("/roles", func(r chi.Router) {
+		r.Use(middleware.JWTAuthMiddleware())
 
-	protected.POST("", roleHandler.Create)
-	protected.GET("", roleHandler.GetAll)
-	protected.GET("/:role_uuid", roleHandler.GetByUUID)
-	protected.PUT("/:role_uuid", roleHandler.Update)
-	protected.DELETE("/:role_uuid", roleHandler.Delete)
+		r.Post("/", roleHandler.Create)
+		r.Get("/", roleHandler.GetAll)
+		r.Get("/{role_uuid}", roleHandler.GetByUUID)
+		r.Put("/{role_uuid}", roleHandler.Update)
+		r.Delete("/{role_uuid}", roleHandler.Delete)
+	})
 }
