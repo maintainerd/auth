@@ -12,6 +12,7 @@ type AuthClientRepository interface {
 	FindAllByAuthContainerID(authContainerID int64) ([]model.AuthClient, error)
 	FindDefaultByAuthContainerID(authContainerID int64) (*model.AuthClient, error)
 	SetActiveStatusByUUID(authClientUUID uuid.UUID, isActive bool) error
+	FindByClientIDAndIdentityProvider(clientID, identityProviderIdentifier string) (*model.AuthClient, error)
 }
 
 type authClientRepository struct {
@@ -52,4 +53,17 @@ func (r *authClientRepository) SetActiveStatusByUUID(authClientUUID uuid.UUID, i
 	return r.db.Model(&model.AuthClient{}).
 		Where("auth_client_uuid = ?", authClientUUID).
 		Update("is_active", isActive).Error
+}
+
+func (r *authClientRepository) FindByClientIDAndIdentityProvider(clientID, identityProviderIdentifier string) (*model.AuthClient, error) {
+	var client model.AuthClient
+
+	err := r.db.
+		Joins("JOIN identity_providers ON identity_providers.auth_container_id = auth_clients.auth_container_id").
+		Where("auth_clients.client_id = ? AND identity_providers.identifier = ?", clientID, identityProviderIdentifier).
+		Where("auth_clients.is_active = true AND identity_providers.is_active = true").
+		Preload("AuthContainer").
+		First(&client).Error
+
+	return &client, err
 }

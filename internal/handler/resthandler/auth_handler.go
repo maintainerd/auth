@@ -18,9 +18,10 @@ func NewAuthHandler(authService service.AuthService) *AuthHandler {
 
 func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 	var req struct {
-		Username string `json:"username"`
-		Email    string `json:"email"`
-		Password string `json:"password"`
+		Username           string `json:"username"`
+		Password           string `json:"password"`
+		ClientID           string `json:"client_id"`
+		IdentityProviderID string `json:"identity_provider_id"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -28,42 +29,28 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Basic validation (Chi doesn't have built-in validation like Gin binding tags)
-	if req.Username == "" || req.Email == "" || req.Password == "" || len(req.Password) < 6 {
-		util.Error(w, http.StatusBadRequest, "Invalid request", "Missing or invalid fields")
+	if req.Username == "" || req.Password == "" || req.ClientID == "" || req.IdentityProviderID == "" {
+		util.Error(w, http.StatusBadRequest, "Missing required fields")
 		return
 	}
 
-	token, err := h.authService.Register(req.Username, req.Email, req.Password)
+	if len(req.Password) < 6 {
+		util.Error(w, http.StatusBadRequest, "Password must be at least 6 characters")
+		return
+	}
+
+	var email string
+	if util.IsValidEmail(req.Username) {
+		email = req.Username
+	}
+
+	token, err := h.authService.Register(
+		req.Username, email, req.Password, req.ClientID, req.IdentityProviderID,
+	)
 	if err != nil {
 		util.Error(w, http.StatusInternalServerError, "Registration failed", err.Error())
 		return
 	}
 
 	util.Created(w, map[string]string{"token": token}, "Registration successful")
-}
-
-func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
-	var req struct {
-		Email    string `json:"email"`
-		Password string `json:"password"`
-	}
-
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		util.Error(w, http.StatusBadRequest, "Invalid request", err.Error())
-		return
-	}
-
-	if req.Email == "" || req.Password == "" {
-		util.Error(w, http.StatusBadRequest, "Invalid request", "Missing email or password")
-		return
-	}
-
-	token, err := h.authService.Login(req.Email, req.Password)
-	if err != nil {
-		util.Error(w, http.StatusUnauthorized, "Invalid credentials")
-		return
-	}
-
-	util.Success(w, map[string]string{"token": token}, "Login successful")
 }

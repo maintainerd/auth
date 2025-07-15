@@ -19,10 +19,11 @@ func NewApp(db *gorm.DB) *App {
 	// repository
 	roleRepo := repository.NewRoleRepository(db)
 	userRepo := repository.NewUserRepository(db)
+	authClientRepo := repository.NewAuthClientRepository(db)
 
 	// service
 	roleService := service.NewRoleService(roleRepo)
-	authService := service.NewAuthService(userRepo)
+	authService := service.NewAuthService(userRepo, authClientRepo)
 
 	// rest handler
 	roleHandler := resthandler.NewRoleHandler(roleService)

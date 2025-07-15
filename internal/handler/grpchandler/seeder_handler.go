@@ -20,7 +20,7 @@ func NewSeederHandler(authService service.AuthService) *SeederHandler {
 
 func (s *SeederHandler) TriggerSeeder(ctx context.Context, req *authv1.TriggerSeederRequest) (*authv1.TriggerSeederResponse, error) {
 	// 🔧 TODO: Call real seeding/auth service logic here
-	user, err := s.authService.GetUserByEmail(req.GetTriggeredBy())
+	user, err := s.authService.GetUserByEmail(req.GetTriggeredBy(), 1)
 	if err != nil {
 		return nil, err
 	}
