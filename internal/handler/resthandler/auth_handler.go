@@ -6,6 +6,7 @@ import (
 
 	"github.com/maintainerd/auth/internal/service"
 	"github.com/maintainerd/auth/internal/util"
+	"github.com/maintainerd/auth/internal/validator"
 )
 
 type AuthHandler struct {
@@ -16,26 +17,32 @@ func NewAuthHandler(authService service.AuthService) *AuthHandler {
 	return &AuthHandler{authService}
 }
 
+type RegisterRequest struct {
+	Username           string `json:"username"`
+	Password           string `json:"password"`
+	ClientID           string `json:"client_id"`
+	IdentityProviderID string `json:"identity_provider_id"`
+}
+
+func (r RegisterRequest) Validate() error {
+	return validator.ValidateStruct(
+		validator.Field(r.Username, validator.Required(), validator.MinLength(3), validator.MaxLength(50)),
+		validator.Field(r.Password, validator.Required(), validator.MinLength(6), validator.MaxLength(100)),
+		validator.Field(r.ClientID, validator.Required()),
+		validator.Field(r.IdentityProviderID, validator.Required()),
+	)
+}
+
 func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
-	var req struct {
-		Username           string `json:"username"`
-		Password           string `json:"password"`
-		ClientID           string `json:"client_id"`
-		IdentityProviderID string `json:"identity_provider_id"`
-	}
+	var req RegisterRequest
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		util.Error(w, http.StatusBadRequest, "Invalid request", err.Error())
 		return
 	}
 
-	if req.Username == "" || req.Password == "" || req.ClientID == "" || req.IdentityProviderID == "" {
-		util.Error(w, http.StatusBadRequest, "Missing required fields")
-		return
-	}
-
-	if len(req.Password) < 6 {
-		util.Error(w, http.StatusBadRequest, "Password must be at least 6 characters")
+	if err := req.Validate(); err != nil {
+		util.Error(w, http.StatusBadRequest, "Validation failed", err.Error())
 		return
 	}
 
