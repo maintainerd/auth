@@ -10,7 +10,7 @@ type response struct {
 	Data    interface{} `json:"data,omitempty"`
 	Message string      `json:"message,omitempty"`
 	Error   string      `json:"error,omitempty"`
-	Details string      `json:"details,omitempty"`
+	Details interface{} `json:"details,omitempty"`
 }
 
 func Success(w http.ResponseWriter, data interface{}, message string) {
@@ -29,7 +29,7 @@ func Created(w http.ResponseWriter, data interface{}, message string) {
 	})
 }
 
-func Error(w http.ResponseWriter, status int, err string, details ...string) {
+func Error(w http.ResponseWriter, status int, err string, details ...any) {
 	resp := response{
 		Success: false,
 		Error:   err,

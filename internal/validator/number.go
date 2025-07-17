@@ -6,33 +6,39 @@ import (
 )
 
 func Number() FieldRule {
-	return func(value any) error {
-		switch value.(type) {
-		case int, int64, float32, float64:
-			return nil
-		default:
-			return errors.New("must be a number")
-		}
+	return FieldRule{
+		rule: func(value any) error {
+			switch value.(type) {
+			case int, int64, float32, float64:
+				return nil
+			default:
+				return errors.New("must be a number")
+			}
+		},
 	}
 }
 
 func Min(min float64) FieldRule {
-	return func(value any) error {
-		num := toFloat64(value)
-		if num < min {
-			return fmt.Errorf("must be >= %.2f", min)
-		}
-		return nil
+	return FieldRule{
+		rule: func(value any) error {
+			num := toFloat64(value)
+			if num < min {
+				return fmt.Errorf("must be >= %.2f", min)
+			}
+			return nil
+		},
 	}
 }
 
 func Max(max float64) FieldRule {
-	return func(value any) error {
-		num := toFloat64(value)
-		if num > max {
-			return fmt.Errorf("must be <= %.2f", max)
-		}
-		return nil
+	return FieldRule{
+		rule: func(value any) error {
+			num := toFloat64(value)
+			if num > max {
+				return fmt.Errorf("must be <= %.2f", max)
+			}
+			return nil
+		},
 	}
 }
 

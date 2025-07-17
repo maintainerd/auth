@@ -41,10 +41,17 @@ func (s *authService) Register(
 		return "", errors.New("invalid client or identity provider")
 	}
 
-	// Check for existing user (scoped by AuthContainer)
-	existingUser, err := s.userRepo.FindByEmail(email, client.AuthContainerID)
-	if err == nil && existingUser != nil {
-		return "", errors.New("email already registered")
+	// Check for existing user based on username type (email or username)
+	if util.IsValidEmail(username) {
+		existingUser, err := s.userRepo.FindByEmail(username, client.AuthContainerID)
+		if err == nil && existingUser != nil {
+			return "", errors.New("email already registered")
+		}
+	} else {
+		existingUser, err := s.userRepo.FindByUsername(username, client.AuthContainerID)
+		if err == nil && existingUser != nil {
+			return "", errors.New("username already taken")
+		}
 	}
 
 	hashed, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
@@ -52,14 +59,19 @@ func (s *authService) Register(
 		return "", err
 	}
 
+	// Always store username; only store email if it's a valid email
 	user := &model.User{
 		UserUUID:        uuid.New(),
 		Username:        username,
-		Email:           email,
+		Email:           "", // default empty
 		Password:        ptr(string(hashed)),
 		AuthContainerID: client.AuthContainerID,
 		OrganizationID:  client.AuthContainer.OrganizationID,
 		IsActive:        true,
+	}
+
+	if util.IsValidEmail(username) {
+		user.Email = username
 	}
 
 	if err := s.userRepo.Create(user); err != nil {

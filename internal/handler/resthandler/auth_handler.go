@@ -25,11 +25,23 @@ type RegisterRequest struct {
 }
 
 func (r RegisterRequest) Validate() error {
-	return validator.ValidateStruct(
-		validator.Field(r.Username, validator.Required(), validator.MinLength(3), validator.MaxLength(50)),
-		validator.Field(r.Password, validator.Required(), validator.MinLength(6), validator.MaxLength(100)),
-		validator.Field(r.ClientID, validator.Required()),
-		validator.Field(r.IdentityProviderID, validator.Required()),
+	return validator.ValidateStruct(&r,
+		validator.Field(&r.Username,
+			validator.Required().Error("Username is required"),
+			validator.MinLength(3).Error("At least 3 characters"),
+			validator.MaxLength(50).Error("At most 50 characters"),
+		),
+		validator.Field(&r.Password,
+			validator.Required().Error("Password is required"),
+			validator.MinLength(6).Error("At least 6 characters"),
+			validator.MaxLength(100).Error("At most 100 characters"),
+		),
+		validator.Field(&r.ClientID,
+			validator.Required().Error("Client ID is required"),
+		),
+		validator.Field(&r.IdentityProviderID,
+			validator.Required().Error("Identity Provider ID is required"),
+		),
 	)
 }
 
@@ -42,6 +54,10 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := req.Validate(); err != nil {
+		if ve, ok := err.(validator.ValidationErrors); ok {
+			util.Error(w, http.StatusBadRequest, "Validation failed", ve)
+			return
+		}
 		util.Error(w, http.StatusBadRequest, "Validation failed", err.Error())
 		return
 	}
