@@ -7,4 +7,5 @@ import (
 
 func RegisterAuthRoute(r chi.Router, authHandler *resthandler.AuthHandler) {
 	r.Post("/register", authHandler.Register)
+	r.Post("/login", authHandler.Login)
 }

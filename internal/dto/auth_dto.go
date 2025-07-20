@@ -2,14 +2,14 @@ package dto
 
 import "github.com/maintainerd/auth/internal/validator"
 
-type RegisterRequest struct {
+type AuthRequest struct {
 	Username           string `json:"username"`
 	Password           string `json:"password"`
 	ClientID           string `json:"client_id"`
 	IdentityProviderID string `json:"identity_provider_id"`
 }
 
-func (r RegisterRequest) Validate() error {
+func (r AuthRequest) Validate() error {
 	return validator.ValidateStruct(&r,
 		validator.Field(&r.Username,
 			validator.Required().Error("Username is required"),
@@ -30,9 +30,10 @@ func (r RegisterRequest) Validate() error {
 	)
 }
 
-type RegisterResponse struct {
+type AuthResponse struct {
 	AccessToken  string `json:"access_token"`
-	RefreshToken string `json:"refresh_token"`
+	IDToken      string `json:"id_token"`
+	RefreshToken string `json:"refresh_token,omitempty"`
 	ExpiresIn    int64  `json:"expires_in"`
 	TokenType    string `json:"token_type"`
 	IssuedAt     int64  `json:"issued_at"`

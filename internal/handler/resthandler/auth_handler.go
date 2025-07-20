@@ -19,7 +19,7 @@ func NewAuthHandler(authService service.AuthService) *AuthHandler {
 }
 
 func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
-	var req dto.RegisterRequest
+	var req dto.AuthRequest
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		util.Error(w, http.StatusBadRequest, "Invalid request", err.Error())
@@ -49,4 +49,32 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 	}
 
 	util.Created(w, tokenResponse, "Registration successful")
+}
+
+func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
+	var req dto.AuthRequest
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		util.Error(w, http.StatusBadRequest, "Invalid request", err.Error())
+		return
+	}
+
+	if err := req.Validate(); err != nil {
+		if ve, ok := err.(validator.ValidationErrors); ok {
+			util.Error(w, http.StatusBadRequest, "Validation failed", ve)
+			return
+		}
+		util.Error(w, http.StatusBadRequest, "Validation failed", err.Error())
+		return
+	}
+
+	tokenResponse, err := h.authService.Login(
+		req.Username, req.Password, req.ClientID, req.IdentityProviderID,
+	)
+	if err != nil {
+		util.Error(w, http.StatusUnauthorized, "Login failed", err.Error())
+		return
+	}
+
+	util.Success(w, tokenResponse, "Login successful")
 }

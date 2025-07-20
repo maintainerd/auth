@@ -13,8 +13,8 @@ import (
 )
 
 type AuthService interface {
-	Register(username, email, password, clientID, identityProviderID string) (*dto.RegisterResponse, error)
-	Login(email, password string, authContainerID int64) (string, error)
+	Register(username, email, password, clientID, identityProviderID string) (*dto.AuthResponse, error)
+	Login(usernameOrEmail, password, clientID, identityProviderID string) (*dto.AuthResponse, error)
 	GetUserByEmail(email string, authContainerID int64) (*model.User, error)
 }
 
@@ -34,19 +34,15 @@ func ptr(s string) *string {
 	return &s
 }
 
-func (s *authService) Register(
-	username, email, password, clientID, identityProviderID string,
-) (*dto.RegisterResponse, error) {
-
+func (s *authService) Register(username, email, password, clientID, identityProviderID string) (*dto.AuthResponse, error) {
 	client, err := s.clientRepo.FindByClientIDAndIdentityProvider(clientID, identityProviderID)
 	if err != nil {
 		return nil, err
 	}
-	if client == nil || !client.IsActive {
+	if client == nil || !client.IsActive || client.Domain == nil || *client.Domain == "" || client.AuthContainer == nil {
 		return nil, errors.New("invalid client or identity provider")
 	}
 
-	// Check for existing user
 	if util.IsValidEmail(username) {
 		existingUser, err := s.userRepo.FindByEmail(username, client.AuthContainerID)
 		if err != nil {
@@ -88,46 +84,62 @@ func (s *authService) Register(
 		return nil, err
 	}
 
-	return s.generateTokenResponse(user.UserUUID.String())
+	return s.generateTokenResponse(user.UserUUID.String(), client)
 }
 
-func (s *authService) Login(email, password string, authContainerID int64) (string, error) {
-	user, err := s.userRepo.FindByEmail(email, authContainerID)
-	if err != nil {
-		return "", errors.New("invalid credentials")
+func (s *authService) Login(usernameOrEmail, password, clientID, identityProviderID string) (*dto.AuthResponse, error) {
+	client, err := s.clientRepo.FindByClientIDAndIdentityProvider(clientID, identityProviderID)
+	if err != nil || client == nil || !client.IsActive || client.Domain == nil || *client.Domain == "" || client.AuthContainer == nil {
+		return nil, errors.New("invalid client or identity provider")
 	}
 
-	if user.Password == nil {
-		return "", errors.New("invalid credentials")
+	var user *model.User
+	if util.IsValidEmail(usernameOrEmail) {
+		user, err = s.userRepo.FindByEmail(usernameOrEmail, client.AuthContainerID)
+	} else {
+		user, err = s.userRepo.FindByUsername(usernameOrEmail, client.AuthContainerID)
+	}
+	if err != nil || user == nil || user.Password == nil {
+		return nil, errors.New("invalid credentials")
 	}
 
 	if err := bcrypt.CompareHashAndPassword([]byte(*user.Password), []byte(password)); err != nil {
-		return "", errors.New("invalid credentials")
+		return nil, errors.New("invalid credentials")
 	}
 
-	return util.GenerateToken(user.UserUUID.String())
+	return s.generateTokenResponse(user.UserUUID.String(), client)
 }
 
 func (s *authService) GetUserByEmail(email string, authContainerID int64) (*model.User, error) {
 	return s.userRepo.FindByEmail(email, authContainerID)
 }
 
-func (s *authService) generateTokenResponse(userUUID string) (*dto.RegisterResponse, error) {
-	accessToken, err := util.GenerateToken(userUUID)
+func (s *authService) generateTokenResponse(userUUID string, client *model.AuthClient) (*dto.AuthResponse, error) {
+	if client.Domain == nil || *client.Domain == "" {
+		return nil, errors.New("client domain (issuer) is required")
+	}
+
+	accessToken, err := util.GenerateAccessToken(userUUID, *client.Domain, *client.ClientID)
 	if err != nil {
 		return nil, err
 	}
 
-	refreshToken, err := util.GenerateRefreshToken(userUUID)
+	idToken, err := util.GenerateIDToken(userUUID, *client.Domain, *client.ClientID)
 	if err != nil {
 		return nil, err
 	}
 
-	return &dto.RegisterResponse{
+	refreshToken, err := util.GenerateRefreshToken(userUUID, *client.Domain, *client.ClientID)
+	if err != nil {
+		return nil, err
+	}
+
+	return &dto.AuthResponse{
 		AccessToken:  accessToken,
+		IDToken:      idToken,
 		RefreshToken: refreshToken,
-		ExpiresIn:    3600, // seconds until access token expiry
+		ExpiresIn:    3600,
 		TokenType:    "Bearer",
-		IssuedAt:     time.Now().Unix(), // issued_at in UNIX epoch
+		IssuedAt:     time.Now().Unix(),
 	}, nil
 }
