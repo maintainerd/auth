@@ -2,8 +2,10 @@ package service
 
 import (
 	"errors"
+	"time"
 
 	"github.com/google/uuid"
+	"github.com/maintainerd/auth/internal/dto"
 	"github.com/maintainerd/auth/internal/model"
 	"github.com/maintainerd/auth/internal/repository"
 	"github.com/maintainerd/auth/internal/util"
@@ -11,7 +13,7 @@ import (
 )
 
 type AuthService interface {
-	Register(username, email, password, clientID, identityProviderID string) (string, error)
+	Register(username, email, password, clientID, identityProviderID string) (*dto.RegisterResponse, error)
 	Login(email, password string, authContainerID int64) (string, error)
 	GetUserByEmail(email string, authContainerID int64) (*model.User, error)
 }
@@ -34,36 +36,44 @@ func ptr(s string) *string {
 
 func (s *authService) Register(
 	username, email, password, clientID, identityProviderID string,
-) (string, error) {
+) (*dto.RegisterResponse, error) {
 
 	client, err := s.clientRepo.FindByClientIDAndIdentityProvider(clientID, identityProviderID)
-	if err != nil || !client.IsActive {
-		return "", errors.New("invalid client or identity provider")
+	if err != nil {
+		return nil, err
+	}
+	if client == nil || !client.IsActive {
+		return nil, errors.New("invalid client or identity provider")
 	}
 
-	// Check for existing user based on username type (email or username)
+	// Check for existing user
 	if util.IsValidEmail(username) {
 		existingUser, err := s.userRepo.FindByEmail(username, client.AuthContainerID)
-		if err == nil && existingUser != nil {
-			return "", errors.New("email already registered")
+		if err != nil {
+			return nil, err
+		}
+		if existingUser != nil {
+			return nil, errors.New("email already registered")
 		}
 	} else {
 		existingUser, err := s.userRepo.FindByUsername(username, client.AuthContainerID)
-		if err == nil && existingUser != nil {
-			return "", errors.New("username already taken")
+		if err != nil {
+			return nil, err
+		}
+		if existingUser != nil {
+			return nil, errors.New("username already taken")
 		}
 	}
 
 	hashed, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
-	// Always store username; only store email if it's a valid email
 	user := &model.User{
 		UserUUID:        uuid.New(),
 		Username:        username,
-		Email:           "", // default empty
+		Email:           "",
 		Password:        ptr(string(hashed)),
 		AuthContainerID: client.AuthContainerID,
 		OrganizationID:  client.AuthContainer.OrganizationID,
@@ -75,10 +85,10 @@ func (s *authService) Register(
 	}
 
 	if err := s.userRepo.Create(user); err != nil {
-		return "", err
+		return nil, err
 	}
 
-	return util.GenerateToken(user.UserUUID.String())
+	return s.generateTokenResponse(user.UserUUID.String())
 }
 
 func (s *authService) Login(email, password string, authContainerID int64) (string, error) {
@@ -100,4 +110,24 @@ func (s *authService) Login(email, password string, authContainerID int64) (stri
 
 func (s *authService) GetUserByEmail(email string, authContainerID int64) (*model.User, error) {
 	return s.userRepo.FindByEmail(email, authContainerID)
+}
+
+func (s *authService) generateTokenResponse(userUUID string) (*dto.RegisterResponse, error) {
+	accessToken, err := util.GenerateToken(userUUID)
+	if err != nil {
+		return nil, err
+	}
+
+	refreshToken, err := util.GenerateRefreshToken(userUUID)
+	if err != nil {
+		return nil, err
+	}
+
+	return &dto.RegisterResponse{
+		AccessToken:  accessToken,
+		RefreshToken: refreshToken,
+		ExpiresIn:    3600, // seconds until access token expiry
+		TokenType:    "Bearer",
+		IssuedAt:     time.Now().Unix(), // issued_at in UNIX epoch
+	}, nil
 }

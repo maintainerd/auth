@@ -32,7 +32,15 @@ func (r *userRepository) FindByUsername(username string, authContainerID int64) 
 	err := r.db.
 		Where("username = ? AND auth_container_id = ?", username, authContainerID).
 		First(&user).Error
-	return &user, err
+
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	return &user, nil
 }
 
 func (r *userRepository) FindByEmail(email string, authContainerID int64) (*model.User, error) {
@@ -40,7 +48,15 @@ func (r *userRepository) FindByEmail(email string, authContainerID int64) (*mode
 	err := r.db.
 		Where("email = ? AND auth_container_id = ?", email, authContainerID).
 		First(&user).Error
-	return &user, err
+
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	return &user, nil
 }
 
 func (r *userRepository) FindByUsernameOrEmail(identifier string, authContainerID int64) (*model.User, error) {
@@ -48,7 +64,15 @@ func (r *userRepository) FindByUsernameOrEmail(identifier string, authContainerI
 	err := r.db.
 		Where("(username = ? OR email = ?) AND auth_container_id = ?", identifier, identifier, authContainerID).
 		First(&user).Error
-	return &user, err
+
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	return &user, nil
 }
 
 func (r *userRepository) SetEmailVerified(userUUID uuid.UUID, verified bool) error {
