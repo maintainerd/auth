@@ -2,10 +2,15 @@ package validator
 
 import (
 	"errors"
-	"net/mail"
+	"reflect"
 	"regexp"
 )
 
+var emailRegex = regexp.MustCompile(`^[^\s@]+@[^\s@]+\.[^\s@]+$`)
+
+/**
+ * checks if the value is a string.
+ */
 func String() FieldRule {
 	return FieldRule{
 		rule: func(value any) error {
@@ -17,21 +22,35 @@ func String() FieldRule {
 	}
 }
 
+/**
+ * validates proper email format.
+ */
 func Email() FieldRule {
 	return FieldRule{
 		rule: func(value any) error {
-			s, ok := value.(string)
+			v := reflect.ValueOf(value)
+			if v.Kind() == reflect.Ptr {
+				if v.IsNil() {
+					return nil
+				}
+				v = v.Elem()
+			}
+
+			s, ok := v.Interface().(string)
 			if !ok {
 				return errors.New("must be a string")
 			}
-			if _, err := mail.ParseAddress(s); err != nil {
-				return errors.New("invalid email format")
+			if !emailRegex.MatchString(s) {
+				return errors.New("must be a valid email")
 			}
 			return nil
 		},
 	}
 }
 
+/**
+ * validates the string against a regular expression.
+ */
 func Match(pattern *regexp.Regexp) FieldRule {
 	return FieldRule{
 		rule: func(value any) error {

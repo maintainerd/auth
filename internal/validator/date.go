@@ -2,18 +2,31 @@ package validator
 
 import (
 	"errors"
+	"reflect"
 	"time"
 )
 
+/**
+ * validates that a string can be parsed as a date using the provided layout.
+ */
 func Date(layout string) FieldRule {
 	return FieldRule{
 		rule: func(value any) error {
-			s, ok := value.(string)
-			if !ok {
-				return errors.New("must be a date string")
+			v := reflect.ValueOf(value)
+			if v.Kind() == reflect.Ptr {
+				if v.IsNil() {
+					return nil
+				}
+				v = v.Elem()
 			}
-			if _, err := time.Parse(layout, s); err != nil {
-				return errors.New("invalid date format")
+
+			s, ok := v.Interface().(string)
+			if !ok {
+				return errors.New("must be a string")
+			}
+			_, err := time.Parse(layout, s)
+			if err != nil {
+				return errors.New("must match date format " + layout)
 			}
 			return nil
 		},
