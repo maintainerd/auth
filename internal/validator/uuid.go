@@ -6,6 +6,9 @@ import (
 	"github.com/google/uuid"
 )
 
+/**
+ * validates if a string is a valid UUID using the google/uuid package.
+ */
 func UUID() FieldRule {
 	return FieldRule{
 		rule: func(value any) error {

@@ -5,6 +5,9 @@ import (
 	"fmt"
 )
 
+/**
+ * checks if the value is a supported array type ([]any, []string, etc.).
+ */
 func Array() FieldRule {
 	return FieldRule{
 		rule: func(value any) error {
@@ -18,6 +21,9 @@ func Array() FieldRule {
 	}
 }
 
+/**
+ * ensures array has at least min elements.
+ */
 func MinItems(min int) FieldRule {
 	return FieldRule{
 		rule: func(value any) error {
@@ -33,6 +39,9 @@ func MinItems(min int) FieldRule {
 	}
 }
 
+/**
+ * ensures array has at most max elements.
+ */
 func MaxItems(max int) FieldRule {
 	return FieldRule{
 		rule: func(value any) error {
@@ -48,6 +57,9 @@ func MaxItems(max int) FieldRule {
 	}
 }
 
+/**
+ * helper to get the length of a supported array or return -1 if not an array.
+ */
 func getArrayLength(value any) int {
 	switch v := value.(type) {
 	case []any:

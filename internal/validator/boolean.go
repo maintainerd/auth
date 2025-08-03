@@ -2,6 +2,9 @@ package validator
 
 import "errors"
 
+/**
+ * checks whether a value is of type bool.
+ */
 func Boolean() FieldRule {
 	return FieldRule{
 		rule: func(value any) error {

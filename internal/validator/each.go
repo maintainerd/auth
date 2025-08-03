@@ -5,6 +5,9 @@ import (
 	"fmt"
 )
 
+/**
+ * applies a single validation rule to each item in an array. Uses getArrayAsSlice() to normalize supported array types into []any.
+ */
 func Each(rule FieldRule) FieldRule {
 	return FieldRule{
 		rule: func(value any) error {
