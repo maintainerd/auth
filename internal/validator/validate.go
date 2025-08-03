@@ -2,6 +2,14 @@ package validator
 
 import "reflect"
 
+/**
+ * The validation entry point:
+ * ValidateStruct(structPtr, fields...) — performs validation over multiple fields.
+ * - It reflects over the struct to find the field name (using json tag if available).
+ * - Applies rules using FieldRule.Apply().
+ * - Aggregates all validation errors into ValidationErrors.
+ * - xReturns nil if all validations pass; otherwise returns the error slice.
+ */
 func ValidateStruct(structPtr any, fields ...FieldSet) error {
 	v := reflect.ValueOf(structPtr)
 	if v.Kind() != reflect.Ptr {
@@ -34,14 +42,18 @@ func ValidateStruct(structPtr any, fields ...FieldSet) error {
 			panic("validator: could not find matching struct field")
 		}
 
-		// Apply rules
+		// Apply rules in order
 		for _, rule := range f.Rules {
-			if err := rule.Apply(ptrVal.Elem().Interface()); err != nil {
+			err := rule.Apply(ptrVal.Elem().Interface())
+			if err != nil {
+				if err == errSkipValidation {
+					break // stop checking further rules for this field
+				}
 				errs = append(errs, ValidationErrorDetail{
 					Field:   fieldName,
 					Message: err.Error(),
 				})
-				break
+				break // stop at first actual validation error for this field
 			}
 		}
 	}

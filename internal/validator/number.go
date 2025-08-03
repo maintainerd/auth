@@ -5,6 +5,9 @@ import (
 	"fmt"
 )
 
+/**
+ * checks if the value is a numeric type.
+ */
 func Number() FieldRule {
 	return FieldRule{
 		rule: func(value any) error {
@@ -18,6 +21,9 @@ func Number() FieldRule {
 	}
 }
 
+/**
+ * ensures value is within bounds.
+ */
 func Min(min float64) FieldRule {
 	return FieldRule{
 		rule: func(value any) error {
@@ -42,6 +48,9 @@ func Max(max float64) FieldRule {
 	}
 }
 
+/**
+ * helper that converts supported numeric types to float64.
+ */
 func toFloat64(value any) float64 {
 	switch v := value.(type) {
 	case int:
