@@ -4,10 +4,11 @@ import (
 	"encoding/json"
 	"net/http"
 
+	validation "github.com/go-ozzo/ozzo-validation/v4"
+
 	"github.com/maintainerd/auth/internal/dto"
 	"github.com/maintainerd/auth/internal/service"
 	"github.com/maintainerd/auth/internal/util"
-	"github.com/maintainerd/auth/internal/validator"
 )
 
 type AuthHandler struct {
@@ -27,7 +28,7 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := req.Validate(); err != nil {
-		if ve, ok := err.(validator.ValidationErrors); ok {
+		if ve, ok := err.(validation.Errors); ok {
 			util.Error(w, http.StatusBadRequest, "Validation failed", ve)
 			return
 		}
@@ -60,7 +61,7 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := req.Validate(); err != nil {
-		if ve, ok := err.(validator.ValidationErrors); ok {
+		if ve, ok := err.(validation.Errors); ok {
 			util.Error(w, http.StatusBadRequest, "Validation failed", ve)
 			return
 		}
