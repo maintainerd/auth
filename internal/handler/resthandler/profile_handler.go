@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"net/http"
 
+	validation "github.com/go-ozzo/ozzo-validation/v4"
+
 	"github.com/maintainerd/auth/internal/dto"
 	"github.com/maintainerd/auth/internal/middleware"
 	"github.com/maintainerd/auth/internal/model"
@@ -19,7 +21,7 @@ func NewProfileHandler(profileService service.ProfileService) *ProfileHandler {
 	return &ProfileHandler{profileService}
 }
 
-func (h *ProfileHandler) Create(w http.ResponseWriter, r *http.Request) {
+func (h *ProfileHandler) CreateOrUpdate(w http.ResponseWriter, r *http.Request) {
 	var req dto.ProfileRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		util.Error(w, http.StatusBadRequest, "Invalid request", err.Error())
@@ -27,18 +29,22 @@ func (h *ProfileHandler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := req.Validate(); err != nil {
-		util.ValidationError(w, err)
+		if ve, ok := err.(validation.Errors); ok {
+			util.Error(w, http.StatusBadRequest, "Validation failed", ve)
+			return
+		}
+		util.Error(w, http.StatusBadRequest, "Validation failed", err.Error())
 		return
 	}
 
 	user := r.Context().Value(middleware.UserContextKey).(*model.User)
-	profile, err := h.profileService.CreateProfile(user.UserID, &req)
+	profile, err := h.profileService.CreateOrUpdateProfile(user.UserID, &req)
 	if err != nil {
-		util.Error(w, http.StatusBadRequest, "Create profile failed", err.Error())
+		util.Error(w, http.StatusBadRequest, "Save profile failed", err.Error())
 		return
 	}
 
-	util.Created(w, dto.NewProfileResponse(profile), "Profile created successfully")
+	util.Success(w, dto.NewProfileResponse(profile), "Profile saved successfully")
 }
 
 func (h *ProfileHandler) Get(w http.ResponseWriter, r *http.Request) {
@@ -50,28 +56,6 @@ func (h *ProfileHandler) Get(w http.ResponseWriter, r *http.Request) {
 	}
 
 	util.Success(w, dto.NewProfileResponse(profile), "Profile retrieved successfully")
-}
-
-func (h *ProfileHandler) Update(w http.ResponseWriter, r *http.Request) {
-	var req dto.ProfileRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		util.Error(w, http.StatusBadRequest, "Invalid request", err.Error())
-		return
-	}
-
-	if err := req.Validate(); err != nil {
-		util.ValidationError(w, err)
-		return
-	}
-
-	user := r.Context().Value(middleware.UserContextKey).(*model.User)
-	profile, err := h.profileService.UpdateProfile(user.UserID, &req)
-	if err != nil {
-		util.Error(w, http.StatusBadRequest, "Update profile failed", err.Error())
-		return
-	}
-
-	util.Success(w, dto.NewProfileResponse(profile), "Profile updated successfully")
 }
 
 func (h *ProfileHandler) Delete(w http.ResponseWriter, r *http.Request) {

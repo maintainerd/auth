@@ -11,9 +11,8 @@ import (
 )
 
 type ProfileService interface {
-	CreateProfile(userID int64, req *dto.ProfileRequest) (*model.Profile, error)
+	CreateOrUpdateProfile(userID int64, req *dto.ProfileRequest) (*model.Profile, error)
 	GetProfileByUserID(userID int64) (*model.Profile, error)
-	UpdateProfile(userID int64, req *dto.ProfileRequest) (*model.Profile, error)
 	DeleteProfile(userID int64) error
 }
 
@@ -25,48 +24,13 @@ func NewProfileService(profileRepo repository.ProfileRepository) ProfileService 
 	return &profileService{profileRepo}
 }
 
-func (s *profileService) CreateProfile(userID int64, req *dto.ProfileRequest) (*model.Profile, error) {
-	existing, err := s.profileRepo.FindByUserID(userID)
-	if err == nil && existing != nil {
-		return nil, errors.New("profile already exists")
-	}
-
-	birthdate, err := parseBirthdate(req.Birthdate)
-	if err != nil {
-		return nil, err
-	}
-
-	profile := &model.Profile{
-		ProfileUUID: uuid.New(),
-		UserID:      userID,
-		FirstName:   req.FirstName,
-		MiddleName:  req.MiddleName,
-		LastName:    req.LastName,
-		Suffix:      req.Suffix,
-		Birthdate:   birthdate,
-		Gender:      req.Gender,
-		Phone:       req.Phone,
-		Email:       req.Email,
-		Address:     req.Address,
-		AvatarURL:   req.AvatarURL,
-		CoverURL:    req.CoverURL,
-	}
-
-	if err := s.profileRepo.Create(profile); err != nil {
-		return nil, err
-	}
-
-	return profile, nil
-}
-
-func (s *profileService) GetProfileByUserID(userID int64) (*model.Profile, error) {
-	return s.profileRepo.FindByUserID(userID)
-}
-
-func (s *profileService) UpdateProfile(userID int64, req *dto.ProfileRequest) (*model.Profile, error) {
+func (s *profileService) CreateOrUpdateProfile(userID int64, req *dto.ProfileRequest) (*model.Profile, error) {
 	profile, err := s.profileRepo.FindByUserID(userID)
 	if err != nil || profile == nil {
-		return nil, errors.New("profile not found")
+		profile = &model.Profile{
+			ProfileUUID: uuid.New(),
+			UserID:      userID,
+		}
 	}
 
 	birthdate, err := parseBirthdate(req.Birthdate)
@@ -74,6 +38,7 @@ func (s *profileService) UpdateProfile(userID int64, req *dto.ProfileRequest) (*
 		return nil, err
 	}
 
+	// Set profile fields from request
 	profile.FirstName = req.FirstName
 	profile.MiddleName = req.MiddleName
 	profile.LastName = req.LastName
@@ -86,11 +51,21 @@ func (s *profileService) UpdateProfile(userID int64, req *dto.ProfileRequest) (*
 	profile.AvatarURL = req.AvatarURL
 	profile.CoverURL = req.CoverURL
 
-	if err := s.profileRepo.UpdateByUserID(userID, profile); err != nil {
-		return nil, err
+	if profile.ProfileID == 0 {
+		if err := s.profileRepo.Create(profile); err != nil {
+			return nil, err
+		}
+	} else {
+		if err := s.profileRepo.UpdateByUserID(userID, profile); err != nil {
+			return nil, err
+		}
 	}
 
 	return profile, nil
+}
+
+func (s *profileService) GetProfileByUserID(userID int64) (*model.Profile, error) {
+	return s.profileRepo.FindByUserID(userID)
 }
 
 func (s *profileService) DeleteProfile(userID int64) error {

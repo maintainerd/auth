@@ -1,6 +1,8 @@
 package dto
 
-import "github.com/maintainerd/auth/internal/validator"
+import (
+	validation "github.com/go-ozzo/ozzo-validation/v4"
+)
 
 type AuthRequest struct {
 	Username           string `json:"username"`
@@ -10,22 +12,20 @@ type AuthRequest struct {
 }
 
 func (r AuthRequest) Validate() error {
-	return validator.ValidateStruct(&r,
-		validator.Field(&r.Username,
-			validator.Required().Error("Username is required"),
-			validator.MinLength(3).Error("At least 3 characters"),
-			validator.MaxLength(50).Error("At most 50 characters"),
+	return validation.ValidateStruct(&r,
+		validation.Field(&r.Username,
+			validation.Required.Error("Username is required"),
+			validation.Length(3, 50).Error("Username must be between 3 and 50 characters"),
 		),
-		validator.Field(&r.Password,
-			validator.Required().Error("Password is required"),
-			validator.MinLength(8).Error("At least 8 characters"),
-			validator.MaxLength(100).Error("At most 100 characters"),
+		validation.Field(&r.Password,
+			validation.Required.Error("Password is required"),
+			validation.Length(8, 100).Error("Password must be between 8 and 100 characters"),
 		),
-		validator.Field(&r.ClientID,
-			validator.Required().Error("Client ID is required"),
+		validation.Field(&r.ClientID,
+			validation.Required.Error("Client ID is required"),
 		),
-		validator.Field(&r.IdentityProviderID,
-			validator.Required().Error("Identity Provider ID is required"),
+		validation.Field(&r.IdentityProviderID,
+			validation.Required.Error("Identity Provider ID is required"),
 		),
 	)
 }
