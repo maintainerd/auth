@@ -3,8 +3,10 @@ package dto
 import (
 	"time"
 
+	validation "github.com/go-ozzo/ozzo-validation/v4"
+	"github.com/go-ozzo/ozzo-validation/v4/is"
+
 	"github.com/maintainerd/auth/internal/model"
-	"github.com/maintainerd/auth/internal/validator"
 )
 
 type ProfileRequest struct {
@@ -22,53 +24,62 @@ type ProfileRequest struct {
 }
 
 func (r ProfileRequest) Validate() error {
-	return validator.ValidateStruct(&r,
-		validator.Field(&r.FirstName,
-			validator.Required().Error("First name is required"),
-			validator.MaxLength(100).Error("First name must be at most 100 characters"),
+	return validation.ValidateStruct(&r,
+		validation.Field(&r.FirstName,
+			validation.Required.Error("First name is required"),
+			validation.RuneLength(0, 100).Error("First name must be at most 100 characters"),
 		),
-		validator.Field(&r.MiddleName,
-			validator.Optional(),
-			validator.MaxLength(100).Error("Middle name must be at most 100 characters"),
+		validation.Field(&r.MiddleName,
+			validation.NilOrNotEmpty,
+			validation.RuneLength(0, 100).Error("Middle name must be at most 100 characters"),
 		),
-		validator.Field(&r.LastName,
-			validator.Optional(),
-			validator.MaxLength(100).Error("Last name must be at most 100 characters"),
+		validation.Field(&r.LastName,
+			validation.NilOrNotEmpty,
+			validation.RuneLength(0, 100).Error("Last name must be at most 100 characters"),
 		),
-		validator.Field(&r.Suffix,
-			validator.Optional(),
-			validator.MaxLength(50).Error("Suffix must be at most 50 characters"),
+		validation.Field(&r.Suffix,
+			validation.NilOrNotEmpty,
+			validation.RuneLength(0, 50).Error("Suffix must be at most 50 characters"),
 		),
-		validator.Field(&r.Birthdate,
-			validator.Optional(),
-			validator.Date("2006-01-02").Error("Birthdate must be in YYYY-MM-DD format"),
+		validation.Field(&r.Birthdate,
+			validation.NilOrNotEmpty,
+			validation.By(validateDateFormat),
 		),
-		validator.Field(&r.Gender,
-			validator.Optional(),
-			validator.In("male", "female", "other").Error("Gender must be male, female, or other"),
+		validation.Field(&r.Gender,
+			validation.NilOrNotEmpty,
+			validation.In("male", "female", "other").Error("Gender must be male, female, or other"),
 		),
-		validator.Field(&r.Phone,
-			validator.Optional(),
-			validator.MaxLength(20).Error("Phone must be at most 20 characters"),
+		validation.Field(&r.Phone,
+			validation.NilOrNotEmpty,
+			validation.RuneLength(0, 20).Error("Phone must be at most 20 characters"),
 		),
-		validator.Field(&r.Email,
-			validator.Optional(),
-			validator.Email().Error("Invalid email format"),
-			validator.MaxLength(255).Error("Email must be at most 255 characters"),
+		validation.Field(&r.Email,
+			validation.NilOrNotEmpty,
+			is.Email.Error("Invalid email format"),
+			validation.RuneLength(0, 255).Error("Email must be at most 255 characters"),
 		),
-		validator.Field(&r.Address,
-			validator.Optional(),
-			validator.MaxLength(1000).Error("Address must be at most 1000 characters"),
+		validation.Field(&r.Address,
+			validation.NilOrNotEmpty,
+			validation.RuneLength(0, 1000).Error("Address must be at most 1000 characters"),
 		),
-		validator.Field(&r.AvatarURL,
-			validator.Optional(),
-			validator.MaxLength(1000).Error("Avatar URL must be at most 1000 characters"),
+		validation.Field(&r.AvatarURL,
+			validation.NilOrNotEmpty,
+			validation.RuneLength(0, 1000).Error("Avatar URL must be at most 1000 characters"),
 		),
-		validator.Field(&r.CoverURL,
-			validator.Optional(),
-			validator.MaxLength(1000).Error("Cover URL must be at most 1000 characters"),
+		validation.Field(&r.CoverURL,
+			validation.NilOrNotEmpty,
+			validation.RuneLength(0, 1000).Error("Cover URL must be at most 1000 characters"),
 		),
 	)
+}
+
+// validateDateFormat ensures the date is in "2006-01-02" format.
+func validateDateFormat(value interface{}) error {
+	if str, ok := value.(*string); ok && str != nil {
+		_, err := time.Parse("2006-01-02", *str)
+		return err
+	}
+	return nil
 }
 
 type ProfileResponse struct {

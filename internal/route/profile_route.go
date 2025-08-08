@@ -11,9 +11,8 @@ func RegisterProfileRoute(r chi.Router, profileHandler *resthandler.ProfileHandl
 	r.Route("/profiles", func(r chi.Router) {
 		r.Use(middleware.JWTAuthMiddleware(userRepo))
 
-		r.Post("/", profileHandler.Create)
+		r.Post("/", profileHandler.CreateOrUpdate)
 		r.Get("/", profileHandler.Get)
-		r.Put("/", profileHandler.Update)
 		r.Delete("/", profileHandler.Delete)
 	})
 }

@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/maintainerd/auth/internal/validator"
+	validation "github.com/go-ozzo/ozzo-validation/v4"
 )
 
 type response struct {
@@ -43,7 +43,7 @@ func Error(w http.ResponseWriter, status int, err string, details ...any) {
 }
 
 func ValidationError(w http.ResponseWriter, err error) {
-	if ve, ok := err.(validator.ValidationErrors); ok {
+	if ve, ok := err.(validation.Errors); ok {
 		Error(w, http.StatusBadRequest, "Validation failed", ve)
 		return
 	}
