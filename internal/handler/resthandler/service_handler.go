@@ -21,18 +21,19 @@ func NewServiceHandler(service service.ServiceService) *ServiceHandler {
 }
 
 func (h *ServiceHandler) Create(w http.ResponseWriter, r *http.Request) {
-	var service model.Service
-	if err := json.NewDecoder(r.Body).Decode(&service); err != nil {
+	var svc model.Service
+	if err := json.NewDecoder(r.Body).Decode(&svc); err != nil {
 		util.Error(w, http.StatusBadRequest, "Invalid request", err.Error())
 		return
 	}
 
-	if err := h.service.Create(&service); err != nil {
+	createdService, err := h.service.Create(&svc)
+	if err != nil {
 		util.Error(w, http.StatusInternalServerError, "Failed to create service", err.Error())
 		return
 	}
 
-	util.Created(w, dto.ToServiceDTO(&service), "Service created successfully")
+	util.Created(w, dto.ToServiceDTO(createdService), "Service created successfully")
 }
 
 func (h *ServiceHandler) GetAll(w http.ResponseWriter, r *http.Request) {
@@ -73,19 +74,19 @@ func (h *ServiceHandler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var service model.Service
-	if err := json.NewDecoder(r.Body).Decode(&service); err != nil {
+	var svc model.Service
+	if err := json.NewDecoder(r.Body).Decode(&svc); err != nil {
 		util.Error(w, http.StatusBadRequest, "Invalid request", err.Error())
 		return
 	}
 
-	if err := h.service.UpdateByUUID(serviceUUID, &service); err != nil {
+	updatedService, err := h.service.UpdateByUUID(serviceUUID, &svc)
+	if err != nil {
 		util.Error(w, http.StatusInternalServerError, "Failed to update service", err.Error())
 		return
 	}
 
-	service.ServiceUUID = serviceUUID
-	util.Success(w, dto.ToServiceDTO(&service), "Service updated successfully")
+	util.Success(w, dto.ToServiceDTO(updatedService), "Service updated successfully")
 }
 
 func (h *ServiceHandler) Delete(w http.ResponseWriter, r *http.Request) {
@@ -95,10 +96,11 @@ func (h *ServiceHandler) Delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.service.DeleteByUUID(serviceUUID); err != nil {
+	deletedService, err := h.service.DeleteByUUID(serviceUUID)
+	if err != nil {
 		util.Error(w, http.StatusInternalServerError, "Failed to delete service", err.Error())
 		return
 	}
 
-	util.Success(w, nil, "Service deleted successfully")
+	util.Success(w, dto.ToServiceDTO(deletedService), "Service deleted successfully")
 }

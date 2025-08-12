@@ -33,6 +33,7 @@ func (h *RoleHandler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	util.Created(w, dto.ToRoleDTO(&role), "Role created successfully")
+
 }
 
 func (h *RoleHandler) GetAll(w http.ResponseWriter, r *http.Request) {
@@ -79,13 +80,13 @@ func (h *RoleHandler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.service.UpdateByUUID(roleUUID, &role); err != nil {
+	updatedRole, err := h.service.UpdateByUUID(roleUUID, &role)
+	if err != nil {
 		util.Error(w, http.StatusInternalServerError, "Failed to update role", err.Error())
 		return
 	}
 
-	role.RoleUUID = roleUUID
-	util.Success(w, dto.ToRoleDTO(&role), "Role updated successfully")
+	util.Success(w, dto.ToRoleDTO(updatedRole), "Role updated successfully")
 }
 
 func (h *RoleHandler) Delete(w http.ResponseWriter, r *http.Request) {
@@ -95,10 +96,11 @@ func (h *RoleHandler) Delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.service.DeleteByUUID(roleUUID); err != nil {
+	deletedRole, err := h.service.DeleteByUUID(roleUUID)
+	if err != nil {
 		util.Error(w, http.StatusInternalServerError, "Failed to delete role", err.Error())
 		return
 	}
 
-	util.Success(w, nil, "Role deleted successfully")
+	util.Success(w, dto.ToRoleDTO(deletedRole), "Role deleted successfully")
 }

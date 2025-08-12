@@ -2,6 +2,7 @@ package seeder
 
 import (
 	"log"
+	"os"
 	"time"
 
 	"github.com/google/uuid"
@@ -12,13 +13,15 @@ import (
 )
 
 func SeedAuthClients(db *gorm.DB, identityProviderID int64, authContainerID int64) {
+	appHostName := os.Getenv("APP_HOSTNAME")
+
 	clients := []model.AuthClient{
 		{
 			AuthClientUUID: uuid.New(),
 			ClientName:     "traditional-default",
 			DisplayName:    "Traditional Web App Default",
 			ClientType:     "traditional",
-			Domain:         nil,
+			Domain:         strPtr(appHostName),
 			ClientID:       strPtr(util.GenerateIdentifier(32)),
 			ClientSecret:   strPtr(util.GenerateIdentifier(64)),
 			RedirectURI:    strPtr("https://auth.yourapp.com/callback"),
@@ -39,7 +42,7 @@ func SeedAuthClients(db *gorm.DB, identityProviderID int64, authContainerID int6
 			ClientName:     "spa-default",
 			DisplayName:    "Single Page App Default",
 			ClientType:     "spa",
-			Domain:         nil,
+			Domain:         strPtr(appHostName),
 			ClientID:       strPtr(util.GenerateIdentifier(32)),
 			ClientSecret:   nil,
 			RedirectURI:    strPtr("https://app.yourfrontend.com/callback"),
@@ -60,7 +63,7 @@ func SeedAuthClients(db *gorm.DB, identityProviderID int64, authContainerID int6
 			ClientName:     "mobile-default",
 			DisplayName:    "Native Mobile App Default",
 			ClientType:     "native",
-			Domain:         nil,
+			Domain:         strPtr(appHostName),
 			ClientID:       strPtr(util.GenerateIdentifier(32)),
 			ClientSecret:   nil,
 			RedirectURI:    strPtr("com.yourapp.mobile://callback"),
@@ -81,7 +84,7 @@ func SeedAuthClients(db *gorm.DB, identityProviderID int64, authContainerID int6
 			ClientName:     "m2m-default",
 			DisplayName:    "Machine to Machine Default",
 			ClientType:     "m2m",
-			Domain:         nil,
+			Domain:         strPtr(appHostName),
 			ClientID:       strPtr(util.GenerateIdentifier(32)),
 			ClientSecret:   strPtr(util.GenerateIdentifier(64)),
 			RedirectURI:    nil,

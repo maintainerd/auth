@@ -7,12 +7,12 @@ import (
 )
 
 type ServiceService interface {
-	Create(service *model.Service) error
+	Create(service *model.Service) (*model.Service, error)
 	GetAll() ([]model.Service, error)
 	GetByUUID(serviceUUID uuid.UUID) (*model.Service, error)
 	GetByName(serviceName string) (*model.Service, error)
-	UpdateByUUID(serviceUUID uuid.UUID, updatedService *model.Service) error
-	DeleteByUUID(serviceUUID uuid.UUID) error
+	UpdateByUUID(serviceUUID uuid.UUID, updatedService *model.Service) (*model.Service, error)
+	DeleteByUUID(serviceUUID uuid.UUID) (*model.Service, error)
 }
 
 type serviceService struct {
@@ -23,7 +23,7 @@ func NewServiceService(repo repository.ServiceRepository) ServiceService {
 	return &serviceService{repo}
 }
 
-func (s *serviceService) Create(service *model.Service) error {
+func (s *serviceService) Create(service *model.Service) (*model.Service, error) {
 	service.ServiceUUID = uuid.New()
 	return s.repo.Create(service)
 }
@@ -40,10 +40,10 @@ func (s *serviceService) GetByName(serviceName string) (*model.Service, error) {
 	return s.repo.FindByName(serviceName)
 }
 
-func (s *serviceService) UpdateByUUID(serviceUUID uuid.UUID, updatedService *model.Service) error {
+func (s *serviceService) UpdateByUUID(serviceUUID uuid.UUID, updatedService *model.Service) (*model.Service, error) {
 	return s.repo.UpdateByUUID(serviceUUID, updatedService)
 }
 
-func (s *serviceService) DeleteByUUID(serviceUUID uuid.UUID) error {
+func (s *serviceService) DeleteByUUID(serviceUUID uuid.UUID) (*model.Service, error) {
 	return s.repo.DeleteByUUID(serviceUUID)
 }

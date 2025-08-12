@@ -6,7 +6,8 @@ CREATE TABLE IF NOT EXISTS users (
     user_id                 SERIAL PRIMARY KEY,
     user_uuid               UUID UNIQUE NOT NULL,
     username                VARCHAR(255) NOT NULL,
-    email                   VARCHAR(255) NOT NULL,
+    email                   VARCHAR(255),
+    phone                   VARCHAR(20),
     password                TEXT,
     is_email_verified       BOOLEAN DEFAULT FALSE,
     is_profile_completed    BOOLEAN DEFAULT FALSE,
@@ -32,6 +33,7 @@ ALTER TABLE users
 CREATE INDEX idx_users_user_uuid ON users(user_uuid);
 CREATE INDEX idx_users_username ON users(username);
 CREATE INDEX idx_users_email ON users(email);
+CREATE INDEX idx_users_phone ON users(phone);
 CREATE INDEX idx_users_organization_id ON users(organization_id);
 CREATE INDEX idx_users_auth_container_id ON users(auth_container_id);
 -- +goose StatementEnd
@@ -43,6 +45,7 @@ CREATE INDEX idx_users_auth_container_id ON users(auth_container_id);
 DROP INDEX IF EXISTS idx_users_user_uuid;
 DROP INDEX IF EXISTS idx_users_username;
 DROP INDEX IF EXISTS idx_users_email;
+DROP INDEX IF EXISTS idx_users_phone;
 DROP INDEX IF EXISTS idx_users_organization_id;
 DROP INDEX IF EXISTS idx_users_auth_container_id;
 -- +goose StatementEnd

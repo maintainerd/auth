@@ -52,9 +52,11 @@ func (s *profileService) CreateOrUpdateProfile(userID int64, req *dto.ProfileReq
 	profile.CoverURL = req.CoverURL
 
 	if profile.ProfileID == 0 {
-		if err := s.profileRepo.Create(profile); err != nil {
+		createdProfile, err := s.profileRepo.Create(profile)
+		if err != nil {
 			return nil, err
 		}
+		profile = createdProfile
 	} else {
 		if err := s.profileRepo.UpdateByUserID(userID, profile); err != nil {
 			return nil, err

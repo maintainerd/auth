@@ -8,7 +8,7 @@ import (
 
 type RolePermissionRepository interface {
 	BaseRepositoryMethods[model.RolePermission]
-	Assign(rolePermission *model.RolePermission) error
+	Assign(rolePermission *model.RolePermission) (*model.RolePermission, error)
 	FindByRoleAndPermission(roleID int64, permissionID int64) (*model.RolePermission, error)
 	FindAllByRoleID(roleID int64) ([]model.RolePermission, error)
 	FindAllByPermissionID(permissionID int64) ([]model.RolePermission, error)
@@ -28,7 +28,8 @@ func NewRolePermissionRepository(db *gorm.DB) RolePermissionRepository {
 	}
 }
 
-func (r *rolePermissionRepository) Assign(rolePermission *model.RolePermission) error {
+// Assign a role-permission pair and return the created record
+func (r *rolePermissionRepository) Assign(rolePermission *model.RolePermission) (*model.RolePermission, error) {
 	return r.Create(rolePermission)
 }
 
