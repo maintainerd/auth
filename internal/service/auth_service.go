@@ -19,14 +19,20 @@ type AuthService interface {
 }
 
 type authService struct {
-	userRepo   repository.UserRepository
-	clientRepo repository.AuthClientRepository
+	userRepo      repository.UserRepository
+	clientRepo    repository.AuthClientRepository
+	userTokenRepo repository.UserTokenRepository
 }
 
-func NewAuthService(userRepo repository.UserRepository, clientRepo repository.AuthClientRepository) AuthService {
+func NewAuthService(
+	userRepo repository.UserRepository,
+	clientRepo repository.AuthClientRepository,
+	userTokenRepo repository.UserTokenRepository,
+) AuthService {
 	return &authService{
-		userRepo:   userRepo,
-		clientRepo: clientRepo,
+		userRepo:      userRepo,
+		clientRepo:    clientRepo,
+		userTokenRepo: userTokenRepo,
 	}
 }
 
@@ -35,6 +41,7 @@ func ptr(s string) *string {
 }
 
 func (s *authService) Register(username, email, password, clientID, identityProviderID string) (*dto.AuthResponse, error) {
+	// Find client
 	client, err := s.clientRepo.FindByClientIDAndIdentityProvider(clientID, identityProviderID)
 	if err != nil {
 		return nil, err
@@ -43,7 +50,11 @@ func (s *authService) Register(username, email, password, clientID, identityProv
 		return nil, errors.New("invalid client or identity provider")
 	}
 
-	if util.IsValidEmail(username) {
+	// Check if username is an email
+	isEmail := util.IsValidEmail(username)
+
+	// Validate uniqueness
+	if isEmail {
 		existingUser, err := s.userRepo.FindByEmail(username, client.AuthContainerID)
 		if err != nil {
 			return nil, err
@@ -61,12 +72,14 @@ func (s *authService) Register(username, email, password, clientID, identityProv
 		}
 	}
 
+	// Hash password
 	hashed, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
 		return nil, err
 	}
 
-	user := &model.User{
+	// Create user
+	newUser := &model.User{
 		UserUUID:        uuid.New(),
 		Username:        username,
 		Email:           "",
@@ -75,16 +88,35 @@ func (s *authService) Register(username, email, password, clientID, identityProv
 		OrganizationID:  client.AuthContainer.OrganizationID,
 		IsActive:        true,
 	}
-
-	if util.IsValidEmail(username) {
-		user.Email = username
+	if isEmail {
+		newUser.Email = username
 	}
 
-	if err := s.userRepo.Create(user); err != nil {
+	createdUser, err := s.userRepo.Create(newUser)
+	if err != nil {
 		return nil, err
 	}
 
-	return s.generateTokenResponse(user.UserUUID.String(), client)
+	// Generate OTP
+	otp, err := util.GenerateOTP(6)
+	if err != nil {
+		return nil, err
+	}
+
+	// Create user token
+	userToken := &model.UserToken{
+		TokenUUID: uuid.New(),
+		UserID:    createdUser.UserID, // guaranteed to be set now
+		TokenType: "user:email:verification",
+		Token:     otp,
+	}
+
+	if _, err := s.userTokenRepo.Create(userToken); err != nil {
+		return nil, err
+	}
+
+	// Return auth response
+	return s.generateTokenResponse(createdUser.UserUUID.String(), client)
 }
 
 func (s *authService) Login(usernameOrEmail, password, clientID, identityProviderID string) (*dto.AuthResponse, error) {
@@ -115,10 +147,6 @@ func (s *authService) GetUserByEmail(email string, authContainerID int64) (*mode
 }
 
 func (s *authService) generateTokenResponse(userUUID string, client *model.AuthClient) (*dto.AuthResponse, error) {
-	if client.Domain == nil || *client.Domain == "" {
-		return nil, errors.New("client domain (issuer) is required")
-	}
-
 	accessToken, err := util.GenerateAccessToken(userUUID, *client.Domain, *client.ClientID)
 	if err != nil {
 		return nil, err

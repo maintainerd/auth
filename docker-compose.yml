@@ -37,6 +37,18 @@ services:
     volumes:
       - ../redis-db:/data
 
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: rabbitmq
+    ports:
+      - "5672:5672" # AMQP protocol port
+      - "15672:15672" # RabbitMQ management UI
+    environment:
+      RABBITMQ_DEFAULT_USER: devuser
+      RABBITMQ_DEFAULT_PASS: Pass123
+    volumes:
+      - ../rabbitmq:/var/lib/rabbitmq
+
 networks:
   default:
     driver: bridge

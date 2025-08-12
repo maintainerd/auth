@@ -10,8 +10,8 @@ type RoleService interface {
 	Create(role *model.Role) error
 	GetAll() ([]model.Role, error)
 	GetByUUID(roleUUID uuid.UUID) (*model.Role, error)
-	UpdateByUUID(roleUUID uuid.UUID, updatedRole *model.Role) error
-	DeleteByUUID(roleUUID uuid.UUID) error
+	UpdateByUUID(roleUUID uuid.UUID, updatedRole *model.Role) (*model.Role, error)
+	DeleteByUUID(roleUUID uuid.UUID) (*model.Role, error)
 }
 
 type roleService struct {
@@ -24,7 +24,8 @@ func NewRoleService(repo repository.RoleRepository) RoleService {
 
 func (s *roleService) Create(role *model.Role) error {
 	role.RoleUUID = uuid.New()
-	return s.repo.Create(role)
+	_, err := s.repo.Create(role)
+	return err
 }
 
 func (s *roleService) GetAll() ([]model.Role, error) {
@@ -35,10 +36,10 @@ func (s *roleService) GetByUUID(roleUUID uuid.UUID) (*model.Role, error) {
 	return s.repo.FindByUUID(roleUUID)
 }
 
-func (s *roleService) UpdateByUUID(roleUUID uuid.UUID, updatedRole *model.Role) error {
+func (s *roleService) UpdateByUUID(roleUUID uuid.UUID, updatedRole *model.Role) (*model.Role, error) {
 	return s.repo.UpdateByUUID(roleUUID, updatedRole)
 }
 
-func (s *roleService) DeleteByUUID(roleUUID uuid.UUID) error {
+func (s *roleService) DeleteByUUID(roleUUID uuid.UUID) (*model.Role, error) {
 	return s.repo.DeleteByUUID(roleUUID)
 }

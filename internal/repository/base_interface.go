@@ -1,13 +1,30 @@
 package repository
 
 type BaseRepositoryMethods[T any] interface {
-	Create(entity *T) error
+	// Create a new record and return the created entity with updated fields (e.g., auto-increment IDs)
+	Create(entity *T) (*T, error)
+
+	// Retrieve all records with optional preloads
 	FindAll(preloads ...string) ([]T, error)
+
+	// Retrieve a record by UUID with optional preloads
 	FindByUUID(uuid any, preloads ...string) (*T, error)
+
+	// Retrieve a record by ID with optional preloads
 	FindByID(id any, preloads ...string) (*T, error)
-	UpdateByUUID(uuid any, updatedData any) error
-	UpdateByID(id any, updatedData any) error
-	DeleteByUUID(uuid any) error
-	DeleteByID(id any) error
+
+	// Update a record by UUID and return the updated entity
+	UpdateByUUID(uuid any, updatedData any) (*T, error)
+
+	// Update a record by ID and return the updated entity
+	UpdateByID(id any, updatedData any) (*T, error)
+
+	// Delete a record by UUID and return the deleted entity
+	DeleteByUUID(uuid any) (*T, error)
+
+	// Delete a record by ID and return the deleted entity
+	DeleteByID(id any) (*T, error)
+
+	// Paginate through records with optional preloads
 	Paginate(conditions map[string]any, page int, limit int, preloads ...string) (*PaginationResult[T], error)
 }
