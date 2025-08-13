@@ -19,20 +19,26 @@ type AuthService interface {
 }
 
 type authService struct {
-	userRepo      repository.UserRepository
 	clientRepo    repository.AuthClientRepository
+	userRepo      repository.UserRepository
+	userRoleRepo  repository.UserRoleRepository
 	userTokenRepo repository.UserTokenRepository
+	roleRepo      repository.RoleRepository
 }
 
 func NewAuthService(
-	userRepo repository.UserRepository,
 	clientRepo repository.AuthClientRepository,
+	userRepo repository.UserRepository,
+	userRoleRepo repository.UserRoleRepository,
 	userTokenRepo repository.UserTokenRepository,
+	roleRepo repository.RoleRepository,
 ) AuthService {
 	return &authService{
-		userRepo:      userRepo,
 		clientRepo:    clientRepo,
+		userRepo:      userRepo,
+		userRoleRepo:  userRoleRepo,
 		userTokenRepo: userTokenRepo,
+		roleRepo:      roleRepo,
 	}
 }
 
@@ -40,22 +46,30 @@ func ptr(s string) *string {
 	return &s
 }
 
-func (s *authService) Register(username, email, password, clientID, identityProviderID string) (*dto.AuthResponse, error) {
-	// Find client
-	client, err := s.clientRepo.FindByClientIDAndIdentityProvider(clientID, identityProviderID)
+func (s *authService) Register(
+	username,
+	email,
+	password,
+	clientID,
+	identityProviderID string,
+) (*dto.AuthResponse, error) {
+	// Get auth client and check if exist and valid
+	authClient, err := s.clientRepo.FindByClientIDAndIdentityProvider(clientID, identityProviderID)
+
 	if err != nil {
 		return nil, err
 	}
-	if client == nil || !client.IsActive || client.Domain == nil || *client.Domain == "" || client.AuthContainer == nil {
+
+	if authClient == nil || !authClient.IsActive || authClient.Domain == nil || *authClient.Domain == "" || authClient.AuthContainer == nil {
 		return nil, errors.New("invalid client or identity provider")
 	}
 
 	// Check if username is an email
 	isEmail := util.IsValidEmail(username)
 
-	// Validate uniqueness
+	// Check if username or email already exists
 	if isEmail {
-		existingUser, err := s.userRepo.FindByEmail(username, client.AuthContainerID)
+		existingUser, err := s.userRepo.FindByEmail(username, authClient.AuthContainerID)
 		if err != nil {
 			return nil, err
 		}
@@ -63,7 +77,7 @@ func (s *authService) Register(username, email, password, clientID, identityProv
 			return nil, errors.New("email already registered")
 		}
 	} else {
-		existingUser, err := s.userRepo.FindByUsername(username, client.AuthContainerID)
+		existingUser, err := s.userRepo.FindByUsername(username, authClient.AuthContainerID)
 		if err != nil {
 			return nil, err
 		}
@@ -72,7 +86,7 @@ func (s *authService) Register(username, email, password, clientID, identityProv
 		}
 	}
 
-	// Hash password
+	// Create password hash
 	hashed, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
 		return nil, err
@@ -84,18 +98,34 @@ func (s *authService) Register(username, email, password, clientID, identityProv
 		Username:        username,
 		Email:           "",
 		Password:        ptr(string(hashed)),
-		AuthContainerID: client.AuthContainerID,
-		OrganizationID:  client.AuthContainer.OrganizationID,
+		AuthContainerID: authClient.AuthContainerID,
+		OrganizationID:  authClient.AuthContainer.OrganizationID,
 		IsActive:        true,
 	}
+
 	if isEmail {
 		newUser.Email = username
 	}
 
 	createdUser, err := s.userRepo.Create(newUser)
+
 	if err != nil {
 		return nil, err
 	}
+
+	// Assign default role
+	registeredRole, err := s.roleRepo.FindByName("registered", authClient.AuthContainerID)
+
+	if err != nil {
+		return nil, err
+	}
+
+	s.userRoleRepo.Create(&model.UserRole{
+		UserRoleUUID: uuid.New(),
+		UserID:       createdUser.UserID,
+		RoleID:       registeredRole.RoleID,
+		IsDefault:    true,
+	})
 
 	// Generate OTP
 	otp, err := util.GenerateOTP(6)
@@ -106,7 +136,7 @@ func (s *authService) Register(username, email, password, clientID, identityProv
 	// Create user token
 	userToken := &model.UserToken{
 		TokenUUID: uuid.New(),
-		UserID:    createdUser.UserID, // guaranteed to be set now
+		UserID:    createdUser.UserID,
 		TokenType: "user:email:verification",
 		Token:     otp,
 	}
@@ -116,7 +146,7 @@ func (s *authService) Register(username, email, password, clientID, identityProv
 	}
 
 	// Return auth response
-	return s.generateTokenResponse(createdUser.UserUUID.String(), client)
+	return s.generateTokenResponse(createdUser.UserUUID.String(), authClient)
 }
 
 func (s *authService) Login(usernameOrEmail, password, clientID, identityProviderID string) (*dto.AuthResponse, error) {
