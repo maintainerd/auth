@@ -11,6 +11,7 @@ type UserRepository interface {
 	FindByUsername(username string, authContainerID int64) (*model.User, error)
 	FindByEmail(email string, authContainerID int64) (*model.User, error)
 	FindByUsernameOrEmail(identifier string, authContainerID int64) (*model.User, error)
+	FindRoles(userID int64) ([]model.Role, error)
 	SetEmailVerified(userUUID uuid.UUID, verified bool) error
 	SetActiveStatus(userUUID uuid.UUID, active bool) error
 }
@@ -73,6 +74,17 @@ func (r *userRepository) FindByUsernameOrEmail(identifier string, authContainerI
 	}
 
 	return &user, nil
+}
+
+func (r *userRepository) FindRoles(userID int64) ([]model.Role, error) {
+	var roles []model.Role
+	err := r.db.
+		Model(&model.Role{}).
+		Select("roles.*").
+		Joins("JOIN user_roles ur ON ur.role_id = roles.role_id").
+		Where("ur.user_id = ?", userID).
+		Find(&roles).Error
+	return roles, err
 }
 
 func (r *userRepository) SetEmailVerified(userUUID uuid.UUID, verified bool) error {

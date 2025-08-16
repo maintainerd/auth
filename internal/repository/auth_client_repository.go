@@ -63,6 +63,7 @@ func (r *authClientRepository) FindByClientIDAndIdentityProvider(clientID, ident
 		Where("auth_clients.client_id = ? AND identity_providers.identifier = ?", clientID, identityProviderIdentifier).
 		Where("auth_clients.is_active = true AND identity_providers.is_active = true").
 		Preload("AuthContainer").
+		Preload("IdentityProvider").
 		First(&client).Error
 
 	return &client, err
