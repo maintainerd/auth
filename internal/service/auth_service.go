@@ -21,24 +21,18 @@ type AuthService interface {
 type authService struct {
 	clientRepo    repository.AuthClientRepository
 	userRepo      repository.UserRepository
-	userRoleRepo  repository.UserRoleRepository
 	userTokenRepo repository.UserTokenRepository
-	roleRepo      repository.RoleRepository
 }
 
 func NewAuthService(
 	clientRepo repository.AuthClientRepository,
 	userRepo repository.UserRepository,
-	userRoleRepo repository.UserRoleRepository,
 	userTokenRepo repository.UserTokenRepository,
-	roleRepo repository.RoleRepository,
 ) AuthService {
 	return &authService{
 		clientRepo:    clientRepo,
 		userRepo:      userRepo,
-		userRoleRepo:  userRoleRepo,
 		userTokenRepo: userTokenRepo,
-		roleRepo:      roleRepo,
 	}
 }
 
@@ -113,20 +107,6 @@ func (s *authService) Register(
 		return nil, err
 	}
 
-	// Assign default role
-	registeredRole, err := s.roleRepo.FindByName("registered", authClient.AuthContainerID)
-
-	if err != nil {
-		return nil, err
-	}
-
-	s.userRoleRepo.Create(&model.UserRole{
-		UserRoleUUID: uuid.New(),
-		UserID:       createdUser.UserID,
-		RoleID:       registeredRole.RoleID,
-		IsDefault:    true,
-	})
-
 	// Generate OTP
 	otp, err := util.GenerateOTP(6)
 	if err != nil {
@@ -150,17 +130,22 @@ func (s *authService) Register(
 }
 
 func (s *authService) Login(usernameOrEmail, password, clientID, identityProviderID string) (*dto.AuthResponse, error) {
+	// Get auth client and check if exist and valid
 	client, err := s.clientRepo.FindByClientIDAndIdentityProvider(clientID, identityProviderID)
+
 	if err != nil || client == nil || !client.IsActive || client.Domain == nil || *client.Domain == "" || client.AuthContainer == nil {
 		return nil, errors.New("invalid client or identity provider")
 	}
 
+	// Check if username or email exists
 	var user *model.User
+
 	if util.IsValidEmail(usernameOrEmail) {
 		user, err = s.userRepo.FindByEmail(usernameOrEmail, client.AuthContainerID)
 	} else {
 		user, err = s.userRepo.FindByUsername(usernameOrEmail, client.AuthContainerID)
 	}
+
 	if err != nil || user == nil || user.Password == nil {
 		return nil, errors.New("invalid credentials")
 	}
@@ -176,18 +161,30 @@ func (s *authService) GetUserByEmail(email string, authContainerID int64) (*mode
 	return s.userRepo.FindByEmail(email, authContainerID)
 }
 
-func (s *authService) generateTokenResponse(userUUID string, client *model.AuthClient) (*dto.AuthResponse, error) {
-	accessToken, err := util.GenerateAccessToken(userUUID, *client.Domain, *client.ClientID)
+func (s *authService) generateTokenResponse(
+	userUUID string,
+	authClient *model.AuthClient,
+) (*dto.AuthResponse, error) {
+	accessToken, err := util.GenerateAccessToken(
+		userUUID,
+		"openid profile email",
+		*authClient.Domain,
+		*authClient.ClientID,
+		authClient.AuthContainer.AuthContainerUUID,
+		*authClient.ClientID,
+		authClient.IdentityProvider.IdentityProviderUUID,
+	)
+
 	if err != nil {
 		return nil, err
 	}
 
-	idToken, err := util.GenerateIDToken(userUUID, *client.Domain, *client.ClientID)
+	idToken, err := util.GenerateIDToken(userUUID, *authClient.Domain, *authClient.ClientID)
 	if err != nil {
 		return nil, err
 	}
 
-	refreshToken, err := util.GenerateRefreshToken(userUUID, *client.Domain, *client.ClientID)
+	refreshToken, err := util.GenerateRefreshToken(userUUID, *authClient.Domain, *authClient.ClientID)
 	if err != nil {
 		return nil, err
 	}

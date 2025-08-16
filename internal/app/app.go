@@ -23,14 +23,13 @@ func NewApp(db *gorm.DB) *App {
 	// repository
 	authClientRepo := repository.NewAuthClientRepository(db)
 	userRepo := repository.NewUserRepository(db)
-	userRoleRepo := repository.NewUserRoleRepository(db)
 	userTokenRepo := repository.NewUserTokenRepository(db)
 	roleRepo := repository.NewRoleRepository(db)
 	profileRepo := repository.NewProfileRepository(db)
 
 	// service
 	roleService := service.NewRoleService(roleRepo)
-	authService := service.NewAuthService(authClientRepo, userRepo, userRoleRepo, userTokenRepo, roleRepo)
+	authService := service.NewAuthService(authClientRepo, userRepo, userTokenRepo)
 	profileService := service.NewProfileService(profileRepo)
 
 	// rest handler
