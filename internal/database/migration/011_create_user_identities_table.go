@@ -1,7 +1,14 @@
--- +goose Up
+package migration
 
+import (
+	"log"
+
+	"gorm.io/gorm"
+)
+
+func CreateUserIdentitiesTable(db *gorm.DB) {
+	sql := `
 -- CREATE TABLE
--- +goose StatementBegin
 CREATE TABLE IF NOT EXISTS user_identities (
     user_identity_id    SERIAL PRIMARY KEY,
     user_identity_uuid  UUID NOT NULL UNIQUE,
@@ -12,34 +19,18 @@ CREATE TABLE IF NOT EXISTS user_identities (
     raw_profile         JSONB,
     created_at          TIMESTAMPTZ DEFAULT now()
 );
--- +goose StatementEnd
 
 -- ADD CONSTRAINTS
--- +goose StatementBegin
 ALTER TABLE user_identities
     ADD CONSTRAINT fk_user_identities_user FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE;
--- +goose StatementEnd
 
 -- ADD INDEXES
--- +goose StatementBegin
 CREATE UNIQUE INDEX idx_user_identities_provider_combination
     ON user_identities (provider_name, provider_user_id);
--- +goose StatementEnd
+`
+	if err := db.Exec(sql).Error; err != nil {
+		log.Fatalf("❌ Failed to run migration 011_create_user_identities_table: %v", err)
+	}
 
--- +goose Down
-
--- DROP INDEXES
--- +goose StatementBegin
-DROP INDEX IF EXISTS idx_user_identities_provider_combination;
--- +goose StatementEnd
-
--- DROP CONSTRAINTS
--- +goose StatementBegin
-ALTER TABLE user_identities
-    DROP CONSTRAINT IF EXISTS fk_user_identities_user;
--- +goose StatementEnd
-
--- DROP TABLE
--- +goose StatementBegin
-DROP TABLE IF EXISTS user_identities;
--- +goose StatementEnd
+	log.Println("✅ Migration 011_create_user_identities_table executed")
+}

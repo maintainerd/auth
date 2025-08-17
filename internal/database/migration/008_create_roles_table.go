@@ -1,7 +1,14 @@
--- +goose Up
+package migration
 
+import (
+	"log"
+
+	"gorm.io/gorm"
+)
+
+func CreateRoleTable(db *gorm.DB) {
+	sql := `
 -- CREATE TABLE
--- +goose StatementBegin
 CREATE TABLE IF NOT EXISTS roles (
     role_id             SERIAL PRIMARY KEY,
     role_uuid           UUID UNIQUE NOT NULL,
@@ -13,36 +20,19 @@ CREATE TABLE IF NOT EXISTS roles (
     created_at          TIMESTAMPTZ DEFAULT now(),
     updated_at          TIMESTAMPTZ DEFAULT now()
 );
--- +goose StatementEnd
 
 -- ADD CONSTRAINTS
--- +goose StatementBegin
 ALTER TABLE roles
     ADD CONSTRAINT fk_roles_auth_container_id FOREIGN KEY (auth_container_id) REFERENCES auth_containers(auth_container_id) ON DELETE CASCADE;
--- +goose StatementEnd
 
 -- ADD INDEXES
--- +goose StatementBegin
 CREATE INDEX idx_roles_role_uuid ON roles(role_uuid);
 CREATE INDEX idx_roles_name ON roles(name);
 CREATE INDEX idx_roles_auth_container_id ON roles(auth_container_id);
--- +goose StatementEnd
+`
+	if err := db.Exec(sql).Error; err != nil {
+		log.Fatalf("❌ Failed to run migration 008_create_roles_table: %v", err)
+	}
 
--- +goose Down
-
--- DROP INDEXES
--- +goose StatementBegin
-DROP INDEX IF EXISTS idx_roles_role_uuid;
-DROP INDEX IF EXISTS idx_roles_name;
-DROP INDEX IF EXISTS idx_roles_auth_container_id;
--- +goose StatementEnd
-
--- DROP CONSTRAINTS
--- +goose StatementBegin
-ALTER TABLE roles DROP CONSTRAINT IF EXISTS fk_roles_auth_container_id;
--- +goose StatementEnd
-
--- DROP TABLE
--- +goose StatementBegin
-DROP TABLE IF EXISTS roles;
--- +goose StatementEnd
+	log.Println("✅ Migration 008_create_roles_table executed")
+}

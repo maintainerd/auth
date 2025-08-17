@@ -11,7 +11,8 @@ type User struct {
 	UserID             int64     `gorm:"column:user_id;primaryKey"`
 	UserUUID           uuid.UUID `gorm:"column:user_uuid;type:uuid;not null;unique;index:idx_users_user_uuid"`
 	Username           string    `gorm:"column:username;type:varchar(255);not null;index:idx_users_username"`
-	Email              string    `gorm:"column:email;type:varchar(255);not null;index:idx_users_email"`
+	Email              string    `gorm:"column:email;type:varchar(255);index:idx_users_email"`
+	Phone              string    `gorm:"column:phone;type:varchar(20);index:idx_users_phone"`
 	Password           *string   `gorm:"column:password;type:text"` // nullable for external users
 	IsEmailVerified    bool      `gorm:"column:is_email_verified;type:boolean;default:false"`
 	IsProfileCompleted bool      `gorm:"column:is_profile_completed;type:boolean;default:false"`
