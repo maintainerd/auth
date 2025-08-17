@@ -1,7 +1,14 @@
--- +goose Up
+package migration
 
+import (
+	"log"
+
+	"gorm.io/gorm"
+)
+
+func CreateAuthContainerTable(db *gorm.DB) {
+	sql := `
 -- CREATE TABLE
--- +goose StatementBegin
 CREATE TABLE IF NOT EXISTS organizations (
     organization_id       SERIAL PRIMARY KEY,
     organization_uuid     UUID NOT NULL UNIQUE,
@@ -17,10 +24,8 @@ CREATE TABLE IF NOT EXISTS organizations (
     created_at            TIMESTAMPTZ DEFAULT now(),
     updated_at            TIMESTAMPTZ DEFAULT now()
 );
--- +goose StatementEnd
 
 -- ADD INDEXES
--- +goose StatementBegin
 CREATE INDEX idx_organizations_organization_uuid ON organizations (organization_uuid);
 CREATE INDEX idx_organizations_name ON organizations (name);
 CREATE INDEX idx_organizations_email ON organizations (email);
@@ -28,22 +33,10 @@ CREATE INDEX idx_organizations_phone_number ON organizations (phone_number);
 CREATE INDEX idx_organizations_is_active ON organizations (is_active);
 CREATE INDEX idx_organizations_is_default ON organizations (is_default);
 CREATE INDEX idx_organizations_external_reference_id ON organizations (external_reference_id);
--- +goose StatementEnd
+`
+	if err := db.Exec(sql).Error; err != nil {
+		log.Fatalf("❌ Failed to run migration 003_create_auth_containers_table: %v", err)
+	}
 
--- +goose Down
-
--- DROP INDEXES
--- +goose StatementBegin
-DROP INDEX IF EXISTS idx_organizations_organization_uuid;
-DROP INDEX IF EXISTS idx_organizations_name;
-DROP INDEX IF EXISTS idx_organizations_email;
-DROP INDEX IF EXISTS idx_organizations_phone_number;
-DROP INDEX IF EXISTS idx_organizations_is_active;
-DROP INDEX IF EXISTS idx_organizations_is_default;
-DROP INDEX IF EXISTS idx_organizations_external_reference_id;
--- +goose StatementEnd
-
--- DROP TABLE
--- +goose StatementBegin
-DROP TABLE IF EXISTS organizations;
--- +goose StatementEnd
+	log.Println("✅ Migration 003_create_auth_containers_table executed")
+}
