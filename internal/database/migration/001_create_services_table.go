@@ -1,7 +1,14 @@
--- +goose Up
+package migration
 
+import (
+	"log"
+
+	"gorm.io/gorm"
+)
+
+func CreateServiceTable(db *gorm.DB) {
+	sql := `
 -- CREATE TABLE
--- +goose StatementBegin
 CREATE TABLE IF NOT EXISTS services (
     service_id      SERIAL PRIMARY KEY,
     service_uuid    UUID NOT NULL UNIQUE,
@@ -16,27 +23,17 @@ CREATE TABLE IF NOT EXISTS services (
     created_at      TIMESTAMPTZ DEFAULT now(),
     updated_at      TIMESTAMPTZ DEFAULT now()
 );
--- +goose StatementEnd
 
 -- ADD INDEXES
--- +goose StatementBegin
 CREATE INDEX idx_services_service_name ON services (service_name);
 CREATE INDEX idx_services_display_name ON services (display_name);
 CREATE INDEX idx_services_service_type ON services (service_type);
 CREATE INDEX idx_services_service_uuid ON services (service_uuid);
--- +goose StatementEnd
+`
 
--- +goose Down
+	if err := db.Exec(sql).Error; err != nil {
+		log.Fatalf("❌ Failed to run migration 001_create_services_table: %v", err)
+	}
 
--- DROP INDEXES
--- +goose StatementBegin
-DROP INDEX IF EXISTS idx_services_service_name;
-DROP INDEX IF EXISTS idx_services_display_name;
-DROP INDEX IF EXISTS idx_services_service_type;
-DROP INDEX IF EXISTS idx_services_service_uuid;
--- +goose StatementEnd
-
--- DROP TABLE
--- +goose StatementBegin
-DROP TABLE IF EXISTS services;
--- +goose StatementEnd
+	log.Println("✅ Migration 001_create_services_table executed")
+}

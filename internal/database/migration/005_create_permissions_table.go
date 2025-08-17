@@ -1,7 +1,14 @@
--- +goose Up
+package migration
 
+import (
+	"log"
+
+	"gorm.io/gorm"
+)
+
+func CreatePermissionTable(db *gorm.DB) {
+	sql := `
 -- CREATE TABLE
--- +goose StatementBegin
 CREATE TABLE IF NOT EXISTS permissions (
     permission_id       SERIAL PRIMARY KEY,
     permission_uuid     UUID UNIQUE NOT NULL,
@@ -14,41 +21,22 @@ CREATE TABLE IF NOT EXISTS permissions (
     created_at          TIMESTAMPTZ DEFAULT now(),
     updated_at          TIMESTAMPTZ DEFAULT now()
 );
--- +goose StatementEnd
 
 -- ADD CONSTRAINTS
--- +goose StatementBegin
 ALTER TABLE permissions
     ADD CONSTRAINT fk_permissions_api_id FOREIGN KEY (api_id) REFERENCES apis(api_id) ON DELETE CASCADE;
 ALTER TABLE permissions
     ADD CONSTRAINT fk_permissions_auth_container_id FOREIGN KEY (auth_container_id) REFERENCES auth_containers(auth_container_id) ON DELETE CASCADE;
--- +goose StatementEnd
 
 -- ADD INDEXES
--- +goose StatementBegin
 CREATE INDEX idx_permissions_permission_uuid ON permissions(permission_uuid);
 CREATE INDEX idx_permissions_name ON permissions(name);
 CREATE INDEX idx_permissions_api_id ON permissions(api_id);
 CREATE INDEX idx_permissions_auth_container_id ON permissions(auth_container_id);
--- +goose StatementEnd
+`
+	if err := db.Exec(sql).Error; err != nil {
+		log.Fatalf("❌ Failed to run migration 005_create_permissions_table: %v", err)
+	}
 
--- +goose Down
-
--- DROP INDEXES
--- +goose StatementBegin
-DROP INDEX IF EXISTS idx_permissions_permission_uuid;
-DROP INDEX IF EXISTS idx_permissions_name;
-DROP INDEX IF EXISTS idx_permissions_api_id;
-DROP INDEX IF EXISTS idx_permissions_auth_container_id;
--- +goose StatementEnd
-
--- DROP CONSTRAINTS
--- +goose StatementBegin
-ALTER TABLE permissions DROP CONSTRAINT IF EXISTS fk_permissions_api_id;
-ALTER TABLE permissions DROP CONSTRAINT IF EXISTS fk_permissions_auth_container_id;
--- +goose StatementEnd
-
--- DROP TABLE
--- +goose StatementBegin
-DROP TABLE IF EXISTS permissions;
--- +goose StatementEnd
+	log.Println("✅ Migration 005_create_permissions_table executed")
+}
