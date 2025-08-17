@@ -1,35 +1,27 @@
 package runner
 
 import (
-	"log"
-	"os"
-	"os/exec"
+	"github.com/maintainerd/auth/internal/database/migration"
+	"gorm.io/gorm"
 )
 
-func RunMigrations(connectionString string) {
-	log.Println("🏃 Running migrations...")
-
-	// Migration files
-	directories := []string{
-		"migration/core",
-		"migration/auth",
-	}
-
-	// Run migrations
-	for _, dir := range directories {
-		runMigrationDir(dir, connectionString)
-	}
-
-	log.Println("✅ Migrations completed.")
-}
-
-func runMigrationDir(dir string, connectionString string) {
-	dbPrefix := os.Getenv("DB_TABLE_PREFIX")
-	cmd := exec.Command("goose", "-dir", dir, "postgres", connectionString, "up")
-	cmd.Env = append(os.Environ(), "DB_TABLE_PREFIX="+dbPrefix)
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		log.Fatalf("❌ Migration failed in %s: %v\nOutput: %s", dir, err, string(output))
-	}
-	log.Printf("✅ Migrations applied from %s", dir)
+func RunMigrations(db *gorm.DB) {
+	migration.CreateServiceTable(db)
+	migration.CreateOrganizationTable(db)
+	migration.CreateAuthContainerTable(db)
+	migration.CreateAPITable(db)
+	migration.CreatePermissionTable(db)
+	migration.CreateIdentityProviderTable(db)
+	migration.CreateAuthClientTable(db)
+	migration.CreateRoleTable(db)
+	migration.CreateRolePermissionTable(db)
+	migration.CreateUserTable(db)
+	migration.CreateUserIdentitiesTable(db)
+	migration.CreateUserRoleTable(db)
+	migration.CreateUserTokenTable(db)
+	migration.CreateProfileTable(db)
+	migration.CreateRegistrationRouteTable(db)
+	migration.CreateRegistrationRouteRoleTable(db)
+	migration.CreateLoginAttemptTable(db)
+	migration.CreateAuthLogTable(db)
 }

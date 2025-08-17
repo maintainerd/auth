@@ -3,11 +3,11 @@ package runner
 import (
 	"log"
 
-	"github.com/maintainerd/auth/internal/seeder"
+	"github.com/maintainerd/auth/internal/database/seeder"
 	"gorm.io/gorm"
 )
 
-func RunDefaultSeeders(db *gorm.DB, appVersion string) {
+func RunSeeders(db *gorm.DB, appVersion string) {
 	log.Println("🏃 Running default seeders...")
 
 	// Seed service
