@@ -1,7 +1,14 @@
--- +goose Up
+package migration
 
+import (
+	"log"
+
+	"gorm.io/gorm"
+)
+
+func CreateRolePermissionTable(db *gorm.DB) {
+	sql := `
 -- CREATE TABLE
--- +goose StatementBegin
 CREATE TABLE IF NOT EXISTS role_permissions (
     role_permission_id      SERIAL PRIMARY KEY,
     role_permission_uuid    UUID UNIQUE NOT NULL,
@@ -11,42 +18,23 @@ CREATE TABLE IF NOT EXISTS role_permissions (
     created_at              TIMESTAMPTZ DEFAULT now(),
     updated_at              TIMESTAMPTZ
 );
--- +goose StatementEnd
 
 -- ADD CONSTRAINTS
--- +goose StatementBegin
 ALTER TABLE role_permissions
     ADD CONSTRAINT fk_role_permissions_role_id FOREIGN KEY (role_id) REFERENCES roles(role_id) ON DELETE CASCADE;
 ALTER TABLE role_permissions
     ADD CONSTRAINT fk_role_permissions_permission_id FOREIGN KEY (permission_id) REFERENCES permissions(permission_id) ON DELETE CASCADE;
 ALTER TABLE role_permissions
     ADD CONSTRAINT unique_role_permissions_role_id_permission_id UNIQUE (role_id, permission_id);
--- +goose StatementEnd
 
 -- ADD INDEXES
--- +goose StatementBegin
 CREATE INDEX idx_role_permissions_uuid ON role_permissions(role_permission_uuid);
 CREATE INDEX idx_role_permissions_role_id ON role_permissions(role_id);
 CREATE INDEX idx_role_permissions_permission_id ON role_permissions(permission_id);
--- +goose StatementEnd
+`
+	if err := db.Exec(sql).Error; err != nil {
+		log.Fatalf("❌ Failed to run migration 009_create_role_permissions_table: %v", err)
+	}
 
--- +goose Down
-
--- DROP INDEXES
--- +goose StatementBegin
-DROP INDEX IF EXISTS idx_role_permissions_uuid;
-DROP INDEX IF EXISTS idx_role_permissions_role_id;
-DROP INDEX IF EXISTS idx_role_permissions_permission_id;
--- +goose StatementEnd
-
--- DROP CONSTRAINTS
--- +goose StatementBegin
-ALTER TABLE role_permissions DROP CONSTRAINT IF EXISTS fk_role_permissions_role_id;
-ALTER TABLE role_permissions DROP CONSTRAINT IF EXISTS fk_role_permissions_permission_id;
-ALTER TABLE role_permissions DROP CONSTRAINT IF EXISTS unique_role_permissions_role_id_permission_id;
--- +goose StatementEnd
-
--- DROP TABLE
--- +goose StatementBegin
-DROP TABLE IF EXISTS role_permissions;
--- +goose StatementEnd
+	log.Println("✅ Migration 009_create_role_permissions_table executed")
+}

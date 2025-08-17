@@ -1,7 +1,14 @@
--- +goose Up
+package migration
 
+import (
+	"log"
+
+	"gorm.io/gorm"
+)
+
+func CreateIdentityProviderTable(db *gorm.DB) {
+	sql := `
 -- CREATE TABLE
--- +goose StatementBegin
 CREATE TABLE IF NOT EXISTS identity_providers (
     identity_provider_id    SERIAL PRIMARY KEY,
     identity_provider_uuid  UUID NOT NULL UNIQUE,
@@ -16,34 +23,18 @@ CREATE TABLE IF NOT EXISTS identity_providers (
     created_at              TIMESTAMPTZ DEFAULT now(),
     updated_at              TIMESTAMPTZ DEFAULT now()
 );
--- +goose StatementEnd
 
 -- ADD CONSTRAINTS
--- +goose StatementBegin
 ALTER TABLE identity_providers
     ADD CONSTRAINT fk_identity_providers_auth_container_id FOREIGN KEY (auth_container_id) REFERENCES auth_containers(auth_container_id) ON DELETE CASCADE;
--- +goose StatementEnd
 
 -- ADD INDEXES
--- +goose StatementBegin
 CREATE INDEX idx_identity_providers_auth_container_id ON identity_providers (auth_container_id);
 CREATE INDEX idx_identity_providers_provider_name ON identity_providers (provider_name);
--- +goose StatementEnd
+`
+	if err := db.Exec(sql).Error; err != nil {
+		log.Fatalf("❌ Failed to run migration 006_create_identity_providers_table: %v", err)
+	}
 
--- +goose Down
-
--- DROP INDEXES
--- +goose StatementBegin
-DROP INDEX IF EXISTS idx_identity_providers_auth_container_id;
-DROP INDEX IF EXISTS idx_identity_providers_provider_name;
--- +goose StatementEnd
-
--- DROP CONSTRAINTS
--- +goose StatementBegin
-ALTER TABLE identity_providers DROP CONSTRAINT IF EXISTS fk_identity_providers_auth_container_id;
--- +goose StatementEnd
-
--- DROP TABLE
--- +goose StatementBegin
-DROP TABLE IF EXISTS identity_providers;
--- +goose StatementEnd
+	log.Println("✅ Migration 006_create_identity_providers_table executed")
+}
