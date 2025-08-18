@@ -37,15 +37,6 @@ func RunSeeders(db *gorm.DB, appVersion string) {
 	// Seed permissions
 	seeder.SeedPermissions(db, api.APIID, authContainer.AuthContainerID)
 
-	// Seed roles
-	roles, err := seeder.SeedRoles(db, authContainer.AuthContainerID)
-	if err != nil {
-		log.Fatal("❌ Failed to seed roles:", err)
-	}
-
-	// Seed role permissions
-	seeder.SeedRolePermissions(db, roles, authContainer.AuthContainerID)
-
 	// Seed identity providers
 	identityProvider, err := seeder.SeedIdentityProviders(db, authContainer.AuthContainerID)
 	if err != nil {
@@ -54,6 +45,15 @@ func RunSeeders(db *gorm.DB, appVersion string) {
 
 	// Seed auth clients
 	seeder.SeedAuthClients(db, identityProvider.IdentityProviderID, authContainer.AuthContainerID)
+
+	// Seed roles
+	roles, err := seeder.SeedRoles(db, authContainer.AuthContainerID)
+	if err != nil {
+		log.Fatal("❌ Failed to seed roles:", err)
+	}
+
+	// Seed role permissions
+	seeder.SeedRolePermissions(db, roles, authContainer.AuthContainerID)
 
 	log.Println("✅ Default seeding process completed.")
 }
