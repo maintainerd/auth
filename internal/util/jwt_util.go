@@ -45,10 +45,12 @@ func GenerateAccessToken(
 	claims := jwt.MapClaims{
 		"sub":   userId,
 		"scope": scope,
-		"exp":   jwt.NewNumericDate(now.Add(1 * time.Hour)),
-		"iat":   jwt.NewNumericDate(now),
-		"iss":   issuer,
 		"aud":   audience,
+		"iss":   issuer,
+		"iat":   jwt.NewNumericDate(now),
+		"exp":   jwt.NewNumericDate(now.Add(1 * time.Hour)),
+		"jti":   "random-unique-id",
+
 		// Custom claims
 		"m9d_auth_container_id":    authContainerId,
 		"m9d_auth_client_id":       authClientID,
@@ -60,12 +62,26 @@ func GenerateAccessToken(
 func GenerateIDToken(userUUID, issuer, clientID string) (string, error) {
 	now := time.Now()
 	claims := jwt.MapClaims{
-		"sub":            userUUID,
+		"sub":       userUUID,
+		"aud":       clientID,
+		"iss":       issuer,
+		"iat":       jwt.NewNumericDate(now),
+		"exp":       jwt.NewNumericDate(now.Add(1 * time.Hour)),
+		"auth_time": jwt.NewNumericDate(now),
+		"nonce":     "random-nonce-from-client",
+
+		// Profile claims
+		"first_name":     "John",
+		"middle_name":    "A",
+		"last_name":      "Doe",
+		"suffix":         "Jr",
+		"birthdate":      "1990-01-01",
+		"gender":         "Male",
+		"phone":          "+1234567890",
+		"email":          "johndoe@yopmail.com",
 		"email_verified": true,
-		"exp":            jwt.NewNumericDate(now.Add(1 * time.Hour)),
-		"iat":            jwt.NewNumericDate(now),
-		"iss":            issuer,
-		"aud":            clientID,
+		"address":        "123 Main St, Anytown, USA",
+		"picture":        "https://cdn.maintainerd.com/users/jdoe.png",
 	}
 	return generateToken(claims)
 }
@@ -74,11 +90,12 @@ func GenerateRefreshToken(userUUID, issuer, clientID string) (string, error) {
 	now := time.Now()
 	claims := jwt.MapClaims{
 		"sub":        userUUID,
+		"aud":        clientID,
+		"iss":        issuer,
+		"iat":        jwt.NewNumericDate(now),
+		"jti":        "unique-refresh-token-id",
 		"token_type": "refresh_token",
 		"exp":        jwt.NewNumericDate(now.Add(30 * 24 * time.Hour)),
-		"iat":        jwt.NewNumericDate(now),
-		"iss":        issuer,
-		"aud":        clientID,
 	}
 	return generateToken(claims)
 }
