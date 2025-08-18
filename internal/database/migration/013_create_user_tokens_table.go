@@ -23,14 +23,22 @@ CREATE TABLE IF NOT EXISTS user_tokens (
     updated_at      TIMESTAMPTZ
 );
 
--- ADD CONSTRAINTS
-ALTER TABLE user_tokens
-    ADD CONSTRAINT fk_user_tokens_user FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE;
+-- ADD CONSTRAINTS (safe)
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint WHERE conname = 'fk_user_tokens_user'
+    ) THEN
+        ALTER TABLE user_tokens
+            ADD CONSTRAINT fk_user_tokens_user FOREIGN KEY (user_id)
+            REFERENCES users(user_id) ON DELETE CASCADE;
+    END IF;
+END$$;
 
 -- ADD INDEXES
-CREATE INDEX idx_user_tokens_user_id ON user_tokens(user_id);
-CREATE INDEX idx_user_tokens_token_uuid ON user_tokens(token_uuid);
-CREATE INDEX idx_user_tokens_token_type ON user_tokens(token_type);
+CREATE INDEX IF NOT EXISTS idx_user_tokens_user_id ON user_tokens(user_id);
+CREATE INDEX IF NOT EXISTS idx_user_tokens_token_uuid ON user_tokens(token_uuid);
+CREATE INDEX IF NOT EXISTS idx_user_tokens_token_type ON user_tokens(token_type);
 `
 	if err := db.Exec(sql).Error; err != nil {
 		log.Fatalf("❌ Failed to run migration 013_create_user_tokens_table: %v", err)

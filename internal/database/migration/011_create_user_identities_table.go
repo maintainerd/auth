@@ -20,12 +20,20 @@ CREATE TABLE IF NOT EXISTS user_identities (
     created_at          TIMESTAMPTZ DEFAULT now()
 );
 
--- ADD CONSTRAINTS
-ALTER TABLE user_identities
-    ADD CONSTRAINT fk_user_identities_user FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE;
+-- ADD CONSTRAINTS (safe)
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint WHERE conname = 'fk_user_identities_user'
+    ) THEN
+        ALTER TABLE user_identities
+            ADD CONSTRAINT fk_user_identities_user FOREIGN KEY (user_id)
+            REFERENCES users(user_id) ON DELETE CASCADE;
+    END IF;
+END$$;
 
--- ADD INDEXES
-CREATE UNIQUE INDEX idx_user_identities_provider_combination
+-- ADD INDEXES (safe)
+CREATE UNIQUE INDEX IF NOT EXISTS idx_user_identities_provider_combination
     ON user_identities (provider_name, provider_user_id);
 `
 	if err := db.Exec(sql).Error; err != nil {

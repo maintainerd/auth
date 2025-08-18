@@ -82,20 +82,23 @@ func SeedRolePermissions(db *gorm.DB, roles map[string]model.Role, authContainer
 			allPermissions = append(allPermissions, temp...)
 		}
 
-		if err := db.Where("role_id = ?", role.RoleID).Delete(&model.RolePermission{}).Error; err != nil {
-			log.Printf("❌ Failed to clear old role_permissions for role '%s': %v", role.Name, err)
-			continue
-		}
-
-		// Manually insert role_permissions with UUIDs
+		// Insert only missing role-permissions
 		for _, perm := range allPermissions {
-			rp := model.RolePermission{
-				RoleID:             role.RoleID,
-				PermissionID:       perm.PermissionID,
-				RolePermissionUUID: uuid.New(),
-			}
-			if err := db.Create(&rp).Error; err != nil {
-				log.Printf("❌ Failed to assign permission '%s' to role '%s': %v", perm.Name, role.Name, err)
+			var existing model.RolePermission
+			err := db.Where("role_id = ? AND permission_id = ?", role.RoleID, perm.PermissionID).
+				First(&existing).Error
+
+			if err == gorm.ErrRecordNotFound {
+				rp := model.RolePermission{
+					RoleID:             role.RoleID,
+					PermissionID:       perm.PermissionID,
+					RolePermissionUUID: uuid.New(),
+				}
+				if err := db.Create(&rp).Error; err != nil {
+					log.Printf("❌ Failed to assign permission '%s' to role '%s': %v", perm.Name, role.Name, err)
+				}
+			} else if err != nil {
+				log.Printf("❌ Failed to check existing permission '%s' for role '%s': %v", perm.Name, role.Name, err)
 			}
 		}
 
