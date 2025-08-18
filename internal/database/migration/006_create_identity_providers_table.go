@@ -24,13 +24,21 @@ CREATE TABLE IF NOT EXISTS identity_providers (
     updated_at              TIMESTAMPTZ DEFAULT now()
 );
 
--- ADD CONSTRAINTS
-ALTER TABLE identity_providers
-    ADD CONSTRAINT fk_identity_providers_auth_container_id FOREIGN KEY (auth_container_id) REFERENCES auth_containers(auth_container_id) ON DELETE CASCADE;
+-- ADD CONSTRAINTS (safe)
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint WHERE conname = 'fk_identity_providers_auth_container_id'
+    ) THEN
+        ALTER TABLE identity_providers
+            ADD CONSTRAINT fk_identity_providers_auth_container_id FOREIGN KEY (auth_container_id)
+            REFERENCES auth_containers(auth_container_id) ON DELETE CASCADE;
+    END IF;
+END$$;
 
 -- ADD INDEXES
-CREATE INDEX idx_identity_providers_auth_container_id ON identity_providers (auth_container_id);
-CREATE INDEX idx_identity_providers_provider_name ON identity_providers (provider_name);
+CREATE INDEX IF NOT EXISTS idx_identity_providers_auth_container_id ON identity_providers (auth_container_id);
+CREATE INDEX IF NOT EXISTS idx_identity_providers_provider_name ON identity_providers (provider_name);
 `
 	if err := db.Exec(sql).Error; err != nil {
 		log.Fatalf("❌ Failed to run migration 006_create_identity_providers_table: %v", err)

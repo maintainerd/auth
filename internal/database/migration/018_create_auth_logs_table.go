@@ -23,17 +23,31 @@ CREATE TABLE IF NOT EXISTS auth_logs (
     updated_at          TIMESTAMPTZ DEFAULT now()
 );
 
--- ADD CONSTRAINTS
-ALTER TABLE auth_logs
-    ADD CONSTRAINT fk_auth_logs_user_id FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE;
-ALTER TABLE auth_logs
-    ADD CONSTRAINT fk_auth_logs_auth_container_id FOREIGN KEY (auth_container_id) REFERENCES auth_containers(auth_container_id) ON DELETE CASCADE;
+-- ADD CONSTRAINTS (safe)
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint WHERE conname = 'fk_auth_logs_user_id'
+    ) THEN
+        ALTER TABLE auth_logs
+            ADD CONSTRAINT fk_auth_logs_user_id FOREIGN KEY (user_id)
+            REFERENCES users(user_id) ON DELETE CASCADE;
+    END IF;
+
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint WHERE conname = 'fk_auth_logs_auth_container_id'
+    ) THEN
+        ALTER TABLE auth_logs
+            ADD CONSTRAINT fk_auth_logs_auth_container_id FOREIGN KEY (auth_container_id)
+            REFERENCES auth_containers(auth_container_id) ON DELETE CASCADE;
+    END IF;
+END$$;
 
 -- ADD INDEXES
-CREATE INDEX idx_auth_logs_user_id ON auth_logs (user_id);
-CREATE INDEX idx_auth_logs_event_type ON auth_logs (event_type);
-CREATE INDEX idx_auth_logs_auth_container_id ON auth_logs (auth_container_id);
-CREATE INDEX idx_auth_logs_auth_log_uuid ON auth_logs (auth_log_uuid);
+CREATE INDEX IF NOT EXISTS idx_auth_logs_user_id ON auth_logs (user_id);
+CREATE INDEX IF NOT EXISTS idx_auth_logs_event_type ON auth_logs (event_type);
+CREATE INDEX IF NOT EXISTS idx_auth_logs_auth_container_id ON auth_logs (auth_container_id);
+CREATE INDEX IF NOT EXISTS idx_auth_logs_auth_log_uuid ON auth_logs (auth_log_uuid);
 `
 	if err := db.Exec(sql).Error; err != nil {
 		log.Fatalf("❌ Failed to run migration 018_create_auth_logs_table: %v", err)

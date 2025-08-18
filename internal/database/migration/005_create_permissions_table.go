@@ -22,17 +22,31 @@ CREATE TABLE IF NOT EXISTS permissions (
     updated_at          TIMESTAMPTZ DEFAULT now()
 );
 
--- ADD CONSTRAINTS
-ALTER TABLE permissions
-    ADD CONSTRAINT fk_permissions_api_id FOREIGN KEY (api_id) REFERENCES apis(api_id) ON DELETE CASCADE;
-ALTER TABLE permissions
-    ADD CONSTRAINT fk_permissions_auth_container_id FOREIGN KEY (auth_container_id) REFERENCES auth_containers(auth_container_id) ON DELETE CASCADE;
+-- ADD CONSTRAINTS (safe)
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint WHERE conname = 'fk_permissions_api_id'
+    ) THEN
+        ALTER TABLE permissions
+            ADD CONSTRAINT fk_permissions_api_id FOREIGN KEY (api_id)
+            REFERENCES apis(api_id) ON DELETE CASCADE;
+    END IF;
+
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint WHERE conname = 'fk_permissions_auth_container_id'
+    ) THEN
+        ALTER TABLE permissions
+            ADD CONSTRAINT fk_permissions_auth_container_id FOREIGN KEY (auth_container_id)
+            REFERENCES auth_containers(auth_container_id) ON DELETE CASCADE;
+    END IF;
+END$$;
 
 -- ADD INDEXES
-CREATE INDEX idx_permissions_permission_uuid ON permissions(permission_uuid);
-CREATE INDEX idx_permissions_name ON permissions(name);
-CREATE INDEX idx_permissions_api_id ON permissions(api_id);
-CREATE INDEX idx_permissions_auth_container_id ON permissions(auth_container_id);
+CREATE INDEX IF NOT EXISTS idx_permissions_permission_uuid ON permissions(permission_uuid);
+CREATE INDEX IF NOT EXISTS idx_permissions_name ON permissions(name);
+CREATE INDEX IF NOT EXISTS idx_permissions_api_id ON permissions(api_id);
+CREATE INDEX IF NOT EXISTS idx_permissions_auth_container_id ON permissions(auth_container_id);
 `
 	if err := db.Exec(sql).Error; err != nil {
 		log.Fatalf("❌ Failed to run migration 005_create_permissions_table: %v", err)
