@@ -9,28 +9,34 @@ import (
 func CreateOrganizationTable(db *gorm.DB) {
 	sql := `
 -- CREATE TABLE
-CREATE TABLE IF NOT EXISTS auth_containers (
-    auth_container_id   SERIAL PRIMARY KEY,
-    auth_container_uuid UUID NOT NULL UNIQUE,
-    name                VARCHAR(255) NOT NULL,
-    description         TEXT NOT NULL,
-    identifier          TEXT NOT NULL,
-    is_active           BOOLEAN DEFAULT FALSE,
-    is_default          BOOLEAN DEFAULT FALSE,
-    organization_id     INTEGER NOT NULL,
-    created_at          TIMESTAMPTZ DEFAULT now(),
-    updated_at          TIMESTAMPTZ
+CREATE TABLE IF NOT EXISTS organizations (
+    organization_id       SERIAL PRIMARY KEY,
+    organization_uuid     UUID NOT NULL UNIQUE,
+    name                  VARCHAR(255) NOT NULL,
+    description           TEXT,
+    email                 VARCHAR(255),
+    phone_number          VARCHAR(50),
+    website_url           TEXT,
+    logo_url              TEXT,
+    external_reference_id VARCHAR(255), -- Optional for external integrations
+    is_default            BOOLEAN DEFAULT FALSE,
+    is_active             BOOLEAN DEFAULT TRUE,
+    created_at            TIMESTAMPTZ DEFAULT now(),
+    updated_at            TIMESTAMPTZ DEFAULT now()
 );
 
 -- ADD INDEXES
-CREATE INDEX idx_auth_containers_auth_container_uuid ON auth_containers(auth_container_uuid);
-CREATE INDEX idx_auth_containers_name ON auth_containers(name);
-CREATE INDEX idx_auth_containers_is_active ON auth_containers(is_active);
-CREATE INDEX idx_auth_containers_is_default ON auth_containers(is_default);
+CREATE INDEX IF NOT EXISTS idx_organizations_organization_uuid ON organizations (organization_uuid);
+CREATE INDEX IF NOT EXISTS idx_organizations_name ON organizations (name);
+CREATE INDEX IF NOT EXISTS idx_organizations_email ON organizations (email);
+CREATE INDEX IF NOT EXISTS idx_organizations_phone_number ON organizations (phone_number);
+CREATE INDEX IF NOT EXISTS idx_organizations_is_active ON organizations (is_active);
+CREATE INDEX IF NOT EXISTS idx_organizations_is_default ON organizations (is_default);
+CREATE INDEX IF NOT EXISTS idx_organizations_external_reference_id ON organizations (external_reference_id);
 `
 	if err := db.Exec(sql).Error; err != nil {
-		log.Fatalf("❌ Failed to run migration 002_create_organizations_table: %v", err)
+		log.Fatalf("❌ Failed to run migration 003_create_organizations_table: %v", err)
 	}
 
-	log.Println("✅ Migration 002_create_organizations_table executed")
+	log.Println("✅ Migration 003_create_organizations_table executed")
 }

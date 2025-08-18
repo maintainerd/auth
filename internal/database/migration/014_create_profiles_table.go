@@ -30,15 +30,23 @@ CREATE TABLE IF NOT EXISTS profiles (
     updated_at      TIMESTAMPTZ DEFAULT now()
 );
 
--- ADD CONSTRAINTS
-ALTER TABLE profiles
-    ADD CONSTRAINT fk_profiles_user_id FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE;
+-- ADD CONSTRAINTS (safe)
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint WHERE conname = 'fk_profiles_user_id'
+    ) THEN
+        ALTER TABLE profiles
+            ADD CONSTRAINT fk_profiles_user_id FOREIGN KEY (user_id)
+            REFERENCES users(user_id) ON DELETE CASCADE;
+    END IF;
+END$$;
 
 -- ADD INDEXES
-CREATE INDEX idx_profiles_user_id ON profiles(user_id);
-CREATE INDEX idx_profiles_profile_uuid ON profiles(profile_uuid);
-CREATE INDEX idx_profiles_first_name ON profiles(first_name);
-CREATE INDEX idx_profiles_last_name ON profiles(last_name);
+CREATE INDEX IF NOT EXISTS idx_profiles_user_id ON profiles(user_id);
+CREATE INDEX IF NOT EXISTS idx_profiles_profile_uuid ON profiles(profile_uuid);
+CREATE INDEX IF NOT EXISTS idx_profiles_first_name ON profiles(first_name);
+CREATE INDEX IF NOT EXISTS idx_profiles_last_name ON profiles(last_name);
 `
 	if err := db.Exec(sql).Error; err != nil {
 		log.Fatalf("❌ Failed to run migration 014_create_profiles_table: %v", err)
