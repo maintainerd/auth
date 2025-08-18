@@ -10,6 +10,7 @@ import (
 	"github.com/maintainerd/auth/internal/repository"
 	"github.com/maintainerd/auth/internal/util"
 	"golang.org/x/crypto/bcrypt"
+	"gorm.io/gorm"
 )
 
 type AuthService interface {
@@ -19,17 +20,20 @@ type AuthService interface {
 }
 
 type authService struct {
+	db            *gorm.DB
 	clientRepo    repository.AuthClientRepository
 	userRepo      repository.UserRepository
 	userTokenRepo repository.UserTokenRepository
 }
 
 func NewAuthService(
+	db *gorm.DB,
 	clientRepo repository.AuthClientRepository,
 	userRepo repository.UserRepository,
 	userTokenRepo repository.UserTokenRepository,
 ) AuthService {
 	return &authService{
+		db:            db,
 		clientRepo:    clientRepo,
 		userRepo:      userRepo,
 		userTokenRepo: userTokenRepo,
@@ -47,99 +51,99 @@ func (s *authService) Register(
 	clientID,
 	identityProviderID string,
 ) (*dto.AuthResponse, error) {
-	// Get auth client and check if exist and valid
+	// Step 1: Validate client
 	authClient, err := s.clientRepo.FindByClientIDAndIdentityProvider(clientID, identityProviderID)
-
 	if err != nil {
 		return nil, err
 	}
-
 	if authClient == nil || !authClient.IsActive || authClient.Domain == nil || *authClient.Domain == "" || authClient.AuthContainer == nil {
 		return nil, errors.New("invalid client or identity provider")
 	}
 
-	// Check if username is an email
 	isEmail := util.IsValidEmail(username)
 
-	// Check if username or email already exists
-	if isEmail {
-		existingUser, err := s.userRepo.FindByEmail(username, authClient.AuthContainerID)
+	var createdUser *model.User
+
+	// Step 2: Use GORM Transaction (best practice)
+	err = s.db.Transaction(func(tx *gorm.DB) error {
+		// Check if username/email already exists
+		var existingUser *model.User
+		var err error
+		if isEmail {
+			existingUser, err = s.userRepo.FindByEmail(username, authClient.AuthContainerID)
+		} else {
+			existingUser, err = s.userRepo.FindByUsername(username, authClient.AuthContainerID)
+		}
 		if err != nil {
-			return nil, err
+			return err
 		}
 		if existingUser != nil {
-			return nil, errors.New("email already registered")
+			if isEmail {
+				return errors.New("email already registered")
+			}
+			return errors.New("username already taken")
 		}
-	} else {
-		existingUser, err := s.userRepo.FindByUsername(username, authClient.AuthContainerID)
+
+		// Hash password
+		hashed, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 		if err != nil {
-			return nil, err
+			return err
 		}
-		if existingUser != nil {
-			return nil, errors.New("username already taken")
+
+		// Create user
+		newUser := &model.User{
+			UserUUID:        uuid.New(),
+			Username:        username,
+			Email:           "",
+			Password:        ptr(string(hashed)),
+			AuthContainerID: authClient.AuthContainerID,
+			OrganizationID:  authClient.AuthContainer.OrganizationID,
+			IsActive:        true,
 		}
-	}
+		if isEmail {
+			newUser.Email = username
+		}
 
-	// Create password hash
-	hashed, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+		if err := tx.Create(newUser).Error; err != nil {
+			return err
+		}
+		createdUser = newUser
+
+		// Generate OTP
+		otp, err := util.GenerateOTP(6)
+		if err != nil {
+			return err
+		}
+
+		// Create user token
+		userToken := &model.UserToken{
+			TokenUUID: uuid.New(),
+			UserID:    createdUser.UserID,
+			TokenType: "user:email:verification",
+			Token:     otp,
+		}
+		if err := tx.Create(userToken).Error; err != nil {
+			return err
+		}
+
+		return nil // commit transaction
+	})
+
 	if err != nil {
 		return nil, err
 	}
 
-	// Create user
-	newUser := &model.User{
-		UserUUID:        uuid.New(),
-		Username:        username,
-		Email:           "",
-		Password:        ptr(string(hashed)),
-		AuthContainerID: authClient.AuthContainerID,
-		OrganizationID:  authClient.AuthContainer.OrganizationID,
-		IsActive:        true,
-	}
-
-	if isEmail {
-		newUser.Email = username
-	}
-
-	createdUser, err := s.userRepo.Create(newUser)
-
-	if err != nil {
-		return nil, err
-	}
-
-	// Generate OTP
-	otp, err := util.GenerateOTP(6)
-	if err != nil {
-		return nil, err
-	}
-
-	// Create user token
-	userToken := &model.UserToken{
-		TokenUUID: uuid.New(),
-		UserID:    createdUser.UserID,
-		TokenType: "user:email:verification",
-		Token:     otp,
-	}
-
-	if _, err := s.userTokenRepo.Create(userToken); err != nil {
-		return nil, err
-	}
-
-	// Return auth response
+	// Step 3: Return token response
 	return s.generateTokenResponse(createdUser.UserUUID.String(), authClient)
 }
 
 func (s *authService) Login(usernameOrEmail, password, clientID, identityProviderID string) (*dto.AuthResponse, error) {
-	// Get auth client and check if exist and valid
 	client, err := s.clientRepo.FindByClientIDAndIdentityProvider(clientID, identityProviderID)
-
 	if err != nil || client == nil || !client.IsActive || client.Domain == nil || *client.Domain == "" || client.AuthContainer == nil {
 		return nil, errors.New("invalid client or identity provider")
 	}
 
-	// Check if username or email exists
 	var user *model.User
-
 	if util.IsValidEmail(usernameOrEmail) {
 		user, err = s.userRepo.FindByEmail(usernameOrEmail, client.AuthContainerID)
 	} else {
@@ -161,10 +165,7 @@ func (s *authService) GetUserByEmail(email string, authContainerID int64) (*mode
 	return s.userRepo.FindByEmail(email, authContainerID)
 }
 
-func (s *authService) generateTokenResponse(
-	userUUID string,
-	authClient *model.AuthClient,
-) (*dto.AuthResponse, error) {
+func (s *authService) generateTokenResponse(userUUID string, authClient *model.AuthClient) (*dto.AuthResponse, error) {
 	accessToken, err := util.GenerateAccessToken(
 		userUUID,
 		"openid profile email",
@@ -174,7 +175,6 @@ func (s *authService) generateTokenResponse(
 		*authClient.ClientID,
 		authClient.IdentityProvider.IdentityProviderUUID,
 	)
-
 	if err != nil {
 		return nil, err
 	}
