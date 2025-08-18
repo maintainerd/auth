@@ -12,10 +12,10 @@ func CreateServiceTable(db *gorm.DB) {
 CREATE TABLE IF NOT EXISTS services (
     service_id      SERIAL PRIMARY KEY,
     service_uuid    UUID NOT NULL UNIQUE,
-    service_name    VARCHAR(100) NOT NULL, -- 'auth', 'your-custom-service'
+    service_name    VARCHAR(100) NOT NULL,
     display_name    TEXT NOT NULL,
     description     TEXT NOT NULL,
-    service_type    TEXT NOT NULL, -- 'default', 'custom'
+    service_type    TEXT NOT NULL,
     version         VARCHAR(20) NOT NULL,
     config          JSONB,
     is_active       BOOLEAN DEFAULT FALSE,
@@ -25,12 +25,11 @@ CREATE TABLE IF NOT EXISTS services (
 );
 
 -- ADD INDEXES
-CREATE INDEX idx_services_service_name ON services (service_name);
-CREATE INDEX idx_services_display_name ON services (display_name);
-CREATE INDEX idx_services_service_type ON services (service_type);
-CREATE INDEX idx_services_service_uuid ON services (service_uuid);
+CREATE INDEX IF NOT EXISTS idx_services_service_name ON services (service_name);
+CREATE INDEX IF NOT EXISTS idx_services_display_name ON services (display_name);
+CREATE INDEX IF NOT EXISTS idx_services_service_type ON services (service_type);
+CREATE INDEX IF NOT EXISTS idx_services_service_uuid ON services (service_uuid);
 `
-
 	if err := db.Exec(sql).Error; err != nil {
 		log.Fatalf("❌ Failed to run migration 001_create_services_table: %v", err)
 	}

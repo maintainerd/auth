@@ -21,14 +21,22 @@ CREATE TABLE IF NOT EXISTS roles (
     updated_at          TIMESTAMPTZ DEFAULT now()
 );
 
--- ADD CONSTRAINTS
-ALTER TABLE roles
-    ADD CONSTRAINT fk_roles_auth_container_id FOREIGN KEY (auth_container_id) REFERENCES auth_containers(auth_container_id) ON DELETE CASCADE;
+-- ADD CONSTRAINTS (safe)
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint WHERE conname = 'fk_roles_auth_container_id'
+    ) THEN
+        ALTER TABLE roles
+            ADD CONSTRAINT fk_roles_auth_container_id FOREIGN KEY (auth_container_id)
+            REFERENCES auth_containers(auth_container_id) ON DELETE CASCADE;
+    END IF;
+END$$;
 
 -- ADD INDEXES
-CREATE INDEX idx_roles_role_uuid ON roles(role_uuid);
-CREATE INDEX idx_roles_name ON roles(name);
-CREATE INDEX idx_roles_auth_container_id ON roles(auth_container_id);
+CREATE INDEX IF NOT EXISTS idx_roles_role_uuid ON roles(role_uuid);
+CREATE INDEX IF NOT EXISTS idx_roles_name ON roles(name);
+CREATE INDEX IF NOT EXISTS idx_roles_auth_container_id ON roles(auth_container_id);
 `
 	if err := db.Exec(sql).Error; err != nil {
 		log.Fatalf("❌ Failed to run migration 008_create_roles_table: %v", err)
