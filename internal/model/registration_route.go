@@ -9,17 +9,17 @@ import (
 
 type RegistrationRoute struct {
 	RegistrationRouteID   int64     `gorm:"column:registration_route_id;primaryKey"`
-	RegistrationRouteUUID uuid.UUID `gorm:"column:registration_route_uuid;type:uuid;not null;unique"`
-	Name                  string    `gorm:"column:name;type:varchar(100);not null"`
-	Identifier            string    `gorm:"column:identifier;type:varchar(255);not null;unique;index:idx_registration_routes_identifier"`
-	Description           string    `gorm:"column:description;type:text;not null"`
-	AuthContainerID       int64     `gorm:"column:auth_container_id;type:integer;not null;index:idx_registration_routes_auth_container_id"`
-	IsActive              bool      `gorm:"column:is_active;type:boolean;default:true;index:idx_registration_routes_is_active"`
-	CreatedAt             time.Time `gorm:"column:created_at;type:timestamptz;autoCreateTime"`
-	UpdatedAt             time.Time `gorm:"column:updated_at;type:timestamptz;autoUpdateTime"`
+	RegistrationRouteUUID uuid.UUID `gorm:"column:registration_route_uuid;unique"`
+	Name                  string    `gorm:"column:name"`
+	Identifier            string    `gorm:"column:identifier;unique"`
+	Description           string    `gorm:"column:description"`
+	AuthContainerID       int64     `gorm:"column:auth_container_id"`
+	IsActive              bool      `gorm:"column:is_active;default:true"`
+	CreatedAt             time.Time `gorm:"column:created_at;autoCreateTime"`
+	UpdatedAt             time.Time `gorm:"column:updated_at;autoUpdateTime"`
 
 	// Relationships
-	AuthContainer *AuthContainer `gorm:"foreignKey:AuthContainerID;references:AuthContainerID;constraint:OnDelete:CASCADE"`
+	AuthContainer *AuthContainer `gorm:"foreignKey:AuthContainerID;references:AuthContainerID"`
 }
 
 func (RegistrationRoute) TableName() string {

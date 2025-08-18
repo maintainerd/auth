@@ -10,20 +10,20 @@ import (
 
 type IdentityProvider struct {
 	IdentityProviderID   int64          `gorm:"column:identity_provider_id;primaryKey"`
-	IdentityProviderUUID uuid.UUID      `gorm:"column:identity_provider_uuid;type:uuid;not null;unique"`
-	ProviderName         string         `gorm:"column:provider_name;type:varchar(100);not null;index:idx_identity_providers_provider_name"`
-	DisplayName          string         `gorm:"column:display_name;type:text;not null"`
-	ProviderType         string         `gorm:"column:provider_type;type:varchar(100);not null"`
-	Identifier           *string        `gorm:"column:identifier;type:text"`
-	Config               datatypes.JSON `gorm:"column:config;type:jsonb"`
-	IsActive             bool           `gorm:"column:is_active;type:boolean;default:false"`
-	IsDefault            bool           `gorm:"column:is_default;type:boolean;default:false"`
-	AuthContainerID      int64          `gorm:"column:auth_container_id;type:integer;not null;index:idx_identity_providers_auth_container_id"`
-	CreatedAt            time.Time      `gorm:"column:created_at;type:timestamptz;autoCreateTime"`
-	UpdatedAt            time.Time      `gorm:"column:updated_at;type:timestamptz;autoUpdateTime"`
+	IdentityProviderUUID uuid.UUID      `gorm:"column:identity_provider_uuid"`
+	ProviderName         string         `gorm:"column:provider_name"`
+	DisplayName          string         `gorm:"column:display_name"`
+	ProviderType         string         `gorm:"column:provider_type"`
+	Identifier           *string        `gorm:"column:identifier"`
+	Config               datatypes.JSON `gorm:"column:config"`
+	IsActive             bool           `gorm:"column:is_active"`
+	IsDefault            bool           `gorm:"column:is_default"`
+	AuthContainerID      int64          `gorm:"column:auth_container_id"`
+	CreatedAt            time.Time      `gorm:"column:created_at;autoCreateTime"`
+	UpdatedAt            time.Time      `gorm:"column:updated_at;autoUpdateTime"`
 
 	// Relationships
-	AuthContainer *AuthContainer `gorm:"foreignKey:AuthContainerID;references:AuthContainerID;constraint:OnDelete:CASCADE"`
+	AuthContainer *AuthContainer `gorm:"foreignKey:AuthContainerID;references:AuthContainerID"`
 }
 
 func (IdentityProvider) TableName() string {
