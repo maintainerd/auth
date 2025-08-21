@@ -30,7 +30,7 @@ func NewApp(db *gorm.DB) *App {
 	// service
 	roleService := service.NewRoleService(roleRepo)
 	authService := service.NewAuthService(db, authClientRepo, userRepo, userTokenRepo)
-	profileService := service.NewProfileService(profileRepo)
+	profileService := service.NewProfileService(db, profileRepo)
 
 	// rest handler
 	roleHandler := resthandler.NewRoleHandler(roleService)
