@@ -10,6 +10,9 @@ type BaseRepositoryMethods[T any] interface {
 	// Retrieve a record by UUID with optional preloads
 	FindByUUID(uuid any, preloads ...string) (*T, error)
 
+	// Retrieve multiple records by UUIDs with optional preloads
+	FindByUUIDs(uuids []string, preloads ...string) ([]T, error)
+
 	// Retrieve a record by ID with optional preloads
 	FindByID(id any, preloads ...string) (*T, error)
 

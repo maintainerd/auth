@@ -6,8 +6,9 @@ import (
 )
 
 func RunMigrations(db *gorm.DB) {
-	migration.CreateServiceTable(db)
 	migration.CreateOrganizationTable(db)
+	migration.CreateServiceTable(db)
+	migration.CreateOrganizationServicesTable(db)
 	migration.CreateAuthContainerTable(db)
 	migration.CreateAPITable(db)
 	migration.CreatePermissionTable(db)
@@ -20,8 +21,11 @@ func RunMigrations(db *gorm.DB) {
 	migration.CreateUserRoleTable(db)
 	migration.CreateUserTokenTable(db)
 	migration.CreateProfileTable(db)
-	migration.CreateRegistrationRouteTable(db)
-	migration.CreateRegistrationRouteRoleTable(db)
+	migration.CreateOnboardingRouteTable(db)
+	migration.CreateOnboardingRouteRoleTable(db)
 	migration.CreateLoginAttemptTable(db)
 	migration.CreateAuthLogTable(db)
+	migration.CreateInvitesTable(db)
+	migration.CreateInviteRolesTable(db)
+	migration.CreateEmailTemplatesTable(db)
 }

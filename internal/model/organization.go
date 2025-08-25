@@ -21,6 +21,9 @@ type Organization struct {
 	IsActive            bool      `gorm:"column:is_active"`
 	CreatedAt           time.Time `gorm:"column:created_at;autoCreateTime"`
 	UpdatedAt           time.Time `gorm:"column:updated_at;autoUpdateTime"`
+
+	// Relationships
+	Services []*Service `gorm:"many2many:organization_services;joinForeignKey:OrganizationID;joinReferences:ServiceID"`
 }
 
 func (Organization) TableName() string {
