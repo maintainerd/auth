@@ -13,6 +13,8 @@ type OrganizationRepository interface {
 	FindByExternalReferenceID(refID string) (*model.Organization, error)
 	FindAllActive() ([]model.Organization, error)
 	FindDefaultOrganization() (*model.Organization, error)
+	FindOrganizationWithServices(organizationUUID uuid.UUID) (*model.Organization, error)
+	FindDefaultOrganizationWithServices() (*model.Organization, error)
 	SetActiveStatusByUUID(organizationUUID uuid.UUID, isActive bool) error
 	SetDefaultStatusByUUID(organizationUUID uuid.UUID, isDefault bool) error
 }
@@ -64,6 +66,24 @@ func (r *organizationRepository) FindAllActive() ([]model.Organization, error) {
 func (r *organizationRepository) FindDefaultOrganization() (*model.Organization, error) {
 	var org model.Organization
 	err := r.db.
+		Where("is_default = true").
+		First(&org).Error
+	return &org, err
+}
+
+func (r *organizationRepository) FindOrganizationWithServices(organizationUUID uuid.UUID) (*model.Organization, error) {
+	var org model.Organization
+	err := r.db.
+		Preload("Services").
+		Where("organization_uuid = ?", organizationUUID).
+		First(&org).Error
+	return &org, err
+}
+
+func (r *organizationRepository) FindDefaultOrganizationWithServices() (*model.Organization, error) {
+	var org model.Organization
+	err := r.db.
+		Preload("Services").
 		Where("is_default = true").
 		First(&org).Error
 	return &org, err

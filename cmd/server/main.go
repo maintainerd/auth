@@ -23,11 +23,14 @@ func main() {
 	// ⚙️ Load database
 	db := config.InitDB()
 
+	// ⚙️ Load Redis
+	redisClient := config.NewRedisClient()
+
 	// 🔁 App startup routines (migrations, seeding, etc.)
 	startup.RunAppStartUp(db)
 
 	// ⚙️ App wiring (handlers, services, etc.)
-	application := app.NewApp(db)
+	application := app.NewApp(db, redisClient)
 
 	// 🚀 gRPC server (background)
 	go grpcserver.StartGRPCServer(application)

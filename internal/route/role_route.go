@@ -5,11 +5,18 @@ import (
 	"github.com/maintainerd/auth/internal/handler/resthandler"
 	"github.com/maintainerd/auth/internal/middleware"
 	"github.com/maintainerd/auth/internal/repository"
+	"github.com/redis/go-redis/v9"
 )
 
-func RegisterRoleRoute(r chi.Router, roleHandler *resthandler.RoleHandler, userRepo repository.UserRepository) {
+func RoleRoute(
+	r chi.Router,
+	roleHandler *resthandler.RoleHandler,
+	userRepo repository.UserRepository,
+	redisClient *redis.Client,
+) {
 	r.Route("/roles", func(r chi.Router) {
-		r.Use(middleware.JWTAuthMiddleware(userRepo))
+		r.Use(middleware.JWTAuthMiddleware)
+		r.Use(middleware.UserContextMiddleware(userRepo, redisClient))
 
 		r.Post("/", roleHandler.Create)
 		r.Get("/", roleHandler.GetAll)

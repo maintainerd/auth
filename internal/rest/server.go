@@ -18,9 +18,11 @@ func StartRESTServer(application *app.App) {
 	r.Use(middleware.Recoverer)
 
 	r.Route("/api/v1", func(api chi.Router) {
-		route.RegisterAuthRoute(api, application.AuthHandler)
-		route.RegisterRoleRoute(api, application.RoleHandler, application.UserRepository)
-		route.RegisterProfileRoute(api, application.ProfileHandler, application.UserRepository)
+		route.RegisterRoute(api, application.RegisterRestHandler)
+		route.LoginRoute(api, application.LoginRestHandler)
+		route.RoleRoute(api, application.RoleRestHandler, application.UserRepository, application.RedisClient)
+		route.ProfileRoute(api, application.ProfileRestHandler, application.UserRepository, application.RedisClient)
+		route.InviteRoute(api, application.InviteRestHandler, application.UserRepository, application.RedisClient)
 	})
 
 	log.Println("REST server running on port 8080")
