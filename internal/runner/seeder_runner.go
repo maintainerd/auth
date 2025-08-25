@@ -55,5 +55,8 @@ func RunSeeders(db *gorm.DB, appVersion string) {
 	// Seed role permissions
 	seeder.SeedRolePermissions(db, roles, authContainer.AuthContainerID)
 
+	// Seed email templates
+	seeder.SeedEmailTemplates(db)
+
 	log.Println("✅ Default seeding process completed.")
 }

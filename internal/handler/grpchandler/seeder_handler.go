@@ -9,24 +9,18 @@ import (
 
 type SeederHandler struct {
 	authv1.UnimplementedSeederServiceServer
-	authService service.AuthService
+	registerService service.RegisterService
 }
 
-func NewSeederHandler(authService service.AuthService) *SeederHandler {
+func NewSeederHandler(registerService service.RegisterService) *SeederHandler {
 	return &SeederHandler{
-		authService: authService,
+		registerService: registerService,
 	}
 }
 
 func (s *SeederHandler) TriggerSeeder(ctx context.Context, req *authv1.TriggerSeederRequest) (*authv1.TriggerSeederResponse, error) {
-	// 🔧 TODO: Call real seeding/auth service logic here
-	user, err := s.authService.GetUserByEmail(req.GetTriggeredBy(), 1)
-	if err != nil {
-		return nil, err
-	}
-
 	return &authv1.TriggerSeederResponse{
 		Success: true,
-		Message: "Seeder triggered by " + user.Email,
+		Message: "Received",
 	}, nil
 }

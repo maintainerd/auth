@@ -19,6 +19,7 @@ type Service struct {
 	Config      datatypes.JSON `gorm:"column:config"`
 	IsActive    bool           `gorm:"column:is_active;default:false"`
 	IsDefault   bool           `gorm:"column:is_default;default:false"`
+	IsPublic    bool           `gorm:"column:is_public;default:false"`
 	CreatedAt   time.Time      `gorm:"column:created_at;autoCreateTime"`
 	UpdatedAt   time.Time      `gorm:"column:updated_at;autoUpdateTime"`
 }

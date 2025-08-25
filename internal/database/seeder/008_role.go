@@ -11,8 +11,6 @@ import (
 func SeedRoles(db *gorm.DB, authContainerID int64) (map[string]model.Role, error) {
 	roles := []model.Role{
 		newRole("super-admin", "Super Admin", authContainerID),
-		newRole("admin", "Admin", authContainerID),
-		newRole("registered", "Registered", authContainerID),
 	}
 
 	roleMap := make(map[string]model.Role)
