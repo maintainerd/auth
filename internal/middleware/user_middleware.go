@@ -32,6 +32,15 @@ func UserContextMiddleware(
 				return
 			}
 
+			// Get sub + client_id from JWT middleware
+			sub, _ := r.Context().Value(SubKey).(string)
+			clientID, _ := r.Context().Value(ClientIDKey).(string)
+
+			if sub == "" || clientID == "" {
+				util.Error(w, http.StatusUnauthorized, "Missing sub or client_id in token")
+				return
+			}
+
 			cacheKey := "user:" + userUUID.String()
 			ctx := context.Background()
 
@@ -41,15 +50,14 @@ func UserContextMiddleware(
 			cachedUser, err := redisClient.Get(ctx, cacheKey).Result()
 			if err == nil {
 				if err := json.Unmarshal([]byte(cachedUser), &user); err == nil {
-					// Cache hit and unmarshalled successfully
 					reqCtx := context.WithValue(r.Context(), UserContextKey, user)
 					next.ServeHTTP(w, r.WithContext(reqCtx))
 					return
 				}
 			}
 
-			// Load from database
-			user, err = userRepo.FindByUUID(userUUID)
+			// Load from database with all relationships
+			user, err = userRepo.FindBySubAndClientID(sub, clientID)
 			if err != nil {
 				util.Error(w, http.StatusInternalServerError, "Failed to load user from database", err.Error())
 				return

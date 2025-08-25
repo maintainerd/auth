@@ -12,14 +12,15 @@ type UserIdentity struct {
 	UserIdentityID   int64          `gorm:"column:user_identity_id;primaryKey"`
 	UserIdentityUUID uuid.UUID      `gorm:"column:user_identity_uuid;unique"`
 	UserID           int64          `gorm:"column:user_id"`
-	ProviderName     string         `gorm:"column:provider_name"`
-	ProviderUserID   string         `gorm:"column:provider_user_id"`
-	Email            *string        `gorm:"column:email"`
-	RawProfile       datatypes.JSON `gorm:"column:raw_profile"`
+	AuthClientID     int64          `gorm:"column:auth_client_id"`
+	Provider         string         `gorm:"column:provider"`
+	Sub              string         `gorm:"column:sub"`
+	UserData         datatypes.JSON `gorm:"column:user_data"`
 	CreatedAt        time.Time      `gorm:"column:created_at;autoCreateTime"`
 
 	// Relationships
-	User *User `gorm:"foreignKey:UserID;references:UserID;constraint:OnDelete:CASCADE"`
+	User       *User       `gorm:"foreignKey:UserID;references:UserID;constraint:OnDelete:CASCADE"`
+	AuthClient *AuthClient `gorm:"foreignKey:AuthClientID;references:AuthClientID;constraint:OnDelete:CASCADE"` // new relationship
 }
 
 func (UserIdentity) TableName() string {
