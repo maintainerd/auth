@@ -24,8 +24,14 @@ type User struct {
 	UpdatedAt          time.Time `gorm:"column:updated_at;autoUpdateTime"`
 
 	// Relationships
-	Organization  *Organization  `gorm:"foreignKey:OrganizationID;references:OrganizationID;constraint:OnDelete:CASCADE"`
-	AuthContainer *AuthContainer `gorm:"foreignKey:AuthContainerID;references:AuthContainerID;constraint:OnDelete:CASCADE"`
+	Organization   *Organization  `gorm:"foreignKey:OrganizationID;references:OrganizationID;constraint:OnDelete:CASCADE"`
+	AuthContainer  *AuthContainer `gorm:"foreignKey:AuthContainerID;references:AuthContainerID;constraint:OnDelete:CASCADE"`
+	UserIdentities []UserIdentity `gorm:"foreignKey:UserID;references:UserID;constraint:OnDelete:CASCADE"`
+	UserRoles      []UserRole     `gorm:"foreignKey:UserID;references:UserID"`
+	Roles          []Role         `gorm:"many2many:user_roles;joinForeignKey:UserID;joinReferences:RoleID"`
+	UserTokens     []UserToken    `gorm:"foreignKey:UserID;references:UserID;constraint:OnDelete:CASCADE"`
+	LoginAttempts  []LoginAttempt `gorm:"foreignKey:UserID;references:UserID;constraint:OnDelete:SET NULL"`
+	AuthLogs       []AuthLog      `gorm:"foreignKey:UserID;references:UserID;constraint:OnDelete:SET NULL"`
 }
 
 func (User) TableName() string {

@@ -6,11 +6,11 @@ import (
 )
 
 func RegisterRoute(r chi.Router, registerHandler *resthandler.RegisterHandler) {
-	// Public registration routes
 	r.Post("/register", registerHandler.RegisterPublic)
 	r.Post("/register/invite", registerHandler.RegisterPublic)
-	// This route is intended for internal use only, not exposed to public clients
-	// TODO: Well move this to a separate internal router with additional security measures (e.g., IP whitelisting, VPN, etc.)
-	r.Post("/internal/register", registerHandler.RegisterPrivate)
-	r.Post("/internal/register/invite", registerHandler.RegisterPrivateInvite)
+}
+
+func RegisterInternalRoute(r chi.Router, registerHandler *resthandler.RegisterHandler) {
+	r.Post("/register", registerHandler.RegisterPrivate)
+	r.Post("/register/invite", registerHandler.RegisterPrivateInvite)
 }

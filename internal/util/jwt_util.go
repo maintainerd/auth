@@ -52,9 +52,9 @@ func GenerateAccessToken(
 		"jti":   "random-unique-id",
 
 		// Custom claims
-		"m9d_auth_container_id":    authContainerId,
-		"m9d_auth_client_id":       authClientID,
-		"m9d_identity_provider_id": identityProviderId,
+		"m9d_container_id": authContainerId,
+		"m9d_client_id":    authClientID,
+		"m9d_provider_id":  identityProviderId,
 	}
 	return generateToken(claims)
 }

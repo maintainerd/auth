@@ -117,7 +117,7 @@ func (s *inviteService) SendPrivateInvite(
 
 	// Generate signed invite URL (API domain)
 	params := map[string]string{"invite_token": invite.InviteToken}
-	apiBaseURL := config.AppHostname + "/register/invite"
+	apiBaseURL := config.AppPrivateHostname + "/register/invite"
 	signedAPIURL, err := util.GenerateSignedURL(apiBaseURL, params, 72*time.Hour)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate signed invite URL: %w", err)

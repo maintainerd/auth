@@ -12,6 +12,7 @@ type UserRepository interface {
 	FindByEmail(email string, authContainerID int64) (*model.User, error)
 	FindSuperAdmin() (*model.User, error)
 	FindRoles(userID int64) ([]model.Role, error)
+	FindBySubAndClientID(sub string, authClientID string) (*model.User, error)
 	SetEmailVerified(userUUID uuid.UUID, verified bool) error
 	SetActiveStatus(userUUID uuid.UUID, active bool) error
 }
@@ -89,6 +90,27 @@ func (r *userRepository) FindRoles(userID int64) ([]model.Role, error) {
 		Where("ur.user_id = ?", userID).
 		Find(&roles).Error
 	return roles, err
+}
+
+func (r *userRepository) FindBySubAndClientID(sub string, authClientID string) (*model.User, error) {
+	var user model.User
+	err := r.db.
+		Preload("Organization").
+		Preload("AuthContainer").
+		Preload("UserIdentities.AuthClient").
+		Preload("Roles.Permissions").
+		Joins("JOIN user_identities ON users.user_id = user_identities.user_id").
+		Joins("JOIN auth_clients ON user_identities.auth_client_id = auth_clients.auth_client_id").
+		Where("user_identities.sub = ? AND auth_clients.client_id = ?", sub, authClientID).
+		First(&user).Error
+
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &user, nil
 }
 
 func (r *userRepository) SetEmailVerified(userUUID uuid.UUID, verified bool) error {

@@ -13,7 +13,8 @@ import (
 )
 
 func SeedAuthClients(db *gorm.DB, identityProviderID int64, authContainerID int64) {
-	appHostName := os.Getenv("APP_HOSTNAME")
+	appHostName := os.Getenv("APP_PRIVATE_HOSTNAME")
+	accountHostName := os.Getenv("ACCOUNT_HOSTNAME")
 
 	clients := []model.AuthClient{
 		{
@@ -24,7 +25,7 @@ func SeedAuthClients(db *gorm.DB, identityProviderID int64, authContainerID int6
 			Domain:         strPtr(appHostName),
 			ClientID:       strPtr(util.GenerateIdentifier(32)),
 			ClientSecret:   strPtr(util.GenerateIdentifier(64)),
-			RedirectURI:    strPtr("https://auth.yourapp.com/callback"),
+			RedirectURI:    strPtr(accountHostName + "/callback"),
 			Config: datatypes.JSON([]byte(`{
 				"grant_types": ["authorization_code"],
 				"response_type": "code",
@@ -45,7 +46,7 @@ func SeedAuthClients(db *gorm.DB, identityProviderID int64, authContainerID int6
 			Domain:         strPtr(appHostName),
 			ClientID:       strPtr(util.GenerateIdentifier(32)),
 			ClientSecret:   nil,
-			RedirectURI:    strPtr("https://app.yourfrontend.com/callback"),
+			RedirectURI:    strPtr(accountHostName + "/callback"),
 			Config: datatypes.JSON([]byte(`{
 				"grant_types": ["authorization_code"],
 				"response_type": "code",
@@ -66,7 +67,7 @@ func SeedAuthClients(db *gorm.DB, identityProviderID int64, authContainerID int6
 			Domain:         strPtr(appHostName),
 			ClientID:       strPtr(util.GenerateIdentifier(32)),
 			ClientSecret:   nil,
-			RedirectURI:    strPtr("com.yourapp.mobile://callback"),
+			RedirectURI:    strPtr(accountHostName + "://callback"),
 			Config: datatypes.JSON([]byte(`{
 				"grant_types": ["authorization_code"],
 				"response_type": "code",
