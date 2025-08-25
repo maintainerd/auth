@@ -10,7 +10,7 @@ type UserRepository interface {
 	BaseRepositoryMethods[model.User]
 	FindByUsername(username string, authContainerID int64) (*model.User, error)
 	FindByEmail(email string, authContainerID int64) (*model.User, error)
-	FindByUsernameOrEmail(identifier string, authContainerID int64) (*model.User, error)
+	FindSuperAdmin() (*model.User, error)
 	FindRoles(userID int64) ([]model.Role, error)
 	SetEmailVerified(userUUID uuid.UUID, verified bool) error
 	SetActiveStatus(userUUID uuid.UUID, active bool) error
@@ -60,10 +60,14 @@ func (r *userRepository) FindByEmail(email string, authContainerID int64) (*mode
 	return &user, nil
 }
 
-func (r *userRepository) FindByUsernameOrEmail(identifier string, authContainerID int64) (*model.User, error) {
+func (r *userRepository) FindSuperAdmin() (*model.User, error) {
 	var user model.User
 	err := r.db.
-		Where("(username = ? OR email = ?) AND auth_container_id = ?", identifier, identifier, authContainerID).
+		Joins("JOIN auth_containers ON users.auth_container_id = auth_containers.auth_container_id").
+		Joins("JOIN user_roles ON users.user_id = user_roles.user_id").
+		Joins("JOIN roles ON user_roles.role_id = roles.role_id").
+		Where("auth_containers.is_active = true AND auth_containers.is_default = true").
+		Where("roles.name = ?", "super-admin").
 		First(&user).Error
 
 	if err != nil {

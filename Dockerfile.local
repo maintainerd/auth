@@ -19,4 +19,4 @@ COPY Makefile ./
 
 EXPOSE 8080
 
-CMD ["air"]
+CMD ["air", "-c", ".air.toml"]

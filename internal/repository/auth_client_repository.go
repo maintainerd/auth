@@ -10,6 +10,7 @@ type AuthClientRepository interface {
 	BaseRepositoryMethods[model.AuthClient]
 	FindByClientID(clientID string) (*model.AuthClient, error)
 	FindAllByAuthContainerID(authContainerID int64) ([]model.AuthClient, error)
+	FindDefault() (*model.AuthClient, error)
 	FindDefaultByAuthContainerID(authContainerID int64) (*model.AuthClient, error)
 	SetActiveStatusByUUID(authClientUUID uuid.UUID, isActive bool) error
 	FindByClientIDAndIdentityProvider(clientID, identityProviderIdentifier string) (*model.AuthClient, error)
@@ -39,6 +40,19 @@ func (r *authClientRepository) FindAllByAuthContainerID(authContainerID int64) (
 		Where("auth_container_id = ?", authContainerID).
 		Find(&clients).Error
 	return clients, err
+}
+
+func (r *authClientRepository) FindDefault() (*model.AuthClient, error) {
+	var client model.AuthClient
+	err := r.db.
+		Joins("JOIN identity_providers ON auth_clients.auth_container_id = identity_providers.auth_container_id").
+		Where("auth_clients.is_default = true AND auth_clients.is_active = true").
+		Where("identity_providers.is_active = true").
+		Preload("AuthContainer").
+		Preload("IdentityProvider").
+		First(&client).Error
+
+	return &client, err
 }
 
 func (r *authClientRepository) FindDefaultByAuthContainerID(authContainerID int64) (*model.AuthClient, error) {

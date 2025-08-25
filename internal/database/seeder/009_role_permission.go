@@ -22,40 +22,6 @@ func SeedRolePermissions(db *gorm.DB, roles map[string]model.Role, authContainer
 				"*",
 			},
 		},
-		{
-			Role: "admin",
-			Permissions: []string{
-				"user:*",
-				"org:*",
-				"role:*",
-				"permission:*",
-				"settings:*",
-				"notification:*",
-				"audit:*",
-				"system:*",
-				"idp:*",
-				"email:*",
-			},
-		},
-		{
-			Role: "registered",
-			Permissions: []string{
-				"user:read:self",
-				"user:update:self",
-				"user:disable:self",
-				"user:delete:self",
-				"auth:*",
-				"mfa:*",
-				"token:*",
-				"audit:read:self",
-				"session:terminate:self",
-				"settings:read:self",
-				"settings:update:self",
-				"notification:read-settings",
-				"notification:update-settings",
-				"notification:read-log:self",
-			},
-		},
 	}
 
 	for _, assign := range assignments {

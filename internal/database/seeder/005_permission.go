@@ -11,40 +11,63 @@ import (
 
 func SeedPermissions(db *gorm.DB, apiID, authContainerID int64) {
 	permissions := []model.Permission{
-		// PUBLIC PERMISSION
-		// Anonymous
+		// PUBLIC
+		// All public permissions are automatically assigned to all users.
+		// There may be changes on spefific routes that may no longer available a public in the future
+		// Like an organization may no longer accept any more registration and etc.
+		// Register
 		newPermission("public:register", "Register new user", apiID, authContainerID),
 		newPermission("public:register:pre-check", "Check email/username availability", apiID, authContainerID),
-		newPermission("public:register:email-verification", "Verify account via email", apiID, authContainerID),
-		newPermission("public:resend-verification", "Resend email verification token", apiID, authContainerID),
+		// Login
 		newPermission("public:login", "Login with username/email and password", apiID, authContainerID),
 		newPermission("public:login:mfa-challenge", "Submit MFA code (TOTP, WebAuthn)", apiID, authContainerID),
+		// Reset password
 		newPermission("public:request-password-reset", "Send password reset link", apiID, authContainerID),
 		newPermission("public:reset-password", "Reset password using token", apiID, authContainerID),
+		// Oauth2
 		newPermission("public:oauth2:redirect", "Redirect to identity provider (SSO login)", apiID, authContainerID),
 		newPermission("public:oauth2:callback", "Handle OAuth2/OIDC callback", apiID, authContainerID),
 		newPermission("public:oauth2:signup", "Auto-register via SSO", apiID, authContainerID),
+		// Captcha
 		newPermission("public:captcha", "Get CAPTCHA token or image", apiID, authContainerID),
-		newPermission("public:health", "Public service health check", apiID, authContainerID),
+		// Configs
 		newPermission("public:config", "Return non-sensitive app config (branding, providers, etc.)", apiID, authContainerID),
-		newPermission("public:brand-assets", "Serve logos, theming, etc.", apiID, authContainerID),
-		// PRIVATE PERMISSIONS
-		// Authenticated User (All type of user)
-		newPermission("user:read:self", "Get own profile data", apiID, authContainerID),
-		newPermission("user:update:self", "Update profile info", apiID, authContainerID),
-		newPermission("user:delete:self", "Delete own account", apiID, authContainerID),
-		newPermission("user:disable:self", "Temporarily disable own account", apiID, authContainerID),
-		newPermission("auth:logout", "Logout from current session", apiID, authContainerID),
-		newPermission("auth:refresh-token", "Refresh JWT using refresh token", apiID, authContainerID),
-		newPermission("auth:change-password", "Change password (requires old password)", apiID, authContainerID),
-		newPermission("mfa:enroll", "Enroll in MFA (TOTP/WebAuthn)", apiID, authContainerID),
-		newPermission("mfa:disable", "Disable MFA", apiID, authContainerID),
-		newPermission("mfa:verify", "Verify MFA challenge", apiID, authContainerID),
-		newPermission("token:create", "Create API or personal access token", apiID, authContainerID),
-		newPermission("token:read", "List own tokens", apiID, authContainerID),
-		newPermission("token:revoke", "Revoke own token", apiID, authContainerID),
-		newPermission("audit:read:self", "View own activity logs", apiID, authContainerID),
-		newPermission("session:terminate:self", "End own active sessions", apiID, authContainerID),
+		newPermission("public:health", "Public service health check", apiID, authContainerID),
+
+		// PERSONAL PERMISSIONS
+		// All personal permissions are automatically assigned to all users.
+		// These permissions are for the users to be able to manage their own data
+		// Account Permission
+		newPermission("account:request-verify-email:self", "Request email verification", apiID, authContainerID),
+		newPermission("account:verify-email:self", "Verify email", apiID, authContainerID),
+		newPermission("account:request-verify-phone:self", "Request phone verification", apiID, authContainerID),
+		newPermission("account:verify-phone:self", "Verify phone", apiID, authContainerID),
+		newPermission("account:change-password:self", "Change password (requires old password)", apiID, authContainerID),
+		newPermission("account:mfa:enroll:self", "Enroll in MFA (TOTP/WebAuthn)", apiID, authContainerID),
+		newPermission("account:mfa:disable:self", "Disable MFA", apiID, authContainerID),
+		newPermission("account:mfa:verify:self", "Verify MFA challenge", apiID, authContainerID),
+		// Authentication
+		newPermission("account:auth:logout:self", "Logout from current session", apiID, authContainerID),
+		newPermission("account:auth:refresh-token:self", "Refresh JWT using refresh token", apiID, authContainerID),
+		newPermission("account:session:terminate:self", "End own active sessions", apiID, authContainerID),
+		// Token Permissions
+		newPermission("account:token:create:self", "Create API or personal access token", apiID, authContainerID),
+		newPermission("account:token:read:self", "List own tokens", apiID, authContainerID),
+		newPermission("account:token:revoke:self", "Revoke own token", apiID, authContainerID),
+		// User data Permissions
+		newPermission("account:user:read:self", "Get own user data", apiID, authContainerID),
+		newPermission("account:user:update:self", "Update user info", apiID, authContainerID),
+		newPermission("account:user:delete:self", "Delete own account", apiID, authContainerID),
+		newPermission("account:user:disable:self", "Temporarily disable own account", apiID, authContainerID),
+		// Profile permissions
+		newPermission("account:profile:read:self", "Get own profile data", apiID, authContainerID),
+		newPermission("account:profile:update:self", "Update profile info", apiID, authContainerID),
+		newPermission("account:profile:delete:self", "Delete own profile", apiID, authContainerID),
+		// Activity Logs
+		newPermission("account:audit:read:self", "View own activity logs", apiID, authContainerID),
+
+		// STRICT PERMISSIONS
+		// These are permissions are assigned only to speicif users that have elevated access
 		// User Administration (Admin Only)
 		newPermission("user:read:any", "View any user profile", apiID, authContainerID),
 		newPermission("user:update:any", "Edit user details", apiID, authContainerID),
@@ -54,6 +77,7 @@ func SeedPermissions(db *gorm.DB, apiID, authContainerID int64) {
 		newPermission("user:assign-role", "Assign role to a user", apiID, authContainerID),
 		newPermission("user:remove-role", "Remove role from a user", apiID, authContainerID),
 		newPermission("user:impersonate", "Temporarily act as another user", apiID, authContainerID),
+		newPermission("user:invite", "Invite user via email", apiID, authContainerID),
 		// Roles
 		newPermission("role:read", "List roles", apiID, authContainerID),
 		newPermission("role:create", "Create a new role", apiID, authContainerID),

@@ -52,6 +52,19 @@ func (r *BaseRepository[T]) FindByUUID(uuid any, preloads ...string) (*T, error)
 	return &entity, nil
 }
 
+// FindByUUIDs with optional preloads
+func (r *BaseRepository[T]) FindByUUIDs(uuids []string, preloads ...string) ([]T, error) {
+	var entities []T
+	query := r.db.Model(new(T))
+	for _, preload := range preloads {
+		query = query.Preload(preload)
+	}
+	if err := query.Where(r.UUIDFieldName+" IN ?", uuids).Find(&entities).Error; err != nil {
+		return nil, err
+	}
+	return entities, nil
+}
+
 // FindByID with optional preloads
 func (r *BaseRepository[T]) FindByID(id any, preloads ...string) (*T, error) {
 	var entity T
