@@ -14,6 +14,18 @@ type contextKey string
 const (
 	UserContextKey contextKey = "user"
 	UserUUIDKey    contextKey = "user_uuid"
+	SubKey         contextKey = "sub"
+
+	// m9d custom claims
+	ClientIDKey    contextKey = "m9d_client_id"
+	ContainerIDKey contextKey = "m9d_container_id"
+	ProviderIDKey  contextKey = "m9d_provider_id"
+
+	// standard jwt fields
+	ScopeKey    contextKey = "scope"
+	AudienceKey contextKey = "audience"
+	IssuerKey   contextKey = "issuer"
+	JTIKey      contextKey = "jti"
 )
 
 func JWTAuthMiddleware(next http.Handler) http.Handler {
@@ -37,6 +49,7 @@ func JWTAuthMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
+		// Extract subject (user_uuid)
 		sub, ok := claims["sub"].(string)
 		if !ok || sub == "" {
 			util.Error(w, http.StatusUnauthorized, "Token missing subject (user_uuid)")
@@ -49,7 +62,28 @@ func JWTAuthMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
+		// Extract custom m9d claims
+		containerID, _ := claims["m9d_container_id"].(string)
+		clientID, _ := claims["m9d_client_id"].(string)
+		providerID, _ := claims["m9d_provider_id"].(string)
+
+		// Standard JWT fields
+		scope, _ := claims["scope"].(string)
+		aud, _ := claims["aud"].(string)
+		iss, _ := claims["iss"].(string)
+		jti, _ := claims["jti"].(string)
+
+		// Build new context with all needed values
 		ctx := context.WithValue(r.Context(), UserUUIDKey, userUUID)
+		ctx = context.WithValue(ctx, SubKey, sub)
+		ctx = context.WithValue(ctx, ClientIDKey, clientID)
+		ctx = context.WithValue(ctx, ContainerIDKey, containerID)
+		ctx = context.WithValue(ctx, ProviderIDKey, providerID)
+		ctx = context.WithValue(ctx, ScopeKey, scope)
+		ctx = context.WithValue(ctx, AudienceKey, aud)
+		ctx = context.WithValue(ctx, IssuerKey, iss)
+		ctx = context.WithValue(ctx, JTIKey, jti)
+
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }

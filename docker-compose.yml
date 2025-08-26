@@ -11,6 +11,9 @@ services:
     environment:
       - ENV=local
     command: air -c .air.toml
+    ports:
+      - "8080:8080" # Public
+      - "8081:8081" # Internal
     depends_on:
       - postgres-db
       - redis-db

@@ -4,7 +4,6 @@ import (
 	"errors"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/dto"
 	"github.com/maintainerd/auth/internal/model"
 	"github.com/maintainerd/auth/internal/repository"
@@ -101,7 +100,6 @@ func (s *registerService) RegisterPublic(
 
 		// Create user
 		newUser := &model.User{
-			UserUUID:        uuid.New(),
 			Username:        username,
 			Email:           "",
 			Password:        ptr(string(hashed)),
@@ -127,7 +125,6 @@ func (s *registerService) RegisterPublic(
 
 		// Create user token
 		userToken := &model.UserToken{
-			TokenUUID: uuid.New(),
 			UserID:    createdUser.UserID,
 			TokenType: "user:email:verification",
 			Token:     otp,
@@ -206,7 +203,6 @@ func (s *registerService) RegisterPrivate(
 
 		// Create user
 		newUser := &model.User{
-			UserUUID:        uuid.New(),
 			Username:        username,
 			Email:           "",
 			Password:        ptr(string(hashed)),
@@ -224,6 +220,16 @@ func (s *registerService) RegisterPrivate(
 
 		createdUser = newUser
 
+		userIdentity := &model.UserIdentity{
+			UserID:       createdUser.UserID,
+			AuthClientID: authClient.AuthClientID,
+			Provider:     "default",
+			Sub:          createdUser.UserUUID.String(),
+		}
+		if err := tx.Create(userIdentity).Error; err != nil {
+			return err
+		}
+
 		// Assign super admin role if first user in the organization
 		superAdminRole, err := s.roleRepo.FindByName("super-admin", authClient.AuthContainer.AuthContainerID)
 		if err != nil {
@@ -235,10 +241,9 @@ func (s *registerService) RegisterPrivate(
 
 		// Assign role
 		role := &model.UserRole{
-			UserRoleUUID: uuid.New(),
-			UserID:       createdUser.UserID,
-			RoleID:       superAdminRole.RoleID,
-			IsDefault:    true,
+			UserID:    createdUser.UserID,
+			RoleID:    superAdminRole.RoleID,
+			IsDefault: true,
 		}
 		if err := tx.Create(role).Error; err != nil {
 			return err
@@ -252,7 +257,6 @@ func (s *registerService) RegisterPrivate(
 
 		// Create user token
 		userToken := &model.UserToken{
-			TokenUUID: uuid.New(),
 			UserID:    createdUser.UserID,
 			TokenType: "user:email:verification",
 			Token:     otp,
@@ -328,7 +332,6 @@ func (s *registerService) RegisterPrivateInvite(
 
 		// Create user
 		newUser := &model.User{
-			UserUUID:        uuid.New(),
 			Username:        username,
 			Email:           username,
 			Password:        ptr(string(hashed)),
@@ -349,10 +352,9 @@ func (s *registerService) RegisterPrivateInvite(
 		if len(inviteRoles) > 0 {
 			for _, ir := range inviteRoles {
 				userRole := &model.UserRole{
-					UserRoleUUID: uuid.New(),
-					UserID:       createdUser.UserID,
-					RoleID:       ir.RoleID,
-					IsDefault:    false,
+					UserID:    createdUser.UserID,
+					RoleID:    ir.RoleID,
+					IsDefault: false,
 				}
 				if err := tx.Create(userRole).Error; err != nil {
 					return err
@@ -428,7 +430,6 @@ func (s *registerService) RegisterPublicInvite(
 
 		// Create user
 		newUser := &model.User{
-			UserUUID:        uuid.New(),
 			Username:        username,
 			Email:           "",
 			Password:        ptr(string(hashed)),
@@ -454,7 +455,6 @@ func (s *registerService) RegisterPublicInvite(
 
 		// Create user token
 		userToken := &model.UserToken{
-			TokenUUID: uuid.New(),
 			UserID:    createdUser.UserID,
 			TokenType: "user:email:verification",
 			Token:     otp,
