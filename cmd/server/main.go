@@ -23,15 +23,21 @@ func main() {
 	// ⚙️ Load database
 	db := config.InitDB()
 
-	// 🔁 App startup routines (migrations, seeding, etc.)
+	// ⚙️ Load Redis
+	redisClient := config.NewRedisClient()
+
+	// ⚙️ App startup routines (migrations, seeding, etc.)
 	startup.RunAppStartUp(db)
 
 	// ⚙️ App wiring (handlers, services, etc.)
-	application := app.NewApp(db)
+	application := app.NewApp(db, redisClient)
 
 	// 🚀 gRPC server (background)
 	go grpcserver.StartGRPCServer(application)
 
-	// 🌐 REST server (main)
-	restserver.StartRESTServer(application)
+	// 🚀 REST server (main)
+	go restserver.StartRESTServer(application)
+
+	// 🚀 Internal Rest server (VPN/firewall restricted)
+	restserver.StartInternalRESTServer(application)
 }

@@ -10,8 +10,9 @@ type UserRepository interface {
 	BaseRepositoryMethods[model.User]
 	FindByUsername(username string, authContainerID int64) (*model.User, error)
 	FindByEmail(email string, authContainerID int64) (*model.User, error)
-	FindByUsernameOrEmail(identifier string, authContainerID int64) (*model.User, error)
+	FindSuperAdmin() (*model.User, error)
 	FindRoles(userID int64) ([]model.Role, error)
+	FindBySubAndClientID(sub string, authClientID string) (*model.User, error)
 	SetEmailVerified(userUUID uuid.UUID, verified bool) error
 	SetActiveStatus(userUUID uuid.UUID, active bool) error
 }
@@ -60,10 +61,14 @@ func (r *userRepository) FindByEmail(email string, authContainerID int64) (*mode
 	return &user, nil
 }
 
-func (r *userRepository) FindByUsernameOrEmail(identifier string, authContainerID int64) (*model.User, error) {
+func (r *userRepository) FindSuperAdmin() (*model.User, error) {
 	var user model.User
 	err := r.db.
-		Where("(username = ? OR email = ?) AND auth_container_id = ?", identifier, identifier, authContainerID).
+		Joins("JOIN auth_containers ON users.auth_container_id = auth_containers.auth_container_id").
+		Joins("JOIN user_roles ON users.user_id = user_roles.user_id").
+		Joins("JOIN roles ON user_roles.role_id = roles.role_id").
+		Where("auth_containers.is_active = true AND auth_containers.is_default = true").
+		Where("roles.name = ?", "super-admin").
 		First(&user).Error
 
 	if err != nil {
@@ -85,6 +90,27 @@ func (r *userRepository) FindRoles(userID int64) ([]model.Role, error) {
 		Where("ur.user_id = ?", userID).
 		Find(&roles).Error
 	return roles, err
+}
+
+func (r *userRepository) FindBySubAndClientID(sub string, authClientID string) (*model.User, error) {
+	var user model.User
+	err := r.db.
+		Preload("Organization").
+		Preload("AuthContainer").
+		Preload("UserIdentities.AuthClient").
+		Preload("Roles.Permissions").
+		Joins("JOIN user_identities ON users.user_id = user_identities.user_id").
+		Joins("JOIN auth_clients ON user_identities.auth_client_id = auth_clients.auth_client_id").
+		Where("user_identities.sub = ? AND auth_clients.client_id = ?", sub, authClientID).
+		First(&user).Error
+
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &user, nil
 }
 
 func (r *userRepository) SetEmailVerified(userUUID uuid.UUID, verified bool) error {

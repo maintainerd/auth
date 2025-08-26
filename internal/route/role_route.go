@@ -5,16 +5,32 @@ import (
 	"github.com/maintainerd/auth/internal/handler/resthandler"
 	"github.com/maintainerd/auth/internal/middleware"
 	"github.com/maintainerd/auth/internal/repository"
+	"github.com/redis/go-redis/v9"
 )
 
-func RegisterRoleRoute(r chi.Router, roleHandler *resthandler.RoleHandler, userRepo repository.UserRepository) {
+func RoleRoute(
+	r chi.Router,
+	roleHandler *resthandler.RoleHandler,
+	userRepo repository.UserRepository,
+	redisClient *redis.Client,
+) {
 	r.Route("/roles", func(r chi.Router) {
-		r.Use(middleware.JWTAuthMiddleware(userRepo))
+		r.Use(middleware.JWTAuthMiddleware)
+		r.Use(middleware.UserContextMiddleware(userRepo, redisClient))
 
-		r.Post("/", roleHandler.Create)
-		r.Get("/", roleHandler.GetAll)
-		r.Get("/{role_uuid}", roleHandler.GetByUUID)
-		r.Put("/{role_uuid}", roleHandler.Update)
-		r.Delete("/{role_uuid}", roleHandler.Delete)
+		r.With(middleware.PermissionMiddleware([]string{"role:create"})).
+			Post("/", roleHandler.Create)
+
+		r.With(middleware.PermissionMiddleware([]string{"role:read"})).
+			Get("/", roleHandler.GetAll)
+
+		r.With(middleware.PermissionMiddleware([]string{"role:read"})).
+			Get("/{role_uuid}", roleHandler.GetByUUID)
+
+		r.With(middleware.PermissionMiddleware([]string{"role:update"})).
+			Put("/{role_uuid}", roleHandler.Update)
+
+		r.With(middleware.PermissionMiddleware([]string{"role:delete"})).
+			Delete("/{role_uuid}", roleHandler.Delete)
 	})
 }

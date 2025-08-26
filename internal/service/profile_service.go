@@ -8,6 +8,7 @@ import (
 	"github.com/maintainerd/auth/internal/dto"
 	"github.com/maintainerd/auth/internal/model"
 	"github.com/maintainerd/auth/internal/repository"
+	"gorm.io/gorm"
 )
 
 type ProfileService interface {
@@ -17,53 +18,78 @@ type ProfileService interface {
 }
 
 type profileService struct {
+	db          *gorm.DB
 	profileRepo repository.ProfileRepository
 }
 
-func NewProfileService(profileRepo repository.ProfileRepository) ProfileService {
-	return &profileService{profileRepo}
+func NewProfileService(
+	db *gorm.DB,
+	profileRepo repository.ProfileRepository,
+) ProfileService {
+	return &profileService{
+		db:          db,
+		profileRepo: profileRepo,
+	}
 }
 
 func (s *profileService) CreateOrUpdateProfile(userID int64, req *dto.ProfileRequest) (*model.Profile, error) {
-	profile, err := s.profileRepo.FindByUserID(userID)
-	if err != nil || profile == nil {
-		profile = &model.Profile{
-			ProfileUUID: uuid.New(),
-			UserID:      userID,
-		}
-	}
+	var updatedProfile *model.Profile
 
-	birthdate, err := parseBirthdate(req.Birthdate)
+	err := s.db.Transaction(func(tx *gorm.DB) error {
+		// Step 1: Try to find existing profile
+		var profile model.Profile
+		err := tx.Where("user_id = ?", userID).First(&profile).Error
+		if err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				// create new profile if not found
+				profile = model.Profile{
+					ProfileUUID: uuid.New(),
+					UserID:      userID,
+				}
+			} else {
+				return err
+			}
+		}
+
+		// Step 2: Parse birthdate
+		birthdate, err := parseBirthdate(req.Birthdate)
+		if err != nil {
+			return err
+		}
+
+		// Step 3: Set fields
+		profile.FirstName = req.FirstName
+		profile.MiddleName = req.MiddleName
+		profile.LastName = req.LastName
+		profile.Suffix = req.Suffix
+		profile.Birthdate = birthdate
+		profile.Gender = req.Gender
+		profile.Phone = req.Phone
+		profile.Email = req.Email
+		profile.Address = req.Address
+		profile.AvatarURL = req.AvatarURL
+		profile.CoverURL = req.CoverURL
+
+		// Step 4: Create or update
+		if profile.ProfileID == 0 {
+			if err := tx.Create(&profile).Error; err != nil {
+				return err
+			}
+		} else {
+			if err := tx.Model(&profile).Where("user_id = ?", userID).Updates(profile).Error; err != nil {
+				return err
+			}
+		}
+
+		updatedProfile = &profile
+		return nil
+	})
+
 	if err != nil {
 		return nil, err
 	}
 
-	// Set profile fields from request
-	profile.FirstName = req.FirstName
-	profile.MiddleName = req.MiddleName
-	profile.LastName = req.LastName
-	profile.Suffix = req.Suffix
-	profile.Birthdate = birthdate
-	profile.Gender = req.Gender
-	profile.Phone = req.Phone
-	profile.Email = req.Email
-	profile.Address = req.Address
-	profile.AvatarURL = req.AvatarURL
-	profile.CoverURL = req.CoverURL
-
-	if profile.ProfileID == 0 {
-		createdProfile, err := s.profileRepo.Create(profile)
-		if err != nil {
-			return nil, err
-		}
-		profile = createdProfile
-	} else {
-		if err := s.profileRepo.UpdateByUserID(userID, profile); err != nil {
-			return nil, err
-		}
-	}
-
-	return profile, nil
+	return updatedProfile, nil
 }
 
 func (s *profileService) GetProfileByUserID(userID int64) (*model.Profile, error) {
