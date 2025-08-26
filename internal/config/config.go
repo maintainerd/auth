@@ -9,8 +9,9 @@ import (
 
 var (
 	// APP
-	AppVersion  string
-	AppHostname string
+	AppVersion         string
+	AppPublicHostname  string
+	AppPrivateHostname string
 
 	// FRONTEND
 	AccountHostname string
@@ -45,7 +46,8 @@ func Init() {
 	}
 	// App Config
 	AppVersion = GetEnv("APP_VERSION")
-	AppHostname = GetEnv("APP_HOSTNAME")
+	AppPublicHostname = GetEnv("APP_PUBLIC_HOSTNAME")
+	AppPrivateHostname = GetEnv("APP_PRIVATE_HOSTNAME")
 
 	// Frontend Config
 	AccountHostname = GetEnv("ACCOUNT_HOSTNAME")
