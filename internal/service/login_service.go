@@ -13,8 +13,8 @@ import (
 )
 
 type LoginService interface {
-	LoginPublic(usernameOrEmail, password, clientID string) (*dto.AuthResponse, error)
-	LoginPrivate(usernameOrEmail, password string) (*dto.AuthResponse, error)
+	LoginPublic(usernameOrEmail, password, clientID string) (*dto.AuthResponseDto, error)
+	LoginPrivate(usernameOrEmail, password string) (*dto.AuthResponseDto, error)
 	GetUserByEmail(email string, authContainerID int64) (*model.User, error)
 }
 
@@ -39,7 +39,7 @@ func NewLoginService(
 	}
 }
 
-func (s *loginService) LoginPublic(usernameOrEmail, password, clientID string) (*dto.AuthResponse, error) {
+func (s *loginService) LoginPublic(usernameOrEmail, password, clientID string) (*dto.AuthResponseDto, error) {
 	// Get and validate client id (get default client)
 	authClient, err := s.authClientRepo.FindByClientID(clientID)
 	if err != nil {
@@ -71,7 +71,7 @@ func (s *loginService) LoginPublic(usernameOrEmail, password, clientID string) (
 	return s.generateTokenResponse(user.UserUUID.String(), authClient)
 }
 
-func (s *loginService) LoginPrivate(username, password string) (*dto.AuthResponse, error) {
+func (s *loginService) LoginPrivate(username, password string) (*dto.AuthResponseDto, error) {
 	// Get and validate client id (get default client)
 	authClient, err := s.authClientRepo.FindDefault()
 	if err != nil {
@@ -107,7 +107,7 @@ func (s *loginService) GetUserByEmail(email string, authContainerID int64) (*mod
 	return s.userRepo.FindByEmail(email, authContainerID)
 }
 
-func (s *loginService) generateTokenResponse(userUUID string, authClient *model.AuthClient) (*dto.AuthResponse, error) {
+func (s *loginService) generateTokenResponse(userUUID string, authClient *model.AuthClient) (*dto.AuthResponseDto, error) {
 	accessToken, err := util.GenerateAccessToken(
 		userUUID,
 		"openid profile email",
@@ -131,7 +131,7 @@ func (s *loginService) generateTokenResponse(userUUID string, authClient *model.
 		return nil, err
 	}
 
-	return &dto.AuthResponse{
+	return &dto.AuthResponseDto{
 		AccessToken:  accessToken,
 		IDToken:      idToken,
 		RefreshToken: refreshToken,

@@ -35,7 +35,7 @@ func NewApp(db *gorm.DB, redisClient *redis.Client) *App {
 	emailTemplateRepo := repository.NewEmailTemplateRepository(db)
 
 	// service
-	roleService := service.NewRoleService(roleRepo)
+	roleService := service.NewRoleService(db, roleRepo)
 	registerService := service.NewRegistrationService(db, authClientRepo, userRepo, userRoleRepo, userTokenRepo, roleRepo, inviteRepo)
 	loginService := service.NewLoginService(db, authClientRepo, userRepo, userTokenRepo)
 	profileService := service.NewProfileService(db, profileRepo)
