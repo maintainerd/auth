@@ -13,10 +13,10 @@ import (
 )
 
 type RegisterService interface {
-	RegisterPublic(username, password, clientID string) (*dto.AuthResponse, error)
-	RegisterPublicInvite(username, password, clientID, inviteToken string) (*dto.AuthResponse, error)
-	RegisterPrivate(username, password string) (*dto.AuthResponse, error)
-	RegisterPrivateInvite(username, password, inviteToken string) (*dto.AuthResponse, error)
+	RegisterPublic(username, password, clientID string) (*dto.AuthResponseDto, error)
+	RegisterPublicInvite(username, password, clientID, inviteToken string) (*dto.AuthResponseDto, error)
+	RegisterPrivate(username, password string) (*dto.AuthResponseDto, error)
+	RegisterPrivateInvite(username, password, inviteToken string) (*dto.AuthResponseDto, error)
 }
 
 type registerService struct {
@@ -53,7 +53,7 @@ func (s *registerService) RegisterPublic(
 	username,
 	password,
 	clientID string,
-) (*dto.AuthResponse, error) {
+) (*dto.AuthResponseDto, error) {
 	// Get and validate client id
 	authClient, err := s.authClientRepo.FindByClientID(clientID)
 	if err != nil {
@@ -147,7 +147,7 @@ func (s *registerService) RegisterPublic(
 func (s *registerService) RegisterPrivate(
 	username,
 	password string,
-) (*dto.AuthResponse, error) {
+) (*dto.AuthResponseDto, error) {
 	// Get and validate client id (get default client)
 	authClient, err := s.authClientRepo.FindDefault()
 	if err != nil {
@@ -231,7 +231,7 @@ func (s *registerService) RegisterPrivate(
 		}
 
 		// Assign super admin role if first user in the organization
-		superAdminRole, err := s.roleRepo.FindByName("super-admin", authClient.AuthContainer.AuthContainerID)
+		superAdminRole, err := s.roleRepo.FindByNameAndAuthContainerID("super-admin", authClient.AuthContainer.AuthContainerID)
 		if err != nil {
 			return err
 		}
@@ -280,7 +280,7 @@ func (s *registerService) RegisterPrivateInvite(
 	username,
 	password,
 	inviteToken string,
-) (*dto.AuthResponse, error) {
+) (*dto.AuthResponseDto, error) {
 	// Get and validate client id (get default client)
 	authClient, err := s.authClientRepo.FindDefault()
 	if err != nil {
@@ -383,7 +383,7 @@ func (s *registerService) RegisterPublicInvite(
 	password,
 	clientID,
 	inviteToken string,
-) (*dto.AuthResponse, error) {
+) (*dto.AuthResponseDto, error) {
 	// Get and validate client id
 	authClient, err := s.authClientRepo.FindByClientID(clientID)
 	if err != nil {
@@ -474,7 +474,7 @@ func (s *registerService) RegisterPublicInvite(
 	return s.generateTokenResponse(createdUser.UserUUID.String(), authClient)
 }
 
-func (s *registerService) generateTokenResponse(userUUID string, authClient *model.AuthClient) (*dto.AuthResponse, error) {
+func (s *registerService) generateTokenResponse(userUUID string, authClient *model.AuthClient) (*dto.AuthResponseDto, error) {
 	accessToken, err := util.GenerateAccessToken(
 		userUUID,
 		"openid profile email",
@@ -498,7 +498,7 @@ func (s *registerService) generateTokenResponse(userUUID string, authClient *mod
 		return nil, err
 	}
 
-	return &dto.AuthResponse{
+	return &dto.AuthResponseDto{
 		AccessToken:  accessToken,
 		IDToken:      idToken,
 		RefreshToken: refreshToken,
