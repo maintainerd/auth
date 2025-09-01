@@ -45,6 +45,7 @@ type RoleService interface {
 	GetByUUID(roleUUID uuid.UUID) (*RoleServiceDataResult, error)
 	Create(name string, description string, IsDefault bool, IsActive bool, authContainerId int64) (*RoleServiceDataResult, error)
 	Update(roleUUID uuid.UUID, name string, description string, IsDefault bool, IsActive bool, authContainerId int64) (*RoleServiceDataResult, error)
+	SetActiveStatusByUUID(roleUUID uuid.UUID) (*RoleServiceDataResult, error)
 	DeleteByUUID(roleUUID uuid.UUID) (*RoleServiceDataResult, error)
 }
 
@@ -129,11 +130,10 @@ func (s *roleService) Create(name string, description string, isDefault bool, is
 
 	// Transaction
 	err := s.db.Transaction(func(tx *gorm.DB) error {
-		var existingRole *model.Role
-		var err error
+		txRoleRepo := s.roleRepo.WithTx(tx)
 
 		// Check if role already exist
-		existingRole, err = s.roleRepo.FindByNameAndAuthContainerID(name, authContainerId)
+		existingRole, err := txRoleRepo.FindByNameAndAuthContainerID(name, authContainerId)
 		if err != nil {
 			return err
 		}
@@ -150,13 +150,13 @@ func (s *roleService) Create(name string, description string, isDefault bool, is
 			AuthContainerID: authContainerId,
 		}
 
-		if err := tx.Create(newRole).Error; err != nil {
+		if err := txRoleRepo.CreateOrUpdate(newRole); err != nil {
 			return err
 		}
 
 		createdRole = newRole
 
-		return nil // commit transaction
+		return nil
 	})
 
 	if err != nil {
@@ -179,11 +179,10 @@ func (s *roleService) Update(roleUUID uuid.UUID, name string, description string
 
 	// Transaction
 	err := s.db.Transaction(func(tx *gorm.DB) error {
-		var role *model.Role
-		var err error
+		txRoleRepo := s.roleRepo.WithTx(tx)
 
 		// Find existing role
-		role, err = s.roleRepo.FindByUUID(roleUUID)
+		role, err := txRoleRepo.FindByUUID(roleUUID)
 		if err != nil {
 			return err
 		}
@@ -191,30 +190,83 @@ func (s *roleService) Update(roleUUID uuid.UUID, name string, description string
 			return errors.New("role not found")
 		}
 
-		if role.Name != name {
+		// Check if role is a default record
+		if role.IsDefault {
+			return errors.New("default role is not allowed to be updated")
+		}
 
-			existingRole, err := s.roleRepo.FindByNameAndAuthContainerID(name, authContainerId)
+		// If role name is changed, check if duplicate
+		if role.Name != name {
+			existingRole, err := txRoleRepo.FindByNameAndAuthContainerID(name, authContainerId)
 			if err != nil {
 				return err
 			}
 			if existingRole != nil && existingRole.RoleUUID != roleUUID {
-				return errors.New(name + " role already exist")
+				return errors.New(name + " role already exists")
 			}
 		}
 
-		// Create role
+		// Update role
 		role.Name = name
 		role.Description = description
 		role.IsDefault = isDefault
 		role.IsActive = isActive
 
-		if err := tx.Save(role).Error; err != nil {
+		if err := txRoleRepo.CreateOrUpdate(role); err != nil {
 			return err
 		}
 
 		updatedRole = role
 
-		return nil // commit transaction
+		return nil
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &RoleServiceDataResult{
+		RoleUUID:    updatedRole.RoleUUID,
+		Name:        updatedRole.Name,
+		Description: updatedRole.Description,
+		IsDefault:   updatedRole.IsDefault,
+		IsActive:    updatedRole.IsActive,
+		CreatedAt:   updatedRole.CreatedAt,
+		UpdatedAt:   updatedRole.UpdatedAt,
+	}, nil
+}
+
+func (s *roleService) SetActiveStatusByUUID(roleUUID uuid.UUID) (*RoleServiceDataResult, error) {
+	var updatedRole *model.Role
+
+	// Transaction
+	err := s.db.Transaction(func(tx *gorm.DB) error {
+		txRoleRepo := s.roleRepo.WithTx(tx)
+
+		// Find existing role
+		role, err := txRoleRepo.FindByUUID(roleUUID)
+		if err != nil {
+			return err
+		}
+		if role == nil {
+			return errors.New("role not found")
+		}
+
+		// Check if role is a default record
+		if role.IsDefault {
+			return errors.New("default role is not allowed to be updated")
+		}
+
+		// Update role
+		role.IsActive = !role.IsActive
+
+		if err := txRoleRepo.CreateOrUpdate(role); err != nil {
+			return err
+		}
+
+		updatedRole = role
+
+		return nil
 	})
 
 	if err != nil {
@@ -233,21 +285,33 @@ func (s *roleService) Update(roleUUID uuid.UUID, name string, description string
 }
 
 func (s *roleService) DeleteByUUID(roleUUID uuid.UUID) (*RoleServiceDataResult, error) {
-	deletedRole, err := s.roleRepo.DeleteByUUID(roleUUID)
+	// Check role existence
+	role, err := s.roleRepo.FindByUUID(roleUUID)
 	if err != nil {
 		return nil, err
 	}
-	if deletedRole == nil {
+	if role == nil {
 		return nil, errors.New("role not found")
 	}
 
+	// Check if role is a default record
+	if role.IsDefault {
+		return nil, errors.New("default role is not allowed to be deleted")
+	}
+
+	// Delete role
+	err = s.roleRepo.DeleteByUUID(roleUUID)
+	if err != nil {
+		return nil, err
+	}
+
 	return &RoleServiceDataResult{
-		RoleUUID:    deletedRole.RoleUUID,
-		Name:        deletedRole.Name,
-		Description: deletedRole.Description,
-		IsDefault:   deletedRole.IsDefault,
-		IsActive:    deletedRole.IsActive,
-		CreatedAt:   deletedRole.CreatedAt,
-		UpdatedAt:   deletedRole.UpdatedAt,
+		RoleUUID:    role.RoleUUID,
+		Name:        role.Name,
+		Description: role.Description,
+		IsDefault:   role.IsDefault,
+		IsActive:    role.IsActive,
+		CreatedAt:   role.CreatedAt,
+		UpdatedAt:   role.UpdatedAt,
 	}, nil
 }

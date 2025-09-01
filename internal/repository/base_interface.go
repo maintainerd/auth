@@ -4,6 +4,9 @@ type BaseRepositoryMethods[T any] interface {
 	// Create a new record and return the created entity with updated fields (e.g., auto-increment IDs)
 	Create(entity *T) (*T, error)
 
+	// Create or Update
+	CreateOrUpdate(entity *T) error
+
 	// Retrieve all records with optional preloads
 	FindAll(preloads ...string) ([]T, error)
 
@@ -23,10 +26,10 @@ type BaseRepositoryMethods[T any] interface {
 	UpdateByID(id any, updatedData any) (*T, error)
 
 	// Delete a record by UUID and return the deleted entity
-	DeleteByUUID(uuid any) (*T, error)
+	DeleteByUUID(uuid any) error
 
 	// Delete a record by ID and return the deleted entity
-	DeleteByID(id any) (*T, error)
+	DeleteByID(id any) error
 
 	// Paginate through records with optional preloads
 	Paginate(conditions map[string]any, page int, limit int, preloads ...string) (*PaginationResult[T], error)
