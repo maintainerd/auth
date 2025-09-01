@@ -18,14 +18,14 @@ func RoleRoute(
 		r.Use(middleware.JWTAuthMiddleware)
 		r.Use(middleware.UserContextMiddleware(userRepo, redisClient))
 
-		r.With(middleware.PermissionMiddleware([]string{"role:create"})).
-			Post("/", roleHandler.Create)
-
 		r.With(middleware.PermissionMiddleware([]string{"role:read"})).
-			Get("/", roleHandler.GetAll)
+			Get("/", roleHandler.Get)
 
 		r.With(middleware.PermissionMiddleware([]string{"role:read"})).
 			Get("/{role_uuid}", roleHandler.GetByUUID)
+
+		r.With(middleware.PermissionMiddleware([]string{"role:create"})).
+			Post("/", roleHandler.Create)
 
 		r.With(middleware.PermissionMiddleware([]string{"role:update"})).
 			Put("/{role_uuid}", roleHandler.Update)

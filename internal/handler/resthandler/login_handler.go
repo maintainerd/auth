@@ -24,10 +24,10 @@ func NewLoginHandler(
 }
 
 func (h *LoginHandler) LoginPublic(w http.ResponseWriter, r *http.Request) {
-	var req dto.AuthRequest
+	var req dto.AuthRequestDto
 
 	// Validate query parameters
-	q := dto.LoginPublicQuery{
+	q := dto.LoginPublicQueryDto{
 		ClientID: r.URL.Query().Get("client_id"),
 	}
 
@@ -65,7 +65,7 @@ func (h *LoginHandler) LoginPublic(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *LoginHandler) LoginPrivate(w http.ResponseWriter, r *http.Request) {
-	var req dto.AuthRequest
+	var req dto.AuthRequestDto
 
 	// Validate body payload
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
