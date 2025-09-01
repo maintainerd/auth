@@ -1,6 +1,8 @@
 package service
 
 import (
+	"errors"
+
 	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/model"
 	"github.com/maintainerd/auth/internal/repository"
@@ -45,5 +47,18 @@ func (s *serviceService) UpdateByUUID(serviceUUID uuid.UUID, updatedService *mod
 }
 
 func (s *serviceService) DeleteByUUID(serviceUUID uuid.UUID) (*model.Service, error) {
-	return s.repo.DeleteByUUID(serviceUUID)
+	service, err := s.repo.FindByUUID(serviceUUID)
+	if err != nil {
+		return nil, err
+	}
+	if service == nil {
+		return nil, errors.New("role not found")
+	}
+
+	err = s.repo.DeleteByUUID(serviceUUID)
+	if err != nil {
+		return nil, err
+	}
+
+	return service, err
 }

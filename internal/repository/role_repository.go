@@ -22,6 +22,7 @@ type RoleRepositoryGetFilter struct {
 
 type RoleRepository interface {
 	BaseRepositoryMethods[model.Role]
+	WithTx(tx *gorm.DB) RoleRepository
 	FindByNameAndAuthContainerID(name string, authContainerID int64) (*model.Role, error)
 	FindAllByAuthContainerID(authContainerID int64) ([]model.Role, error)
 	FindPaginated(filter RoleRepositoryGetFilter) (*PaginationResult[model.Role], error)
@@ -38,6 +39,13 @@ func NewRoleRepository(db *gorm.DB) RoleRepository {
 	return &roleRepository{
 		BaseRepository: NewBaseRepository[model.Role](db, "role_uuid", "role_id"),
 		db:             db,
+	}
+}
+
+func (r *roleRepository) WithTx(tx *gorm.DB) RoleRepository {
+	return &roleRepository{
+		BaseRepository: NewBaseRepository[model.Role](tx, "role_uuid", "role_id"),
+		db:             tx,
 	}
 }
 

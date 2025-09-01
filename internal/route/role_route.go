@@ -30,6 +30,9 @@ func RoleRoute(
 		r.With(middleware.PermissionMiddleware([]string{"role:update"})).
 			Put("/{role_uuid}", roleHandler.Update)
 
+		r.With(middleware.PermissionMiddleware([]string{"role:update"})).
+			Put("/{role_uuid}/status", roleHandler.SetStatus)
+
 		r.With(middleware.PermissionMiddleware([]string{"role:delete"})).
 			Delete("/{role_uuid}", roleHandler.Delete)
 	})
