@@ -9,12 +9,12 @@ import (
 )
 
 // Login and register request payload structure
-type AuthRequest struct {
+type AuthRequestDto struct {
 	Username string `json:"username"`
 	Password string `json:"password"`
 }
 
-func (r AuthRequest) Validate() error {
+func (r AuthRequestDto) Validate() error {
 	return validation.ValidateStruct(&r,
 		validation.Field(&r.Username,
 			validation.Required.Error("Username is required"),
@@ -29,11 +29,11 @@ func (r AuthRequest) Validate() error {
 
 // Normal registration query parameters
 // Client user registration requires client ID
-type RegisterPublicQuery struct {
+type RegisterPublicQueryDto struct {
 	ClientID string `json:"client_id"`
 }
 
-func (q RegisterPublicQuery) Validate() error {
+func (q RegisterPublicQueryDto) Validate() error {
 	return validation.ValidateStruct(&q,
 		validation.Field(&q.ClientID,
 			validation.Required.Error("Client ID is required"),
@@ -44,14 +44,14 @@ func (q RegisterPublicQuery) Validate() error {
 
 // Invite based registration query parameters
 // This is used for client app for invite-based registration
-type RegisterPublicInviteQuery struct {
+type RegisterPublicInviteQueryDto struct {
 	ClientID    string `json:"client_id"`
 	InviteToken string `json:"invite_token"`
 	Expires     string `json:"expires"`
 	Sig         string `json:"sig"`
 }
 
-func (q RegisterPublicInviteQuery) Validate() error {
+func (q RegisterPublicInviteQueryDto) Validate() error {
 	if err := validation.ValidateStruct(&q,
 		validation.Field(&q.ClientID,
 			validation.Required.Error("Client ID is required"),
@@ -86,13 +86,13 @@ func (q RegisterPublicInviteQuery) Validate() error {
 
 // Register query parameters for internal users (invite based)
 // Internal user does not require client ID
-type RegisterPrivateQuery struct {
+type RegisterPrivateQueryDto struct {
 	InviteToken string `json:"invite_token"`
 	Expires     string `json:"expires"`
 	Sig         string `json:"sig"`
 }
 
-func (q RegisterPrivateQuery) Validate() error {
+func (q RegisterPrivateQueryDto) Validate() error {
 	// Validate required fields
 	if err := validation.ValidateStruct(&q,
 		validation.Field(&q.InviteToken,
@@ -124,11 +124,11 @@ func (q RegisterPrivateQuery) Validate() error {
 
 // Normal registration query parameters
 // Client user registration requires client ID
-type LoginPublicQuery struct {
+type LoginPublicQueryDto struct {
 	ClientID string `json:"client_id"`
 }
 
-func (q LoginPublicQuery) Validate() error {
+func (q LoginPublicQueryDto) Validate() error {
 	return validation.ValidateStruct(&q,
 		validation.Field(&q.ClientID,
 			validation.Required.Error("Client ID is required"),
@@ -138,7 +138,7 @@ func (q LoginPublicQuery) Validate() error {
 }
 
 // AuthResponse is the response structure for authentication operations
-type AuthResponse struct {
+type AuthResponseDto struct {
 	AccessToken  string `json:"access_token"`
 	IDToken      string `json:"id_token"`
 	RefreshToken string `json:"refresh_token,omitempty"`
