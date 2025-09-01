@@ -10,11 +10,21 @@ type BaseRepository[T any] struct {
 	IDFieldName   string // e.g., "role_id", "user_id"
 }
 
+// Default db connection
 func NewBaseRepository[T any](db *gorm.DB, uuidFieldName, idFieldName string) *BaseRepository[T] {
 	return &BaseRepository[T]{
 		db:            db,
 		UUIDFieldName: uuidFieldName,
 		IDFieldName:   idFieldName,
+	}
+}
+
+// WithTx creates a new repo bound to the given transaction
+func (r *BaseRepository[T]) WithTx(tx *gorm.DB) *BaseRepository[T] {
+	return &BaseRepository[T]{
+		db:            tx,
+		UUIDFieldName: r.UUIDFieldName,
+		IDFieldName:   r.IDFieldName,
 	}
 }
 
@@ -24,6 +34,11 @@ func (r *BaseRepository[T]) Create(entity *T) (*T, error) {
 		return nil, err
 	}
 	return entity, nil
+}
+
+// Create Or Update
+func (r *BaseRepository[T]) CreateOrUpdate(entity *T) error {
+	return r.db.Save(entity).Error
 }
 
 // FindAll with optional preloads
@@ -95,27 +110,13 @@ func (r *BaseRepository[T]) UpdateByID(id any, updatedData any) (*T, error) {
 }
 
 // DeleteByUUID and return the deleted entity
-func (r *BaseRepository[T]) DeleteByUUID(uuid any) (*T, error) {
-	entity, err := r.FindByUUID(uuid)
-	if err != nil {
-		return nil, err
-	}
-	if err := r.db.Where(r.UUIDFieldName+" = ?", uuid).Delete(new(T)).Error; err != nil {
-		return nil, err
-	}
-	return entity, nil
+func (r *BaseRepository[T]) DeleteByUUID(uuid any) error {
+	return r.db.Where(r.UUIDFieldName+" = ?", uuid).Delete(new(T)).Error
 }
 
 // DeleteByID and return the deleted entity
-func (r *BaseRepository[T]) DeleteByID(id any) (*T, error) {
-	entity, err := r.FindByID(id)
-	if err != nil {
-		return nil, err
-	}
-	if err := r.db.Where(r.IDFieldName+" = ?", id).Delete(new(T)).Error; err != nil {
-		return nil, err
-	}
-	return entity, nil
+func (r *BaseRepository[T]) DeleteByID(id any) error {
+	return r.db.Where(r.IDFieldName+" = ?", id).Delete(new(T)).Error
 }
 
 // PaginationResult holds paginated data and meta

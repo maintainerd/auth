@@ -24,6 +24,9 @@ func NewRoleHandler(service service.RoleService) *RoleHandler {
 
 // GetAll roles with pagination
 func (h *RoleHandler) Get(w http.ResponseWriter, r *http.Request) {
+	// Get authentication context
+	user := r.Context().Value(middleware.UserContextKey).(*model.User)
+
 	// Parse query parameters
 	q := r.URL.Query()
 
@@ -65,10 +68,7 @@ func (h *RoleHandler) Get(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Get authentication context
-	user := r.Context().Value(middleware.UserContextKey).(*model.User)
-
-	// Get roles
+	// Get role filters
 	roleFilter := service.RoleServiceGetFilter{
 		Name:            reqParams.Name,
 		Description:     reqParams.Description,
@@ -91,15 +91,7 @@ func (h *RoleHandler) Get(w http.ResponseWriter, r *http.Request) {
 	// Map service result to dto
 	rows := make([]dto.RoleResponseDto, len(result.Data))
 	for i, r := range result.Data {
-		rows[i] = dto.RoleResponseDto{
-			RoleUUID:    r.RoleUUID,
-			Name:        r.Name,
-			Description: r.Description,
-			IsDefault:   r.IsDefault,
-			IsActive:    r.IsActive,
-			CreatedAt:   r.CreatedAt,
-			UpdatedAt:   r.UpdatedAt,
-		}
+		rows[i] = toRoleResponseDto(r)
 	}
 
 	// Build response data
@@ -137,7 +129,10 @@ func (h *RoleHandler) GetByUUID(w http.ResponseWriter, r *http.Request) {
 
 // Create role
 func (h *RoleHandler) Create(w http.ResponseWriter, r *http.Request) {
-	// Validate role inputs
+	// Get authentication context
+	user := r.Context().Value(middleware.UserContextKey).(*model.User)
+
+	// Validate request body
 	var req dto.RoleCreateOrUpdateRequestDto
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		util.Error(w, http.StatusBadRequest, "Invalid request", err.Error())
@@ -148,9 +143,6 @@ func (h *RoleHandler) Create(w http.ResponseWriter, r *http.Request) {
 		util.ValidationError(w, err)
 		return
 	}
-
-	// Get authentication context
-	user := r.Context().Value(middleware.UserContextKey).(*model.User)
 
 	// Create role
 	role, err := h.service.Create(req.Name, req.Description, false, req.IsActive, user.AuthContainerID)
@@ -167,12 +159,17 @@ func (h *RoleHandler) Create(w http.ResponseWriter, r *http.Request) {
 
 // Update role
 func (h *RoleHandler) Update(w http.ResponseWriter, r *http.Request) {
+	// Get authentication context
+	user := r.Context().Value(middleware.UserContextKey).(*model.User)
+
+	// Validate role_uuid
 	roleUUID, err := uuid.Parse(chi.URLParam(r, "role_uuid"))
 	if err != nil {
 		util.Error(w, http.StatusBadRequest, "Invalid role UUID")
 		return
 	}
 
+	// Validate request body
 	var req dto.RoleCreateOrUpdateRequestDto
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		util.Error(w, http.StatusBadRequest, "Invalid request", err.Error())
@@ -184,7 +181,30 @@ func (h *RoleHandler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	role, err := h.service.Update(roleUUID, req.Name, req.Description, false, true, 0) // Replace authContainerID if needed
+	// Update role
+	role, err := h.service.Update(roleUUID, req.Name, req.Description, false, req.IsActive, user.AuthContainerID)
+	if err != nil {
+		util.Error(w, http.StatusInternalServerError, "Failed to update role", err.Error())
+		return
+	}
+
+	// Build response data
+	dtoRes := toRoleResponseDto(*role)
+
+	util.Success(w, dtoRes, "Role updated successfully")
+}
+
+// Set role status
+func (h *RoleHandler) SetStatus(w http.ResponseWriter, r *http.Request) {
+	// Validate role_uuid
+	roleUUID, err := uuid.Parse(chi.URLParam(r, "role_uuid"))
+	if err != nil {
+		util.Error(w, http.StatusBadRequest, "Invalid role UUID")
+		return
+	}
+
+	// Update role
+	role, err := h.service.SetActiveStatusByUUID(roleUUID)
 	if err != nil {
 		util.Error(w, http.StatusInternalServerError, "Failed to update role", err.Error())
 		return
