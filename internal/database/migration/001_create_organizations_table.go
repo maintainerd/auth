@@ -10,19 +10,19 @@ func CreateOrganizationTable(db *gorm.DB) {
 	sql := `
 -- CREATE TABLE
 CREATE TABLE IF NOT EXISTS organizations (
-    organization_id       SERIAL PRIMARY KEY,
-    organization_uuid     UUID NOT NULL UNIQUE,
-    name                  VARCHAR(255) NOT NULL,
-    description           TEXT,
-    email                 VARCHAR(255),
-    phone_number          VARCHAR(50),
-    website_url           TEXT,
-    logo_url              TEXT,
-    external_reference_id VARCHAR(255), -- Optional for external integrations
-    is_default            BOOLEAN DEFAULT FALSE,
-    is_active             BOOLEAN DEFAULT TRUE,
-    created_at            TIMESTAMPTZ DEFAULT now(),
-    updated_at            TIMESTAMPTZ DEFAULT now()
+    organization_id       	SERIAL PRIMARY KEY,
+    organization_uuid     	UUID NOT NULL UNIQUE,
+    name                  	VARCHAR(255) NOT NULL,
+    description           	TEXT,
+    email                 	VARCHAR(255),
+    phone_number          	VARCHAR(50),
+    website_url           	TEXT,
+    logo_url              	TEXT,
+    external_reference_id		VARCHAR(255), -- Optional for external integrations
+    is_default            	BOOLEAN DEFAULT FALSE,
+    is_active             	BOOLEAN DEFAULT TRUE,
+    created_at            	TIMESTAMPTZ DEFAULT now(),
+    updated_at            	TIMESTAMPTZ DEFAULT now()
 );
 
 -- ADD INDEXES
