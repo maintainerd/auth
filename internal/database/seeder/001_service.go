@@ -5,7 +5,6 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/model"
-	"gorm.io/datatypes"
 	"gorm.io/gorm"
 )
 
@@ -17,19 +16,18 @@ func SeedService(db *gorm.DB, appVersion string) (model.Service, error) {
 		return service, nil
 	}
 
-	err := db.Where("service_name = ?", "auth").First(&service).Error
+	err := db.Where("name = ?", "auth").First(&service).Error
 
 	if err == gorm.ErrRecordNotFound {
 		service = model.Service{
 			ServiceUUID: uuid.New(),
-			ServiceName: "auth",
+			Name:        "auth",
 			DisplayName: "Auth Service",
 			Description: "Auth system service",
-			ServiceType: "default",
 			Version:     appVersion,
-			Config:      datatypes.JSON([]byte(`{}`)),
 			IsActive:    true,
 			IsDefault:   true,
+			IsPublic:    true,
 		}
 
 		if err := db.Create(&service).Error; err != nil {
