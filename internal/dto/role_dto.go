@@ -15,7 +15,7 @@ type RoleResponseDto struct {
 	IsDefault   bool      `json:"is_default"`
 	IsActive    bool      `json:"is_active"`
 	CreatedAt   time.Time `json:"created_at"`
-	UpdatedAt   time.Time `json:"updated_at,omitempty"`
+	UpdatedAt   time.Time `json:"updated_at"`
 }
 
 // Create or update role request dto
@@ -36,7 +36,7 @@ func (r RoleCreateOrUpdateRequestDto) Validate() error {
 			validation.Length(8, 100).Error("Description must be between 8 and 100 characters"),
 		),
 		validation.Field(&r.IsActive,
-			validation.Required.Error("Is active is required"),
+			validation.In(true, false).Error("Is active is required"),
 		),
 	)
 }
