@@ -18,18 +18,23 @@ func SeedPermissions(db *gorm.DB, apiID, authContainerID int64) {
 		// Register
 		newPermission("public:register", "Register new user", apiID, authContainerID),
 		newPermission("public:register:pre-check", "Check email/username availability", apiID, authContainerID),
+
 		// Login
 		newPermission("public:login", "Login with username/email and password", apiID, authContainerID),
 		newPermission("public:login:mfa-challenge", "Submit MFA code (TOTP, WebAuthn)", apiID, authContainerID),
+
 		// Reset password
 		newPermission("public:request-password-reset", "Send password reset link", apiID, authContainerID),
 		newPermission("public:reset-password", "Reset password using token", apiID, authContainerID),
+
 		// Oauth2
 		newPermission("public:oauth2:redirect", "Redirect to identity provider (SSO login)", apiID, authContainerID),
 		newPermission("public:oauth2:callback", "Handle OAuth2/OIDC callback", apiID, authContainerID),
 		newPermission("public:oauth2:signup", "Auto-register via SSO", apiID, authContainerID),
+
 		// Captcha
 		newPermission("public:captcha", "Get CAPTCHA token or image", apiID, authContainerID),
+
 		// Configs
 		newPermission("public:config", "Return non-sensitive app config (branding, providers, etc.)", apiID, authContainerID),
 		newPermission("public:health", "Public service health check", apiID, authContainerID),
@@ -46,28 +51,45 @@ func SeedPermissions(db *gorm.DB, apiID, authContainerID int64) {
 		newPermission("account:mfa:enroll:self", "Enroll in MFA (TOTP/WebAuthn)", apiID, authContainerID),
 		newPermission("account:mfa:disable:self", "Disable MFA", apiID, authContainerID),
 		newPermission("account:mfa:verify:self", "Verify MFA challenge", apiID, authContainerID),
+
 		// Authentication
 		newPermission("account:auth:logout:self", "Logout from current session", apiID, authContainerID),
 		newPermission("account:auth:refresh-token:self", "Refresh JWT using refresh token", apiID, authContainerID),
 		newPermission("account:session:terminate:self", "End own active sessions", apiID, authContainerID),
+
 		// Token Permissions
 		newPermission("account:token:create:self", "Create API or personal access token", apiID, authContainerID),
 		newPermission("account:token:read:self", "List own tokens", apiID, authContainerID),
 		newPermission("account:token:revoke:self", "Revoke own token", apiID, authContainerID),
+
 		// User data Permissions
 		newPermission("account:user:read:self", "Get own user data", apiID, authContainerID),
 		newPermission("account:user:update:self", "Update user info", apiID, authContainerID),
 		newPermission("account:user:delete:self", "Delete own account", apiID, authContainerID),
 		newPermission("account:user:disable:self", "Temporarily disable own account", apiID, authContainerID),
+
 		// Profile permissions
 		newPermission("account:profile:read:self", "Get own profile data", apiID, authContainerID),
 		newPermission("account:profile:update:self", "Update profile info", apiID, authContainerID),
 		newPermission("account:profile:delete:self", "Delete own profile", apiID, authContainerID),
+
 		// Activity Logs
 		newPermission("account:audit:read:self", "View own activity logs", apiID, authContainerID),
 
 		// STRICT PERMISSIONS
 		// These are permissions are assigned only to speicif users that have elevated access
+		// Service Management (Core)
+		newPermission("service:read", "List services", apiID, authContainerID),
+		newPermission("service:create", "Create service", apiID, authContainerID),
+		newPermission("service:update", "Update service", apiID, authContainerID),
+		newPermission("service:delete", "Delete service", apiID, authContainerID),
+
+		// Auth Service Management (Auth)
+		newPermission("auth:service:read", "List auth service", apiID, authContainerID),
+		newPermission("auth:service:create", "Create auth service", apiID, authContainerID),
+		newPermission("auth:service:update", "Update auth service", apiID, authContainerID),
+		newPermission("auth:service:delete", "Delete auth service", apiID, authContainerID),
+
 		// User Administration (Admin Only)
 		newPermission("user:read:any", "View any user profile", apiID, authContainerID),
 		newPermission("user:update:any", "Edit user details", apiID, authContainerID),
