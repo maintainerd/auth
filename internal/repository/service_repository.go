@@ -70,39 +70,44 @@ func (r *serviceRepository) FindDefaultServices() ([]model.Service, error) {
 }
 
 func (r *serviceRepository) FindPaginated(filter ServiceRepositoryGetFilter) (*PaginationResult[model.Service], error) {
-	conditions := map[string]any{}
+	query := r.db.Model(&model.Service{})
+
+	// String filters with LIKE
 	if filter.Name != nil {
-		conditions["name"] = *filter.Name
+		query = query.Where("name ILIKE ?", "%"+*filter.Name+"%")
 	}
 	if filter.DisplayName != nil {
-		conditions["display_name"] = *filter.DisplayName
+		query = query.Where("display_name ILIKE ?", "%"+*filter.DisplayName+"%")
 	}
 	if filter.Description != nil {
-		conditions["description"] = *filter.Description
+		query = query.Where("description ILIKE ?", "%"+*filter.Description+"%")
 	}
 	if filter.Version != nil {
-		conditions["version"] = *filter.Version
+		query = query.Where("version ILIKE ?", "%"+*filter.Version+"%")
 	}
+
+	// Boolean filters with exact match
 	if filter.IsDefault != nil {
-		conditions["is_default"] = *filter.IsDefault
+		query = query.Where("is_default = ?", *filter.IsDefault)
 	}
 	if filter.IsActive != nil {
-		conditions["is_active"] = *filter.IsActive
+		query = query.Where("is_active = ?", *filter.IsActive)
 	}
 	if filter.IsPublic != nil {
-		conditions["is_public"] = *filter.IsPublic
+		query = query.Where("is_public = ?", *filter.IsPublic)
 	}
 
 	// Sorting
 	orderBy := filter.SortBy + " " + filter.SortOrder
+	query = query.Order(orderBy)
 
-	query := r.db.Model(&model.Service{}).Where(conditions).Order(orderBy)
-
+	// Count
 	var total int64
 	if err := query.Count(&total).Error; err != nil {
 		return nil, err
 	}
 
+	// Pagination
 	offset := (filter.Page - 1) * filter.Limit
 	var services []model.Service
 	if err := query.Limit(filter.Limit).Offset(offset).Find(&services).Error; err != nil {
