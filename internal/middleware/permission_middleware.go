@@ -11,18 +11,21 @@ import (
 func PermissionMiddleware(requiredPermissions []string) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			// Get user context
 			val := r.Context().Value(UserContextKey)
 			if val == nil {
 				util.Error(w, http.StatusUnauthorized, "User not found in context")
 				return
 			}
 
+			// Validate user context
 			user, ok := val.(*model.User)
 			if !ok || user == nil {
 				util.Error(w, http.StatusInternalServerError, "Invalid user in context")
 				return
 			}
 
+			// Check user permission
 			if !hasAnyPermission(user, requiredPermissions) {
 				util.Error(w, http.StatusForbidden, "Insufficient permissions")
 				return

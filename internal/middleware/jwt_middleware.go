@@ -30,18 +30,21 @@ const (
 
 func JWTAuthMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Get authorization header
 		authHeader := r.Header.Get("Authorization")
 		if authHeader == "" {
 			util.Error(w, http.StatusUnauthorized, "Authorization header missing")
 			return
 		}
 
+		// Split authorization header
 		parts := strings.SplitN(authHeader, " ", 2)
 		if len(parts) != 2 || strings.ToLower(parts[0]) != "bearer" {
 			util.Error(w, http.StatusUnauthorized, "Invalid Authorization header format")
 			return
 		}
 
+		// Validate token
 		token := parts[1]
 		claims, err := util.ValidateToken(token)
 		if err != nil {
@@ -56,6 +59,7 @@ func JWTAuthMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
+		// Parse sub into uuid
 		userUUID, err := uuid.Parse(sub)
 		if err != nil {
 			util.Error(w, http.StatusBadRequest, "Invalid User UUID format", err.Error())
@@ -72,6 +76,25 @@ func JWTAuthMiddleware(next http.Handler) http.Handler {
 		aud, _ := claims["aud"].(string)
 		iss, _ := claims["iss"].(string)
 		jti, _ := claims["jti"].(string)
+
+		// Validate claims
+		// Validate container_id
+		if containerID == "" {
+			util.Error(w, http.StatusUnauthorized, "Missing container id in token")
+			return
+		}
+
+		// Validate provider_id
+		if providerID == "" {
+			util.Error(w, http.StatusUnauthorized, "Missing provider id in token")
+			return
+		}
+
+		// Validate client id
+		if clientID == "" {
+			util.Error(w, http.StatusUnauthorized, "Missing client id in token")
+			return
+		}
 
 		// Build new context with all needed values
 		ctx := context.WithValue(r.Context(), SubKey, sub)
