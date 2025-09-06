@@ -18,15 +18,9 @@ func UserContextMiddleware(
 ) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			// Get sub and client_id
+			// Get sub and client_id context
 			sub, _ := r.Context().Value(SubKey).(string)
 			clientID, _ := r.Context().Value(ClientIDKey).(string)
-
-			// Validate sub and client id
-			if sub == "" || clientID == "" {
-				util.Error(w, http.StatusUnauthorized, "Missing sub or client_id in token")
-				return
-			}
 
 			// Create cache key
 			cacheKey := "user:" + sub
