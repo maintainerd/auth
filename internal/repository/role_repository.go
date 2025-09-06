@@ -76,32 +76,38 @@ func (r *roleRepository) FindAllByAuthContainerID(authContainerID int64) ([]mode
 }
 
 func (r *roleRepository) FindPaginated(filter RoleRepositoryGetFilter) (*PaginationResult[model.Role], error) {
-	conditions := map[string]any{
-		"auth_container_id": filter.AuthContainerID,
-	}
+	query := r.db.Model(&model.Role{})
+
+	// Always filter by container
+	query = query.Where("auth_container_id = ?", filter.AuthContainerID)
+
+	// String filters with LIKE
 	if filter.Name != nil {
-		conditions["name"] = *filter.Name
+		query = query.Where("name ILIKE ?", "%"+*filter.Name+"%")
 	}
 	if filter.Description != nil {
-		conditions["description"] = *filter.Description
+		query = query.Where("description ILIKE ?", "%"+*filter.Description+"%")
 	}
+
+	// Boolean filters with exact match
 	if filter.IsDefault != nil {
-		conditions["is_default"] = *filter.IsDefault
+		query = query.Where("is_default = ?", *filter.IsDefault)
 	}
 	if filter.IsActive != nil {
-		conditions["is_active"] = *filter.IsActive
+		query = query.Where("is_active = ?", *filter.IsActive)
 	}
 
 	// Sorting
 	orderBy := filter.SortBy + " " + filter.SortOrder
+	query = query.Order(orderBy)
 
-	query := r.db.Model(&model.Role{}).Where(conditions).Order(orderBy)
-
+	// Count
 	var total int64
 	if err := query.Count(&total).Error; err != nil {
 		return nil, err
 	}
 
+	// Pagination
 	offset := (filter.Page - 1) * filter.Limit
 	var roles []model.Role
 	if err := query.Limit(filter.Limit).Offset(offset).Find(&roles).Error; err != nil {

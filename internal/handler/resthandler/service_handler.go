@@ -195,6 +195,50 @@ func (h *ServiceHandler) Update(w http.ResponseWriter, r *http.Request) {
 	util.Success(w, dtoRes, "Service updated successfully")
 }
 
+// Set service status
+func (h *ServiceHandler) SetStatus(w http.ResponseWriter, r *http.Request) {
+	// Validate role_uuid
+	serviceUUID, err := uuid.Parse(chi.URLParam(r, "service_uuid"))
+	if err != nil {
+		util.Error(w, http.StatusBadRequest, "Invalid service UUID")
+		return
+	}
+
+	// Update service
+	service, err := h.service.SetActiveStatusByUUID(serviceUUID)
+	if err != nil {
+		util.Error(w, http.StatusInternalServerError, "Failed to update service", err.Error())
+		return
+	}
+
+	// Build response data
+	dtoRes := toServiceResponseDto(*service)
+
+	util.Success(w, dtoRes, "Service updated successfully")
+}
+
+// Set service public
+func (h *ServiceHandler) SetPublic(w http.ResponseWriter, r *http.Request) {
+	// Validate role_uuid
+	serviceUUID, err := uuid.Parse(chi.URLParam(r, "service_uuid"))
+	if err != nil {
+		util.Error(w, http.StatusBadRequest, "Invalid service UUID")
+		return
+	}
+
+	// Update service
+	service, err := h.service.SetPublicStatusByUUID(serviceUUID)
+	if err != nil {
+		util.Error(w, http.StatusInternalServerError, "Failed to update service", err.Error())
+		return
+	}
+
+	// Build response data
+	dtoRes := toServiceResponseDto(*service)
+
+	util.Success(w, dtoRes, "Service updated successfully")
+}
+
 // Delete service
 func (h *ServiceHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	serviceUUID, err := uuid.Parse(chi.URLParam(r, "service_uuid"))
