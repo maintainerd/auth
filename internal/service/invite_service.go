@@ -58,9 +58,17 @@ func (s *inviteService) SendPrivateInvite(
 		if err != nil {
 			return err
 		}
-		if authClient == nil || !authClient.IsActive || authClient.AuthContainer == nil {
+		if authClient == nil ||
+			!authClient.IsActive ||
+			authClient.Domain == nil || *authClient.Domain == "" ||
+			authClient.IdentityProvider == nil ||
+			authClient.IdentityProvider.AuthContainer == nil ||
+			authClient.IdentityProvider.AuthContainer.AuthContainerID == 0 {
 			return errors.New("invalid client or identity provider")
 		}
+
+		// Get container id
+		authContainerId := authClient.IdentityProvider.AuthContainer.AuthContainerID
 
 		// Find roles by UUIDs
 		foundRoles, err := roleRepo.FindByUUIDs(roleUUIDs)
@@ -73,7 +81,7 @@ func (s *inviteService) SendPrivateInvite(
 			return errors.New("one or more roles not found")
 		}
 		for _, role := range foundRoles {
-			if role.AuthContainerID != authClient.AuthContainerID {
+			if role.AuthContainerID != authContainerId {
 				return errors.New("invalid role for the given client")
 			}
 		}

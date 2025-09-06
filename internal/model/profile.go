@@ -9,14 +9,14 @@ import (
 
 type Profile struct {
 	ProfileID   int64      `gorm:"column:profile_id;primaryKey"`
-	ProfileUUID uuid.UUID  `gorm:"column:profile_uuid"`
-	UserID      int64      `gorm:"column:user_id"`
-	FirstName   string     `gorm:"column:first_name"`
+	ProfileUUID uuid.UUID  `gorm:"column:profile_uuid;unique;not null"`
+	UserID      int64      `gorm:"column:user_id;not null"`
+	FirstName   string     `gorm:"column:first_name;not null"`
 	MiddleName  *string    `gorm:"column:middle_name"`
 	LastName    *string    `gorm:"column:last_name"`
 	Suffix      *string    `gorm:"column:suffix"`
 	Birthdate   *time.Time `gorm:"column:birthdate"`
-	Gender      *string    `gorm:"column:gender"`
+	Gender      *string    `gorm:"column:gender"` // 'male', 'female'
 	Phone       *string    `gorm:"column:phone"`
 	Email       *string    `gorm:"column:email"`
 	Address     *string    `gorm:"column:address"`

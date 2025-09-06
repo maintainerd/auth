@@ -45,11 +45,12 @@ func (r *authClientRepository) FindAllByAuthContainerID(authContainerID int64) (
 func (r *authClientRepository) FindDefault() (*model.AuthClient, error) {
 	var client model.AuthClient
 	err := r.db.
-		Joins("JOIN identity_providers ON auth_clients.auth_container_id = identity_providers.auth_container_id").
-		Where("auth_clients.is_default = true AND auth_clients.is_active = true").
-		Where("identity_providers.is_active = true").
-		Preload("AuthContainer").
+		Joins("JOIN identity_providers ON identity_providers.identity_provider_id = auth_clients.identity_provider_id").
+		Where("auth_clients.is_default = ? AND auth_clients.is_active = ?", true, true).
+		Where("auth_clients.client_type = ?", "traditional").
+		Where("identity_providers.is_active = ?", true).
 		Preload("IdentityProvider").
+		Preload("IdentityProvider.AuthContainer").
 		First(&client).Error
 
 	return &client, err

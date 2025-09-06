@@ -17,7 +17,7 @@ func SeedIdentityProviders(db *gorm.DB, authContainerID int64) (*model.IdentityP
 
 	// Check if default provider already exists
 	err := db.
-		Where("provider_name = ? AND auth_container_id = ?", "default", authContainerID).
+		Where("name = ? AND auth_container_id = ?", "default", authContainerID).
 		First(&existing).Error
 
 	if err == nil {
@@ -33,10 +33,10 @@ func SeedIdentityProviders(db *gorm.DB, authContainerID int64) (*model.IdentityP
 	// Create new default provider
 	provider := model.IdentityProvider{
 		IdentityProviderUUID: uuid.New(),
-		ProviderName:         "default",
+		Name:                 "default",
 		DisplayName:          "Default",
 		ProviderType:         "default",
-		Identifier:           strPtr(fmt.Sprintf("auth-api-%s", util.GenerateIdentifier(12))),
+		Identifier:           fmt.Sprintf("auth-api-%s", util.GenerateIdentifier(12)),
 		Config:               datatypes.JSON([]byte(`{}`)),
 		IsActive:             true,
 		IsDefault:            true,

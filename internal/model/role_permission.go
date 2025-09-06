@@ -8,13 +8,11 @@ import (
 )
 
 type RolePermission struct {
-	RolePermissionID   int64      `gorm:"column:role_permission_id;primaryKey"`
-	RolePermissionUUID uuid.UUID  `gorm:"column:role_permission_uuid;unique"`
-	RoleID             int64      `gorm:"column:role_id"`
-	PermissionID       int64      `gorm:"column:permission_id"`
-	IsDefault          bool       `gorm:"column:is_default;default:false"`
-	CreatedAt          time.Time  `gorm:"column:created_at;autoCreateTime"`
-	UpdatedAt          *time.Time `gorm:"column:updated_at;autoUpdateTime"`
+	RolePermissionID   int64     `gorm:"column:role_permission_id;primaryKey"`
+	RolePermissionUUID uuid.UUID `gorm:"column:role_permission_uuid;unique"`
+	RoleID             int64     `gorm:"column:role_id"`
+	PermissionID       int64     `gorm:"column:permission_id"`
+	CreatedAt          time.Time `gorm:"column:created_at;autoCreateTime"`
 
 	// Relationships
 	Role       *Role       `gorm:"foreignKey:RoleID;references:RoleID"`

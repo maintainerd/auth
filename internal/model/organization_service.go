@@ -13,7 +13,6 @@ type OrganizationService struct {
 	OrganizationID          int64     `gorm:"column:organization_id"`
 	ServiceID               int64     `gorm:"column:service_id"`
 	CreatedAt               time.Time `gorm:"column:created_at;autoCreateTime"`
-	UpdatedAt               time.Time `gorm:"column:updated_at;autoUpdateTime"`
 
 	// Relationships
 	Organization *Organization `gorm:"foreignKey:OrganizationID;references:OrganizationID"`

@@ -8,13 +8,11 @@ import (
 )
 
 type UserRole struct {
-	UserRoleID   int64      `gorm:"column:user_role_id;primaryKey"`
-	UserRoleUUID uuid.UUID  `gorm:"column:user_role_uuid;unique"`
-	UserID       int64      `gorm:"column:user_id"`
-	RoleID       int64      `gorm:"column:role_id"`
-	IsDefault    bool       `gorm:"column:is_default;default:false"`
-	CreatedAt    time.Time  `gorm:"column:created_at;autoCreateTime"`
-	UpdatedAt    *time.Time `gorm:"column:updated_at;autoUpdateTime"`
+	UserRoleID   int64     `gorm:"column:user_role_id;primaryKey"`
+	UserRoleUUID uuid.UUID `gorm:"column:user_role_uuid;unique"`
+	UserID       int64     `gorm:"column:user_id"`
+	RoleID       int64     `gorm:"column:role_id"`
+	CreatedAt    time.Time `gorm:"column:created_at;autoCreateTime"`
 
 	// Relationships
 	User *User `gorm:"foreignKey:UserID;references:UserID;constraint:OnDelete:CASCADE"`

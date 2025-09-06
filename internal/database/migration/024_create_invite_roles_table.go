@@ -14,8 +14,7 @@ CREATE TABLE IF NOT EXISTS invite_roles (
 		invite_role_uuid		UUID NOT NULL UNIQUE,
     invite_id						INTEGER NOT NULL,
     role_id							INTEGER NOT NULL,
-    created_at					TIMESTAMPTZ DEFAULT now(),
-    updated_at					TIMESTAMPTZ DEFAULT now()
+    created_at					TIMESTAMPTZ DEFAULT now()
 );
 
 DO $$
@@ -43,8 +42,8 @@ CREATE INDEX IF NOT EXISTS idx_invite_roles_invite_id ON invite_roles (invite_id
 CREATE INDEX IF NOT EXISTS idx_invite_roles_role_id ON invite_roles (role_id);
 `
 	if err := db.Exec(sql).Error; err != nil {
-		log.Fatalf("❌ Failed to run migration 021_create_invite_roles_table: %v", err)
+		log.Fatalf("❌ Failed to run migration 024_create_invite_roles_table: %v", err)
 	}
 
-	log.Println("✅ Migration 021_create_invite_roles_table executed")
+	log.Println("✅ Migration 024_create_invite_roles_table executed")
 }

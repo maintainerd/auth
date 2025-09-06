@@ -12,7 +12,7 @@ import (
 
 func SeedAPI(db *gorm.DB, serviceID, authContainerID int64) (*model.API, error) {
 	var existing model.API
-	err := db.Where("api_name = ?", "auth-api").First(&existing).Error
+	err := db.Where("name = ?", "auth-api").First(&existing).Error
 
 	if err == nil {
 		fmt.Println("⚠️ API 'auth-api' already exists, skipping seeding")
@@ -24,18 +24,17 @@ func SeedAPI(db *gorm.DB, serviceID, authContainerID int64) (*model.API, error) 
 	}
 
 	api := &model.API{
-		APIUUID:         uuid.New(),
-		APIName:         "auth",
-		DisplayName:     "Auth API",
-		APIType:         "default",
-		Description:     "API for authentication",
-		Identifier:      fmt.Sprintf("auth-api-%s", util.GenerateIdentifier(12)),
-		IsActive:        true,
-		IsDefault:       true,
-		ServiceID:       serviceID,
-		AuthContainerID: authContainerID,
-		CreatedAt:       time.Now(),
-		UpdatedAt:       time.Now(),
+		APIUUID:     uuid.New(),
+		Name:        "auth",
+		DisplayName: "Auth API",
+		APIType:     "default",
+		Description: "API for authentication",
+		Identifier:  fmt.Sprintf("auth-api-%s", util.GenerateIdentifier(12)),
+		IsActive:    true,
+		IsDefault:   true,
+		ServiceID:   serviceID,
+		CreatedAt:   time.Now(),
+		UpdatedAt:   time.Now(),
 	}
 
 	if err := db.Create(api).Error; err != nil {

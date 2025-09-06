@@ -16,7 +16,7 @@ CREATE TABLE IF NOT EXISTS invites (
     invited_email       VARCHAR(255) NOT NULL,
     invited_by_user_id  INTEGER NOT NULL,
     invite_token        TEXT NOT NULL UNIQUE,
-    status              VARCHAR(20) DEFAULT 'pending', -- pending, accepted, expired, revoked
+    status              VARCHAR(20), -- pending, accepted, expired, revoked
     expires_at          TIMESTAMPTZ,
     used_at             TIMESTAMPTZ,
     created_at          TIMESTAMPTZ DEFAULT now(),
@@ -44,15 +44,17 @@ BEGIN
 END$$;
 
 -- ADD INDEXES
-CREATE INDEX IF NOT EXISTS idx_invites_invite_uuid ON invites (invite_uuid);
+CREATE INDEX IF NOT EXISTS idx_invites_uuid ON invites (invite_uuid);
+CREATE INDEX IF NOT EXISTS idx_invites_auth_client_id ON invites (auth_client_id);
 CREATE INDEX IF NOT EXISTS idx_invites_email ON invites (invited_email);
+CREATE INDEX IF NOT EXISTS idx_invites_invited_by_user_id ON invites (invited_by_user_id);
 CREATE INDEX IF NOT EXISTS idx_invites_token ON invites (invite_token);
 CREATE INDEX IF NOT EXISTS idx_invites_status ON invites (status);
-CREATE INDEX IF NOT EXISTS idx_invites_auth_client_id ON invites (auth_client_id);
+CREATE INDEX IF NOT EXISTS idx_invites_created_at ON invites (created_at);
 `
 	if err := db.Exec(sql).Error; err != nil {
-		log.Fatalf("❌ Failed to run migration 020_create_invites_table: %v", err)
+		log.Fatalf("❌ Failed to run migration 023_create_invites_table: %v", err)
 	}
 
-	log.Println("✅ Migration 020_create_invites_table executed")
+	log.Println("✅ Migration 023_create_invites_table executed")
 }

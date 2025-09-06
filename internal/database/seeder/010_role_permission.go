@@ -1,6 +1,7 @@
 package seeder
 
 import (
+	"errors"
 	"log"
 	"strings"
 
@@ -31,30 +32,46 @@ func SeedRolePermissions(db *gorm.DB, roles map[string]model.Role, authContainer
 			continue
 		}
 
+		// Reload the role to get the generated RoleID
+		if err := db.Where("role_uuid = ?", role.RoleUUID).First(&role).Error; err != nil {
+			log.Printf("❌ Failed to reload role '%s': %v", assign.Role, err)
+			continue
+		}
+
 		var allPermissions []model.Permission
 
 		for _, pattern := range assign.Permissions {
 			var temp []model.Permission
+			var err error
 
 			if pattern == "*" {
-				db.Where("auth_container_id = ?", authContainerID).Find(&temp)
+				err = db.Where("auth_container_id = ?", authContainerID).Find(&temp).Error
 			} else if strings.HasSuffix(pattern, "*") {
 				prefix := strings.TrimSuffix(pattern, "*")
-				db.Where("name LIKE ? AND auth_container_id = ?", prefix+"%", authContainerID).Find(&temp)
+				err = db.Where("name LIKE ? AND auth_container_id = ?", prefix+"%", authContainerID).Find(&temp).Error
 			} else {
-				db.Where("name = ? AND auth_container_id = ?", pattern, authContainerID).Find(&temp)
+				err = db.Where("name = ? AND auth_container_id = ?", pattern, authContainerID).Find(&temp).Error
+			}
+
+			if err != nil {
+				log.Printf("❌ Failed to fetch permissions for pattern '%s': %v", pattern, err)
+				continue
 			}
 
 			allPermissions = append(allPermissions, temp...)
 		}
 
-		// Insert only missing role-permissions
 		for _, perm := range allPermissions {
-			var existing model.RolePermission
-			err := db.Where("role_id = ? AND permission_id = ?", role.RoleID, perm.PermissionID).
-				First(&existing).Error
+			// Reload permission to ensure PermissionID is populated
+			if err := db.Where("permission_uuid = ?", perm.PermissionUUID).First(&perm).Error; err != nil {
+				log.Printf("❌ Failed to reload permission '%s': %v", perm.Name, err)
+				continue
+			}
 
-			if err == gorm.ErrRecordNotFound {
+			var existing model.RolePermission
+			err := db.Where("role_id = ? AND permission_id = ?", role.RoleID, perm.PermissionID).First(&existing).Error
+
+			if errors.Is(err, gorm.ErrRecordNotFound) {
 				rp := model.RolePermission{
 					RoleID:             role.RoleID,
 					PermissionID:       perm.PermissionID,
@@ -62,12 +79,12 @@ func SeedRolePermissions(db *gorm.DB, roles map[string]model.Role, authContainer
 				}
 				if err := db.Create(&rp).Error; err != nil {
 					log.Printf("❌ Failed to assign permission '%s' to role '%s': %v", perm.Name, role.Name, err)
+				} else {
+					log.Printf("✅ Assigned permission '%s' to role '%s'", perm.Name, role.Name)
 				}
 			} else if err != nil {
 				log.Printf("❌ Failed to check existing permission '%s' for role '%s': %v", perm.Name, role.Name, err)
 			}
 		}
-
-		log.Printf("✅ Assigned %d permission(s) to role '%s'", len(allPermissions), role.Name)
 	}
 }
