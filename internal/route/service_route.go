@@ -30,6 +30,12 @@ func ServiceRoute(
 		r.With(middleware.PermissionMiddleware([]string{"service:update"})).
 			Put("/{service_uuid}", serviceHandler.Update)
 
+		r.With(middleware.PermissionMiddleware([]string{"service:update"})).
+			Put("/{service_uuid}/status", serviceHandler.SetStatus)
+
+		r.With(middleware.PermissionMiddleware([]string{"service:update"})).
+			Put("/{service_uuid}/public", serviceHandler.SetPublic)
+
 		r.With(middleware.PermissionMiddleware([]string{"service:delete"})).
 			Delete("/{service_uuid}", serviceHandler.Delete)
 	})

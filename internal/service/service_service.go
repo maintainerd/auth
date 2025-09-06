@@ -51,6 +51,7 @@ type ServiceService interface {
 	Create(name string, displayName string, description string, version string, isDefault bool, isActive bool, isPublic bool) (*ServiceServiceDataResult, error)
 	Update(serviceUUID uuid.UUID, name string, displayName string, description string, version string, isDefault bool, isActive bool, isPublic bool) (*ServiceServiceDataResult, error)
 	SetActiveStatusByUUID(serviceUUID uuid.UUID) (*ServiceServiceDataResult, error)
+	SetPublicStatusByUUID(serviceUUID uuid.UUID) (*ServiceServiceDataResult, error)
 	DeleteByUUID(serviceUUID uuid.UUID) (*ServiceServiceDataResult, error)
 }
 
@@ -270,6 +271,52 @@ func (s *serviceService) SetActiveStatusByUUID(serviceUUID uuid.UUID) (*ServiceS
 		}
 
 		service.IsActive = !service.IsActive
+
+		if err := txServiceRepo.CreateOrUpdate(service); err != nil {
+			return err
+		}
+
+		updatedService = service
+		return nil
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &ServiceServiceDataResult{
+		ServiceUUID: updatedService.ServiceUUID,
+		Name:        updatedService.Name,
+		DisplayName: updatedService.DisplayName,
+		Description: updatedService.Description,
+		Version:     updatedService.Version,
+		IsDefault:   updatedService.IsDefault,
+		IsActive:    updatedService.IsActive,
+		IsPublic:    updatedService.IsPublic,
+		CreatedAt:   updatedService.CreatedAt,
+		UpdatedAt:   updatedService.UpdatedAt,
+	}, nil
+}
+
+func (s *serviceService) SetPublicStatusByUUID(serviceUUID uuid.UUID) (*ServiceServiceDataResult, error) {
+	var updatedService *model.Service
+
+	err := s.db.Transaction(func(tx *gorm.DB) error {
+		txServiceRepo := s.serviceRepo.WithTx(tx)
+
+		service, err := txServiceRepo.FindByUUID(serviceUUID)
+		if err != nil {
+			return err
+		}
+		if service == nil {
+			return errors.New("service not found")
+		}
+
+		if service.IsDefault {
+			return errors.New("default service cannot be updated")
+		}
+
+		service.IsPublic = !service.IsPublic
 
 		if err := txServiceRepo.CreateOrUpdate(service); err != nil {
 			return err
