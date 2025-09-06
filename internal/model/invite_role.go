@@ -8,12 +8,11 @@ import (
 )
 
 type InviteRole struct {
-	InviteRoleID   int64      `gorm:"column:invite_role_id;primaryKey"`
-	InviteRoleUUID uuid.UUID  `gorm:"column:invite_role_uuid;unique"`
-	InviteID       int64      `gorm:"column:invite_id"`
-	RoleID         int64      `gorm:"column:role_id"`
-	CreatedAt      time.Time  `gorm:"column:created_at;autoCreateTime"`
-	UpdatedAt      *time.Time `gorm:"column:updated_at;autoUpdateTime"`
+	InviteRoleID   int64     `gorm:"column:invite_role_id;primaryKey"`
+	InviteRoleUUID uuid.UUID `gorm:"column:invite_role_uuid;unique"`
+	InviteID       int64     `gorm:"column:invite_id"`
+	RoleID         int64     `gorm:"column:role_id"`
+	CreatedAt      time.Time `gorm:"column:created_at;autoCreateTime"`
 
 	// Relationships
 	Invite Invite `gorm:"foreignKey:InviteID"`

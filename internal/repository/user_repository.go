@@ -95,7 +95,6 @@ func (r *userRepository) FindRoles(userID int64) ([]model.Role, error) {
 func (r *userRepository) FindBySubAndClientID(sub string, authClientID string) (*model.User, error) {
 	var user model.User
 	err := r.db.
-		Preload("Organization").
 		Preload("AuthContainer").
 		Preload("UserIdentities.AuthClient").
 		Preload("Roles.Permissions").

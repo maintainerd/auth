@@ -206,15 +206,14 @@ func SeedPermissions(db *gorm.DB, apiID, authContainerID int64) {
 
 func newPermission(name, description string, apiID, authContainerID int64) model.Permission {
 	return model.Permission{
-		PermissionUUID:  uuid.New(),
-		Name:            name,
-		Description:     description,
-		IsActive:        true,
-		IsDefault:       true,
-		APIID:           apiID,
-		AuthContainerID: authContainerID,
-		CreatedAt:       time.Now(),
-		UpdatedAt:       time.Now(),
+		PermissionUUID: uuid.New(),
+		Name:           name,
+		Description:    description,
+		IsActive:       true,
+		IsDefault:      true,
+		APIID:          apiID,
+		CreatedAt:      time.Now(),
+		UpdatedAt:      time.Now(),
 	}
 }
 

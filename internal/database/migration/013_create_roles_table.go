@@ -34,13 +34,17 @@ BEGIN
 END$$;
 
 -- ADD INDEXES
-CREATE INDEX IF NOT EXISTS idx_roles_role_uuid ON roles(role_uuid);
-CREATE INDEX IF NOT EXISTS idx_roles_name ON roles(name);
-CREATE INDEX IF NOT EXISTS idx_roles_auth_container_id ON roles(auth_container_id);
+CREATE INDEX IF NOT EXISTS idx_roles_role_uuid ON roles (role_uuid);
+CREATE INDEX IF NOT EXISTS idx_roles_name ON roles (name);
+CREATE INDEX IF NOT EXISTS idx_roles_description ON roles (description);
+CREATE INDEX IF NOT EXISTS idx_roles_is_active ON roles (is_active);
+CREATE INDEX IF NOT EXISTS idx_roles_is_default ON roles (is_default);
+CREATE INDEX IF NOT EXISTS idx_roles_auth_container_id ON roles (auth_container_id);
+CREATE INDEX IF NOT EXISTS idx_roles_created_at ON roles (created_at);
 `
 	if err := db.Exec(sql).Error; err != nil {
-		log.Fatalf("❌ Failed to run migration 009_create_roles_table: %v", err)
+		log.Fatalf("❌ Failed to run migration 013_create_roles_table: %v", err)
 	}
 
-	log.Println("✅ Migration 009_create_roles_table executed")
+	log.Println("✅ Migration 013_create_roles_table executed")
 }

@@ -27,16 +27,13 @@ func SeedOrganization(db *gorm.DB) (*model.Organization, error) {
 	}
 
 	org := model.Organization{
-		OrganizationUUID:    uuid.New(),
-		Name:                "Default Organization",
-		Description:         strPtr("This is the default organization used for initial setup."),
-		Email:               strPtr("admin@example.com"),
-		PhoneNumber:         strPtr("000-000-0000"),
-		WebsiteURL:          strPtr("https://example.com"),
-		LogoURL:             nil,
-		ExternalReferenceID: nil,
-		IsDefault:           true,
-		IsActive:            true,
+		OrganizationUUID: uuid.New(),
+		Name:             "Default Organization",
+		Description:      strPtr("This is the default organization used for initial setup."),
+		Email:            strPtr("admin@example.com"),
+		Phone:            strPtr("000-000-0000"),
+		IsDefault:        true,
+		IsActive:         true,
 	}
 
 	if err := db.Create(&org).Error; err != nil {
