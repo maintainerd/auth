@@ -48,7 +48,7 @@ type ServiceServiceGetResult struct {
 type ServiceService interface {
 	Get(filter ServiceServiceGetFilter) (*ServiceServiceGetResult, error)
 	GetByUUID(serviceUUID uuid.UUID) (*ServiceServiceDataResult, error)
-	Create(name string, displayName string, description string, version string, isDefault bool, isActive bool, isPublic bool) (*ServiceServiceDataResult, error)
+	Create(name string, displayName string, description string, version string, isDefault bool, isActive bool, isPublic bool, organizationID int64) (*ServiceServiceDataResult, error)
 	Update(serviceUUID uuid.UUID, name string, displayName string, description string, version string, isDefault bool, isActive bool, isPublic bool) (*ServiceServiceDataResult, error)
 	SetActiveStatusByUUID(serviceUUID uuid.UUID) (*ServiceServiceDataResult, error)
 	SetPublicStatusByUUID(serviceUUID uuid.UUID) (*ServiceServiceDataResult, error)
@@ -56,17 +56,20 @@ type ServiceService interface {
 }
 
 type serviceService struct {
-	db          *gorm.DB
-	serviceRepo repository.ServiceRepository
+	db                      *gorm.DB
+	serviceRepo             repository.ServiceRepository
+	organizationServiceRepo repository.OrganizationServiceRepository
 }
 
 func NewServiceService(
 	db *gorm.DB,
 	serviceRepo repository.ServiceRepository,
+	organizationServiceRepo repository.OrganizationServiceRepository,
 ) ServiceService {
 	return &serviceService{
-		db:          db,
-		serviceRepo: serviceRepo,
+		db:                      db,
+		serviceRepo:             serviceRepo,
+		organizationServiceRepo: organizationServiceRepo,
 	}
 }
 
@@ -138,11 +141,12 @@ func (s *serviceService) GetByUUID(serviceUUID uuid.UUID) (*ServiceServiceDataRe
 	}, nil
 }
 
-func (s *serviceService) Create(name string, displayName string, description string, version string, isDefault bool, isActive bool, isPublic bool) (*ServiceServiceDataResult, error) {
+func (s *serviceService) Create(name string, displayName string, description string, version string, isDefault bool, isActive bool, isPublic bool, organizationID int64) (*ServiceServiceDataResult, error) {
 	var createdService *model.Service
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
 		txServiceRepo := s.serviceRepo.WithTx(tx)
+		txOrganizationServiceRepo := s.organizationServiceRepo.WithTx(tx)
 
 		// Check if service already exists
 		existingService, err := txServiceRepo.FindByName(name)
@@ -164,11 +168,24 @@ func (s *serviceService) Create(name string, displayName string, description str
 			IsPublic:    isPublic,
 		}
 
-		if err := txServiceRepo.CreateOrUpdate(newService); err != nil {
+		_, err = txServiceRepo.CreateOrUpdate(newService)
+		if err != nil {
+			return err
+		}
+
+		// Link service to organization
+		newOrgService := &model.OrganizationService{
+			OrganizationID: organizationID,
+			ServiceID:      newService.ServiceID,
+		}
+
+		_, err = txOrganizationServiceRepo.CreateOrUpdate(newOrgService)
+		if err != nil {
 			return err
 		}
 
 		createdService = newService
+
 		return nil
 	})
 
@@ -226,11 +243,13 @@ func (s *serviceService) Update(serviceUUID uuid.UUID, name string, displayName 
 		service.IsActive = isActive
 		service.IsPublic = isPublic
 
-		if err := txServiceRepo.CreateOrUpdate(service); err != nil {
+		_, err = txServiceRepo.CreateOrUpdate(service)
+		if err != nil {
 			return err
 		}
 
 		updatedService = service
+
 		return nil
 	})
 
@@ -272,11 +291,13 @@ func (s *serviceService) SetActiveStatusByUUID(serviceUUID uuid.UUID) (*ServiceS
 
 		service.IsActive = !service.IsActive
 
-		if err := txServiceRepo.CreateOrUpdate(service); err != nil {
+		_, err = txServiceRepo.CreateOrUpdate(service)
+		if err != nil {
 			return err
 		}
 
 		updatedService = service
+
 		return nil
 	})
 
@@ -318,11 +339,13 @@ func (s *serviceService) SetPublicStatusByUUID(serviceUUID uuid.UUID) (*ServiceS
 
 		service.IsPublic = !service.IsPublic
 
-		if err := txServiceRepo.CreateOrUpdate(service); err != nil {
+		_, err = txServiceRepo.CreateOrUpdate(service)
+		if err != nil {
 			return err
 		}
 
 		updatedService = service
+
 		return nil
 	})
 

@@ -37,8 +37,11 @@ func (r *BaseRepository[T]) Create(entity *T) (*T, error) {
 }
 
 // Create Or Update
-func (r *BaseRepository[T]) CreateOrUpdate(entity *T) error {
-	return r.db.Save(entity).Error
+func (r *BaseRepository[T]) CreateOrUpdate(entity *T) (*T, error) {
+	if err := r.db.Save(entity).Error; err != nil {
+		return nil, err
+	}
+	return entity, nil
 }
 
 // FindAll with optional preloads
