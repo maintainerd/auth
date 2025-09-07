@@ -150,7 +150,8 @@ func (s *roleService) Create(name string, description string, isDefault bool, is
 			AuthContainerID: authContainerId,
 		}
 
-		if err := txRoleRepo.CreateOrUpdate(newRole); err != nil {
+		_, err = txRoleRepo.CreateOrUpdate(newRole)
+		if err != nil {
 			return err
 		}
 
@@ -212,7 +213,8 @@ func (s *roleService) Update(roleUUID uuid.UUID, name string, description string
 		role.IsDefault = isDefault
 		role.IsActive = isActive
 
-		if err := txRoleRepo.CreateOrUpdate(role); err != nil {
+		_, err = txRoleRepo.CreateOrUpdate(role)
+		if err != nil {
 			return err
 		}
 
@@ -260,7 +262,8 @@ func (s *roleService) SetActiveStatusByUUID(roleUUID uuid.UUID) (*RoleServiceDat
 		// Update role
 		role.IsActive = !role.IsActive
 
-		if err := txRoleRepo.CreateOrUpdate(role); err != nil {
+		_, err = txRoleRepo.CreateOrUpdate(role)
+		if err != nil {
 			return err
 		}
 
