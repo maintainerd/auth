@@ -27,18 +27,19 @@ type App struct {
 
 func NewApp(db *gorm.DB, redisClient *redis.Client) *App {
 	// Repositories
+	serviceRepo := repository.NewServiceRepository(db)
+	organizationRepo := repository.NewOrganizationServiceRepository(db)
 	authClientRepo := repository.NewAuthClientRepository(db)
 	userRepo := repository.NewUserRepository(db)
 	userRoleRepo := repository.NewUserRoleRepository(db)
 	userTokenRepo := repository.NewUserTokenRepository(db)
-	serviceRepo := repository.NewServiceRepository(db)
 	roleRepo := repository.NewRoleRepository(db)
 	profileRepo := repository.NewProfileRepository(db)
 	inviteRepo := repository.NewInviteRepository(db)
 	emailTemplateRepo := repository.NewEmailTemplateRepository(db)
 
 	// Services
-	serviceService := service.NewServiceService(db, serviceRepo)
+	serviceService := service.NewServiceService(db, serviceRepo, organizationRepo)
 	roleService := service.NewRoleService(db, roleRepo)
 	registerService := service.NewRegistrationService(db, authClientRepo, userRepo, userRoleRepo, userTokenRepo, roleRepo, inviteRepo)
 	loginService := service.NewLoginService(db, authClientRepo, userRepo, userTokenRepo)

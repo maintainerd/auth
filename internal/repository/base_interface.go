@@ -5,7 +5,7 @@ type BaseRepositoryMethods[T any] interface {
 	Create(entity *T) (*T, error)
 
 	// Create or Update
-	CreateOrUpdate(entity *T) error
+	CreateOrUpdate(entity *T) (*T, error)
 
 	// Retrieve all records with optional preloads
 	FindAll(preloads ...string) ([]T, error)

@@ -96,6 +96,7 @@ func (r *userRepository) FindBySubAndClientID(sub string, authClientID string) (
 	var user model.User
 	err := r.db.
 		Preload("AuthContainer").
+		Preload("AuthContainer.Organization").
 		Preload("UserIdentities.AuthClient").
 		Preload("Roles.Permissions").
 		Joins("JOIN user_identities ON users.user_id = user_identities.user_id").

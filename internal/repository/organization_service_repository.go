@@ -8,6 +8,7 @@ import (
 
 type OrganizationServiceRepository interface {
 	BaseRepositoryMethods[model.OrganizationService]
+	WithTx(tx *gorm.DB) OrganizationServiceRepository
 	FindByOrganizationID(orgID int64) ([]model.OrganizationService, error)
 	FindByServiceID(serviceID int64) ([]model.OrganizationService, error)
 	FindByOrganizationUUID(orgUUID uuid.UUID) ([]model.OrganizationService, error)
@@ -24,6 +25,13 @@ func NewOrganizationServiceRepository(db *gorm.DB) OrganizationServiceRepository
 	return &organizationServiceRepository{
 		BaseRepository: NewBaseRepository[model.OrganizationService](db, "organization_service_uuid", "organization_service_id"),
 		db:             db,
+	}
+}
+
+func (r *organizationServiceRepository) WithTx(tx *gorm.DB) OrganizationServiceRepository {
+	return &organizationServiceRepository{
+		BaseRepository: NewBaseRepository[model.OrganizationService](tx, "organization_service_uuid", "organization_service_id"),
+		db:             tx,
 	}
 }
 

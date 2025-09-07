@@ -8,6 +8,8 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/dto"
+	"github.com/maintainerd/auth/internal/middleware"
+	"github.com/maintainerd/auth/internal/model"
 	"github.com/maintainerd/auth/internal/service"
 	"github.com/maintainerd/auth/internal/util"
 )
@@ -110,24 +112,32 @@ func (h *ServiceHandler) Get(w http.ResponseWriter, r *http.Request) {
 
 // Get service by UUID
 func (h *ServiceHandler) GetByUUID(w http.ResponseWriter, r *http.Request) {
+	// Validate service_uuid
 	serviceUUID, err := uuid.Parse(chi.URLParam(r, "service_uuid"))
 	if err != nil {
 		util.Error(w, http.StatusBadRequest, "Invalid service UUID")
 		return
 	}
 
+	// Validate request body
 	svc, err := h.service.GetByUUID(serviceUUID)
 	if err != nil {
 		util.Error(w, http.StatusNotFound, "Service not found")
 		return
 	}
 
+	// Build response
 	dtoRes := toServiceResponseDto(*svc)
+
 	util.Success(w, dtoRes, "Service fetched successfully")
 }
 
 // Create service
 func (h *ServiceHandler) Create(w http.ResponseWriter, r *http.Request) {
+	// Get authentication context
+	user := r.Context().Value(middleware.UserContextKey).(*model.User)
+
+	// Validate request body
 	var req dto.ServiceCreateOrUpdateRequestDto
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		util.Error(w, http.StatusBadRequest, "Invalid request", err.Error())
@@ -147,6 +157,7 @@ func (h *ServiceHandler) Create(w http.ResponseWriter, r *http.Request) {
 		false,
 		req.IsActive,
 		req.IsPublic,
+		user.AuthContainer.Organization.OrganizationID,
 	)
 	if err != nil {
 		util.Error(w, http.StatusInternalServerError, "Failed to create service", err.Error())
