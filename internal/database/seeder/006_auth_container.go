@@ -33,9 +33,10 @@ func SeedAuthContainer(db *gorm.DB, organizationID int64) (*model.AuthContainer,
 		Name:              "Default Container",
 		Description:       "This is the default authentication container",
 		Identifier:        util.GenerateIdentifier(15),
-		IsActive:          true,
-		IsDefault:         true,
 		OrganizationID:    organizationID,
+		IsActive:          true,
+		IsPublic:          true,
+		IsDefault:         true,
 	}
 
 	if err := db.Create(&container).Error; err != nil {

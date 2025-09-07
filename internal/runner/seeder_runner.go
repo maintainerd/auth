@@ -22,20 +22,26 @@ func RunSeeders(db *gorm.DB, appVersion string) {
 		log.Fatal("❌ Failed to seed service:", err)
 	}
 
-	// Seed auth container
-	authContainer, err := seeder.SeedAuthContainer(db, org.OrganizationID)
+	// Link organization to service
+	_, err = seeder.SeedOrganizationService(db, org.OrganizationID, service.ServiceID)
 	if err != nil {
-		log.Fatal("❌ Failed to seed auth container:", err)
+		log.Fatal("❌ Failed to seed organization_service:", err)
 	}
 
 	// Seed API
-	api, err := seeder.SeedAPI(db, service.ServiceID, authContainer.AuthContainerID)
+	api, err := seeder.SeedAPI(db, service.ServiceID)
 	if err != nil {
 		log.Fatal("❌ Failed to seed api:", err)
 	}
 
 	// Seed permissions
-	seeder.SeedPermissions(db, api.APIID, authContainer.AuthContainerID)
+	seeder.SeedPermissions(db, api.APIID)
+
+	// Seed auth container
+	authContainer, err := seeder.SeedAuthContainer(db, org.OrganizationID)
+	if err != nil {
+		log.Fatal("❌ Failed to seed auth container:", err)
+	}
 
 	// Seed identity providers
 	identityProvider, err := seeder.SeedIdentityProviders(db, authContainer.AuthContainerID)
@@ -53,7 +59,7 @@ func RunSeeders(db *gorm.DB, appVersion string) {
 	}
 
 	// Seed role permissions
-	seeder.SeedRolePermissions(db, roles, authContainer.AuthContainerID)
+	seeder.SeedRolePermissions(db, roles)
 
 	// Seed email templates
 	seeder.SeedEmailTemplates(db)

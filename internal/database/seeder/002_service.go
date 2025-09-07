@@ -17,7 +17,6 @@ func SeedService(db *gorm.DB, appVersion string) (model.Service, error) {
 	}
 
 	err := db.Where("name = ?", "auth").First(&service).Error
-
 	if err == gorm.ErrRecordNotFound {
 		service = model.Service{
 			ServiceUUID: uuid.New(),
@@ -38,7 +37,6 @@ func SeedService(db *gorm.DB, appVersion string) (model.Service, error) {
 		log.Printf("✅ Default Service version '%s' seeded successfully", appVersion)
 		return service, nil
 	}
-
 	if err != nil {
 		log.Printf("❌ Error checking existing Default Service: %v", err)
 		return model.Service{}, err
