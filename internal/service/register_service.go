@@ -59,9 +59,17 @@ func (s *registerService) RegisterPublic(
 	if err != nil {
 		return nil, err
 	}
-	if authClient == nil || !authClient.IsActive || authClient.Domain == nil || *authClient.Domain == "" || authClient.AuthContainer == nil {
+	if authClient == nil ||
+		!authClient.IsActive ||
+		authClient.Domain == nil || *authClient.Domain == "" ||
+		authClient.IdentityProvider == nil ||
+		authClient.IdentityProvider.AuthContainer == nil ||
+		authClient.IdentityProvider.AuthContainer.AuthContainerID == 0 {
 		return nil, errors.New("invalid client or identity provider")
 	}
+
+	// Get container id
+	authContainerId := authClient.IdentityProvider.AuthContainer.AuthContainerID
 
 	// Check if username is an email
 	isEmail := util.IsValidEmail(username)
@@ -75,9 +83,9 @@ func (s *registerService) RegisterPublic(
 		var err error
 
 		if isEmail {
-			existingUser, err = s.userRepo.FindByEmail(username, authClient.AuthContainerID)
+			existingUser, err = s.userRepo.FindByEmail(username, authContainerId)
 		} else {
-			existingUser, err = s.userRepo.FindByUsername(username, authClient.AuthContainerID)
+			existingUser, err = s.userRepo.FindByUsername(username, authContainerId)
 		}
 
 		if err != nil {
@@ -103,8 +111,7 @@ func (s *registerService) RegisterPublic(
 			Username:        username,
 			Email:           "",
 			Password:        ptr(string(hashed)),
-			AuthContainerID: authClient.AuthContainerID,
-			OrganizationID:  authClient.AuthContainer.OrganizationID,
+			AuthContainerID: authContainerId,
 			IsActive:        true,
 		}
 		if isEmail {
@@ -153,9 +160,17 @@ func (s *registerService) RegisterPrivate(
 	if err != nil {
 		return nil, err
 	}
-	if authClient == nil || !authClient.IsActive || authClient.Domain == nil || *authClient.Domain == "" || authClient.AuthContainer == nil {
+	if authClient == nil ||
+		!authClient.IsActive ||
+		authClient.Domain == nil || *authClient.Domain == "" ||
+		authClient.IdentityProvider == nil ||
+		authClient.IdentityProvider.AuthContainer == nil ||
+		authClient.IdentityProvider.AuthContainer.AuthContainerID == 0 {
 		return nil, errors.New("invalid client or identity provider")
 	}
+
+	// Get container id
+	authContainerId := authClient.IdentityProvider.AuthContainer.AuthContainerID
 
 	// Check if super admin already exists
 	superAdmin, err := s.userRepo.FindSuperAdmin()
@@ -178,9 +193,9 @@ func (s *registerService) RegisterPrivate(
 		var err error
 
 		if isEmail {
-			existingUser, err = s.userRepo.FindByEmail(username, authClient.AuthContainerID)
+			existingUser, err = s.userRepo.FindByEmail(username, authContainerId)
 		} else {
-			existingUser, err = s.userRepo.FindByUsername(username, authClient.AuthContainerID)
+			existingUser, err = s.userRepo.FindByUsername(username, authContainerId)
 		}
 
 		if err != nil {
@@ -206,8 +221,7 @@ func (s *registerService) RegisterPrivate(
 			Username:        username,
 			Email:           "",
 			Password:        ptr(string(hashed)),
-			AuthContainerID: authClient.AuthContainerID,
-			OrganizationID:  authClient.AuthContainer.OrganizationID,
+			AuthContainerID: authContainerId,
 			IsActive:        true,
 		}
 		if isEmail {
@@ -231,7 +245,7 @@ func (s *registerService) RegisterPrivate(
 		}
 
 		// Assign super admin role if first user in the organization
-		superAdminRole, err := s.roleRepo.FindByNameAndAuthContainerID("super-admin", authClient.AuthContainer.AuthContainerID)
+		superAdminRole, err := s.roleRepo.FindByNameAndAuthContainerID("super-admin", authContainerId)
 		if err != nil {
 			return err
 		}
@@ -241,9 +255,8 @@ func (s *registerService) RegisterPrivate(
 
 		// Assign role
 		role := &model.UserRole{
-			UserID:    createdUser.UserID,
-			RoleID:    superAdminRole.RoleID,
-			IsDefault: true,
+			UserID: createdUser.UserID,
+			RoleID: superAdminRole.RoleID,
 		}
 		if err := tx.Create(role).Error; err != nil {
 			return err
@@ -286,9 +299,17 @@ func (s *registerService) RegisterPrivateInvite(
 	if err != nil {
 		return nil, err
 	}
-	if authClient == nil || !authClient.IsActive || authClient.Domain == nil || *authClient.Domain == "" || authClient.AuthContainer == nil {
+	if authClient == nil ||
+		!authClient.IsActive ||
+		authClient.Domain == nil || *authClient.Domain == "" ||
+		authClient.IdentityProvider == nil ||
+		authClient.IdentityProvider.AuthContainer == nil ||
+		authClient.IdentityProvider.AuthContainer.AuthContainerID == 0 {
 		return nil, errors.New("invalid client or identity provider")
 	}
+
+	// Get container id
+	authContainerId := authClient.IdentityProvider.AuthContainer.AuthContainerID
 
 	// Validate invite
 	invite, err := s.inviteRepo.FindByToken(inviteToken)
@@ -313,7 +334,7 @@ func (s *registerService) RegisterPrivateInvite(
 		var existingUser *model.User
 		var err error
 
-		existingUser, err = s.userRepo.FindByEmail(username, authClient.AuthContainerID)
+		existingUser, err = s.userRepo.FindByEmail(username, authContainerId)
 
 		if err != nil {
 			return err
@@ -335,8 +356,7 @@ func (s *registerService) RegisterPrivateInvite(
 			Username:        username,
 			Email:           username,
 			Password:        ptr(string(hashed)),
-			AuthContainerID: authClient.AuthContainerID,
-			OrganizationID:  authClient.AuthContainer.OrganizationID,
+			AuthContainerID: authContainerId,
 			IsEmailVerified: true,
 			IsActive:        true,
 		}
@@ -352,9 +372,8 @@ func (s *registerService) RegisterPrivateInvite(
 		if len(inviteRoles) > 0 {
 			for _, ir := range inviteRoles {
 				userRole := &model.UserRole{
-					UserID:    createdUser.UserID,
-					RoleID:    ir.RoleID,
-					IsDefault: false,
+					UserID: createdUser.UserID,
+					RoleID: ir.RoleID,
 				}
 				if err := tx.Create(userRole).Error; err != nil {
 					return err
@@ -389,9 +408,17 @@ func (s *registerService) RegisterPublicInvite(
 	if err != nil {
 		return nil, err
 	}
-	if authClient == nil || !authClient.IsActive || authClient.Domain == nil || *authClient.Domain == "" || authClient.AuthContainer == nil {
+	if authClient == nil ||
+		!authClient.IsActive ||
+		authClient.Domain == nil || *authClient.Domain == "" ||
+		authClient.IdentityProvider == nil ||
+		authClient.IdentityProvider.AuthContainer == nil ||
+		authClient.IdentityProvider.AuthContainer.AuthContainerID == 0 {
 		return nil, errors.New("invalid client or identity provider")
 	}
+
+	// Get container id
+	authContainerId := authClient.IdentityProvider.AuthContainer.AuthContainerID
 
 	// Check if username is an email
 	isEmail := util.IsValidEmail(username)
@@ -405,9 +432,9 @@ func (s *registerService) RegisterPublicInvite(
 		var err error
 
 		if isEmail {
-			existingUser, err = s.userRepo.FindByEmail(username, authClient.AuthContainerID)
+			existingUser, err = s.userRepo.FindByEmail(username, authContainerId)
 		} else {
-			existingUser, err = s.userRepo.FindByUsername(username, authClient.AuthContainerID)
+			existingUser, err = s.userRepo.FindByUsername(username, authContainerId)
 		}
 
 		if err != nil {
@@ -433,8 +460,7 @@ func (s *registerService) RegisterPublicInvite(
 			Username:        username,
 			Email:           "",
 			Password:        ptr(string(hashed)),
-			AuthContainerID: authClient.AuthContainerID,
-			OrganizationID:  authClient.AuthContainer.OrganizationID,
+			AuthContainerID: authContainerId,
 			IsActive:        true,
 		}
 		if isEmail {
@@ -480,7 +506,7 @@ func (s *registerService) generateTokenResponse(userUUID string, authClient *mod
 		"openid profile email",
 		*authClient.Domain,
 		*authClient.ClientID,
-		authClient.AuthContainer.AuthContainerUUID,
+		authClient.IdentityProvider.AuthContainer.AuthContainerUUID,
 		*authClient.ClientID,
 		authClient.IdentityProvider.IdentityProviderUUID,
 	)

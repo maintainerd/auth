@@ -43,14 +43,16 @@ BEGIN
 END$$;
 
 -- ADD INDEXES
-CREATE INDEX IF NOT EXISTS idx_profiles_user_id ON profiles(user_id);
-CREATE INDEX IF NOT EXISTS idx_profiles_profile_uuid ON profiles(profile_uuid);
-CREATE INDEX IF NOT EXISTS idx_profiles_first_name ON profiles(first_name);
-CREATE INDEX IF NOT EXISTS idx_profiles_last_name ON profiles(last_name);
+CREATE INDEX IF NOT EXISTS idx_profiles_uuid ON profiles (profile_uuid);
+CREATE INDEX IF NOT EXISTS idx_profiles_user_id ON profiles (user_id);
+CREATE INDEX IF NOT EXISTS idx_profiles_first_name ON profiles (first_name);
+CREATE INDEX IF NOT EXISTS idx_profiles_last_name ON profiles (last_name);
+CREATE INDEX IF NOT EXISTS idx_profiles_email ON profiles (email);
+CREATE INDEX IF NOT EXISTS idx_profiles_created_at ON profiles (created_at);
 `
 	if err := db.Exec(sql).Error; err != nil {
-		log.Fatalf("❌ Failed to run migration 015_create_profiles_table: %v", err)
+		log.Fatalf("❌ Failed to run migration 019_create_profiles_table: %v", err)
 	}
 
-	log.Println("✅ Migration 015_create_profiles_table executed")
+	log.Println("✅ Migration 019_create_profiles_table executed")
 }

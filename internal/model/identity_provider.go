@@ -11,13 +11,13 @@ import (
 type IdentityProvider struct {
 	IdentityProviderID   int64          `gorm:"column:identity_provider_id;primaryKey"`
 	IdentityProviderUUID uuid.UUID      `gorm:"column:identity_provider_uuid"`
-	ProviderName         string         `gorm:"column:provider_name"`
+	Name                 string         `gorm:"column:name"`
 	DisplayName          string         `gorm:"column:display_name"`
 	ProviderType         string         `gorm:"column:provider_type"`
-	Identifier           *string        `gorm:"column:identifier"`
+	Identifier           string         `gorm:"column:identifier"`
 	Config               datatypes.JSON `gorm:"column:config"`
-	IsActive             bool           `gorm:"column:is_active"`
-	IsDefault            bool           `gorm:"column:is_default"`
+	IsActive             bool           `gorm:"column:is_active;default:false"`
+	IsDefault            bool           `gorm:"column:is_default;default:false"`
 	AuthContainerID      int64          `gorm:"column:auth_container_id"`
 	CreatedAt            time.Time      `gorm:"column:created_at;autoCreateTime"`
 	UpdatedAt            time.Time      `gorm:"column:updated_at;autoUpdateTime"`

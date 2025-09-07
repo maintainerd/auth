@@ -15,12 +15,13 @@ type UserIdentity struct {
 	AuthClientID     int64          `gorm:"column:auth_client_id"`
 	Provider         string         `gorm:"column:provider"`
 	Sub              string         `gorm:"column:sub"`
-	UserData         datatypes.JSON `gorm:"column:user_data"`
+	Metadata         datatypes.JSON `gorm:"column:metadata"`
 	CreatedAt        time.Time      `gorm:"column:created_at;autoCreateTime"`
+	UpdatedAt        time.Time      `gorm:"column:updated_at;autoUpdateTime"`
 
 	// Relationships
 	User       *User       `gorm:"foreignKey:UserID;references:UserID;constraint:OnDelete:CASCADE"`
-	AuthClient *AuthClient `gorm:"foreignKey:AuthClientID;references:AuthClientID;constraint:OnDelete:CASCADE"` // new relationship
+	AuthClient *AuthClient `gorm:"foreignKey:AuthClientID;references:AuthClientID;constraint:OnDelete:CASCADE"`
 }
 
 func (UserIdentity) TableName() string {

@@ -10,7 +10,7 @@ import (
 
 type AuthLog struct {
 	AuthLogID       int64          `gorm:"column:auth_log_id;primaryKey"`
-	AuthLogUUID     uuid.UUID      `gorm:"column:auth_log_uuid"`
+	AuthLogUUID     uuid.UUID      `gorm:"column:auth_log_uuid;unique"`
 	UserID          int64          `gorm:"column:user_id"`
 	EventType       string         `gorm:"column:event_type"`
 	Description     *string        `gorm:"column:description"`

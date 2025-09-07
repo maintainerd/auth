@@ -15,22 +15,20 @@ type User struct {
 	Phone              string    `gorm:"column:phone"`
 	Password           *string   `gorm:"column:password"` // nullable for external users
 	IsEmailVerified    bool      `gorm:"column:is_email_verified;default:false"`
+	IsPhoneVerified    bool      `gorm:"column:is_phone_verified;default:false"`
 	IsProfileCompleted bool      `gorm:"column:is_profile_completed;default:false"`
 	IsAccountCompleted bool      `gorm:"column:is_account_completed;default:false"`
-	IsActive           bool      `gorm:"column:is_active;default:true"`
-	OrganizationID     int64     `gorm:"column:organization_id"`
+	IsActive           bool      `gorm:"column:is_active;default:false"`
 	AuthContainerID    int64     `gorm:"column:auth_container_id"`
 	CreatedAt          time.Time `gorm:"column:created_at;autoCreateTime"`
 	UpdatedAt          time.Time `gorm:"column:updated_at;autoUpdateTime"`
 
 	// Relationships
-	Organization   *Organization  `gorm:"foreignKey:OrganizationID;references:OrganizationID;constraint:OnDelete:CASCADE"`
 	AuthContainer  *AuthContainer `gorm:"foreignKey:AuthContainerID;references:AuthContainerID;constraint:OnDelete:CASCADE"`
 	UserIdentities []UserIdentity `gorm:"foreignKey:UserID;references:UserID;constraint:OnDelete:CASCADE"`
 	UserRoles      []UserRole     `gorm:"foreignKey:UserID;references:UserID"`
 	Roles          []Role         `gorm:"many2many:user_roles;joinForeignKey:UserID;joinReferences:RoleID"`
 	UserTokens     []UserToken    `gorm:"foreignKey:UserID;references:UserID;constraint:OnDelete:CASCADE"`
-	LoginAttempts  []LoginAttempt `gorm:"foreignKey:UserID;references:UserID;constraint:OnDelete:SET NULL"`
 	AuthLogs       []AuthLog      `gorm:"foreignKey:UserID;references:UserID;constraint:OnDelete:SET NULL"`
 }
 

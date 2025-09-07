@@ -12,7 +12,7 @@ func CreateIdentityProviderTable(db *gorm.DB) {
 CREATE TABLE IF NOT EXISTS identity_providers (
     identity_provider_id    SERIAL PRIMARY KEY,
     identity_provider_uuid  UUID NOT NULL UNIQUE,
-    provider_name           VARCHAR(100) NOT NULL, -- 'default', 'cognito', 'auth0'
+    name           					VARCHAR(100) NOT NULL, -- 'default', 'cognito', 'auth0'
     display_name            TEXT NOT NULL,
     provider_type           VARCHAR(100) NOT NULL, -- 'primary', 'oauth2'
     identifier              TEXT,
@@ -37,12 +37,19 @@ BEGIN
 END$$;
 
 -- ADD INDEXES
+CREATE INDEX IF NOT EXISTS idx_identity_providers_uuid ON identity_providers (identity_provider_uuid);
+CREATE INDEX IF NOT EXISTS idx_identity_providers_name ON identity_providers (name);
+CREATE INDEX IF NOT EXISTS idx_identity_providers_display_name ON identity_providers (display_name);
+CREATE INDEX IF NOT EXISTS idx_identity_providers_provider_type ON identity_providers (provider_type);
+CREATE INDEX IF NOT EXISTS idx_identity_providers_identifier ON identity_providers (identifier);
+CREATE INDEX IF NOT EXISTS idx_identity_providers_is_active ON identity_providers (is_active);
+CREATE INDEX IF NOT EXISTS idx_identity_providers_is_default ON identity_providers (is_default);
 CREATE INDEX IF NOT EXISTS idx_identity_providers_auth_container_id ON identity_providers (auth_container_id);
-CREATE INDEX IF NOT EXISTS idx_identity_providers_provider_name ON identity_providers (provider_name);
+CREATE INDEX IF NOT EXISTS idx_identity_providers_created_at ON identity_providers (created_at);
 `
 	if err := db.Exec(sql).Error; err != nil {
-		log.Fatalf("❌ Failed to run migration 007_create_identity_providers_table: %v", err)
+		log.Fatalf("❌ Failed to run migration 010_create_identity_providers_table: %v", err)
 	}
 
-	log.Println("✅ Migration 007_create_identity_providers_table executed")
+	log.Println("✅ Migration 010_create_identity_providers_table executed")
 }
