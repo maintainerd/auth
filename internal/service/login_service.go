@@ -45,16 +45,24 @@ func (s *loginService) LoginPublic(usernameOrEmail, password, clientID string) (
 	if err != nil {
 		return nil, err
 	}
-	if authClient == nil || !authClient.IsActive || authClient.Domain == nil || *authClient.Domain == "" || authClient.AuthContainer == nil {
+	if authClient == nil ||
+		!authClient.IsActive ||
+		authClient.Domain == nil || *authClient.Domain == "" ||
+		authClient.IdentityProvider == nil ||
+		authClient.IdentityProvider.AuthContainer == nil ||
+		authClient.IdentityProvider.AuthContainer.AuthContainerID == 0 {
 		return nil, errors.New("invalid client or identity provider")
 	}
+
+	// Get container id
+	authContainerId := authClient.IdentityProvider.AuthContainer.AuthContainerID
 
 	// Get user
 	var user *model.User
 	if util.IsValidEmail(usernameOrEmail) {
-		user, err = s.userRepo.FindByEmail(usernameOrEmail, authClient.AuthContainerID)
+		user, err = s.userRepo.FindByEmail(usernameOrEmail, authContainerId)
 	} else {
-		user, err = s.userRepo.FindByUsername(usernameOrEmail, authClient.AuthContainerID)
+		user, err = s.userRepo.FindByUsername(usernameOrEmail, authContainerId)
 	}
 
 	// Verify user and password
@@ -77,16 +85,24 @@ func (s *loginService) LoginPrivate(username, password string) (*dto.AuthRespons
 	if err != nil {
 		return nil, err
 	}
-	if authClient == nil || !authClient.IsActive || authClient.Domain == nil || *authClient.Domain == "" || authClient.AuthContainer == nil {
+	if authClient == nil ||
+		!authClient.IsActive ||
+		authClient.Domain == nil || *authClient.Domain == "" ||
+		authClient.IdentityProvider == nil ||
+		authClient.IdentityProvider.AuthContainer == nil ||
+		authClient.IdentityProvider.AuthContainer.AuthContainerID == 0 {
 		return nil, errors.New("invalid client or identity provider")
 	}
+
+	// Get container id
+	authContainerId := authClient.IdentityProvider.AuthContainer.AuthContainerID
 
 	// Get user
 	var user *model.User
 	if util.IsValidEmail(username) {
-		user, err = s.userRepo.FindByEmail(username, authClient.AuthContainerID)
+		user, err = s.userRepo.FindByEmail(username, authContainerId)
 	} else {
-		user, err = s.userRepo.FindByUsername(username, authClient.AuthContainerID)
+		user, err = s.userRepo.FindByUsername(username, authContainerId)
 	}
 
 	// Verify user and password
@@ -113,7 +129,7 @@ func (s *loginService) generateTokenResponse(userUUID string, authClient *model.
 		"openid profile email",
 		*authClient.Domain,
 		*authClient.ClientID,
-		authClient.AuthContainer.AuthContainerUUID,
+		authClient.IdentityProvider.AuthContainer.AuthContainerUUID,
 		*authClient.ClientID,
 		authClient.IdentityProvider.IdentityProviderUUID,
 	)

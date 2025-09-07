@@ -32,7 +32,7 @@ func NewAPIRepository(db *gorm.DB) APIRepository {
 func (r *apiRepository) FindByName(apiName string, authContainerID int64) (*model.API, error) {
 	var api model.API
 	err := r.db.
-		Where("api_name = ? AND auth_container_id = ?", apiName, authContainerID).
+		Where("name = ? AND auth_container_id = ?", apiName, authContainerID).
 		First(&api).Error
 	return &api, err
 }

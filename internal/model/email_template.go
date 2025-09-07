@@ -8,15 +8,15 @@ import (
 )
 
 type EmailTemplate struct {
-	TemplateID   int64     `gorm:"column:template_id;primaryKey"`
-	TemplateUUID uuid.UUID `gorm:"column:template_uuid"`
-	Name         string    `gorm:"column:name"`
-	Subject      string    `gorm:"column:subject"`
-	BodyHTML     string    `gorm:"column:body_html"`
-	BodyPlain    *string   `gorm:"column:body_plain"`
-	IsActive     bool      `gorm:"column:is_active"`
-	CreatedAt    time.Time `gorm:"column:created_at;autoCreateTime"`
-	UpdatedAt    time.Time `gorm:"column:updated_at;autoUpdateTime"`
+	EmailTemplateID   int64     `gorm:"column:email_template_id;primaryKey"`
+	EmailTemplateUUID uuid.UUID `gorm:"column:email_template_uuid;unique"`
+	Name              string    `gorm:"column:name;unique"`
+	Subject           string    `gorm:"column:subject"`
+	BodyHTML          string    `gorm:"column:body_html"`
+	BodyPlain         *string   `gorm:"column:body_plain"`
+	IsActive          bool      `gorm:"column:is_active;default:true"`
+	CreatedAt         time.Time `gorm:"column:created_at;autoCreateTime"`
+	UpdatedAt         time.Time `gorm:"column:updated_at;autoUpdateTime"`
 }
 
 func (EmailTemplate) TableName() string {
@@ -24,8 +24,8 @@ func (EmailTemplate) TableName() string {
 }
 
 func (e *EmailTemplate) BeforeCreate(tx *gorm.DB) (err error) {
-	if e.TemplateUUID == uuid.Nil {
-		e.TemplateUUID = uuid.New()
+	if e.EmailTemplateUUID == uuid.Nil {
+		e.EmailTemplateUUID = uuid.New()
 	}
 	return
 }

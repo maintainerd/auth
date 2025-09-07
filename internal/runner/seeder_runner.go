@@ -10,16 +10,16 @@ import (
 func RunSeeders(db *gorm.DB, appVersion string) {
 	log.Println("🏃 Running default seeders...")
 
-	// Seed service
-	service, err := seeder.SeedService(db, appVersion)
-	if err != nil {
-		log.Fatal("❌ Failed to seed service:", err)
-	}
-
 	// Seed organization
 	org, err := seeder.SeedOrganization(db)
 	if err != nil {
 		log.Fatal("❌ Failed to seed organization:", err)
+	}
+
+	// Seed service
+	service, err := seeder.SeedService(db, appVersion)
+	if err != nil {
+		log.Fatal("❌ Failed to seed service:", err)
 	}
 
 	// Seed auth container

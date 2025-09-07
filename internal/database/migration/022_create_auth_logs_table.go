@@ -13,7 +13,7 @@ CREATE TABLE IF NOT EXISTS auth_logs (
     auth_log_id         SERIAL PRIMARY KEY,
     auth_log_uuid       UUID NOT NULL UNIQUE,
     user_id             INTEGER NOT NULL,
-    event_type          VARCHAR(100) NOT NULL, -- e.g., 'login', 'logout', 'token_refresh', 'password_reset'
+    event_type          VARCHAR(100) NOT NULL, -- 'login', 'logout', 'token_refresh', 'password_reset'
     description         TEXT,
     ip_address          VARCHAR(100),
     user_agent          TEXT,
@@ -23,7 +23,7 @@ CREATE TABLE IF NOT EXISTS auth_logs (
     updated_at          TIMESTAMPTZ DEFAULT now()
 );
 
--- ADD CONSTRAINTS (safe)
+-- ADD CONSTRAINTS
 DO $$
 BEGIN
     IF NOT EXISTS (
@@ -44,14 +44,14 @@ BEGIN
 END$$;
 
 -- ADD INDEXES
+CREATE INDEX IF NOT EXISTS idx_auth_logs_uuid ON auth_logs (auth_log_uuid);
 CREATE INDEX IF NOT EXISTS idx_auth_logs_user_id ON auth_logs (user_id);
 CREATE INDEX IF NOT EXISTS idx_auth_logs_event_type ON auth_logs (event_type);
 CREATE INDEX IF NOT EXISTS idx_auth_logs_auth_container_id ON auth_logs (auth_container_id);
-CREATE INDEX IF NOT EXISTS idx_auth_logs_auth_log_uuid ON auth_logs (auth_log_uuid);
 `
 	if err := db.Exec(sql).Error; err != nil {
-		log.Fatalf("❌ Failed to run migration 019_create_auth_logs_table: %v", err)
+		log.Fatalf("❌ Failed to run migration 022_create_auth_logs_table: %v", err)
 	}
 
-	log.Println("✅ Migration 019_create_auth_logs_table executed")
+	log.Println("✅ Migration 022_create_auth_logs_table executed")
 }

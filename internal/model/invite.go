@@ -18,7 +18,7 @@ type Invite struct {
 	ExpiresAt       *time.Time `gorm:"column:expires_at"`
 	UsedAt          *time.Time `gorm:"column:used_at"`
 	CreatedAt       time.Time  `gorm:"column:created_at;autoCreateTime"`
-	UpdatedAt       *time.Time `gorm:"column:updated_at;autoUpdateTime"`
+	UpdatedAt       time.Time  `gorm:"column:updated_at;autoUpdateTime"`
 
 	// Relationships
 	AuthClient    *AuthClient `gorm:"foreignKey:AuthClientID;references:AuthClientID;constraint:OnDelete:CASCADE"`

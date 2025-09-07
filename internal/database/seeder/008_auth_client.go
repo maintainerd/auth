@@ -19,7 +19,7 @@ func SeedAuthClients(db *gorm.DB, identityProviderID int64, authContainerID int6
 	clients := []model.AuthClient{
 		{
 			AuthClientUUID: uuid.New(),
-			ClientName:     "traditional-default",
+			Name:           "traditional-default",
 			DisplayName:    "Traditional Web App Default",
 			ClientType:     "traditional",
 			Domain:         strPtr(appHostName),
@@ -34,13 +34,12 @@ func SeedAuthClients(db *gorm.DB, identityProviderID int64, authContainerID int6
 			IsActive:           true,
 			IsDefault:          true,
 			IdentityProviderID: identityProviderID,
-			AuthContainerID:    authContainerID,
 			CreatedAt:          time.Now(),
 			UpdatedAt:          time.Now(),
 		},
 		{
 			AuthClientUUID: uuid.New(),
-			ClientName:     "spa-default",
+			Name:           "spa-default",
 			DisplayName:    "Single Page App Default",
 			ClientType:     "spa",
 			Domain:         strPtr(appHostName),
@@ -55,13 +54,12 @@ func SeedAuthClients(db *gorm.DB, identityProviderID int64, authContainerID int6
 			IsActive:           true,
 			IsDefault:          true,
 			IdentityProviderID: identityProviderID,
-			AuthContainerID:    authContainerID,
 			CreatedAt:          time.Now(),
 			UpdatedAt:          time.Now(),
 		},
 		{
 			AuthClientUUID: uuid.New(),
-			ClientName:     "mobile-default",
+			Name:           "mobile-default",
 			DisplayName:    "Native Mobile App Default",
 			ClientType:     "native",
 			Domain:         strPtr(appHostName),
@@ -76,13 +74,12 @@ func SeedAuthClients(db *gorm.DB, identityProviderID int64, authContainerID int6
 			IsActive:           true,
 			IsDefault:          true,
 			IdentityProviderID: identityProviderID,
-			AuthContainerID:    authContainerID,
 			CreatedAt:          time.Now(),
 			UpdatedAt:          time.Now(),
 		},
 		{
 			AuthClientUUID: uuid.New(),
-			ClientName:     "m2m-default",
+			Name:           "m2m-default",
 			DisplayName:    "Machine to Machine Default",
 			ClientType:     "m2m",
 			Domain:         strPtr(appHostName),
@@ -95,7 +92,6 @@ func SeedAuthClients(db *gorm.DB, identityProviderID int64, authContainerID int6
 			IsActive:           true,
 			IsDefault:          true,
 			IdentityProviderID: identityProviderID,
-			AuthContainerID:    authContainerID,
 			CreatedAt:          time.Now(),
 			UpdatedAt:          time.Now(),
 		},
@@ -104,19 +100,19 @@ func SeedAuthClients(db *gorm.DB, identityProviderID int64, authContainerID int6
 	for _, client := range clients {
 		var existing model.AuthClient
 		err := db.
-			Where("client_name = ? AND auth_container_id = ?", client.ClientName, authContainerID).
+			Where("name = ? AND auth_container_id = ?", client.Name, authContainerID).
 			First(&existing).Error
 
 		if err == nil {
-			log.Printf("⚠️ Auth client '%s' already exists, skipping", client.ClientName)
+			log.Printf("⚠️ Auth client '%s' already exists, skipping", client.Name)
 			continue
 		}
 
 		if err := db.Create(&client).Error; err != nil {
-			log.Printf("❌ Failed to seed auth client '%s': %v", client.ClientName, err)
+			log.Printf("❌ Failed to seed auth client '%s': %v", client.Name, err)
 			continue
 		}
 
-		log.Printf("✅ Auth client '%s' seeded successfully", client.ClientName)
+		log.Printf("✅ Auth client '%s' seeded successfully", client.Name)
 	}
 }

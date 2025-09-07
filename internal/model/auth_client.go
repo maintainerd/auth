@@ -11,7 +11,7 @@ import (
 type AuthClient struct {
 	AuthClientID       int64          `gorm:"column:auth_client_id;primaryKey"`
 	AuthClientUUID     uuid.UUID      `gorm:"column:auth_client_uuid"`
-	ClientName         string         `gorm:"column:client_name"`
+	Name               string         `gorm:"column:name"`
 	DisplayName        string         `gorm:"column:display_name"`
 	ClientType         string         `gorm:"column:client_type"`
 	Domain             *string        `gorm:"column:domain"`
@@ -19,16 +19,14 @@ type AuthClient struct {
 	ClientSecret       *string        `gorm:"column:client_secret"`
 	RedirectURI        *string        `gorm:"column:redirect_uri"`
 	Config             datatypes.JSON `gorm:"column:config"`
-	IsActive           bool           `gorm:"column:is_active"`
-	IsDefault          bool           `gorm:"column:is_default"`
+	IsActive           bool           `gorm:"column:is_active;default:false"`
+	IsDefault          bool           `gorm:"column:is_default;default:false"`
 	IdentityProviderID int64          `gorm:"column:identity_provider_id"`
-	AuthContainerID    int64          `gorm:"column:auth_container_id"`
 	CreatedAt          time.Time      `gorm:"column:created_at;autoCreateTime"`
 	UpdatedAt          time.Time      `gorm:"column:updated_at;autoUpdateTime"`
 
 	// Relationships
 	IdentityProvider *IdentityProvider `gorm:"foreignKey:IdentityProviderID;references:IdentityProviderID"`
-	AuthContainer    *AuthContainer    `gorm:"foreignKey:AuthContainerID;references:AuthContainerID"`
 }
 
 func (AuthClient) TableName() string {
