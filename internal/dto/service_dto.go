@@ -15,8 +15,8 @@ type ServiceResponseDto struct {
 	Description string    `json:"description"`
 	Version     string    `json:"version"`
 	IsActive    bool      `json:"is_active"`
-	IsDefault   bool      `json:"is_default"`
 	IsPublic    bool      `json:"is_public"`
+	IsDefault   bool      `json:"is_default"`
 	CreatedAt   time.Time `json:"created_at"`
 	UpdatedAt   time.Time `json:"updated_at"`
 }
@@ -63,9 +63,9 @@ type ServiceFilterDto struct {
 	DisplayName *string `json:"display_name"`
 	Description *string `json:"description"`
 	Version     *string `json:"version"`
-	IsDefault   *bool   `json:"is_default"`
 	IsActive    *bool   `json:"is_active"`
 	IsPublic    *bool   `json:"is_public"`
+	IsDefault   *bool   `json:"is_default"`
 
 	// Pagination and sorting
 	PaginationRequestDto
