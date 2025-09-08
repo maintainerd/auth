@@ -122,15 +122,6 @@ func (r *BaseRepository[T]) DeleteByID(id any) error {
 	return r.db.Where(r.IDFieldName+" = ?", id).Delete(new(T)).Error
 }
 
-// PaginationResult holds paginated data and meta
-type PaginationResult[T any] struct {
-	Data       []T
-	Total      int64
-	Page       int
-	Limit      int
-	TotalPages int
-}
-
 // Paginate with optional preloads
 func (r *BaseRepository[T]) Paginate(conditions map[string]any, page int, limit int, preloads ...string) (*PaginationResult[T], error) {
 	var entities []T

@@ -25,7 +25,7 @@ func SeedAPI(db *gorm.DB, serviceID int64) (*model.API, error) {
 		DisplayName: "Auth API",
 		APIType:     "default",
 		Description: "API for authentication",
-		Identifier:  fmt.Sprintf("auth-api-%s", util.GenerateIdentifier(12)),
+		Identifier:  fmt.Sprintf("api-%s", util.GenerateIdentifier(12)),
 		IsActive:    true,
 		IsDefault:   true,
 		ServiceID:   serviceID,

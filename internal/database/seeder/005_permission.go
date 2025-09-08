@@ -90,6 +90,20 @@ func SeedPermissions(db *gorm.DB, apiID int64) {
 		newPermission("auth:service:update", "Update auth service", apiID),
 		newPermission("auth:service:delete", "Delete auth service", apiID),
 
+		// Apis
+		newPermission("api:read", "List apis", apiID),
+		newPermission("api:create", "Create api", apiID),
+		newPermission("api:update", "Update api", apiID),
+		newPermission("api:delete", "Delete api", apiID),
+
+		// Roles
+		newPermission("role:read", "List roles", apiID),
+		newPermission("role:create", "Create a new role", apiID),
+		newPermission("role:update", "Update role", apiID),
+		newPermission("role:delete", "Delete a role", apiID),
+		newPermission("role:assign", "Assign roles to users", apiID),
+		newPermission("role:restrict-super-admin", "Prevent elevation to critical roles", apiID),
+
 		// User Administration (Admin Only)
 		newPermission("user:read:any", "View any user profile", apiID),
 		newPermission("user:update:any", "Edit user details", apiID),
@@ -100,13 +114,7 @@ func SeedPermissions(db *gorm.DB, apiID int64) {
 		newPermission("user:remove-role", "Remove role from a user", apiID),
 		newPermission("user:impersonate", "Temporarily act as another user", apiID),
 		newPermission("user:invite", "Invite user via email", apiID),
-		// Roles
-		newPermission("role:read", "List roles", apiID),
-		newPermission("role:create", "Create a new role", apiID),
-		newPermission("role:update", "Update role", apiID),
-		newPermission("role:delete", "Delete a role", apiID),
-		newPermission("role:assign", "Assign roles to users", apiID),
-		newPermission("role:restrict-super-admin", "Prevent elevation to critical roles", apiID),
+
 		// Permissions
 		newPermission("permission:read", "List permissions", apiID),
 		newPermission("permission:create", "Create a new permission", apiID),
@@ -114,6 +122,7 @@ func SeedPermissions(db *gorm.DB, apiID int64) {
 		newPermission("permission:delete", "Delete a permission", apiID),
 		newPermission("permission:assign", "Assign permission to users", apiID),
 		newPermission("permission:restrict-super-admin", "Prevent elevation to critical permissions", apiID),
+
 		// Organizations
 		newPermission("org:create", "Create organization", apiID),
 		newPermission("org:read", "View organization details", apiID),
