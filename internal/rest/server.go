@@ -37,11 +37,12 @@ func StartInternalRESTServer(application *app.App) {
 	r.Use(middleware.Recoverer)
 
 	r.Route("/api/v1", func(api chi.Router) {
+		route.ServiceRoute(api, application.ServiceRestHandler, application.UserRepository, application.RedisClient)
+		route.APIRoute(api, application.APIRestHandler, application.UserRepository, application.RedisClient)
+		route.RoleRoute(api, application.RoleRestHandler, application.UserRepository, application.RedisClient)
 		route.RegisterInternalRoute(api, application.RegisterRestHandler)
 		route.LoginRoute(api, application.LoginRestHandler)
 		route.ProfileRoute(api, application.ProfileRestHandler, application.UserRepository, application.RedisClient)
-		route.ServiceRoute(api, application.ServiceRestHandler, application.UserRepository, application.RedisClient)
-		route.RoleRoute(api, application.RoleRestHandler, application.UserRepository, application.RedisClient)
 		route.InviteRoute(api, application.InviteRestHandler, application.UserRepository, application.RedisClient)
 	})
 

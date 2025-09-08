@@ -72,7 +72,7 @@ func (r *serviceRepository) FindDefaultServices() ([]model.Service, error) {
 func (r *serviceRepository) FindPaginated(filter ServiceRepositoryGetFilter) (*PaginationResult[model.Service], error) {
 	query := r.db.Model(&model.Service{})
 
-	// String filters with LIKE
+	// Filters with LIKE
 	if filter.Name != nil {
 		query = query.Where("name ILIKE ?", "%"+*filter.Name+"%")
 	}
@@ -86,15 +86,15 @@ func (r *serviceRepository) FindPaginated(filter ServiceRepositoryGetFilter) (*P
 		query = query.Where("version ILIKE ?", "%"+*filter.Version+"%")
 	}
 
-	// Boolean filters with exact match
-	if filter.IsDefault != nil {
-		query = query.Where("is_default = ?", *filter.IsDefault)
-	}
+	// Filters with exact match
 	if filter.IsActive != nil {
 		query = query.Where("is_active = ?", *filter.IsActive)
 	}
 	if filter.IsPublic != nil {
 		query = query.Where("is_public = ?", *filter.IsPublic)
+	}
+	if filter.IsDefault != nil {
+		query = query.Where("is_default = ?", *filter.IsDefault)
 	}
 
 	// Sorting
