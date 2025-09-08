@@ -78,10 +78,10 @@ func (r *roleRepository) FindAllByAuthContainerID(authContainerID int64) ([]mode
 func (r *roleRepository) FindPaginated(filter RoleRepositoryGetFilter) (*PaginationResult[model.Role], error) {
 	query := r.db.Model(&model.Role{})
 
-	// Always filter by container
+	// Always filter
 	query = query.Where("auth_container_id = ?", filter.AuthContainerID)
 
-	// String filters with LIKE
+	// Filters with LIKE
 	if filter.Name != nil {
 		query = query.Where("name ILIKE ?", "%"+*filter.Name+"%")
 	}
@@ -89,7 +89,7 @@ func (r *roleRepository) FindPaginated(filter RoleRepositoryGetFilter) (*Paginat
 		query = query.Where("description ILIKE ?", "%"+*filter.Description+"%")
 	}
 
-	// Boolean filters with exact match
+	// Filters with exact match
 	if filter.IsDefault != nil {
 		query = query.Where("is_default = ?", *filter.IsDefault)
 	}
