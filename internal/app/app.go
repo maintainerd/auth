@@ -14,6 +14,7 @@ type App struct {
 	RedisClient *redis.Client
 	// Rest handler
 	ServiceRestHandler  *resthandler.ServiceHandler
+	APIRestHandler      *resthandler.APIHandler
 	RoleRestHandler     *resthandler.RoleHandler
 	RegisterRestHandler *resthandler.RegisterHandler
 	LoginRestHandler    *resthandler.LoginHandler
@@ -27,19 +28,21 @@ type App struct {
 
 func NewApp(db *gorm.DB, redisClient *redis.Client) *App {
 	// Repositories
-	serviceRepo := repository.NewServiceRepository(db)
 	organizationRepo := repository.NewOrganizationServiceRepository(db)
+	serviceRepo := repository.NewServiceRepository(db)
+	apiRepo := repository.NewAPIRepository(db)
+	roleRepo := repository.NewRoleRepository(db)
 	authClientRepo := repository.NewAuthClientRepository(db)
 	userRepo := repository.NewUserRepository(db)
 	userRoleRepo := repository.NewUserRoleRepository(db)
 	userTokenRepo := repository.NewUserTokenRepository(db)
-	roleRepo := repository.NewRoleRepository(db)
 	profileRepo := repository.NewProfileRepository(db)
 	inviteRepo := repository.NewInviteRepository(db)
 	emailTemplateRepo := repository.NewEmailTemplateRepository(db)
 
 	// Services
 	serviceService := service.NewServiceService(db, serviceRepo, organizationRepo)
+	apiService := service.NewAPIService(db, apiRepo, serviceRepo)
 	roleService := service.NewRoleService(db, roleRepo)
 	registerService := service.NewRegistrationService(db, authClientRepo, userRepo, userRoleRepo, userTokenRepo, roleRepo, inviteRepo)
 	loginService := service.NewLoginService(db, authClientRepo, userRepo, userTokenRepo)
@@ -49,6 +52,7 @@ func NewApp(db *gorm.DB, redisClient *redis.Client) *App {
 	// Rest handlers
 	serviceRestHandler := resthandler.NewServiceHandler(serviceService)
 	roleRestHandler := resthandler.NewRoleHandler(roleService)
+	apiRestHandler := resthandler.NewAPIHandler(apiService)
 	registerRestHandler := resthandler.NewRegisterHandler(registerService)
 	loginRestHandler := resthandler.NewLoginHandler(loginService)
 	profileRestHandler := resthandler.NewProfileHandler(profileService)
@@ -62,6 +66,7 @@ func NewApp(db *gorm.DB, redisClient *redis.Client) *App {
 		RedisClient: redisClient,
 		// Rest handler
 		ServiceRestHandler:  serviceRestHandler,
+		APIRestHandler:      apiRestHandler,
 		RoleRestHandler:     roleRestHandler,
 		RegisterRestHandler: registerRestHandler,
 		LoginRestHandler:    loginRestHandler,

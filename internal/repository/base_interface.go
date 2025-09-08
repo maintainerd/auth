@@ -34,3 +34,12 @@ type BaseRepositoryMethods[T any] interface {
 	// Paginate through records with optional preloads
 	Paginate(conditions map[string]any, page int, limit int, preloads ...string) (*PaginationResult[T], error)
 }
+
+// PaginationResult holds paginated data and meta
+type PaginationResult[T any] struct {
+	Data       []T
+	Total      int64
+	Page       int
+	Limit      int
+	TotalPages int
+}

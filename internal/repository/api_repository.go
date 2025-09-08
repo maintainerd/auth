@@ -1,18 +1,34 @@
 package repository
 
 import (
+	"errors"
+
 	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/model"
 	"gorm.io/gorm"
 )
 
+type APIRepositoryGetFilter struct {
+	Name        *string
+	DisplayName *string
+	APIType     *string
+	Identifier  *string
+	ServiceID   *int64
+	IsActive    *bool
+	IsDefault   *bool
+	Page        int
+	Limit       int
+	SortBy      string
+	SortOrder   string
+}
+
 type APIRepository interface {
 	BaseRepositoryMethods[model.API]
-	FindByName(apiName string, authContainerID int64) (*model.API, error)
-	FindByIdentifier(identifier string, authContainerID int64) (*model.API, error)
-	FindAllByServiceID(serviceID int64) ([]model.API, error)
-	FindAllByAuthContainerID(authContainerID int64) ([]model.API, error)
+	WithTx(tx *gorm.DB) APIRepository
+	FindByName(apiName string) (*model.API, error)
+	FindByIdentifier(identifier string) (*model.API, error)
 	FindDefaultByServiceID(serviceID int64) (*model.API, error)
+	FindPaginated(filter APIRepositoryGetFilter) (*PaginationResult[model.API], error)
 	SetActiveStatusByUUID(apiUUID uuid.UUID, isActive bool) error
 	SetDefaultStatusByUUID(apiUUID uuid.UUID, isDefault bool) error
 }
@@ -29,36 +45,38 @@ func NewAPIRepository(db *gorm.DB) APIRepository {
 	}
 }
 
-func (r *apiRepository) FindByName(apiName string, authContainerID int64) (*model.API, error) {
+func (r *apiRepository) WithTx(tx *gorm.DB) APIRepository {
+	return &apiRepository{
+		BaseRepository: NewBaseRepository[model.API](tx, "api_uuid", "api_id"),
+		db:             tx,
+	}
+}
+
+func (r *apiRepository) FindByName(apiName string) (*model.API, error) {
 	var api model.API
 	err := r.db.
-		Where("name = ? AND auth_container_id = ?", apiName, authContainerID).
+		Preload("Service").
+		Where("name = ?", apiName).
 		First(&api).Error
+
+	// If no record is found, return nil record and nil error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		// For all other errors, return nil record and the actual error
+		return nil, err
+	}
+
 	return &api, err
 }
 
-func (r *apiRepository) FindByIdentifier(identifier string, authContainerID int64) (*model.API, error) {
+func (r *apiRepository) FindByIdentifier(identifier string) (*model.API, error) {
 	var api model.API
 	err := r.db.
-		Where("identifier = ? AND auth_container_id = ?", identifier, authContainerID).
+		Where("identifier = ?", identifier).
 		First(&api).Error
 	return &api, err
-}
-
-func (r *apiRepository) FindAllByServiceID(serviceID int64) ([]model.API, error) {
-	var apis []model.API
-	err := r.db.
-		Where("service_id = ?", serviceID).
-		Find(&apis).Error
-	return apis, err
-}
-
-func (r *apiRepository) FindAllByAuthContainerID(authContainerID int64) ([]model.API, error) {
-	var apis []model.API
-	err := r.db.
-		Where("auth_container_id = ?", authContainerID).
-		Find(&apis).Error
-	return apis, err
 }
 
 func (r *apiRepository) FindDefaultByServiceID(serviceID int64) (*model.API, error) {
@@ -67,6 +85,62 @@ func (r *apiRepository) FindDefaultByServiceID(serviceID int64) (*model.API, err
 		Where("service_id = ? AND is_default = true", serviceID).
 		First(&api).Error
 	return &api, err
+}
+
+func (r *apiRepository) FindPaginated(filter APIRepositoryGetFilter) (*PaginationResult[model.API], error) {
+	query := r.db.Model(&model.API{})
+
+	// Filters with LIKE
+	if filter.Name != nil {
+		query = query.Where("name ILIKE ?", "%"+*filter.Name+"%")
+	}
+	if filter.DisplayName != nil {
+		query = query.Where("display_name ILIKE ?", "%"+*filter.DisplayName+"%")
+	}
+
+	// Filters with exact match
+	if filter.APIType != nil {
+		query = query.Where("api_type = ?", *filter.APIType)
+	}
+	if filter.Identifier != nil {
+		query = query.Where("identifier = ?", *filter.Identifier)
+	}
+	if filter.ServiceID != nil {
+		query = query.Where("service_id = ?", *filter.ServiceID)
+	}
+	if filter.IsActive != nil {
+		query = query.Where("is_active = ?", *filter.IsActive)
+	}
+	if filter.IsDefault != nil {
+		query = query.Where("is_default = ?", *filter.IsDefault)
+	}
+
+	// Sorting
+	orderBy := filter.SortBy + " " + filter.SortOrder
+	query = query.Order(orderBy)
+
+	// Count
+	var total int64
+	if err := query.Count(&total).Error; err != nil {
+		return nil, err
+	}
+
+	// Pagination
+	offset := (filter.Page - 1) * filter.Limit
+	var apis []model.API
+	if err := query.Preload("Service").Limit(filter.Limit).Offset(offset).Find(&apis).Error; err != nil {
+		return nil, err
+	}
+
+	totalPages := int((total + int64(filter.Limit) - 1) / int64(filter.Limit))
+
+	return &PaginationResult[model.API]{
+		Data:       apis,
+		Total:      total,
+		Page:       filter.Page,
+		Limit:      filter.Limit,
+		TotalPages: totalPages,
+	}, nil
 }
 
 func (r *apiRepository) SetActiveStatusByUUID(apiUUID uuid.UUID, isActive bool) error {
