@@ -1,6 +1,8 @@
 package repository
 
 import (
+	"errors"
+
 	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/model"
 	"gorm.io/gorm"
@@ -56,6 +58,14 @@ func (r *authContainerRepository) FindByName(name string) (*model.AuthContainer,
 	err := r.db.
 		Where("name = ?", name).
 		First(&authContainer).Error
+
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		return nil, err
+	}
+
 	return &authContainer, err
 }
 
