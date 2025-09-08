@@ -2,7 +2,6 @@ package service
 
 import (
 	"errors"
-	"fmt"
 	"time"
 
 	"github.com/google/uuid"
@@ -165,7 +164,7 @@ func (s *authContainerService) Create(name string, description string, isActive 
 		}
 
 		// Generate identifier
-		identifier := fmt.Sprintf("auth-%s", util.GenerateIdentifier(12))
+		identifier := util.GenerateIdentifier(12)
 
 		// Create auth container
 		newAuthContainer := &model.AuthContainer{
@@ -331,7 +330,7 @@ func toAuthContainerServiceDataResult(authContainer *model.AuthContainer) *AuthC
 			UpdatedAt:        authContainer.Organization.UpdatedAt,
 		},
 		IsActive:  authContainer.IsActive,
-		IsPublic:  authContainer.IsActive,
+		IsPublic:  authContainer.IsPublic,
 		IsDefault: authContainer.IsDefault,
 		CreatedAt: authContainer.CreatedAt,
 		UpdatedAt: authContainer.UpdatedAt,

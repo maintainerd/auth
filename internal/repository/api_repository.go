@@ -59,12 +59,10 @@ func (r *apiRepository) FindByName(apiName string) (*model.API, error) {
 		Where("name = ?", apiName).
 		First(&api).Error
 
-	// If no record is found, return nil record and nil error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, nil
 		}
-		// For all other errors, return nil record and the actual error
 		return nil, err
 	}
 
