@@ -33,6 +33,9 @@ func AuthContainerRoute(
 		r.With(middleware.PermissionMiddleware([]string{"auth_container:update"})).
 			Put("/{auth_container_uuid}/status", authContainerHandler.SetStatus)
 
+		r.With(middleware.PermissionMiddleware([]string{"auth_container:update"})).
+			Put("/{auth_container_uuid}/public", authContainerHandler.SetPublic)
+
 		r.With(middleware.PermissionMiddleware([]string{"auth_container:delete"})).
 			Delete("/{auth_container_uuid}", authContainerHandler.Delete)
 	})

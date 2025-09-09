@@ -204,6 +204,25 @@ func (h *AuthContainerHandler) SetStatus(w http.ResponseWriter, r *http.Request)
 	util.Success(w, dtoRes, "Auth container status updated successfully")
 }
 
+// Set Auth container public
+func (h *AuthContainerHandler) SetPublic(w http.ResponseWriter, r *http.Request) {
+	authContainerUUID, err := uuid.Parse(chi.URLParam(r, "auth_container_uuid"))
+	if err != nil {
+		util.Error(w, http.StatusBadRequest, "Invalid auth container UUID")
+		return
+	}
+
+	authContainer, err := h.authContainerService.SetActivePublicByUUID(authContainerUUID)
+	if err != nil {
+		util.Error(w, http.StatusInternalServerError, "Failed to update API", err.Error())
+		return
+	}
+
+	dtoRes := toAuthContainerResponseDto(*authContainer)
+
+	util.Success(w, dtoRes, "Auth container public updated successfully")
+}
+
 // Delete Auth Container
 func (h *AuthContainerHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	authContainerUUID, err := uuid.Parse(chi.URLParam(r, "auth_container_uuid"))
