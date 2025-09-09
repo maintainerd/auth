@@ -96,6 +96,12 @@ func SeedPermissions(db *gorm.DB, apiID int64) {
 		newPermission("api:update", "Update api", apiID),
 		newPermission("api:delete", "Delete api", apiID),
 
+		// Auth Container Management
+		newPermission("auth_container:read", "List auth containers", apiID),
+		newPermission("auth_container:create", "Create auth container", apiID),
+		newPermission("auth_container:update", "Update auth container", apiID),
+		newPermission("auth_container:delete", "Delete auth container", apiID),
+
 		// Roles
 		newPermission("role:read", "List roles", apiID),
 		newPermission("role:create", "Create a new role", apiID),
