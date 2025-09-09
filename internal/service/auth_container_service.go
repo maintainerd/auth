@@ -64,6 +64,7 @@ type AuthContainerService interface {
 	Create(name string, description string, isActive bool, isPublic bool, isDefault bool, organizationUUID string) (*AuthContainerServiceDataResult, error)
 	Update(authContainerUUID uuid.UUID, name string, description string, isActive bool, isPublic bool, isDefault bool) (*AuthContainerServiceDataResult, error)
 	SetActiveStatusByUUID(authContainerUUID uuid.UUID) (*AuthContainerServiceDataResult, error)
+	SetActivePublicByUUID(authContainerUUID uuid.UUID) (*AuthContainerServiceDataResult, error)
 	DeleteByUUID(authContainerUUID uuid.UUID) (*AuthContainerServiceDataResult, error)
 }
 
@@ -269,6 +270,42 @@ func (s *authContainerService) SetActiveStatusByUUID(authContainerUUID uuid.UUID
 		}
 
 		authContainer.IsActive = !authContainer.IsActive
+
+		_, err = txAuthContainerRepo.CreateOrUpdate(authContainer)
+		if err != nil {
+			return err
+		}
+
+		updatedAuthContainer = authContainer
+
+		return nil
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	return toAuthContainerServiceDataResult(updatedAuthContainer), nil
+}
+
+func (s *authContainerService) SetActivePublicByUUID(authContainerUUID uuid.UUID) (*AuthContainerServiceDataResult, error) {
+	var updatedAuthContainer *model.AuthContainer
+
+	err := s.db.Transaction(func(tx *gorm.DB) error {
+		txAuthContainerRepo := s.authContainerRepo.WithTx(tx)
+
+		// Get auth container
+		authContainer, err := txAuthContainerRepo.FindByUUID(authContainerUUID, "Organization")
+		if err != nil || authContainer == nil {
+			return errors.New("auth container not found")
+		}
+
+		// Check if default
+		if authContainer.IsDefault {
+			return errors.New("default auth container cannot be updated")
+		}
+
+		authContainer.IsPublic = !authContainer.IsPublic
 
 		_, err = txAuthContainerRepo.CreateOrUpdate(authContainer)
 		if err != nil {
