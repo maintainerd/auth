@@ -79,6 +79,7 @@ func (h *AuthContainerHandler) Get(w http.ResponseWriter, r *http.Request) {
 		Identifier:       reqParams.Identifier,
 		OrganizationUUID: reqParams.OrganizationUUID,
 		IsDefault:        reqParams.IsDefault,
+		IsPublic:         isPublic,
 		IsActive:         reqParams.IsActive,
 		Page:             reqParams.Page,
 		Limit:            reqParams.Limit,
