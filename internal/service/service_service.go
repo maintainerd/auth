@@ -120,10 +120,7 @@ func (s *serviceService) Get(filter ServiceServiceGetFilter) (*ServiceServiceGet
 
 func (s *serviceService) GetByUUID(serviceUUID uuid.UUID) (*ServiceServiceDataResult, error) {
 	service, err := s.serviceRepo.FindByUUID(serviceUUID)
-	if err != nil {
-		return nil, err
-	}
-	if service == nil {
+	if err != nil || service == nil {
 		return nil, errors.New("service not found")
 	}
 
@@ -214,10 +211,7 @@ func (s *serviceService) Update(serviceUUID uuid.UUID, name string, displayName 
 		txServiceRepo := s.serviceRepo.WithTx(tx)
 
 		service, err := txServiceRepo.FindByUUID(serviceUUID)
-		if err != nil {
-			return err
-		}
-		if service == nil {
+		if err != nil || service == nil {
 			return errors.New("service not found")
 		}
 
@@ -278,10 +272,7 @@ func (s *serviceService) SetActiveStatusByUUID(serviceUUID uuid.UUID) (*ServiceS
 		txServiceRepo := s.serviceRepo.WithTx(tx)
 
 		service, err := txServiceRepo.FindByUUID(serviceUUID)
-		if err != nil {
-			return err
-		}
-		if service == nil {
+		if err != nil || service == nil {
 			return errors.New("service not found")
 		}
 
@@ -326,10 +317,7 @@ func (s *serviceService) SetPublicStatusByUUID(serviceUUID uuid.UUID) (*ServiceS
 		txServiceRepo := s.serviceRepo.WithTx(tx)
 
 		service, err := txServiceRepo.FindByUUID(serviceUUID)
-		if err != nil {
-			return err
-		}
-		if service == nil {
+		if err != nil || service == nil {
 			return errors.New("service not found")
 		}
 
@@ -369,10 +357,7 @@ func (s *serviceService) SetPublicStatusByUUID(serviceUUID uuid.UUID) (*ServiceS
 
 func (s *serviceService) DeleteByUUID(serviceUUID uuid.UUID) (*ServiceServiceDataResult, error) {
 	service, err := s.serviceRepo.FindByUUID(serviceUUID)
-	if err != nil {
-		return nil, err
-	}
-	if service == nil {
+	if err != nil || service == nil {
 		return nil, errors.New("service not found")
 	}
 

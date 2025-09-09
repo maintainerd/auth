@@ -111,10 +111,7 @@ func (s *apiService) Get(filter APIServiceGetFilter) (*APIServiceGetResult, erro
 
 func (s *apiService) GetByUUID(apiUUID uuid.UUID) (*APIServiceDataResult, error) {
 	api, err := s.apiRepo.FindByUUID(apiUUID, "Service")
-	if err != nil {
-		return nil, err
-	}
-	if api == nil {
+	if err != nil || api == nil {
 		return nil, errors.New("api not found")
 	}
 
@@ -139,10 +136,7 @@ func (s *apiService) Create(name string, displayName string, description string,
 
 		// Check if service exist
 		service, err := txServiceRepo.FindByUUID(serviceUUID)
-		if err != nil {
-			return err
-		}
-		if service == nil {
+		if err != nil || service == nil {
 			return errors.New("service not found")
 		}
 
@@ -190,10 +184,7 @@ func (s *apiService) Update(apiUUID uuid.UUID, name string, displayName string, 
 
 		// Get api
 		api, err := txAPIRepo.FindByUUID(apiUUID, "Service")
-		if err != nil {
-			return err
-		}
-		if api == nil {
+		if err != nil || api == nil {
 			return errors.New("api not found")
 		}
 
@@ -247,10 +238,7 @@ func (s *apiService) SetActiveStatusByUUID(apiUUID uuid.UUID) (*APIServiceDataRe
 
 		// Get api
 		api, err := txAPIRepo.FindByUUID(apiUUID, "Service")
-		if err != nil {
-			return err
-		}
-		if api == nil {
+		if err != nil || api == nil {
 			return errors.New("api not found")
 		}
 
@@ -281,10 +269,7 @@ func (s *apiService) SetActiveStatusByUUID(apiUUID uuid.UUID) (*APIServiceDataRe
 func (s *apiService) DeleteByUUID(apiUUID uuid.UUID) (*APIServiceDataResult, error) {
 	// Get api
 	api, err := s.apiRepo.FindByUUID(apiUUID, "Service")
-	if err != nil {
-		return nil, err
-	}
-	if api == nil {
+	if err != nil || api == nil {
 		return nil, errors.New("api not found")
 	}
 

@@ -8,6 +8,7 @@ import (
 
 type OrganizationRepository interface {
 	BaseRepositoryMethods[model.Organization]
+	WithTx(tx *gorm.DB) OrganizationRepository
 	FindByName(name string) (*model.Organization, error)
 	FindByEmail(email string) (*model.Organization, error)
 	FindByExternalReferenceID(refID string) (*model.Organization, error)
@@ -28,6 +29,13 @@ func NewOrganizationRepository(db *gorm.DB) OrganizationRepository {
 	return &organizationRepository{
 		BaseRepository: NewBaseRepository[model.Organization](db, "organization_uuid", "organization_id"),
 		db:             db,
+	}
+}
+
+func (r *organizationRepository) WithTx(tx *gorm.DB) OrganizationRepository {
+	return &organizationRepository{
+		BaseRepository: NewBaseRepository[model.Organization](tx, "organization_uuid", "organization_id"),
+		db:             tx,
 	}
 }
 
