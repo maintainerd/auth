@@ -11,18 +11,6 @@ import (
 	"gorm.io/gorm"
 )
 
-type OrganizationServiceDataResult struct {
-	OrganizationUUID uuid.UUID
-	Name             string
-	Description      *string
-	Email            *string
-	Phone            *string
-	IsActive         bool
-	IsDefault        bool
-	CreatedAt        time.Time
-	UpdatedAt        time.Time
-}
-
 type AuthContainerServiceDataResult struct {
 	AuthContainerUUID uuid.UUID
 	Name              string

@@ -13,6 +13,7 @@ type App struct {
 	DB          *gorm.DB
 	RedisClient *redis.Client
 	// Rest handler
+	OrganizationRestHandler  *resthandler.OrganizationHandler
 	ServiceRestHandler       *resthandler.ServiceHandler
 	APIRestHandler           *resthandler.APIHandler
 	AuthContainerRestHandler *resthandler.AuthContainerHandler
@@ -44,6 +45,7 @@ func NewApp(db *gorm.DB, redisClient *redis.Client) *App {
 	emailTemplateRepo := repository.NewEmailTemplateRepository(db)
 
 	// Services
+	organizationService := service.NewOrganizationService(db, organizationRepo)
 	serviceService := service.NewServiceService(db, serviceRepo, organizationServiceRepo)
 	apiService := service.NewAPIService(db, apiRepo, serviceRepo)
 	authContainerService := service.NewAuthContainerService(db, authContainerRepo, organizationRepo)
@@ -54,6 +56,7 @@ func NewApp(db *gorm.DB, redisClient *redis.Client) *App {
 	inviteService := service.NewInviteService(db, inviteRepo, authClientRepo, roleRepo, emailTemplateRepo)
 
 	// Rest handlers
+	organizationHandler := resthandler.NewOrganizationHandler(organizationService)
 	serviceRestHandler := resthandler.NewServiceHandler(serviceService)
 	apiRestHandler := resthandler.NewAPIHandler(apiService)
 	authContainerRestHandler := resthandler.NewAuthContainerHandler(authContainerService)
@@ -70,6 +73,7 @@ func NewApp(db *gorm.DB, redisClient *redis.Client) *App {
 		DB:          db,
 		RedisClient: redisClient,
 		// Rest handler
+		OrganizationRestHandler:  organizationHandler,
 		ServiceRestHandler:       serviceRestHandler,
 		APIRestHandler:           apiRestHandler,
 		AuthContainerRestHandler: authContainerRestHandler,
