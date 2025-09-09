@@ -52,27 +52,27 @@ func (r *authContainerRepository) WithTx(tx *gorm.DB) AuthContainerRepository {
 }
 
 func (r *authContainerRepository) FindByName(name string) (*model.AuthContainer, error) {
-	var container model.AuthContainer
+	var authContainer model.AuthContainer
 	err := r.db.
 		Where("name = ?", name).
-		First(&container).Error
-	return &container, err
+		First(&authContainer).Error
+	return &authContainer, err
 }
 
 func (r *authContainerRepository) FindByIdentifier(identifier string) (*model.AuthContainer, error) {
-	var container model.AuthContainer
+	var authContainer model.AuthContainer
 	err := r.db.
 		Where("identifier = ?", identifier).
-		First(&container).Error
-	return &container, err
+		First(&authContainer).Error
+	return &authContainer, err
 }
 
 func (r *authContainerRepository) FindDefaultByOrganizationID(organizationID int64) (*model.AuthContainer, error) {
-	var container model.AuthContainer
+	var authContainer model.AuthContainer
 	err := r.db.
-		Where("organization_id = ? AND is_default = true", organizationID).
-		First(&container).Error
-	return &container, err
+		Where("organization_id = ?", organizationID).
+		First(&authContainer).Error
+	return &authContainer, err
 }
 
 func (r *authContainerRepository) FindPaginated(filter AuthContainerRepositoryGetFilter) (*PaginationResult[model.AuthContainer], error) {
@@ -87,9 +87,6 @@ func (r *authContainerRepository) FindPaginated(filter AuthContainerRepositoryGe
 	}
 
 	// Filters with exact match
-	if filter.APIType != nil {
-		query = query.Where("api_type = ?", *filter.APIType)
-	}
 	if filter.Identifier != nil {
 		query = query.Where("identifier = ?", *filter.Identifier)
 	}
@@ -119,7 +116,7 @@ func (r *authContainerRepository) FindPaginated(filter AuthContainerRepositoryGe
 	// Pagination
 	offset := (filter.Page - 1) * filter.Limit
 	var authContainers []model.AuthContainer
-	if err := query.Limit(filter.Limit).Offset(offset).Find(&authContainers).Error; err != nil {
+	if err := query.Preload("Organization").Limit(filter.Limit).Offset(offset).Find(&authContainers).Error; err != nil {
 		return nil, err
 	}
 
