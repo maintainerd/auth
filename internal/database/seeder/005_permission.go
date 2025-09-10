@@ -78,6 +78,12 @@ func SeedPermissions(db *gorm.DB, apiID int64) {
 
 		// STRICT PERMISSIONS
 		// These are permissions are assigned only to speicif users that have elevated access
+		// Organization Management
+		newPermission("organization:read", "List organizations", apiID),
+		newPermission("organization:create", "Create organization", apiID),
+		newPermission("organization:update", "Update organization", apiID),
+		newPermission("organization:delete", "Delete organization", apiID),
+
 		// Service Management (Core)
 		newPermission("service:read", "List services", apiID),
 		newPermission("service:create", "Create service", apiID),
