@@ -1,20 +1,29 @@
 package repository
 
 import (
-	"github.com/google/uuid"
+	"errors"
+
 	"github.com/maintainerd/auth/internal/model"
 	"gorm.io/gorm"
 )
 
+type PermissionRepositoryGetFilter struct {
+	Name        *string
+	Description *string
+	APIID       *int64
+	IsActive    *bool
+	IsDefault   *bool
+	Page        int
+	Limit       int
+	SortBy      string
+	SortOrder   string
+}
+
 type PermissionRepository interface {
 	BaseRepositoryMethods[model.Permission]
+	WithTx(tx *gorm.DB) PermissionRepository
 	FindByName(name string) (*model.Permission, error)
-	FindAllByAPIID(apiID int64) ([]model.Permission, error)
-	FindAllByAuthContainerID(authContainerID int64) ([]model.Permission, error)
-	FindDefaultPermissionsByAPIID(apiID int64) ([]model.Permission, error)
-	SetActiveStatusByUUID(permissionUUID uuid.UUID, isActive bool) error
-	SetDefaultStatusByUUID(permissionUUID uuid.UUID, isDefault bool) error
-	FindAllByRoleID(roleID int64) ([]model.Permission, error)
+	FindPaginated(filter PermissionRepositoryGetFilter) (*PaginationResult[model.Permission], error)
 }
 
 type permissionRepository struct {
@@ -29,46 +38,74 @@ func NewPermissionRepository(db *gorm.DB) PermissionRepository {
 	}
 }
 
+func (r *permissionRepository) WithTx(tx *gorm.DB) PermissionRepository {
+	return &permissionRepository{
+		BaseRepository: NewBaseRepository[model.Permission](tx, "permission_uuid", "permission_id"),
+		db:             tx,
+	}
+}
+
 func (r *permissionRepository) FindByName(name string) (*model.Permission, error) {
 	var permission model.Permission
 	err := r.db.Where("name = ?", name).First(&permission).Error
+
+	// If no record is found, return nil record and nil error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		return nil, err
+	}
+
 	return &permission, err
 }
 
-func (r *permissionRepository) FindAllByAPIID(apiID int64) ([]model.Permission, error) {
+func (r *permissionRepository) FindPaginated(filter PermissionRepositoryGetFilter) (*PaginationResult[model.Permission], error) {
+	query := r.db.Model(&model.Permission{})
+
+	// Filters with LIKE
+	if filter.Name != nil {
+		query = query.Where("name ILIKE ?", "%"+*filter.Name+"%")
+	}
+	if filter.Description != nil {
+		query = query.Where("description ILIKE ?", "%"+*filter.Description+"%")
+	}
+
+	// Filters with exact match
+	if filter.APIID != nil {
+		query = query.Where("api_id = ?", *filter.APIID)
+	}
+	if filter.IsActive != nil {
+		query = query.Where("is_active = ?", *filter.IsActive)
+	}
+	if filter.IsDefault != nil {
+		query = query.Where("is_default = ?", *filter.IsDefault)
+	}
+
+	// Sorting
+	orderBy := filter.SortBy + " " + filter.SortOrder
+	query = query.Order(orderBy)
+
+	// Count
+	var total int64
+	if err := query.Count(&total).Error; err != nil {
+		return nil, err
+	}
+
+	// Pagination
+	offset := (filter.Page - 1) * filter.Limit
 	var permissions []model.Permission
-	err := r.db.Where("api_id = ?", apiID).Find(&permissions).Error
-	return permissions, err
-}
+	if err := query.Preload("API").Limit(filter.Limit).Offset(offset).Find(&permissions).Error; err != nil {
+		return nil, err
+	}
 
-func (r *permissionRepository) FindAllByAuthContainerID(authContainerID int64) ([]model.Permission, error) {
-	var permissions []model.Permission
-	err := r.db.Where("auth_container_id = ?", authContainerID).Find(&permissions).Error
-	return permissions, err
-}
+	totalPages := int((total + int64(filter.Limit) - 1) / int64(filter.Limit))
 
-func (r *permissionRepository) FindDefaultPermissionsByAPIID(apiID int64) ([]model.Permission, error) {
-	var permissions []model.Permission
-	err := r.db.Where("api_id = ? AND is_default = true", apiID).Find(&permissions).Error
-	return permissions, err
-}
-
-func (r *permissionRepository) SetActiveStatusByUUID(permissionUUID uuid.UUID, isActive bool) error {
-	return r.db.Model(&model.Permission{}).
-		Where("permission_uuid = ?", permissionUUID).
-		Update("is_active", isActive).Error
-}
-
-func (r *permissionRepository) SetDefaultStatusByUUID(permissionUUID uuid.UUID, isDefault bool) error {
-	return r.db.Model(&model.Permission{}).
-		Where("permission_uuid = ?", permissionUUID).
-		Update("is_default", isDefault).Error
-}
-
-func (r *permissionRepository) FindAllByRoleID(roleID int64) ([]model.Permission, error) {
-	var permissions []model.Permission
-	err := r.db.Joins("JOIN role_permissions ON role_permissions.permission_id = permissions.permission_id").
-		Where("role_permissions.role_id = ?", roleID).
-		Find(&permissions).Error
-	return permissions, err
+	return &PaginationResult[model.Permission]{
+		Data:       permissions,
+		Total:      total,
+		Page:       filter.Page,
+		Limit:      filter.Limit,
+		TotalPages: totalPages,
+	}, nil
 }
