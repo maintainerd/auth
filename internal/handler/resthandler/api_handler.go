@@ -219,14 +219,21 @@ func (h *APIHandler) Delete(w http.ResponseWriter, r *http.Request) {
 
 // Convert service result to DTO
 func toAPIResponseDto(r service.APIServiceDataResult) dto.APIResponseDto {
-	return dto.APIResponseDto{
+	result := dto.APIResponseDto{
 		APIUUID:     r.APIUUID,
 		Name:        r.Name,
 		DisplayName: r.DisplayName,
 		Description: r.Description,
 		APIType:     r.APIType,
 		Identifier:  r.Identifier,
-		Service: dto.ServiceResponseDto{
+		IsActive:    r.IsActive,
+		IsDefault:   r.IsDefault,
+		CreatedAt:   r.CreatedAt,
+		UpdatedAt:   r.UpdatedAt,
+	}
+
+	if r.Service != nil {
+		result.Service = &dto.ServiceResponseDto{
 			ServiceUUID: r.Service.ServiceUUID,
 			Name:        r.Service.Name,
 			DisplayName: r.Service.DisplayName,
@@ -237,10 +244,8 @@ func toAPIResponseDto(r service.APIServiceDataResult) dto.APIResponseDto {
 			IsPublic:    r.Service.IsPublic,
 			CreatedAt:   r.Service.CreatedAt,
 			UpdatedAt:   r.Service.UpdatedAt,
-		},
-		IsActive:  r.IsActive,
-		IsDefault: r.IsDefault,
-		CreatedAt: r.CreatedAt,
-		UpdatedAt: r.UpdatedAt,
+		}
 	}
+
+	return result
 }
