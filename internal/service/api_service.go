@@ -19,7 +19,7 @@ type APIServiceDataResult struct {
 	Description string
 	APIType     string
 	Identifier  string
-	Service     ServiceServiceDataResult
+	Service     *ServiceServiceDataResult
 	IsActive    bool
 	IsDefault   bool
 	CreatedAt   time.Time
@@ -292,14 +292,21 @@ func toAPIServiceDataResult(api *model.API) *APIServiceDataResult {
 		return nil
 	}
 
-	return &APIServiceDataResult{
+	result := &APIServiceDataResult{
 		APIUUID:     api.APIUUID,
 		Name:        api.Name,
 		DisplayName: api.DisplayName,
 		Description: api.Description,
 		APIType:     api.APIType,
 		Identifier:  api.Identifier,
-		Service: ServiceServiceDataResult{
+		IsActive:    api.IsActive,
+		IsDefault:   api.IsDefault,
+		CreatedAt:   api.CreatedAt,
+		UpdatedAt:   api.UpdatedAt,
+	}
+
+	if api.Service != nil {
+		result.Service = &ServiceServiceDataResult{
 			ServiceUUID: api.Service.ServiceUUID,
 			Name:        api.Service.Name,
 			DisplayName: api.Service.DisplayName,
@@ -310,10 +317,8 @@ func toAPIServiceDataResult(api *model.API) *APIServiceDataResult {
 			IsPublic:    api.Service.IsPublic,
 			CreatedAt:   api.Service.CreatedAt,
 			UpdatedAt:   api.Service.UpdatedAt,
-		},
-		IsActive:  api.IsActive,
-		IsDefault: api.IsDefault,
-		CreatedAt: api.CreatedAt,
-		UpdatedAt: api.UpdatedAt,
+		}
 	}
+
+	return result
 }
