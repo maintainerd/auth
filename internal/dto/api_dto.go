@@ -9,17 +9,17 @@ import (
 
 // API output structure
 type APIResponseDto struct {
-	APIUUID     uuid.UUID          `json:"api_uuid"`
-	Name        string             `json:"name"`
-	DisplayName string             `json:"display_name"`
-	Description string             `json:"description"`
-	APIType     string             `json:"api_type"`
-	Identifier  string             `json:"identifier"`
-	Service     ServiceResponseDto `json:"service"`
-	IsActive    bool               `json:"is_active"`
-	IsDefault   bool               `json:"is_default"`
-	CreatedAt   time.Time          `json:"created_at"`
-	UpdatedAt   time.Time          `json:"updated_at"`
+	APIUUID     uuid.UUID           `json:"api_uuid"`
+	Name        string              `json:"name"`
+	DisplayName string              `json:"display_name"`
+	Description string              `json:"description"`
+	APIType     string              `json:"api_type"`
+	Identifier  string              `json:"identifier"`
+	Service     *ServiceResponseDto `json:"service,omitempty"`
+	IsActive    bool                `json:"is_active"`
+	IsDefault   bool                `json:"is_default"`
+	CreatedAt   time.Time           `json:"created_at"`
+	UpdatedAt   time.Time           `json:"updated_at"`
 }
 
 // Create API request DTO
