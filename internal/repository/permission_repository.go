@@ -8,15 +8,17 @@ import (
 )
 
 type PermissionRepositoryGetFilter struct {
-	Name        *string
-	Description *string
-	APIID       *int64
-	IsActive    *bool
-	IsDefault   *bool
-	Page        int
-	Limit       int
-	SortBy      string
-	SortOrder   string
+	Name         *string
+	Description  *string
+	APIID        *int64
+	RoleID       *int64
+	AuthClientID *int64
+	IsActive     *bool
+	IsDefault    *bool
+	Page         int
+	Limit        int
+	SortBy       string
+	SortOrder    string
 }
 
 type PermissionRepository interface {
@@ -80,6 +82,18 @@ func (r *permissionRepository) FindPaginated(filter PermissionRepositoryGetFilte
 	}
 	if filter.IsDefault != nil {
 		query = query.Where("is_default = ?", *filter.IsDefault)
+	}
+
+	// Joined table filter
+	if filter.RoleID != nil {
+		query = query.Joins(
+			"JOIN role_permissions rp ON rp.permission_id = permissions.permission_id",
+		).Where("rp.role_id = ?", *filter.RoleID)
+	}
+	if filter.AuthClientID != nil {
+		query = query.Joins(
+			"JOIN auth_client_permissions acp ON acp.permission_id = permissions.permission_id",
+		).Where("acp.auth_client_id = ?", *filter.AuthClientID)
 	}
 
 	// Sorting
