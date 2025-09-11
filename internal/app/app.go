@@ -50,7 +50,7 @@ func NewApp(db *gorm.DB, redisClient *redis.Client) *App {
 	organizationService := service.NewOrganizationService(db, organizationRepo)
 	serviceService := service.NewServiceService(db, serviceRepo, organizationServiceRepo)
 	apiService := service.NewAPIService(db, apiRepo, serviceRepo)
-	permissionService := service.NewPermissionService(db, permissionRepo, apiRepo)
+	permissionService := service.NewPermissionService(db, permissionRepo, apiRepo, roleRepo, authClientRepo)
 	authContainerService := service.NewAuthContainerService(db, authContainerRepo, organizationRepo)
 	roleService := service.NewRoleService(db, roleRepo)
 	registerService := service.NewRegistrationService(db, authClientRepo, userRepo, userRoleRepo, userTokenRepo, roleRepo, inviteRepo)

@@ -46,11 +46,13 @@ func (h *PermissionHandler) Get(w http.ResponseWriter, r *http.Request) {
 
 	// Build request DTO
 	reqParams := dto.PermissionFilterDto{
-		Name:        util.PtrOrNil(q.Get("name")),
-		Description: util.PtrOrNil(q.Get("description")),
-		APIUUID:     util.PtrOrNil(q.Get("api_uuid")),
-		IsActive:    isActive,
-		IsDefault:   isDefault,
+		Name:           util.PtrOrNil(q.Get("name")),
+		Description:    util.PtrOrNil(q.Get("description")),
+		APIUUID:        util.PtrOrNil(q.Get("api_uuid")),
+		RoleUUID:       util.PtrOrNil(q.Get("role_uuid")),
+		AuthClientUUID: util.PtrOrNil(q.Get("auth_client_uuid")),
+		IsActive:       isActive,
+		IsDefault:      isDefault,
 		PaginationRequestDto: dto.PaginationRequestDto{
 			Page:      page,
 			Limit:     limit,
@@ -66,15 +68,17 @@ func (h *PermissionHandler) Get(w http.ResponseWriter, r *http.Request) {
 
 	// Build permission filter
 	permissionFilter := service.PermissionServiceGetFilter{
-		Name:        reqParams.Name,
-		Description: reqParams.Description,
-		APIUUID:     reqParams.APIUUID,
-		IsActive:    reqParams.IsActive,
-		IsDefault:   reqParams.IsDefault,
-		Page:        reqParams.Page,
-		Limit:       reqParams.Limit,
-		SortBy:      reqParams.SortBy,
-		SortOrder:   reqParams.SortOrder,
+		Name:           reqParams.Name,
+		Description:    reqParams.Description,
+		APIUUID:        reqParams.APIUUID,
+		RoleUUID:       reqParams.RoleUUID,
+		AuthClientUUID: reqParams.AuthClientUUID,
+		IsActive:       reqParams.IsActive,
+		IsDefault:      reqParams.IsDefault,
+		Page:           reqParams.Page,
+		Limit:          reqParams.Limit,
+		SortBy:         reqParams.SortBy,
+		SortOrder:      reqParams.SortOrder,
 	}
 
 	// Fetch permissions
