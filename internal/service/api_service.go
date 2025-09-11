@@ -54,7 +54,7 @@ type APIService interface {
 	Create(name string, displayName string, description string, apiType string, isActive bool, isDefault bool, serviceUUID string) (*APIServiceDataResult, error)
 	Update(apiUUID uuid.UUID, name string, displayName string, description string, apiType string, isActive bool, isDefault bool) (*APIServiceDataResult, error)
 	SetActiveStatusByUUID(apiUUID uuid.UUID) (*APIServiceDataResult, error)
-	DeleteByUUID(serviceUUID uuid.UUID) (*APIServiceDataResult, error)
+	DeleteByUUID(apiUUID uuid.UUID) (*APIServiceDataResult, error)
 }
 
 type apiService struct {
