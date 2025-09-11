@@ -22,15 +22,17 @@ type PermissionServiceDataResult struct {
 }
 
 type PermissionServiceGetFilter struct {
-	Name        *string
-	Description *string
-	APIUUID     *string
-	IsActive    *bool
-	IsDefault   *bool
-	Page        int
-	Limit       int
-	SortBy      string
-	SortOrder   string
+	Name           *string
+	Description    *string
+	APIUUID        *string
+	RoleUUID       *string
+	AuthClientUUID *string
+	IsActive       *bool
+	IsDefault      *bool
+	Page           int
+	Limit          int
+	SortBy         string
+	SortOrder      string
 }
 
 type PermissionServiceGetResult struct {
@@ -54,24 +56,32 @@ type permissionService struct {
 	db             *gorm.DB
 	permissionRepo repository.PermissionRepository
 	apiRepo        repository.APIRepository
+	roleRepo       repository.RoleRepository
+	authClientRepo repository.AuthClientRepository
 }
 
 func NewPermissionService(
 	db *gorm.DB,
 	permissionRepo repository.PermissionRepository,
 	apiRepo repository.APIRepository,
+	roleRepo repository.RoleRepository,
+	authClientRepo repository.AuthClientRepository,
 ) PermissionService {
 	return &permissionService{
 		db:             db,
 		permissionRepo: permissionRepo,
 		apiRepo:        apiRepo,
+		roleRepo:       roleRepo,
+		authClientRepo: authClientRepo,
 	}
 }
 
 func (s *permissionService) Get(filter PermissionServiceGetFilter) (*PermissionServiceGetResult, error) {
 	var apiID *int64
+	var roleID *int64
+	var authClientID *int64
 
-	// Get api
+	// Get api if uuid exist
 	if filter.APIUUID != nil {
 		api, err := s.apiRepo.FindByUUID(*filter.APIUUID)
 		if err != nil || api == nil {
@@ -80,17 +90,37 @@ func (s *permissionService) Get(filter PermissionServiceGetFilter) (*PermissionS
 		apiID = &api.APIID
 	}
 
+	// Get role if uuid exist
+	if filter.RoleUUID != nil {
+		role, err := s.roleRepo.FindByUUID(*filter.RoleUUID)
+		if err != nil || role == nil {
+			return nil, errors.New("role not found")
+		}
+		roleID = &role.RoleID
+	}
+
+	// Get auth client if uuid exist
+	if filter.AuthClientUUID != nil {
+		authClient, err := s.authClientRepo.FindByUUID(*filter.AuthClientUUID)
+		if err != nil || authClient == nil {
+			return nil, errors.New("auth client not found")
+		}
+		authClientID = &authClient.AuthClientID
+	}
+
 	// Build query filter
 	queryFilter := repository.PermissionRepositoryGetFilter{
-		Name:        filter.Name,
-		Description: filter.Description,
-		APIID:       apiID,
-		IsActive:    filter.IsActive,
-		IsDefault:   filter.IsDefault,
-		Page:        filter.Page,
-		Limit:       filter.Limit,
-		SortBy:      filter.SortBy,
-		SortOrder:   filter.SortOrder,
+		Name:         filter.Name,
+		Description:  filter.Description,
+		APIID:        apiID,
+		RoleID:       roleID,
+		AuthClientID: authClientID,
+		IsActive:     filter.IsActive,
+		IsDefault:    filter.IsDefault,
+		Page:         filter.Page,
+		Limit:        filter.Limit,
+		SortBy:       filter.SortBy,
+		SortOrder:    filter.SortOrder,
 	}
 
 	result, err := s.permissionRepo.FindPaginated(queryFilter)
