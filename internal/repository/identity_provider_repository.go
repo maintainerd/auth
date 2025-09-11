@@ -1,19 +1,33 @@
 package repository
 
 import (
-	"github.com/google/uuid"
+	"errors"
+
 	"github.com/maintainerd/auth/internal/model"
 	"gorm.io/gorm"
 )
 
+type IdentityProviderRepositoryGetFilter struct {
+	Name            *string
+	DisplayName     *string
+	ProviderType    *string
+	Identifier      *string
+	AuthContainerID *int64
+	IsActive        *bool
+	IsDefault       *bool
+	Page            int
+	Limit           int
+	SortBy          string
+	SortOrder       string
+}
+
 type IdentityProviderRepository interface {
 	BaseRepositoryMethods[model.IdentityProvider]
-	FindByName(providerName string, authContainerID int64) (*model.IdentityProvider, error)
+	WithTx(tx *gorm.DB) IdentityProviderRepository
+	FindByName(name string, authContainerID int64) (*model.IdentityProvider, error)
 	FindByIdentifier(identifier string, authContainerID int64) (*model.IdentityProvider, error)
-	FindAllByAuthContainerID(authContainerID int64) ([]model.IdentityProvider, error)
 	FindDefaultByAuthContainerID(authContainerID int64) (*model.IdentityProvider, error)
-	SetActiveStatusByUUID(identityProviderUUID uuid.UUID, isActive bool) error
-	SetDefaultStatusByUUID(identityProviderUUID uuid.UUID, isDefault bool) error
+	FindPaginated(filter IdentityProviderRepositoryGetFilter) (*PaginationResult[model.IdentityProvider], error)
 }
 
 type identityProviderRepository struct {
@@ -28,11 +42,26 @@ func NewIdentityProviderRepository(db *gorm.DB) IdentityProviderRepository {
 	}
 }
 
-func (r *identityProviderRepository) FindByName(providerName string, authContainerID int64) (*model.IdentityProvider, error) {
+func (r *identityProviderRepository) WithTx(tx *gorm.DB) IdentityProviderRepository {
+	return &identityProviderRepository{
+		BaseRepository: NewBaseRepository[model.IdentityProvider](tx, "identity_provider_uuid", "identity_provider_id"),
+		db:             tx,
+	}
+}
+
+func (r *identityProviderRepository) FindByName(name string, authContainerID int64) (*model.IdentityProvider, error) {
 	var provider model.IdentityProvider
 	err := r.db.
-		Where("provider_name = ? AND auth_container_id = ?", providerName, authContainerID).
+		Where("name = ? AND auth_container_id = ?", name, authContainerID).
 		First(&provider).Error
+
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		return nil, err
+	}
+
 	return &provider, err
 }
 
@@ -44,14 +73,6 @@ func (r *identityProviderRepository) FindByIdentifier(identifier string, authCon
 	return &provider, err
 }
 
-func (r *identityProviderRepository) FindAllByAuthContainerID(authContainerID int64) ([]model.IdentityProvider, error) {
-	var providers []model.IdentityProvider
-	err := r.db.
-		Where("auth_container_id = ?", authContainerID).
-		Find(&providers).Error
-	return providers, err
-}
-
 func (r *identityProviderRepository) FindDefaultByAuthContainerID(authContainerID int64) (*model.IdentityProvider, error) {
 	var provider model.IdentityProvider
 	err := r.db.
@@ -60,14 +81,58 @@ func (r *identityProviderRepository) FindDefaultByAuthContainerID(authContainerI
 	return &provider, err
 }
 
-func (r *identityProviderRepository) SetActiveStatusByUUID(identityProviderUUID uuid.UUID, isActive bool) error {
-	return r.db.Model(&model.IdentityProvider{}).
-		Where("identity_provider_uuid = ?", identityProviderUUID).
-		Update("is_active", isActive).Error
-}
+func (r *identityProviderRepository) FindPaginated(filter IdentityProviderRepositoryGetFilter) (*PaginationResult[model.IdentityProvider], error) {
+	query := r.db.Model(&model.IdentityProvider{})
 
-func (r *identityProviderRepository) SetDefaultStatusByUUID(identityProviderUUID uuid.UUID, isDefault bool) error {
-	return r.db.Model(&model.IdentityProvider{}).
-		Where("identity_provider_uuid = ?", identityProviderUUID).
-		Update("is_default", isDefault).Error
+	// Filters with LIKE
+	if filter.Name != nil {
+		query = query.Where("name ILIKE ?", "%"+*filter.Name+"%")
+	}
+	if filter.DisplayName != nil {
+		query = query.Where("display_name ILIKE ?", "%"+*filter.DisplayName+"%")
+	}
+
+	// Filters with exact match
+	if filter.ProviderType != nil {
+		query = query.Where("provider_type = ?", *filter.ProviderType)
+	}
+	if filter.Identifier != nil {
+		query = query.Where("identifier = ?", *filter.Identifier)
+	}
+	if filter.AuthContainerID != nil {
+		query = query.Where("auth_container_id = ?", *filter.AuthContainerID)
+	}
+	if filter.IsActive != nil {
+		query = query.Where("is_active = ?", *filter.IsActive)
+	}
+	if filter.IsDefault != nil {
+		query = query.Where("is_default = ?", *filter.IsDefault)
+	}
+
+	// Sorting
+	orderBy := filter.SortBy + " " + filter.SortOrder
+	query = query.Order(orderBy)
+
+	// Count
+	var total int64
+	if err := query.Count(&total).Error; err != nil {
+		return nil, err
+	}
+
+	// Pagination
+	offset := (filter.Page - 1) * filter.Limit
+	var apis []model.IdentityProvider
+	if err := query.Preload("AuthContainer").Limit(filter.Limit).Offset(offset).Find(&apis).Error; err != nil {
+		return nil, err
+	}
+
+	totalPages := int((total + int64(filter.Limit) - 1) / int64(filter.Limit))
+
+	return &PaginationResult[model.IdentityProvider]{
+		Data:       apis,
+		Total:      total,
+		Page:       filter.Page,
+		Limit:      filter.Limit,
+		TotalPages: totalPages,
+	}, nil
 }

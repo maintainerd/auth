@@ -79,14 +79,14 @@ func SeedPermissions(db *gorm.DB, apiID int64) {
 		// STRICT PERMISSIONS
 		// These are permissions are assigned only to speicif users that have elevated access
 		// ORGANIZATION LEVEL ACCESS
-		// Organization Management
+		// Organizations
 		newPermission("organization:read", "List organizations", apiID),
 		newPermission("organization:create", "Create organization", apiID),
 		newPermission("organization:update", "Update organization", apiID),
 		newPermission("organization:delete", "Delete organization", apiID),
 
 		// SERVICE LEVEL ACCESS
-		// Service Management
+		// Services
 		newPermission("service:read", "List services", apiID),
 		newPermission("service:create", "Create service", apiID),
 		newPermission("service:update", "Update service", apiID),
@@ -104,8 +104,20 @@ func SeedPermissions(db *gorm.DB, apiID int64) {
 		newPermission("permission:update", "Update permission", apiID),
 		newPermission("permission:delete", "Delete permission", apiID),
 
+		// Policies
+		newPermission("policy:read", "List policies", apiID),
+		newPermission("policy:create", "Create policy", apiID),
+		newPermission("policy:update", "Update policy", apiID),
+		newPermission("policy:delete", "Delete policy", apiID),
+
+		// Service logs
+		newPermission("service_log:read", "List service logs", apiID),
+		newPermission("service_log:create", "Create service log", apiID),
+		newPermission("service_log:update", "Update service log", apiID),
+		newPermission("service_log:delete", "Delete service log", apiID),
+
 		// USER LEVEL ACCESS
-		// Auth Container Management
+		// Auth Containers
 		newPermission("auth_container:read", "List auth containers", apiID),
 		newPermission("auth_container:create", "Create auth container", apiID),
 		newPermission("auth_container:update", "Update auth container", apiID),
@@ -119,24 +131,36 @@ func SeedPermissions(db *gorm.DB, apiID int64) {
 		newPermission("role:assign", "Assign roles to users", apiID),
 		newPermission("role:restrict-super-admin", "Prevent elevation to critical roles", apiID),
 
+		// Identity Providers
+		newPermission("idp:read", "List identity providers", apiID),
+		newPermission("idp:create", "Create identity provider", apiID),
+		newPermission("idp:update", "Update identity provider", apiID),
+		newPermission("idp:delete", "Delete identity provider", apiID),
+
+		// Auth Clients
+		newPermission("auth_client:read", "List auth clients", apiID),
+		newPermission("auth_client:create", "Create auth client", apiID),
+		newPermission("auth_client:update", "Update auth client", apiID),
+		newPermission("auth_client:delete", "Delete auth client", apiID),
+
 		// User Administration
-		newPermission("user:read:any", "View any user profile", apiID),
-		newPermission("user:update:any", "Edit user details", apiID),
-		newPermission("user:delete:any", "Delete any user", apiID),
-		newPermission("user:disable:any", "Disable any user", apiID),
-		newPermission("user:enable:any", "Re-enable any user", apiID),
+		newPermission("user:read", "List users", apiID),
+		newPermission("user:create", "Create user", apiID),
+		newPermission("user:update", "Update user", apiID),
+		newPermission("user:delete", "Delete user", apiID),
+		newPermission("user:disable", "Disable user", apiID),
+		newPermission("user:enable", "Re-enable user", apiID),
 		newPermission("user:assign-role", "Assign role to a user", apiID),
 		newPermission("user:remove-role", "Remove role from a user", apiID),
-		newPermission("user:impersonate", "Temporarily act as another user", apiID),
 		newPermission("user:invite", "Invite user via email", apiID),
 
-		// Identity Provider
-		newPermission("idp:read", "View identity provider config", apiID),
-		newPermission("idp:create", "Add identity provider", apiID),
-		newPermission("idp:update", "Update IdP settings", apiID),
-		newPermission("idp:delete", "Remove identity provider", apiID),
-		newPermission("idp:restrict-issuer", "Limit specific domains or providers", apiID),
+		// Auth Logs
+		newPermission("auth_log:read", "List auth logs", apiID),
+		newPermission("auth_log:create", "Create auth log", apiID),
+		newPermission("auth_log:update", "Update auth log", apiID),
+		newPermission("auth_log:delete", "Delete auth log", apiID),
 
+		// OTHER PERMISSIONS
 		// Email
 		newPermission("email:read-config", "View email delivery config", apiID),
 		newPermission("email:update-config", "Edit SMTP/provider settings", apiID),
@@ -197,11 +221,6 @@ func SeedPermissions(db *gorm.DB, apiID int64) {
 		newPermission("root:access-env", "View environment variables", apiID),
 		newPermission("root:impersonate", "Impersonate any user", apiID),
 		newPermission("root:hard-delete-user", "Irrecoverably delete user & data", apiID),
-
-		// Compliance-Only Permissions
-		newPermission("compliance:export-user-data", "Export user data (GDPR)", apiID),
-		newPermission("compliance:delete-user-data", "Delete user data permanently", apiID),
-		newPermission("compliance:request-data-access", "Request access log or report", apiID),
 	}
 
 	for _, perm := range permissions {
