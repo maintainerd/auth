@@ -28,17 +28,17 @@ type IdentityProviderServiceDataResult struct {
 }
 
 type IdentityProviderServiceGetFilter struct {
-	Name            *string
-	DisplayName     *string
-	ProviderType    *string
-	Identifier      *string
-	AuthContainerID *int64
-	IsActive        *bool
-	IsDefault       *bool
-	Page            int
-	Limit           int
-	SortBy          string
-	SortOrder       string
+	Name              *string
+	DisplayName       *string
+	ProviderType      *string
+	Identifier        *string
+	AuthContainerUUID *string
+	IsActive          *bool
+	IsDefault         *bool
+	Page              int
+	Limit             int
+	SortBy            string
+	SortOrder         string
 }
 
 type IdentityProviderServiceGetResult struct {
@@ -77,12 +77,24 @@ func NewIdentityProviderService(
 }
 
 func (s *identityProviderService) Get(filter IdentityProviderServiceGetFilter) (*IdentityProviderServiceGetResult, error) {
+	var authContainerID *int64
+
+	// Get auth container if uuid exist
+	if filter.AuthContainerUUID != nil {
+		authContainer, err := s.authContainerRepo.FindByUUID(*filter.AuthContainerUUID)
+		if err != nil || authContainer == nil {
+			return nil, errors.New("auth container not found")
+		}
+		authContainerID = &authContainer.AuthContainerID
+	}
+
+	// Build query filter
 	queryFilter := repository.IdentityProviderRepositoryGetFilter{
 		Name:            filter.Name,
 		DisplayName:     filter.DisplayName,
 		ProviderType:    filter.ProviderType,
 		Identifier:      filter.Identifier,
-		AuthContainerID: filter.AuthContainerID,
+		AuthContainerID: authContainerID,
 		IsActive:        filter.IsActive,
 		IsDefault:       filter.IsDefault,
 		Page:            filter.Page,

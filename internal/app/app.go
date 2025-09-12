@@ -13,16 +13,17 @@ type App struct {
 	DB          *gorm.DB
 	RedisClient *redis.Client
 	// Rest handler
-	OrganizationRestHandler  *resthandler.OrganizationHandler
-	ServiceRestHandler       *resthandler.ServiceHandler
-	APIRestHandler           *resthandler.APIHandler
-	PermissionRestHandler    *resthandler.PermissionHandler
-	AuthContainerRestHandler *resthandler.AuthContainerHandler
-	RoleRestHandler          *resthandler.RoleHandler
-	RegisterRestHandler      *resthandler.RegisterHandler
-	LoginRestHandler         *resthandler.LoginHandler
-	ProfileRestHandler       *resthandler.ProfileHandler
-	InviteRestHandler        *resthandler.InviteHandler
+	OrganizationRestHandler     *resthandler.OrganizationHandler
+	ServiceRestHandler          *resthandler.ServiceHandler
+	APIRestHandler              *resthandler.APIHandler
+	PermissionRestHandler       *resthandler.PermissionHandler
+	AuthContainerRestHandler    *resthandler.AuthContainerHandler
+	IdentityProviderRestHandler *resthandler.IdentityProviderHandler
+	RoleRestHandler             *resthandler.RoleHandler
+	RegisterRestHandler         *resthandler.RegisterHandler
+	LoginRestHandler            *resthandler.LoginHandler
+	ProfileRestHandler          *resthandler.ProfileHandler
+	InviteRestHandler           *resthandler.InviteHandler
 	// Grpc handler
 	SeederHandler *grpchandler.SeederHandler
 	// Repository
@@ -37,6 +38,7 @@ func NewApp(db *gorm.DB, redisClient *redis.Client) *App {
 	apiRepo := repository.NewAPIRepository(db)
 	permissionRepo := repository.NewPermissionRepository(db)
 	authContainerRepo := repository.NewAuthContainerRepository(db)
+	idpRepo := repository.NewIdentityProviderRepository(db)
 	roleRepo := repository.NewRoleRepository(db)
 	authClientRepo := repository.NewAuthClientRepository(db)
 	userRepo := repository.NewUserRepository(db)
@@ -52,6 +54,7 @@ func NewApp(db *gorm.DB, redisClient *redis.Client) *App {
 	apiService := service.NewAPIService(db, apiRepo, serviceRepo)
 	permissionService := service.NewPermissionService(db, permissionRepo, apiRepo, roleRepo, authClientRepo)
 	authContainerService := service.NewAuthContainerService(db, authContainerRepo, organizationRepo)
+	idpService := service.NewIdentityProviderService(db, idpRepo, authContainerRepo)
 	roleService := service.NewRoleService(db, roleRepo)
 	registerService := service.NewRegistrationService(db, authClientRepo, userRepo, userRoleRepo, userTokenRepo, roleRepo, inviteRepo)
 	loginService := service.NewLoginService(db, authClientRepo, userRepo, userTokenRepo)
@@ -64,6 +67,7 @@ func NewApp(db *gorm.DB, redisClient *redis.Client) *App {
 	apiRestHandler := resthandler.NewAPIHandler(apiService)
 	permissionRestHandler := resthandler.NewPermissionHandler(permissionService)
 	authContainerRestHandler := resthandler.NewAuthContainerHandler(authContainerService)
+	idpRestHandler := resthandler.NewIdentityProviderHandler(idpService)
 	roleRestHandler := resthandler.NewRoleHandler(roleService)
 	registerRestHandler := resthandler.NewRegisterHandler(registerService)
 	loginRestHandler := resthandler.NewLoginHandler(loginService)
@@ -77,16 +81,17 @@ func NewApp(db *gorm.DB, redisClient *redis.Client) *App {
 		DB:          db,
 		RedisClient: redisClient,
 		// Rest handler
-		OrganizationRestHandler:  organizationHandler,
-		ServiceRestHandler:       serviceRestHandler,
-		APIRestHandler:           apiRestHandler,
-		PermissionRestHandler:    permissionRestHandler,
-		AuthContainerRestHandler: authContainerRestHandler,
-		RoleRestHandler:          roleRestHandler,
-		RegisterRestHandler:      registerRestHandler,
-		LoginRestHandler:         loginRestHandler,
-		ProfileRestHandler:       profileRestHandler,
-		InviteRestHandler:        inviteRestHandler,
+		OrganizationRestHandler:     organizationHandler,
+		ServiceRestHandler:          serviceRestHandler,
+		APIRestHandler:              apiRestHandler,
+		PermissionRestHandler:       permissionRestHandler,
+		AuthContainerRestHandler:    authContainerRestHandler,
+		IdentityProviderRestHandler: idpRestHandler,
+		RoleRestHandler:             roleRestHandler,
+		RegisterRestHandler:         registerRestHandler,
+		LoginRestHandler:            loginRestHandler,
+		ProfileRestHandler:          profileRestHandler,
+		InviteRestHandler:           inviteRestHandler,
 		// GRPC handler
 		SeederHandler: seederGrpcHandler,
 		// Repository

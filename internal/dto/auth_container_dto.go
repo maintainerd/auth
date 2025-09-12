@@ -9,16 +9,16 @@ import (
 
 // AuthContainer output structure
 type AuthContainerResponseDto struct {
-	AuthContainerUUID uuid.UUID               `json:"auth_container_uuid"`
-	Name              string                  `json:"name"`
-	Description       string                  `json:"description"`
-	Identifier        string                  `json:"identifier"`
-	Organization      OrganizationResponseDto `json:"organization"`
-	IsActive          bool                    `json:"is_active"`
-	IsPublic          bool                    `json:"is_public"`
-	IsDefault         bool                    `json:"is_default"`
-	CreatedAt         time.Time               `json:"created_at"`
-	UpdatedAt         time.Time               `json:"updated_at"`
+	AuthContainerUUID uuid.UUID                `json:"auth_container_uuid"`
+	Name              string                   `json:"name"`
+	Description       string                   `json:"description"`
+	Identifier        string                   `json:"identifier"`
+	Organization      *OrganizationResponseDto `json:"organization,omitempty"`
+	IsActive          bool                     `json:"is_active"`
+	IsPublic          bool                     `json:"is_public"`
+	IsDefault         bool                     `json:"is_default"`
+	CreatedAt         time.Time                `json:"created_at"`
+	UpdatedAt         time.Time                `json:"updated_at"`
 }
 
 // Create Auth Container request DTO
