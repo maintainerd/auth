@@ -16,7 +16,7 @@ type AuthContainerServiceDataResult struct {
 	Name              string
 	Description       string
 	Identifier        string
-	Organization      OrganizationServiceDataResult
+	Organization      *OrganizationServiceDataResult
 	IsActive          bool
 	IsPublic          bool
 	IsDefault         bool
@@ -338,12 +338,20 @@ func toAuthContainerServiceDataResult(authContainer *model.AuthContainer) *AuthC
 		return nil
 	}
 
-	return &AuthContainerServiceDataResult{
+	result := &AuthContainerServiceDataResult{
 		AuthContainerUUID: authContainer.AuthContainerUUID,
 		Name:              authContainer.Name,
 		Description:       authContainer.Description,
 		Identifier:        authContainer.Identifier,
-		Organization: OrganizationServiceDataResult{
+		IsActive:          authContainer.IsActive,
+		IsPublic:          authContainer.IsPublic,
+		IsDefault:         authContainer.IsDefault,
+		CreatedAt:         authContainer.CreatedAt,
+		UpdatedAt:         authContainer.UpdatedAt,
+	}
+
+	if authContainer.Organization != nil {
+		result.Organization = &OrganizationServiceDataResult{
 			OrganizationUUID: authContainer.Organization.OrganizationUUID,
 			Name:             authContainer.Organization.Name,
 			Description:      authContainer.Organization.Description,
@@ -353,11 +361,8 @@ func toAuthContainerServiceDataResult(authContainer *model.AuthContainer) *AuthC
 			IsDefault:        authContainer.Organization.IsDefault,
 			CreatedAt:        authContainer.Organization.CreatedAt,
 			UpdatedAt:        authContainer.Organization.UpdatedAt,
-		},
-		IsActive:  authContainer.IsActive,
-		IsPublic:  authContainer.IsPublic,
-		IsDefault: authContainer.IsDefault,
-		CreatedAt: authContainer.CreatedAt,
-		UpdatedAt: authContainer.UpdatedAt,
+		}
 	}
+
+	return result
 }

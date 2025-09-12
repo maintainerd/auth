@@ -244,12 +244,20 @@ func (h *AuthContainerHandler) Delete(w http.ResponseWriter, r *http.Request) {
 
 // Convert service result to DTO
 func toAuthContainerResponseDto(r service.AuthContainerServiceDataResult) dto.AuthContainerResponseDto {
-	return dto.AuthContainerResponseDto{
+	result := dto.AuthContainerResponseDto{
 		AuthContainerUUID: r.AuthContainerUUID,
 		Name:              r.Name,
 		Description:       r.Description,
 		Identifier:        r.Identifier,
-		Organization: dto.OrganizationResponseDto{
+		IsActive:          r.IsActive,
+		IsPublic:          r.IsPublic,
+		IsDefault:         r.IsDefault,
+		CreatedAt:         r.CreatedAt,
+		UpdatedAt:         r.UpdatedAt,
+	}
+
+	if r.Organization != nil {
+		result.Organization = &dto.OrganizationResponseDto{
 			OrganizationUUID: r.Organization.OrganizationUUID,
 			Name:             r.Organization.Name,
 			Description:      *r.Organization.Description,
@@ -259,11 +267,8 @@ func toAuthContainerResponseDto(r service.AuthContainerServiceDataResult) dto.Au
 			IsDefault:        r.Organization.IsDefault,
 			CreatedAt:        r.Organization.CreatedAt,
 			UpdatedAt:        r.Organization.UpdatedAt,
-		},
-		IsActive:  r.IsActive,
-		IsPublic:  r.IsPublic,
-		IsDefault: r.IsDefault,
-		CreatedAt: r.CreatedAt,
-		UpdatedAt: r.UpdatedAt,
+		}
 	}
+
+	return result
 }
