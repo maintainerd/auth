@@ -43,6 +43,7 @@ func StartInternalRESTServer(application *app.App) {
 		route.PermissionRoute(api, application.PermissionRestHandler, application.UserRepository, application.RedisClient)
 		route.AuthContainerRoute(api, application.AuthContainerRestHandler, application.UserRepository, application.RedisClient)
 		route.IdentityProviderRoute(api, application.IdentityProviderRestHandler, application.UserRepository, application.RedisClient)
+		route.AuthClientRoute(api, application.AuthClientRestHandler, application.UserRepository, application.RedisClient)
 		route.RoleRoute(api, application.RoleRestHandler, application.UserRepository, application.RedisClient)
 		route.RegisterInternalRoute(api, application.RegisterRestHandler)
 		route.LoginRoute(api, application.LoginRestHandler)

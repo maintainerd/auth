@@ -80,51 +80,51 @@ func SeedPermissions(db *gorm.DB, apiID int64) {
 		// These are permissions are assigned only to speicif users that have elevated access
 		// ORGANIZATION LEVEL ACCESS
 		// Organizations
-		newPermission("organization:read", "List organizations", apiID),
+		newPermission("organization:read", "Read organizations", apiID),
 		newPermission("organization:create", "Create organization", apiID),
 		newPermission("organization:update", "Update organization", apiID),
 		newPermission("organization:delete", "Delete organization", apiID),
 
 		// SERVICE LEVEL ACCESS
 		// Services
-		newPermission("service:read", "List services", apiID),
+		newPermission("service:read", "Read services", apiID),
 		newPermission("service:create", "Create service", apiID),
 		newPermission("service:update", "Update service", apiID),
 		newPermission("service:delete", "Delete service", apiID),
 
 		// Apis
-		newPermission("api:read", "List apis", apiID),
+		newPermission("api:read", "Read apis", apiID),
 		newPermission("api:create", "Create api", apiID),
 		newPermission("api:update", "Update api", apiID),
 		newPermission("api:delete", "Delete api", apiID),
 
 		// Permissions
-		newPermission("permission:read", "List permissions", apiID),
+		newPermission("permission:read", "Read permissions", apiID),
 		newPermission("permission:create", "Create permission", apiID),
 		newPermission("permission:update", "Update permission", apiID),
 		newPermission("permission:delete", "Delete permission", apiID),
 
 		// Policies
-		newPermission("policy:read", "List policies", apiID),
+		newPermission("policy:read", "Read policies", apiID),
 		newPermission("policy:create", "Create policy", apiID),
 		newPermission("policy:update", "Update policy", apiID),
 		newPermission("policy:delete", "Delete policy", apiID),
 
 		// Service logs
-		newPermission("service_log:read", "List service logs", apiID),
+		newPermission("service_log:read", "Read service logs", apiID),
 		newPermission("service_log:create", "Create service log", apiID),
 		newPermission("service_log:update", "Update service log", apiID),
 		newPermission("service_log:delete", "Delete service log", apiID),
 
 		// USER LEVEL ACCESS
 		// Auth Containers
-		newPermission("auth_container:read", "List auth containers", apiID),
+		newPermission("auth_container:read", "Read auth containers", apiID),
 		newPermission("auth_container:create", "Create auth container", apiID),
 		newPermission("auth_container:update", "Update auth container", apiID),
 		newPermission("auth_container:delete", "Delete auth container", apiID),
 
 		// Roles
-		newPermission("role:read", "List roles", apiID),
+		newPermission("role:read", "Read roles", apiID),
 		newPermission("role:create", "Create a new role", apiID),
 		newPermission("role:update", "Update role", apiID),
 		newPermission("role:delete", "Delete a role", apiID),
@@ -132,19 +132,21 @@ func SeedPermissions(db *gorm.DB, apiID int64) {
 		newPermission("role:restrict-super-admin", "Prevent elevation to critical roles", apiID),
 
 		// Identity Providers
-		newPermission("idp:read", "List identity providers", apiID),
+		newPermission("idp:read", "Read identity providers", apiID),
 		newPermission("idp:create", "Create identity provider", apiID),
 		newPermission("idp:update", "Update identity provider", apiID),
 		newPermission("idp:delete", "Delete identity provider", apiID),
 
 		// Auth Clients
-		newPermission("auth_client:read", "List auth clients", apiID),
+		newPermission("auth_client:read", "Read auth clients", apiID),
+		newPermission("auth_client:secret:read", "Get auth client secret", apiID),
+		newPermission("auth_client:config:read", "Get auth client configurations", apiID),
 		newPermission("auth_client:create", "Create auth client", apiID),
 		newPermission("auth_client:update", "Update auth client", apiID),
 		newPermission("auth_client:delete", "Delete auth client", apiID),
 
 		// User Administration
-		newPermission("user:read", "List users", apiID),
+		newPermission("user:read", "Read users", apiID),
 		newPermission("user:create", "Create user", apiID),
 		newPermission("user:update", "Update user", apiID),
 		newPermission("user:delete", "Delete user", apiID),
@@ -155,7 +157,7 @@ func SeedPermissions(db *gorm.DB, apiID int64) {
 		newPermission("user:invite", "Invite user via email", apiID),
 
 		// Auth Logs
-		newPermission("auth_log:read", "List auth logs", apiID),
+		newPermission("auth_log:read", "Read auth logs", apiID),
 		newPermission("auth_log:create", "Create auth log", apiID),
 		newPermission("auth_log:update", "Update auth log", apiID),
 		newPermission("auth_log:delete", "Delete auth log", apiID),
