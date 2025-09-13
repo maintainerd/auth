@@ -19,6 +19,7 @@ type App struct {
 	PermissionRestHandler       *resthandler.PermissionHandler
 	AuthContainerRestHandler    *resthandler.AuthContainerHandler
 	IdentityProviderRestHandler *resthandler.IdentityProviderHandler
+	AuthClientRestHandler       *resthandler.AuthClientHandler
 	RoleRestHandler             *resthandler.RoleHandler
 	RegisterRestHandler         *resthandler.RegisterHandler
 	LoginRestHandler            *resthandler.LoginHandler
@@ -55,6 +56,7 @@ func NewApp(db *gorm.DB, redisClient *redis.Client) *App {
 	permissionService := service.NewPermissionService(db, permissionRepo, apiRepo, roleRepo, authClientRepo)
 	authContainerService := service.NewAuthContainerService(db, authContainerRepo, organizationRepo)
 	idpService := service.NewIdentityProviderService(db, idpRepo, authContainerRepo)
+	authClientService := service.NewAuthClientService(db, authClientRepo, idpRepo)
 	roleService := service.NewRoleService(db, roleRepo)
 	registerService := service.NewRegistrationService(db, authClientRepo, userRepo, userRoleRepo, userTokenRepo, roleRepo, inviteRepo)
 	loginService := service.NewLoginService(db, authClientRepo, userRepo, userTokenRepo)
@@ -68,6 +70,7 @@ func NewApp(db *gorm.DB, redisClient *redis.Client) *App {
 	permissionRestHandler := resthandler.NewPermissionHandler(permissionService)
 	authContainerRestHandler := resthandler.NewAuthContainerHandler(authContainerService)
 	idpRestHandler := resthandler.NewIdentityProviderHandler(idpService)
+	authClientRestHandler := resthandler.NewAuthClientHandler(authClientService)
 	roleRestHandler := resthandler.NewRoleHandler(roleService)
 	registerRestHandler := resthandler.NewRegisterHandler(registerService)
 	loginRestHandler := resthandler.NewLoginHandler(loginService)
@@ -87,6 +90,7 @@ func NewApp(db *gorm.DB, redisClient *redis.Client) *App {
 		PermissionRestHandler:       permissionRestHandler,
 		AuthContainerRestHandler:    authContainerRestHandler,
 		IdentityProviderRestHandler: idpRestHandler,
+		AuthClientRestHandler:       authClientRestHandler,
 		RoleRestHandler:             roleRestHandler,
 		RegisterRestHandler:         registerRestHandler,
 		LoginRestHandler:            loginRestHandler,

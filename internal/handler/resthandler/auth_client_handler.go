@@ -1,0 +1,248 @@
+package resthandler
+
+import (
+	"encoding/json"
+	"net/http"
+	"strconv"
+
+	"github.com/go-chi/chi/v5"
+	"github.com/google/uuid"
+	"github.com/maintainerd/auth/internal/dto"
+	"github.com/maintainerd/auth/internal/service"
+	"github.com/maintainerd/auth/internal/util"
+)
+
+type AuthClientHandler struct {
+	authClientService service.AuthClientService
+}
+
+func NewAuthClientHandler(authClientService service.AuthClientService) *AuthClientHandler {
+	return &AuthClientHandler{authClientService}
+}
+
+// Get all auth clients with pagination
+func (h *AuthClientHandler) Get(w http.ResponseWriter, r *http.Request) {
+	// Parse query parameters
+	q := r.URL.Query()
+
+	// Parse pagination
+	page, _ := strconv.Atoi(q.Get("page"))
+	limit, _ := strconv.Atoi(q.Get("limit"))
+
+	// Parse bools safely
+	var isDefault, isActive *bool
+	if v := q.Get("is_default"); v != "" {
+		parsed, err := strconv.ParseBool(v)
+		if err == nil {
+			isDefault = &parsed
+		}
+	}
+	if v := q.Get("is_active"); v != "" {
+		parsed, err := strconv.ParseBool(v)
+		if err == nil {
+			isActive = &parsed
+		}
+	}
+
+	// Build request DTO
+	reqParams := dto.AuthClientFilterDto{
+		Name:                 util.PtrOrNil(q.Get("name")),
+		DisplayName:          util.PtrOrNil(q.Get("display_name")),
+		ClientType:           util.PtrOrNil(q.Get("client_type")),
+		IdentityProviderUUID: util.PtrOrNil(q.Get("identity_provider_uuid")),
+		IsDefault:            isDefault,
+		IsActive:             isActive,
+		PaginationRequestDto: dto.PaginationRequestDto{
+			Page:      page,
+			Limit:     limit,
+			SortBy:    q.Get("sort_by"),
+			SortOrder: q.Get("sort_order"),
+		},
+	}
+
+	if err := reqParams.Validate(); err != nil {
+		util.ValidationError(w, err)
+		return
+	}
+
+	// Build service filter
+	authClientFilter := service.AuthClientServiceGetFilter{
+		Name:                 reqParams.Name,
+		DisplayName:          reqParams.DisplayName,
+		ClientType:           reqParams.ClientType,
+		IdentityProviderUUID: reqParams.IdentityProviderUUID,
+		IsDefault:            reqParams.IsDefault,
+		IsActive:             reqParams.IsActive,
+		Page:                 reqParams.Page,
+		Limit:                reqParams.Limit,
+		SortBy:               reqParams.SortBy,
+		SortOrder:            reqParams.SortOrder,
+	}
+
+	// Fetch Auth Clients
+	result, err := h.authClientService.Get(authClientFilter)
+	if err != nil {
+		util.Error(w, http.StatusInternalServerError, "Failed to fetch auth clients", err.Error())
+		return
+	}
+
+	// Map auth client result to DTO
+	rows := make([]dto.AuthClientResponseDto, len(result.Data))
+	for i, r := range result.Data {
+		rows[i] = toAuthClientResponseDto(r)
+	}
+
+	// Build response data
+	response := dto.PaginatedResponseDto[dto.AuthClientResponseDto]{
+		Rows:       rows,
+		Total:      result.Total,
+		Page:       result.Page,
+		Limit:      result.Limit,
+		TotalPages: result.TotalPages,
+	}
+
+	util.Success(w, response, "Auth containers fetched successfully")
+}
+
+// Get Auth client by UUID
+func (h *AuthClientHandler) GetByUUID(w http.ResponseWriter, r *http.Request) {
+	authClientUUID, err := uuid.Parse(chi.URLParam(r, "auth_client_uuid"))
+	if err != nil {
+		util.Error(w, http.StatusBadRequest, "Invalid Auth client UUID")
+		return
+	}
+
+	authClient, err := h.authClientService.GetByUUID(authClientUUID)
+	if err != nil {
+		util.Error(w, http.StatusNotFound, "Auth client not found")
+		return
+	}
+
+	dtoRes := toAuthClientResponseDto(*authClient)
+
+	util.Success(w, dtoRes, "Auth client fetched successfully")
+}
+
+// Create Auth Client
+func (h *AuthClientHandler) Create(w http.ResponseWriter, r *http.Request) {
+	var req dto.AuthClientCreateRequestDto
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		util.Error(w, http.StatusBadRequest, "Invalid request", err.Error())
+		return
+	}
+
+	if err := req.Validate(); err != nil {
+		util.ValidationError(w, err)
+		return
+	}
+
+	authClient, err := h.authClientService.Create(req.Name, req.DisplayName, req.ClientType, req.Domain, req.RedirectURI, req.Config, req.IsActive, false, req.IdentityProviderUUID)
+	if err != nil {
+		util.Error(w, http.StatusInternalServerError, "Failed to create auth client", err.Error())
+		return
+	}
+
+	dtoRes := toAuthClientResponseDto(*authClient)
+
+	util.Created(w, dtoRes, "Auth client created successfully")
+}
+
+// Update Auth Client
+func (h *AuthClientHandler) Update(w http.ResponseWriter, r *http.Request) {
+	authClientUUID, err := uuid.Parse(chi.URLParam(r, "auth_client_uuid"))
+	if err != nil {
+		util.Error(w, http.StatusBadRequest, "Invalid auth client UUID")
+		return
+	}
+
+	var req dto.AuthClientUpdateRequestDto
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		util.Error(w, http.StatusBadRequest, "Invalid request", err.Error())
+		return
+	}
+
+	if err := req.Validate(); err != nil {
+		util.ValidationError(w, err)
+		return
+	}
+
+	authClient, err := h.authClientService.Update(authClientUUID, req.Name, req.DisplayName, req.ClientType, req.Domain, req.RedirectURI, req.Config, req.IsActive, false)
+	if err != nil {
+		util.Error(w, http.StatusInternalServerError, "Failed to update auth client", err.Error())
+		return
+	}
+
+	dtoRes := toAuthClientResponseDto(*authClient)
+
+	util.Success(w, dtoRes, "Auth client updated successfully")
+}
+
+// Set Auth client status
+func (h *AuthClientHandler) SetStatus(w http.ResponseWriter, r *http.Request) {
+	authClientUUID, err := uuid.Parse(chi.URLParam(r, "auth_client_uuid"))
+	if err != nil {
+		util.Error(w, http.StatusBadRequest, "Invalid auth client UUID")
+		return
+	}
+
+	authClient, err := h.authClientService.SetActiveStatusByUUID(authClientUUID)
+	if err != nil {
+		util.Error(w, http.StatusInternalServerError, "Failed to update API", err.Error())
+		return
+	}
+
+	dtoRes := toAuthClientResponseDto(*authClient)
+
+	util.Success(w, dtoRes, "Auth client status updated successfully")
+}
+
+// Delete Auth Client
+func (h *AuthClientHandler) Delete(w http.ResponseWriter, r *http.Request) {
+	authClientUUID, err := uuid.Parse(chi.URLParam(r, "auth_client_uuid"))
+	if err != nil {
+		util.Error(w, http.StatusBadRequest, "Invalid Auth Client UUID")
+		return
+	}
+
+	authClient, err := h.authClientService.DeleteByUUID(authClientUUID)
+	if err != nil {
+		util.Error(w, http.StatusInternalServerError, "Failed to delete auth client", err.Error())
+		return
+	}
+
+	dtoRes := toAuthClientResponseDto(*authClient)
+
+	util.Success(w, dtoRes, "Auth client deleted successfully")
+}
+
+// Convert result to DTO
+func toAuthClientResponseDto(r service.AuthClientServiceDataResult) dto.AuthClientResponseDto {
+	result := dto.AuthClientResponseDto{
+		AuthClientUUID: r.AuthClientUUID,
+		Name:           r.Name,
+		DisplayName:    r.DisplayName,
+		ClientType:     r.ClientType,
+		Domain:         r.Domain,
+		RedirectURI:    r.RedirectURI,
+		IsActive:       r.IsActive,
+		IsDefault:      r.IsDefault,
+		CreatedAt:      r.CreatedAt,
+		UpdatedAt:      r.UpdatedAt,
+	}
+
+	if r.IdentityProvider != nil {
+		result.IdentityProvider = &dto.IdentityProviderResponseDto{
+			IdentityProviderUUID: r.IdentityProvider.IdentityProviderUUID,
+			Name:                 r.IdentityProvider.Name,
+			DisplayName:          r.IdentityProvider.DisplayName,
+			ProviderType:         r.IdentityProvider.ProviderType,
+			Identifier:           r.IdentityProvider.Identifier,
+			IsActive:             r.IdentityProvider.IsActive,
+			IsDefault:            r.IdentityProvider.IsDefault,
+			CreatedAt:            r.IdentityProvider.CreatedAt,
+			UpdatedAt:            r.IdentityProvider.UpdatedAt,
+		}
+	}
+
+	return result
+}

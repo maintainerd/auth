@@ -19,7 +19,7 @@ type IdentityProviderServiceDataResult struct {
 	DisplayName          string
 	ProviderType         string
 	Identifier           string
-	Config               datatypes.JSON
+	Config               *datatypes.JSON
 	AuthContainer        *AuthContainerServiceDataResult
 	IsActive             bool
 	IsDefault            bool
@@ -318,7 +318,7 @@ func toIdpServiceDataResult(idp *model.IdentityProvider) *IdentityProviderServic
 		DisplayName:          idp.DisplayName,
 		ProviderType:         idp.ProviderType,
 		Identifier:           idp.Identifier,
-		Config:               idp.Config,
+		Config:               &idp.Config,
 		IsActive:             idp.IsActive,
 		IsDefault:            idp.IsDefault,
 		CreatedAt:            idp.CreatedAt,
