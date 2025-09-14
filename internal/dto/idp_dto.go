@@ -15,7 +15,7 @@ type IdentityProviderResponseDto struct {
 	DisplayName          string                    `json:"display_name"`
 	ProviderType         string                    `json:"provider_type"`
 	Identifier           string                    `json:"identifier"`
-	Config               datatypes.JSON            `json:"config"`
+	Config               *datatypes.JSON           `json:"config,omitempty"`
 	AuthContainer        *AuthContainerResponseDto `json:"auth_container,omitempty"`
 	IsActive             bool                      `json:"is_active"`
 	IsDefault            bool                      `json:"is_default"`
