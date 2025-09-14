@@ -17,7 +17,6 @@ type AuthClient struct {
 	Domain             *string        `gorm:"column:domain"`
 	ClientID           *string        `gorm:"column:client_id"`
 	ClientSecret       *string        `gorm:"column:client_secret"`
-	RedirectURI        *string        `gorm:"column:redirect_uri"`
 	Config             datatypes.JSON `gorm:"column:config"`
 	IsActive           bool           `gorm:"column:is_active;default:false"`
 	IsDefault          bool           `gorm:"column:is_default;default:false"`
@@ -26,7 +25,8 @@ type AuthClient struct {
 	UpdatedAt          time.Time      `gorm:"column:updated_at;autoUpdateTime"`
 
 	// Relationships
-	IdentityProvider *IdentityProvider `gorm:"foreignKey:IdentityProviderID;references:IdentityProviderID"`
+	IdentityProvider       *IdentityProvider        `gorm:"foreignKey:IdentityProviderID;references:IdentityProviderID"`
+	AuthClientRedirectURIs *[]AuthClientRedirectURI `gorm:"foreignKey:AuthClientID;references:AuthClientID"`
 }
 
 func (AuthClient) TableName() string {

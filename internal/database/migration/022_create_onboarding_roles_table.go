@@ -43,8 +43,8 @@ CREATE INDEX IF NOT EXISTS idx_onboarding_roles_onboarding_id ON onboarding_role
 CREATE INDEX IF NOT EXISTS idx_onboarding_roles_role_id ON onboarding_roles (role_id);
 `
 	if err := db.Exec(sql).Error; err != nil {
-		log.Fatalf("❌ Failed to run migration 021_create_onboarding_roles_table: %v", err)
+		log.Fatalf("❌ Failed to run migration 022_create_onboarding_roles_table: %v", err)
 	}
 
-	log.Println("✅ Migration 021_create_onboarding_roles_table executed")
+	log.Println("✅ Migration 022_create_onboarding_roles_table executed")
 }

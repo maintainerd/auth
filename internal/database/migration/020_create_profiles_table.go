@@ -51,8 +51,8 @@ CREATE INDEX IF NOT EXISTS idx_profiles_email ON profiles (email);
 CREATE INDEX IF NOT EXISTS idx_profiles_created_at ON profiles (created_at);
 `
 	if err := db.Exec(sql).Error; err != nil {
-		log.Fatalf("❌ Failed to run migration 019_create_profiles_table: %v", err)
+		log.Fatalf("❌ Failed to run migration 020_create_profiles_table: %v", err)
 	}
 
-	log.Println("✅ Migration 019_create_profiles_table executed")
+	log.Println("✅ Migration 020_create_profiles_table executed")
 }

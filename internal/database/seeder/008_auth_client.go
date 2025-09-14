@@ -12,9 +12,8 @@ import (
 	"gorm.io/gorm"
 )
 
-func SeedAuthClients(db *gorm.DB, identityProviderID int64, authContainerID int64) {
+func SeedAuthClients(db *gorm.DB, identityProviderID int64) {
 	appHostName := os.Getenv("APP_PRIVATE_HOSTNAME")
-	accountHostName := os.Getenv("ACCOUNT_HOSTNAME")
 
 	clients := []model.AuthClient{
 		{
@@ -25,7 +24,6 @@ func SeedAuthClients(db *gorm.DB, identityProviderID int64, authContainerID int6
 			Domain:         strPtr(appHostName),
 			ClientID:       strPtr(util.GenerateIdentifier(32)),
 			ClientSecret:   strPtr(util.GenerateIdentifier(64)),
-			RedirectURI:    strPtr(accountHostName + "/callback"),
 			Config: datatypes.JSON([]byte(`{
 				"grant_types": ["authorization_code"],
 				"response_type": "code",
@@ -45,7 +43,6 @@ func SeedAuthClients(db *gorm.DB, identityProviderID int64, authContainerID int6
 			Domain:         strPtr(appHostName),
 			ClientID:       strPtr(util.GenerateIdentifier(32)),
 			ClientSecret:   nil,
-			RedirectURI:    strPtr(accountHostName + "/callback"),
 			Config: datatypes.JSON([]byte(`{
 				"grant_types": ["authorization_code"],
 				"response_type": "code",
@@ -65,7 +62,6 @@ func SeedAuthClients(db *gorm.DB, identityProviderID int64, authContainerID int6
 			Domain:         strPtr(appHostName),
 			ClientID:       strPtr(util.GenerateIdentifier(32)),
 			ClientSecret:   nil,
-			RedirectURI:    strPtr(accountHostName + "://callback"),
 			Config: datatypes.JSON([]byte(`{
 				"grant_types": ["authorization_code"],
 				"response_type": "code",
@@ -85,7 +81,6 @@ func SeedAuthClients(db *gorm.DB, identityProviderID int64, authContainerID int6
 			Domain:         strPtr(appHostName),
 			ClientID:       strPtr(util.GenerateIdentifier(32)),
 			ClientSecret:   strPtr(util.GenerateIdentifier(64)),
-			RedirectURI:    nil,
 			Config: datatypes.JSON([]byte(`{
 				"grant_types": ["client_credentials"]
 			}`)),
@@ -100,19 +95,31 @@ func SeedAuthClients(db *gorm.DB, identityProviderID int64, authContainerID int6
 	for _, client := range clients {
 		var existing model.AuthClient
 		err := db.
-			Where("name = ? AND auth_container_id = ?", client.Name, authContainerID).
+			Where("name = ? AND identity_provider_id = ?", client.Name, identityProviderID).
 			First(&existing).Error
 
 		if err == nil {
-			log.Printf("⚠️ Auth client '%s' already exists, skipping", client.Name)
+			// Update existing client
+			client.AuthClientID = existing.AuthClientID
+			if err := db.Save(&client).Error; err != nil {
+				log.Printf("❌ Failed to update auth client '%s': %v", client.Name, err)
+			} else {
+				log.Printf("🔄 Auth client '%s' updated", client.Name)
+			}
 			continue
 		}
 
-		if err := db.Create(&client).Error; err != nil {
-			log.Printf("❌ Failed to seed auth client '%s': %v", client.Name, err)
+		if err == gorm.ErrRecordNotFound {
+			// Create new client
+			if err := db.Create(&client).Error; err != nil {
+				log.Printf("❌ Failed to create auth client '%s': %v", client.Name, err)
+				continue
+			}
+			log.Printf("✅ Auth client '%s' created", client.Name)
 			continue
 		}
 
-		log.Printf("✅ Auth client '%s' seeded successfully", client.Name)
+		// Unexpected error
+		log.Printf("❌ Failed lookup for auth client '%s': %v", client.Name, err)
 	}
 }

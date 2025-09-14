@@ -50,8 +50,8 @@ CREATE INDEX IF NOT EXISTS idx_user_identities_provider ON user_identities (prov
 CREATE INDEX IF NOT EXISTS idx_user_identities_created_at ON user_identities (created_at);
 `
 	if err := db.Exec(sql).Error; err != nil {
-		log.Fatalf("❌ Failed to run migration 016_create_user_identities_table: %v", err)
+		log.Fatalf("❌ Failed to run migration 017_create_user_identities_table: %v", err)
 	}
 
-	log.Println("✅ Migration 016_create_user_identities_table executed")
+	log.Println("✅ Migration 017_create_user_identities_table executed")
 }
