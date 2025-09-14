@@ -42,8 +42,8 @@ CREATE INDEX IF NOT EXISTS idx_onboarding_auth_client_id ON onboardings (auth_cl
 CREATE INDEX IF NOT EXISTS idx_onboarding_created_at ON onboardings (created_at);
 `
 	if err := db.Exec(sql).Error; err != nil {
-		log.Fatalf("❌ Failed to run migration 020_create_onboardings_table: %v", err)
+		log.Fatalf("❌ Failed to run migration 021_create_onboardings_table: %v", err)
 	}
 
-	log.Println("✅ Migration 020_create_onboardings_table executed")
+	log.Println("✅ Migration 021_create_onboardings_table executed")
 }

@@ -144,6 +144,9 @@ func SeedPermissions(db *gorm.DB, apiID int64) {
 		newPermission("auth_client:create", "Create auth client", apiID),
 		newPermission("auth_client:update", "Update auth client", apiID),
 		newPermission("auth_client:delete", "Delete auth client", apiID),
+		newPermission("auth_client:redirect_uri:create", "Create auth client redirect URI", apiID),
+		newPermission("auth_client:redirect_uri:update", "Update auth client redirect URI", apiID),
+		newPermission("auth_client:redirect_uri:delete", "Delete auth client redirect URI", apiID),
 
 		// User Administration
 		newPermission("user:read", "Read users", apiID),

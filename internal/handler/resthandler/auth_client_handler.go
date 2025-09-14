@@ -123,6 +123,49 @@ func (h *AuthClientHandler) GetByUUID(w http.ResponseWriter, r *http.Request) {
 	util.Success(w, dtoRes, "Auth client fetched successfully")
 }
 
+// Get Auth client secret by UUID
+func (h *AuthClientHandler) GetSecretByUUID(w http.ResponseWriter, r *http.Request) {
+	authClientUUID, err := uuid.Parse(chi.URLParam(r, "auth_client_uuid"))
+	if err != nil {
+		util.Error(w, http.StatusBadRequest, "Invalid Auth client UUID")
+		return
+	}
+
+	authClient, err := h.authClientService.GetSecretByUUID(authClientUUID)
+	if err != nil {
+		util.Error(w, http.StatusNotFound, "Auth client not found")
+		return
+	}
+
+	dtoRes := dto.AuthClientSecretResponseDto{
+		ClientID:     authClient.ClientID,
+		ClientSecret: authClient.ClientSecret,
+	}
+
+	util.Success(w, dtoRes, "Auth client secret fetched successfully")
+}
+
+// Get Auth client config by UUID
+func (h *AuthClientHandler) GetConfigByUUID(w http.ResponseWriter, r *http.Request) {
+	authClientUUID, err := uuid.Parse(chi.URLParam(r, "auth_client_uuid"))
+	if err != nil {
+		util.Error(w, http.StatusBadRequest, "Invalid Auth client UUID")
+		return
+	}
+
+	authClient, err := h.authClientService.GetConfigByUUID(authClientUUID)
+	if err != nil {
+		util.Error(w, http.StatusNotFound, "Auth client not found")
+		return
+	}
+
+	dtoRes := dto.AuthClientConfigResponseDto{
+		Config: authClient.Config,
+	}
+
+	util.Success(w, dtoRes, "Auth client config fetched successfully")
+}
+
 // Create Auth Client
 func (h *AuthClientHandler) Create(w http.ResponseWriter, r *http.Request) {
 	var req dto.AuthClientCreateRequestDto
@@ -136,7 +179,7 @@ func (h *AuthClientHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	authClient, err := h.authClientService.Create(req.Name, req.DisplayName, req.ClientType, req.Domain, req.RedirectURI, req.Config, req.IsActive, false, req.IdentityProviderUUID)
+	authClient, err := h.authClientService.Create(req.Name, req.DisplayName, req.ClientType, req.Domain, req.Config, req.IsActive, false, req.IdentityProviderUUID)
 	if err != nil {
 		util.Error(w, http.StatusInternalServerError, "Failed to create auth client", err.Error())
 		return
@@ -166,7 +209,7 @@ func (h *AuthClientHandler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	authClient, err := h.authClientService.Update(authClientUUID, req.Name, req.DisplayName, req.ClientType, req.Domain, req.RedirectURI, req.Config, req.IsActive, false)
+	authClient, err := h.authClientService.Update(authClientUUID, req.Name, req.DisplayName, req.ClientType, req.Domain, req.Config, req.IsActive, false)
 	if err != nil {
 		util.Error(w, http.StatusInternalServerError, "Failed to update auth client", err.Error())
 		return
@@ -215,6 +258,94 @@ func (h *AuthClientHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	util.Success(w, dtoRes, "Auth client deleted successfully")
 }
 
+func (h *AuthClientHandler) CreateRedirectURI(w http.ResponseWriter, r *http.Request) {
+	authClientUUID, err := uuid.Parse(chi.URLParam(r, "auth_client_uuid"))
+	if err != nil {
+		util.Error(w, http.StatusBadRequest, "Invalid auth client UUID")
+		return
+	}
+
+	var req dto.AuthClientRedirectURICreateOrUpdateRequestDto
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		util.Error(w, http.StatusBadRequest, "Invalid request", err.Error())
+		return
+	}
+
+	if err := req.Validate(); err != nil {
+		util.ValidationError(w, err)
+		return
+	}
+
+	redirectURI, err := h.authClientService.CreateRedirectURI(authClientUUID, req.RedirectURI)
+	if err != nil {
+		util.Error(w, http.StatusInternalServerError, "Failed to create redirect URI", err.Error())
+		return
+	}
+
+	dtoRes := toAuthClientResponseDto(*redirectURI)
+
+	util.Created(w, dtoRes, "Redirect URI created successfully")
+}
+
+func (h *AuthClientHandler) UpdateRedirectURI(w http.ResponseWriter, r *http.Request) {
+	authClientUUID, err := uuid.Parse(chi.URLParam(r, "auth_client_uuid"))
+	if err != nil {
+		util.Error(w, http.StatusBadRequest, "Invalid auth client UUID")
+		return
+	}
+
+	authClientRedirectURIUUID, err := uuid.Parse(chi.URLParam(r, "auth_client_redirect_uri_uuid"))
+	if err != nil {
+		util.Error(w, http.StatusBadRequest, "Invalid auth client redirect URI UUID")
+		return
+	}
+
+	var req dto.AuthClientRedirectURICreateOrUpdateRequestDto
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		util.Error(w, http.StatusBadRequest, "Invalid request", err.Error())
+		return
+	}
+
+	if err := req.Validate(); err != nil {
+		util.ValidationError(w, err)
+		return
+	}
+
+	redirectURI, err := h.authClientService.UpdateRedirectURI(authClientUUID, authClientRedirectURIUUID, req.RedirectURI)
+	if err != nil {
+		util.Error(w, http.StatusInternalServerError, "Failed to update redirect URI", err.Error())
+		return
+	}
+
+	dtoRes := toAuthClientResponseDto(*redirectURI)
+
+	util.Success(w, dtoRes, "Redirect URI updated successfully")
+}
+
+func (h *AuthClientHandler) DeleteRedirectURI(w http.ResponseWriter, r *http.Request) {
+	authClientUUID, err := uuid.Parse(chi.URLParam(r, "auth_client_uuid"))
+	if err != nil {
+		util.Error(w, http.StatusBadRequest, "Invalid auth client UUID")
+		return
+	}
+
+	authClientRedirectURIUUID, err := uuid.Parse(chi.URLParam(r, "auth_client_redirect_uri_uuid"))
+	if err != nil {
+		util.Error(w, http.StatusBadRequest, "Invalid auth client redirect URI UUID")
+		return
+	}
+
+	authClient, err := h.authClientService.DeleteRedirectURI(authClientUUID, authClientRedirectURIUUID)
+	if err != nil {
+		util.Error(w, http.StatusInternalServerError, "Failed to delete redirect URI", err.Error())
+		return
+	}
+
+	dtoRes := toAuthClientResponseDto(*authClient)
+
+	util.Success(w, dtoRes, "Redirect URI deleted successfully")
+}
+
 // Convert result to DTO
 func toAuthClientResponseDto(r service.AuthClientServiceDataResult) dto.AuthClientResponseDto {
 	result := dto.AuthClientResponseDto{
@@ -223,7 +354,6 @@ func toAuthClientResponseDto(r service.AuthClientServiceDataResult) dto.AuthClie
 		DisplayName:    r.DisplayName,
 		ClientType:     r.ClientType,
 		Domain:         r.Domain,
-		RedirectURI:    r.RedirectURI,
 		IsActive:       r.IsActive,
 		IsDefault:      r.IsDefault,
 		CreatedAt:      r.CreatedAt,
@@ -241,6 +371,18 @@ func toAuthClientResponseDto(r service.AuthClientServiceDataResult) dto.AuthClie
 			IsDefault:            r.IdentityProvider.IsDefault,
 			CreatedAt:            r.IdentityProvider.CreatedAt,
 			UpdatedAt:            r.IdentityProvider.UpdatedAt,
+		}
+	}
+
+	if r.AuthClientRedirectURIs != nil && len(*r.AuthClientRedirectURIs) > 0 {
+		result.RedirectURIs = make([]dto.AuthClientRedirectURIResponseDto, len(*r.AuthClientRedirectURIs))
+		for i, uri := range *r.AuthClientRedirectURIs {
+			result.RedirectURIs[i] = dto.AuthClientRedirectURIResponseDto{
+				AuthClientRedirectURIUUID: uri.AuthClientRedirectURIUUID,
+				RedirectURI:               uri.RedirectURI,
+				CreatedAt:                 uri.CreatedAt,
+				UpdatedAt:                 uri.UpdatedAt,
+			}
 		}
 	}
 

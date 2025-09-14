@@ -44,8 +44,8 @@ CREATE INDEX IF NOT EXISTS idx_auth_client_permissions_permission_id ON auth_cli
 `
 
 	if err := db.Exec(sql).Error; err != nil {
-		log.Fatalf("❌ Failed to run migration 012_create_auth_client_permissions_table: %v", err)
+		log.Fatalf("❌ Failed to run migration 013_create_auth_client_permissions_table: %v", err)
 	}
 
-	log.Println("✅ Migration 012_create_auth_client_permissions_table executed")
+	log.Println("✅ Migration 013_create_auth_client_permissions_table executed")
 }
