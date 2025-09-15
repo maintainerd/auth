@@ -36,7 +36,7 @@ func SeedIdentityProviders(db *gorm.DB, authContainerID int64) (*model.IdentityP
 		Name:                 "default",
 		DisplayName:          "Default",
 		ProviderType:         "default",
-		Identifier:           fmt.Sprintf("auth-api-%s", util.GenerateIdentifier(12)),
+		Identifier:           fmt.Sprintf("auth-idp-%s", util.GenerateIdentifier(12)),
 		Config:               datatypes.JSON([]byte(`{}`)),
 		IsActive:             true,
 		IsDefault:            true,

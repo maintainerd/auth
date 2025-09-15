@@ -141,7 +141,12 @@ func (r *authClientRepository) FindPaginated(filter AuthClientRepositoryGetFilte
 	// Pagination
 	offset := (filter.Page - 1) * filter.Limit
 	var clients []model.AuthClient
-	if err := query.Preload("IdentityProvider").Limit(filter.Limit).Offset(offset).Find(&clients).Error; err != nil {
+	if err := query.
+		Preload("IdentityProvider").
+		Preload("AuthClientRedirectURIs").
+		Limit(filter.Limit).
+		Offset(offset).
+		Find(&clients).Error; err != nil {
 		return nil, err
 	}
 

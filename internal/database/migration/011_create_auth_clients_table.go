@@ -18,7 +18,6 @@ CREATE TABLE IF NOT EXISTS auth_clients (
     domain                  TEXT,
     client_id               TEXT,
     client_secret           TEXT,
-    redirect_uri            TEXT,
     config                  JSONB,
 		identity_provider_id    INTEGER NOT NULL,
     is_active               BOOLEAN DEFAULT FALSE,

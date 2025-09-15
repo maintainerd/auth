@@ -47,8 +47,8 @@ CREATE INDEX IF NOT EXISTS idx_users_auth_container_id ON users (auth_container_
 CREATE INDEX IF NOT EXISTS idx_users_created_at ON users (created_at);
 `
 	if err := db.Exec(sql).Error; err != nil {
-		log.Fatalf("❌ Failed to run migration 015_create_users_table: %v", err)
+		log.Fatalf("❌ Failed to run migration 016_create_users_table: %v", err)
 	}
 
-	log.Println("✅ Migration 015_create_users_table executed")
+	log.Println("✅ Migration 016_create_users_table executed")
 }

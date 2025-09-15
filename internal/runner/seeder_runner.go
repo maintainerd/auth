@@ -50,7 +50,10 @@ func RunSeeders(db *gorm.DB, appVersion string) {
 	}
 
 	// Seed auth clients
-	seeder.SeedAuthClients(db, identityProvider.IdentityProviderID, authContainer.AuthContainerID)
+	seeder.SeedAuthClients(db, identityProvider.IdentityProviderID)
+
+	// Seed auth client redirect URIs
+	seeder.SeedAuthClientRedirectURIs(db, identityProvider.IdentityProviderID)
 
 	// Seed roles
 	roles, err := seeder.SeedRoles(db, authContainer.AuthContainerID)
