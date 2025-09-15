@@ -43,8 +43,8 @@ CREATE INDEX IF NOT EXISTS idx_roles_auth_container_id ON roles (auth_container_
 CREATE INDEX IF NOT EXISTS idx_roles_created_at ON roles (created_at);
 `
 	if err := db.Exec(sql).Error; err != nil {
-		log.Fatalf("❌ Failed to run migration 013_create_roles_table: %v", err)
+		log.Fatalf("❌ Failed to run migration 014_create_roles_table: %v", err)
 	}
 
-	log.Println("✅ Migration 013_create_roles_table executed")
+	log.Println("✅ Migration 014_create_roles_table executed")
 }

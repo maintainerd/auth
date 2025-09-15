@@ -17,6 +17,7 @@ func RunMigrations(db *gorm.DB) {
 	migration.CreateAuthContainerTable(db)
 	migration.CreateIdentityProviderTable(db)
 	migration.CreateAuthClientTable(db)
+	migration.CreateAuthClientRedirectUrisTable(db)
 	migration.CreateAuthClientPermissionTable(db)
 	migration.CreateRoleTable(db)
 	migration.CreateRolePermissionTable(db)

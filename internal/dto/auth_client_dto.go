@@ -8,19 +8,35 @@ import (
 	"gorm.io/datatypes"
 )
 
+type AuthClientSecretResponseDto struct {
+	ClientID     string  `json:"client_id"`
+	ClientSecret *string `json:"client_secret"`
+}
+
+type AuthClientConfigResponseDto struct {
+	Config datatypes.JSON `json:"config"`
+}
+
+type AuthClientRedirectURIResponseDto struct {
+	AuthClientRedirectURIUUID uuid.UUID `json:"redirect_uri_uuid"`
+	RedirectURI               string    `json:"redirect_uri"`
+	CreatedAt                 time.Time `json:"created_at"`
+	UpdatedAt                 time.Time `json:"updated_at"`
+}
+
 // Auth client output structure
 type AuthClientResponseDto struct {
-	AuthClientUUID   uuid.UUID                    `json:"auth_client_uuid"`
-	Name             string                       `json:"name"`
-	DisplayName      string                       `json:"display_name"`
-	ClientType       string                       `json:"client_type"`
-	Domain           *string                      `json:"domain,omitempty"`
-	RedirectURI      *string                      `json:"redirect_uri,omitempty"`
-	IdentityProvider *IdentityProviderResponseDto `json:"identity_provider,omitempty"`
-	IsActive         bool                         `json:"is_active"`
-	IsDefault        bool                         `json:"is_default"`
-	CreatedAt        time.Time                    `json:"created_at"`
-	UpdatedAt        time.Time                    `json:"updated_at"`
+	AuthClientUUID   uuid.UUID                          `json:"auth_client_uuid"`
+	Name             string                             `json:"name"`
+	DisplayName      string                             `json:"display_name"`
+	ClientType       string                             `json:"client_type"`
+	Domain           *string                            `json:"domain,omitempty"`
+	RedirectURIs     []AuthClientRedirectURIResponseDto `json:"redirect_uris,omitempty"`
+	IdentityProvider *IdentityProviderResponseDto       `json:"identity_provider,omitempty"`
+	IsActive         bool                               `json:"is_active"`
+	IsDefault        bool                               `json:"is_default"`
+	CreatedAt        time.Time                          `json:"created_at"`
+	UpdatedAt        time.Time                          `json:"updated_at"`
 }
 
 // Create auth client request DTO
@@ -29,7 +45,6 @@ type AuthClientCreateRequestDto struct {
 	DisplayName          string         `json:"display_name"`
 	ClientType           string         `json:"client_type"`
 	Domain               string         `json:"domain"`
-	RedirectURI          string         `json:"redirect_uri"`
 	Config               datatypes.JSON `json:"config"`
 	IsActive             bool           `json:"is_active"`
 	IdentityProviderUUID string         `json:"identity_provider_uuid"`
@@ -53,10 +68,6 @@ func (r AuthClientCreateRequestDto) Validate() error {
 			validation.Required.Error("Domain is required"),
 			validation.Length(3, 100).Error("Domain must be between 3 and 100 characters"),
 		),
-		validation.Field(&r.RedirectURI,
-			validation.Required.Error("Redirect URI is required"),
-			validation.Length(3, 200).Error("Redirect URI must be between 3 and 200 characters"),
-		),
 		validation.Field(&r.Config,
 			validation.Required.Error("Config is required"),
 		),
@@ -75,7 +86,6 @@ type AuthClientUpdateRequestDto struct {
 	DisplayName string         `json:"display_name"`
 	ClientType  string         `json:"client_type"`
 	Domain      string         `json:"domain"`
-	RedirectURI string         `json:"redirect_uri"`
 	Config      datatypes.JSON `json:"config"`
 	IsActive    bool           `json:"is_active"`
 }
@@ -98,15 +108,26 @@ func (r AuthClientUpdateRequestDto) Validate() error {
 			validation.Required.Error("Domain is required"),
 			validation.Length(3, 100).Error("Domain must be between 3 and 100 characters"),
 		),
-		validation.Field(&r.RedirectURI,
-			validation.Required.Error("Redirect URI is required"),
-			validation.Length(3, 200).Error("Redirect URI must be between 3 and 200 characters"),
-		),
 		validation.Field(&r.Config,
 			validation.Required.Error("Config is required"),
 		),
 		validation.Field(&r.IsActive,
 			validation.In(true, false).Error("Is active is required"),
+		),
+	)
+}
+
+// Create or update auth client redirect uri request DTO
+type AuthClientRedirectURICreateOrUpdateRequestDto struct {
+	RedirectURI string `json:"redirect_uri"`
+}
+
+// Validation
+func (r AuthClientRedirectURICreateOrUpdateRequestDto) Validate() error {
+	return validation.ValidateStruct(&r,
+		validation.Field(&r.RedirectURI,
+			validation.Required.Error("Redirect URI is required"),
+			validation.Length(5, 200).Error("Redirect URI must be between 5 and 200 characters"),
 		),
 	)
 }
