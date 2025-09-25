@@ -14,6 +14,7 @@ type RoleServiceDataResult struct {
 	RoleUUID    uuid.UUID
 	Name        string
 	Description string
+	Permissions *[]PermissionServiceDataResult
 	IsDefault   bool
 	IsActive    bool
 	CreatedAt   time.Time
@@ -47,20 +48,28 @@ type RoleService interface {
 	Update(roleUUID uuid.UUID, name string, description string, IsDefault bool, IsActive bool, authContainerId int64) (*RoleServiceDataResult, error)
 	SetActiveStatusByUUID(roleUUID uuid.UUID) (*RoleServiceDataResult, error)
 	DeleteByUUID(roleUUID uuid.UUID) (*RoleServiceDataResult, error)
+	AddRolePermissions(roleUUID uuid.UUID, permissionUUIDs []uuid.UUID) (*RoleServiceDataResult, error)
+	RemoveRolePermissions(roleUUID uuid.UUID, permissionUUIDs []uuid.UUID) (*RoleServiceDataResult, error)
 }
 
 type roleService struct {
-	db       *gorm.DB
-	roleRepo repository.RoleRepository
+	db                 *gorm.DB
+	roleRepo           repository.RoleRepository
+	permissionRepo     repository.PermissionRepository
+	rolePermissionRepo repository.RolePermissionRepository
 }
 
 func NewRoleService(
 	db *gorm.DB,
 	roleRepo repository.RoleRepository,
+	permissionRepo repository.PermissionRepository,
+	rolePermissionRepo repository.RolePermissionRepository,
 ) RoleService {
 	return &roleService{
-		db:       db,
-		roleRepo: roleRepo,
+		db:                 db,
+		roleRepo:           roleRepo,
+		permissionRepo:     permissionRepo,
+		rolePermissionRepo: rolePermissionRepo,
 	}
 }
 
@@ -85,15 +94,7 @@ func (s *roleService) Get(filter RoleServiceGetFilter) (*RoleServiceGetResult, e
 
 	roles := make([]RoleServiceDataResult, len(result.Data))
 	for i, r := range result.Data {
-		roles[i] = RoleServiceDataResult{
-			RoleUUID:    r.RoleUUID,
-			Name:        r.Name,
-			Description: r.Description,
-			IsDefault:   r.IsDefault,
-			IsActive:    r.IsActive,
-			CreatedAt:   r.CreatedAt,
-			UpdatedAt:   r.UpdatedAt,
-		}
+		roles[i] = *toRoleServiceDataResult(&r)
 	}
 
 	return &RoleServiceGetResult{
@@ -114,15 +115,7 @@ func (s *roleService) GetByUUID(roleUUID uuid.UUID) (*RoleServiceDataResult, err
 		return nil, errors.New("role not found")
 	}
 
-	return &RoleServiceDataResult{
-		RoleUUID:    role.RoleUUID,
-		Name:        role.Name,
-		Description: role.Description,
-		IsDefault:   role.IsDefault,
-		IsActive:    role.IsActive,
-		CreatedAt:   role.CreatedAt,
-		UpdatedAt:   role.UpdatedAt,
-	}, nil
+	return toRoleServiceDataResult(role), nil
 }
 
 func (s *roleService) Create(name string, description string, isDefault bool, isActive bool, authContainerId int64) (*RoleServiceDataResult, error) {
@@ -164,15 +157,7 @@ func (s *roleService) Create(name string, description string, isDefault bool, is
 		return nil, err
 	}
 
-	return &RoleServiceDataResult{
-		RoleUUID:    createdRole.RoleUUID,
-		Name:        createdRole.Name,
-		Description: createdRole.Description,
-		IsDefault:   createdRole.IsDefault,
-		IsActive:    createdRole.IsActive,
-		CreatedAt:   createdRole.CreatedAt,
-		UpdatedAt:   createdRole.UpdatedAt,
-	}, nil
+	return toRoleServiceDataResult(createdRole), nil
 }
 
 func (s *roleService) Update(roleUUID uuid.UUID, name string, description string, isDefault bool, isActive bool, authContainerId int64) (*RoleServiceDataResult, error) {
@@ -227,15 +212,7 @@ func (s *roleService) Update(roleUUID uuid.UUID, name string, description string
 		return nil, err
 	}
 
-	return &RoleServiceDataResult{
-		RoleUUID:    updatedRole.RoleUUID,
-		Name:        updatedRole.Name,
-		Description: updatedRole.Description,
-		IsDefault:   updatedRole.IsDefault,
-		IsActive:    updatedRole.IsActive,
-		CreatedAt:   updatedRole.CreatedAt,
-		UpdatedAt:   updatedRole.UpdatedAt,
-	}, nil
+	return toRoleServiceDataResult(updatedRole), nil
 }
 
 func (s *roleService) SetActiveStatusByUUID(roleUUID uuid.UUID) (*RoleServiceDataResult, error) {
@@ -276,15 +253,7 @@ func (s *roleService) SetActiveStatusByUUID(roleUUID uuid.UUID) (*RoleServiceDat
 		return nil, err
 	}
 
-	return &RoleServiceDataResult{
-		RoleUUID:    updatedRole.RoleUUID,
-		Name:        updatedRole.Name,
-		Description: updatedRole.Description,
-		IsDefault:   updatedRole.IsDefault,
-		IsActive:    updatedRole.IsActive,
-		CreatedAt:   updatedRole.CreatedAt,
-		UpdatedAt:   updatedRole.UpdatedAt,
-	}, nil
+	return toRoleServiceDataResult(updatedRole), nil
 }
 
 func (s *roleService) DeleteByUUID(roleUUID uuid.UUID) (*RoleServiceDataResult, error) {
@@ -308,7 +277,173 @@ func (s *roleService) DeleteByUUID(roleUUID uuid.UUID) (*RoleServiceDataResult, 
 		return nil, err
 	}
 
-	return &RoleServiceDataResult{
+	return toRoleServiceDataResult(role), nil
+}
+
+func (s *roleService) AddRolePermissions(roleUUID uuid.UUID, permissionUUIDs []uuid.UUID) (*RoleServiceDataResult, error) {
+	var roleWithPermissions *model.Role
+
+	// Transaction
+	err := s.db.Transaction(func(tx *gorm.DB) error {
+		txRoleRepo := s.roleRepo.WithTx(tx)
+		txPermissionRepo := s.permissionRepo.WithTx(tx)
+		txRolePermissionRepo := s.rolePermissionRepo.WithTx(tx)
+
+		// Find existing role
+		role, err := txRoleRepo.FindByUUID(roleUUID)
+		if err != nil {
+			return err
+		}
+		if role == nil {
+			return errors.New("role not found")
+		}
+
+		// Check if role is a default record
+		if role.IsDefault {
+			return errors.New("default role is not allowed to be updated")
+		}
+
+		// Convert UUIDs to strings for the repository method
+		permissionUUIDStrings := make([]string, len(permissionUUIDs))
+		for i, uuid := range permissionUUIDs {
+			permissionUUIDStrings[i] = uuid.String()
+		}
+
+		// Find permissions by UUIDs
+		permissions, err := txPermissionRepo.FindByUUIDs(permissionUUIDStrings)
+		if err != nil {
+			return err
+		}
+
+		// Validate that all permissions were found
+		if len(permissions) != len(permissionUUIDs) {
+			return errors.New("one or more permissions not found")
+		}
+
+		// Create role-permission associations using the dedicated repository
+		for _, permission := range permissions {
+			// Check if association already exists
+			existing, err := txRolePermissionRepo.FindByRoleAndPermission(role.RoleID, permission.PermissionID)
+			if err != nil {
+				return err
+			}
+
+			// Skip if association already exists
+			if existing != nil {
+				continue
+			}
+
+			// Create new role-permission association
+			rolePermission := &model.RolePermission{
+				RoleID:       role.RoleID,
+				PermissionID: permission.PermissionID,
+			}
+
+			_, err = txRolePermissionRepo.Create(rolePermission)
+			if err != nil {
+				return err
+			}
+		}
+
+		// Fetch the role with permissions for the response
+		roleWithPermissions, err = txRoleRepo.FindByUUID(roleUUID, "Permissions")
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	return toRoleServiceDataResult(roleWithPermissions), nil
+}
+
+func (s *roleService) RemoveRolePermissions(roleUUID uuid.UUID, permissionUUIDs []uuid.UUID) (*RoleServiceDataResult, error) {
+	var roleWithPermissions *model.Role
+
+	// Transaction
+	err := s.db.Transaction(func(tx *gorm.DB) error {
+		txRoleRepo := s.roleRepo.WithTx(tx)
+		txPermissionRepo := s.permissionRepo.WithTx(tx)
+		txRolePermissionRepo := s.rolePermissionRepo.WithTx(tx)
+
+		// Find existing role
+		role, err := txRoleRepo.FindByUUID(roleUUID)
+		if err != nil {
+			return err
+		}
+		if role == nil {
+			return errors.New("role not found")
+		}
+
+		// Check if role is a default record
+		if role.IsDefault {
+			return errors.New("default role is not allowed to be updated")
+		}
+
+		// Convert UUIDs to strings for the repository method
+		permissionUUIDStrings := make([]string, len(permissionUUIDs))
+		for i, uuid := range permissionUUIDs {
+			permissionUUIDStrings[i] = uuid.String()
+		}
+
+		// Find permissions by UUIDs
+		permissions, err := txPermissionRepo.FindByUUIDs(permissionUUIDStrings)
+		if err != nil {
+			return err
+		}
+
+		// Validate that all permissions were found
+		if len(permissions) != len(permissionUUIDs) {
+			return errors.New("one or more permissions not found")
+		}
+
+		// Remove role-permission associations using the dedicated repository
+		for _, permission := range permissions {
+			// Check if association exists
+			existing, err := txRolePermissionRepo.FindByRoleAndPermission(role.RoleID, permission.PermissionID)
+			if err != nil {
+				return err
+			}
+
+			// Skip if association doesn't exist
+			if existing == nil {
+				continue
+			}
+
+			// Remove the role-permission association
+			err = txRolePermissionRepo.RemoveByRoleAndPermission(role.RoleID, permission.PermissionID)
+			if err != nil {
+				return err
+			}
+		}
+
+		// Fetch the role with permissions for the response
+		roleWithPermissions, err = txRoleRepo.FindByUUID(roleUUID, "Permissions")
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	return toRoleServiceDataResult(roleWithPermissions), nil
+}
+
+// Reponse builder
+func toRoleServiceDataResult(role *model.Role) *RoleServiceDataResult {
+	if role == nil {
+		return nil
+	}
+
+	result := &RoleServiceDataResult{
 		RoleUUID:    role.RoleUUID,
 		Name:        role.Name,
 		Description: role.Description,
@@ -316,5 +451,15 @@ func (s *roleService) DeleteByUUID(roleUUID uuid.UUID) (*RoleServiceDataResult, 
 		IsActive:    role.IsActive,
 		CreatedAt:   role.CreatedAt,
 		UpdatedAt:   role.UpdatedAt,
-	}, nil
+	}
+
+	if role.Permissions != nil {
+		permissions := make([]PermissionServiceDataResult, len(role.Permissions))
+		for i, p := range role.Permissions {
+			permissions[i] = *toPermissionServiceDataResult(&p)
+		}
+		result.Permissions = &permissions
+	}
+
+	return result
 }

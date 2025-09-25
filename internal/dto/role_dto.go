@@ -4,18 +4,20 @@ import (
 	"time"
 
 	validation "github.com/go-ozzo/ozzo-validation/v4"
+	"github.com/go-ozzo/ozzo-validation/v4/is"
 	"github.com/google/uuid"
 )
 
 // Role output structure
 type RoleResponseDto struct {
-	RoleUUID    uuid.UUID `json:"role_uuid"`
-	Name        string    `json:"name"`
-	Description string    `json:"description"`
-	IsDefault   bool      `json:"is_default"`
-	IsActive    bool      `json:"is_active"`
-	CreatedAt   time.Time `json:"created_at"`
-	UpdatedAt   time.Time `json:"updated_at"`
+	RoleUUID    uuid.UUID                `json:"role_uuid"`
+	Name        string                   `json:"name"`
+	Description string                   `json:"description"`
+	Permissions *[]PermissionResponseDto `json:"permissions,omitempty"`
+	IsDefault   bool                     `json:"is_default"`
+	IsActive    bool                     `json:"is_active"`
+	CreatedAt   time.Time                `json:"created_at"`
+	UpdatedAt   time.Time                `json:"updated_at"`
 }
 
 // Create or update role request dto
@@ -37,6 +39,34 @@ func (r RoleCreateOrUpdateRequestDto) Validate() error {
 		),
 		validation.Field(&r.IsActive,
 			validation.In(true, false).Error("Is active is required"),
+		),
+	)
+}
+
+// Add permissions to role request dto
+type RoleAddPermissionsRequestDto struct {
+	Permissions []uuid.UUID `json:"permissions"`
+}
+
+func (r RoleAddPermissionsRequestDto) Validate() error {
+	return validation.ValidateStruct(&r,
+		validation.Field(&r.Permissions,
+			validation.Required.Error("Permission UUIDs are required"),
+			validation.Each(is.UUID.Error("Invalid UUID provided")),
+		),
+	)
+}
+
+// Remove permissions from role request dto
+type RoleRemovePermissionsRequestDto struct {
+	Permissions []uuid.UUID `json:"permissions"`
+}
+
+func (r RoleRemovePermissionsRequestDto) Validate() error {
+	return validation.ValidateStruct(&r,
+		validation.Field(&r.Permissions,
+			validation.Required.Error("Permission UUIDs are required"),
+			validation.Each(is.UUID.Error("Invalid UUID provided")),
 		),
 	)
 }
