@@ -10,8 +10,8 @@ import (
 type RolePermission struct {
 	RolePermissionID   int64     `gorm:"column:role_permission_id;primaryKey"`
 	RolePermissionUUID uuid.UUID `gorm:"column:role_permission_uuid;unique"`
-	RoleID             int64     `gorm:"column:role_id"`
-	PermissionID       int64     `gorm:"column:permission_id"`
+	RoleID             int64     `gorm:"column:role_id;uniqueIndex:idx_role_permission_unique"`
+	PermissionID       int64     `gorm:"column:permission_id;uniqueIndex:idx_role_permission_unique"`
 	CreatedAt          time.Time `gorm:"column:created_at;autoCreateTime"`
 
 	// Relationships
