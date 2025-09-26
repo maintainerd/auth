@@ -237,6 +237,74 @@ func (h *RoleHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	util.Success(w, dtoRes, "Role deleted successfully")
 }
 
+// Add permissions to role
+func (h *RoleHandler) AddPermissions(w http.ResponseWriter, r *http.Request) {
+	// Validate role_uuid
+	roleUUID, err := uuid.Parse(chi.URLParam(r, "role_uuid"))
+	if err != nil {
+		util.Error(w, http.StatusBadRequest, "Invalid role UUID")
+		return
+	}
+
+	// Validate request body
+	var req dto.RoleAddPermissionsRequestDto
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		util.Error(w, http.StatusBadRequest, "Invalid request", err.Error())
+		return
+	}
+
+	if err := req.Validate(); err != nil {
+		util.ValidationError(w, err)
+		return
+	}
+
+	// Add permissions to role
+	role, err := h.service.AddRolePermissions(roleUUID, req.Permissions)
+	if err != nil {
+		util.Error(w, http.StatusInternalServerError, "Failed to add permissions to role", err.Error())
+		return
+	}
+
+	// Build response data
+	dtoRes := toRoleResponseDto(*role)
+
+	util.Success(w, dtoRes, "Permissions added to role successfully")
+}
+
+// Remove permissions from role
+func (h *RoleHandler) RemovePermissions(w http.ResponseWriter, r *http.Request) {
+	// Validate role_uuid
+	roleUUID, err := uuid.Parse(chi.URLParam(r, "role_uuid"))
+	if err != nil {
+		util.Error(w, http.StatusBadRequest, "Invalid role UUID")
+		return
+	}
+
+	// Validate request body
+	var req dto.RoleRemovePermissionsRequestDto
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		util.Error(w, http.StatusBadRequest, "Invalid request", err.Error())
+		return
+	}
+
+	if err := req.Validate(); err != nil {
+		util.ValidationError(w, err)
+		return
+	}
+
+	// Remove permissions from role
+	role, err := h.service.RemoveRolePermissions(roleUUID, req.Permissions)
+	if err != nil {
+		util.Error(w, http.StatusInternalServerError, "Failed to remove permissions from role", err.Error())
+		return
+	}
+
+	// Build response data
+	dtoRes := toRoleResponseDto(*role)
+
+	util.Success(w, dtoRes, "Permissions removed from role successfully")
+}
+
 // Convert service result to dto
 func toRoleResponseDto(r service.RoleServiceDataResult) dto.RoleResponseDto {
 	return dto.RoleResponseDto{

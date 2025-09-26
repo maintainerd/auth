@@ -35,6 +35,13 @@ BEGIN
             ADD CONSTRAINT fk_role_permissions_permission_id FOREIGN KEY (permission_id)
             REFERENCES permissions(permission_id) ON DELETE CASCADE;
     END IF;
+
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint WHERE conname = 'uq_role_permissions_role_permission'
+    ) THEN
+        ALTER TABLE role_permissions
+            ADD CONSTRAINT uq_role_permissions_role_permission UNIQUE (role_id, permission_id);
+    END IF;
 END$$;
 
 -- ADD INDEXES

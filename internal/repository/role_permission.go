@@ -1,6 +1,8 @@
 package repository
 
 import (
+	"errors"
+
 	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/model"
 	"gorm.io/gorm"
@@ -8,6 +10,7 @@ import (
 
 type RolePermissionRepository interface {
 	BaseRepositoryMethods[model.RolePermission]
+	WithTx(tx *gorm.DB) RolePermissionRepository
 	Assign(rolePermission *model.RolePermission) (*model.RolePermission, error)
 	FindByRoleAndPermission(roleID int64, permissionID int64) (*model.RolePermission, error)
 	FindAllByRoleID(roleID int64) ([]model.RolePermission, error)
@@ -28,6 +31,13 @@ func NewRolePermissionRepository(db *gorm.DB) RolePermissionRepository {
 	}
 }
 
+func (r *rolePermissionRepository) WithTx(tx *gorm.DB) RolePermissionRepository {
+	return &rolePermissionRepository{
+		BaseRepository: NewBaseRepository[model.RolePermission](tx, "role_permission_uuid", "role_permission_id"),
+		db:             tx,
+	}
+}
+
 // Assign a role-permission pair and return the created record
 func (r *rolePermissionRepository) Assign(rolePermission *model.RolePermission) (*model.RolePermission, error) {
 	return r.Create(rolePermission)
@@ -38,7 +48,17 @@ func (r *rolePermissionRepository) FindByRoleAndPermission(roleID int64, permiss
 	err := r.db.
 		Where("role_id = ? AND permission_id = ?", roleID, permissionID).
 		First(&rp).Error
-	return &rp, err
+
+	// If no record is found, return nil record and nil error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		// For all other errors, return nil record and the actual error
+		return nil, err
+	}
+
+	return &rp, nil
 }
 
 func (r *rolePermissionRepository) FindAllByRoleID(roleID int64) ([]model.RolePermission, error) {
@@ -56,7 +76,7 @@ func (r *rolePermissionRepository) FindAllByPermissionID(permissionID int64) ([]
 func (r *rolePermissionRepository) RemoveByRoleAndPermission(roleID int64, permissionID int64) error {
 	return r.db.
 		Where("role_id = ? AND permission_id = ?", roleID, permissionID).
-		Delete(&model.RolePermission{}).Error
+		Unscoped().Delete(&model.RolePermission{}).Error
 }
 
 func (r *rolePermissionRepository) SetDefaultStatusByUUID(rolePermissionUUID uuid.UUID, isDefault bool) error {
