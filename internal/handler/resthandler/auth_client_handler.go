@@ -346,6 +346,65 @@ func (h *AuthClientHandler) DeleteRedirectURI(w http.ResponseWriter, r *http.Req
 	util.Success(w, dtoRes, "Redirect URI deleted successfully")
 }
 
+// Add permissions to auth client
+func (h *AuthClientHandler) AddPermissions(w http.ResponseWriter, r *http.Request) {
+	authClientUUID, err := uuid.Parse(chi.URLParam(r, "auth_client_uuid"))
+	if err != nil {
+		util.Error(w, http.StatusBadRequest, "Invalid auth client UUID")
+		return
+	}
+
+	var req dto.AuthClientAddPermissionsRequestDto
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		util.Error(w, http.StatusBadRequest, "Invalid request", err.Error())
+		return
+	}
+
+	if err := req.Validate(); err != nil {
+		util.ValidationError(w, err)
+		return
+	}
+
+	authClient, err := h.authClientService.AddAuthClientPermissions(authClientUUID, req.Permissions)
+	if err != nil {
+		util.Error(w, http.StatusInternalServerError, "Failed to add permissions to auth client", err.Error())
+		return
+	}
+
+	dtoRes := toAuthClientResponseDto(*authClient)
+
+	util.Success(w, dtoRes, "Permissions added to auth client successfully")
+}
+
+// Remove permission from auth client
+func (h *AuthClientHandler) RemovePermission(w http.ResponseWriter, r *http.Request) {
+	// Validate auth_client_uuid
+	authClientUUID, err := uuid.Parse(chi.URLParam(r, "auth_client_uuid"))
+	if err != nil {
+		util.Error(w, http.StatusBadRequest, "Invalid auth client UUID")
+		return
+	}
+
+	// Validate permission_uuid
+	permissionUUID, err := uuid.Parse(chi.URLParam(r, "permission_uuid"))
+	if err != nil {
+		util.Error(w, http.StatusBadRequest, "Invalid permission UUID")
+		return
+	}
+
+	// Remove permission from auth client
+	authClient, err := h.authClientService.RemoveAuthClientPermissions(authClientUUID, permissionUUID)
+	if err != nil {
+		util.Error(w, http.StatusInternalServerError, "Failed to remove permission from auth client", err.Error())
+		return
+	}
+
+	// Build response data
+	dtoRes := toAuthClientResponseDto(*authClient)
+
+	util.Success(w, dtoRes, "Permission removed from auth client successfully")
+}
+
 // Convert result to DTO
 func toAuthClientResponseDto(r service.AuthClientServiceDataResult) dto.AuthClientResponseDto {
 	result := dto.AuthClientResponseDto{
@@ -384,6 +443,23 @@ func toAuthClientResponseDto(r service.AuthClientServiceDataResult) dto.AuthClie
 				UpdatedAt:                 uri.UpdatedAt,
 			}
 		}
+	}
+
+	// Map Permissions if present
+	if r.Permissions != nil {
+		permissions := make([]dto.PermissionResponseDto, len(*r.Permissions))
+		for i, permission := range *r.Permissions {
+			permissions[i] = dto.PermissionResponseDto{
+				PermissionUUID: permission.PermissionUUID,
+				Name:           permission.Name,
+				Description:    permission.Description,
+				IsActive:       permission.IsActive,
+				IsDefault:      permission.IsDefault,
+				CreatedAt:      permission.CreatedAt,
+				UpdatedAt:      permission.UpdatedAt,
+			}
+		}
+		result.Permissions = &permissions
 	}
 
 	return result

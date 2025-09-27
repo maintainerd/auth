@@ -4,6 +4,7 @@ import (
 	"time"
 
 	validation "github.com/go-ozzo/ozzo-validation/v4"
+	"github.com/go-ozzo/ozzo-validation/v4/is"
 	"github.com/google/uuid"
 	"gorm.io/datatypes"
 )
@@ -33,6 +34,7 @@ type AuthClientResponseDto struct {
 	Domain           *string                            `json:"domain,omitempty"`
 	RedirectURIs     []AuthClientRedirectURIResponseDto `json:"redirect_uris,omitempty"`
 	IdentityProvider *IdentityProviderResponseDto       `json:"identity_provider,omitempty"`
+	Permissions      *[]PermissionResponseDto           `json:"permissions,omitempty"`
 	IsActive         bool                               `json:"is_active"`
 	IsDefault        bool                               `json:"is_default"`
 	CreatedAt        time.Time                          `json:"created_at"`
@@ -143,4 +145,18 @@ type AuthClientFilterDto struct {
 
 	// Pagination and sorting
 	PaginationRequestDto
+}
+
+// Add permissions to auth client request dto
+type AuthClientAddPermissionsRequestDto struct {
+	Permissions []uuid.UUID `json:"permissions"`
+}
+
+func (r AuthClientAddPermissionsRequestDto) Validate() error {
+	return validation.ValidateStruct(&r,
+		validation.Field(&r.Permissions,
+			validation.Required.Error("Permission UUIDs are required"),
+			validation.Each(is.UUID.Error("Invalid UUID provided")),
+		),
+	)
 }

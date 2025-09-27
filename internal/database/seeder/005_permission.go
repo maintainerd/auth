@@ -129,6 +129,8 @@ func SeedPermissions(db *gorm.DB, apiID int64) {
 		newPermission("role:update", "Update role", apiID),
 		newPermission("role:delete", "Delete a role", apiID),
 		newPermission("role:assign", "Assign roles to users", apiID),
+		newPermission("role:permission:create", "Add permissions to role", apiID),
+		newPermission("role:permission:delete", "Remove permissions from role", apiID),
 		newPermission("role:restrict-super-admin", "Prevent elevation to critical roles", apiID),
 
 		// Identity Providers
@@ -147,6 +149,8 @@ func SeedPermissions(db *gorm.DB, apiID int64) {
 		newPermission("auth_client:redirect_uri:create", "Create auth client redirect URI", apiID),
 		newPermission("auth_client:redirect_uri:update", "Update auth client redirect URI", apiID),
 		newPermission("auth_client:redirect_uri:delete", "Delete auth client redirect URI", apiID),
+		newPermission("auth_client:permission:create", "Add permissions to auth client", apiID),
+		newPermission("auth_client:permission:delete", "Remove permissions from auth client", apiID),
 
 		// User Administration
 		newPermission("user:read", "Read users", apiID),
