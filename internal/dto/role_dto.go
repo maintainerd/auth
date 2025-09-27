@@ -57,20 +57,6 @@ func (r RoleAddPermissionsRequestDto) Validate() error {
 	)
 }
 
-// Remove permissions from role request dto
-type RoleRemovePermissionsRequestDto struct {
-	Permissions []uuid.UUID `json:"permissions"`
-}
-
-func (r RoleRemovePermissionsRequestDto) Validate() error {
-	return validation.ValidateStruct(&r,
-		validation.Field(&r.Permissions,
-			validation.Required.Error("Permission UUIDs are required"),
-			validation.Each(is.UUID.Error("Invalid UUID provided")),
-		),
-	)
-}
-
 // Role listing
 type RoleFilterDto struct {
 	Name        *string `json:"name"`

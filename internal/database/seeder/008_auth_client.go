@@ -99,8 +99,9 @@ func SeedAuthClients(db *gorm.DB, identityProviderID int64) {
 			First(&existing).Error
 
 		if err == nil {
-			// Update existing client
+			// Update existing client - preserve existing IDs and UUID
 			client.AuthClientID = existing.AuthClientID
+			client.AuthClientUUID = existing.AuthClientUUID
 			if err := db.Save(&client).Error; err != nil {
 				log.Printf("❌ Failed to update auth client '%s': %v", client.Name, err)
 			} else {

@@ -271,8 +271,8 @@ func (h *RoleHandler) AddPermissions(w http.ResponseWriter, r *http.Request) {
 	util.Success(w, dtoRes, "Permissions added to role successfully")
 }
 
-// Remove permissions from role
-func (h *RoleHandler) RemovePermissions(w http.ResponseWriter, r *http.Request) {
+// Remove permission from role
+func (h *RoleHandler) RemovePermission(w http.ResponseWriter, r *http.Request) {
 	// Validate role_uuid
 	roleUUID, err := uuid.Parse(chi.URLParam(r, "role_uuid"))
 	if err != nil {
@@ -280,34 +280,29 @@ func (h *RoleHandler) RemovePermissions(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	// Validate request body
-	var req dto.RoleRemovePermissionsRequestDto
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		util.Error(w, http.StatusBadRequest, "Invalid request", err.Error())
-		return
-	}
-
-	if err := req.Validate(); err != nil {
-		util.ValidationError(w, err)
-		return
-	}
-
-	// Remove permissions from role
-	role, err := h.service.RemoveRolePermissions(roleUUID, req.Permissions)
+	// Validate permission_uuid
+	permissionUUID, err := uuid.Parse(chi.URLParam(r, "permission_uuid"))
 	if err != nil {
-		util.Error(w, http.StatusInternalServerError, "Failed to remove permissions from role", err.Error())
+		util.Error(w, http.StatusBadRequest, "Invalid permission UUID")
+		return
+	}
+
+	// Remove permission from role
+	role, err := h.service.RemoveRolePermissions(roleUUID, permissionUUID)
+	if err != nil {
+		util.Error(w, http.StatusInternalServerError, "Failed to remove permission from role", err.Error())
 		return
 	}
 
 	// Build response data
 	dtoRes := toRoleResponseDto(*role)
 
-	util.Success(w, dtoRes, "Permissions removed from role successfully")
+	util.Success(w, dtoRes, "Permission removed from role successfully")
 }
 
 // Convert service result to dto
 func toRoleResponseDto(r service.RoleServiceDataResult) dto.RoleResponseDto {
-	return dto.RoleResponseDto{
+	result := dto.RoleResponseDto{
 		RoleUUID:    r.RoleUUID,
 		Name:        r.Name,
 		Description: r.Description,
@@ -316,4 +311,23 @@ func toRoleResponseDto(r service.RoleServiceDataResult) dto.RoleResponseDto {
 		CreatedAt:   r.CreatedAt,
 		UpdatedAt:   r.UpdatedAt,
 	}
+
+	// Map Permissions if present
+	if r.Permissions != nil {
+		permissions := make([]dto.PermissionResponseDto, len(*r.Permissions))
+		for i, permission := range *r.Permissions {
+			permissions[i] = dto.PermissionResponseDto{
+				PermissionUUID: permission.PermissionUUID,
+				Name:           permission.Name,
+				Description:    permission.Description,
+				IsActive:       permission.IsActive,
+				IsDefault:      permission.IsDefault,
+				CreatedAt:      permission.CreatedAt,
+				UpdatedAt:      permission.UpdatedAt,
+			}
+		}
+		result.Permissions = &permissions
+	}
+
+	return result
 }
