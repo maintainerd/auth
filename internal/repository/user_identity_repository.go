@@ -7,6 +7,7 @@ import (
 
 type UserIdentityRepository interface {
 	BaseRepositoryMethods[model.UserIdentity]
+	WithTx(tx *gorm.DB) UserIdentityRepository
 	FindByUserID(userID int64) ([]model.UserIdentity, error)
 	FindByProviderAndUserID(providerName string, providerUserID string) (*model.UserIdentity, error)
 	FindByEmail(email string) ([]model.UserIdentity, error)
@@ -22,6 +23,13 @@ func NewUserIdentityRepository(db *gorm.DB) UserIdentityRepository {
 	return &userIdentityRepository{
 		BaseRepository: NewBaseRepository[model.UserIdentity](db, "user_identity_uuid", "user_identity_id"),
 		db:             db,
+	}
+}
+
+func (r *userIdentityRepository) WithTx(tx *gorm.DB) UserIdentityRepository {
+	return &userIdentityRepository{
+		BaseRepository: NewBaseRepository[model.UserIdentity](tx, "user_identity_uuid", "user_identity_id"),
+		db:             tx,
 	}
 }
 

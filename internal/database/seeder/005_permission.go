@@ -221,7 +221,7 @@ func SeedPermissions(db *gorm.DB, apiID int64) {
 		// System / Developer Tools
 		newPermission("settings:read", "View system settings", apiID),
 		newPermission("settings:update", "Update runtime settings", apiID),
-		newPermission("system:reload-config	", "Reload config files/env variables", apiID),
+		newPermission("system:reload-config", "Reload config files/env variables", apiID),
 		newPermission("system:run-migrations", "Apply database migrations", apiID),
 		newPermission("system:access-db-console", "DB shell/CLI access (dangerous)", apiID),
 
