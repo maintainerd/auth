@@ -15,6 +15,7 @@ type OrganizationRepositoryGetFilter struct {
 	Phone       *string
 	IsActive    *bool
 	IsDefault   *bool
+	IsRoot      *bool
 	Page        int
 	Limit       int
 	SortBy      string
@@ -108,6 +109,9 @@ func (r *organizationRepository) FindPaginated(filter OrganizationRepositoryGetF
 	}
 	if filter.IsDefault != nil {
 		query = query.Where("is_default = ?", *filter.IsDefault)
+	}
+	if filter.IsRoot != nil {
+		query = query.Where("is_root = ?", *filter.IsRoot)
 	}
 
 	// Sorting

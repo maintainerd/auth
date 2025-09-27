@@ -21,6 +21,7 @@ type App struct {
 	IdentityProviderRestHandler *resthandler.IdentityProviderHandler
 	AuthClientRestHandler       *resthandler.AuthClientHandler
 	RoleRestHandler             *resthandler.RoleHandler
+	UserRestHandler             *resthandler.UserHandler
 	RegisterRestHandler         *resthandler.RegisterHandler
 	LoginRestHandler            *resthandler.LoginHandler
 	ProfileRestHandler          *resthandler.ProfileHandler
@@ -46,6 +47,7 @@ func NewApp(db *gorm.DB, redisClient *redis.Client) *App {
 	authClientPermissionRepo := repository.NewAuthClientPermissionRepository(db)
 	authClientRedirectUriRepo := repository.NewAuthClientRedirectURIRepository(db)
 	userRepo := repository.NewUserRepository(db)
+	userIdentityRepo := repository.NewUserIdentityRepository(db)
 	userRoleRepo := repository.NewUserRoleRepository(db)
 	userTokenRepo := repository.NewUserTokenRepository(db)
 	profileRepo := repository.NewProfileRepository(db)
@@ -61,6 +63,7 @@ func NewApp(db *gorm.DB, redisClient *redis.Client) *App {
 	idpService := service.NewIdentityProviderService(db, idpRepo, authContainerRepo)
 	authClientService := service.NewAuthClientService(db, authClientRepo, authClientRedirectUriRepo, idpRepo, permissionRepo, authClientPermissionRepo)
 	roleService := service.NewRoleService(db, roleRepo, permissionRepo, rolePermissionRepo)
+	userService := service.NewUserService(db, userRepo, userIdentityRepo, userRoleRepo, roleRepo, authContainerRepo, idpRepo, authClientRepo)
 	registerService := service.NewRegistrationService(db, authClientRepo, userRepo, userRoleRepo, userTokenRepo, roleRepo, inviteRepo)
 	loginService := service.NewLoginService(db, authClientRepo, userRepo, userTokenRepo)
 	profileService := service.NewProfileService(db, profileRepo)
@@ -75,6 +78,7 @@ func NewApp(db *gorm.DB, redisClient *redis.Client) *App {
 	idpRestHandler := resthandler.NewIdentityProviderHandler(idpService)
 	authClientRestHandler := resthandler.NewAuthClientHandler(authClientService)
 	roleRestHandler := resthandler.NewRoleHandler(roleService)
+	userRestHandler := resthandler.NewUserHandler(userService)
 	registerRestHandler := resthandler.NewRegisterHandler(registerService)
 	loginRestHandler := resthandler.NewLoginHandler(loginService)
 	profileRestHandler := resthandler.NewProfileHandler(profileService)
@@ -95,6 +99,7 @@ func NewApp(db *gorm.DB, redisClient *redis.Client) *App {
 		IdentityProviderRestHandler: idpRestHandler,
 		AuthClientRestHandler:       authClientRestHandler,
 		RoleRestHandler:             roleRestHandler,
+		UserRestHandler:             userRestHandler,
 		RegisterRestHandler:         registerRestHandler,
 		LoginRestHandler:            loginRestHandler,
 		ProfileRestHandler:          profileRestHandler,

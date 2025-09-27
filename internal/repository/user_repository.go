@@ -6,13 +6,27 @@ import (
 	"gorm.io/gorm"
 )
 
+type UserRepositoryGetFilter struct {
+	Username        *string
+	Email           *string
+	Phone           *string
+	IsActive        *bool
+	AuthContainerID *int64
+	Page            int
+	Limit           int
+	SortBy          string
+	SortOrder       string
+}
+
 type UserRepository interface {
 	BaseRepositoryMethods[model.User]
+	WithTx(tx *gorm.DB) UserRepository
 	FindByUsername(username string, authContainerID int64) (*model.User, error)
 	FindByEmail(email string, authContainerID int64) (*model.User, error)
 	FindSuperAdmin() (*model.User, error)
 	FindRoles(userID int64) ([]model.Role, error)
 	FindBySubAndClientID(sub string, authClientID string) (*model.User, error)
+	FindPaginated(filter UserRepositoryGetFilter) (*PaginationResult[model.User], error)
 	SetEmailVerified(userUUID uuid.UUID, verified bool) error
 	SetActiveStatus(userUUID uuid.UUID, active bool) error
 }
@@ -26,6 +40,13 @@ func NewUserRepository(db *gorm.DB) UserRepository {
 	return &userRepository{
 		BaseRepository: NewBaseRepository[model.User](db, "user_uuid", "user_id"),
 		db:             db,
+	}
+}
+
+func (r *userRepository) WithTx(tx *gorm.DB) UserRepository {
+	return &userRepository{
+		BaseRepository: NewBaseRepository[model.User](tx, "user_uuid", "user_id"),
+		db:             tx,
 	}
 }
 
@@ -123,4 +144,62 @@ func (r *userRepository) SetActiveStatus(userUUID uuid.UUID, active bool) error 
 	return r.db.Model(&model.User{}).
 		Where("user_uuid = ?", userUUID).
 		Update("is_active", active).Error
+}
+
+func (r *userRepository) FindPaginated(filter UserRepositoryGetFilter) (*PaginationResult[model.User], error) {
+	var users []model.User
+	var total int64
+
+	query := r.db.Model(&model.User{})
+
+	// Apply filters
+	if filter.Username != nil {
+		query = query.Where("username ILIKE ?", "%"+*filter.Username+"%")
+	}
+	if filter.Email != nil {
+		query = query.Where("email ILIKE ?", "%"+*filter.Email+"%")
+	}
+	if filter.Phone != nil {
+		query = query.Where("phone ILIKE ?", "%"+*filter.Phone+"%")
+	}
+	if filter.IsActive != nil {
+		query = query.Where("is_active = ?", *filter.IsActive)
+	}
+	if filter.AuthContainerID != nil {
+		query = query.Where("auth_container_id = ?", *filter.AuthContainerID)
+	}
+
+	// Count total records
+	if err := query.Count(&total).Error; err != nil {
+		return nil, err
+	}
+
+	// Apply sorting
+	if filter.SortBy != "" {
+		order := filter.SortBy
+		if filter.SortOrder == "desc" {
+			order += " DESC"
+		} else {
+			order += " ASC"
+		}
+		query = query.Order(order)
+	} else {
+		query = query.Order("created_at DESC")
+	}
+
+	// Apply pagination
+	offset := (filter.Page - 1) * filter.Limit
+	if err := query.Offset(offset).Limit(filter.Limit).Find(&users).Error; err != nil {
+		return nil, err
+	}
+
+	totalPages := int((total + int64(filter.Limit) - 1) / int64(filter.Limit))
+
+	return &PaginationResult[model.User]{
+		Data:       users,
+		Total:      total,
+		Page:       filter.Page,
+		Limit:      filter.Limit,
+		TotalPages: totalPages,
+	}, nil
 }

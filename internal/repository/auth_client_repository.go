@@ -98,9 +98,18 @@ func (r *authClientRepository) FindDefault() (*model.AuthClient, error) {
 func (r *authClientRepository) FindDefaultByAuthContainerID(authContainerID int64) (*model.AuthClient, error) {
 	var client model.AuthClient
 	err := r.db.
-		Where("auth_container_id = ? AND is_default = true", authContainerID).
+		Joins("JOIN identity_providers ON identity_providers.identity_provider_id = auth_clients.identity_provider_id").
+		Where("identity_providers.auth_container_id = ? AND auth_clients.is_default = true AND auth_clients.is_active = true", authContainerID).
 		First(&client).Error
-	return &client, err
+
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	return &client, nil
 }
 
 func (r *authClientRepository) FindPaginated(filter AuthClientRepositoryGetFilter) (*PaginationResult[model.AuthClient], error) {

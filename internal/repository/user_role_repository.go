@@ -7,6 +7,7 @@ import (
 
 type UserRoleRepository interface {
 	BaseRepositoryMethods[model.UserRole]
+	WithTx(tx *gorm.DB) UserRoleRepository
 	FindByUserID(userID int64) ([]model.UserRole, error)
 	FindByUserIDAndRoleID(userID int64, roleID int64) (*model.UserRole, error)
 	FindDefaultRolesByUserID(userID int64) ([]model.UserRole, error)
@@ -23,6 +24,13 @@ func NewUserRoleRepository(db *gorm.DB) UserRoleRepository {
 	return &userRoleRepository{
 		BaseRepository: NewBaseRepository[model.UserRole](db, "user_role_uuid", "user_role_id"),
 		db:             db,
+	}
+}
+
+func (r *userRoleRepository) WithTx(tx *gorm.DB) UserRoleRepository {
+	return &userRoleRepository{
+		BaseRepository: NewBaseRepository[model.UserRole](tx, "user_role_uuid", "user_role_id"),
+		db:             tx,
 	}
 }
 

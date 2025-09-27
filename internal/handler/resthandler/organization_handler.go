@@ -32,11 +32,16 @@ func (h *OrganizationHandler) Get(w http.ResponseWriter, r *http.Request) {
 	limit, _ := strconv.Atoi(q.Get("limit"))
 
 	// Parse bools safely
-	var isDefault, isActive *bool
+	var isDefault, isRoot, isActive *bool
 	if v := q.Get("is_default"); v != "" {
 		parsed, err := strconv.ParseBool(v)
 		if err == nil {
 			isDefault = &parsed
+		}
+	}
+	if v := q.Get("is_root"); v != "" {
+		if parsed, err := strconv.ParseBool(v); err == nil {
+			isRoot = &parsed
 		}
 	}
 	if v := q.Get("is_active"); v != "" {
@@ -54,6 +59,7 @@ func (h *OrganizationHandler) Get(w http.ResponseWriter, r *http.Request) {
 		Phone:       util.PtrOrNil(q.Get("phone")),
 		IsActive:    isActive,
 		IsDefault:   isDefault,
+		IsRoot:      isRoot,
 		PaginationRequestDto: dto.PaginationRequestDto{
 			Page:      page,
 			Limit:     limit,
@@ -74,11 +80,12 @@ func (h *OrganizationHandler) Get(w http.ResponseWriter, r *http.Request) {
 		Email:       reqParams.Email,
 		Phone:       reqParams.Phone,
 		IsDefault:   reqParams.IsDefault,
+		IsRoot:      reqParams.IsRoot,
 		IsActive:    reqParams.IsActive,
-		Page:        reqParams.Page,
-		Limit:       reqParams.Limit,
-		SortBy:      reqParams.SortBy,
-		SortOrder:   reqParams.SortOrder,
+		Page:        reqParams.PaginationRequestDto.Page,
+		Limit:       reqParams.PaginationRequestDto.Limit,
+		SortBy:      reqParams.PaginationRequestDto.SortBy,
+		SortOrder:   reqParams.PaginationRequestDto.SortOrder,
 	}
 
 	// Fetch organizations
@@ -251,6 +258,7 @@ func toOrganizationResponseDto(r service.OrganizationServiceDataResult) dto.Orga
 		Phone:            *r.Phone,
 		IsActive:         r.IsActive,
 		IsDefault:        r.IsDefault,
+		IsRoot:           r.IsRoot,
 		CreatedAt:        r.CreatedAt,
 		UpdatedAt:        r.UpdatedAt,
 	}
