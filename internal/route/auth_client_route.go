@@ -50,5 +50,11 @@ func AuthClientRoute(
 
 		r.With(middleware.PermissionMiddleware([]string{"auth_client:redirect_uri:delete"})).
 			Delete("/{auth_client_uuid}/redirect_uris/{auth_client_redirect_uri_uuid}", authClientHandler.DeleteRedirectURI)
+
+		r.With(middleware.PermissionMiddleware([]string{"auth_client:permission:create"})).
+			Post("/{auth_client_uuid}/permissions", authClientHandler.AddPermissions)
+
+		r.With(middleware.PermissionMiddleware([]string{"auth_client:permission:delete"})).
+			Delete("/{auth_client_uuid}/permissions/{permission_uuid}", authClientHandler.RemovePermission)
 	})
 }
