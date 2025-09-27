@@ -27,6 +27,7 @@ type AuthClient struct {
 	// Relationships
 	IdentityProvider       *IdentityProvider        `gorm:"foreignKey:IdentityProviderID;references:IdentityProviderID"`
 	AuthClientRedirectURIs *[]AuthClientRedirectURI `gorm:"foreignKey:AuthClientID;references:AuthClientID"`
+	Permissions            *[]Permission            `gorm:"many2many:auth_client_permissions;joinForeignKey:AuthClientID;joinReferences:PermissionID"`
 }
 
 func (AuthClient) TableName() string {

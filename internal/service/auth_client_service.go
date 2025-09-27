@@ -36,6 +36,7 @@ type AuthClientServiceDataResult struct {
 	Domain                 *string
 	AuthClientRedirectURIs *[]AuthClientRedirectURIServiceDataResult
 	IdentityProvider       *IdentityProviderServiceDataResult
+	Permissions            *[]PermissionServiceDataResult
 	IsActive               bool
 	IsDefault              bool
 	CreatedAt              time.Time
@@ -75,6 +76,8 @@ type AuthClientService interface {
 	CreateRedirectURI(authClientUUID uuid.UUID, redirectURI string) (*AuthClientServiceDataResult, error)
 	UpdateRedirectURI(authClientUUID uuid.UUID, authClientRedirectURIUUID uuid.UUID, redirectURI string) (*AuthClientServiceDataResult, error)
 	DeleteRedirectURI(authClientUUID uuid.UUID, authClientRedirectURIUUID uuid.UUID) (*AuthClientServiceDataResult, error)
+	AddAuthClientPermissions(authClientUUID uuid.UUID, permissionUUIDs []uuid.UUID) (*AuthClientServiceDataResult, error)
+	RemoveAuthClientPermissions(authClientUUID uuid.UUID, permissionUUID uuid.UUID) (*AuthClientServiceDataResult, error)
 }
 
 type authClientService struct {
@@ -82,6 +85,8 @@ type authClientService struct {
 	authClientRepo            repository.AuthClientRepository
 	authClientRedirectUrlRepo repository.AuthClientRedirectURIRepository
 	idpRepo                   repository.IdentityProviderRepository
+	permissionRepo            repository.PermissionRepository
+	authClientPermissionRepo  repository.AuthClientPermissionRepository
 }
 
 func NewAuthClientService(
@@ -89,12 +94,16 @@ func NewAuthClientService(
 	authClientRepo repository.AuthClientRepository,
 	authClientRedirectUrlRepo repository.AuthClientRedirectURIRepository,
 	idpRepo repository.IdentityProviderRepository,
+	permissionRepo repository.PermissionRepository,
+	authClientPermissionRepo repository.AuthClientPermissionRepository,
 ) AuthClientService {
 	return &authClientService{
 		db:                        db,
 		authClientRepo:            authClientRepo,
 		authClientRedirectUrlRepo: authClientRedirectUrlRepo,
 		idpRepo:                   idpRepo,
+		permissionRepo:            permissionRepo,
+		authClientPermissionRepo:  authClientPermissionRepo,
 	}
 }
 
@@ -498,6 +507,145 @@ func (s *authClientService) DeleteRedirectURI(authClientUUID uuid.UUID, authClie
 	return toAuthClientServiceDataResult(deletedAuthClient), nil
 }
 
+func (s *authClientService) AddAuthClientPermissions(authClientUUID uuid.UUID, permissionUUIDs []uuid.UUID) (*AuthClientServiceDataResult, error) {
+	var authClientWithPermissions *model.AuthClient
+
+	err := s.db.Transaction(func(tx *gorm.DB) error {
+		txAuthClientRepo := s.authClientRepo.WithTx(tx)
+		txPermissionRepo := s.permissionRepo.WithTx(tx)
+		txAuthClientPermissionRepo := s.authClientPermissionRepo.WithTx(tx)
+
+		// Find existing auth client
+		authClient, err := txAuthClientRepo.FindByUUID(authClientUUID)
+		if err != nil {
+			return err
+		}
+		if authClient == nil {
+			return errors.New("auth client not found")
+		}
+
+		// Convert UUIDs to strings for the repository method
+		permissionUUIDStrings := make([]string, len(permissionUUIDs))
+		for i, uuid := range permissionUUIDs {
+			permissionUUIDStrings[i] = uuid.String()
+		}
+
+		// Find permissions by UUIDs
+		permissions, err := txPermissionRepo.FindByUUIDs(permissionUUIDStrings)
+		if err != nil {
+			return err
+		}
+
+		// Validate that all permissions were found
+		if len(permissions) != len(permissionUUIDs) {
+			return errors.New("one or more permissions not found")
+		}
+
+		// Create auth client-permission associations using the dedicated repository
+		for _, permission := range permissions {
+			// Check if association already exists
+			existing, err := txAuthClientPermissionRepo.FindByAuthClientAndPermission(authClient.AuthClientID, permission.PermissionID)
+			if err != nil {
+				return err
+			}
+
+			// Skip if association already exists
+			if existing != nil {
+				continue
+			}
+
+			// Create new auth client-permission association
+			authClientPermission := &model.AuthClientPermission{
+				AuthClientID: authClient.AuthClientID,
+				PermissionID: permission.PermissionID,
+			}
+
+			_, err = txAuthClientPermissionRepo.Create(authClientPermission)
+			if err != nil {
+				return err
+			}
+		}
+
+		// Fetch the auth client with permissions for the response
+		authClientWithPermissions, err = txAuthClientRepo.FindByUUID(authClientUUID, "Permissions")
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	return toAuthClientServiceDataResult(authClientWithPermissions), nil
+}
+
+func (s *authClientService) RemoveAuthClientPermissions(authClientUUID uuid.UUID, permissionUUID uuid.UUID) (*AuthClientServiceDataResult, error) {
+	var authClientWithPermissions *model.AuthClient
+
+	err := s.db.Transaction(func(tx *gorm.DB) error {
+		txAuthClientRepo := s.authClientRepo.WithTx(tx)
+		txPermissionRepo := s.permissionRepo.WithTx(tx)
+		txAuthClientPermissionRepo := s.authClientPermissionRepo.WithTx(tx)
+
+		// Find existing auth client
+		authClient, err := txAuthClientRepo.FindByUUID(authClientUUID)
+		if err != nil {
+			return err
+		}
+		if authClient == nil {
+			return errors.New("auth client not found")
+		}
+
+		// Find permission by UUID
+		permission, err := txPermissionRepo.FindByUUID(permissionUUID.String())
+		if err != nil {
+			return err
+		}
+		if permission == nil {
+			return errors.New("permission not found")
+		}
+
+		// Check if association exists
+		existing, err := txAuthClientPermissionRepo.FindByAuthClientAndPermission(authClient.AuthClientID, permission.PermissionID)
+		if err != nil {
+			return err
+		}
+
+		// Skip if association doesn't exist
+		if existing == nil {
+			// Association doesn't exist, but we'll still return success for idempotency
+			authClientWithPermissions, err = txAuthClientRepo.FindByUUID(authClientUUID, "Permissions")
+			if err != nil {
+				return err
+			}
+			return nil
+		}
+
+		// Remove the auth client-permission association
+		err = txAuthClientPermissionRepo.RemoveByAuthClientAndPermission(authClient.AuthClientID, permission.PermissionID)
+		if err != nil {
+			return err
+		}
+
+		// Fetch the auth client with permissions for the response
+		authClientWithPermissions, err = txAuthClientRepo.FindByUUID(authClientUUID, "Permissions")
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	return toAuthClientServiceDataResult(authClientWithPermissions), nil
+}
+
 // Reponse builder
 func toAuthClientServiceDataResult(authClient *model.AuthClient) *AuthClientServiceDataResult {
 	if authClient == nil {
@@ -542,6 +690,23 @@ func toAuthClientServiceDataResult(authClient *model.AuthClient) *AuthClientServ
 			}
 		}
 		result.AuthClientRedirectURIs = &redirects
+	}
+
+	// Map Permissions if present
+	if authClient.Permissions != nil {
+		permissions := make([]PermissionServiceDataResult, len(*authClient.Permissions))
+		for i, permission := range *authClient.Permissions {
+			permissions[i] = PermissionServiceDataResult{
+				PermissionUUID: permission.PermissionUUID,
+				Name:           permission.Name,
+				Description:    permission.Description,
+				IsActive:       permission.IsActive,
+				IsDefault:      permission.IsDefault,
+				CreatedAt:      permission.CreatedAt,
+				UpdatedAt:      permission.UpdatedAt,
+			}
+		}
+		result.Permissions = &permissions
 	}
 
 	return result

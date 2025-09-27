@@ -49,7 +49,7 @@ type RoleService interface {
 	SetActiveStatusByUUID(roleUUID uuid.UUID) (*RoleServiceDataResult, error)
 	DeleteByUUID(roleUUID uuid.UUID) (*RoleServiceDataResult, error)
 	AddRolePermissions(roleUUID uuid.UUID, permissionUUIDs []uuid.UUID) (*RoleServiceDataResult, error)
-	RemoveRolePermissions(roleUUID uuid.UUID, permissionUUIDs []uuid.UUID) (*RoleServiceDataResult, error)
+	RemoveRolePermissions(roleUUID uuid.UUID, permissionUUID uuid.UUID) (*RoleServiceDataResult, error)
 }
 
 type roleService struct {
@@ -361,7 +361,7 @@ func (s *roleService) AddRolePermissions(roleUUID uuid.UUID, permissionUUIDs []u
 	return toRoleServiceDataResult(roleWithPermissions), nil
 }
 
-func (s *roleService) RemoveRolePermissions(roleUUID uuid.UUID, permissionUUIDs []uuid.UUID) (*RoleServiceDataResult, error) {
+func (s *roleService) RemoveRolePermissions(roleUUID uuid.UUID, permissionUUID uuid.UUID) (*RoleServiceDataResult, error) {
 	var roleWithPermissions *model.Role
 
 	// Transaction
@@ -384,41 +384,35 @@ func (s *roleService) RemoveRolePermissions(roleUUID uuid.UUID, permissionUUIDs 
 			return errors.New("default role is not allowed to be updated")
 		}
 
-		// Convert UUIDs to strings for the repository method
-		permissionUUIDStrings := make([]string, len(permissionUUIDs))
-		for i, uuid := range permissionUUIDs {
-			permissionUUIDStrings[i] = uuid.String()
+		// Find permission by UUID
+		permission, err := txPermissionRepo.FindByUUID(permissionUUID.String())
+		if err != nil {
+			return err
+		}
+		if permission == nil {
+			return errors.New("permission not found")
 		}
 
-		// Find permissions by UUIDs
-		permissions, err := txPermissionRepo.FindByUUIDs(permissionUUIDStrings)
+		// Check if association exists
+		existing, err := txRolePermissionRepo.FindByRoleAndPermission(role.RoleID, permission.PermissionID)
 		if err != nil {
 			return err
 		}
 
-		// Validate that all permissions were found
-		if len(permissions) != len(permissionUUIDs) {
-			return errors.New("one or more permissions not found")
+		// Skip if association doesn't exist
+		if existing == nil {
+			// Association doesn't exist, but we'll still return success for idempotency
+			roleWithPermissions, err = txRoleRepo.FindByUUID(roleUUID, "Permissions")
+			if err != nil {
+				return err
+			}
+			return nil
 		}
 
-		// Remove role-permission associations using the dedicated repository
-		for _, permission := range permissions {
-			// Check if association exists
-			existing, err := txRolePermissionRepo.FindByRoleAndPermission(role.RoleID, permission.PermissionID)
-			if err != nil {
-				return err
-			}
-
-			// Skip if association doesn't exist
-			if existing == nil {
-				continue
-			}
-
-			// Remove the role-permission association
-			err = txRolePermissionRepo.RemoveByRoleAndPermission(role.RoleID, permission.PermissionID)
-			if err != nil {
-				return err
-			}
+		// Remove the role-permission association
+		err = txRolePermissionRepo.RemoveByRoleAndPermission(role.RoleID, permission.PermissionID)
+		if err != nil {
+			return err
 		}
 
 		// Fetch the role with permissions for the response
