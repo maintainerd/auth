@@ -17,6 +17,7 @@ type OrganizationResponseDto struct {
 	Phone            string    `json:"phone"`
 	IsActive         bool      `json:"is_active"`
 	IsDefault        bool      `json:"is_default"`
+	IsRoot           bool      `json:"is_root"`
 	CreatedAt        time.Time `json:"created_at"`
 	UpdatedAt        time.Time `json:"updated_at"`
 }
@@ -65,6 +66,7 @@ type OrganizationFilterDto struct {
 	Email       *string `json:"email"`
 	Phone       *string `json:"phone"`
 	IsDefault   *bool   `json:"is_default"`
+	IsRoot      *bool   `json:"is_root"`
 	IsActive    *bool   `json:"is_active"`
 
 	// Pagination and sorting

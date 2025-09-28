@@ -18,6 +18,7 @@ type OrganizationServiceDataResult struct {
 	Phone            *string
 	IsActive         bool
 	IsDefault        bool
+	IsRoot           bool
 	CreatedAt        time.Time
 	UpdatedAt        time.Time
 }
@@ -29,6 +30,7 @@ type OrganizationServiceGetFilter struct {
 	Phone       *string
 	IsActive    *bool
 	IsDefault   *bool
+	IsRoot      *bool
 	Page        int
 	Limit       int
 	SortBy      string
@@ -47,9 +49,12 @@ type OrganizationService interface {
 	Get(filter OrganizationServiceGetFilter) (*OrganizationServiceGetResult, error)
 	GetByUUID(organizationUUID uuid.UUID) (*OrganizationServiceDataResult, error)
 	Create(name string, description string, email string, phone string, isActive bool, isDefault bool) (*OrganizationServiceDataResult, error)
+	CreateExternal(name string, description string, email string, phone string) (*OrganizationServiceDataResult, error)
 	Update(organizationUUID uuid.UUID, name string, description string, email string, phone string, isActive bool, isDefault bool, userUUID uuid.UUID) (*OrganizationServiceDataResult, error)
 	SetActiveStatusByUUID(organizationUUID uuid.UUID, userUUID uuid.UUID) (*OrganizationServiceDataResult, error)
 	DeleteByUUID(organizationUUID uuid.UUID, userUUID uuid.UUID) (*OrganizationServiceDataResult, error)
+	GetRootOrganization() (*OrganizationServiceDataResult, error)
+	GetDefaultOrganization() (*OrganizationServiceDataResult, error)
 }
 
 type organizationService struct {
@@ -74,6 +79,7 @@ func (s *organizationService) Get(filter OrganizationServiceGetFilter) (*Organiz
 		Email:       filter.Email,
 		Phone:       filter.Phone,
 		IsDefault:   filter.IsDefault,
+		IsRoot:      filter.IsRoot,
 		IsActive:    filter.IsActive,
 		Page:        filter.Page,
 		Limit:       filter.Limit,
@@ -111,6 +117,11 @@ func (s *organizationService) GetByUUID(organizationUUID uuid.UUID) (*Organizati
 }
 
 func (s *organizationService) Create(name string, description string, email string, phone string, isActive bool, isDefault bool) (*OrganizationServiceDataResult, error) {
+	// Prevent creation of root or default organizations by users
+	if isDefault {
+		return nil, errors.New("cannot create default organization: default organization can only be created during system initialization")
+	}
+
 	var createdOrg *model.Organization
 
 	// Transaction
@@ -126,14 +137,15 @@ func (s *organizationService) Create(name string, description string, email stri
 			return errors.New(name + " organization already exist")
 		}
 
-		// Create organization
+		// Create organization (always external: not root, not default)
 		newOrg := &model.Organization{
 			Name:        name,
 			Description: &description,
 			Email:       &email,
 			Phone:       &phone,
 			IsActive:    isActive,
-			IsDefault:   isDefault,
+			IsDefault:   false, // Force to false - only external orgs can be created
+			IsRoot:      false, // Force to false - root orgs cannot be created by users
 		}
 
 		_, err = txOrgRepo.CreateOrUpdate(newOrg)
@@ -172,6 +184,28 @@ func (s *organizationService) Update(organizationUUID uuid.UUID, name string, de
 			return errors.New("organization not found")
 		}
 
+		// Apply logic-based access control for different organization types
+		if org.IsRoot {
+			// Root organizations: Only allow updating basic info (name, description, email, phone)
+			// Cannot change IsActive, IsDefault, or IsRoot status
+			if org.IsActive != isActive {
+				return errors.New("cannot deactivate root organization")
+			}
+			if org.IsDefault != isDefault {
+				return errors.New("cannot change default status of root organization")
+			}
+		} else if org.IsDefault {
+			// Default organizations: Only allow updating basic info (name, description, email, phone)
+			// Cannot change IsActive, IsDefault, or IsRoot status
+			if org.IsActive != isActive {
+				return errors.New("cannot deactivate default organization")
+			}
+			if org.IsDefault != isDefault {
+				return errors.New("cannot change default status of default organization")
+			}
+		}
+		// External organizations: Allow all updates including IsActive and IsDefault
+
 		// If organization name is changed, check if duplicate
 		if org.Name != name {
 			existingOrg, err := txOrgRepo.FindByName(name)
@@ -183,13 +217,25 @@ func (s *organizationService) Update(organizationUUID uuid.UUID, name string, de
 			}
 		}
 
-		// Update organization
+		// Update organization details
 		org.Name = name
 		org.Description = &description
 		org.Email = &email
 		org.Phone = &phone
-		org.IsActive = isActive
-		org.IsDefault = isDefault
+
+		// Apply updates based on organization type
+		if org.IsRoot {
+			// Root organizations: Preserve IsRoot, IsDefault, and IsActive status
+			// (IsRoot and IsDefault are never changed, IsActive is preserved)
+		} else if org.IsDefault {
+			// Default organizations: Preserve IsRoot, IsDefault, and IsActive status
+			// (IsRoot and IsDefault are never changed, IsActive is preserved)
+		} else {
+			// External organizations: Allow IsActive and IsDefault updates
+			org.IsActive = isActive
+			org.IsDefault = isDefault
+			// Note: IsRoot is never changed for any organization type
+		}
 
 		_, err = txOrgRepo.CreateOrUpdate(org)
 		if err != nil {
@@ -227,6 +273,11 @@ func (s *organizationService) SetActiveStatusByUUID(organizationUUID uuid.UUID, 
 			return errors.New("organization not found")
 		}
 
+		// Prevent deactivating root or default organizations
+		if (org.IsRoot || org.IsDefault) && org.IsActive {
+			return errors.New("cannot deactivate root or default organization")
+		}
+
 		// Update organization
 		org.IsActive = !org.IsActive
 
@@ -260,9 +311,12 @@ func (s *organizationService) DeleteByUUID(organizationUUID uuid.UUID, userUUID 
 		return nil, errors.New("organization not found")
 	}
 
-	// Check if organization is a default record
+	// Prevent deletion of root or default organizations
+	if org.IsRoot {
+		return nil, errors.New("root organization cannot be deleted")
+	}
 	if org.IsDefault {
-		return nil, errors.New("default organization is not allowed to be deleted")
+		return nil, errors.New("default organization cannot be deleted")
 	}
 
 	// Delete organization
@@ -288,7 +342,75 @@ func toOrganizationServiceDataResult(org *model.Organization) *OrganizationServi
 		Phone:            org.Phone,
 		IsActive:         org.IsActive,
 		IsDefault:        org.IsDefault,
+		IsRoot:           org.IsRoot,
 		CreatedAt:        org.CreatedAt,
 		UpdatedAt:        org.UpdatedAt,
 	}
+}
+
+// CreateExternal creates a new external organization (not root, not default)
+// This is used when external organizations register to the system
+func (s *organizationService) CreateExternal(name string, description string, email string, phone string) (*OrganizationServiceDataResult, error) {
+	organization := &model.Organization{
+		Name:        name,
+		Description: &description,
+		Email:       &email,
+		Phone:       &phone,
+		IsActive:    true,
+		IsDefault:   false,
+		IsRoot:      false,
+	}
+
+	_, err := s.organizationRepo.Create(organization)
+	if err != nil {
+		return nil, err
+	}
+
+	return toOrganizationServiceDataResult(organization), nil
+}
+
+// GetRootOrganization returns the root organization
+func (s *organizationService) GetRootOrganization() (*OrganizationServiceDataResult, error) {
+	filter := repository.OrganizationRepositoryGetFilter{
+		IsRoot:    &[]bool{true}[0],
+		IsActive:  &[]bool{true}[0],
+		Page:      1,
+		Limit:     1,
+		SortBy:    "created_at",
+		SortOrder: "asc",
+	}
+
+	result, err := s.organizationRepo.FindPaginated(filter)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(result.Data) == 0 {
+		return nil, errors.New("root organization not found")
+	}
+
+	return toOrganizationServiceDataResult(&result.Data[0]), nil
+}
+
+// GetDefaultOrganization returns the default organization
+func (s *organizationService) GetDefaultOrganization() (*OrganizationServiceDataResult, error) {
+	filter := repository.OrganizationRepositoryGetFilter{
+		IsDefault: &[]bool{true}[0],
+		IsActive:  &[]bool{true}[0],
+		Page:      1,
+		Limit:     1,
+		SortBy:    "created_at",
+		SortOrder: "asc",
+	}
+
+	result, err := s.organizationRepo.FindPaginated(filter)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(result.Data) == 0 {
+		return nil, errors.New("default organization not found")
+	}
+
+	return toOrganizationServiceDataResult(&result.Data[0]), nil
 }
