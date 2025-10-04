@@ -157,6 +157,9 @@ func (h *UserHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
 
 // Update user
 func (h *UserHandler) UpdateUser(w http.ResponseWriter, r *http.Request) {
+	// Get authentication context
+	updaterUser := r.Context().Value(middleware.UserContextKey).(*model.User)
+
 	userUUIDStr := chi.URLParam(r, "user_uuid")
 	userUUID, err := uuid.Parse(userUUIDStr)
 	if err != nil {
@@ -177,7 +180,7 @@ func (h *UserHandler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Update user
-	user, err := h.userService.Update(userUUID, req.Username, req.Email, req.Phone)
+	user, err := h.userService.Update(userUUID, req.Username, req.Email, req.Phone, updaterUser.UserUUID)
 	if err != nil {
 		util.Error(w, http.StatusInternalServerError, "Failed to update user", err.Error())
 		return
@@ -191,6 +194,9 @@ func (h *UserHandler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 
 // Set user active status
 func (h *UserHandler) SetUserActiveStatus(w http.ResponseWriter, r *http.Request) {
+	// Get authentication context
+	updaterUser := r.Context().Value(middleware.UserContextKey).(*model.User)
+
 	userUUIDStr := chi.URLParam(r, "user_uuid")
 	userUUID, err := uuid.Parse(userUUIDStr)
 	if err != nil {
@@ -211,7 +217,7 @@ func (h *UserHandler) SetUserActiveStatus(w http.ResponseWriter, r *http.Request
 	}
 
 	// Update user status
-	user, err := h.userService.SetActiveStatus(userUUID, req.IsActive)
+	user, err := h.userService.SetActiveStatus(userUUID, req.IsActive, updaterUser.UserUUID)
 	if err != nil {
 		util.Error(w, http.StatusInternalServerError, "Failed to update user status", err.Error())
 		return
@@ -225,6 +231,9 @@ func (h *UserHandler) SetUserActiveStatus(w http.ResponseWriter, r *http.Request
 
 // Delete user
 func (h *UserHandler) DeleteUser(w http.ResponseWriter, r *http.Request) {
+	// Get authentication context
+	deleterUser := r.Context().Value(middleware.UserContextKey).(*model.User)
+
 	userUUIDStr := chi.URLParam(r, "user_uuid")
 	userUUID, err := uuid.Parse(userUUIDStr)
 	if err != nil {
@@ -233,7 +242,7 @@ func (h *UserHandler) DeleteUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Delete user
-	user, err := h.userService.DeleteByUUID(userUUID)
+	user, err := h.userService.DeleteByUUID(userUUID, deleterUser.UserUUID)
 	if err != nil {
 		util.Error(w, http.StatusInternalServerError, "Failed to delete user", err.Error())
 		return

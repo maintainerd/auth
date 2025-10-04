@@ -17,8 +17,6 @@ CREATE TABLE IF NOT EXISTS organizations (
     email								VARCHAR(255),
     phone								VARCHAR(50),
     is_active						BOOLEAN DEFAULT TRUE,
-		is_default					BOOLEAN DEFAULT FALSE,
-		is_root							BOOLEAN DEFAULT FALSE,
     created_at					TIMESTAMPTZ DEFAULT now(),
     updated_at					TIMESTAMPTZ DEFAULT now()
 );
@@ -29,8 +27,6 @@ CREATE INDEX IF NOT EXISTS idx_organizations_name ON organizations (name);
 CREATE INDEX IF NOT EXISTS idx_organizations_email ON organizations (email);
 CREATE INDEX IF NOT EXISTS idx_organizations_phone ON organizations (phone);
 CREATE INDEX IF NOT EXISTS idx_organizations_is_active ON organizations (is_active);
-CREATE INDEX IF NOT EXISTS idx_organizations_is_default ON organizations (is_default);
-CREATE INDEX IF NOT EXISTS idx_organizations_is_root ON organizations (is_root);
 CREATE INDEX IF NOT EXISTS idx_organizations_created_at ON organizations (created_at);
 `
 	if err := db.Exec(sql).Error; err != nil {

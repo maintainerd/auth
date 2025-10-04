@@ -32,18 +32,7 @@ func (h *OrganizationHandler) Get(w http.ResponseWriter, r *http.Request) {
 	limit, _ := strconv.Atoi(q.Get("limit"))
 
 	// Parse bools safely
-	var isDefault, isRoot, isActive *bool
-	if v := q.Get("is_default"); v != "" {
-		parsed, err := strconv.ParseBool(v)
-		if err == nil {
-			isDefault = &parsed
-		}
-	}
-	if v := q.Get("is_root"); v != "" {
-		if parsed, err := strconv.ParseBool(v); err == nil {
-			isRoot = &parsed
-		}
-	}
+	var isActive *bool
 	if v := q.Get("is_active"); v != "" {
 		parsed, err := strconv.ParseBool(v)
 		if err == nil {
@@ -58,8 +47,6 @@ func (h *OrganizationHandler) Get(w http.ResponseWriter, r *http.Request) {
 		Email:       util.PtrOrNil(q.Get("email")),
 		Phone:       util.PtrOrNil(q.Get("phone")),
 		IsActive:    isActive,
-		IsDefault:   isDefault,
-		IsRoot:      isRoot,
 		PaginationRequestDto: dto.PaginationRequestDto{
 			Page:      page,
 			Limit:     limit,
@@ -79,8 +66,6 @@ func (h *OrganizationHandler) Get(w http.ResponseWriter, r *http.Request) {
 		Description: reqParams.Description,
 		Email:       reqParams.Email,
 		Phone:       reqParams.Phone,
-		IsDefault:   reqParams.IsDefault,
-		IsRoot:      reqParams.IsRoot,
 		IsActive:    reqParams.IsActive,
 		Page:        reqParams.PaginationRequestDto.Page,
 		Limit:       reqParams.PaginationRequestDto.Limit,
@@ -149,7 +134,7 @@ func (h *OrganizationHandler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Create organization
-	org, err := h.organizationService.Create(req.Name, *req.Description, *req.Email, *req.Phone, req.IsActive, false)
+	org, err := h.organizationService.Create(req.Name, *req.Description, *req.Email, *req.Phone, req.IsActive)
 	if err != nil {
 		util.Error(w, http.StatusInternalServerError, "Failed to create organization", err.Error())
 		return
@@ -186,7 +171,7 @@ func (h *OrganizationHandler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Update organization
-	org, err := h.organizationService.Update(orgUUID, req.Name, *req.Description, *req.Email, *req.Phone, req.IsActive, false, user.UserUUID)
+	org, err := h.organizationService.Update(orgUUID, req.Name, *req.Description, *req.Email, *req.Phone, req.IsActive, user.UserUUID)
 	if err != nil {
 		util.Error(w, http.StatusInternalServerError, "Failed to update organization", err.Error())
 		return
@@ -257,8 +242,6 @@ func toOrganizationResponseDto(r service.OrganizationServiceDataResult) dto.Orga
 		Email:            *r.Email,
 		Phone:            *r.Phone,
 		IsActive:         r.IsActive,
-		IsDefault:        r.IsDefault,
-		IsRoot:           r.IsRoot,
 		CreatedAt:        r.CreatedAt,
 		UpdatedAt:        r.UpdatedAt,
 	}

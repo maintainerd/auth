@@ -358,7 +358,6 @@ func toAuthContainerServiceDataResult(authContainer *model.AuthContainer) *AuthC
 			Email:            authContainer.Organization.Email,
 			Phone:            authContainer.Organization.Phone,
 			IsActive:         authContainer.Organization.IsActive,
-			IsDefault:        authContainer.Organization.IsDefault,
 			CreatedAt:        authContainer.Organization.CreatedAt,
 			UpdatedAt:        authContainer.Organization.UpdatedAt,
 		}

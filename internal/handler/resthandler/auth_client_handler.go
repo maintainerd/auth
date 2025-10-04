@@ -8,6 +8,8 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/dto"
+	"github.com/maintainerd/auth/internal/middleware"
+	"github.com/maintainerd/auth/internal/model"
 	"github.com/maintainerd/auth/internal/service"
 	"github.com/maintainerd/auth/internal/util"
 )
@@ -168,6 +170,9 @@ func (h *AuthClientHandler) GetConfigByUUID(w http.ResponseWriter, r *http.Reque
 
 // Create Auth Client
 func (h *AuthClientHandler) Create(w http.ResponseWriter, r *http.Request) {
+	// Get authentication context
+	user := r.Context().Value(middleware.UserContextKey).(*model.User)
+
 	var req dto.AuthClientCreateRequestDto
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		util.Error(w, http.StatusBadRequest, "Invalid request", err.Error())
@@ -179,7 +184,7 @@ func (h *AuthClientHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	authClient, err := h.authClientService.Create(req.Name, req.DisplayName, req.ClientType, req.Domain, req.Config, req.IsActive, false, req.IdentityProviderUUID)
+	authClient, err := h.authClientService.Create(req.Name, req.DisplayName, req.ClientType, req.Domain, req.Config, req.IsActive, false, req.IdentityProviderUUID, user.UserUUID)
 	if err != nil {
 		util.Error(w, http.StatusInternalServerError, "Failed to create auth client", err.Error())
 		return
@@ -192,6 +197,9 @@ func (h *AuthClientHandler) Create(w http.ResponseWriter, r *http.Request) {
 
 // Update Auth Client
 func (h *AuthClientHandler) Update(w http.ResponseWriter, r *http.Request) {
+	// Get authentication context
+	user := r.Context().Value(middleware.UserContextKey).(*model.User)
+
 	authClientUUID, err := uuid.Parse(chi.URLParam(r, "auth_client_uuid"))
 	if err != nil {
 		util.Error(w, http.StatusBadRequest, "Invalid auth client UUID")
@@ -209,7 +217,7 @@ func (h *AuthClientHandler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	authClient, err := h.authClientService.Update(authClientUUID, req.Name, req.DisplayName, req.ClientType, req.Domain, req.Config, req.IsActive, false)
+	authClient, err := h.authClientService.Update(authClientUUID, req.Name, req.DisplayName, req.ClientType, req.Domain, req.Config, req.IsActive, false, user.UserUUID)
 	if err != nil {
 		util.Error(w, http.StatusInternalServerError, "Failed to update auth client", err.Error())
 		return
@@ -222,13 +230,16 @@ func (h *AuthClientHandler) Update(w http.ResponseWriter, r *http.Request) {
 
 // Set Auth client status
 func (h *AuthClientHandler) SetStatus(w http.ResponseWriter, r *http.Request) {
+	// Get authentication context
+	user := r.Context().Value(middleware.UserContextKey).(*model.User)
+
 	authClientUUID, err := uuid.Parse(chi.URLParam(r, "auth_client_uuid"))
 	if err != nil {
 		util.Error(w, http.StatusBadRequest, "Invalid auth client UUID")
 		return
 	}
 
-	authClient, err := h.authClientService.SetActiveStatusByUUID(authClientUUID)
+	authClient, err := h.authClientService.SetActiveStatusByUUID(authClientUUID, user.UserUUID)
 	if err != nil {
 		util.Error(w, http.StatusInternalServerError, "Failed to update API", err.Error())
 		return
@@ -241,13 +252,16 @@ func (h *AuthClientHandler) SetStatus(w http.ResponseWriter, r *http.Request) {
 
 // Delete Auth Client
 func (h *AuthClientHandler) Delete(w http.ResponseWriter, r *http.Request) {
+	// Get authentication context
+	user := r.Context().Value(middleware.UserContextKey).(*model.User)
+
 	authClientUUID, err := uuid.Parse(chi.URLParam(r, "auth_client_uuid"))
 	if err != nil {
 		util.Error(w, http.StatusBadRequest, "Invalid Auth Client UUID")
 		return
 	}
 
-	authClient, err := h.authClientService.DeleteByUUID(authClientUUID)
+	authClient, err := h.authClientService.DeleteByUUID(authClientUUID, user.UserUUID)
 	if err != nil {
 		util.Error(w, http.StatusInternalServerError, "Failed to delete auth client", err.Error())
 		return
@@ -259,6 +273,9 @@ func (h *AuthClientHandler) Delete(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *AuthClientHandler) CreateRedirectURI(w http.ResponseWriter, r *http.Request) {
+	// Get authentication context
+	user := r.Context().Value(middleware.UserContextKey).(*model.User)
+
 	authClientUUID, err := uuid.Parse(chi.URLParam(r, "auth_client_uuid"))
 	if err != nil {
 		util.Error(w, http.StatusBadRequest, "Invalid auth client UUID")
@@ -276,7 +293,7 @@ func (h *AuthClientHandler) CreateRedirectURI(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	redirectURI, err := h.authClientService.CreateRedirectURI(authClientUUID, req.RedirectURI)
+	redirectURI, err := h.authClientService.CreateRedirectURI(authClientUUID, req.RedirectURI, user.UserUUID)
 	if err != nil {
 		util.Error(w, http.StatusInternalServerError, "Failed to create redirect URI", err.Error())
 		return
@@ -288,6 +305,9 @@ func (h *AuthClientHandler) CreateRedirectURI(w http.ResponseWriter, r *http.Req
 }
 
 func (h *AuthClientHandler) UpdateRedirectURI(w http.ResponseWriter, r *http.Request) {
+	// Get authentication context
+	user := r.Context().Value(middleware.UserContextKey).(*model.User)
+
 	authClientUUID, err := uuid.Parse(chi.URLParam(r, "auth_client_uuid"))
 	if err != nil {
 		util.Error(w, http.StatusBadRequest, "Invalid auth client UUID")
@@ -311,7 +331,7 @@ func (h *AuthClientHandler) UpdateRedirectURI(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	redirectURI, err := h.authClientService.UpdateRedirectURI(authClientUUID, authClientRedirectURIUUID, req.RedirectURI)
+	redirectURI, err := h.authClientService.UpdateRedirectURI(authClientUUID, authClientRedirectURIUUID, req.RedirectURI, user.UserUUID)
 	if err != nil {
 		util.Error(w, http.StatusInternalServerError, "Failed to update redirect URI", err.Error())
 		return
@@ -323,6 +343,9 @@ func (h *AuthClientHandler) UpdateRedirectURI(w http.ResponseWriter, r *http.Req
 }
 
 func (h *AuthClientHandler) DeleteRedirectURI(w http.ResponseWriter, r *http.Request) {
+	// Get authentication context
+	user := r.Context().Value(middleware.UserContextKey).(*model.User)
+
 	authClientUUID, err := uuid.Parse(chi.URLParam(r, "auth_client_uuid"))
 	if err != nil {
 		util.Error(w, http.StatusBadRequest, "Invalid auth client UUID")
@@ -335,7 +358,7 @@ func (h *AuthClientHandler) DeleteRedirectURI(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	authClient, err := h.authClientService.DeleteRedirectURI(authClientUUID, authClientRedirectURIUUID)
+	authClient, err := h.authClientService.DeleteRedirectURI(authClientUUID, authClientRedirectURIUUID, user.UserUUID)
 	if err != nil {
 		util.Error(w, http.StatusInternalServerError, "Failed to delete redirect URI", err.Error())
 		return
@@ -348,6 +371,9 @@ func (h *AuthClientHandler) DeleteRedirectURI(w http.ResponseWriter, r *http.Req
 
 // Add permissions to auth client
 func (h *AuthClientHandler) AddPermissions(w http.ResponseWriter, r *http.Request) {
+	// Get authentication context
+	user := r.Context().Value(middleware.UserContextKey).(*model.User)
+
 	authClientUUID, err := uuid.Parse(chi.URLParam(r, "auth_client_uuid"))
 	if err != nil {
 		util.Error(w, http.StatusBadRequest, "Invalid auth client UUID")
@@ -365,7 +391,7 @@ func (h *AuthClientHandler) AddPermissions(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	authClient, err := h.authClientService.AddAuthClientPermissions(authClientUUID, req.Permissions)
+	authClient, err := h.authClientService.AddAuthClientPermissions(authClientUUID, req.Permissions, user.UserUUID)
 	if err != nil {
 		util.Error(w, http.StatusInternalServerError, "Failed to add permissions to auth client", err.Error())
 		return
@@ -392,8 +418,11 @@ func (h *AuthClientHandler) RemovePermission(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
+	// Get authentication context
+	user := r.Context().Value(middleware.UserContextKey).(*model.User)
+
 	// Remove permission from auth client
-	authClient, err := h.authClientService.RemoveAuthClientPermissions(authClientUUID, permissionUUID)
+	authClient, err := h.authClientService.RemoveAuthClientPermissions(authClientUUID, permissionUUID, user.UserUUID)
 	if err != nil {
 		util.Error(w, http.StatusInternalServerError, "Failed to remove permission from auth client", err.Error())
 		return

@@ -8,6 +8,8 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/dto"
+	"github.com/maintainerd/auth/internal/middleware"
+	"github.com/maintainerd/auth/internal/model"
 	"github.com/maintainerd/auth/internal/service"
 	"github.com/maintainerd/auth/internal/util"
 )
@@ -127,6 +129,9 @@ func (h *IdentityProviderHandler) GetByUUID(w http.ResponseWriter, r *http.Reque
 
 // Create identity provider
 func (h *IdentityProviderHandler) Create(w http.ResponseWriter, r *http.Request) {
+	// Get authentication context
+	user := r.Context().Value(middleware.UserContextKey).(*model.User)
+
 	var req dto.IdentityProviderCreateOrUpdateRequestDto
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		util.Error(w, http.StatusBadRequest, "Invalid request", err.Error())
@@ -138,7 +143,7 @@ func (h *IdentityProviderHandler) Create(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	idp, err := h.idpService.Create(req.Name, req.DisplayName, req.ProviderType, req.Config, req.IsActive, false, req.AuthContainerUUID)
+	idp, err := h.idpService.Create(req.Name, req.DisplayName, req.ProviderType, req.Config, req.IsActive, false, req.AuthContainerUUID, user.UserUUID)
 	if err != nil {
 		util.Error(w, http.StatusInternalServerError, "Failed to create permission", err.Error())
 		return
@@ -151,6 +156,9 @@ func (h *IdentityProviderHandler) Create(w http.ResponseWriter, r *http.Request)
 
 // Update identity provider
 func (h *IdentityProviderHandler) Update(w http.ResponseWriter, r *http.Request) {
+	// Get authentication context
+	user := r.Context().Value(middleware.UserContextKey).(*model.User)
+
 	idpUUID, err := uuid.Parse(chi.URLParam(r, "identity_provider_uuid"))
 	if err != nil {
 		util.Error(w, http.StatusBadRequest, "Invalid identity provider UUID")
@@ -168,7 +176,7 @@ func (h *IdentityProviderHandler) Update(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	idp, err := h.idpService.Update(idpUUID, req.Name, req.DisplayName, req.ProviderType, req.Config, req.IsActive, false, req.AuthContainerUUID)
+	idp, err := h.idpService.Update(idpUUID, req.Name, req.DisplayName, req.ProviderType, req.Config, req.IsActive, false, user.UserUUID)
 	if err != nil {
 		util.Error(w, http.StatusInternalServerError, "Failed to update identity provider", err.Error())
 		return
@@ -181,13 +189,16 @@ func (h *IdentityProviderHandler) Update(w http.ResponseWriter, r *http.Request)
 
 // Set identity provider status
 func (h *IdentityProviderHandler) SetStatus(w http.ResponseWriter, r *http.Request) {
+	// Get authentication context
+	user := r.Context().Value(middleware.UserContextKey).(*model.User)
+
 	idpUUID, err := uuid.Parse(chi.URLParam(r, "identity_provider_uuid"))
 	if err != nil {
 		util.Error(w, http.StatusBadRequest, "Invalid identity provider UUID")
 		return
 	}
 
-	idp, err := h.idpService.SetActiveStatusByUUID(idpUUID)
+	idp, err := h.idpService.SetActiveStatusByUUID(idpUUID, user.UserUUID)
 	if err != nil {
 		util.Error(w, http.StatusInternalServerError, "Failed to update identity provider", err.Error())
 		return
@@ -200,13 +211,16 @@ func (h *IdentityProviderHandler) SetStatus(w http.ResponseWriter, r *http.Reque
 
 // Delete identity provider
 func (h *IdentityProviderHandler) Delete(w http.ResponseWriter, r *http.Request) {
+	// Get authentication context
+	user := r.Context().Value(middleware.UserContextKey).(*model.User)
+
 	idpUUID, err := uuid.Parse(chi.URLParam(r, "identity_provider_uuid"))
 	if err != nil {
 		util.Error(w, http.StatusBadRequest, "Invalid identity provider UUID")
 		return
 	}
 
-	idp, err := h.idpService.DeleteByUUID(idpUUID)
+	idp, err := h.idpService.DeleteByUUID(idpUUID, user.UserUUID)
 	if err != nil {
 		util.Error(w, http.StatusInternalServerError, "Failed to delete identity provider", err.Error())
 		return
