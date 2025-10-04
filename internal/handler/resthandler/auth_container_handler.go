@@ -264,7 +264,6 @@ func toAuthContainerResponseDto(r service.AuthContainerServiceDataResult) dto.Au
 			Email:            *r.Organization.Email,
 			Phone:            *r.Organization.Phone,
 			IsActive:         r.Organization.IsActive,
-			IsDefault:        r.Organization.IsDefault,
 			CreatedAt:        r.Organization.CreatedAt,
 			UpdatedAt:        r.Organization.UpdatedAt,
 		}

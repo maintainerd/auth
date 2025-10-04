@@ -145,7 +145,7 @@ func (h *RoleHandler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Create role
-	role, err := h.service.Create(req.Name, req.Description, false, req.IsActive, user.AuthContainerID)
+	role, err := h.service.Create(req.Name, req.Description, false, req.IsActive, user.AuthContainer.AuthContainerUUID.String(), user.UserUUID)
 	if err != nil {
 		util.Error(w, http.StatusInternalServerError, "Failed to create role", err.Error())
 		return
@@ -182,7 +182,7 @@ func (h *RoleHandler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Update role
-	role, err := h.service.Update(roleUUID, req.Name, req.Description, false, req.IsActive, user.AuthContainerID)
+	role, err := h.service.Update(roleUUID, req.Name, req.Description, false, req.IsActive, user.UserUUID)
 	if err != nil {
 		util.Error(w, http.StatusInternalServerError, "Failed to update role", err.Error())
 		return
@@ -196,6 +196,9 @@ func (h *RoleHandler) Update(w http.ResponseWriter, r *http.Request) {
 
 // Set role status
 func (h *RoleHandler) SetStatus(w http.ResponseWriter, r *http.Request) {
+	// Get authentication context
+	user := r.Context().Value(middleware.UserContextKey).(*model.User)
+
 	// Validate role_uuid
 	roleUUID, err := uuid.Parse(chi.URLParam(r, "role_uuid"))
 	if err != nil {
@@ -204,7 +207,7 @@ func (h *RoleHandler) SetStatus(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Update role
-	role, err := h.service.SetActiveStatusByUUID(roleUUID)
+	role, err := h.service.SetActiveStatusByUUID(roleUUID, user.UserUUID)
 	if err != nil {
 		util.Error(w, http.StatusInternalServerError, "Failed to update role", err.Error())
 		return
@@ -218,6 +221,9 @@ func (h *RoleHandler) SetStatus(w http.ResponseWriter, r *http.Request) {
 
 // Delete role
 func (h *RoleHandler) Delete(w http.ResponseWriter, r *http.Request) {
+	// Get authentication context
+	user := r.Context().Value(middleware.UserContextKey).(*model.User)
+
 	roleUUID, err := uuid.Parse(chi.URLParam(r, "role_uuid"))
 	if err != nil {
 		util.Error(w, http.StatusBadRequest, "Invalid role UUID")
@@ -225,7 +231,7 @@ func (h *RoleHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Delete role
-	role, err := h.service.DeleteByUUID(roleUUID)
+	role, err := h.service.DeleteByUUID(roleUUID, user.UserUUID)
 	if err != nil {
 		util.Error(w, http.StatusInternalServerError, "Failed to delete role", err.Error())
 		return
@@ -239,6 +245,9 @@ func (h *RoleHandler) Delete(w http.ResponseWriter, r *http.Request) {
 
 // Add permissions to role
 func (h *RoleHandler) AddPermissions(w http.ResponseWriter, r *http.Request) {
+	// Get authentication context
+	user := r.Context().Value(middleware.UserContextKey).(*model.User)
+
 	// Validate role_uuid
 	roleUUID, err := uuid.Parse(chi.URLParam(r, "role_uuid"))
 	if err != nil {
@@ -259,7 +268,7 @@ func (h *RoleHandler) AddPermissions(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Add permissions to role
-	role, err := h.service.AddRolePermissions(roleUUID, req.Permissions)
+	role, err := h.service.AddRolePermissions(roleUUID, req.Permissions, user.UserUUID)
 	if err != nil {
 		util.Error(w, http.StatusInternalServerError, "Failed to add permissions to role", err.Error())
 		return
@@ -273,6 +282,9 @@ func (h *RoleHandler) AddPermissions(w http.ResponseWriter, r *http.Request) {
 
 // Remove permission from role
 func (h *RoleHandler) RemovePermission(w http.ResponseWriter, r *http.Request) {
+	// Get authentication context
+	user := r.Context().Value(middleware.UserContextKey).(*model.User)
+
 	// Validate role_uuid
 	roleUUID, err := uuid.Parse(chi.URLParam(r, "role_uuid"))
 	if err != nil {
@@ -288,7 +300,7 @@ func (h *RoleHandler) RemovePermission(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Remove permission from role
-	role, err := h.service.RemoveRolePermissions(roleUUID, permissionUUID)
+	role, err := h.service.RemoveRolePermissions(roleUUID, permissionUUID, user.UserUUID)
 	if err != nil {
 		util.Error(w, http.StatusInternalServerError, "Failed to remove permission from role", err.Error())
 		return

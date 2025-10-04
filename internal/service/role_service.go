@@ -44,12 +44,12 @@ type RoleServiceGetResult struct {
 type RoleService interface {
 	Get(filter RoleServiceGetFilter) (*RoleServiceGetResult, error)
 	GetByUUID(roleUUID uuid.UUID) (*RoleServiceDataResult, error)
-	Create(name string, description string, IsDefault bool, IsActive bool, authContainerId int64) (*RoleServiceDataResult, error)
-	Update(roleUUID uuid.UUID, name string, description string, IsDefault bool, IsActive bool, authContainerId int64) (*RoleServiceDataResult, error)
-	SetActiveStatusByUUID(roleUUID uuid.UUID) (*RoleServiceDataResult, error)
-	DeleteByUUID(roleUUID uuid.UUID) (*RoleServiceDataResult, error)
-	AddRolePermissions(roleUUID uuid.UUID, permissionUUIDs []uuid.UUID) (*RoleServiceDataResult, error)
-	RemoveRolePermissions(roleUUID uuid.UUID, permissionUUID uuid.UUID) (*RoleServiceDataResult, error)
+	Create(name string, description string, IsDefault bool, IsActive bool, authContainerUUID string, actorUserUUID uuid.UUID) (*RoleServiceDataResult, error)
+	Update(roleUUID uuid.UUID, name string, description string, IsDefault bool, IsActive bool, actorUserUUID uuid.UUID) (*RoleServiceDataResult, error)
+	SetActiveStatusByUUID(roleUUID uuid.UUID, actorUserUUID uuid.UUID) (*RoleServiceDataResult, error)
+	DeleteByUUID(roleUUID uuid.UUID, actorUserUUID uuid.UUID) (*RoleServiceDataResult, error)
+	AddRolePermissions(roleUUID uuid.UUID, permissionUUIDs []uuid.UUID, actorUserUUID uuid.UUID) (*RoleServiceDataResult, error)
+	RemoveRolePermissions(roleUUID uuid.UUID, permissionUUID uuid.UUID, actorUserUUID uuid.UUID) (*RoleServiceDataResult, error)
 }
 
 type roleService struct {
@@ -57,6 +57,8 @@ type roleService struct {
 	roleRepo           repository.RoleRepository
 	permissionRepo     repository.PermissionRepository
 	rolePermissionRepo repository.RolePermissionRepository
+	userRepo           repository.UserRepository
+	authContainerRepo  repository.AuthContainerRepository
 }
 
 func NewRoleService(
@@ -64,12 +66,16 @@ func NewRoleService(
 	roleRepo repository.RoleRepository,
 	permissionRepo repository.PermissionRepository,
 	rolePermissionRepo repository.RolePermissionRepository,
+	userRepo repository.UserRepository,
+	authContainerRepo repository.AuthContainerRepository,
 ) RoleService {
 	return &roleService{
 		db:                 db,
 		roleRepo:           roleRepo,
 		permissionRepo:     permissionRepo,
 		rolePermissionRepo: rolePermissionRepo,
+		userRepo:           userRepo,
+		authContainerRepo:  authContainerRepo,
 	}
 }
 
@@ -118,15 +124,40 @@ func (s *roleService) GetByUUID(roleUUID uuid.UUID) (*RoleServiceDataResult, err
 	return toRoleServiceDataResult(role), nil
 }
 
-func (s *roleService) Create(name string, description string, isDefault bool, isActive bool, authContainerId int64) (*RoleServiceDataResult, error) {
+func (s *roleService) Create(name string, description string, isDefault bool, isActive bool, authContainerUUID string, actorUserUUID uuid.UUID) (*RoleServiceDataResult, error) {
 	var createdRole *model.Role
 
 	// Transaction
 	err := s.db.Transaction(func(tx *gorm.DB) error {
 		txRoleRepo := s.roleRepo.WithTx(tx)
+		txUserRepo := s.userRepo.WithTx(tx)
+		txAuthContainerRepo := s.authContainerRepo.WithTx(tx)
+
+		// Parse auth container UUID
+		authContainerUUIDParsed, err := uuid.Parse(authContainerUUID)
+		if err != nil {
+			return errors.New("invalid auth container UUID")
+		}
+
+		// Validate auth container exists
+		targetAuthContainer, err := txAuthContainerRepo.FindByUUID(authContainerUUIDParsed, "Organization")
+		if err != nil || targetAuthContainer == nil {
+			return errors.New("auth container not found")
+		}
+
+		// Get actor user with auth container and organization info
+		actorUser, err := txUserRepo.FindByUUID(actorUserUUID, "AuthContainer.Organization")
+		if err != nil || actorUser == nil {
+			return errors.New("actor user not found")
+		}
+
+		// Validate auth container access permissions
+		if err := ValidateAuthContainerAccess(actorUser, targetAuthContainer); err != nil {
+			return err
+		}
 
 		// Check if role already exist
-		existingRole, err := txRoleRepo.FindByNameAndAuthContainerID(name, authContainerId)
+		existingRole, err := txRoleRepo.FindByNameAndAuthContainerID(name, targetAuthContainer.AuthContainerID)
 		if err != nil {
 			return err
 		}
@@ -140,7 +171,7 @@ func (s *roleService) Create(name string, description string, isDefault bool, is
 			Description:     description,
 			IsDefault:       isDefault,
 			IsActive:        isActive,
-			AuthContainerID: authContainerId,
+			AuthContainerID: targetAuthContainer.AuthContainerID,
 		}
 
 		_, err = txRoleRepo.CreateOrUpdate(newRole)
@@ -160,20 +191,32 @@ func (s *roleService) Create(name string, description string, isDefault bool, is
 	return toRoleServiceDataResult(createdRole), nil
 }
 
-func (s *roleService) Update(roleUUID uuid.UUID, name string, description string, isDefault bool, isActive bool, authContainerId int64) (*RoleServiceDataResult, error) {
+func (s *roleService) Update(roleUUID uuid.UUID, name string, description string, isDefault bool, isActive bool, actorUserUUID uuid.UUID) (*RoleServiceDataResult, error) {
 	var updatedRole *model.Role
 
 	// Transaction
 	err := s.db.Transaction(func(tx *gorm.DB) error {
 		txRoleRepo := s.roleRepo.WithTx(tx)
+		txUserRepo := s.userRepo.WithTx(tx)
 
 		// Find existing role
-		role, err := txRoleRepo.FindByUUID(roleUUID)
+		role, err := txRoleRepo.FindByUUID(roleUUID, "AuthContainer.Organization")
 		if err != nil {
 			return err
 		}
 		if role == nil {
 			return errors.New("role not found")
+		}
+
+		// Get actor user with auth container and organization info
+		actorUser, err := txUserRepo.FindByUUID(actorUserUUID, "AuthContainer.Organization")
+		if err != nil || actorUser == nil {
+			return errors.New("actor user not found")
+		}
+
+		// Validate auth container access permissions
+		if err := ValidateAuthContainerAccess(actorUser, role.AuthContainer); err != nil {
+			return err
 		}
 
 		// Check if role is a default record
@@ -183,7 +226,7 @@ func (s *roleService) Update(roleUUID uuid.UUID, name string, description string
 
 		// If role name is changed, check if duplicate
 		if role.Name != name {
-			existingRole, err := txRoleRepo.FindByNameAndAuthContainerID(name, authContainerId)
+			existingRole, err := txRoleRepo.FindByNameAndAuthContainerID(name, role.AuthContainerID)
 			if err != nil {
 				return err
 			}
@@ -215,20 +258,32 @@ func (s *roleService) Update(roleUUID uuid.UUID, name string, description string
 	return toRoleServiceDataResult(updatedRole), nil
 }
 
-func (s *roleService) SetActiveStatusByUUID(roleUUID uuid.UUID) (*RoleServiceDataResult, error) {
+func (s *roleService) SetActiveStatusByUUID(roleUUID uuid.UUID, actorUserUUID uuid.UUID) (*RoleServiceDataResult, error) {
 	var updatedRole *model.Role
 
 	// Transaction
 	err := s.db.Transaction(func(tx *gorm.DB) error {
 		txRoleRepo := s.roleRepo.WithTx(tx)
+		txUserRepo := s.userRepo.WithTx(tx)
 
 		// Find existing role
-		role, err := txRoleRepo.FindByUUID(roleUUID)
+		role, err := txRoleRepo.FindByUUID(roleUUID, "AuthContainer.Organization")
 		if err != nil {
 			return err
 		}
 		if role == nil {
 			return errors.New("role not found")
+		}
+
+		// Get actor user with auth container and organization info
+		actorUser, err := txUserRepo.FindByUUID(actorUserUUID, "AuthContainer.Organization")
+		if err != nil || actorUser == nil {
+			return errors.New("actor user not found")
+		}
+
+		// Validate auth container access permissions
+		if err := ValidateAuthContainerAccess(actorUser, role.AuthContainer); err != nil {
+			return err
 		}
 
 		// Check if role is a default record
@@ -256,14 +311,25 @@ func (s *roleService) SetActiveStatusByUUID(roleUUID uuid.UUID) (*RoleServiceDat
 	return toRoleServiceDataResult(updatedRole), nil
 }
 
-func (s *roleService) DeleteByUUID(roleUUID uuid.UUID) (*RoleServiceDataResult, error) {
+func (s *roleService) DeleteByUUID(roleUUID uuid.UUID, actorUserUUID uuid.UUID) (*RoleServiceDataResult, error) {
 	// Check role existence
-	role, err := s.roleRepo.FindByUUID(roleUUID)
+	role, err := s.roleRepo.FindByUUID(roleUUID, "AuthContainer.Organization")
 	if err != nil {
 		return nil, err
 	}
 	if role == nil {
 		return nil, errors.New("role not found")
+	}
+
+	// Get actor user with auth container and organization info
+	actorUser, err := s.userRepo.FindByUUID(actorUserUUID, "AuthContainer.Organization")
+	if err != nil || actorUser == nil {
+		return nil, errors.New("actor user not found")
+	}
+
+	// Validate auth container access permissions
+	if err := ValidateAuthContainerAccess(actorUser, role.AuthContainer); err != nil {
+		return nil, err
 	}
 
 	// Check if role is a default record
@@ -280,7 +346,7 @@ func (s *roleService) DeleteByUUID(roleUUID uuid.UUID) (*RoleServiceDataResult, 
 	return toRoleServiceDataResult(role), nil
 }
 
-func (s *roleService) AddRolePermissions(roleUUID uuid.UUID, permissionUUIDs []uuid.UUID) (*RoleServiceDataResult, error) {
+func (s *roleService) AddRolePermissions(roleUUID uuid.UUID, permissionUUIDs []uuid.UUID, actorUserUUID uuid.UUID) (*RoleServiceDataResult, error) {
 	var roleWithPermissions *model.Role
 
 	// Transaction
@@ -288,14 +354,26 @@ func (s *roleService) AddRolePermissions(roleUUID uuid.UUID, permissionUUIDs []u
 		txRoleRepo := s.roleRepo.WithTx(tx)
 		txPermissionRepo := s.permissionRepo.WithTx(tx)
 		txRolePermissionRepo := s.rolePermissionRepo.WithTx(tx)
+		txUserRepo := s.userRepo.WithTx(tx)
 
 		// Find existing role
-		role, err := txRoleRepo.FindByUUID(roleUUID)
+		role, err := txRoleRepo.FindByUUID(roleUUID, "AuthContainer.Organization")
 		if err != nil {
 			return err
 		}
 		if role == nil {
 			return errors.New("role not found")
+		}
+
+		// Get actor user with auth container and organization info
+		actorUser, err := txUserRepo.FindByUUID(actorUserUUID, "AuthContainer.Organization")
+		if err != nil || actorUser == nil {
+			return errors.New("actor user not found")
+		}
+
+		// Validate auth container access permissions
+		if err := ValidateAuthContainerAccess(actorUser, role.AuthContainer); err != nil {
+			return err
 		}
 
 		// Check if role is a default record
@@ -361,7 +439,7 @@ func (s *roleService) AddRolePermissions(roleUUID uuid.UUID, permissionUUIDs []u
 	return toRoleServiceDataResult(roleWithPermissions), nil
 }
 
-func (s *roleService) RemoveRolePermissions(roleUUID uuid.UUID, permissionUUID uuid.UUID) (*RoleServiceDataResult, error) {
+func (s *roleService) RemoveRolePermissions(roleUUID uuid.UUID, permissionUUID uuid.UUID, actorUserUUID uuid.UUID) (*RoleServiceDataResult, error) {
 	var roleWithPermissions *model.Role
 
 	// Transaction
@@ -369,14 +447,26 @@ func (s *roleService) RemoveRolePermissions(roleUUID uuid.UUID, permissionUUID u
 		txRoleRepo := s.roleRepo.WithTx(tx)
 		txPermissionRepo := s.permissionRepo.WithTx(tx)
 		txRolePermissionRepo := s.rolePermissionRepo.WithTx(tx)
+		txUserRepo := s.userRepo.WithTx(tx)
 
 		// Find existing role
-		role, err := txRoleRepo.FindByUUID(roleUUID)
+		role, err := txRoleRepo.FindByUUID(roleUUID, "AuthContainer.Organization")
 		if err != nil {
 			return err
 		}
 		if role == nil {
 			return errors.New("role not found")
+		}
+
+		// Get actor user with auth container and organization info
+		actorUser, err := txUserRepo.FindByUUID(actorUserUUID, "AuthContainer.Organization")
+		if err != nil || actorUser == nil {
+			return errors.New("actor user not found")
+		}
+
+		// Validate auth container access permissions
+		if err := ValidateAuthContainerAccess(actorUser, role.AuthContainer); err != nil {
+			return err
 		}
 
 		// Check if role is a default record

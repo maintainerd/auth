@@ -63,9 +63,9 @@ type UserService interface {
 	Get(filter UserServiceGetFilter) (*UserServiceGetResult, error)
 	GetByUUID(userUUID uuid.UUID) (*UserServiceDataResult, error)
 	Create(username string, email string, phone string, password string, authContainerUUID string, creatorUserUUID uuid.UUID) (*UserServiceDataResult, error)
-	Update(userUUID uuid.UUID, username string, email string, phone string) (*UserServiceDataResult, error)
-	SetActiveStatus(userUUID uuid.UUID, isActive bool) (*UserServiceDataResult, error)
-	DeleteByUUID(userUUID uuid.UUID) (*UserServiceDataResult, error)
+	Update(userUUID uuid.UUID, username string, email string, phone string, updaterUserUUID uuid.UUID) (*UserServiceDataResult, error)
+	SetActiveStatus(userUUID uuid.UUID, isActive bool, updaterUserUUID uuid.UUID) (*UserServiceDataResult, error)
+	DeleteByUUID(userUUID uuid.UUID, deleterUserUUID uuid.UUID) (*UserServiceDataResult, error)
 	AssignUserRoles(userUUID uuid.UUID, roleUUIDs []uuid.UUID) (*UserServiceDataResult, error)
 	RemoveUserRole(userUUID uuid.UUID, roleUUID uuid.UUID) (*UserServiceDataResult, error)
 }
@@ -189,7 +189,7 @@ func (s *userService) Create(username string, email string, phone string, passwo
 		}
 
 		// Validate auth container access permissions
-		if err := s.validateAuthContainerAccess(creatorUser, targetAuthContainer); err != nil {
+		if err := ValidateAuthContainerAccess(creatorUser, targetAuthContainer); err != nil {
 			return err
 		}
 
@@ -269,16 +269,27 @@ func (s *userService) Create(username string, email string, phone string, passwo
 	return toUserServiceDataResult(createdUser), nil
 }
 
-func (s *userService) Update(userUUID uuid.UUID, username string, email string, phone string) (*UserServiceDataResult, error) {
+func (s *userService) Update(userUUID uuid.UUID, username string, email string, phone string, updaterUserUUID uuid.UUID) (*UserServiceDataResult, error) {
 	var updatedUser *model.User
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
 		txUserRepo := s.userRepo.WithTx(tx)
 
-		// Check if user exists
-		user, err := txUserRepo.FindByUUID(userUUID)
+		// Check if target user exists
+		user, err := txUserRepo.FindByUUID(userUUID, "AuthContainer.Organization")
 		if err != nil || user == nil {
 			return errors.New("user not found")
+		}
+
+		// Get updater user with auth container and organization info
+		updaterUser, err := txUserRepo.FindByUUID(updaterUserUUID, "AuthContainer.Organization")
+		if err != nil || updaterUser == nil {
+			return errors.New("updater user not found")
+		}
+
+		// Validate auth container access permissions
+		if err := ValidateAuthContainerAccess(updaterUser, user.AuthContainer); err != nil {
+			return err
 		}
 
 		// Check if username is taken by another user
@@ -329,11 +340,22 @@ func (s *userService) Update(userUUID uuid.UUID, username string, email string, 
 	return toUserServiceDataResult(updatedUser), nil
 }
 
-func (s *userService) SetActiveStatus(userUUID uuid.UUID, isActive bool) (*UserServiceDataResult, error) {
-	// Check if user exists
-	user, err := s.userRepo.FindByUUID(userUUID)
+func (s *userService) SetActiveStatus(userUUID uuid.UUID, isActive bool, updaterUserUUID uuid.UUID) (*UserServiceDataResult, error) {
+	// Check if target user exists
+	user, err := s.userRepo.FindByUUID(userUUID, "AuthContainer.Organization")
 	if err != nil || user == nil {
 		return nil, errors.New("user not found")
+	}
+
+	// Get updater user with auth container and organization info
+	updaterUser, err := s.userRepo.FindByUUID(updaterUserUUID, "AuthContainer.Organization")
+	if err != nil || updaterUser == nil {
+		return nil, errors.New("updater user not found")
+	}
+
+	// Validate auth container access permissions
+	if err := ValidateAuthContainerAccess(updaterUser, user.AuthContainer); err != nil {
+		return nil, err
 	}
 
 	// Update active status
@@ -351,11 +373,22 @@ func (s *userService) SetActiveStatus(userUUID uuid.UUID, isActive bool) (*UserS
 	return toUserServiceDataResult(updatedUser), nil
 }
 
-func (s *userService) DeleteByUUID(userUUID uuid.UUID) (*UserServiceDataResult, error) {
-	// Check if user exists
-	user, err := s.userRepo.FindByUUID(userUUID, "AuthContainer", "UserIdentities.AuthClient", "Roles")
+func (s *userService) DeleteByUUID(userUUID uuid.UUID, deleterUserUUID uuid.UUID) (*UserServiceDataResult, error) {
+	// Check if target user exists
+	user, err := s.userRepo.FindByUUID(userUUID, "AuthContainer.Organization", "UserIdentities.AuthClient", "Roles")
 	if err != nil || user == nil {
 		return nil, errors.New("user not found")
+	}
+
+	// Get deleter user with auth container and organization info
+	deleterUser, err := s.userRepo.FindByUUID(deleterUserUUID, "AuthContainer.Organization")
+	if err != nil || deleterUser == nil {
+		return nil, errors.New("deleter user not found")
+	}
+
+	// Validate auth container access permissions
+	if err := ValidateAuthContainerAccess(deleterUser, user.AuthContainer); err != nil {
+		return nil, err
 	}
 
 	// Delete user (cascade will handle related records)
@@ -529,47 +562,4 @@ func toUserServiceDataResult(user *model.User) *UserServiceDataResult {
 	}
 
 	return result
-}
-
-// validateAuthContainerAccess validates if a user can create users in the target auth container
-func (s *userService) validateAuthContainerAccess(creatorUser *model.User, targetAuthContainer *model.AuthContainer) error {
-	if creatorUser.AuthContainer == nil {
-		return errors.New("creator user has no auth container")
-	}
-
-	if targetAuthContainer.Organization == nil {
-		return errors.New("target auth container has no organization")
-	}
-
-	if creatorUser.AuthContainer.Organization == nil {
-		return errors.New("creator user's auth container has no organization")
-	}
-
-	creatorOrg := creatorUser.AuthContainer.Organization
-	targetOrg := targetAuthContainer.Organization
-
-	// Rule 1: Users can always create users in their own auth container
-	if creatorUser.AuthContainerID == targetAuthContainer.AuthContainerID {
-		return nil
-	}
-
-	// Rule 2: Root organization users can create users in any auth container
-	if creatorOrg.IsRoot {
-		return nil
-	}
-
-	// Rule 3: Default organization users can create users in any auth container EXCEPT root
-	if creatorOrg.IsDefault {
-		if targetOrg.IsRoot {
-			return errors.New("users from default organization cannot create users in root organization")
-		}
-		return nil
-	}
-
-	// Rule 4: External organization users can ONLY create users in their own auth container
-	if !creatorOrg.IsRoot && !creatorOrg.IsDefault {
-		return errors.New("users from external organizations can only create users within their own auth container")
-	}
-
-	return errors.New("access denied: cannot create user in target auth container")
 }

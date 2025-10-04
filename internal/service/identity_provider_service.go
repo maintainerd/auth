@@ -52,27 +52,30 @@ type IdentityProviderServiceGetResult struct {
 type IdentityProviderService interface {
 	Get(filter IdentityProviderServiceGetFilter) (*IdentityProviderServiceGetResult, error)
 	GetByUUID(idpUUID uuid.UUID) (*IdentityProviderServiceDataResult, error)
-	Create(name string, displayName string, providerType string, config datatypes.JSON, isActive bool, isDefault bool, authContainerUUID string) (*IdentityProviderServiceDataResult, error)
-	Update(idpUUID uuid.UUID, name string, displayName string, providerType string, config datatypes.JSON, isActive bool, isDefault bool, authContainerUUID string) (*IdentityProviderServiceDataResult, error)
-	SetActiveStatusByUUID(idpUUID uuid.UUID) (*IdentityProviderServiceDataResult, error)
-	DeleteByUUID(idpUUID uuid.UUID) (*IdentityProviderServiceDataResult, error)
+	Create(name string, displayName string, providerType string, config datatypes.JSON, isActive bool, isDefault bool, authContainerUUID string, actorUserUUID uuid.UUID) (*IdentityProviderServiceDataResult, error)
+	Update(idpUUID uuid.UUID, name string, displayName string, providerType string, config datatypes.JSON, isActive bool, isDefault bool, actorUserUUID uuid.UUID) (*IdentityProviderServiceDataResult, error)
+	SetActiveStatusByUUID(idpUUID uuid.UUID, actorUserUUID uuid.UUID) (*IdentityProviderServiceDataResult, error)
+	DeleteByUUID(idpUUID uuid.UUID, actorUserUUID uuid.UUID) (*IdentityProviderServiceDataResult, error)
 }
 
 type identityProviderService struct {
 	db                *gorm.DB
 	idpRepo           repository.IdentityProviderRepository
 	authContainerRepo repository.AuthContainerRepository
+	userRepo          repository.UserRepository
 }
 
 func NewIdentityProviderService(
 	db *gorm.DB,
 	idpRepo repository.IdentityProviderRepository,
 	authContainerRepo repository.AuthContainerRepository,
+	userRepo repository.UserRepository,
 ) IdentityProviderService {
 	return &identityProviderService{
 		db:                db,
 		idpRepo:           idpRepo,
 		authContainerRepo: authContainerRepo,
+		userRepo:          userRepo,
 	}
 }
 
@@ -131,17 +134,35 @@ func (s *identityProviderService) GetByUUID(idpUUID uuid.UUID) (*IdentityProvide
 	return toIdpServiceDataResult(idp), nil
 }
 
-func (s *identityProviderService) Create(name string, displayName string, providerType string, config datatypes.JSON, isActive bool, isDefault bool, authContainerUUID string) (*IdentityProviderServiceDataResult, error) {
+func (s *identityProviderService) Create(name string, displayName string, providerType string, config datatypes.JSON, isActive bool, isDefault bool, authContainerUUID string, actorUserUUID uuid.UUID) (*IdentityProviderServiceDataResult, error) {
 	var createdIdp *model.IdentityProvider
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
 		txIdpRepo := s.idpRepo.WithTx(tx)
 		txAuthContainerRepo := s.authContainerRepo.WithTx(tx)
+		txUserRepo := s.userRepo.WithTx(tx)
+
+		// Parse auth container UUID
+		authContainerUUIDParsed, err := uuid.Parse(authContainerUUID)
+		if err != nil {
+			return errors.New("invalid auth container UUID")
+		}
 
 		// Check if auth container exist
-		authContainer, err := txAuthContainerRepo.FindByUUID(authContainerUUID)
+		authContainer, err := txAuthContainerRepo.FindByUUID(authContainerUUIDParsed, "Organization")
 		if err != nil || authContainer == nil {
 			return errors.New("auth container not found")
+		}
+
+		// Get actor user with auth container and organization info
+		actorUser, err := txUserRepo.FindByUUID(actorUserUUID, "AuthContainer.Organization")
+		if err != nil || actorUser == nil {
+			return errors.New("actor user not found")
+		}
+
+		// Validate auth container access permissions
+		if err := ValidateAuthContainerAccess(actorUser, authContainer); err != nil {
+			return err
 		}
 
 		// Check if idp already exists
@@ -189,23 +210,28 @@ func (s *identityProviderService) Create(name string, displayName string, provid
 	return toIdpServiceDataResult(createdIdp), nil
 }
 
-func (s *identityProviderService) Update(idpUUID uuid.UUID, name string, displayName string, providerType string, config datatypes.JSON, isActive bool, isDefault bool, authContainerUUID string) (*IdentityProviderServiceDataResult, error) {
+func (s *identityProviderService) Update(idpUUID uuid.UUID, name string, displayName string, providerType string, config datatypes.JSON, isActive bool, isDefault bool, actorUserUUID uuid.UUID) (*IdentityProviderServiceDataResult, error) {
 	var updatedIdp *model.IdentityProvider
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
 		txIdpRepo := s.idpRepo.WithTx(tx)
-		txAuthContainerRepo := s.authContainerRepo.WithTx(tx)
-
-		// Check if auth container exist
-		authContainer, err := txAuthContainerRepo.FindByUUID(authContainerUUID)
-		if err != nil || authContainer == nil {
-			return errors.New("auth container not found")
-		}
+		txUserRepo := s.userRepo.WithTx(tx)
 
 		// Get idp
-		idp, err := txIdpRepo.FindByUUID(idpUUID, "AuthContainer")
+		idp, err := txIdpRepo.FindByUUID(idpUUID, "AuthContainer.Organization")
 		if err != nil || idp == nil {
 			return errors.New("idp not found")
+		}
+
+		// Get actor user with auth container and organization info
+		actorUser, err := txUserRepo.FindByUUID(actorUserUUID, "AuthContainer.Organization")
+		if err != nil || actorUser == nil {
+			return errors.New("actor user not found")
+		}
+
+		// Validate auth container access permissions
+		if err := ValidateAuthContainerAccess(actorUser, idp.AuthContainer); err != nil {
+			return err
 		}
 
 		// Check if default
@@ -215,7 +241,7 @@ func (s *identityProviderService) Update(idpUUID uuid.UUID, name string, display
 
 		// Check if idp already exist
 		if idp.Name != name {
-			existingIdp, err := txIdpRepo.FindByName(name, authContainer.AuthContainerID)
+			existingIdp, err := txIdpRepo.FindByName(name, idp.AuthContainerID)
 			if err != nil {
 				return err
 			}
@@ -250,16 +276,28 @@ func (s *identityProviderService) Update(idpUUID uuid.UUID, name string, display
 	return toIdpServiceDataResult(updatedIdp), nil
 }
 
-func (s *identityProviderService) SetActiveStatusByUUID(idpUUID uuid.UUID) (*IdentityProviderServiceDataResult, error) {
+func (s *identityProviderService) SetActiveStatusByUUID(idpUUID uuid.UUID, actorUserUUID uuid.UUID) (*IdentityProviderServiceDataResult, error) {
 	var updatedIdp *model.IdentityProvider
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
 		txIdpRepo := s.idpRepo.WithTx(tx)
+		txUserRepo := s.userRepo.WithTx(tx)
 
 		// Get idp
-		idp, err := txIdpRepo.FindByUUID(idpUUID, "AuthContainer")
+		idp, err := txIdpRepo.FindByUUID(idpUUID, "AuthContainer.Organization")
 		if err != nil || idp == nil {
 			return errors.New("idp not found")
+		}
+
+		// Get actor user with auth container and organization info
+		actorUser, err := txUserRepo.FindByUUID(actorUserUUID, "AuthContainer.Organization")
+		if err != nil || actorUser == nil {
+			return errors.New("actor user not found")
+		}
+
+		// Validate auth container access permissions
+		if err := ValidateAuthContainerAccess(actorUser, idp.AuthContainer); err != nil {
+			return err
 		}
 
 		// Check if default
@@ -286,11 +324,22 @@ func (s *identityProviderService) SetActiveStatusByUUID(idpUUID uuid.UUID) (*Ide
 	return toIdpServiceDataResult(updatedIdp), nil
 }
 
-func (s *identityProviderService) DeleteByUUID(idpUUID uuid.UUID) (*IdentityProviderServiceDataResult, error) {
+func (s *identityProviderService) DeleteByUUID(idpUUID uuid.UUID, actorUserUUID uuid.UUID) (*IdentityProviderServiceDataResult, error) {
 	// Get idp
-	idp, err := s.idpRepo.FindByUUID(idpUUID, "AuthContainer")
+	idp, err := s.idpRepo.FindByUUID(idpUUID, "AuthContainer.Organization")
 	if err != nil || idp == nil {
 		return nil, errors.New("idp not found")
+	}
+
+	// Get actor user with auth container and organization info
+	actorUser, err := s.userRepo.FindByUUID(actorUserUUID, "AuthContainer.Organization")
+	if err != nil || actorUser == nil {
+		return nil, errors.New("actor user not found")
+	}
+
+	// Validate auth container access permissions
+	if err := ValidateAuthContainerAccess(actorUser, idp.AuthContainer); err != nil {
+		return nil, err
 	}
 
 	// Check if default
