@@ -62,8 +62,8 @@ type UserServiceGetResult struct {
 type UserService interface {
 	Get(filter UserServiceGetFilter) (*UserServiceGetResult, error)
 	GetByUUID(userUUID uuid.UUID) (*UserServiceDataResult, error)
-	Create(username string, email string, phone string, password string, authContainerUUID string, creatorUserUUID uuid.UUID) (*UserServiceDataResult, error)
-	Update(userUUID uuid.UUID, username string, email string, phone string, updaterUserUUID uuid.UUID) (*UserServiceDataResult, error)
+	Create(username string, email *string, phone *string, password string, authContainerUUID string, creatorUserUUID uuid.UUID) (*UserServiceDataResult, error)
+	Update(userUUID uuid.UUID, username string, email *string, phone *string, updaterUserUUID uuid.UUID) (*UserServiceDataResult, error)
 	SetActiveStatus(userUUID uuid.UUID, isActive bool, updaterUserUUID uuid.UUID) (*UserServiceDataResult, error)
 	DeleteByUUID(userUUID uuid.UUID, deleterUserUUID uuid.UUID) (*UserServiceDataResult, error)
 	AssignUserRoles(userUUID uuid.UUID, roleUUIDs []uuid.UUID) (*UserServiceDataResult, error)
@@ -161,7 +161,7 @@ func (s *userService) GetByUUID(userUUID uuid.UUID) (*UserServiceDataResult, err
 	return toUserServiceDataResult(user), nil
 }
 
-func (s *userService) Create(username string, email string, phone string, password string, authContainerUUID string, creatorUserUUID uuid.UUID) (*UserServiceDataResult, error) {
+func (s *userService) Create(username string, email *string, phone *string, password string, authContainerUUID string, creatorUserUUID uuid.UUID) (*UserServiceDataResult, error) {
 	var createdUser *model.User
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
@@ -202,13 +202,15 @@ func (s *userService) Create(username string, email string, phone string, passwo
 			return errors.New("username already exists")
 		}
 
-		// Check if user already exists by email
-		existingUser, err = txUserRepo.FindByEmail(email, targetAuthContainer.AuthContainerID)
-		if err != nil {
-			return err
-		}
-		if existingUser != nil {
-			return errors.New("email already exists")
+		// Check if user already exists by email (only if email is provided)
+		if email != nil && *email != "" {
+			existingUser, err = txUserRepo.FindByEmail(*email, targetAuthContainer.AuthContainerID)
+			if err != nil {
+				return err
+			}
+			if existingUser != nil {
+				return errors.New("email already exists")
+			}
 		}
 
 		// Hash password
@@ -219,10 +221,21 @@ func (s *userService) Create(username string, email string, phone string, passwo
 
 		// Create user
 		hashedPasswordStr := string(hashedPassword)
+
+		// Convert optional pointers to strings
+		emailStr := ""
+		if email != nil {
+			emailStr = *email
+		}
+		phoneStr := ""
+		if phone != nil {
+			phoneStr = *phone
+		}
+
 		newUser := &model.User{
 			Username:        username,
-			Email:           email,
-			Phone:           phone,
+			Email:           emailStr,
+			Phone:           phoneStr,
 			Password:        &hashedPasswordStr,
 			IsActive:        true,
 			AuthContainerID: targetAuthContainer.AuthContainerID,
@@ -269,7 +282,7 @@ func (s *userService) Create(username string, email string, phone string, passwo
 	return toUserServiceDataResult(createdUser), nil
 }
 
-func (s *userService) Update(userUUID uuid.UUID, username string, email string, phone string, updaterUserUUID uuid.UUID) (*UserServiceDataResult, error) {
+func (s *userService) Update(userUUID uuid.UUID, username string, email *string, phone *string, updaterUserUUID uuid.UUID) (*UserServiceDataResult, error) {
 	var updatedUser *model.User
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
@@ -303,9 +316,19 @@ func (s *userService) Update(userUUID uuid.UUID, username string, email string, 
 			}
 		}
 
-		// Check if email is taken by another user
-		if email != user.Email {
-			existingUser, err := txUserRepo.FindByEmail(email, user.AuthContainerID)
+		// Convert optional pointers to strings
+		emailStr := ""
+		if email != nil {
+			emailStr = *email
+		}
+		phoneStr := ""
+		if phone != nil {
+			phoneStr = *phone
+		}
+
+		// Check if email is taken by another user (only if email is provided and different)
+		if email != nil && *email != "" && *email != user.Email {
+			existingUser, err := txUserRepo.FindByEmail(*email, user.AuthContainerID)
 			if err != nil {
 				return err
 			}
@@ -316,8 +339,12 @@ func (s *userService) Update(userUUID uuid.UUID, username string, email string, 
 
 		// Update user
 		user.Username = username
-		user.Email = email
-		user.Phone = phone
+		if email != nil {
+			user.Email = emailStr
+		}
+		if phone != nil {
+			user.Phone = phoneStr
+		}
 
 		_, err = txUserRepo.UpdateByUUID(userUUID, user)
 		if err != nil {
