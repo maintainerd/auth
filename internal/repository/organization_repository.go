@@ -14,8 +14,6 @@ type OrganizationRepositoryGetFilter struct {
 	Email       *string
 	Phone       *string
 	IsActive    *bool
-	IsDefault   *bool
-	IsRoot      *bool
 	Page        int
 	Limit       int
 	SortBy      string
@@ -27,11 +25,9 @@ type OrganizationRepository interface {
 	WithTx(tx *gorm.DB) OrganizationRepository
 	FindByName(name string) (*model.Organization, error)
 	FindByEmail(email string) (*model.Organization, error)
-	FindDefaultOrganization() (*model.Organization, error)
 	FindPaginated(filter OrganizationRepositoryGetFilter) (*PaginationResult[model.Organization], error)
 	CanUserUpdateOrganization(userUUID uuid.UUID, organizationUUID uuid.UUID) (bool, error)
 	SetActiveStatusByUUID(organizationUUID uuid.UUID, isActive bool) error
-	SetDefaultStatusByUUID(organizationUUID uuid.UUID, isDefault bool) error
 }
 
 type organizationRepository struct {
@@ -78,14 +74,6 @@ func (r *organizationRepository) FindByEmail(email string) (*model.Organization,
 	return &org, err
 }
 
-func (r *organizationRepository) FindDefaultOrganization() (*model.Organization, error) {
-	var org model.Organization
-	err := r.db.
-		Where("is_default = true").
-		First(&org).Error
-	return &org, err
-}
-
 func (r *organizationRepository) FindPaginated(filter OrganizationRepositoryGetFilter) (*PaginationResult[model.Organization], error) {
 	query := r.db.Model(&model.Organization{})
 
@@ -106,12 +94,6 @@ func (r *organizationRepository) FindPaginated(filter OrganizationRepositoryGetF
 	// Filters with exact match
 	if filter.IsActive != nil {
 		query = query.Where("is_active = ?", *filter.IsActive)
-	}
-	if filter.IsDefault != nil {
-		query = query.Where("is_default = ?", *filter.IsDefault)
-	}
-	if filter.IsRoot != nil {
-		query = query.Where("is_root = ?", *filter.IsRoot)
 	}
 
 	// Sorting
@@ -163,12 +145,7 @@ func (r *organizationRepository) CanUserUpdateOrganization(userUUID uuid.UUID, o
 		return false, err
 	}
 
-	// users in the global default auth container can update any org (except default)
-	if user.AuthContainer.IsDefault {
-		return true, nil
-	}
-
-	// users in a non-default auth container can only update their own org
+	// Users can only update their own organization
 	if user.AuthContainer.OrganizationID == targetOrg.OrganizationID {
 		return true, nil
 	}
@@ -180,10 +157,4 @@ func (r *organizationRepository) SetActiveStatusByUUID(organizationUUID uuid.UUI
 	return r.db.Model(&model.Organization{}).
 		Where("organization_uuid = ?", organizationUUID).
 		Update("is_active", isActive).Error
-}
-
-func (r *organizationRepository) SetDefaultStatusByUUID(organizationUUID uuid.UUID, isDefault bool) error {
-	return r.db.Model(&model.Organization{}).
-		Where("organization_uuid = ?", organizationUUID).
-		Update("is_default", isDefault).Error
 }

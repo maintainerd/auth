@@ -15,8 +15,6 @@ type Organization struct {
 	Email            *string   `gorm:"column:email"`
 	Phone            *string   `gorm:"column:phone"`
 	IsActive         bool      `gorm:"column:is_active"`
-	IsDefault        bool      `gorm:"column:is_default"`
-	IsRoot           bool      `gorm:"column:is_root"`
 	CreatedAt        time.Time `gorm:"column:created_at;autoCreateTime"`
 	UpdatedAt        time.Time `gorm:"column:updated_at;autoUpdateTime"`
 
