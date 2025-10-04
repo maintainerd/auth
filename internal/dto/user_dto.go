@@ -39,34 +39,34 @@ type UserIdentityResponseDto struct {
 
 // User input structures
 type UserCreateRequestDto struct {
-	Username          string `json:"username"`
-	Email             string `json:"email"`
-	Phone             string `json:"phone"`
-	Password          string `json:"password"`
-	AuthContainerUUID string `json:"auth_container_uuid"`
+	Username          string  `json:"username"`
+	Email             *string `json:"email,omitempty"`
+	Phone             *string `json:"phone,omitempty"`
+	Password          string  `json:"password"`
+	AuthContainerUUID string  `json:"auth_container_uuid"`
 }
 
 func (dto UserCreateRequestDto) Validate() error {
 	return validation.ValidateStruct(&dto,
 		validation.Field(&dto.Username, validation.Required, validation.Length(3, 50)),
-		validation.Field(&dto.Email, validation.Required, is.Email),
-		validation.Field(&dto.Phone, validation.Required, validation.Length(10, 20)),
+		validation.Field(&dto.Email, validation.When(dto.Email != nil, is.Email)),
+		validation.Field(&dto.Phone, validation.When(dto.Phone != nil, validation.Length(10, 20))),
 		validation.Field(&dto.Password, validation.Required, validation.Length(8, 100)),
 		validation.Field(&dto.AuthContainerUUID, validation.Required, is.UUID),
 	)
 }
 
 type UserUpdateRequestDto struct {
-	Username string `json:"username"`
-	Email    string `json:"email"`
-	Phone    string `json:"phone"`
+	Username string  `json:"username"`
+	Email    *string `json:"email,omitempty"`
+	Phone    *string `json:"phone,omitempty"`
 }
 
 func (dto UserUpdateRequestDto) Validate() error {
 	return validation.ValidateStruct(&dto,
 		validation.Field(&dto.Username, validation.Required, validation.Length(3, 50)),
-		validation.Field(&dto.Email, validation.Required, is.Email),
-		validation.Field(&dto.Phone, validation.Required, validation.Length(10, 20)),
+		validation.Field(&dto.Email, validation.When(dto.Email != nil, is.Email)),
+		validation.Field(&dto.Phone, validation.When(dto.Phone != nil, validation.Length(10, 20))),
 	)
 }
 

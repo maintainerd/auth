@@ -114,7 +114,16 @@ func (s *organizationService) Create(name string, description string, email stri
 	err := s.db.Transaction(func(tx *gorm.DB) error {
 		txOrgRepo := s.organizationRepo.WithTx(tx)
 
-		// Check if organization already exist
+		// Check if any organization already exists (only one organization allowed per auth service instance)
+		existingOrgs, err := txOrgRepo.FindAll()
+		if err != nil {
+			return err
+		}
+		if len(existingOrgs) > 0 {
+			return errors.New("organization already exists: only one organization allowed per auth service instance")
+		}
+
+		// Check if organization with same name already exist (additional safety check)
 		existingOrg, err := txOrgRepo.FindByName(name)
 		if err != nil {
 			return err
