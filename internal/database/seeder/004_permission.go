@@ -9,7 +9,7 @@ import (
 	"gorm.io/gorm"
 )
 
-func SeedPermissions(db *gorm.DB, apiID int64) {
+func SeedPermissions(db *gorm.DB, apiID int64) error {
 	permissions := []model.Permission{
 		// PUBLIC
 		// All public permissions are automatically assigned to all users.
@@ -199,8 +199,8 @@ func SeedPermissions(db *gorm.DB, apiID int64) {
 		newPermission("settings:reset-self", "Reset user settings to defaults", apiID),
 
 		// Settings (Admin)
-		newPermission("settings:read:any", "View another user’s settings (for support tools)", apiID),
-		newPermission("settings:update:any", "Edit another user’s preferences (admin)", apiID),
+		newPermission("settings:read:any", "View another user's settings (for support tools)", apiID),
+		newPermission("settings:update:any", "Edit another user's preferences (admin)", apiID),
 		newPermission("settings:reset:any", "Reset settings for another user", apiID),
 		newPermission("notification:reset-templates", "Revert templates to default", apiID),
 		newPermission("notification:disable-system-wide", "Mute system-wide notifications (e.g., maintenance window)", apiID),
@@ -216,7 +216,7 @@ func SeedPermissions(db *gorm.DB, apiID int64) {
 		newPermission("security:policy:read", "View MFA, password, session policies", apiID),
 		newPermission("security:policy:update", "Edit password rules, timeouts, etc.", apiID),
 		newPermission("security:rotate-keys", "Rotate signing/encryption keys", apiID),
-		newPermission("security:session:terminate:any", "Kill another user’s session", apiID),
+		newPermission("security:session:terminate:any", "Kill another user's session", apiID),
 
 		// System / Developer Tools
 		newPermission("settings:read", "View system settings", apiID),
@@ -245,6 +245,8 @@ func SeedPermissions(db *gorm.DB, apiID int64) {
 
 		log.Printf("✅ Permission '%s' seeded successfully", perm.Name)
 	}
+
+	return nil
 }
 
 func newPermission(name, description string, apiID int64) model.Permission {

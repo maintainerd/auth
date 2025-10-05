@@ -297,7 +297,3 @@ func (s *registerService) generateTokenResponse(userUUID string, user *model.Use
 		IssuedAt:     time.Now().Unix(),
 	}, nil
 }
-
-func ptr(s string) *string {
-	return &s
-}
