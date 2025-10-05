@@ -10,7 +10,7 @@ import (
 	"gorm.io/gorm"
 )
 
-func SeedAuthClientRedirectURIs(db *gorm.DB, identityProviderID int64) {
+func SeedAuthClientRedirectURIs(db *gorm.DB, identityProviderID int64) error {
 	appHostName := os.Getenv("APP_PRIVATE_HOSTNAME")
 
 	// Map of client name -> redirect URIs
@@ -77,4 +77,6 @@ func SeedAuthClientRedirectURIs(db *gorm.DB, identityProviderID int64) {
 			log.Printf("❌ Failed lookup for redirect URI '%s' for client '%s': %v", uri, clientName, err)
 		}
 	}
+
+	return nil
 }
