@@ -8,6 +8,7 @@ import (
 
 type InviteRepository interface {
 	BaseRepositoryMethods[model.Invite]
+	WithTx(tx *gorm.DB) InviteRepository
 	FindByToken(token string) (*model.Invite, error)
 	FindAllByAuthClientID(authClientID int64) ([]model.Invite, error)
 	MarkAsUsed(inviteUUID uuid.UUID) error
@@ -23,6 +24,13 @@ func NewInviteRepository(db *gorm.DB) InviteRepository {
 	return &inviteRepository{
 		BaseRepository: NewBaseRepository[model.Invite](db, "invite_uuid", "invite_id"),
 		db:             db,
+	}
+}
+
+func (r *inviteRepository) WithTx(tx *gorm.DB) InviteRepository {
+	return &inviteRepository{
+		BaseRepository: NewBaseRepository[model.Invite](tx, "invite_uuid", "invite_id"),
+		db:             tx,
 	}
 }
 
