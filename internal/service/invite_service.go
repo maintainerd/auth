@@ -15,7 +15,7 @@ import (
 )
 
 type InviteService interface {
-	SendPrivateInvite(email string, userID int64, roleUUIDs []string) (*model.Invite, error)
+	SendInvite(email string, userID int64, roleUUIDs []string) (*model.Invite, error)
 }
 
 type inviteService struct {
@@ -42,7 +42,7 @@ func NewInviteService(
 	}
 }
 
-func (s *inviteService) SendPrivateInvite(
+func (s *inviteService) SendInvite(
 	email string,
 	userID int64,
 	roleUUIDs []string,

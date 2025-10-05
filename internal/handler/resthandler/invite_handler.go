@@ -20,9 +20,9 @@ func NewInviteHandler(service service.InviteService) *InviteHandler {
 	return &InviteHandler{service}
 }
 
-func (h *InviteHandler) SendPrivate(w http.ResponseWriter, r *http.Request) {
+func (h *InviteHandler) Send(w http.ResponseWriter, r *http.Request) {
 	// validate request body
-	var req dto.SendPrivateInviteRequest
+	var req dto.SendInviteRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		util.Error(w, http.StatusBadRequest, "Invalid request payload", err.Error())
 		return
@@ -50,8 +50,14 @@ func (h *InviteHandler) SendPrivate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Send private invite
-	_, err := h.service.SendPrivateInvite(req.Email, user.UserID, req.Roles)
+	// Convert UUIDs to strings for service call
+	roleUUIDs := make([]string, len(req.Roles))
+	for i, roleUUID := range req.Roles {
+		roleUUIDs[i] = roleUUID.String()
+	}
+
+	// Send invite
+	_, err := h.service.SendInvite(req.Email, user.UserID, roleUUIDs)
 	if err != nil {
 		util.Error(w, http.StatusInternalServerError, "Failed to send invite", err.Error())
 		return

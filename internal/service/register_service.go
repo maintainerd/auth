@@ -78,18 +78,21 @@ func (s *registerService) Register(
 
 	// Transaction
 	err = s.db.Transaction(func(tx *gorm.DB) error {
+		txUserRepo := s.userRepo.WithTx(tx)
+		txUserTokenRepo := s.userTokenRepo.WithTx(tx)
+
 		// Get user by email or username
 		var existingUser *model.User
-		var err error
+		var txErr error
 
 		if isEmail {
-			existingUser, err = s.userRepo.FindByEmail(username, authContainerId)
+			existingUser, txErr = txUserRepo.FindByEmail(username, authContainerId)
 		} else {
-			existingUser, err = s.userRepo.FindByUsername(username, authContainerId)
+			existingUser, txErr = txUserRepo.FindByUsername(username, authContainerId)
 		}
 
-		if err != nil {
-			return err
+		if txErr != nil {
+			return txErr
 		}
 
 		// Check if user already exists
@@ -101,16 +104,16 @@ func (s *registerService) Register(
 		}
 
 		// Hash password
-		hashed, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
-		if err != nil {
-			return err
+		hashed, txErr := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+		if txErr != nil {
+			return txErr
 		}
 
 		// Create user
 		newUser := &model.User{
 			Username:        username,
 			Email:           "",
-			Password:        ptr(string(hashed)),
+			Password:        util.Ptr(string(hashed)),
 			AuthContainerID: authContainerId,
 			IsActive:        true,
 		}
@@ -118,16 +121,15 @@ func (s *registerService) Register(
 			newUser.Email = username
 		}
 
-		if err := tx.Create(newUser).Error; err != nil {
-			return err
+		createdUser, txErr = txUserRepo.Create(newUser)
+		if txErr != nil {
+			return txErr
 		}
 
-		createdUser = newUser
-
 		// Generate OTP
-		otp, err := util.GenerateOTP(6)
-		if err != nil {
-			return err
+		otp, txErr := util.GenerateOTP(6)
+		if txErr != nil {
+			return txErr
 		}
 
 		// Create user token
@@ -136,8 +138,9 @@ func (s *registerService) Register(
 			TokenType: "user:email:verification",
 			Token:     otp,
 		}
-		if err := tx.Create(userToken).Error; err != nil {
-			return err
+		_, txErr = txUserTokenRepo.Create(userToken)
+		if txErr != nil {
+			return txErr
 		}
 
 		return nil // commit transaction
@@ -175,25 +178,51 @@ func (s *registerService) RegisterInvite(
 		return nil, errors.New("invalid auth container ID format")
 	}
 
+	// Validate invite token
+	invite, err := s.inviteRepo.FindByToken(inviteToken)
+	if err != nil {
+		return nil, errors.New("invalid invite token")
+	}
+	if invite == nil {
+		return nil, errors.New("invite not found")
+	}
+
+	// Check invite status and expiration
+	if invite.Status != "pending" {
+		return nil, errors.New("invite has already been used or is no longer valid")
+	}
+	if invite.ExpiresAt != nil && time.Now().After(*invite.ExpiresAt) {
+		return nil, errors.New("invite has expired")
+	}
+
 	// Check if username is an email
 	isEmail := util.IsValidEmail(username)
+
+	// If username is email, validate it matches the invited email
+	if isEmail && username != invite.InvitedEmail {
+		return nil, errors.New("email must match the invited email address")
+	}
 
 	var createdUser *model.User
 
 	// Transaction
 	err = s.db.Transaction(func(tx *gorm.DB) error {
+		txUserRepo := s.userRepo.WithTx(tx)
+		txUserRoleRepo := s.userRoleRepo.WithTx(tx)
+		txInviteRepo := s.inviteRepo.WithTx(tx)
+
 		// Get user by email or username
 		var existingUser *model.User
-		var err error
+		var txErr error
 
 		if isEmail {
-			existingUser, err = s.userRepo.FindByEmail(username, authContainerId)
+			existingUser, txErr = txUserRepo.FindByEmail(username, authContainerId)
 		} else {
-			existingUser, err = s.userRepo.FindByUsername(username, authContainerId)
+			existingUser, txErr = txUserRepo.FindByUsername(username, authContainerId)
 		}
 
-		if err != nil {
-			return err
+		if txErr != nil {
+			return txErr
 		}
 
 		// Check if user already exists
@@ -205,43 +234,57 @@ func (s *registerService) RegisterInvite(
 		}
 
 		// Hash password
-		hashed, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
-		if err != nil {
-			return err
+		hashed, txErr := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+		if txErr != nil {
+			return txErr
 		}
 
 		// Create user
 		newUser := &model.User{
 			Username:        username,
-			Email:           "",
-			Password:        ptr(string(hashed)),
+			Email:           invite.InvitedEmail, // Always use the invited email
+			Password:        util.Ptr(string(hashed)),
 			AuthContainerID: authContainerId,
 			IsActive:        true,
+			IsEmailVerified: true, // Auto-verify email for invited users
 		}
-		if isEmail {
-			newUser.Email = username
-		}
-
-		if err := tx.Create(newUser).Error; err != nil {
-			return err
+		if !isEmail {
+			// If username is not email, set the username but keep invited email
+			newUser.Username = username
 		}
 
-		createdUser = newUser
-
-		// Generate OTP
-		otp, err := util.GenerateOTP(6)
-		if err != nil {
-			return err
+		createdUser, txErr = txUserRepo.Create(newUser)
+		if txErr != nil {
+			return txErr
 		}
 
-		// Create user token
-		userToken := &model.UserToken{
-			UserID:    createdUser.UserID,
-			TokenType: "user:email:verification",
-			Token:     otp,
+		// Assign all roles from the invite to the user
+		for _, role := range invite.Roles {
+			// Check if user already has this role (shouldn't happen for new user, but safety check)
+			existingUserRole, txErr := txUserRoleRepo.FindByUserIDAndRoleID(createdUser.UserID, role.RoleID)
+			if txErr != nil && !errors.Is(txErr, gorm.ErrRecordNotFound) {
+				return txErr
+			}
+			if existingUserRole != nil {
+				continue // Skip if already assigned
+			}
+
+			// Create user-role association
+			userRole := &model.UserRole{
+				UserID: createdUser.UserID,
+				RoleID: role.RoleID,
+			}
+
+			_, txErr = txUserRoleRepo.Create(userRole)
+			if txErr != nil {
+				return txErr
+			}
 		}
-		if err := tx.Create(userToken).Error; err != nil {
-			return err
+
+		// Mark invite as used (using repository method)
+		txErr = txInviteRepo.MarkAsUsed(invite.InviteUUID)
+		if txErr != nil {
+			return txErr
 		}
 
 		return nil // commit transaction

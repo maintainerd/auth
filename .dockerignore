@@ -1,0 +1,45 @@
+# Git
+.git
+.gitignore
+
+# Documentation
+README.md
+*.md
+doc/
+
+# Development files
+.env.example
+.air.toml
+docker-compose.yml
+Dockerfile
+Dockerfile.local
+
+# Build artifacts
+tmp/
+*.log
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Dependencies (will be downloaded in container)
+vendor/
+
+# Generated files
+internal/gen/
+
+# Test files
+*_test.go
+test/
+
+# Scripts (not needed in container)
+scripts/
+
+# Nginx config (not needed in app container)
+nginx/
