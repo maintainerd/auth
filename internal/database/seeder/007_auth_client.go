@@ -12,7 +12,7 @@ import (
 	"gorm.io/gorm"
 )
 
-func SeedAuthClients(db *gorm.DB, identityProviderID int64) {
+func SeedAuthClients(db *gorm.DB, identityProviderID int64) error {
 	appHostName := os.Getenv("APP_PRIVATE_HOSTNAME")
 
 	clients := []model.AuthClient{
@@ -123,4 +123,10 @@ func SeedAuthClients(db *gorm.DB, identityProviderID int64) {
 		// Unexpected error
 		log.Printf("❌ Failed lookup for auth client '%s': %v", client.Name, err)
 	}
+
+	return nil
+}
+
+func strPtr(s string) *string {
+	return &s
 }

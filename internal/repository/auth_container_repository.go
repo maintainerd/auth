@@ -28,6 +28,7 @@ type AuthContainerRepository interface {
 	WithTx(tx *gorm.DB) AuthContainerRepository
 	FindByName(name string) (*model.AuthContainer, error)
 	FindByIdentifier(identifier string) (*model.AuthContainer, error)
+	FindDefault() (*model.AuthContainer, error)
 	FindDefaultByOrganizationID(organizationID int64) (*model.AuthContainer, error)
 	FindPaginated(filter AuthContainerRepositoryGetFilter) (*PaginationResult[model.AuthContainer], error)
 	SetActiveStatusByUUID(authContainerUUID uuid.UUID, isActive bool) error
@@ -75,6 +76,22 @@ func (r *authContainerRepository) FindByIdentifier(identifier string) (*model.Au
 		Where("identifier = ?", identifier).
 		First(&authContainer).Error
 	return &authContainer, err
+}
+
+func (r *authContainerRepository) FindDefault() (*model.AuthContainer, error) {
+	var authContainer model.AuthContainer
+	err := r.db.
+		Where("is_default = ? AND is_active = ?", true, true).
+		First(&authContainer).Error
+
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	return &authContainer, nil
 }
 
 func (r *authContainerRepository) FindDefaultByOrganizationID(organizationID int64) (*model.AuthContainer, error) {
