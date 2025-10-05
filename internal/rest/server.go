@@ -18,6 +18,9 @@ func StartRESTServer(application *app.App) {
 	r.Use(middleware.Recoverer)
 
 	r.Route("/api/v1", func(api chi.Router) {
+		// Setup Routes (no authentication required)
+		route.SetupRoute(api, application.SetupRestHandler)
+
 		// Universal Authentication Routes (no separation needed)
 		route.RegisterRoute(api, application.RegisterRestHandler)
 		route.LoginRoute(api, application.LoginRestHandler)

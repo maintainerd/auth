@@ -7,65 +7,84 @@ import (
 	"gorm.io/gorm"
 )
 
-func RunSeeders(db *gorm.DB, appVersion string) {
+func RunSeeders(db *gorm.DB, appVersion string, organizationID int64) error {
 	log.Println("🏃 Running default seeders...")
 
-	// Seed organization
-	org, err := seeder.SeedOrganization(db)
-	if err != nil {
-		log.Fatal("❌ Failed to seed organization:", err)
-	}
+	// Organization is now created via API, not seeded
+	// Use the provided organizationID from the setup service
 
-	// Seed service
+	// 001: Seed service
 	service, err := seeder.SeedService(db, appVersion)
 	if err != nil {
-		log.Fatal("❌ Failed to seed service:", err)
+		log.Printf("❌ Failed to seed service: %v", err)
+		return err
 	}
 
-	// Link organization to service
-	_, err = seeder.SeedOrganizationService(db, org.OrganizationID, service.ServiceID)
+	// 002: Link organization to service
+	_, err = seeder.SeedOrganizationService(db, organizationID, service.ServiceID)
 	if err != nil {
-		log.Fatal("❌ Failed to seed organization_service:", err)
+		log.Printf("❌ Failed to seed organization_service: %v", err)
+		return err
 	}
 
-	// Seed API
+	// 003: Seed API
 	api, err := seeder.SeedAPI(db, service.ServiceID)
 	if err != nil {
-		log.Fatal("❌ Failed to seed api:", err)
+		log.Printf("❌ Failed to seed api: %v", err)
+		return err
 	}
 
-	// Seed permissions
-	seeder.SeedPermissions(db, api.APIID)
+	// 004: Seed permissions
+	if err := seeder.SeedPermissions(db, api.APIID); err != nil {
+		log.Printf("❌ Failed to seed permissions: %v", err)
+		return err
+	}
 
-	// Seed auth container
-	authContainer, err := seeder.SeedAuthContainer(db, org.OrganizationID)
+	// 005: Seed auth container
+	authContainer, err := seeder.SeedAuthContainer(db, organizationID)
 	if err != nil {
-		log.Fatal("❌ Failed to seed auth container:", err)
+		log.Printf("❌ Failed to seed auth container: %v", err)
+		return err
 	}
 
-	// Seed identity providers
+	// 006: Seed identity providers
 	identityProvider, err := seeder.SeedIdentityProviders(db, authContainer.AuthContainerID)
 	if err != nil {
-		log.Fatal("❌ Failed to seed identity provider:", err)
+		log.Printf("❌ Failed to seed identity provider: %v", err)
+		return err
 	}
 
-	// Seed auth clients
-	seeder.SeedAuthClients(db, identityProvider.IdentityProviderID)
+	// 007: Seed auth clients
+	if err := seeder.SeedAuthClients(db, identityProvider.IdentityProviderID); err != nil {
+		log.Printf("❌ Failed to seed auth clients: %v", err)
+		return err
+	}
 
-	// Seed auth client redirect URIs
-	seeder.SeedAuthClientRedirectURIs(db, identityProvider.IdentityProviderID)
+	// 008: Seed auth client redirect URIs
+	if err := seeder.SeedAuthClientRedirectURIs(db, identityProvider.IdentityProviderID); err != nil {
+		log.Printf("❌ Failed to seed auth client redirect URIs: %v", err)
+		return err
+	}
 
-	// Seed roles
+	// 009: Seed roles
 	roles, err := seeder.SeedRoles(db, authContainer.AuthContainerID)
 	if err != nil {
-		log.Fatal("❌ Failed to seed roles:", err)
+		log.Printf("❌ Failed to seed roles: %v", err)
+		return err
 	}
 
-	// Seed role permissions
-	seeder.SeedRolePermissions(db, roles)
+	// 010: Seed role permissions
+	if err := seeder.SeedRolePermissions(db, roles); err != nil {
+		log.Printf("❌ Failed to seed role permissions: %v", err)
+		return err
+	}
 
-	// Seed email templates
-	seeder.SeedEmailTemplates(db)
+	// 011: Seed email templates
+	if err := seeder.SeedEmailTemplates(db); err != nil {
+		log.Printf("❌ Failed to seed email templates: %v", err)
+		return err
+	}
 
 	log.Println("✅ Default seeding process completed.")
+	return nil
 }

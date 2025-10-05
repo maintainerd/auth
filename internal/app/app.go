@@ -26,6 +26,7 @@ type App struct {
 	LoginRestHandler            *resthandler.LoginHandler
 	ProfileRestHandler          *resthandler.ProfileHandler
 	InviteRestHandler           *resthandler.InviteHandler
+	SetupRestHandler            *resthandler.SetupHandler
 	// Grpc handler
 	SeederHandler *grpchandler.SeederHandler
 	// Repository
@@ -68,6 +69,7 @@ func NewApp(db *gorm.DB, redisClient *redis.Client) *App {
 	loginService := service.NewLoginService(db, authClientRepo, userRepo, userTokenRepo)
 	profileService := service.NewProfileService(db, profileRepo)
 	inviteService := service.NewInviteService(db, inviteRepo, authClientRepo, roleRepo, emailTemplateRepo)
+	setupService := service.NewSetupService(db, organizationRepo, userRepo, authContainerRepo, authClientRepo, idpRepo, roleRepo, userRoleRepo, userTokenRepo)
 
 	// Rest handlers
 	organizationHandler := resthandler.NewOrganizationHandler(organizationService)
@@ -83,6 +85,7 @@ func NewApp(db *gorm.DB, redisClient *redis.Client) *App {
 	loginRestHandler := resthandler.NewLoginHandler(loginService)
 	profileRestHandler := resthandler.NewProfileHandler(profileService)
 	inviteRestHandler := resthandler.NewInviteHandler(inviteService)
+	setupRestHandler := resthandler.NewSetupHandler(setupService)
 
 	// GRPC handlers
 	seederGrpcHandler := grpchandler.NewSeederHandler(registerService)
@@ -104,6 +107,7 @@ func NewApp(db *gorm.DB, redisClient *redis.Client) *App {
 		LoginRestHandler:            loginRestHandler,
 		ProfileRestHandler:          profileRestHandler,
 		InviteRestHandler:           inviteRestHandler,
+		SetupRestHandler:            setupRestHandler,
 		// GRPC handler
 		SeederHandler: seederGrpcHandler,
 		// Repository
