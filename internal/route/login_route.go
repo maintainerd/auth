@@ -6,6 +6,6 @@ import (
 )
 
 func LoginRoute(r chi.Router, loginHandler *resthandler.LoginHandler) {
-	r.Post("/login", loginHandler.LoginPublic)
-	r.Post("/internal/login", loginHandler.LoginPrivate)
+	// Universal login (with auth_client_id and auth_container_id)
+	r.Post("/login", loginHandler.Login)
 }
