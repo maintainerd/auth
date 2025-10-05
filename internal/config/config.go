@@ -17,9 +17,13 @@ var (
 	AccountHostname string
 	AuthHostname    string
 
-	// JWT
+	// JWT Configuration
 	JWTPrivateKey []byte
 	JWTPublicKey  []byte
+
+	// Secret Management
+	SecretProvider string // "env", "aws_ssm", "aws_secrets", "vault", "azure_kv"
+	SecretPrefix   string // Prefix for secret names in external providers
 
 	// DB Config
 	DBHost     string
@@ -44,6 +48,15 @@ func Init() {
 	if err := godotenv.Load(); err != nil {
 		log.Println("⚠️ .env file not found, relying on environment variables")
 	}
+
+	// Initialize secret management configuration first
+	SecretProvider = GetEnvOrDefault("SECRET_PROVIDER", "env")
+	SecretPrefix = GetEnvOrDefault("SECRET_PREFIX", "maintainerd/auth")
+
+	// Validate secret provider configuration
+	if err := ValidateSecretProvider(); err != nil {
+		log.Fatalf("❌ Secret provider validation failed: %v", err)
+	}
 	// App Config
 	AppVersion = GetEnv("APP_VERSION")
 	AppPublicHostname = GetEnv("APP_PUBLIC_HOSTNAME")
@@ -53,9 +66,20 @@ func Init() {
 	AccountHostname = GetEnv("ACCOUNT_HOSTNAME")
 	AuthHostname = GetEnv("AUTH_HOSTNAME")
 
-	// JWT Config
-	JWTPrivateKey = []byte(GetEnv("JWT_PRIVATE_KEY"))
-	JWTPublicKey = []byte(GetEnv("JWT_PUBLIC_KEY"))
+	// JWT Config - Load from appropriate secret provider
+	log.Println("🔐 Loading JWT keys from secret provider...")
+	var err error
+	JWTPrivateKey, err = loadSecret("JWT_PRIVATE_KEY")
+	if err != nil {
+		log.Fatalf("❌ Failed to load JWT private key: %v", err)
+	}
+
+	JWTPublicKey, err = loadSecret("JWT_PUBLIC_KEY")
+	if err != nil {
+		log.Fatalf("❌ Failed to load JWT public key: %v", err)
+	}
+
+	log.Println("✅ JWT keys loaded successfully")
 
 	// DB Config
 	DBHost = GetEnv("DB_HOST")

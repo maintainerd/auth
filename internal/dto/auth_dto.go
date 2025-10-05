@@ -27,35 +27,43 @@ func (r AuthRequestDto) Validate() error {
 	)
 }
 
-// Normal registration query parameters
-// Client user registration requires client ID
-type RegisterPublicQueryDto struct {
-	ClientID string `json:"client_id"`
+// Universal registration query parameters
+type RegisterQueryDto struct {
+	AuthClientID    string `json:"auth_client_id"`
+	AuthContainerID string `json:"auth_container_id"`
 }
 
-func (q RegisterPublicQueryDto) Validate() error {
+func (q RegisterQueryDto) Validate() error {
 	return validation.ValidateStruct(&q,
-		validation.Field(&q.ClientID,
-			validation.Required.Error("Client ID is required"),
-			validation.Length(1, 100).Error("Client ID must not exceed 100 characters"),
+		validation.Field(&q.AuthClientID,
+			validation.Required.Error("Auth client ID is required"),
+			validation.Length(1, 100).Error("Auth client ID must not exceed 100 characters"),
+		),
+		validation.Field(&q.AuthContainerID,
+			validation.Required.Error("Auth container ID is required"),
+			validation.Length(1, 100).Error("Auth container ID must not exceed 100 characters"),
 		),
 	)
 }
 
-// Invite based registration query parameters
-// This is used for client app for invite-based registration
-type RegisterPublicInviteQueryDto struct {
-	ClientID    string `json:"client_id"`
-	InviteToken string `json:"invite_token"`
-	Expires     string `json:"expires"`
-	Sig         string `json:"sig"`
+// Universal invite-based registration query parameters
+type RegisterInviteQueryDto struct {
+	AuthClientID    string `json:"auth_client_id"`
+	AuthContainerID string `json:"auth_container_id"`
+	InviteToken     string `json:"invite_token"`
+	Expires         string `json:"expires"`
+	Sig             string `json:"sig"`
 }
 
-func (q RegisterPublicInviteQueryDto) Validate() error {
+func (q RegisterInviteQueryDto) Validate() error {
 	if err := validation.ValidateStruct(&q,
-		validation.Field(&q.ClientID,
-			validation.Required.Error("Client ID is required"),
-			validation.Length(1, 100).Error("Client ID must not exceed 100 characters"),
+		validation.Field(&q.AuthClientID,
+			validation.Required.Error("Auth client ID is required"),
+			validation.Length(1, 100).Error("Auth client ID must not exceed 100 characters"),
+		),
+		validation.Field(&q.AuthContainerID,
+			validation.Required.Error("Auth container ID is required"),
+			validation.Length(1, 100).Error("Auth container ID must not exceed 100 characters"),
 		),
 		validation.Field(&q.InviteToken,
 			validation.Length(6, 100).Error("Invite code must be between 6 and 100 characters"),
@@ -72,7 +80,8 @@ func (q RegisterPublicInviteQueryDto) Validate() error {
 
 	// Check the cryptographic signature
 	values := url.Values{}
-	values.Set("client_id", q.ClientID)
+	values.Set("auth_client_id", q.AuthClientID)
+	values.Set("auth_container_id", q.AuthContainerID)
 	values.Set("invite_token", q.InviteToken)
 	values.Set("expires", q.Expires)
 	values.Set("sig", q.Sig)
@@ -84,55 +93,21 @@ func (q RegisterPublicInviteQueryDto) Validate() error {
 	return nil
 }
 
-// Register query parameters for internal users (invite based)
-// Internal user does not require client ID
-type RegisterPrivateQueryDto struct {
-	InviteToken string `json:"invite_token"`
-	Expires     string `json:"expires"`
-	Sig         string `json:"sig"`
+// Universal login query parameters
+type LoginQueryDto struct {
+	AuthClientID    string `json:"auth_client_id"`
+	AuthContainerID string `json:"auth_container_id"`
 }
 
-func (q RegisterPrivateQueryDto) Validate() error {
-	// Validate required fields
-	if err := validation.ValidateStruct(&q,
-		validation.Field(&q.InviteToken,
-			validation.Required.Error("Invite code is required"),
-			validation.Length(6, 100).Error("Invite token must be between 6 and 100 characters"),
-		),
-		validation.Field(&q.Expires,
-			validation.Required.Error("Expiration is required"),
-		),
-		validation.Field(&q.Sig,
-			validation.Required.Error("Signature is required"),
-		),
-	); err != nil {
-		return err
-	}
-
-	// Check the cryptographic signature
-	values := url.Values{}
-	values.Set("invite_token", q.InviteToken)
-	values.Set("expires", q.Expires)
-	values.Set("sig", q.Sig)
-
-	if _, err := util.ValidateSignedURL(values); err != nil {
-		return errors.New("invalid or expired signed URL")
-	}
-
-	return nil
-}
-
-// Normal registration query parameters
-// Client user registration requires client ID
-type LoginPublicQueryDto struct {
-	ClientID string `json:"client_id"`
-}
-
-func (q LoginPublicQueryDto) Validate() error {
+func (q LoginQueryDto) Validate() error {
 	return validation.ValidateStruct(&q,
-		validation.Field(&q.ClientID,
-			validation.Required.Error("Client ID is required"),
-			validation.Length(1, 100).Error("Client ID must not exceed 100 characters"),
+		validation.Field(&q.AuthClientID,
+			validation.Required.Error("Auth client ID is required"),
+			validation.Length(1, 100).Error("Auth client ID must not exceed 100 characters"),
+		),
+		validation.Field(&q.AuthContainerID,
+			validation.Required.Error("Auth container ID is required"),
+			validation.Length(1, 100).Error("Auth container ID must not exceed 100 characters"),
 		),
 	)
 }
