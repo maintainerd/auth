@@ -6,11 +6,9 @@ import (
 )
 
 func RegisterRoute(r chi.Router, registerHandler *resthandler.RegisterHandler) {
-	r.Post("/register", registerHandler.RegisterPublic)
-	r.Post("/register/invite", registerHandler.RegisterPublic)
-}
+	// Universal registration (with auth_client_id and auth_container_id)
+	r.Post("/register", registerHandler.Register)
 
-func RegisterInternalRoute(r chi.Router, registerHandler *resthandler.RegisterHandler) {
-	r.Post("/register", registerHandler.RegisterPrivate)
-	r.Post("/register/invite", registerHandler.RegisterPrivateInvite)
+	// Universal registration with invite
+	r.Post("/register/invite", registerHandler.RegisterInvite)
 }
