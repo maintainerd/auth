@@ -105,12 +105,11 @@ func (s *setupService) CreateOrganization(req dto.CreateOrganizationRequestDto) 
 			IsActive:    true,
 		}
 
-		createdOrg, err := txOrgRepo.Create(newOrg)
+		var err error
+		createdOrg, err = txOrgRepo.Create(newOrg)
 		if err != nil {
 			return err
 		}
-
-		// createdOrg is already set from the Create call above
 
 		// Run all other seeders (excluding organization)
 		if err := runner.RunSeeders(tx, "v0.1.0", createdOrg.OrganizationID); err != nil {
