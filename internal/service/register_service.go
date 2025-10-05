@@ -2,6 +2,7 @@ package service
 
 import (
 	"errors"
+	"strconv"
 	"time"
 
 	"github.com/maintainerd/auth/internal/dto"
@@ -13,10 +14,8 @@ import (
 )
 
 type RegisterService interface {
-	RegisterPublic(username, password, clientID string) (*dto.AuthResponseDto, error)
-	RegisterPublicInvite(username, password, clientID, inviteToken string) (*dto.AuthResponseDto, error)
-	RegisterPrivate(username, password string) (*dto.AuthResponseDto, error)
-	RegisterPrivateInvite(username, password, inviteToken string) (*dto.AuthResponseDto, error)
+	Register(username, password, authClientID, authContainerID string) (*dto.AuthResponseDto, error)
+	RegisterInvite(username, password, authClientID, authContainerID, inviteToken string) (*dto.AuthResponseDto, error)
 }
 
 type registerService struct {
@@ -49,27 +48,28 @@ func NewRegistrationService(
 	}
 }
 
-func (s *registerService) RegisterPublic(
+func (s *registerService) Register(
 	username,
 	password,
-	clientID string,
+	authClientID,
+	authContainerID string,
 ) (*dto.AuthResponseDto, error) {
-	// Get and validate client id
-	authClient, err := s.authClientRepo.FindByClientID(clientID)
+	// Get and validate auth client
+	authClient, err := s.authClientRepo.FindByClientID(authClientID)
 	if err != nil {
 		return nil, err
 	}
 	if authClient == nil ||
 		!authClient.IsActive ||
-		authClient.Domain == nil || *authClient.Domain == "" ||
-		authClient.IdentityProvider == nil ||
-		authClient.IdentityProvider.AuthContainer == nil ||
-		authClient.IdentityProvider.AuthContainer.AuthContainerID == 0 {
-		return nil, errors.New("invalid client or identity provider")
+		authClient.Domain == nil || *authClient.Domain == "" {
+		return nil, errors.New("invalid or inactive auth client")
 	}
 
-	// Get container id
-	authContainerId := authClient.IdentityProvider.AuthContainer.AuthContainerID
+	// Parse auth container ID
+	authContainerId, err := strconv.ParseInt(authContainerID, 10, 64)
+	if err != nil {
+		return nil, errors.New("invalid auth container ID format")
+	}
 
 	// Check if username is an email
 	isEmail := util.IsValidEmail(username)
@@ -148,277 +148,32 @@ func (s *registerService) RegisterPublic(
 	}
 
 	// Return token response
-	return s.generateTokenResponse(createdUser.UserUUID.String(), authClient)
+	return s.generateTokenResponse(createdUser.UserUUID.String(), createdUser, authClient)
 }
 
-func (s *registerService) RegisterPrivate(
-	username,
-	password string,
-) (*dto.AuthResponseDto, error) {
-	// Get and validate client id (get default client)
-	authClient, err := s.authClientRepo.FindDefault()
-	if err != nil {
-		return nil, err
-	}
-	if authClient == nil ||
-		!authClient.IsActive ||
-		authClient.Domain == nil || *authClient.Domain == "" ||
-		authClient.IdentityProvider == nil ||
-		authClient.IdentityProvider.AuthContainer == nil ||
-		authClient.IdentityProvider.AuthContainer.AuthContainerID == 0 {
-		return nil, errors.New("invalid client or identity provider")
-	}
-
-	// Get container id
-	authContainerId := authClient.IdentityProvider.AuthContainer.AuthContainerID
-
-	// Check if super admin already exists
-	superAdmin, err := s.userRepo.FindSuperAdmin()
-	if err != nil {
-		return nil, err
-	}
-	if superAdmin != nil {
-		return nil, errors.New("api is disabled")
-	}
-
-	// Check if username is an email
-	isEmail := util.IsValidEmail(username)
-
-	var createdUser *model.User
-
-	// Transaction
-	err = s.db.Transaction(func(tx *gorm.DB) error {
-		// Get user by email or username
-		var existingUser *model.User
-		var err error
-
-		if isEmail {
-			existingUser, err = s.userRepo.FindByEmail(username, authContainerId)
-		} else {
-			existingUser, err = s.userRepo.FindByUsername(username, authContainerId)
-		}
-
-		if err != nil {
-			return err
-		}
-
-		// Check if user already exists
-		if existingUser != nil {
-			if isEmail {
-				return errors.New("email already registered")
-			}
-			return errors.New("username already taken")
-		}
-
-		// Hash password
-		hashed, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
-		if err != nil {
-			return err
-		}
-
-		// Create user
-		newUser := &model.User{
-			Username:        username,
-			Email:           "",
-			Password:        ptr(string(hashed)),
-			AuthContainerID: authContainerId,
-			IsActive:        true,
-		}
-		if isEmail {
-			newUser.Email = username
-		}
-
-		if err := tx.Create(newUser).Error; err != nil {
-			return err
-		}
-
-		createdUser = newUser
-
-		userIdentity := &model.UserIdentity{
-			UserID:       createdUser.UserID,
-			AuthClientID: authClient.AuthClientID,
-			Provider:     "default",
-			Sub:          createdUser.UserUUID.String(),
-		}
-		if err := tx.Create(userIdentity).Error; err != nil {
-			return err
-		}
-
-		// Assign super admin role if first user in the organization
-		superAdminRole, err := s.roleRepo.FindByNameAndAuthContainerID("super-admin", authContainerId)
-		if err != nil {
-			return err
-		}
-		if superAdminRole == nil {
-			return errors.New("super-admin role not found")
-		}
-
-		// Assign role
-		role := &model.UserRole{
-			UserID: createdUser.UserID,
-			RoleID: superAdminRole.RoleID,
-		}
-		if err := tx.Create(role).Error; err != nil {
-			return err
-		}
-
-		// Generate OTP
-		otp, err := util.GenerateOTP(6)
-		if err != nil {
-			return err
-		}
-
-		// Create user token
-		userToken := &model.UserToken{
-			UserID:    createdUser.UserID,
-			TokenType: "user:email:verification",
-			Token:     otp,
-		}
-		if err := tx.Create(userToken).Error; err != nil {
-			return err
-		}
-
-		return nil // commit transaction
-	})
-
-	if err != nil {
-		return nil, err
-	}
-
-	// Return token response
-	return s.generateTokenResponse(createdUser.UserUUID.String(), authClient)
-}
-
-func (s *registerService) RegisterPrivateInvite(
+func (s *registerService) RegisterInvite(
 	username,
 	password,
+	authClientID,
+	authContainerID,
 	inviteToken string,
 ) (*dto.AuthResponseDto, error) {
-	// Get and validate client id (get default client)
-	authClient, err := s.authClientRepo.FindDefault()
+	// Get and validate auth client
+	authClient, err := s.authClientRepo.FindByClientID(authClientID)
 	if err != nil {
 		return nil, err
 	}
 	if authClient == nil ||
 		!authClient.IsActive ||
-		authClient.Domain == nil || *authClient.Domain == "" ||
-		authClient.IdentityProvider == nil ||
-		authClient.IdentityProvider.AuthContainer == nil ||
-		authClient.IdentityProvider.AuthContainer.AuthContainerID == 0 {
-		return nil, errors.New("invalid client or identity provider")
+		authClient.Domain == nil || *authClient.Domain == "" {
+		return nil, errors.New("invalid or inactive auth client")
 	}
 
-	// Get container id
-	authContainerId := authClient.IdentityProvider.AuthContainer.AuthContainerID
-
-	// Validate invite
-	invite, err := s.inviteRepo.FindByToken(inviteToken)
+	// Parse auth container ID
+	authContainerId, err := strconv.ParseInt(authContainerID, 10, 64)
 	if err != nil {
-		return nil, errors.New("invalid invite token")
+		return nil, errors.New("invalid auth container ID format")
 	}
-	if invite == nil || invite.Status != "pending" {
-		return nil, errors.New("invite is not valid or already used")
-	}
-	if invite.ExpiresAt != nil && time.Now().After(*invite.ExpiresAt) {
-		return nil, errors.New("invite has expired")
-	}
-	if invite.InvitedEmail != username {
-		return nil, errors.New("invalid email")
-	}
-
-	var createdUser *model.User
-
-	// Transaction
-	err = s.db.Transaction(func(tx *gorm.DB) error {
-		// Get user by email or username
-		var existingUser *model.User
-		var err error
-
-		existingUser, err = s.userRepo.FindByEmail(username, authContainerId)
-
-		if err != nil {
-			return err
-		}
-
-		// Check if user already exists
-		if existingUser != nil {
-			return errors.New("email already registered")
-		}
-
-		// Hash password
-		hashed, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
-		if err != nil {
-			return err
-		}
-
-		// Create user
-		newUser := &model.User{
-			Username:        username,
-			Email:           username,
-			Password:        ptr(string(hashed)),
-			AuthContainerID: authContainerId,
-			IsEmailVerified: true,
-			IsActive:        true,
-		}
-
-		if err := tx.Create(newUser).Error; err != nil {
-			return err
-		}
-
-		createdUser = newUser
-
-		// Create user roles
-		inviteRoles := invite.Roles
-		if len(inviteRoles) > 0 {
-			for _, ir := range inviteRoles {
-				userRole := &model.UserRole{
-					UserID: createdUser.UserID,
-					RoleID: ir.RoleID,
-				}
-				if err := tx.Create(userRole).Error; err != nil {
-					return err
-				}
-			}
-		}
-
-		// Mark invite as used
-		if err := s.inviteRepo.MarkAsUsed(invite.InviteUUID); err != nil {
-			return err
-		}
-
-		return nil // commit transaction
-	})
-
-	if err != nil {
-		return nil, err
-	}
-
-	// Return token response
-	return s.generateTokenResponse(createdUser.UserUUID.String(), authClient)
-}
-
-func (s *registerService) RegisterPublicInvite(
-	username,
-	password,
-	clientID,
-	inviteToken string,
-) (*dto.AuthResponseDto, error) {
-	// Get and validate client id
-	authClient, err := s.authClientRepo.FindByClientID(clientID)
-	if err != nil {
-		return nil, err
-	}
-	if authClient == nil ||
-		!authClient.IsActive ||
-		authClient.Domain == nil || *authClient.Domain == "" ||
-		authClient.IdentityProvider == nil ||
-		authClient.IdentityProvider.AuthContainer == nil ||
-		authClient.IdentityProvider.AuthContainer.AuthContainerID == 0 {
-		return nil, errors.New("invalid client or identity provider")
-	}
-
-	// Get container id
-	authContainerId := authClient.IdentityProvider.AuthContainer.AuthContainerID
 
 	// Check if username is an email
 	isEmail := util.IsValidEmail(username)
@@ -497,10 +252,10 @@ func (s *registerService) RegisterPublicInvite(
 	}
 
 	// Return token response
-	return s.generateTokenResponse(createdUser.UserUUID.String(), authClient)
+	return s.generateTokenResponse(createdUser.UserUUID.String(), createdUser, authClient)
 }
 
-func (s *registerService) generateTokenResponse(userUUID string, authClient *model.AuthClient) (*dto.AuthResponseDto, error) {
+func (s *registerService) generateTokenResponse(userUUID string, user *model.User, authClient *model.AuthClient) (*dto.AuthResponseDto, error) {
 	accessToken, err := util.GenerateAccessToken(
 		userUUID,
 		"openid profile email",
@@ -514,7 +269,16 @@ func (s *registerService) generateTokenResponse(userUUID string, authClient *mod
 		return nil, err
 	}
 
-	idToken, err := util.GenerateIDToken(userUUID, *authClient.Domain, *authClient.ClientID)
+	// Create user profile for ID token (populate from user data)
+	profile := &util.UserProfile{
+		Email:         user.Email,
+		EmailVerified: user.IsEmailVerified,
+		Phone:         user.Phone,
+		PhoneVerified: user.IsPhoneVerified,
+	}
+
+	// Generate ID token with user profile (no nonce for registration flow)
+	idToken, err := util.GenerateIDToken(userUUID, *authClient.Domain, *authClient.ClientID, profile, "")
 	if err != nil {
 		return nil, err
 	}
