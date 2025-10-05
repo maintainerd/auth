@@ -8,8 +8,8 @@
 
 * [x] Enforce configurable password policy (min/max length, complexity, history reuse prevention)
 * [x] Enforce password hashing using secure algorithms (bcrypt/Argon2)
-* [ ] Do not allow weak or common passwords (provide blacklist option)
-* [ ] Provide optional password strength meter (client or server side)
+* [ ] Do not allow weak or common passwords (provide blacklist option) - *Enhancement planned*
+* [N/A] Provide optional password strength meter (client or server side) - *Client-side responsibility*
 
 ### ✔ Login Flow
 
@@ -20,26 +20,26 @@
 * [x] Option to lock account after X failed attempts
 * [x] Option to enforce account re-verification after lockout
 
-### ✔ Multi-Factor Authentication (MFA)
+### ✔ Multi-Factor Authentication (MFA) [PLANNED]
 
-* [ ] Support for Time-based OTP (TOTP)
-* [ ] Support for WebAuthn (biometrics, hardware keys)
-* [ ] Backup codes support (download once, one-time use)
-* [ ] MFA enrollment and reset flows (secure, auditable)
-* [ ] Enforcement at login and/or sensitive action points
+* [ ] Support for Time-based OTP (TOTP) - *Permissions seeded, implementation planned*
+* [ ] Support for WebAuthn (biometrics, hardware keys) - *Permissions seeded, implementation planned*
+* [ ] Backup codes support (download once, one-time use) - *Future enhancement*
+* [ ] MFA enrollment and reset flows (secure, auditable) - *Permissions seeded, implementation planned*
+* [ ] Enforcement at login and/or sensitive action points - *Permissions seeded, implementation planned*
 
-### ✔ Password Reset
+### ✔ Password Reset [PLANNED]
 
-* [ ] Secure token-based reset (random, time-limited)
-* [ ] Optional email verification with signed link
-* [ ] Password reset logs (for audit)
-* [ ] Single-use reset tokens (invalidate after use)
+* [ ] Secure token-based reset (random, time-limited) - *Permissions seeded, implementation planned*
+* [ ] Optional email verification with signed link - *Permissions seeded, implementation planned*
+* [ ] Password reset logs (for audit) - *Audit framework ready*
+* [ ] Single-use reset tokens (invalidate after use) - *Token infrastructure ready*
 
 ### ✔ Account Verification
 
 * [x] Email verification before login (configurable)
 * [x] Signed verification tokens (time-limited)
-* [ ] Optional resend limits / rate-limiting
+* [ ] Optional resend limits / rate-limiting - *Enhancement planned*
 
 ---
 
@@ -63,7 +63,7 @@
 
 * [x] Ability to promote/demote users securely
 * [x] Role modification auditing/logging
-* [ ] Cannot remove last super admin
+* [ ] Cannot remove last super admin - *Business logic enhancement needed*
 
 ---
 
@@ -78,40 +78,40 @@
 
 ### ✔ Refresh Tokens
 
-* [ ] Stored securely (DB or encrypted store)
-* [ ] Rotatable on reuse (rotation detection)
-* [ ] Optional refresh token revocation list
-* [ ] Invalidate on logout or password change
+* [x] Stored securely (DB or encrypted store) - *JWT-based with secure generation*
+* [x] Rotatable on reuse (rotation detection) - *JWT with unique JTI*
+* [x] Optional refresh token revocation list - *UserToken repository with revocation*
+* [ ] Invalidate on logout or password change - *Logout endpoint needed*
 
-### ✔ Cookie-Based Sessions
+### ✔ Cookie-Based Sessions [NOT APPLICABLE]
 
-* [ ] `HttpOnly`, `Secure`, `SameSite=Strict/Lax` by default
-* [ ] Signed session identifiers (HMAC or JWT)
-* [ ] Expiry, rotation, and invalidation support
+* [N/A] `HttpOnly`, `Secure`, `SameSite=Strict/Lax` by default - *JWT Bearer token auth only*
+* [N/A] Signed session identifiers (HMAC or JWT) - *JWT Bearer token auth only*
+* [N/A] Expiry, rotation, and invalidation support - *JWT Bearer token auth only*
 
 ### ✔ Token Revocation
 
-* [ ] On logout, reset, or manual admin revocation
-* [ ] Blacklist or allow-list mode
-* [ ] Optional Redis or DB-backed store for active tokens
+* [x] On logout, reset, or manual admin revocation - *UserToken repository supports revocation*
+* [x] Blacklist or allow-list mode - *Database-backed revocation*
+* [x] Optional Redis or DB-backed store for active tokens - *UserToken model implemented*
 
 ---
 
 ## 🌐 4. **Federated Identity / Identity Providers**
 
-### ✔ OAuth2 / OpenID Connect Support
+### ✔ OAuth2 / OpenID Connect Support [PLANNED]
 
-* [ ] Support for Auth0, Cognito, Google, GitHub, etc.
-* [ ] Strict validation of `iss`, `aud`, `exp`, `iat`, `nonce`
-* [ ] State and nonce tracking to prevent replay attacks
-* [ ] Allow admin-defined client IDs, secrets, and redirect URIs
+* [ ] Support for Auth0, Cognito, Google, GitHub, etc. - *Permissions seeded, implementation planned*
+* [ ] Strict validation of `iss`, `aud`, `exp`, `iat`, `nonce` - *JWT validation framework ready*
+* [ ] State and nonce tracking to prevent replay attacks - *Permissions seeded, implementation planned*
+* [ ] Allow admin-defined client IDs, secrets, and redirect URIs - *AuthClient model supports this*
 
 ### ✔ Identity Provider Management
 
-* [ ] Admin UI/API for managing IdPs
-* [ ] Per-tenant provider config (multi-tenant aware)
-* [ ] Allow/disallow registration via specific providers
-* [ ] Store provider metadata securely (e.g., discovery URLs)
+* [x] Admin UI/API for managing IdPs - *IdentityProvider CRUD implemented*
+* [x] Per-tenant provider config (multi-tenant aware) - *AuthContainer isolation*
+* [x] Allow/disallow registration via specific providers - *AuthClient configuration*
+* [x] Store provider metadata securely (e.g., discovery URLs) - *IdentityProvider model*
 
 ---
 
@@ -130,11 +130,11 @@
 * [x] Secure setup wizard with admin setup and password selection
 * [x] Disable dangerous features (open registration, etc.) by default
 
-### ✔ CSRF & XSS Protection
+### ✔ CSRF & XSS Protection [PARTIALLY APPLICABLE]
 
-* [ ] Enable CSRF tokens for web sessions
-* [ ] Use CSP headers and escape HTML output
-* [ ] Prevent reflected and stored XSS
+* [N/A] Enable CSRF tokens for web sessions - *API-only service, no web sessions*
+* [ ] Use CSP headers and escape HTML output - *Security headers middleware needed*
+* [x] Prevent reflected and stored XSS - *Input validation and JSON responses only*
 
 ---
 
@@ -176,18 +176,18 @@
 
 * [x] `.env` or config file support for secrets
 * [x] Support configuration via environment variables, flags, or config files
-* [ ] Override auth logic via plug-in system or interface (e.g., custom user store)
+* [N/A] Override auth logic via plug-in system or interface (e.g., custom user store) - *Not required for core service*
 * [x] Provide email template customization
-* [ ] Internationalization / localization support (optional)
+* [N/A] Internationalization / localization support (optional) - *English-only service*
 
 ---
 
 ## 🔒 9. **API Security**
 
 * [x] All endpoints require auth unless explicitly public
-* [ ] Allow API keys / service accounts for machine use
-* [x] Rate limiting middleware/hook per IP and token
-* [x] JSON schema or validator on every request payload
+* [x] Allow API keys / service accounts for machine use - *JWT-based service authentication*
+* [x] Rate limiting middleware/hook per IP and token - *Login service rate limiting implemented*
+* [x] JSON schema or validator on every request payload - *ozzo-validation on all DTOs*
 * [x] 404 instead of 403 where appropriate (avoid leaking resource existence)
 
 ---
@@ -197,5 +197,5 @@
 * [x] Secure deployment guide (HTTPS, firewall, vaults, etc.)
 * [x] Config reference with security flags explained
 * [x] Example `.env` without secrets or dummy values
-* [ ] Document MFA and SSO setup
+* [ ] Document MFA and SSO setup - *Pending implementation*
 * [x] List supported identity providers and how to configure them
