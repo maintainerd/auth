@@ -4,20 +4,21 @@ import (
 	"regexp"
 
 	validation "github.com/go-ozzo/ozzo-validation/v4"
+	"github.com/google/uuid"
 )
 
 // EmailRegex is a basic regex for validating email format.
 // Note: This is simple and not RFC 5322-complete.
 var emailRegex = regexp.MustCompile(`^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$`)
 
-// SendPrivateInviteRequest represents the payload to invite an internal user.
-type SendPrivateInviteRequest struct {
-	Email string   `json:"email"`
-	Roles []string `json:"roles"`
+// SendInviteRequest represents the payload to invite a user.
+type SendInviteRequest struct {
+	Email string      `json:"email"` // Email address of the user to invite
+	Roles []uuid.UUID `json:"roles"` // List of role UUIDs to assign to the invited user
 }
 
 // Validate validates the invite request fields.
-func (r SendPrivateInviteRequest) Validate() error {
+func (r SendInviteRequest) Validate() error {
 	return validation.ValidateStruct(&r,
 		validation.Field(&r.Email,
 			validation.Required.Error("Email is required"),
@@ -26,7 +27,7 @@ func (r SendPrivateInviteRequest) Validate() error {
 		),
 		validation.Field(&r.Roles,
 			validation.Required.Error("Roles are required"),
-			validation.Each(validation.Length(1, 100)), // You can add more specific validation for UUID format here if needed
+			validation.Length(1, 10).Error("Must provide between 1 and 10 roles"),
 		),
 	)
 }

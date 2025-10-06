@@ -7,6 +7,7 @@ import (
 	"github.com/maintainerd/auth/internal/model"
 	"github.com/maintainerd/auth/internal/repository"
 	"github.com/maintainerd/auth/internal/runner"
+	"github.com/maintainerd/auth/internal/util"
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 )
@@ -27,6 +28,7 @@ type setupService struct {
 	roleRepo             repository.RoleRepository
 	userRoleRepo         repository.UserRoleRepository
 	userTokenRepo        repository.UserTokenRepository
+	userIdentityRepo     repository.UserIdentityRepository
 }
 
 func NewSetupService(
@@ -39,6 +41,7 @@ func NewSetupService(
 	roleRepo repository.RoleRepository,
 	userRoleRepo repository.UserRoleRepository,
 	userTokenRepo repository.UserTokenRepository,
+	userIdentityRepo repository.UserIdentityRepository,
 ) SetupService {
 	return &setupService{
 		db:                   db,
@@ -50,6 +53,7 @@ func NewSetupService(
 		roleRepo:             roleRepo,
 		userRoleRepo:         userRoleRepo,
 		userTokenRepo:        userTokenRepo,
+		userIdentityRepo:     userIdentityRepo,
 	}
 }
 
@@ -183,6 +187,7 @@ func (s *setupService) CreateAdmin(req dto.CreateAdminRequestDto) (*dto.CreateAd
 		txUserRepo := s.userRepo.WithTx(tx)
 		txUserRoleRepo := s.userRoleRepo.WithTx(tx)
 		txRoleRepo := s.roleRepo.WithTx(tx)
+		txUserIdentityRepo := s.userIdentityRepo.WithTx(tx)
 
 		// Check if user already exists
 		existingUser, err := txUserRepo.FindByEmail(req.Email, defaultContainer.AuthContainerID)
@@ -203,7 +208,7 @@ func (s *setupService) CreateAdmin(req dto.CreateAdminRequestDto) (*dto.CreateAd
 		newUser := &model.User{
 			Username:        req.Username,
 			Email:           req.Email,
-			Password:        ptr(string(hashedPassword)),
+			Password:        util.Ptr(string(hashedPassword)),
 			AuthContainerID: defaultContainer.AuthContainerID,
 			IsEmailVerified: true,
 			IsActive:        true,
@@ -221,7 +226,8 @@ func (s *setupService) CreateAdmin(req dto.CreateAdminRequestDto) (*dto.CreateAd
 			Provider:     "default",
 			Sub:          createdUser.UserUUID.String(),
 		}
-		if err := tx.Create(userIdentity).Error; err != nil {
+		_, err = txUserIdentityRepo.Create(userIdentity)
+		if err != nil {
 			return err
 		}
 
@@ -274,9 +280,4 @@ func getStringValue(s *string) string {
 		return ""
 	}
 	return *s
-}
-
-// Helper function to create string pointer
-func ptr(s string) *string {
-	return &s
 }

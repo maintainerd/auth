@@ -3,20 +3,27 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.local
-    image: m9d-auth
-    container_name: m9d-auth
+    image: m9d-auth-dev
+    container_name: m9d-auth-dev
     volumes:
+      # Mount source code for hot reloading
       - .:/usr/src/app
-      - ./.env:/usr/src/app/.env
+      # Mount go mod cache for faster builds
+      - go-mod-cache:/go/pkg/mod
+      # Mount build cache
+      - go-build-cache:/root/.cache/go-build
     environment:
       - ENV=local
-    command: air -c .air.toml
+      - CGO_ENABLED=0
+    # Remove command override since it's in Dockerfile
     ports:
       - "8080:8080" # Public
       - "8081:8081" # Internal
     depends_on:
       - postgres-db
       - redis-db
+    # Add restart policy for development
+    restart: unless-stopped
 
   nginx:
     image: nginx:latest
@@ -66,3 +73,7 @@ services:
 networks:
   default:
     driver: bridge
+
+volumes:
+  go-mod-cache:
+  go-build-cache:

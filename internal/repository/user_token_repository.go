@@ -10,6 +10,7 @@ import (
 
 type UserTokenRepository interface {
 	BaseRepositoryMethods[model.UserToken]
+	WithTx(tx *gorm.DB) UserTokenRepository
 	FindByUserID(userID int64) ([]model.UserToken, error)
 	FindActiveTokensByUserID(userID int64) ([]model.UserToken, error)
 	FindByUserIDAndTokenType(userID int64, tokenType string) ([]model.UserToken, error)
@@ -28,6 +29,13 @@ func NewUserTokenRepository(db *gorm.DB) UserTokenRepository {
 	return &userTokenRepository{
 		BaseRepository: NewBaseRepository[model.UserToken](db, "token_uuid", "token_id"),
 		db:             db,
+	}
+}
+
+func (r *userTokenRepository) WithTx(tx *gorm.DB) UserTokenRepository {
+	return &userTokenRepository{
+		BaseRepository: NewBaseRepository[model.UserToken](tx, "token_uuid", "token_id"),
+		db:             tx,
 	}
 }
 
