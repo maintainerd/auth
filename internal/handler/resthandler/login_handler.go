@@ -61,6 +61,24 @@ func (h *LoginHandler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Response
-	util.Success(w, tokenResponse, "Login successful")
+	// Convert DTO to map to avoid import cycle
+	authResponse := map[string]interface{}{
+		"access_token":  tokenResponse.AccessToken,
+		"id_token":      tokenResponse.IDToken,
+		"refresh_token": tokenResponse.RefreshToken,
+		"expires_in":    tokenResponse.ExpiresIn,
+		"token_type":    tokenResponse.TokenType,
+		"issued_at":     tokenResponse.IssuedAt,
+	}
+
+	// Response with optional cookie delivery
+	util.AuthSuccess(w, r, authResponse, "Login successful")
+}
+
+func (h *LoginHandler) Logout(w http.ResponseWriter, r *http.Request) {
+	// Clear authentication cookies if they exist
+	util.ClearAuthCookies(w)
+
+	// Return success response
+	util.Success(w, nil, "Logout successful")
 }

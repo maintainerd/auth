@@ -1,5 +1,12 @@
 <p align="center">
-  <img width="150" height="150" alt="logo" src="https://github.com/user-attachments/assets/3e9eec3d-8312-4f5c-b8cb-14d309a17fda" />
+  <img width="150" height="150### 🧑‍💻 **Developer Experience**
+- ✅ **Flexible Token Delivery** - Choose between JSON body or secure cookies
+- ✅ **Email Templates** - Customizable HTML email templates
+- ✅ **Invite System** - Secure user invitation workflow
+- ✅ **Setup Wizard** - One-command initial configuration
+- ✅ **Comprehensive Documentation** - Security guides and API docs
+- ✅ **Environment-based Configuration** - 12-factor app compliance
+- 🚧 **OAuth2/OIDC Providers** - External identity integration (planned)logo" src="https://github.com/user-attachments/assets/3e9eec3d-8312-4f5c-b8cb-14d309a17fda" />
 </p>
 
 <h1 align="center">Maintainerd Auth</h1>
@@ -127,6 +134,29 @@ curl -X POST http://localhost:8080/api/v1/login \
   }' \
   -G -d "auth_client_id=your-client-id" \
      -d "auth_container_id=your-container-id"
+```
+
+### **🍪 Flexible Token Delivery**
+Choose how you want to receive authentication tokens:
+
+**Body Response (Default)** - Tokens in JSON response:
+```bash
+curl -X POST http://localhost:8080/api/v1/login \
+  -H "Content-Type: application/json" \
+  -d '{"username": "john@company.com", "password": "SecurePass123!"}' \
+  -G -d "auth_client_id=your-client-id"
+# Returns: {"success": true, "data": {"access_token": "...", "id_token": "...", ...}}
+```
+
+**Cookie Response** - Tokens as secure HTTP-only cookies:
+```bash
+curl -X POST http://localhost:8080/api/v1/login \
+  -H "Content-Type: application/json" \
+  -H "X-Token-Delivery: cookie" \
+  -c cookies.jar \
+  -d '{"username": "john@company.com", "password": "SecurePass123!"}' \
+  -G -d "auth_client_id=your-client-id"
+# Returns: {"success": true, "data": {"expires_in": 3600, ...}} + Sets secure cookies
 ```
 
 ### **Protected Resource Access**

@@ -30,22 +30,29 @@ const (
 
 func JWTAuthMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Get authorization header
+		// Get authorization header first
 		authHeader := r.Header.Get("Authorization")
-		if authHeader == "" {
-			util.Error(w, http.StatusUnauthorized, "Authorization header missing")
-			return
+		var token string
+
+		if authHeader != "" {
+			// Use Bearer token if present
+			parts := strings.SplitN(authHeader, " ", 2)
+			if len(parts) == 2 && strings.ToLower(parts[0]) == "bearer" {
+				token = parts[1]
+			}
+		} else {
+			// Fallback to cookie if no Authorization header
+			if cookie, err := r.Cookie("access_token"); err == nil {
+				token = cookie.Value
+			}
 		}
 
-		// Split authorization header
-		parts := strings.SplitN(authHeader, " ", 2)
-		if len(parts) != 2 || strings.ToLower(parts[0]) != "bearer" {
-			util.Error(w, http.StatusUnauthorized, "Invalid Authorization header format")
+		if token == "" {
+			util.Error(w, http.StatusUnauthorized, "No valid authentication found")
 			return
 		}
 
 		// Validate token
-		token := parts[1]
 		claims, err := util.ValidateToken(token)
 		if err != nil {
 			util.Error(w, http.StatusUnauthorized, "Invalid or expired token", err.Error())
