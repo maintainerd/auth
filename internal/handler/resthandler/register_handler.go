@@ -61,8 +61,18 @@ func (h *RegisterHandler) Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Response
-	util.Created(w, tokenResponse, "Registration successful")
+	// Convert DTO to map to avoid import cycle
+	authResponse := map[string]interface{}{
+		"access_token":  tokenResponse.AccessToken,
+		"id_token":      tokenResponse.IDToken,
+		"refresh_token": tokenResponse.RefreshToken,
+		"expires_in":    tokenResponse.ExpiresIn,
+		"token_type":    tokenResponse.TokenType,
+		"issued_at":     tokenResponse.IssuedAt,
+	}
+
+	// Response with optional cookie delivery
+	util.AuthCreated(w, r, authResponse, "Registration successful")
 }
 
 func (h *RegisterHandler) RegisterInvite(w http.ResponseWriter, r *http.Request) {
@@ -110,6 +120,16 @@ func (h *RegisterHandler) RegisterInvite(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	// Response
-	util.Created(w, tokenResponse, "Registration successful")
+	// Convert DTO to map to avoid import cycle
+	authResponse := map[string]interface{}{
+		"access_token":  tokenResponse.AccessToken,
+		"id_token":      tokenResponse.IDToken,
+		"refresh_token": tokenResponse.RefreshToken,
+		"expires_in":    tokenResponse.ExpiresIn,
+		"token_type":    tokenResponse.TokenType,
+		"issued_at":     tokenResponse.IssuedAt,
+	}
+
+	// Response with optional cookie delivery
+	util.AuthCreated(w, r, authResponse, "Registration successful")
 }
