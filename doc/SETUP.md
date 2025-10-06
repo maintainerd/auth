@@ -183,6 +183,75 @@ docker compose build --no-cache
 
 ---
 
+## 🚨 **Troubleshooting**
+
+### **Common Setup Issues**
+
+#### **Docker Issues**
+- **Permission Errors**: Ensure Docker daemon is running and user has permissions
+- **Port Conflicts**: Change ports in `docker-compose.yml` if 8080, 5432, 6379 are in use
+- **Build Failures**: Try `docker compose build --no-cache` to rebuild from scratch
+
+#### **Database Connection Issues**
+```bash
+# Check if PostgreSQL is accessible
+docker exec -it postgres-db psql -U devuser -d maintainerd
+
+# Check database logs
+docker logs postgres-db
+```
+
+#### **Redis Connection Issues**
+```bash
+# Test Redis connection
+docker exec -it redis-db redis-cli -a Pass123 ping
+
+# Should return: PONG
+```
+
+#### **JWT Key Issues**
+- **Invalid Keys**: Regenerate using `./scripts/generate-jwt-keys.sh`
+- **Format Issues**: Ensure keys are properly escaped in `.env` file
+- **Permission Issues**: Check file permissions on generated keys
+
+#### **Setup API Failing**
+```bash
+# Check if service is ready
+curl -f http://localhost:8080/health
+
+# Check setup endpoint availability
+curl -X POST http://localhost:8080/api/v1/setup \
+  -H "Content-Type: application/json" \
+  -d '{"organization_name":"Test","admin_email":"admin@test.com","admin_password":"TestPass123!"}'
+```
+
+#### **Migration Issues**
+- **Database Not Ready**: Wait for PostgreSQL to fully start before running migrations
+- **Migration Failures**: Check logs with `docker logs m9d-auth-dev`
+- **Seed Data Issues**: Ensure database is empty or use `docker compose down -v` to reset
+
+### **Debug Commands**
+
+```bash
+# Check all container status
+docker ps -a
+
+# View application logs
+docker logs -f m9d-auth-dev
+
+# Enter application container
+docker exec -it m9d-auth-dev sh
+
+# Check database contents
+docker exec -it postgres-db psql -U devuser -d maintainerd -c "\\dt"
+
+# Reset everything (caution: deletes all data)
+docker compose down -v
+docker compose up --build
+```
+
+---
+
 ## 🤝 Contributing
 
 We welcome contributions!

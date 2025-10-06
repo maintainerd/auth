@@ -5,7 +5,7 @@ import (
 	"net/url"
 
 	validation "github.com/go-ozzo/ozzo-validation/v4"
-	"github.com/maintainerd/auth/internal/util"
+	"github.com/maintainerd/auth/internal/crypto"
 )
 
 // Login and register request payload structure
@@ -86,7 +86,7 @@ func (q RegisterInviteQueryDto) Validate() error {
 	values.Set("expires", q.Expires)
 	values.Set("sig", q.Sig)
 
-	if _, err := util.ValidateSignedURL(values); err != nil {
+	if _, err := crypto.ValidateSignedURL(values); err != nil {
 		return errors.New("invalid or expired signed URL")
 	}
 
