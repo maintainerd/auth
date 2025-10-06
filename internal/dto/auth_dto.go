@@ -6,6 +6,7 @@ import (
 
 	validation "github.com/go-ozzo/ozzo-validation/v4"
 	"github.com/maintainerd/auth/internal/crypto"
+	"github.com/maintainerd/auth/internal/util"
 )
 
 // Login and register request payload structure
@@ -14,8 +15,12 @@ type AuthRequestDto struct {
 	Password string `json:"password"`
 }
 
-func (r AuthRequestDto) Validate() error {
-	return validation.ValidateStruct(&r,
+func (r *AuthRequestDto) Validate() error {
+	// Sanitize input data first
+	r.Username = util.SanitizeInput(r.Username)
+	r.Password = util.SanitizeInput(r.Password)
+
+	return validation.ValidateStruct(r,
 		validation.Field(&r.Username,
 			validation.Required.Error("Username is required"),
 			validation.Length(3, 50).Error("Username must be between 3 and 50 characters"),
@@ -25,6 +30,21 @@ func (r AuthRequestDto) Validate() error {
 			validation.Length(8, 100).Error("Password must be between 8 and 100 characters"),
 		),
 	)
+}
+
+// ValidateForRegistration validates with additional password strength requirements
+func (r *AuthRequestDto) ValidateForRegistration() error {
+	// First do standard validation (includes sanitization)
+	if err := r.Validate(); err != nil {
+		return err
+	}
+
+	// Additional password strength validation for registration
+	if err := util.ValidatePasswordStrength(r.Password); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // Universal registration query parameters
