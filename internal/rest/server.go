@@ -3,10 +3,12 @@ package restserver
 import (
 	"log"
 	"net/http"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/maintainerd/auth/internal/app"
+	securityMiddleware "github.com/maintainerd/auth/internal/middleware"
 	"github.com/maintainerd/auth/internal/route"
 )
 
@@ -16,6 +18,14 @@ func StartRESTServer(application *app.App) {
 	// Built-in Chi middlewares
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
+
+	// Global security middleware for SOC2/ISO27001 compliance
+	r.Use(securityMiddleware.SecurityHeadersMiddleware)
+	r.Use(securityMiddleware.SecurityContextMiddleware)
+
+	// Global DoS protection with reasonable limits
+	r.Use(securityMiddleware.RequestSizeLimitMiddleware(10 * 1024 * 1024)) // 10MB global limit
+	r.Use(securityMiddleware.TimeoutMiddleware(60 * time.Second))          // 60s global timeout
 
 	r.Route("/api/v1", func(api chi.Router) {
 		// Setup Routes (no authentication required)

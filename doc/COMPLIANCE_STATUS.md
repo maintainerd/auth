@@ -4,8 +4,8 @@
 
 | Standard | Implemented | Planned | Not Applicable | Total | Completion |
 |----------|-------------|---------|----------------|-------|------------|
-| **SOC2** | 32 | 8 | 3 | 43 | **74%** |
-| **ISO27001** | 28 | 4 | 1 | 33 | **85%** |
+| **SOC2** | 38 | 2 | 3 | 43 | **88%** |
+| **ISO27001** | 31 | 1 | 1 | 33 | **94%** |
 
 ---
 
@@ -13,9 +13,12 @@
 
 ### **🔐 Authentication Security**
 - ✅ **Password Handling**: bcrypt hashing, configurable policies (8-128 chars)
+- ✅ **Password Strength**: Enhanced complexity validation, weak password detection
 - ✅ **Login Flow**: Rate limiting (5 attempts/15min), account lockout (30min), generic error messages
 - ✅ **Account Verification**: Email verification with OTP tokens, signed verification tokens
 - ✅ **Input Validation**: Comprehensive validation with length limits and format checks
+- ✅ **Security Headers**: CSP, HSTS, X-Frame-Options, X-Content-Type-Options
+- ✅ **Request Protection**: Size limits (1MB), timeout controls (30s), DoS protection
 
 ### **🛡️ Authorization**
 - ✅ **RBAC**: Complete role-based access control with database-driven permissions
@@ -30,10 +33,13 @@
 - ✅ **Key Management**: RSA key pair with rotation support, secure storage options
 
 ### **🔧 Security by Design**
-- ✅ **Input/Output Handling**: Sanitization, validation, XSS prevention, SQL injection protection
+- ✅ **Input/Output Handling**: Enhanced sanitization, validation, XSS prevention, SQL injection protection
 - ✅ **Secure Defaults**: Secure configuration out-of-the-box, setup wizard
-- ✅ **Audit Logging**: Comprehensive security event logging with timestamps
+- ✅ **Audit Logging**: Enhanced security event logging with severity classification (HIGH/MEDIUM/LOW)
 - ✅ **Error Handling**: No sensitive information leakage, generic error responses
+- ✅ **Security Context**: Request tracking with unique IDs, client IP and User-Agent logging
+- ✅ **Malicious Detection**: User-Agent validation, suspicious activity detection
+- ✅ **Input Sanitization**: Control character removal, injection attack prevention
 
 ### **📦 Infrastructure Security**
 - ✅ **Dependency Management**: Pinned versions in go.mod, vetted packages only
