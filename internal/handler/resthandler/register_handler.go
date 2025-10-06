@@ -101,14 +101,22 @@ func (h *RegisterHandler) Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Sanitize input data
-	req.Username = util.SanitizeInput(req.Username)
-	req.Password = util.SanitizeInput(req.Password)
+	// Validate using DTO convention for registration (includes sanitization and password strength)
+	if err := req.ValidateForRegistration(); err != nil {
+		// Determine event type based on error
+		eventType := "registration_validation_failure"
+		severity := "MEDIUM"
+		if err.Error() == "password is too weak" ||
+			err.Error() == "password must contain at least one uppercase letter" ||
+			err.Error() == "password must contain at least one lowercase letter" ||
+			err.Error() == "password must contain at least one digit" ||
+			err.Error() == "password must contain at least one special character" ||
+			err.Error() == "password contains a common weak password" {
+			eventType = "registration_weak_password"
+		}
 
-	// Enhanced password validation for registration
-	if err := util.ValidatePasswordStrength(req.Password); err != nil {
 		util.LogSecurityEvent(util.SecurityEvent{
-			EventType: "registration_weak_password",
+			EventType: eventType,
 			UserID:    req.Username,
 			ClientIP:  clientIPStr,
 			UserAgent: userAgentStr,
@@ -116,25 +124,8 @@ func (h *RegisterHandler) Register(w http.ResponseWriter, r *http.Request) {
 			Endpoint:  "/register",
 			Method:    r.Method,
 			Timestamp: startTime,
-			Details:   "Weak password rejected",
-			Severity:  "MEDIUM",
-		})
-		util.Error(w, http.StatusBadRequest, err.Error())
-		return
-	}
-
-	if err := req.Validate(); err != nil {
-		util.LogSecurityEvent(util.SecurityEvent{
-			EventType: "registration_validation_failure",
-			UserID:    req.Username,
-			ClientIP:  clientIPStr,
-			UserAgent: userAgentStr,
-			RequestID: requestIDStr,
-			Endpoint:  "/register",
-			Method:    r.Method,
-			Timestamp: startTime,
-			Details:   "Request body validation failed",
-			Severity:  "MEDIUM",
+			Details:   "Request validation failed: " + err.Error(),
+			Severity:  severity,
 		})
 		util.ValidationError(w, err)
 		return

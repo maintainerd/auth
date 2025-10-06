@@ -101,10 +101,7 @@ func (h *LoginHandler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Sanitize input data
-	req.Username = util.SanitizeInput(req.Username)
-	req.Password = util.SanitizeInput(req.Password)
-
+	// Validate using DTO convention (includes sanitization)
 	if err := req.Validate(); err != nil {
 		util.LogSecurityEvent(util.SecurityEvent{
 			EventType: "login_validation_failure",
