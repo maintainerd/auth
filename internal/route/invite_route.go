@@ -14,10 +14,10 @@ func InviteRoute(
 	userRepo repository.UserRepository,
 	redisClient *redis.Client,
 ) {
-	r.Route("/internal/invite", func(r chi.Router) {
+	r.Route("/invite", func(r chi.Router) {
 		r.Use(middleware.JWTAuthMiddleware)
 		r.Use(middleware.UserContextMiddleware(userRepo, redisClient))
 
-		r.Post("/", inviteHandler.SendPrivate)
+		r.Post("/", inviteHandler.Send)
 	})
 }
