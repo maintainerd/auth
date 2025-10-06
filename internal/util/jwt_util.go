@@ -27,6 +27,17 @@ const (
 	JTILength  = 32   // JTI entropy length
 )
 
+// GenerateSecureID generates a cryptographically secure random ID
+// Complies with SOC2 CC6.1 and ISO27001 A.10.1.1
+func GenerateSecureID() string {
+	bytes := make([]byte, 16)
+	if _, err := rand.Read(bytes); err != nil {
+		// Fallback to UUID if crypto/rand fails
+		return uuid.New().String()
+	}
+	return hex.EncodeToString(bytes)
+}
+
 var (
 	privateKey *rsa.PrivateKey
 	publicKey  *rsa.PublicKey
