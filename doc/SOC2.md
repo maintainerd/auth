@@ -6,19 +6,19 @@
 
 ### ✔ Password Handling
 
-* [ ] Enforce configurable password policy (min/max length, complexity, history reuse prevention)
-* [ ] Enforce password hashing using secure algorithms (bcrypt/Argon2)
+* [x] Enforce configurable password policy (min/max length, complexity, history reuse prevention)
+* [x] Enforce password hashing using secure algorithms (bcrypt/Argon2)
 * [ ] Do not allow weak or common passwords (provide blacklist option)
 * [ ] Provide optional password strength meter (client or server side)
 
 ### ✔ Login Flow
 
-* [ ] Secure login endpoint (HTTPS enforced in docs)
-* [ ] Rate limit login attempts per IP or user
-* [ ] Brute-force prevention (e.g., exponential backoff, CAPTCHA)
-* [ ] Return generic error messages (`invalid credentials`, not `invalid password`)
-* [ ] Option to lock account after X failed attempts
-* [ ] Option to enforce account re-verification after lockout
+* [x] Secure login endpoint (HTTPS enforced in docs)
+* [x] Rate limit login attempts per IP or user
+* [x] Brute-force prevention (e.g., exponential backoff, CAPTCHA)
+* [x] Return generic error messages (`invalid credentials`, not `invalid password`)
+* [x] Option to lock account after X failed attempts
+* [x] Option to enforce account re-verification after lockout
 
 ### ✔ Multi-Factor Authentication (MFA)
 
@@ -37,8 +37,8 @@
 
 ### ✔ Account Verification
 
-* [ ] Email verification before login (configurable)
-* [ ] Signed verification tokens (time-limited)
+* [x] Email verification before login (configurable)
+* [x] Signed verification tokens (time-limited)
 * [ ] Optional resend limits / rate-limiting
 
 ---
@@ -47,11 +47,11 @@
 
 ### ✔ Role-Based Access Control (RBAC)
 
-* [ ] Define system roles (e.g., `user`, `admin`, `super_admin`)
-* [ ] Configurable permissions per route/action
-* [ ] Role-to-permission mapping configurable or database-driven
-* [ ] Prevent privilege escalation via UI or API
-* [ ] Provide API to manage roles and permissions
+* [x] Define system roles (e.g., `user`, `admin`, `super_admin`)
+* [x] Configurable permissions per route/action
+* [x] Role-to-permission mapping configurable or database-driven
+* [x] Prevent privilege escalation via UI or API
+* [x] Provide API to manage roles and permissions
 
 ### ✔ Attribute-Based Access Control (ABAC) \[Optional]
 
@@ -61,8 +61,8 @@
 
 ### ✔ Admin Controls
 
-* [ ] Ability to promote/demote users securely
-* [ ] Role modification auditing/logging
+* [x] Ability to promote/demote users securely
+* [x] Role modification auditing/logging
 * [ ] Cannot remove last super admin
 
 ---
@@ -71,10 +71,10 @@
 
 ### ✔ Access Tokens (e.g., JWT)
 
-* [ ] Signed using RS256 or HS256 with strong keys
-* [ ] Short expiration window (5–15 minutes)
-* [ ] Configurable TTL for access and refresh tokens
-* [ ] Validate signature, issuer, audience, expiration
+* [x] Signed using RS256 or HS256 with strong keys
+* [x] Short expiration window (5–15 minutes)
+* [x] Configurable TTL for access and refresh tokens
+* [x] Validate signature, issuer, audience, expiration
 
 ### ✔ Refresh Tokens
 
@@ -119,16 +119,16 @@
 
 ### ✔ Input & Output Handling
 
-* [ ] Sanitize and validate all incoming input
-* [ ] Use typed inputs, max lengths, formats
-* [ ] Encode output properly (avoid XSS)
-* [ ] Escape values used in templates or SQL queries
+* [x] Sanitize and validate all incoming input
+* [x] Use typed inputs, max lengths, formats
+* [x] Encode output properly (avoid XSS)
+* [x] Escape values used in templates or SQL queries
 
 ### ✔ Secure Defaults
 
-* [ ] Secure values for all config out of the box
-* [ ] Secure setup wizard with admin setup and password selection
-* [ ] Disable dangerous features (open registration, etc.) by default
+* [x] Secure values for all config out of the box
+* [x] Secure setup wizard with admin setup and password selection
+* [x] Disable dangerous features (open registration, etc.) by default
 
 ### ✔ CSRF & XSS Protection
 
@@ -142,16 +142,16 @@
 
 ### ✔ Dependency Hygiene
 
-* [ ] Keep dependencies updated via tooling (`dependabot`, `go list -u`)
-* [ ] Avoid unmaintained packages
-* [ ] Pin all versions in `go.mod`
+* [x] Keep dependencies updated via tooling (`dependabot`, `go list -u`)
+* [x] Avoid unmaintained packages
+* [x] Pin all versions in `go.mod`
 * [ ] Run vulnerability scans (e.g., `govulncheck`, `snyk`)
 
 ### ✔ Build Integrity
 
-* [ ] Support reproducible builds (Dockerfile, Makefile)
+* [x] Support reproducible builds (Dockerfile, Makefile)
 * [ ] Signed releases or checksums (SHA256, GPG)
-* [ ] No secrets or credentials in code, CI, or default config
+* [x] No secrets or credentials in code, CI, or default config
 
 ---
 
@@ -159,43 +159,43 @@
 
 ### ✔ Logging Capabilities
 
-* [ ] Structured logs (JSON or logfmt)
-* [ ] Log login attempts, password changes, MFA actions
-* [ ] Do not log sensitive data (passwords, tokens)
-* [ ] Configurable log levels
+* [x] Structured logs (JSON or logfmt)
+* [x] Log login attempts, password changes, MFA actions
+* [x] Do not log sensitive data (passwords, tokens)
+* [x] Configurable log levels
 
 ### ✔ Audit Events \[Optional]
 
-* [ ] Hook system for logging events (login, role change, lockout)
-* [ ] Optional audit trail DB schema
-* [ ] Provide timestamps and actor/user information
+* [x] Hook system for logging events (login, role change, lockout)
+* [x] Optional audit trail DB schema
+* [x] Provide timestamps and actor/user information
 
 ---
 
 ## 🛠️ 8. **Configurability & Extensibility**
 
-* [ ] `.env` or config file support for secrets
-* [ ] Support configuration via environment variables, flags, or config files
+* [x] `.env` or config file support for secrets
+* [x] Support configuration via environment variables, flags, or config files
 * [ ] Override auth logic via plug-in system or interface (e.g., custom user store)
-* [ ] Provide email template customization
+* [x] Provide email template customization
 * [ ] Internationalization / localization support (optional)
 
 ---
 
 ## 🔒 9. **API Security**
 
-* [ ] All endpoints require auth unless explicitly public
+* [x] All endpoints require auth unless explicitly public
 * [ ] Allow API keys / service accounts for machine use
-* [ ] Rate limiting middleware/hook per IP and token
-* [ ] JSON schema or validator on every request payload
-* [ ] 404 instead of 403 where appropriate (avoid leaking resource existence)
+* [x] Rate limiting middleware/hook per IP and token
+* [x] JSON schema or validator on every request payload
+* [x] 404 instead of 403 where appropriate (avoid leaking resource existence)
 
 ---
 
 ## 📄 10. **Documentation & Guidance**
 
-* [ ] Secure deployment guide (HTTPS, firewall, vaults, etc.)
-* [ ] Config reference with security flags explained
-* [ ] Example `.env` without secrets or dummy values
+* [x] Secure deployment guide (HTTPS, firewall, vaults, etc.)
+* [x] Config reference with security flags explained
+* [x] Example `.env` without secrets or dummy values
 * [ ] Document MFA and SSO setup
-* [ ] List supported identity providers and how to configure them
+* [x] List supported identity providers and how to configure them
