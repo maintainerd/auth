@@ -180,10 +180,10 @@ func (r *authClientRepository) FindByClientIDAndIdentityProvider(clientID, ident
 	var client model.AuthClient
 
 	err := r.db.
-		Joins("JOIN identity_providers ON identity_providers.auth_container_id = auth_clients.auth_container_id").
+		Joins("JOIN identity_providers ON identity_providers.identity_provider_id = auth_clients.identity_provider_id").
 		Where("auth_clients.client_id = ? AND identity_providers.identifier = ?", clientID, identityProviderIdentifier).
 		Where("auth_clients.is_active = true AND identity_providers.is_active = true").
-		Preload("AuthContainer").
+		Preload("IdentityProvider.AuthContainer").
 		Preload("IdentityProvider").
 		First(&client).Error
 

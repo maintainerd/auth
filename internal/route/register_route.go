@@ -17,7 +17,7 @@ func RegisterRoute(r chi.Router, registerHandler *resthandler.RegisterHandler) {
 		// Stricter timeout for auth operations (30s vs 60s global)
 		r.Use(middleware.TimeoutMiddleware(30 * time.Second))
 
-		// Universal registration (with auth_client_id and auth_container_id)
+		// Universal registration (with client_id and provider_id)
 		r.Post("/register", registerHandler.Register)
 
 		// Universal registration with invite

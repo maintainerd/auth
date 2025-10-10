@@ -139,9 +139,25 @@ func (s *setupService) CreateOrganization(req dto.CreateOrganizationRequestDto) 
 		UpdatedAt:        createdOrg.UpdatedAt,
 	}
 
+	// Get default auth client and identity provider for user reference
+	defaultClient, err := s.authClientRepo.FindDefault()
+	if err != nil {
+		return nil, err
+	}
+
+	var defaultClientID, defaultProviderID string
+	if defaultClient != nil && defaultClient.ClientID != nil {
+		defaultClientID = *defaultClient.ClientID
+		if defaultClient.IdentityProvider != nil {
+			defaultProviderID = defaultClient.IdentityProvider.Identifier
+		}
+	}
+
 	return &dto.CreateOrganizationResponseDto{
-		Message:      "Organization created successfully",
-		Organization: orgResponse,
+		Message:           "Organization created successfully",
+		Organization:      orgResponse,
+		DefaultClientID:   defaultClientID,
+		DefaultProviderID: defaultProviderID,
 	}, nil
 }
 
