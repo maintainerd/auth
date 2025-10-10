@@ -2,7 +2,6 @@ package service
 
 import (
 	"errors"
-	"strconv"
 	"time"
 
 	"github.com/maintainerd/auth/internal/dto"
@@ -14,18 +13,19 @@ import (
 )
 
 type RegisterService interface {
-	Register(username, password, authClientID, authContainerID string) (*dto.AuthResponseDto, error)
-	RegisterInvite(username, password, authClientID, authContainerID, inviteToken string) (*dto.AuthResponseDto, error)
+	Register(username, password string, email, phone *string, clientID, providerID string) (*dto.RegisterResponseDto, error)
+	RegisterInvite(username, password, clientID, providerID, inviteToken string) (*dto.RegisterResponseDto, error)
 }
 
 type registerService struct {
-	db             *gorm.DB
-	authClientRepo repository.AuthClientRepository
-	userRepo       repository.UserRepository
-	userRoleRepo   repository.UserRoleRepository
-	userTokenRepo  repository.UserTokenRepository
-	roleRepo       repository.RoleRepository
-	inviteRepo     repository.InviteRepository
+	db                   *gorm.DB
+	authClientRepo       repository.AuthClientRepository
+	userRepo             repository.UserRepository
+	userRoleRepo         repository.UserRoleRepository
+	userTokenRepo        repository.UserTokenRepository
+	roleRepo             repository.RoleRepository
+	inviteRepo           repository.InviteRepository
+	identityProviderRepo repository.IdentityProviderRepository
 }
 
 func NewRegistrationService(
@@ -36,71 +36,96 @@ func NewRegistrationService(
 	userTokenRepo repository.UserTokenRepository,
 	roleRepo repository.RoleRepository,
 	inviteRepo repository.InviteRepository,
+	identityProviderRepo repository.IdentityProviderRepository,
 ) RegisterService {
 	return &registerService{
-		db:             db,
-		authClientRepo: clientRepo,
-		userRepo:       userRepo,
-		userRoleRepo:   userRoleRepo,
-		userTokenRepo:  userTokenRepo,
-		roleRepo:       roleRepo,
-		inviteRepo:     inviteRepo,
+		db:                   db,
+		authClientRepo:       clientRepo,
+		userRepo:             userRepo,
+		userRoleRepo:         userRoleRepo,
+		userTokenRepo:        userTokenRepo,
+		roleRepo:             roleRepo,
+		inviteRepo:           inviteRepo,
+		identityProviderRepo: identityProviderRepo,
 	}
 }
 
 func (s *registerService) Register(
 	username,
-	password,
-	authClientID,
-	authContainerID string,
-) (*dto.AuthResponseDto, error) {
-	// Get and validate auth client
-	authClient, err := s.authClientRepo.FindByClientID(authClientID)
-	if err != nil {
+	password string,
+	email,
+	phone *string,
+	clientID,
+	providerID string,
+) (*dto.RegisterResponseDto, error) {
+	// Rate limiting check to prevent registration abuse
+	if err := util.CheckRateLimit(username); err != nil {
 		return nil, err
 	}
-	if authClient == nil ||
-		!authClient.IsActive ||
-		authClient.Domain == nil || *authClient.Domain == "" {
-		return nil, errors.New("invalid or inactive auth client")
-	}
-
-	// Parse auth container ID
-	authContainerId, err := strconv.ParseInt(authContainerID, 10, 64)
-	if err != nil {
-		return nil, errors.New("invalid auth container ID format")
-	}
-
-	// Check if username is an email
-	isEmail := util.IsValidEmail(username)
 
 	var createdUser *model.User
+	var authClient *model.AuthClient
 
-	// Transaction
-	err = s.db.Transaction(func(tx *gorm.DB) error {
+	// All database operations in transaction
+	err := s.db.Transaction(func(tx *gorm.DB) error {
 		txUserRepo := s.userRepo.WithTx(tx)
 		txUserTokenRepo := s.userTokenRepo.WithTx(tx)
+		txAuthClientRepo := s.authClientRepo.WithTx(tx)
+		txIdentityProviderRepo := s.identityProviderRepo.WithTx(tx)
 
-		// Get user by email or username
-		var existingUser *model.User
+		// Get and validate auth client with proper relationship preloading
 		var txErr error
-
-		if isEmail {
-			existingUser, txErr = txUserRepo.FindByEmail(username, authContainerId)
-		} else {
-			existingUser, txErr = txUserRepo.FindByUsername(username, authContainerId)
-		}
-
+		authClient, txErr = txAuthClientRepo.FindByClientIDAndIdentityProvider(clientID, providerID)
 		if txErr != nil {
 			return txErr
 		}
+		if authClient == nil ||
+			!authClient.IsActive ||
+			authClient.Domain == nil || *authClient.Domain == "" {
+			return errors.New("invalid or inactive auth client")
+		}
 
-		// Check if user already exists
+		// Look up identity provider by identifier to get auth container
+		identityProvider, txErr := txIdentityProviderRepo.FindByIdentifier(providerID)
+		if txErr != nil {
+			return errors.New("identity provider lookup failed")
+		}
+
+		if identityProvider == nil {
+			return errors.New("identity provider not found")
+		}
+
+		authContainerId := identityProvider.AuthContainerID
+
+		// Check if username already exists
+		existingUser, txErr := txUserRepo.FindByUsername(username, authContainerId)
+		if txErr != nil {
+			return txErr
+		}
 		if existingUser != nil {
-			if isEmail {
+			return errors.New("username already taken")
+		}
+
+		// Check if email already exists (if provided)
+		if email != nil && *email != "" {
+			existingEmailUser, txErr := txUserRepo.FindByEmail(*email, authContainerId)
+			if txErr != nil {
+				return txErr
+			}
+			if existingEmailUser != nil {
 				return errors.New("email already registered")
 			}
-			return errors.New("username already taken")
+		}
+
+		// Check if phone already exists (if provided)
+		if phone != nil && *phone != "" {
+			existingPhoneUser, txErr := txUserRepo.FindByPhone(*phone, authContainerId)
+			if txErr != nil {
+				return txErr
+			}
+			if existingPhoneUser != nil {
+				return errors.New("phone number already registered")
+			}
 		}
 
 		// Hash password
@@ -112,13 +137,19 @@ func (s *registerService) Register(
 		// Create user
 		newUser := &model.User{
 			Username:        username,
-			Email:           "",
 			Password:        util.Ptr(string(hashed)),
 			AuthContainerID: authContainerId,
 			IsActive:        true,
 		}
-		if isEmail {
-			newUser.Email = username
+
+		// Set email if provided
+		if email != nil && *email != "" {
+			newUser.Email = *email
+		}
+
+		// Set phone if provided
+		if phone != nil && *phone != "" {
+			newUser.Phone = *phone
 		}
 
 		createdUser, txErr = txUserRepo.Create(newUser)
@@ -157,80 +188,78 @@ func (s *registerService) Register(
 func (s *registerService) RegisterInvite(
 	username,
 	password,
-	authClientID,
-	authContainerID,
+	clientID,
+	providerID,
 	inviteToken string,
-) (*dto.AuthResponseDto, error) {
-	// Get and validate auth client
-	authClient, err := s.authClientRepo.FindByClientID(authClientID)
-	if err != nil {
-		return nil, err
-	}
-	if authClient == nil ||
-		!authClient.IsActive ||
-		authClient.Domain == nil || *authClient.Domain == "" {
-		return nil, errors.New("invalid or inactive auth client")
-	}
-
-	// Parse auth container ID
-	authContainerId, err := strconv.ParseInt(authContainerID, 10, 64)
-	if err != nil {
-		return nil, errors.New("invalid auth container ID format")
-	}
-
-	// Validate invite token
-	invite, err := s.inviteRepo.FindByToken(inviteToken)
-	if err != nil {
-		return nil, errors.New("invalid invite token")
-	}
-	if invite == nil {
-		return nil, errors.New("invite not found")
-	}
-
-	// Check invite status and expiration
-	if invite.Status != "pending" {
-		return nil, errors.New("invite has already been used or is no longer valid")
-	}
-	if invite.ExpiresAt != nil && time.Now().After(*invite.ExpiresAt) {
-		return nil, errors.New("invite has expired")
-	}
-
-	// Check if username is an email
-	isEmail := util.IsValidEmail(username)
-
-	// If username is email, validate it matches the invited email
-	if isEmail && username != invite.InvitedEmail {
-		return nil, errors.New("email must match the invited email address")
-	}
-
+) (*dto.RegisterResponseDto, error) {
 	var createdUser *model.User
+	var authClient *model.AuthClient
 
-	// Transaction
-	err = s.db.Transaction(func(tx *gorm.DB) error {
+	// All database operations in transaction
+	err := s.db.Transaction(func(tx *gorm.DB) error {
 		txUserRepo := s.userRepo.WithTx(tx)
 		txUserRoleRepo := s.userRoleRepo.WithTx(tx)
 		txInviteRepo := s.inviteRepo.WithTx(tx)
+		txAuthClientRepo := s.authClientRepo.WithTx(tx)
+		txIdentityProviderRepo := s.identityProviderRepo.WithTx(tx)
 
-		// Get user by email or username
-		var existingUser *model.User
+		// Get and validate auth client with proper relationship preloading
 		var txErr error
-
-		if isEmail {
-			existingUser, txErr = txUserRepo.FindByEmail(username, authContainerId)
-		} else {
-			existingUser, txErr = txUserRepo.FindByUsername(username, authContainerId)
-		}
-
+		authClient, txErr = txAuthClientRepo.FindByClientIDAndIdentityProvider(clientID, providerID)
 		if txErr != nil {
 			return txErr
 		}
+		if authClient == nil ||
+			!authClient.IsActive ||
+			authClient.Domain == nil || *authClient.Domain == "" {
+			return errors.New("invalid or inactive auth client")
+		}
 
-		// Check if user already exists
+		// Look up identity provider by identifier to get auth container
+		identityProvider, txErr := txIdentityProviderRepo.FindByIdentifier(providerID)
+		if txErr != nil {
+			return errors.New("identity provider lookup failed")
+		}
+
+		if identityProvider == nil {
+			return errors.New("identity provider not found")
+		}
+
+		authContainerId := identityProvider.AuthContainerID
+
+		// Validate invite token
+		invite, txErr := txInviteRepo.FindByToken(inviteToken)
+		if txErr != nil {
+			return errors.New("invalid invite token")
+		}
+		if invite == nil {
+			return errors.New("invite not found")
+		}
+
+		// Check invite status and expiration
+		if invite.Status != "pending" {
+			return errors.New("invite has already been used or is no longer valid")
+		}
+		if invite.ExpiresAt != nil && time.Now().After(*invite.ExpiresAt) {
+			return errors.New("invite has expired")
+		}
+
+		// Check if username already exists
+		existingUser, txErr := txUserRepo.FindByUsername(username, authContainerId)
+		if txErr != nil {
+			return txErr
+		}
 		if existingUser != nil {
-			if isEmail {
-				return errors.New("email already registered")
-			}
 			return errors.New("username already taken")
+		}
+
+		// Check if invited email already exists
+		existingEmailUser, txErr := txUserRepo.FindByEmail(invite.InvitedEmail, authContainerId)
+		if txErr != nil {
+			return txErr
+		}
+		if existingEmailUser != nil {
+			return errors.New("invited email already registered")
 		}
 
 		// Hash password
@@ -247,10 +276,6 @@ func (s *registerService) RegisterInvite(
 			AuthContainerID: authContainerId,
 			IsActive:        true,
 			IsEmailVerified: true, // Auto-verify email for invited users
-		}
-		if !isEmail {
-			// If username is not email, set the username but keep invited email
-			newUser.Username = username
 		}
 
 		createdUser, txErr = txUserRepo.Create(newUser)
@@ -298,7 +323,7 @@ func (s *registerService) RegisterInvite(
 	return s.generateTokenResponse(createdUser.UserUUID.String(), createdUser, authClient)
 }
 
-func (s *registerService) generateTokenResponse(userUUID string, user *model.User, authClient *model.AuthClient) (*dto.AuthResponseDto, error) {
+func (s *registerService) generateTokenResponse(userUUID string, user *model.User, authClient *model.AuthClient) (*dto.RegisterResponseDto, error) {
 	accessToken, err := util.GenerateAccessToken(
 		userUUID,
 		"openid profile email",
@@ -331,7 +356,7 @@ func (s *registerService) generateTokenResponse(userUUID string, user *model.Use
 		return nil, err
 	}
 
-	return &dto.AuthResponseDto{
+	return &dto.RegisterResponseDto{
 		AccessToken:  accessToken,
 		IDToken:      idToken,
 		RefreshToken: refreshToken,
