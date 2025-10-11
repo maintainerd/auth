@@ -17,7 +17,7 @@ func LoginRoute(r chi.Router, loginHandler *resthandler.LoginHandler) {
 		// Stricter timeout for auth operations (30s vs 60s global)
 		r.Use(middleware.TimeoutMiddleware(30 * time.Second))
 
-		// Universal login (with auth_client_id and auth_container_id)
+		// Universal login (with client_id and provider_id)
 		r.Post("/login", loginHandler.Login)
 
 		// Logout endpoint (clears cookies if they exist)

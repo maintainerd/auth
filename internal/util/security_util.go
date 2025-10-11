@@ -1,3 +1,44 @@
+/*
+Package util provides comprehensive security utilities for authentication and authorization.
+
+This module implements security controls required for SOC2 and ISO27001 compliance, including:
+
+SECURITY FEATURES:
+- Rate limiting and account lockout protection
+- Password strength validation and complexity requirements
+- Input validation and sanitization
+- Cryptographic utilities for secure token generation
+- Security event logging and audit trails
+- Session management and concurrent session limits
+- Timing-safe operations to prevent timing attacks
+
+COMPLIANCE STANDARDS:
+- SOC2 Type II (CC6.1, CC6.3, CC7.2)
+- ISO27001 (A.9.4.2, A.9.4.3, A.12.4.1, A.13.1.1, A.14.2.1)
+
+USAGE:
+This utility module is designed to be used across all services in the authentication
+system to ensure consistent security policies and compliance requirements.
+
+Example:
+
+	// Rate limiting
+	if err := util.CheckRateLimit(username); err != nil {
+		return err
+	}
+
+	// Password validation
+	if err := util.ValidatePasswordStrength(password); err != nil {
+		return err
+	}
+
+	// Security logging
+	util.LogSecurityEvent(util.SecurityEvent{
+		EventType: "login_success",
+		UserID:    userID,
+		Timestamp: time.Now(),
+	})
+*/
 package util
 
 import (
@@ -8,10 +49,36 @@ import (
 	"net"
 	"regexp"
 	"strings"
+	"sync"
 	"time"
+
+	"golang.org/x/crypto/bcrypt"
 )
 
+// ============================================================================
+// SECURITY CONSTANTS
+// ============================================================================
+// These constants define security policies and limits across the application
+
+// Rate Limiting Constants (SOC2 CC6.1 - Logical Access Controls)
+const (
+	MaxLoginAttempts   = 5                // Maximum failed attempts before lockout
+	LoginAttemptWindow = 15 * time.Minute // Time window for counting attempts
+	AccountLockoutTime = 30 * time.Minute // Account lockout duration
+)
+
+// Session Security Constants (SOC2 CC6.3 - Logical Access Controls)
+const (
+	MaxConcurrentSessions = 5 // Maximum concurrent sessions per user
+)
+
+// ============================================================================
+// DATA STRUCTURES
+// ============================================================================
+// Types used for security operations and audit logging
+
 // SecurityEvent represents a security-related event for audit logging
+// Used for SOC2 CC7.2 and ISO27001 A.12.4.1 compliance
 // Complies with SOC2 CC7.2 and ISO27001 A.12.4.1
 type SecurityEvent struct {
 	EventType string    `json:"event_type"`
@@ -27,16 +94,32 @@ type SecurityEvent struct {
 	Severity  string    `json:"severity,omitempty"`
 }
 
+// LoginAttempt tracks failed login attempts for rate limiting
+// Used by rate limiting functions to maintain attempt history
+type LoginAttempt struct {
+	Identifier  string     // Username, email, or IP
+	Attempts    int        // Number of failed attempts
+	LastAttempt time.Time  // Time of last attempt
+	LockedUntil *time.Time // Account locked until this time
+}
+
+// ============================================================================
+// SECURITY LOGGING
+// ============================================================================
+// Functions for audit logging and security event monitoring
+
 // LogSecurityEvent logs security events for compliance monitoring
 // Complies with SOC2 CC7.2 (System Monitoring) and ISO27001 A.12.4.1
+//
+// CURRENT: Basic stdout logging for development
+// FUTURE: Will be enhanced with centralized logging, database storage, and SIEM integration
 func LogSecurityEvent(event SecurityEvent) {
 	// Set default severity if not specified
 	if event.Severity == "" {
 		event.Severity = determineSeverity(event.EventType)
 	}
 
-	// In production, this should send to a centralized logging system
-	// For now, log to stdout with structured format
+	// Basic structured logging to stdout (development)
 	log.Printf("[SECURITY] %s | %s | %s | %s | %s | %s",
 		event.Timestamp.Format(time.RFC3339),
 		event.EventType,
@@ -46,10 +129,13 @@ func LogSecurityEvent(event SecurityEvent) {
 		event.Details,
 	)
 
-	// TODO: In production, implement:
-	// - Send to SIEM system (Splunk, ELK, etc.)
-	// - Store in audit database
-	// - Send alerts for high-severity events
+	// TODO: Future production enhancements:
+	// - JSON structured logging for container environments
+	// - Database storage for audit trail and compliance
+	// - SIEM integration (Splunk, ELK, Datadog, etc.)
+	// - Real-time alerting for high-severity events
+	// - Log retention and archival policies
+	// - Encrypted log transmission for sensitive events
 }
 
 // determineSeverity assigns severity levels to security events
@@ -82,6 +168,11 @@ func determineSeverity(eventType string) string {
 
 	return "LOW"
 }
+
+// ============================================================================
+// INPUT VALIDATION & SANITIZATION
+// ============================================================================
+// Functions for validating and sanitizing user input
 
 // ValidatePasswordStrength enforces password complexity requirements
 // Complies with SOC2 CC6.1 and ISO27001 A.9.4.3
@@ -180,6 +271,11 @@ func ValidateIPAddress(ipStr string) error {
 	return nil
 }
 
+// ============================================================================
+// CRYPTOGRAPHIC UTILITIES
+// ============================================================================
+// Functions for secure random generation and cryptographic operations
+
 // GenerateCSRFToken generates a cryptographically secure CSRF token
 // Complies with SOC2 CC6.1 and ISO27001 A.13.2.1
 func GenerateCSRFToken() (string, error) {
@@ -218,4 +314,130 @@ func ValidateUserAgent(userAgent string) bool {
 // Complies with SOC2 CC6.1 and ISO27001 A.9.4.2
 func RateLimitKey(identifier, action string) string {
 	return fmt.Sprintf("rate_limit:%s:%s", action, identifier)
+}
+
+// GenerateDummyBcryptHash generates a dummy bcrypt hash for timing-safe operations
+// This prevents timing attacks by ensuring consistent bcrypt operation duration
+// regardless of whether a user exists or not.
+// Complies with SOC2 CC6.1 and ISO27001 A.9.4.2
+func GenerateDummyBcryptHash() []byte {
+	dummyHash, err := bcrypt.GenerateFromPassword([]byte("dummy_password_for_timing_safety"), bcrypt.DefaultCost)
+	if err != nil {
+		// Fallback to a hardcoded valid bcrypt hash if generation fails
+		// This should never happen, but provides a safety net
+		return []byte("$2a$10$dummy.hash.to.prevent.timing.attacks.fallback")
+	}
+	return dummyHash
+}
+
+// ============================================================================
+// RATE LIMITING
+// ============================================================================
+// Functions and storage for rate limiting and account lockout protection
+
+// Global rate limiting storage (in production, use Redis or database)
+var (
+	loginAttempts = make(map[string]*LoginAttempt)
+	attemptsMutex = sync.RWMutex{}
+)
+
+// CheckRateLimit implements rate limiting and account lockout
+// Complies with SOC2 CC6.1 and ISO27001 A.9.4.2
+func CheckRateLimit(identifier string) error {
+	attemptsMutex.Lock()
+	defer attemptsMutex.Unlock()
+
+	now := time.Now()
+
+	// Get or create login attempt record
+	attempt, exists := loginAttempts[identifier]
+	if !exists {
+		loginAttempts[identifier] = &LoginAttempt{
+			Identifier:  identifier,
+			Attempts:    0,
+			LastAttempt: now,
+		}
+		return nil
+	}
+
+	// Check if account is currently locked
+	if attempt.LockedUntil != nil && now.Before(*attempt.LockedUntil) {
+		remainingTime := attempt.LockedUntil.Sub(now)
+		return fmt.Errorf("account is locked for %v due to too many failed login attempts", remainingTime.Round(time.Minute))
+	}
+
+	// Reset attempts if outside the time window
+	if now.Sub(attempt.LastAttempt) > LoginAttemptWindow {
+		attempt.Attempts = 0
+		attempt.LockedUntil = nil
+	}
+
+	// Check if maximum attempts exceeded
+	if attempt.Attempts >= MaxLoginAttempts {
+		lockUntil := now.Add(AccountLockoutTime)
+		attempt.LockedUntil = &lockUntil
+
+		// Log security event
+		LogSecurityEvent(SecurityEvent{
+			EventType: "account_locked",
+			UserID:    identifier,
+			Timestamp: now,
+			Details:   fmt.Sprintf("Account locked after %d failed login attempts", attempt.Attempts),
+		})
+
+		return fmt.Errorf("account locked for %v due to too many failed login attempts", AccountLockoutTime)
+	}
+
+	return nil
+}
+
+// RecordFailedAttempt records a failed login attempt
+func RecordFailedAttempt(identifier string) {
+	attemptsMutex.Lock()
+	defer attemptsMutex.Unlock()
+
+	now := time.Now()
+
+	attempt, exists := loginAttempts[identifier]
+	if !exists {
+		loginAttempts[identifier] = &LoginAttempt{
+			Identifier:  identifier,
+			Attempts:    1,
+			LastAttempt: now,
+		}
+		return
+	}
+
+	// Reset if outside time window
+	if now.Sub(attempt.LastAttempt) > LoginAttemptWindow {
+		attempt.Attempts = 1
+		attempt.LockedUntil = nil
+	} else {
+		attempt.Attempts++
+	}
+
+	attempt.LastAttempt = now
+}
+
+// ResetFailedAttempts clears failed attempts after successful login
+func ResetFailedAttempts(identifier string) {
+	attemptsMutex.Lock()
+	defer attemptsMutex.Unlock()
+
+	delete(loginAttempts, identifier)
+}
+
+// ============================================================================
+// SESSION MANAGEMENT
+// ============================================================================
+// Functions for managing user sessions and concurrent session limits
+
+// ValidateSessionLimit checks if user has exceeded maximum concurrent sessions
+// This can be used by services that need to enforce session limits
+// Complies with SOC2 CC6.3 and ISO27001 A.9.4.2
+func ValidateSessionLimit(userID string, currentSessionCount int) error {
+	if currentSessionCount >= MaxConcurrentSessions {
+		return fmt.Errorf("maximum concurrent sessions (%d) exceeded for user", MaxConcurrentSessions)
+	}
+	return nil
 }

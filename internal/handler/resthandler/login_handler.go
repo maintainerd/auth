@@ -46,8 +46,8 @@ func (h *LoginHandler) Login(w http.ResponseWriter, r *http.Request) {
 
 	// Validate query parameters
 	q := dto.LoginQueryDto{
-		AuthClientID:    util.SanitizeInput(r.URL.Query().Get("auth_client_id")),
-		AuthContainerID: util.SanitizeInput(r.URL.Query().Get("auth_container_id")),
+		ClientID:   r.URL.Query().Get("client_id"),
+		ProviderID: r.URL.Query().Get("provider_id"),
 	}
 
 	if err := q.Validate(); err != nil {
@@ -84,7 +84,7 @@ func (h *LoginHandler) Login(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Validate body payload
-	var req dto.AuthRequestDto
+	var req dto.LoginRequestDto
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		util.LogSecurityEvent(util.SecurityEvent{
 			EventType: "login_malformed_request",
@@ -121,13 +121,13 @@ func (h *LoginHandler) Login(w http.ResponseWriter, r *http.Request) {
 
 	// Login attempt
 	tokenResponse, err := h.loginService.Login(
-		req.Username, req.Password, q.AuthClientID, q.AuthContainerID,
+		req.Username, req.Password, q.ClientID, q.ProviderID,
 	)
 	if err != nil {
 		util.LogSecurityEvent(util.SecurityEvent{
 			EventType: "login_failure",
 			UserID:    req.Username,
-			ClientID:  q.AuthClientID,
+			ClientID:  q.ClientID,
 			ClientIP:  clientIPStr,
 			UserAgent: userAgentStr,
 			RequestID: requestIDStr,
@@ -145,7 +145,7 @@ func (h *LoginHandler) Login(w http.ResponseWriter, r *http.Request) {
 	util.LogSecurityEvent(util.SecurityEvent{
 		EventType: "login_success",
 		UserID:    req.Username,
-		ClientID:  q.AuthClientID,
+		ClientID:  q.ClientID,
 		ClientIP:  clientIPStr,
 		UserAgent: userAgentStr,
 		RequestID: requestIDStr,

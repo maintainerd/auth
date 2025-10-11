@@ -57,7 +57,20 @@ if userLookupErr == nil && user != nil && user.Password != nil {
     passwordValid = bcrypt.CompareHashAndPassword(hashedPassword, []byte(password)) == nil
 } else {
     // Perform dummy bcrypt operation to maintain consistent timing
-    bcrypt.CompareHashAndPassword([]byte("$2a$10$dummy.hash.to.prevent.timing.attacks"), []byte(password))
+    bcrypt.CompareHashAndPassword(util.GenerateDummyBcryptHash(), []byte(password))
+}
+```
+
+The `util.GenerateDummyBcryptHash()` function generates a fresh dummy hash each time:
+```go
+// In util/security_util.go
+func GenerateDummyBcryptHash() []byte {
+    dummyHash, err := bcrypt.GenerateFromPassword([]byte("dummy_password_for_timing_safety"), bcrypt.DefaultCost)
+    if err != nil {
+        // Fallback to hardcoded valid bcrypt hash if generation fails
+        return []byte("$2a$10$dummy.hash.to.prevent.timing.attacks.fallback")
+    }
+    return dummyHash
 }
 ```
 
