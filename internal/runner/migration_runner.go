@@ -26,6 +26,7 @@ func RunMigrations(db *gorm.DB) {
 	migration.CreateUserRoleTable(db)
 	migration.CreateUserTokenTable(db)
 	migration.CreateProfileTable(db)
+	migration.CreateUserSettingsTable(db)
 	migration.CreateOnboardingTable(db)
 	migration.CreateOnboardingRoleTable(db)
 	migration.CreateAuthLogTable(db)
