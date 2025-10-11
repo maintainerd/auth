@@ -50,8 +50,8 @@ CREATE INDEX IF NOT EXISTS idx_auth_logs_event_type ON auth_logs (event_type);
 CREATE INDEX IF NOT EXISTS idx_auth_logs_auth_container_id ON auth_logs (auth_container_id);
 `
 	if err := db.Exec(sql).Error; err != nil {
-		log.Fatalf("❌ Failed to run migration 023_create_auth_logs_table: %v", err)
+		log.Fatalf("❌ Failed to run migration 024_create_auth_logs_table: %v", err)
 	}
 
-	log.Println("✅ Migration 023_create_auth_logs_table executed")
+	log.Println("✅ Migration 024_create_auth_logs_table executed")
 }

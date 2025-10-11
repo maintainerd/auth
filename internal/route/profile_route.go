@@ -18,8 +18,16 @@ func ProfileRoute(
 		r.Use(middleware.JWTAuthMiddleware)
 		r.Use(middleware.UserContextMiddleware(userRepo, redisClient))
 
-		r.Post("/", profileHandler.CreateOrUpdate)
-		r.Get("/", profileHandler.Get)
-		r.Delete("/", profileHandler.Delete)
+		// Create or update profile - requires profile update permission
+		r.With(middleware.PermissionMiddleware([]string{"account:profile:update:self"})).
+			Post("/", profileHandler.CreateOrUpdate)
+
+		// Get profile - requires profile read permission
+		r.With(middleware.PermissionMiddleware([]string{"account:profile:read:self"})).
+			Get("/", profileHandler.Get)
+
+		// Delete profile - requires profile delete permission
+		r.With(middleware.PermissionMiddleware([]string{"account:profile:delete:self"})).
+			Delete("/", profileHandler.Delete)
 	})
 }

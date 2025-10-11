@@ -5,83 +5,177 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/maintainerd/auth/internal/dto"
 	"github.com/maintainerd/auth/internal/model"
 	"github.com/maintainerd/auth/internal/repository"
 	"gorm.io/gorm"
 )
 
+type ProfileServiceDataResult struct {
+	ProfileUUID uuid.UUID
+	FirstName   string
+	MiddleName  *string
+	LastName    *string
+	Suffix      *string
+	DisplayName *string
+	Birthdate   *time.Time
+	Gender      *string
+	Bio         *string
+	Phone       *string
+	Email       *string
+	Address     *string
+	City        *string
+	State       *string
+	Country     *string
+	PostalCode  *string
+	Company     *string
+	JobTitle    *string
+	Department  *string
+	Industry    *string
+	WebsiteURL  *string
+	AvatarURL   *string
+	CoverURL    *string
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
+}
+
 type ProfileService interface {
-	CreateOrUpdateProfile(userID int64, req *dto.ProfileRequest) (*model.Profile, error)
-	GetProfileByUserID(userID int64) (*model.Profile, error)
-	DeleteProfile(userID int64) error
+	CreateOrUpdateProfile(
+		userUUID uuid.UUID,
+		firstName string,
+		middleName, lastName, suffix, displayName *string,
+		birthdate *time.Time,
+		gender, bio *string,
+		phone, email *string,
+		address, city, state, country, postalCode *string,
+		company, jobTitle, department, industry, websiteURL *string,
+		avatarURL, coverURL *string,
+	) (*ProfileServiceDataResult, error)
+	GetByUUID(profileUUID uuid.UUID) (*ProfileServiceDataResult, error)
+	GetByUserUUID(userUUID uuid.UUID) (*ProfileServiceDataResult, error)
+	DeleteByUUID(profileUUID uuid.UUID) (*ProfileServiceDataResult, error)
 }
 
 type profileService struct {
 	db          *gorm.DB
 	profileRepo repository.ProfileRepository
+	userRepo    repository.UserRepository
 }
 
 func NewProfileService(
 	db *gorm.DB,
 	profileRepo repository.ProfileRepository,
+	userRepo repository.UserRepository,
 ) ProfileService {
 	return &profileService{
 		db:          db,
 		profileRepo: profileRepo,
+		userRepo:    userRepo,
 	}
 }
 
-func (s *profileService) CreateOrUpdateProfile(userID int64, req *dto.ProfileRequest) (*model.Profile, error) {
+func (s *profileService) CreateOrUpdateProfile(
+	userUUID uuid.UUID,
+	firstName string,
+	middleName, lastName, suffix, displayName *string,
+	birthdate *time.Time,
+	gender, bio *string,
+	phone, email *string,
+	address, city, state, country, postalCode *string,
+	company, jobTitle, department, industry, websiteURL *string,
+	avatarURL, coverURL *string,
+) (*ProfileServiceDataResult, error) {
 	var updatedProfile *model.Profile
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
-		// Step 1: Try to find existing profile
+		// Step 1: Create transaction-aware repositories
+		txProfileRepo := s.profileRepo.WithTx(tx)
+		txUserRepo := s.userRepo.WithTx(tx)
+
+		// Step 2: Find user by UUID to get userID
+		user, err := txUserRepo.FindByUUID(userUUID)
+		if err != nil || user == nil {
+			return errors.New("user not found")
+		}
+
+		// Step 3: Try to find existing profile using repository
+		existingProfile, err := txProfileRepo.FindByUserID(user.UserID)
 		var profile model.Profile
-		err := tx.Where("user_id = ?", userID).First(&profile).Error
+
 		if err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
-				// create new profile if not found
+				// Create new profile if not found
 				profile = model.Profile{
 					ProfileUUID: uuid.New(),
-					UserID:      userID,
+					UserID:      user.UserID,
 				}
 			} else {
 				return err
 			}
+		} else {
+			// Use existing profile
+			profile = *existingProfile
 		}
 
-		// Step 2: Parse birthdate
-		birthdate, err := parseBirthdate(req.Birthdate)
+		// Step 2: Set all fields
+		// Basic Identity Information
+		profile.FirstName = firstName
+		profile.MiddleName = middleName
+		profile.LastName = lastName
+		profile.Suffix = suffix
+		profile.DisplayName = displayName
+
+		// Personal Information
+		profile.Birthdate = birthdate
+		profile.Gender = gender
+		profile.Bio = bio
+
+		// Contact Information
+		profile.Phone = phone
+		profile.Email = email
+
+		// Address Information
+		profile.Address = address
+		profile.City = city
+		profile.State = state
+		profile.Country = country
+		profile.PostalCode = postalCode
+
+		// Professional Information
+		profile.Company = company
+		profile.JobTitle = jobTitle
+		profile.Department = department
+		profile.Industry = industry
+		profile.WebsiteURL = websiteURL
+
+		// Media & Assets
+		profile.AvatarURL = avatarURL
+		profile.CoverURL = coverURL
+
+		// Step 4: Create or update using transaction-aware repository
+		if profile.ProfileID == 0 {
+			// Create new profile
+			createdProfile, err := txProfileRepo.Create(&profile)
+			if err != nil {
+				return err
+			}
+			updatedProfile = createdProfile
+		} else {
+			// Update existing profile
+			err := txProfileRepo.UpdateByUserID(user.UserID, &profile)
+			if err != nil {
+				return err
+			}
+			updatedProfile = &profile
+		}
+
+		// Step 5: Update user's is_profile_completed flag
+		_, err = txUserRepo.UpdateByUUID(user.UserUUID, map[string]interface{}{
+			"is_profile_completed": true,
+		})
 		if err != nil {
 			return err
 		}
 
-		// Step 3: Set fields
-		profile.FirstName = req.FirstName
-		profile.MiddleName = req.MiddleName
-		profile.LastName = req.LastName
-		profile.Suffix = req.Suffix
-		profile.Birthdate = birthdate
-		profile.Gender = req.Gender
-		profile.Phone = req.Phone
-		profile.Email = req.Email
-		profile.Address = req.Address
-		profile.AvatarURL = req.AvatarURL
-		profile.CoverURL = req.CoverURL
-
-		// Step 4: Create or update
-		if profile.ProfileID == 0 {
-			if err := tx.Create(&profile).Error; err != nil {
-				return err
-			}
-		} else {
-			if err := tx.Model(&profile).Where("user_id = ?", userID).Updates(profile).Error; err != nil {
-				return err
-			}
-		}
-
-		updatedProfile = &profile
 		return nil
 	})
 
@@ -89,25 +183,82 @@ func (s *profileService) CreateOrUpdateProfile(userID int64, req *dto.ProfileReq
 		return nil, err
 	}
 
-	return updatedProfile, nil
+	return toProfileServiceDataResult(updatedProfile), nil
 }
 
-func (s *profileService) GetProfileByUserID(userID int64) (*model.Profile, error) {
-	return s.profileRepo.FindByUserID(userID)
-}
-
-func (s *profileService) DeleteProfile(userID int64) error {
-	return s.profileRepo.DeleteByUserID(userID)
-}
-
-// Helper for parsing birthdate string to *time.Time
-func parseBirthdate(birthdateStr *string) (*time.Time, error) {
-	if birthdateStr == nil || *birthdateStr == "" {
-		return nil, nil
+func (s *profileService) GetByUUID(profileUUID uuid.UUID) (*ProfileServiceDataResult, error) {
+	profile, err := s.profileRepo.FindByUUID(profileUUID)
+	if err != nil || profile == nil {
+		return nil, errors.New("profile not found")
 	}
-	parsed, err := time.Parse("2006-01-02", *birthdateStr)
+
+	return toProfileServiceDataResult(profile), nil
+}
+
+func (s *profileService) GetByUserUUID(userUUID uuid.UUID) (*ProfileServiceDataResult, error) {
+	// Find user by UUID to get userID
+	user, err := s.userRepo.FindByUUID(userUUID)
+	if err != nil || user == nil {
+		return nil, errors.New("user not found")
+	}
+
+	profile, err := s.profileRepo.FindByUserID(user.UserID)
+	if err != nil || profile == nil {
+		return nil, errors.New("profile not found")
+	}
+
+	return toProfileServiceDataResult(profile), nil
+}
+
+func (s *profileService) DeleteByUUID(profileUUID uuid.UUID) (*ProfileServiceDataResult, error) {
+	// First get the profile to return it
+	profile, err := s.profileRepo.FindByUUID(profileUUID)
+	if err != nil || profile == nil {
+		return nil, errors.New("profile not found")
+	}
+
+	// Delete the profile
+	err = s.profileRepo.DeleteByUUID(profileUUID)
 	if err != nil {
-		return nil, errors.New("invalid birthdate format, must be YYYY-MM-DD")
+		return nil, err
 	}
-	return &parsed, nil
+
+	return toProfileServiceDataResult(profile), nil
+}
+
+// Helper functions
+func toProfileServiceDataResult(profile *model.Profile) *ProfileServiceDataResult {
+	if profile == nil {
+		return nil
+	}
+
+	result := &ProfileServiceDataResult{
+		ProfileUUID: profile.ProfileUUID,
+		FirstName:   profile.FirstName,
+		MiddleName:  profile.MiddleName,
+		LastName:    profile.LastName,
+		Suffix:      profile.Suffix,
+		DisplayName: profile.DisplayName,
+		Birthdate:   profile.Birthdate,
+		Gender:      profile.Gender,
+		Bio:         profile.Bio,
+		Phone:       profile.Phone,
+		Email:       profile.Email,
+		Address:     profile.Address,
+		City:        profile.City,
+		State:       profile.State,
+		Country:     profile.Country,
+		PostalCode:  profile.PostalCode,
+		Company:     profile.Company,
+		JobTitle:    profile.JobTitle,
+		Department:  profile.Department,
+		Industry:    profile.Industry,
+		WebsiteURL:  profile.WebsiteURL,
+		AvatarURL:   profile.AvatarURL,
+		CoverURL:    profile.CoverURL,
+		CreatedAt:   profile.CreatedAt,
+		UpdatedAt:   profile.UpdatedAt,
+	}
+
+	return result
 }
