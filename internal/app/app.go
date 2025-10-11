@@ -25,6 +25,7 @@ type App struct {
 	RegisterRestHandler         *resthandler.RegisterHandler
 	LoginRestHandler            *resthandler.LoginHandler
 	ProfileRestHandler          *resthandler.ProfileHandler
+	UserSettingRestHandler      *resthandler.UserSettingHandler
 	InviteRestHandler           *resthandler.InviteHandler
 	SetupRestHandler            *resthandler.SetupHandler
 	// Grpc handler
@@ -52,6 +53,7 @@ func NewApp(db *gorm.DB, redisClient *redis.Client) *App {
 	userRoleRepo := repository.NewUserRoleRepository(db)
 	userTokenRepo := repository.NewUserTokenRepository(db)
 	profileRepo := repository.NewProfileRepository(db)
+	userSettingRepo := repository.NewUserSettingRepository(db)
 	inviteRepo := repository.NewInviteRepository(db)
 	emailTemplateRepo := repository.NewEmailTemplateRepository(db)
 
@@ -67,7 +69,8 @@ func NewApp(db *gorm.DB, redisClient *redis.Client) *App {
 	userService := service.NewUserService(db, userRepo, userIdentityRepo, userRoleRepo, roleRepo, authContainerRepo, idpRepo, authClientRepo)
 	registerService := service.NewRegistrationService(db, authClientRepo, userRepo, userRoleRepo, userTokenRepo, roleRepo, inviteRepo, idpRepo)
 	loginService := service.NewLoginService(db, authClientRepo, userRepo, userTokenRepo, idpRepo)
-	profileService := service.NewProfileService(db, profileRepo)
+	profileService := service.NewProfileService(db, profileRepo, userRepo)
+	userSettingService := service.NewUserSettingService(db, userSettingRepo, userRepo)
 	inviteService := service.NewInviteService(db, inviteRepo, authClientRepo, roleRepo, emailTemplateRepo)
 	setupService := service.NewSetupService(db, organizationRepo, userRepo, authContainerRepo, authClientRepo, idpRepo, roleRepo, userRoleRepo, userTokenRepo, userIdentityRepo)
 
@@ -84,6 +87,7 @@ func NewApp(db *gorm.DB, redisClient *redis.Client) *App {
 	registerRestHandler := resthandler.NewRegisterHandler(registerService)
 	loginRestHandler := resthandler.NewLoginHandler(loginService)
 	profileRestHandler := resthandler.NewProfileHandler(profileService)
+	userSettingRestHandler := resthandler.NewUserSettingHandler(userSettingService)
 	inviteRestHandler := resthandler.NewInviteHandler(inviteService)
 	setupRestHandler := resthandler.NewSetupHandler(setupService)
 
@@ -106,6 +110,7 @@ func NewApp(db *gorm.DB, redisClient *redis.Client) *App {
 		RegisterRestHandler:         registerRestHandler,
 		LoginRestHandler:            loginRestHandler,
 		ProfileRestHandler:          profileRestHandler,
+		UserSettingRestHandler:      userSettingRestHandler,
 		InviteRestHandler:           inviteRestHandler,
 		SetupRestHandler:            setupRestHandler,
 		// GRPC handler

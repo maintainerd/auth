@@ -7,6 +7,7 @@ import (
 
 type ProfileRepository interface {
 	BaseRepositoryMethods[model.Profile]
+	WithTx(tx *gorm.DB) ProfileRepository
 	FindByUserID(userID int64) (*model.Profile, error)
 	UpdateByUserID(userID int64, updatedProfile *model.Profile) error
 	DeleteByUserID(userID int64) error
@@ -21,6 +22,13 @@ func NewProfileRepository(db *gorm.DB) ProfileRepository {
 	return &profileRepository{
 		BaseRepository: NewBaseRepository[model.Profile](db, "profile_uuid", "profile_id"),
 		db:             db,
+	}
+}
+
+func (r *profileRepository) WithTx(tx *gorm.DB) ProfileRepository {
+	return &profileRepository{
+		BaseRepository: NewBaseRepository[model.Profile](tx, "profile_uuid", "profile_id"),
+		db:             tx,
 	}
 }
 

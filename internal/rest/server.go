@@ -35,6 +35,7 @@ func StartRESTServer(application *app.App) {
 		route.RegisterRoute(api, application.RegisterRestHandler)
 		route.LoginRoute(api, application.LoginRestHandler)
 		route.ProfileRoute(api, application.ProfileRestHandler, application.UserRepository, application.RedisClient)
+		route.UserSettingRoute(api, application.UserSettingRestHandler, application.UserRepository, application.RedisClient)
 
 		// Management Routes (all available on single server)
 		route.OrganizationRoute(api, application.OrganizationRestHandler, application.UserRepository, application.RedisClient)
