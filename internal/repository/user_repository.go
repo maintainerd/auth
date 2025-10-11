@@ -23,6 +23,7 @@ type UserRepository interface {
 	WithTx(tx *gorm.DB) UserRepository
 	FindByUsername(username string, authContainerID int64) (*model.User, error)
 	FindByEmail(email string, authContainerID int64) (*model.User, error)
+	FindByPhone(phone string, authContainerID int64) (*model.User, error)
 	FindSuperAdmin() (*model.User, error)
 	FindRoles(userID int64) ([]model.Role, error)
 	FindBySubAndClientID(sub string, authClientID string) (*model.User, error)
@@ -70,6 +71,22 @@ func (r *userRepository) FindByEmail(email string, authContainerID int64) (*mode
 	var user model.User
 	err := r.db.
 		Where("email = ? AND auth_container_id = ?", email, authContainerID).
+		First(&user).Error
+
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	return &user, nil
+}
+
+func (r *userRepository) FindByPhone(phone string, authContainerID int64) (*model.User, error) {
+	var user model.User
+	err := r.db.
+		Where("phone = ? AND auth_container_id = ?", phone, authContainerID).
 		First(&user).Error
 
 	if err != nil {

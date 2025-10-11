@@ -46,8 +46,8 @@ func (h *RegisterHandler) Register(w http.ResponseWriter, r *http.Request) {
 
 	// Validate query parameters
 	q := dto.RegisterQueryDto{
-		AuthClientID:    util.SanitizeInput(r.URL.Query().Get("auth_client_id")),
-		AuthContainerID: util.SanitizeInput(r.URL.Query().Get("auth_container_id")),
+		ClientID:   r.URL.Query().Get("client_id"),
+		ProviderID: r.URL.Query().Get("provider_id"),
 	}
 
 	if err := q.Validate(); err != nil {
@@ -84,7 +84,7 @@ func (h *RegisterHandler) Register(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Validate body payload
-	var req dto.AuthRequestDto
+	var req dto.RegisterRequestDto
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		util.LogSecurityEvent(util.SecurityEvent{
 			EventType: "registration_malformed_request",
@@ -133,23 +133,23 @@ func (h *RegisterHandler) Register(w http.ResponseWriter, r *http.Request) {
 
 	// Registration attempt
 	tokenResponse, err := h.registerService.Register(
-		req.Username, req.Password, q.AuthClientID, q.AuthContainerID,
+		req.Username, req.Password, req.Email, req.Phone, q.ClientID, q.ProviderID,
 	)
 	if err != nil {
 		util.LogSecurityEvent(util.SecurityEvent{
 			EventType: "registration_failure",
 			UserID:    req.Username,
-			ClientID:  q.AuthClientID,
+			ClientID:  q.ClientID,
 			ClientIP:  clientIPStr,
 			UserAgent: userAgentStr,
 			RequestID: requestIDStr,
 			Endpoint:  "/register",
 			Method:    r.Method,
 			Timestamp: startTime,
-			Details:   "Registration failed",
+			Details:   "Registration failed: " + err.Error(),
 			Severity:  "MEDIUM",
 		})
-		util.Error(w, http.StatusInternalServerError, "Registration failed")
+		util.Error(w, http.StatusInternalServerError, "Registration failed", err.Error())
 		return
 	}
 
@@ -157,7 +157,7 @@ func (h *RegisterHandler) Register(w http.ResponseWriter, r *http.Request) {
 	util.LogSecurityEvent(util.SecurityEvent{
 		EventType: "registration_success",
 		UserID:    req.Username,
-		ClientID:  q.AuthClientID,
+		ClientID:  q.ClientID,
 		ClientIP:  clientIPStr,
 		UserAgent: userAgentStr,
 		RequestID: requestIDStr,
@@ -175,11 +175,11 @@ func (h *RegisterHandler) Register(w http.ResponseWriter, r *http.Request) {
 func (h *RegisterHandler) RegisterInvite(w http.ResponseWriter, r *http.Request) {
 	// Validate query parameters
 	q := dto.RegisterInviteQueryDto{
-		AuthClientID:    r.URL.Query().Get("auth_client_id"),
-		AuthContainerID: r.URL.Query().Get("auth_container_id"),
-		InviteToken:     r.URL.Query().Get("invite_token"),
-		Expires:         r.URL.Query().Get("expires"),
-		Sig:             r.URL.Query().Get("sig"),
+		ClientID:    r.URL.Query().Get("client_id"),
+		ProviderID:  r.URL.Query().Get("provider_id"),
+		InviteToken: r.URL.Query().Get("invite_token"),
+		Expires:     r.URL.Query().Get("expires"),
+		Sig:         r.URL.Query().Get("sig"),
 	}
 
 	if err := q.Validate(); err != nil {
@@ -188,7 +188,7 @@ func (h *RegisterHandler) RegisterInvite(w http.ResponseWriter, r *http.Request)
 	}
 
 	// Validate body payload
-	var req dto.AuthRequestDto
+	var req dto.LoginRequestDto
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		util.Error(w, http.StatusBadRequest, "Invalid request", err.Error())
 		return
@@ -203,8 +203,8 @@ func (h *RegisterHandler) RegisterInvite(w http.ResponseWriter, r *http.Request)
 	tokenResponse, err := h.registerService.RegisterInvite(
 		req.Username,
 		req.Password,
-		q.AuthClientID,
-		q.AuthContainerID,
+		q.ClientID,
+		q.ProviderID,
 		q.InviteToken,
 	)
 	if err != nil {

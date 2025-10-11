@@ -76,13 +76,15 @@ type SetupStatusResponseDto struct {
 
 // CreateOrganizationResponseDto for organization creation response
 type CreateOrganizationResponseDto struct {
-	Message      string                  `json:"message"`
-	Organization OrganizationResponseDto `json:"organization"`
+	Message           string                  `json:"message"`
+	Organization      OrganizationResponseDto `json:"organization"`
+	DefaultClientID   string                  `json:"default_client_id,omitempty"`
+	DefaultProviderID string                  `json:"default_provider_id,omitempty"`
 }
 
 // CreateAdminResponseDto for admin creation response
 type CreateAdminResponseDto struct {
-	Message      string          `json:"message"`
-	User         UserResponseDto `json:"user"`
-	TokenResponse *AuthResponseDto `json:"token_response,omitempty"`
+	Message       string            `json:"message"`
+	User          UserResponseDto   `json:"user"`
+	TokenResponse *LoginResponseDto `json:"token_response,omitempty"`
 }

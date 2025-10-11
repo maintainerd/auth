@@ -25,7 +25,7 @@ type IdentityProviderRepository interface {
 	BaseRepositoryMethods[model.IdentityProvider]
 	WithTx(tx *gorm.DB) IdentityProviderRepository
 	FindByName(name string, authContainerID int64) (*model.IdentityProvider, error)
-	FindByIdentifier(identifier string, authContainerID int64) (*model.IdentityProvider, error)
+	FindByIdentifier(identifier string) (*model.IdentityProvider, error)
 	FindDefaultByAuthContainerID(authContainerID int64) (*model.IdentityProvider, error)
 	FindPaginated(filter IdentityProviderRepositoryGetFilter) (*PaginationResult[model.IdentityProvider], error)
 }
@@ -65,12 +65,20 @@ func (r *identityProviderRepository) FindByName(name string, authContainerID int
 	return &provider, err
 }
 
-func (r *identityProviderRepository) FindByIdentifier(identifier string, authContainerID int64) (*model.IdentityProvider, error) {
+func (r *identityProviderRepository) FindByIdentifier(identifier string) (*model.IdentityProvider, error) {
 	var provider model.IdentityProvider
 	err := r.db.
-		Where("identifier = ? AND auth_container_id = ?", identifier, authContainerID).
+		Where("identifier = ?", identifier).
 		First(&provider).Error
-	return &provider, err
+
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	return &provider, nil
 }
 
 func (r *identityProviderRepository) FindDefaultByAuthContainerID(authContainerID int64) (*model.IdentityProvider, error) {
