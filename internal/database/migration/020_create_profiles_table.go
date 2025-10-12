@@ -31,11 +31,13 @@ CREATE TABLE IF NOT EXISTS profiles (
     email           VARCHAR(255),
 
     -- Address Information
-    address         TEXT,
+    address_line_1  TEXT,
+    address_line_2  TEXT,
     city            VARCHAR(100),
-    state           VARCHAR(100),
-    country         VARCHAR(100),
+    state_province  VARCHAR(100),
     postal_code     VARCHAR(20),
+    country         VARCHAR(2),     -- ISO 3166-1 alpha-2 code
+    country_name    VARCHAR(100),   -- Full country name
 
     -- Professional Information
     company         VARCHAR(200),
@@ -51,7 +53,6 @@ CREATE TABLE IF NOT EXISTS profiles (
     cover_s3_key    TEXT,
 
     -- System Fields
-    last_profile_update TIMESTAMPTZ,
     created_at      TIMESTAMPTZ DEFAULT now(),
     updated_at      TIMESTAMPTZ DEFAULT now()
 );
