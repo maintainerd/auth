@@ -29,11 +29,13 @@ type Profile struct {
 	Email *string `gorm:"column:email"`
 
 	// Address Information
-	Address    *string `gorm:"column:address"`
-	City       *string `gorm:"column:city"`
-	State      *string `gorm:"column:state"`
-	Country    *string `gorm:"column:country"`
-	PostalCode *string `gorm:"column:postal_code"`
+	AddressLine1  *string `gorm:"column:address_line_1"`
+	AddressLine2  *string `gorm:"column:address_line_2"`
+	City          *string `gorm:"column:city"`
+	StateProvince *string `gorm:"column:state_province"` // State/Province/Region
+	PostalCode    *string `gorm:"column:postal_code"`    // ZIP/Postal Code
+	Country       *string `gorm:"column:country"`        // ISO 3166-1 alpha-2 code (US, CA, GB, etc.)
+	CountryName   *string `gorm:"column:country_name"`   // Full country name
 
 	// Professional Information
 	Company    *string `gorm:"column:company"`
@@ -49,9 +51,8 @@ type Profile struct {
 	CoverS3Key  *string `gorm:"column:cover_s3_key"`
 
 	// System Fields
-	LastProfileUpdate *time.Time `gorm:"column:last_profile_update"`
-	CreatedAt         time.Time  `gorm:"column:created_at;autoCreateTime"`
-	UpdatedAt         time.Time  `gorm:"column:updated_at;autoUpdateTime"`
+	CreatedAt time.Time `gorm:"column:created_at;autoCreateTime"`
+	UpdatedAt time.Time `gorm:"column:updated_at;autoUpdateTime"`
 
 	// Relationships
 	User *User `gorm:"foreignKey:UserID;references:UserID"`
