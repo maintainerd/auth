@@ -57,7 +57,7 @@ func (h *ProfileHandler) CreateOrUpdate(w http.ResponseWriter, r *http.Request) 
 		birthdate,
 		req.Gender, req.Bio,
 		req.Phone, req.Email,
-		req.Address, req.City, req.State, req.Country, req.PostalCode,
+		req.AddressLine1, req.AddressLine2, req.City, req.StateProvince, req.PostalCode, req.Country, req.CountryName,
 		req.Company, req.JobTitle, req.Department, req.Industry, req.WebsiteURL,
 		req.AvatarURL, req.CoverURL,
 	)
@@ -122,11 +122,13 @@ func toProfileResponseDto(p service.ProfileServiceDataResult) dto.ProfileRespons
 		Email: p.Email,
 
 		// Address Information
-		Address:    p.Address,
-		City:       p.City,
-		State:      p.State,
-		Country:    p.Country,
-		PostalCode: p.PostalCode,
+		AddressLine1:  p.AddressLine1,
+		AddressLine2:  p.AddressLine2,
+		City:          p.City,
+		StateProvince: p.StateProvince,
+		PostalCode:    p.PostalCode,
+		Country:       p.Country,
+		CountryName:   p.CountryName,
 
 		// Professional Information
 		Company:    p.Company,

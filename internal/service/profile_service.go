@@ -11,31 +11,33 @@ import (
 )
 
 type ProfileServiceDataResult struct {
-	ProfileUUID uuid.UUID
-	FirstName   string
-	MiddleName  *string
-	LastName    *string
-	Suffix      *string
-	DisplayName *string
-	Birthdate   *time.Time
-	Gender      *string
-	Bio         *string
-	Phone       *string
-	Email       *string
-	Address     *string
-	City        *string
-	State       *string
-	Country     *string
-	PostalCode  *string
-	Company     *string
-	JobTitle    *string
-	Department  *string
-	Industry    *string
-	WebsiteURL  *string
-	AvatarURL   *string
-	CoverURL    *string
-	CreatedAt   time.Time
-	UpdatedAt   time.Time
+	ProfileUUID   uuid.UUID
+	FirstName     string
+	MiddleName    *string
+	LastName      *string
+	Suffix        *string
+	DisplayName   *string
+	Birthdate     *time.Time
+	Gender        *string
+	Bio           *string
+	Phone         *string
+	Email         *string
+	AddressLine1  *string
+	AddressLine2  *string
+	City          *string
+	StateProvince *string
+	PostalCode    *string
+	Country       *string
+	CountryName   *string
+	Company       *string
+	JobTitle      *string
+	Department    *string
+	Industry      *string
+	WebsiteURL    *string
+	AvatarURL     *string
+	CoverURL      *string
+	CreatedAt     time.Time
+	UpdatedAt     time.Time
 }
 
 type ProfileService interface {
@@ -46,7 +48,7 @@ type ProfileService interface {
 		birthdate *time.Time,
 		gender, bio *string,
 		phone, email *string,
-		address, city, state, country, postalCode *string,
+		addressLine1, addressLine2, city, stateProvince, postalCode, country, countryName *string,
 		company, jobTitle, department, industry, websiteURL *string,
 		avatarURL, coverURL *string,
 	) (*ProfileServiceDataResult, error)
@@ -80,7 +82,7 @@ func (s *profileService) CreateOrUpdateProfile(
 	birthdate *time.Time,
 	gender, bio *string,
 	phone, email *string,
-	address, city, state, country, postalCode *string,
+	addressLine1, addressLine2, city, stateProvince, postalCode, country, countryName *string,
 	company, jobTitle, department, industry, websiteURL *string,
 	avatarURL, coverURL *string,
 ) (*ProfileServiceDataResult, error) {
@@ -134,11 +136,13 @@ func (s *profileService) CreateOrUpdateProfile(
 		profile.Email = email
 
 		// Address Information
-		profile.Address = address
+		profile.AddressLine1 = addressLine1
+		profile.AddressLine2 = addressLine2
 		profile.City = city
-		profile.State = state
-		profile.Country = country
+		profile.StateProvince = stateProvince
 		profile.PostalCode = postalCode
+		profile.Country = country
+		profile.CountryName = countryName
 
 		// Professional Information
 		profile.Company = company
@@ -233,31 +237,33 @@ func toProfileServiceDataResult(profile *model.Profile) *ProfileServiceDataResul
 	}
 
 	result := &ProfileServiceDataResult{
-		ProfileUUID: profile.ProfileUUID,
-		FirstName:   profile.FirstName,
-		MiddleName:  profile.MiddleName,
-		LastName:    profile.LastName,
-		Suffix:      profile.Suffix,
-		DisplayName: profile.DisplayName,
-		Birthdate:   profile.Birthdate,
-		Gender:      profile.Gender,
-		Bio:         profile.Bio,
-		Phone:       profile.Phone,
-		Email:       profile.Email,
-		Address:     profile.Address,
-		City:        profile.City,
-		State:       profile.State,
-		Country:     profile.Country,
-		PostalCode:  profile.PostalCode,
-		Company:     profile.Company,
-		JobTitle:    profile.JobTitle,
-		Department:  profile.Department,
-		Industry:    profile.Industry,
-		WebsiteURL:  profile.WebsiteURL,
-		AvatarURL:   profile.AvatarURL,
-		CoverURL:    profile.CoverURL,
-		CreatedAt:   profile.CreatedAt,
-		UpdatedAt:   profile.UpdatedAt,
+		ProfileUUID:   profile.ProfileUUID,
+		FirstName:     profile.FirstName,
+		MiddleName:    profile.MiddleName,
+		LastName:      profile.LastName,
+		Suffix:        profile.Suffix,
+		DisplayName:   profile.DisplayName,
+		Birthdate:     profile.Birthdate,
+		Gender:        profile.Gender,
+		Bio:           profile.Bio,
+		Phone:         profile.Phone,
+		Email:         profile.Email,
+		AddressLine1:  profile.AddressLine1,
+		AddressLine2:  profile.AddressLine2,
+		City:          profile.City,
+		StateProvince: profile.StateProvince,
+		PostalCode:    profile.PostalCode,
+		Country:       profile.Country,
+		CountryName:   profile.CountryName,
+		Company:       profile.Company,
+		JobTitle:      profile.JobTitle,
+		Department:    profile.Department,
+		Industry:      profile.Industry,
+		WebsiteURL:    profile.WebsiteURL,
+		AvatarURL:     profile.AvatarURL,
+		CoverURL:      profile.CoverURL,
+		CreatedAt:     profile.CreatedAt,
+		UpdatedAt:     profile.UpdatedAt,
 	}
 
 	return result

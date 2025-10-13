@@ -27,11 +27,13 @@ type ProfileRequest struct {
 	Email *string `json:"email,omitempty"`
 
 	// Address Information
-	Address    *string `json:"address,omitempty"`
-	City       *string `json:"city,omitempty"`
-	State      *string `json:"state,omitempty"`
-	Country    *string `json:"country,omitempty"`
-	PostalCode *string `json:"postal_code,omitempty"`
+	AddressLine1  *string `json:"address_line_1,omitempty"`
+	AddressLine2  *string `json:"address_line_2,omitempty"`
+	City          *string `json:"city,omitempty"`
+	StateProvince *string `json:"state_province,omitempty"`
+	PostalCode    *string `json:"postal_code,omitempty"`
+	Country       *string `json:"country,omitempty"`      // ISO 3166-1 alpha-2 code
+	CountryName   *string `json:"country_name,omitempty"` // Full country name
 
 	// Professional Information
 	Company    *string `json:"company,omitempty"`
@@ -95,25 +97,33 @@ func (r ProfileRequest) Validate() error {
 		),
 
 		// Address Information
-		validation.Field(&r.Address,
+		validation.Field(&r.AddressLine1,
 			validation.NilOrNotEmpty,
-			validation.RuneLength(0, 1000).Error("Address must be at most 1000 characters"),
+			validation.RuneLength(0, 1000).Error("Address line 1 must be at most 1000 characters"),
+		),
+		validation.Field(&r.AddressLine2,
+			validation.NilOrNotEmpty,
+			validation.RuneLength(0, 1000).Error("Address line 2 must be at most 1000 characters"),
 		),
 		validation.Field(&r.City,
 			validation.NilOrNotEmpty,
 			validation.RuneLength(0, 100).Error("City must be at most 100 characters"),
 		),
-		validation.Field(&r.State,
+		validation.Field(&r.StateProvince,
 			validation.NilOrNotEmpty,
-			validation.RuneLength(0, 100).Error("State must be at most 100 characters"),
-		),
-		validation.Field(&r.Country,
-			validation.NilOrNotEmpty,
-			validation.RuneLength(0, 100).Error("Country must be at most 100 characters"),
+			validation.RuneLength(0, 100).Error("State/Province must be at most 100 characters"),
 		),
 		validation.Field(&r.PostalCode,
 			validation.NilOrNotEmpty,
 			validation.RuneLength(0, 20).Error("Postal code must be at most 20 characters"),
+		),
+		validation.Field(&r.Country,
+			validation.NilOrNotEmpty,
+			validation.RuneLength(2, 2).Error("Country must be a 2-character ISO code (e.g., US, CA, GB)"),
+		),
+		validation.Field(&r.CountryName,
+			validation.NilOrNotEmpty,
+			validation.RuneLength(0, 100).Error("Country name must be at most 100 characters"),
 		),
 
 		// Professional Information
@@ -182,11 +192,13 @@ type ProfileResponse struct {
 	Email *string `json:"email,omitempty"`
 
 	// Address Information
-	Address    *string `json:"address,omitempty"`
-	City       *string `json:"city,omitempty"`
-	State      *string `json:"state,omitempty"`
-	Country    *string `json:"country,omitempty"`
-	PostalCode *string `json:"postal_code,omitempty"`
+	AddressLine1  *string `json:"address_line_1,omitempty"`
+	AddressLine2  *string `json:"address_line_2,omitempty"`
+	City          *string `json:"city,omitempty"`
+	StateProvince *string `json:"state_province,omitempty"`
+	PostalCode    *string `json:"postal_code,omitempty"`
+	Country       *string `json:"country,omitempty"`      // ISO 3166-1 alpha-2 code
+	CountryName   *string `json:"country_name,omitempty"` // Full country name
 
 	// Professional Information
 	Company    *string `json:"company,omitempty"`
@@ -200,9 +212,8 @@ type ProfileResponse struct {
 	CoverURL  *string `json:"cover_url,omitempty"`
 
 	// System Fields
-	LastProfileUpdate *time.Time `json:"last_profile_update,omitempty"`
-	CreatedAt         time.Time  `json:"created_at"`
-	UpdatedAt         time.Time  `json:"updated_at"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
 }
 
 func NewProfileResponse(p *model.Profile) *ProfileResponse {
@@ -226,11 +237,13 @@ func NewProfileResponse(p *model.Profile) *ProfileResponse {
 		Email: p.Email,
 
 		// Address Information
-		Address:    p.Address,
-		City:       p.City,
-		State:      p.State,
-		Country:    p.Country,
-		PostalCode: p.PostalCode,
+		AddressLine1:  p.AddressLine1,
+		AddressLine2:  p.AddressLine2,
+		City:          p.City,
+		StateProvince: p.StateProvince,
+		PostalCode:    p.PostalCode,
+		Country:       p.Country,
+		CountryName:   p.CountryName,
 
 		// Professional Information
 		Company:    p.Company,
@@ -244,8 +257,7 @@ func NewProfileResponse(p *model.Profile) *ProfileResponse {
 		CoverURL:  p.CoverURL,
 
 		// System Fields
-		LastProfileUpdate: p.LastProfileUpdate,
-		CreatedAt:         p.CreatedAt,
-		UpdatedAt:         p.UpdatedAt,
+		CreatedAt: p.CreatedAt,
+		UpdatedAt: p.UpdatedAt,
 	}
 }
