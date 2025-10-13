@@ -11,33 +11,23 @@ import (
 )
 
 type ProfileServiceDataResult struct {
-	ProfileUUID   uuid.UUID
-	FirstName     string
-	MiddleName    *string
-	LastName      *string
-	Suffix        *string
-	DisplayName   *string
-	Birthdate     *time.Time
-	Gender        *string
-	Bio           *string
-	Phone         *string
-	Email         *string
-	AddressLine1  *string
-	AddressLine2  *string
-	City          *string
-	StateProvince *string
-	PostalCode    *string
-	Country       *string
-	CountryName   *string
-	Company       *string
-	JobTitle      *string
-	Department    *string
-	Industry      *string
-	WebsiteURL    *string
-	AvatarURL     *string
-	CoverURL      *string
-	CreatedAt     time.Time
-	UpdatedAt     time.Time
+	ProfileUUID uuid.UUID
+	FirstName   string
+	MiddleName  *string
+	LastName    *string
+	Suffix      *string
+	DisplayName *string
+	Birthdate   *time.Time
+	Gender      *string
+	Bio         *string
+	Phone       *string
+	Email       *string
+	City        *string
+	Country     *string
+	WebsiteURL  *string
+	AvatarURL   *string
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
 }
 
 type ProfileService interface {
@@ -48,9 +38,9 @@ type ProfileService interface {
 		birthdate *time.Time,
 		gender, bio *string,
 		phone, email *string,
-		addressLine1, addressLine2, city, stateProvince, postalCode, country, countryName *string,
-		company, jobTitle, department, industry, websiteURL *string,
-		avatarURL, coverURL *string,
+		city, country *string,
+		websiteURL *string,
+		avatarURL *string,
 	) (*ProfileServiceDataResult, error)
 	GetByUUID(profileUUID uuid.UUID) (*ProfileServiceDataResult, error)
 	GetByUserUUID(userUUID uuid.UUID) (*ProfileServiceDataResult, error)
@@ -82,9 +72,9 @@ func (s *profileService) CreateOrUpdateProfile(
 	birthdate *time.Time,
 	gender, bio *string,
 	phone, email *string,
-	addressLine1, addressLine2, city, stateProvince, postalCode, country, countryName *string,
-	company, jobTitle, department, industry, websiteURL *string,
-	avatarURL, coverURL *string,
+	city, country *string,
+	websiteURL *string,
+	avatarURL *string,
 ) (*ProfileServiceDataResult, error) {
 	var updatedProfile *model.Profile
 
@@ -135,25 +125,15 @@ func (s *profileService) CreateOrUpdateProfile(
 		profile.Phone = phone
 		profile.Email = email
 
-		// Address Information
-		profile.AddressLine1 = addressLine1
-		profile.AddressLine2 = addressLine2
+		// Location Information (minimal)
 		profile.City = city
-		profile.StateProvince = stateProvince
-		profile.PostalCode = postalCode
 		profile.Country = country
-		profile.CountryName = countryName
 
-		// Professional Information
-		profile.Company = company
-		profile.JobTitle = jobTitle
-		profile.Department = department
-		profile.Industry = industry
+		// Social/Web Presence
 		profile.WebsiteURL = websiteURL
 
-		// Media & Assets
+		// Media & Assets (auth-centric)
 		profile.AvatarURL = avatarURL
-		profile.CoverURL = coverURL
 
 		// Step 4: Create or update using transaction-aware repository
 		if profile.ProfileID == 0 {
@@ -237,33 +217,23 @@ func toProfileServiceDataResult(profile *model.Profile) *ProfileServiceDataResul
 	}
 
 	result := &ProfileServiceDataResult{
-		ProfileUUID:   profile.ProfileUUID,
-		FirstName:     profile.FirstName,
-		MiddleName:    profile.MiddleName,
-		LastName:      profile.LastName,
-		Suffix:        profile.Suffix,
-		DisplayName:   profile.DisplayName,
-		Birthdate:     profile.Birthdate,
-		Gender:        profile.Gender,
-		Bio:           profile.Bio,
-		Phone:         profile.Phone,
-		Email:         profile.Email,
-		AddressLine1:  profile.AddressLine1,
-		AddressLine2:  profile.AddressLine2,
-		City:          profile.City,
-		StateProvince: profile.StateProvince,
-		PostalCode:    profile.PostalCode,
-		Country:       profile.Country,
-		CountryName:   profile.CountryName,
-		Company:       profile.Company,
-		JobTitle:      profile.JobTitle,
-		Department:    profile.Department,
-		Industry:      profile.Industry,
-		WebsiteURL:    profile.WebsiteURL,
-		AvatarURL:     profile.AvatarURL,
-		CoverURL:      profile.CoverURL,
-		CreatedAt:     profile.CreatedAt,
-		UpdatedAt:     profile.UpdatedAt,
+		ProfileUUID: profile.ProfileUUID,
+		FirstName:   profile.FirstName,
+		MiddleName:  profile.MiddleName,
+		LastName:    profile.LastName,
+		Suffix:      profile.Suffix,
+		DisplayName: profile.DisplayName,
+		Birthdate:   profile.Birthdate,
+		Gender:      profile.Gender,
+		Bio:         profile.Bio,
+		Phone:       profile.Phone,
+		Email:       profile.Email,
+		City:        profile.City,
+		Country:     profile.Country,
+		WebsiteURL:  profile.WebsiteURL,
+		AvatarURL:   profile.AvatarURL,
+		CreatedAt:   profile.CreatedAt,
+		UpdatedAt:   profile.UpdatedAt,
 	}
 
 	return result

@@ -30,27 +30,16 @@ CREATE TABLE IF NOT EXISTS profiles (
     phone           VARCHAR(20),
     email           VARCHAR(255),
 
-    -- Address Information
-    address_line_1  TEXT,
-    address_line_2  TEXT,
-    city            VARCHAR(100),
-    state_province  VARCHAR(100),
-    postal_code     VARCHAR(20),
+    -- Location Information (minimal)
+    city            VARCHAR(100),   -- Current city
     country         VARCHAR(2),     -- ISO 3166-1 alpha-2 code
-    country_name    VARCHAR(100),   -- Full country name
 
-    -- Professional Information
-    company         VARCHAR(200),
-    job_title       VARCHAR(150),
-    department      VARCHAR(150),
-    industry        VARCHAR(100),
-    website_url     TEXT,
+    -- Social/Web Presence
+    website_url     TEXT,           -- Personal website/portfolio
 
-    -- Media & Assets
-    avatar_url      TEXT,
-    avatar_s3_key   TEXT,
-    cover_url       TEXT,
-    cover_s3_key    TEXT,
+    -- Media & Assets (auth-centric)
+    avatar_url      TEXT,           -- User profile picture
+    avatar_s3_key   TEXT,           -- S3 key for avatar management
 
     -- System Fields
     created_at      TIMESTAMPTZ DEFAULT now(),
