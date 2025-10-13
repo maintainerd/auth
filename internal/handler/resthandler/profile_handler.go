@@ -57,9 +57,9 @@ func (h *ProfileHandler) CreateOrUpdate(w http.ResponseWriter, r *http.Request) 
 		birthdate,
 		req.Gender, req.Bio,
 		req.Phone, req.Email,
-		req.AddressLine1, req.AddressLine2, req.City, req.StateProvince, req.PostalCode, req.Country, req.CountryName,
-		req.Company, req.JobTitle, req.Department, req.Industry, req.WebsiteURL,
-		req.AvatarURL, req.CoverURL,
+		req.City, req.Country,
+		req.WebsiteURL,
+		req.AvatarURL,
 	)
 	if err != nil {
 		util.Error(w, http.StatusBadRequest, "Save profile failed", err.Error())
@@ -121,25 +121,15 @@ func toProfileResponseDto(p service.ProfileServiceDataResult) dto.ProfileRespons
 		Phone: p.Phone,
 		Email: p.Email,
 
-		// Address Information
-		AddressLine1:  p.AddressLine1,
-		AddressLine2:  p.AddressLine2,
-		City:          p.City,
-		StateProvince: p.StateProvince,
-		PostalCode:    p.PostalCode,
-		Country:       p.Country,
-		CountryName:   p.CountryName,
+		// Location Information (minimal)
+		City:    p.City,
+		Country: p.Country,
 
-		// Professional Information
-		Company:    p.Company,
-		JobTitle:   p.JobTitle,
-		Department: p.Department,
-		Industry:   p.Industry,
+		// Social/Web Presence
 		WebsiteURL: p.WebsiteURL,
 
-		// Media & Assets
+		// Media & Assets (auth-centric)
 		AvatarURL: p.AvatarURL,
-		CoverURL:  p.CoverURL,
 
 		// System Fields
 		CreatedAt: p.CreatedAt,

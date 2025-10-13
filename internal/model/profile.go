@@ -28,27 +28,16 @@ type Profile struct {
 	Phone *string `gorm:"column:phone"`
 	Email *string `gorm:"column:email"`
 
-	// Address Information
-	AddressLine1  *string `gorm:"column:address_line_1"`
-	AddressLine2  *string `gorm:"column:address_line_2"`
-	City          *string `gorm:"column:city"`
-	StateProvince *string `gorm:"column:state_province"` // State/Province/Region
-	PostalCode    *string `gorm:"column:postal_code"`    // ZIP/Postal Code
-	Country       *string `gorm:"column:country"`        // ISO 3166-1 alpha-2 code (US, CA, GB, etc.)
-	CountryName   *string `gorm:"column:country_name"`   // Full country name
+	// Location Information (minimal)
+	City    *string `gorm:"column:city"`    // Current city
+	Country *string `gorm:"column:country"` // ISO 3166-1 alpha-2 code (US, PH, etc.)
 
-	// Professional Information
-	Company    *string `gorm:"column:company"`
-	JobTitle   *string `gorm:"column:job_title"`
-	Department *string `gorm:"column:department"`
-	Industry   *string `gorm:"column:industry"`
-	WebsiteURL *string `gorm:"column:website_url"`
+	// Social/Web Presence
+	WebsiteURL *string `gorm:"column:website_url"` // Personal website/portfolio
 
-	// Media & Assets
-	AvatarURL   *string `gorm:"column:avatar_url"`
-	AvatarS3Key *string `gorm:"column:avatar_s3_key"`
-	CoverURL    *string `gorm:"column:cover_url"`
-	CoverS3Key  *string `gorm:"column:cover_s3_key"`
+	// Media & Assets (auth-centric)
+	AvatarURL   *string `gorm:"column:avatar_url"`    // User profile picture
+	AvatarS3Key *string `gorm:"column:avatar_s3_key"` // S3 key for avatar management
 
 	// System Fields
 	CreatedAt time.Time `gorm:"column:created_at;autoCreateTime"`
