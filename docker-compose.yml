@@ -15,14 +15,25 @@ services:
     environment:
       - ENV=local
       - CGO_ENABLED=0
-    # Remove command override since it's in Dockerfile
-    ports:
-      - "8080:8080" # Public
-      - "8081:8081" # Internal
     depends_on:
       - postgres-db
       - redis-db
     # Add restart policy for development
+    restart: unless-stopped
+
+  auth-web:
+    build:
+      context: ../auth-web
+      dockerfile: Dockerfile.local
+    image: m9d-auth-web-dev
+    container_name: m9d-auth-web-dev
+    volumes:
+      - ../auth-web:/app
+      - /app/node_modules
+    environment:
+      - NODE_ENV=development
+    depends_on:
+      - auth
     restart: unless-stopped
 
   nginx:
@@ -34,6 +45,7 @@ services:
       - ./nginx/local.conf:/etc/nginx/conf.d/default.conf
     depends_on:
       - auth
+      - auth-web
     networks:
       - default
 
