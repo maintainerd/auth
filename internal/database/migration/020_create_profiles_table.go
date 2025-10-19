@@ -79,7 +79,6 @@ CREATE INDEX IF NOT EXISTS idx_profiles_first_name ON profiles (first_name);
 CREATE INDEX IF NOT EXISTS idx_profiles_last_name ON profiles (last_name);
 CREATE INDEX IF NOT EXISTS idx_profiles_email ON profiles (email);
 CREATE INDEX IF NOT EXISTS idx_profiles_display_name ON profiles (display_name);
-CREATE INDEX IF NOT EXISTS idx_profiles_company ON profiles (company);
 CREATE INDEX IF NOT EXISTS idx_profiles_created_at ON profiles (created_at);
 `
 	if err := db.Exec(sql).Error; err != nil {
