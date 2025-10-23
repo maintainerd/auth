@@ -9,7 +9,6 @@ doc/
 
 # Development files
 .env.example
-.air.toml
 docker-compose.yml
 Dockerfile
 Dockerfile.local
