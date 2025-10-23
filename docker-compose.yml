@@ -29,9 +29,11 @@ services:
     container_name: m9d-auth-web-dev
     volumes:
       - ../auth-web:/app
-      - /app/node_modules
+      - node_modules_cache:/app/node_modules
     environment:
       - NODE_ENV=development
+      - CHOKIDAR_USEPOLLING=true
+      - CHOKIDAR_INTERVAL=100
     depends_on:
       - auth
     restart: unless-stopped
@@ -89,3 +91,4 @@ networks:
 volumes:
   go-mod-cache:
   go-build-cache:
+  node_modules_cache:
