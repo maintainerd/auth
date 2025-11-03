@@ -10,10 +10,10 @@ import (
 type AuthLogRepository interface {
 	BaseRepositoryMethods[model.AuthLog]
 	FindByUserID(userID int64, limit int, offset int) ([]model.AuthLog, error)
-	FindByEventType(eventType string, authContainerID int64, limit int, offset int) ([]model.AuthLog, error)
-	FindByDateRange(authContainerID int64, from, to time.Time) ([]model.AuthLog, error)
+	FindByEventType(eventType string, tenantID int64, limit int, offset int) ([]model.AuthLog, error)
+	FindByDateRange(tenantID int64, from, to time.Time) ([]model.AuthLog, error)
 	DeleteOlderThan(cutoff time.Time) error
-	CountByEventType(eventType string, authContainerID int64) (int64, error)
+	CountByEventType(eventType string, tenantID int64) (int64, error)
 }
 
 type authLogRepository struct {
@@ -39,10 +39,10 @@ func (r *authLogRepository) FindByUserID(userID int64, limit int, offset int) ([
 	return logs, err
 }
 
-func (r *authLogRepository) FindByEventType(eventType string, authContainerID int64, limit int, offset int) ([]model.AuthLog, error) {
+func (r *authLogRepository) FindByEventType(eventType string, tenantID int64, limit int, offset int) ([]model.AuthLog, error) {
 	var logs []model.AuthLog
 	err := r.db.
-		Where("event_type = ? AND auth_container_id = ?", eventType, authContainerID).
+		Where("event_type = ? AND tenant_id = ?", eventType, tenantID).
 		Order("created_at DESC").
 		Limit(limit).
 		Offset(offset).
@@ -50,10 +50,10 @@ func (r *authLogRepository) FindByEventType(eventType string, authContainerID in
 	return logs, err
 }
 
-func (r *authLogRepository) FindByDateRange(authContainerID int64, from, to time.Time) ([]model.AuthLog, error) {
+func (r *authLogRepository) FindByDateRange(tenantID int64, from, to time.Time) ([]model.AuthLog, error) {
 	var logs []model.AuthLog
 	err := r.db.
-		Where("auth_container_id = ? AND created_at BETWEEN ? AND ?", authContainerID, from, to).
+		Where("tenant_id = ? AND created_at BETWEEN ? AND ?", tenantID, from, to).
 		Order("created_at DESC").
 		Find(&logs).Error
 	return logs, err
@@ -65,11 +65,11 @@ func (r *authLogRepository) DeleteOlderThan(cutoff time.Time) error {
 		Delete(&model.AuthLog{}).Error
 }
 
-func (r *authLogRepository) CountByEventType(eventType string, authContainerID int64) (int64, error) {
+func (r *authLogRepository) CountByEventType(eventType string, tenantID int64) (int64, error) {
 	var count int64
 	err := r.db.
 		Model(&model.AuthLog{}).
-		Where("event_type = ? AND auth_container_id = ?", eventType, authContainerID).
+		Where("event_type = ? AND tenant_id = ?", eventType, tenantID).
 		Count(&count).Error
 	return count, err
 }

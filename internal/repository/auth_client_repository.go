@@ -90,7 +90,7 @@ func (r *authClientRepository) FindDefault() (*model.AuthClient, error) {
 		Where("auth_clients.client_type = ?", "traditional").
 		Where("identity_providers.is_active = ?", true).
 		Preload("IdentityProvider").
-		Preload("IdentityProvider.AuthContainer").
+		Preload("IdentityProvider.Tenant").
 		First(&client).Error
 
 	return &client, err
@@ -184,7 +184,7 @@ func (r *authClientRepository) FindByClientIDAndIdentityProvider(clientID, ident
 		Joins("JOIN identity_providers ON identity_providers.identity_provider_id = auth_clients.identity_provider_id").
 		Where("auth_clients.client_id = ? AND identity_providers.identifier = ?", clientID, identityProviderIdentifier).
 		Where("auth_clients.is_active = true AND identity_providers.is_active = true").
-		Preload("IdentityProvider.AuthContainer").
+		Preload("IdentityProvider.Tenant").
 		Preload("IdentityProvider").
 		First(&client).Error
 
