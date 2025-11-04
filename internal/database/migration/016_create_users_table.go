@@ -21,7 +21,7 @@ CREATE TABLE IF NOT EXISTS users (
     is_profile_completed    BOOLEAN DEFAULT FALSE,
     is_account_completed    BOOLEAN DEFAULT FALSE,
     is_active               BOOLEAN DEFAULT FALSE,
-    auth_container_id       INTEGER NOT NULL,
+    tenant_id               INTEGER NOT NULL,
     created_at              TIMESTAMPTZ DEFAULT now(),
     updated_at              TIMESTAMPTZ DEFAULT now()
 );
@@ -30,11 +30,11 @@ CREATE TABLE IF NOT EXISTS users (
 DO $$
 BEGIN
     IF NOT EXISTS (
-        SELECT 1 FROM pg_constraint WHERE conname = 'fk_users_auth_container_id'
+        SELECT 1 FROM pg_constraint WHERE conname = 'fk_users_tenant_id'
     ) THEN
         ALTER TABLE users
-            ADD CONSTRAINT fk_users_auth_container_id FOREIGN KEY (auth_container_id)
-            REFERENCES auth_containers(auth_container_id) ON DELETE CASCADE;
+            ADD CONSTRAINT fk_users_tenant_id FOREIGN KEY (tenant_id)
+            REFERENCES tenants(tenant_id) ON DELETE CASCADE;
     END IF;
 END$$;
 
@@ -43,7 +43,7 @@ CREATE INDEX IF NOT EXISTS idx_users_uuid ON users (user_uuid);
 CREATE INDEX IF NOT EXISTS idx_users_username ON users (username);
 CREATE INDEX IF NOT EXISTS idx_users_email ON users (email);
 CREATE INDEX IF NOT EXISTS idx_users_phone ON users (phone);
-CREATE INDEX IF NOT EXISTS idx_users_auth_container_id ON users (auth_container_id);
+CREATE INDEX IF NOT EXISTS idx_users_tenant_id ON users (tenant_id);
 CREATE INDEX IF NOT EXISTS idx_users_created_at ON users (created_at);
 `
 	if err := db.Exec(sql).Error; err != nil {

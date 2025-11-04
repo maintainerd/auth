@@ -95,10 +95,10 @@ func (s *registerService) Register(
 			return errors.New("identity provider not found")
 		}
 
-		authContainerId := identityProvider.AuthContainerID
+		tenantId := identityProvider.TenantID
 
 		// Check if username already exists
-		existingUser, txErr := txUserRepo.FindByUsername(username, authContainerId)
+		existingUser, txErr := txUserRepo.FindByUsername(username, tenantId)
 		if txErr != nil {
 			return txErr
 		}
@@ -108,7 +108,7 @@ func (s *registerService) Register(
 
 		// Check if email already exists (if provided)
 		if email != nil && *email != "" {
-			existingEmailUser, txErr := txUserRepo.FindByEmail(*email, authContainerId)
+			existingEmailUser, txErr := txUserRepo.FindByEmail(*email, tenantId)
 			if txErr != nil {
 				return txErr
 			}
@@ -119,7 +119,7 @@ func (s *registerService) Register(
 
 		// Check if phone already exists (if provided)
 		if phone != nil && *phone != "" {
-			existingPhoneUser, txErr := txUserRepo.FindByPhone(*phone, authContainerId)
+			existingPhoneUser, txErr := txUserRepo.FindByPhone(*phone, tenantId)
 			if txErr != nil {
 				return txErr
 			}
@@ -136,10 +136,10 @@ func (s *registerService) Register(
 
 		// Create user
 		newUser := &model.User{
-			Username:        username,
-			Password:        util.Ptr(string(hashed)),
-			AuthContainerID: authContainerId,
-			IsActive:        true,
+			Username: username,
+			Password: util.Ptr(string(hashed)),
+			TenantID: tenantId,
+			IsActive: true,
 		}
 
 		// Set email if provided
@@ -215,7 +215,7 @@ func (s *registerService) RegisterInvite(
 			return errors.New("invalid or inactive auth client")
 		}
 
-		// Look up identity provider by identifier to get auth container
+		// Look up identity provider by identifier to get tenant
 		identityProvider, txErr := txIdentityProviderRepo.FindByIdentifier(providerID)
 		if txErr != nil {
 			return errors.New("identity provider lookup failed")
@@ -225,7 +225,7 @@ func (s *registerService) RegisterInvite(
 			return errors.New("identity provider not found")
 		}
 
-		authContainerId := identityProvider.AuthContainerID
+		tenantId := identityProvider.TenantID
 
 		// Validate invite token
 		invite, txErr := txInviteRepo.FindByToken(inviteToken)
@@ -245,7 +245,7 @@ func (s *registerService) RegisterInvite(
 		}
 
 		// Check if username already exists
-		existingUser, txErr := txUserRepo.FindByUsername(username, authContainerId)
+		existingUser, txErr := txUserRepo.FindByUsername(username, tenantId)
 		if txErr != nil {
 			return txErr
 		}
@@ -254,7 +254,7 @@ func (s *registerService) RegisterInvite(
 		}
 
 		// Check if invited email already exists
-		existingEmailUser, txErr := txUserRepo.FindByEmail(invite.InvitedEmail, authContainerId)
+		existingEmailUser, txErr := txUserRepo.FindByEmail(invite.InvitedEmail, tenantId)
 		if txErr != nil {
 			return txErr
 		}
@@ -273,7 +273,7 @@ func (s *registerService) RegisterInvite(
 			Username:        username,
 			Email:           invite.InvitedEmail, // Always use the invited email
 			Password:        util.Ptr(string(hashed)),
-			AuthContainerID: authContainerId,
+			TenantID:        tenantId,
 			IsActive:        true,
 			IsEmailVerified: true, // Auto-verify email for invited users
 		}
@@ -329,7 +329,7 @@ func (s *registerService) generateTokenResponse(userUUID string, user *model.Use
 		"openid profile email",
 		*authClient.Domain,
 		*authClient.ClientID,
-		authClient.IdentityProvider.AuthContainer.AuthContainerUUID,
+		authClient.IdentityProvider.Tenant.TenantUUID,
 		*authClient.ClientID,
 		authClient.IdentityProvider.IdentityProviderUUID,
 	)

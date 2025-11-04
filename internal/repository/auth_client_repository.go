@@ -26,9 +26,9 @@ type AuthClientRepository interface {
 	WithTx(tx *gorm.DB) AuthClientRepository
 	FindByNameAndIdentityProvider(name string, identityProviderID int64) (*model.AuthClient, error)
 	FindByClientID(clientID string) (*model.AuthClient, error)
-	FindAllByAuthContainerID(authContainerID int64) ([]model.AuthClient, error)
+	FindAllByTenantID(tenantID int64) ([]model.AuthClient, error)
 	FindDefault() (*model.AuthClient, error)
-	FindDefaultByAuthContainerID(authContainerID int64) (*model.AuthClient, error)
+	FindDefaultByTenantID(tenantID int64) (*model.AuthClient, error)
 	FindPaginated(filter AuthClientRepositoryGetFilter) (*PaginationResult[model.AuthClient], error)
 	SetActiveStatusByUUID(authClientUUID uuid.UUID, isActive bool) error
 	FindByClientIDAndIdentityProvider(clientID, identityProviderIdentifier string) (*model.AuthClient, error)
@@ -73,10 +73,11 @@ func (r *authClientRepository) FindByClientID(clientID string) (*model.AuthClien
 	return &client, err
 }
 
-func (r *authClientRepository) FindAllByAuthContainerID(authContainerID int64) ([]model.AuthClient, error) {
+func (r *authClientRepository) FindAllByTenantID(tenantID int64) ([]model.AuthClient, error) {
 	var clients []model.AuthClient
 	err := r.db.
-		Where("auth_container_id = ?", authContainerID).
+		Joins("JOIN identity_providers ON identity_providers.identity_provider_id = auth_clients.identity_provider_id").
+		Where("identity_providers.tenant_id = ?", tenantID).
 		Find(&clients).Error
 	return clients, err
 }
@@ -95,11 +96,11 @@ func (r *authClientRepository) FindDefault() (*model.AuthClient, error) {
 	return &client, err
 }
 
-func (r *authClientRepository) FindDefaultByAuthContainerID(authContainerID int64) (*model.AuthClient, error) {
+func (r *authClientRepository) FindDefaultByTenantID(tenantID int64) (*model.AuthClient, error) {
 	var client model.AuthClient
 	err := r.db.
 		Joins("JOIN identity_providers ON identity_providers.identity_provider_id = auth_clients.identity_provider_id").
-		Where("identity_providers.auth_container_id = ? AND auth_clients.is_default = true AND auth_clients.is_active = true", authContainerID).
+		Where("identity_providers.tenant_id = ? AND auth_clients.is_default = true AND auth_clients.is_active = true", tenantID).
 		First(&client).Error
 
 	if err != nil {

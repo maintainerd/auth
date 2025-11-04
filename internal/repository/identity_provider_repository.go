@@ -8,25 +8,25 @@ import (
 )
 
 type IdentityProviderRepositoryGetFilter struct {
-	Name            *string
-	DisplayName     *string
-	ProviderType    *string
-	Identifier      *string
-	AuthContainerID *int64
-	IsActive        *bool
-	IsDefault       *bool
-	Page            int
-	Limit           int
-	SortBy          string
-	SortOrder       string
+	Name         *string
+	DisplayName  *string
+	ProviderType *string
+	Identifier   *string
+	TenantID     *int64
+	IsActive     *bool
+	IsDefault    *bool
+	Page         int
+	Limit        int
+	SortBy       string
+	SortOrder    string
 }
 
 type IdentityProviderRepository interface {
 	BaseRepositoryMethods[model.IdentityProvider]
 	WithTx(tx *gorm.DB) IdentityProviderRepository
-	FindByName(name string, authContainerID int64) (*model.IdentityProvider, error)
+	FindByName(name string, tenantID int64) (*model.IdentityProvider, error)
 	FindByIdentifier(identifier string) (*model.IdentityProvider, error)
-	FindDefaultByAuthContainerID(authContainerID int64) (*model.IdentityProvider, error)
+	FindDefaultByTenantID(tenantID int64) (*model.IdentityProvider, error)
 	FindPaginated(filter IdentityProviderRepositoryGetFilter) (*PaginationResult[model.IdentityProvider], error)
 }
 
@@ -49,10 +49,10 @@ func (r *identityProviderRepository) WithTx(tx *gorm.DB) IdentityProviderReposit
 	}
 }
 
-func (r *identityProviderRepository) FindByName(name string, authContainerID int64) (*model.IdentityProvider, error) {
+func (r *identityProviderRepository) FindByName(name string, tenantID int64) (*model.IdentityProvider, error) {
 	var provider model.IdentityProvider
 	err := r.db.
-		Where("name = ? AND auth_container_id = ?", name, authContainerID).
+		Where("name = ? AND tenant_id = ?", name, tenantID).
 		First(&provider).Error
 
 	if err != nil {
@@ -81,10 +81,10 @@ func (r *identityProviderRepository) FindByIdentifier(identifier string) (*model
 	return &provider, nil
 }
 
-func (r *identityProviderRepository) FindDefaultByAuthContainerID(authContainerID int64) (*model.IdentityProvider, error) {
+func (r *identityProviderRepository) FindDefaultByTenantID(tenantID int64) (*model.IdentityProvider, error) {
 	var provider model.IdentityProvider
 	err := r.db.
-		Where("auth_container_id = ? AND is_default = true", authContainerID).
+		Where("tenant_id = ? AND is_default = true", tenantID).
 		First(&provider).Error
 	return &provider, err
 }
@@ -107,8 +107,8 @@ func (r *identityProviderRepository) FindPaginated(filter IdentityProviderReposi
 	if filter.Identifier != nil {
 		query = query.Where("identifier = ?", *filter.Identifier)
 	}
-	if filter.AuthContainerID != nil {
-		query = query.Where("auth_container_id = ?", *filter.AuthContainerID)
+	if filter.TenantID != nil {
+		query = query.Where("tenant_id = ?", *filter.TenantID)
 	}
 	if filter.IsActive != nil {
 		query = query.Where("is_active = ?", *filter.IsActive)

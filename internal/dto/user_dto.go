@@ -20,7 +20,7 @@ type UserResponseDto struct {
 	IsProfileCompleted bool                       `json:"is_profile_completed"`
 	IsAccountCompleted bool                       `json:"is_account_completed"`
 	IsActive           bool                       `json:"is_active"`
-	AuthContainer      *AuthContainerResponseDto  `json:"auth_container,omitempty"`
+	Tenant             *TenantResponseDto         `json:"tenant,omitempty"`
 	UserIdentities     *[]UserIdentityResponseDto `json:"user_identities,omitempty"`
 	Roles              *[]RoleResponseDto         `json:"roles,omitempty"`
 	CreatedAt          time.Time                  `json:"created_at"`
@@ -39,11 +39,11 @@ type UserIdentityResponseDto struct {
 
 // User input structures
 type UserCreateRequestDto struct {
-	Username          string  `json:"username"`
-	Email             *string `json:"email,omitempty"`
-	Phone             *string `json:"phone,omitempty"`
-	Password          string  `json:"password"`
-	AuthContainerUUID string  `json:"auth_container_uuid"`
+	Username   string  `json:"username"`
+	Email      *string `json:"email,omitempty"`
+	Phone      *string `json:"phone,omitempty"`
+	Password   string  `json:"password"`
+	TenantUUID string  `json:"tenant_uuid"`
 }
 
 func (dto UserCreateRequestDto) Validate() error {
@@ -52,7 +52,7 @@ func (dto UserCreateRequestDto) Validate() error {
 		validation.Field(&dto.Email, validation.When(dto.Email != nil, is.Email)),
 		validation.Field(&dto.Phone, validation.When(dto.Phone != nil, validation.Length(10, 20))),
 		validation.Field(&dto.Password, validation.Required, validation.Length(8, 100)),
-		validation.Field(&dto.AuthContainerUUID, validation.Required, is.UUID),
+		validation.Field(&dto.TenantUUID, validation.Required, is.UUID),
 	)
 }
 
@@ -92,11 +92,11 @@ func (dto UserAssignRolesRequestDto) Validate() error {
 
 // User filter structure
 type UserFilterDto struct {
-	Username          *string `json:"username,omitempty"`
-	Email             *string `json:"email,omitempty"`
-	Phone             *string `json:"phone,omitempty"`
-	IsActive          *bool   `json:"is_active,omitempty"`
-	AuthContainerUUID *string `json:"auth_container_uuid,omitempty"`
+	Username   *string `json:"username,omitempty"`
+	Email      *string `json:"email,omitempty"`
+	Phone      *string `json:"phone,omitempty"`
+	IsActive   *bool   `json:"is_active,omitempty"`
+	TenantUUID *string `json:"tenant_uuid,omitempty"`
 
 	// Pagination and sorting
 	PaginationRequestDto

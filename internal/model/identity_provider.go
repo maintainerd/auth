@@ -18,12 +18,12 @@ type IdentityProvider struct {
 	Config               datatypes.JSON `gorm:"column:config"`
 	IsActive             bool           `gorm:"column:is_active;default:false"`
 	IsDefault            bool           `gorm:"column:is_default;default:false"`
-	AuthContainerID      int64          `gorm:"column:auth_container_id"`
+	TenantID             int64          `gorm:"column:tenant_id"`
 	CreatedAt            time.Time      `gorm:"column:created_at;autoCreateTime"`
 	UpdatedAt            time.Time      `gorm:"column:updated_at;autoUpdateTime"`
 
 	// Relationships
-	AuthContainer *AuthContainer `gorm:"foreignKey:AuthContainerID;references:AuthContainerID"`
+	Tenant *Tenant `gorm:"foreignKey:TenantID;references:TenantID"`
 }
 
 func (IdentityProvider) TableName() string {

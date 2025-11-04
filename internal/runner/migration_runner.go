@@ -6,15 +6,14 @@ import (
 )
 
 func RunMigrations(db *gorm.DB) {
-	migration.CreateOrganizationTable(db)
+	migration.CreateTenantTable(db)
 	migration.CreateServiceTable(db)
-	migration.CreateOrganizationServicesTable(db)
+	migration.CreateTenantServicesTable(db)
 	migration.CreatePoliciesTable(db)
 	migration.CreateServicePoliciesTable(db)
 	migration.CreateServiceLogsTable(db)
 	migration.CreateAPITable(db)
 	migration.CreatePermissionTable(db)
-	migration.CreateAuthContainerTable(db)
 	migration.CreateIdentityProviderTable(db)
 	migration.CreateAuthClientTable(db)
 	migration.CreateAuthClientRedirectUrisTable(db)

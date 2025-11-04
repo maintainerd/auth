@@ -15,7 +15,7 @@ import (
 
 type LoginService interface {
 	Login(usernameOrEmail, password, clientID, providerID string) (*dto.LoginResponseDto, error)
-	GetUserByEmail(email string, authContainerID int64) (*model.User, error)
+	GetUserByEmail(email string, tenantID int64) (*model.User, error)
 }
 
 type loginService struct {
@@ -93,7 +93,7 @@ func (s *loginService) Login(usernameOrEmail, password, clientID, providerID str
 			return errors.New("authentication failed")
 		}
 
-		authContainerId := identityProvider.AuthContainerID
+		tenantId := identityProvider.TenantID
 
 		// Get and validate auth client with proper relationship preloading
 		authClient, txErr = txAuthClientRepo.FindByClientIDAndIdentityProvider(clientID, providerID)
@@ -122,7 +122,7 @@ func (s *loginService) Login(usernameOrEmail, password, clientID, providerID str
 		}
 
 		// Get user by username (timing-safe user lookup)
-		user, userLookupErr = txUserRepo.FindByUsername(usernameOrEmail, authContainerId)
+		user, userLookupErr = txUserRepo.FindByUsername(usernameOrEmail, tenantId)
 
 		return nil // No error, continue with authentication logic outside transaction
 	})
@@ -187,8 +187,8 @@ func (s *loginService) Login(usernameOrEmail, password, clientID, providerID str
 	return s.generateTokenResponse(user.UserUUID.String(), user, authClient)
 }
 
-func (s *loginService) GetUserByEmail(email string, authContainerID int64) (*model.User, error) {
-	return s.userRepo.FindByEmail(email, authContainerID)
+func (s *loginService) GetUserByEmail(email string, tenantID int64) (*model.User, error) {
+	return s.userRepo.FindByEmail(email, tenantID)
 }
 
 func (s *loginService) generateTokenResponse(userUUID string, user *model.User, authClient *model.AuthClient) (*dto.LoginResponseDto, error) {
@@ -197,7 +197,7 @@ func (s *loginService) generateTokenResponse(userUUID string, user *model.User, 
 		"openid profile email",
 		*authClient.Domain,
 		*authClient.ClientID,
-		authClient.IdentityProvider.AuthContainer.AuthContainerUUID,
+		authClient.IdentityProvider.Tenant.TenantUUID,
 		*authClient.ClientID,
 		authClient.IdentityProvider.IdentityProviderUUID,
 	)

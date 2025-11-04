@@ -7,20 +7,20 @@ import (
 	"github.com/go-ozzo/ozzo-validation/v4/is"
 )
 
-// CreateOrganizationRequestDto for initial organization setup
-type CreateOrganizationRequestDto struct {
+// CreateTenantRequestDto for initial tenant setup
+type CreateTenantRequestDto struct {
 	Name        string  `json:"name"`
 	Description *string `json:"description,omitempty"`
 	Email       *string `json:"email,omitempty"`
 	Phone       *string `json:"phone,omitempty"`
 }
 
-func (dto CreateOrganizationRequestDto) Validate() error {
+func (dto CreateTenantRequestDto) Validate() error {
 	return validation.ValidateStruct(&dto,
 		validation.Field(&dto.Name,
-			validation.Required.Error("Organization name is required"),
-			validation.Length(2, 100).Error("Organization name must be between 2 and 100 characters"),
-			validation.Match(regexp.MustCompile(`^[a-zA-Z0-9\s\-_\.]+$`)).Error("Organization name contains invalid characters"),
+			validation.Required.Error("Tenant name is required"),
+			validation.Length(2, 100).Error("Tenant name must be between 2 and 100 characters"),
+			validation.Match(regexp.MustCompile(`^[a-zA-Z0-9\s\-_\.]+$`)).Error("Tenant name contains invalid characters"),
 		),
 		validation.Field(&dto.Description,
 			validation.When(dto.Description != nil,
@@ -69,17 +69,17 @@ func (dto CreateAdminRequestDto) Validate() error {
 
 // SetupStatusResponseDto for checking setup status
 type SetupStatusResponseDto struct {
-	IsOrganizationSetup bool `json:"is_organization_setup"`
-	IsAdminSetup        bool `json:"is_admin_setup"`
-	IsSetupComplete     bool `json:"is_setup_complete"`
+	IsTenantSetup   bool `json:"is_tenant_setup"`
+	IsAdminSetup    bool `json:"is_admin_setup"`
+	IsSetupComplete bool `json:"is_setup_complete"`
 }
 
-// CreateOrganizationResponseDto for organization creation response
-type CreateOrganizationResponseDto struct {
-	Message           string                  `json:"message"`
-	Organization      OrganizationResponseDto `json:"organization"`
-	DefaultClientID   string                  `json:"default_client_id,omitempty"`
-	DefaultProviderID string                  `json:"default_provider_id,omitempty"`
+// CreateTenantResponseDto for tenant creation response
+type CreateTenantResponseDto struct {
+	Message           string            `json:"message"`
+	Tenant            TenantResponseDto `json:"tenant"`
+	DefaultClientID   string            `json:"default_client_id,omitempty"`
+	DefaultProviderID string            `json:"default_provider_id,omitempty"`
 }
 
 // CreateAdminResponseDto for admin creation response
