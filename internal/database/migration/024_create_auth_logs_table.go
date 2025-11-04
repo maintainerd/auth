@@ -18,7 +18,7 @@ CREATE TABLE IF NOT EXISTS auth_logs (
     ip_address          VARCHAR(100),
     user_agent          TEXT,
     metadata            JSONB,
-    auth_container_id   INTEGER NOT NULL,
+    tenant_id           INTEGER NOT NULL,
     created_at          TIMESTAMPTZ DEFAULT now(),
     updated_at          TIMESTAMPTZ DEFAULT now()
 );
@@ -35,11 +35,11 @@ BEGIN
     END IF;
 
     IF NOT EXISTS (
-        SELECT 1 FROM pg_constraint WHERE conname = 'fk_auth_logs_auth_container_id'
+        SELECT 1 FROM pg_constraint WHERE conname = 'fk_auth_logs_tenant_id'
     ) THEN
         ALTER TABLE auth_logs
-            ADD CONSTRAINT fk_auth_logs_auth_container_id FOREIGN KEY (auth_container_id)
-            REFERENCES auth_containers(auth_container_id) ON DELETE CASCADE;
+            ADD CONSTRAINT fk_auth_logs_tenant_id FOREIGN KEY (tenant_id)
+            REFERENCES tenants(tenant_id) ON DELETE CASCADE;
     END IF;
 END$$;
 
@@ -47,7 +47,7 @@ END$$;
 CREATE INDEX IF NOT EXISTS idx_auth_logs_uuid ON auth_logs (auth_log_uuid);
 CREATE INDEX IF NOT EXISTS idx_auth_logs_user_id ON auth_logs (user_id);
 CREATE INDEX IF NOT EXISTS idx_auth_logs_event_type ON auth_logs (event_type);
-CREATE INDEX IF NOT EXISTS idx_auth_logs_auth_container_id ON auth_logs (auth_container_id);
+CREATE INDEX IF NOT EXISTS idx_auth_logs_tenant_id ON auth_logs (tenant_id);
 `
 	if err := db.Exec(sql).Error; err != nil {
 		log.Fatalf("❌ Failed to run migration 024_create_auth_logs_table: %v", err)

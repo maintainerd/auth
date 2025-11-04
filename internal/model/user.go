@@ -19,12 +19,12 @@ type User struct {
 	IsProfileCompleted bool      `gorm:"column:is_profile_completed;default:false"`
 	IsAccountCompleted bool      `gorm:"column:is_account_completed;default:false"`
 	IsActive           bool      `gorm:"column:is_active;default:false"`
-	AuthContainerID    int64     `gorm:"column:auth_container_id"`
+	TenantID           int64     `gorm:"column:tenant_id"`
 	CreatedAt          time.Time `gorm:"column:created_at;autoCreateTime"`
 	UpdatedAt          time.Time `gorm:"column:updated_at;autoUpdateTime"`
 
 	// Relationships
-	AuthContainer  *AuthContainer `gorm:"foreignKey:AuthContainerID;references:AuthContainerID;constraint:OnDelete:CASCADE"`
+	Tenant         *Tenant        `gorm:"foreignKey:TenantID;references:TenantID;constraint:OnDelete:CASCADE"`
 	UserIdentities []UserIdentity `gorm:"foreignKey:UserID;references:UserID;constraint:OnDelete:CASCADE"`
 	UserRoles      []UserRole     `gorm:"foreignKey:UserID;references:UserID"`
 	Roles          []Role         `gorm:"many2many:user_roles;joinForeignKey:UserID;joinReferences:RoleID"`

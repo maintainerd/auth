@@ -160,11 +160,11 @@ func (s *permissionService) Create(name string, description string, isActive boo
 		txAPIRepo := s.apiRepo.WithTx(tx)
 
 		// Check if permission already exists
-		existingAuthContainer, err := txPermissionRepo.FindByName(name)
+		existingPermission, err := txPermissionRepo.FindByName(name)
 		if err != nil {
 			return err
 		}
-		if existingAuthContainer != nil {
+		if existingPermission != nil {
 			return errors.New(name + " permission already exists")
 		}
 

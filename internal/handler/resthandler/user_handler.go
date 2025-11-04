@@ -48,11 +48,11 @@ func (h *UserHandler) GetUsers(w http.ResponseWriter, r *http.Request) {
 
 	// Build request DTO (for validation)
 	reqParams := dto.UserFilterDto{
-		Username:          util.PtrOrNil(q.Get("username")),
-		Email:             util.PtrOrNil(q.Get("email")),
-		Phone:             util.PtrOrNil(q.Get("phone")),
-		IsActive:          isActive,
-		AuthContainerUUID: authContainerUUID,
+		Username:   util.PtrOrNil(q.Get("username")),
+		Email:      util.PtrOrNil(q.Get("email")),
+		Phone:      util.PtrOrNil(q.Get("phone")),
+		IsActive:   isActive,
+		TenantUUID: authContainerUUID,
 		PaginationRequestDto: dto.PaginationRequestDto{
 			Page:      page,
 			Limit:     limit,
@@ -68,15 +68,15 @@ func (h *UserHandler) GetUsers(w http.ResponseWriter, r *http.Request) {
 
 	// Convert to service filter
 	filter := service.UserServiceGetFilter{
-		Username:          reqParams.Username,
-		Email:             reqParams.Email,
-		Phone:             reqParams.Phone,
-		IsActive:          reqParams.IsActive,
-		AuthContainerUUID: reqParams.AuthContainerUUID,
-		Page:              reqParams.PaginationRequestDto.Page,
-		Limit:             reqParams.PaginationRequestDto.Limit,
-		SortBy:            reqParams.PaginationRequestDto.SortBy,
-		SortOrder:         reqParams.PaginationRequestDto.SortOrder,
+		Username:   reqParams.Username,
+		Email:      reqParams.Email,
+		Phone:      reqParams.Phone,
+		IsActive:   reqParams.IsActive,
+		TenantUUID: reqParams.TenantUUID,
+		Page:       reqParams.PaginationRequestDto.Page,
+		Limit:      reqParams.PaginationRequestDto.Limit,
+		SortBy:     reqParams.PaginationRequestDto.SortBy,
+		SortOrder:  reqParams.PaginationRequestDto.SortOrder,
 	}
 
 	// Get users
@@ -143,7 +143,7 @@ func (h *UserHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Create user with creator context
-	user, err := h.userService.Create(req.Username, req.Email, req.Phone, req.Password, req.AuthContainerUUID, creatorUser.UserUUID)
+	user, err := h.userService.Create(req.Username, req.Email, req.Phone, req.Password, req.TenantUUID, creatorUser.UserUUID)
 	if err != nil {
 		util.Error(w, http.StatusInternalServerError, "Failed to create user", err.Error())
 		return
@@ -333,18 +333,18 @@ func toUserResponseDto(u service.UserServiceDataResult) dto.UserResponseDto {
 		UpdatedAt:          u.UpdatedAt,
 	}
 
-	// Map AuthContainer if present
-	if u.AuthContainer != nil {
-		result.AuthContainer = &dto.AuthContainerResponseDto{
-			AuthContainerUUID: u.AuthContainer.AuthContainerUUID,
-			Name:              u.AuthContainer.Name,
-			Description:       u.AuthContainer.Description,
-			Identifier:        u.AuthContainer.Identifier,
-			IsActive:          u.AuthContainer.IsActive,
-			IsPublic:          u.AuthContainer.IsPublic,
-			IsDefault:         u.AuthContainer.IsDefault,
-			CreatedAt:         u.AuthContainer.CreatedAt,
-			UpdatedAt:         u.AuthContainer.UpdatedAt,
+	// Map Tenant if present
+	if u.Tenant != nil {
+		result.Tenant = &dto.TenantResponseDto{
+			TenantUUID:  u.Tenant.TenantUUID,
+			Name:        u.Tenant.Name,
+			Description: u.Tenant.Description,
+			Identifier:  u.Tenant.Identifier,
+			IsActive:    u.Tenant.IsActive,
+			IsPublic:    u.Tenant.IsPublic,
+			IsDefault:   u.Tenant.IsDefault,
+			CreatedAt:   u.Tenant.CreatedAt,
+			UpdatedAt:   u.Tenant.UpdatedAt,
 		}
 	}
 

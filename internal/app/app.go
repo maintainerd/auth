@@ -13,11 +13,10 @@ type App struct {
 	DB          *gorm.DB
 	RedisClient *redis.Client
 	// Rest handler
-	OrganizationRestHandler     *resthandler.OrganizationHandler
 	ServiceRestHandler          *resthandler.ServiceHandler
 	APIRestHandler              *resthandler.APIHandler
 	PermissionRestHandler       *resthandler.PermissionHandler
-	AuthContainerRestHandler    *resthandler.AuthContainerHandler
+	TenantRestHandler           *resthandler.TenantHandler
 	IdentityProviderRestHandler *resthandler.IdentityProviderHandler
 	AuthClientRestHandler       *resthandler.AuthClientHandler
 	RoleRestHandler             *resthandler.RoleHandler
@@ -36,12 +35,11 @@ type App struct {
 
 func NewApp(db *gorm.DB, redisClient *redis.Client) *App {
 	// Repositories
-	organizationRepo := repository.NewOrganizationRepository(db)
-	organizationServiceRepo := repository.NewOrganizationServiceRepository(db)
 	serviceRepo := repository.NewServiceRepository(db)
+	tenantServiceRepo := repository.NewTenantServiceRepository(db)
 	apiRepo := repository.NewAPIRepository(db)
 	permissionRepo := repository.NewPermissionRepository(db)
-	authContainerRepo := repository.NewAuthContainerRepository(db)
+	tenantRepo := repository.NewTenantRepository(db)
 	idpRepo := repository.NewIdentityProviderRepository(db)
 	roleRepo := repository.NewRoleRepository(db)
 	rolePermissionRepo := repository.NewRolePermissionRepository(db)
@@ -58,28 +56,26 @@ func NewApp(db *gorm.DB, redisClient *redis.Client) *App {
 	emailTemplateRepo := repository.NewEmailTemplateRepository(db)
 
 	// Services
-	organizationService := service.NewOrganizationService(db, organizationRepo)
-	serviceService := service.NewServiceService(db, serviceRepo, organizationServiceRepo)
+	serviceService := service.NewServiceService(db, serviceRepo, tenantServiceRepo)
 	apiService := service.NewAPIService(db, apiRepo, serviceRepo)
 	permissionService := service.NewPermissionService(db, permissionRepo, apiRepo, roleRepo, authClientRepo)
-	authContainerService := service.NewAuthContainerService(db, authContainerRepo, organizationRepo)
-	idpService := service.NewIdentityProviderService(db, idpRepo, authContainerRepo, userRepo)
-	authClientService := service.NewAuthClientService(db, authClientRepo, authClientRedirectUriRepo, idpRepo, permissionRepo, authClientPermissionRepo, userRepo, authContainerRepo)
-	roleService := service.NewRoleService(db, roleRepo, permissionRepo, rolePermissionRepo, userRepo, authContainerRepo)
-	userService := service.NewUserService(db, userRepo, userIdentityRepo, userRoleRepo, roleRepo, authContainerRepo, idpRepo, authClientRepo)
+	tenantService := service.NewTenantService(db, tenantRepo)
+	idpService := service.NewIdentityProviderService(db, idpRepo, tenantRepo, userRepo)
+	authClientService := service.NewAuthClientService(db, authClientRepo, authClientRedirectUriRepo, idpRepo, permissionRepo, authClientPermissionRepo, userRepo, tenantRepo)
+	roleService := service.NewRoleService(db, roleRepo, permissionRepo, rolePermissionRepo, userRepo, tenantRepo)
+	userService := service.NewUserService(db, userRepo, userIdentityRepo, userRoleRepo, roleRepo, tenantRepo, idpRepo, authClientRepo)
 	registerService := service.NewRegistrationService(db, authClientRepo, userRepo, userRoleRepo, userTokenRepo, roleRepo, inviteRepo, idpRepo)
 	loginService := service.NewLoginService(db, authClientRepo, userRepo, userTokenRepo, idpRepo)
 	profileService := service.NewProfileService(db, profileRepo, userRepo)
 	userSettingService := service.NewUserSettingService(db, userSettingRepo, userRepo)
 	inviteService := service.NewInviteService(db, inviteRepo, authClientRepo, roleRepo, emailTemplateRepo)
-	setupService := service.NewSetupService(db, organizationRepo, userRepo, authContainerRepo, authClientRepo, idpRepo, roleRepo, userRoleRepo, userTokenRepo, userIdentityRepo)
+	setupService := service.NewSetupService(db, userRepo, tenantRepo, authClientRepo, idpRepo, roleRepo, userRoleRepo, userTokenRepo, userIdentityRepo)
 
 	// Rest handlers
-	organizationHandler := resthandler.NewOrganizationHandler(organizationService)
 	serviceRestHandler := resthandler.NewServiceHandler(serviceService)
 	apiRestHandler := resthandler.NewAPIHandler(apiService)
 	permissionRestHandler := resthandler.NewPermissionHandler(permissionService)
-	authContainerRestHandler := resthandler.NewAuthContainerHandler(authContainerService)
+	tenantRestHandler := resthandler.NewTenantHandler(tenantService)
 	idpRestHandler := resthandler.NewIdentityProviderHandler(idpService)
 	authClientRestHandler := resthandler.NewAuthClientHandler(authClientService)
 	roleRestHandler := resthandler.NewRoleHandler(roleService)
@@ -98,11 +94,10 @@ func NewApp(db *gorm.DB, redisClient *redis.Client) *App {
 		DB:          db,
 		RedisClient: redisClient,
 		// Rest handler
-		OrganizationRestHandler:     organizationHandler,
 		ServiceRestHandler:          serviceRestHandler,
 		APIRestHandler:              apiRestHandler,
 		PermissionRestHandler:       permissionRestHandler,
-		AuthContainerRestHandler:    authContainerRestHandler,
+		TenantRestHandler:           tenantRestHandler,
 		IdentityProviderRestHandler: idpRestHandler,
 		AuthClientRestHandler:       authClientRestHandler,
 		RoleRestHandler:             roleRestHandler,
