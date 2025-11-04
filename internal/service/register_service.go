@@ -329,9 +329,6 @@ func (s *registerService) generateTokenResponse(userUUID string, user *model.Use
 		"openid profile email",
 		*authClient.Domain,
 		*authClient.ClientID,
-		authClient.IdentityProvider.Tenant.TenantUUID,
-		*authClient.ClientID,
-		authClient.IdentityProvider.IdentityProviderUUID,
 	)
 	if err != nil {
 		return nil, err

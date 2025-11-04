@@ -78,12 +78,12 @@ func SeedPermissions(db *gorm.DB, apiID int64) error {
 
 		// STRICT PERMISSIONS
 		// These are permissions are assigned only to speicif users that have elevated access
-		// ORGANIZATION LEVEL ACCESS
-		// Organizations
-		newPermission("organization:read", "Read organizations", apiID),
-		newPermission("organization:create", "Create organization", apiID),
-		newPermission("organization:update", "Update organization", apiID),
-		newPermission("organization:delete", "Delete organization", apiID),
+		// TENANT LEVEL ACCESS
+		// Tenants
+		newPermission("tenant:read", "Read tenants", apiID),
+		newPermission("tenant:create", "Create tenant", apiID),
+		newPermission("tenant:update", "Update tenant", apiID),
+		newPermission("tenant:delete", "Delete tenant", apiID),
 
 		// SERVICE LEVEL ACCESS
 		// Services
@@ -117,12 +117,6 @@ func SeedPermissions(db *gorm.DB, apiID int64) error {
 		newPermission("service_log:delete", "Delete service log", apiID),
 
 		// USER LEVEL ACCESS
-		// Auth Containers
-		newPermission("auth_container:read", "Read auth containers", apiID),
-		newPermission("auth_container:create", "Create auth container", apiID),
-		newPermission("auth_container:update", "Update auth container", apiID),
-		newPermission("auth_container:delete", "Delete auth container", apiID),
-
 		// Roles
 		newPermission("role:read", "Read roles", apiID),
 		newPermission("role:create", "Create a new role", apiID),

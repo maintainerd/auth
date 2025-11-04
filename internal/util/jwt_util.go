@@ -106,9 +106,6 @@ func GenerateAccessToken(
 	scope string,
 	issuer string,
 	audience string,
-	authContainerId uuid.UUID,
-	authClientID string,
-	identityProviderId uuid.UUID,
 ) (string, error) {
 	// Input validation (SOC2 CC6.1 - Logical Access Controls)
 	if strings.TrimSpace(userId) == "" {
@@ -119,15 +116,6 @@ func GenerateAccessToken(
 	}
 	if strings.TrimSpace(audience) == "" {
 		return "", errors.New("audience cannot be empty")
-	}
-	if authContainerId == uuid.Nil {
-		return "", errors.New("authContainerId cannot be nil")
-	}
-	if strings.TrimSpace(authClientID) == "" {
-		return "", errors.New("authClientID cannot be empty")
-	}
-	if identityProviderId == uuid.Nil {
-		return "", errors.New("identityProviderId cannot be nil")
 	}
 
 	// Generate secure JTI (ISO27001 A.10.1.1)
@@ -150,11 +138,6 @@ func GenerateAccessToken(
 		// OAuth2 claims
 		"scope":      scope,
 		"token_type": "access_token",
-
-		// Custom maintainerd claims (namespaced to avoid conflicts)
-		"m9d_container_id": authContainerId.String(),
-		"m9d_client_id":    authClientID,
-		"m9d_provider_id":  identityProviderId.String(),
 	}
 
 	return generateToken(claims)
