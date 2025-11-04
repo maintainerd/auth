@@ -197,9 +197,6 @@ func (s *loginService) generateTokenResponse(userUUID string, user *model.User, 
 		"openid profile email",
 		*authClient.Domain,
 		*authClient.ClientID,
-		authClient.IdentityProvider.Tenant.TenantUUID,
-		*authClient.ClientID,
-		authClient.IdentityProvider.IdentityProviderUUID,
 	)
 	if err != nil {
 		return nil, err
