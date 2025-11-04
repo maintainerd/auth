@@ -48,7 +48,7 @@ type ServiceServiceGetResult struct {
 type ServiceService interface {
 	Get(filter ServiceServiceGetFilter) (*ServiceServiceGetResult, error)
 	GetByUUID(serviceUUID uuid.UUID) (*ServiceServiceDataResult, error)
-	Create(name string, displayName string, description string, version string, isDefault bool, isActive bool, isPublic bool, organizationID int64) (*ServiceServiceDataResult, error)
+	Create(name string, displayName string, description string, version string, isDefault bool, isActive bool, isPublic bool, tenantID int64) (*ServiceServiceDataResult, error)
 	Update(serviceUUID uuid.UUID, name string, displayName string, description string, version string, isDefault bool, isActive bool, isPublic bool) (*ServiceServiceDataResult, error)
 	SetActiveStatusByUUID(serviceUUID uuid.UUID) (*ServiceServiceDataResult, error)
 	SetPublicStatusByUUID(serviceUUID uuid.UUID) (*ServiceServiceDataResult, error)
@@ -56,20 +56,20 @@ type ServiceService interface {
 }
 
 type serviceService struct {
-	db                      *gorm.DB
-	serviceRepo             repository.ServiceRepository
-	organizationServiceRepo repository.OrganizationServiceRepository
+	db                *gorm.DB
+	serviceRepo       repository.ServiceRepository
+	tenantServiceRepo repository.TenantServiceRepository
 }
 
 func NewServiceService(
 	db *gorm.DB,
 	serviceRepo repository.ServiceRepository,
-	organizationServiceRepo repository.OrganizationServiceRepository,
+	tenantServiceRepo repository.TenantServiceRepository,
 ) ServiceService {
 	return &serviceService{
-		db:                      db,
-		serviceRepo:             serviceRepo,
-		organizationServiceRepo: organizationServiceRepo,
+		db:                db,
+		serviceRepo:       serviceRepo,
+		tenantServiceRepo: tenantServiceRepo,
 	}
 }
 
@@ -138,20 +138,19 @@ func (s *serviceService) GetByUUID(serviceUUID uuid.UUID) (*ServiceServiceDataRe
 	}, nil
 }
 
-func (s *serviceService) Create(name string, displayName string, description string, version string, isDefault bool, isActive bool, isPublic bool, organizationID int64) (*ServiceServiceDataResult, error) {
+func (s *serviceService) Create(name string, displayName string, description string, version string, isDefault bool, isActive bool, isPublic bool, tenantID int64) (*ServiceServiceDataResult, error) {
 	var createdService *model.Service
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
 		txServiceRepo := s.serviceRepo.WithTx(tx)
-		txOrganizationServiceRepo := s.organizationServiceRepo.WithTx(tx)
 
-		// Check if service already exists
-		existingService, err := txServiceRepo.FindByName(name)
+		// Check if service already exists for this tenant
+		existingService, err := txServiceRepo.FindByNameAndTenantID(name, tenantID)
 		if err != nil {
 			return err
 		}
 		if existingService != nil {
-			return errors.New(name + " service already exists")
+			return errors.New(name + " service already exists for this tenant")
 		}
 
 		// Create service
@@ -170,13 +169,14 @@ func (s *serviceService) Create(name string, displayName string, description str
 			return err
 		}
 
-		// Link service to organization
-		newOrgService := &model.OrganizationService{
-			OrganizationID: organizationID,
-			ServiceID:      newService.ServiceID,
+		// Create tenant-service relationship
+		txTenantServiceRepo := s.tenantServiceRepo.WithTx(tx)
+		tenantService := &model.TenantService{
+			TenantID:  tenantID,
+			ServiceID: newService.ServiceID,
 		}
 
-		_, err = txOrganizationServiceRepo.CreateOrUpdate(newOrgService)
+		_, err = txTenantServiceRepo.CreateOrUpdate(tenantService)
 		if err != nil {
 			return err
 		}

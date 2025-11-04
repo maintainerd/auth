@@ -13,6 +13,7 @@ type ServiceRepositoryGetFilter struct {
 	DisplayName *string
 	Description *string
 	Version     *string
+	TenantID    *int64
 	IsDefault   *bool
 	IsActive    *bool
 	IsPublic    *bool
@@ -26,7 +27,9 @@ type ServiceRepository interface {
 	BaseRepositoryMethods[model.Service]
 	WithTx(tx *gorm.DB) ServiceRepository
 	FindByName(serviceName string) (*model.Service, error)
+	FindByNameAndTenantID(serviceName string, tenantID int64) (*model.Service, error)
 	FindDefaultServices() ([]model.Service, error)
+	FindByTenantID(tenantID int64) ([]model.Service, error)
 	FindPaginated(filter ServiceRepositoryGetFilter) (*PaginationResult[model.Service], error)
 	SetActiveStatusByUUID(serviceUUID uuid.UUID, isActive bool) error
 	SetDefaultStatusByUUID(serviceUUID uuid.UUID, isDefault bool) error
@@ -63,6 +66,24 @@ func (r *serviceRepository) FindByName(serviceName string) (*model.Service, erro
 	return &service, nil
 }
 
+func (r *serviceRepository) FindByNameAndTenantID(serviceName string, tenantID int64) (*model.Service, error) {
+	var service model.Service
+	err := r.db.Where("name = ? AND tenant_id = ?", serviceName, tenantID).First(&service).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &service, nil
+}
+
+func (r *serviceRepository) FindByTenantID(tenantID int64) ([]model.Service, error) {
+	var services []model.Service
+	err := r.db.Where("tenant_id = ?", tenantID).Find(&services).Error
+	return services, err
+}
+
 func (r *serviceRepository) FindDefaultServices() ([]model.Service, error) {
 	var services []model.Service
 	err := r.db.Where("is_default = true").Find(&services).Error
@@ -87,6 +108,9 @@ func (r *serviceRepository) FindPaginated(filter ServiceRepositoryGetFilter) (*P
 	}
 
 	// Filters with exact match
+	if filter.TenantID != nil {
+		query = query.Where("tenant_id = ?", *filter.TenantID)
+	}
 	if filter.IsActive != nil {
 		query = query.Where("is_active = ?", *filter.IsActive)
 	}

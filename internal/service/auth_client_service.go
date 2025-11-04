@@ -88,7 +88,7 @@ type authClientService struct {
 	permissionRepo            repository.PermissionRepository
 	authClientPermissionRepo  repository.AuthClientPermissionRepository
 	userRepo                  repository.UserRepository
-	authContainerRepo         repository.AuthContainerRepository
+	tenantRepo                repository.TenantRepository
 }
 
 func NewAuthClientService(
@@ -99,7 +99,7 @@ func NewAuthClientService(
 	permissionRepo repository.PermissionRepository,
 	authClientPermissionRepo repository.AuthClientPermissionRepository,
 	userRepo repository.UserRepository,
-	authContainerRepo repository.AuthContainerRepository,
+	tenantRepo repository.TenantRepository,
 ) AuthClientService {
 	return &authClientService{
 		db:                        db,
@@ -109,7 +109,7 @@ func NewAuthClientService(
 		permissionRepo:            permissionRepo,
 		authClientPermissionRepo:  authClientPermissionRepo,
 		userRepo:                  userRepo,
-		authContainerRepo:         authContainerRepo,
+		tenantRepo:                tenantRepo,
 	}
 }
 
@@ -206,19 +206,19 @@ func (s *authClientService) Create(name string, displayName string, clientType s
 		}
 
 		// Check if identity provider exists
-		identityProvider, err := txIdpRepo.FindByUUID(idpUUIDParsed, "AuthContainer")
+		identityProvider, err := txIdpRepo.FindByUUID(idpUUIDParsed, "Tenant")
 		if err != nil || identityProvider == nil {
 			return errors.New("identity provider not found")
 		}
 
-		// Get actor user with auth container and organization info
-		actorUser, err := txUserRepo.FindByUUID(actorUserUUID, "AuthContainer.Organization")
+		// Get actor user with tenant info
+		actorUser, err := txUserRepo.FindByUUID(actorUserUUID, "Tenant")
 		if err != nil || actorUser == nil {
 			return errors.New("actor user not found")
 		}
 
-		// Validate auth container access permissions
-		if err := ValidateAuthContainerAccess(actorUser, identityProvider.AuthContainer); err != nil {
+		// Validate tenant access permissions
+		if err := ValidateTenantAccess(actorUser, identityProvider.Tenant); err != nil {
 			return err
 		}
 
@@ -278,19 +278,19 @@ func (s *authClientService) Update(authClientUUID uuid.UUID, name string, displa
 		txUserRepo := s.userRepo.WithTx(tx)
 
 		// Get auth client
-		authClient, err := txAuthClientRepo.FindByUUID(authClientUUID, "IdentityProvider.AuthContainer", "AuthClientRedirectURIs")
+		authClient, err := txAuthClientRepo.FindByUUID(authClientUUID, "IdentityProvider.Tenant", "AuthClientRedirectURIs")
 		if err != nil || authClient == nil {
 			return errors.New("auth client not found")
 		}
 
-		// Get actor user with auth container and organization info
-		actorUser, err := txUserRepo.FindByUUID(actorUserUUID, "AuthContainer.Organization")
+		// Get actor user with tenant info
+		actorUser, err := txUserRepo.FindByUUID(actorUserUUID, "Tenant")
 		if err != nil || actorUser == nil {
 			return errors.New("actor user not found")
 		}
 
-		// Validate auth container access permissions
-		if err := ValidateAuthContainerAccess(actorUser, authClient.IdentityProvider.AuthContainer); err != nil {
+		// Validate tenant access permissions
+		if err := ValidateTenantAccess(actorUser, authClient.IdentityProvider.Tenant); err != nil {
 			return err
 		}
 
@@ -345,19 +345,19 @@ func (s *authClientService) SetActiveStatusByUUID(authClientUUID uuid.UUID, acto
 		txUserRepo := s.userRepo.WithTx(tx)
 
 		// Get auth client
-		authClient, err := txAuthClientRepo.FindByUUID(authClientUUID, "IdentityProvider.AuthContainer", "AuthClientRedirectURIs")
+		authClient, err := txAuthClientRepo.FindByUUID(authClientUUID, "IdentityProvider.Tenant", "AuthClientRedirectURIs")
 		if err != nil || authClient == nil {
 			return errors.New("auth client not found")
 		}
 
-		// Get actor user with auth container and organization info
-		actorUser, err := txUserRepo.FindByUUID(actorUserUUID, "AuthContainer.Organization")
+		// Get actor user with tenant info
+		actorUser, err := txUserRepo.FindByUUID(actorUserUUID, "Tenant")
 		if err != nil || actorUser == nil {
 			return errors.New("actor user not found")
 		}
 
-		// Validate auth container access permissions
-		if err := ValidateAuthContainerAccess(actorUser, authClient.IdentityProvider.AuthContainer); err != nil {
+		// Validate tenant access permissions
+		if err := ValidateTenantAccess(actorUser, authClient.IdentityProvider.Tenant); err != nil {
 			return err
 		}
 
@@ -395,19 +395,19 @@ func (s *authClientService) DeleteByUUID(authClientUUID uuid.UUID, actorUserUUID
 		txUserRepo := s.userRepo.WithTx(tx)
 
 		// Get auth client
-		authClient, err := txAuthClientRepo.FindByUUID(authClientUUID, "IdentityProvider.AuthContainer", "AuthClientRedirectURIs")
+		authClient, err := txAuthClientRepo.FindByUUID(authClientUUID, "IdentityProvider.Tenant", "AuthClientRedirectURIs")
 		if err != nil || authClient == nil {
 			return errors.New("auth client not found")
 		}
 
-		// Get actor user with auth container and organization info
-		actorUser, err := txUserRepo.FindByUUID(actorUserUUID, "AuthContainer.Organization")
+		// Get actor user with tenant info
+		actorUser, err := txUserRepo.FindByUUID(actorUserUUID, "Tenant")
 		if err != nil || actorUser == nil {
 			return errors.New("actor user not found")
 		}
 
-		// Validate auth container access permissions
-		if err := ValidateAuthContainerAccess(actorUser, authClient.IdentityProvider.AuthContainer); err != nil {
+		// Validate tenant access permissions
+		if err := ValidateTenantAccess(actorUser, authClient.IdentityProvider.Tenant); err != nil {
 			return err
 		}
 
@@ -442,19 +442,19 @@ func (s *authClientService) CreateRedirectURI(authClientUUID uuid.UUID, redirect
 		txUserRepo := s.userRepo.WithTx(tx)
 
 		// Find the auth client by UUID
-		authClient, err := txAuthClientRepo.FindByUUID(authClientUUID, "IdentityProvider.AuthContainer")
+		authClient, err := txAuthClientRepo.FindByUUID(authClientUUID, "IdentityProvider.Tenant")
 		if err != nil || authClient == nil {
 			return errors.New("auth client not found")
 		}
 
-		// Get actor user with auth container and organization info
-		actorUser, err := txUserRepo.FindByUUID(actorUserUUID, "AuthContainer.Organization")
+		// Get actor user with tenant info
+		actorUser, err := txUserRepo.FindByUUID(actorUserUUID, "Tenant")
 		if err != nil || actorUser == nil {
 			return errors.New("actor user not found")
 		}
 
-		// Validate auth container access permissions
-		if err := ValidateAuthContainerAccess(actorUser, authClient.IdentityProvider.AuthContainer); err != nil {
+		// Validate tenant access permissions
+		if err := ValidateTenantAccess(actorUser, authClient.IdentityProvider.Tenant); err != nil {
 			return err
 		}
 
@@ -496,19 +496,19 @@ func (s *authClientService) UpdateRedirectURI(authClientUUID uuid.UUID, authClie
 		txUserRepo := s.userRepo.WithTx(tx)
 
 		// Find the auth client by UUID
-		authClient, err := txAuthClientRepo.FindByUUID(authClientUUID, "IdentityProvider.AuthContainer")
+		authClient, err := txAuthClientRepo.FindByUUID(authClientUUID, "IdentityProvider.Tenant")
 		if err != nil || authClient == nil {
 			return errors.New("auth client not found")
 		}
 
-		// Get actor user with auth container and organization info
-		actorUser, err := txUserRepo.FindByUUID(actorUserUUID, "AuthContainer.Organization")
+		// Get actor user with tenant info
+		actorUser, err := txUserRepo.FindByUUID(actorUserUUID, "Tenant")
 		if err != nil || actorUser == nil {
 			return errors.New("actor user not found")
 		}
 
-		// Validate auth container access permissions
-		if err := ValidateAuthContainerAccess(actorUser, authClient.IdentityProvider.AuthContainer); err != nil {
+		// Validate tenant access permissions
+		if err := ValidateTenantAccess(actorUser, authClient.IdentityProvider.Tenant); err != nil {
 			return err
 		}
 
@@ -559,19 +559,19 @@ func (s *authClientService) DeleteRedirectURI(authClientUUID uuid.UUID, authClie
 		txUserRepo := s.userRepo.WithTx(tx)
 
 		// Find the auth client by UUID
-		authClient, err := txAuthClientRepo.FindByUUID(authClientUUID, "IdentityProvider.AuthContainer", "AuthClientRedirectURIs")
+		authClient, err := txAuthClientRepo.FindByUUID(authClientUUID, "IdentityProvider.Tenant", "AuthClientRedirectURIs")
 		if err != nil || authClient == nil {
 			return errors.New("auth client not found")
 		}
 
-		// Get actor user with auth container and organization info
-		actorUser, err := txUserRepo.FindByUUID(actorUserUUID, "AuthContainer.Organization")
+		// Get actor user with tenant info
+		actorUser, err := txUserRepo.FindByUUID(actorUserUUID, "Tenant")
 		if err != nil || actorUser == nil {
 			return errors.New("actor user not found")
 		}
 
-		// Validate auth container access permissions
-		if err := ValidateAuthContainerAccess(actorUser, authClient.IdentityProvider.AuthContainer); err != nil {
+		// Validate tenant access permissions
+		if err := ValidateTenantAccess(actorUser, authClient.IdentityProvider.Tenant); err != nil {
 			return err
 		}
 
@@ -613,7 +613,7 @@ func (s *authClientService) AddAuthClientPermissions(authClientUUID uuid.UUID, p
 		txUserRepo := s.userRepo.WithTx(tx)
 
 		// Find existing auth client
-		authClient, err := txAuthClientRepo.FindByUUID(authClientUUID, "IdentityProvider.AuthContainer")
+		authClient, err := txAuthClientRepo.FindByUUID(authClientUUID, "IdentityProvider.Tenant")
 		if err != nil {
 			return err
 		}
@@ -621,14 +621,14 @@ func (s *authClientService) AddAuthClientPermissions(authClientUUID uuid.UUID, p
 			return errors.New("auth client not found")
 		}
 
-		// Get actor user with auth container and organization info
-		actorUser, err := txUserRepo.FindByUUID(actorUserUUID, "AuthContainer.Organization")
+		// Get actor user with tenant info
+		actorUser, err := txUserRepo.FindByUUID(actorUserUUID, "Tenant")
 		if err != nil || actorUser == nil {
 			return errors.New("actor user not found")
 		}
 
-		// Validate auth container access permissions
-		if err := ValidateAuthContainerAccess(actorUser, authClient.IdentityProvider.AuthContainer); err != nil {
+		// Validate tenant access permissions
+		if err := ValidateTenantAccess(actorUser, authClient.IdentityProvider.Tenant); err != nil {
 			return err
 		}
 
@@ -700,7 +700,7 @@ func (s *authClientService) RemoveAuthClientPermissions(authClientUUID uuid.UUID
 		txUserRepo := s.userRepo.WithTx(tx)
 
 		// Find existing auth client
-		authClient, err := txAuthClientRepo.FindByUUID(authClientUUID, "IdentityProvider.AuthContainer")
+		authClient, err := txAuthClientRepo.FindByUUID(authClientUUID, "IdentityProvider.Tenant")
 		if err != nil {
 			return err
 		}
@@ -708,14 +708,14 @@ func (s *authClientService) RemoveAuthClientPermissions(authClientUUID uuid.UUID
 			return errors.New("auth client not found")
 		}
 
-		// Get actor user with auth container and organization info
-		actorUser, err := txUserRepo.FindByUUID(actorUserUUID, "AuthContainer.Organization")
+		// Get actor user with tenant info
+		actorUser, err := txUserRepo.FindByUUID(actorUserUUID, "Tenant")
 		if err != nil || actorUser == nil {
 			return errors.New("actor user not found")
 		}
 
-		// Validate auth container access permissions
-		if err := ValidateAuthContainerAccess(actorUser, authClient.IdentityProvider.AuthContainer); err != nil {
+		// Validate tenant access permissions
+		if err := ValidateTenantAccess(actorUser, authClient.IdentityProvider.Tenant); err != nil {
 			return err
 		}
 

@@ -22,7 +22,7 @@ type UserServiceDataResult struct {
 	IsProfileCompleted bool
 	IsAccountCompleted bool
 	IsActive           bool
-	AuthContainer      *AuthContainerServiceDataResult
+	Tenant             *TenantServiceDataResult
 	UserIdentities     *[]UserIdentityServiceDataResult
 	Roles              *[]RoleServiceDataResult
 	CreatedAt          time.Time
@@ -40,15 +40,15 @@ type UserIdentityServiceDataResult struct {
 }
 
 type UserServiceGetFilter struct {
-	Username          *string
-	Email             *string
-	Phone             *string
-	IsActive          *bool
-	AuthContainerUUID *string
-	Page              int
-	Limit             int
-	SortBy            string
-	SortOrder         string
+	Username   *string
+	Email      *string
+	Phone      *string
+	IsActive   *bool
+	TenantUUID *string
+	Page       int
+	Limit      int
+	SortBy     string
+	SortOrder  string
 }
 
 type UserServiceGetResult struct {
@@ -62,7 +62,7 @@ type UserServiceGetResult struct {
 type UserService interface {
 	Get(filter UserServiceGetFilter) (*UserServiceGetResult, error)
 	GetByUUID(userUUID uuid.UUID) (*UserServiceDataResult, error)
-	Create(username string, email *string, phone *string, password string, authContainerUUID string, creatorUserUUID uuid.UUID) (*UserServiceDataResult, error)
+	Create(username string, email *string, phone *string, password string, tenantUUID string, creatorUserUUID uuid.UUID) (*UserServiceDataResult, error)
 	Update(userUUID uuid.UUID, username string, email *string, phone *string, updaterUserUUID uuid.UUID) (*UserServiceDataResult, error)
 	SetActiveStatus(userUUID uuid.UUID, isActive bool, updaterUserUUID uuid.UUID) (*UserServiceDataResult, error)
 	DeleteByUUID(userUUID uuid.UUID, deleterUserUUID uuid.UUID) (*UserServiceDataResult, error)
@@ -76,7 +76,7 @@ type userService struct {
 	userIdentityRepo     repository.UserIdentityRepository
 	userRoleRepo         repository.UserRoleRepository
 	roleRepo             repository.RoleRepository
-	authContainerRepo    repository.AuthContainerRepository
+	tenantRepo           repository.TenantRepository
 	identityProviderRepo repository.IdentityProviderRepository
 	authClientRepo       repository.AuthClientRepository
 }
@@ -87,7 +87,7 @@ func NewUserService(
 	userIdentityRepo repository.UserIdentityRepository,
 	userRoleRepo repository.UserRoleRepository,
 	roleRepo repository.RoleRepository,
-	authContainerRepo repository.AuthContainerRepository,
+	tenantRepo repository.TenantRepository,
 	identityProviderRepo repository.IdentityProviderRepository,
 	authClientRepo repository.AuthClientRepository,
 ) UserService {
@@ -97,39 +97,39 @@ func NewUserService(
 		userIdentityRepo:     userIdentityRepo,
 		userRoleRepo:         userRoleRepo,
 		roleRepo:             roleRepo,
-		authContainerRepo:    authContainerRepo,
+		tenantRepo:           tenantRepo,
 		identityProviderRepo: identityProviderRepo,
 		authClientRepo:       authClientRepo,
 	}
 }
 
 func (s *userService) Get(filter UserServiceGetFilter) (*UserServiceGetResult, error) {
-	// Convert auth container UUID to ID if provided
-	var authContainerID *int64
-	if filter.AuthContainerUUID != nil {
-		authContainerUUIDParsed, err := uuid.Parse(*filter.AuthContainerUUID)
+	// Convert tenant UUID to ID if provided
+	var tenantID *int64
+	if filter.TenantUUID != nil {
+		tenantUUIDParsed, err := uuid.Parse(*filter.TenantUUID)
 		if err != nil {
-			return nil, errors.New("invalid auth container UUID")
+			return nil, errors.New("invalid tenant UUID")
 		}
 
-		authContainer, err := s.authContainerRepo.FindByUUID(authContainerUUIDParsed)
-		if err != nil || authContainer == nil {
-			return nil, errors.New("auth container not found")
+		tenant, err := s.tenantRepo.FindByUUID(tenantUUIDParsed)
+		if err != nil || tenant == nil {
+			return nil, errors.New("tenant not found")
 		}
-		authContainerID = &authContainer.AuthContainerID
+		tenantID = &tenant.TenantID
 	}
 
 	// Build query filter
 	queryFilter := repository.UserRepositoryGetFilter{
-		Username:        filter.Username,
-		Email:           filter.Email,
-		Phone:           filter.Phone,
-		IsActive:        filter.IsActive,
-		AuthContainerID: authContainerID,
-		Page:            filter.Page,
-		Limit:           filter.Limit,
-		SortBy:          filter.SortBy,
-		SortOrder:       filter.SortOrder,
+		Username:  filter.Username,
+		Email:     filter.Email,
+		Phone:     filter.Phone,
+		IsActive:  filter.IsActive,
+		TenantID:  tenantID,
+		Page:      filter.Page,
+		Limit:     filter.Limit,
+		SortBy:    filter.SortBy,
+		SortOrder: filter.SortOrder,
 	}
 
 	result, err := s.userRepo.FindPaginated(queryFilter)
@@ -153,7 +153,7 @@ func (s *userService) Get(filter UserServiceGetFilter) (*UserServiceGetResult, e
 }
 
 func (s *userService) GetByUUID(userUUID uuid.UUID) (*UserServiceDataResult, error) {
-	user, err := s.userRepo.FindByUUID(userUUID, "AuthContainer", "UserIdentities.AuthClient", "Roles")
+	user, err := s.userRepo.FindByUUID(userUUID, "Tenant", "UserIdentities.AuthClient", "Roles")
 	if err != nil || user == nil {
 		return nil, errors.New("user not found")
 	}
@@ -161,40 +161,40 @@ func (s *userService) GetByUUID(userUUID uuid.UUID) (*UserServiceDataResult, err
 	return toUserServiceDataResult(user), nil
 }
 
-func (s *userService) Create(username string, email *string, phone *string, password string, authContainerUUID string, creatorUserUUID uuid.UUID) (*UserServiceDataResult, error) {
+func (s *userService) Create(username string, email *string, phone *string, password string, tenantUUID string, creatorUserUUID uuid.UUID) (*UserServiceDataResult, error) {
 	var createdUser *model.User
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
 		txUserRepo := s.userRepo.WithTx(tx)
 		txUserIdentityRepo := s.userIdentityRepo.WithTx(tx)
-		txAuthContainerRepo := s.authContainerRepo.WithTx(tx)
+		txTenantRepo := s.tenantRepo.WithTx(tx)
 		txAuthClientRepo := s.authClientRepo.WithTx(tx)
 
-		// Parse auth container UUID
-		authContainerUUIDParsed, err := uuid.Parse(authContainerUUID)
+		// Parse tenant UUID
+		tenantUUIDParsed, err := uuid.Parse(tenantUUID)
 		if err != nil {
-			return errors.New("invalid auth container UUID")
+			return errors.New("invalid tenant UUID")
 		}
 
-		// Validate auth container exists
-		targetAuthContainer, err := txAuthContainerRepo.FindByUUID(authContainerUUIDParsed, "Organization")
-		if err != nil || targetAuthContainer == nil {
-			return errors.New("auth container not found")
+		// Validate tenant exists
+		targetTenant, err := txTenantRepo.FindByUUID(tenantUUIDParsed)
+		if err != nil || targetTenant == nil {
+			return errors.New("tenant not found")
 		}
 
-		// Get creator user with auth container and organization info
-		creatorUser, err := txUserRepo.FindByUUID(creatorUserUUID, "AuthContainer.Organization")
+		// Get creator user with tenant info
+		creatorUser, err := txUserRepo.FindByUUID(creatorUserUUID, "Tenant")
 		if err != nil || creatorUser == nil {
 			return errors.New("creator user not found")
 		}
 
-		// Validate auth container access permissions
-		if err := ValidateAuthContainerAccess(creatorUser, targetAuthContainer); err != nil {
+		// Validate tenant access permissions
+		if err := ValidateTenantAccess(creatorUser, targetTenant); err != nil {
 			return err
 		}
 
 		// Check if user already exists by username
-		existingUser, err := txUserRepo.FindByUsername(username, targetAuthContainer.AuthContainerID)
+		existingUser, err := txUserRepo.FindByUsername(username, targetTenant.TenantID)
 		if err != nil {
 			return err
 		}
@@ -204,7 +204,7 @@ func (s *userService) Create(username string, email *string, phone *string, pass
 
 		// Check if user already exists by email (only if email is provided)
 		if email != nil && *email != "" {
-			existingUser, err = txUserRepo.FindByEmail(*email, targetAuthContainer.AuthContainerID)
+			existingUser, err = txUserRepo.FindByEmail(*email, targetTenant.TenantID)
 			if err != nil {
 				return err
 			}
@@ -233,12 +233,12 @@ func (s *userService) Create(username string, email *string, phone *string, pass
 		}
 
 		newUser := &model.User{
-			Username:        username,
-			Email:           emailStr,
-			Phone:           phoneStr,
-			Password:        &hashedPasswordStr,
-			IsActive:        true,
-			AuthContainerID: targetAuthContainer.AuthContainerID,
+			Username: username,
+			Email:    emailStr,
+			Phone:    phoneStr,
+			Password: &hashedPasswordStr,
+			IsActive: true,
+			TenantID: targetTenant.TenantID,
 		}
 
 		_, err = txUserRepo.Create(newUser)
@@ -246,10 +246,10 @@ func (s *userService) Create(username string, email *string, phone *string, pass
 			return err
 		}
 
-		// Find default auth client for this auth container
-		defaultAuthClient, err := txAuthClientRepo.FindDefaultByAuthContainerID(targetAuthContainer.AuthContainerID)
+		// Find default auth client for this tenant
+		defaultAuthClient, err := txAuthClientRepo.FindDefaultByTenantID(targetTenant.TenantID)
 		if err != nil || defaultAuthClient == nil {
-			return errors.New("default auth client not found for auth container")
+			return errors.New("default auth client not found for tenant")
 		}
 
 		// Create default user identity
@@ -267,7 +267,7 @@ func (s *userService) Create(username string, email *string, phone *string, pass
 		}
 
 		// Fetch created user with relationships
-		createdUser, err = txUserRepo.FindByUUID(newUser.UserUUID, "AuthContainer", "UserIdentities.AuthClient", "Roles")
+		createdUser, err = txUserRepo.FindByUUID(newUser.UserUUID, "Tenant", "UserIdentities.AuthClient", "Roles")
 		if err != nil {
 			return err
 		}
@@ -289,25 +289,25 @@ func (s *userService) Update(userUUID uuid.UUID, username string, email *string,
 		txUserRepo := s.userRepo.WithTx(tx)
 
 		// Check if target user exists
-		user, err := txUserRepo.FindByUUID(userUUID, "AuthContainer.Organization")
+		user, err := txUserRepo.FindByUUID(userUUID, "Tenant")
 		if err != nil || user == nil {
 			return errors.New("user not found")
 		}
 
-		// Get updater user with auth container and organization info
-		updaterUser, err := txUserRepo.FindByUUID(updaterUserUUID, "AuthContainer.Organization")
+		// Get updater user with tenant info
+		updaterUser, err := txUserRepo.FindByUUID(updaterUserUUID, "Tenant")
 		if err != nil || updaterUser == nil {
 			return errors.New("updater user not found")
 		}
 
-		// Validate auth container access permissions
-		if err := ValidateAuthContainerAccess(updaterUser, user.AuthContainer); err != nil {
+		// Validate tenant access permissions
+		if err := ValidateTenantAccess(updaterUser, user.Tenant); err != nil {
 			return err
 		}
 
 		// Check if username is taken by another user
 		if username != user.Username {
-			existingUser, err := txUserRepo.FindByUsername(username, user.AuthContainerID)
+			existingUser, err := txUserRepo.FindByUsername(username, user.TenantID)
 			if err != nil {
 				return err
 			}
@@ -328,7 +328,7 @@ func (s *userService) Update(userUUID uuid.UUID, username string, email *string,
 
 		// Check if email is taken by another user (only if email is provided and different)
 		if email != nil && *email != "" && *email != user.Email {
-			existingUser, err := txUserRepo.FindByEmail(*email, user.AuthContainerID)
+			existingUser, err := txUserRepo.FindByEmail(*email, user.TenantID)
 			if err != nil {
 				return err
 			}
@@ -352,7 +352,7 @@ func (s *userService) Update(userUUID uuid.UUID, username string, email *string,
 		}
 
 		// Fetch updated user with relationships
-		updatedUser, err = txUserRepo.FindByUUID(userUUID, "AuthContainer", "UserIdentities.AuthClient", "Roles")
+		updatedUser, err = txUserRepo.FindByUUID(userUUID, "Tenant", "UserIdentities.AuthClient", "Roles")
 		if err != nil {
 			return err
 		}
@@ -369,19 +369,19 @@ func (s *userService) Update(userUUID uuid.UUID, username string, email *string,
 
 func (s *userService) SetActiveStatus(userUUID uuid.UUID, isActive bool, updaterUserUUID uuid.UUID) (*UserServiceDataResult, error) {
 	// Check if target user exists
-	user, err := s.userRepo.FindByUUID(userUUID, "AuthContainer.Organization")
+	user, err := s.userRepo.FindByUUID(userUUID, "Tenant")
 	if err != nil || user == nil {
 		return nil, errors.New("user not found")
 	}
 
-	// Get updater user with auth container and organization info
-	updaterUser, err := s.userRepo.FindByUUID(updaterUserUUID, "AuthContainer.Organization")
+	// Get updater user with tenant info
+	updaterUser, err := s.userRepo.FindByUUID(updaterUserUUID, "Tenant")
 	if err != nil || updaterUser == nil {
 		return nil, errors.New("updater user not found")
 	}
 
-	// Validate auth container access permissions
-	if err := ValidateAuthContainerAccess(updaterUser, user.AuthContainer); err != nil {
+	// Validate tenant access permissions
+	if err := ValidateTenantAccess(updaterUser, user.Tenant); err != nil {
 		return nil, err
 	}
 
@@ -392,7 +392,7 @@ func (s *userService) SetActiveStatus(userUUID uuid.UUID, isActive bool, updater
 	}
 
 	// Fetch updated user with relationships
-	updatedUser, err := s.userRepo.FindByUUID(userUUID, "AuthContainer", "UserIdentities.AuthClient", "Roles")
+	updatedUser, err := s.userRepo.FindByUUID(userUUID, "Tenant", "UserIdentities.AuthClient", "Roles")
 	if err != nil {
 		return nil, err
 	}
@@ -402,19 +402,19 @@ func (s *userService) SetActiveStatus(userUUID uuid.UUID, isActive bool, updater
 
 func (s *userService) DeleteByUUID(userUUID uuid.UUID, deleterUserUUID uuid.UUID) (*UserServiceDataResult, error) {
 	// Check if target user exists
-	user, err := s.userRepo.FindByUUID(userUUID, "AuthContainer.Organization", "UserIdentities.AuthClient", "Roles")
+	user, err := s.userRepo.FindByUUID(userUUID, "Tenant", "UserIdentities.AuthClient", "Roles")
 	if err != nil || user == nil {
 		return nil, errors.New("user not found")
 	}
 
-	// Get deleter user with auth container and organization info
-	deleterUser, err := s.userRepo.FindByUUID(deleterUserUUID, "AuthContainer.Organization")
+	// Get deleter user with tenant info
+	deleterUser, err := s.userRepo.FindByUUID(deleterUserUUID, "Tenant")
 	if err != nil || deleterUser == nil {
 		return nil, errors.New("deleter user not found")
 	}
 
-	// Validate auth container access permissions
-	if err := ValidateAuthContainerAccess(deleterUser, user.AuthContainer); err != nil {
+	// Validate tenant access permissions
+	if err := ValidateTenantAccess(deleterUser, user.Tenant); err != nil {
 		return nil, err
 	}
 
@@ -474,7 +474,7 @@ func (s *userService) AssignUserRoles(userUUID uuid.UUID, roleUUIDs []uuid.UUID)
 		}
 
 		// Fetch user with roles for response
-		userWithRoles, err = txUserRepo.FindByUUID(userUUID, "AuthContainer", "UserIdentities.AuthClient", "Roles")
+		userWithRoles, err = txUserRepo.FindByUUID(userUUID, "Tenant", "UserIdentities.AuthClient", "Roles")
 		if err != nil {
 			return err
 		}
@@ -519,7 +519,7 @@ func (s *userService) RemoveUserRole(userUUID uuid.UUID, roleUUID uuid.UUID) (*U
 		}
 
 		// Fetch user with roles for response
-		userWithRoles, err = txUserRepo.FindByUUID(userUUID, "AuthContainer", "UserIdentities.AuthClient", "Roles")
+		userWithRoles, err = txUserRepo.FindByUUID(userUUID, "Tenant", "UserIdentities.AuthClient", "Roles")
 		if err != nil {
 			return err
 		}
@@ -554,9 +554,9 @@ func toUserServiceDataResult(user *model.User) *UserServiceDataResult {
 		UpdatedAt:          user.UpdatedAt,
 	}
 
-	// Map AuthContainer if present
-	if user.AuthContainer != nil {
-		result.AuthContainer = toAuthContainerServiceDataResult(user.AuthContainer)
+	// Map Tenant if present
+	if user.Tenant != nil {
+		result.Tenant = toTenantServiceDataResult(user.Tenant)
 	}
 
 	// Map UserIdentities if present

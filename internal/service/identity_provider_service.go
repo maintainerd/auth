@@ -20,7 +20,7 @@ type IdentityProviderServiceDataResult struct {
 	ProviderType         string
 	Identifier           string
 	Config               *datatypes.JSON
-	AuthContainer        *AuthContainerServiceDataResult
+	Tenant               *TenantServiceDataResult
 	IsActive             bool
 	IsDefault            bool
 	CreatedAt            time.Time
@@ -28,17 +28,17 @@ type IdentityProviderServiceDataResult struct {
 }
 
 type IdentityProviderServiceGetFilter struct {
-	Name              *string
-	DisplayName       *string
-	ProviderType      *string
-	Identifier        *string
-	AuthContainerUUID *string
-	IsActive          *bool
-	IsDefault         *bool
-	Page              int
-	Limit             int
-	SortBy            string
-	SortOrder         string
+	Name         *string
+	DisplayName  *string
+	ProviderType *string
+	Identifier   *string
+	TenantUUID   *string
+	IsActive     *bool
+	IsDefault    *bool
+	Page         int
+	Limit        int
+	SortBy       string
+	SortOrder    string
 }
 
 type IdentityProviderServiceGetResult struct {
@@ -52,58 +52,62 @@ type IdentityProviderServiceGetResult struct {
 type IdentityProviderService interface {
 	Get(filter IdentityProviderServiceGetFilter) (*IdentityProviderServiceGetResult, error)
 	GetByUUID(idpUUID uuid.UUID) (*IdentityProviderServiceDataResult, error)
-	Create(name string, displayName string, providerType string, config datatypes.JSON, isActive bool, isDefault bool, authContainerUUID string, actorUserUUID uuid.UUID) (*IdentityProviderServiceDataResult, error)
+	Create(name string, displayName string, providerType string, config datatypes.JSON, isActive bool, isDefault bool, tenantUUID string, actorUserUUID uuid.UUID) (*IdentityProviderServiceDataResult, error)
 	Update(idpUUID uuid.UUID, name string, displayName string, providerType string, config datatypes.JSON, isActive bool, isDefault bool, actorUserUUID uuid.UUID) (*IdentityProviderServiceDataResult, error)
 	SetActiveStatusByUUID(idpUUID uuid.UUID, actorUserUUID uuid.UUID) (*IdentityProviderServiceDataResult, error)
 	DeleteByUUID(idpUUID uuid.UUID, actorUserUUID uuid.UUID) (*IdentityProviderServiceDataResult, error)
 }
 
 type identityProviderService struct {
-	db                *gorm.DB
-	idpRepo           repository.IdentityProviderRepository
-	authContainerRepo repository.AuthContainerRepository
-	userRepo          repository.UserRepository
+	db         *gorm.DB
+	idpRepo    repository.IdentityProviderRepository
+	tenantRepo repository.TenantRepository
+	userRepo   repository.UserRepository
 }
 
 func NewIdentityProviderService(
 	db *gorm.DB,
 	idpRepo repository.IdentityProviderRepository,
-	authContainerRepo repository.AuthContainerRepository,
+	tenantRepo repository.TenantRepository,
 	userRepo repository.UserRepository,
 ) IdentityProviderService {
 	return &identityProviderService{
-		db:                db,
-		idpRepo:           idpRepo,
-		authContainerRepo: authContainerRepo,
-		userRepo:          userRepo,
+		db:         db,
+		idpRepo:    idpRepo,
+		tenantRepo: tenantRepo,
+		userRepo:   userRepo,
 	}
 }
 
 func (s *identityProviderService) Get(filter IdentityProviderServiceGetFilter) (*IdentityProviderServiceGetResult, error) {
-	var authContainerID *int64
+	var tenantID *int64
 
-	// Get auth container if uuid exist
-	if filter.AuthContainerUUID != nil {
-		authContainer, err := s.authContainerRepo.FindByUUID(*filter.AuthContainerUUID)
-		if err != nil || authContainer == nil {
-			return nil, errors.New("auth container not found")
+	// Get tenant if uuid exist
+	if filter.TenantUUID != nil {
+		tenantUUIDParsed, err := uuid.Parse(*filter.TenantUUID)
+		if err != nil {
+			return nil, errors.New("invalid tenant UUID")
 		}
-		authContainerID = &authContainer.AuthContainerID
+		tenant, err := s.tenantRepo.FindByUUID(tenantUUIDParsed)
+		if err != nil || tenant == nil {
+			return nil, errors.New("tenant not found")
+		}
+		tenantID = &tenant.TenantID
 	}
 
 	// Build query filter
 	queryFilter := repository.IdentityProviderRepositoryGetFilter{
-		Name:            filter.Name,
-		DisplayName:     filter.DisplayName,
-		ProviderType:    filter.ProviderType,
-		Identifier:      filter.Identifier,
-		AuthContainerID: authContainerID,
-		IsActive:        filter.IsActive,
-		IsDefault:       filter.IsDefault,
-		Page:            filter.Page,
-		Limit:           filter.Limit,
-		SortBy:          filter.SortBy,
-		SortOrder:       filter.SortOrder,
+		Name:         filter.Name,
+		DisplayName:  filter.DisplayName,
+		ProviderType: filter.ProviderType,
+		Identifier:   filter.Identifier,
+		TenantID:     tenantID,
+		IsActive:     filter.IsActive,
+		IsDefault:    filter.IsDefault,
+		Page:         filter.Page,
+		Limit:        filter.Limit,
+		SortBy:       filter.SortBy,
+		SortOrder:    filter.SortOrder,
 	}
 
 	result, err := s.idpRepo.FindPaginated(queryFilter)
@@ -126,7 +130,7 @@ func (s *identityProviderService) Get(filter IdentityProviderServiceGetFilter) (
 }
 
 func (s *identityProviderService) GetByUUID(idpUUID uuid.UUID) (*IdentityProviderServiceDataResult, error) {
-	idp, err := s.idpRepo.FindByUUID(idpUUID, "AuthContainer")
+	idp, err := s.idpRepo.FindByUUID(idpUUID, "Tenant")
 	if err != nil || idp == nil {
 		return nil, errors.New("idp not found")
 	}
@@ -134,39 +138,39 @@ func (s *identityProviderService) GetByUUID(idpUUID uuid.UUID) (*IdentityProvide
 	return toIdpServiceDataResult(idp), nil
 }
 
-func (s *identityProviderService) Create(name string, displayName string, providerType string, config datatypes.JSON, isActive bool, isDefault bool, authContainerUUID string, actorUserUUID uuid.UUID) (*IdentityProviderServiceDataResult, error) {
+func (s *identityProviderService) Create(name string, displayName string, providerType string, config datatypes.JSON, isActive bool, isDefault bool, tenantUUID string, actorUserUUID uuid.UUID) (*IdentityProviderServiceDataResult, error) {
 	var createdIdp *model.IdentityProvider
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
 		txIdpRepo := s.idpRepo.WithTx(tx)
-		txAuthContainerRepo := s.authContainerRepo.WithTx(tx)
+		txTenantRepo := s.tenantRepo.WithTx(tx)
 		txUserRepo := s.userRepo.WithTx(tx)
 
-		// Parse auth container UUID
-		authContainerUUIDParsed, err := uuid.Parse(authContainerUUID)
+		// Parse tenant UUID
+		tenantUUIDParsed, err := uuid.Parse(tenantUUID)
 		if err != nil {
-			return errors.New("invalid auth container UUID")
+			return errors.New("invalid tenant UUID")
 		}
 
-		// Check if auth container exist
-		authContainer, err := txAuthContainerRepo.FindByUUID(authContainerUUIDParsed, "Organization")
-		if err != nil || authContainer == nil {
-			return errors.New("auth container not found")
+		// Check if tenant exist
+		tenant, err := txTenantRepo.FindByUUID(tenantUUIDParsed)
+		if err != nil || tenant == nil {
+			return errors.New("tenant not found")
 		}
 
-		// Get actor user with auth container and organization info
-		actorUser, err := txUserRepo.FindByUUID(actorUserUUID, "AuthContainer.Organization")
+		// Get actor user with tenant info
+		actorUser, err := txUserRepo.FindByUUID(actorUserUUID, "Tenant")
 		if err != nil || actorUser == nil {
 			return errors.New("actor user not found")
 		}
 
-		// Validate auth container access permissions
-		if err := ValidateAuthContainerAccess(actorUser, authContainer); err != nil {
+		// Validate tenant access permissions
+		if err := ValidateTenantAccess(actorUser, tenant); err != nil {
 			return err
 		}
 
 		// Check if idp already exists
-		existingIdp, err := txIdpRepo.FindByName(name, authContainer.AuthContainerID)
+		existingIdp, err := txIdpRepo.FindByName(name, tenant.TenantID)
 		if err != nil {
 			return err
 		}
@@ -179,14 +183,14 @@ func (s *identityProviderService) Create(name string, displayName string, provid
 
 		// Create idp
 		newIdp := &model.IdentityProvider{
-			Name:            name,
-			DisplayName:     displayName,
-			ProviderType:    providerType,
-			Identifier:      identifier,
-			Config:          config,
-			AuthContainerID: authContainer.AuthContainerID,
-			IsActive:        isActive,
-			IsDefault:       isDefault,
+			Name:         name,
+			DisplayName:  displayName,
+			ProviderType: providerType,
+			Identifier:   identifier,
+			Config:       config,
+			TenantID:     tenant.TenantID,
+			IsActive:     isActive,
+			IsDefault:    isDefault,
 		}
 
 		_, err = txIdpRepo.CreateOrUpdate(newIdp)
@@ -194,8 +198,8 @@ func (s *identityProviderService) Create(name string, displayName string, provid
 			return err
 		}
 
-		// Fetch idp with Service preloaded
-		createdIdp, err = txIdpRepo.FindByUUID(newIdp.IdentityProviderUUID, "AuthContainer")
+		// Fetch idp with Tenant preloaded
+		createdIdp, err = txIdpRepo.FindByUUID(newIdp.IdentityProviderUUID, "Tenant")
 		if err != nil {
 			return err
 		}
@@ -218,19 +222,19 @@ func (s *identityProviderService) Update(idpUUID uuid.UUID, name string, display
 		txUserRepo := s.userRepo.WithTx(tx)
 
 		// Get idp
-		idp, err := txIdpRepo.FindByUUID(idpUUID, "AuthContainer.Organization")
+		idp, err := txIdpRepo.FindByUUID(idpUUID, "Tenant")
 		if err != nil || idp == nil {
 			return errors.New("idp not found")
 		}
 
-		// Get actor user with auth container and organization info
-		actorUser, err := txUserRepo.FindByUUID(actorUserUUID, "AuthContainer.Organization")
+		// Get actor user with tenant info
+		actorUser, err := txUserRepo.FindByUUID(actorUserUUID, "Tenant")
 		if err != nil || actorUser == nil {
 			return errors.New("actor user not found")
 		}
 
-		// Validate auth container access permissions
-		if err := ValidateAuthContainerAccess(actorUser, idp.AuthContainer); err != nil {
+		// Validate tenant access permissions
+		if err := ValidateTenantAccess(actorUser, idp.Tenant); err != nil {
 			return err
 		}
 
@@ -241,7 +245,7 @@ func (s *identityProviderService) Update(idpUUID uuid.UUID, name string, display
 
 		// Check if idp already exist
 		if idp.Name != name {
-			existingIdp, err := txIdpRepo.FindByName(name, idp.AuthContainerID)
+			existingIdp, err := txIdpRepo.FindByName(name, idp.TenantID)
 			if err != nil {
 				return err
 			}
@@ -284,19 +288,19 @@ func (s *identityProviderService) SetActiveStatusByUUID(idpUUID uuid.UUID, actor
 		txUserRepo := s.userRepo.WithTx(tx)
 
 		// Get idp
-		idp, err := txIdpRepo.FindByUUID(idpUUID, "AuthContainer.Organization")
+		idp, err := txIdpRepo.FindByUUID(idpUUID, "Tenant")
 		if err != nil || idp == nil {
 			return errors.New("idp not found")
 		}
 
-		// Get actor user with auth container and organization info
-		actorUser, err := txUserRepo.FindByUUID(actorUserUUID, "AuthContainer.Organization")
+		// Get actor user with tenant info
+		actorUser, err := txUserRepo.FindByUUID(actorUserUUID, "Tenant")
 		if err != nil || actorUser == nil {
 			return errors.New("actor user not found")
 		}
 
-		// Validate auth container access permissions
-		if err := ValidateAuthContainerAccess(actorUser, idp.AuthContainer); err != nil {
+		// Validate tenant access permissions
+		if err := ValidateTenantAccess(actorUser, idp.Tenant); err != nil {
 			return err
 		}
 
@@ -326,19 +330,19 @@ func (s *identityProviderService) SetActiveStatusByUUID(idpUUID uuid.UUID, actor
 
 func (s *identityProviderService) DeleteByUUID(idpUUID uuid.UUID, actorUserUUID uuid.UUID) (*IdentityProviderServiceDataResult, error) {
 	// Get idp
-	idp, err := s.idpRepo.FindByUUID(idpUUID, "AuthContainer.Organization")
+	idp, err := s.idpRepo.FindByUUID(idpUUID, "Tenant")
 	if err != nil || idp == nil {
 		return nil, errors.New("idp not found")
 	}
 
-	// Get actor user with auth container and organization info
-	actorUser, err := s.userRepo.FindByUUID(actorUserUUID, "AuthContainer.Organization")
+	// Get actor user with tenant info
+	actorUser, err := s.userRepo.FindByUUID(actorUserUUID, "Tenant")
 	if err != nil || actorUser == nil {
 		return nil, errors.New("actor user not found")
 	}
 
-	// Validate auth container access permissions
-	if err := ValidateAuthContainerAccess(actorUser, idp.AuthContainer); err != nil {
+	// Validate tenant access permissions
+	if err := ValidateTenantAccess(actorUser, idp.Tenant); err != nil {
 		return nil, err
 	}
 
@@ -374,18 +378,8 @@ func toIdpServiceDataResult(idp *model.IdentityProvider) *IdentityProviderServic
 		UpdatedAt:            idp.UpdatedAt,
 	}
 
-	if idp.AuthContainer != nil {
-		result.AuthContainer = &AuthContainerServiceDataResult{
-			AuthContainerUUID: idp.AuthContainer.AuthContainerUUID,
-			Name:              idp.AuthContainer.Name,
-			Description:       idp.AuthContainer.Description,
-			Identifier:        idp.AuthContainer.Identifier,
-			IsActive:          idp.AuthContainer.IsActive,
-			IsPublic:          idp.AuthContainer.IsPublic,
-			IsDefault:         idp.AuthContainer.IsDefault,
-			CreatedAt:         idp.AuthContainer.CreatedAt,
-			UpdatedAt:         idp.AuthContainer.UpdatedAt,
-		}
+	if idp.Tenant != nil {
+		result.Tenant = toTenantServiceDataResult(idp.Tenant)
 	}
 
 	return result

@@ -10,12 +10,12 @@ import (
 	"gorm.io/gorm"
 )
 
-func SeedIdentityProviders(db *gorm.DB, authContainerID int64) (*model.IdentityProvider, error) {
+func SeedIdentityProviders(db *gorm.DB, tenantID int64) (*model.IdentityProvider, error) {
 	var existing model.IdentityProvider
 
 	// Check if a default identity provider already exists
 	err := db.
-		Where("name = ? AND auth_container_id = ?", "default", authContainerID).
+		Where("name = ? AND tenant_id = ?", "default", tenantID).
 		First(&existing).Error
 
 	if err == nil {
@@ -48,9 +48,9 @@ func SeedIdentityProviders(db *gorm.DB, authContainerID int64) (*model.IdentityP
 			"max_login_attempts": 5,
 			"lockout_duration_min": 15
 		}`)),
-		AuthContainerID: authContainerID,
-		IsActive:        true,
-		IsDefault:       true,
+		TenantID:  tenantID,
+		IsActive:  true,
+		IsDefault: true,
 	}
 
 	if err := db.Create(&provider).Error; err != nil {

@@ -8,15 +8,15 @@ import (
 	"gorm.io/gorm"
 )
 
-func SeedRoles(db *gorm.DB, authContainerID int64) (map[string]model.Role, error) {
+func SeedRoles(db *gorm.DB, tenantID int64) (map[string]model.Role, error) {
 	roles := map[string]model.Role{
 		"super-admin": {
-			RoleUUID:        uuid.New(),
-			Name:            "super-admin",
-			Description:     "Full system access with all permissions",
-			AuthContainerID: authContainerID,
-			IsActive:        true,
-			IsDefault:       true,
+			RoleUUID:    uuid.New(),
+			Name:        "super-admin",
+			Description: "Full system access with all permissions",
+			TenantID:    tenantID,
+			IsActive:    true,
+			IsDefault:   true,
 		},
 	}
 
@@ -25,7 +25,7 @@ func SeedRoles(db *gorm.DB, authContainerID int64) (map[string]model.Role, error
 	for roleName, role := range roles {
 		var existing model.Role
 		err := db.
-			Where("name = ? AND auth_container_id = ?", role.Name, authContainerID).
+			Where("name = ? AND tenant_id = ?", role.Name, tenantID).
 			First(&existing).Error
 
 		if err == nil {

@@ -19,6 +19,9 @@ type Service struct {
 	IsDefault   bool      `gorm:"column:is_default;default:false"`
 	CreatedAt   time.Time `gorm:"column:created_at;autoCreateTime"`
 	UpdatedAt   time.Time `gorm:"column:updated_at;autoUpdateTime"`
+
+	// Relationships
+	Tenants []Tenant `gorm:"many2many:tenant_services;joinForeignKey:ServiceID;joinReferences:TenantID"`
 }
 
 func (Service) TableName() string {

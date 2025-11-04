@@ -32,9 +32,9 @@ func (h *SetupHandler) GetSetupStatus(w http.ResponseWriter, r *http.Request) {
 	util.Success(w, status, "Setup status retrieved successfully")
 }
 
-// CreateOrganization creates the initial organization and runs all seeders
-func (h *SetupHandler) CreateOrganization(w http.ResponseWriter, r *http.Request) {
-	var req dto.CreateOrganizationRequestDto
+// CreateTenant creates the initial tenant and runs all seeders
+func (h *SetupHandler) CreateTenant(w http.ResponseWriter, r *http.Request) {
+	var req dto.CreateTenantRequestDto
 
 	// Validate body payload
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -51,14 +51,14 @@ func (h *SetupHandler) CreateOrganization(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	// Create organization
-	response, err := h.setupService.CreateOrganization(req)
+	// Create tenant
+	response, err := h.setupService.CreateTenant(req)
 	if err != nil {
-		util.Error(w, http.StatusBadRequest, "Failed to create organization", err.Error())
+		util.Error(w, http.StatusBadRequest, "Failed to create tenant", err.Error())
 		return
 	}
 
-	util.Created(w, response, "Organization created successfully")
+	util.Created(w, response, "Tenant created successfully")
 }
 
 // CreateAdmin creates the initial admin user

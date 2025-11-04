@@ -62,13 +62,13 @@ func (s *inviteService) SendInvite(
 			!authClient.IsActive ||
 			authClient.Domain == nil || *authClient.Domain == "" ||
 			authClient.IdentityProvider == nil ||
-			authClient.IdentityProvider.AuthContainer == nil ||
-			authClient.IdentityProvider.AuthContainer.AuthContainerID == 0 {
+			authClient.IdentityProvider.Tenant == nil ||
+			authClient.IdentityProvider.Tenant.TenantID == 0 {
 			return errors.New("invalid client or identity provider")
 		}
 
-		// Get container id
-		authContainerId := authClient.IdentityProvider.AuthContainer.AuthContainerID
+		// Get tenant id
+		tenantId := authClient.IdentityProvider.Tenant.TenantID
 
 		// Find roles by UUIDs
 		foundRoles, err := roleRepo.FindByUUIDs(roleUUIDs)
@@ -76,12 +76,12 @@ func (s *inviteService) SendInvite(
 			return err
 		}
 
-		// Validate all roles belong to the correct auth container
+		// Validate all roles belong to the correct tenant
 		if len(foundRoles) != len(roleUUIDs) {
 			return errors.New("one or more roles not found")
 		}
 		for _, role := range foundRoles {
-			if role.AuthContainerID != authContainerId {
+			if role.TenantID != tenantId {
 				return errors.New("invalid role for the given client")
 			}
 		}

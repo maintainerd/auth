@@ -10,27 +10,27 @@ import (
 
 // Identity provider output structure
 type IdentityProviderResponseDto struct {
-	IdentityProviderUUID uuid.UUID                 `json:"identity_provider_uuid"`
-	Name                 string                    `json:"name"`
-	DisplayName          string                    `json:"display_name"`
-	ProviderType         string                    `json:"provider_type"`
-	Identifier           string                    `json:"identifier"`
-	Config               *datatypes.JSON           `json:"config,omitempty"`
-	AuthContainer        *AuthContainerResponseDto `json:"auth_container,omitempty"`
-	IsActive             bool                      `json:"is_active"`
-	IsDefault            bool                      `json:"is_default"`
-	CreatedAt            time.Time                 `json:"created_at"`
-	UpdatedAt            time.Time                 `json:"updated_at"`
+	IdentityProviderUUID uuid.UUID          `json:"identity_provider_uuid"`
+	Name                 string             `json:"name"`
+	DisplayName          string             `json:"display_name"`
+	ProviderType         string             `json:"provider_type"`
+	Identifier           string             `json:"identifier"`
+	Config               *datatypes.JSON    `json:"config,omitempty"`
+	Tenant               *TenantResponseDto `json:"tenant,omitempty"`
+	IsActive             bool               `json:"is_active"`
+	IsDefault            bool               `json:"is_default"`
+	CreatedAt            time.Time          `json:"created_at"`
+	UpdatedAt            time.Time          `json:"updated_at"`
 }
 
 // Create identity provider request DTO
 type IdentityProviderCreateOrUpdateRequestDto struct {
-	Name              string         `json:"name"`
-	DisplayName       string         `json:"display_name"`
-	ProviderType      string         `json:"provider_type"`
-	Config            datatypes.JSON `json:"config"`
-	IsActive          bool           `json:"is_active"`
-	AuthContainerUUID string         `json:"auth_container_uuid"`
+	Name         string         `json:"name"`
+	DisplayName  string         `json:"display_name"`
+	ProviderType string         `json:"provider_type"`
+	Config       datatypes.JSON `json:"config"`
+	IsActive     bool           `json:"is_active"`
+	TenantUUID   string         `json:"tenant_uuid"`
 }
 
 // Validation
@@ -54,21 +54,21 @@ func (r IdentityProviderCreateOrUpdateRequestDto) Validate() error {
 		validation.Field(&r.IsActive,
 			validation.In(true, false).Error("Is active is required"),
 		),
-		validation.Field(&r.AuthContainerUUID,
-			validation.Required.Error("Auth container UUID is required"),
+		validation.Field(&r.TenantUUID,
+			validation.Required.Error("Tenant UUID is required"),
 		),
 	)
 }
 
 // Identity provider listing / filter DTO
 type IdentityProviderFilterDto struct {
-	Name              *string `json:"name"`
-	DisplayName       *string `json:"display_name"`
-	ProviderType      *string `json:"provider_type"`
-	Identifier        *string `json:"identifier"`
-	IsActive          *bool   `json:"is_active"`
-	IsDefault         *bool   `json:"is_default"`
-	AuthContainerUUID *string `json:"auth_container_uuid"`
+	Name         *string `json:"name"`
+	DisplayName  *string `json:"display_name"`
+	ProviderType *string `json:"provider_type"`
+	Identifier   *string `json:"identifier"`
+	IsActive     *bool   `json:"is_active"`
+	IsDefault    *bool   `json:"is_default"`
+	TenantUUID   *string `json:"tenant_uuid"`
 
 	// Pagination and sorting
 	PaginationRequestDto
