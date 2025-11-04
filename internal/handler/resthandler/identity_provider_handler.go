@@ -48,13 +48,13 @@ func (h *IdentityProviderHandler) Get(w http.ResponseWriter, r *http.Request) {
 
 	// Build request DTO
 	reqParams := dto.IdentityProviderFilterDto{
-		Name:              util.PtrOrNil(q.Get("name")),
-		DisplayName:       util.PtrOrNil(q.Get("display_name")),
-		ProviderType:      util.PtrOrNil(q.Get("provider_type")),
-		Identifier:        util.PtrOrNil(q.Get("identifier")),
-		AuthContainerUUID: util.PtrOrNil(q.Get("auth_container_uuid")),
-		IsActive:          isActive,
-		IsDefault:         isDefault,
+		Name:         util.PtrOrNil(q.Get("name")),
+		DisplayName:  util.PtrOrNil(q.Get("display_name")),
+		ProviderType: util.PtrOrNil(q.Get("provider_type")),
+		Identifier:   util.PtrOrNil(q.Get("identifier")),
+		TenantUUID:   util.PtrOrNil(q.Get("tenant_uuid")),
+		IsActive:     isActive,
+		IsDefault:    isDefault,
 		PaginationRequestDto: dto.PaginationRequestDto{
 			Page:      page,
 			Limit:     limit,
@@ -70,17 +70,17 @@ func (h *IdentityProviderHandler) Get(w http.ResponseWriter, r *http.Request) {
 
 	// Build permission filter
 	idpFilter := service.IdentityProviderServiceGetFilter{
-		Name:              reqParams.Name,
-		DisplayName:       reqParams.DisplayName,
-		ProviderType:      reqParams.ProviderType,
-		Identifier:        reqParams.Identifier,
-		AuthContainerUUID: reqParams.AuthContainerUUID,
-		IsActive:          reqParams.IsActive,
-		IsDefault:         reqParams.IsDefault,
-		Page:              reqParams.Page,
-		Limit:             reqParams.Limit,
-		SortBy:            reqParams.SortBy,
-		SortOrder:         reqParams.SortOrder,
+		Name:         reqParams.Name,
+		DisplayName:  reqParams.DisplayName,
+		ProviderType: reqParams.ProviderType,
+		Identifier:   reqParams.Identifier,
+		TenantUUID:   reqParams.TenantUUID,
+		IsActive:     reqParams.IsActive,
+		IsDefault:    reqParams.IsDefault,
+		Page:         reqParams.Page,
+		Limit:        reqParams.Limit,
+		SortBy:       reqParams.SortBy,
+		SortOrder:    reqParams.SortOrder,
 	}
 
 	// Fetch permissions
@@ -143,7 +143,7 @@ func (h *IdentityProviderHandler) Create(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	idp, err := h.idpService.Create(req.Name, req.DisplayName, req.ProviderType, req.Config, req.IsActive, false, req.AuthContainerUUID, user.UserUUID)
+	idp, err := h.idpService.Create(req.Name, req.DisplayName, req.ProviderType, req.Config, req.IsActive, false, req.TenantUUID, user.UserUUID)
 	if err != nil {
 		util.Error(w, http.StatusInternalServerError, "Failed to create permission", err.Error())
 		return
@@ -246,16 +246,17 @@ func toIdpResponseDto(r service.IdentityProviderServiceDataResult) dto.IdentityP
 		UpdatedAt:            r.UpdatedAt,
 	}
 
-	if r.AuthContainer != nil {
-		result.AuthContainer = &dto.AuthContainerResponseDto{
-			AuthContainerUUID: r.AuthContainer.AuthContainerUUID,
-			Name:              r.AuthContainer.Name,
-			Description:       r.AuthContainer.Description,
-			Identifier:        r.AuthContainer.Identifier,
-			IsActive:          r.AuthContainer.IsActive,
-			IsDefault:         r.AuthContainer.IsDefault,
-			CreatedAt:         r.AuthContainer.CreatedAt,
-			UpdatedAt:         r.AuthContainer.UpdatedAt,
+	if r.Tenant != nil {
+		result.Tenant = &dto.TenantResponseDto{
+			TenantUUID:  r.Tenant.TenantUUID,
+			Name:        r.Tenant.Name,
+			Description: r.Tenant.Description,
+			Identifier:  r.Tenant.Identifier,
+			IsActive:    r.Tenant.IsActive,
+			IsPublic:    r.Tenant.IsPublic,
+			IsDefault:   r.Tenant.IsDefault,
+			CreatedAt:   r.Tenant.CreatedAt,
+			UpdatedAt:   r.Tenant.UpdatedAt,
 		}
 	}
 

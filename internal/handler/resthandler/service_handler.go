@@ -157,7 +157,7 @@ func (h *ServiceHandler) Create(w http.ResponseWriter, r *http.Request) {
 		false,
 		req.IsActive,
 		req.IsPublic,
-		user.AuthContainer.Organization.OrganizationID,
+		user.TenantID,
 	)
 	if err != nil {
 		util.Error(w, http.StatusInternalServerError, "Failed to create service", err.Error())

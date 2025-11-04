@@ -70,15 +70,15 @@ func (h *RoleHandler) Get(w http.ResponseWriter, r *http.Request) {
 
 	// Get role filters
 	roleFilter := service.RoleServiceGetFilter{
-		Name:            reqParams.Name,
-		Description:     reqParams.Description,
-		IsDefault:       reqParams.IsDefault,
-		IsActive:        reqParams.IsActive,
-		AuthContainerID: user.AuthContainerID,
-		Page:            reqParams.Page,
-		Limit:           reqParams.Limit,
-		SortBy:          reqParams.SortBy,
-		SortOrder:       reqParams.SortOrder,
+		Name:        reqParams.Name,
+		Description: reqParams.Description,
+		IsDefault:   reqParams.IsDefault,
+		IsActive:    reqParams.IsActive,
+		TenantID:    user.TenantID,
+		Page:        reqParams.Page,
+		Limit:       reqParams.Limit,
+		SortBy:      reqParams.SortBy,
+		SortOrder:   reqParams.SortOrder,
 	}
 
 	// Fetch roles
@@ -145,7 +145,7 @@ func (h *RoleHandler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Create role
-	role, err := h.service.Create(req.Name, req.Description, false, req.IsActive, user.AuthContainer.AuthContainerUUID.String(), user.UserUUID)
+	role, err := h.service.Create(req.Name, req.Description, false, req.IsActive, user.Tenant.TenantUUID.String(), user.UserUUID)
 	if err != nil {
 		util.Error(w, http.StatusInternalServerError, "Failed to create role", err.Error())
 		return

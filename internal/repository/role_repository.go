@@ -9,22 +9,22 @@ import (
 )
 
 type RoleRepositoryGetFilter struct {
-	Name            *string
-	Description     *string
-	IsDefault       *bool
-	IsActive        *bool
-	AuthContainerID int64
-	Page            int
-	Limit           int
-	SortBy          string
-	SortOrder       string
+	Name        *string
+	Description *string
+	IsDefault   *bool
+	IsActive    *bool
+	TenantID    int64
+	Page        int
+	Limit       int
+	SortBy      string
+	SortOrder   string
 }
 
 type RoleRepository interface {
 	BaseRepositoryMethods[model.Role]
 	WithTx(tx *gorm.DB) RoleRepository
-	FindByNameAndAuthContainerID(name string, authContainerID int64) (*model.Role, error)
-	FindAllByAuthContainerID(authContainerID int64) ([]model.Role, error)
+	FindByNameAndTenantID(name string, tenantID int64) (*model.Role, error)
+	FindAllByTenantID(tenantID int64) ([]model.Role, error)
 	FindPaginated(filter RoleRepositoryGetFilter) (*PaginationResult[model.Role], error)
 	SetActiveStatusByUUID(roleUUID uuid.UUID, isActive bool) error
 	SetDefaultStatusByUUID(roleUUID uuid.UUID, isDefault bool) error
@@ -49,10 +49,10 @@ func (r *roleRepository) WithTx(tx *gorm.DB) RoleRepository {
 	}
 }
 
-func (r *roleRepository) FindByNameAndAuthContainerID(name string, authContainerID int64) (*model.Role, error) {
+func (r *roleRepository) FindByNameAndTenantID(name string, tenantID int64) (*model.Role, error) {
 	var role model.Role
 	err := r.db.
-		Where("name = ? AND auth_container_id = ?", name, authContainerID).
+		Where("name = ? AND tenant_id = ?", name, tenantID).
 		First(&role).Error
 
 	// If no record is found, return nil record and nil error
@@ -67,10 +67,10 @@ func (r *roleRepository) FindByNameAndAuthContainerID(name string, authContainer
 	return &role, nil
 }
 
-func (r *roleRepository) FindAllByAuthContainerID(authContainerID int64) ([]model.Role, error) {
+func (r *roleRepository) FindAllByTenantID(tenantID int64) ([]model.Role, error) {
 	var roles []model.Role
 	err := r.db.
-		Where("auth_container_id = ?", authContainerID).
+		Where("tenant_id = ?", tenantID).
 		Find(&roles).Error
 	return roles, err
 }
@@ -79,7 +79,7 @@ func (r *roleRepository) FindPaginated(filter RoleRepositoryGetFilter) (*Paginat
 	query := r.db.Model(&model.Role{})
 
 	// Always filter
-	query = query.Where("auth_container_id = ?", filter.AuthContainerID)
+	query = query.Where("tenant_id = ?", filter.TenantID)
 
 	// Filters with LIKE
 	if filter.Name != nil {

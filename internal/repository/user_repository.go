@@ -7,23 +7,23 @@ import (
 )
 
 type UserRepositoryGetFilter struct {
-	Username        *string
-	Email           *string
-	Phone           *string
-	IsActive        *bool
-	AuthContainerID *int64
-	Page            int
-	Limit           int
-	SortBy          string
-	SortOrder       string
+	Username  *string
+	Email     *string
+	Phone     *string
+	IsActive  *bool
+	TenantID  *int64
+	Page      int
+	Limit     int
+	SortBy    string
+	SortOrder string
 }
 
 type UserRepository interface {
 	BaseRepositoryMethods[model.User]
 	WithTx(tx *gorm.DB) UserRepository
-	FindByUsername(username string, authContainerID int64) (*model.User, error)
-	FindByEmail(email string, authContainerID int64) (*model.User, error)
-	FindByPhone(phone string, authContainerID int64) (*model.User, error)
+	FindByUsername(username string, tenantID int64) (*model.User, error)
+	FindByEmail(email string, tenantID int64) (*model.User, error)
+	FindByPhone(phone string, tenantID int64) (*model.User, error)
 	FindSuperAdmin() (*model.User, error)
 	FindRoles(userID int64) ([]model.Role, error)
 	FindBySubAndClientID(sub string, authClientID string) (*model.User, error)
@@ -51,10 +51,10 @@ func (r *userRepository) WithTx(tx *gorm.DB) UserRepository {
 	}
 }
 
-func (r *userRepository) FindByUsername(username string, authContainerID int64) (*model.User, error) {
+func (r *userRepository) FindByUsername(username string, tenantID int64) (*model.User, error) {
 	var user model.User
 	err := r.db.
-		Where("username = ? AND auth_container_id = ?", username, authContainerID).
+		Where("username = ? AND tenant_id = ?", username, tenantID).
 		First(&user).Error
 
 	if err != nil {
@@ -67,10 +67,10 @@ func (r *userRepository) FindByUsername(username string, authContainerID int64) 
 	return &user, nil
 }
 
-func (r *userRepository) FindByEmail(email string, authContainerID int64) (*model.User, error) {
+func (r *userRepository) FindByEmail(email string, tenantID int64) (*model.User, error) {
 	var user model.User
 	err := r.db.
-		Where("email = ? AND auth_container_id = ?", email, authContainerID).
+		Where("email = ? AND tenant_id = ?", email, tenantID).
 		First(&user).Error
 
 	if err != nil {
@@ -83,10 +83,10 @@ func (r *userRepository) FindByEmail(email string, authContainerID int64) (*mode
 	return &user, nil
 }
 
-func (r *userRepository) FindByPhone(phone string, authContainerID int64) (*model.User, error) {
+func (r *userRepository) FindByPhone(phone string, tenantID int64) (*model.User, error) {
 	var user model.User
 	err := r.db.
-		Where("phone = ? AND auth_container_id = ?", phone, authContainerID).
+		Where("phone = ? AND tenant_id = ?", phone, tenantID).
 		First(&user).Error
 
 	if err != nil {
@@ -102,10 +102,10 @@ func (r *userRepository) FindByPhone(phone string, authContainerID int64) (*mode
 func (r *userRepository) FindSuperAdmin() (*model.User, error) {
 	var user model.User
 	err := r.db.
-		Joins("JOIN auth_containers ON users.auth_container_id = auth_containers.auth_container_id").
+		Joins("JOIN tenants ON users.tenant_id = tenants.tenant_id").
 		Joins("JOIN user_roles ON users.user_id = user_roles.user_id").
 		Joins("JOIN roles ON user_roles.role_id = roles.role_id").
-		Where("auth_containers.is_active = true AND auth_containers.is_default = true").
+		Where("tenants.is_active = true AND tenants.is_default = true").
 		Where("roles.name = ?", "super-admin").
 		First(&user).Error
 
@@ -182,8 +182,8 @@ func (r *userRepository) FindPaginated(filter UserRepositoryGetFilter) (*Paginat
 	if filter.IsActive != nil {
 		query = query.Where("is_active = ?", *filter.IsActive)
 	}
-	if filter.AuthContainerID != nil {
-		query = query.Where("auth_container_id = ?", *filter.AuthContainerID)
+	if filter.TenantID != nil {
+		query = query.Where("tenant_id = ?", *filter.TenantID)
 	}
 
 	// Count total records

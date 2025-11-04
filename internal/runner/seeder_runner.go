@@ -7,11 +7,8 @@ import (
 	"gorm.io/gorm"
 )
 
-func RunSeeders(db *gorm.DB, appVersion string, organizationID int64) error {
+func RunSeeders(db *gorm.DB, appVersion string) error {
 	log.Println("🏃 Running default seeders...")
-
-	// Organization is now created via API, not seeded
-	// Use the provided organizationID from the setup service
 
 	// 001: Seed service
 	service, err := seeder.SeedService(db, appVersion)
@@ -20,35 +17,35 @@ func RunSeeders(db *gorm.DB, appVersion string, organizationID int64) error {
 		return err
 	}
 
-	// 002: Link organization to service
-	_, err = seeder.SeedOrganizationService(db, organizationID, service.ServiceID)
+	// 002: Seed tenant
+	tenant, err := seeder.SeedTenant(db)
 	if err != nil {
-		log.Printf("❌ Failed to seed organization_service: %v", err)
+		log.Printf("❌ Failed to seed tenant: %v", err)
 		return err
 	}
 
-	// 003: Seed API
+	// 003: Link tenant to service
+	_, err = seeder.SeedTenantService(db, tenant.TenantID, service.ServiceID)
+	if err != nil {
+		log.Printf("❌ Failed to seed tenant_service: %v", err)
+		return err
+	}
+
+	// 004: Seed API
 	api, err := seeder.SeedAPI(db, service.ServiceID)
 	if err != nil {
 		log.Printf("❌ Failed to seed api: %v", err)
 		return err
 	}
 
-	// 004: Seed permissions
+	// 005: Seed permissions
 	if err := seeder.SeedPermissions(db, api.APIID); err != nil {
 		log.Printf("❌ Failed to seed permissions: %v", err)
 		return err
 	}
 
-	// 005: Seed auth container
-	authContainer, err := seeder.SeedAuthContainer(db, organizationID)
-	if err != nil {
-		log.Printf("❌ Failed to seed auth container: %v", err)
-		return err
-	}
-
 	// 006: Seed identity providers
-	identityProvider, err := seeder.SeedIdentityProviders(db, authContainer.AuthContainerID)
+	identityProvider, err := seeder.SeedIdentityProviders(db, tenant.TenantID)
 	if err != nil {
 		log.Printf("❌ Failed to seed identity provider: %v", err)
 		return err
@@ -67,7 +64,7 @@ func RunSeeders(db *gorm.DB, appVersion string, organizationID int64) error {
 	}
 
 	// 009: Seed roles
-	roles, err := seeder.SeedRoles(db, authContainer.AuthContainerID)
+	roles, err := seeder.SeedRoles(db, tenant.TenantID)
 	if err != nil {
 		log.Printf("❌ Failed to seed roles: %v", err)
 		return err

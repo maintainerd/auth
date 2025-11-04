@@ -14,15 +14,14 @@ import (
 
 type SetupService interface {
 	GetSetupStatus() (*dto.SetupStatusResponseDto, error)
-	CreateOrganization(req dto.CreateOrganizationRequestDto) (*dto.CreateOrganizationResponseDto, error)
+	CreateTenant(req dto.CreateTenantRequestDto) (*dto.CreateTenantResponseDto, error)
 	CreateAdmin(req dto.CreateAdminRequestDto) (*dto.CreateAdminResponseDto, error)
 }
 
 type setupService struct {
 	db                   *gorm.DB
-	organizationRepo     repository.OrganizationRepository
 	userRepo             repository.UserRepository
-	authContainerRepo    repository.AuthContainerRepository
+	tenantRepo           repository.TenantRepository
 	authClientRepo       repository.AuthClientRepository
 	identityProviderRepo repository.IdentityProviderRepository
 	roleRepo             repository.RoleRepository
@@ -33,9 +32,8 @@ type setupService struct {
 
 func NewSetupService(
 	db *gorm.DB,
-	organizationRepo repository.OrganizationRepository,
 	userRepo repository.UserRepository,
-	authContainerRepo repository.AuthContainerRepository,
+	tenantRepo repository.TenantRepository,
 	authClientRepo repository.AuthClientRepository,
 	identityProviderRepo repository.IdentityProviderRepository,
 	roleRepo repository.RoleRepository,
@@ -45,9 +43,8 @@ func NewSetupService(
 ) SetupService {
 	return &setupService{
 		db:                   db,
-		organizationRepo:     organizationRepo,
 		userRepo:             userRepo,
-		authContainerRepo:    authContainerRepo,
+		tenantRepo:           tenantRepo,
 		authClientRepo:       authClientRepo,
 		identityProviderRepo: identityProviderRepo,
 		roleRepo:             roleRepo,
@@ -58,19 +55,19 @@ func NewSetupService(
 }
 
 func (s *setupService) GetSetupStatus() (*dto.SetupStatusResponseDto, error) {
-	// Check if organization exists
-	organizations, err := s.organizationRepo.FindAll()
+	// Check if tenant exists
+	tenants, err := s.tenantRepo.FindAll()
 	if err != nil {
 		return nil, err
 	}
-	isOrganizationSetup := len(organizations) > 0
+	isTenantSetup := len(tenants) > 0
 
-	// Check if admin user exists (super-admin role in default auth container)
+	// Check if admin user exists (super-admin role in default tenant)
 	isAdminSetup := false
-	if isOrganizationSetup {
-		// Find default auth container
-		defaultContainer, err := s.authContainerRepo.FindDefault()
-		if err == nil && defaultContainer != nil {
+	if isTenantSetup {
+		// Find default tenant
+		defaultTenant, err := s.tenantRepo.FindDefault()
+		if err == nil && defaultTenant != nil {
 			// Check if super-admin user exists
 			superAdmin, err := s.userRepo.FindSuperAdmin()
 			if err == nil && superAdmin != nil {
@@ -80,44 +77,43 @@ func (s *setupService) GetSetupStatus() (*dto.SetupStatusResponseDto, error) {
 	}
 
 	return &dto.SetupStatusResponseDto{
-		IsOrganizationSetup: isOrganizationSetup,
-		IsAdminSetup:        isAdminSetup,
-		IsSetupComplete:     isOrganizationSetup && isAdminSetup,
+		IsTenantSetup:   isTenantSetup,
+		IsAdminSetup:    isAdminSetup,
+		IsSetupComplete: isTenantSetup && isAdminSetup,
 	}, nil
 }
 
-func (s *setupService) CreateOrganization(req dto.CreateOrganizationRequestDto) (*dto.CreateOrganizationResponseDto, error) {
-	// Check if organization already exists
-	organizations, err := s.organizationRepo.FindAll()
+func (s *setupService) CreateTenant(req dto.CreateTenantRequestDto) (*dto.CreateTenantResponseDto, error) {
+	// Check if tenant already exists
+	tenants, err := s.tenantRepo.FindAll()
 	if err != nil {
 		return nil, err
 	}
-	if len(organizations) > 0 {
-		return nil, errors.New("organization already exists: setup can only be run once")
+	if len(tenants) > 0 {
+		return nil, errors.New("tenant already exists: setup can only be run once")
 	}
 
-	var createdOrg *model.Organization
+	var createdTenant *model.Tenant
 	err = s.db.Transaction(func(tx *gorm.DB) error {
-		txOrgRepo := s.organizationRepo.WithTx(tx)
+		txTenantRepo := s.tenantRepo.WithTx(tx)
 
-		// Create organization directly (no longer using seeder)
-		newOrg := &model.Organization{
+		// Create tenant directly (no longer using seeder)
+		newTenant := &model.Tenant{
 			Name:        req.Name,
-			Description: req.Description,
-			Email:       req.Email,
-			Phone:       req.Phone,
+			Description: *req.Description,
 			IsActive:    true,
+			IsDefault:   true,
 		}
 
 		var err error
-		createdOrg, err = txOrgRepo.Create(newOrg)
+		createdTenant, err = txTenantRepo.Create(newTenant)
 		if err != nil {
 			return err
 		}
 
-		// Run all other seeders (excluding organization)
-		if err := runner.RunSeeders(tx, "v0.1.0", createdOrg.OrganizationID); err != nil {
-			return errors.New("failed to initialize organization structure: " + err.Error())
+		// Run all other seeders
+		if err := runner.RunSeeders(tx, "v0.1.0"); err != nil {
+			return errors.New("failed to initialize tenant structure: " + err.Error())
 		}
 
 		return nil
@@ -128,15 +124,16 @@ func (s *setupService) CreateOrganization(req dto.CreateOrganizationRequestDto) 
 	}
 
 	// Convert to response DTO
-	orgResponse := dto.OrganizationResponseDto{
-		OrganizationUUID: createdOrg.OrganizationUUID,
-		Name:             createdOrg.Name,
-		Description:      getStringValue(createdOrg.Description),
-		Email:            getStringValue(createdOrg.Email),
-		Phone:            getStringValue(createdOrg.Phone),
-		IsActive:         createdOrg.IsActive,
-		CreatedAt:        createdOrg.CreatedAt,
-		UpdatedAt:        createdOrg.UpdatedAt,
+	tenantResponse := dto.TenantResponseDto{
+		TenantUUID:  createdTenant.TenantUUID,
+		Name:        createdTenant.Name,
+		Description: createdTenant.Description,
+		Identifier:  createdTenant.Identifier,
+		IsActive:    createdTenant.IsActive,
+		IsPublic:    createdTenant.IsPublic,
+		IsDefault:   createdTenant.IsDefault,
+		CreatedAt:   createdTenant.CreatedAt,
+		UpdatedAt:   createdTenant.UpdatedAt,
 	}
 
 	// Get default auth client and identity provider for user reference
@@ -153,22 +150,22 @@ func (s *setupService) CreateOrganization(req dto.CreateOrganizationRequestDto) 
 		}
 	}
 
-	return &dto.CreateOrganizationResponseDto{
-		Message:           "Organization created successfully",
-		Organization:      orgResponse,
+	return &dto.CreateTenantResponseDto{
+		Message:           "Tenant created successfully",
+		Tenant:            tenantResponse,
 		DefaultClientID:   defaultClientID,
 		DefaultProviderID: defaultProviderID,
 	}, nil
 }
 
 func (s *setupService) CreateAdmin(req dto.CreateAdminRequestDto) (*dto.CreateAdminResponseDto, error) {
-	// Check if organization exists
-	organizations, err := s.organizationRepo.FindAll()
+	// Check if tenant exists
+	tenants, err := s.tenantRepo.FindAll()
 	if err != nil {
 		return nil, err
 	}
-	if len(organizations) == 0 {
-		return nil, errors.New("organization must be created first")
+	if len(tenants) == 0 {
+		return nil, errors.New("tenant must be created first")
 	}
 
 	// Check if admin already exists
@@ -180,13 +177,13 @@ func (s *setupService) CreateAdmin(req dto.CreateAdminRequestDto) (*dto.CreateAd
 		return nil, errors.New("admin user already exists: setup can only be run once")
 	}
 
-	// Get default auth container
-	defaultContainer, err := s.authContainerRepo.FindDefault()
+	// Get default tenant
+	defaultTenant, err := s.tenantRepo.FindDefault()
 	if err != nil {
 		return nil, err
 	}
-	if defaultContainer == nil {
-		return nil, errors.New("default auth container not found")
+	if defaultTenant == nil {
+		return nil, errors.New("default tenant not found")
 	}
 
 	// Get default auth client
@@ -206,7 +203,7 @@ func (s *setupService) CreateAdmin(req dto.CreateAdminRequestDto) (*dto.CreateAd
 		txUserIdentityRepo := s.userIdentityRepo.WithTx(tx)
 
 		// Check if user already exists
-		existingUser, err := txUserRepo.FindByEmail(req.Email, defaultContainer.AuthContainerID)
+		existingUser, err := txUserRepo.FindByEmail(req.Email, defaultTenant.TenantID)
 		if err != nil {
 			return err
 		}
@@ -225,7 +222,7 @@ func (s *setupService) CreateAdmin(req dto.CreateAdminRequestDto) (*dto.CreateAd
 			Username:        req.Username,
 			Email:           req.Email,
 			Password:        util.Ptr(string(hashedPassword)),
-			AuthContainerID: defaultContainer.AuthContainerID,
+			TenantID:        defaultTenant.TenantID,
 			IsEmailVerified: true,
 			IsActive:        true,
 		}
@@ -248,7 +245,7 @@ func (s *setupService) CreateAdmin(req dto.CreateAdminRequestDto) (*dto.CreateAd
 		}
 
 		// Get super-admin role
-		superAdminRole, err := txRoleRepo.FindByNameAndAuthContainerID("super-admin", defaultContainer.AuthContainerID)
+		superAdminRole, err := txRoleRepo.FindByNameAndTenantID("super-admin", defaultTenant.TenantID)
 		if err != nil {
 			return err
 		}

@@ -1,0 +1,277 @@
+package resthandler
+
+import (
+	"encoding/json"
+	"net/http"
+	"strconv"
+
+	"github.com/go-chi/chi/v5"
+	"github.com/google/uuid"
+	"github.com/maintainerd/auth/internal/dto"
+	"github.com/maintainerd/auth/internal/service"
+	"github.com/maintainerd/auth/internal/util"
+)
+
+type TenantHandler struct {
+	tenantService service.TenantService
+}
+
+func NewTenantHandler(tenantService service.TenantService) *TenantHandler {
+	return &TenantHandler{tenantService}
+}
+
+// Get all tenants with pagination
+func (h *TenantHandler) Get(w http.ResponseWriter, r *http.Request) {
+	// Parse query parameters
+	q := r.URL.Query()
+
+	// Parse pagination
+	page, _ := strconv.Atoi(q.Get("page"))
+	limit, _ := strconv.Atoi(q.Get("limit"))
+
+	// Parse bools safely
+	var isDefault, isActive, isPublic *bool
+	if v := q.Get("is_default"); v != "" {
+		parsed, err := strconv.ParseBool(v)
+		if err == nil {
+			isDefault = &parsed
+		}
+	}
+	if v := q.Get("is_active"); v != "" {
+		parsed, err := strconv.ParseBool(v)
+		if err == nil {
+			isActive = &parsed
+		}
+	}
+	if v := q.Get("is_public"); v != "" {
+		parsed, err := strconv.ParseBool(v)
+		if err == nil {
+			isPublic = &parsed
+		}
+	}
+
+	// Build request DTO
+	reqParams := dto.TenantFilterDto{
+		Name:        util.PtrOrNil(q.Get("name")),
+		Description: util.PtrOrNil(q.Get("description")),
+		Identifier:  util.PtrOrNil(q.Get("identifier")),
+		IsDefault:   isDefault,
+		IsPublic:    isPublic,
+		IsActive:    isActive,
+		PaginationRequestDto: dto.PaginationRequestDto{
+			Page:      page,
+			Limit:     limit,
+			SortBy:    q.Get("sort_by"),
+			SortOrder: q.Get("sort_order"),
+		},
+	}
+
+	if err := reqParams.Validate(); err != nil {
+		util.ValidationError(w, err)
+		return
+	}
+
+	// Build service filter
+	tenantFilter := service.TenantServiceGetFilter{
+		Name:        reqParams.Name,
+		Description: reqParams.Description,
+		Identifier:  reqParams.Identifier,
+		IsDefault:   reqParams.IsDefault,
+		IsPublic:    isPublic,
+		IsActive:    reqParams.IsActive,
+		Page:        reqParams.Page,
+		Limit:       reqParams.Limit,
+		SortBy:      reqParams.SortBy,
+		SortOrder:   reqParams.SortOrder,
+	}
+
+	// Fetch Tenants
+	result, err := h.tenantService.Get(tenantFilter)
+	if err != nil {
+		util.Error(w, http.StatusInternalServerError, "Failed to fetch tenants", err.Error())
+		return
+	}
+
+	// Map tenant result to DTO
+	rows := make([]dto.TenantResponseDto, len(result.Data))
+	for i, r := range result.Data {
+		rows[i] = toTenantResponseDto(r)
+	}
+
+	// Build response data
+	response := dto.PaginatedResponseDto[dto.TenantResponseDto]{
+		Rows:       rows,
+		Total:      result.Total,
+		Page:       result.Page,
+		Limit:      result.Limit,
+		TotalPages: result.TotalPages,
+	}
+
+	util.Success(w, response, "Tenants fetched successfully")
+}
+
+// Get Tenant by UUID
+func (h *TenantHandler) GetByUUID(w http.ResponseWriter, r *http.Request) {
+	tenantUUID, err := uuid.Parse(chi.URLParam(r, "tenant_uuid"))
+	if err != nil {
+		util.Error(w, http.StatusBadRequest, "Invalid Tenant UUID")
+		return
+	}
+
+	tenant, err := h.tenantService.GetByUUID(tenantUUID)
+	if err != nil {
+		util.Error(w, http.StatusNotFound, "Tenant not found")
+		return
+	}
+
+	dtoRes := toTenantResponseDto(*tenant)
+
+	util.Success(w, dtoRes, "Tenant fetched successfully")
+}
+
+// Create Tenant
+func (h *TenantHandler) Create(w http.ResponseWriter, r *http.Request) {
+	var req dto.TenantCreateRequestDto
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		util.Error(w, http.StatusBadRequest, "Invalid request", err.Error())
+		return
+	}
+
+	if err := req.Validate(); err != nil {
+		util.ValidationError(w, err)
+		return
+	}
+
+	tenant, err := h.tenantService.Create(req.Name, req.Description, req.IsActive, req.IsPublic, false)
+	if err != nil {
+		util.Error(w, http.StatusInternalServerError, "Failed to create tenant", err.Error())
+		return
+	}
+
+	dtoRes := toTenantResponseDto(*tenant)
+
+	util.Created(w, dtoRes, "Tenant created successfully")
+}
+
+// Update Tenant
+func (h *TenantHandler) Update(w http.ResponseWriter, r *http.Request) {
+	tenantUUID, err := uuid.Parse(chi.URLParam(r, "tenant_uuid"))
+	if err != nil {
+		util.Error(w, http.StatusBadRequest, "Invalid tenant UUID")
+		return
+	}
+
+	var req dto.TenantUpdateRequestDto
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		util.Error(w, http.StatusBadRequest, "Invalid request", err.Error())
+		return
+	}
+
+	if err := req.Validate(); err != nil {
+		util.ValidationError(w, err)
+		return
+	}
+
+	tenant, err := h.tenantService.Update(tenantUUID, req.Name, req.Description, req.IsActive, req.IsPublic, false)
+	if err != nil {
+		util.Error(w, http.StatusInternalServerError, "Failed to update tenant", err.Error())
+		return
+	}
+
+	dtoRes := toTenantResponseDto(*tenant)
+
+	util.Success(w, dtoRes, "Tenant updated successfully")
+}
+
+// Set Tenant status
+func (h *TenantHandler) SetStatus(w http.ResponseWriter, r *http.Request) {
+	tenantUUID, err := uuid.Parse(chi.URLParam(r, "tenant_uuid"))
+	if err != nil {
+		util.Error(w, http.StatusBadRequest, "Invalid tenant UUID")
+		return
+	}
+
+	tenant, err := h.tenantService.SetActiveStatusByUUID(tenantUUID)
+	if err != nil {
+		util.Error(w, http.StatusInternalServerError, "Failed to update API", err.Error())
+		return
+	}
+
+	dtoRes := toTenantResponseDto(*tenant)
+
+	util.Success(w, dtoRes, "Tenant status updated successfully")
+}
+
+// Set Tenant public
+func (h *TenantHandler) SetPublic(w http.ResponseWriter, r *http.Request) {
+	tenantUUID, err := uuid.Parse(chi.URLParam(r, "tenant_uuid"))
+	if err != nil {
+		util.Error(w, http.StatusBadRequest, "Invalid tenant UUID")
+		return
+	}
+
+	tenant, err := h.tenantService.SetActivePublicByUUID(tenantUUID)
+	if err != nil {
+		util.Error(w, http.StatusInternalServerError, "Failed to update API", err.Error())
+		return
+	}
+
+	dtoRes := toTenantResponseDto(*tenant)
+
+	util.Success(w, dtoRes, "Tenant public updated successfully")
+}
+
+// Set Tenant default
+func (h *TenantHandler) SetDefault(w http.ResponseWriter, r *http.Request) {
+	tenantUUID, err := uuid.Parse(chi.URLParam(r, "tenant_uuid"))
+	if err != nil {
+		util.Error(w, http.StatusBadRequest, "Invalid tenant UUID")
+		return
+	}
+
+	tenant, err := h.tenantService.SetDefaultStatusByUUID(tenantUUID)
+	if err != nil {
+		util.Error(w, http.StatusInternalServerError, "Failed to update tenant", err.Error())
+		return
+	}
+
+	dtoRes := toTenantResponseDto(*tenant)
+
+	util.Success(w, dtoRes, "Tenant default updated successfully")
+}
+
+// Delete Tenant
+func (h *TenantHandler) Delete(w http.ResponseWriter, r *http.Request) {
+	tenantUUID, err := uuid.Parse(chi.URLParam(r, "tenant_uuid"))
+	if err != nil {
+		util.Error(w, http.StatusBadRequest, "Invalid tenant UUID")
+		return
+	}
+
+	tenant, err := h.tenantService.DeleteByUUID(tenantUUID)
+	if err != nil {
+		util.Error(w, http.StatusInternalServerError, "Failed to delete tenant", err.Error())
+		return
+	}
+
+	dtoRes := toTenantResponseDto(*tenant)
+
+	util.Success(w, dtoRes, "Tenant deleted successfully")
+}
+
+// Convert service result to DTO
+func toTenantResponseDto(r service.TenantServiceDataResult) dto.TenantResponseDto {
+	result := dto.TenantResponseDto{
+		TenantUUID:  r.TenantUUID,
+		Name:        r.Name,
+		Description: r.Description,
+		Identifier:  r.Identifier,
+		IsActive:    r.IsActive,
+		IsPublic:    r.IsPublic,
+		IsDefault:   r.IsDefault,
+		CreatedAt:   r.CreatedAt,
+		UpdatedAt:   r.UpdatedAt,
+	}
+
+	return result
+}

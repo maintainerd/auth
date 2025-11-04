@@ -16,7 +16,7 @@ CREATE TABLE IF NOT EXISTS roles (
     description         TEXT NOT NULL,
     is_active           BOOLEAN DEFAULT FALSE,
     is_default          BOOLEAN DEFAULT FALSE,
-    auth_container_id   INTEGER NOT NULL,
+    tenant_id           INTEGER NOT NULL,
     created_at          TIMESTAMPTZ DEFAULT now(),
     updated_at          TIMESTAMPTZ DEFAULT now()
 );
@@ -25,11 +25,11 @@ CREATE TABLE IF NOT EXISTS roles (
 DO $$
 BEGIN
     IF NOT EXISTS (
-        SELECT 1 FROM pg_constraint WHERE conname = 'fk_roles_auth_container_id'
+        SELECT 1 FROM pg_constraint WHERE conname = 'fk_roles_tenant_id'
     ) THEN
         ALTER TABLE roles
-            ADD CONSTRAINT fk_roles_auth_container_id FOREIGN KEY (auth_container_id)
-            REFERENCES auth_containers(auth_container_id) ON DELETE CASCADE;
+            ADD CONSTRAINT fk_roles_tenant_id FOREIGN KEY (tenant_id)
+            REFERENCES tenants(tenant_id) ON DELETE CASCADE;
     END IF;
 END$$;
 
@@ -39,7 +39,7 @@ CREATE INDEX IF NOT EXISTS idx_roles_name ON roles (name);
 CREATE INDEX IF NOT EXISTS idx_roles_description ON roles (description);
 CREATE INDEX IF NOT EXISTS idx_roles_is_active ON roles (is_active);
 CREATE INDEX IF NOT EXISTS idx_roles_is_default ON roles (is_default);
-CREATE INDEX IF NOT EXISTS idx_roles_auth_container_id ON roles (auth_container_id);
+CREATE INDEX IF NOT EXISTS idx_roles_tenant_id ON roles (tenant_id);
 CREATE INDEX IF NOT EXISTS idx_roles_created_at ON roles (created_at);
 `
 	if err := db.Exec(sql).Error; err != nil {
