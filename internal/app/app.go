@@ -69,7 +69,7 @@ func NewApp(db *gorm.DB, redisClient *redis.Client) *App {
 	profileService := service.NewProfileService(db, profileRepo, userRepo)
 	userSettingService := service.NewUserSettingService(db, userSettingRepo, userRepo)
 	inviteService := service.NewInviteService(db, inviteRepo, authClientRepo, roleRepo, emailTemplateRepo)
-	setupService := service.NewSetupService(db, userRepo, tenantRepo, authClientRepo, idpRepo, roleRepo, userRoleRepo, userTokenRepo, userIdentityRepo)
+	setupService := service.NewSetupService(db, userRepo, tenantRepo, authClientRepo, idpRepo, roleRepo, userRoleRepo, userTokenRepo, userIdentityRepo, profileRepo)
 
 	// Rest handlers
 	serviceRestHandler := resthandler.NewServiceHandler(serviceService)

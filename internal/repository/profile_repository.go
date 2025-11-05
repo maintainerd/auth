@@ -1,6 +1,8 @@
 package repository
 
 import (
+	"errors"
+
 	"github.com/maintainerd/auth/internal/model"
 	"gorm.io/gorm"
 )
@@ -35,7 +37,13 @@ func (r *profileRepository) WithTx(tx *gorm.DB) ProfileRepository {
 func (r *profileRepository) FindByUserID(userID int64) (*model.Profile, error) {
 	var profile model.Profile
 	err := r.db.Where("user_id = ?", userID).First(&profile).Error
-	return &profile, err
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil // Return nil profile when not found
+		}
+		return nil, err
+	}
+	return &profile, nil
 }
 
 func (r *profileRepository) UpdateByUserID(userID int64, updatedProfile *model.Profile) error {

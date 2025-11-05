@@ -16,6 +16,7 @@ type TenantResponseDto struct {
 	IsActive    bool      `json:"is_active"`
 	IsPublic    bool      `json:"is_public"`
 	IsDefault   bool      `json:"is_default"`
+	Metadata    any       `json:"metadata,omitempty"`
 	CreatedAt   time.Time `json:"created_at"`
 	UpdatedAt   time.Time `json:"updated_at"`
 }
