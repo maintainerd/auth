@@ -2,19 +2,23 @@ package util
 
 import (
 	"crypto/rand"
-	"encoding/base64"
 	"fmt"
 	"math/big"
 	"strings"
 )
 
-// GenerateIdentifier returns a random URL-safe identifier string
+// GenerateIdentifier returns a random alphanumeric identifier string (no special characters)
 func GenerateIdentifier(n int) string {
+	const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 	b := make([]byte, n)
-	if _, err := rand.Read(b); err != nil {
-		panic(err) // or return empty string + error
+	for i := range b {
+		num, err := rand.Int(rand.Reader, big.NewInt(int64(len(charset))))
+		if err != nil {
+			panic(err) // or return empty string + error
+		}
+		b[i] = charset[num.Int64()]
 	}
-	return strings.TrimRight(base64.URLEncoding.EncodeToString(b), "=")
+	return string(b)
 }
 
 // GenerateOTP generates a random integer OTP between 0 and max (inclusive).

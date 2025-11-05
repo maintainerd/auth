@@ -1,46 +1,60 @@
 package service
 
 import (
+	"encoding/json"
 	"errors"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/model"
 	"github.com/maintainerd/auth/internal/repository"
+	"gorm.io/datatypes"
 	"gorm.io/gorm"
 )
 
 type ProfileServiceDataResult struct {
 	ProfileUUID uuid.UUID
+	// Basic Identity Information
 	FirstName   string
 	MiddleName  *string
 	LastName    *string
 	Suffix      *string
 	DisplayName *string
-	Birthdate   *time.Time
-	Gender      *string
 	Bio         *string
-	Phone       *string
-	Email       *string
-	City        *string
-	Country     *string
-	WebsiteURL  *string
-	AvatarURL   *string
-	CreatedAt   time.Time
-	UpdatedAt   time.Time
+	// Personal Information
+	Birthdate *time.Time
+	Gender    *string
+	// Contact Information
+	Phone   *string
+	Email   *string
+	Address *string
+	// Location Information
+	City    *string
+	Country *string
+	// Preference
+	Timezone *string
+	Language *string
+	// Media & Assets (auth-centric)
+	ProfileURL *string
+	// Extended data
+	Metadata map[string]interface{}
+	// System Fields
+	CreatedAt time.Time
+	UpdatedAt time.Time
 }
 
 type ProfileService interface {
 	CreateOrUpdateProfile(
 		userUUID uuid.UUID,
 		firstName string,
-		middleName, lastName, suffix, displayName *string,
+		middleName, lastName, suffix, displayName, bio *string,
 		birthdate *time.Time,
-		gender, bio *string,
-		phone, email *string,
+		gender *string,
+		phone, email, address *string,
 		city, country *string,
-		websiteURL *string,
-		avatarURL *string,
+		timezone, language *string,
+		profileURL *string,
+		metadata map[string]interface{},
 	) (*ProfileServiceDataResult, error)
 	GetByUUID(profileUUID uuid.UUID) (*ProfileServiceDataResult, error)
 	GetByUserUUID(userUUID uuid.UUID) (*ProfileServiceDataResult, error)
@@ -68,13 +82,14 @@ func NewProfileService(
 func (s *profileService) CreateOrUpdateProfile(
 	userUUID uuid.UUID,
 	firstName string,
-	middleName, lastName, suffix, displayName *string,
+	middleName, lastName, suffix, displayName, bio *string,
 	birthdate *time.Time,
-	gender, bio *string,
-	phone, email *string,
+	gender *string,
+	phone, email, address *string,
 	city, country *string,
-	websiteURL *string,
-	avatarURL *string,
+	timezone, language *string,
+	profileURL *string,
+	metadata map[string]interface{},
 ) (*ProfileServiceDataResult, error) {
 	var updatedProfile *model.Profile
 
@@ -115,25 +130,38 @@ func (s *profileService) CreateOrUpdateProfile(
 		profile.LastName = lastName
 		profile.Suffix = suffix
 		profile.DisplayName = displayName
+		profile.Bio = bio
 
 		// Personal Information
 		profile.Birthdate = birthdate
 		profile.Gender = gender
-		profile.Bio = bio
 
 		// Contact Information
 		profile.Phone = phone
 		profile.Email = email
+		profile.Address = address
 
-		// Location Information (minimal)
+		// Location Information
 		profile.City = city
 		profile.Country = country
 
-		// Social/Web Presence
-		profile.WebsiteURL = websiteURL
+		// Preference
+		profile.Timezone = timezone
+		profile.Language = language
 
 		// Media & Assets (auth-centric)
-		profile.AvatarURL = avatarURL
+		profile.ProfileURL = profileURL
+
+		// Extended data - convert map to JSONB
+		if metadata != nil {
+			metadataBytes, err := json.Marshal(metadata)
+			if err != nil {
+				return err
+			}
+			profile.Metadata = metadataBytes
+		} else {
+			profile.Metadata = datatypes.JSON([]byte("{}"))
+		}
 
 		// Step 4: Create or update using transaction-aware repository
 		if profile.ProfileID == 0 {
@@ -216,24 +244,43 @@ func toProfileServiceDataResult(profile *model.Profile) *ProfileServiceDataResul
 		return nil
 	}
 
+	// Convert metadata JSONB to map
+	var metadata map[string]interface{}
+	if len(profile.Metadata) > 0 {
+		if err := json.Unmarshal(profile.Metadata, &metadata); err != nil {
+			metadata = nil
+		}
+	}
+
 	result := &ProfileServiceDataResult{
 		ProfileUUID: profile.ProfileUUID,
+		// Basic Identity Information
 		FirstName:   profile.FirstName,
 		MiddleName:  profile.MiddleName,
 		LastName:    profile.LastName,
 		Suffix:      profile.Suffix,
 		DisplayName: profile.DisplayName,
-		Birthdate:   profile.Birthdate,
-		Gender:      profile.Gender,
 		Bio:         profile.Bio,
-		Phone:       profile.Phone,
-		Email:       profile.Email,
-		City:        profile.City,
-		Country:     profile.Country,
-		WebsiteURL:  profile.WebsiteURL,
-		AvatarURL:   profile.AvatarURL,
-		CreatedAt:   profile.CreatedAt,
-		UpdatedAt:   profile.UpdatedAt,
+		// Personal Information
+		Birthdate: profile.Birthdate,
+		Gender:    profile.Gender,
+		// Contact Information
+		Phone:   profile.Phone,
+		Email:   profile.Email,
+		Address: profile.Address,
+		// Location Information
+		City:    profile.City,
+		Country: profile.Country,
+		// Preference
+		Timezone: profile.Timezone,
+		Language: profile.Language,
+		// Media & Assets (auth-centric)
+		ProfileURL: profile.ProfileURL,
+		// Extended data
+		Metadata: metadata,
+		// System Fields
+		CreatedAt: profile.CreatedAt,
+		UpdatedAt: profile.UpdatedAt,
 	}
 
 	return result

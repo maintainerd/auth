@@ -53,13 +53,14 @@ func (h *ProfileHandler) CreateOrUpdate(w http.ResponseWriter, r *http.Request) 
 	profile, err := h.profileService.CreateOrUpdateProfile(
 		user.UserUUID,
 		req.FirstName,
-		req.MiddleName, req.LastName, req.Suffix, req.DisplayName,
+		req.MiddleName, req.LastName, req.Suffix, req.DisplayName, req.Bio,
 		birthdate,
-		req.Gender, req.Bio,
-		req.Phone, req.Email,
+		req.Gender,
+		req.Phone, req.Email, req.Address,
 		req.City, req.Country,
-		req.WebsiteURL,
-		req.AvatarURL,
+		req.Timezone, req.Language,
+		req.ProfileURL,
+		req.Metadata,
 	)
 	if err != nil {
 		util.Error(w, http.StatusBadRequest, "Save profile failed", err.Error())
@@ -111,25 +112,30 @@ func toProfileResponseDto(p service.ProfileServiceDataResult) dto.ProfileRespons
 		LastName:    p.LastName,
 		Suffix:      p.Suffix,
 		DisplayName: p.DisplayName,
+		Bio:         p.Bio,
 
 		// Personal Information
 		Birthdate: p.Birthdate,
 		Gender:    p.Gender,
-		Bio:       p.Bio,
 
 		// Contact Information
-		Phone: p.Phone,
-		Email: p.Email,
+		Phone:   p.Phone,
+		Email:   p.Email,
+		Address: p.Address,
 
-		// Location Information (minimal)
+		// Location Information
 		City:    p.City,
 		Country: p.Country,
 
-		// Social/Web Presence
-		WebsiteURL: p.WebsiteURL,
+		// Preference
+		Timezone: p.Timezone,
+		Language: p.Language,
 
 		// Media & Assets (auth-centric)
-		AvatarURL: p.AvatarURL,
+		ProfileURL: p.ProfileURL,
+
+		// Extended data
+		Metadata: p.Metadata,
 
 		// System Fields
 		CreatedAt: p.CreatedAt,
