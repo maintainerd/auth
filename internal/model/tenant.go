@@ -4,20 +4,22 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"gorm.io/datatypes"
 	"gorm.io/gorm"
 )
 
 type Tenant struct {
-	TenantID    int64     `gorm:"column:tenant_id;primaryKey"`
-	TenantUUID  uuid.UUID `gorm:"column:tenant_uuid"`
-	Name        string    `gorm:"column:name"`
-	Description string    `gorm:"column:description"`
-	Identifier  string    `gorm:"column:identifier"`
-	IsActive    bool      `gorm:"column:is_active;default:false"`
-	IsPublic    bool      `gorm:"column:is_public;default:false"`
-	IsDefault   bool      `gorm:"column:is_default;default:false"`
-	CreatedAt   time.Time `gorm:"column:created_at;autoCreateTime"`
-	UpdatedAt   time.Time `gorm:"column:updated_at;autoUpdateTime"`
+	TenantID    int64          `gorm:"column:tenant_id;primaryKey"`
+	TenantUUID  uuid.UUID      `gorm:"column:tenant_uuid"`
+	Name        string         `gorm:"column:name"`
+	Description string         `gorm:"column:description"`
+	Identifier  string         `gorm:"column:identifier"`
+	IsActive    bool           `gorm:"column:is_active;default:false"`
+	IsPublic    bool           `gorm:"column:is_public;default:false"`
+	IsDefault   bool           `gorm:"column:is_default;default:false"`
+	Metadata    datatypes.JSON `gorm:"column:metadata;type:jsonb;default:'{}'"`
+	CreatedAt   time.Time      `gorm:"column:created_at;autoCreateTime"`
+	UpdatedAt   time.Time      `gorm:"column:updated_at;autoUpdateTime"`
 
 	// Relationships
 	Services          []Service           `gorm:"many2many:tenant_services;joinForeignKey:TenantID;joinReferences:ServiceID"`

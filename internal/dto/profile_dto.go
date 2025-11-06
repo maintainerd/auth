@@ -1,10 +1,12 @@
 package dto
 
 import (
+	"encoding/json"
 	"time"
 
 	validation "github.com/go-ozzo/ozzo-validation/v4"
 	"github.com/go-ozzo/ozzo-validation/v4/is"
+	"gorm.io/datatypes"
 
 	"github.com/maintainerd/auth/internal/model"
 )
@@ -16,25 +18,30 @@ type ProfileRequest struct {
 	LastName    *string `json:"last_name,omitempty"`
 	Suffix      *string `json:"suffix,omitempty"`
 	DisplayName *string `json:"display_name,omitempty"`
+	Bio         *string `json:"bio,omitempty"`
 
 	// Personal Information
 	Birthdate *string `json:"birthdate,omitempty"`
 	Gender    *string `json:"gender,omitempty"`
-	Bio       *string `json:"bio,omitempty"`
 
 	// Contact Information
-	Phone *string `json:"phone,omitempty"`
-	Email *string `json:"email,omitempty"`
+	Phone   *string `json:"phone,omitempty"`
+	Email   *string `json:"email,omitempty"`
+	Address *string `json:"address,omitempty"`
 
-	// Location Information (minimal)
+	// Location Information
 	City    *string `json:"city,omitempty"`    // Current city
 	Country *string `json:"country,omitempty"` // ISO 3166-1 alpha-2 code
 
-	// Social/Web Presence
-	WebsiteURL *string `json:"website_url,omitempty"` // Personal website/portfolio
+	// Preference
+	Timezone *string `json:"timezone,omitempty"` // User timezone
+	Language *string `json:"language,omitempty"` // ISO 639-1 language code
 
 	// Media & Assets (auth-centric)
-	AvatarURL *string `json:"avatar_url,omitempty"` // User profile picture
+	ProfileURL *string `json:"profile_url,omitempty"` // User profile picture
+
+	// Extended data
+	Metadata map[string]interface{} `json:"metadata,omitempty"`
 }
 
 func (r ProfileRequest) Validate() error {
@@ -85,6 +92,10 @@ func (r ProfileRequest) Validate() error {
 			is.Email.Error("Invalid email format"),
 			validation.RuneLength(0, 255).Error("Email must be at most 255 characters"),
 		),
+		validation.Field(&r.Address,
+			validation.NilOrNotEmpty,
+			validation.RuneLength(0, 500).Error("Address must be at most 500 characters"),
+		),
 
 		// Location Information (minimal)
 		validation.Field(&r.City,
@@ -96,18 +107,21 @@ func (r ProfileRequest) Validate() error {
 			validation.RuneLength(2, 2).Error("Country must be a 2-character ISO code (e.g., US, PH, CA)"),
 		),
 
-		// Social/Web Presence
-		validation.Field(&r.WebsiteURL,
+		// Preference
+		validation.Field(&r.Timezone,
 			validation.NilOrNotEmpty,
-			is.URL.Error("Invalid website URL format"),
-			validation.RuneLength(0, 1000).Error("Website URL must be at most 1000 characters"),
+			validation.RuneLength(0, 50).Error("Timezone must be at most 50 characters"),
+		),
+		validation.Field(&r.Language,
+			validation.NilOrNotEmpty,
+			validation.RuneLength(0, 10).Error("Language must be at most 10 characters"),
 		),
 
 		// Media & Assets
-		validation.Field(&r.AvatarURL,
+		validation.Field(&r.ProfileURL,
 			validation.NilOrNotEmpty,
-			is.URL.Error("Invalid avatar URL format"),
-			validation.RuneLength(0, 1000).Error("Avatar URL must be at most 1000 characters"),
+			is.URL.Error("Invalid profile URL format"),
+			validation.RuneLength(0, 1000).Error("Profile URL must be at most 1000 characters"),
 		),
 	)
 }
@@ -130,25 +144,30 @@ type ProfileResponse struct {
 	LastName    *string `json:"last_name,omitempty"`
 	Suffix      *string `json:"suffix,omitempty"`
 	DisplayName *string `json:"display_name,omitempty"`
+	Bio         *string `json:"bio,omitempty"`
 
 	// Personal Information
 	Birthdate *time.Time `json:"birthdate,omitempty"`
 	Gender    *string    `json:"gender,omitempty"`
-	Bio       *string    `json:"bio,omitempty"`
 
 	// Contact Information
-	Phone *string `json:"phone,omitempty"`
-	Email *string `json:"email,omitempty"`
+	Phone   *string `json:"phone,omitempty"`
+	Email   *string `json:"email,omitempty"`
+	Address *string `json:"address,omitempty"`
 
-	// Location Information (minimal)
+	// Location Information
 	City    *string `json:"city,omitempty"`    // Current city
 	Country *string `json:"country,omitempty"` // ISO 3166-1 alpha-2 code
 
-	// Social/Web Presence
-	WebsiteURL *string `json:"website_url,omitempty"` // Personal website/portfolio
+	// Preference
+	Timezone *string `json:"timezone,omitempty"` // User timezone
+	Language *string `json:"language,omitempty"` // ISO 639-1 language code
 
 	// Media & Assets (auth-centric)
-	AvatarURL *string `json:"avatar_url,omitempty"` // User profile picture
+	ProfileURL *string `json:"profile_url,omitempty"` // User profile picture
+
+	// Extended data
+	Metadata map[string]interface{} `json:"metadata,omitempty"`
 
 	// System Fields
 	CreatedAt time.Time `json:"created_at"`
@@ -165,28 +184,46 @@ func NewProfileResponse(p *model.Profile) *ProfileResponse {
 		LastName:    p.LastName,
 		Suffix:      p.Suffix,
 		DisplayName: p.DisplayName,
+		Bio:         p.Bio,
 
 		// Personal Information
 		Birthdate: p.Birthdate,
 		Gender:    p.Gender,
-		Bio:       p.Bio,
 
 		// Contact Information
-		Phone: p.Phone,
-		Email: p.Email,
+		Phone:   p.Phone,
+		Email:   p.Email,
+		Address: p.Address,
 
-		// Location Information (minimal)
+		// Location Information
 		City:    p.City,
 		Country: p.Country,
 
-		// Social/Web Presence
-		WebsiteURL: p.WebsiteURL,
+		// Preference
+		Timezone: p.Timezone,
+		Language: p.Language,
 
 		// Media & Assets (auth-centric)
-		AvatarURL: p.AvatarURL,
+		ProfileURL: p.ProfileURL,
+
+		// Extended data
+		Metadata: convertJSONBToMap(p.Metadata),
 
 		// System Fields
 		CreatedAt: p.CreatedAt,
 		UpdatedAt: p.UpdatedAt,
 	}
+}
+
+// Helper function to convert JSONB to map
+func convertJSONBToMap(jsonb datatypes.JSON) map[string]interface{} {
+	if len(jsonb) == 0 {
+		return nil
+	}
+
+	var result map[string]interface{}
+	if err := json.Unmarshal(jsonb, &result); err != nil {
+		return nil
+	}
+	return result
 }

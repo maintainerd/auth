@@ -73,8 +73,6 @@ func (dto TenantMetadataDto) Validate() error {
 type CreateTenantRequestDto struct {
 	Name        string             `json:"name"`
 	Description *string            `json:"description,omitempty"`
-	Email       *string            `json:"email,omitempty"`
-	Phone       *string            `json:"phone,omitempty"`
 	Metadata    *TenantMetadataDto `json:"metadata,omitempty"`
 }
 
@@ -88,17 +86,6 @@ func (dto CreateTenantRequestDto) Validate() error {
 		validation.Field(&dto.Description,
 			validation.When(dto.Description != nil,
 				validation.Length(0, 500).Error("Description must not exceed 500 characters"),
-			),
-		),
-		validation.Field(&dto.Email,
-			validation.When(dto.Email != nil,
-				is.Email.Error("Invalid email format"),
-				validation.Length(0, 100).Error("Email must not exceed 100 characters"),
-			),
-		),
-		validation.Field(&dto.Phone,
-			validation.When(dto.Phone != nil,
-				validation.Length(0, 20).Error("Phone must not exceed 20 characters"),
 			),
 		),
 		validation.Field(&dto.Metadata,
@@ -144,12 +131,12 @@ func (dto CreateAdminRequestDto) Validate() error {
 type SetupStatusResponseDto struct {
 	IsTenantSetup   bool `json:"is_tenant_setup"`
 	IsAdminSetup    bool `json:"is_admin_setup"`
+	IsProfileSetup  bool `json:"is_profile_setup"`
 	IsSetupComplete bool `json:"is_setup_complete"`
 }
 
 // CreateTenantResponseDto for tenant creation response
 type CreateTenantResponseDto struct {
-	Message           string            `json:"message"`
 	Tenant            TenantResponseDto `json:"tenant"`
 	DefaultClientID   string            `json:"default_client_id,omitempty"`
 	DefaultProviderID string            `json:"default_provider_id,omitempty"`
@@ -157,7 +144,127 @@ type CreateTenantResponseDto struct {
 
 // CreateAdminResponseDto for admin creation response
 type CreateAdminResponseDto struct {
-	Message       string            `json:"message"`
 	User          UserResponseDto   `json:"user"`
 	TokenResponse *LoginResponseDto `json:"token_response,omitempty"`
+}
+
+// CreateProfileRequestDto for initial profile setup
+type CreateProfileRequestDto struct {
+	// Basic Identity Information
+	FirstName   string  `json:"first_name"`
+	MiddleName  *string `json:"middle_name,omitempty"`
+	LastName    *string `json:"last_name,omitempty"`
+	Suffix      *string `json:"suffix,omitempty"`
+	DisplayName *string `json:"display_name,omitempty"`
+
+	// Personal Information
+	Birthdate *string `json:"birthdate,omitempty"` // YYYY-MM-DD format
+	Gender    *string `json:"gender,omitempty"`
+	Bio       *string `json:"bio,omitempty"`
+
+	// Contact Information
+	Phone   *string `json:"phone,omitempty"`
+	Email   *string `json:"email,omitempty"`
+	Address *string `json:"address,omitempty"`
+
+	// Location Information
+	City    *string `json:"city,omitempty"`
+	Country *string `json:"country,omitempty"`
+
+	// Preference
+	Timezone *string `json:"timezone,omitempty"`
+	Language *string `json:"language,omitempty"`
+
+	// Media & Assets
+	ProfileURL *string `json:"profile_url,omitempty"`
+
+	// Extended data (custom fields)
+	Metadata map[string]interface{} `json:"metadata,omitempty"`
+}
+
+func (dto CreateProfileRequestDto) Validate() error {
+	return validation.ValidateStruct(&dto,
+		// Basic Identity Information
+		validation.Field(&dto.FirstName,
+			validation.Required.Error("First name is required"),
+			validation.RuneLength(1, 100).Error("First name must be 1-100 characters"),
+		),
+		validation.Field(&dto.MiddleName,
+			validation.NilOrNotEmpty,
+			validation.RuneLength(0, 100).Error("Middle name must be at most 100 characters"),
+		),
+		validation.Field(&dto.LastName,
+			validation.NilOrNotEmpty,
+			validation.RuneLength(0, 100).Error("Last name must be at most 100 characters"),
+		),
+		validation.Field(&dto.Suffix,
+			validation.NilOrNotEmpty,
+			validation.RuneLength(0, 50).Error("Suffix must be at most 50 characters"),
+		),
+		validation.Field(&dto.DisplayName,
+			validation.NilOrNotEmpty,
+			validation.RuneLength(0, 100).Error("Display name must be at most 100 characters"),
+		),
+
+		// Personal Information
+		validation.Field(&dto.Birthdate,
+			validation.NilOrNotEmpty,
+			validation.By(validateDateFormat),
+		),
+		validation.Field(&dto.Gender,
+			validation.NilOrNotEmpty,
+			validation.In("male", "female", "other", "prefer_not_to_say").Error("Gender must be male, female, other, or prefer_not_to_say"),
+		),
+		validation.Field(&dto.Bio,
+			validation.NilOrNotEmpty,
+			validation.RuneLength(0, 1000).Error("Bio must be at most 1000 characters"),
+		),
+
+		// Contact Information
+		validation.Field(&dto.Phone,
+			validation.NilOrNotEmpty,
+			validation.RuneLength(0, 20).Error("Phone must be at most 20 characters"),
+		),
+		validation.Field(&dto.Email,
+			validation.NilOrNotEmpty,
+			is.Email.Error("Invalid email format"),
+			validation.RuneLength(0, 255).Error("Email must be at most 255 characters"),
+		),
+		validation.Field(&dto.Address,
+			validation.NilOrNotEmpty,
+			validation.RuneLength(0, 500).Error("Address must be at most 500 characters"),
+		),
+
+		// Location Information
+		validation.Field(&dto.City,
+			validation.NilOrNotEmpty,
+			validation.RuneLength(0, 100).Error("City must be at most 100 characters"),
+		),
+		validation.Field(&dto.Country,
+			validation.NilOrNotEmpty,
+			validation.RuneLength(2, 2).Error("Country must be a 2-character ISO code (e.g., US, PH, CA)"),
+		),
+
+		// Preference
+		validation.Field(&dto.Timezone,
+			validation.NilOrNotEmpty,
+			validation.RuneLength(0, 50).Error("Timezone must be at most 50 characters"),
+		),
+		validation.Field(&dto.Language,
+			validation.NilOrNotEmpty,
+			validation.RuneLength(0, 10).Error("Language must be at most 10 characters"),
+		),
+
+		// Media & Assets
+		validation.Field(&dto.ProfileURL,
+			validation.NilOrNotEmpty,
+			is.URL.Error("Invalid profile URL format"),
+			validation.RuneLength(0, 1000).Error("Profile URL must be at most 1000 characters"),
+		),
+	)
+}
+
+// CreateProfileResponseDto for profile creation response
+type CreateProfileResponseDto struct {
+	Profile ProfileResponse `json:"profile"`
 }
