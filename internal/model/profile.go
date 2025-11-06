@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"gorm.io/datatypes"
 	"gorm.io/gorm"
 )
 
@@ -18,26 +19,30 @@ type Profile struct {
 	LastName    *string `gorm:"column:last_name"`
 	Suffix      *string `gorm:"column:suffix"`
 	DisplayName *string `gorm:"column:display_name"`
+	Bio         *string `gorm:"column:bio"`
 
 	// Personal Information
 	Birthdate *time.Time `gorm:"column:birthdate"`
 	Gender    *string    `gorm:"column:gender"` // 'male', 'female', 'other', 'prefer_not_to_say'
-	Bio       *string    `gorm:"column:bio"`
 
 	// Contact Information
-	Phone *string `gorm:"column:phone"`
-	Email *string `gorm:"column:email"`
+	Phone   *string `gorm:"column:phone"`
+	Email   *string `gorm:"column:email"`
+	Address *string `gorm:"column:address"`
 
-	// Location Information (minimal)
+	// Location Information
 	City    *string `gorm:"column:city"`    // Current city
 	Country *string `gorm:"column:country"` // ISO 3166-1 alpha-2 code (US, PH, etc.)
 
-	// Social/Web Presence
-	WebsiteURL *string `gorm:"column:website_url"` // Personal website/portfolio
+	// Preference
+	Timezone *string `gorm:"column:timezone"` // User timezone (e.g., America/New_York, Europe/London)
+	Language *string `gorm:"column:language"` // ISO 639-1 language code (e.g., en, es, fr)
 
 	// Media & Assets (auth-centric)
-	AvatarURL   *string `gorm:"column:avatar_url"`    // User profile picture
-	AvatarS3Key *string `gorm:"column:avatar_s3_key"` // S3 key for avatar management
+	ProfileURL *string `gorm:"column:profile_url"` // User profile picture
+
+	// Extended data
+	Metadata datatypes.JSON `gorm:"column:metadata;type:jsonb;default:'{}'"`
 
 	// System Fields
 	CreatedAt time.Time `gorm:"column:created_at;autoCreateTime"`

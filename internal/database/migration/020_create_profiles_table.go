@@ -13,34 +13,28 @@ CREATE TABLE IF NOT EXISTS profiles (
     profile_id      SERIAL PRIMARY KEY,
     profile_uuid    UUID NOT NULL UNIQUE,
     user_id         INTEGER NOT NULL,
-
     -- Basic Identity Information
     first_name      VARCHAR(100) NOT NULL,
     middle_name     VARCHAR(100),
     last_name       VARCHAR(100),
     suffix          VARCHAR(50),
     display_name    VARCHAR(150),
-
+    bio             TEXT,
     -- Personal Information
     birthdate       DATE,
     gender          VARCHAR(25), -- 'male', 'female', 'other', 'prefer_not_to_say'
-    bio             TEXT,
-
-    -- Contact Information
     phone           VARCHAR(20),
     email           VARCHAR(255),
-
-    -- Location Information (minimal)
+    address         VARCHAR(500),
     city            VARCHAR(100),   -- Current city
     country         VARCHAR(2),     -- ISO 3166-1 alpha-2 code
-
-    -- Social/Web Presence
-    website_url     TEXT,           -- Personal website/portfolio
-
+    -- Preference
+    timezone        VARCHAR(50),    -- User timezone (e.g., America/New_York, Europe/London)
+    language        VARCHAR(10),    -- ISO 639-1 language code (e.g., en, es, fr)
     -- Media & Assets (auth-centric)
-    avatar_url      TEXT,           -- User profile picture
-    avatar_s3_key   TEXT,           -- S3 key for avatar management
-
+    profile_url      TEXT,           -- User profile picture
+    -- Extended data
+    metadata				JSONB DEFAULT '{}',
     -- System Fields
     created_at      TIMESTAMPTZ DEFAULT now(),
     updated_at      TIMESTAMPTZ DEFAULT now()
