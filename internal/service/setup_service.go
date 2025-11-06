@@ -413,6 +413,7 @@ func (s *setupService) CreateProfile(req dto.CreateProfileRequestDto) (*dto.Crea
 		// Update user's is_profile_completed flag
 		_, err = txUserRepo.UpdateByUUID(user.UserUUID, map[string]interface{}{
 			"is_profile_completed": true,
+			"is_account_completed": true,
 		})
 		if err != nil {
 			return err
