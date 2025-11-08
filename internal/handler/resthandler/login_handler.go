@@ -21,7 +21,7 @@ func NewLoginHandler(loginService service.LoginService) *LoginHandler {
 	}
 }
 
-func (h *LoginHandler) Login(w http.ResponseWriter, r *http.Request) {
+func (h *LoginHandler) LoginPublic(w http.ResponseWriter, r *http.Request) {
 	startTime := time.Now()
 
 	// Extract security context
@@ -119,8 +119,8 @@ func (h *LoginHandler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Login attempt
-	tokenResponse, err := h.loginService.Login(
+	// Public login attempt (requires client_id and provider_id)
+	tokenResponse, err := h.loginService.LoginPublic(
 		req.Username, req.Password, q.ClientID, q.ProviderID,
 	)
 	if err != nil {
@@ -201,4 +201,102 @@ func (h *LoginHandler) Logout(w http.ResponseWriter, r *http.Request) {
 
 	// Return success response
 	util.Success(w, nil, "Logout successful")
+}
+
+func (h *LoginHandler) Login(w http.ResponseWriter, r *http.Request) {
+	startTime := time.Now()
+
+	// Extract security context
+	clientIP := r.Context().Value(middleware.ClientIPKey)
+	userAgent := r.Context().Value(middleware.UserAgentKey)
+	requestID := r.Context().Value(middleware.RequestIDKey)
+
+	// Convert context values to strings safely
+	clientIPStr := ""
+	userAgentStr := ""
+	requestIDStr := ""
+
+	if clientIP != nil {
+		clientIPStr = clientIP.(string)
+	}
+	if userAgent != nil {
+		userAgentStr = userAgent.(string)
+	}
+	if requestID != nil {
+		requestIDStr = requestID.(string)
+	}
+
+	// Parse optional query parameters (client_id and provider_id)
+	var clientIDPtr, providerIDPtr *string
+	if clientID := r.URL.Query().Get("client_id"); clientID != "" {
+		clientIDPtr = &clientID
+	}
+	if providerID := r.URL.Query().Get("provider_id"); providerID != "" {
+		providerIDPtr = &providerID
+	}
+
+	// Validate body payload
+	var req dto.LoginRequestDto
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		util.Error(w, http.StatusBadRequest, "Invalid request", err.Error())
+		return
+	}
+
+	// Validate using DTO convention (includes sanitization)
+	if err := req.Validate(); err != nil {
+		util.LogSecurityEvent(util.SecurityEvent{
+			EventType: "login_validation_failure",
+			UserID:    req.Username,
+			ClientIP:  clientIPStr,
+			UserAgent: userAgentStr,
+			RequestID: requestIDStr,
+			Endpoint:  "/login",
+			Method:    r.Method,
+			Timestamp: startTime,
+			Details:   "Request body validation failed",
+			Severity:  "MEDIUM",
+		})
+		util.ValidationError(w, err)
+		return
+	}
+
+	// Internal login attempt (client_id/provider_id optional)
+	tokenResponse, err := h.loginService.Login(
+		req.Username, req.Password, clientIDPtr, providerIDPtr,
+	)
+	if err != nil {
+		util.LogSecurityEvent(util.SecurityEvent{
+			EventType: "login_failure",
+			UserID:    req.Username,
+			ClientID:  "internal",
+			ClientIP:  clientIPStr,
+			UserAgent: userAgentStr,
+			RequestID: requestIDStr,
+			Endpoint:  "/login",
+			Method:    r.Method,
+			Timestamp: startTime,
+			Details:   "Internal authentication failed",
+			Severity:  "MEDIUM",
+		})
+		util.Error(w, http.StatusUnauthorized, "Authentication failed")
+		return
+	}
+
+	// Log successful login
+	util.LogSecurityEvent(util.SecurityEvent{
+		EventType: "login_success",
+		UserID:    req.Username,
+		ClientID:  "internal",
+		ClientIP:  clientIPStr,
+		UserAgent: userAgentStr,
+		RequestID: requestIDStr,
+		Endpoint:  "/login",
+		Method:    r.Method,
+		Timestamp: startTime,
+		Details:   "User successfully authenticated via internal endpoint",
+		Severity:  "LOW",
+	})
+
+	// Response with optional cookie delivery based on X-Token-Delivery header
+	util.SuccessWithCookies(w, r, tokenResponse, "Login successful")
 }
