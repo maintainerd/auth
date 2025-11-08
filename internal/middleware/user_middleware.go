@@ -28,9 +28,9 @@ func UserContextMiddleware(
 ) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			// Get sub and audience (client_id) from JWT context
+			// Get sub and client_id from JWT context
 			sub, _ := r.Context().Value(SubKey).(string)
-			clientID, _ := r.Context().Value(AudienceKey).(string)
+			clientID, _ := r.Context().Value(ClientIDKey).(string)
 
 			// Create cache key
 			cacheKey := "user:" + sub + ":" + clientID
