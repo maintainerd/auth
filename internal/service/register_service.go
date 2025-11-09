@@ -13,7 +13,7 @@ import (
 )
 
 type RegisterService interface {
-	Register(username, password string, email, phone *string, clientID, providerID string) (*dto.RegisterResponseDto, error)
+	Register(username, fullname, password string, email, phone *string, clientID, providerID string) (*dto.RegisterResponseDto, error)
 	RegisterInvite(username, password, clientID, providerID, inviteToken string) (*dto.RegisterResponseDto, error)
 }
 
@@ -52,6 +52,7 @@ func NewRegistrationService(
 
 func (s *registerService) Register(
 	username,
+	fullname,
 	password string,
 	email,
 	phone *string,
@@ -137,6 +138,7 @@ func (s *registerService) Register(
 		// Create user
 		newUser := &model.User{
 			Username: username,
+			Fullname: fullname,
 			Password: util.Ptr(string(hashed)),
 			TenantID: tenantId,
 			IsActive: true,
