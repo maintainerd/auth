@@ -133,7 +133,7 @@ func (h *RegisterHandler) Register(w http.ResponseWriter, r *http.Request) {
 
 	// Registration attempt
 	tokenResponse, err := h.registerService.Register(
-		req.Username, req.Password, req.Email, req.Phone, q.ClientID, q.ProviderID,
+		req.Username, req.Fullname, req.Password, req.Email, req.Phone, q.ClientID, q.ProviderID,
 	)
 	if err != nil {
 		util.LogSecurityEvent(util.SecurityEvent{

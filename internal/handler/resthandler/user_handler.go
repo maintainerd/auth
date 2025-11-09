@@ -143,7 +143,7 @@ func (h *UserHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Create user with creator context
-	user, err := h.userService.Create(req.Username, req.Email, req.Phone, req.Password, req.TenantUUID, creatorUser.UserUUID)
+	user, err := h.userService.Create(req.Username, req.Fullname, req.Email, req.Phone, req.Password, req.TenantUUID, creatorUser.UserUUID)
 	if err != nil {
 		util.Error(w, http.StatusInternalServerError, "Failed to create user", err.Error())
 		return
@@ -180,7 +180,7 @@ func (h *UserHandler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Update user
-	user, err := h.userService.Update(userUUID, req.Username, req.Email, req.Phone, updaterUser.UserUUID)
+	user, err := h.userService.Update(userUUID, req.Username, req.Fullname, req.Email, req.Phone, updaterUser.UserUUID)
 	if err != nil {
 		util.Error(w, http.StatusInternalServerError, "Failed to update user", err.Error())
 		return
@@ -322,6 +322,7 @@ func toUserResponseDto(u service.UserServiceDataResult) dto.UserResponseDto {
 	result := dto.UserResponseDto{
 		UserUUID:           u.UserUUID,
 		Username:           u.Username,
+		Fullname:           u.Fullname,
 		Email:              u.Email,
 		Phone:              u.Phone,
 		IsEmailVerified:    u.IsEmailVerified,
