@@ -20,6 +20,10 @@ const (
 	AudienceKey contextKey = "audience"
 	IssuerKey   contextKey = "issuer"
 	JTIKey      contextKey = "jti"
+
+	// auth client identification fields
+	ClientIDKey   contextKey = "client_id"
+	ProviderIDKey contextKey = "provider_id"
 )
 
 func JWTAuthMiddleware(next http.Handler) http.Handler {
@@ -73,6 +77,10 @@ func JWTAuthMiddleware(next http.Handler) http.Handler {
 		iss, _ := claims["iss"].(string)
 		jti, _ := claims["jti"].(string)
 
+		// Auth client identification fields
+		clientID, _ := claims["client_id"].(string)
+		providerID, _ := claims["provider_id"].(string)
+
 		// Build new context with all needed values
 		ctx := context.WithValue(r.Context(), SubKey, sub)
 		ctx = context.WithValue(ctx, ScopeKey, scope)
@@ -80,7 +88,25 @@ func JWTAuthMiddleware(next http.Handler) http.Handler {
 		ctx = context.WithValue(ctx, IssuerKey, iss)
 		ctx = context.WithValue(ctx, JTIKey, jti)
 		ctx = context.WithValue(ctx, UserUUIDKey, userUUID)
+		ctx = context.WithValue(ctx, ClientIDKey, clientID)
+		ctx = context.WithValue(ctx, ProviderIDKey, providerID)
 
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
+}
+
+// GetClientIDFromContext extracts the client_id from the request context
+func GetClientIDFromContext(r *http.Request) string {
+	if clientID, ok := r.Context().Value(ClientIDKey).(string); ok {
+		return clientID
+	}
+	return ""
+}
+
+// GetProviderIDFromContext extracts the provider_id from the request context
+func GetProviderIDFromContext(r *http.Request) string {
+	if providerID, ok := r.Context().Value(ProviderIDKey).(string); ok {
+		return providerID
+	}
+	return ""
 }

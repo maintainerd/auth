@@ -21,7 +21,7 @@ func NewRegisterHandler(registerService service.RegisterService) *RegisterHandle
 	}
 }
 
-func (h *RegisterHandler) Register(w http.ResponseWriter, r *http.Request) {
+func (h *RegisterHandler) RegisterPublic(w http.ResponseWriter, r *http.Request) {
 	startTime := time.Now()
 
 	// Extract security context
@@ -131,8 +131,8 @@ func (h *RegisterHandler) Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Registration attempt
-	tokenResponse, err := h.registerService.Register(
+	// Public registration attempt (requires client_id and provider_id)
+	tokenResponse, err := h.registerService.RegisterPublic(
 		req.Username, req.Fullname, req.Password, req.Email, req.Phone, q.ClientID, q.ProviderID,
 	)
 	if err != nil {
@@ -172,7 +172,160 @@ func (h *RegisterHandler) Register(w http.ResponseWriter, r *http.Request) {
 	util.CreatedWithCookies(w, r, tokenResponse, "Registration successful")
 }
 
+func (h *RegisterHandler) Register(w http.ResponseWriter, r *http.Request) {
+	startTime := time.Now()
+
+	// Extract security context
+	clientIP := r.Context().Value(middleware.ClientIPKey)
+	userAgent := r.Context().Value(middleware.UserAgentKey)
+	requestID := r.Context().Value(middleware.RequestIDKey)
+
+	// Convert context values to strings safely
+	clientIPStr := ""
+	userAgentStr := ""
+	requestIDStr := ""
+
+	if clientIP != nil {
+		clientIPStr = clientIP.(string)
+	}
+	if userAgent != nil {
+		userAgentStr = userAgent.(string)
+	}
+	if requestID != nil {
+		requestIDStr = requestID.(string)
+	}
+
+	// Parse optional query parameters (client_id and provider_id)
+	var clientIDPtr, providerIDPtr *string
+	if clientID := r.URL.Query().Get("client_id"); clientID != "" {
+		clientIDPtr = &clientID
+	}
+	if providerID := r.URL.Query().Get("provider_id"); providerID != "" {
+		providerIDPtr = &providerID
+	}
+
+	// Validate body payload
+	var req dto.RegisterRequestDto
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		util.Error(w, http.StatusBadRequest, "Invalid request", err.Error())
+		return
+	}
+
+	// Validate using DTO convention for registration (includes sanitization and password strength)
+	if err := req.ValidateForRegistration(); err != nil {
+		// Determine event type based on error
+		eventType := "registration_validation_failure"
+		severity := "MEDIUM"
+		if err.Error() == "password is too weak" ||
+			err.Error() == "password must contain at least one uppercase letter" ||
+			err.Error() == "password must contain at least one lowercase letter" ||
+			err.Error() == "password must contain at least one digit" ||
+			err.Error() == "password must contain at least one special character" ||
+			err.Error() == "password contains a common weak password" {
+			eventType = "registration_weak_password"
+		}
+
+		util.LogSecurityEvent(util.SecurityEvent{
+			EventType: eventType,
+			UserID:    req.Username,
+			ClientIP:  clientIPStr,
+			UserAgent: userAgentStr,
+			RequestID: requestIDStr,
+			Endpoint:  "/register",
+			Method:    r.Method,
+			Timestamp: startTime,
+			Details:   "Request validation failed: " + err.Error(),
+			Severity:  severity,
+		})
+		util.ValidationError(w, err)
+		return
+	}
+
+	// Internal registration attempt (client_id/provider_id optional)
+	tokenResponse, err := h.registerService.Register(
+		req.Username, req.Fullname, req.Password, req.Email, req.Phone, clientIDPtr, providerIDPtr,
+	)
+	if err != nil {
+		util.LogSecurityEvent(util.SecurityEvent{
+			EventType: "registration_failure",
+			UserID:    req.Username,
+			ClientIP:  clientIPStr,
+			UserAgent: userAgentStr,
+			RequestID: requestIDStr,
+			Endpoint:  "/register",
+			Method:    r.Method,
+			Timestamp: startTime,
+			Details:   "Internal registration failed: " + err.Error(),
+			Severity:  "MEDIUM",
+		})
+		util.Error(w, http.StatusInternalServerError, "Registration failed", err.Error())
+		return
+	}
+
+	// Log successful registration
+	util.LogSecurityEvent(util.SecurityEvent{
+		EventType: "registration_success",
+		UserID:    req.Username,
+		ClientIP:  clientIPStr,
+		UserAgent: userAgentStr,
+		RequestID: requestIDStr,
+		Endpoint:  "/register",
+		Method:    r.Method,
+		Timestamp: startTime,
+		Details:   "User successfully registered via internal endpoint",
+		Severity:  "LOW",
+	})
+
+	// Response with optional cookie delivery based on X-Token-Delivery header
+	util.CreatedWithCookies(w, r, tokenResponse, "Registration successful")
+}
+
 func (h *RegisterHandler) RegisterInvite(w http.ResponseWriter, r *http.Request) {
+	// Get invite token from query parameters
+	inviteToken := r.URL.Query().Get("invite_token")
+	if inviteToken == "" {
+		util.Error(w, http.StatusBadRequest, "Invite token is required")
+		return
+	}
+
+	// Parse optional query parameters (client_id and provider_id)
+	var clientIDPtr, providerIDPtr *string
+	if clientID := r.URL.Query().Get("client_id"); clientID != "" {
+		clientIDPtr = &clientID
+	}
+	if providerID := r.URL.Query().Get("provider_id"); providerID != "" {
+		providerIDPtr = &providerID
+	}
+
+	// Validate body payload
+	var req dto.LoginRequestDto
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		util.Error(w, http.StatusBadRequest, "Invalid request", err.Error())
+		return
+	}
+
+	if err := req.Validate(); err != nil {
+		util.ValidationError(w, err)
+		return
+	}
+
+	// Internal register with invite (client_id/provider_id optional)
+	tokenResponse, err := h.registerService.RegisterInvite(
+		req.Username,
+		req.Password,
+		inviteToken,
+		clientIDPtr, providerIDPtr,
+	)
+	if err != nil {
+		util.Error(w, http.StatusInternalServerError, "Registration failed", err.Error())
+		return
+	}
+
+	// Response with optional cookie delivery based on X-Token-Delivery header
+	util.CreatedWithCookies(w, r, tokenResponse, "Registration successful")
+}
+
+func (h *RegisterHandler) RegisterInvitePublic(w http.ResponseWriter, r *http.Request) {
 	// Validate query parameters
 	q := dto.RegisterInviteQueryDto{
 		ClientID:    r.URL.Query().Get("client_id"),
@@ -199,8 +352,8 @@ func (h *RegisterHandler) RegisterInvite(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	// Register
-	tokenResponse, err := h.registerService.RegisterInvite(
+	// Public register with invite (requires client_id and provider_id)
+	tokenResponse, err := h.registerService.RegisterInvitePublic(
 		req.Username,
 		req.Password,
 		q.ClientID,

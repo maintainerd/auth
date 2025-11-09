@@ -106,6 +106,8 @@ func GenerateAccessToken(
 	scope string,
 	issuer string,
 	audience string,
+	clientID string,
+	providerID string,
 ) (string, error) {
 	// Input validation (SOC2 CC6.1 - Logical Access Controls)
 	if strings.TrimSpace(userId) == "" {
@@ -116,6 +118,12 @@ func GenerateAccessToken(
 	}
 	if strings.TrimSpace(audience) == "" {
 		return "", errors.New("audience cannot be empty")
+	}
+	if strings.TrimSpace(clientID) == "" {
+		return "", errors.New("clientID cannot be empty")
+	}
+	if strings.TrimSpace(providerID) == "" {
+		return "", errors.New("providerID cannot be empty")
 	}
 
 	// Generate secure JTI (ISO27001 A.10.1.1)
@@ -138,6 +146,10 @@ func GenerateAccessToken(
 		// OAuth2 claims
 		"scope":      scope,
 		"token_type": "access_token",
+
+		// Auth client identification claims
+		"client_id":   clientID,
+		"provider_id": providerID,
 	}
 
 	return generateToken(claims)
@@ -159,7 +171,7 @@ type UserProfile struct {
 	Picture       string `json:"picture,omitempty"`
 }
 
-func GenerateIDToken(userUUID, issuer, clientID string, profile *UserProfile, nonce string) (string, error) {
+func GenerateIDToken(userUUID, issuer, clientID, providerID string, profile *UserProfile, nonce string) (string, error) {
 	// Input validation (SOC2 CC6.1 - Logical Access Controls)
 	if strings.TrimSpace(userUUID) == "" {
 		return "", errors.New("userUUID cannot be empty")
@@ -169,6 +181,9 @@ func GenerateIDToken(userUUID, issuer, clientID string, profile *UserProfile, no
 	}
 	if strings.TrimSpace(clientID) == "" {
 		return "", errors.New("clientID cannot be empty")
+	}
+	if strings.TrimSpace(providerID) == "" {
+		return "", errors.New("providerID cannot be empty")
 	}
 
 	// Generate secure JTI
@@ -189,6 +204,10 @@ func GenerateIDToken(userUUID, issuer, clientID string, profile *UserProfile, no
 		"jti":        jti,
 		"auth_time":  jwt.NewNumericDate(now),
 		"token_type": "id_token",
+
+		// Auth client identification claims
+		"client_id":   clientID,
+		"provider_id": providerID,
 	}
 
 	// Add nonce if provided (OIDC security requirement)
@@ -235,7 +254,7 @@ func GenerateIDToken(userUUID, issuer, clientID string, profile *UserProfile, no
 	return generateToken(claims)
 }
 
-func GenerateRefreshToken(userUUID, issuer, clientID string) (string, error) {
+func GenerateRefreshToken(userUUID, issuer, clientID, providerID string) (string, error) {
 	// Input validation (SOC2 CC6.1 - Logical Access Controls)
 	if strings.TrimSpace(userUUID) == "" {
 		return "", errors.New("userUUID cannot be empty")
@@ -245,6 +264,9 @@ func GenerateRefreshToken(userUUID, issuer, clientID string) (string, error) {
 	}
 	if strings.TrimSpace(clientID) == "" {
 		return "", errors.New("clientID cannot be empty")
+	}
+	if strings.TrimSpace(providerID) == "" {
+		return "", errors.New("providerID cannot be empty")
 	}
 
 	// Generate secure JTI
@@ -264,6 +286,10 @@ func GenerateRefreshToken(userUUID, issuer, clientID string) (string, error) {
 		"nbf":        jwt.NewNumericDate(now),
 		"jti":        jti, // Secure unique identifier
 		"token_type": "refresh_token",
+
+		// Auth client identification claims
+		"client_id":   clientID,
+		"provider_id": providerID,
 	}
 
 	return generateToken(claims)

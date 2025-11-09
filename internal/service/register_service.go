@@ -13,8 +13,10 @@ import (
 )
 
 type RegisterService interface {
-	Register(username, fullname, password string, email, phone *string, clientID, providerID string) (*dto.RegisterResponseDto, error)
-	RegisterInvite(username, password, clientID, providerID, inviteToken string) (*dto.RegisterResponseDto, error)
+	RegisterPublic(username, fullname, password string, email, phone *string, clientID, providerID string) (*dto.RegisterResponseDto, error)
+	RegisterInvitePublic(username, password, clientID, providerID, inviteToken string) (*dto.RegisterResponseDto, error)
+	Register(username, fullname, password string, email, phone *string, clientID, providerID *string) (*dto.RegisterResponseDto, error)
+	RegisterInvite(username, password, inviteToken string, clientID, providerID *string) (*dto.RegisterResponseDto, error)
 }
 
 type registerService struct {
@@ -50,7 +52,10 @@ func NewRegistrationService(
 	}
 }
 
-func (s *registerService) Register(
+// RegisterPublic registers new users for public-facing applications.
+// Requires clientID and providerID to identify the auth client.
+// Used by external applications on port 8081.
+func (s *registerService) RegisterPublic(
 	username,
 	fullname,
 	password string,
@@ -187,7 +192,243 @@ func (s *registerService) Register(
 	return s.generateTokenResponse(createdUser.UserUUID.String(), createdUser, authClient)
 }
 
+// Register registers new users for internal applications.
+// If clientID and providerID are provided, uses the specified auth client.
+// If not provided, uses the default auth client.
+// Used by internal applications on port 8080.
+func (s *registerService) Register(
+	username,
+	fullname,
+	password string,
+	email,
+	phone *string,
+	clientID,
+	providerID *string,
+) (*dto.RegisterResponseDto, error) {
+	// Rate limiting check to prevent registration abuse
+	if err := util.CheckRateLimit(username); err != nil {
+		return nil, err
+	}
+
+	var createdUser *model.User
+	var authClient *model.AuthClient
+
+	// All database operations in transaction
+	err := s.db.Transaction(func(tx *gorm.DB) error {
+		txUserRepo := s.userRepo.WithTx(tx)
+		txUserTokenRepo := s.userTokenRepo.WithTx(tx)
+		txAuthClientRepo := s.authClientRepo.WithTx(tx)
+
+		// Get auth client - either by client_id and provider_id or default
+		var txErr error
+		if clientID != nil && providerID != nil {
+			// Get auth client by client_id and identity provider identifier
+			authClient, txErr = txAuthClientRepo.FindByClientIDAndIdentityProvider(*clientID, *providerID)
+			if txErr != nil {
+				return errors.New("auth client lookup by client_id and provider_id failed")
+			}
+		} else {
+			// Get default auth client for internal authentication
+			authClient, txErr = txAuthClientRepo.FindDefault()
+			if txErr != nil {
+				return txErr
+			}
+		}
+
+		if authClient == nil ||
+			!authClient.IsActive ||
+			authClient.Domain == nil || *authClient.Domain == "" {
+			return errors.New("auth client not found or inactive")
+		}
+
+		// Get tenant ID from the default client's identity provider
+		tenantId := authClient.IdentityProvider.Tenant.TenantID
+
+		// Check if user already exists
+		existingUser, txErr := txUserRepo.FindByUsername(username, tenantId)
+		if txErr != nil && txErr.Error() != "record not found" {
+			return txErr
+		}
+		if existingUser != nil {
+			return errors.New("user already exists")
+		}
+
+		// Hash password
+		hashed, txErr := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+		if txErr != nil {
+			return txErr
+		}
+
+		// Create user
+		newUser := &model.User{
+			Username: username,
+			Fullname: fullname,
+			Password: util.Ptr(string(hashed)),
+			TenantID: tenantId,
+			IsActive: true,
+		}
+
+		// Set email if provided
+		if email != nil && *email != "" {
+			newUser.Email = *email
+		}
+
+		// Set phone if provided
+		if phone != nil && *phone != "" {
+			newUser.Phone = *phone
+		}
+
+		createdUser, txErr = txUserRepo.Create(newUser)
+		if txErr != nil {
+			return txErr
+		}
+
+		// Generate OTP
+		otp, txErr := util.GenerateOTP(6)
+		if txErr != nil {
+			return txErr
+		}
+
+		// Create user token
+		userToken := &model.UserToken{
+			UserID:    createdUser.UserID,
+			TokenType: "user:email:verification",
+			Token:     otp,
+		}
+		_, txErr = txUserTokenRepo.Create(userToken)
+		if txErr != nil {
+			return txErr
+		}
+
+		return nil // commit transaction
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	// Return token response
+	return s.generateTokenResponse(createdUser.UserUUID.String(), createdUser, authClient)
+}
+
+// RegisterInvite registers new users via invite token for internal applications.
+// If clientID and providerID are provided, uses the specified auth client.
+// If not provided, uses the default auth client.
+// Used by internal applications on port 8080.
 func (s *registerService) RegisterInvite(
+	username,
+	password,
+	inviteToken string,
+	clientID,
+	providerID *string,
+) (*dto.RegisterResponseDto, error) {
+	var createdUser *model.User
+	var authClient *model.AuthClient
+
+	// All database operations in transaction
+	err := s.db.Transaction(func(tx *gorm.DB) error {
+		txUserRepo := s.userRepo.WithTx(tx)
+		txUserRoleRepo := s.userRoleRepo.WithTx(tx)
+		txInviteRepo := s.inviteRepo.WithTx(tx)
+		txAuthClientRepo := s.authClientRepo.WithTx(tx)
+
+		// Get auth client - either by client_id and provider_id or default
+		var txErr error
+		if clientID != nil && providerID != nil {
+			// Get auth client by client_id and identity provider identifier
+			authClient, txErr = txAuthClientRepo.FindByClientIDAndIdentityProvider(*clientID, *providerID)
+			if txErr != nil {
+				return errors.New("auth client lookup by client_id and provider_id failed")
+			}
+		} else {
+			// Get default auth client for internal authentication
+			authClient, txErr = txAuthClientRepo.FindDefault()
+			if txErr != nil {
+				return txErr
+			}
+		}
+
+		if authClient == nil ||
+			!authClient.IsActive ||
+			authClient.Domain == nil || *authClient.Domain == "" {
+			return errors.New("auth client not found or inactive")
+		}
+
+		// Get tenant ID from the default client's identity provider
+		tenantId := authClient.IdentityProvider.Tenant.TenantID
+
+		// Validate invite token
+		invite, txErr := txInviteRepo.FindByToken(inviteToken)
+		if txErr != nil {
+			return errors.New("invalid invite token")
+		}
+		if invite == nil || invite.Status != "pending" || (invite.ExpiresAt != nil && invite.ExpiresAt.Before(time.Now())) {
+			return errors.New("invite token is invalid or expired")
+		}
+
+		// Check if user already exists
+		existingUser, txErr := txUserRepo.FindByUsername(username, tenantId)
+		if txErr != nil && txErr.Error() != "record not found" {
+			return txErr
+		}
+		if existingUser != nil {
+			return errors.New("user already exists")
+		}
+
+		// Hash password
+		hashed, txErr := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+		if txErr != nil {
+			return txErr
+		}
+
+		// Create user
+		newUser := &model.User{
+			Username: username,
+			Fullname: username, // Use username as fullname since invite doesn't have fullname
+			Password: util.Ptr(string(hashed)),
+			Email:    invite.InvitedEmail,
+			TenantID: tenantId,
+			IsActive: true,
+		}
+
+		createdUser, txErr = txUserRepo.Create(newUser)
+		if txErr != nil {
+			return txErr
+		}
+
+		// Assign roles from invite
+		for _, role := range invite.Roles {
+			userRole := &model.UserRole{
+				UserID: createdUser.UserID,
+				RoleID: role.RoleID,
+			}
+			_, txErr = txUserRoleRepo.Create(userRole)
+			if txErr != nil {
+				return txErr
+			}
+		}
+
+		// Mark invite as used
+		txErr = txInviteRepo.MarkAsUsed(invite.InviteUUID)
+		if txErr != nil {
+			return txErr
+		}
+
+		return nil // commit transaction
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	// Return token response
+	return s.generateTokenResponse(createdUser.UserUUID.String(), createdUser, authClient)
+}
+
+// RegisterInvitePublic registers new users via invite token for public-facing applications.
+// Requires clientID and providerID to identify the auth client.
+// Used by external applications on port 8081.
+func (s *registerService) RegisterInvitePublic(
 	username,
 	password,
 	clientID,
@@ -331,6 +572,8 @@ func (s *registerService) generateTokenResponse(userUUID string, user *model.Use
 		"openid profile email",
 		*authClient.Domain,
 		*authClient.ClientID,
+		*authClient.ClientID,
+		authClient.IdentityProvider.Identifier,
 	)
 	if err != nil {
 		return nil, err
@@ -345,12 +588,12 @@ func (s *registerService) generateTokenResponse(userUUID string, user *model.Use
 	}
 
 	// Generate ID token with user profile (no nonce for registration flow)
-	idToken, err := util.GenerateIDToken(userUUID, *authClient.Domain, *authClient.ClientID, profile, "")
+	idToken, err := util.GenerateIDToken(userUUID, *authClient.Domain, *authClient.ClientID, authClient.IdentityProvider.Identifier, profile, "")
 	if err != nil {
 		return nil, err
 	}
 
-	refreshToken, err := util.GenerateRefreshToken(userUUID, *authClient.Domain, *authClient.ClientID)
+	refreshToken, err := util.GenerateRefreshToken(userUUID, *authClient.Domain, *authClient.ClientID, authClient.IdentityProvider.Identifier)
 	if err != nil {
 		return nil, err
 	}
