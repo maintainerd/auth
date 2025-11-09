@@ -268,6 +268,7 @@ func (s *setupService) CreateAdmin(req dto.CreateAdminRequestDto) (*dto.CreateAd
 		// Create admin user
 		newUser := &model.User{
 			Username:        req.Username,
+			Fullname:        req.Fullname,
 			Email:           req.Email,
 			Password:        util.Ptr(string(hashedPassword)),
 			TenantID:        defaultTenant.TenantID,
@@ -322,6 +323,7 @@ func (s *setupService) CreateAdmin(req dto.CreateAdminRequestDto) (*dto.CreateAd
 	userResponse := dto.UserResponseDto{
 		UserUUID:        createdUser.UserUUID,
 		Username:        createdUser.Username,
+		Fullname:        createdUser.Fullname,
 		Email:           createdUser.Email,
 		IsEmailVerified: createdUser.IsEmailVerified,
 		IsActive:        createdUser.IsActive,

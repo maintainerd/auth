@@ -104,6 +104,7 @@ func (dto CreateTenantRequestDto) Validate() error {
 // CreateAdminRequestDto for initial admin user setup
 type CreateAdminRequestDto struct {
 	Username string `json:"username"`
+	Fullname string `json:"fullname"`
 	Password string `json:"password"`
 	Email    string `json:"email"`
 }
@@ -114,6 +115,10 @@ func (dto CreateAdminRequestDto) Validate() error {
 			validation.Required.Error("Username is required"),
 			validation.Length(3, 50).Error("Username must be between 3 and 50 characters"),
 			validation.Match(regexp.MustCompile(`^[a-zA-Z0-9_\-\.@]+$`)).Error("Username contains invalid characters"),
+		),
+		validation.Field(&dto.Fullname,
+			validation.Required.Error("Fullname is required"),
+			validation.Length(1, 255).Error("Fullname must be between 1 and 255 characters"),
 		),
 		validation.Field(&dto.Password,
 			validation.Required.Error("Password is required"),

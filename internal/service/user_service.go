@@ -15,6 +15,7 @@ import (
 type UserServiceDataResult struct {
 	UserUUID           uuid.UUID
 	Username           string
+	Fullname           string
 	Email              string
 	Phone              string
 	IsEmailVerified    bool
@@ -62,8 +63,8 @@ type UserServiceGetResult struct {
 type UserService interface {
 	Get(filter UserServiceGetFilter) (*UserServiceGetResult, error)
 	GetByUUID(userUUID uuid.UUID) (*UserServiceDataResult, error)
-	Create(username string, email *string, phone *string, password string, tenantUUID string, creatorUserUUID uuid.UUID) (*UserServiceDataResult, error)
-	Update(userUUID uuid.UUID, username string, email *string, phone *string, updaterUserUUID uuid.UUID) (*UserServiceDataResult, error)
+	Create(username string, fullname string, email *string, phone *string, password string, tenantUUID string, creatorUserUUID uuid.UUID) (*UserServiceDataResult, error)
+	Update(userUUID uuid.UUID, username string, fullname string, email *string, phone *string, updaterUserUUID uuid.UUID) (*UserServiceDataResult, error)
 	SetActiveStatus(userUUID uuid.UUID, isActive bool, updaterUserUUID uuid.UUID) (*UserServiceDataResult, error)
 	DeleteByUUID(userUUID uuid.UUID, deleterUserUUID uuid.UUID) (*UserServiceDataResult, error)
 	AssignUserRoles(userUUID uuid.UUID, roleUUIDs []uuid.UUID) (*UserServiceDataResult, error)
@@ -161,7 +162,7 @@ func (s *userService) GetByUUID(userUUID uuid.UUID) (*UserServiceDataResult, err
 	return toUserServiceDataResult(user), nil
 }
 
-func (s *userService) Create(username string, email *string, phone *string, password string, tenantUUID string, creatorUserUUID uuid.UUID) (*UserServiceDataResult, error) {
+func (s *userService) Create(username string, fullname string, email *string, phone *string, password string, tenantUUID string, creatorUserUUID uuid.UUID) (*UserServiceDataResult, error) {
 	var createdUser *model.User
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
@@ -234,6 +235,7 @@ func (s *userService) Create(username string, email *string, phone *string, pass
 
 		newUser := &model.User{
 			Username: username,
+			Fullname: fullname,
 			Email:    emailStr,
 			Phone:    phoneStr,
 			Password: &hashedPasswordStr,
@@ -282,7 +284,7 @@ func (s *userService) Create(username string, email *string, phone *string, pass
 	return toUserServiceDataResult(createdUser), nil
 }
 
-func (s *userService) Update(userUUID uuid.UUID, username string, email *string, phone *string, updaterUserUUID uuid.UUID) (*UserServiceDataResult, error) {
+func (s *userService) Update(userUUID uuid.UUID, username string, fullname string, email *string, phone *string, updaterUserUUID uuid.UUID) (*UserServiceDataResult, error) {
 	var updatedUser *model.User
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
@@ -339,6 +341,7 @@ func (s *userService) Update(userUUID uuid.UUID, username string, email *string,
 
 		// Update user
 		user.Username = username
+		user.Fullname = fullname
 		if email != nil {
 			user.Email = emailStr
 		}
@@ -543,6 +546,7 @@ func toUserServiceDataResult(user *model.User) *UserServiceDataResult {
 	result := &UserServiceDataResult{
 		UserUUID:           user.UserUUID,
 		Username:           user.Username,
+		Fullname:           user.Fullname,
 		Email:              user.Email,
 		Phone:              user.Phone,
 		IsEmailVerified:    user.IsEmailVerified,
