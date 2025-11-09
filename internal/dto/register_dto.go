@@ -11,6 +11,7 @@ import (
 // Register request payload structure
 type RegisterRequestDto struct {
 	Username string  `json:"username"`
+	Fullname string  `json:"fullname"`
 	Email    *string `json:"email,omitempty"`
 	Phone    *string `json:"phone,omitempty"`
 	Password string  `json:"password"`
@@ -19,6 +20,7 @@ type RegisterRequestDto struct {
 func (r *RegisterRequestDto) Validate() error {
 	// Sanitize inputs first
 	r.Username = util.SanitizeInput(r.Username)
+	r.Fullname = util.SanitizeInput(r.Fullname)
 	r.Password = util.SanitizeInput(r.Password)
 	if r.Email != nil {
 		*r.Email = util.SanitizeInput(*r.Email)
@@ -31,6 +33,10 @@ func (r *RegisterRequestDto) Validate() error {
 		validation.Field(&r.Username,
 			validation.Required.Error("Username is required"),
 			validation.Length(1, 255).Error("Username must not exceed 255 characters"),
+		),
+		validation.Field(&r.Fullname,
+			validation.Required.Error("Fullname is required"),
+			validation.Length(1, 255).Error("Fullname must not exceed 255 characters"),
 		),
 		validation.Field(&r.Email,
 			validation.When(r.Email != nil,

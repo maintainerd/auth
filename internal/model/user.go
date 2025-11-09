@@ -11,6 +11,7 @@ type User struct {
 	UserID             int64     `gorm:"column:user_id;primaryKey"`
 	UserUUID           uuid.UUID `gorm:"column:user_uuid;unique"`
 	Username           string    `gorm:"column:username"`
+	Fullname           string    `gorm:"column:fullname"`
 	Email              string    `gorm:"column:email"`
 	Phone              string    `gorm:"column:phone"`
 	Password           *string   `gorm:"column:password"` // nullable for external users
