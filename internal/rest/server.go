@@ -93,6 +93,9 @@ func startPublicServer(application *app.App) {
 	r.Use(securityMiddleware.TimeoutMiddleware(60 * time.Second))          // 60s global timeout
 
 	r.Route("/api/v1", func(api chi.Router) {
+		// Public Tenant Routes (no authentication required - for login page)
+		route.TenantRoute(api, application.TenantRestHandler, application.UserRepository, application.RedisClient)
+
 		// Public Authentication Routes (requires client_id/provider_id)
 		route.RegisterPublicRoute(api, application.RegisterRestHandler)
 		route.LoginPublicRoute(api, application.LoginRestHandler)
