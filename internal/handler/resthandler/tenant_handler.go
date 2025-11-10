@@ -129,6 +129,38 @@ func (h *TenantHandler) GetByUUID(w http.ResponseWriter, r *http.Request) {
 	util.Success(w, dtoRes, "Tenant fetched successfully")
 }
 
+// Get Default Tenant
+func (h *TenantHandler) GetDefault(w http.ResponseWriter, r *http.Request) {
+	tenant, err := h.tenantService.GetDefault()
+	if err != nil {
+		util.Error(w, http.StatusNotFound, "Default tenant not found")
+		return
+	}
+
+	dtoRes := toTenantResponseDto(*tenant)
+
+	util.Success(w, dtoRes, "Default tenant fetched successfully")
+}
+
+// Get Tenant by Identifier
+func (h *TenantHandler) GetByIdentifier(w http.ResponseWriter, r *http.Request) {
+	identifier := chi.URLParam(r, "identifier")
+	if identifier == "" {
+		util.Error(w, http.StatusBadRequest, "Identifier is required")
+		return
+	}
+
+	tenant, err := h.tenantService.GetByIdentifier(identifier)
+	if err != nil {
+		util.Error(w, http.StatusNotFound, "Tenant not found")
+		return
+	}
+
+	dtoRes := toTenantResponseDto(*tenant)
+
+	util.Success(w, dtoRes, "Tenant fetched successfully")
+}
+
 // Create Tenant
 func (h *TenantHandler) Create(w http.ResponseWriter, r *http.Request) {
 	var req dto.TenantCreateRequestDto
