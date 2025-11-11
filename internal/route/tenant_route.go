@@ -14,6 +14,17 @@ func TenantRoute(
 	userRepo repository.UserRepository,
 	redisClient *redis.Client,
 ) {
+	// Single tenant endpoints (public - no authentication required)
+	// Used by login page to validate tenant and get tenant info
+	r.Route("/tenant", func(r chi.Router) {
+		// Get default tenant (public endpoint)
+		r.Get("/", tenantHandler.GetDefault)
+
+		// Get tenant by identifier (public endpoint)
+		r.Get("/{identifier}", tenantHandler.GetByIdentifier)
+	})
+
+	// Multiple tenants endpoints (existing)
 	r.Route("/tenants", func(r chi.Router) {
 		r.Use(middleware.JWTAuthMiddleware)
 		r.Use(middleware.UserContextMiddleware(userRepo, redisClient))
