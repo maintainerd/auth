@@ -14,7 +14,7 @@ func ProfileRoute(
 	userRepo repository.UserRepository,
 	redisClient *redis.Client,
 ) {
-	r.Route("/profiles", func(r chi.Router) {
+	r.Route("/profile", func(r chi.Router) {
 		r.Use(middleware.JWTAuthMiddleware)
 		r.Use(middleware.UserContextMiddleware(userRepo, redisClient))
 

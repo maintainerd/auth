@@ -48,6 +48,8 @@ type TenantServiceGetResult struct {
 type TenantService interface {
 	Get(filter TenantServiceGetFilter) (*TenantServiceGetResult, error)
 	GetByUUID(tenantUUID uuid.UUID) (*TenantServiceDataResult, error)
+	GetDefault() (*TenantServiceDataResult, error)
+	GetByIdentifier(identifier string) (*TenantServiceDataResult, error)
 	Create(name string, description string, isActive bool, isPublic bool, isDefault bool) (*TenantServiceDataResult, error)
 	Update(tenantUUID uuid.UUID, name string, description string, isActive bool, isPublic bool, isDefault bool) (*TenantServiceDataResult, error)
 	SetActiveStatusByUUID(tenantUUID uuid.UUID) (*TenantServiceDataResult, error)
@@ -103,6 +105,24 @@ func (s *tenantService) Get(filter TenantServiceGetFilter) (*TenantServiceGetRes
 
 func (s *tenantService) GetByUUID(tenantUUID uuid.UUID) (*TenantServiceDataResult, error) {
 	tenant, err := s.tenantRepo.FindByUUID(tenantUUID)
+	if err != nil || tenant == nil {
+		return nil, errors.New("tenant not found")
+	}
+
+	return toTenantServiceDataResult(tenant), nil
+}
+
+func (s *tenantService) GetDefault() (*TenantServiceDataResult, error) {
+	tenant, err := s.tenantRepo.FindDefault()
+	if err != nil || tenant == nil {
+		return nil, errors.New("default tenant not found")
+	}
+
+	return toTenantServiceDataResult(tenant), nil
+}
+
+func (s *tenantService) GetByIdentifier(identifier string) (*TenantServiceDataResult, error) {
+	tenant, err := s.tenantRepo.FindByIdentifier(identifier)
 	if err != nil || tenant == nil {
 		return nil, errors.New("tenant not found")
 	}
