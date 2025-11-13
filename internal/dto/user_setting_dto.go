@@ -86,7 +86,7 @@ func (r UserSettingRequest) Validate() error {
 }
 
 type UserSettingResponse struct {
-	UserSettingUUID string `json:"user_setting_uuid"`
+	UserSettingUUID string `json:"user_setting_id"`
 
 	// Internationalization
 	Timezone          *string `json:"timezone,omitempty"`

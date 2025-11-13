@@ -141,7 +141,8 @@ func (s *setupService) CreateTenant(req dto.CreateTenantRequestDto) (*dto.Create
 			Identifier:  identifier,
 			Metadata:    metadataJSON,
 			IsActive:    true,
-			IsDefault:   true,
+			IsDefault:   true, // This is the default tenant for new users
+			IsSystem:    true, // This is a system tenant that cannot be deleted
 		}
 
 		var err error
@@ -180,6 +181,7 @@ func (s *setupService) CreateTenant(req dto.CreateTenantRequestDto) (*dto.Create
 		IsActive:    createdTenant.IsActive,
 		IsPublic:    createdTenant.IsPublic,
 		IsDefault:   createdTenant.IsDefault,
+		IsSystem:    createdTenant.IsSystem,
 		Metadata:    metadata,
 		CreatedAt:   createdTenant.CreatedAt,
 		UpdatedAt:   createdTenant.UpdatedAt,
@@ -293,21 +295,40 @@ func (s *setupService) CreateAdmin(req dto.CreateAdminRequestDto) (*dto.CreateAd
 			return err
 		}
 
-		// Get super-admin role
-		superAdminRole, err := txRoleRepo.FindByNameAndTenantID("super-admin", defaultTenant.TenantID)
+		// Get registered role for setup admin
+		registeredRole, err := txRoleRepo.FindRegisteredRoleForSetup(defaultTenant.TenantID)
+		if err != nil {
+			return err
+		}
+		if registeredRole == nil {
+			return errors.New("registered role not found (is_default=true, is_system=true, name='registered')")
+		}
+
+		// Assign registered role
+		registeredUserRole := &model.UserRole{
+			UserID: createdUser.UserID,
+			RoleID: registeredRole.RoleID,
+		}
+		_, err = txUserRoleRepo.Create(registeredUserRole)
+		if err != nil {
+			return err
+		}
+
+		// Get super-admin system role
+		superAdminRole, err := txRoleRepo.FindSuperAdminRoleForSetup(defaultTenant.TenantID)
 		if err != nil {
 			return err
 		}
 		if superAdminRole == nil {
-			return errors.New("super-admin role not found")
+			return errors.New("super-admin role not found (is_system=true, name='super-admin')")
 		}
 
 		// Assign super-admin role
-		userRole := &model.UserRole{
+		superAdminUserRole := &model.UserRole{
 			UserID: createdUser.UserID,
 			RoleID: superAdminRole.RoleID,
 		}
-		_, err = txUserRoleRepo.Create(userRole)
+		_, err = txUserRoleRepo.Create(superAdminUserRole)
 		if err != nil {
 			return err
 		}

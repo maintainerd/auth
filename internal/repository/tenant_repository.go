@@ -15,6 +15,7 @@ type TenantRepositoryGetFilter struct {
 	IsActive    *bool
 	IsPublic    *bool
 	IsDefault   *bool
+	IsSystem    *bool
 	Page        int
 	Limit       int
 	SortBy      string
@@ -30,6 +31,7 @@ type TenantRepository interface {
 	FindPaginated(filter TenantRepositoryGetFilter) (*PaginationResult[model.Tenant], error)
 	SetActiveStatusByUUID(tenantUUID uuid.UUID, isActive bool) error
 	SetDefaultStatusByUUID(tenantUUID uuid.UUID, isDefault bool) error
+	SetSystemStatusByUUID(tenantUUID uuid.UUID, isSystem bool) error
 }
 
 type tenantRepository struct {
@@ -111,6 +113,9 @@ func (r *tenantRepository) FindPaginated(filter TenantRepositoryGetFilter) (*Pag
 	if filter.IsDefault != nil {
 		query = query.Where("is_default = ?", *filter.IsDefault)
 	}
+	if filter.IsSystem != nil {
+		query = query.Where("is_system = ?", *filter.IsSystem)
+	}
 
 	// Sorting
 	if filter.SortBy != "" {
@@ -153,4 +158,8 @@ func (r *tenantRepository) SetActiveStatusByUUID(tenantUUID uuid.UUID, isActive 
 
 func (r *tenantRepository) SetDefaultStatusByUUID(tenantUUID uuid.UUID, isDefault bool) error {
 	return r.db.Model(&model.Tenant{}).Where("tenant_uuid = ?", tenantUUID).Update("is_default", isDefault).Error
+}
+
+func (r *tenantRepository) SetSystemStatusByUUID(tenantUUID uuid.UUID, isSystem bool) error {
+	return r.db.Model(&model.Tenant{}).Where("tenant_uuid = ?", tenantUUID).Update("is_system", isSystem).Error
 }

@@ -12,6 +12,7 @@ type RoleRepositoryGetFilter struct {
 	Name        *string
 	Description *string
 	IsDefault   *bool
+	IsSystem    *bool
 	IsActive    *bool
 	TenantID    int64
 	Page        int
@@ -28,6 +29,9 @@ type RoleRepository interface {
 	FindPaginated(filter RoleRepositoryGetFilter) (*PaginationResult[model.Role], error)
 	SetActiveStatusByUUID(roleUUID uuid.UUID, isActive bool) error
 	SetDefaultStatusByUUID(roleUUID uuid.UUID, isDefault bool) error
+	SetSystemStatusByUUID(roleUUID uuid.UUID, isSystem bool) error
+	FindRegisteredRoleForSetup(tenantID int64) (*model.Role, error)
+	FindSuperAdminRoleForSetup(tenantID int64) (*model.Role, error)
 }
 
 type roleRepository struct {
@@ -93,13 +97,23 @@ func (r *roleRepository) FindPaginated(filter RoleRepositoryGetFilter) (*Paginat
 	if filter.IsDefault != nil {
 		query = query.Where("is_default = ?", *filter.IsDefault)
 	}
+	if filter.IsSystem != nil {
+		query = query.Where("is_system = ?", *filter.IsSystem)
+	}
 	if filter.IsActive != nil {
 		query = query.Where("is_active = ?", *filter.IsActive)
 	}
 
 	// Sorting
-	orderBy := filter.SortBy + " " + filter.SortOrder
-	query = query.Order(orderBy)
+	if filter.SortBy != "" {
+		order := "ASC"
+		if filter.SortOrder == "desc" {
+			order = "DESC"
+		}
+		query = query.Order(filter.SortBy + " " + order)
+	} else {
+		query = query.Order("created_at DESC")
+	}
 
 	// Count
 	var total int64
@@ -135,4 +149,36 @@ func (r *roleRepository) SetDefaultStatusByUUID(roleUUID uuid.UUID, isDefault bo
 	return r.db.Model(&model.Role{}).
 		Where("role_uuid = ?", roleUUID).
 		Update("is_default", isDefault).Error
+}
+
+func (r *roleRepository) SetSystemStatusByUUID(roleUUID uuid.UUID, isSystem bool) error {
+	return r.db.Model(&model.Role{}).
+		Where("role_uuid = ?", roleUUID).
+		Update("is_system", isSystem).Error
+}
+
+func (r *roleRepository) FindRegisteredRoleForSetup(tenantID int64) (*model.Role, error) {
+	var role model.Role
+	err := r.db.Where("tenant_id = ? AND name = ? AND is_default = ? AND is_system = ?",
+		tenantID, "registered", true, true).First(&role).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &role, nil
+}
+
+func (r *roleRepository) FindSuperAdminRoleForSetup(tenantID int64) (*model.Role, error) {
+	var role model.Role
+	err := r.db.Where("tenant_id = ? AND name = ? AND is_system = ?",
+		tenantID, "super-admin", true).First(&role).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &role, nil
 }

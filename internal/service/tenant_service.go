@@ -19,6 +19,7 @@ type TenantServiceDataResult struct {
 	IsActive    bool
 	IsPublic    bool
 	IsDefault   bool
+	IsSystem    bool
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
 }
@@ -31,6 +32,7 @@ type TenantServiceGetFilter struct {
 	IsActive    *bool
 	IsPublic    *bool
 	IsDefault   *bool
+	IsSystem    *bool
 	Page        int
 	Limit       int
 	SortBy      string
@@ -78,6 +80,7 @@ func (s *tenantService) Get(filter TenantServiceGetFilter) (*TenantServiceGetRes
 		IsActive:    filter.IsActive,
 		IsPublic:    filter.IsPublic,
 		IsDefault:   filter.IsDefault,
+		IsSystem:    filter.IsSystem,
 		Page:        filter.Page,
 		Limit:       filter.Limit,
 		SortBy:      filter.SortBy,
@@ -313,6 +316,7 @@ func toTenantServiceDataResult(tenant *model.Tenant) *TenantServiceDataResult {
 		IsActive:    tenant.IsActive,
 		IsPublic:    tenant.IsPublic,
 		IsDefault:   tenant.IsDefault,
+		IsSystem:    tenant.IsSystem,
 		CreatedAt:   tenant.CreatedAt,
 		UpdatedAt:   tenant.UpdatedAt,
 	}

@@ -9,7 +9,7 @@ import (
 
 // Permission output structure
 type PermissionResponseDto struct {
-	PermissionUUID uuid.UUID       `json:"permission_uuid"`
+	PermissionUUID uuid.UUID       `json:"permission_id"`
 	Name           string          `json:"name"`
 	Description    string          `json:"description"`
 	API            *APIResponseDto `json:"api,omitempty"`

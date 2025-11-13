@@ -35,11 +35,17 @@ func (h *RoleHandler) Get(w http.ResponseWriter, r *http.Request) {
 	limit, _ := strconv.Atoi(q.Get("limit"))
 
 	// Parse bools safely
-	var isDefault, isActive *bool
+	var isDefault, isSystem, isActive *bool
 	if v := q.Get("is_default"); v != "" {
 		parsed, err := strconv.ParseBool(v)
 		if err == nil {
 			isDefault = &parsed
+		}
+	}
+	if v := q.Get("is_system"); v != "" {
+		parsed, err := strconv.ParseBool(v)
+		if err == nil {
+			isSystem = &parsed
 		}
 	}
 	if v := q.Get("is_active"); v != "" {
@@ -54,6 +60,7 @@ func (h *RoleHandler) Get(w http.ResponseWriter, r *http.Request) {
 		Name:        util.PtrOrNil(q.Get("name")),
 		Description: util.PtrOrNil(q.Get("description")),
 		IsDefault:   isDefault,
+		IsSystem:    isSystem,
 		IsActive:    isActive,
 		PaginationRequestDto: dto.PaginationRequestDto{
 			Page:      page,
@@ -73,6 +80,7 @@ func (h *RoleHandler) Get(w http.ResponseWriter, r *http.Request) {
 		Name:        reqParams.Name,
 		Description: reqParams.Description,
 		IsDefault:   reqParams.IsDefault,
+		IsSystem:    reqParams.IsSystem,
 		IsActive:    reqParams.IsActive,
 		TenantID:    user.TenantID,
 		Page:        reqParams.Page,
@@ -145,7 +153,7 @@ func (h *RoleHandler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Create role
-	role, err := h.service.Create(req.Name, req.Description, false, req.IsActive, user.Tenant.TenantUUID.String(), user.UserUUID)
+	role, err := h.service.Create(req.Name, req.Description, false, false, req.IsActive, user.Tenant.TenantUUID.String(), user.UserUUID)
 	if err != nil {
 		util.Error(w, http.StatusInternalServerError, "Failed to create role", err.Error())
 		return
@@ -182,7 +190,7 @@ func (h *RoleHandler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Update role
-	role, err := h.service.Update(roleUUID, req.Name, req.Description, false, req.IsActive, user.UserUUID)
+	role, err := h.service.Update(roleUUID, req.Name, req.Description, false, false, req.IsActive, user.UserUUID)
 	if err != nil {
 		util.Error(w, http.StatusInternalServerError, "Failed to update role", err.Error())
 		return
@@ -319,6 +327,7 @@ func toRoleResponseDto(r service.RoleServiceDataResult) dto.RoleResponseDto {
 		Name:        r.Name,
 		Description: r.Description,
 		IsDefault:   r.IsDefault,
+		IsSystem:    r.IsSystem,
 		IsActive:    r.IsActive,
 		CreatedAt:   r.CreatedAt,
 		UpdatedAt:   r.UpdatedAt,
