@@ -9,7 +9,7 @@ import (
 
 // Service output structure
 type ServiceResponseDto struct {
-	ServiceUUID uuid.UUID `json:"service_uuid"`
+	ServiceUUID uuid.UUID `json:"service_id"`
 	Name        string    `json:"name"`
 	DisplayName string    `json:"display_name"`
 	Description string    `json:"description"`

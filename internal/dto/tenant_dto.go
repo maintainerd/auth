@@ -9,13 +9,14 @@ import (
 
 // Tenant output structure
 type TenantResponseDto struct {
-	TenantUUID  uuid.UUID `json:"tenant_uuid"`
+	TenantUUID  uuid.UUID `json:"tenant_id"`
 	Name        string    `json:"name"`
 	Description string    `json:"description"`
 	Identifier  string    `json:"identifier"`
 	IsActive    bool      `json:"is_active"`
 	IsPublic    bool      `json:"is_public"`
 	IsDefault   bool      `json:"is_default"`
+	IsSystem    bool      `json:"is_system"`
 	Metadata    any       `json:"metadata,omitempty"`
 	CreatedAt   time.Time `json:"created_at"`
 	UpdatedAt   time.Time `json:"updated_at"`
@@ -85,6 +86,7 @@ type TenantFilterDto struct {
 	IsActive    *bool   `json:"is_active"`
 	IsPublic    *bool   `json:"is_public"`
 	IsDefault   *bool   `json:"is_default"`
+	IsSystem    *bool   `json:"is_system"`
 
 	// Pagination and sorting
 	PaginationRequestDto

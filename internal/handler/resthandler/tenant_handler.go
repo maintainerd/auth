@@ -30,11 +30,17 @@ func (h *TenantHandler) Get(w http.ResponseWriter, r *http.Request) {
 	limit, _ := strconv.Atoi(q.Get("limit"))
 
 	// Parse bools safely
-	var isDefault, isActive, isPublic *bool
+	var isDefault, isSystem, isActive, isPublic *bool
 	if v := q.Get("is_default"); v != "" {
 		parsed, err := strconv.ParseBool(v)
 		if err == nil {
 			isDefault = &parsed
+		}
+	}
+	if v := q.Get("is_system"); v != "" {
+		parsed, err := strconv.ParseBool(v)
+		if err == nil {
+			isSystem = &parsed
 		}
 	}
 	if v := q.Get("is_active"); v != "" {
@@ -56,6 +62,7 @@ func (h *TenantHandler) Get(w http.ResponseWriter, r *http.Request) {
 		Description: util.PtrOrNil(q.Get("description")),
 		Identifier:  util.PtrOrNil(q.Get("identifier")),
 		IsDefault:   isDefault,
+		IsSystem:    isSystem,
 		IsPublic:    isPublic,
 		IsActive:    isActive,
 		PaginationRequestDto: dto.PaginationRequestDto{
@@ -77,6 +84,7 @@ func (h *TenantHandler) Get(w http.ResponseWriter, r *http.Request) {
 		Description: reqParams.Description,
 		Identifier:  reqParams.Identifier,
 		IsDefault:   reqParams.IsDefault,
+		IsSystem:    reqParams.IsSystem,
 		IsPublic:    isPublic,
 		IsActive:    reqParams.IsActive,
 		Page:        reqParams.Page,
@@ -301,6 +309,7 @@ func toTenantResponseDto(r service.TenantServiceDataResult) dto.TenantResponseDt
 		IsActive:    r.IsActive,
 		IsPublic:    r.IsPublic,
 		IsDefault:   r.IsDefault,
+		IsSystem:    r.IsSystem,
 		CreatedAt:   r.CreatedAt,
 		UpdatedAt:   r.UpdatedAt,
 	}

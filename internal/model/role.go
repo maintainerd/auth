@@ -14,6 +14,7 @@ type Role struct {
 	Description string    `gorm:"column:description"`
 	IsActive    bool      `gorm:"column:is_active;default:false"`
 	IsDefault   bool      `gorm:"column:is_default;default:false"`
+	IsSystem    bool      `gorm:"column:is_system;default:false"`
 	TenantID    int64     `gorm:"column:tenant_id"`
 	CreatedAt   time.Time `gorm:"column:created_at;autoCreateTime"`
 	UpdatedAt   time.Time `gorm:"column:updated_at;autoUpdateTime"`

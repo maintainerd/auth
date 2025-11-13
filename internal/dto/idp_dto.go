@@ -10,7 +10,7 @@ import (
 
 // Identity provider output structure
 type IdentityProviderResponseDto struct {
-	IdentityProviderUUID uuid.UUID          `json:"identity_provider_uuid"`
+	IdentityProviderUUID uuid.UUID          `json:"identity_provider_id"`
 	Name                 string             `json:"name"`
 	DisplayName          string             `json:"display_name"`
 	ProviderType         string             `json:"provider_type"`
