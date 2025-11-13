@@ -18,6 +18,7 @@ CREATE TABLE IF NOT EXISTS tenants (
     is_active				BOOLEAN DEFAULT FALSE,
     is_public				BOOLEAN DEFAULT FALSE,
     is_default			BOOLEAN DEFAULT FALSE,
+    is_system				BOOLEAN DEFAULT FALSE,
     metadata				JSONB DEFAULT '{}',
     created_at			TIMESTAMPTZ DEFAULT now(),
     updated_at			TIMESTAMPTZ DEFAULT now()
@@ -30,6 +31,7 @@ CREATE INDEX IF NOT EXISTS idx_tenants_identifier ON tenants (identifier);
 CREATE INDEX IF NOT EXISTS idx_tenants_is_active ON tenants (is_active);
 CREATE INDEX IF NOT EXISTS idx_tenants_is_public ON tenants (is_public);
 CREATE INDEX IF NOT EXISTS idx_tenants_is_default ON tenants (is_default);
+CREATE INDEX IF NOT EXISTS idx_tenants_is_system ON tenants (is_system);
 CREATE INDEX IF NOT EXISTS idx_tenants_metadata ON tenants USING GIN (metadata);
 CREATE INDEX IF NOT EXISTS idx_tenants_created_at ON tenants (created_at);
 `

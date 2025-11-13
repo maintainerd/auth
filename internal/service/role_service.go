@@ -16,6 +16,7 @@ type RoleServiceDataResult struct {
 	Description string
 	Permissions *[]PermissionServiceDataResult
 	IsDefault   bool
+	IsSystem    bool
 	IsActive    bool
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
@@ -25,6 +26,7 @@ type RoleServiceGetFilter struct {
 	Name        *string
 	Description *string
 	IsDefault   *bool
+	IsSystem    *bool
 	IsActive    *bool
 	TenantID    int64
 	Page        int
@@ -44,8 +46,8 @@ type RoleServiceGetResult struct {
 type RoleService interface {
 	Get(filter RoleServiceGetFilter) (*RoleServiceGetResult, error)
 	GetByUUID(roleUUID uuid.UUID) (*RoleServiceDataResult, error)
-	Create(name string, description string, IsDefault bool, IsActive bool, authContainerUUID string, actorUserUUID uuid.UUID) (*RoleServiceDataResult, error)
-	Update(roleUUID uuid.UUID, name string, description string, IsDefault bool, IsActive bool, actorUserUUID uuid.UUID) (*RoleServiceDataResult, error)
+	Create(name string, description string, isDefault bool, isSystem bool, isActive bool, authContainerUUID string, actorUserUUID uuid.UUID) (*RoleServiceDataResult, error)
+	Update(roleUUID uuid.UUID, name string, description string, isDefault bool, isSystem bool, isActive bool, actorUserUUID uuid.UUID) (*RoleServiceDataResult, error)
 	SetActiveStatusByUUID(roleUUID uuid.UUID, actorUserUUID uuid.UUID) (*RoleServiceDataResult, error)
 	DeleteByUUID(roleUUID uuid.UUID, actorUserUUID uuid.UUID) (*RoleServiceDataResult, error)
 	AddRolePermissions(roleUUID uuid.UUID, permissionUUIDs []uuid.UUID, actorUserUUID uuid.UUID) (*RoleServiceDataResult, error)
@@ -84,6 +86,7 @@ func (s *roleService) Get(filter RoleServiceGetFilter) (*RoleServiceGetResult, e
 		Name:        filter.Name,
 		Description: filter.Description,
 		IsDefault:   filter.IsDefault,
+		IsSystem:    filter.IsSystem,
 		IsActive:    filter.IsActive,
 		TenantID:    filter.TenantID,
 		Page:        filter.Page,
@@ -124,7 +127,7 @@ func (s *roleService) GetByUUID(roleUUID uuid.UUID) (*RoleServiceDataResult, err
 	return toRoleServiceDataResult(role), nil
 }
 
-func (s *roleService) Create(name string, description string, isDefault bool, isActive bool, tenantUUID string, actorUserUUID uuid.UUID) (*RoleServiceDataResult, error) {
+func (s *roleService) Create(name string, description string, isDefault bool, isSystem bool, isActive bool, tenantUUID string, actorUserUUID uuid.UUID) (*RoleServiceDataResult, error) {
 	var createdRole *model.Role
 
 	// Transaction
@@ -170,6 +173,7 @@ func (s *roleService) Create(name string, description string, isDefault bool, is
 			Name:        name,
 			Description: description,
 			IsDefault:   isDefault,
+			IsSystem:    isSystem,
 			IsActive:    isActive,
 			TenantID:    targetTenant.TenantID,
 		}
@@ -191,7 +195,7 @@ func (s *roleService) Create(name string, description string, isDefault bool, is
 	return toRoleServiceDataResult(createdRole), nil
 }
 
-func (s *roleService) Update(roleUUID uuid.UUID, name string, description string, isDefault bool, isActive bool, actorUserUUID uuid.UUID) (*RoleServiceDataResult, error) {
+func (s *roleService) Update(roleUUID uuid.UUID, name string, description string, isDefault bool, isSystem bool, isActive bool, actorUserUUID uuid.UUID) (*RoleServiceDataResult, error) {
 	var updatedRole *model.Role
 
 	// Transaction
@@ -219,9 +223,9 @@ func (s *roleService) Update(roleUUID uuid.UUID, name string, description string
 			return err
 		}
 
-		// Check if role is a default record
-		if role.IsDefault {
-			return errors.New("default role is not allowed to be updated")
+		// Check if role is a system record
+		if role.IsSystem {
+			return errors.New("system role is not allowed to be updated")
 		}
 
 		// If role name is changed, check if duplicate
@@ -239,6 +243,7 @@ func (s *roleService) Update(roleUUID uuid.UUID, name string, description string
 		role.Name = name
 		role.Description = description
 		role.IsDefault = isDefault
+		role.IsSystem = isSystem
 		role.IsActive = isActive
 
 		_, err = txRoleRepo.CreateOrUpdate(role)
@@ -286,9 +291,9 @@ func (s *roleService) SetActiveStatusByUUID(roleUUID uuid.UUID, actorUserUUID uu
 			return err
 		}
 
-		// Check if role is a default record
-		if role.IsDefault {
-			return errors.New("default role is not allowed to be updated")
+		// Check if role is a system record
+		if role.IsSystem {
+			return errors.New("system role is not allowed to be updated")
 		}
 
 		// Update role
@@ -332,9 +337,9 @@ func (s *roleService) DeleteByUUID(roleUUID uuid.UUID, actorUserUUID uuid.UUID) 
 		return nil, err
 	}
 
-	// Check if role is a default record
-	if role.IsDefault {
-		return nil, errors.New("default role is not allowed to be deleted")
+	// Check if role is a system record
+	if role.IsSystem {
+		return nil, errors.New("system role is not allowed to be deleted")
 	}
 
 	// Delete role
@@ -376,9 +381,9 @@ func (s *roleService) AddRolePermissions(roleUUID uuid.UUID, permissionUUIDs []u
 			return err
 		}
 
-		// Check if role is a default record
-		if role.IsDefault {
-			return errors.New("default role is not allowed to be updated")
+		// Check if role is a system record
+		if role.IsSystem {
+			return errors.New("system role is not allowed to be updated")
 		}
 
 		// Convert UUIDs to strings for the repository method
@@ -469,9 +474,9 @@ func (s *roleService) RemoveRolePermissions(roleUUID uuid.UUID, permissionUUID u
 			return err
 		}
 
-		// Check if role is a default record
-		if role.IsDefault {
-			return errors.New("default role is not allowed to be updated")
+		// Check if role is a system record
+		if role.IsSystem {
+			return errors.New("system role is not allowed to be updated")
 		}
 
 		// Find permission by UUID
@@ -532,6 +537,7 @@ func toRoleServiceDataResult(role *model.Role) *RoleServiceDataResult {
 		Name:        role.Name,
 		Description: role.Description,
 		IsDefault:   role.IsDefault,
+		IsSystem:    role.IsSystem,
 		IsActive:    role.IsActive,
 		CreatedAt:   role.CreatedAt,
 		UpdatedAt:   role.UpdatedAt,

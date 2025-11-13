@@ -19,7 +19,7 @@ type AuthClientConfigResponseDto struct {
 }
 
 type AuthClientRedirectURIResponseDto struct {
-	AuthClientRedirectURIUUID uuid.UUID `json:"redirect_uri_uuid"`
+	AuthClientRedirectURIUUID uuid.UUID `json:"redirect_uri_id"`
 	RedirectURI               string    `json:"redirect_uri"`
 	CreatedAt                 time.Time `json:"created_at"`
 	UpdatedAt                 time.Time `json:"updated_at"`
@@ -27,7 +27,7 @@ type AuthClientRedirectURIResponseDto struct {
 
 // Auth client output structure
 type AuthClientResponseDto struct {
-	AuthClientUUID   uuid.UUID                          `json:"auth_client_uuid"`
+	AuthClientUUID   uuid.UUID                          `json:"auth_client_id"`
 	Name             string                             `json:"name"`
 	DisplayName      string                             `json:"display_name"`
 	ClientType       string                             `json:"client_type"`

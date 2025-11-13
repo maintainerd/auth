@@ -10,11 +10,12 @@ import (
 
 // Role output structure
 type RoleResponseDto struct {
-	RoleUUID    uuid.UUID                `json:"role_uuid"`
+	RoleUUID    uuid.UUID                `json:"role_id"`
 	Name        string                   `json:"name"`
 	Description string                   `json:"description"`
 	Permissions *[]PermissionResponseDto `json:"permissions,omitempty"`
 	IsDefault   bool                     `json:"is_default"`
+	IsSystem    bool                     `json:"is_system"`
 	IsActive    bool                     `json:"is_active"`
 	CreatedAt   time.Time                `json:"created_at"`
 	UpdatedAt   time.Time                `json:"updated_at"`
@@ -62,6 +63,7 @@ type RoleFilterDto struct {
 	Name        *string `json:"name"`
 	Description *string `json:"description"`
 	IsDefault   *bool   `json:"is_default"`
+	IsSystem    *bool   `json:"is_system"`
 	IsActive    *bool   `json:"is_active"`
 
 	// Pagination and sorting

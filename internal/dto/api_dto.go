@@ -9,7 +9,7 @@ import (
 
 // API output structure
 type APIResponseDto struct {
-	APIUUID     uuid.UUID           `json:"api_uuid"`
+	APIUUID     uuid.UUID           `json:"api_id"`
 	Name        string              `json:"name"`
 	DisplayName string              `json:"display_name"`
 	Description string              `json:"description"`

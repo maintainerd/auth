@@ -11,7 +11,7 @@ import (
 
 // User output structure
 type UserResponseDto struct {
-	UserUUID           uuid.UUID                  `json:"user_uuid"`
+	UserUUID           uuid.UUID                  `json:"user_id"`
 	Username           string                     `json:"username"`
 	Fullname           string                     `json:"fullname"`
 	Email              string                     `json:"email"`
@@ -29,7 +29,7 @@ type UserResponseDto struct {
 }
 
 type UserIdentityResponseDto struct {
-	UserIdentityUUID uuid.UUID              `json:"user_identity_uuid"`
+	UserIdentityUUID uuid.UUID              `json:"user_identity_id"`
 	Provider         string                 `json:"provider"`
 	Sub              string                 `json:"sub"`
 	Metadata         datatypes.JSON         `json:"metadata"`
