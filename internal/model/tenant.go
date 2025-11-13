@@ -17,6 +17,7 @@ type Tenant struct {
 	IsActive    bool           `gorm:"column:is_active;default:false"`
 	IsPublic    bool           `gorm:"column:is_public;default:false"`
 	IsDefault   bool           `gorm:"column:is_default;default:false"`
+	IsSystem    bool           `gorm:"column:is_system;default:false"`
 	Metadata    datatypes.JSON `gorm:"column:metadata;type:jsonb;default:'{}'"`
 	CreatedAt   time.Time      `gorm:"column:created_at;autoCreateTime"`
 	UpdatedAt   time.Time      `gorm:"column:updated_at;autoUpdateTime"`

@@ -9,6 +9,7 @@ import (
 	"github.com/maintainerd/auth/internal/repository"
 	"github.com/maintainerd/auth/internal/util"
 	"golang.org/x/crypto/bcrypt"
+	"gorm.io/datatypes"
 	"gorm.io/gorm"
 )
 
@@ -25,6 +26,7 @@ type registerService struct {
 	userRepo             repository.UserRepository
 	userRoleRepo         repository.UserRoleRepository
 	userTokenRepo        repository.UserTokenRepository
+	userIdentityRepo     repository.UserIdentityRepository
 	roleRepo             repository.RoleRepository
 	inviteRepo           repository.InviteRepository
 	identityProviderRepo repository.IdentityProviderRepository
@@ -36,6 +38,7 @@ func NewRegistrationService(
 	userRepo repository.UserRepository,
 	userRoleRepo repository.UserRoleRepository,
 	userTokenRepo repository.UserTokenRepository,
+	userIdentityRepo repository.UserIdentityRepository,
 	roleRepo repository.RoleRepository,
 	inviteRepo repository.InviteRepository,
 	identityProviderRepo repository.IdentityProviderRepository,
@@ -46,10 +49,42 @@ func NewRegistrationService(
 		userRepo:             userRepo,
 		userRoleRepo:         userRoleRepo,
 		userTokenRepo:        userTokenRepo,
+		userIdentityRepo:     userIdentityRepo,
 		roleRepo:             roleRepo,
 		inviteRepo:           inviteRepo,
 		identityProviderRepo: identityProviderRepo,
 	}
+}
+
+// Helper function to find the default role for a tenant
+func (s *registerService) findDefaultRole(roleRepo repository.RoleRepository, tenantID int64) (*model.Role, error) {
+	// First try to find a role marked as default
+	filter := repository.RoleRepositoryGetFilter{
+		IsDefault: &[]bool{true}[0],
+		TenantID:  tenantID,
+		Page:      1,
+		Limit:     1,
+	}
+
+	result, err := roleRepo.FindPaginated(filter)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(result.Data) > 0 {
+		return &result.Data[0], nil
+	}
+
+	// Fallback: if no default role found, try to find "registered" role
+	role, err := roleRepo.FindByNameAndTenantID("registered", tenantID)
+	if err != nil {
+		return nil, err
+	}
+	if role == nil {
+		return nil, errors.New("no default role found for tenant")
+	}
+
+	return role, nil
 }
 
 // RegisterPublic registers new users for public-facing applications.
@@ -77,7 +112,10 @@ func (s *registerService) RegisterPublic(
 		txUserRepo := s.userRepo.WithTx(tx)
 		txUserTokenRepo := s.userTokenRepo.WithTx(tx)
 		txAuthClientRepo := s.authClientRepo.WithTx(tx)
+		txUserIdentityRepo := s.userIdentityRepo.WithTx(tx)
 		txIdentityProviderRepo := s.identityProviderRepo.WithTx(tx)
+		txRoleRepo := s.roleRepo.WithTx(tx)
+		txUserRoleRepo := s.userRoleRepo.WithTx(tx)
 
 		// Get and validate auth client with proper relationship preloading
 		var txErr error
@@ -164,6 +202,36 @@ func (s *registerService) RegisterPublic(
 			return txErr
 		}
 
+		// Create user identity
+		userIdentity := &model.UserIdentity{
+			UserID:       createdUser.UserID,
+			AuthClientID: authClient.AuthClientID,
+			Provider:     "default",
+			Sub:          createdUser.UserUUID.String(), // Use user UUID as sub for default provider
+			Metadata:     datatypes.JSON([]byte(`{}`)),
+		}
+
+		_, txErr = txUserIdentityRepo.Create(userIdentity)
+		if txErr != nil {
+			return txErr
+		}
+
+		// Get default role
+		defaultRole, txErr := s.findDefaultRole(txRoleRepo, tenantId)
+		if txErr != nil {
+			return txErr
+		}
+
+		// Assign default role to user
+		userRole := &model.UserRole{
+			UserID: createdUser.UserID,
+			RoleID: defaultRole.RoleID,
+		}
+		_, txErr = txUserRoleRepo.Create(userRole)
+		if txErr != nil {
+			return txErr
+		}
+
 		// Generate OTP
 		otp, txErr := util.GenerateOTP(6)
 		if txErr != nil {
@@ -218,6 +286,9 @@ func (s *registerService) Register(
 		txUserRepo := s.userRepo.WithTx(tx)
 		txUserTokenRepo := s.userTokenRepo.WithTx(tx)
 		txAuthClientRepo := s.authClientRepo.WithTx(tx)
+		txUserIdentityRepo := s.userIdentityRepo.WithTx(tx)
+		txRoleRepo := s.roleRepo.WithTx(tx)
+		txUserRoleRepo := s.userRoleRepo.WithTx(tx)
 
 		// Get auth client - either by client_id and provider_id or default
 		var txErr error
@@ -283,6 +354,36 @@ func (s *registerService) Register(
 			return txErr
 		}
 
+		// Create user identity
+		userIdentity := &model.UserIdentity{
+			UserID:       createdUser.UserID,
+			AuthClientID: authClient.AuthClientID,
+			Provider:     "default",
+			Sub:          createdUser.UserUUID.String(), // Use user UUID as sub for default provider
+			Metadata:     datatypes.JSON([]byte(`{}`)),
+		}
+
+		_, txErr = txUserIdentityRepo.Create(userIdentity)
+		if txErr != nil {
+			return txErr
+		}
+
+		// Get default role
+		defaultRole, txErr := s.findDefaultRole(txRoleRepo, tenantId)
+		if txErr != nil {
+			return txErr
+		}
+
+		// Assign default role to user
+		userRole := &model.UserRole{
+			UserID: createdUser.UserID,
+			RoleID: defaultRole.RoleID,
+		}
+		_, txErr = txUserRoleRepo.Create(userRole)
+		if txErr != nil {
+			return txErr
+		}
+
 		// Generate OTP
 		otp, txErr := util.GenerateOTP(6)
 		if txErr != nil {
@@ -329,8 +430,10 @@ func (s *registerService) RegisterInvite(
 	err := s.db.Transaction(func(tx *gorm.DB) error {
 		txUserRepo := s.userRepo.WithTx(tx)
 		txUserRoleRepo := s.userRoleRepo.WithTx(tx)
+		txUserIdentityRepo := s.userIdentityRepo.WithTx(tx)
 		txInviteRepo := s.inviteRepo.WithTx(tx)
 		txAuthClientRepo := s.authClientRepo.WithTx(tx)
+		txRoleRepo := s.roleRepo.WithTx(tx)
 
 		// Get auth client - either by client_id and provider_id or default
 		var txErr error
@@ -396,7 +499,37 @@ func (s *registerService) RegisterInvite(
 			return txErr
 		}
 
-		// Assign roles from invite
+		// Create user identity
+		userIdentity := &model.UserIdentity{
+			UserID:       createdUser.UserID,
+			AuthClientID: authClient.AuthClientID,
+			Provider:     "default",
+			Sub:          createdUser.UserUUID.String(), // Use user UUID as sub for default provider
+			Metadata:     datatypes.JSON([]byte(`{}`)),
+		}
+
+		_, txErr = txUserIdentityRepo.Create(userIdentity)
+		if txErr != nil {
+			return txErr
+		}
+
+		// Get default role and assign it first
+		defaultRole, txErr := s.findDefaultRole(txRoleRepo, tenantId)
+		if txErr != nil {
+			return txErr
+		}
+
+		// Assign default role to user
+		defaultUserRole := &model.UserRole{
+			UserID: createdUser.UserID,
+			RoleID: defaultRole.RoleID,
+		}
+		_, txErr = txUserRoleRepo.Create(defaultUserRole)
+		if txErr != nil {
+			return txErr
+		}
+
+		// Assign additional roles from invite
 		for _, role := range invite.Roles {
 			userRole := &model.UserRole{
 				UserID: createdUser.UserID,
@@ -442,9 +575,11 @@ func (s *registerService) RegisterInvitePublic(
 	err := s.db.Transaction(func(tx *gorm.DB) error {
 		txUserRepo := s.userRepo.WithTx(tx)
 		txUserRoleRepo := s.userRoleRepo.WithTx(tx)
+		txUserIdentityRepo := s.userIdentityRepo.WithTx(tx)
 		txInviteRepo := s.inviteRepo.WithTx(tx)
 		txAuthClientRepo := s.authClientRepo.WithTx(tx)
 		txIdentityProviderRepo := s.identityProviderRepo.WithTx(tx)
+		txRoleRepo := s.roleRepo.WithTx(tx)
 
 		// Get and validate auth client with proper relationship preloading
 		var txErr error
@@ -526,7 +661,37 @@ func (s *registerService) RegisterInvitePublic(
 			return txErr
 		}
 
-		// Assign all roles from the invite to the user
+		// Create user identity
+		userIdentity := &model.UserIdentity{
+			UserID:       createdUser.UserID,
+			AuthClientID: authClient.AuthClientID,
+			Provider:     "default",
+			Sub:          createdUser.UserUUID.String(), // Use user UUID as sub for default provider
+			Metadata:     datatypes.JSON([]byte(`{}`)),
+		}
+
+		_, txErr = txUserIdentityRepo.Create(userIdentity)
+		if txErr != nil {
+			return txErr
+		}
+
+		// Get default role and assign it first
+		defaultRole, txErr := s.findDefaultRole(txRoleRepo, tenantId)
+		if txErr != nil {
+			return txErr
+		}
+
+		// Assign default role to user
+		defaultUserRole := &model.UserRole{
+			UserID: createdUser.UserID,
+			RoleID: defaultRole.RoleID,
+		}
+		_, txErr = txUserRoleRepo.Create(defaultUserRole)
+		if txErr != nil {
+			return txErr
+		}
+
+		// Assign all additional roles from the invite to the user
 		for _, role := range invite.Roles {
 			// Check if user already has this role (shouldn't happen for new user, but safety check)
 			existingUserRole, txErr := txUserRoleRepo.FindByUserIDAndRoleID(createdUser.UserID, role.RoleID)

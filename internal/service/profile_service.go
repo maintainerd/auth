@@ -109,14 +109,12 @@ func (s *profileService) CreateOrUpdateProfile(
 		var profile model.Profile
 
 		if err != nil {
-			if errors.Is(err, gorm.ErrRecordNotFound) {
-				// Create new profile if not found
-				profile = model.Profile{
-					ProfileUUID: uuid.New(),
-					UserID:      user.UserID,
-				}
-			} else {
-				return err
+			return err
+		} else if existingProfile == nil {
+			// Create new profile if not found
+			profile = model.Profile{
+				ProfileUUID: uuid.New(),
+				UserID:      user.UserID,
 			}
 		} else {
 			// Use existing profile

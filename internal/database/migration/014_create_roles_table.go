@@ -16,6 +16,7 @@ CREATE TABLE IF NOT EXISTS roles (
     description         TEXT NOT NULL,
     is_active           BOOLEAN DEFAULT FALSE,
     is_default          BOOLEAN DEFAULT FALSE,
+    is_system           BOOLEAN DEFAULT FALSE,
     tenant_id           INTEGER NOT NULL,
     created_at          TIMESTAMPTZ DEFAULT now(),
     updated_at          TIMESTAMPTZ DEFAULT now()
@@ -39,6 +40,7 @@ CREATE INDEX IF NOT EXISTS idx_roles_name ON roles (name);
 CREATE INDEX IF NOT EXISTS idx_roles_description ON roles (description);
 CREATE INDEX IF NOT EXISTS idx_roles_is_active ON roles (is_active);
 CREATE INDEX IF NOT EXISTS idx_roles_is_default ON roles (is_default);
+CREATE INDEX IF NOT EXISTS idx_roles_is_system ON roles (is_system);
 CREATE INDEX IF NOT EXISTS idx_roles_tenant_id ON roles (tenant_id);
 CREATE INDEX IF NOT EXISTS idx_roles_created_at ON roles (created_at);
 `

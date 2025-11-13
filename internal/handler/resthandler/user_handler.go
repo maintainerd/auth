@@ -344,6 +344,7 @@ func toUserResponseDto(u service.UserServiceDataResult) dto.UserResponseDto {
 			IsActive:    u.Tenant.IsActive,
 			IsPublic:    u.Tenant.IsPublic,
 			IsDefault:   u.Tenant.IsDefault,
+			IsSystem:    u.Tenant.IsSystem,
 			CreatedAt:   u.Tenant.CreatedAt,
 			UpdatedAt:   u.Tenant.UpdatedAt,
 		}
@@ -388,6 +389,7 @@ func toUserResponseDto(u service.UserServiceDataResult) dto.UserResponseDto {
 				Name:        role.Name,
 				Description: role.Description,
 				IsDefault:   role.IsDefault,
+				IsSystem:    role.IsSystem,
 				IsActive:    role.IsActive,
 				CreatedAt:   role.CreatedAt,
 				UpdatedAt:   role.UpdatedAt,

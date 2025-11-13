@@ -18,11 +18,11 @@ type ProfileRequest struct {
 	LastName    *string `json:"last_name,omitempty"`
 	Suffix      *string `json:"suffix,omitempty"`
 	DisplayName *string `json:"display_name,omitempty"`
-	Bio         *string `json:"bio,omitempty"`
 
 	// Personal Information
-	Birthdate *string `json:"birthdate,omitempty"`
+	Birthdate *string `json:"birthdate,omitempty"` // YYYY-MM-DD format
 	Gender    *string `json:"gender,omitempty"`
+	Bio       *string `json:"bio,omitempty"`
 
 	// Contact Information
 	Phone   *string `json:"phone,omitempty"`
@@ -30,17 +30,17 @@ type ProfileRequest struct {
 	Address *string `json:"address,omitempty"`
 
 	// Location Information
-	City    *string `json:"city,omitempty"`    // Current city
-	Country *string `json:"country,omitempty"` // ISO 3166-1 alpha-2 code
+	City    *string `json:"city,omitempty"`
+	Country *string `json:"country,omitempty"`
 
 	// Preference
-	Timezone *string `json:"timezone,omitempty"` // User timezone
-	Language *string `json:"language,omitempty"` // ISO 639-1 language code
+	Timezone *string `json:"timezone,omitempty"`
+	Language *string `json:"language,omitempty"`
 
-	// Media & Assets (auth-centric)
-	ProfileURL *string `json:"profile_url,omitempty"` // User profile picture
+	// Media & Assets
+	ProfileURL *string `json:"profile_url,omitempty"`
 
-	// Extended data
+	// Extended data (custom fields)
 	Metadata map[string]interface{} `json:"metadata,omitempty"`
 }
 
@@ -136,7 +136,7 @@ func validateDateFormat(value any) error {
 }
 
 type ProfileResponse struct {
-	ProfileUUID string `json:"profile_uuid"`
+	ProfileUUID string `json:"profile_id"`
 
 	// Basic Identity Information
 	FirstName   string  `json:"first_name"`
