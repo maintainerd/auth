@@ -27,14 +27,14 @@ type userTokenRepository struct {
 
 func NewUserTokenRepository(db *gorm.DB) UserTokenRepository {
 	return &userTokenRepository{
-		BaseRepository: NewBaseRepository[model.UserToken](db, "token_uuid", "token_id"),
+		BaseRepository: NewBaseRepository[model.UserToken](db, "user_token_uuid", "user_token_id"),
 		db:             db,
 	}
 }
 
 func (r *userTokenRepository) WithTx(tx *gorm.DB) UserTokenRepository {
 	return &userTokenRepository{
-		BaseRepository: NewBaseRepository[model.UserToken](tx, "token_uuid", "token_id"),
+		BaseRepository: NewBaseRepository[model.UserToken](tx, "user_token_uuid", "user_token_id"),
 		db:             tx,
 	}
 }
@@ -63,7 +63,7 @@ func (r *userTokenRepository) FindByUserIDAndTokenType(userID int64, tokenType s
 
 func (r *userTokenRepository) RevokeByUUID(tokenUUID uuid.UUID) error {
 	return r.db.Model(&model.UserToken{}).
-		Where("token_uuid = ?", tokenUUID).
+		Where("user_token_uuid = ?", tokenUUID).
 		Update("is_revoked", true).Error
 }
 

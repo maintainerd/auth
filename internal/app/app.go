@@ -26,6 +26,8 @@ type App struct {
 	ProfileRestHandler          *resthandler.ProfileHandler
 	UserSettingRestHandler      *resthandler.UserSettingHandler
 	InviteRestHandler           *resthandler.InviteHandler
+	ForgotPasswordRestHandler   *resthandler.ForgotPasswordHandler
+	ResetPasswordRestHandler    *resthandler.ResetPasswordHandler
 	SetupRestHandler            *resthandler.SetupHandler
 	// Grpc handler
 	SeederHandler *grpchandler.SeederHandler
@@ -69,6 +71,8 @@ func NewApp(db *gorm.DB, redisClient *redis.Client) *App {
 	profileService := service.NewProfileService(db, profileRepo, userRepo)
 	userSettingService := service.NewUserSettingService(db, userSettingRepo, userRepo)
 	inviteService := service.NewInviteService(db, inviteRepo, authClientRepo, roleRepo, emailTemplateRepo)
+	forgotPasswordService := service.NewForgotPasswordService(db, userRepo, userTokenRepo, authClientRepo, emailTemplateRepo)
+	resetPasswordService := service.NewResetPasswordService(db, userRepo, userTokenRepo, authClientRepo)
 	setupService := service.NewSetupService(db, userRepo, tenantRepo, authClientRepo, idpRepo, roleRepo, userRoleRepo, userTokenRepo, userIdentityRepo, profileRepo)
 
 	// Rest handlers
@@ -85,6 +89,8 @@ func NewApp(db *gorm.DB, redisClient *redis.Client) *App {
 	profileRestHandler := resthandler.NewProfileHandler(profileService)
 	userSettingRestHandler := resthandler.NewUserSettingHandler(userSettingService)
 	inviteRestHandler := resthandler.NewInviteHandler(inviteService)
+	forgotPasswordRestHandler := resthandler.NewForgotPasswordHandler(forgotPasswordService)
+	resetPasswordRestHandler := resthandler.NewResetPasswordHandler(resetPasswordService)
 	setupRestHandler := resthandler.NewSetupHandler(setupService)
 
 	// GRPC handlers
@@ -107,6 +113,8 @@ func NewApp(db *gorm.DB, redisClient *redis.Client) *App {
 		ProfileRestHandler:          profileRestHandler,
 		UserSettingRestHandler:      userSettingRestHandler,
 		InviteRestHandler:           inviteRestHandler,
+		ForgotPasswordRestHandler:   forgotPasswordRestHandler,
+		ResetPasswordRestHandler:    resetPasswordRestHandler,
 		SetupRestHandler:            setupRestHandler,
 		// GRPC handler
 		SeederHandler: seederGrpcHandler,
