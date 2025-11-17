@@ -55,6 +55,8 @@ func startInternalServer(application *app.App) {
 		// Internal Authentication Routes (no client_id/provider_id required)
 		route.RegisterRoute(api, application.RegisterRestHandler)
 		route.LoginRoute(api, application.LoginRestHandler)
+		route.ForgotPasswordRoute(api, application.ForgotPasswordRestHandler)
+		route.ResetPasswordRoute(api, application.ResetPasswordRestHandler)
 		route.ProfileRoute(api, application.ProfileRestHandler, application.UserRepository, application.RedisClient)
 		route.UserSettingRoute(api, application.UserSettingRestHandler, application.UserRepository, application.RedisClient)
 
@@ -99,6 +101,8 @@ func startPublicServer(application *app.App) {
 		// Public Authentication Routes (requires client_id/provider_id)
 		route.RegisterPublicRoute(api, application.RegisterRestHandler)
 		route.LoginPublicRoute(api, application.LoginRestHandler)
+		route.ForgotPasswordPublicRoute(api, application.ForgotPasswordRestHandler)
+		route.ResetPasswordPublicRoute(api, application.ResetPasswordRestHandler)
 		route.ProfileRoute(api, application.ProfileRestHandler, application.UserRepository, application.RedisClient)
 		route.UserSettingRoute(api, application.UserSettingRestHandler, application.UserRepository, application.RedisClient)
 	})
