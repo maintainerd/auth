@@ -17,7 +17,7 @@ import (
 )
 
 type ForgotPasswordService interface {
-	SendPasswordResetEmail(email string, clientID, providerID *string) (*dto.ForgotPasswordResponseDto, error)
+	SendPasswordResetEmail(email string, clientID, providerID *string, isInternal bool) (*dto.ForgotPasswordResponseDto, error)
 }
 
 type forgotPasswordService struct {
@@ -44,7 +44,7 @@ func NewForgotPasswordService(
 	}
 }
 
-func (s *forgotPasswordService) SendPasswordResetEmail(email string, clientID, providerID *string) (*dto.ForgotPasswordResponseDto, error) {
+func (s *forgotPasswordService) SendPasswordResetEmail(email string, clientID, providerID *string, isInternal bool) (*dto.ForgotPasswordResponseDto, error) {
 	var user *model.User
 	var authClient *model.AuthClient
 	var resetToken string
@@ -131,7 +131,7 @@ func (s *forgotPasswordService) SendPasswordResetEmail(email string, clientID, p
 	// Only send email if user was found (user will be nil if not found due to security)
 	if user != nil {
 		// Generate reset URL and send email
-		if err := s.sendPasswordResetEmail(user.Email, resetToken, authClient); err != nil {
+		if err := s.sendPasswordResetEmail(user.Email, resetToken, authClient, isInternal); err != nil {
 			// Log error but don't reveal it to user for security
 			util.LogSecurityEvent(util.SecurityEvent{
 				EventType: "password_reset_email_failure",
@@ -155,7 +155,7 @@ func generateSecureToken(length int) (string, error) {
 	return hex.EncodeToString(bytes), nil
 }
 
-func (s *forgotPasswordService) sendPasswordResetEmail(to, resetToken string, authClient *model.AuthClient) error {
+func (s *forgotPasswordService) sendPasswordResetEmail(to, resetToken string, authClient *model.AuthClient, isInternal bool) error {
 	// Get email template from DB
 	templateEntity, err := s.emailTemplateRepo.FindByName("internal:user:password:reset")
 	if err != nil {
@@ -173,8 +173,13 @@ func (s *forgotPasswordService) sendPasswordResetEmail(to, resetToken string, au
 		return fmt.Errorf("failed to create signed URL: %w", err)
 	}
 
-	// Convert to frontend URL
-	frontendBaseURL := config.AccountHostname + "/reset-password"
+	// Convert to frontend URL - use different hostname based on request type
+	var frontendBaseURL string
+	if isInternal {
+		frontendBaseURL = config.AuthHostname + "/reset-password"
+	} else {
+		frontendBaseURL = config.AccountHostname + "/reset-password"
+	}
 	resetURL, err := util.ConvertToFrontendURL(signedAPIURL, frontendBaseURL)
 	if err != nil {
 		return fmt.Errorf("failed to convert to frontend URL: %w", err)
