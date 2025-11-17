@@ -16,6 +16,12 @@ func SeedEmailTemplates(db *gorm.DB) error {
 			emailtemplate.InviteEmailHTML,
 			`You're invited to join our organization. Accept the invite: {{.InviteURL}}`,
 		),
+		newEmailTemplate(
+			"internal:user:password:reset",
+			"Password Reset Request",
+			emailtemplate.ForgotPasswordEmailHTML,
+			emailtemplate.ForgotPasswordEmailPlain,
+		),
 	}
 
 	for _, t := range templates {
