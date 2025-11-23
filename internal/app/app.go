@@ -58,7 +58,7 @@ func NewApp(db *gorm.DB, redisClient *redis.Client) *App {
 	emailTemplateRepo := repository.NewEmailTemplateRepository(db)
 
 	// Services
-	serviceService := service.NewServiceService(db, serviceRepo, tenantServiceRepo)
+	serviceService := service.NewServiceService(db, serviceRepo, tenantServiceRepo, apiRepo)
 	apiService := service.NewAPIService(db, apiRepo, serviceRepo)
 	permissionService := service.NewPermissionService(db, permissionRepo, apiRepo, roleRepo, authClientRepo)
 	tenantService := service.NewTenantService(db, tenantRepo)

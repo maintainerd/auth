@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
@@ -31,16 +32,21 @@ func (h *ServiceHandler) Get(w http.ResponseWriter, r *http.Request) {
 	limit, _ := strconv.Atoi(q.Get("limit"))
 
 	// Parse bools safely
-	var isDefault, isActive, isPublic *bool
+	var isDefault, isSystem, isPublic *bool
+	var status []string
 	if v := q.Get("is_default"); v != "" {
 		if parsed, err := strconv.ParseBool(v); err == nil {
 			isDefault = &parsed
 		}
 	}
-	if v := q.Get("is_active"); v != "" {
+	if v := q.Get("is_system"); v != "" {
 		if parsed, err := strconv.ParseBool(v); err == nil {
-			isActive = &parsed
+			isSystem = &parsed
 		}
+	}
+	if v := q.Get("status"); v != "" {
+		// Parse comma-separated status values
+		status = strings.Split(strings.ReplaceAll(v, " ", ""), ",")
 	}
 	if v := q.Get("is_public"); v != "" {
 		if parsed, err := strconv.ParseBool(v); err == nil {
@@ -54,9 +60,10 @@ func (h *ServiceHandler) Get(w http.ResponseWriter, r *http.Request) {
 		DisplayName: util.PtrOrNil(q.Get("display_name")),
 		Description: util.PtrOrNil(q.Get("description")),
 		Version:     util.PtrOrNil(q.Get("version")),
-		IsActive:    isActive,
+		Status:      status,
 		IsPublic:    isPublic,
 		IsDefault:   isDefault,
+		IsSystem:    isSystem,
 		PaginationRequestDto: dto.PaginationRequestDto{
 			Page:      page,
 			Limit:     limit,
@@ -76,9 +83,10 @@ func (h *ServiceHandler) Get(w http.ResponseWriter, r *http.Request) {
 		DisplayName: reqParams.DisplayName,
 		Description: reqParams.Description,
 		Version:     reqParams.Version,
-		IsActive:    reqParams.IsActive,
+		Status:      reqParams.Status,
 		IsPublic:    reqParams.IsPublic,
 		IsDefault:   reqParams.IsDefault,
+		IsSystem:    reqParams.IsSystem,
 		Page:        reqParams.Page,
 		Limit:       reqParams.Limit,
 		SortBy:      reqParams.SortBy,
@@ -154,8 +162,9 @@ func (h *ServiceHandler) Create(w http.ResponseWriter, r *http.Request) {
 		req.DisplayName,
 		req.Description,
 		req.Version,
-		false,
-		req.IsActive,
+		false, // isDefault - only set by seeders
+		false, // isSystem - only set by seeders
+		req.Status,
 		req.IsPublic,
 		user.TenantID,
 	)
@@ -193,8 +202,9 @@ func (h *ServiceHandler) Update(w http.ResponseWriter, r *http.Request) {
 		req.DisplayName,
 		req.Description,
 		req.Version,
-		false,
-		req.IsActive,
+		false, // isDefault - only set by seeders
+		false, // isSystem - only set by seeders
+		req.Status,
 		req.IsPublic,
 	)
 	if err != nil {
@@ -208,15 +218,27 @@ func (h *ServiceHandler) Update(w http.ResponseWriter, r *http.Request) {
 
 // Set service status
 func (h *ServiceHandler) SetStatus(w http.ResponseWriter, r *http.Request) {
-	// Validate role_uuid
+	// Validate service_uuid
 	serviceUUID, err := uuid.Parse(chi.URLParam(r, "service_uuid"))
 	if err != nil {
 		util.Error(w, http.StatusBadRequest, "Invalid service UUID")
 		return
 	}
 
+	// Parse and validate request body
+	var req dto.ServiceStatusUpdateRequestDto
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		util.Error(w, http.StatusBadRequest, "Invalid request", err.Error())
+		return
+	}
+
+	if err := req.Validate(); err != nil {
+		util.ValidationError(w, err)
+		return
+	}
+
 	// Update service
-	service, err := h.service.SetActiveStatusByUUID(serviceUUID)
+	service, err := h.service.SetStatusByUUID(serviceUUID, req.Status)
 	if err != nil {
 		util.Error(w, http.StatusInternalServerError, "Failed to update service", err.Error())
 		return
@@ -276,9 +298,12 @@ func toServiceResponseDto(s service.ServiceServiceDataResult) dto.ServiceRespons
 		DisplayName: s.DisplayName,
 		Description: s.Description,
 		Version:     s.Version,
-		IsActive:    s.IsActive,
+		Status:      s.Status,
 		IsPublic:    s.IsPublic,
 		IsDefault:   s.IsDefault,
+		IsSystem:    s.IsSystem,
+		APICount:    s.APICount,
+		PolicyCount: s.PolicyCount,
 		CreatedAt:   s.CreatedAt,
 		UpdatedAt:   s.UpdatedAt,
 	}

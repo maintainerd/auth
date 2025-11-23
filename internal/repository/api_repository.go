@@ -31,6 +31,7 @@ type APIRepository interface {
 	FindPaginated(filter APIRepositoryGetFilter) (*PaginationResult[model.API], error)
 	SetActiveStatusByUUID(apiUUID uuid.UUID, isActive bool) error
 	SetDefaultStatusByUUID(apiUUID uuid.UUID, isDefault bool) error
+	CountByServiceID(serviceID int64) (int64, error)
 }
 
 type apiRepository struct {
@@ -151,4 +152,12 @@ func (r *apiRepository) SetDefaultStatusByUUID(apiUUID uuid.UUID, isDefault bool
 	return r.db.Model(&model.API{}).
 		Where("api_uuid = ?", apiUUID).
 		Update("is_default", isDefault).Error
+}
+
+func (r *apiRepository) CountByServiceID(serviceID int64) (int64, error) {
+	var count int64
+	err := r.db.Model(&model.API{}).
+		Where("service_id = ?", serviceID).
+		Count(&count).Error
+	return count, err
 }

@@ -17,8 +17,11 @@ type ServiceServiceDataResult struct {
 	Description string
 	Version     string
 	IsDefault   bool
-	IsActive    bool
+	IsSystem    bool
+	Status      string
 	IsPublic    bool
+	APICount    int64
+	PolicyCount int64
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
 }
@@ -29,7 +32,8 @@ type ServiceServiceGetFilter struct {
 	Description *string
 	Version     *string
 	IsDefault   *bool
-	IsActive    *bool
+	IsSystem    *bool
+	Status      []string
 	IsPublic    *bool
 	Page        int
 	Limit       int
@@ -48,9 +52,9 @@ type ServiceServiceGetResult struct {
 type ServiceService interface {
 	Get(filter ServiceServiceGetFilter) (*ServiceServiceGetResult, error)
 	GetByUUID(serviceUUID uuid.UUID) (*ServiceServiceDataResult, error)
-	Create(name string, displayName string, description string, version string, isDefault bool, isActive bool, isPublic bool, tenantID int64) (*ServiceServiceDataResult, error)
-	Update(serviceUUID uuid.UUID, name string, displayName string, description string, version string, isDefault bool, isActive bool, isPublic bool) (*ServiceServiceDataResult, error)
-	SetActiveStatusByUUID(serviceUUID uuid.UUID) (*ServiceServiceDataResult, error)
+	Create(name string, displayName string, description string, version string, isDefault bool, isSystem bool, status string, isPublic bool, tenantID int64) (*ServiceServiceDataResult, error)
+	Update(serviceUUID uuid.UUID, name string, displayName string, description string, version string, isDefault bool, isSystem bool, status string, isPublic bool) (*ServiceServiceDataResult, error)
+	SetStatusByUUID(serviceUUID uuid.UUID, status string) (*ServiceServiceDataResult, error)
 	SetPublicStatusByUUID(serviceUUID uuid.UUID) (*ServiceServiceDataResult, error)
 	DeleteByUUID(serviceUUID uuid.UUID) (*ServiceServiceDataResult, error)
 }
@@ -59,17 +63,20 @@ type serviceService struct {
 	db                *gorm.DB
 	serviceRepo       repository.ServiceRepository
 	tenantServiceRepo repository.TenantServiceRepository
+	apiRepo           repository.APIRepository
 }
 
 func NewServiceService(
 	db *gorm.DB,
 	serviceRepo repository.ServiceRepository,
 	tenantServiceRepo repository.TenantServiceRepository,
+	apiRepo repository.APIRepository,
 ) ServiceService {
 	return &serviceService{
 		db:                db,
 		serviceRepo:       serviceRepo,
 		tenantServiceRepo: tenantServiceRepo,
+		apiRepo:           apiRepo,
 	}
 }
 
@@ -80,7 +87,8 @@ func (s *serviceService) Get(filter ServiceServiceGetFilter) (*ServiceServiceGet
 		Description: filter.Description,
 		Version:     filter.Version,
 		IsDefault:   filter.IsDefault,
-		IsActive:    filter.IsActive,
+		IsSystem:    filter.IsSystem,
+		Status:      filter.Status,
 		IsPublic:    filter.IsPublic,
 		Page:        filter.Page,
 		Limit:       filter.Limit,
@@ -95,18 +103,7 @@ func (s *serviceService) Get(filter ServiceServiceGetFilter) (*ServiceServiceGet
 
 	services := make([]ServiceServiceDataResult, len(result.Data))
 	for i, svc := range result.Data {
-		services[i] = ServiceServiceDataResult{
-			ServiceUUID: svc.ServiceUUID,
-			Name:        svc.Name,
-			DisplayName: svc.DisplayName,
-			Description: svc.Description,
-			Version:     svc.Version,
-			IsDefault:   svc.IsDefault,
-			IsActive:    svc.IsActive,
-			IsPublic:    svc.IsPublic,
-			CreatedAt:   svc.CreatedAt,
-			UpdatedAt:   svc.UpdatedAt,
-		}
+		services[i] = *s.toServiceServiceDataResult(&svc)
 	}
 
 	return &ServiceServiceGetResult{
@@ -124,21 +121,10 @@ func (s *serviceService) GetByUUID(serviceUUID uuid.UUID) (*ServiceServiceDataRe
 		return nil, errors.New("service not found")
 	}
 
-	return &ServiceServiceDataResult{
-		ServiceUUID: service.ServiceUUID,
-		Name:        service.Name,
-		DisplayName: service.DisplayName,
-		Description: service.Description,
-		Version:     service.Version,
-		IsDefault:   service.IsDefault,
-		IsActive:    service.IsActive,
-		IsPublic:    service.IsPublic,
-		CreatedAt:   service.CreatedAt,
-		UpdatedAt:   service.UpdatedAt,
-	}, nil
+	return s.toServiceServiceDataResult(service), nil
 }
 
-func (s *serviceService) Create(name string, displayName string, description string, version string, isDefault bool, isActive bool, isPublic bool, tenantID int64) (*ServiceServiceDataResult, error) {
+func (s *serviceService) Create(name string, displayName string, description string, version string, isDefault bool, isSystem bool, status string, isPublic bool, tenantID int64) (*ServiceServiceDataResult, error) {
 	var createdService *model.Service
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
@@ -160,7 +146,8 @@ func (s *serviceService) Create(name string, displayName string, description str
 			Description: description,
 			Version:     version,
 			IsDefault:   isDefault,
-			IsActive:    isActive,
+			IsSystem:    isSystem,
+			Status:      status,
 			IsPublic:    isPublic,
 		}
 
@@ -190,21 +177,10 @@ func (s *serviceService) Create(name string, displayName string, description str
 		return nil, err
 	}
 
-	return &ServiceServiceDataResult{
-		ServiceUUID: createdService.ServiceUUID,
-		Name:        createdService.Name,
-		DisplayName: createdService.DisplayName,
-		Description: createdService.Description,
-		Version:     createdService.Version,
-		IsDefault:   createdService.IsDefault,
-		IsActive:    createdService.IsActive,
-		IsPublic:    createdService.IsPublic,
-		CreatedAt:   createdService.CreatedAt,
-		UpdatedAt:   createdService.UpdatedAt,
-	}, nil
+	return s.toServiceServiceDataResult(createdService), nil
 }
 
-func (s *serviceService) Update(serviceUUID uuid.UUID, name string, displayName string, description string, version string, isDefault bool, isActive bool, isPublic bool) (*ServiceServiceDataResult, error) {
+func (s *serviceService) Update(serviceUUID uuid.UUID, name string, displayName string, description string, version string, isDefault bool, isSystem bool, status string, isPublic bool) (*ServiceServiceDataResult, error) {
 	var updatedService *model.Service
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
@@ -213,10 +189,6 @@ func (s *serviceService) Update(serviceUUID uuid.UUID, name string, displayName 
 		service, err := txServiceRepo.FindByUUID(serviceUUID)
 		if err != nil || service == nil {
 			return errors.New("service not found")
-		}
-
-		if service.IsDefault {
-			return errors.New("default service cannot be updated")
 		}
 
 		if service.Name != name {
@@ -234,7 +206,8 @@ func (s *serviceService) Update(serviceUUID uuid.UUID, name string, displayName 
 		service.Description = description
 		service.Version = version
 		service.IsDefault = isDefault
-		service.IsActive = isActive
+		service.IsSystem = isSystem
+		service.Status = status
 		service.IsPublic = isPublic
 
 		_, err = txServiceRepo.CreateOrUpdate(service)
@@ -251,21 +224,10 @@ func (s *serviceService) Update(serviceUUID uuid.UUID, name string, displayName 
 		return nil, err
 	}
 
-	return &ServiceServiceDataResult{
-		ServiceUUID: updatedService.ServiceUUID,
-		Name:        updatedService.Name,
-		DisplayName: updatedService.DisplayName,
-		Description: updatedService.Description,
-		Version:     updatedService.Version,
-		IsDefault:   updatedService.IsDefault,
-		IsActive:    updatedService.IsActive,
-		IsPublic:    updatedService.IsPublic,
-		CreatedAt:   updatedService.CreatedAt,
-		UpdatedAt:   updatedService.UpdatedAt,
-	}, nil
+	return s.toServiceServiceDataResult(updatedService), nil
 }
 
-func (s *serviceService) SetActiveStatusByUUID(serviceUUID uuid.UUID) (*ServiceServiceDataResult, error) {
+func (s *serviceService) SetStatusByUUID(serviceUUID uuid.UUID, status string) (*ServiceServiceDataResult, error) {
 	var updatedService *model.Service
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
@@ -280,7 +242,7 @@ func (s *serviceService) SetActiveStatusByUUID(serviceUUID uuid.UUID) (*ServiceS
 			return errors.New("default service cannot be updated")
 		}
 
-		service.IsActive = !service.IsActive
+		service.Status = status
 
 		_, err = txServiceRepo.CreateOrUpdate(service)
 		if err != nil {
@@ -296,18 +258,7 @@ func (s *serviceService) SetActiveStatusByUUID(serviceUUID uuid.UUID) (*ServiceS
 		return nil, err
 	}
 
-	return &ServiceServiceDataResult{
-		ServiceUUID: updatedService.ServiceUUID,
-		Name:        updatedService.Name,
-		DisplayName: updatedService.DisplayName,
-		Description: updatedService.Description,
-		Version:     updatedService.Version,
-		IsDefault:   updatedService.IsDefault,
-		IsActive:    updatedService.IsActive,
-		IsPublic:    updatedService.IsPublic,
-		CreatedAt:   updatedService.CreatedAt,
-		UpdatedAt:   updatedService.UpdatedAt,
-	}, nil
+	return s.toServiceServiceDataResult(updatedService), nil
 }
 
 func (s *serviceService) SetPublicStatusByUUID(serviceUUID uuid.UUID) (*ServiceServiceDataResult, error) {
@@ -341,18 +292,7 @@ func (s *serviceService) SetPublicStatusByUUID(serviceUUID uuid.UUID) (*ServiceS
 		return nil, err
 	}
 
-	return &ServiceServiceDataResult{
-		ServiceUUID: updatedService.ServiceUUID,
-		Name:        updatedService.Name,
-		DisplayName: updatedService.DisplayName,
-		Description: updatedService.Description,
-		Version:     updatedService.Version,
-		IsDefault:   updatedService.IsDefault,
-		IsActive:    updatedService.IsActive,
-		IsPublic:    updatedService.IsPublic,
-		CreatedAt:   updatedService.CreatedAt,
-		UpdatedAt:   updatedService.UpdatedAt,
-	}, nil
+	return s.toServiceServiceDataResult(updatedService), nil
 }
 
 func (s *serviceService) DeleteByUUID(serviceUUID uuid.UUID) (*ServiceServiceDataResult, error) {
@@ -361,6 +301,12 @@ func (s *serviceService) DeleteByUUID(serviceUUID uuid.UUID) (*ServiceServiceDat
 		return nil, errors.New("service not found")
 	}
 
+	// Check if service is a system record (critical for app functionality)
+	if service.IsSystem {
+		return nil, errors.New("system service cannot be deleted")
+	}
+
+	// Check if service is a default record (used for tenant setup)
 	if service.IsDefault {
 		return nil, errors.New("default service cannot be deleted")
 	}
@@ -370,6 +316,17 @@ func (s *serviceService) DeleteByUUID(serviceUUID uuid.UUID) (*ServiceServiceDat
 		return nil, err
 	}
 
+	return s.toServiceServiceDataResult(service), nil
+}
+
+// Helper function to convert model.Service to ServiceServiceDataResult with counts
+func (s *serviceService) toServiceServiceDataResult(service *model.Service) *ServiceServiceDataResult {
+	// Get API count for this service
+	apiCount, _ := s.apiRepo.CountByServiceID(service.ServiceID)
+
+	// Get policy count for this service
+	policyCount, _ := s.serviceRepo.CountPoliciesByServiceID(service.ServiceID)
+
 	return &ServiceServiceDataResult{
 		ServiceUUID: service.ServiceUUID,
 		Name:        service.Name,
@@ -377,9 +334,12 @@ func (s *serviceService) DeleteByUUID(serviceUUID uuid.UUID) (*ServiceServiceDat
 		Description: service.Description,
 		Version:     service.Version,
 		IsDefault:   service.IsDefault,
-		IsActive:    service.IsActive,
+		IsSystem:    service.IsSystem,
+		Status:      service.Status,
 		IsPublic:    service.IsPublic,
+		APICount:    apiCount,
+		PolicyCount: policyCount,
 		CreatedAt:   service.CreatedAt,
 		UpdatedAt:   service.UpdatedAt,
-	}, nil
+	}
 }

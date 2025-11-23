@@ -313,8 +313,11 @@ func toAPIServiceDataResult(api *model.API) *APIServiceDataResult {
 			Description: api.Service.Description,
 			Version:     api.Service.Version,
 			IsDefault:   api.Service.IsDefault,
-			IsActive:    api.Service.IsActive,
+			IsSystem:    api.Service.IsSystem,
+			Status:      api.Service.Status,
 			IsPublic:    api.Service.IsPublic,
+			APICount:    0, // Not needed in API context
+			PolicyCount: 0, // Not needed in API context
 			CreatedAt:   api.Service.CreatedAt,
 			UpdatedAt:   api.Service.UpdatedAt,
 		}
