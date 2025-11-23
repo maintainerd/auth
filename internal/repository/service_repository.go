@@ -15,7 +15,8 @@ type ServiceRepositoryGetFilter struct {
 	Version     *string
 	TenantID    *int64
 	IsDefault   *bool
-	IsActive    *bool
+	IsSystem    *bool
+	Status      []string
 	IsPublic    *bool
 	Page        int
 	Limit       int
@@ -31,8 +32,9 @@ type ServiceRepository interface {
 	FindDefaultServices() ([]model.Service, error)
 	FindByTenantID(tenantID int64) ([]model.Service, error)
 	FindPaginated(filter ServiceRepositoryGetFilter) (*PaginationResult[model.Service], error)
-	SetActiveStatusByUUID(serviceUUID uuid.UUID, isActive bool) error
+	SetStatusByUUID(serviceUUID uuid.UUID, status string) error
 	SetDefaultStatusByUUID(serviceUUID uuid.UUID, isDefault bool) error
+	CountPoliciesByServiceID(serviceID int64) (int64, error)
 }
 
 type serviceRepository struct {
@@ -111,14 +113,17 @@ func (r *serviceRepository) FindPaginated(filter ServiceRepositoryGetFilter) (*P
 	if filter.TenantID != nil {
 		query = query.Where("tenant_id = ?", *filter.TenantID)
 	}
-	if filter.IsActive != nil {
-		query = query.Where("is_active = ?", *filter.IsActive)
+	if len(filter.Status) > 0 {
+		query = query.Where("status IN ?", filter.Status)
 	}
 	if filter.IsPublic != nil {
 		query = query.Where("is_public = ?", *filter.IsPublic)
 	}
 	if filter.IsDefault != nil {
 		query = query.Where("is_default = ?", *filter.IsDefault)
+	}
+	if filter.IsSystem != nil {
+		query = query.Where("is_system = ?", *filter.IsSystem)
 	}
 
 	// Sorting
@@ -149,14 +154,22 @@ func (r *serviceRepository) FindPaginated(filter ServiceRepositoryGetFilter) (*P
 	}, nil
 }
 
-func (r *serviceRepository) SetActiveStatusByUUID(serviceUUID uuid.UUID, isActive bool) error {
+func (r *serviceRepository) SetStatusByUUID(serviceUUID uuid.UUID, status string) error {
 	return r.db.Model(&model.Service{}).
 		Where("service_uuid = ?", serviceUUID).
-		Update("is_active", isActive).Error
+		Update("status", status).Error
 }
 
 func (r *serviceRepository) SetDefaultStatusByUUID(serviceUUID uuid.UUID, isDefault bool) error {
 	return r.db.Model(&model.Service{}).
 		Where("service_uuid = ?", serviceUUID).
 		Update("is_default", isDefault).Error
+}
+
+func (r *serviceRepository) CountPoliciesByServiceID(serviceID int64) (int64, error) {
+	var count int64
+	err := r.db.Model(&model.ServicePolicy{}).
+		Where("service_id = ?", serviceID).
+		Count(&count).Error
+	return count, err
 }
