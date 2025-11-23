@@ -240,8 +240,11 @@ func toAPIResponseDto(r service.APIServiceDataResult) dto.APIResponseDto {
 			Description: r.Service.Description,
 			Version:     r.Service.Version,
 			IsDefault:   r.Service.IsDefault,
-			IsActive:    r.Service.IsActive,
+			IsSystem:    r.Service.IsSystem,
+			Status:      r.Service.Status,
 			IsPublic:    r.Service.IsPublic,
+			APICount:    r.Service.APICount,
+			PolicyCount: r.Service.PolicyCount,
 			CreatedAt:   r.Service.CreatedAt,
 			UpdatedAt:   r.Service.UpdatedAt,
 		}

@@ -24,8 +24,9 @@ func SeedService(db *gorm.DB, appVersion string) (model.Service, error) {
 			DisplayName: "Auth Service",
 			Description: "Auth system service",
 			Version:     appVersion,
-			IsActive:    true,
+			Status:      "active",
 			IsDefault:   true,
+			IsSystem:    true,
 			IsPublic:    true,
 		}
 
