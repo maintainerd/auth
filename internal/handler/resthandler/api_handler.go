@@ -30,7 +30,7 @@ func (h *APIHandler) Get(w http.ResponseWriter, r *http.Request) {
 	limit, _ := strconv.Atoi(q.Get("limit"))
 
 	// Parse bools safely
-	var isDefault, isActive *bool
+	var isDefault, isActive, isSystem *bool
 	if v := q.Get("is_default"); v != "" {
 		parsed, err := strconv.ParseBool(v)
 		if err == nil {
@@ -43,6 +43,12 @@ func (h *APIHandler) Get(w http.ResponseWriter, r *http.Request) {
 			isActive = &parsed
 		}
 	}
+	if v := q.Get("is_system"); v != "" {
+		parsed, err := strconv.ParseBool(v)
+		if err == nil {
+			isSystem = &parsed
+		}
+	}
 
 	// Build request DTO
 	reqParams := dto.APIFilterDto{
@@ -53,6 +59,7 @@ func (h *APIHandler) Get(w http.ResponseWriter, r *http.Request) {
 		ServiceUUID: util.PtrOrNil(q.Get("service_uuid")),
 		IsDefault:   isDefault,
 		IsActive:    isActive,
+		IsSystem:    isSystem,
 		PaginationRequestDto: dto.PaginationRequestDto{
 			Page:      page,
 			Limit:     limit,
@@ -75,6 +82,7 @@ func (h *APIHandler) Get(w http.ResponseWriter, r *http.Request) {
 		ServiceID:   nil, // optional, skip mapping
 		IsDefault:   reqParams.IsDefault,
 		IsActive:    reqParams.IsActive,
+		IsSystem:    reqParams.IsSystem,
 		Page:        reqParams.Page,
 		Limit:       reqParams.Limit,
 		SortBy:      reqParams.SortBy,
@@ -138,7 +146,7 @@ func (h *APIHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	api, err := h.apiService.Create(req.Name, req.DisplayName, req.Description, req.APIType, req.IsActive, req.IsDefault, req.ServiceUUID)
+	api, err := h.apiService.Create(req.Name, req.DisplayName, req.Description, req.APIType, req.IsActive, req.IsDefault, false, req.ServiceUUID)
 	if err != nil {
 		util.Error(w, http.StatusInternalServerError, "Failed to create API", err.Error())
 		return
@@ -228,6 +236,7 @@ func toAPIResponseDto(r service.APIServiceDataResult) dto.APIResponseDto {
 		Identifier:  r.Identifier,
 		IsActive:    r.IsActive,
 		IsDefault:   r.IsDefault,
+		IsSystem:    r.IsSystem,
 		CreatedAt:   r.CreatedAt,
 		UpdatedAt:   r.UpdatedAt,
 	}

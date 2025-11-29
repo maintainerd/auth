@@ -22,6 +22,7 @@ type APIServiceDataResult struct {
 	Service     *ServiceServiceDataResult
 	IsActive    bool
 	IsDefault   bool
+	IsSystem    bool
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
 }
@@ -34,6 +35,7 @@ type APIServiceGetFilter struct {
 	ServiceID   *int64
 	IsActive    *bool
 	IsDefault   *bool
+	IsSystem    *bool
 	Page        int
 	Limit       int
 	SortBy      string
@@ -51,7 +53,7 @@ type APIServiceGetResult struct {
 type APIService interface {
 	Get(filter APIServiceGetFilter) (*APIServiceGetResult, error)
 	GetByUUID(apiUUID uuid.UUID) (*APIServiceDataResult, error)
-	Create(name string, displayName string, description string, apiType string, isActive bool, isDefault bool, serviceUUID string) (*APIServiceDataResult, error)
+	Create(name string, displayName string, description string, apiType string, isActive bool, isDefault bool, isSystem bool, serviceUUID string) (*APIServiceDataResult, error)
 	Update(apiUUID uuid.UUID, name string, displayName string, description string, apiType string, isActive bool, isDefault bool) (*APIServiceDataResult, error)
 	SetActiveStatusByUUID(apiUUID uuid.UUID) (*APIServiceDataResult, error)
 	DeleteByUUID(apiUUID uuid.UUID) (*APIServiceDataResult, error)
@@ -84,6 +86,7 @@ func (s *apiService) Get(filter APIServiceGetFilter) (*APIServiceGetResult, erro
 		ServiceID:   filter.ServiceID,
 		IsActive:    filter.IsActive,
 		IsDefault:   filter.IsDefault,
+		IsSystem:    filter.IsSystem,
 		Page:        filter.Page,
 		Limit:       filter.Limit,
 		SortBy:      filter.SortBy,
@@ -118,7 +121,7 @@ func (s *apiService) GetByUUID(apiUUID uuid.UUID) (*APIServiceDataResult, error)
 	return toAPIServiceDataResult(api), nil
 }
 
-func (s *apiService) Create(name string, displayName string, description string, apiType string, isActive bool, isDefault bool, serviceUUID string) (*APIServiceDataResult, error) {
+func (s *apiService) Create(name string, displayName string, description string, apiType string, isActive bool, isDefault bool, isSystem bool, serviceUUID string) (*APIServiceDataResult, error) {
 	var createdAPI *model.API
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
@@ -153,6 +156,7 @@ func (s *apiService) Create(name string, displayName string, description string,
 			ServiceID:   service.ServiceID,
 			IsActive:    isActive,
 			IsDefault:   isDefault,
+			IsSystem:    isSystem,
 		}
 
 		_, err = txAPIRepo.CreateOrUpdate(newAPI)
@@ -301,6 +305,7 @@ func toAPIServiceDataResult(api *model.API) *APIServiceDataResult {
 		Identifier:  api.Identifier,
 		IsActive:    api.IsActive,
 		IsDefault:   api.IsDefault,
+		IsSystem:    api.IsSystem,
 		CreatedAt:   api.CreatedAt,
 		UpdatedAt:   api.UpdatedAt,
 	}
