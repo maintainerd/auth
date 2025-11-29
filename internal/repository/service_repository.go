@@ -70,7 +70,10 @@ func (r *serviceRepository) FindByName(serviceName string) (*model.Service, erro
 
 func (r *serviceRepository) FindByNameAndTenantID(serviceName string, tenantID int64) (*model.Service, error) {
 	var service model.Service
-	err := r.db.Where("name = ? AND tenant_id = ?", serviceName, tenantID).First(&service).Error
+	err := r.db.
+		Joins("JOIN tenant_services ON services.service_id = tenant_services.service_id").
+		Where("services.name = ? AND tenant_services.tenant_id = ?", serviceName, tenantID).
+		First(&service).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, nil
@@ -82,7 +85,10 @@ func (r *serviceRepository) FindByNameAndTenantID(serviceName string, tenantID i
 
 func (r *serviceRepository) FindByTenantID(tenantID int64) ([]model.Service, error) {
 	var services []model.Service
-	err := r.db.Where("tenant_id = ?", tenantID).Find(&services).Error
+	err := r.db.
+		Joins("JOIN tenant_services ON services.service_id = tenant_services.service_id").
+		Where("tenant_services.tenant_id = ?", tenantID).
+		Find(&services).Error
 	return services, err
 }
 
@@ -111,7 +117,8 @@ func (r *serviceRepository) FindPaginated(filter ServiceRepositoryGetFilter) (*P
 
 	// Filters with exact match
 	if filter.TenantID != nil {
-		query = query.Where("tenant_id = ?", *filter.TenantID)
+		query = query.Joins("JOIN tenant_services ON services.service_id = tenant_services.service_id").
+			Where("tenant_services.tenant_id = ?", *filter.TenantID)
 	}
 	if len(filter.Status) > 0 {
 		query = query.Where("status IN ?", filter.Status)

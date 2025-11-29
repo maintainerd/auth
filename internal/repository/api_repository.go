@@ -16,6 +16,7 @@ type APIRepositoryGetFilter struct {
 	ServiceID   *int64
 	IsActive    *bool
 	IsDefault   *bool
+	IsSystem    *bool
 	Page        int
 	Limit       int
 	SortBy      string
@@ -112,6 +113,9 @@ func (r *apiRepository) FindPaginated(filter APIRepositoryGetFilter) (*Paginatio
 	}
 	if filter.IsDefault != nil {
 		query = query.Where("is_default = ?", *filter.IsDefault)
+	}
+	if filter.IsSystem != nil {
+		query = query.Where("is_system = ?", *filter.IsSystem)
 	}
 
 	// Sorting
