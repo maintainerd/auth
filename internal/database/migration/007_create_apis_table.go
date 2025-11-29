@@ -20,6 +20,7 @@ CREATE TABLE IF NOT EXISTS apis (
 		service_id			INTEGER NOT NULL,
     is_active				BOOLEAN DEFAULT FALSE,
     is_default			BOOLEAN DEFAULT FALSE,
+    is_system				BOOLEAN DEFAULT FALSE,
     created_at			TIMESTAMPTZ DEFAULT now(),
     updated_at			TIMESTAMPTZ DEFAULT now()
 );
@@ -45,6 +46,7 @@ CREATE INDEX IF NOT EXISTS idx_apis_identifier ON apis (identifier);
 CREATE INDEX IF NOT EXISTS idx_apis_service_id ON apis (service_id);
 CREATE INDEX IF NOT EXISTS idx_apis_is_active ON apis (is_active);
 CREATE INDEX IF NOT EXISTS idx_apis_is_default ON apis (is_default);
+CREATE INDEX IF NOT EXISTS idx_apis_is_system ON apis (is_system);
 CREATE INDEX IF NOT EXISTS idx_apis_created_at ON apis (created_at);
 `
 	if err := db.Exec(sql).Error; err != nil {

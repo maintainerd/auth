@@ -18,6 +18,7 @@ type APIResponseDto struct {
 	Service     *ServiceResponseDto `json:"service,omitempty"`
 	IsActive    bool                `json:"is_active"`
 	IsDefault   bool                `json:"is_default"`
+	IsSystem    bool                `json:"is_system"`
 	CreatedAt   time.Time           `json:"created_at"`
 	UpdatedAt   time.Time           `json:"updated_at"`
 }
@@ -30,7 +31,7 @@ type APICreateRequestDto struct {
 	APIType     string `json:"api_type"`
 	IsActive    bool   `json:"is_active"`
 	IsDefault   bool   `json:"is_default"`
-	ServiceUUID string `json:"service_uuid"`
+	ServiceUUID string `json:"service_id"`
 }
 
 // Validation
@@ -59,7 +60,7 @@ func (r APICreateRequestDto) Validate() error {
 			validation.In(true, false).Error("Is default is required"),
 		),
 		validation.Field(&r.ServiceUUID,
-			validation.Required.Error("Service UUID is required"),
+			validation.Required.Error("Service ID is required"),
 		),
 	)
 }
@@ -109,9 +110,10 @@ type APIFilterDto struct {
 	Description *string `json:"description"`
 	APIType     *string `json:"api_type"`
 	Identifier  *string `json:"identifier"`
-	ServiceUUID *string `json:"service_uuid"`
+	ServiceUUID *string `json:"service_id"`
 	IsActive    *bool   `json:"is_active"`
 	IsDefault   *bool   `json:"is_default"`
+	IsSystem    *bool   `json:"is_system"`
 
 	// Pagination and sorting
 	PaginationRequestDto

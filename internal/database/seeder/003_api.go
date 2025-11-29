@@ -28,6 +28,7 @@ func SeedAPI(db *gorm.DB, serviceID int64) (*model.API, error) {
 		Identifier:  fmt.Sprintf("api-%s", util.GenerateIdentifier(12)),
 		IsActive:    true,
 		IsDefault:   true,
+		IsSystem:    true,
 		ServiceID:   serviceID,
 	}
 
