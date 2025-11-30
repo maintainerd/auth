@@ -335,7 +335,7 @@ func toPermissionServiceDataResult(permission *model.Permission) *PermissionServ
 			Description: permission.API.Description,
 			APIType:     permission.API.APIType,
 			Identifier:  permission.API.Identifier,
-			IsActive:    permission.API.IsActive,
+			Status:      permission.API.Status,
 			IsDefault:   permission.API.IsDefault,
 			CreatedAt:   permission.API.CreatedAt,
 			UpdatedAt:   permission.API.UpdatedAt,
