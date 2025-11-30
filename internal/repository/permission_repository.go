@@ -13,8 +13,9 @@ type PermissionRepositoryGetFilter struct {
 	APIID        *int64
 	RoleID       *int64
 	AuthClientID *int64
-	IsActive     *bool
+	Status       *string
 	IsDefault    *bool
+	IsSystem     *bool
 	Page         int
 	Limit        int
 	SortBy       string
@@ -77,11 +78,14 @@ func (r *permissionRepository) FindPaginated(filter PermissionRepositoryGetFilte
 	if filter.APIID != nil {
 		query = query.Where("api_id = ?", *filter.APIID)
 	}
-	if filter.IsActive != nil {
-		query = query.Where("is_active = ?", *filter.IsActive)
+	if filter.Status != nil {
+		query = query.Where("status = ?", *filter.Status)
 	}
 	if filter.IsDefault != nil {
 		query = query.Where("is_default = ?", *filter.IsDefault)
+	}
+	if filter.IsSystem != nil {
+		query = query.Where("is_system = ?", *filter.IsSystem)
 	}
 
 	// Joined table filter

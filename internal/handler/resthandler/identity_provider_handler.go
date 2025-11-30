@@ -52,7 +52,7 @@ func (h *IdentityProviderHandler) Get(w http.ResponseWriter, r *http.Request) {
 		DisplayName:  util.PtrOrNil(q.Get("display_name")),
 		ProviderType: util.PtrOrNil(q.Get("provider_type")),
 		Identifier:   util.PtrOrNil(q.Get("identifier")),
-		TenantUUID:   util.PtrOrNil(q.Get("tenant_uuid")),
+		TenantUUID:   util.PtrOrNil(q.Get("tenant_id")),
 		IsActive:     isActive,
 		IsDefault:    isDefault,
 		PaginationRequestDto: dto.PaginationRequestDto{

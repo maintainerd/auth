@@ -30,7 +30,7 @@ type IdentityProviderCreateOrUpdateRequestDto struct {
 	ProviderType string         `json:"provider_type"`
 	Config       datatypes.JSON `json:"config"`
 	IsActive     bool           `json:"is_active"`
-	TenantUUID   string         `json:"tenant_uuid"`
+	TenantUUID   string         `json:"tenant_id"`
 }
 
 // Validation
@@ -68,7 +68,7 @@ type IdentityProviderFilterDto struct {
 	Identifier   *string `json:"identifier"`
 	IsActive     *bool   `json:"is_active"`
 	IsDefault    *bool   `json:"is_default"`
-	TenantUUID   *string `json:"tenant_uuid"`
+	TenantUUID   *string `json:"tenant_id"`
 
 	// Pagination and sorting
 	PaginationRequestDto

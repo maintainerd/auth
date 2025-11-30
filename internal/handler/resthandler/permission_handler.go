@@ -30,17 +30,18 @@ func (h *PermissionHandler) Get(w http.ResponseWriter, r *http.Request) {
 	limit, _ := strconv.Atoi(q.Get("limit"))
 
 	// Parse bools safely
-	var isDefault, isActive *bool
+	var isDefault, isSystem *bool
 	if v := q.Get("is_default"); v != "" {
 		parsed, err := strconv.ParseBool(v)
 		if err == nil {
 			isDefault = &parsed
 		}
 	}
-	if v := q.Get("is_active"); v != "" {
+
+	if v := q.Get("is_system"); v != "" {
 		parsed, err := strconv.ParseBool(v)
 		if err == nil {
-			isActive = &parsed
+			isSystem = &parsed
 		}
 	}
 
@@ -48,11 +49,12 @@ func (h *PermissionHandler) Get(w http.ResponseWriter, r *http.Request) {
 	reqParams := dto.PermissionFilterDto{
 		Name:           util.PtrOrNil(q.Get("name")),
 		Description:    util.PtrOrNil(q.Get("description")),
-		APIUUID:        util.PtrOrNil(q.Get("api_uuid")),
-		RoleUUID:       util.PtrOrNil(q.Get("role_uuid")),
-		AuthClientUUID: util.PtrOrNil(q.Get("auth_client_uuid")),
-		IsActive:       isActive,
+		APIUUID:        util.PtrOrNil(q.Get("api_id")),
+		RoleUUID:       util.PtrOrNil(q.Get("role_id")),
+		AuthClientUUID: util.PtrOrNil(q.Get("client_id")),
+		Status:         util.PtrOrNil(q.Get("status")),
 		IsDefault:      isDefault,
+		IsSystem:       isSystem,
 		PaginationRequestDto: dto.PaginationRequestDto{
 			Page:      page,
 			Limit:     limit,
@@ -73,8 +75,9 @@ func (h *PermissionHandler) Get(w http.ResponseWriter, r *http.Request) {
 		APIUUID:        reqParams.APIUUID,
 		RoleUUID:       reqParams.RoleUUID,
 		AuthClientUUID: reqParams.AuthClientUUID,
-		IsActive:       reqParams.IsActive,
+		Status:         reqParams.Status,
 		IsDefault:      reqParams.IsDefault,
+		IsSystem:       reqParams.IsSystem,
 		Page:           reqParams.Page,
 		Limit:          reqParams.Limit,
 		SortBy:         reqParams.SortBy,
@@ -138,7 +141,7 @@ func (h *PermissionHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	permission, err := h.permissionService.Create(req.Name, req.Description, req.IsActive, false, req.APIUUID)
+	permission, err := h.permissionService.Create(req.Name, req.Description, req.Status, false, req.APIUUID)
 	if err != nil {
 		util.Error(w, http.StatusInternalServerError, "Failed to create permission", err.Error())
 		return
@@ -168,7 +171,7 @@ func (h *PermissionHandler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	permission, err := h.permissionService.Update(permissionUUID, req.Name, req.Description, req.IsActive, false)
+	permission, err := h.permissionService.Update(permissionUUID, req.Name, req.Description, req.Status)
 	if err != nil {
 		util.Error(w, http.StatusInternalServerError, "Failed to update auth container", err.Error())
 		return
@@ -187,14 +190,24 @@ func (h *PermissionHandler) SetStatus(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	permission, err := h.permissionService.SetActiveStatusByUUID(permissionUUID)
+	var req dto.PermissionStatusUpdateDto
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		util.Error(w, http.StatusBadRequest, "Invalid request body", err.Error())
+		return
+	}
+
+	if err := req.Validate(); err != nil {
+		util.Error(w, http.StatusBadRequest, "Validation failed", err.Error())
+		return
+	}
+
+	permission, err := h.permissionService.SetStatus(permissionUUID, req.Status)
 	if err != nil {
-		util.Error(w, http.StatusInternalServerError, "Failed to update permission", err.Error())
+		util.Error(w, http.StatusInternalServerError, "Failed to update permission status", err.Error())
 		return
 	}
 
 	dtoRes := toPermissionResponseDto(*permission)
-
 	util.Success(w, dtoRes, "Permission status updated successfully")
 }
 
@@ -223,8 +236,9 @@ func toPermissionResponseDto(r service.PermissionServiceDataResult) dto.Permissi
 		PermissionUUID: r.PermissionUUID,
 		Name:           r.Name,
 		Description:    r.Description,
-		IsActive:       r.IsActive,
+		Status:         r.Status,
 		IsDefault:      r.IsDefault,
+		IsSystem:       r.IsSystem,
 		CreatedAt:      r.CreatedAt,
 		UpdatedAt:      r.UpdatedAt,
 	}
