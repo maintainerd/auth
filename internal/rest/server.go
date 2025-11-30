@@ -65,6 +65,7 @@ func startInternalServer(application *app.App) {
 		route.ServiceRoute(api, application.ServiceRestHandler, application.UserRepository, application.RedisClient)
 		route.APIRoute(api, application.APIRestHandler, application.UserRepository, application.RedisClient)
 		route.PermissionRoute(api, application.PermissionRestHandler, application.UserRepository, application.RedisClient)
+		route.PolicyRoute(api, application.PolicyRestHandler, application.UserRepository, application.RedisClient)
 		route.IdentityProviderRoute(api, application.IdentityProviderRestHandler, application.UserRepository, application.RedisClient)
 		route.AuthClientRoute(api, application.AuthClientRestHandler, application.UserRepository, application.RedisClient)
 		route.RoleRoute(api, application.RoleRestHandler, application.UserRepository, application.RedisClient)

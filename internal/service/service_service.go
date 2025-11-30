@@ -57,6 +57,8 @@ type ServiceService interface {
 	SetStatusByUUID(serviceUUID uuid.UUID, status string) (*ServiceServiceDataResult, error)
 	SetPublicStatusByUUID(serviceUUID uuid.UUID) (*ServiceServiceDataResult, error)
 	DeleteByUUID(serviceUUID uuid.UUID) (*ServiceServiceDataResult, error)
+	AssignPolicy(serviceUUID uuid.UUID, policyUUID uuid.UUID) error
+	RemovePolicy(serviceUUID uuid.UUID, policyUUID uuid.UUID) error
 }
 
 type serviceService struct {
@@ -64,6 +66,8 @@ type serviceService struct {
 	serviceRepo       repository.ServiceRepository
 	tenantServiceRepo repository.TenantServiceRepository
 	apiRepo           repository.APIRepository
+	servicePolicyRepo repository.ServicePolicyRepository
+	policyRepo        repository.PolicyRepository
 }
 
 func NewServiceService(
@@ -71,12 +75,16 @@ func NewServiceService(
 	serviceRepo repository.ServiceRepository,
 	tenantServiceRepo repository.TenantServiceRepository,
 	apiRepo repository.APIRepository,
+	servicePolicyRepo repository.ServicePolicyRepository,
+	policyRepo repository.PolicyRepository,
 ) ServiceService {
 	return &serviceService{
 		db:                db,
 		serviceRepo:       serviceRepo,
 		tenantServiceRepo: tenantServiceRepo,
 		apiRepo:           apiRepo,
+		servicePolicyRepo: servicePolicyRepo,
+		policyRepo:        policyRepo,
 	}
 }
 
@@ -342,4 +350,89 @@ func (s *serviceService) toServiceServiceDataResult(service *model.Service) *Ser
 		CreatedAt:   service.CreatedAt,
 		UpdatedAt:   service.UpdatedAt,
 	}
+}
+
+func (s *serviceService) AssignPolicy(serviceUUID uuid.UUID, policyUUID uuid.UUID) error {
+	return s.db.Transaction(func(tx *gorm.DB) error {
+		txServiceRepo := s.serviceRepo.WithTx(tx)
+		txPolicyRepo := s.policyRepo.WithTx(tx)
+		txServicePolicyRepo := s.servicePolicyRepo.WithTx(tx)
+
+		// Check if service exists
+		service, err := txServiceRepo.FindByUUID(serviceUUID)
+		if err != nil {
+			return err
+		}
+		if service == nil {
+			return errors.New("service not found")
+		}
+
+		// Check if policy exists
+		policy, err := txPolicyRepo.FindByUUID(policyUUID)
+		if err != nil {
+			return err
+		}
+		if policy == nil {
+			return errors.New("policy not found")
+		}
+
+		// Check if assignment already exists
+		existing, err := txServicePolicyRepo.FindByServiceAndPolicy(service.ServiceID, policy.PolicyID)
+		if err != nil {
+			return err
+		}
+		if existing != nil {
+			// Assignment already exists, return success for idempotency
+			return nil
+		}
+
+		// Create new service-policy assignment
+		servicePolicy := &model.ServicePolicy{
+			ServicePolicyUUID: uuid.New(),
+			ServiceID:         service.ServiceID,
+			PolicyID:          policy.PolicyID,
+		}
+
+		_, err = txServicePolicyRepo.Create(servicePolicy)
+		return err
+	})
+}
+
+func (s *serviceService) RemovePolicy(serviceUUID uuid.UUID, policyUUID uuid.UUID) error {
+	return s.db.Transaction(func(tx *gorm.DB) error {
+		txServiceRepo := s.serviceRepo.WithTx(tx)
+		txPolicyRepo := s.policyRepo.WithTx(tx)
+		txServicePolicyRepo := s.servicePolicyRepo.WithTx(tx)
+
+		// Check if service exists
+		service, err := txServiceRepo.FindByUUID(serviceUUID)
+		if err != nil {
+			return err
+		}
+		if service == nil {
+			return errors.New("service not found")
+		}
+
+		// Check if policy exists
+		policy, err := txPolicyRepo.FindByUUID(policyUUID)
+		if err != nil {
+			return err
+		}
+		if policy == nil {
+			return errors.New("policy not found")
+		}
+
+		// Check if assignment exists
+		existing, err := txServicePolicyRepo.FindByServiceAndPolicy(service.ServiceID, policy.PolicyID)
+		if err != nil {
+			return err
+		}
+		if existing == nil {
+			// Assignment doesn't exist, return success for idempotency
+			return nil
+		}
+
+		// Remove the service-policy assignment
+		return txServicePolicyRepo.DeleteByServiceAndPolicy(service.ServiceID, policy.PolicyID)
+	})
 }

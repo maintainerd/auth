@@ -38,5 +38,12 @@ func ServiceRoute(
 
 		r.With(middleware.PermissionMiddleware([]string{"service:delete"})).
 			Delete("/{service_uuid}", serviceHandler.Delete)
+
+		// Service-Policy Assignment endpoints
+		r.With(middleware.PermissionMiddleware([]string{"service:policy:assign"})).
+			Post("/{service_uuid}/policies/{policy_uuid}", serviceHandler.AssignPolicy)
+
+		r.With(middleware.PermissionMiddleware([]string{"service:policy:remove"})).
+			Delete("/{service_uuid}/policies/{policy_uuid}", serviceHandler.RemovePolicy)
 	})
 }

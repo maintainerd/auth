@@ -308,3 +308,55 @@ func toServiceResponseDto(s service.ServiceServiceDataResult) dto.ServiceRespons
 		UpdatedAt:   s.UpdatedAt,
 	}
 }
+
+// Assign policy to service
+func (h *ServiceHandler) AssignPolicy(w http.ResponseWriter, r *http.Request) {
+	// Validate service_uuid
+	serviceUUID, err := uuid.Parse(chi.URLParam(r, "service_uuid"))
+	if err != nil {
+		util.Error(w, http.StatusBadRequest, "Invalid service UUID")
+		return
+	}
+
+	// Validate policy_uuid
+	policyUUID, err := uuid.Parse(chi.URLParam(r, "policy_uuid"))
+	if err != nil {
+		util.Error(w, http.StatusBadRequest, "Invalid policy UUID")
+		return
+	}
+
+	// Assign policy to service
+	err = h.service.AssignPolicy(serviceUUID, policyUUID)
+	if err != nil {
+		util.Error(w, http.StatusInternalServerError, "Failed to assign policy to service", err.Error())
+		return
+	}
+
+	util.Success(w, nil, "Policy assigned to service successfully")
+}
+
+// Remove policy from service
+func (h *ServiceHandler) RemovePolicy(w http.ResponseWriter, r *http.Request) {
+	// Validate service_uuid
+	serviceUUID, err := uuid.Parse(chi.URLParam(r, "service_uuid"))
+	if err != nil {
+		util.Error(w, http.StatusBadRequest, "Invalid service UUID")
+		return
+	}
+
+	// Validate policy_uuid
+	policyUUID, err := uuid.Parse(chi.URLParam(r, "policy_uuid"))
+	if err != nil {
+		util.Error(w, http.StatusBadRequest, "Invalid policy UUID")
+		return
+	}
+
+	// Remove policy from service
+	err = h.service.RemovePolicy(serviceUUID, policyUUID)
+	if err != nil {
+		util.Error(w, http.StatusInternalServerError, "Failed to remove policy from service", err.Error())
+		return
+	}
+
+	util.Success(w, nil, "Policy removed from service successfully")
+}
