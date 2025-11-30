@@ -1,6 +1,7 @@
 package dto
 
 import (
+	"regexp"
 	"time"
 
 	validation "github.com/go-ozzo/ozzo-validation/v4"
@@ -70,6 +71,7 @@ type APIUpdateRequestDto struct {
 	Description string `json:"description"`
 	APIType     string `json:"api_type"`
 	Status      string `json:"status"`
+	ServiceUUID string `json:"service_id"`
 }
 
 // Validation
@@ -94,6 +96,10 @@ func (r APIUpdateRequestDto) Validate() error {
 		validation.Field(&r.Status,
 			validation.Required.Error("Status is required"),
 			validation.In("active", "inactive").Error("Status must be one of: active, inactive"),
+		),
+		validation.Field(&r.ServiceUUID,
+			validation.Required.Error("Service ID is required"),
+			validation.Match(regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`)).Error("Service ID must be a valid UUID"),
 		),
 	)
 }

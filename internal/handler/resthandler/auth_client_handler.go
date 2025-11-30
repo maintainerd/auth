@@ -51,7 +51,7 @@ func (h *AuthClientHandler) Get(w http.ResponseWriter, r *http.Request) {
 		Name:                 util.PtrOrNil(q.Get("name")),
 		DisplayName:          util.PtrOrNil(q.Get("display_name")),
 		ClientType:           util.PtrOrNil(q.Get("client_type")),
-		IdentityProviderUUID: util.PtrOrNil(q.Get("identity_provider_uuid")),
+		IdentityProviderUUID: util.PtrOrNil(q.Get("identity_provider_id")),
 		IsDefault:            isDefault,
 		IsActive:             isActive,
 		PaginationRequestDto: dto.PaginationRequestDto{
@@ -482,8 +482,9 @@ func toAuthClientResponseDto(r service.AuthClientServiceDataResult) dto.AuthClie
 				PermissionUUID: permission.PermissionUUID,
 				Name:           permission.Name,
 				Description:    permission.Description,
-				IsActive:       permission.IsActive,
+				Status:         permission.Status,
 				IsDefault:      permission.IsDefault,
+				IsSystem:       permission.IsSystem,
 				CreatedAt:      permission.CreatedAt,
 				UpdatedAt:      permission.UpdatedAt,
 			}

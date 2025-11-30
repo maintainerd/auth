@@ -820,7 +820,7 @@ func toAuthClientServiceDataResult(authClient *model.AuthClient) *AuthClientServ
 				PermissionUUID: permission.PermissionUUID,
 				Name:           permission.Name,
 				Description:    permission.Description,
-				IsActive:       permission.IsActive,
+				Status:         permission.Status,
 				IsDefault:      permission.IsDefault,
 				CreatedAt:      permission.CreatedAt,
 				UpdatedAt:      permission.UpdatedAt,

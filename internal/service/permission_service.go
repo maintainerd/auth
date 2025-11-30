@@ -15,8 +15,9 @@ type PermissionServiceDataResult struct {
 	Name           string
 	Description    string
 	API            *APIServiceDataResult
-	IsActive       bool
+	Status         string
 	IsDefault      bool
+	IsSystem       bool
 	CreatedAt      time.Time
 	UpdatedAt      time.Time
 }
@@ -27,8 +28,9 @@ type PermissionServiceGetFilter struct {
 	APIUUID        *string
 	RoleUUID       *string
 	AuthClientUUID *string
-	IsActive       *bool
+	Status         *string
 	IsDefault      *bool
+	IsSystem       *bool
 	Page           int
 	Limit          int
 	SortBy         string
@@ -46,9 +48,10 @@ type PermissionServiceGetResult struct {
 type PermissionService interface {
 	Get(filter PermissionServiceGetFilter) (*PermissionServiceGetResult, error)
 	GetByUUID(permissionUUID uuid.UUID) (*PermissionServiceDataResult, error)
-	Create(name string, description string, isActive bool, isDefault bool, apiUUID string) (*PermissionServiceDataResult, error)
-	Update(permissionUUID uuid.UUID, name string, description string, isActive bool, isDefault bool) (*PermissionServiceDataResult, error)
+	Create(name string, description string, status string, isSystem bool, apiUUID string) (*PermissionServiceDataResult, error)
+	Update(permissionUUID uuid.UUID, name string, description string, status string) (*PermissionServiceDataResult, error)
 	SetActiveStatusByUUID(permissionUUID uuid.UUID) (*PermissionServiceDataResult, error)
+	SetStatus(permissionUUID uuid.UUID, status string) (*PermissionServiceDataResult, error)
 	DeleteByUUID(permissionUUID uuid.UUID) (*PermissionServiceDataResult, error)
 }
 
@@ -115,8 +118,9 @@ func (s *permissionService) Get(filter PermissionServiceGetFilter) (*PermissionS
 		APIID:        apiID,
 		RoleID:       roleID,
 		AuthClientID: authClientID,
-		IsActive:     filter.IsActive,
+		Status:       filter.Status,
 		IsDefault:    filter.IsDefault,
+		IsSystem:     filter.IsSystem,
 		Page:         filter.Page,
 		Limit:        filter.Limit,
 		SortBy:       filter.SortBy,
@@ -152,7 +156,7 @@ func (s *permissionService) GetByUUID(permissionUUID uuid.UUID) (*PermissionServ
 	return toPermissionServiceDataResult(permission), nil
 }
 
-func (s *permissionService) Create(name string, description string, isActive bool, isDefault bool, apiUUID string) (*PermissionServiceDataResult, error) {
+func (s *permissionService) Create(name string, description string, status string, isSystem bool, apiUUID string) (*PermissionServiceDataResult, error) {
 	var createdPermission *model.Permission
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
@@ -179,8 +183,9 @@ func (s *permissionService) Create(name string, description string, isActive boo
 			Name:        name,
 			Description: description,
 			APIID:       api.APIID,
-			IsActive:    isActive,
-			IsDefault:   isDefault,
+			Status:      status,
+			IsDefault:   false, // System-managed field, always default to false for user-created permissions
+			IsSystem:    isSystem,
 		}
 
 		_, err = txPermissionRepo.CreateOrUpdate(newPermission)
@@ -204,7 +209,7 @@ func (s *permissionService) Create(name string, description string, isActive boo
 	return toPermissionServiceDataResult(createdPermission), nil
 }
 
-func (s *permissionService) Update(permissionUUID uuid.UUID, name string, description string, isActive bool, isDefault bool) (*PermissionServiceDataResult, error) {
+func (s *permissionService) Update(permissionUUID uuid.UUID, name string, description string, status string) (*PermissionServiceDataResult, error) {
 	var updatedPermission *model.Permission
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
@@ -235,7 +240,7 @@ func (s *permissionService) Update(permissionUUID uuid.UUID, name string, descri
 		// Set values
 		permission.Name = name
 		permission.Description = description
-		permission.IsActive = isActive
+		permission.Status = status
 
 		// Update
 		_, err = txPermissionRepo.CreateOrUpdate(permission)
@@ -272,7 +277,11 @@ func (s *permissionService) SetActiveStatusByUUID(permissionUUID uuid.UUID) (*Pe
 			return errors.New("default permission cannot be updated")
 		}
 
-		permission.IsActive = !permission.IsActive
+		if permission.Status == "active" {
+			permission.Status = "inactive"
+		} else {
+			permission.Status = "active"
+		}
 
 		_, err = txPermissionRepo.CreateOrUpdate(permission)
 		if err != nil {
@@ -281,6 +290,38 @@ func (s *permissionService) SetActiveStatusByUUID(permissionUUID uuid.UUID) (*Pe
 
 		updatedPermission = permission
 
+		return nil
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	return toPermissionServiceDataResult(updatedPermission), nil
+}
+
+func (s *permissionService) SetStatus(permissionUUID uuid.UUID, status string) (*PermissionServiceDataResult, error) {
+	var updatedPermission *model.Permission
+
+	err := s.db.Transaction(func(tx *gorm.DB) error {
+		txPermissionRepo := s.permissionRepo.WithTx(tx)
+
+		// Get permission
+		permission, err := txPermissionRepo.FindByUUID(permissionUUID)
+		if err != nil {
+			return err
+		}
+
+		// Set status
+		permission.Status = status
+
+		// Update
+		_, err = txPermissionRepo.CreateOrUpdate(permission)
+		if err != nil {
+			return err
+		}
+
+		updatedPermission = permission
 		return nil
 	})
 
@@ -321,8 +362,9 @@ func toPermissionServiceDataResult(permission *model.Permission) *PermissionServ
 		PermissionUUID: permission.PermissionUUID,
 		Name:           permission.Name,
 		Description:    permission.Description,
-		IsActive:       permission.IsActive,
+		Status:         permission.Status,
 		IsDefault:      permission.IsDefault,
+		IsSystem:       permission.IsSystem,
 		CreatedAt:      permission.CreatedAt,
 		UpdatedAt:      permission.UpdatedAt,
 	}
