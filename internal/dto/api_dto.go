@@ -16,7 +16,7 @@ type APIResponseDto struct {
 	APIType     string              `json:"api_type"`
 	Identifier  string              `json:"identifier"`
 	Service     *ServiceResponseDto `json:"service,omitempty"`
-	IsActive    bool                `json:"is_active"`
+	Status      string              `json:"status"`
 	IsDefault   bool                `json:"is_default"`
 	IsSystem    bool                `json:"is_system"`
 	CreatedAt   time.Time           `json:"created_at"`
@@ -29,8 +29,7 @@ type APICreateRequestDto struct {
 	DisplayName string `json:"display_name"`
 	Description string `json:"description"`
 	APIType     string `json:"api_type"`
-	IsActive    bool   `json:"is_active"`
-	IsDefault   bool   `json:"is_default"`
+	Status      string `json:"status"`
 	ServiceUUID string `json:"service_id"`
 }
 
@@ -51,14 +50,13 @@ func (r APICreateRequestDto) Validate() error {
 		),
 		validation.Field(&r.APIType,
 			validation.Required.Error("API type is required"),
-			validation.Length(3, 50).Error("API type must be between 3 and 50 characters"),
+			validation.In("rest", "grpc", "graphql", "soap", "webhook", "websocket", "rpc").Error("API type must be one of: rest, grpc, graphql, soap, webhook, websocket, rpc"),
 		),
-		validation.Field(&r.IsActive,
-			validation.In(true, false).Error("Is active is required"),
+		validation.Field(&r.Status,
+			validation.Required.Error("Status is required"),
+			validation.In("active", "inactive").Error("Status must be one of: active, inactive"),
 		),
-		validation.Field(&r.IsDefault,
-			validation.In(true, false).Error("Is default is required"),
-		),
+
 		validation.Field(&r.ServiceUUID,
 			validation.Required.Error("Service ID is required"),
 		),
@@ -71,8 +69,7 @@ type APIUpdateRequestDto struct {
 	DisplayName string `json:"display_name"`
 	Description string `json:"description"`
 	APIType     string `json:"api_type"`
-	IsActive    bool   `json:"is_active"`
-	IsDefault   bool   `json:"is_default"`
+	Status      string `json:"status"`
 }
 
 // Validation
@@ -92,29 +89,41 @@ func (r APIUpdateRequestDto) Validate() error {
 		),
 		validation.Field(&r.APIType,
 			validation.Required.Error("API type is required"),
-			validation.Length(3, 50).Error("API type must be between 3 and 50 characters"),
+			validation.In("rest", "grpc", "graphql", "soap", "webhook", "websocket", "rpc").Error("API type must be one of: rest, grpc, graphql, soap, webhook, websocket, rpc"),
 		),
-		validation.Field(&r.IsActive,
-			validation.In(true, false).Error("Is active is required"),
-		),
-		validation.Field(&r.IsDefault,
-			validation.In(true, false).Error("Is default is required"),
+		validation.Field(&r.Status,
+			validation.Required.Error("Status is required"),
+			validation.In("active", "inactive").Error("Status must be one of: active, inactive"),
 		),
 	)
 }
 
 // API listing / filter DTO
 type APIFilterDto struct {
-	Name        *string `json:"name"`
-	DisplayName *string `json:"display_name"`
-	Description *string `json:"description"`
-	APIType     *string `json:"api_type"`
-	Identifier  *string `json:"identifier"`
-	ServiceUUID *string `json:"service_id"`
-	IsActive    *bool   `json:"is_active"`
-	IsDefault   *bool   `json:"is_default"`
-	IsSystem    *bool   `json:"is_system"`
+	Name        *string  `json:"name"`
+	DisplayName *string  `json:"display_name"`
+	Description *string  `json:"description"`
+	APIType     *string  `json:"api_type"`
+	Identifier  *string  `json:"identifier"`
+	ServiceUUID *string  `json:"service_id"`
+	Status      []string `json:"status"`
+	IsDefault   *bool    `json:"is_default"`
+	IsSystem    *bool    `json:"is_system"`
 
 	// Pagination and sorting
 	PaginationRequestDto
+}
+
+// API status update DTO
+type APIStatusUpdateDto struct {
+	Status string `json:"status"`
+}
+
+func (r APIStatusUpdateDto) Validate() error {
+	return validation.ValidateStruct(&r,
+		validation.Field(&r.Status,
+			validation.Required.Error("Status is required"),
+			validation.In("active", "inactive").Error("Status must be one of: active, inactive"),
+		),
+	)
 }

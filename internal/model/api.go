@@ -16,7 +16,7 @@ type API struct {
 	APIType     string    `gorm:"column:api_type"`
 	Identifier  string    `gorm:"column:identifier"`
 	ServiceID   int64     `gorm:"column:service_id"`
-	IsActive    bool      `gorm:"column:is_active;default:false"`
+	Status      string    `gorm:"column:status;default:'inactive'"`
 	IsDefault   bool      `gorm:"column:is_default;default:false"`
 	IsSystem    bool      `gorm:"column:is_system;default:false"`
 	CreatedAt   time.Time `gorm:"column:created_at;autoCreateTime"`

@@ -14,7 +14,7 @@ type APIRepositoryGetFilter struct {
 	APIType     *string
 	Identifier  *string
 	ServiceID   *int64
-	IsActive    *bool
+	Status      []string
 	IsDefault   *bool
 	IsSystem    *bool
 	Page        int
@@ -30,7 +30,7 @@ type APIRepository interface {
 	FindByIdentifier(identifier string) (*model.API, error)
 	FindDefaultByServiceID(serviceID int64) (*model.API, error)
 	FindPaginated(filter APIRepositoryGetFilter) (*PaginationResult[model.API], error)
-	SetActiveStatusByUUID(apiUUID uuid.UUID, isActive bool) error
+	SetStatusByUUID(apiUUID uuid.UUID, status string) error
 	SetDefaultStatusByUUID(apiUUID uuid.UUID, isDefault bool) error
 	CountByServiceID(serviceID int64) (int64, error)
 }
@@ -108,8 +108,8 @@ func (r *apiRepository) FindPaginated(filter APIRepositoryGetFilter) (*Paginatio
 	if filter.ServiceID != nil {
 		query = query.Where("service_id = ?", *filter.ServiceID)
 	}
-	if filter.IsActive != nil {
-		query = query.Where("is_active = ?", *filter.IsActive)
+	if len(filter.Status) > 0 {
+		query = query.Where("status IN ?", filter.Status)
 	}
 	if filter.IsDefault != nil {
 		query = query.Where("is_default = ?", *filter.IsDefault)
@@ -146,10 +146,10 @@ func (r *apiRepository) FindPaginated(filter APIRepositoryGetFilter) (*Paginatio
 	}, nil
 }
 
-func (r *apiRepository) SetActiveStatusByUUID(apiUUID uuid.UUID, isActive bool) error {
+func (r *apiRepository) SetStatusByUUID(apiUUID uuid.UUID, status string) error {
 	return r.db.Model(&model.API{}).
 		Where("api_uuid = ?", apiUUID).
-		Update("is_active", isActive).Error
+		Update("status", status).Error
 }
 
 func (r *apiRepository) SetDefaultStatusByUUID(apiUUID uuid.UUID, isDefault bool) error {
