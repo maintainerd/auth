@@ -198,7 +198,7 @@ func (h *APIHandler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	api, err := h.apiService.Update(apiUUID, req.Name, req.DisplayName, req.Description, req.APIType, req.Status)
+	api, err := h.apiService.Update(apiUUID, req.Name, req.DisplayName, req.Description, req.APIType, req.Status, req.ServiceUUID)
 	if err != nil {
 		util.Error(w, http.StatusInternalServerError, "Failed to update API", err.Error())
 		return

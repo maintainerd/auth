@@ -45,7 +45,7 @@ type UserCreateRequestDto struct {
 	Email      *string `json:"email,omitempty"`
 	Phone      *string `json:"phone,omitempty"`
 	Password   string  `json:"password"`
-	TenantUUID string  `json:"tenant_uuid"`
+	TenantUUID string  `json:"tenant_id"`
 }
 
 func (dto UserCreateRequestDto) Validate() error {
@@ -86,7 +86,7 @@ func (dto UserSetActiveStatusRequestDto) Validate() error {
 }
 
 type UserAssignRolesRequestDto struct {
-	RoleUUIDs []uuid.UUID `json:"role_uuids"`
+	RoleUUIDs []uuid.UUID `json:"role_ids"`
 }
 
 func (dto UserAssignRolesRequestDto) Validate() error {
@@ -101,7 +101,7 @@ type UserFilterDto struct {
 	Email      *string `json:"email,omitempty"`
 	Phone      *string `json:"phone,omitempty"`
 	IsActive   *bool   `json:"is_active,omitempty"`
-	TenantUUID *string `json:"tenant_uuid,omitempty"`
+	TenantUUID *string `json:"tenant_id,omitempty"`
 
 	// Pagination and sorting
 	PaginationRequestDto

@@ -249,8 +249,9 @@ func newPermission(name, description string, apiID int64) model.Permission {
 		Name:           name,
 		Description:    description,
 		APIID:          apiID,
-		IsActive:       true,
+		Status:         "active",
 		IsDefault:      true,
+		IsSystem:       true,
 		CreatedAt:      time.Now(),
 		UpdatedAt:      time.Now(),
 	}

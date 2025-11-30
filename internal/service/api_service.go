@@ -55,7 +55,7 @@ type APIService interface {
 	GetByUUID(apiUUID uuid.UUID) (*APIServiceDataResult, error)
 	GetServiceIDByUUID(serviceUUID uuid.UUID) (int64, error)
 	Create(name string, displayName string, description string, apiType string, status string, isSystem bool, serviceUUID string) (*APIServiceDataResult, error)
-	Update(apiUUID uuid.UUID, name string, displayName string, description string, apiType string, status string) (*APIServiceDataResult, error)
+	Update(apiUUID uuid.UUID, name string, displayName string, description string, apiType string, status string, serviceUUID string) (*APIServiceDataResult, error)
 	SetStatusByUUID(apiUUID uuid.UUID, status string) (*APIServiceDataResult, error)
 	DeleteByUUID(apiUUID uuid.UUID) (*APIServiceDataResult, error)
 }
@@ -190,7 +190,7 @@ func (s *apiService) Create(name string, displayName string, description string,
 	return toAPIServiceDataResult(createdAPI), nil
 }
 
-func (s *apiService) Update(apiUUID uuid.UUID, name string, displayName string, description string, apiType string, status string) (*APIServiceDataResult, error) {
+func (s *apiService) Update(apiUUID uuid.UUID, name string, displayName string, description string, apiType string, status string, serviceUUID string) (*APIServiceDataResult, error) {
 	var updatedAPI *model.API
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
@@ -205,6 +205,18 @@ func (s *apiService) Update(apiUUID uuid.UUID, name string, displayName string, 
 		// Check if default
 		if api.IsDefault {
 			return errors.New("default api cannot be updated")
+		}
+
+		// Validate service exists
+		txServiceRepo := s.serviceRepo.WithTx(tx)
+		serviceUUIDParsed, err := uuid.Parse(serviceUUID)
+		if err != nil {
+			return errors.New("invalid service UUID format")
+		}
+
+		service, err := txServiceRepo.FindByUUID(serviceUUIDParsed)
+		if err != nil || service == nil {
+			return errors.New("service not found")
 		}
 
 		// Check if api already exist
@@ -224,6 +236,7 @@ func (s *apiService) Update(apiUUID uuid.UUID, name string, displayName string, 
 		api.Description = description
 		api.APIType = apiType
 		api.Status = status
+		api.ServiceID = service.ServiceID // Update the service assignment
 		// IsDefault is system-managed, don't update it in user requests
 
 		// Update
