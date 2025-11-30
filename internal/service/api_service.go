@@ -20,7 +20,7 @@ type APIServiceDataResult struct {
 	APIType     string
 	Identifier  string
 	Service     *ServiceServiceDataResult
-	IsActive    bool
+	Status      string
 	IsDefault   bool
 	IsSystem    bool
 	CreatedAt   time.Time
@@ -33,7 +33,7 @@ type APIServiceGetFilter struct {
 	APIType     *string
 	Identifier  *string
 	ServiceID   *int64
-	IsActive    *bool
+	Status      []string
 	IsDefault   *bool
 	IsSystem    *bool
 	Page        int
@@ -53,9 +53,10 @@ type APIServiceGetResult struct {
 type APIService interface {
 	Get(filter APIServiceGetFilter) (*APIServiceGetResult, error)
 	GetByUUID(apiUUID uuid.UUID) (*APIServiceDataResult, error)
-	Create(name string, displayName string, description string, apiType string, isActive bool, isDefault bool, isSystem bool, serviceUUID string) (*APIServiceDataResult, error)
-	Update(apiUUID uuid.UUID, name string, displayName string, description string, apiType string, isActive bool, isDefault bool) (*APIServiceDataResult, error)
-	SetActiveStatusByUUID(apiUUID uuid.UUID) (*APIServiceDataResult, error)
+	GetServiceIDByUUID(serviceUUID uuid.UUID) (int64, error)
+	Create(name string, displayName string, description string, apiType string, status string, isSystem bool, serviceUUID string) (*APIServiceDataResult, error)
+	Update(apiUUID uuid.UUID, name string, displayName string, description string, apiType string, status string) (*APIServiceDataResult, error)
+	SetStatusByUUID(apiUUID uuid.UUID, status string) (*APIServiceDataResult, error)
 	DeleteByUUID(apiUUID uuid.UUID) (*APIServiceDataResult, error)
 }
 
@@ -84,7 +85,7 @@ func (s *apiService) Get(filter APIServiceGetFilter) (*APIServiceGetResult, erro
 		APIType:     filter.APIType,
 		Identifier:  filter.Identifier,
 		ServiceID:   filter.ServiceID,
-		IsActive:    filter.IsActive,
+		Status:      filter.Status,
 		IsDefault:   filter.IsDefault,
 		IsSystem:    filter.IsSystem,
 		Page:        filter.Page,
@@ -121,7 +122,16 @@ func (s *apiService) GetByUUID(apiUUID uuid.UUID) (*APIServiceDataResult, error)
 	return toAPIServiceDataResult(api), nil
 }
 
-func (s *apiService) Create(name string, displayName string, description string, apiType string, isActive bool, isDefault bool, isSystem bool, serviceUUID string) (*APIServiceDataResult, error) {
+func (s *apiService) GetServiceIDByUUID(serviceUUID uuid.UUID) (int64, error) {
+	service, err := s.serviceRepo.FindByUUID(serviceUUID)
+	if err != nil || service == nil {
+		return 0, errors.New("service not found")
+	}
+
+	return service.ServiceID, nil
+}
+
+func (s *apiService) Create(name string, displayName string, description string, apiType string, status string, isSystem bool, serviceUUID string) (*APIServiceDataResult, error) {
 	var createdAPI *model.API
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
@@ -154,8 +164,8 @@ func (s *apiService) Create(name string, displayName string, description string,
 			APIType:     apiType,
 			Identifier:  identifier,
 			ServiceID:   service.ServiceID,
-			IsActive:    isActive,
-			IsDefault:   isDefault,
+			Status:      status,
+			IsDefault:   false, // System-managed field, always default to false for user-created APIs
 			IsSystem:    isSystem,
 		}
 
@@ -180,7 +190,7 @@ func (s *apiService) Create(name string, displayName string, description string,
 	return toAPIServiceDataResult(createdAPI), nil
 }
 
-func (s *apiService) Update(apiUUID uuid.UUID, name string, displayName string, description string, apiType string, isActive bool, isDefault bool) (*APIServiceDataResult, error) {
+func (s *apiService) Update(apiUUID uuid.UUID, name string, displayName string, description string, apiType string, status string) (*APIServiceDataResult, error) {
 	var updatedAPI *model.API
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
@@ -213,8 +223,8 @@ func (s *apiService) Update(apiUUID uuid.UUID, name string, displayName string, 
 		api.DisplayName = displayName
 		api.Description = description
 		api.APIType = apiType
-		api.IsActive = isActive
-		api.IsDefault = isDefault
+		api.Status = status
+		// IsDefault is system-managed, don't update it in user requests
 
 		// Update
 		_, err = txAPIRepo.CreateOrUpdate(api)
@@ -234,7 +244,7 @@ func (s *apiService) Update(apiUUID uuid.UUID, name string, displayName string, 
 	return toAPIServiceDataResult(updatedAPI), nil
 }
 
-func (s *apiService) SetActiveStatusByUUID(apiUUID uuid.UUID) (*APIServiceDataResult, error) {
+func (s *apiService) SetStatusByUUID(apiUUID uuid.UUID, status string) (*APIServiceDataResult, error) {
 	var updatedAPI *model.API
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
@@ -251,7 +261,7 @@ func (s *apiService) SetActiveStatusByUUID(apiUUID uuid.UUID) (*APIServiceDataRe
 			return errors.New("default api cannot be updated")
 		}
 
-		api.IsActive = !api.IsActive
+		api.Status = status
 
 		_, err = txAPIRepo.CreateOrUpdate(api)
 		if err != nil {
@@ -303,7 +313,7 @@ func toAPIServiceDataResult(api *model.API) *APIServiceDataResult {
 		Description: api.Description,
 		APIType:     api.APIType,
 		Identifier:  api.Identifier,
-		IsActive:    api.IsActive,
+		Status:      api.Status,
 		IsDefault:   api.IsDefault,
 		IsSystem:    api.IsSystem,
 		CreatedAt:   api.CreatedAt,
