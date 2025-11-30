@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
@@ -30,17 +31,20 @@ func (h *APIHandler) Get(w http.ResponseWriter, r *http.Request) {
 	limit, _ := strconv.Atoi(q.Get("limit"))
 
 	// Parse bools safely
-	var isDefault, isActive, isSystem *bool
+	var isDefault, isSystem *bool
 	if v := q.Get("is_default"); v != "" {
 		parsed, err := strconv.ParseBool(v)
 		if err == nil {
 			isDefault = &parsed
 		}
 	}
-	if v := q.Get("is_active"); v != "" {
-		parsed, err := strconv.ParseBool(v)
-		if err == nil {
-			isActive = &parsed
+	// Parse status (comma-separated values)
+	var status []string
+	if statusParam := q.Get("status"); statusParam != "" {
+		status = strings.Split(statusParam, ",")
+		// Trim whitespace from each status
+		for i, s := range status {
+			status[i] = strings.TrimSpace(s)
 		}
 	}
 	if v := q.Get("is_system"); v != "" {
@@ -56,9 +60,9 @@ func (h *APIHandler) Get(w http.ResponseWriter, r *http.Request) {
 		DisplayName: util.PtrOrNil(q.Get("display_name")),
 		APIType:     util.PtrOrNil(q.Get("api_type")),
 		Identifier:  util.PtrOrNil(q.Get("identifier")),
-		ServiceUUID: util.PtrOrNil(q.Get("service_uuid")),
+		ServiceUUID: util.PtrOrNil(q.Get("service_id")),
 		IsDefault:   isDefault,
-		IsActive:    isActive,
+		Status:      status,
 		IsSystem:    isSystem,
 		PaginationRequestDto: dto.PaginationRequestDto{
 			Page:      page,
@@ -73,15 +77,33 @@ func (h *APIHandler) Get(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Convert service_id (UUID from external API) to internal service_id (int64) for filtering
+	var serviceID *int64
+	if reqParams.ServiceUUID != nil && *reqParams.ServiceUUID != "" {
+		serviceUUID, err := uuid.Parse(*reqParams.ServiceUUID)
+		if err != nil {
+			util.Error(w, http.StatusBadRequest, "Invalid service UUID format")
+			return
+		}
+
+		// Look up service by UUID to get service_id
+		serviceIDValue, err := h.apiService.GetServiceIDByUUID(serviceUUID)
+		if err != nil {
+			util.Error(w, http.StatusBadRequest, "Service not found")
+			return
+		}
+		serviceID = &serviceIDValue
+	}
+
 	// Build service filter
 	apiFilter := service.APIServiceGetFilter{
 		Name:        reqParams.Name,
 		DisplayName: reqParams.DisplayName,
 		APIType:     reqParams.APIType,
 		Identifier:  reqParams.Identifier,
-		ServiceID:   nil, // optional, skip mapping
+		ServiceID:   serviceID,
 		IsDefault:   reqParams.IsDefault,
-		IsActive:    reqParams.IsActive,
+		Status:      reqParams.Status,
 		IsSystem:    reqParams.IsSystem,
 		Page:        reqParams.Page,
 		Limit:       reqParams.Limit,
@@ -146,7 +168,7 @@ func (h *APIHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	api, err := h.apiService.Create(req.Name, req.DisplayName, req.Description, req.APIType, req.IsActive, req.IsDefault, false, req.ServiceUUID)
+	api, err := h.apiService.Create(req.Name, req.DisplayName, req.Description, req.APIType, req.Status, false, req.ServiceUUID)
 	if err != nil {
 		util.Error(w, http.StatusInternalServerError, "Failed to create API", err.Error())
 		return
@@ -176,7 +198,7 @@ func (h *APIHandler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	api, err := h.apiService.Update(apiUUID, req.Name, req.DisplayName, req.Description, req.APIType, req.IsActive, req.IsDefault)
+	api, err := h.apiService.Update(apiUUID, req.Name, req.DisplayName, req.Description, req.APIType, req.Status)
 	if err != nil {
 		util.Error(w, http.StatusInternalServerError, "Failed to update API", err.Error())
 		return
@@ -195,7 +217,20 @@ func (h *APIHandler) SetStatus(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	api, err := h.apiService.SetActiveStatusByUUID(apiUUID)
+	// Parse request body
+	var req dto.APIStatusUpdateDto
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		util.Error(w, http.StatusBadRequest, "Invalid request body")
+		return
+	}
+
+	// Validate request
+	if err := req.Validate(); err != nil {
+		util.Error(w, http.StatusBadRequest, "Validation failed", err.Error())
+		return
+	}
+
+	api, err := h.apiService.SetStatusByUUID(apiUUID, req.Status)
 	if err != nil {
 		util.Error(w, http.StatusInternalServerError, "Failed to update API", err.Error())
 		return
@@ -234,7 +269,7 @@ func toAPIResponseDto(r service.APIServiceDataResult) dto.APIResponseDto {
 		Description: r.Description,
 		APIType:     r.APIType,
 		Identifier:  r.Identifier,
-		IsActive:    r.IsActive,
+		Status:      r.Status,
 		IsDefault:   r.IsDefault,
 		IsSystem:    r.IsSystem,
 		CreatedAt:   r.CreatedAt,

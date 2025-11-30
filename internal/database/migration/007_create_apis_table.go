@@ -18,7 +18,7 @@ CREATE TABLE IF NOT EXISTS apis (
     api_type				TEXT NOT NULL,
     identifier			TEXT NOT NULL,
 		service_id			INTEGER NOT NULL,
-    is_active				BOOLEAN DEFAULT FALSE,
+    status					TEXT DEFAULT 'inactive' CHECK (status IN ('active', 'inactive')),
     is_default			BOOLEAN DEFAULT FALSE,
     is_system				BOOLEAN DEFAULT FALSE,
     created_at			TIMESTAMPTZ DEFAULT now(),
@@ -44,7 +44,7 @@ CREATE INDEX IF NOT EXISTS idx_apis_display_name ON apis (display_name);
 CREATE INDEX IF NOT EXISTS idx_apis_api_type ON apis (api_type);
 CREATE INDEX IF NOT EXISTS idx_apis_identifier ON apis (identifier);
 CREATE INDEX IF NOT EXISTS idx_apis_service_id ON apis (service_id);
-CREATE INDEX IF NOT EXISTS idx_apis_is_active ON apis (is_active);
+CREATE INDEX IF NOT EXISTS idx_apis_status ON apis (status);
 CREATE INDEX IF NOT EXISTS idx_apis_is_default ON apis (is_default);
 CREATE INDEX IF NOT EXISTS idx_apis_is_system ON apis (is_system);
 CREATE INDEX IF NOT EXISTS idx_apis_created_at ON apis (created_at);
