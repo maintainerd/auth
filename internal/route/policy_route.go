@@ -24,6 +24,9 @@ func PolicyRoute(
 		r.With(middleware.PermissionMiddleware([]string{"policy:read"})).
 			Get("/{policy_uuid}", policyHandler.GetByUUID)
 
+		r.With(middleware.PermissionMiddleware([]string{"policy:read"})).
+			Get("/{policy_uuid}/services", policyHandler.GetServicesByPolicyUUID)
+
 		r.With(middleware.PermissionMiddleware([]string{"policy:create"})).
 			Post("/", policyHandler.Create)
 
@@ -31,7 +34,7 @@ func PolicyRoute(
 			Put("/{policy_uuid}", policyHandler.Update)
 
 		r.With(middleware.PermissionMiddleware([]string{"policy:update"})).
-			Patch("/{policy_uuid}/status", policyHandler.UpdateStatus)
+			Put("/{policy_uuid}/status", policyHandler.UpdateStatus)
 
 		r.With(middleware.PermissionMiddleware([]string{"policy:delete"})).
 			Delete("/{policy_uuid}", policyHandler.Delete)
