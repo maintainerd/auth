@@ -16,6 +16,7 @@ type App struct {
 	ServiceRestHandler          *resthandler.ServiceHandler
 	APIRestHandler              *resthandler.APIHandler
 	PermissionRestHandler       *resthandler.PermissionHandler
+	PolicyRestHandler           *resthandler.PolicyHandler
 	TenantRestHandler           *resthandler.TenantHandler
 	IdentityProviderRestHandler *resthandler.IdentityProviderHandler
 	AuthClientRestHandler       *resthandler.AuthClientHandler
@@ -56,9 +57,11 @@ func NewApp(db *gorm.DB, redisClient *redis.Client) *App {
 	userSettingRepo := repository.NewUserSettingRepository(db)
 	inviteRepo := repository.NewInviteRepository(db)
 	emailTemplateRepo := repository.NewEmailTemplateRepository(db)
+	policyRepo := repository.NewPolicyRepository(db)
+	servicePolicyRepo := repository.NewServicePolicyRepository(db)
 
 	// Services
-	serviceService := service.NewServiceService(db, serviceRepo, tenantServiceRepo, apiRepo)
+	serviceService := service.NewServiceService(db, serviceRepo, tenantServiceRepo, apiRepo, servicePolicyRepo, policyRepo)
 	apiService := service.NewAPIService(db, apiRepo, serviceRepo)
 	permissionService := service.NewPermissionService(db, permissionRepo, apiRepo, roleRepo, authClientRepo)
 	tenantService := service.NewTenantService(db, tenantRepo)
@@ -74,6 +77,7 @@ func NewApp(db *gorm.DB, redisClient *redis.Client) *App {
 	forgotPasswordService := service.NewForgotPasswordService(db, userRepo, userTokenRepo, authClientRepo, emailTemplateRepo)
 	resetPasswordService := service.NewResetPasswordService(db, userRepo, userTokenRepo, authClientRepo)
 	setupService := service.NewSetupService(db, userRepo, tenantRepo, authClientRepo, idpRepo, roleRepo, userRoleRepo, userTokenRepo, userIdentityRepo, profileRepo)
+	policyService := service.NewPolicyService(db, policyRepo)
 
 	// Rest handlers
 	serviceRestHandler := resthandler.NewServiceHandler(serviceService)
@@ -92,6 +96,7 @@ func NewApp(db *gorm.DB, redisClient *redis.Client) *App {
 	forgotPasswordRestHandler := resthandler.NewForgotPasswordHandler(forgotPasswordService)
 	resetPasswordRestHandler := resthandler.NewResetPasswordHandler(resetPasswordService)
 	setupRestHandler := resthandler.NewSetupHandler(setupService)
+	policyRestHandler := resthandler.NewPolicyHandler(policyService)
 
 	// GRPC handlers
 	seederGrpcHandler := grpchandler.NewSeederHandler(registerService)
@@ -103,6 +108,7 @@ func NewApp(db *gorm.DB, redisClient *redis.Client) *App {
 		ServiceRestHandler:          serviceRestHandler,
 		APIRestHandler:              apiRestHandler,
 		PermissionRestHandler:       permissionRestHandler,
+		PolicyRestHandler:           policyRestHandler,
 		TenantRestHandler:           tenantRestHandler,
 		IdentityProviderRestHandler: idpRestHandler,
 		AuthClientRestHandler:       authClientRestHandler,
