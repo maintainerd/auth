@@ -27,7 +27,7 @@ type AuthClientRedirectURIResponseDto struct {
 
 // Auth client output structure
 type AuthClientResponseDto struct {
-	AuthClientUUID   uuid.UUID                          `json:"auth_client_id"`
+	AuthClientUUID   uuid.UUID                          `json:"client_id"`
 	Name             string                             `json:"name"`
 	DisplayName      string                             `json:"display_name"`
 	ClientType       string                             `json:"client_type"`
@@ -49,7 +49,7 @@ type AuthClientCreateRequestDto struct {
 	Domain               string         `json:"domain"`
 	Config               datatypes.JSON `json:"config"`
 	IsActive             bool           `json:"is_active"`
-	IdentityProviderUUID string         `json:"identity_provider_uuid"`
+	IdentityProviderUUID string         `json:"identity_provider_id"`
 }
 
 // Validation

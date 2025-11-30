@@ -13,8 +13,9 @@ type Permission struct {
 	Name           string    `gorm:"column:name;unique"`
 	Description    string    `gorm:"column:description"`
 	APIID          int64     `gorm:"column:api_id"`
-	IsActive       bool      `gorm:"column:is_active;default:false"`
+	Status         string    `gorm:"column:status;default:'active'"`
 	IsDefault      bool      `gorm:"column:is_default;default:false"`
+	IsSystem       bool      `gorm:"column:is_system;default:false"`
 	CreatedAt      time.Time `gorm:"column:created_at;autoCreateTime"`
 	UpdatedAt      time.Time `gorm:"column:updated_at;autoUpdateTime"`
 
