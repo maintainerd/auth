@@ -46,9 +46,44 @@ type PolicyServiceGetResult struct {
 	TotalPages int
 }
 
+type PolicyServiceServiceDataResult struct {
+	ServiceUUID uuid.UUID
+	Name        string
+	DisplayName string
+	Description string
+	Version     string
+	Status      string
+	IsPublic    bool
+	IsDefault   bool
+	IsSystem    bool
+	APICount    int64
+	PolicyCount int64
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
+}
+
+type PolicyServiceServicesFilter struct {
+	Name        *string
+	DisplayName *string
+	Description *string
+	Page        int
+	Limit       int
+	SortBy      string
+	SortOrder   string
+}
+
+type PolicyServiceServicesResult struct {
+	Data       []PolicyServiceServiceDataResult
+	Total      int64
+	Page       int
+	Limit      int
+	TotalPages int
+}
+
 type PolicyService interface {
 	Get(filter PolicyServiceGetFilter) (*PolicyServiceGetResult, error)
 	GetByUUID(policyUUID uuid.UUID) (*PolicyServiceDataResult, error)
+	GetServicesByPolicyUUID(policyUUID uuid.UUID, filter PolicyServiceServicesFilter) (*PolicyServiceServicesResult, error)
 	Create(name string, description *string, document datatypes.JSON, version string, status string, isDefault bool, isSystem bool) (*PolicyServiceDataResult, error)
 	Update(policyUUID uuid.UUID, name string, description *string, document datatypes.JSON, version string, status string) (*PolicyServiceDataResult, error)
 	SetStatusByUUID(policyUUID uuid.UUID, status string) (*PolicyServiceDataResult, error)
@@ -56,17 +91,23 @@ type PolicyService interface {
 }
 
 type policyService struct {
-	db         *gorm.DB
-	policyRepo repository.PolicyRepository
+	db          *gorm.DB
+	policyRepo  repository.PolicyRepository
+	serviceRepo repository.ServiceRepository
+	apiRepo     repository.APIRepository
 }
 
 func NewPolicyService(
 	db *gorm.DB,
 	policyRepo repository.PolicyRepository,
+	serviceRepo repository.ServiceRepository,
+	apiRepo repository.APIRepository,
 ) PolicyService {
 	return &policyService{
-		db:         db,
-		policyRepo: policyRepo,
+		db:          db,
+		policyRepo:  policyRepo,
+		serviceRepo: serviceRepo,
+		apiRepo:     apiRepo,
 	}
 }
 
@@ -135,6 +176,63 @@ func (s *policyService) GetByUUID(policyUUID uuid.UUID) (*PolicyServiceDataResul
 		IsSystem:    policy.IsSystem,
 		CreatedAt:   policy.CreatedAt,
 		UpdatedAt:   policy.UpdatedAt,
+	}, nil
+}
+
+func (s *policyService) GetServicesByPolicyUUID(policyUUID uuid.UUID, filter PolicyServiceServicesFilter) (*PolicyServiceServicesResult, error) {
+	// First check if policy exists
+	_, err := s.policyRepo.FindByUUID(policyUUID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Convert filter to repository filter
+	repoFilter := repository.ServiceRepositoryGetFilter{
+		Name:        filter.Name,
+		DisplayName: filter.DisplayName,
+		Description: filter.Description,
+		Page:        filter.Page,
+		Limit:       filter.Limit,
+		SortBy:      filter.SortBy,
+		SortOrder:   filter.SortOrder,
+	}
+
+	// Get services that use this policy
+	result, err := s.serviceRepo.FindServicesByPolicyUUID(policyUUID, repoFilter)
+	if err != nil {
+		return nil, err
+	}
+
+	// Convert to service data results
+	var data []PolicyServiceServiceDataResult
+	for _, service := range result.Data {
+		// Get API count and policy count for each service
+		apiCount, _ := s.apiRepo.CountByServiceID(service.ServiceID)
+		policyCount, _ := s.serviceRepo.CountPoliciesByServiceID(service.ServiceID)
+
+		data = append(data, PolicyServiceServiceDataResult{
+			ServiceUUID: service.ServiceUUID,
+			Name:        service.Name,
+			DisplayName: service.DisplayName,
+			Description: service.Description,
+			Version:     service.Version,
+			Status:      service.Status,
+			IsPublic:    service.IsPublic,
+			IsDefault:   service.IsDefault,
+			IsSystem:    service.IsSystem,
+			APICount:    apiCount,
+			PolicyCount: policyCount,
+			CreatedAt:   service.CreatedAt,
+			UpdatedAt:   service.UpdatedAt,
+		})
+	}
+
+	return &PolicyServiceServicesResult{
+		Data:       data,
+		Total:      result.Total,
+		Page:       result.Page,
+		Limit:      result.Limit,
+		TotalPages: result.TotalPages,
 	}, nil
 }
 

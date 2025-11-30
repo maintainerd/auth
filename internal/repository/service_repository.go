@@ -32,6 +32,7 @@ type ServiceRepository interface {
 	FindDefaultServices() ([]model.Service, error)
 	FindByTenantID(tenantID int64) ([]model.Service, error)
 	FindPaginated(filter ServiceRepositoryGetFilter) (*PaginationResult[model.Service], error)
+	FindServicesByPolicyUUID(policyUUID uuid.UUID, filter ServiceRepositoryGetFilter) (*PaginationResult[model.Service], error)
 	SetStatusByUUID(serviceUUID uuid.UUID, status string) error
 	SetDefaultStatusByUUID(serviceUUID uuid.UUID, isDefault bool) error
 	CountPoliciesByServiceID(serviceID int64) (int64, error)
@@ -141,6 +142,79 @@ func (r *serviceRepository) FindPaginated(filter ServiceRepositoryGetFilter) (*P
 	var total int64
 	if err := query.Count(&total).Error; err != nil {
 		return nil, err
+	}
+
+	// Pagination
+	offset := (filter.Page - 1) * filter.Limit
+	var services []model.Service
+	if err := query.Limit(filter.Limit).Offset(offset).Find(&services).Error; err != nil {
+		return nil, err
+	}
+
+	totalPages := int((total + int64(filter.Limit) - 1) / int64(filter.Limit))
+
+	return &PaginationResult[model.Service]{
+		Data:       services,
+		Total:      total,
+		Page:       filter.Page,
+		Limit:      filter.Limit,
+		TotalPages: totalPages,
+	}, nil
+}
+
+func (r *serviceRepository) FindServicesByPolicyUUID(policyUUID uuid.UUID, filter ServiceRepositoryGetFilter) (*PaginationResult[model.Service], error) {
+	query := r.db.Model(&model.Service{}).
+		Joins("INNER JOIN service_policies ON services.service_id = service_policies.service_id").
+		Joins("INNER JOIN policies ON service_policies.policy_id = policies.policy_id").
+		Where("policies.policy_uuid = ?", policyUUID)
+
+	// Apply filters with LIKE
+	if filter.Name != nil {
+		query = query.Where("services.name ILIKE ?", "%"+*filter.Name+"%")
+	}
+	if filter.DisplayName != nil {
+		query = query.Where("services.display_name ILIKE ?", "%"+*filter.DisplayName+"%")
+	}
+	if filter.Description != nil {
+		query = query.Where("services.description ILIKE ?", "%"+*filter.Description+"%")
+	}
+	if filter.Version != nil {
+		query = query.Where("services.version ILIKE ?", "%"+*filter.Version+"%")
+	}
+
+	// Status filter (multiple values)
+	if len(filter.Status) > 0 {
+		query = query.Where("services.status IN ?", filter.Status)
+	}
+
+	// Boolean filters
+	if filter.IsDefault != nil {
+		query = query.Where("services.is_default = ?", *filter.IsDefault)
+	}
+	if filter.IsSystem != nil {
+		query = query.Where("services.is_system = ?", *filter.IsSystem)
+	}
+	if filter.IsPublic != nil {
+		query = query.Where("services.is_public = ?", *filter.IsPublic)
+	}
+
+	// Count total records
+	var total int64
+	if err := query.Count(&total).Error; err != nil {
+		return nil, err
+	}
+
+	// Apply sorting
+	if filter.SortBy != "" {
+		order := "services." + filter.SortBy
+		if filter.SortOrder == "desc" {
+			order += " DESC"
+		} else {
+			order += " ASC"
+		}
+		query = query.Order(order)
+	} else {
+		query = query.Order("services.created_at DESC")
 	}
 
 	// Pagination

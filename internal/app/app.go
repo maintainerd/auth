@@ -77,7 +77,7 @@ func NewApp(db *gorm.DB, redisClient *redis.Client) *App {
 	forgotPasswordService := service.NewForgotPasswordService(db, userRepo, userTokenRepo, authClientRepo, emailTemplateRepo)
 	resetPasswordService := service.NewResetPasswordService(db, userRepo, userTokenRepo, authClientRepo)
 	setupService := service.NewSetupService(db, userRepo, tenantRepo, authClientRepo, idpRepo, roleRepo, userRoleRepo, userTokenRepo, userIdentityRepo, profileRepo)
-	policyService := service.NewPolicyService(db, policyRepo)
+	policyService := service.NewPolicyService(db, policyRepo, serviceRepo, apiRepo)
 
 	// Rest handlers
 	serviceRestHandler := resthandler.NewServiceHandler(serviceService)

@@ -272,6 +272,106 @@ func (h *PolicyHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	util.Success(w, dtoRes, "Policy deleted successfully")
 }
 
+// Get services that use a specific policy
+func (h *PolicyHandler) GetServicesByPolicyUUID(w http.ResponseWriter, r *http.Request) {
+	policyUUIDStr := chi.URLParam(r, "policy_uuid")
+	policyUUID, err := uuid.Parse(policyUUIDStr)
+	if err != nil {
+		util.Error(w, http.StatusBadRequest, "Invalid policy UUID", err.Error())
+		return
+	}
+
+	q := r.URL.Query()
+
+	// Parse pagination
+	page, _ := strconv.Atoi(q.Get("page"))
+	limit, _ := strconv.Atoi(q.Get("limit"))
+
+	// Set defaults
+	if page <= 0 {
+		page = 1
+	}
+	if limit <= 0 {
+		limit = 10
+	}
+
+	// Build filter
+	filter := dto.PolicyServicesFilterDto{
+		PaginationRequestDto: dto.PaginationRequestDto{
+			Page:      page,
+			Limit:     limit,
+			SortBy:    q.Get("sort_by"),
+			SortOrder: q.Get("sort_order"),
+		},
+	}
+
+	// Parse string filters
+	if name := q.Get("name"); name != "" {
+		filter.Name = &name
+	}
+	if displayName := q.Get("display_name"); displayName != "" {
+		filter.DisplayName = &displayName
+	}
+	if description := q.Get("description"); description != "" {
+		filter.Description = &description
+	}
+
+	// Validate filter parameters
+	if err := filter.Validate(); err != nil {
+		util.ValidationError(w, err)
+		return
+	}
+
+	// Convert to service filter
+	serviceFilter := service.PolicyServiceServicesFilter{
+		Name:        filter.Name,
+		DisplayName: filter.DisplayName,
+		Description: filter.Description,
+		Page:        filter.Page,
+		Limit:       filter.Limit,
+		SortBy:      filter.SortBy,
+		SortOrder:   filter.SortOrder,
+	}
+
+	// Get services
+	result, err := h.policyService.GetServicesByPolicyUUID(policyUUID, serviceFilter)
+	if err != nil {
+		util.Error(w, http.StatusInternalServerError, "Failed to get services", err.Error())
+		return
+	}
+
+	// Convert to response DTOs
+	var services []dto.ServiceResponseDto
+	for _, svc := range result.Data {
+		services = append(services, dto.ServiceResponseDto{
+			ServiceUUID: svc.ServiceUUID,
+			Name:        svc.Name,
+			DisplayName: svc.DisplayName,
+			Description: svc.Description,
+			Version:     svc.Version,
+			Status:      svc.Status,
+			IsPublic:    svc.IsPublic,
+			IsDefault:   svc.IsDefault,
+			IsSystem:    svc.IsSystem,
+			APICount:    svc.APICount,
+			PolicyCount: svc.PolicyCount,
+			CreatedAt:   svc.CreatedAt,
+			UpdatedAt:   svc.UpdatedAt,
+		})
+	}
+
+	// Build paginated response
+	response := dto.PaginatedResponseDto[dto.ServiceResponseDto]{
+		Rows:       services,
+		Total:      result.Total,
+		Page:       result.Page,
+		Limit:      result.Limit,
+		TotalPages: result.TotalPages,
+	}
+
+	util.Success(w, response, "Services retrieved successfully")
+}
+
 // Helper function to convert service result to DTO (for listing - without document)
 func toPolicyResponseDto(policy service.PolicyServiceDataResult) dto.PolicyResponseDto {
 	return dto.PolicyResponseDto{

@@ -239,6 +239,38 @@ func (r PolicyStatusUpdateDto) Validate() error {
 	)
 }
 
+// Policy services filter DTO - for getting services that use a specific policy
+type PolicyServicesFilterDto struct {
+	Name        *string `json:"name"`
+	DisplayName *string `json:"display_name"`
+	Description *string `json:"description"`
+
+	// Pagination and sorting
+	PaginationRequestDto
+}
+
+// Validation
+func (r PolicyServicesFilterDto) Validate() error {
+	return validation.ValidateStruct(&r,
+		validation.Field(&r.Name,
+			validation.When(r.Name != nil,
+				validation.Length(0, 150).Error("Name filter must be at most 150 characters"),
+			),
+		),
+		validation.Field(&r.DisplayName,
+			validation.When(r.DisplayName != nil,
+				validation.Length(0, 150).Error("Display name filter must be at most 150 characters"),
+			),
+		),
+		validation.Field(&r.Description,
+			validation.When(r.Description != nil,
+				validation.Length(0, 500).Error("Description filter must be at most 500 characters"),
+			),
+		),
+		validation.Field(&r.PaginationRequestDto),
+	)
+}
+
 // validatePolicyDocumentStructure validates the JSON structure of a policy document
 func validatePolicyDocumentStructure(value interface{}) error {
 	document, ok := value.(datatypes.JSON)
