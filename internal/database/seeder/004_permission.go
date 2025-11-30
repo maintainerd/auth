@@ -91,6 +91,8 @@ func SeedPermissions(db *gorm.DB, apiID int64) error {
 		newPermission("service:create", "Create service", apiID),
 		newPermission("service:update", "Update service", apiID),
 		newPermission("service:delete", "Delete service", apiID),
+		newPermission("service:policy:assign", "Assign policies to service", apiID),
+		newPermission("service:policy:remove", "Remove policies from service", apiID),
 
 		// Apis
 		newPermission("api:read", "Read apis", apiID),
