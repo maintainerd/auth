@@ -17,12 +17,14 @@ type IdentityProviderServiceDataResult struct {
 	IdentityProviderUUID uuid.UUID
 	Name                 string
 	DisplayName          string
+	Provider             string
 	ProviderType         string
 	Identifier           string
 	Config               *datatypes.JSON
 	Tenant               *TenantServiceDataResult
-	IsActive             bool
+	Status               string
 	IsDefault            bool
+	IsSystem             bool
 	CreatedAt            time.Time
 	UpdatedAt            time.Time
 }
@@ -30,11 +32,13 @@ type IdentityProviderServiceDataResult struct {
 type IdentityProviderServiceGetFilter struct {
 	Name         *string
 	DisplayName  *string
+	Provider     *string
 	ProviderType *string
 	Identifier   *string
 	TenantUUID   *string
-	IsActive     *bool
+	Status       *string
 	IsDefault    *bool
+	IsSystem     *bool
 	Page         int
 	Limit        int
 	SortBy       string
@@ -52,8 +56,8 @@ type IdentityProviderServiceGetResult struct {
 type IdentityProviderService interface {
 	Get(filter IdentityProviderServiceGetFilter) (*IdentityProviderServiceGetResult, error)
 	GetByUUID(idpUUID uuid.UUID) (*IdentityProviderServiceDataResult, error)
-	Create(name string, displayName string, providerType string, config datatypes.JSON, isActive bool, isDefault bool, tenantUUID string, actorUserUUID uuid.UUID) (*IdentityProviderServiceDataResult, error)
-	Update(idpUUID uuid.UUID, name string, displayName string, providerType string, config datatypes.JSON, isActive bool, isDefault bool, actorUserUUID uuid.UUID) (*IdentityProviderServiceDataResult, error)
+	Create(name string, displayName string, provider string, providerType string, config datatypes.JSON, status string, tenantUUID string, actorUserUUID uuid.UUID) (*IdentityProviderServiceDataResult, error)
+	Update(idpUUID uuid.UUID, name string, displayName string, provider string, providerType string, config datatypes.JSON, status string, actorUserUUID uuid.UUID) (*IdentityProviderServiceDataResult, error)
 	SetActiveStatusByUUID(idpUUID uuid.UUID, actorUserUUID uuid.UUID) (*IdentityProviderServiceDataResult, error)
 	DeleteByUUID(idpUUID uuid.UUID, actorUserUUID uuid.UUID) (*IdentityProviderServiceDataResult, error)
 }
@@ -99,11 +103,13 @@ func (s *identityProviderService) Get(filter IdentityProviderServiceGetFilter) (
 	queryFilter := repository.IdentityProviderRepositoryGetFilter{
 		Name:         filter.Name,
 		DisplayName:  filter.DisplayName,
+		Provider:     filter.Provider,
 		ProviderType: filter.ProviderType,
 		Identifier:   filter.Identifier,
 		TenantID:     tenantID,
-		IsActive:     filter.IsActive,
+		Status:       filter.Status,
 		IsDefault:    filter.IsDefault,
+		IsSystem:     filter.IsSystem,
 		Page:         filter.Page,
 		Limit:        filter.Limit,
 		SortBy:       filter.SortBy,
@@ -138,7 +144,7 @@ func (s *identityProviderService) GetByUUID(idpUUID uuid.UUID) (*IdentityProvide
 	return toIdpServiceDataResult(idp), nil
 }
 
-func (s *identityProviderService) Create(name string, displayName string, providerType string, config datatypes.JSON, isActive bool, isDefault bool, tenantUUID string, actorUserUUID uuid.UUID) (*IdentityProviderServiceDataResult, error) {
+func (s *identityProviderService) Create(name string, displayName string, provider string, providerType string, config datatypes.JSON, status string, tenantUUID string, actorUserUUID uuid.UUID) (*IdentityProviderServiceDataResult, error) {
 	var createdIdp *model.IdentityProvider
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
@@ -185,12 +191,14 @@ func (s *identityProviderService) Create(name string, displayName string, provid
 		newIdp := &model.IdentityProvider{
 			Name:         name,
 			DisplayName:  displayName,
+			Provider:     provider,
 			ProviderType: providerType,
 			Identifier:   identifier,
 			Config:       config,
 			TenantID:     tenant.TenantID,
-			IsActive:     isActive,
-			IsDefault:    isDefault,
+			Status:       status,
+			IsDefault:    false, // System-managed field, always default to false for user-created providers
+			IsSystem:     false, // System-managed field, always default to false for user-created providers
 		}
 
 		_, err = txIdpRepo.CreateOrUpdate(newIdp)
@@ -214,7 +222,7 @@ func (s *identityProviderService) Create(name string, displayName string, provid
 	return toIdpServiceDataResult(createdIdp), nil
 }
 
-func (s *identityProviderService) Update(idpUUID uuid.UUID, name string, displayName string, providerType string, config datatypes.JSON, isActive bool, isDefault bool, actorUserUUID uuid.UUID) (*IdentityProviderServiceDataResult, error) {
+func (s *identityProviderService) Update(idpUUID uuid.UUID, name string, displayName string, provider string, providerType string, config datatypes.JSON, status string, actorUserUUID uuid.UUID) (*IdentityProviderServiceDataResult, error) {
 	var updatedIdp *model.IdentityProvider
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
@@ -238,7 +246,10 @@ func (s *identityProviderService) Update(idpUUID uuid.UUID, name string, display
 			return err
 		}
 
-		// Check if default
+		// Check if system or default (cannot be updated)
+		if idp.IsSystem {
+			return errors.New("system idp cannot be updated")
+		}
 		if idp.IsDefault {
 			return errors.New("default idp cannot be updated")
 		}
@@ -257,10 +268,11 @@ func (s *identityProviderService) Update(idpUUID uuid.UUID, name string, display
 		// Set values
 		idp.Name = name
 		idp.DisplayName = displayName
+		idp.Provider = provider
 		idp.ProviderType = providerType
 		idp.Config = config
-		idp.IsActive = isActive
-		idp.IsDefault = isDefault
+		idp.Status = status
+		// IsDefault and IsSystem are system-managed, don't update them in user requests
 
 		// Update
 		_, err = txIdpRepo.CreateOrUpdate(idp)
@@ -304,12 +316,20 @@ func (s *identityProviderService) SetActiveStatusByUUID(idpUUID uuid.UUID, actor
 			return err
 		}
 
-		// Check if default
+		// Check if system or default (cannot be updated)
+		if idp.IsSystem {
+			return errors.New("system idp cannot be updated")
+		}
 		if idp.IsDefault {
 			return errors.New("default idp cannot be updated")
 		}
 
-		idp.IsActive = !idp.IsActive
+		// Toggle status
+		if idp.Status == "active" {
+			idp.Status = "inactive"
+		} else {
+			idp.Status = "active"
+		}
 
 		_, err = txIdpRepo.CreateOrUpdate(idp)
 		if err != nil {
@@ -346,7 +366,10 @@ func (s *identityProviderService) DeleteByUUID(idpUUID uuid.UUID, actorUserUUID 
 		return nil, err
 	}
 
-	// Check if default
+	// Check if system or default (cannot be deleted)
+	if idp.IsSystem {
+		return nil, errors.New("system idp cannot be deleted")
+	}
 	if idp.IsDefault {
 		return nil, errors.New("default idp cannot be deleted")
 	}
@@ -369,11 +392,13 @@ func toIdpServiceDataResult(idp *model.IdentityProvider) *IdentityProviderServic
 		IdentityProviderUUID: idp.IdentityProviderUUID,
 		Name:                 idp.Name,
 		DisplayName:          idp.DisplayName,
+		Provider:             idp.Provider,
 		ProviderType:         idp.ProviderType,
 		Identifier:           idp.Identifier,
 		Config:               &idp.Config,
-		IsActive:             idp.IsActive,
+		Status:               idp.Status,
 		IsDefault:            idp.IsDefault,
+		IsSystem:             idp.IsSystem,
 		CreatedAt:            idp.CreatedAt,
 		UpdatedAt:            idp.UpdatedAt,
 	}

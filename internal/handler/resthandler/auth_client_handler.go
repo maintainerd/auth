@@ -453,10 +453,12 @@ func toAuthClientResponseDto(r service.AuthClientServiceDataResult) dto.AuthClie
 			IdentityProviderUUID: r.IdentityProvider.IdentityProviderUUID,
 			Name:                 r.IdentityProvider.Name,
 			DisplayName:          r.IdentityProvider.DisplayName,
+			Provider:             r.IdentityProvider.Provider,
 			ProviderType:         r.IdentityProvider.ProviderType,
 			Identifier:           r.IdentityProvider.Identifier,
-			IsActive:             r.IdentityProvider.IsActive,
+			Status:               r.IdentityProvider.Status,
 			IsDefault:            r.IdentityProvider.IsDefault,
+			IsSystem:             r.IdentityProvider.IsSystem,
 			CreatedAt:            r.IdentityProvider.CreatedAt,
 			UpdatedAt:            r.IdentityProvider.UpdatedAt,
 		}

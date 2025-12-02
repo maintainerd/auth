@@ -32,8 +32,9 @@ func SeedIdentityProviders(db *gorm.DB, tenantID int64) (*model.IdentityProvider
 	provider := model.IdentityProvider{
 		IdentityProviderUUID: uuid.New(),
 		Name:                 "default",
-		DisplayName:          "Default Identity Provider",
-		ProviderType:         "default",
+		DisplayName:          "Built-in Authentication System",
+		Provider:             "internal",
+		ProviderType:         "identity",
 		Identifier:           util.GenerateIdentifier(15),
 		Config: datatypes.JSON([]byte(`{
 			"allow_registration": true,
@@ -49,8 +50,9 @@ func SeedIdentityProviders(db *gorm.DB, tenantID int64) (*model.IdentityProvider
 			"lockout_duration_min": 15
 		}`)),
 		TenantID:  tenantID,
-		IsActive:  true,
+		Status:    "active",
 		IsDefault: true,
+		IsSystem:  true,
 	}
 
 	if err := db.Create(&provider).Error; err != nil {
