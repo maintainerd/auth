@@ -789,10 +789,12 @@ func toAuthClientServiceDataResult(authClient *model.AuthClient) *AuthClientServ
 			IdentityProviderUUID: authClient.IdentityProvider.IdentityProviderUUID,
 			Name:                 authClient.IdentityProvider.Name,
 			DisplayName:          authClient.IdentityProvider.DisplayName,
+			Provider:             authClient.IdentityProvider.Provider,
 			ProviderType:         authClient.IdentityProvider.ProviderType,
 			Identifier:           authClient.IdentityProvider.Identifier,
-			IsActive:             authClient.IdentityProvider.IsActive,
+			Status:               authClient.IdentityProvider.Status,
 			IsDefault:            authClient.IdentityProvider.IsDefault,
+			IsSystem:             authClient.IdentityProvider.IsSystem,
 			CreatedAt:            authClient.IdentityProvider.CreatedAt,
 			UpdatedAt:            authClient.IdentityProvider.UpdatedAt,
 		}
