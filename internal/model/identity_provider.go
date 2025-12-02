@@ -13,11 +13,13 @@ type IdentityProvider struct {
 	IdentityProviderUUID uuid.UUID      `gorm:"column:identity_provider_uuid"`
 	Name                 string         `gorm:"column:name"`
 	DisplayName          string         `gorm:"column:display_name"`
+	Provider             string         `gorm:"column:provider"`
 	ProviderType         string         `gorm:"column:provider_type"`
 	Identifier           string         `gorm:"column:identifier"`
 	Config               datatypes.JSON `gorm:"column:config"`
-	IsActive             bool           `gorm:"column:is_active;default:false"`
+	Status               string         `gorm:"column:status;default:'inactive'"`
 	IsDefault            bool           `gorm:"column:is_default;default:false"`
+	IsSystem             bool           `gorm:"column:is_system;default:false"`
 	TenantID             int64          `gorm:"column:tenant_id"`
 	CreatedAt            time.Time      `gorm:"column:created_at;autoCreateTime"`
 	UpdatedAt            time.Time      `gorm:"column:updated_at;autoUpdateTime"`

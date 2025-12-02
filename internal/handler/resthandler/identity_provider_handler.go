@@ -32,17 +32,17 @@ func (h *IdentityProviderHandler) Get(w http.ResponseWriter, r *http.Request) {
 	limit, _ := strconv.Atoi(q.Get("limit"))
 
 	// Parse bools safely
-	var isDefault, isActive *bool
+	var isDefault, isSystem *bool
 	if v := q.Get("is_default"); v != "" {
 		parsed, err := strconv.ParseBool(v)
 		if err == nil {
 			isDefault = &parsed
 		}
 	}
-	if v := q.Get("is_active"); v != "" {
+	if v := q.Get("is_system"); v != "" {
 		parsed, err := strconv.ParseBool(v)
 		if err == nil {
-			isActive = &parsed
+			isSystem = &parsed
 		}
 	}
 
@@ -50,11 +50,13 @@ func (h *IdentityProviderHandler) Get(w http.ResponseWriter, r *http.Request) {
 	reqParams := dto.IdentityProviderFilterDto{
 		Name:         util.PtrOrNil(q.Get("name")),
 		DisplayName:  util.PtrOrNil(q.Get("display_name")),
+		Provider:     util.PtrOrNil(q.Get("provider")),
 		ProviderType: util.PtrOrNil(q.Get("provider_type")),
 		Identifier:   util.PtrOrNil(q.Get("identifier")),
+		Status:       util.PtrOrNil(q.Get("status")),
 		TenantUUID:   util.PtrOrNil(q.Get("tenant_id")),
-		IsActive:     isActive,
 		IsDefault:    isDefault,
+		IsSystem:     isSystem,
 		PaginationRequestDto: dto.PaginationRequestDto{
 			Page:      page,
 			Limit:     limit,
@@ -72,11 +74,13 @@ func (h *IdentityProviderHandler) Get(w http.ResponseWriter, r *http.Request) {
 	idpFilter := service.IdentityProviderServiceGetFilter{
 		Name:         reqParams.Name,
 		DisplayName:  reqParams.DisplayName,
+		Provider:     reqParams.Provider,
 		ProviderType: reqParams.ProviderType,
 		Identifier:   reqParams.Identifier,
 		TenantUUID:   reqParams.TenantUUID,
-		IsActive:     reqParams.IsActive,
+		Status:       reqParams.Status,
 		IsDefault:    reqParams.IsDefault,
+		IsSystem:     reqParams.IsSystem,
 		Page:         reqParams.Page,
 		Limit:        reqParams.Limit,
 		SortBy:       reqParams.SortBy,
@@ -143,7 +147,7 @@ func (h *IdentityProviderHandler) Create(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	idp, err := h.idpService.Create(req.Name, req.DisplayName, req.ProviderType, req.Config, req.IsActive, false, req.TenantUUID, user.UserUUID)
+	idp, err := h.idpService.Create(req.Name, req.DisplayName, req.Provider, req.ProviderType, req.Config, req.Status, req.TenantUUID, user.UserUUID)
 	if err != nil {
 		util.Error(w, http.StatusInternalServerError, "Failed to create permission", err.Error())
 		return
@@ -176,7 +180,7 @@ func (h *IdentityProviderHandler) Update(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	idp, err := h.idpService.Update(idpUUID, req.Name, req.DisplayName, req.ProviderType, req.Config, req.IsActive, false, user.UserUUID)
+	idp, err := h.idpService.Update(idpUUID, req.Name, req.DisplayName, req.Provider, req.ProviderType, req.Config, req.Status, user.UserUUID)
 	if err != nil {
 		util.Error(w, http.StatusInternalServerError, "Failed to update identity provider", err.Error())
 		return
@@ -237,11 +241,13 @@ func toIdpResponseDto(r service.IdentityProviderServiceDataResult) dto.IdentityP
 		IdentityProviderUUID: r.IdentityProviderUUID,
 		Name:                 r.Name,
 		DisplayName:          r.DisplayName,
+		Provider:             r.Provider,
 		ProviderType:         r.ProviderType,
 		Identifier:           r.Identifier,
 		Config:               r.Config,
-		IsActive:             r.IsActive,
+		Status:               r.Status,
 		IsDefault:            r.IsDefault,
+		IsSystem:             r.IsSystem,
 		CreatedAt:            r.CreatedAt,
 		UpdatedAt:            r.UpdatedAt,
 	}
