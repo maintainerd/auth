@@ -128,8 +128,8 @@ if authClient == nil ||
     !authClient.IsActive ||
     authClient.Domain == nil || *authClient.Domain == "" ||
     authClient.IdentityProvider == nil ||
-    authClient.IdentityProvider.AuthContainer == nil ||
-    authClient.IdentityProvider.AuthContainer.AuthContainerID == 0 {
+    authClient.IdentityProvider.Tenant == nil ||
+    authClient.IdentityProvider.Tenant.TenantID == 0 {
     return nil, errors.New("authentication failed")
 }
 ```
