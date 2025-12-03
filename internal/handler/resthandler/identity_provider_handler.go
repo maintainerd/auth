@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
@@ -46,14 +47,26 @@ func (h *IdentityProviderHandler) Get(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// Parse status (comma-separated values)
+	var status []string
+	if statusParam := q.Get("status"); statusParam != "" {
+		status = strings.Split(strings.ReplaceAll(statusParam, " ", ""), ",")
+	}
+
+	// Parse provider (comma-separated values)
+	var provider []string
+	if providerParam := q.Get("provider"); providerParam != "" {
+		provider = strings.Split(strings.ReplaceAll(providerParam, " ", ""), ",")
+	}
+
 	// Build request DTO
 	reqParams := dto.IdentityProviderFilterDto{
 		Name:         util.PtrOrNil(q.Get("name")),
 		DisplayName:  util.PtrOrNil(q.Get("display_name")),
-		Provider:     util.PtrOrNil(q.Get("provider")),
+		Provider:     provider,
 		ProviderType: util.PtrOrNil(q.Get("provider_type")),
 		Identifier:   util.PtrOrNil(q.Get("identifier")),
-		Status:       util.PtrOrNil(q.Get("status")),
+		Status:       status,
 		TenantUUID:   util.PtrOrNil(q.Get("tenant_id")),
 		IsDefault:    isDefault,
 		IsSystem:     isSystem,
@@ -94,10 +107,10 @@ func (h *IdentityProviderHandler) Get(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Map results to DTO
+	// Map results to DTO (list response without config and tenant)
 	rows := make([]dto.IdentityProviderResponseDto, len(result.Data))
 	for i, r := range result.Data {
-		rows[i] = toIdpResponseDto(r)
+		rows[i] = toIdpListResponseDto(r)
 	}
 
 	// Build response data
@@ -126,7 +139,7 @@ func (h *IdentityProviderHandler) GetByUUID(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	dtoRes := toIdpResponseDto(*idp)
+	dtoRes := toIdpDetailResponseDto(*idp)
 
 	util.Success(w, dtoRes, "Identity provider fetched successfully")
 }
@@ -136,7 +149,7 @@ func (h *IdentityProviderHandler) Create(w http.ResponseWriter, r *http.Request)
 	// Get authentication context
 	user := r.Context().Value(middleware.UserContextKey).(*model.User)
 
-	var req dto.IdentityProviderCreateOrUpdateRequestDto
+	var req dto.IdentityProviderCreateRequestDto
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		util.Error(w, http.StatusBadRequest, "Invalid request", err.Error())
 		return
@@ -153,7 +166,7 @@ func (h *IdentityProviderHandler) Create(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	dtoRes := toIdpResponseDto(*idp)
+	dtoRes := toIdpDetailResponseDto(*idp)
 
 	util.Created(w, dtoRes, "Identity provider created successfully")
 }
@@ -169,7 +182,7 @@ func (h *IdentityProviderHandler) Update(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	var req dto.IdentityProviderCreateOrUpdateRequestDto
+	var req dto.IdentityProviderUpdateRequestDto
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		util.Error(w, http.StatusBadRequest, "Invalid request", err.Error())
 		return
@@ -186,7 +199,7 @@ func (h *IdentityProviderHandler) Update(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	dtoRes := toIdpResponseDto(*idp)
+	dtoRes := toIdpDetailResponseDto(*idp)
 
 	util.Success(w, dtoRes, "Identity provider updated successfully")
 }
@@ -202,13 +215,25 @@ func (h *IdentityProviderHandler) SetStatus(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	idp, err := h.idpService.SetActiveStatusByUUID(idpUUID, user.UserUUID)
+	// Parse and validate request body
+	var req dto.IdentityProviderStatusUpdateDto
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		util.Error(w, http.StatusBadRequest, "Invalid request", err.Error())
+		return
+	}
+
+	if err := req.Validate(); err != nil {
+		util.ValidationError(w, err)
+		return
+	}
+
+	idp, err := h.idpService.SetStatusByUUID(idpUUID, req.Status, user.UserUUID)
 	if err != nil {
 		util.Error(w, http.StatusInternalServerError, "Failed to update identity provider", err.Error())
 		return
 	}
 
-	dtoRes := toIdpResponseDto(*idp)
+	dtoRes := toIdpDetailResponseDto(*idp)
 
 	util.Success(w, dtoRes, "Identity provider status updated successfully")
 }
@@ -230,14 +255,31 @@ func (h *IdentityProviderHandler) Delete(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	dtoRes := toIdpResponseDto(*idp)
+	dtoRes := toIdpDetailResponseDto(*idp)
 
 	util.Success(w, dtoRes, "Identity provider deleted successfully")
 }
 
-// Convert identity provider result to DTO
-func toIdpResponseDto(r service.IdentityProviderServiceDataResult) dto.IdentityProviderResponseDto {
-	result := dto.IdentityProviderResponseDto{
+// Convert identity provider result to list DTO (without config and tenant)
+func toIdpListResponseDto(r service.IdentityProviderServiceDataResult) dto.IdentityProviderResponseDto {
+	return dto.IdentityProviderResponseDto{
+		IdentityProviderUUID: r.IdentityProviderUUID,
+		Name:                 r.Name,
+		DisplayName:          r.DisplayName,
+		Provider:             r.Provider,
+		ProviderType:         r.ProviderType,
+		Identifier:           r.Identifier,
+		Status:               r.Status,
+		IsDefault:            r.IsDefault,
+		IsSystem:             r.IsSystem,
+		CreatedAt:            r.CreatedAt,
+		UpdatedAt:            r.UpdatedAt,
+	}
+}
+
+// Convert identity provider result to detail DTO (with config and tenant)
+func toIdpDetailResponseDto(r service.IdentityProviderServiceDataResult) dto.IdentityProviderDetailResponseDto {
+	result := dto.IdentityProviderDetailResponseDto{
 		IdentityProviderUUID: r.IdentityProviderUUID,
 		Name:                 r.Name,
 		DisplayName:          r.DisplayName,
