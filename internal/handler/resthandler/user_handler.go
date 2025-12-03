@@ -40,10 +40,10 @@ func (h *UserHandler) GetUsers(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Parse auth container UUID safely
-	var authContainerUUID *string
-	if v := q.Get("auth_container_uuid"); v != "" {
-		authContainerUUID = &v
+	// Parse tenant UUID safely
+	var tenantUUID *string
+	if v := q.Get("tenant_uuid"); v != "" {
+		tenantUUID = &v
 	}
 
 	// Build request DTO (for validation)
@@ -52,7 +52,7 @@ func (h *UserHandler) GetUsers(w http.ResponseWriter, r *http.Request) {
 		Email:      util.PtrOrNil(q.Get("email")),
 		Phone:      util.PtrOrNil(q.Get("phone")),
 		IsActive:   isActive,
-		TenantUUID: authContainerUUID,
+		TenantUUID: tenantUUID,
 		PaginationRequestDto: dto.PaginationRequestDto{
 			Page:      page,
 			Limit:     limit,
