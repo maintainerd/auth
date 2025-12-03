@@ -103,7 +103,7 @@ func (h *AuthClientHandler) Get(w http.ResponseWriter, r *http.Request) {
 		TotalPages: result.TotalPages,
 	}
 
-	util.Success(w, response, "Auth containers fetched successfully")
+	util.Success(w, response, "Auth clients fetched successfully")
 }
 
 // Get Auth client by UUID

@@ -138,7 +138,7 @@
 | Control | Implementation | Status |
 |---------|----------------|--------|
 | IdP Management API | Admin UI/API for managing identity providers with IdentityProvider CRUD | ✅ Complete |
-| Multi-tenant Config | Per-tenant provider configuration (multi-tenant aware) with AuthContainer isolation | ✅ Complete |
+| Multi-tenant Config | Per-tenant provider configuration (multi-tenant aware) with Tenant isolation | ✅ Complete |
 | Provider Registration Control | Allow/disallow registration via specific providers with AuthClient configuration | ✅ Complete |
 | Secure Metadata Storage | Secure provider metadata storage (discovery URLs) with IdentityProvider model | ✅ Complete |
 
