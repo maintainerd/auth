@@ -121,7 +121,7 @@ curl -X POST http://localhost:8080/api/v1/register \
     "password": "SecurePass123!"
   }' \
   -G -d "auth_client_id=your-client-id" \
-     -d "auth_container_id=your-container-id"
+     -d "tenant_id=your-tenant-id"
 ```
 
 ### **User Login**
@@ -133,7 +133,7 @@ curl -X POST http://localhost:8080/api/v1/login \
     "password": "SecurePass123!"
   }' \
   -G -d "auth_client_id=your-client-id" \
-     -d "auth_container_id=your-container-id"
+     -d "tenant_id=your-tenant-id"
 ```
 
 ### **🍪 Flexible Token Delivery**
@@ -173,7 +173,7 @@ curl -X GET http://localhost:8080/api/v1/profile \
 │   Organization  │    │   Organization  │    │   Organization  │
 │       A         │    │       B         │    │       C         │
 ├─────────────────┤    ├─────────────────┤    ├─────────────────┤
-│ Auth Container  │    │ Auth Container  │    │ Auth Container  │
+│     Tenant      │    │     Tenant      │    │     Tenant      │
 │ Users & Roles   │    │ Users & Roles   │    │ Users & Roles   │
 │ Identity Providers│   │ Identity Providers│   │ Identity Providers│
 │ Auth Clients    │    │ Auth Clients    │    │ Auth Clients    │

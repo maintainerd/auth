@@ -127,7 +127,7 @@ These setup endpoints do **not require authentication** since they are used to b
 
 ### Automatic Auth Container Selection
 
-The admin user is automatically created in the **default auth container**. You don't need to provide `auth_client_id` or `auth_container_id` - the system automatically uses the default values.
+The admin user is automatically created in the **default tenant**. You don't need to provide `auth_client_id` or `tenant_id` - the system automatically uses the default values.
 
 ### After Setup
 
@@ -190,7 +190,7 @@ curl -X POST http://localhost:8080/api/v1/setup/create_admin \
   }'
 
 # 4. Now you can login with the admin user
-curl -X POST http://localhost:8080/api/v1/login?auth_client_id=default&auth_container_id=1 \
+curl -X POST http://localhost:8080/api/v1/login?auth_client_id=default&tenant_id=1 \
   -H "Content-Type: application/json" \
   -d '{
     "username": "admin",

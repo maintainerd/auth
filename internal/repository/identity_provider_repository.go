@@ -138,7 +138,7 @@ func (r *identityProviderRepository) FindPaginated(filter IdentityProviderReposi
 	// Pagination
 	offset := (filter.Page - 1) * filter.Limit
 	var apis []model.IdentityProvider
-	if err := query.Preload("AuthContainer").Limit(filter.Limit).Offset(offset).Find(&apis).Error; err != nil {
+	if err := query.Preload("Tenant").Limit(filter.Limit).Offset(offset).Find(&apis).Error; err != nil {
 		return nil, err
 	}
 

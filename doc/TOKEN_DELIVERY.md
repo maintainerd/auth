@@ -14,7 +14,7 @@ When authenticating (login or registration), frontend clients can specify their 
 ### **Body Response (Default)**
 
 ```bash
-curl -X POST "http://auth.company.com/api/v1/login?auth_client_id=web-app&auth_container_id=1" \
+curl -X POST "http://auth.company.com/api/v1/login?auth_client_id=web-app&tenant_id=1" \
   -H "Content-Type: application/json" \
   -d '{
     "username": "user@company.com",
@@ -41,7 +41,7 @@ curl -X POST "http://auth.company.com/api/v1/login?auth_client_id=web-app&auth_c
 ### **Cookie Response**
 
 ```bash
-curl -X POST "http://auth.company.com/api/v1/login?auth_client_id=web-app&auth_container_id=1" \
+curl -X POST "http://auth.company.com/api/v1/login?auth_client_id=web-app&tenant_id=1" \
   -H "Content-Type: application/json" \
   -H "X-Token-Delivery: cookie" \
   -d '{
@@ -89,7 +89,7 @@ All authentication cookies are set with maximum security:
 
 ```javascript
 // Login with cookie delivery
-const response = await fetch('/api/v1/login?auth_client_id=web-app&auth_container_id=1', {
+const response = await fetch('/api/v1/login?auth_client_id=web-app&tenant_id=1', {
   method: 'POST',
   headers: {
     'Content-Type': 'application/json',
@@ -123,7 +123,7 @@ const loginWithCookies = async (username, password) => {
     }, {
       params: {
         auth_client_id: 'web-app',
-        auth_container_id: '1'
+        tenant_id: '1'
       },
       headers: {
         'X-Token-Delivery': 'cookie'
@@ -141,7 +141,7 @@ const loginWithCookies = async (username, password) => {
 
 ```javascript
 const register = async (username, password) => {
-  const response = await fetch('/api/v1/register?auth_client_id=web-app&auth_container_id=1', {
+  const response = await fetch('/api/v1/register?auth_client_id=web-app&tenant_id=1', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',

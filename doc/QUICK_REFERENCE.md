@@ -37,14 +37,14 @@ curl -X POST http://localhost:8080/api/v1/setup \
 
 ### Default (JSON Response)
 ```bash
-curl -X POST "/api/v1/login?auth_client_id=web&auth_container_id=1" \
+curl -X POST "/api/v1/login?auth_client_id=web&tenant_id=1" \
   -H "Content-Type: application/json" \
   -d '{"username":"user@example.com", "password":"password"}'
 ```
 
 ### Cookie Response  
 ```bash
-curl -X POST "/api/v1/login?auth_client_id=web&auth_container_id=1" \
+curl -X POST "/api/v1/login?auth_client_id=web&tenant_id=1" \
   -H "Content-Type: application/json" \
   -H "X-Token-Delivery: cookie" \
   -c cookies.jar \

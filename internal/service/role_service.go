@@ -46,7 +46,7 @@ type RoleServiceGetResult struct {
 type RoleService interface {
 	Get(filter RoleServiceGetFilter) (*RoleServiceGetResult, error)
 	GetByUUID(roleUUID uuid.UUID) (*RoleServiceDataResult, error)
-	Create(name string, description string, isDefault bool, isSystem bool, isActive bool, authContainerUUID string, actorUserUUID uuid.UUID) (*RoleServiceDataResult, error)
+	Create(name string, description string, isDefault bool, isSystem bool, isActive bool, tenantUUID string, actorUserUUID uuid.UUID) (*RoleServiceDataResult, error)
 	Update(roleUUID uuid.UUID, name string, description string, isDefault bool, isSystem bool, isActive bool, actorUserUUID uuid.UUID) (*RoleServiceDataResult, error)
 	SetActiveStatusByUUID(roleUUID uuid.UUID, actorUserUUID uuid.UUID) (*RoleServiceDataResult, error)
 	DeleteByUUID(roleUUID uuid.UUID, actorUserUUID uuid.UUID) (*RoleServiceDataResult, error)
