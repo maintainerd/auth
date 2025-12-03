@@ -32,11 +32,11 @@ type IdentityProviderServiceDataResult struct {
 type IdentityProviderServiceGetFilter struct {
 	Name         *string
 	DisplayName  *string
-	Provider     *string
+	Provider     []string
 	ProviderType *string
 	Identifier   *string
 	TenantUUID   *string
-	Status       *string
+	Status       []string
 	IsDefault    *bool
 	IsSystem     *bool
 	Page         int
@@ -58,7 +58,7 @@ type IdentityProviderService interface {
 	GetByUUID(idpUUID uuid.UUID) (*IdentityProviderServiceDataResult, error)
 	Create(name string, displayName string, provider string, providerType string, config datatypes.JSON, status string, tenantUUID string, actorUserUUID uuid.UUID) (*IdentityProviderServiceDataResult, error)
 	Update(idpUUID uuid.UUID, name string, displayName string, provider string, providerType string, config datatypes.JSON, status string, actorUserUUID uuid.UUID) (*IdentityProviderServiceDataResult, error)
-	SetActiveStatusByUUID(idpUUID uuid.UUID, actorUserUUID uuid.UUID) (*IdentityProviderServiceDataResult, error)
+	SetStatusByUUID(idpUUID uuid.UUID, status string, actorUserUUID uuid.UUID) (*IdentityProviderServiceDataResult, error)
 	DeleteByUUID(idpUUID uuid.UUID, actorUserUUID uuid.UUID) (*IdentityProviderServiceDataResult, error)
 }
 
@@ -292,7 +292,7 @@ func (s *identityProviderService) Update(idpUUID uuid.UUID, name string, display
 	return toIdpServiceDataResult(updatedIdp), nil
 }
 
-func (s *identityProviderService) SetActiveStatusByUUID(idpUUID uuid.UUID, actorUserUUID uuid.UUID) (*IdentityProviderServiceDataResult, error) {
+func (s *identityProviderService) SetStatusByUUID(idpUUID uuid.UUID, status string, actorUserUUID uuid.UUID) (*IdentityProviderServiceDataResult, error) {
 	var updatedIdp *model.IdentityProvider
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
@@ -324,12 +324,8 @@ func (s *identityProviderService) SetActiveStatusByUUID(idpUUID uuid.UUID, actor
 			return errors.New("default idp cannot be updated")
 		}
 
-		// Toggle status
-		if idp.Status == "active" {
-			idp.Status = "inactive"
-		} else {
-			idp.Status = "active"
-		}
+		// Set status
+		idp.Status = status
 
 		_, err = txIdpRepo.CreateOrUpdate(idp)
 		if err != nil {

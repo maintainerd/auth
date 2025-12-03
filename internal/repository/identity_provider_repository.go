@@ -10,11 +10,11 @@ import (
 type IdentityProviderRepositoryGetFilter struct {
 	Name         *string
 	DisplayName  *string
-	Provider     *string
+	Provider     []string
 	ProviderType *string
 	Identifier   *string
 	TenantID     *int64
-	Status       *string
+	Status       []string
 	IsDefault    *bool
 	IsSystem     *bool
 	Page         int
@@ -103,8 +103,8 @@ func (r *identityProviderRepository) FindPaginated(filter IdentityProviderReposi
 	}
 
 	// Filters with exact match
-	if filter.Provider != nil {
-		query = query.Where("provider = ?", *filter.Provider)
+	if len(filter.Provider) > 0 {
+		query = query.Where("provider IN ?", filter.Provider)
 	}
 	if filter.ProviderType != nil {
 		query = query.Where("provider_type = ?", *filter.ProviderType)
@@ -115,8 +115,8 @@ func (r *identityProviderRepository) FindPaginated(filter IdentityProviderReposi
 	if filter.TenantID != nil {
 		query = query.Where("tenant_id = ?", *filter.TenantID)
 	}
-	if filter.Status != nil {
-		query = query.Where("status = ?", *filter.Status)
+	if len(filter.Status) > 0 {
+		query = query.Where("status IN ?", filter.Status)
 	}
 	if filter.IsDefault != nil {
 		query = query.Where("is_default = ?", *filter.IsDefault)
