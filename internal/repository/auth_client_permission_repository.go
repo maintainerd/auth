@@ -10,8 +10,9 @@ import (
 type AuthClientPermissionRepository interface {
 	BaseRepositoryMethods[model.AuthClientPermission]
 	WithTx(tx *gorm.DB) AuthClientPermissionRepository
-	FindByAuthClientAndPermission(authClientID int64, permissionID int64) (*model.AuthClientPermission, error)
-	RemoveByAuthClientAndPermission(authClientID int64, permissionID int64) error
+	FindByAuthClientApiAndPermission(authClientApiID int64, permissionID int64) (*model.AuthClientPermission, error)
+	RemoveByAuthClientApiAndPermission(authClientApiID int64, permissionID int64) error
+	FindByAuthClientApiID(authClientApiID int64) ([]model.AuthClientPermission, error)
 }
 
 type authClientPermissionRepository struct {
@@ -33,9 +34,9 @@ func (r *authClientPermissionRepository) WithTx(tx *gorm.DB) AuthClientPermissio
 	}
 }
 
-func (r *authClientPermissionRepository) FindByAuthClientAndPermission(authClientID int64, permissionID int64) (*model.AuthClientPermission, error) {
+func (r *authClientPermissionRepository) FindByAuthClientApiAndPermission(authClientApiID int64, permissionID int64) (*model.AuthClientPermission, error) {
 	var authClientPermission model.AuthClientPermission
-	err := r.db.Where("auth_client_id = ? AND permission_id = ?", authClientID, permissionID).First(&authClientPermission).Error
+	err := r.db.Where("auth_client_api_id = ? AND permission_id = ?", authClientApiID, permissionID).First(&authClientPermission).Error
 
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -47,8 +48,21 @@ func (r *authClientPermissionRepository) FindByAuthClientAndPermission(authClien
 	return &authClientPermission, err
 }
 
-func (r *authClientPermissionRepository) RemoveByAuthClientAndPermission(authClientID int64, permissionID int64) error {
+func (r *authClientPermissionRepository) RemoveByAuthClientApiAndPermission(authClientApiID int64, permissionID int64) error {
 	return r.db.
-		Where("auth_client_id = ? AND permission_id = ?", authClientID, permissionID).
+		Where("auth_client_api_id = ? AND permission_id = ?", authClientApiID, permissionID).
 		Unscoped().Delete(&model.AuthClientPermission{}).Error
+}
+
+func (r *authClientPermissionRepository) FindByAuthClientApiID(authClientApiID int64) ([]model.AuthClientPermission, error) {
+	var permissions []model.AuthClientPermission
+	err := r.db.Where("auth_client_api_id = ?", authClientApiID).
+		Preload("Permission").
+		Find(&permissions).Error
+
+	if err != nil {
+		return nil, err
+	}
+
+	return permissions, nil
 }

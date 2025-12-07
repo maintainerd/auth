@@ -60,9 +60,9 @@ func RunSeeders(db *gorm.DB, appVersion string) error {
 		return err
 	}
 
-	// 007: Seed auth client redirect URIs
-	if err := seeder.SeedAuthClientRedirectURIs(db, identityProvider.IdentityProviderID); err != nil {
-		log.Printf("❌ Failed to seed auth client redirect URIs: %v", err)
+	// 007: Seed auth client URIs
+	if err := seeder.SeedAuthClientURIs(db, identityProvider.IdentityProviderID); err != nil {
+		log.Printf("❌ Failed to seed auth client URIs: %v", err)
 		return err
 	}
 
