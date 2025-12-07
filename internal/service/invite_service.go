@@ -59,7 +59,7 @@ func (s *inviteService) SendInvite(
 			return err
 		}
 		if authClient == nil ||
-			!authClient.IsActive ||
+			authClient.Status != "active" ||
 			authClient.Domain == nil || *authClient.Domain == "" ||
 			authClient.IdentityProvider == nil ||
 			authClient.IdentityProvider.Tenant == nil ||

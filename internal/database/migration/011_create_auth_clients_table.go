@@ -12,16 +12,17 @@ func CreateAuthClientTable(db *gorm.DB) {
 CREATE TABLE IF NOT EXISTS auth_clients (
     auth_client_id          SERIAL PRIMARY KEY,
     auth_client_uuid        UUID NOT NULL UNIQUE,
-    name             				VARCHAR(100) NOT NULL, -- 'default', 'google', 'facebook', 'github'
+    name             		VARCHAR(100) NOT NULL, -- 'default', 'google', 'facebook', 'github'
     display_name            TEXT NOT NULL,
     client_type             VARCHAR(100) NOT NULL, -- 'traditional', 'spa', 'native', 'm2m'
     domain                  TEXT,
     client_id               TEXT,
     client_secret           TEXT,
     config                  JSONB,
-		identity_provider_id    INTEGER NOT NULL,
-    is_active               BOOLEAN DEFAULT FALSE,
+	identity_provider_id    INTEGER NOT NULL,
+    status                  VARCHAR(20) DEFAULT 'inactive',
     is_default              BOOLEAN DEFAULT FALSE,
+    is_system               BOOLEAN DEFAULT FALSE,
     created_at              TIMESTAMPTZ DEFAULT now(),
     updated_at              TIMESTAMPTZ DEFAULT now()
 );
@@ -44,7 +45,8 @@ CREATE INDEX IF NOT EXISTS idx_auth_clients_name ON auth_clients (name);
 CREATE INDEX IF NOT EXISTS idx_auth_clients_display_name ON auth_clients (display_name);
 CREATE INDEX IF NOT EXISTS idx_auth_clients_client_type ON auth_clients (client_type);
 CREATE INDEX IF NOT EXISTS idx_auth_clients_identity_provider_id ON auth_clients (identity_provider_id);
-CREATE INDEX IF NOT EXISTS idx_auth_clients_is_active ON auth_clients (is_active);
+CREATE INDEX IF NOT EXISTS idx_auth_clients_status ON auth_clients (status);
+CREATE INDEX IF NOT EXISTS idx_auth_clients_is_system ON auth_clients (is_system);
 CREATE INDEX IF NOT EXISTS idx_auth_clients_is_default ON auth_clients (is_default);
 CREATE INDEX IF NOT EXISTS idx_auth_clients_created_at ON auth_clients (created_at);
 `

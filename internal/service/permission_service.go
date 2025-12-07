@@ -82,7 +82,6 @@ func NewPermissionService(
 func (s *permissionService) Get(filter PermissionServiceGetFilter) (*PermissionServiceGetResult, error) {
 	var apiID *int64
 	var roleID *int64
-	var authClientID *int64
 
 	// Get api if uuid exist
 	if filter.APIUUID != nil {
@@ -102,29 +101,26 @@ func (s *permissionService) Get(filter PermissionServiceGetFilter) (*PermissionS
 		roleID = &role.RoleID
 	}
 
-	// Get auth client if uuid exist
+	// Note: AuthClientUUID filtering is no longer supported in the new hierarchical structure
+	// Auth client permissions are now managed through the auth_client_apis -> auth_client_permissions relationship
+	// Use the auth client API endpoints instead: /clients/{auth_client_uuid}/apis/{api_uuid}/permissions
 	if filter.AuthClientUUID != nil {
-		authClient, err := s.authClientRepo.FindByUUID(*filter.AuthClientUUID)
-		if err != nil || authClient == nil {
-			return nil, errors.New("auth client not found")
-		}
-		authClientID = &authClient.AuthClientID
+		return nil, errors.New("auth client filtering is no longer supported - use auth client API endpoints instead")
 	}
 
 	// Build query filter
 	queryFilter := repository.PermissionRepositoryGetFilter{
-		Name:         filter.Name,
-		Description:  filter.Description,
-		APIID:        apiID,
-		RoleID:       roleID,
-		AuthClientID: authClientID,
-		Status:       filter.Status,
-		IsDefault:    filter.IsDefault,
-		IsSystem:     filter.IsSystem,
-		Page:         filter.Page,
-		Limit:        filter.Limit,
-		SortBy:       filter.SortBy,
-		SortOrder:    filter.SortOrder,
+		Name:        filter.Name,
+		Description: filter.Description,
+		APIID:       apiID,
+		RoleID:      roleID,
+		Status:      filter.Status,
+		IsDefault:   filter.IsDefault,
+		IsSystem:    filter.IsSystem,
+		Page:        filter.Page,
+		Limit:       filter.Limit,
+		SortBy:      filter.SortBy,
+		SortOrder:   filter.SortOrder,
 	}
 
 	result, err := s.permissionRepo.FindPaginated(queryFilter)

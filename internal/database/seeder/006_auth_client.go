@@ -29,8 +29,9 @@ func SeedAuthClients(db *gorm.DB, identityProviderID int64) error {
 				"response_type": "code",
 				"pkce": false
 			}`)),
-			IsActive:           true,
+			Status:             "active",
 			IsDefault:          true,
+			IsSystem:           true,
 			IdentityProviderID: identityProviderID,
 			CreatedAt:          time.Now(),
 			UpdatedAt:          time.Now(),
@@ -48,8 +49,9 @@ func SeedAuthClients(db *gorm.DB, identityProviderID int64) error {
 				"response_type": "code",
 				"pkce": true
 			}`)),
-			IsActive:           true,
+			Status:             "active",
 			IsDefault:          true,
+			IsSystem:           true,
 			IdentityProviderID: identityProviderID,
 			CreatedAt:          time.Now(),
 			UpdatedAt:          time.Now(),
@@ -57,8 +59,8 @@ func SeedAuthClients(db *gorm.DB, identityProviderID int64) error {
 		{
 			AuthClientUUID: uuid.New(),
 			Name:           "mobile-default",
-			DisplayName:    "Native Mobile App Default",
-			ClientType:     "native",
+			DisplayName:    "Mobile App Default",
+			ClientType:     "mobile",
 			Domain:         strPtr(appHostName),
 			ClientID:       strPtr(util.GenerateIdentifier(32)),
 			ClientSecret:   nil,
@@ -67,8 +69,9 @@ func SeedAuthClients(db *gorm.DB, identityProviderID int64) error {
 				"response_type": "code",
 				"pkce": true
 			}`)),
-			IsActive:           true,
+			Status:             "active",
 			IsDefault:          true,
+			IsSystem:           true,
 			IdentityProviderID: identityProviderID,
 			CreatedAt:          time.Now(),
 			UpdatedAt:          time.Now(),
@@ -84,8 +87,9 @@ func SeedAuthClients(db *gorm.DB, identityProviderID int64) error {
 			Config: datatypes.JSON([]byte(`{
 				"grant_types": ["client_credentials"]
 			}`)),
-			IsActive:           true,
+			Status:             "active",
 			IsDefault:          true,
+			IsSystem:           true,
 			IdentityProviderID: identityProviderID,
 			CreatedAt:          time.Now(),
 			UpdatedAt:          time.Now(),

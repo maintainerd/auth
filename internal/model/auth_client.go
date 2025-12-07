@@ -18,16 +18,17 @@ type AuthClient struct {
 	ClientID           *string        `gorm:"column:client_id"`
 	ClientSecret       *string        `gorm:"column:client_secret"`
 	Config             datatypes.JSON `gorm:"column:config"`
-	IsActive           bool           `gorm:"column:is_active;default:false"`
+	Status             string         `gorm:"column:status;default:'inactive'"`
 	IsDefault          bool           `gorm:"column:is_default;default:false"`
+	IsSystem           bool           `gorm:"column:is_system;default:false"`
 	IdentityProviderID int64          `gorm:"column:identity_provider_id"`
 	CreatedAt          time.Time      `gorm:"column:created_at;autoCreateTime"`
 	UpdatedAt          time.Time      `gorm:"column:updated_at;autoUpdateTime"`
 
 	// Relationships
-	IdentityProvider       *IdentityProvider        `gorm:"foreignKey:IdentityProviderID;references:IdentityProviderID"`
-	AuthClientRedirectURIs *[]AuthClientRedirectURI `gorm:"foreignKey:AuthClientID;references:AuthClientID"`
-	Permissions            *[]Permission            `gorm:"many2many:auth_client_permissions;joinForeignKey:AuthClientID;joinReferences:PermissionID"`
+	IdentityProvider *IdentityProvider `gorm:"foreignKey:IdentityProviderID;references:IdentityProviderID"`
+	AuthClientURIs   *[]AuthClientURI  `gorm:"foreignKey:AuthClientID;references:AuthClientID"`
+	AuthClientApis   *[]AuthClientApi  `gorm:"foreignKey:AuthClientID;references:AuthClientID"`
 }
 
 func (AuthClient) TableName() string {
