@@ -113,7 +113,7 @@ func (s *loginService) LoginPublic(usernameOrEmail, password, clientID, provider
 		}
 
 		if authClient == nil ||
-			!authClient.IsActive ||
+			authClient.Status != "active" ||
 			authClient.Domain == nil || *authClient.Domain == "" {
 			util.LogSecurityEvent(util.SecurityEvent{
 				EventType: "login_invalid_client",
@@ -249,7 +249,7 @@ func (s *loginService) Login(usernameOrEmail, password string, clientID, provide
 		}
 
 		if authClient == nil ||
-			!authClient.IsActive ||
+			authClient.Status != "active" ||
 			authClient.Domain == nil || *authClient.Domain == "" {
 			util.LogSecurityEvent(util.SecurityEvent{
 				EventType: "login_invalid_client",

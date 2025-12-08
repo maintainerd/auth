@@ -20,9 +20,9 @@ type Permission struct {
 	UpdatedAt      time.Time `gorm:"column:updated_at;autoUpdateTime"`
 
 	// Relationships
-	API         *API         `gorm:"foreignKey:APIID;references:APIID"`
-	Roles       []Role       `gorm:"many2many:role_permissions;joinForeignKey:PermissionID;joinReferences:RoleID"`
-	AuthClients []AuthClient `gorm:"many2many:auth_client_permissions;joinForeignKey:PermissionID;joinReferences:AuthClientID"`
+	API                   *API                   `gorm:"foreignKey:APIID;references:APIID"`
+	Roles                 []Role                 `gorm:"many2many:role_permissions;joinForeignKey:PermissionID;joinReferences:RoleID"`
+	AuthClientPermissions []AuthClientPermission `gorm:"foreignKey:PermissionID;references:PermissionID"`
 }
 
 func (Permission) TableName() string {

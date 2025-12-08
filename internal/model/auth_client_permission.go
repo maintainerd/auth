@@ -10,13 +10,13 @@ import (
 type AuthClientPermission struct {
 	AuthClientPermissionID   int64     `gorm:"column:auth_client_permission_id;primaryKey"`
 	AuthClientPermissionUUID uuid.UUID `gorm:"column:auth_client_permission_uuid"`
-	AuthClientID             int64     `gorm:"column:auth_client_id"`
+	AuthClientApiID          int64     `gorm:"column:auth_client_api_id"`
 	PermissionID             int64     `gorm:"column:permission_id"`
 	CreatedAt                time.Time `gorm:"column:created_at;autoCreateTime"`
 
 	// Relationships
-	AuthClient *AuthClient `gorm:"foreignKey:AuthClientID;references:AuthClientID"`
-	Permission *Permission `gorm:"foreignKey:PermissionID;references:PermissionID"`
+	AuthClientApi *AuthClientApi `gorm:"foreignKey:AuthClientApiID;references:AuthClientApiID"`
+	Permission    *Permission    `gorm:"foreignKey:PermissionID;references:PermissionID"`
 }
 
 func (AuthClientPermission) TableName() string {

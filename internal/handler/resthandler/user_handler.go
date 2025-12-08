@@ -370,8 +370,9 @@ func toUserResponseDto(u service.UserServiceDataResult) dto.UserResponseDto {
 					DisplayName:    ui.AuthClient.DisplayName,
 					ClientType:     ui.AuthClient.ClientType,
 					Domain:         ui.AuthClient.Domain,
-					IsActive:       ui.AuthClient.IsActive,
+					Status:         ui.AuthClient.Status,
 					IsDefault:      ui.AuthClient.IsDefault,
+					IsSystem:       ui.AuthClient.IsSystem,
 					CreatedAt:      ui.AuthClient.CreatedAt,
 					UpdatedAt:      ui.AuthClient.UpdatedAt,
 				}

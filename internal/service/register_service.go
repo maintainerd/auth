@@ -124,7 +124,7 @@ func (s *registerService) RegisterPublic(
 			return txErr
 		}
 		if authClient == nil ||
-			!authClient.IsActive ||
+			authClient.Status != "active" ||
 			authClient.Domain == nil || *authClient.Domain == "" {
 			return errors.New("invalid or inactive auth client")
 		}
@@ -307,7 +307,7 @@ func (s *registerService) Register(
 		}
 
 		if authClient == nil ||
-			!authClient.IsActive ||
+			authClient.Status != "active" ||
 			authClient.Domain == nil || *authClient.Domain == "" {
 			return errors.New("auth client not found or inactive")
 		}
@@ -452,7 +452,7 @@ func (s *registerService) RegisterInvite(
 		}
 
 		if authClient == nil ||
-			!authClient.IsActive ||
+			authClient.Status != "active" ||
 			authClient.Domain == nil || *authClient.Domain == "" {
 			return errors.New("auth client not found or inactive")
 		}
@@ -588,7 +588,7 @@ func (s *registerService) RegisterInvitePublic(
 			return txErr
 		}
 		if authClient == nil ||
-			!authClient.IsActive ||
+			authClient.Status != "active" ||
 			authClient.Domain == nil || *authClient.Domain == "" {
 			return errors.New("invalid or inactive auth client")
 		}
