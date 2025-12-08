@@ -577,7 +577,7 @@ func toUserServiceDataResult(user *model.User) *UserServiceDataResult {
 			}
 			// Map AuthClient if present
 			if ui.AuthClient != nil {
-				userIdentities[i].AuthClient = toAuthClientServiceDataResult(ui.AuthClient)
+				userIdentities[i].AuthClient = ToAuthClientServiceDataResult(ui.AuthClient)
 			}
 		}
 		result.UserIdentities = &userIdentities

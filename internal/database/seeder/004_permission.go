@@ -136,17 +136,26 @@ func SeedPermissions(db *gorm.DB, apiID int64) error {
 		newPermission("idp:delete", "Delete identity provider", apiID),
 
 		// Auth Clients
-		newPermission("auth_client:read", "Read auth clients", apiID),
-		newPermission("auth_client:secret:read", "Get auth client secret", apiID),
-		newPermission("auth_client:config:read", "Get auth client configurations", apiID),
-		newPermission("auth_client:create", "Create auth client", apiID),
-		newPermission("auth_client:update", "Update auth client", apiID),
-		newPermission("auth_client:delete", "Delete auth client", apiID),
-		newPermission("auth_client:redirect_uri:create", "Create auth client redirect URI", apiID),
-		newPermission("auth_client:redirect_uri:update", "Update auth client redirect URI", apiID),
-		newPermission("auth_client:redirect_uri:delete", "Delete auth client redirect URI", apiID),
-		newPermission("auth_client:permission:create", "Add permissions to auth client", apiID),
-		newPermission("auth_client:permission:delete", "Remove permissions from auth client", apiID),
+		newPermission("client:read", "Read auth clients", apiID),
+		newPermission("client:secret:read", "Get auth client secret", apiID),
+		newPermission("client:config:read", "Get auth client configurations", apiID),
+		newPermission("client:create", "Create auth client", apiID),
+		newPermission("client:update", "Update auth client", apiID),
+		newPermission("client:delete", "Delete auth client", apiID),
+		newPermission("client:uri:read", "Read auth client URIs", apiID),
+		newPermission("client:uri:create", "Create auth client URI", apiID),
+		newPermission("client:uri:update", "Update auth client URI", apiID),
+		newPermission("client:uri:delete", "Delete auth client URI", apiID),
+
+		// Auth Client API Management
+		newPermission("client:api:read", "Read APIs assigned to auth client", apiID),
+		newPermission("client:api:create", "Add APIs to auth client", apiID),
+		newPermission("client:api:delete", "Remove APIs from auth client", apiID),
+
+		// Auth Client API Permissions
+		newPermission("client:api:permission:read", "Read permissions for auth client API", apiID),
+		newPermission("client:api:permission:create", "Add permissions to auth client API", apiID),
+		newPermission("client:api:permission:delete", "Remove permissions from auth client API", apiID),
 
 		// User Administration
 		newPermission("user:read", "Read users", apiID),

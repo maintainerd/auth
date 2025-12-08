@@ -18,27 +18,45 @@ type AuthClientConfigResponseDto struct {
 	Config datatypes.JSON `json:"config"`
 }
 
-type AuthClientRedirectURIResponseDto struct {
-	AuthClientRedirectURIUUID uuid.UUID `json:"redirect_uri_id"`
-	RedirectURI               string    `json:"redirect_uri"`
-	CreatedAt                 time.Time `json:"created_at"`
-	UpdatedAt                 time.Time `json:"updated_at"`
+type AuthClientURIResponseDto struct {
+	AuthClientURIUUID uuid.UUID `json:"uri_id"`
+	URI               string    `json:"uri"`
+	Type              string    `json:"type"`
+	CreatedAt         time.Time `json:"created_at"`
+	UpdatedAt         time.Time `json:"updated_at"`
+}
+
+type AuthClientURIsResponseDto struct {
+	URIs []AuthClientURIResponseDto `json:"uris"`
+}
+
+type AuthClientApisResponseDto struct {
+	APIs []AuthClientApiResponseDto `json:"apis"`
+}
+
+type AuthClientApiPermissionsResponseDto struct {
+	Permissions []PermissionResponseDto `json:"permissions"`
+}
+
+type SuccessResponseDto struct {
+	Message string `json:"message"`
 }
 
 // Auth client output structure
 type AuthClientResponseDto struct {
-	AuthClientUUID   uuid.UUID                          `json:"client_id"`
-	Name             string                             `json:"name"`
-	DisplayName      string                             `json:"display_name"`
-	ClientType       string                             `json:"client_type"`
-	Domain           *string                            `json:"domain,omitempty"`
-	RedirectURIs     []AuthClientRedirectURIResponseDto `json:"redirect_uris,omitempty"`
-	IdentityProvider *IdentityProviderResponseDto       `json:"identity_provider,omitempty"`
-	Permissions      *[]PermissionResponseDto           `json:"permissions,omitempty"`
-	IsActive         bool                               `json:"is_active"`
-	IsDefault        bool                               `json:"is_default"`
-	CreatedAt        time.Time                          `json:"created_at"`
-	UpdatedAt        time.Time                          `json:"updated_at"`
+	AuthClientUUID   uuid.UUID                    `json:"client_id"`
+	Name             string                       `json:"name"`
+	DisplayName      string                       `json:"display_name"`
+	ClientType       string                       `json:"client_type"`
+	Domain           *string                      `json:"domain,omitempty"`
+	URIs             []AuthClientURIResponseDto   `json:"uris,omitempty"`
+	IdentityProvider *IdentityProviderResponseDto `json:"identity_provider,omitempty"`
+	Permissions      *[]PermissionResponseDto     `json:"permissions,omitempty"`
+	Status           string                       `json:"status"`
+	IsDefault        bool                         `json:"is_default"`
+	IsSystem         bool                         `json:"is_system"`
+	CreatedAt        time.Time                    `json:"created_at"`
+	UpdatedAt        time.Time                    `json:"updated_at"`
 }
 
 // Create auth client request DTO
@@ -48,7 +66,7 @@ type AuthClientCreateRequestDto struct {
 	ClientType           string         `json:"client_type"`
 	Domain               string         `json:"domain"`
 	Config               datatypes.JSON `json:"config"`
-	IsActive             bool           `json:"is_active"`
+	Status               string         `json:"status"`
 	IdentityProviderUUID string         `json:"identity_provider_id"`
 }
 
@@ -73,8 +91,9 @@ func (r AuthClientCreateRequestDto) Validate() error {
 		validation.Field(&r.Config,
 			validation.Required.Error("Config is required"),
 		),
-		validation.Field(&r.IsActive,
-			validation.In(true, false).Error("Is active is required"),
+		validation.Field(&r.Status,
+			validation.Required.Error("Status is required"),
+			validation.In("active", "inactive").Error("Status must be one of: active, inactive"),
 		),
 		validation.Field(&r.IdentityProviderUUID,
 			validation.Required.Error("Identity Provider UUID is required"),
@@ -89,7 +108,7 @@ type AuthClientUpdateRequestDto struct {
 	ClientType  string         `json:"client_type"`
 	Domain      string         `json:"domain"`
 	Config      datatypes.JSON `json:"config"`
-	IsActive    bool           `json:"is_active"`
+	Status      string         `json:"status"`
 }
 
 // Validation
@@ -113,35 +132,42 @@ func (r AuthClientUpdateRequestDto) Validate() error {
 		validation.Field(&r.Config,
 			validation.Required.Error("Config is required"),
 		),
-		validation.Field(&r.IsActive,
-			validation.In(true, false).Error("Is active is required"),
+		validation.Field(&r.Status,
+			validation.Required.Error("Status is required"),
+			validation.In("active", "inactive").Error("Status must be one of: active, inactive"),
 		),
 	)
 }
 
-// Create or update auth client redirect uri request DTO
-type AuthClientRedirectURICreateOrUpdateRequestDto struct {
-	RedirectURI string `json:"redirect_uri"`
+// Create or update auth client URI request DTO
+type AuthClientURICreateOrUpdateRequestDto struct {
+	URI  string `json:"uri"`
+	Type string `json:"type"`
 }
 
 // Validation
-func (r AuthClientRedirectURICreateOrUpdateRequestDto) Validate() error {
+func (r AuthClientURICreateOrUpdateRequestDto) Validate() error {
 	return validation.ValidateStruct(&r,
-		validation.Field(&r.RedirectURI,
-			validation.Required.Error("Redirect URI is required"),
-			validation.Length(5, 200).Error("Redirect URI must be between 5 and 200 characters"),
+		validation.Field(&r.URI,
+			validation.Required.Error("URI is required"),
+			validation.Length(5, 200).Error("URI must be between 5 and 200 characters"),
+		),
+		validation.Field(&r.Type,
+			validation.Required.Error("Type is required"),
+			validation.In("redirect-uri", "origin-uri", "logout-uri", "login-uri", "cors-origin-uri").Error("Type must be one of: redirect-uri, origin-uri, logout-uri, login-uri, cors-origin-uri"),
 		),
 	)
 }
 
 // Auth client listing / filter DTO
 type AuthClientFilterDto struct {
-	Name                 *string `json:"name"`
-	DisplayName          *string `json:"display_name"`
-	ClientType           *string `json:"client_type"`
-	IdentityProviderUUID *string `json:"identity_provider_uuid"`
-	IsActive             *bool   `json:"is_active"`
-	IsDefault            *bool   `json:"is_default"`
+	Name                 *string  `json:"name"`
+	DisplayName          *string  `json:"display_name"`
+	ClientType           []string `json:"client_type"`
+	IdentityProviderUUID *string  `json:"identity_provider_id"`
+	Status               []string `json:"status"`
+	IsDefault            *bool    `json:"is_default"`
+	IsSystem             *bool    `json:"is_system"`
 
 	// Pagination and sorting
 	PaginationRequestDto
@@ -155,6 +181,42 @@ type AuthClientAddPermissionsRequestDto struct {
 func (r AuthClientAddPermissionsRequestDto) Validate() error {
 	return validation.ValidateStruct(&r,
 		validation.Field(&r.Permissions,
+			validation.Required.Error("Permission UUIDs are required"),
+			validation.Each(is.UUID.Error("Invalid UUID provided")),
+		),
+	)
+}
+
+// Auth Client API DTOs
+type AuthClientApiResponseDto struct {
+	AuthClientApiUUID uuid.UUID               `json:"auth_client_api_id"`
+	Api               APIResponseDto          `json:"api"`
+	Permissions       []PermissionResponseDto `json:"permissions,omitempty"`
+	CreatedAt         time.Time               `json:"created_at"`
+}
+
+// Add APIs to auth client request dto
+type AddAuthClientApisRequest struct {
+	ApiUUIDs []uuid.UUID `json:"api_uuids"`
+}
+
+func (r AddAuthClientApisRequest) Validate() error {
+	return validation.ValidateStruct(&r,
+		validation.Field(&r.ApiUUIDs,
+			validation.Required.Error("API UUIDs are required"),
+			validation.Each(is.UUID.Error("Invalid UUID provided")),
+		),
+	)
+}
+
+// Add permissions to auth client API request dto
+type AddAuthClientApiPermissionsRequest struct {
+	PermissionUUIDs []uuid.UUID `json:"permission_uuids"`
+}
+
+func (r AddAuthClientApiPermissionsRequest) Validate() error {
+	return validation.ValidateStruct(&r,
+		validation.Field(&r.PermissionUUIDs,
 			validation.Required.Error("Permission UUIDs are required"),
 			validation.Each(is.UUID.Error("Invalid UUID provided")),
 		),

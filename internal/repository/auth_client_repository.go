@@ -11,9 +11,10 @@ import (
 type AuthClientRepositoryGetFilter struct {
 	Name               *string
 	DisplayName        *string
-	ClientType         *string
-	IsActive           *bool
+	ClientType         []string
+	Status             []string
 	IsDefault          *bool
+	IsSystem           *bool
 	IdentityProviderID *int64
 	Page               int
 	Limit              int
@@ -30,7 +31,7 @@ type AuthClientRepository interface {
 	FindDefault() (*model.AuthClient, error)
 	FindDefaultByTenantID(tenantID int64) (*model.AuthClient, error)
 	FindPaginated(filter AuthClientRepositoryGetFilter) (*PaginationResult[model.AuthClient], error)
-	SetActiveStatusByUUID(authClientUUID uuid.UUID, isActive bool) error
+	SetStatusByUUID(authClientUUID uuid.UUID, status string) error
 	FindByClientIDAndIdentityProvider(clientID, identityProviderIdentifier string) (*model.AuthClient, error)
 }
 
@@ -86,7 +87,7 @@ func (r *authClientRepository) FindDefault() (*model.AuthClient, error) {
 	var client model.AuthClient
 	err := r.db.
 		Joins("JOIN identity_providers ON identity_providers.identity_provider_id = auth_clients.identity_provider_id").
-		Where("auth_clients.is_default = ? AND auth_clients.is_active = ?", true, true).
+		Where("auth_clients.is_default = ? AND auth_clients.status = ?", true, "active").
 		Where("auth_clients.client_type = ?", "traditional").
 		Where("identity_providers.status = ?", "active").
 		Preload("IdentityProvider").
@@ -100,7 +101,7 @@ func (r *authClientRepository) FindDefaultByTenantID(tenantID int64) (*model.Aut
 	var client model.AuthClient
 	err := r.db.
 		Joins("JOIN identity_providers ON identity_providers.identity_provider_id = auth_clients.identity_provider_id").
-		Where("identity_providers.tenant_id = ? AND auth_clients.is_default = true AND auth_clients.is_active = true", tenantID).
+		Where("identity_providers.tenant_id = ? AND auth_clients.is_default = true AND auth_clients.status = ?", tenantID, "active").
 		First(&client).Error
 
 	if err != nil {
@@ -125,14 +126,17 @@ func (r *authClientRepository) FindPaginated(filter AuthClientRepositoryGetFilte
 	}
 
 	// Filters with exact match
-	if filter.IsActive != nil {
-		query = query.Where("is_active = ?", *filter.IsActive)
+	if len(filter.Status) > 0 {
+		query = query.Where("status IN ?", filter.Status)
 	}
 	if filter.IsDefault != nil {
 		query = query.Where("is_default = ?", *filter.IsDefault)
 	}
-	if filter.ClientType != nil {
-		query = query.Where("client_type = ?", *filter.ClientType)
+	if filter.IsSystem != nil {
+		query = query.Where("is_system = ?", *filter.IsSystem)
+	}
+	if filter.ClientType != nil && len(filter.ClientType) > 0 {
+		query = query.Where("client_type IN ?", filter.ClientType)
 	}
 	if filter.IdentityProviderID != nil {
 		query = query.Where("identity_provider_id = ?", *filter.IdentityProviderID)
@@ -153,7 +157,7 @@ func (r *authClientRepository) FindPaginated(filter AuthClientRepositoryGetFilte
 	var clients []model.AuthClient
 	if err := query.
 		Preload("IdentityProvider").
-		Preload("AuthClientRedirectURIs").
+		Preload("AuthClientURIs").
 		Limit(filter.Limit).
 		Offset(offset).
 		Find(&clients).Error; err != nil {
@@ -171,10 +175,10 @@ func (r *authClientRepository) FindPaginated(filter AuthClientRepositoryGetFilte
 	}, nil
 }
 
-func (r *authClientRepository) SetActiveStatusByUUID(authClientUUID uuid.UUID, isActive bool) error {
+func (r *authClientRepository) SetStatusByUUID(authClientUUID uuid.UUID, status string) error {
 	return r.db.Model(&model.AuthClient{}).
 		Where("auth_client_uuid = ?", authClientUUID).
-		Update("is_active", isActive).Error
+		Update("status", status).Error
 }
 
 func (r *authClientRepository) FindByClientIDAndIdentityProvider(clientID, identityProviderIdentifier string) (*model.AuthClient, error) {
@@ -183,7 +187,7 @@ func (r *authClientRepository) FindByClientIDAndIdentityProvider(clientID, ident
 	err := r.db.
 		Joins("JOIN identity_providers ON identity_providers.identity_provider_id = auth_clients.identity_provider_id").
 		Where("auth_clients.client_id = ? AND identity_providers.identifier = ?", clientID, identityProviderIdentifier).
-		Where("auth_clients.is_active = true AND identity_providers.status = ?", "active").
+		Where("auth_clients.status = ? AND identity_providers.status = ?", "active", "active").
 		Preload("IdentityProvider.Tenant").
 		Preload("IdentityProvider").
 		First(&client).Error

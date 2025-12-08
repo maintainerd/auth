@@ -2,6 +2,7 @@ package service
 
 import (
 	"errors"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -21,35 +22,45 @@ type AuthClientConfigServiceDataResult struct {
 	Config datatypes.JSON
 }
 
-type AuthClientRedirectURIServiceDataResult struct {
-	AuthClientRedirectURIUUID uuid.UUID
-	RedirectURI               string
-	CreatedAt                 time.Time
-	UpdatedAt                 time.Time
+type AuthClientURIServiceDataResult struct {
+	AuthClientURIUUID uuid.UUID
+	URI               string
+	Type              string
+	CreatedAt         time.Time
+	UpdatedAt         time.Time
 }
 
 type AuthClientServiceDataResult struct {
-	AuthClientUUID         uuid.UUID
-	Name                   string
-	DisplayName            string
-	ClientType             string
-	Domain                 *string
-	AuthClientRedirectURIs *[]AuthClientRedirectURIServiceDataResult
-	IdentityProvider       *IdentityProviderServiceDataResult
-	Permissions            *[]PermissionServiceDataResult
-	IsActive               bool
-	IsDefault              bool
-	CreatedAt              time.Time
-	UpdatedAt              time.Time
+	AuthClientUUID   uuid.UUID
+	Name             string
+	DisplayName      string
+	ClientType       string
+	Domain           *string
+	AuthClientURIs   *[]AuthClientURIServiceDataResult
+	IdentityProvider *IdentityProviderServiceDataResult
+	Permissions      *[]PermissionServiceDataResult
+	Status           string
+	IsDefault        bool
+	IsSystem         bool
+	CreatedAt        time.Time
+	UpdatedAt        time.Time
+}
+
+type AuthClientApiServiceDataResult struct {
+	AuthClientApiUUID uuid.UUID
+	Api               APIServiceDataResult
+	Permissions       []PermissionServiceDataResult
+	CreatedAt         time.Time
 }
 
 type AuthClientServiceGetFilter struct {
 	Name                 *string
 	DisplayName          *string
-	ClientType           *string
+	ClientType           []string
 	IdentityProviderUUID *string
-	IsActive             *bool
+	Status               []string
 	IsDefault            *bool
+	IsSystem             *bool
 	Page                 int
 	Limit                int
 	SortBy               string
@@ -69,47 +80,61 @@ type AuthClientService interface {
 	GetByUUID(authClientUUID uuid.UUID) (*AuthClientServiceDataResult, error)
 	GetSecretByUUID(authClientUUID uuid.UUID) (*AuthClientSecretServiceDataResult, error)
 	GetConfigByUUID(authClientUUID uuid.UUID) (*AuthClientConfigServiceDataResult, error)
-	Create(name string, displayName string, clientType string, domain string, config datatypes.JSON, isActive bool, isDefault bool, identityProviderUUID string, actorUserUUID uuid.UUID) (*AuthClientServiceDataResult, error)
-	Update(authClientUUID uuid.UUID, name string, displayName string, clientType string, domain string, config datatypes.JSON, isActive bool, isDefault bool, actorUserUUID uuid.UUID) (*AuthClientServiceDataResult, error)
-	SetActiveStatusByUUID(authClientUUID uuid.UUID, actorUserUUID uuid.UUID) (*AuthClientServiceDataResult, error)
+	Create(name string, displayName string, clientType string, domain string, config datatypes.JSON, status string, isDefault bool, identityProviderUUID string, actorUserUUID uuid.UUID) (*AuthClientServiceDataResult, error)
+	Update(authClientUUID uuid.UUID, name string, displayName string, clientType string, domain string, config datatypes.JSON, status string, isDefault bool, actorUserUUID uuid.UUID) (*AuthClientServiceDataResult, error)
+	SetStatusByUUID(authClientUUID uuid.UUID, status string, actorUserUUID uuid.UUID) (*AuthClientServiceDataResult, error)
 	DeleteByUUID(authClientUUID uuid.UUID, actorUserUUID uuid.UUID) (*AuthClientServiceDataResult, error)
-	CreateRedirectURI(authClientUUID uuid.UUID, redirectURI string, actorUserUUID uuid.UUID) (*AuthClientServiceDataResult, error)
-	UpdateRedirectURI(authClientUUID uuid.UUID, authClientRedirectURIUUID uuid.UUID, redirectURI string, actorUserUUID uuid.UUID) (*AuthClientServiceDataResult, error)
-	DeleteRedirectURI(authClientUUID uuid.UUID, authClientRedirectURIUUID uuid.UUID, actorUserUUID uuid.UUID) (*AuthClientServiceDataResult, error)
-	AddAuthClientPermissions(authClientUUID uuid.UUID, permissionUUIDs []uuid.UUID, actorUserUUID uuid.UUID) (*AuthClientServiceDataResult, error)
-	RemoveAuthClientPermissions(authClientUUID uuid.UUID, permissionUUID uuid.UUID, actorUserUUID uuid.UUID) (*AuthClientServiceDataResult, error)
+	CreateURI(authClientUUID uuid.UUID, uri string, uriType string, actorUserUUID uuid.UUID) (*AuthClientServiceDataResult, error)
+	UpdateURI(authClientUUID uuid.UUID, authClientURIUUID uuid.UUID, uri string, uriType string, actorUserUUID uuid.UUID) (*AuthClientServiceDataResult, error)
+	DeleteURI(authClientUUID uuid.UUID, authClientURIUUID uuid.UUID, actorUserUUID uuid.UUID) (*AuthClientServiceDataResult, error)
+
+	// Auth Client API methods
+	GetAuthClientApis(tenantID int64, authClientUUID uuid.UUID) ([]AuthClientApiServiceDataResult, error)
+	AddAuthClientApis(tenantID int64, authClientUUID uuid.UUID, apiUUIDs []uuid.UUID) error
+	RemoveAuthClientApi(tenantID int64, authClientUUID uuid.UUID, apiUUID uuid.UUID) error
+
+	// Auth Client API Permission methods
+	GetAuthClientApiPermissions(tenantID int64, authClientUUID uuid.UUID, apiUUID uuid.UUID) ([]PermissionServiceDataResult, error)
+	AddAuthClientApiPermissions(tenantID int64, authClientUUID uuid.UUID, apiUUID uuid.UUID, permissionUUIDs []uuid.UUID) error
+	RemoveAuthClientApiPermission(tenantID int64, authClientUUID uuid.UUID, apiUUID uuid.UUID, permissionUUID uuid.UUID) error
 }
 
 type authClientService struct {
-	db                        *gorm.DB
-	authClientRepo            repository.AuthClientRepository
-	authClientRedirectUrlRepo repository.AuthClientRedirectURIRepository
-	idpRepo                   repository.IdentityProviderRepository
-	permissionRepo            repository.PermissionRepository
-	authClientPermissionRepo  repository.AuthClientPermissionRepository
-	userRepo                  repository.UserRepository
-	tenantRepo                repository.TenantRepository
+	db                       *gorm.DB
+	authClientRepo           repository.AuthClientRepository
+	authClientUriRepo        repository.AuthClientURIRepository
+	idpRepo                  repository.IdentityProviderRepository
+	permissionRepo           repository.PermissionRepository
+	authClientPermissionRepo repository.AuthClientPermissionRepository
+	authClientApiRepo        repository.AuthClientApiRepository
+	apiRepo                  repository.APIRepository
+	userRepo                 repository.UserRepository
+	tenantRepo               repository.TenantRepository
 }
 
 func NewAuthClientService(
 	db *gorm.DB,
 	authClientRepo repository.AuthClientRepository,
-	authClientRedirectUrlRepo repository.AuthClientRedirectURIRepository,
+	authClientUriRepo repository.AuthClientURIRepository,
 	idpRepo repository.IdentityProviderRepository,
 	permissionRepo repository.PermissionRepository,
 	authClientPermissionRepo repository.AuthClientPermissionRepository,
+	authClientApiRepo repository.AuthClientApiRepository,
+	apiRepo repository.APIRepository,
 	userRepo repository.UserRepository,
 	tenantRepo repository.TenantRepository,
 ) AuthClientService {
 	return &authClientService{
-		db:                        db,
-		authClientRepo:            authClientRepo,
-		authClientRedirectUrlRepo: authClientRedirectUrlRepo,
-		idpRepo:                   idpRepo,
-		permissionRepo:            permissionRepo,
-		authClientPermissionRepo:  authClientPermissionRepo,
-		userRepo:                  userRepo,
-		tenantRepo:                tenantRepo,
+		db:                       db,
+		authClientRepo:           authClientRepo,
+		authClientUriRepo:        authClientUriRepo,
+		idpRepo:                  idpRepo,
+		permissionRepo:           permissionRepo,
+		authClientPermissionRepo: authClientPermissionRepo,
+		authClientApiRepo:        authClientApiRepo,
+		apiRepo:                  apiRepo,
+		userRepo:                 userRepo,
+		tenantRepo:               tenantRepo,
 	}
 }
 
@@ -120,7 +145,14 @@ func (s *authClientService) Get(filter AuthClientServiceGetFilter) (*AuthClientS
 	if filter.IdentityProviderUUID != nil {
 		idp, err := s.idpRepo.FindByUUID(*filter.IdentityProviderUUID)
 		if err != nil || idp == nil {
-			return nil, errors.New("identity provider not found")
+			// Return empty result instead of error when identity provider not found
+			return &AuthClientServiceGetResult{
+				Data:       []AuthClientServiceDataResult{},
+				Total:      0,
+				Page:       filter.Page,
+				Limit:      filter.Limit,
+				TotalPages: 0,
+			}, nil
 		}
 		idpID = &idp.IdentityProviderID
 	}
@@ -131,8 +163,9 @@ func (s *authClientService) Get(filter AuthClientServiceGetFilter) (*AuthClientS
 		DisplayName:        filter.DisplayName,
 		ClientType:         filter.ClientType,
 		IdentityProviderID: idpID,
-		IsActive:           filter.IsActive,
+		Status:             filter.Status,
 		IsDefault:          filter.IsDefault,
+		IsSystem:           filter.IsSystem,
 		Page:               filter.Page,
 		Limit:              filter.Limit,
 		SortBy:             filter.SortBy,
@@ -147,7 +180,7 @@ func (s *authClientService) Get(filter AuthClientServiceGetFilter) (*AuthClientS
 	// Build response data
 	resData := make([]AuthClientServiceDataResult, len(result.Data))
 	for i, rdata := range result.Data {
-		resData[i] = *toAuthClientServiceDataResult(&rdata)
+		resData[i] = *ToAuthClientServiceDataResult(&rdata)
 	}
 
 	return &AuthClientServiceGetResult{
@@ -160,12 +193,12 @@ func (s *authClientService) Get(filter AuthClientServiceGetFilter) (*AuthClientS
 }
 
 func (s *authClientService) GetByUUID(authClientUUID uuid.UUID) (*AuthClientServiceDataResult, error) {
-	authClient, err := s.authClientRepo.FindByUUID(authClientUUID, "IdentityProvider", "AuthClientRedirectURIs")
+	authClient, err := s.authClientRepo.FindByUUID(authClientUUID, "IdentityProvider", "AuthClientURIs")
 	if err != nil || authClient == nil {
 		return nil, errors.New("auth client not found")
 	}
 
-	return toAuthClientServiceDataResult(authClient), nil
+	return ToAuthClientServiceDataResult(authClient), nil
 }
 
 func (s *authClientService) GetSecretByUUID(authClientUUID uuid.UUID) (*AuthClientSecretServiceDataResult, error) {
@@ -191,7 +224,7 @@ func (s *authClientService) GetConfigByUUID(authClientUUID uuid.UUID) (*AuthClie
 	}, nil
 }
 
-func (s *authClientService) Create(name string, displayName string, clientType string, domain string, config datatypes.JSON, isActive bool, isDefault bool, identityProviderUUID string, actorUserUUID uuid.UUID) (*AuthClientServiceDataResult, error) {
+func (s *authClientService) Create(name string, displayName string, clientType string, domain string, config datatypes.JSON, status string, isDefault bool, identityProviderUUID string, actorUserUUID uuid.UUID) (*AuthClientServiceDataResult, error) {
 	var createdAuthClient *model.AuthClient
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
@@ -245,8 +278,9 @@ func (s *authClientService) Create(name string, displayName string, clientType s
 			ClientSecret:       &clientSecret,
 			Config:             config,
 			IdentityProviderID: identityProvider.IdentityProviderID,
-			IsActive:           isActive,
+			Status:             status,
 			IsDefault:          isDefault,
+			IsSystem:           false,
 		}
 
 		_, err = txAuthClientRepo.CreateOrUpdate(newAuthClient)
@@ -255,7 +289,7 @@ func (s *authClientService) Create(name string, displayName string, clientType s
 		}
 
 		// Fetch AuthClient with Service preloaded
-		createdAuthClient, err = txAuthClientRepo.FindByUUID(newAuthClient.AuthClientUUID, "IdentityProvider", "AuthClientRedirectURIs")
+		createdAuthClient, err = txAuthClientRepo.FindByUUID(newAuthClient.AuthClientUUID, "IdentityProvider", "AuthClientURIs")
 		if err != nil {
 			return err
 		}
@@ -267,10 +301,10 @@ func (s *authClientService) Create(name string, displayName string, clientType s
 		return nil, err
 	}
 
-	return toAuthClientServiceDataResult(createdAuthClient), nil
+	return ToAuthClientServiceDataResult(createdAuthClient), nil
 }
 
-func (s *authClientService) Update(authClientUUID uuid.UUID, name string, displayName string, clientType string, domain string, config datatypes.JSON, isActive bool, isDefault bool, actorUserUUID uuid.UUID) (*AuthClientServiceDataResult, error) {
+func (s *authClientService) Update(authClientUUID uuid.UUID, name string, displayName string, clientType string, domain string, config datatypes.JSON, status string, isDefault bool, actorUserUUID uuid.UUID) (*AuthClientServiceDataResult, error) {
 	var updatedAuthClient *model.AuthClient
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
@@ -278,7 +312,7 @@ func (s *authClientService) Update(authClientUUID uuid.UUID, name string, displa
 		txUserRepo := s.userRepo.WithTx(tx)
 
 		// Get auth client
-		authClient, err := txAuthClientRepo.FindByUUID(authClientUUID, "IdentityProvider.Tenant", "AuthClientRedirectURIs")
+		authClient, err := txAuthClientRepo.FindByUUID(authClientUUID, "IdentityProvider.Tenant", "AuthClientURIs")
 		if err != nil || authClient == nil {
 			return errors.New("auth client not found")
 		}
@@ -316,7 +350,7 @@ func (s *authClientService) Update(authClientUUID uuid.UUID, name string, displa
 		authClient.ClientType = clientType
 		authClient.Domain = &domain
 		authClient.Config = config
-		authClient.IsActive = isActive
+		authClient.Status = status
 		authClient.IsDefault = isDefault
 
 		// Update
@@ -334,10 +368,10 @@ func (s *authClientService) Update(authClientUUID uuid.UUID, name string, displa
 		return nil, err
 	}
 
-	return toAuthClientServiceDataResult(updatedAuthClient), nil
+	return ToAuthClientServiceDataResult(updatedAuthClient), nil
 }
 
-func (s *authClientService) SetActiveStatusByUUID(authClientUUID uuid.UUID, actorUserUUID uuid.UUID) (*AuthClientServiceDataResult, error) {
+func (s *authClientService) SetStatusByUUID(authClientUUID uuid.UUID, status string, actorUserUUID uuid.UUID) (*AuthClientServiceDataResult, error) {
 	var updatedAuthClient *model.AuthClient
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
@@ -345,7 +379,7 @@ func (s *authClientService) SetActiveStatusByUUID(authClientUUID uuid.UUID, acto
 		txUserRepo := s.userRepo.WithTx(tx)
 
 		// Get auth client
-		authClient, err := txAuthClientRepo.FindByUUID(authClientUUID, "IdentityProvider.Tenant", "AuthClientRedirectURIs")
+		authClient, err := txAuthClientRepo.FindByUUID(authClientUUID, "IdentityProvider.Tenant", "AuthClientURIs")
 		if err != nil || authClient == nil {
 			return errors.New("auth client not found")
 		}
@@ -361,13 +395,16 @@ func (s *authClientService) SetActiveStatusByUUID(authClientUUID uuid.UUID, acto
 			return err
 		}
 
-		// Check if default
+		// Check if default or system
 		if authClient.IsDefault {
-			return errors.New("default auth client cannot cannot be updated")
+			return errors.New("default auth client cannot be updated")
+		}
+		if authClient.IsSystem {
+			return errors.New("system auth client cannot be updated")
 		}
 
 		// Set values
-		authClient.IsActive = !authClient.IsActive
+		authClient.Status = status
 
 		// Update
 		_, err = txAuthClientRepo.CreateOrUpdate(authClient)
@@ -384,7 +421,7 @@ func (s *authClientService) SetActiveStatusByUUID(authClientUUID uuid.UUID, acto
 		return nil, err
 	}
 
-	return toAuthClientServiceDataResult(updatedAuthClient), nil
+	return ToAuthClientServiceDataResult(updatedAuthClient), nil
 }
 
 func (s *authClientService) DeleteByUUID(authClientUUID uuid.UUID, actorUserUUID uuid.UUID) (*AuthClientServiceDataResult, error) {
@@ -395,7 +432,7 @@ func (s *authClientService) DeleteByUUID(authClientUUID uuid.UUID, actorUserUUID
 		txUserRepo := s.userRepo.WithTx(tx)
 
 		// Get auth client
-		authClient, err := txAuthClientRepo.FindByUUID(authClientUUID, "IdentityProvider.Tenant", "AuthClientRedirectURIs")
+		authClient, err := txAuthClientRepo.FindByUUID(authClientUUID, "IdentityProvider.Tenant", "AuthClientURIs")
 		if err != nil || authClient == nil {
 			return errors.New("auth client not found")
 		}
@@ -430,15 +467,15 @@ func (s *authClientService) DeleteByUUID(authClientUUID uuid.UUID, actorUserUUID
 		return nil, err
 	}
 
-	return toAuthClientServiceDataResult(deletedAuthClient), nil
+	return ToAuthClientServiceDataResult(deletedAuthClient), nil
 }
 
-func (s *authClientService) CreateRedirectURI(authClientUUID uuid.UUID, redirectURI string, actorUserUUID uuid.UUID) (*AuthClientServiceDataResult, error) {
+func (s *authClientService) CreateURI(authClientUUID uuid.UUID, uri string, uriType string, actorUserUUID uuid.UUID) (*AuthClientServiceDataResult, error) {
 	var createdAuthClient *model.AuthClient
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
 		txAuthClientRepo := s.authClientRepo.WithTx(tx)
-		txRedirectURIRepo := s.authClientRedirectUrlRepo.WithTx(tx)
+		txURIRepo := s.authClientUriRepo.WithTx(tx)
 		txUserRepo := s.userRepo.WithTx(tx)
 
 		// Find the auth client by UUID
@@ -458,19 +495,20 @@ func (s *authClientService) CreateRedirectURI(authClientUUID uuid.UUID, redirect
 			return err
 		}
 
-		// Create the redirect URI entry
-		newRedirectURI := &model.AuthClientRedirectURI{
+		// Create the URI entry
+		newURI := &model.AuthClientURI{
 			AuthClientID: authClient.AuthClientID,
-			RedirectURI:  redirectURI,
+			URI:          uri,
+			Type:         uriType,
 		}
 
-		_, err = txRedirectURIRepo.CreateOrUpdate(newRedirectURI)
+		_, err = txURIRepo.CreateOrUpdate(newURI)
 		if err != nil {
 			return err
 		}
 
-		// Find the auth client updated with the new redirect URI
-		authClientCreated, err := txAuthClientRepo.FindByUUID(authClientUUID, "IdentityProvider", "AuthClientRedirectURIs")
+		// Find the auth client updated with the new URI
+		authClientCreated, err := txAuthClientRepo.FindByUUID(authClientUUID, "IdentityProvider", "AuthClientURIs")
 		if err != nil || authClientCreated == nil {
 			return errors.New("auth client not found")
 		}
@@ -484,15 +522,15 @@ func (s *authClientService) CreateRedirectURI(authClientUUID uuid.UUID, redirect
 		return nil, err
 	}
 
-	return toAuthClientServiceDataResult(createdAuthClient), nil
+	return ToAuthClientServiceDataResult(createdAuthClient), nil
 }
 
-func (s *authClientService) UpdateRedirectURI(authClientUUID uuid.UUID, authClientRedirectURIUUID uuid.UUID, redirectURI string, actorUserUUID uuid.UUID) (*AuthClientServiceDataResult, error) {
+func (s *authClientService) UpdateURI(authClientUUID uuid.UUID, authClientURIUUID uuid.UUID, uri string, uriType string, actorUserUUID uuid.UUID) (*AuthClientServiceDataResult, error) {
 	var updatedAuthClient *model.AuthClient
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
 		txAuthClientRepo := s.authClientRepo.WithTx(tx)
-		txRedirectURIRepo := s.authClientRedirectUrlRepo.WithTx(tx)
+		txURIRepo := s.authClientUriRepo.WithTx(tx)
 		txUserRepo := s.userRepo.WithTx(tx)
 
 		// Find the auth client by UUID
@@ -512,28 +550,29 @@ func (s *authClientService) UpdateRedirectURI(authClientUUID uuid.UUID, authClie
 			return err
 		}
 
-		// Find the redirect URI entry by UUID
-		existingRedirectURI, err := txRedirectURIRepo.FindByUUID(authClientRedirectURIUUID)
-		if err != nil || existingRedirectURI == nil {
-			return errors.New("redirect URI not found")
+		// Find the URI entry by UUID
+		existingURI, err := txURIRepo.FindByUUID(authClientURIUUID)
+		if err != nil || existingURI == nil {
+			return errors.New("URI not found")
 		}
 
-		// Check if the redirect URI belongs to the auth client
-		if existingRedirectURI.AuthClientID != authClient.AuthClientID {
-			return errors.New("redirect URI does not belong to the specified auth client")
+		// Check if the URI belongs to the auth client
+		if existingURI.AuthClientID != authClient.AuthClientID {
+			return errors.New("URI does not belong to the specified auth client")
 		}
 
-		// Set new value
-		existingRedirectURI.RedirectURI = redirectURI
+		// Set new values
+		existingURI.URI = uri
+		existingURI.Type = uriType
 
 		// Update
-		_, err = txRedirectURIRepo.CreateOrUpdate(existingRedirectURI)
+		_, err = txURIRepo.CreateOrUpdate(existingURI)
 		if err != nil {
 			return err
 		}
 
-		// Find the auth client updated with the new redirect URI
-		authClientUpdated, err := txAuthClientRepo.FindByUUID(authClientUUID, "IdentityProvider", "AuthClientRedirectURIs")
+		// Find the auth client updated with the new URI
+		authClientUpdated, err := txAuthClientRepo.FindByUUID(authClientUUID, "IdentityProvider", "AuthClientURIs")
 		if err != nil || authClientUpdated == nil {
 			return errors.New("auth client not found")
 		}
@@ -547,19 +586,19 @@ func (s *authClientService) UpdateRedirectURI(authClientUUID uuid.UUID, authClie
 		return nil, err
 	}
 
-	return toAuthClientServiceDataResult(updatedAuthClient), nil
+	return ToAuthClientServiceDataResult(updatedAuthClient), nil
 }
 
-func (s *authClientService) DeleteRedirectURI(authClientUUID uuid.UUID, authClientRedirectURIUUID uuid.UUID, actorUserUUID uuid.UUID) (*AuthClientServiceDataResult, error) {
+func (s *authClientService) DeleteURI(authClientUUID uuid.UUID, authClientURIUUID uuid.UUID, actorUserUUID uuid.UUID) (*AuthClientServiceDataResult, error) {
 	var deletedAuthClient *model.AuthClient
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
 		txAuthClientRepo := s.authClientRepo.WithTx(tx)
-		txRedirectURIRepo := s.authClientRedirectUrlRepo.WithTx(tx)
+		txURIRepo := s.authClientUriRepo.WithTx(tx)
 		txUserRepo := s.userRepo.WithTx(tx)
 
 		// Find the auth client by UUID
-		authClient, err := txAuthClientRepo.FindByUUID(authClientUUID, "IdentityProvider.Tenant", "AuthClientRedirectURIs")
+		authClient, err := txAuthClientRepo.FindByUUID(authClientUUID, "IdentityProvider.Tenant", "AuthClientURIs")
 		if err != nil || authClient == nil {
 			return errors.New("auth client not found")
 		}
@@ -575,19 +614,19 @@ func (s *authClientService) DeleteRedirectURI(authClientUUID uuid.UUID, authClie
 			return err
 		}
 
-		// Find the redirect URI entry by UUID
-		existingRedirectURI, err := txRedirectURIRepo.FindByUUID(authClientRedirectURIUUID)
-		if err != nil || existingRedirectURI == nil {
-			return errors.New("redirect URI not found")
+		// Find the URI entry by UUID
+		existingURI, err := txURIRepo.FindByUUID(authClientURIUUID)
+		if err != nil || existingURI == nil {
+			return errors.New("URI not found")
 		}
 
-		// Check if the redirect URI belongs to the auth client
-		if existingRedirectURI.AuthClientID != authClient.AuthClientID {
-			return errors.New("redirect URI does not belong to the specified auth client")
+		// Check if the URI belongs to the auth client
+		if existingURI.AuthClientID != authClient.AuthClientID {
+			return errors.New("URI does not belong to the specified auth client")
 		}
 
 		// Delete the entry
-		if err := txRedirectURIRepo.DeleteByUUID(authClientRedirectURIUUID); err != nil {
+		if err := txURIRepo.DeleteByUUID(authClientURIUUID); err != nil {
 			return err
 		}
 
@@ -600,174 +639,11 @@ func (s *authClientService) DeleteRedirectURI(authClientUUID uuid.UUID, authClie
 		return nil, err
 	}
 
-	return toAuthClientServiceDataResult(deletedAuthClient), nil
+	return ToAuthClientServiceDataResult(deletedAuthClient), nil
 }
 
-func (s *authClientService) AddAuthClientPermissions(authClientUUID uuid.UUID, permissionUUIDs []uuid.UUID, actorUserUUID uuid.UUID) (*AuthClientServiceDataResult, error) {
-	var authClientWithPermissions *model.AuthClient
-
-	err := s.db.Transaction(func(tx *gorm.DB) error {
-		txAuthClientRepo := s.authClientRepo.WithTx(tx)
-		txPermissionRepo := s.permissionRepo.WithTx(tx)
-		txAuthClientPermissionRepo := s.authClientPermissionRepo.WithTx(tx)
-		txUserRepo := s.userRepo.WithTx(tx)
-
-		// Find existing auth client
-		authClient, err := txAuthClientRepo.FindByUUID(authClientUUID, "IdentityProvider.Tenant")
-		if err != nil {
-			return err
-		}
-		if authClient == nil {
-			return errors.New("auth client not found")
-		}
-
-		// Get actor user with tenant info
-		actorUser, err := txUserRepo.FindByUUID(actorUserUUID, "Tenant")
-		if err != nil || actorUser == nil {
-			return errors.New("actor user not found")
-		}
-
-		// Validate tenant access permissions
-		if err := ValidateTenantAccess(actorUser, authClient.IdentityProvider.Tenant); err != nil {
-			return err
-		}
-
-		// Convert UUIDs to strings for the repository method
-		permissionUUIDStrings := make([]string, len(permissionUUIDs))
-		for i, uuid := range permissionUUIDs {
-			permissionUUIDStrings[i] = uuid.String()
-		}
-
-		// Find permissions by UUIDs
-		permissions, err := txPermissionRepo.FindByUUIDs(permissionUUIDStrings)
-		if err != nil {
-			return err
-		}
-
-		// Validate that all permissions were found
-		if len(permissions) != len(permissionUUIDs) {
-			return errors.New("one or more permissions not found")
-		}
-
-		// Create auth client-permission associations using the dedicated repository
-		for _, permission := range permissions {
-			// Check if association already exists
-			existing, err := txAuthClientPermissionRepo.FindByAuthClientAndPermission(authClient.AuthClientID, permission.PermissionID)
-			if err != nil {
-				return err
-			}
-
-			// Skip if association already exists
-			if existing != nil {
-				continue
-			}
-
-			// Create new auth client-permission association
-			authClientPermission := &model.AuthClientPermission{
-				AuthClientID: authClient.AuthClientID,
-				PermissionID: permission.PermissionID,
-			}
-
-			_, err = txAuthClientPermissionRepo.Create(authClientPermission)
-			if err != nil {
-				return err
-			}
-		}
-
-		// Fetch the auth client with permissions for the response
-		authClientWithPermissions, err = txAuthClientRepo.FindByUUID(authClientUUID, "Permissions")
-		if err != nil {
-			return err
-		}
-
-		return nil
-	})
-
-	if err != nil {
-		return nil, err
-	}
-
-	return toAuthClientServiceDataResult(authClientWithPermissions), nil
-}
-
-func (s *authClientService) RemoveAuthClientPermissions(authClientUUID uuid.UUID, permissionUUID uuid.UUID, actorUserUUID uuid.UUID) (*AuthClientServiceDataResult, error) {
-	var authClientWithPermissions *model.AuthClient
-
-	err := s.db.Transaction(func(tx *gorm.DB) error {
-		txAuthClientRepo := s.authClientRepo.WithTx(tx)
-		txPermissionRepo := s.permissionRepo.WithTx(tx)
-		txAuthClientPermissionRepo := s.authClientPermissionRepo.WithTx(tx)
-		txUserRepo := s.userRepo.WithTx(tx)
-
-		// Find existing auth client
-		authClient, err := txAuthClientRepo.FindByUUID(authClientUUID, "IdentityProvider.Tenant")
-		if err != nil {
-			return err
-		}
-		if authClient == nil {
-			return errors.New("auth client not found")
-		}
-
-		// Get actor user with tenant info
-		actorUser, err := txUserRepo.FindByUUID(actorUserUUID, "Tenant")
-		if err != nil || actorUser == nil {
-			return errors.New("actor user not found")
-		}
-
-		// Validate tenant access permissions
-		if err := ValidateTenantAccess(actorUser, authClient.IdentityProvider.Tenant); err != nil {
-			return err
-		}
-
-		// Find permission by UUID
-		permission, err := txPermissionRepo.FindByUUID(permissionUUID.String())
-		if err != nil {
-			return err
-		}
-		if permission == nil {
-			return errors.New("permission not found")
-		}
-
-		// Check if association exists
-		existing, err := txAuthClientPermissionRepo.FindByAuthClientAndPermission(authClient.AuthClientID, permission.PermissionID)
-		if err != nil {
-			return err
-		}
-
-		// Skip if association doesn't exist
-		if existing == nil {
-			// Association doesn't exist, but we'll still return success for idempotency
-			authClientWithPermissions, err = txAuthClientRepo.FindByUUID(authClientUUID, "Permissions")
-			if err != nil {
-				return err
-			}
-			return nil
-		}
-
-		// Remove the auth client-permission association
-		err = txAuthClientPermissionRepo.RemoveByAuthClientAndPermission(authClient.AuthClientID, permission.PermissionID)
-		if err != nil {
-			return err
-		}
-
-		// Fetch the auth client with permissions for the response
-		authClientWithPermissions, err = txAuthClientRepo.FindByUUID(authClientUUID, "Permissions")
-		if err != nil {
-			return err
-		}
-
-		return nil
-	})
-
-	if err != nil {
-		return nil, err
-	}
-
-	return toAuthClientServiceDataResult(authClientWithPermissions), nil
-}
-
-// Reponse builder
-func toAuthClientServiceDataResult(authClient *model.AuthClient) *AuthClientServiceDataResult {
+// Response builder - made public for use in other services
+func ToAuthClientServiceDataResult(authClient *model.AuthClient) *AuthClientServiceDataResult {
 	if authClient == nil {
 		return nil
 	}
@@ -778,8 +654,9 @@ func toAuthClientServiceDataResult(authClient *model.AuthClient) *AuthClientServ
 		DisplayName:    authClient.DisplayName,
 		ClientType:     authClient.ClientType,
 		Domain:         authClient.Domain,
-		IsActive:       authClient.IsActive,
+		Status:         authClient.Status,
 		IsDefault:      authClient.IsDefault,
+		IsSystem:       authClient.IsSystem,
 		CreatedAt:      authClient.CreatedAt,
 		UpdatedAt:      authClient.UpdatedAt,
 	}
@@ -800,36 +677,336 @@ func toAuthClientServiceDataResult(authClient *model.AuthClient) *AuthClientServ
 		}
 	}
 
-	// Map Redirect URIs
-	if authClient.AuthClientRedirectURIs != nil && len(*authClient.AuthClientRedirectURIs) > 0 {
-		redirects := make([]AuthClientRedirectURIServiceDataResult, len(*authClient.AuthClientRedirectURIs))
-		for i, r := range *authClient.AuthClientRedirectURIs {
-			redirects[i] = AuthClientRedirectURIServiceDataResult{
-				AuthClientRedirectURIUUID: r.AuthClientRedirectURIUUID,
-				RedirectURI:               r.RedirectURI,
-				CreatedAt:                 r.CreatedAt,
-				UpdatedAt:                 r.UpdatedAt,
+	// Map URIs
+	if authClient.AuthClientURIs != nil && len(*authClient.AuthClientURIs) > 0 {
+		uris := make([]AuthClientURIServiceDataResult, len(*authClient.AuthClientURIs))
+		for i, u := range *authClient.AuthClientURIs {
+			uris[i] = AuthClientURIServiceDataResult{
+				AuthClientURIUUID: u.AuthClientURIUUID,
+				URI:               u.URI,
+				Type:              u.Type,
+				CreatedAt:         u.CreatedAt,
+				UpdatedAt:         u.UpdatedAt,
 			}
 		}
-		result.AuthClientRedirectURIs = &redirects
+		result.AuthClientURIs = &uris
 	}
 
-	// Map Permissions if present
-	if authClient.Permissions != nil {
-		permissions := make([]PermissionServiceDataResult, len(*authClient.Permissions))
-		for i, permission := range *authClient.Permissions {
-			permissions[i] = PermissionServiceDataResult{
-				PermissionUUID: permission.PermissionUUID,
-				Name:           permission.Name,
-				Description:    permission.Description,
-				Status:         permission.Status,
-				IsDefault:      permission.IsDefault,
-				CreatedAt:      permission.CreatedAt,
-				UpdatedAt:      permission.UpdatedAt,
-			}
-		}
-		result.Permissions = &permissions
-	}
+	// TODO: Permissions are now accessed via AuthClientApis relationship
+	// This will be implemented when we complete the new API structure
 
 	return result
+}
+
+// Get APIs assigned to auth client
+func (s *authClientService) GetAuthClientApis(tenantID int64, authClientUUID uuid.UUID) ([]AuthClientApiServiceDataResult, error) {
+	// Get auth client APIs from repository
+	authClientApis, err := s.authClientApiRepo.FindByAuthClientUUID(authClientUUID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Convert to service data results
+	results := make([]AuthClientApiServiceDataResult, len(authClientApis))
+	for i, authClientApi := range authClientApis {
+		// Convert API to service data
+		apiResult := APIServiceDataResult{
+			APIUUID:     authClientApi.API.APIUUID,
+			Name:        authClientApi.API.Name,
+			DisplayName: authClientApi.API.DisplayName,
+			Description: authClientApi.API.Description,
+			Status:      authClientApi.API.Status,
+			IsDefault:   authClientApi.API.IsDefault,
+			IsSystem:    authClientApi.API.IsSystem,
+			CreatedAt:   authClientApi.API.CreatedAt,
+			UpdatedAt:   authClientApi.API.UpdatedAt,
+		}
+
+		// Convert permissions to service data
+		permissions := make([]PermissionServiceDataResult, len(authClientApi.Permissions))
+		for j, authClientPermission := range authClientApi.Permissions {
+			if authClientPermission.Permission != nil {
+				permissions[j] = PermissionServiceDataResult{
+					PermissionUUID: authClientPermission.Permission.PermissionUUID,
+					Name:           authClientPermission.Permission.Name,
+					Description:    authClientPermission.Permission.Description,
+					Status:         authClientPermission.Permission.Status,
+					IsDefault:      authClientPermission.Permission.IsDefault,
+					IsSystem:       authClientPermission.Permission.IsSystem,
+					CreatedAt:      authClientPermission.Permission.CreatedAt,
+					UpdatedAt:      authClientPermission.Permission.UpdatedAt,
+				}
+			}
+		}
+
+		results[i] = AuthClientApiServiceDataResult{
+			AuthClientApiUUID: authClientApi.AuthClientApiUUID,
+			Api:               apiResult,
+			Permissions:       permissions,
+			CreatedAt:         authClientApi.CreatedAt,
+		}
+	}
+
+	return results, nil
+}
+
+// Add APIs to auth client
+func (s *authClientService) AddAuthClientApis(tenantID int64, authClientUUID uuid.UUID, apiUUIDs []uuid.UUID) error {
+	return s.db.Transaction(func(tx *gorm.DB) error {
+		authClientRepo := s.authClientRepo.WithTx(tx)
+		authClientApiRepo := s.authClientApiRepo.WithTx(tx)
+		apiRepo := s.apiRepo.WithTx(tx)
+
+		// Get auth client with identity provider
+		authClient, err := authClientRepo.FindByUUID(authClientUUID, "IdentityProvider")
+		if err != nil {
+			return err
+		}
+		if authClient == nil {
+			return errors.New("auth client not found")
+		}
+
+		// Validate tenant access
+		if authClient.IdentityProvider == nil || authClient.IdentityProvider.TenantID != tenantID {
+			return errors.New("unauthorized access to auth client")
+		}
+
+		// Process each API UUID
+		for _, apiUUID := range apiUUIDs {
+			// Get API
+			api, err := apiRepo.FindByUUID(apiUUID)
+			if err != nil {
+				return err
+			}
+			if api == nil {
+				return errors.New("API not found: " + apiUUID.String())
+			}
+
+			// Check if relationship already exists
+			existing, err := authClientApiRepo.FindByAuthClientAndApi(authClient.AuthClientID, api.APIID)
+			if err != nil {
+				return err
+			}
+			if existing != nil {
+				return errors.New("API already assigned to auth client: " + apiUUID.String())
+			}
+
+			// Create new auth client API relationship
+			authClientApi := &model.AuthClientApi{
+				AuthClientApiUUID: uuid.New(),
+				AuthClientID:      authClient.AuthClientID,
+				APIID:             api.APIID,
+			}
+
+			_, err = authClientApiRepo.Create(authClientApi)
+			if err != nil {
+				// Check if it's a unique constraint violation
+				if strings.Contains(err.Error(), "uq_auth_client_apis_client_api") {
+					return errors.New("API already assigned to auth client: " + apiUUID.String())
+				}
+				return err
+			}
+		}
+
+		return nil
+	})
+}
+
+// Remove API from auth client
+func (s *authClientService) RemoveAuthClientApi(tenantID int64, authClientUUID uuid.UUID, apiUUID uuid.UUID) error {
+	return s.db.Transaction(func(tx *gorm.DB) error {
+		authClientRepo := s.authClientRepo.WithTx(tx)
+		authClientApiRepo := s.authClientApiRepo.WithTx(tx)
+
+		// Get auth client with identity provider
+		authClient, err := authClientRepo.FindByUUID(authClientUUID, "IdentityProvider")
+		if err != nil {
+			return err
+		}
+		if authClient == nil {
+			return errors.New("auth client not found")
+		}
+
+		// Validate tenant access
+		if authClient.IdentityProvider == nil || authClient.IdentityProvider.TenantID != tenantID {
+			return errors.New("unauthorized access to auth client")
+		}
+
+		// Remove the API relationship (this will cascade delete permissions)
+		err = authClientApiRepo.RemoveByAuthClientUUIDAndApiUUID(authClientUUID, apiUUID)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
+}
+
+// Get permissions for a specific API assigned to auth client
+func (s *authClientService) GetAuthClientApiPermissions(tenantID int64, authClientUUID uuid.UUID, apiUUID uuid.UUID) ([]PermissionServiceDataResult, error) {
+	// Get auth client API relationship
+	authClientApi, err := s.authClientApiRepo.FindByAuthClientUUIDAndApiUUID(authClientUUID, apiUUID)
+	if err != nil {
+		return nil, err
+	}
+	if authClientApi == nil {
+		return nil, errors.New("auth client API relationship not found")
+	}
+
+	// Validate tenant access
+	authClient, err := s.authClientRepo.FindByUUID(authClientUUID, "IdentityProvider")
+	if err != nil {
+		return nil, err
+	}
+	if authClient == nil {
+		return nil, errors.New("auth client not found")
+	}
+	if authClient.IdentityProvider == nil || authClient.IdentityProvider.TenantID != tenantID {
+		return nil, errors.New("unauthorized access to auth client")
+	}
+
+	// Get permissions for this auth client API
+	authClientPermissions, err := s.authClientPermissionRepo.FindByAuthClientApiID(authClientApi.AuthClientApiID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Convert to service data results
+	results := make([]PermissionServiceDataResult, len(authClientPermissions))
+	for i, authClientPermission := range authClientPermissions {
+		results[i] = PermissionServiceDataResult{
+			PermissionUUID: authClientPermission.Permission.PermissionUUID,
+			Name:           authClientPermission.Permission.Name,
+			Description:    authClientPermission.Permission.Description,
+			Status:         authClientPermission.Permission.Status,
+			IsDefault:      authClientPermission.Permission.IsDefault,
+			IsSystem:       authClientPermission.Permission.IsSystem,
+			CreatedAt:      authClientPermission.Permission.CreatedAt,
+			UpdatedAt:      authClientPermission.Permission.UpdatedAt,
+		}
+	}
+
+	return results, nil
+}
+
+// Add permissions to a specific API for auth client
+func (s *authClientService) AddAuthClientApiPermissions(tenantID int64, authClientUUID uuid.UUID, apiUUID uuid.UUID, permissionUUIDs []uuid.UUID) error {
+	return s.db.Transaction(func(tx *gorm.DB) error {
+		authClientRepo := s.authClientRepo.WithTx(tx)
+		authClientApiRepo := s.authClientApiRepo.WithTx(tx)
+		authClientPermissionRepo := s.authClientPermissionRepo.WithTx(tx)
+		permissionRepo := s.permissionRepo.WithTx(tx)
+
+		// Get auth client with identity provider
+		authClient, err := authClientRepo.FindByUUID(authClientUUID, "IdentityProvider")
+		if err != nil {
+			return err
+		}
+		if authClient == nil {
+			return errors.New("auth client not found")
+		}
+
+		// Validate tenant access
+		if authClient.IdentityProvider == nil || authClient.IdentityProvider.TenantID != tenantID {
+			return errors.New("unauthorized access to auth client")
+		}
+
+		// Get auth client API relationship
+		authClientApi, err := authClientApiRepo.FindByAuthClientUUIDAndApiUUID(authClientUUID, apiUUID)
+		if err != nil {
+			return err
+		}
+		if authClientApi == nil {
+			return errors.New("auth client API relationship not found")
+		}
+
+		// Process each permission UUID
+		for _, permissionUUID := range permissionUUIDs {
+			// Get permission
+			permission, err := permissionRepo.FindByUUID(permissionUUID)
+			if err != nil {
+				return err
+			}
+			if permission == nil {
+				return errors.New("permission not found: " + permissionUUID.String())
+			}
+
+			// Check if relationship already exists
+			existing, err := authClientPermissionRepo.FindByAuthClientApiAndPermission(authClientApi.AuthClientApiID, permission.PermissionID)
+			if err != nil {
+				return err
+			}
+			if existing != nil {
+				return errors.New("permission already assigned to auth client API: " + permissionUUID.String())
+			}
+
+			// Create new auth client permission relationship
+			authClientPermission := &model.AuthClientPermission{
+				AuthClientPermissionUUID: uuid.New(),
+				AuthClientApiID:          authClientApi.AuthClientApiID,
+				PermissionID:             permission.PermissionID,
+			}
+
+			_, err = authClientPermissionRepo.Create(authClientPermission)
+			if err != nil {
+				// Check if it's a unique constraint violation
+				if strings.Contains(err.Error(), "uq_auth_client_permissions_api_permission") {
+					return errors.New("permission already assigned to auth client API: " + permissionUUID.String())
+				}
+				return err
+			}
+		}
+
+		return nil
+	})
+}
+
+// Remove permission from a specific API for auth client
+func (s *authClientService) RemoveAuthClientApiPermission(tenantID int64, authClientUUID uuid.UUID, apiUUID uuid.UUID, permissionUUID uuid.UUID) error {
+	return s.db.Transaction(func(tx *gorm.DB) error {
+		authClientRepo := s.authClientRepo.WithTx(tx)
+		authClientApiRepo := s.authClientApiRepo.WithTx(tx)
+		authClientPermissionRepo := s.authClientPermissionRepo.WithTx(tx)
+		permissionRepo := s.permissionRepo.WithTx(tx)
+
+		// Get auth client with identity provider
+		authClient, err := authClientRepo.FindByUUID(authClientUUID, "IdentityProvider")
+		if err != nil {
+			return err
+		}
+		if authClient == nil {
+			return errors.New("auth client not found")
+		}
+
+		// Validate tenant access
+		if authClient.IdentityProvider == nil || authClient.IdentityProvider.TenantID != tenantID {
+			return errors.New("unauthorized access to auth client")
+		}
+
+		// Get auth client API relationship
+		authClientApi, err := authClientApiRepo.FindByAuthClientUUIDAndApiUUID(authClientUUID, apiUUID)
+		if err != nil {
+			return err
+		}
+		if authClientApi == nil {
+			return errors.New("auth client API relationship not found")
+		}
+
+		// Get permission
+		permission, err := permissionRepo.FindByUUID(permissionUUID)
+		if err != nil {
+			return err
+		}
+		if permission == nil {
+			return errors.New("permission not found")
+		}
+
+		// Remove the permission relationship
+		err = authClientPermissionRepo.RemoveByAuthClientApiAndPermission(authClientApi.AuthClientApiID, permission.PermissionID)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
 }
