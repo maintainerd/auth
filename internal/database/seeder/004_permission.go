@@ -157,6 +157,13 @@ func SeedPermissions(db *gorm.DB, apiID int64) error {
 		newPermission("client:api:permission:create", "Add permissions to auth client API", apiID),
 		newPermission("client:api:permission:delete", "Remove permissions from auth client API", apiID),
 
+		// API Keys
+		newPermission("api_key:read", "Read API keys", apiID),
+		newPermission("api_key:config:read", "Get API key configuration", apiID),
+		newPermission("api_key:create", "Create API key", apiID),
+		newPermission("api_key:update", "Update API key and manage API/permission assignments", apiID),
+		newPermission("api_key:delete", "Delete API key", apiID),
+
 		// User Administration
 		newPermission("user:read", "Read users", apiID),
 		newPermission("user:create", "Create user", apiID),

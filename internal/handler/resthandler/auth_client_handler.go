@@ -178,17 +178,14 @@ func (h *AuthClientHandler) GetConfigByUUID(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	authClient, err := h.authClientService.GetConfigByUUID(authClientUUID)
+	authClientConfig, err := h.authClientService.GetConfigByUUID(authClientUUID)
 	if err != nil {
 		util.Error(w, http.StatusNotFound, "Auth client not found")
 		return
 	}
 
-	dtoRes := dto.AuthClientConfigResponseDto{
-		Config: authClient.Config,
-	}
-
-	util.Success(w, dtoRes, "Auth client config fetched successfully")
+	// Return config directly as data (not wrapped in DTO)
+	util.Success(w, authClientConfig, "Auth client config fetched successfully")
 }
 
 // Create Auth Client

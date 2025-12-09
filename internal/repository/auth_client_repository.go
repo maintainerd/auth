@@ -135,7 +135,7 @@ func (r *authClientRepository) FindPaginated(filter AuthClientRepositoryGetFilte
 	if filter.IsSystem != nil {
 		query = query.Where("is_system = ?", *filter.IsSystem)
 	}
-	if filter.ClientType != nil && len(filter.ClientType) > 0 {
+	if len(filter.ClientType) > 0 {
 		query = query.Where("client_type IN ?", filter.ClientType)
 	}
 	if filter.IdentityProviderID != nil {
