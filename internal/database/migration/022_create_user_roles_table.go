@@ -43,8 +43,8 @@ CREATE INDEX IF NOT EXISTS idx_user_roles_user_id ON user_roles (user_id);
 CREATE INDEX IF NOT EXISTS idx_user_roles_role_id ON user_roles (role_id);
 `
 	if err := db.Exec(sql).Error; err != nil {
-		log.Fatalf("❌ Failed to run migration 018_create_user_roles_table: %v", err)
+		log.Fatalf("❌ Failed to run migration 022_create_user_roles_table: %v", err)
 	}
 
-	log.Println("✅ Migration 018_create_user_roles_table executed")
+	log.Println("✅ Migration 022_create_user_roles_table executed")
 }

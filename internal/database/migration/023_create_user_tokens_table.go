@@ -43,8 +43,8 @@ CREATE INDEX IF NOT EXISTS idx_user_tokens_token ON user_tokens (token);
 CREATE INDEX IF NOT EXISTS idx_user_tokens_created_at ON user_tokens (created_at);
 `
 	if err := db.Exec(sql).Error; err != nil {
-		log.Fatalf("❌ Failed to run migration 019_create_user_tokens_table: %v", err)
+		log.Fatalf("❌ Failed to run migration 023_create_user_tokens_table: %v", err)
 	}
 
-	log.Println("✅ Migration 019_create_user_tokens_table executed")
+	log.Println("✅ Migration 023_create_user_tokens_table executed")
 }

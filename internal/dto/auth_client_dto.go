@@ -14,10 +14,6 @@ type AuthClientSecretResponseDto struct {
 	ClientSecret *string `json:"client_secret"`
 }
 
-type AuthClientConfigResponseDto struct {
-	Config datatypes.JSON `json:"config"`
-}
-
 type AuthClientURIResponseDto struct {
 	AuthClientURIUUID uuid.UUID `json:"uri_id"`
 	URI               string    `json:"uri"`

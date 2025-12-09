@@ -18,10 +18,6 @@ type AuthClientSecretServiceDataResult struct {
 	ClientSecret *string
 }
 
-type AuthClientConfigServiceDataResult struct {
-	Config datatypes.JSON
-}
-
 type AuthClientURIServiceDataResult struct {
 	AuthClientURIUUID uuid.UUID
 	URI               string
@@ -79,7 +75,7 @@ type AuthClientService interface {
 	Get(filter AuthClientServiceGetFilter) (*AuthClientServiceGetResult, error)
 	GetByUUID(authClientUUID uuid.UUID) (*AuthClientServiceDataResult, error)
 	GetSecretByUUID(authClientUUID uuid.UUID) (*AuthClientSecretServiceDataResult, error)
-	GetConfigByUUID(authClientUUID uuid.UUID) (*AuthClientConfigServiceDataResult, error)
+	GetConfigByUUID(authClientUUID uuid.UUID) (datatypes.JSON, error)
 	Create(name string, displayName string, clientType string, domain string, config datatypes.JSON, status string, isDefault bool, identityProviderUUID string, actorUserUUID uuid.UUID) (*AuthClientServiceDataResult, error)
 	Update(authClientUUID uuid.UUID, name string, displayName string, clientType string, domain string, config datatypes.JSON, status string, isDefault bool, actorUserUUID uuid.UUID) (*AuthClientServiceDataResult, error)
 	SetStatusByUUID(authClientUUID uuid.UUID, status string, actorUserUUID uuid.UUID) (*AuthClientServiceDataResult, error)
@@ -213,15 +209,13 @@ func (s *authClientService) GetSecretByUUID(authClientUUID uuid.UUID) (*AuthClie
 	}, nil
 }
 
-func (s *authClientService) GetConfigByUUID(authClientUUID uuid.UUID) (*AuthClientConfigServiceDataResult, error) {
+func (s *authClientService) GetConfigByUUID(authClientUUID uuid.UUID) (datatypes.JSON, error) {
 	authClient, err := s.authClientRepo.FindByUUID(authClientUUID)
 	if err != nil || authClient == nil {
 		return nil, errors.New("auth client not found")
 	}
 
-	return &AuthClientConfigServiceDataResult{
-		Config: authClient.Config,
-	}, nil
+	return authClient.Config, nil
 }
 
 func (s *authClientService) Create(name string, displayName string, clientType string, domain string, config datatypes.JSON, status string, isDefault bool, identityProviderUUID string, actorUserUUID uuid.UUID) (*AuthClientServiceDataResult, error) {
