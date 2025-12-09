@@ -35,6 +35,14 @@ BEGIN
             ADD CONSTRAINT fk_auth_client_apis_api_id FOREIGN KEY (api_id)
             REFERENCES apis(api_id) ON DELETE CASCADE;
     END IF;
+
+    -- Add unique constraint to prevent duplicate auth_client + api combinations
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint WHERE conname = 'uq_auth_client_apis_client_api'
+    ) THEN
+        ALTER TABLE auth_client_apis
+            ADD CONSTRAINT uq_auth_client_apis_client_api UNIQUE (auth_client_id, api_id);
+    END IF;
 END$$;
 
 -- ADD INDEXES
