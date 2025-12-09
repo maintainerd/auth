@@ -50,8 +50,8 @@ CREATE INDEX IF NOT EXISTS idx_role_permissions_role_id ON role_permissions (rol
 CREATE INDEX IF NOT EXISTS idx_role_permissions_permission_id ON role_permissions (permission_id);
 `
 	if err := db.Exec(sql).Error; err != nil {
-		log.Fatalf("❌ Failed to run migration 015_create_role_permissions_table: %v", err)
+		log.Fatalf("❌ Failed to run migration 019_create_role_permissions_table: %v", err)
 	}
 
-	log.Println("✅ Migration 015_create_role_permissions_table executed")
+	log.Println("✅ Migration 019_create_role_permissions_table executed")
 }

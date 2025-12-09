@@ -30,6 +30,7 @@ type App struct {
 	ForgotPasswordRestHandler   *resthandler.ForgotPasswordHandler
 	ResetPasswordRestHandler    *resthandler.ResetPasswordHandler
 	SetupRestHandler            *resthandler.SetupHandler
+	APIKeyRestHandler           *resthandler.APIKeyHandler
 	// Grpc handler
 	SeederHandler *grpchandler.SeederHandler
 	// Repository
@@ -60,6 +61,9 @@ func NewApp(db *gorm.DB, redisClient *redis.Client) *App {
 	emailTemplateRepo := repository.NewEmailTemplateRepository(db)
 	policyRepo := repository.NewPolicyRepository(db)
 	servicePolicyRepo := repository.NewServicePolicyRepository(db)
+	apiKeyRepo := repository.NewAPIKeyRepository(db)
+	apiKeyApiRepo := repository.NewAPIKeyApiRepository(db)
+	apiKeyPermissionRepo := repository.NewAPIKeyPermissionRepository(db)
 
 	// Services
 	serviceService := service.NewServiceService(db, serviceRepo, tenantServiceRepo, apiRepo, servicePolicyRepo, policyRepo)
@@ -79,6 +83,7 @@ func NewApp(db *gorm.DB, redisClient *redis.Client) *App {
 	resetPasswordService := service.NewResetPasswordService(db, userRepo, userTokenRepo, authClientRepo)
 	setupService := service.NewSetupService(db, userRepo, tenantRepo, authClientRepo, idpRepo, roleRepo, userRoleRepo, userTokenRepo, userIdentityRepo, profileRepo)
 	policyService := service.NewPolicyService(db, policyRepo, serviceRepo, apiRepo)
+	apiKeyService := service.NewAPIKeyService(db, apiKeyRepo, apiKeyApiRepo, apiKeyPermissionRepo, apiRepo, userRepo, permissionRepo)
 
 	// Rest handlers
 	serviceRestHandler := resthandler.NewServiceHandler(serviceService)
@@ -98,6 +103,7 @@ func NewApp(db *gorm.DB, redisClient *redis.Client) *App {
 	resetPasswordRestHandler := resthandler.NewResetPasswordHandler(resetPasswordService)
 	setupRestHandler := resthandler.NewSetupHandler(setupService)
 	policyRestHandler := resthandler.NewPolicyHandler(policyService)
+	apiKeyRestHandler := resthandler.NewAPIKeyHandler(apiKeyService)
 
 	// GRPC handlers
 	seederGrpcHandler := grpchandler.NewSeederHandler(registerService)
@@ -123,6 +129,7 @@ func NewApp(db *gorm.DB, redisClient *redis.Client) *App {
 		ForgotPasswordRestHandler:   forgotPasswordRestHandler,
 		ResetPasswordRestHandler:    resetPasswordRestHandler,
 		SetupRestHandler:            setupRestHandler,
+		APIKeyRestHandler:           apiKeyRestHandler,
 		// GRPC handler
 		SeederHandler: seederGrpcHandler,
 		// Repository
