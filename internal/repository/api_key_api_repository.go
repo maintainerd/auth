@@ -134,8 +134,15 @@ func (r *apiKeyApiRepository) RemoveByAPIKeyAndApi(apiKeyID int64, apiID int64) 
 }
 
 func (r *apiKeyApiRepository) RemoveByAPIKeyUUIDAndApiUUID(apiKeyUUID uuid.UUID, apiUUID uuid.UUID) error {
-	return r.db.Joins("JOIN api_keys ON api_keys.api_key_id = api_key_apis.api_key_id").
-		Joins("JOIN apis ON apis.api_id = api_key_apis.api_id").
-		Where("api_keys.api_key_uuid = ? AND apis.api_uuid = ?", apiKeyUUID, apiUUID).
-		Delete(&model.APIKeyApi{}).Error
+	// First find the record to get its ID
+	apiKeyApi, err := r.FindByAPIKeyUUIDAndApiUUID(apiKeyUUID, apiUUID)
+	if err != nil {
+		return err
+	}
+	if apiKeyApi == nil {
+		return errors.New("API key API relationship not found")
+	}
+
+	// Delete by ID (more reliable than complex JOINs in DELETE)
+	return r.db.Delete(&model.APIKeyApi{}, apiKeyApi.APIKeyApiID).Error
 }

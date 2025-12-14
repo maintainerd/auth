@@ -182,8 +182,6 @@ func (h *APIKeyHandler) Create(w http.ResponseWriter, r *http.Request) {
 		KeyPrefix:   apiKey.KeyPrefix,
 		Key:         plainKey, // This is the actual API key that should be stored securely
 		ExpiresAt:   apiKey.ExpiresAt,
-		LastUsedAt:  apiKey.LastUsedAt,
-		UsageCount:  apiKey.UsageCount,
 		RateLimit:   apiKey.RateLimit,
 		Status:      apiKey.Status,
 		CreatedAt:   apiKey.CreatedAt,
@@ -228,6 +226,38 @@ func (h *APIKeyHandler) Update(w http.ResponseWriter, r *http.Request) {
 	util.Success(w, dtoRes, "API key updated successfully")
 }
 
+// Set API key status
+func (h *APIKeyHandler) SetStatus(w http.ResponseWriter, r *http.Request) {
+	apiKeyUUID, err := uuid.Parse(chi.URLParam(r, "api_key_uuid"))
+	if err != nil {
+		util.Error(w, http.StatusBadRequest, "Invalid API key UUID")
+		return
+	}
+
+	// Parse request body
+	var req dto.APIKeyStatusUpdateDto
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		util.Error(w, http.StatusBadRequest, "Invalid request body")
+		return
+	}
+
+	// Validate request
+	if err := req.Validate(); err != nil {
+		util.ValidationError(w, err)
+		return
+	}
+
+	apiKey, err := h.apiKeyService.SetStatusByUUID(apiKeyUUID, req.Status)
+	if err != nil {
+		util.Error(w, http.StatusInternalServerError, "Failed to update API key status")
+		return
+	}
+
+	response := toAPIKeyResponseDto(*apiKey)
+
+	util.Success(w, response, "API key status updated successfully")
+}
+
 // Delete API key
 func (h *APIKeyHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	// Get authentication context
@@ -260,8 +290,6 @@ func toAPIKeyResponseDto(r service.APIKeyServiceDataResult) dto.APIKeyResponseDt
 		Description: r.Description,
 		KeyPrefix:   r.KeyPrefix,
 		ExpiresAt:   r.ExpiresAt,
-		LastUsedAt:  r.LastUsedAt,
-		UsageCount:  r.UsageCount,
 		RateLimit:   r.RateLimit,
 		Status:      r.Status,
 		CreatedAt:   r.CreatedAt,
@@ -318,11 +346,11 @@ func (h *APIKeyHandler) GetApis(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Convert to DTO
-	apiDtos := make([]dto.APIKeyApiResponseDto, len(result.Data))
+	// Convert to DTO - return just the API objects
+	apiDtos := make([]dto.APIResponseDto, len(result.Data))
 	for i, api := range result.Data {
-		// Convert API
-		apiDto := dto.APIResponseDto{
+		// Convert API directly
+		apiDtos[i] = dto.APIResponseDto{
 			APIUUID:     api.Api.APIUUID,
 			Name:        api.Api.Name,
 			DisplayName: api.Api.DisplayName,
@@ -335,32 +363,10 @@ func (h *APIKeyHandler) GetApis(w http.ResponseWriter, r *http.Request) {
 			CreatedAt:   api.Api.CreatedAt,
 			UpdatedAt:   api.Api.UpdatedAt,
 		}
-
-		// Convert permissions
-		permissions := make([]dto.PermissionResponseDto, len(api.Permissions))
-		for j, perm := range api.Permissions {
-			permissions[j] = dto.PermissionResponseDto{
-				PermissionUUID: perm.PermissionUUID,
-				Name:           perm.Name,
-				Description:    perm.Description,
-				Status:         perm.Status,
-				IsDefault:      perm.IsDefault,
-				IsSystem:       perm.IsSystem,
-				CreatedAt:      perm.CreatedAt,
-				UpdatedAt:      perm.UpdatedAt,
-			}
-		}
-
-		apiDtos[i] = dto.APIKeyApiResponseDto{
-			APIKeyApiID: api.APIKeyApiUUID,
-			Api:         apiDto,
-			Permissions: permissions,
-			CreatedAt:   api.CreatedAt,
-		}
 	}
 
 	// Build paginated response
-	response := dto.PaginatedResponseDto[dto.APIKeyApiResponseDto]{
+	response := dto.PaginatedResponseDto[dto.APIResponseDto]{
 		Rows:       apiDtos,
 		Total:      result.Total,
 		Page:       result.Page,
@@ -494,7 +500,7 @@ func (h *APIKeyHandler) AddApiPermissions(w http.ResponseWriter, r *http.Request
 	}
 
 	// Add permissions to API key API
-	err = h.apiKeyService.AddAPIKeyApiPermissions(apiKeyUUID, apiUUID, req.Permissions)
+	err = h.apiKeyService.AddAPIKeyApiPermissions(apiKeyUUID, apiUUID, req.PermissionUUIDs)
 	if err != nil {
 		util.Error(w, http.StatusInternalServerError, "Failed to add permissions to API key API")
 		return
