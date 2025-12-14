@@ -17,12 +17,11 @@ type APIKey struct {
 	KeyPrefix   string         `gorm:"column:key_prefix"`
 	Config      datatypes.JSON `gorm:"column:config"`
 	ExpiresAt   *time.Time     `gorm:"column:expires_at"`
-	LastUsedAt  *time.Time     `gorm:"column:last_used_at"`
-	UsageCount  int            `gorm:"column:usage_count;default:0"`
-	RateLimit   *int           `gorm:"column:rate_limit"`
-	Status      string         `gorm:"column:status;default:'active'"`
-	CreatedAt   time.Time      `gorm:"column:created_at;autoCreateTime"`
-	UpdatedAt   time.Time      `gorm:"column:updated_at;autoUpdateTime"`
+
+	RateLimit *int      `gorm:"column:rate_limit"`
+	Status    string    `gorm:"column:status;default:'active'"`
+	CreatedAt time.Time `gorm:"column:created_at;autoCreateTime"`
+	UpdatedAt time.Time `gorm:"column:updated_at;autoUpdateTime"`
 
 	// Relationships
 	APIKeyApis []APIKeyApi `gorm:"foreignKey:APIKeyID;references:APIKeyID"`

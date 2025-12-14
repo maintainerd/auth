@@ -18,8 +18,8 @@ CREATE TABLE IF NOT EXISTS api_keys (
     key_prefix              VARCHAR(20) NOT NULL, -- First few characters for identification
     config                  JSONB, -- Configuration and additional fields
     expires_at              TIMESTAMPTZ,
-    last_used_at            TIMESTAMPTZ,
-    usage_count             INTEGER DEFAULT 0,
+
+
     rate_limit              INTEGER, -- Requests per minute/hour
     status                  TEXT DEFAULT 'active' CHECK (status IN ('active', 'inactive')),
     created_at              TIMESTAMPTZ DEFAULT now(),
@@ -37,7 +37,7 @@ CREATE INDEX IF NOT EXISTS idx_api_keys_key_prefix ON api_keys (key_prefix);
 CREATE INDEX IF NOT EXISTS idx_api_keys_status ON api_keys (status);
 CREATE INDEX IF NOT EXISTS idx_api_keys_expires_at ON api_keys (expires_at);
 CREATE INDEX IF NOT EXISTS idx_api_keys_created_at ON api_keys (created_at);
-CREATE INDEX IF NOT EXISTS idx_api_keys_last_used_at ON api_keys (last_used_at);
+
 `
 
 	if err := db.Exec(sql).Error; err != nil {

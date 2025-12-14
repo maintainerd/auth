@@ -34,6 +34,9 @@ func APIKeyRoute(
 		r.With(middleware.PermissionMiddleware([]string{"api_key:update"})).
 			Put("/{api_key_uuid}", apiKeyHandler.Update)
 
+		r.With(middleware.PermissionMiddleware([]string{"api_key:update"})).
+			Put("/{api_key_uuid}/status", apiKeyHandler.SetStatus)
+
 		r.With(middleware.PermissionMiddleware([]string{"api_key:delete"})).
 			Delete("/{api_key_uuid}", apiKeyHandler.Delete)
 
