@@ -16,12 +16,11 @@ type APIKeyResponseDto struct {
 	Description string     `json:"description"`
 	KeyPrefix   string     `json:"key_prefix"`
 	ExpiresAt   *time.Time `json:"expires_at"`
-	LastUsedAt  *time.Time `json:"last_used_at"`
-	UsageCount  int        `json:"usage_count"`
-	RateLimit   *int       `json:"rate_limit"`
-	Status      string     `json:"status"`
-	CreatedAt   time.Time  `json:"created_at"`
-	UpdatedAt   time.Time  `json:"updated_at"`
+
+	RateLimit *int      `json:"rate_limit"`
+	Status    string    `json:"status"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
 }
 
 // API Key API DTOs
@@ -57,14 +56,28 @@ func (r AddAPIKeyApisRequestDto) Validate() error {
 
 // Add permissions to API key API request dto
 type AddAPIKeyPermissionsRequestDto struct {
-	Permissions []uuid.UUID `json:"permissions"`
+	PermissionUUIDs []uuid.UUID `json:"permission_uuids"`
 }
 
 func (r AddAPIKeyPermissionsRequestDto) Validate() error {
 	return validation.ValidateStruct(&r,
-		validation.Field(&r.Permissions,
+		validation.Field(&r.PermissionUUIDs,
 			validation.Required.Error("Permission UUIDs are required"),
 			validation.Each(is.UUID.Error("Invalid UUID provided")),
+		),
+	)
+}
+
+// API key status update DTO
+type APIKeyStatusUpdateDto struct {
+	Status string `json:"status"`
+}
+
+func (r APIKeyStatusUpdateDto) Validate() error {
+	return validation.ValidateStruct(&r,
+		validation.Field(&r.Status,
+			validation.Required.Error("Status is required"),
+			validation.In("active", "inactive").Error("Status must be either 'active' or 'inactive'"),
 		),
 	)
 }
@@ -84,12 +97,11 @@ type APIKeyCreateResponseDto struct {
 	KeyPrefix   string     `json:"key_prefix"`
 	Key         string     `json:"key"` // The actual API key that should be stored securely
 	ExpiresAt   *time.Time `json:"expires_at"`
-	LastUsedAt  *time.Time `json:"last_used_at"`
-	UsageCount  int        `json:"usage_count"`
-	RateLimit   *int       `json:"rate_limit"`
-	Status      string     `json:"status"`
-	CreatedAt   time.Time  `json:"created_at"`
-	UpdatedAt   time.Time  `json:"updated_at"`
+
+	RateLimit *int      `json:"rate_limit"`
+	Status    string    `json:"status"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
 }
 
 // API Key API permissions response DTO
