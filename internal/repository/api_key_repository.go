@@ -24,8 +24,6 @@ type APIKeyRepository interface {
 	FindByKeyPrefix(keyPrefix string) (*model.APIKey, error)
 
 	FindPaginated(filter APIKeyRepositoryGetFilter) (*PaginationResult[model.APIKey], error)
-	UpdateLastUsed(apiKeyID int64) error
-	IncrementUsageCount(apiKeyID int64) error
 }
 
 type apiKeyRepository struct {
@@ -70,14 +68,6 @@ func (r *apiKeyRepository) FindByKeyPrefix(keyPrefix string) (*model.APIKey, err
 }
 
 // FindByUserID and FindByTenantID methods removed since those fields no longer exist
-
-func (r *apiKeyRepository) UpdateLastUsed(apiKeyID int64) error {
-	return r.db.Model(&model.APIKey{}).Where("api_key_id = ?", apiKeyID).Update("last_used_at", "NOW()").Error
-}
-
-func (r *apiKeyRepository) IncrementUsageCount(apiKeyID int64) error {
-	return r.db.Model(&model.APIKey{}).Where("api_key_id = ?", apiKeyID).Update("usage_count", gorm.Expr("usage_count + 1")).Error
-}
 
 func (r *apiKeyRepository) FindPaginated(filter APIKeyRepositoryGetFilter) (*PaginationResult[model.APIKey], error) {
 	query := r.db.Model(&model.APIKey{})

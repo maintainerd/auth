@@ -21,12 +21,11 @@ type APIKeyServiceDataResult struct {
 	KeyPrefix   string
 	Config      datatypes.JSON
 	ExpiresAt   *time.Time
-	LastUsedAt  *time.Time
-	UsageCount  int
-	RateLimit   *int
-	Status      string
-	CreatedAt   time.Time
-	UpdatedAt   time.Time
+
+	RateLimit *int
+	Status    string
+	CreatedAt time.Time
+	UpdatedAt time.Time
 }
 
 type APIKeyApiServiceDataResult struct {
@@ -70,6 +69,7 @@ type APIKeyService interface {
 	GetConfigByUUID(apiKeyUUID uuid.UUID) (datatypes.JSON, error)
 	Create(name, description string, config datatypes.JSON, expiresAt *time.Time, rateLimit *int, status string) (*APIKeyServiceDataResult, string, error)
 	Update(apiKeyUUID uuid.UUID, name, description *string, config datatypes.JSON, expiresAt *time.Time, rateLimit *int, status *string, updaterUserUUID uuid.UUID) (*APIKeyServiceDataResult, error)
+	SetStatusByUUID(apiKeyUUID uuid.UUID, status string) (*APIKeyServiceDataResult, error)
 	Delete(apiKeyUUID uuid.UUID, deleterUserUUID uuid.UUID) (*APIKeyServiceDataResult, error)
 	ValidateAPIKey(keyHash string) (*APIKeyServiceDataResult, error)
 
@@ -186,12 +186,11 @@ func (s *apiKeyService) toServiceDataResult(apiKey model.APIKey) APIKeyServiceDa
 		KeyPrefix:   apiKey.KeyPrefix,
 		Config:      apiKey.Config,
 		ExpiresAt:   apiKey.ExpiresAt,
-		LastUsedAt:  apiKey.LastUsedAt,
-		UsageCount:  apiKey.UsageCount,
-		RateLimit:   apiKey.RateLimit,
-		Status:      apiKey.Status,
-		CreatedAt:   apiKey.CreatedAt,
-		UpdatedAt:   apiKey.UpdatedAt,
+
+		RateLimit: apiKey.RateLimit,
+		Status:    apiKey.Status,
+		CreatedAt: apiKey.CreatedAt,
+		UpdatedAt: apiKey.UpdatedAt,
 	}
 
 	return result
@@ -221,8 +220,6 @@ func (s *apiKeyService) GetByUUID(apiKeyUUID uuid.UUID, requestingUserUUID uuid.
 			KeyPrefix:   apiKey.KeyPrefix,
 			Config:      apiKey.Config,
 			ExpiresAt:   apiKey.ExpiresAt,
-			LastUsedAt:  apiKey.LastUsedAt,
-			UsageCount:  apiKey.UsageCount,
 			RateLimit:   apiKey.RateLimit,
 			Status:      apiKey.Status,
 			CreatedAt:   apiKey.CreatedAt,
@@ -296,8 +293,6 @@ func (s *apiKeyService) Create(name, description string, config datatypes.JSON, 
 		KeyPrefix:   createdAPIKey.KeyPrefix,
 		Config:      createdAPIKey.Config,
 		ExpiresAt:   createdAPIKey.ExpiresAt,
-		LastUsedAt:  createdAPIKey.LastUsedAt,
-		UsageCount:  createdAPIKey.UsageCount,
 		RateLimit:   createdAPIKey.RateLimit,
 		Status:      createdAPIKey.Status,
 		CreatedAt:   createdAPIKey.CreatedAt,
@@ -308,11 +303,161 @@ func (s *apiKeyService) Create(name, description string, config datatypes.JSON, 
 }
 
 func (s *apiKeyService) Update(apiKeyUUID uuid.UUID, name, description *string, config datatypes.JSON, expiresAt *time.Time, rateLimit *int, status *string, updaterUserUUID uuid.UUID) (*APIKeyServiceDataResult, error) {
-	return nil, errors.New("not implemented")
+	var result *APIKeyServiceDataResult
+
+	err := s.db.Transaction(func(tx *gorm.DB) error {
+		// Get the API key repository
+		apiKeyRepo := s.apiKeyRepo
+
+		// Check if API key exists
+		_, err := apiKeyRepo.FindByUUID(apiKeyUUID)
+		if err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return errors.New("API key not found")
+			}
+			return err
+		}
+
+		// Prepare update data
+		updateData := make(map[string]interface{})
+		if name != nil {
+			updateData["name"] = *name
+		}
+		if description != nil {
+			updateData["description"] = *description
+		}
+		if config != nil {
+			updateData["config"] = config
+		}
+		if expiresAt != nil {
+			updateData["expires_at"] = expiresAt
+		}
+		if rateLimit != nil {
+			updateData["rate_limit"] = rateLimit
+		}
+		if status != nil {
+			updateData["status"] = *status
+		}
+
+		// Save the updated API key
+		updatedAPIKey, err := apiKeyRepo.UpdateByUUID(apiKeyUUID, updateData)
+		if err != nil {
+			return err
+		}
+
+		// Convert to service result
+		result = &APIKeyServiceDataResult{
+			APIKeyUUID:  updatedAPIKey.APIKeyUUID,
+			Name:        updatedAPIKey.Name,
+			Description: updatedAPIKey.Description,
+			KeyPrefix:   updatedAPIKey.KeyPrefix,
+			Config:      updatedAPIKey.Config,
+			ExpiresAt:   updatedAPIKey.ExpiresAt,
+			RateLimit:   updatedAPIKey.RateLimit,
+			Status:      updatedAPIKey.Status,
+			CreatedAt:   updatedAPIKey.CreatedAt,
+			UpdatedAt:   updatedAPIKey.UpdatedAt,
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	return result, nil
 }
 
 func (s *apiKeyService) Delete(apiKeyUUID uuid.UUID, deleterUserUUID uuid.UUID) (*APIKeyServiceDataResult, error) {
-	return nil, errors.New("not implemented")
+	var result *APIKeyServiceDataResult
+	err := s.db.Transaction(func(tx *gorm.DB) error {
+		apiKeyRepo := s.apiKeyRepo.WithTx(tx)
+
+		// Get API key before deletion to return its data
+		apiKey, err := apiKeyRepo.FindByUUID(apiKeyUUID)
+		if err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return errors.New("API key not found")
+			}
+			return err
+		}
+
+		// Map to result before deletion
+		result = &APIKeyServiceDataResult{
+			APIKeyUUID:  apiKey.APIKeyUUID,
+			Name:        apiKey.Name,
+			Description: apiKey.Description,
+			KeyPrefix:   apiKey.KeyPrefix,
+			Config:      apiKey.Config,
+			ExpiresAt:   apiKey.ExpiresAt,
+			RateLimit:   apiKey.RateLimit,
+			Status:      apiKey.Status,
+			CreatedAt:   apiKey.CreatedAt,
+			UpdatedAt:   apiKey.UpdatedAt,
+		}
+
+		// Delete the API key (CASCADE will handle related records)
+		err = apiKeyRepo.DeleteByUUID(apiKeyUUID)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	return result, nil
+}
+
+func (s *apiKeyService) SetStatusByUUID(apiKeyUUID uuid.UUID, status string) (*APIKeyServiceDataResult, error) {
+	var result *APIKeyServiceDataResult
+	err := s.db.Transaction(func(tx *gorm.DB) error {
+		apiKeyRepo := s.apiKeyRepo.WithTx(tx)
+
+		// Check if API key exists
+		_, err := apiKeyRepo.FindByUUID(apiKeyUUID)
+		if err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return errors.New("API key not found")
+			}
+			return err
+		}
+
+		// Update status using base repository method
+		updateData := map[string]interface{}{
+			"status": status,
+		}
+		updatedAPIKey, err := apiKeyRepo.UpdateByUUID(apiKeyUUID, updateData)
+		if err != nil {
+			return err
+		}
+
+		// Map to result
+		result = &APIKeyServiceDataResult{
+			APIKeyUUID:  updatedAPIKey.APIKeyUUID,
+			Name:        updatedAPIKey.Name,
+			Description: updatedAPIKey.Description,
+			KeyPrefix:   updatedAPIKey.KeyPrefix,
+			Config:      updatedAPIKey.Config,
+			ExpiresAt:   updatedAPIKey.ExpiresAt,
+			RateLimit:   updatedAPIKey.RateLimit,
+			Status:      updatedAPIKey.Status,
+			CreatedAt:   updatedAPIKey.CreatedAt,
+			UpdatedAt:   updatedAPIKey.UpdatedAt,
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	return result, nil
 }
 
 // Get APIs assigned to API key with pagination
@@ -438,7 +583,16 @@ func (s *apiKeyService) RemoveAPIKeyApi(apiKeyUUID uuid.UUID, apiUUID uuid.UUID)
 	return s.db.Transaction(func(tx *gorm.DB) error {
 		apiKeyApiRepo := s.apiKeyApiRepo.WithTx(tx)
 
-		// Remove the API key API relationship
+		// First check if the relationship exists
+		apiKeyApi, err := apiKeyApiRepo.FindByAPIKeyUUIDAndApiUUID(apiKeyUUID, apiUUID)
+		if err != nil {
+			return err
+		}
+		if apiKeyApi == nil {
+			return errors.New("API key API relationship not found")
+		}
+
+		// Remove the API key API relationship (CASCADE will handle permissions)
 		return apiKeyApiRepo.RemoveByAPIKeyUUIDAndApiUUID(apiKeyUUID, apiUUID)
 	})
 }
@@ -484,6 +638,7 @@ func (s *apiKeyService) AddAPIKeyApiPermissions(apiKeyUUID uuid.UUID, apiUUID uu
 		apiKeyApiRepo := s.apiKeyApiRepo.WithTx(tx)
 		apiKeyPermissionRepo := s.apiKeyPermissionRepo.WithTx(tx)
 		permissionRepo := s.permissionRepo.WithTx(tx)
+		apiRepo := s.apiRepo.WithTx(tx)
 
 		// Get API key API relationship
 		apiKeyApi, err := apiKeyApiRepo.FindByAPIKeyUUIDAndApiUUID(apiKeyUUID, apiUUID)
@@ -492,6 +647,15 @@ func (s *apiKeyService) AddAPIKeyApiPermissions(apiKeyUUID uuid.UUID, apiUUID uu
 		}
 		if apiKeyApi == nil {
 			return errors.New("API key API relationship not found")
+		}
+
+		// Get the API to validate permissions belong to it
+		api, err := apiRepo.FindByUUID(apiUUID)
+		if err != nil {
+			return err
+		}
+		if api == nil {
+			return errors.New("API not found")
 		}
 
 		// Process each permission UUID
@@ -503,6 +667,11 @@ func (s *apiKeyService) AddAPIKeyApiPermissions(apiKeyUUID uuid.UUID, apiUUID uu
 			}
 			if permission == nil {
 				return errors.New("permission not found: " + permissionUUID.String())
+			}
+
+			// Validate that the permission belongs to the specified API
+			if permission.APIID != api.APIID {
+				return errors.New("permission does not belong to the specified API: " + permissionUUID.String())
 			}
 
 			// Check if relationship already exists
@@ -536,6 +705,7 @@ func (s *apiKeyService) RemoveAPIKeyApiPermission(apiKeyUUID uuid.UUID, apiUUID 
 		apiKeyApiRepo := s.apiKeyApiRepo.WithTx(tx)
 		apiKeyPermissionRepo := s.apiKeyPermissionRepo.WithTx(tx)
 		permissionRepo := s.permissionRepo.WithTx(tx)
+		apiRepo := s.apiRepo.WithTx(tx)
 
 		// Get API key API relationship
 		apiKeyApi, err := apiKeyApiRepo.FindByAPIKeyUUIDAndApiUUID(apiKeyUUID, apiUUID)
@@ -546,6 +716,15 @@ func (s *apiKeyService) RemoveAPIKeyApiPermission(apiKeyUUID uuid.UUID, apiUUID 
 			return errors.New("API key API relationship not found")
 		}
 
+		// Get the API to validate permission belongs to it
+		api, err := apiRepo.FindByUUID(apiUUID)
+		if err != nil {
+			return err
+		}
+		if api == nil {
+			return errors.New("API not found")
+		}
+
 		// Get permission
 		permission, err := permissionRepo.FindByUUID(permissionUUID)
 		if err != nil {
@@ -553,6 +732,11 @@ func (s *apiKeyService) RemoveAPIKeyApiPermission(apiKeyUUID uuid.UUID, apiUUID 
 		}
 		if permission == nil {
 			return errors.New("permission not found")
+		}
+
+		// Validate that the permission belongs to the specified API
+		if permission.APIID != api.APIID {
+			return errors.New("permission does not belong to the specified API")
 		}
 
 		// Remove the permission
