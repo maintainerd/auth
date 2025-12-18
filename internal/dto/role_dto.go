@@ -16,7 +16,7 @@ type RoleResponseDto struct {
 	Permissions *[]PermissionResponseDto `json:"permissions,omitempty"`
 	IsDefault   bool                     `json:"is_default"`
 	IsSystem    bool                     `json:"is_system"`
-	IsActive    bool                     `json:"is_active"`
+	Status      string                   `json:"status"`
 	CreatedAt   time.Time                `json:"created_at"`
 	UpdatedAt   time.Time                `json:"updated_at"`
 }
@@ -25,7 +25,7 @@ type RoleResponseDto struct {
 type RoleCreateOrUpdateRequestDto struct {
 	Name        string `json:"name"`
 	Description string `json:"description"`
-	IsActive    bool   `json:"is_active"`
+	Status      string `json:"status"`
 }
 
 func (r RoleCreateOrUpdateRequestDto) Validate() error {
@@ -38,8 +38,9 @@ func (r RoleCreateOrUpdateRequestDto) Validate() error {
 			validation.Required.Error("Description is required"),
 			validation.Length(8, 100).Error("Description must be between 8 and 100 characters"),
 		),
-		validation.Field(&r.IsActive,
-			validation.In(true, false).Error("Is active is required"),
+		validation.Field(&r.Status,
+			validation.Required.Error("Status is required"),
+			validation.In("active", "inactive").Error("Status must be 'active' or 'inactive'"),
 		),
 	)
 }
@@ -64,7 +65,7 @@ type RoleFilterDto struct {
 	Description *string `json:"description"`
 	IsDefault   *bool   `json:"is_default"`
 	IsSystem    *bool   `json:"is_system"`
-	IsActive    *bool   `json:"is_active"`
+	Status      *string `json:"status"`
 
 	// Pagination and sorting
 	PaginationRequestDto

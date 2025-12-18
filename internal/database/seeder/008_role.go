@@ -21,7 +21,7 @@ func SeedRoles(db *gorm.DB, tenantID int64) (map[string]model.Role, error) {
 				Name:        "registered",
 				Description: "Basic registered user with account access permissions",
 				TenantID:    tenantID,
-				IsActive:    true,
+				Status:      "active",
 				IsDefault:   true, // registered is the default role assigned to all users
 				IsSystem:    true, // registered is a system role
 			},
@@ -33,7 +33,7 @@ func SeedRoles(db *gorm.DB, tenantID int64) (map[string]model.Role, error) {
 				Name:        "super-admin",
 				Description: "Full system access with all permissions",
 				TenantID:    tenantID,
-				IsActive:    true,
+				Status:      "active",
 				IsDefault:   false, // super-admin is not the default role
 				IsSystem:    true,  // super-admin is a system role
 			},

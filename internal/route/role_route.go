@@ -36,6 +36,9 @@ func RoleRoute(
 		r.With(middleware.PermissionMiddleware([]string{"role:delete"})).
 			Delete("/{role_uuid}", roleHandler.Delete)
 
+		r.With(middleware.PermissionMiddleware([]string{"role:read"})).
+			Get("/{role_uuid}/permissions", roleHandler.GetPermissions)
+
 		r.With(middleware.PermissionMiddleware([]string{"role:permission:create"})).
 			Post("/{role_uuid}/permissions", roleHandler.AddPermissions)
 

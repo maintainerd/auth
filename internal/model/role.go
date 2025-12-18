@@ -12,7 +12,7 @@ type Role struct {
 	RoleUUID    uuid.UUID `gorm:"column:role_uuid;unique"`
 	Name        string    `gorm:"column:name;unique"`
 	Description string    `gorm:"column:description"`
-	IsActive    bool      `gorm:"column:is_active;default:false"`
+	Status      string    `gorm:"column:status;type:varchar(16);default:'inactive'"`
 	IsDefault   bool      `gorm:"column:is_default;default:false"`
 	IsSystem    bool      `gorm:"column:is_system;default:false"`
 	TenantID    int64     `gorm:"column:tenant_id"`
