@@ -17,7 +17,7 @@ type RoleServiceDataResult struct {
 	Permissions *[]PermissionServiceDataResult
 	IsDefault   bool
 	IsSystem    bool
-	IsActive    bool
+	Status      string
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
 }
@@ -27,7 +27,7 @@ type RoleServiceGetFilter struct {
 	Description *string
 	IsDefault   *bool
 	IsSystem    *bool
-	IsActive    *bool
+	Status      *string
 	TenantID    int64
 	Page        int
 	Limit       int
@@ -43,12 +43,31 @@ type RoleServiceGetResult struct {
 	TotalPages int
 }
 
+type RoleServiceGetPermissionsFilter struct {
+	RoleUUID  uuid.UUID
+	Status    *string
+	TenantID  int64
+	Page      int
+	Limit     int
+	SortBy    string
+	SortOrder string
+}
+
+type RoleServiceGetPermissionsResult struct {
+	Data       []PermissionServiceDataResult
+	Total      int64
+	Page       int
+	Limit      int
+	TotalPages int
+}
+
 type RoleService interface {
 	Get(filter RoleServiceGetFilter) (*RoleServiceGetResult, error)
 	GetByUUID(roleUUID uuid.UUID) (*RoleServiceDataResult, error)
-	Create(name string, description string, isDefault bool, isSystem bool, isActive bool, tenantUUID string, actorUserUUID uuid.UUID) (*RoleServiceDataResult, error)
-	Update(roleUUID uuid.UUID, name string, description string, isDefault bool, isSystem bool, isActive bool, actorUserUUID uuid.UUID) (*RoleServiceDataResult, error)
-	SetActiveStatusByUUID(roleUUID uuid.UUID, actorUserUUID uuid.UUID) (*RoleServiceDataResult, error)
+	GetRolePermissions(filter RoleServiceGetPermissionsFilter) (*RoleServiceGetPermissionsResult, error)
+	Create(name string, description string, isDefault bool, isSystem bool, status string, tenantUUID string, actorUserUUID uuid.UUID) (*RoleServiceDataResult, error)
+	Update(roleUUID uuid.UUID, name string, description string, isDefault bool, isSystem bool, status string, actorUserUUID uuid.UUID) (*RoleServiceDataResult, error)
+	SetStatusByUUID(roleUUID uuid.UUID, status string, actorUserUUID uuid.UUID) (*RoleServiceDataResult, error)
 	DeleteByUUID(roleUUID uuid.UUID, actorUserUUID uuid.UUID) (*RoleServiceDataResult, error)
 	AddRolePermissions(roleUUID uuid.UUID, permissionUUIDs []uuid.UUID, actorUserUUID uuid.UUID) (*RoleServiceDataResult, error)
 	RemoveRolePermissions(roleUUID uuid.UUID, permissionUUID uuid.UUID, actorUserUUID uuid.UUID) (*RoleServiceDataResult, error)
@@ -87,7 +106,7 @@ func (s *roleService) Get(filter RoleServiceGetFilter) (*RoleServiceGetResult, e
 		Description: filter.Description,
 		IsDefault:   filter.IsDefault,
 		IsSystem:    filter.IsSystem,
-		IsActive:    filter.IsActive,
+		Status:      filter.Status,
 		TenantID:    filter.TenantID,
 		Page:        filter.Page,
 		Limit:       filter.Limit,
@@ -127,7 +146,51 @@ func (s *roleService) GetByUUID(roleUUID uuid.UUID) (*RoleServiceDataResult, err
 	return toRoleServiceDataResult(role), nil
 }
 
-func (s *roleService) Create(name string, description string, isDefault bool, isSystem bool, isActive bool, tenantUUID string, actorUserUUID uuid.UUID) (*RoleServiceDataResult, error) {
+func (s *roleService) GetRolePermissions(filter RoleServiceGetPermissionsFilter) (*RoleServiceGetPermissionsResult, error) {
+	// Verify role exists and belongs to tenant
+	role, err := s.roleRepo.FindByUUID(filter.RoleUUID)
+	if err != nil {
+		return nil, err
+	}
+	if role == nil {
+		return nil, errors.New("role not found")
+	}
+	if role.TenantID != filter.TenantID {
+		return nil, errors.New("role not found")
+	}
+
+	// Build repository filter
+	repoFilter := repository.RoleRepositoryGetPermissionsFilter{
+		RoleUUID:  filter.RoleUUID,
+		Status:    filter.Status,
+		Page:      filter.Page,
+		Limit:     filter.Limit,
+		SortBy:    filter.SortBy,
+		SortOrder: filter.SortOrder,
+	}
+
+	// Query paginated permissions
+	result, err := s.roleRepo.GetPermissionsByRoleUUID(repoFilter)
+	if err != nil {
+		return nil, err
+	}
+
+	// Map to service result
+	permissions := make([]PermissionServiceDataResult, len(result.Data))
+	for i, p := range result.Data {
+		permissions[i] = *toPermissionServiceDataResult(&p)
+	}
+
+	return &RoleServiceGetPermissionsResult{
+		Data:       permissions,
+		Total:      result.Total,
+		Page:       result.Page,
+		Limit:      result.Limit,
+		TotalPages: result.TotalPages,
+	}, nil
+}
+
+func (s *roleService) Create(name string, description string, isDefault bool, isSystem bool, status string, tenantUUID string, actorUserUUID uuid.UUID) (*RoleServiceDataResult, error) {
 	var createdRole *model.Role
 
 	// Transaction
@@ -174,7 +237,7 @@ func (s *roleService) Create(name string, description string, isDefault bool, is
 			Description: description,
 			IsDefault:   isDefault,
 			IsSystem:    isSystem,
-			IsActive:    isActive,
+			Status:      status,
 			TenantID:    targetTenant.TenantID,
 		}
 
@@ -195,7 +258,7 @@ func (s *roleService) Create(name string, description string, isDefault bool, is
 	return toRoleServiceDataResult(createdRole), nil
 }
 
-func (s *roleService) Update(roleUUID uuid.UUID, name string, description string, isDefault bool, isSystem bool, isActive bool, actorUserUUID uuid.UUID) (*RoleServiceDataResult, error) {
+func (s *roleService) Update(roleUUID uuid.UUID, name string, description string, isDefault bool, isSystem bool, status string, actorUserUUID uuid.UUID) (*RoleServiceDataResult, error) {
 	var updatedRole *model.Role
 
 	// Transaction
@@ -244,7 +307,7 @@ func (s *roleService) Update(roleUUID uuid.UUID, name string, description string
 		role.Description = description
 		role.IsDefault = isDefault
 		role.IsSystem = isSystem
-		role.IsActive = isActive
+		role.Status = status
 
 		_, err = txRoleRepo.CreateOrUpdate(role)
 		if err != nil {
@@ -263,7 +326,7 @@ func (s *roleService) Update(roleUUID uuid.UUID, name string, description string
 	return toRoleServiceDataResult(updatedRole), nil
 }
 
-func (s *roleService) SetActiveStatusByUUID(roleUUID uuid.UUID, actorUserUUID uuid.UUID) (*RoleServiceDataResult, error) {
+func (s *roleService) SetStatusByUUID(roleUUID uuid.UUID, status string, actorUserUUID uuid.UUID) (*RoleServiceDataResult, error) {
 	var updatedRole *model.Role
 
 	// Transaction
@@ -297,7 +360,7 @@ func (s *roleService) SetActiveStatusByUUID(roleUUID uuid.UUID, actorUserUUID uu
 		}
 
 		// Update role
-		role.IsActive = !role.IsActive
+		role.Status = status
 
 		_, err = txRoleRepo.CreateOrUpdate(role)
 		if err != nil {
@@ -538,7 +601,7 @@ func toRoleServiceDataResult(role *model.Role) *RoleServiceDataResult {
 		Description: role.Description,
 		IsDefault:   role.IsDefault,
 		IsSystem:    role.IsSystem,
-		IsActive:    role.IsActive,
+		Status:      role.Status,
 		CreatedAt:   role.CreatedAt,
 		UpdatedAt:   role.UpdatedAt,
 	}
