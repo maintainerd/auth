@@ -35,7 +35,7 @@ func (h *RoleHandler) Get(w http.ResponseWriter, r *http.Request) {
 	limit, _ := strconv.Atoi(q.Get("limit"))
 
 	// Parse bools safely
-	var isDefault, isSystem, isActive *bool
+	var isDefault, isSystem *bool
 	if v := q.Get("is_default"); v != "" {
 		parsed, err := strconv.ParseBool(v)
 		if err == nil {
@@ -48,11 +48,9 @@ func (h *RoleHandler) Get(w http.ResponseWriter, r *http.Request) {
 			isSystem = &parsed
 		}
 	}
-	if v := q.Get("is_active"); v != "" {
-		parsed, err := strconv.ParseBool(v)
-		if err == nil {
-			isActive = &parsed
-		}
+	var status *string
+	if v := q.Get("status"); v != "" {
+		status = &v
 	}
 
 	// Build request DTO (for validation)
@@ -61,7 +59,7 @@ func (h *RoleHandler) Get(w http.ResponseWriter, r *http.Request) {
 		Description: util.PtrOrNil(q.Get("description")),
 		IsDefault:   isDefault,
 		IsSystem:    isSystem,
-		IsActive:    isActive,
+		Status:      status,
 		PaginationRequestDto: dto.PaginationRequestDto{
 			Page:      page,
 			Limit:     limit,
@@ -81,7 +79,7 @@ func (h *RoleHandler) Get(w http.ResponseWriter, r *http.Request) {
 		Description: reqParams.Description,
 		IsDefault:   reqParams.IsDefault,
 		IsSystem:    reqParams.IsSystem,
-		IsActive:    reqParams.IsActive,
+		Status:      reqParams.Status,
 		TenantID:    user.TenantID,
 		Page:        reqParams.Page,
 		Limit:       reqParams.Limit,
@@ -153,7 +151,7 @@ func (h *RoleHandler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Create role
-	role, err := h.service.Create(req.Name, req.Description, false, false, req.IsActive, user.Tenant.TenantUUID.String(), user.UserUUID)
+	role, err := h.service.Create(req.Name, req.Description, false, false, req.Status, user.Tenant.TenantUUID.String(), user.UserUUID)
 	if err != nil {
 		util.Error(w, http.StatusInternalServerError, "Failed to create role", err.Error())
 		return
@@ -190,7 +188,7 @@ func (h *RoleHandler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Update role
-	role, err := h.service.Update(roleUUID, req.Name, req.Description, false, false, req.IsActive, user.UserUUID)
+	role, err := h.service.Update(roleUUID, req.Name, req.Description, false, false, req.Status, user.UserUUID)
 	if err != nil {
 		util.Error(w, http.StatusInternalServerError, "Failed to update role", err.Error())
 		return
@@ -214,8 +212,21 @@ func (h *RoleHandler) SetStatus(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Validate request body
+	var req struct {
+		Status string `json:"status"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		util.Error(w, http.StatusBadRequest, "Invalid request", err.Error())
+		return
+	}
+	if req.Status != "active" && req.Status != "inactive" {
+		util.Error(w, http.StatusBadRequest, "Status must be 'active' or 'inactive'")
+		return
+	}
+
 	// Update role
-	role, err := h.service.SetActiveStatusByUUID(roleUUID, user.UserUUID)
+	role, err := h.service.SetStatusByUUID(roleUUID, req.Status, user.UserUUID)
 	if err != nil {
 		util.Error(w, http.StatusInternalServerError, "Failed to update role", err.Error())
 		return
@@ -249,6 +260,105 @@ func (h *RoleHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	dtoRes := toRoleResponseDto(*role)
 
 	util.Success(w, dtoRes, "Role deleted successfully")
+}
+
+// Get permissions for a role
+func (h *RoleHandler) GetPermissions(w http.ResponseWriter, r *http.Request) {
+	// Get authentication context
+	user := r.Context().Value(middleware.UserContextKey).(*model.User)
+
+	// Validate role_uuid
+	roleUUID, err := uuid.Parse(chi.URLParam(r, "role_uuid"))
+	if err != nil {
+		util.Error(w, http.StatusBadRequest, "Invalid role UUID")
+		return
+	}
+
+	// Parse query parameters
+	q := r.URL.Query()
+
+	// Parse pagination
+	page, _ := strconv.Atoi(q.Get("page"))
+	limit, _ := strconv.Atoi(q.Get("limit"))
+
+	// Parse filters
+	var status *string
+	if v := q.Get("status"); v != "" {
+		status = &v
+	}
+
+	// Build request DTO
+	reqParams := dto.PaginationRequestDto{
+		Page:      page,
+		Limit:     limit,
+		SortBy:    q.Get("sort_by"),
+		SortOrder: q.Get("sort_order"),
+	}
+
+	if err := reqParams.Validate(); err != nil {
+		util.ValidationError(w, err)
+		return
+	}
+
+	// Build service filter
+	filter := service.RoleServiceGetPermissionsFilter{
+		RoleUUID:  roleUUID,
+		Status:    status,
+		TenantID:  user.TenantID,
+		Page:      reqParams.Page,
+		Limit:     reqParams.Limit,
+		SortBy:    reqParams.SortBy,
+		SortOrder: reqParams.SortOrder,
+	}
+
+	// Fetch permissions
+	result, err := h.service.GetRolePermissions(filter)
+	if err != nil {
+		util.Error(w, http.StatusInternalServerError, "Failed to fetch role permissions", err.Error())
+		return
+	}
+
+	// Map service result to dto
+	rows := make([]dto.PermissionResponseDto, len(result.Data))
+	for i, p := range result.Data {
+		permDto := dto.PermissionResponseDto{
+			PermissionUUID: p.PermissionUUID,
+			Name:           p.Name,
+			Description:    p.Description,
+			Status:         p.Status,
+			IsDefault:      p.IsDefault,
+			IsSystem:       p.IsSystem,
+			CreatedAt:      p.CreatedAt,
+			UpdatedAt:      p.UpdatedAt,
+		}
+		// Include API if available
+		if p.API != nil {
+			permDto.API = &dto.APIResponseDto{
+				APIUUID:     p.API.APIUUID,
+				Name:        p.API.Name,
+				DisplayName: p.API.DisplayName,
+				Description: p.API.Description,
+				APIType:     p.API.APIType,
+				Identifier:  p.API.Identifier,
+				Status:      p.API.Status,
+				IsDefault:   p.API.IsDefault,
+				CreatedAt:   p.API.CreatedAt,
+				UpdatedAt:   p.API.UpdatedAt,
+			}
+		}
+		rows[i] = permDto
+	}
+
+	// Build response data
+	response := dto.PaginatedResponseDto[dto.PermissionResponseDto]{
+		Rows:       rows,
+		Total:      result.Total,
+		Page:       result.Page,
+		Limit:      result.Limit,
+		TotalPages: result.TotalPages,
+	}
+
+	util.Success(w, response, "Role permissions fetched successfully")
 }
 
 // Add permissions to role
@@ -328,11 +438,10 @@ func toRoleResponseDto(r service.RoleServiceDataResult) dto.RoleResponseDto {
 		Description: r.Description,
 		IsDefault:   r.IsDefault,
 		IsSystem:    r.IsSystem,
-		IsActive:    r.IsActive,
+		Status:      r.Status,
 		CreatedAt:   r.CreatedAt,
 		UpdatedAt:   r.UpdatedAt,
 	}
-
 	// Map Permissions if present
 	if r.Permissions != nil {
 		permissions := make([]dto.PermissionResponseDto, len(*r.Permissions))
@@ -350,6 +459,5 @@ func toRoleResponseDto(r service.RoleServiceDataResult) dto.RoleResponseDto {
 		}
 		result.Permissions = &permissions
 	}
-
 	return result
 }

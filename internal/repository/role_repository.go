@@ -13,12 +13,21 @@ type RoleRepositoryGetFilter struct {
 	Description *string
 	IsDefault   *bool
 	IsSystem    *bool
-	IsActive    *bool
+	Status      *string
 	TenantID    int64
 	Page        int
 	Limit       int
 	SortBy      string
 	SortOrder   string
+}
+
+type RoleRepositoryGetPermissionsFilter struct {
+	RoleUUID  uuid.UUID
+	Status    *string
+	Page      int
+	Limit     int
+	SortBy    string
+	SortOrder string
 }
 
 type RoleRepository interface {
@@ -27,7 +36,8 @@ type RoleRepository interface {
 	FindByNameAndTenantID(name string, tenantID int64) (*model.Role, error)
 	FindAllByTenantID(tenantID int64) ([]model.Role, error)
 	FindPaginated(filter RoleRepositoryGetFilter) (*PaginationResult[model.Role], error)
-	SetActiveStatusByUUID(roleUUID uuid.UUID, isActive bool) error
+	GetPermissionsByRoleUUID(filter RoleRepositoryGetPermissionsFilter) (*PaginationResult[model.Permission], error)
+	SetStatusByUUID(roleUUID uuid.UUID, status string) error
 	SetDefaultStatusByUUID(roleUUID uuid.UUID, isDefault bool) error
 	SetSystemStatusByUUID(roleUUID uuid.UUID, isSystem bool) error
 	FindRegisteredRoleForSetup(tenantID int64) (*model.Role, error)
@@ -100,8 +110,8 @@ func (r *roleRepository) FindPaginated(filter RoleRepositoryGetFilter) (*Paginat
 	if filter.IsSystem != nil {
 		query = query.Where("is_system = ?", *filter.IsSystem)
 	}
-	if filter.IsActive != nil {
-		query = query.Where("is_active = ?", *filter.IsActive)
+	if filter.Status != nil {
+		query = query.Where("status = ?", *filter.Status)
 	}
 
 	// Sorting
@@ -139,10 +149,10 @@ func (r *roleRepository) FindPaginated(filter RoleRepositoryGetFilter) (*Paginat
 	}, nil
 }
 
-func (r *roleRepository) SetActiveStatusByUUID(roleUUID uuid.UUID, isActive bool) error {
+func (r *roleRepository) SetStatusByUUID(roleUUID uuid.UUID, status string) error {
 	return r.db.Model(&model.Role{}).
 		Where("role_uuid = ?", roleUUID).
-		Update("is_active", isActive).Error
+		Update("status", status).Error
 }
 
 func (r *roleRepository) SetDefaultStatusByUUID(roleUUID uuid.UUID, isDefault bool) error {
@@ -181,4 +191,60 @@ func (r *roleRepository) FindSuperAdminRoleForSetup(tenantID int64) (*model.Role
 		return nil, err
 	}
 	return &role, nil
+}
+
+func (r *roleRepository) GetPermissionsByRoleUUID(filter RoleRepositoryGetPermissionsFilter) (*PaginationResult[model.Permission], error) {
+	// Find role by UUID
+	var role model.Role
+	err := r.db.Where("role_uuid = ?", filter.RoleUUID).First(&role).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, errors.New("role not found")
+		}
+		return nil, err
+	}
+
+	// Build query for permissions associated with this role
+	query := r.db.Model(&model.Permission{}).
+		Joins("JOIN role_permissions ON role_permissions.permission_id = permissions.permission_id").
+		Where("role_permissions.role_id = ?", role.RoleID)
+
+	// Apply filters
+	if filter.Status != nil {
+		query = query.Where("permissions.status = ?", *filter.Status)
+	}
+
+	// Sorting
+	if filter.SortBy != "" {
+		order := "ASC"
+		if filter.SortOrder == "desc" {
+			order = "DESC"
+		}
+		query = query.Order("permissions." + filter.SortBy + " " + order)
+	} else {
+		query = query.Order("permissions.created_at DESC")
+	}
+
+	// Count
+	var total int64
+	if err := query.Count(&total).Error; err != nil {
+		return nil, err
+	}
+
+	// Pagination
+	offset := (filter.Page - 1) * filter.Limit
+	var permissions []model.Permission
+	if err := query.Preload("API").Limit(filter.Limit).Offset(offset).Find(&permissions).Error; err != nil {
+		return nil, err
+	}
+
+	totalPages := int((total + int64(filter.Limit) - 1) / int64(filter.Limit))
+
+	return &PaginationResult[model.Permission]{
+		Data:       permissions,
+		Total:      total,
+		Page:       filter.Page,
+		Limit:      filter.Limit,
+		TotalPages: totalPages,
+	}, nil
 }

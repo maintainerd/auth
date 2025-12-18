@@ -32,7 +32,7 @@ func (h *UserHandler) GetUsers(w http.ResponseWriter, r *http.Request) {
 	page, _ := strconv.Atoi(q.Get("page"))
 	limit, _ := strconv.Atoi(q.Get("limit"))
 
-	// Parse bools safely
+	// Parse is_active safely
 	var isActive *bool
 	if v := q.Get("is_active"); v != "" {
 		if parsed, err := strconv.ParseBool(v); err == nil {
@@ -391,7 +391,7 @@ func toUserResponseDto(u service.UserServiceDataResult) dto.UserResponseDto {
 				Description: role.Description,
 				IsDefault:   role.IsDefault,
 				IsSystem:    role.IsSystem,
-				IsActive:    role.IsActive,
+				Status:      role.Status,
 				CreatedAt:   role.CreatedAt,
 				UpdatedAt:   role.UpdatedAt,
 			}
