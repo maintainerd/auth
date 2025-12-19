@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
@@ -30,7 +31,7 @@ func (h *TenantHandler) Get(w http.ResponseWriter, r *http.Request) {
 	limit, _ := strconv.Atoi(q.Get("limit"))
 
 	// Parse bools safely
-	var isDefault, isSystem, isActive, isPublic *bool
+	var isDefault, isSystem, isPublic *bool
 	if v := q.Get("is_default"); v != "" {
 		parsed, err := strconv.ParseBool(v)
 		if err == nil {
@@ -43,17 +44,17 @@ func (h *TenantHandler) Get(w http.ResponseWriter, r *http.Request) {
 			isSystem = &parsed
 		}
 	}
-	if v := q.Get("is_active"); v != "" {
-		parsed, err := strconv.ParseBool(v)
-		if err == nil {
-			isActive = &parsed
-		}
-	}
 	if v := q.Get("is_public"); v != "" {
 		parsed, err := strconv.ParseBool(v)
 		if err == nil {
 			isPublic = &parsed
 		}
+	}
+
+	// Parse status array
+	var status []string
+	if v := q.Get("status"); v != "" {
+		status = strings.Split(v, ",")
 	}
 
 	// Build request DTO
@@ -64,7 +65,7 @@ func (h *TenantHandler) Get(w http.ResponseWriter, r *http.Request) {
 		IsDefault:   isDefault,
 		IsSystem:    isSystem,
 		IsPublic:    isPublic,
-		IsActive:    isActive,
+		Status:      status,
 		PaginationRequestDto: dto.PaginationRequestDto{
 			Page:      page,
 			Limit:     limit,
@@ -86,7 +87,7 @@ func (h *TenantHandler) Get(w http.ResponseWriter, r *http.Request) {
 		IsDefault:   reqParams.IsDefault,
 		IsSystem:    reqParams.IsSystem,
 		IsPublic:    isPublic,
-		IsActive:    reqParams.IsActive,
+		Status:      reqParams.Status,
 		Page:        reqParams.Page,
 		Limit:       reqParams.Limit,
 		SortBy:      reqParams.SortBy,
@@ -182,7 +183,7 @@ func (h *TenantHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	tenant, err := h.tenantService.Create(req.Name, req.Description, req.IsActive, req.IsPublic, false)
+	tenant, err := h.tenantService.Create(req.Name, req.Description, req.Status, req.IsPublic, false)
 	if err != nil {
 		util.Error(w, http.StatusInternalServerError, "Failed to create tenant", err.Error())
 		return
@@ -212,7 +213,7 @@ func (h *TenantHandler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	tenant, err := h.tenantService.Update(tenantUUID, req.Name, req.Description, req.IsActive, req.IsPublic, false)
+	tenant, err := h.tenantService.Update(tenantUUID, req.Name, req.Description, req.Status, req.IsPublic, false)
 	if err != nil {
 		util.Error(w, http.StatusInternalServerError, "Failed to update tenant", err.Error())
 		return
@@ -231,7 +232,15 @@ func (h *TenantHandler) SetStatus(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	tenant, err := h.tenantService.SetActiveStatusByUUID(tenantUUID)
+	var req struct {
+		Status string `json:"status"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		util.Error(w, http.StatusBadRequest, "Invalid request", err.Error())
+		return
+	}
+
+	tenant, err := h.tenantService.SetStatusByUUID(tenantUUID, req.Status)
 	if err != nil {
 		util.Error(w, http.StatusInternalServerError, "Failed to update API", err.Error())
 		return
@@ -306,7 +315,7 @@ func toTenantResponseDto(r service.TenantServiceDataResult) dto.TenantResponseDt
 		Name:        r.Name,
 		Description: r.Description,
 		Identifier:  r.Identifier,
-		IsActive:    r.IsActive,
+		Status:      r.Status,
 		IsPublic:    r.IsPublic,
 		IsDefault:   r.IsDefault,
 		IsSystem:    r.IsSystem,

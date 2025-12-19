@@ -10,8 +10,9 @@ type UserRepositoryGetFilter struct {
 	Username  *string
 	Email     *string
 	Phone     *string
-	IsActive  *bool
+	Status    []string
 	TenantID  *int64
+	RoleID    *int64
 	Page      int
 	Limit     int
 	SortBy    string
@@ -29,7 +30,7 @@ type UserRepository interface {
 	FindBySubAndClientID(sub string, authClientID string) (*model.User, error)
 	FindPaginated(filter UserRepositoryGetFilter) (*PaginationResult[model.User], error)
 	SetEmailVerified(userUUID uuid.UUID, verified bool) error
-	SetActiveStatus(userUUID uuid.UUID, active bool) error
+	SetStatus(userUUID uuid.UUID, status string) error
 }
 
 type userRepository struct {
@@ -105,7 +106,7 @@ func (r *userRepository) FindSuperAdmin() (*model.User, error) {
 		Joins("JOIN tenants ON users.tenant_id = tenants.tenant_id").
 		Joins("JOIN user_roles ON users.user_id = user_roles.user_id").
 		Joins("JOIN roles ON user_roles.role_id = roles.role_id").
-		Where("tenants.is_active = true AND tenants.is_default = true").
+		Where("tenants.status = 'active' AND tenants.is_default = true").
 		Where("roles.name = ?", "super-admin").
 		First(&user).Error
 
@@ -158,10 +159,10 @@ func (r *userRepository) SetEmailVerified(userUUID uuid.UUID, verified bool) err
 		Update("is_email_verified", verified).Error
 }
 
-func (r *userRepository) SetActiveStatus(userUUID uuid.UUID, active bool) error {
+func (r *userRepository) SetStatus(userUUID uuid.UUID, status string) error {
 	return r.db.Model(&model.User{}).
 		Where("user_uuid = ?", userUUID).
-		Update("is_active", active).Error
+		Update("status", status).Error
 }
 
 func (r *userRepository) FindPaginated(filter UserRepositoryGetFilter) (*PaginationResult[model.User], error) {
@@ -180,11 +181,14 @@ func (r *userRepository) FindPaginated(filter UserRepositoryGetFilter) (*Paginat
 	if filter.Phone != nil {
 		query = query.Where("phone ILIKE ?", "%"+*filter.Phone+"%")
 	}
-	if filter.IsActive != nil {
-		query = query.Where("is_active = ?", *filter.IsActive)
+	if len(filter.Status) > 0 {
+		query = query.Where("status IN ?", filter.Status)
 	}
 	if filter.TenantID != nil {
 		query = query.Where("tenant_id = ?", *filter.TenantID)
+	}
+	if filter.RoleID != nil {
+		query = query.Joins("JOIN user_roles ON users.user_id = user_roles.user_id").Where("user_roles.role_id = ?", *filter.RoleID)
 	}
 
 	// Count total records

@@ -16,7 +16,7 @@ type TenantServiceDataResult struct {
 	Name        string
 	Description string
 	Identifier  string
-	IsActive    bool
+	Status      string
 	IsPublic    bool
 	IsDefault   bool
 	IsSystem    bool
@@ -29,7 +29,7 @@ type TenantServiceGetFilter struct {
 	Description *string
 	APIType     *string
 	Identifier  *string
-	IsActive    *bool
+	Status      []string
 	IsPublic    *bool
 	IsDefault   *bool
 	IsSystem    *bool
@@ -52,9 +52,9 @@ type TenantService interface {
 	GetByUUID(tenantUUID uuid.UUID) (*TenantServiceDataResult, error)
 	GetDefault() (*TenantServiceDataResult, error)
 	GetByIdentifier(identifier string) (*TenantServiceDataResult, error)
-	Create(name string, description string, isActive bool, isPublic bool, isDefault bool) (*TenantServiceDataResult, error)
-	Update(tenantUUID uuid.UUID, name string, description string, isActive bool, isPublic bool, isDefault bool) (*TenantServiceDataResult, error)
-	SetActiveStatusByUUID(tenantUUID uuid.UUID) (*TenantServiceDataResult, error)
+	Create(name string, description string, status string, isPublic bool, isDefault bool) (*TenantServiceDataResult, error)
+	Update(tenantUUID uuid.UUID, name string, description string, status string, isPublic bool, isDefault bool) (*TenantServiceDataResult, error)
+	SetStatusByUUID(tenantUUID uuid.UUID, status string) (*TenantServiceDataResult, error)
 	SetActivePublicByUUID(tenantUUID uuid.UUID) (*TenantServiceDataResult, error)
 	SetDefaultStatusByUUID(tenantUUID uuid.UUID) (*TenantServiceDataResult, error)
 	DeleteByUUID(tenantUUID uuid.UUID) (*TenantServiceDataResult, error)
@@ -77,7 +77,7 @@ func (s *tenantService) Get(filter TenantServiceGetFilter) (*TenantServiceGetRes
 		Name:        filter.Name,
 		Description: filter.Description,
 		Identifier:  filter.Identifier,
-		IsActive:    filter.IsActive,
+		Status:      filter.Status,
 		IsPublic:    filter.IsPublic,
 		IsDefault:   filter.IsDefault,
 		IsSystem:    filter.IsSystem,
@@ -133,7 +133,7 @@ func (s *tenantService) GetByIdentifier(identifier string) (*TenantServiceDataRe
 	return toTenantServiceDataResult(tenant), nil
 }
 
-func (s *tenantService) Create(name string, description string, isActive bool, isPublic bool, isDefault bool) (*TenantServiceDataResult, error) {
+func (s *tenantService) Create(name string, description string, status string, isPublic bool, isDefault bool) (*TenantServiceDataResult, error) {
 	var createdTenant *model.Tenant
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
@@ -156,7 +156,7 @@ func (s *tenantService) Create(name string, description string, isActive bool, i
 			Name:        name,
 			Description: description,
 			Identifier:  identifier,
-			IsActive:    isActive,
+			Status:      status,
 			IsPublic:    isPublic,
 			IsDefault:   isDefault,
 		}
@@ -182,7 +182,7 @@ func (s *tenantService) Create(name string, description string, isActive bool, i
 	return toTenantServiceDataResult(createdTenant), nil
 }
 
-func (s *tenantService) Update(tenantUUID uuid.UUID, name string, description string, isActive bool, isPublic bool, isDefault bool) (*TenantServiceDataResult, error) {
+func (s *tenantService) Update(tenantUUID uuid.UUID, name string, description string, status string, isPublic bool, isDefault bool) (*TenantServiceDataResult, error) {
 	var updatedTenant *model.Tenant
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
@@ -211,7 +211,7 @@ func (s *tenantService) Update(tenantUUID uuid.UUID, name string, description st
 		// Update tenant
 		tenant.Name = name
 		tenant.Description = description
-		tenant.IsActive = isActive
+		tenant.Status = status
 		tenant.IsPublic = isPublic
 		tenant.IsDefault = isDefault
 
@@ -230,13 +230,13 @@ func (s *tenantService) Update(tenantUUID uuid.UUID, name string, description st
 	return toTenantServiceDataResult(updatedTenant), nil
 }
 
-func (s *tenantService) SetActiveStatusByUUID(tenantUUID uuid.UUID) (*TenantServiceDataResult, error) {
+func (s *tenantService) SetStatusByUUID(tenantUUID uuid.UUID, status string) (*TenantServiceDataResult, error) {
 	tenant, err := s.tenantRepo.FindByUUID(tenantUUID)
 	if err != nil || tenant == nil {
 		return nil, errors.New("tenant not found")
 	}
 
-	err = s.tenantRepo.SetActiveStatusByUUID(tenantUUID, !tenant.IsActive)
+	err = s.tenantRepo.SetStatusByUUID(tenantUUID, status)
 	if err != nil {
 		return nil, err
 	}
@@ -313,7 +313,7 @@ func toTenantServiceDataResult(tenant *model.Tenant) *TenantServiceDataResult {
 		Name:        tenant.Name,
 		Description: tenant.Description,
 		Identifier:  tenant.Identifier,
-		IsActive:    tenant.IsActive,
+		Status:      tenant.Status,
 		IsPublic:    tenant.IsPublic,
 		IsDefault:   tenant.IsDefault,
 		IsSystem:    tenant.IsSystem,

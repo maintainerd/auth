@@ -21,7 +21,8 @@ CREATE TABLE IF NOT EXISTS users (
 	is_phone_verified       BOOLEAN DEFAULT FALSE,
     is_profile_completed    BOOLEAN DEFAULT FALSE,
     is_account_completed    BOOLEAN DEFAULT FALSE,
-    is_active               BOOLEAN DEFAULT FALSE,
+    status                  VARCHAR(20) DEFAULT 'active',
+    metadata                JSONB DEFAULT '{}'::jsonb,
     tenant_id               INTEGER NOT NULL,
     created_at              TIMESTAMPTZ DEFAULT now(),
     updated_at              TIMESTAMPTZ DEFAULT now()

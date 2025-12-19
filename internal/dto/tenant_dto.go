@@ -13,7 +13,7 @@ type TenantResponseDto struct {
 	Name        string    `json:"name"`
 	Description string    `json:"description"`
 	Identifier  string    `json:"identifier"`
-	IsActive    bool      `json:"is_active"`
+	Status      string    `json:"status"`
 	IsPublic    bool      `json:"is_public"`
 	IsDefault   bool      `json:"is_default"`
 	IsSystem    bool      `json:"is_system"`
@@ -26,7 +26,7 @@ type TenantResponseDto struct {
 type TenantCreateRequestDto struct {
 	Name        string `json:"name"`
 	Description string `json:"description"`
-	IsActive    bool   `json:"is_active"`
+	Status      string `json:"status"`
 	IsPublic    bool   `json:"is_public"`
 }
 
@@ -41,8 +41,9 @@ func (r TenantCreateRequestDto) Validate() error {
 			validation.Required.Error("Description is required"),
 			validation.Length(8, 200).Error("Description must be between 8 and 200 characters"),
 		),
-		validation.Field(&r.IsActive,
-			validation.In(true, false).Error("Is active is required"),
+		validation.Field(&r.Status,
+			validation.Required.Error("Status is required"),
+			validation.In("active", "inactive", "pending", "suspended").Error("Status must be active, inactive, pending, or suspended"),
 		),
 		validation.Field(&r.IsPublic,
 			validation.In(true, false).Error("Is public is required"),
@@ -54,7 +55,7 @@ func (r TenantCreateRequestDto) Validate() error {
 type TenantUpdateRequestDto struct {
 	Name        string `json:"name"`
 	Description string `json:"description"`
-	IsActive    bool   `json:"is_active"`
+	Status      string `json:"status"`
 	IsPublic    bool   `json:"is_public"`
 }
 
@@ -69,8 +70,9 @@ func (r TenantUpdateRequestDto) Validate() error {
 			validation.Required.Error("Description is required"),
 			validation.Length(8, 200).Error("Description must be between 8 and 200 characters"),
 		),
-		validation.Field(&r.IsActive,
-			validation.In(true, false).Error("Is active is required"),
+		validation.Field(&r.Status,
+			validation.Required.Error("Status is required"),
+			validation.In("active", "inactive", "pending", "suspended").Error("Status must be active, inactive, pending, or suspended"),
 		),
 		validation.Field(&r.IsPublic,
 			validation.In(true, false).Error("Is public is required"),
@@ -80,13 +82,13 @@ func (r TenantUpdateRequestDto) Validate() error {
 
 // API listing / filter DTO
 type TenantFilterDto struct {
-	Name        *string `json:"name"`
-	Description *string `json:"description"`
-	Identifier  *string `json:"identifier"`
-	IsActive    *bool   `json:"is_active"`
-	IsPublic    *bool   `json:"is_public"`
-	IsDefault   *bool   `json:"is_default"`
-	IsSystem    *bool   `json:"is_system"`
+	Name        *string  `json:"name"`
+	Description *string  `json:"description"`
+	Identifier  *string  `json:"identifier"`
+	Status      []string `json:"status"`
+	IsPublic    *bool    `json:"is_public"`
+	IsDefault   *bool    `json:"is_default"`
+	IsSystem    *bool    `json:"is_system"`
 
 	// Pagination and sorting
 	PaginationRequestDto

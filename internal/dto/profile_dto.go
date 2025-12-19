@@ -166,8 +166,11 @@ type ProfileResponse struct {
 	// Media & Assets (auth-centric)
 	ProfileURL *string `json:"profile_url,omitempty"` // User profile picture
 
+	// Profile Flags
+	IsDefault bool `json:"is_default"`
+
 	// Extended data
-	Metadata map[string]interface{} `json:"metadata,omitempty"`
+	Metadata map[string]interface{} `json:"metadata"`
 
 	// System Fields
 	CreatedAt time.Time `json:"created_at"`
@@ -206,6 +209,9 @@ func NewProfileResponse(p *model.Profile) *ProfileResponse {
 		// Media & Assets (auth-centric)
 		ProfileURL: p.ProfileURL,
 
+		// Profile Flags
+		IsDefault: p.IsDefault,
+
 		// Extended data
 		Metadata: convertJSONBToMap(p.Metadata),
 
@@ -218,12 +224,28 @@ func NewProfileResponse(p *model.Profile) *ProfileResponse {
 // Helper function to convert JSONB to map
 func convertJSONBToMap(jsonb datatypes.JSON) map[string]interface{} {
 	if len(jsonb) == 0 {
-		return nil
+		return make(map[string]interface{})
 	}
 
 	var result map[string]interface{}
 	if err := json.Unmarshal(jsonb, &result); err != nil {
-		return nil
+		return make(map[string]interface{})
 	}
 	return result
+}
+
+// ProfileFilterDto for filtering and paginating profiles
+type ProfileFilterDto struct {
+	FirstName *string `json:"first_name,omitempty"`
+	LastName  *string `json:"last_name,omitempty"`
+	Email     *string `json:"email,omitempty"`
+	Phone     *string `json:"phone,omitempty"`
+	City      *string `json:"city,omitempty"`
+	Country   *string `json:"country,omitempty"`
+	IsDefault *bool   `json:"is_default,omitempty"`
+	PaginationRequestDto
+}
+
+func (f ProfileFilterDto) Validate() error {
+	return f.PaginationRequestDto.Validate()
 }

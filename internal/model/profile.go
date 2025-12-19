@@ -21,6 +21,9 @@ type Profile struct {
 	DisplayName *string `gorm:"column:display_name"`
 	Bio         *string `gorm:"column:bio"`
 
+	// Profile Flags
+	IsDefault bool `gorm:"column:is_default;default:false"`
+
 	// Personal Information
 	Birthdate *time.Time `gorm:"column:birthdate"`
 	Gender    *string    `gorm:"column:gender"` // 'male', 'female', 'other', 'prefer_not_to_say'

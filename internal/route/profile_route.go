@@ -14,20 +14,55 @@ func ProfileRoute(
 	userRepo repository.UserRepository,
 	redisClient *redis.Client,
 ) {
+	// /profile - Default profile operations (shortcut for convenience)
 	r.Route("/profile", func(r chi.Router) {
 		r.Use(middleware.JWTAuthMiddleware)
 		r.Use(middleware.UserContextMiddleware(userRepo, redisClient))
 
-		// Create or update profile - requires profile update permission
-		r.With(middleware.PermissionMiddleware([]string{"account:profile:update:self"})).
-			Post("/", profileHandler.CreateOrUpdate)
-
-		// Get profile - requires profile read permission
+		// Get default profile
 		r.With(middleware.PermissionMiddleware([]string{"account:profile:read:self"})).
 			Get("/", profileHandler.Get)
 
-		// Delete profile - requires profile delete permission
+		// Create or update default profile (combined for convenience)
+		r.With(middleware.PermissionMiddleware([]string{"account:profile:update:self"})).
+			Post("/", profileHandler.CreateOrUpdate)
+
+		// Update default profile
+		r.With(middleware.PermissionMiddleware([]string{"account:profile:update:self"})).
+			Put("/", profileHandler.CreateOrUpdate)
+
+		// Delete default profile
 		r.With(middleware.PermissionMiddleware([]string{"account:profile:delete:self"})).
 			Delete("/", profileHandler.Delete)
+	})
+
+	// /profiles - All profiles operations (including default, with full CRUD)
+	r.Route("/profiles", func(r chi.Router) {
+		r.Use(middleware.JWTAuthMiddleware)
+		r.Use(middleware.UserContextMiddleware(userRepo, redisClient))
+
+		// Get all profiles with pagination and filtering
+		r.With(middleware.PermissionMiddleware([]string{"account:profile:read:self"})).
+			Get("/", profileHandler.GetAll)
+
+		// Create new profile (auto-generate UUID)
+		r.With(middleware.PermissionMiddleware([]string{"account:profile:update:self"})).
+			Post("/", profileHandler.CreateProfile)
+
+		// Get specific profile by UUID
+		r.With(middleware.PermissionMiddleware([]string{"account:profile:read:self"})).
+			Get("/{profile_uuid}", profileHandler.GetByUUID)
+
+		// Update specific profile by UUID
+		r.With(middleware.PermissionMiddleware([]string{"account:profile:update:self"})).
+			Put("/{profile_uuid}", profileHandler.UpdateProfile)
+
+		// Set specific profile as default
+		r.With(middleware.PermissionMiddleware([]string{"account:profile:update:self"})).
+			Patch("/{profile_uuid}/set-default", profileHandler.SetDefaultProfile)
+
+		// Delete specific profile by UUID
+		r.With(middleware.PermissionMiddleware([]string{"account:profile:delete:self"})).
+			Delete("/{profile_uuid}", profileHandler.DeleteByUUID)
 	})
 }
