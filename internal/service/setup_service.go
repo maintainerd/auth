@@ -140,7 +140,7 @@ func (s *setupService) CreateTenant(req dto.CreateTenantRequestDto) (*dto.Create
 			Description: description,
 			Identifier:  identifier,
 			Metadata:    metadataJSON,
-			IsActive:    true,
+			Status:      "active",
 			IsDefault:   true, // This is the default tenant for new users
 			IsSystem:    true, // This is a system tenant that cannot be deleted
 		}
@@ -178,7 +178,7 @@ func (s *setupService) CreateTenant(req dto.CreateTenantRequestDto) (*dto.Create
 		Name:        createdTenant.Name,
 		Description: createdTenant.Description,
 		Identifier:  createdTenant.Identifier,
-		IsActive:    createdTenant.IsActive,
+		Status:      createdTenant.Status,
 		IsPublic:    createdTenant.IsPublic,
 		IsDefault:   createdTenant.IsDefault,
 		IsSystem:    createdTenant.IsSystem,
@@ -275,7 +275,7 @@ func (s *setupService) CreateAdmin(req dto.CreateAdminRequestDto) (*dto.CreateAd
 			Password:        util.Ptr(string(hashedPassword)),
 			TenantID:        defaultTenant.TenantID,
 			IsEmailVerified: true,
-			IsActive:        true,
+			Status:          "active",
 		}
 
 		createdUser, err = txUserRepo.Create(newUser)
@@ -347,7 +347,7 @@ func (s *setupService) CreateAdmin(req dto.CreateAdminRequestDto) (*dto.CreateAd
 		Fullname:        createdUser.Fullname,
 		Email:           createdUser.Email,
 		IsEmailVerified: createdUser.IsEmailVerified,
-		IsActive:        createdUser.IsActive,
+		Status:          createdUser.Status,
 		CreatedAt:       createdUser.CreatedAt,
 		UpdatedAt:       createdUser.UpdatedAt,
 	}
@@ -415,6 +415,7 @@ func (s *setupService) CreateProfile(req dto.CreateProfileRequestDto) (*dto.Crea
 			Suffix:      req.Suffix,
 			DisplayName: req.DisplayName,
 			Bio:         req.Bio,
+			IsDefault:   true, // First profile during setup is always default
 			Birthdate:   birthdate,
 			Gender:      req.Gender,
 			Phone:       req.Phone,
