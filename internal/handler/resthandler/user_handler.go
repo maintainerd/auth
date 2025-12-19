@@ -237,6 +237,63 @@ func (h *UserHandler) SetUserStatus(w http.ResponseWriter, r *http.Request) {
 	util.Success(w, dtoRes, "User status updated successfully")
 }
 
+func (h *UserHandler) VerifyEmail(w http.ResponseWriter, r *http.Request) {
+	userUUIDStr := chi.URLParam(r, "user_uuid")
+	userUUID, err := uuid.Parse(userUUIDStr)
+	if err != nil {
+		util.Error(w, http.StatusBadRequest, "Invalid user UUID")
+		return
+	}
+
+	// Verify email and mark account as completed
+	user, err := h.userService.VerifyEmail(userUUID)
+	if err != nil {
+		util.Error(w, http.StatusInternalServerError, "Failed to verify email", err.Error())
+		return
+	}
+
+	dtoRes := toUserResponseDto(*user)
+	util.Success(w, dtoRes, "Email verified and account completed successfully")
+}
+
+func (h *UserHandler) VerifyPhone(w http.ResponseWriter, r *http.Request) {
+	userUUIDStr := chi.URLParam(r, "user_uuid")
+	userUUID, err := uuid.Parse(userUUIDStr)
+	if err != nil {
+		util.Error(w, http.StatusBadRequest, "Invalid user UUID")
+		return
+	}
+
+	// Verify phone
+	user, err := h.userService.VerifyPhone(userUUID)
+	if err != nil {
+		util.Error(w, http.StatusInternalServerError, "Failed to verify phone", err.Error())
+		return
+	}
+
+	dtoRes := toUserResponseDto(*user)
+	util.Success(w, dtoRes, "Phone verified successfully")
+}
+
+func (h *UserHandler) CompleteAccount(w http.ResponseWriter, r *http.Request) {
+	userUUIDStr := chi.URLParam(r, "user_uuid")
+	userUUID, err := uuid.Parse(userUUIDStr)
+	if err != nil {
+		util.Error(w, http.StatusBadRequest, "Invalid user UUID")
+		return
+	}
+
+	// Mark account as completed
+	user, err := h.userService.CompleteAccount(userUUID)
+	if err != nil {
+		util.Error(w, http.StatusInternalServerError, "Failed to complete account", err.Error())
+		return
+	}
+
+	dtoRes := toUserResponseDto(*user)
+	util.Success(w, dtoRes, "Account marked as completed successfully")
+}
+
 // Delete user
 func (h *UserHandler) DeleteUser(w http.ResponseWriter, r *http.Request) {
 	// Get authentication context
