@@ -80,7 +80,7 @@ func (s *forgotPasswordService) SendPasswordResetEmail(email string, clientID, p
 		}
 
 		// Check if user is active
-		if !user.IsActive {
+		if user.Status != "active" {
 			// Don't reveal if user is inactive for security
 			return nil
 		}

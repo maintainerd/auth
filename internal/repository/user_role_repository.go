@@ -45,7 +45,13 @@ func (r *userRoleRepository) FindByUserIDAndRoleID(userID int64, roleID int64) (
 	err := r.db.
 		Where("user_id = ? AND role_id = ?", userID, roleID).
 		First(&ur).Error
-	return &ur, err
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, err
+		}
+		return nil, err
+	}
+	return &ur, nil
 }
 
 func (r *userRoleRepository) FindDefaultRolesByUserID(userID int64) ([]model.UserRole, error) {
