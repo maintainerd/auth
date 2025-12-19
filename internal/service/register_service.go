@@ -184,7 +184,7 @@ func (s *registerService) RegisterPublic(
 			Fullname: fullname,
 			Password: util.Ptr(string(hashed)),
 			TenantID: tenantId,
-			IsActive: true,
+			Status:   "active",
 		}
 
 		// Set email if provided
@@ -336,7 +336,7 @@ func (s *registerService) Register(
 			Fullname: fullname,
 			Password: util.Ptr(string(hashed)),
 			TenantID: tenantId,
-			IsActive: true,
+			Status:   "active",
 		}
 
 		// Set email if provided
@@ -491,7 +491,7 @@ func (s *registerService) RegisterInvite(
 			Password: util.Ptr(string(hashed)),
 			Email:    invite.InvitedEmail,
 			TenantID: tenantId,
-			IsActive: true,
+			Status:   "active",
 		}
 
 		createdUser, txErr = txUserRepo.Create(newUser)
@@ -652,7 +652,7 @@ func (s *registerService) RegisterInvitePublic(
 			Email:           invite.InvitedEmail, // Always use the invited email
 			Password:        util.Ptr(string(hashed)),
 			TenantID:        tenantId,
-			IsActive:        true,
+			Status:          "active",
 			IsEmailVerified: true, // Auto-verify email for invited users
 		}
 

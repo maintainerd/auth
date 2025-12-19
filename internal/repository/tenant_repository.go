@@ -12,7 +12,7 @@ type TenantRepositoryGetFilter struct {
 	Name        *string
 	Description *string
 	Identifier  *string
-	IsActive    *bool
+	Status      []string
 	IsPublic    *bool
 	IsDefault   *bool
 	IsSystem    *bool
@@ -29,7 +29,7 @@ type TenantRepository interface {
 	FindByIdentifier(identifier string) (*model.Tenant, error)
 	FindDefault() (*model.Tenant, error)
 	FindPaginated(filter TenantRepositoryGetFilter) (*PaginationResult[model.Tenant], error)
-	SetActiveStatusByUUID(tenantUUID uuid.UUID, isActive bool) error
+	SetStatusByUUID(tenantUUID uuid.UUID, status string) error
 	SetDefaultStatusByUUID(tenantUUID uuid.UUID, isDefault bool) error
 	SetSystemStatusByUUID(tenantUUID uuid.UUID, isSystem bool) error
 }
@@ -104,8 +104,8 @@ func (r *tenantRepository) FindPaginated(filter TenantRepositoryGetFilter) (*Pag
 	}
 
 	// Filters with exact match
-	if filter.IsActive != nil {
-		query = query.Where("is_active = ?", *filter.IsActive)
+	if len(filter.Status) > 0 {
+		query = query.Where("status IN ?", filter.Status)
 	}
 	if filter.IsPublic != nil {
 		query = query.Where("is_public = ?", *filter.IsPublic)
@@ -152,8 +152,8 @@ func (r *tenantRepository) FindPaginated(filter TenantRepositoryGetFilter) (*Pag
 	}, nil
 }
 
-func (r *tenantRepository) SetActiveStatusByUUID(tenantUUID uuid.UUID, isActive bool) error {
-	return r.db.Model(&model.Tenant{}).Where("tenant_uuid = ?", tenantUUID).Update("is_active", isActive).Error
+func (r *tenantRepository) SetStatusByUUID(tenantUUID uuid.UUID, status string) error {
+	return r.db.Model(&model.Tenant{}).Where("tenant_uuid = ?", tenantUUID).Update("status", status).Error
 }
 
 func (r *tenantRepository) SetDefaultStatusByUUID(tenantUUID uuid.UUID, isDefault bool) error {

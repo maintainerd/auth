@@ -15,7 +15,7 @@ CREATE TABLE IF NOT EXISTS tenants (
     name						VARCHAR(255) NOT NULL,
     description			TEXT,
     identifier			VARCHAR(255) NOT NULL UNIQUE,
-    is_active				BOOLEAN DEFAULT FALSE,
+    status					VARCHAR(20) DEFAULT 'active',
     is_public				BOOLEAN DEFAULT FALSE,
     is_default			BOOLEAN DEFAULT FALSE,
     is_system				BOOLEAN DEFAULT FALSE,
@@ -28,7 +28,7 @@ CREATE TABLE IF NOT EXISTS tenants (
 CREATE INDEX IF NOT EXISTS idx_tenants_uuid ON tenants (tenant_uuid);
 CREATE INDEX IF NOT EXISTS idx_tenants_name ON tenants (name);
 CREATE INDEX IF NOT EXISTS idx_tenants_identifier ON tenants (identifier);
-CREATE INDEX IF NOT EXISTS idx_tenants_is_active ON tenants (is_active);
+CREATE INDEX IF NOT EXISTS idx_tenants_status ON tenants (status);
 CREATE INDEX IF NOT EXISTS idx_tenants_is_public ON tenants (is_public);
 CREATE INDEX IF NOT EXISTS idx_tenants_is_default ON tenants (is_default);
 CREATE INDEX IF NOT EXISTS idx_tenants_is_system ON tenants (is_system);

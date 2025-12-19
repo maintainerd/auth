@@ -33,6 +33,8 @@ CREATE TABLE IF NOT EXISTS profiles (
     language        VARCHAR(10),    -- ISO 639-1 language code (e.g., en, es, fr)
     -- Media & Assets (auth-centric)
     profile_url      TEXT,           -- User profile picture
+    -- Profile Flags
+    is_default      BOOLEAN DEFAULT false,
     -- Extended data
     metadata				JSONB DEFAULT '{}',
     -- System Fields

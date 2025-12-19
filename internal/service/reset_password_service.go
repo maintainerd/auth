@@ -101,7 +101,7 @@ func (s *resetPasswordService) ResetPassword(token, newPassword string, clientID
 		}
 
 		// Check if user is active
-		if !user.IsActive {
+		if user.Status != "active" {
 			return errors.New("user account is not active")
 		}
 

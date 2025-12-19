@@ -164,7 +164,7 @@ func (s *loginService) LoginPublic(usernameOrEmail, password, clientID, provider
 	}
 
 	// Check if user account is active
-	if !user.IsActive {
+	if user.Status != "active" {
 		util.LogSecurityEvent(util.SecurityEvent{
 			EventType: "login_inactive_user",
 			UserID:    user.UserUUID.String(),
@@ -303,7 +303,7 @@ func (s *loginService) Login(usernameOrEmail, password string, clientID, provide
 	}
 
 	// Check if user account is active
-	if !user.IsActive {
+	if user.Status != "active" {
 		util.LogSecurityEvent(util.SecurityEvent{
 			EventType: "login_inactive_user",
 			UserID:    user.UserUUID.String(),

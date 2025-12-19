@@ -22,7 +22,8 @@ type UserServiceDataResult struct {
 	IsPhoneVerified    bool
 	IsProfileCompleted bool
 	IsAccountCompleted bool
-	IsActive           bool
+	Status             string
+	Metadata           datatypes.JSON
 	Tenant             *TenantServiceDataResult
 	UserIdentities     *[]UserIdentityServiceDataResult
 	Roles              *[]RoleServiceDataResult
@@ -44,8 +45,9 @@ type UserServiceGetFilter struct {
 	Username   *string
 	Email      *string
 	Phone      *string
-	IsActive   *bool
+	Status     []string
 	TenantUUID *string
+	RoleUUID   *string
 	Page       int
 	Limit      int
 	SortBy     string
@@ -63,12 +65,14 @@ type UserServiceGetResult struct {
 type UserService interface {
 	Get(filter UserServiceGetFilter) (*UserServiceGetResult, error)
 	GetByUUID(userUUID uuid.UUID) (*UserServiceDataResult, error)
-	Create(username string, fullname string, email *string, phone *string, password string, tenantUUID string, creatorUserUUID uuid.UUID) (*UserServiceDataResult, error)
-	Update(userUUID uuid.UUID, username string, fullname string, email *string, phone *string, updaterUserUUID uuid.UUID) (*UserServiceDataResult, error)
-	SetActiveStatus(userUUID uuid.UUID, isActive bool, updaterUserUUID uuid.UUID) (*UserServiceDataResult, error)
+	Create(username string, fullname string, email *string, phone *string, password string, status string, metadata datatypes.JSON, tenantUUID string, creatorUserUUID uuid.UUID) (*UserServiceDataResult, error)
+	Update(userUUID uuid.UUID, username string, fullname string, email *string, phone *string, status string, metadata datatypes.JSON, updaterUserUUID uuid.UUID) (*UserServiceDataResult, error)
+	SetStatus(userUUID uuid.UUID, status string, updaterUserUUID uuid.UUID) (*UserServiceDataResult, error)
 	DeleteByUUID(userUUID uuid.UUID, deleterUserUUID uuid.UUID) (*UserServiceDataResult, error)
 	AssignUserRoles(userUUID uuid.UUID, roleUUIDs []uuid.UUID) (*UserServiceDataResult, error)
 	RemoveUserRole(userUUID uuid.UUID, roleUUID uuid.UUID) (*UserServiceDataResult, error)
+	GetUserRoles(userUUID uuid.UUID) ([]RoleServiceDataResult, error)
+	GetUserIdentities(userUUID uuid.UUID) ([]UserIdentityServiceDataResult, error)
 }
 
 type userService struct {
@@ -104,6 +108,37 @@ func NewUserService(
 	}
 }
 
+// Helper function to find the default role for a tenant
+func (s *userService) findDefaultRole(roleRepo repository.RoleRepository, tenantID int64) (*model.Role, error) {
+	// First try to find a role marked as default
+	filter := repository.RoleRepositoryGetFilter{
+		IsDefault: &[]bool{true}[0],
+		TenantID:  tenantID,
+		Page:      1,
+		Limit:     1,
+	}
+
+	result, err := roleRepo.FindPaginated(filter)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(result.Data) > 0 {
+		return &result.Data[0], nil
+	}
+
+	// Fallback: if no default role found, try to find "registered" role
+	role, err := roleRepo.FindByNameAndTenantID("registered", tenantID)
+	if err != nil {
+		return nil, err
+	}
+	if role == nil {
+		return nil, errors.New("no default role found for tenant")
+	}
+
+	return role, nil
+}
+
 func (s *userService) Get(filter UserServiceGetFilter) (*UserServiceGetResult, error) {
 	// Convert tenant UUID to ID if provided
 	var tenantID *int64
@@ -120,13 +155,29 @@ func (s *userService) Get(filter UserServiceGetFilter) (*UserServiceGetResult, e
 		tenantID = &tenant.TenantID
 	}
 
+	// Convert role UUID to ID if provided
+	var roleID *int64
+	if filter.RoleUUID != nil {
+		roleUUIDParsed, err := uuid.Parse(*filter.RoleUUID)
+		if err != nil {
+			return nil, errors.New("invalid role UUID")
+		}
+
+		role, err := s.roleRepo.FindByUUID(roleUUIDParsed)
+		if err != nil || role == nil {
+			return nil, errors.New("role not found")
+		}
+		roleID = &role.RoleID
+	}
+
 	// Build query filter
 	queryFilter := repository.UserRepositoryGetFilter{
 		Username:  filter.Username,
 		Email:     filter.Email,
 		Phone:     filter.Phone,
-		IsActive:  filter.IsActive,
+		Status:    filter.Status,
 		TenantID:  tenantID,
+		RoleID:    roleID,
 		Page:      filter.Page,
 		Limit:     filter.Limit,
 		SortBy:    filter.SortBy,
@@ -154,7 +205,7 @@ func (s *userService) Get(filter UserServiceGetFilter) (*UserServiceGetResult, e
 }
 
 func (s *userService) GetByUUID(userUUID uuid.UUID) (*UserServiceDataResult, error) {
-	user, err := s.userRepo.FindByUUID(userUUID, "Tenant", "UserIdentities.AuthClient", "Roles")
+	user, err := s.userRepo.FindByUUID(userUUID, "Tenant")
 	if err != nil || user == nil {
 		return nil, errors.New("user not found")
 	}
@@ -162,7 +213,7 @@ func (s *userService) GetByUUID(userUUID uuid.UUID) (*UserServiceDataResult, err
 	return toUserServiceDataResult(user), nil
 }
 
-func (s *userService) Create(username string, fullname string, email *string, phone *string, password string, tenantUUID string, creatorUserUUID uuid.UUID) (*UserServiceDataResult, error) {
+func (s *userService) Create(username string, fullname string, email *string, phone *string, password string, status string, metadata datatypes.JSON, tenantUUID string, creatorUserUUID uuid.UUID) (*UserServiceDataResult, error) {
 	var createdUser *model.User
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
@@ -170,6 +221,8 @@ func (s *userService) Create(username string, fullname string, email *string, ph
 		txUserIdentityRepo := s.userIdentityRepo.WithTx(tx)
 		txTenantRepo := s.tenantRepo.WithTx(tx)
 		txAuthClientRepo := s.authClientRepo.WithTx(tx)
+		txRoleRepo := s.roleRepo.WithTx(tx)
+		txUserRoleRepo := s.userRoleRepo.WithTx(tx)
 
 		// Parse tenant UUID
 		tenantUUIDParsed, err := uuid.Parse(tenantUUID)
@@ -239,7 +292,8 @@ func (s *userService) Create(username string, fullname string, email *string, ph
 			Email:    emailStr,
 			Phone:    phoneStr,
 			Password: &hashedPasswordStr,
-			IsActive: true,
+			Status:   status,
+			Metadata: metadata,
 			TenantID: targetTenant.TenantID,
 		}
 
@@ -268,6 +322,22 @@ func (s *userService) Create(username string, fullname string, email *string, ph
 			return err
 		}
 
+		// Assign default registered role to the user
+		defaultRole, err := s.findDefaultRole(txRoleRepo, targetTenant.TenantID)
+		if err != nil {
+			return err
+		}
+
+		userRole := &model.UserRole{
+			UserID: newUser.UserID,
+			RoleID: defaultRole.RoleID,
+		}
+
+		_, err = txUserRoleRepo.Create(userRole)
+		if err != nil {
+			return err
+		}
+
 		// Fetch created user with relationships
 		createdUser, err = txUserRepo.FindByUUID(newUser.UserUUID, "Tenant", "UserIdentities.AuthClient", "Roles")
 		if err != nil {
@@ -284,7 +354,7 @@ func (s *userService) Create(username string, fullname string, email *string, ph
 	return toUserServiceDataResult(createdUser), nil
 }
 
-func (s *userService) Update(userUUID uuid.UUID, username string, fullname string, email *string, phone *string, updaterUserUUID uuid.UUID) (*UserServiceDataResult, error) {
+func (s *userService) Update(userUUID uuid.UUID, username string, fullname string, email *string, phone *string, status string, metadata datatypes.JSON, updaterUserUUID uuid.UUID) (*UserServiceDataResult, error) {
 	var updatedUser *model.User
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
@@ -342,11 +412,15 @@ func (s *userService) Update(userUUID uuid.UUID, username string, fullname strin
 		// Update user
 		user.Username = username
 		user.Fullname = fullname
+		user.Status = status
 		if email != nil {
 			user.Email = emailStr
 		}
 		if phone != nil {
 			user.Phone = phoneStr
+		}
+		if metadata != nil {
+			user.Metadata = metadata
 		}
 
 		_, err = txUserRepo.UpdateByUUID(userUUID, user)
@@ -370,7 +444,7 @@ func (s *userService) Update(userUUID uuid.UUID, username string, fullname strin
 	return toUserServiceDataResult(updatedUser), nil
 }
 
-func (s *userService) SetActiveStatus(userUUID uuid.UUID, isActive bool, updaterUserUUID uuid.UUID) (*UserServiceDataResult, error) {
+func (s *userService) SetStatus(userUUID uuid.UUID, status string, updaterUserUUID uuid.UUID) (*UserServiceDataResult, error) {
 	// Check if target user exists
 	user, err := s.userRepo.FindByUUID(userUUID, "Tenant")
 	if err != nil || user == nil {
@@ -388,8 +462,7 @@ func (s *userService) SetActiveStatus(userUUID uuid.UUID, isActive bool, updater
 		return nil, err
 	}
 
-	// Update active status
-	err = s.userRepo.SetActiveStatus(userUUID, isActive)
+	err = s.userRepo.SetStatus(userUUID, status)
 	if err != nil {
 		return nil, err
 	}
@@ -553,7 +626,8 @@ func toUserServiceDataResult(user *model.User) *UserServiceDataResult {
 		IsPhoneVerified:    user.IsPhoneVerified,
 		IsProfileCompleted: user.IsProfileCompleted,
 		IsAccountCompleted: user.IsAccountCompleted,
-		IsActive:           user.IsActive,
+		Status:             user.Status,
+		Metadata:           user.Metadata,
 		CreatedAt:          user.CreatedAt,
 		UpdatedAt:          user.UpdatedAt,
 	}
@@ -593,4 +667,59 @@ func toUserServiceDataResult(user *model.User) *UserServiceDataResult {
 	}
 
 	return result
+}
+
+func (s *userService) GetUserRoles(userUUID uuid.UUID) ([]RoleServiceDataResult, error) {
+	user, err := s.userRepo.FindByUUID(userUUID)
+	if err != nil || user == nil {
+		return nil, errors.New("user not found")
+	}
+
+	roles, err := s.userRepo.FindRoles(user.UserID)
+	if err != nil {
+		return nil, err
+	}
+
+	result := make([]RoleServiceDataResult, len(roles))
+	for i, role := range roles {
+		result[i] = *toRoleServiceDataResult(&role)
+	}
+
+	return result, nil
+}
+
+func (s *userService) GetUserIdentities(userUUID uuid.UUID) ([]UserIdentityServiceDataResult, error) {
+	user, err := s.userRepo.FindByUUID(userUUID)
+	if err != nil || user == nil {
+		return nil, errors.New("user not found")
+	}
+
+	identities, err := s.userIdentityRepo.FindByUserID(user.UserID)
+	if err != nil {
+		return nil, err
+	}
+
+	result := make([]UserIdentityServiceDataResult, len(identities))
+	for i, identity := range identities {
+		// Load AuthClient if needed
+		var authClient *AuthClientServiceDataResult
+		if identity.AuthClientID > 0 {
+			ac, err := s.authClientRepo.FindByID(identity.AuthClientID)
+			if err == nil && ac != nil {
+				authClient = ToAuthClientServiceDataResult(ac)
+			}
+		}
+
+		result[i] = UserIdentityServiceDataResult{
+			UserIdentityUUID: identity.UserIdentityUUID,
+			Provider:         identity.Provider,
+			Sub:              identity.Sub,
+			Metadata:         identity.Metadata,
+			AuthClient:       authClient,
+			CreatedAt:        identity.CreatedAt,
+			UpdatedAt:        identity.UpdatedAt,
+		}
+	}
+
+	return result, nil
 }

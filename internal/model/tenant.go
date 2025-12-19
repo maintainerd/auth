@@ -14,7 +14,7 @@ type Tenant struct {
 	Name        string         `gorm:"column:name"`
 	Description string         `gorm:"column:description"`
 	Identifier  string         `gorm:"column:identifier"`
-	IsActive    bool           `gorm:"column:is_active;default:false"`
+	Status      string         `gorm:"column:status;default:'active'"`
 	IsPublic    bool           `gorm:"column:is_public;default:false"`
 	IsDefault   bool           `gorm:"column:is_default;default:false"`
 	IsSystem    bool           `gorm:"column:is_system;default:false"`

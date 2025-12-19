@@ -21,6 +21,8 @@ type ProfileServiceDataResult struct {
 	Suffix      *string
 	DisplayName *string
 	Bio         *string
+	// Profile Flags
+	IsDefault bool
 	// Personal Information
 	Birthdate *time.Time
 	Gender    *string
@@ -43,6 +45,14 @@ type ProfileServiceDataResult struct {
 	UpdatedAt time.Time
 }
 
+type ProfileServiceListResult struct {
+	Data       []ProfileServiceDataResult
+	Total      int64
+	Page       int
+	Limit      int
+	TotalPages int
+}
+
 type ProfileService interface {
 	CreateOrUpdateProfile(
 		userUUID uuid.UUID,
@@ -56,9 +66,24 @@ type ProfileService interface {
 		profileURL *string,
 		metadata map[string]interface{},
 	) (*ProfileServiceDataResult, error)
-	GetByUUID(profileUUID uuid.UUID) (*ProfileServiceDataResult, error)
+	CreateOrUpdateSpecificProfile(
+		profileUUID uuid.UUID,
+		userUUID uuid.UUID,
+		firstName string,
+		middleName, lastName, suffix, displayName, bio *string,
+		birthdate *time.Time,
+		gender *string,
+		phone, email, address *string,
+		city, country *string,
+		timezone, language *string,
+		profileURL *string,
+		metadata map[string]interface{},
+	) (*ProfileServiceDataResult, error)
+	GetByUUID(profileUUID uuid.UUID, userUUID uuid.UUID) (*ProfileServiceDataResult, error)
 	GetByUserUUID(userUUID uuid.UUID) (*ProfileServiceDataResult, error)
-	DeleteByUUID(profileUUID uuid.UUID) (*ProfileServiceDataResult, error)
+	GetAll(userUUID uuid.UUID, firstName, lastName, email, phone, city, country *string, isDefault *bool, page, limit int, sortBy, sortOrder string) (*ProfileServiceListResult, error)
+	SetDefaultProfile(profileUUID uuid.UUID, userUUID uuid.UUID) (*ProfileServiceDataResult, error)
+	DeleteByUUID(profileUUID uuid.UUID, userUUID uuid.UUID) (*ProfileServiceDataResult, error)
 }
 
 type profileService struct {
@@ -104,8 +129,8 @@ func (s *profileService) CreateOrUpdateProfile(
 			return errors.New("user not found")
 		}
 
-		// Step 3: Try to find existing profile using repository
-		existingProfile, err := txProfileRepo.FindByUserID(user.UserID)
+		// Step 3: Try to find existing default profile
+		existingProfile, err := txProfileRepo.FindDefaultByUserID(user.UserID)
 		var profile model.Profile
 
 		if err != nil {
@@ -115,13 +140,14 @@ func (s *profileService) CreateOrUpdateProfile(
 			profile = model.Profile{
 				ProfileUUID: uuid.New(),
 				UserID:      user.UserID,
+				IsDefault:   true, // First profile is always default
 			}
 		} else {
 			// Use existing profile
 			profile = *existingProfile
 		}
 
-		// Step 2: Set all fields
+		// Step 4: Set all fields
 		// Basic Identity Information
 		profile.FirstName = firstName
 		profile.MiddleName = middleName
@@ -196,10 +222,151 @@ func (s *profileService) CreateOrUpdateProfile(
 	return toProfileServiceDataResult(updatedProfile), nil
 }
 
-func (s *profileService) GetByUUID(profileUUID uuid.UUID) (*ProfileServiceDataResult, error) {
+func (s *profileService) CreateOrUpdateSpecificProfile(
+	profileUUID uuid.UUID,
+	userUUID uuid.UUID,
+	firstName string,
+	middleName, lastName, suffix, displayName, bio *string,
+	birthdate *time.Time,
+	gender *string,
+	phone, email, address *string,
+	city, country *string,
+	timezone, language *string,
+	profileURL *string,
+	metadata map[string]interface{},
+) (*ProfileServiceDataResult, error) {
+	var updatedProfile *model.Profile
+
+	err := s.db.Transaction(func(tx *gorm.DB) error {
+		// Step 1: Create transaction-aware repositories
+		txProfileRepo := s.profileRepo.WithTx(tx)
+		txUserRepo := s.userRepo.WithTx(tx)
+
+		// Step 2: Find user by UUID to get userID
+		user, err := txUserRepo.FindByUUID(userUUID)
+		if err != nil || user == nil {
+			return errors.New("user not found")
+		}
+
+		// Step 3: Try to find existing profile by UUID
+		existingProfile, err := txProfileRepo.FindByUUID(profileUUID)
+		var profile model.Profile
+
+		if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+			return err
+		} else if existingProfile == nil {
+			// Check if this is the first profile for the user
+			existingUserProfile, err := txProfileRepo.FindByUserID(user.UserID)
+			if err != nil {
+				return err
+			}
+
+			// Create new profile with provided UUID
+			profile = model.Profile{
+				ProfileUUID: profileUUID,
+				UserID:      user.UserID,
+				IsDefault:   existingUserProfile == nil, // First profile is default
+			}
+		} else {
+			// Verify profile belongs to user
+			if existingProfile.UserID != user.UserID {
+				return errors.New("profile does not belong to user")
+			}
+			// Use existing profile
+			profile = *existingProfile
+		}
+
+		// Set all fields
+		// Basic Identity Information
+		profile.FirstName = firstName
+		profile.MiddleName = middleName
+		profile.LastName = lastName
+		profile.Suffix = suffix
+		profile.DisplayName = displayName
+		profile.Bio = bio
+
+		// Personal Information
+		profile.Birthdate = birthdate
+		profile.Gender = gender
+
+		// Contact Information
+		profile.Phone = phone
+		profile.Email = email
+		profile.Address = address
+
+		// Location Information
+		profile.City = city
+		profile.Country = country
+
+		// Preference
+		profile.Timezone = timezone
+		profile.Language = language
+
+		// Media & Assets (auth-centric)
+		profile.ProfileURL = profileURL
+
+		// Extended data - convert map to JSONB
+		if metadata != nil {
+			metadataBytes, err := json.Marshal(metadata)
+			if err != nil {
+				return err
+			}
+			profile.Metadata = metadataBytes
+		} else {
+			profile.Metadata = datatypes.JSON([]byte("{}"))
+		}
+
+		// Create or update profile
+		if profile.ProfileID == 0 {
+			// Create new profile
+			createdProfile, err := txProfileRepo.Create(&profile)
+			if err != nil {
+				return err
+			}
+			updatedProfile = createdProfile
+
+			// Update user's is_profile_completed flag on first profile creation
+			_, err = txUserRepo.UpdateByUUID(user.UserUUID, map[string]interface{}{
+				"is_profile_completed": true,
+			})
+			if err != nil {
+				return err
+			}
+		} else {
+			// Update existing profile using CreateOrUpdate
+			updated, err := txProfileRepo.CreateOrUpdate(&profile)
+			if err != nil {
+				return err
+			}
+			updatedProfile = updated
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	return toProfileServiceDataResult(updatedProfile), nil
+}
+
+func (s *profileService) GetByUUID(profileUUID uuid.UUID, userUUID uuid.UUID) (*ProfileServiceDataResult, error) {
+	// Find user by UUID to get userID
+	user, err := s.userRepo.FindByUUID(userUUID)
+	if err != nil || user == nil {
+		return nil, errors.New("user not found")
+	}
+
+	// Get profile by UUID
 	profile, err := s.profileRepo.FindByUUID(profileUUID)
 	if err != nil || profile == nil {
 		return nil, errors.New("profile not found")
+	}
+
+	// Verify ownership
+	if profile.UserID != user.UserID {
+		return nil, errors.New("profile does not belong to user")
 	}
 
 	return toProfileServiceDataResult(profile), nil
@@ -212,7 +379,8 @@ func (s *profileService) GetByUserUUID(userUUID uuid.UUID) (*ProfileServiceDataR
 		return nil, errors.New("user not found")
 	}
 
-	profile, err := s.profileRepo.FindByUserID(user.UserID)
+	// Find default profile by user ID
+	profile, err := s.profileRepo.FindDefaultByUserID(user.UserID)
 	if err != nil || profile == nil {
 		return nil, errors.New("profile not found")
 	}
@@ -220,11 +388,136 @@ func (s *profileService) GetByUserUUID(userUUID uuid.UUID) (*ProfileServiceDataR
 	return toProfileServiceDataResult(profile), nil
 }
 
-func (s *profileService) DeleteByUUID(profileUUID uuid.UUID) (*ProfileServiceDataResult, error) {
-	// First get the profile to return it
+func (s *profileService) GetAll(
+	userUUID uuid.UUID,
+	firstName, lastName, email, phone, city, country *string,
+	isDefault *bool,
+	page, limit int,
+	sortBy, sortOrder string,
+) (*ProfileServiceListResult, error) {
+	// Find user by UUID to get userID
+	user, err := s.userRepo.FindByUUID(userUUID)
+	if err != nil || user == nil {
+		return nil, errors.New("user not found")
+	}
+
+	// Build filter
+	filter := repository.ProfileRepositoryGetFilter{
+		UserID:    user.UserID,
+		FirstName: firstName,
+		LastName:  lastName,
+		Email:     email,
+		Phone:     phone,
+		City:      city,
+		Country:   country,
+		IsDefault: isDefault,
+		Page:      page,
+		Limit:     limit,
+		SortBy:    sortBy,
+		SortOrder: sortOrder,
+	}
+
+	// Get profiles
+	profiles, total, err := s.profileRepo.FindAllByUserID(filter)
+	if err != nil {
+		return nil, err
+	}
+
+	// Convert to service result
+	data := make([]ProfileServiceDataResult, len(profiles))
+	for i, profile := range profiles {
+		if result := toProfileServiceDataResult(&profile); result != nil {
+			data[i] = *result
+		}
+	}
+
+	// Calculate total pages
+	totalPages := int(total) / limit
+	if int(total)%limit > 0 {
+		totalPages++
+	}
+
+	return &ProfileServiceListResult{
+		Data:       data,
+		Total:      total,
+		Page:       page,
+		Limit:      limit,
+		TotalPages: totalPages,
+	}, nil
+}
+
+func (s *profileService) SetDefaultProfile(profileUUID uuid.UUID, userUUID uuid.UUID) (*ProfileServiceDataResult, error) {
+	var updatedProfile *model.Profile
+
+	err := s.db.Transaction(func(tx *gorm.DB) error {
+		// Step 1: Create transaction-aware repositories
+		txProfileRepo := s.profileRepo.WithTx(tx)
+		txUserRepo := s.userRepo.WithTx(tx)
+
+		// Step 2: Find user by UUID to get userID
+		user, err := txUserRepo.FindByUUID(userUUID)
+		if err != nil || user == nil {
+			return errors.New("user not found")
+		}
+
+		// Step 3: Get the profile to verify ownership
+		profile, err := txProfileRepo.FindByUUID(profileUUID)
+		if err != nil {
+			return err
+		}
+		if profile == nil {
+			return errors.New("profile not found")
+		}
+
+		// Verify profile belongs to user
+		if profile.UserID != user.UserID {
+			return errors.New("profile does not belong to user")
+		}
+
+		// Step 4: Unset all other default profiles for this user
+		if err := txProfileRepo.UnsetDefaultProfiles(user.UserID); err != nil {
+			return err
+		}
+
+		// Step 5: Set this profile as default
+		profile.IsDefault = true
+		updated, err := txProfileRepo.CreateOrUpdate(profile)
+		if err != nil {
+			return err
+		}
+
+		updatedProfile = updated
+		return nil
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	return toProfileServiceDataResult(updatedProfile), nil
+}
+
+func (s *profileService) DeleteByUUID(profileUUID uuid.UUID, userUUID uuid.UUID) (*ProfileServiceDataResult, error) {
+	// Find user by UUID to get userID
+	user, err := s.userRepo.FindByUUID(userUUID)
+	if err != nil || user == nil {
+		return nil, errors.New("user not found")
+	}
+
+	// Get the profile to verify ownership and return it
 	profile, err := s.profileRepo.FindByUUID(profileUUID)
 	if err != nil || profile == nil {
 		return nil, errors.New("profile not found")
+	}
+
+	// Verify ownership
+	if profile.UserID != user.UserID {
+		return nil, errors.New("profile does not belong to user")
+	}
+
+	// Prevent deletion of default profile
+	if profile.IsDefault {
+		return nil, errors.New("cannot delete default profile")
 	}
 
 	// Delete the profile
@@ -259,6 +552,8 @@ func toProfileServiceDataResult(profile *model.Profile) *ProfileServiceDataResul
 		Suffix:      profile.Suffix,
 		DisplayName: profile.DisplayName,
 		Bio:         profile.Bio,
+		// Profile Flags
+		IsDefault: profile.IsDefault,
 		// Personal Information
 		Birthdate: profile.Birthdate,
 		Gender:    profile.Gender,

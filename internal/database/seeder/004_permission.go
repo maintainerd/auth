@@ -171,8 +171,8 @@ func SeedPermissions(db *gorm.DB, apiID int64) error {
 		newPermission("user:delete", "Delete user", apiID),
 		newPermission("user:disable", "Disable user", apiID),
 		newPermission("user:enable", "Re-enable user", apiID),
-		newPermission("user:assign-role", "Assign role to a user", apiID),
-		newPermission("user:remove-role", "Remove role from a user", apiID),
+		newPermission("user:role:assign", "Assign role to a user", apiID),
+		newPermission("user:role:remove", "Remove role from a user", apiID),
 		newPermission("user:invite", "Invite user via email", apiID),
 
 		// Auth Logs
