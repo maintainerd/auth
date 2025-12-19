@@ -68,6 +68,9 @@ type UserService interface {
 	Create(username string, fullname string, email *string, phone *string, password string, status string, metadata datatypes.JSON, tenantUUID string, creatorUserUUID uuid.UUID) (*UserServiceDataResult, error)
 	Update(userUUID uuid.UUID, username string, fullname string, email *string, phone *string, status string, metadata datatypes.JSON, updaterUserUUID uuid.UUID) (*UserServiceDataResult, error)
 	SetStatus(userUUID uuid.UUID, status string, updaterUserUUID uuid.UUID) (*UserServiceDataResult, error)
+	VerifyEmail(userUUID uuid.UUID) (*UserServiceDataResult, error)
+	VerifyPhone(userUUID uuid.UUID) (*UserServiceDataResult, error)
+	CompleteAccount(userUUID uuid.UUID) (*UserServiceDataResult, error)
 	DeleteByUUID(userUUID uuid.UUID, deleterUserUUID uuid.UUID) (*UserServiceDataResult, error)
 	AssignUserRoles(userUUID uuid.UUID, roleUUIDs []uuid.UUID) (*UserServiceDataResult, error)
 	RemoveUserRole(userUUID uuid.UUID, roleUUID uuid.UUID) (*UserServiceDataResult, error)
@@ -463,6 +466,79 @@ func (s *userService) SetStatus(userUUID uuid.UUID, status string, updaterUserUU
 	}
 
 	err = s.userRepo.SetStatus(userUUID, status)
+	if err != nil {
+		return nil, err
+	}
+
+	// Fetch updated user with relationships
+	updatedUser, err := s.userRepo.FindByUUID(userUUID, "Tenant", "UserIdentities.AuthClient", "Roles")
+	if err != nil {
+		return nil, err
+	}
+
+	return toUserServiceDataResult(updatedUser), nil
+}
+
+func (s *userService) VerifyEmail(userUUID uuid.UUID) (*UserServiceDataResult, error) {
+	// Check if target user exists
+	user, err := s.userRepo.FindByUUID(userUUID, "Tenant")
+	if err != nil || user == nil {
+		return nil, errors.New("user not found")
+	}
+
+	// Update is_email_verified and is_account_completed
+	_, err = s.userRepo.UpdateByUUID(userUUID, map[string]interface{}{
+		"is_email_verified":    true,
+		"is_account_completed": true,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	// Fetch updated user with relationships
+	updatedUser, err := s.userRepo.FindByUUID(userUUID, "Tenant", "UserIdentities.AuthClient", "Roles")
+	if err != nil {
+		return nil, err
+	}
+
+	return toUserServiceDataResult(updatedUser), nil
+}
+
+func (s *userService) VerifyPhone(userUUID uuid.UUID) (*UserServiceDataResult, error) {
+	// Check if target user exists
+	user, err := s.userRepo.FindByUUID(userUUID, "Tenant")
+	if err != nil || user == nil {
+		return nil, errors.New("user not found")
+	}
+
+	// Update is_phone_verified
+	_, err = s.userRepo.UpdateByUUID(userUUID, map[string]interface{}{
+		"is_phone_verified": true,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	// Fetch updated user with relationships
+	updatedUser, err := s.userRepo.FindByUUID(userUUID, "Tenant", "UserIdentities.AuthClient", "Roles")
+	if err != nil {
+		return nil, err
+	}
+
+	return toUserServiceDataResult(updatedUser), nil
+}
+
+func (s *userService) CompleteAccount(userUUID uuid.UUID) (*UserServiceDataResult, error) {
+	// Check if target user exists
+	user, err := s.userRepo.FindByUUID(userUUID, "Tenant")
+	if err != nil || user == nil {
+		return nil, errors.New("user not found")
+	}
+
+	// Update is_account_completed
+	_, err = s.userRepo.UpdateByUUID(userUUID, map[string]interface{}{
+		"is_account_completed": true,
+	})
 	if err != nil {
 		return nil, err
 	}

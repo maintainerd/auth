@@ -39,6 +39,18 @@ func UserRoute(
 		r.With(middleware.PermissionMiddleware([]string{"user:update"})).
 			Patch("/{user_uuid}/status", userHandler.SetUserStatus)
 
+		// Verify email (also marks account as completed)
+		r.With(middleware.PermissionMiddleware([]string{"user:update"})).
+			Patch("/{user_uuid}/verify-email", userHandler.VerifyEmail)
+
+		// Verify phone
+		r.With(middleware.PermissionMiddleware([]string{"user:update"})).
+			Patch("/{user_uuid}/verify-phone", userHandler.VerifyPhone)
+
+		// Mark account as completed
+		r.With(middleware.PermissionMiddleware([]string{"user:update"})).
+			Patch("/{user_uuid}/complete-account", userHandler.CompleteAccount)
+
 		// Delete user
 		r.With(middleware.PermissionMiddleware([]string{"user:delete"})).
 			Delete("/{user_uuid}", userHandler.DeleteUser)
