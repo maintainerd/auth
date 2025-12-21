@@ -181,6 +181,12 @@ func SeedPermissions(db *gorm.DB, apiID int64) error {
 		newPermission("auth_log:update", "Update auth log", apiID),
 		newPermission("auth_log:delete", "Delete auth log", apiID),
 
+		// Signup Flows
+		newPermission("signup-flow:read", "Read signup flows", apiID),
+		newPermission("signup-flow:create", "Create signup flow", apiID),
+		newPermission("signup-flow:update", "Update signup flow", apiID),
+		newPermission("signup-flow:delete", "Delete signup flow", apiID),
+
 		// OTHER PERMISSIONS
 		// Email
 		newPermission("email:read-config", "View email delivery config", apiID),
