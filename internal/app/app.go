@@ -32,6 +32,7 @@ type App struct {
 	SetupRestHandler            *resthandler.SetupHandler
 	APIKeyRestHandler           *resthandler.APIKeyHandler
 	SignupFlowRestHandler       *resthandler.SignupFlowHandler
+	SecuritySettingRestHandler  *resthandler.SecuritySettingHandler
 	// Grpc handler
 	SeederHandler *grpchandler.SeederHandler
 	// Repository
@@ -67,6 +68,8 @@ func NewApp(db *gorm.DB, redisClient *redis.Client) *App {
 	apiKeyPermissionRepo := repository.NewAPIKeyPermissionRepository(db)
 	signupFlowRepo := repository.NewSignupFlowRepository(db)
 	signupFlowRoleRepo := repository.NewSignupFlowRoleRepository(db)
+	securitySettingRepo := repository.NewSecuritySettingRepository(db)
+	securitySettingsAuditRepo := repository.NewSecuritySettingsAuditRepository(db)
 
 	// Services
 	serviceService := service.NewServiceService(db, serviceRepo, tenantServiceRepo, apiRepo, servicePolicyRepo, policyRepo)
@@ -88,6 +91,7 @@ func NewApp(db *gorm.DB, redisClient *redis.Client) *App {
 	signupFlowService := service.NewSignupFlowService(db, signupFlowRepo, signupFlowRoleRepo, roleRepo, authClientRepo)
 	policyService := service.NewPolicyService(db, policyRepo, serviceRepo, apiRepo)
 	apiKeyService := service.NewAPIKeyService(db, apiKeyRepo, apiKeyApiRepo, apiKeyPermissionRepo, apiRepo, userRepo, permissionRepo)
+	securitySettingService := service.NewSecuritySettingService(db, securitySettingRepo, securitySettingsAuditRepo)
 
 	// Rest handlers
 	serviceRestHandler := resthandler.NewServiceHandler(serviceService)
@@ -109,6 +113,7 @@ func NewApp(db *gorm.DB, redisClient *redis.Client) *App {
 	policyRestHandler := resthandler.NewPolicyHandler(policyService)
 	signupFlowRestHandler := resthandler.NewSignupFlowHandler(signupFlowService)
 	apiKeyRestHandler := resthandler.NewAPIKeyHandler(apiKeyService)
+	securitySettingRestHandler := resthandler.NewSecuritySettingHandler(securitySettingService)
 
 	// GRPC handlers
 	seederGrpcHandler := grpchandler.NewSeederHandler(registerService)
@@ -136,6 +141,7 @@ func NewApp(db *gorm.DB, redisClient *redis.Client) *App {
 		SignupFlowRestHandler:       signupFlowRestHandler,
 		SetupRestHandler:            setupRestHandler,
 		APIKeyRestHandler:           apiKeyRestHandler,
+		SecuritySettingRestHandler:  securitySettingRestHandler,
 		// GRPC handler
 		SeederHandler: seederGrpcHandler,
 		// Repository

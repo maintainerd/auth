@@ -85,6 +85,12 @@ func RunSeeders(db *gorm.DB, appVersion string) error {
 		return err
 	}
 
+	// 011: Seed security settings
+	if err := seeder.SeedSecuritySettings(db, tenant.TenantID); err != nil {
+		log.Printf("❌ Failed to seed security settings: %v", err)
+		return err
+	}
+
 	log.Println("✅ Default seeding process completed.")
 	return nil
 }
