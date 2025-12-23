@@ -191,6 +191,12 @@ func SeedPermissions(db *gorm.DB, apiID int64) error {
 		newPermission("security-setting:read", "Read security settings", apiID),
 		newPermission("security-setting:update", "Update security settings", apiID),
 
+		// IP Restriction Rules
+		newPermission("ip-restriction-rule:read", "Read IP restriction rules", apiID),
+		newPermission("ip-restriction-rule:create", "Create IP restriction rule", apiID),
+		newPermission("ip-restriction-rule:update", "Update IP restriction rule", apiID),
+		newPermission("ip-restriction-rule:delete", "Delete IP restriction rule", apiID),
+
 		// OTHER PERMISSIONS
 		// Email
 		newPermission("email:read-config", "View email delivery config", apiID),
