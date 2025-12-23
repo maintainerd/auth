@@ -13,26 +13,27 @@ type App struct {
 	DB          *gorm.DB
 	RedisClient *redis.Client
 	// Rest handler
-	ServiceRestHandler          *resthandler.ServiceHandler
-	APIRestHandler              *resthandler.APIHandler
-	PermissionRestHandler       *resthandler.PermissionHandler
-	PolicyRestHandler           *resthandler.PolicyHandler
-	TenantRestHandler           *resthandler.TenantHandler
-	IdentityProviderRestHandler *resthandler.IdentityProviderHandler
-	AuthClientRestHandler       *resthandler.AuthClientHandler
-	RoleRestHandler             *resthandler.RoleHandler
-	UserRestHandler             *resthandler.UserHandler
-	RegisterRestHandler         *resthandler.RegisterHandler
-	LoginRestHandler            *resthandler.LoginHandler
-	ProfileRestHandler          *resthandler.ProfileHandler
-	UserSettingRestHandler      *resthandler.UserSettingHandler
-	InviteRestHandler           *resthandler.InviteHandler
-	ForgotPasswordRestHandler   *resthandler.ForgotPasswordHandler
-	ResetPasswordRestHandler    *resthandler.ResetPasswordHandler
-	SetupRestHandler            *resthandler.SetupHandler
-	APIKeyRestHandler           *resthandler.APIKeyHandler
-	SignupFlowRestHandler       *resthandler.SignupFlowHandler
-	SecuritySettingRestHandler  *resthandler.SecuritySettingHandler
+	ServiceRestHandler           *resthandler.ServiceHandler
+	APIRestHandler               *resthandler.APIHandler
+	PermissionRestHandler        *resthandler.PermissionHandler
+	PolicyRestHandler            *resthandler.PolicyHandler
+	TenantRestHandler            *resthandler.TenantHandler
+	IdentityProviderRestHandler  *resthandler.IdentityProviderHandler
+	AuthClientRestHandler        *resthandler.AuthClientHandler
+	RoleRestHandler              *resthandler.RoleHandler
+	UserRestHandler              *resthandler.UserHandler
+	RegisterRestHandler          *resthandler.RegisterHandler
+	LoginRestHandler             *resthandler.LoginHandler
+	ProfileRestHandler           *resthandler.ProfileHandler
+	UserSettingRestHandler       *resthandler.UserSettingHandler
+	InviteRestHandler            *resthandler.InviteHandler
+	ForgotPasswordRestHandler    *resthandler.ForgotPasswordHandler
+	ResetPasswordRestHandler     *resthandler.ResetPasswordHandler
+	SetupRestHandler             *resthandler.SetupHandler
+	APIKeyRestHandler            *resthandler.APIKeyHandler
+	SignupFlowRestHandler        *resthandler.SignupFlowHandler
+	SecuritySettingRestHandler   *resthandler.SecuritySettingHandler
+	IpRestrictionRuleRestHandler *resthandler.IpRestrictionRuleHandler
 	// Grpc handler
 	SeederHandler *grpchandler.SeederHandler
 	// Repository
@@ -70,6 +71,7 @@ func NewApp(db *gorm.DB, redisClient *redis.Client) *App {
 	signupFlowRoleRepo := repository.NewSignupFlowRoleRepository(db)
 	securitySettingRepo := repository.NewSecuritySettingRepository(db)
 	securitySettingsAuditRepo := repository.NewSecuritySettingsAuditRepository(db)
+	ipRestrictionRuleRepo := repository.NewIpRestrictionRuleRepository(db)
 
 	// Services
 	serviceService := service.NewServiceService(db, serviceRepo, tenantServiceRepo, apiRepo, servicePolicyRepo, policyRepo)
@@ -92,6 +94,7 @@ func NewApp(db *gorm.DB, redisClient *redis.Client) *App {
 	policyService := service.NewPolicyService(db, policyRepo, serviceRepo, apiRepo)
 	apiKeyService := service.NewAPIKeyService(db, apiKeyRepo, apiKeyApiRepo, apiKeyPermissionRepo, apiRepo, userRepo, permissionRepo)
 	securitySettingService := service.NewSecuritySettingService(db, securitySettingRepo, securitySettingsAuditRepo)
+	ipRestrictionRuleService := service.NewIpRestrictionRuleService(db, ipRestrictionRuleRepo)
 
 	// Rest handlers
 	serviceRestHandler := resthandler.NewServiceHandler(serviceService)
@@ -114,6 +117,7 @@ func NewApp(db *gorm.DB, redisClient *redis.Client) *App {
 	signupFlowRestHandler := resthandler.NewSignupFlowHandler(signupFlowService)
 	apiKeyRestHandler := resthandler.NewAPIKeyHandler(apiKeyService)
 	securitySettingRestHandler := resthandler.NewSecuritySettingHandler(securitySettingService)
+	ipRestrictionRuleRestHandler := resthandler.NewIpRestrictionRuleHandler(ipRestrictionRuleService)
 
 	// GRPC handlers
 	seederGrpcHandler := grpchandler.NewSeederHandler(registerService)
@@ -122,26 +126,27 @@ func NewApp(db *gorm.DB, redisClient *redis.Client) *App {
 		DB:          db,
 		RedisClient: redisClient,
 		// Rest handler
-		ServiceRestHandler:          serviceRestHandler,
-		APIRestHandler:              apiRestHandler,
-		PermissionRestHandler:       permissionRestHandler,
-		PolicyRestHandler:           policyRestHandler,
-		TenantRestHandler:           tenantRestHandler,
-		IdentityProviderRestHandler: idpRestHandler,
-		AuthClientRestHandler:       authClientRestHandler,
-		RoleRestHandler:             roleRestHandler,
-		UserRestHandler:             userRestHandler,
-		RegisterRestHandler:         registerRestHandler,
-		LoginRestHandler:            loginRestHandler,
-		ProfileRestHandler:          profileRestHandler,
-		UserSettingRestHandler:      userSettingRestHandler,
-		InviteRestHandler:           inviteRestHandler,
-		ForgotPasswordRestHandler:   forgotPasswordRestHandler,
-		ResetPasswordRestHandler:    resetPasswordRestHandler,
-		SignupFlowRestHandler:       signupFlowRestHandler,
-		SetupRestHandler:            setupRestHandler,
-		APIKeyRestHandler:           apiKeyRestHandler,
-		SecuritySettingRestHandler:  securitySettingRestHandler,
+		ServiceRestHandler:           serviceRestHandler,
+		APIRestHandler:               apiRestHandler,
+		PermissionRestHandler:        permissionRestHandler,
+		PolicyRestHandler:            policyRestHandler,
+		TenantRestHandler:            tenantRestHandler,
+		IdentityProviderRestHandler:  idpRestHandler,
+		AuthClientRestHandler:        authClientRestHandler,
+		RoleRestHandler:              roleRestHandler,
+		UserRestHandler:              userRestHandler,
+		RegisterRestHandler:          registerRestHandler,
+		LoginRestHandler:             loginRestHandler,
+		ProfileRestHandler:           profileRestHandler,
+		UserSettingRestHandler:       userSettingRestHandler,
+		InviteRestHandler:            inviteRestHandler,
+		ForgotPasswordRestHandler:    forgotPasswordRestHandler,
+		ResetPasswordRestHandler:     resetPasswordRestHandler,
+		SignupFlowRestHandler:        signupFlowRestHandler,
+		SetupRestHandler:             setupRestHandler,
+		APIKeyRestHandler:            apiKeyRestHandler,
+		SecuritySettingRestHandler:   securitySettingRestHandler,
+		IpRestrictionRuleRestHandler: ipRestrictionRuleRestHandler,
 		// GRPC handler
 		SeederHandler: seederGrpcHandler,
 		// Repository
