@@ -1,27 +1,20 @@
-<p align="center">
-  <img width="150" height="150### 🧑‍💻 **Developer Experience**
-- ✅ **Flexible Token Delivery** - Choose between JSON body or secure cookies
-- ✅ **Email Templates** - Customizable HTML email templates
-- ✅ **Invite System** - Secure user invitation workflow
-- ✅ **Setup Wizard** - One-command initial configuration
-- ✅ **Comprehensive Documentation** - Security guides and API docs
-- ✅ **Environment-based Configuration** - 12-factor app compliance
-- 🚧 **OAuth2/OIDC Providers** - External identity integration (planned)logo" src="https://github.com/user-attachments/assets/3e9eec3d-8312-4f5c-b8cb-14d309a17fda" />
-</p>
+<div align="center">
+  <img src="https://github.com/user-attachments/assets/4bc6f3d9-761e-477e-90ad-1b305b5b5e23" alt="M9d-Auth Logo" width="120" height="120">
 
-<h1 align="center">Maintainerd Auth</h1>
+  # M9d-Auth
 
-<p align="center">
-  <strong>🔐 Production-Ready Authentication Microservice</strong><br>
-  <em>Stop building auth from scratch. Focus on your business logic.</em>
-</p>
+  <p align="center">
+    <img src="https://img.shields.io/badge/SOC2-74%25%20Compliant-green" alt="SOC2 Compliance">
+    <img src="https://img.shields.io/badge/ISO27001-85%25%20Compliant-green" alt="ISO27001 Compliance">
+    <img src="https://img.shields.io/badge/Go-1.24+-blue" alt="Go Version">
+    <img src="https://img.shields.io/badge/License-MIT-blue" alt="License">
+  </p>
 
-<p align="center">
-  <img src="https://img.shields.io/badge/SOC2-74%25%20Compliant-green" alt="SOC2 Compliance">
-  <img src="https://img.shields.io/badge/ISO27001-85%25%20Compliant-green" alt="ISO27001 Compliance">
-  <img src="https://img.shields.io/badge/Go-1.24+-blue" alt="Go Version">
-  <img src="https://img.shields.io/badge/License-MIT-blue" alt="License">
-</p>
+  **🔐 Production-Ready Authentication Microservice**
+  
+  Stop building auth from scratch. Focus on your business logic.
+
+</div>
 
 ---
 
