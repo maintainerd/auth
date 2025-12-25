@@ -34,6 +34,7 @@ type App struct {
 	SignupFlowRestHandler        *resthandler.SignupFlowHandler
 	SecuritySettingRestHandler   *resthandler.SecuritySettingHandler
 	IpRestrictionRuleRestHandler *resthandler.IpRestrictionRuleHandler
+	EmailTemplateRestHandler     *resthandler.EmailTemplateHandler
 	// Grpc handler
 	SeederHandler *grpchandler.SeederHandler
 	// Repository
@@ -95,6 +96,7 @@ func NewApp(db *gorm.DB, redisClient *redis.Client) *App {
 	apiKeyService := service.NewAPIKeyService(db, apiKeyRepo, apiKeyApiRepo, apiKeyPermissionRepo, apiRepo, userRepo, permissionRepo)
 	securitySettingService := service.NewSecuritySettingService(db, securitySettingRepo, securitySettingsAuditRepo)
 	ipRestrictionRuleService := service.NewIpRestrictionRuleService(db, ipRestrictionRuleRepo)
+	emailTemplateService := service.NewEmailTemplateService(db, emailTemplateRepo)
 
 	// Rest handlers
 	serviceRestHandler := resthandler.NewServiceHandler(serviceService)
@@ -118,6 +120,7 @@ func NewApp(db *gorm.DB, redisClient *redis.Client) *App {
 	apiKeyRestHandler := resthandler.NewAPIKeyHandler(apiKeyService)
 	securitySettingRestHandler := resthandler.NewSecuritySettingHandler(securitySettingService)
 	ipRestrictionRuleRestHandler := resthandler.NewIpRestrictionRuleHandler(ipRestrictionRuleService)
+	emailTemplateRestHandler := resthandler.NewEmailTemplateHandler(emailTemplateService)
 
 	// GRPC handlers
 	seederGrpcHandler := grpchandler.NewSeederHandler(registerService)
@@ -147,6 +150,7 @@ func NewApp(db *gorm.DB, redisClient *redis.Client) *App {
 		APIKeyRestHandler:            apiKeyRestHandler,
 		SecuritySettingRestHandler:   securitySettingRestHandler,
 		IpRestrictionRuleRestHandler: ipRestrictionRuleRestHandler,
+		EmailTemplateRestHandler:     emailTemplateRestHandler,
 		// GRPC handler
 		SeederHandler: seederGrpcHandler,
 		// Repository
