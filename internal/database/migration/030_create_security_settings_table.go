@@ -61,8 +61,8 @@ CREATE INDEX IF NOT EXISTS idx_security_settings_created_at ON security_settings
 `
 
 	if err := db.Exec(sql).Error; err != nil {
-		log.Fatalf("❌ Failed to run migration 032_create_security_settings_table: %v", err)
+		log.Fatalf("❌ Failed to run migration 030_create_security_settings_table: %v", err)
 	}
 
-	log.Println("✅ Migration 032_create_security_settings_table executed")
+	log.Println("✅ Migration 030_create_security_settings_table executed")
 }

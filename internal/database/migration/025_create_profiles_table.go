@@ -78,8 +78,8 @@ CREATE INDEX IF NOT EXISTS idx_profiles_display_name ON profiles (display_name);
 CREATE INDEX IF NOT EXISTS idx_profiles_created_at ON profiles (created_at);
 `
 	if err := db.Exec(sql).Error; err != nil {
-		log.Fatalf("❌ Failed to run migration 020_create_profiles_table: %v", err)
+		log.Fatalf("❌ Failed to run migration 025_create_profiles_table: %v", err)
 	}
 
-	log.Println("✅ Migration 020_create_profiles_table executed")
+	log.Println("✅ Migration 025_create_profiles_table executed")
 }

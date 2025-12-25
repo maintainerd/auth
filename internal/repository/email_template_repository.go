@@ -26,7 +26,7 @@ func NewEmailTemplateRepository(db *gorm.DB) EmailTemplateRepository {
 func (r *emailTemplateRepository) FindByName(name string) (*model.EmailTemplate, error) {
 	var template model.EmailTemplate
 	err := r.db.
-		Where("name = ? AND is_active = TRUE", name).
+		Where("name = ? AND status = ?", name, "active").
 		First(&template).Error
 	if err != nil {
 		return nil, err
