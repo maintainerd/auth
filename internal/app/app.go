@@ -35,6 +35,7 @@ type App struct {
 	SecuritySettingRestHandler   *resthandler.SecuritySettingHandler
 	IpRestrictionRuleRestHandler *resthandler.IpRestrictionRuleHandler
 	EmailTemplateRestHandler     *resthandler.EmailTemplateHandler
+	SmsTemplateRestHandler       *resthandler.SmsTemplateHandler
 	// Grpc handler
 	SeederHandler *grpchandler.SeederHandler
 	// Repository
@@ -63,6 +64,7 @@ func NewApp(db *gorm.DB, redisClient *redis.Client) *App {
 	userSettingRepo := repository.NewUserSettingRepository(db)
 	inviteRepo := repository.NewInviteRepository(db)
 	emailTemplateRepo := repository.NewEmailTemplateRepository(db)
+	smsTemplateRepo := repository.NewSmsTemplateRepository(db)
 	policyRepo := repository.NewPolicyRepository(db)
 	servicePolicyRepo := repository.NewServicePolicyRepository(db)
 	apiKeyRepo := repository.NewAPIKeyRepository(db)
@@ -97,6 +99,7 @@ func NewApp(db *gorm.DB, redisClient *redis.Client) *App {
 	securitySettingService := service.NewSecuritySettingService(db, securitySettingRepo, securitySettingsAuditRepo)
 	ipRestrictionRuleService := service.NewIpRestrictionRuleService(db, ipRestrictionRuleRepo)
 	emailTemplateService := service.NewEmailTemplateService(db, emailTemplateRepo)
+	smsTemplateService := service.NewSmsTemplateService(db, smsTemplateRepo)
 
 	// Rest handlers
 	serviceRestHandler := resthandler.NewServiceHandler(serviceService)
@@ -121,6 +124,7 @@ func NewApp(db *gorm.DB, redisClient *redis.Client) *App {
 	securitySettingRestHandler := resthandler.NewSecuritySettingHandler(securitySettingService)
 	ipRestrictionRuleRestHandler := resthandler.NewIpRestrictionRuleHandler(ipRestrictionRuleService)
 	emailTemplateRestHandler := resthandler.NewEmailTemplateHandler(emailTemplateService)
+	smsTemplateRestHandler := resthandler.NewSmsTemplateHandler(smsTemplateService)
 
 	// GRPC handlers
 	seederGrpcHandler := grpchandler.NewSeederHandler(registerService)
@@ -151,6 +155,7 @@ func NewApp(db *gorm.DB, redisClient *redis.Client) *App {
 		SecuritySettingRestHandler:   securitySettingRestHandler,
 		IpRestrictionRuleRestHandler: ipRestrictionRuleRestHandler,
 		EmailTemplateRestHandler:     emailTemplateRestHandler,
+		SmsTemplateRestHandler:       smsTemplateRestHandler,
 		// GRPC handler
 		SeederHandler: seederGrpcHandler,
 		// Repository
