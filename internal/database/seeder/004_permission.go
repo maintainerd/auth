@@ -203,6 +203,12 @@ func SeedPermissions(db *gorm.DB, apiID int64) error {
 		newPermission("email-template:update", "Update email template", apiID),
 		newPermission("email-template:delete", "Delete email template", apiID),
 
+		// SMS Templates
+		newPermission("sms-template:read", "Read SMS templates", apiID),
+		newPermission("sms-template:create", "Create SMS template", apiID),
+		newPermission("sms-template:update", "Update SMS template", apiID),
+		newPermission("sms-template:delete", "Delete SMS template", apiID),
+
 		// OTHER PERMISSIONS
 		// Email
 		newPermission("email:read-config", "View email delivery config", apiID),

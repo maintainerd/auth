@@ -12,12 +12,10 @@ func CreateSmsTemplatesTable(db *gorm.DB) {
 CREATE TABLE IF NOT EXISTS sms_templates (
     sms_template_id   SERIAL PRIMARY KEY,
     sms_template_uuid UUID NOT NULL UNIQUE,
-    name              VARCHAR(100) NOT NULL,
+    name              VARCHAR(100) NOT NULL UNIQUE,
     description       TEXT,
     message           TEXT NOT NULL,
     sender_id         VARCHAR(20),
-    encoding          VARCHAR(20) DEFAULT 'GSM-7',
-    max_length        INTEGER DEFAULT 160,
     status            VARCHAR(20) NOT NULL DEFAULT 'active',
     metadata          JSONB DEFAULT '{}',
     is_default        BOOLEAN DEFAULT false,
@@ -34,13 +32,6 @@ BEGIN
     ) THEN
         ALTER TABLE sms_templates
             ADD CONSTRAINT chk_sms_templates_status CHECK (status IN ('active', 'inactive'));
-    END IF;
-
-    IF NOT EXISTS (
-        SELECT 1 FROM pg_constraint WHERE conname = 'chk_sms_templates_encoding'
-    ) THEN
-        ALTER TABLE sms_templates
-            ADD CONSTRAINT chk_sms_templates_encoding CHECK (encoding IN ('GSM-7', 'UCS-2', 'UTF-8'));
     END IF;
 END$$;
 
