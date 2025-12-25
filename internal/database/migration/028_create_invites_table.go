@@ -53,8 +53,8 @@ CREATE INDEX IF NOT EXISTS idx_invites_status ON invites (status);
 CREATE INDEX IF NOT EXISTS idx_invites_created_at ON invites (created_at);
 `
 	if err := db.Exec(sql).Error; err != nil {
-		log.Fatalf("❌ Failed to run migration 025_create_invites_table: %v", err)
+		log.Fatalf("❌ Failed to run migration 028_create_invites_table: %v", err)
 	}
 
-	log.Println("✅ Migration 025_create_invites_table executed")
+	log.Println("✅ Migration 028_create_invites_table executed")
 }

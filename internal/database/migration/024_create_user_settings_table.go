@@ -84,8 +84,8 @@ COMMENT ON COLUMN user_settings.preferred_language IS 'ISO 639-1 language code (
 COMMENT ON COLUMN user_settings.locale IS 'Locale code (e.g., en_US, es_ES, fr_FR)';
 `
 	if err := db.Exec(sql).Error; err != nil {
-		log.Fatalf("❌ Failed to run migration 021_create_user_settings_table: %v", err)
+		log.Fatalf("❌ Failed to run migration 024_create_user_settings_table: %v", err)
 	}
 
-	log.Println("✅ Migration 021_create_user_settings_table executed")
+	log.Println("✅ Migration 024_create_user_settings_table executed")
 }

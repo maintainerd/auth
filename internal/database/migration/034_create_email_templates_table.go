@@ -16,21 +16,26 @@ CREATE TABLE IF NOT EXISTS email_templates (
     subject         			VARCHAR(255) NOT NULL,
     body_html       			TEXT NOT NULL,
     body_plain      			TEXT,
-    is_active       			BOOLEAN DEFAULT TRUE,
+    status          			VARCHAR(20) DEFAULT 'active',
+    is_default      			BOOLEAN DEFAULT FALSE,
+    is_system       			BOOLEAN DEFAULT FALSE,
     created_at      			TIMESTAMPTZ DEFAULT now(),
-    updated_at      			TIMESTAMPTZ DEFAULT now()
+    updated_at      			TIMESTAMPTZ DEFAULT now(),
+    CONSTRAINT chk_email_templates_status CHECK (status IN ('active', 'inactive'))
 );
 
 -- CREATE INDEXES
 CREATE INDEX IF NOT EXISTS idx_email_templates_uuid ON email_templates (email_template_uuid);
 CREATE INDEX IF NOT EXISTS idx_email_templates_name ON email_templates (name);
-CREATE INDEX IF NOT EXISTS idx_email_templates_is_active ON email_templates (is_active);
+CREATE INDEX IF NOT EXISTS idx_email_templates_status ON email_templates (status);
+CREATE INDEX IF NOT EXISTS idx_email_templates_is_default ON email_templates (is_default);
+CREATE INDEX IF NOT EXISTS idx_email_templates_is_system ON email_templates (is_system);
 CREATE INDEX IF NOT EXISTS idx_email_templates_created_at ON email_templates (created_at);
 `
 
 	if err := db.Exec(sql).Error; err != nil {
-		log.Fatalf("❌ Failed to run migration 027_create_email_templates_table: %v", err)
+		log.Fatalf("❌ Failed to run migration 034_create_email_templates_table: %v", err)
 	}
 
-	log.Println("✅ Migration 027_create_email_templates_table executed")
+	log.Println("✅ Migration 034_create_email_templates_table executed")
 }
