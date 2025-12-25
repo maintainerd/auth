@@ -76,6 +76,7 @@ func startInternalServer(application *app.App) {
 		route.SecuritySettingRoute(api, application.SecuritySettingRestHandler, application.UserRepository, application.RedisClient)
 		route.IpRestrictionRuleRoute(api, application.IpRestrictionRuleRestHandler, application.UserRepository, application.RedisClient)
 		route.EmailTemplateRoute(api, application.EmailTemplateRestHandler, application.UserRepository, application.RedisClient)
+		route.SmsTemplateRoute(api, application.SmsTemplateRestHandler, application.UserRepository, application.RedisClient)
 	})
 
 	log.Println("Internal REST server running on port 8080 (VPN access)")
