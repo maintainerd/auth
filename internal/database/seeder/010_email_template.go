@@ -48,6 +48,6 @@ func newEmailTemplate(name, subject, bodyHTML, bodyPlain string) model.EmailTemp
 		Subject:   subject,
 		BodyHTML:  bodyHTML,
 		BodyPlain: &bodyPlain,
-		IsActive:  true,
+		Status:    "active",
 	}
 }
