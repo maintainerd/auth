@@ -12,9 +12,9 @@ func CreateLoginTemplatesTable(db *gorm.DB) {
 CREATE TABLE IF NOT EXISTS login_templates (
     login_template_id   SERIAL PRIMARY KEY,
     login_template_uuid UUID NOT NULL UNIQUE,
-    name                VARCHAR(100) NOT NULL,
+    name                VARCHAR(100) NOT NULL UNIQUE,
     description         TEXT,
-    template            TEXT NOT NULL,
+    template            VARCHAR(20) NOT NULL,
     status              VARCHAR(20) NOT NULL DEFAULT 'active',
     metadata            JSONB DEFAULT '{}',
     is_default          BOOLEAN DEFAULT false,
@@ -31,6 +31,13 @@ BEGIN
     ) THEN
         ALTER TABLE login_templates
             ADD CONSTRAINT chk_login_templates_status CHECK (status IN ('active', 'inactive'));
+    END IF;
+    
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint WHERE conname = 'chk_login_templates_template'
+    ) THEN
+        ALTER TABLE login_templates
+            ADD CONSTRAINT chk_login_templates_template CHECK (template IN ('modern', 'classic', 'minimal', 'corporate', 'creative', 'custom'));
     END IF;
 END$$;
 
