@@ -36,6 +36,7 @@ type App struct {
 	IpRestrictionRuleRestHandler *resthandler.IpRestrictionRuleHandler
 	EmailTemplateRestHandler     *resthandler.EmailTemplateHandler
 	SmsTemplateRestHandler       *resthandler.SmsTemplateHandler
+	LoginTemplateRestHandler     *resthandler.LoginTemplateHandler
 	// Grpc handler
 	SeederHandler *grpchandler.SeederHandler
 	// Repository
@@ -65,6 +66,7 @@ func NewApp(db *gorm.DB, redisClient *redis.Client) *App {
 	inviteRepo := repository.NewInviteRepository(db)
 	emailTemplateRepo := repository.NewEmailTemplateRepository(db)
 	smsTemplateRepo := repository.NewSmsTemplateRepository(db)
+	loginTemplateRepo := repository.NewLoginTemplateRepository(db)
 	policyRepo := repository.NewPolicyRepository(db)
 	servicePolicyRepo := repository.NewServicePolicyRepository(db)
 	apiKeyRepo := repository.NewAPIKeyRepository(db)
@@ -100,6 +102,7 @@ func NewApp(db *gorm.DB, redisClient *redis.Client) *App {
 	ipRestrictionRuleService := service.NewIpRestrictionRuleService(db, ipRestrictionRuleRepo)
 	emailTemplateService := service.NewEmailTemplateService(db, emailTemplateRepo)
 	smsTemplateService := service.NewSmsTemplateService(db, smsTemplateRepo)
+	loginTemplateService := service.NewLoginTemplateService(loginTemplateRepo)
 
 	// Rest handlers
 	serviceRestHandler := resthandler.NewServiceHandler(serviceService)
@@ -125,6 +128,7 @@ func NewApp(db *gorm.DB, redisClient *redis.Client) *App {
 	ipRestrictionRuleRestHandler := resthandler.NewIpRestrictionRuleHandler(ipRestrictionRuleService)
 	emailTemplateRestHandler := resthandler.NewEmailTemplateHandler(emailTemplateService)
 	smsTemplateRestHandler := resthandler.NewSmsTemplateHandler(smsTemplateService)
+	loginTemplateRestHandler := resthandler.NewLoginTemplateHandler(loginTemplateService)
 
 	// GRPC handlers
 	seederGrpcHandler := grpchandler.NewSeederHandler(registerService)
@@ -156,6 +160,7 @@ func NewApp(db *gorm.DB, redisClient *redis.Client) *App {
 		IpRestrictionRuleRestHandler: ipRestrictionRuleRestHandler,
 		EmailTemplateRestHandler:     emailTemplateRestHandler,
 		SmsTemplateRestHandler:       smsTemplateRestHandler,
+		LoginTemplateRestHandler:     loginTemplateRestHandler,
 		// GRPC handler
 		SeederHandler: seederGrpcHandler,
 		// Repository
