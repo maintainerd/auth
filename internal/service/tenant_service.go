@@ -297,6 +297,16 @@ func (s *tenantService) DeleteByUUID(tenantUUID uuid.UUID) (*TenantServiceDataRe
 		return nil, errors.New("tenant not found")
 	}
 
+	// Prevent deletion of system tenants
+	if tenant.IsSystem {
+		return nil, errors.New("cannot delete system tenant")
+	}
+
+	// Prevent deletion of default tenants
+	if tenant.IsDefault {
+		return nil, errors.New("cannot delete default tenant")
+	}
+
 	result := toTenantServiceDataResult(tenant)
 
 	err = s.tenantRepo.DeleteByUUID(tenantUUID)
