@@ -49,5 +49,8 @@ func TenantRoute(
 
 		r.With(middleware.PermissionMiddleware([]string{"tenant:update"})).
 			Put("/{tenant_uuid}/default", tenantHandler.SetDefault)
+
+		r.With(middleware.PermissionMiddleware([]string{"tenant:delete"})).
+			Delete("/{tenant_uuid}", tenantHandler.Delete)
 	})
 }
