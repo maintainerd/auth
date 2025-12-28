@@ -12,6 +12,7 @@ type Tenant struct {
 	TenantID    int64          `gorm:"column:tenant_id;primaryKey"`
 	TenantUUID  uuid.UUID      `gorm:"column:tenant_uuid"`
 	Name        string         `gorm:"column:name"`
+	DisplayName string         `gorm:"column:display_name"`
 	Description string         `gorm:"column:description"`
 	Identifier  string         `gorm:"column:identifier"`
 	Status      string         `gorm:"column:status;default:'active'"`

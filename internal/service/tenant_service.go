@@ -14,6 +14,7 @@ import (
 type TenantServiceDataResult struct {
 	TenantUUID  uuid.UUID
 	Name        string
+	DisplayName string
 	Description string
 	Identifier  string
 	Status      string
@@ -26,6 +27,7 @@ type TenantServiceDataResult struct {
 
 type TenantServiceGetFilter struct {
 	Name        *string
+	DisplayName *string
 	Description *string
 	APIType     *string
 	Identifier  *string
@@ -52,8 +54,8 @@ type TenantService interface {
 	GetByUUID(tenantUUID uuid.UUID) (*TenantServiceDataResult, error)
 	GetDefault() (*TenantServiceDataResult, error)
 	GetByIdentifier(identifier string) (*TenantServiceDataResult, error)
-	Create(name string, description string, status string, isPublic bool, isDefault bool) (*TenantServiceDataResult, error)
-	Update(tenantUUID uuid.UUID, name string, description string, status string, isPublic bool, isDefault bool) (*TenantServiceDataResult, error)
+	Create(name string, displayName string, description string, status string, isPublic bool, isDefault bool) (*TenantServiceDataResult, error)
+	Update(tenantUUID uuid.UUID, name string, displayName string, description string, status string, isPublic bool, isDefault bool) (*TenantServiceDataResult, error)
 	SetStatusByUUID(tenantUUID uuid.UUID, status string) (*TenantServiceDataResult, error)
 	SetActivePublicByUUID(tenantUUID uuid.UUID) (*TenantServiceDataResult, error)
 	SetDefaultStatusByUUID(tenantUUID uuid.UUID) (*TenantServiceDataResult, error)
@@ -75,6 +77,7 @@ func NewTenantService(db *gorm.DB, tenantRepo repository.TenantRepository) Tenan
 func (s *tenantService) Get(filter TenantServiceGetFilter) (*TenantServiceGetResult, error) {
 	tenantFilter := repository.TenantRepositoryGetFilter{
 		Name:        filter.Name,
+		DisplayName: filter.DisplayName,
 		Description: filter.Description,
 		Identifier:  filter.Identifier,
 		Status:      filter.Status,
@@ -133,7 +136,7 @@ func (s *tenantService) GetByIdentifier(identifier string) (*TenantServiceDataRe
 	return toTenantServiceDataResult(tenant), nil
 }
 
-func (s *tenantService) Create(name string, description string, status string, isPublic bool, isDefault bool) (*TenantServiceDataResult, error) {
+func (s *tenantService) Create(name string, displayName string, description string, status string, isPublic bool, isDefault bool) (*TenantServiceDataResult, error) {
 	var createdTenant *model.Tenant
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
@@ -154,6 +157,7 @@ func (s *tenantService) Create(name string, description string, status string, i
 		// Create tenant
 		newTenant := &model.Tenant{
 			Name:        name,
+			DisplayName: displayName,
 			Description: description,
 			Identifier:  identifier,
 			Status:      status,
@@ -182,7 +186,7 @@ func (s *tenantService) Create(name string, description string, status string, i
 	return toTenantServiceDataResult(createdTenant), nil
 }
 
-func (s *tenantService) Update(tenantUUID uuid.UUID, name string, description string, status string, isPublic bool, isDefault bool) (*TenantServiceDataResult, error) {
+func (s *tenantService) Update(tenantUUID uuid.UUID, name string, displayName string, description string, status string, isPublic bool, isDefault bool) (*TenantServiceDataResult, error) {
 	var updatedTenant *model.Tenant
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
@@ -210,6 +214,7 @@ func (s *tenantService) Update(tenantUUID uuid.UUID, name string, description st
 
 		// Update tenant
 		tenant.Name = name
+		tenant.DisplayName = displayName
 		tenant.Description = description
 		tenant.Status = status
 		tenant.IsPublic = isPublic
@@ -321,6 +326,7 @@ func toTenantServiceDataResult(tenant *model.Tenant) *TenantServiceDataResult {
 	return &TenantServiceDataResult{
 		TenantUUID:  tenant.TenantUUID,
 		Name:        tenant.Name,
+		DisplayName: tenant.DisplayName,
 		Description: tenant.Description,
 		Identifier:  tenant.Identifier,
 		Status:      tenant.Status,

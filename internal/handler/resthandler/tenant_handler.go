@@ -60,6 +60,7 @@ func (h *TenantHandler) Get(w http.ResponseWriter, r *http.Request) {
 	// Build request DTO
 	reqParams := dto.TenantFilterDto{
 		Name:        util.PtrOrNil(q.Get("name")),
+		DisplayName: util.PtrOrNil(q.Get("display_name")),
 		Description: util.PtrOrNil(q.Get("description")),
 		Identifier:  util.PtrOrNil(q.Get("identifier")),
 		IsDefault:   isDefault,
@@ -82,6 +83,7 @@ func (h *TenantHandler) Get(w http.ResponseWriter, r *http.Request) {
 	// Build service filter
 	tenantFilter := service.TenantServiceGetFilter{
 		Name:        reqParams.Name,
+		DisplayName: reqParams.DisplayName,
 		Description: reqParams.Description,
 		Identifier:  reqParams.Identifier,
 		IsDefault:   reqParams.IsDefault,
@@ -183,7 +185,7 @@ func (h *TenantHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	tenant, err := h.tenantService.Create(req.Name, req.Description, req.Status, req.IsPublic, false)
+	tenant, err := h.tenantService.Create(req.Name, req.DisplayName, req.Description, req.Status, req.IsPublic, false)
 	if err != nil {
 		util.Error(w, http.StatusInternalServerError, "Failed to create tenant", err.Error())
 		return
@@ -213,7 +215,7 @@ func (h *TenantHandler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	tenant, err := h.tenantService.Update(tenantUUID, req.Name, req.Description, req.Status, req.IsPublic, false)
+	tenant, err := h.tenantService.Update(tenantUUID, req.Name, req.DisplayName, req.Description, req.Status, req.IsPublic, false)
 	if err != nil {
 		util.Error(w, http.StatusInternalServerError, "Failed to update tenant", err.Error())
 		return
@@ -313,6 +315,7 @@ func toTenantResponseDto(r service.TenantServiceDataResult) dto.TenantResponseDt
 	result := dto.TenantResponseDto{
 		TenantUUID:  r.TenantUUID,
 		Name:        r.Name,
+		DisplayName: r.DisplayName,
 		Description: r.Description,
 		Identifier:  r.Identifier,
 		Status:      r.Status,
