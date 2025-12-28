@@ -10,6 +10,7 @@ import (
 
 type TenantRepositoryGetFilter struct {
 	Name        *string
+	DisplayName *string
 	Description *string
 	Identifier  *string
 	Status      []string
@@ -95,6 +96,9 @@ func (r *tenantRepository) FindPaginated(filter TenantRepositoryGetFilter) (*Pag
 	// Filters with LIKE
 	if filter.Name != nil {
 		query = query.Where("name ILIKE ?", "%"+*filter.Name+"%")
+	}
+	if filter.DisplayName != nil {
+		query = query.Where("display_name ILIKE ?", "%"+*filter.DisplayName+"%")
 	}
 	if filter.Description != nil {
 		query = query.Where("description ILIKE ?", "%"+*filter.Description+"%")

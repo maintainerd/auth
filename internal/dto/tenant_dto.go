@@ -1,16 +1,20 @@
 package dto
 
 import (
+	"regexp"
 	"time"
 
 	validation "github.com/go-ozzo/ozzo-validation/v4"
 	"github.com/google/uuid"
 )
 
+var tenantNamePattern = regexp.MustCompile(`^[a-z0-9-]+$`)
+
 // Tenant output structure
 type TenantResponseDto struct {
 	TenantUUID  uuid.UUID `json:"tenant_id"`
 	Name        string    `json:"name"`
+	DisplayName string    `json:"display_name"`
 	Description string    `json:"description"`
 	Identifier  string    `json:"identifier"`
 	Status      string    `json:"status"`
@@ -25,6 +29,7 @@ type TenantResponseDto struct {
 // Create Tenant request DTO
 type TenantCreateRequestDto struct {
 	Name        string `json:"name"`
+	DisplayName string `json:"display_name"`
 	Description string `json:"description"`
 	Status      string `json:"status"`
 	IsPublic    bool   `json:"is_public"`
@@ -36,6 +41,7 @@ func (r TenantCreateRequestDto) Validate() error {
 		validation.Field(&r.Name,
 			validation.Required.Error("Name is required"),
 			validation.Length(3, 50).Error("Name must be between 3 and 50 characters"),
+			validation.Match(tenantNamePattern).Error("Name must contain only lowercase letters, numbers, and hyphens"),
 		),
 		validation.Field(&r.Description,
 			validation.Required.Error("Description is required"),
@@ -54,6 +60,7 @@ func (r TenantCreateRequestDto) Validate() error {
 // Update Tenant request DTO
 type TenantUpdateRequestDto struct {
 	Name        string `json:"name"`
+	DisplayName string `json:"display_name"`
 	Description string `json:"description"`
 	Status      string `json:"status"`
 	IsPublic    bool   `json:"is_public"`
@@ -65,6 +72,7 @@ func (r TenantUpdateRequestDto) Validate() error {
 		validation.Field(&r.Name,
 			validation.Required.Error("Name is required"),
 			validation.Length(3, 50).Error("Name must be between 3 and 50 characters"),
+			validation.Match(tenantNamePattern).Error("Name must contain only lowercase letters, numbers, and hyphens"),
 		),
 		validation.Field(&r.Description,
 			validation.Required.Error("Description is required"),
@@ -83,6 +91,7 @@ func (r TenantUpdateRequestDto) Validate() error {
 // API listing / filter DTO
 type TenantFilterDto struct {
 	Name        *string  `json:"name"`
+	DisplayName *string  `json:"display_name"`
 	Description *string  `json:"description"`
 	Identifier  *string  `json:"identifier"`
 	Status      []string `json:"status"`
