@@ -13,6 +13,7 @@ CREATE TABLE IF NOT EXISTS tenants (
     tenant_id				SERIAL PRIMARY KEY,
     tenant_uuid			UUID NOT NULL UNIQUE,
     name						VARCHAR(255) NOT NULL,
+    display_name			VARCHAR(255),
     description			TEXT,
     identifier			VARCHAR(255) NOT NULL UNIQUE,
     status					VARCHAR(20) DEFAULT 'active',
