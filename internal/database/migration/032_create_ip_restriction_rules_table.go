@@ -75,8 +75,8 @@ CREATE INDEX IF NOT EXISTS idx_ip_restriction_rules_created_at ON ip_restriction
 `
 
 	if err := db.Exec(sql).Error; err != nil {
-		log.Fatalf("❌ Failed to run migration 031_create_ip_restriction_rules_table: %v", err)
+		log.Fatalf("❌ Failed to run migration 032_create_ip_restriction_rules_table: %v", err)
 	}
 
-	log.Println("✅ Migration 031_create_ip_restriction_rules_table executed")
+	log.Println("✅ Migration 032_create_ip_restriction_rules_table executed")
 }
