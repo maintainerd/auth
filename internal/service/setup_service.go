@@ -26,6 +26,7 @@ type setupService struct {
 	db                   *gorm.DB
 	userRepo             repository.UserRepository
 	tenantRepo           repository.TenantRepository
+	tenantUserRepo       repository.TenantUserRepository
 	authClientRepo       repository.AuthClientRepository
 	identityProviderRepo repository.IdentityProviderRepository
 	roleRepo             repository.RoleRepository
@@ -39,6 +40,7 @@ func NewSetupService(
 	db *gorm.DB,
 	userRepo repository.UserRepository,
 	tenantRepo repository.TenantRepository,
+	tenantUserRepo repository.TenantUserRepository,
 	authClientRepo repository.AuthClientRepository,
 	identityProviderRepo repository.IdentityProviderRepository,
 	roleRepo repository.RoleRepository,
@@ -51,6 +53,7 @@ func NewSetupService(
 		db:                   db,
 		userRepo:             userRepo,
 		tenantRepo:           tenantRepo,
+		tenantUserRepo:       tenantUserRepo,
 		authClientRepo:       authClientRepo,
 		identityProviderRepo: identityProviderRepo,
 		roleRepo:             roleRepo,
@@ -137,6 +140,7 @@ func (s *setupService) CreateTenant(req dto.CreateTenantRequestDto) (*dto.Create
 		// Create tenant directly (no longer using seeder)
 		newTenant := &model.Tenant{
 			Name:        req.Name,
+			DisplayName: req.DisplayName,
 			Description: description,
 			Identifier:  identifier,
 			Metadata:    metadataJSON,
@@ -251,6 +255,7 @@ func (s *setupService) CreateAdmin(req dto.CreateAdminRequestDto) (*dto.CreateAd
 		txUserRoleRepo := s.userRoleRepo.WithTx(tx)
 		txRoleRepo := s.roleRepo.WithTx(tx)
 		txUserIdentityRepo := s.userIdentityRepo.WithTx(tx)
+		txTenantUserRepo := s.tenantUserRepo.WithTx(tx)
 
 		// Check if user already exists
 		existingUser, err := txUserRepo.FindByEmail(req.Email, defaultTenant.TenantID)
@@ -329,6 +334,17 @@ func (s *setupService) CreateAdmin(req dto.CreateAdminRequestDto) (*dto.CreateAd
 			RoleID: superAdminRole.RoleID,
 		}
 		_, err = txUserRoleRepo.Create(superAdminUserRole)
+		if err != nil {
+			return err
+		}
+
+		// Add user to tenant_users as owner
+		tenantUser := &model.TenantUser{
+			TenantID: defaultTenant.TenantID,
+			UserID:   createdUser.UserID,
+			Role:     "owner",
+		}
+		_, err = txTenantUserRepo.Create(tenantUser)
 		if err != nil {
 			return err
 		}

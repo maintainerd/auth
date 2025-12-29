@@ -72,6 +72,7 @@ func (dto TenantMetadataDto) Validate() error {
 // CreateTenantRequestDto for initial tenant setup
 type CreateTenantRequestDto struct {
 	Name        string             `json:"name"`
+	DisplayName string             `json:"display_name"`
 	Description *string            `json:"description,omitempty"`
 	Metadata    *TenantMetadataDto `json:"metadata,omitempty"`
 }
@@ -82,6 +83,10 @@ func (dto CreateTenantRequestDto) Validate() error {
 			validation.Required.Error("Tenant name is required"),
 			validation.Length(2, 100).Error("Tenant name must be between 2 and 100 characters"),
 			validation.Match(regexp.MustCompile(`^[a-zA-Z0-9\s\-_\.]+$`)).Error("Tenant name contains invalid characters"),
+		),
+		validation.Field(&dto.DisplayName,
+			validation.Required.Error("Display name is required"),
+			validation.Length(2, 100).Error("Display name must be between 2 and 100 characters"),
 		),
 		validation.Field(&dto.Description,
 			validation.When(dto.Description != nil,
