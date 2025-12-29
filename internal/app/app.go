@@ -84,7 +84,7 @@ func NewApp(db *gorm.DB, redisClient *redis.Client) *App {
 	apiService := service.NewAPIService(db, apiRepo, serviceRepo)
 	permissionService := service.NewPermissionService(db, permissionRepo, apiRepo, roleRepo, authClientRepo)
 	tenantService := service.NewTenantService(db, tenantRepo)
-	tenantUserService := service.NewTenantUserService(db, tenantUserRepo)
+	tenantUserService := service.NewTenantUserService(db, tenantUserRepo, userRepo)
 	idpService := service.NewIdentityProviderService(db, idpRepo, tenantRepo, userRepo)
 	authClientService := service.NewAuthClientService(db, authClientRepo, authClientUriRepo, idpRepo, permissionRepo, authClientPermissionRepo, authClientApiRepo, apiRepo, userRepo, tenantRepo)
 	roleService := service.NewRoleService(db, roleRepo, permissionRepo, rolePermissionRepo, userRepo, tenantRepo)
