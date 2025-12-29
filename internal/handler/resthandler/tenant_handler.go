@@ -14,11 +14,15 @@ import (
 )
 
 type TenantHandler struct {
-	tenantService service.TenantService
+	tenantService     service.TenantService
+	tenantUserService service.TenantUserService
 }
 
-func NewTenantHandler(tenantService service.TenantService) *TenantHandler {
-	return &TenantHandler{tenantService}
+func NewTenantHandler(tenantService service.TenantService, tenantUserService service.TenantUserService) *TenantHandler {
+	return &TenantHandler{
+		tenantService:     tenantService,
+		tenantUserService: tenantUserService,
+	}
 }
 
 // Get all tenants with pagination
@@ -215,7 +219,7 @@ func (h *TenantHandler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	tenant, err := h.tenantService.Update(tenantUUID, req.Name, req.DisplayName, req.Description, req.Status, req.IsPublic, false)
+	tenant, err := h.tenantService.Update(tenantUUID, req.Name, req.DisplayName, req.Description, req.Status, req.IsPublic)
 	if err != nil {
 		util.Error(w, http.StatusInternalServerError, "Failed to update tenant", err.Error())
 		return
@@ -310,6 +314,140 @@ func (h *TenantHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	util.Success(w, dtoRes, "Tenant deleted successfully")
 }
 
+// GetMembers retrieves all members in a tenant
+func (h *TenantHandler) GetMembers(w http.ResponseWriter, r *http.Request) {
+	tenantUUIDStr := chi.URLParam(r, "tenant_uuid")
+	if tenantUUIDStr == "" {
+		util.Error(w, http.StatusBadRequest, "Invalid tenant UUID", "UUID parameter is required")
+		return
+	}
+
+	tenantUUID, err := uuid.Parse(tenantUUIDStr)
+	if err != nil {
+		util.Error(w, http.StatusBadRequest, "Invalid UUID format", err.Error())
+		return
+	}
+
+	// Get tenant to retrieve tenant_id
+	tenant, err := h.tenantService.GetByUUID(tenantUUID)
+	if err != nil {
+		util.Error(w, http.StatusNotFound, "Tenant not found", err.Error())
+		return
+	}
+
+	members, err := h.tenantUserService.ListByTenant(tenant.TenantID)
+	if err != nil {
+		util.Error(w, http.StatusInternalServerError, "Failed to get members", err.Error())
+		return
+	}
+
+	response := make([]dto.TenantUserResponseDto, len(members))
+	for i, member := range members {
+		response[i] = toTenantUserResponseDto(member)
+	}
+
+	util.Success(w, response, "Members retrieved successfully")
+}
+
+// AddMember adds a member to a tenant
+func (h *TenantHandler) AddMember(w http.ResponseWriter, r *http.Request) {
+	tenantUUIDStr := chi.URLParam(r, "tenant_uuid")
+	if tenantUUIDStr == "" {
+		util.Error(w, http.StatusBadRequest, "Invalid tenant UUID", "UUID parameter is required")
+		return
+	}
+
+	tenantUUID, err := uuid.Parse(tenantUUIDStr)
+	if err != nil {
+		util.Error(w, http.StatusBadRequest, "Invalid UUID format", err.Error())
+		return
+	}
+
+	var req dto.TenantUserAddMemberRequestDto
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		util.Error(w, http.StatusBadRequest, "Invalid request body", err.Error())
+		return
+	}
+
+	if err := req.Validate(); err != nil {
+		util.ValidationError(w, err)
+		return
+	}
+
+	// Get tenant to retrieve tenant_id
+	tenant, err := h.tenantService.GetByUUID(tenantUUID)
+	if err != nil {
+		util.Error(w, http.StatusNotFound, "Tenant not found", err.Error())
+		return
+	}
+
+	member, err := h.tenantUserService.Create(tenant.TenantID, req.UserID, req.Role)
+	if err != nil {
+		util.Error(w, http.StatusBadRequest, "Failed to add member", err.Error())
+		return
+	}
+
+	response := toTenantUserResponseDto(*member)
+	util.Created(w, response, "Member added successfully")
+}
+
+// UpdateMemberRole updates a member's role in a tenant
+func (h *TenantHandler) UpdateMemberRole(w http.ResponseWriter, r *http.Request) {
+	tenantUserUUIDStr := chi.URLParam(r, "tenant_user_uuid")
+	if tenantUserUUIDStr == "" {
+		util.Error(w, http.StatusBadRequest, "Invalid tenant user UUID", "UUID parameter is required")
+		return
+	}
+
+	tenantUserUUID, err := uuid.Parse(tenantUserUUIDStr)
+	if err != nil {
+		util.Error(w, http.StatusBadRequest, "Invalid UUID format", err.Error())
+		return
+	}
+
+	var req dto.TenantUserUpdateRoleRequestDto
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		util.Error(w, http.StatusBadRequest, "Invalid request body", err.Error())
+		return
+	}
+
+	if err := req.Validate(); err != nil {
+		util.ValidationError(w, err)
+		return
+	}
+
+	member, err := h.tenantUserService.UpdateRole(tenantUserUUID, req.Role)
+	if err != nil {
+		util.Error(w, http.StatusBadRequest, "Failed to update member role", err.Error())
+		return
+	}
+
+	response := toTenantUserResponseDto(*member)
+	util.Success(w, response, "Member role updated successfully")
+}
+
+// RemoveMember removes a member from a tenant
+func (h *TenantHandler) RemoveMember(w http.ResponseWriter, r *http.Request) {
+	tenantUserUUIDStr := chi.URLParam(r, "tenant_user_uuid")
+	if tenantUserUUIDStr == "" {
+		util.Error(w, http.StatusBadRequest, "Invalid tenant user UUID", "UUID parameter is required")
+		return
+	}
+
+	tenantUserUUID, err := uuid.Parse(tenantUserUUIDStr)
+	if err != nil {
+		util.Error(w, http.StatusBadRequest, "Invalid UUID format", err.Error())
+		return
+	}
+
+	if err := h.tenantUserService.DeleteByUUID(tenantUserUUID); err != nil {
+		util.Error(w, http.StatusBadRequest, "Failed to remove member", err.Error())
+		return
+	}
+
+	util.Success(w, nil, "Member removed successfully")
+}
+
 // Convert service result to DTO
 func toTenantResponseDto(r service.TenantServiceDataResult) dto.TenantResponseDto {
 	result := dto.TenantResponseDto{
@@ -327,4 +465,15 @@ func toTenantResponseDto(r service.TenantServiceDataResult) dto.TenantResponseDt
 	}
 
 	return result
+}
+
+func toTenantUserResponseDto(r service.TenantUserServiceDataResult) dto.TenantUserResponseDto {
+	return dto.TenantUserResponseDto{
+		TenantUserUUID: r.TenantUserUUID,
+		TenantID:       r.TenantID,
+		UserID:         r.UserID,
+		Role:           r.Role,
+		CreatedAt:      r.CreatedAt,
+		UpdatedAt:      r.UpdatedAt,
+	}
 }

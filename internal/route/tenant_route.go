@@ -52,5 +52,24 @@ func TenantRoute(
 
 		r.With(middleware.PermissionMiddleware([]string{"tenant:delete"})).
 			Delete("/{tenant_uuid}", tenantHandler.Delete)
+
+		// Tenant member management
+		r.Route("/{tenant_uuid}/members", func(r chi.Router) {
+			// Get all members in tenant
+			r.With(middleware.PermissionMiddleware([]string{"tenant:read"})).
+				Get("/", tenantHandler.GetMembers)
+
+			// Add member to tenant
+			r.With(middleware.PermissionMiddleware([]string{"tenant:update"})).
+				Post("/", tenantHandler.AddMember)
+
+			// Update member role
+			r.With(middleware.PermissionMiddleware([]string{"tenant:update"})).
+				Put("/{tenant_user_uuid}/role", tenantHandler.UpdateMemberRole)
+
+			// Remove member from tenant
+			r.With(middleware.PermissionMiddleware([]string{"tenant:update"})).
+				Delete("/{tenant_user_uuid}", tenantHandler.RemoveMember)
+		})
 	})
 }

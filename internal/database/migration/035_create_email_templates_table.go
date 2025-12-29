@@ -34,8 +34,8 @@ CREATE INDEX IF NOT EXISTS idx_email_templates_created_at ON email_templates (cr
 `
 
 	if err := db.Exec(sql).Error; err != nil {
-		log.Fatalf("❌ Failed to run migration 034_create_email_templates_table: %v", err)
+		log.Fatalf("❌ Failed to run migration 035_create_email_templates_table: %v", err)
 	}
 
-	log.Println("✅ Migration 034_create_email_templates_table executed")
+	log.Println("✅ Migration 035_create_email_templates_table executed")
 }

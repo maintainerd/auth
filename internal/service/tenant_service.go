@@ -12,6 +12,7 @@ import (
 )
 
 type TenantServiceDataResult struct {
+	TenantID    int64
 	TenantUUID  uuid.UUID
 	Name        string
 	DisplayName string
@@ -55,7 +56,7 @@ type TenantService interface {
 	GetDefault() (*TenantServiceDataResult, error)
 	GetByIdentifier(identifier string) (*TenantServiceDataResult, error)
 	Create(name string, displayName string, description string, status string, isPublic bool, isDefault bool) (*TenantServiceDataResult, error)
-	Update(tenantUUID uuid.UUID, name string, displayName string, description string, status string, isPublic bool, isDefault bool) (*TenantServiceDataResult, error)
+	Update(tenantUUID uuid.UUID, name string, displayName string, description string, status string, isPublic bool) (*TenantServiceDataResult, error)
 	SetStatusByUUID(tenantUUID uuid.UUID, status string) (*TenantServiceDataResult, error)
 	SetActivePublicByUUID(tenantUUID uuid.UUID) (*TenantServiceDataResult, error)
 	SetDefaultStatusByUUID(tenantUUID uuid.UUID) (*TenantServiceDataResult, error)
@@ -186,7 +187,7 @@ func (s *tenantService) Create(name string, displayName string, description stri
 	return toTenantServiceDataResult(createdTenant), nil
 }
 
-func (s *tenantService) Update(tenantUUID uuid.UUID, name string, displayName string, description string, status string, isPublic bool, isDefault bool) (*TenantServiceDataResult, error) {
+func (s *tenantService) Update(tenantUUID uuid.UUID, name string, displayName string, description string, status string, isPublic bool) (*TenantServiceDataResult, error) {
 	var updatedTenant *model.Tenant
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
@@ -218,7 +219,6 @@ func (s *tenantService) Update(tenantUUID uuid.UUID, name string, displayName st
 		tenant.Description = description
 		tenant.Status = status
 		tenant.IsPublic = isPublic
-		tenant.IsDefault = isDefault
 
 		updatedTenant, err = txTenantRepo.CreateOrUpdate(tenant)
 		if err != nil {
@@ -324,6 +324,7 @@ func (s *tenantService) DeleteByUUID(tenantUUID uuid.UUID) (*TenantServiceDataRe
 
 func toTenantServiceDataResult(tenant *model.Tenant) *TenantServiceDataResult {
 	return &TenantServiceDataResult{
+		TenantID:    tenant.TenantID,
 		TenantUUID:  tenant.TenantUUID,
 		Name:        tenant.Name,
 		DisplayName: tenant.DisplayName,
