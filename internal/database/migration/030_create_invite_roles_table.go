@@ -42,8 +42,8 @@ CREATE INDEX IF NOT EXISTS idx_invite_roles_invite_id ON invite_roles (invite_id
 CREATE INDEX IF NOT EXISTS idx_invite_roles_role_id ON invite_roles (role_id);
 `
 	if err := db.Exec(sql).Error; err != nil {
-		log.Fatalf("❌ Failed to run migration 029_create_invite_roles_table: %v", err)
+		log.Fatalf("❌ Failed to run migration 030_create_invite_roles_table: %v", err)
 	}
 
-	log.Println("✅ Migration 029_create_invite_roles_table executed")
+	log.Println("✅ Migration 030_create_invite_roles_table executed")
 }
