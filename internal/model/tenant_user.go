@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"gorm.io/gorm"
 )
 
 type TenantUser struct {
@@ -20,7 +21,7 @@ func (TenantUser) TableName() string {
 	return "tenant_users"
 }
 
-func (t *TenantUser) BeforeCreate(tx any) (err error) {
+func (t *TenantUser) BeforeCreate(tx *gorm.DB) (err error) {
 	if t.TenantUserUUID == uuid.Nil {
 		t.TenantUserUUID = uuid.New()
 	}
