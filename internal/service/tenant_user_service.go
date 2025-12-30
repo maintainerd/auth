@@ -15,12 +15,14 @@ type TenantUserServiceDataResult struct {
 	TenantID       int64
 	UserID         int64
 	Role           string
+	User           *UserServiceDataResult
 	CreatedAt      time.Time
 	UpdatedAt      time.Time
 }
 
 type TenantUserService interface {
 	Create(tenantID int64, userID int64, role string) (*TenantUserServiceDataResult, error)
+	CreateByUserUUID(tenantID int64, userUUID uuid.UUID, role string) (*TenantUserServiceDataResult, error)
 	GetByUUID(tenantUserUUID uuid.UUID) (*TenantUserServiceDataResult, error)
 	GetByTenantAndUser(tenantID int64, userID int64) (*TenantUserServiceDataResult, error)
 	ListByTenant(tenantID int64) ([]TenantUserServiceDataResult, error)
@@ -32,12 +34,14 @@ type TenantUserService interface {
 type tenantUserService struct {
 	db             *gorm.DB
 	tenantUserRepo repository.TenantUserRepository
+	userRepo       repository.UserRepository
 }
 
-func NewTenantUserService(db *gorm.DB, tenantUserRepo repository.TenantUserRepository) TenantUserService {
+func NewTenantUserService(db *gorm.DB, tenantUserRepo repository.TenantUserRepository, userRepo repository.UserRepository) TenantUserService {
 	return &tenantUserService{
 		db:             db,
 		tenantUserRepo: tenantUserRepo,
+		userRepo:       userRepo,
 	}
 }
 
@@ -58,6 +62,30 @@ func (s *tenantUserService) Create(tenantID int64, userID int64, role string) (*
 		return nil, err
 	}
 	return toTenantUserServiceDataResult(created), nil
+}
+
+func (s *tenantUserService) CreateByUserUUID(tenantID int64, userUUID uuid.UUID, role string) (*TenantUserServiceDataResult, error) {
+	// First get the user to retrieve the user_id
+	user, err := s.userRepo.FindByUUID(userUUID)
+	if err != nil || user == nil {
+		return nil, errors.New("user not found")
+	}
+
+	// Check if user is already a member of this tenant
+	existing, _ := s.tenantUserRepo.FindByTenantAndUser(tenantID, user.UserID)
+	if existing != nil {
+		return nil, errors.New("user is already a member of this tenant")
+	}
+
+	result, err := s.Create(tenantID, user.UserID, role)
+	if err != nil {
+		return nil, err
+	}
+
+	// Populate user information in the result
+	result.User = toUserServiceDataResult(user)
+
+	return result, nil
 }
 
 func (s *tenantUserService) GetByUUID(tenantUserUUID uuid.UUID) (*TenantUserServiceDataResult, error) {
@@ -84,7 +112,15 @@ func (s *tenantUserService) ListByTenant(tenantID int64) ([]TenantUserServiceDat
 
 	result := make([]TenantUserServiceDataResult, len(tus))
 	for i, tu := range tus {
-		result[i] = *toTenantUserServiceDataResult(&tu)
+		dr := toTenantUserServiceDataResult(&tu)
+
+		// Fetch user information
+		user, err := s.userRepo.FindByID(tu.UserID)
+		if err == nil && user != nil {
+			dr.User = toUserServiceDataResult(user)
+		}
+
+		result[i] = *dr
 	}
 	return result, nil
 }
@@ -120,7 +156,16 @@ func (s *tenantUserService) UpdateRole(tenantUserUUID uuid.UUID, role string) (*
 	if err != nil {
 		return nil, err
 	}
-	return toTenantUserServiceDataResult(updated), nil
+
+	result := toTenantUserServiceDataResult(updated)
+
+	// Fetch and populate user information
+	user, err := s.userRepo.FindByID(updated.UserID)
+	if err == nil && user != nil {
+		result.User = toUserServiceDataResult(user)
+	}
+
+	return result, nil
 }
 
 func (s *tenantUserService) DeleteByUUID(tenantUserUUID uuid.UUID) error {

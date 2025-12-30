@@ -328,6 +328,29 @@ func (h *TenantHandler) GetMembers(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Parse query parameters
+	q := r.URL.Query()
+
+	// Parse pagination
+	page, _ := strconv.Atoi(q.Get("page"))
+	limit, _ := strconv.Atoi(q.Get("limit"))
+
+	// Build request DTO
+	reqParams := dto.TenantUserFilterDto{
+		Role: util.PtrOrNil(q.Get("role")),
+		PaginationRequestDto: dto.PaginationRequestDto{
+			Page:      page,
+			Limit:     limit,
+			SortBy:    q.Get("sort_by"),
+			SortOrder: q.Get("sort_order"),
+		},
+	}
+
+	if err := reqParams.Validate(); err != nil {
+		util.ValidationError(w, err)
+		return
+	}
+
 	// Get tenant to retrieve tenant_id
 	tenant, err := h.tenantService.GetByUUID(tenantUUID)
 	if err != nil {
@@ -381,7 +404,7 @@ func (h *TenantHandler) AddMember(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	member, err := h.tenantUserService.Create(tenant.TenantID, req.UserID, req.Role)
+	member, err := h.tenantUserService.CreateByUserUUID(tenant.TenantID, req.UserUUID, req.Role)
 	if err != nil {
 		util.Error(w, http.StatusBadRequest, "Failed to add member", err.Error())
 		return
@@ -468,12 +491,17 @@ func toTenantResponseDto(r service.TenantServiceDataResult) dto.TenantResponseDt
 }
 
 func toTenantUserResponseDto(r service.TenantUserServiceDataResult) dto.TenantUserResponseDto {
-	return dto.TenantUserResponseDto{
+	resp := dto.TenantUserResponseDto{
 		TenantUserUUID: r.TenantUserUUID,
-		TenantID:       r.TenantID,
-		UserID:         r.UserID,
 		Role:           r.Role,
 		CreatedAt:      r.CreatedAt,
 		UpdatedAt:      r.UpdatedAt,
 	}
+
+	if r.User != nil {
+		userDto := toUserResponseDto(*r.User)
+		resp.User = &userDto
+	}
+
+	return resp
 }
