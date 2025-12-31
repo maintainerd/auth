@@ -12,6 +12,7 @@ func CreateAuthClientUrisTable(db *gorm.DB) {
 CREATE TABLE IF NOT EXISTS auth_client_uris (
     auth_client_uri_id   SERIAL PRIMARY KEY,
     auth_client_uri_uuid UUID NOT NULL UNIQUE,
+    tenant_id            INTEGER NOT NULL,
     auth_client_id       INTEGER NOT NULL,
     uri                  TEXT NOT NULL,
     type                 VARCHAR(20) NOT NULL DEFAULT 'redirect-uri',
@@ -22,6 +23,14 @@ CREATE TABLE IF NOT EXISTS auth_client_uris (
 -- ADD CONSTRAINTS (safe)
 DO $$
 BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint WHERE conname = 'fk_auth_client_uris_tenant_id'
+    ) THEN
+        ALTER TABLE auth_client_uris
+            ADD CONSTRAINT fk_auth_client_uris_tenant_id FOREIGN KEY (tenant_id)
+            REFERENCES tenants(tenant_id) ON DELETE CASCADE;
+    END IF;
+
     IF NOT EXISTS (
         SELECT 1 FROM pg_constraint WHERE conname = 'fk_auth_client_uris_auth_client_id'
     ) THEN
@@ -41,6 +50,8 @@ END$$;
 -- ADD INDEXES
 CREATE INDEX IF NOT EXISTS idx_auth_client_uris_uuid 
     ON auth_client_uris (auth_client_uri_uuid);
+CREATE INDEX IF NOT EXISTS idx_auth_client_uris_tenant_id 
+    ON auth_client_uris (tenant_id);
 CREATE INDEX IF NOT EXISTS idx_auth_client_uris_auth_client_id 
     ON auth_client_uris (auth_client_id);
 CREATE INDEX IF NOT EXISTS idx_auth_client_uris_uri 
