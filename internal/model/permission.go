@@ -10,9 +10,10 @@ import (
 type Permission struct {
 	PermissionID   int64     `gorm:"column:permission_id;primaryKey"`
 	PermissionUUID uuid.UUID `gorm:"column:permission_uuid"`
+	TenantID       int64     `gorm:"column:tenant_id;not null"`
+	APIID          int64     `gorm:"column:api_id"`
 	Name           string    `gorm:"column:name;unique"`
 	Description    string    `gorm:"column:description"`
-	APIID          int64     `gorm:"column:api_id"`
 	Status         string    `gorm:"column:status;default:'active'"`
 	IsDefault      bool      `gorm:"column:is_default;default:false"`
 	IsSystem       bool      `gorm:"column:is_system;default:false"`

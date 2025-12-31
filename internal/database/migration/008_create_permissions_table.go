@@ -12,9 +12,10 @@ func CreatePermissionTable(db *gorm.DB) {
 CREATE TABLE IF NOT EXISTS permissions (
     permission_id       SERIAL PRIMARY KEY,
     permission_uuid     UUID NOT NULL UNIQUE,
+    tenant_id           INTEGER NOT NULL,
+    api_id              INTEGER NOT NULL,
     name                VARCHAR(255) NOT NULL UNIQUE,
     description         TEXT NOT NULL,
-    api_id              INTEGER NOT NULL,
     status              VARCHAR(20) DEFAULT 'active' CHECK (status IN ('active', 'inactive')),
     is_default          BOOLEAN DEFAULT FALSE,
     is_system           BOOLEAN DEFAULT FALSE,
@@ -26,6 +27,14 @@ CREATE TABLE IF NOT EXISTS permissions (
 DO $$
 BEGIN
     IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint WHERE conname = 'fk_permissions_tenant_id'
+    ) THEN
+        ALTER TABLE permissions
+            ADD CONSTRAINT fk_permissions_tenant_id FOREIGN KEY (tenant_id)
+            REFERENCES tenants(tenant_id) ON DELETE CASCADE;
+    END IF;
+
+    IF NOT EXISTS (
         SELECT 1 FROM pg_constraint WHERE conname = 'fk_permissions_api_id'
     ) THEN
         ALTER TABLE permissions
@@ -36,8 +45,9 @@ END$$;
 
 -- ADD INDEXES
 CREATE INDEX IF NOT EXISTS idx_permissions_uuid ON permissions (permission_uuid);
-CREATE INDEX IF NOT EXISTS idx_permissions_name ON permissions (name);
+CREATE INDEX IF NOT EXISTS idx_permissions_tenant_id ON permissions (tenant_id);
 CREATE INDEX IF NOT EXISTS idx_permissions_api_id ON permissions (api_id);
+CREATE INDEX IF NOT EXISTS idx_permissions_name ON permissions (name);
 CREATE INDEX IF NOT EXISTS idx_permissions_status ON permissions (status);
 CREATE INDEX IF NOT EXISTS idx_permissions_is_default ON permissions (is_default);
 CREATE INDEX IF NOT EXISTS idx_permissions_is_system ON permissions (is_system);
