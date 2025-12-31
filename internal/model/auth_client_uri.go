@@ -10,6 +10,7 @@ import (
 type AuthClientURI struct {
 	AuthClientURIID   int64     `gorm:"column:auth_client_uri_id;primaryKey"`
 	AuthClientURIUUID uuid.UUID `gorm:"column:auth_client_uri_uuid"`
+	TenantID          int64     `gorm:"column:tenant_id;not null"`
 	AuthClientID      int64     `gorm:"column:auth_client_id"`
 	URI               string    `gorm:"column:uri"`
 	Type              string    `gorm:"column:type;default:'redirect-uri'"`
