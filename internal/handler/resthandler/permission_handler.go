@@ -8,6 +8,8 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/dto"
+	"github.com/maintainerd/auth/internal/middleware"
+	"github.com/maintainerd/auth/internal/model"
 	"github.com/maintainerd/auth/internal/service"
 	"github.com/maintainerd/auth/internal/util"
 )
@@ -22,6 +24,13 @@ func NewPermissionHandler(permissionService service.PermissionService) *Permissi
 
 // Get permissions with pagination
 func (h *PermissionHandler) Get(w http.ResponseWriter, r *http.Request) {
+	// Get tenant from context
+	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
+	if !ok || tenant == nil {
+		util.Error(w, http.StatusUnauthorized, "Tenant not found in context")
+		return
+	}
+
 	// Parse query parameters
 	q := r.URL.Query()
 
@@ -70,6 +79,7 @@ func (h *PermissionHandler) Get(w http.ResponseWriter, r *http.Request) {
 
 	// Build permission filter
 	permissionFilter := service.PermissionServiceGetFilter{
+		TenantID:       tenant.TenantID,
 		Name:           reqParams.Name,
 		Description:    reqParams.Description,
 		APIUUID:        reqParams.APIUUID,
@@ -111,13 +121,20 @@ func (h *PermissionHandler) Get(w http.ResponseWriter, r *http.Request) {
 
 // Get permission by UUID
 func (h *PermissionHandler) GetByUUID(w http.ResponseWriter, r *http.Request) {
+	// Get tenant from context
+	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
+	if !ok || tenant == nil {
+		util.Error(w, http.StatusUnauthorized, "Tenant not found in context")
+		return
+	}
+
 	permissonUUID, err := uuid.Parse(chi.URLParam(r, "permission_uuid"))
 	if err != nil {
 		util.Error(w, http.StatusBadRequest, "Invalid permission UUID")
 		return
 	}
 
-	permission, err := h.permissionService.GetByUUID(permissonUUID)
+	permission, err := h.permissionService.GetByUUID(permissonUUID, tenant.TenantID)
 	if err != nil {
 		util.Error(w, http.StatusNotFound, "Permission not found")
 		return
@@ -130,6 +147,13 @@ func (h *PermissionHandler) GetByUUID(w http.ResponseWriter, r *http.Request) {
 
 // Create permission
 func (h *PermissionHandler) Create(w http.ResponseWriter, r *http.Request) {
+	// Get tenant from context
+	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
+	if !ok || tenant == nil {
+		util.Error(w, http.StatusUnauthorized, "Tenant not found in context")
+		return
+	}
+
 	var req dto.PermissionCreateRequestDto
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		util.Error(w, http.StatusBadRequest, "Invalid request", err.Error())
@@ -141,7 +165,7 @@ func (h *PermissionHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	permission, err := h.permissionService.Create(req.Name, req.Description, req.Status, false, req.APIUUID)
+	permission, err := h.permissionService.Create(tenant.TenantID, req.Name, req.Description, req.Status, false, req.APIUUID)
 	if err != nil {
 		util.Error(w, http.StatusInternalServerError, "Failed to create permission", err.Error())
 		return
@@ -154,6 +178,13 @@ func (h *PermissionHandler) Create(w http.ResponseWriter, r *http.Request) {
 
 // Update permission
 func (h *PermissionHandler) Update(w http.ResponseWriter, r *http.Request) {
+	// Get tenant from context
+	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
+	if !ok || tenant == nil {
+		util.Error(w, http.StatusUnauthorized, "Tenant not found in context")
+		return
+	}
+
 	permissionUUID, err := uuid.Parse(chi.URLParam(r, "permission_uuid"))
 	if err != nil {
 		util.Error(w, http.StatusBadRequest, "Invalid permission UUID")
@@ -171,7 +202,7 @@ func (h *PermissionHandler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	permission, err := h.permissionService.Update(permissionUUID, req.Name, req.Description, req.Status)
+	permission, err := h.permissionService.Update(permissionUUID, tenant.TenantID, req.Name, req.Description, req.Status)
 	if err != nil {
 		util.Error(w, http.StatusInternalServerError, "Failed to update auth container", err.Error())
 		return
@@ -184,6 +215,13 @@ func (h *PermissionHandler) Update(w http.ResponseWriter, r *http.Request) {
 
 // Set permission status
 func (h *PermissionHandler) SetStatus(w http.ResponseWriter, r *http.Request) {
+	// Get tenant from context
+	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
+	if !ok || tenant == nil {
+		util.Error(w, http.StatusUnauthorized, "Tenant not found in context")
+		return
+	}
+
 	permissionUUID, err := uuid.Parse(chi.URLParam(r, "permission_uuid"))
 	if err != nil {
 		util.Error(w, http.StatusBadRequest, "Invalid permission UUID")
@@ -201,7 +239,7 @@ func (h *PermissionHandler) SetStatus(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	permission, err := h.permissionService.SetStatus(permissionUUID, req.Status)
+	permission, err := h.permissionService.SetStatus(permissionUUID, tenant.TenantID, req.Status)
 	if err != nil {
 		util.Error(w, http.StatusInternalServerError, "Failed to update permission status", err.Error())
 		return
@@ -213,13 +251,20 @@ func (h *PermissionHandler) SetStatus(w http.ResponseWriter, r *http.Request) {
 
 // Delete permission
 func (h *PermissionHandler) Delete(w http.ResponseWriter, r *http.Request) {
+	// Get tenant from context
+	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
+	if !ok || tenant == nil {
+		util.Error(w, http.StatusUnauthorized, "Tenant not found in context")
+		return
+	}
+
 	permissionUUID, err := uuid.Parse(chi.URLParam(r, "permission_uuid"))
 	if err != nil {
 		util.Error(w, http.StatusBadRequest, "Invalid permission UUID")
 		return
 	}
 
-	permission, err := h.permissionService.DeleteByUUID(permissionUUID)
+	permission, err := h.permissionService.DeleteByUUID(permissionUUID, tenant.TenantID)
 	if err != nil {
 		util.Error(w, http.StatusInternalServerError, "Failed to delete auth container", err.Error())
 		return
