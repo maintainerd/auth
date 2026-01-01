@@ -8,9 +8,9 @@ import (
 	"gorm.io/gorm"
 )
 
-func SeedAPI(db *gorm.DB, serviceID int64) (*model.API, error) {
+func SeedAPI(db *gorm.DB, tenantID, serviceID int64) (*model.API, error) {
 	var existing model.API
-	err := db.Where("name = ?", "auth").First(&existing).Error
+	err := db.Where("name = ? AND tenant_id = ?", "auth", tenantID).First(&existing).Error
 
 	if err == nil {
 		fmt.Println("⚠️ API 'auth' already exists, skipping seeding")
@@ -21,6 +21,7 @@ func SeedAPI(db *gorm.DB, serviceID int64) (*model.API, error) {
 	}
 
 	api := &model.API{
+		TenantID:    tenantID,
 		Name:        "auth",
 		DisplayName: "Auth API",
 		APIType:     "rest",
