@@ -25,6 +25,7 @@ type PolicyServiceDataResult struct {
 }
 
 type PolicyServiceGetFilter struct {
+	TenantID    int64
 	Name        *string
 	Description *string
 	Version     *string
@@ -82,12 +83,12 @@ type PolicyServiceServicesResult struct {
 
 type PolicyService interface {
 	Get(filter PolicyServiceGetFilter) (*PolicyServiceGetResult, error)
-	GetByUUID(policyUUID uuid.UUID) (*PolicyServiceDataResult, error)
-	GetServicesByPolicyUUID(policyUUID uuid.UUID, filter PolicyServiceServicesFilter) (*PolicyServiceServicesResult, error)
-	Create(name string, description *string, document datatypes.JSON, version string, status string, isDefault bool, isSystem bool) (*PolicyServiceDataResult, error)
-	Update(policyUUID uuid.UUID, name string, description *string, document datatypes.JSON, version string, status string) (*PolicyServiceDataResult, error)
-	SetStatusByUUID(policyUUID uuid.UUID, status string) (*PolicyServiceDataResult, error)
-	DeleteByUUID(policyUUID uuid.UUID) (*PolicyServiceDataResult, error)
+	GetByUUID(policyUUID uuid.UUID, tenantID int64) (*PolicyServiceDataResult, error)
+	GetServicesByPolicyUUID(policyUUID uuid.UUID, tenantID int64, filter PolicyServiceServicesFilter) (*PolicyServiceServicesResult, error)
+	Create(tenantID int64, name string, description *string, document datatypes.JSON, version string, status string, isDefault bool, isSystem bool) (*PolicyServiceDataResult, error)
+	Update(policyUUID uuid.UUID, tenantID int64, name string, description *string, document datatypes.JSON, version string, status string) (*PolicyServiceDataResult, error)
+	SetStatusByUUID(policyUUID uuid.UUID, tenantID int64, status string) (*PolicyServiceDataResult, error)
+	DeleteByUUID(policyUUID uuid.UUID, tenantID int64) (*PolicyServiceDataResult, error)
 }
 
 type policyService struct {
@@ -113,6 +114,7 @@ func NewPolicyService(
 
 func (s *policyService) Get(filter PolicyServiceGetFilter) (*PolicyServiceGetResult, error) {
 	repoFilter := repository.PolicyRepositoryGetFilter{
+		TenantID:    filter.TenantID,
 		Name:        filter.Name,
 		Description: filter.Description,
 		Version:     filter.Version,
@@ -156,8 +158,8 @@ func (s *policyService) Get(filter PolicyServiceGetFilter) (*PolicyServiceGetRes
 	}, nil
 }
 
-func (s *policyService) GetByUUID(policyUUID uuid.UUID) (*PolicyServiceDataResult, error) {
-	policy, err := s.policyRepo.FindByUUID(policyUUID)
+func (s *policyService) GetByUUID(policyUUID uuid.UUID, tenantID int64) (*PolicyServiceDataResult, error) {
+	policy, err := s.policyRepo.FindByUUIDAndTenantID(policyUUID, tenantID)
 	if err != nil {
 		return nil, err
 	}
@@ -179,9 +181,9 @@ func (s *policyService) GetByUUID(policyUUID uuid.UUID) (*PolicyServiceDataResul
 	}, nil
 }
 
-func (s *policyService) GetServicesByPolicyUUID(policyUUID uuid.UUID, filter PolicyServiceServicesFilter) (*PolicyServiceServicesResult, error) {
-	// First check if policy exists
-	_, err := s.policyRepo.FindByUUID(policyUUID)
+func (s *policyService) GetServicesByPolicyUUID(policyUUID uuid.UUID, tenantID int64, filter PolicyServiceServicesFilter) (*PolicyServiceServicesResult, error) {
+	// First check if policy exists and belongs to tenant
+	_, err := s.policyRepo.FindByUUIDAndTenantID(policyUUID, tenantID)
 	if err != nil {
 		return nil, err
 	}
@@ -236,14 +238,14 @@ func (s *policyService) GetServicesByPolicyUUID(policyUUID uuid.UUID, filter Pol
 	}, nil
 }
 
-func (s *policyService) Create(name string, description *string, document datatypes.JSON, version string, status string, isDefault bool, isSystem bool) (*PolicyServiceDataResult, error) {
+func (s *policyService) Create(tenantID int64, name string, description *string, document datatypes.JSON, version string, status string, isDefault bool, isSystem bool) (*PolicyServiceDataResult, error) {
 	var createdPolicy *model.Policy
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
 		txPolicyRepo := s.policyRepo.WithTx(tx)
 
 		// Check if policy with same name and version already exists
-		existingPolicy, err := txPolicyRepo.FindByNameAndVersion(name, version)
+		existingPolicy, err := txPolicyRepo.FindByNameAndVersion(name, version, tenantID)
 		if err != nil {
 			return err
 		}
@@ -254,6 +256,7 @@ func (s *policyService) Create(name string, description *string, document dataty
 		// Create new policy
 		policy := &model.Policy{
 			PolicyUUID:  uuid.New(),
+			TenantID:    tenantID,
 			Name:        name,
 			Description: description,
 			Document:    document,
@@ -290,24 +293,24 @@ func (s *policyService) Create(name string, description *string, document dataty
 	}, nil
 }
 
-func (s *policyService) Update(policyUUID uuid.UUID, name string, description *string, document datatypes.JSON, version string, status string) (*PolicyServiceDataResult, error) {
+func (s *policyService) Update(policyUUID uuid.UUID, tenantID int64, name string, description *string, document datatypes.JSON, version string, status string) (*PolicyServiceDataResult, error) {
 	var updatedPolicy *model.Policy
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
 		txPolicyRepo := s.policyRepo.WithTx(tx)
 
-		// Check if policy exists
-		policy, err := txPolicyRepo.FindByUUID(policyUUID)
+		// Check if policy exists and belongs to tenant
+		policy, err := txPolicyRepo.FindByUUIDAndTenantID(policyUUID, tenantID)
 		if err != nil {
 			return err
 		}
 		if policy == nil {
-			return errors.New("policy not found")
+			return errors.New("policy not found or access denied")
 		}
 
 		// Check if another policy with same name and version exists (excluding current policy)
 		if policy.Name != name || policy.Version != version {
-			existingPolicy, err := txPolicyRepo.FindByNameAndVersion(name, version)
+			existingPolicy, err := txPolicyRepo.FindByNameAndVersion(name, version, tenantID)
 			if err != nil {
 				return err
 			}
@@ -349,28 +352,28 @@ func (s *policyService) Update(policyUUID uuid.UUID, name string, description *s
 	}, nil
 }
 
-func (s *policyService) SetStatusByUUID(policyUUID uuid.UUID, status string) (*PolicyServiceDataResult, error) {
+func (s *policyService) SetStatusByUUID(policyUUID uuid.UUID, tenantID int64, status string) (*PolicyServiceDataResult, error) {
 	var updatedPolicy *model.Policy
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
 		txPolicyRepo := s.policyRepo.WithTx(tx)
 
-		// Check if policy exists
-		policy, err := txPolicyRepo.FindByUUID(policyUUID)
+		// Check if policy exists and belongs to tenant
+		policy, err := txPolicyRepo.FindByUUIDAndTenantID(policyUUID, tenantID)
 		if err != nil {
 			return err
 		}
 		if policy == nil {
-			return errors.New("policy not found")
+			return errors.New("policy not found or access denied")
 		}
 
 		// Update status
-		if err := txPolicyRepo.SetStatusByUUID(policyUUID, status); err != nil {
+		if err := txPolicyRepo.SetStatusByUUID(policyUUID, tenantID, status); err != nil {
 			return err
 		}
 
 		// Get updated policy
-		updatedPolicy, err = txPolicyRepo.FindByUUID(policyUUID)
+		updatedPolicy, err = txPolicyRepo.FindByUUIDAndTenantID(policyUUID, tenantID)
 		if err != nil {
 			return err
 		}
@@ -396,19 +399,19 @@ func (s *policyService) SetStatusByUUID(policyUUID uuid.UUID, status string) (*P
 	}, nil
 }
 
-func (s *policyService) DeleteByUUID(policyUUID uuid.UUID) (*PolicyServiceDataResult, error) {
+func (s *policyService) DeleteByUUID(policyUUID uuid.UUID, tenantID int64) (*PolicyServiceDataResult, error) {
 	var deletedPolicy *model.Policy
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
 		txPolicyRepo := s.policyRepo.WithTx(tx)
 
-		// Check if policy exists
-		policy, err := txPolicyRepo.FindByUUID(policyUUID)
+		// Check if policy exists and belongs to tenant
+		policy, err := txPolicyRepo.FindByUUIDAndTenantID(policyUUID, tenantID)
 		if err != nil {
 			return err
 		}
 		if policy == nil {
-			return errors.New("policy not found")
+			return errors.New("policy not found or access denied")
 		}
 
 		// Check if policy is system policy (cannot be deleted)
@@ -419,7 +422,7 @@ func (s *policyService) DeleteByUUID(policyUUID uuid.UUID) (*PolicyServiceDataRe
 		deletedPolicy = policy
 
 		// Delete policy
-		if err := txPolicyRepo.DeleteByUUID(policyUUID); err != nil {
+		if err := txPolicyRepo.DeleteByUUIDAndTenantID(policyUUID, tenantID); err != nil {
 			return err
 		}
 

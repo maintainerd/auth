@@ -11,6 +11,7 @@ import (
 type Policy struct {
 	PolicyID    int64          `gorm:"column:policy_id;primaryKey"`
 	PolicyUUID  uuid.UUID      `gorm:"column:policy_uuid;unique"`
+	TenantID    int64          `gorm:"column:tenant_id;not null"`
 	Name        string         `gorm:"column:name"`
 	Description *string        `gorm:"column:description"`
 	Document    datatypes.JSON `gorm:"column:document"`
