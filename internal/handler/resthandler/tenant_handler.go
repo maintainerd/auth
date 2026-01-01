@@ -9,6 +9,8 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/dto"
+	"github.com/maintainerd/auth/internal/middleware"
+	"github.com/maintainerd/auth/internal/model"
 	"github.com/maintainerd/auth/internal/service"
 	"github.com/maintainerd/auth/internal/util"
 )
@@ -202,9 +204,26 @@ func (h *TenantHandler) Create(w http.ResponseWriter, r *http.Request) {
 
 // Update Tenant
 func (h *TenantHandler) Update(w http.ResponseWriter, r *http.Request) {
+	user, ok := r.Context().Value(middleware.UserContextKey).(*model.User)
+	if !ok || user == nil {
+		util.Error(w, http.StatusUnauthorized, "Unauthorized")
+		return
+	}
+
 	tenantUUID, err := uuid.Parse(chi.URLParam(r, "tenant_uuid"))
 	if err != nil {
 		util.Error(w, http.StatusBadRequest, "Invalid tenant UUID")
+		return
+	}
+
+	// Check if user is a member of this tenant
+	isMember, err := h.tenantUserService.IsUserInTenant(user.UserID, tenantUUID)
+	if err != nil {
+		util.Error(w, http.StatusInternalServerError, "Failed to verify tenant membership", err.Error())
+		return
+	}
+	if !isMember {
+		util.Error(w, http.StatusForbidden, "Access denied", "Only tenant members can update this tenant")
 		return
 	}
 
@@ -297,19 +316,49 @@ func (h *TenantHandler) SetDefault(w http.ResponseWriter, r *http.Request) {
 
 // Delete Tenant
 func (h *TenantHandler) Delete(w http.ResponseWriter, r *http.Request) {
+	user, ok := r.Context().Value(middleware.UserContextKey).(*model.User)
+	if !ok || user == nil {
+		util.Error(w, http.StatusUnauthorized, "Unauthorized")
+		return
+	}
+
 	tenantUUID, err := uuid.Parse(chi.URLParam(r, "tenant_uuid"))
 	if err != nil {
 		util.Error(w, http.StatusBadRequest, "Invalid tenant UUID")
 		return
 	}
 
-	tenant, err := h.tenantService.DeleteByUUID(tenantUUID)
+	// Check if user is a member of this tenant
+	isMember, err := h.tenantUserService.IsUserInTenant(user.UserID, tenantUUID)
+	if err != nil {
+		util.Error(w, http.StatusInternalServerError, "Failed to verify tenant membership", err.Error())
+		return
+	}
+	if !isMember {
+		util.Error(w, http.StatusForbidden, "Access denied", "Only tenant members can delete this tenant")
+		return
+	}
+
+	// Get tenant to check if it's a system tenant
+	tenant, err := h.tenantService.GetByUUID(tenantUUID)
+	if err != nil {
+		util.Error(w, http.StatusNotFound, "Tenant not found", err.Error())
+		return
+	}
+
+	// Prevent deletion of system tenants
+	if tenant.IsSystem {
+		util.Error(w, http.StatusForbidden, "Cannot delete system tenant", "System tenants cannot be deleted")
+		return
+	}
+
+	deletedTenant, err := h.tenantService.DeleteByUUID(tenantUUID)
 	if err != nil {
 		util.Error(w, http.StatusInternalServerError, "Failed to delete tenant", err.Error())
 		return
 	}
 
-	dtoRes := toTenantResponseDto(*tenant)
+	dtoRes := toTenantResponseDto(*deletedTenant)
 
 	util.Success(w, dtoRes, "Tenant deleted successfully")
 }
