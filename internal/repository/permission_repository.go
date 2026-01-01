@@ -3,11 +3,13 @@ package repository
 import (
 	"errors"
 
+	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/model"
 	"gorm.io/gorm"
 )
 
 type PermissionRepositoryGetFilter struct {
+	TenantID    int64
 	Name        *string
 	Description *string
 	APIID       *int64
@@ -24,8 +26,10 @@ type PermissionRepositoryGetFilter struct {
 type PermissionRepository interface {
 	BaseRepositoryMethods[model.Permission]
 	WithTx(tx *gorm.DB) PermissionRepository
-	FindByName(name string) (*model.Permission, error)
+	FindByUUIDAndTenantID(permissionUUID uuid.UUID, tenantID int64) (*model.Permission, error)
+	FindByName(name string, tenantID int64) (*model.Permission, error)
 	FindPaginated(filter PermissionRepositoryGetFilter) (*PaginationResult[model.Permission], error)
+	DeleteByUUIDAndTenantID(permissionUUID uuid.UUID, tenantID int64) error
 }
 
 type permissionRepository struct {
@@ -47,9 +51,26 @@ func (r *permissionRepository) WithTx(tx *gorm.DB) PermissionRepository {
 	}
 }
 
-func (r *permissionRepository) FindByName(name string) (*model.Permission, error) {
+func (r *permissionRepository) FindByUUIDAndTenantID(permissionUUID uuid.UUID, tenantID int64) (*model.Permission, error) {
 	var permission model.Permission
-	err := r.db.Where("name = ?", name).First(&permission).Error
+	err := r.db.
+		Preload("API").
+		Where("permission_uuid = ? AND tenant_id = ?", permissionUUID, tenantID).
+		First(&permission).Error
+
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	return &permission, nil
+}
+
+func (r *permissionRepository) FindByName(name string, tenantID int64) (*model.Permission, error) {
+	var permission model.Permission
+	err := r.db.Where("name = ? AND tenant_id = ?", name, tenantID).First(&permission).Error
 
 	// If no record is found, return nil record and nil error
 	if err != nil {
@@ -63,7 +84,7 @@ func (r *permissionRepository) FindByName(name string) (*model.Permission, error
 }
 
 func (r *permissionRepository) FindPaginated(filter PermissionRepositoryGetFilter) (*PaginationResult[model.Permission], error) {
-	query := r.db.Model(&model.Permission{})
+	query := r.db.Model(&model.Permission{}).Where("tenant_id = ?", filter.TenantID)
 
 	// Filters with LIKE
 	if filter.Name != nil {
@@ -120,4 +141,15 @@ func (r *permissionRepository) FindPaginated(filter PermissionRepositoryGetFilte
 		Limit:      filter.Limit,
 		TotalPages: totalPages,
 	}, nil
+}
+
+func (r *permissionRepository) DeleteByUUIDAndTenantID(permissionUUID uuid.UUID, tenantID int64) error {
+	result := r.db.Where("permission_uuid = ? AND tenant_id = ?", permissionUUID, tenantID).Delete(&model.Permission{})
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+	return nil
 }

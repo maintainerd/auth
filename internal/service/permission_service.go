@@ -23,6 +23,7 @@ type PermissionServiceDataResult struct {
 }
 
 type PermissionServiceGetFilter struct {
+	TenantID       int64
 	Name           *string
 	Description    *string
 	APIUUID        *string
@@ -47,12 +48,12 @@ type PermissionServiceGetResult struct {
 
 type PermissionService interface {
 	Get(filter PermissionServiceGetFilter) (*PermissionServiceGetResult, error)
-	GetByUUID(permissionUUID uuid.UUID) (*PermissionServiceDataResult, error)
-	Create(name string, description string, status string, isSystem bool, apiUUID string) (*PermissionServiceDataResult, error)
-	Update(permissionUUID uuid.UUID, name string, description string, status string) (*PermissionServiceDataResult, error)
-	SetActiveStatusByUUID(permissionUUID uuid.UUID) (*PermissionServiceDataResult, error)
-	SetStatus(permissionUUID uuid.UUID, status string) (*PermissionServiceDataResult, error)
-	DeleteByUUID(permissionUUID uuid.UUID) (*PermissionServiceDataResult, error)
+	GetByUUID(permissionUUID uuid.UUID, tenantID int64) (*PermissionServiceDataResult, error)
+	Create(tenantID int64, name string, description string, status string, isSystem bool, apiUUID string) (*PermissionServiceDataResult, error)
+	Update(permissionUUID uuid.UUID, tenantID int64, name string, description string, status string) (*PermissionServiceDataResult, error)
+	SetActiveStatusByUUID(permissionUUID uuid.UUID, tenantID int64) (*PermissionServiceDataResult, error)
+	SetStatus(permissionUUID uuid.UUID, tenantID int64, status string) (*PermissionServiceDataResult, error)
+	DeleteByUUID(permissionUUID uuid.UUID, tenantID int64) (*PermissionServiceDataResult, error)
 }
 
 type permissionService struct {
@@ -110,6 +111,7 @@ func (s *permissionService) Get(filter PermissionServiceGetFilter) (*PermissionS
 
 	// Build query filter
 	queryFilter := repository.PermissionRepositoryGetFilter{
+		TenantID:    filter.TenantID,
 		Name:        filter.Name,
 		Description: filter.Description,
 		APIID:       apiID,
@@ -143,16 +145,19 @@ func (s *permissionService) Get(filter PermissionServiceGetFilter) (*PermissionS
 	}, nil
 }
 
-func (s *permissionService) GetByUUID(permissionUUID uuid.UUID) (*PermissionServiceDataResult, error) {
-	permission, err := s.permissionRepo.FindByUUID(permissionUUID, "API")
-	if err != nil || permission == nil {
-		return nil, errors.New("permission not found")
+func (s *permissionService) GetByUUID(permissionUUID uuid.UUID, tenantID int64) (*PermissionServiceDataResult, error) {
+	permission, err := s.permissionRepo.FindByUUIDAndTenantID(permissionUUID, tenantID)
+	if err != nil {
+		return nil, err
+	}
+	if permission == nil {
+		return nil, errors.New("permission not found or access denied")
 	}
 
 	return toPermissionServiceDataResult(permission), nil
 }
 
-func (s *permissionService) Create(name string, description string, status string, isSystem bool, apiUUID string) (*PermissionServiceDataResult, error) {
+func (s *permissionService) Create(tenantID int64, name string, description string, status string, isSystem bool, apiUUID string) (*PermissionServiceDataResult, error) {
 	var createdPermission *model.Permission
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
@@ -160,7 +165,7 @@ func (s *permissionService) Create(name string, description string, status strin
 		txAPIRepo := s.apiRepo.WithTx(tx)
 
 		// Check if permission already exists
-		existingPermission, err := txPermissionRepo.FindByName(name)
+		existingPermission, err := txPermissionRepo.FindByName(name, tenantID)
 		if err != nil {
 			return err
 		}
@@ -168,16 +173,26 @@ func (s *permissionService) Create(name string, description string, status strin
 			return errors.New(name + " permission already exists")
 		}
 
-		// Check if api exist
-		api, err := txAPIRepo.FindByUUID(apiUUID)
-		if err != nil || api == nil {
-			return errors.New("api not found")
+		// Parse and validate API UUID
+		apiUUIDParsed, err := uuid.Parse(apiUUID)
+		if err != nil {
+			return errors.New("invalid api uuid")
+		}
+
+		// Check if api exists and belongs to the same tenant
+		api, err := txAPIRepo.FindByUUIDAndTenantID(apiUUIDParsed, tenantID)
+		if err != nil {
+			return err
+		}
+		if api == nil {
+			return errors.New("api not found or access denied")
 		}
 
 		// Create permission
 		newPermission := &model.Permission{
 			Name:        name,
 			Description: description,
+			TenantID:    tenantID,
 			APIID:       api.APIID,
 			Status:      status,
 			IsDefault:   false, // System-managed field, always default to false for user-created permissions
@@ -190,7 +205,7 @@ func (s *permissionService) Create(name string, description string, status strin
 		}
 
 		// Fetch permission with api preloaded
-		createdPermission, err = txPermissionRepo.FindByUUID(newPermission.PermissionUUID, "API")
+		createdPermission, err = txPermissionRepo.FindByUUIDAndTenantID(newPermission.PermissionUUID, tenantID)
 		if err != nil {
 			return err
 		}
@@ -205,16 +220,19 @@ func (s *permissionService) Create(name string, description string, status strin
 	return toPermissionServiceDataResult(createdPermission), nil
 }
 
-func (s *permissionService) Update(permissionUUID uuid.UUID, name string, description string, status string) (*PermissionServiceDataResult, error) {
+func (s *permissionService) Update(permissionUUID uuid.UUID, tenantID int64, name string, description string, status string) (*PermissionServiceDataResult, error) {
 	var updatedPermission *model.Permission
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
 		txPermissionRepo := s.permissionRepo.WithTx(tx)
 
-		// Get permission
-		permission, err := txPermissionRepo.FindByUUID(permissionUUID, "API")
-		if err != nil || permission == nil {
-			return errors.New("permission not found")
+		// Get permission and validate tenant ownership
+		permission, err := txPermissionRepo.FindByUUIDAndTenantID(permissionUUID, tenantID)
+		if err != nil {
+			return err
+		}
+		if permission == nil {
+			return errors.New("permission not found or access denied")
 		}
 
 		// Check if default
@@ -224,7 +242,7 @@ func (s *permissionService) Update(permissionUUID uuid.UUID, name string, descri
 
 		// Check if permission already exist
 		if permission.Name != name {
-			existingPermission, err := txPermissionRepo.FindByName(name)
+			existingPermission, err := txPermissionRepo.FindByName(name, tenantID)
 			if err != nil {
 				return err
 			}
@@ -256,16 +274,19 @@ func (s *permissionService) Update(permissionUUID uuid.UUID, name string, descri
 	return toPermissionServiceDataResult(updatedPermission), nil
 }
 
-func (s *permissionService) SetActiveStatusByUUID(permissionUUID uuid.UUID) (*PermissionServiceDataResult, error) {
+func (s *permissionService) SetActiveStatusByUUID(permissionUUID uuid.UUID, tenantID int64) (*PermissionServiceDataResult, error) {
 	var updatedPermission *model.Permission
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
 		txPermissionRepo := s.permissionRepo.WithTx(tx)
 
-		// Get permission
-		permission, err := txPermissionRepo.FindByUUID(permissionUUID, "API")
-		if err != nil || permission == nil {
-			return errors.New("permission not found")
+		// Get permission and validate tenant ownership
+		permission, err := txPermissionRepo.FindByUUIDAndTenantID(permissionUUID, tenantID)
+		if err != nil {
+			return err
+		}
+		if permission == nil {
+			return errors.New("permission not found or access denied")
 		}
 
 		// Check if default
@@ -296,16 +317,19 @@ func (s *permissionService) SetActiveStatusByUUID(permissionUUID uuid.UUID) (*Pe
 	return toPermissionServiceDataResult(updatedPermission), nil
 }
 
-func (s *permissionService) SetStatus(permissionUUID uuid.UUID, status string) (*PermissionServiceDataResult, error) {
+func (s *permissionService) SetStatus(permissionUUID uuid.UUID, tenantID int64, status string) (*PermissionServiceDataResult, error) {
 	var updatedPermission *model.Permission
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
 		txPermissionRepo := s.permissionRepo.WithTx(tx)
 
-		// Get permission
-		permission, err := txPermissionRepo.FindByUUID(permissionUUID)
+		// Get permission and validate tenant ownership
+		permission, err := txPermissionRepo.FindByUUIDAndTenantID(permissionUUID, tenantID)
 		if err != nil {
 			return err
+		}
+		if permission == nil {
+			return errors.New("permission not found or access denied")
 		}
 
 		// Set status
@@ -328,11 +352,14 @@ func (s *permissionService) SetStatus(permissionUUID uuid.UUID, status string) (
 	return toPermissionServiceDataResult(updatedPermission), nil
 }
 
-func (s *permissionService) DeleteByUUID(permissionUUID uuid.UUID) (*PermissionServiceDataResult, error) {
-	// Get permission
-	permission, err := s.permissionRepo.FindByUUID(permissionUUID, "API")
-	if err != nil || permission == nil {
-		return nil, errors.New("permission not found")
+func (s *permissionService) DeleteByUUID(permissionUUID uuid.UUID, tenantID int64) (*PermissionServiceDataResult, error) {
+	// Get permission and validate tenant ownership
+	permission, err := s.permissionRepo.FindByUUIDAndTenantID(permissionUUID, tenantID)
+	if err != nil {
+		return nil, err
+	}
+	if permission == nil {
+		return nil, errors.New("permission not found or access denied")
 	}
 
 	// Check if default
@@ -340,7 +367,7 @@ func (s *permissionService) DeleteByUUID(permissionUUID uuid.UUID) (*PermissionS
 		return nil, errors.New("default permission cannot be deleted")
 	}
 
-	err = s.permissionRepo.DeleteByUUID(permissionUUID)
+	err = s.permissionRepo.DeleteByUUIDAndTenantID(permissionUUID, tenantID)
 	if err != nil {
 		return nil, err
 	}
