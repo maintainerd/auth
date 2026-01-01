@@ -57,8 +57,8 @@ type ServiceService interface {
 	SetStatusByUUID(serviceUUID uuid.UUID, status string) (*ServiceServiceDataResult, error)
 	SetPublicStatusByUUID(serviceUUID uuid.UUID) (*ServiceServiceDataResult, error)
 	DeleteByUUID(serviceUUID uuid.UUID) (*ServiceServiceDataResult, error)
-	AssignPolicy(serviceUUID uuid.UUID, policyUUID uuid.UUID) error
-	RemovePolicy(serviceUUID uuid.UUID, policyUUID uuid.UUID) error
+	AssignPolicy(serviceUUID uuid.UUID, policyUUID uuid.UUID, tenantID int64) error
+	RemovePolicy(serviceUUID uuid.UUID, policyUUID uuid.UUID, tenantID int64) error
 }
 
 type serviceService struct {
@@ -352,7 +352,7 @@ func (s *serviceService) toServiceServiceDataResult(service *model.Service) *Ser
 	}
 }
 
-func (s *serviceService) AssignPolicy(serviceUUID uuid.UUID, policyUUID uuid.UUID) error {
+func (s *serviceService) AssignPolicy(serviceUUID uuid.UUID, policyUUID uuid.UUID, tenantID int64) error {
 	return s.db.Transaction(func(tx *gorm.DB) error {
 		txServiceRepo := s.serviceRepo.WithTx(tx)
 		txPolicyRepo := s.policyRepo.WithTx(tx)
@@ -367,13 +367,13 @@ func (s *serviceService) AssignPolicy(serviceUUID uuid.UUID, policyUUID uuid.UUI
 			return errors.New("service not found")
 		}
 
-		// Check if policy exists
-		policy, err := txPolicyRepo.FindByUUID(policyUUID)
+		// Check if policy exists and belongs to the same tenant
+		policy, err := txPolicyRepo.FindByUUIDAndTenantID(policyUUID, tenantID)
 		if err != nil {
 			return err
 		}
 		if policy == nil {
-			return errors.New("policy not found")
+			return errors.New("policy not found or access denied")
 		}
 
 		// Check if assignment already exists
@@ -398,7 +398,7 @@ func (s *serviceService) AssignPolicy(serviceUUID uuid.UUID, policyUUID uuid.UUI
 	})
 }
 
-func (s *serviceService) RemovePolicy(serviceUUID uuid.UUID, policyUUID uuid.UUID) error {
+func (s *serviceService) RemovePolicy(serviceUUID uuid.UUID, policyUUID uuid.UUID, tenantID int64) error {
 	return s.db.Transaction(func(tx *gorm.DB) error {
 		txServiceRepo := s.serviceRepo.WithTx(tx)
 		txPolicyRepo := s.policyRepo.WithTx(tx)
@@ -413,13 +413,13 @@ func (s *serviceService) RemovePolicy(serviceUUID uuid.UUID, policyUUID uuid.UUI
 			return errors.New("service not found")
 		}
 
-		// Check if policy exists
-		policy, err := txPolicyRepo.FindByUUID(policyUUID)
+		// Check if policy exists and belongs to the same tenant
+		policy, err := txPolicyRepo.FindByUUIDAndTenantID(policyUUID, tenantID)
 		if err != nil {
 			return err
 		}
 		if policy == nil {
-			return errors.New("policy not found")
+			return errors.New("policy not found or access denied")
 		}
 
 		// Check if assignment exists

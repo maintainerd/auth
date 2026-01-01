@@ -12,6 +12,7 @@ func CreatePoliciesTable(db *gorm.DB) {
 CREATE TABLE IF NOT EXISTS policies (
     policy_id       SERIAL PRIMARY KEY,
     policy_uuid     UUID NOT NULL UNIQUE,
+    tenant_id       INTEGER NOT NULL,
     name            VARCHAR(150) NOT NULL,
     description     TEXT,
     document        JSONB NOT NULL,
@@ -23,10 +24,23 @@ CREATE TABLE IF NOT EXISTS policies (
     updated_at      TIMESTAMPTZ DEFAULT now()
 );
 
+-- ADD CONSTRAINTS (safe)
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint WHERE conname = 'fk_policies_tenant_id'
+    ) THEN
+        ALTER TABLE policies
+            ADD CONSTRAINT fk_policies_tenant_id FOREIGN KEY (tenant_id)
+            REFERENCES tenants(tenant_id) ON DELETE CASCADE;
+    END IF;
+END$$;
+
 -- ADD INDEXES
-CREATE INDEX IF NOT EXISTS idx_policies_uuid ON policies (policy_uuid);
+CREATE INDEX IF NOT EXISTS idx_policies_policy_uuid ON policies (policy_uuid);
+CREATE INDEX IF NOT EXISTS idx_policies_tenant_id ON policies (tenant_id);
 CREATE INDEX IF NOT EXISTS idx_policies_name ON policies (name);
-CREATE INDEX IF NOT EXISTS idx_policies_document ON policies (document);
+CREATE INDEX IF NOT EXISTS idx_policies_document ON policies USING GIN (document);
 CREATE INDEX IF NOT EXISTS idx_policies_version ON policies (version);
 CREATE INDEX IF NOT EXISTS idx_policies_status ON policies (status);
 CREATE INDEX IF NOT EXISTS idx_policies_is_default ON policies (is_default);
