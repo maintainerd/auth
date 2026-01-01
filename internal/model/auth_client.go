@@ -11,6 +11,8 @@ import (
 type AuthClient struct {
 	AuthClientID       int64          `gorm:"column:auth_client_id;primaryKey"`
 	AuthClientUUID     uuid.UUID      `gorm:"column:auth_client_uuid"`
+	TenantID           int64          `gorm:"column:tenant_id;not null"`
+	IdentityProviderID int64          `gorm:"column:identity_provider_id"`
 	Name               string         `gorm:"column:name"`
 	DisplayName        string         `gorm:"column:display_name"`
 	ClientType         string         `gorm:"column:client_type"`
@@ -21,7 +23,6 @@ type AuthClient struct {
 	Status             string         `gorm:"column:status;default:'inactive'"`
 	IsDefault          bool           `gorm:"column:is_default;default:false"`
 	IsSystem           bool           `gorm:"column:is_system;default:false"`
-	IdentityProviderID int64          `gorm:"column:identity_provider_id"`
 	CreatedAt          time.Time      `gorm:"column:created_at;autoCreateTime"`
 	UpdatedAt          time.Time      `gorm:"column:updated_at;autoUpdateTime"`
 
