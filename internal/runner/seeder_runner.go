@@ -35,14 +35,14 @@ func RunSeeders(db *gorm.DB, appVersion string) error {
 	}
 
 	// 003: Seed API
-	api, err := seeder.SeedAPI(db, service.ServiceID)
+	api, err := seeder.SeedAPI(db, tenant.TenantID, service.ServiceID)
 	if err != nil {
 		log.Printf("❌ Failed to seed api: %v", err)
 		return err
 	}
 
 	// 004: Seed permissions
-	if err := seeder.SeedPermissions(db, api.APIID); err != nil {
+	if err := seeder.SeedPermissions(db, tenant.TenantID, api.APIID); err != nil {
 		log.Printf("❌ Failed to seed permissions: %v", err)
 		return err
 	}
@@ -55,13 +55,13 @@ func RunSeeders(db *gorm.DB, appVersion string) error {
 	}
 
 	// 006: Seed auth clients
-	if err := seeder.SeedAuthClients(db, identityProvider.IdentityProviderID); err != nil {
+	if err := seeder.SeedAuthClients(db, tenant.TenantID, identityProvider.IdentityProviderID); err != nil {
 		log.Printf("❌ Failed to seed auth clients: %v", err)
 		return err
 	}
 
 	// 007: Seed auth client URIs
-	if err := seeder.SeedAuthClientURIs(db, identityProvider.IdentityProviderID); err != nil {
+	if err := seeder.SeedAuthClientURIs(db, tenant.TenantID, identityProvider.IdentityProviderID); err != nil {
 		log.Printf("❌ Failed to seed auth client URIs: %v", err)
 		return err
 	}
