@@ -9,6 +9,7 @@ import (
 )
 
 type AuthClientRepositoryGetFilter struct {
+	TenantID           int64
 	Name               *string
 	DisplayName        *string
 	ClientType         []string
@@ -25,14 +26,16 @@ type AuthClientRepositoryGetFilter struct {
 type AuthClientRepository interface {
 	BaseRepositoryMethods[model.AuthClient]
 	WithTx(tx *gorm.DB) AuthClientRepository
-	FindByNameAndIdentityProvider(name string, identityProviderID int64) (*model.AuthClient, error)
-	FindByClientID(clientID string) (*model.AuthClient, error)
+	FindByUUIDAndTenantID(authClientUUID uuid.UUID, tenantID int64) (*model.AuthClient, error)
+	FindByNameAndIdentityProvider(name string, identityProviderID int64, tenantID int64) (*model.AuthClient, error)
+	FindByClientID(clientID string, tenantID int64) (*model.AuthClient, error)
 	FindAllByTenantID(tenantID int64) ([]model.AuthClient, error)
 	FindDefault() (*model.AuthClient, error)
 	FindDefaultByTenantID(tenantID int64) (*model.AuthClient, error)
 	FindPaginated(filter AuthClientRepositoryGetFilter) (*PaginationResult[model.AuthClient], error)
-	SetStatusByUUID(authClientUUID uuid.UUID, status string) error
+	SetStatusByUUID(authClientUUID uuid.UUID, tenantID int64, status string) error
 	FindByClientIDAndIdentityProvider(clientID, identityProviderIdentifier string) (*model.AuthClient, error)
+	DeleteByUUIDAndTenantID(authClientUUID uuid.UUID, tenantID int64) error
 }
 
 type authClientRepository struct {
@@ -54,9 +57,13 @@ func (r *authClientRepository) WithTx(tx *gorm.DB) AuthClientRepository {
 	}
 }
 
-func (r *authClientRepository) FindByNameAndIdentityProvider(name string, identityProviderID int64) (*model.AuthClient, error) {
+func (r *authClientRepository) FindByUUIDAndTenantID(authClientUUID uuid.UUID, tenantID int64) (*model.AuthClient, error) {
 	var client model.AuthClient
-	err := r.db.Where("name = ? AND identity_provider_id = ?", name, identityProviderID).First(&client).Error
+	err := r.db.
+		Preload("IdentityProvider").
+		Preload("AuthClientURIs").
+		Where("auth_client_uuid = ? AND tenant_id = ?", authClientUUID, tenantID).
+		First(&client).Error
 
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -68,9 +75,23 @@ func (r *authClientRepository) FindByNameAndIdentityProvider(name string, identi
 	return &client, nil
 }
 
-func (r *authClientRepository) FindByClientID(clientID string) (*model.AuthClient, error) {
+func (r *authClientRepository) FindByNameAndIdentityProvider(name string, identityProviderID int64, tenantID int64) (*model.AuthClient, error) {
 	var client model.AuthClient
-	err := r.db.Where("client_id = ?", clientID).First(&client).Error
+	err := r.db.Where("name = ? AND identity_provider_id = ? AND tenant_id = ?", name, identityProviderID, tenantID).First(&client).Error
+
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	return &client, nil
+}
+
+func (r *authClientRepository) FindByClientID(clientID string, tenantID int64) (*model.AuthClient, error) {
+	var client model.AuthClient
+	err := r.db.Where("client_id = ? AND tenant_id = ?", clientID, tenantID).First(&client).Error
 	return &client, err
 }
 
@@ -115,7 +136,7 @@ func (r *authClientRepository) FindDefaultByTenantID(tenantID int64) (*model.Aut
 }
 
 func (r *authClientRepository) FindPaginated(filter AuthClientRepositoryGetFilter) (*PaginationResult[model.AuthClient], error) {
-	query := r.db.Model(&model.AuthClient{})
+	query := r.db.Model(&model.AuthClient{}).Where("tenant_id = ?", filter.TenantID)
 
 	// Filters with LIKE
 	if filter.Name != nil {
@@ -175,9 +196,9 @@ func (r *authClientRepository) FindPaginated(filter AuthClientRepositoryGetFilte
 	}, nil
 }
 
-func (r *authClientRepository) SetStatusByUUID(authClientUUID uuid.UUID, status string) error {
+func (r *authClientRepository) SetStatusByUUID(authClientUUID uuid.UUID, tenantID int64, status string) error {
 	return r.db.Model(&model.AuthClient{}).
-		Where("auth_client_uuid = ?", authClientUUID).
+		Where("auth_client_uuid = ? AND tenant_id = ?", authClientUUID, tenantID).
 		Update("status", status).Error
 }
 
@@ -193,4 +214,15 @@ func (r *authClientRepository) FindByClientIDAndIdentityProvider(clientID, ident
 		First(&client).Error
 
 	return &client, err
+}
+
+func (r *authClientRepository) DeleteByUUIDAndTenantID(authClientUUID uuid.UUID, tenantID int64) error {
+	result := r.db.Where("auth_client_uuid = ? AND tenant_id = ?", authClientUUID, tenantID).Delete(&model.AuthClient{})
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+	return nil
 }
