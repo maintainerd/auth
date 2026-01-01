@@ -8,6 +8,7 @@ import (
 )
 
 type APIKeyRepositoryGetFilter struct {
+	TenantID    int64
 	Name        *string
 	Description *string
 	Status      *string
@@ -20,9 +21,10 @@ type APIKeyRepositoryGetFilter struct {
 type APIKeyRepository interface {
 	BaseRepositoryMethods[model.APIKey]
 	WithTx(tx *gorm.DB) APIKeyRepository
+	FindByUUIDAndTenantID(uuid string, tenantID int64) (*model.APIKey, error)
 	FindByKeyHash(keyHash string) (*model.APIKey, error)
 	FindByKeyPrefix(keyPrefix string) (*model.APIKey, error)
-
+	DeleteByUUIDAndTenantID(uuid string, tenantID int64) error
 	FindPaginated(filter APIKeyRepositoryGetFilter) (*PaginationResult[model.APIKey], error)
 }
 
@@ -45,6 +47,20 @@ func (r *apiKeyRepository) WithTx(tx *gorm.DB) APIKeyRepository {
 	}
 }
 
+func (r *apiKeyRepository) FindByUUIDAndTenantID(uuid string, tenantID int64) (*model.APIKey, error) {
+	var apiKey model.APIKey
+	err := r.db.Where("api_key_uuid = ? AND tenant_id = ?", uuid, tenantID).First(&apiKey).Error
+
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	return &apiKey, nil
+}
+
 func (r *apiKeyRepository) FindByKeyHash(keyHash string) (*model.APIKey, error) {
 	var apiKey model.APIKey
 	if err := r.db.Where("key_hash = ?", keyHash).First(&apiKey).Error; err != nil {
@@ -54,6 +70,17 @@ func (r *apiKeyRepository) FindByKeyHash(keyHash string) (*model.APIKey, error) 
 		return nil, err
 	}
 	return &apiKey, nil
+}
+
+func (r *apiKeyRepository) DeleteByUUIDAndTenantID(uuid string, tenantID int64) error {
+	result := r.db.Where("api_key_uuid = ? AND tenant_id = ?", uuid, tenantID).Delete(&model.APIKey{})
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+	return nil
 }
 
 func (r *apiKeyRepository) FindByKeyPrefix(keyPrefix string) (*model.APIKey, error) {
@@ -67,10 +94,11 @@ func (r *apiKeyRepository) FindByKeyPrefix(keyPrefix string) (*model.APIKey, err
 	return &apiKey, nil
 }
 
-// FindByUserID and FindByTenantID methods removed since those fields no longer exist
-
 func (r *apiKeyRepository) FindPaginated(filter APIKeyRepositoryGetFilter) (*PaginationResult[model.APIKey], error) {
 	query := r.db.Model(&model.APIKey{})
+
+	// Always filter by tenant
+	query = query.Where("tenant_id = ?", filter.TenantID)
 
 	// Apply filters
 	if filter.Name != nil {
@@ -82,7 +110,6 @@ func (r *apiKeyRepository) FindPaginated(filter APIKeyRepositoryGetFilter) (*Pag
 	if filter.Status != nil {
 		query = query.Where("status = ?", *filter.Status)
 	}
-	// UserID and TenantID filters removed
 
 	// Sorting
 	orderBy := filter.SortBy + " " + filter.SortOrder

@@ -11,6 +11,7 @@ import (
 type APIKey struct {
 	APIKeyID    int64          `gorm:"column:api_key_id;primaryKey"`
 	APIKeyUUID  uuid.UUID      `gorm:"column:api_key_uuid;unique"`
+	TenantID    int64          `gorm:"column:tenant_id;not null"`
 	Name        string         `gorm:"column:name"`
 	Description string         `gorm:"column:description"`
 	KeyHash     string         `gorm:"column:key_hash;unique"`
