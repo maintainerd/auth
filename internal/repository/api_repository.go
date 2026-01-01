@@ -9,6 +9,7 @@ import (
 )
 
 type APIRepositoryGetFilter struct {
+	TenantID    int64
 	Name        *string
 	DisplayName *string
 	APIType     *string
@@ -26,13 +27,15 @@ type APIRepositoryGetFilter struct {
 type APIRepository interface {
 	BaseRepositoryMethods[model.API]
 	WithTx(tx *gorm.DB) APIRepository
-	FindByName(apiName string) (*model.API, error)
-	FindByIdentifier(identifier string) (*model.API, error)
-	FindDefaultByServiceID(serviceID int64) (*model.API, error)
+	FindByUUIDAndTenantID(apiUUID uuid.UUID, tenantID int64) (*model.API, error)
+	FindByName(apiName string, tenantID int64) (*model.API, error)
+	FindByIdentifier(identifier string, tenantID int64) (*model.API, error)
+	FindDefaultByServiceID(serviceID int64, tenantID int64) (*model.API, error)
 	FindPaginated(filter APIRepositoryGetFilter) (*PaginationResult[model.API], error)
-	SetStatusByUUID(apiUUID uuid.UUID, status string) error
-	SetDefaultStatusByUUID(apiUUID uuid.UUID, isDefault bool) error
-	CountByServiceID(serviceID int64) (int64, error)
+	SetStatusByUUID(apiUUID uuid.UUID, tenantID int64, status string) error
+	SetDefaultStatusByUUID(apiUUID uuid.UUID, tenantID int64, isDefault bool) error
+	CountByServiceID(serviceID int64, tenantID int64) (int64, error)
+	DeleteByUUIDAndTenantID(apiUUID uuid.UUID, tenantID int64) error
 }
 
 type apiRepository struct {
@@ -54,11 +57,28 @@ func (r *apiRepository) WithTx(tx *gorm.DB) APIRepository {
 	}
 }
 
-func (r *apiRepository) FindByName(apiName string) (*model.API, error) {
+func (r *apiRepository) FindByUUIDAndTenantID(apiUUID uuid.UUID, tenantID int64) (*model.API, error) {
 	var api model.API
 	err := r.db.
 		Preload("Service").
-		Where("name = ?", apiName).
+		Where("api_uuid = ? AND tenant_id = ?", apiUUID, tenantID).
+		First(&api).Error
+
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	return &api, nil
+}
+
+func (r *apiRepository) FindByName(apiName string, tenantID int64) (*model.API, error) {
+	var api model.API
+	err := r.db.
+		Preload("Service").
+		Where("name = ? AND tenant_id = ?", apiName, tenantID).
 		First(&api).Error
 
 	if err != nil {
@@ -71,24 +91,27 @@ func (r *apiRepository) FindByName(apiName string) (*model.API, error) {
 	return &api, err
 }
 
-func (r *apiRepository) FindByIdentifier(identifier string) (*model.API, error) {
+func (r *apiRepository) FindByIdentifier(identifier string, tenantID int64) (*model.API, error) {
 	var api model.API
 	err := r.db.
-		Where("identifier = ?", identifier).
+		Where("identifier = ? AND tenant_id = ?", identifier, tenantID).
 		First(&api).Error
 	return &api, err
 }
 
-func (r *apiRepository) FindDefaultByServiceID(serviceID int64) (*model.API, error) {
+func (r *apiRepository) FindDefaultByServiceID(serviceID int64, tenantID int64) (*model.API, error) {
 	var api model.API
 	err := r.db.
-		Where("service_id = ? AND is_default = true", serviceID).
+		Where("service_id = ? AND tenant_id = ? AND is_default = true", serviceID, tenantID).
 		First(&api).Error
 	return &api, err
 }
 
 func (r *apiRepository) FindPaginated(filter APIRepositoryGetFilter) (*PaginationResult[model.API], error) {
 	query := r.db.Model(&model.API{})
+
+	// Filter by tenant_id
+	query = query.Where("tenant_id = ?", filter.TenantID)
 
 	// Filters with LIKE
 	if filter.Name != nil {
@@ -146,22 +169,26 @@ func (r *apiRepository) FindPaginated(filter APIRepositoryGetFilter) (*Paginatio
 	}, nil
 }
 
-func (r *apiRepository) SetStatusByUUID(apiUUID uuid.UUID, status string) error {
+func (r *apiRepository) SetStatusByUUID(apiUUID uuid.UUID, tenantID int64, status string) error {
 	return r.db.Model(&model.API{}).
-		Where("api_uuid = ?", apiUUID).
+		Where("api_uuid = ? AND tenant_id = ?", apiUUID, tenantID).
 		Update("status", status).Error
 }
 
-func (r *apiRepository) SetDefaultStatusByUUID(apiUUID uuid.UUID, isDefault bool) error {
+func (r *apiRepository) SetDefaultStatusByUUID(apiUUID uuid.UUID, tenantID int64, isDefault bool) error {
 	return r.db.Model(&model.API{}).
-		Where("api_uuid = ?", apiUUID).
+		Where("api_uuid = ? AND tenant_id = ?", apiUUID, tenantID).
 		Update("is_default", isDefault).Error
 }
 
-func (r *apiRepository) CountByServiceID(serviceID int64) (int64, error) {
+func (r *apiRepository) CountByServiceID(serviceID int64, tenantID int64) (int64, error) {
 	var count int64
 	err := r.db.Model(&model.API{}).
-		Where("service_id = ?", serviceID).
+		Where("service_id = ? AND tenant_id = ?", serviceID, tenantID).
 		Count(&count).Error
 	return count, err
+}
+
+func (r *apiRepository) DeleteByUUIDAndTenantID(apiUUID uuid.UUID, tenantID int64) error {
+	return r.db.Where("api_uuid = ? AND tenant_id = ?", apiUUID, tenantID).Delete(&model.API{}).Error
 }

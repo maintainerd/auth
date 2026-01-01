@@ -28,6 +28,7 @@ type APIServiceDataResult struct {
 }
 
 type APIServiceGetFilter struct {
+	TenantID    int64
 	Name        *string
 	DisplayName *string
 	APIType     *string
@@ -52,12 +53,12 @@ type APIServiceGetResult struct {
 
 type APIService interface {
 	Get(filter APIServiceGetFilter) (*APIServiceGetResult, error)
-	GetByUUID(apiUUID uuid.UUID) (*APIServiceDataResult, error)
+	GetByUUID(apiUUID uuid.UUID, tenantID int64) (*APIServiceDataResult, error)
 	GetServiceIDByUUID(serviceUUID uuid.UUID) (int64, error)
-	Create(name string, displayName string, description string, apiType string, status string, isSystem bool, serviceUUID string) (*APIServiceDataResult, error)
-	Update(apiUUID uuid.UUID, name string, displayName string, description string, apiType string, status string, serviceUUID string) (*APIServiceDataResult, error)
-	SetStatusByUUID(apiUUID uuid.UUID, status string) (*APIServiceDataResult, error)
-	DeleteByUUID(apiUUID uuid.UUID) (*APIServiceDataResult, error)
+	Create(tenantID int64, name string, displayName string, description string, apiType string, status string, isSystem bool, serviceUUID string) (*APIServiceDataResult, error)
+	Update(apiUUID uuid.UUID, tenantID int64, name string, displayName string, description string, apiType string, status string, serviceUUID string) (*APIServiceDataResult, error)
+	SetStatusByUUID(apiUUID uuid.UUID, tenantID int64, status string) (*APIServiceDataResult, error)
+	DeleteByUUID(apiUUID uuid.UUID, tenantID int64) (*APIServiceDataResult, error)
 }
 
 type apiService struct {
@@ -80,6 +81,7 @@ func NewAPIService(
 
 func (s *apiService) Get(filter APIServiceGetFilter) (*APIServiceGetResult, error) {
 	apiFilter := repository.APIRepositoryGetFilter{
+		TenantID:    filter.TenantID,
 		Name:        filter.Name,
 		DisplayName: filter.DisplayName,
 		APIType:     filter.APIType,
@@ -113,9 +115,12 @@ func (s *apiService) Get(filter APIServiceGetFilter) (*APIServiceGetResult, erro
 	}, nil
 }
 
-func (s *apiService) GetByUUID(apiUUID uuid.UUID) (*APIServiceDataResult, error) {
-	api, err := s.apiRepo.FindByUUID(apiUUID, "Service")
-	if err != nil || api == nil {
+func (s *apiService) GetByUUID(apiUUID uuid.UUID, tenantID int64) (*APIServiceDataResult, error) {
+	api, err := s.apiRepo.FindByUUIDAndTenantID(apiUUID, tenantID)
+	if err != nil {
+		return nil, err
+	}
+	if api == nil {
 		return nil, errors.New("api not found")
 	}
 
@@ -131,7 +136,7 @@ func (s *apiService) GetServiceIDByUUID(serviceUUID uuid.UUID) (int64, error) {
 	return service.ServiceID, nil
 }
 
-func (s *apiService) Create(name string, displayName string, description string, apiType string, status string, isSystem bool, serviceUUID string) (*APIServiceDataResult, error) {
+func (s *apiService) Create(tenantID int64, name string, displayName string, description string, apiType string, status string, isSystem bool, serviceUUID string) (*APIServiceDataResult, error) {
 	var createdAPI *model.API
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
@@ -139,7 +144,7 @@ func (s *apiService) Create(name string, displayName string, description string,
 		txServiceRepo := s.serviceRepo.WithTx(tx)
 
 		// Check if api already exists
-		existingAPI, err := txAPIRepo.FindByName(name)
+		existingAPI, err := txAPIRepo.FindByName(name, tenantID)
 		if err != nil {
 			return err
 		}
@@ -164,6 +169,7 @@ func (s *apiService) Create(name string, displayName string, description string,
 			APIType:     apiType,
 			Identifier:  identifier,
 			ServiceID:   service.ServiceID,
+			TenantID:    tenantID,
 			Status:      status,
 			IsDefault:   false, // System-managed field, always default to false for user-created APIs
 			IsSystem:    isSystem,
@@ -190,16 +196,19 @@ func (s *apiService) Create(name string, displayName string, description string,
 	return toAPIServiceDataResult(createdAPI), nil
 }
 
-func (s *apiService) Update(apiUUID uuid.UUID, name string, displayName string, description string, apiType string, status string, serviceUUID string) (*APIServiceDataResult, error) {
+func (s *apiService) Update(apiUUID uuid.UUID, tenantID int64, name string, displayName string, description string, apiType string, status string, serviceUUID string) (*APIServiceDataResult, error) {
 	var updatedAPI *model.API
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
 		txAPIRepo := s.apiRepo.WithTx(tx)
 
-		// Get api
-		api, err := txAPIRepo.FindByUUID(apiUUID, "Service")
-		if err != nil || api == nil {
-			return errors.New("api not found")
+		// Get api and validate tenant ownership
+		api, err := txAPIRepo.FindByUUIDAndTenantID(apiUUID, tenantID)
+		if err != nil {
+			return err
+		}
+		if api == nil {
+			return errors.New("api not found or access denied")
 		}
 
 		// Check if default
@@ -221,7 +230,7 @@ func (s *apiService) Update(apiUUID uuid.UUID, name string, displayName string, 
 
 		// Check if api already exist
 		if api.Name != name {
-			existingAPI, err := txAPIRepo.FindByName(name)
+			existingAPI, err := txAPIRepo.FindByName(name, tenantID)
 			if err != nil {
 				return err
 			}
@@ -257,16 +266,19 @@ func (s *apiService) Update(apiUUID uuid.UUID, name string, displayName string, 
 	return toAPIServiceDataResult(updatedAPI), nil
 }
 
-func (s *apiService) SetStatusByUUID(apiUUID uuid.UUID, status string) (*APIServiceDataResult, error) {
+func (s *apiService) SetStatusByUUID(apiUUID uuid.UUID, tenantID int64, status string) (*APIServiceDataResult, error) {
 	var updatedAPI *model.API
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
 		txAPIRepo := s.apiRepo.WithTx(tx)
 
-		// Get api
-		api, err := txAPIRepo.FindByUUID(apiUUID, "Service")
-		if err != nil || api == nil {
-			return errors.New("api not found")
+		// Get api and validate tenant ownership
+		api, err := txAPIRepo.FindByUUIDAndTenantID(apiUUID, tenantID)
+		if err != nil {
+			return err
+		}
+		if api == nil {
+			return errors.New("api not found or access denied")
 		}
 
 		// Check if default
@@ -293,11 +305,14 @@ func (s *apiService) SetStatusByUUID(apiUUID uuid.UUID, status string) (*APIServ
 	return toAPIServiceDataResult(updatedAPI), nil
 }
 
-func (s *apiService) DeleteByUUID(apiUUID uuid.UUID) (*APIServiceDataResult, error) {
-	// Get api
-	api, err := s.apiRepo.FindByUUID(apiUUID, "Service")
-	if err != nil || api == nil {
-		return nil, errors.New("api not found")
+func (s *apiService) DeleteByUUID(apiUUID uuid.UUID, tenantID int64) (*APIServiceDataResult, error) {
+	// Get api and validate tenant ownership
+	api, err := s.apiRepo.FindByUUIDAndTenantID(apiUUID, tenantID)
+	if err != nil {
+		return nil, err
+	}
+	if api == nil {
+		return nil, errors.New("api not found or access denied")
 	}
 
 	// Check if default
@@ -305,7 +320,7 @@ func (s *apiService) DeleteByUUID(apiUUID uuid.UUID) (*APIServiceDataResult, err
 		return nil, errors.New("default api cannot be deleted")
 	}
 
-	err = s.apiRepo.DeleteByUUID(apiUUID)
+	err = s.apiRepo.DeleteByUUIDAndTenantID(apiUUID, tenantID)
 	if err != nil {
 		return nil, err
 	}
