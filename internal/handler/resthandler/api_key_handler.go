@@ -29,6 +29,13 @@ func (h *APIKeyHandler) Get(w http.ResponseWriter, r *http.Request) {
 	// Get authentication context
 	requestingUser := r.Context().Value(middleware.UserContextKey).(*model.User)
 
+	// Get tenant from context
+	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
+	if !ok || tenant == nil {
+		util.Error(w, http.StatusUnauthorized, "Tenant not found in context")
+		return
+	}
+
 	// Parse query parameters
 	var reqParams dto.APIKeyGetRequestDto
 	reqParams.Page, _ = strconv.Atoi(r.URL.Query().Get("page"))
@@ -69,6 +76,7 @@ func (h *APIKeyHandler) Get(w http.ResponseWriter, r *http.Request) {
 
 	// Build service filter
 	serviceFilter := service.APIKeyServiceGetFilter{
+		TenantID:    tenant.TenantID,
 		Name:        reqParams.Name,
 		Description: reqParams.Description,
 		Status:      reqParams.Status,
@@ -109,6 +117,13 @@ func (h *APIKeyHandler) GetByUUID(w http.ResponseWriter, r *http.Request) {
 	// Get authentication context
 	requestingUser := r.Context().Value(middleware.UserContextKey).(*model.User)
 
+	// Get tenant from context
+	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
+	if !ok || tenant == nil {
+		util.Error(w, http.StatusUnauthorized, "Tenant not found in context")
+		return
+	}
+
 	apiKeyUUIDStr := chi.URLParam(r, "api_key_uuid")
 	apiKeyUUID, err := uuid.Parse(apiKeyUUIDStr)
 	if err != nil {
@@ -116,7 +131,7 @@ func (h *APIKeyHandler) GetByUUID(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	apiKey, err := h.apiKeyService.GetByUUID(apiKeyUUID, requestingUser.UserUUID)
+	apiKey, err := h.apiKeyService.GetByUUID(apiKeyUUID, tenant.TenantID, requestingUser.UserUUID)
 	if err != nil {
 		util.Error(w, http.StatusNotFound, "API key not found")
 		return
@@ -130,13 +145,20 @@ func (h *APIKeyHandler) GetByUUID(w http.ResponseWriter, r *http.Request) {
 
 // Get API key config by UUID
 func (h *APIKeyHandler) GetConfigByUUID(w http.ResponseWriter, r *http.Request) {
+	// Get tenant from context
+	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
+	if !ok || tenant == nil {
+		util.Error(w, http.StatusUnauthorized, "Tenant not found in context")
+		return
+	}
+
 	apiKeyUUID, err := uuid.Parse(chi.URLParam(r, "api_key_uuid"))
 	if err != nil {
 		util.Error(w, http.StatusBadRequest, "Invalid API key UUID", err.Error())
 		return
 	}
 
-	apiKeyConfig, err := h.apiKeyService.GetConfigByUUID(apiKeyUUID)
+	apiKeyConfig, err := h.apiKeyService.GetConfigByUUID(apiKeyUUID, tenant.TenantID)
 	if err != nil {
 		util.Error(w, http.StatusNotFound, "API key not found", err.Error())
 		return
@@ -150,6 +172,13 @@ func (h *APIKeyHandler) GetConfigByUUID(w http.ResponseWriter, r *http.Request) 
 func (h *APIKeyHandler) Create(w http.ResponseWriter, r *http.Request) {
 	// Get authentication context (not needed for API key creation anymore)
 	_ = r.Context().Value(middleware.UserContextKey).(*model.User)
+
+	// Get tenant from context
+	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
+	if !ok || tenant == nil {
+		util.Error(w, http.StatusUnauthorized, "Tenant not found in context")
+		return
+	}
 
 	var req dto.APIKeyCreateRequestDto
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -168,7 +197,7 @@ func (h *APIKeyHandler) Create(w http.ResponseWriter, r *http.Request) {
 		status = req.Status
 	}
 
-	apiKey, plainKey, err := h.apiKeyService.Create(req.Name, req.Description, req.Config, req.ExpiresAt, req.RateLimit, status)
+	apiKey, plainKey, err := h.apiKeyService.Create(tenant.TenantID, req.Name, req.Description, req.Config, req.ExpiresAt, req.RateLimit, status)
 	if err != nil {
 		util.Error(w, http.StatusInternalServerError, "Failed to create API key", err.Error())
 		return
@@ -196,6 +225,13 @@ func (h *APIKeyHandler) Update(w http.ResponseWriter, r *http.Request) {
 	// Get authentication context
 	updaterUser := r.Context().Value(middleware.UserContextKey).(*model.User)
 
+	// Get tenant from context
+	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
+	if !ok || tenant == nil {
+		util.Error(w, http.StatusUnauthorized, "Tenant not found in context")
+		return
+	}
+
 	apiKeyUUIDStr := chi.URLParam(r, "api_key_uuid")
 	apiKeyUUID, err := uuid.Parse(apiKeyUUIDStr)
 	if err != nil {
@@ -214,7 +250,7 @@ func (h *APIKeyHandler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	apiKey, err := h.apiKeyService.Update(apiKeyUUID, req.Name, req.Description, req.Config, req.ExpiresAt, req.RateLimit, req.Status, updaterUser.UserUUID)
+	apiKey, err := h.apiKeyService.Update(apiKeyUUID, tenant.TenantID, req.Name, req.Description, req.Config, req.ExpiresAt, req.RateLimit, req.Status, updaterUser.UserUUID)
 	if err != nil {
 		util.Error(w, http.StatusInternalServerError, "Failed to update API key", err.Error())
 		return
@@ -228,6 +264,13 @@ func (h *APIKeyHandler) Update(w http.ResponseWriter, r *http.Request) {
 
 // Set API key status
 func (h *APIKeyHandler) SetStatus(w http.ResponseWriter, r *http.Request) {
+	// Get tenant from context
+	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
+	if !ok || tenant == nil {
+		util.Error(w, http.StatusUnauthorized, "Tenant not found in context")
+		return
+	}
+
 	apiKeyUUID, err := uuid.Parse(chi.URLParam(r, "api_key_uuid"))
 	if err != nil {
 		util.Error(w, http.StatusBadRequest, "Invalid API key UUID")
@@ -247,7 +290,7 @@ func (h *APIKeyHandler) SetStatus(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	apiKey, err := h.apiKeyService.SetStatusByUUID(apiKeyUUID, req.Status)
+	apiKey, err := h.apiKeyService.SetStatusByUUID(apiKeyUUID, tenant.TenantID, req.Status)
 	if err != nil {
 		util.Error(w, http.StatusInternalServerError, "Failed to update API key status")
 		return
@@ -263,6 +306,13 @@ func (h *APIKeyHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	// Get authentication context
 	deleterUser := r.Context().Value(middleware.UserContextKey).(*model.User)
 
+	// Get tenant from context
+	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
+	if !ok || tenant == nil {
+		util.Error(w, http.StatusUnauthorized, "Tenant not found in context")
+		return
+	}
+
 	apiKeyUUIDStr := chi.URLParam(r, "api_key_uuid")
 	apiKeyUUID, err := uuid.Parse(apiKeyUUIDStr)
 	if err != nil {
@@ -270,7 +320,7 @@ func (h *APIKeyHandler) Delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	apiKey, err := h.apiKeyService.Delete(apiKeyUUID, deleterUser.UserUUID)
+	apiKey, err := h.apiKeyService.Delete(apiKeyUUID, tenant.TenantID, deleterUser.UserUUID)
 	if err != nil {
 		util.Error(w, http.StatusInternalServerError, "Failed to delete API key", err.Error())
 		return
