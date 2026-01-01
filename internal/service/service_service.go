@@ -330,7 +330,7 @@ func (s *serviceService) DeleteByUUID(serviceUUID uuid.UUID) (*ServiceServiceDat
 // Helper function to convert model.Service to ServiceServiceDataResult with counts
 func (s *serviceService) toServiceServiceDataResult(service *model.Service) *ServiceServiceDataResult {
 	// Get API count for this service
-	apiCount, _ := s.apiRepo.CountByServiceID(service.ServiceID)
+	apiCount, _ := s.apiRepo.CountByServiceID(service.ServiceID, 0) // TODO: Fix to use actual tenant_id
 
 	// Get policy count for this service
 	policyCount, _ := s.serviceRepo.CountPoliciesByServiceID(service.ServiceID)

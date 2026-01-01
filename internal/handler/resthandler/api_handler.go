@@ -9,6 +9,8 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/dto"
+	"github.com/maintainerd/auth/internal/middleware"
+	"github.com/maintainerd/auth/internal/model"
 	"github.com/maintainerd/auth/internal/service"
 	"github.com/maintainerd/auth/internal/util"
 )
@@ -23,6 +25,13 @@ func NewAPIHandler(apiService service.APIService) *APIHandler {
 
 // GetAll APIs with pagination
 func (h *APIHandler) Get(w http.ResponseWriter, r *http.Request) {
+	// Get tenant from context
+	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
+	if !ok || tenant == nil {
+		util.Error(w, http.StatusUnauthorized, "Tenant not found in context")
+		return
+	}
+
 	// Parse query parameters
 	q := r.URL.Query()
 
@@ -105,6 +114,7 @@ func (h *APIHandler) Get(w http.ResponseWriter, r *http.Request) {
 		IsDefault:   reqParams.IsDefault,
 		Status:      reqParams.Status,
 		IsSystem:    reqParams.IsSystem,
+		TenantID:    tenant.TenantID,
 		Page:        reqParams.Page,
 		Limit:       reqParams.Limit,
 		SortBy:      reqParams.SortBy,
@@ -138,13 +148,20 @@ func (h *APIHandler) Get(w http.ResponseWriter, r *http.Request) {
 
 // Get API by UUID
 func (h *APIHandler) GetByUUID(w http.ResponseWriter, r *http.Request) {
+	// Get tenant from context
+	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
+	if !ok || tenant == nil {
+		util.Error(w, http.StatusUnauthorized, "Tenant not found in context")
+		return
+	}
+
 	apiUUID, err := uuid.Parse(chi.URLParam(r, "api_uuid"))
 	if err != nil {
 		util.Error(w, http.StatusBadRequest, "Invalid API UUID")
 		return
 	}
 
-	api, err := h.apiService.GetByUUID(apiUUID)
+	api, err := h.apiService.GetByUUID(apiUUID, tenant.TenantID)
 	if err != nil {
 		util.Error(w, http.StatusNotFound, "API not found")
 		return
@@ -157,6 +174,13 @@ func (h *APIHandler) GetByUUID(w http.ResponseWriter, r *http.Request) {
 
 // Create API
 func (h *APIHandler) Create(w http.ResponseWriter, r *http.Request) {
+	// Get tenant from context
+	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
+	if !ok || tenant == nil {
+		util.Error(w, http.StatusUnauthorized, "Tenant not found in context")
+		return
+	}
+
 	var req dto.APICreateRequestDto
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		util.Error(w, http.StatusBadRequest, "Invalid request", err.Error())
@@ -168,7 +192,7 @@ func (h *APIHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	api, err := h.apiService.Create(req.Name, req.DisplayName, req.Description, req.APIType, req.Status, false, req.ServiceUUID)
+	api, err := h.apiService.Create(tenant.TenantID, req.Name, req.DisplayName, req.Description, req.APIType, req.Status, false, req.ServiceUUID)
 	if err != nil {
 		util.Error(w, http.StatusInternalServerError, "Failed to create API", err.Error())
 		return
@@ -181,6 +205,13 @@ func (h *APIHandler) Create(w http.ResponseWriter, r *http.Request) {
 
 // Update API
 func (h *APIHandler) Update(w http.ResponseWriter, r *http.Request) {
+	// Get tenant from context
+	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
+	if !ok || tenant == nil {
+		util.Error(w, http.StatusUnauthorized, "Tenant not found in context")
+		return
+	}
+
 	apiUUID, err := uuid.Parse(chi.URLParam(r, "api_uuid"))
 	if err != nil {
 		util.Error(w, http.StatusBadRequest, "Invalid API UUID")
@@ -198,7 +229,7 @@ func (h *APIHandler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	api, err := h.apiService.Update(apiUUID, req.Name, req.DisplayName, req.Description, req.APIType, req.Status, req.ServiceUUID)
+	api, err := h.apiService.Update(apiUUID, tenant.TenantID, req.Name, req.DisplayName, req.Description, req.APIType, req.Status, req.ServiceUUID)
 	if err != nil {
 		util.Error(w, http.StatusInternalServerError, "Failed to update API", err.Error())
 		return
@@ -211,6 +242,13 @@ func (h *APIHandler) Update(w http.ResponseWriter, r *http.Request) {
 
 // Set API status
 func (h *APIHandler) SetStatus(w http.ResponseWriter, r *http.Request) {
+	// Get tenant from context
+	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
+	if !ok || tenant == nil {
+		util.Error(w, http.StatusUnauthorized, "Tenant not found in context")
+		return
+	}
+
 	apiUUID, err := uuid.Parse(chi.URLParam(r, "api_uuid"))
 	if err != nil {
 		util.Error(w, http.StatusBadRequest, "Invalid API UUID")
@@ -230,7 +268,7 @@ func (h *APIHandler) SetStatus(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	api, err := h.apiService.SetStatusByUUID(apiUUID, req.Status)
+	api, err := h.apiService.SetStatusByUUID(apiUUID, tenant.TenantID, req.Status)
 	if err != nil {
 		util.Error(w, http.StatusInternalServerError, "Failed to update API", err.Error())
 		return
@@ -243,13 +281,20 @@ func (h *APIHandler) SetStatus(w http.ResponseWriter, r *http.Request) {
 
 // Delete API
 func (h *APIHandler) Delete(w http.ResponseWriter, r *http.Request) {
+	// Get tenant from context
+	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
+	if !ok || tenant == nil {
+		util.Error(w, http.StatusUnauthorized, "Tenant not found in context")
+		return
+	}
+
 	apiUUID, err := uuid.Parse(chi.URLParam(r, "api_uuid"))
 	if err != nil {
 		util.Error(w, http.StatusBadRequest, "Invalid API UUID")
 		return
 	}
 
-	api, err := h.apiService.DeleteByUUID(apiUUID)
+	api, err := h.apiService.DeleteByUUID(apiUUID, tenant.TenantID)
 	if err != nil {
 		util.Error(w, http.StatusInternalServerError, "Failed to delete API", err.Error())
 		return
