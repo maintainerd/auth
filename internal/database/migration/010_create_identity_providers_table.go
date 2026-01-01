@@ -12,6 +12,7 @@ func CreateIdentityProviderTable(db *gorm.DB) {
 CREATE TABLE IF NOT EXISTS identity_providers (
     identity_provider_id    SERIAL PRIMARY KEY,
     identity_provider_uuid  UUID NOT NULL UNIQUE,
+    tenant_id               INTEGER NOT NULL,
     name                    VARCHAR(100) NOT NULL, -- 'default' or any lowercase no space
     display_name            TEXT NOT NULL,
     provider                VARCHAR(100) NOT NULL, -- 'internal', 'cognito', 'auth0', 'google', 'facebook', 'github', etc.
@@ -21,7 +22,6 @@ CREATE TABLE IF NOT EXISTS identity_providers (
     status                  VARCHAR(20) DEFAULT 'inactive', -- 'active', 'inactive'
     is_default              BOOLEAN DEFAULT FALSE,
     is_system               BOOLEAN DEFAULT FALSE,
-    tenant_id               INTEGER NOT NULL,
     created_at              TIMESTAMPTZ DEFAULT now(),
     updated_at              TIMESTAMPTZ DEFAULT now()
 );
