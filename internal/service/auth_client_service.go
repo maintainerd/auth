@@ -50,6 +50,7 @@ type AuthClientApiServiceDataResult struct {
 }
 
 type AuthClientServiceGetFilter struct {
+	TenantID             int64
 	Name                 *string
 	DisplayName          *string
 	ClientType           []string
@@ -73,16 +74,16 @@ type AuthClientServiceGetResult struct {
 
 type AuthClientService interface {
 	Get(filter AuthClientServiceGetFilter) (*AuthClientServiceGetResult, error)
-	GetByUUID(authClientUUID uuid.UUID) (*AuthClientServiceDataResult, error)
-	GetSecretByUUID(authClientUUID uuid.UUID) (*AuthClientSecretServiceDataResult, error)
-	GetConfigByUUID(authClientUUID uuid.UUID) (datatypes.JSON, error)
-	Create(name string, displayName string, clientType string, domain string, config datatypes.JSON, status string, isDefault bool, identityProviderUUID string, actorUserUUID uuid.UUID) (*AuthClientServiceDataResult, error)
-	Update(authClientUUID uuid.UUID, name string, displayName string, clientType string, domain string, config datatypes.JSON, status string, isDefault bool, actorUserUUID uuid.UUID) (*AuthClientServiceDataResult, error)
-	SetStatusByUUID(authClientUUID uuid.UUID, status string, actorUserUUID uuid.UUID) (*AuthClientServiceDataResult, error)
-	DeleteByUUID(authClientUUID uuid.UUID, actorUserUUID uuid.UUID) (*AuthClientServiceDataResult, error)
-	CreateURI(authClientUUID uuid.UUID, uri string, uriType string, actorUserUUID uuid.UUID) (*AuthClientServiceDataResult, error)
-	UpdateURI(authClientUUID uuid.UUID, authClientURIUUID uuid.UUID, uri string, uriType string, actorUserUUID uuid.UUID) (*AuthClientServiceDataResult, error)
-	DeleteURI(authClientUUID uuid.UUID, authClientURIUUID uuid.UUID, actorUserUUID uuid.UUID) (*AuthClientServiceDataResult, error)
+	GetByUUID(authClientUUID uuid.UUID, tenantID int64) (*AuthClientServiceDataResult, error)
+	GetSecretByUUID(authClientUUID uuid.UUID, tenantID int64) (*AuthClientSecretServiceDataResult, error)
+	GetConfigByUUID(authClientUUID uuid.UUID, tenantID int64) (datatypes.JSON, error)
+	Create(tenantID int64, name string, displayName string, clientType string, domain string, config datatypes.JSON, status string, isDefault bool, identityProviderUUID string, actorUserUUID uuid.UUID) (*AuthClientServiceDataResult, error)
+	Update(authClientUUID uuid.UUID, tenantID int64, name string, displayName string, clientType string, domain string, config datatypes.JSON, status string, isDefault bool, actorUserUUID uuid.UUID) (*AuthClientServiceDataResult, error)
+	SetStatusByUUID(authClientUUID uuid.UUID, tenantID int64, status string, actorUserUUID uuid.UUID) (*AuthClientServiceDataResult, error)
+	DeleteByUUID(authClientUUID uuid.UUID, tenantID int64, actorUserUUID uuid.UUID) (*AuthClientServiceDataResult, error)
+	CreateURI(authClientUUID uuid.UUID, tenantID int64, uri string, uriType string, actorUserUUID uuid.UUID) (*AuthClientServiceDataResult, error)
+	UpdateURI(authClientUUID uuid.UUID, tenantID int64, authClientURIUUID uuid.UUID, uri string, uriType string, actorUserUUID uuid.UUID) (*AuthClientServiceDataResult, error)
+	DeleteURI(authClientUUID uuid.UUID, tenantID int64, authClientURIUUID uuid.UUID, actorUserUUID uuid.UUID) (*AuthClientServiceDataResult, error)
 
 	// Auth Client API methods
 	GetAuthClientApis(tenantID int64, authClientUUID uuid.UUID) ([]AuthClientApiServiceDataResult, error)
@@ -155,6 +156,7 @@ func (s *authClientService) Get(filter AuthClientServiceGetFilter) (*AuthClientS
 
 	// Build query filter
 	queryFilter := repository.AuthClientRepositoryGetFilter{
+		TenantID:           filter.TenantID,
 		Name:               filter.Name,
 		DisplayName:        filter.DisplayName,
 		ClientType:         filter.ClientType,
@@ -188,19 +190,25 @@ func (s *authClientService) Get(filter AuthClientServiceGetFilter) (*AuthClientS
 	}, nil
 }
 
-func (s *authClientService) GetByUUID(authClientUUID uuid.UUID) (*AuthClientServiceDataResult, error) {
-	authClient, err := s.authClientRepo.FindByUUID(authClientUUID, "IdentityProvider", "AuthClientURIs")
-	if err != nil || authClient == nil {
-		return nil, errors.New("auth client not found")
+func (s *authClientService) GetByUUID(authClientUUID uuid.UUID, tenantID int64) (*AuthClientServiceDataResult, error) {
+	authClient, err := s.authClientRepo.FindByUUIDAndTenantID(authClientUUID, tenantID)
+	if err != nil {
+		return nil, err
+	}
+	if authClient == nil {
+		return nil, errors.New("auth client not found or access denied")
 	}
 
 	return ToAuthClientServiceDataResult(authClient), nil
 }
 
-func (s *authClientService) GetSecretByUUID(authClientUUID uuid.UUID) (*AuthClientSecretServiceDataResult, error) {
-	authClient, err := s.authClientRepo.FindByUUID(authClientUUID)
-	if err != nil || authClient == nil {
-		return nil, errors.New("auth client not found")
+func (s *authClientService) GetSecretByUUID(authClientUUID uuid.UUID, tenantID int64) (*AuthClientSecretServiceDataResult, error) {
+	authClient, err := s.authClientRepo.FindByUUIDAndTenantID(authClientUUID, tenantID)
+	if err != nil {
+		return nil, err
+	}
+	if authClient == nil {
+		return nil, errors.New("auth client not found or access denied")
 	}
 
 	return &AuthClientSecretServiceDataResult{
@@ -209,16 +217,19 @@ func (s *authClientService) GetSecretByUUID(authClientUUID uuid.UUID) (*AuthClie
 	}, nil
 }
 
-func (s *authClientService) GetConfigByUUID(authClientUUID uuid.UUID) (datatypes.JSON, error) {
-	authClient, err := s.authClientRepo.FindByUUID(authClientUUID)
-	if err != nil || authClient == nil {
-		return nil, errors.New("auth client not found")
+func (s *authClientService) GetConfigByUUID(authClientUUID uuid.UUID, tenantID int64) (datatypes.JSON, error) {
+	authClient, err := s.authClientRepo.FindByUUIDAndTenantID(authClientUUID, tenantID)
+	if err != nil {
+		return nil, err
+	}
+	if authClient == nil {
+		return nil, errors.New("auth client not found or access denied")
 	}
 
 	return authClient.Config, nil
 }
 
-func (s *authClientService) Create(name string, displayName string, clientType string, domain string, config datatypes.JSON, status string, isDefault bool, identityProviderUUID string, actorUserUUID uuid.UUID) (*AuthClientServiceDataResult, error) {
+func (s *authClientService) Create(tenantID int64, name string, displayName string, clientType string, domain string, config datatypes.JSON, status string, isDefault bool, identityProviderUUID string, actorUserUUID uuid.UUID) (*AuthClientServiceDataResult, error) {
 	var createdAuthClient *model.AuthClient
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
@@ -250,7 +261,7 @@ func (s *authClientService) Create(name string, displayName string, clientType s
 		}
 
 		// Check if auth client already exists
-		existingAuthClient, err := txAuthClientRepo.FindByNameAndIdentityProvider(name, identityProvider.IdentityProviderID)
+		existingAuthClient, err := txAuthClientRepo.FindByNameAndIdentityProvider(name, identityProvider.IdentityProviderID, tenantID)
 		if err != nil {
 			return err
 		}
@@ -271,6 +282,7 @@ func (s *authClientService) Create(name string, displayName string, clientType s
 			ClientID:           &clientId,
 			ClientSecret:       &clientSecret,
 			Config:             config,
+			TenantID:           tenantID,
 			IdentityProviderID: identityProvider.IdentityProviderID,
 			Status:             status,
 			IsDefault:          isDefault,
@@ -298,7 +310,7 @@ func (s *authClientService) Create(name string, displayName string, clientType s
 	return ToAuthClientServiceDataResult(createdAuthClient), nil
 }
 
-func (s *authClientService) Update(authClientUUID uuid.UUID, name string, displayName string, clientType string, domain string, config datatypes.JSON, status string, isDefault bool, actorUserUUID uuid.UUID) (*AuthClientServiceDataResult, error) {
+func (s *authClientService) Update(authClientUUID uuid.UUID, tenantID int64, name string, displayName string, clientType string, domain string, config datatypes.JSON, status string, isDefault bool, actorUserUUID uuid.UUID) (*AuthClientServiceDataResult, error) {
 	var updatedAuthClient *model.AuthClient
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
@@ -329,7 +341,7 @@ func (s *authClientService) Update(authClientUUID uuid.UUID, name string, displa
 
 		// Check if auth client already exist
 		if authClient.Name != name {
-			existingAuthClient, err := txAuthClientRepo.FindByNameAndIdentityProvider(name, authClient.IdentityProviderID)
+			existingAuthClient, err := txAuthClientRepo.FindByNameAndIdentityProvider(name, authClient.IdentityProviderID, tenantID)
 			if err != nil {
 				return err
 			}
@@ -365,7 +377,7 @@ func (s *authClientService) Update(authClientUUID uuid.UUID, name string, displa
 	return ToAuthClientServiceDataResult(updatedAuthClient), nil
 }
 
-func (s *authClientService) SetStatusByUUID(authClientUUID uuid.UUID, status string, actorUserUUID uuid.UUID) (*AuthClientServiceDataResult, error) {
+func (s *authClientService) SetStatusByUUID(authClientUUID uuid.UUID, tenantID int64, status string, actorUserUUID uuid.UUID) (*AuthClientServiceDataResult, error) {
 	var updatedAuthClient *model.AuthClient
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
@@ -418,7 +430,7 @@ func (s *authClientService) SetStatusByUUID(authClientUUID uuid.UUID, status str
 	return ToAuthClientServiceDataResult(updatedAuthClient), nil
 }
 
-func (s *authClientService) DeleteByUUID(authClientUUID uuid.UUID, actorUserUUID uuid.UUID) (*AuthClientServiceDataResult, error) {
+func (s *authClientService) DeleteByUUID(authClientUUID uuid.UUID, tenantID int64, actorUserUUID uuid.UUID) (*AuthClientServiceDataResult, error) {
 	var deletedAuthClient *model.AuthClient
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
@@ -464,7 +476,7 @@ func (s *authClientService) DeleteByUUID(authClientUUID uuid.UUID, actorUserUUID
 	return ToAuthClientServiceDataResult(deletedAuthClient), nil
 }
 
-func (s *authClientService) CreateURI(authClientUUID uuid.UUID, uri string, uriType string, actorUserUUID uuid.UUID) (*AuthClientServiceDataResult, error) {
+func (s *authClientService) CreateURI(authClientUUID uuid.UUID, tenantID int64, uri string, uriType string, actorUserUUID uuid.UUID) (*AuthClientServiceDataResult, error) {
 	var createdAuthClient *model.AuthClient
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
@@ -519,7 +531,7 @@ func (s *authClientService) CreateURI(authClientUUID uuid.UUID, uri string, uriT
 	return ToAuthClientServiceDataResult(createdAuthClient), nil
 }
 
-func (s *authClientService) UpdateURI(authClientUUID uuid.UUID, authClientURIUUID uuid.UUID, uri string, uriType string, actorUserUUID uuid.UUID) (*AuthClientServiceDataResult, error) {
+func (s *authClientService) UpdateURI(authClientUUID uuid.UUID, tenantID int64, authClientURIUUID uuid.UUID, uri string, uriType string, actorUserUUID uuid.UUID) (*AuthClientServiceDataResult, error) {
 	var updatedAuthClient *model.AuthClient
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
@@ -583,7 +595,7 @@ func (s *authClientService) UpdateURI(authClientUUID uuid.UUID, authClientURIUUI
 	return ToAuthClientServiceDataResult(updatedAuthClient), nil
 }
 
-func (s *authClientService) DeleteURI(authClientUUID uuid.UUID, authClientURIUUID uuid.UUID, actorUserUUID uuid.UUID) (*AuthClientServiceDataResult, error) {
+func (s *authClientService) DeleteURI(authClientUUID uuid.UUID, tenantID int64, authClientURIUUID uuid.UUID, actorUserUUID uuid.UUID) (*AuthClientServiceDataResult, error) {
 	var deletedAuthClient *model.AuthClient
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
