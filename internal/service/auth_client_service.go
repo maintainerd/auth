@@ -484,10 +484,10 @@ func (s *authClientService) CreateURI(authClientUUID uuid.UUID, tenantID int64, 
 		txURIRepo := s.authClientUriRepo.WithTx(tx)
 		txUserRepo := s.userRepo.WithTx(tx)
 
-		// Find the auth client by UUID
-		authClient, err := txAuthClientRepo.FindByUUID(authClientUUID, "IdentityProvider.Tenant")
+		// Find the auth client by UUID and tenant
+		authClient, err := txAuthClientRepo.FindByUUIDAndTenantID(authClientUUID, tenantID)
 		if err != nil || authClient == nil {
-			return errors.New("auth client not found")
+			return errors.New("auth client not found or access denied")
 		}
 
 		// Get actor user with tenant info
@@ -496,13 +496,14 @@ func (s *authClientService) CreateURI(authClientUUID uuid.UUID, tenantID int64, 
 			return errors.New("actor user not found")
 		}
 
-		// Validate tenant access permissions
-		if err := ValidateTenantAccess(actorUser, authClient.IdentityProvider.Tenant); err != nil {
-			return err
+		// Validate tenant ownership
+		if authClient.TenantID != tenantID {
+			return errors.New("auth client not found or access denied")
 		}
 
 		// Create the URI entry
 		newURI := &model.AuthClientURI{
+			TenantID:     tenantID,
 			AuthClientID: authClient.AuthClientID,
 			URI:          uri,
 			Type:         uriType,
@@ -514,7 +515,7 @@ func (s *authClientService) CreateURI(authClientUUID uuid.UUID, tenantID int64, 
 		}
 
 		// Find the auth client updated with the new URI
-		authClientCreated, err := txAuthClientRepo.FindByUUID(authClientUUID, "IdentityProvider", "AuthClientURIs")
+		authClientCreated, err := txAuthClientRepo.FindByUUIDAndTenantID(authClientUUID, tenantID)
 		if err != nil || authClientCreated == nil {
 			return errors.New("auth client not found")
 		}
@@ -539,10 +540,10 @@ func (s *authClientService) UpdateURI(authClientUUID uuid.UUID, tenantID int64, 
 		txURIRepo := s.authClientUriRepo.WithTx(tx)
 		txUserRepo := s.userRepo.WithTx(tx)
 
-		// Find the auth client by UUID
-		authClient, err := txAuthClientRepo.FindByUUID(authClientUUID, "IdentityProvider.Tenant")
+		// Find the auth client by UUID and tenant
+		authClient, err := txAuthClientRepo.FindByUUIDAndTenantID(authClientUUID, tenantID)
 		if err != nil || authClient == nil {
-			return errors.New("auth client not found")
+			return errors.New("auth client not found or access denied")
 		}
 
 		// Get actor user with tenant info
@@ -551,15 +552,15 @@ func (s *authClientService) UpdateURI(authClientUUID uuid.UUID, tenantID int64, 
 			return errors.New("actor user not found")
 		}
 
-		// Validate tenant access permissions
-		if err := ValidateTenantAccess(actorUser, authClient.IdentityProvider.Tenant); err != nil {
-			return err
+		// Validate tenant ownership
+		if authClient.TenantID != tenantID {
+			return errors.New("auth client not found or access denied")
 		}
 
-		// Find the URI entry by UUID
-		existingURI, err := txURIRepo.FindByUUID(authClientURIUUID)
+		// Find the URI entry by UUID and tenant
+		existingURI, err := txURIRepo.FindByUUIDAndTenantID(authClientURIUUID.String(), tenantID)
 		if err != nil || existingURI == nil {
-			return errors.New("URI not found")
+			return errors.New("URI not found or access denied")
 		}
 
 		// Check if the URI belongs to the auth client
@@ -578,7 +579,7 @@ func (s *authClientService) UpdateURI(authClientUUID uuid.UUID, tenantID int64, 
 		}
 
 		// Find the auth client updated with the new URI
-		authClientUpdated, err := txAuthClientRepo.FindByUUID(authClientUUID, "IdentityProvider", "AuthClientURIs")
+		authClientUpdated, err := txAuthClientRepo.FindByUUIDAndTenantID(authClientUUID, tenantID)
 		if err != nil || authClientUpdated == nil {
 			return errors.New("auth client not found")
 		}
@@ -603,10 +604,10 @@ func (s *authClientService) DeleteURI(authClientUUID uuid.UUID, tenantID int64, 
 		txURIRepo := s.authClientUriRepo.WithTx(tx)
 		txUserRepo := s.userRepo.WithTx(tx)
 
-		// Find the auth client by UUID
-		authClient, err := txAuthClientRepo.FindByUUID(authClientUUID, "IdentityProvider.Tenant", "AuthClientURIs")
+		// Find the auth client by UUID and tenant
+		authClient, err := txAuthClientRepo.FindByUUIDAndTenantID(authClientUUID, tenantID)
 		if err != nil || authClient == nil {
-			return errors.New("auth client not found")
+			return errors.New("auth client not found or access denied")
 		}
 
 		// Get actor user with tenant info
@@ -615,15 +616,15 @@ func (s *authClientService) DeleteURI(authClientUUID uuid.UUID, tenantID int64, 
 			return errors.New("actor user not found")
 		}
 
-		// Validate tenant access permissions
-		if err := ValidateTenantAccess(actorUser, authClient.IdentityProvider.Tenant); err != nil {
-			return err
+		// Validate tenant ownership
+		if authClient.TenantID != tenantID {
+			return errors.New("auth client not found or access denied")
 		}
 
-		// Find the URI entry by UUID
-		existingURI, err := txURIRepo.FindByUUID(authClientURIUUID)
+		// Find the URI entry by UUID and tenant
+		existingURI, err := txURIRepo.FindByUUIDAndTenantID(authClientURIUUID.String(), tenantID)
 		if err != nil || existingURI == nil {
-			return errors.New("URI not found")
+			return errors.New("URI not found or access denied")
 		}
 
 		// Check if the URI belongs to the auth client
@@ -632,7 +633,7 @@ func (s *authClientService) DeleteURI(authClientUUID uuid.UUID, tenantID int64, 
 		}
 
 		// Delete the entry
-		if err := txURIRepo.DeleteByUUID(authClientURIUUID); err != nil {
+		if err := txURIRepo.DeleteByUUIDAndTenantID(authClientURIUUID.String(), tenantID); err != nil {
 			return err
 		}
 
