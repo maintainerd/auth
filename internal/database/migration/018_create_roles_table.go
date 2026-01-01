@@ -12,12 +12,12 @@ func CreateRoleTable(db *gorm.DB) {
 CREATE TABLE IF NOT EXISTS roles (
     role_id             SERIAL PRIMARY KEY,
     role_uuid           UUID UNIQUE NOT NULL,
-    name                VARCHAR(255) UNIQUE NOT NULL,
+    tenant_id           INTEGER NOT NULL,
+    name                VARCHAR(255) NOT NULL,
     description         TEXT NOT NULL,
     status              VARCHAR(16) NOT NULL DEFAULT 'inactive',
     is_default          BOOLEAN DEFAULT FALSE,
     is_system           BOOLEAN DEFAULT FALSE,
-    tenant_id           INTEGER NOT NULL,
     created_at          TIMESTAMPTZ DEFAULT now(),
     updated_at          TIMESTAMPTZ DEFAULT now()
 );
@@ -31,6 +31,13 @@ BEGIN
         ALTER TABLE roles
             ADD CONSTRAINT fk_roles_tenant_id FOREIGN KEY (tenant_id)
             REFERENCES tenants(tenant_id) ON DELETE CASCADE;
+    END IF;
+
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint WHERE conname = 'uq_roles_tenant_id_name'
+    ) THEN
+        ALTER TABLE roles
+            ADD CONSTRAINT uq_roles_tenant_id_name UNIQUE (tenant_id, name);
     END IF;
 END$$;
 
