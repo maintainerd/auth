@@ -9,6 +9,8 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/dto"
+	"github.com/maintainerd/auth/internal/middleware"
+	"github.com/maintainerd/auth/internal/model"
 	"github.com/maintainerd/auth/internal/service"
 	"github.com/maintainerd/auth/internal/util"
 )
@@ -25,6 +27,13 @@ func NewPolicyHandler(policyService service.PolicyService) *PolicyHandler {
 
 // Get policies with filtering and pagination
 func (h *PolicyHandler) Get(w http.ResponseWriter, r *http.Request) {
+	// Get tenant from context
+	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
+	if !ok || tenant == nil {
+		util.Error(w, http.StatusUnauthorized, "Tenant not found in context")
+		return
+	}
+
 	// Parse query parameters
 	query := r.URL.Query()
 
@@ -100,6 +109,7 @@ func (h *PolicyHandler) Get(w http.ResponseWriter, r *http.Request) {
 
 	// Convert to service filter
 	serviceFilter := service.PolicyServiceGetFilter{
+		TenantID:    tenant.TenantID,
 		Name:        filter.Name,
 		Description: filter.Description,
 		Version:     filter.Version,
@@ -138,6 +148,13 @@ func (h *PolicyHandler) Get(w http.ResponseWriter, r *http.Request) {
 
 // Get policy by UUID
 func (h *PolicyHandler) GetByUUID(w http.ResponseWriter, r *http.Request) {
+	// Get tenant from context
+	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
+	if !ok || tenant == nil {
+		util.Error(w, http.StatusUnauthorized, "Tenant not found in context")
+		return
+	}
+
 	policyUUIDStr := chi.URLParam(r, "policy_uuid")
 	policyUUID, err := uuid.Parse(policyUUIDStr)
 	if err != nil {
@@ -145,7 +162,7 @@ func (h *PolicyHandler) GetByUUID(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	policy, err := h.policyService.GetByUUID(policyUUID)
+	policy, err := h.policyService.GetByUUID(policyUUID, tenant.TenantID)
 	if err != nil {
 		util.Error(w, http.StatusNotFound, "Policy not found", err.Error())
 		return
@@ -157,6 +174,13 @@ func (h *PolicyHandler) GetByUUID(w http.ResponseWriter, r *http.Request) {
 
 // Create policy
 func (h *PolicyHandler) Create(w http.ResponseWriter, r *http.Request) {
+	// Get tenant from context
+	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
+	if !ok || tenant == nil {
+		util.Error(w, http.StatusUnauthorized, "Tenant not found in context")
+		return
+	}
+
 	var req dto.PolicyCreateRequestDto
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		util.Error(w, http.StatusBadRequest, "Invalid request", err.Error())
@@ -169,6 +193,7 @@ func (h *PolicyHandler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	policy, err := h.policyService.Create(
+		tenant.TenantID,
 		req.Name,
 		req.Description,
 		req.Document,
@@ -188,6 +213,13 @@ func (h *PolicyHandler) Create(w http.ResponseWriter, r *http.Request) {
 
 // Update policy
 func (h *PolicyHandler) Update(w http.ResponseWriter, r *http.Request) {
+	// Get tenant from context
+	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
+	if !ok || tenant == nil {
+		util.Error(w, http.StatusUnauthorized, "Tenant not found in context")
+		return
+	}
+
 	policyUUIDStr := chi.URLParam(r, "policy_uuid")
 	policyUUID, err := uuid.Parse(policyUUIDStr)
 	if err != nil {
@@ -208,6 +240,7 @@ func (h *PolicyHandler) Update(w http.ResponseWriter, r *http.Request) {
 
 	policy, err := h.policyService.Update(
 		policyUUID,
+		tenant.TenantID,
 		req.Name,
 		req.Description,
 		req.Document,
@@ -225,6 +258,13 @@ func (h *PolicyHandler) Update(w http.ResponseWriter, r *http.Request) {
 
 // Update policy status
 func (h *PolicyHandler) UpdateStatus(w http.ResponseWriter, r *http.Request) {
+	// Get tenant from context
+	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
+	if !ok || tenant == nil {
+		util.Error(w, http.StatusUnauthorized, "Tenant not found in context")
+		return
+	}
+
 	policyUUIDStr := chi.URLParam(r, "policy_uuid")
 	policyUUID, err := uuid.Parse(policyUUIDStr)
 	if err != nil {
@@ -243,7 +283,7 @@ func (h *PolicyHandler) UpdateStatus(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	policy, err := h.policyService.SetStatusByUUID(policyUUID, req.Status)
+	policy, err := h.policyService.SetStatusByUUID(policyUUID, tenant.TenantID, req.Status)
 	if err != nil {
 		util.Error(w, http.StatusInternalServerError, "Failed to update policy status", err.Error())
 		return
@@ -255,6 +295,13 @@ func (h *PolicyHandler) UpdateStatus(w http.ResponseWriter, r *http.Request) {
 
 // Delete policy
 func (h *PolicyHandler) Delete(w http.ResponseWriter, r *http.Request) {
+	// Get tenant from context
+	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
+	if !ok || tenant == nil {
+		util.Error(w, http.StatusUnauthorized, "Tenant not found in context")
+		return
+	}
+
 	policyUUIDStr := chi.URLParam(r, "policy_uuid")
 	policyUUID, err := uuid.Parse(policyUUIDStr)
 	if err != nil {
@@ -262,7 +309,7 @@ func (h *PolicyHandler) Delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	policy, err := h.policyService.DeleteByUUID(policyUUID)
+	policy, err := h.policyService.DeleteByUUID(policyUUID, tenant.TenantID)
 	if err != nil {
 		util.Error(w, http.StatusInternalServerError, "Failed to delete policy", err.Error())
 		return
@@ -274,6 +321,13 @@ func (h *PolicyHandler) Delete(w http.ResponseWriter, r *http.Request) {
 
 // Get services that use a specific policy
 func (h *PolicyHandler) GetServicesByPolicyUUID(w http.ResponseWriter, r *http.Request) {
+	// Get tenant from context
+	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
+	if !ok || tenant == nil {
+		util.Error(w, http.StatusUnauthorized, "Tenant not found in context")
+		return
+	}
+
 	policyUUIDStr := chi.URLParam(r, "policy_uuid")
 	policyUUID, err := uuid.Parse(policyUUIDStr)
 	if err != nil {
@@ -334,7 +388,7 @@ func (h *PolicyHandler) GetServicesByPolicyUUID(w http.ResponseWriter, r *http.R
 	}
 
 	// Get services
-	result, err := h.policyService.GetServicesByPolicyUUID(policyUUID, serviceFilter)
+	result, err := h.policyService.GetServicesByPolicyUUID(policyUUID, tenant.TenantID, serviceFilter)
 	if err != nil {
 		util.Error(w, http.StatusInternalServerError, "Failed to get services", err.Error())
 		return

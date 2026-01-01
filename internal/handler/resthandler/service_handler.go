@@ -311,6 +311,13 @@ func toServiceResponseDto(s service.ServiceServiceDataResult) dto.ServiceRespons
 
 // Assign policy to service
 func (h *ServiceHandler) AssignPolicy(w http.ResponseWriter, r *http.Request) {
+	// Get tenant from context
+	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
+	if !ok || tenant == nil {
+		util.Error(w, http.StatusUnauthorized, "Tenant not found in context")
+		return
+	}
+
 	// Validate service_uuid
 	serviceUUID, err := uuid.Parse(chi.URLParam(r, "service_uuid"))
 	if err != nil {
@@ -326,7 +333,7 @@ func (h *ServiceHandler) AssignPolicy(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Assign policy to service
-	err = h.service.AssignPolicy(serviceUUID, policyUUID)
+	err = h.service.AssignPolicy(serviceUUID, policyUUID, tenant.TenantID)
 	if err != nil {
 		util.Error(w, http.StatusInternalServerError, "Failed to assign policy to service", err.Error())
 		return
@@ -337,6 +344,13 @@ func (h *ServiceHandler) AssignPolicy(w http.ResponseWriter, r *http.Request) {
 
 // Remove policy from service
 func (h *ServiceHandler) RemovePolicy(w http.ResponseWriter, r *http.Request) {
+	// Get tenant from context
+	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
+	if !ok || tenant == nil {
+		util.Error(w, http.StatusUnauthorized, "Tenant not found in context")
+		return
+	}
+
 	// Validate service_uuid
 	serviceUUID, err := uuid.Parse(chi.URLParam(r, "service_uuid"))
 	if err != nil {
@@ -352,7 +366,7 @@ func (h *ServiceHandler) RemovePolicy(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Remove policy from service
-	err = h.service.RemovePolicy(serviceUUID, policyUUID)
+	err = h.service.RemovePolicy(serviceUUID, policyUUID, tenant.TenantID)
 	if err != nil {
 		util.Error(w, http.StatusInternalServerError, "Failed to remove policy from service", err.Error())
 		return
