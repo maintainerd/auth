@@ -11,6 +11,7 @@ import (
 type IdentityProvider struct {
 	IdentityProviderID   int64          `gorm:"column:identity_provider_id;primaryKey"`
 	IdentityProviderUUID uuid.UUID      `gorm:"column:identity_provider_uuid"`
+	TenantID             int64          `gorm:"column:tenant_id"`
 	Name                 string         `gorm:"column:name"`
 	DisplayName          string         `gorm:"column:display_name"`
 	Provider             string         `gorm:"column:provider"`
@@ -20,7 +21,6 @@ type IdentityProvider struct {
 	Status               string         `gorm:"column:status;default:'inactive'"`
 	IsDefault            bool           `gorm:"column:is_default;default:false"`
 	IsSystem             bool           `gorm:"column:is_system;default:false"`
-	TenantID             int64          `gorm:"column:tenant_id"`
 	CreatedAt            time.Time      `gorm:"column:created_at;autoCreateTime"`
 	UpdatedAt            time.Time      `gorm:"column:updated_at;autoUpdateTime"`
 
