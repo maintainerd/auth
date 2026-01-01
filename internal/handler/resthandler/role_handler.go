@@ -24,8 +24,12 @@ func NewRoleHandler(service service.RoleService) *RoleHandler {
 
 // GetAll roles with pagination
 func (h *RoleHandler) Get(w http.ResponseWriter, r *http.Request) {
-	// Get authentication context
-	user := r.Context().Value(middleware.UserContextKey).(*model.User)
+	// Get tenant from context
+	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
+	if !ok || tenant == nil {
+		util.Error(w, http.StatusUnauthorized, "Tenant not found in context")
+		return
+	}
 
 	// Parse query parameters
 	q := r.URL.Query()
@@ -80,7 +84,7 @@ func (h *RoleHandler) Get(w http.ResponseWriter, r *http.Request) {
 		IsDefault:   reqParams.IsDefault,
 		IsSystem:    reqParams.IsSystem,
 		Status:      reqParams.Status,
-		TenantID:    user.TenantID,
+		TenantID:    tenant.TenantID,
 		Page:        reqParams.Page,
 		Limit:       reqParams.Limit,
 		SortBy:      reqParams.SortBy,
@@ -114,14 +118,21 @@ func (h *RoleHandler) Get(w http.ResponseWriter, r *http.Request) {
 
 // Get role by UUID
 func (h *RoleHandler) GetByUUID(w http.ResponseWriter, r *http.Request) {
+	// Get tenant from context
+	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
+	if !ok || tenant == nil {
+		util.Error(w, http.StatusUnauthorized, "Tenant not found in context")
+		return
+	}
+
 	roleUUID, err := uuid.Parse(chi.URLParam(r, "role_uuid"))
 	if err != nil {
 		util.Error(w, http.StatusBadRequest, "Invalid role UUID")
 		return
 	}
 
-	// Fetch role
-	role, err := h.service.GetByUUID(roleUUID)
+	// Fetch role (service validates tenant ownership)
+	role, err := h.service.GetByUUID(roleUUID, tenant.TenantID)
 	if err != nil {
 		util.Error(w, http.StatusNotFound, "Role not found")
 		return
@@ -138,6 +149,19 @@ func (h *RoleHandler) Create(w http.ResponseWriter, r *http.Request) {
 	// Get authentication context
 	user := r.Context().Value(middleware.UserContextKey).(*model.User)
 
+	// Get tenant from context
+	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
+	if !ok || tenant == nil {
+		util.Error(w, http.StatusUnauthorized, "Tenant not found in context")
+		return
+	}
+
+	// Validate user belongs to the tenant
+	if user.TenantID != tenant.TenantID {
+		util.Error(w, http.StatusForbidden, "User does not belong to this tenant")
+		return
+	}
+
 	// Validate request body
 	var req dto.RoleCreateOrUpdateRequestDto
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -151,7 +175,7 @@ func (h *RoleHandler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Create role
-	role, err := h.service.Create(req.Name, req.Description, false, false, req.Status, user.Tenant.TenantUUID.String(), user.UserUUID)
+	role, err := h.service.Create(req.Name, req.Description, false, false, req.Status, tenant.TenantUUID.String(), user.UserUUID)
 	if err != nil {
 		util.Error(w, http.StatusInternalServerError, "Failed to create role", err.Error())
 		return
@@ -167,6 +191,13 @@ func (h *RoleHandler) Create(w http.ResponseWriter, r *http.Request) {
 func (h *RoleHandler) Update(w http.ResponseWriter, r *http.Request) {
 	// Get authentication context
 	user := r.Context().Value(middleware.UserContextKey).(*model.User)
+
+	// Get tenant from context
+	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
+	if !ok || tenant == nil {
+		util.Error(w, http.StatusUnauthorized, "Tenant not found in context")
+		return
+	}
 
 	// Validate role_uuid
 	roleUUID, err := uuid.Parse(chi.URLParam(r, "role_uuid"))
@@ -187,8 +218,8 @@ func (h *RoleHandler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Update role
-	role, err := h.service.Update(roleUUID, req.Name, req.Description, false, false, req.Status, user.UserUUID)
+	// Update role (service validates tenant ownership)
+	role, err := h.service.Update(roleUUID, tenant.TenantID, req.Name, req.Description, false, false, req.Status, user.UserUUID)
 	if err != nil {
 		util.Error(w, http.StatusInternalServerError, "Failed to update role", err.Error())
 		return
@@ -204,6 +235,19 @@ func (h *RoleHandler) Update(w http.ResponseWriter, r *http.Request) {
 func (h *RoleHandler) SetStatus(w http.ResponseWriter, r *http.Request) {
 	// Get authentication context
 	user := r.Context().Value(middleware.UserContextKey).(*model.User)
+
+	// Get tenant from context
+	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
+	if !ok || tenant == nil {
+		util.Error(w, http.StatusUnauthorized, "Tenant not found in context")
+		return
+	}
+
+	// Validate user belongs to the tenant
+	if user.TenantID != tenant.TenantID {
+		util.Error(w, http.StatusForbidden, "User does not belong to this tenant")
+		return
+	}
 
 	// Validate role_uuid
 	roleUUID, err := uuid.Parse(chi.URLParam(r, "role_uuid"))
@@ -225,8 +269,8 @@ func (h *RoleHandler) SetStatus(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Update role
-	role, err := h.service.SetStatusByUUID(roleUUID, req.Status, user.UserUUID)
+	// Update role status (service validates tenant ownership)
+	role, err := h.service.SetStatusByUUID(roleUUID, tenant.TenantID, req.Status, user.UserUUID)
 	if err != nil {
 		util.Error(w, http.StatusInternalServerError, "Failed to update role", err.Error())
 		return
@@ -243,14 +287,21 @@ func (h *RoleHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	// Get authentication context
 	user := r.Context().Value(middleware.UserContextKey).(*model.User)
 
+	// Get tenant from context
+	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
+	if !ok || tenant == nil {
+		util.Error(w, http.StatusUnauthorized, "Tenant not found in context")
+		return
+	}
+
 	roleUUID, err := uuid.Parse(chi.URLParam(r, "role_uuid"))
 	if err != nil {
 		util.Error(w, http.StatusBadRequest, "Invalid role UUID")
 		return
 	}
 
-	// Delete role
-	role, err := h.service.DeleteByUUID(roleUUID, user.UserUUID)
+	// Delete role (service validates tenant ownership)
+	role, err := h.service.DeleteByUUID(roleUUID, tenant.TenantID, user.UserUUID)
 	if err != nil {
 		util.Error(w, http.StatusInternalServerError, "Failed to delete role", err.Error())
 		return
@@ -264,8 +315,12 @@ func (h *RoleHandler) Delete(w http.ResponseWriter, r *http.Request) {
 
 // Get permissions for a role
 func (h *RoleHandler) GetPermissions(w http.ResponseWriter, r *http.Request) {
-	// Get authentication context
-	user := r.Context().Value(middleware.UserContextKey).(*model.User)
+	// Get tenant from context
+	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
+	if !ok || tenant == nil {
+		util.Error(w, http.StatusUnauthorized, "Tenant not found in context")
+		return
+	}
 
 	// Validate role_uuid
 	roleUUID, err := uuid.Parse(chi.URLParam(r, "role_uuid"))
@@ -304,7 +359,7 @@ func (h *RoleHandler) GetPermissions(w http.ResponseWriter, r *http.Request) {
 	filter := service.RoleServiceGetPermissionsFilter{
 		RoleUUID:  roleUUID,
 		Status:    status,
-		TenantID:  user.TenantID,
+		TenantID:  tenant.TenantID,
 		Page:      reqParams.Page,
 		Limit:     reqParams.Limit,
 		SortBy:    reqParams.SortBy,
@@ -366,6 +421,23 @@ func (h *RoleHandler) AddPermissions(w http.ResponseWriter, r *http.Request) {
 	// Get authentication context
 	user := r.Context().Value(middleware.UserContextKey).(*model.User)
 
+	// Get tenant from context
+	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
+	if !ok || tenant == nil {
+		util.Error(w, http.StatusUnauthorized, "Tenant not found in context")
+		return
+	}
+	// Validate user belongs to the tenant
+	if user.TenantID != tenant.TenantID {
+		util.Error(w, http.StatusForbidden, "User does not belong to this tenant")
+		return
+	}
+	// Validate user belongs to the tenant
+	if user.TenantID != tenant.TenantID {
+		util.Error(w, http.StatusForbidden, "User does not belong to this tenant")
+		return
+	}
+
 	// Validate role_uuid
 	roleUUID, err := uuid.Parse(chi.URLParam(r, "role_uuid"))
 	if err != nil {
@@ -385,8 +457,8 @@ func (h *RoleHandler) AddPermissions(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Add permissions to role
-	role, err := h.service.AddRolePermissions(roleUUID, req.Permissions, user.UserUUID)
+	// Add permissions to role (service validates tenant ownership)
+	role, err := h.service.AddRolePermissions(roleUUID, tenant.TenantID, req.Permissions, user.UserUUID)
 	if err != nil {
 		util.Error(w, http.StatusInternalServerError, "Failed to add permissions to role", err.Error())
 		return
@@ -403,6 +475,23 @@ func (h *RoleHandler) RemovePermission(w http.ResponseWriter, r *http.Request) {
 	// Get authentication context
 	user := r.Context().Value(middleware.UserContextKey).(*model.User)
 
+	// Get tenant from context
+	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
+	if !ok || tenant == nil {
+		util.Error(w, http.StatusUnauthorized, "Tenant not found in context")
+		return
+	}
+	// Validate user belongs to the tenant
+	if user.TenantID != tenant.TenantID {
+		util.Error(w, http.StatusForbidden, "User does not belong to this tenant")
+		return
+	}
+	// Validate user belongs to the tenant
+	if user.TenantID != tenant.TenantID {
+		util.Error(w, http.StatusForbidden, "User does not belong to this tenant")
+		return
+	}
+
 	// Validate role_uuid
 	roleUUID, err := uuid.Parse(chi.URLParam(r, "role_uuid"))
 	if err != nil {
@@ -417,8 +506,8 @@ func (h *RoleHandler) RemovePermission(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Remove permission from role
-	role, err := h.service.RemoveRolePermissions(roleUUID, permissionUUID, user.UserUUID)
+	// Remove permission from role (service validates tenant ownership)
+	role, err := h.service.RemoveRolePermissions(roleUUID, tenant.TenantID, permissionUUID, user.UserUUID)
 	if err != nil {
 		util.Error(w, http.StatusInternalServerError, "Failed to remove permission from role", err.Error())
 		return

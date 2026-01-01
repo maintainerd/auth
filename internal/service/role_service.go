@@ -63,14 +63,14 @@ type RoleServiceGetPermissionsResult struct {
 
 type RoleService interface {
 	Get(filter RoleServiceGetFilter) (*RoleServiceGetResult, error)
-	GetByUUID(roleUUID uuid.UUID) (*RoleServiceDataResult, error)
+	GetByUUID(roleUUID uuid.UUID, tenantID int64) (*RoleServiceDataResult, error)
 	GetRolePermissions(filter RoleServiceGetPermissionsFilter) (*RoleServiceGetPermissionsResult, error)
 	Create(name string, description string, isDefault bool, isSystem bool, status string, tenantUUID string, actorUserUUID uuid.UUID) (*RoleServiceDataResult, error)
-	Update(roleUUID uuid.UUID, name string, description string, isDefault bool, isSystem bool, status string, actorUserUUID uuid.UUID) (*RoleServiceDataResult, error)
-	SetStatusByUUID(roleUUID uuid.UUID, status string, actorUserUUID uuid.UUID) (*RoleServiceDataResult, error)
-	DeleteByUUID(roleUUID uuid.UUID, actorUserUUID uuid.UUID) (*RoleServiceDataResult, error)
-	AddRolePermissions(roleUUID uuid.UUID, permissionUUIDs []uuid.UUID, actorUserUUID uuid.UUID) (*RoleServiceDataResult, error)
-	RemoveRolePermissions(roleUUID uuid.UUID, permissionUUID uuid.UUID, actorUserUUID uuid.UUID) (*RoleServiceDataResult, error)
+	Update(roleUUID uuid.UUID, tenantID int64, name string, description string, isDefault bool, isSystem bool, status string, actorUserUUID uuid.UUID) (*RoleServiceDataResult, error)
+	SetStatusByUUID(roleUUID uuid.UUID, tenantID int64, status string, actorUserUUID uuid.UUID) (*RoleServiceDataResult, error)
+	DeleteByUUID(roleUUID uuid.UUID, tenantID int64, actorUserUUID uuid.UUID) (*RoleServiceDataResult, error)
+	AddRolePermissions(roleUUID uuid.UUID, tenantID int64, permissionUUIDs []uuid.UUID, actorUserUUID uuid.UUID) (*RoleServiceDataResult, error)
+	RemoveRolePermissions(roleUUID uuid.UUID, tenantID int64, permissionUUID uuid.UUID, actorUserUUID uuid.UUID) (*RoleServiceDataResult, error)
 }
 
 type roleService struct {
@@ -134,13 +134,18 @@ func (s *roleService) Get(filter RoleServiceGetFilter) (*RoleServiceGetResult, e
 	}, nil
 }
 
-func (s *roleService) GetByUUID(roleUUID uuid.UUID) (*RoleServiceDataResult, error) {
+func (s *roleService) GetByUUID(roleUUID uuid.UUID, tenantID int64) (*RoleServiceDataResult, error) {
 	role, err := s.roleRepo.FindByUUID(roleUUID)
 	if err != nil {
 		return nil, err
 	}
 	if role == nil {
 		return nil, errors.New("role not found")
+	}
+
+	// Validate tenant ownership
+	if role.TenantID != tenantID {
+		return nil, errors.New("role not found or access denied")
 	}
 
 	return toRoleServiceDataResult(role), nil
@@ -258,7 +263,7 @@ func (s *roleService) Create(name string, description string, isDefault bool, is
 	return toRoleServiceDataResult(createdRole), nil
 }
 
-func (s *roleService) Update(roleUUID uuid.UUID, name string, description string, isDefault bool, isSystem bool, status string, actorUserUUID uuid.UUID) (*RoleServiceDataResult, error) {
+func (s *roleService) Update(roleUUID uuid.UUID, tenantID int64, name string, description string, isDefault bool, isSystem bool, status string, actorUserUUID uuid.UUID) (*RoleServiceDataResult, error) {
 	var updatedRole *model.Role
 
 	// Transaction
@@ -273,6 +278,11 @@ func (s *roleService) Update(roleUUID uuid.UUID, name string, description string
 		}
 		if role == nil {
 			return errors.New("role not found")
+		}
+
+		// Validate tenant ownership
+		if role.TenantID != tenantID {
+			return errors.New("role not found or access denied")
 		}
 
 		// Get actor user with tenant info
@@ -326,7 +336,7 @@ func (s *roleService) Update(roleUUID uuid.UUID, name string, description string
 	return toRoleServiceDataResult(updatedRole), nil
 }
 
-func (s *roleService) SetStatusByUUID(roleUUID uuid.UUID, status string, actorUserUUID uuid.UUID) (*RoleServiceDataResult, error) {
+func (s *roleService) SetStatusByUUID(roleUUID uuid.UUID, tenantID int64, status string, actorUserUUID uuid.UUID) (*RoleServiceDataResult, error) {
 	var updatedRole *model.Role
 
 	// Transaction
@@ -341,6 +351,11 @@ func (s *roleService) SetStatusByUUID(roleUUID uuid.UUID, status string, actorUs
 		}
 		if role == nil {
 			return errors.New("role not found")
+		}
+
+		// Validate tenant ownership
+		if role.TenantID != tenantID {
+			return errors.New("role not found or access denied")
 		}
 
 		// Get actor user with tenant info
@@ -379,7 +394,7 @@ func (s *roleService) SetStatusByUUID(roleUUID uuid.UUID, status string, actorUs
 	return toRoleServiceDataResult(updatedRole), nil
 }
 
-func (s *roleService) DeleteByUUID(roleUUID uuid.UUID, actorUserUUID uuid.UUID) (*RoleServiceDataResult, error) {
+func (s *roleService) DeleteByUUID(roleUUID uuid.UUID, tenantID int64, actorUserUUID uuid.UUID) (*RoleServiceDataResult, error) {
 	// Check role existence
 	role, err := s.roleRepo.FindByUUID(roleUUID, "Tenant")
 	if err != nil {
@@ -387,6 +402,11 @@ func (s *roleService) DeleteByUUID(roleUUID uuid.UUID, actorUserUUID uuid.UUID) 
 	}
 	if role == nil {
 		return nil, errors.New("role not found")
+	}
+
+	// Validate tenant ownership
+	if role.TenantID != tenantID {
+		return nil, errors.New("role not found or access denied")
 	}
 
 	// Get actor user with tenant info
@@ -414,7 +434,7 @@ func (s *roleService) DeleteByUUID(roleUUID uuid.UUID, actorUserUUID uuid.UUID) 
 	return toRoleServiceDataResult(role), nil
 }
 
-func (s *roleService) AddRolePermissions(roleUUID uuid.UUID, permissionUUIDs []uuid.UUID, actorUserUUID uuid.UUID) (*RoleServiceDataResult, error) {
+func (s *roleService) AddRolePermissions(roleUUID uuid.UUID, tenantID int64, permissionUUIDs []uuid.UUID, actorUserUUID uuid.UUID) (*RoleServiceDataResult, error) {
 	var roleWithPermissions *model.Role
 
 	// Transaction
@@ -431,6 +451,11 @@ func (s *roleService) AddRolePermissions(roleUUID uuid.UUID, permissionUUIDs []u
 		}
 		if role == nil {
 			return errors.New("role not found")
+		}
+
+		// Validate tenant ownership
+		if role.TenantID != tenantID {
+			return errors.New("role not found or access denied")
 		}
 
 		// Get actor user with tenant info
@@ -507,7 +532,7 @@ func (s *roleService) AddRolePermissions(roleUUID uuid.UUID, permissionUUIDs []u
 	return toRoleServiceDataResult(roleWithPermissions), nil
 }
 
-func (s *roleService) RemoveRolePermissions(roleUUID uuid.UUID, permissionUUID uuid.UUID, actorUserUUID uuid.UUID) (*RoleServiceDataResult, error) {
+func (s *roleService) RemoveRolePermissions(roleUUID uuid.UUID, tenantID int64, permissionUUID uuid.UUID, actorUserUUID uuid.UUID) (*RoleServiceDataResult, error) {
 	var roleWithPermissions *model.Role
 
 	// Transaction
@@ -524,6 +549,11 @@ func (s *roleService) RemoveRolePermissions(roleUUID uuid.UUID, permissionUUID u
 		}
 		if role == nil {
 			return errors.New("role not found")
+		}
+
+		// Validate tenant ownership
+		if role.TenantID != tenantID {
+			return errors.New("role not found or access denied")
 		}
 
 		// Get actor user with tenant info
