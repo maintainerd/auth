@@ -10,7 +10,7 @@ import (
 	"gorm.io/gorm"
 )
 
-func SeedAuthClientURIs(db *gorm.DB, identityProviderID int64) error {
+func SeedAuthClientURIs(db *gorm.DB, tenantID int64, identityProviderID int64) error {
 	appHostName := os.Getenv("APP_PRIVATE_HOSTNAME")
 
 	// Map of client name -> URIs with their types
@@ -44,7 +44,7 @@ func SeedAuthClientURIs(db *gorm.DB, identityProviderID int64) error {
 	for clientName, clientURIs := range uris {
 		var client model.AuthClient
 		err := db.
-			Where("name = ? AND identity_provider_id = ?", clientName, identityProviderID).
+			Where("name = ? AND identity_provider_id = ? AND tenant_id = ?", clientName, identityProviderID, tenantID).
 			First(&client).Error
 		if err != nil {
 			log.Printf("⚠️ Auth client '%s' not found, skipping URIs", clientName)
@@ -72,6 +72,7 @@ func SeedAuthClientURIs(db *gorm.DB, identityProviderID int64) error {
 				// Create new URI
 				uri := model.AuthClientURI{
 					AuthClientURIUUID: uuid.New(),
+					TenantID:          tenantID,
 					AuthClientID:      client.AuthClientID,
 					URI:               uriData.URI,
 					Type:              uriData.Type,

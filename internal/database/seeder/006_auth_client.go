@@ -12,12 +12,13 @@ import (
 	"gorm.io/gorm"
 )
 
-func SeedAuthClients(db *gorm.DB, identityProviderID int64) error {
+func SeedAuthClients(db *gorm.DB, tenantID int64, identityProviderID int64) error {
 	appHostName := os.Getenv("APP_PRIVATE_HOSTNAME")
 
 	clients := []model.AuthClient{
 		{
 			AuthClientUUID: uuid.New(),
+			TenantID:       tenantID,
 			Name:           "traditional-default",
 			DisplayName:    "Traditional Web App Default",
 			ClientType:     "traditional",
@@ -38,6 +39,7 @@ func SeedAuthClients(db *gorm.DB, identityProviderID int64) error {
 		},
 		{
 			AuthClientUUID: uuid.New(),
+			TenantID:       tenantID,
 			Name:           "spa-default",
 			DisplayName:    "Single Page App Default",
 			ClientType:     "spa",
@@ -58,6 +60,7 @@ func SeedAuthClients(db *gorm.DB, identityProviderID int64) error {
 		},
 		{
 			AuthClientUUID: uuid.New(),
+			TenantID:       tenantID,
 			Name:           "mobile-default",
 			DisplayName:    "Mobile App Default",
 			ClientType:     "mobile",
@@ -78,6 +81,7 @@ func SeedAuthClients(db *gorm.DB, identityProviderID int64) error {
 		},
 		{
 			AuthClientUUID: uuid.New(),
+			TenantID:       tenantID,
 			Name:           "m2m-default",
 			DisplayName:    "Machine to Machine Default",
 			ClientType:     "m2m",
@@ -99,7 +103,7 @@ func SeedAuthClients(db *gorm.DB, identityProviderID int64) error {
 	for _, client := range clients {
 		var existing model.AuthClient
 		err := db.
-			Where("name = ? AND identity_provider_id = ?", client.Name, identityProviderID).
+			Where("name = ? AND identity_provider_id = ? AND tenant_id = ?", client.Name, identityProviderID, tenantID).
 			First(&existing).Error
 
 		if err == nil {
