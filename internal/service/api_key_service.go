@@ -45,6 +45,7 @@ type APIKeyApiServicePaginatedResult struct {
 }
 
 type APIKeyServiceGetFilter struct {
+	TenantID    int64
 	Name        *string
 	Description *string
 	Status      *string
@@ -64,13 +65,13 @@ type APIKeyServiceGetResult struct {
 
 type APIKeyService interface {
 	Get(filter APIKeyServiceGetFilter, requestingUserUUID uuid.UUID) (*APIKeyServiceGetResult, error)
-	GetByUUID(apiKeyUUID uuid.UUID, requestingUserUUID uuid.UUID) (*APIKeyServiceDataResult, error)
+	GetByUUID(apiKeyUUID uuid.UUID, tenantID int64, requestingUserUUID uuid.UUID) (*APIKeyServiceDataResult, error)
 
-	GetConfigByUUID(apiKeyUUID uuid.UUID) (datatypes.JSON, error)
-	Create(name, description string, config datatypes.JSON, expiresAt *time.Time, rateLimit *int, status string) (*APIKeyServiceDataResult, string, error)
-	Update(apiKeyUUID uuid.UUID, name, description *string, config datatypes.JSON, expiresAt *time.Time, rateLimit *int, status *string, updaterUserUUID uuid.UUID) (*APIKeyServiceDataResult, error)
-	SetStatusByUUID(apiKeyUUID uuid.UUID, status string) (*APIKeyServiceDataResult, error)
-	Delete(apiKeyUUID uuid.UUID, deleterUserUUID uuid.UUID) (*APIKeyServiceDataResult, error)
+	GetConfigByUUID(apiKeyUUID uuid.UUID, tenantID int64) (datatypes.JSON, error)
+	Create(tenantID int64, name, description string, config datatypes.JSON, expiresAt *time.Time, rateLimit *int, status string) (*APIKeyServiceDataResult, string, error)
+	Update(apiKeyUUID uuid.UUID, tenantID int64, name, description *string, config datatypes.JSON, expiresAt *time.Time, rateLimit *int, status *string, updaterUserUUID uuid.UUID) (*APIKeyServiceDataResult, error)
+	SetStatusByUUID(apiKeyUUID uuid.UUID, tenantID int64, status string) (*APIKeyServiceDataResult, error)
+	Delete(apiKeyUUID uuid.UUID, tenantID int64, deleterUserUUID uuid.UUID) (*APIKeyServiceDataResult, error)
 	ValidateAPIKey(keyHash string) (*APIKeyServiceDataResult, error)
 
 	// API Key API methods
@@ -147,6 +148,7 @@ func (s *apiKeyService) Get(filter APIKeyServiceGetFilter, requestingUserUUID uu
 
 	// Build repository filter
 	repoFilter := repository.APIKeyRepositoryGetFilter{
+		TenantID:    filter.TenantID,
 		Name:        filter.Name,
 		Description: filter.Description,
 		Status:      filter.Status,
@@ -196,20 +198,20 @@ func (s *apiKeyService) toServiceDataResult(apiKey model.APIKey) APIKeyServiceDa
 	return result
 }
 
-func (s *apiKeyService) GetByUUID(apiKeyUUID uuid.UUID, requestingUserUUID uuid.UUID) (*APIKeyServiceDataResult, error) {
+func (s *apiKeyService) GetByUUID(apiKeyUUID uuid.UUID, tenantID int64, requestingUserUUID uuid.UUID) (*APIKeyServiceDataResult, error) {
 	var result *APIKeyServiceDataResult
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
 		// Create repository with transaction
 		apiKeyRepo := repository.NewAPIKeyRepository(tx)
 
-		// Find API key by UUID
-		apiKey, err := apiKeyRepo.FindByUUID(apiKeyUUID)
+		// Find API key by UUID and tenant
+		apiKey, err := apiKeyRepo.FindByUUIDAndTenantID(apiKeyUUID.String(), tenantID)
 		if err != nil {
 			return err
 		}
 		if apiKey == nil {
-			return errors.New("API key not found")
+			return errors.New("API key not found or access denied")
 		}
 
 		// Convert to service result
@@ -236,16 +238,16 @@ func (s *apiKeyService) GetByUUID(apiKeyUUID uuid.UUID, requestingUserUUID uuid.
 	return result, nil
 }
 
-func (s *apiKeyService) GetConfigByUUID(apiKeyUUID uuid.UUID) (datatypes.JSON, error) {
-	apiKey, err := s.apiKeyRepo.FindByUUID(apiKeyUUID)
+func (s *apiKeyService) GetConfigByUUID(apiKeyUUID uuid.UUID, tenantID int64) (datatypes.JSON, error) {
+	apiKey, err := s.apiKeyRepo.FindByUUIDAndTenantID(apiKeyUUID.String(), tenantID)
 	if err != nil || apiKey == nil {
-		return nil, errors.New("API key not found")
+		return nil, errors.New("API key not found or access denied")
 	}
 
 	return apiKey.Config, nil
 }
 
-func (s *apiKeyService) Create(name, description string, config datatypes.JSON, expiresAt *time.Time, rateLimit *int, status string) (*APIKeyServiceDataResult, string, error) {
+func (s *apiKeyService) Create(tenantID int64, name, description string, config datatypes.JSON, expiresAt *time.Time, rateLimit *int, status string) (*APIKeyServiceDataResult, string, error) {
 	var createdAPIKey *model.APIKey
 	var plainKey string
 
@@ -262,6 +264,7 @@ func (s *apiKeyService) Create(name, description string, config datatypes.JSON, 
 
 		// Create API key model
 		apiKey := &model.APIKey{
+			TenantID:    tenantID,
 			Name:        name,
 			Description: description,
 			KeyHash:     keyHash,
@@ -302,18 +305,18 @@ func (s *apiKeyService) Create(name, description string, config datatypes.JSON, 
 	return result, plainKey, nil
 }
 
-func (s *apiKeyService) Update(apiKeyUUID uuid.UUID, name, description *string, config datatypes.JSON, expiresAt *time.Time, rateLimit *int, status *string, updaterUserUUID uuid.UUID) (*APIKeyServiceDataResult, error) {
+func (s *apiKeyService) Update(apiKeyUUID uuid.UUID, tenantID int64, name, description *string, config datatypes.JSON, expiresAt *time.Time, rateLimit *int, status *string, updaterUserUUID uuid.UUID) (*APIKeyServiceDataResult, error) {
 	var result *APIKeyServiceDataResult
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
 		// Get the API key repository
 		apiKeyRepo := s.apiKeyRepo
 
-		// Check if API key exists
-		_, err := apiKeyRepo.FindByUUID(apiKeyUUID)
+		// Check if API key exists and belongs to tenant
+		_, err := apiKeyRepo.FindByUUIDAndTenantID(apiKeyUUID.String(), tenantID)
 		if err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
-				return errors.New("API key not found")
+				return errors.New("API key not found or access denied")
 			}
 			return err
 		}
@@ -369,16 +372,16 @@ func (s *apiKeyService) Update(apiKeyUUID uuid.UUID, name, description *string, 
 	return result, nil
 }
 
-func (s *apiKeyService) Delete(apiKeyUUID uuid.UUID, deleterUserUUID uuid.UUID) (*APIKeyServiceDataResult, error) {
+func (s *apiKeyService) Delete(apiKeyUUID uuid.UUID, tenantID int64, deleterUserUUID uuid.UUID) (*APIKeyServiceDataResult, error) {
 	var result *APIKeyServiceDataResult
 	err := s.db.Transaction(func(tx *gorm.DB) error {
 		apiKeyRepo := s.apiKeyRepo.WithTx(tx)
 
 		// Get API key before deletion to return its data
-		apiKey, err := apiKeyRepo.FindByUUID(apiKeyUUID)
+		apiKey, err := apiKeyRepo.FindByUUIDAndTenantID(apiKeyUUID.String(), tenantID)
 		if err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
-				return errors.New("API key not found")
+				return errors.New("API key not found or access denied")
 			}
 			return err
 		}
@@ -413,16 +416,16 @@ func (s *apiKeyService) Delete(apiKeyUUID uuid.UUID, deleterUserUUID uuid.UUID) 
 	return result, nil
 }
 
-func (s *apiKeyService) SetStatusByUUID(apiKeyUUID uuid.UUID, status string) (*APIKeyServiceDataResult, error) {
+func (s *apiKeyService) SetStatusByUUID(apiKeyUUID uuid.UUID, tenantID int64, status string) (*APIKeyServiceDataResult, error) {
 	var result *APIKeyServiceDataResult
 	err := s.db.Transaction(func(tx *gorm.DB) error {
 		apiKeyRepo := s.apiKeyRepo.WithTx(tx)
 
-		// Check if API key exists
-		_, err := apiKeyRepo.FindByUUID(apiKeyUUID)
+		// Check if API key exists and belongs to tenant
+		_, err := apiKeyRepo.FindByUUIDAndTenantID(apiKeyUUID.String(), tenantID)
 		if err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
-				return errors.New("API key not found")
+				return errors.New("API key not found or access denied")
 			}
 			return err
 		}
