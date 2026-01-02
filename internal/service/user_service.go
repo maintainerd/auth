@@ -42,16 +42,16 @@ type UserIdentityServiceDataResult struct {
 }
 
 type UserServiceGetFilter struct {
-	Username   *string
-	Email      *string
-	Phone      *string
-	Status     []string
-	TenantUUID *string
-	RoleUUID   *string
-	Page       int
-	Limit      int
-	SortBy     string
-	SortOrder  string
+	Username  *string
+	Email     *string
+	Phone     *string
+	Status    []string
+	TenantID  int64
+	RoleUUID  *string
+	Page      int
+	Limit     int
+	SortBy    string
+	SortOrder string
 }
 
 type UserServiceGetResult struct {
@@ -64,14 +64,14 @@ type UserServiceGetResult struct {
 
 type UserService interface {
 	Get(filter UserServiceGetFilter) (*UserServiceGetResult, error)
-	GetByUUID(userUUID uuid.UUID) (*UserServiceDataResult, error)
+	GetByUUID(userUUID uuid.UUID, tenantID int64) (*UserServiceDataResult, error)
 	Create(username string, fullname string, email *string, phone *string, password string, status string, metadata datatypes.JSON, tenantUUID string, creatorUserUUID uuid.UUID) (*UserServiceDataResult, error)
-	Update(userUUID uuid.UUID, username string, fullname string, email *string, phone *string, status string, metadata datatypes.JSON, updaterUserUUID uuid.UUID) (*UserServiceDataResult, error)
-	SetStatus(userUUID uuid.UUID, status string, updaterUserUUID uuid.UUID) (*UserServiceDataResult, error)
+	Update(userUUID uuid.UUID, tenantID int64, username string, fullname string, email *string, phone *string, status string, metadata datatypes.JSON, updaterUserUUID uuid.UUID) (*UserServiceDataResult, error)
+	SetStatus(userUUID uuid.UUID, tenantID int64, status string, updaterUserUUID uuid.UUID) (*UserServiceDataResult, error)
 	VerifyEmail(userUUID uuid.UUID) (*UserServiceDataResult, error)
 	VerifyPhone(userUUID uuid.UUID) (*UserServiceDataResult, error)
 	CompleteAccount(userUUID uuid.UUID) (*UserServiceDataResult, error)
-	DeleteByUUID(userUUID uuid.UUID, deleterUserUUID uuid.UUID) (*UserServiceDataResult, error)
+	DeleteByUUID(userUUID uuid.UUID, tenantID int64, deleterUserUUID uuid.UUID) (*UserServiceDataResult, error)
 	AssignUserRoles(userUUID uuid.UUID, roleUUIDs []uuid.UUID) (*UserServiceDataResult, error)
 	RemoveUserRole(userUUID uuid.UUID, roleUUID uuid.UUID) (*UserServiceDataResult, error)
 	GetUserRoles(userUUID uuid.UUID) ([]RoleServiceDataResult, error)
@@ -143,21 +143,6 @@ func (s *userService) findDefaultRole(roleRepo repository.RoleRepository, tenant
 }
 
 func (s *userService) Get(filter UserServiceGetFilter) (*UserServiceGetResult, error) {
-	// Convert tenant UUID to ID if provided
-	var tenantID *int64
-	if filter.TenantUUID != nil {
-		tenantUUIDParsed, err := uuid.Parse(*filter.TenantUUID)
-		if err != nil {
-			return nil, errors.New("invalid tenant UUID")
-		}
-
-		tenant, err := s.tenantRepo.FindByUUID(tenantUUIDParsed)
-		if err != nil || tenant == nil {
-			return nil, errors.New("tenant not found")
-		}
-		tenantID = &tenant.TenantID
-	}
-
 	// Convert role UUID to ID if provided
 	var roleID *int64
 	if filter.RoleUUID != nil {
@@ -179,7 +164,7 @@ func (s *userService) Get(filter UserServiceGetFilter) (*UserServiceGetResult, e
 		Email:     filter.Email,
 		Phone:     filter.Phone,
 		Status:    filter.Status,
-		TenantID:  tenantID,
+		TenantID:  &filter.TenantID,
 		RoleID:    roleID,
 		Page:      filter.Page,
 		Limit:     filter.Limit,
@@ -207,10 +192,15 @@ func (s *userService) Get(filter UserServiceGetFilter) (*UserServiceGetResult, e
 	}, nil
 }
 
-func (s *userService) GetByUUID(userUUID uuid.UUID) (*UserServiceDataResult, error) {
+func (s *userService) GetByUUID(userUUID uuid.UUID, tenantID int64) (*UserServiceDataResult, error) {
 	user, err := s.userRepo.FindByUUID(userUUID, "Tenant")
 	if err != nil || user == nil {
 		return nil, errors.New("user not found")
+	}
+
+	// Validate tenant ownership
+	if user.TenantID != tenantID {
+		return nil, errors.New("user not found or access denied")
 	}
 
 	return toUserServiceDataResult(user), nil
@@ -357,7 +347,7 @@ func (s *userService) Create(username string, fullname string, email *string, ph
 	return toUserServiceDataResult(createdUser), nil
 }
 
-func (s *userService) Update(userUUID uuid.UUID, username string, fullname string, email *string, phone *string, status string, metadata datatypes.JSON, updaterUserUUID uuid.UUID) (*UserServiceDataResult, error) {
+func (s *userService) Update(userUUID uuid.UUID, tenantID int64, username string, fullname string, email *string, phone *string, status string, metadata datatypes.JSON, updaterUserUUID uuid.UUID) (*UserServiceDataResult, error) {
 	var updatedUser *model.User
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
@@ -367,6 +357,11 @@ func (s *userService) Update(userUUID uuid.UUID, username string, fullname strin
 		user, err := txUserRepo.FindByUUID(userUUID, "Tenant")
 		if err != nil || user == nil {
 			return errors.New("user not found")
+		}
+
+		// Validate tenant ownership
+		if user.TenantID != tenantID {
+			return errors.New("user not found or access denied")
 		}
 
 		// Get updater user with tenant info
@@ -447,11 +442,16 @@ func (s *userService) Update(userUUID uuid.UUID, username string, fullname strin
 	return toUserServiceDataResult(updatedUser), nil
 }
 
-func (s *userService) SetStatus(userUUID uuid.UUID, status string, updaterUserUUID uuid.UUID) (*UserServiceDataResult, error) {
+func (s *userService) SetStatus(userUUID uuid.UUID, tenantID int64, status string, updaterUserUUID uuid.UUID) (*UserServiceDataResult, error) {
 	// Check if target user exists
 	user, err := s.userRepo.FindByUUID(userUUID, "Tenant")
 	if err != nil || user == nil {
 		return nil, errors.New("user not found")
+	}
+
+	// Validate tenant ownership
+	if user.TenantID != tenantID {
+		return nil, errors.New("user not found or access denied")
 	}
 
 	// Get updater user with tenant info
@@ -552,11 +552,16 @@ func (s *userService) CompleteAccount(userUUID uuid.UUID) (*UserServiceDataResul
 	return toUserServiceDataResult(updatedUser), nil
 }
 
-func (s *userService) DeleteByUUID(userUUID uuid.UUID, deleterUserUUID uuid.UUID) (*UserServiceDataResult, error) {
+func (s *userService) DeleteByUUID(userUUID uuid.UUID, tenantID int64, deleterUserUUID uuid.UUID) (*UserServiceDataResult, error) {
 	// Check if target user exists
 	user, err := s.userRepo.FindByUUID(userUUID, "Tenant", "UserIdentities.AuthClient", "Roles")
 	if err != nil || user == nil {
 		return nil, errors.New("user not found")
+	}
+
+	// Validate tenant ownership
+	if user.TenantID != tenantID {
+		return nil, errors.New("user not found or access denied")
 	}
 
 	// Get deleter user with tenant info
