@@ -26,7 +26,7 @@ type setupService struct {
 	db                   *gorm.DB
 	userRepo             repository.UserRepository
 	tenantRepo           repository.TenantRepository
-	tenantUserRepo       repository.TenantUserRepository
+	tenantMemberRepo     repository.TenantMemberRepository
 	authClientRepo       repository.AuthClientRepository
 	identityProviderRepo repository.IdentityProviderRepository
 	roleRepo             repository.RoleRepository
@@ -40,7 +40,7 @@ func NewSetupService(
 	db *gorm.DB,
 	userRepo repository.UserRepository,
 	tenantRepo repository.TenantRepository,
-	tenantUserRepo repository.TenantUserRepository,
+	tenantMemberRepo repository.TenantMemberRepository,
 	authClientRepo repository.AuthClientRepository,
 	identityProviderRepo repository.IdentityProviderRepository,
 	roleRepo repository.RoleRepository,
@@ -53,7 +53,7 @@ func NewSetupService(
 		db:                   db,
 		userRepo:             userRepo,
 		tenantRepo:           tenantRepo,
-		tenantUserRepo:       tenantUserRepo,
+		tenantMemberRepo:     tenantMemberRepo,
 		authClientRepo:       authClientRepo,
 		identityProviderRepo: identityProviderRepo,
 		roleRepo:             roleRepo,
@@ -255,7 +255,7 @@ func (s *setupService) CreateAdmin(req dto.CreateAdminRequestDto) (*dto.CreateAd
 		txUserRoleRepo := s.userRoleRepo.WithTx(tx)
 		txRoleRepo := s.roleRepo.WithTx(tx)
 		txUserIdentityRepo := s.userIdentityRepo.WithTx(tx)
-		txTenantUserRepo := s.tenantUserRepo.WithTx(tx)
+		txTenantMemberRepo := s.tenantMemberRepo.WithTx(tx)
 
 		// Check if user already exists
 		existingUser, err := txUserRepo.FindByEmail(req.Email, defaultTenant.TenantID)
@@ -338,13 +338,13 @@ func (s *setupService) CreateAdmin(req dto.CreateAdminRequestDto) (*dto.CreateAd
 			return err
 		}
 
-		// Add user to tenant_users as owner
-		tenantUser := &model.TenantUser{
+		// Add user to tenant_members as owner
+		tenantMember := &model.TenantMember{
 			TenantID: defaultTenant.TenantID,
 			UserID:   createdUser.UserID,
 			Role:     "owner",
 		}
-		_, err = txTenantUserRepo.Create(tenantUser)
+		_, err = txTenantMemberRepo.Create(tenantMember)
 		if err != nil {
 			return err
 		}

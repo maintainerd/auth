@@ -65,11 +65,11 @@ func TenantRoute(
 
 			// Update member role
 			r.With(middleware.PermissionMiddleware([]string{"tenant:update"})).
-				Patch("/{tenant_user_uuid}/role", tenantHandler.UpdateMemberRole)
+				Patch("/{tenant_member_uuid}/role", tenantHandler.UpdateMemberRole)
 
 			// Remove member from tenant
 			r.With(middleware.PermissionMiddleware([]string{"tenant:update"})).
-				Delete("/{tenant_user_uuid}", tenantHandler.RemoveMember)
+				Delete("/{tenant_member_uuid}", tenantHandler.RemoveMember)
 		})
 	})
 }
