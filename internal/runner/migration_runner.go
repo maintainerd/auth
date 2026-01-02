@@ -31,7 +31,7 @@ func RunMigrations(db *gorm.DB) {
 	migration.CreateUserTokenTable(db)             // 023
 	migration.CreateUserSettingsTable(db)          // 024
 	migration.CreateProfileTable(db)               // 025
-	migration.CreateTenantUsersTable(db)           // 026
+	migration.CreateTenantMembersTable(db)         // 026
 	migration.CreateSignupFlowTable(db)            // 027
 	migration.CreateSignupFlowRoleTable(db)        // 028
 	migration.CreateInvitesTable(db)               // 029
