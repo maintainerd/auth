@@ -3,6 +3,7 @@ package repository
 import (
 	"strings"
 
+	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/model"
 	"gorm.io/gorm"
 )
@@ -11,6 +12,7 @@ type SignupFlowRepositoryGetFilter struct {
 	Name         *string
 	Identifier   *string
 	Status       []string
+	TenantID     *int64
 	AuthClientID *int64
 	Page         int
 	Limit        int
@@ -30,6 +32,7 @@ type SignupFlowRepository interface {
 	BaseRepositoryMethods[model.SignupFlow]
 	WithTx(tx *gorm.DB) SignupFlowRepository
 	FindPaginated(filter SignupFlowRepositoryGetFilter) (*SignupFlowRepositoryGetResult, error)
+	FindByUUIDAndTenantID(signupFlowUUID uuid.UUID, tenantID int64, preloads ...string) (*model.SignupFlow, error)
 	FindByIdentifierAndAuthClientID(identifier string, authClientID int64) (*model.SignupFlow, error)
 	FindByName(name string) (*model.SignupFlow, error)
 }
@@ -68,6 +71,9 @@ func (r *signupFlowRepository) FindPaginated(filter SignupFlowRepositoryGetFilte
 	}
 	if len(filter.Status) > 0 {
 		query = query.Where("status IN ?", filter.Status)
+	}
+	if filter.TenantID != nil {
+		query = query.Where("tenant_id = ?", *filter.TenantID)
 	}
 	if filter.AuthClientID != nil {
 		query = query.Where("auth_client_id = ?", *filter.AuthClientID)
@@ -116,6 +122,24 @@ func (r *signupFlowRepository) FindPaginated(filter SignupFlowRepositoryGetFilte
 func (r *signupFlowRepository) FindByIdentifierAndAuthClientID(identifier string, authClientID int64) (*model.SignupFlow, error) {
 	var signupFlow model.SignupFlow
 	err := r.db.Where("identifier = ? AND auth_client_id = ?", identifier, authClientID).First(&signupFlow).Error
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &signupFlow, nil
+}
+
+func (r *signupFlowRepository) FindByUUIDAndTenantID(signupFlowUUID uuid.UUID, tenantID int64, preloads ...string) (*model.SignupFlow, error) {
+	var signupFlow model.SignupFlow
+	query := r.db.Where("signup_flow_uuid = ? AND tenant_id = ?", signupFlowUUID, tenantID)
+
+	for _, preload := range preloads {
+		query = query.Preload(preload)
+	}
+
+	err := query.First(&signupFlow).Error
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return nil, nil

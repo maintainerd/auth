@@ -8,6 +8,8 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/dto"
+	"github.com/maintainerd/auth/internal/middleware"
+	"github.com/maintainerd/auth/internal/model"
 	"github.com/maintainerd/auth/internal/service"
 	"github.com/maintainerd/auth/internal/util"
 )
@@ -23,6 +25,13 @@ func NewSignupFlowHandler(signupFlowService service.SignupFlowService) *SignupFl
 }
 
 func (h *SignupFlowHandler) GetAll(w http.ResponseWriter, r *http.Request) {
+	// Get tenant from context
+	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
+	if !ok || tenant == nil {
+		util.Error(w, http.StatusUnauthorized, "Tenant not found in context")
+		return
+	}
+
 	q := r.URL.Query()
 
 	// Parse pagination
@@ -66,7 +75,7 @@ func (h *SignupFlowHandler) GetAll(w http.ResponseWriter, r *http.Request) {
 		authClientUUIDPtr = &authClientUUID
 	}
 
-	result, err := h.signupFlowService.GetAll(filter.Name, filter.Identifier, filter.Status, authClientUUIDPtr, filter.Page, filter.Limit, filter.SortBy, filter.SortOrder)
+	result, err := h.signupFlowService.GetAll(tenant.TenantID, filter.Name, filter.Identifier, filter.Status, authClientUUIDPtr, filter.Page, filter.Limit, filter.SortBy, filter.SortOrder)
 	if err != nil {
 		util.Error(w, http.StatusInternalServerError, "Failed to get signup flows", err.Error())
 		return
@@ -84,6 +93,26 @@ func (h *SignupFlowHandler) GetAll(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *SignupFlowHandler) Get(w http.ResponseWriter, r *http.Request) {
+	// Get tenant from context
+	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
+	if !ok || tenant == nil {
+		util.Error(w, http.StatusUnauthorized, "Tenant not found in context")
+		return
+	}
+
+	// Get user from context
+	user, ok := r.Context().Value(middleware.UserContextKey).(*model.User)
+	if !ok || user == nil {
+		util.Error(w, http.StatusUnauthorized, "User not found in context")
+		return
+	}
+
+	// Validate user belongs to tenant
+	if user.TenantID != tenant.TenantID {
+		util.Error(w, http.StatusForbidden, "User does not belong to this tenant")
+		return
+	}
+
 	signupFlowUUIDStr := chi.URLParam(r, "signup_flow_uuid")
 	signupFlowUUID, err := uuid.Parse(signupFlowUUIDStr)
 	if err != nil {
@@ -91,7 +120,7 @@ func (h *SignupFlowHandler) Get(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	signupFlow, err := h.signupFlowService.GetByUUID(signupFlowUUID)
+	signupFlow, err := h.signupFlowService.GetByUUID(signupFlowUUID, tenant.TenantID)
 	if err != nil {
 		util.Error(w, http.StatusNotFound, "Signup flow not found")
 		return
@@ -101,6 +130,26 @@ func (h *SignupFlowHandler) Get(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *SignupFlowHandler) Create(w http.ResponseWriter, r *http.Request) {
+	// Get tenant from context
+	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
+	if !ok || tenant == nil {
+		util.Error(w, http.StatusUnauthorized, "Tenant not found in context")
+		return
+	}
+
+	// Get user from context
+	user, ok := r.Context().Value(middleware.UserContextKey).(*model.User)
+	if !ok || user == nil {
+		util.Error(w, http.StatusUnauthorized, "User not found in context")
+		return
+	}
+
+	// Validate user belongs to tenant
+	if user.TenantID != tenant.TenantID {
+		util.Error(w, http.StatusForbidden, "User does not belong to this tenant")
+		return
+	}
+
 	var req dto.SignupFlowCreateRequestDto
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		util.Error(w, http.StatusBadRequest, "Invalid request", err.Error())
@@ -124,6 +173,7 @@ func (h *SignupFlowHandler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	signupFlow, err := h.signupFlowService.Create(
+		tenant.TenantID,
 		req.Name,
 		req.Description,
 		req.Config,
@@ -139,6 +189,26 @@ func (h *SignupFlowHandler) Create(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *SignupFlowHandler) Update(w http.ResponseWriter, r *http.Request) {
+	// Get tenant from context
+	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
+	if !ok || tenant == nil {
+		util.Error(w, http.StatusUnauthorized, "Tenant not found in context")
+		return
+	}
+
+	// Get user from context
+	user, ok := r.Context().Value(middleware.UserContextKey).(*model.User)
+	if !ok || user == nil {
+		util.Error(w, http.StatusUnauthorized, "User not found in context")
+		return
+	}
+
+	// Validate user belongs to tenant
+	if user.TenantID != tenant.TenantID {
+		util.Error(w, http.StatusForbidden, "User does not belong to this tenant")
+		return
+	}
+
 	signupFlowUUIDStr := chi.URLParam(r, "signup_flow_uuid")
 	signupFlowUUID, err := uuid.Parse(signupFlowUUIDStr)
 	if err != nil {
@@ -164,6 +234,7 @@ func (h *SignupFlowHandler) Update(w http.ResponseWriter, r *http.Request) {
 
 	signupFlow, err := h.signupFlowService.Update(
 		signupFlowUUID,
+		tenant.TenantID,
 		req.Name,
 		req.Description,
 		req.Config,
@@ -178,6 +249,26 @@ func (h *SignupFlowHandler) Update(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *SignupFlowHandler) Delete(w http.ResponseWriter, r *http.Request) {
+	// Get tenant from context
+	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
+	if !ok || tenant == nil {
+		util.Error(w, http.StatusUnauthorized, "Tenant not found in context")
+		return
+	}
+
+	// Get user from context
+	user, ok := r.Context().Value(middleware.UserContextKey).(*model.User)
+	if !ok || user == nil {
+		util.Error(w, http.StatusUnauthorized, "User not found in context")
+		return
+	}
+
+	// Validate user belongs to tenant
+	if user.TenantID != tenant.TenantID {
+		util.Error(w, http.StatusForbidden, "User does not belong to this tenant")
+		return
+	}
+
 	signupFlowUUIDStr := chi.URLParam(r, "signup_flow_uuid")
 	signupFlowUUID, err := uuid.Parse(signupFlowUUIDStr)
 	if err != nil {
@@ -185,7 +276,7 @@ func (h *SignupFlowHandler) Delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	signupFlow, err := h.signupFlowService.Delete(signupFlowUUID)
+	signupFlow, err := h.signupFlowService.Delete(signupFlowUUID, tenant.TenantID)
 	if err != nil {
 		util.Error(w, http.StatusBadRequest, "Failed to delete signup flow", err.Error())
 		return
@@ -195,6 +286,26 @@ func (h *SignupFlowHandler) Delete(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *SignupFlowHandler) UpdateStatus(w http.ResponseWriter, r *http.Request) {
+	// Get tenant from context
+	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
+	if !ok || tenant == nil {
+		util.Error(w, http.StatusUnauthorized, "Tenant not found in context")
+		return
+	}
+
+	// Get user from context
+	user, ok := r.Context().Value(middleware.UserContextKey).(*model.User)
+	if !ok || user == nil {
+		util.Error(w, http.StatusUnauthorized, "User not found in context")
+		return
+	}
+
+	// Validate user belongs to tenant
+	if user.TenantID != tenant.TenantID {
+		util.Error(w, http.StatusForbidden, "User does not belong to this tenant")
+		return
+	}
+
 	signupFlowUUIDStr := chi.URLParam(r, "signup_flow_uuid")
 	signupFlowUUID, err := uuid.Parse(signupFlowUUIDStr)
 	if err != nil {
@@ -213,7 +324,7 @@ func (h *SignupFlowHandler) UpdateStatus(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	signupFlow, err := h.signupFlowService.UpdateStatus(signupFlowUUID, req.Status)
+	signupFlow, err := h.signupFlowService.UpdateStatus(signupFlowUUID, tenant.TenantID, req.Status)
 	if err != nil {
 		util.Error(w, http.StatusBadRequest, "Failed to update signup flow status", err.Error())
 		return
@@ -224,6 +335,26 @@ func (h *SignupFlowHandler) UpdateStatus(w http.ResponseWriter, r *http.Request)
 
 // AssignRoles assigns roles to a signup flow
 func (h *SignupFlowHandler) AssignRoles(w http.ResponseWriter, r *http.Request) {
+	// Get tenant from context
+	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
+	if !ok || tenant == nil {
+		util.Error(w, http.StatusUnauthorized, "Tenant not found in context")
+		return
+	}
+
+	// Get user from context
+	user, ok := r.Context().Value(middleware.UserContextKey).(*model.User)
+	if !ok || user == nil {
+		util.Error(w, http.StatusUnauthorized, "User not found in context")
+		return
+	}
+
+	// Validate user belongs to tenant
+	if user.TenantID != tenant.TenantID {
+		util.Error(w, http.StatusForbidden, "User does not belong to this tenant")
+		return
+	}
+
 	signupFlowUUIDStr := chi.URLParam(r, "signup_flow_uuid")
 	if signupFlowUUIDStr == "" {
 		util.Error(w, http.StatusBadRequest, "Invalid signup flow UUID", "UUID parameter is required")
@@ -257,7 +388,7 @@ func (h *SignupFlowHandler) AssignRoles(w http.ResponseWriter, r *http.Request) 
 		roleUUIDs[i] = roleUUID
 	}
 
-	roles, err := h.signupFlowService.AssignRoles(signupFlowUUID, roleUUIDs)
+	roles, err := h.signupFlowService.AssignRoles(signupFlowUUID, tenant.TenantID, roleUUIDs)
 	if err != nil {
 		util.Error(w, http.StatusBadRequest, "Failed to assign roles", err.Error())
 		return
@@ -283,6 +414,26 @@ func (h *SignupFlowHandler) AssignRoles(w http.ResponseWriter, r *http.Request) 
 
 // GetRoles retrieves all roles assigned to a signup flow
 func (h *SignupFlowHandler) GetRoles(w http.ResponseWriter, r *http.Request) {
+	// Get tenant from context
+	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
+	if !ok || tenant == nil {
+		util.Error(w, http.StatusUnauthorized, "Tenant not found in context")
+		return
+	}
+
+	// Get user from context
+	user, ok := r.Context().Value(middleware.UserContextKey).(*model.User)
+	if !ok || user == nil {
+		util.Error(w, http.StatusUnauthorized, "User not found in context")
+		return
+	}
+
+	// Validate user belongs to tenant
+	if user.TenantID != tenant.TenantID {
+		util.Error(w, http.StatusForbidden, "User does not belong to this tenant")
+		return
+	}
+
 	signupFlowUUIDStr := chi.URLParam(r, "signup_flow_uuid")
 	if signupFlowUUIDStr == "" {
 		util.Error(w, http.StatusBadRequest, "Invalid signup flow UUID", "UUID parameter is required")
@@ -314,7 +465,7 @@ func (h *SignupFlowHandler) GetRoles(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	result, err := h.signupFlowService.GetRoles(signupFlowUUID, reqParams.Page, reqParams.Limit)
+	result, err := h.signupFlowService.GetRoles(signupFlowUUID, tenant.TenantID, reqParams.Page, reqParams.Limit)
 	if err != nil {
 		util.Error(w, http.StatusBadRequest, "Failed to retrieve roles", err.Error())
 		return
@@ -348,6 +499,26 @@ func (h *SignupFlowHandler) GetRoles(w http.ResponseWriter, r *http.Request) {
 
 // RemoveRole removes a role from a signup flow
 func (h *SignupFlowHandler) RemoveRole(w http.ResponseWriter, r *http.Request) {
+	// Get tenant from context
+	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
+	if !ok || tenant == nil {
+		util.Error(w, http.StatusUnauthorized, "Tenant not found in context")
+		return
+	}
+
+	// Get user from context
+	user, ok := r.Context().Value(middleware.UserContextKey).(*model.User)
+	if !ok || user == nil {
+		util.Error(w, http.StatusUnauthorized, "User not found in context")
+		return
+	}
+
+	// Validate user belongs to tenant
+	if user.TenantID != tenant.TenantID {
+		util.Error(w, http.StatusForbidden, "User does not belong to this tenant")
+		return
+	}
+
 	signupFlowUUIDStr := chi.URLParam(r, "signup_flow_uuid")
 	roleUUIDStr := chi.URLParam(r, "role_uuid")
 
@@ -368,7 +539,7 @@ func (h *SignupFlowHandler) RemoveRole(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.signupFlowService.RemoveRole(signupFlowUUID, roleUUID); err != nil {
+	if err := h.signupFlowService.RemoveRole(signupFlowUUID, tenant.TenantID, roleUUID); err != nil {
 		util.Error(w, http.StatusBadRequest, "Failed to remove role", err.Error())
 		return
 	}

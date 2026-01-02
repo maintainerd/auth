@@ -11,6 +11,7 @@ import (
 type SignupFlow struct {
 	SignupFlowID   int64          `gorm:"column:signup_flow_id;primaryKey;autoIncrement" json:"signup_flow_id"`
 	SignupFlowUUID uuid.UUID      `gorm:"column:signup_flow_uuid;type:uuid;uniqueIndex;not null" json:"signup_flow_uuid"`
+	TenantID       int64          `gorm:"column:tenant_id;not null" json:"tenant_id"`
 	Name           string         `gorm:"column:name;type:varchar(100);not null" json:"name"`
 	Description    string         `gorm:"column:description;type:text;not null" json:"description"`
 	Identifier     string         `gorm:"column:identifier;type:varchar(255);uniqueIndex;not null" json:"identifier"`
