@@ -29,19 +29,22 @@ type TenantUserService interface {
 	ListByUser(userID int64) ([]TenantUserServiceDataResult, error)
 	UpdateRole(tenantUserUUID uuid.UUID, role string) (*TenantUserServiceDataResult, error)
 	DeleteByUUID(tenantUserUUID uuid.UUID) error
+	IsUserInTenant(userID int64, tenantUUID uuid.UUID) (bool, error)
 }
 
 type tenantUserService struct {
 	db             *gorm.DB
 	tenantUserRepo repository.TenantUserRepository
 	userRepo       repository.UserRepository
+	tenantRepo     repository.TenantRepository
 }
 
-func NewTenantUserService(db *gorm.DB, tenantUserRepo repository.TenantUserRepository, userRepo repository.UserRepository) TenantUserService {
+func NewTenantUserService(db *gorm.DB, tenantUserRepo repository.TenantUserRepository, userRepo repository.UserRepository, tenantRepo repository.TenantRepository) TenantUserService {
 	return &tenantUserService{
 		db:             db,
 		tenantUserRepo: tenantUserRepo,
 		userRepo:       userRepo,
+		tenantRepo:     tenantRepo,
 	}
 }
 
@@ -180,6 +183,23 @@ func (s *tenantUserService) DeleteByUUID(tenantUserUUID uuid.UUID) error {
 		}
 		return repo.DeleteByUUID(tenantUserUUID)
 	})
+}
+
+// IsUserInTenant checks if a user is a member of the specified tenant
+func (s *tenantUserService) IsUserInTenant(userID int64, tenantUUID uuid.UUID) (bool, error) {
+	// First get the tenant to retrieve tenant_id
+	tenant, err := s.tenantRepo.FindByUUID(tenantUUID)
+	if err != nil || tenant == nil {
+		return false, errors.New("tenant not found")
+	}
+
+	// Check if user is in tenant_users
+	tenantUser, err := s.tenantUserRepo.FindByTenantAndUser(tenant.TenantID, userID)
+	if err != nil {
+		return false, err
+	}
+
+	return tenantUser != nil, nil
 }
 
 func toTenantUserServiceDataResult(tu *model.TenantUser) *TenantUserServiceDataResult {
