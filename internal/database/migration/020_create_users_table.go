@@ -12,6 +12,7 @@ func CreateUserTable(db *gorm.DB) {
 CREATE TABLE IF NOT EXISTS users (
     user_id                 SERIAL PRIMARY KEY,
     user_uuid               UUID NOT NULL UNIQUE,
+    tenant_id               INTEGER NOT NULL,
     username                VARCHAR(255) NOT NULL,
     fullname                VARCHAR(255),
     email                   VARCHAR(255),
@@ -23,7 +24,6 @@ CREATE TABLE IF NOT EXISTS users (
     is_account_completed    BOOLEAN DEFAULT FALSE,
     status                  VARCHAR(20) DEFAULT 'active',
     metadata                JSONB DEFAULT '{}'::jsonb,
-    tenant_id               INTEGER NOT NULL,
     created_at              TIMESTAMPTZ DEFAULT now(),
     updated_at              TIMESTAMPTZ DEFAULT now()
 );
