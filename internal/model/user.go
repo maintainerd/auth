@@ -11,6 +11,7 @@ import (
 type User struct {
 	UserID             int64          `gorm:"column:user_id;primaryKey"`
 	UserUUID           uuid.UUID      `gorm:"column:user_uuid;unique"`
+	TenantID           int64          `gorm:"column:tenant_id"`
 	Username           string         `gorm:"column:username"`
 	Fullname           string         `gorm:"column:fullname"`
 	Email              string         `gorm:"column:email"`
@@ -22,7 +23,6 @@ type User struct {
 	IsAccountCompleted bool           `gorm:"column:is_account_completed;default:false"`
 	Status             string         `gorm:"column:status;default:'active'"`
 	Metadata           datatypes.JSON `gorm:"column:metadata;type:jsonb;default:'{}'"`
-	TenantID           int64          `gorm:"column:tenant_id"`
 	CreatedAt          time.Time      `gorm:"column:created_at;autoCreateTime"`
 	UpdatedAt          time.Time      `gorm:"column:updated_at;autoUpdateTime"`
 
