@@ -12,6 +12,7 @@ func CreateEmailTemplatesTable(db *gorm.DB) {
 CREATE TABLE IF NOT EXISTS email_templates (
     email_template_id     SERIAL PRIMARY KEY,
     email_template_uuid		UUID NOT NULL UNIQUE,
+    tenant_id             BIGINT NOT NULL,
     name            			VARCHAR(100) NOT NULL UNIQUE,
     subject         			VARCHAR(255) NOT NULL,
     body_html       			TEXT NOT NULL,
@@ -24,8 +25,21 @@ CREATE TABLE IF NOT EXISTS email_templates (
     CONSTRAINT chk_email_templates_status CHECK (status IN ('active', 'inactive'))
 );
 
+-- ADD CONSTRAINTS
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint WHERE conname = 'fk_email_templates_tenant_id'
+    ) THEN
+        ALTER TABLE email_templates
+            ADD CONSTRAINT fk_email_templates_tenant_id FOREIGN KEY (tenant_id)
+            REFERENCES tenants(tenant_id) ON DELETE CASCADE;
+    END IF;
+END$$;
+
 -- CREATE INDEXES
 CREATE INDEX IF NOT EXISTS idx_email_templates_uuid ON email_templates (email_template_uuid);
+CREATE INDEX IF NOT EXISTS idx_email_templates_tenant_id ON email_templates (tenant_id);
 CREATE INDEX IF NOT EXISTS idx_email_templates_name ON email_templates (name);
 CREATE INDEX IF NOT EXISTS idx_email_templates_status ON email_templates (status);
 CREATE INDEX IF NOT EXISTS idx_email_templates_is_default ON email_templates (is_default);

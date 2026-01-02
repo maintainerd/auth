@@ -21,19 +21,10 @@ func NewInviteHandler(service service.InviteService) *InviteHandler {
 }
 
 func (h *InviteHandler) Send(w http.ResponseWriter, r *http.Request) {
-	// validate request body
-	var req dto.SendInviteRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		util.Error(w, http.StatusBadRequest, "Invalid request payload", err.Error())
-		return
-	}
-
-	if err := req.Validate(); err != nil {
-		if ve, ok := err.(validation.Errors); ok {
-			util.Error(w, http.StatusBadRequest, "Validation failed", ve)
-			return
-		}
-		util.Error(w, http.StatusBadRequest, "Validation failed", err.Error())
+	// Get tenant from context
+	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
+	if !ok || tenant == nil {
+		util.Error(w, http.StatusUnauthorized, "Tenant not found in context")
 		return
 	}
 
@@ -50,6 +41,28 @@ func (h *InviteHandler) Send(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Validate user belongs to tenant
+	if user.TenantID != tenant.TenantID {
+		util.Error(w, http.StatusForbidden, "User does not belong to this tenant")
+		return
+	}
+
+	// validate request body
+	var req dto.SendInviteRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		util.Error(w, http.StatusBadRequest, "Invalid request payload", err.Error())
+		return
+	}
+
+	if err := req.Validate(); err != nil {
+		if ve, ok := err.(validation.Errors); ok {
+			util.Error(w, http.StatusBadRequest, "Validation failed", ve)
+			return
+		}
+		util.Error(w, http.StatusBadRequest, "Validation failed", err.Error())
+		return
+	}
+
 	// Convert UUIDs to strings for service call
 	roleUUIDs := make([]string, len(req.Roles))
 	for i, roleUUID := range req.Roles {
@@ -57,7 +70,7 @@ func (h *InviteHandler) Send(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Send invite
-	_, err := h.service.SendInvite(req.Email, user.UserID, roleUUIDs)
+	_, err := h.service.SendInvite(tenant.TenantID, req.Email, user.UserID, roleUUIDs)
 	if err != nil {
 		util.Error(w, http.StatusInternalServerError, "Failed to send invite", err.Error())
 		return
