@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/model"
 	"gorm.io/gorm"
 )
@@ -8,6 +9,7 @@ import (
 type EmailTemplateRepositoryGetFilter struct {
 	Name      *string
 	Status    []string
+	TenantID  *int64
 	IsDefault *bool
 	IsSystem  *bool
 	Page      int
@@ -18,6 +20,7 @@ type EmailTemplateRepositoryGetFilter struct {
 
 type EmailTemplateRepository interface {
 	BaseRepositoryMethods[model.EmailTemplate]
+	FindByUUIDAndTenantID(emailTemplateUUID uuid.UUID, tenantID int64, preloads ...string) (*model.EmailTemplate, error)
 	FindByName(name string) (*model.EmailTemplate, error)
 	FindPaginated(filter EmailTemplateRepositoryGetFilter) (*PaginationResult[model.EmailTemplate], error)
 }
@@ -32,6 +35,25 @@ func NewEmailTemplateRepository(db *gorm.DB) EmailTemplateRepository {
 		BaseRepository: NewBaseRepository[model.EmailTemplate](db, "email_template_uuid", "email_template_id"),
 		db:             db,
 	}
+}
+
+// FindByUUIDAndTenantID retrieves an email template by UUID and tenant ID
+func (r *emailTemplateRepository) FindByUUIDAndTenantID(emailTemplateUUID uuid.UUID, tenantID int64, preloads ...string) (*model.EmailTemplate, error) {
+	var template model.EmailTemplate
+	query := r.db.Where("email_template_uuid = ? AND tenant_id = ?", emailTemplateUUID, tenantID)
+
+	for _, preload := range preloads {
+		query = query.Preload(preload)
+	}
+
+	err := query.First(&template).Error
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &template, nil
 }
 
 // FindByName retrieves an active email template by its name
@@ -56,6 +78,9 @@ func (r *emailTemplateRepository) FindPaginated(filter EmailTemplateRepositoryGe
 	}
 	if len(filter.Status) > 0 {
 		query = query.Where("status IN ?", filter.Status)
+	}
+	if filter.TenantID != nil {
+		query = query.Where("tenant_id = ?", *filter.TenantID)
 	}
 	if filter.IsDefault != nil {
 		query = query.Where("is_default = ?", *filter.IsDefault)

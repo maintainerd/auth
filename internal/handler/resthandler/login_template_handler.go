@@ -9,6 +9,8 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/dto"
+	"github.com/maintainerd/auth/internal/middleware"
+	"github.com/maintainerd/auth/internal/model"
 	"github.com/maintainerd/auth/internal/service"
 	"github.com/maintainerd/auth/internal/util"
 )
@@ -24,6 +26,13 @@ func NewLoginTemplateHandler(loginTemplateService service.LoginTemplateService) 
 }
 
 func (h *LoginTemplateHandler) GetAll(w http.ResponseWriter, r *http.Request) {
+	// Get tenant from context
+	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
+	if !ok || tenant == nil {
+		util.Error(w, http.StatusUnauthorized, "Tenant not found in context")
+		return
+	}
+
 	q := r.URL.Query()
 
 	// Parse pagination
@@ -75,7 +84,7 @@ func (h *LoginTemplateHandler) GetAll(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	result, err := h.loginTemplateService.GetAll(filter.Name, filter.Status, filter.Template, filter.IsDefault, filter.IsSystem, filter.Page, filter.Limit, filter.SortBy, filter.SortOrder)
+	result, err := h.loginTemplateService.GetAll(tenant.TenantID, filter.Name, filter.Status, filter.Template, filter.IsDefault, filter.IsSystem, filter.Page, filter.Limit, filter.SortBy, filter.SortOrder)
 	if err != nil {
 		util.Error(w, http.StatusInternalServerError, "Failed to retrieve login templates", err.Error())
 		return
@@ -93,6 +102,26 @@ func (h *LoginTemplateHandler) GetAll(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *LoginTemplateHandler) Get(w http.ResponseWriter, r *http.Request) {
+	// Get tenant from context
+	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
+	if !ok || tenant == nil {
+		util.Error(w, http.StatusUnauthorized, "Tenant not found in context")
+		return
+	}
+
+	// Get user from context
+	user, ok := r.Context().Value(middleware.UserContextKey).(*model.User)
+	if !ok || user == nil {
+		util.Error(w, http.StatusUnauthorized, "User not found in context")
+		return
+	}
+
+	// Validate user belongs to tenant
+	if user.TenantID != tenant.TenantID {
+		util.Error(w, http.StatusForbidden, "User does not belong to this tenant")
+		return
+	}
+
 	loginTemplateUUIDStr := chi.URLParam(r, "login_template_uuid")
 
 	loginTemplateUUID, err := uuid.Parse(loginTemplateUUIDStr)
@@ -101,7 +130,7 @@ func (h *LoginTemplateHandler) Get(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	template, err := h.loginTemplateService.GetByUUID(loginTemplateUUID)
+	template, err := h.loginTemplateService.GetByUUID(loginTemplateUUID, tenant.TenantID)
 	if err != nil {
 		util.Error(w, http.StatusNotFound, "Login template not found")
 		return
@@ -111,6 +140,26 @@ func (h *LoginTemplateHandler) Get(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *LoginTemplateHandler) Create(w http.ResponseWriter, r *http.Request) {
+	// Get tenant from context
+	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
+	if !ok || tenant == nil {
+		util.Error(w, http.StatusUnauthorized, "Tenant not found in context")
+		return
+	}
+
+	// Get user from context
+	user, ok := r.Context().Value(middleware.UserContextKey).(*model.User)
+	if !ok || user == nil {
+		util.Error(w, http.StatusUnauthorized, "User not found in context")
+		return
+	}
+
+	// Validate user belongs to tenant
+	if user.TenantID != tenant.TenantID {
+		util.Error(w, http.StatusForbidden, "User does not belong to this tenant")
+		return
+	}
+
 	var req dto.LoginTemplateCreateRequestDto
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		util.Error(w, http.StatusBadRequest, "Invalid request", err.Error())
@@ -133,6 +182,7 @@ func (h *LoginTemplateHandler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	template, err := h.loginTemplateService.Create(
+		tenant.TenantID,
 		req.Name,
 		req.Description,
 		req.Template,
@@ -148,6 +198,26 @@ func (h *LoginTemplateHandler) Create(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *LoginTemplateHandler) Update(w http.ResponseWriter, r *http.Request) {
+	// Get tenant from context
+	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
+	if !ok || tenant == nil {
+		util.Error(w, http.StatusUnauthorized, "Tenant not found in context")
+		return
+	}
+
+	// Get user from context
+	user, ok := r.Context().Value(middleware.UserContextKey).(*model.User)
+	if !ok || user == nil {
+		util.Error(w, http.StatusUnauthorized, "User not found in context")
+		return
+	}
+
+	// Validate user belongs to tenant
+	if user.TenantID != tenant.TenantID {
+		util.Error(w, http.StatusForbidden, "User does not belong to this tenant")
+		return
+	}
+
 	loginTemplateUUIDStr := chi.URLParam(r, "login_template_uuid")
 
 	loginTemplateUUID, err := uuid.Parse(loginTemplateUUIDStr)
@@ -179,6 +249,7 @@ func (h *LoginTemplateHandler) Update(w http.ResponseWriter, r *http.Request) {
 
 	template, err := h.loginTemplateService.Update(
 		loginTemplateUUID,
+		tenant.TenantID,
 		req.Name,
 		req.Description,
 		req.Template,
@@ -194,6 +265,26 @@ func (h *LoginTemplateHandler) Update(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *LoginTemplateHandler) Delete(w http.ResponseWriter, r *http.Request) {
+	// Get tenant from context
+	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
+	if !ok || tenant == nil {
+		util.Error(w, http.StatusUnauthorized, "Tenant not found in context")
+		return
+	}
+
+	// Get user from context
+	user, ok := r.Context().Value(middleware.UserContextKey).(*model.User)
+	if !ok || user == nil {
+		util.Error(w, http.StatusUnauthorized, "User not found in context")
+		return
+	}
+
+	// Validate user belongs to tenant
+	if user.TenantID != tenant.TenantID {
+		util.Error(w, http.StatusForbidden, "User does not belong to this tenant")
+		return
+	}
+
 	loginTemplateUUIDStr := chi.URLParam(r, "login_template_uuid")
 
 	loginTemplateUUID, err := uuid.Parse(loginTemplateUUIDStr)
@@ -202,7 +293,7 @@ func (h *LoginTemplateHandler) Delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	template, err := h.loginTemplateService.Delete(loginTemplateUUID)
+	template, err := h.loginTemplateService.Delete(loginTemplateUUID, tenant.TenantID)
 	if err != nil {
 		util.Error(w, http.StatusBadRequest, "Failed to delete login template", err.Error())
 		return
@@ -212,6 +303,26 @@ func (h *LoginTemplateHandler) Delete(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *LoginTemplateHandler) UpdateStatus(w http.ResponseWriter, r *http.Request) {
+	// Get tenant from context
+	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
+	if !ok || tenant == nil {
+		util.Error(w, http.StatusUnauthorized, "Tenant not found in context")
+		return
+	}
+
+	// Get user from context
+	user, ok := r.Context().Value(middleware.UserContextKey).(*model.User)
+	if !ok || user == nil {
+		util.Error(w, http.StatusUnauthorized, "User not found in context")
+		return
+	}
+
+	// Validate user belongs to tenant
+	if user.TenantID != tenant.TenantID {
+		util.Error(w, http.StatusForbidden, "User does not belong to this tenant")
+		return
+	}
+
 	loginTemplateUUIDStr := chi.URLParam(r, "login_template_uuid")
 
 	loginTemplateUUID, err := uuid.Parse(loginTemplateUUIDStr)
@@ -231,7 +342,7 @@ func (h *LoginTemplateHandler) UpdateStatus(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	template, err := h.loginTemplateService.UpdateStatus(loginTemplateUUID, req.Status)
+	template, err := h.loginTemplateService.UpdateStatus(loginTemplateUUID, tenant.TenantID, req.Status)
 	if err != nil {
 		util.Error(w, http.StatusBadRequest, "Failed to update login template status", err.Error())
 		return

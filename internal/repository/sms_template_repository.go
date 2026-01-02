@@ -6,6 +6,7 @@ import (
 )
 
 type SmsTemplateRepositoryGetFilter struct {
+	TenantID  *int64
 	Name      *string
 	Status    []string
 	IsDefault *bool
@@ -20,6 +21,7 @@ type SmsTemplateRepositoryGetFilter struct {
 type SmsTemplateRepository interface {
 	BaseRepositoryMethods[model.SmsTemplate]
 	FindByName(name string) (*model.SmsTemplate, error)
+	FindByUUIDAndTenantID(uuid string, tenantID int64) (*model.SmsTemplate, error)
 	FindPaginated(filter SmsTemplateRepositoryGetFilter) (*PaginationResult[model.SmsTemplate], error)
 }
 
@@ -47,11 +49,26 @@ func (r *smsTemplateRepository) FindByName(name string) (*model.SmsTemplate, err
 	return &template, nil
 }
 
+// FindByUUIDAndTenantID retrieves an SMS template by UUID and tenant ID
+func (r *smsTemplateRepository) FindByUUIDAndTenantID(uuid string, tenantID int64) (*model.SmsTemplate, error) {
+	var template model.SmsTemplate
+	err := r.db.
+		Where("sms_template_uuid = ? AND tenant_id = ?", uuid, tenantID).
+		First(&template).Error
+	if err != nil {
+		return nil, err
+	}
+	return &template, nil
+}
+
 // FindPaginated retrieves paginated SMS templates with filtering
 func (r *smsTemplateRepository) FindPaginated(filter SmsTemplateRepositoryGetFilter) (*PaginationResult[model.SmsTemplate], error) {
 	query := r.db.Model(&model.SmsTemplate{})
 
 	// Apply filters
+	if filter.TenantID != nil {
+		query = query.Where("tenant_id = ?", *filter.TenantID)
+	}
 	if filter.Name != nil && *filter.Name != "" {
 		query = query.Where("name ILIKE ?", "%"+*filter.Name+"%")
 	}

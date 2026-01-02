@@ -11,6 +11,7 @@ import (
 type LoginTemplate struct {
 	LoginTemplateID   int            `gorm:"primaryKey;column:login_template_id"`
 	LoginTemplateUUID uuid.UUID      `gorm:"type:uuid;uniqueIndex;column:login_template_uuid"`
+	TenantID          int64          `gorm:"column:tenant_id;not null"`
 	Name              string         `gorm:"type:varchar(100);not null;uniqueIndex;column:name"`
 	Description       *string        `gorm:"type:text;column:description"`
 	Template          string         `gorm:"type:varchar(20);not null;column:template"`

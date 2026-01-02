@@ -8,6 +8,8 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/dto"
+	"github.com/maintainerd/auth/internal/middleware"
+	"github.com/maintainerd/auth/internal/model"
 	"github.com/maintainerd/auth/internal/service"
 	"github.com/maintainerd/auth/internal/util"
 )
@@ -23,6 +25,13 @@ func NewEmailTemplateHandler(emailTemplateService service.EmailTemplateService) 
 }
 
 func (h *EmailTemplateHandler) GetAll(w http.ResponseWriter, r *http.Request) {
+	// Get tenant from context
+	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
+	if !ok || tenant == nil {
+		util.Error(w, http.StatusUnauthorized, "Tenant not found in context")
+		return
+	}
+
 	q := r.URL.Query()
 
 	// Parse pagination
@@ -68,7 +77,7 @@ func (h *EmailTemplateHandler) GetAll(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	result, err := h.emailTemplateService.GetAll(filter.Name, filter.Status, filter.IsDefault, filter.IsSystem, filter.Page, filter.Limit, filter.SortBy, filter.SortOrder)
+	result, err := h.emailTemplateService.GetAll(tenant.TenantID, filter.Name, filter.Status, filter.IsDefault, filter.IsSystem, filter.Page, filter.Limit, filter.SortBy, filter.SortOrder)
 	if err != nil {
 		util.Error(w, http.StatusInternalServerError, "Failed to get email templates", err.Error())
 		return
@@ -86,6 +95,26 @@ func (h *EmailTemplateHandler) GetAll(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *EmailTemplateHandler) Get(w http.ResponseWriter, r *http.Request) {
+	// Get tenant from context
+	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
+	if !ok || tenant == nil {
+		util.Error(w, http.StatusUnauthorized, "Tenant not found in context")
+		return
+	}
+
+	// Get user from context
+	user, ok := r.Context().Value(middleware.UserContextKey).(*model.User)
+	if !ok || user == nil {
+		util.Error(w, http.StatusUnauthorized, "User not found in context")
+		return
+	}
+
+	// Validate user belongs to tenant
+	if user.TenantID != tenant.TenantID {
+		util.Error(w, http.StatusForbidden, "User does not belong to this tenant")
+		return
+	}
+
 	emailTemplateUUIDStr := chi.URLParam(r, "email_template_uuid")
 
 	emailTemplateUUID, err := uuid.Parse(emailTemplateUUIDStr)
@@ -94,7 +123,7 @@ func (h *EmailTemplateHandler) Get(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	template, err := h.emailTemplateService.GetByUUID(emailTemplateUUID)
+	template, err := h.emailTemplateService.GetByUUID(emailTemplateUUID, tenant.TenantID)
 	if err != nil {
 		util.Error(w, http.StatusNotFound, "Email template not found")
 		return
@@ -104,6 +133,26 @@ func (h *EmailTemplateHandler) Get(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *EmailTemplateHandler) Create(w http.ResponseWriter, r *http.Request) {
+	// Get tenant from context
+	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
+	if !ok || tenant == nil {
+		util.Error(w, http.StatusUnauthorized, "Tenant not found in context")
+		return
+	}
+
+	// Get user from context
+	user, ok := r.Context().Value(middleware.UserContextKey).(*model.User)
+	if !ok || user == nil {
+		util.Error(w, http.StatusUnauthorized, "User not found in context")
+		return
+	}
+
+	// Validate user belongs to tenant
+	if user.TenantID != tenant.TenantID {
+		util.Error(w, http.StatusForbidden, "User does not belong to this tenant")
+		return
+	}
+
 	var req dto.EmailTemplateCreateRequestDto
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		util.Error(w, http.StatusBadRequest, "Invalid request", err.Error())
@@ -121,6 +170,7 @@ func (h *EmailTemplateHandler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	template, err := h.emailTemplateService.Create(
+		tenant.TenantID,
 		req.Name,
 		req.Subject,
 		req.BodyHtml,
@@ -137,6 +187,26 @@ func (h *EmailTemplateHandler) Create(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *EmailTemplateHandler) Update(w http.ResponseWriter, r *http.Request) {
+	// Get tenant from context
+	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
+	if !ok || tenant == nil {
+		util.Error(w, http.StatusUnauthorized, "Tenant not found in context")
+		return
+	}
+
+	// Get user from context
+	user, ok := r.Context().Value(middleware.UserContextKey).(*model.User)
+	if !ok || user == nil {
+		util.Error(w, http.StatusUnauthorized, "User not found in context")
+		return
+	}
+
+	// Validate user belongs to tenant
+	if user.TenantID != tenant.TenantID {
+		util.Error(w, http.StatusForbidden, "User does not belong to this tenant")
+		return
+	}
+
 	emailTemplateUUIDStr := chi.URLParam(r, "email_template_uuid")
 
 	emailTemplateUUID, err := uuid.Parse(emailTemplateUUIDStr)
@@ -163,6 +233,7 @@ func (h *EmailTemplateHandler) Update(w http.ResponseWriter, r *http.Request) {
 
 	template, err := h.emailTemplateService.Update(
 		emailTemplateUUID,
+		tenant.TenantID,
 		req.Name,
 		req.Subject,
 		req.BodyHtml,
@@ -178,6 +249,26 @@ func (h *EmailTemplateHandler) Update(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *EmailTemplateHandler) Delete(w http.ResponseWriter, r *http.Request) {
+	// Get tenant from context
+	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
+	if !ok || tenant == nil {
+		util.Error(w, http.StatusUnauthorized, "Tenant not found in context")
+		return
+	}
+
+	// Get user from context
+	user, ok := r.Context().Value(middleware.UserContextKey).(*model.User)
+	if !ok || user == nil {
+		util.Error(w, http.StatusUnauthorized, "User not found in context")
+		return
+	}
+
+	// Validate user belongs to tenant
+	if user.TenantID != tenant.TenantID {
+		util.Error(w, http.StatusForbidden, "User does not belong to this tenant")
+		return
+	}
+
 	emailTemplateUUIDStr := chi.URLParam(r, "email_template_uuid")
 
 	emailTemplateUUID, err := uuid.Parse(emailTemplateUUIDStr)
@@ -186,7 +277,7 @@ func (h *EmailTemplateHandler) Delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	template, err := h.emailTemplateService.Delete(emailTemplateUUID)
+	template, err := h.emailTemplateService.Delete(emailTemplateUUID, tenant.TenantID)
 	if err != nil {
 		util.Error(w, http.StatusBadRequest, "Failed to delete email template", err.Error())
 		return
@@ -196,6 +287,26 @@ func (h *EmailTemplateHandler) Delete(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *EmailTemplateHandler) UpdateStatus(w http.ResponseWriter, r *http.Request) {
+	// Get tenant from context
+	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
+	if !ok || tenant == nil {
+		util.Error(w, http.StatusUnauthorized, "Tenant not found in context")
+		return
+	}
+
+	// Get user from context
+	user, ok := r.Context().Value(middleware.UserContextKey).(*model.User)
+	if !ok || user == nil {
+		util.Error(w, http.StatusUnauthorized, "User not found in context")
+		return
+	}
+
+	// Validate user belongs to tenant
+	if user.TenantID != tenant.TenantID {
+		util.Error(w, http.StatusForbidden, "User does not belong to this tenant")
+		return
+	}
+
 	emailTemplateUUIDStr := chi.URLParam(r, "email_template_uuid")
 
 	emailTemplateUUID, err := uuid.Parse(emailTemplateUUIDStr)
@@ -215,7 +326,7 @@ func (h *EmailTemplateHandler) UpdateStatus(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	template, err := h.emailTemplateService.UpdateStatus(emailTemplateUUID, req.Status)
+	template, err := h.emailTemplateService.UpdateStatus(emailTemplateUUID, tenant.TenantID, req.Status)
 	if err != nil {
 		util.Error(w, http.StatusBadRequest, "Failed to update email template status", err.Error())
 		return

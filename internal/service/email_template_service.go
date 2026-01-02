@@ -32,12 +32,12 @@ type EmailTemplateServiceListResult struct {
 }
 
 type EmailTemplateService interface {
-	GetAll(name *string, status []string, isDefault, isSystem *bool, page, limit int, sortBy, sortOrder string) (*EmailTemplateServiceListResult, error)
-	GetByUUID(emailTemplateUUID uuid.UUID) (*EmailTemplateServiceDataResult, error)
-	Create(name, subject, bodyHTML string, bodyPlain *string, status string, isDefault bool) (*EmailTemplateServiceDataResult, error)
-	Update(emailTemplateUUID uuid.UUID, name, subject, bodyHTML string, bodyPlain *string, status string) (*EmailTemplateServiceDataResult, error)
-	UpdateStatus(emailTemplateUUID uuid.UUID, status string) (*EmailTemplateServiceDataResult, error)
-	Delete(emailTemplateUUID uuid.UUID) (*EmailTemplateServiceDataResult, error)
+	GetAll(tenantID int64, name *string, status []string, isDefault, isSystem *bool, page, limit int, sortBy, sortOrder string) (*EmailTemplateServiceListResult, error)
+	GetByUUID(emailTemplateUUID uuid.UUID, tenantID int64) (*EmailTemplateServiceDataResult, error)
+	Create(tenantID int64, name, subject, bodyHTML string, bodyPlain *string, status string, isDefault bool) (*EmailTemplateServiceDataResult, error)
+	Update(emailTemplateUUID uuid.UUID, tenantID int64, name, subject, bodyHTML string, bodyPlain *string, status string) (*EmailTemplateServiceDataResult, error)
+	UpdateStatus(emailTemplateUUID uuid.UUID, tenantID int64, status string) (*EmailTemplateServiceDataResult, error)
+	Delete(emailTemplateUUID uuid.UUID, tenantID int64) (*EmailTemplateServiceDataResult, error)
 }
 
 type emailTemplateService struct {
@@ -55,10 +55,11 @@ func NewEmailTemplateService(
 	}
 }
 
-func (s *emailTemplateService) GetAll(name *string, status []string, isDefault, isSystem *bool, page, limit int, sortBy, sortOrder string) (*EmailTemplateServiceListResult, error) {
+func (s *emailTemplateService) GetAll(tenantID int64, name *string, status []string, isDefault, isSystem *bool, page, limit int, sortBy, sortOrder string) (*EmailTemplateServiceListResult, error) {
 	filter := repository.EmailTemplateRepositoryGetFilter{
 		Name:      name,
 		Status:    status,
+		TenantID:  &tenantID,
 		IsDefault: isDefault,
 		IsSystem:  isSystem,
 		Page:      page,
@@ -86,22 +87,23 @@ func (s *emailTemplateService) GetAll(name *string, status []string, isDefault, 
 	}, nil
 }
 
-func (s *emailTemplateService) GetByUUID(emailTemplateUUID uuid.UUID) (*EmailTemplateServiceDataResult, error) {
-	template, err := s.emailTemplateRepo.FindByUUID(emailTemplateUUID)
+func (s *emailTemplateService) GetByUUID(emailTemplateUUID uuid.UUID, tenantID int64) (*EmailTemplateServiceDataResult, error) {
+	template, err := s.emailTemplateRepo.FindByUUIDAndTenantID(emailTemplateUUID, tenantID)
 	if err != nil {
 		return nil, err
 	}
 
 	if template == nil {
-		return nil, errors.New("email template not found")
+		return nil, errors.New("email template not found or access denied")
 	}
 
 	result := toEmailTemplateServiceDataResult(template)
 	return &result, nil
 }
 
-func (s *emailTemplateService) Create(name, subject, bodyHTML string, bodyPlain *string, status string, isDefault bool) (*EmailTemplateServiceDataResult, error) {
+func (s *emailTemplateService) Create(tenantID int64, name, subject, bodyHTML string, bodyPlain *string, status string, isDefault bool) (*EmailTemplateServiceDataResult, error) {
 	template := &model.EmailTemplate{
+		TenantID:  tenantID,
 		Name:      name,
 		Subject:   subject,
 		BodyHTML:  bodyHTML,
@@ -120,14 +122,14 @@ func (s *emailTemplateService) Create(name, subject, bodyHTML string, bodyPlain 
 	return &result, nil
 }
 
-func (s *emailTemplateService) Update(emailTemplateUUID uuid.UUID, name, subject, bodyHTML string, bodyPlain *string, status string) (*EmailTemplateServiceDataResult, error) {
-	template, err := s.emailTemplateRepo.FindByUUID(emailTemplateUUID)
+func (s *emailTemplateService) Update(emailTemplateUUID uuid.UUID, tenantID int64, name, subject, bodyHTML string, bodyPlain *string, status string) (*EmailTemplateServiceDataResult, error) {
+	template, err := s.emailTemplateRepo.FindByUUIDAndTenantID(emailTemplateUUID, tenantID)
 	if err != nil {
 		return nil, err
 	}
 
 	if template == nil {
-		return nil, errors.New("email template not found")
+		return nil, errors.New("email template not found or access denied")
 	}
 
 	// Prevent updating system templates
@@ -151,14 +153,14 @@ func (s *emailTemplateService) Update(emailTemplateUUID uuid.UUID, name, subject
 	return &result, nil
 }
 
-func (s *emailTemplateService) UpdateStatus(emailTemplateUUID uuid.UUID, status string) (*EmailTemplateServiceDataResult, error) {
-	template, err := s.emailTemplateRepo.FindByUUID(emailTemplateUUID)
+func (s *emailTemplateService) UpdateStatus(emailTemplateUUID uuid.UUID, tenantID int64, status string) (*EmailTemplateServiceDataResult, error) {
+	template, err := s.emailTemplateRepo.FindByUUIDAndTenantID(emailTemplateUUID, tenantID)
 	if err != nil {
 		return nil, err
 	}
 
 	if template == nil {
-		return nil, errors.New("email template not found")
+		return nil, errors.New("email template not found or access denied")
 	}
 
 	// Prevent updating system templates
@@ -177,14 +179,14 @@ func (s *emailTemplateService) UpdateStatus(emailTemplateUUID uuid.UUID, status 
 	return &result, nil
 }
 
-func (s *emailTemplateService) Delete(emailTemplateUUID uuid.UUID) (*EmailTemplateServiceDataResult, error) {
-	template, err := s.emailTemplateRepo.FindByUUID(emailTemplateUUID)
+func (s *emailTemplateService) Delete(emailTemplateUUID uuid.UUID, tenantID int64) (*EmailTemplateServiceDataResult, error) {
+	template, err := s.emailTemplateRepo.FindByUUIDAndTenantID(emailTemplateUUID, tenantID)
 	if err != nil {
 		return nil, err
 	}
 
 	if template == nil {
-		return nil, errors.New("email template not found")
+		return nil, errors.New("email template not found or access denied")
 	}
 
 	// Prevent deleting system templates

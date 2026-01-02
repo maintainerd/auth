@@ -80,7 +80,7 @@ func RunSeeders(db *gorm.DB, appVersion string) error {
 	}
 
 	// 010: Seed email templates
-	if err := seeder.SeedEmailTemplates(db); err != nil {
+	if err := seeder.SeedEmailTemplates(db, tenant.TenantID); err != nil {
 		log.Printf("❌ Failed to seed email templates: %v", err)
 		return err
 	}

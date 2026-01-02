@@ -33,12 +33,12 @@ type LoginTemplateServiceListResult struct {
 }
 
 type LoginTemplateService interface {
-	GetAll(name *string, status []string, template *string, isDefault, isSystem *bool, page, limit int, sortBy, sortOrder string) (*LoginTemplateServiceListResult, error)
-	GetByUUID(loginTemplateUUID uuid.UUID) (*LoginTemplateServiceDataResult, error)
-	Create(name string, description *string, template string, metadata map[string]any, status string) (*LoginTemplateServiceDataResult, error)
-	Update(loginTemplateUUID uuid.UUID, name string, description *string, template string, metadata map[string]any, status string) (*LoginTemplateServiceDataResult, error)
-	UpdateStatus(loginTemplateUUID uuid.UUID, status string) (*LoginTemplateServiceDataResult, error)
-	Delete(loginTemplateUUID uuid.UUID) (*LoginTemplateServiceDataResult, error)
+	GetAll(tenantID int64, name *string, status []string, template *string, isDefault, isSystem *bool, page, limit int, sortBy, sortOrder string) (*LoginTemplateServiceListResult, error)
+	GetByUUID(loginTemplateUUID uuid.UUID, tenantID int64) (*LoginTemplateServiceDataResult, error)
+	Create(tenantID int64, name string, description *string, template string, metadata map[string]any, status string) (*LoginTemplateServiceDataResult, error)
+	Update(loginTemplateUUID uuid.UUID, tenantID int64, name string, description *string, template string, metadata map[string]any, status string) (*LoginTemplateServiceDataResult, error)
+	UpdateStatus(loginTemplateUUID uuid.UUID, tenantID int64, status string) (*LoginTemplateServiceDataResult, error)
+	Delete(loginTemplateUUID uuid.UUID, tenantID int64) (*LoginTemplateServiceDataResult, error)
 }
 
 type loginTemplateService struct {
@@ -51,11 +51,12 @@ func NewLoginTemplateService(loginTemplateRepo repository.LoginTemplateRepositor
 	}
 }
 
-func (s *loginTemplateService) GetAll(name *string, status []string, template *string, isDefault, isSystem *bool, page, limit int, sortBy, sortOrder string) (*LoginTemplateServiceListResult, error) {
+func (s *loginTemplateService) GetAll(tenantID int64, name *string, status []string, template *string, isDefault, isSystem *bool, page, limit int, sortBy, sortOrder string) (*LoginTemplateServiceListResult, error) {
 	filter := repository.LoginTemplateRepositoryGetFilter{
 		Name:      name,
 		Status:    status,
 		Template:  template,
+		TenantID:  &tenantID,
 		IsDefault: isDefault,
 		IsSystem:  isSystem,
 		Page:      page,
@@ -83,21 +84,21 @@ func (s *loginTemplateService) GetAll(name *string, status []string, template *s
 	}, nil
 }
 
-func (s *loginTemplateService) GetByUUID(loginTemplateUUID uuid.UUID) (*LoginTemplateServiceDataResult, error) {
-	template, err := s.loginTemplateRepo.FindByUUID(loginTemplateUUID)
+func (s *loginTemplateService) GetByUUID(loginTemplateUUID uuid.UUID, tenantID int64) (*LoginTemplateServiceDataResult, error) {
+	template, err := s.loginTemplateRepo.FindByUUIDAndTenantID(loginTemplateUUID, tenantID)
 	if err != nil {
 		return nil, err
 	}
 
 	if template == nil {
-		return nil, errors.New("login template not found")
+		return nil, errors.New("login template not found or access denied")
 	}
 
 	result := toLoginTemplateServiceDataResult(template)
 	return &result, nil
 }
 
-func (s *loginTemplateService) Create(name string, description *string, template string, metadata map[string]any, status string) (*LoginTemplateServiceDataResult, error) {
+func (s *loginTemplateService) Create(tenantID int64, name string, description *string, template string, metadata map[string]any, status string) (*LoginTemplateServiceDataResult, error) {
 	var metadataJSON datatypes.JSON
 	if metadata != nil {
 		metadataBytes, err := json.Marshal(metadata)
@@ -110,6 +111,7 @@ func (s *loginTemplateService) Create(name string, description *string, template
 	}
 
 	loginTemplate := &model.LoginTemplate{
+		TenantID:    tenantID,
 		Name:        name,
 		Description: description,
 		Template:    template,
@@ -128,14 +130,14 @@ func (s *loginTemplateService) Create(name string, description *string, template
 	return &result, nil
 }
 
-func (s *loginTemplateService) Update(loginTemplateUUID uuid.UUID, name string, description *string, template string, metadata map[string]any, status string) (*LoginTemplateServiceDataResult, error) {
-	loginTemplate, err := s.loginTemplateRepo.FindByUUID(loginTemplateUUID)
+func (s *loginTemplateService) Update(loginTemplateUUID uuid.UUID, tenantID int64, name string, description *string, template string, metadata map[string]any, status string) (*LoginTemplateServiceDataResult, error) {
+	loginTemplate, err := s.loginTemplateRepo.FindByUUIDAndTenantID(loginTemplateUUID, tenantID)
 	if err != nil {
 		return nil, err
 	}
 
 	if loginTemplate == nil {
-		return nil, errors.New("login template not found")
+		return nil, errors.New("login template not found or access denied")
 	}
 
 	// Prevent updating system templates
@@ -170,14 +172,14 @@ func (s *loginTemplateService) Update(loginTemplateUUID uuid.UUID, name string, 
 	return &result, nil
 }
 
-func (s *loginTemplateService) UpdateStatus(loginTemplateUUID uuid.UUID, status string) (*LoginTemplateServiceDataResult, error) {
-	template, err := s.loginTemplateRepo.FindByUUID(loginTemplateUUID)
+func (s *loginTemplateService) UpdateStatus(loginTemplateUUID uuid.UUID, tenantID int64, status string) (*LoginTemplateServiceDataResult, error) {
+	template, err := s.loginTemplateRepo.FindByUUIDAndTenantID(loginTemplateUUID, tenantID)
 	if err != nil {
 		return nil, err
 	}
 
 	if template == nil {
-		return nil, errors.New("login template not found")
+		return nil, errors.New("login template not found or access denied")
 	}
 
 	// Prevent updating system templates
@@ -196,14 +198,14 @@ func (s *loginTemplateService) UpdateStatus(loginTemplateUUID uuid.UUID, status 
 	return &result, nil
 }
 
-func (s *loginTemplateService) Delete(loginTemplateUUID uuid.UUID) (*LoginTemplateServiceDataResult, error) {
-	template, err := s.loginTemplateRepo.FindByUUID(loginTemplateUUID)
+func (s *loginTemplateService) Delete(loginTemplateUUID uuid.UUID, tenantID int64) (*LoginTemplateServiceDataResult, error) {
+	template, err := s.loginTemplateRepo.FindByUUIDAndTenantID(loginTemplateUUID, tenantID)
 	if err != nil {
 		return nil, err
 	}
 
 	if template == nil {
-		return nil, errors.New("login template not found")
+		return nil, errors.New("login template not found or access denied")
 	}
 
 	// Prevent deleting system templates

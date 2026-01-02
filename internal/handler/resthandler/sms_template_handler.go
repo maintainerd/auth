@@ -8,6 +8,8 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/dto"
+	"github.com/maintainerd/auth/internal/middleware"
+	"github.com/maintainerd/auth/internal/model"
 	"github.com/maintainerd/auth/internal/service"
 	"github.com/maintainerd/auth/internal/util"
 )
@@ -23,6 +25,12 @@ func NewSmsTemplateHandler(smsTemplateService service.SmsTemplateService) *SmsTe
 }
 
 func (h *SmsTemplateHandler) GetAll(w http.ResponseWriter, r *http.Request) {
+	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
+	if !ok || tenant == nil {
+		util.Error(w, http.StatusUnauthorized, "Unauthorized")
+		return
+	}
+
 	q := r.URL.Query()
 
 	// Parse pagination
@@ -68,7 +76,7 @@ func (h *SmsTemplateHandler) GetAll(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	result, err := h.smsTemplateService.GetAll(filter.Name, filter.Status, filter.IsDefault, filter.IsSystem, filter.Page, filter.Limit, filter.SortBy, filter.SortOrder)
+	result, err := h.smsTemplateService.GetAll(tenant.TenantID, filter.Name, filter.Status, filter.IsDefault, filter.IsSystem, filter.Page, filter.Limit, filter.SortBy, filter.SortOrder)
 	if err != nil {
 		util.Error(w, http.StatusInternalServerError, "Failed to get SMS templates", err.Error())
 		return
@@ -86,6 +94,23 @@ func (h *SmsTemplateHandler) GetAll(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *SmsTemplateHandler) Get(w http.ResponseWriter, r *http.Request) {
+	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
+	if !ok || tenant == nil {
+		util.Error(w, http.StatusUnauthorized, "Unauthorized")
+		return
+	}
+
+	user, ok := r.Context().Value(middleware.UserContextKey).(*model.User)
+	if !ok || user == nil {
+		util.Error(w, http.StatusUnauthorized, "Unauthorized")
+		return
+	}
+
+	if user.TenantID != tenant.TenantID {
+		util.Error(w, http.StatusForbidden, "Forbidden")
+		return
+	}
+
 	smsTemplateUUIDStr := chi.URLParam(r, "sms_template_uuid")
 
 	smsTemplateUUID, err := uuid.Parse(smsTemplateUUIDStr)
@@ -94,7 +119,7 @@ func (h *SmsTemplateHandler) Get(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	template, err := h.smsTemplateService.GetByUUID(smsTemplateUUID)
+	template, err := h.smsTemplateService.GetByUUID(smsTemplateUUID, tenant.TenantID)
 	if err != nil {
 		util.Error(w, http.StatusNotFound, "SMS template not found")
 		return
@@ -104,6 +129,23 @@ func (h *SmsTemplateHandler) Get(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *SmsTemplateHandler) Create(w http.ResponseWriter, r *http.Request) {
+	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
+	if !ok || tenant == nil {
+		util.Error(w, http.StatusUnauthorized, "Unauthorized")
+		return
+	}
+
+	user, ok := r.Context().Value(middleware.UserContextKey).(*model.User)
+	if !ok || user == nil {
+		util.Error(w, http.StatusUnauthorized, "Unauthorized")
+		return
+	}
+
+	if user.TenantID != tenant.TenantID {
+		util.Error(w, http.StatusForbidden, "Forbidden")
+		return
+	}
+
 	var req dto.SmsTemplateCreateRequestDto
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		util.Error(w, http.StatusBadRequest, "Invalid request", err.Error())
@@ -121,6 +163,7 @@ func (h *SmsTemplateHandler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	template, err := h.smsTemplateService.Create(
+		tenant.TenantID,
 		req.Name,
 		req.Description,
 		req.Message,
@@ -136,6 +179,23 @@ func (h *SmsTemplateHandler) Create(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *SmsTemplateHandler) Update(w http.ResponseWriter, r *http.Request) {
+	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
+	if !ok || tenant == nil {
+		util.Error(w, http.StatusUnauthorized, "Unauthorized")
+		return
+	}
+
+	user, ok := r.Context().Value(middleware.UserContextKey).(*model.User)
+	if !ok || user == nil {
+		util.Error(w, http.StatusUnauthorized, "Unauthorized")
+		return
+	}
+
+	if user.TenantID != tenant.TenantID {
+		util.Error(w, http.StatusForbidden, "Forbidden")
+		return
+	}
+
 	smsTemplateUUIDStr := chi.URLParam(r, "sms_template_uuid")
 
 	smsTemplateUUID, err := uuid.Parse(smsTemplateUUIDStr)
@@ -162,6 +222,7 @@ func (h *SmsTemplateHandler) Update(w http.ResponseWriter, r *http.Request) {
 
 	template, err := h.smsTemplateService.Update(
 		smsTemplateUUID,
+		tenant.TenantID,
 		req.Name,
 		req.Description,
 		req.Message,
@@ -177,6 +238,23 @@ func (h *SmsTemplateHandler) Update(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *SmsTemplateHandler) Delete(w http.ResponseWriter, r *http.Request) {
+	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
+	if !ok || tenant == nil {
+		util.Error(w, http.StatusUnauthorized, "Unauthorized")
+		return
+	}
+
+	user, ok := r.Context().Value(middleware.UserContextKey).(*model.User)
+	if !ok || user == nil {
+		util.Error(w, http.StatusUnauthorized, "Unauthorized")
+		return
+	}
+
+	if user.TenantID != tenant.TenantID {
+		util.Error(w, http.StatusForbidden, "Forbidden")
+		return
+	}
+
 	smsTemplateUUIDStr := chi.URLParam(r, "sms_template_uuid")
 
 	smsTemplateUUID, err := uuid.Parse(smsTemplateUUIDStr)
@@ -185,7 +263,7 @@ func (h *SmsTemplateHandler) Delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	template, err := h.smsTemplateService.Delete(smsTemplateUUID)
+	template, err := h.smsTemplateService.Delete(smsTemplateUUID, tenant.TenantID)
 	if err != nil {
 		util.Error(w, http.StatusBadRequest, "Failed to delete SMS template", err.Error())
 		return
@@ -195,6 +273,23 @@ func (h *SmsTemplateHandler) Delete(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *SmsTemplateHandler) UpdateStatus(w http.ResponseWriter, r *http.Request) {
+	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
+	if !ok || tenant == nil {
+		util.Error(w, http.StatusUnauthorized, "Unauthorized")
+		return
+	}
+
+	user, ok := r.Context().Value(middleware.UserContextKey).(*model.User)
+	if !ok || user == nil {
+		util.Error(w, http.StatusUnauthorized, "Unauthorized")
+		return
+	}
+
+	if user.TenantID != tenant.TenantID {
+		util.Error(w, http.StatusForbidden, "Forbidden")
+		return
+	}
+
 	smsTemplateUUIDStr := chi.URLParam(r, "sms_template_uuid")
 
 	smsTemplateUUID, err := uuid.Parse(smsTemplateUUIDStr)
@@ -214,7 +309,7 @@ func (h *SmsTemplateHandler) UpdateStatus(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	template, err := h.smsTemplateService.UpdateStatus(smsTemplateUUID, req.Status)
+	template, err := h.smsTemplateService.UpdateStatus(smsTemplateUUID, tenant.TenantID, req.Status)
 	if err != nil {
 		util.Error(w, http.StatusBadRequest, "Failed to update SMS template status", err.Error())
 		return

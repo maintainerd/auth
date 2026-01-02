@@ -12,13 +12,13 @@ func CreateAuthLogTable(db *gorm.DB) {
 CREATE TABLE IF NOT EXISTS auth_logs (
     auth_log_id         SERIAL PRIMARY KEY,
     auth_log_uuid       UUID NOT NULL UNIQUE,
+    tenant_id           INTEGER NOT NULL,
     user_id             INTEGER NOT NULL,
     event_type          VARCHAR(100) NOT NULL, -- 'login', 'logout', 'token_refresh', 'password_reset'
     description         TEXT,
     ip_address          VARCHAR(100),
     user_agent          TEXT,
     metadata            JSONB,
-    tenant_id           INTEGER NOT NULL,
     created_at          TIMESTAMPTZ DEFAULT now(),
     updated_at          TIMESTAMPTZ DEFAULT now()
 );
