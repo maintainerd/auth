@@ -15,7 +15,7 @@ import (
 )
 
 type InviteService interface {
-	SendInvite(email string, userID int64, roleUUIDs []string) (*model.Invite, error)
+	SendInvite(tenantID int64, email string, userID int64, roleUUIDs []string) (*model.Invite, error)
 }
 
 type inviteService struct {
@@ -43,6 +43,7 @@ func NewInviteService(
 }
 
 func (s *inviteService) SendInvite(
+	tenantID int64,
 	email string,
 	userID int64,
 	roleUUIDs []string,
@@ -90,6 +91,7 @@ func (s *inviteService) SendInvite(
 		expiresAt := util.TimePtr(time.Now().Add(72 * time.Hour))
 
 		invite = &model.Invite{
+			TenantID:        tenantID,
 			AuthClientID:    authClient.AuthClientID,
 			InvitedEmail:    email,
 			InvitedByUserID: userID,

@@ -32,12 +32,12 @@ type SmsTemplateServiceListResult struct {
 }
 
 type SmsTemplateService interface {
-	GetAll(name *string, status []string, isDefault, isSystem *bool, page, limit int, sortBy, sortOrder string) (*SmsTemplateServiceListResult, error)
-	GetByUUID(smsTemplateUUID uuid.UUID) (*SmsTemplateServiceDataResult, error)
-	Create(name string, description *string, message string, senderID *string, status string) (*SmsTemplateServiceDataResult, error)
-	Update(smsTemplateUUID uuid.UUID, name string, description *string, message string, senderID *string, status string) (*SmsTemplateServiceDataResult, error)
-	UpdateStatus(smsTemplateUUID uuid.UUID, status string) (*SmsTemplateServiceDataResult, error)
-	Delete(smsTemplateUUID uuid.UUID) (*SmsTemplateServiceDataResult, error)
+	GetAll(tenantID int64, name *string, status []string, isDefault, isSystem *bool, page, limit int, sortBy, sortOrder string) (*SmsTemplateServiceListResult, error)
+	GetByUUID(uuid uuid.UUID, tenantID int64) (*SmsTemplateServiceDataResult, error)
+	Create(tenantID int64, name string, description *string, message string, senderID *string, status string) (*SmsTemplateServiceDataResult, error)
+	Update(uuid uuid.UUID, tenantID int64, name string, description *string, message string, senderID *string, status string) (*SmsTemplateServiceDataResult, error)
+	UpdateStatus(uuid uuid.UUID, tenantID int64, status string) (*SmsTemplateServiceDataResult, error)
+	Delete(uuid uuid.UUID, tenantID int64) (*SmsTemplateServiceDataResult, error)
 }
 
 type smsTemplateService struct {
@@ -55,8 +55,9 @@ func NewSmsTemplateService(
 	}
 }
 
-func (s *smsTemplateService) GetAll(name *string, status []string, isDefault, isSystem *bool, page, limit int, sortBy, sortOrder string) (*SmsTemplateServiceListResult, error) {
+func (s *smsTemplateService) GetAll(tenantID int64, name *string, status []string, isDefault, isSystem *bool, page, limit int, sortBy, sortOrder string) (*SmsTemplateServiceListResult, error) {
 	filter := repository.SmsTemplateRepositoryGetFilter{
+		TenantID:  &tenantID,
 		Name:      name,
 		Status:    status,
 		IsDefault: isDefault,
@@ -86,22 +87,23 @@ func (s *smsTemplateService) GetAll(name *string, status []string, isDefault, is
 	}, nil
 }
 
-func (s *smsTemplateService) GetByUUID(smsTemplateUUID uuid.UUID) (*SmsTemplateServiceDataResult, error) {
-	template, err := s.smsTemplateRepo.FindByUUID(smsTemplateUUID)
+func (s *smsTemplateService) GetByUUID(smsTemplateUUID uuid.UUID, tenantID int64) (*SmsTemplateServiceDataResult, error) {
+	template, err := s.smsTemplateRepo.FindByUUIDAndTenantID(smsTemplateUUID.String(), tenantID)
 	if err != nil {
 		return nil, err
 	}
 
 	if template == nil {
-		return nil, errors.New("SMS template not found")
+		return nil, errors.New("SMS template not found or access denied")
 	}
 
 	result := toSmsTemplateServiceDataResult(template)
 	return &result, nil
 }
 
-func (s *smsTemplateService) Create(name string, description *string, message string, senderID *string, status string) (*SmsTemplateServiceDataResult, error) {
+func (s *smsTemplateService) Create(tenantID int64, name string, description *string, message string, senderID *string, status string) (*SmsTemplateServiceDataResult, error) {
 	template := &model.SmsTemplate{
+		TenantID:    tenantID,
 		Name:        name,
 		Description: description,
 		Message:     message,
@@ -120,14 +122,14 @@ func (s *smsTemplateService) Create(name string, description *string, message st
 	return &result, nil
 }
 
-func (s *smsTemplateService) Update(smsTemplateUUID uuid.UUID, name string, description *string, message string, senderID *string, status string) (*SmsTemplateServiceDataResult, error) {
-	template, err := s.smsTemplateRepo.FindByUUID(smsTemplateUUID)
+func (s *smsTemplateService) Update(smsTemplateUUID uuid.UUID, tenantID int64, name string, description *string, message string, senderID *string, status string) (*SmsTemplateServiceDataResult, error) {
+	template, err := s.smsTemplateRepo.FindByUUIDAndTenantID(smsTemplateUUID.String(), tenantID)
 	if err != nil {
 		return nil, err
 	}
 
 	if template == nil {
-		return nil, errors.New("SMS template not found")
+		return nil, errors.New("SMS template not found or access denied")
 	}
 
 	// Prevent updating system templates
@@ -151,14 +153,14 @@ func (s *smsTemplateService) Update(smsTemplateUUID uuid.UUID, name string, desc
 	return &result, nil
 }
 
-func (s *smsTemplateService) UpdateStatus(smsTemplateUUID uuid.UUID, status string) (*SmsTemplateServiceDataResult, error) {
-	template, err := s.smsTemplateRepo.FindByUUID(smsTemplateUUID)
+func (s *smsTemplateService) UpdateStatus(smsTemplateUUID uuid.UUID, tenantID int64, status string) (*SmsTemplateServiceDataResult, error) {
+	template, err := s.smsTemplateRepo.FindByUUIDAndTenantID(smsTemplateUUID.String(), tenantID)
 	if err != nil {
 		return nil, err
 	}
 
 	if template == nil {
-		return nil, errors.New("SMS template not found")
+		return nil, errors.New("SMS template not found or access denied")
 	}
 
 	// Prevent updating system templates
@@ -177,14 +179,14 @@ func (s *smsTemplateService) UpdateStatus(smsTemplateUUID uuid.UUID, status stri
 	return &result, nil
 }
 
-func (s *smsTemplateService) Delete(smsTemplateUUID uuid.UUID) (*SmsTemplateServiceDataResult, error) {
-	template, err := s.smsTemplateRepo.FindByUUID(smsTemplateUUID)
+func (s *smsTemplateService) Delete(smsTemplateUUID uuid.UUID, tenantID int64) (*SmsTemplateServiceDataResult, error) {
+	template, err := s.smsTemplateRepo.FindByUUIDAndTenantID(smsTemplateUUID.String(), tenantID)
 	if err != nil {
 		return nil, err
 	}
 
 	if template == nil {
-		return nil, errors.New("SMS template not found")
+		return nil, errors.New("SMS template not found or access denied")
 	}
 
 	// Prevent deleting system templates

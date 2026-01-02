@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/model"
 	"gorm.io/gorm"
 )
@@ -9,6 +10,7 @@ type LoginTemplateRepositoryGetFilter struct {
 	Name      *string
 	Status    []string
 	Template  *string
+	TenantID  *int64
 	IsDefault *bool
 	IsSystem  *bool
 	Page      int
@@ -19,6 +21,7 @@ type LoginTemplateRepositoryGetFilter struct {
 
 type LoginTemplateRepository interface {
 	BaseRepositoryMethods[model.LoginTemplate]
+	FindByUUIDAndTenantID(loginTemplateUUID uuid.UUID, tenantID int64, preloads ...string) (*model.LoginTemplate, error)
 	FindByName(name string) (*model.LoginTemplate, error)
 	FindPaginated(filter LoginTemplateRepositoryGetFilter) (*PaginationResult[model.LoginTemplate], error)
 }
@@ -33,6 +36,25 @@ func NewLoginTemplateRepository(db *gorm.DB) LoginTemplateRepository {
 		BaseRepository: NewBaseRepository[model.LoginTemplate](db, "login_template_uuid", "login_template_id"),
 		db:             db,
 	}
+}
+
+// FindByUUIDAndTenantID retrieves a login template by UUID and tenant ID
+func (r *loginTemplateRepository) FindByUUIDAndTenantID(loginTemplateUUID uuid.UUID, tenantID int64, preloads ...string) (*model.LoginTemplate, error) {
+	var template model.LoginTemplate
+	query := r.db.Where("login_template_uuid = ? AND tenant_id = ?", loginTemplateUUID, tenantID)
+
+	for _, preload := range preloads {
+		query = query.Preload(preload)
+	}
+
+	err := query.First(&template).Error
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &template, nil
 }
 
 // FindByName retrieves an active login template by its name
@@ -60,6 +82,9 @@ func (r *loginTemplateRepository) FindPaginated(filter LoginTemplateRepositoryGe
 	}
 	if filter.Template != nil && *filter.Template != "" {
 		query = query.Where("template = ?", *filter.Template)
+	}
+	if filter.TenantID != nil {
+		query = query.Where("tenant_id = ?", *filter.TenantID)
 	}
 	if filter.IsDefault != nil {
 		query = query.Where("is_default = ?", *filter.IsDefault)
