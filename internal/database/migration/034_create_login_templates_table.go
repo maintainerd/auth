@@ -12,6 +12,7 @@ func CreateLoginTemplatesTable(db *gorm.DB) {
 CREATE TABLE IF NOT EXISTS login_templates (
     login_template_id   SERIAL PRIMARY KEY,
     login_template_uuid UUID NOT NULL UNIQUE,
+    tenant_id           BIGINT NOT NULL,
     name                VARCHAR(100) NOT NULL UNIQUE,
     description         TEXT,
     template            VARCHAR(20) NOT NULL,
@@ -26,6 +27,14 @@ CREATE TABLE IF NOT EXISTS login_templates (
 -- ADD CONSTRAINTS
 DO $$
 BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint WHERE conname = 'fk_login_templates_tenant_id'
+    ) THEN
+        ALTER TABLE login_templates
+            ADD CONSTRAINT fk_login_templates_tenant_id FOREIGN KEY (tenant_id)
+            REFERENCES tenants(tenant_id) ON DELETE CASCADE;
+    END IF;
+
     IF NOT EXISTS (
         SELECT 1 FROM pg_constraint WHERE conname = 'chk_login_templates_status'
     ) THEN
@@ -43,6 +52,7 @@ END$$;
 
 -- CREATE INDEXES
 CREATE INDEX IF NOT EXISTS idx_login_templates_uuid ON login_templates (login_template_uuid);
+CREATE INDEX IF NOT EXISTS idx_login_templates_tenant_id ON login_templates (tenant_id);
 CREATE INDEX IF NOT EXISTS idx_login_templates_name ON login_templates (name);
 CREATE INDEX IF NOT EXISTS idx_login_templates_status ON login_templates (status);
 CREATE INDEX IF NOT EXISTS idx_login_templates_is_default ON login_templates (is_default);

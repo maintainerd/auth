@@ -8,15 +8,17 @@ import (
 	"gorm.io/gorm"
 )
 
-func SeedEmailTemplates(db *gorm.DB) error {
+func SeedEmailTemplates(db *gorm.DB, tenantID int64) error {
 	templates := []model.EmailTemplate{
 		newEmailTemplate(
+			tenantID,
 			"internal:user:invite",
 			"You're Invited to Join Our Organization!",
 			emailtemplate.InviteEmailHTML,
 			`You're invited to join our organization. Accept the invite: {{.InviteURL}}`,
 		),
 		newEmailTemplate(
+			tenantID,
 			"internal:user:password:reset",
 			"Password Reset Request",
 			emailtemplate.ForgotPasswordEmailHTML,
@@ -42,8 +44,9 @@ func SeedEmailTemplates(db *gorm.DB) error {
 	return nil
 }
 
-func newEmailTemplate(name, subject, bodyHTML, bodyPlain string) model.EmailTemplate {
+func newEmailTemplate(tenantID int64, name, subject, bodyHTML, bodyPlain string) model.EmailTemplate {
 	return model.EmailTemplate{
+		TenantID:  tenantID,
 		Name:      name,
 		Subject:   subject,
 		BodyHTML:  bodyHTML,

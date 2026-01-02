@@ -10,6 +10,7 @@ import (
 type SmsTemplate struct {
 	SmsTemplateID   int64     `gorm:"column:sms_template_id;primaryKey"`
 	SmsTemplateUUID uuid.UUID `gorm:"column:sms_template_uuid;unique"`
+	TenantID        int64     `gorm:"column:tenant_id;not null"`
 	Name            string    `gorm:"column:name;unique"`
 	Description     *string   `gorm:"column:description"`
 	Message         string    `gorm:"column:message"`

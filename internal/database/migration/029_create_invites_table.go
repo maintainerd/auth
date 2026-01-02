@@ -12,6 +12,7 @@ func CreateInvitesTable(db *gorm.DB) {
 CREATE TABLE IF NOT EXISTS invites (
     invite_id           SERIAL PRIMARY KEY,
     invite_uuid         UUID NOT NULL UNIQUE,
+    tenant_id           BIGINT NOT NULL,
     auth_client_id      INTEGER NOT NULL,
     invited_email       VARCHAR(255) NOT NULL,
     invited_by_user_id  INTEGER NOT NULL,
@@ -26,6 +27,14 @@ CREATE TABLE IF NOT EXISTS invites (
 -- ADD CONSTRAINTS
 DO $$
 BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint WHERE conname = 'fk_invites_tenant_id'
+    ) THEN
+        ALTER TABLE invites
+            ADD CONSTRAINT fk_invites_tenant_id FOREIGN KEY (tenant_id)
+            REFERENCES tenants(tenant_id) ON DELETE CASCADE;
+    END IF;
+
     IF NOT EXISTS (
         SELECT 1 FROM pg_constraint WHERE conname = 'fk_invites_auth_client_id'
     ) THEN
@@ -45,6 +54,7 @@ END$$;
 
 -- ADD INDEXES
 CREATE INDEX IF NOT EXISTS idx_invites_uuid ON invites (invite_uuid);
+CREATE INDEX IF NOT EXISTS idx_invites_tenant_id ON invites (tenant_id);
 CREATE INDEX IF NOT EXISTS idx_invites_auth_client_id ON invites (auth_client_id);
 CREATE INDEX IF NOT EXISTS idx_invites_email ON invites (invited_email);
 CREATE INDEX IF NOT EXISTS idx_invites_invited_by_user_id ON invites (invited_by_user_id);
