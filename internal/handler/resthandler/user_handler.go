@@ -28,6 +28,13 @@ func NewUserHandler(userService service.UserService) *UserHandler {
 
 // Get users with pagination and filtering
 func (h *UserHandler) GetUsers(w http.ResponseWriter, r *http.Request) {
+	// Get tenant from context
+	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
+	if !ok || tenant == nil {
+		util.Error(w, http.StatusUnauthorized, "Tenant not found in context")
+		return
+	}
+
 	q := r.URL.Query()
 
 	// Parse pagination
@@ -40,12 +47,6 @@ func (h *UserHandler) GetUsers(w http.ResponseWriter, r *http.Request) {
 		status = append(status, v)
 	}
 
-	// Parse tenant UUID safely
-	var tenantUUID *string
-	if v := q.Get("tenant_id"); v != "" {
-		tenantUUID = &v
-	}
-
 	// Parse role UUID safely
 	var roleUUID *string
 	if v := q.Get("role_id"); v != "" {
@@ -54,12 +55,11 @@ func (h *UserHandler) GetUsers(w http.ResponseWriter, r *http.Request) {
 
 	// Build request DTO (for validation)
 	reqParams := dto.UserFilterDto{
-		Username:   util.PtrOrNil(q.Get("username")),
-		Email:      util.PtrOrNil(q.Get("email")),
-		Phone:      util.PtrOrNil(q.Get("phone")),
-		Status:     status,
-		TenantUUID: tenantUUID,
-		RoleUUID:   roleUUID,
+		Username: util.PtrOrNil(q.Get("username")),
+		Email:    util.PtrOrNil(q.Get("email")),
+		Phone:    util.PtrOrNil(q.Get("phone")),
+		Status:   status,
+		RoleUUID: roleUUID,
 		PaginationRequestDto: dto.PaginationRequestDto{
 			Page:      page,
 			Limit:     limit,
@@ -75,16 +75,16 @@ func (h *UserHandler) GetUsers(w http.ResponseWriter, r *http.Request) {
 
 	// Convert to service filter
 	filter := service.UserServiceGetFilter{
-		Username:   reqParams.Username,
-		Email:      reqParams.Email,
-		Phone:      reqParams.Phone,
-		Status:     reqParams.Status,
-		TenantUUID: reqParams.TenantUUID,
-		RoleUUID:   reqParams.RoleUUID,
-		Page:       reqParams.PaginationRequestDto.Page,
-		Limit:      reqParams.PaginationRequestDto.Limit,
-		SortBy:     reqParams.PaginationRequestDto.SortBy,
-		SortOrder:  reqParams.PaginationRequestDto.SortOrder,
+		Username:  reqParams.Username,
+		Email:     reqParams.Email,
+		Phone:     reqParams.Phone,
+		Status:    reqParams.Status,
+		TenantID:  tenant.TenantID,
+		RoleUUID:  reqParams.RoleUUID,
+		Page:      reqParams.PaginationRequestDto.Page,
+		Limit:     reqParams.PaginationRequestDto.Limit,
+		SortBy:    reqParams.PaginationRequestDto.SortBy,
+		SortOrder: reqParams.PaginationRequestDto.SortOrder,
 	}
 
 	// Get users
@@ -114,6 +114,13 @@ func (h *UserHandler) GetUsers(w http.ResponseWriter, r *http.Request) {
 
 // Get user by UUID
 func (h *UserHandler) GetUser(w http.ResponseWriter, r *http.Request) {
+	// Get tenant from context
+	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
+	if !ok || tenant == nil {
+		util.Error(w, http.StatusUnauthorized, "Tenant not found in context")
+		return
+	}
+
 	userUUIDStr := chi.URLParam(r, "user_uuid")
 	userUUID, err := uuid.Parse(userUUIDStr)
 	if err != nil {
@@ -121,7 +128,7 @@ func (h *UserHandler) GetUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user, err := h.userService.GetByUUID(userUUID)
+	user, err := h.userService.GetByUUID(userUUID, tenant.TenantID)
 	if err != nil {
 		util.Error(w, http.StatusNotFound, "User not found")
 		return
@@ -138,6 +145,19 @@ func (h *UserHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
 	// Get authentication context
 	creatorUser := r.Context().Value(middleware.UserContextKey).(*model.User)
 
+	// Get tenant from context
+	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
+	if !ok || tenant == nil {
+		util.Error(w, http.StatusUnauthorized, "Tenant not found in context")
+		return
+	}
+
+	// Validate user belongs to the tenant
+	if creatorUser.TenantID != tenant.TenantID {
+		util.Error(w, http.StatusForbidden, "User does not belong to this tenant")
+		return
+	}
+
 	var req dto.UserCreateRequestDto
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		util.Error(w, http.StatusBadRequest, "Invalid JSON format")
@@ -151,7 +171,7 @@ func (h *UserHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Create user with creator context
-	user, err := h.userService.Create(req.Username, req.Fullname, req.Email, req.Phone, req.Password, req.Status, req.Metadata, req.TenantUUID, creatorUser.UserUUID)
+	user, err := h.userService.Create(req.Username, req.Fullname, req.Email, req.Phone, req.Password, req.Status, req.Metadata, tenant.TenantUUID.String(), creatorUser.UserUUID)
 	if err != nil {
 		util.Error(w, http.StatusInternalServerError, "Failed to create user", err.Error())
 		return
@@ -167,6 +187,19 @@ func (h *UserHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
 func (h *UserHandler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 	// Get authentication context
 	updaterUser := r.Context().Value(middleware.UserContextKey).(*model.User)
+
+	// Get tenant from context
+	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
+	if !ok || tenant == nil {
+		util.Error(w, http.StatusUnauthorized, "Tenant not found in context")
+		return
+	}
+
+	// Validate user belongs to the tenant
+	if updaterUser.TenantID != tenant.TenantID {
+		util.Error(w, http.StatusForbidden, "User does not belong to this tenant")
+		return
+	}
 
 	userUUIDStr := chi.URLParam(r, "user_uuid")
 	userUUID, err := uuid.Parse(userUUIDStr)
@@ -187,8 +220,8 @@ func (h *UserHandler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Update user
-	user, err := h.userService.Update(userUUID, req.Username, req.Fullname, req.Email, req.Phone, req.Status, req.Metadata, updaterUser.UserUUID)
+	// Update user (service validates tenant ownership)
+	user, err := h.userService.Update(userUUID, tenant.TenantID, req.Username, req.Fullname, req.Email, req.Phone, req.Status, req.Metadata, updaterUser.UserUUID)
 	if err != nil {
 		util.Error(w, http.StatusInternalServerError, "Failed to update user", err.Error())
 		return
@@ -204,6 +237,19 @@ func (h *UserHandler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 func (h *UserHandler) SetUserStatus(w http.ResponseWriter, r *http.Request) {
 	// Get authentication context
 	updaterUser := r.Context().Value(middleware.UserContextKey).(*model.User)
+
+	// Get tenant from context
+	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
+	if !ok || tenant == nil {
+		util.Error(w, http.StatusUnauthorized, "Tenant not found in context")
+		return
+	}
+
+	// Validate user belongs to the tenant
+	if updaterUser.TenantID != tenant.TenantID {
+		util.Error(w, http.StatusForbidden, "User does not belong to this tenant")
+		return
+	}
 
 	userUUIDStr := chi.URLParam(r, "user_uuid")
 	userUUID, err := uuid.Parse(userUUIDStr)
@@ -224,8 +270,8 @@ func (h *UserHandler) SetUserStatus(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Update user status
-	user, err := h.userService.SetStatus(userUUID, req.Status, updaterUser.UserUUID)
+	// Update user status (service validates tenant ownership)
+	user, err := h.userService.SetStatus(userUUID, tenant.TenantID, req.Status, updaterUser.UserUUID)
 	if err != nil {
 		util.Error(w, http.StatusInternalServerError, "Failed to update user status", err.Error())
 		return
@@ -299,6 +345,19 @@ func (h *UserHandler) DeleteUser(w http.ResponseWriter, r *http.Request) {
 	// Get authentication context
 	deleterUser := r.Context().Value(middleware.UserContextKey).(*model.User)
 
+	// Get tenant from context
+	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
+	if !ok || tenant == nil {
+		util.Error(w, http.StatusUnauthorized, "Tenant not found in context")
+		return
+	}
+
+	// Validate user belongs to the tenant
+	if deleterUser.TenantID != tenant.TenantID {
+		util.Error(w, http.StatusForbidden, "User does not belong to this tenant")
+		return
+	}
+
 	userUUIDStr := chi.URLParam(r, "user_uuid")
 	userUUID, err := uuid.Parse(userUUIDStr)
 	if err != nil {
@@ -306,8 +365,8 @@ func (h *UserHandler) DeleteUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Delete user
-	user, err := h.userService.DeleteByUUID(userUUID, deleterUser.UserUUID)
+	// Delete user (service validates tenant ownership)
+	user, err := h.userService.DeleteByUUID(userUUID, tenant.TenantID, deleterUser.UserUUID)
 	if err != nil {
 		util.Error(w, http.StatusInternalServerError, "Failed to delete user", err.Error())
 		return
@@ -452,8 +511,15 @@ func (h *UserHandler) GetUserRoles(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Get tenant from context
+	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
+	if !ok || tenant == nil {
+		util.Error(w, http.StatusUnauthorized, "Tenant not found in context")
+		return
+	}
+
 	// Get user to verify it exists
-	user, err := h.userService.GetByUUID(userUUID)
+	user, err := h.userService.GetByUUID(userUUID, tenant.TenantID)
 	if err != nil {
 		util.Error(w, http.StatusNotFound, "User not found")
 		return
@@ -558,8 +624,15 @@ func (h *UserHandler) GetUserIdentities(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
+	// Get tenant from context
+	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
+	if !ok || tenant == nil {
+		util.Error(w, http.StatusUnauthorized, "Tenant not found in context")
+		return
+	}
+
 	// Get user to verify it exists
-	user, err := h.userService.GetByUUID(userUUID)
+	user, err := h.userService.GetByUUID(userUUID, tenant.TenantID)
 	if err != nil {
 		util.Error(w, http.StatusNotFound, "User not found")
 		return
