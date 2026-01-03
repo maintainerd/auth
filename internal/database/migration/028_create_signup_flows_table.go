@@ -53,8 +53,8 @@ CREATE INDEX IF NOT EXISTS idx_signup_flow_auth_client_id ON signup_flows (auth_
 CREATE INDEX IF NOT EXISTS idx_signup_flow_created_at ON signup_flows (created_at);
 `
 	if err := db.Exec(sql).Error; err != nil {
-		log.Fatalf("❌ Failed to run migration 027_create_signup_flows_table: %v", err)
+		log.Fatalf("❌ Failed to run migration 028_create_signup_flows_table: %v", err)
 	}
 
-	log.Println("✅ Migration 027_create_signup_flows_table executed")
+	log.Println("✅ Migration 028_create_signup_flows_table executed")
 }

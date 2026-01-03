@@ -72,8 +72,8 @@ CREATE INDEX IF NOT EXISTS idx_tenant_members_user_id ON tenant_members (user_id
 CREATE INDEX IF NOT EXISTS idx_tenant_members_created_at ON tenant_members (created_at);
 `
 	if err := db.Exec(sql).Error; err != nil {
-		log.Fatalf("❌ Failed to run migration 026_create_tenant_members_table: %v", err)
+		log.Fatalf("❌ Failed to run migration 027_create_tenant_members_table: %v", err)
 	}
 
-	log.Println("✅ Migration 026_create_tenant_members_table executed")
+	log.Println("✅ Migration 027_create_tenant_members_table executed")
 }

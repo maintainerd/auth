@@ -31,16 +31,17 @@ func RunMigrations(db *gorm.DB) {
 	migration.CreateUserTokenTable(db)             // 023
 	migration.CreateUserSettingsTable(db)          // 024
 	migration.CreateProfileTable(db)               // 025
-	migration.CreateTenantMembersTable(db)         // 026
-	migration.CreateSignupFlowTable(db)            // 027
-	migration.CreateSignupFlowRoleTable(db)        // 028
-	migration.CreateInvitesTable(db)               // 029
-	migration.CreateInviteRolesTable(db)           // 030
-	migration.CreateSecuritySettingsTable(db)      // 031
-	migration.CreateIpRestrictionRulesTable(db)    // 032
-	migration.CreateSecuritySettingsAuditTable(db) // 033
-	migration.CreateLoginTemplatesTable(db)        // 034
-	migration.CreateEmailTemplatesTable(db)        // 035
-	migration.CreateSmsTemplatesTable(db)          // 036
-	migration.CreateAuthLogTable(db)               // 037
+	migration.CreateTenantUsersTable(db)           // 026
+	migration.CreateTenantMembersTable(db)         // 027
+	migration.CreateSignupFlowTable(db)            // 028
+	migration.CreateSignupFlowRoleTable(db)        // 029
+	migration.CreateInvitesTable(db)               // 030
+	migration.CreateInviteRolesTable(db)           // 031
+	migration.CreateSecuritySettingsTable(db)      // 032
+	migration.CreateIpRestrictionRulesTable(db)    // 033
+	migration.CreateSecuritySettingsAuditTable(db) // 034
+	migration.CreateLoginTemplatesTable(db)        // 035
+	migration.CreateEmailTemplatesTable(db)        // 036
+	migration.CreateSmsTemplatesTable(db)          // 037
+	migration.CreateAuthLogTable(db)               // 038
 }
