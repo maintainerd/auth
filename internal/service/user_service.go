@@ -241,7 +241,7 @@ func (s *userService) Create(username string, fullname string, email *string, ph
 		}
 
 		// Get creator user with tenant info
-		creatorUser, err := txUserRepo.FindByUUID(creatorUserUUID, "Tenant")
+		creatorUser, err := txUserRepo.FindByUUID(creatorUserUUID, "UserIdentities.Tenant")
 		if err != nil || creatorUser == nil {
 			return errors.New("creator user not found")
 		}
@@ -353,7 +353,7 @@ func (s *userService) Create(username string, fullname string, email *string, ph
 		}
 
 		// Fetch created user with relationships
-		createdUser, err = txUserRepo.FindByUUID(newUser.UserUUID, "Tenant", "UserIdentities.AuthClient", "Roles")
+		createdUser, err = txUserRepo.FindByUUID(newUser.UserUUID, "UserIdentities.AuthClient", "UserIdentities.Tenant", "Roles")
 		if err != nil {
 			return err
 		}
@@ -393,7 +393,7 @@ func (s *userService) Update(userUUID uuid.UUID, tenantID int64, username string
 		}
 
 		// Get updater user with tenant info
-		updaterUser, err := txUserRepo.FindByUUID(updaterUserUUID, "Tenant")
+		updaterUser, err := txUserRepo.FindByUUID(updaterUserUUID, "UserIdentities.Tenant")
 		if err != nil || updaterUser == nil {
 			return errors.New("updater user not found")
 		}
@@ -458,7 +458,7 @@ func (s *userService) Update(userUUID uuid.UUID, tenantID int64, username string
 		}
 
 		// Fetch updated user with relationships
-		updatedUser, err = txUserRepo.FindByUUID(userUUID, "Tenant", "UserIdentities.AuthClient", "Roles")
+		updatedUser, err = txUserRepo.FindByUUID(userUUID, "UserIdentities.AuthClient", "UserIdentities.Tenant", "Roles")
 		if err != nil {
 			return err
 		}
@@ -493,7 +493,7 @@ func (s *userService) SetStatus(userUUID uuid.UUID, tenantID int64, status strin
 	}
 
 	// Get updater user with tenant info
-	updaterUser, err := s.userRepo.FindByUUID(updaterUserUUID, "Tenant")
+	updaterUser, err := s.userRepo.FindByUUID(updaterUserUUID, "UserIdentities.Tenant")
 	if err != nil || updaterUser == nil {
 		return nil, errors.New("updater user not found")
 	}
@@ -512,7 +512,7 @@ func (s *userService) SetStatus(userUUID uuid.UUID, tenantID int64, status strin
 	}
 
 	// Fetch updated user with relationships
-	updatedUser, err := s.userRepo.FindByUUID(userUUID, "Tenant", "UserIdentities.AuthClient", "Roles")
+	updatedUser, err := s.userRepo.FindByUUID(userUUID, "UserIdentities.AuthClient", "UserIdentities.Tenant", "Roles")
 	if err != nil {
 		return nil, err
 	}
@@ -522,7 +522,7 @@ func (s *userService) SetStatus(userUUID uuid.UUID, tenantID int64, status strin
 
 func (s *userService) VerifyEmail(userUUID uuid.UUID, tenantID int64) (*UserServiceDataResult, error) {
 	// Check if target user exists and preload identities for tenant validation
-	user, err := s.userRepo.FindByUUID(userUUID, "UserIdentities", "Tenant")
+	user, err := s.userRepo.FindByUUID(userUUID, "UserIdentities.Tenant")
 	if err != nil || user == nil {
 		return nil, errors.New("user not found")
 	}
@@ -549,7 +549,7 @@ func (s *userService) VerifyEmail(userUUID uuid.UUID, tenantID int64) (*UserServ
 	}
 
 	// Fetch updated user with relationships
-	updatedUser, err := s.userRepo.FindByUUID(userUUID, "Tenant", "UserIdentities.AuthClient", "Roles")
+	updatedUser, err := s.userRepo.FindByUUID(userUUID, "UserIdentities.AuthClient", "UserIdentities.Tenant", "Roles")
 	if err != nil {
 		return nil, err
 	}
@@ -559,7 +559,7 @@ func (s *userService) VerifyEmail(userUUID uuid.UUID, tenantID int64) (*UserServ
 
 func (s *userService) VerifyPhone(userUUID uuid.UUID, tenantID int64) (*UserServiceDataResult, error) {
 	// Check if target user exists and preload identities for tenant validation
-	user, err := s.userRepo.FindByUUID(userUUID, "UserIdentities", "Tenant")
+	user, err := s.userRepo.FindByUUID(userUUID, "UserIdentities.Tenant")
 	if err != nil || user == nil {
 		return nil, errors.New("user not found")
 	}
@@ -585,7 +585,7 @@ func (s *userService) VerifyPhone(userUUID uuid.UUID, tenantID int64) (*UserServ
 	}
 
 	// Fetch updated user with relationships
-	updatedUser, err := s.userRepo.FindByUUID(userUUID, "Tenant", "UserIdentities.AuthClient", "Roles")
+	updatedUser, err := s.userRepo.FindByUUID(userUUID, "UserIdentities.AuthClient", "UserIdentities.Tenant", "Roles")
 	if err != nil {
 		return nil, err
 	}
@@ -595,7 +595,7 @@ func (s *userService) VerifyPhone(userUUID uuid.UUID, tenantID int64) (*UserServ
 
 func (s *userService) CompleteAccount(userUUID uuid.UUID, tenantID int64) (*UserServiceDataResult, error) {
 	// Check if target user exists and preload identities for tenant validation
-	user, err := s.userRepo.FindByUUID(userUUID, "UserIdentities", "Tenant")
+	user, err := s.userRepo.FindByUUID(userUUID, "UserIdentities.Tenant")
 	if err != nil || user == nil {
 		return nil, errors.New("user not found")
 	}
@@ -621,7 +621,7 @@ func (s *userService) CompleteAccount(userUUID uuid.UUID, tenantID int64) (*User
 	}
 
 	// Fetch updated user with relationships
-	updatedUser, err := s.userRepo.FindByUUID(userUUID, "Tenant", "UserIdentities.AuthClient", "Roles")
+	updatedUser, err := s.userRepo.FindByUUID(userUUID, "UserIdentities.AuthClient", "UserIdentities.Tenant", "Roles")
 	if err != nil {
 		return nil, err
 	}
@@ -649,7 +649,7 @@ func (s *userService) DeleteByUUID(userUUID uuid.UUID, tenantID int64, deleterUs
 	}
 
 	// Get deleter user with tenant info
-	deleterUser, err := s.userRepo.FindByUUID(deleterUserUUID, "Tenant")
+	deleterUser, err := s.userRepo.FindByUUID(deleterUserUUID, "UserIdentities.Tenant")
 	if err != nil || deleterUser == nil {
 		return nil, errors.New("deleter user not found")
 	}
@@ -730,7 +730,7 @@ func (s *userService) AssignUserRoles(userUUID uuid.UUID, roleUUIDs []uuid.UUID,
 		}
 
 		// Fetch user with roles for response
-		userWithRoles, err = txUserRepo.FindByUUID(userUUID, "Tenant", "UserIdentities.AuthClient", "Roles")
+		userWithRoles, err = txUserRepo.FindByUUID(userUUID, "UserIdentities.AuthClient", "UserIdentities.Tenant", "Roles")
 		if err != nil {
 			return err
 		}
@@ -787,7 +787,7 @@ func (s *userService) RemoveUserRole(userUUID uuid.UUID, roleUUID uuid.UUID, ten
 		}
 
 		// Fetch user with roles for response
-		userWithRoles, err = txUserRepo.FindByUUID(userUUID, "Tenant", "UserIdentities.AuthClient", "Roles")
+		userWithRoles, err = txUserRepo.FindByUUID(userUUID, "UserIdentities.AuthClient", "UserIdentities.Tenant", "Roles")
 		if err != nil {
 			return err
 		}
@@ -825,7 +825,7 @@ func toUserServiceDataResult(user *model.User) *UserServiceDataResult {
 	}
 
 	// Map Tenant if present - get from UserIdentities
-	if len(user.UserIdentities) > 0 {
+	if len(user.UserIdentities) > 0 && user.UserIdentities[0].Tenant != nil {
 		result.Tenant = toTenantServiceDataResult(user.UserIdentities[0].Tenant)
 	}
 
@@ -915,3 +915,4 @@ func (s *userService) GetUserIdentities(userUUID uuid.UUID) ([]UserIdentityServi
 
 	return result, nil
 }
+
