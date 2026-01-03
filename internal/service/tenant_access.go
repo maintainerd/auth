@@ -10,39 +10,80 @@ import (
 // Rules:
 // - Users from default tenant can access any tenant
 // - Users from non-default tenant can only access their own tenant
+// - User must have at least one identity to validate access
 func ValidateTenantAccess(actorUser *model.User, targetTenant *model.Tenant) error {
-	if actorUser.Tenant == nil {
-		return errors.New("actor user has no tenant")
+	// User must have at least one identity
+	if len(actorUser.UserIdentities) == 0 {
+		return errors.New("actor user has no identities")
 	}
 
-	// If actor is from default tenant, they can access any tenant
-	if actorUser.Tenant.IsDefault {
+	// Check if user has access to the target tenant through any of their identities
+	hasAccessToTargetTenant := false
+	hasDefaultTenantAccess := false
+
+	for _, identity := range actorUser.UserIdentities {
+		// If user has identity in a default tenant, they can access any tenant
+		if identity.Tenant.IsDefault {
+			hasDefaultTenantAccess = true
+			break
+		}
+
+		// Check if user has identity in the target tenant
+		if identity.TenantID == targetTenant.TenantID {
+			hasAccessToTargetTenant = true
+		}
+	}
+
+	// If user has default tenant access, allow
+	if hasDefaultTenantAccess {
 		return nil
 	}
 
-	// If actor is from non-default tenant, they can only access their own tenant
-	if actorUser.TenantID == targetTenant.TenantID {
+	// If user has access to target tenant, allow
+	if hasAccessToTargetTenant {
 		return nil
 	}
 
-	return errors.New("access denied: non-default tenant users can only access their own tenant")
+	return errors.New("access denied: user does not have access to this tenant")
 }
 
 // ValidateTenantAccessByID validates tenant access using tenant ID
+// Rules:
+// - Users from default tenant can access any tenant
+// - Users from non-default tenant can only access their own tenant
+// - User must have at least one identity to validate access
 func ValidateTenantAccessByID(actorUser *model.User, targetTenantID int64) error {
-	if actorUser.Tenant == nil {
-		return errors.New("actor user has no tenant")
+	// User must have at least one identity
+	if len(actorUser.UserIdentities) == 0 {
+		return errors.New("actor user has no identities")
 	}
 
-	// If actor is from default tenant, they can access any tenant
-	if actorUser.Tenant.IsDefault {
+	// Check if user has access to the target tenant through any of their identities
+	hasAccessToTargetTenant := false
+	hasDefaultTenantAccess := false
+
+	for _, identity := range actorUser.UserIdentities {
+		// If user has identity in a default tenant, they can access any tenant
+		if identity.Tenant.IsDefault {
+			hasDefaultTenantAccess = true
+			break
+		}
+
+		// Check if user has identity in the target tenant
+		if identity.TenantID == targetTenantID {
+			hasAccessToTargetTenant = true
+		}
+	}
+
+	// If user has default tenant access, allow
+	if hasDefaultTenantAccess {
 		return nil
 	}
 
-	// If actor is from non-default tenant, they can only access their own tenant
-	if actorUser.TenantID == targetTenantID {
+	// If user has access to target tenant, allow
+	if hasAccessToTargetTenant {
 		return nil
 	}
 
-	return errors.New("access denied: non-default tenant users can only access their own tenant")
+	return errors.New("access denied: user does not have access to this tenant")
 }

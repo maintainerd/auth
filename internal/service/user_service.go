@@ -193,13 +193,20 @@ func (s *userService) Get(filter UserServiceGetFilter) (*UserServiceGetResult, e
 }
 
 func (s *userService) GetByUUID(userUUID uuid.UUID, tenantID int64) (*UserServiceDataResult, error) {
-	user, err := s.userRepo.FindByUUID(userUUID, "Tenant")
+	user, err := s.userRepo.FindByUUID(userUUID, "UserIdentities.Tenant")
 	if err != nil || user == nil {
 		return nil, errors.New("user not found")
 	}
 
-	// Validate tenant ownership
-	if user.TenantID != tenantID {
+	// Validate tenant ownership - check if user has an identity in this tenant
+	hasTenantAccess := false
+	for _, identity := range user.UserIdentities {
+		if identity.TenantID == tenantID {
+			hasTenantAccess = true
+			break
+		}
+	}
+	if !hasTenantAccess {
 		return nil, errors.New("user not found or access denied")
 	}
 
@@ -241,7 +248,7 @@ func (s *userService) Create(username string, fullname string, email *string, ph
 		}
 
 		// Check if user already exists by username
-		existingUser, err := txUserRepo.FindByUsername(username, targetTenant.TenantID)
+		existingUser, err := txUserRepo.FindByUsername(username)
 		if err != nil {
 			return err
 		}
@@ -251,7 +258,7 @@ func (s *userService) Create(username string, fullname string, email *string, ph
 
 		// Check if user already exists by email (only if email is provided)
 		if email != nil && *email != "" {
-			existingUser, err = txUserRepo.FindByEmail(*email, targetTenant.TenantID)
+			existingUser, err = txUserRepo.FindByEmail(*email)
 			if err != nil {
 				return err
 			}
@@ -287,7 +294,6 @@ func (s *userService) Create(username string, fullname string, email *string, ph
 			Password: &hashedPasswordStr,
 			Status:   status,
 			Metadata: metadata,
-			TenantID: targetTenant.TenantID,
 		}
 
 		_, err = txUserRepo.Create(newUser)
@@ -303,6 +309,7 @@ func (s *userService) Create(username string, fullname string, email *string, ph
 
 		// Create default user identity
 		userIdentity := &model.UserIdentity{
+			TenantID:     targetTenant.TenantID,
 			UserID:       newUser.UserID,
 			AuthClientID: defaultAuthClient.AuthClientID,
 			Provider:     "default",
@@ -354,13 +361,20 @@ func (s *userService) Update(userUUID uuid.UUID, tenantID int64, username string
 		txUserRepo := s.userRepo.WithTx(tx)
 
 		// Check if target user exists
-		user, err := txUserRepo.FindByUUID(userUUID, "Tenant")
+		user, err := txUserRepo.FindByUUID(userUUID, "UserIdentities")
 		if err != nil || user == nil {
 			return errors.New("user not found")
 		}
 
-		// Validate tenant ownership
-		if user.TenantID != tenantID {
+		// Validate tenant ownership - check if user has an identity in this tenant
+		hasTenantAccess := false
+		for _, identity := range user.UserIdentities {
+			if identity.TenantID == tenantID {
+				hasTenantAccess = true
+				break
+			}
+		}
+		if !hasTenantAccess {
 			return errors.New("user not found or access denied")
 		}
 
@@ -371,13 +385,16 @@ func (s *userService) Update(userUUID uuid.UUID, tenantID int64, username string
 		}
 
 		// Validate tenant access permissions
-		if err := ValidateTenantAccess(updaterUser, user.Tenant); err != nil {
+		if len(user.UserIdentities) == 0 {
+			return errors.New("user has no tenant identities")
+		}
+		if err := ValidateTenantAccess(updaterUser, user.UserIdentities[0].Tenant); err != nil {
 			return err
 		}
 
 		// Check if username is taken by another user
 		if username != user.Username {
-			existingUser, err := txUserRepo.FindByUsername(username, user.TenantID)
+			existingUser, err := txUserRepo.FindByUsername(username)
 			if err != nil {
 				return err
 			}
@@ -398,7 +415,7 @@ func (s *userService) Update(userUUID uuid.UUID, tenantID int64, username string
 
 		// Check if email is taken by another user (only if email is provided and different)
 		if email != nil && *email != "" && *email != user.Email {
-			existingUser, err := txUserRepo.FindByEmail(*email, user.TenantID)
+			existingUser, err := txUserRepo.FindByEmail(*email)
 			if err != nil {
 				return err
 			}
@@ -444,13 +461,20 @@ func (s *userService) Update(userUUID uuid.UUID, tenantID int64, username string
 
 func (s *userService) SetStatus(userUUID uuid.UUID, tenantID int64, status string, updaterUserUUID uuid.UUID) (*UserServiceDataResult, error) {
 	// Check if target user exists
-	user, err := s.userRepo.FindByUUID(userUUID, "Tenant")
+	user, err := s.userRepo.FindByUUID(userUUID, "UserIdentities")
 	if err != nil || user == nil {
 		return nil, errors.New("user not found")
 	}
 
-	// Validate tenant ownership
-	if user.TenantID != tenantID {
+	// Validate tenant ownership - check if user has an identity in this tenant
+	hasTenantAccess := false
+	for _, identity := range user.UserIdentities {
+		if identity.TenantID == tenantID {
+			hasTenantAccess = true
+			break
+		}
+	}
+	if !hasTenantAccess {
 		return nil, errors.New("user not found or access denied")
 	}
 
@@ -461,7 +485,10 @@ func (s *userService) SetStatus(userUUID uuid.UUID, tenantID int64, status strin
 	}
 
 	// Validate tenant access permissions
-	if err := ValidateTenantAccess(updaterUser, user.Tenant); err != nil {
+	if len(user.UserIdentities) == 0 {
+		return nil, errors.New("user has no tenant identities")
+	}
+	if err := ValidateTenantAccess(updaterUser, user.UserIdentities[0].Tenant); err != nil {
 		return nil, err
 	}
 
@@ -554,13 +581,20 @@ func (s *userService) CompleteAccount(userUUID uuid.UUID) (*UserServiceDataResul
 
 func (s *userService) DeleteByUUID(userUUID uuid.UUID, tenantID int64, deleterUserUUID uuid.UUID) (*UserServiceDataResult, error) {
 	// Check if target user exists
-	user, err := s.userRepo.FindByUUID(userUUID, "Tenant", "UserIdentities.AuthClient", "Roles")
+	user, err := s.userRepo.FindByUUID(userUUID, "UserIdentities.AuthClient", "UserIdentities", "Roles")
 	if err != nil || user == nil {
 		return nil, errors.New("user not found")
 	}
 
-	// Validate tenant ownership
-	if user.TenantID != tenantID {
+	// Validate tenant ownership - check if user has an identity in this tenant
+	hasTenantAccess := false
+	for _, identity := range user.UserIdentities {
+		if identity.TenantID == tenantID {
+			hasTenantAccess = true
+			break
+		}
+	}
+	if !hasTenantAccess {
 		return nil, errors.New("user not found or access denied")
 	}
 
@@ -571,7 +605,10 @@ func (s *userService) DeleteByUUID(userUUID uuid.UUID, tenantID int64, deleterUs
 	}
 
 	// Validate tenant access permissions
-	if err := ValidateTenantAccess(deleterUser, user.Tenant); err != nil {
+	if len(user.UserIdentities) == 0 {
+		return nil, errors.New("user has no tenant identities")
+	}
+	if err := ValidateTenantAccess(deleterUser, user.UserIdentities[0].Tenant); err != nil {
 		return nil, err
 	}
 
@@ -713,9 +750,9 @@ func toUserServiceDataResult(user *model.User) *UserServiceDataResult {
 		UpdatedAt:          user.UpdatedAt,
 	}
 
-	// Map Tenant if present
-	if user.Tenant != nil {
-		result.Tenant = toTenantServiceDataResult(user.Tenant)
+	// Map Tenant if present - get from UserIdentities
+	if len(user.UserIdentities) > 0 {
+		result.Tenant = toTenantServiceDataResult(user.UserIdentities[0].Tenant)
 	}
 
 	// Map UserIdentities if present

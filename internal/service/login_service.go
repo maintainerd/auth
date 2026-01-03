@@ -24,6 +24,7 @@ type loginService struct {
 	authClientRepo       repository.AuthClientRepository
 	userRepo             repository.UserRepository
 	userTokenRepo        repository.UserTokenRepository
+	userIdentityRepo     repository.UserIdentityRepository
 	identityProviderRepo repository.IdentityProviderRepository
 }
 
@@ -32,6 +33,7 @@ func NewLoginService(
 	authClientRepo repository.AuthClientRepository,
 	userRepo repository.UserRepository,
 	userTokenRepo repository.UserTokenRepository,
+	userIdentityRepo repository.UserIdentityRepository,
 	identityProviderRepo repository.IdentityProviderRepository,
 ) LoginService {
 	return &loginService{
@@ -39,6 +41,7 @@ func NewLoginService(
 		authClientRepo:       authClientRepo,
 		userRepo:             userRepo,
 		userTokenRepo:        userTokenRepo,
+		userIdentityRepo:     userIdentityRepo,
 		identityProviderRepo: identityProviderRepo,
 	}
 }
@@ -66,12 +69,14 @@ func (s *loginService) LoginPublic(usernameOrEmail, password, clientID, provider
 	var user *model.User
 	var authClient *model.AuthClient
 	var userLookupErr error
+	var userIdentitySub string
 
 	// All database operations in transaction (read-only for consistency)
 	err := s.db.Transaction(func(tx *gorm.DB) error {
 		txUserRepo := s.userRepo.WithTx(tx)
 		txAuthClientRepo := s.authClientRepo.WithTx(tx)
 		txIdentityProviderRepo := s.identityProviderRepo.WithTx(tx)
+		txUserIdentityRepo := s.userIdentityRepo.WithTx(tx)
 
 		// Look up identity provider by identifier to get auth container
 		identityProvider, txErr := txIdentityProviderRepo.FindByIdentifier(providerID)
@@ -96,8 +101,6 @@ func (s *loginService) LoginPublic(usernameOrEmail, password, clientID, provider
 			})
 			return errors.New("authentication failed")
 		}
-
-		tenantId := identityProvider.TenantID
 
 		// Get and validate auth client with proper relationship preloading
 		authClient, txErr = txAuthClientRepo.FindByClientIDAndIdentityProvider(clientID, providerID)
@@ -126,7 +129,15 @@ func (s *loginService) LoginPublic(usernameOrEmail, password, clientID, provider
 		}
 
 		// Get user by username (timing-safe user lookup)
-		user, userLookupErr = txUserRepo.FindByUsername(usernameOrEmail, tenantId)
+		user, userLookupErr = txUserRepo.FindByUsername(usernameOrEmail)
+
+		// Fetch user identity to get the Sub claim
+		if userLookupErr == nil && user != nil {
+			userIdentity, txErr := txUserIdentityRepo.FindByUserIDAndAuthClientID(user.UserID, authClient.AuthClientID)
+			if txErr == nil && userIdentity != nil {
+				userIdentitySub = userIdentity.Sub
+			}
+		}
 
 		return nil // No error, continue with authentication logic outside transaction
 	})
@@ -188,7 +199,7 @@ func (s *loginService) LoginPublic(usernameOrEmail, password, clientID, provider
 	})
 
 	// Generate token response
-	return s.generateTokenResponse(user.UserUUID.String(), user, authClient)
+	return s.generateTokenResponse(userIdentitySub, user, authClient)
 }
 
 // Login authenticates users for internal applications.
@@ -212,11 +223,13 @@ func (s *loginService) Login(usernameOrEmail, password string, clientID, provide
 
 	var user *model.User
 	var authClient *model.AuthClient
+	var userIdentitySub string
 
 	// All database operations in transaction for consistency
 	err := s.db.Transaction(func(tx *gorm.DB) error {
 		txUserRepo := s.userRepo.WithTx(tx)
 		txAuthClientRepo := s.authClientRepo.WithTx(tx)
+		txUserIdentityRepo := s.userIdentityRepo.WithTx(tx)
 
 		// Get auth client - either by client_id and provider_id or default
 		var txErr error
@@ -261,12 +274,17 @@ func (s *loginService) Login(usernameOrEmail, password string, clientID, provide
 			return errors.New("authentication failed")
 		}
 
-		// Get tenant ID from the default client's identity provider
-		tenantId := authClient.IdentityProvider.Tenant.TenantID
-
 		// Get user by username (timing-safe user lookup)
-		user, _ = txUserRepo.FindByUsername(usernameOrEmail, tenantId)
+		user, _ = txUserRepo.FindByUsername(usernameOrEmail)
 		// Note: We don't return error here to maintain timing-safe behavior
+
+		// Fetch user identity to get the Sub claim
+		if user != nil {
+			userIdentity, txErr := txUserIdentityRepo.FindByUserIDAndAuthClientID(user.UserID, authClient.AuthClientID)
+			if txErr == nil && userIdentity != nil {
+				userIdentitySub = userIdentity.Sub
+			}
+		}
 
 		return nil // No error, continue with authentication logic outside transaction
 	})
@@ -327,16 +345,16 @@ func (s *loginService) Login(usernameOrEmail, password string, clientID, provide
 	})
 
 	// Generate token response
-	return s.generateTokenResponse(user.UserUUID.String(), user, authClient)
+	return s.generateTokenResponse(userIdentitySub, user, authClient)
 }
 
 func (s *loginService) GetUserByEmail(email string, tenantID int64) (*model.User, error) {
-	return s.userRepo.FindByEmail(email, tenantID)
+	return s.userRepo.FindByEmail(email)
 }
 
-func (s *loginService) generateTokenResponse(userUUID string, user *model.User, authClient *model.AuthClient) (*dto.LoginResponseDto, error) {
+func (s *loginService) generateTokenResponse(sub string, user *model.User, authClient *model.AuthClient) (*dto.LoginResponseDto, error) {
 	accessToken, err := util.GenerateAccessToken(
-		userUUID,
+		sub,
 		"openid profile email",
 		*authClient.Domain,
 		*authClient.ClientID,
@@ -356,12 +374,12 @@ func (s *loginService) generateTokenResponse(userUUID string, user *model.User, 
 	}
 
 	// Generate ID token with user profile (no nonce for login flow)
-	idToken, err := util.GenerateIDToken(userUUID, *authClient.Domain, *authClient.ClientID, authClient.IdentityProvider.Identifier, profile, "")
+	idToken, err := util.GenerateIDToken(sub, *authClient.Domain, *authClient.ClientID, authClient.IdentityProvider.Identifier, profile, "")
 	if err != nil {
 		return nil, err
 	}
 
-	refreshToken, err := util.GenerateRefreshToken(userUUID, *authClient.Domain, *authClient.ClientID, authClient.IdentityProvider.Identifier)
+	refreshToken, err := util.GenerateRefreshToken(sub, *authClient.Domain, *authClient.ClientID, authClient.IdentityProvider.Identifier)
 	if err != nil {
 		return nil, err
 	}

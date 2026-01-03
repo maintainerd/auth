@@ -65,11 +65,8 @@ func (s *forgotPasswordService) SendPasswordResetEmail(email string, clientID, p
 			return fmt.Errorf("failed to find auth client: %w", txErr)
 		}
 
-		// Get tenant ID from auth client
-		tenantID := authClient.IdentityProvider.Tenant.TenantID
-
 		// Find user by email
-		user, txErr = txUserRepo.FindByEmail(email, tenantID)
+		user, txErr = txUserRepo.FindByEmail(email)
 		if txErr != nil {
 			// Don't reveal if email exists or not for security
 			return nil
