@@ -552,7 +552,12 @@ func (h *AuthClientHandler) DeleteURI(w http.ResponseWriter, r *http.Request) {
 // Get APIs assigned to auth client
 func (h *AuthClientHandler) GetApis(w http.ResponseWriter, r *http.Request) {
 	// Get authentication context
-	user := r.Context().Value(middleware.UserContextKey).(*model.User)
+	// Get tenant from context
+	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
+	if !ok || tenant == nil {
+		util.Error(w, http.StatusUnauthorized, "Tenant not found in context")
+		return
+	}
 
 	authClientUUID, err := uuid.Parse(chi.URLParam(r, "auth_client_uuid"))
 	if err != nil {
@@ -561,7 +566,7 @@ func (h *AuthClientHandler) GetApis(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Get auth client APIs
-	authClientApis, err := h.authClientService.GetAuthClientApis(user.TenantID, authClientUUID)
+	authClientApis, err := h.authClientService.GetAuthClientApis(tenant.TenantID, authClientUUID)
 	if err != nil {
 		util.Error(w, http.StatusInternalServerError, "Failed to get auth client APIs")
 		return
@@ -616,8 +621,6 @@ func (h *AuthClientHandler) GetApis(w http.ResponseWriter, r *http.Request) {
 // Add APIs to auth client
 func (h *AuthClientHandler) AddApis(w http.ResponseWriter, r *http.Request) {
 	// Get authentication context
-	user := r.Context().Value(middleware.UserContextKey).(*model.User)
-
 	authClientUUID, err := uuid.Parse(chi.URLParam(r, "auth_client_uuid"))
 	if err != nil {
 		util.Error(w, http.StatusBadRequest, "Invalid auth client UUID")
@@ -630,8 +633,15 @@ func (h *AuthClientHandler) AddApis(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Get tenant from context
+	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
+	if !ok || tenant == nil {
+		util.Error(w, http.StatusUnauthorized, "Tenant not found in context")
+		return
+	}
+
 	// Add APIs to auth client
-	err = h.authClientService.AddAuthClientApis(user.TenantID, authClientUUID, req.ApiUUIDs)
+	err = h.authClientService.AddAuthClientApis(tenant.TenantID, authClientUUID, req.ApiUUIDs)
 	if err != nil {
 		util.Error(w, http.StatusInternalServerError, "Failed to add APIs to auth client")
 		return
@@ -646,9 +656,6 @@ func (h *AuthClientHandler) AddApis(w http.ResponseWriter, r *http.Request) {
 
 // Remove API from auth client
 func (h *AuthClientHandler) RemoveApi(w http.ResponseWriter, r *http.Request) {
-	// Get authentication context
-	user := r.Context().Value(middleware.UserContextKey).(*model.User)
-
 	authClientUUID, err := uuid.Parse(chi.URLParam(r, "auth_client_uuid"))
 	if err != nil {
 		util.Error(w, http.StatusBadRequest, "Invalid auth client UUID")
@@ -661,8 +668,15 @@ func (h *AuthClientHandler) RemoveApi(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Get tenant from context
+	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
+	if !ok || tenant == nil {
+		util.Error(w, http.StatusUnauthorized, "Tenant not found in context")
+		return
+	}
+
 	// Remove API from auth client
-	err = h.authClientService.RemoveAuthClientApi(user.TenantID, authClientUUID, apiUUID)
+	err = h.authClientService.RemoveAuthClientApi(tenant.TenantID, authClientUUID, apiUUID)
 	if err != nil {
 		util.Error(w, http.StatusInternalServerError, "Failed to remove API from auth client")
 		return
@@ -677,9 +691,6 @@ func (h *AuthClientHandler) RemoveApi(w http.ResponseWriter, r *http.Request) {
 
 // Get permissions for a specific API assigned to auth client
 func (h *AuthClientHandler) GetApiPermissions(w http.ResponseWriter, r *http.Request) {
-	// Get authentication context
-	user := r.Context().Value(middleware.UserContextKey).(*model.User)
-
 	authClientUUID, err := uuid.Parse(chi.URLParam(r, "auth_client_uuid"))
 	if err != nil {
 		util.Error(w, http.StatusBadRequest, "Invalid auth client UUID")
@@ -692,8 +703,15 @@ func (h *AuthClientHandler) GetApiPermissions(w http.ResponseWriter, r *http.Req
 		return
 	}
 
+	// Get tenant from context
+	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
+	if !ok || tenant == nil {
+		util.Error(w, http.StatusUnauthorized, "Tenant not found in context")
+		return
+	}
+
 	// Get auth client API permissions
-	permissions, err := h.authClientService.GetAuthClientApiPermissions(user.TenantID, authClientUUID, apiUUID)
+	permissions, err := h.authClientService.GetAuthClientApiPermissions(tenant.TenantID, authClientUUID, apiUUID)
 	if err != nil {
 		util.Error(w, http.StatusInternalServerError, "Failed to get auth client API permissions")
 		return
@@ -724,8 +742,6 @@ func (h *AuthClientHandler) GetApiPermissions(w http.ResponseWriter, r *http.Req
 // Add permissions to a specific API for auth client
 func (h *AuthClientHandler) AddApiPermissions(w http.ResponseWriter, r *http.Request) {
 	// Get authentication context
-	user := r.Context().Value(middleware.UserContextKey).(*model.User)
-
 	authClientUUID, err := uuid.Parse(chi.URLParam(r, "auth_client_uuid"))
 	if err != nil {
 		util.Error(w, http.StatusBadRequest, "Invalid auth client UUID")
@@ -744,8 +760,15 @@ func (h *AuthClientHandler) AddApiPermissions(w http.ResponseWriter, r *http.Req
 		return
 	}
 
+	// Get tenant from context
+	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
+	if !ok || tenant == nil {
+		util.Error(w, http.StatusUnauthorized, "Tenant not found in context")
+		return
+	}
+
 	// Add permissions to auth client API
-	err = h.authClientService.AddAuthClientApiPermissions(user.TenantID, authClientUUID, apiUUID, req.PermissionUUIDs)
+	err = h.authClientService.AddAuthClientApiPermissions(tenant.TenantID, authClientUUID, apiUUID, req.PermissionUUIDs)
 	if err != nil {
 		util.Error(w, http.StatusInternalServerError, "Failed to add permissions to auth client API")
 		return
@@ -761,8 +784,6 @@ func (h *AuthClientHandler) AddApiPermissions(w http.ResponseWriter, r *http.Req
 // Remove permission from a specific API for auth client
 func (h *AuthClientHandler) RemoveApiPermission(w http.ResponseWriter, r *http.Request) {
 	// Get authentication context
-	user := r.Context().Value(middleware.UserContextKey).(*model.User)
-
 	authClientUUID, err := uuid.Parse(chi.URLParam(r, "auth_client_uuid"))
 	if err != nil {
 		util.Error(w, http.StatusBadRequest, "Invalid auth client UUID")
@@ -781,8 +802,15 @@ func (h *AuthClientHandler) RemoveApiPermission(w http.ResponseWriter, r *http.R
 		return
 	}
 
+	// Get tenant from context
+	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
+	if !ok || tenant == nil {
+		util.Error(w, http.StatusUnauthorized, "Tenant not found in context")
+		return
+	}
+
 	// Remove permission from auth client API
-	err = h.authClientService.RemoveAuthClientApiPermission(user.TenantID, authClientUUID, apiUUID, permissionUUID)
+	err = h.authClientService.RemoveAuthClientApiPermission(tenant.TenantID, authClientUUID, apiUUID, permissionUUID)
 	if err != nil {
 		util.Error(w, http.StatusInternalServerError, "Failed to remove permission from auth client API")
 		return
