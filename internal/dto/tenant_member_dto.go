@@ -7,22 +7,22 @@ import (
 	"github.com/google/uuid"
 )
 
-// TenantUserResponseDto for tenant user output
-type TenantUserResponseDto struct {
-	TenantUserUUID uuid.UUID        `json:"tenant_user_id"`
-	Role           string           `json:"role"`
-	User           *UserResponseDto `json:"user"`
-	CreatedAt      time.Time        `json:"created_at"`
-	UpdatedAt      time.Time        `json:"updated_at"`
+// TenantMemberResponseDto for tenant member output
+type TenantMemberResponseDto struct {
+	TenantMemberUUID uuid.UUID        `json:"tenant_member_id"`
+	Role             string           `json:"role"`
+	User             *UserResponseDto `json:"user"`
+	CreatedAt        time.Time        `json:"created_at"`
+	UpdatedAt        time.Time        `json:"updated_at"`
 }
 
-// TenantUserAddMemberRequestDto for adding member to tenant
-type TenantUserAddMemberRequestDto struct {
+// TenantMemberAddMemberRequestDto for adding member to tenant
+type TenantMemberAddMemberRequestDto struct {
 	UserUUID uuid.UUID `json:"user_id"`
 	Role     string    `json:"role"`
 }
 
-func (r TenantUserAddMemberRequestDto) Validate() error {
+func (r TenantMemberAddMemberRequestDto) Validate() error {
 	return validation.ValidateStruct(&r,
 		validation.Field(&r.UserUUID,
 			validation.Required.Error("User ID is required"),
@@ -34,12 +34,12 @@ func (r TenantUserAddMemberRequestDto) Validate() error {
 	)
 }
 
-// TenantUserUpdateRoleRequestDto for updating member role
-type TenantUserUpdateRoleRequestDto struct {
+// TenantMemberUpdateRoleRequestDto for updating member role
+type TenantMemberUpdateRoleRequestDto struct {
 	Role string `json:"role"`
 }
 
-func (r TenantUserUpdateRoleRequestDto) Validate() error {
+func (r TenantMemberUpdateRoleRequestDto) Validate() error {
 	return validation.ValidateStruct(&r,
 		validation.Field(&r.Role,
 			validation.Required.Error("Role is required"),
@@ -48,13 +48,13 @@ func (r TenantUserUpdateRoleRequestDto) Validate() error {
 	)
 }
 
-// TenantUserFilterDto for filtering tenant members
-type TenantUserFilterDto struct {
+// TenantMemberFilterDto for filtering tenant members
+type TenantMemberFilterDto struct {
 	Role *string `json:"role"`
 	PaginationRequestDto
 }
 
-func (r TenantUserFilterDto) Validate() error {
+func (r TenantMemberFilterDto) Validate() error {
 	return validation.ValidateStruct(&r,
 		validation.Field(&r.Role,
 			validation.When(r.Role != nil,
