@@ -4,6 +4,7 @@ import (
 	"errors"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/dto"
 	"github.com/maintainerd/auth/internal/model"
 	"github.com/maintainerd/auth/internal/repository"
@@ -106,6 +107,7 @@ func (s *registerService) RegisterPublic(
 
 	var createdUser *model.User
 	var authClient *model.AuthClient
+	var userIdentitySub string
 
 	// All database operations in transaction
 	err := s.db.Transaction(func(tx *gorm.DB) error {
@@ -142,7 +144,7 @@ func (s *registerService) RegisterPublic(
 		tenantId := identityProvider.TenantID
 
 		// Check if username already exists
-		existingUser, txErr := txUserRepo.FindByUsername(username, tenantId)
+		existingUser, txErr := txUserRepo.FindByUsername(username)
 		if txErr != nil {
 			return txErr
 		}
@@ -152,7 +154,7 @@ func (s *registerService) RegisterPublic(
 
 		// Check if email already exists (if provided)
 		if email != nil && *email != "" {
-			existingEmailUser, txErr := txUserRepo.FindByEmail(*email, tenantId)
+			existingEmailUser, txErr := txUserRepo.FindByEmail(*email)
 			if txErr != nil {
 				return txErr
 			}
@@ -163,7 +165,7 @@ func (s *registerService) RegisterPublic(
 
 		// Check if phone already exists (if provided)
 		if phone != nil && *phone != "" {
-			existingPhoneUser, txErr := txUserRepo.FindByPhone(*phone, tenantId)
+			existingPhoneUser, txErr := txUserRepo.FindByPhone(*phone)
 			if txErr != nil {
 				return txErr
 			}
@@ -183,7 +185,6 @@ func (s *registerService) RegisterPublic(
 			Username: username,
 			Fullname: fullname,
 			Password: util.Ptr(string(hashed)),
-			TenantID: tenantId,
 			Status:   "active",
 		}
 
@@ -207,7 +208,7 @@ func (s *registerService) RegisterPublic(
 			UserID:       createdUser.UserID,
 			AuthClientID: authClient.AuthClientID,
 			Provider:     "default",
-			Sub:          createdUser.UserUUID.String(), // Use user UUID as sub for default provider
+			Sub:          uuid.New().String(),
 			Metadata:     datatypes.JSON([]byte(`{}`)),
 		}
 
@@ -257,7 +258,7 @@ func (s *registerService) RegisterPublic(
 	}
 
 	// Return token response
-	return s.generateTokenResponse(createdUser.UserUUID.String(), createdUser, authClient)
+	return s.generateTokenResponse(userIdentitySub, createdUser, authClient)
 }
 
 // Register registers new users for internal applications.
@@ -280,6 +281,7 @@ func (s *registerService) Register(
 
 	var createdUser *model.User
 	var authClient *model.AuthClient
+	var userIdentitySub string
 
 	// All database operations in transaction
 	err := s.db.Transaction(func(tx *gorm.DB) error {
@@ -316,7 +318,7 @@ func (s *registerService) Register(
 		tenantId := authClient.IdentityProvider.Tenant.TenantID
 
 		// Check if user already exists
-		existingUser, txErr := txUserRepo.FindByUsername(username, tenantId)
+		existingUser, txErr := txUserRepo.FindByUsername(username)
 		if txErr != nil && txErr.Error() != "record not found" {
 			return txErr
 		}
@@ -335,7 +337,6 @@ func (s *registerService) Register(
 			Username: username,
 			Fullname: fullname,
 			Password: util.Ptr(string(hashed)),
-			TenantID: tenantId,
 			Status:   "active",
 		}
 
@@ -356,10 +357,11 @@ func (s *registerService) Register(
 
 		// Create user identity
 		userIdentity := &model.UserIdentity{
+			TenantID:     tenantId,
 			UserID:       createdUser.UserID,
 			AuthClientID: authClient.AuthClientID,
 			Provider:     "default",
-			Sub:          createdUser.UserUUID.String(), // Use user UUID as sub for default provider
+			Sub:          uuid.New().String(),
 			Metadata:     datatypes.JSON([]byte(`{}`)),
 		}
 
@@ -409,7 +411,7 @@ func (s *registerService) Register(
 	}
 
 	// Return token response
-	return s.generateTokenResponse(createdUser.UserUUID.String(), createdUser, authClient)
+	return s.generateTokenResponse(userIdentitySub, createdUser, authClient)
 }
 
 // RegisterInvite registers new users via invite token for internal applications.
@@ -425,6 +427,7 @@ func (s *registerService) RegisterInvite(
 ) (*dto.RegisterResponseDto, error) {
 	var createdUser *model.User
 	var authClient *model.AuthClient
+	var userIdentitySub string
 
 	// All database operations in transaction
 	err := s.db.Transaction(func(tx *gorm.DB) error {
@@ -470,7 +473,7 @@ func (s *registerService) RegisterInvite(
 		}
 
 		// Check if user already exists
-		existingUser, txErr := txUserRepo.FindByUsername(username, tenantId)
+		existingUser, txErr := txUserRepo.FindByUsername(username)
 		if txErr != nil && txErr.Error() != "record not found" {
 			return txErr
 		}
@@ -490,7 +493,6 @@ func (s *registerService) RegisterInvite(
 			Fullname: username, // Use username as fullname since invite doesn't have fullname
 			Password: util.Ptr(string(hashed)),
 			Email:    invite.InvitedEmail,
-			TenantID: tenantId,
 			Status:   "active",
 		}
 
@@ -501,10 +503,11 @@ func (s *registerService) RegisterInvite(
 
 		// Create user identity
 		userIdentity := &model.UserIdentity{
+			TenantID:     tenantId,
 			UserID:       createdUser.UserID,
 			AuthClientID: authClient.AuthClientID,
 			Provider:     "default",
-			Sub:          createdUser.UserUUID.String(), // Use user UUID as sub for default provider
+			Sub:          uuid.New().String(),
 			Metadata:     datatypes.JSON([]byte(`{}`)),
 		}
 
@@ -555,7 +558,7 @@ func (s *registerService) RegisterInvite(
 	}
 
 	// Return token response
-	return s.generateTokenResponse(createdUser.UserUUID.String(), createdUser, authClient)
+	return s.generateTokenResponse(userIdentitySub, createdUser, authClient)
 }
 
 // RegisterInvitePublic registers new users via invite token for public-facing applications.
@@ -570,6 +573,7 @@ func (s *registerService) RegisterInvitePublic(
 ) (*dto.RegisterResponseDto, error) {
 	var createdUser *model.User
 	var authClient *model.AuthClient
+	var userIdentitySub string
 
 	// All database operations in transaction
 	err := s.db.Transaction(func(tx *gorm.DB) error {
@@ -623,7 +627,7 @@ func (s *registerService) RegisterInvitePublic(
 		}
 
 		// Check if username already exists
-		existingUser, txErr := txUserRepo.FindByUsername(username, tenantId)
+		existingUser, txErr := txUserRepo.FindByUsername(username)
 		if txErr != nil {
 			return txErr
 		}
@@ -632,7 +636,7 @@ func (s *registerService) RegisterInvitePublic(
 		}
 
 		// Check if invited email already exists
-		existingEmailUser, txErr := txUserRepo.FindByEmail(invite.InvitedEmail, tenantId)
+		existingEmailUser, txErr := txUserRepo.FindByEmail(invite.InvitedEmail)
 		if txErr != nil {
 			return txErr
 		}
@@ -651,7 +655,6 @@ func (s *registerService) RegisterInvitePublic(
 			Username:        username,
 			Email:           invite.InvitedEmail, // Always use the invited email
 			Password:        util.Ptr(string(hashed)),
-			TenantID:        tenantId,
 			Status:          "active",
 			IsEmailVerified: true, // Auto-verify email for invited users
 		}
@@ -663,10 +666,11 @@ func (s *registerService) RegisterInvitePublic(
 
 		// Create user identity
 		userIdentity := &model.UserIdentity{
+			TenantID:     tenantId,
 			UserID:       createdUser.UserID,
 			AuthClientID: authClient.AuthClientID,
 			Provider:     "default",
-			Sub:          createdUser.UserUUID.String(), // Use user UUID as sub for default provider
+			Sub:          uuid.New().String(),
 			Metadata:     datatypes.JSON([]byte(`{}`)),
 		}
 
@@ -728,12 +732,12 @@ func (s *registerService) RegisterInvitePublic(
 	}
 
 	// Return token response
-	return s.generateTokenResponse(createdUser.UserUUID.String(), createdUser, authClient)
+	return s.generateTokenResponse(userIdentitySub, createdUser, authClient)
 }
 
-func (s *registerService) generateTokenResponse(userUUID string, user *model.User, authClient *model.AuthClient) (*dto.RegisterResponseDto, error) {
+func (s *registerService) generateTokenResponse(sub string, user *model.User, authClient *model.AuthClient) (*dto.RegisterResponseDto, error) {
 	accessToken, err := util.GenerateAccessToken(
-		userUUID,
+		sub,
 		"openid profile email",
 		*authClient.Domain,
 		*authClient.ClientID,
@@ -753,12 +757,12 @@ func (s *registerService) generateTokenResponse(userUUID string, user *model.Use
 	}
 
 	// Generate ID token with user profile (no nonce for registration flow)
-	idToken, err := util.GenerateIDToken(userUUID, *authClient.Domain, *authClient.ClientID, authClient.IdentityProvider.Identifier, profile, "")
+	idToken, err := util.GenerateIDToken(sub, *authClient.Domain, *authClient.ClientID, authClient.IdentityProvider.Identifier, profile, "")
 	if err != nil {
 		return nil, err
 	}
 
-	refreshToken, err := util.GenerateRefreshToken(userUUID, *authClient.Domain, *authClient.ClientID, authClient.IdentityProvider.Identifier)
+	refreshToken, err := util.GenerateRefreshToken(sub, *authClient.Domain, *authClient.ClientID, authClient.IdentityProvider.Identifier)
 	if err != nil {
 		return nil, err
 	}

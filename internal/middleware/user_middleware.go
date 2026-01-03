@@ -78,18 +78,14 @@ func UserContextMiddleware(
 			var provider *model.IdentityProvider
 			var client *model.AuthClient
 
-			// Get tenant from user
-			tenant = user.Tenant
-
-			// Get provider and client from user identities
+			// Get tenant, provider and client from user identities
 			if len(user.UserIdentities) > 0 {
 				for _, identity := range user.UserIdentities {
 					if identity.AuthClient != nil && identity.AuthClient.ClientID != nil && *identity.AuthClient.ClientID == clientID {
-						client = identity.AuthClient
-						if client.IdentityProvider != nil {
-							provider = client.IdentityProvider
+						// Get tenant from this identity
+						if identity.Tenant != nil {
+							tenant = identity.Tenant
 						}
-						break
 					}
 				}
 			}

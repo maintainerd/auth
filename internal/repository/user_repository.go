@@ -22,9 +22,9 @@ type UserRepositoryGetFilter struct {
 type UserRepository interface {
 	BaseRepositoryMethods[model.User]
 	WithTx(tx *gorm.DB) UserRepository
-	FindByUsername(username string, tenantID int64) (*model.User, error)
-	FindByEmail(email string, tenantID int64) (*model.User, error)
-	FindByPhone(phone string, tenantID int64) (*model.User, error)
+	FindByUsername(username string) (*model.User, error)
+	FindByEmail(email string) (*model.User, error)
+	FindByPhone(phone string) (*model.User, error)
 	FindSuperAdmin() (*model.User, error)
 	FindRoles(userID int64) ([]model.Role, error)
 	FindBySubAndClientID(sub string, authClientID string) (*model.User, error)
@@ -52,10 +52,10 @@ func (r *userRepository) WithTx(tx *gorm.DB) UserRepository {
 	}
 }
 
-func (r *userRepository) FindByUsername(username string, tenantID int64) (*model.User, error) {
+func (r *userRepository) FindByUsername(username string) (*model.User, error) {
 	var user model.User
 	err := r.db.
-		Where("username = ? AND tenant_id = ?", username, tenantID).
+		Where("username = ?", username).
 		First(&user).Error
 
 	if err != nil {
@@ -68,10 +68,10 @@ func (r *userRepository) FindByUsername(username string, tenantID int64) (*model
 	return &user, nil
 }
 
-func (r *userRepository) FindByEmail(email string, tenantID int64) (*model.User, error) {
+func (r *userRepository) FindByEmail(email string) (*model.User, error) {
 	var user model.User
 	err := r.db.
-		Where("email = ? AND tenant_id = ?", email, tenantID).
+		Where("email = ?", email).
 		First(&user).Error
 
 	if err != nil {
@@ -84,10 +84,10 @@ func (r *userRepository) FindByEmail(email string, tenantID int64) (*model.User,
 	return &user, nil
 }
 
-func (r *userRepository) FindByPhone(phone string, tenantID int64) (*model.User, error) {
+func (r *userRepository) FindByPhone(phone string) (*model.User, error) {
 	var user model.User
 	err := r.db.
-		Where("phone = ? AND tenant_id = ?", phone, tenantID).
+		Where("phone = ?", phone).
 		First(&user).Error
 
 	if err != nil {
@@ -103,7 +103,8 @@ func (r *userRepository) FindByPhone(phone string, tenantID int64) (*model.User,
 func (r *userRepository) FindSuperAdmin() (*model.User, error) {
 	var user model.User
 	err := r.db.
-		Joins("JOIN tenants ON users.tenant_id = tenants.tenant_id").
+		Joins("JOIN user_identities ON users.user_id = user_identities.user_id").
+		Joins("JOIN tenants ON user_identities.tenant_id = tenants.tenant_id").
 		Joins("JOIN user_roles ON users.user_id = user_roles.user_id").
 		Joins("JOIN roles ON user_roles.role_id = roles.role_id").
 		Where("tenants.status = 'active' AND tenants.is_default = true").
@@ -134,7 +135,7 @@ func (r *userRepository) FindRoles(userID int64) ([]model.Role, error) {
 func (r *userRepository) FindBySubAndClientID(sub string, authClientID string) (*model.User, error) {
 	var user model.User
 	err := r.db.
-		Preload("Tenant").
+		Preload("UserIdentities.Tenant").
 		Preload("UserIdentities.AuthClient.IdentityProvider.Tenant").
 		Preload("UserIdentities.AuthClient.IdentityProvider").
 		Preload("UserIdentities.AuthClient").
@@ -183,9 +184,6 @@ func (r *userRepository) FindPaginated(filter UserRepositoryGetFilter) (*Paginat
 	}
 	if len(filter.Status) > 0 {
 		query = query.Where("status IN ?", filter.Status)
-	}
-	if filter.TenantID != nil {
-		query = query.Where("tenant_id = ?", *filter.TenantID)
 	}
 	if filter.RoleID != nil {
 		query = query.Joins("JOIN user_roles ON users.user_id = user_roles.user_id").Where("user_roles.role_id = ?", *filter.RoleID)
