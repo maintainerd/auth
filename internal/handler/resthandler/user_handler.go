@@ -311,6 +311,13 @@ func (h *UserHandler) SetUserStatus(w http.ResponseWriter, r *http.Request) {
 // Verifies the user's email address and may mark the account as completed
 // if all required verification steps are done.
 func (h *UserHandler) VerifyEmail(w http.ResponseWriter, r *http.Request) {
+	// Get tenant from context (middleware already validated access)
+	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
+	if !ok || tenant == nil {
+		util.Error(w, http.StatusUnauthorized, "Tenant not found in context")
+		return
+	}
+
 	// Parse and validate user UUID from URL parameter
 	userUUIDStr := chi.URLParam(r, "user_uuid")
 	userUUID, err := uuid.Parse(userUUIDStr)
@@ -319,8 +326,8 @@ func (h *UserHandler) VerifyEmail(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Verify email (may also mark account as completed)
-	user, err := h.userService.VerifyEmail(userUUID)
+	// Verify email (service validates tenant ownership)
+	user, err := h.userService.VerifyEmail(userUUID, tenant.TenantID)
 	if err != nil {
 		util.Error(w, http.StatusInternalServerError, "Failed to verify email", err.Error())
 		return
@@ -337,6 +344,13 @@ func (h *UserHandler) VerifyEmail(w http.ResponseWriter, r *http.Request) {
 // Verifies the user's phone number for two-factor authentication
 // or account recovery purposes.
 func (h *UserHandler) VerifyPhone(w http.ResponseWriter, r *http.Request) {
+	// Get tenant from context (middleware already validated access)
+	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
+	if !ok || tenant == nil {
+		util.Error(w, http.StatusUnauthorized, "Tenant not found in context")
+		return
+	}
+
 	// Parse and validate user UUID from URL parameter
 	userUUIDStr := chi.URLParam(r, "user_uuid")
 	userUUID, err := uuid.Parse(userUUIDStr)
@@ -345,8 +359,8 @@ func (h *UserHandler) VerifyPhone(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Verify phone number
-	user, err := h.userService.VerifyPhone(userUUID)
+	// Verify phone (service validates tenant ownership)
+	user, err := h.userService.VerifyPhone(userUUID, tenant.TenantID)
 	if err != nil {
 		util.Error(w, http.StatusInternalServerError, "Failed to verify phone", err.Error())
 		return
@@ -363,6 +377,13 @@ func (h *UserHandler) VerifyPhone(w http.ResponseWriter, r *http.Request) {
 // Manually marks an account as completed, typically after all required
 // profile information and verifications are done.
 func (h *UserHandler) CompleteAccount(w http.ResponseWriter, r *http.Request) {
+	// Get tenant from context (middleware already validated access)
+	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
+	if !ok || tenant == nil {
+		util.Error(w, http.StatusUnauthorized, "Tenant not found in context")
+		return
+	}
+
 	// Parse and validate user UUID from URL parameter
 	userUUIDStr := chi.URLParam(r, "user_uuid")
 	userUUID, err := uuid.Parse(userUUIDStr)
@@ -371,8 +392,8 @@ func (h *UserHandler) CompleteAccount(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Mark account as completed
-	user, err := h.userService.CompleteAccount(userUUID)
+	// Mark account as completed (service validates tenant ownership)
+	user, err := h.userService.CompleteAccount(userUUID, tenant.TenantID)
 	if err != nil {
 		util.Error(w, http.StatusInternalServerError, "Failed to complete account", err.Error())
 		return
@@ -427,6 +448,13 @@ func (h *UserHandler) DeleteUser(w http.ResponseWriter, r *http.Request) {
 // Associates one or more roles with a user, granting them the permissions
 // defined by those roles.
 func (h *UserHandler) AssignRoles(w http.ResponseWriter, r *http.Request) {
+	// Get tenant from context (middleware already validated access)
+	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
+	if !ok || tenant == nil {
+		util.Error(w, http.StatusUnauthorized, "Tenant not found in context")
+		return
+	}
+
 	// Parse and validate user UUID from URL parameter
 	userUUIDStr := chi.URLParam(r, "user_uuid")
 	userUUID, err := uuid.Parse(userUUIDStr)
@@ -447,8 +475,8 @@ func (h *UserHandler) AssignRoles(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Assign roles to user
-	user, err := h.userService.AssignUserRoles(userUUID, req.RoleUUIDs)
+	// Assign roles to user (service validates tenant ownership)
+	user, err := h.userService.AssignUserRoles(userUUID, req.RoleUUIDs, tenant.TenantID)
 	if err != nil {
 		util.Error(w, http.StatusInternalServerError, "Failed to assign roles to user", err.Error())
 		return
@@ -467,6 +495,13 @@ func (h *UserHandler) AssignRoles(w http.ResponseWriter, r *http.Request) {
 // Removes the association between a role and a user, revoking the permissions
 // granted by that role.
 func (h *UserHandler) RemoveRole(w http.ResponseWriter, r *http.Request) {
+	// Get tenant from context (middleware already validated access)
+	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
+	if !ok || tenant == nil {
+		util.Error(w, http.StatusUnauthorized, "Tenant not found in context")
+		return
+	}
+
 	// Parse and validate user UUID from URL parameter
 	userUUIDStr := chi.URLParam(r, "user_uuid")
 	userUUID, err := uuid.Parse(userUUIDStr)
@@ -483,8 +518,8 @@ func (h *UserHandler) RemoveRole(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Remove role from user
-	user, err := h.userService.RemoveUserRole(userUUID, roleUUID)
+	// Remove role from user (service validates tenant ownership)
+	user, err := h.userService.RemoveUserRole(userUUID, roleUUID, tenant.TenantID)
 	if err != nil {
 		util.Error(w, http.StatusInternalServerError, "Failed to remove role from user", err.Error())
 		return

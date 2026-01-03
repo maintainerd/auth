@@ -31,6 +31,7 @@ type registerService struct {
 	roleRepo             repository.RoleRepository
 	inviteRepo           repository.InviteRepository
 	identityProviderRepo repository.IdentityProviderRepository
+	tenantUserRepo       repository.TenantUserRepository
 }
 
 func NewRegistrationService(
@@ -43,6 +44,7 @@ func NewRegistrationService(
 	roleRepo repository.RoleRepository,
 	inviteRepo repository.InviteRepository,
 	identityProviderRepo repository.IdentityProviderRepository,
+	tenantUserRepo repository.TenantUserRepository,
 ) RegisterService {
 	return &registerService{
 		db:                   db,
@@ -54,6 +56,7 @@ func NewRegistrationService(
 		roleRepo:             roleRepo,
 		inviteRepo:           inviteRepo,
 		identityProviderRepo: identityProviderRepo,
+		tenantUserRepo:       tenantUserRepo,
 	}
 }
 
@@ -291,6 +294,7 @@ func (s *registerService) Register(
 		txUserIdentityRepo := s.userIdentityRepo.WithTx(tx)
 		txRoleRepo := s.roleRepo.WithTx(tx)
 		txUserRoleRepo := s.userRoleRepo.WithTx(tx)
+		txTenantUserRepo := s.tenantUserRepo.WithTx(tx)
 
 		// Get auth client - either by client_id and provider_id or default
 		var txErr error
@@ -370,6 +374,16 @@ func (s *registerService) Register(
 			return txErr
 		}
 
+		// Create tenant_users record to track that this tenant created the user
+		tenantUser := &model.TenantUser{
+			TenantID: tenantId,
+			UserID:   createdUser.UserID,
+		}
+		_, txErr = txTenantUserRepo.Create(tenantUser)
+		if txErr != nil {
+			return txErr
+		}
+
 		// Get default role
 		defaultRole, txErr := s.findDefaultRole(txRoleRepo, tenantId)
 		if txErr != nil {
@@ -437,6 +451,7 @@ func (s *registerService) RegisterInvite(
 		txInviteRepo := s.inviteRepo.WithTx(tx)
 		txAuthClientRepo := s.authClientRepo.WithTx(tx)
 		txRoleRepo := s.roleRepo.WithTx(tx)
+		txTenantUserRepo := s.tenantUserRepo.WithTx(tx)
 
 		// Get auth client - either by client_id and provider_id or default
 		var txErr error
@@ -516,6 +531,16 @@ func (s *registerService) RegisterInvite(
 			return txErr
 		}
 
+		// Create tenant_users record to track that this tenant created the user
+		tenantUser := &model.TenantUser{
+			TenantID: tenantId,
+			UserID:   createdUser.UserID,
+		}
+		_, txErr = txTenantUserRepo.Create(tenantUser)
+		if txErr != nil {
+			return txErr
+		}
+
 		// Get default role and assign it first
 		defaultRole, txErr := s.findDefaultRole(txRoleRepo, tenantId)
 		if txErr != nil {
@@ -584,6 +609,7 @@ func (s *registerService) RegisterInvitePublic(
 		txAuthClientRepo := s.authClientRepo.WithTx(tx)
 		txIdentityProviderRepo := s.identityProviderRepo.WithTx(tx)
 		txRoleRepo := s.roleRepo.WithTx(tx)
+		txTenantUserRepo := s.tenantUserRepo.WithTx(tx)
 
 		// Get and validate auth client with proper relationship preloading
 		var txErr error
@@ -675,6 +701,16 @@ func (s *registerService) RegisterInvitePublic(
 		}
 
 		_, txErr = txUserIdentityRepo.Create(userIdentity)
+		if txErr != nil {
+			return txErr
+		}
+
+		// Create tenant_users record to track that this tenant created the user
+		tenantUser := &model.TenantUser{
+			TenantID: tenantId,
+			UserID:   createdUser.UserID,
+		}
+		_, txErr = txTenantUserRepo.Create(tenantUser)
 		if txErr != nil {
 			return txErr
 		}

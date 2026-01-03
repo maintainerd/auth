@@ -172,18 +172,24 @@ func (r *userRepository) FindPaginated(filter UserRepositoryGetFilter) (*Paginat
 
 	query := r.db.Model(&model.User{})
 
+	// Filter by tenant - join with tenant_users table
+	if filter.TenantID != nil {
+		query = query.Joins("JOIN tenant_users ON users.user_id = tenant_users.user_id").
+			Where("tenant_users.tenant_id = ?", *filter.TenantID)
+	}
+
 	// Apply filters
 	if filter.Username != nil {
-		query = query.Where("username ILIKE ?", "%"+*filter.Username+"%")
+		query = query.Where("users.username ILIKE ?", "%"+*filter.Username+"%")
 	}
 	if filter.Email != nil {
-		query = query.Where("email ILIKE ?", "%"+*filter.Email+"%")
+		query = query.Where("users.email ILIKE ?", "%"+*filter.Email+"%")
 	}
 	if filter.Phone != nil {
-		query = query.Where("phone ILIKE ?", "%"+*filter.Phone+"%")
+		query = query.Where("users.phone ILIKE ?", "%"+*filter.Phone+"%")
 	}
 	if len(filter.Status) > 0 {
-		query = query.Where("status IN ?", filter.Status)
+		query = query.Where("users.status IN ?", filter.Status)
 	}
 	if filter.RoleID != nil {
 		query = query.Joins("JOIN user_roles ON users.user_id = user_roles.user_id").Where("user_roles.role_id = ?", *filter.RoleID)
@@ -196,7 +202,7 @@ func (r *userRepository) FindPaginated(filter UserRepositoryGetFilter) (*Paginat
 
 	// Apply sorting
 	if filter.SortBy != "" {
-		order := filter.SortBy
+		order := "users." + filter.SortBy
 		if filter.SortOrder == "desc" {
 			order += " DESC"
 		} else {
@@ -204,7 +210,7 @@ func (r *userRepository) FindPaginated(filter UserRepositoryGetFilter) (*Paginat
 		}
 		query = query.Order(order)
 	} else {
-		query = query.Order("created_at DESC")
+		query = query.Order("users.created_at DESC")
 	}
 
 	// Apply pagination

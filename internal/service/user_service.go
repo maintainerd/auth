@@ -68,12 +68,12 @@ type UserService interface {
 	Create(username string, fullname string, email *string, phone *string, password string, status string, metadata datatypes.JSON, tenantUUID string, creatorUserUUID uuid.UUID) (*UserServiceDataResult, error)
 	Update(userUUID uuid.UUID, tenantID int64, username string, fullname string, email *string, phone *string, status string, metadata datatypes.JSON, updaterUserUUID uuid.UUID) (*UserServiceDataResult, error)
 	SetStatus(userUUID uuid.UUID, tenantID int64, status string, updaterUserUUID uuid.UUID) (*UserServiceDataResult, error)
-	VerifyEmail(userUUID uuid.UUID) (*UserServiceDataResult, error)
-	VerifyPhone(userUUID uuid.UUID) (*UserServiceDataResult, error)
-	CompleteAccount(userUUID uuid.UUID) (*UserServiceDataResult, error)
+	VerifyEmail(userUUID uuid.UUID, tenantID int64) (*UserServiceDataResult, error)
+	VerifyPhone(userUUID uuid.UUID, tenantID int64) (*UserServiceDataResult, error)
+	CompleteAccount(userUUID uuid.UUID, tenantID int64) (*UserServiceDataResult, error)
 	DeleteByUUID(userUUID uuid.UUID, tenantID int64, deleterUserUUID uuid.UUID) (*UserServiceDataResult, error)
-	AssignUserRoles(userUUID uuid.UUID, roleUUIDs []uuid.UUID) (*UserServiceDataResult, error)
-	RemoveUserRole(userUUID uuid.UUID, roleUUID uuid.UUID) (*UserServiceDataResult, error)
+	AssignUserRoles(userUUID uuid.UUID, roleUUIDs []uuid.UUID, tenantID int64) (*UserServiceDataResult, error)
+	RemoveUserRole(userUUID uuid.UUID, roleUUID uuid.UUID, tenantID int64) (*UserServiceDataResult, error)
 	GetUserRoles(userUUID uuid.UUID) ([]RoleServiceDataResult, error)
 	GetUserIdentities(userUUID uuid.UUID) ([]UserIdentityServiceDataResult, error)
 }
@@ -87,6 +87,7 @@ type userService struct {
 	tenantRepo           repository.TenantRepository
 	identityProviderRepo repository.IdentityProviderRepository
 	authClientRepo       repository.AuthClientRepository
+	tenantUserRepo       repository.TenantUserRepository
 }
 
 func NewUserService(
@@ -98,6 +99,7 @@ func NewUserService(
 	tenantRepo repository.TenantRepository,
 	identityProviderRepo repository.IdentityProviderRepository,
 	authClientRepo repository.AuthClientRepository,
+	tenantUserRepo repository.TenantUserRepository,
 ) UserService {
 	return &userService{
 		db:                   db,
@@ -108,6 +110,7 @@ func NewUserService(
 		tenantRepo:           tenantRepo,
 		identityProviderRepo: identityProviderRepo,
 		authClientRepo:       authClientRepo,
+		tenantUserRepo:       tenantUserRepo,
 	}
 }
 
@@ -223,6 +226,7 @@ func (s *userService) Create(username string, fullname string, email *string, ph
 		txAuthClientRepo := s.authClientRepo.WithTx(tx)
 		txRoleRepo := s.roleRepo.WithTx(tx)
 		txUserRoleRepo := s.userRoleRepo.WithTx(tx)
+		txTenantUserRepo := s.tenantUserRepo.WithTx(tx)
 
 		// Parse tenant UUID
 		tenantUUIDParsed, err := uuid.Parse(tenantUUID)
@@ -318,6 +322,16 @@ func (s *userService) Create(username string, fullname string, email *string, ph
 		}
 
 		_, err = txUserIdentityRepo.Create(userIdentity)
+		if err != nil {
+			return err
+		}
+
+		// Create tenant_users record to track that this tenant created the user
+		tenantUser := &model.TenantUser{
+			TenantID: targetTenant.TenantID,
+			UserID:   newUser.UserID,
+		}
+		_, err = txTenantUserRepo.Create(tenantUser)
 		if err != nil {
 			return err
 		}
@@ -506,11 +520,23 @@ func (s *userService) SetStatus(userUUID uuid.UUID, tenantID int64, status strin
 	return toUserServiceDataResult(updatedUser), nil
 }
 
-func (s *userService) VerifyEmail(userUUID uuid.UUID) (*UserServiceDataResult, error) {
-	// Check if target user exists
-	user, err := s.userRepo.FindByUUID(userUUID, "Tenant")
+func (s *userService) VerifyEmail(userUUID uuid.UUID, tenantID int64) (*UserServiceDataResult, error) {
+	// Check if target user exists and preload identities for tenant validation
+	user, err := s.userRepo.FindByUUID(userUUID, "UserIdentities", "Tenant")
 	if err != nil || user == nil {
 		return nil, errors.New("user not found")
+	}
+
+	// Validate tenant ownership - check if user has an identity in this tenant
+	hasTenantAccess := false
+	for _, identity := range user.UserIdentities {
+		if identity.TenantID == tenantID {
+			hasTenantAccess = true
+			break
+		}
+	}
+	if !hasTenantAccess {
+		return nil, errors.New("user not found or access denied")
 	}
 
 	// Update is_email_verified and is_account_completed
@@ -531,11 +557,23 @@ func (s *userService) VerifyEmail(userUUID uuid.UUID) (*UserServiceDataResult, e
 	return toUserServiceDataResult(updatedUser), nil
 }
 
-func (s *userService) VerifyPhone(userUUID uuid.UUID) (*UserServiceDataResult, error) {
-	// Check if target user exists
-	user, err := s.userRepo.FindByUUID(userUUID, "Tenant")
+func (s *userService) VerifyPhone(userUUID uuid.UUID, tenantID int64) (*UserServiceDataResult, error) {
+	// Check if target user exists and preload identities for tenant validation
+	user, err := s.userRepo.FindByUUID(userUUID, "UserIdentities", "Tenant")
 	if err != nil || user == nil {
 		return nil, errors.New("user not found")
+	}
+
+	// Validate tenant ownership - check if user has an identity in this tenant
+	hasTenantAccess := false
+	for _, identity := range user.UserIdentities {
+		if identity.TenantID == tenantID {
+			hasTenantAccess = true
+			break
+		}
+	}
+	if !hasTenantAccess {
+		return nil, errors.New("user not found or access denied")
 	}
 
 	// Update is_phone_verified
@@ -555,11 +593,23 @@ func (s *userService) VerifyPhone(userUUID uuid.UUID) (*UserServiceDataResult, e
 	return toUserServiceDataResult(updatedUser), nil
 }
 
-func (s *userService) CompleteAccount(userUUID uuid.UUID) (*UserServiceDataResult, error) {
-	// Check if target user exists
-	user, err := s.userRepo.FindByUUID(userUUID, "Tenant")
+func (s *userService) CompleteAccount(userUUID uuid.UUID, tenantID int64) (*UserServiceDataResult, error) {
+	// Check if target user exists and preload identities for tenant validation
+	user, err := s.userRepo.FindByUUID(userUUID, "UserIdentities", "Tenant")
 	if err != nil || user == nil {
 		return nil, errors.New("user not found")
+	}
+
+	// Validate tenant ownership - check if user has an identity in this tenant
+	hasTenantAccess := false
+	for _, identity := range user.UserIdentities {
+		if identity.TenantID == tenantID {
+			hasTenantAccess = true
+			break
+		}
+	}
+	if !hasTenantAccess {
+		return nil, errors.New("user not found or access denied")
 	}
 
 	// Update is_account_completed
@@ -621,7 +671,7 @@ func (s *userService) DeleteByUUID(userUUID uuid.UUID, tenantID int64, deleterUs
 	return toUserServiceDataResult(user), nil
 }
 
-func (s *userService) AssignUserRoles(userUUID uuid.UUID, roleUUIDs []uuid.UUID) (*UserServiceDataResult, error) {
+func (s *userService) AssignUserRoles(userUUID uuid.UUID, roleUUIDs []uuid.UUID, tenantID int64) (*UserServiceDataResult, error) {
 	var userWithRoles *model.User
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
@@ -629,10 +679,22 @@ func (s *userService) AssignUserRoles(userUUID uuid.UUID, roleUUIDs []uuid.UUID)
 		txRoleRepo := s.roleRepo.WithTx(tx)
 		txUserRoleRepo := s.userRoleRepo.WithTx(tx)
 
-		// Check if user exists
-		user, err := txUserRepo.FindByUUID(userUUID)
+		// Check if user exists and preload identities for tenant validation
+		user, err := txUserRepo.FindByUUID(userUUID, "UserIdentities")
 		if err != nil || user == nil {
 			return errors.New("user not found")
+		}
+
+		// Validate tenant ownership - check if user has an identity in this tenant
+		hasTenantAccess := false
+		for _, identity := range user.UserIdentities {
+			if identity.TenantID == tenantID {
+				hasTenantAccess = true
+				break
+			}
+		}
+		if !hasTenantAccess {
+			return errors.New("user not found or access denied")
 		}
 
 		// Validate and assign roles
@@ -683,7 +745,7 @@ func (s *userService) AssignUserRoles(userUUID uuid.UUID, roleUUIDs []uuid.UUID)
 	return toUserServiceDataResult(userWithRoles), nil
 }
 
-func (s *userService) RemoveUserRole(userUUID uuid.UUID, roleUUID uuid.UUID) (*UserServiceDataResult, error) {
+func (s *userService) RemoveUserRole(userUUID uuid.UUID, roleUUID uuid.UUID, tenantID int64) (*UserServiceDataResult, error) {
 	var userWithRoles *model.User
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
@@ -691,10 +753,22 @@ func (s *userService) RemoveUserRole(userUUID uuid.UUID, roleUUID uuid.UUID) (*U
 		txRoleRepo := s.roleRepo.WithTx(tx)
 		txUserRoleRepo := s.userRoleRepo.WithTx(tx)
 
-		// Check if user exists
-		user, err := txUserRepo.FindByUUID(userUUID)
+		// Check if user exists and preload identities for tenant validation
+		user, err := txUserRepo.FindByUUID(userUUID, "UserIdentities")
 		if err != nil || user == nil {
 			return errors.New("user not found")
+		}
+
+		// Validate tenant ownership - check if user has an identity in this tenant
+		hasTenantAccess := false
+		for _, identity := range user.UserIdentities {
+			if identity.TenantID == tenantID {
+				hasTenantAccess = true
+				break
+			}
+		}
+		if !hasTenantAccess {
+			return errors.New("user not found or access denied")
 		}
 
 		// Find role by UUID
