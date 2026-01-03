@@ -216,8 +216,8 @@ func (s *roleService) Create(name string, description string, isDefault bool, is
 			return errors.New("tenant not found")
 		}
 
-		// Get actor user with tenant info
-		actorUser, err := txUserRepo.FindByUUID(actorUserUUID, "Tenant")
+		// Get actor user with user identities for tenant validation
+		actorUser, err := txUserRepo.FindByUUID(actorUserUUID, "UserIdentities.Tenant")
 		if err != nil || actorUser == nil {
 			return errors.New("actor user not found")
 		}
@@ -285,8 +285,8 @@ func (s *roleService) Update(roleUUID uuid.UUID, tenantID int64, name string, de
 			return errors.New("role not found or access denied")
 		}
 
-		// Get actor user with tenant info
-		actorUser, err := txUserRepo.FindByUUID(actorUserUUID, "Tenant")
+		// Get actor user with user identities for tenant validation
+		actorUser, err := txUserRepo.FindByUUID(actorUserUUID, "UserIdentities.Tenant")
 		if err != nil || actorUser == nil {
 			return errors.New("actor user not found")
 		}
@@ -358,8 +358,8 @@ func (s *roleService) SetStatusByUUID(roleUUID uuid.UUID, tenantID int64, status
 			return errors.New("role not found or access denied")
 		}
 
-		// Get actor user with tenant info
-		actorUser, err := txUserRepo.FindByUUID(actorUserUUID, "Tenant")
+		// Get actor user with user identities for tenant validation
+		actorUser, err := txUserRepo.FindByUUID(actorUserUUID, "UserIdentities.Tenant")
 		if err != nil || actorUser == nil {
 			return errors.New("actor user not found")
 		}
@@ -409,8 +409,8 @@ func (s *roleService) DeleteByUUID(roleUUID uuid.UUID, tenantID int64, actorUser
 		return nil, errors.New("role not found or access denied")
 	}
 
-	// Get actor user with tenant info
-	actorUser, err := s.userRepo.FindByUUID(actorUserUUID, "Tenant")
+	// Get actor user with user identities for tenant validation
+	actorUser, err := s.userRepo.FindByUUID(actorUserUUID, "UserIdentities.Tenant")
 	if err != nil || actorUser == nil {
 		return nil, errors.New("actor user not found")
 	}
@@ -458,8 +458,8 @@ func (s *roleService) AddRolePermissions(roleUUID uuid.UUID, tenantID int64, per
 			return errors.New("role not found or access denied")
 		}
 
-		// Get actor user with tenant info
-		actorUser, err := txUserRepo.FindByUUID(actorUserUUID, "Tenant")
+		// Get actor user with user identities for tenant validation
+		actorUser, err := txUserRepo.FindByUUID(actorUserUUID, "UserIdentities.Tenant")
 		if err != nil || actorUser == nil {
 			return errors.New("actor user not found")
 		}
@@ -556,8 +556,8 @@ func (s *roleService) RemoveRolePermissions(roleUUID uuid.UUID, tenantID int64, 
 			return errors.New("role not found or access denied")
 		}
 
-		// Get actor user with tenant info
-		actorUser, err := txUserRepo.FindByUUID(actorUserUUID, "Tenant")
+		// Get actor user with user identities for tenant validation
+		actorUser, err := txUserRepo.FindByUUID(actorUserUUID, "UserIdentities.Tenant")
 		if err != nil || actorUser == nil {
 			return errors.New("actor user not found")
 		}
