@@ -11,7 +11,6 @@ import (
 type User struct {
 	UserID             int64          `gorm:"column:user_id;primaryKey"`
 	UserUUID           uuid.UUID      `gorm:"column:user_uuid;unique"`
-	TenantID           int64          `gorm:"column:tenant_id"`
 	Username           string         `gorm:"column:username"`
 	Fullname           string         `gorm:"column:fullname"`
 	Email              string         `gorm:"column:email"`
@@ -27,7 +26,6 @@ type User struct {
 	UpdatedAt          time.Time      `gorm:"column:updated_at;autoUpdateTime"`
 
 	// Relationships
-	Tenant         *Tenant        `gorm:"foreignKey:TenantID;references:TenantID;constraint:OnDelete:CASCADE"`
 	UserIdentities []UserIdentity `gorm:"foreignKey:UserID;references:UserID;constraint:OnDelete:CASCADE"`
 	UserRoles      []UserRole     `gorm:"foreignKey:UserID;references:UserID"`
 	Roles          []Role         `gorm:"many2many:user_roles;joinForeignKey:UserID;joinReferences:RoleID"`

@@ -16,44 +16,58 @@ import (
 	"github.com/maintainerd/auth/internal/util"
 )
 
+// UserHandler handles user management operations.
+//
+// This handler manages tenant-scoped user accounts. In the multi-tenant architecture,
+// users are associated with tenants through the user_identities table. All operations
+// are tenant-isolated - middleware validates tenant access and stores it in the request
+// context. The handler supports CRUD operations, role management, identity management,
+// and account verification workflows.
 type UserHandler struct {
 	userService service.UserService
 }
 
+// NewUserHandler creates a new user handler instance.
 func NewUserHandler(userService service.UserService) *UserHandler {
 	return &UserHandler{
 		userService: userService,
 	}
 }
 
-// Get users with pagination and filtering
+// GetUsers retrieves all users for the tenant with pagination and filters.
+//
+// GET /users
+//
+// Returns a paginated list of users belonging to the authenticated tenant.
+// Supports filtering by username, email, phone, status, and role UUID.
 func (h *UserHandler) GetUsers(w http.ResponseWriter, r *http.Request) {
-	// Get tenant from context
+	// Get tenant from context (middleware already validated access)
 	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
 	if !ok || tenant == nil {
 		util.Error(w, http.StatusUnauthorized, "Tenant not found in context")
 		return
 	}
 
+	// Parse query parameters
 	q := r.URL.Query()
 
-	// Parse pagination
+	// Parse pagination parameters
 	page, _ := strconv.Atoi(q.Get("page"))
 	limit, _ := strconv.Atoi(q.Get("limit"))
 
-	// Parse status filter (can be multiple)
+	// Parse status filter
 	var status []string
 	if v := q.Get("status"); v != "" {
 		status = append(status, v)
 	}
 
-	// Parse role UUID safely
+	// Parse role UUID filter
 	var roleUUID *string
 	if v := q.Get("role_id"); v != "" {
 		roleUUID = &v
 	}
 
-	// Build request DTO (for validation)
+	// Build filter DTO for validation
 	reqParams := dto.UserFilterDto{
 		Username: util.PtrOrNil(q.Get("username")),
 		Email:    util.PtrOrNil(q.Get("email")),
@@ -68,12 +82,13 @@ func (h *UserHandler) GetUsers(w http.ResponseWriter, r *http.Request) {
 		},
 	}
 
+	// Validate filter parameters
 	if err := reqParams.Validate(); err != nil {
 		util.ValidationError(w, err)
 		return
 	}
 
-	// Convert to service filter
+	// Build service filter with tenant context
 	filter := service.UserServiceGetFilter{
 		Username:  reqParams.Username,
 		Email:     reqParams.Email,
@@ -87,20 +102,20 @@ func (h *UserHandler) GetUsers(w http.ResponseWriter, r *http.Request) {
 		SortOrder: reqParams.PaginationRequestDto.SortOrder,
 	}
 
-	// Get users
+	// Fetch users from service layer
 	result, err := h.userService.Get(filter)
 	if err != nil {
 		util.Error(w, http.StatusInternalServerError, "Failed to fetch users", err.Error())
 		return
 	}
 
-	// Map service result to dto
+	// Map service results to DTOs
 	rows := make([]dto.UserResponseDto, len(result.Data))
 	for i, r := range result.Data {
 		rows[i] = toUserResponseDto(r)
 	}
 
-	// Build response data
+	// Build paginated response
 	response := dto.PaginatedResponseDto[dto.UserResponseDto]{
 		Rows:       rows,
 		Total:      result.Total,
@@ -112,15 +127,21 @@ func (h *UserHandler) GetUsers(w http.ResponseWriter, r *http.Request) {
 	util.Success(w, response, "Users fetched successfully")
 }
 
-// Get user by UUID
+// GetUser retrieves a specific user by UUID.
+//
+// GET /users/{user_uuid}
+//
+// Returns detailed information about a single user. The service layer
+// validates that the user belongs to the tenant.
 func (h *UserHandler) GetUser(w http.ResponseWriter, r *http.Request) {
-	// Get tenant from context
+	// Get tenant from context (middleware already validated access)
 	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
 	if !ok || tenant == nil {
 		util.Error(w, http.StatusUnauthorized, "Tenant not found in context")
 		return
 	}
 
+	// Parse and validate user UUID from URL parameter
 	userUUIDStr := chi.URLParam(r, "user_uuid")
 	userUUID, err := uuid.Parse(userUUIDStr)
 	if err != nil {
@@ -128,79 +149,79 @@ func (h *UserHandler) GetUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Fetch user (service validates tenant ownership)
 	user, err := h.userService.GetByUUID(userUUID, tenant.TenantID)
 	if err != nil {
 		util.Error(w, http.StatusNotFound, "User not found")
 		return
 	}
 
-	// Build response data
+	// Map to response DTO
 	dtoRes := toUserResponseDto(*user)
 
 	util.Success(w, dtoRes, "User fetched successfully")
 }
 
-// Create user
+// CreateUser creates a new user for the tenant.
+//
+// POST /users
+//
+// Creates a new user account within the authenticated tenant. The creator's
+// context is used for audit tracking.
 func (h *UserHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
-	// Get authentication context
-	creatorUser := r.Context().Value(middleware.UserContextKey).(*model.User)
-
-	// Get tenant from context
+	// Get tenant from context (middleware already validated access)
 	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
 	if !ok || tenant == nil {
 		util.Error(w, http.StatusUnauthorized, "Tenant not found in context")
 		return
 	}
 
-	// Validate user belongs to the tenant
-	if creatorUser.TenantID != tenant.TenantID {
-		util.Error(w, http.StatusForbidden, "User does not belong to this tenant")
-		return
-	}
+	// Get creator user from context (needed for audit trail)
+	creatorUser := r.Context().Value(middleware.UserContextKey).(*model.User)
 
+	// Decode and validate request body
 	var req dto.UserCreateRequestDto
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		util.Error(w, http.StatusBadRequest, "Invalid JSON format")
 		return
 	}
 
-	// Validate request
 	if err := req.Validate(); err != nil {
 		util.Error(w, http.StatusBadRequest, "Validation failed", err.Error())
 		return
 	}
 
-	// Create user with creator context
+	// Create user (includes creator context for audit trail)
 	user, err := h.userService.Create(req.Username, req.Fullname, req.Email, req.Phone, req.Password, req.Status, req.Metadata, tenant.TenantUUID.String(), creatorUser.UserUUID)
 	if err != nil {
 		util.Error(w, http.StatusInternalServerError, "Failed to create user", err.Error())
 		return
 	}
 
-	// Build response data
+	// Map to response DTO
 	dtoRes := toUserResponseDto(*user)
 
 	util.Created(w, dtoRes, "User created successfully")
 }
 
-// Update user
+// UpdateUser updates an existing user.
+//
+// PUT /users/{user_uuid}
+//
+// Updates user account information. The service layer validates that the user
+// belongs to the tenant. The updater's context is used for audit tracking.
 func (h *UserHandler) UpdateUser(w http.ResponseWriter, r *http.Request) {
-	// Get authentication context
-	updaterUser := r.Context().Value(middleware.UserContextKey).(*model.User)
-
-	// Get tenant from context
+	// Get tenant from context (middleware already validated access)
 	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
 	if !ok || tenant == nil {
 		util.Error(w, http.StatusUnauthorized, "Tenant not found in context")
 		return
 	}
 
-	// Validate user belongs to the tenant
-	if updaterUser.TenantID != tenant.TenantID {
-		util.Error(w, http.StatusForbidden, "User does not belong to this tenant")
-		return
-	}
+	// Get updater user from context (needed for audit trail)
+	updaterUser := r.Context().Value(middleware.UserContextKey).(*model.User)
 
+	// Parse and validate user UUID from URL parameter
 	userUUIDStr := chi.URLParam(r, "user_uuid")
 	userUUID, err := uuid.Parse(userUUIDStr)
 	if err != nil {
@@ -208,49 +229,49 @@ func (h *UserHandler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Decode and validate request body
 	var req dto.UserUpdateRequestDto
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		util.Error(w, http.StatusBadRequest, "Invalid JSON format")
 		return
 	}
 
-	// Validate request
 	if err := req.Validate(); err != nil {
 		util.Error(w, http.StatusBadRequest, "Validation failed", err.Error())
 		return
 	}
 
-	// Update user (service validates tenant ownership)
+	// Update user (service validates tenant ownership, includes updater context for audit)
 	user, err := h.userService.Update(userUUID, tenant.TenantID, req.Username, req.Fullname, req.Email, req.Phone, req.Status, req.Metadata, updaterUser.UserUUID)
 	if err != nil {
 		util.Error(w, http.StatusInternalServerError, "Failed to update user", err.Error())
 		return
 	}
 
-	// Build response data
+	// Map to response DTO
 	dtoRes := toUserResponseDto(*user)
 
 	util.Success(w, dtoRes, "User updated successfully")
 }
 
-// Set user active status
+// SetUserStatus updates the status of a user.
+//
+// PATCH /users/{user_uuid}/status
+//
+// Updates only the status field of a user (e.g., active, inactive, suspended).
+// This is a convenience endpoint for status-only updates.
 func (h *UserHandler) SetUserStatus(w http.ResponseWriter, r *http.Request) {
-	// Get authentication context
-	updaterUser := r.Context().Value(middleware.UserContextKey).(*model.User)
-
-	// Get tenant from context
+	// Get tenant from context (middleware already validated access)
 	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
 	if !ok || tenant == nil {
 		util.Error(w, http.StatusUnauthorized, "Tenant not found in context")
 		return
 	}
 
-	// Validate user belongs to the tenant
-	if updaterUser.TenantID != tenant.TenantID {
-		util.Error(w, http.StatusForbidden, "User does not belong to this tenant")
-		return
-	}
+	// Get updater user from context (needed for audit trail)
+	updaterUser := r.Context().Value(middleware.UserContextKey).(*model.User)
 
+	// Parse and validate user UUID from URL parameter
 	userUUIDStr := chi.URLParam(r, "user_uuid")
 	userUUID, err := uuid.Parse(userUUIDStr)
 	if err != nil {
@@ -258,32 +279,39 @@ func (h *UserHandler) SetUserStatus(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Decode and validate request body
 	var req dto.UserSetStatusRequestDto
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		util.Error(w, http.StatusBadRequest, "Invalid JSON format")
 		return
 	}
 
-	// Validate request
 	if err := req.Validate(); err != nil {
 		util.Error(w, http.StatusBadRequest, "Validation failed", err.Error())
 		return
 	}
 
-	// Update user status (service validates tenant ownership)
+	// Update user status (service validates tenant ownership, includes updater context for audit)
 	user, err := h.userService.SetStatus(userUUID, tenant.TenantID, req.Status, updaterUser.UserUUID)
 	if err != nil {
 		util.Error(w, http.StatusInternalServerError, "Failed to update user status", err.Error())
 		return
 	}
 
-	// Build response data
+	// Map to response DTO
 	dtoRes := toUserResponseDto(*user)
 
 	util.Success(w, dtoRes, "User status updated successfully")
 }
 
+// VerifyEmail marks a user's email as verified.
+//
+// POST /users/{user_uuid}/verify-email
+//
+// Verifies the user's email address and may mark the account as completed
+// if all required verification steps are done.
 func (h *UserHandler) VerifyEmail(w http.ResponseWriter, r *http.Request) {
+	// Parse and validate user UUID from URL parameter
 	userUUIDStr := chi.URLParam(r, "user_uuid")
 	userUUID, err := uuid.Parse(userUUIDStr)
 	if err != nil {
@@ -291,7 +319,7 @@ func (h *UserHandler) VerifyEmail(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Verify email and mark account as completed
+	// Verify email (may also mark account as completed)
 	user, err := h.userService.VerifyEmail(userUUID)
 	if err != nil {
 		util.Error(w, http.StatusInternalServerError, "Failed to verify email", err.Error())
@@ -302,7 +330,14 @@ func (h *UserHandler) VerifyEmail(w http.ResponseWriter, r *http.Request) {
 	util.Success(w, dtoRes, "Email verified and account completed successfully")
 }
 
+// VerifyPhone marks a user's phone number as verified.
+//
+// POST /users/{user_uuid}/verify-phone
+//
+// Verifies the user's phone number for two-factor authentication
+// or account recovery purposes.
 func (h *UserHandler) VerifyPhone(w http.ResponseWriter, r *http.Request) {
+	// Parse and validate user UUID from URL parameter
 	userUUIDStr := chi.URLParam(r, "user_uuid")
 	userUUID, err := uuid.Parse(userUUIDStr)
 	if err != nil {
@@ -310,7 +345,7 @@ func (h *UserHandler) VerifyPhone(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Verify phone
+	// Verify phone number
 	user, err := h.userService.VerifyPhone(userUUID)
 	if err != nil {
 		util.Error(w, http.StatusInternalServerError, "Failed to verify phone", err.Error())
@@ -321,7 +356,14 @@ func (h *UserHandler) VerifyPhone(w http.ResponseWriter, r *http.Request) {
 	util.Success(w, dtoRes, "Phone verified successfully")
 }
 
+// CompleteAccount marks a user's account as completed.
+//
+// POST /users/{user_uuid}/complete-account
+//
+// Manually marks an account as completed, typically after all required
+// profile information and verifications are done.
 func (h *UserHandler) CompleteAccount(w http.ResponseWriter, r *http.Request) {
+	// Parse and validate user UUID from URL parameter
 	userUUIDStr := chi.URLParam(r, "user_uuid")
 	userUUID, err := uuid.Parse(userUUIDStr)
 	if err != nil {
@@ -340,24 +382,24 @@ func (h *UserHandler) CompleteAccount(w http.ResponseWriter, r *http.Request) {
 	util.Success(w, dtoRes, "Account marked as completed successfully")
 }
 
-// Delete user
+// DeleteUser deletes a user.
+//
+// DELETE /users/{user_uuid}
+//
+// Permanently deletes a user account from the tenant. The service layer
+// validates tenant ownership. The deleter's context is used for audit tracking.
 func (h *UserHandler) DeleteUser(w http.ResponseWriter, r *http.Request) {
-	// Get authentication context
-	deleterUser := r.Context().Value(middleware.UserContextKey).(*model.User)
-
-	// Get tenant from context
+	// Get tenant from context (middleware already validated access)
 	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
 	if !ok || tenant == nil {
 		util.Error(w, http.StatusUnauthorized, "Tenant not found in context")
 		return
 	}
 
-	// Validate user belongs to the tenant
-	if deleterUser.TenantID != tenant.TenantID {
-		util.Error(w, http.StatusForbidden, "User does not belong to this tenant")
-		return
-	}
+	// Get deleter user from context (needed for audit trail)
+	deleterUser := r.Context().Value(middleware.UserContextKey).(*model.User)
 
+	// Parse and validate user UUID from URL parameter
 	userUUIDStr := chi.URLParam(r, "user_uuid")
 	userUUID, err := uuid.Parse(userUUIDStr)
 	if err != nil {
@@ -365,21 +407,27 @@ func (h *UserHandler) DeleteUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Delete user (service validates tenant ownership)
+	// Delete user (service validates tenant ownership, includes deleter context for audit)
 	user, err := h.userService.DeleteByUUID(userUUID, tenant.TenantID, deleterUser.UserUUID)
 	if err != nil {
 		util.Error(w, http.StatusInternalServerError, "Failed to delete user", err.Error())
 		return
 	}
 
-	// Build response data
+	// Map to response DTO
 	dtoRes := toUserResponseDto(*user)
 
 	util.Success(w, dtoRes, "User deleted successfully")
 }
 
-// Assign roles to user
+// AssignRoles assigns roles to a user.
+//
+// POST /users/{user_uuid}/roles
+//
+// Associates one or more roles with a user, granting them the permissions
+// defined by those roles.
 func (h *UserHandler) AssignRoles(w http.ResponseWriter, r *http.Request) {
+	// Parse and validate user UUID from URL parameter
 	userUUIDStr := chi.URLParam(r, "user_uuid")
 	userUUID, err := uuid.Parse(userUUIDStr)
 	if err != nil {
@@ -387,13 +435,13 @@ func (h *UserHandler) AssignRoles(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Decode and validate request body
 	var req dto.UserAssignRolesRequestDto
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		util.Error(w, http.StatusBadRequest, "Invalid JSON format")
 		return
 	}
 
-	// Validate request
 	if err := req.Validate(); err != nil {
 		util.Error(w, http.StatusBadRequest, "Validation failed", err.Error())
 		return
@@ -406,14 +454,20 @@ func (h *UserHandler) AssignRoles(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Build response data
+	// Map to response DTO
 	dtoRes := toUserResponseDto(*user)
 
 	util.Success(w, dtoRes, "Roles assigned to user successfully")
 }
 
-// Remove role from user
+// RemoveRole removes a role from a user.
+//
+// DELETE /users/{user_uuid}/roles/{role_uuid}
+//
+// Removes the association between a role and a user, revoking the permissions
+// granted by that role.
 func (h *UserHandler) RemoveRole(w http.ResponseWriter, r *http.Request) {
+	// Parse and validate user UUID from URL parameter
 	userUUIDStr := chi.URLParam(r, "user_uuid")
 	userUUID, err := uuid.Parse(userUUIDStr)
 	if err != nil {
@@ -421,6 +475,7 @@ func (h *UserHandler) RemoveRole(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Parse and validate role UUID from URL parameter
 	roleUUIDStr := chi.URLParam(r, "role_uuid")
 	roleUUID, err := uuid.Parse(roleUUIDStr)
 	if err != nil {
@@ -435,13 +490,15 @@ func (h *UserHandler) RemoveRole(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Build response data
+	// Map to response DTO
 	dtoRes := toUserResponseDto(*user)
 
 	util.Success(w, dtoRes, "Role removed from user successfully")
 }
 
-// Convert service result to dto
+// Helper functions for converting service data to response DTOs
+
+// toUserResponseDto converts a service result to a user response DTO.
 func toUserResponseDto(u service.UserServiceDataResult) dto.UserResponseDto {
 	result := dto.UserResponseDto{
 		UserUUID:           u.UserUUID,
@@ -478,8 +535,14 @@ func toUserResponseDto(u service.UserServiceDataResult) dto.UserResponseDto {
 	return result
 }
 
-// Get user roles with pagination
+// GetUserRoles retrieves all roles assigned to a user with pagination and filters.
+//
+// GET /users/{user_uuid}/roles
+//
+// Returns a paginated list of roles assigned to the user. Supports filtering
+// by role name, description, and status.
 func (h *UserHandler) GetUserRoles(w http.ResponseWriter, r *http.Request) {
+	// Parse and validate user UUID from URL parameter
 	userUUIDStr := chi.URLParam(r, "user_uuid")
 	userUUID, err := uuid.Parse(userUUIDStr)
 	if err != nil {
@@ -487,13 +550,14 @@ func (h *UserHandler) GetUserRoles(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Parse query parameters
 	q := r.URL.Query()
 
-	// Parse pagination
+	// Parse pagination parameters
 	page, _ := strconv.Atoi(q.Get("page"))
 	limit, _ := strconv.Atoi(q.Get("limit"))
 
-	// Build request DTO
+	// Build filter DTO for validation
 	reqParams := dto.UserRoleFilterDto{
 		Name:        util.PtrOrNil(q.Get("name")),
 		Description: util.PtrOrNil(q.Get("description")),
@@ -506,26 +570,27 @@ func (h *UserHandler) GetUserRoles(w http.ResponseWriter, r *http.Request) {
 		},
 	}
 
+	// Validate filter parameters
 	if err := reqParams.Validate(); err != nil {
 		util.ValidationError(w, err)
 		return
 	}
 
-	// Get tenant from context
+	// Get tenant from context (middleware already validated access)
 	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
 	if !ok || tenant == nil {
 		util.Error(w, http.StatusUnauthorized, "Tenant not found in context")
 		return
 	}
 
-	// Get user to verify it exists
+	// Verify user exists and belongs to tenant
 	user, err := h.userService.GetByUUID(userUUID, tenant.TenantID)
 	if err != nil {
 		util.Error(w, http.StatusNotFound, "User not found")
 		return
 	}
 
-	// Get roles for the user
+	// Fetch roles for the user
 	roles, err := h.userService.GetUserRoles(user.UserUUID)
 	if err != nil {
 		util.Error(w, http.StatusInternalServerError, "Failed to fetch user roles", err.Error())
@@ -593,8 +658,14 @@ func (h *UserHandler) GetUserRoles(w http.ResponseWriter, r *http.Request) {
 	util.Success(w, response, "User roles fetched successfully")
 }
 
-// Get user identities with pagination
+// GetUserIdentities retrieves all identities for a user with pagination and filters.
+//
+// GET /users/{user_uuid}/identities
+//
+// Returns a paginated list of identity providers linked to the user (e.g., Google, GitHub).
+// Supports filtering by provider type.
 func (h *UserHandler) GetUserIdentities(w http.ResponseWriter, r *http.Request) {
+	// Parse and validate user UUID from URL parameter
 	userUUIDStr := chi.URLParam(r, "user_uuid")
 	userUUID, err := uuid.Parse(userUUIDStr)
 	if err != nil {
@@ -602,13 +673,14 @@ func (h *UserHandler) GetUserIdentities(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
+	// Parse query parameters
 	q := r.URL.Query()
 
-	// Parse pagination
+	// Parse pagination parameters
 	page, _ := strconv.Atoi(q.Get("page"))
 	limit, _ := strconv.Atoi(q.Get("limit"))
 
-	// Build request DTO
+	// Build filter DTO for validation
 	reqParams := dto.UserIdentityFilterDto{
 		Provider: util.PtrOrNil(q.Get("provider")),
 		PaginationRequestDto: dto.PaginationRequestDto{
@@ -619,26 +691,27 @@ func (h *UserHandler) GetUserIdentities(w http.ResponseWriter, r *http.Request) 
 		},
 	}
 
+	// Validate filter parameters
 	if err := reqParams.Validate(); err != nil {
 		util.ValidationError(w, err)
 		return
 	}
 
-	// Get tenant from context
+	// Get tenant from context (middleware already validated access)
 	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
 	if !ok || tenant == nil {
 		util.Error(w, http.StatusUnauthorized, "Tenant not found in context")
 		return
 	}
 
-	// Get user to verify it exists
+	// Verify user exists and belongs to tenant
 	user, err := h.userService.GetByUUID(userUUID, tenant.TenantID)
 	if err != nil {
 		util.Error(w, http.StatusNotFound, "User not found")
 		return
 	}
 
-	// Get identities for the user
+	// Fetch identities for the user
 	identities, err := h.userService.GetUserIdentities(user.UserUUID)
 	if err != nil {
 		util.Error(w, http.StatusInternalServerError, "Failed to fetch user identities", err.Error())

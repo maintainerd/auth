@@ -5,6 +5,7 @@ import (
 	"errors"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/dto"
 	"github.com/maintainerd/auth/internal/model"
 	"github.com/maintainerd/auth/internal/repository"
@@ -258,7 +259,7 @@ func (s *setupService) CreateAdmin(req dto.CreateAdminRequestDto) (*dto.CreateAd
 		txTenantMemberRepo := s.tenantMemberRepo.WithTx(tx)
 
 		// Check if user already exists
-		existingUser, err := txUserRepo.FindByEmail(req.Email, defaultTenant.TenantID)
+		existingUser, err := txUserRepo.FindByEmail(req.Email)
 		if err != nil {
 			return err
 		}
@@ -278,7 +279,6 @@ func (s *setupService) CreateAdmin(req dto.CreateAdminRequestDto) (*dto.CreateAd
 			Fullname:        req.Fullname,
 			Email:           req.Email,
 			Password:        util.Ptr(string(hashedPassword)),
-			TenantID:        defaultTenant.TenantID,
 			IsEmailVerified: true,
 			Status:          "active",
 		}
@@ -290,10 +290,11 @@ func (s *setupService) CreateAdmin(req dto.CreateAdminRequestDto) (*dto.CreateAd
 
 		// Create user identity
 		userIdentity := &model.UserIdentity{
+			TenantID:     defaultTenant.TenantID,
 			UserID:       createdUser.UserID,
 			AuthClientID: defaultClient.AuthClientID,
 			Provider:     "default",
-			Sub:          createdUser.UserUUID.String(),
+			Sub:          uuid.New().String(),
 		}
 		_, err = txUserIdentityRepo.Create(userIdentity)
 		if err != nil {

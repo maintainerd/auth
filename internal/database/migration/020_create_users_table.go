@@ -12,7 +12,6 @@ func CreateUserTable(db *gorm.DB) {
 CREATE TABLE IF NOT EXISTS users (
     user_id                 SERIAL PRIMARY KEY,
     user_uuid               UUID NOT NULL UNIQUE,
-    tenant_id               INTEGER NOT NULL,
     username                VARCHAR(255) NOT NULL,
     fullname                VARCHAR(255),
     email                   VARCHAR(255),
@@ -28,24 +27,11 @@ CREATE TABLE IF NOT EXISTS users (
     updated_at              TIMESTAMPTZ DEFAULT now()
 );
 
--- ADD CONSTRAINTS
-DO $$
-BEGIN
-    IF NOT EXISTS (
-        SELECT 1 FROM pg_constraint WHERE conname = 'fk_users_tenant_id'
-    ) THEN
-        ALTER TABLE users
-            ADD CONSTRAINT fk_users_tenant_id FOREIGN KEY (tenant_id)
-            REFERENCES tenants(tenant_id) ON DELETE CASCADE;
-    END IF;
-END$$;
-
 -- ADD INDEXES
 CREATE INDEX IF NOT EXISTS idx_users_uuid ON users (user_uuid);
 CREATE INDEX IF NOT EXISTS idx_users_username ON users (username);
 CREATE INDEX IF NOT EXISTS idx_users_email ON users (email);
 CREATE INDEX IF NOT EXISTS idx_users_phone ON users (phone);
-CREATE INDEX IF NOT EXISTS idx_users_tenant_id ON users (tenant_id);
 CREATE INDEX IF NOT EXISTS idx_users_created_at ON users (created_at);
 `
 	if err := db.Exec(sql).Error; err != nil {

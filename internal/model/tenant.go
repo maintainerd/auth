@@ -27,7 +27,7 @@ type Tenant struct {
 	Services          []Service           `gorm:"many2many:tenant_services;joinForeignKey:TenantID;joinReferences:ServiceID"`
 	IdentityProviders []*IdentityProvider `gorm:"foreignKey:TenantID;references:TenantID"`
 	Roles             []*Role             `gorm:"foreignKey:TenantID;references:TenantID"`
-	Users             []*User             `gorm:"foreignKey:TenantID;references:TenantID"`
+	UserIdentities    []*UserIdentity     `gorm:"foreignKey:TenantID;references:TenantID"`
 	AuthLogs          []*AuthLog          `gorm:"foreignKey:TenantID;references:TenantID"`
 }
 
