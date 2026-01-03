@@ -165,7 +165,7 @@ func (s *identityProviderService) Create(name string, displayName string, provid
 		}
 
 		// Get actor user with tenant info
-		actorUser, err := txUserRepo.FindByUUID(actorUserUUID, "Tenant")
+		actorUser, err := txUserRepo.FindByUUID(actorUserUUID, "UserIdentities.Tenant")
 		if err != nil || actorUser == nil {
 			return errors.New("actor user not found")
 		}
@@ -236,7 +236,7 @@ func (s *identityProviderService) Update(idpUUID uuid.UUID, name string, display
 		}
 
 		// Get actor user with tenant info
-		actorUser, err := txUserRepo.FindByUUID(actorUserUUID, "Tenant")
+		actorUser, err := txUserRepo.FindByUUID(actorUserUUID, "UserIdentities.Tenant")
 		if err != nil || actorUser == nil {
 			return errors.New("actor user not found")
 		}
@@ -306,7 +306,7 @@ func (s *identityProviderService) SetStatusByUUID(idpUUID uuid.UUID, status stri
 		}
 
 		// Get actor user with tenant info
-		actorUser, err := txUserRepo.FindByUUID(actorUserUUID, "Tenant")
+		actorUser, err := txUserRepo.FindByUUID(actorUserUUID, "UserIdentities.Tenant")
 		if err != nil || actorUser == nil {
 			return errors.New("actor user not found")
 		}
@@ -352,7 +352,7 @@ func (s *identityProviderService) DeleteByUUID(idpUUID uuid.UUID, actorUserUUID 
 	}
 
 	// Get actor user with tenant info
-	actorUser, err := s.userRepo.FindByUUID(actorUserUUID, "Tenant")
+	actorUser, err := s.userRepo.FindByUUID(actorUserUUID, "UserIdentities.Tenant")
 	if err != nil || actorUser == nil {
 		return nil, errors.New("actor user not found")
 	}
@@ -405,3 +405,4 @@ func toIdpServiceDataResult(idp *model.IdentityProvider) *IdentityProviderServic
 
 	return result
 }
+
