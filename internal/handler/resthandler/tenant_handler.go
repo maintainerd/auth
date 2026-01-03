@@ -16,14 +16,14 @@ import (
 )
 
 type TenantHandler struct {
-	tenantService     service.TenantService
-	tenantUserService service.TenantUserService
+	tenantService       service.TenantService
+	tenantMemberService service.TenantMemberService
 }
 
-func NewTenantHandler(tenantService service.TenantService, tenantUserService service.TenantUserService) *TenantHandler {
+func NewTenantHandler(tenantService service.TenantService, tenantMemberService service.TenantMemberService) *TenantHandler {
 	return &TenantHandler{
-		tenantService:     tenantService,
-		tenantUserService: tenantUserService,
+		tenantService:       tenantService,
+		tenantMemberService: tenantMemberService,
 	}
 }
 
@@ -217,7 +217,7 @@ func (h *TenantHandler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Check if user is a member of this tenant
-	isMember, err := h.tenantUserService.IsUserInTenant(user.UserID, tenantUUID)
+	isMember, err := h.tenantMemberService.IsUserInTenant(user.UserID, tenantUUID)
 	if err != nil {
 		util.Error(w, http.StatusInternalServerError, "Failed to verify tenant membership", err.Error())
 		return
@@ -329,7 +329,7 @@ func (h *TenantHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Check if user is a member of this tenant
-	isMember, err := h.tenantUserService.IsUserInTenant(user.UserID, tenantUUID)
+	isMember, err := h.tenantMemberService.IsUserInTenant(user.UserID, tenantUUID)
 	if err != nil {
 		util.Error(w, http.StatusInternalServerError, "Failed to verify tenant membership", err.Error())
 		return
@@ -385,7 +385,7 @@ func (h *TenantHandler) GetMembers(w http.ResponseWriter, r *http.Request) {
 	limit, _ := strconv.Atoi(q.Get("limit"))
 
 	// Build request DTO
-	reqParams := dto.TenantUserFilterDto{
+	reqParams := dto.TenantMemberFilterDto{
 		Role: util.PtrOrNil(q.Get("role")),
 		PaginationRequestDto: dto.PaginationRequestDto{
 			Page:      page,
@@ -407,15 +407,15 @@ func (h *TenantHandler) GetMembers(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	members, err := h.tenantUserService.ListByTenant(tenant.TenantID)
+	members, err := h.tenantMemberService.ListByTenant(tenant.TenantID)
 	if err != nil {
-		util.Error(w, http.StatusInternalServerError, "Failed to get members", err.Error())
+		util.Error(w, http.StatusInternalServerError, "Failed to fetch members", err.Error())
 		return
 	}
 
-	response := make([]dto.TenantUserResponseDto, len(members))
+	response := make([]dto.TenantMemberResponseDto, len(members))
 	for i, member := range members {
-		response[i] = toTenantUserResponseDto(member)
+		response[i] = toTenantMemberResponseDto(member)
 	}
 
 	util.Success(w, response, "Members retrieved successfully")
@@ -435,7 +435,7 @@ func (h *TenantHandler) AddMember(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var req dto.TenantUserAddMemberRequestDto
+	var req dto.TenantMemberAddMemberRequestDto
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		util.Error(w, http.StatusBadRequest, "Invalid request body", err.Error())
 		return
@@ -453,31 +453,31 @@ func (h *TenantHandler) AddMember(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	member, err := h.tenantUserService.CreateByUserUUID(tenant.TenantID, req.UserUUID, req.Role)
+	member, err := h.tenantMemberService.CreateByUserUUID(tenant.TenantID, req.UserUUID, req.Role)
 	if err != nil {
 		util.Error(w, http.StatusBadRequest, "Failed to add member", err.Error())
 		return
 	}
 
-	response := toTenantUserResponseDto(*member)
+	response := toTenantMemberResponseDto(*member)
 	util.Created(w, response, "Member added successfully")
 }
 
 // UpdateMemberRole updates a member's role in a tenant
 func (h *TenantHandler) UpdateMemberRole(w http.ResponseWriter, r *http.Request) {
-	tenantUserUUIDStr := chi.URLParam(r, "tenant_user_uuid")
-	if tenantUserUUIDStr == "" {
-		util.Error(w, http.StatusBadRequest, "Invalid tenant user UUID", "UUID parameter is required")
+	tenantMemberUUIDStr := chi.URLParam(r, "tenant_member_uuid")
+	if tenantMemberUUIDStr == "" {
+		util.Error(w, http.StatusBadRequest, "Invalid tenant member UUID", "UUID parameter is required")
 		return
 	}
 
-	tenantUserUUID, err := uuid.Parse(tenantUserUUIDStr)
+	tenantMemberUUID, err := uuid.Parse(tenantMemberUUIDStr)
 	if err != nil {
 		util.Error(w, http.StatusBadRequest, "Invalid UUID format", err.Error())
 		return
 	}
 
-	var req dto.TenantUserUpdateRoleRequestDto
+	var req dto.TenantMemberUpdateRoleRequestDto
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		util.Error(w, http.StatusBadRequest, "Invalid request body", err.Error())
 		return
@@ -488,31 +488,31 @@ func (h *TenantHandler) UpdateMemberRole(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	member, err := h.tenantUserService.UpdateRole(tenantUserUUID, req.Role)
+	member, err := h.tenantMemberService.UpdateRole(tenantMemberUUID, req.Role)
 	if err != nil {
 		util.Error(w, http.StatusBadRequest, "Failed to update member role", err.Error())
 		return
 	}
 
-	response := toTenantUserResponseDto(*member)
+	response := toTenantMemberResponseDto(*member)
 	util.Success(w, response, "Member role updated successfully")
 }
 
 // RemoveMember removes a member from a tenant
 func (h *TenantHandler) RemoveMember(w http.ResponseWriter, r *http.Request) {
-	tenantUserUUIDStr := chi.URLParam(r, "tenant_user_uuid")
-	if tenantUserUUIDStr == "" {
-		util.Error(w, http.StatusBadRequest, "Invalid tenant user UUID", "UUID parameter is required")
+	tenantMemberUUIDStr := chi.URLParam(r, "tenant_member_uuid")
+	if tenantMemberUUIDStr == "" {
+		util.Error(w, http.StatusBadRequest, "Invalid tenant member UUID", "UUID parameter is required")
 		return
 	}
 
-	tenantUserUUID, err := uuid.Parse(tenantUserUUIDStr)
+	tenantMemberUUID, err := uuid.Parse(tenantMemberUUIDStr)
 	if err != nil {
 		util.Error(w, http.StatusBadRequest, "Invalid UUID format", err.Error())
 		return
 	}
 
-	if err := h.tenantUserService.DeleteByUUID(tenantUserUUID); err != nil {
+	if err := h.tenantMemberService.DeleteByUUID(tenantMemberUUID); err != nil {
 		util.Error(w, http.StatusBadRequest, "Failed to remove member", err.Error())
 		return
 	}
@@ -539,12 +539,12 @@ func toTenantResponseDto(r service.TenantServiceDataResult) dto.TenantResponseDt
 	return result
 }
 
-func toTenantUserResponseDto(r service.TenantUserServiceDataResult) dto.TenantUserResponseDto {
-	resp := dto.TenantUserResponseDto{
-		TenantUserUUID: r.TenantUserUUID,
-		Role:           r.Role,
-		CreatedAt:      r.CreatedAt,
-		UpdatedAt:      r.UpdatedAt,
+func toTenantMemberResponseDto(r service.TenantMemberServiceDataResult) dto.TenantMemberResponseDto {
+	resp := dto.TenantMemberResponseDto{
+		TenantMemberUUID: r.TenantMemberUUID,
+		Role:             r.Role,
+		CreatedAt:        r.CreatedAt,
+		UpdatedAt:        r.UpdatedAt,
 	}
 
 	if r.User != nil {
