@@ -250,7 +250,7 @@ func (s *authClientService) Create(tenantID int64, name string, displayName stri
 		}
 
 		// Get actor user with tenant info
-		actorUser, err := txUserRepo.FindByUUID(actorUserUUID, "Tenant")
+		actorUser, err := txUserRepo.FindByUUID(actorUserUUID, "UserIdentities.Tenant")
 		if err != nil || actorUser == nil {
 			return errors.New("actor user not found")
 		}
@@ -324,7 +324,7 @@ func (s *authClientService) Update(authClientUUID uuid.UUID, tenantID int64, nam
 		}
 
 		// Get actor user with tenant info
-		actorUser, err := txUserRepo.FindByUUID(actorUserUUID, "Tenant")
+		actorUser, err := txUserRepo.FindByUUID(actorUserUUID, "UserIdentities.Tenant")
 		if err != nil || actorUser == nil {
 			return errors.New("actor user not found")
 		}
@@ -391,7 +391,7 @@ func (s *authClientService) SetStatusByUUID(authClientUUID uuid.UUID, tenantID i
 		}
 
 		// Get actor user with tenant info
-		actorUser, err := txUserRepo.FindByUUID(actorUserUUID, "Tenant")
+		actorUser, err := txUserRepo.FindByUUID(actorUserUUID, "UserIdentities.Tenant")
 		if err != nil || actorUser == nil {
 			return errors.New("actor user not found")
 		}
@@ -444,7 +444,7 @@ func (s *authClientService) DeleteByUUID(authClientUUID uuid.UUID, tenantID int6
 		}
 
 		// Get actor user with tenant info
-		actorUser, err := txUserRepo.FindByUUID(actorUserUUID, "Tenant")
+		actorUser, err := txUserRepo.FindByUUID(actorUserUUID, "UserIdentities.Tenant")
 		if err != nil || actorUser == nil {
 			return errors.New("actor user not found")
 		}
@@ -491,7 +491,7 @@ func (s *authClientService) CreateURI(authClientUUID uuid.UUID, tenantID int64, 
 		}
 
 		// Get actor user with tenant info
-		actorUser, err := txUserRepo.FindByUUID(actorUserUUID, "Tenant")
+		actorUser, err := txUserRepo.FindByUUID(actorUserUUID, "UserIdentities.Tenant")
 		if err != nil || actorUser == nil {
 			return errors.New("actor user not found")
 		}
@@ -547,7 +547,7 @@ func (s *authClientService) UpdateURI(authClientUUID uuid.UUID, tenantID int64, 
 		}
 
 		// Get actor user with tenant info
-		actorUser, err := txUserRepo.FindByUUID(actorUserUUID, "Tenant")
+		actorUser, err := txUserRepo.FindByUUID(actorUserUUID, "UserIdentities.Tenant")
 		if err != nil || actorUser == nil {
 			return errors.New("actor user not found")
 		}
@@ -611,7 +611,7 @@ func (s *authClientService) DeleteURI(authClientUUID uuid.UUID, tenantID int64, 
 		}
 
 		// Get actor user with tenant info
-		actorUser, err := txUserRepo.FindByUUID(actorUserUUID, "Tenant")
+		actorUser, err := txUserRepo.FindByUUID(actorUserUUID, "UserIdentities.Tenant")
 		if err != nil || actorUser == nil {
 			return errors.New("actor user not found")
 		}
@@ -1017,3 +1017,4 @@ func (s *authClientService) RemoveAuthClientApiPermission(tenantID int64, authCl
 		return nil
 	})
 }
+
