@@ -28,6 +28,7 @@ type setupService struct {
 	userRepo             repository.UserRepository
 	tenantRepo           repository.TenantRepository
 	tenantMemberRepo     repository.TenantMemberRepository
+	tenantUserRepo       repository.TenantUserRepository
 	authClientRepo       repository.AuthClientRepository
 	identityProviderRepo repository.IdentityProviderRepository
 	roleRepo             repository.RoleRepository
@@ -42,6 +43,7 @@ func NewSetupService(
 	userRepo repository.UserRepository,
 	tenantRepo repository.TenantRepository,
 	tenantMemberRepo repository.TenantMemberRepository,
+	tenantUserRepo repository.TenantUserRepository,
 	authClientRepo repository.AuthClientRepository,
 	identityProviderRepo repository.IdentityProviderRepository,
 	roleRepo repository.RoleRepository,
@@ -55,6 +57,7 @@ func NewSetupService(
 		userRepo:             userRepo,
 		tenantRepo:           tenantRepo,
 		tenantMemberRepo:     tenantMemberRepo,
+		tenantUserRepo:       tenantUserRepo,
 		authClientRepo:       authClientRepo,
 		identityProviderRepo: identityProviderRepo,
 		roleRepo:             roleRepo,
@@ -257,6 +260,7 @@ func (s *setupService) CreateAdmin(req dto.CreateAdminRequestDto) (*dto.CreateAd
 		txRoleRepo := s.roleRepo.WithTx(tx)
 		txUserIdentityRepo := s.userIdentityRepo.WithTx(tx)
 		txTenantMemberRepo := s.tenantMemberRepo.WithTx(tx)
+		txTenantUserRepo := s.tenantUserRepo.WithTx(tx)
 
 		// Check if user already exists
 		existingUser, err := txUserRepo.FindByEmail(req.Email)
@@ -346,6 +350,16 @@ func (s *setupService) CreateAdmin(req dto.CreateAdminRequestDto) (*dto.CreateAd
 			Role:     "owner",
 		}
 		_, err = txTenantMemberRepo.Create(tenantMember)
+		if err != nil {
+			return err
+		}
+
+		// Add user to tenant_users (tracks creator tenant)
+		tenantUser := &model.TenantUser{
+			TenantID: defaultTenant.TenantID,
+			UserID:   createdUser.UserID,
+		}
+		_, err = txTenantUserRepo.Create(tenantUser)
 		if err != nil {
 			return err
 		}

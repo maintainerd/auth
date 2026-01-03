@@ -61,8 +61,8 @@ CREATE INDEX IF NOT EXISTS idx_login_templates_created_at ON login_templates (cr
 `
 
 	if err := db.Exec(sql).Error; err != nil {
-		log.Fatalf("❌ Failed to run migration 034_create_login_templates_table: %v", err)
+		log.Fatalf("❌ Failed to run migration 035_create_login_templates_table: %v", err)
 	}
 
-	log.Println("✅ Migration 034_create_login_templates_table executed")
+	log.Println("✅ Migration 035_create_login_templates_table executed")
 }

@@ -60,8 +60,8 @@ CREATE INDEX IF NOT EXISTS idx_sms_templates_created_at ON sms_templates (create
 `
 
 	if err := db.Exec(sql).Error; err != nil {
-		log.Fatalf("❌ Failed to run migration 036_create_sms_templates_table: %v", err)
+		log.Fatalf("❌ Failed to run migration 037_create_sms_templates_table: %v", err)
 	}
 
-	log.Println("✅ Migration 036_create_sms_templates_table executed")
+	log.Println("✅ Migration 037_create_sms_templates_table executed")
 }
