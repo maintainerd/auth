@@ -14,10 +14,8 @@ type ServiceRepositoryGetFilter struct {
 	Description *string
 	Version     *string
 	TenantID    *int64
-	IsDefault   *bool
 	IsSystem    *bool
 	Status      []string
-	IsPublic    *bool
 	Page        int
 	Limit       int
 	SortBy      string
@@ -29,12 +27,10 @@ type ServiceRepository interface {
 	WithTx(tx *gorm.DB) ServiceRepository
 	FindByName(serviceName string) (*model.Service, error)
 	FindByNameAndTenantID(serviceName string, tenantID int64) (*model.Service, error)
-	FindDefaultServices() ([]model.Service, error)
 	FindByTenantID(tenantID int64) ([]model.Service, error)
 	FindPaginated(filter ServiceRepositoryGetFilter) (*PaginationResult[model.Service], error)
 	FindServicesByPolicyUUID(policyUUID uuid.UUID, filter ServiceRepositoryGetFilter) (*PaginationResult[model.Service], error)
 	SetStatusByUUID(serviceUUID uuid.UUID, status string) error
-	SetDefaultStatusByUUID(serviceUUID uuid.UUID, isDefault bool) error
 	CountPoliciesByServiceID(serviceID int64) (int64, error)
 }
 
@@ -93,12 +89,6 @@ func (r *serviceRepository) FindByTenantID(tenantID int64) ([]model.Service, err
 	return services, err
 }
 
-func (r *serviceRepository) FindDefaultServices() ([]model.Service, error) {
-	var services []model.Service
-	err := r.db.Where("is_default = true").Find(&services).Error
-	return services, err
-}
-
 func (r *serviceRepository) FindPaginated(filter ServiceRepositoryGetFilter) (*PaginationResult[model.Service], error) {
 	query := r.db.Model(&model.Service{})
 
@@ -123,12 +113,6 @@ func (r *serviceRepository) FindPaginated(filter ServiceRepositoryGetFilter) (*P
 	}
 	if len(filter.Status) > 0 {
 		query = query.Where("status IN ?", filter.Status)
-	}
-	if filter.IsPublic != nil {
-		query = query.Where("is_public = ?", *filter.IsPublic)
-	}
-	if filter.IsDefault != nil {
-		query = query.Where("is_default = ?", *filter.IsDefault)
 	}
 	if filter.IsSystem != nil {
 		query = query.Where("is_system = ?", *filter.IsSystem)
@@ -188,14 +172,8 @@ func (r *serviceRepository) FindServicesByPolicyUUID(policyUUID uuid.UUID, filte
 	}
 
 	// Boolean filters
-	if filter.IsDefault != nil {
-		query = query.Where("services.is_default = ?", *filter.IsDefault)
-	}
 	if filter.IsSystem != nil {
 		query = query.Where("services.is_system = ?", *filter.IsSystem)
-	}
-	if filter.IsPublic != nil {
-		query = query.Where("services.is_public = ?", *filter.IsPublic)
 	}
 
 	// Count total records
@@ -239,12 +217,6 @@ func (r *serviceRepository) SetStatusByUUID(serviceUUID uuid.UUID, status string
 	return r.db.Model(&model.Service{}).
 		Where("service_uuid = ?", serviceUUID).
 		Update("status", status).Error
-}
-
-func (r *serviceRepository) SetDefaultStatusByUUID(serviceUUID uuid.UUID, isDefault bool) error {
-	return r.db.Model(&model.Service{}).
-		Where("service_uuid = ?", serviceUUID).
-		Update("is_default", isDefault).Error
 }
 
 func (r *serviceRepository) CountPoliciesByServiceID(serviceID int64) (int64, error) {

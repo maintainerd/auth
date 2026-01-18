@@ -15,8 +15,6 @@ type ServiceResponseDto struct {
 	Description string    `json:"description"`
 	Version     string    `json:"version"`
 	Status      string    `json:"status"`
-	IsPublic    bool      `json:"is_public"`
-	IsDefault   bool      `json:"is_default"`
 	IsSystem    bool      `json:"is_system"`
 	APICount    int64     `json:"api_count"`
 	PolicyCount int64     `json:"policy_count"`
@@ -31,7 +29,6 @@ type ServiceCreateOrUpdateRequestDto struct {
 	Description string `json:"description"`
 	Version     string `json:"version"`
 	Status      string `json:"status"`
-	IsPublic    bool   `json:"is_public"`
 }
 
 func (r ServiceCreateOrUpdateRequestDto) Validate() error {
@@ -55,9 +52,6 @@ func (r ServiceCreateOrUpdateRequestDto) Validate() error {
 			validation.Required.Error("Status is required"),
 			validation.In("active", "maintenance", "deprecated", "inactive").Error("Status must be one of: active, maintenance, deprecated, inactive"),
 		),
-		validation.Field(&r.IsPublic,
-			validation.In(true, false).Error("Is public is required"),
-		),
 	)
 }
 
@@ -68,8 +62,6 @@ type ServiceFilterDto struct {
 	Description *string  `json:"description"`
 	Version     *string  `json:"version"`
 	Status      []string `json:"status"`
-	IsPublic    *bool    `json:"is_public"`
-	IsDefault   *bool    `json:"is_default"`
 	IsSystem    *bool    `json:"is_system"`
 
 	// Pagination and sorting
