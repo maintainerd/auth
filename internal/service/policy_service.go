@@ -54,8 +54,6 @@ type PolicyServiceServiceDataResult struct {
 	Description string
 	Version     string
 	Status      string
-	IsPublic    bool
-	IsDefault   bool
 	IsSystem    bool
 	APICount    int64
 	PolicyCount int64
@@ -219,8 +217,6 @@ func (s *policyService) GetServicesByPolicyUUID(policyUUID uuid.UUID, tenantID i
 			Description: service.Description,
 			Version:     service.Version,
 			Status:      service.Status,
-			IsPublic:    service.IsPublic,
-			IsDefault:   service.IsDefault,
 			IsSystem:    service.IsSystem,
 			APICount:    apiCount,
 			PolicyCount: policyCount,

@@ -38,6 +38,13 @@ func NewServiceHandler(service service.ServiceService) *ServiceHandler {
 // description, version, status, and flags (is_public, is_default, is_system).
 // Public services are available to all tenants, while non-public services are tenant-specific.
 func (h *ServiceHandler) Get(w http.ResponseWriter, r *http.Request) {
+	// Get tenant from context (middleware already validated access)
+	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
+	if !ok || tenant == nil {
+		util.Error(w, http.StatusUnauthorized, "Tenant not found in context")
+		return
+	}
+
 	// Parse query parameters
 	q := r.URL.Query()
 
@@ -46,13 +53,8 @@ func (h *ServiceHandler) Get(w http.ResponseWriter, r *http.Request) {
 	limit, _ := strconv.Atoi(q.Get("limit"))
 
 	// Parse filter flags
-	var isDefault, isSystem, isPublic *bool
+	var isSystem *bool
 	var status []string
-	if v := q.Get("is_default"); v != "" {
-		if parsed, err := strconv.ParseBool(v); err == nil {
-			isDefault = &parsed
-		}
-	}
 	if v := q.Get("is_system"); v != "" {
 		if parsed, err := strconv.ParseBool(v); err == nil {
 			isSystem = &parsed
@@ -62,11 +64,6 @@ func (h *ServiceHandler) Get(w http.ResponseWriter, r *http.Request) {
 		// Parse comma-separated status values
 		status = strings.Split(strings.ReplaceAll(v, " ", ""), ",")
 	}
-	if v := q.Get("is_public"); v != "" {
-		if parsed, err := strconv.ParseBool(v); err == nil {
-			isPublic = &parsed
-		}
-	}
 
 	// Build request DTO for validation
 	reqParams := dto.ServiceFilterDto{
@@ -75,8 +72,6 @@ func (h *ServiceHandler) Get(w http.ResponseWriter, r *http.Request) {
 		Description: util.PtrOrNil(q.Get("description")),
 		Version:     util.PtrOrNil(q.Get("version")),
 		Status:      status,
-		IsPublic:    isPublic,
-		IsDefault:   isDefault,
 		IsSystem:    isSystem,
 		PaginationRequestDto: dto.PaginationRequestDto{
 			Page:      page,
@@ -99,9 +94,8 @@ func (h *ServiceHandler) Get(w http.ResponseWriter, r *http.Request) {
 		Description: reqParams.Description,
 		Version:     reqParams.Version,
 		Status:      reqParams.Status,
-		IsPublic:    reqParams.IsPublic,
-		IsDefault:   reqParams.IsDefault,
 		IsSystem:    reqParams.IsSystem,
+		TenantID:    &tenant.TenantID,
 		Page:        reqParams.Page,
 		Limit:       reqParams.Limit,
 		SortBy:      reqParams.SortBy,
@@ -140,6 +134,13 @@ func (h *ServiceHandler) Get(w http.ResponseWriter, r *http.Request) {
 // Returns detailed information about a single service. Services can be public
 // (available to all tenants) or tenant-specific.
 func (h *ServiceHandler) GetByUUID(w http.ResponseWriter, r *http.Request) {
+	// Get tenant from context (middleware already validated access)
+	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
+	if !ok || tenant == nil {
+		util.Error(w, http.StatusUnauthorized, "Tenant not found in context")
+		return
+	}
+
 	// Parse and validate service UUID from URL parameter
 	serviceUUID, err := uuid.Parse(chi.URLParam(r, "service_uuid"))
 	if err != nil {
@@ -148,7 +149,7 @@ func (h *ServiceHandler) GetByUUID(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Fetch service by UUID
-	svc, err := h.service.GetByUUID(serviceUUID)
+	svc, err := h.service.GetByUUID(serviceUUID, tenant.TenantID)
 	if err != nil {
 		util.Error(w, http.StatusNotFound, "Service not found")
 		return
@@ -193,10 +194,8 @@ func (h *ServiceHandler) Create(w http.ResponseWriter, r *http.Request) {
 		req.DisplayName,
 		req.Description,
 		req.Version,
-		false, // isDefault - only set by seeders
 		false, // isSystem - only set by seeders
 		req.Status,
-		req.IsPublic,
 		tenant.TenantID,
 	)
 	if err != nil {
@@ -217,6 +216,13 @@ func (h *ServiceHandler) Create(w http.ResponseWriter, r *http.Request) {
 // status, and public visibility. System and default flags cannot be modified
 // (reserved for seeded services).
 func (h *ServiceHandler) Update(w http.ResponseWriter, r *http.Request) {
+	// Get tenant from context (middleware already validated access)
+	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
+	if !ok || tenant == nil {
+		util.Error(w, http.StatusUnauthorized, "Tenant not found in context")
+		return
+	}
+
 	// Parse and validate service UUID from URL parameter
 	serviceUUID, err := uuid.Parse(chi.URLParam(r, "service_uuid"))
 	if err != nil {
@@ -239,14 +245,13 @@ func (h *ServiceHandler) Update(w http.ResponseWriter, r *http.Request) {
 	// Update service
 	svc, err := h.service.Update(
 		serviceUUID,
+		tenant.TenantID,
 		req.Name,
 		req.DisplayName,
 		req.Description,
 		req.Version,
-		false, // isDefault - only set by seeders
 		false, // isSystem - only set by seeders
 		req.Status,
-		req.IsPublic,
 	)
 	if err != nil {
 		util.Error(w, http.StatusInternalServerError, "Failed to update service", err.Error())
@@ -265,6 +270,13 @@ func (h *ServiceHandler) Update(w http.ResponseWriter, r *http.Request) {
 // Updates only the status field of a service (e.g., active, inactive).
 // This is a convenience endpoint for status-only updates.
 func (h *ServiceHandler) SetStatus(w http.ResponseWriter, r *http.Request) {
+	// Get tenant from context (middleware already validated access)
+	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
+	if !ok || tenant == nil {
+		util.Error(w, http.StatusUnauthorized, "Tenant not found in context")
+		return
+	}
+
 	// Parse and validate service UUID from URL parameter
 	serviceUUID, err := uuid.Parse(chi.URLParam(r, "service_uuid"))
 	if err != nil {
@@ -285,35 +297,7 @@ func (h *ServiceHandler) SetStatus(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Update service status
-	service, err := h.service.SetStatusByUUID(serviceUUID, req.Status)
-	if err != nil {
-		util.Error(w, http.StatusInternalServerError, "Failed to update service", err.Error())
-		return
-	}
-
-	// Build response
-	dtoRes := toServiceResponseDto(*service)
-
-	util.Success(w, dtoRes, "Service updated successfully")
-}
-
-// SetPublic marks a service as public.
-//
-// PATCH /services/{service_uuid}/public
-//
-// Makes a service public (available to all tenants). This is useful for shared
-// services that should be accessible across multiple tenants. Once public, the
-// service can be used by any tenant.
-func (h *ServiceHandler) SetPublic(w http.ResponseWriter, r *http.Request) {
-	// Parse and validate service UUID from URL parameter
-	serviceUUID, err := uuid.Parse(chi.URLParam(r, "service_uuid"))
-	if err != nil {
-		util.Error(w, http.StatusBadRequest, "Invalid service UUID")
-		return
-	}
-
-	// Update service to public
-	service, err := h.service.SetPublicStatusByUUID(serviceUUID)
+	service, err := h.service.SetStatusByUUID(serviceUUID, tenant.TenantID, req.Status)
 	if err != nil {
 		util.Error(w, http.StatusInternalServerError, "Failed to update service", err.Error())
 		return
@@ -332,6 +316,13 @@ func (h *ServiceHandler) SetPublic(w http.ResponseWriter, r *http.Request) {
 // Permanently deletes a service from the system. This will also remove any
 // associated policies and API relationships. System services cannot be deleted.
 func (h *ServiceHandler) Delete(w http.ResponseWriter, r *http.Request) {
+	// Get tenant from context (middleware already validated access)
+	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
+	if !ok || tenant == nil {
+		util.Error(w, http.StatusUnauthorized, "Tenant not found in context")
+		return
+	}
+
 	// Parse and validate service UUID from URL parameter
 	serviceUUID, err := uuid.Parse(chi.URLParam(r, "service_uuid"))
 	if err != nil {
@@ -340,7 +331,7 @@ func (h *ServiceHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Delete service
-	svc, err := h.service.DeleteByUUID(serviceUUID)
+	svc, err := h.service.DeleteByUUID(serviceUUID, tenant.TenantID)
 	if err != nil {
 		util.Error(w, http.StatusInternalServerError, "Failed to delete service", err.Error())
 		return
@@ -362,8 +353,6 @@ func toServiceResponseDto(s service.ServiceServiceDataResult) dto.ServiceRespons
 		Description: s.Description,
 		Version:     s.Version,
 		Status:      s.Status,
-		IsPublic:    s.IsPublic,
-		IsDefault:   s.IsDefault,
 		IsSystem:    s.IsSystem,
 		APICount:    s.APICount,
 		PolicyCount: s.PolicyCount,
