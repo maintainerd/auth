@@ -723,7 +723,6 @@ func (s *authClientService) GetAuthClientApis(tenantID int64, authClientUUID uui
 			DisplayName: authClientApi.API.DisplayName,
 			Description: authClientApi.API.Description,
 			Status:      authClientApi.API.Status,
-			IsDefault:   authClientApi.API.IsDefault,
 			IsSystem:    authClientApi.API.IsSystem,
 			CreatedAt:   authClientApi.API.CreatedAt,
 			UpdatedAt:   authClientApi.API.UpdatedAt,
@@ -1017,4 +1016,3 @@ func (s *authClientService) RemoveAuthClientApiPermission(tenantID int64, authCl
 		return nil
 	})
 }
-

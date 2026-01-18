@@ -16,7 +16,6 @@ type APIRepositoryGetFilter struct {
 	Identifier  *string
 	ServiceID   *int64
 	Status      []string
-	IsDefault   *bool
 	IsSystem    *bool
 	Page        int
 	Limit       int
@@ -30,10 +29,8 @@ type APIRepository interface {
 	FindByUUIDAndTenantID(apiUUID uuid.UUID, tenantID int64) (*model.API, error)
 	FindByName(apiName string, tenantID int64) (*model.API, error)
 	FindByIdentifier(identifier string, tenantID int64) (*model.API, error)
-	FindDefaultByServiceID(serviceID int64, tenantID int64) (*model.API, error)
 	FindPaginated(filter APIRepositoryGetFilter) (*PaginationResult[model.API], error)
 	SetStatusByUUID(apiUUID uuid.UUID, tenantID int64, status string) error
-	SetDefaultStatusByUUID(apiUUID uuid.UUID, tenantID int64, isDefault bool) error
 	CountByServiceID(serviceID int64, tenantID int64) (int64, error)
 	DeleteByUUIDAndTenantID(apiUUID uuid.UUID, tenantID int64) error
 }
@@ -99,14 +96,6 @@ func (r *apiRepository) FindByIdentifier(identifier string, tenantID int64) (*mo
 	return &api, err
 }
 
-func (r *apiRepository) FindDefaultByServiceID(serviceID int64, tenantID int64) (*model.API, error) {
-	var api model.API
-	err := r.db.
-		Where("service_id = ? AND tenant_id = ? AND is_default = true", serviceID, tenantID).
-		First(&api).Error
-	return &api, err
-}
-
 func (r *apiRepository) FindPaginated(filter APIRepositoryGetFilter) (*PaginationResult[model.API], error) {
 	query := r.db.Model(&model.API{})
 
@@ -133,9 +122,6 @@ func (r *apiRepository) FindPaginated(filter APIRepositoryGetFilter) (*Paginatio
 	}
 	if len(filter.Status) > 0 {
 		query = query.Where("status IN ?", filter.Status)
-	}
-	if filter.IsDefault != nil {
-		query = query.Where("is_default = ?", *filter.IsDefault)
 	}
 	if filter.IsSystem != nil {
 		query = query.Where("is_system = ?", *filter.IsSystem)
@@ -173,12 +159,6 @@ func (r *apiRepository) SetStatusByUUID(apiUUID uuid.UUID, tenantID int64, statu
 	return r.db.Model(&model.API{}).
 		Where("api_uuid = ? AND tenant_id = ?", apiUUID, tenantID).
 		Update("status", status).Error
-}
-
-func (r *apiRepository) SetDefaultStatusByUUID(apiUUID uuid.UUID, tenantID int64, isDefault bool) error {
-	return r.db.Model(&model.API{}).
-		Where("api_uuid = ? AND tenant_id = ?", apiUUID, tenantID).
-		Update("is_default", isDefault).Error
 }
 
 func (r *apiRepository) CountByServiceID(serviceID int64, tenantID int64) (int64, error) {

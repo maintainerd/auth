@@ -21,7 +21,6 @@ type APIServiceDataResult struct {
 	Identifier  string
 	Service     *ServiceServiceDataResult
 	Status      string
-	IsDefault   bool
 	IsSystem    bool
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
@@ -35,7 +34,6 @@ type APIServiceGetFilter struct {
 	Identifier  *string
 	ServiceID   *int64
 	Status      []string
-	IsDefault   *bool
 	IsSystem    *bool
 	Page        int
 	Limit       int
@@ -62,20 +60,23 @@ type APIService interface {
 }
 
 type apiService struct {
-	db          *gorm.DB
-	apiRepo     repository.APIRepository
-	serviceRepo repository.ServiceRepository
+	db                *gorm.DB
+	apiRepo           repository.APIRepository
+	serviceRepo       repository.ServiceRepository
+	tenantServiceRepo repository.TenantServiceRepository
 }
 
 func NewAPIService(
 	db *gorm.DB,
 	apiRepo repository.APIRepository,
 	serviceRepo repository.ServiceRepository,
+	tenantServiceRepo repository.TenantServiceRepository,
 ) APIService {
 	return &apiService{
-		db:          db,
-		apiRepo:     apiRepo,
-		serviceRepo: serviceRepo,
+		db:                db,
+		apiRepo:           apiRepo,
+		serviceRepo:       serviceRepo,
+		tenantServiceRepo: tenantServiceRepo,
 	}
 }
 
@@ -88,7 +89,6 @@ func (s *apiService) Get(filter APIServiceGetFilter) (*APIServiceGetResult, erro
 		Identifier:  filter.Identifier,
 		ServiceID:   filter.ServiceID,
 		Status:      filter.Status,
-		IsDefault:   filter.IsDefault,
 		IsSystem:    filter.IsSystem,
 		Page:        filter.Page,
 		Limit:       filter.Limit,
@@ -171,7 +171,6 @@ func (s *apiService) Create(tenantID int64, name string, displayName string, des
 			ServiceID:   service.ServiceID,
 			TenantID:    tenantID,
 			Status:      status,
-			IsDefault:   false, // System-managed field, always default to false for user-created APIs
 			IsSystem:    isSystem,
 		}
 
@@ -201,6 +200,8 @@ func (s *apiService) Update(apiUUID uuid.UUID, tenantID int64, name string, disp
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
 		txAPIRepo := s.apiRepo.WithTx(tx)
+		txServiceRepo := s.serviceRepo.WithTx(tx)
+		txTenantServiceRepo := s.tenantServiceRepo.WithTx(tx)
 
 		// Get api and validate tenant ownership
 		api, err := txAPIRepo.FindByUUIDAndTenantID(apiUUID, tenantID)
@@ -211,13 +212,20 @@ func (s *apiService) Update(apiUUID uuid.UUID, tenantID int64, name string, disp
 			return errors.New("api not found or access denied")
 		}
 
-		// Check if default
-		if api.IsDefault {
-			return errors.New("default api cannot be updated")
+		// Verify API's service belongs to tenant
+		if api.ServiceID > 0 {
+			tenantService, err := txTenantServiceRepo.FindByTenantAndService(tenantID, api.ServiceID)
+			if err != nil || tenantService == nil {
+				return errors.New("api not found or access denied")
+			}
+		}
+
+		// Check if API is a system record (critical for app functionality)
+		if api.IsSystem {
+			return errors.New("system API cannot be updated")
 		}
 
 		// Validate service exists
-		txServiceRepo := s.serviceRepo.WithTx(tx)
 		serviceUUIDParsed, err := uuid.Parse(serviceUUID)
 		if err != nil {
 			return errors.New("invalid service UUID format")
@@ -226,6 +234,12 @@ func (s *apiService) Update(apiUUID uuid.UUID, tenantID int64, name string, disp
 		service, err := txServiceRepo.FindByUUID(serviceUUIDParsed)
 		if err != nil || service == nil {
 			return errors.New("service not found")
+		}
+
+		// Verify new service belongs to tenant
+		tenantService, err := txTenantServiceRepo.FindByTenantAndService(tenantID, service.ServiceID)
+		if err != nil || tenantService == nil {
+			return errors.New("service not found or access denied")
 		}
 
 		// Check if api already exist
@@ -246,7 +260,6 @@ func (s *apiService) Update(apiUUID uuid.UUID, tenantID int64, name string, disp
 		api.APIType = apiType
 		api.Status = status
 		api.ServiceID = service.ServiceID // Update the service assignment
-		// IsDefault is system-managed, don't update it in user requests
 
 		// Update
 		_, err = txAPIRepo.CreateOrUpdate(api)
@@ -271,6 +284,7 @@ func (s *apiService) SetStatusByUUID(apiUUID uuid.UUID, tenantID int64, status s
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
 		txAPIRepo := s.apiRepo.WithTx(tx)
+		txTenantServiceRepo := s.tenantServiceRepo.WithTx(tx)
 
 		// Get api and validate tenant ownership
 		api, err := txAPIRepo.FindByUUIDAndTenantID(apiUUID, tenantID)
@@ -281,9 +295,17 @@ func (s *apiService) SetStatusByUUID(apiUUID uuid.UUID, tenantID int64, status s
 			return errors.New("api not found or access denied")
 		}
 
-		// Check if default
-		if api.IsDefault {
-			return errors.New("default api cannot be updated")
+		// Verify API's service belongs to tenant
+		if api.ServiceID > 0 {
+			tenantService, err := txTenantServiceRepo.FindByTenantAndService(tenantID, api.ServiceID)
+			if err != nil || tenantService == nil {
+				return errors.New("api not found or access denied")
+			}
+		}
+
+		// Check if API is a system record (critical for app functionality)
+		if api.IsSystem {
+			return errors.New("system API status cannot be updated")
 		}
 
 		api.Status = status
@@ -315,9 +337,17 @@ func (s *apiService) DeleteByUUID(apiUUID uuid.UUID, tenantID int64) (*APIServic
 		return nil, errors.New("api not found or access denied")
 	}
 
-	// Check if default
-	if api.IsDefault {
-		return nil, errors.New("default api cannot be deleted")
+	// Verify API's service belongs to tenant
+	if api.ServiceID > 0 {
+		tenantService, err := s.tenantServiceRepo.FindByTenantAndService(tenantID, api.ServiceID)
+		if err != nil || tenantService == nil {
+			return nil, errors.New("api not found or access denied")
+		}
+	}
+
+	// Check if API is a system record (critical for app functionality)
+	if api.IsSystem {
+		return nil, errors.New("system API cannot be deleted")
 	}
 
 	err = s.apiRepo.DeleteByUUIDAndTenantID(apiUUID, tenantID)
@@ -342,7 +372,6 @@ func toAPIServiceDataResult(api *model.API) *APIServiceDataResult {
 		APIType:     api.APIType,
 		Identifier:  api.Identifier,
 		Status:      api.Status,
-		IsDefault:   api.IsDefault,
 		IsSystem:    api.IsSystem,
 		CreatedAt:   api.CreatedAt,
 		UpdatedAt:   api.UpdatedAt,
