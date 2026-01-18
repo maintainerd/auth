@@ -582,7 +582,6 @@ func (h *AuthClientHandler) GetApis(w http.ResponseWriter, r *http.Request) {
 			DisplayName: api.Api.DisplayName,
 			Description: api.Api.Description,
 			Status:      api.Api.Status,
-			IsDefault:   api.Api.IsDefault,
 			IsSystem:    api.Api.IsSystem,
 			CreatedAt:   api.Api.CreatedAt,
 			UpdatedAt:   api.Api.UpdatedAt,

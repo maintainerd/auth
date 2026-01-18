@@ -408,7 +408,6 @@ func (h *APIKeyHandler) GetApis(w http.ResponseWriter, r *http.Request) {
 			APIType:     api.Api.APIType,
 			Identifier:  api.Api.Identifier,
 			Status:      api.Api.Status,
-			IsDefault:   api.Api.IsDefault,
 			IsSystem:    api.Api.IsSystem,
 			CreatedAt:   api.Api.CreatedAt,
 			UpdatedAt:   api.Api.UpdatedAt,

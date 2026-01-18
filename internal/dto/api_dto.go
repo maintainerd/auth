@@ -18,7 +18,6 @@ type APIResponseDto struct {
 	Identifier  string              `json:"identifier"`
 	Service     *ServiceResponseDto `json:"service,omitempty"`
 	Status      string              `json:"status"`
-	IsDefault   bool                `json:"is_default"`
 	IsSystem    bool                `json:"is_system"`
 	CreatedAt   time.Time           `json:"created_at"`
 	UpdatedAt   time.Time           `json:"updated_at"`
@@ -113,7 +112,6 @@ type APIFilterDto struct {
 	Identifier  *string  `json:"identifier"`
 	ServiceUUID *string  `json:"service_id"`
 	Status      []string `json:"status"`
-	IsDefault   *bool    `json:"is_default"`
 	IsSystem    *bool    `json:"is_system"`
 
 	// Pagination and sorting
