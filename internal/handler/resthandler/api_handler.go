@@ -40,13 +40,7 @@ func (h *APIHandler) Get(w http.ResponseWriter, r *http.Request) {
 	limit, _ := strconv.Atoi(q.Get("limit"))
 
 	// Parse bools safely
-	var isDefault, isSystem *bool
-	if v := q.Get("is_default"); v != "" {
-		parsed, err := strconv.ParseBool(v)
-		if err == nil {
-			isDefault = &parsed
-		}
-	}
+	var isSystem *bool
 	// Parse status (comma-separated values)
 	var status []string
 	if statusParam := q.Get("status"); statusParam != "" {
@@ -70,7 +64,6 @@ func (h *APIHandler) Get(w http.ResponseWriter, r *http.Request) {
 		APIType:     util.PtrOrNil(q.Get("api_type")),
 		Identifier:  util.PtrOrNil(q.Get("identifier")),
 		ServiceUUID: util.PtrOrNil(q.Get("service_id")),
-		IsDefault:   isDefault,
 		Status:      status,
 		IsSystem:    isSystem,
 		PaginationRequestDto: dto.PaginationRequestDto{
@@ -111,7 +104,6 @@ func (h *APIHandler) Get(w http.ResponseWriter, r *http.Request) {
 		APIType:     reqParams.APIType,
 		Identifier:  reqParams.Identifier,
 		ServiceID:   serviceID,
-		IsDefault:   reqParams.IsDefault,
 		Status:      reqParams.Status,
 		IsSystem:    reqParams.IsSystem,
 		TenantID:    tenant.TenantID,
@@ -315,7 +307,6 @@ func toAPIResponseDto(r service.APIServiceDataResult) dto.APIResponseDto {
 		APIType:     r.APIType,
 		Identifier:  r.Identifier,
 		Status:      r.Status,
-		IsDefault:   r.IsDefault,
 		IsSystem:    r.IsSystem,
 		CreatedAt:   r.CreatedAt,
 		UpdatedAt:   r.UpdatedAt,

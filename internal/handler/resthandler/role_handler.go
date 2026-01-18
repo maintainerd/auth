@@ -413,7 +413,6 @@ func (h *RoleHandler) GetPermissions(w http.ResponseWriter, r *http.Request) {
 				APIType:     p.API.APIType,
 				Identifier:  p.API.Identifier,
 				Status:      p.API.Status,
-				IsDefault:   p.API.IsDefault,
 				CreatedAt:   p.API.CreatedAt,
 				UpdatedAt:   p.API.UpdatedAt,
 			}
