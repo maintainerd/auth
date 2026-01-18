@@ -17,7 +17,6 @@ type Policy struct {
 	Document    datatypes.JSON `gorm:"column:document"`
 	Version     string         `gorm:"column:version"`
 	Status      string         `gorm:"column:status;default:'inactive'"`
-	IsDefault   bool           `gorm:"column:is_default;default:false"`
 	IsSystem    bool           `gorm:"column:is_system;default:false"`
 	CreatedAt   time.Time      `gorm:"column:created_at;autoCreateTime"`
 	UpdatedAt   time.Time      `gorm:"column:updated_at;autoUpdateTime"`

@@ -68,11 +68,6 @@ func (h *PolicyHandler) Get(w http.ResponseWriter, r *http.Request) {
 	if len(validStatus) > 0 {
 		filter.Status = validStatus
 	}
-	if isDefault := query.Get("is_default"); isDefault != "" {
-		if val, err := strconv.ParseBool(isDefault); err == nil {
-			filter.IsDefault = &val
-		}
-	}
 	if isSystem := query.Get("is_system"); isSystem != "" {
 		if val, err := strconv.ParseBool(isSystem); err == nil {
 			filter.IsSystem = &val
@@ -114,7 +109,6 @@ func (h *PolicyHandler) Get(w http.ResponseWriter, r *http.Request) {
 		Description: filter.Description,
 		Version:     filter.Version,
 		Status:      filter.Status,
-		IsDefault:   filter.IsDefault,
 		IsSystem:    filter.IsSystem,
 		ServiceID:   filter.ServiceID,
 		Page:        filter.Page,
@@ -199,7 +193,6 @@ func (h *PolicyHandler) Create(w http.ResponseWriter, r *http.Request) {
 		req.Document,
 		req.Version,
 		req.Status,
-		false, // isDefault - only set by seeders
 		false, // isSystem - only set by seeders
 	)
 	if err != nil {
@@ -432,7 +425,6 @@ func toPolicyResponseDto(policy service.PolicyServiceDataResult) dto.PolicyRespo
 		Description: policy.Description,
 		Version:     policy.Version,
 		Status:      policy.Status,
-		IsDefault:   policy.IsDefault,
 		IsSystem:    policy.IsSystem,
 		CreatedAt:   policy.CreatedAt,
 		UpdatedAt:   policy.UpdatedAt,
@@ -448,7 +440,6 @@ func toPolicyDetailResponseDto(policy service.PolicyServiceDataResult) dto.Polic
 		Document:    policy.Document,
 		Version:     policy.Version,
 		Status:      policy.Status,
-		IsDefault:   policy.IsDefault,
 		IsSystem:    policy.IsSystem,
 		CreatedAt:   policy.CreatedAt,
 		UpdatedAt:   policy.UpdatedAt,
