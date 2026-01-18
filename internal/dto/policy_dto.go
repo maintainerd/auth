@@ -88,7 +88,6 @@ type PolicyResponseDto struct {
 	Description *string   `json:"description"`
 	Version     string    `json:"version"`
 	Status      string    `json:"status"`
-	IsDefault   bool      `json:"is_default"`
 	IsSystem    bool      `json:"is_system"`
 	CreatedAt   time.Time `json:"created_at"`
 	UpdatedAt   time.Time `json:"updated_at"`
@@ -102,7 +101,6 @@ type PolicyDetailResponseDto struct {
 	Document    datatypes.JSON `json:"document"`
 	Version     string         `json:"version"`
 	Status      string         `json:"status"`
-	IsDefault   bool           `json:"is_default"`
 	IsSystem    bool           `json:"is_system"`
 	CreatedAt   time.Time      `json:"created_at"`
 	UpdatedAt   time.Time      `json:"updated_at"`
@@ -184,7 +182,6 @@ type PolicyFilterDto struct {
 	Description *string    `json:"description"`
 	Version     *string    `json:"version"`
 	Status      []string   `json:"status"`
-	IsDefault   *bool      `json:"is_default"`
 	IsSystem    *bool      `json:"is_system"`
 	ServiceID   *uuid.UUID `json:"service_id"` // Filter policies by service UUID
 

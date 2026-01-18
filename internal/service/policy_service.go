@@ -18,7 +18,6 @@ type PolicyServiceDataResult struct {
 	Document    datatypes.JSON
 	Version     string
 	Status      string
-	IsDefault   bool
 	IsSystem    bool
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
@@ -30,7 +29,6 @@ type PolicyServiceGetFilter struct {
 	Description *string
 	Version     *string
 	Status      []string
-	IsDefault   *bool
 	IsSystem    *bool
 	ServiceID   *uuid.UUID
 	Page        int
@@ -83,7 +81,7 @@ type PolicyService interface {
 	Get(filter PolicyServiceGetFilter) (*PolicyServiceGetResult, error)
 	GetByUUID(policyUUID uuid.UUID, tenantID int64) (*PolicyServiceDataResult, error)
 	GetServicesByPolicyUUID(policyUUID uuid.UUID, tenantID int64, filter PolicyServiceServicesFilter) (*PolicyServiceServicesResult, error)
-	Create(tenantID int64, name string, description *string, document datatypes.JSON, version string, status string, isDefault bool, isSystem bool) (*PolicyServiceDataResult, error)
+	Create(tenantID int64, name string, description *string, document datatypes.JSON, version string, status string, isSystem bool) (*PolicyServiceDataResult, error)
 	Update(policyUUID uuid.UUID, tenantID int64, name string, description *string, document datatypes.JSON, version string, status string) (*PolicyServiceDataResult, error)
 	SetStatusByUUID(policyUUID uuid.UUID, tenantID int64, status string) (*PolicyServiceDataResult, error)
 	DeleteByUUID(policyUUID uuid.UUID, tenantID int64) (*PolicyServiceDataResult, error)
@@ -117,7 +115,6 @@ func (s *policyService) Get(filter PolicyServiceGetFilter) (*PolicyServiceGetRes
 		Description: filter.Description,
 		Version:     filter.Version,
 		Status:      filter.Status,
-		IsDefault:   filter.IsDefault,
 		IsSystem:    filter.IsSystem,
 		ServiceID:   filter.ServiceID,
 		Page:        filter.Page,
@@ -140,7 +137,6 @@ func (s *policyService) Get(filter PolicyServiceGetFilter) (*PolicyServiceGetRes
 			Document:    policy.Document,
 			Version:     policy.Version,
 			Status:      policy.Status,
-			IsDefault:   policy.IsDefault,
 			IsSystem:    policy.IsSystem,
 			CreatedAt:   policy.CreatedAt,
 			UpdatedAt:   policy.UpdatedAt,
@@ -172,7 +168,6 @@ func (s *policyService) GetByUUID(policyUUID uuid.UUID, tenantID int64) (*Policy
 		Document:    policy.Document,
 		Version:     policy.Version,
 		Status:      policy.Status,
-		IsDefault:   policy.IsDefault,
 		IsSystem:    policy.IsSystem,
 		CreatedAt:   policy.CreatedAt,
 		UpdatedAt:   policy.UpdatedAt,
@@ -234,7 +229,7 @@ func (s *policyService) GetServicesByPolicyUUID(policyUUID uuid.UUID, tenantID i
 	}, nil
 }
 
-func (s *policyService) Create(tenantID int64, name string, description *string, document datatypes.JSON, version string, status string, isDefault bool, isSystem bool) (*PolicyServiceDataResult, error) {
+func (s *policyService) Create(tenantID int64, name string, description *string, document datatypes.JSON, version string, status string, isSystem bool) (*PolicyServiceDataResult, error) {
 	var createdPolicy *model.Policy
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
@@ -258,7 +253,6 @@ func (s *policyService) Create(tenantID int64, name string, description *string,
 			Document:    document,
 			Version:     version,
 			Status:      status,
-			IsDefault:   isDefault,
 			IsSystem:    isSystem,
 		}
 
@@ -282,7 +276,6 @@ func (s *policyService) Create(tenantID int64, name string, description *string,
 		Document:    createdPolicy.Document,
 		Version:     createdPolicy.Version,
 		Status:      createdPolicy.Status,
-		IsDefault:   createdPolicy.IsDefault,
 		IsSystem:    createdPolicy.IsSystem,
 		CreatedAt:   createdPolicy.CreatedAt,
 		UpdatedAt:   createdPolicy.UpdatedAt,
@@ -302,6 +295,11 @@ func (s *policyService) Update(policyUUID uuid.UUID, tenantID int64, name string
 		}
 		if policy == nil {
 			return errors.New("policy not found or access denied")
+		}
+
+		// Check if policy is a system record (critical for app functionality)
+		if policy.IsSystem {
+			return errors.New("system policy cannot be updated")
 		}
 
 		// Check if another policy with same name and version exists (excluding current policy)
@@ -341,7 +339,6 @@ func (s *policyService) Update(policyUUID uuid.UUID, tenantID int64, name string
 		Document:    updatedPolicy.Document,
 		Version:     updatedPolicy.Version,
 		Status:      updatedPolicy.Status,
-		IsDefault:   updatedPolicy.IsDefault,
 		IsSystem:    updatedPolicy.IsSystem,
 		CreatedAt:   updatedPolicy.CreatedAt,
 		UpdatedAt:   updatedPolicy.UpdatedAt,
@@ -361,6 +358,11 @@ func (s *policyService) SetStatusByUUID(policyUUID uuid.UUID, tenantID int64, st
 		}
 		if policy == nil {
 			return errors.New("policy not found or access denied")
+		}
+
+		// Check if policy is a system record (critical for app functionality)
+		if policy.IsSystem {
+			return errors.New("system policy status cannot be updated")
 		}
 
 		// Update status
@@ -388,7 +390,6 @@ func (s *policyService) SetStatusByUUID(policyUUID uuid.UUID, tenantID int64, st
 		Document:    updatedPolicy.Document,
 		Version:     updatedPolicy.Version,
 		Status:      updatedPolicy.Status,
-		IsDefault:   updatedPolicy.IsDefault,
 		IsSystem:    updatedPolicy.IsSystem,
 		CreatedAt:   updatedPolicy.CreatedAt,
 		UpdatedAt:   updatedPolicy.UpdatedAt,
@@ -436,7 +437,6 @@ func (s *policyService) DeleteByUUID(policyUUID uuid.UUID, tenantID int64) (*Pol
 		Document:    deletedPolicy.Document,
 		Version:     deletedPolicy.Version,
 		Status:      deletedPolicy.Status,
-		IsDefault:   deletedPolicy.IsDefault,
 		IsSystem:    deletedPolicy.IsSystem,
 		CreatedAt:   deletedPolicy.CreatedAt,
 		UpdatedAt:   deletedPolicy.UpdatedAt,

@@ -14,7 +14,6 @@ type PolicyRepositoryGetFilter struct {
 	Description *string
 	Version     *string
 	Status      []string
-	IsDefault   *bool
 	IsSystem    *bool
 	ServiceID   *uuid.UUID
 	Page        int
@@ -29,11 +28,9 @@ type PolicyRepository interface {
 	FindByUUIDAndTenantID(policyUUID uuid.UUID, tenantID int64) (*model.Policy, error)
 	FindByName(policyName string, tenantID int64) (*model.Policy, error)
 	FindByNameAndVersion(policyName string, version string, tenantID int64) (*model.Policy, error)
-	FindDefaultPolicies(tenantID int64) ([]model.Policy, error)
 	FindSystemPolicies(tenantID int64) ([]model.Policy, error)
 	FindPaginated(filter PolicyRepositoryGetFilter) (*PaginationResult[model.Policy], error)
 	SetStatusByUUID(policyUUID uuid.UUID, tenantID int64, status string) error
-	SetDefaultStatusByUUID(policyUUID uuid.UUID, tenantID int64, isDefault bool) error
 	SetSystemStatusByUUID(policyUUID uuid.UUID, tenantID int64, isSystem bool) error
 	DeleteByUUIDAndTenantID(policyUUID uuid.UUID, tenantID int64) error
 }
@@ -99,12 +96,6 @@ func (r *policyRepository) FindByNameAndVersion(policyName string, version strin
 	return &policy, nil
 }
 
-func (r *policyRepository) FindDefaultPolicies(tenantID int64) ([]model.Policy, error) {
-	var policies []model.Policy
-	err := r.db.Where("is_default = ? AND tenant_id = ?", true, tenantID).Find(&policies).Error
-	return policies, err
-}
-
 func (r *policyRepository) FindSystemPolicies(tenantID int64) ([]model.Policy, error) {
 	var policies []model.Policy
 	err := r.db.Where("is_system = ? AND tenant_id = ?", true, tenantID).Find(&policies).Error
@@ -115,12 +106,6 @@ func (r *policyRepository) SetStatusByUUID(policyUUID uuid.UUID, tenantID int64,
 	return r.db.Model(&model.Policy{}).
 		Where("policy_uuid = ? AND tenant_id = ?", policyUUID, tenantID).
 		Update("status", status).Error
-}
-
-func (r *policyRepository) SetDefaultStatusByUUID(policyUUID uuid.UUID, tenantID int64, isDefault bool) error {
-	return r.db.Model(&model.Policy{}).
-		Where("policy_uuid = ? AND tenant_id = ?", policyUUID, tenantID).
-		Update("is_default", isDefault).Error
 }
 
 func (r *policyRepository) SetSystemStatusByUUID(policyUUID uuid.UUID, tenantID int64, isSystem bool) error {
@@ -147,9 +132,6 @@ func (r *policyRepository) FindPaginated(filter PolicyRepositoryGetFilter) (*Pag
 	}
 	if len(filter.Status) > 0 {
 		query = query.Where("status IN ?", filter.Status)
-	}
-	if filter.IsDefault != nil {
-		query = query.Where("is_default = ?", *filter.IsDefault)
 	}
 	if filter.IsSystem != nil {
 		query = query.Where("is_system = ?", *filter.IsSystem)
