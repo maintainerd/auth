@@ -17,8 +17,6 @@ CREATE TABLE IF NOT EXISTS services (
     description     TEXT NOT NULL,
     version         VARCHAR(20) NOT NULL,
     status          VARCHAR(20) DEFAULT 'inactive',
-	is_public		BOOLEAN DEFAULT FALSE,
-	is_default      BOOLEAN DEFAULT FALSE,
 	is_system       BOOLEAN DEFAULT FALSE,
     created_at      TIMESTAMPTZ DEFAULT now(),
     updated_at      TIMESTAMPTZ DEFAULT now()
@@ -29,8 +27,6 @@ CREATE INDEX IF NOT EXISTS idx_services_uuid ON services (service_uuid);
 CREATE INDEX IF NOT EXISTS idx_services_name ON services (name);
 CREATE INDEX IF NOT EXISTS idx_services_display_name ON services (display_name);
 CREATE INDEX IF NOT EXISTS idx_services_status ON services (status);
-CREATE INDEX IF NOT EXISTS idx_services_is_public ON services (is_public);
-CREATE INDEX IF NOT EXISTS idx_services_is_default ON services (is_default);
 CREATE INDEX IF NOT EXISTS idx_services_is_system ON services (is_system);
 CREATE INDEX IF NOT EXISTS idx_services_created_at ON services (created_at);
 
