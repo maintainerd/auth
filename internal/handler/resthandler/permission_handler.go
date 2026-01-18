@@ -297,7 +297,6 @@ func toPermissionResponseDto(r service.PermissionServiceDataResult) dto.Permissi
 			APIType:     r.API.APIType,
 			Identifier:  r.API.Identifier,
 			Status:      r.API.Status,
-			IsDefault:   r.API.IsDefault,
 			CreatedAt:   r.API.CreatedAt,
 			UpdatedAt:   r.API.UpdatedAt,
 		}

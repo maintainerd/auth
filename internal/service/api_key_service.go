@@ -491,7 +491,6 @@ func (s *apiKeyService) GetAPIKeyApis(apiKeyUUID uuid.UUID, page, limit int, sor
 			APIType:     apiKeyApi.API.APIType,
 			Identifier:  apiKeyApi.API.Identifier,
 			Status:      apiKeyApi.API.Status,
-			IsDefault:   apiKeyApi.API.IsDefault,
 			IsSystem:    apiKeyApi.API.IsSystem,
 			CreatedAt:   apiKeyApi.API.CreatedAt,
 			UpdatedAt:   apiKeyApi.API.UpdatedAt,
