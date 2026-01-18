@@ -404,8 +404,6 @@ func (h *PolicyHandler) GetServicesByPolicyUUID(w http.ResponseWriter, r *http.R
 			Description: svc.Description,
 			Version:     svc.Version,
 			Status:      svc.Status,
-			IsPublic:    svc.IsPublic,
-			IsDefault:   svc.IsDefault,
 			IsSystem:    svc.IsSystem,
 			APICount:    svc.APICount,
 			PolicyCount: svc.PolicyCount,

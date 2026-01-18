@@ -15,8 +15,6 @@ type Service struct {
 	Description string    `gorm:"column:description"`
 	Version     string    `gorm:"column:version"`
 	Status      string    `gorm:"column:status;default:'inactive'"`
-	IsPublic    bool      `gorm:"column:is_public;default:false"`
-	IsDefault   bool      `gorm:"column:is_default;default:false"`
 	IsSystem    bool      `gorm:"column:is_system;default:false"`
 	CreatedAt   time.Time `gorm:"column:created_at;autoCreateTime"`
 	UpdatedAt   time.Time `gorm:"column:updated_at;autoUpdateTime"`
