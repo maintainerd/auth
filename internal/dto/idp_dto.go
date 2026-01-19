@@ -146,7 +146,6 @@ type IdentityProviderFilterDto struct {
 	Status       []string `json:"status"`
 	IsDefault    *bool    `json:"is_default"`
 	IsSystem     *bool    `json:"is_system"`
-	TenantUUID   *string  `json:"tenant_id"`
 
 	// Pagination and sorting
 	PaginationRequestDto
