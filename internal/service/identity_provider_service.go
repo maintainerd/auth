@@ -35,7 +35,7 @@ type IdentityProviderServiceGetFilter struct {
 	Provider     []string
 	ProviderType *string
 	Identifier   *string
-	TenantUUID   *string
+	TenantID     int64
 	Status       []string
 	IsDefault    *bool
 	IsSystem     *bool
@@ -55,11 +55,11 @@ type IdentityProviderServiceGetResult struct {
 
 type IdentityProviderService interface {
 	Get(filter IdentityProviderServiceGetFilter) (*IdentityProviderServiceGetResult, error)
-	GetByUUID(idpUUID uuid.UUID) (*IdentityProviderServiceDataResult, error)
-	Create(name string, displayName string, provider string, providerType string, config datatypes.JSON, status string, tenantUUID string, actorUserUUID uuid.UUID) (*IdentityProviderServiceDataResult, error)
-	Update(idpUUID uuid.UUID, name string, displayName string, provider string, providerType string, config datatypes.JSON, status string, actorUserUUID uuid.UUID) (*IdentityProviderServiceDataResult, error)
-	SetStatusByUUID(idpUUID uuid.UUID, status string, actorUserUUID uuid.UUID) (*IdentityProviderServiceDataResult, error)
-	DeleteByUUID(idpUUID uuid.UUID, actorUserUUID uuid.UUID) (*IdentityProviderServiceDataResult, error)
+	GetByUUID(idpUUID uuid.UUID, tenantID int64) (*IdentityProviderServiceDataResult, error)
+	Create(name string, displayName string, provider string, providerType string, config datatypes.JSON, status string, tenantUUID string, tenantID int64, actorUserUUID uuid.UUID) (*IdentityProviderServiceDataResult, error)
+	Update(idpUUID uuid.UUID, name string, displayName string, provider string, providerType string, config datatypes.JSON, status string, tenantID int64, actorUserUUID uuid.UUID) (*IdentityProviderServiceDataResult, error)
+	SetStatusByUUID(idpUUID uuid.UUID, status string, tenantID int64, actorUserUUID uuid.UUID) (*IdentityProviderServiceDataResult, error)
+	DeleteByUUID(idpUUID uuid.UUID, tenantID int64, actorUserUUID uuid.UUID) (*IdentityProviderServiceDataResult, error)
 }
 
 type identityProviderService struct {
@@ -84,21 +84,6 @@ func NewIdentityProviderService(
 }
 
 func (s *identityProviderService) Get(filter IdentityProviderServiceGetFilter) (*IdentityProviderServiceGetResult, error) {
-	var tenantID *int64
-
-	// Get tenant if uuid exist
-	if filter.TenantUUID != nil {
-		tenantUUIDParsed, err := uuid.Parse(*filter.TenantUUID)
-		if err != nil {
-			return nil, errors.New("invalid tenant UUID")
-		}
-		tenant, err := s.tenantRepo.FindByUUID(tenantUUIDParsed)
-		if err != nil || tenant == nil {
-			return nil, errors.New("tenant not found")
-		}
-		tenantID = &tenant.TenantID
-	}
-
 	// Build query filter
 	queryFilter := repository.IdentityProviderRepositoryGetFilter{
 		Name:         filter.Name,
@@ -106,7 +91,7 @@ func (s *identityProviderService) Get(filter IdentityProviderServiceGetFilter) (
 		Provider:     filter.Provider,
 		ProviderType: filter.ProviderType,
 		Identifier:   filter.Identifier,
-		TenantID:     tenantID,
+		TenantID:     &filter.TenantID,
 		Status:       filter.Status,
 		IsDefault:    filter.IsDefault,
 		IsSystem:     filter.IsSystem,
@@ -135,16 +120,21 @@ func (s *identityProviderService) Get(filter IdentityProviderServiceGetFilter) (
 	}, nil
 }
 
-func (s *identityProviderService) GetByUUID(idpUUID uuid.UUID) (*IdentityProviderServiceDataResult, error) {
+func (s *identityProviderService) GetByUUID(idpUUID uuid.UUID, tenantID int64) (*IdentityProviderServiceDataResult, error) {
 	idp, err := s.idpRepo.FindByUUID(idpUUID, "Tenant")
 	if err != nil || idp == nil {
-		return nil, errors.New("idp not found")
+		return nil, errors.New("identity provider not found or access denied")
+	}
+
+	// Validate tenant ownership
+	if idp.TenantID != tenantID {
+		return nil, errors.New("identity provider not found or access denied")
 	}
 
 	return toIdpServiceDataResult(idp), nil
 }
 
-func (s *identityProviderService) Create(name string, displayName string, provider string, providerType string, config datatypes.JSON, status string, tenantUUID string, actorUserUUID uuid.UUID) (*IdentityProviderServiceDataResult, error) {
+func (s *identityProviderService) Create(name string, displayName string, provider string, providerType string, config datatypes.JSON, status string, tenantUUID string, tenantID int64, actorUserUUID uuid.UUID) (*IdentityProviderServiceDataResult, error) {
 	var createdIdp *model.IdentityProvider
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
@@ -152,7 +142,7 @@ func (s *identityProviderService) Create(name string, displayName string, provid
 		txTenantRepo := s.tenantRepo.WithTx(tx)
 		txUserRepo := s.userRepo.WithTx(tx)
 
-		// Parse tenant UUID
+		// Parse and check if tenant UUID is valid
 		tenantUUIDParsed, err := uuid.Parse(tenantUUID)
 		if err != nil {
 			return errors.New("invalid tenant UUID")
@@ -162,6 +152,11 @@ func (s *identityProviderService) Create(name string, displayName string, provid
 		tenant, err := txTenantRepo.FindByUUID(tenantUUIDParsed)
 		if err != nil || tenant == nil {
 			return errors.New("tenant not found")
+		}
+
+		// Validate tenant ownership
+		if tenant.TenantID != tenantID {
+			return errors.New("access denied")
 		}
 
 		// Get actor user with tenant info
@@ -222,7 +217,7 @@ func (s *identityProviderService) Create(name string, displayName string, provid
 	return toIdpServiceDataResult(createdIdp), nil
 }
 
-func (s *identityProviderService) Update(idpUUID uuid.UUID, name string, displayName string, provider string, providerType string, config datatypes.JSON, status string, actorUserUUID uuid.UUID) (*IdentityProviderServiceDataResult, error) {
+func (s *identityProviderService) Update(idpUUID uuid.UUID, name string, displayName string, provider string, providerType string, config datatypes.JSON, status string, tenantID int64, actorUserUUID uuid.UUID) (*IdentityProviderServiceDataResult, error) {
 	var updatedIdp *model.IdentityProvider
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
@@ -232,7 +227,12 @@ func (s *identityProviderService) Update(idpUUID uuid.UUID, name string, display
 		// Get idp
 		idp, err := txIdpRepo.FindByUUID(idpUUID, "Tenant")
 		if err != nil || idp == nil {
-			return errors.New("idp not found")
+			return errors.New("identity provider not found or access denied")
+		}
+
+		// Validate tenant ownership
+		if idp.TenantID != tenantID {
+			return errors.New("identity provider not found or access denied")
 		}
 
 		// Get actor user with tenant info
@@ -292,7 +292,7 @@ func (s *identityProviderService) Update(idpUUID uuid.UUID, name string, display
 	return toIdpServiceDataResult(updatedIdp), nil
 }
 
-func (s *identityProviderService) SetStatusByUUID(idpUUID uuid.UUID, status string, actorUserUUID uuid.UUID) (*IdentityProviderServiceDataResult, error) {
+func (s *identityProviderService) SetStatusByUUID(idpUUID uuid.UUID, status string, tenantID int64, actorUserUUID uuid.UUID) (*IdentityProviderServiceDataResult, error) {
 	var updatedIdp *model.IdentityProvider
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
@@ -302,7 +302,12 @@ func (s *identityProviderService) SetStatusByUUID(idpUUID uuid.UUID, status stri
 		// Get idp
 		idp, err := txIdpRepo.FindByUUID(idpUUID, "Tenant")
 		if err != nil || idp == nil {
-			return errors.New("idp not found")
+			return errors.New("identity provider not found or access denied")
+		}
+
+		// Validate tenant ownership
+		if idp.TenantID != tenantID {
+			return errors.New("identity provider not found or access denied")
 		}
 
 		// Get actor user with tenant info
@@ -344,11 +349,16 @@ func (s *identityProviderService) SetStatusByUUID(idpUUID uuid.UUID, status stri
 	return toIdpServiceDataResult(updatedIdp), nil
 }
 
-func (s *identityProviderService) DeleteByUUID(idpUUID uuid.UUID, actorUserUUID uuid.UUID) (*IdentityProviderServiceDataResult, error) {
+func (s *identityProviderService) DeleteByUUID(idpUUID uuid.UUID, tenantID int64, actorUserUUID uuid.UUID) (*IdentityProviderServiceDataResult, error) {
 	// Get idp
 	idp, err := s.idpRepo.FindByUUID(idpUUID, "Tenant")
 	if err != nil || idp == nil {
-		return nil, errors.New("idp not found")
+		return nil, errors.New("identity provider not found or access denied")
+	}
+
+	// Validate tenant ownership
+	if idp.TenantID != tenantID {
+		return nil, errors.New("identity provider not found or access denied")
 	}
 
 	// Get actor user with tenant info
@@ -405,4 +415,3 @@ func toIdpServiceDataResult(idp *model.IdentityProvider) *IdentityProviderServic
 
 	return result
 }
-
