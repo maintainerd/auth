@@ -25,6 +25,13 @@ func NewIdentityProviderHandler(idpService service.IdentityProviderService) *Ide
 
 // Get identity provider with pagination
 func (h *IdentityProviderHandler) Get(w http.ResponseWriter, r *http.Request) {
+	// Get tenant from context
+	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
+	if !ok || tenant == nil {
+		util.Error(w, http.StatusUnauthorized, "Tenant not found in context")
+		return
+	}
+
 	// Parse query parameters
 	q := r.URL.Query()
 
@@ -67,7 +74,6 @@ func (h *IdentityProviderHandler) Get(w http.ResponseWriter, r *http.Request) {
 		ProviderType: util.PtrOrNil(q.Get("provider_type")),
 		Identifier:   util.PtrOrNil(q.Get("identifier")),
 		Status:       status,
-		TenantUUID:   util.PtrOrNil(q.Get("tenant_id")),
 		IsDefault:    isDefault,
 		IsSystem:     isSystem,
 		PaginationRequestDto: dto.PaginationRequestDto{
@@ -90,7 +96,7 @@ func (h *IdentityProviderHandler) Get(w http.ResponseWriter, r *http.Request) {
 		Provider:     reqParams.Provider,
 		ProviderType: reqParams.ProviderType,
 		Identifier:   reqParams.Identifier,
-		TenantUUID:   reqParams.TenantUUID,
+		TenantID:     tenant.TenantID,
 		Status:       reqParams.Status,
 		IsDefault:    reqParams.IsDefault,
 		IsSystem:     reqParams.IsSystem,
@@ -127,13 +133,16 @@ func (h *IdentityProviderHandler) Get(w http.ResponseWriter, r *http.Request) {
 
 // Get identity provider by UUID
 func (h *IdentityProviderHandler) GetByUUID(w http.ResponseWriter, r *http.Request) {
+	// Get tenant context
+	tenant := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
+
 	idpUUID, err := uuid.Parse(chi.URLParam(r, "identity_provider_uuid"))
 	if err != nil {
 		util.Error(w, http.StatusBadRequest, "Invalid identity provider UUID")
 		return
 	}
 
-	idp, err := h.idpService.GetByUUID(idpUUID)
+	idp, err := h.idpService.GetByUUID(idpUUID, tenant.TenantID)
 	if err != nil {
 		util.Error(w, http.StatusNotFound, "Identity provider not found")
 		return
@@ -147,6 +156,7 @@ func (h *IdentityProviderHandler) GetByUUID(w http.ResponseWriter, r *http.Reque
 // Create identity provider
 func (h *IdentityProviderHandler) Create(w http.ResponseWriter, r *http.Request) {
 	// Get authentication context
+	tenant := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
 	user := r.Context().Value(middleware.UserContextKey).(*model.User)
 
 	var req dto.IdentityProviderCreateRequestDto
@@ -160,7 +170,7 @@ func (h *IdentityProviderHandler) Create(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	idp, err := h.idpService.Create(req.Name, req.DisplayName, req.Provider, req.ProviderType, req.Config, req.Status, req.TenantUUID, user.UserUUID)
+	idp, err := h.idpService.Create(req.Name, req.DisplayName, req.Provider, req.ProviderType, req.Config, req.Status, req.TenantUUID, tenant.TenantID, user.UserUUID)
 	if err != nil {
 		util.Error(w, http.StatusInternalServerError, "Failed to create permission", err.Error())
 		return
@@ -174,6 +184,7 @@ func (h *IdentityProviderHandler) Create(w http.ResponseWriter, r *http.Request)
 // Update identity provider
 func (h *IdentityProviderHandler) Update(w http.ResponseWriter, r *http.Request) {
 	// Get authentication context
+	tenant := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
 	user := r.Context().Value(middleware.UserContextKey).(*model.User)
 
 	idpUUID, err := uuid.Parse(chi.URLParam(r, "identity_provider_uuid"))
@@ -193,7 +204,7 @@ func (h *IdentityProviderHandler) Update(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	idp, err := h.idpService.Update(idpUUID, req.Name, req.DisplayName, req.Provider, req.ProviderType, req.Config, req.Status, user.UserUUID)
+	idp, err := h.idpService.Update(idpUUID, req.Name, req.DisplayName, req.Provider, req.ProviderType, req.Config, req.Status, tenant.TenantID, user.UserUUID)
 	if err != nil {
 		util.Error(w, http.StatusInternalServerError, "Failed to update identity provider", err.Error())
 		return
@@ -207,6 +218,7 @@ func (h *IdentityProviderHandler) Update(w http.ResponseWriter, r *http.Request)
 // Set identity provider status
 func (h *IdentityProviderHandler) SetStatus(w http.ResponseWriter, r *http.Request) {
 	// Get authentication context
+	tenant := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
 	user := r.Context().Value(middleware.UserContextKey).(*model.User)
 
 	idpUUID, err := uuid.Parse(chi.URLParam(r, "identity_provider_uuid"))
@@ -227,7 +239,7 @@ func (h *IdentityProviderHandler) SetStatus(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	idp, err := h.idpService.SetStatusByUUID(idpUUID, req.Status, user.UserUUID)
+	idp, err := h.idpService.SetStatusByUUID(idpUUID, req.Status, tenant.TenantID, user.UserUUID)
 	if err != nil {
 		util.Error(w, http.StatusInternalServerError, "Failed to update identity provider", err.Error())
 		return
@@ -241,6 +253,7 @@ func (h *IdentityProviderHandler) SetStatus(w http.ResponseWriter, r *http.Reque
 // Delete identity provider
 func (h *IdentityProviderHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	// Get authentication context
+	tenant := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
 	user := r.Context().Value(middleware.UserContextKey).(*model.User)
 
 	idpUUID, err := uuid.Parse(chi.URLParam(r, "identity_provider_uuid"))
@@ -249,7 +262,7 @@ func (h *IdentityProviderHandler) Delete(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	idp, err := h.idpService.DeleteByUUID(idpUUID, user.UserUUID)
+	idp, err := h.idpService.DeleteByUUID(idpUUID, tenant.TenantID, user.UserUUID)
 	if err != nil {
 		util.Error(w, http.StatusInternalServerError, "Failed to delete identity provider", err.Error())
 		return
