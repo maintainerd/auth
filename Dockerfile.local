@@ -1,4 +1,4 @@
-FROM golang:1.24.3-alpine
+FROM golang:1.24-alpine
 
 # Install system dependencies
 RUN apk add --no-cache bash git make protobuf curl
@@ -12,8 +12,8 @@ RUN go install github.com/air-verse/air@v1.62.0
 # Set working directory
 WORKDIR /usr/src/app
 
-# Copy go mod files first for better caching
-COPY go.mod go.sum ./
+# Copy go mod file first for better caching
+COPY go.mod ./
 RUN go mod download
 
 # Copy Makefile

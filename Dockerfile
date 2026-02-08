@@ -1,5 +1,5 @@
 # --- Stage 1: Build ---
-FROM golang:1.24.3-alpine AS builder
+FROM golang:1.24-alpine AS builder
 
 # Install build dependencies
 RUN apk add --no-cache git
@@ -8,7 +8,7 @@ RUN apk add --no-cache git
 WORKDIR /app
 
 # Cache deps
-COPY go.mod go.sum ./
+COPY go.mod ./
 RUN go mod download
 
 # Copy the source
