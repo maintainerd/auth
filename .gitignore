@@ -23,7 +23,6 @@ Thumbs.db
 .env
 
 # Go modules and cache
-/go.sum
 /go.work
 /go.work.sum
 
