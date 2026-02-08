@@ -60,7 +60,7 @@ services:
       POSTGRES_PASSWORD: Pass123
       POSTGRES_DB: maintainerd
     volumes:
-      - ../postgres-db:/var/lib/postgresql/data
+      - postgres-data:/var/lib/postgresql/data
 
   redis-db:
     image: redis:7
@@ -69,7 +69,7 @@ services:
       - "6379:6379"
     command: ["redis-server", "--requirepass", "Pass123"]
     volumes:
-      - ../redis-db:/data
+      - redis-data:/data
 
   rabbitmq:
     image: rabbitmq:3-management
@@ -81,7 +81,7 @@ services:
       RABBITMQ_DEFAULT_USER: devuser
       RABBITMQ_DEFAULT_PASS: Pass123
     volumes:
-      - ../rabbitmq:/var/lib/rabbitmq
+      - rabbitmq-data:/var/lib/rabbitmq
 
 networks:
   default:
@@ -91,3 +91,6 @@ volumes:
   go-mod-cache:
   go-build-cache:
   node_modules_cache:
+  postgres-data:
+  redis-data:
+  rabbitmq-data:
