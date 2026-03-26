@@ -13,7 +13,7 @@ CREATE TABLE IF NOT EXISTS invites (
     invite_id           SERIAL PRIMARY KEY,
     invite_uuid         UUID NOT NULL UNIQUE,
     tenant_id           BIGINT NOT NULL,
-    auth_client_id      INTEGER NOT NULL,
+    client_id      INTEGER NOT NULL,
     invited_email       VARCHAR(255) NOT NULL,
     invited_by_user_id  INTEGER NOT NULL,
     invite_token        TEXT NOT NULL UNIQUE,
@@ -36,11 +36,11 @@ BEGIN
     END IF;
 
     IF NOT EXISTS (
-        SELECT 1 FROM pg_constraint WHERE conname = 'fk_invites_auth_client_id'
+        SELECT 1 FROM pg_constraint WHERE conname = 'fk_invites_client_id'
     ) THEN
         ALTER TABLE invites
-            ADD CONSTRAINT fk_invites_auth_client_id FOREIGN KEY (auth_client_id)
-            REFERENCES auth_clients(auth_client_id) ON DELETE CASCADE;
+            ADD CONSTRAINT fk_invites_client_id FOREIGN KEY (client_id)
+            REFERENCES clients(client_id) ON DELETE CASCADE;
     END IF;
 
     IF NOT EXISTS (
@@ -55,7 +55,7 @@ END$$;
 -- ADD INDEXES
 CREATE INDEX IF NOT EXISTS idx_invites_uuid ON invites (invite_uuid);
 CREATE INDEX IF NOT EXISTS idx_invites_tenant_id ON invites (tenant_id);
-CREATE INDEX IF NOT EXISTS idx_invites_auth_client_id ON invites (auth_client_id);
+CREATE INDEX IF NOT EXISTS idx_invites_client_id ON invites (client_id);
 CREATE INDEX IF NOT EXISTS idx_invites_email ON invites (invited_email);
 CREATE INDEX IF NOT EXISTS idx_invites_invited_by_user_id ON invites (invited_by_user_id);
 CREATE INDEX IF NOT EXISTS idx_invites_token ON invites (invite_token);

@@ -21,7 +21,7 @@ type InviteService interface {
 type inviteService struct {
 	db                *gorm.DB
 	inviteRepo        repository.InviteRepository
-	authClientRepo    repository.AuthClientRepository
+	ClientRepo        repository.ClientRepository
 	roleRepo          repository.RoleRepository
 	emailTemplateRepo repository.EmailTemplateRepository
 }
@@ -29,14 +29,14 @@ type inviteService struct {
 func NewInviteService(
 	db *gorm.DB,
 	inviteRepo repository.InviteRepository,
-	authClientRepo repository.AuthClientRepository,
+	ClientRepo repository.ClientRepository,
 	roleRepo repository.RoleRepository,
 	emailTemplateRepo repository.EmailTemplateRepository,
 ) InviteService {
 	return &inviteService{
 		db:                db,
 		inviteRepo:        inviteRepo,
-		authClientRepo:    authClientRepo,
+		ClientRepo:        ClientRepo,
 		roleRepo:          roleRepo,
 		emailTemplateRepo: emailTemplateRepo,
 	}
@@ -51,25 +51,25 @@ func (s *inviteService) SendInvite(
 	var invite *model.Invite
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
-		authClientRepo := repository.NewAuthClientRepository(tx)
+		ClientRepo := repository.NewClientRepository(tx)
 		roleRepo := repository.NewRoleRepository(tx)
 		inviteRepo := repository.NewInviteRepository(tx)
 
-		authClient, err := authClientRepo.FindDefault()
+		Client, err := ClientRepo.FindDefault()
 		if err != nil {
 			return err
 		}
-		if authClient == nil ||
-			authClient.Status != "active" ||
-			authClient.Domain == nil || *authClient.Domain == "" ||
-			authClient.IdentityProvider == nil ||
-			authClient.IdentityProvider.Tenant == nil ||
-			authClient.IdentityProvider.Tenant.TenantID == 0 {
+		if Client == nil ||
+			Client.Status != "active" ||
+			Client.Domain == nil || *Client.Domain == "" ||
+			Client.IdentityProvider == nil ||
+			Client.IdentityProvider.Tenant == nil ||
+			Client.IdentityProvider.Tenant.TenantID == 0 {
 			return errors.New("invalid client or identity provider")
 		}
 
 		// Get tenant id
-		tenantId := authClient.IdentityProvider.Tenant.TenantID
+		tenantId := Client.IdentityProvider.Tenant.TenantID
 
 		// Find roles by UUIDs
 		foundRoles, err := roleRepo.FindByUUIDs(roleUUIDs)
@@ -92,7 +92,7 @@ func (s *inviteService) SendInvite(
 
 		invite = &model.Invite{
 			TenantID:        tenantID,
-			AuthClientID:    authClient.AuthClientID,
+			ClientID: Client.ClientID,
 			InvitedEmail:    email,
 			InvitedByUserID: userID,
 			InviteToken:     inviteToken,

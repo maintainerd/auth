@@ -36,7 +36,7 @@ type UserIdentityServiceDataResult struct {
 	Provider         string
 	Sub              string
 	Metadata         datatypes.JSON
-	AuthClient       *AuthClientServiceDataResult
+	Client           *ClientServiceDataResult
 	CreatedAt        time.Time
 	UpdatedAt        time.Time
 }
@@ -86,7 +86,7 @@ type userService struct {
 	roleRepo             repository.RoleRepository
 	tenantRepo           repository.TenantRepository
 	identityProviderRepo repository.IdentityProviderRepository
-	authClientRepo       repository.AuthClientRepository
+	ClientRepo           repository.ClientRepository
 	tenantUserRepo       repository.TenantUserRepository
 }
 
@@ -98,7 +98,7 @@ func NewUserService(
 	roleRepo repository.RoleRepository,
 	tenantRepo repository.TenantRepository,
 	identityProviderRepo repository.IdentityProviderRepository,
-	authClientRepo repository.AuthClientRepository,
+	ClientRepo repository.ClientRepository,
 	tenantUserRepo repository.TenantUserRepository,
 ) UserService {
 	return &userService{
@@ -109,7 +109,7 @@ func NewUserService(
 		roleRepo:             roleRepo,
 		tenantRepo:           tenantRepo,
 		identityProviderRepo: identityProviderRepo,
-		authClientRepo:       authClientRepo,
+		ClientRepo:           ClientRepo,
 		tenantUserRepo:       tenantUserRepo,
 	}
 }
@@ -223,7 +223,7 @@ func (s *userService) Create(username string, fullname string, email *string, ph
 		txUserRepo := s.userRepo.WithTx(tx)
 		txUserIdentityRepo := s.userIdentityRepo.WithTx(tx)
 		txTenantRepo := s.tenantRepo.WithTx(tx)
-		txAuthClientRepo := s.authClientRepo.WithTx(tx)
+		txClientRepo := s.ClientRepo.WithTx(tx)
 		txRoleRepo := s.roleRepo.WithTx(tx)
 		txUserRoleRepo := s.userRoleRepo.WithTx(tx)
 		txTenantUserRepo := s.tenantUserRepo.WithTx(tx)
@@ -306,19 +306,19 @@ func (s *userService) Create(username string, fullname string, email *string, ph
 		}
 
 		// Find default auth client for this tenant
-		defaultAuthClient, err := txAuthClientRepo.FindDefaultByTenantID(targetTenant.TenantID)
-		if err != nil || defaultAuthClient == nil {
+		defaultClient, err := txClientRepo.FindDefaultByTenantID(targetTenant.TenantID)
+		if err != nil || defaultClient == nil {
 			return errors.New("default auth client not found for tenant")
 		}
 
 		// Create default user identity
 		userIdentity := &model.UserIdentity{
-			TenantID:     targetTenant.TenantID,
-			UserID:       newUser.UserID,
-			AuthClientID: defaultAuthClient.AuthClientID,
-			Provider:     "default",
-			Sub:          newUser.UserUUID.String(), // Use user UUID as sub for default provider
-			Metadata:     datatypes.JSON([]byte(`{}`)),
+			TenantID: targetTenant.TenantID,
+			UserID:   newUser.UserID,
+			ClientID: defaultClient.ClientID,
+			Provider: "default",
+			Sub:      newUser.UserUUID.String(), // Use user UUID as sub for default provider
+			Metadata: datatypes.JSON([]byte(`{}`)),
 		}
 
 		_, err = txUserIdentityRepo.Create(userIdentity)
@@ -353,7 +353,7 @@ func (s *userService) Create(username string, fullname string, email *string, ph
 		}
 
 		// Fetch created user with relationships
-		createdUser, err = txUserRepo.FindByUUID(newUser.UserUUID, "UserIdentities.AuthClient", "UserIdentities.Tenant", "Roles")
+		createdUser, err = txUserRepo.FindByUUID(newUser.UserUUID, "UserIdentities.Client", "UserIdentities.Tenant", "Roles")
 		if err != nil {
 			return err
 		}
@@ -458,7 +458,7 @@ func (s *userService) Update(userUUID uuid.UUID, tenantID int64, username string
 		}
 
 		// Fetch updated user with relationships
-		updatedUser, err = txUserRepo.FindByUUID(userUUID, "UserIdentities.AuthClient", "UserIdentities.Tenant", "Roles")
+		updatedUser, err = txUserRepo.FindByUUID(userUUID, "UserIdentities.Client", "UserIdentities.Tenant", "Roles")
 		if err != nil {
 			return err
 		}
@@ -512,7 +512,7 @@ func (s *userService) SetStatus(userUUID uuid.UUID, tenantID int64, status strin
 	}
 
 	// Fetch updated user with relationships
-	updatedUser, err := s.userRepo.FindByUUID(userUUID, "UserIdentities.AuthClient", "UserIdentities.Tenant", "Roles")
+	updatedUser, err := s.userRepo.FindByUUID(userUUID, "UserIdentities.Client", "UserIdentities.Tenant", "Roles")
 	if err != nil {
 		return nil, err
 	}
@@ -549,7 +549,7 @@ func (s *userService) VerifyEmail(userUUID uuid.UUID, tenantID int64) (*UserServ
 	}
 
 	// Fetch updated user with relationships
-	updatedUser, err := s.userRepo.FindByUUID(userUUID, "UserIdentities.AuthClient", "UserIdentities.Tenant", "Roles")
+	updatedUser, err := s.userRepo.FindByUUID(userUUID, "UserIdentities.Client", "UserIdentities.Tenant", "Roles")
 	if err != nil {
 		return nil, err
 	}
@@ -585,7 +585,7 @@ func (s *userService) VerifyPhone(userUUID uuid.UUID, tenantID int64) (*UserServ
 	}
 
 	// Fetch updated user with relationships
-	updatedUser, err := s.userRepo.FindByUUID(userUUID, "UserIdentities.AuthClient", "UserIdentities.Tenant", "Roles")
+	updatedUser, err := s.userRepo.FindByUUID(userUUID, "UserIdentities.Client", "UserIdentities.Tenant", "Roles")
 	if err != nil {
 		return nil, err
 	}
@@ -621,7 +621,7 @@ func (s *userService) CompleteAccount(userUUID uuid.UUID, tenantID int64) (*User
 	}
 
 	// Fetch updated user with relationships
-	updatedUser, err := s.userRepo.FindByUUID(userUUID, "UserIdentities.AuthClient", "UserIdentities.Tenant", "Roles")
+	updatedUser, err := s.userRepo.FindByUUID(userUUID, "UserIdentities.Client", "UserIdentities.Tenant", "Roles")
 	if err != nil {
 		return nil, err
 	}
@@ -631,7 +631,7 @@ func (s *userService) CompleteAccount(userUUID uuid.UUID, tenantID int64) (*User
 
 func (s *userService) DeleteByUUID(userUUID uuid.UUID, tenantID int64, deleterUserUUID uuid.UUID) (*UserServiceDataResult, error) {
 	// Check if target user exists
-	user, err := s.userRepo.FindByUUID(userUUID, "UserIdentities.AuthClient", "UserIdentities", "Roles")
+	user, err := s.userRepo.FindByUUID(userUUID, "UserIdentities.Client", "UserIdentities", "Roles")
 	if err != nil || user == nil {
 		return nil, errors.New("user not found")
 	}
@@ -730,7 +730,7 @@ func (s *userService) AssignUserRoles(userUUID uuid.UUID, roleUUIDs []uuid.UUID,
 		}
 
 		// Fetch user with roles for response
-		userWithRoles, err = txUserRepo.FindByUUID(userUUID, "UserIdentities.AuthClient", "UserIdentities.Tenant", "Roles")
+		userWithRoles, err = txUserRepo.FindByUUID(userUUID, "UserIdentities.Client", "UserIdentities.Tenant", "Roles")
 		if err != nil {
 			return err
 		}
@@ -787,7 +787,7 @@ func (s *userService) RemoveUserRole(userUUID uuid.UUID, roleUUID uuid.UUID, ten
 		}
 
 		// Fetch user with roles for response
-		userWithRoles, err = txUserRepo.FindByUUID(userUUID, "UserIdentities.AuthClient", "UserIdentities.Tenant", "Roles")
+		userWithRoles, err = txUserRepo.FindByUUID(userUUID, "UserIdentities.Client", "UserIdentities.Tenant", "Roles")
 		if err != nil {
 			return err
 		}
@@ -841,9 +841,9 @@ func toUserServiceDataResult(user *model.User) *UserServiceDataResult {
 				CreatedAt:        ui.CreatedAt,
 				UpdatedAt:        ui.UpdatedAt,
 			}
-			// Map AuthClient if present
-			if ui.AuthClient != nil {
-				userIdentities[i].AuthClient = ToAuthClientServiceDataResult(ui.AuthClient)
+			// Map Client if present
+			if ui.Client != nil {
+				userIdentities[i].Client = ToClientServiceDataResult(ui.Client)
 			}
 		}
 		result.UserIdentities = &userIdentities
@@ -893,12 +893,12 @@ func (s *userService) GetUserIdentities(userUUID uuid.UUID) ([]UserIdentityServi
 
 	result := make([]UserIdentityServiceDataResult, len(identities))
 	for i, identity := range identities {
-		// Load AuthClient if needed
-		var authClient *AuthClientServiceDataResult
-		if identity.AuthClientID > 0 {
-			ac, err := s.authClientRepo.FindByID(identity.AuthClientID)
+		// Load Client if needed
+		var Client *ClientServiceDataResult
+		if identity.Identifier > 0 {
+			ac, err := s.ClientRepo.FindByID(identity.Identifier)
 			if err == nil && ac != nil {
-				authClient = ToAuthClientServiceDataResult(ac)
+				Client = ToClientServiceDataResult(ac)
 			}
 		}
 
@@ -907,7 +907,7 @@ func (s *userService) GetUserIdentities(userUUID uuid.UUID) ([]UserIdentityServi
 			Provider:         identity.Provider,
 			Sub:              identity.Sub,
 			Metadata:         identity.Metadata,
-			AuthClient:       authClient,
+			Client:           Client,
 			CreatedAt:        identity.CreatedAt,
 			UpdatedAt:        identity.UpdatedAt,
 		}
@@ -915,4 +915,3 @@ func (s *userService) GetUserIdentities(userUUID uuid.UUID) ([]UserIdentityServi
 
 	return result, nil
 }
-

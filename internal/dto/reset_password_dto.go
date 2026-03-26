@@ -43,7 +43,7 @@ func (q ResetPasswordQueryDto) Validate() error {
 			validation.Required.Error("Token is required"),
 			validation.Length(1, 500).Error("Token must not exceed 500 characters"),
 		),
-		validation.Field(&q.ClientID,
+		validation.Field(&q.Identifier,
 			validation.Required.Error("Client ID is required"),
 			validation.Length(1, 100).Error("Client ID must not exceed 100 characters"),
 		),

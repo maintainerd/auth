@@ -113,7 +113,7 @@ curl -X POST http://localhost:8080/api/v1/register \
     "username": "john@company.com",
     "password": "SecurePass123!"
   }' \
-  -G -d "auth_client_id=your-client-id" \
+  -G -d "client_id=your-client-id" \
      -d "tenant_id=your-tenant-id"
 ```
 
@@ -125,7 +125,7 @@ curl -X POST http://localhost:8080/api/v1/login \
     "username": "john@company.com",
     "password": "SecurePass123!"
   }' \
-  -G -d "auth_client_id=your-client-id" \
+  -G -d "client_id=your-client-id" \
      -d "tenant_id=your-tenant-id"
 ```
 
@@ -137,7 +137,7 @@ Choose how you want to receive authentication tokens:
 curl -X POST http://localhost:8080/api/v1/login \
   -H "Content-Type: application/json" \
   -d '{"username": "john@company.com", "password": "SecurePass123!"}' \
-  -G -d "auth_client_id=your-client-id"
+  -G -d "client_id=your-client-id"
 # Returns: {"success": true, "data": {"access_token": "...", "id_token": "...", ...}}
 ```
 
@@ -148,7 +148,7 @@ curl -X POST http://localhost:8080/api/v1/login \
   -H "X-Token-Delivery: cookie" \
   -c cookies.jar \
   -d '{"username": "john@company.com", "password": "SecurePass123!"}' \
-  -G -d "auth_client_id=your-client-id"
+  -G -d "client_id=your-client-id"
 # Returns: {"success": true, "data": {"expires_in": 3600, ...}} + Sets secure cookies
 ```
 

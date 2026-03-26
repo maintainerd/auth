@@ -24,7 +24,7 @@ type forgotPasswordService struct {
 	db                *gorm.DB
 	userRepo          repository.UserRepository
 	userTokenRepo     repository.UserTokenRepository
-	authClientRepo    repository.AuthClientRepository
+	ClientRepo        repository.ClientRepository
 	emailTemplateRepo repository.EmailTemplateRepository
 }
 
@@ -32,34 +32,34 @@ func NewForgotPasswordService(
 	db *gorm.DB,
 	userRepo repository.UserRepository,
 	userTokenRepo repository.UserTokenRepository,
-	authClientRepo repository.AuthClientRepository,
+	ClientRepo repository.ClientRepository,
 	emailTemplateRepo repository.EmailTemplateRepository,
 ) ForgotPasswordService {
 	return &forgotPasswordService{
 		db:                db,
 		userRepo:          userRepo,
 		userTokenRepo:     userTokenRepo,
-		authClientRepo:    authClientRepo,
+		ClientRepo:        ClientRepo,
 		emailTemplateRepo: emailTemplateRepo,
 	}
 }
 
 func (s *forgotPasswordService) SendPasswordResetEmail(email string, clientID, providerID *string, isInternal bool) (*dto.ForgotPasswordResponseDto, error) {
 	var user *model.User
-	var authClient *model.AuthClient
+	var Client *model.Client
 	var resetToken string
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
 		txUserRepo := s.userRepo.WithTx(tx)
 		txUserTokenRepo := s.userTokenRepo.WithTx(tx)
-		txAuthClientRepo := s.authClientRepo.WithTx(tx)
+		txClientRepo := s.ClientRepo.WithTx(tx)
 
 		// Get auth client (default or specified)
 		var txErr error
 		if clientID != nil && providerID != nil {
-			authClient, txErr = txAuthClientRepo.FindByClientIDAndIdentityProvider(*clientID, *providerID)
+			Client, txErr = txClientRepo.FindByClientIDAndIdentityProvider(*clientID, *providerID)
 		} else {
-			authClient, txErr = txAuthClientRepo.FindDefault()
+			Client, txErr = txClientRepo.FindDefault()
 		}
 		if txErr != nil {
 			return fmt.Errorf("failed to find auth client: %w", txErr)
@@ -128,7 +128,7 @@ func (s *forgotPasswordService) SendPasswordResetEmail(email string, clientID, p
 	// Only send email if user was found (user will be nil if not found due to security)
 	if user != nil {
 		// Generate reset URL and send email
-		if err := s.sendPasswordResetEmail(user.Email, resetToken, authClient, isInternal); err != nil {
+		if err := s.sendPasswordResetEmail(user.Email, resetToken, Client, isInternal); err != nil {
 			// Log error but don't reveal it to user for security
 			util.LogSecurityEvent(util.SecurityEvent{
 				EventType: "password_reset_email_failure",
@@ -152,7 +152,7 @@ func generateSecureToken(length int) (string, error) {
 	return hex.EncodeToString(bytes), nil
 }
 
-func (s *forgotPasswordService) sendPasswordResetEmail(to, resetToken string, authClient *model.AuthClient, isInternal bool) error {
+func (s *forgotPasswordService) sendPasswordResetEmail(to, resetToken string, Client *model.Client, isInternal bool) error {
 	// Get email template from DB
 	templateEntity, err := s.emailTemplateRepo.FindByName("internal:user:password:reset")
 	if err != nil {
@@ -163,8 +163,8 @@ func (s *forgotPasswordService) sendPasswordResetEmail(to, resetToken string, au
 	baseURL := fmt.Sprintf("%s/api/v1/reset-password", config.AppPublicHostname)
 	signedAPIURL, err := util.GenerateSignedURL(baseURL, map[string]string{
 		"token":       resetToken,
-		"client_id":   *authClient.ClientID,
-		"provider_id": authClient.IdentityProvider.Identifier,
+		"client_id":   *Client.Identifier,
+		"provider_id": Client.IdentityProvider.Identifier,
 	}, 1*time.Hour)
 	if err != nil {
 		return fmt.Errorf("failed to create signed URL: %w", err)

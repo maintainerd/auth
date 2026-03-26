@@ -9,15 +9,15 @@ import (
 )
 
 type SignupFlowRepositoryGetFilter struct {
-	Name         *string
-	Identifier   *string
-	Status       []string
-	TenantID     *int64
-	AuthClientID *int64
-	Page         int
-	Limit        int
-	SortBy       string
-	SortOrder    string
+	Name       *string
+	Identifier *string
+	Status     []string
+	TenantID   *int64
+	ClientID   *int64
+	Page       int
+	Limit      int
+	SortBy     string
+	SortOrder  string
 }
 
 type SignupFlowRepositoryGetResult struct {
@@ -33,7 +33,7 @@ type SignupFlowRepository interface {
 	WithTx(tx *gorm.DB) SignupFlowRepository
 	FindPaginated(filter SignupFlowRepositoryGetFilter) (*SignupFlowRepositoryGetResult, error)
 	FindByUUIDAndTenantID(signupFlowUUID uuid.UUID, tenantID int64, preloads ...string) (*model.SignupFlow, error)
-	FindByIdentifierAndAuthClientID(identifier string, authClientID int64) (*model.SignupFlow, error)
+	FindByIdentifierAndClientID(identifier string, ClientID int64) (*model.SignupFlow, error)
 	FindByName(name string) (*model.SignupFlow, error)
 }
 
@@ -75,8 +75,8 @@ func (r *signupFlowRepository) FindPaginated(filter SignupFlowRepositoryGetFilte
 	if filter.TenantID != nil {
 		query = query.Where("tenant_id = ?", *filter.TenantID)
 	}
-	if filter.AuthClientID != nil {
-		query = query.Where("auth_client_id = ?", *filter.AuthClientID)
+	if filter.Identifier != nil {
+		query = query.Where("client_id = ?", *filter.Identifier)
 	}
 
 	// Count total before pagination
@@ -100,7 +100,7 @@ func (r *signupFlowRepository) FindPaginated(filter SignupFlowRepositoryGetFilte
 	query = query.Offset(offset).Limit(filter.Limit)
 
 	// Execute query with preloads
-	if err := query.Preload("AuthClient").Find(&signupFlows).Error; err != nil {
+	if err := query.Preload("Client").Find(&signupFlows).Error; err != nil {
 		return nil, err
 	}
 
@@ -119,9 +119,9 @@ func (r *signupFlowRepository) FindPaginated(filter SignupFlowRepositoryGetFilte
 	}, nil
 }
 
-func (r *signupFlowRepository) FindByIdentifierAndAuthClientID(identifier string, authClientID int64) (*model.SignupFlow, error) {
+func (r *signupFlowRepository) FindByIdentifierAndClientID(identifier string, ClientID int64) (*model.SignupFlow, error) {
 	var signupFlow model.SignupFlow
-	err := r.db.Where("identifier = ? AND auth_client_id = ?", identifier, authClientID).First(&signupFlow).Error
+	err := r.db.Where("identifier = ? AND client_id = ?", identifier, ClientID).First(&signupFlow).Error
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return nil, nil

@@ -60,10 +60,10 @@ func (h *SignupFlowHandler) GetAll(w http.ResponseWriter, r *http.Request) {
 
 	// Build filter DTO for validation
 	filter := dto.SignupFlowFilterDto{
-		Name:           util.PtrOrNil(q.Get("name")),
-		Identifier:     util.PtrOrNil(q.Get("identifier")),
-		Status:         status,
-		AuthClientUUID: util.PtrOrNil(q.Get("client_id")),
+		Name:       util.PtrOrNil(q.Get("name")),
+		Identifier: util.PtrOrNil(q.Get("identifier")),
+		Status:     status,
+		ClientUUID: util.PtrOrNil(q.Get("client_id")),
 		PaginationRequestDto: dto.PaginationRequestDto{
 			Page:      page,
 			Limit:     limit,
@@ -79,18 +79,18 @@ func (h *SignupFlowHandler) GetAll(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Parse and validate auth client UUID if provided
-	var authClientUUIDPtr *uuid.UUID
-	if filter.AuthClientUUID != nil {
-		authClientUUID, err := uuid.Parse(*filter.AuthClientUUID)
+	var ClientUUIDPtr *uuid.UUID
+	if filter.ClientUUID != nil {
+		ClientUUID, err := uuid.Parse(*filter.ClientUUID)
 		if err != nil {
 			util.Error(w, http.StatusBadRequest, "Invalid auth client UUID")
 			return
 		}
-		authClientUUIDPtr = &authClientUUID
+		ClientUUIDPtr = &ClientUUID
 	}
 
 	// Fetch signup flows from service layer
-	result, err := h.signupFlowService.GetAll(tenant.TenantID, filter.Name, filter.Identifier, filter.Status, authClientUUIDPtr, filter.Page, filter.Limit, filter.SortBy, filter.SortOrder)
+	result, err := h.signupFlowService.GetAll(tenant.TenantID, filter.Name, filter.Identifier, filter.Status, ClientUUIDPtr, filter.Page, filter.Limit, filter.SortBy, filter.SortOrder)
 	if err != nil {
 		util.Error(w, http.StatusInternalServerError, "Failed to get signup flows", err.Error())
 		return
@@ -167,7 +167,7 @@ func (h *SignupFlowHandler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Parse and validate auth client UUID
-	authClientUUID, err := uuid.Parse(req.AuthClientUUID)
+	ClientUUID, err := uuid.Parse(req.ClientUUID)
 	if err != nil {
 		util.Error(w, http.StatusBadRequest, "Invalid auth client UUID")
 		return
@@ -186,7 +186,7 @@ func (h *SignupFlowHandler) Create(w http.ResponseWriter, r *http.Request) {
 		req.Description,
 		req.Config,
 		status,
-		authClientUUID,
+		ClientUUID,
 	)
 	if err != nil {
 		util.Error(w, http.StatusBadRequest, "Failed to create signup flow", err.Error())
@@ -540,7 +540,7 @@ func toSignupFlowResponseDto(sf service.SignupFlowServiceDataResult) dto.SignupF
 		Identifier:     sf.Identifier,
 		Config:         sf.Config,
 		Status:         sf.Status,
-		AuthClientUUID: sf.AuthClientUUID.String(),
+		ClientUUID:     sf.ClientUUID.String(),
 		CreatedAt:      sf.CreatedAt,
 		UpdatedAt:      sf.UpdatedAt,
 	}

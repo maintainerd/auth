@@ -15,18 +15,18 @@ type SignupFlowResponseDto struct {
 	Identifier     string                 `json:"identifier"`
 	Config         map[string]interface{} `json:"config"`
 	Status         string                 `json:"status"`
-	AuthClientUUID string                 `json:"client_id,omitempty"`
+	ClientUUID     string                 `json:"client_id,omitempty"`
 	CreatedAt      time.Time              `json:"created_at"`
 	UpdatedAt      time.Time              `json:"updated_at"`
 }
 
 // Create signup flow request dto
 type SignupFlowCreateRequestDto struct {
-	Name           string                 `json:"name"`
-	Description    string                 `json:"description"`
-	Config         map[string]interface{} `json:"config,omitempty"`
-	Status         *string                `json:"status,omitempty"`
-	AuthClientUUID string                 `json:"client_id"`
+	Name        string                 `json:"name"`
+	Description string                 `json:"description"`
+	Config      map[string]interface{} `json:"config,omitempty"`
+	Status      *string                `json:"status,omitempty"`
+	ClientUUID  string                 `json:"client_id"`
 }
 
 func (r SignupFlowCreateRequestDto) Validate() error {
@@ -41,7 +41,7 @@ func (r SignupFlowCreateRequestDto) Validate() error {
 		validation.Field(&r.Status,
 			validation.In("active", "inactive").Error("Status must be 'active' or 'inactive'"),
 		),
-		validation.Field(&r.AuthClientUUID,
+		validation.Field(&r.ClientUUID,
 			validation.Required.Error("Auth client UUID is required"),
 			is.UUID.Error("Invalid auth client UUID format"),
 		),
@@ -87,10 +87,10 @@ func (r SignupFlowUpdateStatusRequestDto) Validate() error {
 
 // Signup flow listing request dto
 type SignupFlowFilterDto struct {
-	Name           *string  `json:"name"`
-	Identifier     *string  `json:"identifier"`
-	Status         []string `json:"status"`
-	AuthClientUUID *string  `json:"client_id"`
+	Name       *string  `json:"name"`
+	Identifier *string  `json:"identifier"`
+	Status     []string `json:"status"`
+	ClientUUID *string  `json:"client_id"`
 
 	// Pagination and sorting
 	PaginationRequestDto

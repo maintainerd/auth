@@ -17,8 +17,8 @@ type SignupFlow struct {
 	Identifier     string         `gorm:"column:identifier;type:varchar(255);uniqueIndex;not null" json:"identifier"`
 	Config         datatypes.JSON `gorm:"column:config;type:jsonb;default:'{}'" json:"config"`
 	Status         string         `gorm:"column:status;type:varchar(20);default:'active'" json:"status"`
-	AuthClientID   int64          `gorm:"column:auth_client_id;not null" json:"auth_client_id"`
-	AuthClient     *AuthClient    `gorm:"foreignKey:AuthClientID;references:AuthClientID" json:"auth_client,omitempty"`
+	ClientID       int64          `gorm:"column:client_id;not null" json:"client_id"`
+	Client         *Client        `gorm:"foreignKey:ClientID;references:ClientID" json:"client,omitempty"`
 	CreatedAt      time.Time      `gorm:"column:created_at;autoCreateTime" json:"created_at"`
 	UpdatedAt      time.Time      `gorm:"column:updated_at;autoUpdateTime" json:"updated_at"`
 }

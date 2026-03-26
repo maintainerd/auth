@@ -9,7 +9,7 @@ type UserIdentityRepository interface {
 	BaseRepositoryMethods[model.UserIdentity]
 	WithTx(tx *gorm.DB) UserIdentityRepository
 	FindByUserID(userID int64) ([]model.UserIdentity, error)
-	FindByUserIDAndAuthClientID(userID int64, authClientID int64) (*model.UserIdentity, error)
+	FindByUserIDAndClientID(userID int64, ClientID int64) (*model.UserIdentity, error)
 	FindByProviderAndUserID(providerName string, providerUserID string) (*model.UserIdentity, error)
 	FindByEmail(email string) ([]model.UserIdentity, error)
 	DeleteByUserID(userID int64) error
@@ -40,9 +40,9 @@ func (r *userIdentityRepository) FindByUserID(userID int64) ([]model.UserIdentit
 	return identities, err
 }
 
-func (r *userIdentityRepository) FindByUserIDAndAuthClientID(userID int64, authClientID int64) (*model.UserIdentity, error) {
+func (r *userIdentityRepository) FindByUserIDAndClientID(userID int64, ClientID int64) (*model.UserIdentity, error) {
 	var identity model.UserIdentity
-	err := r.db.Where("user_id = ? AND auth_client_id = ?", userID, authClientID).First(&identity).Error
+	err := r.db.Where("user_id = ? AND client_id = ?", userID, ClientID).First(&identity).Error
 	if err != nil {
 		return nil, err
 	}

@@ -23,19 +23,19 @@ type PermissionServiceDataResult struct {
 }
 
 type PermissionServiceGetFilter struct {
-	TenantID       int64
-	Name           *string
-	Description    *string
-	APIUUID        *string
-	RoleUUID       *string
-	AuthClientUUID *string
-	Status         *string
-	IsDefault      *bool
-	IsSystem       *bool
-	Page           int
-	Limit          int
-	SortBy         string
-	SortOrder      string
+	TenantID    int64
+	Name        *string
+	Description *string
+	APIUUID     *string
+	RoleUUID    *string
+	ClientUUID  *string
+	Status      *string
+	IsDefault   *bool
+	IsSystem    *bool
+	Page        int
+	Limit       int
+	SortBy      string
+	SortOrder   string
 }
 
 type PermissionServiceGetResult struct {
@@ -61,7 +61,7 @@ type permissionService struct {
 	permissionRepo repository.PermissionRepository
 	apiRepo        repository.APIRepository
 	roleRepo       repository.RoleRepository
-	authClientRepo repository.AuthClientRepository
+	ClientRepo     repository.ClientRepository
 }
 
 func NewPermissionService(
@@ -69,14 +69,14 @@ func NewPermissionService(
 	permissionRepo repository.PermissionRepository,
 	apiRepo repository.APIRepository,
 	roleRepo repository.RoleRepository,
-	authClientRepo repository.AuthClientRepository,
+	ClientRepo repository.ClientRepository,
 ) PermissionService {
 	return &permissionService{
 		db:             db,
 		permissionRepo: permissionRepo,
 		apiRepo:        apiRepo,
 		roleRepo:       roleRepo,
-		authClientRepo: authClientRepo,
+		ClientRepo:     ClientRepo,
 	}
 }
 
@@ -102,10 +102,10 @@ func (s *permissionService) Get(filter PermissionServiceGetFilter) (*PermissionS
 		roleID = &role.RoleID
 	}
 
-	// Note: AuthClientUUID filtering is no longer supported in the new hierarchical structure
-	// Auth client permissions are now managed through the auth_client_apis -> auth_client_permissions relationship
-	// Use the auth client API endpoints instead: /clients/{auth_client_uuid}/apis/{api_uuid}/permissions
-	if filter.AuthClientUUID != nil {
+	// Note: ClientUUID filtering is no longer supported in the new hierarchical structure
+	// Auth client permissions are now managed through the client_apis -> client_permissions relationship
+	// Use the auth client API endpoints instead: /clients/{client_uuid}/apis/{api_uuid}/permissions
+	if filter.ClientUUID != nil {
 		return nil, errors.New("auth client filtering is no longer supported - use auth client API endpoints instead")
 	}
 

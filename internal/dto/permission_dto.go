@@ -76,14 +76,14 @@ func (r PermissionUpdateRequestDto) Validate() error {
 
 // API listing / filter DTO
 type PermissionFilterDto struct {
-	Name           *string `json:"name"`
-	Description    *string `json:"description"`
-	APIUUID        *string `json:"api_id"`
-	RoleUUID       *string `json:"role_id"`
-	AuthClientUUID *string `json:"client_id"`
-	Status         *string `json:"status"`
-	IsDefault      *bool   `json:"is_default"`
-	IsSystem       *bool   `json:"is_system"`
+	Name        *string `json:"name"`
+	Description *string `json:"description"`
+	APIUUID     *string `json:"api_id"`
+	RoleUUID    *string `json:"role_id"`
+	ClientUUID  *string `json:"client_id"`
+	Status      *string `json:"status"`
+	IsDefault   *bool   `json:"is_default"`
+	IsSystem    *bool   `json:"is_system"`
 
 	// Pagination and sorting
 	PaginationRequestDto

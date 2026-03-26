@@ -21,7 +21,7 @@ type LoginService interface {
 
 type loginService struct {
 	db                   *gorm.DB
-	authClientRepo       repository.AuthClientRepository
+	ClientRepo           repository.ClientRepository
 	userRepo             repository.UserRepository
 	userTokenRepo        repository.UserTokenRepository
 	userIdentityRepo     repository.UserIdentityRepository
@@ -30,7 +30,7 @@ type loginService struct {
 
 func NewLoginService(
 	db *gorm.DB,
-	authClientRepo repository.AuthClientRepository,
+	ClientRepo repository.ClientRepository,
 	userRepo repository.UserRepository,
 	userTokenRepo repository.UserTokenRepository,
 	userIdentityRepo repository.UserIdentityRepository,
@@ -38,7 +38,7 @@ func NewLoginService(
 ) LoginService {
 	return &loginService{
 		db:                   db,
-		authClientRepo:       authClientRepo,
+		ClientRepo:           ClientRepo,
 		userRepo:             userRepo,
 		userTokenRepo:        userTokenRepo,
 		userIdentityRepo:     userIdentityRepo,
@@ -67,14 +67,14 @@ func (s *loginService) LoginPublic(usernameOrEmail, password, clientID, provider
 	}
 
 	var user *model.User
-	var authClient *model.AuthClient
+	var Client *model.Client
 	var userLookupErr error
 	var userIdentitySub string
 
 	// All database operations in transaction (read-only for consistency)
 	err := s.db.Transaction(func(tx *gorm.DB) error {
 		txUserRepo := s.userRepo.WithTx(tx)
-		txAuthClientRepo := s.authClientRepo.WithTx(tx)
+		txClientRepo := s.ClientRepo.WithTx(tx)
 		txIdentityProviderRepo := s.identityProviderRepo.WithTx(tx)
 		txUserIdentityRepo := s.userIdentityRepo.WithTx(tx)
 
@@ -103,7 +103,7 @@ func (s *loginService) LoginPublic(usernameOrEmail, password, clientID, provider
 		}
 
 		// Get and validate auth client with proper relationship preloading
-		authClient, txErr = txAuthClientRepo.FindByClientIDAndIdentityProvider(clientID, providerID)
+		Client, txErr = txClientRepo.FindByClientIDAndIdentityProvider(clientID, providerID)
 		if txErr != nil {
 			util.LogSecurityEvent(util.SecurityEvent{
 				EventType: "login_client_lookup_failure",
@@ -115,9 +115,9 @@ func (s *loginService) LoginPublic(usernameOrEmail, password, clientID, provider
 			return errors.New("authentication failed")
 		}
 
-		if authClient == nil ||
-			authClient.Status != "active" ||
-			authClient.Domain == nil || *authClient.Domain == "" {
+		if Client == nil ||
+			Client.Status != "active" ||
+			Client.Domain == nil || *Client.Domain == "" {
 			util.LogSecurityEvent(util.SecurityEvent{
 				EventType: "login_invalid_client",
 				UserID:    usernameOrEmail,
@@ -133,7 +133,7 @@ func (s *loginService) LoginPublic(usernameOrEmail, password, clientID, provider
 
 		// Fetch user identity to get the Sub claim
 		if userLookupErr == nil && user != nil {
-			userIdentity, txErr := txUserIdentityRepo.FindByUserIDAndAuthClientID(user.UserID, authClient.AuthClientID)
+			userIdentity, txErr := txUserIdentityRepo.FindByUserIDAndClientID(user.UserID, Client.ClientID)
 			if txErr == nil && userIdentity != nil {
 				userIdentitySub = userIdentity.Sub
 			}
@@ -199,7 +199,7 @@ func (s *loginService) LoginPublic(usernameOrEmail, password, clientID, provider
 	})
 
 	// Generate token response
-	return s.generateTokenResponse(userIdentitySub, user, authClient)
+	return s.generateTokenResponse(userIdentitySub, user, Client)
 }
 
 // Login authenticates users for internal applications.
@@ -222,20 +222,20 @@ func (s *loginService) Login(usernameOrEmail, password string, clientID, provide
 	}
 
 	var user *model.User
-	var authClient *model.AuthClient
+	var Client *model.Client
 	var userIdentitySub string
 
 	// All database operations in transaction for consistency
 	err := s.db.Transaction(func(tx *gorm.DB) error {
 		txUserRepo := s.userRepo.WithTx(tx)
-		txAuthClientRepo := s.authClientRepo.WithTx(tx)
+		txClientRepo := s.ClientRepo.WithTx(tx)
 		txUserIdentityRepo := s.userIdentityRepo.WithTx(tx)
 
 		// Get auth client - either by client_id and provider_id or default
 		var txErr error
 		if clientID != nil && providerID != nil {
 			// Get auth client by client_id and identity provider identifier
-			authClient, txErr = txAuthClientRepo.FindByClientIDAndIdentityProvider(*clientID, *providerID)
+			Client, txErr = txClientRepo.FindByClientIDAndIdentityProvider(*clientID, *providerID)
 			if txErr != nil {
 				util.LogSecurityEvent(util.SecurityEvent{
 					EventType: "login_client_lookup_failure",
@@ -248,7 +248,7 @@ func (s *loginService) Login(usernameOrEmail, password string, clientID, provide
 			}
 		} else {
 			// Get default auth client for internal authentication
-			authClient, txErr = txAuthClientRepo.FindDefault()
+			Client, txErr = txClientRepo.FindDefault()
 			if txErr != nil {
 				util.LogSecurityEvent(util.SecurityEvent{
 					EventType: "login_client_lookup_failure",
@@ -261,9 +261,9 @@ func (s *loginService) Login(usernameOrEmail, password string, clientID, provide
 			}
 		}
 
-		if authClient == nil ||
-			authClient.Status != "active" ||
-			authClient.Domain == nil || *authClient.Domain == "" {
+		if Client == nil ||
+			Client.Status != "active" ||
+			Client.Domain == nil || *Client.Domain == "" {
 			util.LogSecurityEvent(util.SecurityEvent{
 				EventType: "login_invalid_client",
 				UserID:    usernameOrEmail,
@@ -280,7 +280,7 @@ func (s *loginService) Login(usernameOrEmail, password string, clientID, provide
 
 		// Fetch user identity to get the Sub claim
 		if user != nil {
-			userIdentity, txErr := txUserIdentityRepo.FindByUserIDAndAuthClientID(user.UserID, authClient.AuthClientID)
+			userIdentity, txErr := txUserIdentityRepo.FindByUserIDAndClientID(user.UserID, Client.ClientID)
 			if txErr == nil && userIdentity != nil {
 				userIdentitySub = userIdentity.Sub
 			}
@@ -345,21 +345,21 @@ func (s *loginService) Login(usernameOrEmail, password string, clientID, provide
 	})
 
 	// Generate token response
-	return s.generateTokenResponse(userIdentitySub, user, authClient)
+	return s.generateTokenResponse(userIdentitySub, user, Client)
 }
 
 func (s *loginService) GetUserByEmail(email string, tenantID int64) (*model.User, error) {
 	return s.userRepo.FindByEmail(email)
 }
 
-func (s *loginService) generateTokenResponse(sub string, user *model.User, authClient *model.AuthClient) (*dto.LoginResponseDto, error) {
+func (s *loginService) generateTokenResponse(sub string, user *model.User, Client *model.Client) (*dto.LoginResponseDto, error) {
 	accessToken, err := util.GenerateAccessToken(
 		sub,
 		"openid profile email",
-		*authClient.Domain,
-		*authClient.ClientID,
-		*authClient.ClientID,
-		authClient.IdentityProvider.Identifier,
+		*Client.Domain,
+		*Client.Identifier,
+		*Client.Identifier,
+		Client.IdentityProvider.Identifier,
 	)
 	if err != nil {
 		return nil, err
@@ -374,12 +374,12 @@ func (s *loginService) generateTokenResponse(sub string, user *model.User, authC
 	}
 
 	// Generate ID token with user profile (no nonce for login flow)
-	idToken, err := util.GenerateIDToken(sub, *authClient.Domain, *authClient.ClientID, authClient.IdentityProvider.Identifier, profile, "")
+	idToken, err := util.GenerateIDToken(sub, *Client.Domain, *Client.Identifier, Client.IdentityProvider.Identifier, profile, "")
 	if err != nil {
 		return nil, err
 	}
 
-	refreshToken, err := util.GenerateRefreshToken(sub, *authClient.Domain, *authClient.ClientID, authClient.IdentityProvider.Identifier)
+	refreshToken, err := util.GenerateRefreshToken(sub, *Client.Domain, *Client.Identifier, Client.IdentityProvider.Identifier)
 	if err != nil {
 		return nil, err
 	}

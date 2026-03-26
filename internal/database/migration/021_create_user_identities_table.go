@@ -6,7 +6,7 @@ import (
 	"gorm.io/gorm"
 )
 
-func CreateUserIdentitiesTable(db *gorm.DB) {
+func CreateUserIdentityTable(db *gorm.DB) {
 	sql := `
 -- CREATE TABLE
 CREATE TABLE IF NOT EXISTS user_identities (
@@ -14,7 +14,7 @@ CREATE TABLE IF NOT EXISTS user_identities (
     user_identity_uuid  UUID NOT NULL UNIQUE,
 	tenant_id           INTEGER NOT NULL,
 	user_id             INTEGER NOT NULL,
-    auth_client_id      INTEGER NOT NULL,
+    client_id      INTEGER NOT NULL,
 	sub                 VARCHAR(255) NOT NULL, -- external subject (user identifier from provider)
     provider            VARCHAR(100) NOT NULL, -- 'google', 'cognito', 'microsoft'
     metadata           	JSONB,
@@ -34,11 +34,11 @@ BEGIN
     END IF;
 
     IF NOT EXISTS (
-        SELECT 1 FROM pg_constraint WHERE conname = 'fk_user_identities_auth_client'
+        SELECT 1 FROM pg_constraint WHERE conname = 'fk_user_identities_client'
     ) THEN
         ALTER TABLE user_identities
-            ADD CONSTRAINT fk_user_identities_auth_client FOREIGN KEY (auth_client_id)
-            REFERENCES auth_clients(auth_client_id) ON DELETE CASCADE;
+            ADD CONSTRAINT fk_user_identities_client FOREIGN KEY (client_id)
+            REFERENCES clients(client_id) ON DELETE CASCADE;
     END IF;
 
     IF NOT EXISTS (
@@ -53,7 +53,7 @@ END$$;
 -- ADD INDEXES
 CREATE INDEX IF NOT EXISTS idx_user_identities_uuid ON user_identities (user_identity_uuid);
 CREATE INDEX IF NOT EXISTS idx_user_identities_user_id ON user_identities (user_id);
-CREATE INDEX IF NOT EXISTS idx_user_identities_auth_client_id ON user_identities (auth_client_id);
+CREATE INDEX IF NOT EXISTS idx_user_identities_client_id ON user_identities (client_id);
 CREATE INDEX IF NOT EXISTS idx_user_identities_tenant_id ON user_identities (tenant_id);
 CREATE INDEX IF NOT EXISTS idx_user_identities_sub ON user_identities (sub);
 CREATE INDEX IF NOT EXISTS idx_user_identities_provider ON user_identities (provider);

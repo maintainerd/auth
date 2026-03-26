@@ -791,18 +791,18 @@ func (h *UserHandler) GetUserIdentities(w http.ResponseWriter, r *http.Request) 
 			CreatedAt:        identity.CreatedAt,
 			UpdatedAt:        identity.UpdatedAt,
 		}
-		if identity.AuthClient != nil {
-			rows[i].AuthClient = &dto.AuthClientResponseDto{
-				AuthClientUUID: identity.AuthClient.AuthClientUUID,
-				Name:           identity.AuthClient.Name,
-				DisplayName:    identity.AuthClient.DisplayName,
-				ClientType:     identity.AuthClient.ClientType,
-				Domain:         identity.AuthClient.Domain,
-				Status:         identity.AuthClient.Status,
-				IsDefault:      identity.AuthClient.IsDefault,
-				IsSystem:       identity.AuthClient.IsSystem,
-				CreatedAt:      identity.AuthClient.CreatedAt,
-				UpdatedAt:      identity.AuthClient.UpdatedAt,
+		if identity.Client != nil {
+			rows[i].Client = &dto.ClientResponseDto{
+				ClientUUID:  identity.Client.ClientUUID,
+				Name:        identity.Client.Name,
+				DisplayName: identity.Client.DisplayName,
+				ClientType:  identity.Client.ClientType,
+				Domain:      identity.Client.Domain,
+				Status:      identity.Client.Status,
+				IsDefault:   identity.Client.IsDefault,
+				IsSystem:    identity.Client.IsSystem,
+				CreatedAt:   identity.Client.CreatedAt,
+				UpdatedAt:   identity.Client.UpdatedAt,
 			}
 		}
 	}
