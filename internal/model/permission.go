@@ -23,7 +23,7 @@ type Permission struct {
 	// Relationships
 	API                   *API                   `gorm:"foreignKey:APIID;references:APIID"`
 	Roles                 []Role                 `gorm:"many2many:role_permissions;joinForeignKey:PermissionID;joinReferences:RoleID"`
-	AuthClientPermissions []AuthClientPermission `gorm:"foreignKey:PermissionID;references:PermissionID"`
+	ClientPermissions []ClientPermission `gorm:"foreignKey:PermissionID;references:PermissionID"`
 }
 
 func (Permission) TableName() string {

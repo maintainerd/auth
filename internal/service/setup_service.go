@@ -29,7 +29,7 @@ type setupService struct {
 	tenantRepo           repository.TenantRepository
 	tenantMemberRepo     repository.TenantMemberRepository
 	tenantUserRepo       repository.TenantUserRepository
-	authClientRepo       repository.AuthClientRepository
+	ClientRepo           repository.ClientRepository
 	identityProviderRepo repository.IdentityProviderRepository
 	roleRepo             repository.RoleRepository
 	userRoleRepo         repository.UserRoleRepository
@@ -44,7 +44,7 @@ func NewSetupService(
 	tenantRepo repository.TenantRepository,
 	tenantMemberRepo repository.TenantMemberRepository,
 	tenantUserRepo repository.TenantUserRepository,
-	authClientRepo repository.AuthClientRepository,
+	ClientRepo repository.ClientRepository,
 	identityProviderRepo repository.IdentityProviderRepository,
 	roleRepo repository.RoleRepository,
 	userRoleRepo repository.UserRoleRepository,
@@ -58,7 +58,7 @@ func NewSetupService(
 		tenantRepo:           tenantRepo,
 		tenantMemberRepo:     tenantMemberRepo,
 		tenantUserRepo:       tenantUserRepo,
-		authClientRepo:       authClientRepo,
+		ClientRepo:           ClientRepo,
 		identityProviderRepo: identityProviderRepo,
 		roleRepo:             roleRepo,
 		userRoleRepo:         userRoleRepo,
@@ -196,14 +196,14 @@ func (s *setupService) CreateTenant(req dto.CreateTenantRequestDto) (*dto.Create
 	}
 
 	// Get default auth client and identity provider for user reference
-	defaultClient, err := s.authClientRepo.FindDefault()
+	defaultClient, err := s.ClientRepo.FindDefault()
 	if err != nil {
 		return nil, err
 	}
 
 	var defaultClientID, defaultProviderID string
-	if defaultClient != nil && defaultClient.ClientID != nil {
-		defaultClientID = *defaultClient.ClientID
+	if defaultClient != nil && defaultClient.Identifier != nil {
+		defaultClientID = *defaultClient.Identifier
 		if defaultClient.IdentityProvider != nil {
 			defaultProviderID = defaultClient.IdentityProvider.Identifier
 		}
@@ -245,7 +245,7 @@ func (s *setupService) CreateAdmin(req dto.CreateAdminRequestDto) (*dto.CreateAd
 	}
 
 	// Get default auth client
-	defaultClient, err := s.authClientRepo.FindDefault()
+	defaultClient, err := s.ClientRepo.FindDefault()
 	if err != nil {
 		return nil, err
 	}
@@ -294,11 +294,11 @@ func (s *setupService) CreateAdmin(req dto.CreateAdminRequestDto) (*dto.CreateAd
 
 		// Create user identity
 		userIdentity := &model.UserIdentity{
-			TenantID:     defaultTenant.TenantID,
-			UserID:       createdUser.UserID,
-			AuthClientID: defaultClient.AuthClientID,
-			Provider:     "default",
-			Sub:          uuid.New().String(),
+			TenantID: defaultTenant.TenantID,
+			UserID:   createdUser.UserID,
+			ClientID: defaultClient.ClientID,
+			Provider: "default",
+			Sub:      uuid.New().String(),
 		}
 		_, err = txUserIdentityRepo.Create(userIdentity)
 		if err != nil {

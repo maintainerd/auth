@@ -19,7 +19,7 @@ type App struct {
 	PolicyRestHandler            *resthandler.PolicyHandler
 	TenantRestHandler            *resthandler.TenantHandler
 	IdentityProviderRestHandler  *resthandler.IdentityProviderHandler
-	AuthClientRestHandler        *resthandler.AuthClientHandler
+	ClientRestHandler        *resthandler.ClientHandler
 	RoleRestHandler              *resthandler.RoleHandler
 	UserRestHandler              *resthandler.UserHandler
 	RegisterRestHandler          *resthandler.RegisterHandler
@@ -55,10 +55,10 @@ func NewApp(db *gorm.DB, redisClient *redis.Client) *App {
 	idpRepo := repository.NewIdentityProviderRepository(db)
 	roleRepo := repository.NewRoleRepository(db)
 	rolePermissionRepo := repository.NewRolePermissionRepository(db)
-	authClientRepo := repository.NewAuthClientRepository(db)
-	authClientPermissionRepo := repository.NewAuthClientPermissionRepository(db)
-	authClientApiRepo := repository.NewAuthClientApiRepository(db)
-	authClientUriRepo := repository.NewAuthClientURIRepository(db)
+	ClientRepo := repository.NewClientRepository(db)
+	ClientPermissionRepo := repository.NewClientPermissionRepository(db)
+	ClientApiRepo := repository.NewClientApiRepository(db)
+	ClientUriRepo := repository.NewClientURIRepository(db)
 	userRepo := repository.NewUserRepository(db)
 	userIdentityRepo := repository.NewUserIdentityRepository(db)
 	userRoleRepo := repository.NewUserRoleRepository(db)
@@ -83,22 +83,22 @@ func NewApp(db *gorm.DB, redisClient *redis.Client) *App {
 	// Services
 	serviceService := service.NewServiceService(db, serviceRepo, tenantServiceRepo, apiRepo, servicePolicyRepo, policyRepo)
 	apiService := service.NewAPIService(db, apiRepo, serviceRepo, tenantServiceRepo)
-	permissionService := service.NewPermissionService(db, permissionRepo, apiRepo, roleRepo, authClientRepo)
+	permissionService := service.NewPermissionService(db, permissionRepo, apiRepo, roleRepo, ClientRepo)
 	tenantService := service.NewTenantService(db, tenantRepo)
 	tenantMemberService := service.NewTenantMemberService(db, tenantMemberRepo, userRepo, tenantRepo)
 	idpService := service.NewIdentityProviderService(db, idpRepo, tenantRepo, userRepo)
-	authClientService := service.NewAuthClientService(db, authClientRepo, authClientUriRepo, idpRepo, permissionRepo, authClientPermissionRepo, authClientApiRepo, apiRepo, userRepo, tenantRepo)
+	ClientService := service.NewClientService(db, ClientRepo, ClientUriRepo, idpRepo, permissionRepo, ClientPermissionRepo, ClientApiRepo, apiRepo, userRepo, tenantRepo)
 	roleService := service.NewRoleService(db, roleRepo, permissionRepo, rolePermissionRepo, userRepo, tenantRepo)
-	userService := service.NewUserService(db, userRepo, userIdentityRepo, userRoleRepo, roleRepo, tenantRepo, idpRepo, authClientRepo, tenantUserRepo)
-	registerService := service.NewRegistrationService(db, authClientRepo, userRepo, userRoleRepo, userTokenRepo, userIdentityRepo, roleRepo, inviteRepo, idpRepo, tenantUserRepo)
-	loginService := service.NewLoginService(db, authClientRepo, userRepo, userTokenRepo, userIdentityRepo, idpRepo)
+	userService := service.NewUserService(db, userRepo, userIdentityRepo, userRoleRepo, roleRepo, tenantRepo, idpRepo, ClientRepo, tenantUserRepo)
+	registerService := service.NewRegistrationService(db, ClientRepo, userRepo, userRoleRepo, userTokenRepo, userIdentityRepo, roleRepo, inviteRepo, idpRepo, tenantUserRepo)
+	loginService := service.NewLoginService(db, ClientRepo, userRepo, userTokenRepo, userIdentityRepo, idpRepo)
 	profileService := service.NewProfileService(db, profileRepo, userRepo)
 	userSettingService := service.NewUserSettingService(db, userSettingRepo, userRepo)
-	inviteService := service.NewInviteService(db, inviteRepo, authClientRepo, roleRepo, emailTemplateRepo)
-	forgotPasswordService := service.NewForgotPasswordService(db, userRepo, userTokenRepo, authClientRepo, emailTemplateRepo)
-	resetPasswordService := service.NewResetPasswordService(db, userRepo, userTokenRepo, authClientRepo)
-	setupService := service.NewSetupService(db, userRepo, tenantRepo, tenantMemberRepo, tenantUserRepo, authClientRepo, idpRepo, roleRepo, userRoleRepo, userTokenRepo, userIdentityRepo, profileRepo)
-	signupFlowService := service.NewSignupFlowService(db, signupFlowRepo, signupFlowRoleRepo, roleRepo, authClientRepo)
+	inviteService := service.NewInviteService(db, inviteRepo, ClientRepo, roleRepo, emailTemplateRepo)
+	forgotPasswordService := service.NewForgotPasswordService(db, userRepo, userTokenRepo, ClientRepo, emailTemplateRepo)
+	resetPasswordService := service.NewResetPasswordService(db, userRepo, userTokenRepo, ClientRepo)
+	setupService := service.NewSetupService(db, userRepo, tenantRepo, tenantMemberRepo, tenantUserRepo, ClientRepo, idpRepo, roleRepo, userRoleRepo, userTokenRepo, userIdentityRepo, profileRepo)
+	signupFlowService := service.NewSignupFlowService(db, signupFlowRepo, signupFlowRoleRepo, roleRepo, ClientRepo)
 	policyService := service.NewPolicyService(db, policyRepo, serviceRepo, apiRepo)
 	apiKeyService := service.NewAPIKeyService(db, apiKeyRepo, apiKeyApiRepo, apiKeyPermissionRepo, apiRepo, userRepo, permissionRepo)
 	securitySettingService := service.NewSecuritySettingService(db, securitySettingRepo, securitySettingsAuditRepo)
@@ -113,7 +113,7 @@ func NewApp(db *gorm.DB, redisClient *redis.Client) *App {
 	permissionRestHandler := resthandler.NewPermissionHandler(permissionService)
 	tenantRestHandler := resthandler.NewTenantHandler(tenantService, tenantMemberService)
 	idpRestHandler := resthandler.NewIdentityProviderHandler(idpService)
-	authClientRestHandler := resthandler.NewAuthClientHandler(authClientService)
+	ClientRestHandler := resthandler.NewClientHandler(ClientService)
 	roleRestHandler := resthandler.NewRoleHandler(roleService)
 	userRestHandler := resthandler.NewUserHandler(userService)
 	registerRestHandler := resthandler.NewRegisterHandler(registerService)
@@ -146,7 +146,7 @@ func NewApp(db *gorm.DB, redisClient *redis.Client) *App {
 		PolicyRestHandler:            policyRestHandler,
 		TenantRestHandler:            tenantRestHandler,
 		IdentityProviderRestHandler:  idpRestHandler,
-		AuthClientRestHandler:        authClientRestHandler,
+		ClientRestHandler:        ClientRestHandler,
 		RoleRestHandler:              roleRestHandler,
 		UserRestHandler:              userRestHandler,
 		RegisterRestHandler:          registerRestHandler,

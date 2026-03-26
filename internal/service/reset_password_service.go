@@ -18,23 +18,23 @@ type ResetPasswordService interface {
 }
 
 type resetPasswordService struct {
-	db             *gorm.DB
-	userRepo       repository.UserRepository
-	userTokenRepo  repository.UserTokenRepository
-	authClientRepo repository.AuthClientRepository
+	db            *gorm.DB
+	userRepo      repository.UserRepository
+	userTokenRepo repository.UserTokenRepository
+	ClientRepo    repository.ClientRepository
 }
 
 func NewResetPasswordService(
 	db *gorm.DB,
 	userRepo repository.UserRepository,
 	userTokenRepo repository.UserTokenRepository,
-	authClientRepo repository.AuthClientRepository,
+	ClientRepo repository.ClientRepository,
 ) ResetPasswordService {
 	return &resetPasswordService{
-		db:             db,
-		userRepo:       userRepo,
-		userTokenRepo:  userTokenRepo,
-		authClientRepo: authClientRepo,
+		db:            db,
+		userRepo:      userRepo,
+		userTokenRepo: userTokenRepo,
+		ClientRepo:    ClientRepo,
 	}
 }
 
@@ -45,20 +45,20 @@ func (s *resetPasswordService) ResetPassword(token, newPassword string, clientID
 	err := s.db.Transaction(func(tx *gorm.DB) error {
 		txUserRepo := s.userRepo.WithTx(tx)
 		txUserTokenRepo := s.userTokenRepo.WithTx(tx)
-		txAuthClientRepo := s.authClientRepo.WithTx(tx)
+		txClientRepo := s.ClientRepo.WithTx(tx)
 
 		// Validate auth client first
-		var authClient *model.AuthClient
+		var Client *model.Client
 		var txErr error
 		if clientID != nil && providerID != nil {
-			authClient, txErr = txAuthClientRepo.FindByClientIDAndIdentityProvider(*clientID, *providerID)
+			Client, txErr = txClientRepo.FindByClientIDAndIdentityProvider(*clientID, *providerID)
 		} else {
-			authClient, txErr = txAuthClientRepo.FindDefault()
+			Client, txErr = txClientRepo.FindDefault()
 		}
 		if txErr != nil {
 			return fmt.Errorf("failed to find auth client: %w", txErr)
 		}
-		if authClient == nil {
+		if Client == nil {
 			return errors.New("invalid client credentials")
 		}
 
