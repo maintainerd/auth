@@ -56,14 +56,14 @@ func (h *PermissionHandler) Get(w http.ResponseWriter, r *http.Request) {
 
 	// Build request DTO
 	reqParams := dto.PermissionFilterDto{
-		Name:           util.PtrOrNil(q.Get("name")),
-		Description:    util.PtrOrNil(q.Get("description")),
-		APIUUID:        util.PtrOrNil(q.Get("api_id")),
-		RoleUUID:       util.PtrOrNil(q.Get("role_id")),
-		AuthClientUUID: util.PtrOrNil(q.Get("client_id")),
-		Status:         util.PtrOrNil(q.Get("status")),
-		IsDefault:      isDefault,
-		IsSystem:       isSystem,
+		Name:        util.PtrOrNil(q.Get("name")),
+		Description: util.PtrOrNil(q.Get("description")),
+		APIUUID:     util.PtrOrNil(q.Get("api_id")),
+		RoleUUID:    util.PtrOrNil(q.Get("role_id")),
+		ClientUUID:  util.PtrOrNil(q.Get("client_id")),
+		Status:      util.PtrOrNil(q.Get("status")),
+		IsDefault:   isDefault,
+		IsSystem:    isSystem,
 		PaginationRequestDto: dto.PaginationRequestDto{
 			Page:      page,
 			Limit:     limit,
@@ -79,19 +79,19 @@ func (h *PermissionHandler) Get(w http.ResponseWriter, r *http.Request) {
 
 	// Build permission filter
 	permissionFilter := service.PermissionServiceGetFilter{
-		TenantID:       tenant.TenantID,
-		Name:           reqParams.Name,
-		Description:    reqParams.Description,
-		APIUUID:        reqParams.APIUUID,
-		RoleUUID:       reqParams.RoleUUID,
-		AuthClientUUID: reqParams.AuthClientUUID,
-		Status:         reqParams.Status,
-		IsDefault:      reqParams.IsDefault,
-		IsSystem:       reqParams.IsSystem,
-		Page:           reqParams.Page,
-		Limit:          reqParams.Limit,
-		SortBy:         reqParams.SortBy,
-		SortOrder:      reqParams.SortOrder,
+		TenantID:    tenant.TenantID,
+		Name:        reqParams.Name,
+		Description: reqParams.Description,
+		APIUUID:     reqParams.APIUUID,
+		RoleUUID:    reqParams.RoleUUID,
+		ClientUUID:  reqParams.ClientUUID,
+		Status:      reqParams.Status,
+		IsDefault:   reqParams.IsDefault,
+		IsSystem:    reqParams.IsSystem,
+		Page:        reqParams.Page,
+		Limit:       reqParams.Limit,
+		SortBy:      reqParams.SortBy,
+		SortOrder:   reqParams.SortOrder,
 	}
 
 	// Fetch permissions

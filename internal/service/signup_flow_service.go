@@ -20,7 +20,7 @@ type SignupFlowServiceDataResult struct {
 	Identifier     string
 	Config         map[string]interface{}
 	Status         string
-	AuthClientUUID uuid.UUID
+	ClientUUID     uuid.UUID
 	CreatedAt      time.Time
 	UpdatedAt      time.Time
 }
@@ -55,9 +55,9 @@ type SignupFlowRoleServiceListResult struct {
 }
 
 type SignupFlowService interface {
-	GetAll(tenantID int64, name, identifier *string, status []string, authClientUUID *uuid.UUID, page, limit int, sortBy, sortOrder string) (*SignupFlowServiceListResult, error)
+	GetAll(tenantID int64, name, identifier *string, status []string, ClientUUID *uuid.UUID, page, limit int, sortBy, sortOrder string) (*SignupFlowServiceListResult, error)
 	GetByUUID(signupFlowUUID uuid.UUID, tenantID int64) (*SignupFlowServiceDataResult, error)
-	Create(tenantID int64, name, description string, config map[string]interface{}, status string, authClientUUID uuid.UUID) (*SignupFlowServiceDataResult, error)
+	Create(tenantID int64, name, description string, config map[string]interface{}, status string, ClientUUID uuid.UUID) (*SignupFlowServiceDataResult, error)
 	Update(signupFlowUUID uuid.UUID, tenantID int64, name, description string, config map[string]interface{}, status string) (*SignupFlowServiceDataResult, error)
 	UpdateStatus(signupFlowUUID uuid.UUID, tenantID int64, status string) (*SignupFlowServiceDataResult, error)
 	Delete(signupFlowUUID uuid.UUID, tenantID int64) (*SignupFlowServiceDataResult, error)
@@ -71,7 +71,7 @@ type signupFlowService struct {
 	signupFlowRepo     repository.SignupFlowRepository
 	signupFlowRoleRepo repository.SignupFlowRoleRepository
 	roleRepo           repository.RoleRepository
-	authClientRepo     repository.AuthClientRepository
+	ClientRepo         repository.ClientRepository
 }
 
 func NewSignupFlowService(
@@ -79,37 +79,37 @@ func NewSignupFlowService(
 	signupFlowRepo repository.SignupFlowRepository,
 	signupFlowRoleRepo repository.SignupFlowRoleRepository,
 	roleRepo repository.RoleRepository,
-	authClientRepo repository.AuthClientRepository,
+	ClientRepo repository.ClientRepository,
 ) SignupFlowService {
 	return &signupFlowService{
 		db:                 db,
 		signupFlowRepo:     signupFlowRepo,
 		signupFlowRoleRepo: signupFlowRoleRepo,
 		roleRepo:           roleRepo,
-		authClientRepo:     authClientRepo,
+		ClientRepo:         ClientRepo,
 	}
 }
 
-func (s *signupFlowService) GetAll(tenantID int64, name, identifier *string, status []string, authClientUUID *uuid.UUID, page, limit int, sortBy, sortOrder string) (*SignupFlowServiceListResult, error) {
-	var authClientID *int64
-	if authClientUUID != nil {
-		authClient, err := s.authClientRepo.FindByUUID(*authClientUUID)
-		if err != nil || authClient == nil {
+func (s *signupFlowService) GetAll(tenantID int64, name, identifier *string, status []string, ClientUUID *uuid.UUID, page, limit int, sortBy, sortOrder string) (*SignupFlowServiceListResult, error) {
+	var ClientID *int64
+	if ClientUUID != nil {
+		Client, err := s.ClientRepo.FindByUUID(*ClientUUID)
+		if err != nil || Client == nil {
 			return nil, errors.New("auth client not found")
 		}
-		authClientID = &authClient.AuthClientID
+		ClientID = &Client.Identifier
 	}
 
 	filter := repository.SignupFlowRepositoryGetFilter{
-		Name:         name,
-		Identifier:   identifier,
-		Status:       status,
-		TenantID:     &tenantID,
-		AuthClientID: authClientID,
-		Page:         page,
-		Limit:        limit,
-		SortBy:       sortBy,
-		SortOrder:    sortOrder,
+		Name:       name,
+		Identifier: identifier,
+		Status:     status,
+		TenantID:   &tenantID,
+		ClientID:   ClientID,
+		Page:       page,
+		Limit:      limit,
+		SortBy:     sortBy,
+		SortOrder:  sortOrder,
 	}
 
 	result, err := s.signupFlowRepo.FindPaginated(filter)
@@ -132,7 +132,7 @@ func (s *signupFlowService) GetAll(tenantID int64, name, identifier *string, sta
 }
 
 func (s *signupFlowService) GetByUUID(signupFlowUUID uuid.UUID, tenantID int64) (*SignupFlowServiceDataResult, error) {
-	signupFlow, err := s.signupFlowRepo.FindByUUIDAndTenantID(signupFlowUUID, tenantID, "AuthClient")
+	signupFlow, err := s.signupFlowRepo.FindByUUIDAndTenantID(signupFlowUUID, tenantID, "Client")
 	if err != nil || signupFlow == nil {
 		return nil, errors.New("signup flow not found or access denied")
 	}
@@ -140,16 +140,16 @@ func (s *signupFlowService) GetByUUID(signupFlowUUID uuid.UUID, tenantID int64) 
 	return toSignupFlowServiceDataResult(signupFlow), nil
 }
 
-func (s *signupFlowService) Create(tenantID int64, name, description string, config map[string]interface{}, status string, authClientUUID uuid.UUID) (*SignupFlowServiceDataResult, error) {
+func (s *signupFlowService) Create(tenantID int64, name, description string, config map[string]interface{}, status string, ClientUUID uuid.UUID) (*SignupFlowServiceDataResult, error) {
 	var createdSignupFlow *model.SignupFlow
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
 		txSignupFlowRepo := s.signupFlowRepo.WithTx(tx)
-		txAuthClientRepo := s.authClientRepo.WithTx(tx)
+		txClientRepo := s.ClientRepo.WithTx(tx)
 
 		// Find auth client
-		authClient, err := txAuthClientRepo.FindByUUID(authClientUUID)
-		if err != nil || authClient == nil {
+		Client, err := txClientRepo.FindByUUID(ClientUUID)
+		if err != nil || Client == nil {
 			return errors.New("auth client not found")
 		}
 
@@ -166,7 +166,7 @@ func (s *signupFlowService) Create(tenantID int64, name, description string, con
 		var identifier string
 		for {
 			identifier = util.GenerateIdentifier(16)
-			existing, err := txSignupFlowRepo.FindByIdentifierAndAuthClientID(identifier, authClient.AuthClientID)
+			existing, err := txSignupFlowRepo.FindByIdentifierAndClientID(identifier, Client.ClientID)
 			if err != nil {
 				return err
 			}
@@ -189,13 +189,13 @@ func (s *signupFlowService) Create(tenantID int64, name, description string, con
 
 		// Create signup flow
 		signupFlow := &model.SignupFlow{
-			TenantID:     tenantID,
-			Name:         name,
-			Description:  description,
-			Identifier:   identifier,
-			Config:       configJSON,
-			Status:       status,
-			AuthClientID: authClient.AuthClientID,
+			TenantID:    tenantID,
+			Name:        name,
+			Description: description,
+			Identifier:  identifier,
+			Config:      configJSON,
+			Status:      status,
+			ClientID: Client.ClientID,
 		}
 
 		created, err := txSignupFlowRepo.Create(signupFlow)
@@ -301,7 +301,7 @@ func (s *signupFlowService) UpdateStatus(signupFlowUUID uuid.UUID, tenantID int6
 }
 
 func (s *signupFlowService) Delete(signupFlowUUID uuid.UUID, tenantID int64) (*SignupFlowServiceDataResult, error) {
-	signupFlow, err := s.signupFlowRepo.FindByUUIDAndTenantID(signupFlowUUID, tenantID, "AuthClient")
+	signupFlow, err := s.signupFlowRepo.FindByUUIDAndTenantID(signupFlowUUID, tenantID, "Client")
 	if err != nil || signupFlow == nil {
 		return nil, errors.New("signup flow not found or access denied")
 	}
@@ -328,9 +328,9 @@ func toSignupFlowServiceDataResult(sf *model.SignupFlow) *SignupFlowServiceDataR
 		}
 	}
 
-	var authClientUUID uuid.UUID
-	if sf.AuthClient != nil {
-		authClientUUID = sf.AuthClient.AuthClientUUID
+	var ClientUUID uuid.UUID
+	if sf.Client != nil {
+		ClientUUID = sf.Client.ClientUUID
 	}
 
 	return &SignupFlowServiceDataResult{
@@ -340,7 +340,7 @@ func toSignupFlowServiceDataResult(sf *model.SignupFlow) *SignupFlowServiceDataR
 		Identifier:     sf.Identifier,
 		Config:         config,
 		Status:         sf.Status,
-		AuthClientUUID: authClientUUID,
+		ClientUUID:     ClientUUID,
 		CreatedAt:      sf.CreatedAt,
 		UpdatedAt:      sf.UpdatedAt,
 	}

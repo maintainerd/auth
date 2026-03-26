@@ -11,7 +11,7 @@ type Invite struct {
 	InviteID        int64      `gorm:"column:invite_id;primaryKey"`
 	InviteUUID      uuid.UUID  `gorm:"column:invite_uuid;unique"`
 	TenantID        int64      `gorm:"column:tenant_id;not null"`
-	AuthClientID    int64      `gorm:"column:auth_client_id"`
+	ClientID        int64      `gorm:"column:client_id"`
 	InvitedEmail    string     `gorm:"column:invited_email"`
 	InvitedByUserID int64      `gorm:"column:invited_by_user_id"`
 	InviteToken     string     `gorm:"column:invite_token;unique"`
@@ -22,9 +22,9 @@ type Invite struct {
 	UpdatedAt       time.Time  `gorm:"column:updated_at;autoUpdateTime"`
 
 	// Relationships
-	AuthClient    *AuthClient `gorm:"foreignKey:AuthClientID;references:AuthClientID;constraint:OnDelete:CASCADE"`
-	InvitedByUser *User       `gorm:"foreignKey:InvitedByUserID;references:UserID;constraint:OnDelete:SET NULL"`
-	Roles         []Role      `gorm:"many2many:invite_roles;joinForeignKey:InviteID;joinReferences:RoleID;constraint:OnDelete:CASCADE"`
+	Client        *Client `gorm:"foreignKey:ClientID;references:ClientID;constraint:OnDelete:CASCADE"`
+	InvitedByUser *User   `gorm:"foreignKey:InvitedByUserID;references:UserID;constraint:OnDelete:SET NULL"`
+	Roles         []Role  `gorm:"many2many:invite_roles;joinForeignKey:InviteID;joinReferences:RoleID;constraint:OnDelete:CASCADE"`
 }
 
 func (Invite) TableName() string {

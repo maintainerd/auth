@@ -27,7 +27,7 @@ type UserRepository interface {
 	FindByPhone(phone string) (*model.User, error)
 	FindSuperAdmin() (*model.User, error)
 	FindRoles(userID int64) ([]model.Role, error)
-	FindBySubAndClientID(sub string, authClientID string) (*model.User, error)
+	FindBySubAndClientID(sub string, ClientID string) (*model.User, error)
 	FindPaginated(filter UserRepositoryGetFilter) (*PaginationResult[model.User], error)
 	SetEmailVerified(userUUID uuid.UUID, verified bool) error
 	SetStatus(userUUID uuid.UUID, status string) error
@@ -132,17 +132,17 @@ func (r *userRepository) FindRoles(userID int64) ([]model.Role, error) {
 	return roles, err
 }
 
-func (r *userRepository) FindBySubAndClientID(sub string, authClientID string) (*model.User, error) {
+func (r *userRepository) FindBySubAndClientID(sub string, ClientID string) (*model.User, error) {
 	var user model.User
 	err := r.db.
 		Preload("UserIdentities.Tenant").
-		Preload("UserIdentities.AuthClient.IdentityProvider.Tenant").
-		Preload("UserIdentities.AuthClient.IdentityProvider").
-		Preload("UserIdentities.AuthClient").
+		Preload("UserIdentities.Client.IdentityProvider.Tenant").
+		Preload("UserIdentities.Client.IdentityProvider").
+		Preload("UserIdentities.Client").
 		Preload("Roles.Permissions").
 		Joins("JOIN user_identities ON users.user_id = user_identities.user_id").
-		Joins("JOIN auth_clients ON user_identities.auth_client_id = auth_clients.auth_client_id").
-		Where("user_identities.sub = ? AND auth_clients.client_id = ?", sub, authClientID).
+		Joins("JOIN clients ON user_identities.client_id = clients.client_id").
+		Where("user_identities.sub = ? AND clients.client_id = ?", sub, ClientID).
 		First(&user).Error
 
 	if err != nil {

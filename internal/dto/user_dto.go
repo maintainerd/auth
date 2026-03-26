@@ -32,7 +32,7 @@ type UserIdentityResponseDto struct {
 	Provider         string                 `json:"provider"`
 	Sub              string                 `json:"sub"`
 	Metadata         datatypes.JSON         `json:"metadata"`
-	AuthClient       *AuthClientResponseDto `json:"client,omitempty"`
+	Client       *ClientResponseDto `json:"client,omitempty"`
 	CreatedAt        time.Time              `json:"created_at"`
 	UpdatedAt        time.Time              `json:"updated_at"`
 }

@@ -16,17 +16,17 @@ func RunMigrations(db *gorm.DB) {
 	migration.CreatePermissionTable(db)            // 008
 	migration.CreateApiPermissionTable(db)         // 009
 	migration.CreateIdentityProviderTable(db)      // 010
-	migration.CreateAuthClientTable(db)            // 011
-	migration.CreateAuthClientUrisTable(db)        // 012
-	migration.CreateAuthClientApiTable(db)         // 013
-	migration.CreateAuthClientPermissionTable(db)  // 014
+	migration.CreateClientTable(db)                // 011
+	migration.CreateClientURIsTable(db)            // 012
+	migration.CreateClientAPIsTable(db)            // 013
+	migration.CreateClientPermissionTable(db)      // 014
 	migration.CreateAPIKeysTable(db)               // 015
 	migration.CreateAPIKeyApiTable(db)             // 016
 	migration.CreateAPIKeyPermissionsTable(db)     // 017
 	migration.CreateRoleTable(db)                  // 018
 	migration.CreateRolePermissionTable(db)        // 019
 	migration.CreateUserTable(db)                  // 020
-	migration.CreateUserIdentitiesTable(db)        // 021
+	migration.CreateUserIdentityTable(db)          // 021
 	migration.CreateUserRoleTable(db)              // 022
 	migration.CreateUserTokenTable(db)             // 023
 	migration.CreateUserSettingsTable(db)          // 024
