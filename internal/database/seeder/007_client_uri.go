@@ -10,7 +10,7 @@ import (
 	"gorm.io/gorm"
 )
 
-func SeedAuthClientURIs(db *gorm.DB, tenantID int64, identityProviderID int64) error {
+func SeedClientURIs(db *gorm.DB, tenantID int64, identityProviderID int64) error {
 	appHostName := os.Getenv("APP_PRIVATE_HOSTNAME")
 
 	// Map of client name -> URIs with their types
@@ -42,7 +42,7 @@ func SeedAuthClientURIs(db *gorm.DB, tenantID int64, identityProviderID int64) e
 	}
 
 	for clientName, clientURIs := range uris {
-		var client model.AuthClient
+		var client model.Client
 		err := db.
 			Where("name = ? AND identity_provider_id = ? AND tenant_id = ?", clientName, identityProviderID, tenantID).
 			First(&client).Error
@@ -52,9 +52,9 @@ func SeedAuthClientURIs(db *gorm.DB, tenantID int64, identityProviderID int64) e
 		}
 
 		for _, uriData := range clientURIs {
-			var existing model.AuthClientURI
+			var existing model.ClientURI
 			err := db.
-				Where("auth_client_id = ? AND uri = ? AND type = ?", client.AuthClientID, uriData.URI, uriData.Type).
+				Where("client_id = ? AND uri = ? AND type = ?", client.Identifier, uriData.URI, uriData.Type).
 				First(&existing).Error
 
 			if err == nil {
@@ -70,14 +70,14 @@ func SeedAuthClientURIs(db *gorm.DB, tenantID int64, identityProviderID int64) e
 
 			if err == gorm.ErrRecordNotFound {
 				// Create new URI
-				uri := model.AuthClientURI{
-					AuthClientURIUUID: uuid.New(),
-					TenantID:          tenantID,
-					AuthClientID:      client.AuthClientID,
-					URI:               uriData.URI,
-					Type:              uriData.Type,
-					CreatedAt:         time.Now(),
-					UpdatedAt:         time.Now(),
+				uri := model.ClientURI{
+					ClientURIUUID: uuid.New(),
+					TenantID:      tenantID,
+					ClientID:      client.ClientID,
+					URI:           uriData.URI,
+					Type:          uriData.Type,
+					CreatedAt:     time.Now(),
+					UpdatedAt:     time.Now(),
 				}
 				if err := db.Create(&uri).Error; err != nil {
 					log.Printf("❌ Failed to create URI '%s' (%s) for client '%s': %v", uriData.URI, uriData.Type, clientName, err)

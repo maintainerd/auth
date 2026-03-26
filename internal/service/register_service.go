@@ -23,7 +23,7 @@ type RegisterService interface {
 
 type registerService struct {
 	db                   *gorm.DB
-	authClientRepo       repository.AuthClientRepository
+	ClientRepo           repository.ClientRepository
 	userRepo             repository.UserRepository
 	userRoleRepo         repository.UserRoleRepository
 	userTokenRepo        repository.UserTokenRepository
@@ -36,7 +36,7 @@ type registerService struct {
 
 func NewRegistrationService(
 	db *gorm.DB,
-	clientRepo repository.AuthClientRepository,
+	clientRepo repository.ClientRepository,
 	userRepo repository.UserRepository,
 	userRoleRepo repository.UserRoleRepository,
 	userTokenRepo repository.UserTokenRepository,
@@ -48,7 +48,7 @@ func NewRegistrationService(
 ) RegisterService {
 	return &registerService{
 		db:                   db,
-		authClientRepo:       clientRepo,
+		ClientRepo:           clientRepo,
 		userRepo:             userRepo,
 		userRoleRepo:         userRoleRepo,
 		userTokenRepo:        userTokenRepo,
@@ -109,14 +109,14 @@ func (s *registerService) RegisterPublic(
 	}
 
 	var createdUser *model.User
-	var authClient *model.AuthClient
+	var Client *model.Client
 	var userIdentitySub string
 
 	// All database operations in transaction
 	err := s.db.Transaction(func(tx *gorm.DB) error {
 		txUserRepo := s.userRepo.WithTx(tx)
 		txUserTokenRepo := s.userTokenRepo.WithTx(tx)
-		txAuthClientRepo := s.authClientRepo.WithTx(tx)
+		txClientRepo := s.ClientRepo.WithTx(tx)
 		txUserIdentityRepo := s.userIdentityRepo.WithTx(tx)
 		txIdentityProviderRepo := s.identityProviderRepo.WithTx(tx)
 		txRoleRepo := s.roleRepo.WithTx(tx)
@@ -124,13 +124,13 @@ func (s *registerService) RegisterPublic(
 
 		// Get and validate auth client with proper relationship preloading
 		var txErr error
-		authClient, txErr = txAuthClientRepo.FindByClientIDAndIdentityProvider(clientID, providerID)
+		Client, txErr = txClientRepo.FindByClientIDAndIdentityProvider(clientID, providerID)
 		if txErr != nil {
 			return txErr
 		}
-		if authClient == nil ||
-			authClient.Status != "active" ||
-			authClient.Domain == nil || *authClient.Domain == "" {
+		if Client == nil ||
+			Client.Status != "active" ||
+			Client.Domain == nil || *Client.Domain == "" {
 			return errors.New("invalid or inactive auth client")
 		}
 
@@ -208,11 +208,11 @@ func (s *registerService) RegisterPublic(
 
 		// Create user identity
 		userIdentity := &model.UserIdentity{
-			UserID:       createdUser.UserID,
-			AuthClientID: authClient.AuthClientID,
-			Provider:     "default",
-			Sub:          uuid.New().String(),
-			Metadata:     datatypes.JSON([]byte(`{}`)),
+			UserID:   createdUser.UserID,
+			ClientID: Client.ClientID,
+			Provider: "default",
+			Sub:      uuid.New().String(),
+			Metadata: datatypes.JSON([]byte(`{}`)),
 		}
 
 		_, txErr = txUserIdentityRepo.Create(userIdentity)
@@ -261,7 +261,7 @@ func (s *registerService) RegisterPublic(
 	}
 
 	// Return token response
-	return s.generateTokenResponse(userIdentitySub, createdUser, authClient)
+	return s.generateTokenResponse(userIdentitySub, createdUser, Client)
 }
 
 // Register registers new users for internal applications.
@@ -283,14 +283,14 @@ func (s *registerService) Register(
 	}
 
 	var createdUser *model.User
-	var authClient *model.AuthClient
+	var Client *model.Client
 	var userIdentitySub string
 
 	// All database operations in transaction
 	err := s.db.Transaction(func(tx *gorm.DB) error {
 		txUserRepo := s.userRepo.WithTx(tx)
 		txUserTokenRepo := s.userTokenRepo.WithTx(tx)
-		txAuthClientRepo := s.authClientRepo.WithTx(tx)
+		txClientRepo := s.ClientRepo.WithTx(tx)
 		txUserIdentityRepo := s.userIdentityRepo.WithTx(tx)
 		txRoleRepo := s.roleRepo.WithTx(tx)
 		txUserRoleRepo := s.userRoleRepo.WithTx(tx)
@@ -300,26 +300,26 @@ func (s *registerService) Register(
 		var txErr error
 		if clientID != nil && providerID != nil {
 			// Get auth client by client_id and identity provider identifier
-			authClient, txErr = txAuthClientRepo.FindByClientIDAndIdentityProvider(*clientID, *providerID)
+			Client, txErr = txClientRepo.FindByClientIDAndIdentityProvider(*clientID, *providerID)
 			if txErr != nil {
 				return errors.New("auth client lookup by client_id and provider_id failed")
 			}
 		} else {
 			// Get default auth client for internal authentication
-			authClient, txErr = txAuthClientRepo.FindDefault()
+			Client, txErr = txClientRepo.FindDefault()
 			if txErr != nil {
 				return txErr
 			}
 		}
 
-		if authClient == nil ||
-			authClient.Status != "active" ||
-			authClient.Domain == nil || *authClient.Domain == "" {
+		if Client == nil ||
+			Client.Status != "active" ||
+			Client.Domain == nil || *Client.Domain == "" {
 			return errors.New("auth client not found or inactive")
 		}
 
 		// Get tenant ID from the default client's identity provider
-		tenantId := authClient.IdentityProvider.Tenant.TenantID
+		tenantId := Client.IdentityProvider.Tenant.TenantID
 
 		// Check if user already exists
 		existingUser, txErr := txUserRepo.FindByUsername(username)
@@ -361,12 +361,12 @@ func (s *registerService) Register(
 
 		// Create user identity
 		userIdentity := &model.UserIdentity{
-			TenantID:     tenantId,
-			UserID:       createdUser.UserID,
-			AuthClientID: authClient.AuthClientID,
-			Provider:     "default",
-			Sub:          uuid.New().String(),
-			Metadata:     datatypes.JSON([]byte(`{}`)),
+			TenantID: tenantId,
+			UserID:   createdUser.UserID,
+			ClientID: Client.ClientID,
+			Provider: "default",
+			Sub:      uuid.New().String(),
+			Metadata: datatypes.JSON([]byte(`{}`)),
 		}
 
 		_, txErr = txUserIdentityRepo.Create(userIdentity)
@@ -425,7 +425,7 @@ func (s *registerService) Register(
 	}
 
 	// Return token response
-	return s.generateTokenResponse(userIdentitySub, createdUser, authClient)
+	return s.generateTokenResponse(userIdentitySub, createdUser, Client)
 }
 
 // RegisterInvite registers new users via invite token for internal applications.
@@ -440,7 +440,7 @@ func (s *registerService) RegisterInvite(
 	providerID *string,
 ) (*dto.RegisterResponseDto, error) {
 	var createdUser *model.User
-	var authClient *model.AuthClient
+	var Client *model.Client
 	var userIdentitySub string
 
 	// All database operations in transaction
@@ -449,7 +449,7 @@ func (s *registerService) RegisterInvite(
 		txUserRoleRepo := s.userRoleRepo.WithTx(tx)
 		txUserIdentityRepo := s.userIdentityRepo.WithTx(tx)
 		txInviteRepo := s.inviteRepo.WithTx(tx)
-		txAuthClientRepo := s.authClientRepo.WithTx(tx)
+		txClientRepo := s.ClientRepo.WithTx(tx)
 		txRoleRepo := s.roleRepo.WithTx(tx)
 		txTenantUserRepo := s.tenantUserRepo.WithTx(tx)
 
@@ -457,26 +457,26 @@ func (s *registerService) RegisterInvite(
 		var txErr error
 		if clientID != nil && providerID != nil {
 			// Get auth client by client_id and identity provider identifier
-			authClient, txErr = txAuthClientRepo.FindByClientIDAndIdentityProvider(*clientID, *providerID)
+			Client, txErr = txClientRepo.FindByClientIDAndIdentityProvider(*clientID, *providerID)
 			if txErr != nil {
 				return errors.New("auth client lookup by client_id and provider_id failed")
 			}
 		} else {
 			// Get default auth client for internal authentication
-			authClient, txErr = txAuthClientRepo.FindDefault()
+			Client, txErr = txClientRepo.FindDefault()
 			if txErr != nil {
 				return txErr
 			}
 		}
 
-		if authClient == nil ||
-			authClient.Status != "active" ||
-			authClient.Domain == nil || *authClient.Domain == "" {
+		if Client == nil ||
+			Client.Status != "active" ||
+			Client.Domain == nil || *Client.Domain == "" {
 			return errors.New("auth client not found or inactive")
 		}
 
 		// Get tenant ID from the default client's identity provider
-		tenantId := authClient.IdentityProvider.Tenant.TenantID
+		tenantId := Client.IdentityProvider.Tenant.TenantID
 
 		// Validate invite token
 		invite, txErr := txInviteRepo.FindByToken(inviteToken)
@@ -518,12 +518,12 @@ func (s *registerService) RegisterInvite(
 
 		// Create user identity
 		userIdentity := &model.UserIdentity{
-			TenantID:     tenantId,
-			UserID:       createdUser.UserID,
-			AuthClientID: authClient.AuthClientID,
-			Provider:     "default",
-			Sub:          uuid.New().String(),
-			Metadata:     datatypes.JSON([]byte(`{}`)),
+			TenantID: tenantId,
+			UserID:   createdUser.UserID,
+			ClientID: Client.ClientID,
+			Provider: "default",
+			Sub:      uuid.New().String(),
+			Metadata: datatypes.JSON([]byte(`{}`)),
 		}
 
 		_, txErr = txUserIdentityRepo.Create(userIdentity)
@@ -583,7 +583,7 @@ func (s *registerService) RegisterInvite(
 	}
 
 	// Return token response
-	return s.generateTokenResponse(userIdentitySub, createdUser, authClient)
+	return s.generateTokenResponse(userIdentitySub, createdUser, Client)
 }
 
 // RegisterInvitePublic registers new users via invite token for public-facing applications.
@@ -597,7 +597,7 @@ func (s *registerService) RegisterInvitePublic(
 	inviteToken string,
 ) (*dto.RegisterResponseDto, error) {
 	var createdUser *model.User
-	var authClient *model.AuthClient
+	var Client *model.Client
 	var userIdentitySub string
 
 	// All database operations in transaction
@@ -606,20 +606,20 @@ func (s *registerService) RegisterInvitePublic(
 		txUserRoleRepo := s.userRoleRepo.WithTx(tx)
 		txUserIdentityRepo := s.userIdentityRepo.WithTx(tx)
 		txInviteRepo := s.inviteRepo.WithTx(tx)
-		txAuthClientRepo := s.authClientRepo.WithTx(tx)
+		txClientRepo := s.ClientRepo.WithTx(tx)
 		txIdentityProviderRepo := s.identityProviderRepo.WithTx(tx)
 		txRoleRepo := s.roleRepo.WithTx(tx)
 		txTenantUserRepo := s.tenantUserRepo.WithTx(tx)
 
 		// Get and validate auth client with proper relationship preloading
 		var txErr error
-		authClient, txErr = txAuthClientRepo.FindByClientIDAndIdentityProvider(clientID, providerID)
+		Client, txErr = txClientRepo.FindByClientIDAndIdentityProvider(clientID, providerID)
 		if txErr != nil {
 			return txErr
 		}
-		if authClient == nil ||
-			authClient.Status != "active" ||
-			authClient.Domain == nil || *authClient.Domain == "" {
+		if Client == nil ||
+			Client.Status != "active" ||
+			Client.Domain == nil || *Client.Domain == "" {
 			return errors.New("invalid or inactive auth client")
 		}
 
@@ -692,12 +692,12 @@ func (s *registerService) RegisterInvitePublic(
 
 		// Create user identity
 		userIdentity := &model.UserIdentity{
-			TenantID:     tenantId,
-			UserID:       createdUser.UserID,
-			AuthClientID: authClient.AuthClientID,
-			Provider:     "default",
-			Sub:          uuid.New().String(),
-			Metadata:     datatypes.JSON([]byte(`{}`)),
+			TenantID: tenantId,
+			UserID:   createdUser.UserID,
+			ClientID: Client.ClientID,
+			Provider: "default",
+			Sub:      uuid.New().String(),
+			Metadata: datatypes.JSON([]byte(`{}`)),
 		}
 
 		_, txErr = txUserIdentityRepo.Create(userIdentity)
@@ -768,17 +768,17 @@ func (s *registerService) RegisterInvitePublic(
 	}
 
 	// Return token response
-	return s.generateTokenResponse(userIdentitySub, createdUser, authClient)
+	return s.generateTokenResponse(userIdentitySub, createdUser, Client)
 }
 
-func (s *registerService) generateTokenResponse(sub string, user *model.User, authClient *model.AuthClient) (*dto.RegisterResponseDto, error) {
+func (s *registerService) generateTokenResponse(sub string, user *model.User, Client *model.Client) (*dto.RegisterResponseDto, error) {
 	accessToken, err := util.GenerateAccessToken(
 		sub,
 		"openid profile email",
-		*authClient.Domain,
-		*authClient.ClientID,
-		*authClient.ClientID,
-		authClient.IdentityProvider.Identifier,
+		*Client.Domain,
+		*Client.Identifier,
+		*Client.Identifier,
+		Client.IdentityProvider.Identifier,
 	)
 	if err != nil {
 		return nil, err
@@ -793,12 +793,12 @@ func (s *registerService) generateTokenResponse(sub string, user *model.User, au
 	}
 
 	// Generate ID token with user profile (no nonce for registration flow)
-	idToken, err := util.GenerateIDToken(sub, *authClient.Domain, *authClient.ClientID, authClient.IdentityProvider.Identifier, profile, "")
+	idToken, err := util.GenerateIDToken(sub, *Client.Domain, *Client.Identifier, Client.IdentityProvider.Identifier, profile, "")
 	if err != nil {
 		return nil, err
 	}
 
-	refreshToken, err := util.GenerateRefreshToken(sub, *authClient.Domain, *authClient.ClientID, authClient.IdentityProvider.Identifier)
+	refreshToken, err := util.GenerateRefreshToken(sub, *Client.Domain, *Client.Identifier, Client.IdentityProvider.Identifier)
 	if err != nil {
 		return nil, err
 	}

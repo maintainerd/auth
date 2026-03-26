@@ -15,16 +15,16 @@ import (
 	"github.com/maintainerd/auth/internal/util"
 )
 
-type AuthClientHandler struct {
-	authClientService service.AuthClientService
+type ClientHandler struct {
+	ClientService service.ClientService
 }
 
-func NewAuthClientHandler(authClientService service.AuthClientService) *AuthClientHandler {
-	return &AuthClientHandler{authClientService}
+func NewClientHandler(ClientService service.ClientService) *ClientHandler {
+	return &ClientHandler{ClientService}
 }
 
 // Get all auth clients with pagination
-func (h *AuthClientHandler) Get(w http.ResponseWriter, r *http.Request) {
+func (h *ClientHandler) Get(w http.ResponseWriter, r *http.Request) {
 	// Get tenant from context
 	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
 	if !ok || tenant == nil {
@@ -75,7 +75,7 @@ func (h *AuthClientHandler) Get(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Build request DTO
-	reqParams := dto.AuthClientFilterDto{
+	reqParams := dto.ClientFilterDto{
 		Name:                 util.PtrOrNil(q.Get("name")),
 		DisplayName:          util.PtrOrNil(q.Get("display_name")),
 		ClientType:           clientType,
@@ -97,7 +97,7 @@ func (h *AuthClientHandler) Get(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Build service filter
-	authClientFilter := service.AuthClientServiceGetFilter{
+	ClientFilter := service.ClientServiceGetFilter{
 		TenantID:             tenant.TenantID,
 		Name:                 reqParams.Name,
 		DisplayName:          reqParams.DisplayName,
@@ -113,20 +113,20 @@ func (h *AuthClientHandler) Get(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Fetch Auth Clients
-	result, err := h.authClientService.Get(authClientFilter)
+	result, err := h.ClientService.Get(ClientFilter)
 	if err != nil {
 		util.Error(w, http.StatusInternalServerError, "Failed to fetch auth clients", err.Error())
 		return
 	}
 
 	// Map auth client result to DTO
-	rows := make([]dto.AuthClientResponseDto, len(result.Data))
+	rows := make([]dto.ClientResponseDto, len(result.Data))
 	for i, r := range result.Data {
-		rows[i] = toAuthClientResponseDto(r)
+		rows[i] = toClientResponseDto(r)
 	}
 
 	// Build response data
-	response := dto.PaginatedResponseDto[dto.AuthClientResponseDto]{
+	response := dto.PaginatedResponseDto[dto.ClientResponseDto]{
 		Rows:       rows,
 		Total:      result.Total,
 		Page:       result.Page,
@@ -138,7 +138,7 @@ func (h *AuthClientHandler) Get(w http.ResponseWriter, r *http.Request) {
 }
 
 // Get Auth client by UUID
-func (h *AuthClientHandler) GetByUUID(w http.ResponseWriter, r *http.Request) {
+func (h *ClientHandler) GetByUUID(w http.ResponseWriter, r *http.Request) {
 	// Get tenant from context
 	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
 	if !ok || tenant == nil {
@@ -146,25 +146,25 @@ func (h *AuthClientHandler) GetByUUID(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	authClientUUID, err := uuid.Parse(chi.URLParam(r, "auth_client_uuid"))
+	ClientUUID, err := uuid.Parse(chi.URLParam(r, "client_uuid"))
 	if err != nil {
 		util.Error(w, http.StatusBadRequest, "Invalid Auth client UUID")
 		return
 	}
 
-	authClient, err := h.authClientService.GetByUUID(authClientUUID, tenant.TenantID)
+	Client, err := h.ClientService.GetByUUID(ClientUUID, tenant.TenantID)
 	if err != nil {
 		util.Error(w, http.StatusNotFound, "Auth client not found")
 		return
 	}
 
-	dtoRes := toAuthClientResponseDto(*authClient)
+	dtoRes := toClientResponseDto(*Client)
 
 	util.Success(w, dtoRes, "Auth client fetched successfully")
 }
 
 // Get Auth client secret by UUID
-func (h *AuthClientHandler) GetSecretByUUID(w http.ResponseWriter, r *http.Request) {
+func (h *ClientHandler) GetSecretByUUID(w http.ResponseWriter, r *http.Request) {
 	// Get tenant from context
 	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
 	if !ok || tenant == nil {
@@ -172,28 +172,28 @@ func (h *AuthClientHandler) GetSecretByUUID(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	authClientUUID, err := uuid.Parse(chi.URLParam(r, "auth_client_uuid"))
+	ClientUUID, err := uuid.Parse(chi.URLParam(r, "client_uuid"))
 	if err != nil {
 		util.Error(w, http.StatusBadRequest, "Invalid Auth client UUID")
 		return
 	}
 
-	authClient, err := h.authClientService.GetSecretByUUID(authClientUUID, tenant.TenantID)
+	Client, err := h.ClientService.GetSecretByUUID(ClientUUID, tenant.TenantID)
 	if err != nil {
 		util.Error(w, http.StatusNotFound, "Auth client not found")
 		return
 	}
 
-	dtoRes := dto.AuthClientSecretResponseDto{
-		ClientID:     authClient.ClientID,
-		ClientSecret: authClient.ClientSecret,
+	dtoRes := dto.ClientSecretResponseDto{
+		ClientID: Client.ClientID,
+		ClientSecret: Client.Secret,
 	}
 
 	util.Success(w, dtoRes, "Auth client secret fetched successfully")
 }
 
 // Get Auth client config by UUID
-func (h *AuthClientHandler) GetConfigByUUID(w http.ResponseWriter, r *http.Request) {
+func (h *ClientHandler) GetConfigByUUID(w http.ResponseWriter, r *http.Request) {
 	// Get tenant from context
 	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
 	if !ok || tenant == nil {
@@ -201,24 +201,24 @@ func (h *AuthClientHandler) GetConfigByUUID(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	authClientUUID, err := uuid.Parse(chi.URLParam(r, "auth_client_uuid"))
+	ClientUUID, err := uuid.Parse(chi.URLParam(r, "client_uuid"))
 	if err != nil {
 		util.Error(w, http.StatusBadRequest, "Invalid Auth client UUID")
 		return
 	}
 
-	authClientConfig, err := h.authClientService.GetConfigByUUID(authClientUUID, tenant.TenantID)
+	ClientConfig, err := h.ClientService.GetConfigByUUID(ClientUUID, tenant.TenantID)
 	if err != nil {
 		util.Error(w, http.StatusNotFound, "Auth client not found")
 		return
 	}
 
 	// Return config directly as data (not wrapped in DTO)
-	util.Success(w, authClientConfig, "Auth client config fetched successfully")
+	util.Success(w, ClientConfig, "Auth client config fetched successfully")
 }
 
 // Create Auth Client
-func (h *AuthClientHandler) Create(w http.ResponseWriter, r *http.Request) {
+func (h *ClientHandler) Create(w http.ResponseWriter, r *http.Request) {
 	// Get tenant from context
 	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
 	if !ok || tenant == nil {
@@ -229,7 +229,7 @@ func (h *AuthClientHandler) Create(w http.ResponseWriter, r *http.Request) {
 	// Get authentication context
 	user := r.Context().Value(middleware.UserContextKey).(*model.User)
 
-	var req dto.AuthClientCreateRequestDto
+	var req dto.ClientCreateRequestDto
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		util.Error(w, http.StatusBadRequest, "Invalid request", err.Error())
 		return
@@ -240,19 +240,19 @@ func (h *AuthClientHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	authClient, err := h.authClientService.Create(tenant.TenantID, req.Name, req.DisplayName, req.ClientType, req.Domain, req.Config, req.Status, false, req.IdentityProviderUUID, user.UserUUID)
+	Client, err := h.ClientService.Create(tenant.TenantID, req.Name, req.DisplayName, req.ClientType, req.Domain, req.Config, req.Status, false, req.IdentityProviderUUID, user.UserUUID)
 	if err != nil {
 		util.Error(w, http.StatusInternalServerError, "Failed to create auth client", err.Error())
 		return
 	}
 
-	dtoRes := toAuthClientResponseDto(*authClient)
+	dtoRes := toClientResponseDto(*Client)
 
 	util.Created(w, dtoRes, "Auth client created successfully")
 }
 
 // Update Auth Client
-func (h *AuthClientHandler) Update(w http.ResponseWriter, r *http.Request) {
+func (h *ClientHandler) Update(w http.ResponseWriter, r *http.Request) {
 	// Get tenant from context
 	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
 	if !ok || tenant == nil {
@@ -263,13 +263,13 @@ func (h *AuthClientHandler) Update(w http.ResponseWriter, r *http.Request) {
 	// Get authentication context
 	user := r.Context().Value(middleware.UserContextKey).(*model.User)
 
-	authClientUUID, err := uuid.Parse(chi.URLParam(r, "auth_client_uuid"))
+	ClientUUID, err := uuid.Parse(chi.URLParam(r, "client_uuid"))
 	if err != nil {
 		util.Error(w, http.StatusBadRequest, "Invalid auth client UUID")
 		return
 	}
 
-	var req dto.AuthClientUpdateRequestDto
+	var req dto.ClientUpdateRequestDto
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		util.Error(w, http.StatusBadRequest, "Invalid request", err.Error())
 		return
@@ -280,19 +280,19 @@ func (h *AuthClientHandler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	authClient, err := h.authClientService.Update(authClientUUID, tenant.TenantID, req.Name, req.DisplayName, req.ClientType, req.Domain, req.Config, req.Status, false, user.UserUUID)
+	Client, err := h.ClientService.Update(ClientUUID, tenant.TenantID, req.Name, req.DisplayName, req.ClientType, req.Domain, req.Config, req.Status, false, user.UserUUID)
 	if err != nil {
 		util.Error(w, http.StatusInternalServerError, "Failed to update auth client", err.Error())
 		return
 	}
 
-	dtoRes := toAuthClientResponseDto(*authClient)
+	dtoRes := toClientResponseDto(*Client)
 
 	util.Success(w, dtoRes, "Auth client updated successfully")
 }
 
 // Set Auth client status
-func (h *AuthClientHandler) SetStatus(w http.ResponseWriter, r *http.Request) {
+func (h *ClientHandler) SetStatus(w http.ResponseWriter, r *http.Request) {
 	// Get tenant from context
 	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
 	if !ok || tenant == nil {
@@ -303,7 +303,7 @@ func (h *AuthClientHandler) SetStatus(w http.ResponseWriter, r *http.Request) {
 	// Get authentication context
 	user := r.Context().Value(middleware.UserContextKey).(*model.User)
 
-	authClientUUID, err := uuid.Parse(chi.URLParam(r, "auth_client_uuid"))
+	ClientUUID, err := uuid.Parse(chi.URLParam(r, "client_uuid"))
 	if err != nil {
 		util.Error(w, http.StatusBadRequest, "Invalid auth client UUID")
 		return
@@ -312,7 +312,7 @@ func (h *AuthClientHandler) SetStatus(w http.ResponseWriter, r *http.Request) {
 	// Toggle status between active and inactive
 	newStatus := "active"
 	// We need to get current status first to toggle it
-	currentClient, err := h.authClientService.GetByUUID(authClientUUID, tenant.TenantID)
+	currentClient, err := h.ClientService.GetByUUID(ClientUUID, tenant.TenantID)
 	if err != nil {
 		util.Error(w, http.StatusNotFound, "Auth client not found")
 		return
@@ -321,19 +321,19 @@ func (h *AuthClientHandler) SetStatus(w http.ResponseWriter, r *http.Request) {
 		newStatus = "inactive"
 	}
 
-	authClient, err := h.authClientService.SetStatusByUUID(authClientUUID, tenant.TenantID, newStatus, user.UserUUID)
+	Client, err := h.ClientService.SetStatusByUUID(ClientUUID, tenant.TenantID, newStatus, user.UserUUID)
 	if err != nil {
 		util.Error(w, http.StatusInternalServerError, "Failed to update API", err.Error())
 		return
 	}
 
-	dtoRes := toAuthClientResponseDto(*authClient)
+	dtoRes := toClientResponseDto(*Client)
 
 	util.Success(w, dtoRes, "Auth client status updated successfully")
 }
 
 // Delete Auth Client
-func (h *AuthClientHandler) Delete(w http.ResponseWriter, r *http.Request) {
+func (h *ClientHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	// Get tenant from context
 	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
 	if !ok || tenant == nil {
@@ -344,24 +344,24 @@ func (h *AuthClientHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	// Get authentication context
 	user := r.Context().Value(middleware.UserContextKey).(*model.User)
 
-	authClientUUID, err := uuid.Parse(chi.URLParam(r, "auth_client_uuid"))
+	ClientUUID, err := uuid.Parse(chi.URLParam(r, "client_uuid"))
 	if err != nil {
 		util.Error(w, http.StatusBadRequest, "Invalid Auth Client UUID")
 		return
 	}
 
-	authClient, err := h.authClientService.DeleteByUUID(authClientUUID, tenant.TenantID, user.UserUUID)
+	Client, err := h.ClientService.DeleteByUUID(ClientUUID, tenant.TenantID, user.UserUUID)
 	if err != nil {
 		util.Error(w, http.StatusInternalServerError, "Failed to delete auth client", err.Error())
 		return
 	}
 
-	dtoRes := toAuthClientResponseDto(*authClient)
+	dtoRes := toClientResponseDto(*Client)
 
 	util.Success(w, dtoRes, "Auth client deleted successfully")
 }
 
-func (h *AuthClientHandler) GetURIs(w http.ResponseWriter, r *http.Request) {
+func (h *ClientHandler) GetURIs(w http.ResponseWriter, r *http.Request) {
 	// Get tenant from context
 	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
 	if !ok || tenant == nil {
@@ -369,41 +369,41 @@ func (h *AuthClientHandler) GetURIs(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	authClientUUID, err := uuid.Parse(chi.URLParam(r, "auth_client_uuid"))
+	ClientUUID, err := uuid.Parse(chi.URLParam(r, "client_uuid"))
 	if err != nil {
 		util.Error(w, http.StatusBadRequest, "Invalid auth client UUID")
 		return
 	}
 
-	authClient, err := h.authClientService.GetByUUID(authClientUUID, tenant.TenantID)
+	Client, err := h.ClientService.GetByUUID(ClientUUID, tenant.TenantID)
 	if err != nil {
 		util.Error(w, http.StatusNotFound, "Auth client not found", err.Error())
 		return
 	}
 
 	// Convert URIs to response format
-	var uris []dto.AuthClientURIResponseDto
-	if authClient.AuthClientURIs != nil {
-		uris = make([]dto.AuthClientURIResponseDto, len(*authClient.AuthClientURIs))
-		for i, uri := range *authClient.AuthClientURIs {
-			uris[i] = dto.AuthClientURIResponseDto{
-				AuthClientURIUUID: uri.AuthClientURIUUID,
-				URI:               uri.URI,
-				Type:              uri.Type,
-				CreatedAt:         uri.CreatedAt,
-				UpdatedAt:         uri.UpdatedAt,
+	var uris []dto.ClientURIResponseDto
+	if Client.ClientURIs != nil {
+		uris = make([]dto.ClientURIResponseDto, len(*Client.ClientURIs))
+		for i, uri := range *Client.ClientURIs {
+			uris[i] = dto.ClientURIResponseDto{
+				ClientURIUUID: uri.ClientURIUUID,
+				URI:           uri.URI,
+				Type:          uri.Type,
+				CreatedAt:     uri.CreatedAt,
+				UpdatedAt:     uri.UpdatedAt,
 			}
 		}
 	}
 
-	response := dto.AuthClientURIsResponseDto{
+	response := dto.ClientURIsResponseDto{
 		URIs: uris,
 	}
 
 	util.Success(w, response, "URIs retrieved successfully")
 }
 
-func (h *AuthClientHandler) CreateURI(w http.ResponseWriter, r *http.Request) {
+func (h *ClientHandler) CreateURI(w http.ResponseWriter, r *http.Request) {
 	// Get tenant from context
 	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
 	if !ok || tenant == nil {
@@ -414,13 +414,13 @@ func (h *AuthClientHandler) CreateURI(w http.ResponseWriter, r *http.Request) {
 	// Get authentication context
 	user := r.Context().Value(middleware.UserContextKey).(*model.User)
 
-	authClientUUID, err := uuid.Parse(chi.URLParam(r, "auth_client_uuid"))
+	ClientUUID, err := uuid.Parse(chi.URLParam(r, "client_uuid"))
 	if err != nil {
 		util.Error(w, http.StatusBadRequest, "Invalid auth client UUID")
 		return
 	}
 
-	var req dto.AuthClientURICreateOrUpdateRequestDto
+	var req dto.ClientURICreateOrUpdateRequestDto
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		util.Error(w, http.StatusBadRequest, "Invalid request", err.Error())
 		return
@@ -431,24 +431,24 @@ func (h *AuthClientHandler) CreateURI(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	uri, err := h.authClientService.CreateURI(authClientUUID, tenant.TenantID, req.URI, req.Type, user.UserUUID)
+	uri, err := h.ClientService.CreateURI(ClientUUID, tenant.TenantID, req.URI, req.Type, user.UserUUID)
 	if err != nil {
 		util.Error(w, http.StatusInternalServerError, "Failed to create URI", err.Error())
 		return
 	}
 
-	dtoRes := dto.AuthClientURIResponseDto{
-		AuthClientURIUUID: (*uri.AuthClientURIs)[0].AuthClientURIUUID,
-		URI:               (*uri.AuthClientURIs)[0].URI,
-		Type:              (*uri.AuthClientURIs)[0].Type,
-		CreatedAt:         (*uri.AuthClientURIs)[0].CreatedAt,
-		UpdatedAt:         (*uri.AuthClientURIs)[0].UpdatedAt,
+	dtoRes := dto.ClientURIResponseDto{
+		ClientURIUUID: (*uri.ClientURIs)[0].ClientURIUUID,
+		URI:           (*uri.ClientURIs)[0].URI,
+		Type:          (*uri.ClientURIs)[0].Type,
+		CreatedAt:     (*uri.ClientURIs)[0].CreatedAt,
+		UpdatedAt:     (*uri.ClientURIs)[0].UpdatedAt,
 	}
 
 	util.Created(w, dtoRes, "URI created successfully")
 }
 
-func (h *AuthClientHandler) UpdateURI(w http.ResponseWriter, r *http.Request) {
+func (h *ClientHandler) UpdateURI(w http.ResponseWriter, r *http.Request) {
 	// Get tenant from context
 	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
 	if !ok || tenant == nil {
@@ -459,19 +459,19 @@ func (h *AuthClientHandler) UpdateURI(w http.ResponseWriter, r *http.Request) {
 	// Get authentication context
 	user := r.Context().Value(middleware.UserContextKey).(*model.User)
 
-	authClientUUID, err := uuid.Parse(chi.URLParam(r, "auth_client_uuid"))
+	ClientUUID, err := uuid.Parse(chi.URLParam(r, "client_uuid"))
 	if err != nil {
 		util.Error(w, http.StatusBadRequest, "Invalid auth client UUID")
 		return
 	}
 
-	authClientURIUUID, err := uuid.Parse(chi.URLParam(r, "auth_client_uri_uuid"))
+	ClientURIUUID, err := uuid.Parse(chi.URLParam(r, "client_uri_uuid"))
 	if err != nil {
 		util.Error(w, http.StatusBadRequest, "Invalid auth client URI UUID")
 		return
 	}
 
-	var req dto.AuthClientURICreateOrUpdateRequestDto
+	var req dto.ClientURICreateOrUpdateRequestDto
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		util.Error(w, http.StatusBadRequest, "Invalid request", err.Error())
 		return
@@ -482,17 +482,17 @@ func (h *AuthClientHandler) UpdateURI(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	uri, err := h.authClientService.UpdateURI(authClientUUID, tenant.TenantID, authClientURIUUID, req.URI, req.Type, user.UserUUID)
+	uri, err := h.ClientService.UpdateURI(ClientUUID, tenant.TenantID, ClientURIUUID, req.URI, req.Type, user.UserUUID)
 	if err != nil {
 		util.Error(w, http.StatusInternalServerError, "Failed to update URI", err.Error())
 		return
 	}
 
 	// Find the updated URI in the response
-	var updatedURI *service.AuthClientURIServiceDataResult
-	if uri.AuthClientURIs != nil {
-		for _, u := range *uri.AuthClientURIs {
-			if u.AuthClientURIUUID == authClientURIUUID {
+	var updatedURI *service.ClientURIServiceDataResult
+	if uri.ClientURIs != nil {
+		for _, u := range *uri.ClientURIs {
+			if u.ClientURIUUID == ClientURIUUID {
 				updatedURI = &u
 				break
 			}
@@ -504,18 +504,18 @@ func (h *AuthClientHandler) UpdateURI(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	dtoRes := dto.AuthClientURIResponseDto{
-		AuthClientURIUUID: updatedURI.AuthClientURIUUID,
-		URI:               updatedURI.URI,
-		Type:              updatedURI.Type,
-		CreatedAt:         updatedURI.CreatedAt,
-		UpdatedAt:         updatedURI.UpdatedAt,
+	dtoRes := dto.ClientURIResponseDto{
+		ClientURIUUID: updatedURI.ClientURIUUID,
+		URI:           updatedURI.URI,
+		Type:          updatedURI.Type,
+		CreatedAt:     updatedURI.CreatedAt,
+		UpdatedAt:     updatedURI.UpdatedAt,
 	}
 
 	util.Success(w, dtoRes, "URI updated successfully")
 }
 
-func (h *AuthClientHandler) DeleteURI(w http.ResponseWriter, r *http.Request) {
+func (h *ClientHandler) DeleteURI(w http.ResponseWriter, r *http.Request) {
 	// Get tenant from context
 	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
 	if !ok || tenant == nil {
@@ -526,31 +526,31 @@ func (h *AuthClientHandler) DeleteURI(w http.ResponseWriter, r *http.Request) {
 	// Get authentication context
 	user := r.Context().Value(middleware.UserContextKey).(*model.User)
 
-	authClientUUID, err := uuid.Parse(chi.URLParam(r, "auth_client_uuid"))
+	ClientUUID, err := uuid.Parse(chi.URLParam(r, "client_uuid"))
 	if err != nil {
 		util.Error(w, http.StatusBadRequest, "Invalid auth client UUID")
 		return
 	}
 
-	authClientURIUUID, err := uuid.Parse(chi.URLParam(r, "auth_client_uri_uuid"))
+	ClientURIUUID, err := uuid.Parse(chi.URLParam(r, "client_uri_uuid"))
 	if err != nil {
 		util.Error(w, http.StatusBadRequest, "Invalid auth client URI UUID")
 		return
 	}
 
-	authClient, err := h.authClientService.DeleteURI(authClientUUID, tenant.TenantID, authClientURIUUID, user.UserUUID)
+	Client, err := h.ClientService.DeleteURI(ClientUUID, tenant.TenantID, ClientURIUUID, user.UserUUID)
 	if err != nil {
 		util.Error(w, http.StatusInternalServerError, "Failed to delete URI", err.Error())
 		return
 	}
 
-	dtoRes := toAuthClientResponseDto(*authClient)
+	dtoRes := toClientResponseDto(*Client)
 
 	util.Success(w, dtoRes, "URI deleted successfully")
 }
 
 // Get APIs assigned to auth client
-func (h *AuthClientHandler) GetApis(w http.ResponseWriter, r *http.Request) {
+func (h *ClientHandler) GetApis(w http.ResponseWriter, r *http.Request) {
 	// Get authentication context
 	// Get tenant from context
 	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
@@ -559,22 +559,22 @@ func (h *AuthClientHandler) GetApis(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	authClientUUID, err := uuid.Parse(chi.URLParam(r, "auth_client_uuid"))
+	ClientUUID, err := uuid.Parse(chi.URLParam(r, "client_uuid"))
 	if err != nil {
 		util.Error(w, http.StatusBadRequest, "Invalid auth client UUID")
 		return
 	}
 
 	// Get auth client APIs
-	authClientApis, err := h.authClientService.GetAuthClientApis(tenant.TenantID, authClientUUID)
+	ClientApis, err := h.ClientService.GetClientApis(tenant.TenantID, ClientUUID)
 	if err != nil {
 		util.Error(w, http.StatusInternalServerError, "Failed to get auth client APIs")
 		return
 	}
 
 	// Convert to DTO
-	apis := make([]dto.AuthClientApiResponseDto, len(authClientApis))
-	for i, api := range authClientApis {
+	apis := make([]dto.ClientApiResponseDto, len(ClientApis))
+	for i, api := range ClientApis {
 		// Convert API service data to DTO
 		apiDto := dto.APIResponseDto{
 			APIUUID:     api.Api.APIUUID,
@@ -602,15 +602,15 @@ func (h *AuthClientHandler) GetApis(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 
-		apis[i] = dto.AuthClientApiResponseDto{
-			AuthClientApiUUID: api.AuthClientApiUUID,
-			Api:               apiDto,
-			Permissions:       permissions,
-			CreatedAt:         api.CreatedAt,
+		apis[i] = dto.ClientApiResponseDto{
+			ClientApiUUID: api.ClientApiUUID,
+			Api:           apiDto,
+			Permissions:   permissions,
+			CreatedAt:     api.CreatedAt,
 		}
 	}
 
-	response := dto.AuthClientApisResponseDto{
+	response := dto.ClientApisResponseDto{
 		APIs: apis,
 	}
 
@@ -618,15 +618,15 @@ func (h *AuthClientHandler) GetApis(w http.ResponseWriter, r *http.Request) {
 }
 
 // Add APIs to auth client
-func (h *AuthClientHandler) AddApis(w http.ResponseWriter, r *http.Request) {
+func (h *ClientHandler) AddApis(w http.ResponseWriter, r *http.Request) {
 	// Get authentication context
-	authClientUUID, err := uuid.Parse(chi.URLParam(r, "auth_client_uuid"))
+	ClientUUID, err := uuid.Parse(chi.URLParam(r, "client_uuid"))
 	if err != nil {
 		util.Error(w, http.StatusBadRequest, "Invalid auth client UUID")
 		return
 	}
 
-	var req dto.AddAuthClientApisRequest
+	var req dto.AddClientApisRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		util.Error(w, http.StatusBadRequest, "Invalid request body")
 		return
@@ -640,7 +640,7 @@ func (h *AuthClientHandler) AddApis(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Add APIs to auth client
-	err = h.authClientService.AddAuthClientApis(tenant.TenantID, authClientUUID, req.ApiUUIDs)
+	err = h.ClientService.AddClientApis(tenant.TenantID, ClientUUID, req.ApiUUIDs)
 	if err != nil {
 		util.Error(w, http.StatusInternalServerError, "Failed to add APIs to auth client")
 		return
@@ -654,8 +654,8 @@ func (h *AuthClientHandler) AddApis(w http.ResponseWriter, r *http.Request) {
 }
 
 // Remove API from auth client
-func (h *AuthClientHandler) RemoveApi(w http.ResponseWriter, r *http.Request) {
-	authClientUUID, err := uuid.Parse(chi.URLParam(r, "auth_client_uuid"))
+func (h *ClientHandler) RemoveApi(w http.ResponseWriter, r *http.Request) {
+	ClientUUID, err := uuid.Parse(chi.URLParam(r, "client_uuid"))
 	if err != nil {
 		util.Error(w, http.StatusBadRequest, "Invalid auth client UUID")
 		return
@@ -675,7 +675,7 @@ func (h *AuthClientHandler) RemoveApi(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Remove API from auth client
-	err = h.authClientService.RemoveAuthClientApi(tenant.TenantID, authClientUUID, apiUUID)
+	err = h.ClientService.RemoveClientApi(tenant.TenantID, ClientUUID, apiUUID)
 	if err != nil {
 		util.Error(w, http.StatusInternalServerError, "Failed to remove API from auth client")
 		return
@@ -689,8 +689,8 @@ func (h *AuthClientHandler) RemoveApi(w http.ResponseWriter, r *http.Request) {
 }
 
 // Get permissions for a specific API assigned to auth client
-func (h *AuthClientHandler) GetApiPermissions(w http.ResponseWriter, r *http.Request) {
-	authClientUUID, err := uuid.Parse(chi.URLParam(r, "auth_client_uuid"))
+func (h *ClientHandler) GetApiPermissions(w http.ResponseWriter, r *http.Request) {
+	ClientUUID, err := uuid.Parse(chi.URLParam(r, "client_uuid"))
 	if err != nil {
 		util.Error(w, http.StatusBadRequest, "Invalid auth client UUID")
 		return
@@ -710,7 +710,7 @@ func (h *AuthClientHandler) GetApiPermissions(w http.ResponseWriter, r *http.Req
 	}
 
 	// Get auth client API permissions
-	permissions, err := h.authClientService.GetAuthClientApiPermissions(tenant.TenantID, authClientUUID, apiUUID)
+	permissions, err := h.ClientService.GetClientApiPermissions(tenant.TenantID, ClientUUID, apiUUID)
 	if err != nil {
 		util.Error(w, http.StatusInternalServerError, "Failed to get auth client API permissions")
 		return
@@ -731,7 +731,7 @@ func (h *AuthClientHandler) GetApiPermissions(w http.ResponseWriter, r *http.Req
 		}
 	}
 
-	response := dto.AuthClientApiPermissionsResponseDto{
+	response := dto.ClientApiPermissionsResponseDto{
 		Permissions: permissionDtos,
 	}
 
@@ -739,9 +739,9 @@ func (h *AuthClientHandler) GetApiPermissions(w http.ResponseWriter, r *http.Req
 }
 
 // Add permissions to a specific API for auth client
-func (h *AuthClientHandler) AddApiPermissions(w http.ResponseWriter, r *http.Request) {
+func (h *ClientHandler) AddApiPermissions(w http.ResponseWriter, r *http.Request) {
 	// Get authentication context
-	authClientUUID, err := uuid.Parse(chi.URLParam(r, "auth_client_uuid"))
+	ClientUUID, err := uuid.Parse(chi.URLParam(r, "client_uuid"))
 	if err != nil {
 		util.Error(w, http.StatusBadRequest, "Invalid auth client UUID")
 		return
@@ -753,7 +753,7 @@ func (h *AuthClientHandler) AddApiPermissions(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	var req dto.AddAuthClientApiPermissionsRequest
+	var req dto.AddClientApiPermissionsRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		util.Error(w, http.StatusBadRequest, "Invalid request body")
 		return
@@ -767,7 +767,7 @@ func (h *AuthClientHandler) AddApiPermissions(w http.ResponseWriter, r *http.Req
 	}
 
 	// Add permissions to auth client API
-	err = h.authClientService.AddAuthClientApiPermissions(tenant.TenantID, authClientUUID, apiUUID, req.PermissionUUIDs)
+	err = h.ClientService.AddClientApiPermissions(tenant.TenantID, ClientUUID, apiUUID, req.PermissionUUIDs)
 	if err != nil {
 		util.Error(w, http.StatusInternalServerError, "Failed to add permissions to auth client API")
 		return
@@ -781,9 +781,9 @@ func (h *AuthClientHandler) AddApiPermissions(w http.ResponseWriter, r *http.Req
 }
 
 // Remove permission from a specific API for auth client
-func (h *AuthClientHandler) RemoveApiPermission(w http.ResponseWriter, r *http.Request) {
+func (h *ClientHandler) RemoveApiPermission(w http.ResponseWriter, r *http.Request) {
 	// Get authentication context
-	authClientUUID, err := uuid.Parse(chi.URLParam(r, "auth_client_uuid"))
+	ClientUUID, err := uuid.Parse(chi.URLParam(r, "client_uuid"))
 	if err != nil {
 		util.Error(w, http.StatusBadRequest, "Invalid auth client UUID")
 		return
@@ -809,7 +809,7 @@ func (h *AuthClientHandler) RemoveApiPermission(w http.ResponseWriter, r *http.R
 	}
 
 	// Remove permission from auth client API
-	err = h.authClientService.RemoveAuthClientApiPermission(tenant.TenantID, authClientUUID, apiUUID, permissionUUID)
+	err = h.ClientService.RemoveClientApiPermission(tenant.TenantID, ClientUUID, apiUUID, permissionUUID)
 	if err != nil {
 		util.Error(w, http.StatusInternalServerError, "Failed to remove permission from auth client API")
 		return
@@ -823,18 +823,18 @@ func (h *AuthClientHandler) RemoveApiPermission(w http.ResponseWriter, r *http.R
 }
 
 // Convert result to DTO
-func toAuthClientResponseDto(r service.AuthClientServiceDataResult) dto.AuthClientResponseDto {
-	result := dto.AuthClientResponseDto{
-		AuthClientUUID: r.AuthClientUUID,
-		Name:           r.Name,
-		DisplayName:    r.DisplayName,
-		ClientType:     r.ClientType,
-		Domain:         r.Domain,
-		Status:         r.Status,
-		IsDefault:      r.IsDefault,
-		IsSystem:       r.IsSystem,
-		CreatedAt:      r.CreatedAt,
-		UpdatedAt:      r.UpdatedAt,
+func toClientResponseDto(r service.ClientServiceDataResult) dto.ClientResponseDto {
+	result := dto.ClientResponseDto{
+		ClientUUID:  r.ClientUUID,
+		Name:        r.Name,
+		DisplayName: r.DisplayName,
+		ClientType:  r.ClientType,
+		Domain:      r.Domain,
+		Status:      r.Status,
+		IsDefault:   r.IsDefault,
+		IsSystem:    r.IsSystem,
+		CreatedAt:   r.CreatedAt,
+		UpdatedAt:   r.UpdatedAt,
 	}
 
 	if r.IdentityProvider != nil {
@@ -853,15 +853,15 @@ func toAuthClientResponseDto(r service.AuthClientServiceDataResult) dto.AuthClie
 		}
 	}
 
-	if r.AuthClientURIs != nil && len(*r.AuthClientURIs) > 0 {
-		result.URIs = make([]dto.AuthClientURIResponseDto, len(*r.AuthClientURIs))
-		for i, uri := range *r.AuthClientURIs {
-			result.URIs[i] = dto.AuthClientURIResponseDto{
-				AuthClientURIUUID: uri.AuthClientURIUUID,
-				URI:               uri.URI,
-				Type:              uri.Type,
-				CreatedAt:         uri.CreatedAt,
-				UpdatedAt:         uri.UpdatedAt,
+	if r.ClientURIs != nil && len(*r.ClientURIs) > 0 {
+		result.URIs = make([]dto.ClientURIResponseDto, len(*r.ClientURIs))
+		for i, uri := range *r.ClientURIs {
+			result.URIs[i] = dto.ClientURIResponseDto{
+				ClientURIUUID: uri.ClientURIUUID,
+				URI:           uri.URI,
+				Type:          uri.Type,
+				CreatedAt:     uri.CreatedAt,
+				UpdatedAt:     uri.UpdatedAt,
 			}
 		}
 	}

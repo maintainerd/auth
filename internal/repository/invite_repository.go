@@ -11,7 +11,7 @@ type InviteRepository interface {
 	WithTx(tx *gorm.DB) InviteRepository
 	FindByUUIDAndTenantID(inviteUUID uuid.UUID, tenantID int64, preloads ...string) (*model.Invite, error)
 	FindByToken(token string) (*model.Invite, error)
-	FindAllByAuthClientID(authClientID int64) ([]model.Invite, error)
+	FindAllByClientID(ClientID int64) ([]model.Invite, error)
 	FindAllByTenantID(tenantID int64) ([]model.Invite, error)
 	MarkAsUsed(inviteUUID uuid.UUID) error
 	RevokeByUUID(inviteUUID uuid.UUID) error
@@ -63,10 +63,10 @@ func (r *inviteRepository) FindByToken(token string) (*model.Invite, error) {
 	return &invite, err
 }
 
-func (r *inviteRepository) FindAllByAuthClientID(authClientID int64) ([]model.Invite, error) {
+func (r *inviteRepository) FindAllByClientID(ClientID int64) ([]model.Invite, error) {
 	var invites []model.Invite
 	err := r.db.
-		Where("auth_client_id = ?", authClientID).
+		Where("client_id = ?", ClientID).
 		Find(&invites).Error
 	return invites, err
 }

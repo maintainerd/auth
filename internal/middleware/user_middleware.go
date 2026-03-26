@@ -43,7 +43,7 @@ func UserContextMiddleware(
 				User     *model.User             `json:"user"`
 				Tenant   *model.Tenant           `json:"tenant"`
 				Provider *model.IdentityProvider `json:"provider"`
-				Client   *model.AuthClient       `json:"client"`
+				Client   *model.Client       `json:"client"`
 			}
 
 			var userContextCache *UserContextCache
@@ -76,12 +76,12 @@ func UserContextMiddleware(
 			// Extract tenant, provider, and client information from user relationships
 			var tenant *model.Tenant
 			var provider *model.IdentityProvider
-			var client *model.AuthClient
+			var client *model.Client
 
 			// Get tenant, provider and client from user identities
 			if len(user.UserIdentities) > 0 {
 				for _, identity := range user.UserIdentities {
-					if identity.AuthClient != nil && identity.AuthClient.ClientID != nil && *identity.AuthClient.ClientID == clientID {
+					if identity.Client != nil && identity.Client.Identifier != nil && *identity.Client.Identifier == clientID {
 						// Get tenant from this identity
 						if identity.Tenant != nil {
 							tenant = identity.Tenant

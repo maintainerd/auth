@@ -18,7 +18,7 @@ CREATE TABLE IF NOT EXISTS signup_flows (
 		identifier				VARCHAR(255) NOT NULL UNIQUE,
 		config						JSONB DEFAULT '{}'::jsonb,
     status						VARCHAR(20) DEFAULT 'active' CHECK (status IN ('active', 'inactive')),
-		auth_client_id		INTEGER NOT NULL,
+		client_id		INTEGER NOT NULL,
     created_at				TIMESTAMPTZ DEFAULT now(),
     updated_at				TIMESTAMPTZ DEFAULT now()
 );
@@ -35,11 +35,11 @@ BEGIN
     END IF;
 
     IF NOT EXISTS (
-        SELECT 1 FROM pg_constraint WHERE conname = 'fk_signup_flows_auth_client_id'
+        SELECT 1 FROM pg_constraint WHERE conname = 'fk_signup_flows_client_id'
     ) THEN
         ALTER TABLE signup_flows
-            ADD CONSTRAINT fk_signup_flows_auth_client_id FOREIGN KEY (auth_client_id)
-            REFERENCES auth_clients(auth_client_id) ON DELETE CASCADE;
+            ADD CONSTRAINT fk_signup_flows_client_id FOREIGN KEY (client_id)
+            REFERENCES clients(client_id) ON DELETE CASCADE;
     END IF;
 END$$;
 
@@ -49,7 +49,7 @@ CREATE INDEX IF NOT EXISTS idx_signup_flow_tenant_id ON signup_flows (tenant_id)
 CREATE INDEX IF NOT EXISTS idx_signup_flow_name ON signup_flows (name);
 CREATE INDEX IF NOT EXISTS idx_signup_flow_identifier ON signup_flows (identifier);
 CREATE INDEX IF NOT EXISTS idx_signup_flow_status ON signup_flows (status);
-CREATE INDEX IF NOT EXISTS idx_signup_flow_auth_client_id ON signup_flows (auth_client_id);
+CREATE INDEX IF NOT EXISTS idx_signup_flow_client_id ON signup_flows (client_id);
 CREATE INDEX IF NOT EXISTS idx_signup_flow_created_at ON signup_flows (created_at);
 `
 	if err := db.Exec(sql).Error; err != nil {

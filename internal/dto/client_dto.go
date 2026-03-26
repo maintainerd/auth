@@ -9,28 +9,28 @@ import (
 	"gorm.io/datatypes"
 )
 
-type AuthClientSecretResponseDto struct {
+type ClientSecretResponseDto struct {
 	ClientID     string  `json:"client_id"`
 	ClientSecret *string `json:"client_secret"`
 }
 
-type AuthClientURIResponseDto struct {
-	AuthClientURIUUID uuid.UUID `json:"uri_id"`
-	URI               string    `json:"uri"`
-	Type              string    `json:"type"`
-	CreatedAt         time.Time `json:"created_at"`
-	UpdatedAt         time.Time `json:"updated_at"`
+type ClientURIResponseDto struct {
+	ClientURIUUID uuid.UUID `json:"uri_id"`
+	URI           string    `json:"uri"`
+	Type          string    `json:"type"`
+	CreatedAt     time.Time `json:"created_at"`
+	UpdatedAt     time.Time `json:"updated_at"`
 }
 
-type AuthClientURIsResponseDto struct {
-	URIs []AuthClientURIResponseDto `json:"uris"`
+type ClientURIsResponseDto struct {
+	URIs []ClientURIResponseDto `json:"uris"`
 }
 
-type AuthClientApisResponseDto struct {
-	APIs []AuthClientApiResponseDto `json:"apis"`
+type ClientApisResponseDto struct {
+	APIs []ClientApiResponseDto `json:"apis"`
 }
 
-type AuthClientApiPermissionsResponseDto struct {
+type ClientApiPermissionsResponseDto struct {
 	Permissions []PermissionResponseDto `json:"permissions"`
 }
 
@@ -39,13 +39,13 @@ type SuccessResponseDto struct {
 }
 
 // Auth client output structure
-type AuthClientResponseDto struct {
-	AuthClientUUID   uuid.UUID                    `json:"client_id"`
+type ClientResponseDto struct {
+	ClientUUID       uuid.UUID                    `json:"client_id"`
 	Name             string                       `json:"name"`
 	DisplayName      string                       `json:"display_name"`
 	ClientType       string                       `json:"client_type"`
 	Domain           *string                      `json:"domain,omitempty"`
-	URIs             []AuthClientURIResponseDto   `json:"uris,omitempty"`
+	URIs             []ClientURIResponseDto       `json:"uris,omitempty"`
 	IdentityProvider *IdentityProviderResponseDto `json:"identity_provider,omitempty"`
 	Permissions      *[]PermissionResponseDto     `json:"permissions,omitempty"`
 	Status           string                       `json:"status"`
@@ -56,7 +56,7 @@ type AuthClientResponseDto struct {
 }
 
 // Create auth client request DTO
-type AuthClientCreateRequestDto struct {
+type ClientCreateRequestDto struct {
 	Name                 string         `json:"name"`
 	DisplayName          string         `json:"display_name"`
 	ClientType           string         `json:"client_type"`
@@ -67,7 +67,7 @@ type AuthClientCreateRequestDto struct {
 }
 
 // Validation
-func (r AuthClientCreateRequestDto) Validate() error {
+func (r ClientCreateRequestDto) Validate() error {
 	return validation.ValidateStruct(&r,
 		validation.Field(&r.Name,
 			validation.Required.Error("Name is required"),
@@ -98,7 +98,7 @@ func (r AuthClientCreateRequestDto) Validate() error {
 }
 
 // Update auth client request DTO
-type AuthClientUpdateRequestDto struct {
+type ClientUpdateRequestDto struct {
 	Name        string         `json:"name"`
 	DisplayName string         `json:"display_name"`
 	ClientType  string         `json:"client_type"`
@@ -108,7 +108,7 @@ type AuthClientUpdateRequestDto struct {
 }
 
 // Validation
-func (r AuthClientUpdateRequestDto) Validate() error {
+func (r ClientUpdateRequestDto) Validate() error {
 	return validation.ValidateStruct(&r,
 		validation.Field(&r.Name,
 			validation.Required.Error("Name is required"),
@@ -136,13 +136,13 @@ func (r AuthClientUpdateRequestDto) Validate() error {
 }
 
 // Create or update auth client URI request DTO
-type AuthClientURICreateOrUpdateRequestDto struct {
+type ClientURICreateOrUpdateRequestDto struct {
 	URI  string `json:"uri"`
 	Type string `json:"type"`
 }
 
 // Validation
-func (r AuthClientURICreateOrUpdateRequestDto) Validate() error {
+func (r ClientURICreateOrUpdateRequestDto) Validate() error {
 	return validation.ValidateStruct(&r,
 		validation.Field(&r.URI,
 			validation.Required.Error("URI is required"),
@@ -156,7 +156,7 @@ func (r AuthClientURICreateOrUpdateRequestDto) Validate() error {
 }
 
 // Auth client listing / filter DTO
-type AuthClientFilterDto struct {
+type ClientFilterDto struct {
 	Name                 *string  `json:"name"`
 	DisplayName          *string  `json:"display_name"`
 	ClientType           []string `json:"client_type"`
@@ -170,11 +170,11 @@ type AuthClientFilterDto struct {
 }
 
 // Add permissions to auth client request dto
-type AuthClientAddPermissionsRequestDto struct {
+type ClientAddPermissionsRequestDto struct {
 	Permissions []uuid.UUID `json:"permissions"`
 }
 
-func (r AuthClientAddPermissionsRequestDto) Validate() error {
+func (r ClientAddPermissionsRequestDto) Validate() error {
 	return validation.ValidateStruct(&r,
 		validation.Field(&r.Permissions,
 			validation.Required.Error("Permission UUIDs are required"),
@@ -184,19 +184,19 @@ func (r AuthClientAddPermissionsRequestDto) Validate() error {
 }
 
 // Auth Client API DTOs
-type AuthClientApiResponseDto struct {
-	AuthClientApiUUID uuid.UUID               `json:"auth_client_api_id"`
-	Api               APIResponseDto          `json:"api"`
-	Permissions       []PermissionResponseDto `json:"permissions,omitempty"`
-	CreatedAt         time.Time               `json:"created_at"`
+type ClientApiResponseDto struct {
+	ClientApiUUID uuid.UUID               `json:"client_api_id"`
+	Api           APIResponseDto          `json:"api"`
+	Permissions   []PermissionResponseDto `json:"permissions,omitempty"`
+	CreatedAt     time.Time               `json:"created_at"`
 }
 
 // Add APIs to auth client request dto
-type AddAuthClientApisRequest struct {
+type AddClientApisRequest struct {
 	ApiUUIDs []uuid.UUID `json:"api_uuids"`
 }
 
-func (r AddAuthClientApisRequest) Validate() error {
+func (r AddClientApisRequest) Validate() error {
 	return validation.ValidateStruct(&r,
 		validation.Field(&r.ApiUUIDs,
 			validation.Required.Error("API UUIDs are required"),
@@ -206,11 +206,11 @@ func (r AddAuthClientApisRequest) Validate() error {
 }
 
 // Add permissions to auth client API request dto
-type AddAuthClientApiPermissionsRequest struct {
+type AddClientApiPermissionsRequest struct {
 	PermissionUUIDs []uuid.UUID `json:"permission_uuids"`
 }
 
-func (r AddAuthClientApiPermissionsRequest) Validate() error {
+func (r AddClientApiPermissionsRequest) Validate() error {
 	return validation.ValidateStruct(&r,
 		validation.Field(&r.PermissionUUIDs,
 			validation.Required.Error("Permission UUIDs are required"),
