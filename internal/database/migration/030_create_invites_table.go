@@ -1,12 +1,10 @@
 package migration
 
 import (
-	"log"
-
 	"gorm.io/gorm"
 )
 
-func CreateInvitesTable(db *gorm.DB) {
+func CreateInvitesTable(db *gorm.DB) error {
 	sql := `
 -- CREATE TABLE
 CREATE TABLE IF NOT EXISTS invites (
@@ -62,9 +60,5 @@ CREATE INDEX IF NOT EXISTS idx_invites_token ON invites (invite_token);
 CREATE INDEX IF NOT EXISTS idx_invites_status ON invites (status);
 CREATE INDEX IF NOT EXISTS idx_invites_created_at ON invites (created_at);
 `
-	if err := db.Exec(sql).Error; err != nil {
-		log.Fatalf("❌ Failed to run migration 030_create_invites_table: %v", err)
-	}
-
-	log.Println("✅ Migration 030_create_invites_table executed")
+	return db.Exec(sql).Error
 }

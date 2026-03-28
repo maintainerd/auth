@@ -1,12 +1,10 @@
 package migration
 
 import (
-	"log"
-
 	"gorm.io/gorm"
 )
 
-func CreateSecuritySettingsAuditTable(db *gorm.DB) {
+func CreateSecuritySettingsAuditTable(db *gorm.DB) error {
 	sql := `
 -- CREATE TABLE
 CREATE TABLE IF NOT EXISTS security_settings_audit (
@@ -61,9 +59,5 @@ CREATE INDEX IF NOT EXISTS idx_security_settings_audit_created_by ON security_se
 CREATE INDEX IF NOT EXISTS idx_security_settings_audit_created_at ON security_settings_audit (created_at);
 `
 
-	if err := db.Exec(sql).Error; err != nil {
-		log.Fatalf("❌ Failed to run migration 034_create_security_settings_audit_table: %v", err)
-	}
-
-	log.Println("✅ Migration 034_create_security_settings_audit_table executed")
+	return db.Exec(sql).Error
 }

@@ -1,12 +1,10 @@
 package migration
 
 import (
-	"log"
-
 	"gorm.io/gorm"
 )
 
-func CreateSecuritySettingsTable(db *gorm.DB) {
+func CreateSecuritySettingsTable(db *gorm.DB) error {
 	sql := `
 -- CREATE TABLE
 CREATE TABLE IF NOT EXISTS security_settings (
@@ -60,9 +58,5 @@ CREATE INDEX IF NOT EXISTS idx_security_settings_version ON security_settings (v
 CREATE INDEX IF NOT EXISTS idx_security_settings_created_at ON security_settings (created_at);
 `
 
-	if err := db.Exec(sql).Error; err != nil {
-		log.Fatalf("❌ Failed to run migration 032_create_security_settings_table: %v", err)
-	}
-
-	log.Println("✅ Migration 032_create_security_settings_table executed")
+	return db.Exec(sql).Error
 }

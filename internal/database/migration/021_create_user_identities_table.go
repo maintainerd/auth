@@ -1,12 +1,10 @@
 package migration
 
 import (
-	"log"
-
 	"gorm.io/gorm"
 )
 
-func CreateUserIdentityTable(db *gorm.DB) {
+func CreateUserIdentityTable(db *gorm.DB) error {
 	sql := `
 -- CREATE TABLE
 CREATE TABLE IF NOT EXISTS user_identities (
@@ -59,9 +57,5 @@ CREATE INDEX IF NOT EXISTS idx_user_identities_sub ON user_identities (sub);
 CREATE INDEX IF NOT EXISTS idx_user_identities_provider ON user_identities (provider);
 CREATE INDEX IF NOT EXISTS idx_user_identities_created_at ON user_identities (created_at);
 `
-	if err := db.Exec(sql).Error; err != nil {
-		log.Fatalf("❌ Failed to run migration 021_create_user_identities_table: %v", err)
-	}
-
-	log.Println("✅ Migration 021_create_user_identities_table executed")
+	return db.Exec(sql).Error
 }

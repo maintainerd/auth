@@ -1,12 +1,10 @@
 package migration
 
 import (
-	"log"
-
 	"gorm.io/gorm"
 )
 
-func CreateIpRestrictionRulesTable(db *gorm.DB) {
+func CreateIpRestrictionRulesTable(db *gorm.DB) error {
 	sql := `
 -- CREATE TABLE
 CREATE TABLE IF NOT EXISTS ip_restriction_rules (
@@ -74,9 +72,5 @@ CREATE INDEX IF NOT EXISTS idx_ip_restriction_rules_ip_address ON ip_restriction
 CREATE INDEX IF NOT EXISTS idx_ip_restriction_rules_created_at ON ip_restriction_rules (created_at);
 `
 
-	if err := db.Exec(sql).Error; err != nil {
-		log.Fatalf("❌ Failed to run migration 033_create_ip_restriction_rules_table: %v", err)
-	}
-
-	log.Println("✅ Migration 033_create_ip_restriction_rules_table executed")
+	return db.Exec(sql).Error
 }

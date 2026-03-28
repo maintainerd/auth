@@ -1,12 +1,10 @@
 package migration
 
 import (
-	"log"
-
 	"gorm.io/gorm"
 )
 
-func CreateInviteRolesTable(db *gorm.DB) {
+func CreateInviteRolesTable(db *gorm.DB) error {
 	sql := `
 -- CREATE TABLE
 CREATE TABLE IF NOT EXISTS invite_roles (
@@ -41,9 +39,5 @@ CREATE INDEX IF NOT EXISTS idx_invite_roles_invite_role_uuid ON invite_roles (in
 CREATE INDEX IF NOT EXISTS idx_invite_roles_invite_id ON invite_roles (invite_id);
 CREATE INDEX IF NOT EXISTS idx_invite_roles_role_id ON invite_roles (role_id);
 `
-	if err := db.Exec(sql).Error; err != nil {
-		log.Fatalf("❌ Failed to run migration 031_create_invite_roles_table: %v", err)
-	}
-
-	log.Println("✅ Migration 031_create_invite_roles_table executed")
+	return db.Exec(sql).Error
 }

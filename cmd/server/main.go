@@ -35,7 +35,10 @@ func main() {
 	util.InitRateLimiter(redisClient)
 
 	// ⚙️ Run database migrations
-	runner.RunMigrations(db)
+	if err := runner.RunMigrations(db); err != nil {
+		slog.Error("Database migrations failed", "error", err)
+		os.Exit(1)
+	}
 
 	// ⚙️ App wiring (handlers, services, etc.)
 	application := app.NewApp(db, redisClient)

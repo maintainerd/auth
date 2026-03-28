@@ -1,12 +1,10 @@
 package migration
 
 import (
-	"log"
-
 	"gorm.io/gorm"
 )
 
-func CreateServiceTable(db *gorm.DB) {
+func CreateServiceTable(db *gorm.DB) error {
 	sql := `
 -- CREATE TABLE
 CREATE TABLE IF NOT EXISTS services (
@@ -41,9 +39,5 @@ BEGIN
     END IF;
 END$$;
 `
-	if err := db.Exec(sql).Error; err != nil {
-		log.Fatalf("❌ Failed to run migration 002_create_services_table: %v", err)
-	}
-
-	log.Println("✅ Migration 002_create_services_table executed")
+	return db.Exec(sql).Error
 }

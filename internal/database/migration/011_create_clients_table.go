@@ -1,12 +1,10 @@
 package migration
 
 import (
-	"log"
-
 	"gorm.io/gorm"
 )
 
-func CreateClientTable(db *gorm.DB) {
+func CreateClientTable(db *gorm.DB) error {
 	sql := `
 -- CREATE TABLE
 CREATE TABLE IF NOT EXISTS clients (
@@ -64,9 +62,5 @@ CREATE INDEX IF NOT EXISTS idx_clients_identity_provider_id ON clients (identity
 CREATE INDEX IF NOT EXISTS idx_clients_is_system ON clients (is_system) WHERE is_system = TRUE;
 CREATE INDEX IF NOT EXISTS idx_clients_created_at ON clients (created_at);
 `
-	if err := db.Exec(sql).Error; err != nil {
-		log.Fatalf("❌ Failed to run migration 011_create_clients_table: %v", err)
-	}
-
-	log.Println("✅ Migration 011_create_clients_table executed")
+	return db.Exec(sql).Error
 }

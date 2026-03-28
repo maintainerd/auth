@@ -1,12 +1,10 @@
 package migration
 
 import (
-	"log"
-
 	"gorm.io/gorm"
 )
 
-func CreateApiPermissionTable(db *gorm.DB) {
+func CreateApiPermissionTable(db *gorm.DB) error {
 	sql := `
 -- CREATE TABLE
 CREATE TABLE IF NOT EXISTS api_permissions (
@@ -43,9 +41,5 @@ CREATE INDEX IF NOT EXISTS idx_api_permissions_api_id ON api_permissions (api_id
 CREATE INDEX IF NOT EXISTS idx_api_permissions_permission_id ON api_permissions (permission_id);
 `
 
-	if err := db.Exec(sql).Error; err != nil {
-		log.Fatalf("❌ Failed to run migration 009_create_api_permissions_table: %v", err)
-	}
-
-	log.Println("✅ Migration 009_create_api_permissions_table executed")
+	return db.Exec(sql).Error
 }

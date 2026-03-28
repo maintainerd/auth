@@ -1,12 +1,10 @@
 package migration
 
 import (
-	"log"
-
 	"gorm.io/gorm"
 )
 
-func CreateClientPermissionTable(db *gorm.DB) {
+func CreateClientPermissionTable(db *gorm.DB) error {
 	sql := `
 -- CREATE TABLE
 CREATE TABLE IF NOT EXISTS client_permissions (
@@ -51,9 +49,5 @@ CREATE INDEX IF NOT EXISTS idx_client_permissions_client_api_id ON client_permis
 CREATE INDEX IF NOT EXISTS idx_client_permissions_permission_id ON client_permissions (permission_id);
 `
 
-	if err := db.Exec(sql).Error; err != nil {
-		log.Fatalf("❌ Failed to run migration 014_create_client_permissions_table: %v", err)
-	}
-
-	log.Println("✅ Migration 014_create_client_permissions_table executed")
+	return db.Exec(sql).Error
 }

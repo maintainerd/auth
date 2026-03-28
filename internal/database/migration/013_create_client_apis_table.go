@@ -1,12 +1,10 @@
 package migration
 
 import (
-	"log"
-
 	"gorm.io/gorm"
 )
 
-func CreateClientAPIsTable(db *gorm.DB) {
+func CreateClientAPIsTable(db *gorm.DB) error {
 	sql := `
 -- CREATE TABLE
 CREATE TABLE IF NOT EXISTS client_apis (
@@ -51,9 +49,5 @@ CREATE INDEX IF NOT EXISTS idx_client_apis_client_id ON client_apis (client_id);
 CREATE INDEX IF NOT EXISTS idx_client_apis_api_id ON client_apis (api_id);
 `
 
-	if err := db.Exec(sql).Error; err != nil {
-		log.Fatalf("❌ Failed to run migration 013_create_client_apis_table: %v", err)
-	}
-
-	log.Println("✅ Migration 013_create_client_apis_table executed")
+	return db.Exec(sql).Error
 }

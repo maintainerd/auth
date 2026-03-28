@@ -1,12 +1,10 @@
 package migration
 
 import (
-	"log"
-
 	"gorm.io/gorm"
 )
 
-func CreateIdentityProviderTable(db *gorm.DB) {
+func CreateIdentityProviderTable(db *gorm.DB) error {
 	sql := `
 -- CREATE TABLE
 CREATE TABLE IF NOT EXISTS identity_providers (
@@ -75,9 +73,5 @@ CREATE INDEX IF NOT EXISTS idx_identity_providers_is_system ON identity_provider
 CREATE INDEX IF NOT EXISTS idx_identity_providers_tenant_id ON identity_providers (tenant_id);
 CREATE INDEX IF NOT EXISTS idx_identity_providers_created_at ON identity_providers (created_at);
 `
-	if err := db.Exec(sql).Error; err != nil {
-		log.Fatalf("❌ Failed to run migration 010_create_identity_providers_table: %v", err)
-	}
-
-	log.Println("✅ Migration 010_create_identity_providers_table executed")
+	return db.Exec(sql).Error
 }

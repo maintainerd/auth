@@ -1,12 +1,10 @@
 package migration
 
 import (
-	"log"
-
 	"gorm.io/gorm"
 )
 
-func CreateServiceLogsTable(db *gorm.DB) {
+func CreateServiceLogsTable(db *gorm.DB) error {
 	sql := `
 -- CREATE TABLE
 CREATE TABLE IF NOT EXISTS service_logs (
@@ -39,9 +37,5 @@ CREATE INDEX IF NOT EXISTS idx_service_logs_metadata ON service_logs (metadata);
 CREATE INDEX IF NOT EXISTS idx_service_logs_created_at ON service_logs (created_at);
 `
 
-	if err := db.Exec(sql).Error; err != nil {
-		log.Fatalf("❌ Failed to run migration 006_create_service_logs_table: %v", err)
-	}
-
-	log.Println("✅ Migration 006_create_service_logs_table executed")
+	return db.Exec(sql).Error
 }
