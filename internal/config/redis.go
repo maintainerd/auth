@@ -2,17 +2,20 @@ package config
 
 import (
 	"context"
-	"log"
+	"log/slog"
 	"time"
 
 	"github.com/redis/go-redis/v9"
 )
 
 func NewRedisClient() *redis.Client {
+	addr := GetEnvOrDefault("REDIS_ADDR", "redis-db:6379")
+	password := GetEnvOrDefault("REDIS_PASSWORD", "")
+
 	rdb := redis.NewClient(&redis.Options{
-		Addr:     "redis-db:6379", // Use "redis-db" inside Docker, or "localhost" from host
-		Password: "Pass123",
-		DB:       0, // use default DB
+		Addr:     addr,
+		Password: password,
+		DB:       0,
 	})
 
 	// Optional: ping to test connection
@@ -20,8 +23,10 @@ func NewRedisClient() *redis.Client {
 	defer cancel()
 
 	if err := rdb.Ping(ctx).Err(); err != nil {
-		log.Fatalf("Failed to connect to Redis: %v", err)
+		slog.Error("Failed to connect to Redis", "error", err, "addr", addr)
+		panic("redis connection failed")
 	}
 
+	slog.Info("Redis connected", "addr", addr)
 	return rdb
 }
