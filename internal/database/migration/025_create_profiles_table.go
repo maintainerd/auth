@@ -1,12 +1,10 @@
 package migration
 
 import (
-	"log"
-
 	"gorm.io/gorm"
 )
 
-func CreateProfileTable(db *gorm.DB) {
+func CreateProfileTable(db *gorm.DB) error {
 	sql := `
 -- CREATE TABLE
 CREATE TABLE IF NOT EXISTS profiles (
@@ -77,9 +75,5 @@ CREATE INDEX IF NOT EXISTS idx_profiles_email ON profiles (email);
 CREATE INDEX IF NOT EXISTS idx_profiles_display_name ON profiles (display_name);
 CREATE INDEX IF NOT EXISTS idx_profiles_created_at ON profiles (created_at);
 `
-	if err := db.Exec(sql).Error; err != nil {
-		log.Fatalf("❌ Failed to run migration 025_create_profiles_table: %v", err)
-	}
-
-	log.Println("✅ Migration 025_create_profiles_table executed")
+	return db.Exec(sql).Error
 }

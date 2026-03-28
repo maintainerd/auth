@@ -1,12 +1,10 @@
 package migration
 
 import (
-	"log"
-
 	"gorm.io/gorm"
 )
 
-func CreateUserSettingsTable(db *gorm.DB) {
+func CreateUserSettingsTable(db *gorm.DB) error {
 	sql := `
 -- CREATE TABLE
 CREATE TABLE IF NOT EXISTS user_settings (
@@ -83,9 +81,5 @@ COMMENT ON COLUMN user_settings.timezone IS 'User timezone (e.g., America/New_Yo
 COMMENT ON COLUMN user_settings.preferred_language IS 'ISO 639-1 language code (e.g., en, es, fr)';
 COMMENT ON COLUMN user_settings.locale IS 'Locale code (e.g., en_US, es_ES, fr_FR)';
 `
-	if err := db.Exec(sql).Error; err != nil {
-		log.Fatalf("❌ Failed to run migration 024_create_user_settings_table: %v", err)
-	}
-
-	log.Println("✅ Migration 024_create_user_settings_table executed")
+	return db.Exec(sql).Error
 }

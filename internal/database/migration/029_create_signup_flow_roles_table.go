@@ -1,12 +1,10 @@
 package migration
 
 import (
-	"log"
-
 	"gorm.io/gorm"
 )
 
-func CreateSignupFlowRoleTable(db *gorm.DB) {
+func CreateSignupFlowRoleTable(db *gorm.DB) error {
 	sql := `
 -- CREATE TABLE
 CREATE TABLE IF NOT EXISTS signup_flow_roles (
@@ -42,9 +40,5 @@ CREATE INDEX IF NOT EXISTS idx_signup_flow_roles_uuid ON signup_flow_roles (sign
 CREATE INDEX IF NOT EXISTS idx_signup_flow_roles_signup_flow_id ON signup_flow_roles (signup_flow_id);
 CREATE INDEX IF NOT EXISTS idx_signup_flow_roles_role_id ON signup_flow_roles (role_id);
 `
-	if err := db.Exec(sql).Error; err != nil {
-		log.Fatalf("❌ Failed to run migration 029_create_signup_flow_roles_table: %v", err)
-	}
-
-	log.Println("✅ Migration 029_create_signup_flow_roles_table executed")
+	return db.Exec(sql).Error
 }

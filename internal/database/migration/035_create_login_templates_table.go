@@ -1,12 +1,10 @@
 package migration
 
 import (
-	"log"
-
 	"gorm.io/gorm"
 )
 
-func CreateLoginTemplatesTable(db *gorm.DB) {
+func CreateLoginTemplatesTable(db *gorm.DB) error {
 	sql := `
 -- CREATE TABLE
 CREATE TABLE IF NOT EXISTS login_templates (
@@ -60,9 +58,5 @@ CREATE INDEX IF NOT EXISTS idx_login_templates_is_system ON login_templates (is_
 CREATE INDEX IF NOT EXISTS idx_login_templates_created_at ON login_templates (created_at);
 `
 
-	if err := db.Exec(sql).Error; err != nil {
-		log.Fatalf("❌ Failed to run migration 035_create_login_templates_table: %v", err)
-	}
-
-	log.Println("✅ Migration 035_create_login_templates_table executed")
+	return db.Exec(sql).Error
 }
