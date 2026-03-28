@@ -895,8 +895,8 @@ func (s *userService) GetUserIdentities(userUUID uuid.UUID) ([]UserIdentityServi
 	for i, identity := range identities {
 		// Load Client if needed
 		var Client *ClientServiceDataResult
-		if identity.Identifier > 0 {
-			ac, err := s.ClientRepo.FindByID(identity.Identifier)
+		if identity.ClientID > 0 {
+			ac, err := s.ClientRepo.FindByID(identity.ClientID)
 			if err == nil && ac != nil {
 				Client = ToClientServiceDataResult(ac)
 			}
