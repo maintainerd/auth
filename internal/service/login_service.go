@@ -155,7 +155,7 @@ func (s *loginService) LoginPublic(usernameOrEmail, password, clientID, provider
 		passwordValid = bcrypt.CompareHashAndPassword(hashedPassword, []byte(password)) == nil
 	} else {
 		// Perform dummy bcrypt operation to maintain consistent timing
-		bcrypt.CompareHashAndPassword(util.GenerateDummyBcryptHash(), []byte(password))
+		bcrypt.CompareHashAndPassword(util.GetDummyBcryptHash(), []byte(password))
 	}
 
 	// Check if authentication succeeded

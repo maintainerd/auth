@@ -35,15 +35,15 @@ func UserContextMiddleware(
 			// Create cache key
 			cacheKey := "user:" + sub + ":" + clientID
 
-			// Initialize context
-			ctx := context.Background()
+			// Use the request context so Redis calls respect cancellation/timeouts
+			ctx := r.Context()
 
 			// Define cache structure for user context
 			type UserContextCache struct {
 				User     *model.User             `json:"user"`
 				Tenant   *model.Tenant           `json:"tenant"`
 				Provider *model.IdentityProvider `json:"provider"`
-				Client   *model.Client       `json:"client"`
+				Client   *model.Client           `json:"client"`
 			}
 
 			var userContextCache *UserContextCache

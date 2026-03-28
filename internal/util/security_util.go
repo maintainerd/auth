@@ -42,16 +42,18 @@ Example:
 package util
 
 import (
+	"context"
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
-	"log"
+	"log/slog"
 	"net"
 	"regexp"
+	"strconv"
 	"strings"
-	"sync"
 	"time"
 
+	"github.com/redis/go-redis/v9"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -110,32 +112,22 @@ type LoginAttempt struct {
 
 // LogSecurityEvent logs security events for compliance monitoring
 // Complies with SOC2 CC7.2 (System Monitoring) and ISO27001 A.12.4.1
-//
-// CURRENT: Basic stdout logging for development
-// FUTURE: Will be enhanced with centralized logging, database storage, and SIEM integration
 func LogSecurityEvent(event SecurityEvent) {
-	// Set default severity if not specified
 	if event.Severity == "" {
 		event.Severity = determineSeverity(event.EventType)
 	}
 
-	// Basic structured logging to stdout (development)
-	log.Printf("[SECURITY] %s | %s | %s | %s | %s | %s",
-		event.Timestamp.Format(time.RFC3339),
-		event.EventType,
-		event.Severity,
-		event.ClientIP,
-		event.UserID,
-		event.Details,
+	slog.Info("security_event",
+		"event_type", event.EventType,
+		"severity", event.Severity,
+		"client_ip", event.ClientIP,
+		"user_id", event.UserID,
+		"request_id", event.RequestID,
+		"endpoint", event.Endpoint,
+		"method", event.Method,
+		"details", event.Details,
+		"timestamp", event.Timestamp.Format(time.RFC3339),
 	)
-
-	// TODO: Future production enhancements:
-	// - JSON structured logging for container environments
-	// - Database storage for audit trail and compliance
-	// - SIEM integration (Splunk, ELK, Datadog, etc.)
-	// - Real-time alerting for high-severity events
-	// - Log retention and archival policies
-	// - Encrypted log transmission for sensitive events
 }
 
 // determineSeverity assigns severity levels to security events
@@ -316,73 +308,79 @@ func RateLimitKey(identifier, action string) string {
 	return fmt.Sprintf("rate_limit:%s:%s", action, identifier)
 }
 
-// GenerateDummyBcryptHash generates a dummy bcrypt hash for timing-safe operations
-// This prevents timing attacks by ensuring consistent bcrypt operation duration
-// regardless of whether a user exists or not.
+// dummyBcryptHash is pre-computed once at startup for timing-safe operations.
 // Complies with SOC2 CC6.1 and ISO27001 A.9.4.2
-func GenerateDummyBcryptHash() []byte {
-	dummyHash, err := bcrypt.GenerateFromPassword([]byte("dummy_password_for_timing_safety"), bcrypt.DefaultCost)
+var dummyBcryptHash []byte
+
+func init() {
+	h, err := bcrypt.GenerateFromPassword([]byte("dummy_password_for_timing_safety"), bcrypt.DefaultCost)
 	if err != nil {
-		// Fallback to a hardcoded valid bcrypt hash if generation fails
-		// This should never happen, but provides a safety net
-		return []byte("$2a$10$dummy.hash.to.prevent.timing.attacks.fallback")
+		panic("failed to pre-compute dummy bcrypt hash: " + err.Error())
 	}
-	return dummyHash
+	dummyBcryptHash = h
+}
+
+// GetDummyBcryptHash returns the pre-computed dummy bcrypt hash for timing-safe operations.
+func GetDummyBcryptHash() []byte {
+	return dummyBcryptHash
 }
 
 // ============================================================================
-// RATE LIMITING
+// RATE LIMITING (Redis-backed — works across multiple instances)
 // ============================================================================
-// Functions and storage for rate limiting and account lockout protection
+// SOC2 CC6.1, ISO27001 A.9.4.2
 
-// Global rate limiting storage (in production, use Redis or database)
-var (
-	loginAttempts = make(map[string]*LoginAttempt)
-	attemptsMutex = sync.RWMutex{}
-)
+// rateLimiterClient holds the Redis client used for rate limiting.
+// Initialised once at startup via InitRateLimiter.
+var rateLimiterClient *redis.Client
 
-// CheckRateLimit implements rate limiting and account lockout
+// InitRateLimiter wires the Redis client for rate limiting.
+// Must be called before CheckRateLimit / RecordFailedAttempt / ResetFailedAttempts.
+func InitRateLimiter(rdb *redis.Client) {
+	rateLimiterClient = rdb
+}
+
+func rateLimitCountKey(identifier string) string {
+	return "rl:count:" + identifier
+}
+
+func rateLimitLockKey(identifier string) string {
+	return "rl:lock:" + identifier
+}
+
+// CheckRateLimit returns an error if the identifier is currently locked out.
 // Complies with SOC2 CC6.1 and ISO27001 A.9.4.2
 func CheckRateLimit(identifier string) error {
-	attemptsMutex.Lock()
-	defer attemptsMutex.Unlock()
-
-	now := time.Now()
-
-	// Get or create login attempt record
-	attempt, exists := loginAttempts[identifier]
-	if !exists {
-		loginAttempts[identifier] = &LoginAttempt{
-			Identifier:  identifier,
-			Attempts:    0,
-			LastAttempt: now,
-		}
-		return nil
+	if rateLimiterClient == nil {
+		return nil // graceful degradation during unit tests that skip InitRateLimiter
 	}
 
-	// Check if account is currently locked
-	if attempt.LockedUntil != nil && now.Before(*attempt.LockedUntil) {
-		remainingTime := attempt.LockedUntil.Sub(now)
-		return fmt.Errorf("account is locked for %v due to too many failed login attempts", remainingTime.Round(time.Minute))
+	ctx := context.Background()
+
+	// Check lock key first
+	lockVal, err := rateLimiterClient.Get(ctx, rateLimitLockKey(identifier)).Result()
+	if err == nil && lockVal != "" {
+		// Parse remaining TTL for a useful error message
+		ttl, _ := rateLimiterClient.TTL(ctx, rateLimitLockKey(identifier)).Result()
+		return fmt.Errorf("account is locked for %v due to too many failed login attempts", ttl.Round(time.Minute))
 	}
 
-	// Reset attempts if outside the time window
-	if now.Sub(attempt.LastAttempt) > LoginAttemptWindow {
-		attempt.Attempts = 0
-		attempt.LockedUntil = nil
+	// Count check
+	countStr, err := rateLimiterClient.Get(ctx, rateLimitCountKey(identifier)).Result()
+	if err != nil {
+		return nil // key absent ⇒ no attempts yet
 	}
+	count, _ := strconv.Atoi(countStr)
+	if count >= MaxLoginAttempts {
+		// Promote to lockout
+		_ = rateLimiterClient.Set(ctx, rateLimitLockKey(identifier), "1", AccountLockoutTime).Err()
+		_ = rateLimiterClient.Del(ctx, rateLimitCountKey(identifier)).Err()
 
-	// Check if maximum attempts exceeded
-	if attempt.Attempts >= MaxLoginAttempts {
-		lockUntil := now.Add(AccountLockoutTime)
-		attempt.LockedUntil = &lockUntil
-
-		// Log security event
 		LogSecurityEvent(SecurityEvent{
 			EventType: "account_locked",
 			UserID:    identifier,
-			Timestamp: now,
-			Details:   fmt.Sprintf("Account locked after %d failed login attempts", attempt.Attempts),
+			Timestamp: time.Now(),
+			Details:   fmt.Sprintf("Account locked after %d failed login attempts", count),
 		})
 
 		return fmt.Errorf("account locked for %v due to too many failed login attempts", AccountLockoutTime)
@@ -391,40 +389,26 @@ func CheckRateLimit(identifier string) error {
 	return nil
 }
 
-// RecordFailedAttempt records a failed login attempt
+// RecordFailedAttempt increments the failure counter in Redis with a sliding window TTL.
 func RecordFailedAttempt(identifier string) {
-	attemptsMutex.Lock()
-	defer attemptsMutex.Unlock()
-
-	now := time.Now()
-
-	attempt, exists := loginAttempts[identifier]
-	if !exists {
-		loginAttempts[identifier] = &LoginAttempt{
-			Identifier:  identifier,
-			Attempts:    1,
-			LastAttempt: now,
-		}
+	if rateLimiterClient == nil {
 		return
 	}
-
-	// Reset if outside time window
-	if now.Sub(attempt.LastAttempt) > LoginAttemptWindow {
-		attempt.Attempts = 1
-		attempt.LockedUntil = nil
-	} else {
-		attempt.Attempts++
-	}
-
-	attempt.LastAttempt = now
+	ctx := context.Background()
+	key := rateLimitCountKey(identifier)
+	pipe := rateLimiterClient.Pipeline()
+	pipe.Incr(ctx, key)
+	pipe.Expire(ctx, key, LoginAttemptWindow)
+	_, _ = pipe.Exec(ctx)
 }
 
-// ResetFailedAttempts clears failed attempts after successful login
+// ResetFailedAttempts clears all rate-limit state after a successful login.
 func ResetFailedAttempts(identifier string) {
-	attemptsMutex.Lock()
-	defer attemptsMutex.Unlock()
-
-	delete(loginAttempts, identifier)
+	if rateLimiterClient == nil {
+		return
+	}
+	ctx := context.Background()
+	_ = rateLimiterClient.Del(ctx, rateLimitCountKey(identifier), rateLimitLockKey(identifier)).Err()
 }
 
 // ============================================================================

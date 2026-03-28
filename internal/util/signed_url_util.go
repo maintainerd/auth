@@ -3,7 +3,7 @@ Package util provides signed URL utilities for secure link generation and valida
 
 This module implements cryptographically signed URLs for secure operations like:
 - Email verification links
-- Password reset links  
+- Password reset links
 - Invite registration links
 - Time-limited access URLs
 
@@ -18,6 +18,7 @@ COMPLIANCE:
 - ISO27001 A.13.2.1 (Information Transfer)
 
 USAGE:
+
 	// Generate a signed URL
 	params := map[string]string{"invite_token": "abc123"}
 	signedURL, err := util.GenerateSignedURL(baseURL, params, 24*time.Hour)
@@ -37,6 +38,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"net/url"
+	"os"
 	"sort"
 	"strconv"
 	"strings"
@@ -47,9 +49,15 @@ import (
 // CONFIGURATION
 // ============================================================================
 
-// Secret key for HMAC signing (should be loaded from config in production)
-// TODO: Load from environment/config for production security
-var secretKey = []byte("super-secret-key")
+// hmacSecretKey returns the HMAC signing key, loaded from the HMAC_SECRET_KEY
+// environment variable. Panics at startup if the variable is unset or empty.
+func hmacSecretKey() []byte {
+	key := os.Getenv("HMAC_SECRET_KEY")
+	if key == "" {
+		panic("HMAC_SECRET_KEY environment variable is required but not set")
+	}
+	return []byte(key)
+}
 
 // ============================================================================
 // PUBLIC API
@@ -157,7 +165,7 @@ func ComputeSignature(values url.Values) string {
 	data := strings.TrimRight(sb.String(), "&")
 
 	// Compute HMAC SHA256
-	mac := hmac.New(sha256.New, secretKey)
+	mac := hmac.New(sha256.New, hmacSecretKey())
 	mac.Write([]byte(data))
 	return base64.URLEncoding.EncodeToString(mac.Sum(nil))
 }

@@ -1,8 +1,9 @@
 package grpcserver
 
 import (
-	"log"
+	"log/slog"
 	"net"
+	"os"
 
 	"github.com/maintainerd/auth/internal/app"
 	authv1 "github.com/maintainerd/auth/internal/gen/go/auth/v1"
@@ -12,14 +13,16 @@ import (
 func StartGRPCServer(app *app.App) {
 	lis, err := net.Listen("tcp", ":50051")
 	if err != nil {
-		log.Fatalf("Failed to listen: %v", err)
+		slog.Error("gRPC failed to listen", "error", err)
+		os.Exit(1)
 	}
 
 	s := grpc.NewServer()
 	authv1.RegisterSeederServiceServer(s, app.SeederHandler)
 
-	log.Println("gRPC server running on port 50051")
+	slog.Info("gRPC server starting", "addr", ":50051")
 	if err := s.Serve(lis); err != nil {
-		log.Fatalf("Failed to serve: %v", err)
+		slog.Error("gRPC server failed", "error", err)
+		os.Exit(1)
 	}
 }

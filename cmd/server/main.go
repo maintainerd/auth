@@ -1,23 +1,28 @@
 package main
 
 import (
-	"log"
+	"log/slog"
+	"os"
 
 	"github.com/maintainerd/auth/internal/app"
 	"github.com/maintainerd/auth/internal/config"
 	grpcserver "github.com/maintainerd/auth/internal/grpc"
 	restserver "github.com/maintainerd/auth/internal/rest"
-	"github.com/maintainerd/auth/internal/startup"
+	"github.com/maintainerd/auth/internal/runner"
 	"github.com/maintainerd/auth/internal/util"
 )
 
 func main() {
+	// Configure structured JSON logging for container environments
+	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stdout, nil)))
+
 	// ⚙️ Load configurations
 	config.Init()
 
 	// ⚙️ Parse RSA keys (required for token signing)
 	if err := util.InitJWTKeys(); err != nil {
-		log.Fatalf("❌ Failed to initialize JWT keys: %v", err)
+		slog.Error("Failed to initialize JWT keys", "error", err)
+		os.Exit(1)
 	}
 
 	// ⚙️ Load database
@@ -26,8 +31,11 @@ func main() {
 	// ⚙️ Load Redis
 	redisClient := config.NewRedisClient()
 
-	// ⚙️ App startup routines (migrations, seeding, etc.)
-	startup.RunAppStartUp(db)
+	// ⚙️ Wire Redis-backed rate limiter
+	util.InitRateLimiter(redisClient)
+
+	// ⚙️ Run database migrations
+	runner.RunMigrations(db)
 
 	// ⚙️ App wiring (handlers, services, etc.)
 	application := app.NewApp(db, redisClient)
@@ -35,6 +43,6 @@ func main() {
 	// 🚀 gRPC server (background)
 	go grpcserver.StartGRPCServer(application)
 
-	// 🚀 Universal REST server (all routes available)
+	// 🚀 REST servers with graceful shutdown
 	restserver.StartRESTServer(application)
 }

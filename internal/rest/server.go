@@ -1,9 +1,13 @@
 package restserver
 
 import (
-	"log"
+	"context"
+	"log/slog"
 	"net/http"
+	"os"
+	"os/signal"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -14,26 +18,74 @@ import (
 )
 
 func StartRESTServer(application *app.App) {
+	internalSrv := &http.Server{
+		Addr:         ":8080",
+		Handler:      buildInternalRouter(application),
+		ReadTimeout:  15 * time.Second,
+		WriteTimeout: 60 * time.Second,
+		IdleTimeout:  120 * time.Second,
+	}
+
+	publicSrv := &http.Server{
+		Addr:         ":8081",
+		Handler:      buildPublicRouter(application),
+		ReadTimeout:  15 * time.Second,
+		WriteTimeout: 60 * time.Second,
+		IdleTimeout:  120 * time.Second,
+	}
+
+	// Start both servers in background goroutines
 	var wg sync.WaitGroup
 	wg.Add(2)
 
-	// Start internal server (port 8080) - VPN access only
 	go func() {
 		defer wg.Done()
-		startInternalServer(application)
+		slog.Info("Internal REST server starting", "addr", internalSrv.Addr)
+		if err := internalSrv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			slog.Error("Internal REST server error", "error", err)
+			os.Exit(1)
+		}
 	}()
 
-	// Start public server (port 8081) - Public access
 	go func() {
 		defer wg.Done()
-		startPublicServer(application)
+		slog.Info("Public REST server starting", "addr", publicSrv.Addr)
+		if err := publicSrv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			slog.Error("Public REST server error", "error", err)
+			os.Exit(1)
+		}
 	}()
+
+	// Block until OS signal received
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, os.Interrupt, syscall.SIGTERM)
+	<-quit
+
+	slog.Info("Shutdown signal received, draining connections...")
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	var shutdownErr error
+	if err := internalSrv.Shutdown(ctx); err != nil {
+		shutdownErr = err
+		slog.Error("Internal server shutdown error", "error", err)
+	}
+	if err := publicSrv.Shutdown(ctx); err != nil {
+		shutdownErr = err
+		slog.Error("Public server shutdown error", "error", err)
+	}
 
 	wg.Wait()
+
+	if shutdownErr != nil {
+		os.Exit(1)
+	}
+	slog.Info("Servers stopped cleanly")
 }
 
-// startInternalServer starts the internal server on port 8080 for VPN access
-func startInternalServer(application *app.App) {
+// buildInternalRouter constructs the chi router for the internal API (port 8080, VPN access only).
+func buildInternalRouter(application *app.App) http.Handler {
 	r := chi.NewRouter()
 
 	// Built-in Chi middlewares
@@ -47,6 +99,10 @@ func startInternalServer(application *app.App) {
 	// Global DoS protection with reasonable limits
 	r.Use(securityMiddleware.RequestSizeLimitMiddleware(10 * 1024 * 1024)) // 10MB global limit
 	r.Use(securityMiddleware.TimeoutMiddleware(60 * time.Second))          // 60s global timeout
+
+	// Health / readiness probes (no auth, no rate-limit)
+	r.Get("/health", handleHealth)
+	r.Get("/ready", handleReady)
 
 	r.Route("/api/v1", func(api chi.Router) {
 		// Setup Routes (no authentication required)
@@ -80,14 +136,11 @@ func startInternalServer(application *app.App) {
 		route.LoginTemplateRoute(api, application.LoginTemplateRestHandler, application.UserRepository, application.RedisClient)
 	})
 
-	log.Println("Internal REST server running on port 8080 (VPN access)")
-	if err := http.ListenAndServe(":8080", r); err != nil {
-		log.Fatal("Internal REST server failed:", err)
-	}
+	return r
 }
 
-// startPublicServer starts the public server on port 8081 for public access
-func startPublicServer(application *app.App) {
+// buildPublicRouter constructs the chi router for the public API (port 8081, public internet).
+func buildPublicRouter(application *app.App) http.Handler {
 	r := chi.NewRouter()
 
 	// Built-in Chi middlewares
@@ -102,6 +155,10 @@ func startPublicServer(application *app.App) {
 	r.Use(securityMiddleware.RequestSizeLimitMiddleware(10 * 1024 * 1024)) // 10MB global limit
 	r.Use(securityMiddleware.TimeoutMiddleware(60 * time.Second))          // 60s global timeout
 
+	// Health / readiness probes (no auth, no rate-limit)
+	r.Get("/health", handleHealth)
+	r.Get("/ready", handleReady)
+
 	r.Route("/api/v1", func(api chi.Router) {
 		// Public Tenant Routes (no authentication required - for login page)
 		route.TenantRoute(api, application.TenantRestHandler, application.UserRepository, application.RedisClient)
@@ -115,8 +172,21 @@ func startPublicServer(application *app.App) {
 		route.UserSettingRoute(api, application.UserSettingRestHandler, application.UserRepository, application.RedisClient)
 	})
 
-	log.Println("Public REST server running on port 8081 (Public access)")
-	if err := http.ListenAndServe(":8081", r); err != nil {
-		log.Fatal("Public REST server failed:", err)
-	}
+	return r
+}
+
+// handleHealth responds to liveness probes. Always returns 200 OK when the
+// process is running — no dependency checks.
+func handleHealth(w http.ResponseWriter, _ *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte(`{"status":"ok"}`)) //nolint:errcheck
+}
+
+// handleReady responds to readiness probes. Returns 200 OK once the server is
+// up and ready to accept traffic.
+func handleReady(w http.ResponseWriter, _ *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte(`{"status":"ready"}`)) //nolint:errcheck
 }

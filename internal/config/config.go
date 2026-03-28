@@ -1,7 +1,8 @@
 package config
 
 import (
-	"log"
+	"log/slog"
+	"os"
 	"strconv"
 
 	"github.com/joho/godotenv"
@@ -46,7 +47,7 @@ var (
 func Init() {
 	// Load environment variables first
 	if err := godotenv.Load(); err != nil {
-		log.Println("⚠️ .env file not found, relying on environment variables")
+		slog.Warn(".env file not found, relying on environment variables")
 	}
 
 	// Initialize secret management configuration first
@@ -55,7 +56,8 @@ func Init() {
 
 	// Validate secret provider configuration
 	if err := ValidateSecretProvider(); err != nil {
-		log.Fatalf("❌ Secret provider validation failed: %v", err)
+		slog.Error("Secret provider validation failed", "error", err)
+		os.Exit(1)
 	}
 	// App Config
 	AppVersion = GetEnv("APP_VERSION")
@@ -67,19 +69,21 @@ func Init() {
 	AuthHostname = GetEnv("AUTH_HOSTNAME")
 
 	// JWT Config - Load from appropriate secret provider
-	log.Println("🔐 Loading JWT keys from secret provider...")
+	slog.Info("Loading JWT keys from secret provider")
 	var err error
 	JWTPrivateKey, err = loadSecret("JWT_PRIVATE_KEY")
 	if err != nil {
-		log.Fatalf("❌ Failed to load JWT private key: %v", err)
+		slog.Error("Failed to load JWT private key", "error", err)
+		os.Exit(1)
 	}
 
 	JWTPublicKey, err = loadSecret("JWT_PUBLIC_KEY")
 	if err != nil {
-		log.Fatalf("❌ Failed to load JWT public key: %v", err)
+		slog.Error("Failed to load JWT public key", "error", err)
+		os.Exit(1)
 	}
 
-	log.Println("✅ JWT keys loaded successfully")
+	slog.Info("JWT keys loaded successfully")
 
 	// DB Config
 	DBHost = GetEnv("DB_HOST")
@@ -94,7 +98,8 @@ func Init() {
 	portStr := GetEnv("SMTP_PORT")
 	port, err := strconv.Atoi(portStr)
 	if err != nil {
-		log.Fatalf("❌ Invalid SMTP_PORT: %v", err)
+		slog.Error("Invalid SMTP_PORT", "error", err)
+		os.Exit(1)
 	}
 	SMTPPort = port
 	SMTPUser = GetEnv("SMTP_USER")
