@@ -49,6 +49,7 @@ services:
       - auth
     networks:
       - default
+    restart: unless-stopped
 
   postgres-db:
     image: postgres:17
