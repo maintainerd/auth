@@ -133,13 +133,13 @@ func (h *RegisterHandler) RegisterPublic(w http.ResponseWriter, r *http.Request)
 
 	// Public registration attempt (requires client_id and provider_id)
 	tokenResponse, err := h.registerService.RegisterPublic(
-		req.Username, req.Fullname, req.Password, req.Email, req.Phone, q.Identifier, q.ProviderID,
+		req.Username, req.Fullname, req.Password, req.Email, req.Phone, q.ClientID, q.ProviderID,
 	)
 	if err != nil {
 		util.LogSecurityEvent(util.SecurityEvent{
 			EventType: "registration_failure",
 			UserID:    req.Username,
-			ClientID:  q.Identifier,
+			ClientID:  q.ClientID,
 			ClientIP:  clientIPStr,
 			UserAgent: userAgentStr,
 			RequestID: requestIDStr,
@@ -157,7 +157,7 @@ func (h *RegisterHandler) RegisterPublic(w http.ResponseWriter, r *http.Request)
 	util.LogSecurityEvent(util.SecurityEvent{
 		EventType: "registration_success",
 		UserID:    req.Username,
-		ClientID:  q.Identifier,
+		ClientID:  q.ClientID,
 		ClientIP:  clientIPStr,
 		UserAgent: userAgentStr,
 		RequestID: requestIDStr,
@@ -356,7 +356,7 @@ func (h *RegisterHandler) RegisterInvitePublic(w http.ResponseWriter, r *http.Re
 	tokenResponse, err := h.registerService.RegisterInvitePublic(
 		req.Username,
 		req.Password,
-		q.Identifier,
+		q.ClientID,
 		q.ProviderID,
 		q.InviteToken,
 	)
