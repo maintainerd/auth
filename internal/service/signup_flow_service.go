@@ -97,7 +97,7 @@ func (s *signupFlowService) GetAll(tenantID int64, name, identifier *string, sta
 		if err != nil || Client == nil {
 			return nil, errors.New("auth client not found")
 		}
-		ClientID = &Client.Identifier
+		ClientID = &Client.ClientID
 	}
 
 	filter := repository.SignupFlowRepositoryGetFilter{
@@ -195,7 +195,7 @@ func (s *signupFlowService) Create(tenantID int64, name, description string, con
 			Identifier:  identifier,
 			Config:      configJSON,
 			Status:      status,
-			ClientID: Client.ClientID,
+			ClientID:    Client.ClientID,
 		}
 
 		created, err := txSignupFlowRepo.Create(signupFlow)

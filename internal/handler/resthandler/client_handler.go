@@ -185,8 +185,8 @@ func (h *ClientHandler) GetSecretByUUID(w http.ResponseWriter, r *http.Request) 
 	}
 
 	dtoRes := dto.ClientSecretResponseDto{
-		ClientID: Client.ClientID,
-		ClientSecret: Client.Secret,
+		ClientID:     Client.ClientID,
+		ClientSecret: Client.ClientSecret,
 	}
 
 	util.Success(w, dtoRes, "Auth client secret fetched successfully")

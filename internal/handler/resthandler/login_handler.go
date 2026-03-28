@@ -121,13 +121,13 @@ func (h *LoginHandler) LoginPublic(w http.ResponseWriter, r *http.Request) {
 
 	// Public login attempt (requires client_id and provider_id)
 	tokenResponse, err := h.loginService.LoginPublic(
-		req.Username, req.Password, q.Identifier, q.ProviderID,
+		req.Username, req.Password, q.ClientID, q.ProviderID,
 	)
 	if err != nil {
 		util.LogSecurityEvent(util.SecurityEvent{
 			EventType: "login_failure",
 			UserID:    req.Username,
-			ClientID:  q.Identifier,
+			ClientID:  q.ClientID,
 			ClientIP:  clientIPStr,
 			UserAgent: userAgentStr,
 			RequestID: requestIDStr,
@@ -145,7 +145,7 @@ func (h *LoginHandler) LoginPublic(w http.ResponseWriter, r *http.Request) {
 	util.LogSecurityEvent(util.SecurityEvent{
 		EventType: "login_success",
 		UserID:    req.Username,
-		ClientID:  q.Identifier,
+		ClientID:  q.ClientID,
 		ClientIP:  clientIPStr,
 		UserAgent: userAgentStr,
 		RequestID: requestIDStr,
