@@ -1,12 +1,10 @@
 package migration
 
 import (
-	"log"
-
 	"gorm.io/gorm"
 )
 
-func CreateServicePoliciesTable(db *gorm.DB) {
+func CreateServicePoliciesTable(db *gorm.DB) error {
 	sql := `
 -- CREATE TABLE
 CREATE TABLE IF NOT EXISTS service_policies (
@@ -43,9 +41,5 @@ CREATE INDEX IF NOT EXISTS idx_service_policies_service_id ON service_policies (
 CREATE INDEX IF NOT EXISTS idx_service_policies_policy_id ON service_policies (policy_id);
 `
 
-	if err := db.Exec(sql).Error; err != nil {
-		log.Fatalf("❌ Failed to run migration 005_create_service_policies_table: %v", err)
-	}
-
-	log.Println("✅ Migration 005_create_service_policies_table executed")
+	return db.Exec(sql).Error
 }

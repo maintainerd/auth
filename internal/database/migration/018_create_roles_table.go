@@ -1,12 +1,10 @@
 package migration
 
 import (
-	"log"
-
 	"gorm.io/gorm"
 )
 
-func CreateRoleTable(db *gorm.DB) {
+func CreateRoleTable(db *gorm.DB) error {
 	sql := `
 -- CREATE TABLE
 CREATE TABLE IF NOT EXISTS roles (
@@ -51,9 +49,5 @@ CREATE INDEX IF NOT EXISTS idx_roles_is_system ON roles (is_system);
 CREATE INDEX IF NOT EXISTS idx_roles_tenant_id ON roles (tenant_id);
 CREATE INDEX IF NOT EXISTS idx_roles_created_at ON roles (created_at);
 `
-	if err := db.Exec(sql).Error; err != nil {
-		log.Fatalf("❌ Failed to run migration 018_create_roles_table: %v", err)
-	}
-
-	log.Println("✅ Migration 018_create_roles_table executed")
+	return db.Exec(sql).Error
 }

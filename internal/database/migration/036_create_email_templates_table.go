@@ -1,12 +1,10 @@
 package migration
 
 import (
-	"log"
-
 	"gorm.io/gorm"
 )
 
-func CreateEmailTemplatesTable(db *gorm.DB) {
+func CreateEmailTemplatesTable(db *gorm.DB) error {
 	sql := `
 -- CREATE TABLE
 CREATE TABLE IF NOT EXISTS email_templates (
@@ -47,9 +45,5 @@ CREATE INDEX IF NOT EXISTS idx_email_templates_is_system ON email_templates (is_
 CREATE INDEX IF NOT EXISTS idx_email_templates_created_at ON email_templates (created_at);
 `
 
-	if err := db.Exec(sql).Error; err != nil {
-		log.Fatalf("❌ Failed to run migration 036_create_email_templates_table: %v", err)
-	}
-
-	log.Println("✅ Migration 036_create_email_templates_table executed")
+	return db.Exec(sql).Error
 }

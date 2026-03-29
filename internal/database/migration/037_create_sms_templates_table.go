@@ -1,12 +1,10 @@
 package migration
 
 import (
-	"log"
-
 	"gorm.io/gorm"
 )
 
-func CreateSmsTemplatesTable(db *gorm.DB) {
+func CreateSmsTemplatesTable(db *gorm.DB) error {
 	sql := `
 -- CREATE TABLE
 CREATE TABLE IF NOT EXISTS sms_templates (
@@ -59,9 +57,5 @@ CREATE INDEX IF NOT EXISTS idx_sms_templates_is_system ON sms_templates (is_syst
 CREATE INDEX IF NOT EXISTS idx_sms_templates_created_at ON sms_templates (created_at);
 `
 
-	if err := db.Exec(sql).Error; err != nil {
-		log.Fatalf("❌ Failed to run migration 037_create_sms_templates_table: %v", err)
-	}
-
-	log.Println("✅ Migration 037_create_sms_templates_table executed")
+	return db.Exec(sql).Error
 }

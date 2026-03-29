@@ -1,12 +1,10 @@
 package migration
 
 import (
-	"log"
-
 	"gorm.io/gorm"
 )
 
-func CreateAPIKeyApiTable(db *gorm.DB) {
+func CreateAPIKeyApiTable(db *gorm.DB) error {
 	sql := `
 -- CREATE TABLE
 CREATE TABLE IF NOT EXISTS api_key_apis (
@@ -51,9 +49,5 @@ CREATE INDEX IF NOT EXISTS idx_api_key_apis_api_key_id ON api_key_apis (api_key_
 CREATE INDEX IF NOT EXISTS idx_api_key_apis_api_id ON api_key_apis (api_id);
 `
 
-	if err := db.Exec(sql).Error; err != nil {
-		log.Fatalf("❌ Failed to run migration 016_create_api_key_apis_table: %v", err)
-	}
-
-	log.Println("✅ Migration 016_create_api_key_apis_table executed")
+	return db.Exec(sql).Error
 }

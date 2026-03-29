@@ -1,12 +1,10 @@
 package migration
 
 import (
-	"log"
-
 	"gorm.io/gorm"
 )
 
-func CreateTenantMembersTable(db *gorm.DB) {
+func CreateTenantMembersTable(db *gorm.DB) error {
 	sql := `
 -- CREATE TABLE
 CREATE TABLE IF NOT EXISTS tenant_members (
@@ -71,9 +69,5 @@ CREATE INDEX IF NOT EXISTS idx_tenant_members_tenant_id ON tenant_members (tenan
 CREATE INDEX IF NOT EXISTS idx_tenant_members_user_id ON tenant_members (user_id);
 CREATE INDEX IF NOT EXISTS idx_tenant_members_created_at ON tenant_members (created_at);
 `
-	if err := db.Exec(sql).Error; err != nil {
-		log.Fatalf("❌ Failed to run migration 027_create_tenant_members_table: %v", err)
-	}
-
-	log.Println("✅ Migration 027_create_tenant_members_table executed")
+	return db.Exec(sql).Error
 }

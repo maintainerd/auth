@@ -1,12 +1,10 @@
 package migration
 
 import (
-	"log"
-
 	"gorm.io/gorm"
 )
 
-func CreatePermissionTable(db *gorm.DB) {
+func CreatePermissionTable(db *gorm.DB) error {
 	sql := `
 -- CREATE TABLE
 CREATE TABLE IF NOT EXISTS permissions (
@@ -53,9 +51,5 @@ CREATE INDEX IF NOT EXISTS idx_permissions_is_default ON permissions (is_default
 CREATE INDEX IF NOT EXISTS idx_permissions_is_system ON permissions (is_system);
 CREATE INDEX IF NOT EXISTS idx_permissions_created_at ON permissions (created_at);
 `
-	if err := db.Exec(sql).Error; err != nil {
-		log.Fatalf("❌ Failed to run migration 008_create_permissions_table: %v", err)
-	}
-
-	log.Println("✅ Migration 008_create_permissions_table executed")
+	return db.Exec(sql).Error
 }
