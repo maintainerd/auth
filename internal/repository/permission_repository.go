@@ -121,7 +121,13 @@ func (r *permissionRepository) FindPaginated(filter PermissionRepositoryGetFilte
 		return nil, err
 	}
 
-	// Pagination
+	// Pagination guards prevent division-by-zero and negative offsets
+	if filter.Page < 1 {
+		filter.Page = 1
+	}
+	if filter.Limit < 1 {
+		filter.Limit = 10
+	}
 	offset := (filter.Page - 1) * filter.Limit
 	var permissions []model.Permission
 	if err := query.Preload("API").Limit(filter.Limit).Offset(offset).Find(&permissions).Error; err != nil {

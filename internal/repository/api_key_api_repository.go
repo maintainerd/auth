@@ -89,7 +89,13 @@ func (r *apiKeyApiRepository) FindByAPIKeyUUIDPaginated(apiKeyUUID uuid.UUID, pa
 		query = query.Order("api_key_apis.created_at DESC") // Default sorting
 	}
 
-	// Apply pagination
+	// Pagination guards prevent division-by-zero and negative offsets
+	if page < 1 {
+		page = 1
+	}
+	if limit < 1 {
+		limit = 10
+	}
 	offset := (page - 1) * limit
 	if err := query.Limit(limit).Offset(offset).Find(&apiKeyApis).Error; err != nil {
 		return nil, err
