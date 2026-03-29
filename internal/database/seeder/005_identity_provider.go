@@ -1,7 +1,7 @@
 package seeder
 
 import (
-	"log"
+	"log/slog"
 
 	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/model"
@@ -19,12 +19,12 @@ func SeedIdentityProviders(db *gorm.DB, tenantID int64) (*model.IdentityProvider
 		First(&existing).Error
 
 	if err == nil {
-		log.Printf("⚠️ Default identity provider already exists (ID: %d)", existing.IdentityProviderID)
+		slog.Info("Default identity provider already exists, skipping", "id", existing.IdentityProviderID)
 		return &existing, nil
 	}
 
 	if err != gorm.ErrRecordNotFound {
-		log.Printf("❌ Error checking default identity provider: %v", err)
+		slog.Error("Error checking default identity provider", "error", err)
 		return nil, err
 	}
 
@@ -56,10 +56,10 @@ func SeedIdentityProviders(db *gorm.DB, tenantID int64) (*model.IdentityProvider
 	}
 
 	if err := db.Create(&provider).Error; err != nil {
-		log.Printf("❌ Failed to seed default identity provider: %v", err)
+		slog.Error("Failed to seed default identity provider", "error", err)
 		return nil, err
 	}
 
-	log.Printf("✅ Default identity provider seeded successfully (ID: %d)", provider.IdentityProviderID)
+	slog.Info("Default identity provider seeded", "id", provider.IdentityProviderID)
 	return &provider, nil
 }

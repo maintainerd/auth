@@ -1,7 +1,7 @@
 package seeder
 
 import (
-	"log"
+	"log/slog"
 
 	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/model"
@@ -50,22 +50,22 @@ func SeedRoles(db *gorm.DB, tenantID int64) (map[string]model.Role, error) {
 			First(&existing).Error
 
 		if err == nil {
-			log.Printf("⚠️ Role '%s' already exists (ID: %d)", roleDef.role.Name, existing.RoleID)
+			slog.Info("Role already exists, skipping", "name", roleDef.role.Name, "id", existing.RoleID)
 			roleMap[roleDef.key] = existing
 			continue
 		}
 
 		if err != gorm.ErrRecordNotFound {
-			log.Printf("❌ Error checking role '%s': %v", roleDef.role.Name, err)
+			slog.Error("Error checking role", "name", roleDef.role.Name, "error", err)
 			return nil, err
 		}
 
 		if err := db.Create(&roleDef.role).Error; err != nil {
-			log.Printf("❌ Failed to seed role '%s': %v", roleDef.role.Name, err)
+			slog.Error("Failed to seed role", "name", roleDef.role.Name, "error", err)
 			return nil, err
 		}
 
-		log.Printf("✅ Role '%s' seeded successfully (ID: %d)", roleDef.role.Name, roleDef.role.RoleID)
+		slog.Info("Role seeded", "name", roleDef.role.Name, "id", roleDef.role.RoleID)
 		roleMap[roleDef.key] = roleDef.role
 	}
 

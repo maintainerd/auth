@@ -1,7 +1,8 @@
 package seeder
 
 import (
-	"log"
+	"fmt"
+	"log/slog"
 	"time"
 
 	"github.com/google/uuid"
@@ -279,17 +280,20 @@ func SeedPermissions(db *gorm.DB, tenantID, apiID int64) error {
 	}
 
 	for _, perm := range permissions {
-		if permissionExists(db, perm.Name, tenantID) {
-			log.Printf("⚠️ Permission '%s' already exists, skipping", perm.Name)
+		exists, err := permissionExists(db, perm.Name, tenantID)
+		if err != nil {
+			return fmt.Errorf("failed to check permission %q: %w", perm.Name, err)
+		}
+		if exists {
+			slog.Info("Permission already exists, skipping", "name", perm.Name)
 			continue
 		}
 
 		if err := db.Create(&perm).Error; err != nil {
-			log.Printf("❌ Failed to seed permission '%s': %v", perm.Name, err)
-			continue
+			return fmt.Errorf("failed to seed permission %q: %w", perm.Name, err)
 		}
 
-		log.Printf("✅ Permission '%s' seeded successfully", perm.Name)
+		slog.Info("Permission seeded", "name", perm.Name)
 	}
 
 	return nil
@@ -310,15 +314,14 @@ func newPermission(name, description string, tenantID, apiID int64) model.Permis
 	}
 }
 
-func permissionExists(db *gorm.DB, name string, tenantID int64) bool {
+func permissionExists(db *gorm.DB, name string, tenantID int64) (bool, error) {
 	var existing model.Permission
 	err := db.Where("name = ? AND tenant_id = ?", name, tenantID).First(&existing).Error
 	if err == nil {
-		return true
+		return true, nil
 	}
-	if err != gorm.ErrRecordNotFound {
-		log.Printf("❌ Error checking permission '%s': %v", name, err)
+	if err == gorm.ErrRecordNotFound {
+		return false, nil
 	}
-	return false
+	return false, err
 }
-

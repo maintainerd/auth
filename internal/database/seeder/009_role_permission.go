@@ -1,7 +1,8 @@
 package seeder
 
 import (
-	"log"
+	"fmt"
+	"log/slog"
 	"slices"
 
 	"github.com/maintainerd/auth/internal/model"
@@ -12,8 +13,7 @@ func SeedRolePermissions(db *gorm.DB, roles map[string]model.Role) error {
 	// Get all permissions
 	var permissions []model.Permission
 	if err := db.Find(&permissions).Error; err != nil {
-		log.Printf("❌ Failed to fetch permissions: %v", err)
-		return err
+		return fmt.Errorf("failed to fetch permissions: %w", err)
 	}
 
 	// Assign account permissions to registered role
@@ -67,31 +67,28 @@ func SeedRolePermissions(db *gorm.DB, roles map[string]model.Role) error {
 			}
 
 			if err != gorm.ErrRecordNotFound {
-				log.Printf("❌ Error checking role permission: %v", err)
-				continue
+				return fmt.Errorf("error checking role permission %q for registered: %w", permission.Name, err)
 			}
 
-			// Create new role permission
 			rolePermission := model.RolePermission{
 				RoleID:       registeredRole.RoleID,
 				PermissionID: permission.PermissionID,
 			}
 
 			if err := db.Create(&rolePermission).Error; err != nil {
-				log.Printf("❌ Failed to assign permission '%s' to role '%s': %v", permission.Name, registeredRole.Name, err)
-				continue
+				return fmt.Errorf("failed to assign permission %q to role %q: %w", permission.Name, registeredRole.Name, err)
 			}
 		}
 
-		log.Printf("✅ Account permissions assigned to registered role")
+		slog.Info("Account permissions assigned to registered role")
 	} else {
-		log.Printf("⚠️ Registered role not found, skipping account permission assignment")
+		slog.Warn("Registered role not found, skipping account permission assignment")
 	}
 
 	// Assign all permissions to super-admin role
 	superAdminRole, exists := roles["super-admin"]
 	if !exists {
-		log.Printf("⚠️ Super-admin role not found, skipping permission assignment")
+		slog.Warn("Super-admin role not found, skipping permission assignment")
 		return nil
 	}
 
@@ -107,22 +104,19 @@ func SeedRolePermissions(db *gorm.DB, roles map[string]model.Role) error {
 		}
 
 		if err != gorm.ErrRecordNotFound {
-			log.Printf("❌ Error checking role permission: %v", err)
-			continue
+			return fmt.Errorf("error checking role permission %q for super-admin: %w", permission.Name, err)
 		}
 
-		// Create new role permission
 		rolePermission := model.RolePermission{
 			RoleID:       superAdminRole.RoleID,
 			PermissionID: permission.PermissionID,
 		}
 
 		if err := db.Create(&rolePermission).Error; err != nil {
-			log.Printf("❌ Failed to assign permission '%s' to role '%s': %v", permission.Name, superAdminRole.Name, err)
-			continue
+			return fmt.Errorf("failed to assign permission %q to role %q: %w", permission.Name, superAdminRole.Name, err)
 		}
 	}
 
-	log.Printf("✅ All permissions assigned to super-admin role")
+	slog.Info("All permissions assigned to super-admin role")
 	return nil
 }
