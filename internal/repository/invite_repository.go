@@ -88,7 +88,7 @@ func (r *inviteRepository) MarkAsUsed(inviteUUID uuid.UUID) error {
 	return r.DB().Model(&model.Invite{}).
 		Where("invite_uuid = ?", inviteUUID).
 		Updates(map[string]any{
-			"status":  "accepted",
+			"status":  model.StatusAccepted,
 			"used_at": gorm.Expr("now()"),
 		}).Error
 }
@@ -96,5 +96,5 @@ func (r *inviteRepository) MarkAsUsed(inviteUUID uuid.UUID) error {
 func (r *inviteRepository) RevokeByUUID(inviteUUID uuid.UUID) error {
 	return r.DB().Model(&model.Invite{}).
 		Where("invite_uuid = ?", inviteUUID).
-		Update("status", "revoked").Error
+		Update("status", model.StatusRevoked).Error
 }

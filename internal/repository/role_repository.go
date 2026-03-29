@@ -159,7 +159,7 @@ func (r *roleRepository) SetSystemStatusByUUID(roleUUID uuid.UUID, isSystem bool
 func (r *roleRepository) FindRegisteredRoleForSetup(tenantID int64) (*model.Role, error) {
 	var role model.Role
 	err := r.DB().Where("tenant_id = ? AND name = ? AND is_default = ? AND is_system = ?",
-		tenantID, "registered", true, true).First(&role).Error
+		tenantID, model.RoleRegistered, true, true).First(&role).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, nil
@@ -172,7 +172,7 @@ func (r *roleRepository) FindRegisteredRoleForSetup(tenantID int64) (*model.Role
 func (r *roleRepository) FindSuperAdminRoleForSetup(tenantID int64) (*model.Role, error) {
 	var role model.Role
 	err := r.DB().Where("tenant_id = ? AND name = ? AND is_system = ?",
-		tenantID, "super-admin", true).First(&role).Error
+		tenantID, model.RoleSuperAdmin, true).First(&role).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, nil
