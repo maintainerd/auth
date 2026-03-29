@@ -37,26 +37,23 @@ type APIRepository interface {
 
 type apiRepository struct {
 	*BaseRepository[model.API]
-	db *gorm.DB
 }
 
 func NewAPIRepository(db *gorm.DB) APIRepository {
 	return &apiRepository{
 		BaseRepository: NewBaseRepository[model.API](db, "api_uuid", "api_id"),
-		db:             db,
 	}
 }
 
 func (r *apiRepository) WithTx(tx *gorm.DB) APIRepository {
 	return &apiRepository{
-		BaseRepository: NewBaseRepository[model.API](tx, "api_uuid", "api_id"),
-		db:             tx,
+		BaseRepository: r.BaseRepository.WithTx(tx),
 	}
 }
 
 func (r *apiRepository) FindByUUIDAndTenantID(apiUUID uuid.UUID, tenantID int64) (*model.API, error) {
 	var api model.API
-	err := r.db.
+	err := r.DB().
 		Preload("Service").
 		Where("api_uuid = ? AND tenant_id = ?", apiUUID, tenantID).
 		First(&api).Error
@@ -73,7 +70,7 @@ func (r *apiRepository) FindByUUIDAndTenantID(apiUUID uuid.UUID, tenantID int64)
 
 func (r *apiRepository) FindByName(apiName string, tenantID int64) (*model.API, error) {
 	var api model.API
-	err := r.db.
+	err := r.DB().
 		Preload("Service").
 		Where("name = ? AND tenant_id = ?", apiName, tenantID).
 		First(&api).Error
@@ -90,14 +87,14 @@ func (r *apiRepository) FindByName(apiName string, tenantID int64) (*model.API, 
 
 func (r *apiRepository) FindByIdentifier(identifier string, tenantID int64) (*model.API, error) {
 	var api model.API
-	err := r.db.
+	err := r.DB().
 		Where("identifier = ? AND tenant_id = ?", identifier, tenantID).
 		First(&api).Error
 	return &api, err
 }
 
 func (r *apiRepository) FindPaginated(filter APIRepositoryGetFilter) (*PaginationResult[model.API], error) {
-	query := r.db.Model(&model.API{})
+	query := r.DB().Model(&model.API{})
 
 	// Filter by tenant_id
 	query = query.Where("tenant_id = ?", filter.TenantID)
@@ -127,9 +124,8 @@ func (r *apiRepository) FindPaginated(filter APIRepositoryGetFilter) (*Paginatio
 		query = query.Where("is_system = ?", *filter.IsSystem)
 	}
 
-	// Sorting
-	orderBy := filter.SortBy + " " + filter.SortOrder
-	query = query.Order(orderBy)
+	// Sorting — protected against SQL injection via allowlist
+	query = query.Order(sanitizeOrder(filter.SortBy, filter.SortOrder, "created_at DESC"))
 
 	// Count
 	var total int64
@@ -156,19 +152,19 @@ func (r *apiRepository) FindPaginated(filter APIRepositoryGetFilter) (*Paginatio
 }
 
 func (r *apiRepository) SetStatusByUUID(apiUUID uuid.UUID, tenantID int64, status string) error {
-	return r.db.Model(&model.API{}).
+	return r.DB().Model(&model.API{}).
 		Where("api_uuid = ? AND tenant_id = ?", apiUUID, tenantID).
 		Update("status", status).Error
 }
 
 func (r *apiRepository) CountByServiceID(serviceID int64, tenantID int64) (int64, error) {
 	var count int64
-	err := r.db.Model(&model.API{}).
+	err := r.DB().Model(&model.API{}).
 		Where("service_id = ? AND tenant_id = ?", serviceID, tenantID).
 		Count(&count).Error
 	return count, err
 }
 
 func (r *apiRepository) DeleteByUUIDAndTenantID(apiUUID uuid.UUID, tenantID int64) error {
-	return r.db.Where("api_uuid = ? AND tenant_id = ?", apiUUID, tenantID).Delete(&model.API{}).Error
+	return r.DB().Where("api_uuid = ? AND tenant_id = ?", apiUUID, tenantID).Delete(&model.API{}).Error
 }

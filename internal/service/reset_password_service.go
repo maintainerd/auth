@@ -69,7 +69,7 @@ func (s *resetPasswordService) ResetPassword(token, newPassword string, clientID
 		// We need to find all password reset tokens and check which one matches our token
 		// This is a security consideration - we don't want to reveal if a token exists
 		allTokens := []model.UserToken{}
-		txErr = tx.Where("token_type = ? AND token = ? AND is_revoked = false", "user:password:reset", token).Find(&allTokens).Error
+		txErr = tx.Where("token_type = ? AND token = ? AND is_revoked = false", model.TokenTypePasswordReset, token).Find(&allTokens).Error
 		if txErr != nil {
 			return fmt.Errorf("failed to find reset token: %w", txErr)
 		}
@@ -101,7 +101,7 @@ func (s *resetPasswordService) ResetPassword(token, newPassword string, clientID
 		}
 
 		// Check if user is active
-		if user.Status != "active" {
+		if user.Status != model.StatusActive {
 			return errors.New("user account is not active")
 		}
 
@@ -131,7 +131,7 @@ func (s *resetPasswordService) ResetPassword(token, newPassword string, clientID
 		}
 
 		// Revoke all other password reset tokens for this user
-		existingTokens, txErr := txUserTokenRepo.FindByUserIDAndTokenType(user.UserID, "user:password:reset")
+		existingTokens, txErr := txUserTokenRepo.FindByUserIDAndTokenType(user.UserID, model.TokenTypePasswordReset)
 		if txErr != nil {
 			return fmt.Errorf("failed to find existing tokens: %w", txErr)
 		}

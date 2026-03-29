@@ -11,33 +11,30 @@ type ClientURIRepository interface {
 	BaseRepositoryMethods[model.ClientURI]
 	WithTx(tx *gorm.DB) ClientURIRepository
 	FindByUUIDAndTenantID(uuid string, tenantID int64) (*model.ClientURI, error)
-	FindByURIAndType(uri string, uriType string, ClientID int64, tenantID int64) (*model.ClientURI, error)
-	FindByClientIDAndType(ClientID int64, uriType string, tenantID int64) ([]model.ClientURI, error)
+	FindByURIAndType(uri string, uriType string, clientID int64, tenantID int64) (*model.ClientURI, error)
+	FindByClientIDAndType(clientID int64, uriType string, tenantID int64) ([]model.ClientURI, error)
 	DeleteByUUIDAndTenantID(uuid string, tenantID int64) error
 }
 
 type clientURIRepository struct {
 	*BaseRepository[model.ClientURI]
-	db *gorm.DB
 }
 
 func NewClientURIRepository(db *gorm.DB) ClientURIRepository {
 	return &clientURIRepository{
 		BaseRepository: NewBaseRepository[model.ClientURI](db, "client_uri_uuid", "client_uri_id"),
-		db:             db,
 	}
 }
 
 func (r *clientURIRepository) WithTx(tx *gorm.DB) ClientURIRepository {
 	return &clientURIRepository{
-		BaseRepository: NewBaseRepository[model.ClientURI](tx, "client_uri_uuid", "client_uri_id"),
-		db:             tx,
+		BaseRepository: r.BaseRepository.WithTx(tx),
 	}
 }
 
 func (r *clientURIRepository) FindByUUIDAndTenantID(uuid string, tenantID int64) (*model.ClientURI, error) {
-	var ClientURI model.ClientURI
-	err := r.db.Where("client_uri_uuid = ? AND tenant_id = ?", uuid, tenantID).First(&ClientURI).Error
+	var clientURI model.ClientURI
+	err := r.DB().Where("client_uri_uuid = ? AND tenant_id = ?", uuid, tenantID).First(&clientURI).Error
 
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -46,12 +43,12 @@ func (r *clientURIRepository) FindByUUIDAndTenantID(uuid string, tenantID int64)
 		return nil, err
 	}
 
-	return &ClientURI, nil
+	return &clientURI, nil
 }
 
-func (r *clientURIRepository) FindByURIAndType(uri string, uriType string, ClientID int64, tenantID int64) (*model.ClientURI, error) {
-	var ClientURI model.ClientURI
-	err := r.db.Where("uri = ? AND type = ? AND client_id = ? AND tenant_id = ?", uri, uriType, ClientID, tenantID).First(&ClientURI).Error
+func (r *clientURIRepository) FindByURIAndType(uri string, uriType string, clientID int64, tenantID int64) (*model.ClientURI, error) {
+	var clientURI model.ClientURI
+	err := r.DB().Where("uri = ? AND type = ? AND client_id = ? AND tenant_id = ?", uri, uriType, clientID, tenantID).First(&clientURI).Error
 
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -60,22 +57,22 @@ func (r *clientURIRepository) FindByURIAndType(uri string, uriType string, Clien
 		return nil, err
 	}
 
-	return &ClientURI, nil
+	return &clientURI, nil
 }
 
-func (r *clientURIRepository) FindByClientIDAndType(ClientID int64, uriType string, tenantID int64) ([]model.ClientURI, error) {
-	var ClientURIs []model.ClientURI
-	err := r.db.Where("client_id = ? AND type = ? AND tenant_id = ?", ClientID, uriType, tenantID).Find(&ClientURIs).Error
+func (r *clientURIRepository) FindByClientIDAndType(clientID int64, uriType string, tenantID int64) ([]model.ClientURI, error) {
+	var clientURIs []model.ClientURI
+	err := r.DB().Where("client_id = ? AND type = ? AND tenant_id = ?", clientID, uriType, tenantID).Find(&clientURIs).Error
 
 	if err != nil {
 		return nil, err
 	}
 
-	return ClientURIs, nil
+	return clientURIs, nil
 }
 
 func (r *clientURIRepository) DeleteByUUIDAndTenantID(uuid string, tenantID int64) error {
-	result := r.db.Where("client_uri_uuid = ? AND tenant_id = ?", uuid, tenantID).Delete(&model.ClientURI{})
+	result := r.DB().Where("client_uri_uuid = ? AND tenant_id = ?", uuid, tenantID).Delete(&model.ClientURI{})
 	if result.Error != nil {
 		return result.Error
 	}

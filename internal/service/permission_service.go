@@ -294,10 +294,10 @@ func (s *permissionService) SetActiveStatusByUUID(permissionUUID uuid.UUID, tena
 			return errors.New("default permission cannot be updated")
 		}
 
-		if permission.Status == "active" {
-			permission.Status = "inactive"
+		if permission.Status == model.StatusActive {
+			permission.Status = model.StatusInactive
 		} else {
-			permission.Status = "active"
+			permission.Status = model.StatusActive
 		}
 
 		_, err = txPermissionRepo.CreateOrUpdate(permission)

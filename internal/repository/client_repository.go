@@ -26,43 +26,40 @@ type ClientRepositoryGetFilter struct {
 type ClientRepository interface {
 	BaseRepositoryMethods[model.Client]
 	WithTx(tx *gorm.DB) ClientRepository
-	FindByUUIDAndTenantID(ClientUUID uuid.UUID, tenantID int64) (*model.Client, error)
+	FindByUUIDAndTenantID(clientUUID uuid.UUID, tenantID int64) (*model.Client, error)
 	FindByNameAndIdentityProvider(name string, identityProviderID int64, tenantID int64) (*model.Client, error)
 	FindByClientID(clientID string, tenantID int64) (*model.Client, error)
 	FindAllByTenantID(tenantID int64) ([]model.Client, error)
 	FindDefault() (*model.Client, error)
 	FindDefaultByTenantID(tenantID int64) (*model.Client, error)
 	FindPaginated(filter ClientRepositoryGetFilter) (*PaginationResult[model.Client], error)
-	SetStatusByUUID(ClientUUID uuid.UUID, tenantID int64, status string) error
+	SetStatusByUUID(clientUUID uuid.UUID, tenantID int64, status string) error
 	FindByClientIDAndIdentityProvider(clientID, identityProviderIdentifier string) (*model.Client, error)
-	DeleteByUUIDAndTenantID(ClientUUID uuid.UUID, tenantID int64) error
+	DeleteByUUIDAndTenantID(clientUUID uuid.UUID, tenantID int64) error
 }
 
 type clientRepository struct {
 	*BaseRepository[model.Client]
-	db *gorm.DB
 }
 
 func NewClientRepository(db *gorm.DB) ClientRepository {
 	return &clientRepository{
 		BaseRepository: NewBaseRepository[model.Client](db, "client_uuid", "client_id"),
-		db:             db,
 	}
 }
 
 func (r *clientRepository) WithTx(tx *gorm.DB) ClientRepository {
 	return &clientRepository{
-		BaseRepository: NewBaseRepository[model.Client](tx, "client_uuid", "client_id"),
-		db:             tx,
+		BaseRepository: r.BaseRepository.WithTx(tx),
 	}
 }
 
-func (r *clientRepository) FindByUUIDAndTenantID(ClientUUID uuid.UUID, tenantID int64) (*model.Client, error) {
+func (r *clientRepository) FindByUUIDAndTenantID(clientUUID uuid.UUID, tenantID int64) (*model.Client, error) {
 	var client model.Client
-	err := r.db.
+	err := r.DB().
 		Preload("IdentityProvider").
 		Preload("ClientURIs").
-		Where("client_uuid = ? AND tenant_id = ?", ClientUUID, tenantID).
+		Where("client_uuid = ? AND tenant_id = ?", clientUUID, tenantID).
 		First(&client).Error
 
 	if err != nil {
@@ -77,7 +74,7 @@ func (r *clientRepository) FindByUUIDAndTenantID(ClientUUID uuid.UUID, tenantID 
 
 func (r *clientRepository) FindByNameAndIdentityProvider(name string, identityProviderID int64, tenantID int64) (*model.Client, error) {
 	var client model.Client
-	err := r.db.Where("name = ? AND identity_provider_id = ? AND tenant_id = ?", name, identityProviderID, tenantID).First(&client).Error
+	err := r.DB().Where("name = ? AND identity_provider_id = ? AND tenant_id = ?", name, identityProviderID, tenantID).First(&client).Error
 
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -91,13 +88,19 @@ func (r *clientRepository) FindByNameAndIdentityProvider(name string, identityPr
 
 func (r *clientRepository) FindByClientID(clientID string, tenantID int64) (*model.Client, error) {
 	var client model.Client
-	err := r.db.Where("client_id = ? AND tenant_id = ?", clientID, tenantID).First(&client).Error
-	return &client, err
+	err := r.DB().Where("client_id = ? AND tenant_id = ?", clientID, tenantID).First(&client).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &client, nil
 }
 
 func (r *clientRepository) FindAllByTenantID(tenantID int64) ([]model.Client, error) {
 	var clients []model.Client
-	err := r.db.
+	err := r.DB().
 		Joins("JOIN identity_providers ON identity_providers.identity_provider_id = clients.identity_provider_id").
 		Where("identity_providers.tenant_id = ?", tenantID).
 		Find(&clients).Error
@@ -106,7 +109,7 @@ func (r *clientRepository) FindAllByTenantID(tenantID int64) ([]model.Client, er
 
 func (r *clientRepository) FindDefault() (*model.Client, error) {
 	var client model.Client
-	err := r.db.
+	err := r.DB().
 		Joins("JOIN identity_providers ON identity_providers.identity_provider_id = clients.identity_provider_id").
 		Where("clients.is_default = ? AND clients.status = ?", true, "active").
 		Where("clients.client_type = ?", "traditional").
@@ -115,18 +118,24 @@ func (r *clientRepository) FindDefault() (*model.Client, error) {
 		Preload("IdentityProvider.Tenant").
 		First(&client).Error
 
-	return &client, err
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &client, nil
 }
 
 func (r *clientRepository) FindDefaultByTenantID(tenantID int64) (*model.Client, error) {
 	var client model.Client
-	err := r.db.
+	err := r.DB().
 		Joins("JOIN identity_providers ON identity_providers.identity_provider_id = clients.identity_provider_id").
 		Where("identity_providers.tenant_id = ? AND clients.is_default = true AND clients.status = ?", tenantID, "active").
 		First(&client).Error
 
 	if err != nil {
-		if err == gorm.ErrRecordNotFound {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, nil
 		}
 		return nil, err
@@ -136,7 +145,7 @@ func (r *clientRepository) FindDefaultByTenantID(tenantID int64) (*model.Client,
 }
 
 func (r *clientRepository) FindPaginated(filter ClientRepositoryGetFilter) (*PaginationResult[model.Client], error) {
-	query := r.db.Model(&model.Client{}).Where("tenant_id = ?", filter.TenantID)
+	query := r.DB().Model(&model.Client{}).Where("tenant_id = ?", filter.TenantID)
 
 	// Filters with LIKE
 	if filter.Name != nil {
@@ -163,9 +172,8 @@ func (r *clientRepository) FindPaginated(filter ClientRepositoryGetFilter) (*Pag
 		query = query.Where("identity_provider_id = ?", *filter.IdentityProviderID)
 	}
 
-	// Sorting
-	orderBy := filter.SortBy + " " + filter.SortOrder
-	query = query.Order(orderBy)
+	// Sorting — protected against SQL injection via allowlist
+	query = query.Order(sanitizeOrder(filter.SortBy, filter.SortOrder, "created_at DESC"))
 
 	// Count
 	var total int64
@@ -196,16 +204,16 @@ func (r *clientRepository) FindPaginated(filter ClientRepositoryGetFilter) (*Pag
 	}, nil
 }
 
-func (r *clientRepository) SetStatusByUUID(ClientUUID uuid.UUID, tenantID int64, status string) error {
-	return r.db.Model(&model.Client{}).
-		Where("client_uuid = ? AND tenant_id = ?", ClientUUID, tenantID).
+func (r *clientRepository) SetStatusByUUID(clientUUID uuid.UUID, tenantID int64, status string) error {
+	return r.DB().Model(&model.Client{}).
+		Where("client_uuid = ? AND tenant_id = ?", clientUUID, tenantID).
 		Update("status", status).Error
 }
 
 func (r *clientRepository) FindByClientIDAndIdentityProvider(clientID, identityProviderIdentifier string) (*model.Client, error) {
 	var client model.Client
 
-	err := r.db.
+	err := r.DB().
 		Joins("JOIN identity_providers ON identity_providers.identity_provider_id = clients.identity_provider_id").
 		Where("clients.client_id = ? AND identity_providers.identifier = ?", clientID, identityProviderIdentifier).
 		Where("clients.status = ? AND identity_providers.status = ?", "active", "active").
@@ -213,11 +221,17 @@ func (r *clientRepository) FindByClientIDAndIdentityProvider(clientID, identityP
 		Preload("IdentityProvider").
 		First(&client).Error
 
-	return &client, err
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &client, nil
 }
 
-func (r *clientRepository) DeleteByUUIDAndTenantID(ClientUUID uuid.UUID, tenantID int64) error {
-	result := r.db.Where("client_uuid = ? AND tenant_id = ?", ClientUUID, tenantID).Delete(&model.Client{})
+func (r *clientRepository) DeleteByUUIDAndTenantID(clientUUID uuid.UUID, tenantID int64) error {
+	result := r.DB().Where("client_uuid = ? AND tenant_id = ?", clientUUID, tenantID).Delete(&model.Client{})
 	if result.Error != nil {
 		return result.Error
 	}

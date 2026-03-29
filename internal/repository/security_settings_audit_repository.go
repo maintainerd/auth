@@ -26,26 +26,23 @@ type SecuritySettingsAuditRepository interface {
 
 type securitySettingsAuditRepository struct {
 	*BaseRepository[model.SecuritySettingsAudit]
-	db *gorm.DB
 }
 
 func NewSecuritySettingsAuditRepository(db *gorm.DB) SecuritySettingsAuditRepository {
 	return &securitySettingsAuditRepository{
 		BaseRepository: NewBaseRepository[model.SecuritySettingsAudit](db, "security_settings_audit_uuid", "security_settings_audit_id"),
-		db:             db,
 	}
 }
 
 func (r *securitySettingsAuditRepository) WithTx(tx *gorm.DB) SecuritySettingsAuditRepository {
 	return &securitySettingsAuditRepository{
-		BaseRepository: NewBaseRepository[model.SecuritySettingsAudit](tx, "security_settings_audit_uuid", "security_settings_audit_id"),
-		db:             tx,
+		BaseRepository: r.BaseRepository.WithTx(tx),
 	}
 }
 
 func (r *securitySettingsAuditRepository) FindBySecuritySettingID(securitySettingID int64) ([]model.SecuritySettingsAudit, error) {
 	var audits []model.SecuritySettingsAudit
-	err := r.db.Where("security_setting_id = ?", securitySettingID).Order("created_at DESC").Find(&audits).Error
+	err := r.DB().Where("security_setting_id = ?", securitySettingID).Order("created_at DESC").Find(&audits).Error
 	if err != nil {
 		return nil, err
 	}
@@ -54,7 +51,7 @@ func (r *securitySettingsAuditRepository) FindBySecuritySettingID(securitySettin
 
 func (r *securitySettingsAuditRepository) FindByTenantID(tenantID int64) ([]model.SecuritySettingsAudit, error) {
 	var audits []model.SecuritySettingsAudit
-	err := r.db.Where("tenant_id = ?", tenantID).Order("created_at DESC").Find(&audits).Error
+	err := r.DB().Where("tenant_id = ?", tenantID).Order("created_at DESC").Find(&audits).Error
 	if err != nil {
 		return nil, err
 	}
@@ -62,7 +59,7 @@ func (r *securitySettingsAuditRepository) FindByTenantID(tenantID int64) ([]mode
 }
 
 func (r *securitySettingsAuditRepository) FindPaginated(filter SecuritySettingsAuditRepositoryGetFilter) (*PaginationResult[model.SecuritySettingsAudit], error) {
-	query := r.db.Model(&model.SecuritySettingsAudit{})
+	query := r.DB().Model(&model.SecuritySettingsAudit{})
 
 	// Apply filters
 	if filter.TenantID != nil {
@@ -84,16 +81,8 @@ func (r *securitySettingsAuditRepository) FindPaginated(filter SecuritySettingsA
 		return nil, err
 	}
 
-	// Apply sorting
-	if filter.SortBy != "" {
-		order := filter.SortBy
-		if filter.SortOrder != "" {
-			order += " " + filter.SortOrder
-		}
-		query = query.Order(order)
-	} else {
-		query = query.Order("created_at DESC")
-	}
+	// Apply sorting — protected against SQL injection via allowlist
+	query = query.Order(sanitizeOrder(filter.SortBy, filter.SortOrder, "created_at DESC"))
 
 	// Apply pagination
 	offset := (filter.Page - 1) * filter.Limit

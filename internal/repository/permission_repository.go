@@ -34,26 +34,23 @@ type PermissionRepository interface {
 
 type permissionRepository struct {
 	*BaseRepository[model.Permission]
-	db *gorm.DB
 }
 
 func NewPermissionRepository(db *gorm.DB) PermissionRepository {
 	return &permissionRepository{
 		BaseRepository: NewBaseRepository[model.Permission](db, "permission_uuid", "permission_id"),
-		db:             db,
 	}
 }
 
 func (r *permissionRepository) WithTx(tx *gorm.DB) PermissionRepository {
 	return &permissionRepository{
-		BaseRepository: NewBaseRepository[model.Permission](tx, "permission_uuid", "permission_id"),
-		db:             tx,
+		BaseRepository: r.BaseRepository.WithTx(tx),
 	}
 }
 
 func (r *permissionRepository) FindByUUIDAndTenantID(permissionUUID uuid.UUID, tenantID int64) (*model.Permission, error) {
 	var permission model.Permission
-	err := r.db.
+	err := r.DB().
 		Preload("API").
 		Where("permission_uuid = ? AND tenant_id = ?", permissionUUID, tenantID).
 		First(&permission).Error
@@ -70,7 +67,7 @@ func (r *permissionRepository) FindByUUIDAndTenantID(permissionUUID uuid.UUID, t
 
 func (r *permissionRepository) FindByName(name string, tenantID int64) (*model.Permission, error) {
 	var permission model.Permission
-	err := r.db.Where("name = ? AND tenant_id = ?", name, tenantID).First(&permission).Error
+	err := r.DB().Where("name = ? AND tenant_id = ?", name, tenantID).First(&permission).Error
 
 	// If no record is found, return nil record and nil error
 	if err != nil {
@@ -84,7 +81,7 @@ func (r *permissionRepository) FindByName(name string, tenantID int64) (*model.P
 }
 
 func (r *permissionRepository) FindPaginated(filter PermissionRepositoryGetFilter) (*PaginationResult[model.Permission], error) {
-	query := r.db.Model(&model.Permission{}).Where("tenant_id = ?", filter.TenantID)
+	query := r.DB().Model(&model.Permission{}).Where("tenant_id = ?", filter.TenantID)
 
 	// Filters with LIKE
 	if filter.Name != nil {
@@ -115,9 +112,8 @@ func (r *permissionRepository) FindPaginated(filter PermissionRepositoryGetFilte
 		).Where("rp.role_id = ?", *filter.RoleID)
 	}
 
-	// Sorting
-	orderBy := filter.SortBy + " " + filter.SortOrder
-	query = query.Order(orderBy)
+	// Sorting — protected against SQL injection via allowlist
+	query = query.Order(sanitizeOrder(filter.SortBy, filter.SortOrder, "created_at DESC"))
 
 	// Count
 	var total int64
@@ -144,7 +140,7 @@ func (r *permissionRepository) FindPaginated(filter PermissionRepositoryGetFilte
 }
 
 func (r *permissionRepository) DeleteByUUIDAndTenantID(permissionUUID uuid.UUID, tenantID int64) error {
-	result := r.db.Where("permission_uuid = ? AND tenant_id = ?", permissionUUID, tenantID).Delete(&model.Permission{})
+	result := r.DB().Where("permission_uuid = ? AND tenant_id = ?", permissionUUID, tenantID).Delete(&model.Permission{})
 	if result.Error != nil {
 		return result.Error
 	}

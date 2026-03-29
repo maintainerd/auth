@@ -32,7 +32,7 @@ func (sf *SignupFlow) BeforeCreate(tx *gorm.DB) error {
 		sf.SignupFlowUUID = uuid.New()
 	}
 	if sf.Status == "" {
-		sf.Status = "active"
+		sf.Status = StatusActive
 	}
 	return nil
 }

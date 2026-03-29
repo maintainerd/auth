@@ -30,26 +30,23 @@ type IpRestrictionRuleRepository interface {
 
 type ipRestrictionRuleRepository struct {
 	*BaseRepository[model.IpRestrictionRule]
-	db *gorm.DB
 }
 
 func NewIpRestrictionRuleRepository(db *gorm.DB) IpRestrictionRuleRepository {
 	return &ipRestrictionRuleRepository{
 		BaseRepository: NewBaseRepository[model.IpRestrictionRule](db, "ip_restriction_rule_uuid", "ip_restriction_rule_id"),
-		db:             db,
 	}
 }
 
 func (r *ipRestrictionRuleRepository) WithTx(tx *gorm.DB) IpRestrictionRuleRepository {
 	return &ipRestrictionRuleRepository{
-		BaseRepository: NewBaseRepository[model.IpRestrictionRule](tx, "ip_restriction_rule_uuid", "ip_restriction_rule_id"),
-		db:             tx,
+		BaseRepository: r.BaseRepository.WithTx(tx),
 	}
 }
 
 func (r *ipRestrictionRuleRepository) FindByTenantID(tenantID int64) ([]model.IpRestrictionRule, error) {
 	var rules []model.IpRestrictionRule
-	err := r.db.Where("tenant_id = ?", tenantID).Find(&rules).Error
+	err := r.DB().Where("tenant_id = ?", tenantID).Find(&rules).Error
 	if err != nil {
 		return nil, err
 	}
@@ -58,7 +55,7 @@ func (r *ipRestrictionRuleRepository) FindByTenantID(tenantID int64) ([]model.Ip
 
 func (r *ipRestrictionRuleRepository) FindByTenantIDAndStatus(tenantID int64, status string) ([]model.IpRestrictionRule, error) {
 	var rules []model.IpRestrictionRule
-	err := r.db.Where("tenant_id = ? AND status = ?", tenantID, status).Find(&rules).Error
+	err := r.DB().Where("tenant_id = ? AND status = ?", tenantID, status).Find(&rules).Error
 	if err != nil {
 		return nil, err
 	}
@@ -67,7 +64,7 @@ func (r *ipRestrictionRuleRepository) FindByTenantIDAndStatus(tenantID int64, st
 
 func (r *ipRestrictionRuleRepository) FindByTenantIDAndType(tenantID int64, ruleType string) ([]model.IpRestrictionRule, error) {
 	var rules []model.IpRestrictionRule
-	err := r.db.Where("tenant_id = ? AND type = ?", tenantID, ruleType).Find(&rules).Error
+	err := r.DB().Where("tenant_id = ? AND type = ?", tenantID, ruleType).Find(&rules).Error
 	if err != nil {
 		return nil, err
 	}
@@ -75,7 +72,7 @@ func (r *ipRestrictionRuleRepository) FindByTenantIDAndType(tenantID int64, rule
 }
 
 func (r *ipRestrictionRuleRepository) FindPaginated(filter IpRestrictionRuleRepositoryGetFilter) (*PaginationResult[model.IpRestrictionRule], error) {
-	query := r.db.Model(&model.IpRestrictionRule{})
+	query := r.DB().Model(&model.IpRestrictionRule{})
 
 	// Apply filters
 	if filter.TenantID != nil {
@@ -106,16 +103,8 @@ func (r *ipRestrictionRuleRepository) FindPaginated(filter IpRestrictionRuleRepo
 		return nil, err
 	}
 
-	// Apply sorting
-	if filter.SortBy != "" {
-		order := filter.SortBy
-		if filter.SortOrder != "" {
-			order += " " + filter.SortOrder
-		}
-		query = query.Order(order)
-	} else {
-		query = query.Order("created_at DESC")
-	}
+	// Apply sorting — protected against SQL injection via allowlist
+	query = query.Order(sanitizeOrder(filter.SortBy, filter.SortOrder, "created_at DESC"))
 
 	// Apply pagination
 	offset := (filter.Page - 1) * filter.Limit

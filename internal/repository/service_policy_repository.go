@@ -28,26 +28,23 @@ type ServicePolicyRepository interface {
 
 type servicePolicyRepository struct {
 	*BaseRepository[model.ServicePolicy]
-	db *gorm.DB
 }
 
 func NewServicePolicyRepository(db *gorm.DB) ServicePolicyRepository {
 	return &servicePolicyRepository{
 		BaseRepository: NewBaseRepository[model.ServicePolicy](db, "service_policy_uuid", "service_policy_id"),
-		db:             db,
 	}
 }
 
 func (r *servicePolicyRepository) WithTx(tx *gorm.DB) ServicePolicyRepository {
 	return &servicePolicyRepository{
-		BaseRepository: NewBaseRepository[model.ServicePolicy](tx, "service_policy_uuid", "service_policy_id"),
-		db:             tx,
+		BaseRepository: r.BaseRepository.WithTx(tx),
 	}
 }
 
 func (r *servicePolicyRepository) FindByServiceAndPolicy(serviceID int64, policyID int64) (*model.ServicePolicy, error) {
 	var servicePolicy model.ServicePolicy
-	err := r.db.Where("service_id = ? AND policy_id = ?", serviceID, policyID).First(&servicePolicy).Error
+	err := r.DB().Where("service_id = ? AND policy_id = ?", serviceID, policyID).First(&servicePolicy).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, nil
@@ -58,12 +55,12 @@ func (r *servicePolicyRepository) FindByServiceAndPolicy(serviceID int64, policy
 }
 
 func (r *servicePolicyRepository) DeleteByServiceAndPolicy(serviceID int64, policyID int64) error {
-	return r.db.Where("service_id = ? AND policy_id = ?", serviceID, policyID).Delete(&model.ServicePolicy{}).Error
+	return r.DB().Where("service_id = ? AND policy_id = ?", serviceID, policyID).Delete(&model.ServicePolicy{}).Error
 }
 
 func (r *servicePolicyRepository) FindPoliciesByServiceID(serviceID int64) ([]model.Policy, error) {
 	var policies []model.Policy
-	err := r.db.Table("policies").
+	err := r.DB().Table("policies").
 		Joins("INNER JOIN service_policies ON policies.policy_id = service_policies.policy_id").
 		Where("service_policies.service_id = ?", serviceID).
 		Find(&policies).Error
@@ -72,7 +69,7 @@ func (r *servicePolicyRepository) FindPoliciesByServiceID(serviceID int64) ([]mo
 
 func (r *servicePolicyRepository) FindServicesByPolicyID(policyID int64) ([]model.Service, error) {
 	var services []model.Service
-	err := r.db.Table("services").
+	err := r.DB().Table("services").
 		Joins("INNER JOIN service_policies ON services.service_id = service_policies.service_id").
 		Where("service_policies.policy_id = ?", policyID).
 		Find(&services).Error
@@ -80,7 +77,7 @@ func (r *servicePolicyRepository) FindServicesByPolicyID(policyID int64) ([]mode
 }
 
 func (r *servicePolicyRepository) FindPaginated(filter ServicePolicyRepositoryGetFilter) (*PaginationResult[model.ServicePolicy], error) {
-	query := r.db.Model(&model.ServicePolicy{})
+	query := r.DB().Model(&model.ServicePolicy{})
 
 	// Apply filters
 	if filter.ServiceID != nil {
@@ -96,18 +93,8 @@ func (r *servicePolicyRepository) FindPaginated(filter ServicePolicyRepositoryGe
 		return nil, err
 	}
 
-	// Apply sorting
-	if filter.SortBy != "" {
-		order := filter.SortBy
-		if filter.SortOrder == "desc" {
-			order += " DESC"
-		} else {
-			order += " ASC"
-		}
-		query = query.Order(order)
-	} else {
-		query = query.Order("created_at DESC")
-	}
+	// Apply sorting — protected against SQL injection via allowlist
+	query = query.Order(sanitizeOrder(filter.SortBy, filter.SortOrder, "created_at DESC"))
 
 	// Apply pagination
 	offset := (filter.Page - 1) * filter.Limit

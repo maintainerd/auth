@@ -24,26 +24,23 @@ type TenantServiceRepository interface {
 
 type tenantServiceRepository struct {
 	*BaseRepository[model.TenantService]
-	db *gorm.DB
 }
 
 func NewTenantServiceRepository(db *gorm.DB) TenantServiceRepository {
 	return &tenantServiceRepository{
 		BaseRepository: NewBaseRepository[model.TenantService](db, "", "tenant_service_id"),
-		db:             db,
 	}
 }
 
 func (r *tenantServiceRepository) WithTx(tx *gorm.DB) TenantServiceRepository {
 	return &tenantServiceRepository{
-		BaseRepository: NewBaseRepository[model.TenantService](tx, "", "tenant_service_id"),
-		db:             tx,
+		BaseRepository: r.BaseRepository.WithTx(tx),
 	}
 }
 
 func (r *tenantServiceRepository) FindByTenantAndService(tenantID int64, serviceID int64) (*model.TenantService, error) {
 	var tenantService model.TenantService
-	err := r.db.Where("tenant_id = ? AND service_id = ?", tenantID, serviceID).First(&tenantService).Error
+	err := r.DB().Where("tenant_id = ? AND service_id = ?", tenantID, serviceID).First(&tenantService).Error
 	if err != nil {
 		return nil, err
 	}
@@ -51,11 +48,11 @@ func (r *tenantServiceRepository) FindByTenantAndService(tenantID int64, service
 }
 
 func (r *tenantServiceRepository) DeleteByTenantAndService(tenantID int64, serviceID int64) error {
-	return r.db.Where("tenant_id = ? AND service_id = ?", tenantID, serviceID).Delete(&model.TenantService{}).Error
+	return r.DB().Where("tenant_id = ? AND service_id = ?", tenantID, serviceID).Delete(&model.TenantService{}).Error
 }
 
 func (r *tenantServiceRepository) FindPaginated(filter TenantServiceRepositoryGetFilter) (*PaginationResult[model.TenantService], error) {
-	query := r.db.Model(&model.TenantService{})
+	query := r.DB().Model(&model.TenantService{})
 
 	// Filters
 	if filter.TenantID != nil {
@@ -65,16 +62,8 @@ func (r *tenantServiceRepository) FindPaginated(filter TenantServiceRepositoryGe
 		query = query.Where("service_id = ?", *filter.ServiceID)
 	}
 
-	// Sorting
-	if filter.SortBy != "" {
-		order := "ASC"
-		if filter.SortOrder == "desc" {
-			order = "DESC"
-		}
-		query = query.Order(filter.SortBy + " " + order)
-	} else {
-		query = query.Order("tenant_service_id DESC")
-	}
+	// Sorting — protected against SQL injection via allowlist
+	query = query.Order(sanitizeOrder(filter.SortBy, filter.SortOrder, "tenant_service_id DESC"))
 
 	// Pagination
 	offset := (filter.Page - 1) * filter.Limit
@@ -86,7 +75,7 @@ func (r *tenantServiceRepository) FindPaginated(filter TenantServiceRepositoryGe
 	var total int64
 
 	// Count total records
-	countQuery := r.db.Model(&model.TenantService{})
+	countQuery := r.DB().Model(&model.TenantService{})
 	if filter.TenantID != nil {
 		countQuery = countQuery.Where("tenant_id = ?", *filter.TenantID)
 	}

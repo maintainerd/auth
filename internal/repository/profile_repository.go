@@ -28,7 +28,7 @@ type ProfileRepository interface {
 	WithTx(tx *gorm.DB) ProfileRepository
 	FindByUserID(userID int64) (*model.Profile, error)
 	FindDefaultByUserID(userID int64) (*model.Profile, error)
-	FindAllByUserID(filter ProfileRepositoryGetFilter) ([]model.Profile, int64, error)
+	FindAllByUserID(filter ProfileRepositoryGetFilter) (*PaginationResult[model.Profile], error)
 	UpdateByUserID(userID int64, updatedProfile *model.Profile) error
 	DeleteByUserID(userID int64) error
 	UnsetDefaultProfiles(userID int64) error
@@ -36,26 +36,23 @@ type ProfileRepository interface {
 
 type profileRepository struct {
 	*BaseRepository[model.Profile]
-	db *gorm.DB
 }
 
 func NewProfileRepository(db *gorm.DB) ProfileRepository {
 	return &profileRepository{
 		BaseRepository: NewBaseRepository[model.Profile](db, "profile_uuid", "profile_id"),
-		db:             db,
 	}
 }
 
 func (r *profileRepository) WithTx(tx *gorm.DB) ProfileRepository {
 	return &profileRepository{
-		BaseRepository: NewBaseRepository[model.Profile](tx, "profile_uuid", "profile_id"),
-		db:             tx,
+		BaseRepository: r.BaseRepository.WithTx(tx),
 	}
 }
 
 func (r *profileRepository) FindByUserID(userID int64) (*model.Profile, error) {
 	var profile model.Profile
-	err := r.db.Where("user_id = ?", userID).First(&profile).Error
+	err := r.DB().Where("user_id = ?", userID).First(&profile).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, nil // Return nil profile when not found
@@ -67,7 +64,7 @@ func (r *profileRepository) FindByUserID(userID int64) (*model.Profile, error) {
 
 func (r *profileRepository) FindDefaultByUserID(userID int64) (*model.Profile, error) {
 	var profile model.Profile
-	err := r.db.Where("user_id = ? AND is_default = ?", userID, true).First(&profile).Error
+	err := r.DB().Where("user_id = ? AND is_default = ?", userID, true).First(&profile).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, nil // Return nil profile when not found
@@ -77,11 +74,11 @@ func (r *profileRepository) FindDefaultByUserID(userID int64) (*model.Profile, e
 	return &profile, nil
 }
 
-func (r *profileRepository) FindAllByUserID(filter ProfileRepositoryGetFilter) ([]model.Profile, int64, error) {
+func (r *profileRepository) FindAllByUserID(filter ProfileRepositoryGetFilter) (*PaginationResult[model.Profile], error) {
 	var profiles []model.Profile
 	var total int64
 
-	query := r.db.Model(&model.Profile{}).Where("user_id = ?", filter.UserID)
+	query := r.DB().Model(&model.Profile{}).Where("user_id = ?", filter.UserID)
 
 	// Apply filters
 	if filter.FirstName != nil && *filter.FirstName != "" {
@@ -108,43 +105,45 @@ func (r *profileRepository) FindAllByUserID(filter ProfileRepositoryGetFilter) (
 
 	// Count total
 	if err := query.Count(&total).Error; err != nil {
-		return nil, 0, err
+		return nil, err
 	}
 
-	// Apply sorting
-	if filter.SortBy != "" {
-		order := "ASC"
-		if filter.SortOrder == "desc" {
-			order = "DESC"
-		}
-		query = query.Order(filter.SortBy + " " + order)
-	} else {
-		query = query.Order("is_default DESC, created_at DESC")
-	}
+	// Apply sorting — protected against SQL injection via allowlist
+	query = query.Order(sanitizeOrder(filter.SortBy, filter.SortOrder, "is_default DESC, created_at DESC"))
 
 	// Apply pagination
+	if filter.Page < 1 {
+		filter.Page = 1
+	}
+	if filter.Limit < 1 {
+		filter.Limit = 20
+	}
 	offset := (filter.Page - 1) * filter.Limit
-	query = query.Offset(offset).Limit(filter.Limit)
-
-	// Execute query
-	if err := query.Find(&profiles).Error; err != nil {
-		return nil, 0, err
+	if err := query.Offset(offset).Limit(filter.Limit).Find(&profiles).Error; err != nil {
+		return nil, err
 	}
 
-	return profiles, total, nil
+	totalPages := int((total + int64(filter.Limit) - 1) / int64(filter.Limit))
+	return &PaginationResult[model.Profile]{
+		Data:       profiles,
+		Total:      total,
+		Page:       filter.Page,
+		Limit:      filter.Limit,
+		TotalPages: totalPages,
+	}, nil
 }
 
 func (r *profileRepository) UpdateByUserID(userID int64, updatedProfile *model.Profile) error {
-	return r.db.Model(&model.Profile{}).
+	return r.DB().Model(&model.Profile{}).
 		Where("user_id = ?", userID).
 		Updates(updatedProfile).Error
 }
 
 func (r *profileRepository) DeleteByUserID(userID int64) error {
-	return r.db.Where("user_id = ?", userID).Delete(&model.Profile{}).Error
+	return r.DB().Where("user_id = ?", userID).Delete(&model.Profile{}).Error
 }
 func (r *profileRepository) UnsetDefaultProfiles(userID int64) error {
-	return r.db.Model(&model.Profile{}).
+	return r.DB().Model(&model.Profile{}).
 		Where("user_id = ? AND is_default = ?", userID, true).
 		Update("is_default", false).Error
 }

@@ -36,26 +36,23 @@ type ServiceRepository interface {
 
 type serviceRepository struct {
 	*BaseRepository[model.Service]
-	db *gorm.DB
 }
 
 func NewServiceRepository(db *gorm.DB) ServiceRepository {
 	return &serviceRepository{
 		BaseRepository: NewBaseRepository[model.Service](db, "service_uuid", "service_id"),
-		db:             db,
 	}
 }
 
 func (r *serviceRepository) WithTx(tx *gorm.DB) ServiceRepository {
 	return &serviceRepository{
-		BaseRepository: NewBaseRepository[model.Service](tx, "service_uuid", "service_id"),
-		db:             tx,
+		BaseRepository: r.BaseRepository.WithTx(tx),
 	}
 }
 
 func (r *serviceRepository) FindByName(serviceName string) (*model.Service, error) {
 	var service model.Service
-	err := r.db.Where("name = ?", serviceName).First(&service).Error
+	err := r.DB().Where("name = ?", serviceName).First(&service).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, nil
@@ -67,7 +64,7 @@ func (r *serviceRepository) FindByName(serviceName string) (*model.Service, erro
 
 func (r *serviceRepository) FindByNameAndTenantID(serviceName string, tenantID int64) (*model.Service, error) {
 	var service model.Service
-	err := r.db.
+	err := r.DB().
 		Joins("JOIN tenant_services ON services.service_id = tenant_services.service_id").
 		Where("services.name = ? AND tenant_services.tenant_id = ?", serviceName, tenantID).
 		First(&service).Error
@@ -82,7 +79,7 @@ func (r *serviceRepository) FindByNameAndTenantID(serviceName string, tenantID i
 
 func (r *serviceRepository) FindByTenantID(tenantID int64) ([]model.Service, error) {
 	var services []model.Service
-	err := r.db.
+	err := r.DB().
 		Joins("JOIN tenant_services ON services.service_id = tenant_services.service_id").
 		Where("tenant_services.tenant_id = ?", tenantID).
 		Find(&services).Error
@@ -90,7 +87,7 @@ func (r *serviceRepository) FindByTenantID(tenantID int64) ([]model.Service, err
 }
 
 func (r *serviceRepository) FindPaginated(filter ServiceRepositoryGetFilter) (*PaginationResult[model.Service], error) {
-	query := r.db.Model(&model.Service{})
+	query := r.DB().Model(&model.Service{})
 
 	// Filters with LIKE
 	if filter.Name != nil {
@@ -118,9 +115,8 @@ func (r *serviceRepository) FindPaginated(filter ServiceRepositoryGetFilter) (*P
 		query = query.Where("is_system = ?", *filter.IsSystem)
 	}
 
-	// Sorting
-	orderBy := filter.SortBy + " " + filter.SortOrder
-	query = query.Order(orderBy)
+	// Sorting — protected against SQL injection via allowlist
+	query = query.Order(sanitizeOrder(filter.SortBy, filter.SortOrder, "created_at DESC"))
 
 	// Count
 	var total int64
@@ -147,7 +143,7 @@ func (r *serviceRepository) FindPaginated(filter ServiceRepositoryGetFilter) (*P
 }
 
 func (r *serviceRepository) FindServicesByPolicyUUID(policyUUID uuid.UUID, filter ServiceRepositoryGetFilter) (*PaginationResult[model.Service], error) {
-	query := r.db.Model(&model.Service{}).
+	query := r.DB().Model(&model.Service{}).
 		Joins("INNER JOIN service_policies ON services.service_id = service_policies.service_id").
 		Joins("INNER JOIN policies ON service_policies.policy_id = policies.policy_id").
 		Where("policies.policy_uuid = ?", policyUUID)
@@ -182,18 +178,8 @@ func (r *serviceRepository) FindServicesByPolicyUUID(policyUUID uuid.UUID, filte
 		return nil, err
 	}
 
-	// Apply sorting
-	if filter.SortBy != "" {
-		order := "services." + filter.SortBy
-		if filter.SortOrder == "desc" {
-			order += " DESC"
-		} else {
-			order += " ASC"
-		}
-		query = query.Order(order)
-	} else {
-		query = query.Order("services.created_at DESC")
-	}
+	// Apply sorting — protected against SQL injection via allowlist
+	query = query.Order(sanitizeOrderPrefixed("services.", filter.SortBy, filter.SortOrder, "services.created_at DESC"))
 
 	// Pagination
 	offset := (filter.Page - 1) * filter.Limit
@@ -214,14 +200,14 @@ func (r *serviceRepository) FindServicesByPolicyUUID(policyUUID uuid.UUID, filte
 }
 
 func (r *serviceRepository) SetStatusByUUID(serviceUUID uuid.UUID, status string) error {
-	return r.db.Model(&model.Service{}).
+	return r.DB().Model(&model.Service{}).
 		Where("service_uuid = ?", serviceUUID).
 		Update("status", status).Error
 }
 
 func (r *serviceRepository) CountPoliciesByServiceID(serviceID int64) (int64, error) {
 	var count int64
-	err := r.db.Model(&model.ServicePolicy{}).
+	err := r.DB().Model(&model.ServicePolicy{}).
 		Where("service_id = ?", serviceID).
 		Count(&count).Error
 	return count, err

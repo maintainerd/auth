@@ -21,26 +21,23 @@ type APIKeyApiRepository interface {
 
 type apiKeyApiRepository struct {
 	*BaseRepository[model.APIKeyApi]
-	db *gorm.DB
 }
 
 func NewAPIKeyApiRepository(db *gorm.DB) APIKeyApiRepository {
 	return &apiKeyApiRepository{
 		BaseRepository: NewBaseRepository[model.APIKeyApi](db, "api_key_api_uuid", "api_key_api_id"),
-		db:             db,
 	}
 }
 
 func (r *apiKeyApiRepository) WithTx(tx *gorm.DB) APIKeyApiRepository {
 	return &apiKeyApiRepository{
-		BaseRepository: NewBaseRepository[model.APIKeyApi](tx, "api_key_api_uuid", "api_key_api_id"),
-		db:             tx,
+		BaseRepository: r.BaseRepository.WithTx(tx),
 	}
 }
 
 func (r *apiKeyApiRepository) FindByAPIKeyAndApi(apiKeyID int64, apiID int64) (*model.APIKeyApi, error) {
 	var apiKeyApi model.APIKeyApi
-	if err := r.db.Where("api_key_id = ? AND api_id = ?", apiKeyID, apiID).First(&apiKeyApi).Error; err != nil {
+	if err := r.DB().Where("api_key_id = ? AND api_id = ?", apiKeyID, apiID).First(&apiKeyApi).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, nil
 		}
@@ -51,7 +48,7 @@ func (r *apiKeyApiRepository) FindByAPIKeyAndApi(apiKeyID int64, apiID int64) (*
 
 func (r *apiKeyApiRepository) FindByAPIKeyUUID(apiKeyUUID uuid.UUID) ([]model.APIKeyApi, error) {
 	var apiKeyApis []model.APIKeyApi
-	err := r.db.Joins("JOIN api_keys ON api_keys.api_key_id = api_key_apis.api_key_id").
+	err := r.DB().Joins("JOIN api_keys ON api_keys.api_key_id = api_key_apis.api_key_id").
 		Where("api_keys.api_key_uuid = ?", apiKeyUUID).
 		Preload("API").
 		Preload("Permissions.Permission").
@@ -69,7 +66,7 @@ func (r *apiKeyApiRepository) FindByAPIKeyUUIDPaginated(apiKeyUUID uuid.UUID, pa
 	var total int64
 
 	// Base query
-	query := r.db.Joins("JOIN api_keys ON api_keys.api_key_id = api_key_apis.api_key_id").
+	query := r.DB().Joins("JOIN api_keys ON api_keys.api_key_id = api_key_apis.api_key_id").
 		Where("api_keys.api_key_uuid = ?", apiKeyUUID).
 		Preload("API").
 		Preload("Permissions.Permission")
@@ -112,7 +109,7 @@ func (r *apiKeyApiRepository) FindByAPIKeyUUIDPaginated(apiKeyUUID uuid.UUID, pa
 
 func (r *apiKeyApiRepository) FindByAPIKeyUUIDAndApiUUID(apiKeyUUID uuid.UUID, apiUUID uuid.UUID) (*model.APIKeyApi, error) {
 	var apiKeyApi model.APIKeyApi
-	err := r.db.Joins("JOIN api_keys ON api_keys.api_key_id = api_key_apis.api_key_id").
+	err := r.DB().Joins("JOIN api_keys ON api_keys.api_key_id = api_key_apis.api_key_id").
 		Joins("JOIN apis ON apis.api_id = api_key_apis.api_id").
 		Where("api_keys.api_key_uuid = ? AND apis.api_uuid = ?", apiKeyUUID, apiUUID).
 		Preload("API").
@@ -130,7 +127,7 @@ func (r *apiKeyApiRepository) FindByAPIKeyUUIDAndApiUUID(apiKeyUUID uuid.UUID, a
 }
 
 func (r *apiKeyApiRepository) RemoveByAPIKeyAndApi(apiKeyID int64, apiID int64) error {
-	return r.db.Where("api_key_id = ? AND api_id = ?", apiKeyID, apiID).Delete(&model.APIKeyApi{}).Error
+	return r.DB().Where("api_key_id = ? AND api_id = ?", apiKeyID, apiID).Delete(&model.APIKeyApi{}).Error
 }
 
 func (r *apiKeyApiRepository) RemoveByAPIKeyUUIDAndApiUUID(apiKeyUUID uuid.UUID, apiUUID uuid.UUID) error {
@@ -144,5 +141,5 @@ func (r *apiKeyApiRepository) RemoveByAPIKeyUUIDAndApiUUID(apiKeyUUID uuid.UUID,
 	}
 
 	// Delete by ID (more reliable than complex JOINs in DELETE)
-	return r.db.Delete(&model.APIKeyApi{}, apiKeyApi.APIKeyApiID).Error
+	return r.DB().Delete(&model.APIKeyApi{}, apiKeyApi.APIKeyApiID).Error
 }

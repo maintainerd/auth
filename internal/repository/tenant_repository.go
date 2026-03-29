@@ -37,26 +37,23 @@ type TenantRepository interface {
 
 type tenantRepository struct {
 	*BaseRepository[model.Tenant]
-	db *gorm.DB
 }
 
 func NewTenantRepository(db *gorm.DB) TenantRepository {
 	return &tenantRepository{
 		BaseRepository: NewBaseRepository[model.Tenant](db, "tenant_uuid", "tenant_id"),
-		db:             db,
 	}
 }
 
 func (r *tenantRepository) WithTx(tx *gorm.DB) TenantRepository {
 	return &tenantRepository{
-		BaseRepository: NewBaseRepository[model.Tenant](tx, "tenant_uuid", "tenant_id"),
-		db:             tx,
+		BaseRepository: r.BaseRepository.WithTx(tx),
 	}
 }
 
 func (r *tenantRepository) FindByName(name string) (*model.Tenant, error) {
 	var tenant model.Tenant
-	err := r.db.Where("name = ?", name).First(&tenant).Error
+	err := r.DB().Where("name = ?", name).First(&tenant).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, nil
@@ -68,7 +65,7 @@ func (r *tenantRepository) FindByName(name string) (*model.Tenant, error) {
 
 func (r *tenantRepository) FindByIdentifier(identifier string) (*model.Tenant, error) {
 	var tenant model.Tenant
-	err := r.db.Where("identifier = ?", identifier).First(&tenant).Error
+	err := r.DB().Where("identifier = ?", identifier).First(&tenant).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, nil
@@ -80,7 +77,7 @@ func (r *tenantRepository) FindByIdentifier(identifier string) (*model.Tenant, e
 
 func (r *tenantRepository) FindDefault() (*model.Tenant, error) {
 	var tenant model.Tenant
-	err := r.db.Where("is_default = ?", true).First(&tenant).Error
+	err := r.DB().Where("is_default = ?", true).First(&tenant).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, nil
@@ -91,7 +88,7 @@ func (r *tenantRepository) FindDefault() (*model.Tenant, error) {
 }
 
 func (r *tenantRepository) FindPaginated(filter TenantRepositoryGetFilter) (*PaginationResult[model.Tenant], error) {
-	query := r.db.Model(&model.Tenant{})
+	query := r.DB().Model(&model.Tenant{})
 
 	// Filters with LIKE
 	if filter.Name != nil {
@@ -121,16 +118,8 @@ func (r *tenantRepository) FindPaginated(filter TenantRepositoryGetFilter) (*Pag
 		query = query.Where("is_system = ?", *filter.IsSystem)
 	}
 
-	// Sorting
-	if filter.SortBy != "" {
-		order := "ASC"
-		if filter.SortOrder == "desc" {
-			order = "DESC"
-		}
-		query = query.Order(filter.SortBy + " " + order)
-	} else {
-		query = query.Order("created_at DESC")
-	}
+	// Sorting — protected against SQL injection via allowlist
+	query = query.Order(sanitizeOrder(filter.SortBy, filter.SortOrder, "created_at DESC"))
 
 	// Count
 	var total int64
@@ -157,13 +146,13 @@ func (r *tenantRepository) FindPaginated(filter TenantRepositoryGetFilter) (*Pag
 }
 
 func (r *tenantRepository) SetStatusByUUID(tenantUUID uuid.UUID, status string) error {
-	return r.db.Model(&model.Tenant{}).Where("tenant_uuid = ?", tenantUUID).Update("status", status).Error
+	return r.DB().Model(&model.Tenant{}).Where("tenant_uuid = ?", tenantUUID).Update("status", status).Error
 }
 
 func (r *tenantRepository) SetDefaultStatusByUUID(tenantUUID uuid.UUID, isDefault bool) error {
-	return r.db.Model(&model.Tenant{}).Where("tenant_uuid = ?", tenantUUID).Update("is_default", isDefault).Error
+	return r.DB().Model(&model.Tenant{}).Where("tenant_uuid = ?", tenantUUID).Update("is_default", isDefault).Error
 }
 
 func (r *tenantRepository) SetSystemStatusByUUID(tenantUUID uuid.UUID, isSystem bool) error {
-	return r.db.Model(&model.Tenant{}).Where("tenant_uuid = ?", tenantUUID).Update("is_system", isSystem).Error
+	return r.DB().Model(&model.Tenant{}).Where("tenant_uuid = ?", tenantUUID).Update("is_system", isSystem).Error
 }
