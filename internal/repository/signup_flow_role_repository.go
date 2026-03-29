@@ -1,6 +1,8 @@
 package repository
 
 import (
+	"errors"
+
 	"github.com/maintainerd/auth/internal/model"
 	"gorm.io/gorm"
 )
@@ -16,26 +18,23 @@ type SignupFlowRoleRepository interface {
 
 type signupFlowRoleRepository struct {
 	*BaseRepository[model.SignupFlowRole]
-	db *gorm.DB
 }
 
 func NewSignupFlowRoleRepository(db *gorm.DB) SignupFlowRoleRepository {
 	return &signupFlowRoleRepository{
 		BaseRepository: NewBaseRepository[model.SignupFlowRole](db, "signup_flow_role_uuid", "signup_flow_role_id"),
-		db:             db,
 	}
 }
 
 func (r *signupFlowRoleRepository) WithTx(tx *gorm.DB) SignupFlowRoleRepository {
 	return &signupFlowRoleRepository{
-		BaseRepository: NewBaseRepository[model.SignupFlowRole](tx, "signup_flow_role_uuid", "signup_flow_role_id"),
-		db:             tx,
+		BaseRepository: r.BaseRepository.WithTx(tx),
 	}
 }
 
 func (r *signupFlowRoleRepository) FindBySignupFlowID(signupFlowID int64) ([]model.SignupFlowRole, error) {
 	var signupFlowRoles []model.SignupFlowRole
-	err := r.db.Where("signup_flow_id = ?", signupFlowID).Preload("Role").Find(&signupFlowRoles).Error
+	err := r.DB().Where("signup_flow_id = ?", signupFlowID).Preload("Role").Find(&signupFlowRoles).Error
 	if err != nil {
 		return nil, err
 	}
@@ -46,7 +45,7 @@ func (r *signupFlowRoleRepository) FindBySignupFlowIDPaginated(signupFlowID int6
 	var signupFlowRoles []model.SignupFlowRole
 	var total int64
 
-	query := r.db.Where("signup_flow_id = ?", signupFlowID)
+	query := r.DB().Where("signup_flow_id = ?", signupFlowID)
 
 	// Get total count
 	if err := query.Model(&model.SignupFlowRole{}).Count(&total).Error; err != nil {
@@ -64,14 +63,14 @@ func (r *signupFlowRoleRepository) FindBySignupFlowIDPaginated(signupFlowID int6
 }
 
 func (r *signupFlowRoleRepository) DeleteBySignupFlowIDAndRoleID(signupFlowID, roleID int64) error {
-	return r.db.Where("signup_flow_id = ? AND role_id = ?", signupFlowID, roleID).Delete(&model.SignupFlowRole{}).Error
+	return r.DB().Where("signup_flow_id = ? AND role_id = ?", signupFlowID, roleID).Delete(&model.SignupFlowRole{}).Error
 }
 
 func (r *signupFlowRoleRepository) FindBySignupFlowIDAndRoleID(signupFlowID, roleID int64) (*model.SignupFlowRole, error) {
 	var signupFlowRole model.SignupFlowRole
-	err := r.db.Where("signup_flow_id = ? AND role_id = ?", signupFlowID, roleID).First(&signupFlowRole).Error
+	err := r.DB().Where("signup_flow_id = ? AND role_id = ?", signupFlowID, roleID).First(&signupFlowRole).Error
 	if err != nil {
-		if err == gorm.ErrRecordNotFound {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, nil
 		}
 		return nil, err

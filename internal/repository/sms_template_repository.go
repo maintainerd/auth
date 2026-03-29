@@ -27,20 +27,18 @@ type SmsTemplateRepository interface {
 
 type smsTemplateRepository struct {
 	*BaseRepository[model.SmsTemplate]
-	db *gorm.DB
 }
 
 func NewSmsTemplateRepository(db *gorm.DB) SmsTemplateRepository {
 	return &smsTemplateRepository{
 		BaseRepository: NewBaseRepository[model.SmsTemplate](db, "sms_template_uuid", "sms_template_id"),
-		db:             db,
 	}
 }
 
 // FindByName retrieves an active SMS template by its name
 func (r *smsTemplateRepository) FindByName(name string) (*model.SmsTemplate, error) {
 	var template model.SmsTemplate
-	err := r.db.
+	err := r.DB().
 		Where("name = ? AND status = ?", name, "active").
 		First(&template).Error
 	if err != nil {
@@ -52,7 +50,7 @@ func (r *smsTemplateRepository) FindByName(name string) (*model.SmsTemplate, err
 // FindByUUIDAndTenantID retrieves an SMS template by UUID and tenant ID
 func (r *smsTemplateRepository) FindByUUIDAndTenantID(uuid string, tenantID int64) (*model.SmsTemplate, error) {
 	var template model.SmsTemplate
-	err := r.db.
+	err := r.DB().
 		Where("sms_template_uuid = ? AND tenant_id = ?", uuid, tenantID).
 		First(&template).Error
 	if err != nil {
@@ -63,7 +61,7 @@ func (r *smsTemplateRepository) FindByUUIDAndTenantID(uuid string, tenantID int6
 
 // FindPaginated retrieves paginated SMS templates with filtering
 func (r *smsTemplateRepository) FindPaginated(filter SmsTemplateRepositoryGetFilter) (*PaginationResult[model.SmsTemplate], error) {
-	query := r.db.Model(&model.SmsTemplate{})
+	query := r.DB().Model(&model.SmsTemplate{})
 
 	// Apply filters
 	if filter.TenantID != nil {
@@ -88,16 +86,8 @@ func (r *smsTemplateRepository) FindPaginated(filter SmsTemplateRepositoryGetFil
 		return nil, err
 	}
 
-	// Apply sorting
-	sortBy := "created_at"
-	if filter.SortBy != "" {
-		sortBy = filter.SortBy
-	}
-	sortOrder := "desc"
-	if filter.SortOrder != "" {
-		sortOrder = filter.SortOrder
-	}
-	query = query.Order(sortBy + " " + sortOrder)
+	// Apply sorting — protected against SQL injection via allowlist
+	query = query.Order(sanitizeOrder(filter.SortBy, filter.SortOrder, "created_at DESC"))
 
 	// Apply pagination
 	page := 1

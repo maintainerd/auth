@@ -1,6 +1,8 @@
 package repository
 
 import (
+	"errors"
+
 	"github.com/maintainerd/auth/internal/model"
 	"gorm.io/gorm"
 )
@@ -26,28 +28,25 @@ type SecuritySettingRepository interface {
 
 type securitySettingRepository struct {
 	*BaseRepository[model.SecuritySetting]
-	db *gorm.DB
 }
 
 func NewSecuritySettingRepository(db *gorm.DB) SecuritySettingRepository {
 	return &securitySettingRepository{
 		BaseRepository: NewBaseRepository[model.SecuritySetting](db, "security_setting_uuid", "security_setting_id"),
-		db:             db,
 	}
 }
 
 func (r *securitySettingRepository) WithTx(tx *gorm.DB) SecuritySettingRepository {
 	return &securitySettingRepository{
-		BaseRepository: NewBaseRepository[model.SecuritySetting](tx, "security_setting_uuid", "security_setting_id"),
-		db:             tx,
+		BaseRepository: r.BaseRepository.WithTx(tx),
 	}
 }
 
 func (r *securitySettingRepository) FindByTenantID(tenantID int64) (*model.SecuritySetting, error) {
 	var securitySetting model.SecuritySetting
-	err := r.db.Where("tenant_id = ?", tenantID).First(&securitySetting).Error
+	err := r.DB().Where("tenant_id = ?", tenantID).First(&securitySetting).Error
 	if err != nil {
-		if err == gorm.ErrRecordNotFound {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, nil
 		}
 		return nil, err
@@ -56,7 +55,7 @@ func (r *securitySettingRepository) FindByTenantID(tenantID int64) (*model.Secur
 }
 
 func (r *securitySettingRepository) FindPaginated(filter SecuritySettingRepositoryGetFilter) (*PaginationResult[model.SecuritySetting], error) {
-	query := r.db.Model(&model.SecuritySetting{})
+	query := r.DB().Model(&model.SecuritySetting{})
 
 	// Apply filters
 	if filter.TenantID != nil {
@@ -78,16 +77,8 @@ func (r *securitySettingRepository) FindPaginated(filter SecuritySettingReposito
 		return nil, err
 	}
 
-	// Apply sorting
-	if filter.SortBy != "" {
-		order := filter.SortBy
-		if filter.SortOrder != "" {
-			order += " " + filter.SortOrder
-		}
-		query = query.Order(order)
-	} else {
-		query = query.Order("created_at DESC")
-	}
+	// Apply sorting — protected against SQL injection via allowlist
+	query = query.Order(sanitizeOrder(filter.SortBy, filter.SortOrder, "created_at DESC"))
 
 	// Apply pagination
 	offset := (filter.Page - 1) * filter.Limit
@@ -112,7 +103,7 @@ func (r *securitySettingRepository) FindPaginated(filter SecuritySettingReposito
 }
 
 func (r *securitySettingRepository) IncrementVersion(securitySettingID int64) error {
-	return r.db.Model(&model.SecuritySetting{}).
+	return r.DB().Model(&model.SecuritySetting{}).
 		Where("security_setting_id = ?", securitySettingID).
 		UpdateColumn("version", gorm.Expr("version + ?", 1)).Error
 }

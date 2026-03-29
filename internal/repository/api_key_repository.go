@@ -30,26 +30,23 @@ type APIKeyRepository interface {
 
 type apiKeyRepository struct {
 	*BaseRepository[model.APIKey]
-	db *gorm.DB
 }
 
 func NewAPIKeyRepository(db *gorm.DB) APIKeyRepository {
 	return &apiKeyRepository{
 		BaseRepository: NewBaseRepository[model.APIKey](db, "api_key_uuid", "api_key_id"),
-		db:             db,
 	}
 }
 
 func (r *apiKeyRepository) WithTx(tx *gorm.DB) APIKeyRepository {
 	return &apiKeyRepository{
-		BaseRepository: NewBaseRepository[model.APIKey](tx, "api_key_uuid", "api_key_id"),
-		db:             tx,
+		BaseRepository: r.BaseRepository.WithTx(tx),
 	}
 }
 
 func (r *apiKeyRepository) FindByUUIDAndTenantID(uuid string, tenantID int64) (*model.APIKey, error) {
 	var apiKey model.APIKey
-	err := r.db.Where("api_key_uuid = ? AND tenant_id = ?", uuid, tenantID).First(&apiKey).Error
+	err := r.DB().Where("api_key_uuid = ? AND tenant_id = ?", uuid, tenantID).First(&apiKey).Error
 
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -63,7 +60,7 @@ func (r *apiKeyRepository) FindByUUIDAndTenantID(uuid string, tenantID int64) (*
 
 func (r *apiKeyRepository) FindByKeyHash(keyHash string) (*model.APIKey, error) {
 	var apiKey model.APIKey
-	if err := r.db.Where("key_hash = ?", keyHash).First(&apiKey).Error; err != nil {
+	if err := r.DB().Where("key_hash = ?", keyHash).First(&apiKey).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, nil
 		}
@@ -73,7 +70,7 @@ func (r *apiKeyRepository) FindByKeyHash(keyHash string) (*model.APIKey, error) 
 }
 
 func (r *apiKeyRepository) DeleteByUUIDAndTenantID(uuid string, tenantID int64) error {
-	result := r.db.Where("api_key_uuid = ? AND tenant_id = ?", uuid, tenantID).Delete(&model.APIKey{})
+	result := r.DB().Where("api_key_uuid = ? AND tenant_id = ?", uuid, tenantID).Delete(&model.APIKey{})
 	if result.Error != nil {
 		return result.Error
 	}
@@ -85,7 +82,7 @@ func (r *apiKeyRepository) DeleteByUUIDAndTenantID(uuid string, tenantID int64) 
 
 func (r *apiKeyRepository) FindByKeyPrefix(keyPrefix string) (*model.APIKey, error) {
 	var apiKey model.APIKey
-	if err := r.db.Where("key_prefix = ?", keyPrefix).First(&apiKey).Error; err != nil {
+	if err := r.DB().Where("key_prefix = ?", keyPrefix).First(&apiKey).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, nil
 		}
@@ -95,7 +92,7 @@ func (r *apiKeyRepository) FindByKeyPrefix(keyPrefix string) (*model.APIKey, err
 }
 
 func (r *apiKeyRepository) FindPaginated(filter APIKeyRepositoryGetFilter) (*PaginationResult[model.APIKey], error) {
-	query := r.db.Model(&model.APIKey{})
+	query := r.DB().Model(&model.APIKey{})
 
 	// Always filter by tenant
 	query = query.Where("tenant_id = ?", filter.TenantID)
@@ -111,9 +108,8 @@ func (r *apiKeyRepository) FindPaginated(filter APIKeyRepositoryGetFilter) (*Pag
 		query = query.Where("status = ?", *filter.Status)
 	}
 
-	// Sorting
-	orderBy := filter.SortBy + " " + filter.SortOrder
-	query = query.Order(orderBy)
+	// Sorting — protected against SQL injection via allowlist
+	query = query.Order(sanitizeOrder(filter.SortBy, filter.SortOrder, "created_at DESC"))
 
 	// Count
 	var total int64

@@ -34,26 +34,23 @@ type IdentityProviderRepository interface {
 
 type identityProviderRepository struct {
 	*BaseRepository[model.IdentityProvider]
-	db *gorm.DB
 }
 
 func NewIdentityProviderRepository(db *gorm.DB) IdentityProviderRepository {
 	return &identityProviderRepository{
 		BaseRepository: NewBaseRepository[model.IdentityProvider](db, "identity_provider_uuid", "identity_provider_id"),
-		db:             db,
 	}
 }
 
 func (r *identityProviderRepository) WithTx(tx *gorm.DB) IdentityProviderRepository {
 	return &identityProviderRepository{
-		BaseRepository: NewBaseRepository[model.IdentityProvider](tx, "identity_provider_uuid", "identity_provider_id"),
-		db:             tx,
+		BaseRepository: r.BaseRepository.WithTx(tx),
 	}
 }
 
 func (r *identityProviderRepository) FindByName(name string, tenantID int64) (*model.IdentityProvider, error) {
 	var provider model.IdentityProvider
-	err := r.db.
+	err := r.DB().
 		Where("name = ? AND tenant_id = ?", name, tenantID).
 		First(&provider).Error
 
@@ -69,7 +66,7 @@ func (r *identityProviderRepository) FindByName(name string, tenantID int64) (*m
 
 func (r *identityProviderRepository) FindByIdentifier(identifier string) (*model.IdentityProvider, error) {
 	var provider model.IdentityProvider
-	err := r.db.
+	err := r.DB().
 		Where("identifier = ?", identifier).
 		First(&provider).Error
 
@@ -85,14 +82,14 @@ func (r *identityProviderRepository) FindByIdentifier(identifier string) (*model
 
 func (r *identityProviderRepository) FindDefaultByTenantID(tenantID int64) (*model.IdentityProvider, error) {
 	var provider model.IdentityProvider
-	err := r.db.
+	err := r.DB().
 		Where("tenant_id = ? AND is_default = true", tenantID).
 		First(&provider).Error
 	return &provider, err
 }
 
 func (r *identityProviderRepository) FindPaginated(filter IdentityProviderRepositoryGetFilter) (*PaginationResult[model.IdentityProvider], error) {
-	query := r.db.Model(&model.IdentityProvider{})
+	query := r.DB().Model(&model.IdentityProvider{})
 
 	// Filters with LIKE
 	if filter.Name != nil {
@@ -125,9 +122,8 @@ func (r *identityProviderRepository) FindPaginated(filter IdentityProviderReposi
 		query = query.Where("is_system = ?", *filter.IsSystem)
 	}
 
-	// Sorting
-	orderBy := filter.SortBy + " " + filter.SortOrder
-	query = query.Order(orderBy)
+	// Sorting — protected against SQL injection via allowlist
+	query = query.Order(sanitizeOrder(filter.SortBy, filter.SortOrder, "created_at DESC"))
 
 	// Count
 	var total int64

@@ -1,6 +1,8 @@
 package repository
 
 import (
+	"errors"
+
 	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/model"
 	"gorm.io/gorm"
@@ -28,20 +30,18 @@ type LoginTemplateRepository interface {
 
 type loginTemplateRepository struct {
 	*BaseRepository[model.LoginTemplate]
-	db *gorm.DB
 }
 
 func NewLoginTemplateRepository(db *gorm.DB) LoginTemplateRepository {
 	return &loginTemplateRepository{
 		BaseRepository: NewBaseRepository[model.LoginTemplate](db, "login_template_uuid", "login_template_id"),
-		db:             db,
 	}
 }
 
 // FindByUUIDAndTenantID retrieves a login template by UUID and tenant ID
 func (r *loginTemplateRepository) FindByUUIDAndTenantID(loginTemplateUUID uuid.UUID, tenantID int64, preloads ...string) (*model.LoginTemplate, error) {
 	var template model.LoginTemplate
-	query := r.db.Where("login_template_uuid = ? AND tenant_id = ?", loginTemplateUUID, tenantID)
+	query := r.DB().Where("login_template_uuid = ? AND tenant_id = ?", loginTemplateUUID, tenantID)
 
 	for _, preload := range preloads {
 		query = query.Preload(preload)
@@ -49,7 +49,7 @@ func (r *loginTemplateRepository) FindByUUIDAndTenantID(loginTemplateUUID uuid.U
 
 	err := query.First(&template).Error
 	if err != nil {
-		if err == gorm.ErrRecordNotFound {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, nil
 		}
 		return nil, err
@@ -60,7 +60,7 @@ func (r *loginTemplateRepository) FindByUUIDAndTenantID(loginTemplateUUID uuid.U
 // FindByName retrieves an active login template by its name
 func (r *loginTemplateRepository) FindByName(name string) (*model.LoginTemplate, error) {
 	var template model.LoginTemplate
-	err := r.db.
+	err := r.DB().
 		Where("name = ? AND status = ?", name, "active").
 		First(&template).Error
 	if err != nil {
@@ -71,7 +71,7 @@ func (r *loginTemplateRepository) FindByName(name string) (*model.LoginTemplate,
 
 // FindPaginated retrieves paginated login templates with filtering
 func (r *loginTemplateRepository) FindPaginated(filter LoginTemplateRepositoryGetFilter) (*PaginationResult[model.LoginTemplate], error) {
-	query := r.db.Model(&model.LoginTemplate{})
+	query := r.DB().Model(&model.LoginTemplate{})
 
 	// Apply filters
 	if filter.Name != nil && *filter.Name != "" {
@@ -99,16 +99,8 @@ func (r *loginTemplateRepository) FindPaginated(filter LoginTemplateRepositoryGe
 		return nil, err
 	}
 
-	// Apply sorting
-	sortBy := "created_at"
-	if filter.SortBy != "" {
-		sortBy = filter.SortBy
-	}
-	sortOrder := "desc"
-	if filter.SortOrder != "" {
-		sortOrder = filter.SortOrder
-	}
-	query = query.Order(sortBy + " " + sortOrder)
+	// Apply sorting — protected against SQL injection via allowlist
+	query = query.Order(sanitizeOrder(filter.SortBy, filter.SortOrder, "created_at DESC"))
 
 	// Apply pagination
 	page := 1

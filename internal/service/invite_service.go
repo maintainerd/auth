@@ -60,7 +60,7 @@ func (s *inviteService) SendInvite(
 			return err
 		}
 		if Client == nil ||
-			Client.Status != "active" ||
+			Client.Status != model.StatusActive ||
 			Client.Domain == nil || *Client.Domain == "" ||
 			Client.IdentityProvider == nil ||
 			Client.IdentityProvider.Tenant == nil ||
@@ -92,7 +92,7 @@ func (s *inviteService) SendInvite(
 
 		invite = &model.Invite{
 			TenantID:        tenantID,
-			ClientID: Client.ClientID,
+			ClientID:        Client.ClientID,
 			InvitedEmail:    email,
 			InvitedByUserID: userID,
 			InviteToken:     inviteToken,

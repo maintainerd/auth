@@ -21,20 +21,17 @@ type RolePermissionRepository interface {
 
 type rolePermissionRepository struct {
 	*BaseRepository[model.RolePermission]
-	db *gorm.DB
 }
 
 func NewRolePermissionRepository(db *gorm.DB) RolePermissionRepository {
 	return &rolePermissionRepository{
 		BaseRepository: NewBaseRepository[model.RolePermission](db, "role_permission_uuid", "role_permission_id"),
-		db:             db,
 	}
 }
 
 func (r *rolePermissionRepository) WithTx(tx *gorm.DB) RolePermissionRepository {
 	return &rolePermissionRepository{
-		BaseRepository: NewBaseRepository[model.RolePermission](tx, "role_permission_uuid", "role_permission_id"),
-		db:             tx,
+		BaseRepository: r.BaseRepository.WithTx(tx),
 	}
 }
 
@@ -45,7 +42,7 @@ func (r *rolePermissionRepository) Assign(rolePermission *model.RolePermission) 
 
 func (r *rolePermissionRepository) FindByRoleAndPermission(roleID int64, permissionID int64) (*model.RolePermission, error) {
 	var rp model.RolePermission
-	err := r.db.
+	err := r.DB().
 		Where("role_id = ? AND permission_id = ?", roleID, permissionID).
 		First(&rp).Error
 
@@ -63,24 +60,24 @@ func (r *rolePermissionRepository) FindByRoleAndPermission(roleID int64, permiss
 
 func (r *rolePermissionRepository) FindAllByRoleID(roleID int64) ([]model.RolePermission, error) {
 	var rps []model.RolePermission
-	err := r.db.Where("role_id = ?", roleID).Find(&rps).Error
+	err := r.DB().Where("role_id = ?", roleID).Find(&rps).Error
 	return rps, err
 }
 
 func (r *rolePermissionRepository) FindAllByPermissionID(permissionID int64) ([]model.RolePermission, error) {
 	var rps []model.RolePermission
-	err := r.db.Where("permission_id = ?", permissionID).Find(&rps).Error
+	err := r.DB().Where("permission_id = ?", permissionID).Find(&rps).Error
 	return rps, err
 }
 
 func (r *rolePermissionRepository) RemoveByRoleAndPermission(roleID int64, permissionID int64) error {
-	return r.db.
+	return r.DB().
 		Where("role_id = ? AND permission_id = ?", roleID, permissionID).
 		Unscoped().Delete(&model.RolePermission{}).Error
 }
 
 func (r *rolePermissionRepository) SetDefaultStatusByUUID(rolePermissionUUID uuid.UUID, isDefault bool) error {
-	return r.db.Model(&model.RolePermission{}).
+	return r.DB().Model(&model.RolePermission{}).
 		Where("role_permission_uuid = ?", rolePermissionUUID).
 		Update("is_default", isDefault).Error
 }

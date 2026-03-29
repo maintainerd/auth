@@ -19,26 +19,23 @@ type TenantMemberRepository interface {
 
 type tenantMemberRepository struct {
 	*BaseRepository[model.TenantMember]
-	db *gorm.DB
 }
 
 func NewTenantMemberRepository(db *gorm.DB) TenantMemberRepository {
 	return &tenantMemberRepository{
 		BaseRepository: NewBaseRepository[model.TenantMember](db, "tenant_member_uuid", "tenant_member_id"),
-		db:             db,
 	}
 }
 
 func (r *tenantMemberRepository) WithTx(tx *gorm.DB) TenantMemberRepository {
 	return &tenantMemberRepository{
-		BaseRepository: NewBaseRepository[model.TenantMember](tx, "tenant_member_uuid", "tenant_member_id"),
-		db:             tx,
+		BaseRepository: r.BaseRepository.WithTx(tx),
 	}
 }
 
 func (r *tenantMemberRepository) FindByTenantMemberUUID(uuid uuid.UUID) (*model.TenantMember, error) {
 	var tu model.TenantMember
-	err := r.db.Where("tenant_member_uuid = ?", uuid).First(&tu).Error
+	err := r.DB().Where("tenant_member_uuid = ?", uuid).First(&tu).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, nil
@@ -50,7 +47,7 @@ func (r *tenantMemberRepository) FindByTenantMemberUUID(uuid uuid.UUID) (*model.
 
 func (r *tenantMemberRepository) FindByTenantAndUser(tenantID int64, userID int64) (*model.TenantMember, error) {
 	var tu model.TenantMember
-	err := r.db.Where("tenant_id = ? AND user_id = ?", tenantID, userID).First(&tu).Error
+	err := r.DB().Where("tenant_id = ? AND user_id = ?", tenantID, userID).First(&tu).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, nil
@@ -62,7 +59,7 @@ func (r *tenantMemberRepository) FindByTenantAndUser(tenantID int64, userID int6
 
 func (r *tenantMemberRepository) FindAllByTenant(tenantID int64) ([]model.TenantMember, error) {
 	var tus []model.TenantMember
-	err := r.db.Where("tenant_id = ?", tenantID).Find(&tus).Error
+	err := r.DB().Where("tenant_id = ?", tenantID).Find(&tus).Error
 	if err != nil {
 		return nil, err
 	}
@@ -71,7 +68,7 @@ func (r *tenantMemberRepository) FindAllByTenant(tenantID int64) ([]model.Tenant
 
 func (r *tenantMemberRepository) FindAllByUser(userID int64) ([]model.TenantMember, error) {
 	var tus []model.TenantMember
-	err := r.db.Where("user_id = ?", userID).Find(&tus).Error
+	err := r.DB().Where("user_id = ?", userID).Find(&tus).Error
 	if err != nil {
 		return nil, err
 	}

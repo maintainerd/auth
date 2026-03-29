@@ -148,7 +148,7 @@ func (s *setupService) CreateTenant(req dto.CreateTenantRequestDto) (*dto.Create
 			Description: description,
 			Identifier:  identifier,
 			Metadata:    metadataJSON,
-			Status:      "active",
+			Status:      model.StatusActive,
 			IsDefault:   true, // This is the default tenant for new users
 			IsSystem:    true, // This is a system tenant that cannot be deleted
 		}
@@ -284,7 +284,7 @@ func (s *setupService) CreateAdmin(req dto.CreateAdminRequestDto) (*dto.CreateAd
 			Email:           req.Email,
 			Password:        util.Ptr(string(hashedPassword)),
 			IsEmailVerified: true,
-			Status:          "active",
+			Status:          model.StatusActive,
 		}
 
 		createdUser, err = txUserRepo.Create(newUser)
