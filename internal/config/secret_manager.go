@@ -3,7 +3,7 @@ package config
 import (
 	"encoding/base64"
 	"fmt"
-	"log"
+	"log/slog"
 	"os"
 	"strings"
 	"time"
@@ -134,27 +134,27 @@ func (v *VaultSecretManager) GetSecretString(key string) (string, error) {
 func getSecretManager() SecretManager {
 	switch SecretProvider {
 	case "env":
-		log.Println("🔐 Using environment variable secret provider")
+		slog.Info("Using environment variable secret provider")
 		return &EnvironmentSecretManager{}
 
 	case "file":
 		basePath := GetEnvOrDefault("SECRET_FILE_PATH", "/run/secrets")
-		log.Printf("🔐 Using file secret provider (path: %s)", basePath)
+		slog.Info("Using file secret provider", "path", basePath)
 		return &FileSecretManager{BasePath: basePath}
 
 	case "aws_ssm":
 		region := GetEnvOrDefault("AWS_REGION", "us-east-1")
-		log.Printf("🔐 Using AWS SSM Parameter Store (region: %s, prefix: %s)", region, SecretPrefix)
+		slog.Info("Using AWS SSM Parameter Store", "region", region, "prefix", SecretPrefix)
 		return &AWSSSMSecretManager{Region: region, Prefix: SecretPrefix}
 
 	case "aws_secrets":
 		region := GetEnvOrDefault("AWS_REGION", "us-east-1")
-		log.Printf("🔐 Using AWS Secrets Manager (region: %s, prefix: %s)", region, SecretPrefix)
+		slog.Info("Using AWS Secrets Manager", "region", region, "prefix", SecretPrefix)
 		return &AWSSecretsManager{Region: region, Prefix: SecretPrefix}
 
 	case "vault":
 		address := GetEnvOrDefault("VAULT_ADDR", "http://localhost:8200")
-		log.Printf("🔐 Using HashiCorp Vault (address: %s, prefix: %s)", address, SecretPrefix)
+		slog.Info("Using HashiCorp Vault", "address", address, "prefix", SecretPrefix)
 		return &VaultSecretManager{
 			Address: address,
 			Token:   os.Getenv("VAULT_TOKEN"),
@@ -162,7 +162,7 @@ func getSecretManager() SecretManager {
 		}
 
 	default:
-		log.Printf("⚠️ Unknown secret provider '%s', falling back to environment variables", SecretProvider)
+		slog.Warn("Unknown secret provider, falling back to environment variables", "provider", SecretProvider)
 		return &EnvironmentSecretManager{}
 	}
 }
@@ -181,13 +181,13 @@ func loadSecret(key string) ([]byte, error) {
 				return nil, fmt.Errorf("secret %s is empty", key)
 			}
 
-			log.Printf("✅ Successfully loaded secret: %s (length: %d bytes)", key, len(secret))
+			slog.Info("Successfully loaded secret", "key", key, "bytes", len(secret))
 			return secret, nil
 		}
 
 		lastErr = err
 		if attempt < 3 {
-			log.Printf("⚠️ Failed to load secret %s (attempt %d/3): %v", key, attempt, err)
+			slog.Warn("Failed to load secret, retrying", "key", key, "attempt", attempt, "error", err)
 			time.Sleep(time.Duration(attempt) * time.Second)
 		}
 	}
