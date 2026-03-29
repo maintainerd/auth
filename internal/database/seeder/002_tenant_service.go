@@ -1,7 +1,7 @@
 package seeder
 
 import (
-	"log"
+	"log/slog"
 
 	"github.com/maintainerd/auth/internal/model"
 	"gorm.io/gorm"
@@ -12,7 +12,7 @@ func SeedTenantService(db *gorm.DB, tenantID, serviceID int64) (model.TenantServ
 
 	// Ensure valid IDs
 	if tenantID == 0 || serviceID == 0 {
-		log.Printf("⚠️ Skipping TenantService seeding: missing IDs (tenantID=%d, serviceID=%d)", tenantID, serviceID)
+		slog.Warn("Skipping TenantService seeding: missing IDs", "tenant_id", tenantID, "service_id", serviceID)
 		return tenantService, nil
 	}
 
@@ -21,11 +21,11 @@ func SeedTenantService(db *gorm.DB, tenantID, serviceID int64) (model.TenantServ
 		First(&tenantService).Error
 
 	if err == nil {
-		log.Printf("⚠️ TenantService already exists (ID: %d)", tenantService.TenantServiceID)
+		slog.Info("TenantService already exists, skipping", "id", tenantService.TenantServiceID)
 		return tenantService, nil
 	}
 	if err != gorm.ErrRecordNotFound {
-		log.Printf("❌ Error checking TenantService: %v", err)
+		slog.Error("Error checking TenantService", "error", err)
 		return model.TenantService{}, err
 	}
 
@@ -35,10 +35,10 @@ func SeedTenantService(db *gorm.DB, tenantID, serviceID int64) (model.TenantServ
 	}
 
 	if err := db.Create(&tenantService).Error; err != nil {
-		log.Printf("❌ Failed to seed TenantService: %v", err)
+		slog.Error("Failed to seed TenantService", "error", err)
 		return model.TenantService{}, err
 	}
 
-	log.Printf("✅ TenantService seeded successfully (ID: %d)", tenantService.TenantServiceID)
+	slog.Info("TenantService seeded", "id", tenantService.TenantServiceID)
 	return tenantService, nil
 }
