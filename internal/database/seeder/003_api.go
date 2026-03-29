@@ -2,6 +2,7 @@ package seeder
 
 import (
 	"fmt"
+	"log/slog"
 
 	"github.com/maintainerd/auth/internal/model"
 	"github.com/maintainerd/auth/internal/util"
@@ -13,7 +14,7 @@ func SeedAPI(db *gorm.DB, tenantID, serviceID int64) (*model.API, error) {
 	err := db.Where("name = ? AND tenant_id = ?", "auth", tenantID).First(&existing).Error
 
 	if err == nil {
-		fmt.Println("⚠️ API 'auth' already exists, skipping seeding")
+		slog.Info("API 'auth' already exists, skipping")
 		return &existing, nil
 	}
 	if err != gorm.ErrRecordNotFound {
@@ -36,6 +37,6 @@ func SeedAPI(db *gorm.DB, tenantID, serviceID int64) (*model.API, error) {
 		return nil, fmt.Errorf("failed to seed API: %w", err)
 	}
 
-	fmt.Println("✅ Auth API seeded successfully")
+	slog.Info("Auth API seeded successfully")
 	return api, nil
 }

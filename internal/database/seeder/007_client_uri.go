@@ -1,17 +1,18 @@
 package seeder
 
 import (
-	"log"
-	"os"
+	"fmt"
+	"log/slog"
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/maintainerd/auth/internal/config"
 	"github.com/maintainerd/auth/internal/model"
 	"gorm.io/gorm"
 )
 
 func SeedClientURIs(db *gorm.DB, tenantID int64, identityProviderID int64) error {
-	appHostName := os.Getenv("APP_PRIVATE_HOSTNAME")
+	appHostName := config.AppPrivateHostname
 
 	// Map of client name -> URIs with their types
 	uris := map[string][]struct {
@@ -47,24 +48,22 @@ func SeedClientURIs(db *gorm.DB, tenantID int64, identityProviderID int64) error
 			Where("name = ? AND identity_provider_id = ? AND tenant_id = ?", clientName, identityProviderID, tenantID).
 			First(&client).Error
 		if err != nil {
-			log.Printf("⚠️ Auth client '%s' not found, skipping URIs", clientName)
-			continue
+			return fmt.Errorf("auth client %q not found when seeding URIs: %w", clientName, err)
 		}
 
 		for _, uriData := range clientURIs {
 			var existing model.ClientURI
 			err := db.
-				Where("client_id = ? AND uri = ? AND type = ?", client.Identifier, uriData.URI, uriData.Type).
+				Where("client_id = ? AND uri = ? AND type = ?", client.ClientID, uriData.URI, uriData.Type).
 				First(&existing).Error
 
 			if err == nil {
 				// Update existing URI
 				existing.UpdatedAt = time.Now()
 				if err := db.Save(&existing).Error; err != nil {
-					log.Printf("❌ Failed to update URI '%s' (%s) for client '%s': %v", uriData.URI, uriData.Type, clientName, err)
-				} else {
-					log.Printf("🔄 URI '%s' (%s) updated for client '%s'", uriData.URI, uriData.Type, clientName)
+					return fmt.Errorf("failed to update URI %q (%s) for client %q: %w", uriData.URI, uriData.Type, clientName, err)
 				}
+				slog.Info("Client URI updated", "uri", uriData.URI, "type", uriData.Type, "client", clientName)
 				continue
 			}
 
@@ -80,15 +79,14 @@ func SeedClientURIs(db *gorm.DB, tenantID int64, identityProviderID int64) error
 					UpdatedAt:     time.Now(),
 				}
 				if err := db.Create(&uri).Error; err != nil {
-					log.Printf("❌ Failed to create URI '%s' (%s) for client '%s': %v", uriData.URI, uriData.Type, clientName, err)
-					continue
+					return fmt.Errorf("failed to create URI %q (%s) for client %q: %w", uriData.URI, uriData.Type, clientName, err)
 				}
-				log.Printf("✅ URI '%s' (%s) created for client '%s'", uriData.URI, uriData.Type, clientName)
+				slog.Info("Client URI created", "uri", uriData.URI, "type", uriData.Type, "client", clientName)
 				continue
 			}
 
 			// Unexpected error
-			log.Printf("❌ Failed lookup for URI '%s' (%s) for client '%s': %v", uriData.URI, uriData.Type, clientName, err)
+			return fmt.Errorf("failed lookup for URI %q (%s) for client %q: %w", uriData.URI, uriData.Type, clientName, err)
 		}
 	}
 

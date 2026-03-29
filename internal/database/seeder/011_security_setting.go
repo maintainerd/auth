@@ -1,7 +1,7 @@
 package seeder
 
 import (
-	"log"
+	"log/slog"
 
 	"github.com/maintainerd/auth/internal/model"
 	"gorm.io/datatypes"
@@ -14,7 +14,7 @@ func SeedSecuritySettings(db *gorm.DB, tenantID int64) error {
 	var existing model.SecuritySetting
 	err := db.Where("tenant_id = ?", tenantID).First(&existing).Error
 	if err == nil {
-		log.Printf("✅ Security settings already exist for tenant ID: %d", tenantID)
+		slog.Info("Security settings already exist, skipping", "tenant_id", tenantID)
 		return nil
 	}
 
@@ -30,10 +30,10 @@ func SeedSecuritySettings(db *gorm.DB, tenantID int64) error {
 	}
 
 	if err := db.Create(&securitySetting).Error; err != nil {
-		log.Printf("❌ Failed to create security settings for tenant ID %d: %v", tenantID, err)
+		slog.Error("Failed to create security settings", "tenant_id", tenantID, "error", err)
 		return err
 	}
 
-	log.Printf("✅ Created security settings for tenant ID: %d", tenantID)
+	slog.Info("Security settings seeded", "tenant_id", tenantID)
 	return nil
 }
