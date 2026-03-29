@@ -129,7 +129,7 @@ func (s *registerService) RegisterPublic(
 			return txErr
 		}
 		if Client == nil ||
-			Client.Status != "active" ||
+			Client.Status != model.StatusActive ||
 			Client.Domain == nil || *Client.Domain == "" {
 			return errors.New("invalid or inactive auth client")
 		}
@@ -188,7 +188,7 @@ func (s *registerService) RegisterPublic(
 			Username: username,
 			Fullname: fullname,
 			Password: util.Ptr(string(hashed)),
-			Status:   "active",
+			Status:   model.StatusActive,
 		}
 
 		// Set email if provided
@@ -245,7 +245,7 @@ func (s *registerService) RegisterPublic(
 		// Create user token
 		userToken := &model.UserToken{
 			UserID:    createdUser.UserID,
-			TokenType: "user:email:verification",
+			TokenType: model.TokenTypeEmailVerification,
 			Token:     otp,
 		}
 		_, txErr = txUserTokenRepo.Create(userToken)
@@ -313,7 +313,7 @@ func (s *registerService) Register(
 		}
 
 		if Client == nil ||
-			Client.Status != "active" ||
+			Client.Status != model.StatusActive ||
 			Client.Domain == nil || *Client.Domain == "" {
 			return errors.New("auth client not found or inactive")
 		}
@@ -341,7 +341,7 @@ func (s *registerService) Register(
 			Username: username,
 			Fullname: fullname,
 			Password: util.Ptr(string(hashed)),
-			Status:   "active",
+			Status:   model.StatusActive,
 		}
 
 		// Set email if provided
@@ -409,7 +409,7 @@ func (s *registerService) Register(
 		// Create user token
 		userToken := &model.UserToken{
 			UserID:    createdUser.UserID,
-			TokenType: "user:email:verification",
+			TokenType: model.TokenTypeEmailVerification,
 			Token:     otp,
 		}
 		_, txErr = txUserTokenRepo.Create(userToken)
@@ -470,7 +470,7 @@ func (s *registerService) RegisterInvite(
 		}
 
 		if Client == nil ||
-			Client.Status != "active" ||
+			Client.Status != model.StatusActive ||
 			Client.Domain == nil || *Client.Domain == "" {
 			return errors.New("auth client not found or inactive")
 		}
@@ -508,7 +508,7 @@ func (s *registerService) RegisterInvite(
 			Fullname: username, // Use username as fullname since invite doesn't have fullname
 			Password: util.Ptr(string(hashed)),
 			Email:    invite.InvitedEmail,
-			Status:   "active",
+			Status:   model.StatusActive,
 		}
 
 		createdUser, txErr = txUserRepo.Create(newUser)
@@ -618,7 +618,7 @@ func (s *registerService) RegisterInvitePublic(
 			return txErr
 		}
 		if Client == nil ||
-			Client.Status != "active" ||
+			Client.Status != model.StatusActive ||
 			Client.Domain == nil || *Client.Domain == "" {
 			return errors.New("invalid or inactive auth client")
 		}
@@ -645,7 +645,7 @@ func (s *registerService) RegisterInvitePublic(
 		}
 
 		// Check invite status and expiration
-		if invite.Status != "pending" {
+		if invite.Status != "pending" { // "pending" is invite-specific, no model constant needed
 			return errors.New("invite has already been used or is no longer valid")
 		}
 		if invite.ExpiresAt != nil && time.Now().After(*invite.ExpiresAt) {
@@ -681,7 +681,7 @@ func (s *registerService) RegisterInvitePublic(
 			Username:        username,
 			Email:           invite.InvitedEmail, // Always use the invited email
 			Password:        util.Ptr(string(hashed)),
-			Status:          "active",
+			Status:          model.StatusActive,
 			IsEmailVerified: true, // Auto-verify email for invited users
 		}
 

@@ -15,35 +15,32 @@ type UserSettingRepository interface {
 
 type userSettingRepository struct {
 	*BaseRepository[model.UserSetting]
-	db *gorm.DB
 }
 
 func NewUserSettingRepository(db *gorm.DB) UserSettingRepository {
 	return &userSettingRepository{
 		BaseRepository: NewBaseRepository[model.UserSetting](db, "user_setting_uuid", "user_setting_id"),
-		db:             db,
 	}
 }
 
 func (r *userSettingRepository) WithTx(tx *gorm.DB) UserSettingRepository {
 	return &userSettingRepository{
-		BaseRepository: NewBaseRepository[model.UserSetting](tx, "user_setting_uuid", "user_setting_id"),
-		db:             tx,
+		BaseRepository: r.BaseRepository.WithTx(tx),
 	}
 }
 
 func (r *userSettingRepository) FindByUserID(userID int64) (*model.UserSetting, error) {
 	var userSetting model.UserSetting
-	err := r.db.Where("user_id = ?", userID).First(&userSetting).Error
+	err := r.DB().Where("user_id = ?", userID).First(&userSetting).Error
 	return &userSetting, err
 }
 
 func (r *userSettingRepository) UpdateByUserID(userID int64, updatedUserSetting *model.UserSetting) error {
-	return r.db.Model(&model.UserSetting{}).
+	return r.DB().Model(&model.UserSetting{}).
 		Where("user_id = ?", userID).
 		Updates(updatedUserSetting).Error
 }
 
 func (r *userSettingRepository) DeleteByUserID(userID int64) error {
-	return r.db.Where("user_id = ?", userID).Delete(&model.UserSetting{}).Error
+	return r.DB().Where("user_id = ?", userID).Delete(&model.UserSetting{}).Error
 }

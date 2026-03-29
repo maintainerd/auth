@@ -1,6 +1,8 @@
 package repository
 
 import (
+	"errors"
+
 	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/model"
 	"gorm.io/gorm"
@@ -11,7 +13,7 @@ type InviteRepository interface {
 	WithTx(tx *gorm.DB) InviteRepository
 	FindByUUIDAndTenantID(inviteUUID uuid.UUID, tenantID int64, preloads ...string) (*model.Invite, error)
 	FindByToken(token string) (*model.Invite, error)
-	FindAllByClientID(ClientID int64) ([]model.Invite, error)
+	FindAllByClientID(clientID int64) ([]model.Invite, error)
 	FindAllByTenantID(tenantID int64) ([]model.Invite, error)
 	MarkAsUsed(inviteUUID uuid.UUID) error
 	RevokeByUUID(inviteUUID uuid.UUID) error
@@ -19,26 +21,23 @@ type InviteRepository interface {
 
 type inviteRepository struct {
 	*BaseRepository[model.Invite]
-	db *gorm.DB
 }
 
 func NewInviteRepository(db *gorm.DB) InviteRepository {
 	return &inviteRepository{
 		BaseRepository: NewBaseRepository[model.Invite](db, "invite_uuid", "invite_id"),
-		db:             db,
 	}
 }
 
 func (r *inviteRepository) WithTx(tx *gorm.DB) InviteRepository {
 	return &inviteRepository{
-		BaseRepository: NewBaseRepository[model.Invite](tx, "invite_uuid", "invite_id"),
-		db:             tx,
+		BaseRepository: r.BaseRepository.WithTx(tx),
 	}
 }
 
 func (r *inviteRepository) FindByUUIDAndTenantID(inviteUUID uuid.UUID, tenantID int64, preloads ...string) (*model.Invite, error) {
 	var invite model.Invite
-	query := r.db.Where("invite_uuid = ? AND tenant_id = ?", inviteUUID, tenantID)
+	query := r.DB().Where("invite_uuid = ? AND tenant_id = ?", inviteUUID, tenantID)
 
 	for _, preload := range preloads {
 		query = query.Preload(preload)
@@ -46,7 +45,7 @@ func (r *inviteRepository) FindByUUIDAndTenantID(inviteUUID uuid.UUID, tenantID 
 
 	err := query.First(&invite).Error
 	if err != nil {
-		if err == gorm.ErrRecordNotFound {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, nil
 		}
 		return nil, err
@@ -56,40 +55,46 @@ func (r *inviteRepository) FindByUUIDAndTenantID(inviteUUID uuid.UUID, tenantID 
 
 func (r *inviteRepository) FindByToken(token string) (*model.Invite, error) {
 	var invite model.Invite
-	err := r.db.
+	err := r.DB().
 		Preload("Roles").
 		Where("invite_token = ?", token).
 		First(&invite).Error
-	return &invite, err
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &invite, nil
 }
 
-func (r *inviteRepository) FindAllByClientID(ClientID int64) ([]model.Invite, error) {
+func (r *inviteRepository) FindAllByClientID(clientID int64) ([]model.Invite, error) {
 	var invites []model.Invite
-	err := r.db.
-		Where("client_id = ?", ClientID).
+	err := r.DB().
+		Where("client_id = ?", clientID).
 		Find(&invites).Error
 	return invites, err
 }
 
 func (r *inviteRepository) FindAllByTenantID(tenantID int64) ([]model.Invite, error) {
 	var invites []model.Invite
-	err := r.db.
+	err := r.DB().
 		Where("tenant_id = ?", tenantID).
 		Find(&invites).Error
 	return invites, err
 }
 
 func (r *inviteRepository) MarkAsUsed(inviteUUID uuid.UUID) error {
-	return r.db.Model(&model.Invite{}).
+	return r.DB().Model(&model.Invite{}).
 		Where("invite_uuid = ?", inviteUUID).
-		Updates(map[string]interface{}{
+		Updates(map[string]any{
 			"status":  "accepted",
 			"used_at": gorm.Expr("now()"),
 		}).Error
 }
 
 func (r *inviteRepository) RevokeByUUID(inviteUUID uuid.UUID) error {
-	return r.db.Model(&model.Invite{}).
+	return r.DB().Model(&model.Invite{}).
 		Where("invite_uuid = ?", inviteUUID).
 		Update("status", "revoked").Error
 }

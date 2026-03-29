@@ -1,6 +1,8 @@
 package repository
 
 import (
+	"errors"
+
 	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/model"
 	"gorm.io/gorm"
@@ -27,7 +29,7 @@ type UserRepository interface {
 	FindByPhone(phone string) (*model.User, error)
 	FindSuperAdmin() (*model.User, error)
 	FindRoles(userID int64) ([]model.Role, error)
-	FindBySubAndClientID(sub string, ClientID string) (*model.User, error)
+	FindBySubAndClientID(sub string, clientID string) (*model.User, error)
 	FindPaginated(filter UserRepositoryGetFilter) (*PaginationResult[model.User], error)
 	SetEmailVerified(userUUID uuid.UUID, verified bool) error
 	SetStatus(userUUID uuid.UUID, status string) error
@@ -35,31 +37,28 @@ type UserRepository interface {
 
 type userRepository struct {
 	*BaseRepository[model.User]
-	db *gorm.DB
 }
 
 func NewUserRepository(db *gorm.DB) UserRepository {
 	return &userRepository{
 		BaseRepository: NewBaseRepository[model.User](db, "user_uuid", "user_id"),
-		db:             db,
 	}
 }
 
 func (r *userRepository) WithTx(tx *gorm.DB) UserRepository {
 	return &userRepository{
-		BaseRepository: NewBaseRepository[model.User](tx, "user_uuid", "user_id"),
-		db:             tx,
+		BaseRepository: r.BaseRepository.WithTx(tx),
 	}
 }
 
 func (r *userRepository) FindByUsername(username string) (*model.User, error) {
 	var user model.User
-	err := r.db.
+	err := r.DB().
 		Where("username = ?", username).
 		First(&user).Error
 
 	if err != nil {
-		if err == gorm.ErrRecordNotFound {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, nil
 		}
 		return nil, err
@@ -70,12 +69,12 @@ func (r *userRepository) FindByUsername(username string) (*model.User, error) {
 
 func (r *userRepository) FindByEmail(email string) (*model.User, error) {
 	var user model.User
-	err := r.db.
+	err := r.DB().
 		Where("email = ?", email).
 		First(&user).Error
 
 	if err != nil {
-		if err == gorm.ErrRecordNotFound {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, nil
 		}
 		return nil, err
@@ -86,12 +85,12 @@ func (r *userRepository) FindByEmail(email string) (*model.User, error) {
 
 func (r *userRepository) FindByPhone(phone string) (*model.User, error) {
 	var user model.User
-	err := r.db.
+	err := r.DB().
 		Where("phone = ?", phone).
 		First(&user).Error
 
 	if err != nil {
-		if err == gorm.ErrRecordNotFound {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, nil
 		}
 		return nil, err
@@ -102,17 +101,17 @@ func (r *userRepository) FindByPhone(phone string) (*model.User, error) {
 
 func (r *userRepository) FindSuperAdmin() (*model.User, error) {
 	var user model.User
-	err := r.db.
+	err := r.DB().
 		Joins("JOIN user_identities ON users.user_id = user_identities.user_id").
 		Joins("JOIN tenants ON user_identities.tenant_id = tenants.tenant_id").
 		Joins("JOIN user_roles ON users.user_id = user_roles.user_id").
 		Joins("JOIN roles ON user_roles.role_id = roles.role_id").
-		Where("tenants.status = 'active' AND tenants.is_default = true").
+		Where("tenants.status = ? AND tenants.is_default = ?", model.StatusActive, true).
 		Where("roles.name = ?", "super-admin").
 		First(&user).Error
 
 	if err != nil {
-		if err == gorm.ErrRecordNotFound {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, nil
 		}
 		return nil, err
@@ -123,7 +122,7 @@ func (r *userRepository) FindSuperAdmin() (*model.User, error) {
 
 func (r *userRepository) FindRoles(userID int64) ([]model.Role, error) {
 	var roles []model.Role
-	err := r.db.
+	err := r.DB().
 		Model(&model.Role{}).
 		Select("roles.*").
 		Joins("JOIN user_roles ur ON ur.role_id = roles.role_id").
@@ -132,9 +131,9 @@ func (r *userRepository) FindRoles(userID int64) ([]model.Role, error) {
 	return roles, err
 }
 
-func (r *userRepository) FindBySubAndClientID(sub string, ClientID string) (*model.User, error) {
+func (r *userRepository) FindBySubAndClientID(sub string, clientID string) (*model.User, error) {
 	var user model.User
-	err := r.db.
+	err := r.DB().
 		Preload("UserIdentities.Tenant").
 		Preload("UserIdentities.Client.IdentityProvider.Tenant").
 		Preload("UserIdentities.Client.IdentityProvider").
@@ -142,11 +141,11 @@ func (r *userRepository) FindBySubAndClientID(sub string, ClientID string) (*mod
 		Preload("Roles.Permissions").
 		Joins("JOIN user_identities ON users.user_id = user_identities.user_id").
 		Joins("JOIN clients ON user_identities.client_id = clients.client_id").
-		Where("user_identities.sub = ? AND clients.client_id = ?", sub, ClientID).
+		Where("user_identities.sub = ? AND clients.client_id = ?", sub, clientID).
 		First(&user).Error
 
 	if err != nil {
-		if err == gorm.ErrRecordNotFound {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, nil
 		}
 		return nil, err
@@ -155,13 +154,13 @@ func (r *userRepository) FindBySubAndClientID(sub string, ClientID string) (*mod
 }
 
 func (r *userRepository) SetEmailVerified(userUUID uuid.UUID, verified bool) error {
-	return r.db.Model(&model.User{}).
+	return r.DB().Model(&model.User{}).
 		Where("user_uuid = ?", userUUID).
 		Update("is_email_verified", verified).Error
 }
 
 func (r *userRepository) SetStatus(userUUID uuid.UUID, status string) error {
-	return r.db.Model(&model.User{}).
+	return r.DB().Model(&model.User{}).
 		Where("user_uuid = ?", userUUID).
 		Update("status", status).Error
 }
@@ -170,7 +169,7 @@ func (r *userRepository) FindPaginated(filter UserRepositoryGetFilter) (*Paginat
 	var users []model.User
 	var total int64
 
-	query := r.db.Model(&model.User{})
+	query := r.DB().Model(&model.User{})
 
 	// Filter by tenant - join with tenant_users table
 	if filter.TenantID != nil {
@@ -200,18 +199,8 @@ func (r *userRepository) FindPaginated(filter UserRepositoryGetFilter) (*Paginat
 		return nil, err
 	}
 
-	// Apply sorting
-	if filter.SortBy != "" {
-		order := "users." + filter.SortBy
-		if filter.SortOrder == "desc" {
-			order += " DESC"
-		} else {
-			order += " ASC"
-		}
-		query = query.Order(order)
-	} else {
-		query = query.Order("users.created_at DESC")
-	}
+	// Apply sorting — protected against SQL injection via allowlist
+	query = query.Order(sanitizeOrderPrefixed("users.", filter.SortBy, filter.SortOrder, "users.created_at DESC"))
 
 	// Apply pagination
 	offset := (filter.Page - 1) * filter.Limit

@@ -11,35 +11,32 @@ import (
 type ClientApiRepository interface {
 	BaseRepositoryMethods[model.ClientApi]
 	WithTx(tx *gorm.DB) ClientApiRepository
-	FindByClientAndApi(ClientID int64, apiID int64) (*model.ClientApi, error)
-	FindByClientUUID(ClientUUID uuid.UUID) ([]model.ClientApi, error)
-	FindByClientUUIDAndApiUUID(ClientUUID uuid.UUID, apiUUID uuid.UUID) (*model.ClientApi, error)
-	RemoveByClientAndApi(ClientID int64, apiID int64) error
-	RemoveByClientUUIDAndApiUUID(ClientUUID uuid.UUID, apiUUID uuid.UUID) error
+	FindByClientAndApi(clientID int64, apiID int64) (*model.ClientApi, error)
+	FindByClientUUID(clientUUID uuid.UUID) ([]model.ClientApi, error)
+	FindByClientUUIDAndApiUUID(clientUUID uuid.UUID, apiUUID uuid.UUID) (*model.ClientApi, error)
+	RemoveByClientAndApi(clientID int64, apiID int64) error
+	RemoveByClientUUIDAndApiUUID(clientUUID uuid.UUID, apiUUID uuid.UUID) error
 }
 
 type clientApiRepository struct {
 	*BaseRepository[model.ClientApi]
-	db *gorm.DB
 }
 
 func NewClientApiRepository(db *gorm.DB) ClientApiRepository {
 	return &clientApiRepository{
 		BaseRepository: NewBaseRepository[model.ClientApi](db, "client_api_uuid", "client_api_id"),
-		db:             db,
 	}
 }
 
 func (r *clientApiRepository) WithTx(tx *gorm.DB) ClientApiRepository {
 	return &clientApiRepository{
-		BaseRepository: NewBaseRepository[model.ClientApi](tx, "client_api_uuid", "client_api_id"),
-		db:             tx,
+		BaseRepository: r.BaseRepository.WithTx(tx),
 	}
 }
 
-func (r *clientApiRepository) FindByClientAndApi(ClientID int64, apiID int64) (*model.ClientApi, error) {
-	var ClientApi model.ClientApi
-	err := r.db.Where("client_id = ? AND api_id = ?", ClientID, apiID).First(&ClientApi).Error
+func (r *clientApiRepository) FindByClientAndApi(clientID int64, apiID int64) (*model.ClientApi, error) {
+	var clientApi model.ClientApi
+	err := r.DB().Where("client_id = ? AND api_id = ?", clientID, apiID).First(&clientApi).Error
 
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -48,32 +45,32 @@ func (r *clientApiRepository) FindByClientAndApi(ClientID int64, apiID int64) (*
 		return nil, err
 	}
 
-	return &ClientApi, err
+	return &clientApi, err
 }
 
-func (r *clientApiRepository) FindByClientUUID(ClientUUID uuid.UUID) ([]model.ClientApi, error) {
-	var ClientApis []model.ClientApi
-	err := r.db.Joins("JOIN clients ON clients.client_id = client_apis.client_id").
-		Where("clients.client_uuid = ?", ClientUUID).
+func (r *clientApiRepository) FindByClientUUID(clientUUID uuid.UUID) ([]model.ClientApi, error) {
+	var clientApis []model.ClientApi
+	err := r.DB().Joins("JOIN clients ON clients.client_id = client_apis.client_id").
+		Where("clients.client_uuid = ?", clientUUID).
 		Preload("API").
 		Preload("Permissions.Permission").
-		Find(&ClientApis).Error
+		Find(&clientApis).Error
 
 	if err != nil {
 		return nil, err
 	}
 
-	return ClientApis, nil
+	return clientApis, nil
 }
 
-func (r *clientApiRepository) FindByClientUUIDAndApiUUID(ClientUUID uuid.UUID, apiUUID uuid.UUID) (*model.ClientApi, error) {
-	var ClientApi model.ClientApi
-	err := r.db.Joins("JOIN clients ON clients.client_id = client_apis.client_id").
+func (r *clientApiRepository) FindByClientUUIDAndApiUUID(clientUUID uuid.UUID, apiUUID uuid.UUID) (*model.ClientApi, error) {
+	var clientApi model.ClientApi
+	err := r.DB().Joins("JOIN clients ON clients.client_id = client_apis.client_id").
 		Joins("JOIN apis ON apis.api_id = client_apis.api_id").
-		Where("clients.client_uuid = ? AND apis.api_uuid = ?", ClientUUID, apiUUID).
+		Where("clients.client_uuid = ? AND apis.api_uuid = ?", clientUUID, apiUUID).
 		Preload("API").
 		Preload("Permissions.Permission").
-		First(&ClientApi).Error
+		First(&clientApi).Error
 
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -82,22 +79,22 @@ func (r *clientApiRepository) FindByClientUUIDAndApiUUID(ClientUUID uuid.UUID, a
 		return nil, err
 	}
 
-	return &ClientApi, nil
+	return &clientApi, nil
 }
 
-func (r *clientApiRepository) RemoveByClientAndApi(ClientID int64, apiID int64) error {
-	return r.db.
-		Where("client_id = ? AND api_id = ?", ClientID, apiID).
+func (r *clientApiRepository) RemoveByClientAndApi(clientID int64, apiID int64) error {
+	return r.DB().
+		Where("client_id = ? AND api_id = ?", clientID, apiID).
 		Unscoped().Delete(&model.ClientApi{}).Error
 }
 
-func (r *clientApiRepository) RemoveByClientUUIDAndApiUUID(ClientUUID uuid.UUID, apiUUID uuid.UUID) error {
+func (r *clientApiRepository) RemoveByClientUUIDAndApiUUID(clientUUID uuid.UUID, apiUUID uuid.UUID) error {
 	// First, find the client_api record to get the IDs
-	var ClientApi model.ClientApi
-	err := r.db.Joins("JOIN clients ON clients.client_id = client_apis.client_id").
+	var clientApi model.ClientApi
+	err := r.DB().Joins("JOIN clients ON clients.client_id = client_apis.client_id").
 		Joins("JOIN apis ON apis.api_id = client_apis.api_id").
-		Where("clients.client_uuid = ? AND apis.api_uuid = ?", ClientUUID, apiUUID).
-		First(&ClientApi).Error
+		Where("clients.client_uuid = ? AND apis.api_uuid = ?", clientUUID, apiUUID).
+		First(&clientApi).Error
 
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -107,5 +104,5 @@ func (r *clientApiRepository) RemoveByClientUUIDAndApiUUID(ClientUUID uuid.UUID,
 	}
 
 	// Now delete using the primary key
-	return r.db.Unscoped().Delete(&ClientApi).Error
+	return r.DB().Unscoped().Delete(&clientApi).Error
 }

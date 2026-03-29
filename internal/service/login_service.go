@@ -116,7 +116,7 @@ func (s *loginService) LoginPublic(usernameOrEmail, password, clientID, provider
 		}
 
 		if Client == nil ||
-			Client.Status != "active" ||
+			Client.Status != model.StatusActive ||
 			Client.Domain == nil || *Client.Domain == "" {
 			util.LogSecurityEvent(util.SecurityEvent{
 				EventType: "login_invalid_client",
@@ -175,7 +175,7 @@ func (s *loginService) LoginPublic(usernameOrEmail, password, clientID, provider
 	}
 
 	// Check if user account is active
-	if user.Status != "active" {
+	if user.Status != model.StatusActive {
 		util.LogSecurityEvent(util.SecurityEvent{
 			EventType: "login_inactive_user",
 			UserID:    user.UserUUID.String(),
@@ -262,7 +262,7 @@ func (s *loginService) Login(usernameOrEmail, password string, clientID, provide
 		}
 
 		if Client == nil ||
-			Client.Status != "active" ||
+			Client.Status != model.StatusActive ||
 			Client.Domain == nil || *Client.Domain == "" {
 			util.LogSecurityEvent(util.SecurityEvent{
 				EventType: "login_invalid_client",
@@ -321,7 +321,7 @@ func (s *loginService) Login(usernameOrEmail, password string, clientID, provide
 	}
 
 	// Check if user account is active
-	if user.Status != "active" {
+	if user.Status != model.StatusActive {
 		util.LogSecurityEvent(util.SecurityEvent{
 			EventType: "login_inactive_user",
 			UserID:    user.UserUUID.String(),

@@ -418,31 +418,25 @@ func (s *profileService) GetAll(
 	}
 
 	// Get profiles
-	profiles, total, err := s.profileRepo.FindAllByUserID(filter)
+	result, err := s.profileRepo.FindAllByUserID(filter)
 	if err != nil {
 		return nil, err
 	}
 
 	// Convert to service result
-	data := make([]ProfileServiceDataResult, len(profiles))
-	for i, profile := range profiles {
-		if result := toProfileServiceDataResult(&profile); result != nil {
-			data[i] = *result
+	data := make([]ProfileServiceDataResult, len(result.Data))
+	for i, profile := range result.Data {
+		if sr := toProfileServiceDataResult(&profile); sr != nil {
+			data[i] = *sr
 		}
-	}
-
-	// Calculate total pages
-	totalPages := int(total) / limit
-	if int(total)%limit > 0 {
-		totalPages++
 	}
 
 	return &ProfileServiceListResult{
 		Data:       data,
-		Total:      total,
-		Page:       page,
-		Limit:      limit,
-		TotalPages: totalPages,
+		Total:      result.Total,
+		Page:       result.Page,
+		Limit:      result.Limit,
+		TotalPages: result.TotalPages,
 	}, nil
 }
 
