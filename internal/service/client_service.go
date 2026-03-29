@@ -98,12 +98,12 @@ type ClientService interface {
 
 type clientService struct {
 	db                   *gorm.DB
-	ClientRepo           repository.ClientRepository
-	ClientUriRepo        repository.ClientURIRepository
+	clientRepo           repository.ClientRepository
+	clientUriRepo        repository.ClientURIRepository
 	idpRepo              repository.IdentityProviderRepository
 	permissionRepo       repository.PermissionRepository
-	ClientPermissionRepo repository.ClientPermissionRepository
-	ClientApiRepo        repository.ClientApiRepository
+	clientPermissionRepo repository.ClientPermissionRepository
+	clientApiRepo        repository.ClientApiRepository
 	apiRepo              repository.APIRepository
 	userRepo             repository.UserRepository
 	tenantRepo           repository.TenantRepository
@@ -111,24 +111,24 @@ type clientService struct {
 
 func NewClientService(
 	db *gorm.DB,
-	ClientRepo repository.ClientRepository,
-	ClientUriRepo repository.ClientURIRepository,
+	clientRepo repository.ClientRepository,
+	clientUriRepo repository.ClientURIRepository,
 	idpRepo repository.IdentityProviderRepository,
 	permissionRepo repository.PermissionRepository,
-	ClientPermissionRepo repository.ClientPermissionRepository,
-	ClientApiRepo repository.ClientApiRepository,
+	clientPermissionRepo repository.ClientPermissionRepository,
+	clientApiRepo repository.ClientApiRepository,
 	apiRepo repository.APIRepository,
 	userRepo repository.UserRepository,
 	tenantRepo repository.TenantRepository,
 ) ClientService {
 	return &clientService{
 		db:                   db,
-		ClientRepo:           ClientRepo,
-		ClientUriRepo:        ClientUriRepo,
+		clientRepo:           clientRepo,
+		clientUriRepo:        clientUriRepo,
 		idpRepo:              idpRepo,
 		permissionRepo:       permissionRepo,
-		ClientPermissionRepo: ClientPermissionRepo,
-		ClientApiRepo:        ClientApiRepo,
+		clientPermissionRepo: clientPermissionRepo,
+		clientApiRepo:        clientApiRepo,
 		apiRepo:              apiRepo,
 		userRepo:             userRepo,
 		tenantRepo:           tenantRepo,
@@ -170,7 +170,7 @@ func (s *clientService) Get(filter ClientServiceGetFilter) (*ClientServiceGetRes
 		SortOrder:          filter.SortOrder,
 	}
 
-	result, err := s.ClientRepo.FindPaginated(queryFilter)
+	result, err := s.clientRepo.FindPaginated(queryFilter)
 	if err != nil {
 		return nil, err
 	}
@@ -191,7 +191,7 @@ func (s *clientService) Get(filter ClientServiceGetFilter) (*ClientServiceGetRes
 }
 
 func (s *clientService) GetByUUID(ClientUUID uuid.UUID, tenantID int64) (*ClientServiceDataResult, error) {
-	Client, err := s.ClientRepo.FindByUUIDAndTenantID(ClientUUID, tenantID)
+	Client, err := s.clientRepo.FindByUUIDAndTenantID(ClientUUID, tenantID)
 	if err != nil {
 		return nil, err
 	}
@@ -203,7 +203,7 @@ func (s *clientService) GetByUUID(ClientUUID uuid.UUID, tenantID int64) (*Client
 }
 
 func (s *clientService) GetSecretByUUID(ClientUUID uuid.UUID, tenantID int64) (*ClientSecretServiceDataResult, error) {
-	Client, err := s.ClientRepo.FindByUUIDAndTenantID(ClientUUID, tenantID)
+	Client, err := s.clientRepo.FindByUUIDAndTenantID(ClientUUID, tenantID)
 	if err != nil {
 		return nil, err
 	}
@@ -218,7 +218,7 @@ func (s *clientService) GetSecretByUUID(ClientUUID uuid.UUID, tenantID int64) (*
 }
 
 func (s *clientService) GetConfigByUUID(ClientUUID uuid.UUID, tenantID int64) (datatypes.JSON, error) {
-	Client, err := s.ClientRepo.FindByUUIDAndTenantID(ClientUUID, tenantID)
+	Client, err := s.clientRepo.FindByUUIDAndTenantID(ClientUUID, tenantID)
 	if err != nil {
 		return nil, err
 	}
@@ -233,7 +233,7 @@ func (s *clientService) Create(tenantID int64, name string, displayName string, 
 	var createdClient *model.Client
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
-		txClientRepo := s.ClientRepo.WithTx(tx)
+		txClientRepo := s.clientRepo.WithTx(tx)
 		txIdpRepo := s.idpRepo.WithTx(tx)
 		txUserRepo := s.userRepo.WithTx(tx)
 
@@ -314,7 +314,7 @@ func (s *clientService) Update(ClientUUID uuid.UUID, tenantID int64, name string
 	var updatedClient *model.Client
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
-		txClientRepo := s.ClientRepo.WithTx(tx)
+		txClientRepo := s.clientRepo.WithTx(tx)
 		txUserRepo := s.userRepo.WithTx(tx)
 
 		// Get auth client
@@ -381,7 +381,7 @@ func (s *clientService) SetStatusByUUID(ClientUUID uuid.UUID, tenantID int64, st
 	var updatedClient *model.Client
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
-		txClientRepo := s.ClientRepo.WithTx(tx)
+		txClientRepo := s.clientRepo.WithTx(tx)
 		txUserRepo := s.userRepo.WithTx(tx)
 
 		// Get auth client
@@ -434,7 +434,7 @@ func (s *clientService) DeleteByUUID(ClientUUID uuid.UUID, tenantID int64, actor
 	var deletedClient *model.Client
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
-		txClientRepo := s.ClientRepo.WithTx(tx)
+		txClientRepo := s.clientRepo.WithTx(tx)
 		txUserRepo := s.userRepo.WithTx(tx)
 
 		// Get auth client
@@ -480,8 +480,8 @@ func (s *clientService) CreateURI(ClientUUID uuid.UUID, tenantID int64, uri stri
 	var createdClient *model.Client
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
-		txClientRepo := s.ClientRepo.WithTx(tx)
-		txURIRepo := s.ClientUriRepo.WithTx(tx)
+		txClientRepo := s.clientRepo.WithTx(tx)
+		txURIRepo := s.clientUriRepo.WithTx(tx)
 		txUserRepo := s.userRepo.WithTx(tx)
 
 		// Find the auth client by UUID and tenant
@@ -536,8 +536,8 @@ func (s *clientService) UpdateURI(ClientUUID uuid.UUID, tenantID int64, ClientUR
 	var updatedClient *model.Client
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
-		txClientRepo := s.ClientRepo.WithTx(tx)
-		txURIRepo := s.ClientUriRepo.WithTx(tx)
+		txClientRepo := s.clientRepo.WithTx(tx)
+		txURIRepo := s.clientUriRepo.WithTx(tx)
 		txUserRepo := s.userRepo.WithTx(tx)
 
 		// Find the auth client by UUID and tenant
@@ -600,8 +600,8 @@ func (s *clientService) DeleteURI(ClientUUID uuid.UUID, tenantID int64, ClientUR
 	var deletedClient *model.Client
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
-		txClientRepo := s.ClientRepo.WithTx(tx)
-		txURIRepo := s.ClientUriRepo.WithTx(tx)
+		txClientRepo := s.clientRepo.WithTx(tx)
+		txURIRepo := s.clientUriRepo.WithTx(tx)
 		txUserRepo := s.userRepo.WithTx(tx)
 
 		// Find the auth client by UUID and tenant
@@ -708,7 +708,7 @@ func ToClientServiceDataResult(Client *model.Client) *ClientServiceDataResult {
 // Get APIs assigned to auth client
 func (s *clientService) GetClientApis(tenantID int64, ClientUUID uuid.UUID) ([]ClientApiServiceDataResult, error) {
 	// Get auth client APIs from repository
-	ClientApis, err := s.ClientApiRepo.FindByClientUUID(ClientUUID)
+	ClientApis, err := s.clientApiRepo.FindByClientUUID(ClientUUID)
 	if err != nil {
 		return nil, err
 	}
@@ -759,12 +759,12 @@ func (s *clientService) GetClientApis(tenantID int64, ClientUUID uuid.UUID) ([]C
 // Add APIs to auth client
 func (s *clientService) AddClientApis(tenantID int64, ClientUUID uuid.UUID, apiUUIDs []uuid.UUID) error {
 	return s.db.Transaction(func(tx *gorm.DB) error {
-		ClientRepo := s.ClientRepo.WithTx(tx)
-		ClientApiRepo := s.ClientApiRepo.WithTx(tx)
+		txClientRepo := s.clientRepo.WithTx(tx)
+		txClientApiRepo := s.clientApiRepo.WithTx(tx)
 		apiRepo := s.apiRepo.WithTx(tx)
 
 		// Get auth client with identity provider
-		Client, err := ClientRepo.FindByUUID(ClientUUID, "IdentityProvider")
+		Client, err := txClientRepo.FindByUUID(ClientUUID, "IdentityProvider")
 		if err != nil {
 			return err
 		}
@@ -789,7 +789,7 @@ func (s *clientService) AddClientApis(tenantID int64, ClientUUID uuid.UUID, apiU
 			}
 
 			// Check if relationship already exists
-			existing, err := ClientApiRepo.FindByClientAndApi(Client.ClientID, api.APIID)
+			existing, err := txClientApiRepo.FindByClientAndApi(Client.ClientID, api.APIID)
 			if err != nil {
 				return err
 			}
@@ -804,7 +804,7 @@ func (s *clientService) AddClientApis(tenantID int64, ClientUUID uuid.UUID, apiU
 				APIID:         api.APIID,
 			}
 
-			_, err = ClientApiRepo.Create(ClientApi)
+			_, err = txClientApiRepo.Create(ClientApi)
 			if err != nil {
 				// Check if it's a unique constraint violation
 				if strings.Contains(err.Error(), "uq_client_apis_client_api") {
@@ -821,11 +821,11 @@ func (s *clientService) AddClientApis(tenantID int64, ClientUUID uuid.UUID, apiU
 // Remove API from auth client
 func (s *clientService) RemoveClientApi(tenantID int64, ClientUUID uuid.UUID, apiUUID uuid.UUID) error {
 	return s.db.Transaction(func(tx *gorm.DB) error {
-		ClientRepo := s.ClientRepo.WithTx(tx)
-		ClientApiRepo := s.ClientApiRepo.WithTx(tx)
+		txClientRepo := s.clientRepo.WithTx(tx)
+		txClientApiRepo := s.clientApiRepo.WithTx(tx)
 
 		// Get auth client with identity provider
-		Client, err := ClientRepo.FindByUUID(ClientUUID, "IdentityProvider")
+		Client, err := txClientRepo.FindByUUID(ClientUUID, "IdentityProvider")
 		if err != nil {
 			return err
 		}
@@ -839,7 +839,7 @@ func (s *clientService) RemoveClientApi(tenantID int64, ClientUUID uuid.UUID, ap
 		}
 
 		// Remove the API relationship (this will cascade delete permissions)
-		err = ClientApiRepo.RemoveByClientUUIDAndApiUUID(ClientUUID, apiUUID)
+		err = txClientApiRepo.RemoveByClientUUIDAndApiUUID(ClientUUID, apiUUID)
 		if err != nil {
 			return err
 		}
@@ -851,7 +851,7 @@ func (s *clientService) RemoveClientApi(tenantID int64, ClientUUID uuid.UUID, ap
 // Get permissions for a specific API assigned to auth client
 func (s *clientService) GetClientApiPermissions(tenantID int64, ClientUUID uuid.UUID, apiUUID uuid.UUID) ([]PermissionServiceDataResult, error) {
 	// Get auth client API relationship
-	ClientApi, err := s.ClientApiRepo.FindByClientUUIDAndApiUUID(ClientUUID, apiUUID)
+	ClientApi, err := s.clientApiRepo.FindByClientUUIDAndApiUUID(ClientUUID, apiUUID)
 	if err != nil {
 		return nil, err
 	}
@@ -860,7 +860,7 @@ func (s *clientService) GetClientApiPermissions(tenantID int64, ClientUUID uuid.
 	}
 
 	// Validate tenant access
-	Client, err := s.ClientRepo.FindByUUID(ClientUUID, "IdentityProvider")
+	Client, err := s.clientRepo.FindByUUID(ClientUUID, "IdentityProvider")
 	if err != nil {
 		return nil, err
 	}
@@ -872,7 +872,7 @@ func (s *clientService) GetClientApiPermissions(tenantID int64, ClientUUID uuid.
 	}
 
 	// Get permissions for this auth client API
-	ClientPermissions, err := s.ClientPermissionRepo.FindByClientApiID(ClientApi.ClientApiID)
+	ClientPermissions, err := s.clientPermissionRepo.FindByClientApiID(ClientApi.ClientApiID)
 	if err != nil {
 		return nil, err
 	}
@@ -898,13 +898,13 @@ func (s *clientService) GetClientApiPermissions(tenantID int64, ClientUUID uuid.
 // Add permissions to a specific API for auth client
 func (s *clientService) AddClientApiPermissions(tenantID int64, ClientUUID uuid.UUID, apiUUID uuid.UUID, permissionUUIDs []uuid.UUID) error {
 	return s.db.Transaction(func(tx *gorm.DB) error {
-		ClientRepo := s.ClientRepo.WithTx(tx)
-		ClientApiRepo := s.ClientApiRepo.WithTx(tx)
-		ClientPermissionRepo := s.ClientPermissionRepo.WithTx(tx)
+		txClientRepo := s.clientRepo.WithTx(tx)
+		txClientApiRepo := s.clientApiRepo.WithTx(tx)
+		txClientPermissionRepo := s.clientPermissionRepo.WithTx(tx)
 		permissionRepo := s.permissionRepo.WithTx(tx)
 
 		// Get auth client with identity provider
-		Client, err := ClientRepo.FindByUUID(ClientUUID, "IdentityProvider")
+		Client, err := txClientRepo.FindByUUID(ClientUUID, "IdentityProvider")
 		if err != nil {
 			return err
 		}
@@ -918,7 +918,7 @@ func (s *clientService) AddClientApiPermissions(tenantID int64, ClientUUID uuid.
 		}
 
 		// Get auth client API relationship
-		ClientApi, err := ClientApiRepo.FindByClientUUIDAndApiUUID(ClientUUID, apiUUID)
+		ClientApi, err := txClientApiRepo.FindByClientUUIDAndApiUUID(ClientUUID, apiUUID)
 		if err != nil {
 			return err
 		}
@@ -938,7 +938,7 @@ func (s *clientService) AddClientApiPermissions(tenantID int64, ClientUUID uuid.
 			}
 
 			// Check if relationship already exists
-			existing, err := ClientPermissionRepo.FindByClientApiAndPermission(ClientApi.ClientApiID, permission.PermissionID)
+			existing, err := txClientPermissionRepo.FindByClientApiAndPermission(ClientApi.ClientApiID, permission.PermissionID)
 			if err != nil {
 				return err
 			}
@@ -953,7 +953,7 @@ func (s *clientService) AddClientApiPermissions(tenantID int64, ClientUUID uuid.
 				PermissionID:         permission.PermissionID,
 			}
 
-			_, err = ClientPermissionRepo.Create(ClientPermission)
+			_, err = txClientPermissionRepo.Create(ClientPermission)
 			if err != nil {
 				// Check if it's a unique constraint violation
 				if strings.Contains(err.Error(), "uq_client_permissions_client_permission") {
@@ -970,13 +970,13 @@ func (s *clientService) AddClientApiPermissions(tenantID int64, ClientUUID uuid.
 // Remove permission from a specific API for auth client
 func (s *clientService) RemoveClientApiPermission(tenantID int64, ClientUUID uuid.UUID, apiUUID uuid.UUID, permissionUUID uuid.UUID) error {
 	return s.db.Transaction(func(tx *gorm.DB) error {
-		ClientRepo := s.ClientRepo.WithTx(tx)
-		ClientApiRepo := s.ClientApiRepo.WithTx(tx)
-		ClientPermissionRepo := s.ClientPermissionRepo.WithTx(tx)
+		txClientRepo := s.clientRepo.WithTx(tx)
+		txClientApiRepo := s.clientApiRepo.WithTx(tx)
+		txClientPermissionRepo := s.clientPermissionRepo.WithTx(tx)
 		permissionRepo := s.permissionRepo.WithTx(tx)
 
 		// Get auth client with identity provider
-		Client, err := ClientRepo.FindByUUID(ClientUUID, "IdentityProvider")
+		Client, err := txClientRepo.FindByUUID(ClientUUID, "IdentityProvider")
 		if err != nil {
 			return err
 		}
@@ -990,7 +990,7 @@ func (s *clientService) RemoveClientApiPermission(tenantID int64, ClientUUID uui
 		}
 
 		// Get auth client API relationship
-		ClientApi, err := ClientApiRepo.FindByClientUUIDAndApiUUID(ClientUUID, apiUUID)
+		ClientApi, err := txClientApiRepo.FindByClientUUIDAndApiUUID(ClientUUID, apiUUID)
 		if err != nil {
 			return err
 		}
@@ -1008,7 +1008,7 @@ func (s *clientService) RemoveClientApiPermission(tenantID int64, ClientUUID uui
 		}
 
 		// Remove the permission relationship
-		err = ClientPermissionRepo.RemoveByClientApiAndPermission(ClientApi.ClientApiID, permission.PermissionID)
+		err = txClientPermissionRepo.RemoveByClientApiAndPermission(ClientApi.ClientApiID, permission.PermissionID)
 		if err != nil {
 			return err
 		}

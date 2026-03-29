@@ -98,14 +98,12 @@ func (s *userSettingService) CreateOrUpdateUserSetting(
 		var userSetting model.UserSetting
 
 		if err != nil {
-			if errors.Is(err, gorm.ErrRecordNotFound) {
-				// Create new user setting if not found
-				userSetting = model.UserSetting{
-					UserSettingUUID: uuid.New(),
-					UserID:          user.UserID,
-				}
-			} else {
-				return err
+			return err
+		} else if existingUserSetting == nil {
+			// Create new user setting if not found
+			userSetting = model.UserSetting{
+				UserSettingUUID: uuid.New(),
+				UserID:          user.UserID,
 			}
 		} else {
 			// Use existing user setting

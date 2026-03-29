@@ -7,6 +7,7 @@ const (
 	// General entity statuses
 	StatusActive   = "active"
 	StatusInactive = "inactive"
+	StatusPending  = "pending"
 
 	// Service-specific statuses
 	StatusMaintenance = "maintenance"
@@ -31,4 +32,7 @@ const (
 
 	// Client types (Client.ClientType)
 	ClientTypeTraditional = "traditional"
+
+	// Identity provider names (UserIdentity.Provider)
+	ProviderDefault = "default"
 )
