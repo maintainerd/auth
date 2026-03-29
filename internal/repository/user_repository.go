@@ -107,7 +107,7 @@ func (r *userRepository) FindSuperAdmin() (*model.User, error) {
 		Joins("JOIN user_roles ON users.user_id = user_roles.user_id").
 		Joins("JOIN roles ON user_roles.role_id = roles.role_id").
 		Where("tenants.status = ? AND tenants.is_default = ?", model.StatusActive, true).
-		Where("roles.name = ?", "super-admin").
+		Where("roles.name = ?", model.RoleSuperAdmin).
 		First(&user).Error
 
 	if err != nil {

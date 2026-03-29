@@ -61,9 +61,12 @@ func (r *loginTemplateRepository) FindByUUIDAndTenantID(loginTemplateUUID uuid.U
 func (r *loginTemplateRepository) FindByName(name string) (*model.LoginTemplate, error) {
 	var template model.LoginTemplate
 	err := r.DB().
-		Where("name = ? AND status = ?", name, "active").
+		Where("name = ? AND status = ?", name, model.StatusActive).
 		First(&template).Error
 	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
 		return nil, err
 	}
 	return &template, nil

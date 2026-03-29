@@ -84,7 +84,13 @@ func (r *securitySettingsAuditRepository) FindPaginated(filter SecuritySettingsA
 	// Apply sorting — protected against SQL injection via allowlist
 	query = query.Order(sanitizeOrder(filter.SortBy, filter.SortOrder, "created_at DESC"))
 
-	// Apply pagination
+	// Pagination guards prevent division-by-zero and negative offsets
+	if filter.Page < 1 {
+		filter.Page = 1
+	}
+	if filter.Limit < 1 {
+		filter.Limit = 10
+	}
 	offset := (filter.Page - 1) * filter.Limit
 	var audits []model.SecuritySettingsAudit
 	if err := query.Offset(offset).Limit(filter.Limit).Find(&audits).Error; err != nil {

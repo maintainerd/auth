@@ -1,6 +1,8 @@
 package repository
 
 import (
+	"errors"
+
 	"github.com/maintainerd/auth/internal/model"
 	"gorm.io/gorm"
 )
@@ -39,9 +41,12 @@ func NewSmsTemplateRepository(db *gorm.DB) SmsTemplateRepository {
 func (r *smsTemplateRepository) FindByName(name string) (*model.SmsTemplate, error) {
 	var template model.SmsTemplate
 	err := r.DB().
-		Where("name = ? AND status = ?", name, "active").
+		Where("name = ? AND status = ?", name, model.StatusActive).
 		First(&template).Error
 	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
 		return nil, err
 	}
 	return &template, nil
@@ -54,6 +59,9 @@ func (r *smsTemplateRepository) FindByUUIDAndTenantID(uuid string, tenantID int6
 		Where("sms_template_uuid = ? AND tenant_id = ?", uuid, tenantID).
 		First(&template).Error
 	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
 		return nil, err
 	}
 	return &template, nil

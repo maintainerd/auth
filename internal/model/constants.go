@@ -12,6 +12,10 @@ const (
 	StatusMaintenance = "maintenance"
 	StatusDeprecated  = "deprecated"
 
+	// Invite-specific statuses (Invite.Status)
+	StatusAccepted = "accepted"
+	StatusRevoked  = "revoked"
+
 	// User profile visibility (UserSetting.ProfileVisibility)
 	VisibilityPublic  = "public"
 	VisibilityPrivate = "private"
@@ -20,4 +24,11 @@ const (
 	// Token types (UserToken.TokenType)
 	TokenTypeEmailVerification = "user:email:verification"
 	TokenTypePasswordReset     = "user:password:reset"
+
+	// Role names (Role.Name) — system-defined roles
+	RoleSuperAdmin = "super-admin"
+	RoleRegistered = "registered"
+
+	// Client types (Client.ClientType)
+	ClientTypeTraditional = "traditional"
 )

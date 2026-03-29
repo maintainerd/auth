@@ -124,7 +124,13 @@ func (r *serviceRepository) FindPaginated(filter ServiceRepositoryGetFilter) (*P
 		return nil, err
 	}
 
-	// Pagination
+	// Pagination guards prevent division-by-zero and negative offsets
+	if filter.Page < 1 {
+		filter.Page = 1
+	}
+	if filter.Limit < 1 {
+		filter.Limit = 10
+	}
 	offset := (filter.Page - 1) * filter.Limit
 	var services []model.Service
 	if err := query.Limit(filter.Limit).Offset(offset).Find(&services).Error; err != nil {
@@ -181,7 +187,13 @@ func (r *serviceRepository) FindServicesByPolicyUUID(policyUUID uuid.UUID, filte
 	// Apply sorting — protected against SQL injection via allowlist
 	query = query.Order(sanitizeOrderPrefixed("services.", filter.SortBy, filter.SortOrder, "services.created_at DESC"))
 
-	// Pagination
+	// Pagination guards prevent division-by-zero and negative offsets
+	if filter.Page < 1 {
+		filter.Page = 1
+	}
+	if filter.Limit < 1 {
+		filter.Limit = 10
+	}
 	offset := (filter.Page - 1) * filter.Limit
 	var services []model.Service
 	if err := query.Limit(filter.Limit).Offset(offset).Find(&services).Error; err != nil {

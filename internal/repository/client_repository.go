@@ -111,9 +111,9 @@ func (r *clientRepository) FindDefault() (*model.Client, error) {
 	var client model.Client
 	err := r.DB().
 		Joins("JOIN identity_providers ON identity_providers.identity_provider_id = clients.identity_provider_id").
-		Where("clients.is_default = ? AND clients.status = ?", true, "active").
-		Where("clients.client_type = ?", "traditional").
-		Where("identity_providers.status = ?", "active").
+		Where("clients.is_default = ? AND clients.status = ?", true, model.StatusActive).
+		Where("clients.client_type = ?", model.ClientTypeTraditional).
+		Where("identity_providers.status = ?", model.StatusActive).
 		Preload("IdentityProvider").
 		Preload("IdentityProvider.Tenant").
 		First(&client).Error
@@ -131,7 +131,7 @@ func (r *clientRepository) FindDefaultByTenantID(tenantID int64) (*model.Client,
 	var client model.Client
 	err := r.DB().
 		Joins("JOIN identity_providers ON identity_providers.identity_provider_id = clients.identity_provider_id").
-		Where("identity_providers.tenant_id = ? AND clients.is_default = true AND clients.status = ?", tenantID, "active").
+		Where("identity_providers.tenant_id = ? AND clients.is_default = true AND clients.status = ?", tenantID, model.StatusActive).
 		First(&client).Error
 
 	if err != nil {
@@ -216,7 +216,7 @@ func (r *clientRepository) FindByClientIDAndIdentityProvider(clientID, identityP
 	err := r.DB().
 		Joins("JOIN identity_providers ON identity_providers.identity_provider_id = clients.identity_provider_id").
 		Where("clients.client_id = ? AND identity_providers.identifier = ?", clientID, identityProviderIdentifier).
-		Where("clients.status = ? AND identity_providers.status = ?", "active", "active").
+		Where("clients.status = ? AND identity_providers.status = ?", model.StatusActive, model.StatusActive).
 		Preload("IdentityProvider.Tenant").
 		Preload("IdentityProvider").
 		First(&client).Error
