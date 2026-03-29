@@ -1,12 +1,10 @@
 package migration
 
 import (
-	"log"
-
 	"gorm.io/gorm"
 )
 
-func CreateClientURIsTable(db *gorm.DB) {
+func CreateClientURIsTable(db *gorm.DB) error {
 	sql := `
 -- CREATE TABLE
 CREATE TABLE IF NOT EXISTS client_uris (
@@ -61,9 +59,5 @@ CREATE INDEX IF NOT EXISTS idx_client_uris_type
 CREATE INDEX IF NOT EXISTS idx_client_uris_client_id_type 
     ON client_uris (client_id, type);
 `
-	if err := db.Exec(sql).Error; err != nil {
-		log.Fatalf("❌ Failed to run migration 012_create_client_uris_table: %v", err)
-	}
-
-	log.Println("✅ Migration 012_create_client_uris_table executed")
+	return db.Exec(sql).Error
 }

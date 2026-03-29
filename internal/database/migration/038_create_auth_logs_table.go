@@ -1,12 +1,10 @@
 package migration
 
 import (
-	"log"
-
 	"gorm.io/gorm"
 )
 
-func CreateAuthLogTable(db *gorm.DB) {
+func CreateAuthLogTable(db *gorm.DB) error {
 	sql := `
 -- CREATE TABLE
 CREATE TABLE IF NOT EXISTS auth_logs (
@@ -49,9 +47,5 @@ CREATE INDEX IF NOT EXISTS idx_auth_logs_user_id ON auth_logs (user_id);
 CREATE INDEX IF NOT EXISTS idx_auth_logs_event_type ON auth_logs (event_type);
 CREATE INDEX IF NOT EXISTS idx_auth_logs_tenant_id ON auth_logs (tenant_id);
 `
-	if err := db.Exec(sql).Error; err != nil {
-		log.Fatalf("❌ Failed to run migration 038_create_auth_logs_table: %v", err)
-	}
-
-	log.Println("✅ Migration 038_create_auth_logs_table executed")
+	return db.Exec(sql).Error
 }

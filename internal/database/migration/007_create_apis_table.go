@@ -1,12 +1,10 @@
 package migration
 
 import (
-	"log"
-
 	"gorm.io/gorm"
 )
 
-func CreateAPITable(db *gorm.DB) {
+func CreateAPITable(db *gorm.DB) error {
 	sql := `
 -- CREATE TABLE
 CREATE TABLE IF NOT EXISTS apis (
@@ -57,9 +55,5 @@ CREATE INDEX IF NOT EXISTS idx_apis_status ON apis (status);
 CREATE INDEX IF NOT EXISTS idx_apis_is_system ON apis (is_system);
 CREATE INDEX IF NOT EXISTS idx_apis_created_at ON apis (created_at);
 `
-	if err := db.Exec(sql).Error; err != nil {
-		log.Fatalf("❌ Failed to run migration 007_create_apis_table: %v", err)
-	}
-
-	log.Println("✅ Migration 007_create_apis_table executed")
+	return db.Exec(sql).Error
 }
