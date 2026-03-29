@@ -10,7 +10,7 @@ import (
 	"github.com/maintainerd/auth/internal/model"
 )
 
-type UserSettingRequest struct {
+type UserSettingRequestDto struct {
 	// Internationalization
 	Timezone          *string `json:"timezone,omitempty"`
 	PreferredLanguage *string `json:"preferred_language,omitempty"`
@@ -36,7 +36,7 @@ type UserSettingRequest struct {
 	EmergencyContactRelation *string `json:"emergency_contact_relation,omitempty"`
 }
 
-func (r UserSettingRequest) Validate() error {
+func (r UserSettingRequestDto) Validate() error {
 	return validation.ValidateStruct(&r,
 		// Internationalization
 		validation.Field(&r.Timezone,
@@ -55,13 +55,13 @@ func (r UserSettingRequest) Validate() error {
 		// Communication Preferences
 		validation.Field(&r.PreferredContactMethod,
 			validation.NilOrNotEmpty,
-			validation.In("email", "phone", "sms").Error("Preferred contact method must be email, phone, or sms"),
+			validation.In(model.ContactMethodEmail, model.ContactMethodPhone, model.ContactMethodSMS).Error("Preferred contact method must be email, phone, or sms"),
 		),
 
 		// Privacy & Compliance
 		validation.Field(&r.ProfileVisibility,
 			validation.NilOrNotEmpty,
-			validation.In("public", "private", "friends").Error("Profile visibility must be public, private, or friends"),
+			validation.In(model.VisibilityPublic, model.VisibilityPrivate, model.VisibilityFriends).Error("Profile visibility must be public, private, or friends"),
 		),
 
 		// Emergency Contact
@@ -85,7 +85,7 @@ func (r UserSettingRequest) Validate() error {
 	)
 }
 
-type UserSettingResponse struct {
+type UserSettingResponseDto struct {
 	UserSettingUUID string `json:"user_setting_id"`
 
 	// Internationalization
@@ -119,19 +119,16 @@ type UserSettingResponse struct {
 	UpdatedAt time.Time `json:"updated_at"`
 }
 
-func NewUserSettingResponse(us *model.UserSetting) *UserSettingResponse {
+func NewUserSettingResponseDto(us *model.UserSetting) *UserSettingResponseDto {
 	// Convert GORM JSON to map for social links
 	var socialLinks map[string]any
 	if len(us.SocialLinks) > 0 {
-		socialLinks = make(map[string]any)
-		if err := json.Unmarshal(us.SocialLinks, &socialLinks); err == nil {
-			// Only include if unmarshaling was successful
-		} else {
+		if err := json.Unmarshal(us.SocialLinks, &socialLinks); err != nil {
 			socialLinks = nil
 		}
 	}
 
-	return &UserSettingResponse{
+	return &UserSettingResponseDto{
 		UserSettingUUID: us.UserSettingUUID.String(),
 
 		// Internationalization

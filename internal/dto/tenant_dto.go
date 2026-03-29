@@ -6,6 +6,8 @@ import (
 
 	validation "github.com/go-ozzo/ozzo-validation/v4"
 	"github.com/google/uuid"
+
+	"github.com/maintainerd/auth/internal/model"
 )
 
 var tenantNamePattern = regexp.MustCompile(`^[a-z0-9-]+$`)
@@ -49,7 +51,7 @@ func (r TenantCreateRequestDto) Validate() error {
 		),
 		validation.Field(&r.Status,
 			validation.Required.Error("Status is required"),
-			validation.In("active", "inactive", "pending", "suspended").Error("Status must be active, inactive, pending, or suspended"),
+			validation.In(model.StatusActive, model.StatusInactive, model.StatusPending, model.StatusSuspended).Error("Status must be active, inactive, pending, or suspended"),
 		),
 		validation.Field(&r.IsPublic,
 			validation.In(true, false).Error("Is public is required"),
@@ -80,7 +82,7 @@ func (r TenantUpdateRequestDto) Validate() error {
 		),
 		validation.Field(&r.Status,
 			validation.Required.Error("Status is required"),
-			validation.In("active", "inactive", "pending", "suspended").Error("Status must be active, inactive, pending, or suspended"),
+			validation.In(model.StatusActive, model.StatusInactive, model.StatusPending, model.StatusSuspended).Error("Status must be active, inactive, pending, or suspended"),
 		),
 		validation.Field(&r.IsPublic,
 			validation.In(true, false).Error("Is public is required"),

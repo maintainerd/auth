@@ -14,19 +14,19 @@ import (
 	"github.com/maintainerd/auth/internal/util"
 )
 
-// SmsTemplateHandler handles SMS template management operations.
+// SMSTemplateHandler handles SMS template management operations.
 //
 // This handler manages tenant-scoped SMS templates used for sending text messages
 // to users (e.g., verification codes, notifications). SMS templates define the
 // message content, sender ID, and formatting. All operations are tenant-isolated -
 // middleware validates tenant access and stores it in the request context.
-type SmsTemplateHandler struct {
+type SMSTemplateHandler struct {
 	smsTemplateService service.SmsTemplateService
 }
 
-// NewSmsTemplateHandler creates a new SMS template handler instance.
-func NewSmsTemplateHandler(smsTemplateService service.SmsTemplateService) *SmsTemplateHandler {
-	return &SmsTemplateHandler{
+// NewSMSTemplateHandler creates a new SMS template handler instance.
+func NewSMSTemplateHandler(smsTemplateService service.SmsTemplateService) *SMSTemplateHandler {
+	return &SMSTemplateHandler{
 		smsTemplateService: smsTemplateService,
 	}
 }
@@ -37,7 +37,7 @@ func NewSmsTemplateHandler(smsTemplateService service.SmsTemplateService) *SmsTe
 //
 // Returns a paginated list of SMS templates belonging to the authenticated tenant.
 // Supports filtering by name, status, is_default, and is_system flags.
-func (h *SmsTemplateHandler) GetAll(w http.ResponseWriter, r *http.Request) {
+func (h *SMSTemplateHandler) GetAll(w http.ResponseWriter, r *http.Request) {
 	// Get tenant from context (middleware already validated access)
 	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
 	if !ok || tenant == nil {
@@ -72,7 +72,7 @@ func (h *SmsTemplateHandler) GetAll(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Build filter DTO for validation
-	filter := dto.SmsTemplateFilterDto{
+	filter := dto.SMSTemplateFilterDto{
 		Name:      util.PtrOrNil(q.Get("name")),
 		Status:    status,
 		IsDefault: isDefault,
@@ -99,8 +99,8 @@ func (h *SmsTemplateHandler) GetAll(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Build paginated response
-	response := dto.PaginatedResponseDto[dto.SmsTemplateListResponseDto]{
-		Rows:       toSmsTemplateListResponseDtoList(result.Data),
+	response := dto.PaginatedResponseDto[dto.SMSTemplateListResponseDto]{
+		Rows:       toSMSTemplateListResponseDtoList(result.Data),
 		Total:      result.Total,
 		Page:       result.Page,
 		Limit:      result.Limit,
@@ -116,7 +116,7 @@ func (h *SmsTemplateHandler) GetAll(w http.ResponseWriter, r *http.Request) {
 //
 // Returns detailed information about a single SMS template including the full message content.
 // The service layer validates that the template belongs to the tenant.
-func (h *SmsTemplateHandler) Get(w http.ResponseWriter, r *http.Request) {
+func (h *SMSTemplateHandler) Get(w http.ResponseWriter, r *http.Request) {
 	// Get tenant from context (middleware already validated access)
 	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
 	if !ok || tenant == nil {
@@ -139,7 +139,7 @@ func (h *SmsTemplateHandler) Get(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	util.Success(w, toSmsTemplateResponseDto(*template), "SMS template retrieved successfully")
+	util.Success(w, toSMSTemplateResponseDto(*template), "SMS template retrieved successfully")
 }
 
 // Create creates a new SMS template for the tenant.
@@ -148,7 +148,7 @@ func (h *SmsTemplateHandler) Get(w http.ResponseWriter, r *http.Request) {
 //
 // Creates a new SMS template with message content, sender ID, and configuration.
 // Templates can be marked as default or system templates with appropriate flags.
-func (h *SmsTemplateHandler) Create(w http.ResponseWriter, r *http.Request) {
+func (h *SMSTemplateHandler) Create(w http.ResponseWriter, r *http.Request) {
 	// Get tenant from context (middleware already validated access)
 	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
 	if !ok || tenant == nil {
@@ -157,7 +157,7 @@ func (h *SmsTemplateHandler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Decode and validate request body
-	var req dto.SmsTemplateCreateRequestDto
+	var req dto.SMSTemplateCreateRequestDto
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		util.Error(w, http.StatusBadRequest, "Invalid request", err.Error())
 		return
@@ -188,7 +188,7 @@ func (h *SmsTemplateHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	util.Created(w, toSmsTemplateResponseDto(*template), "SMS template created successfully")
+	util.Created(w, toSMSTemplateResponseDto(*template), "SMS template created successfully")
 }
 
 // Update updates an existing SMS template.
@@ -197,7 +197,7 @@ func (h *SmsTemplateHandler) Create(w http.ResponseWriter, r *http.Request) {
 //
 // Updates the content, sender ID, and configuration of an existing SMS template.
 // The service layer validates that the template belongs to the tenant.
-func (h *SmsTemplateHandler) Update(w http.ResponseWriter, r *http.Request) {
+func (h *SMSTemplateHandler) Update(w http.ResponseWriter, r *http.Request) {
 	// Get tenant from context (middleware already validated access)
 	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
 	if !ok || tenant == nil {
@@ -214,7 +214,7 @@ func (h *SmsTemplateHandler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Decode and validate request body
-	var req dto.SmsTemplateUpdateRequestDto
+	var req dto.SMSTemplateUpdateRequestDto
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		util.Error(w, http.StatusBadRequest, "Invalid request", err.Error())
 		return
@@ -246,7 +246,7 @@ func (h *SmsTemplateHandler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	util.Success(w, toSmsTemplateResponseDto(*template), "SMS template updated successfully")
+	util.Success(w, toSMSTemplateResponseDto(*template), "SMS template updated successfully")
 }
 
 // Delete deletes an SMS template.
@@ -255,7 +255,7 @@ func (h *SmsTemplateHandler) Update(w http.ResponseWriter, r *http.Request) {
 //
 // Permanently deletes an SMS template from the tenant. System templates
 // may be protected from deletion at the service layer.
-func (h *SmsTemplateHandler) Delete(w http.ResponseWriter, r *http.Request) {
+func (h *SMSTemplateHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	// Get tenant from context (middleware already validated access)
 	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
 	if !ok || tenant == nil {
@@ -278,7 +278,7 @@ func (h *SmsTemplateHandler) Delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	util.Success(w, toSmsTemplateResponseDto(*template), "SMS template deleted successfully")
+	util.Success(w, toSMSTemplateResponseDto(*template), "SMS template deleted successfully")
 }
 
 // UpdateStatus updates the status of an SMS template.
@@ -287,7 +287,7 @@ func (h *SmsTemplateHandler) Delete(w http.ResponseWriter, r *http.Request) {
 //
 // Updates only the status field of an SMS template (e.g., active, inactive).
 // This is a convenience endpoint for status-only updates.
-func (h *SmsTemplateHandler) UpdateStatus(w http.ResponseWriter, r *http.Request) {
+func (h *SMSTemplateHandler) UpdateStatus(w http.ResponseWriter, r *http.Request) {
 	// Get tenant from context (middleware already validated access)
 	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
 	if !ok || tenant == nil {
@@ -304,7 +304,7 @@ func (h *SmsTemplateHandler) UpdateStatus(w http.ResponseWriter, r *http.Request
 	}
 
 	// Decode and validate request body
-	var req dto.SmsTemplateUpdateStatusRequestDto
+	var req dto.SMSTemplateUpdateStatusRequestDto
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		util.Error(w, http.StatusBadRequest, "Invalid request body", err.Error())
 		return
@@ -322,15 +322,15 @@ func (h *SmsTemplateHandler) UpdateStatus(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	util.Success(w, toSmsTemplateResponseDto(*template), "SMS template status updated successfully")
+	util.Success(w, toSMSTemplateResponseDto(*template), "SMS template status updated successfully")
 }
 
 // Helper functions for converting service data to response DTOs
 
-// toSmsTemplateListResponseDto converts a service result to a list response DTO (without full message).
-func toSmsTemplateListResponseDto(template service.SmsTemplateServiceDataResult) dto.SmsTemplateListResponseDto {
-	return dto.SmsTemplateListResponseDto{
-		SmsTemplateID: template.SmsTemplateUUID.String(),
+// toSMSTemplateListResponseDto converts a service result to a list response DTO (without full message).
+func toSMSTemplateListResponseDto(template service.SmsTemplateServiceDataResult) dto.SMSTemplateListResponseDto {
+	return dto.SMSTemplateListResponseDto{
+		SMSTemplateID: template.SmsTemplateUUID.String(),
 		Name:          template.Name,
 		Description:   template.Description,
 		SenderID:      template.SenderID,
@@ -342,19 +342,19 @@ func toSmsTemplateListResponseDto(template service.SmsTemplateServiceDataResult)
 	}
 }
 
-// toSmsTemplateListResponseDtoList converts a list of service results to list response DTOs.
-func toSmsTemplateListResponseDtoList(templates []service.SmsTemplateServiceDataResult) []dto.SmsTemplateListResponseDto {
-	result := make([]dto.SmsTemplateListResponseDto, len(templates))
+// toSMSTemplateListResponseDtoList converts a list of service results to list response DTOs.
+func toSMSTemplateListResponseDtoList(templates []service.SmsTemplateServiceDataResult) []dto.SMSTemplateListResponseDto {
+	result := make([]dto.SMSTemplateListResponseDto, len(templates))
 	for i, template := range templates {
-		result[i] = toSmsTemplateListResponseDto(template)
+		result[i] = toSMSTemplateListResponseDto(template)
 	}
 	return result
 }
 
-// toSmsTemplateResponseDto converts a service result to a full response DTO (includes message content).
-func toSmsTemplateResponseDto(template service.SmsTemplateServiceDataResult) dto.SmsTemplateResponseDto {
-	return dto.SmsTemplateResponseDto{
-		SmsTemplateID: template.SmsTemplateUUID.String(),
+// toSMSTemplateResponseDto converts a service result to a full response DTO (includes message content).
+func toSMSTemplateResponseDto(template service.SmsTemplateServiceDataResult) dto.SMSTemplateResponseDto {
+	return dto.SMSTemplateResponseDto{
+		SMSTemplateID: template.SmsTemplateUUID.String(),
 		Name:          template.Name,
 		Description:   template.Description,
 		Message:       template.Message,

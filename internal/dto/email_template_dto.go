@@ -4,6 +4,8 @@ import (
 	"time"
 
 	validation "github.com/go-ozzo/ozzo-validation/v4"
+
+	"github.com/maintainerd/auth/internal/model"
 )
 
 // Email template list response DTO (without body content)
@@ -23,7 +25,7 @@ type EmailTemplateResponseDto struct {
 	EmailTemplateID string    `json:"email_template_id"`
 	Name            string    `json:"name"`
 	Subject         string    `json:"subject"`
-	BodyHtml        string    `json:"body_html"`
+	BodyHTML        string    `json:"body_html"`
 	BodyPlain       *string   `json:"body_plain"`
 	Status          string    `json:"status"`
 	IsDefault       bool      `json:"is_default"`
@@ -36,7 +38,7 @@ type EmailTemplateResponseDto struct {
 type EmailTemplateCreateRequestDto struct {
 	Name      string  `json:"name"`
 	Subject   string  `json:"subject"`
-	BodyHtml  string  `json:"body_html"`
+	BodyHTML  string  `json:"body_html"`
 	BodyPlain *string `json:"body_plain,omitempty"`
 	Status    *string `json:"status,omitempty"`
 }
@@ -51,11 +53,11 @@ func (r EmailTemplateCreateRequestDto) Validate() error {
 			validation.Required.Error("Subject is required"),
 			validation.Length(1, 255).Error("Subject must be between 1 and 255 characters"),
 		),
-		validation.Field(&r.BodyHtml,
+		validation.Field(&r.BodyHTML,
 			validation.Required.Error("Body HTML is required"),
 		),
 		validation.Field(&r.Status,
-			validation.In("active", "inactive").Error("Status must be 'active' or 'inactive'"),
+			validation.In(model.StatusActive, model.StatusInactive).Error("Status must be 'active' or 'inactive'"),
 		),
 	)
 }
@@ -64,7 +66,7 @@ func (r EmailTemplateCreateRequestDto) Validate() error {
 type EmailTemplateUpdateRequestDto struct {
 	Name      string  `json:"name"`
 	Subject   string  `json:"subject"`
-	BodyHtml  string  `json:"body_html"`
+	BodyHTML  string  `json:"body_html"`
 	BodyPlain *string `json:"body_plain,omitempty"`
 	Status    *string `json:"status,omitempty"`
 }
@@ -79,11 +81,11 @@ func (r EmailTemplateUpdateRequestDto) Validate() error {
 			validation.Required.Error("Subject is required"),
 			validation.Length(1, 255).Error("Subject must be between 1 and 255 characters"),
 		),
-		validation.Field(&r.BodyHtml,
+		validation.Field(&r.BodyHTML,
 			validation.Required.Error("Body HTML is required"),
 		),
 		validation.Field(&r.Status,
-			validation.In("active", "inactive").Error("Status must be 'active' or 'inactive'"),
+			validation.In(model.StatusActive, model.StatusInactive).Error("Status must be 'active' or 'inactive'"),
 		),
 	)
 }
@@ -97,7 +99,7 @@ func (r EmailTemplateUpdateStatusRequestDto) Validate() error {
 	return validation.ValidateStruct(&r,
 		validation.Field(&r.Status,
 			validation.Required.Error("Status is required"),
-			validation.In("active", "inactive").Error("Status must be 'active' or 'inactive'"),
+			validation.In(model.StatusActive, model.StatusInactive).Error("Status must be 'active' or 'inactive'"),
 		),
 	)
 }
@@ -111,4 +113,16 @@ type EmailTemplateFilterDto struct {
 
 	// Pagination and sorting
 	PaginationRequestDto
+}
+
+// Validate validates the email template filter DTO.
+func (f EmailTemplateFilterDto) Validate() error {
+	return validation.ValidateStruct(&f,
+		validation.Field(&f.Status,
+			validation.When(len(f.Status) > 0,
+				validation.Each(validation.In(model.StatusActive, model.StatusInactive).Error("Status must be 'active' or 'inactive'")),
+			),
+		),
+		validation.Field(&f.PaginationRequestDto),
+	)
 }
