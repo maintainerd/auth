@@ -165,22 +165,32 @@ func IPWhitelistMiddleware(allowedCIDRs []string) func(http.Handler) http.Handle
 	}
 }
 
-// extractClientIP extracts the real client IP from various headers
+// extractClientIP extracts the real client IP, validating each candidate before
+// trusting it to prevent header-injection attacks.
+// Complies with SOC2 CC6.1 and ISO27001 A.13.1.1
 func extractClientIP(r *http.Request) string {
-	// Check X-Forwarded-For header (most common)
+	// Check X-Forwarded-For — validate every entry before accepting
 	if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
-		ips := strings.Split(xff, ",")
-		return strings.TrimSpace(ips[0])
+		for raw := range strings.SplitSeq(xff, ",") {
+			candidate := strings.TrimSpace(raw)
+			if net.ParseIP(candidate) != nil {
+				return candidate
+			}
+		}
 	}
 
-	// Check X-Real-IP header
-	if xri := r.Header.Get("X-Real-IP"); xri != "" {
-		return strings.TrimSpace(xri)
+	// Check X-Real-IP
+	if xri := strings.TrimSpace(r.Header.Get("X-Real-IP")); xri != "" {
+		if net.ParseIP(xri) != nil {
+			return xri
+		}
 	}
 
 	// Check CF-Connecting-IP (Cloudflare)
-	if cfip := r.Header.Get("CF-Connecting-IP"); cfip != "" {
-		return strings.TrimSpace(cfip)
+	if cfip := strings.TrimSpace(r.Header.Get("CF-Connecting-IP")); cfip != "" {
+		if net.ParseIP(cfip) != nil {
+			return cfip
+		}
 	}
 
 	// Fall back to RemoteAddr

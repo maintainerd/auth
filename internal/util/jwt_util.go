@@ -313,8 +313,8 @@ func generateToken(claims jwt.MapClaims) (string, error) {
 	// Use RS256 for asymmetric signing (more secure than HS256)
 	token := jwt.NewWithClaims(jwt.SigningMethodRS256, claims)
 
-	// Add key ID header for key rotation support
-	token.Header["kid"] = "maintainerd-auth-key-1" // Version your keys
+	// Add key ID header for key rotation support (configurable via JWT_KEY_ID env var)
+	token.Header["kid"] = config.GetEnvOrDefault("JWT_KEY_ID", "maintainerd-auth-key-1")
 
 	return token.SignedString(privateKey)
 }
@@ -342,7 +342,8 @@ func ValidateToken(tokenString string) (jwt.MapClaims, error) {
 
 		// Validate key ID if present (for key rotation)
 		if kid, exists := t.Header["kid"]; exists {
-			if kid != "maintainerd-auth-key-1" {
+			expectedKID := config.GetEnvOrDefault("JWT_KEY_ID", "maintainerd-auth-key-1")
+			if kid != expectedKID {
 				return nil, fmt.Errorf("unknown key ID: %v", kid)
 			}
 		}

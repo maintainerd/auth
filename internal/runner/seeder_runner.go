@@ -1,7 +1,7 @@
 package runner
 
 import (
-	"log"
+	"log/slog"
 
 	"github.com/maintainerd/auth/internal/database/seeder"
 	"github.com/maintainerd/auth/internal/model"
@@ -9,12 +9,12 @@ import (
 )
 
 func RunSeeders(db *gorm.DB, appVersion string) error {
-	log.Println("🏃 Running default seeders...")
+	slog.Info("Running default seeders")
 
 	// 001: Seed service
 	service, err := seeder.SeedService(db, appVersion)
 	if err != nil {
-		log.Printf("❌ Failed to seed service: %v", err)
+		slog.Error("Failed to seed service", "error", err)
 		return err
 	}
 
@@ -22,75 +22,75 @@ func RunSeeders(db *gorm.DB, appVersion string) error {
 	var tenant model.Tenant
 	err = db.Where("is_default = ?", true).First(&tenant).Error
 	if err != nil {
-		log.Printf("❌ Failed to find default tenant: %v", err)
+		slog.Error("Failed to find default tenant", "error", err)
 		return err
 	}
-	log.Printf("✅ Found default tenant (ID: %d)", tenant.TenantID)
+	slog.Info("Found default tenant", "tenant_id", tenant.TenantID)
 
 	// 002: Link tenant to service
 	_, err = seeder.SeedTenantService(db, tenant.TenantID, service.ServiceID)
 	if err != nil {
-		log.Printf("❌ Failed to seed tenant_service: %v", err)
+		slog.Error("Failed to seed tenant_service", "error", err)
 		return err
 	}
 
 	// 003: Seed API
 	api, err := seeder.SeedAPI(db, tenant.TenantID, service.ServiceID)
 	if err != nil {
-		log.Printf("❌ Failed to seed api: %v", err)
+		slog.Error("Failed to seed api", "error", err)
 		return err
 	}
 
 	// 004: Seed permissions
 	if err := seeder.SeedPermissions(db, tenant.TenantID, api.APIID); err != nil {
-		log.Printf("❌ Failed to seed permissions: %v", err)
+		slog.Error("Failed to seed permissions", "error", err)
 		return err
 	}
 
 	// 005: Seed identity providers
 	identityProvider, err := seeder.SeedIdentityProviders(db, tenant.TenantID)
 	if err != nil {
-		log.Printf("❌ Failed to seed identity provider: %v", err)
+		slog.Error("Failed to seed identity provider", "error", err)
 		return err
 	}
 
 	// 006: Seed auth clients
 	if err := seeder.SeedClients(db, tenant.TenantID, identityProvider.IdentityProviderID); err != nil {
-		log.Printf("❌ Failed to seed auth clients: %v", err)
+		slog.Error("Failed to seed auth clients", "error", err)
 		return err
 	}
 
 	// 007: Seed auth client URIs
 	if err := seeder.SeedClientURIs(db, tenant.TenantID, identityProvider.IdentityProviderID); err != nil {
-		log.Printf("❌ Failed to seed auth client URIs: %v", err)
+		slog.Error("Failed to seed auth client URIs", "error", err)
 		return err
 	}
 
 	// 008: Seed roles
 	roles, err := seeder.SeedRoles(db, tenant.TenantID)
 	if err != nil {
-		log.Printf("❌ Failed to seed roles: %v", err)
+		slog.Error("Failed to seed roles", "error", err)
 		return err
 	}
 
 	// 009: Seed role permissions
 	if err := seeder.SeedRolePermissions(db, roles); err != nil {
-		log.Printf("❌ Failed to seed role permissions: %v", err)
+		slog.Error("Failed to seed role permissions", "error", err)
 		return err
 	}
 
 	// 010: Seed email templates
 	if err := seeder.SeedEmailTemplates(db, tenant.TenantID); err != nil {
-		log.Printf("❌ Failed to seed email templates: %v", err)
+		slog.Error("Failed to seed email templates", "error", err)
 		return err
 	}
 
 	// 011: Seed security settings
 	if err := seeder.SeedSecuritySettings(db, tenant.TenantID); err != nil {
-		log.Printf("❌ Failed to seed security settings: %v", err)
+		slog.Error("Failed to seed security settings", "error", err)
 		return err
 	}
 
-	log.Println("✅ Default seeding process completed.")
+	slog.Info("Default seeding process completed")
 	return nil
 }
