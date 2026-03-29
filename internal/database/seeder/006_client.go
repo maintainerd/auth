@@ -1,11 +1,12 @@
 package seeder
 
 import (
-	"log"
-	"os"
+	"fmt"
+	"log/slog"
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/maintainerd/auth/internal/config"
 	"github.com/maintainerd/auth/internal/model"
 	"github.com/maintainerd/auth/internal/util"
 	"gorm.io/datatypes"
@@ -13,18 +14,18 @@ import (
 )
 
 func SeedClients(db *gorm.DB, tenantID int64, identityProviderID int64) error {
-	appHostName := os.Getenv("APP_PRIVATE_HOSTNAME")
+	appHostName := config.AppPrivateHostname
 
 	clients := []model.Client{
 		{
-			ClientUUID:   uuid.New(),
-			TenantID:     tenantID,
-			Name:         "traditional-default",
-			DisplayName:  "Traditional Web App Default",
-			ClientType:   "traditional",
-			Domain:       strPtr(appHostName),
-			Identifier:   strPtr(util.GenerateIdentifier(32)),
-			Secret:       strPtr(util.GenerateIdentifier(64)),
+			ClientUUID:  uuid.New(),
+			TenantID:    tenantID,
+			Name:        "traditional-default",
+			DisplayName: "Traditional Web App Default",
+			ClientType:  "traditional",
+			Domain:      strPtr(appHostName),
+			Identifier:  strPtr(util.GenerateIdentifier(32)),
+			Secret:      strPtr(util.GenerateIdentifier(64)),
 			Config: datatypes.JSON([]byte(`{
 				"grant_types": ["authorization_code"],
 				"response_type": "code",
@@ -38,14 +39,14 @@ func SeedClients(db *gorm.DB, tenantID int64, identityProviderID int64) error {
 			UpdatedAt:          time.Now(),
 		},
 		{
-			ClientUUID:   uuid.New(),
-			TenantID:     tenantID,
-			Name:         "spa-default",
-			DisplayName:  "Single Page App Default",
-			ClientType:   "spa",
-			Domain:       strPtr(appHostName),
-			Identifier:   strPtr(util.GenerateIdentifier(32)),
-			Secret:       nil,
+			ClientUUID:  uuid.New(),
+			TenantID:    tenantID,
+			Name:        "spa-default",
+			DisplayName: "Single Page App Default",
+			ClientType:  "spa",
+			Domain:      strPtr(appHostName),
+			Identifier:  strPtr(util.GenerateIdentifier(32)),
+			Secret:      nil,
 			Config: datatypes.JSON([]byte(`{
 				"grant_types": ["authorization_code"],
 				"response_type": "code",
@@ -59,14 +60,14 @@ func SeedClients(db *gorm.DB, tenantID int64, identityProviderID int64) error {
 			UpdatedAt:          time.Now(),
 		},
 		{
-			ClientUUID:   uuid.New(),
-			TenantID:     tenantID,
-			Name:         "mobile-default",
-			DisplayName:  "Mobile App Default",
-			ClientType:   "mobile",
-			Domain:       strPtr(appHostName),
-			Identifier:   strPtr(util.GenerateIdentifier(32)),
-			Secret:       nil,
+			ClientUUID:  uuid.New(),
+			TenantID:    tenantID,
+			Name:        "mobile-default",
+			DisplayName: "Mobile App Default",
+			ClientType:  "mobile",
+			Domain:      strPtr(appHostName),
+			Identifier:  strPtr(util.GenerateIdentifier(32)),
+			Secret:      nil,
 			Config: datatypes.JSON([]byte(`{
 				"grant_types": ["authorization_code"],
 				"response_type": "code",
@@ -80,14 +81,14 @@ func SeedClients(db *gorm.DB, tenantID int64, identityProviderID int64) error {
 			UpdatedAt:          time.Now(),
 		},
 		{
-			ClientUUID:   uuid.New(),
-			TenantID:     tenantID,
-			Name:         "m2m-default",
-			DisplayName:  "Machine to Machine Default",
-			ClientType:   "m2m",
-			Domain:       strPtr(appHostName),
-			Identifier:   strPtr(util.GenerateIdentifier(32)),
-			Secret:       strPtr(util.GenerateIdentifier(64)),
+			ClientUUID:  uuid.New(),
+			TenantID:    tenantID,
+			Name:        "m2m-default",
+			DisplayName: "Machine to Machine Default",
+			ClientType:  "m2m",
+			Domain:      strPtr(appHostName),
+			Identifier:  strPtr(util.GenerateIdentifier(32)),
+			Secret:      strPtr(util.GenerateIdentifier(64)),
 			Config: datatypes.JSON([]byte(`{
 				"grant_types": ["client_credentials"]
 			}`)),
@@ -111,25 +112,23 @@ func SeedClients(db *gorm.DB, tenantID int64, identityProviderID int64) error {
 			client.Identifier = existing.Identifier
 			client.ClientUUID = existing.ClientUUID
 			if err := db.Save(&client).Error; err != nil {
-				log.Printf("❌ Failed to update auth client '%s': %v", client.Name, err)
-			} else {
-				log.Printf("🔄 Auth client '%s' updated", client.Name)
+				return fmt.Errorf("failed to update auth client %q: %w", client.Name, err)
 			}
+			slog.Info("Auth client updated", "name", client.Name)
 			continue
 		}
 
 		if err == gorm.ErrRecordNotFound {
 			// Create new client
 			if err := db.Create(&client).Error; err != nil {
-				log.Printf("❌ Failed to create auth client '%s': %v", client.Name, err)
-				continue
+				return fmt.Errorf("failed to create auth client %q: %w", client.Name, err)
 			}
-			log.Printf("✅ Auth client '%s' created", client.Name)
+			slog.Info("Auth client created", "name", client.Name)
 			continue
 		}
 
 		// Unexpected error
-		log.Printf("❌ Failed lookup for auth client '%s': %v", client.Name, err)
+		return fmt.Errorf("failed lookup for auth client %q: %w", client.Name, err)
 	}
 
 	return nil

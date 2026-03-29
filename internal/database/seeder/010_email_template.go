@@ -1,7 +1,7 @@
 package seeder
 
 import (
-	"log"
+	"log/slog"
 
 	"github.com/maintainerd/auth/internal/model"
 	emailtemplate "github.com/maintainerd/auth/internal/templates/email"
@@ -28,9 +28,9 @@ func SeedEmailTemplates(db *gorm.DB, tenantID int64) error {
 
 	for _, t := range templates {
 		var existing model.EmailTemplate
-		err := db.Where("name = ?", t.Name).First(&existing).Error
+		err := db.Where("name = ? AND tenant_id = ?", t.Name, tenantID).First(&existing).Error
 		if err == nil {
-			log.Printf("⚠️ Email template '%s' already exists, skipping", t.Name)
+			slog.Info("Email template already exists, skipping", "name", t.Name)
 			continue
 		}
 
@@ -38,7 +38,7 @@ func SeedEmailTemplates(db *gorm.DB, tenantID int64) error {
 			return err
 		}
 
-		log.Printf("✅ Email template '%s' seeded", t.Name)
+		slog.Info("Email template seeded", "name", t.Name)
 	}
 
 	return nil

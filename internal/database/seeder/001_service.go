@@ -1,19 +1,19 @@
 package seeder
 
 import (
-	"log"
+	"log/slog"
 
 	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/model"
 	"gorm.io/gorm"
 )
 
-func SeedService(db *gorm.DB, appVersion string) (model.Service, error) {
+func SeedService(db *gorm.DB, appVersion string) (*model.Service, error) {
 	var service model.Service
 
 	if appVersion == "" {
-		log.Printf("⚠️ Skipping Service seeding: version is empty")
-		return service, nil
+		slog.Warn("Skipping Service seeding: version is empty")
+		return &service, nil
 	}
 
 	err := db.Where("name = ?", "auth").First(&service).Error
@@ -29,18 +29,18 @@ func SeedService(db *gorm.DB, appVersion string) (model.Service, error) {
 		}
 
 		if err := db.Create(&service).Error; err != nil {
-			log.Printf("❌ Failed to seed Default Service version '%s': %v", appVersion, err)
-			return model.Service{}, err
+			slog.Error("Failed to seed Default Service", "version", appVersion, "error", err)
+			return nil, err
 		}
 
-		log.Printf("✅ Default Service version '%s' seeded successfully", appVersion)
-		return service, nil
+		slog.Info("Default Service seeded", "version", appVersion)
+		return &service, nil
 	}
 	if err != nil {
-		log.Printf("❌ Error checking existing Default Service: %v", err)
-		return model.Service{}, err
+		slog.Error("Error checking existing Default Service", "error", err)
+		return nil, err
 	}
 
-	log.Printf("⚠️ Default Service already exists, skipping seeding")
-	return service, nil
+	slog.Info("Default Service already exists, skipping")
+	return &service, nil
 }
