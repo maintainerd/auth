@@ -5,6 +5,8 @@ import (
 
 	validation "github.com/go-ozzo/ozzo-validation/v4"
 	"github.com/google/uuid"
+
+	"github.com/maintainerd/auth/internal/model"
 )
 
 // Service output structure
@@ -50,7 +52,7 @@ func (r ServiceCreateOrUpdateRequestDto) Validate() error {
 		),
 		validation.Field(&r.Status,
 			validation.Required.Error("Status is required"),
-			validation.In("active", "maintenance", "deprecated", "inactive").Error("Status must be one of: active, maintenance, deprecated, inactive"),
+			validation.In(model.StatusActive, model.StatusMaintenance, model.StatusDeprecated, model.StatusInactive).Error("Status must be one of: active, maintenance, deprecated, inactive"),
 		),
 	)
 }
@@ -68,6 +70,18 @@ type ServiceFilterDto struct {
 	PaginationRequestDto
 }
 
+// Validate validates the service filter DTO.
+func (f ServiceFilterDto) Validate() error {
+	return validation.ValidateStruct(&f,
+		validation.Field(&f.Status,
+			validation.When(len(f.Status) > 0,
+				validation.Each(validation.In(model.StatusActive, model.StatusMaintenance, model.StatusDeprecated, model.StatusInactive).Error("Status must be one of: active, maintenance, deprecated, inactive")),
+			),
+		),
+		validation.Field(&f.PaginationRequestDto),
+	)
+}
+
 // Service status update request dto
 type ServiceStatusUpdateRequestDto struct {
 	Status string `json:"status"`
@@ -77,7 +91,7 @@ func (r ServiceStatusUpdateRequestDto) Validate() error {
 	return validation.ValidateStruct(&r,
 		validation.Field(&r.Status,
 			validation.Required.Error("Status is required"),
-			validation.In("active", "maintenance", "deprecated", "inactive").Error("Status must be one of: active, maintenance, deprecated, inactive"),
+			validation.In(model.StatusActive, model.StatusMaintenance, model.StatusDeprecated, model.StatusInactive).Error("Status must be one of: active, maintenance, deprecated, inactive"),
 		),
 	)
 }

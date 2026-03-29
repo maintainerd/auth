@@ -35,7 +35,7 @@ type App struct {
 	SecuritySettingRestHandler   *resthandler.SecuritySettingHandler
 	IpRestrictionRuleRestHandler *resthandler.IpRestrictionRuleHandler
 	EmailTemplateRestHandler     *resthandler.EmailTemplateHandler
-	SmsTemplateRestHandler       *resthandler.SmsTemplateHandler
+	SMSTemplateRestHandler       *resthandler.SMSTemplateHandler
 	LoginTemplateRestHandler     *resthandler.LoginTemplateHandler
 	// Grpc handler
 	SeederHandler *grpchandler.SeederHandler
@@ -130,7 +130,7 @@ func NewApp(db *gorm.DB, redisClient *redis.Client) *App {
 	securitySettingRestHandler := resthandler.NewSecuritySettingHandler(securitySettingService)
 	ipRestrictionRuleRestHandler := resthandler.NewIpRestrictionRuleHandler(ipRestrictionRuleService)
 	emailTemplateRestHandler := resthandler.NewEmailTemplateHandler(emailTemplateService)
-	smsTemplateRestHandler := resthandler.NewSmsTemplateHandler(smsTemplateService)
+	smsTemplateRestHandler := resthandler.NewSMSTemplateHandler(smsTemplateService)
 	loginTemplateRestHandler := resthandler.NewLoginTemplateHandler(loginTemplateService)
 
 	// GRPC handlers
@@ -162,7 +162,7 @@ func NewApp(db *gorm.DB, redisClient *redis.Client) *App {
 		SecuritySettingRestHandler:   securitySettingRestHandler,
 		IpRestrictionRuleRestHandler: ipRestrictionRuleRestHandler,
 		EmailTemplateRestHandler:     emailTemplateRestHandler,
-		SmsTemplateRestHandler:       smsTemplateRestHandler,
+		SMSTemplateRestHandler:       smsTemplateRestHandler,
 		LoginTemplateRestHandler:     loginTemplateRestHandler,
 		// GRPC handler
 		SeederHandler: seederGrpcHandler,

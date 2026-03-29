@@ -5,6 +5,7 @@ import (
 
 	validation "github.com/go-ozzo/ozzo-validation/v4"
 	"github.com/go-ozzo/ozzo-validation/v4/is"
+	"github.com/maintainerd/auth/internal/model"
 )
 
 // TenantMetadataDto represents the metadata structure for tenant configuration
@@ -189,7 +190,7 @@ type CreateProfileRequestDto struct {
 	ProfileURL *string `json:"profile_url,omitempty"`
 
 	// Extended data (custom fields)
-	Metadata map[string]interface{} `json:"metadata,omitempty"`
+	Metadata map[string]any `json:"metadata,omitempty"`
 }
 
 func (dto CreateProfileRequestDto) Validate() error {
@@ -223,7 +224,7 @@ func (dto CreateProfileRequestDto) Validate() error {
 		),
 		validation.Field(&dto.Gender,
 			validation.NilOrNotEmpty,
-			validation.In("male", "female", "other", "prefer_not_to_say").Error("Gender must be male, female, other, or prefer_not_to_say"),
+			validation.In(model.GenderMale, model.GenderFemale, model.GenderOther, model.GenderPreferNotToSay).Error("Gender must be male, female, other, or prefer_not_to_say"),
 		),
 		validation.Field(&dto.Bio,
 			validation.NilOrNotEmpty,
@@ -276,5 +277,5 @@ func (dto CreateProfileRequestDto) Validate() error {
 
 // CreateProfileResponseDto for profile creation response
 type CreateProfileResponseDto struct {
-	Profile ProfileResponse `json:"profile"`
+	Profile ProfileResponseDto `json:"profile"`
 }

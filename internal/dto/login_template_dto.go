@@ -4,6 +4,8 @@ import (
 	"time"
 
 	validation "github.com/go-ozzo/ozzo-validation/v4"
+
+	"github.com/maintainerd/auth/internal/model"
 )
 
 // Login template list response DTO (without metadata)
@@ -50,10 +52,10 @@ func (r LoginTemplateCreateRequestDto) Validate() error {
 		),
 		validation.Field(&r.Template,
 			validation.Required.Error("Template is required"),
-			validation.In("modern", "classic", "minimal", "corporate", "creative", "custom").Error("Template must be one of: modern, classic, minimal, corporate, creative, custom"),
+			validation.In(model.LoginTemplateModern, model.LoginTemplateClassic, model.LoginTemplateMinimal, model.LoginTemplateCorporate, model.LoginTemplateCreative, model.LoginTemplateCustom).Error("Template must be one of: modern, classic, minimal, corporate, creative, custom"),
 		),
 		validation.Field(&r.Status,
-			validation.In("active", "inactive").Error("Status must be 'active' or 'inactive'"),
+			validation.In(model.StatusActive, model.StatusInactive).Error("Status must be 'active' or 'inactive'"),
 		),
 	)
 }
@@ -75,10 +77,10 @@ func (r LoginTemplateUpdateRequestDto) Validate() error {
 		),
 		validation.Field(&r.Template,
 			validation.Required.Error("Template is required"),
-			validation.In("modern", "classic", "minimal", "corporate", "creative", "custom").Error("Template must be one of: modern, classic, minimal, corporate, creative, custom"),
+			validation.In(model.LoginTemplateModern, model.LoginTemplateClassic, model.LoginTemplateMinimal, model.LoginTemplateCorporate, model.LoginTemplateCreative, model.LoginTemplateCustom).Error("Template must be one of: modern, classic, minimal, corporate, creative, custom"),
 		),
 		validation.Field(&r.Status,
-			validation.In("active", "inactive").Error("Status must be 'active' or 'inactive'"),
+			validation.In(model.StatusActive, model.StatusInactive).Error("Status must be 'active' or 'inactive'"),
 		),
 	)
 }
@@ -92,7 +94,7 @@ func (r LoginTemplateUpdateStatusRequestDto) Validate() error {
 	return validation.ValidateStruct(&r,
 		validation.Field(&r.Status,
 			validation.Required.Error("Status is required"),
-			validation.In("active", "inactive").Error("Status must be 'active' or 'inactive'"),
+			validation.In(model.StatusActive, model.StatusInactive).Error("Status must be 'active' or 'inactive'"),
 		),
 	)
 }
@@ -107,4 +109,21 @@ type LoginTemplateFilterDto struct {
 
 	// Pagination and sorting
 	PaginationRequestDto
+}
+
+// Validate validates the login template filter DTO.
+func (f LoginTemplateFilterDto) Validate() error {
+	return validation.ValidateStruct(&f,
+		validation.Field(&f.Template,
+			validation.When(f.Template != nil,
+				validation.In(model.LoginTemplateModern, model.LoginTemplateClassic, model.LoginTemplateMinimal, model.LoginTemplateCorporate, model.LoginTemplateCreative, model.LoginTemplateCustom).Error("Template must be one of: modern, classic, minimal, corporate, creative, custom"),
+			),
+		),
+		validation.Field(&f.Status,
+			validation.When(len(f.Status) > 0,
+				validation.Each(validation.In(model.StatusActive, model.StatusInactive).Error("Status must be 'active' or 'inactive'")),
+			),
+		),
+		validation.Field(&f.PaginationRequestDto),
+	)
 }

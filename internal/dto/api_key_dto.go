@@ -7,6 +7,8 @@ import (
 	"github.com/go-ozzo/ozzo-validation/v4/is"
 	"github.com/google/uuid"
 	"gorm.io/datatypes"
+
+	"github.com/maintainerd/auth/internal/model"
 )
 
 // Response DTOs
@@ -24,15 +26,15 @@ type APIKeyResponseDto struct {
 }
 
 // API Key API DTOs
-type APIKeyApiResponseDto struct {
-	APIKeyApiID uuid.UUID               `json:"api_key_api_id"`
-	Api         APIResponseDto          `json:"api"`
+type APIKeyAPIResponseDto struct {
+	APIKeyAPIID uuid.UUID               `json:"api_key_api_id"`
+	API         APIResponseDto          `json:"api"`
 	Permissions []PermissionResponseDto `json:"permissions,omitempty"`
 	CreatedAt   time.Time               `json:"created_at"`
 }
 
-type APIKeyApisResponseDto struct {
-	APIs []APIKeyApiResponseDto `json:"apis"`
+type APIKeyAPIsResponseDto struct {
+	APIs []APIKeyAPIResponseDto `json:"apis"`
 }
 
 // API Key APIs pagination request DTO
@@ -42,12 +44,12 @@ type APIKeyApisGetRequestDto struct {
 
 // Add APIs to API key request dto
 type AddAPIKeyApisRequestDto struct {
-	ApiUUIDs []uuid.UUID `json:"api_uuids"`
+	APIUUIDs []uuid.UUID `json:"api_uuids"`
 }
 
 func (r AddAPIKeyApisRequestDto) Validate() error {
 	return validation.ValidateStruct(&r,
-		validation.Field(&r.ApiUUIDs,
+		validation.Field(&r.APIUUIDs,
 			validation.Required.Error("API UUIDs are required"),
 			validation.Each(is.UUID.Error("Invalid UUID provided")),
 		),
@@ -77,7 +79,7 @@ func (r APIKeyStatusUpdateDto) Validate() error {
 	return validation.ValidateStruct(&r,
 		validation.Field(&r.Status,
 			validation.Required.Error("Status is required"),
-			validation.In("active", "inactive").Error("Status must be either 'active' or 'inactive'"),
+			validation.In(model.StatusActive, model.StatusInactive).Error("Status must be either 'active' or 'inactive'"),
 		),
 	)
 }
@@ -105,7 +107,7 @@ type APIKeyCreateResponseDto struct {
 }
 
 // API Key API permissions response DTO
-type APIKeyApiPermissionsResponseDto struct {
+type APIKeyAPIPermissionsResponseDto struct {
 	Permissions []PermissionResponseDto `json:"permissions"`
 }
 
@@ -123,7 +125,7 @@ func (dto APIKeyCreateRequestDto) Validate() error {
 	return validation.ValidateStruct(&dto,
 		validation.Field(&dto.Name, validation.Required, validation.Length(1, 100)),
 		validation.Field(&dto.Description, validation.Length(0, 500)),
-		validation.Field(&dto.Status, validation.In("active", "inactive")),
+		validation.Field(&dto.Status, validation.In(model.StatusActive, model.StatusInactive)),
 		validation.Field(&dto.RateLimit, validation.Min(1)),
 	)
 }
@@ -141,7 +143,7 @@ func (dto APIKeyUpdateRequestDto) Validate() error {
 	return validation.ValidateStruct(&dto,
 		validation.Field(&dto.Name, validation.Length(1, 100)),
 		validation.Field(&dto.Description, validation.Length(0, 500)),
-		validation.Field(&dto.Status, validation.In("active", "inactive")),
+		validation.Field(&dto.Status, validation.In(model.StatusActive, model.StatusInactive)),
 		validation.Field(&dto.RateLimit, validation.Min(1)),
 	)
 }
@@ -159,6 +161,6 @@ func (dto APIKeyGetRequestDto) Validate() error {
 		return err
 	}
 	return validation.ValidateStruct(&dto,
-		validation.Field(&dto.Status, validation.In("active", "inactive")),
+		validation.Field(&dto.Status, validation.In(model.StatusActive, model.StatusInactive)),
 	)
 }
