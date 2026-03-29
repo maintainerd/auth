@@ -77,13 +77,13 @@ func (s *forgotPasswordService) SendPasswordResetEmail(email string, clientID, p
 		}
 
 		// Check if user is active
-		if user.Status != "active" {
+		if user.Status != model.StatusActive {
 			// Don't reveal if user is inactive for security
 			return nil
 		}
 
 		// Revoke any existing password reset tokens for this user
-		existingTokens, txErr := txUserTokenRepo.FindByUserIDAndTokenType(user.UserID, "user:password:reset")
+		existingTokens, txErr := txUserTokenRepo.FindByUserIDAndTokenType(user.UserID, model.TokenTypePasswordReset)
 		if txErr != nil {
 			return fmt.Errorf("failed to find existing tokens: %w", txErr)
 		}
@@ -103,7 +103,7 @@ func (s *forgotPasswordService) SendPasswordResetEmail(email string, clientID, p
 		expiresAt := time.Now().Add(1 * time.Hour)
 		userToken := &model.UserToken{
 			UserID:    user.UserID,
-			TokenType: "user:password:reset",
+			TokenType: model.TokenTypePasswordReset,
 			Token:     resetToken,
 			ExpiresAt: &expiresAt,
 		}

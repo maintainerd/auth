@@ -46,26 +46,23 @@ type RoleRepository interface {
 
 type roleRepository struct {
 	*BaseRepository[model.Role]
-	db *gorm.DB
 }
 
 func NewRoleRepository(db *gorm.DB) RoleRepository {
 	return &roleRepository{
 		BaseRepository: NewBaseRepository[model.Role](db, "role_uuid", "role_id"),
-		db:             db,
 	}
 }
 
 func (r *roleRepository) WithTx(tx *gorm.DB) RoleRepository {
 	return &roleRepository{
-		BaseRepository: NewBaseRepository[model.Role](tx, "role_uuid", "role_id"),
-		db:             tx,
+		BaseRepository: r.BaseRepository.WithTx(tx),
 	}
 }
 
 func (r *roleRepository) FindByNameAndTenantID(name string, tenantID int64) (*model.Role, error) {
 	var role model.Role
-	err := r.db.
+	err := r.DB().
 		Where("name = ? AND tenant_id = ?", name, tenantID).
 		First(&role).Error
 
@@ -83,14 +80,14 @@ func (r *roleRepository) FindByNameAndTenantID(name string, tenantID int64) (*mo
 
 func (r *roleRepository) FindAllByTenantID(tenantID int64) ([]model.Role, error) {
 	var roles []model.Role
-	err := r.db.
+	err := r.DB().
 		Where("tenant_id = ?", tenantID).
 		Find(&roles).Error
 	return roles, err
 }
 
 func (r *roleRepository) FindPaginated(filter RoleRepositoryGetFilter) (*PaginationResult[model.Role], error) {
-	query := r.db.Model(&model.Role{})
+	query := r.DB().Model(&model.Role{})
 
 	// Always filter
 	query = query.Where("tenant_id = ?", filter.TenantID)
@@ -114,16 +111,8 @@ func (r *roleRepository) FindPaginated(filter RoleRepositoryGetFilter) (*Paginat
 		query = query.Where("status = ?", *filter.Status)
 	}
 
-	// Sorting
-	if filter.SortBy != "" {
-		order := "ASC"
-		if filter.SortOrder == "desc" {
-			order = "DESC"
-		}
-		query = query.Order(filter.SortBy + " " + order)
-	} else {
-		query = query.Order("created_at DESC")
-	}
+	// Sorting — protected against SQL injection via allowlist
+	query = query.Order(sanitizeOrder(filter.SortBy, filter.SortOrder, "created_at DESC"))
 
 	// Count
 	var total int64
@@ -150,26 +139,26 @@ func (r *roleRepository) FindPaginated(filter RoleRepositoryGetFilter) (*Paginat
 }
 
 func (r *roleRepository) SetStatusByUUID(roleUUID uuid.UUID, status string) error {
-	return r.db.Model(&model.Role{}).
+	return r.DB().Model(&model.Role{}).
 		Where("role_uuid = ?", roleUUID).
 		Update("status", status).Error
 }
 
 func (r *roleRepository) SetDefaultStatusByUUID(roleUUID uuid.UUID, isDefault bool) error {
-	return r.db.Model(&model.Role{}).
+	return r.DB().Model(&model.Role{}).
 		Where("role_uuid = ?", roleUUID).
 		Update("is_default", isDefault).Error
 }
 
 func (r *roleRepository) SetSystemStatusByUUID(roleUUID uuid.UUID, isSystem bool) error {
-	return r.db.Model(&model.Role{}).
+	return r.DB().Model(&model.Role{}).
 		Where("role_uuid = ?", roleUUID).
 		Update("is_system", isSystem).Error
 }
 
 func (r *roleRepository) FindRegisteredRoleForSetup(tenantID int64) (*model.Role, error) {
 	var role model.Role
-	err := r.db.Where("tenant_id = ? AND name = ? AND is_default = ? AND is_system = ?",
+	err := r.DB().Where("tenant_id = ? AND name = ? AND is_default = ? AND is_system = ?",
 		tenantID, "registered", true, true).First(&role).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -182,7 +171,7 @@ func (r *roleRepository) FindRegisteredRoleForSetup(tenantID int64) (*model.Role
 
 func (r *roleRepository) FindSuperAdminRoleForSetup(tenantID int64) (*model.Role, error) {
 	var role model.Role
-	err := r.db.Where("tenant_id = ? AND name = ? AND is_system = ?",
+	err := r.DB().Where("tenant_id = ? AND name = ? AND is_system = ?",
 		tenantID, "super-admin", true).First(&role).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -194,36 +183,19 @@ func (r *roleRepository) FindSuperAdminRoleForSetup(tenantID int64) (*model.Role
 }
 
 func (r *roleRepository) GetPermissionsByRoleUUID(filter RoleRepositoryGetPermissionsFilter) (*PaginationResult[model.Permission], error) {
-	// Find role by UUID
-	var role model.Role
-	err := r.db.Where("role_uuid = ?", filter.RoleUUID).First(&role).Error
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, errors.New("role not found")
-		}
-		return nil, err
-	}
-
-	// Build query for permissions associated with this role
-	query := r.db.Model(&model.Permission{}).
+	// Single-query JOIN: no round trip to fetch role.RoleID first.
+	query := r.DB().Model(&model.Permission{}).
 		Joins("JOIN role_permissions ON role_permissions.permission_id = permissions.permission_id").
-		Where("role_permissions.role_id = ?", role.RoleID)
+		Joins("JOIN roles ON roles.role_id = role_permissions.role_id").
+		Where("roles.role_uuid = ?", filter.RoleUUID)
 
 	// Apply filters
 	if filter.Status != nil {
 		query = query.Where("permissions.status = ?", *filter.Status)
 	}
 
-	// Sorting
-	if filter.SortBy != "" {
-		order := "ASC"
-		if filter.SortOrder == "desc" {
-			order = "DESC"
-		}
-		query = query.Order("permissions." + filter.SortBy + " " + order)
-	} else {
-		query = query.Order("permissions.created_at DESC")
-	}
+	// Sorting — protected against SQL injection via allowlist
+	query = query.Order(sanitizeOrderPrefixed("permissions.", filter.SortBy, filter.SortOrder, "permissions.created_at DESC"))
 
 	// Count
 	var total int64

@@ -37,26 +37,23 @@ type PolicyRepository interface {
 
 type policyRepository struct {
 	*BaseRepository[model.Policy]
-	db *gorm.DB
 }
 
 func NewPolicyRepository(db *gorm.DB) PolicyRepository {
 	return &policyRepository{
 		BaseRepository: NewBaseRepository[model.Policy](db, "policy_uuid", "policy_id"),
-		db:             db,
 	}
 }
 
 func (r *policyRepository) WithTx(tx *gorm.DB) PolicyRepository {
 	return &policyRepository{
-		BaseRepository: NewBaseRepository[model.Policy](tx, "policy_uuid", "policy_id"),
-		db:             tx,
+		BaseRepository: r.BaseRepository.WithTx(tx),
 	}
 }
 
 func (r *policyRepository) FindByUUIDAndTenantID(policyUUID uuid.UUID, tenantID int64) (*model.Policy, error) {
 	var policy model.Policy
-	err := r.db.Where("policy_uuid = ? AND tenant_id = ?", policyUUID, tenantID).First(&policy).Error
+	err := r.DB().Where("policy_uuid = ? AND tenant_id = ?", policyUUID, tenantID).First(&policy).Error
 
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -70,7 +67,7 @@ func (r *policyRepository) FindByUUIDAndTenantID(policyUUID uuid.UUID, tenantID 
 
 func (r *policyRepository) FindByName(policyName string, tenantID int64) (*model.Policy, error) {
 	var policy model.Policy
-	err := r.db.Where("name = ? AND tenant_id = ?", policyName, tenantID).First(&policy).Error
+	err := r.DB().Where("name = ? AND tenant_id = ?", policyName, tenantID).First(&policy).Error
 
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -84,7 +81,7 @@ func (r *policyRepository) FindByName(policyName string, tenantID int64) (*model
 
 func (r *policyRepository) FindByNameAndVersion(policyName string, version string, tenantID int64) (*model.Policy, error) {
 	var policy model.Policy
-	err := r.db.Where("name = ? AND version = ? AND tenant_id = ?", policyName, version, tenantID).First(&policy).Error
+	err := r.DB().Where("name = ? AND version = ? AND tenant_id = ?", policyName, version, tenantID).First(&policy).Error
 
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -98,24 +95,24 @@ func (r *policyRepository) FindByNameAndVersion(policyName string, version strin
 
 func (r *policyRepository) FindSystemPolicies(tenantID int64) ([]model.Policy, error) {
 	var policies []model.Policy
-	err := r.db.Where("is_system = ? AND tenant_id = ?", true, tenantID).Find(&policies).Error
+	err := r.DB().Where("is_system = ? AND tenant_id = ?", true, tenantID).Find(&policies).Error
 	return policies, err
 }
 
 func (r *policyRepository) SetStatusByUUID(policyUUID uuid.UUID, tenantID int64, status string) error {
-	return r.db.Model(&model.Policy{}).
+	return r.DB().Model(&model.Policy{}).
 		Where("policy_uuid = ? AND tenant_id = ?", policyUUID, tenantID).
 		Update("status", status).Error
 }
 
 func (r *policyRepository) SetSystemStatusByUUID(policyUUID uuid.UUID, tenantID int64, isSystem bool) error {
-	return r.db.Model(&model.Policy{}).
+	return r.DB().Model(&model.Policy{}).
 		Where("policy_uuid = ? AND tenant_id = ?", policyUUID, tenantID).
 		Update("is_system", isSystem).Error
 }
 
 func (r *policyRepository) FindPaginated(filter PolicyRepositoryGetFilter) (*PaginationResult[model.Policy], error) {
-	query := r.db.Model(&model.Policy{})
+	query := r.DB().Model(&model.Policy{})
 
 	// Filter by tenant_id
 	query = query.Where("tenant_id = ?", filter.TenantID)
@@ -149,18 +146,8 @@ func (r *policyRepository) FindPaginated(filter PolicyRepositoryGetFilter) (*Pag
 		return nil, err
 	}
 
-	// Apply sorting
-	if filter.SortBy != "" {
-		order := filter.SortBy
-		if filter.SortOrder == "desc" {
-			order += " DESC"
-		} else {
-			order += " ASC"
-		}
-		query = query.Order(order)
-	} else {
-		query = query.Order("created_at DESC")
-	}
+	// Apply sorting — protected against SQL injection via allowlist
+	query = query.Order(sanitizeOrder(filter.SortBy, filter.SortOrder, "created_at DESC"))
 
 	// Pagination
 	offset := (filter.Page - 1) * filter.Limit
@@ -181,5 +168,5 @@ func (r *policyRepository) FindPaginated(filter PolicyRepositoryGetFilter) (*Pag
 }
 
 func (r *policyRepository) DeleteByUUIDAndTenantID(policyUUID uuid.UUID, tenantID int64) error {
-	return r.db.Where("policy_uuid = ? AND tenant_id = ?", policyUUID, tenantID).Delete(&model.Policy{}).Error
+	return r.DB().Where("policy_uuid = ? AND tenant_id = ?", policyUUID, tenantID).Delete(&model.Policy{}).Error
 }
