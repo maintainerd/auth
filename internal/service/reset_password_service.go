@@ -21,20 +21,20 @@ type resetPasswordService struct {
 	db            *gorm.DB
 	userRepo      repository.UserRepository
 	userTokenRepo repository.UserTokenRepository
-	ClientRepo    repository.ClientRepository
+	clientRepo    repository.ClientRepository
 }
 
 func NewResetPasswordService(
 	db *gorm.DB,
 	userRepo repository.UserRepository,
 	userTokenRepo repository.UserTokenRepository,
-	ClientRepo repository.ClientRepository,
+	clientRepo repository.ClientRepository,
 ) ResetPasswordService {
 	return &resetPasswordService{
 		db:            db,
 		userRepo:      userRepo,
 		userTokenRepo: userTokenRepo,
-		ClientRepo:    ClientRepo,
+		clientRepo:    clientRepo,
 	}
 }
 
@@ -45,7 +45,7 @@ func (s *resetPasswordService) ResetPassword(token, newPassword string, clientID
 	err := s.db.Transaction(func(tx *gorm.DB) error {
 		txUserRepo := s.userRepo.WithTx(tx)
 		txUserTokenRepo := s.userTokenRepo.WithTx(tx)
-		txClientRepo := s.ClientRepo.WithTx(tx)
+		txClientRepo := s.clientRepo.WithTx(tx)
 
 		// Validate auth client first
 		var Client *model.Client
@@ -117,7 +117,7 @@ func (s *resetPasswordService) ResetPassword(token, newPassword string, clientID
 		}
 
 		// Update user password using the base repository method
-		_, txErr = txUserRepo.UpdateByID(user.UserID, map[string]interface{}{
+		_, txErr = txUserRepo.UpdateByID(user.UserID, map[string]any{
 			"password": string(hashedPassword),
 		})
 		if txErr != nil {

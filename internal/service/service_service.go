@@ -104,9 +104,14 @@ func (s *serviceService) Get(filter ServiceServiceGetFilter) (*ServiceServiceGet
 		return nil, err
 	}
 
+	var filterTenantID int64
+	if filter.TenantID != nil {
+		filterTenantID = *filter.TenantID
+	}
+
 	services := make([]ServiceServiceDataResult, len(result.Data))
 	for i, svc := range result.Data {
-		services[i] = *s.toServiceServiceDataResult(&svc)
+		services[i] = *s.toServiceServiceDataResult(&svc, filterTenantID)
 	}
 
 	return &ServiceServiceGetResult{
@@ -130,7 +135,7 @@ func (s *serviceService) GetByUUID(serviceUUID uuid.UUID, tenantID int64) (*Serv
 		return nil, errors.New("service not found or access denied")
 	}
 
-	return s.toServiceServiceDataResult(service), nil
+	return s.toServiceServiceDataResult(service, tenantID), nil
 }
 
 func (s *serviceService) Create(name string, displayName string, description string, version string, isSystem bool, status string, tenantID int64) (*ServiceServiceDataResult, error) {
@@ -184,7 +189,7 @@ func (s *serviceService) Create(name string, displayName string, description str
 		return nil, err
 	}
 
-	return s.toServiceServiceDataResult(createdService), nil
+	return s.toServiceServiceDataResult(createdService, tenantID), nil
 }
 
 func (s *serviceService) Update(serviceUUID uuid.UUID, tenantID int64, name string, displayName string, description string, version string, isSystem bool, status string) (*ServiceServiceDataResult, error) {
@@ -241,7 +246,7 @@ func (s *serviceService) Update(serviceUUID uuid.UUID, tenantID int64, name stri
 		return nil, err
 	}
 
-	return s.toServiceServiceDataResult(updatedService), nil
+	return s.toServiceServiceDataResult(updatedService, tenantID), nil
 }
 
 func (s *serviceService) SetStatusByUUID(serviceUUID uuid.UUID, tenantID int64, status string) (*ServiceServiceDataResult, error) {
@@ -283,7 +288,7 @@ func (s *serviceService) SetStatusByUUID(serviceUUID uuid.UUID, tenantID int64, 
 		return nil, err
 	}
 
-	return s.toServiceServiceDataResult(updatedService), nil
+	return s.toServiceServiceDataResult(updatedService, tenantID), nil
 }
 
 func (s *serviceService) DeleteByUUID(serviceUUID uuid.UUID, tenantID int64) (*ServiceServiceDataResult, error) {
@@ -308,13 +313,13 @@ func (s *serviceService) DeleteByUUID(serviceUUID uuid.UUID, tenantID int64) (*S
 		return nil, err
 	}
 
-	return s.toServiceServiceDataResult(service), nil
+	return s.toServiceServiceDataResult(service, tenantID), nil
 }
 
 // Helper function to convert model.Service to ServiceServiceDataResult with counts
-func (s *serviceService) toServiceServiceDataResult(service *model.Service) *ServiceServiceDataResult {
-	// Get API count for this service
-	apiCount, _ := s.apiRepo.CountByServiceID(service.ServiceID, 0) // TODO: Fix to use actual tenant_id
+func (s *serviceService) toServiceServiceDataResult(service *model.Service, tenantID int64) *ServiceServiceDataResult {
+	// Get API count for this service scoped to the caller's tenant
+	apiCount, _ := s.apiRepo.CountByServiceID(service.ServiceID, tenantID)
 
 	// Get policy count for this service
 	policyCount, _ := s.serviceRepo.CountPoliciesByServiceID(service.ServiceID)

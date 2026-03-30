@@ -222,12 +222,12 @@ func (s *loginTemplateService) Delete(loginTemplateUUID uuid.UUID, tenantID int6
 }
 
 func toLoginTemplateServiceDataResult(template *model.LoginTemplate) LoginTemplateServiceDataResult {
-	var metadata map[string]interface{}
+	var metadata map[string]any
 	if len(template.Metadata) > 0 {
 		json.Unmarshal(template.Metadata, &metadata)
 	}
 	if metadata == nil {
-		metadata = make(map[string]interface{})
+		metadata = make(map[string]any)
 	}
 
 	return LoginTemplateServiceDataResult{

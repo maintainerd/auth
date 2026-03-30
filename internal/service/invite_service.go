@@ -21,7 +21,7 @@ type InviteService interface {
 type inviteService struct {
 	db                *gorm.DB
 	inviteRepo        repository.InviteRepository
-	ClientRepo        repository.ClientRepository
+	clientRepo        repository.ClientRepository
 	roleRepo          repository.RoleRepository
 	emailTemplateRepo repository.EmailTemplateRepository
 }
@@ -29,14 +29,14 @@ type inviteService struct {
 func NewInviteService(
 	db *gorm.DB,
 	inviteRepo repository.InviteRepository,
-	ClientRepo repository.ClientRepository,
+	clientRepo repository.ClientRepository,
 	roleRepo repository.RoleRepository,
 	emailTemplateRepo repository.EmailTemplateRepository,
 ) InviteService {
 	return &inviteService{
 		db:                db,
 		inviteRepo:        inviteRepo,
-		ClientRepo:        ClientRepo,
+		clientRepo:        clientRepo,
 		roleRepo:          roleRepo,
 		emailTemplateRepo: emailTemplateRepo,
 	}
@@ -51,11 +51,11 @@ func (s *inviteService) SendInvite(
 	var invite *model.Invite
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
-		ClientRepo := repository.NewClientRepository(tx)
-		roleRepo := repository.NewRoleRepository(tx)
-		inviteRepo := repository.NewInviteRepository(tx)
+		clientRepo := s.clientRepo.WithTx(tx)
+		roleRepo := s.roleRepo.WithTx(tx)
+		inviteRepo := s.inviteRepo.WithTx(tx)
 
-		Client, err := ClientRepo.FindDefault()
+		Client, err := clientRepo.FindDefault()
 		if err != nil {
 			return err
 		}
@@ -96,7 +96,7 @@ func (s *inviteService) SendInvite(
 			InvitedEmail:    email,
 			InvitedByUserID: userID,
 			InviteToken:     inviteToken,
-			Status:          "pending",
+			Status:          model.StatusPending,
 			ExpiresAt:       expiresAt,
 		}
 

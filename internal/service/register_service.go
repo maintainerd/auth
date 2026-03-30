@@ -23,7 +23,7 @@ type RegisterService interface {
 
 type registerService struct {
 	db                   *gorm.DB
-	ClientRepo           repository.ClientRepository
+	clientRepo           repository.ClientRepository
 	userRepo             repository.UserRepository
 	userRoleRepo         repository.UserRoleRepository
 	userTokenRepo        repository.UserTokenRepository
@@ -48,7 +48,7 @@ func NewRegistrationService(
 ) RegisterService {
 	return &registerService{
 		db:                   db,
-		ClientRepo:           clientRepo,
+		clientRepo:           clientRepo,
 		userRepo:             userRepo,
 		userRoleRepo:         userRoleRepo,
 		userTokenRepo:        userTokenRepo,
@@ -80,7 +80,7 @@ func (s *registerService) findDefaultRole(roleRepo repository.RoleRepository, te
 	}
 
 	// Fallback: if no default role found, try to find "registered" role
-	role, err := roleRepo.FindByNameAndTenantID("registered", tenantID)
+	role, err := roleRepo.FindByNameAndTenantID(model.RoleRegistered, tenantID)
 	if err != nil {
 		return nil, err
 	}
@@ -116,7 +116,7 @@ func (s *registerService) RegisterPublic(
 	err := s.db.Transaction(func(tx *gorm.DB) error {
 		txUserRepo := s.userRepo.WithTx(tx)
 		txUserTokenRepo := s.userTokenRepo.WithTx(tx)
-		txClientRepo := s.ClientRepo.WithTx(tx)
+		txClientRepo := s.clientRepo.WithTx(tx)
 		txUserIdentityRepo := s.userIdentityRepo.WithTx(tx)
 		txIdentityProviderRepo := s.identityProviderRepo.WithTx(tx)
 		txRoleRepo := s.roleRepo.WithTx(tx)
@@ -210,7 +210,7 @@ func (s *registerService) RegisterPublic(
 		userIdentity := &model.UserIdentity{
 			UserID:   createdUser.UserID,
 			ClientID: Client.ClientID,
-			Provider: "default",
+			Provider: model.ProviderDefault,
 			Sub:      uuid.New().String(),
 			Metadata: datatypes.JSON([]byte(`{}`)),
 		}
@@ -290,7 +290,7 @@ func (s *registerService) Register(
 	err := s.db.Transaction(func(tx *gorm.DB) error {
 		txUserRepo := s.userRepo.WithTx(tx)
 		txUserTokenRepo := s.userTokenRepo.WithTx(tx)
-		txClientRepo := s.ClientRepo.WithTx(tx)
+		txClientRepo := s.clientRepo.WithTx(tx)
 		txUserIdentityRepo := s.userIdentityRepo.WithTx(tx)
 		txRoleRepo := s.roleRepo.WithTx(tx)
 		txUserRoleRepo := s.userRoleRepo.WithTx(tx)
@@ -364,7 +364,7 @@ func (s *registerService) Register(
 			TenantID: tenantId,
 			UserID:   createdUser.UserID,
 			ClientID: Client.ClientID,
-			Provider: "default",
+			Provider: model.ProviderDefault,
 			Sub:      uuid.New().String(),
 			Metadata: datatypes.JSON([]byte(`{}`)),
 		}
@@ -449,7 +449,7 @@ func (s *registerService) RegisterInvite(
 		txUserRoleRepo := s.userRoleRepo.WithTx(tx)
 		txUserIdentityRepo := s.userIdentityRepo.WithTx(tx)
 		txInviteRepo := s.inviteRepo.WithTx(tx)
-		txClientRepo := s.ClientRepo.WithTx(tx)
+		txClientRepo := s.clientRepo.WithTx(tx)
 		txRoleRepo := s.roleRepo.WithTx(tx)
 		txTenantUserRepo := s.tenantUserRepo.WithTx(tx)
 
@@ -483,7 +483,7 @@ func (s *registerService) RegisterInvite(
 		if txErr != nil {
 			return errors.New("invalid invite token")
 		}
-		if invite == nil || invite.Status != "pending" || (invite.ExpiresAt != nil && invite.ExpiresAt.Before(time.Now())) {
+		if invite == nil || invite.Status != model.StatusPending || (invite.ExpiresAt != nil && invite.ExpiresAt.Before(time.Now())) {
 			return errors.New("invite token is invalid or expired")
 		}
 
@@ -521,7 +521,7 @@ func (s *registerService) RegisterInvite(
 			TenantID: tenantId,
 			UserID:   createdUser.UserID,
 			ClientID: Client.ClientID,
-			Provider: "default",
+			Provider: model.ProviderDefault,
 			Sub:      uuid.New().String(),
 			Metadata: datatypes.JSON([]byte(`{}`)),
 		}
@@ -606,7 +606,7 @@ func (s *registerService) RegisterInvitePublic(
 		txUserRoleRepo := s.userRoleRepo.WithTx(tx)
 		txUserIdentityRepo := s.userIdentityRepo.WithTx(tx)
 		txInviteRepo := s.inviteRepo.WithTx(tx)
-		txClientRepo := s.ClientRepo.WithTx(tx)
+		txClientRepo := s.clientRepo.WithTx(tx)
 		txIdentityProviderRepo := s.identityProviderRepo.WithTx(tx)
 		txRoleRepo := s.roleRepo.WithTx(tx)
 		txTenantUserRepo := s.tenantUserRepo.WithTx(tx)
@@ -645,7 +645,7 @@ func (s *registerService) RegisterInvitePublic(
 		}
 
 		// Check invite status and expiration
-		if invite.Status != "pending" { // "pending" is invite-specific, no model constant needed
+		if invite.Status != model.StatusPending {
 			return errors.New("invite has already been used or is no longer valid")
 		}
 		if invite.ExpiresAt != nil && time.Now().After(*invite.ExpiresAt) {
@@ -695,7 +695,7 @@ func (s *registerService) RegisterInvitePublic(
 			TenantID: tenantId,
 			UserID:   createdUser.UserID,
 			ClientID: Client.ClientID,
-			Provider: "default",
+			Provider: model.ProviderDefault,
 			Sub:      uuid.New().String(),
 			Metadata: datatypes.JSON([]byte(`{}`)),
 		}
@@ -735,7 +735,7 @@ func (s *registerService) RegisterInvitePublic(
 		for _, role := range invite.Roles {
 			// Check if user already has this role (shouldn't happen for new user, but safety check)
 			existingUserRole, txErr := txUserRoleRepo.FindByUserIDAndRoleID(createdUser.UserID, role.RoleID)
-			if txErr != nil && !errors.Is(txErr, gorm.ErrRecordNotFound) {
+			if txErr != nil {
 				return txErr
 			}
 			if existingUserRole != nil {

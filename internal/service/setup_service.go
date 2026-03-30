@@ -29,7 +29,7 @@ type setupService struct {
 	tenantRepo           repository.TenantRepository
 	tenantMemberRepo     repository.TenantMemberRepository
 	tenantUserRepo       repository.TenantUserRepository
-	ClientRepo           repository.ClientRepository
+	clientRepo           repository.ClientRepository
 	identityProviderRepo repository.IdentityProviderRepository
 	roleRepo             repository.RoleRepository
 	userRoleRepo         repository.UserRoleRepository
@@ -44,7 +44,7 @@ func NewSetupService(
 	tenantRepo repository.TenantRepository,
 	tenantMemberRepo repository.TenantMemberRepository,
 	tenantUserRepo repository.TenantUserRepository,
-	ClientRepo repository.ClientRepository,
+	clientRepo repository.ClientRepository,
 	identityProviderRepo repository.IdentityProviderRepository,
 	roleRepo repository.RoleRepository,
 	userRoleRepo repository.UserRoleRepository,
@@ -58,7 +58,7 @@ func NewSetupService(
 		tenantRepo:           tenantRepo,
 		tenantMemberRepo:     tenantMemberRepo,
 		tenantUserRepo:       tenantUserRepo,
-		ClientRepo:           ClientRepo,
+		clientRepo:           clientRepo,
 		identityProviderRepo: identityProviderRepo,
 		roleRepo:             roleRepo,
 		userRoleRepo:         userRoleRepo,
@@ -196,7 +196,7 @@ func (s *setupService) CreateTenant(req dto.CreateTenantRequestDto) (*dto.Create
 	}
 
 	// Get default auth client and identity provider for user reference
-	defaultClient, err := s.ClientRepo.FindDefault()
+	defaultClient, err := s.clientRepo.FindDefault()
 	if err != nil {
 		return nil, err
 	}
@@ -245,7 +245,7 @@ func (s *setupService) CreateAdmin(req dto.CreateAdminRequestDto) (*dto.CreateAd
 	}
 
 	// Get default auth client
-	defaultClient, err := s.ClientRepo.FindDefault()
+	defaultClient, err := s.clientRepo.FindDefault()
 	if err != nil {
 		return nil, err
 	}
@@ -297,7 +297,7 @@ func (s *setupService) CreateAdmin(req dto.CreateAdminRequestDto) (*dto.CreateAd
 			TenantID: defaultTenant.TenantID,
 			UserID:   createdUser.UserID,
 			ClientID: defaultClient.ClientID,
-			Provider: "default",
+			Provider: model.ProviderDefault,
 			Sub:      uuid.New().String(),
 		}
 		_, err = txUserIdentityRepo.Create(userIdentity)
@@ -466,7 +466,7 @@ func (s *setupService) CreateProfile(req dto.CreateProfileRequestDto) (*dto.Crea
 		}
 
 		// Update user's is_profile_completed flag
-		_, err = txUserRepo.UpdateByUUID(user.UserUUID, map[string]interface{}{
+		_, err = txUserRepo.UpdateByUUID(user.UserUUID, map[string]any{
 			"is_profile_completed": true,
 			"is_account_completed": true,
 		})

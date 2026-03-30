@@ -18,7 +18,7 @@ type SignupFlowServiceDataResult struct {
 	Name           string
 	Description    string
 	Identifier     string
-	Config         map[string]interface{}
+	Config         map[string]any
 	Status         string
 	ClientUUID     uuid.UUID
 	CreatedAt      time.Time
@@ -57,8 +57,8 @@ type SignupFlowRoleServiceListResult struct {
 type SignupFlowService interface {
 	GetAll(tenantID int64, name, identifier *string, status []string, ClientUUID *uuid.UUID, page, limit int, sortBy, sortOrder string) (*SignupFlowServiceListResult, error)
 	GetByUUID(signupFlowUUID uuid.UUID, tenantID int64) (*SignupFlowServiceDataResult, error)
-	Create(tenantID int64, name, description string, config map[string]interface{}, status string, ClientUUID uuid.UUID) (*SignupFlowServiceDataResult, error)
-	Update(signupFlowUUID uuid.UUID, tenantID int64, name, description string, config map[string]interface{}, status string) (*SignupFlowServiceDataResult, error)
+	Create(tenantID int64, name, description string, config map[string]any, status string, ClientUUID uuid.UUID) (*SignupFlowServiceDataResult, error)
+	Update(signupFlowUUID uuid.UUID, tenantID int64, name, description string, config map[string]any, status string) (*SignupFlowServiceDataResult, error)
 	UpdateStatus(signupFlowUUID uuid.UUID, tenantID int64, status string) (*SignupFlowServiceDataResult, error)
 	Delete(signupFlowUUID uuid.UUID, tenantID int64) (*SignupFlowServiceDataResult, error)
 	AssignRoles(signupFlowUUID uuid.UUID, tenantID int64, roleUUIDs []uuid.UUID) ([]SignupFlowRoleServiceDataResult, error)
@@ -71,7 +71,7 @@ type signupFlowService struct {
 	signupFlowRepo     repository.SignupFlowRepository
 	signupFlowRoleRepo repository.SignupFlowRoleRepository
 	roleRepo           repository.RoleRepository
-	ClientRepo         repository.ClientRepository
+	clientRepo         repository.ClientRepository
 }
 
 func NewSignupFlowService(
@@ -79,21 +79,21 @@ func NewSignupFlowService(
 	signupFlowRepo repository.SignupFlowRepository,
 	signupFlowRoleRepo repository.SignupFlowRoleRepository,
 	roleRepo repository.RoleRepository,
-	ClientRepo repository.ClientRepository,
+	clientRepo repository.ClientRepository,
 ) SignupFlowService {
 	return &signupFlowService{
 		db:                 db,
 		signupFlowRepo:     signupFlowRepo,
 		signupFlowRoleRepo: signupFlowRoleRepo,
 		roleRepo:           roleRepo,
-		ClientRepo:         ClientRepo,
+		clientRepo:         clientRepo,
 	}
 }
 
 func (s *signupFlowService) GetAll(tenantID int64, name, identifier *string, status []string, ClientUUID *uuid.UUID, page, limit int, sortBy, sortOrder string) (*SignupFlowServiceListResult, error) {
 	var ClientID *int64
 	if ClientUUID != nil {
-		Client, err := s.ClientRepo.FindByUUID(*ClientUUID)
+		Client, err := s.clientRepo.FindByUUID(*ClientUUID)
 		if err != nil || Client == nil {
 			return nil, errors.New("auth client not found")
 		}
@@ -140,12 +140,12 @@ func (s *signupFlowService) GetByUUID(signupFlowUUID uuid.UUID, tenantID int64) 
 	return toSignupFlowServiceDataResult(signupFlow), nil
 }
 
-func (s *signupFlowService) Create(tenantID int64, name, description string, config map[string]interface{}, status string, ClientUUID uuid.UUID) (*SignupFlowServiceDataResult, error) {
+func (s *signupFlowService) Create(tenantID int64, name, description string, config map[string]any, status string, ClientUUID uuid.UUID) (*SignupFlowServiceDataResult, error) {
 	var createdSignupFlow *model.SignupFlow
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
 		txSignupFlowRepo := s.signupFlowRepo.WithTx(tx)
-		txClientRepo := s.ClientRepo.WithTx(tx)
+		txClientRepo := s.clientRepo.WithTx(tx)
 
 		// Find auth client
 		Client, err := txClientRepo.FindByUUID(ClientUUID)
@@ -214,7 +214,7 @@ func (s *signupFlowService) Create(tenantID int64, name, description string, con
 	return s.GetByUUID(createdSignupFlow.SignupFlowUUID, tenantID)
 }
 
-func (s *signupFlowService) Update(signupFlowUUID uuid.UUID, tenantID int64, name, description string, config map[string]interface{}, status string) (*SignupFlowServiceDataResult, error) {
+func (s *signupFlowService) Update(signupFlowUUID uuid.UUID, tenantID int64, name, description string, config map[string]any, status string) (*SignupFlowServiceDataResult, error) {
 	var updatedSignupFlow *model.SignupFlow
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
@@ -321,7 +321,7 @@ func toSignupFlowServiceDataResult(sf *model.SignupFlow) *SignupFlowServiceDataR
 		return nil
 	}
 
-	var config map[string]interface{}
+	var config map[string]any
 	if len(sf.Config) > 0 {
 		if err := json.Unmarshal(sf.Config, &config); err != nil {
 			config = nil

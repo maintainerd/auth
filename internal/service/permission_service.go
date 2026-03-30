@@ -61,7 +61,7 @@ type permissionService struct {
 	permissionRepo repository.PermissionRepository
 	apiRepo        repository.APIRepository
 	roleRepo       repository.RoleRepository
-	ClientRepo     repository.ClientRepository
+	clientRepo     repository.ClientRepository
 }
 
 func NewPermissionService(
@@ -69,14 +69,14 @@ func NewPermissionService(
 	permissionRepo repository.PermissionRepository,
 	apiRepo repository.APIRepository,
 	roleRepo repository.RoleRepository,
-	ClientRepo repository.ClientRepository,
+	clientRepo repository.ClientRepository,
 ) PermissionService {
 	return &permissionService{
 		db:             db,
 		permissionRepo: permissionRepo,
 		apiRepo:        apiRepo,
 		roleRepo:       roleRepo,
-		ClientRepo:     ClientRepo,
+		clientRepo:     clientRepo,
 	}
 }
 

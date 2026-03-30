@@ -24,7 +24,7 @@ type forgotPasswordService struct {
 	db                *gorm.DB
 	userRepo          repository.UserRepository
 	userTokenRepo     repository.UserTokenRepository
-	ClientRepo        repository.ClientRepository
+	clientRepo        repository.ClientRepository
 	emailTemplateRepo repository.EmailTemplateRepository
 }
 
@@ -32,14 +32,14 @@ func NewForgotPasswordService(
 	db *gorm.DB,
 	userRepo repository.UserRepository,
 	userTokenRepo repository.UserTokenRepository,
-	ClientRepo repository.ClientRepository,
+	clientRepo repository.ClientRepository,
 	emailTemplateRepo repository.EmailTemplateRepository,
 ) ForgotPasswordService {
 	return &forgotPasswordService{
 		db:                db,
 		userRepo:          userRepo,
 		userTokenRepo:     userTokenRepo,
-		ClientRepo:        ClientRepo,
+		clientRepo:        clientRepo,
 		emailTemplateRepo: emailTemplateRepo,
 	}
 }
@@ -52,7 +52,7 @@ func (s *forgotPasswordService) SendPasswordResetEmail(email string, clientID, p
 	err := s.db.Transaction(func(tx *gorm.DB) error {
 		txUserRepo := s.userRepo.WithTx(tx)
 		txUserTokenRepo := s.userTokenRepo.WithTx(tx)
-		txClientRepo := s.ClientRepo.WithTx(tx)
+		txClientRepo := s.clientRepo.WithTx(tx)
 
 		// Get auth client (default or specified)
 		var txErr error

@@ -39,7 +39,7 @@ type ProfileServiceDataResult struct {
 	// Media & Assets (auth-centric)
 	ProfileURL *string
 	// Extended data
-	Metadata map[string]interface{}
+	Metadata map[string]any
 	// System Fields
 	CreatedAt time.Time
 	UpdatedAt time.Time
@@ -64,7 +64,7 @@ type ProfileService interface {
 		city, country *string,
 		timezone, language *string,
 		profileURL *string,
-		metadata map[string]interface{},
+		metadata map[string]any,
 	) (*ProfileServiceDataResult, error)
 	CreateOrUpdateSpecificProfile(
 		profileUUID uuid.UUID,
@@ -77,7 +77,7 @@ type ProfileService interface {
 		city, country *string,
 		timezone, language *string,
 		profileURL *string,
-		metadata map[string]interface{},
+		metadata map[string]any,
 	) (*ProfileServiceDataResult, error)
 	GetByUUID(profileUUID uuid.UUID, userUUID uuid.UUID) (*ProfileServiceDataResult, error)
 	GetByUserUUID(userUUID uuid.UUID) (*ProfileServiceDataResult, error)
@@ -114,7 +114,7 @@ func (s *profileService) CreateOrUpdateProfile(
 	city, country *string,
 	timezone, language *string,
 	profileURL *string,
-	metadata map[string]interface{},
+	metadata map[string]any,
 ) (*ProfileServiceDataResult, error) {
 	var updatedProfile *model.Profile
 
@@ -205,7 +205,7 @@ func (s *profileService) CreateOrUpdateProfile(
 		}
 
 		// Step 5: Update user's is_profile_completed flag
-		_, err = txUserRepo.UpdateByUUID(user.UserUUID, map[string]interface{}{
+		_, err = txUserRepo.UpdateByUUID(user.UserUUID, map[string]any{
 			"is_profile_completed": true,
 		})
 		if err != nil {
@@ -233,7 +233,7 @@ func (s *profileService) CreateOrUpdateSpecificProfile(
 	city, country *string,
 	timezone, language *string,
 	profileURL *string,
-	metadata map[string]interface{},
+	metadata map[string]any,
 ) (*ProfileServiceDataResult, error) {
 	var updatedProfile *model.Profile
 
@@ -252,7 +252,7 @@ func (s *profileService) CreateOrUpdateSpecificProfile(
 		existingProfile, err := txProfileRepo.FindByUUID(profileUUID)
 		var profile model.Profile
 
-		if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+		if err != nil {
 			return err
 		} else if existingProfile == nil {
 			// Check if this is the first profile for the user
@@ -326,7 +326,7 @@ func (s *profileService) CreateOrUpdateSpecificProfile(
 			updatedProfile = createdProfile
 
 			// Update user's is_profile_completed flag on first profile creation
-			_, err = txUserRepo.UpdateByUUID(user.UserUUID, map[string]interface{}{
+			_, err = txUserRepo.UpdateByUUID(user.UserUUID, map[string]any{
 				"is_profile_completed": true,
 			})
 			if err != nil {
@@ -530,7 +530,7 @@ func toProfileServiceDataResult(profile *model.Profile) *ProfileServiceDataResul
 	}
 
 	// Convert metadata JSONB to map
-	var metadata map[string]interface{}
+	var metadata map[string]any
 	if len(profile.Metadata) > 0 {
 		if err := json.Unmarshal(profile.Metadata, &metadata); err != nil {
 			metadata = nil

@@ -21,7 +21,7 @@ type LoginService interface {
 
 type loginService struct {
 	db                   *gorm.DB
-	ClientRepo           repository.ClientRepository
+	clientRepo           repository.ClientRepository
 	userRepo             repository.UserRepository
 	userTokenRepo        repository.UserTokenRepository
 	userIdentityRepo     repository.UserIdentityRepository
@@ -30,7 +30,7 @@ type loginService struct {
 
 func NewLoginService(
 	db *gorm.DB,
-	ClientRepo repository.ClientRepository,
+	clientRepo repository.ClientRepository,
 	userRepo repository.UserRepository,
 	userTokenRepo repository.UserTokenRepository,
 	userIdentityRepo repository.UserIdentityRepository,
@@ -38,7 +38,7 @@ func NewLoginService(
 ) LoginService {
 	return &loginService{
 		db:                   db,
-		ClientRepo:           ClientRepo,
+		clientRepo:           clientRepo,
 		userRepo:             userRepo,
 		userTokenRepo:        userTokenRepo,
 		userIdentityRepo:     userIdentityRepo,
@@ -74,7 +74,7 @@ func (s *loginService) LoginPublic(usernameOrEmail, password, clientID, provider
 	// All database operations in transaction (read-only for consistency)
 	err := s.db.Transaction(func(tx *gorm.DB) error {
 		txUserRepo := s.userRepo.WithTx(tx)
-		txClientRepo := s.ClientRepo.WithTx(tx)
+		txClientRepo := s.clientRepo.WithTx(tx)
 		txIdentityProviderRepo := s.identityProviderRepo.WithTx(tx)
 		txUserIdentityRepo := s.userIdentityRepo.WithTx(tx)
 
@@ -228,7 +228,7 @@ func (s *loginService) Login(usernameOrEmail, password string, clientID, provide
 	// All database operations in transaction for consistency
 	err := s.db.Transaction(func(tx *gorm.DB) error {
 		txUserRepo := s.userRepo.WithTx(tx)
-		txClientRepo := s.ClientRepo.WithTx(tx)
+		txClientRepo := s.clientRepo.WithTx(tx)
 		txUserIdentityRepo := s.userIdentityRepo.WithTx(tx)
 
 		// Get auth client - either by client_id and provider_id or default

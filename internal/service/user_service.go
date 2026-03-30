@@ -86,7 +86,7 @@ type userService struct {
 	roleRepo             repository.RoleRepository
 	tenantRepo           repository.TenantRepository
 	identityProviderRepo repository.IdentityProviderRepository
-	ClientRepo           repository.ClientRepository
+	clientRepo           repository.ClientRepository
 	tenantUserRepo       repository.TenantUserRepository
 }
 
@@ -98,7 +98,7 @@ func NewUserService(
 	roleRepo repository.RoleRepository,
 	tenantRepo repository.TenantRepository,
 	identityProviderRepo repository.IdentityProviderRepository,
-	ClientRepo repository.ClientRepository,
+	clientRepo repository.ClientRepository,
 	tenantUserRepo repository.TenantUserRepository,
 ) UserService {
 	return &userService{
@@ -109,7 +109,7 @@ func NewUserService(
 		roleRepo:             roleRepo,
 		tenantRepo:           tenantRepo,
 		identityProviderRepo: identityProviderRepo,
-		ClientRepo:           ClientRepo,
+		clientRepo:           clientRepo,
 		tenantUserRepo:       tenantUserRepo,
 	}
 }
@@ -134,7 +134,7 @@ func (s *userService) findDefaultRole(roleRepo repository.RoleRepository, tenant
 	}
 
 	// Fallback: if no default role found, try to find "registered" role
-	role, err := roleRepo.FindByNameAndTenantID("registered", tenantID)
+	role, err := roleRepo.FindByNameAndTenantID(model.RoleRegistered, tenantID)
 	if err != nil {
 		return nil, err
 	}
@@ -223,7 +223,7 @@ func (s *userService) Create(username string, fullname string, email *string, ph
 		txUserRepo := s.userRepo.WithTx(tx)
 		txUserIdentityRepo := s.userIdentityRepo.WithTx(tx)
 		txTenantRepo := s.tenantRepo.WithTx(tx)
-		txClientRepo := s.ClientRepo.WithTx(tx)
+		txClientRepo := s.clientRepo.WithTx(tx)
 		txRoleRepo := s.roleRepo.WithTx(tx)
 		txUserRoleRepo := s.userRoleRepo.WithTx(tx)
 		txTenantUserRepo := s.tenantUserRepo.WithTx(tx)
@@ -316,7 +316,7 @@ func (s *userService) Create(username string, fullname string, email *string, ph
 			TenantID: targetTenant.TenantID,
 			UserID:   newUser.UserID,
 			ClientID: defaultClient.ClientID,
-			Provider: "default",
+			Provider: model.ProviderDefault,
 			Sub:      newUser.UserUUID.String(), // Use user UUID as sub for default provider
 			Metadata: datatypes.JSON([]byte(`{}`)),
 		}
@@ -540,7 +540,7 @@ func (s *userService) VerifyEmail(userUUID uuid.UUID, tenantID int64) (*UserServ
 	}
 
 	// Update is_email_verified and is_account_completed
-	_, err = s.userRepo.UpdateByUUID(userUUID, map[string]interface{}{
+	_, err = s.userRepo.UpdateByUUID(userUUID, map[string]any{
 		"is_email_verified":    true,
 		"is_account_completed": true,
 	})
@@ -577,7 +577,7 @@ func (s *userService) VerifyPhone(userUUID uuid.UUID, tenantID int64) (*UserServ
 	}
 
 	// Update is_phone_verified
-	_, err = s.userRepo.UpdateByUUID(userUUID, map[string]interface{}{
+	_, err = s.userRepo.UpdateByUUID(userUUID, map[string]any{
 		"is_phone_verified": true,
 	})
 	if err != nil {
@@ -613,7 +613,7 @@ func (s *userService) CompleteAccount(userUUID uuid.UUID, tenantID int64) (*User
 	}
 
 	// Update is_account_completed
-	_, err = s.userRepo.UpdateByUUID(userUUID, map[string]interface{}{
+	_, err = s.userRepo.UpdateByUUID(userUUID, map[string]any{
 		"is_account_completed": true,
 	})
 	if err != nil {
@@ -710,7 +710,7 @@ func (s *userService) AssignUserRoles(userUUID uuid.UUID, roleUUIDs []uuid.UUID,
 
 			// Check if user already has this role
 			existingUserRole, err := txUserRoleRepo.FindByUserIDAndRoleID(user.UserID, role.RoleID)
-			if err != nil && err != gorm.ErrRecordNotFound {
+			if err != nil {
 				return err
 			}
 			if existingUserRole != nil {
@@ -896,7 +896,7 @@ func (s *userService) GetUserIdentities(userUUID uuid.UUID) ([]UserIdentityServi
 		// Load Client if needed
 		var Client *ClientServiceDataResult
 		if identity.ClientID > 0 {
-			ac, err := s.ClientRepo.FindByID(identity.ClientID)
+			ac, err := s.clientRepo.FindByID(identity.ClientID)
 			if err == nil && ac != nil {
 				Client = ToClientServiceDataResult(ac)
 			}

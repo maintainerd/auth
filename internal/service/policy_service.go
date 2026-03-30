@@ -201,8 +201,8 @@ func (s *policyService) GetServicesByPolicyUUID(policyUUID uuid.UUID, tenantID i
 	// Convert to service data results
 	var data []PolicyServiceServiceDataResult
 	for _, service := range result.Data {
-		// Get API count and policy count for each service
-		apiCount, _ := s.apiRepo.CountByServiceID(service.ServiceID, service.ServiceID) // TODO: Fix this to use actual tenant_id
+		// Get API count and policy count for each service, scoped to the caller's tenant
+		apiCount, _ := s.apiRepo.CountByServiceID(service.ServiceID, tenantID)
 		policyCount, _ := s.serviceRepo.CountPoliciesByServiceID(service.ServiceID)
 
 		data = append(data, PolicyServiceServiceDataResult{
