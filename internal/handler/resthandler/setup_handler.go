@@ -5,8 +5,6 @@ import (
 	"net/http"
 	"strings"
 
-	validation "github.com/go-ozzo/ozzo-validation/v4"
-
 	"github.com/maintainerd/auth/internal/dto"
 	"github.com/maintainerd/auth/internal/service"
 	"github.com/maintainerd/auth/internal/util"
@@ -44,11 +42,7 @@ func (h *SetupHandler) CreateTenant(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := req.Validate(); err != nil {
-		if ve, ok := err.(validation.Errors); ok {
-			util.Error(w, http.StatusBadRequest, "Validation failed", ve)
-			return
-		}
-		util.Error(w, http.StatusBadRequest, "Validation failed", err.Error())
+		util.ValidationError(w, err)
 		return
 	}
 
@@ -73,11 +67,7 @@ func (h *SetupHandler) CreateAdmin(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := req.Validate(); err != nil {
-		if ve, ok := err.(validation.Errors); ok {
-			util.Error(w, http.StatusBadRequest, "Validation failed", ve)
-			return
-		}
-		util.Error(w, http.StatusBadRequest, "Validation failed", err.Error())
+		util.ValidationError(w, err)
 		return
 	}
 
@@ -102,11 +92,7 @@ func (h *SetupHandler) CreateProfile(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := req.Validate(); err != nil {
-		if ve, ok := err.(validation.Errors); ok {
-			util.Error(w, http.StatusBadRequest, "Validation failed", ve)
-			return
-		}
-		util.Error(w, http.StatusBadRequest, "Validation failed", err.Error())
+		util.ValidationError(w, err)
 		return
 	}
 

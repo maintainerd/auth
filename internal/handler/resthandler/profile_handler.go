@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5"
-	validation "github.com/go-ozzo/ozzo-validation/v4"
 	"github.com/google/uuid"
 
 	"github.com/maintainerd/auth/internal/dto"
@@ -33,11 +32,7 @@ func (h *ProfileHandler) CreateOrUpdate(w http.ResponseWriter, r *http.Request) 
 	}
 
 	if err := req.Validate(); err != nil {
-		if ve, ok := err.(validation.Errors); ok {
-			util.Error(w, http.StatusBadRequest, "Validation failed", ve)
-			return
-		}
-		util.Error(w, http.StatusBadRequest, "Validation failed", err.Error())
+		util.ValidationError(w, err)
 		return
 	}
 
@@ -81,11 +76,7 @@ func (h *ProfileHandler) CreateProfile(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := req.Validate(); err != nil {
-		if ve, ok := err.(validation.Errors); ok {
-			util.Error(w, http.StatusBadRequest, "Validation failed", ve)
-			return
-		}
-		util.Error(w, http.StatusBadRequest, "Validation failed", err.Error())
+		util.ValidationError(w, err)
 		return
 	}
 
@@ -142,11 +133,7 @@ func (h *ProfileHandler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := req.Validate(); err != nil {
-		if ve, ok := err.(validation.Errors); ok {
-			util.Error(w, http.StatusBadRequest, "Validation failed", ve)
-			return
-		}
-		util.Error(w, http.StatusBadRequest, "Validation failed", err.Error())
+		util.ValidationError(w, err)
 		return
 	}
 
@@ -473,11 +460,7 @@ func (h *ProfileHandler) AdminCreateProfile(w http.ResponseWriter, r *http.Reque
 	}
 
 	if err := req.Validate(); err != nil {
-		if ve, ok := err.(validation.Errors); ok {
-			util.Error(w, http.StatusBadRequest, "Validation failed", ve)
-			return
-		}
-		util.Error(w, http.StatusBadRequest, "Validation failed", err.Error())
+		util.ValidationError(w, err)
 		return
 	}
 
@@ -540,11 +523,7 @@ func (h *ProfileHandler) AdminUpdateProfile(w http.ResponseWriter, r *http.Reque
 	}
 
 	if err := req.Validate(); err != nil {
-		if ve, ok := err.(validation.Errors); ok {
-			util.Error(w, http.StatusBadRequest, "Validation failed", ve)
-			return
-		}
-		util.Error(w, http.StatusBadRequest, "Validation failed", err.Error())
+		util.ValidationError(w, err)
 		return
 	}
 

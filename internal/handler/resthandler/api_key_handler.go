@@ -192,7 +192,7 @@ func (h *APIKeyHandler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Set default status if not provided
-	status := "active"
+	status := model.StatusActive
 	if req.Status != "" {
 		status = req.Status
 	}

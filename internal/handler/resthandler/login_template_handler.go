@@ -169,7 +169,7 @@ func (h *LoginTemplateHandler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Set default status if not provided
-	status := "active"
+	status := model.StatusActive
 	if req.Status != nil {
 		status = *req.Status
 	}
@@ -232,7 +232,7 @@ func (h *LoginTemplateHandler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Set default status if not provided
-	status := "active"
+	status := model.StatusActive
 	if req.Status != nil {
 		status = *req.Status
 	}

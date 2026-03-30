@@ -310,15 +310,15 @@ func (h *ClientHandler) SetStatus(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Toggle status between active and inactive
-	newStatus := "active"
+	newStatus := model.StatusActive
 	// We need to get current status first to toggle it
 	currentClient, err := h.ClientService.GetByUUID(ClientUUID, tenant.TenantID)
 	if err != nil {
 		util.Error(w, http.StatusNotFound, "Auth client not found")
 		return
 	}
-	if currentClient.Status == "active" {
-		newStatus = "inactive"
+	if currentClient.Status == model.StatusActive {
+		newStatus = model.StatusInactive
 	}
 
 	Client, err := h.ClientService.SetStatusByUUID(ClientUUID, tenant.TenantID, newStatus, user.UserUUID)

@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"net/http"
 
-	validation "github.com/go-ozzo/ozzo-validation/v4"
 	"github.com/maintainerd/auth/internal/dto"
 	"github.com/maintainerd/auth/internal/middleware"
 	"github.com/maintainerd/auth/internal/model"
@@ -57,11 +56,7 @@ func (h *InviteHandler) Send(w http.ResponseWriter, r *http.Request) {
 
 	// Validate request data
 	if err := req.Validate(); err != nil {
-		if ve, ok := err.(validation.Errors); ok {
-			util.Error(w, http.StatusBadRequest, "Validation failed", ve)
-			return
-		}
-		util.Error(w, http.StatusBadRequest, "Validation failed", err.Error())
+		util.ValidationError(w, err)
 		return
 	}
 
