@@ -4,6 +4,17 @@ import (
 	validation "github.com/go-ozzo/ozzo-validation/v4"
 )
 
+// Sort order constants used across all filter DTOs.
+const (
+	SortOrderAsc  = "asc"
+	SortOrderDesc = "desc"
+)
+
+// SuccessResponseDto is a generic success message response used across all handlers.
+type SuccessResponseDto struct {
+	Message string `json:"message"`
+}
+
 // PaginationRequest makes pagination and sorting reusable
 type PaginationRequestDto struct {
 	Page      int    `json:"page"`
@@ -27,7 +38,7 @@ func (p PaginationRequestDto) Validate() error {
 			validation.Length(0, 50).Error("SortBy cannot exceed 50 characters"),
 		),
 		validation.Field(&p.SortOrder,
-			validation.In("asc", "desc").Error("Order must be either 'asc' or 'desc'"),
+			validation.In(SortOrderAsc, SortOrderDesc).Error("Order must be either 'asc' or 'desc'"),
 		),
 	)
 }

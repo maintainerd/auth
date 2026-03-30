@@ -7,6 +7,8 @@ import (
 	"github.com/go-ozzo/ozzo-validation/v4/is"
 	"github.com/google/uuid"
 	"gorm.io/datatypes"
+
+	"github.com/maintainerd/auth/internal/model"
 )
 
 type ClientSecretResponseDto struct {
@@ -26,16 +28,12 @@ type ClientURIsResponseDto struct {
 	URIs []ClientURIResponseDto `json:"uris"`
 }
 
-type ClientApisResponseDto struct {
-	APIs []ClientApiResponseDto `json:"apis"`
+type ClientAPIsResponseDto struct {
+	APIs []ClientAPIResponseDto `json:"apis"`
 }
 
-type ClientApiPermissionsResponseDto struct {
+type ClientAPIPermissionsResponseDto struct {
 	Permissions []PermissionResponseDto `json:"permissions"`
-}
-
-type SuccessResponseDto struct {
-	Message string `json:"message"`
 }
 
 // Auth client output structure
@@ -78,7 +76,7 @@ func (r ClientCreateRequestDto) Validate() error {
 			validation.Length(8, 200).Error("Display Name must be between 8 and 200 characters"),
 		),
 		validation.Field(&r.ClientType,
-			validation.In("traditional", "spa", "mobile", "m2m").Error("Invalid client Type"),
+			validation.In(model.ClientTypeTraditional, model.ClientTypeSPA, model.ClientTypeMobile, model.ClientTypeM2M).Error("Invalid client Type"),
 		),
 		validation.Field(&r.Domain,
 			validation.Required.Error("Domain is required"),
@@ -89,10 +87,11 @@ func (r ClientCreateRequestDto) Validate() error {
 		),
 		validation.Field(&r.Status,
 			validation.Required.Error("Status is required"),
-			validation.In("active", "inactive").Error("Status must be one of: active, inactive"),
+			validation.In(model.StatusActive, model.StatusInactive).Error("Status must be one of: active, inactive"),
 		),
 		validation.Field(&r.IdentityProviderUUID,
 			validation.Required.Error("Identity Provider UUID is required"),
+			is.UUID.Error("Identity Provider UUID must be a valid UUID"),
 		),
 	)
 }
@@ -119,7 +118,7 @@ func (r ClientUpdateRequestDto) Validate() error {
 			validation.Length(8, 200).Error("Display Name must be between 8 and 200 characters"),
 		),
 		validation.Field(&r.ClientType,
-			validation.In("traditional", "spa", "mobile", "m2m").Error("Client Type is required"),
+			validation.In(model.ClientTypeTraditional, model.ClientTypeSPA, model.ClientTypeMobile, model.ClientTypeM2M).Error("Client Type is required"),
 		),
 		validation.Field(&r.Domain,
 			validation.Required.Error("Domain is required"),
@@ -130,7 +129,7 @@ func (r ClientUpdateRequestDto) Validate() error {
 		),
 		validation.Field(&r.Status,
 			validation.Required.Error("Status is required"),
-			validation.In("active", "inactive").Error("Status must be one of: active, inactive"),
+			validation.In(model.StatusActive, model.StatusInactive).Error("Status must be one of: active, inactive"),
 		),
 	)
 }
@@ -150,7 +149,7 @@ func (r ClientURICreateOrUpdateRequestDto) Validate() error {
 		),
 		validation.Field(&r.Type,
 			validation.Required.Error("Type is required"),
-			validation.In("redirect-uri", "origin-uri", "logout-uri", "login-uri", "cors-origin-uri").Error("Type must be one of: redirect-uri, origin-uri, logout-uri, login-uri, cors-origin-uri"),
+			validation.In(model.ClientURITypeRedirect, model.ClientURITypeOrigin, model.ClientURITypeLogout, model.ClientURITypeLogin, model.ClientURITypeCORSOrigin).Error("Type must be one of: redirect-uri, origin-uri, logout-uri, login-uri, cors-origin-uri"),
 		),
 	)
 }
@@ -169,6 +168,28 @@ type ClientFilterDto struct {
 	PaginationRequestDto
 }
 
+// Validate validates the client filter DTO.
+func (f ClientFilterDto) Validate() error {
+	return validation.ValidateStruct(&f,
+		validation.Field(&f.ClientType,
+			validation.When(len(f.ClientType) > 0,
+				validation.Each(validation.In(model.ClientTypeTraditional, model.ClientTypeSPA, model.ClientTypeMobile, model.ClientTypeM2M).Error("Client type must be one of: traditional, spa, mobile, m2m")),
+			),
+		),
+		validation.Field(&f.Status,
+			validation.When(len(f.Status) > 0,
+				validation.Each(validation.In(model.StatusActive, model.StatusInactive).Error("Status must be 'active' or 'inactive'")),
+			),
+		),
+		validation.Field(&f.IdentityProviderUUID,
+			validation.When(f.IdentityProviderUUID != nil,
+				is.UUID.Error("Identity provider ID must be a valid UUID"),
+			),
+		),
+		validation.Field(&f.PaginationRequestDto),
+	)
+}
+
 // Add permissions to auth client request dto
 type ClientAddPermissionsRequestDto struct {
 	Permissions []uuid.UUID `json:"permissions"`
@@ -184,21 +205,21 @@ func (r ClientAddPermissionsRequestDto) Validate() error {
 }
 
 // Auth Client API DTOs
-type ClientApiResponseDto struct {
-	ClientApiUUID uuid.UUID               `json:"client_api_id"`
-	Api           APIResponseDto          `json:"api"`
+type ClientAPIResponseDto struct {
+	ClientAPIUUID uuid.UUID               `json:"client_api_id"`
+	API           APIResponseDto          `json:"api"`
 	Permissions   []PermissionResponseDto `json:"permissions,omitempty"`
 	CreatedAt     time.Time               `json:"created_at"`
 }
 
 // Add APIs to auth client request dto
-type AddClientApisRequest struct {
-	ApiUUIDs []uuid.UUID `json:"api_uuids"`
+type AddClientAPIsRequestDto struct {
+	APIUUIDs []uuid.UUID `json:"api_uuids"`
 }
 
-func (r AddClientApisRequest) Validate() error {
+func (r AddClientAPIsRequestDto) Validate() error {
 	return validation.ValidateStruct(&r,
-		validation.Field(&r.ApiUUIDs,
+		validation.Field(&r.APIUUIDs,
 			validation.Required.Error("API UUIDs are required"),
 			validation.Each(is.UUID.Error("Invalid UUID provided")),
 		),
@@ -206,11 +227,11 @@ func (r AddClientApisRequest) Validate() error {
 }
 
 // Add permissions to auth client API request dto
-type AddClientApiPermissionsRequest struct {
+type AddClientAPIPermissionsRequestDto struct {
 	PermissionUUIDs []uuid.UUID `json:"permission_uuids"`
 }
 
-func (r AddClientApiPermissionsRequest) Validate() error {
+func (r AddClientAPIPermissionsRequestDto) Validate() error {
 	return validation.ValidateStruct(&r,
 		validation.Field(&r.PermissionUUIDs,
 			validation.Required.Error("Permission UUIDs are required"),

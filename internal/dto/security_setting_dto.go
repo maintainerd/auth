@@ -5,10 +5,10 @@ import (
 )
 
 // Security setting config response - returns config directly
-type SecuritySettingConfigResponseDto map[string]interface{}
+type SecuritySettingConfigResponseDto map[string]any
 
 // Update config request - accepts config directly
-type SecuritySettingUpdateConfigRequestDto map[string]interface{}
+type SecuritySettingUpdateConfigRequestDto map[string]any
 
 func (r SecuritySettingUpdateConfigRequestDto) Validate() error {
 	if len(r) == 0 {

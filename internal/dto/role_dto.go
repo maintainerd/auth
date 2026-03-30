@@ -6,6 +6,8 @@ import (
 	validation "github.com/go-ozzo/ozzo-validation/v4"
 	"github.com/go-ozzo/ozzo-validation/v4/is"
 	"github.com/google/uuid"
+
+	"github.com/maintainerd/auth/internal/model"
 )
 
 // Role output structure
@@ -40,7 +42,7 @@ func (r RoleCreateOrUpdateRequestDto) Validate() error {
 		),
 		validation.Field(&r.Status,
 			validation.Required.Error("Status is required"),
-			validation.In("active", "inactive").Error("Status must be 'active' or 'inactive'"),
+			validation.In(model.StatusActive, model.StatusInactive).Error("Status must be 'active' or 'inactive'"),
 		),
 	)
 }
@@ -69,4 +71,16 @@ type RoleFilterDto struct {
 
 	// Pagination and sorting
 	PaginationRequestDto
+}
+
+// Validate validates the role filter DTO.
+func (f RoleFilterDto) Validate() error {
+	return validation.ValidateStruct(&f,
+		validation.Field(&f.Status,
+			validation.When(f.Status != nil,
+				validation.In(model.StatusActive, model.StatusInactive).Error("Status must be 'active' or 'inactive'"),
+			),
+		),
+		validation.Field(&f.PaginationRequestDto),
+	)
 }

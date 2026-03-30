@@ -170,7 +170,7 @@ func (h *EmailTemplateHandler) Create(w http.ResponseWriter, r *http.Request) {
 		tenant.TenantID,
 		req.Name,
 		req.Subject,
-		req.BodyHtml,
+		req.BodyHTML,
 		req.BodyPlain,
 		status,
 		false, // is_default always false on create
@@ -229,7 +229,7 @@ func (h *EmailTemplateHandler) Update(w http.ResponseWriter, r *http.Request) {
 		tenant.TenantID,
 		req.Name,
 		req.Subject,
-		req.BodyHtml,
+		req.BodyHTML,
 		req.BodyPlain,
 		status,
 	)
@@ -347,7 +347,7 @@ func toEmailTemplateResponseDto(template service.EmailTemplateServiceDataResult)
 		EmailTemplateID: template.EmailTemplateUUID.String(),
 		Name:            template.Name,
 		Subject:         template.Subject,
-		BodyHtml:        template.BodyHTML,
+		BodyHTML: template.BodyHTML,
 		BodyPlain:       template.BodyPlain,
 		Status:          template.Status,
 		IsDefault:       template.IsDefault,
