@@ -10,7 +10,7 @@ import (
 
 func SmsTemplateRoute(
 	r chi.Router,
-	smsTemplateHandler *resthandler.SmsTemplateHandler,
+	smsTemplateHandler *resthandler.SMSTemplateHandler,
 	userRepo repository.UserRepository,
 	redisClient *redis.Client,
 ) {

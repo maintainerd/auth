@@ -25,7 +25,7 @@ func NewProfileHandler(profileService service.ProfileService) *ProfileHandler {
 }
 
 func (h *ProfileHandler) CreateOrUpdate(w http.ResponseWriter, r *http.Request) {
-	var req dto.ProfileRequest
+	var req dto.ProfileRequestDto
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		util.Error(w, http.StatusBadRequest, "Invalid request", err.Error())
 		return
@@ -69,7 +69,7 @@ func (h *ProfileHandler) CreateOrUpdate(w http.ResponseWriter, r *http.Request) 
 }
 
 func (h *ProfileHandler) CreateProfile(w http.ResponseWriter, r *http.Request) {
-	var req dto.ProfileRequest
+	var req dto.ProfileRequestDto
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		util.Error(w, http.StatusBadRequest, "Invalid request", err.Error())
 		return
@@ -126,7 +126,7 @@ func (h *ProfileHandler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var req dto.ProfileRequest
+	var req dto.ProfileRequestDto
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		util.Error(w, http.StatusBadRequest, "Invalid request", err.Error())
 		return
@@ -243,13 +243,13 @@ func (h *ProfileHandler) GetAll(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Map service result to dto
-	rows := make([]dto.ProfileResponse, len(result.Data))
+	rows := make([]dto.ProfileResponseDto, len(result.Data))
 	for i, r := range result.Data {
 		rows[i] = toProfileResponseDto(r)
 	}
 
 	// Build response data
-	response := dto.PaginatedResponseDto[dto.ProfileResponse]{
+	response := dto.PaginatedResponseDto[dto.ProfileResponseDto]{
 		Rows:       rows,
 		Total:      result.Total,
 		Page:       result.Page,
@@ -400,13 +400,13 @@ func (h *ProfileHandler) AdminGetAllProfiles(w http.ResponseWriter, r *http.Requ
 	}
 
 	// Map service result to dto
-	rows := make([]dto.ProfileResponse, len(result.Data))
+	rows := make([]dto.ProfileResponseDto, len(result.Data))
 	for i, r := range result.Data {
 		rows[i] = toProfileResponseDto(r)
 	}
 
 	// Build response data
-	response := dto.PaginatedResponseDto[dto.ProfileResponse]{
+	response := dto.PaginatedResponseDto[dto.ProfileResponseDto]{
 		Rows:       rows,
 		Total:      result.Total,
 		Page:       result.Page,
@@ -453,7 +453,7 @@ func (h *ProfileHandler) AdminCreateProfile(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	var req dto.ProfileRequest
+	var req dto.ProfileRequestDto
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		util.Error(w, http.StatusBadRequest, "Invalid request", err.Error())
 		return
@@ -516,7 +516,7 @@ func (h *ProfileHandler) AdminUpdateProfile(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	var req dto.ProfileRequest
+	var req dto.ProfileRequestDto
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		util.Error(w, http.StatusBadRequest, "Invalid request", err.Error())
 		return
@@ -635,8 +635,8 @@ func (h *ProfileHandler) AdminSetDefaultProfile(w http.ResponseWriter, r *http.R
 }
 
 // Convert service result to DTO
-func toProfileResponseDto(p service.ProfileServiceDataResult) dto.ProfileResponse {
-	return dto.ProfileResponse{
+func toProfileResponseDto(p service.ProfileServiceDataResult) dto.ProfileResponseDto {
+	return dto.ProfileResponseDto{
 		ProfileUUID: p.ProfileUUID.String(),
 
 		// Basic Identity Information

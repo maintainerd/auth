@@ -20,7 +20,7 @@ func NewUserSettingHandler(userSettingService service.UserSettingService) *UserS
 }
 
 func (h *UserSettingHandler) CreateOrUpdate(w http.ResponseWriter, r *http.Request) {
-	var req dto.UserSettingRequest
+	var req dto.UserSettingRequestDto
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		util.Error(w, http.StatusBadRequest, "Invalid request", err.Error())
 		return
@@ -92,7 +92,7 @@ func (h *UserSettingHandler) Delete(w http.ResponseWriter, r *http.Request) {
 }
 
 // Convert service result to DTO
-func toUserSettingResponseDto(us service.UserSettingServiceDataResult) dto.UserSettingResponse {
+func toUserSettingResponseDto(us service.UserSettingServiceDataResult) dto.UserSettingResponseDto {
 	// Convert GORM JSON to map for social links
 	var socialLinks map[string]any
 	if len(us.SocialLinks) > 0 {
@@ -104,7 +104,7 @@ func toUserSettingResponseDto(us service.UserSettingServiceDataResult) dto.UserS
 		}
 	}
 
-	return dto.UserSettingResponse{
+	return dto.UserSettingResponseDto{
 		UserSettingUUID: us.UserSettingUUID.String(),
 
 		// Internationalization

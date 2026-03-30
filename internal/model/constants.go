@@ -5,9 +5,10 @@ package model
 // IDE-assisted refactoring.
 const (
 	// General entity statuses
-	StatusActive   = "active"
-	StatusInactive = "inactive"
-	StatusPending  = "pending"
+	StatusActive    = "active"
+	StatusInactive  = "inactive"
+	StatusPending   = "pending"
+	StatusSuspended = "suspended"
 
 	// Service-specific statuses
 	StatusMaintenance = "maintenance"
@@ -32,7 +33,71 @@ const (
 
 	// Client types (Client.ClientType)
 	ClientTypeTraditional = "traditional"
+	ClientTypeSPA         = "spa"
+	ClientTypeMobile      = "mobile"
+	ClientTypeM2M         = "m2m"
+
+	// Client URI types (ClientURI.Type)
+	ClientURITypeRedirect   = "redirect-uri"
+	ClientURITypeOrigin     = "origin-uri"
+	ClientURITypeLogout     = "logout-uri"
+	ClientURITypeLogin      = "login-uri"
+	ClientURITypeCORSOrigin = "cors-origin-uri"
+
+	// API types (API.APIType)
+	APITypeRest      = "rest"
+	APITypeGRPC      = "grpc"
+	APITypeGraphQL   = "graphql"
+	APITypeSOAP      = "soap"
+	APITypeWebhook   = "webhook"
+	APITypeWebSocket = "websocket"
+	APITypeRPC       = "rpc"
+
+	// Gender values (Profile.Gender)
+	GenderMale           = "male"
+	GenderFemale         = "female"
+	GenderOther          = "other"
+	GenderPreferNotToSay = "prefer_not_to_say"
+
+	// Preferred contact methods (UserSetting.PreferredContactMethod)
+	ContactMethodEmail = "email"
+	ContactMethodPhone = "phone"
+	ContactMethodSMS   = "sms"
 
 	// Identity provider names (UserIdentity.Provider)
 	ProviderDefault = "default"
+
+	// Identity provider Provider values (IdentityProvider.Provider)
+	IDPProviderInternal  = "internal"
+	IDPProviderCognito   = "cognito"
+	IDPProviderAuth0     = "auth0"
+	IDPProviderGoogle    = "google"
+	IDPProviderFacebook  = "facebook"
+	IDPProviderGitHub    = "github"
+	IDPProviderMicrosoft = "microsoft"
+	IDPProviderApple     = "apple"
+	IDPProviderLinkedIn  = "linkedin"
+	IDPProviderTwitter   = "twitter"
+
+	// Identity provider types (IdentityProvider.ProviderType)
+	IDPTypeIdentity = "identity"
+	IDPTypeSocial   = "social"
+
+	// IP restriction rule types (IpRestrictionRule.Type)
+	IPRuleTypeAllow     = "allow"
+	IPRuleTypeDeny      = "deny"
+	IPRuleTypeWhitelist = "whitelist"
+	IPRuleTypeBlacklist = "blacklist"
+
+	// Login template styles (LoginTemplate.Template)
+	LoginTemplateModern    = "modern"
+	LoginTemplateClassic   = "classic"
+	LoginTemplateMinimal   = "minimal"
+	LoginTemplateCorporate = "corporate"
+	LoginTemplateCreative  = "creative"
+	LoginTemplateCustom    = "custom"
+
+	// Policy statement effects (PolicyStatement.Effect)
+	PolicyEffectAllow = "allow"
+	PolicyEffectDeny  = "deny"
 )

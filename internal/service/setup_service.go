@@ -482,7 +482,7 @@ func (s *setupService) CreateProfile(req dto.CreateProfileRequestDto) (*dto.Crea
 	}
 
 	// Convert to response DTO using the existing helper function
-	profileResponse := dto.NewProfileResponse(createdProfile)
+	profileResponse := dto.NewProfileResponseDto(createdProfile)
 
 	return &dto.CreateProfileResponseDto{
 		Profile: *profileResponse,

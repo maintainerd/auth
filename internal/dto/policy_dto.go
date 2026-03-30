@@ -3,13 +3,19 @@ package dto
 import (
 	"encoding/json"
 	"regexp"
+	"strconv"
 	"time"
 
 	validation "github.com/go-ozzo/ozzo-validation/v4"
 	"github.com/go-ozzo/ozzo-validation/v4/is"
 	"github.com/google/uuid"
 	"gorm.io/datatypes"
+
+	"github.com/maintainerd/auth/internal/model"
 )
+
+// policyNamePattern matches valid policy name characters (compiled once for performance).
+var policyNamePattern = regexp.MustCompile(`^[a-z0-9_:/\\-]+$`)
 
 // Policy document structure types for reference
 // These are not enforced but show the expected format
@@ -68,7 +74,7 @@ func (s PolicyStatement) Validate() error {
 	return validation.ValidateStruct(&s,
 		validation.Field(&s.Effect,
 			validation.Required.Error("Statement effect is required"),
-			validation.In("allow", "deny").Error("Statement effect must be 'allow' or 'deny'"),
+			validation.In(model.PolicyEffectAllow, model.PolicyEffectDeny).Error("Statement effect must be 'allow' or 'deny'"),
 		),
 		validation.Field(&s.Action,
 			validation.Required.Error("Statement must contain at least one action"),
@@ -121,7 +127,7 @@ func (r PolicyCreateRequestDto) Validate() error {
 		validation.Field(&r.Name,
 			validation.Required.Error("Policy name is required"),
 			validation.Length(3, 150).Error("Policy name must be between 3 and 150 characters"),
-			validation.Match(regexp.MustCompile(`^[a-z0-9_:/\\-]+$`)).Error("Policy name must contain only lowercase letters, numbers, underscores, colons, forward slashes, backslashes, and hyphens"),
+			validation.Match(policyNamePattern).Error("Policy name must contain only lowercase letters, numbers, underscores, colons, forward slashes, backslashes, and hyphens"),
 		),
 		validation.Field(&r.Description,
 			validation.Length(0, 500).Error("Description must be at most 500 characters"),
@@ -136,7 +142,7 @@ func (r PolicyCreateRequestDto) Validate() error {
 		),
 		validation.Field(&r.Status,
 			validation.Required.Error("Status is required"),
-			validation.In("active", "inactive").Error("Status must be one of: active, inactive"),
+			validation.In(model.StatusActive, model.StatusInactive).Error("Status must be one of: active, inactive"),
 		),
 	)
 }
@@ -156,7 +162,7 @@ func (r PolicyUpdateRequestDto) Validate() error {
 		validation.Field(&r.Name,
 			validation.Required.Error("Policy name is required"),
 			validation.Length(3, 150).Error("Policy name must be between 3 and 150 characters"),
-			validation.Match(regexp.MustCompile(`^[a-z0-9_:/\\-]+$`)).Error("Policy name must contain only lowercase letters, numbers, underscores, colons, forward slashes, backslashes, and hyphens"),
+			validation.Match(policyNamePattern).Error("Policy name must contain only lowercase letters, numbers, underscores, colons, forward slashes, backslashes, and hyphens"),
 		),
 		validation.Field(&r.Description,
 			validation.Length(0, 500).Error("Description must be at most 500 characters"),
@@ -171,7 +177,7 @@ func (r PolicyUpdateRequestDto) Validate() error {
 		),
 		validation.Field(&r.Status,
 			validation.Required.Error("Status is required"),
-			validation.In("active", "inactive").Error("Status must be one of: active, inactive"),
+			validation.In(model.StatusActive, model.StatusInactive).Error("Status must be one of: active, inactive"),
 		),
 	)
 }
@@ -209,7 +215,7 @@ func (r PolicyFilterDto) Validate() error {
 		),
 		validation.Field(&r.Status,
 			validation.When(len(r.Status) > 0,
-				validation.Each(validation.In("active", "inactive").Error("Status must be 'active' or 'inactive'")),
+				validation.Each(validation.In(model.StatusActive, model.StatusInactive).Error("Status must be 'active' or 'inactive'")),
 				validation.Length(1, 2).Error("Status filter can have at most 2 values"),
 			),
 		),
@@ -231,7 +237,7 @@ func (r PolicyStatusUpdateDto) Validate() error {
 	return validation.ValidateStruct(&r,
 		validation.Field(&r.Status,
 			validation.Required.Error("Status is required"),
-			validation.In("active", "inactive").Error("Status must be one of: active, inactive"),
+			validation.In(model.StatusActive, model.StatusInactive).Error("Status must be one of: active, inactive"),
 		),
 	)
 }
@@ -269,7 +275,7 @@ func (r PolicyServicesFilterDto) Validate() error {
 }
 
 // validatePolicyDocumentStructure validates the JSON structure of a policy document
-func validatePolicyDocumentStructure(value interface{}) error {
+func validatePolicyDocumentStructure(value any) error {
 	document, ok := value.(datatypes.JSON)
 	if !ok {
 		return validation.NewError("validation_error", "Document must be valid JSON")
@@ -289,7 +295,7 @@ func validatePolicyDocumentStructure(value interface{}) error {
 	// Validate each statement
 	for i, statement := range policyDoc.Statement {
 		if err := statement.Validate(); err != nil {
-			return validation.NewError("validation_error", "Statement "+string(rune(i+1))+": "+err.Error())
+			return validation.NewError("validation_error", "Statement "+strconv.Itoa(i+1)+": "+err.Error())
 		}
 	}
 

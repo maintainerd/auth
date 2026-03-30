@@ -573,7 +573,7 @@ func (h *ClientHandler) GetApis(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Convert to DTO
-	apis := make([]dto.ClientApiResponseDto, len(ClientApis))
+	apis := make([]dto.ClientAPIResponseDto, len(ClientApis))
 	for i, api := range ClientApis {
 		// Convert API service data to DTO
 		apiDto := dto.APIResponseDto{
@@ -602,15 +602,15 @@ func (h *ClientHandler) GetApis(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 
-		apis[i] = dto.ClientApiResponseDto{
-			ClientApiUUID: api.ClientApiUUID,
-			Api:           apiDto,
+		apis[i] = dto.ClientAPIResponseDto{
+			ClientAPIUUID: api.ClientApiUUID,
+			API:           apiDto,
 			Permissions:   permissions,
 			CreatedAt:     api.CreatedAt,
 		}
 	}
 
-	response := dto.ClientApisResponseDto{
+	response := dto.ClientAPIsResponseDto{
 		APIs: apis,
 	}
 
@@ -626,7 +626,7 @@ func (h *ClientHandler) AddApis(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var req dto.AddClientApisRequest
+	var req dto.AddClientAPIsRequestDto
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		util.Error(w, http.StatusBadRequest, "Invalid request body")
 		return
@@ -640,7 +640,7 @@ func (h *ClientHandler) AddApis(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Add APIs to auth client
-	err = h.ClientService.AddClientApis(tenant.TenantID, ClientUUID, req.ApiUUIDs)
+	err = h.ClientService.AddClientApis(tenant.TenantID, ClientUUID, req.APIUUIDs)
 	if err != nil {
 		util.Error(w, http.StatusInternalServerError, "Failed to add APIs to auth client")
 		return
@@ -731,7 +731,7 @@ func (h *ClientHandler) GetApiPermissions(w http.ResponseWriter, r *http.Request
 		}
 	}
 
-	response := dto.ClientApiPermissionsResponseDto{
+	response := dto.ClientAPIPermissionsResponseDto{
 		Permissions: permissionDtos,
 	}
 
@@ -753,7 +753,7 @@ func (h *ClientHandler) AddApiPermissions(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	var req dto.AddClientApiPermissionsRequest
+	var req dto.AddClientAPIPermissionsRequestDto
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		util.Error(w, http.StatusBadRequest, "Invalid request body")
 		return

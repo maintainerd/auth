@@ -53,10 +53,10 @@ func (h *IpRestrictionRuleHandler) GetAll(w http.ResponseWriter, r *http.Request
 	}
 
 	// Build filter DTO with all query parameters
-	filter := dto.IpRestrictionRuleFilterDto{
+	filter := dto.IPRestrictionRuleFilterDto{
 		Type:        util.PtrOrNil(q.Get("type")),
 		Status:      status,
-		IpAddress:   util.PtrOrNil(q.Get("ip_address")),
+		IPAddress:   util.PtrOrNil(q.Get("ip_address")),
 		Description: util.PtrOrNil(q.Get("description")),
 		PaginationRequestDto: dto.PaginationRequestDto{
 			Page:      page,
@@ -73,14 +73,14 @@ func (h *IpRestrictionRuleHandler) GetAll(w http.ResponseWriter, r *http.Request
 	}
 
 	// Fetch rules from service - service filters by tenant_id
-	result, err := h.ipRestrictionRuleService.GetAll(tenant.TenantID, filter.Type, filter.Status, filter.IpAddress, filter.Description, filter.Page, filter.Limit, filter.SortBy, filter.SortOrder)
+	result, err := h.ipRestrictionRuleService.GetAll(tenant.TenantID, filter.Type, filter.Status, filter.IPAddress, filter.Description, filter.Page, filter.Limit, filter.SortBy, filter.SortOrder)
 	if err != nil {
 		util.Error(w, http.StatusInternalServerError, "Failed to get IP restriction rules", err.Error())
 		return
 	}
 
 	// Build paginated response
-	response := dto.PaginatedResponseDto[dto.IpRestrictionRuleResponseDto]{
+	response := dto.PaginatedResponseDto[dto.IPRestrictionRuleResponseDto]{
 		Rows:       toIpRestrictionRuleResponseDtoList(result.Data),
 		Total:      result.Total,
 		Page:       result.Page,
@@ -141,7 +141,7 @@ func (h *IpRestrictionRuleHandler) Create(w http.ResponseWriter, r *http.Request
 	}
 
 	// Decode request body
-	var req dto.IpRestrictionRuleCreateRequestDto
+	var req dto.IPRestrictionRuleCreateRequestDto
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		util.Error(w, http.StatusBadRequest, "Invalid request", err.Error())
 		return
@@ -164,7 +164,7 @@ func (h *IpRestrictionRuleHandler) Create(w http.ResponseWriter, r *http.Request
 		tenant.TenantID,
 		req.Description,
 		req.Type,
-		req.IpAddress,
+		req.IPAddress,
 		status,
 		user.UserID,
 	)
@@ -205,7 +205,7 @@ func (h *IpRestrictionRuleHandler) Update(w http.ResponseWriter, r *http.Request
 	}
 
 	// Decode request body
-	var req dto.IpRestrictionRuleUpdateRequestDto
+	var req dto.IPRestrictionRuleUpdateRequestDto
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		util.Error(w, http.StatusBadRequest, "Invalid request", err.Error())
 		return
@@ -229,7 +229,7 @@ func (h *IpRestrictionRuleHandler) Update(w http.ResponseWriter, r *http.Request
 		ipRestrictionRuleUUID,
 		req.Description,
 		req.Type,
-		req.IpAddress,
+		req.IPAddress,
 		status,
 		user.UserID,
 	)
@@ -301,7 +301,7 @@ func (h *IpRestrictionRuleHandler) UpdateStatus(w http.ResponseWriter, r *http.R
 	}
 
 	// Decode request body
-	var req dto.IpRestrictionRuleUpdateStatusRequestDto
+	var req dto.IPRestrictionRuleUpdateStatusRequestDto
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		util.Error(w, http.StatusBadRequest, "Invalid request body", err.Error())
 		return
@@ -326,12 +326,12 @@ func (h *IpRestrictionRuleHandler) UpdateStatus(w http.ResponseWriter, r *http.R
 // Helper functions for converting service data to response DTOs
 
 // toIpRestrictionRuleResponseDto converts a service result to a response DTO.
-func toIpRestrictionRuleResponseDto(rule service.IpRestrictionRuleServiceDataResult) dto.IpRestrictionRuleResponseDto {
-	return dto.IpRestrictionRuleResponseDto{
-		IpRestrictionRuleID: rule.IpRestrictionRuleUUID.String(),
+func toIpRestrictionRuleResponseDto(rule service.IpRestrictionRuleServiceDataResult) dto.IPRestrictionRuleResponseDto {
+	return dto.IPRestrictionRuleResponseDto{
+		IPRestrictionRuleID: rule.IpRestrictionRuleUUID.String(),
 		Description:         rule.Description,
 		Type:                rule.Type,
-		IpAddress:           rule.IpAddress,
+		IPAddress:           rule.IpAddress,
 		Status:              rule.Status,
 		CreatedAt:           rule.CreatedAt,
 		UpdatedAt:           rule.UpdatedAt,
@@ -339,8 +339,8 @@ func toIpRestrictionRuleResponseDto(rule service.IpRestrictionRuleServiceDataRes
 }
 
 // toIpRestrictionRuleResponseDtoList converts a slice of service results to response DTOs.
-func toIpRestrictionRuleResponseDtoList(rules []service.IpRestrictionRuleServiceDataResult) []dto.IpRestrictionRuleResponseDto {
-	result := make([]dto.IpRestrictionRuleResponseDto, len(rules))
+func toIpRestrictionRuleResponseDtoList(rules []service.IpRestrictionRuleServiceDataResult) []dto.IPRestrictionRuleResponseDto {
+	result := make([]dto.IPRestrictionRuleResponseDto, len(rules))
 	for i, rule := range rules {
 		result[i] = toIpRestrictionRuleResponseDto(rule)
 	}

@@ -446,7 +446,7 @@ func (h *APIKeyHandler) AddApis(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Add APIs to API key
-	err = h.apiKeyService.AddAPIKeyApis(apiKeyUUID, req.ApiUUIDs)
+	err = h.apiKeyService.AddAPIKeyApis(apiKeyUUID, req.APIUUIDs)
 	if err != nil {
 		util.Error(w, http.StatusInternalServerError, "Failed to add APIs to API key")
 		return
@@ -516,7 +516,7 @@ func (h *APIKeyHandler) GetApiPermissions(w http.ResponseWriter, r *http.Request
 	}
 
 	// Wrap in structured response DTO
-	response := dto.APIKeyApiPermissionsResponseDto{
+	response := dto.APIKeyAPIPermissionsResponseDto{
 		Permissions: permissionDtos,
 	}
 

@@ -4,7 +4,10 @@ import (
 	"time"
 
 	validation "github.com/go-ozzo/ozzo-validation/v4"
+	"github.com/go-ozzo/ozzo-validation/v4/is"
 	"github.com/google/uuid"
+
+	"github.com/maintainerd/auth/internal/model"
 )
 
 // Permission output structure
@@ -41,10 +44,11 @@ func (r PermissionCreateRequestDto) Validate() error {
 		),
 		validation.Field(&r.Status,
 			validation.Required.Error("Status is required"),
-			validation.In("active", "inactive").Error("Status must be one of: active, inactive"),
+			validation.In(model.StatusActive, model.StatusInactive).Error("Status must be one of: active, inactive"),
 		),
 		validation.Field(&r.APIUUID,
-			validation.Required.Error("API UUID is required"),
+			validation.Required.Error("API ID is required"),
+			is.UUID.Error("API ID must be a valid UUID"),
 		),
 	)
 }
@@ -69,7 +73,7 @@ func (r PermissionUpdateRequestDto) Validate() error {
 		),
 		validation.Field(&r.Status,
 			validation.Required.Error("Status is required"),
-			validation.In("active", "inactive").Error("Status must be one of: active, inactive"),
+			validation.In(model.StatusActive, model.StatusInactive).Error("Status must be one of: active, inactive"),
 		),
 	)
 }
@@ -89,6 +93,18 @@ type PermissionFilterDto struct {
 	PaginationRequestDto
 }
 
+// Validate validates the permission filter DTO.
+func (f PermissionFilterDto) Validate() error {
+	return validation.ValidateStruct(&f,
+		validation.Field(&f.Status,
+			validation.When(f.Status != nil,
+				validation.In(model.StatusActive, model.StatusInactive).Error("Status must be 'active' or 'inactive'"),
+			),
+		),
+		validation.Field(&f.PaginationRequestDto),
+	)
+}
+
 // Permission status update DTO
 type PermissionStatusUpdateDto struct {
 	Status string `json:"status"`
@@ -98,7 +114,7 @@ func (r PermissionStatusUpdateDto) Validate() error {
 	return validation.ValidateStruct(&r,
 		validation.Field(&r.Status,
 			validation.Required.Error("Status is required"),
-			validation.In("active", "inactive").Error("Status must be one of: active, inactive"),
+			validation.In(model.StatusActive, model.StatusInactive).Error("Status must be one of: active, inactive"),
 		),
 	)
 }

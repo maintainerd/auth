@@ -11,7 +11,7 @@ import (
 	"github.com/maintainerd/auth/internal/model"
 )
 
-type ProfileRequest struct {
+type ProfileRequestDto struct {
 	// Basic Identity Information
 	FirstName   string  `json:"first_name"`
 	MiddleName  *string `json:"middle_name,omitempty"`
@@ -41,10 +41,10 @@ type ProfileRequest struct {
 	ProfileURL *string `json:"profile_url,omitempty"`
 
 	// Extended data (custom fields)
-	Metadata map[string]interface{} `json:"metadata,omitempty"`
+	Metadata map[string]any `json:"metadata,omitempty"`
 }
 
-func (r ProfileRequest) Validate() error {
+func (r ProfileRequestDto) Validate() error {
 	return validation.ValidateStruct(&r,
 		// Basic Identity Information
 		validation.Field(&r.FirstName,
@@ -75,7 +75,7 @@ func (r ProfileRequest) Validate() error {
 		),
 		validation.Field(&r.Gender,
 			validation.NilOrNotEmpty,
-			validation.In("male", "female", "other", "prefer_not_to_say").Error("Gender must be male, female, other, or prefer_not_to_say"),
+			validation.In(model.GenderMale, model.GenderFemale, model.GenderOther, model.GenderPreferNotToSay).Error("Gender must be male, female, other, or prefer_not_to_say"),
 		),
 		validation.Field(&r.Bio,
 			validation.NilOrNotEmpty,
@@ -126,16 +126,17 @@ func (r ProfileRequest) Validate() error {
 	)
 }
 
-// validateDateFormat ensures the date is in "2006-01-02" format.
+// validateDateFormat ensures the date is in "YYYY-MM-DD" format.
 func validateDateFormat(value any) error {
 	if str, ok := value.(*string); ok && str != nil {
-		_, err := time.Parse("2006-01-02", *str)
-		return err
+		if _, err := time.Parse("2006-01-02", *str); err != nil {
+			return validation.NewError("validation_invalid_date", "Birthdate must be in YYYY-MM-DD format (e.g., 1990-01-25)")
+		}
 	}
 	return nil
 }
 
-type ProfileResponse struct {
+type ProfileResponseDto struct {
 	ProfileUUID string `json:"profile_id"`
 
 	// Basic Identity Information
@@ -170,15 +171,15 @@ type ProfileResponse struct {
 	IsDefault bool `json:"is_default"`
 
 	// Extended data
-	Metadata map[string]interface{} `json:"metadata"`
+	Metadata map[string]any `json:"metadata"`
 
 	// System Fields
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 }
 
-func NewProfileResponse(p *model.Profile) *ProfileResponse {
-	return &ProfileResponse{
+func NewProfileResponseDto(p *model.Profile) *ProfileResponseDto {
+	return &ProfileResponseDto{
 		ProfileUUID: p.ProfileUUID.String(),
 
 		// Basic Identity Information
@@ -222,14 +223,14 @@ func NewProfileResponse(p *model.Profile) *ProfileResponse {
 }
 
 // Helper function to convert JSONB to map
-func convertJSONBToMap(jsonb datatypes.JSON) map[string]interface{} {
+func convertJSONBToMap(jsonb datatypes.JSON) map[string]any {
 	if len(jsonb) == 0 {
-		return make(map[string]interface{})
+		return make(map[string]any)
 	}
 
-	var result map[string]interface{}
+	var result map[string]any
 	if err := json.Unmarshal(jsonb, &result); err != nil {
-		return make(map[string]interface{})
+		return make(map[string]any)
 	}
 	return result
 }
