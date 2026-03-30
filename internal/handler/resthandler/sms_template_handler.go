@@ -169,7 +169,7 @@ func (h *SmsTemplateHandler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Set default status if not provided
-	status := "active"
+	status := model.StatusActive
 	if req.Status != nil {
 		status = *req.Status
 	}
@@ -226,7 +226,7 @@ func (h *SmsTemplateHandler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Set default status if not provided
-	status := "active"
+	status := model.StatusActive
 	if req.Status != nil {
 		status = *req.Status
 	}

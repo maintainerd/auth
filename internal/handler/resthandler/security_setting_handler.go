@@ -208,7 +208,7 @@ func (h *SecuritySettingHandler) UpdateGeneralConfig(w http.ResponseWriter, r *h
 	}
 
 	// Update general configuration (creates audit record)
-	_, err := h.securitySettingService.UpdateGeneralConfig(tenant.TenantID, map[string]interface{}(req), user.UserID, clientIPStr, userAgentStr)
+	_, err := h.securitySettingService.UpdateGeneralConfig(tenant.TenantID, map[string]any(req), user.UserID, clientIPStr, userAgentStr)
 	if err != nil {
 		util.Error(w, http.StatusBadRequest, "Failed to update general config", err.Error())
 		return
@@ -270,7 +270,7 @@ func (h *SecuritySettingHandler) UpdatePasswordConfig(w http.ResponseWriter, r *
 	}
 
 	// Update password configuration (creates audit record)
-	_, err := h.securitySettingService.UpdatePasswordConfig(tenant.TenantID, map[string]interface{}(req), user.UserID, clientIPStr, userAgentStr)
+	_, err := h.securitySettingService.UpdatePasswordConfig(tenant.TenantID, map[string]any(req), user.UserID, clientIPStr, userAgentStr)
 	if err != nil {
 		util.Error(w, http.StatusBadRequest, "Failed to update password config", err.Error())
 		return
@@ -332,7 +332,7 @@ func (h *SecuritySettingHandler) UpdateSessionConfig(w http.ResponseWriter, r *h
 	}
 
 	// Update session configuration (creates audit record)
-	_, err := h.securitySettingService.UpdateSessionConfig(tenant.TenantID, map[string]interface{}(req), user.UserID, clientIPStr, userAgentStr)
+	_, err := h.securitySettingService.UpdateSessionConfig(tenant.TenantID, map[string]any(req), user.UserID, clientIPStr, userAgentStr)
 	if err != nil {
 		util.Error(w, http.StatusBadRequest, "Failed to update session config", err.Error())
 		return
@@ -394,7 +394,7 @@ func (h *SecuritySettingHandler) UpdateThreatConfig(w http.ResponseWriter, r *ht
 	}
 
 	// Update threat configuration (creates audit record)
-	_, err := h.securitySettingService.UpdateThreatConfig(tenant.TenantID, map[string]interface{}(req), user.UserID, clientIPStr, userAgentStr)
+	_, err := h.securitySettingService.UpdateThreatConfig(tenant.TenantID, map[string]any(req), user.UserID, clientIPStr, userAgentStr)
 	if err != nil {
 		util.Error(w, http.StatusBadRequest, "Failed to update threat config", err.Error())
 		return
@@ -456,7 +456,7 @@ func (h *SecuritySettingHandler) UpdateIpConfig(w http.ResponseWriter, r *http.R
 	}
 
 	// Update IP configuration (creates audit record)
-	_, err := h.securitySettingService.UpdateIpConfig(tenant.TenantID, map[string]interface{}(req), user.UserID, clientIPStr, userAgentStr)
+	_, err := h.securitySettingService.UpdateIpConfig(tenant.TenantID, map[string]any(req), user.UserID, clientIPStr, userAgentStr)
 	if err != nil {
 		util.Error(w, http.StatusBadRequest, "Failed to update IP config", err.Error())
 		return
