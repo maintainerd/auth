@@ -173,10 +173,7 @@ func (h *ResetPasswordHandler) ResetPasswordPublic(w http.ResponseWriter, r *htt
 		Severity:  "INFO",
 	})
 
-	// Return response directly without wrapping in data field
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(response)
+	util.Success(w, response, "Password reset successfully")
 }
 
 func (h *ResetPasswordHandler) ResetPassword(w http.ResponseWriter, r *http.Request) {
@@ -335,8 +332,5 @@ func (h *ResetPasswordHandler) ResetPassword(w http.ResponseWriter, r *http.Requ
 		Severity:  "INFO",
 	})
 
-	// Return response directly without wrapping in data field
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(response)
+	util.Success(w, response, "Password reset successfully")
 }
