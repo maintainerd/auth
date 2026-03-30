@@ -202,8 +202,7 @@ func (s *apiKeyService) GetByUUID(apiKeyUUID uuid.UUID, tenantID int64, requesti
 	var result *APIKeyServiceDataResult
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
-		// Create repository with transaction
-		apiKeyRepo := repository.NewAPIKeyRepository(tx)
+		apiKeyRepo := s.apiKeyRepo.WithTx(tx)
 
 		// Find API key by UUID and tenant
 		apiKey, err := apiKeyRepo.FindByUUIDAndTenantID(apiKeyUUID.String(), tenantID)
@@ -309,20 +308,20 @@ func (s *apiKeyService) Update(apiKeyUUID uuid.UUID, tenantID int64, name, descr
 	var result *APIKeyServiceDataResult
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
-		// Get the API key repository
-		apiKeyRepo := s.apiKeyRepo
+		// Get the API key repository with transaction
+		apiKeyRepo := s.apiKeyRepo.WithTx(tx)
 
 		// Check if API key exists and belongs to tenant
-		_, err := apiKeyRepo.FindByUUIDAndTenantID(apiKeyUUID.String(), tenantID)
+		existing, err := apiKeyRepo.FindByUUIDAndTenantID(apiKeyUUID.String(), tenantID)
 		if err != nil {
-			if errors.Is(err, gorm.ErrRecordNotFound) {
-				return errors.New("API key not found or access denied")
-			}
 			return err
+		}
+		if existing == nil {
+			return errors.New("API key not found or access denied")
 		}
 
 		// Prepare update data
-		updateData := make(map[string]interface{})
+		updateData := make(map[string]any)
 		if name != nil {
 			updateData["name"] = *name
 		}
@@ -380,10 +379,10 @@ func (s *apiKeyService) Delete(apiKeyUUID uuid.UUID, tenantID int64, deleterUser
 		// Get API key before deletion to return its data
 		apiKey, err := apiKeyRepo.FindByUUIDAndTenantID(apiKeyUUID.String(), tenantID)
 		if err != nil {
-			if errors.Is(err, gorm.ErrRecordNotFound) {
-				return errors.New("API key not found or access denied")
-			}
 			return err
+		}
+		if apiKey == nil {
+			return errors.New("API key not found or access denied")
 		}
 
 		// Map to result before deletion
@@ -422,16 +421,16 @@ func (s *apiKeyService) SetStatusByUUID(apiKeyUUID uuid.UUID, tenantID int64, st
 		apiKeyRepo := s.apiKeyRepo.WithTx(tx)
 
 		// Check if API key exists and belongs to tenant
-		_, err := apiKeyRepo.FindByUUIDAndTenantID(apiKeyUUID.String(), tenantID)
+		existing, err := apiKeyRepo.FindByUUIDAndTenantID(apiKeyUUID.String(), tenantID)
 		if err != nil {
-			if errors.Is(err, gorm.ErrRecordNotFound) {
-				return errors.New("API key not found or access denied")
-			}
 			return err
+		}
+		if existing == nil {
+			return errors.New("API key not found or access denied")
 		}
 
 		// Update status using base repository method
-		updateData := map[string]interface{}{
+		updateData := map[string]any{
 			"status": status,
 		}
 		updatedAPIKey, err := apiKeyRepo.UpdateByUUID(apiKeyUUID, updateData)

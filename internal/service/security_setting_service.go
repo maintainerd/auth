@@ -15,11 +15,11 @@ import (
 type SecuritySettingServiceDataResult struct {
 	SecuritySettingUUID uuid.UUID
 	TenantID            int64
-	GeneralConfig       map[string]interface{}
-	PasswordConfig      map[string]interface{}
-	SessionConfig       map[string]interface{}
-	ThreatConfig        map[string]interface{}
-	IpConfig            map[string]interface{}
+	GeneralConfig       map[string]any
+	PasswordConfig      map[string]any
+	SessionConfig       map[string]any
+	ThreatConfig        map[string]any
+	IpConfig            map[string]any
 	Version             int
 	CreatedBy           *int64
 	UpdatedBy           *int64
@@ -29,16 +29,16 @@ type SecuritySettingServiceDataResult struct {
 
 type SecuritySettingService interface {
 	GetByTenantID(tenantID int64) (*SecuritySettingServiceDataResult, error)
-	GetGeneralConfig(tenantID int64) (map[string]interface{}, error)
-	GetPasswordConfig(tenantID int64) (map[string]interface{}, error)
-	GetSessionConfig(tenantID int64) (map[string]interface{}, error)
-	GetThreatConfig(tenantID int64) (map[string]interface{}, error)
-	GetIpConfig(tenantID int64) (map[string]interface{}, error)
-	UpdateGeneralConfig(tenantID int64, config map[string]interface{}, updatedBy int64, ipAddress, userAgent string) (*SecuritySettingServiceDataResult, error)
-	UpdatePasswordConfig(tenantID int64, config map[string]interface{}, updatedBy int64, ipAddress, userAgent string) (*SecuritySettingServiceDataResult, error)
-	UpdateSessionConfig(tenantID int64, config map[string]interface{}, updatedBy int64, ipAddress, userAgent string) (*SecuritySettingServiceDataResult, error)
-	UpdateThreatConfig(tenantID int64, config map[string]interface{}, updatedBy int64, ipAddress, userAgent string) (*SecuritySettingServiceDataResult, error)
-	UpdateIpConfig(tenantID int64, config map[string]interface{}, updatedBy int64, ipAddress, userAgent string) (*SecuritySettingServiceDataResult, error)
+	GetGeneralConfig(tenantID int64) (map[string]any, error)
+	GetPasswordConfig(tenantID int64) (map[string]any, error)
+	GetSessionConfig(tenantID int64) (map[string]any, error)
+	GetThreatConfig(tenantID int64) (map[string]any, error)
+	GetIpConfig(tenantID int64) (map[string]any, error)
+	UpdateGeneralConfig(tenantID int64, config map[string]any, updatedBy int64, ipAddress, userAgent string) (*SecuritySettingServiceDataResult, error)
+	UpdatePasswordConfig(tenantID int64, config map[string]any, updatedBy int64, ipAddress, userAgent string) (*SecuritySettingServiceDataResult, error)
+	UpdateSessionConfig(tenantID int64, config map[string]any, updatedBy int64, ipAddress, userAgent string) (*SecuritySettingServiceDataResult, error)
+	UpdateThreatConfig(tenantID int64, config map[string]any, updatedBy int64, ipAddress, userAgent string) (*SecuritySettingServiceDataResult, error)
+	UpdateIpConfig(tenantID int64, config map[string]any, updatedBy int64, ipAddress, userAgent string) (*SecuritySettingServiceDataResult, error)
 }
 
 type securitySettingService struct {
@@ -76,13 +76,13 @@ func toSecuritySettingServiceDataResult(ss *model.SecuritySetting) *SecuritySett
 	}
 }
 
-func unmarshalJSON(data datatypes.JSON) map[string]interface{} {
-	var result map[string]interface{}
+func unmarshalJSON(data datatypes.JSON) map[string]any {
+	var result map[string]any
 	if len(data) > 0 {
 		json.Unmarshal(data, &result)
 	}
 	if result == nil {
-		result = make(map[string]interface{})
+		result = make(map[string]any)
 	}
 	return result
 }
@@ -98,7 +98,7 @@ func (s *securitySettingService) GetByTenantID(tenantID int64) (*SecuritySetting
 	return toSecuritySettingServiceDataResult(setting), nil
 }
 
-func (s *securitySettingService) GetGeneralConfig(tenantID int64) (map[string]interface{}, error) {
+func (s *securitySettingService) GetGeneralConfig(tenantID int64) (map[string]any, error) {
 	setting, err := s.getOrCreateSecuritySetting(tenantID)
 	if err != nil {
 		return nil, err
@@ -106,7 +106,7 @@ func (s *securitySettingService) GetGeneralConfig(tenantID int64) (map[string]in
 	return unmarshalJSON(setting.GeneralConfig), nil
 }
 
-func (s *securitySettingService) GetPasswordConfig(tenantID int64) (map[string]interface{}, error) {
+func (s *securitySettingService) GetPasswordConfig(tenantID int64) (map[string]any, error) {
 	setting, err := s.getOrCreateSecuritySetting(tenantID)
 	if err != nil {
 		return nil, err
@@ -114,7 +114,7 @@ func (s *securitySettingService) GetPasswordConfig(tenantID int64) (map[string]i
 	return unmarshalJSON(setting.PasswordConfig), nil
 }
 
-func (s *securitySettingService) GetSessionConfig(tenantID int64) (map[string]interface{}, error) {
+func (s *securitySettingService) GetSessionConfig(tenantID int64) (map[string]any, error) {
 	setting, err := s.getOrCreateSecuritySetting(tenantID)
 	if err != nil {
 		return nil, err
@@ -122,7 +122,7 @@ func (s *securitySettingService) GetSessionConfig(tenantID int64) (map[string]in
 	return unmarshalJSON(setting.SessionConfig), nil
 }
 
-func (s *securitySettingService) GetThreatConfig(tenantID int64) (map[string]interface{}, error) {
+func (s *securitySettingService) GetThreatConfig(tenantID int64) (map[string]any, error) {
 	setting, err := s.getOrCreateSecuritySetting(tenantID)
 	if err != nil {
 		return nil, err
@@ -130,7 +130,7 @@ func (s *securitySettingService) GetThreatConfig(tenantID int64) (map[string]int
 	return unmarshalJSON(setting.ThreatConfig), nil
 }
 
-func (s *securitySettingService) GetIpConfig(tenantID int64) (map[string]interface{}, error) {
+func (s *securitySettingService) GetIpConfig(tenantID int64) (map[string]any, error) {
 	setting, err := s.getOrCreateSecuritySetting(tenantID)
 	if err != nil {
 		return nil, err
@@ -138,23 +138,23 @@ func (s *securitySettingService) GetIpConfig(tenantID int64) (map[string]interfa
 	return unmarshalJSON(setting.IpConfig), nil
 }
 
-func (s *securitySettingService) UpdateGeneralConfig(tenantID int64, config map[string]interface{}, updatedBy int64, ipAddress, userAgent string) (*SecuritySettingServiceDataResult, error) {
+func (s *securitySettingService) UpdateGeneralConfig(tenantID int64, config map[string]any, updatedBy int64, ipAddress, userAgent string) (*SecuritySettingServiceDataResult, error) {
 	return s.updateConfig(tenantID, "general", config, updatedBy, ipAddress, userAgent)
 }
 
-func (s *securitySettingService) UpdatePasswordConfig(tenantID int64, config map[string]interface{}, updatedBy int64, ipAddress, userAgent string) (*SecuritySettingServiceDataResult, error) {
+func (s *securitySettingService) UpdatePasswordConfig(tenantID int64, config map[string]any, updatedBy int64, ipAddress, userAgent string) (*SecuritySettingServiceDataResult, error) {
 	return s.updateConfig(tenantID, "password", config, updatedBy, ipAddress, userAgent)
 }
 
-func (s *securitySettingService) UpdateSessionConfig(tenantID int64, config map[string]interface{}, updatedBy int64, ipAddress, userAgent string) (*SecuritySettingServiceDataResult, error) {
+func (s *securitySettingService) UpdateSessionConfig(tenantID int64, config map[string]any, updatedBy int64, ipAddress, userAgent string) (*SecuritySettingServiceDataResult, error) {
 	return s.updateConfig(tenantID, "session", config, updatedBy, ipAddress, userAgent)
 }
 
-func (s *securitySettingService) UpdateThreatConfig(tenantID int64, config map[string]interface{}, updatedBy int64, ipAddress, userAgent string) (*SecuritySettingServiceDataResult, error) {
+func (s *securitySettingService) UpdateThreatConfig(tenantID int64, config map[string]any, updatedBy int64, ipAddress, userAgent string) (*SecuritySettingServiceDataResult, error) {
 	return s.updateConfig(tenantID, "threat", config, updatedBy, ipAddress, userAgent)
 }
 
-func (s *securitySettingService) UpdateIpConfig(tenantID int64, config map[string]interface{}, updatedBy int64, ipAddress, userAgent string) (*SecuritySettingServiceDataResult, error) {
+func (s *securitySettingService) UpdateIpConfig(tenantID int64, config map[string]any, updatedBy int64, ipAddress, userAgent string) (*SecuritySettingServiceDataResult, error) {
 	return s.updateConfig(tenantID, "ip", config, updatedBy, ipAddress, userAgent)
 }
 
@@ -185,7 +185,7 @@ func (s *securitySettingService) getOrCreateSecuritySetting(tenantID int64) (*mo
 	return setting, nil
 }
 
-func (s *securitySettingService) updateConfig(tenantID int64, configType string, config map[string]interface{}, updatedBy int64, ipAddress, userAgent string) (*SecuritySettingServiceDataResult, error) {
+func (s *securitySettingService) updateConfig(tenantID int64, configType string, config map[string]any, updatedBy int64, ipAddress, userAgent string) (*SecuritySettingServiceDataResult, error) {
 	var updatedSetting *model.SecuritySetting
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
