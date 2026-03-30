@@ -277,7 +277,7 @@ func (h *RoleHandler) SetStatus(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Validate status value
-	if req.Status != "active" && req.Status != "inactive" {
+	if req.Status != model.StatusActive && req.Status != model.StatusInactive {
 		util.Error(w, http.StatusBadRequest, "Status must be 'active' or 'inactive'")
 		return
 	}
