@@ -549,8 +549,8 @@ func (h *ClientHandler) DeleteURI(w http.ResponseWriter, r *http.Request) {
 	util.Success(w, dtoRes, "URI deleted successfully")
 }
 
-// Get APIs assigned to auth client
-func (h *ClientHandler) GetApis(w http.ResponseWriter, r *http.Request) {
+// GetAPIs retrieves APIs assigned to auth client.
+func (h *ClientHandler) GetAPIs(w http.ResponseWriter, r *http.Request) {
 	// Get authentication context
 	// Get tenant from context
 	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
@@ -617,8 +617,8 @@ func (h *ClientHandler) GetApis(w http.ResponseWriter, r *http.Request) {
 	util.Success(w, response, "Auth client APIs retrieved successfully")
 }
 
-// Add APIs to auth client
-func (h *ClientHandler) AddApis(w http.ResponseWriter, r *http.Request) {
+// AddAPIs adds APIs to auth client.
+func (h *ClientHandler) AddAPIs(w http.ResponseWriter, r *http.Request) {
 	// Get authentication context
 	ClientUUID, err := uuid.Parse(chi.URLParam(r, "client_uuid"))
 	if err != nil {
@@ -653,8 +653,8 @@ func (h *ClientHandler) AddApis(w http.ResponseWriter, r *http.Request) {
 	util.Success(w, response, "APIs added to auth client successfully")
 }
 
-// Remove API from auth client
-func (h *ClientHandler) RemoveApi(w http.ResponseWriter, r *http.Request) {
+// RemoveAPI removes an API from auth client.
+func (h *ClientHandler) RemoveAPI(w http.ResponseWriter, r *http.Request) {
 	ClientUUID, err := uuid.Parse(chi.URLParam(r, "client_uuid"))
 	if err != nil {
 		util.Error(w, http.StatusBadRequest, "Invalid auth client UUID")
@@ -688,8 +688,8 @@ func (h *ClientHandler) RemoveApi(w http.ResponseWriter, r *http.Request) {
 	util.Success(w, response, "API removed from auth client successfully")
 }
 
-// Get permissions for a specific API assigned to auth client
-func (h *ClientHandler) GetApiPermissions(w http.ResponseWriter, r *http.Request) {
+// GetAPIPermissions retrieves permissions for a specific API assigned to auth client.
+func (h *ClientHandler) GetAPIPermissions(w http.ResponseWriter, r *http.Request) {
 	ClientUUID, err := uuid.Parse(chi.URLParam(r, "client_uuid"))
 	if err != nil {
 		util.Error(w, http.StatusBadRequest, "Invalid auth client UUID")
@@ -738,8 +738,8 @@ func (h *ClientHandler) GetApiPermissions(w http.ResponseWriter, r *http.Request
 	util.Success(w, response, "Auth client API permissions retrieved successfully")
 }
 
-// Add permissions to a specific API for auth client
-func (h *ClientHandler) AddApiPermissions(w http.ResponseWriter, r *http.Request) {
+// AddAPIPermissions adds permissions to a specific API for auth client.
+func (h *ClientHandler) AddAPIPermissions(w http.ResponseWriter, r *http.Request) {
 	// Get authentication context
 	ClientUUID, err := uuid.Parse(chi.URLParam(r, "client_uuid"))
 	if err != nil {
@@ -780,8 +780,8 @@ func (h *ClientHandler) AddApiPermissions(w http.ResponseWriter, r *http.Request
 	util.Success(w, response, "Permissions added to auth client API successfully")
 }
 
-// Remove permission from a specific API for auth client
-func (h *ClientHandler) RemoveApiPermission(w http.ResponseWriter, r *http.Request) {
+// RemoveAPIPermission removes a permission from a specific API for auth client.
+func (h *ClientHandler) RemoveAPIPermission(w http.ResponseWriter, r *http.Request) {
 	// Get authentication context
 	ClientUUID, err := uuid.Parse(chi.URLParam(r, "client_uuid"))
 	if err != nil {

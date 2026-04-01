@@ -56,22 +56,22 @@ func ClientRoute(
 
 		// Auth Client APIs Management
 		r.With(middleware.PermissionMiddleware([]string{"client:api:read"})).
-			Get("/{client_uuid}/apis", ClientHandler.GetApis)
+			Get("/{client_uuid}/apis", ClientHandler.GetAPIs)
 
 		r.With(middleware.PermissionMiddleware([]string{"client:api:create"})).
-			Post("/{client_uuid}/apis", ClientHandler.AddApis)
+			Post("/{client_uuid}/apis", ClientHandler.AddAPIs)
 
 		r.With(middleware.PermissionMiddleware([]string{"client:api:delete"})).
-			Delete("/{client_uuid}/apis/{api_uuid}", ClientHandler.RemoveApi)
+			Delete("/{client_uuid}/apis/{api_uuid}", ClientHandler.RemoveAPI)
 
 		// Auth Client API Permissions Management (nested under APIs)
 		r.With(middleware.PermissionMiddleware([]string{"client:api:permission:read"})).
-			Get("/{client_uuid}/apis/{api_uuid}/permissions", ClientHandler.GetApiPermissions)
+			Get("/{client_uuid}/apis/{api_uuid}/permissions", ClientHandler.GetAPIPermissions)
 
 		r.With(middleware.PermissionMiddleware([]string{"client:api:permission:create"})).
-			Post("/{client_uuid}/apis/{api_uuid}/permissions", ClientHandler.AddApiPermissions)
+			Post("/{client_uuid}/apis/{api_uuid}/permissions", ClientHandler.AddAPIPermissions)
 
 		r.With(middleware.PermissionMiddleware([]string{"client:api:permission:delete"})).
-			Delete("/{client_uuid}/apis/{api_uuid}/permissions/{permission_uuid}", ClientHandler.RemoveApiPermission)
+			Delete("/{client_uuid}/apis/{api_uuid}/permissions/{permission_uuid}", ClientHandler.RemoveAPIPermission)
 	})
 }
