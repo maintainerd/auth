@@ -14,16 +14,16 @@ import (
 	"github.com/maintainerd/auth/internal/util"
 )
 
-// IpRestrictionRuleHandler handles HTTP requests for IP restriction rule management.
+// IPRestrictionRuleHandler handles HTTP requests for IP restriction rule management.
 // All endpoints are tenant-scoped - the middleware validates user access to the tenant
 // and sets it in the request context. The service layer ensures rules belong to the tenant.
-type IpRestrictionRuleHandler struct {
+type IPRestrictionRuleHandler struct {
 	ipRestrictionRuleService service.IpRestrictionRuleService
 }
 
-// NewIpRestrictionRuleHandler creates a new instance of IpRestrictionRuleHandler.
-func NewIpRestrictionRuleHandler(ipRestrictionRuleService service.IpRestrictionRuleService) *IpRestrictionRuleHandler {
-	return &IpRestrictionRuleHandler{
+// NewIPRestrictionRuleHandler creates a new instance of IPRestrictionRuleHandler.
+func NewIPRestrictionRuleHandler(ipRestrictionRuleService service.IpRestrictionRuleService) *IPRestrictionRuleHandler {
+	return &IPRestrictionRuleHandler{
 		ipRestrictionRuleService: ipRestrictionRuleService,
 	}
 }
@@ -31,7 +31,7 @@ func NewIpRestrictionRuleHandler(ipRestrictionRuleService service.IpRestrictionR
 // GetAll retrieves all IP restriction rules for the tenant with optional filtering and pagination.
 // Tenant access is validated by middleware; this handler only needs to extract tenant from context.
 // The service layer filters rules by tenant_id to ensure data isolation.
-func (h *IpRestrictionRuleHandler) GetAll(w http.ResponseWriter, r *http.Request) {
+func (h *IPRestrictionRuleHandler) GetAll(w http.ResponseWriter, r *http.Request) {
 	// Tenant is already validated by middleware - just extract from context
 	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
 	if !ok || tenant == nil {
@@ -81,7 +81,7 @@ func (h *IpRestrictionRuleHandler) GetAll(w http.ResponseWriter, r *http.Request
 
 	// Build paginated response
 	response := dto.PaginatedResponseDto[dto.IPRestrictionRuleResponseDto]{
-		Rows:       toIpRestrictionRuleResponseDtoList(result.Data),
+		Rows:       toIPRestrictionRuleResponseDtoList(result.Data),
 		Total:      result.Total,
 		Page:       result.Page,
 		Limit:      result.Limit,
@@ -94,7 +94,7 @@ func (h *IpRestrictionRuleHandler) GetAll(w http.ResponseWriter, r *http.Request
 // Get retrieves a specific IP restriction rule by UUID.
 // Tenant access is validated by middleware.
 // The service layer verifies the rule belongs to the tenant.
-func (h *IpRestrictionRuleHandler) Get(w http.ResponseWriter, r *http.Request) {
+func (h *IPRestrictionRuleHandler) Get(w http.ResponseWriter, r *http.Request) {
 	// Tenant is already validated by middleware - just extract from context
 	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
 	if !ok || tenant == nil {
@@ -119,13 +119,13 @@ func (h *IpRestrictionRuleHandler) Get(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	util.Success(w, toIpRestrictionRuleResponseDto(*rule), "IP restriction rule retrieved successfully")
+	util.Success(w, toIPRestrictionRuleResponseDto(*rule), "IP restriction rule retrieved successfully")
 }
 
 // Create creates a new IP restriction rule for the tenant.
 // Tenant access is validated by middleware.
 // The rule is automatically associated with the tenant from context.
-func (h *IpRestrictionRuleHandler) Create(w http.ResponseWriter, r *http.Request) {
+func (h *IPRestrictionRuleHandler) Create(w http.ResponseWriter, r *http.Request) {
 	// Tenant is already validated by middleware - just extract from context
 	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
 	if !ok || tenant == nil {
@@ -173,13 +173,13 @@ func (h *IpRestrictionRuleHandler) Create(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	util.Created(w, toIpRestrictionRuleResponseDto(*rule), "IP restriction rule created successfully")
+	util.Created(w, toIPRestrictionRuleResponseDto(*rule), "IP restriction rule created successfully")
 }
 
 // Update updates an existing IP restriction rule.
 // Tenant access is validated by middleware.
 // The service layer verifies the rule belongs to the tenant before updating.
-func (h *IpRestrictionRuleHandler) Update(w http.ResponseWriter, r *http.Request) {
+func (h *IPRestrictionRuleHandler) Update(w http.ResponseWriter, r *http.Request) {
 	// Tenant is already validated by middleware - just extract from context
 	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
 	if !ok || tenant == nil {
@@ -238,13 +238,13 @@ func (h *IpRestrictionRuleHandler) Update(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	util.Success(w, toIpRestrictionRuleResponseDto(*rule), "IP restriction rule updated successfully")
+	util.Success(w, toIPRestrictionRuleResponseDto(*rule), "IP restriction rule updated successfully")
 }
 
 // Delete soft-deletes an IP restriction rule.
 // Tenant access is validated by middleware.
 // The service layer verifies the rule belongs to the tenant before deletion.
-func (h *IpRestrictionRuleHandler) Delete(w http.ResponseWriter, r *http.Request) {
+func (h *IPRestrictionRuleHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	// Tenant is already validated by middleware - just extract from context
 	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
 	if !ok || tenant == nil {
@@ -269,13 +269,13 @@ func (h *IpRestrictionRuleHandler) Delete(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	util.Success(w, toIpRestrictionRuleResponseDto(*rule), "IP restriction rule deleted successfully")
+	util.Success(w, toIPRestrictionRuleResponseDto(*rule), "IP restriction rule deleted successfully")
 }
 
 // UpdateStatus updates the status of an IP restriction rule (active/inactive).
 // Tenant access is validated by middleware.
 // The service layer verifies the rule belongs to the tenant before updating status.
-func (h *IpRestrictionRuleHandler) UpdateStatus(w http.ResponseWriter, r *http.Request) {
+func (h *IPRestrictionRuleHandler) UpdateStatus(w http.ResponseWriter, r *http.Request) {
 	// Tenant is already validated by middleware - just extract from context
 	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
 	if !ok || tenant == nil {
@@ -320,13 +320,13 @@ func (h *IpRestrictionRuleHandler) UpdateStatus(w http.ResponseWriter, r *http.R
 		return
 	}
 
-	util.Success(w, toIpRestrictionRuleResponseDto(*rule), "IP restriction rule status updated successfully")
+	util.Success(w, toIPRestrictionRuleResponseDto(*rule), "IP restriction rule status updated successfully")
 }
 
 // Helper functions for converting service data to response DTOs
 
-// toIpRestrictionRuleResponseDto converts a service result to a response DTO.
-func toIpRestrictionRuleResponseDto(rule service.IpRestrictionRuleServiceDataResult) dto.IPRestrictionRuleResponseDto {
+// toIPRestrictionRuleResponseDto converts a service result to a response DTO.
+func toIPRestrictionRuleResponseDto(rule service.IpRestrictionRuleServiceDataResult) dto.IPRestrictionRuleResponseDto {
 	return dto.IPRestrictionRuleResponseDto{
 		IPRestrictionRuleID: rule.IpRestrictionRuleUUID.String(),
 		Description:         rule.Description,
@@ -338,11 +338,11 @@ func toIpRestrictionRuleResponseDto(rule service.IpRestrictionRuleServiceDataRes
 	}
 }
 
-// toIpRestrictionRuleResponseDtoList converts a slice of service results to response DTOs.
-func toIpRestrictionRuleResponseDtoList(rules []service.IpRestrictionRuleServiceDataResult) []dto.IPRestrictionRuleResponseDto {
+// toIPRestrictionRuleResponseDtoList converts a slice of service results to response DTOs.
+func toIPRestrictionRuleResponseDtoList(rules []service.IpRestrictionRuleServiceDataResult) []dto.IPRestrictionRuleResponseDto {
 	result := make([]dto.IPRestrictionRuleResponseDto, len(rules))
 	for i, rule := range rules {
-		result[i] = toIpRestrictionRuleResponseDto(rule)
+		result[i] = toIPRestrictionRuleResponseDto(rule)
 	}
 	return result
 }

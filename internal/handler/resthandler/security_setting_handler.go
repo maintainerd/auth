@@ -137,13 +137,13 @@ func (h *SecuritySettingHandler) GetThreatConfig(w http.ResponseWriter, r *http.
 	util.Success(w, response, "Threat config retrieved successfully")
 }
 
-// GetIpConfig retrieves IP security configuration for the tenant.
+// GetIPConfig retrieves IP security configuration for the tenant.
 //
 // GET /security-settings/ip
 //
 // Returns the current IP-based security settings (IP whitelisting, geolocation
 // restrictions, etc.) for the authenticated tenant.
-func (h *SecuritySettingHandler) GetIpConfig(w http.ResponseWriter, r *http.Request) {
+func (h *SecuritySettingHandler) GetIPConfig(w http.ResponseWriter, r *http.Request) {
 	// Get tenant from context (middleware already validated access)
 	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
 	if !ok || tenant == nil {
@@ -413,13 +413,13 @@ func (h *SecuritySettingHandler) UpdateThreatConfig(w http.ResponseWriter, r *ht
 	util.Success(w, response, "Threat config updated successfully")
 }
 
-// UpdateIpConfig updates IP security configuration for the tenant.
+// UpdateIPConfig updates IP security configuration for the tenant.
 //
 // PUT /security-settings/ip
 //
 // Updates IP-based security settings for the authenticated tenant (IP whitelisting,
 // geolocation restrictions, VPN/proxy detection, etc.). This operation is audited.
-func (h *SecuritySettingHandler) UpdateIpConfig(w http.ResponseWriter, r *http.Request) {
+func (h *SecuritySettingHandler) UpdateIPConfig(w http.ResponseWriter, r *http.Request) {
 	// Get user from context (needed for audit tracking)
 	user := r.Context().Value(middleware.UserContextKey).(*model.User)
 

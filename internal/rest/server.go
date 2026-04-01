@@ -130,7 +130,7 @@ func buildInternalRouter(application *app.App) http.Handler {
 		route.APIKeyRoute(api, application.APIKeyRestHandler, application.UserRepository, application.RedisClient)
 		route.SignupFlowRoute(api, application.SignupFlowRestHandler, application.UserRepository, application.RedisClient)
 		route.SecuritySettingRoute(api, application.SecuritySettingRestHandler, application.UserRepository, application.RedisClient)
-		route.IpRestrictionRuleRoute(api, application.IpRestrictionRuleRestHandler, application.UserRepository, application.RedisClient)
+		route.IpRestrictionRuleRoute(api, application.IPRestrictionRuleRestHandler, application.UserRepository, application.RedisClient)
 		route.EmailTemplateRoute(api, application.EmailTemplateRestHandler, application.UserRepository, application.RedisClient)
 		route.SmsTemplateRoute(api, application.SMSTemplateRestHandler, application.UserRepository, application.RedisClient)
 		route.LoginTemplateRoute(api, application.LoginTemplateRestHandler, application.UserRepository, application.RedisClient)

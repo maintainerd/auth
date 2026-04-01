@@ -33,7 +33,7 @@ type App struct {
 	APIKeyRestHandler            *resthandler.APIKeyHandler
 	SignupFlowRestHandler        *resthandler.SignupFlowHandler
 	SecuritySettingRestHandler   *resthandler.SecuritySettingHandler
-	IpRestrictionRuleRestHandler *resthandler.IpRestrictionRuleHandler
+	IPRestrictionRuleRestHandler *resthandler.IPRestrictionRuleHandler
 	EmailTemplateRestHandler     *resthandler.EmailTemplateHandler
 	SMSTemplateRestHandler       *resthandler.SMSTemplateHandler
 	LoginTemplateRestHandler     *resthandler.LoginTemplateHandler
@@ -128,7 +128,7 @@ func NewApp(db *gorm.DB, redisClient *redis.Client) *App {
 	signupFlowRestHandler := resthandler.NewSignupFlowHandler(signupFlowService)
 	apiKeyRestHandler := resthandler.NewAPIKeyHandler(apiKeyService)
 	securitySettingRestHandler := resthandler.NewSecuritySettingHandler(securitySettingService)
-	ipRestrictionRuleRestHandler := resthandler.NewIpRestrictionRuleHandler(ipRestrictionRuleService)
+	ipRestrictionRuleRestHandler := resthandler.NewIPRestrictionRuleHandler(ipRestrictionRuleService)
 	emailTemplateRestHandler := resthandler.NewEmailTemplateHandler(emailTemplateService)
 	smsTemplateRestHandler := resthandler.NewSMSTemplateHandler(smsTemplateService)
 	loginTemplateRestHandler := resthandler.NewLoginTemplateHandler(loginTemplateService)
@@ -160,7 +160,7 @@ func NewApp(db *gorm.DB, redisClient *redis.Client) *App {
 		SetupRestHandler:             setupRestHandler,
 		APIKeyRestHandler:            apiKeyRestHandler,
 		SecuritySettingRestHandler:   securitySettingRestHandler,
-		IpRestrictionRuleRestHandler: ipRestrictionRuleRestHandler,
+		IPRestrictionRuleRestHandler: ipRestrictionRuleRestHandler,
 		EmailTemplateRestHandler:     emailTemplateRestHandler,
 		SMSTemplateRestHandler:       smsTemplateRestHandler,
 		LoginTemplateRestHandler:     loginTemplateRestHandler,

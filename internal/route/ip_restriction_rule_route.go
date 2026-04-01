@@ -10,7 +10,7 @@ import (
 
 func IpRestrictionRuleRoute(
 	r chi.Router,
-	ipRestrictionRuleHandler *resthandler.IpRestrictionRuleHandler,
+	ipRestrictionRuleHandler *resthandler.IPRestrictionRuleHandler,
 	userRepo repository.UserRepository,
 	redisClient *redis.Client,
 ) {

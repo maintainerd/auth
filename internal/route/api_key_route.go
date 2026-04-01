@@ -43,24 +43,24 @@ func APIKeyRoute(
 		// API Key API operations
 		r.Route("/{api_key_uuid}/apis", func(r chi.Router) {
 			r.With(middleware.PermissionMiddleware([]string{"api_key:read"})).
-				Get("/", apiKeyHandler.GetApis)
+				Get("/", apiKeyHandler.GetAPIs)
 
 			r.With(middleware.PermissionMiddleware([]string{"api_key:update"})).
-				Post("/", apiKeyHandler.AddApis)
+				Post("/", apiKeyHandler.AddAPIs)
 
 			r.With(middleware.PermissionMiddleware([]string{"api_key:update"})).
-				Delete("/{api_uuid}", apiKeyHandler.RemoveApi)
+				Delete("/{api_uuid}", apiKeyHandler.RemoveAPI)
 
 			// API Key API Permission operations
 			r.Route("/{api_uuid}/permissions", func(r chi.Router) {
 				r.With(middleware.PermissionMiddleware([]string{"api_key:read"})).
-					Get("/", apiKeyHandler.GetApiPermissions)
+					Get("/", apiKeyHandler.GetAPIPermissions)
 
 				r.With(middleware.PermissionMiddleware([]string{"api_key:update"})).
-					Post("/", apiKeyHandler.AddApiPermissions)
+					Post("/", apiKeyHandler.AddAPIPermissions)
 
 				r.With(middleware.PermissionMiddleware([]string{"api_key:update"})).
-					Delete("/{permission_uuid}", apiKeyHandler.RemoveApiPermission)
+					Delete("/{permission_uuid}", apiKeyHandler.RemoveAPIPermission)
 			})
 		})
 	})

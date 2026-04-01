@@ -351,8 +351,8 @@ func toAPIKeyResponseDto(r service.APIKeyServiceDataResult) dto.APIKeyResponseDt
 	return result
 }
 
-// Get APIs assigned to API key with pagination
-func (h *APIKeyHandler) GetApis(w http.ResponseWriter, r *http.Request) {
+// GetAPIs retrieves APIs assigned to API key with pagination.
+func (h *APIKeyHandler) GetAPIs(w http.ResponseWriter, r *http.Request) {
 	apiKeyUUID, err := uuid.Parse(chi.URLParam(r, "api_key_uuid"))
 	if err != nil {
 		util.Error(w, http.StatusBadRequest, "Invalid API key UUID")
@@ -426,8 +426,8 @@ func (h *APIKeyHandler) GetApis(w http.ResponseWriter, r *http.Request) {
 	util.Success(w, response, "API key APIs retrieved successfully")
 }
 
-// Add APIs to API key
-func (h *APIKeyHandler) AddApis(w http.ResponseWriter, r *http.Request) {
+// AddAPIs adds APIs to API key.
+func (h *APIKeyHandler) AddAPIs(w http.ResponseWriter, r *http.Request) {
 	apiKeyUUID, err := uuid.Parse(chi.URLParam(r, "api_key_uuid"))
 	if err != nil {
 		util.Error(w, http.StatusBadRequest, "Invalid API key UUID")
@@ -455,8 +455,8 @@ func (h *APIKeyHandler) AddApis(w http.ResponseWriter, r *http.Request) {
 	util.Success(w, nil, "APIs added to API key successfully")
 }
 
-// Remove API from API key
-func (h *APIKeyHandler) RemoveApi(w http.ResponseWriter, r *http.Request) {
+// RemoveAPI removes an API from API key.
+func (h *APIKeyHandler) RemoveAPI(w http.ResponseWriter, r *http.Request) {
 	apiKeyUUID, err := uuid.Parse(chi.URLParam(r, "api_key_uuid"))
 	if err != nil {
 		util.Error(w, http.StatusBadRequest, "Invalid API key UUID")
@@ -479,8 +479,8 @@ func (h *APIKeyHandler) RemoveApi(w http.ResponseWriter, r *http.Request) {
 	util.Success(w, nil, "API removed from API key successfully")
 }
 
-// Get permissions for a specific API assigned to API key
-func (h *APIKeyHandler) GetApiPermissions(w http.ResponseWriter, r *http.Request) {
+// GetAPIPermissions retrieves permissions for a specific API assigned to API key.
+func (h *APIKeyHandler) GetAPIPermissions(w http.ResponseWriter, r *http.Request) {
 	apiKeyUUID, err := uuid.Parse(chi.URLParam(r, "api_key_uuid"))
 	if err != nil {
 		util.Error(w, http.StatusBadRequest, "Invalid API key UUID")
@@ -523,8 +523,8 @@ func (h *APIKeyHandler) GetApiPermissions(w http.ResponseWriter, r *http.Request
 	util.Success(w, response, "API key API permissions retrieved successfully")
 }
 
-// Add permissions to a specific API for API key
-func (h *APIKeyHandler) AddApiPermissions(w http.ResponseWriter, r *http.Request) {
+// AddAPIPermissions adds permissions to a specific API for API key.
+func (h *APIKeyHandler) AddAPIPermissions(w http.ResponseWriter, r *http.Request) {
 	apiKeyUUID, err := uuid.Parse(chi.URLParam(r, "api_key_uuid"))
 	if err != nil {
 		util.Error(w, http.StatusBadRequest, "Invalid API key UUID")
@@ -558,8 +558,8 @@ func (h *APIKeyHandler) AddApiPermissions(w http.ResponseWriter, r *http.Request
 	util.Success(w, nil, "Permissions added to API key API successfully")
 }
 
-// Remove permission from a specific API for API key
-func (h *APIKeyHandler) RemoveApiPermission(w http.ResponseWriter, r *http.Request) {
+// RemoveAPIPermission removes a permission from a specific API for API key.
+func (h *APIKeyHandler) RemoveAPIPermission(w http.ResponseWriter, r *http.Request) {
 	apiKeyUUID, err := uuid.Parse(chi.URLParam(r, "api_key_uuid"))
 	if err != nil {
 		util.Error(w, http.StatusBadRequest, "Invalid API key UUID")

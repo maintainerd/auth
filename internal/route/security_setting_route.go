@@ -44,8 +44,8 @@ func SecuritySettingRoute(
 
 		// IP config endpoints
 		r.With(middleware.PermissionMiddleware([]string{"security-setting:read"})).
-			Get("/ip", securitySettingHandler.GetIpConfig)
+			Get("/ip", securitySettingHandler.GetIPConfig)
 		r.With(middleware.PermissionMiddleware([]string{"security-setting:update"})).
-			Put("/ip", securitySettingHandler.UpdateIpConfig)
+			Put("/ip", securitySettingHandler.UpdateIPConfig)
 	})
 }
