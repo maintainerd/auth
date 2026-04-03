@@ -55,7 +55,7 @@ jobs:
           files: coverage.out
           flags: unittests
           name: maintainerd-auth
-          fail_ci_if_error: false   # don't break CI if Codecov is unreachable
+          fail_ci_if_error: true
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
