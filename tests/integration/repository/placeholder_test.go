@@ -1,0 +1,36 @@
+//go:build integration
+
+// Package repository contains integration tests for the repository layer.
+//
+// These tests require a live Postgres and Redis instance.
+// Start the stack with:
+//
+//	docker-compose up -d postgres-db redis-db
+//
+// Run with:
+//
+//	go test ./tests/integration/... -tags integration
+//
+// Integration tests are intentionally excluded from the default `go test ./...`
+// run so that unit tests never require infrastructure.
+//
+// # Layout
+//
+// Each file in this package mirrors a file in internal/repository/:
+//
+//	user_repository_test.go       → internal/repository/user_repository.go
+//	role_repository_test.go       → internal/repository/role_repository.go
+//	client_repository_test.go     → internal/repository/client_repository.go
+//	base_repository_test.go       → internal/repository/base_repository.go
+//	...
+package repository_test
+
+import "testing"
+
+// TestPlaceholder is a sentinel test that confirms the integration build tag
+// and package declaration are wired correctly.
+// Replace or delete this once real repository integration tests are added.
+func TestPlaceholder(t *testing.T) {
+	t.Skip("placeholder — add real integration tests in this package")
+}
+
