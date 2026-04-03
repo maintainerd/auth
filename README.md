@@ -4,6 +4,20 @@
   # Maintainerd Auth
 
   <p align="center">
+    <!-- CI status & coverage -->
+    <a href="https://github.com/maintainerd/auth/actions/workflows/ci.yml">
+      <img src="https://github.com/maintainerd/auth/actions/workflows/ci.yml/badge.svg" alt="CI">
+    </a>
+    <a href="https://codecov.io/gh/maintainerd/auth">
+      <img src="https://codecov.io/gh/maintainerd/auth/graph/badge.svg" alt="Coverage">
+    </a>
+    <a href="https://goreportcard.com/report/github.com/maintainerd/auth">
+      <img src="https://goreportcard.com/badge/github.com/maintainerd/auth" alt="Go Report Card">
+    </a>
+  </p>
+
+  <p align="center">
+    <!-- Stack -->
     <img src="https://img.shields.io/badge/Go-1.26+-00ADD8?logo=go&logoColor=white" alt="Go Version">
     <img src="https://img.shields.io/badge/License-MIT-blue" alt="License">
     <img src="https://img.shields.io/badge/Docker-ready-2496ED?logo=docker&logoColor=white" alt="Docker">
