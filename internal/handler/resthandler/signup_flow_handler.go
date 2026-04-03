@@ -554,18 +554,3 @@ func toSignupFlowResponseDtoList(sfList []service.SignupFlowServiceDataResult) [
 	}
 	return result
 }
-
-// toSignupFlowRoleResponseDtoList converts a list of signup flow role results to DTOs.
-func toSignupFlowRoleResponseDtoList(roles []service.SignupFlowRoleServiceDataResult) []dto.SignupFlowRoleResponseDto {
-	result := make([]dto.SignupFlowRoleResponseDto, len(roles))
-	for i, role := range roles {
-		result[i] = dto.SignupFlowRoleResponseDto{
-			SignupFlowRoleUUID: role.SignupFlowRoleUUID.String(),
-			SignupFlowUUID:     role.SignupFlowUUID.String(),
-			RoleUUID:           role.RoleUUID.String(),
-			RoleName:           role.RoleName,
-			CreatedAt:          role.CreatedAt,
-		}
-	}
-	return result
-}

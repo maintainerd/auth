@@ -347,7 +347,7 @@ func toEmailTemplateResponseDto(template service.EmailTemplateServiceDataResult)
 		EmailTemplateID: template.EmailTemplateUUID.String(),
 		Name:            template.Name,
 		Subject:         template.Subject,
-		BodyHTML: template.BodyHTML,
+		BodyHTML:        template.BodyHTML,
 		BodyPlain:       template.BodyPlain,
 		Status:          template.Status,
 		IsDefault:       template.IsDefault,
@@ -355,13 +355,4 @@ func toEmailTemplateResponseDto(template service.EmailTemplateServiceDataResult)
 		CreatedAt:       template.CreatedAt,
 		UpdatedAt:       template.UpdatedAt,
 	}
-}
-
-// toEmailTemplateResponseDtoList converts a slice of service results to detailed response DTOs.
-func toEmailTemplateResponseDtoList(templates []service.EmailTemplateServiceDataResult) []dto.EmailTemplateResponseDto {
-	result := make([]dto.EmailTemplateResponseDto, len(templates))
-	for i, template := range templates {
-		result[i] = toEmailTemplateResponseDto(template)
-	}
-	return result
 }
