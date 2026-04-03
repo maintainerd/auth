@@ -1,17 +1,19 @@
 package config
 
 import (
-	"log/slog"
+	"fmt"
 	"os"
 )
 
-func GetEnv(key string) string {
+// GetEnv returns the value of the environment variable identified by key.
+// It returns an error if the variable is not set or empty, allowing callers
+// to decide how to handle the failure instead of calling os.Exit.
+func GetEnv(key string) (string, error) {
 	val := os.Getenv(key)
 	if val == "" {
-		slog.Error("missing required environment variable", "key", key)
-		os.Exit(1)
+		return "", fmt.Errorf("required environment variable %q is not set", key)
 	}
-	return val
+	return val, nil
 }
 
 func GetEnvOrDefault(key, defaultVal string) string {
