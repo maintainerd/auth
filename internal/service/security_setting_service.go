@@ -79,7 +79,9 @@ func toSecuritySettingServiceDataResult(ss *model.SecuritySetting) *SecuritySett
 func unmarshalJSON(data datatypes.JSON) map[string]any {
 	var result map[string]any
 	if len(data) > 0 {
-		json.Unmarshal(data, &result)
+		if err := json.Unmarshal(data, &result); err != nil {
+			result = nil // fall through to empty-map default below
+		}
 	}
 	if result == nil {
 		result = make(map[string]any)
