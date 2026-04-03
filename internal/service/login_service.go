@@ -67,7 +67,7 @@ func (s *loginService) LoginPublic(usernameOrEmail, password, clientID, provider
 	}
 
 	var user *model.User
-	var Client *model.Client
+	var client *model.Client
 	var userLookupErr error
 	var userIdentitySub string
 
@@ -103,7 +103,7 @@ func (s *loginService) LoginPublic(usernameOrEmail, password, clientID, provider
 		}
 
 		// Get and validate auth client with proper relationship preloading
-		Client, txErr = txClientRepo.FindByClientIDAndIdentityProvider(clientID, providerID)
+		client, txErr = txClientRepo.FindByClientIDAndIdentityProvider(clientID, providerID)
 		if txErr != nil {
 			util.LogSecurityEvent(util.SecurityEvent{
 				EventType: "login_client_lookup_failure",
@@ -115,9 +115,9 @@ func (s *loginService) LoginPublic(usernameOrEmail, password, clientID, provider
 			return errors.New("authentication failed")
 		}
 
-		if Client == nil ||
-			Client.Status != model.StatusActive ||
-			Client.Domain == nil || *Client.Domain == "" {
+		if client == nil ||
+			client.Status != model.StatusActive ||
+			client.Domain == nil || *client.Domain == "" {
 			util.LogSecurityEvent(util.SecurityEvent{
 				EventType: "login_invalid_client",
 				UserID:    usernameOrEmail,
@@ -133,7 +133,7 @@ func (s *loginService) LoginPublic(usernameOrEmail, password, clientID, provider
 
 		// Fetch user identity to get the Sub claim
 		if userLookupErr == nil && user != nil {
-			userIdentity, txErr := txUserIdentityRepo.FindByUserIDAndClientID(user.UserID, Client.ClientID)
+			userIdentity, txErr := txUserIdentityRepo.FindByUserIDAndClientID(user.UserID, client.ClientID)
 			if txErr == nil && userIdentity != nil {
 				userIdentitySub = userIdentity.Sub
 			}
@@ -199,7 +199,7 @@ func (s *loginService) LoginPublic(usernameOrEmail, password, clientID, provider
 	})
 
 	// Generate token response
-	return s.generateTokenResponse(userIdentitySub, user, Client)
+	return s.generateTokenResponse(userIdentitySub, user, client)
 }
 
 // Login authenticates users for internal applications.
@@ -222,7 +222,7 @@ func (s *loginService) Login(usernameOrEmail, password string, clientID, provide
 	}
 
 	var user *model.User
-	var Client *model.Client
+	var client *model.Client
 	var userIdentitySub string
 
 	// All database operations in transaction for consistency
@@ -235,7 +235,7 @@ func (s *loginService) Login(usernameOrEmail, password string, clientID, provide
 		var txErr error
 		if clientID != nil && providerID != nil {
 			// Get auth client by client_id and identity provider identifier
-			Client, txErr = txClientRepo.FindByClientIDAndIdentityProvider(*clientID, *providerID)
+			client, txErr = txClientRepo.FindByClientIDAndIdentityProvider(*clientID, *providerID)
 			if txErr != nil {
 				util.LogSecurityEvent(util.SecurityEvent{
 					EventType: "login_client_lookup_failure",
@@ -248,7 +248,7 @@ func (s *loginService) Login(usernameOrEmail, password string, clientID, provide
 			}
 		} else {
 			// Get default auth client for internal authentication
-			Client, txErr = txClientRepo.FindDefault()
+			client, txErr = txClientRepo.FindDefault()
 			if txErr != nil {
 				util.LogSecurityEvent(util.SecurityEvent{
 					EventType: "login_client_lookup_failure",
@@ -261,9 +261,9 @@ func (s *loginService) Login(usernameOrEmail, password string, clientID, provide
 			}
 		}
 
-		if Client == nil ||
-			Client.Status != model.StatusActive ||
-			Client.Domain == nil || *Client.Domain == "" {
+		if client == nil ||
+			client.Status != model.StatusActive ||
+			client.Domain == nil || *client.Domain == "" {
 			util.LogSecurityEvent(util.SecurityEvent{
 				EventType: "login_invalid_client",
 				UserID:    usernameOrEmail,
@@ -280,7 +280,7 @@ func (s *loginService) Login(usernameOrEmail, password string, clientID, provide
 
 		// Fetch user identity to get the Sub claim
 		if user != nil {
-			userIdentity, txErr := txUserIdentityRepo.FindByUserIDAndClientID(user.UserID, Client.ClientID)
+			userIdentity, txErr := txUserIdentityRepo.FindByUserIDAndClientID(user.UserID, client.ClientID)
 			if txErr == nil && userIdentity != nil {
 				userIdentitySub = userIdentity.Sub
 			}
@@ -299,8 +299,10 @@ func (s *loginService) Login(usernameOrEmail, password string, clientID, provide
 		err := bcrypt.CompareHashAndPassword([]byte(*user.Password), []byte(password))
 		passwordValid = (err == nil)
 	} else {
-		// Perform dummy hash comparison to prevent timing attacks
-		bcrypt.CompareHashAndPassword([]byte("$2a$10$dummy.hash.to.prevent.timing.attacks"), []byte(password))
+		// Use a properly pre-computed dummy hash so the timing profile is
+		// identical whether the user exists or not. A literal/invalid hash
+		// string would return immediately without doing real bcrypt work.
+		bcrypt.CompareHashAndPassword(util.GetDummyBcryptHash(), []byte(password)) //nolint:errcheck
 		passwordValid = false
 	}
 
@@ -345,10 +347,15 @@ func (s *loginService) Login(usernameOrEmail, password string, clientID, provide
 	})
 
 	// Generate token response
-	return s.generateTokenResponse(userIdentitySub, user, Client)
+	return s.generateTokenResponse(userIdentitySub, user, client)
 }
 
+// GetUserByEmail looks up a user by email, scoped to the given tenant when
+// tenantID > 0. Falls back to a global lookup only when no tenant is specified.
 func (s *loginService) GetUserByEmail(email string, tenantID int64) (*model.User, error) {
+	if tenantID > 0 {
+		return s.userRepo.FindByEmailAndTenantID(email, tenantID)
+	}
 	return s.userRepo.FindByEmail(email)
 }
 

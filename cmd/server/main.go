@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"log/slog"
 	"os"
 
@@ -17,7 +18,10 @@ func main() {
 	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stdout, nil)))
 
 	// ⚙️ Load configurations
-	config.Init()
+	if err := config.Init(); err != nil {
+		slog.Error("Configuration loading failed", "error", err)
+		os.Exit(1)
+	}
 
 	// ⚙️ Parse RSA keys (required for token signing)
 	if err := util.InitJWTKeys(); err != nil {
@@ -26,10 +30,18 @@ func main() {
 	}
 
 	// ⚙️ Load database
-	db := config.InitDB()
+	db, err := config.InitDB()
+	if err != nil {
+		slog.Error("Database initialization failed", "error", err)
+		os.Exit(1)
+	}
 
 	// ⚙️ Load Redis
-	redisClient := config.NewRedisClient()
+	redisClient, err := config.NewRedisClient()
+	if err != nil {
+		slog.Error("Redis initialization failed", "error", err)
+		os.Exit(1)
+	}
 
 	// ⚙️ Wire Redis-backed rate limiter
 	util.InitRateLimiter(redisClient)
@@ -43,9 +55,21 @@ func main() {
 	// ⚙️ App wiring (handlers, services, etc.)
 	application := app.NewApp(db, redisClient)
 
-	// 🚀 gRPC server (background)
-	go grpcserver.StartGRPCServer(application)
+	// Create a cancellable context for the gRPC server.
+	// It is cancelled after the REST servers have drained so that gRPC also
+	// shuts down gracefully when an OS signal is received.
+	grpcCtx, cancelGRPC := context.WithCancel(context.Background())
 
-	// 🚀 REST servers with graceful shutdown
+	// 🚀 gRPC server (background) — errors are logged; they don't affect REST.
+	go func() {
+		if err := grpcserver.StartGRPCServer(grpcCtx, application); err != nil {
+			slog.Error("gRPC server error", "error", err)
+		}
+	}()
+
+	// 🚀 REST servers — blocks until OS signal then drains.
 	restserver.StartRESTServer(application)
+
+	// Cancel the gRPC context after REST has drained so gRPC also shuts down.
+	cancelGRPC()
 }

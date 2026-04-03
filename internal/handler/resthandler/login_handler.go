@@ -21,28 +21,36 @@ func NewLoginHandler(loginService service.LoginService) *LoginHandler {
 	}
 }
 
+// securityContext holds the values extracted from the request context that are
+// set by SecurityContextMiddleware. It is used for audit logging in every handler.
+type securityContext struct {
+	clientIP  string
+	userAgent string
+	requestID string
+}
+
+// extractSecurityContext reads the security-related values that
+// SecurityContextMiddleware stores in the request context.
+func extractSecurityContext(r *http.Request) securityContext {
+	strVal := func(key middleware.SecurityContextKey) string {
+		if v := r.Context().Value(key); v != nil {
+			if s, ok := v.(string); ok {
+				return s
+			}
+		}
+		return ""
+	}
+	return securityContext{
+		clientIP:  strVal(middleware.ClientIPKey),
+		userAgent: strVal(middleware.UserAgentKey),
+		requestID: strVal(middleware.RequestIDKey),
+	}
+}
+
 func (h *LoginHandler) LoginPublic(w http.ResponseWriter, r *http.Request) {
 	startTime := time.Now()
-
-	// Extract security context
-	clientIP := r.Context().Value(middleware.ClientIPKey)
-	userAgent := r.Context().Value(middleware.UserAgentKey)
-	requestID := r.Context().Value(middleware.RequestIDKey)
-
-	// Convert context values to strings safely
-	clientIPStr := ""
-	userAgentStr := ""
-	requestIDStr := ""
-
-	if clientIP != nil {
-		clientIPStr = clientIP.(string)
-	}
-	if userAgent != nil {
-		userAgentStr = userAgent.(string)
-	}
-	if requestID != nil {
-		requestIDStr = requestID.(string)
-	}
+	sc := extractSecurityContext(r)
+	clientIPStr, userAgentStr, requestIDStr := sc.clientIP, sc.userAgent, sc.requestID
 
 	// Validate query parameters
 	q := dto.LoginQueryDto{
@@ -162,26 +170,8 @@ func (h *LoginHandler) LoginPublic(w http.ResponseWriter, r *http.Request) {
 
 func (h *LoginHandler) Logout(w http.ResponseWriter, r *http.Request) {
 	startTime := time.Now()
-
-	// Extract security context
-	clientIP := r.Context().Value(middleware.ClientIPKey)
-	userAgent := r.Context().Value(middleware.UserAgentKey)
-	requestID := r.Context().Value(middleware.RequestIDKey)
-
-	// Convert context values to strings safely
-	clientIPStr := ""
-	userAgentStr := ""
-	requestIDStr := ""
-
-	if clientIP != nil {
-		clientIPStr = clientIP.(string)
-	}
-	if userAgent != nil {
-		userAgentStr = userAgent.(string)
-	}
-	if requestID != nil {
-		requestIDStr = requestID.(string)
-	}
+	sc := extractSecurityContext(r)
+	clientIPStr, userAgentStr, requestIDStr := sc.clientIP, sc.userAgent, sc.requestID
 
 	// Log logout event
 	util.LogSecurityEvent(util.SecurityEvent{
@@ -205,26 +195,8 @@ func (h *LoginHandler) Logout(w http.ResponseWriter, r *http.Request) {
 
 func (h *LoginHandler) Login(w http.ResponseWriter, r *http.Request) {
 	startTime := time.Now()
-
-	// Extract security context
-	clientIP := r.Context().Value(middleware.ClientIPKey)
-	userAgent := r.Context().Value(middleware.UserAgentKey)
-	requestID := r.Context().Value(middleware.RequestIDKey)
-
-	// Convert context values to strings safely
-	clientIPStr := ""
-	userAgentStr := ""
-	requestIDStr := ""
-
-	if clientIP != nil {
-		clientIPStr = clientIP.(string)
-	}
-	if userAgent != nil {
-		userAgentStr = userAgent.(string)
-	}
-	if requestID != nil {
-		requestIDStr = requestID.(string)
-	}
+	sc := extractSecurityContext(r)
+	clientIPStr, userAgentStr, requestIDStr := sc.clientIP, sc.userAgent, sc.requestID
 
 	// Parse optional query parameters (client_id and provider_id)
 	var clientIDPtr, providerIDPtr *string

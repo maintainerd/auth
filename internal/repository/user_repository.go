@@ -26,6 +26,10 @@ type UserRepository interface {
 	WithTx(tx *gorm.DB) UserRepository
 	FindByUsername(username string) (*model.User, error)
 	FindByEmail(email string) (*model.User, error)
+	// FindByEmailAndTenantID finds a user by email scoped to a specific tenant
+	// via the tenant_users junction table. Use this in preference to FindByEmail
+	// whenever a tenantID is available to avoid cross-tenant data leakage.
+	FindByEmailAndTenantID(email string, tenantID int64) (*model.User, error)
 	FindByPhone(phone string) (*model.User, error)
 	FindSuperAdmin() (*model.User, error)
 	FindRoles(userID int64) ([]model.Role, error)
@@ -71,6 +75,23 @@ func (r *userRepository) FindByEmail(email string) (*model.User, error) {
 	var user model.User
 	err := r.DB().
 		Where("email = ?", email).
+		First(&user).Error
+
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	return &user, nil
+}
+
+func (r *userRepository) FindByEmailAndTenantID(email string, tenantID int64) (*model.User, error) {
+	var user model.User
+	err := r.DB().
+		Joins("JOIN tenant_users ON users.user_id = tenant_users.user_id").
+		Where("users.email = ? AND tenant_users.tenant_id = ?", email, tenantID).
 		First(&user).Error
 
 	if err != nil {

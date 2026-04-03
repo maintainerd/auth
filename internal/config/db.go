@@ -3,21 +3,22 @@ package config
 import (
 	"fmt"
 	"log/slog"
-	"os"
 
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
 
-func InitDB() *gorm.DB {
+// InitDB opens a connection to the PostgreSQL database and returns it together
+// with any error. It no longer calls os.Exit so that main() can decide how to
+// handle initialization failures.
+func InitDB() (*gorm.DB, error) {
 	db, err := gorm.Open(postgres.Open(GetDBConnectionString()), &gorm.Config{})
 	if err != nil {
-		slog.Error("Failed to connect to DB", "error", err)
-		os.Exit(1)
+		return nil, fmt.Errorf("failed to connect to database: %w", err)
 	}
 
 	slog.Info("Database connected")
-	return db
+	return db, nil
 }
 
 func GetDBConnectionString() string {

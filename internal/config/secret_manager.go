@@ -51,8 +51,8 @@ type FileSecretManager struct {
 
 func (f *FileSecretManager) GetSecret(key string) ([]byte, error) {
 	// Convert environment variable name to file path
-	// JWT_PRIVATE_KEY -> /run/secrets/jwt_private_key
-	filename := strings.ToLower(strings.ReplaceAll(key, "_", "_"))
+	// e.g. JWT_PRIVATE_KEY -> /run/secrets/jwt-private-key
+	filename := strings.ToLower(strings.ReplaceAll(key, "_", "-"))
 	filepath := fmt.Sprintf("%s/%s", f.BasePath, filename)
 
 	data, err := os.ReadFile(filepath)
@@ -193,15 +193,6 @@ func loadSecret(key string) ([]byte, error) {
 	}
 
 	return nil, fmt.Errorf("failed to load secret %s after 3 attempts: %w", key, lastErr)
-}
-
-// loadSecretString is a convenience function for string secrets
-func loadSecretString(key string) (string, error) {
-	data, err := loadSecret(key)
-	if err != nil {
-		return "", err
-	}
-	return string(data), nil
 }
 
 // ValidateSecretProvider validates the secret provider configuration
