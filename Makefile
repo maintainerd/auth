@@ -3,7 +3,7 @@ MAIN := cmd/server/main.go
 PROTO_SRC := internal/contract
 PROTO_OUT := internal/gen/go
 
-.PHONY: run build clean proto proto-clean tidy
+.PHONY: run build clean proto proto-clean tidy test test-cover test-race
 
 # Run the main application
 run:
@@ -37,3 +37,17 @@ proto-clean:
 # Tidy up dependencies
 tidy:
 	go mod tidy
+
+# Run all unit tests
+test:
+	go test ./... -count=1
+
+# Run all unit tests with race detector
+test-race:
+	go test ./... -count=1 -race
+
+# Run unit tests and output an HTML coverage report (opens in browser)
+test-cover:
+	go test ./... -count=1 -coverprofile=coverage.out
+	go tool cover -html=coverage.out -o coverage.html
+	@echo "Coverage report written to coverage.html"
