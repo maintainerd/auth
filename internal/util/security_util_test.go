@@ -3,6 +3,7 @@ package util
 import (
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -158,4 +159,173 @@ func TestGetDummyBcryptHash_IsValidBcrypt(t *testing.T) {
 func TestGetDummyBcryptHash_Idempotent(t *testing.T) {
 	// Same slice returned on every call (pre-computed once at init)
 	assert.Equal(t, GetDummyBcryptHash(), GetDummyBcryptHash())
+}
+
+// ---------------------------------------------------------------------------
+// LogSecurityEvent
+// ---------------------------------------------------------------------------
+
+func TestLogSecurityEvent_ExplicitSeverity(t *testing.T) {
+	// Should not panic and should keep the provided severity
+	event := SecurityEvent{
+		EventType: "login_success",
+		UserID:    "user-123",
+		Severity:  "INFO",
+		Timestamp: time.Now(),
+	}
+	assert.NotPanics(t, func() { LogSecurityEvent(event) })
+}
+
+func TestLogSecurityEvent_AutoDeterminedSeverity(t *testing.T) {
+	// Empty severity → determineSeverity fills it in; must not panic
+	event := SecurityEvent{
+		EventType: "account_locked",
+		UserID:    "user-456",
+		Timestamp: time.Now(),
+	}
+	assert.NotPanics(t, func() { LogSecurityEvent(event) })
+}
+
+// ---------------------------------------------------------------------------
+// determineSeverity (unexported — accessible within package)
+// ---------------------------------------------------------------------------
+
+func TestDetermineSeverity(t *testing.T) {
+	tests := []struct {
+		eventType string
+		want      string
+	}{
+		{"account_locked", "HIGH"},
+		{"login_rate_limited", "HIGH"},
+		{"suspicious_login", "HIGH"},
+		{"ip_blocked", "HIGH"},
+		{"token_validation_failure", "HIGH"},
+		{"login_failure", "MEDIUM"},
+		{"registration_failure", "MEDIUM"},
+		{"validation_failure", "MEDIUM"},
+		{"login_success", "LOW"},
+		{"unknown_event", "LOW"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.eventType, func(t *testing.T) {
+			assert.Equal(t, tc.want, determineSeverity(tc.eventType))
+		})
+	}
+}
+
+// ---------------------------------------------------------------------------
+// GenerateCSRFToken
+// ---------------------------------------------------------------------------
+
+func TestGenerateCSRFToken_Format(t *testing.T) {
+	tok, err := GenerateCSRFToken()
+	require.NoError(t, err)
+	assert.Len(t, tok, 64, "32 random bytes hex-encoded = 64 chars")
+	for _, c := range tok {
+		assert.True(t, (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f'), "must be lowercase hex")
+	}
+}
+
+func TestGenerateCSRFToken_Unique(t *testing.T) {
+	a, err := GenerateCSRFToken()
+	require.NoError(t, err)
+	b, err := GenerateCSRFToken()
+	require.NoError(t, err)
+	assert.NotEqual(t, a, b)
+}
+
+// ---------------------------------------------------------------------------
+// ValidateUserAgent
+// ---------------------------------------------------------------------------
+
+func TestValidateUserAgent(t *testing.T) {
+	tests := []struct {
+		name      string
+		userAgent string
+		want      bool
+	}{
+		{"empty", "", false},
+		{"normal browser", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36", true},
+		{"curl", "curl/7.68.0", true},
+		{"sqlmap", "sqlmap/1.4", false},
+		{"nikto scanner", "Nikto/2.1.6", false},
+		{"script injection", "<script>alert(1)</script>", false},
+		{"javascript protocol", "javascript:void(0)", false},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Equal(t, tc.want, ValidateUserAgent(tc.userAgent))
+		})
+	}
+}
+
+// ---------------------------------------------------------------------------
+// RateLimitKey / rateLimitCountKey / rateLimitLockKey
+// ---------------------------------------------------------------------------
+
+func TestRateLimitKey(t *testing.T) {
+	key := RateLimitKey("user@example.com", "login")
+	assert.Equal(t, "rate_limit:login:user@example.com", key)
+}
+
+func TestRateLimitCountKey(t *testing.T) {
+	key := rateLimitCountKey("user@example.com")
+	assert.Equal(t, "rl:count:user@example.com", key)
+}
+
+func TestRateLimitLockKey(t *testing.T) {
+	key := rateLimitLockKey("user@example.com")
+	assert.Equal(t, "rl:lock:user@example.com", key)
+}
+
+// ---------------------------------------------------------------------------
+// Rate limiter — nil client (graceful degradation path)
+// ---------------------------------------------------------------------------
+
+func TestInitRateLimiter_AcceptsNil(t *testing.T) {
+	// Should not panic
+	assert.NotPanics(t, func() { InitRateLimiter(nil) })
+}
+
+func TestCheckRateLimit_NilClient(t *testing.T) {
+	InitRateLimiter(nil)
+	err := CheckRateLimit("user@example.com")
+	assert.NoError(t, err, "nil client must degrade gracefully")
+}
+
+func TestRecordFailedAttempt_NilClient(t *testing.T) {
+	InitRateLimiter(nil)
+	assert.NotPanics(t, func() { RecordFailedAttempt("user@example.com") })
+}
+
+func TestResetFailedAttempts_NilClient(t *testing.T) {
+	InitRateLimiter(nil)
+	assert.NotPanics(t, func() { ResetFailedAttempts("user@example.com") })
+}
+
+// ---------------------------------------------------------------------------
+// ValidateSessionLimit
+// ---------------------------------------------------------------------------
+
+func TestValidateSessionLimit(t *testing.T) {
+	tests := []struct {
+		name    string
+		count   int
+		wantErr bool
+	}{
+		{"below limit", MaxConcurrentSessions - 1, false},
+		{"at limit", MaxConcurrentSessions, true},
+		{"above limit", MaxConcurrentSessions + 1, true},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			err := ValidateSessionLimit("user-123", tc.count)
+			if tc.wantErr {
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), "maximum concurrent sessions")
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
 }
