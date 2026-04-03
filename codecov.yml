@@ -1,0 +1,38 @@
+coverage:
+  # Require coverage checks to pass before a PR can merge.
+  status:
+    project:
+      default:
+        target: auto      # compare against the base branch — no hardcoded threshold
+        threshold: 1%     # allow up to 1% drop before marking the check as failed
+    patch:
+      default:
+        target: auto
+        threshold: 1%
+
+# Paths ignored when Codecov calculates the coverage percentage.
+#
+# These are intentionally untested at the unit level for one of three reasons:
+#   1. Pure wiring / DI  — no branching logic (internal/app, internal/route)
+#   2. Generated code    — should not be hand-tested (internal/gen)
+#   3. Infra-dependent   — covered by the integration/e2e tiers instead
+#                          (internal/database, internal/runner, internal/model,
+#                           internal/grpc, internal/rest, internal/templates)
+#
+# The Go test command (go test ./...) is intentionally left unfiltered so the
+# raw coverage.out reflects exactly what the test suite exercises. Codecov then
+# applies these ignores when computing the badge percentage, keeping the two
+# concerns cleanly separated.
+ignore:
+  - "cmd/server"
+  - "internal/app"
+  - "internal/route"
+  - "internal/model"
+  - "internal/runner"
+  - "internal/database"
+  - "internal/gen"
+  - "internal/grpc"
+  - "internal/rest"
+  - "internal/startup"
+  - "internal/templates"
+
