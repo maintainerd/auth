@@ -80,6 +80,7 @@ jobs:
         uses: golangci/golangci-lint-action@v6
         with:
           version: latest
+          install-mode: goinstall   # build from source with the Go 1.26.x already set up above
           args: --timeout=5m
 
   # ─────────────────────────────────────────────────────────────────────────────
