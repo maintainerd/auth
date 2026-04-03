@@ -30,17 +30,35 @@ import (
 type mockClientRepo struct {
 	findByClientIDAndIdentityProviderFn func(clientID, providerID string) (*model.Client, error)
 	findDefaultFn                       func() (*model.Client, error)
+	findByUUIDFn                        func(any, ...string) (*model.Client, error)
+	findByUUIDAndTenantIDFn             func(uuid.UUID, int64) (*model.Client, error)
+	findPaginatedFn                     func(repository.ClientRepositoryGetFilter) (*repository.PaginationResult[model.Client], error)
+	findByNameAndIdentityProviderFn     func(string, int64, int64) (*model.Client, error)
+	findDefaultByTenantIDFn             func(tID int64) (*model.Client, error)
 }
 
 func (m *mockClientRepo) WithTx(_ *gorm.DB) repository.ClientRepository { return m }
 func (m *mockClientRepo) FindByClientIDAndIdentityProvider(a, b string) (*model.Client, error) {
-	return m.findByClientIDAndIdentityProviderFn(a, b)
+	if m.findByClientIDAndIdentityProviderFn != nil {
+		return m.findByClientIDAndIdentityProviderFn(a, b)
+	}
+	return nil, nil
 }
-func (m *mockClientRepo) FindDefault() (*model.Client, error)                   { return m.findDefaultFn() }
-func (m *mockClientRepo) Create(e *model.Client) (*model.Client, error)         { return nil, nil }
-func (m *mockClientRepo) CreateOrUpdate(e *model.Client) (*model.Client, error) { return nil, nil }
+func (m *mockClientRepo) FindDefault() (*model.Client, error) {
+	if m.findDefaultFn != nil {
+		return m.findDefaultFn()
+	}
+	return nil, nil
+}
+func (m *mockClientRepo) Create(e *model.Client) (*model.Client, error)         { return e, nil }
+func (m *mockClientRepo) CreateOrUpdate(e *model.Client) (*model.Client, error) { return e, nil }
 func (m *mockClientRepo) FindAll(p ...string) ([]model.Client, error)           { return nil, nil }
-func (m *mockClientRepo) FindByUUID(id any, p ...string) (*model.Client, error) { return nil, nil }
+func (m *mockClientRepo) FindByUUID(id any, p ...string) (*model.Client, error) {
+	if m.findByUUIDFn != nil {
+		return m.findByUUIDFn(id, p...)
+	}
+	return nil, nil
+}
 func (m *mockClientRepo) FindByUUIDs(ids []string, p ...string) ([]model.Client, error) {
 	return nil, nil
 }
@@ -53,18 +71,32 @@ func (m *mockClientRepo) Paginate(c map[string]any, pg, lim int, p ...string) (*
 	return nil, nil
 }
 func (m *mockClientRepo) FindByUUIDAndTenantID(id uuid.UUID, tID int64) (*model.Client, error) {
+	if m.findByUUIDAndTenantIDFn != nil {
+		return m.findByUUIDAndTenantIDFn(id, tID)
+	}
 	return nil, nil
 }
 func (m *mockClientRepo) FindByNameAndIdentityProvider(n string, ipID, tID int64) (*model.Client, error) {
+	if m.findByNameAndIdentityProviderFn != nil {
+		return m.findByNameAndIdentityProviderFn(n, ipID, tID)
+	}
 	return nil, nil
 }
 func (m *mockClientRepo) FindByClientID(cID string, tID int64) (*model.Client, error) {
 	return nil, nil
 }
-func (m *mockClientRepo) FindAllByTenantID(tID int64) ([]model.Client, error)    { return nil, nil }
-func (m *mockClientRepo) FindDefaultByTenantID(tID int64) (*model.Client, error) { return nil, nil }
-func (m *mockClientRepo) FindPaginated(f repository.ClientRepositoryGetFilter) (*repository.PaginationResult[model.Client], error) {
+func (m *mockClientRepo) FindAllByTenantID(tID int64) ([]model.Client, error) { return nil, nil }
+func (m *mockClientRepo) FindDefaultByTenantID(tID int64) (*model.Client, error) {
+	if m.findDefaultByTenantIDFn != nil {
+		return m.findDefaultByTenantIDFn(tID)
+	}
 	return nil, nil
+}
+func (m *mockClientRepo) FindPaginated(f repository.ClientRepositoryGetFilter) (*repository.PaginationResult[model.Client], error) {
+	if m.findPaginatedFn != nil {
+		return m.findPaginatedFn(f)
+	}
+	return &repository.PaginationResult[model.Client]{}, nil
 }
 func (m *mockClientRepo) SetStatusByUUID(id uuid.UUID, tID int64, s string) error { return nil }
 func (m *mockClientRepo) DeleteByUUIDAndTenantID(id uuid.UUID, tID int64) error   { return nil }
@@ -77,38 +109,101 @@ type mockUserRepo struct {
 	findByUsernameFn         func(username string) (*model.User, error)
 	findByEmailFn            func(email string) (*model.User, error)
 	findByEmailAndTenantIDFn func(email string, tenantID int64) (*model.User, error)
+	findByUUIDFn             func(id any, preloads ...string) (*model.User, error)
+	findSuperAdminFn         func() (*model.User, error)
+	findPaginatedFn          func(repository.UserRepositoryGetFilter) (*repository.PaginationResult[model.User], error)
+	createFn                 func(*model.User) (*model.User, error)
+	updateByUUIDFn           func(id, data any) (*model.User, error)
+	findRolesFn              func(userID int64) ([]model.Role, error)
+	findByPhoneFn            func(phone string) (*model.User, error)
+	setStatusFn              func(id uuid.UUID, s string) error
+	deleteByUUIDFn           func(id any) error
 }
 
 func (m *mockUserRepo) WithTx(_ *gorm.DB) repository.UserRepository { return m }
 func (m *mockUserRepo) FindByUsername(u string) (*model.User, error) {
-	return m.findByUsernameFn(u)
+	if m.findByUsernameFn != nil {
+		return m.findByUsernameFn(u)
+	}
+	return nil, nil
 }
-func (m *mockUserRepo) FindByEmail(e string) (*model.User, error) { return m.findByEmailFn(e) }
+func (m *mockUserRepo) FindByEmail(e string) (*model.User, error) {
+	if m.findByEmailFn != nil {
+		return m.findByEmailFn(e)
+	}
+	return nil, nil
+}
 func (m *mockUserRepo) FindByEmailAndTenantID(e string, tID int64) (*model.User, error) {
-	return m.findByEmailAndTenantIDFn(e, tID)
+	if m.findByEmailAndTenantIDFn != nil {
+		return m.findByEmailAndTenantIDFn(e, tID)
+	}
+	return nil, nil
 }
-func (m *mockUserRepo) Create(e *model.User) (*model.User, error)                   { return nil, nil }
-func (m *mockUserRepo) CreateOrUpdate(e *model.User) (*model.User, error)           { return nil, nil }
-func (m *mockUserRepo) FindAll(p ...string) ([]model.User, error)                   { return nil, nil }
-func (m *mockUserRepo) FindByUUID(id any, p ...string) (*model.User, error)         { return nil, nil }
+func (m *mockUserRepo) Create(e *model.User) (*model.User, error) {
+	if m.createFn != nil {
+		return m.createFn(e)
+	}
+	return e, nil
+}
+func (m *mockUserRepo) CreateOrUpdate(e *model.User) (*model.User, error) { return nil, nil }
+func (m *mockUserRepo) FindAll(p ...string) ([]model.User, error)         { return nil, nil }
+func (m *mockUserRepo) FindByUUID(id any, p ...string) (*model.User, error) {
+	if m.findByUUIDFn != nil {
+		return m.findByUUIDFn(id, p...)
+	}
+	return nil, nil
+}
 func (m *mockUserRepo) FindByUUIDs(ids []string, p ...string) ([]model.User, error) { return nil, nil }
 func (m *mockUserRepo) FindByID(id any, p ...string) (*model.User, error)           { return nil, nil }
-func (m *mockUserRepo) UpdateByUUID(id, data any) (*model.User, error)              { return nil, nil }
-func (m *mockUserRepo) UpdateByID(id, data any) (*model.User, error)                { return nil, nil }
-func (m *mockUserRepo) DeleteByUUID(id any) error                                   { return nil }
-func (m *mockUserRepo) DeleteByID(id any) error                                     { return nil }
+func (m *mockUserRepo) UpdateByUUID(id, data any) (*model.User, error) {
+	if m.updateByUUIDFn != nil {
+		return m.updateByUUIDFn(id, data)
+	}
+	return nil, nil
+}
+func (m *mockUserRepo) UpdateByID(id, data any) (*model.User, error) { return nil, nil }
+func (m *mockUserRepo) DeleteByUUID(id any) error {
+	if m.deleteByUUIDFn != nil {
+		return m.deleteByUUIDFn(id)
+	}
+	return nil
+}
+func (m *mockUserRepo) DeleteByID(id any) error { return nil }
 func (m *mockUserRepo) Paginate(c map[string]any, pg, lim int, p ...string) (*repository.PaginationResult[model.User], error) {
 	return nil, nil
 }
-func (m *mockUserRepo) FindByPhone(phone string) (*model.User, error)             { return nil, nil }
-func (m *mockUserRepo) FindSuperAdmin() (*model.User, error)                      { return nil, nil }
-func (m *mockUserRepo) FindRoles(userID int64) ([]model.Role, error)              { return nil, nil }
-func (m *mockUserRepo) FindBySubAndClientID(sub, cID string) (*model.User, error) { return nil, nil }
-func (m *mockUserRepo) FindPaginated(f repository.UserRepositoryGetFilter) (*repository.PaginationResult[model.User], error) {
+func (m *mockUserRepo) FindByPhone(phone string) (*model.User, error) {
+	if m.findByPhoneFn != nil {
+		return m.findByPhoneFn(phone)
+	}
 	return nil, nil
 }
+func (m *mockUserRepo) FindSuperAdmin() (*model.User, error) {
+	if m.findSuperAdminFn != nil {
+		return m.findSuperAdminFn()
+	}
+	return nil, nil
+}
+func (m *mockUserRepo) FindRoles(userID int64) ([]model.Role, error) {
+	if m.findRolesFn != nil {
+		return m.findRolesFn(userID)
+	}
+	return nil, nil
+}
+func (m *mockUserRepo) FindBySubAndClientID(sub, cID string) (*model.User, error) { return nil, nil }
+func (m *mockUserRepo) FindPaginated(f repository.UserRepositoryGetFilter) (*repository.PaginationResult[model.User], error) {
+	if m.findPaginatedFn != nil {
+		return m.findPaginatedFn(f)
+	}
+	return &repository.PaginationResult[model.User]{}, nil
+}
 func (m *mockUserRepo) SetEmailVerified(id uuid.UUID, v bool) error { return nil }
-func (m *mockUserRepo) SetStatus(id uuid.UUID, s string) error      { return nil }
+func (m *mockUserRepo) SetStatus(id uuid.UUID, s string) error {
+	if m.setStatusFn != nil {
+		return m.setStatusFn(id, s)
+	}
+	return nil
+}
 
 // ---------------------------------------------------------------------------
 // Mock: UserIdentityRepository
@@ -160,22 +255,36 @@ func (m *mockUserIdentityRepo) DeleteByUserID(uID int64) error                  
 
 type mockIdentityProviderRepo struct {
 	findByIdentifierFn func(identifier string) (*model.IdentityProvider, error)
+	findByUUIDFn       func(id any, preloads ...string) (*model.IdentityProvider, error)
+	findByNameFn       func(name string, tenantID int64) (*model.IdentityProvider, error)
+	findPaginatedFn    func(repository.IdentityProviderRepositoryGetFilter) (*repository.PaginationResult[model.IdentityProvider], error)
+	createOrUpdateFn   func(*model.IdentityProvider) (*model.IdentityProvider, error)
+	deleteByUUIDFn     func(id any) error
 }
 
 func (m *mockIdentityProviderRepo) WithTx(_ *gorm.DB) repository.IdentityProviderRepository { return m }
 func (m *mockIdentityProviderRepo) FindByIdentifier(id string) (*model.IdentityProvider, error) {
-	return m.findByIdentifierFn(id)
+	if m.findByIdentifierFn != nil {
+		return m.findByIdentifierFn(id)
+	}
+	return nil, nil
 }
 func (m *mockIdentityProviderRepo) Create(e *model.IdentityProvider) (*model.IdentityProvider, error) {
 	return nil, nil
 }
 func (m *mockIdentityProviderRepo) CreateOrUpdate(e *model.IdentityProvider) (*model.IdentityProvider, error) {
-	return nil, nil
+	if m.createOrUpdateFn != nil {
+		return m.createOrUpdateFn(e)
+	}
+	return e, nil
 }
 func (m *mockIdentityProviderRepo) FindAll(p ...string) ([]model.IdentityProvider, error) {
 	return nil, nil
 }
 func (m *mockIdentityProviderRepo) FindByUUID(id any, p ...string) (*model.IdentityProvider, error) {
+	if m.findByUUIDFn != nil {
+		return m.findByUUIDFn(id, p...)
+	}
 	return nil, nil
 }
 func (m *mockIdentityProviderRepo) FindByUUIDs(ids []string, p ...string) ([]model.IdentityProvider, error) {
@@ -190,29 +299,49 @@ func (m *mockIdentityProviderRepo) UpdateByUUID(id, data any) (*model.IdentityPr
 func (m *mockIdentityProviderRepo) UpdateByID(id, data any) (*model.IdentityProvider, error) {
 	return nil, nil
 }
-func (m *mockIdentityProviderRepo) DeleteByUUID(id any) error { return nil }
-func (m *mockIdentityProviderRepo) DeleteByID(id any) error   { return nil }
+func (m *mockIdentityProviderRepo) DeleteByUUID(id any) error {
+	if m.deleteByUUIDFn != nil {
+		return m.deleteByUUIDFn(id)
+	}
+	return nil
+}
+func (m *mockIdentityProviderRepo) DeleteByID(id any) error { return nil }
 func (m *mockIdentityProviderRepo) Paginate(c map[string]any, pg, lim int, p ...string) (*repository.PaginationResult[model.IdentityProvider], error) {
 	return nil, nil
 }
 func (m *mockIdentityProviderRepo) FindByName(n string, tID int64) (*model.IdentityProvider, error) {
+	if m.findByNameFn != nil {
+		return m.findByNameFn(n, tID)
+	}
 	return nil, nil
 }
 func (m *mockIdentityProviderRepo) FindDefaultByTenantID(tID int64) (*model.IdentityProvider, error) {
 	return nil, nil
 }
 func (m *mockIdentityProviderRepo) FindPaginated(f repository.IdentityProviderRepositoryGetFilter) (*repository.PaginationResult[model.IdentityProvider], error) {
-	return nil, nil
+	if m.findPaginatedFn != nil {
+		return m.findPaginatedFn(f)
+	}
+	return &repository.PaginationResult[model.IdentityProvider]{}, nil
 }
 
 // ---------------------------------------------------------------------------
 // Mock: UserTokenRepository
 // ---------------------------------------------------------------------------
 
-type mockUserTokenRepo struct{}
+type mockUserTokenRepo struct {
+	createFn                   func(*model.UserToken) (*model.UserToken, error)
+	findByUserIDAndTokenTypeFn func(userID int64, tokenType string) ([]model.UserToken, error)
+	revokeByUUIDFn             func(id uuid.UUID) error
+}
 
-func (m *mockUserTokenRepo) WithTx(_ *gorm.DB) repository.UserTokenRepository    { return m }
-func (m *mockUserTokenRepo) Create(e *model.UserToken) (*model.UserToken, error) { return nil, nil }
+func (m *mockUserTokenRepo) WithTx(_ *gorm.DB) repository.UserTokenRepository { return m }
+func (m *mockUserTokenRepo) Create(e *model.UserToken) (*model.UserToken, error) {
+	if m.createFn != nil {
+		return m.createFn(e)
+	}
+	return e, nil
+}
 func (m *mockUserTokenRepo) CreateOrUpdate(e *model.UserToken) (*model.UserToken, error) {
 	return nil, nil
 }
@@ -236,9 +365,17 @@ func (m *mockUserTokenRepo) FindActiveTokensByUserID(uID int64) ([]model.UserTok
 	return nil, nil
 }
 func (m *mockUserTokenRepo) FindByUserIDAndTokenType(uID int64, tt string) ([]model.UserToken, error) {
+	if m.findByUserIDAndTokenTypeFn != nil {
+		return m.findByUserIDAndTokenTypeFn(uID, tt)
+	}
 	return nil, nil
 }
-func (m *mockUserTokenRepo) RevokeByUUID(id uuid.UUID) error            { return nil }
+func (m *mockUserTokenRepo) RevokeByUUID(id uuid.UUID) error {
+	if m.revokeByUUIDFn != nil {
+		return m.revokeByUUIDFn(id)
+	}
+	return nil
+}
 func (m *mockUserTokenRepo) RevokeAllByUserID(uID int64) error          { return nil }
 func (m *mockUserTokenRepo) DeleteByUserID(uID int64) error             { return nil }
 func (m *mockUserTokenRepo) DeleteExpiredTokens(before time.Time) error { return nil }
