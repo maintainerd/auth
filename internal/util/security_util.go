@@ -49,6 +49,7 @@ import (
 	"log/slog"
 	"net"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -146,18 +147,12 @@ func determineSeverity(eventType string) string {
 		"validation_failure",
 	}
 
-	for _, event := range highSeverityEvents {
-		if event == eventType {
-			return "HIGH"
-		}
+	if slices.Contains(highSeverityEvents, eventType) {
+		return "HIGH"
 	}
-
-	for _, event := range mediumSeverityEvents {
-		if event == eventType {
-			return "MEDIUM"
-		}
+	if slices.Contains(mediumSeverityEvents, eventType) {
+		return "MEDIUM"
 	}
-
 	return "LOW"
 }
 
@@ -165,6 +160,14 @@ func determineSeverity(eventType string) string {
 // INPUT VALIDATION & SANITIZATION
 // ============================================================================
 // Functions for validating and sanitizing user input
+
+// Package-level compiled regexes — compiled once, reused on every call.
+var (
+	reUpper   = regexp.MustCompile(`[A-Z]`)
+	reLower   = regexp.MustCompile(`[a-z]`)
+	reDigit   = regexp.MustCompile(`[0-9]`)
+	reSpecial = regexp.MustCompile(`[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]`)
+)
 
 // ValidatePasswordStrength enforces password complexity requirements
 // Complies with SOC2 CC6.1 and ISO27001 A.9.4.3
@@ -177,27 +180,19 @@ func ValidatePasswordStrength(password string) error {
 		return fmt.Errorf("password must not exceed 128 characters")
 	}
 
-	// Check for at least one uppercase letter
-	hasUpper := regexp.MustCompile(`[A-Z]`).MatchString(password)
-	if !hasUpper {
+	if !reUpper.MatchString(password) {
 		return fmt.Errorf("password must contain at least one uppercase letter")
 	}
 
-	// Check for at least one lowercase letter
-	hasLower := regexp.MustCompile(`[a-z]`).MatchString(password)
-	if !hasLower {
+	if !reLower.MatchString(password) {
 		return fmt.Errorf("password must contain at least one lowercase letter")
 	}
 
-	// Check for at least one digit
-	hasDigit := regexp.MustCompile(`[0-9]`).MatchString(password)
-	if !hasDigit {
+	if !reDigit.MatchString(password) {
 		return fmt.Errorf("password must contain at least one digit")
 	}
 
-	// Check for at least one special character
-	hasSpecial := regexp.MustCompile(`[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]`).MatchString(password)
-	if !hasSpecial {
+	if !reSpecial.MatchString(password) {
 		return fmt.Errorf("password must contain at least one special character")
 	}
 

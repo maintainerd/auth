@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/maintainerd/auth/internal/dto"
-	"github.com/maintainerd/auth/internal/middleware"
 	"github.com/maintainerd/auth/internal/service"
 	"github.com/maintainerd/auth/internal/util"
 )
@@ -23,26 +22,8 @@ func NewForgotPasswordHandler(forgotPasswordService service.ForgotPasswordServic
 
 func (h *ForgotPasswordHandler) ForgotPasswordPublic(w http.ResponseWriter, r *http.Request) {
 	startTime := time.Now()
-
-	// Extract security context
-	clientIP := r.Context().Value(middleware.ClientIPKey)
-	userAgent := r.Context().Value(middleware.UserAgentKey)
-	requestID := r.Context().Value(middleware.RequestIDKey)
-
-	// Convert context values to strings safely
-	clientIPStr := ""
-	userAgentStr := ""
-	requestIDStr := ""
-
-	if clientIP != nil {
-		clientIPStr = clientIP.(string)
-	}
-	if userAgent != nil {
-		userAgentStr = userAgent.(string)
-	}
-	if requestID != nil {
-		requestIDStr = requestID.(string)
-	}
+	sc := extractSecurityContext(r)
+	clientIPStr, userAgentStr, requestIDStr := sc.clientIP, sc.userAgent, sc.requestID
 
 	// Validate query parameters (required for public route)
 	clientID := r.URL.Query().Get("client_id")
@@ -156,26 +137,8 @@ func (h *ForgotPasswordHandler) ForgotPasswordPublic(w http.ResponseWriter, r *h
 
 func (h *ForgotPasswordHandler) ForgotPassword(w http.ResponseWriter, r *http.Request) {
 	startTime := time.Now()
-
-	// Extract security context
-	clientIP := r.Context().Value(middleware.ClientIPKey)
-	userAgent := r.Context().Value(middleware.UserAgentKey)
-	requestID := r.Context().Value(middleware.RequestIDKey)
-
-	// Convert context values to strings safely
-	clientIPStr := ""
-	userAgentStr := ""
-	requestIDStr := ""
-
-	if clientIP != nil {
-		clientIPStr = clientIP.(string)
-	}
-	if userAgent != nil {
-		userAgentStr = userAgent.(string)
-	}
-	if requestID != nil {
-		requestIDStr = requestID.(string)
-	}
+	sc := extractSecurityContext(r)
+	clientIPStr, userAgentStr, requestIDStr := sc.clientIP, sc.userAgent, sc.requestID
 
 	// Parse optional query parameters (client_id and provider_id)
 	var clientIDPtr, providerIDPtr *string
