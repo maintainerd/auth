@@ -46,7 +46,8 @@ test:
 test-race:
 	go test ./... -count=1 -race
 
-# Run unit tests and output an HTML coverage report (opens in browser)
+# Run unit tests and output an HTML coverage report (opens in browser).
+# Folder exclusions are handled by codecov.yml on the Codecov side.
 test-cover:
 	go test ./... -count=1 -coverprofile=coverage.out
 	go tool cover -html=coverage.out -o coverage.html
