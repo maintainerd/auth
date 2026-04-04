@@ -9,13 +9,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func buildRegisterService(t *testing.T, clientRepo *mockClientRepo, idpRepo *mockIdentityProviderRepo, userRepo *mockUserRepo) RegisterService {
-	t.Helper()
-	db, _ := newMockGormDB(t)
-	return NewRegistrationService(db, clientRepo, userRepo, &mockUserRoleRepo{}, &mockUserTokenRepo{},
-		&mockUserIdentityRepo{}, &mockRoleRepo{}, &mockInviteRepo{}, idpRepo, &mockTenantUserRepo{})
-}
-
 func TestRegisterService_RegisterPublic(t *testing.T) {
 	cases := []struct {
 		name         string
@@ -123,4 +116,3 @@ func TestRegisterService_RegisterPublic(t *testing.T) {
 		})
 	}
 }
-
