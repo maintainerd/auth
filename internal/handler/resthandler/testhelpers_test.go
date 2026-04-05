@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/go-chi/chi/v5"
@@ -60,6 +61,14 @@ func withChiParam(r *http.Request, key, val string) *http.Request {
 	}
 	rctx.URLParams.Add(key, val)
 	return r.WithContext(context.WithValue(r.Context(), chi.RouteCtxKey, rctx))
+}
+
+// badJSONReq creates an HTTP request with an intentionally malformed JSON body.
+func badJSONReq(t *testing.T, method, target string) *http.Request {
+	t.Helper()
+	r := httptest.NewRequest(method, target, strings.NewReader("{bad json"))
+	r.Header.Set("Content-Type", "application/json")
+	return r
 }
 
 // jsonReq creates an HTTP request with a JSON-encoded body.
