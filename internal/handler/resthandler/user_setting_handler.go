@@ -96,10 +96,7 @@ func toUserSettingResponseDto(us service.UserSettingServiceDataResult) dto.UserS
 	// Convert GORM JSON to map for social links
 	var socialLinks map[string]any
 	if len(us.SocialLinks) > 0 {
-		socialLinks = make(map[string]any)
-		if err := json.Unmarshal(us.SocialLinks, &socialLinks); err == nil {
-			// Only include if unmarshaling was successful
-		} else {
+		if err := json.Unmarshal(us.SocialLinks, &socialLinks); err != nil {
 			socialLinks = nil
 		}
 	}
