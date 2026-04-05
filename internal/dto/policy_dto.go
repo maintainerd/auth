@@ -3,7 +3,6 @@ package dto
 import (
 	"encoding/json"
 	"regexp"
-	"strconv"
 	"time"
 
 	validation "github.com/go-ozzo/ozzo-validation/v4"
@@ -287,16 +286,9 @@ func validatePolicyDocumentStructure(value any) error {
 		return validation.NewError("validation_error", "Document must be valid JSON: "+err.Error())
 	}
 
-	// Validate the document structure
+	// Validate the document structure (ozzo-validation auto-validates each PolicyStatement element)
 	if err := policyDoc.Validate(); err != nil {
 		return err
-	}
-
-	// Validate each statement
-	for i, statement := range policyDoc.Statement {
-		if err := statement.Validate(); err != nil {
-			return validation.NewError("validation_error", "Statement "+strconv.Itoa(i+1)+": "+err.Error())
-		}
 	}
 
 	return nil

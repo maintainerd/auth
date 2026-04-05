@@ -3,9 +3,12 @@ package dto
 import (
 	"net/url"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/maintainerd/auth/internal/util"
 )
 
 func TestResetPasswordRequestDto_Validate(t *testing.T) {
@@ -84,9 +87,17 @@ func TestResetPasswordQueryDto_Validate(t *testing.T) {
 
 func TestResetPasswordQueryDto_ValidateSignedURL(t *testing.T) {
 	q := &ResetPasswordQueryDto{}
+
 	t.Run("empty values returns error", func(t *testing.T) {
 		err := q.ValidateSignedURL(url.Values{})
 		require.Error(t, err)
 	})
-}
 
+	t.Run("valid signed url returns nil", func(t *testing.T) {
+		t.Setenv("HMAC_SECRET_KEY", "test-secret-key")
+		raw, _ := util.GenerateSignedURL("https://example.com", map[string]string{"token": "reset-tok"}, time.Minute)
+		parsed, _ := url.Parse(raw)
+		err := q.ValidateSignedURL(parsed.Query())
+		assert.NoError(t, err)
+	})
+}
