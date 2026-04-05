@@ -81,11 +81,8 @@ func (h *SignupFlowHandler) GetAll(w http.ResponseWriter, r *http.Request) {
 	// Parse and validate auth client UUID if provided
 	var ClientUUIDPtr *uuid.UUID
 	if filter.ClientUUID != nil {
-		ClientUUID, err := uuid.Parse(*filter.ClientUUID)
-		if err != nil {
-			util.Error(w, http.StatusBadRequest, "Invalid auth client UUID")
-			return
-		}
+		// Already validated as UUID by DTO
+		ClientUUID, _ := uuid.Parse(*filter.ClientUUID)
 		ClientUUIDPtr = &ClientUUID
 	}
 
@@ -166,12 +163,8 @@ func (h *SignupFlowHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Parse and validate auth client UUID
-	ClientUUID, err := uuid.Parse(req.ClientUUID)
-	if err != nil {
-		util.Error(w, http.StatusBadRequest, "Invalid auth client UUID")
-		return
-	}
+	// Parse auth client UUID (already validated as UUID by DTO)
+	ClientUUID, _ := uuid.Parse(req.ClientUUID)
 
 	// Set default status if not provided
 	status := model.StatusActive
@@ -368,15 +361,10 @@ func (h *SignupFlowHandler) AssignRoles(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	// Parse and validate role UUIDs from request
+	// Parse role UUIDs (each already validated as UUID by DTO)
 	roleUUIDs := make([]uuid.UUID, len(req.RoleUUIDs))
 	for i, roleUUIDStr := range req.RoleUUIDs {
-		roleUUID, err := uuid.Parse(roleUUIDStr)
-		if err != nil {
-			util.Error(w, http.StatusBadRequest, "Invalid role UUID format", err.Error())
-			return
-		}
-		roleUUIDs[i] = roleUUID
+		roleUUIDs[i], _ = uuid.Parse(roleUUIDStr)
 	}
 
 	// Assign roles to signup flow (service validates tenant ownership)
