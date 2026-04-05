@@ -16,103 +16,287 @@ func smsResult() service.SmsTemplateServiceDataResult {
 }
 
 func TestSMSTemplateHandler_GetAll(t *testing.T) {
-	svc := &mockSmsTemplateService{getAllFn: func(_ int64, _ *string, _ []string, _, _ *bool, _, _ int, _, _ string) (*service.SmsTemplateServiceListResult, error) {
-		return &service.SmsTemplateServiceListResult{Data: []service.SmsTemplateServiceDataResult{smsResult()}}, nil
-	}}
-	h := NewSMSTemplateHandler(svc)
-	w := httptest.NewRecorder()
-	h.GetAll(w, withTenant(jsonReq(t, http.MethodGet, "/sms-templates?page=1&limit=10", nil)))
-	assert.Equal(t, http.StatusOK, w.Code)
-}
+	t.Run("no tenant returns 401", func(t *testing.T) {
+		r := jsonReq(t, http.MethodGet, "/sms-templates", nil)
+		w := httptest.NewRecorder()
+		NewSMSTemplateHandler(&mockSmsTemplateService{}).GetAll(w, r)
+		assert.Equal(t, http.StatusUnauthorized, w.Code)
+	})
 
-func TestSMSTemplateHandler_GetAll_Error(t *testing.T) {
-	svc := &mockSmsTemplateService{getAllFn: func(_ int64, _ *string, _ []string, _, _ *bool, _, _ int, _, _ string) (*service.SmsTemplateServiceListResult, error) {
-		return nil, errors.New("db")
-	}}
-	h := NewSMSTemplateHandler(svc)
-	w := httptest.NewRecorder()
-	h.GetAll(w, withTenant(jsonReq(t, http.MethodGet, "/sms-templates?page=1&limit=10", nil)))
-	assert.Equal(t, http.StatusInternalServerError, w.Code)
+	t.Run("validation error returns 400", func(t *testing.T) {
+		r := jsonReq(t, http.MethodGet, "/sms-templates?page=1&limit=10&sort_order=bad", nil)
+		r = withTenant(r)
+		w := httptest.NewRecorder()
+		NewSMSTemplateHandler(&mockSmsTemplateService{}).GetAll(w, r)
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+	})
+
+	t.Run("service error returns 500", func(t *testing.T) {
+		svc := &mockSmsTemplateService{getAllFn: func(_ int64, _ *string, _ []string, _, _ *bool, _, _ int, _, _ string) (*service.SmsTemplateServiceListResult, error) {
+			return nil, errors.New("db")
+		}}
+		r := jsonReq(t, http.MethodGet, "/sms-templates?page=1&limit=10", nil)
+		r = withTenant(r)
+		w := httptest.NewRecorder()
+		NewSMSTemplateHandler(svc).GetAll(w, r)
+		assert.Equal(t, http.StatusInternalServerError, w.Code)
+	})
+
+	t.Run("success with all filters and rows covers filter branches", func(t *testing.T) {
+		svc := &mockSmsTemplateService{getAllFn: func(_ int64, _ *string, _ []string, _, _ *bool, _, _ int, _, _ string) (*service.SmsTemplateServiceListResult, error) {
+			return &service.SmsTemplateServiceListResult{Data: []service.SmsTemplateServiceDataResult{smsResult()}}, nil
+		}}
+		r := jsonReq(t, http.MethodGet, "/sms-templates?page=1&limit=10&status=active&is_default=true&is_system=false", nil)
+		r = withTenant(r)
+		w := httptest.NewRecorder()
+		NewSMSTemplateHandler(svc).GetAll(w, r)
+		assert.Equal(t, http.StatusOK, w.Code)
+	})
 }
 
 func TestSMSTemplateHandler_Get(t *testing.T) {
-	res := smsResult()
-	svc := &mockSmsTemplateService{getByUUIDFn: func(_ uuid.UUID, _ int64) (*service.SmsTemplateServiceDataResult, error) { return &res, nil }}
-	h := NewSMSTemplateHandler(svc)
-	w := httptest.NewRecorder()
-	h.Get(w, withChiParam(withTenant(jsonReq(t, http.MethodGet, "/sms-templates/id", nil)), "sms_template_uuid", testResourceUUID.String()))
-	assert.Equal(t, http.StatusOK, w.Code)
-}
+	t.Run("no tenant returns 401", func(t *testing.T) {
+		r := jsonReq(t, http.MethodGet, "/", nil)
+		w := httptest.NewRecorder()
+		NewSMSTemplateHandler(&mockSmsTemplateService{}).Get(w, r)
+		assert.Equal(t, http.StatusUnauthorized, w.Code)
+	})
 
-func TestSMSTemplateHandler_Get_BadUUID(t *testing.T) {
-	h := NewSMSTemplateHandler(&mockSmsTemplateService{})
-	w := httptest.NewRecorder()
-	h.Get(w, withChiParam(withTenant(jsonReq(t, http.MethodGet, "/sms-templates/bad", nil)), "sms_template_uuid", "not-a-uuid"))
-	assert.Equal(t, http.StatusBadRequest, w.Code)
-}
+	t.Run("invalid UUID returns 400", func(t *testing.T) {
+		r := withChiParam(withTenant(jsonReq(t, http.MethodGet, "/", nil)), "sms_template_uuid", "not-a-uuid")
+		w := httptest.NewRecorder()
+		NewSMSTemplateHandler(&mockSmsTemplateService{}).Get(w, r)
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+	})
 
-func TestSMSTemplateHandler_Get_NotFound(t *testing.T) {
-	svc := &mockSmsTemplateService{getByUUIDFn: func(_ uuid.UUID, _ int64) (*service.SmsTemplateServiceDataResult, error) {
-		return nil, errors.New("not found")
-	}}
-	h := NewSMSTemplateHandler(svc)
-	w := httptest.NewRecorder()
-	h.Get(w, withChiParam(withTenant(jsonReq(t, http.MethodGet, "/sms-templates/id", nil)), "sms_template_uuid", testResourceUUID.String()))
-	assert.Equal(t, http.StatusNotFound, w.Code)
+	t.Run("not found returns 404", func(t *testing.T) {
+		svc := &mockSmsTemplateService{getByUUIDFn: func(_ uuid.UUID, _ int64) (*service.SmsTemplateServiceDataResult, error) {
+			return nil, errors.New("not found")
+		}}
+		r := withChiParam(withTenant(jsonReq(t, http.MethodGet, "/", nil)), "sms_template_uuid", testResourceUUID.String())
+		w := httptest.NewRecorder()
+		NewSMSTemplateHandler(svc).Get(w, r)
+		assert.Equal(t, http.StatusNotFound, w.Code)
+	})
+
+	t.Run("success returns 200", func(t *testing.T) {
+		res := smsResult()
+		svc := &mockSmsTemplateService{getByUUIDFn: func(_ uuid.UUID, _ int64) (*service.SmsTemplateServiceDataResult, error) { return &res, nil }}
+		r := withChiParam(withTenant(jsonReq(t, http.MethodGet, "/", nil)), "sms_template_uuid", testResourceUUID.String())
+		w := httptest.NewRecorder()
+		NewSMSTemplateHandler(svc).Get(w, r)
+		assert.Equal(t, http.StatusOK, w.Code)
+	})
 }
 
 func TestSMSTemplateHandler_Create(t *testing.T) {
-	res := smsResult()
-	svc := &mockSmsTemplateService{createFn: func(_ int64, _ string, _ *string, _ string, _ *string, _ string) (*service.SmsTemplateServiceDataResult, error) {
-		return &res, nil
-	}}
-	h := NewSMSTemplateHandler(svc)
-	body := map[string]any{"name": "tmpl1", "message": "Hello"}
-	w := httptest.NewRecorder()
-	h.Create(w, withTenant(jsonReq(t, http.MethodPost, "/sms-templates", body)))
-	assert.Equal(t, http.StatusCreated, w.Code)
-}
+	validBody := map[string]any{"name": "tmpl1", "message": "Hello"}
 
-func TestSMSTemplateHandler_Create_Error(t *testing.T) {
-	svc := &mockSmsTemplateService{createFn: func(_ int64, _ string, _ *string, _ string, _ *string, _ string) (*service.SmsTemplateServiceDataResult, error) {
-		return nil, errors.New("fail")
-	}}
-	h := NewSMSTemplateHandler(svc)
-	body := map[string]any{"name": "tmpl1", "message": "Hello"}
-	w := httptest.NewRecorder()
-	h.Create(w, withTenant(jsonReq(t, http.MethodPost, "/sms-templates", body)))
-	assert.Equal(t, http.StatusBadRequest, w.Code)
+	t.Run("no tenant returns 401", func(t *testing.T) {
+		r := jsonReq(t, http.MethodPost, "/sms-templates", validBody)
+		w := httptest.NewRecorder()
+		NewSMSTemplateHandler(&mockSmsTemplateService{}).Create(w, r)
+		assert.Equal(t, http.StatusUnauthorized, w.Code)
+	})
+
+	t.Run("bad JSON returns 400", func(t *testing.T) {
+		r := badJSONReq(t, http.MethodPost, "/sms-templates")
+		r = withTenant(r)
+		w := httptest.NewRecorder()
+		NewSMSTemplateHandler(&mockSmsTemplateService{}).Create(w, r)
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+	})
+
+	t.Run("validation error returns 400", func(t *testing.T) {
+		r := jsonReq(t, http.MethodPost, "/sms-templates", map[string]any{"name": ""})
+		r = withTenant(r)
+		w := httptest.NewRecorder()
+		NewSMSTemplateHandler(&mockSmsTemplateService{}).Create(w, r)
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+	})
+
+	t.Run("service error returns 400", func(t *testing.T) {
+		svc := &mockSmsTemplateService{createFn: func(_ int64, _ string, _ *string, _ string, _ *string, _ string) (*service.SmsTemplateServiceDataResult, error) {
+			return nil, errors.New("fail")
+		}}
+		r := jsonReq(t, http.MethodPost, "/sms-templates", validBody)
+		r = withTenant(r)
+		w := httptest.NewRecorder()
+		NewSMSTemplateHandler(svc).Create(w, r)
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+	})
+
+	t.Run("success with explicit status covers status != nil branch", func(t *testing.T) {
+		res := smsResult()
+		svc := &mockSmsTemplateService{createFn: func(_ int64, _ string, _ *string, _ string, _ *string, _ string) (*service.SmsTemplateServiceDataResult, error) {
+			return &res, nil
+		}}
+		body := map[string]any{"name": "tmpl1", "message": "Hello", "status": "inactive"}
+		r := jsonReq(t, http.MethodPost, "/sms-templates", body)
+		r = withTenant(r)
+		w := httptest.NewRecorder()
+		NewSMSTemplateHandler(svc).Create(w, r)
+		assert.Equal(t, http.StatusCreated, w.Code)
+	})
+
+	t.Run("success returns 201", func(t *testing.T) {
+		res := smsResult()
+		svc := &mockSmsTemplateService{createFn: func(_ int64, _ string, _ *string, _ string, _ *string, _ string) (*service.SmsTemplateServiceDataResult, error) {
+			return &res, nil
+		}}
+		r := jsonReq(t, http.MethodPost, "/sms-templates", validBody)
+		r = withTenant(r)
+		w := httptest.NewRecorder()
+		NewSMSTemplateHandler(svc).Create(w, r)
+		assert.Equal(t, http.StatusCreated, w.Code)
+	})
 }
 
 func TestSMSTemplateHandler_Update(t *testing.T) {
-	res := smsResult()
-	svc := &mockSmsTemplateService{updateFn: func(_ uuid.UUID, _ int64, _ string, _ *string, _ string, _ *string, _ string) (*service.SmsTemplateServiceDataResult, error) {
-		return &res, nil
-	}}
-	h := NewSMSTemplateHandler(svc)
-	body := map[string]any{"name": "upd", "message": "Hi"}
-	r := withChiParam(withTenant(jsonReq(t, http.MethodPut, "/sms-templates/id", body)), "sms_template_uuid", testResourceUUID.String())
-	w := httptest.NewRecorder()
-	h.Update(w, r)
-	assert.Equal(t, http.StatusOK, w.Code)
+	validBody := map[string]any{"name": "upd", "message": "Hi"}
+
+	t.Run("no tenant returns 401", func(t *testing.T) {
+		r := jsonReq(t, http.MethodPut, "/", validBody)
+		w := httptest.NewRecorder()
+		NewSMSTemplateHandler(&mockSmsTemplateService{}).Update(w, r)
+		assert.Equal(t, http.StatusUnauthorized, w.Code)
+	})
+
+	t.Run("invalid UUID returns 400", func(t *testing.T) {
+		r := withChiParam(withTenant(jsonReq(t, http.MethodPut, "/", validBody)), "sms_template_uuid", "bad-uuid")
+		w := httptest.NewRecorder()
+		NewSMSTemplateHandler(&mockSmsTemplateService{}).Update(w, r)
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+	})
+
+	t.Run("bad JSON returns 400", func(t *testing.T) {
+		r := withChiParam(withTenant(badJSONReq(t, http.MethodPut, "/")), "sms_template_uuid", testResourceUUID.String())
+		w := httptest.NewRecorder()
+		NewSMSTemplateHandler(&mockSmsTemplateService{}).Update(w, r)
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+	})
+
+	t.Run("validation error returns 400", func(t *testing.T) {
+		r := withChiParam(withTenant(jsonReq(t, http.MethodPut, "/", map[string]any{"name": ""})), "sms_template_uuid", testResourceUUID.String())
+		w := httptest.NewRecorder()
+		NewSMSTemplateHandler(&mockSmsTemplateService{}).Update(w, r)
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+	})
+
+	t.Run("service error returns 400", func(t *testing.T) {
+		svc := &mockSmsTemplateService{updateFn: func(_ uuid.UUID, _ int64, _ string, _ *string, _ string, _ *string, _ string) (*service.SmsTemplateServiceDataResult, error) {
+			return nil, errors.New("update error")
+		}}
+		r := withChiParam(withTenant(jsonReq(t, http.MethodPut, "/", validBody)), "sms_template_uuid", testResourceUUID.String())
+		w := httptest.NewRecorder()
+		NewSMSTemplateHandler(svc).Update(w, r)
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+	})
+
+	t.Run("success with explicit status covers status != nil branch", func(t *testing.T) {
+		res := smsResult()
+		svc := &mockSmsTemplateService{updateFn: func(_ uuid.UUID, _ int64, _ string, _ *string, _ string, _ *string, _ string) (*service.SmsTemplateServiceDataResult, error) {
+			return &res, nil
+		}}
+		body := map[string]any{"name": "upd", "message": "Hi", "status": "inactive"}
+		r := withChiParam(withTenant(jsonReq(t, http.MethodPut, "/", body)), "sms_template_uuid", testResourceUUID.String())
+		w := httptest.NewRecorder()
+		NewSMSTemplateHandler(svc).Update(w, r)
+		assert.Equal(t, http.StatusOK, w.Code)
+	})
+
+	t.Run("success returns 200", func(t *testing.T) {
+		res := smsResult()
+		svc := &mockSmsTemplateService{updateFn: func(_ uuid.UUID, _ int64, _ string, _ *string, _ string, _ *string, _ string) (*service.SmsTemplateServiceDataResult, error) {
+			return &res, nil
+		}}
+		r := withChiParam(withTenant(jsonReq(t, http.MethodPut, "/", validBody)), "sms_template_uuid", testResourceUUID.String())
+		w := httptest.NewRecorder()
+		NewSMSTemplateHandler(svc).Update(w, r)
+		assert.Equal(t, http.StatusOK, w.Code)
+	})
 }
 
 func TestSMSTemplateHandler_Delete(t *testing.T) {
-	res := smsResult()
-	svc := &mockSmsTemplateService{deleteFn: func(_ uuid.UUID, _ int64) (*service.SmsTemplateServiceDataResult, error) { return &res, nil }}
-	h := NewSMSTemplateHandler(svc)
-	r := withChiParam(withTenant(jsonReq(t, http.MethodDelete, "/sms-templates/id", nil)), "sms_template_uuid", testResourceUUID.String())
-	w := httptest.NewRecorder()
-	h.Delete(w, r)
-	assert.Equal(t, http.StatusOK, w.Code)
+	t.Run("no tenant returns 401", func(t *testing.T) {
+		r := jsonReq(t, http.MethodDelete, "/", nil)
+		w := httptest.NewRecorder()
+		NewSMSTemplateHandler(&mockSmsTemplateService{}).Delete(w, r)
+		assert.Equal(t, http.StatusUnauthorized, w.Code)
+	})
+
+	t.Run("invalid UUID returns 400", func(t *testing.T) {
+		r := withChiParam(withTenant(jsonReq(t, http.MethodDelete, "/", nil)), "sms_template_uuid", "bad-uuid")
+		w := httptest.NewRecorder()
+		NewSMSTemplateHandler(&mockSmsTemplateService{}).Delete(w, r)
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+	})
+
+	t.Run("service error returns 400", func(t *testing.T) {
+		svc := &mockSmsTemplateService{deleteFn: func(_ uuid.UUID, _ int64) (*service.SmsTemplateServiceDataResult, error) {
+			return nil, errors.New("delete error")
+		}}
+		r := withChiParam(withTenant(jsonReq(t, http.MethodDelete, "/", nil)), "sms_template_uuid", testResourceUUID.String())
+		w := httptest.NewRecorder()
+		NewSMSTemplateHandler(svc).Delete(w, r)
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+	})
+
+	t.Run("success returns 200", func(t *testing.T) {
+		res := smsResult()
+		svc := &mockSmsTemplateService{deleteFn: func(_ uuid.UUID, _ int64) (*service.SmsTemplateServiceDataResult, error) { return &res, nil }}
+		r := withChiParam(withTenant(jsonReq(t, http.MethodDelete, "/", nil)), "sms_template_uuid", testResourceUUID.String())
+		w := httptest.NewRecorder()
+		NewSMSTemplateHandler(svc).Delete(w, r)
+		assert.Equal(t, http.StatusOK, w.Code)
+	})
 }
 
 func TestSMSTemplateHandler_UpdateStatus(t *testing.T) {
-	res := smsResult()
-	svc := &mockSmsTemplateService{updateStatusFn: func(_ uuid.UUID, _ int64, _ string) (*service.SmsTemplateServiceDataResult, error) { return &res, nil }}
-	h := NewSMSTemplateHandler(svc)
-	r := withChiParam(withTenant(jsonReq(t, http.MethodPatch, "/sms-templates/id/status", map[string]any{"status": "inactive"})), "sms_template_uuid", testResourceUUID.String())
-	w := httptest.NewRecorder()
-	h.UpdateStatus(w, r)
-	assert.Equal(t, http.StatusOK, w.Code)
+	t.Run("no tenant returns 401", func(t *testing.T) {
+		r := jsonReq(t, http.MethodPatch, "/", map[string]any{"status": "active"})
+		w := httptest.NewRecorder()
+		NewSMSTemplateHandler(&mockSmsTemplateService{}).UpdateStatus(w, r)
+		assert.Equal(t, http.StatusUnauthorized, w.Code)
+	})
+
+	t.Run("invalid UUID returns 400", func(t *testing.T) {
+		r := withChiParam(withTenant(jsonReq(t, http.MethodPatch, "/", map[string]any{"status": "active"})), "sms_template_uuid", "bad-uuid")
+		w := httptest.NewRecorder()
+		NewSMSTemplateHandler(&mockSmsTemplateService{}).UpdateStatus(w, r)
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+	})
+
+	t.Run("bad JSON returns 400", func(t *testing.T) {
+		r := withChiParam(withTenant(badJSONReq(t, http.MethodPatch, "/")), "sms_template_uuid", testResourceUUID.String())
+		w := httptest.NewRecorder()
+		NewSMSTemplateHandler(&mockSmsTemplateService{}).UpdateStatus(w, r)
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+	})
+
+	t.Run("validation error returns 400", func(t *testing.T) {
+		r := withChiParam(withTenant(jsonReq(t, http.MethodPatch, "/", map[string]any{"status": "invalid"})), "sms_template_uuid", testResourceUUID.String())
+		w := httptest.NewRecorder()
+		NewSMSTemplateHandler(&mockSmsTemplateService{}).UpdateStatus(w, r)
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+	})
+
+	t.Run("service error returns 400", func(t *testing.T) {
+		svc := &mockSmsTemplateService{updateStatusFn: func(_ uuid.UUID, _ int64, _ string) (*service.SmsTemplateServiceDataResult, error) {
+			return nil, errors.New("status error")
+		}}
+		r := withChiParam(withTenant(jsonReq(t, http.MethodPatch, "/", map[string]any{"status": "active"})), "sms_template_uuid", testResourceUUID.String())
+		w := httptest.NewRecorder()
+		NewSMSTemplateHandler(svc).UpdateStatus(w, r)
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+	})
+
+	t.Run("success returns 200", func(t *testing.T) {
+		res := smsResult()
+		svc := &mockSmsTemplateService{updateStatusFn: func(_ uuid.UUID, _ int64, _ string) (*service.SmsTemplateServiceDataResult, error) { return &res, nil }}
+		r := withChiParam(withTenant(jsonReq(t, http.MethodPatch, "/", map[string]any{"status": "inactive"})), "sms_template_uuid", testResourceUUID.String())
+		w := httptest.NewRecorder()
+		NewSMSTemplateHandler(svc).UpdateStatus(w, r)
+		assert.Equal(t, http.StatusOK, w.Code)
+	})
 }
