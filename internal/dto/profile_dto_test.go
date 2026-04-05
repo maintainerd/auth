@@ -3,8 +3,10 @@ package dto
 import (
 	"testing"
 
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"gorm.io/datatypes"
 
 	"github.com/maintainerd/auth/internal/model"
 )
@@ -81,3 +83,23 @@ func TestProfileFilterDto_Validate(t *testing.T) {
 	})
 }
 
+func TestNewProfileResponseDto(t *testing.T) {
+	t.Run("empty metadata returns empty map", func(t *testing.T) {
+		p := &model.Profile{ProfileUUID: uuid.New(), Metadata: datatypes.JSON(nil)}
+		dto := NewProfileResponseDto(p)
+		assert.NotNil(t, dto)
+		assert.Empty(t, dto.Metadata)
+	})
+
+	t.Run("valid metadata is converted", func(t *testing.T) {
+		p := &model.Profile{ProfileUUID: uuid.New(), Metadata: datatypes.JSON(`{"key":"value"}`)}
+		dto := NewProfileResponseDto(p)
+		assert.Equal(t, "value", dto.Metadata["key"])
+	})
+
+	t.Run("invalid metadata JSON returns empty map", func(t *testing.T) {
+		p := &model.Profile{ProfileUUID: uuid.New(), Metadata: datatypes.JSON([]byte("not-json"))}
+		dto := NewProfileResponseDto(p)
+		assert.Empty(t, dto.Metadata)
+	})
+}
