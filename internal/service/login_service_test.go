@@ -35,6 +35,8 @@ type mockClientRepo struct {
 	findPaginatedFn                     func(repository.ClientRepositoryGetFilter) (*repository.PaginationResult[model.Client], error)
 	findByNameAndIdentityProviderFn     func(string, int64, int64) (*model.Client, error)
 	findDefaultByTenantIDFn             func(tID int64) (*model.Client, error)
+	createOrUpdateFn                    func(*model.Client) (*model.Client, error)
+	deleteByUUIDFn                      func(any) error
 }
 
 func (m *mockClientRepo) WithTx(_ *gorm.DB) repository.ClientRepository { return m }
@@ -50,9 +52,14 @@ func (m *mockClientRepo) FindDefault() (*model.Client, error) {
 	}
 	return nil, nil
 }
-func (m *mockClientRepo) Create(e *model.Client) (*model.Client, error)         { return e, nil }
-func (m *mockClientRepo) CreateOrUpdate(e *model.Client) (*model.Client, error) { return e, nil }
-func (m *mockClientRepo) FindAll(p ...string) ([]model.Client, error)           { return nil, nil }
+func (m *mockClientRepo) Create(e *model.Client) (*model.Client, error) { return e, nil }
+func (m *mockClientRepo) CreateOrUpdate(e *model.Client) (*model.Client, error) {
+	if m.createOrUpdateFn != nil {
+		return m.createOrUpdateFn(e)
+	}
+	return e, nil
+}
+func (m *mockClientRepo) FindAll(p ...string) ([]model.Client, error) { return nil, nil }
 func (m *mockClientRepo) FindByUUID(id any, p ...string) (*model.Client, error) {
 	if m.findByUUIDFn != nil {
 		return m.findByUUIDFn(id, p...)
@@ -65,8 +72,13 @@ func (m *mockClientRepo) FindByUUIDs(ids []string, p ...string) ([]model.Client,
 func (m *mockClientRepo) FindByID(id any, p ...string) (*model.Client, error) { return nil, nil }
 func (m *mockClientRepo) UpdateByUUID(id, data any) (*model.Client, error)    { return nil, nil }
 func (m *mockClientRepo) UpdateByID(id, data any) (*model.Client, error)      { return nil, nil }
-func (m *mockClientRepo) DeleteByUUID(id any) error                           { return nil }
-func (m *mockClientRepo) DeleteByID(id any) error                             { return nil }
+func (m *mockClientRepo) DeleteByUUID(id any) error {
+	if m.deleteByUUIDFn != nil {
+		return m.deleteByUUIDFn(id)
+	}
+	return nil
+}
+func (m *mockClientRepo) DeleteByID(id any) error { return nil }
 func (m *mockClientRepo) Paginate(c map[string]any, pg, lim int, p ...string) (*repository.PaginationResult[model.Client], error) {
 	return nil, nil
 }

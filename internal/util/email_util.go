@@ -16,8 +16,11 @@ type SendEmailParams struct {
 	BodyPlain string // Optional plain text fallback
 }
 
-// SendEmail sends an email with the given parameters.
-func SendEmail(params SendEmailParams) error {
+// SendEmail is the default email sender. It can be replaced in tests.
+var SendEmail = sendEmail
+
+// sendEmail sends an email with the given parameters.
+func sendEmail(params SendEmailParams) error {
 	from := params.From
 	if from == "" {
 		from = gomail.NewMessage().FormatAddress(config.SMTPFromEmail, config.SMTPFromName)

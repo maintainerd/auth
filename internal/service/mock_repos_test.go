@@ -109,6 +109,7 @@ type mockEmailTemplateRepo struct {
 	findPaginatedFn         func(repository.EmailTemplateRepositoryGetFilter) (*repository.PaginationResult[model.EmailTemplate], error)
 	updateByUUIDFn          func(any, any) (*model.EmailTemplate, error)
 	deleteByUUIDFn          func(any) error
+	findByNameFn            func(string) (*model.EmailTemplate, error)
 }
 
 func (m *mockEmailTemplateRepo) CreateOrUpdate(e *model.EmailTemplate) (*model.EmailTemplate, error) {
@@ -131,7 +132,12 @@ func (m *mockEmailTemplateRepo) DeleteByID(id any) error { return nil }
 func (m *mockEmailTemplateRepo) Paginate(_ map[string]any, _, _ int, _ ...string) (*repository.PaginationResult[model.EmailTemplate], error) {
 	return nil, nil
 }
-func (m *mockEmailTemplateRepo) FindByName(_ string) (*model.EmailTemplate, error) { return nil, nil }
+func (m *mockEmailTemplateRepo) FindByName(n string) (*model.EmailTemplate, error) {
+	if m.findByNameFn != nil {
+		return m.findByNameFn(n)
+	}
+	return nil, nil
+}
 
 func (m *mockEmailTemplateRepo) Create(e *model.EmailTemplate) (*model.EmailTemplate, error) {
 	if m.createFn != nil {
@@ -234,11 +240,12 @@ func (m *mockPermissionRepo) DeleteByUUIDAndTenantID(id uuid.UUID, tID int64) er
 // ---------------------------------------------------------------------------
 
 type mockAPIRepo struct {
-	findByUUIDFn            func(id any, preloads ...string) (*model.API, error)
-	findByUUIDAndTenantIDFn func(uuid.UUID, int64) (*model.API, error)
-	findPaginatedFn         func(repository.APIRepositoryGetFilter) (*repository.PaginationResult[model.API], error)
-	findByNameFn            func(name string, tenantID int64) (*model.API, error)
-	createOrUpdateFn        func(*model.API) (*model.API, error)
+	findByUUIDFn              func(id any, preloads ...string) (*model.API, error)
+	findByUUIDAndTenantIDFn   func(uuid.UUID, int64) (*model.API, error)
+	findPaginatedFn           func(repository.APIRepositoryGetFilter) (*repository.PaginationResult[model.API], error)
+	findByNameFn              func(name string, tenantID int64) (*model.API, error)
+	createOrUpdateFn          func(*model.API) (*model.API, error)
+	deleteByUUIDAndTenantIDFn func(uuid.UUID, int64) error
 }
 
 func (m *mockAPIRepo) WithTx(_ *gorm.DB) repository.APIRepository { return m }
@@ -268,7 +275,12 @@ func (m *mockAPIRepo) FindByName(name string, tID int64) (*model.API, error) {
 func (m *mockAPIRepo) FindByIdentifier(_ string, _ int64) (*model.API, error) { return nil, nil }
 func (m *mockAPIRepo) SetStatusByUUID(_ uuid.UUID, _ int64, _ string) error   { return nil }
 func (m *mockAPIRepo) CountByServiceID(_ int64, _ int64) (int64, error)       { return 0, nil }
-func (m *mockAPIRepo) DeleteByUUIDAndTenantID(_ uuid.UUID, _ int64) error     { return nil }
+func (m *mockAPIRepo) DeleteByUUIDAndTenantID(id uuid.UUID, tID int64) error {
+	if m.deleteByUUIDAndTenantIDFn != nil {
+		return m.deleteByUUIDAndTenantIDFn(id, tID)
+	}
+	return nil
+}
 
 func (m *mockAPIRepo) FindByUUID(id any, p ...string) (*model.API, error) {
 	if m.findByUUIDFn != nil {
@@ -1219,11 +1231,15 @@ type mockClientURIRepo struct {
 	findByURIAndTypeFn        func(string, string, int64, int64) (*model.ClientURI, error)
 	findByClientIDAndTypeFn   func(int64, string, int64) ([]model.ClientURI, error)
 	deleteByUUIDAndTenantIDFn func(string, int64) error
+	createOrUpdateFn          func(*model.ClientURI) (*model.ClientURI, error)
 }
 
 func (m *mockClientURIRepo) WithTx(_ *gorm.DB) repository.ClientURIRepository    { return m }
 func (m *mockClientURIRepo) Create(e *model.ClientURI) (*model.ClientURI, error) { return e, nil }
 func (m *mockClientURIRepo) CreateOrUpdate(e *model.ClientURI) (*model.ClientURI, error) {
+	if m.createOrUpdateFn != nil {
+		return m.createOrUpdateFn(e)
+	}
 	return e, nil
 }
 func (m *mockClientURIRepo) FindAll(_ ...string) ([]model.ClientURI, error)          { return nil, nil }
@@ -1272,12 +1288,16 @@ type mockClientPermissionRepo struct {
 	findByClientApiAndPermissionFn   func(int64, int64) (*model.ClientPermission, error)
 	removeByClientApiAndPermissionFn func(int64, int64) error
 	findByClientApiIDFn              func(int64) ([]model.ClientPermission, error)
+	createFn                         func(*model.ClientPermission) (*model.ClientPermission, error)
 }
 
 func (m *mockClientPermissionRepo) WithTx(_ *gorm.DB) repository.ClientPermissionRepository {
 	return m
 }
 func (m *mockClientPermissionRepo) Create(e *model.ClientPermission) (*model.ClientPermission, error) {
+	if m.createFn != nil {
+		return m.createFn(e)
+	}
 	return e, nil
 }
 func (m *mockClientPermissionRepo) CreateOrUpdate(e *model.ClientPermission) (*model.ClientPermission, error) {
@@ -1335,10 +1355,16 @@ type mockClientApiRepo struct {
 	findByClientUUIDAndApiUUIDFn   func(uuid.UUID, uuid.UUID) (*model.ClientApi, error)
 	removeByClientAndApiFn         func(int64, int64) error
 	removeByClientUUIDAndApiUUIDFn func(uuid.UUID, uuid.UUID) error
+	createFn                       func(*model.ClientApi) (*model.ClientApi, error)
 }
 
-func (m *mockClientApiRepo) WithTx(_ *gorm.DB) repository.ClientApiRepository    { return m }
-func (m *mockClientApiRepo) Create(e *model.ClientApi) (*model.ClientApi, error) { return e, nil }
+func (m *mockClientApiRepo) WithTx(_ *gorm.DB) repository.ClientApiRepository { return m }
+func (m *mockClientApiRepo) Create(e *model.ClientApi) (*model.ClientApi, error) {
+	if m.createFn != nil {
+		return m.createFn(e)
+	}
+	return e, nil
+}
 func (m *mockClientApiRepo) CreateOrUpdate(e *model.ClientApi) (*model.ClientApi, error) {
 	return e, nil
 }
