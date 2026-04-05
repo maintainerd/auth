@@ -214,3 +214,127 @@ func TestRegisterHandler_RegisterInvitePublic_ServiceError(t *testing.T) {
 	h.RegisterInvitePublic(w, r)
 	assert.Equal(t, http.StatusInternalServerError, w.Code)
 }
+
+// ── RegisterPublic ────────────────────────────────────────────────────────────
+
+// ValidationError via weak password: passes basic Validate() (8+ chars, username,
+// fullname present) but fails ValidatePasswordStrength() → covers the
+// ValidateForRegistration() error path including "registration_weak_password" branch.
+func TestRegisterHandler_RegisterPublic_ValidationError(t *testing.T) {
+	h := NewRegisterHandler(&mockRegisterService{})
+	r := regRequest(t, "/public/register?client_id=c1&provider_id=p1", map[string]string{
+		"username": "user1",
+		"fullname": "User One",
+		"password": "Password1234", // no special char → weak password
+	})
+	w := httptest.NewRecorder()
+	h.RegisterPublic(w, r)
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+}
+
+// ── Register ──────────────────────────────────────────────────────────────────
+
+// ValidationError: covers the ValidateForRegistration() error path + weak-password branch.
+func TestRegisterHandler_Register_ValidationError(t *testing.T) {
+	h := NewRegisterHandler(&mockRegisterService{})
+	r := regRequest(t, "/register", map[string]string{
+		"username": "user1",
+		"fullname": "User One",
+		"password": "Password1234", // no special char → weak password
+	})
+	w := httptest.NewRecorder()
+	h.Register(w, r)
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+}
+
+// WithOptionalParams: passes ?client_id and ?provider_id → covers the two
+// pointer-assign branches (lines 163-165, 166-168).
+func TestRegisterHandler_Register_WithOptionalParams(t *testing.T) {
+	svc := &mockRegisterService{
+		registerFn: func(u, f, p string, e, ph, c, pr *string) (*dto.RegisterResponseDto, error) {
+			return &dto.RegisterResponseDto{}, nil
+		},
+	}
+	h := NewRegisterHandler(svc)
+	r := regRequest(t, "/register?client_id=c1&provider_id=p1", map[string]string{
+		"username": "user1", "password": "Pass@1234!", "fullname": "User One",
+	})
+	w := httptest.NewRecorder()
+	h.Register(w, r)
+	assert.Equal(t, http.StatusCreated, w.Code)
+}
+
+// ── RegisterInvite ────────────────────────────────────────────────────────────
+
+// BadJSON: invite_token present, body is malformed → covers decode error path.
+func TestRegisterHandler_RegisterInvite_BadJSON(t *testing.T) {
+	h := NewRegisterHandler(&mockRegisterService{})
+	r := httptest.NewRequest(http.MethodPost, "/register/invite?invite_token=tok",
+		bytes.NewBufferString("{bad}"))
+	r.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	h.RegisterInvite(w, r)
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+}
+
+// ValidationError: invite_token present, body decodes but fails LoginRequestDto.Validate().
+func TestRegisterHandler_RegisterInvite_ValidationError(t *testing.T) {
+	h := NewRegisterHandler(&mockRegisterService{})
+	r := regRequest(t, "/register/invite?invite_token=tok", map[string]string{})
+	w := httptest.NewRecorder()
+	h.RegisterInvite(w, r)
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+}
+
+// WithOptionalParams: ?client_id and ?provider_id present → covers pointer-assign branches.
+func TestRegisterHandler_RegisterInvite_WithOptionalParams(t *testing.T) {
+	svc := &mockRegisterService{
+		registerInviteFn: func(u, p, tok string, c, pr *string) (*dto.RegisterResponseDto, error) {
+			return &dto.RegisterResponseDto{}, nil
+		},
+	}
+	h := NewRegisterHandler(svc)
+	r := regRequest(t, "/register/invite?invite_token=tok&client_id=c1&provider_id=p1",
+		map[string]string{"username": "user1", "password": "Pass@1234"})
+	w := httptest.NewRecorder()
+	h.RegisterInvite(w, r)
+	assert.Equal(t, http.StatusCreated, w.Code)
+}
+
+// ── RegisterInvitePublic ──────────────────────────────────────────────────────
+
+const invitePublicURL = "/public/register/invite?client_id=c1&provider_id=p1&invite_token=tok&expires=9999999999&sig=fake"
+
+// BadJSON: query params valid, body malformed → covers decode error path.
+func TestRegisterHandler_RegisterInvitePublic_BadJSON(t *testing.T) {
+	h := NewRegisterHandler(&mockRegisterService{})
+	r := httptest.NewRequest(http.MethodPost, invitePublicURL, bytes.NewBufferString("{bad}"))
+	r.Header.Set("Content-Type", "application/json")
+	r = withSecurityCtx(r)
+	w := httptest.NewRecorder()
+	h.RegisterInvitePublic(w, r)
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+}
+
+// ValidationError: query params valid, body decodes but fails LoginRequestDto.Validate().
+func TestRegisterHandler_RegisterInvitePublic_ValidationError(t *testing.T) {
+	h := NewRegisterHandler(&mockRegisterService{})
+	r := regRequest(t, invitePublicURL, map[string]string{})
+	w := httptest.NewRecorder()
+	h.RegisterInvitePublic(w, r)
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+}
+
+// Success: covers util.CreatedWithCookies response path (line 332).
+func TestRegisterHandler_RegisterInvitePublic_Success(t *testing.T) {
+	svc := &mockRegisterService{
+		registerInvitePublicFn: func(u, p, c, pr, tok string) (*dto.RegisterResponseDto, error) {
+			return &dto.RegisterResponseDto{}, nil
+		},
+	}
+	h := NewRegisterHandler(svc)
+	r := regRequest(t, invitePublicURL, map[string]string{"username": "user1", "password": "pass1"})
+	w := httptest.NewRecorder()
+	h.RegisterInvitePublic(w, r)
+	assert.Equal(t, http.StatusCreated, w.Code)
+}
