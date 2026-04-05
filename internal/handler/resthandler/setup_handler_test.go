@@ -3,6 +3,7 @@ package resthandler
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -141,4 +142,126 @@ func TestSetupHandler_CreateProfile_ServiceError(t *testing.T) {
 	w := httptest.NewRecorder()
 	h.CreateProfile(w, r)
 	assert.Equal(t, http.StatusBadRequest, w.Code)
+}
+
+// ── CreateTenant: success path and corrected service-error path ───────────────
+
+// The existing CreateTenant_ServiceError test uses "identifier" instead of
+// "display_name", so Validate() fails before the service is called and the
+// createTenantFn mock is never exercised. Fix that with a properly valid body.
+
+func TestSetupHandler_CreateTenant_ServiceError_Valid(t *testing.T) {
+	svc := &mockSetupService{
+		createTenantFn: func(req dto.CreateTenantRequestDto) (*dto.CreateTenantResponseDto, error) {
+			return nil, assert.AnError
+		},
+	}
+	h := NewSetupHandler(svc)
+	r := setupRequest(t, map[string]any{
+		"name": "Test Tenant", "display_name": "Test Tenant Display",
+	})
+	w := httptest.NewRecorder()
+	h.CreateTenant(w, r)
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+}
+
+func TestSetupHandler_CreateTenant_Success(t *testing.T) {
+	svc := &mockSetupService{
+		createTenantFn: func(req dto.CreateTenantRequestDto) (*dto.CreateTenantResponseDto, error) {
+			return &dto.CreateTenantResponseDto{}, nil
+		},
+	}
+	h := NewSetupHandler(svc)
+	r := setupRequest(t, map[string]any{
+		"name": "Test Tenant", "display_name": "Test Tenant Display",
+	})
+	w := httptest.NewRecorder()
+	h.CreateTenant(w, r)
+	assert.Equal(t, http.StatusCreated, w.Code)
+}
+
+// ── CreateAdmin: success path and corrected service-error path ────────────────
+
+// The existing CreateAdmin_ServiceError test omits "fullname" so Validate()
+// fails before the service is called. Fix with a complete valid body.
+
+func TestSetupHandler_CreateAdmin_ServiceError_Valid(t *testing.T) {
+	svc := &mockSetupService{
+		createAdminFn: func(req dto.CreateAdminRequestDto) (*dto.CreateAdminResponseDto, error) {
+			return nil, assert.AnError
+		},
+	}
+	h := NewSetupHandler(svc)
+	r := setupRequest(t, map[string]string{
+		"username": "admin", "fullname": "Admin User",
+		"password": "Admin@1234", "email": "admin@example.com",
+	})
+	w := httptest.NewRecorder()
+	h.CreateAdmin(w, r)
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+}
+
+func TestSetupHandler_CreateAdmin_Success(t *testing.T) {
+	svc := &mockSetupService{
+		createAdminFn: func(req dto.CreateAdminRequestDto) (*dto.CreateAdminResponseDto, error) {
+			return &dto.CreateAdminResponseDto{}, nil
+		},
+	}
+	h := NewSetupHandler(svc)
+	r := setupRequest(t, map[string]string{
+		"username": "admin", "fullname": "Admin User",
+		"password": "Admin@1234", "email": "admin@example.com",
+	})
+	w := httptest.NewRecorder()
+	h.CreateAdmin(w, r)
+	assert.Equal(t, http.StatusCreated, w.Code)
+}
+
+// ── CreateProfile: all missing branches ──────────────────────────────────────
+
+func TestSetupHandler_CreateProfile_BadJSON(t *testing.T) {
+	h := NewSetupHandler(&mockSetupService{})
+	r := httptest.NewRequest(http.MethodPost, "/setup/profile",
+		bytes.NewBufferString(`{bad}`))
+	r.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	h.CreateProfile(w, r)
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+}
+
+func TestSetupHandler_CreateProfile_ValidationError(t *testing.T) {
+	h := NewSetupHandler(&mockSetupService{})
+	// empty body → first_name is required → Validate() fails
+	r := setupRequest(t, map[string]string{})
+	w := httptest.NewRecorder()
+	h.CreateProfile(w, r)
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+}
+
+// ProfileAlreadyExists: service returns an error containing "profile already exists"
+// → covers the strings.Contains branch (lines 103-106).
+func TestSetupHandler_CreateProfile_AlreadyExists(t *testing.T) {
+	svc := &mockSetupService{
+		createProfileFn: func(req dto.CreateProfileRequestDto) (*dto.CreateProfileResponseDto, error) {
+			return nil, errors.New("profile already exists for this user")
+		},
+	}
+	h := NewSetupHandler(svc)
+	r := setupRequest(t, map[string]string{"first_name": "John"})
+	w := httptest.NewRecorder()
+	h.CreateProfile(w, r)
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+}
+
+func TestSetupHandler_CreateProfile_Success(t *testing.T) {
+	svc := &mockSetupService{
+		createProfileFn: func(req dto.CreateProfileRequestDto) (*dto.CreateProfileResponseDto, error) {
+			return &dto.CreateProfileResponseDto{}, nil
+		},
+	}
+	h := NewSetupHandler(svc)
+	r := setupRequest(t, map[string]string{"first_name": "John"})
+	w := httptest.NewRecorder()
+	h.CreateProfile(w, r)
+	assert.Equal(t, http.StatusCreated, w.Code)
 }
