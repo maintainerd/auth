@@ -65,7 +65,9 @@ func hmacSecretKey() []byte {
 
 // GenerateSignedURL generates a signed URL with custom params and expiration
 // Complies with SOC2 CC6.1 and ISO27001 A.13.2.1
-func GenerateSignedURL(baseURL string, params map[string]string, ttl time.Duration) (string, error) {
+var GenerateSignedURL = generateSignedURL
+
+func generateSignedURL(baseURL string, params map[string]string, ttl time.Duration) (string, error) {
 	expires := time.Now().Add(ttl).Unix()
 
 	// Build query params
@@ -123,7 +125,9 @@ func ValidateSignedURL(values url.Values) (map[string]string, error) {
 
 // ConvertToFrontendURL converts an API signed URL to a frontend URL
 // Preserves all query parameters including the signature
-func ConvertToFrontendURL(apiSignedURL, frontendBaseURL string) (string, error) {
+var ConvertToFrontendURL = convertToFrontendURL
+
+func convertToFrontendURL(apiSignedURL, frontendBaseURL string) (string, error) {
 	parsedURL, err := url.Parse(apiSignedURL)
 	if err != nil {
 		return "", fmt.Errorf("failed to parse API signed URL: %w", err)

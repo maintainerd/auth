@@ -4,6 +4,7 @@ import (
 	"errors"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/config"
@@ -735,4 +736,114 @@ func TestForgotPasswordService_SendPasswordResetEmail_WithExistingTokens(t *test
 	assert.Equal(t, 2, len(revokedUUIDs))
 	assert.Contains(t, revokedUUIDs, token1UUID)
 	assert.Contains(t, revokedUUIDs, token2UUID)
+}
+
+func TestForgotPasswordService_SendPasswordResetEmail_GenerateSignedURLError(t *testing.T) {
+	os.Setenv("HMAC_SECRET_KEY", "test-secret-key-for-hmac")
+	defer os.Unsetenv("HMAC_SECRET_KEY")
+
+	origAppPublicHostname := config.AppPublicHostname
+	origAuthHostname := config.AuthHostname
+	origEmailLogo := config.EmailLogo
+	defer func() {
+		config.AppPublicHostname = origAppPublicHostname
+		config.AuthHostname = origAuthHostname
+		config.EmailLogo = origEmailLogo
+	}()
+	config.AppPublicHostname = "https://api.example.com"
+	config.AuthHostname = "https://auth.example.com"
+	config.EmailLogo = "https://example.com/logo.png"
+
+	origGenerateSignedURL := util.GenerateSignedURL
+	defer func() { util.GenerateSignedURL = origGenerateSignedURL }()
+	util.GenerateSignedURL = func(_ string, _ map[string]string, _ time.Duration) (string, error) {
+		return "", errors.New("signed url failure")
+	}
+
+	gormDB, mock := newMockGormDB(t)
+	mock.ExpectBegin()
+	mock.ExpectCommit()
+
+	clientRepo := &mockClientRepo{
+		findDefaultFn: func() (*model.Client, error) { return buildActiveClient(), nil },
+	}
+	userRepo := &mockUserRepo{
+		findByEmailFn: func(_ string) (*model.User, error) {
+			return &model.User{UserID: 1, UserUUID: uuid.New(), Email: "user@example.com", Status: model.StatusActive}, nil
+		},
+	}
+	tokenRepo := &mockUserTokenRepo{
+		findByUserIDAndTokenTypeFn: func(_ int64, _ string) ([]model.UserToken, error) { return nil, nil },
+	}
+	emailTemplateRepo := &mockEmailTemplateRepo{
+		findByNameFn: func(_ string) (*model.EmailTemplate, error) {
+			return &model.EmailTemplate{
+				Subject:  "Password Reset",
+				BodyHTML: `<a href="{{.ResetURL}}">Reset</a>`,
+			}, nil
+		},
+	}
+
+	svc := NewForgotPasswordService(gormDB, userRepo, tokenRepo, clientRepo, emailTemplateRepo)
+	resp, err := svc.SendPasswordResetEmail("user@example.com", nil, nil, true)
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	assert.True(t, resp.Success)
+}
+
+func TestForgotPasswordService_SendPasswordResetEmail_ConvertToFrontendURLError(t *testing.T) {
+	os.Setenv("HMAC_SECRET_KEY", "test-secret-key-for-hmac")
+	defer os.Unsetenv("HMAC_SECRET_KEY")
+
+	origAppPublicHostname := config.AppPublicHostname
+	origAuthHostname := config.AuthHostname
+	origEmailLogo := config.EmailLogo
+	defer func() {
+		config.AppPublicHostname = origAppPublicHostname
+		config.AuthHostname = origAuthHostname
+		config.EmailLogo = origEmailLogo
+	}()
+	config.AppPublicHostname = "https://api.example.com"
+	config.AuthHostname = "https://auth.example.com"
+	config.EmailLogo = "https://example.com/logo.png"
+
+	origConvertToFrontendURL := util.ConvertToFrontendURL
+	defer func() { util.ConvertToFrontendURL = origConvertToFrontendURL }()
+	util.ConvertToFrontendURL = func(_, _ string) (string, error) {
+		return "", errors.New("frontend url failure")
+	}
+
+	origSendEmail := util.SendEmail
+	defer func() { util.SendEmail = origSendEmail }()
+	util.SendEmail = func(_ util.SendEmailParams) error { return nil }
+
+	gormDB, mock := newMockGormDB(t)
+	mock.ExpectBegin()
+	mock.ExpectCommit()
+
+	clientRepo := &mockClientRepo{
+		findDefaultFn: func() (*model.Client, error) { return buildActiveClient(), nil },
+	}
+	userRepo := &mockUserRepo{
+		findByEmailFn: func(_ string) (*model.User, error) {
+			return &model.User{UserID: 1, UserUUID: uuid.New(), Email: "user@example.com", Status: model.StatusActive}, nil
+		},
+	}
+	tokenRepo := &mockUserTokenRepo{
+		findByUserIDAndTokenTypeFn: func(_ int64, _ string) ([]model.UserToken, error) { return nil, nil },
+	}
+	emailTemplateRepo := &mockEmailTemplateRepo{
+		findByNameFn: func(_ string) (*model.EmailTemplate, error) {
+			return &model.EmailTemplate{
+				Subject:  "Password Reset",
+				BodyHTML: `<a href="{{.ResetURL}}">Reset</a>`,
+			}, nil
+		},
+	}
+
+	svc := NewForgotPasswordService(gormDB, userRepo, tokenRepo, clientRepo, emailTemplateRepo)
+	resp, err := svc.SendPasswordResetEmail("user@example.com", nil, nil, true)
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	assert.True(t, resp.Success)
 }
