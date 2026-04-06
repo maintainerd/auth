@@ -8,7 +8,9 @@ import (
 	"time"
 
 	"github.com/maintainerd/auth/internal/config"
-	"github.com/maintainerd/auth/internal/util"
+	"github.com/maintainerd/auth/internal/jwt"
+	resp "github.com/maintainerd/auth/internal/response"
+	"github.com/maintainerd/auth/internal/security"
 )
 
 // SecurityContextKey represents security context keys
@@ -64,7 +66,7 @@ func SecurityContextMiddleware(next http.Handler) http.Handler {
 		userAgent := r.Header.Get("User-Agent")
 
 		// Generate request ID for tracing
-		requestID := util.GenerateSecureID()
+		requestID := jwt.GenerateSecureID()
 
 		// Add security headers for request tracking
 		w.Header().Set("X-Request-ID", requestID)
@@ -75,7 +77,7 @@ func SecurityContextMiddleware(next http.Handler) http.Handler {
 		ctx = context.WithValue(ctx, RequestIDKey, requestID)
 
 		// Log security event for monitoring
-		util.LogSecurityEvent(util.SecurityEvent{
+		security.LogSecurityEvent(security.SecurityEvent{
 			EventType: "request_received",
 			ClientIP:  clientIP,
 			UserAgent: userAgent,
@@ -147,7 +149,7 @@ func IPWhitelistMiddleware(allowedCIDRs []string) func(http.Handler) http.Handle
 			}
 
 			if !allowed {
-				util.LogSecurityEvent(util.SecurityEvent{
+				security.LogSecurityEvent(security.SecurityEvent{
 					EventType: "ip_blocked",
 					ClientIP:  clientIP,
 					UserAgent: r.Header.Get("User-Agent"),
@@ -156,7 +158,7 @@ func IPWhitelistMiddleware(allowedCIDRs []string) func(http.Handler) http.Handle
 					Details:   "IP not in whitelist",
 				})
 
-				util.Error(w, http.StatusForbidden, "Access denied")
+				resp.Error(w, http.StatusForbidden, "Access denied")
 				return
 			}
 

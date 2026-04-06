@@ -13,9 +13,10 @@ import (
 	"github.com/alicebob/miniredis/v2"
 	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/config"
+	"github.com/maintainerd/auth/internal/jwt"
 	"github.com/maintainerd/auth/internal/model"
 	"github.com/maintainerd/auth/internal/repository"
-	"github.com/maintainerd/auth/internal/util"
+	"github.com/maintainerd/auth/internal/security"
 	"github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -437,7 +438,7 @@ func initTestJWTKeysService(t *testing.T) {
 	pubPEM := pem.EncodeToMemory(&pem.Block{Type: "RSA PUBLIC KEY", Bytes: x509.MarshalPKCS1PublicKey(&priv.PublicKey)})
 	config.JWTPrivateKey = privPEM
 	config.JWTPublicKey = pubPEM
-	require.NoError(t, util.InitJWTKeys())
+	require.NoError(t, jwt.InitJWTKeys())
 }
 
 // strPtr returns a pointer to the given string literal — handy for Client fields.
@@ -944,13 +945,13 @@ func lockedRateLimiterLogin(t *testing.T, identifier string) func() {
 	require.NoError(t, err)
 
 	rdb := redis.NewClient(&redis.Options{Addr: mr.Addr()})
-	util.InitRateLimiter(rdb)
+	security.InitRateLimiter(rdb)
 
 	// Pre-set the lock key so CheckRateLimit returns an error immediately.
 	require.NoError(t, mr.Set("rl:lock:"+identifier, "1"))
 
 	return func() {
-		util.InitRateLimiter(nil)
+		security.InitRateLimiter(nil)
 		rdb.Close()
 		mr.Close()
 	}
@@ -1101,7 +1102,7 @@ func TestLogin_UserNotFound(t *testing.T) {
 
 func TestLoginPublic_GenerateAccessTokenError(t *testing.T) {
 	// Reset JWT keys so privateKey is nil → GenerateAccessToken fails
-	util.ResetJWTKeys()
+	jwt.ResetJWTKeys()
 	defer initTestJWTKeysService(t) // restore for subsequent tests
 
 	gormDB, mock := newMockGormDB(t)
@@ -1139,7 +1140,7 @@ func TestLoginPublic_GenerateAccessTokenError(t *testing.T) {
 
 func TestLogin_GenerateAccessTokenError(t *testing.T) {
 	// Reset JWT keys so privateKey is nil
-	util.ResetJWTKeys()
+	jwt.ResetJWTKeys()
 	defer initTestJWTKeysService(t) // restore for subsequent tests
 
 	gormDB, mock := newMockGormDB(t)
@@ -1178,7 +1179,7 @@ func TestLoginPublic_GenerateIDTokenError(t *testing.T) {
 
 	// Stub generateIDTokenFn to return an error
 	orig := generateIDTokenFn
-	generateIDTokenFn = func(string, string, string, string, *util.UserProfile, string) (string, error) {
+	generateIDTokenFn = func(string, string, string, string, *jwt.UserProfile, string) (string, error) {
 		return "", errors.New("id token error")
 	}
 	defer func() { generateIDTokenFn = orig }()

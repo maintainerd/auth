@@ -4,11 +4,11 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/maintainerd/auth/internal/handler/resthandler"
+	"github.com/maintainerd/auth/internal/handler/rest"
 	"github.com/maintainerd/auth/internal/middleware"
 )
 
-func SetupRoute(r chi.Router, setupHandler *resthandler.SetupHandler) {
+func SetupRoute(r chi.Router, setupHandler *rest.SetupHandler) {
 	// Apply stricter limits for setup endpoints (inherits global security middleware)
 	r.Group(func(r chi.Router) {
 		// Stricter request size limit for setup endpoints (1MB vs 10MB global)

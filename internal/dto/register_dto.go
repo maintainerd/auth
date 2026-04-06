@@ -6,6 +6,8 @@ import (
 
 	validation "github.com/go-ozzo/ozzo-validation/v4"
 	"github.com/maintainerd/auth/internal/util"
+	"github.com/maintainerd/auth/internal/signedurl"
+	"github.com/maintainerd/auth/internal/security"
 )
 
 // Register request payload structure
@@ -19,14 +21,14 @@ type RegisterRequestDto struct {
 
 func (r *RegisterRequestDto) Validate() error {
 	// Sanitize inputs first
-	r.Username = util.SanitizeInput(r.Username)
-	r.Fullname = util.SanitizeInput(r.Fullname)
-	r.Password = util.SanitizeInput(r.Password)
+	r.Username = security.SanitizeInput(r.Username)
+	r.Fullname = security.SanitizeInput(r.Fullname)
+	r.Password = security.SanitizeInput(r.Password)
 	if r.Email != nil {
-		*r.Email = util.SanitizeInput(*r.Email)
+		*r.Email = security.SanitizeInput(*r.Email)
 	}
 	if r.Phone != nil {
-		*r.Phone = util.SanitizeInput(*r.Phone)
+		*r.Phone = security.SanitizeInput(*r.Phone)
 	}
 
 	return validation.ValidateStruct(r,
@@ -77,7 +79,7 @@ func (r *RegisterRequestDto) ValidateForRegistration() error {
 	}
 
 	// Additional password strength validation for registration
-	if err := util.ValidatePasswordStrength(r.Password); err != nil {
+	if err := security.ValidatePasswordStrength(r.Password); err != nil {
 		return err
 	}
 
@@ -92,8 +94,8 @@ type RegisterQueryDto struct {
 
 func (q *RegisterQueryDto) Validate() error {
 	// Sanitize inputs first
-	q.ClientID = util.SanitizeInput(q.ClientID)
-	q.ProviderID = util.SanitizeInput(q.ProviderID)
+	q.ClientID = security.SanitizeInput(q.ClientID)
+	q.ProviderID = security.SanitizeInput(q.ProviderID)
 
 	return validation.ValidateStruct(q,
 		validation.Field(&q.ClientID,
@@ -118,11 +120,11 @@ type RegisterInviteQueryDto struct {
 
 func (q *RegisterInviteQueryDto) Validate() error {
 	// Sanitize inputs first
-	q.ClientID = util.SanitizeInput(q.ClientID)
-	q.ProviderID = util.SanitizeInput(q.ProviderID)
-	q.InviteToken = util.SanitizeInput(q.InviteToken)
-	q.Expires = util.SanitizeInput(q.Expires)
-	q.Sig = util.SanitizeInput(q.Sig)
+	q.ClientID = security.SanitizeInput(q.ClientID)
+	q.ProviderID = security.SanitizeInput(q.ProviderID)
+	q.InviteToken = security.SanitizeInput(q.InviteToken)
+	q.Expires = security.SanitizeInput(q.Expires)
+	q.Sig = security.SanitizeInput(q.Sig)
 
 	return validation.ValidateStruct(q,
 		validation.Field(&q.ClientID,
@@ -151,7 +153,7 @@ func (q *RegisterInviteQueryDto) Validate() error {
 // ValidateSignedURL validates signed URL parameters for register invite
 func (q *RegisterInviteQueryDto) ValidateSignedURL(values url.Values) error {
 	// Extract and validate signed URL parameters
-	if _, err := util.ValidateSignedURL(values); err != nil {
+	if _, err := signedurl.ValidateSignedURL(values); err != nil {
 		return err
 	}
 	return nil

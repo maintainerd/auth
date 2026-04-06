@@ -11,6 +11,9 @@ import (
 	"github.com/maintainerd/auth/internal/model"
 	"github.com/maintainerd/auth/internal/repository"
 	"github.com/maintainerd/auth/internal/util"
+	"github.com/maintainerd/auth/internal/generator"
+	"github.com/maintainerd/auth/internal/signedurl"
+	"github.com/maintainerd/auth/internal/email"
 	"gorm.io/gorm"
 )
 
@@ -87,7 +90,7 @@ func (s *inviteService) SendInvite(
 			}
 		}
 
-		inviteToken := util.GenerateIdentifier(32)
+		inviteToken := generator.GenerateIdentifier(32)
 		expiresAt := util.TimePtr(time.Now().Add(72 * time.Hour))
 
 		invite = &model.Invite{
@@ -128,14 +131,14 @@ func (s *inviteService) SendInvite(
 	// Generate signed invite URL (API domain)
 	params := map[string]string{"invite_token": invite.InviteToken}
 	apiBaseURL := config.AppPrivateHostname + "/register/invite"
-	signedAPIURL, err := util.GenerateSignedURL(apiBaseURL, params, 72*time.Hour)
+	signedAPIURL, err := signedurl.GenerateSignedURL(apiBaseURL, params, 72*time.Hour)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate signed invite URL: %w", err)
 	}
 
 	// Convert it to frontend URL
 	frontendBaseURL := config.AccountHostname + "/register/invite"
-	inviteURL, err := util.ConvertToFrontendURL(signedAPIURL, frontendBaseURL)
+	inviteURL, err := signedurl.ConvertToFrontendURL(signedAPIURL, frontendBaseURL)
 	if err != nil {
 		return nil, fmt.Errorf("failed to convert invite URL: %w", err)
 	}
@@ -188,7 +191,7 @@ func (s *inviteService) sendInviteEmail(to, inviteURL string) error {
 	}
 
 	// Send email
-	return util.SendEmail(util.SendEmailParams{
+	return email.SendEmail(email.SendEmailParams{
 		To:        to,
 		Subject:   templateEntity.Subject,
 		BodyHTML:  bodyHTML.String(),
