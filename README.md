@@ -4,17 +4,11 @@
   # Maintainerd Auth
 
   <p align="center">
-    <!-- Stack -->
-    <img src="https://img.shields.io/badge/Go-1.26+-00ADD8?logo=go&logoColor=white" alt="Go Version">
-    <img src="https://img.shields.io/badge/License-MIT-blue" alt="License">
-    <img src="https://img.shields.io/badge/Docker-ready-2496ED?logo=docker&logoColor=white" alt="Docker">
-    <img src="https://img.shields.io/badge/gRPC-supported-5FC5FF?logo=grpc&logoColor=white" alt="gRPC">
-  </p>
-
-  <p align="center">
-    <!-- CI status & coverage -->
     <a href="https://github.com/maintainerd/auth/actions/workflows/ci.yml">
       <img src="https://github.com/maintainerd/auth/actions/workflows/ci.yml/badge.svg" alt="CI">
+    </a>
+    <a href="https://github.com/maintainerd/auth/actions/workflows/security.yml">
+      <img src="https://github.com/maintainerd/auth/actions/workflows/security.yml/badge.svg" alt="Security">
     </a>
     <a href="https://codecov.io/gh/maintainerd/auth">
       <img src="https://codecov.io/gh/maintainerd/auth/graph/badge.svg" alt="Coverage">
@@ -22,19 +16,18 @@
     <a href="https://goreportcard.com/report/github.com/maintainerd/auth">
       <img src="https://goreportcard.com/badge/github.com/maintainerd/auth" alt="Go Report Card">
     </a>
+    <a href="https://github.com/maintainerd/auth/security/code-scanning">
+      <img src="https://img.shields.io/badge/Snyk-monitored-4C4A73?logo=snyk&logoColor=white" alt="Snyk">
+    </a>
   </p>
 
   <p align="center">
-    <!-- Security scans -->
-    <a href="https://github.com/maintainerd/auth/actions/workflows/security.yml">
-      <img src="https://github.com/maintainerd/auth/actions/workflows/security.yml/badge.svg" alt="Security">
+    <a href="LICENSE">
+      <img src="https://img.shields.io/badge/License-MIT-blue" alt="License">
     </a>
-    <a href="https://snyk.io/test/github/maintainerd/auth">
-      <img src="https://snyk.io/test/github/maintainerd/auth/badge.svg" alt="Known Vulnerabilities">
-    </a>
-    <a href="https://github.com/maintainerd/auth/security/code-scanning">
-      <img src="https://img.shields.io/badge/protected%20by-gitleaks-blue" alt="Protected by Gitleaks">
-    </a>
+    <img src="https://img.shields.io/badge/Go-1.26+-00ADD8?logo=go&logoColor=white" alt="Go">
+    <img src="https://img.shields.io/badge/Docker-ready-2496ED?logo=docker&logoColor=white" alt="Docker">
+    <img src="https://img.shields.io/badge/gRPC-supported-5FC5FF?logo=grpc&logoColor=white" alt="gRPC">
   </p>
 
   A self-hostable authentication service built in Go.
