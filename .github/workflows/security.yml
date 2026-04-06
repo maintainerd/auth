@@ -168,6 +168,15 @@ jobs:
             --report-format sarif \
             --report-path gitleaks.sarif
 
+      - name: Ensure SARIF file exists
+        # Gitleaks does not write the report file when zero leaks are found.
+        # upload-sarif requires the file to exist, so create a valid empty one as a fallback.
+        if: always()
+        run: |
+          [ -f gitleaks.sarif ] || cat <<'EOF' > gitleaks.sarif
+          {"version":"2.1.0","$schema":"https://raw.githubusercontent.com/oasis-tcs/sarif-spec/master/Schemata/sarif-schema-2.1.0.json","runs":[{"tool":{"driver":{"name":"Gitleaks","rules":[]}},"results":[]}]}
+          EOF
+
       - name: Upload Gitleaks results to GitHub Code Scanning
         uses: github/codeql-action/upload-sarif@v4
         if: always()
