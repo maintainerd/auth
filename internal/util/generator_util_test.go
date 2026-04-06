@@ -1,6 +1,8 @@
 package util
 
 import (
+	"crypto/rand"
+	"errors"
 	"strings"
 	"testing"
 
@@ -104,3 +106,28 @@ func TestGenerateOTPOnlyDigits(t *testing.T) {
 	}
 }
 
+// errReader is a reader that always returns an error.
+type errReader struct{}
+
+func (errReader) Read([]byte) (int, error) {
+	return 0, errors.New("forced crypto/rand failure")
+}
+
+func withFailingRand(t *testing.T) {
+	t.Helper()
+	orig := rand.Reader
+	rand.Reader = errReader{}
+	t.Cleanup(func() { rand.Reader = orig })
+}
+
+func TestGenerateIdentifier_CryptoRandError(t *testing.T) {
+	withFailingRand(t)
+	assert.Panics(t, func() { GenerateIdentifier(8) })
+}
+
+func TestGenerateOTP_CryptoRandError(t *testing.T) {
+	withFailingRand(t)
+	_, err := GenerateOTP(6)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "forced crypto/rand failure")
+}

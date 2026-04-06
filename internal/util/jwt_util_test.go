@@ -527,3 +527,47 @@ func TestValidateTokenClaims_Valid(t *testing.T) {
 	}
 	assert.NoError(t, validateTokenClaims(claims))
 }
+
+// ---------------------------------------------------------------------------
+// InitJWTKeys — valid private key + invalid public key PEM
+// ---------------------------------------------------------------------------
+
+func TestInitJWTKeys_InvalidPublicPEM(t *testing.T) {
+	saveAndRestoreJWTConfig(t)
+
+	priv, err := rsa.GenerateKey(rand.Reader, 2048)
+	require.NoError(t, err)
+	privPEM := pem.EncodeToMemory(&pem.Block{Type: "RSA PRIVATE KEY", Bytes: x509.MarshalPKCS1PrivateKey(priv)})
+
+	config.JWTPrivateKey = privPEM
+	config.JWTPublicKey = []byte("not-valid-pem")
+	err = InitJWTKeys()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to parse public key")
+}
+
+// ---------------------------------------------------------------------------
+// ValidateToken — signed token missing required claims (validateTokenClaims)
+// ---------------------------------------------------------------------------
+
+func TestValidateToken_MissingJTIInSignedToken(t *testing.T) {
+	initTestJWTKeys(t)
+
+	now := time.Now()
+	claims := jwt.MapClaims{
+		"sub": "user",
+		"aud": "app",
+		"iss": "https://auth.example.com",
+		"iat": jwt.NewNumericDate(now),
+		"exp": jwt.NewNumericDate(now.Add(time.Hour)),
+		// "jti" deliberately omitted
+	}
+	token := jwt.NewWithClaims(jwt.SigningMethodRS256, claims)
+	token.Header["kid"] = "maintainerd-auth-key-1"
+	tokenString, err := token.SignedString(privateKey)
+	require.NoError(t, err)
+
+	_, err = ValidateToken(tokenString)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "jti")
+}
