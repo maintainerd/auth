@@ -786,21 +786,34 @@ func (m *mockIpRestrictionRuleRepo) DeleteByUUID(id any) error {
 // ---------------------------------------------------------------------------
 
 type mockSecuritySettingRepo struct {
-	findByTenantIDFn func(tenantID int64) (*model.SecuritySetting, error)
-	updateByUUIDFn   func(any, any) (*model.SecuritySetting, error)
+	findByTenantIDFn   func(tenantID int64) (*model.SecuritySetting, error)
+	updateByUUIDFn     func(any, any) (*model.SecuritySetting, error)
+	createFn           func(*model.SecuritySetting) (*model.SecuritySetting, error)
+	createOrUpdateFn   func(*model.SecuritySetting) (*model.SecuritySetting, error)
+	findByUUIDFn       func(any, ...string) (*model.SecuritySetting, error)
+	incrementVersionFn func(int64) error
 }
 
 func (m *mockSecuritySettingRepo) WithTx(_ *gorm.DB) repository.SecuritySettingRepository { return m }
 func (m *mockSecuritySettingRepo) Create(e *model.SecuritySetting) (*model.SecuritySetting, error) {
+	if m.createFn != nil {
+		return m.createFn(e)
+	}
 	return e, nil
 }
 func (m *mockSecuritySettingRepo) CreateOrUpdate(e *model.SecuritySetting) (*model.SecuritySetting, error) {
-	return nil, nil
+	if m.createOrUpdateFn != nil {
+		return m.createOrUpdateFn(e)
+	}
+	return e, nil
 }
 func (m *mockSecuritySettingRepo) FindAll(_ ...string) ([]model.SecuritySetting, error) {
 	return nil, nil
 }
-func (m *mockSecuritySettingRepo) FindByUUID(_ any, _ ...string) (*model.SecuritySetting, error) {
+func (m *mockSecuritySettingRepo) FindByUUID(id any, p ...string) (*model.SecuritySetting, error) {
+	if m.findByUUIDFn != nil {
+		return m.findByUUIDFn(id, p...)
+	}
 	return nil, nil
 }
 func (m *mockSecuritySettingRepo) FindByUUIDs(_ []string, _ ...string) ([]model.SecuritySetting, error) {
@@ -820,7 +833,12 @@ func (m *mockSecuritySettingRepo) Paginate(_ map[string]any, _, _ int, _ ...stri
 func (m *mockSecuritySettingRepo) FindPaginated(_ repository.SecuritySettingRepositoryGetFilter) (*repository.PaginationResult[model.SecuritySetting], error) {
 	return nil, nil
 }
-func (m *mockSecuritySettingRepo) IncrementVersion(_ int64) error { return nil }
+func (m *mockSecuritySettingRepo) IncrementVersion(id int64) error {
+	if m.incrementVersionFn != nil {
+		return m.incrementVersionFn(id)
+	}
+	return nil
+}
 
 func (m *mockSecuritySettingRepo) FindByTenantID(tID int64) (*model.SecuritySetting, error) {
 	if m.findByTenantIDFn != nil {
