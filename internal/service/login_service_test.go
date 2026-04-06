@@ -225,6 +225,7 @@ func (m *mockUserRepo) SetStatus(id uuid.UUID, s string) error {
 
 type mockUserIdentityRepo struct {
 	findByUserIDAndClientIDFn func(userID, clientID int64) (*model.UserIdentity, error)
+	createFn                  func(*model.UserIdentity) (*model.UserIdentity, error)
 }
 
 func (m *mockUserIdentityRepo) WithTx(_ *gorm.DB) repository.UserIdentityRepository { return m }
@@ -232,7 +233,10 @@ func (m *mockUserIdentityRepo) FindByUserIDAndClientID(uID, cID int64) (*model.U
 	return m.findByUserIDAndClientIDFn(uID, cID)
 }
 func (m *mockUserIdentityRepo) Create(e *model.UserIdentity) (*model.UserIdentity, error) {
-	return nil, nil
+	if m.createFn != nil {
+		return m.createFn(e)
+	}
+	return e, nil
 }
 func (m *mockUserIdentityRepo) CreateOrUpdate(e *model.UserIdentity) (*model.UserIdentity, error) {
 	return nil, nil
