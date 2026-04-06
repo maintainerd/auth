@@ -10,11 +10,13 @@ import (
 	"time"
 
 	sqlmock "github.com/DATA-DOG/go-sqlmock"
+	"github.com/alicebob/miniredis/v2"
 	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/config"
 	"github.com/maintainerd/auth/internal/model"
 	"github.com/maintainerd/auth/internal/repository"
 	"github.com/maintainerd/auth/internal/util"
+	"github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/crypto/bcrypt"
@@ -901,4 +903,323 @@ func TestLogin(t *testing.T) {
 			assert.NoError(t, mock.ExpectationsWereMet())
 		})
 	}
+}
+
+// ---------------------------------------------------------------------------
+// lockedRateLimiterLogin starts a miniredis instance, pre-sets the lock key
+// for the given identifier, wires it into util.CheckRateLimit, and returns a
+// cleanup function that resets the rate limiter to nil after the test.
+// ---------------------------------------------------------------------------
+func lockedRateLimiterLogin(t *testing.T, identifier string) func() {
+	t.Helper()
+	mr, err := miniredis.Run()
+	require.NoError(t, err)
+
+	rdb := redis.NewClient(&redis.Options{Addr: mr.Addr()})
+	util.InitRateLimiter(rdb)
+
+	// Pre-set the lock key so CheckRateLimit returns an error immediately.
+	require.NoError(t, mr.Set("rl:lock:"+identifier, "1"))
+
+	return func() {
+		util.InitRateLimiter(nil)
+		rdb.Close()
+		mr.Close()
+	}
+}
+
+// ---------------------------------------------------------------------------
+// TestLoginPublic – additional cases
+// ---------------------------------------------------------------------------
+
+func TestLoginPublic_RateLimited(t *testing.T) {
+	username := "pub-rate-limited"
+	cleanup := lockedRateLimiterLogin(t, username)
+	defer cleanup()
+
+	gormDB, mock := newMockGormDB(t)
+	// No DB operations expected — rate limit fires before transaction
+	_ = mock
+
+	svc := NewLoginService(gormDB, &mockClientRepo{}, &mockUserRepo{}, &mockUserTokenRepo{},
+		&mockUserIdentityRepo{findByUserIDAndClientIDFn: func(_, _ int64) (*model.UserIdentity, error) { return nil, nil }},
+		&mockIdentityProviderRepo{})
+	_, err := svc.LoginPublic(username, "pass", "c1", "p1")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "locked")
+}
+
+func TestLoginPublic_ClientLookupError(t *testing.T) {
+	initTestJWTKeysService(t)
+	gormDB, mock := newMockGormDB(t)
+	mock.ExpectBegin()
+	mock.ExpectRollback()
+
+	idpRepo := &mockIdentityProviderRepo{
+		findByIdentifierFn: func(_ string) (*model.IdentityProvider, error) {
+			return buildActiveIdentityProvider(), nil
+		},
+	}
+	clientRepo := &mockClientRepo{
+		findByClientIDAndIdentityProviderFn: func(_, _ string) (*model.Client, error) {
+			return nil, errors.New("client db err")
+		},
+	}
+
+	svc := NewLoginService(gormDB, clientRepo, &mockUserRepo{}, &mockUserTokenRepo{},
+		&mockUserIdentityRepo{findByUserIDAndClientIDFn: func(_, _ int64) (*model.UserIdentity, error) { return nil, nil }},
+		idpRepo)
+	_, err := svc.LoginPublic("pub-client-err", "pass", "c1", "p1")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "authentication failed")
+}
+
+func TestLoginPublic_UserNotFound(t *testing.T) {
+	initTestJWTKeysService(t)
+	gormDB, mock := newMockGormDB(t)
+	mock.ExpectBegin()
+	mock.ExpectCommit()
+
+	idpRepo := &mockIdentityProviderRepo{
+		findByIdentifierFn: func(_ string) (*model.IdentityProvider, error) {
+			return buildActiveIdentityProvider(), nil
+		},
+	}
+	clientRepo := &mockClientRepo{
+		findByClientIDAndIdentityProviderFn: func(_, _ string) (*model.Client, error) {
+			return buildActiveClient(), nil
+		},
+	}
+	userRepo := &mockUserRepo{
+		findByUsernameFn: func(_ string) (*model.User, error) {
+			return nil, errors.New("not found")
+		},
+	}
+
+	svc := NewLoginService(gormDB, clientRepo, userRepo, &mockUserTokenRepo{},
+		&mockUserIdentityRepo{findByUserIDAndClientIDFn: func(_, _ int64) (*model.UserIdentity, error) { return nil, nil }},
+		idpRepo)
+	_, err := svc.LoginPublic("pub-user-missing", "pass", "c1", "p1")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "invalid credentials")
+}
+
+// ---------------------------------------------------------------------------
+// TestLogin – additional cases
+// ---------------------------------------------------------------------------
+
+func TestLogin_RateLimited(t *testing.T) {
+	username := "int-rate-limited"
+	cleanup := lockedRateLimiterLogin(t, username)
+	defer cleanup()
+
+	gormDB, mock := newMockGormDB(t)
+	_ = mock
+
+	svc := NewLoginService(gormDB, &mockClientRepo{}, &mockUserRepo{}, &mockUserTokenRepo{},
+		&mockUserIdentityRepo{findByUserIDAndClientIDFn: func(_, _ int64) (*model.UserIdentity, error) { return nil, nil }},
+		&mockIdentityProviderRepo{})
+	_, err := svc.Login(username, "pass", nil, nil)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "locked")
+}
+
+func TestLogin_ExplicitClientLookupError(t *testing.T) {
+	initTestJWTKeysService(t)
+	gormDB, mock := newMockGormDB(t)
+	mock.ExpectBegin()
+	mock.ExpectRollback()
+
+	clientRepo := &mockClientRepo{
+		findByClientIDAndIdentityProviderFn: func(_, _ string) (*model.Client, error) {
+			return nil, errors.New("client db err")
+		},
+	}
+
+	cID := "client-x"
+	pID := "provider-x"
+	svc := NewLoginService(gormDB, clientRepo, &mockUserRepo{}, &mockUserTokenRepo{},
+		&mockUserIdentityRepo{findByUserIDAndClientIDFn: func(_, _ int64) (*model.UserIdentity, error) { return nil, nil }},
+		&mockIdentityProviderRepo{})
+	_, err := svc.Login("int-explicit-err", "pass", &cID, &pID)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "authentication failed")
+}
+
+func TestLogin_UserNotFound(t *testing.T) {
+	initTestJWTKeysService(t)
+	gormDB, mock := newMockGormDB(t)
+	mock.ExpectBegin()
+	mock.ExpectCommit()
+
+	clientRepo := &mockClientRepo{
+		findDefaultFn: func() (*model.Client, error) { return buildActiveClient(), nil },
+	}
+	userRepo := &mockUserRepo{
+		findByUsernameFn: func(_ string) (*model.User, error) { return nil, nil },
+	}
+
+	svc := NewLoginService(gormDB, clientRepo, userRepo, &mockUserTokenRepo{},
+		&mockUserIdentityRepo{findByUserIDAndClientIDFn: func(_, _ int64) (*model.UserIdentity, error) { return nil, nil }},
+		&mockIdentityProviderRepo{})
+	_, err := svc.Login("int-user-missing", "pass", nil, nil)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "invalid credentials")
+}
+
+// ---------------------------------------------------------------------------
+// TestGenerateTokenResponse – error paths
+// ---------------------------------------------------------------------------
+
+func TestLoginPublic_GenerateAccessTokenError(t *testing.T) {
+	// Reset JWT keys so privateKey is nil → GenerateAccessToken fails
+	util.ResetJWTKeys()
+	defer initTestJWTKeysService(t) // restore for subsequent tests
+
+	gormDB, mock := newMockGormDB(t)
+	mock.ExpectBegin()
+	mock.ExpectCommit()
+
+	const correctPassword = "S3cur3P@ss!"
+
+	idpRepo := &mockIdentityProviderRepo{
+		findByIdentifierFn: func(_ string) (*model.IdentityProvider, error) {
+			return buildActiveIdentityProvider(), nil
+		},
+	}
+	clientRepo := &mockClientRepo{
+		findByClientIDAndIdentityProviderFn: func(_, _ string) (*model.Client, error) {
+			return buildActiveClient(), nil
+		},
+	}
+	userRepo := &mockUserRepo{
+		findByUsernameFn: func(_ string) (*model.User, error) {
+			return buildActiveUser(t, correctPassword), nil
+		},
+	}
+	userIdentityRepo := &mockUserIdentityRepo{
+		findByUserIDAndClientIDFn: func(_, _ int64) (*model.UserIdentity, error) {
+			return &model.UserIdentity{Sub: "sub-token-err"}, nil
+		},
+	}
+
+	svc := NewLoginService(gormDB, clientRepo, userRepo, &mockUserTokenRepo{}, userIdentityRepo, idpRepo)
+	_, err := svc.LoginPublic("pub-token-err", correctPassword, "c1", "p1")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "private key not initialized")
+}
+
+func TestLogin_GenerateAccessTokenError(t *testing.T) {
+	// Reset JWT keys so privateKey is nil
+	util.ResetJWTKeys()
+	defer initTestJWTKeysService(t) // restore for subsequent tests
+
+	gormDB, mock := newMockGormDB(t)
+	mock.ExpectBegin()
+	mock.ExpectCommit()
+
+	const correctPassword = "S3cur3P@ss!"
+
+	clientRepo := &mockClientRepo{
+		findDefaultFn: func() (*model.Client, error) { return buildActiveClient(), nil },
+	}
+	userRepo := &mockUserRepo{
+		findByUsernameFn: func(_ string) (*model.User, error) {
+			return buildActiveUser(t, correctPassword), nil
+		},
+	}
+	userIdentityRepo := &mockUserIdentityRepo{
+		findByUserIDAndClientIDFn: func(_, _ int64) (*model.UserIdentity, error) {
+			return &model.UserIdentity{Sub: "sub-token-err"}, nil
+		},
+	}
+
+	svc := NewLoginService(gormDB, clientRepo, userRepo, &mockUserTokenRepo{}, userIdentityRepo, &mockIdentityProviderRepo{})
+	_, err := svc.Login("int-token-err", correctPassword, nil, nil)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "private key not initialized")
+}
+
+func TestLoginPublic_GenerateIDTokenError(t *testing.T) {
+	initTestJWTKeysService(t)
+	gormDB, mock := newMockGormDB(t)
+	mock.ExpectBegin()
+	mock.ExpectCommit()
+
+	const correctPassword = "S3cur3P@ss!"
+
+	// Stub generateIDTokenFn to return an error
+	orig := generateIDTokenFn
+	generateIDTokenFn = func(string, string, string, string, *util.UserProfile, string) (string, error) {
+		return "", errors.New("id token error")
+	}
+	defer func() { generateIDTokenFn = orig }()
+
+	idpRepo := &mockIdentityProviderRepo{
+		findByIdentifierFn: func(_ string) (*model.IdentityProvider, error) {
+			return buildActiveIdentityProvider(), nil
+		},
+	}
+	clientRepo := &mockClientRepo{
+		findByClientIDAndIdentityProviderFn: func(_, _ string) (*model.Client, error) {
+			return buildActiveClient(), nil
+		},
+	}
+	userRepo := &mockUserRepo{
+		findByUsernameFn: func(_ string) (*model.User, error) {
+			return buildActiveUser(t, correctPassword), nil
+		},
+	}
+	userIdentityRepo := &mockUserIdentityRepo{
+		findByUserIDAndClientIDFn: func(_, _ int64) (*model.UserIdentity, error) {
+			return &model.UserIdentity{Sub: "sub-idtoken-err"}, nil
+		},
+	}
+
+	svc := NewLoginService(gormDB, clientRepo, userRepo, &mockUserTokenRepo{}, userIdentityRepo, idpRepo)
+	_, err := svc.LoginPublic("pub-idtoken-err", correctPassword, "c1", "p1")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "id token error")
+}
+
+func TestLoginPublic_GenerateRefreshTokenError(t *testing.T) {
+	initTestJWTKeysService(t)
+	gormDB, mock := newMockGormDB(t)
+	mock.ExpectBegin()
+	mock.ExpectCommit()
+
+	const correctPassword = "S3cur3P@ss!"
+
+	// Stub generateRefreshTokenFn to return an error
+	orig := generateRefreshTokenFn
+	generateRefreshTokenFn = func(string, string, string, string) (string, error) {
+		return "", errors.New("refresh token error")
+	}
+	defer func() { generateRefreshTokenFn = orig }()
+
+	idpRepo := &mockIdentityProviderRepo{
+		findByIdentifierFn: func(_ string) (*model.IdentityProvider, error) {
+			return buildActiveIdentityProvider(), nil
+		},
+	}
+	clientRepo := &mockClientRepo{
+		findByClientIDAndIdentityProviderFn: func(_, _ string) (*model.Client, error) {
+			return buildActiveClient(), nil
+		},
+	}
+	userRepo := &mockUserRepo{
+		findByUsernameFn: func(_ string) (*model.User, error) {
+			return buildActiveUser(t, correctPassword), nil
+		},
+	}
+	userIdentityRepo := &mockUserIdentityRepo{
+		findByUserIDAndClientIDFn: func(_, _ int64) (*model.UserIdentity, error) {
+			return &model.UserIdentity{Sub: "sub-refresh-err"}, nil
+		},
+	}
+
+	svc := NewLoginService(gormDB, clientRepo, userRepo, &mockUserTokenRepo{}, userIdentityRepo, idpRepo)
+	_, err := svc.LoginPublic("pub-refresh-err", correctPassword, "c1", "p1")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "refresh token error")
 }

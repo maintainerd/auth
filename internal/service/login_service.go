@@ -46,6 +46,10 @@ func NewLoginService(
 	}
 }
 
+// Function variables to allow stubbing in tests.
+var generateIDTokenFn = util.GenerateIDToken
+var generateRefreshTokenFn = util.GenerateRefreshToken
+
 // LoginPublic authenticates users for public-facing applications.
 // Requires clientID and providerID to identify the auth client.
 // Used by external applications on port 8081.
@@ -381,12 +385,12 @@ func (s *loginService) generateTokenResponse(sub string, user *model.User, Clien
 	}
 
 	// Generate ID token with user profile (no nonce for login flow)
-	idToken, err := util.GenerateIDToken(sub, *Client.Domain, *Client.Identifier, Client.IdentityProvider.Identifier, profile, "")
+	idToken, err := generateIDTokenFn(sub, *Client.Domain, *Client.Identifier, Client.IdentityProvider.Identifier, profile, "")
 	if err != nil {
 		return nil, err
 	}
 
-	refreshToken, err := util.GenerateRefreshToken(sub, *Client.Domain, *Client.Identifier, Client.IdentityProvider.Identifier)
+	refreshToken, err := generateRefreshTokenFn(sub, *Client.Domain, *Client.Identifier, Client.IdentityProvider.Identifier)
 	if err != nil {
 		return nil, err
 	}
