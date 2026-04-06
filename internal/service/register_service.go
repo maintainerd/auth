@@ -9,6 +9,9 @@ import (
 	"github.com/maintainerd/auth/internal/model"
 	"github.com/maintainerd/auth/internal/repository"
 	"github.com/maintainerd/auth/internal/util"
+	"github.com/maintainerd/auth/internal/jwt"
+	"github.com/maintainerd/auth/internal/generator"
+	"github.com/maintainerd/auth/internal/security"
 	"gorm.io/datatypes"
 	"gorm.io/gorm"
 )
@@ -103,7 +106,7 @@ func (s *registerService) RegisterPublic(
 	providerID string,
 ) (*dto.RegisterResponseDto, error) {
 	// Rate limiting check to prevent registration abuse
-	if err := util.CheckRateLimit(username); err != nil {
+	if err := security.CheckRateLimit(username); err != nil {
 		return nil, err
 	}
 
@@ -177,7 +180,7 @@ func (s *registerService) RegisterPublic(
 		}
 
 		// Hash password
-		hashed, txErr := util.HashPassword([]byte(password))
+		hashed, txErr := security.HashPassword([]byte(password))
 		if txErr != nil {
 			return txErr
 		}
@@ -236,7 +239,7 @@ func (s *registerService) RegisterPublic(
 		}
 
 		// Generate OTP
-		otp, txErr := util.GenerateOTP(6)
+		otp, txErr := generator.GenerateOTP(6)
 		if txErr != nil {
 			return txErr
 		}
@@ -277,7 +280,7 @@ func (s *registerService) Register(
 	providerID *string,
 ) (*dto.RegisterResponseDto, error) {
 	// Rate limiting check to prevent registration abuse
-	if err := util.CheckRateLimit(username); err != nil {
+	if err := security.CheckRateLimit(username); err != nil {
 		return nil, err
 	}
 
@@ -330,7 +333,7 @@ func (s *registerService) Register(
 		}
 
 		// Hash password
-		hashed, txErr := util.HashPassword([]byte(password))
+		hashed, txErr := security.HashPassword([]byte(password))
 		if txErr != nil {
 			return txErr
 		}
@@ -400,7 +403,7 @@ func (s *registerService) Register(
 		}
 
 		// Generate OTP
-		otp, txErr := util.GenerateOTP(6)
+		otp, txErr := generator.GenerateOTP(6)
 		if txErr != nil {
 			return txErr
 		}
@@ -496,7 +499,7 @@ func (s *registerService) RegisterInvite(
 		}
 
 		// Hash password
-		hashed, txErr := util.HashPassword([]byte(password))
+		hashed, txErr := security.HashPassword([]byte(password))
 		if txErr != nil {
 			return txErr
 		}
@@ -670,7 +673,7 @@ func (s *registerService) RegisterInvitePublic(
 		}
 
 		// Hash password
-		hashed, txErr := util.HashPassword([]byte(password))
+		hashed, txErr := security.HashPassword([]byte(password))
 		if txErr != nil {
 			return txErr
 		}
@@ -771,7 +774,7 @@ func (s *registerService) RegisterInvitePublic(
 }
 
 func (s *registerService) generateTokenResponse(sub string, user *model.User, Client *model.Client) (*dto.RegisterResponseDto, error) {
-	accessToken, err := util.GenerateAccessToken(
+	accessToken, err := jwt.GenerateAccessToken(
 		sub,
 		"openid profile email",
 		*Client.Domain,
@@ -784,7 +787,7 @@ func (s *registerService) generateTokenResponse(sub string, user *model.User, Cl
 	}
 
 	// Create user profile for ID token (populate from user data)
-	profile := &util.UserProfile{
+	profile := &jwt.UserProfile{
 		Email:         user.Email,
 		EmailVerified: user.IsEmailVerified,
 		Phone:         user.Phone,
@@ -792,12 +795,12 @@ func (s *registerService) generateTokenResponse(sub string, user *model.User, Cl
 	}
 
 	// Generate ID token with user profile (no nonce for registration flow)
-	idToken, err := util.GenerateIDToken(sub, *Client.Domain, *Client.Identifier, Client.IdentityProvider.Identifier, profile, "")
+	idToken, err := jwt.GenerateIDToken(sub, *Client.Domain, *Client.Identifier, Client.IdentityProvider.Identifier, profile, "")
 	if err != nil {
 		return nil, err
 	}
 
-	refreshToken, err := util.GenerateRefreshToken(sub, *Client.Domain, *Client.Identifier, Client.IdentityProvider.Identifier)
+	refreshToken, err := jwt.GenerateRefreshToken(sub, *Client.Domain, *Client.Identifier, Client.IdentityProvider.Identifier)
 	if err != nil {
 		return nil, err
 	}

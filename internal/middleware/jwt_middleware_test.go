@@ -11,10 +11,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/golang-jwt/jwt/v5"
+	jwtlib "github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/config"
-	"github.com/maintainerd/auth/internal/util"
+	"github.com/maintainerd/auth/internal/jwt"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -29,7 +29,7 @@ func initTestJWTKeys(t *testing.T) {
 	pubPEM := pem.EncodeToMemory(&pem.Block{Type: "RSA PUBLIC KEY", Bytes: x509.MarshalPKCS1PublicKey(&priv.PublicKey)})
 	config.JWTPrivateKey = privPEM
 	config.JWTPublicKey = pubPEM
-	require.NoError(t, util.InitJWTKeys())
+	require.NoError(t, jwt.InitJWTKeys())
 }
 
 // okHandler is a minimal next-handler that always responds 200 OK.
@@ -43,7 +43,7 @@ func TestJWTAuthMiddleware(t *testing.T) {
 	initTestJWTKeys(t)
 
 	validUserUUID := uuid.New().String()
-	validToken, err := util.GenerateAccessToken(
+	validToken, err := jwt.GenerateAccessToken(
 		validUserUUID, "read", "https://auth.example.com",
 		"https://api.example.com", "my-client", "provider-1",
 	)
@@ -104,7 +104,7 @@ func TestJWTAuthMiddleware_ContextValues(t *testing.T) {
 	initTestJWTKeys(t)
 
 	userUUID := uuid.New().String()
-	token, err := util.GenerateAccessToken(
+	token, err := jwt.GenerateAccessToken(
 		userUUID, "read write", "https://auth.example.com",
 		"https://api.example.com", "my-client", "provider-1",
 	)
@@ -154,13 +154,13 @@ func TestGetProviderIDFromContext(t *testing.T) {
 }
 
 // makeTokenWithClaims signs a JWT with the RSA key loaded by initTestJWTKeys.
-func makeTokenWithClaims(t *testing.T, claims jwt.MapClaims) string {
+func makeTokenWithClaims(t *testing.T, claims jwtlib.MapClaims) string {
 	t.Helper()
 	block, _ := pem.Decode(config.JWTPrivateKey)
 	require.NotNil(t, block, "JWTPrivateKey not initialised – call initTestJWTKeys first")
 	privKey, err := x509.ParsePKCS1PrivateKey(block.Bytes)
 	require.NoError(t, err)
-	tok := jwt.NewWithClaims(jwt.SigningMethodRS256, claims)
+	tok := jwtlib.NewWithClaims(jwtlib.SigningMethodRS256, claims)
 	s, err := tok.SignedString(privKey)
 	require.NoError(t, err)
 	return s
@@ -169,10 +169,10 @@ func makeTokenWithClaims(t *testing.T, claims jwt.MapClaims) string {
 func TestJWTAuthMiddleware_MissingOrInvalidSub(t *testing.T) {
 	initTestJWTKeys(t)
 
-	exp := jwt.NewNumericDate(time.Now().Add(time.Hour))
+	exp := jwtlib.NewNumericDate(time.Now().Add(time.Hour))
 
-	iat := jwt.NewNumericDate(time.Now().Add(-time.Second))
-	baseClaims := jwt.MapClaims{
+	iat := jwtlib.NewNumericDate(time.Now().Add(-time.Second))
+	baseClaims := jwtlib.MapClaims{
 		"exp": exp, "iat": iat, "iss": "https://issuer", "aud": "https://api",
 		"jti": uuid.New().String(),
 	}
@@ -187,7 +187,7 @@ func TestJWTAuthMiddleware_MissingOrInvalidSub(t *testing.T) {
 	})
 
 	t.Run("sub is not a valid UUID → 400", func(t *testing.T) {
-		claims := jwt.MapClaims{
+		claims := jwtlib.MapClaims{
 			"sub": "not-a-uuid", "exp": exp, "iat": iat,
 			"iss": "https://issuer", "aud": "https://api",
 			"jti": uuid.New().String(),

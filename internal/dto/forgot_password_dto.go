@@ -3,7 +3,7 @@ package dto
 import (
 	validation "github.com/go-ozzo/ozzo-validation/v4"
 	"github.com/go-ozzo/ozzo-validation/v4/is"
-	"github.com/maintainerd/auth/internal/util"
+		"github.com/maintainerd/auth/internal/security"
 )
 
 // ForgotPasswordRequestDto represents the request payload for forgot password
@@ -13,7 +13,7 @@ type ForgotPasswordRequestDto struct {
 
 func (r *ForgotPasswordRequestDto) Validate() error {
 	// Sanitize inputs first
-	r.Email = util.SanitizeInput(r.Email)
+	r.Email = security.SanitizeInput(r.Email)
 
 	return validation.ValidateStruct(r,
 		validation.Field(&r.Email,

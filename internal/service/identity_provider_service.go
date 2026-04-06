@@ -8,7 +8,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/model"
 	"github.com/maintainerd/auth/internal/repository"
-	"github.com/maintainerd/auth/internal/util"
+	"github.com/maintainerd/auth/internal/generator"
 	"gorm.io/datatypes"
 	"gorm.io/gorm"
 )
@@ -180,7 +180,7 @@ func (s *identityProviderService) Create(name string, displayName string, provid
 		}
 
 		// Generate identifier
-		identifier := fmt.Sprintf("idp-%s", util.GenerateIdentifier(12))
+		identifier := fmt.Sprintf("idp-%s", generator.GenerateIdentifier(12))
 
 		// Create idp
 		newIdp := &model.IdentityProvider{
