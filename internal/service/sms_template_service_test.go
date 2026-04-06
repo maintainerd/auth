@@ -59,18 +59,31 @@ func TestSmsTemplateService_GetByUUID(t *testing.T) {
 }
 
 func TestSmsTemplateService_GetAll(t *testing.T) {
-	svc := newSmsTemplateSvc(&mockSmsTemplateRepo{
-		findPaginatedFn: func(_ repository.SmsTemplateRepositoryGetFilter) (*repository.PaginationResult[model.SmsTemplate], error) {
-			return &repository.PaginationResult[model.SmsTemplate]{
-				Data:  []model.SmsTemplate{{Name: "OTP"}},
-				Total: 1, Page: 1, Limit: 10, TotalPages: 1,
-			}, nil
-		},
+	t.Run("success", func(t *testing.T) {
+		svc := newSmsTemplateSvc(&mockSmsTemplateRepo{
+			findPaginatedFn: func(_ repository.SmsTemplateRepositoryGetFilter) (*repository.PaginationResult[model.SmsTemplate], error) {
+				return &repository.PaginationResult[model.SmsTemplate]{
+					Data:  []model.SmsTemplate{{Name: "OTP"}},
+					Total: 1, Page: 1, Limit: 10, TotalPages: 1,
+				}, nil
+			},
+		})
+		res, err := svc.GetAll(1, nil, nil, nil, nil, 1, 10, "created_at", "asc")
+		require.NoError(t, err)
+		assert.Equal(t, int64(1), res.Total)
+		assert.Len(t, res.Data, 1)
 	})
-	res, err := svc.GetAll(1, nil, nil, nil, nil, 1, 10, "created_at", "asc")
-	require.NoError(t, err)
-	assert.Equal(t, int64(1), res.Total)
-	assert.Len(t, res.Data, 1)
+
+	t.Run("repo error", func(t *testing.T) {
+		svc := newSmsTemplateSvc(&mockSmsTemplateRepo{
+			findPaginatedFn: func(_ repository.SmsTemplateRepositoryGetFilter) (*repository.PaginationResult[model.SmsTemplate], error) {
+				return nil, errors.New("db error")
+			},
+		})
+		_, err := svc.GetAll(1, nil, nil, nil, nil, 1, 10, "created_at", "asc")
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "db error")
+	})
 }
 
 func TestSmsTemplateService_Create(t *testing.T) {
@@ -104,6 +117,17 @@ func TestSmsTemplateService_Update(t *testing.T) {
 		assert.Contains(t, err.Error(), "not found")
 	})
 
+	t.Run("find error", func(t *testing.T) {
+		svc := newSmsTemplateSvc(&mockSmsTemplateRepo{
+			findByUUIDAndTenantIDFn: func(_ string, _ int64) (*model.SmsTemplate, error) {
+				return nil, errors.New("db error")
+			},
+		})
+		_, err := svc.Update(id, 1, "N", nil, "M", nil, "active")
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "db error")
+	})
+
 	t.Run("system template blocked", func(t *testing.T) {
 		svc := newSmsTemplateSvc(&mockSmsTemplateRepo{
 			findByUUIDAndTenantIDFn: func(s string, _ int64) (*model.SmsTemplate, error) {
@@ -114,6 +138,21 @@ func TestSmsTemplateService_Update(t *testing.T) {
 		_, err := svc.Update(id, 1, "N", nil, "M", nil, "active")
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "system")
+	})
+
+	t.Run("UpdateByUUID error", func(t *testing.T) {
+		svc := newSmsTemplateSvc(&mockSmsTemplateRepo{
+			findByUUIDAndTenantIDFn: func(s string, _ int64) (*model.SmsTemplate, error) {
+				uid, _ := uuid.Parse(s)
+				return &model.SmsTemplate{SmsTemplateUUID: uid, IsSystem: false}, nil
+			},
+			updateByUUIDFn: func(_, _ any) (*model.SmsTemplate, error) {
+				return nil, errors.New("update failed")
+			},
+		})
+		_, err := svc.Update(id, 1, "Updated", nil, "M", nil, "active")
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "update failed")
 	})
 
 	t.Run("success", func(t *testing.T) {
@@ -143,6 +182,17 @@ func TestSmsTemplateService_Delete(t *testing.T) {
 		require.Error(t, err)
 	})
 
+	t.Run("find error", func(t *testing.T) {
+		svc := newSmsTemplateSvc(&mockSmsTemplateRepo{
+			findByUUIDAndTenantIDFn: func(_ string, _ int64) (*model.SmsTemplate, error) {
+				return nil, errors.New("db error")
+			},
+		})
+		_, err := svc.Delete(id, 1)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "db error")
+	})
+
 	t.Run("system template blocked", func(t *testing.T) {
 		svc := newSmsTemplateSvc(&mockSmsTemplateRepo{
 			findByUUIDAndTenantIDFn: func(s string, _ int64) (*model.SmsTemplate, error) {
@@ -153,6 +203,19 @@ func TestSmsTemplateService_Delete(t *testing.T) {
 		_, err := svc.Delete(id, 1)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "system")
+	})
+
+	t.Run("delete error", func(t *testing.T) {
+		svc := newSmsTemplateSvc(&mockSmsTemplateRepo{
+			findByUUIDAndTenantIDFn: func(s string, _ int64) (*model.SmsTemplate, error) {
+				uid, _ := uuid.Parse(s)
+				return &model.SmsTemplate{SmsTemplateUUID: uid, Name: "OTP"}, nil
+			},
+			deleteByUUIDFn: func(_ any) error { return errors.New("delete failed") },
+		})
+		_, err := svc.Delete(id, 1)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "delete failed")
 	})
 
 	t.Run("success", func(t *testing.T) {
@@ -169,3 +232,72 @@ func TestSmsTemplateService_Delete(t *testing.T) {
 	})
 }
 
+// ---------------------------------------------------------------------------
+// UpdateStatus
+// ---------------------------------------------------------------------------
+
+func TestSmsTemplateService_UpdateStatus(t *testing.T) {
+	id := uuid.New()
+
+	t.Run("find error", func(t *testing.T) {
+		svc := newSmsTemplateSvc(&mockSmsTemplateRepo{
+			findByUUIDAndTenantIDFn: func(_ string, _ int64) (*model.SmsTemplate, error) {
+				return nil, errors.New("db error")
+			},
+		})
+		_, err := svc.UpdateStatus(id, 1, "active")
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "db error")
+	})
+
+	t.Run("not found", func(t *testing.T) {
+		svc := newSmsTemplateSvc(&mockSmsTemplateRepo{
+			findByUUIDAndTenantIDFn: func(_ string, _ int64) (*model.SmsTemplate, error) { return nil, nil },
+		})
+		_, err := svc.UpdateStatus(id, 1, "active")
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "not found")
+	})
+
+	t.Run("system template blocked", func(t *testing.T) {
+		svc := newSmsTemplateSvc(&mockSmsTemplateRepo{
+			findByUUIDAndTenantIDFn: func(s string, _ int64) (*model.SmsTemplate, error) {
+				uid, _ := uuid.Parse(s)
+				return &model.SmsTemplate{SmsTemplateUUID: uid, IsSystem: true}, nil
+			},
+		})
+		_, err := svc.UpdateStatus(id, 1, "active")
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "system")
+	})
+
+	t.Run("UpdateByUUID error", func(t *testing.T) {
+		svc := newSmsTemplateSvc(&mockSmsTemplateRepo{
+			findByUUIDAndTenantIDFn: func(s string, _ int64) (*model.SmsTemplate, error) {
+				uid, _ := uuid.Parse(s)
+				return &model.SmsTemplate{SmsTemplateUUID: uid, IsSystem: false, Status: "draft"}, nil
+			},
+			updateByUUIDFn: func(_, _ any) (*model.SmsTemplate, error) {
+				return nil, errors.New("update failed")
+			},
+		})
+		_, err := svc.UpdateStatus(id, 1, "active")
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "update failed")
+	})
+
+	t.Run("success", func(t *testing.T) {
+		svc := newSmsTemplateSvc(&mockSmsTemplateRepo{
+			findByUUIDAndTenantIDFn: func(s string, _ int64) (*model.SmsTemplate, error) {
+				uid, _ := uuid.Parse(s)
+				return &model.SmsTemplate{SmsTemplateUUID: uid, IsSystem: false, Status: "draft"}, nil
+			},
+			updateByUUIDFn: func(_, _ any) (*model.SmsTemplate, error) {
+				return &model.SmsTemplate{SmsTemplateUUID: id, Status: "active"}, nil
+			},
+		})
+		res, err := svc.UpdateStatus(id, 1, "active")
+		require.NoError(t, err)
+		assert.Equal(t, "active", res.Status)
+	})
+}
