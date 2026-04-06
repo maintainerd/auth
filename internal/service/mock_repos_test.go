@@ -169,6 +169,7 @@ func (m *mockEmailTemplateRepo) DeleteByUUID(id any) error {
 // ---------------------------------------------------------------------------
 
 type mockPermissionRepo struct {
+	findByUUIDFn              func(any, ...string) (*model.Permission, error)
 	findByUUIDAndTenantIDFn   func(uuid.UUID, int64) (*model.Permission, error)
 	findByNameFn              func(string, int64) (*model.Permission, error)
 	findPaginatedFn           func(repository.PermissionRepositoryGetFilter) (*repository.PaginationResult[model.Permission], error)
@@ -179,7 +180,10 @@ type mockPermissionRepo struct {
 func (m *mockPermissionRepo) WithTx(_ *gorm.DB) repository.PermissionRepository     { return m }
 func (m *mockPermissionRepo) Create(_ *model.Permission) (*model.Permission, error) { return nil, nil }
 func (m *mockPermissionRepo) FindAll(_ ...string) ([]model.Permission, error)       { return nil, nil }
-func (m *mockPermissionRepo) FindByUUID(_ any, _ ...string) (*model.Permission, error) {
+func (m *mockPermissionRepo) FindByUUID(id any, p ...string) (*model.Permission, error) {
+	if m.findByUUIDFn != nil {
+		return m.findByUUIDFn(id, p...)
+	}
 	return nil, nil
 }
 func (m *mockPermissionRepo) FindByUUIDs(_ []string, _ ...string) ([]model.Permission, error) {
@@ -1387,9 +1391,11 @@ func (m *mockClientApiRepo) RemoveByClientUUIDAndApiUUID(cUUID, aUUID uuid.UUID)
 // ---------------------------------------------------------------------------
 
 type mockAPIKeyRepo struct {
+	findByUUIDFn              func(any, ...string) (*model.APIKey, error)
 	findByUUIDAndTenantIDFn   func(string, int64) (*model.APIKey, error)
 	findByKeyHashFn           func(string) (*model.APIKey, error)
 	findByKeyPrefixFn         func(string) (*model.APIKey, error)
+	deleteByUUIDFn            func(any) error
 	deleteByUUIDAndTenantIDFn func(string, int64) error
 	findPaginatedFn           func(repository.APIKeyRepositoryGetFilter) (*repository.PaginationResult[model.APIKey], error)
 	createFn                  func(*model.APIKey) (*model.APIKey, error)
@@ -1405,7 +1411,12 @@ func (m *mockAPIKeyRepo) Create(e *model.APIKey) (*model.APIKey, error) {
 }
 func (m *mockAPIKeyRepo) CreateOrUpdate(e *model.APIKey) (*model.APIKey, error) { return e, nil }
 func (m *mockAPIKeyRepo) FindAll(_ ...string) ([]model.APIKey, error)           { return nil, nil }
-func (m *mockAPIKeyRepo) FindByUUID(_ any, _ ...string) (*model.APIKey, error)  { return nil, nil }
+func (m *mockAPIKeyRepo) FindByUUID(id any, p ...string) (*model.APIKey, error) {
+	if m.findByUUIDFn != nil {
+		return m.findByUUIDFn(id, p...)
+	}
+	return nil, nil
+}
 func (m *mockAPIKeyRepo) FindByUUIDs(_ []string, _ ...string) ([]model.APIKey, error) {
 	return nil, nil
 }
@@ -1417,8 +1428,13 @@ func (m *mockAPIKeyRepo) UpdateByUUID(id, data any) (*model.APIKey, error) {
 	return nil, nil
 }
 func (m *mockAPIKeyRepo) UpdateByID(_, _ any) (*model.APIKey, error) { return nil, nil }
-func (m *mockAPIKeyRepo) DeleteByUUID(_ any) error                   { return nil }
-func (m *mockAPIKeyRepo) DeleteByID(_ any) error                     { return nil }
+func (m *mockAPIKeyRepo) DeleteByUUID(id any) error {
+	if m.deleteByUUIDFn != nil {
+		return m.deleteByUUIDFn(id)
+	}
+	return nil
+}
+func (m *mockAPIKeyRepo) DeleteByID(_ any) error { return nil }
 func (m *mockAPIKeyRepo) Paginate(_ map[string]any, _, _ int, _ ...string) (*repository.PaginationResult[model.APIKey], error) {
 	return nil, nil
 }
@@ -1460,13 +1476,20 @@ func (m *mockAPIKeyRepo) FindPaginated(f repository.APIKeyRepositoryGetFilter) (
 type mockAPIKeyApiRepo struct {
 	findByAPIKeyAndApiFn           func(int64, int64) (*model.APIKeyApi, error)
 	findByAPIKeyUUIDFn             func(uuid.UUID) ([]model.APIKeyApi, error)
+	findByAPIKeyUUIDPaginatedFn    func(uuid.UUID, int, int, string, string) (*repository.PaginationResult[model.APIKeyApi], error)
 	findByAPIKeyUUIDAndApiUUIDFn   func(uuid.UUID, uuid.UUID) (*model.APIKeyApi, error)
 	removeByAPIKeyAndApiFn         func(int64, int64) error
 	removeByAPIKeyUUIDAndApiUUIDFn func(uuid.UUID, uuid.UUID) error
+	createFn                       func(*model.APIKeyApi) (*model.APIKeyApi, error)
 }
 
-func (m *mockAPIKeyApiRepo) WithTx(_ *gorm.DB) repository.APIKeyApiRepository    { return m }
-func (m *mockAPIKeyApiRepo) Create(e *model.APIKeyApi) (*model.APIKeyApi, error) { return e, nil }
+func (m *mockAPIKeyApiRepo) WithTx(_ *gorm.DB) repository.APIKeyApiRepository { return m }
+func (m *mockAPIKeyApiRepo) Create(e *model.APIKeyApi) (*model.APIKeyApi, error) {
+	if m.createFn != nil {
+		return m.createFn(e)
+	}
+	return e, nil
+}
 func (m *mockAPIKeyApiRepo) CreateOrUpdate(e *model.APIKeyApi) (*model.APIKeyApi, error) {
 	return e, nil
 }
@@ -1496,6 +1519,9 @@ func (m *mockAPIKeyApiRepo) FindByAPIKeyUUID(akUUID uuid.UUID) ([]model.APIKeyAp
 	return nil, nil
 }
 func (m *mockAPIKeyApiRepo) FindByAPIKeyUUIDPaginated(akUUID uuid.UUID, page, limit int, sortBy, sortOrder string) (*repository.PaginationResult[model.APIKeyApi], error) {
+	if m.findByAPIKeyUUIDPaginatedFn != nil {
+		return m.findByAPIKeyUUIDPaginatedFn(akUUID, page, limit, sortBy, sortOrder)
+	}
 	return &repository.PaginationResult[model.APIKeyApi]{}, nil
 }
 func (m *mockAPIKeyApiRepo) FindByAPIKeyUUIDAndApiUUID(akUUID, aUUID uuid.UUID) (*model.APIKeyApi, error) {
@@ -1522,6 +1548,7 @@ func (m *mockAPIKeyApiRepo) RemoveByAPIKeyUUIDAndApiUUID(akUUID, aUUID uuid.UUID
 // ---------------------------------------------------------------------------
 
 type mockAPIKeyPermissionRepo struct {
+	createFn                         func(*model.APIKeyPermission) (*model.APIKeyPermission, error)
 	findByAPIKeyApiAndPermissionFn   func(int64, int64) (*model.APIKeyPermission, error)
 	removeByAPIKeyApiAndPermissionFn func(int64, int64) error
 	findByAPIKeyApiIDFn              func(int64) ([]model.APIKeyPermission, error)
@@ -1531,6 +1558,9 @@ func (m *mockAPIKeyPermissionRepo) WithTx(_ *gorm.DB) repository.APIKeyPermissio
 	return m
 }
 func (m *mockAPIKeyPermissionRepo) Create(e *model.APIKeyPermission) (*model.APIKeyPermission, error) {
+	if m.createFn != nil {
+		return m.createFn(e)
+	}
 	return e, nil
 }
 func (m *mockAPIKeyPermissionRepo) CreateOrUpdate(e *model.APIKeyPermission) (*model.APIKeyPermission, error) {

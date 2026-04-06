@@ -116,12 +116,10 @@ func NewAPIKeyService(
 }
 
 // generateAPIKey generates a secure API key and returns the key and its hash
-func (s *apiKeyService) generateAPIKey() (string, string, string, error) {
+func (s *apiKeyService) generateAPIKey() (string, string, string) {
 	// Generate 32 random bytes
 	bytes := make([]byte, 32)
-	if _, err := rand.Read(bytes); err != nil {
-		return "", "", "", err
-	}
+	_, _ = rand.Read(bytes)
 
 	// Create the API key with a prefix
 	apiKey := "ak_" + hex.EncodeToString(bytes)
@@ -133,7 +131,7 @@ func (s *apiKeyService) generateAPIKey() (string, string, string, error) {
 	// Get prefix for identification (first 12 characters)
 	keyPrefix := apiKey[:12]
 
-	return apiKey, keyHash, keyPrefix, nil
+	return apiKey, keyHash, keyPrefix
 }
 
 func (s *apiKeyService) Get(filter APIKeyServiceGetFilter, requestingUserUUID uuid.UUID) (*APIKeyServiceGetResult, error) {
@@ -255,11 +253,7 @@ func (s *apiKeyService) Create(tenantID int64, name, description string, config 
 
 		// Generate API key
 		var keyHash, keyPrefix string
-		var err error
-		plainKey, keyHash, keyPrefix, err = s.generateAPIKey()
-		if err != nil {
-			return err
-		}
+		plainKey, keyHash, keyPrefix = s.generateAPIKey()
 
 		// Create API key model
 		apiKey := &model.APIKey{
@@ -275,6 +269,7 @@ func (s *apiKeyService) Create(tenantID int64, name, description string, config 
 		}
 
 		// Save to database
+		var err error
 		createdAPIKey, err = apiKeyRepo.Create(apiKey)
 		if err != nil {
 			return err
