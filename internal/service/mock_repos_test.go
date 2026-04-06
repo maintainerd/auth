@@ -1774,6 +1774,8 @@ type mockSignupFlowRepo struct {
 	findByNameFn                  func(string) (*model.SignupFlow, error)
 	findPaginatedFn               func(repository.SignupFlowRepositoryGetFilter) (*repository.PaginationResult[model.SignupFlow], error)
 	createFn                      func(*model.SignupFlow) (*model.SignupFlow, error)
+	createOrUpdateFn              func(*model.SignupFlow) (*model.SignupFlow, error)
+	deleteByUUIDFn                func(any) error
 }
 
 func (m *mockSignupFlowRepo) WithTx(_ *gorm.DB) repository.SignupFlowRepository { return m }
@@ -1784,6 +1786,9 @@ func (m *mockSignupFlowRepo) Create(e *model.SignupFlow) (*model.SignupFlow, err
 	return e, nil
 }
 func (m *mockSignupFlowRepo) CreateOrUpdate(e *model.SignupFlow) (*model.SignupFlow, error) {
+	if m.createOrUpdateFn != nil {
+		return m.createOrUpdateFn(e)
+	}
 	return e, nil
 }
 func (m *mockSignupFlowRepo) FindAll(_ ...string) ([]model.SignupFlow, error) { return nil, nil }
@@ -1796,8 +1801,13 @@ func (m *mockSignupFlowRepo) FindByUUIDs(_ []string, _ ...string) ([]model.Signu
 func (m *mockSignupFlowRepo) FindByID(_ any, _ ...string) (*model.SignupFlow, error) { return nil, nil }
 func (m *mockSignupFlowRepo) UpdateByUUID(_, _ any) (*model.SignupFlow, error)       { return nil, nil }
 func (m *mockSignupFlowRepo) UpdateByID(_, _ any) (*model.SignupFlow, error)         { return nil, nil }
-func (m *mockSignupFlowRepo) DeleteByUUID(_ any) error                               { return nil }
-func (m *mockSignupFlowRepo) DeleteByID(_ any) error                                 { return nil }
+func (m *mockSignupFlowRepo) DeleteByUUID(id any) error {
+	if m.deleteByUUIDFn != nil {
+		return m.deleteByUUIDFn(id)
+	}
+	return nil
+}
+func (m *mockSignupFlowRepo) DeleteByID(_ any) error { return nil }
 func (m *mockSignupFlowRepo) Paginate(_ map[string]any, _, _ int, _ ...string) (*repository.PaginationResult[model.SignupFlow], error) {
 	return nil, nil
 }
@@ -1834,10 +1844,15 @@ type mockSignupFlowRoleRepo struct {
 	findBySignupFlowIDFn            func(int64) ([]model.SignupFlowRole, error)
 	deleteBySignupFlowIDAndRoleIDFn func(int64, int64) error
 	findBySignupFlowIDAndRoleIDFn   func(int64, int64) (*model.SignupFlowRole, error)
+	findBySignupFlowIDPaginatedFn   func(int64, int, int) ([]model.SignupFlowRole, int64, error)
+	createFn                        func(*model.SignupFlowRole) (*model.SignupFlowRole, error)
 }
 
 func (m *mockSignupFlowRoleRepo) WithTx(_ *gorm.DB) repository.SignupFlowRoleRepository { return m }
 func (m *mockSignupFlowRoleRepo) Create(e *model.SignupFlowRole) (*model.SignupFlowRole, error) {
+	if m.createFn != nil {
+		return m.createFn(e)
+	}
 	return e, nil
 }
 func (m *mockSignupFlowRoleRepo) CreateOrUpdate(e *model.SignupFlowRole) (*model.SignupFlowRole, error) {
@@ -1871,6 +1886,9 @@ func (m *mockSignupFlowRoleRepo) FindBySignupFlowID(sfID int64) ([]model.SignupF
 	return nil, nil
 }
 func (m *mockSignupFlowRoleRepo) FindBySignupFlowIDPaginated(sfID int64, page, limit int) ([]model.SignupFlowRole, int64, error) {
+	if m.findBySignupFlowIDPaginatedFn != nil {
+		return m.findBySignupFlowIDPaginatedFn(sfID, page, limit)
+	}
 	return nil, 0, nil
 }
 func (m *mockSignupFlowRoleRepo) DeleteBySignupFlowIDAndRoleID(sfID, rID int64) error {
