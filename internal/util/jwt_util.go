@@ -95,6 +95,13 @@ func InitJWTKeys() error {
 	return nil
 }
 
+// ResetJWTKeys clears the cached JWT signing keys.
+// Intended for testing only.
+func ResetJWTKeys() {
+	privateKey = nil
+	publicKey = nil
+}
+
 func GenerateAccessToken(
 	userId string,
 	scope string,
