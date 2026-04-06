@@ -16,18 +16,31 @@ func newIPRuleSvc(repo *mockIpRestrictionRuleRepo) IpRestrictionRuleService {
 }
 
 func TestIpRestrictionRuleService_GetAll(t *testing.T) {
-	svc := newIPRuleSvc(&mockIpRestrictionRuleRepo{
-		findPaginatedFn: func(_ repository.IpRestrictionRuleRepositoryGetFilter) (*repository.PaginationResult[model.IpRestrictionRule], error) {
-			return &repository.PaginationResult[model.IpRestrictionRule]{
-				Data:  []model.IpRestrictionRule{{IpAddress: "192.168.1.1", TenantID: 1}},
-				Total: 1, Page: 1, Limit: 10, TotalPages: 1,
-			}, nil
-		},
+	t.Run("success", func(t *testing.T) {
+		svc := newIPRuleSvc(&mockIpRestrictionRuleRepo{
+			findPaginatedFn: func(_ repository.IpRestrictionRuleRepositoryGetFilter) (*repository.PaginationResult[model.IpRestrictionRule], error) {
+				return &repository.PaginationResult[model.IpRestrictionRule]{
+					Data:  []model.IpRestrictionRule{{IpAddress: "192.168.1.1", TenantID: 1}},
+					Total: 1, Page: 1, Limit: 10, TotalPages: 1,
+				}, nil
+			},
+		})
+		res, err := svc.GetAll(1, nil, nil, nil, nil, 1, 10, "created_at", "asc")
+		require.NoError(t, err)
+		assert.Equal(t, int64(1), res.Total)
+		assert.Len(t, res.Data, 1)
 	})
-	res, err := svc.GetAll(1, nil, nil, nil, nil, 1, 10, "created_at", "asc")
-	require.NoError(t, err)
-	assert.Equal(t, int64(1), res.Total)
-	assert.Len(t, res.Data, 1)
+
+	t.Run("repo error", func(t *testing.T) {
+		svc := newIPRuleSvc(&mockIpRestrictionRuleRepo{
+			findPaginatedFn: func(_ repository.IpRestrictionRuleRepositoryGetFilter) (*repository.PaginationResult[model.IpRestrictionRule], error) {
+				return nil, errors.New("db err")
+			},
+		})
+		_, err := svc.GetAll(1, nil, nil, nil, nil, 1, 10, "created_at", "asc")
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "db err")
+	})
 }
 
 func TestIpRestrictionRuleService_GetByUUID(t *testing.T) {
@@ -112,6 +125,17 @@ func TestIpRestrictionRuleService_Update(t *testing.T) {
 		require.Error(t, err)
 	})
 
+	t.Run("repo error", func(t *testing.T) {
+		svc := newIPRuleSvc(&mockIpRestrictionRuleRepo{
+			findByUUIDFn: func(_ any, _ ...string) (*model.IpRestrictionRule, error) {
+				return nil, errors.New("db err")
+			},
+		})
+		_, err := svc.Update(tid, id, "d", "blacklist", "10.0.0.1", "active", 1)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "db err")
+	})
+
 	t.Run("wrong tenant", func(t *testing.T) {
 		svc := newIPRuleSvc(&mockIpRestrictionRuleRepo{
 			findByUUIDFn: func(_ any, _ ...string) (*model.IpRestrictionRule, error) {
@@ -120,6 +144,20 @@ func TestIpRestrictionRuleService_Update(t *testing.T) {
 		})
 		_, err := svc.Update(tid, id, "d", "blacklist", "10.0.0.1", "active", 1)
 		require.Error(t, err)
+	})
+
+	t.Run("update error", func(t *testing.T) {
+		svc := newIPRuleSvc(&mockIpRestrictionRuleRepo{
+			findByUUIDFn: func(_ any, _ ...string) (*model.IpRestrictionRule, error) {
+				return &model.IpRestrictionRule{IpRestrictionRuleUUID: id, TenantID: tid}, nil
+			},
+			updateByUUIDFn: func(_, _ any) (*model.IpRestrictionRule, error) {
+				return nil, errors.New("update err")
+			},
+		})
+		_, err := svc.Update(tid, id, "d", "blacklist", "10.0.0.1", "active", 1)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "update err")
 	})
 
 	t.Run("success", func(t *testing.T) {
@@ -137,9 +175,84 @@ func TestIpRestrictionRuleService_Update(t *testing.T) {
 	})
 }
 
+func TestIpRestrictionRuleService_UpdateStatus(t *testing.T) {
+	id := uuid.New()
+	tid := int64(1)
+
+	t.Run("repo error", func(t *testing.T) {
+		svc := newIPRuleSvc(&mockIpRestrictionRuleRepo{
+			findByUUIDFn: func(_ any, _ ...string) (*model.IpRestrictionRule, error) {
+				return nil, errors.New("db err")
+			},
+		})
+		_, err := svc.UpdateStatus(tid, id, "inactive", 1)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "db err")
+	})
+
+	t.Run("not found", func(t *testing.T) {
+		svc := newIPRuleSvc(&mockIpRestrictionRuleRepo{
+			findByUUIDFn: func(_ any, _ ...string) (*model.IpRestrictionRule, error) { return nil, nil },
+		})
+		_, err := svc.UpdateStatus(tid, id, "inactive", 1)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "not found")
+	})
+
+	t.Run("wrong tenant", func(t *testing.T) {
+		svc := newIPRuleSvc(&mockIpRestrictionRuleRepo{
+			findByUUIDFn: func(_ any, _ ...string) (*model.IpRestrictionRule, error) {
+				return &model.IpRestrictionRule{TenantID: 999}, nil
+			},
+		})
+		_, err := svc.UpdateStatus(tid, id, "inactive", 1)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "not found")
+	})
+
+	t.Run("update error", func(t *testing.T) {
+		svc := newIPRuleSvc(&mockIpRestrictionRuleRepo{
+			findByUUIDFn: func(_ any, _ ...string) (*model.IpRestrictionRule, error) {
+				return &model.IpRestrictionRule{IpRestrictionRuleUUID: id, TenantID: tid}, nil
+			},
+			updateByUUIDFn: func(_, _ any) (*model.IpRestrictionRule, error) {
+				return nil, errors.New("update err")
+			},
+		})
+		_, err := svc.UpdateStatus(tid, id, "inactive", 1)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "update err")
+	})
+
+	t.Run("success", func(t *testing.T) {
+		svc := newIPRuleSvc(&mockIpRestrictionRuleRepo{
+			findByUUIDFn: func(_ any, _ ...string) (*model.IpRestrictionRule, error) {
+				return &model.IpRestrictionRule{IpRestrictionRuleUUID: id, TenantID: tid}, nil
+			},
+			updateByUUIDFn: func(_, _ any) (*model.IpRestrictionRule, error) {
+				return &model.IpRestrictionRule{IpRestrictionRuleUUID: id, TenantID: tid, Status: "inactive"}, nil
+			},
+		})
+		res, err := svc.UpdateStatus(tid, id, "inactive", 1)
+		require.NoError(t, err)
+		assert.Equal(t, "inactive", res.Status)
+	})
+}
+
 func TestIpRestrictionRuleService_Delete(t *testing.T) {
 	id := uuid.New()
 	tid := int64(1)
+
+	t.Run("repo error", func(t *testing.T) {
+		svc := newIPRuleSvc(&mockIpRestrictionRuleRepo{
+			findByUUIDFn: func(_ any, _ ...string) (*model.IpRestrictionRule, error) {
+				return nil, errors.New("db err")
+			},
+		})
+		_, err := svc.Delete(tid, id)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "db err")
+	})
 
 	t.Run("not found", func(t *testing.T) {
 		svc := newIPRuleSvc(&mockIpRestrictionRuleRepo{
@@ -147,6 +260,29 @@ func TestIpRestrictionRuleService_Delete(t *testing.T) {
 		})
 		_, err := svc.Delete(tid, id)
 		require.Error(t, err)
+	})
+
+	t.Run("wrong tenant", func(t *testing.T) {
+		svc := newIPRuleSvc(&mockIpRestrictionRuleRepo{
+			findByUUIDFn: func(_ any, _ ...string) (*model.IpRestrictionRule, error) {
+				return &model.IpRestrictionRule{TenantID: 999}, nil
+			},
+		})
+		_, err := svc.Delete(tid, id)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "not found")
+	})
+
+	t.Run("delete error", func(t *testing.T) {
+		svc := newIPRuleSvc(&mockIpRestrictionRuleRepo{
+			findByUUIDFn: func(_ any, _ ...string) (*model.IpRestrictionRule, error) {
+				return &model.IpRestrictionRule{IpRestrictionRuleUUID: id, TenantID: tid, IpAddress: "1.2.3.4"}, nil
+			},
+			deleteByUUIDFn: func(_ any) error { return errors.New("delete err") },
+		})
+		_, err := svc.Delete(tid, id)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "delete err")
 	})
 
 	t.Run("success", func(t *testing.T) {
@@ -161,4 +297,3 @@ func TestIpRestrictionRuleService_Delete(t *testing.T) {
 		assert.Equal(t, "1.2.3.4", res.IpAddress)
 	})
 }
-
