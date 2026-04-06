@@ -36,14 +36,10 @@ func (h *ProfileHandler) CreateOrUpdate(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	// Parse birthdate string to *time.Time
+	// Parse birthdate string to *time.Time (format already validated by DTO)
 	var birthdate *time.Time
 	if req.Birthdate != nil && *req.Birthdate != "" {
-		parsed, err := time.Parse("2006-01-02", *req.Birthdate)
-		if err != nil {
-			util.Error(w, http.StatusBadRequest, "Invalid birthdate format, must be YYYY-MM-DD", err.Error())
-			return
-		}
+		parsed, _ := time.Parse("2006-01-02", *req.Birthdate)
 		birthdate = &parsed
 	}
 
@@ -80,14 +76,10 @@ func (h *ProfileHandler) CreateProfile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Parse birthdate string to *time.Time
+	// Parse birthdate string to *time.Time (format already validated by DTO)
 	var birthdate *time.Time
 	if req.Birthdate != nil && *req.Birthdate != "" {
-		parsed, err := time.Parse("2006-01-02", *req.Birthdate)
-		if err != nil {
-			util.Error(w, http.StatusBadRequest, "Invalid birthdate format, must be YYYY-MM-DD", err.Error())
-			return
-		}
+		parsed, _ := time.Parse("2006-01-02", *req.Birthdate)
 		birthdate = &parsed
 	}
 
@@ -137,14 +129,10 @@ func (h *ProfileHandler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Parse birthdate string to *time.Time
+	// Parse birthdate string to *time.Time (format already validated by DTO)
 	var birthdate *time.Time
 	if req.Birthdate != nil && *req.Birthdate != "" {
-		parsed, err := time.Parse("2006-01-02", *req.Birthdate)
-		if err != nil {
-			util.Error(w, http.StatusBadRequest, "Invalid birthdate format, must be YYYY-MM-DD", err.Error())
-			return
-		}
+		parsed, _ := time.Parse("2006-01-02", *req.Birthdate)
 		birthdate = &parsed
 	}
 
@@ -464,14 +452,10 @@ func (h *ProfileHandler) AdminCreateProfile(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	// Parse birthdate string to *time.Time
+	// Parse birthdate string to *time.Time (format already validated by DTO)
 	var birthdate *time.Time
 	if req.Birthdate != nil && *req.Birthdate != "" {
-		parsed, err := time.Parse("2006-01-02", *req.Birthdate)
-		if err != nil {
-			util.Error(w, http.StatusBadRequest, "Invalid birthdate format, must be YYYY-MM-DD", err.Error())
-			return
-		}
+		parsed, _ := time.Parse("2006-01-02", *req.Birthdate)
 		birthdate = &parsed
 	}
 
@@ -527,14 +511,10 @@ func (h *ProfileHandler) AdminUpdateProfile(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	// Parse birthdate string to *time.Time
+	// Parse birthdate string to *time.Time (format already validated by DTO)
 	var birthdate *time.Time
 	if req.Birthdate != nil && *req.Birthdate != "" {
-		parsed, err := time.Parse("2006-01-02", *req.Birthdate)
-		if err != nil {
-			util.Error(w, http.StatusBadRequest, "Invalid birthdate format, must be YYYY-MM-DD", err.Error())
-			return
-		}
+		parsed, _ := time.Parse("2006-01-02", *req.Birthdate)
 		birthdate = &parsed
 	}
 
