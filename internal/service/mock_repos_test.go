@@ -18,6 +18,7 @@ type mockTenantRepo struct {
 	findByIdentifierFn       func(identifier string) (*model.Tenant, error)
 	findDefaultFn            func() (*model.Tenant, error)
 	findPaginatedFn          func(filter repository.TenantRepositoryGetFilter) (*repository.PaginationResult[model.Tenant], error)
+	createFn                 func(e *model.Tenant) (*model.Tenant, error)
 	createOrUpdateFn         func(e *model.Tenant) (*model.Tenant, error)
 	setStatusByUUIDFn        func(tenantUUID uuid.UUID, status string) error
 	setDefaultStatusByUUIDFn func(tenantUUID uuid.UUID, isDefault bool) error
@@ -25,7 +26,12 @@ type mockTenantRepo struct {
 }
 
 func (m *mockTenantRepo) WithTx(_ *gorm.DB) repository.TenantRepository { return m }
-func (m *mockTenantRepo) Create(e *model.Tenant) (*model.Tenant, error) { return e, nil }
+func (m *mockTenantRepo) Create(e *model.Tenant) (*model.Tenant, error) {
+	if m.createFn != nil {
+		return m.createFn(e)
+	}
+	return e, nil
+}
 func (m *mockTenantRepo) FindAll(p ...string) ([]model.Tenant, error) {
 	if m.findAllFn != nil {
 		return m.findAllFn(p...)
