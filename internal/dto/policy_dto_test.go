@@ -128,3 +128,74 @@ func TestPolicyStatusUpdateDto_Validate(t *testing.T) {
 	require.Error(t, PolicyStatusUpdateDto{Status: "unknown"}.Validate())
 }
 
+func TestPolicyUpdateRequestDto_Validate(t *testing.T) {
+	valid := PolicyUpdateRequestDto{
+		Name:     "auth:user:read",
+		Document: validPolicyDoc(),
+		Version:  "v1",
+		Status:   model.StatusActive,
+	}
+
+	t.Run("valid", func(t *testing.T) {
+		assert.NoError(t, valid.Validate())
+	})
+
+	t.Run("missing name", func(t *testing.T) {
+		d := valid
+		d.Name = ""
+		require.Error(t, d.Validate())
+	})
+
+	t.Run("invalid status", func(t *testing.T) {
+		d := valid
+		d.Status = "unknown"
+		require.Error(t, d.Validate())
+	})
+
+	t.Run("missing version", func(t *testing.T) {
+		d := valid
+		d.Version = ""
+		require.Error(t, d.Validate())
+	})
+}
+
+func TestPolicyServicesFilterDto_Validate(t *testing.T) {
+	t.Run("valid empty", func(t *testing.T) {
+		f := PolicyServicesFilterDto{PaginationRequestDto: validPagination()}
+		assert.NoError(t, f.Validate())
+	})
+
+	t.Run("name too long", func(t *testing.T) {
+		f := PolicyServicesFilterDto{PaginationRequestDto: validPagination(), Name: strPtr(string(make([]byte, 151)))}
+		require.Error(t, f.Validate())
+	})
+
+	t.Run("display_name too long", func(t *testing.T) {
+		f := PolicyServicesFilterDto{PaginationRequestDto: validPagination(), DisplayName: strPtr(string(make([]byte, 151)))}
+		require.Error(t, f.Validate())
+	})
+
+	t.Run("description too long", func(t *testing.T) {
+		f := PolicyServicesFilterDto{PaginationRequestDto: validPagination(), Description: strPtr(string(make([]byte, 501)))}
+		require.Error(t, f.Validate())
+	})
+}
+
+func TestValidatePolicyDocumentStructure(t *testing.T) {
+	t.Run("non-datatypes.JSON value returns error", func(t *testing.T) {
+		err := validatePolicyDocumentStructure("just-a-string")
+		require.Error(t, err)
+	})
+
+	t.Run("invalid JSON bytes returns error", func(t *testing.T) {
+		err := validatePolicyDocumentStructure(datatypes.JSON([]byte("not-json")))
+		require.Error(t, err)
+	})
+
+	t.Run("invalid statement returns error", func(t *testing.T) {
+		// Document structure is valid but statement has bad effect → hits statement.Validate() error
+		doc := datatypes.JSON(`{"version":"v1","statement":[{"effect":"bad","action":["x"],"resource":["y"]}]}`)
+		err := validatePolicyDocumentStructure(doc)
+		require.Error(t, err)
+	})
+}
