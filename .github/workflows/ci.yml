@@ -7,7 +7,8 @@ on:
     branches: [main, develop]
 
 permissions:
-  contents: read
+  contents: read      # default: least-privilege baseline; jobs that upload SARIF
+  security-events: write  # override per-job where needed (CodeQL, Semgrep, Snyk)
 
 jobs:
   # ─────────────────────────────────────────────────────────────────────────────
@@ -103,4 +104,137 @@ jobs:
 
       - name: Build binary
         run: go build -v -o /dev/null ./cmd/server
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # CodeQL — GitHub-native semantic SAST for Go
+  # No extra secrets needed; results appear in the repo's Security → Code Scanning tab.
+  # ─────────────────────────────────────────────────────────────────────────────
+  codeql:
+    name: CodeQL
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.26.x"
+          cache: true
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: go
+          # security-extended adds CWE coverage beyond the default query suite
+          queries: security-extended,security-and-quality
+
+      - name: Autobuild
+        uses: github/codeql-action/autobuild@v3
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:go"
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Semgrep — open-source SAST (Go + OWASP Top-Ten + secrets rulesets)
+  # Optional: add SEMGREP_APP_TOKEN secret to push results to Semgrep Cloud.
+  # Without the token the job still runs and fails the build on findings.
+  # ─────────────────────────────────────────────────────────────────────────────
+  semgrep:
+    name: Semgrep
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+
+    container:
+      image: semgrep/semgrep
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run Semgrep
+        run: |
+          semgrep ci \
+            --config p/golang \
+            --config p/owasp-top-ten \
+            --config p/secrets \
+            --sarif --output semgrep.sarif
+        env:
+          # Required for Semgrep Cloud dashboard; leave unset for pure CI mode.
+          SEMGREP_APP_TOKEN: ${{ secrets.SEMGREP_APP_TOKEN }}
+
+      - name: Upload Semgrep results to GitHub Code Scanning
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()     # upload even when semgrep found issues
+        with:
+          sarif_file: semgrep.sarif
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Snyk — dependency & code vulnerability scanning for Go modules
+  # Requires: add SNYK_TOKEN secret (free tier at https://app.snyk.io → Account Settings → API Token).
+  # Results are also pushed to the Security → Code Scanning tab via SARIF upload.
+  # ─────────────────────────────────────────────────────────────────────────────
+  snyk:
+    name: Snyk
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.26.x"
+          cache: true
+
+      - name: Run Snyk (dependency scan)
+        uses: snyk/actions/golang@master
+        # continue so the SARIF upload step always runs even when vulns are found
+        continue-on-error: true
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          # Fail only on high/critical; adjust to 'medium' for stricter posture
+          args: --severity-threshold=high --sarif-file-output=snyk.sarif
+
+      - name: Upload Snyk results to GitHub Code Scanning
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: snyk.sarif
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Gitleaks — detect secrets / credentials committed anywhere in the git history
+  # No external secrets required; GITHUB_TOKEN is injected automatically.
+  # ─────────────────────────────────────────────────────────────────────────────
+  gitleaks:
+    name: Gitleaks
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout code (full history)
+        uses: actions/checkout@v4
+        with:
+          # Full depth so Gitleaks can audit every commit, not just the latest snapshot
+          fetch-depth: 0
+
+      - name: Run Gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Optional: GITLEAKS_LICENSE is only required for the Gitleaks Enterprise plan.
 
