@@ -1,0 +1,176 @@
+name: Security
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+  schedule:
+    # Runs every day at 02:00 UTC — catches newly published CVEs even without a push
+    - cron: "0 2 * * *"
+
+permissions:
+  contents: read
+  security-events: write  # needed by all four jobs to upload SARIF to Code Scanning
+
+jobs:
+  # ─────────────────────────────────────────────────────────────────────────────
+  # CodeQL — GitHub-native semantic SAST for Go
+  # No extra secrets needed; results appear in Security → Code Scanning tab.
+  # ─────────────────────────────────────────────────────────────────────────────
+  codeql:
+    name: CodeQL
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.26.x"
+          cache: true
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v4
+        with:
+          languages: go
+          # security-extended adds CWE coverage beyond the default query suite
+          queries: security-extended,security-and-quality
+
+      - name: Autobuild
+        uses: github/codeql-action/autobuild@v4
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v4
+        with:
+          category: "/language:go"
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Semgrep — open-source SAST (Go + OWASP Top-Ten + secrets rulesets)
+  # Runs fully offline with no token required via `semgrep scan`.
+  # Optional: set SEMGREP_APP_TOKEN secret to also push results to Semgrep Cloud.
+  # ─────────────────────────────────────────────────────────────────────────────
+  semgrep:
+    name: Semgrep
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+
+    container:
+      image: semgrep/semgrep
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run Semgrep scan
+        # `semgrep scan` works fully offline — no token needed.
+        # continue-on-error so the SARIF upload always runs even when findings exist.
+        continue-on-error: true
+        run: |
+          semgrep scan \
+            --config p/golang \
+            --config p/owasp-top-ten \
+            --config p/secrets \
+            --sarif \
+            --output semgrep.sarif
+        env:
+          # Optional — set this secret to also report findings to Semgrep Cloud.
+          SEMGREP_APP_TOKEN: ${{ secrets.SEMGREP_APP_TOKEN }}
+
+      - name: Upload Semgrep results to GitHub Code Scanning
+        uses: github/codeql-action/upload-sarif@v4
+        if: always()
+        with:
+          sarif_file: semgrep.sarif
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Snyk — dependency & code vulnerability scanning for Go modules
+  # Requires: SNYK_TOKEN secret (free tier at https://app.snyk.io → Account Settings → API Token).
+  # Results are also pushed to Security → Code Scanning tab via SARIF upload.
+  # ─────────────────────────────────────────────────────────────────────────────
+  snyk:
+    name: Snyk
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.26.x"
+          cache: true
+
+      - name: Run Snyk (dependency scan)
+        uses: snyk/actions/golang@master
+        # continue so the SARIF upload step always runs even when vulns are found
+        continue-on-error: true
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          # Fail only on high/critical; adjust to 'medium' for stricter posture
+          args: --severity-threshold=high --sarif-file-output=snyk.sarif
+
+      - name: Upload Snyk results to GitHub Code Scanning
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: snyk.sarif
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Gitleaks — detect secrets / credentials committed anywhere in the git history
+  # Uses the Gitleaks CLI directly (no GitHub Action) to avoid the org-license
+  # requirement introduced in gitleaks-action v2. No secrets needed.
+  # ─────────────────────────────────────────────────────────────────────────────
+  gitleaks:
+    name: Gitleaks
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+
+    steps:
+      - name: Checkout code (full history)
+        uses: actions/checkout@v4
+        with:
+          # Full depth so Gitleaks can audit every commit, not just the latest snapshot
+          fetch-depth: 0
+
+      - name: Install Gitleaks
+        run: |
+          VERSION=$(curl -fsSL https://api.github.com/repos/gitleaks/gitleaks/releases/latest \
+            | grep '"tag_name"' | cut -d'"' -f4)
+          curl -fsSL "https://github.com/gitleaks/gitleaks/releases/download/${VERSION}/gitleaks_${VERSION#v}_linux_x64.tar.gz" \
+            | tar -xz gitleaks
+          sudo mv gitleaks /usr/local/bin/gitleaks
+
+      - name: Run Gitleaks
+        # continue-on-error so the SARIF upload step always runs even when leaks are found
+        continue-on-error: true
+        run: |
+          gitleaks detect \
+            --source . \
+            --redact \
+            --no-banner \
+            --config .gitleaks.toml \
+            --exit-code 1 \
+            --report-format sarif \
+            --report-path gitleaks.sarif
+
+      - name: Upload Gitleaks results to GitHub Code Scanning
+        uses: github/codeql-action/upload-sarif@v4
+        if: always()
+        with:
+          sarif_file: gitleaks.sarif
+          category: gitleaks
