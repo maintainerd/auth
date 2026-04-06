@@ -24,6 +24,19 @@
     </a>
   </p>
 
+  <p align="center">
+    <!-- Security scans -->
+    <a href="https://github.com/maintainerd/auth/actions/workflows/security.yml">
+      <img src="https://github.com/maintainerd/auth/actions/workflows/security.yml/badge.svg" alt="Security">
+    </a>
+    <a href="https://snyk.io/test/github/maintainerd/auth">
+      <img src="https://snyk.io/test/github/maintainerd/auth/badge.svg" alt="Known Vulnerabilities">
+    </a>
+    <a href="https://github.com/maintainerd/auth/security/code-scanning">
+      <img src="https://img.shields.io/badge/protected%20by-gitleaks-blue" alt="Protected by Gitleaks">
+    </a>
+  </p>
+
   A self-hostable authentication service built in Go.
   Run it standalone, drop it into a microservice architecture, or use it as part of the Maintainerd ecosystem.
 
