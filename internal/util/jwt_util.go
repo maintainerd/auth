@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
-	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/config"
 )
 
@@ -31,10 +30,7 @@ const (
 // Complies with SOC2 CC6.1 and ISO27001 A.10.1.1
 func GenerateSecureID() string {
 	bytes := make([]byte, 16)
-	if _, err := rand.Read(bytes); err != nil {
-		// Fallback to UUID if crypto/rand fails
-		return uuid.New().String()
-	}
+	_, _ = rand.Read(bytes)
 	return hex.EncodeToString(bytes)
 }
 
@@ -45,15 +41,13 @@ var (
 
 // generateSecureJTI creates a cryptographically secure unique token identifier
 // Complies with SOC2 CC6.1 and ISO27001 A.10.1.1
-func generateSecureJTI() (string, error) {
+func generateSecureJTI() string {
 	bytes := make([]byte, JTILength)
-	if _, err := rand.Read(bytes); err != nil {
-		return "", fmt.Errorf("failed to generate secure JTI: %w", err)
-	}
+	_, _ = rand.Read(bytes)
 
 	// Create deterministic hash for uniqueness validation
 	hash := sha256.Sum256(bytes)
-	return hex.EncodeToString(hash[:16]), nil // 32 character hex string
+	return hex.EncodeToString(hash[:16]) // 32 character hex string
 }
 
 // validateKeyStrength ensures RSA keys meet minimum security requirements
@@ -127,10 +121,7 @@ func GenerateAccessToken(
 	}
 
 	// Generate secure JTI (ISO27001 A.10.1.1)
-	jti, err := generateSecureJTI()
-	if err != nil {
-		return "", fmt.Errorf("failed to generate JTI: %w", err)
-	}
+	jti := generateSecureJTI()
 
 	now := time.Now()
 	claims := jwt.MapClaims{
@@ -187,10 +178,7 @@ func GenerateIDToken(userUUID, issuer, clientID, providerID string, profile *Use
 	}
 
 	// Generate secure JTI
-	jti, err := generateSecureJTI()
-	if err != nil {
-		return "", fmt.Errorf("failed to generate JTI: %w", err)
-	}
+	jti := generateSecureJTI()
 
 	now := time.Now()
 	claims := jwt.MapClaims{
@@ -270,10 +258,7 @@ func GenerateRefreshToken(userUUID, issuer, clientID, providerID string) (string
 	}
 
 	// Generate secure JTI
-	jti, err := generateSecureJTI()
-	if err != nil {
-		return "", fmt.Errorf("failed to generate JTI: %w", err)
-	}
+	jti := generateSecureJTI()
 
 	now := time.Now()
 	claims := jwt.MapClaims{
@@ -356,14 +341,8 @@ func ValidateToken(tokenString string) (jwt.MapClaims, error) {
 	}
 
 	// Extract and validate claims
-	claims, ok := token.Claims.(jwt.MapClaims)
-	if !ok {
-		return nil, errors.New("invalid token claims format")
-	}
-
-	if !token.Valid {
-		return nil, errors.New("token is invalid")
-	}
+	// jwt.Parse with no error guarantees MapClaims and token.Valid == true
+	claims := token.Claims.(jwt.MapClaims)
 
 	// Additional security validations
 	if err := validateTokenClaims(claims); err != nil {

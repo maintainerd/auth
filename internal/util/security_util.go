@@ -265,12 +265,10 @@ func ValidateIPAddress(ipStr string) error {
 
 // GenerateCSRFToken generates a cryptographically secure CSRF token
 // Complies with SOC2 CC6.1 and ISO27001 A.13.2.1
-func GenerateCSRFToken() (string, error) {
+func GenerateCSRFToken() string {
 	bytes := make([]byte, 32)
-	if _, err := rand.Read(bytes); err != nil {
-		return "", fmt.Errorf("failed to generate CSRF token: %w", err)
-	}
-	return hex.EncodeToString(bytes), nil
+	_, _ = rand.Read(bytes)
+	return hex.EncodeToString(bytes)
 }
 
 // ValidateUserAgent checks for suspicious or malicious user agents
@@ -308,11 +306,9 @@ func RateLimitKey(identifier, action string) string {
 var dummyBcryptHash []byte
 
 func init() {
-	h, err := bcrypt.GenerateFromPassword([]byte("dummy_password_for_timing_safety"), bcrypt.DefaultCost)
-	if err != nil {
-		panic("failed to pre-compute dummy bcrypt hash: " + err.Error())
-	}
-	dummyBcryptHash = h
+	// bcrypt.GenerateFromPassword with DefaultCost cannot fail:
+	// the cost is valid and crypto/rand.Read is guaranteed to succeed (Go 1.24+).
+	dummyBcryptHash, _ = bcrypt.GenerateFromPassword([]byte("dummy_password_for_timing_safety"), bcrypt.DefaultCost)
 }
 
 // GetDummyBcryptHash returns the pre-computed dummy bcrypt hash for timing-safe operations.
