@@ -893,15 +893,22 @@ type mockProfileRepo struct {
 	findByUserIDFn        func(userID int64) (*model.Profile, error)
 	findDefaultByUserIDFn func(userID int64) (*model.Profile, error)
 	findAllByUserIDFn     func(repository.ProfileRepositoryGetFilter) (*repository.PaginationResult[model.Profile], error)
+	createFn              func(*model.Profile) (*model.Profile, error)
 	createOrUpdateFn      func(*model.Profile) (*model.Profile, error)
+	updateByUserIDFn      func(int64, *model.Profile) error
 	unsetDefaultFn        func(userID int64) error
 	deleteByUUIDFn        func(any) error
 	deleteByUserIDFn      func(userID int64) error
 }
 
-func (m *mockProfileRepo) WithTx(_ *gorm.DB) repository.ProfileRepository  { return m }
-func (m *mockProfileRepo) Create(e *model.Profile) (*model.Profile, error) { return e, nil }
-func (m *mockProfileRepo) FindAll(_ ...string) ([]model.Profile, error)    { return nil, nil }
+func (m *mockProfileRepo) WithTx(_ *gorm.DB) repository.ProfileRepository { return m }
+func (m *mockProfileRepo) Create(e *model.Profile) (*model.Profile, error) {
+	if m.createFn != nil {
+		return m.createFn(e)
+	}
+	return e, nil
+}
+func (m *mockProfileRepo) FindAll(_ ...string) ([]model.Profile, error) { return nil, nil }
 func (m *mockProfileRepo) FindByUUIDs(_ []string, _ ...string) ([]model.Profile, error) {
 	return nil, nil
 }
@@ -912,7 +919,12 @@ func (m *mockProfileRepo) DeleteByID(_ any) error                              {
 func (m *mockProfileRepo) Paginate(_ map[string]any, _, _ int, _ ...string) (*repository.PaginationResult[model.Profile], error) {
 	return nil, nil
 }
-func (m *mockProfileRepo) UpdateByUserID(_ int64, _ *model.Profile) error { return nil }
+func (m *mockProfileRepo) UpdateByUserID(uID int64, p *model.Profile) error {
+	if m.updateByUserIDFn != nil {
+		return m.updateByUserIDFn(uID, p)
+	}
+	return nil
+}
 
 func (m *mockProfileRepo) FindByUUID(id any, p ...string) (*model.Profile, error) {
 	if m.findByUUIDFn != nil {
