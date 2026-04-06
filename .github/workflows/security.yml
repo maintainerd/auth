@@ -54,7 +54,8 @@ jobs:
   # ─────────────────────────────────────────────────────────────────────────────
   # Semgrep — open-source SAST (Go + OWASP Top-Ten + secrets rulesets)
   # Runs fully offline with no token required via `semgrep scan`.
-  # Optional: set SEMGREP_APP_TOKEN secret to also push results to Semgrep Cloud.
+  # Requires: SEMGREP_APP_TOKEN secret to pull rules from Semgrep Cloud org
+  # and push results back. Results also upload to GitHub Code Scanning via SARIF.
   # ─────────────────────────────────────────────────────────────────────────────
   semgrep:
     name: Semgrep
@@ -70,19 +71,25 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Run Semgrep scan
-        # `semgrep scan` works fully offline — no token needed.
+      - name: Run Semgrep CI
+        # `semgrep ci` pulls rules from your Semgrep Cloud org and reports back.
+        # Local --config flags guarantee these rulesets run regardless of cloud config.
         # continue-on-error so the SARIF upload always runs even when findings exist.
         continue-on-error: true
         run: |
-          semgrep scan \
+          semgrep ci \
             --config p/golang \
             --config p/owasp-top-ten \
             --config p/secrets \
+            --config p/sql-injection \
+            --config p/xss \
+            --config p/command-injection \
+            --config p/insecure-transport \
+            --config p/jwt \
+            --config p/docker \
             --sarif \
             --output semgrep.sarif
         env:
-          # Optional — set this secret to also report findings to Semgrep Cloud.
           SEMGREP_APP_TOKEN: ${{ secrets.SEMGREP_APP_TOKEN }}
 
       - name: Upload Semgrep results to GitHub Code Scanning
