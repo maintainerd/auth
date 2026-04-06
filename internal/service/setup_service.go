@@ -11,7 +11,6 @@ import (
 	"github.com/maintainerd/auth/internal/repository"
 	"github.com/maintainerd/auth/internal/runner"
 	"github.com/maintainerd/auth/internal/util"
-	"golang.org/x/crypto/bcrypt"
 	"gorm.io/datatypes"
 	"gorm.io/gorm"
 )
@@ -132,11 +131,7 @@ func (s *setupService) CreateTenant(req dto.CreateTenantRequestDto) (*dto.Create
 		// Handle metadata (optional field)
 		var metadataJSON datatypes.JSON
 		if req.Metadata != nil {
-			metadataBytes, err := json.Marshal(req.Metadata)
-			if err != nil {
-				return errors.New("invalid metadata format")
-			}
-			metadataJSON = metadataBytes
+			metadataJSON, _ = json.Marshal(req.Metadata)
 		} else {
 			metadataJSON = datatypes.JSON([]byte("{}"))
 		}
@@ -272,7 +267,7 @@ func (s *setupService) CreateAdmin(req dto.CreateAdminRequestDto) (*dto.CreateAd
 		}
 
 		// Hash password
-		hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
+		hashedPassword, err := util.HashPassword([]byte(req.Password))
 		if err != nil {
 			return err
 		}

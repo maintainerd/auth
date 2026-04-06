@@ -169,7 +169,9 @@ type UserProfile struct {
 	Picture       string `json:"picture,omitempty"`
 }
 
-func GenerateIDToken(userUUID, issuer, clientID, providerID string, profile *UserProfile, nonce string) (string, error) {
+var GenerateIDToken = generateIDToken
+
+func generateIDToken(userUUID, issuer, clientID, providerID string, profile *UserProfile, nonce string) (string, error) {
 	// Input validation (SOC2 CC6.1 - Logical Access Controls)
 	if strings.TrimSpace(userUUID) == "" {
 		return "", errors.New("userUUID cannot be empty")
@@ -249,7 +251,9 @@ func GenerateIDToken(userUUID, issuer, clientID, providerID string, profile *Use
 	return generateToken(claims)
 }
 
-func GenerateRefreshToken(userUUID, issuer, clientID, providerID string) (string, error) {
+var GenerateRefreshToken = generateRefreshToken
+
+func generateRefreshToken(userUUID, issuer, clientID, providerID string) (string, error) {
 	// Input validation (SOC2 CC6.1 - Logical Access Controls)
 	if strings.TrimSpace(userUUID) == "" {
 		return "", errors.New("userUUID cannot be empty")

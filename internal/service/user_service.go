@@ -7,7 +7,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/model"
 	"github.com/maintainerd/auth/internal/repository"
-	"golang.org/x/crypto/bcrypt"
+	"github.com/maintainerd/auth/internal/util"
 	"gorm.io/datatypes"
 	"gorm.io/gorm"
 )
@@ -272,7 +272,7 @@ func (s *userService) Create(username string, fullname string, email *string, ph
 		}
 
 		// Hash password
-		hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+		hashedPassword, err := util.HashPassword([]byte(password))
 		if err != nil {
 			return err
 		}
@@ -399,9 +399,6 @@ func (s *userService) Update(userUUID uuid.UUID, tenantID int64, username string
 		}
 
 		// Validate tenant access permissions
-		if len(user.UserIdentities) == 0 {
-			return errors.New("user has no tenant identities")
-		}
 		if err := ValidateTenantAccess(updaterUser, user.UserIdentities[0].Tenant); err != nil {
 			return err
 		}
@@ -499,9 +496,6 @@ func (s *userService) SetStatus(userUUID uuid.UUID, tenantID int64, status strin
 	}
 
 	// Validate tenant access permissions
-	if len(user.UserIdentities) == 0 {
-		return nil, errors.New("user has no tenant identities")
-	}
 	if err := ValidateTenantAccess(updaterUser, user.UserIdentities[0].Tenant); err != nil {
 		return nil, err
 	}
@@ -655,9 +649,6 @@ func (s *userService) DeleteByUUID(userUUID uuid.UUID, tenantID int64, deleterUs
 	}
 
 	// Validate tenant access permissions
-	if len(user.UserIdentities) == 0 {
-		return nil, errors.New("user has no tenant identities")
-	}
 	if err := ValidateTenantAccess(deleterUser, user.UserIdentities[0].Tenant); err != nil {
 		return nil, err
 	}

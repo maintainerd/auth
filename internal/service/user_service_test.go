@@ -8,6 +8,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/model"
 	"github.com/maintainerd/auth/internal/repository"
+	"github.com/maintainerd/auth/internal/util"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gorm.io/datatypes"
@@ -474,6 +475,23 @@ func TestUserService_Create(t *testing.T) {
 		res, err := svc.Create("user", "name", nil, nil, "pass", "active", nil, tenantUUID, creatorUUID)
 		require.NoError(t, err)
 		assert.NotNil(t, res)
+	})
+
+	t.Run("HashPassword error", func(t *testing.T) {
+		origHash := util.HashPassword
+		defer func() { util.HashPassword = origHash }()
+		util.HashPassword = func(_ []byte) ([]byte, error) { return nil, errors.New("hash error") }
+
+		ur, ui, urr, rr, tr, idp, cr, tu := defaultMocks()
+		tr.findByUUIDFn = func(_ any, _ ...string) (*model.Tenant, error) { return &model.Tenant{TenantID: 1}, nil }
+		ur.findByUUIDFn = func(_ any, _ ...string) (*model.User, error) { return userWithAccess(2, 1), nil }
+		cr.findDefaultByTenantIDFn = func(_ int64) (*model.Client, error) { return &model.Client{ClientID: 1}, nil }
+		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr, tu)
+		mock.ExpectBegin()
+		mock.ExpectRollback()
+		_, err := svc.Create("user", "name", nil, nil, "pass", "active", nil, tenantUUID, creatorUUID)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "hash error")
 	})
 }
 

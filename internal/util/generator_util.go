@@ -22,7 +22,9 @@ func GenerateIdentifier(n int) string {
 }
 
 // GenerateOTP generates a random integer OTP between 0 and max (inclusive).
-func GenerateOTP(length int) (string, error) {
+var GenerateOTP = generateOTP
+
+func generateOTP(length int) (string, error) {
 	if length <= 0 {
 		return "", fmt.Errorf("length must be greater than 0")
 	}

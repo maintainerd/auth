@@ -9,7 +9,6 @@ import (
 	"github.com/maintainerd/auth/internal/model"
 	"github.com/maintainerd/auth/internal/repository"
 	"github.com/maintainerd/auth/internal/util"
-	"golang.org/x/crypto/bcrypt"
 	"gorm.io/datatypes"
 	"gorm.io/gorm"
 )
@@ -178,7 +177,7 @@ func (s *registerService) RegisterPublic(
 		}
 
 		// Hash password
-		hashed, txErr := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+		hashed, txErr := util.HashPassword([]byte(password))
 		if txErr != nil {
 			return txErr
 		}
@@ -331,7 +330,7 @@ func (s *registerService) Register(
 		}
 
 		// Hash password
-		hashed, txErr := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+		hashed, txErr := util.HashPassword([]byte(password))
 		if txErr != nil {
 			return txErr
 		}
@@ -497,7 +496,7 @@ func (s *registerService) RegisterInvite(
 		}
 
 		// Hash password
-		hashed, txErr := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+		hashed, txErr := util.HashPassword([]byte(password))
 		if txErr != nil {
 			return txErr
 		}
@@ -671,7 +670,7 @@ func (s *registerService) RegisterInvitePublic(
 		}
 
 		// Hash password
-		hashed, txErr := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+		hashed, txErr := util.HashPassword([]byte(password))
 		if txErr != nil {
 			return txErr
 		}

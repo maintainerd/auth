@@ -8,7 +8,9 @@ import (
 	"gorm.io/gorm"
 )
 
-func RunSeeders(db *gorm.DB, appVersion string) error {
+var RunSeeders = runSeeders
+
+func runSeeders(db *gorm.DB, appVersion string) error {
 	slog.Info("Running default seeders")
 
 	// 001: Seed service
