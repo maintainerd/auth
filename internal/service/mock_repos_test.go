@@ -1022,10 +1022,11 @@ func (m *mockProfileRepo) DeleteByUserID(uID int64) error {
 // ---------------------------------------------------------------------------
 
 type mockUserSettingRepo struct {
-	findByUUIDFn   func(id any, preloads ...string) (*model.UserSetting, error)
-	findByUserIDFn func(userID int64) (*model.UserSetting, error)
-	createFn       func(*model.UserSetting) (*model.UserSetting, error)
-	deleteByUUIDFn func(any) error
+	findByUUIDFn     func(id any, preloads ...string) (*model.UserSetting, error)
+	findByUserIDFn   func(userID int64) (*model.UserSetting, error)
+	createFn         func(*model.UserSetting) (*model.UserSetting, error)
+	updateByUserIDFn func(int64, *model.UserSetting) error
+	deleteByUUIDFn   func(any) error
 }
 
 func (m *mockUserSettingRepo) WithTx(_ *gorm.DB) repository.UserSettingRepository { return m }
@@ -1045,8 +1046,13 @@ func (m *mockUserSettingRepo) DeleteByID(_ any) error                           
 func (m *mockUserSettingRepo) Paginate(_ map[string]any, _, _ int, _ ...string) (*repository.PaginationResult[model.UserSetting], error) {
 	return nil, nil
 }
-func (m *mockUserSettingRepo) UpdateByUserID(_ int64, _ *model.UserSetting) error { return nil }
-func (m *mockUserSettingRepo) DeleteByUserID(_ int64) error                       { return nil }
+func (m *mockUserSettingRepo) UpdateByUserID(uID int64, e *model.UserSetting) error {
+	if m.updateByUserIDFn != nil {
+		return m.updateByUserIDFn(uID, e)
+	}
+	return nil
+}
+func (m *mockUserSettingRepo) DeleteByUserID(_ int64) error { return nil }
 
 func (m *mockUserSettingRepo) FindByUUID(id any, p ...string) (*model.UserSetting, error) {
 	if m.findByUUIDFn != nil {
