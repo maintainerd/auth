@@ -246,6 +246,7 @@ type mockAPIRepo struct {
 	findByNameFn              func(name string, tenantID int64) (*model.API, error)
 	createOrUpdateFn          func(*model.API) (*model.API, error)
 	deleteByUUIDAndTenantIDFn func(uuid.UUID, int64) error
+	countByServiceIDFn        func(int64, int64) (int64, error)
 }
 
 func (m *mockAPIRepo) WithTx(_ *gorm.DB) repository.APIRepository { return m }
@@ -274,7 +275,12 @@ func (m *mockAPIRepo) FindByName(name string, tID int64) (*model.API, error) {
 }
 func (m *mockAPIRepo) FindByIdentifier(_ string, _ int64) (*model.API, error) { return nil, nil }
 func (m *mockAPIRepo) SetStatusByUUID(_ uuid.UUID, _ int64, _ string) error   { return nil }
-func (m *mockAPIRepo) CountByServiceID(_ int64, _ int64) (int64, error)       { return 0, nil }
+func (m *mockAPIRepo) CountByServiceID(sID int64, tID int64) (int64, error) {
+	if m.countByServiceIDFn != nil {
+		return m.countByServiceIDFn(sID, tID)
+	}
+	return 0, nil
+}
 func (m *mockAPIRepo) DeleteByUUIDAndTenantID(id uuid.UUID, tID int64) error {
 	if m.deleteByUUIDAndTenantIDFn != nil {
 		return m.deleteByUUIDAndTenantIDFn(id, tID)
@@ -459,10 +465,12 @@ func (m *mockRolePermissionRepo) RemoveByRoleAndPermission(roleID, permID int64)
 // ---------------------------------------------------------------------------
 
 type mockServiceRepo struct {
-	findByUUIDFn            func(id any, preloads ...string) (*model.Service, error)
-	findByNameFn            func(name string) (*model.Service, error)
-	findByNameAndTenantIDFn func(name string, tenantID int64) (*model.Service, error)
-	createOrUpdateFn        func(*model.Service) (*model.Service, error)
+	findByUUIDFn               func(id any, preloads ...string) (*model.Service, error)
+	findByNameFn               func(name string) (*model.Service, error)
+	findByNameAndTenantIDFn    func(name string, tenantID int64) (*model.Service, error)
+	createOrUpdateFn           func(*model.Service) (*model.Service, error)
+	findServicesByPolicyUUIDFn func(uuid.UUID, repository.ServiceRepositoryGetFilter) (*repository.PaginationResult[model.Service], error)
+	countPoliciesByServiceIDFn func(int64) (int64, error)
 }
 
 func (m *mockServiceRepo) WithTx(_ *gorm.DB) repository.ServiceRepository  { return m }
@@ -495,11 +503,19 @@ func (m *mockServiceRepo) FindByTenantID(_ int64) ([]model.Service, error) { ret
 func (m *mockServiceRepo) FindPaginated(_ repository.ServiceRepositoryGetFilter) (*repository.PaginationResult[model.Service], error) {
 	return &repository.PaginationResult[model.Service]{}, nil
 }
-func (m *mockServiceRepo) FindServicesByPolicyUUID(_ uuid.UUID, _ repository.ServiceRepositoryGetFilter) (*repository.PaginationResult[model.Service], error) {
+func (m *mockServiceRepo) FindServicesByPolicyUUID(id uuid.UUID, f repository.ServiceRepositoryGetFilter) (*repository.PaginationResult[model.Service], error) {
+	if m.findServicesByPolicyUUIDFn != nil {
+		return m.findServicesByPolicyUUIDFn(id, f)
+	}
 	return &repository.PaginationResult[model.Service]{}, nil
 }
-func (m *mockServiceRepo) SetStatusByUUID(_ uuid.UUID, _ string) error     { return nil }
-func (m *mockServiceRepo) CountPoliciesByServiceID(_ int64) (int64, error) { return 0, nil }
+func (m *mockServiceRepo) SetStatusByUUID(_ uuid.UUID, _ string) error { return nil }
+func (m *mockServiceRepo) CountPoliciesByServiceID(sID int64) (int64, error) {
+	if m.countPoliciesByServiceIDFn != nil {
+		return m.countPoliciesByServiceIDFn(sID)
+	}
+	return 0, nil
+}
 
 func (m *mockServiceRepo) FindByUUID(id any, p ...string) (*model.Service, error) {
 	if m.findByUUIDFn != nil {

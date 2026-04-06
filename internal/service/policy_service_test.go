@@ -81,16 +81,48 @@ func TestPolicyService_GetServicesByPolicyUUID(t *testing.T) {
 		require.Error(t, err)
 	})
 
-	t.Run("success → returns services", func(t *testing.T) {
+	t.Run("FindServicesByPolicyUUID error → propagated", func(t *testing.T) {
 		policyRepo := &mockPolicyRepo{
 			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*model.Policy, error) {
 				return newPolicy(tenantID, "read-only", "v1"), nil
 			},
 		}
-		svc := newPolicyService(policyRepo, &mockServiceRepo{}, &mockAPIRepo{})
+		serviceRepo := &mockServiceRepo{
+			findServicesByPolicyUUIDFn: func(_ uuid.UUID, _ repository.ServiceRepositoryGetFilter) (*repository.PaginationResult[model.Service], error) {
+				return nil, errors.New("svc repo error")
+			},
+		}
+		svc := newPolicyService(policyRepo, serviceRepo, &mockAPIRepo{})
+		_, err := svc.GetServicesByPolicyUUID(policyUUID, tenantID, PolicyServiceServicesFilter{Page: 1, Limit: 10})
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "svc repo error")
+	})
+
+	t.Run("success → returns services with counts", func(t *testing.T) {
+		policyRepo := &mockPolicyRepo{
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*model.Policy, error) {
+				return newPolicy(tenantID, "read-only", "v1"), nil
+			},
+		}
+		svc1 := model.Service{ServiceID: 10, ServiceUUID: uuid.New(), Name: "svc-1", DisplayName: "Svc 1", Status: model.StatusActive}
+		serviceRepo := &mockServiceRepo{
+			findServicesByPolicyUUIDFn: func(_ uuid.UUID, _ repository.ServiceRepositoryGetFilter) (*repository.PaginationResult[model.Service], error) {
+				return &repository.PaginationResult[model.Service]{
+					Data: []model.Service{svc1}, Total: 1, Page: 1, Limit: 10, TotalPages: 1,
+				}, nil
+			},
+			countPoliciesByServiceIDFn: func(_ int64) (int64, error) { return 3, nil },
+		}
+		apiRepo := &mockAPIRepo{
+			countByServiceIDFn: func(_ int64, _ int64) (int64, error) { return 5, nil },
+		}
+		svc := newPolicyService(policyRepo, serviceRepo, apiRepo)
 		result, err := svc.GetServicesByPolicyUUID(policyUUID, tenantID, PolicyServiceServicesFilter{Page: 1, Limit: 10})
 		require.NoError(t, err)
-		assert.NotNil(t, result)
+		require.Len(t, result.Data, 1)
+		assert.Equal(t, svc1.Name, result.Data[0].Name)
+		assert.Equal(t, int64(5), result.Data[0].APICount)
+		assert.Equal(t, int64(3), result.Data[0].PolicyCount)
 	})
 }
 
@@ -161,6 +193,21 @@ func TestPolicyService_GetByUUID(t *testing.T) {
 func TestPolicyService_Create(t *testing.T) {
 	tenantID := int64(1)
 
+	t.Run("FindByNameAndVersion error → rollback", func(t *testing.T) {
+		db, mock := newMockGormDB(t)
+		mock.ExpectBegin()
+		mock.ExpectRollback()
+		policyRepo := &mockPolicyRepo{
+			findByNameAndVersionFn: func(_, _ string, _ int64) (*model.Policy, error) {
+				return nil, errors.New("lookup failed")
+			},
+		}
+		svc := NewPolicyService(db, policyRepo, &mockServiceRepo{}, &mockAPIRepo{})
+		_, err := svc.Create(tenantID, "p", nil, nil, "v1", model.StatusActive, false)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "lookup failed")
+	})
+
 	t.Run("policy name+version already exists → rollback", func(t *testing.T) {
 		db, mock := newMockGormDB(t)
 		mock.ExpectBegin()
@@ -202,12 +249,166 @@ func TestPolicyService_Create(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
+// PolicyService.Update – transactional
+// ---------------------------------------------------------------------------
+
+func TestPolicyService_Update(t *testing.T) {
+	tenantID := int64(1)
+	policyUUID := uuid.New()
+
+	t.Run("find error → rollback", func(t *testing.T) {
+		db, mock := newMockGormDB(t)
+		mock.ExpectBegin()
+		mock.ExpectRollback()
+		policyRepo := &mockPolicyRepo{
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*model.Policy, error) {
+				return nil, errors.New("db error")
+			},
+		}
+		svc := NewPolicyService(db, policyRepo, &mockServiceRepo{}, &mockAPIRepo{})
+		_, err := svc.Update(policyUUID, tenantID, "n", nil, nil, "v1", model.StatusActive)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "db error")
+	})
+
+	t.Run("not found → rollback", func(t *testing.T) {
+		db, mock := newMockGormDB(t)
+		mock.ExpectBegin()
+		mock.ExpectRollback()
+		policyRepo := &mockPolicyRepo{
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*model.Policy, error) { return nil, nil },
+		}
+		svc := NewPolicyService(db, policyRepo, &mockServiceRepo{}, &mockAPIRepo{})
+		_, err := svc.Update(policyUUID, tenantID, "n", nil, nil, "v1", model.StatusActive)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "not found")
+	})
+
+	t.Run("system policy → cannot update → rollback", func(t *testing.T) {
+		db, mock := newMockGormDB(t)
+		mock.ExpectBegin()
+		mock.ExpectRollback()
+		p := newPolicy(tenantID, "sys", "v1")
+		p.IsSystem = true
+		policyRepo := &mockPolicyRepo{
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*model.Policy, error) { return p, nil },
+		}
+		svc := NewPolicyService(db, policyRepo, &mockServiceRepo{}, &mockAPIRepo{})
+		_, err := svc.Update(policyUUID, tenantID, "n", nil, nil, "v1", model.StatusActive)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "system policy")
+	})
+
+	t.Run("name changed → FindByNameAndVersion error → rollback", func(t *testing.T) {
+		db, mock := newMockGormDB(t)
+		mock.ExpectBegin()
+		mock.ExpectRollback()
+		p := newPolicy(tenantID, "old-name", "v1")
+		p.PolicyUUID = policyUUID
+		policyRepo := &mockPolicyRepo{
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*model.Policy, error) { return p, nil },
+			findByNameAndVersionFn: func(_, _ string, _ int64) (*model.Policy, error) {
+				return nil, errors.New("lookup error")
+			},
+		}
+		svc := NewPolicyService(db, policyRepo, &mockServiceRepo{}, &mockAPIRepo{})
+		_, err := svc.Update(policyUUID, tenantID, "new-name", nil, nil, "v1", model.StatusActive)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "lookup error")
+	})
+
+	t.Run("name changed → duplicate exists → rollback", func(t *testing.T) {
+		db, mock := newMockGormDB(t)
+		mock.ExpectBegin()
+		mock.ExpectRollback()
+		p := newPolicy(tenantID, "old-name", "v1")
+		p.PolicyUUID = policyUUID
+		otherUUID := uuid.New()
+		policyRepo := &mockPolicyRepo{
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*model.Policy, error) { return p, nil },
+			findByNameAndVersionFn: func(_, _ string, _ int64) (*model.Policy, error) {
+				dup := newPolicy(tenantID, "new-name", "v1")
+				dup.PolicyUUID = otherUUID
+				return dup, nil
+			},
+		}
+		svc := NewPolicyService(db, policyRepo, &mockServiceRepo{}, &mockAPIRepo{})
+		_, err := svc.Update(policyUUID, tenantID, "new-name", nil, nil, "v1", model.StatusActive)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "already exists")
+	})
+
+	t.Run("UpdateByUUID error → rollback", func(t *testing.T) {
+		db, mock := newMockGormDB(t)
+		mock.ExpectBegin()
+		mock.ExpectRollback()
+		p := newPolicy(tenantID, "read-only", "v1")
+		p.PolicyUUID = policyUUID
+		policyRepo := &mockPolicyRepo{
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*model.Policy, error) { return p, nil },
+			updateByUUIDFn: func(_, _ any) (*model.Policy, error) {
+				return nil, errors.New("update failed")
+			},
+		}
+		svc := NewPolicyService(db, policyRepo, &mockServiceRepo{}, &mockAPIRepo{})
+		_, err := svc.Update(policyUUID, tenantID, "read-only", nil, nil, "v1", model.StatusActive)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "update failed")
+	})
+
+	t.Run("success same name/version → commit", func(t *testing.T) {
+		db, mock := newMockGormDB(t)
+		mock.ExpectBegin()
+		mock.ExpectCommit()
+		p := newPolicy(tenantID, "read-only", "v1")
+		p.PolicyUUID = policyUUID
+		policyRepo := &mockPolicyRepo{
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*model.Policy, error) { return p, nil },
+		}
+		svc := NewPolicyService(db, policyRepo, &mockServiceRepo{}, &mockAPIRepo{})
+		result, err := svc.Update(policyUUID, tenantID, "read-only", nil, nil, "v1", model.StatusActive)
+		require.NoError(t, err)
+		assert.Equal(t, "read-only", result.Name)
+	})
+
+	t.Run("success name changed no conflict → commit", func(t *testing.T) {
+		db, mock := newMockGormDB(t)
+		mock.ExpectBegin()
+		mock.ExpectCommit()
+		p := newPolicy(tenantID, "old-name", "v1")
+		p.PolicyUUID = policyUUID
+		policyRepo := &mockPolicyRepo{
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*model.Policy, error) { return p, nil },
+		}
+		svc := NewPolicyService(db, policyRepo, &mockServiceRepo{}, &mockAPIRepo{})
+		result, err := svc.Update(policyUUID, tenantID, "new-name", nil, nil, "v2", model.StatusActive)
+		require.NoError(t, err)
+		assert.Equal(t, "new-name", result.Name)
+	})
+}
+
+// ---------------------------------------------------------------------------
 // PolicyService.SetStatusByUUID – transactional
 // ---------------------------------------------------------------------------
 
 func TestPolicyService_SetStatusByUUID(t *testing.T) {
 	tenantID := int64(1)
 	policyUUID := uuid.New()
+
+	t.Run("find error → rollback", func(t *testing.T) {
+		db, mock := newMockGormDB(t)
+		mock.ExpectBegin()
+		mock.ExpectRollback()
+		policyRepo := &mockPolicyRepo{
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*model.Policy, error) {
+				return nil, errors.New("db error")
+			},
+		}
+		svc := NewPolicyService(db, policyRepo, &mockServiceRepo{}, &mockAPIRepo{})
+		_, err := svc.SetStatusByUUID(policyUUID, tenantID, model.StatusInactive)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "db error")
+	})
 
 	t.Run("policy not found → rollback", func(t *testing.T) {
 		db, mock := newMockGormDB(t)
@@ -235,6 +436,44 @@ func TestPolicyService_SetStatusByUUID(t *testing.T) {
 		_, err := svc.SetStatusByUUID(policyUUID, tenantID, model.StatusInactive)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "system policy")
+	})
+
+	t.Run("SetStatusByUUID repo error → rollback", func(t *testing.T) {
+		db, mock := newMockGormDB(t)
+		mock.ExpectBegin()
+		mock.ExpectRollback()
+		p := newPolicy(tenantID, "read-only", "v1")
+		policyRepo := &mockPolicyRepo{
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*model.Policy, error) { return p, nil },
+			setStatusByUUIDFn: func(_ uuid.UUID, _ int64, _ string) error {
+				return errors.New("status update failed")
+			},
+		}
+		svc := NewPolicyService(db, policyRepo, &mockServiceRepo{}, &mockAPIRepo{})
+		_, err := svc.SetStatusByUUID(policyUUID, tenantID, model.StatusInactive)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "status update failed")
+	})
+
+	t.Run("re-fetch error after status update → rollback", func(t *testing.T) {
+		db, mock := newMockGormDB(t)
+		mock.ExpectBegin()
+		mock.ExpectRollback()
+		p := newPolicy(tenantID, "read-only", "v1")
+		callCount := 0
+		policyRepo := &mockPolicyRepo{
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*model.Policy, error) {
+				callCount++
+				if callCount == 1 {
+					return p, nil
+				}
+				return nil, errors.New("re-fetch failed")
+			},
+		}
+		svc := NewPolicyService(db, policyRepo, &mockServiceRepo{}, &mockAPIRepo{})
+		_, err := svc.SetStatusByUUID(policyUUID, tenantID, model.StatusInactive)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "re-fetch failed")
 	})
 
 	t.Run("success → commit", func(t *testing.T) {
@@ -266,6 +505,21 @@ func TestPolicyService_DeleteByUUID(t *testing.T) {
 	tenantID := int64(1)
 	policyUUID := uuid.New()
 
+	t.Run("find error → rollback", func(t *testing.T) {
+		db, mock := newMockGormDB(t)
+		mock.ExpectBegin()
+		mock.ExpectRollback()
+		policyRepo := &mockPolicyRepo{
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*model.Policy, error) {
+				return nil, errors.New("db error")
+			},
+		}
+		svc := NewPolicyService(db, policyRepo, &mockServiceRepo{}, &mockAPIRepo{})
+		_, err := svc.DeleteByUUID(policyUUID, tenantID)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "db error")
+	})
+
 	t.Run("policy not found → rollback", func(t *testing.T) {
 		db, mock := newMockGormDB(t)
 		mock.ExpectBegin()
@@ -292,6 +546,23 @@ func TestPolicyService_DeleteByUUID(t *testing.T) {
 		_, err := svc.DeleteByUUID(policyUUID, tenantID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "system")
+	})
+
+	t.Run("delete repo error → rollback", func(t *testing.T) {
+		db, mock := newMockGormDB(t)
+		mock.ExpectBegin()
+		mock.ExpectRollback()
+		p := newPolicy(tenantID, "read-only", "v1")
+		policyRepo := &mockPolicyRepo{
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*model.Policy, error) { return p, nil },
+			deleteByUUIDAndTenantFn: func(_ uuid.UUID, _ int64) error {
+				return errors.New("delete failed")
+			},
+		}
+		svc := NewPolicyService(db, policyRepo, &mockServiceRepo{}, &mockAPIRepo{})
+		_, err := svc.DeleteByUUID(policyUUID, tenantID)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "delete failed")
 	})
 
 	t.Run("success → commit", func(t *testing.T) {
