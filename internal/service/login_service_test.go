@@ -39,6 +39,7 @@ type mockClientRepo struct {
 	findDefaultByTenantIDFn             func(tID int64) (*model.Client, error)
 	createOrUpdateFn                    func(*model.Client) (*model.Client, error)
 	deleteByUUIDFn                      func(any) error
+	findByIDFn                          func(any, ...string) (*model.Client, error)
 }
 
 func (m *mockClientRepo) WithTx(_ *gorm.DB) repository.ClientRepository { return m }
@@ -71,9 +72,14 @@ func (m *mockClientRepo) FindByUUID(id any, p ...string) (*model.Client, error) 
 func (m *mockClientRepo) FindByUUIDs(ids []string, p ...string) ([]model.Client, error) {
 	return nil, nil
 }
-func (m *mockClientRepo) FindByID(id any, p ...string) (*model.Client, error) { return nil, nil }
-func (m *mockClientRepo) UpdateByUUID(id, data any) (*model.Client, error)    { return nil, nil }
-func (m *mockClientRepo) UpdateByID(id, data any) (*model.Client, error)      { return nil, nil }
+func (m *mockClientRepo) FindByID(id any, p ...string) (*model.Client, error) {
+	if m.findByIDFn != nil {
+		return m.findByIDFn(id, p...)
+	}
+	return nil, nil
+}
+func (m *mockClientRepo) UpdateByUUID(id, data any) (*model.Client, error) { return nil, nil }
+func (m *mockClientRepo) UpdateByID(id, data any) (*model.Client, error)   { return nil, nil }
 func (m *mockClientRepo) DeleteByUUID(id any) error {
 	if m.deleteByUUIDFn != nil {
 		return m.deleteByUUIDFn(id)
@@ -238,6 +244,7 @@ func (m *mockUserRepo) SetStatus(id uuid.UUID, s string) error {
 type mockUserIdentityRepo struct {
 	findByUserIDAndClientIDFn func(userID, clientID int64) (*model.UserIdentity, error)
 	createFn                  func(*model.UserIdentity) (*model.UserIdentity, error)
+	findByUserIDFn            func(int64) ([]model.UserIdentity, error)
 }
 
 func (m *mockUserIdentityRepo) WithTx(_ *gorm.DB) repository.UserIdentityRepository { return m }
@@ -272,7 +279,12 @@ func (m *mockUserIdentityRepo) DeleteByID(id any) error                         
 func (m *mockUserIdentityRepo) Paginate(c map[string]any, pg, lim int, p ...string) (*repository.PaginationResult[model.UserIdentity], error) {
 	return nil, nil
 }
-func (m *mockUserIdentityRepo) FindByUserID(uID int64) ([]model.UserIdentity, error) { return nil, nil }
+func (m *mockUserIdentityRepo) FindByUserID(uID int64) ([]model.UserIdentity, error) {
+	if m.findByUserIDFn != nil {
+		return m.findByUserIDFn(uID)
+	}
+	return nil, nil
+}
 func (m *mockUserIdentityRepo) FindByProviderAndUserID(prov, pUID string) (*model.UserIdentity, error) {
 	return nil, nil
 }
