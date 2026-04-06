@@ -8,8 +8,11 @@ import (
 	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/dto"
 	"github.com/maintainerd/auth/internal/model"
+	"github.com/maintainerd/auth/internal/runner"
+	"github.com/maintainerd/auth/internal/util"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"gorm.io/gorm"
 )
 
 func buildSetupService(t *testing.T,
@@ -268,6 +271,141 @@ func TestSetupService_CreateTenant(t *testing.T) {
 		_, err := svc.CreateTenant(req)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "failed to initialize tenant structure")
+	})
+
+	t.Run("success without metadata", func(t *testing.T) {
+		origRunSeeders := runner.RunSeeders
+		defer func() { runner.RunSeeders = origRunSeeders }()
+		runner.RunSeeders = func(_ *gorm.DB, _ string) error { return nil }
+
+		db, mock := newMockGormDB(t)
+		mock.ExpectBegin()
+		mock.ExpectCommit()
+		clientIdent := "default-client"
+		svc := NewSetupService(db, &mockUserRepo{},
+			&mockTenantRepo{
+				createFn: func(tenant *model.Tenant) (*model.Tenant, error) {
+					tenant.TenantID = 1
+					tenant.TenantUUID = uuid.New()
+					return tenant, nil
+				},
+			},
+			&mockTenantMemberRepo{}, &mockTenantUserRepo{},
+			&mockClientRepo{
+				findDefaultFn: func() (*model.Client, error) {
+					return &model.Client{
+						Identifier: &clientIdent,
+						IdentityProvider: &model.IdentityProvider{
+							Identifier: "default-provider",
+						},
+					}, nil
+				},
+			},
+			&mockIdentityProviderRepo{}, &mockRoleRepo{}, &mockUserRoleRepo{}, nil,
+			&mockUserIdentityRepo{}, &mockProfileRepo{},
+		)
+		res, err := svc.CreateTenant(validReq)
+		require.NoError(t, err)
+		assert.Equal(t, "maintainerd", res.Tenant.Name)
+		assert.Equal(t, "default-client", res.DefaultClientID)
+		assert.Equal(t, "default-provider", res.DefaultProviderID)
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+
+	t.Run("success with metadata and description", func(t *testing.T) {
+		origRunSeeders := runner.RunSeeders
+		defer func() { runner.RunSeeders = origRunSeeders }()
+		runner.RunSeeders = func(_ *gorm.DB, _ string) error { return nil }
+
+		db, mock := newMockGormDB(t)
+		mock.ExpectBegin()
+		mock.ExpectCommit()
+		lang := "en"
+		meta := &dto.TenantMetadataDto{Language: &lang}
+		req := dto.CreateTenantRequestDto{
+			Name:        "maintainerd",
+			DisplayName: "Maintainerd",
+			Description: &desc,
+			Metadata:    meta,
+		}
+		svc := NewSetupService(db, &mockUserRepo{},
+			&mockTenantRepo{
+				createFn: func(tenant *model.Tenant) (*model.Tenant, error) {
+					tenant.TenantID = 1
+					tenant.TenantUUID = uuid.New()
+					return tenant, nil
+				},
+			},
+			&mockTenantMemberRepo{}, &mockTenantUserRepo{},
+			&mockClientRepo{
+				findDefaultFn: func() (*model.Client, error) { return nil, nil },
+			},
+			&mockIdentityProviderRepo{}, &mockRoleRepo{}, &mockUserRoleRepo{}, nil,
+			&mockUserIdentityRepo{}, &mockProfileRepo{},
+		)
+		res, err := svc.CreateTenant(req)
+		require.NoError(t, err)
+		assert.Equal(t, "maintainerd", res.Tenant.Name)
+		assert.Empty(t, res.DefaultClientID)
+		assert.Empty(t, res.DefaultProviderID)
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+
+	t.Run("success but FindDefault error", func(t *testing.T) {
+		origRunSeeders := runner.RunSeeders
+		defer func() { runner.RunSeeders = origRunSeeders }()
+		runner.RunSeeders = func(_ *gorm.DB, _ string) error { return nil }
+
+		db, mock := newMockGormDB(t)
+		mock.ExpectBegin()
+		mock.ExpectCommit()
+		svc := NewSetupService(db, &mockUserRepo{},
+			&mockTenantRepo{
+				createFn: func(tenant *model.Tenant) (*model.Tenant, error) {
+					tenant.TenantID = 1
+					tenant.TenantUUID = uuid.New()
+					return tenant, nil
+				},
+			},
+			&mockTenantMemberRepo{}, &mockTenantUserRepo{},
+			&mockClientRepo{
+				findDefaultFn: func() (*model.Client, error) { return nil, errors.New("find err") },
+			},
+			&mockIdentityProviderRepo{}, &mockRoleRepo{}, &mockUserRoleRepo{}, nil,
+			&mockUserIdentityRepo{}, &mockProfileRepo{},
+		)
+		_, err := svc.CreateTenant(validReq)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "find err")
+	})
+
+	t.Run("success with invalid metadata JSON in tenant", func(t *testing.T) {
+		origRunSeeders := runner.RunSeeders
+		defer func() { runner.RunSeeders = origRunSeeders }()
+		runner.RunSeeders = func(_ *gorm.DB, _ string) error { return nil }
+
+		db, mock := newMockGormDB(t)
+		mock.ExpectBegin()
+		mock.ExpectCommit()
+		svc := NewSetupService(db, &mockUserRepo{},
+			&mockTenantRepo{
+				createFn: func(tenant *model.Tenant) (*model.Tenant, error) {
+					tenant.TenantID = 1
+					tenant.TenantUUID = uuid.New()
+					tenant.Metadata = []byte(`{invalid-json}`)
+					return tenant, nil
+				},
+			},
+			&mockTenantMemberRepo{}, &mockTenantUserRepo{},
+			&mockClientRepo{
+				findDefaultFn: func() (*model.Client, error) { return nil, nil },
+			},
+			&mockIdentityProviderRepo{}, &mockRoleRepo{}, &mockUserRoleRepo{}, nil,
+			&mockUserIdentityRepo{}, &mockProfileRepo{},
+		)
+		res, err := svc.CreateTenant(validReq)
+		require.NoError(t, err)
+		assert.Nil(t, res.Tenant.Metadata)
 	})
 }
 
@@ -592,6 +730,21 @@ func TestSetupService_CreateAdmin(t *testing.T) {
 		assert.Equal(t, "admin@test.com", res.User.Email)
 		assert.Equal(t, "admin", res.User.Username)
 		assert.Equal(t, "Admin User", res.User.Fullname)
+	})
+
+	t.Run("HashPassword error → rollback", func(t *testing.T) {
+		origHash := util.HashPassword
+		defer func() { util.HashPassword = origHash }()
+		util.HashPassword = func(_ []byte) ([]byte, error) { return nil, errors.New("hash error") }
+
+		db, mock := newMockGormDB(t)
+		mock.ExpectBegin()
+		mock.ExpectRollback()
+		tr, _, cr, rr, uir, urr, tmr, tur := adminRepos()
+		svc := NewSetupService(db, &mockUserRepo{}, tr, tmr, tur, cr, &mockIdentityProviderRepo{}, rr, urr, nil, uir, &mockProfileRepo{})
+		_, err := svc.CreateAdmin(validReq)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "hash error")
 	})
 }
 
