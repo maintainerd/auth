@@ -1081,6 +1081,7 @@ type mockTenantMemberRepo struct {
 	findByTenantMemberUUIDFn func(uuid.UUID) (*model.TenantMember, error)
 	findByTenantAndUserFn    func(tenantID int64, userID int64) (*model.TenantMember, error)
 	findAllByTenantFn        func(tenantID int64) ([]model.TenantMember, error)
+	findAllByUserFn          func(userID int64) ([]model.TenantMember, error)
 	createFn                 func(*model.TenantMember) (*model.TenantMember, error)
 	createOrUpdateFn         func(*model.TenantMember) (*model.TenantMember, error)
 	deleteByUUIDFn           func(any) error
@@ -1109,7 +1110,10 @@ func (m *mockTenantMemberRepo) DeleteByID(_ any) error                          
 func (m *mockTenantMemberRepo) Paginate(_ map[string]any, _, _ int, _ ...string) (*repository.PaginationResult[model.TenantMember], error) {
 	return nil, nil
 }
-func (m *mockTenantMemberRepo) FindAllByUser(_ int64) ([]model.TenantMember, error) {
+func (m *mockTenantMemberRepo) FindAllByUser(uID int64) ([]model.TenantMember, error) {
+	if m.findAllByUserFn != nil {
+		return m.findAllByUserFn(uID)
+	}
 	return nil, nil
 }
 
