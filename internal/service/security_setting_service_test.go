@@ -541,3 +541,26 @@ func TestSecuritySettingService_UpdateIpConfig(t *testing.T) {
 		require.Error(t, err)
 	})
 }
+
+// ---------------------------------------------------------------------------
+// updateConfig – unreachable default case
+// ---------------------------------------------------------------------------
+
+func TestSecuritySettingService_UpdateConfig_InvalidConfigType(t *testing.T) {
+	db, mock := newMockGormDB(t)
+	mock.ExpectBegin()
+	mock.ExpectRollback()
+	svc := &securitySettingService{
+		db: db,
+		securitySettingRepo: &mockSecuritySettingRepo{
+			findByTenantIDFn: func(_ int64) (*model.SecuritySetting, error) {
+				return newSecSetting(1), nil
+			},
+		},
+		securitySettingsAuditRepo: &mockSecuritySettingsAuditRepo{},
+	}
+	_, err := svc.updateConfig(1, "invalid_type", map[string]any{"key": "val"}, 10, "1.2.3.4", "agent")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "invalid config type")
+	assert.NoError(t, mock.ExpectationsWereMet())
+}

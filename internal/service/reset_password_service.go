@@ -9,7 +9,6 @@ import (
 	"github.com/maintainerd/auth/internal/model"
 	"github.com/maintainerd/auth/internal/repository"
 	"github.com/maintainerd/auth/internal/util"
-	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 )
 
@@ -111,7 +110,7 @@ func (s *resetPasswordService) ResetPassword(token, newPassword string, clientID
 		}
 
 		// Hash the new password
-		hashedPassword, txErr := bcrypt.GenerateFromPassword([]byte(newPassword), bcrypt.DefaultCost)
+		hashedPassword, txErr := util.HashPassword([]byte(newPassword))
 		if txErr != nil {
 			return fmt.Errorf("failed to hash password: %w", txErr)
 		}
