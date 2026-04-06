@@ -1,10 +1,13 @@
 package util
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/alicebob/miniredis/v2"
+	"github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/crypto/bcrypt"
@@ -218,8 +221,7 @@ func TestDetermineSeverity(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestGenerateCSRFToken_Format(t *testing.T) {
-	tok, err := GenerateCSRFToken()
-	require.NoError(t, err)
+	tok := GenerateCSRFToken()
 	assert.Len(t, tok, 64, "32 random bytes hex-encoded = 64 chars")
 	for _, c := range tok {
 		assert.True(t, (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f'), "must be lowercase hex")
@@ -227,10 +229,8 @@ func TestGenerateCSRFToken_Format(t *testing.T) {
 }
 
 func TestGenerateCSRFToken_Unique(t *testing.T) {
-	a, err := GenerateCSRFToken()
-	require.NoError(t, err)
-	b, err := GenerateCSRFToken()
-	require.NoError(t, err)
+	a := GenerateCSRFToken()
+	b := GenerateCSRFToken()
 	assert.NotEqual(t, a, b)
 }
 
@@ -328,4 +328,148 @@ func TestValidateSessionLimit(t *testing.T) {
 			}
 		})
 	}
+}
+
+// ---------------------------------------------------------------------------
+// newMiniredisClient — helper for rate-limiting tests
+// ---------------------------------------------------------------------------
+
+func newMiniredisClient(t *testing.T) (*miniredis.Miniredis, *redis.Client) {
+	t.Helper()
+	mr, err := miniredis.Run()
+	require.NoError(t, err)
+	t.Cleanup(mr.Close)
+	cli := redis.NewClient(&redis.Options{Addr: mr.Addr()})
+	return mr, cli
+}
+
+func saveAndRestoreRateLimiter(t *testing.T) {
+	t.Helper()
+	saved := rateLimiterClient
+	t.Cleanup(func() { rateLimiterClient = saved })
+}
+
+// ---------------------------------------------------------------------------
+// ValidateIPAddress — reserved range (240.0.0.0/4)
+// ---------------------------------------------------------------------------
+
+func TestValidateIPAddress_ReservedRestricted(t *testing.T) {
+	err := ValidateIPAddress("240.0.0.1")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "restricted range")
+}
+
+// ---------------------------------------------------------------------------
+// CheckRateLimit — with Redis (locked account path)
+// ---------------------------------------------------------------------------
+
+func TestCheckRateLimit_LockedAccount(t *testing.T) {
+	saveAndRestoreRateLimiter(t)
+	mr, cli := newMiniredisClient(t)
+	InitRateLimiter(cli)
+
+	identifier := "locked-user@example.com"
+	// Pre-set the lock key
+	require.NoError(t, mr.Set(rateLimitLockKey(identifier), "1"))
+	mr.SetTTL(rateLimitLockKey(identifier), AccountLockoutTime)
+
+	err := CheckRateLimit(identifier)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "account is locked")
+}
+
+// ---------------------------------------------------------------------------
+// CheckRateLimit — count below threshold (no lockout)
+// ---------------------------------------------------------------------------
+
+func TestCheckRateLimit_BelowThreshold(t *testing.T) {
+	saveAndRestoreRateLimiter(t)
+	_, cli := newMiniredisClient(t)
+	InitRateLimiter(cli)
+
+	identifier := "user@example.com"
+	// No keys set at all → should pass
+	err := CheckRateLimit(identifier)
+	assert.NoError(t, err)
+}
+
+// ---------------------------------------------------------------------------
+// CheckRateLimit — count at threshold → promotes to lockout
+// ---------------------------------------------------------------------------
+
+func TestCheckRateLimit_ExceedsMaxAttempts(t *testing.T) {
+	saveAndRestoreRateLimiter(t)
+	mr, cli := newMiniredisClient(t)
+	InitRateLimiter(cli)
+
+	identifier := "bad-actor@example.com"
+	// Pre-set the count at the max
+	require.NoError(t, mr.Set(rateLimitCountKey(identifier), fmt.Sprintf("%d", MaxLoginAttempts)))
+
+	err := CheckRateLimit(identifier)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "account locked")
+
+	// Verify the lock key was set
+	assert.True(t, mr.Exists(rateLimitLockKey(identifier)))
+	// Verify the count key was removed
+	assert.False(t, mr.Exists(rateLimitCountKey(identifier)))
+}
+
+// ---------------------------------------------------------------------------
+// CheckRateLimit — count below max (no lockout promotion)
+// ---------------------------------------------------------------------------
+
+func TestCheckRateLimit_BelowMaxAttempts(t *testing.T) {
+	saveAndRestoreRateLimiter(t)
+	mr, cli := newMiniredisClient(t)
+	InitRateLimiter(cli)
+
+	identifier := "some-user@example.com"
+	require.NoError(t, mr.Set(rateLimitCountKey(identifier), "2"))
+
+	err := CheckRateLimit(identifier)
+	assert.NoError(t, err)
+}
+
+// ---------------------------------------------------------------------------
+// RecordFailedAttempt — with Redis
+// ---------------------------------------------------------------------------
+
+func TestRecordFailedAttempt_WithRedis(t *testing.T) {
+	saveAndRestoreRateLimiter(t)
+	mr, cli := newMiniredisClient(t)
+	InitRateLimiter(cli)
+
+	identifier := "fail-user@example.com"
+	RecordFailedAttempt(identifier)
+
+	val, err := mr.Get(rateLimitCountKey(identifier))
+	require.NoError(t, err)
+	assert.Equal(t, "1", val)
+
+	// Second attempt
+	RecordFailedAttempt(identifier)
+	val, err = mr.Get(rateLimitCountKey(identifier))
+	require.NoError(t, err)
+	assert.Equal(t, "2", val)
+}
+
+// ---------------------------------------------------------------------------
+// ResetFailedAttempts — with Redis
+// ---------------------------------------------------------------------------
+
+func TestResetFailedAttempts_WithRedis(t *testing.T) {
+	saveAndRestoreRateLimiter(t)
+	mr, cli := newMiniredisClient(t)
+	InitRateLimiter(cli)
+
+	identifier := "reset-user@example.com"
+	require.NoError(t, mr.Set(rateLimitCountKey(identifier), "3"))
+	require.NoError(t, mr.Set(rateLimitLockKey(identifier), "1"))
+
+	ResetFailedAttempts(identifier)
+
+	assert.False(t, mr.Exists(rateLimitCountKey(identifier)))
+	assert.False(t, mr.Exists(rateLimitLockKey(identifier)))
 }
