@@ -57,12 +57,9 @@ func JWTAuthMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
-		// Extract subject (user_uuid)
-		sub, ok := claims["sub"].(string)
-		if !ok || sub == "" {
-			util.Error(w, http.StatusUnauthorized, "Token missing subject (user_uuid)")
-			return
-		}
+		// Extract subject (user_uuid) — validateTokenClaims already guarantees
+		// sub is a non-empty string, so the type assertion is always safe.
+		sub, _ := claims["sub"].(string)
 
 		// Parse sub into uuid
 		userUUID, err := uuid.Parse(sub)

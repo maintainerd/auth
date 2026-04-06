@@ -2,12 +2,14 @@ package middleware
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 	"time"
 
+	"github.com/alicebob/miniredis/v2"
 	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/model"
 	"github.com/maintainerd/auth/internal/repository"
@@ -16,6 +18,16 @@ import (
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
 )
+
+// newMiniredisClient starts an in-process Redis and returns a client pointing at it.
+func newMiniredisClient(t *testing.T) (*miniredis.Miniredis, *redis.Client) {
+	t.Helper()
+	mr, err := miniredis.Run()
+	require.NoError(t, err)
+	t.Cleanup(mr.Close)
+	cli := redis.NewClient(&redis.Options{Addr: mr.Addr()})
+	return mr, cli
+}
 
 // ---------------------------------------------------------------------------
 // Mock: UserRepository (middleware package scope)
@@ -30,24 +42,26 @@ func (m *mockUserRepoMW) Create(e *model.User) (*model.User, error)   { return e
 func (m *mockUserRepoMW) CreateOrUpdate(e *model.User) (*model.User, error) {
 	return e, nil
 }
-func (m *mockUserRepoMW) FindAll(p ...string) ([]model.User, error)                   { return nil, nil }
-func (m *mockUserRepoMW) FindByUUID(id any, p ...string) (*model.User, error)         { return nil, nil }
-func (m *mockUserRepoMW) FindByUUIDs(ids []string, p ...string) ([]model.User, error) { return nil, nil }
-func (m *mockUserRepoMW) FindByID(id any, p ...string) (*model.User, error)           { return nil, nil }
-func (m *mockUserRepoMW) UpdateByUUID(id, data any) (*model.User, error)              { return nil, nil }
-func (m *mockUserRepoMW) UpdateByID(id, data any) (*model.User, error)                { return nil, nil }
-func (m *mockUserRepoMW) DeleteByUUID(id any) error                                   { return nil }
-func (m *mockUserRepoMW) DeleteByID(id any) error                                     { return nil }
+func (m *mockUserRepoMW) FindAll(p ...string) ([]model.User, error)           { return nil, nil }
+func (m *mockUserRepoMW) FindByUUID(id any, p ...string) (*model.User, error) { return nil, nil }
+func (m *mockUserRepoMW) FindByUUIDs(ids []string, p ...string) ([]model.User, error) {
+	return nil, nil
+}
+func (m *mockUserRepoMW) FindByID(id any, p ...string) (*model.User, error) { return nil, nil }
+func (m *mockUserRepoMW) UpdateByUUID(id, data any) (*model.User, error)    { return nil, nil }
+func (m *mockUserRepoMW) UpdateByID(id, data any) (*model.User, error)      { return nil, nil }
+func (m *mockUserRepoMW) DeleteByUUID(id any) error                         { return nil }
+func (m *mockUserRepoMW) DeleteByID(id any) error                           { return nil }
 func (m *mockUserRepoMW) Paginate(c map[string]any, pg, lim int, p ...string) (*repository.PaginationResult[model.User], error) {
 	return nil, nil
 }
-func (m *mockUserRepoMW) FindByUsername(u string) (*model.User, error)  { return nil, nil }
-func (m *mockUserRepoMW) FindByEmail(e string) (*model.User, error)     { return nil, nil }
-func (m *mockUserRepoMW) FindByPhone(p string) (*model.User, error)     { return nil, nil }
-func (m *mockUserRepoMW) FindSuperAdmin() (*model.User, error)          { return nil, nil }
-func (m *mockUserRepoMW) FindRoles(userID int64) ([]model.Role, error)  { return nil, nil }
-func (m *mockUserRepoMW) SetEmailVerified(id uuid.UUID, v bool) error   { return nil }
-func (m *mockUserRepoMW) SetStatus(id uuid.UUID, s string) error        { return nil }
+func (m *mockUserRepoMW) FindByUsername(u string) (*model.User, error) { return nil, nil }
+func (m *mockUserRepoMW) FindByEmail(e string) (*model.User, error)    { return nil, nil }
+func (m *mockUserRepoMW) FindByPhone(p string) (*model.User, error)    { return nil, nil }
+func (m *mockUserRepoMW) FindSuperAdmin() (*model.User, error)         { return nil, nil }
+func (m *mockUserRepoMW) FindRoles(userID int64) ([]model.Role, error) { return nil, nil }
+func (m *mockUserRepoMW) SetEmailVerified(id uuid.UUID, v bool) error  { return nil }
+func (m *mockUserRepoMW) SetStatus(id uuid.UUID, s string) error       { return nil }
 func (m *mockUserRepoMW) FindByEmailAndTenantID(e string, tID int64) (*model.User, error) {
 	return nil, nil
 }
@@ -146,3 +160,75 @@ func TestUserContextMiddleware(t *testing.T) {
 	}
 }
 
+func TestUserContextMiddleware_CacheHit(t *testing.T) {
+	const sub = "user-sub-cache"
+	const clientID = "client-cache"
+	userUUID := uuid.New()
+
+	// Build a cache payload matching UserContextCache structure in the middleware
+	type UserContextCache struct {
+		User     *model.User             `json:"user"`
+		Tenant   *model.Tenant           `json:"tenant"`
+		Provider *model.IdentityProvider `json:"provider"`
+		Client   *model.Client           `json:"client"`
+	}
+	payload := UserContextCache{User: &model.User{UserUUID: userUUID}}
+	data, err := json.Marshal(payload)
+	require.NoError(t, err)
+
+	mr, redisCli := newMiniredisClient(t)
+	cacheKey := "user:" + sub + ":" + clientID
+	require.NoError(t, mr.Set(cacheKey, string(data)))
+
+	var captured *model.User
+	next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		captured, _ = r.Context().Value(UserContextKey).(*model.User)
+		w.WriteHeader(http.StatusOK)
+	})
+
+	mw := UserContextMiddleware(&mockUserRepoMW{}, redisCli)
+	req := withJWTContext(httptest.NewRequest(http.MethodGet, "/", nil), sub, clientID)
+	rr := httptest.NewRecorder()
+	mw(next).ServeHTTP(rr, req)
+
+	assert.Equal(t, http.StatusOK, rr.Code)
+	require.NotNil(t, captured)
+	assert.Equal(t, userUUID, captured.UserUUID)
+}
+
+func TestUserContextMiddleware_IdentityFiltering(t *testing.T) {
+	const sub = "user-sub-identity"
+	const clientID = "my-client-id"
+	userUUID := uuid.New()
+	tenantUUID := uuid.New()
+
+	cID := clientID
+	tenant := &model.Tenant{TenantUUID: tenantUUID}
+	user := &model.User{
+		UserUUID: userUUID,
+		UserIdentities: []model.UserIdentity{
+			{
+				Client: &model.Client{Identifier: &cID},
+				Tenant: tenant,
+			},
+		},
+	}
+
+	var capturedTenant *model.Tenant
+	next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		capturedTenant, _ = r.Context().Value(TenantContextKey).(*model.Tenant)
+		w.WriteHeader(http.StatusOK)
+	})
+
+	repo := &mockUserRepoMW{
+		findBySubAndClientIDFn: func(_, _ string) (*model.User, error) { return user, nil },
+	}
+	mw := UserContextMiddleware(repo, newFakeRedis())
+	req := withJWTContext(httptest.NewRequest(http.MethodGet, "/", nil), sub, clientID)
+	rr := httptest.NewRecorder()
+	mw(next).ServeHTTP(rr, req)
+
+	assert.Equal(t, http.StatusOK, rr.Code)
+	require.NotNil(t, capturedTenant)
+	assert.Equal(t, tenantUUID, capturedTenant.TenantUUID)
+}
