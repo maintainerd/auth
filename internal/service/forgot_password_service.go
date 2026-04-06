@@ -94,10 +94,7 @@ func (s *forgotPasswordService) SendPasswordResetEmail(email string, clientID, p
 		}
 
 		// Generate secure reset token
-		resetToken, txErr = generateSecureToken(32)
-		if txErr != nil {
-			return fmt.Errorf("failed to generate reset token: %w", txErr)
-		}
+		resetToken = generateSecureToken(32)
 
 		// Create password reset token (expires in 1 hour)
 		expiresAt := time.Now().Add(1 * time.Hour)
@@ -143,13 +140,12 @@ func (s *forgotPasswordService) SendPasswordResetEmail(email string, clientID, p
 	return response, nil
 }
 
-// generateSecureToken generates a cryptographically secure random token
-func generateSecureToken(length int) (string, error) {
+// generateSecureToken generates a cryptographically secure random token.
+// rand.Read always succeeds in Go 1.24+ (see go.dev/issue/66821).
+func generateSecureToken(length int) string {
 	bytes := make([]byte, length)
-	if _, err := rand.Read(bytes); err != nil {
-		return "", err
-	}
-	return hex.EncodeToString(bytes), nil
+	_, _ = rand.Read(bytes)
+	return hex.EncodeToString(bytes)
 }
 
 func (s *forgotPasswordService) sendPasswordResetEmail(to, resetToken string, Client *model.Client, isInternal bool) error {
