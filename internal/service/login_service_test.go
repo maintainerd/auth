@@ -124,10 +124,12 @@ type mockUserRepo struct {
 	findByEmailFn            func(email string) (*model.User, error)
 	findByEmailAndTenantIDFn func(email string, tenantID int64) (*model.User, error)
 	findByUUIDFn             func(id any, preloads ...string) (*model.User, error)
+	findByIDFn               func(id any, preloads ...string) (*model.User, error)
 	findSuperAdminFn         func() (*model.User, error)
 	findPaginatedFn          func(repository.UserRepositoryGetFilter) (*repository.PaginationResult[model.User], error)
 	createFn                 func(*model.User) (*model.User, error)
 	updateByUUIDFn           func(id, data any) (*model.User, error)
+	updateByIDFn             func(id, data any) (*model.User, error)
 	findRolesFn              func(userID int64) ([]model.Role, error)
 	findByPhoneFn            func(phone string) (*model.User, error)
 	setStatusFn              func(id uuid.UUID, s string) error
@@ -168,14 +170,24 @@ func (m *mockUserRepo) FindByUUID(id any, p ...string) (*model.User, error) {
 	return nil, nil
 }
 func (m *mockUserRepo) FindByUUIDs(ids []string, p ...string) ([]model.User, error) { return nil, nil }
-func (m *mockUserRepo) FindByID(id any, p ...string) (*model.User, error)           { return nil, nil }
+func (m *mockUserRepo) FindByID(id any, p ...string) (*model.User, error) {
+	if m.findByIDFn != nil {
+		return m.findByIDFn(id, p...)
+	}
+	return nil, nil
+}
 func (m *mockUserRepo) UpdateByUUID(id, data any) (*model.User, error) {
 	if m.updateByUUIDFn != nil {
 		return m.updateByUUIDFn(id, data)
 	}
 	return nil, nil
 }
-func (m *mockUserRepo) UpdateByID(id, data any) (*model.User, error) { return nil, nil }
+func (m *mockUserRepo) UpdateByID(id, data any) (*model.User, error) {
+	if m.updateByIDFn != nil {
+		return m.updateByIDFn(id, data)
+	}
+	return nil, nil
+}
 func (m *mockUserRepo) DeleteByUUID(id any) error {
 	if m.deleteByUUIDFn != nil {
 		return m.deleteByUUIDFn(id)
