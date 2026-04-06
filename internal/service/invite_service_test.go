@@ -4,6 +4,7 @@ import (
 	"errors"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/maintainerd/auth/internal/config"
@@ -630,4 +631,82 @@ func TestInviteService_SendInvite_TenantIDZero(t *testing.T) {
 	_, err := svc.SendInvite(1, "user@example.com", 1, []string{"role-uuid-1"})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "invalid client")
+}
+
+func TestInviteService_SendInvite_GenerateSignedURLError(t *testing.T) {
+	os.Setenv("HMAC_SECRET_KEY", "test-secret-key-for-hmac")
+	defer os.Unsetenv("HMAC_SECRET_KEY")
+
+	origAppPrivateHostname := config.AppPrivateHostname
+	origAccountHostname := config.AccountHostname
+	defer func() {
+		config.AppPrivateHostname = origAppPrivateHostname
+		config.AccountHostname = origAccountHostname
+	}()
+	config.AppPrivateHostname = "https://api.example.com"
+	config.AccountHostname = "https://account.example.com"
+
+	origGenerateSignedURL := util.GenerateSignedURL
+	defer func() { util.GenerateSignedURL = origGenerateSignedURL }()
+	util.GenerateSignedURL = func(_ string, _ map[string]string, _ time.Duration) (string, error) {
+		return "", errors.New("signed url failure")
+	}
+
+	gormDB, mock := newMockGormDB(t)
+	mock.ExpectBegin()
+	mock.ExpectQuery("INSERT INTO").WillReturnRows(sqlmock.NewRows([]string{"invite_role_id"}).AddRow(1))
+	mock.ExpectCommit()
+
+	clientRepo := &mockClientRepo{
+		findDefaultFn: func() (*model.Client, error) { return defaultInviteClient(), nil },
+	}
+	roleRepo := &mockRoleRepo{
+		findByUUIDsFn: func(_ []string, _ ...string) ([]model.Role, error) {
+			return []model.Role{{RoleID: 1, TenantID: 10}}, nil
+		},
+	}
+
+	svc := NewInviteService(gormDB, &mockInviteRepo{}, clientRepo, roleRepo, &mockEmailTemplateRepo{})
+	_, err := svc.SendInvite(1, "user@example.com", 1, []string{"role-uuid-1"})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to generate signed invite URL")
+}
+
+func TestInviteService_SendInvite_ConvertToFrontendURLError(t *testing.T) {
+	os.Setenv("HMAC_SECRET_KEY", "test-secret-key-for-hmac")
+	defer os.Unsetenv("HMAC_SECRET_KEY")
+
+	origAppPrivateHostname := config.AppPrivateHostname
+	origAccountHostname := config.AccountHostname
+	defer func() {
+		config.AppPrivateHostname = origAppPrivateHostname
+		config.AccountHostname = origAccountHostname
+	}()
+	config.AppPrivateHostname = "https://api.example.com"
+	config.AccountHostname = "https://account.example.com"
+
+	origConvertToFrontendURL := util.ConvertToFrontendURL
+	defer func() { util.ConvertToFrontendURL = origConvertToFrontendURL }()
+	util.ConvertToFrontendURL = func(_, _ string) (string, error) {
+		return "", errors.New("frontend url failure")
+	}
+
+	gormDB, mock := newMockGormDB(t)
+	mock.ExpectBegin()
+	mock.ExpectQuery("INSERT INTO").WillReturnRows(sqlmock.NewRows([]string{"invite_role_id"}).AddRow(1))
+	mock.ExpectCommit()
+
+	clientRepo := &mockClientRepo{
+		findDefaultFn: func() (*model.Client, error) { return defaultInviteClient(), nil },
+	}
+	roleRepo := &mockRoleRepo{
+		findByUUIDsFn: func(_ []string, _ ...string) ([]model.Role, error) {
+			return []model.Role{{RoleID: 1, TenantID: 10}}, nil
+		},
+	}
+
+	svc := NewInviteService(gormDB, &mockInviteRepo{}, clientRepo, roleRepo, &mockEmailTemplateRepo{})
+	_, err := svc.SendInvite(1, "user@example.com", 1, []string{"role-uuid-1"})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to convert invite URL")
 }
