@@ -9,7 +9,9 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/config"
 	"github.com/maintainerd/auth/internal/util"
@@ -151,3 +153,50 @@ func TestGetProviderIDFromContext(t *testing.T) {
 	})
 }
 
+// makeTokenWithClaims signs a JWT with the RSA key loaded by initTestJWTKeys.
+func makeTokenWithClaims(t *testing.T, claims jwt.MapClaims) string {
+	t.Helper()
+	block, _ := pem.Decode(config.JWTPrivateKey)
+	require.NotNil(t, block, "JWTPrivateKey not initialised – call initTestJWTKeys first")
+	privKey, err := x509.ParsePKCS1PrivateKey(block.Bytes)
+	require.NoError(t, err)
+	tok := jwt.NewWithClaims(jwt.SigningMethodRS256, claims)
+	s, err := tok.SignedString(privKey)
+	require.NoError(t, err)
+	return s
+}
+
+func TestJWTAuthMiddleware_MissingOrInvalidSub(t *testing.T) {
+	initTestJWTKeys(t)
+
+	exp := jwt.NewNumericDate(time.Now().Add(time.Hour))
+
+	iat := jwt.NewNumericDate(time.Now().Add(-time.Second))
+	baseClaims := jwt.MapClaims{
+		"exp": exp, "iat": iat, "iss": "https://issuer", "aud": "https://api",
+		"jti": uuid.New().String(),
+	}
+
+	t.Run("token missing sub → 401", func(t *testing.T) {
+		tok := makeTokenWithClaims(t, baseClaims)
+		req := httptest.NewRequest(http.MethodGet, "/", nil)
+		req.Header.Set("Authorization", "Bearer "+tok)
+		rr := httptest.NewRecorder()
+		JWTAuthMiddleware(okHandler()).ServeHTTP(rr, req)
+		assert.Equal(t, http.StatusUnauthorized, rr.Code)
+	})
+
+	t.Run("sub is not a valid UUID → 400", func(t *testing.T) {
+		claims := jwt.MapClaims{
+			"sub": "not-a-uuid", "exp": exp, "iat": iat,
+			"iss": "https://issuer", "aud": "https://api",
+			"jti": uuid.New().String(),
+		}
+		tok := makeTokenWithClaims(t, claims)
+		req := httptest.NewRequest(http.MethodGet, "/", nil)
+		req.Header.Set("Authorization", "Bearer "+tok)
+		rr := httptest.NewRecorder()
+		JWTAuthMiddleware(okHandler()).ServeHTTP(rr, req)
+		assert.Equal(t, http.StatusBadRequest, rr.Code)
+	})
+}
