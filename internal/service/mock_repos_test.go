@@ -1850,10 +1850,16 @@ func (m *mockSignupFlowRoleRepo) FindBySignupFlowIDAndRoleID(sfID, rID int64) (*
 
 type mockTenantUserRepo struct {
 	findByTenantAndUserFn func(int64, int64) (*model.TenantUser, error)
+	createFn              func(*model.TenantUser) (*model.TenantUser, error)
 }
 
-func (m *mockTenantUserRepo) WithTx(_ *gorm.DB) repository.TenantUserRepository     { return m }
-func (m *mockTenantUserRepo) Create(e *model.TenantUser) (*model.TenantUser, error) { return e, nil }
+func (m *mockTenantUserRepo) WithTx(_ *gorm.DB) repository.TenantUserRepository { return m }
+func (m *mockTenantUserRepo) Create(e *model.TenantUser) (*model.TenantUser, error) {
+	if m.createFn != nil {
+		return m.createFn(e)
+	}
+	return e, nil
+}
 func (m *mockTenantUserRepo) CreateOrUpdate(e *model.TenantUser) (*model.TenantUser, error) {
 	return e, nil
 }
