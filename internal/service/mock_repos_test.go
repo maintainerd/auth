@@ -176,6 +176,7 @@ func (m *mockEmailTemplateRepo) DeleteByUUID(id any) error {
 
 type mockPermissionRepo struct {
 	findByUUIDFn              func(any, ...string) (*model.Permission, error)
+	findByUUIDsFn             func([]string, ...string) ([]model.Permission, error)
 	findByUUIDAndTenantIDFn   func(uuid.UUID, int64) (*model.Permission, error)
 	findByNameFn              func(string, int64) (*model.Permission, error)
 	findPaginatedFn           func(repository.PermissionRepositoryGetFilter) (*repository.PaginationResult[model.Permission], error)
@@ -192,7 +193,10 @@ func (m *mockPermissionRepo) FindByUUID(id any, p ...string) (*model.Permission,
 	}
 	return nil, nil
 }
-func (m *mockPermissionRepo) FindByUUIDs(_ []string, _ ...string) ([]model.Permission, error) {
+func (m *mockPermissionRepo) FindByUUIDs(ids []string, p ...string) ([]model.Permission, error) {
+	if m.findByUUIDsFn != nil {
+		return m.findByUUIDsFn(ids, p...)
+	}
 	return nil, nil
 }
 func (m *mockPermissionRepo) FindByID(_ any, _ ...string) (*model.Permission, error) { return nil, nil }
