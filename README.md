@@ -16,9 +16,6 @@
     <a href="https://goreportcard.com/report/github.com/maintainerd/auth">
       <img src="https://goreportcard.com/badge/github.com/maintainerd/auth" alt="Go Report Card">
     </a>
-    <a href="https://github.com/maintainerd/auth/security/code-scanning">
-      <img src="https://img.shields.io/badge/Snyk-monitored-4C4A73?logo=snyk&logoColor=white" alt="Snyk">
-    </a>
   </p>
 
   <p align="center">
@@ -120,43 +117,6 @@ curl http://localhost:8080/health
 
 curl http://localhost:8080/ready
 # {"status":"ready"}
-```
-
----
-
-## API Examples
-
-### Register a user
-
-```bash
-curl -X POST "http://localhost:8080/api/v1/register?client_id=your-client-id&tenant_id=your-tenant-id" \
-  -H "Content-Type: application/json" \
-  -d '{"username": "john@example.com", "password": "SecurePass123!"}'
-```
-
-### Login
-
-```bash
-curl -X POST "http://localhost:8080/api/v1/login?client_id=your-client-id&tenant_id=your-tenant-id" \
-  -H "Content-Type: application/json" \
-  -d '{"username": "john@example.com", "password": "SecurePass123!"}'
-```
-
-Tokens are returned in the JSON response body by default. To receive them as HTTP-only cookies instead, pass the `X-Token-Delivery: cookie` header:
-
-```bash
-curl -X POST "http://localhost:8080/api/v1/login?client_id=your-client-id" \
-  -H "Content-Type: application/json" \
-  -H "X-Token-Delivery: cookie" \
-  -c cookies.jar \
-  -d '{"username": "john@example.com", "password": "SecurePass123!"}'
-```
-
-### Access a protected resource
-
-```bash
-curl http://localhost:8080/api/v1/profile \
-  -H "Authorization: Bearer <access_token>"
 ```
 
 ---
@@ -276,4 +236,13 @@ MIT — see [LICENSE](LICENSE) for details.
 
 <p align="center">
   <em>Built by <a href="https://github.com/xreyc">@xreyc</a> and the Maintainerd community.</em>
+</p>
+
+<p align="center">
+  <sub>Security scanning powered by</sub>
+  <br>
+  <a href="https://semgrep.dev"><img src="https://img.shields.io/badge/Semgrep-grey?logo=semgrep&logoColor=white" alt="Semgrep"></a>
+  <a href="https://snyk.io"><img src="https://img.shields.io/badge/Snyk-grey?logo=snyk&logoColor=white" alt="Snyk"></a>
+  <a href="https://github.com/features/security"><img src="https://img.shields.io/badge/CodeQL-grey?logo=github&logoColor=white" alt="CodeQL"></a>
+  <a href="https://codecov.io"><img src="https://img.shields.io/badge/Codecov-grey?logo=codecov&logoColor=white" alt="Codecov"></a>
 </p>
