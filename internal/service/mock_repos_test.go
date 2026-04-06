@@ -475,6 +475,8 @@ type mockServiceRepo struct {
 	createOrUpdateFn           func(*model.Service) (*model.Service, error)
 	findServicesByPolicyUUIDFn func(uuid.UUID, repository.ServiceRepositoryGetFilter) (*repository.PaginationResult[model.Service], error)
 	countPoliciesByServiceIDFn func(int64) (int64, error)
+	findPaginatedFn            func(repository.ServiceRepositoryGetFilter) (*repository.PaginationResult[model.Service], error)
+	deleteByUUIDFn             func(any) error
 }
 
 func (m *mockServiceRepo) WithTx(_ *gorm.DB) repository.ServiceRepository  { return m }
@@ -492,8 +494,13 @@ func (m *mockServiceRepo) FindByUUIDs(_ []string, _ ...string) ([]model.Service,
 func (m *mockServiceRepo) FindByID(_ any, _ ...string) (*model.Service, error) { return nil, nil }
 func (m *mockServiceRepo) UpdateByUUID(_, _ any) (*model.Service, error)       { return nil, nil }
 func (m *mockServiceRepo) UpdateByID(_, _ any) (*model.Service, error)         { return nil, nil }
-func (m *mockServiceRepo) DeleteByUUID(_ any) error                            { return nil }
-func (m *mockServiceRepo) DeleteByID(_ any) error                              { return nil }
+func (m *mockServiceRepo) DeleteByUUID(id any) error {
+	if m.deleteByUUIDFn != nil {
+		return m.deleteByUUIDFn(id)
+	}
+	return nil
+}
+func (m *mockServiceRepo) DeleteByID(_ any) error { return nil }
 func (m *mockServiceRepo) Paginate(_ map[string]any, _, _ int, _ ...string) (*repository.PaginationResult[model.Service], error) {
 	return nil, nil
 }
@@ -504,7 +511,10 @@ func (m *mockServiceRepo) FindByNameAndTenantID(name string, tenantID int64) (*m
 	return nil, nil
 }
 func (m *mockServiceRepo) FindByTenantID(_ int64) ([]model.Service, error) { return nil, nil }
-func (m *mockServiceRepo) FindPaginated(_ repository.ServiceRepositoryGetFilter) (*repository.PaginationResult[model.Service], error) {
+func (m *mockServiceRepo) FindPaginated(f repository.ServiceRepositoryGetFilter) (*repository.PaginationResult[model.Service], error) {
+	if m.findPaginatedFn != nil {
+		return m.findPaginatedFn(f)
+	}
 	return &repository.PaginationResult[model.Service]{}, nil
 }
 func (m *mockServiceRepo) FindServicesByPolicyUUID(id uuid.UUID, f repository.ServiceRepositoryGetFilter) (*repository.PaginationResult[model.Service], error) {
@@ -540,14 +550,18 @@ func (m *mockServiceRepo) FindByName(name string) (*model.Service, error) {
 
 type mockTenantServiceRepo struct {
 	findByTenantAndServiceFn func(tenantID int64, serviceID int64) (*model.TenantService, error)
+	createOrUpdateFn         func(*model.TenantService) (*model.TenantService, error)
 }
 
 func (m *mockTenantServiceRepo) WithTx(_ *gorm.DB) repository.TenantServiceRepository { return m }
 func (m *mockTenantServiceRepo) Create(_ *model.TenantService) (*model.TenantService, error) {
 	return nil, nil
 }
-func (m *mockTenantServiceRepo) CreateOrUpdate(_ *model.TenantService) (*model.TenantService, error) {
-	return nil, nil
+func (m *mockTenantServiceRepo) CreateOrUpdate(e *model.TenantService) (*model.TenantService, error) {
+	if m.createOrUpdateFn != nil {
+		return m.createOrUpdateFn(e)
+	}
+	return e, nil
 }
 func (m *mockTenantServiceRepo) FindAll(_ ...string) ([]model.TenantService, error) { return nil, nil }
 func (m *mockTenantServiceRepo) FindByUUID(_ any, _ ...string) (*model.TenantService, error) {
