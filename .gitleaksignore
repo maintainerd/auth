@@ -1,0 +1,21 @@
+# .gitleaksignore — fingerprint-based allowlist for confirmed false positives.
+# Format: <commit>:<file>:<rule>:<line>
+# Gitleaks picks this file up automatically from the repo root — no config flag needed.
+#
+# All entries below are CONFIRMED false positives — documentation examples and
+# format templates that contain no real credentials.
+
+# doc/TOKEN_DELIVERY.md — truncated example JWTs in API response doc (eyJhbGciOiJSUzI1NiIs...)
+46181d3b9438f8c6c6350b6a8b1422cd2a7ad2d7:doc/TOKEN_DELIVERY.md:generic-api-key:31
+46181d3b9438f8c6c6350b6a8b1422cd2a7ad2d7:doc/TOKEN_DELIVERY.md:generic-api-key:32
+46181d3b9438f8c6c6350b6a8b1422cd2a7ad2d7:doc/TOKEN_DELIVERY.md:generic-api-key:33
+
+# doc/JWT_SECURITY.md — env-var format template; key body is literally "..."
+fd76a68395f67e0d98226f329abb625229234142:doc/JWT_SECURITY.md:private-key:47
+
+# doc/PRODUCTION_SECRETS.md — same format template repeated in two code blocks
+fd76a68395f67e0d98226f329abb625229234142:doc/PRODUCTION_SECRETS.md:private-key:11
+fd76a68395f67e0d98226f329abb625229234142:doc/PRODUCTION_SECRETS.md:private-key:64
+
+# README.md — placeholder text "YOUR_JWT_TOKEN" in a curl usage example
+8e6ae1b99a8f48f895c42a07afa0526e9ff61488:README.md:curl-auth-header:134
