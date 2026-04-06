@@ -152,6 +152,11 @@ func TestExtractClientIP(t *testing.T) {
 			remoteAddr: "127.0.0.1:1234",
 			want:       "198.51.100.1",
 		},
+		{
+			name:       "RemoteAddr with no port → SplitHostPort fails → raw value returned",
+			remoteAddr: "192.168.1.1",
+			want:       "192.168.1.1",
+		},
 	}
 
 	for _, tc := range cases {
@@ -172,3 +177,10 @@ func TestExtractClientIP(t *testing.T) {
 	}
 }
 
+func TestSecurityHeadersMiddleware_Production(t *testing.T) {
+	t.Setenv("ENV", "production")
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	rr := httptest.NewRecorder()
+	SecurityHeadersMiddleware(okHandler()).ServeHTTP(rr, req)
+	assert.NotEmpty(t, rr.Header().Get("Strict-Transport-Security"))
+}
