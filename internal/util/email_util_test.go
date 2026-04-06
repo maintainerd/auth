@@ -1,6 +1,10 @@
 package util
 
 import (
+	"bufio"
+	"fmt"
+	"net"
+	"strings"
 	"testing"
 
 	"github.com/maintainerd/auth/internal/config"
@@ -83,3 +87,62 @@ func TestSendEmail_FailsWithBadHost(t *testing.T) {
 	assert.Contains(t, err.Error(), "failed to send email")
 }
 
+// startMockSMTP starts a minimal SMTP server that accepts one message and
+// returns the port it listens on. The listener is closed when the test ends.
+func startMockSMTP(t *testing.T) int {
+	t.Helper()
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	require.NoError(t, err)
+	port := ln.Addr().(*net.TCPAddr).Port
+	t.Cleanup(func() { ln.Close() })
+
+	go func() {
+		conn, err := ln.Accept()
+		if err != nil {
+			return
+		}
+		defer conn.Close()
+
+		fmt.Fprintf(conn, "220 mock SMTP\r\n")
+		scanner := bufio.NewScanner(conn)
+		for scanner.Scan() {
+			line := scanner.Text()
+			cmd := strings.ToUpper(line)
+			switch {
+			case strings.HasPrefix(cmd, "EHLO"), strings.HasPrefix(cmd, "HELO"):
+				fmt.Fprintf(conn, "250-mock Hello\r\n250 OK\r\n")
+			case strings.HasPrefix(cmd, "MAIL"):
+				fmt.Fprintf(conn, "250 OK\r\n")
+			case strings.HasPrefix(cmd, "RCPT"):
+				fmt.Fprintf(conn, "250 OK\r\n")
+			case strings.HasPrefix(cmd, "DATA"):
+				fmt.Fprintf(conn, "354 Go ahead\r\n")
+				for scanner.Scan() {
+					if scanner.Text() == "." {
+						break
+					}
+				}
+				fmt.Fprintf(conn, "250 OK\r\n")
+			case strings.HasPrefix(cmd, "QUIT"):
+				fmt.Fprintf(conn, "221 Bye\r\n")
+				return
+			default:
+				fmt.Fprintf(conn, "250 OK\r\n")
+			}
+		}
+	}()
+
+	return port
+}
+
+func TestSendEmail_Success(t *testing.T) {
+	port := startMockSMTP(t)
+	setSMTPConfig(t, "127.0.0.1", port, "", "", "noreply@example.com", "Test")
+
+	err := SendEmail(SendEmailParams{
+		To:       "user@example.com",
+		Subject:  "Hello",
+		BodyHTML: "<p>Hello</p>",
+	})
+	assert.NoError(t, err)
+}
