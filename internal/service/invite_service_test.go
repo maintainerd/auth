@@ -8,8 +8,9 @@ import (
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/maintainerd/auth/internal/config"
+	"github.com/maintainerd/auth/internal/email"
 	"github.com/maintainerd/auth/internal/model"
-	"github.com/maintainerd/auth/internal/util"
+	"github.com/maintainerd/auth/internal/signedurl"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -202,10 +203,10 @@ func TestInviteService_SendInvite_FullSuccess(t *testing.T) {
 	config.AppPrivateHostname = "https://api.example.com"
 	config.AccountHostname = "https://account.example.com"
 
-	origSendEmail := util.SendEmail
-	defer func() { util.SendEmail = origSendEmail }()
+	origSendEmail := email.SendEmail
+	defer func() { email.SendEmail = origSendEmail }()
 	var emailSent bool
-	util.SendEmail = func(p util.SendEmailParams) error {
+	email.SendEmail = func(p email.SendEmailParams) error {
 		emailSent = true
 		assert.Equal(t, "user@example.com", p.To)
 		assert.Contains(t, p.BodyHTML, "https://account.example.com/register/invite")
@@ -256,9 +257,9 @@ func TestInviteService_SendInvite_EmailSendError(t *testing.T) {
 	config.AppPrivateHostname = "https://api.example.com"
 	config.AccountHostname = "https://account.example.com"
 
-	origSendEmail := util.SendEmail
-	defer func() { util.SendEmail = origSendEmail }()
-	util.SendEmail = func(_ util.SendEmailParams) error { return errors.New("smtp err") }
+	origSendEmail := email.SendEmail
+	defer func() { email.SendEmail = origSendEmail }()
+	email.SendEmail = func(_ email.SendEmailParams) error { return errors.New("smtp err") }
 
 	gormDB, mock := newMockGormDB(t)
 	mock.ExpectBegin()
@@ -301,8 +302,8 @@ func TestInviteService_SendInvite_TemplateFetchError(t *testing.T) {
 	config.AppPrivateHostname = "https://api.example.com"
 	config.AccountHostname = "https://account.example.com"
 
-	origSendEmail := util.SendEmail
-	defer func() { util.SendEmail = origSendEmail }()
+	origSendEmail := email.SendEmail
+	defer func() { email.SendEmail = origSendEmail }()
 
 	gormDB, mock := newMockGormDB(t)
 	mock.ExpectBegin()
@@ -342,8 +343,8 @@ func TestInviteService_SendInvite_HTMLParseError(t *testing.T) {
 	config.AppPrivateHostname = "https://api.example.com"
 	config.AccountHostname = "https://account.example.com"
 
-	origSendEmail := util.SendEmail
-	defer func() { util.SendEmail = origSendEmail }()
+	origSendEmail := email.SendEmail
+	defer func() { email.SendEmail = origSendEmail }()
 
 	gormDB, mock := newMockGormDB(t)
 	mock.ExpectBegin()
@@ -386,8 +387,8 @@ func TestInviteService_SendInvite_HTMLExecuteError(t *testing.T) {
 	config.AppPrivateHostname = "https://api.example.com"
 	config.AccountHostname = "https://account.example.com"
 
-	origSendEmail := util.SendEmail
-	defer func() { util.SendEmail = origSendEmail }()
+	origSendEmail := email.SendEmail
+	defer func() { email.SendEmail = origSendEmail }()
 
 	gormDB, mock := newMockGormDB(t)
 	mock.ExpectBegin()
@@ -430,8 +431,8 @@ func TestInviteService_SendInvite_PlainParseError(t *testing.T) {
 	config.AppPrivateHostname = "https://api.example.com"
 	config.AccountHostname = "https://account.example.com"
 
-	origSendEmail := util.SendEmail
-	defer func() { util.SendEmail = origSendEmail }()
+	origSendEmail := email.SendEmail
+	defer func() { email.SendEmail = origSendEmail }()
 
 	gormDB, mock := newMockGormDB(t)
 	mock.ExpectBegin()
@@ -476,8 +477,8 @@ func TestInviteService_SendInvite_PlainExecuteError(t *testing.T) {
 	config.AppPrivateHostname = "https://api.example.com"
 	config.AccountHostname = "https://account.example.com"
 
-	origSendEmail := util.SendEmail
-	defer func() { util.SendEmail = origSendEmail }()
+	origSendEmail := email.SendEmail
+	defer func() { email.SendEmail = origSendEmail }()
 
 	gormDB, mock := newMockGormDB(t)
 	mock.ExpectBegin()
@@ -646,9 +647,9 @@ func TestInviteService_SendInvite_GenerateSignedURLError(t *testing.T) {
 	config.AppPrivateHostname = "https://api.example.com"
 	config.AccountHostname = "https://account.example.com"
 
-	origGenerateSignedURL := util.GenerateSignedURL
-	defer func() { util.GenerateSignedURL = origGenerateSignedURL }()
-	util.GenerateSignedURL = func(_ string, _ map[string]string, _ time.Duration) (string, error) {
+	origGenerateSignedURL := signedurl.GenerateSignedURL
+	defer func() { signedurl.GenerateSignedURL = origGenerateSignedURL }()
+	signedurl.GenerateSignedURL = func(_ string, _ map[string]string, _ time.Duration) (string, error) {
 		return "", errors.New("signed url failure")
 	}
 
@@ -685,9 +686,9 @@ func TestInviteService_SendInvite_ConvertToFrontendURLError(t *testing.T) {
 	config.AppPrivateHostname = "https://api.example.com"
 	config.AccountHostname = "https://account.example.com"
 
-	origConvertToFrontendURL := util.ConvertToFrontendURL
-	defer func() { util.ConvertToFrontendURL = origConvertToFrontendURL }()
-	util.ConvertToFrontendURL = func(_, _ string) (string, error) {
+	origConvertToFrontendURL := signedurl.ConvertToFrontendURL
+	defer func() { signedurl.ConvertToFrontendURL = origConvertToFrontendURL }()
+	signedurl.ConvertToFrontendURL = func(_, _ string) (string, error) {
 		return "", errors.New("frontend url failure")
 	}
 

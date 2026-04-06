@@ -8,7 +8,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/model"
 	"github.com/maintainerd/auth/internal/repository"
-	"github.com/maintainerd/auth/internal/util"
+	"github.com/maintainerd/auth/internal/generator"
 	"gorm.io/datatypes"
 	"gorm.io/gorm"
 )
@@ -270,8 +270,8 @@ func (s *clientService) Create(tenantID int64, name string, displayName string, 
 		}
 
 		// Generate identifier
-		clientId := util.GenerateIdentifier(12)
-		clientSecret := util.GenerateIdentifier(64)
+		clientId := generator.GenerateIdentifier(12)
+		clientSecret := generator.GenerateIdentifier(64)
 
 		// Create auth client
 		newClient := &model.Client{

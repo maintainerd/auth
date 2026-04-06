@@ -10,9 +10,11 @@ import (
 
 	"github.com/maintainerd/auth/internal/config"
 	"github.com/maintainerd/auth/internal/dto"
+	"github.com/maintainerd/auth/internal/email"
+	"github.com/maintainerd/auth/internal/signedurl"
 	"github.com/maintainerd/auth/internal/model"
 	"github.com/maintainerd/auth/internal/repository"
-	"github.com/maintainerd/auth/internal/util"
+	"github.com/maintainerd/auth/internal/security"
 	"gorm.io/gorm"
 )
 
@@ -127,7 +129,7 @@ func (s *forgotPasswordService) SendPasswordResetEmail(email string, clientID, p
 		// Generate reset URL and send email
 		if err := s.sendPasswordResetEmail(user.Email, resetToken, Client, isInternal); err != nil {
 			// Log error but don't reveal it to user for security
-			util.LogSecurityEvent(util.SecurityEvent{
+			security.LogSecurityEvent(security.SecurityEvent{
 				EventType: "password_reset_email_failure",
 				UserID:    user.UserUUID.String(),
 				Details:   fmt.Sprintf("Failed to send password reset email: %v", err),
@@ -157,7 +159,7 @@ func (s *forgotPasswordService) sendPasswordResetEmail(to, resetToken string, Cl
 
 	// Create signed URL for password reset
 	baseURL := fmt.Sprintf("%s/api/v1/reset-password", config.AppPublicHostname)
-	signedAPIURL, err := util.GenerateSignedURL(baseURL, map[string]string{
+	signedAPIURL, err := signedurl.GenerateSignedURL(baseURL, map[string]string{
 		"token":       resetToken,
 		"client_id":   *Client.Identifier,
 		"provider_id": Client.IdentityProvider.Identifier,
@@ -173,7 +175,7 @@ func (s *forgotPasswordService) sendPasswordResetEmail(to, resetToken string, Cl
 	} else {
 		frontendBaseURL = config.AccountHostname + "/reset-password"
 	}
-	resetURL, err := util.ConvertToFrontendURL(signedAPIURL, frontendBaseURL)
+	resetURL, err := signedurl.ConvertToFrontendURL(signedAPIURL, frontendBaseURL)
 	if err != nil {
 		return fmt.Errorf("failed to convert to frontend URL: %w", err)
 	}
@@ -212,7 +214,7 @@ func (s *forgotPasswordService) sendPasswordResetEmail(to, resetToken string, Cl
 	}
 
 	// Send email
-	return util.SendEmail(util.SendEmailParams{
+	return email.SendEmail(email.SendEmailParams{
 		To:        to,
 		Subject:   templateEntity.Subject,
 		BodyHTML:  bodyHTML.String(),

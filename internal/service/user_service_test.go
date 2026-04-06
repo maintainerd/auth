@@ -8,7 +8,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/model"
 	"github.com/maintainerd/auth/internal/repository"
-	"github.com/maintainerd/auth/internal/util"
+	"github.com/maintainerd/auth/internal/security"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gorm.io/datatypes"
@@ -478,9 +478,9 @@ func TestUserService_Create(t *testing.T) {
 	})
 
 	t.Run("HashPassword error", func(t *testing.T) {
-		origHash := util.HashPassword
-		defer func() { util.HashPassword = origHash }()
-		util.HashPassword = func(_ []byte) ([]byte, error) { return nil, errors.New("hash error") }
+		origHash := security.HashPassword
+		defer func() { security.HashPassword = origHash }()
+		security.HashPassword = func(_ []byte) ([]byte, error) { return nil, errors.New("hash error") }
 
 		ur, ui, urr, rr, tr, idp, cr, tu := defaultMocks()
 		tr.findByUUIDFn = func(_ any, _ ...string) (*model.Tenant, error) { return &model.Tenant{TenantID: 1}, nil }

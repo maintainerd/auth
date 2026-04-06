@@ -8,7 +8,7 @@ import (
 	"github.com/maintainerd/auth/internal/dto"
 	"github.com/maintainerd/auth/internal/model"
 	"github.com/maintainerd/auth/internal/repository"
-	"github.com/maintainerd/auth/internal/util"
+	"github.com/maintainerd/auth/internal/security"
 	"gorm.io/gorm"
 )
 
@@ -105,12 +105,12 @@ func (s *resetPasswordService) ResetPassword(token, newPassword string, clientID
 		}
 
 		// Validate password strength
-		if err := util.ValidatePasswordStrength(newPassword); err != nil {
+		if err := security.ValidatePasswordStrength(newPassword); err != nil {
 			return fmt.Errorf("password validation failed: %w", err)
 		}
 
 		// Hash the new password
-		hashedPassword, txErr := util.HashPassword([]byte(newPassword))
+		hashedPassword, txErr := security.HashPassword([]byte(newPassword))
 		if txErr != nil {
 			return fmt.Errorf("failed to hash password: %w", txErr)
 		}
@@ -147,7 +147,7 @@ func (s *resetPasswordService) ResetPassword(token, newPassword string, clientID
 
 	if err != nil {
 		// Log security event for failed password reset
-		util.LogSecurityEvent(util.SecurityEvent{
+		security.LogSecurityEvent(security.SecurityEvent{
 			EventType: "password_reset_failure",
 			UserID:    token, // Use token as identifier since we might not have user
 			Details:   fmt.Sprintf("Password reset failed: %v", err),
@@ -158,7 +158,7 @@ func (s *resetPasswordService) ResetPassword(token, newPassword string, clientID
 	}
 
 	// Log successful password reset
-	util.LogSecurityEvent(util.SecurityEvent{
+	security.LogSecurityEvent(security.SecurityEvent{
 		EventType: "password_reset_success",
 		UserID:    user.UserUUID.String(),
 		Details:   "Password reset completed successfully",
@@ -167,7 +167,7 @@ func (s *resetPasswordService) ResetPassword(token, newPassword string, clientID
 	})
 
 	// Reset failed login attempts for this user
-	util.ResetFailedAttempts(user.Email)
+	security.ResetFailedAttempts(user.Email)
 
 	return &dto.ResetPasswordResponseDto{
 		Message: "Password has been reset successfully. You can now log in with your new password.",

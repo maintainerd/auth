@@ -8,7 +8,7 @@ import (
 
 	"github.com/maintainerd/auth/internal/model"
 	"github.com/maintainerd/auth/internal/repository"
-	"github.com/maintainerd/auth/internal/util"
+		resp "github.com/maintainerd/auth/internal/response"
 	"github.com/redis/go-redis/v9"
 )
 
@@ -65,11 +65,11 @@ func UserContextMiddleware(
 			// Get auth information from database
 			user, err := userRepo.FindBySubAndClientID(sub, clientID)
 			if err != nil {
-				util.Error(w, http.StatusInternalServerError, "Failed to load user from database", err.Error())
+				resp.Error(w, http.StatusInternalServerError, "Failed to load user from database", err.Error())
 				return
 			}
 			if user == nil {
-				util.Error(w, http.StatusUnauthorized, "User not found")
+				resp.Error(w, http.StatusUnauthorized, "User not found")
 				return
 			}
 

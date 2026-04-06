@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/maintainerd/auth/internal/util"
+	"github.com/maintainerd/auth/internal/signedurl"
 )
 
 func TestResetPasswordRequestDto_Validate(t *testing.T) {
@@ -95,7 +95,7 @@ func TestResetPasswordQueryDto_ValidateSignedURL(t *testing.T) {
 
 	t.Run("valid signed url returns nil", func(t *testing.T) {
 		t.Setenv("HMAC_SECRET_KEY", "test-secret-key")
-		raw, _ := util.GenerateSignedURL("https://example.com", map[string]string{"token": "reset-tok"}, time.Minute)
+		raw, _ := signedurl.GenerateSignedURL("https://example.com", map[string]string{"token": "reset-tok"}, time.Minute)
 		parsed, _ := url.Parse(raw)
 		err := q.ValidateSignedURL(parsed.Query())
 		assert.NoError(t, err)

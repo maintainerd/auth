@@ -11,6 +11,8 @@ import (
 	"github.com/maintainerd/auth/internal/repository"
 	"github.com/maintainerd/auth/internal/runner"
 	"github.com/maintainerd/auth/internal/util"
+	"github.com/maintainerd/auth/internal/generator"
+	"github.com/maintainerd/auth/internal/security"
 	"gorm.io/datatypes"
 	"gorm.io/gorm"
 )
@@ -120,7 +122,7 @@ func (s *setupService) CreateTenant(req dto.CreateTenantRequestDto) (*dto.Create
 		txTenantRepo := s.tenantRepo.WithTx(tx)
 
 		// Generate identifier
-		identifier := util.GenerateIdentifier(24)
+		identifier := generator.GenerateIdentifier(24)
 
 		// Handle description (optional field)
 		description := ""
@@ -267,7 +269,7 @@ func (s *setupService) CreateAdmin(req dto.CreateAdminRequestDto) (*dto.CreateAd
 		}
 
 		// Hash password
-		hashedPassword, err := util.HashPassword([]byte(req.Password))
+		hashedPassword, err := security.HashPassword([]byte(req.Password))
 		if err != nil {
 			return err
 		}

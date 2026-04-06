@@ -4,7 +4,8 @@ import (
 	"net/url"
 
 	validation "github.com/go-ozzo/ozzo-validation/v4"
-	"github.com/maintainerd/auth/internal/util"
+		"github.com/maintainerd/auth/internal/signedurl"
+	"github.com/maintainerd/auth/internal/security"
 )
 
 // Login request payload structure
@@ -15,8 +16,8 @@ type LoginRequestDto struct {
 
 func (r *LoginRequestDto) Validate() error {
 	// Sanitize inputs first
-	r.Username = util.SanitizeInput(r.Username)
-	r.Password = util.SanitizeInput(r.Password)
+	r.Username = security.SanitizeInput(r.Username)
+	r.Password = security.SanitizeInput(r.Password)
 
 	return validation.ValidateStruct(r,
 		validation.Field(&r.Username,
@@ -38,8 +39,8 @@ type LoginQueryDto struct {
 
 func (q *LoginQueryDto) Validate() error {
 	// Sanitize inputs first
-	q.ClientID = util.SanitizeInput(q.ClientID)
-	q.ProviderID = util.SanitizeInput(q.ProviderID)
+	q.ClientID = security.SanitizeInput(q.ClientID)
+	q.ProviderID = security.SanitizeInput(q.ProviderID)
 
 	return validation.ValidateStruct(q,
 		validation.Field(&q.ClientID,
@@ -56,7 +57,7 @@ func (q *LoginQueryDto) Validate() error {
 // ValidateSignedURL validates signed URL parameters for login
 func (q *LoginQueryDto) ValidateSignedURL(values url.Values) error {
 	// Extract and validate signed URL parameters
-	if _, err := util.ValidateSignedURL(values); err != nil {
+	if _, err := signedurl.ValidateSignedURL(values); err != nil {
 		return err
 	}
 	return nil

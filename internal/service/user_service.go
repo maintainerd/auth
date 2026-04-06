@@ -7,7 +7,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/model"
 	"github.com/maintainerd/auth/internal/repository"
-	"github.com/maintainerd/auth/internal/util"
+	"github.com/maintainerd/auth/internal/security"
 	"gorm.io/datatypes"
 	"gorm.io/gorm"
 )
@@ -272,7 +272,7 @@ func (s *userService) Create(username string, fullname string, email *string, ph
 		}
 
 		// Hash password
-		hashedPassword, err := util.HashPassword([]byte(password))
+		hashedPassword, err := security.HashPassword([]byte(password))
 		if err != nil {
 			return err
 		}

@@ -4,12 +4,12 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/maintainerd/auth/internal/handler/resthandler"
+	"github.com/maintainerd/auth/internal/handler/rest"
 	"github.com/maintainerd/auth/internal/middleware"
 )
 
 // RegisterRoute handles internal register routes (no client_id/provider_id required)
-func RegisterRoute(r chi.Router, registerHandler *resthandler.RegisterHandler) {
+func RegisterRoute(r chi.Router, registerHandler *rest.RegisterHandler) {
 	// Apply stricter limits for auth endpoints (inherits global security middleware)
 	r.Group(func(r chi.Router) {
 		// Stricter request size limit for auth endpoints (1MB vs 10MB global)
@@ -27,7 +27,7 @@ func RegisterRoute(r chi.Router, registerHandler *resthandler.RegisterHandler) {
 }
 
 // RegisterPublicRoute handles public register routes (requires client_id and provider_id)
-func RegisterPublicRoute(r chi.Router, registerHandler *resthandler.RegisterHandler) {
+func RegisterPublicRoute(r chi.Router, registerHandler *rest.RegisterHandler) {
 	// Apply stricter limits for auth endpoints (inherits global security middleware)
 	r.Group(func(r chi.Router) {
 		// Stricter request size limit for auth endpoints (1MB vs 10MB global)

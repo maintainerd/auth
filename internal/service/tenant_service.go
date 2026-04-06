@@ -7,7 +7,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/model"
 	"github.com/maintainerd/auth/internal/repository"
-	"github.com/maintainerd/auth/internal/util"
+	"github.com/maintainerd/auth/internal/generator"
 	"gorm.io/gorm"
 )
 
@@ -153,7 +153,7 @@ func (s *tenantService) Create(name string, displayName string, description stri
 		}
 
 		// Generate identifier
-		identifier := util.GenerateIdentifier(12)
+		identifier := generator.GenerateIdentifier(12)
 
 		// Create tenant
 		newTenant := &model.Tenant{

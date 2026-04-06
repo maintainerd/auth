@@ -10,7 +10,8 @@ import (
 	grpcserver "github.com/maintainerd/auth/internal/grpc"
 	restserver "github.com/maintainerd/auth/internal/rest"
 	"github.com/maintainerd/auth/internal/runner"
-	"github.com/maintainerd/auth/internal/util"
+		"github.com/maintainerd/auth/internal/jwt"
+	"github.com/maintainerd/auth/internal/security"
 )
 
 func main() {
@@ -24,7 +25,7 @@ func main() {
 	}
 
 	// ⚙️ Parse RSA keys (required for token signing)
-	if err := util.InitJWTKeys(); err != nil {
+	if err := jwt.InitJWTKeys(); err != nil {
 		slog.Error("Failed to initialize JWT keys", "error", err)
 		os.Exit(1)
 	}
@@ -44,7 +45,7 @@ func main() {
 	}
 
 	// ⚙️ Wire Redis-backed rate limiter
-	util.InitRateLimiter(redisClient)
+	security.InitRateLimiter(redisClient)
 
 	// ⚙️ Run database migrations
 	if err := runner.RunMigrations(db); err != nil {

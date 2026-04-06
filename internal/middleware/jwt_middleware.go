@@ -6,7 +6,8 @@ import (
 	"strings"
 
 	"github.com/google/uuid"
-	"github.com/maintainerd/auth/internal/util"
+	"github.com/maintainerd/auth/internal/jwt"
+	resp "github.com/maintainerd/auth/internal/response"
 )
 
 type contextKey string
@@ -46,14 +47,14 @@ func JWTAuthMiddleware(next http.Handler) http.Handler {
 		}
 
 		if token == "" {
-			util.Error(w, http.StatusUnauthorized, "No valid authentication found")
+			resp.Error(w, http.StatusUnauthorized, "No valid authentication found")
 			return
 		}
 
 		// Validate token
-		claims, err := util.ValidateToken(token)
+		claims, err := jwt.ValidateToken(token)
 		if err != nil {
-			util.Error(w, http.StatusUnauthorized, "Invalid or expired token", err.Error())
+			resp.Error(w, http.StatusUnauthorized, "Invalid or expired token", err.Error())
 			return
 		}
 
@@ -64,7 +65,7 @@ func JWTAuthMiddleware(next http.Handler) http.Handler {
 		// Parse sub into uuid
 		userUUID, err := uuid.Parse(sub)
 		if err != nil {
-			util.Error(w, http.StatusBadRequest, "Invalid User UUID format", err.Error())
+			resp.Error(w, http.StatusBadRequest, "Invalid User UUID format", err.Error())
 			return
 		}
 

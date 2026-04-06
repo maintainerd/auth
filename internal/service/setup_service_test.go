@@ -9,7 +9,7 @@ import (
 	"github.com/maintainerd/auth/internal/dto"
 	"github.com/maintainerd/auth/internal/model"
 	"github.com/maintainerd/auth/internal/runner"
-	"github.com/maintainerd/auth/internal/util"
+	"github.com/maintainerd/auth/internal/security"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
@@ -733,9 +733,9 @@ func TestSetupService_CreateAdmin(t *testing.T) {
 	})
 
 	t.Run("HashPassword error → rollback", func(t *testing.T) {
-		origHash := util.HashPassword
-		defer func() { util.HashPassword = origHash }()
-		util.HashPassword = func(_ []byte) ([]byte, error) { return nil, errors.New("hash error") }
+		origHash := security.HashPassword
+		defer func() { security.HashPassword = origHash }()
+		security.HashPassword = func(_ []byte) ([]byte, error) { return nil, errors.New("hash error") }
 
 		db, mock := newMockGormDB(t)
 		mock.ExpectBegin()

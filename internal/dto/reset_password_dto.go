@@ -4,7 +4,7 @@ import (
 	"net/url"
 
 	validation "github.com/go-ozzo/ozzo-validation/v4"
-	"github.com/maintainerd/auth/internal/util"
+		"github.com/maintainerd/auth/internal/signedurl"
 )
 
 // ResetPasswordRequestDto represents the request to reset a password
@@ -65,7 +65,7 @@ func (q ResetPasswordQueryDto) Validate() error {
 // ValidateSignedURL validates signed URL parameters for reset password
 func (q *ResetPasswordQueryDto) ValidateSignedURL(values url.Values) error {
 	// Extract and validate signed URL parameters
-	if _, err := util.ValidateSignedURL(values); err != nil {
+	if _, err := signedurl.ValidateSignedURL(values); err != nil {
 		return err
 	}
 	return nil

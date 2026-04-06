@@ -7,9 +7,11 @@ import (
 
 	"github.com/alicebob/miniredis/v2"
 	"github.com/google/uuid"
+	"github.com/maintainerd/auth/internal/generator"
+	"github.com/maintainerd/auth/internal/jwt"
 	"github.com/maintainerd/auth/internal/model"
 	"github.com/maintainerd/auth/internal/repository"
-	"github.com/maintainerd/auth/internal/util"
+	"github.com/maintainerd/auth/internal/security"
 	"github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -213,10 +215,10 @@ func lockedRateLimiterReg(t *testing.T, identifier string) func() {
 	mr, err := miniredis.Run()
 	require.NoError(t, err)
 	rdb := redis.NewClient(&redis.Options{Addr: mr.Addr()})
-	util.InitRateLimiter(rdb)
+	security.InitRateLimiter(rdb)
 	require.NoError(t, mr.Set("rl:lock:"+identifier, "1"))
 	return func() {
-		util.InitRateLimiter(nil)
+		security.InitRateLimiter(nil)
 		rdb.Close()
 		mr.Close()
 	}
@@ -534,7 +536,7 @@ func TestRegisterService_RegisterPublic(t *testing.T) {
 	})
 
 	t.Run("generateTokenResponse error", func(t *testing.T) {
-		util.ResetJWTKeys()
+		jwt.ResetJWTKeys()
 		defer initTestJWTKeysService(t)
 
 		gormDB, mock := newMockGormDB(t)
@@ -582,9 +584,9 @@ func TestRegisterService_RegisterPublic(t *testing.T) {
 	})
 
 	t.Run("HashPassword error", func(t *testing.T) {
-		origHash := util.HashPassword
-		defer func() { util.HashPassword = origHash }()
-		util.HashPassword = func(_ []byte) ([]byte, error) { return nil, errors.New("hash error") }
+		origHash := security.HashPassword
+		defer func() { security.HashPassword = origHash }()
+		security.HashPassword = func(_ []byte) ([]byte, error) { return nil, errors.New("hash error") }
 
 		gormDB, mock := newMockGormDB(t)
 		mock.ExpectBegin()
@@ -600,9 +602,9 @@ func TestRegisterService_RegisterPublic(t *testing.T) {
 	})
 
 	t.Run("GenerateOTP error", func(t *testing.T) {
-		origOTP := util.GenerateOTP
-		defer func() { util.GenerateOTP = origOTP }()
-		util.GenerateOTP = func(_ int) (string, error) { return "", errors.New("otp error") }
+		origOTP := generator.GenerateOTP
+		defer func() { generator.GenerateOTP = origOTP }()
+		generator.GenerateOTP = func(_ int) (string, error) { return "", errors.New("otp error") }
 
 		gormDB, mock := newMockGormDB(t)
 		mock.ExpectBegin()
@@ -822,7 +824,7 @@ func TestRegisterService_Register(t *testing.T) {
 	})
 
 	t.Run("generateTokenResponse error", func(t *testing.T) {
-		util.ResetJWTKeys()
+		jwt.ResetJWTKeys()
 		defer initTestJWTKeysService(t)
 
 		gormDB, mock := newMockGormDB(t)
@@ -870,9 +872,9 @@ func TestRegisterService_Register(t *testing.T) {
 	})
 
 	t.Run("HashPassword error", func(t *testing.T) {
-		origHash := util.HashPassword
-		defer func() { util.HashPassword = origHash }()
-		util.HashPassword = func(_ []byte) ([]byte, error) { return nil, errors.New("hash error") }
+		origHash := security.HashPassword
+		defer func() { security.HashPassword = origHash }()
+		security.HashPassword = func(_ []byte) ([]byte, error) { return nil, errors.New("hash error") }
 
 		gormDB, mock := newMockGormDB(t)
 		mock.ExpectBegin()
@@ -888,9 +890,9 @@ func TestRegisterService_Register(t *testing.T) {
 	})
 
 	t.Run("GenerateOTP error", func(t *testing.T) {
-		origOTP := util.GenerateOTP
-		defer func() { util.GenerateOTP = origOTP }()
-		util.GenerateOTP = func(_ int) (string, error) { return "", errors.New("otp error") }
+		origOTP := generator.GenerateOTP
+		defer func() { generator.GenerateOTP = origOTP }()
+		generator.GenerateOTP = func(_ int) (string, error) { return "", errors.New("otp error") }
 
 		gormDB, mock := newMockGormDB(t)
 		mock.ExpectBegin()
@@ -1202,7 +1204,7 @@ func TestRegisterService_RegisterInvite(t *testing.T) {
 	})
 
 	t.Run("generateTokenResponse error", func(t *testing.T) {
-		util.ResetJWTKeys()
+		jwt.ResetJWTKeys()
 		defer initTestJWTKeysService(t)
 
 		gormDB, mock := newMockGormDB(t)
@@ -1251,9 +1253,9 @@ func TestRegisterService_RegisterInvite(t *testing.T) {
 	})
 
 	t.Run("HashPassword error", func(t *testing.T) {
-		origHash := util.HashPassword
-		defer func() { util.HashPassword = origHash }()
-		util.HashPassword = func(_ []byte) ([]byte, error) { return nil, errors.New("hash error") }
+		origHash := security.HashPassword
+		defer func() { security.HashPassword = origHash }()
+		security.HashPassword = func(_ []byte) ([]byte, error) { return nil, errors.New("hash error") }
 
 		gormDB, mock := newMockGormDB(t)
 		mock.ExpectBegin()
@@ -1653,7 +1655,7 @@ func TestRegisterService_RegisterInvitePublic(t *testing.T) {
 	})
 
 	t.Run("generateTokenResponse error", func(t *testing.T) {
-		util.ResetJWTKeys()
+		jwt.ResetJWTKeys()
 		defer initTestJWTKeysService(t)
 
 		gormDB, mock := newMockGormDB(t)
@@ -1686,9 +1688,9 @@ func TestRegisterService_RegisterInvitePublic(t *testing.T) {
 	})
 
 	t.Run("HashPassword error", func(t *testing.T) {
-		origHash := util.HashPassword
-		defer func() { util.HashPassword = origHash }()
-		util.HashPassword = func(_ []byte) ([]byte, error) { return nil, errors.New("hash error") }
+		origHash := security.HashPassword
+		defer func() { security.HashPassword = origHash }()
+		security.HashPassword = func(_ []byte) ([]byte, error) { return nil, errors.New("hash error") }
 
 		gormDB, mock := newMockGormDB(t)
 		mock.ExpectBegin()
@@ -1721,7 +1723,7 @@ func TestRegisterService_GenerateTokenResponse(t *testing.T) {
 	}
 
 	t.Run("GenerateAccessToken error", func(t *testing.T) {
-		util.ResetJWTKeys()
+		jwt.ResetJWTKeys()
 		defer initTestJWTKeysService(t)
 
 		svc := &registerService{}
@@ -1751,9 +1753,9 @@ func TestRegisterService_GenerateTokenResponse(t *testing.T) {
 
 	t.Run("GenerateIDToken error", func(t *testing.T) {
 		initTestJWTKeysService(t)
-		origIDToken := util.GenerateIDToken
-		defer func() { util.GenerateIDToken = origIDToken }()
-		util.GenerateIDToken = func(_, _, _, _ string, _ *util.UserProfile, _ string) (string, error) {
+		origIDToken := jwt.GenerateIDToken
+		defer func() { jwt.GenerateIDToken = origIDToken }()
+		jwt.GenerateIDToken = func(_, _, _, _ string, _ *jwt.UserProfile, _ string) (string, error) {
 			return "", errors.New("id token error")
 		}
 
@@ -1766,9 +1768,9 @@ func TestRegisterService_GenerateTokenResponse(t *testing.T) {
 
 	t.Run("GenerateRefreshToken error", func(t *testing.T) {
 		initTestJWTKeysService(t)
-		origRefresh := util.GenerateRefreshToken
-		defer func() { util.GenerateRefreshToken = origRefresh }()
-		util.GenerateRefreshToken = func(_, _, _, _ string) (string, error) {
+		origRefresh := jwt.GenerateRefreshToken
+		defer func() { jwt.GenerateRefreshToken = origRefresh }()
+		jwt.GenerateRefreshToken = func(_, _, _, _ string) (string, error) {
 			return "", errors.New("refresh error")
 		}
 

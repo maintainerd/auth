@@ -6,9 +6,10 @@ import (
 	"time"
 
 	"github.com/maintainerd/auth/internal/dto"
+	"github.com/maintainerd/auth/internal/jwt"
 	"github.com/maintainerd/auth/internal/model"
 	"github.com/maintainerd/auth/internal/repository"
-	"github.com/maintainerd/auth/internal/util"
+	"github.com/maintainerd/auth/internal/security"
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 )
@@ -47,8 +48,8 @@ func NewLoginService(
 }
 
 // Function variables to allow stubbing in tests.
-var generateIDTokenFn = util.GenerateIDToken
-var generateRefreshTokenFn = util.GenerateRefreshToken
+var generateIDTokenFn = jwt.GenerateIDToken
+var generateRefreshTokenFn = jwt.GenerateRefreshToken
 
 // LoginPublic authenticates users for public-facing applications.
 // Requires clientID and providerID to identify the auth client.
@@ -59,8 +60,8 @@ func (s *loginService) LoginPublic(usernameOrEmail, password, clientID, provider
 	// Input validation is now handled at the DTO/handler level
 
 	// Rate limiting check (SOC2 CC6.1 - Logical Access Controls)
-	if err := util.CheckRateLimit(usernameOrEmail); err != nil {
-		util.LogSecurityEvent(util.SecurityEvent{
+	if err := security.CheckRateLimit(usernameOrEmail); err != nil {
+		security.LogSecurityEvent(security.SecurityEvent{
 			EventType: "login_rate_limited",
 			UserID:    usernameOrEmail,
 			ClientID:  clientID,
@@ -85,7 +86,7 @@ func (s *loginService) LoginPublic(usernameOrEmail, password, clientID, provider
 		// Look up identity provider by identifier to get auth container
 		identityProvider, txErr := txIdentityProviderRepo.FindByIdentifier(providerID)
 		if txErr != nil {
-			util.LogSecurityEvent(util.SecurityEvent{
+			security.LogSecurityEvent(security.SecurityEvent{
 				EventType: "login_validation_failure",
 				UserID:    usernameOrEmail,
 				ClientID:  clientID,
@@ -96,7 +97,7 @@ func (s *loginService) LoginPublic(usernameOrEmail, password, clientID, provider
 		}
 
 		if identityProvider == nil {
-			util.LogSecurityEvent(util.SecurityEvent{
+			security.LogSecurityEvent(security.SecurityEvent{
 				EventType: "login_validation_failure",
 				UserID:    usernameOrEmail,
 				ClientID:  clientID,
@@ -109,7 +110,7 @@ func (s *loginService) LoginPublic(usernameOrEmail, password, clientID, provider
 		// Get and validate auth client with proper relationship preloading
 		client, txErr = txClientRepo.FindByClientIDAndIdentityProvider(clientID, providerID)
 		if txErr != nil {
-			util.LogSecurityEvent(util.SecurityEvent{
+			security.LogSecurityEvent(security.SecurityEvent{
 				EventType: "login_client_lookup_failure",
 				UserID:    usernameOrEmail,
 				ClientID:  clientID,
@@ -122,7 +123,7 @@ func (s *loginService) LoginPublic(usernameOrEmail, password, clientID, provider
 		if client == nil ||
 			client.Status != model.StatusActive ||
 			client.Domain == nil || *client.Domain == "" {
-			util.LogSecurityEvent(util.SecurityEvent{
+			security.LogSecurityEvent(security.SecurityEvent{
 				EventType: "login_invalid_client",
 				UserID:    usernameOrEmail,
 				ClientID:  clientID,
@@ -159,15 +160,15 @@ func (s *loginService) LoginPublic(usernameOrEmail, password, clientID, provider
 		passwordValid = bcrypt.CompareHashAndPassword(hashedPassword, []byte(password)) == nil
 	} else {
 		// Perform dummy bcrypt operation to maintain consistent timing
-		bcrypt.CompareHashAndPassword(util.GetDummyBcryptHash(), []byte(password)) //nolint:errcheck // intentional timing dummy; error is irrelevant
+		bcrypt.CompareHashAndPassword(security.GetDummyBcryptHash(), []byte(password)) //nolint:errcheck // intentional timing dummy; error is irrelevant
 	}
 
 	// Check if authentication succeeded
 	if !passwordValid || user == nil || user.Password == nil {
 		// Record failed attempt
-		util.RecordFailedAttempt(usernameOrEmail)
+		security.RecordFailedAttempt(usernameOrEmail)
 
-		util.LogSecurityEvent(util.SecurityEvent{
+		security.LogSecurityEvent(security.SecurityEvent{
 			EventType: "login_failure",
 			UserID:    usernameOrEmail,
 			ClientID:  clientID,
@@ -180,7 +181,7 @@ func (s *loginService) LoginPublic(usernameOrEmail, password, clientID, provider
 
 	// Check if user account is active
 	if user.Status != model.StatusActive {
-		util.LogSecurityEvent(util.SecurityEvent{
+		security.LogSecurityEvent(security.SecurityEvent{
 			EventType: "login_inactive_user",
 			UserID:    user.UserUUID.String(),
 			ClientID:  clientID,
@@ -191,10 +192,10 @@ func (s *loginService) LoginPublic(usernameOrEmail, password, clientID, provider
 	}
 
 	// Reset failed attempts on successful authentication
-	util.ResetFailedAttempts(usernameOrEmail)
+	security.ResetFailedAttempts(usernameOrEmail)
 
 	// Log successful login
-	util.LogSecurityEvent(util.SecurityEvent{
+	security.LogSecurityEvent(security.SecurityEvent{
 		EventType: "login_success",
 		UserID:    user.UserUUID.String(),
 		ClientID:  clientID,
@@ -214,8 +215,8 @@ func (s *loginService) Login(usernameOrEmail, password string, clientID, provide
 	startTime := time.Now()
 
 	// Rate limiting check (SOC2 CC6.1 - Logical Access Controls)
-	if err := util.CheckRateLimit(usernameOrEmail); err != nil {
-		util.LogSecurityEvent(util.SecurityEvent{
+	if err := security.CheckRateLimit(usernameOrEmail); err != nil {
+		security.LogSecurityEvent(security.SecurityEvent{
 			EventType: "login_rate_limited",
 			UserID:    usernameOrEmail,
 			ClientID:  "internal",
@@ -241,7 +242,7 @@ func (s *loginService) Login(usernameOrEmail, password string, clientID, provide
 			// Get auth client by client_id and identity provider identifier
 			client, txErr = txClientRepo.FindByClientIDAndIdentityProvider(*clientID, *providerID)
 			if txErr != nil {
-				util.LogSecurityEvent(util.SecurityEvent{
+				security.LogSecurityEvent(security.SecurityEvent{
 					EventType: "login_client_lookup_failure",
 					UserID:    usernameOrEmail,
 					ClientID:  *clientID,
@@ -254,7 +255,7 @@ func (s *loginService) Login(usernameOrEmail, password string, clientID, provide
 			// Get default auth client for internal authentication
 			client, txErr = txClientRepo.FindDefault()
 			if txErr != nil {
-				util.LogSecurityEvent(util.SecurityEvent{
+				security.LogSecurityEvent(security.SecurityEvent{
 					EventType: "login_client_lookup_failure",
 					UserID:    usernameOrEmail,
 					ClientID:  "internal",
@@ -268,7 +269,7 @@ func (s *loginService) Login(usernameOrEmail, password string, clientID, provide
 		if client == nil ||
 			client.Status != model.StatusActive ||
 			client.Domain == nil || *client.Domain == "" {
-			util.LogSecurityEvent(util.SecurityEvent{
+			security.LogSecurityEvent(security.SecurityEvent{
 				EventType: "login_invalid_client",
 				UserID:    usernameOrEmail,
 				ClientID:  "internal",
@@ -306,16 +307,16 @@ func (s *loginService) Login(usernameOrEmail, password string, clientID, provide
 		// Use a properly pre-computed dummy hash so the timing profile is
 		// identical whether the user exists or not. A literal/invalid hash
 		// string would return immediately without doing real bcrypt work.
-		bcrypt.CompareHashAndPassword(util.GetDummyBcryptHash(), []byte(password)) //nolint:errcheck
+		bcrypt.CompareHashAndPassword(security.GetDummyBcryptHash(), []byte(password)) //nolint:errcheck
 		passwordValid = false
 	}
 
 	// Check if authentication succeeded
 	if !passwordValid || user == nil || user.Password == nil {
 		// Record failed attempt
-		util.RecordFailedAttempt(usernameOrEmail)
+		security.RecordFailedAttempt(usernameOrEmail)
 
-		util.LogSecurityEvent(util.SecurityEvent{
+		security.LogSecurityEvent(security.SecurityEvent{
 			EventType: "login_failure",
 			UserID:    usernameOrEmail,
 			ClientID:  "internal",
@@ -328,7 +329,7 @@ func (s *loginService) Login(usernameOrEmail, password string, clientID, provide
 
 	// Check if user account is active
 	if user.Status != model.StatusActive {
-		util.LogSecurityEvent(util.SecurityEvent{
+		security.LogSecurityEvent(security.SecurityEvent{
 			EventType: "login_inactive_user",
 			UserID:    user.UserUUID.String(),
 			ClientID:  "internal",
@@ -339,10 +340,10 @@ func (s *loginService) Login(usernameOrEmail, password string, clientID, provide
 	}
 
 	// Reset failed attempts on successful authentication
-	util.ResetFailedAttempts(usernameOrEmail)
+	security.ResetFailedAttempts(usernameOrEmail)
 
 	// Log successful login
-	util.LogSecurityEvent(util.SecurityEvent{
+	security.LogSecurityEvent(security.SecurityEvent{
 		EventType: "login_success",
 		UserID:    user.UserUUID.String(),
 		ClientID:  "internal",
@@ -364,7 +365,7 @@ func (s *loginService) GetUserByEmail(email string, tenantID int64) (*model.User
 }
 
 func (s *loginService) generateTokenResponse(sub string, user *model.User, Client *model.Client) (*dto.LoginResponseDto, error) {
-	accessToken, err := util.GenerateAccessToken(
+	accessToken, err := jwt.GenerateAccessToken(
 		sub,
 		"openid profile email",
 		*Client.Domain,
@@ -377,7 +378,7 @@ func (s *loginService) generateTokenResponse(sub string, user *model.User, Clien
 	}
 
 	// Create user profile for ID token (populate from user data)
-	profile := &util.UserProfile{
+	profile := &jwt.UserProfile{
 		Email:         user.Email,
 		EmailVerified: user.IsEmailVerified,
 		Phone:         user.Phone,

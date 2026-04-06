@@ -2,7 +2,7 @@ package route
 
 import (
 	"github.com/go-chi/chi/v5"
-	"github.com/maintainerd/auth/internal/handler/resthandler"
+	"github.com/maintainerd/auth/internal/handler/rest"
 	"github.com/maintainerd/auth/internal/middleware"
 	"github.com/maintainerd/auth/internal/repository"
 	"github.com/redis/go-redis/v9"
@@ -10,8 +10,8 @@ import (
 
 func UserRoute(
 	r chi.Router,
-	userHandler *resthandler.UserHandler,
-	profileHandler *resthandler.ProfileHandler,
+	userHandler *rest.UserHandler,
+	profileHandler *rest.ProfileHandler,
 	userRepo repository.UserRepository,
 	redisClient *redis.Client,
 ) {
