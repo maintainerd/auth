@@ -8,7 +8,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/model"
 	"github.com/maintainerd/auth/internal/repository"
-	"github.com/maintainerd/auth/internal/util"
+	"github.com/maintainerd/auth/internal/generator"
 	"gorm.io/datatypes"
 	"gorm.io/gorm"
 )
@@ -165,7 +165,7 @@ func (s *signupFlowService) Create(tenantID int64, name, description string, con
 		// Generate unique identifier
 		var identifier string
 		for {
-			identifier = util.GenerateIdentifier(16)
+			identifier = generator.GenerateIdentifier(16)
 			existing, err := txSignupFlowRepo.FindByIdentifierAndClientID(identifier, Client.ClientID)
 			if err != nil {
 				return err

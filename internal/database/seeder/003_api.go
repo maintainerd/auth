@@ -5,7 +5,7 @@ import (
 	"log/slog"
 
 	"github.com/maintainerd/auth/internal/model"
-	"github.com/maintainerd/auth/internal/util"
+	"github.com/maintainerd/auth/internal/generator"
 	"gorm.io/gorm"
 )
 
@@ -27,7 +27,7 @@ func SeedAPI(db *gorm.DB, tenantID, serviceID int64) (*model.API, error) {
 		DisplayName: "Auth API",
 		APIType:     "rest",
 		Description: "API for authentication",
-		Identifier:  fmt.Sprintf("api-%s", util.GenerateIdentifier(12)),
+		Identifier:  fmt.Sprintf("api-%s", generator.GenerateIdentifier(12)),
 		Status:      "active",
 		IsSystem:    true,
 		ServiceID:   serviceID,
