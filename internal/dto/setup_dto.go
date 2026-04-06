@@ -96,11 +96,9 @@ func (dto CreateTenantRequestDto) Validate() error {
 		),
 		validation.Field(&dto.Metadata,
 			validation.When(dto.Metadata != nil,
+				// Metadata is non-nil (guarded by When), type assertion is always safe here
 				validation.By(func(value any) error {
-					if metadata, ok := value.(*TenantMetadataDto); ok && metadata != nil {
-						return metadata.Validate()
-					}
-					return nil
+					return value.(*TenantMetadataDto).Validate()
 				}),
 			),
 		),

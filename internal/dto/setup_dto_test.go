@@ -49,6 +49,18 @@ func TestCreateTenantRequestDto_Validate(t *testing.T) {
 		assert.NoError(t, valid.Validate())
 	})
 
+	t.Run("valid with metadata", func(t *testing.T) {
+		d := valid
+		d.Metadata = &TenantMetadataDto{Language: strPtr("en")}
+		assert.NoError(t, d.Validate())
+	})
+
+	t.Run("invalid metadata propagates error", func(t *testing.T) {
+		d := valid
+		d.Metadata = &TenantMetadataDto{ApplicationLogoURL: strPtr("not-a-url")}
+		require.Error(t, d.Validate())
+	})
+
 	t.Run("missing name", func(t *testing.T) {
 		d := valid
 		d.Name = ""
@@ -132,4 +144,3 @@ func TestCreateProfileRequestDto_Validate(t *testing.T) {
 		require.Error(t, d.Validate())
 	})
 }
-

@@ -3,8 +3,10 @@ package dto
 import (
 	"testing"
 
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"gorm.io/datatypes"
 
 	"github.com/maintainerd/auth/internal/model"
 )
@@ -85,3 +87,23 @@ func TestUserSettingRequestDto_Validate(t *testing.T) {
 	})
 }
 
+func TestNewUserSettingResponseDto(t *testing.T) {
+	t.Run("empty social links", func(t *testing.T) {
+		us := &model.UserSetting{UserSettingUUID: uuid.New()}
+		dto := NewUserSettingResponseDto(us)
+		assert.NotNil(t, dto)
+		assert.Nil(t, dto.SocialLinks)
+	})
+
+	t.Run("valid social links JSON", func(t *testing.T) {
+		us := &model.UserSetting{UserSettingUUID: uuid.New(), SocialLinks: datatypes.JSON(`{"twitter":"@user"}`)}
+		dto := NewUserSettingResponseDto(us)
+		assert.Equal(t, "@user", dto.SocialLinks["twitter"])
+	})
+
+	t.Run("invalid social links JSON sets nil", func(t *testing.T) {
+		us := &model.UserSetting{UserSettingUUID: uuid.New(), SocialLinks: datatypes.JSON([]byte("not-json"))}
+		dto := NewUserSettingResponseDto(us)
+		assert.Nil(t, dto.SocialLinks)
+	})
+}

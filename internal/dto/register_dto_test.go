@@ -3,9 +3,12 @@ package dto
 import (
 	"net/url"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/maintainerd/auth/internal/util"
 )
 
 func TestRegisterRequestDto_Validate(t *testing.T) {
@@ -120,11 +123,48 @@ func TestRegisterInviteQueryDto_Validate(t *testing.T) {
 	})
 }
 
+func TestRegisterRequestDto_Validate_WithPhone(t *testing.T) {
+	t.Run("valid phone", func(t *testing.T) {
+		d := RegisterRequestDto{Username: "johndoe", Fullname: "John Doe", Password: "SecurePass1!", Phone: strPtr("+12125551234")}
+		assert.NoError(t, d.Validate())
+	})
+
+	t.Run("invalid phone", func(t *testing.T) {
+		d := RegisterRequestDto{Username: "johndoe", Fullname: "John Doe", Password: "SecurePass1!", Phone: strPtr("not-a-phone")}
+		require.Error(t, d.Validate())
+	})
+}
+
+func TestRegisterRequestDto_ValidateForRegistration(t *testing.T) {
+	t.Run("valid passes strength check", func(t *testing.T) {
+		d := RegisterRequestDto{Username: "johndoe", Fullname: "John Doe", Password: "SecurePass1!"}
+		assert.NoError(t, d.ValidateForRegistration())
+	})
+
+	t.Run("base validation error propagates", func(t *testing.T) {
+		d := RegisterRequestDto{Username: "", Fullname: "John Doe", Password: "SecurePass1!"}
+		require.Error(t, d.ValidateForRegistration())
+	})
+
+	t.Run("weak password fails strength check", func(t *testing.T) {
+		d := RegisterRequestDto{Username: "johndoe", Fullname: "John Doe", Password: "password1"}
+		require.Error(t, d.ValidateForRegistration())
+	})
+}
+
 func TestRegisterInviteQueryDto_ValidateSignedURL(t *testing.T) {
 	q := &RegisterInviteQueryDto{}
+
 	t.Run("empty values returns error", func(t *testing.T) {
 		err := q.ValidateSignedURL(url.Values{})
 		require.Error(t, err)
 	})
-}
 
+	t.Run("valid signed url returns nil", func(t *testing.T) {
+		t.Setenv("HMAC_SECRET_KEY", "test-secret-key")
+		raw, _ := util.GenerateSignedURL("https://example.com", map[string]string{"invite_token": "tok"}, time.Minute)
+		parsed, _ := url.Parse(raw)
+		err := q.ValidateSignedURL(parsed.Query())
+		assert.NoError(t, err)
+	})
+}
