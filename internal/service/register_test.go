@@ -7,7 +7,7 @@ import (
 
 	"github.com/alicebob/miniredis/v2"
 	"github.com/google/uuid"
-	"github.com/maintainerd/auth/internal/generator"
+	"github.com/maintainerd/auth/internal/crypto"
 	"github.com/maintainerd/auth/internal/jwt"
 	"github.com/maintainerd/auth/internal/model"
 	"github.com/maintainerd/auth/internal/repository"
@@ -602,9 +602,9 @@ func TestRegisterService_RegisterPublic(t *testing.T) {
 	})
 
 	t.Run("GenerateOTP error", func(t *testing.T) {
-		origOTP := generator.GenerateOTP
-		defer func() { generator.GenerateOTP = origOTP }()
-		generator.GenerateOTP = func(_ int) (string, error) { return "", errors.New("otp error") }
+		origOTP := crypto.GenerateOTP
+		defer func() { crypto.GenerateOTP = origOTP }()
+		crypto.GenerateOTP = func(_ int) (string, error) { return "", errors.New("otp error") }
 
 		gormDB, mock := newMockGormDB(t)
 		mock.ExpectBegin()
@@ -890,9 +890,9 @@ func TestRegisterService_Register(t *testing.T) {
 	})
 
 	t.Run("GenerateOTP error", func(t *testing.T) {
-		origOTP := generator.GenerateOTP
-		defer func() { generator.GenerateOTP = origOTP }()
-		generator.GenerateOTP = func(_ int) (string, error) { return "", errors.New("otp error") }
+		origOTP := crypto.GenerateOTP
+		defer func() { crypto.GenerateOTP = origOTP }()
+		crypto.GenerateOTP = func(_ int) (string, error) { return "", errors.New("otp error") }
 
 		gormDB, mock := newMockGormDB(t)
 		mock.ExpectBegin()

@@ -8,7 +8,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/model"
 	"github.com/maintainerd/auth/internal/repository"
-	"github.com/maintainerd/auth/internal/generator"
+	"github.com/maintainerd/auth/internal/crypto"
 	"gorm.io/gorm"
 )
 
@@ -159,7 +159,7 @@ func (s *apiService) Create(tenantID int64, name string, displayName string, des
 		}
 
 		// Generate identifier
-		identifier := fmt.Sprintf("api-%s", generator.GenerateIdentifier(12))
+		identifier := fmt.Sprintf("api-%s", crypto.GenerateIdentifier(12))
 
 		// Create api
 		newAPI := &model.API{

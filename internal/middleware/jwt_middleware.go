@@ -7,7 +7,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/jwt"
-	resp "github.com/maintainerd/auth/internal/response"
+	resp "github.com/maintainerd/auth/internal/rest/response"
 )
 
 type contextKey string
