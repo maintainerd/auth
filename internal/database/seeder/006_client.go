@@ -8,7 +8,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/config"
 	"github.com/maintainerd/auth/internal/model"
-	"github.com/maintainerd/auth/internal/generator"
+	"github.com/maintainerd/auth/internal/crypto"
 	"gorm.io/datatypes"
 	"gorm.io/gorm"
 )
@@ -24,8 +24,8 @@ func SeedClients(db *gorm.DB, tenantID int64, identityProviderID int64) error {
 			DisplayName: "Traditional Web App Default",
 			ClientType:  "traditional",
 			Domain:      strPtr(appHostName),
-			Identifier:  strPtr(generator.GenerateIdentifier(32)),
-			Secret:      strPtr(generator.GenerateIdentifier(64)),
+			Identifier:  strPtr(crypto.GenerateIdentifier(32)),
+			Secret:      strPtr(crypto.GenerateIdentifier(64)),
 			Config: datatypes.JSON([]byte(`{
 				"grant_types": ["authorization_code"],
 				"response_type": "code",
@@ -45,7 +45,7 @@ func SeedClients(db *gorm.DB, tenantID int64, identityProviderID int64) error {
 			DisplayName: "Single Page App Default",
 			ClientType:  "spa",
 			Domain:      strPtr(appHostName),
-			Identifier:  strPtr(generator.GenerateIdentifier(32)),
+			Identifier:  strPtr(crypto.GenerateIdentifier(32)),
 			Secret:      nil,
 			Config: datatypes.JSON([]byte(`{
 				"grant_types": ["authorization_code"],
@@ -66,7 +66,7 @@ func SeedClients(db *gorm.DB, tenantID int64, identityProviderID int64) error {
 			DisplayName: "Mobile App Default",
 			ClientType:  "mobile",
 			Domain:      strPtr(appHostName),
-			Identifier:  strPtr(generator.GenerateIdentifier(32)),
+			Identifier:  strPtr(crypto.GenerateIdentifier(32)),
 			Secret:      nil,
 			Config: datatypes.JSON([]byte(`{
 				"grant_types": ["authorization_code"],
@@ -87,8 +87,8 @@ func SeedClients(db *gorm.DB, tenantID int64, identityProviderID int64) error {
 			DisplayName: "Machine to Machine Default",
 			ClientType:  "m2m",
 			Domain:      strPtr(appHostName),
-			Identifier:  strPtr(generator.GenerateIdentifier(32)),
-			Secret:      strPtr(generator.GenerateIdentifier(64)),
+			Identifier:  strPtr(crypto.GenerateIdentifier(32)),
+			Secret:      strPtr(crypto.GenerateIdentifier(64)),
 			Config: datatypes.JSON([]byte(`{
 				"grant_types": ["client_credentials"]
 			}`)),
