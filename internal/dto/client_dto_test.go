@@ -11,8 +11,8 @@ import (
 	"github.com/maintainerd/auth/internal/model"
 )
 
-func validClientCreate() ClientCreateRequestDto {
-	return ClientCreateRequestDto{
+func validClientCreate() ClientCreateRequestDTO {
+	return ClientCreateRequestDTO{
 		Name:                 "my-client",
 		DisplayName:          "My Auth Client",
 		ClientType:           model.ClientTypeSPA,
@@ -78,7 +78,7 @@ func TestClientCreateRequestDto_Validate(t *testing.T) {
 }
 
 func TestClientUpdateRequestDto_Validate(t *testing.T) {
-	d := ClientUpdateRequestDto{
+	d := ClientUpdateRequestDTO{
 		Name:        "my-client",
 		DisplayName: "My Auth Client",
 		ClientType:  model.ClientTypeMobile,
@@ -93,7 +93,7 @@ func TestClientUpdateRequestDto_Validate(t *testing.T) {
 }
 
 func TestClientURICreateOrUpdateRequestDto_Validate(t *testing.T) {
-	d := ClientURICreateOrUpdateRequestDto{URI: "https://app.example.com/callback", Type: model.ClientURITypeRedirect}
+	d := ClientURICreateOrUpdateRequestDTO{URI: "https://app.example.com/callback", Type: model.ClientURITypeRedirect}
 	assert.NoError(t, d.Validate())
 
 	d.URI = ""
@@ -106,34 +106,34 @@ func TestClientURICreateOrUpdateRequestDto_Validate(t *testing.T) {
 
 func TestClientFilterDto_Validate(t *testing.T) {
 	t.Run("valid", func(t *testing.T) {
-		f := ClientFilterDto{PaginationRequestDto: validPagination()}
+		f := ClientFilterDTO{PaginationRequestDTO: validPagination()}
 		assert.NoError(t, f.Validate())
 	})
 
 	t.Run("invalid client_type", func(t *testing.T) {
-		f := ClientFilterDto{PaginationRequestDto: validPagination(), ClientType: []string{"desktop"}}
+		f := ClientFilterDTO{PaginationRequestDTO: validPagination(), ClientType: []string{"desktop"}}
 		require.Error(t, f.Validate())
 	})
 
 	t.Run("invalid identity_provider_uuid", func(t *testing.T) {
 		s := "not-a-uuid"
-		f := ClientFilterDto{PaginationRequestDto: validPagination(), IdentityProviderUUID: &s}
+		f := ClientFilterDTO{PaginationRequestDTO: validPagination(), IdentityProviderUUID: &s}
 		require.Error(t, f.Validate())
 	})
 }
 
 func TestClientAddPermissionsRequestDto_Validate(t *testing.T) {
-	assert.NoError(t, ClientAddPermissionsRequestDto{Permissions: []uuid.UUID{uuid.New()}}.Validate())
-	require.Error(t, ClientAddPermissionsRequestDto{}.Validate())
+	assert.NoError(t, ClientAddPermissionsRequestDTO{Permissions: []uuid.UUID{uuid.New()}}.Validate())
+	require.Error(t, ClientAddPermissionsRequestDTO{}.Validate())
 }
 
 func TestAddClientAPIsRequestDto_Validate(t *testing.T) {
-	assert.NoError(t, AddClientAPIsRequestDto{APIUUIDs: []uuid.UUID{uuid.New()}}.Validate())
-	require.Error(t, AddClientAPIsRequestDto{}.Validate())
+	assert.NoError(t, AddClientAPIsRequestDTO{APIUUIDs: []uuid.UUID{uuid.New()}}.Validate())
+	require.Error(t, AddClientAPIsRequestDTO{}.Validate())
 }
 
 func TestAddClientAPIPermissionsRequestDto_Validate(t *testing.T) {
-	assert.NoError(t, AddClientAPIPermissionsRequestDto{PermissionUUIDs: []uuid.UUID{uuid.New()}}.Validate())
-	require.Error(t, AddClientAPIPermissionsRequestDto{}.Validate())
+	assert.NoError(t, AddClientAPIPermissionsRequestDTO{PermissionUUIDs: []uuid.UUID{uuid.New()}}.Validate())
+	require.Error(t, AddClientAPIPermissionsRequestDTO{}.Validate())
 }
 

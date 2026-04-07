@@ -9,7 +9,7 @@ import (
 )
 
 // Login template list response DTO (without metadata)
-type LoginTemplateListResponseDto struct {
+type LoginTemplateListResponseDTO struct {
 	LoginTemplateID string    `json:"login_template_id"`
 	Name            string    `json:"name"`
 	Description     *string   `json:"description"`
@@ -22,7 +22,7 @@ type LoginTemplateListResponseDto struct {
 }
 
 // Login template response DTO (full details with metadata)
-type LoginTemplateResponseDto struct {
+type LoginTemplateResponseDTO struct {
 	LoginTemplateID string         `json:"login_template_id"`
 	Name            string         `json:"name"`
 	Description     *string        `json:"description"`
@@ -36,7 +36,7 @@ type LoginTemplateResponseDto struct {
 }
 
 // Create login template request DTO
-type LoginTemplateCreateRequestDto struct {
+type LoginTemplateCreateRequestDTO struct {
 	Name        string         `json:"name"`
 	Description *string        `json:"description,omitempty"`
 	Template    string         `json:"template"`
@@ -44,7 +44,7 @@ type LoginTemplateCreateRequestDto struct {
 	Status      *string        `json:"status,omitempty"`
 }
 
-func (r LoginTemplateCreateRequestDto) Validate() error {
+func (r LoginTemplateCreateRequestDTO) Validate() error {
 	return validation.ValidateStruct(&r,
 		validation.Field(&r.Name,
 			validation.Required.Error("Name is required"),
@@ -61,7 +61,7 @@ func (r LoginTemplateCreateRequestDto) Validate() error {
 }
 
 // Update login template request DTO
-type LoginTemplateUpdateRequestDto struct {
+type LoginTemplateUpdateRequestDTO struct {
 	Name        string         `json:"name"`
 	Description *string        `json:"description,omitempty"`
 	Template    string         `json:"template"`
@@ -69,7 +69,7 @@ type LoginTemplateUpdateRequestDto struct {
 	Status      *string        `json:"status,omitempty"`
 }
 
-func (r LoginTemplateUpdateRequestDto) Validate() error {
+func (r LoginTemplateUpdateRequestDTO) Validate() error {
 	return validation.ValidateStruct(&r,
 		validation.Field(&r.Name,
 			validation.Required.Error("Name is required"),
@@ -86,11 +86,11 @@ func (r LoginTemplateUpdateRequestDto) Validate() error {
 }
 
 // Update login template status request DTO
-type LoginTemplateUpdateStatusRequestDto struct {
+type LoginTemplateUpdateStatusRequestDTO struct {
 	Status string `json:"status"`
 }
 
-func (r LoginTemplateUpdateStatusRequestDto) Validate() error {
+func (r LoginTemplateUpdateStatusRequestDTO) Validate() error {
 	return validation.ValidateStruct(&r,
 		validation.Field(&r.Status,
 			validation.Required.Error("Status is required"),
@@ -100,7 +100,7 @@ func (r LoginTemplateUpdateStatusRequestDto) Validate() error {
 }
 
 // Login template filter DTO
-type LoginTemplateFilterDto struct {
+type LoginTemplateFilterDTO struct {
 	Name      *string  `json:"name"`
 	Status    []string `json:"status"`
 	Template  *string  `json:"template"`
@@ -108,11 +108,11 @@ type LoginTemplateFilterDto struct {
 	IsSystem  *bool    `json:"is_system"`
 
 	// Pagination and sorting
-	PaginationRequestDto
+	PaginationRequestDTO
 }
 
 // Validate validates the login template filter DTO.
-func (f LoginTemplateFilterDto) Validate() error {
+func (f LoginTemplateFilterDTO) Validate() error {
 	return validation.ValidateStruct(&f,
 		validation.Field(&f.Template,
 			validation.When(f.Template != nil,
@@ -124,6 +124,6 @@ func (f LoginTemplateFilterDto) Validate() error {
 				validation.Each(validation.In(model.StatusActive, model.StatusInactive).Error("Status must be 'active' or 'inactive'")),
 			),
 		),
-		validation.Field(&f.PaginationRequestDto),
+		validation.Field(&f.PaginationRequestDTO),
 	)
 }

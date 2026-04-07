@@ -11,11 +11,11 @@ import (
 )
 
 // Permission output structure
-type PermissionResponseDto struct {
+type PermissionResponseDTO struct {
 	PermissionUUID uuid.UUID       `json:"permission_id"`
 	Name           string          `json:"name"`
 	Description    string          `json:"description"`
-	API            *APIResponseDto `json:"api,omitempty"`
+	API            *APIResponseDTO `json:"api,omitempty"`
 	Status         string          `json:"status"`
 	IsDefault      bool            `json:"is_default"`
 	IsSystem       bool            `json:"is_system"`
@@ -24,7 +24,7 @@ type PermissionResponseDto struct {
 }
 
 // Create Permission request DTO
-type PermissionCreateRequestDto struct {
+type PermissionCreateRequestDTO struct {
 	Name        string `json:"name"`
 	Description string `json:"description"`
 	Status      string `json:"status"`
@@ -32,7 +32,7 @@ type PermissionCreateRequestDto struct {
 }
 
 // Validation
-func (r PermissionCreateRequestDto) Validate() error {
+func (r PermissionCreateRequestDTO) Validate() error {
 	return validation.ValidateStruct(&r,
 		validation.Field(&r.Name,
 			validation.Required.Error("Name is required"),
@@ -54,14 +54,14 @@ func (r PermissionCreateRequestDto) Validate() error {
 }
 
 // Update Permission request DTO
-type PermissionUpdateRequestDto struct {
+type PermissionUpdateRequestDTO struct {
 	Name        string `json:"name"`
 	Description string `json:"description"`
 	Status      string `json:"status"`
 }
 
 // Validation
-func (r PermissionUpdateRequestDto) Validate() error {
+func (r PermissionUpdateRequestDTO) Validate() error {
 	return validation.ValidateStruct(&r,
 		validation.Field(&r.Name,
 			validation.Required.Error("Name is required"),
@@ -79,7 +79,7 @@ func (r PermissionUpdateRequestDto) Validate() error {
 }
 
 // API listing / filter DTO
-type PermissionFilterDto struct {
+type PermissionFilterDTO struct {
 	Name        *string `json:"name"`
 	Description *string `json:"description"`
 	APIUUID     *string `json:"api_id"`
@@ -90,27 +90,27 @@ type PermissionFilterDto struct {
 	IsSystem    *bool   `json:"is_system"`
 
 	// Pagination and sorting
-	PaginationRequestDto
+	PaginationRequestDTO
 }
 
 // Validate validates the permission filter DTO.
-func (f PermissionFilterDto) Validate() error {
+func (f PermissionFilterDTO) Validate() error {
 	return validation.ValidateStruct(&f,
 		validation.Field(&f.Status,
 			validation.When(f.Status != nil,
 				validation.In(model.StatusActive, model.StatusInactive).Error("Status must be 'active' or 'inactive'"),
 			),
 		),
-		validation.Field(&f.PaginationRequestDto),
+		validation.Field(&f.PaginationRequestDTO),
 	)
 }
 
 // Permission status update DTO
-type PermissionStatusUpdateDto struct {
+type PermissionStatusUpdateDTO struct {
 	Status string `json:"status"`
 }
 
-func (r PermissionStatusUpdateDto) Validate() error {
+func (r PermissionStatusUpdateDTO) Validate() error {
 	return validation.ValidateStruct(&r,
 		validation.Field(&r.Status,
 			validation.Required.Error("Status is required"),

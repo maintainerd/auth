@@ -10,7 +10,7 @@ import (
 )
 
 // Service output structure
-type ServiceResponseDto struct {
+type ServiceResponseDTO struct {
 	ServiceUUID uuid.UUID `json:"service_id"`
 	Name        string    `json:"name"`
 	DisplayName string    `json:"display_name"`
@@ -25,7 +25,7 @@ type ServiceResponseDto struct {
 }
 
 // Create or update service request dto
-type ServiceCreateOrUpdateRequestDto struct {
+type ServiceCreateOrUpdateRequestDTO struct {
 	Name        string `json:"name"`
 	DisplayName string `json:"display_name"`
 	Description string `json:"description"`
@@ -33,7 +33,7 @@ type ServiceCreateOrUpdateRequestDto struct {
 	Status      string `json:"status"`
 }
 
-func (r ServiceCreateOrUpdateRequestDto) Validate() error {
+func (r ServiceCreateOrUpdateRequestDTO) Validate() error {
 	return validation.ValidateStruct(&r,
 		validation.Field(&r.Name,
 			validation.Required.Error("Service name is required"),
@@ -58,7 +58,7 @@ func (r ServiceCreateOrUpdateRequestDto) Validate() error {
 }
 
 // Service listing filters
-type ServiceFilterDto struct {
+type ServiceFilterDTO struct {
 	Name        *string  `json:"name"`
 	DisplayName *string  `json:"display_name"`
 	Description *string  `json:"description"`
@@ -67,27 +67,27 @@ type ServiceFilterDto struct {
 	IsSystem    *bool    `json:"is_system"`
 
 	// Pagination and sorting
-	PaginationRequestDto
+	PaginationRequestDTO
 }
 
 // Validate validates the service filter DTO.
-func (f ServiceFilterDto) Validate() error {
+func (f ServiceFilterDTO) Validate() error {
 	return validation.ValidateStruct(&f,
 		validation.Field(&f.Status,
 			validation.When(len(f.Status) > 0,
 				validation.Each(validation.In(model.StatusActive, model.StatusMaintenance, model.StatusDeprecated, model.StatusInactive).Error("Status must be one of: active, maintenance, deprecated, inactive")),
 			),
 		),
-		validation.Field(&f.PaginationRequestDto),
+		validation.Field(&f.PaginationRequestDTO),
 	)
 }
 
 // Service status update request dto
-type ServiceStatusUpdateRequestDto struct {
+type ServiceStatusUpdateRequestDTO struct {
 	Status string `json:"status"`
 }
 
-func (r ServiceStatusUpdateRequestDto) Validate() error {
+func (r ServiceStatusUpdateRequestDTO) Validate() error {
 	return validation.ValidateStruct(&r,
 		validation.Field(&r.Status,
 			validation.Required.Error("Status is required"),

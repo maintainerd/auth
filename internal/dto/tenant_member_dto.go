@@ -7,22 +7,22 @@ import (
 	"github.com/google/uuid"
 )
 
-// TenantMemberResponseDto for tenant member output
-type TenantMemberResponseDto struct {
+// TenantMemberResponseDTO for tenant member output
+type TenantMemberResponseDTO struct {
 	TenantMemberUUID uuid.UUID        `json:"tenant_member_id"`
 	Role             string           `json:"role"`
-	User             *UserResponseDto `json:"user"`
+	User             *UserResponseDTO `json:"user"`
 	CreatedAt        time.Time        `json:"created_at"`
 	UpdatedAt        time.Time        `json:"updated_at"`
 }
 
-// TenantMemberAddMemberRequestDto for adding member to tenant
-type TenantMemberAddMemberRequestDto struct {
+// TenantMemberAddMemberRequestDTO for adding member to tenant
+type TenantMemberAddMemberRequestDTO struct {
 	UserUUID uuid.UUID `json:"user_id"`
 	Role     string    `json:"role"`
 }
 
-func (r TenantMemberAddMemberRequestDto) Validate() error {
+func (r TenantMemberAddMemberRequestDTO) Validate() error {
 	return validation.ValidateStruct(&r,
 		validation.Field(&r.UserUUID,
 			validation.Required.Error("User ID is required"),
@@ -34,12 +34,12 @@ func (r TenantMemberAddMemberRequestDto) Validate() error {
 	)
 }
 
-// TenantMemberUpdateRoleRequestDto for updating member role
-type TenantMemberUpdateRoleRequestDto struct {
+// TenantMemberUpdateRoleRequestDTO for updating member role
+type TenantMemberUpdateRoleRequestDTO struct {
 	Role string `json:"role"`
 }
 
-func (r TenantMemberUpdateRoleRequestDto) Validate() error {
+func (r TenantMemberUpdateRoleRequestDTO) Validate() error {
 	return validation.ValidateStruct(&r,
 		validation.Field(&r.Role,
 			validation.Required.Error("Role is required"),
@@ -48,19 +48,19 @@ func (r TenantMemberUpdateRoleRequestDto) Validate() error {
 	)
 }
 
-// TenantMemberFilterDto for filtering tenant members
-type TenantMemberFilterDto struct {
+// TenantMemberFilterDTO for filtering tenant members
+type TenantMemberFilterDTO struct {
 	Role *string `json:"role"`
-	PaginationRequestDto
+	PaginationRequestDTO
 }
 
-func (r TenantMemberFilterDto) Validate() error {
+func (r TenantMemberFilterDTO) Validate() error {
 	return validation.ValidateStruct(&r,
 		validation.Field(&r.Role,
 			validation.When(r.Role != nil,
 				validation.In("owner", "member").Error("Role must be 'owner' or 'member'"),
 			),
 		),
-		validation.Field(&r.PaginationRequestDto),
+		validation.Field(&r.PaginationRequestDTO),
 	)
 }

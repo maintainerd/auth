@@ -25,7 +25,7 @@ func SeedSecuritySettings(db *gorm.DB, tenantID int64) error {
 		PasswordConfig: datatypes.JSON([]byte("{}")),
 		SessionConfig:  datatypes.JSON([]byte("{}")),
 		ThreatConfig:   datatypes.JSON([]byte("{}")),
-		IpConfig:       datatypes.JSON([]byte("{}")),
+		IPConfig:       datatypes.JSON([]byte("{}")),
 		Version:        1,
 	}
 

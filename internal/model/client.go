@@ -29,7 +29,7 @@ type Client struct {
 	// Relationships
 	IdentityProvider *IdentityProvider `gorm:"foreignKey:IdentityProviderID;references:IdentityProviderID"`
 	ClientURIs       *[]ClientURI      `gorm:"foreignKey:ClientID;references:ClientID"`
-	ClientApis       *[]ClientApi      `gorm:"foreignKey:ClientID;references:ClientID"`
+	ClientAPIs       *[]ClientAPI      `gorm:"foreignKey:ClientID;references:ClientID"`
 }
 
 func (Client) TableName() string {
