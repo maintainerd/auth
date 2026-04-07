@@ -9,7 +9,7 @@ import (
 
 	"github.com/maintainerd/auth/internal/config"
 	"github.com/maintainerd/auth/internal/jwt"
-	resp "github.com/maintainerd/auth/internal/response"
+	resp "github.com/maintainerd/auth/internal/rest/response"
 	"github.com/maintainerd/auth/internal/security"
 )
 

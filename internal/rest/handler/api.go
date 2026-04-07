@@ -1,0 +1,333 @@
+package handler
+
+import (
+	"encoding/json"
+	"net/http"
+	"strconv"
+	"strings"
+
+	"github.com/go-chi/chi/v5"
+	"github.com/google/uuid"
+	"github.com/maintainerd/auth/internal/dto"
+	"github.com/maintainerd/auth/internal/middleware"
+	"github.com/maintainerd/auth/internal/model"
+	"github.com/maintainerd/auth/internal/service"
+	"github.com/maintainerd/auth/internal/ptr"
+	resp "github.com/maintainerd/auth/internal/rest/response"
+)
+
+type APIHandler struct {
+	apiService service.APIService
+}
+
+func NewAPIHandler(apiService service.APIService) *APIHandler {
+	return &APIHandler{apiService}
+}
+
+// GetAll APIs with pagination
+func (h *APIHandler) Get(w http.ResponseWriter, r *http.Request) {
+	// Get tenant from context
+	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
+	if !ok || tenant == nil {
+		resp.Error(w, http.StatusUnauthorized, "Tenant not found in context")
+		return
+	}
+
+	// Parse query parameters
+	q := r.URL.Query()
+
+	// Parse pagination
+	page, _ := strconv.Atoi(q.Get("page"))
+	limit, _ := strconv.Atoi(q.Get("limit"))
+
+	// Parse bools safely
+	var isSystem *bool
+	// Parse status (comma-separated values)
+	var status []string
+	if statusParam := q.Get("status"); statusParam != "" {
+		status = strings.Split(statusParam, ",")
+		// Trim whitespace from each status
+		for i, s := range status {
+			status[i] = strings.TrimSpace(s)
+		}
+	}
+	if v := q.Get("is_system"); v != "" {
+		parsed, err := strconv.ParseBool(v)
+		if err == nil {
+			isSystem = &parsed
+		}
+	}
+
+	// Build request DTO
+	reqParams := dto.APIFilterDTO{
+		Name:        ptr.PtrOrNil(q.Get("name")),
+		DisplayName: ptr.PtrOrNil(q.Get("display_name")),
+		APIType:     ptr.PtrOrNil(q.Get("api_type")),
+		Identifier:  ptr.PtrOrNil(q.Get("identifier")),
+		ServiceUUID: ptr.PtrOrNil(q.Get("service_id")),
+		Status:      status,
+		IsSystem:    isSystem,
+		PaginationRequestDTO: dto.PaginationRequestDTO{
+			Page:      page,
+			Limit:     limit,
+			SortBy:    q.Get("sort_by"),
+			SortOrder: q.Get("sort_order"),
+		},
+	}
+
+	if err := reqParams.Validate(); err != nil {
+		resp.ValidationError(w, err)
+		return
+	}
+
+	// Convert service_id (UUID from external API) to internal service_id (int64) for filtering
+	var serviceID *int64
+	if reqParams.ServiceUUID != nil && *reqParams.ServiceUUID != "" {
+		serviceUUID, err := uuid.Parse(*reqParams.ServiceUUID)
+		if err != nil {
+			resp.Error(w, http.StatusBadRequest, "Invalid service UUID format")
+			return
+		}
+
+		// Look up service by UUID to get service_id
+		serviceIDValue, err := h.apiService.GetServiceIDByUUID(serviceUUID)
+		if err != nil {
+			resp.Error(w, http.StatusBadRequest, "Service not found")
+			return
+		}
+		serviceID = &serviceIDValue
+	}
+
+	// Build service filter
+	apiFilter := service.APIServiceGetFilter{
+		Name:        reqParams.Name,
+		DisplayName: reqParams.DisplayName,
+		APIType:     reqParams.APIType,
+		Identifier:  reqParams.Identifier,
+		ServiceID:   serviceID,
+		Status:      reqParams.Status,
+		IsSystem:    reqParams.IsSystem,
+		TenantID:    tenant.TenantID,
+		Page:        reqParams.Page,
+		Limit:       reqParams.Limit,
+		SortBy:      reqParams.SortBy,
+		SortOrder:   reqParams.SortOrder,
+	}
+
+	// Fetch APIs
+	result, err := h.apiService.Get(apiFilter)
+	if err != nil {
+		resp.Error(w, http.StatusInternalServerError, "Failed to fetch APIs", err.Error())
+		return
+	}
+
+	// Map service result to DTO
+	rows := make([]dto.APIResponseDTO, len(result.Data))
+	for i, r := range result.Data {
+		rows[i] = toAPIResponseDTO(r)
+	}
+
+	// Build response data
+	response := dto.PaginatedResponseDTO[dto.APIResponseDTO]{
+		Rows:       rows,
+		Total:      result.Total,
+		Page:       result.Page,
+		Limit:      result.Limit,
+		TotalPages: result.TotalPages,
+	}
+
+	resp.Success(w, response, "APIs fetched successfully")
+}
+
+// Get API by UUID
+func (h *APIHandler) GetByUUID(w http.ResponseWriter, r *http.Request) {
+	// Get tenant from context
+	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
+	if !ok || tenant == nil {
+		resp.Error(w, http.StatusUnauthorized, "Tenant not found in context")
+		return
+	}
+
+	apiUUID, err := uuid.Parse(chi.URLParam(r, "api_uuid"))
+	if err != nil {
+		resp.Error(w, http.StatusBadRequest, "Invalid API UUID")
+		return
+	}
+
+	api, err := h.apiService.GetByUUID(apiUUID, tenant.TenantID)
+	if err != nil {
+		resp.Error(w, http.StatusNotFound, "API not found")
+		return
+	}
+
+	dtoRes := toAPIResponseDTO(*api)
+
+	resp.Success(w, dtoRes, "API fetched successfully")
+}
+
+// Create API
+func (h *APIHandler) Create(w http.ResponseWriter, r *http.Request) {
+	// Get tenant from context
+	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
+	if !ok || tenant == nil {
+		resp.Error(w, http.StatusUnauthorized, "Tenant not found in context")
+		return
+	}
+
+	var req dto.APICreateRequestDTO
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		resp.Error(w, http.StatusBadRequest, "Invalid request", err.Error())
+		return
+	}
+
+	if err := req.Validate(); err != nil {
+		resp.ValidationError(w, err)
+		return
+	}
+
+	api, err := h.apiService.Create(tenant.TenantID, req.Name, req.DisplayName, req.Description, req.APIType, req.Status, false, req.ServiceUUID)
+	if err != nil {
+		resp.Error(w, http.StatusInternalServerError, "Failed to create API", err.Error())
+		return
+	}
+
+	dtoRes := toAPIResponseDTO(*api)
+
+	resp.Created(w, dtoRes, "API created successfully")
+}
+
+// Update API
+func (h *APIHandler) Update(w http.ResponseWriter, r *http.Request) {
+	// Get tenant from context
+	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
+	if !ok || tenant == nil {
+		resp.Error(w, http.StatusUnauthorized, "Tenant not found in context")
+		return
+	}
+
+	apiUUID, err := uuid.Parse(chi.URLParam(r, "api_uuid"))
+	if err != nil {
+		resp.Error(w, http.StatusBadRequest, "Invalid API UUID")
+		return
+	}
+
+	var req dto.APIUpdateRequestDTO
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		resp.Error(w, http.StatusBadRequest, "Invalid request", err.Error())
+		return
+	}
+
+	if err := req.Validate(); err != nil {
+		resp.ValidationError(w, err)
+		return
+	}
+
+	api, err := h.apiService.Update(apiUUID, tenant.TenantID, req.Name, req.DisplayName, req.Description, req.APIType, req.Status, req.ServiceUUID)
+	if err != nil {
+		resp.Error(w, http.StatusInternalServerError, "Failed to update API", err.Error())
+		return
+	}
+
+	dtoRes := toAPIResponseDTO(*api)
+
+	resp.Success(w, dtoRes, "API updated successfully")
+}
+
+// Set API status
+func (h *APIHandler) SetStatus(w http.ResponseWriter, r *http.Request) {
+	// Get tenant from context
+	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
+	if !ok || tenant == nil {
+		resp.Error(w, http.StatusUnauthorized, "Tenant not found in context")
+		return
+	}
+
+	apiUUID, err := uuid.Parse(chi.URLParam(r, "api_uuid"))
+	if err != nil {
+		resp.Error(w, http.StatusBadRequest, "Invalid API UUID")
+		return
+	}
+
+	// Parse request body
+	var req dto.APIStatusUpdateDTO
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		resp.Error(w, http.StatusBadRequest, "Invalid request body")
+		return
+	}
+
+	// Validate request
+	if err := req.Validate(); err != nil {
+		resp.Error(w, http.StatusBadRequest, "Validation failed", err.Error())
+		return
+	}
+
+	api, err := h.apiService.SetStatusByUUID(apiUUID, tenant.TenantID, req.Status)
+	if err != nil {
+		resp.Error(w, http.StatusInternalServerError, "Failed to update API", err.Error())
+		return
+	}
+
+	dtoRes := toAPIResponseDTO(*api)
+
+	resp.Success(w, dtoRes, "API status updated successfully")
+}
+
+// Delete API
+func (h *APIHandler) Delete(w http.ResponseWriter, r *http.Request) {
+	// Get tenant from context
+	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
+	if !ok || tenant == nil {
+		resp.Error(w, http.StatusUnauthorized, "Tenant not found in context")
+		return
+	}
+
+	apiUUID, err := uuid.Parse(chi.URLParam(r, "api_uuid"))
+	if err != nil {
+		resp.Error(w, http.StatusBadRequest, "Invalid API UUID")
+		return
+	}
+
+	api, err := h.apiService.DeleteByUUID(apiUUID, tenant.TenantID)
+	if err != nil {
+		resp.Error(w, http.StatusInternalServerError, "Failed to delete API", err.Error())
+		return
+	}
+
+	dtoRes := toAPIResponseDTO(*api)
+
+	resp.Success(w, dtoRes, "API deleted successfully")
+}
+
+// Convert service result to DTO
+func toAPIResponseDTO(r service.APIServiceDataResult) dto.APIResponseDTO {
+	result := dto.APIResponseDTO{
+		APIUUID:     r.APIUUID,
+		Name:        r.Name,
+		DisplayName: r.DisplayName,
+		Description: r.Description,
+		APIType:     r.APIType,
+		Identifier:  r.Identifier,
+		Status:      r.Status,
+		IsSystem:    r.IsSystem,
+		CreatedAt:   r.CreatedAt,
+		UpdatedAt:   r.UpdatedAt,
+	}
+
+	if r.Service != nil {
+		result.Service = &dto.ServiceResponseDTO{
+			ServiceUUID: r.Service.ServiceUUID,
+			Name:        r.Service.Name,
+			DisplayName: r.Service.DisplayName,
+			Description: r.Service.Description,
+			Version:     r.Service.Version,
+			IsSystem:    r.Service.IsSystem,
+			Status:      r.Service.Status,
+			APICount:    r.Service.APICount,
+			PolicyCount: r.Service.PolicyCount,
+			CreatedAt:   r.Service.CreatedAt,
+			UpdatedAt:   r.Service.UpdatedAt,
+		}
+	}
+
+	return result
+}
