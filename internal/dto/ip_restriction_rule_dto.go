@@ -10,7 +10,7 @@ import (
 )
 
 // IP restriction rule response DTO
-type IPRestrictionRuleResponseDto struct {
+type IPRestrictionRuleResponseDTO struct {
 	IPRestrictionRuleID string    `json:"ip_restriction_rule_id"`
 	Description         string    `json:"description"`
 	Type                string    `json:"type"`
@@ -21,14 +21,14 @@ type IPRestrictionRuleResponseDto struct {
 }
 
 // Create IP restriction rule request DTO
-type IPRestrictionRuleCreateRequestDto struct {
+type IPRestrictionRuleCreateRequestDTO struct {
 	Description string  `json:"description"`
 	Type        string  `json:"type"`
 	IPAddress   string  `json:"ip_address"`
 	Status      *string `json:"status,omitempty"`
 }
 
-func (r IPRestrictionRuleCreateRequestDto) Validate() error {
+func (r IPRestrictionRuleCreateRequestDTO) Validate() error {
 	return validation.ValidateStruct(&r,
 		validation.Field(&r.Description,
 			validation.Length(0, 500).Error("Description must not exceed 500 characters"),
@@ -49,14 +49,14 @@ func (r IPRestrictionRuleCreateRequestDto) Validate() error {
 }
 
 // Update IP restriction rule request DTO
-type IPRestrictionRuleUpdateRequestDto struct {
+type IPRestrictionRuleUpdateRequestDTO struct {
 	Description string  `json:"description"`
 	Type        string  `json:"type"`
 	IPAddress   string  `json:"ip_address"`
 	Status      *string `json:"status,omitempty"`
 }
 
-func (r IPRestrictionRuleUpdateRequestDto) Validate() error {
+func (r IPRestrictionRuleUpdateRequestDTO) Validate() error {
 	return validation.ValidateStruct(&r,
 		validation.Field(&r.Description,
 			validation.Length(0, 500).Error("Description must not exceed 500 characters"),
@@ -77,11 +77,11 @@ func (r IPRestrictionRuleUpdateRequestDto) Validate() error {
 }
 
 // Update IP restriction rule status request DTO
-type IPRestrictionRuleUpdateStatusRequestDto struct {
+type IPRestrictionRuleUpdateStatusRequestDTO struct {
 	Status string `json:"status"`
 }
 
-func (r IPRestrictionRuleUpdateStatusRequestDto) Validate() error {
+func (r IPRestrictionRuleUpdateStatusRequestDTO) Validate() error {
 	return validation.ValidateStruct(&r,
 		validation.Field(&r.Status,
 			validation.Required.Error("Status is required"),
@@ -91,18 +91,18 @@ func (r IPRestrictionRuleUpdateStatusRequestDto) Validate() error {
 }
 
 // IP restriction rule filter DTO
-type IPRestrictionRuleFilterDto struct {
+type IPRestrictionRuleFilterDTO struct {
 	Type        *string  `json:"type"`
 	Status      []string `json:"status"`
 	IPAddress   *string  `json:"ip_address"`
 	Description *string  `json:"description"`
 
 	// Pagination and sorting
-	PaginationRequestDto
+	PaginationRequestDTO
 }
 
-func (f IPRestrictionRuleFilterDto) Validate() error {
+func (f IPRestrictionRuleFilterDTO) Validate() error {
 	return validation.ValidateStruct(&f,
-		validation.Field(&f.PaginationRequestDto),
+		validation.Field(&f.PaginationRequestDTO),
 	)
 }

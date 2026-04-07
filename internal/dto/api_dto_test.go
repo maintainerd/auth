@@ -10,8 +10,8 @@ import (
 	"github.com/maintainerd/auth/internal/model"
 )
 
-func validAPICreate() APICreateRequestDto {
-	return APICreateRequestDto{
+func validAPICreate() APICreateRequestDTO {
+	return APICreateRequestDTO{
 		Name:        "my-api",
 		DisplayName: "My API",
 		Description: "A test API description",
@@ -70,7 +70,7 @@ func TestAPICreateRequestDto_Validate(t *testing.T) {
 }
 
 func TestAPIUpdateRequestDto_Validate(t *testing.T) {
-	d := APIUpdateRequestDto{
+	d := APIUpdateRequestDTO{
 		Name:        "my-api",
 		DisplayName: "My API",
 		Description: "A valid description",
@@ -86,19 +86,19 @@ func TestAPIUpdateRequestDto_Validate(t *testing.T) {
 
 func TestAPIFilterDto_Validate(t *testing.T) {
 	t.Run("valid with pagination", func(t *testing.T) {
-		f := APIFilterDto{PaginationRequestDto: validPagination()}
+		f := APIFilterDTO{PaginationRequestDTO: validPagination()}
 		assert.NoError(t, f.Validate())
 	})
 
 	t.Run("invalid api_type filter", func(t *testing.T) {
 		apiType := "bad"
-		f := APIFilterDto{PaginationRequestDto: validPagination(), APIType: &apiType}
+		f := APIFilterDTO{PaginationRequestDTO: validPagination(), APIType: &apiType}
 		require.Error(t, f.Validate())
 	})
 
 	t.Run("invalid status in list", func(t *testing.T) {
-		f := APIFilterDto{
-			PaginationRequestDto: validPagination(),
+		f := APIFilterDTO{
+			PaginationRequestDTO: validPagination(),
 			Status:               []string{"bad-status"},
 		}
 		require.Error(t, f.Validate())
@@ -106,9 +106,9 @@ func TestAPIFilterDto_Validate(t *testing.T) {
 }
 
 func TestAPIStatusUpdateDto_Validate(t *testing.T) {
-	assert.NoError(t, APIStatusUpdateDto{Status: model.StatusActive}.Validate())
-	assert.NoError(t, APIStatusUpdateDto{Status: model.StatusInactive}.Validate())
-	require.Error(t, APIStatusUpdateDto{Status: "unknown"}.Validate())
-	require.Error(t, APIStatusUpdateDto{Status: ""}.Validate())
+	assert.NoError(t, APIStatusUpdateDTO{Status: model.StatusActive}.Validate())
+	assert.NoError(t, APIStatusUpdateDTO{Status: model.StatusInactive}.Validate())
+	require.Error(t, APIStatusUpdateDTO{Status: "unknown"}.Validate())
+	require.Error(t, APIStatusUpdateDTO{Status: ""}.Validate())
 }
 

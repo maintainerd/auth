@@ -9,8 +9,8 @@ import (
 	"github.com/maintainerd/auth/internal/model"
 )
 
-func validSMSCreate() SMSTemplateCreateRequestDto {
-	return SMSTemplateCreateRequestDto{
+func validSMSCreate() SMSTemplateCreateRequestDTO {
+	return SMSTemplateCreateRequestDTO{
 		Name:    "OTP SMS",
 		Message: "Your OTP is {{otp}}",
 	}
@@ -69,7 +69,7 @@ func TestSMSTemplateCreateRequestDto_Validate(t *testing.T) {
 }
 
 func TestSMSTemplateUpdateRequestDto_Validate(t *testing.T) {
-	d := SMSTemplateUpdateRequestDto{
+	d := SMSTemplateUpdateRequestDTO{
 		Name:    "Updated SMS",
 		Message: "Your code is {{code}}",
 	}
@@ -80,29 +80,29 @@ func TestSMSTemplateUpdateRequestDto_Validate(t *testing.T) {
 }
 
 func TestSMSTemplateUpdateStatusRequestDto_Validate(t *testing.T) {
-	assert.NoError(t, SMSTemplateUpdateStatusRequestDto{Status: model.StatusActive}.Validate())
-	assert.NoError(t, SMSTemplateUpdateStatusRequestDto{Status: model.StatusInactive}.Validate())
-	require.Error(t, SMSTemplateUpdateStatusRequestDto{Status: ""}.Validate())
-	require.Error(t, SMSTemplateUpdateStatusRequestDto{Status: "bad"}.Validate())
+	assert.NoError(t, SMSTemplateUpdateStatusRequestDTO{Status: model.StatusActive}.Validate())
+	assert.NoError(t, SMSTemplateUpdateStatusRequestDTO{Status: model.StatusInactive}.Validate())
+	require.Error(t, SMSTemplateUpdateStatusRequestDTO{Status: ""}.Validate())
+	require.Error(t, SMSTemplateUpdateStatusRequestDTO{Status: "bad"}.Validate())
 }
 
 func TestSMSTemplateFilterDto_Validate(t *testing.T) {
 	t.Run("valid with pagination", func(t *testing.T) {
-		f := SMSTemplateFilterDto{PaginationRequestDto: validPagination()}
+		f := SMSTemplateFilterDTO{PaginationRequestDTO: validPagination()}
 		assert.NoError(t, f.Validate())
 	})
 
 	t.Run("invalid status in list", func(t *testing.T) {
-		f := SMSTemplateFilterDto{
-			PaginationRequestDto: validPagination(),
+		f := SMSTemplateFilterDTO{
+			PaginationRequestDTO: validPagination(),
 			Status:               []string{"bad"},
 		}
 		require.Error(t, f.Validate())
 	})
 
 	t.Run("valid status list", func(t *testing.T) {
-		f := SMSTemplateFilterDto{
-			PaginationRequestDto: validPagination(),
+		f := SMSTemplateFilterDTO{
+			PaginationRequestDTO: validPagination(),
 			Status:               []string{model.StatusActive},
 		}
 		assert.NoError(t, f.Validate())

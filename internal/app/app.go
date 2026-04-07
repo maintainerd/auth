@@ -1,8 +1,8 @@
 package app
 
 import (
-	"github.com/maintainerd/auth/internal/handler/grpc"
-	"github.com/maintainerd/auth/internal/handler/rest"
+	"github.com/maintainerd/auth/internal/handler/grpchandler"
+	"github.com/maintainerd/auth/internal/handler/resthandler"
 	"github.com/maintainerd/auth/internal/repository"
 	"github.com/redis/go-redis/v9"
 	"gorm.io/gorm"
@@ -12,32 +12,32 @@ type App struct {
 	DB          *gorm.DB
 	RedisClient *redis.Client
 	// REST handlers
-	ServiceRestHandler           *rest.ServiceHandler
-	APIRestHandler               *rest.APIHandler
-	PermissionRestHandler        *rest.PermissionHandler
-	PolicyRestHandler            *rest.PolicyHandler
-	TenantRestHandler            *rest.TenantHandler
-	IdentityProviderRestHandler  *rest.IdentityProviderHandler
-	ClientRestHandler            *rest.ClientHandler
-	RoleRestHandler              *rest.RoleHandler
-	UserRestHandler              *rest.UserHandler
-	RegisterRestHandler          *rest.RegisterHandler
-	LoginRestHandler             *rest.LoginHandler
-	ProfileRestHandler           *rest.ProfileHandler
-	UserSettingRestHandler       *rest.UserSettingHandler
-	InviteRestHandler            *rest.InviteHandler
-	ForgotPasswordRestHandler    *rest.ForgotPasswordHandler
-	ResetPasswordRestHandler     *rest.ResetPasswordHandler
-	SetupRestHandler             *rest.SetupHandler
-	APIKeyRestHandler            *rest.APIKeyHandler
-	SignupFlowRestHandler        *rest.SignupFlowHandler
-	SecuritySettingRestHandler   *rest.SecuritySettingHandler
-	IPRestrictionRuleRestHandler *rest.IPRestrictionRuleHandler
-	EmailTemplateRestHandler     *rest.EmailTemplateHandler
-	SMSTemplateRestHandler       *rest.SMSTemplateHandler
-	LoginTemplateRestHandler     *rest.LoginTemplateHandler
+	ServiceRestHandler           *resthandler.ServiceHandler
+	APIRestHandler               *resthandler.APIHandler
+	PermissionRestHandler        *resthandler.PermissionHandler
+	PolicyRestHandler            *resthandler.PolicyHandler
+	TenantRestHandler            *resthandler.TenantHandler
+	IdentityProviderRestHandler  *resthandler.IdentityProviderHandler
+	ClientRestHandler            *resthandler.ClientHandler
+	RoleRestHandler              *resthandler.RoleHandler
+	UserRestHandler              *resthandler.UserHandler
+	RegisterRestHandler          *resthandler.RegisterHandler
+	LoginRestHandler             *resthandler.LoginHandler
+	ProfileRestHandler           *resthandler.ProfileHandler
+	UserSettingRestHandler       *resthandler.UserSettingHandler
+	InviteRestHandler            *resthandler.InviteHandler
+	ForgotPasswordRestHandler    *resthandler.ForgotPasswordHandler
+	ResetPasswordRestHandler     *resthandler.ResetPasswordHandler
+	SetupRestHandler             *resthandler.SetupHandler
+	APIKeyRestHandler            *resthandler.APIKeyHandler
+	SignupFlowRestHandler        *resthandler.SignupFlowHandler
+	SecuritySettingRestHandler   *resthandler.SecuritySettingHandler
+	IPRestrictionRuleRestHandler *resthandler.IPRestrictionRuleHandler
+	EmailTemplateRestHandler     *resthandler.EmailTemplateHandler
+	SMSTemplateRestHandler       *resthandler.SMSTemplateHandler
+	LoginTemplateRestHandler     *resthandler.LoginTemplateHandler
 	// gRPC handlers
-	SeederHandler *grpc.SeederHandler
+	SeederHandler *grpchandler.SeederHandler
 	// Repositories exposed for middleware
 	UserRepository repository.UserRepository
 }

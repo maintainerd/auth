@@ -7,9 +7,9 @@ import (
 	"gorm.io/gorm"
 )
 
-type SmsTemplate struct {
-	SmsTemplateID   int64     `gorm:"column:sms_template_id;primaryKey"`
-	SmsTemplateUUID uuid.UUID `gorm:"column:sms_template_uuid;unique"`
+type SMSTemplate struct {
+	SMSTemplateID   int64     `gorm:"column:sms_template_id;primaryKey"`
+	SMSTemplateUUID uuid.UUID `gorm:"column:sms_template_uuid;unique"`
 	TenantID        int64     `gorm:"column:tenant_id;not null"`
 	Name            string    `gorm:"column:name;unique"`
 	Description     *string   `gorm:"column:description"`
@@ -22,13 +22,13 @@ type SmsTemplate struct {
 	UpdatedAt       time.Time `gorm:"column:updated_at;autoUpdateTime"`
 }
 
-func (SmsTemplate) TableName() string {
+func (SMSTemplate) TableName() string {
 	return "sms_templates"
 }
 
-func (s *SmsTemplate) BeforeCreate(tx *gorm.DB) (err error) {
-	if s.SmsTemplateUUID == uuid.Nil {
-		s.SmsTemplateUUID = uuid.New()
+func (s *SMSTemplate) BeforeCreate(tx *gorm.DB) (err error) {
+	if s.SMSTemplateUUID == uuid.Nil {
+		s.SMSTemplateUUID = uuid.New()
 	}
 	return
 }

@@ -14,17 +14,17 @@ import (
 func TestResetPasswordRequestDto_Validate(t *testing.T) {
 	tests := []struct {
 		name    string
-		dto     ResetPasswordRequestDto
+		dto     ResetPasswordRequestDTO
 		wantErr bool
 	}{
 		{
 			name:    "valid new password",
-			dto:     ResetPasswordRequestDto{NewPassword: "NewSecurePass123!"},
+			dto:     ResetPasswordRequestDTO{NewPassword: "NewSecurePass123!"},
 			wantErr: false,
 		},
 		{
 			name:    "missing new password",
-			dto:     ResetPasswordRequestDto{NewPassword: ""},
+			dto:     ResetPasswordRequestDTO{NewPassword: ""},
 			wantErr: true,
 		},
 	}
@@ -42,7 +42,7 @@ func TestResetPasswordRequestDto_Validate(t *testing.T) {
 }
 
 func TestResetPasswordQueryDto_Validate(t *testing.T) {
-	valid := ResetPasswordQueryDto{
+	valid := ResetPasswordQueryDTO{
 		Token:      "reset-token-abc",
 		ClientID:   "client-1",
 		ProviderID: "provider-1",
@@ -86,7 +86,7 @@ func TestResetPasswordQueryDto_Validate(t *testing.T) {
 }
 
 func TestResetPasswordQueryDto_ValidateSignedURL(t *testing.T) {
-	q := &ResetPasswordQueryDto{}
+	q := &ResetPasswordQueryDTO{}
 
 	t.Run("empty values returns error", func(t *testing.T) {
 		err := q.ValidateSignedURL(url.Values{})

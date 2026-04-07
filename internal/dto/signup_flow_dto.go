@@ -10,7 +10,7 @@ import (
 )
 
 // Signup flow output structure
-type SignupFlowResponseDto struct {
+type SignupFlowResponseDTO struct {
 	SignupFlowUUID string         `json:"signup_flow_id"`
 	Name           string         `json:"name"`
 	Description    string         `json:"description"`
@@ -23,7 +23,7 @@ type SignupFlowResponseDto struct {
 }
 
 // Create signup flow request dto
-type SignupFlowCreateRequestDto struct {
+type SignupFlowCreateRequestDTO struct {
 	Name        string         `json:"name"`
 	Description string         `json:"description"`
 	Config      map[string]any `json:"config,omitempty"`
@@ -31,7 +31,7 @@ type SignupFlowCreateRequestDto struct {
 	ClientUUID  string         `json:"client_id"`
 }
 
-func (r SignupFlowCreateRequestDto) Validate() error {
+func (r SignupFlowCreateRequestDTO) Validate() error {
 	return validation.ValidateStruct(&r,
 		validation.Field(&r.Name,
 			validation.Required.Error("Signup flow name is required"),
@@ -51,14 +51,14 @@ func (r SignupFlowCreateRequestDto) Validate() error {
 }
 
 // Update signup flow request dto
-type SignupFlowUpdateRequestDto struct {
+type SignupFlowUpdateRequestDTO struct {
 	Name        string         `json:"name"`
 	Description string         `json:"description"`
 	Config      map[string]any `json:"config,omitempty"`
 	Status      *string        `json:"status,omitempty"`
 }
 
-func (r SignupFlowUpdateRequestDto) Validate() error {
+func (r SignupFlowUpdateRequestDTO) Validate() error {
 	return validation.ValidateStruct(&r,
 		validation.Field(&r.Name,
 			validation.Required.Error("Signup flow name is required"),
@@ -74,11 +74,11 @@ func (r SignupFlowUpdateRequestDto) Validate() error {
 }
 
 // Update signup flow status request dto
-type SignupFlowUpdateStatusRequestDto struct {
+type SignupFlowUpdateStatusRequestDTO struct {
 	Status string `json:"status"`
 }
 
-func (r SignupFlowUpdateStatusRequestDto) Validate() error {
+func (r SignupFlowUpdateStatusRequestDTO) Validate() error {
 	return validation.ValidateStruct(&r,
 		validation.Field(&r.Status,
 			validation.Required.Error("Status is required"),
@@ -88,18 +88,18 @@ func (r SignupFlowUpdateStatusRequestDto) Validate() error {
 }
 
 // Signup flow listing request dto
-type SignupFlowFilterDto struct {
+type SignupFlowFilterDTO struct {
 	Name       *string  `json:"name"`
 	Identifier *string  `json:"identifier"`
 	Status     []string `json:"status"`
 	ClientUUID *string  `json:"client_id"`
 
 	// Pagination and sorting
-	PaginationRequestDto
+	PaginationRequestDTO
 }
 
 // Validate validates the signup flow filter DTO.
-func (f SignupFlowFilterDto) Validate() error {
+func (f SignupFlowFilterDTO) Validate() error {
 	return validation.ValidateStruct(&f,
 		validation.Field(&f.Status,
 			validation.When(len(f.Status) > 0,
@@ -111,6 +111,6 @@ func (f SignupFlowFilterDto) Validate() error {
 				is.UUID.Error("Client ID must be a valid UUID"),
 			),
 		),
-		validation.Field(&f.PaginationRequestDto),
+		validation.Field(&f.PaginationRequestDTO),
 	)
 }

@@ -11,7 +11,7 @@ import (
 	"github.com/maintainerd/auth/internal/model"
 )
 
-type ProfileRequestDto struct {
+type ProfileRequestDTO struct {
 	// Basic Identity Information
 	FirstName   string  `json:"first_name"`
 	MiddleName  *string `json:"middle_name,omitempty"`
@@ -44,7 +44,7 @@ type ProfileRequestDto struct {
 	Metadata map[string]any `json:"metadata,omitempty"`
 }
 
-func (r ProfileRequestDto) Validate() error {
+func (r ProfileRequestDTO) Validate() error {
 	return validation.ValidateStruct(&r,
 		// Basic Identity Information
 		validation.Field(&r.FirstName,
@@ -136,7 +136,7 @@ func validateDateFormat(value any) error {
 	return nil
 }
 
-type ProfileResponseDto struct {
+type ProfileResponseDTO struct {
 	ProfileUUID string `json:"profile_id"`
 
 	// Basic Identity Information
@@ -178,8 +178,8 @@ type ProfileResponseDto struct {
 	UpdatedAt time.Time `json:"updated_at"`
 }
 
-func NewProfileResponseDto(p *model.Profile) *ProfileResponseDto {
-	return &ProfileResponseDto{
+func NewProfileResponseDTO(p *model.Profile) *ProfileResponseDTO {
+	return &ProfileResponseDTO{
 		ProfileUUID: p.ProfileUUID.String(),
 
 		// Basic Identity Information
@@ -235,8 +235,8 @@ func convertJSONBToMap(jsonb datatypes.JSON) map[string]any {
 	return result
 }
 
-// ProfileFilterDto for filtering and paginating profiles
-type ProfileFilterDto struct {
+// ProfileFilterDTO for filtering and paginating profiles
+type ProfileFilterDTO struct {
 	FirstName *string `json:"first_name,omitempty"`
 	LastName  *string `json:"last_name,omitempty"`
 	Email     *string `json:"email,omitempty"`
@@ -244,9 +244,9 @@ type ProfileFilterDto struct {
 	City      *string `json:"city,omitempty"`
 	Country   *string `json:"country,omitempty"`
 	IsDefault *bool   `json:"is_default,omitempty"`
-	PaginationRequestDto
+	PaginationRequestDTO
 }
 
-func (f ProfileFilterDto) Validate() error {
-	return f.PaginationRequestDto.Validate()
+func (f ProfileFilterDTO) Validate() error {
+	return f.PaginationRequestDTO.Validate()
 }

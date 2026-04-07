@@ -9,12 +9,12 @@ import (
 )
 
 // Login request payload structure
-type LoginRequestDto struct {
+type LoginRequestDTO struct {
 	Username string `json:"username"`
 	Password string `json:"password"`
 }
 
-func (r *LoginRequestDto) Validate() error {
+func (r *LoginRequestDTO) Validate() error {
 	// Sanitize inputs first
 	r.Username = security.SanitizeInput(r.Username)
 	r.Password = security.SanitizeInput(r.Password)
@@ -32,12 +32,12 @@ func (r *LoginRequestDto) Validate() error {
 }
 
 // Login query parameters structure
-type LoginQueryDto struct {
+type LoginQueryDTO struct {
 	ClientID   string `json:"client_id"`
 	ProviderID string `json:"provider_id"`
 }
 
-func (q *LoginQueryDto) Validate() error {
+func (q *LoginQueryDTO) Validate() error {
 	// Sanitize inputs first
 	q.ClientID = security.SanitizeInput(q.ClientID)
 	q.ProviderID = security.SanitizeInput(q.ProviderID)
@@ -55,7 +55,7 @@ func (q *LoginQueryDto) Validate() error {
 }
 
 // ValidateSignedURL validates signed URL parameters for login
-func (q *LoginQueryDto) ValidateSignedURL(values url.Values) error {
+func (q *LoginQueryDTO) ValidateSignedURL(values url.Values) error {
 	// Extract and validate signed URL parameters
 	if _, err := signedurl.ValidateSignedURL(values); err != nil {
 		return err
@@ -63,8 +63,8 @@ func (q *LoginQueryDto) ValidateSignedURL(values url.Values) error {
 	return nil
 }
 
-// LoginResponseDto is the response structure for login operations
-type LoginResponseDto struct {
+// LoginResponseDTO is the response structure for login operations
+type LoginResponseDTO struct {
 	AccessToken  string `json:"access_token"`
 	IDToken      string `json:"id_token"`
 	RefreshToken string `json:"refresh_token,omitempty"`

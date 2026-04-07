@@ -10,27 +10,27 @@ import (
 func TestForgotPasswordRequestDto_Validate(t *testing.T) {
 	tests := []struct {
 		name    string
-		dto     ForgotPasswordRequestDto
+		dto     ForgotPasswordRequestDTO
 		wantErr bool
 	}{
 		{
 			name:    "valid email",
-			dto:     ForgotPasswordRequestDto{Email: "user@example.com"},
+			dto:     ForgotPasswordRequestDTO{Email: "user@example.com"},
 			wantErr: false,
 		},
 		{
 			name:    "missing email",
-			dto:     ForgotPasswordRequestDto{Email: ""},
+			dto:     ForgotPasswordRequestDTO{Email: ""},
 			wantErr: true,
 		},
 		{
 			name:    "invalid email format",
-			dto:     ForgotPasswordRequestDto{Email: "not-an-email"},
+			dto:     ForgotPasswordRequestDTO{Email: "not-an-email"},
 			wantErr: true,
 		},
 		{
 			name:    "email too long",
-			dto:     ForgotPasswordRequestDto{Email: string(make([]byte, 256)) + "@x.com"},
+			dto:     ForgotPasswordRequestDTO{Email: string(make([]byte, 256)) + "@x.com"},
 			wantErr: true,
 		},
 	}
@@ -49,7 +49,7 @@ func TestForgotPasswordRequestDto_Validate(t *testing.T) {
 }
 
 func TestForgotPasswordResponseDto_Fields(t *testing.T) {
-	resp := ForgotPasswordResponseDto{Message: "Check your email", Success: true}
+	resp := ForgotPasswordResponseDTO{Message: "Check your email", Success: true}
 	assert.Equal(t, "Check your email", resp.Message)
 	assert.True(t, resp.Success)
 }

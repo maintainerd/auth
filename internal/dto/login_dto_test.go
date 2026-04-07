@@ -14,37 +14,37 @@ import (
 func TestLoginRequestDto_Validate(t *testing.T) {
 	tests := []struct {
 		name    string
-		dto     LoginRequestDto
+		dto     LoginRequestDTO
 		wantErr bool
 	}{
 		{
 			name:    "valid credentials",
-			dto:     LoginRequestDto{Username: "admin", Password: "secret"},
+			dto:     LoginRequestDTO{Username: "admin", Password: "secret"},
 			wantErr: false,
 		},
 		{
 			name:    "missing username",
-			dto:     LoginRequestDto{Username: "", Password: "secret"},
+			dto:     LoginRequestDTO{Username: "", Password: "secret"},
 			wantErr: true,
 		},
 		{
 			name:    "missing password",
-			dto:     LoginRequestDto{Username: "admin", Password: ""},
+			dto:     LoginRequestDTO{Username: "admin", Password: ""},
 			wantErr: true,
 		},
 		{
 			name:    "both fields missing",
-			dto:     LoginRequestDto{},
+			dto:     LoginRequestDTO{},
 			wantErr: true,
 		},
 		{
 			name:    "username too long",
-			dto:     LoginRequestDto{Username: string(make([]byte, 256)), Password: "secret"},
+			dto:     LoginRequestDTO{Username: string(make([]byte, 256)), Password: "secret"},
 			wantErr: true,
 		},
 		{
 			name:    "password too long",
-			dto:     LoginRequestDto{Username: "admin", Password: string(make([]byte, 129))},
+			dto:     LoginRequestDTO{Username: "admin", Password: string(make([]byte, 129))},
 			wantErr: true,
 		},
 	}
@@ -63,7 +63,7 @@ func TestLoginRequestDto_Validate(t *testing.T) {
 }
 
 func TestLoginRequestDto_Sanitize(t *testing.T) {
-	d := LoginRequestDto{
+	d := LoginRequestDTO{
 		Username: "  admin  ",
 		Password: "secret",
 	}
@@ -76,27 +76,27 @@ func TestLoginRequestDto_Sanitize(t *testing.T) {
 func TestLoginQueryDto_Validate(t *testing.T) {
 	tests := []struct {
 		name    string
-		dto     LoginQueryDto
+		dto     LoginQueryDTO
 		wantErr bool
 	}{
 		{
 			name:    "valid query",
-			dto:     LoginQueryDto{ClientID: "client-1", ProviderID: "provider-1"},
+			dto:     LoginQueryDTO{ClientID: "client-1", ProviderID: "provider-1"},
 			wantErr: false,
 		},
 		{
 			name:    "missing client id",
-			dto:     LoginQueryDto{ClientID: "", ProviderID: "provider-1"},
+			dto:     LoginQueryDTO{ClientID: "", ProviderID: "provider-1"},
 			wantErr: true,
 		},
 		{
 			name:    "missing provider id",
-			dto:     LoginQueryDto{ClientID: "client-1", ProviderID: ""},
+			dto:     LoginQueryDTO{ClientID: "client-1", ProviderID: ""},
 			wantErr: true,
 		},
 		{
 			name:    "both missing",
-			dto:     LoginQueryDto{},
+			dto:     LoginQueryDTO{},
 			wantErr: true,
 		},
 	}
@@ -115,7 +115,7 @@ func TestLoginQueryDto_Validate(t *testing.T) {
 }
 
 func TestLoginQueryDto_ValidateSignedURL(t *testing.T) {
-	q := &LoginQueryDto{ClientID: "c1", ProviderID: "p1"}
+	q := &LoginQueryDTO{ClientID: "c1", ProviderID: "p1"}
 
 	t.Run("missing signed url params returns error", func(t *testing.T) {
 		values := url.Values{}
@@ -133,7 +133,7 @@ func TestLoginQueryDto_ValidateSignedURL(t *testing.T) {
 }
 
 func TestLoginResponseDto_Fields(t *testing.T) {
-	resp := LoginResponseDto{
+	resp := LoginResponseDTO{
 		AccessToken:  "access",
 		IDToken:      "id",
 		RefreshToken: "refresh",

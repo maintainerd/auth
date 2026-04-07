@@ -14,42 +14,42 @@ import (
 func TestRegisterRequestDto_Validate(t *testing.T) {
 	tests := []struct {
 		name    string
-		dto     RegisterRequestDto
+		dto     RegisterRequestDTO
 		wantErr bool
 	}{
 		{
 			name:    "valid minimal",
-			dto:     RegisterRequestDto{Username: "johndoe", Fullname: "John Doe", Password: "SecurePass1!"},
+			dto:     RegisterRequestDTO{Username: "johndoe", Fullname: "John Doe", Password: "SecurePass1!"},
 			wantErr: false,
 		},
 		{
 			name:    "valid with email",
-			dto:     RegisterRequestDto{Username: "johndoe", Fullname: "John Doe", Password: "SecurePass1!", Email: strPtr("john@example.com")},
+			dto:     RegisterRequestDTO{Username: "johndoe", Fullname: "John Doe", Password: "SecurePass1!", Email: strPtr("john@example.com")},
 			wantErr: false,
 		},
 		{
 			name:    "missing username",
-			dto:     RegisterRequestDto{Fullname: "John Doe", Password: "SecurePass1!"},
+			dto:     RegisterRequestDTO{Fullname: "John Doe", Password: "SecurePass1!"},
 			wantErr: true,
 		},
 		{
 			name:    "missing fullname",
-			dto:     RegisterRequestDto{Username: "johndoe", Password: "SecurePass1!"},
+			dto:     RegisterRequestDTO{Username: "johndoe", Password: "SecurePass1!"},
 			wantErr: true,
 		},
 		{
 			name:    "missing password",
-			dto:     RegisterRequestDto{Username: "johndoe", Fullname: "John Doe"},
+			dto:     RegisterRequestDTO{Username: "johndoe", Fullname: "John Doe"},
 			wantErr: true,
 		},
 		{
 			name:    "password too short",
-			dto:     RegisterRequestDto{Username: "johndoe", Fullname: "John Doe", Password: "short"},
+			dto:     RegisterRequestDTO{Username: "johndoe", Fullname: "John Doe", Password: "short"},
 			wantErr: true,
 		},
 		{
 			name:    "invalid email",
-			dto:     RegisterRequestDto{Username: "johndoe", Fullname: "John Doe", Password: "SecurePass1!", Email: strPtr("not-an-email")},
+			dto:     RegisterRequestDTO{Username: "johndoe", Fullname: "John Doe", Password: "SecurePass1!", Email: strPtr("not-an-email")},
 			wantErr: true,
 		},
 	}
@@ -70,12 +70,12 @@ func TestRegisterRequestDto_Validate(t *testing.T) {
 func TestRegisterQueryDto_Validate(t *testing.T) {
 	tests := []struct {
 		name    string
-		dto     RegisterQueryDto
+		dto     RegisterQueryDTO
 		wantErr bool
 	}{
-		{name: "valid", dto: RegisterQueryDto{ClientID: "c1", ProviderID: "p1"}, wantErr: false},
-		{name: "missing client_id", dto: RegisterQueryDto{ProviderID: "p1"}, wantErr: true},
-		{name: "missing provider_id", dto: RegisterQueryDto{ClientID: "c1"}, wantErr: true},
+		{name: "valid", dto: RegisterQueryDTO{ClientID: "c1", ProviderID: "p1"}, wantErr: false},
+		{name: "missing client_id", dto: RegisterQueryDTO{ProviderID: "p1"}, wantErr: true},
+		{name: "missing provider_id", dto: RegisterQueryDTO{ClientID: "c1"}, wantErr: true},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
@@ -91,7 +91,7 @@ func TestRegisterQueryDto_Validate(t *testing.T) {
 }
 
 func TestRegisterInviteQueryDto_Validate(t *testing.T) {
-	valid := RegisterInviteQueryDto{
+	valid := RegisterInviteQueryDTO{
 		ClientID:    "c1",
 		ProviderID:  "p1",
 		InviteToken: "token123",
@@ -125,35 +125,35 @@ func TestRegisterInviteQueryDto_Validate(t *testing.T) {
 
 func TestRegisterRequestDto_Validate_WithPhone(t *testing.T) {
 	t.Run("valid phone", func(t *testing.T) {
-		d := RegisterRequestDto{Username: "johndoe", Fullname: "John Doe", Password: "SecurePass1!", Phone: strPtr("+12125551234")}
+		d := RegisterRequestDTO{Username: "johndoe", Fullname: "John Doe", Password: "SecurePass1!", Phone: strPtr("+12125551234")}
 		assert.NoError(t, d.Validate())
 	})
 
 	t.Run("invalid phone", func(t *testing.T) {
-		d := RegisterRequestDto{Username: "johndoe", Fullname: "John Doe", Password: "SecurePass1!", Phone: strPtr("not-a-phone")}
+		d := RegisterRequestDTO{Username: "johndoe", Fullname: "John Doe", Password: "SecurePass1!", Phone: strPtr("not-a-phone")}
 		require.Error(t, d.Validate())
 	})
 }
 
 func TestRegisterRequestDto_ValidateForRegistration(t *testing.T) {
 	t.Run("valid passes strength check", func(t *testing.T) {
-		d := RegisterRequestDto{Username: "johndoe", Fullname: "John Doe", Password: "SecurePass1!"}
+		d := RegisterRequestDTO{Username: "johndoe", Fullname: "John Doe", Password: "SecurePass1!"}
 		assert.NoError(t, d.ValidateForRegistration())
 	})
 
 	t.Run("base validation error propagates", func(t *testing.T) {
-		d := RegisterRequestDto{Username: "", Fullname: "John Doe", Password: "SecurePass1!"}
+		d := RegisterRequestDTO{Username: "", Fullname: "John Doe", Password: "SecurePass1!"}
 		require.Error(t, d.ValidateForRegistration())
 	})
 
 	t.Run("weak password fails strength check", func(t *testing.T) {
-		d := RegisterRequestDto{Username: "johndoe", Fullname: "John Doe", Password: "password1"}
+		d := RegisterRequestDTO{Username: "johndoe", Fullname: "John Doe", Password: "password1"}
 		require.Error(t, d.ValidateForRegistration())
 	})
 }
 
 func TestRegisterInviteQueryDto_ValidateSignedURL(t *testing.T) {
-	q := &RegisterInviteQueryDto{}
+	q := &RegisterInviteQueryDTO{}
 
 	t.Run("empty values returns error", func(t *testing.T) {
 		err := q.ValidateSignedURL(url.Values{})

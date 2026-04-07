@@ -12,7 +12,7 @@ import (
 )
 
 // User output structure
-type UserResponseDto struct {
+type UserResponseDTO struct {
 	UserUUID           uuid.UUID          `json:"user_id"`
 	Username           string             `json:"username"`
 	Fullname           string             `json:"fullname"`
@@ -24,23 +24,23 @@ type UserResponseDto struct {
 	IsAccountCompleted bool               `json:"is_account_completed"`
 	Status             string             `json:"status"`
 	Metadata           datatypes.JSON     `json:"metadata"`
-	Tenant             *TenantResponseDto `json:"tenant,omitempty"`
+	Tenant             *TenantResponseDTO `json:"tenant,omitempty"`
 	CreatedAt          time.Time          `json:"created_at"`
 	UpdatedAt          time.Time          `json:"updated_at"`
 }
 
-type UserIdentityResponseDto struct {
+type UserIdentityResponseDTO struct {
 	UserIdentityUUID uuid.UUID          `json:"user_identity_id"`
 	Provider         string             `json:"provider"`
 	Sub              string             `json:"sub"`
 	Metadata         datatypes.JSON     `json:"metadata"`
-	Client           *ClientResponseDto `json:"client,omitempty"`
+	Client           *ClientResponseDTO `json:"client,omitempty"`
 	CreatedAt        time.Time          `json:"created_at"`
 	UpdatedAt        time.Time          `json:"updated_at"`
 }
 
 // User input structures
-type UserCreateRequestDto struct {
+type UserCreateRequestDTO struct {
 	Username   string         `json:"username"`
 	Fullname   string         `json:"fullname"`
 	Email      *string        `json:"email,omitempty"`
@@ -51,7 +51,7 @@ type UserCreateRequestDto struct {
 	TenantUUID string         `json:"tenant_id"`
 }
 
-func (dto UserCreateRequestDto) Validate() error {
+func (dto UserCreateRequestDTO) Validate() error {
 	return validation.ValidateStruct(&dto,
 		validation.Field(&dto.Username, validation.Required, validation.Length(3, 50)),
 		validation.Field(&dto.Fullname, validation.Required, validation.Length(1, 255)),
@@ -63,7 +63,7 @@ func (dto UserCreateRequestDto) Validate() error {
 	)
 }
 
-type UserUpdateRequestDto struct {
+type UserUpdateRequestDTO struct {
 	Username string         `json:"username"`
 	Fullname string         `json:"fullname"`
 	Email    *string        `json:"email,omitempty"`
@@ -72,7 +72,7 @@ type UserUpdateRequestDto struct {
 	Metadata datatypes.JSON `json:"metadata,omitempty"`
 }
 
-func (dto UserUpdateRequestDto) Validate() error {
+func (dto UserUpdateRequestDTO) Validate() error {
 	return validation.ValidateStruct(&dto,
 		validation.Field(&dto.Username, validation.Required, validation.Length(3, 50)),
 		validation.Field(&dto.Fullname, validation.Required, validation.Length(1, 255)),
@@ -82,28 +82,28 @@ func (dto UserUpdateRequestDto) Validate() error {
 	)
 }
 
-type UserSetStatusRequestDto struct {
+type UserSetStatusRequestDTO struct {
 	Status string `json:"status"`
 }
 
-func (dto UserSetStatusRequestDto) Validate() error {
+func (dto UserSetStatusRequestDTO) Validate() error {
 	return validation.ValidateStruct(&dto,
 		validation.Field(&dto.Status, validation.Required, validation.In(model.StatusActive, model.StatusInactive, model.StatusPending, model.StatusSuspended)),
 	)
 }
 
-type UserAssignRolesRequestDto struct {
+type UserAssignRolesRequestDTO struct {
 	RoleUUIDs []uuid.UUID `json:"role_ids"`
 }
 
-func (dto UserAssignRolesRequestDto) Validate() error {
+func (dto UserAssignRolesRequestDTO) Validate() error {
 	return validation.ValidateStruct(&dto,
 		validation.Field(&dto.RoleUUIDs, validation.Required, validation.Length(1, 10)),
 	)
 }
 
 // User filter structure
-type UserFilterDto struct {
+type UserFilterDTO struct {
 	Username   *string  `json:"username,omitempty"`
 	Email      *string  `json:"email,omitempty"`
 	Phone      *string  `json:"phone,omitempty"`
@@ -112,11 +112,11 @@ type UserFilterDto struct {
 	RoleUUID   *string  `json:"role_id,omitempty"`
 
 	// Pagination and sorting
-	PaginationRequestDto
+	PaginationRequestDTO
 }
 
 // Validate validates the user filter DTO.
-func (f UserFilterDto) Validate() error {
+func (f UserFilterDTO) Validate() error {
 	return validation.ValidateStruct(&f,
 		validation.Field(&f.Status,
 			validation.When(len(f.Status) > 0,
@@ -133,36 +133,36 @@ func (f UserFilterDto) Validate() error {
 				is.UUID.Error("Role ID must be a valid UUID"),
 			),
 		),
-		validation.Field(&f.PaginationRequestDto),
+		validation.Field(&f.PaginationRequestDTO),
 	)
 }
 
 // User role filter structure
-type UserRoleFilterDto struct {
+type UserRoleFilterDTO struct {
 	Name        *string `json:"name,omitempty"`
 	Description *string `json:"description,omitempty"`
 	Status      *string `json:"status,omitempty"`
 
 	// Pagination and sorting
-	PaginationRequestDto
+	PaginationRequestDTO
 }
 
-func (r UserRoleFilterDto) Validate() error {
+func (r UserRoleFilterDTO) Validate() error {
 	return validation.ValidateStruct(&r,
-		validation.Field(&r.PaginationRequestDto),
+		validation.Field(&r.PaginationRequestDTO),
 	)
 }
 
 // User identity filter structure
-type UserIdentityFilterDto struct {
+type UserIdentityFilterDTO struct {
 	Provider *string `json:"provider,omitempty"`
 
 	// Pagination and sorting
-	PaginationRequestDto
+	PaginationRequestDTO
 }
 
-func (r UserIdentityFilterDto) Validate() error {
+func (r UserIdentityFilterDTO) Validate() error {
 	return validation.ValidateStruct(&r,
-		validation.Field(&r.PaginationRequestDto),
+		validation.Field(&r.PaginationRequestDTO),
 	)
 }

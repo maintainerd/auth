@@ -10,8 +10,8 @@ import (
 	"github.com/maintainerd/auth/internal/model"
 )
 
-func validTenantCreate() TenantCreateRequestDto {
-	return TenantCreateRequestDto{
+func validTenantCreate() TenantCreateRequestDTO {
+	return TenantCreateRequestDTO{
 		Name:        "my-tenant",
 		Description: "A test tenant description",
 		Status:      model.StatusActive,
@@ -73,7 +73,7 @@ func TestTenantCreateRequestDto_Validate(t *testing.T) {
 }
 
 func TestTenantUpdateRequestDto_Validate(t *testing.T) {
-	d := TenantUpdateRequestDto{
+	d := TenantUpdateRequestDTO{
 		Name:        "updated-tenant",
 		Description: "An updated tenant description",
 		Status:      model.StatusInactive,
@@ -86,7 +86,7 @@ func TestTenantUpdateRequestDto_Validate(t *testing.T) {
 
 func TestTenantFilterDto_Validate(t *testing.T) {
 	t.Run("valid with pagination", func(t *testing.T) {
-		f := TenantFilterDto{PaginationRequestDto: validPagination()}
+		f := TenantFilterDTO{PaginationRequestDTO: validPagination()}
 		assert.NoError(t, f.Validate())
 	})
 }
@@ -95,37 +95,37 @@ func TestTenantFilterDto_Validate(t *testing.T) {
 
 func TestTenantMemberAddMemberRequestDto_Validate(t *testing.T) {
 	t.Run("valid owner", func(t *testing.T) {
-		d := TenantMemberAddMemberRequestDto{UserUUID: uuid.New(), Role: "owner"}
+		d := TenantMemberAddMemberRequestDTO{UserUUID: uuid.New(), Role: "owner"}
 		assert.NoError(t, d.Validate())
 	})
 
 	t.Run("valid member", func(t *testing.T) {
-		d := TenantMemberAddMemberRequestDto{UserUUID: uuid.New(), Role: "member"}
+		d := TenantMemberAddMemberRequestDTO{UserUUID: uuid.New(), Role: "member"}
 		assert.NoError(t, d.Validate())
 	})
 
 	t.Run("invalid role", func(t *testing.T) {
-		d := TenantMemberAddMemberRequestDto{UserUUID: uuid.New(), Role: "admin"}
+		d := TenantMemberAddMemberRequestDTO{UserUUID: uuid.New(), Role: "admin"}
 		require.Error(t, d.Validate())
 	})
 }
 
 func TestTenantMemberUpdateRoleRequestDto_Validate(t *testing.T) {
-	assert.NoError(t, TenantMemberUpdateRoleRequestDto{Role: "owner"}.Validate())
-	assert.NoError(t, TenantMemberUpdateRoleRequestDto{Role: "member"}.Validate())
-	require.Error(t, TenantMemberUpdateRoleRequestDto{Role: "admin"}.Validate())
-	require.Error(t, TenantMemberUpdateRoleRequestDto{Role: ""}.Validate())
+	assert.NoError(t, TenantMemberUpdateRoleRequestDTO{Role: "owner"}.Validate())
+	assert.NoError(t, TenantMemberUpdateRoleRequestDTO{Role: "member"}.Validate())
+	require.Error(t, TenantMemberUpdateRoleRequestDTO{Role: "admin"}.Validate())
+	require.Error(t, TenantMemberUpdateRoleRequestDTO{Role: ""}.Validate())
 }
 
 func TestTenantMemberFilterDto_Validate(t *testing.T) {
 	t.Run("valid", func(t *testing.T) {
-		f := TenantMemberFilterDto{PaginationRequestDto: validPagination()}
+		f := TenantMemberFilterDTO{PaginationRequestDTO: validPagination()}
 		assert.NoError(t, f.Validate())
 	})
 
 	t.Run("invalid role filter", func(t *testing.T) {
 		bad := "admin"
-		f := TenantMemberFilterDto{PaginationRequestDto: validPagination(), Role: &bad}
+		f := TenantMemberFilterDTO{PaginationRequestDTO: validPagination(), Role: &bad}
 		require.Error(t, f.Validate())
 	})
 }

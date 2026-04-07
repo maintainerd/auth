@@ -1,6 +1,6 @@
 APP_NAME := auth
 MAIN := cmd/server/main.go
-PROTO_SRC := internal/contract
+PROTO_SRC := proto
 PROTO_OUT := internal/gen/go
 
 .PHONY: run build clean proto proto-clean tidy test test-cover test-race

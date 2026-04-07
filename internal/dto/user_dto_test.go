@@ -10,8 +10,8 @@ import (
 	"github.com/maintainerd/auth/internal/model"
 )
 
-func validUserCreate() UserCreateRequestDto {
-	return UserCreateRequestDto{
+func validUserCreate() UserCreateRequestDTO {
+	return UserCreateRequestDTO{
 		Username:   "testuser",
 		Fullname:   "Test User",
 		Password:   "SecurePass1!",
@@ -87,7 +87,7 @@ func TestUserCreateRequestDto_Validate(t *testing.T) {
 }
 
 func TestUserUpdateRequestDto_Validate(t *testing.T) {
-	d := UserUpdateRequestDto{
+	d := UserUpdateRequestDTO{
 		Username: "testuser",
 		Fullname: "Test User",
 		Status:   model.StatusActive,
@@ -99,55 +99,55 @@ func TestUserUpdateRequestDto_Validate(t *testing.T) {
 }
 
 func TestUserSetStatusRequestDto_Validate(t *testing.T) {
-	assert.NoError(t, UserSetStatusRequestDto{Status: model.StatusActive}.Validate())
-	assert.NoError(t, UserSetStatusRequestDto{Status: model.StatusSuspended}.Validate())
-	require.Error(t, UserSetStatusRequestDto{Status: ""}.Validate())
-	require.Error(t, UserSetStatusRequestDto{Status: "unknown"}.Validate())
+	assert.NoError(t, UserSetStatusRequestDTO{Status: model.StatusActive}.Validate())
+	assert.NoError(t, UserSetStatusRequestDTO{Status: model.StatusSuspended}.Validate())
+	require.Error(t, UserSetStatusRequestDTO{Status: ""}.Validate())
+	require.Error(t, UserSetStatusRequestDTO{Status: "unknown"}.Validate())
 }
 
 func TestUserAssignRolesRequestDto_Validate(t *testing.T) {
 	t.Run("valid single role", func(t *testing.T) {
-		d := UserAssignRolesRequestDto{RoleUUIDs: []uuid.UUID{uuid.New()}}
+		d := UserAssignRolesRequestDTO{RoleUUIDs: []uuid.UUID{uuid.New()}}
 		assert.NoError(t, d.Validate())
 	})
 
 	t.Run("missing roles", func(t *testing.T) {
-		d := UserAssignRolesRequestDto{}
+		d := UserAssignRolesRequestDTO{}
 		require.Error(t, d.Validate())
 	})
 }
 
 func TestUserFilterDto_Validate(t *testing.T) {
 	t.Run("valid with pagination", func(t *testing.T) {
-		f := UserFilterDto{PaginationRequestDto: validPagination()}
+		f := UserFilterDTO{PaginationRequestDTO: validPagination()}
 		assert.NoError(t, f.Validate())
 	})
 
 	t.Run("invalid status", func(t *testing.T) {
-		f := UserFilterDto{PaginationRequestDto: validPagination(), Status: []string{"unknown"}}
+		f := UserFilterDTO{PaginationRequestDTO: validPagination(), Status: []string{"unknown"}}
 		require.Error(t, f.Validate())
 	})
 
 	t.Run("invalid tenant uuid", func(t *testing.T) {
 		s := "not-a-uuid"
-		f := UserFilterDto{PaginationRequestDto: validPagination(), TenantUUID: &s}
+		f := UserFilterDTO{PaginationRequestDTO: validPagination(), TenantUUID: &s}
 		require.Error(t, f.Validate())
 	})
 
 	t.Run("invalid role uuid", func(t *testing.T) {
 		s := "not-a-uuid"
-		f := UserFilterDto{PaginationRequestDto: validPagination(), RoleUUID: &s}
+		f := UserFilterDTO{PaginationRequestDTO: validPagination(), RoleUUID: &s}
 		require.Error(t, f.Validate())
 	})
 }
 
 func TestUserRoleFilterDto_Validate(t *testing.T) {
-	f := UserRoleFilterDto{PaginationRequestDto: validPagination()}
+	f := UserRoleFilterDTO{PaginationRequestDTO: validPagination()}
 	assert.NoError(t, f.Validate())
 }
 
 func TestUserIdentityFilterDto_Validate(t *testing.T) {
-	f := UserIdentityFilterDto{PaginationRequestDto: validPagination()}
+	f := UserIdentityFilterDTO{PaginationRequestDTO: validPagination()}
 	assert.NoError(t, f.Validate())
 }
 

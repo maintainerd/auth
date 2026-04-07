@@ -25,7 +25,7 @@ type APIKey struct {
 	UpdatedAt time.Time `gorm:"column:updated_at;autoUpdateTime"`
 
 	// Relationships
-	APIKeyApis []APIKeyApi `gorm:"foreignKey:APIKeyID;references:APIKeyID"`
+	APIKeyAPIs []APIKeyAPI `gorm:"foreignKey:APIKeyID;references:APIKeyID"`
 }
 
 func (APIKey) TableName() string {

@@ -11,11 +11,11 @@ import (
 )
 
 // Role output structure
-type RoleResponseDto struct {
+type RoleResponseDTO struct {
 	RoleUUID    uuid.UUID                `json:"role_id"`
 	Name        string                   `json:"name"`
 	Description string                   `json:"description"`
-	Permissions *[]PermissionResponseDto `json:"permissions,omitempty"`
+	Permissions *[]PermissionResponseDTO `json:"permissions,omitempty"`
 	IsDefault   bool                     `json:"is_default"`
 	IsSystem    bool                     `json:"is_system"`
 	Status      string                   `json:"status"`
@@ -24,13 +24,13 @@ type RoleResponseDto struct {
 }
 
 // Create or update role request dto
-type RoleCreateOrUpdateRequestDto struct {
+type RoleCreateOrUpdateRequestDTO struct {
 	Name        string `json:"name"`
 	Description string `json:"description"`
 	Status      string `json:"status"`
 }
 
-func (r RoleCreateOrUpdateRequestDto) Validate() error {
+func (r RoleCreateOrUpdateRequestDTO) Validate() error {
 	return validation.ValidateStruct(&r,
 		validation.Field(&r.Name,
 			validation.Required.Error("Role name is required"),
@@ -48,11 +48,11 @@ func (r RoleCreateOrUpdateRequestDto) Validate() error {
 }
 
 // Add permissions to role request dto
-type RoleAddPermissionsRequestDto struct {
+type RoleAddPermissionsRequestDTO struct {
 	Permissions []uuid.UUID `json:"permissions"`
 }
 
-func (r RoleAddPermissionsRequestDto) Validate() error {
+func (r RoleAddPermissionsRequestDTO) Validate() error {
 	return validation.ValidateStruct(&r,
 		validation.Field(&r.Permissions,
 			validation.Required.Error("Permission UUIDs are required"),
@@ -62,7 +62,7 @@ func (r RoleAddPermissionsRequestDto) Validate() error {
 }
 
 // Role listing
-type RoleFilterDto struct {
+type RoleFilterDTO struct {
 	Name        *string `json:"name"`
 	Description *string `json:"description"`
 	IsDefault   *bool   `json:"is_default"`
@@ -70,17 +70,17 @@ type RoleFilterDto struct {
 	Status      *string `json:"status"`
 
 	// Pagination and sorting
-	PaginationRequestDto
+	PaginationRequestDTO
 }
 
 // Validate validates the role filter DTO.
-func (f RoleFilterDto) Validate() error {
+func (f RoleFilterDTO) Validate() error {
 	return validation.ValidateStruct(&f,
 		validation.Field(&f.Status,
 			validation.When(f.Status != nil,
 				validation.In(model.StatusActive, model.StatusInactive).Error("Status must be 'active' or 'inactive'"),
 			),
 		),
-		validation.Field(&f.PaginationRequestDto),
+		validation.Field(&f.PaginationRequestDTO),
 	)
 }

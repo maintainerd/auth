@@ -1,5 +1,5 @@
 /*
-Package util provides signed URL utilities for secure link generation and validation.
+Package signedurl provides signed URL utilities for secure link generation and validation.
 
 This module implements cryptographically signed URLs for secure operations like:
 - Email verification links

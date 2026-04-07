@@ -20,8 +20,8 @@ type repos struct {
 	rolePermissionRepo        repository.RolePermissionRepository
 	clientRepo                repository.ClientRepository
 	clientPermissionRepo      repository.ClientPermissionRepository
-	clientApiRepo             repository.ClientApiRepository
-	clientUriRepo             repository.ClientURIRepository
+	clientAPIRepo             repository.ClientAPIRepository
+	clientURIRepo             repository.ClientURIRepository
 	userRepo                  repository.UserRepository
 	userIdentityRepo          repository.UserIdentityRepository
 	userRoleRepo              repository.UserRoleRepository
@@ -30,18 +30,18 @@ type repos struct {
 	userSettingRepo           repository.UserSettingRepository
 	inviteRepo                repository.InviteRepository
 	emailTemplateRepo         repository.EmailTemplateRepository
-	smsTemplateRepo           repository.SmsTemplateRepository
+	smsTemplateRepo           repository.SMSTemplateRepository
 	loginTemplateRepo         repository.LoginTemplateRepository
 	policyRepo                repository.PolicyRepository
 	servicePolicyRepo         repository.ServicePolicyRepository
 	apiKeyRepo                repository.APIKeyRepository
-	apiKeyApiRepo             repository.APIKeyApiRepository
+	apiKeyAPIRepo             repository.APIKeyAPIRepository
 	apiKeyPermissionRepo      repository.APIKeyPermissionRepository
 	signupFlowRepo            repository.SignupFlowRepository
 	signupFlowRoleRepo        repository.SignupFlowRoleRepository
 	securitySettingRepo       repository.SecuritySettingRepository
 	securitySettingsAuditRepo repository.SecuritySettingsAuditRepository
-	ipRestrictionRuleRepo     repository.IpRestrictionRuleRepository
+	ipRestrictionRuleRepo     repository.IPRestrictionRuleRepository
 }
 
 func initRepos(db *gorm.DB) *repos {
@@ -58,8 +58,8 @@ func initRepos(db *gorm.DB) *repos {
 		rolePermissionRepo:        repository.NewRolePermissionRepository(db),
 		clientRepo:                repository.NewClientRepository(db),
 		clientPermissionRepo:      repository.NewClientPermissionRepository(db),
-		clientApiRepo:             repository.NewClientApiRepository(db),
-		clientUriRepo:             repository.NewClientURIRepository(db),
+		clientAPIRepo:             repository.NewClientAPIRepository(db),
+		clientURIRepo:             repository.NewClientURIRepository(db),
 		userRepo:                  repository.NewUserRepository(db),
 		userIdentityRepo:          repository.NewUserIdentityRepository(db),
 		userRoleRepo:              repository.NewUserRoleRepository(db),
@@ -68,17 +68,17 @@ func initRepos(db *gorm.DB) *repos {
 		userSettingRepo:           repository.NewUserSettingRepository(db),
 		inviteRepo:                repository.NewInviteRepository(db),
 		emailTemplateRepo:         repository.NewEmailTemplateRepository(db),
-		smsTemplateRepo:           repository.NewSmsTemplateRepository(db),
+		smsTemplateRepo:           repository.NewSMSTemplateRepository(db),
 		loginTemplateRepo:         repository.NewLoginTemplateRepository(db),
 		policyRepo:                repository.NewPolicyRepository(db),
 		servicePolicyRepo:         repository.NewServicePolicyRepository(db),
 		apiKeyRepo:                repository.NewAPIKeyRepository(db),
-		apiKeyApiRepo:             repository.NewAPIKeyApiRepository(db),
+		apiKeyAPIRepo:             repository.NewAPIKeyAPIRepository(db),
 		apiKeyPermissionRepo:      repository.NewAPIKeyPermissionRepository(db),
 		signupFlowRepo:            repository.NewSignupFlowRepository(db),
 		signupFlowRoleRepo:        repository.NewSignupFlowRoleRepository(db),
 		securitySettingRepo:       repository.NewSecuritySettingRepository(db),
 		securitySettingsAuditRepo: repository.NewSecuritySettingsAuditRepository(db),
-		ipRestrictionRuleRepo:     repository.NewIpRestrictionRuleRepository(db),
+		ipRestrictionRuleRepo:     repository.NewIPRestrictionRuleRepository(db),
 	}
 }

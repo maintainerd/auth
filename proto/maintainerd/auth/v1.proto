@@ -1,0 +1,19 @@
+syntax = "proto3";
+
+package maintainerd.auth.v1;
+
+option go_package = "github.com/maintainerd/auth/internal/gen/go/maintainerd/auth;authv1";
+
+// SeederService triggers data seeding operations via gRPC.
+service SeederService {
+  rpc TriggerSeeder(TriggerSeederRequest) returns (TriggerSeederResponse);
+}
+
+message TriggerSeederRequest {
+  string triggered_by = 1;
+}
+
+message TriggerSeederResponse {
+  bool success = 1;
+  string message = 2;
+}

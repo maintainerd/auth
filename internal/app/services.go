@@ -28,9 +28,9 @@ type svcs struct {
 	policyService           service.PolicyService
 	apiKeyService           service.APIKeyService
 	securitySettingService  service.SecuritySettingService
-	ipRestrictionRuleService service.IpRestrictionRuleService
+	ipRestrictionRuleService service.IPRestrictionRuleService
 	emailTemplateService    service.EmailTemplateService
-	smsTemplateService      service.SmsTemplateService
+	smsTemplateService      service.SMSTemplateService
 	loginTemplateService    service.LoginTemplateService
 }
 
@@ -42,7 +42,7 @@ func initServices(db *gorm.DB, r *repos) *svcs {
 		tenantService:           service.NewTenantService(db, r.tenantRepo),
 		tenantMemberService:     service.NewTenantMemberService(db, r.tenantMemberRepo, r.userRepo, r.tenantRepo),
 		idpService:              service.NewIdentityProviderService(db, r.idpRepo, r.tenantRepo, r.userRepo),
-		clientService:           service.NewClientService(db, r.clientRepo, r.clientUriRepo, r.idpRepo, r.permissionRepo, r.clientPermissionRepo, r.clientApiRepo, r.apiRepo, r.userRepo, r.tenantRepo),
+		clientService:           service.NewClientService(db, r.clientRepo, r.clientURIRepo, r.idpRepo, r.permissionRepo, r.clientPermissionRepo, r.clientAPIRepo, r.apiRepo, r.userRepo, r.tenantRepo),
 		roleService:             service.NewRoleService(db, r.roleRepo, r.permissionRepo, r.rolePermissionRepo, r.userRepo, r.tenantRepo),
 		userService:             service.NewUserService(db, r.userRepo, r.userIdentityRepo, r.userRoleRepo, r.roleRepo, r.tenantRepo, r.idpRepo, r.clientRepo, r.tenantUserRepo),
 		registerService:         service.NewRegistrationService(db, r.clientRepo, r.userRepo, r.userRoleRepo, r.userTokenRepo, r.userIdentityRepo, r.roleRepo, r.inviteRepo, r.idpRepo, r.tenantUserRepo),
@@ -55,11 +55,11 @@ func initServices(db *gorm.DB, r *repos) *svcs {
 		setupService:            service.NewSetupService(db, r.userRepo, r.tenantRepo, r.tenantMemberRepo, r.tenantUserRepo, r.clientRepo, r.idpRepo, r.roleRepo, r.userRoleRepo, r.userTokenRepo, r.userIdentityRepo, r.profileRepo),
 		signupFlowService:       service.NewSignupFlowService(db, r.signupFlowRepo, r.signupFlowRoleRepo, r.roleRepo, r.clientRepo),
 		policyService:           service.NewPolicyService(db, r.policyRepo, r.serviceRepo, r.apiRepo),
-		apiKeyService:           service.NewAPIKeyService(db, r.apiKeyRepo, r.apiKeyApiRepo, r.apiKeyPermissionRepo, r.apiRepo, r.userRepo, r.permissionRepo),
+		apiKeyService:           service.NewAPIKeyService(db, r.apiKeyRepo, r.apiKeyAPIRepo, r.apiKeyPermissionRepo, r.apiRepo, r.userRepo, r.permissionRepo),
 		securitySettingService:  service.NewSecuritySettingService(db, r.securitySettingRepo, r.securitySettingsAuditRepo),
-		ipRestrictionRuleService: service.NewIpRestrictionRuleService(db, r.ipRestrictionRuleRepo),
+		ipRestrictionRuleService: service.NewIPRestrictionRuleService(db, r.ipRestrictionRuleRepo),
 		emailTemplateService:    service.NewEmailTemplateService(db, r.emailTemplateRepo),
-		smsTemplateService:      service.NewSmsTemplateService(db, r.smsTemplateRepo),
+		smsTemplateService:      service.NewSMSTemplateService(db, r.smsTemplateRepo),
 		loginTemplateService:    service.NewLoginTemplateService(r.loginTemplateRepo),
 	}
 }

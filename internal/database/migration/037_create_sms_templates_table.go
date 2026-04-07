@@ -4,7 +4,7 @@ import (
 	"gorm.io/gorm"
 )
 
-func CreateSmsTemplatesTable(db *gorm.DB) error {
+func CreateSMSTemplatesTable(db *gorm.DB) error {
 	sql := `
 -- CREATE TABLE
 CREATE TABLE IF NOT EXISTS sms_templates (

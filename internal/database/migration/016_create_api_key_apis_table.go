@@ -4,7 +4,7 @@ import (
 	"gorm.io/gorm"
 )
 
-func CreateAPIKeyApiTable(db *gorm.DB) error {
+func CreateAPIKeyAPITable(db *gorm.DB) error {
 	sql := `
 -- CREATE TABLE
 CREATE TABLE IF NOT EXISTS api_key_apis (

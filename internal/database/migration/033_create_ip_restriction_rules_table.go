@@ -4,7 +4,7 @@ import (
 	"gorm.io/gorm"
 )
 
-func CreateIpRestrictionRulesTable(db *gorm.DB) error {
+func CreateIPRestrictionRulesTable(db *gorm.DB) error {
 	sql := `
 -- CREATE TABLE
 CREATE TABLE IF NOT EXISTS ip_restriction_rules (

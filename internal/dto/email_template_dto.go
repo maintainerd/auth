@@ -9,7 +9,7 @@ import (
 )
 
 // Email template list response DTO (without body content)
-type EmailTemplateListResponseDto struct {
+type EmailTemplateListResponseDTO struct {
 	EmailTemplateID string    `json:"email_template_id"`
 	Name            string    `json:"name"`
 	Subject         string    `json:"subject"`
@@ -21,7 +21,7 @@ type EmailTemplateListResponseDto struct {
 }
 
 // Email template response DTO (full details with body content)
-type EmailTemplateResponseDto struct {
+type EmailTemplateResponseDTO struct {
 	EmailTemplateID string    `json:"email_template_id"`
 	Name            string    `json:"name"`
 	Subject         string    `json:"subject"`
@@ -35,7 +35,7 @@ type EmailTemplateResponseDto struct {
 }
 
 // Create email template request DTO
-type EmailTemplateCreateRequestDto struct {
+type EmailTemplateCreateRequestDTO struct {
 	Name      string  `json:"name"`
 	Subject   string  `json:"subject"`
 	BodyHTML  string  `json:"body_html"`
@@ -43,7 +43,7 @@ type EmailTemplateCreateRequestDto struct {
 	Status    *string `json:"status,omitempty"`
 }
 
-func (r EmailTemplateCreateRequestDto) Validate() error {
+func (r EmailTemplateCreateRequestDTO) Validate() error {
 	return validation.ValidateStruct(&r,
 		validation.Field(&r.Name,
 			validation.Required.Error("Name is required"),
@@ -63,7 +63,7 @@ func (r EmailTemplateCreateRequestDto) Validate() error {
 }
 
 // Update email template request DTO
-type EmailTemplateUpdateRequestDto struct {
+type EmailTemplateUpdateRequestDTO struct {
 	Name      string  `json:"name"`
 	Subject   string  `json:"subject"`
 	BodyHTML  string  `json:"body_html"`
@@ -71,7 +71,7 @@ type EmailTemplateUpdateRequestDto struct {
 	Status    *string `json:"status,omitempty"`
 }
 
-func (r EmailTemplateUpdateRequestDto) Validate() error {
+func (r EmailTemplateUpdateRequestDTO) Validate() error {
 	return validation.ValidateStruct(&r,
 		validation.Field(&r.Name,
 			validation.Required.Error("Name is required"),
@@ -91,11 +91,11 @@ func (r EmailTemplateUpdateRequestDto) Validate() error {
 }
 
 // Update email template status request DTO
-type EmailTemplateUpdateStatusRequestDto struct {
+type EmailTemplateUpdateStatusRequestDTO struct {
 	Status string `json:"status"`
 }
 
-func (r EmailTemplateUpdateStatusRequestDto) Validate() error {
+func (r EmailTemplateUpdateStatusRequestDTO) Validate() error {
 	return validation.ValidateStruct(&r,
 		validation.Field(&r.Status,
 			validation.Required.Error("Status is required"),
@@ -105,24 +105,24 @@ func (r EmailTemplateUpdateStatusRequestDto) Validate() error {
 }
 
 // Email template filter DTO
-type EmailTemplateFilterDto struct {
+type EmailTemplateFilterDTO struct {
 	Name      *string  `json:"name"`
 	Status    []string `json:"status"`
 	IsDefault *bool    `json:"is_default"`
 	IsSystem  *bool    `json:"is_system"`
 
 	// Pagination and sorting
-	PaginationRequestDto
+	PaginationRequestDTO
 }
 
 // Validate validates the email template filter DTO.
-func (f EmailTemplateFilterDto) Validate() error {
+func (f EmailTemplateFilterDTO) Validate() error {
 	return validation.ValidateStruct(&f,
 		validation.Field(&f.Status,
 			validation.When(len(f.Status) > 0,
 				validation.Each(validation.In(model.StatusActive, model.StatusInactive).Error("Status must be 'active' or 'inactive'")),
 			),
 		),
-		validation.Field(&f.PaginationRequestDto),
+		validation.Field(&f.PaginationRequestDTO),
 	)
 }

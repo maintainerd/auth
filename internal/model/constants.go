@@ -83,7 +83,7 @@ const (
 	IDPTypeIdentity = "identity"
 	IDPTypeSocial   = "social"
 
-	// IP restriction rule types (IpRestrictionRule.Type)
+	// IP restriction rule types (IPRestrictionRule.Type)
 	IPRuleTypeAllow     = "allow"
 	IPRuleTypeDeny      = "deny"
 	IPRuleTypeWhitelist = "whitelist"

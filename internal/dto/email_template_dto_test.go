@@ -9,8 +9,8 @@ import (
 	"github.com/maintainerd/auth/internal/model"
 )
 
-func validEmailCreate() EmailTemplateCreateRequestDto {
-	return EmailTemplateCreateRequestDto{
+func validEmailCreate() EmailTemplateCreateRequestDTO {
+	return EmailTemplateCreateRequestDTO{
 		Name:     "Welcome Email",
 		Subject:  "Welcome to our platform",
 		BodyHTML: "<h1>Welcome!</h1>",
@@ -62,7 +62,7 @@ func TestEmailTemplateCreateRequestDto_Validate(t *testing.T) {
 }
 
 func TestEmailTemplateUpdateRequestDto_Validate(t *testing.T) {
-	d := EmailTemplateUpdateRequestDto{
+	d := EmailTemplateUpdateRequestDTO{
 		Name:     "Updated Email",
 		Subject:  "Updated subject",
 		BodyHTML: "<h1>Updated!</h1>",
@@ -74,29 +74,29 @@ func TestEmailTemplateUpdateRequestDto_Validate(t *testing.T) {
 }
 
 func TestEmailTemplateUpdateStatusRequestDto_Validate(t *testing.T) {
-	assert.NoError(t, EmailTemplateUpdateStatusRequestDto{Status: model.StatusActive}.Validate())
-	assert.NoError(t, EmailTemplateUpdateStatusRequestDto{Status: model.StatusInactive}.Validate())
-	require.Error(t, EmailTemplateUpdateStatusRequestDto{Status: ""}.Validate())
-	require.Error(t, EmailTemplateUpdateStatusRequestDto{Status: "bad"}.Validate())
+	assert.NoError(t, EmailTemplateUpdateStatusRequestDTO{Status: model.StatusActive}.Validate())
+	assert.NoError(t, EmailTemplateUpdateStatusRequestDTO{Status: model.StatusInactive}.Validate())
+	require.Error(t, EmailTemplateUpdateStatusRequestDTO{Status: ""}.Validate())
+	require.Error(t, EmailTemplateUpdateStatusRequestDTO{Status: "bad"}.Validate())
 }
 
 func TestEmailTemplateFilterDto_Validate(t *testing.T) {
 	t.Run("valid with pagination", func(t *testing.T) {
-		f := EmailTemplateFilterDto{PaginationRequestDto: validPagination()}
+		f := EmailTemplateFilterDTO{PaginationRequestDTO: validPagination()}
 		assert.NoError(t, f.Validate())
 	})
 
 	t.Run("invalid status in list", func(t *testing.T) {
-		f := EmailTemplateFilterDto{
-			PaginationRequestDto: validPagination(),
+		f := EmailTemplateFilterDTO{
+			PaginationRequestDTO: validPagination(),
 			Status:               []string{"bad"},
 		}
 		require.Error(t, f.Validate())
 	})
 
 	t.Run("valid status list", func(t *testing.T) {
-		f := EmailTemplateFilterDto{
-			PaginationRequestDto: validPagination(),
+		f := EmailTemplateFilterDTO{
+			PaginationRequestDTO: validPagination(),
 			Status:               []string{model.StatusActive, model.StatusInactive},
 		}
 		assert.NoError(t, f.Validate())

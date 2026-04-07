@@ -8,8 +8,8 @@ import (
 	"github.com/maintainerd/auth/internal/model"
 )
 
-// TenantMetadataDto represents the metadata structure for tenant configuration
-type TenantMetadataDto struct {
+// TenantMetadataDTO represents the metadata structure for tenant configuration
+type TenantMetadataDTO struct {
 	ApplicationLogoURL *string `json:"application_logo_url,omitempty"`
 	FaviconURL         *string `json:"favicon_url,omitempty"`
 	Language           *string `json:"language,omitempty"`
@@ -20,7 +20,7 @@ type TenantMetadataDto struct {
 	TermOfServiceURL   *string `json:"term_of_service_url,omitempty"`
 }
 
-func (dto TenantMetadataDto) Validate() error {
+func (dto TenantMetadataDTO) Validate() error {
 	return validation.ValidateStruct(&dto,
 		validation.Field(&dto.ApplicationLogoURL,
 			validation.When(dto.ApplicationLogoURL != nil,
@@ -70,15 +70,15 @@ func (dto TenantMetadataDto) Validate() error {
 	)
 }
 
-// CreateTenantRequestDto for initial tenant setup
-type CreateTenantRequestDto struct {
+// CreateTenantRequestDTO for initial tenant setup
+type CreateTenantRequestDTO struct {
 	Name        string             `json:"name"`
 	DisplayName string             `json:"display_name"`
 	Description *string            `json:"description,omitempty"`
-	Metadata    *TenantMetadataDto `json:"metadata,omitempty"`
+	Metadata    *TenantMetadataDTO `json:"metadata,omitempty"`
 }
 
-func (dto CreateTenantRequestDto) Validate() error {
+func (dto CreateTenantRequestDTO) Validate() error {
 	return validation.ValidateStruct(&dto,
 		validation.Field(&dto.Name,
 			validation.Required.Error("Tenant name is required"),
@@ -98,22 +98,22 @@ func (dto CreateTenantRequestDto) Validate() error {
 			validation.When(dto.Metadata != nil,
 				// Metadata is non-nil (guarded by When), type assertion is always safe here
 				validation.By(func(value any) error {
-					return value.(*TenantMetadataDto).Validate()
+					return value.(*TenantMetadataDTO).Validate()
 				}),
 			),
 		),
 	)
 }
 
-// CreateAdminRequestDto for initial admin user setup
-type CreateAdminRequestDto struct {
+// CreateAdminRequestDTO for initial admin user setup
+type CreateAdminRequestDTO struct {
 	Username string `json:"username"`
 	Fullname string `json:"fullname"`
 	Password string `json:"password"`
 	Email    string `json:"email"`
 }
 
-func (dto CreateAdminRequestDto) Validate() error {
+func (dto CreateAdminRequestDTO) Validate() error {
 	return validation.ValidateStruct(&dto,
 		validation.Field(&dto.Username,
 			validation.Required.Error("Username is required"),
@@ -136,29 +136,29 @@ func (dto CreateAdminRequestDto) Validate() error {
 	)
 }
 
-// SetupStatusResponseDto for checking setup status
-type SetupStatusResponseDto struct {
+// SetupStatusResponseDTO for checking setup status
+type SetupStatusResponseDTO struct {
 	IsTenantSetup   bool `json:"is_tenant_setup"`
 	IsAdminSetup    bool `json:"is_admin_setup"`
 	IsProfileSetup  bool `json:"is_profile_setup"`
 	IsSetupComplete bool `json:"is_setup_complete"`
 }
 
-// CreateTenantResponseDto for tenant creation response
-type CreateTenantResponseDto struct {
-	Tenant            TenantResponseDto `json:"tenant"`
+// CreateTenantResponseDTO for tenant creation response
+type CreateTenantResponseDTO struct {
+	Tenant            TenantResponseDTO `json:"tenant"`
 	DefaultClientID   string            `json:"default_client_id,omitempty"`
 	DefaultProviderID string            `json:"default_provider_id,omitempty"`
 }
 
-// CreateAdminResponseDto for admin creation response
-type CreateAdminResponseDto struct {
-	User          UserResponseDto   `json:"user"`
-	TokenResponse *LoginResponseDto `json:"token_response,omitempty"`
+// CreateAdminResponseDTO for admin creation response
+type CreateAdminResponseDTO struct {
+	User          UserResponseDTO   `json:"user"`
+	TokenResponse *LoginResponseDTO `json:"token_response,omitempty"`
 }
 
-// CreateProfileRequestDto for initial profile setup
-type CreateProfileRequestDto struct {
+// CreateProfileRequestDTO for initial profile setup
+type CreateProfileRequestDTO struct {
 	// Basic Identity Information
 	FirstName   string  `json:"first_name"`
 	MiddleName  *string `json:"middle_name,omitempty"`
@@ -191,7 +191,7 @@ type CreateProfileRequestDto struct {
 	Metadata map[string]any `json:"metadata,omitempty"`
 }
 
-func (dto CreateProfileRequestDto) Validate() error {
+func (dto CreateProfileRequestDTO) Validate() error {
 	return validation.ValidateStruct(&dto,
 		// Basic Identity Information
 		validation.Field(&dto.FirstName,
@@ -273,7 +273,7 @@ func (dto CreateProfileRequestDto) Validate() error {
 	)
 }
 
-// CreateProfileResponseDto for profile creation response
-type CreateProfileResponseDto struct {
-	Profile ProfileResponseDto `json:"profile"`
+// CreateProfileResponseDTO for profile creation response
+type CreateProfileResponseDTO struct {
+	Profile ProfileResponseDTO `json:"profile"`
 }

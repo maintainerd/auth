@@ -11,8 +11,8 @@ import (
 	"github.com/maintainerd/auth/internal/model"
 )
 
-func validIDPCreate() IdentityProviderCreateRequestDto {
-	return IdentityProviderCreateRequestDto{
+func validIDPCreate() IdentityProviderCreateRequestDTO {
+	return IdentityProviderCreateRequestDTO{
 		Name:         "my-idp",
 		DisplayName:  "My Identity Provider",
 		Provider:     model.IDPProviderGoogle,
@@ -78,7 +78,7 @@ func TestIdentityProviderCreateRequestDto_Validate(t *testing.T) {
 }
 
 func TestIdentityProviderUpdateRequestDto_Validate(t *testing.T) {
-	d := IdentityProviderUpdateRequestDto{
+	d := IdentityProviderUpdateRequestDTO{
 		Name:         "my-idp",
 		DisplayName:  "My Identity Provider",
 		Provider:     model.IDPProviderInternal,
@@ -93,20 +93,20 @@ func TestIdentityProviderUpdateRequestDto_Validate(t *testing.T) {
 }
 
 func TestIdentityProviderStatusUpdateDto_Validate(t *testing.T) {
-	assert.NoError(t, IdentityProviderStatusUpdateDto{Status: model.StatusActive}.Validate())
-	require.Error(t, IdentityProviderStatusUpdateDto{Status: "bad"}.Validate())
-	require.Error(t, IdentityProviderStatusUpdateDto{Status: ""}.Validate())
+	assert.NoError(t, IdentityProviderStatusUpdateDTO{Status: model.StatusActive}.Validate())
+	require.Error(t, IdentityProviderStatusUpdateDTO{Status: "bad"}.Validate())
+	require.Error(t, IdentityProviderStatusUpdateDTO{Status: ""}.Validate())
 }
 
 func TestIdentityProviderFilterDto_Validate(t *testing.T) {
 	t.Run("valid with pagination", func(t *testing.T) {
-		f := IdentityProviderFilterDto{PaginationRequestDto: validPagination()}
+		f := IdentityProviderFilterDTO{PaginationRequestDTO: validPagination()}
 		assert.NoError(t, f.Validate())
 	})
 
 	t.Run("invalid provider in list", func(t *testing.T) {
-		f := IdentityProviderFilterDto{
-			PaginationRequestDto: validPagination(),
+		f := IdentityProviderFilterDTO{
+			PaginationRequestDTO: validPagination(),
 			Provider:             []string{"yahoo"},
 		}
 		require.Error(t, f.Validate())
@@ -114,13 +114,13 @@ func TestIdentityProviderFilterDto_Validate(t *testing.T) {
 
 	t.Run("invalid provider_type", func(t *testing.T) {
 		pt := "enterprise"
-		f := IdentityProviderFilterDto{PaginationRequestDto: validPagination(), ProviderType: &pt}
+		f := IdentityProviderFilterDTO{PaginationRequestDTO: validPagination(), ProviderType: &pt}
 		require.Error(t, f.Validate())
 	})
 
 	t.Run("invalid status in list", func(t *testing.T) {
-		f := IdentityProviderFilterDto{
-			PaginationRequestDto: validPagination(),
+		f := IdentityProviderFilterDTO{
+			PaginationRequestDTO: validPagination(),
 			Status:               []string{"bad"},
 		}
 		require.Error(t, f.Validate())

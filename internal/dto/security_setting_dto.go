@@ -5,12 +5,12 @@ import (
 )
 
 // Security setting config response - returns config directly
-type SecuritySettingConfigResponseDto map[string]any
+type SecuritySettingConfigResponseDTO map[string]any
 
 // Update config request - accepts config directly
-type SecuritySettingUpdateConfigRequestDto map[string]any
+type SecuritySettingUpdateConfigRequestDTO map[string]any
 
-func (r SecuritySettingUpdateConfigRequestDto) Validate() error {
+func (r SecuritySettingUpdateConfigRequestDTO) Validate() error {
 	if len(r) == 0 {
 		return validation.NewError("validation_error", "Config cannot be empty")
 	}

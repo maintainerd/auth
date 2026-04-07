@@ -16,7 +16,7 @@ type SecuritySetting struct {
 	PasswordConfig      datatypes.JSON `gorm:"column:password_config;type:jsonb;default:'{}'" json:"password_config"`
 	SessionConfig       datatypes.JSON `gorm:"column:session_config;type:jsonb;default:'{}'" json:"session_config"`
 	ThreatConfig        datatypes.JSON `gorm:"column:threat_config;type:jsonb;default:'{}'" json:"threat_config"`
-	IpConfig            datatypes.JSON `gorm:"column:ip_config;type:jsonb;default:'{}'" json:"ip_config"`
+	IPConfig            datatypes.JSON `gorm:"column:ip_config;type:jsonb;default:'{}'" json:"ip_config"`
 	Version             int            `gorm:"column:version;default:1" json:"version"`
 	CreatedBy           *int64         `gorm:"column:created_by" json:"created_by"`
 	UpdatedBy           *int64         `gorm:"column:updated_by" json:"updated_by"`

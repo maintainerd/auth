@@ -7,28 +7,28 @@ import (
 		"github.com/maintainerd/auth/internal/signedurl"
 )
 
-// ResetPasswordRequestDto represents the request to reset a password
+// ResetPasswordRequestDTO represents the request to reset a password
 // Token is always extracted from the signed URL, not from request body
-type ResetPasswordRequestDto struct {
+type ResetPasswordRequestDTO struct {
 	NewPassword string `json:"new_password" example:"NewSecurePassword123!"`
 }
 
 // Validate validates the reset password request
-func (dto ResetPasswordRequestDto) Validate() error {
+func (dto ResetPasswordRequestDTO) Validate() error {
 	return validation.ValidateStruct(&dto,
 		validation.Field(&dto.NewPassword, validation.Required.Error("New password is required")),
 		// Token is optional in request body - can come from signed URL instead
 	)
 }
 
-// ResetPasswordResponseDto represents the response after password reset
-type ResetPasswordResponseDto struct {
+// ResetPasswordResponseDTO represents the response after password reset
+type ResetPasswordResponseDTO struct {
 	Message string `json:"message" example:"Password has been reset successfully"`
 	Success bool   `json:"success" example:"true"`
 }
 
-// ResetPasswordQueryDto represents query parameters for signed URL validation
-type ResetPasswordQueryDto struct {
+// ResetPasswordQueryDTO represents query parameters for signed URL validation
+type ResetPasswordQueryDTO struct {
 	Token      string `json:"token"`
 	ClientID   string `json:"client_id"`
 	ProviderID string `json:"provider_id"`
@@ -37,7 +37,7 @@ type ResetPasswordQueryDto struct {
 }
 
 // Validate validates the reset password query parameters
-func (q ResetPasswordQueryDto) Validate() error {
+func (q ResetPasswordQueryDTO) Validate() error {
 	return validation.ValidateStruct(&q,
 		validation.Field(&q.Token,
 			validation.Required.Error("Token is required"),
@@ -63,7 +63,7 @@ func (q ResetPasswordQueryDto) Validate() error {
 }
 
 // ValidateSignedURL validates signed URL parameters for reset password
-func (q *ResetPasswordQueryDto) ValidateSignedURL(values url.Values) error {
+func (q *ResetPasswordQueryDTO) ValidateSignedURL(values url.Values) error {
 	// Extract and validate signed URL parameters
 	if _, err := signedurl.ValidateSignedURL(values); err != nil {
 		return err

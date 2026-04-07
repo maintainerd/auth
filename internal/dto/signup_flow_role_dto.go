@@ -8,7 +8,7 @@ import (
 )
 
 // Signup flow role output structure
-type SignupFlowRoleResponseDto struct {
+type SignupFlowRoleResponseDTO struct {
 	SignupFlowRoleUUID string    `json:"signup_flow_role_id"`
 	SignupFlowUUID     string    `json:"signup_flow_id"`
 	RoleUUID           string    `json:"role_id"`
@@ -17,11 +17,11 @@ type SignupFlowRoleResponseDto struct {
 }
 
 // Assign roles to signup flow request dto
-type SignupFlowAssignRolesRequestDto struct {
+type SignupFlowAssignRolesRequestDTO struct {
 	RoleUUIDs []string `json:"role_uuids"`
 }
 
-func (r SignupFlowAssignRolesRequestDto) Validate() error {
+func (r SignupFlowAssignRolesRequestDTO) Validate() error {
 	return validation.ValidateStruct(&r,
 		validation.Field(&r.RoleUUIDs,
 			validation.Required.Error("Role UUIDs are required"),

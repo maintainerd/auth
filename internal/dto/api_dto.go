@@ -11,14 +11,14 @@ import (
 )
 
 // API output structure
-type APIResponseDto struct {
+type APIResponseDTO struct {
 	APIUUID     uuid.UUID           `json:"api_id"`
 	Name        string              `json:"name"`
 	DisplayName string              `json:"display_name"`
 	Description string              `json:"description"`
 	APIType     string              `json:"api_type"`
 	Identifier  string              `json:"identifier"`
-	Service     *ServiceResponseDto `json:"service,omitempty"`
+	Service     *ServiceResponseDTO `json:"service,omitempty"`
 	Status      string              `json:"status"`
 	IsSystem    bool                `json:"is_system"`
 	CreatedAt   time.Time           `json:"created_at"`
@@ -26,7 +26,7 @@ type APIResponseDto struct {
 }
 
 // Create API request DTO
-type APICreateRequestDto struct {
+type APICreateRequestDTO struct {
 	Name        string `json:"name"`
 	DisplayName string `json:"display_name"`
 	Description string `json:"description"`
@@ -36,7 +36,7 @@ type APICreateRequestDto struct {
 }
 
 // Validation
-func (r APICreateRequestDto) Validate() error {
+func (r APICreateRequestDTO) Validate() error {
 	return validation.ValidateStruct(&r,
 		validation.Field(&r.Name,
 			validation.Required.Error("API name is required"),
@@ -67,7 +67,7 @@ func (r APICreateRequestDto) Validate() error {
 }
 
 // Update API request DTO
-type APIUpdateRequestDto struct {
+type APIUpdateRequestDTO struct {
 	Name        string `json:"name"`
 	DisplayName string `json:"display_name"`
 	Description string `json:"description"`
@@ -77,7 +77,7 @@ type APIUpdateRequestDto struct {
 }
 
 // Validation
-func (r APIUpdateRequestDto) Validate() error {
+func (r APIUpdateRequestDTO) Validate() error {
 	return validation.ValidateStruct(&r,
 		validation.Field(&r.Name,
 			validation.Required.Error("API name is required"),
@@ -107,7 +107,7 @@ func (r APIUpdateRequestDto) Validate() error {
 }
 
 // API listing / filter DTO
-type APIFilterDto struct {
+type APIFilterDTO struct {
 	Name        *string  `json:"name"`
 	DisplayName *string  `json:"display_name"`
 	Description *string  `json:"description"`
@@ -118,11 +118,11 @@ type APIFilterDto struct {
 	IsSystem    *bool    `json:"is_system"`
 
 	// Pagination and sorting
-	PaginationRequestDto
+	PaginationRequestDTO
 }
 
 // Validate validates the API filter DTO.
-func (f APIFilterDto) Validate() error {
+func (f APIFilterDTO) Validate() error {
 	return validation.ValidateStruct(&f,
 		validation.Field(&f.APIType,
 			validation.When(f.APIType != nil,
@@ -134,16 +134,16 @@ func (f APIFilterDto) Validate() error {
 				validation.Each(validation.In(model.StatusActive, model.StatusInactive).Error("Status must be 'active' or 'inactive'")),
 			),
 		),
-		validation.Field(&f.PaginationRequestDto),
+		validation.Field(&f.PaginationRequestDTO),
 	)
 }
 
 // API status update DTO
-type APIStatusUpdateDto struct {
+type APIStatusUpdateDTO struct {
 	Status string `json:"status"`
 }
 
-func (r APIStatusUpdateDto) Validate() error {
+func (r APIStatusUpdateDTO) Validate() error {
 	return validation.ValidateStruct(&r,
 		validation.Field(&r.Status,
 			validation.Required.Error("Status is required"),

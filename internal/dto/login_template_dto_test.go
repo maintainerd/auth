@@ -9,8 +9,8 @@ import (
 	"github.com/maintainerd/auth/internal/model"
 )
 
-func validLoginTemplateCreate() LoginTemplateCreateRequestDto {
-	return LoginTemplateCreateRequestDto{
+func validLoginTemplateCreate() LoginTemplateCreateRequestDTO {
+	return LoginTemplateCreateRequestDTO{
 		Name:     "Default Login",
 		Template: model.LoginTemplateModern,
 	}
@@ -77,7 +77,7 @@ func TestLoginTemplateCreateRequestDto_Validate(t *testing.T) {
 }
 
 func TestLoginTemplateUpdateRequestDto_Validate(t *testing.T) {
-	d := LoginTemplateUpdateRequestDto{
+	d := LoginTemplateUpdateRequestDTO{
 		Name:     "Updated Login",
 		Template: model.LoginTemplateClassic,
 	}
@@ -88,33 +88,33 @@ func TestLoginTemplateUpdateRequestDto_Validate(t *testing.T) {
 }
 
 func TestLoginTemplateUpdateStatusRequestDto_Validate(t *testing.T) {
-	assert.NoError(t, LoginTemplateUpdateStatusRequestDto{Status: model.StatusActive}.Validate())
-	assert.NoError(t, LoginTemplateUpdateStatusRequestDto{Status: model.StatusInactive}.Validate())
-	require.Error(t, LoginTemplateUpdateStatusRequestDto{Status: ""}.Validate())
-	require.Error(t, LoginTemplateUpdateStatusRequestDto{Status: "bad"}.Validate())
+	assert.NoError(t, LoginTemplateUpdateStatusRequestDTO{Status: model.StatusActive}.Validate())
+	assert.NoError(t, LoginTemplateUpdateStatusRequestDTO{Status: model.StatusInactive}.Validate())
+	require.Error(t, LoginTemplateUpdateStatusRequestDTO{Status: ""}.Validate())
+	require.Error(t, LoginTemplateUpdateStatusRequestDTO{Status: "bad"}.Validate())
 }
 
 func TestLoginTemplateFilterDto_Validate(t *testing.T) {
 	t.Run("valid with pagination", func(t *testing.T) {
-		f := LoginTemplateFilterDto{PaginationRequestDto: validPagination()}
+		f := LoginTemplateFilterDTO{PaginationRequestDTO: validPagination()}
 		assert.NoError(t, f.Validate())
 	})
 
 	t.Run("invalid template filter", func(t *testing.T) {
 		bad := "unknown-template"
-		f := LoginTemplateFilterDto{PaginationRequestDto: validPagination(), Template: &bad}
+		f := LoginTemplateFilterDTO{PaginationRequestDTO: validPagination(), Template: &bad}
 		require.Error(t, f.Validate())
 	})
 
 	t.Run("valid template filter", func(t *testing.T) {
 		tmpl := model.LoginTemplateMinimal
-		f := LoginTemplateFilterDto{PaginationRequestDto: validPagination(), Template: &tmpl}
+		f := LoginTemplateFilterDTO{PaginationRequestDTO: validPagination(), Template: &tmpl}
 		assert.NoError(t, f.Validate())
 	})
 
 	t.Run("invalid status in list", func(t *testing.T) {
-		f := LoginTemplateFilterDto{
-			PaginationRequestDto: validPagination(),
+		f := LoginTemplateFilterDTO{
+			PaginationRequestDTO: validPagination(),
 			Status:               []string{"bad"},
 		}
 		require.Error(t, f.Validate())

@@ -11,7 +11,7 @@ import (
 )
 
 func TestPermissionCreateRequestDto_Validate(t *testing.T) {
-	valid := PermissionCreateRequestDto{
+	valid := PermissionCreateRequestDTO{
 		Name:        "perm:read",
 		Description: "Read permission for all users",
 		Status:      model.StatusActive,
@@ -60,7 +60,7 @@ func TestPermissionCreateRequestDto_Validate(t *testing.T) {
 }
 
 func TestPermissionUpdateRequestDto_Validate(t *testing.T) {
-	d := PermissionUpdateRequestDto{
+	d := PermissionUpdateRequestDTO{
 		Name:        "perm:write",
 		Description: "Write permission for all resources",
 		Status:      model.StatusInactive,
@@ -72,27 +72,27 @@ func TestPermissionUpdateRequestDto_Validate(t *testing.T) {
 }
 
 func TestPermissionStatusUpdateDto_Validate(t *testing.T) {
-	assert.NoError(t, PermissionStatusUpdateDto{Status: model.StatusActive}.Validate())
-	assert.NoError(t, PermissionStatusUpdateDto{Status: model.StatusInactive}.Validate())
-	require.Error(t, PermissionStatusUpdateDto{Status: ""}.Validate())
-	require.Error(t, PermissionStatusUpdateDto{Status: "bad"}.Validate())
+	assert.NoError(t, PermissionStatusUpdateDTO{Status: model.StatusActive}.Validate())
+	assert.NoError(t, PermissionStatusUpdateDTO{Status: model.StatusInactive}.Validate())
+	require.Error(t, PermissionStatusUpdateDTO{Status: ""}.Validate())
+	require.Error(t, PermissionStatusUpdateDTO{Status: "bad"}.Validate())
 }
 
 func TestPermissionFilterDto_Validate(t *testing.T) {
 	t.Run("valid with pagination", func(t *testing.T) {
-		f := PermissionFilterDto{PaginationRequestDto: validPagination()}
+		f := PermissionFilterDTO{PaginationRequestDTO: validPagination()}
 		assert.NoError(t, f.Validate())
 	})
 
 	t.Run("invalid status", func(t *testing.T) {
 		bad := "unknown"
-		f := PermissionFilterDto{PaginationRequestDto: validPagination(), Status: &bad}
+		f := PermissionFilterDTO{PaginationRequestDTO: validPagination(), Status: &bad}
 		require.Error(t, f.Validate())
 	})
 
 	t.Run("valid status filter", func(t *testing.T) {
 		s := model.StatusActive
-		f := PermissionFilterDto{PaginationRequestDto: validPagination(), Status: &s}
+		f := PermissionFilterDTO{PaginationRequestDTO: validPagination(), Status: &s}
 		assert.NoError(t, f.Validate())
 	})
 }

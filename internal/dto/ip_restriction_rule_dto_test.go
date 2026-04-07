@@ -9,8 +9,8 @@ import (
 	"github.com/maintainerd/auth/internal/model"
 )
 
-func validIPRuleCreate() IPRestrictionRuleCreateRequestDto {
-	return IPRestrictionRuleCreateRequestDto{
+func validIPRuleCreate() IPRestrictionRuleCreateRequestDTO {
+	return IPRestrictionRuleCreateRequestDTO{
 		Type:      model.IPRuleTypeAllow,
 		IPAddress: "192.168.1.1",
 	}
@@ -87,7 +87,7 @@ func TestIPRestrictionRuleCreateRequestDto_Validate(t *testing.T) {
 }
 
 func TestIPRestrictionRuleUpdateRequestDto_Validate(t *testing.T) {
-	d := IPRestrictionRuleUpdateRequestDto{
+	d := IPRestrictionRuleUpdateRequestDTO{
 		Type:      model.IPRuleTypeDeny,
 		IPAddress: "10.0.0.1",
 	}
@@ -98,15 +98,15 @@ func TestIPRestrictionRuleUpdateRequestDto_Validate(t *testing.T) {
 }
 
 func TestIPRestrictionRuleUpdateStatusRequestDto_Validate(t *testing.T) {
-	assert.NoError(t, IPRestrictionRuleUpdateStatusRequestDto{Status: model.StatusActive}.Validate())
-	assert.NoError(t, IPRestrictionRuleUpdateStatusRequestDto{Status: model.StatusInactive}.Validate())
-	require.Error(t, IPRestrictionRuleUpdateStatusRequestDto{Status: ""}.Validate())
-	require.Error(t, IPRestrictionRuleUpdateStatusRequestDto{Status: "bad"}.Validate())
+	assert.NoError(t, IPRestrictionRuleUpdateStatusRequestDTO{Status: model.StatusActive}.Validate())
+	assert.NoError(t, IPRestrictionRuleUpdateStatusRequestDTO{Status: model.StatusInactive}.Validate())
+	require.Error(t, IPRestrictionRuleUpdateStatusRequestDTO{Status: ""}.Validate())
+	require.Error(t, IPRestrictionRuleUpdateStatusRequestDTO{Status: "bad"}.Validate())
 }
 
 func TestIPRestrictionRuleFilterDto_Validate(t *testing.T) {
 	t.Run("valid with pagination", func(t *testing.T) {
-		f := IPRestrictionRuleFilterDto{PaginationRequestDto: validPagination()}
+		f := IPRestrictionRuleFilterDTO{PaginationRequestDTO: validPagination()}
 		assert.NoError(t, f.Validate())
 	})
 }

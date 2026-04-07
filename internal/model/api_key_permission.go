@@ -10,12 +10,12 @@ import (
 type APIKeyPermission struct {
 	APIKeyPermissionID   int64     `gorm:"column:api_key_permission_id;primaryKey"`
 	APIKeyPermissionUUID uuid.UUID `gorm:"column:api_key_permission_uuid;unique"`
-	APIKeyApiID          int64     `gorm:"column:api_key_api_id;uniqueIndex:idx_api_key_permission_unique"`
+	APIKeyAPIID          int64     `gorm:"column:api_key_api_id;uniqueIndex:idx_api_key_permission_unique"`
 	PermissionID         int64     `gorm:"column:permission_id;uniqueIndex:idx_api_key_permission_unique"`
 	CreatedAt            time.Time `gorm:"column:created_at;autoCreateTime"`
 
 	// Relationships
-	APIKeyApi  *APIKeyApi  `gorm:"foreignKey:APIKeyApiID;references:APIKeyApiID;constraint:OnDelete:CASCADE"`
+	APIKeyAPI  *APIKeyAPI  `gorm:"foreignKey:APIKeyAPIID;references:APIKeyAPIID;constraint:OnDelete:CASCADE"`
 	Permission *Permission `gorm:"foreignKey:PermissionID;references:PermissionID;constraint:OnDelete:CASCADE"`
 }
 

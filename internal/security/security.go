@@ -1,5 +1,5 @@
 /*
-Package util provides comprehensive security utilities for authentication and authorization.
+Package security provides comprehensive security utilities for authentication and authorization.
 
 This module implements security controls required for SOC2 and ISO27001 compliance, including:
 

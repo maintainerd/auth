@@ -9,7 +9,7 @@ import (
 )
 
 // SMS template list response DTO (without message content)
-type SMSTemplateListResponseDto struct {
+type SMSTemplateListResponseDTO struct {
 	SMSTemplateID string    `json:"sms_template_id"`
 	Name          string    `json:"name"`
 	Description   *string   `json:"description"`
@@ -22,7 +22,7 @@ type SMSTemplateListResponseDto struct {
 }
 
 // SMS template response DTO (full details with message content)
-type SMSTemplateResponseDto struct {
+type SMSTemplateResponseDTO struct {
 	SMSTemplateID string    `json:"sms_template_id"`
 	Name          string    `json:"name"`
 	Description   *string   `json:"description"`
@@ -36,7 +36,7 @@ type SMSTemplateResponseDto struct {
 }
 
 // Create SMS template request DTO
-type SMSTemplateCreateRequestDto struct {
+type SMSTemplateCreateRequestDTO struct {
 	Name        string  `json:"name"`
 	Description *string `json:"description,omitempty"`
 	Message     string  `json:"message"`
@@ -44,7 +44,7 @@ type SMSTemplateCreateRequestDto struct {
 	Status      *string `json:"status,omitempty"`
 }
 
-func (r SMSTemplateCreateRequestDto) Validate() error {
+func (r SMSTemplateCreateRequestDTO) Validate() error {
 	return validation.ValidateStruct(&r,
 		validation.Field(&r.Name,
 			validation.Required.Error("Name is required"),
@@ -63,7 +63,7 @@ func (r SMSTemplateCreateRequestDto) Validate() error {
 }
 
 // Update SMS template request DTO
-type SMSTemplateUpdateRequestDto struct {
+type SMSTemplateUpdateRequestDTO struct {
 	Name        string  `json:"name"`
 	Description *string `json:"description,omitempty"`
 	Message     string  `json:"message"`
@@ -71,7 +71,7 @@ type SMSTemplateUpdateRequestDto struct {
 	Status      *string `json:"status,omitempty"`
 }
 
-func (r SMSTemplateUpdateRequestDto) Validate() error {
+func (r SMSTemplateUpdateRequestDTO) Validate() error {
 	return validation.ValidateStruct(&r,
 		validation.Field(&r.Name,
 			validation.Required.Error("Name is required"),
@@ -90,11 +90,11 @@ func (r SMSTemplateUpdateRequestDto) Validate() error {
 }
 
 // Update SMS template status request DTO
-type SMSTemplateUpdateStatusRequestDto struct {
+type SMSTemplateUpdateStatusRequestDTO struct {
 	Status string `json:"status"`
 }
 
-func (r SMSTemplateUpdateStatusRequestDto) Validate() error {
+func (r SMSTemplateUpdateStatusRequestDTO) Validate() error {
 	return validation.ValidateStruct(&r,
 		validation.Field(&r.Status,
 			validation.Required.Error("Status is required"),
@@ -104,24 +104,24 @@ func (r SMSTemplateUpdateStatusRequestDto) Validate() error {
 }
 
 // SMS template filter DTO
-type SMSTemplateFilterDto struct {
+type SMSTemplateFilterDTO struct {
 	Name      *string  `json:"name"`
 	Status    []string `json:"status"`
 	IsDefault *bool    `json:"is_default"`
 	IsSystem  *bool    `json:"is_system"`
 
 	// Pagination and sorting
-	PaginationRequestDto
+	PaginationRequestDTO
 }
 
 // Validate validates the SMS template filter DTO.
-func (f SMSTemplateFilterDto) Validate() error {
+func (f SMSTemplateFilterDTO) Validate() error {
 	return validation.ValidateStruct(&f,
 		validation.Field(&f.Status,
 			validation.When(len(f.Status) > 0,
 				validation.Each(validation.In(model.StatusActive, model.StatusInactive).Error("Status must be 'active' or 'inactive'")),
 			),
 		),
-		validation.Field(&f.PaginationRequestDto),
+		validation.Field(&f.PaginationRequestDTO),
 	)
 }

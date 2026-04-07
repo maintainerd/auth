@@ -664,62 +664,62 @@ func (m *mockLoginTemplateRepo) DeleteByUUID(id any) error {
 }
 
 // ---------------------------------------------------------------------------
-// Mock: SmsTemplateRepository (no WithTx)
+// Mock: SMSTemplateRepository (no WithTx)
 // ---------------------------------------------------------------------------
 
-type mockSmsTemplateRepo struct {
-	createFn                func(e *model.SmsTemplate) (*model.SmsTemplate, error)
-	findByUUIDAndTenantIDFn func(string, int64) (*model.SmsTemplate, error)
-	findPaginatedFn         func(repository.SmsTemplateRepositoryGetFilter) (*repository.PaginationResult[model.SmsTemplate], error)
-	updateByUUIDFn          func(any, any) (*model.SmsTemplate, error)
+type mockSMSTemplateRepo struct {
+	createFn                func(e *model.SMSTemplate) (*model.SMSTemplate, error)
+	findByUUIDAndTenantIDFn func(string, int64) (*model.SMSTemplate, error)
+	findPaginatedFn         func(repository.SMSTemplateRepositoryGetFilter) (*repository.PaginationResult[model.SMSTemplate], error)
+	updateByUUIDFn          func(any, any) (*model.SMSTemplate, error)
 	deleteByUUIDFn          func(any) error
 }
 
-func (m *mockSmsTemplateRepo) CreateOrUpdate(e *model.SmsTemplate) (*model.SmsTemplate, error) {
+func (m *mockSMSTemplateRepo) CreateOrUpdate(e *model.SMSTemplate) (*model.SMSTemplate, error) {
 	return nil, nil
 }
-func (m *mockSmsTemplateRepo) FindAll(p ...string) ([]model.SmsTemplate, error) { return nil, nil }
-func (m *mockSmsTemplateRepo) FindByUUID(id any, p ...string) (*model.SmsTemplate, error) {
+func (m *mockSMSTemplateRepo) FindAll(p ...string) ([]model.SMSTemplate, error) { return nil, nil }
+func (m *mockSMSTemplateRepo) FindByUUID(id any, p ...string) (*model.SMSTemplate, error) {
 	return nil, nil
 }
-func (m *mockSmsTemplateRepo) FindByUUIDs(ids []string, p ...string) ([]model.SmsTemplate, error) {
+func (m *mockSMSTemplateRepo) FindByUUIDs(ids []string, p ...string) ([]model.SMSTemplate, error) {
 	return nil, nil
 }
-func (m *mockSmsTemplateRepo) FindByID(id any, p ...string) (*model.SmsTemplate, error) {
+func (m *mockSMSTemplateRepo) FindByID(id any, p ...string) (*model.SMSTemplate, error) {
 	return nil, nil
 }
-func (m *mockSmsTemplateRepo) UpdateByID(id, data any) (*model.SmsTemplate, error) { return nil, nil }
-func (m *mockSmsTemplateRepo) DeleteByID(id any) error                             { return nil }
-func (m *mockSmsTemplateRepo) Paginate(_ map[string]any, _, _ int, _ ...string) (*repository.PaginationResult[model.SmsTemplate], error) {
+func (m *mockSMSTemplateRepo) UpdateByID(id, data any) (*model.SMSTemplate, error) { return nil, nil }
+func (m *mockSMSTemplateRepo) DeleteByID(id any) error                             { return nil }
+func (m *mockSMSTemplateRepo) Paginate(_ map[string]any, _, _ int, _ ...string) (*repository.PaginationResult[model.SMSTemplate], error) {
 	return nil, nil
 }
-func (m *mockSmsTemplateRepo) FindByName(_ string) (*model.SmsTemplate, error) { return nil, nil }
+func (m *mockSMSTemplateRepo) FindByName(_ string) (*model.SMSTemplate, error) { return nil, nil }
 
-func (m *mockSmsTemplateRepo) Create(e *model.SmsTemplate) (*model.SmsTemplate, error) {
+func (m *mockSMSTemplateRepo) Create(e *model.SMSTemplate) (*model.SMSTemplate, error) {
 	if m.createFn != nil {
 		return m.createFn(e)
 	}
 	return e, nil
 }
-func (m *mockSmsTemplateRepo) FindByUUIDAndTenantID(id string, tID int64) (*model.SmsTemplate, error) {
+func (m *mockSMSTemplateRepo) FindByUUIDAndTenantID(id string, tID int64) (*model.SMSTemplate, error) {
 	if m.findByUUIDAndTenantIDFn != nil {
 		return m.findByUUIDAndTenantIDFn(id, tID)
 	}
 	return nil, nil
 }
-func (m *mockSmsTemplateRepo) FindPaginated(f repository.SmsTemplateRepositoryGetFilter) (*repository.PaginationResult[model.SmsTemplate], error) {
+func (m *mockSMSTemplateRepo) FindPaginated(f repository.SMSTemplateRepositoryGetFilter) (*repository.PaginationResult[model.SMSTemplate], error) {
 	if m.findPaginatedFn != nil {
 		return m.findPaginatedFn(f)
 	}
-	return &repository.PaginationResult[model.SmsTemplate]{}, nil
+	return &repository.PaginationResult[model.SMSTemplate]{}, nil
 }
-func (m *mockSmsTemplateRepo) UpdateByUUID(id, data any) (*model.SmsTemplate, error) {
+func (m *mockSMSTemplateRepo) UpdateByUUID(id, data any) (*model.SMSTemplate, error) {
 	if m.updateByUUIDFn != nil {
 		return m.updateByUUIDFn(id, data)
 	}
 	return nil, nil
 }
-func (m *mockSmsTemplateRepo) DeleteByUUID(id any) error {
+func (m *mockSMSTemplateRepo) DeleteByUUID(id any) error {
 	if m.deleteByUUIDFn != nil {
 		return m.deleteByUUIDFn(id)
 	}
@@ -727,74 +727,74 @@ func (m *mockSmsTemplateRepo) DeleteByUUID(id any) error {
 }
 
 // ---------------------------------------------------------------------------
-// Mock: IpRestrictionRuleRepository
+// Mock: IPRestrictionRuleRepository
 // ---------------------------------------------------------------------------
 
-type mockIpRestrictionRuleRepo struct {
-	findByUUIDFn    func(id any, preloads ...string) (*model.IpRestrictionRule, error)
-	findPaginatedFn func(repository.IpRestrictionRuleRepositoryGetFilter) (*repository.PaginationResult[model.IpRestrictionRule], error)
-	createFn        func(e *model.IpRestrictionRule) (*model.IpRestrictionRule, error)
-	updateByUUIDFn  func(any, any) (*model.IpRestrictionRule, error)
+type mockIPRestrictionRuleRepo struct {
+	findByUUIDFn    func(id any, preloads ...string) (*model.IPRestrictionRule, error)
+	findPaginatedFn func(repository.IPRestrictionRuleRepositoryGetFilter) (*repository.PaginationResult[model.IPRestrictionRule], error)
+	createFn        func(e *model.IPRestrictionRule) (*model.IPRestrictionRule, error)
+	updateByUUIDFn  func(any, any) (*model.IPRestrictionRule, error)
 	deleteByUUIDFn  func(any) error
 }
 
-func (m *mockIpRestrictionRuleRepo) WithTx(_ *gorm.DB) repository.IpRestrictionRuleRepository {
+func (m *mockIPRestrictionRuleRepo) WithTx(_ *gorm.DB) repository.IPRestrictionRuleRepository {
 	return m
 }
-func (m *mockIpRestrictionRuleRepo) CreateOrUpdate(e *model.IpRestrictionRule) (*model.IpRestrictionRule, error) {
+func (m *mockIPRestrictionRuleRepo) CreateOrUpdate(e *model.IPRestrictionRule) (*model.IPRestrictionRule, error) {
 	return nil, nil
 }
-func (m *mockIpRestrictionRuleRepo) FindAll(_ ...string) ([]model.IpRestrictionRule, error) {
+func (m *mockIPRestrictionRuleRepo) FindAll(_ ...string) ([]model.IPRestrictionRule, error) {
 	return nil, nil
 }
-func (m *mockIpRestrictionRuleRepo) FindByUUIDs(_ []string, _ ...string) ([]model.IpRestrictionRule, error) {
+func (m *mockIPRestrictionRuleRepo) FindByUUIDs(_ []string, _ ...string) ([]model.IPRestrictionRule, error) {
 	return nil, nil
 }
-func (m *mockIpRestrictionRuleRepo) FindByID(_ any, _ ...string) (*model.IpRestrictionRule, error) {
+func (m *mockIPRestrictionRuleRepo) FindByID(_ any, _ ...string) (*model.IPRestrictionRule, error) {
 	return nil, nil
 }
-func (m *mockIpRestrictionRuleRepo) UpdateByID(_, _ any) (*model.IpRestrictionRule, error) {
+func (m *mockIPRestrictionRuleRepo) UpdateByID(_, _ any) (*model.IPRestrictionRule, error) {
 	return nil, nil
 }
-func (m *mockIpRestrictionRuleRepo) DeleteByID(_ any) error { return nil }
-func (m *mockIpRestrictionRuleRepo) Paginate(_ map[string]any, _, _ int, _ ...string) (*repository.PaginationResult[model.IpRestrictionRule], error) {
+func (m *mockIPRestrictionRuleRepo) DeleteByID(_ any) error { return nil }
+func (m *mockIPRestrictionRuleRepo) Paginate(_ map[string]any, _, _ int, _ ...string) (*repository.PaginationResult[model.IPRestrictionRule], error) {
 	return nil, nil
 }
-func (m *mockIpRestrictionRuleRepo) FindByTenantID(_ int64) ([]model.IpRestrictionRule, error) {
+func (m *mockIPRestrictionRuleRepo) FindByTenantID(_ int64) ([]model.IPRestrictionRule, error) {
 	return nil, nil
 }
-func (m *mockIpRestrictionRuleRepo) FindByTenantIDAndStatus(_ int64, _ string) ([]model.IpRestrictionRule, error) {
+func (m *mockIPRestrictionRuleRepo) FindByTenantIDAndStatus(_ int64, _ string) ([]model.IPRestrictionRule, error) {
 	return nil, nil
 }
-func (m *mockIpRestrictionRuleRepo) FindByTenantIDAndType(_ int64, _ string) ([]model.IpRestrictionRule, error) {
+func (m *mockIPRestrictionRuleRepo) FindByTenantIDAndType(_ int64, _ string) ([]model.IPRestrictionRule, error) {
 	return nil, nil
 }
 
-func (m *mockIpRestrictionRuleRepo) FindByUUID(id any, p ...string) (*model.IpRestrictionRule, error) {
+func (m *mockIPRestrictionRuleRepo) FindByUUID(id any, p ...string) (*model.IPRestrictionRule, error) {
 	if m.findByUUIDFn != nil {
 		return m.findByUUIDFn(id, p...)
 	}
 	return nil, nil
 }
-func (m *mockIpRestrictionRuleRepo) FindPaginated(f repository.IpRestrictionRuleRepositoryGetFilter) (*repository.PaginationResult[model.IpRestrictionRule], error) {
+func (m *mockIPRestrictionRuleRepo) FindPaginated(f repository.IPRestrictionRuleRepositoryGetFilter) (*repository.PaginationResult[model.IPRestrictionRule], error) {
 	if m.findPaginatedFn != nil {
 		return m.findPaginatedFn(f)
 	}
-	return &repository.PaginationResult[model.IpRestrictionRule]{}, nil
+	return &repository.PaginationResult[model.IPRestrictionRule]{}, nil
 }
-func (m *mockIpRestrictionRuleRepo) Create(e *model.IpRestrictionRule) (*model.IpRestrictionRule, error) {
+func (m *mockIPRestrictionRuleRepo) Create(e *model.IPRestrictionRule) (*model.IPRestrictionRule, error) {
 	if m.createFn != nil {
 		return m.createFn(e)
 	}
 	return e, nil
 }
-func (m *mockIpRestrictionRuleRepo) UpdateByUUID(id, data any) (*model.IpRestrictionRule, error) {
+func (m *mockIPRestrictionRuleRepo) UpdateByUUID(id, data any) (*model.IPRestrictionRule, error) {
 	if m.updateByUUIDFn != nil {
 		return m.updateByUUIDFn(id, data)
 	}
 	return nil, nil
 }
-func (m *mockIpRestrictionRuleRepo) DeleteByUUID(id any) error {
+func (m *mockIPRestrictionRuleRepo) DeleteByUUID(id any) error {
 	if m.deleteByUUIDFn != nil {
 		return m.deleteByUUIDFn(id)
 	}
@@ -1365,9 +1365,9 @@ func (m *mockClientURIRepo) DeleteByUUIDAndTenantID(id string, tID int64) error 
 // ---------------------------------------------------------------------------
 
 type mockClientPermissionRepo struct {
-	findByClientApiAndPermissionFn   func(int64, int64) (*model.ClientPermission, error)
-	removeByClientApiAndPermissionFn func(int64, int64) error
-	findByClientApiIDFn              func(int64) ([]model.ClientPermission, error)
+	findByClientAPIAndPermissionFn   func(int64, int64) (*model.ClientPermission, error)
+	removeByClientAPIAndPermissionFn func(int64, int64) error
+	findByClientAPIIDFn              func(int64) ([]model.ClientPermission, error)
 	createFn                         func(*model.ClientPermission) (*model.ClientPermission, error)
 }
 
@@ -1406,88 +1406,88 @@ func (m *mockClientPermissionRepo) DeleteByID(_ any) error   { return nil }
 func (m *mockClientPermissionRepo) Paginate(_ map[string]any, _, _ int, _ ...string) (*repository.PaginationResult[model.ClientPermission], error) {
 	return nil, nil
 }
-func (m *mockClientPermissionRepo) FindByClientApiAndPermission(caID, pID int64) (*model.ClientPermission, error) {
-	if m.findByClientApiAndPermissionFn != nil {
-		return m.findByClientApiAndPermissionFn(caID, pID)
+func (m *mockClientPermissionRepo) FindByClientAPIAndPermission(caID, pID int64) (*model.ClientPermission, error) {
+	if m.findByClientAPIAndPermissionFn != nil {
+		return m.findByClientAPIAndPermissionFn(caID, pID)
 	}
 	return nil, nil
 }
-func (m *mockClientPermissionRepo) RemoveByClientApiAndPermission(caID, pID int64) error {
-	if m.removeByClientApiAndPermissionFn != nil {
-		return m.removeByClientApiAndPermissionFn(caID, pID)
+func (m *mockClientPermissionRepo) RemoveByClientAPIAndPermission(caID, pID int64) error {
+	if m.removeByClientAPIAndPermissionFn != nil {
+		return m.removeByClientAPIAndPermissionFn(caID, pID)
 	}
 	return nil
 }
-func (m *mockClientPermissionRepo) FindByClientApiID(caID int64) ([]model.ClientPermission, error) {
-	if m.findByClientApiIDFn != nil {
-		return m.findByClientApiIDFn(caID)
+func (m *mockClientPermissionRepo) FindByClientAPIID(caID int64) ([]model.ClientPermission, error) {
+	if m.findByClientAPIIDFn != nil {
+		return m.findByClientAPIIDFn(caID)
 	}
 	return nil, nil
 }
 
 // ---------------------------------------------------------------------------
-// Mock: ClientApiRepository
+// Mock: ClientAPIRepository
 // ---------------------------------------------------------------------------
 
-type mockClientApiRepo struct {
-	findByClientAndApiFn           func(int64, int64) (*model.ClientApi, error)
-	findByClientUUIDFn             func(uuid.UUID) ([]model.ClientApi, error)
-	findByClientUUIDAndApiUUIDFn   func(uuid.UUID, uuid.UUID) (*model.ClientApi, error)
-	removeByClientAndApiFn         func(int64, int64) error
-	removeByClientUUIDAndApiUUIDFn func(uuid.UUID, uuid.UUID) error
-	createFn                       func(*model.ClientApi) (*model.ClientApi, error)
+type mockClientAPIRepo struct {
+	findByClientAndAPIFn           func(int64, int64) (*model.ClientAPI, error)
+	findByClientUUIDFn             func(uuid.UUID) ([]model.ClientAPI, error)
+	findByClientUUIDAndAPIUUIDFn   func(uuid.UUID, uuid.UUID) (*model.ClientAPI, error)
+	removeByClientAndAPIFn         func(int64, int64) error
+	removeByClientUUIDAndAPIUUIDFn func(uuid.UUID, uuid.UUID) error
+	createFn                       func(*model.ClientAPI) (*model.ClientAPI, error)
 }
 
-func (m *mockClientApiRepo) WithTx(_ *gorm.DB) repository.ClientApiRepository { return m }
-func (m *mockClientApiRepo) Create(e *model.ClientApi) (*model.ClientApi, error) {
+func (m *mockClientAPIRepo) WithTx(_ *gorm.DB) repository.ClientAPIRepository { return m }
+func (m *mockClientAPIRepo) Create(e *model.ClientAPI) (*model.ClientAPI, error) {
 	if m.createFn != nil {
 		return m.createFn(e)
 	}
 	return e, nil
 }
-func (m *mockClientApiRepo) CreateOrUpdate(e *model.ClientApi) (*model.ClientApi, error) {
+func (m *mockClientAPIRepo) CreateOrUpdate(e *model.ClientAPI) (*model.ClientAPI, error) {
 	return e, nil
 }
-func (m *mockClientApiRepo) FindAll(_ ...string) ([]model.ClientApi, error)          { return nil, nil }
-func (m *mockClientApiRepo) FindByUUID(_ any, _ ...string) (*model.ClientApi, error) { return nil, nil }
-func (m *mockClientApiRepo) FindByUUIDs(_ []string, _ ...string) ([]model.ClientApi, error) {
+func (m *mockClientAPIRepo) FindAll(_ ...string) ([]model.ClientAPI, error)          { return nil, nil }
+func (m *mockClientAPIRepo) FindByUUID(_ any, _ ...string) (*model.ClientAPI, error) { return nil, nil }
+func (m *mockClientAPIRepo) FindByUUIDs(_ []string, _ ...string) ([]model.ClientAPI, error) {
 	return nil, nil
 }
-func (m *mockClientApiRepo) FindByID(_ any, _ ...string) (*model.ClientApi, error) { return nil, nil }
-func (m *mockClientApiRepo) UpdateByUUID(_, _ any) (*model.ClientApi, error)       { return nil, nil }
-func (m *mockClientApiRepo) UpdateByID(_, _ any) (*model.ClientApi, error)         { return nil, nil }
-func (m *mockClientApiRepo) DeleteByUUID(_ any) error                              { return nil }
-func (m *mockClientApiRepo) DeleteByID(_ any) error                                { return nil }
-func (m *mockClientApiRepo) Paginate(_ map[string]any, _, _ int, _ ...string) (*repository.PaginationResult[model.ClientApi], error) {
+func (m *mockClientAPIRepo) FindByID(_ any, _ ...string) (*model.ClientAPI, error) { return nil, nil }
+func (m *mockClientAPIRepo) UpdateByUUID(_, _ any) (*model.ClientAPI, error)       { return nil, nil }
+func (m *mockClientAPIRepo) UpdateByID(_, _ any) (*model.ClientAPI, error)         { return nil, nil }
+func (m *mockClientAPIRepo) DeleteByUUID(_ any) error                              { return nil }
+func (m *mockClientAPIRepo) DeleteByID(_ any) error                                { return nil }
+func (m *mockClientAPIRepo) Paginate(_ map[string]any, _, _ int, _ ...string) (*repository.PaginationResult[model.ClientAPI], error) {
 	return nil, nil
 }
-func (m *mockClientApiRepo) FindByClientAndApi(cID, aID int64) (*model.ClientApi, error) {
-	if m.findByClientAndApiFn != nil {
-		return m.findByClientAndApiFn(cID, aID)
+func (m *mockClientAPIRepo) FindByClientAndAPI(cID, aID int64) (*model.ClientAPI, error) {
+	if m.findByClientAndAPIFn != nil {
+		return m.findByClientAndAPIFn(cID, aID)
 	}
 	return nil, nil
 }
-func (m *mockClientApiRepo) FindByClientUUID(cUUID uuid.UUID) ([]model.ClientApi, error) {
+func (m *mockClientAPIRepo) FindByClientUUID(cUUID uuid.UUID) ([]model.ClientAPI, error) {
 	if m.findByClientUUIDFn != nil {
 		return m.findByClientUUIDFn(cUUID)
 	}
 	return nil, nil
 }
-func (m *mockClientApiRepo) FindByClientUUIDAndApiUUID(cUUID, aUUID uuid.UUID) (*model.ClientApi, error) {
-	if m.findByClientUUIDAndApiUUIDFn != nil {
-		return m.findByClientUUIDAndApiUUIDFn(cUUID, aUUID)
+func (m *mockClientAPIRepo) FindByClientUUIDAndAPIUUID(cUUID, aUUID uuid.UUID) (*model.ClientAPI, error) {
+	if m.findByClientUUIDAndAPIUUIDFn != nil {
+		return m.findByClientUUIDAndAPIUUIDFn(cUUID, aUUID)
 	}
 	return nil, nil
 }
-func (m *mockClientApiRepo) RemoveByClientAndApi(cID, aID int64) error {
-	if m.removeByClientAndApiFn != nil {
-		return m.removeByClientAndApiFn(cID, aID)
+func (m *mockClientAPIRepo) RemoveByClientAndAPI(cID, aID int64) error {
+	if m.removeByClientAndAPIFn != nil {
+		return m.removeByClientAndAPIFn(cID, aID)
 	}
 	return nil
 }
-func (m *mockClientApiRepo) RemoveByClientUUIDAndApiUUID(cUUID, aUUID uuid.UUID) error {
-	if m.removeByClientUUIDAndApiUUIDFn != nil {
-		return m.removeByClientUUIDAndApiUUIDFn(cUUID, aUUID)
+func (m *mockClientAPIRepo) RemoveByClientUUIDAndAPIUUID(cUUID, aUUID uuid.UUID) error {
+	if m.removeByClientUUIDAndAPIUUIDFn != nil {
+		return m.removeByClientUUIDAndAPIUUIDFn(cUUID, aUUID)
 	}
 	return nil
 }
@@ -1576,75 +1576,75 @@ func (m *mockAPIKeyRepo) FindPaginated(f repository.APIKeyRepositoryGetFilter) (
 }
 
 // ---------------------------------------------------------------------------
-// Mock: APIKeyApiRepository
+// Mock: APIKeyAPIRepository
 // ---------------------------------------------------------------------------
 
-type mockAPIKeyApiRepo struct {
-	findByAPIKeyAndApiFn           func(int64, int64) (*model.APIKeyApi, error)
-	findByAPIKeyUUIDFn             func(uuid.UUID) ([]model.APIKeyApi, error)
-	findByAPIKeyUUIDPaginatedFn    func(uuid.UUID, int, int, string, string) (*repository.PaginationResult[model.APIKeyApi], error)
-	findByAPIKeyUUIDAndApiUUIDFn   func(uuid.UUID, uuid.UUID) (*model.APIKeyApi, error)
-	removeByAPIKeyAndApiFn         func(int64, int64) error
-	removeByAPIKeyUUIDAndApiUUIDFn func(uuid.UUID, uuid.UUID) error
-	createFn                       func(*model.APIKeyApi) (*model.APIKeyApi, error)
+type mockAPIKeyAPIRepo struct {
+	findByAPIKeyAndAPIFn           func(int64, int64) (*model.APIKeyAPI, error)
+	findByAPIKeyUUIDFn             func(uuid.UUID) ([]model.APIKeyAPI, error)
+	findByAPIKeyUUIDPaginatedFn    func(uuid.UUID, int, int, string, string) (*repository.PaginationResult[model.APIKeyAPI], error)
+	findByAPIKeyUUIDAndAPIUUIDFn   func(uuid.UUID, uuid.UUID) (*model.APIKeyAPI, error)
+	removeByAPIKeyAndAPIFn         func(int64, int64) error
+	removeByAPIKeyUUIDAndAPIUUIDFn func(uuid.UUID, uuid.UUID) error
+	createFn                       func(*model.APIKeyAPI) (*model.APIKeyAPI, error)
 }
 
-func (m *mockAPIKeyApiRepo) WithTx(_ *gorm.DB) repository.APIKeyApiRepository { return m }
-func (m *mockAPIKeyApiRepo) Create(e *model.APIKeyApi) (*model.APIKeyApi, error) {
+func (m *mockAPIKeyAPIRepo) WithTx(_ *gorm.DB) repository.APIKeyAPIRepository { return m }
+func (m *mockAPIKeyAPIRepo) Create(e *model.APIKeyAPI) (*model.APIKeyAPI, error) {
 	if m.createFn != nil {
 		return m.createFn(e)
 	}
 	return e, nil
 }
-func (m *mockAPIKeyApiRepo) CreateOrUpdate(e *model.APIKeyApi) (*model.APIKeyApi, error) {
+func (m *mockAPIKeyAPIRepo) CreateOrUpdate(e *model.APIKeyAPI) (*model.APIKeyAPI, error) {
 	return e, nil
 }
-func (m *mockAPIKeyApiRepo) FindAll(_ ...string) ([]model.APIKeyApi, error)          { return nil, nil }
-func (m *mockAPIKeyApiRepo) FindByUUID(_ any, _ ...string) (*model.APIKeyApi, error) { return nil, nil }
-func (m *mockAPIKeyApiRepo) FindByUUIDs(_ []string, _ ...string) ([]model.APIKeyApi, error) {
+func (m *mockAPIKeyAPIRepo) FindAll(_ ...string) ([]model.APIKeyAPI, error)          { return nil, nil }
+func (m *mockAPIKeyAPIRepo) FindByUUID(_ any, _ ...string) (*model.APIKeyAPI, error) { return nil, nil }
+func (m *mockAPIKeyAPIRepo) FindByUUIDs(_ []string, _ ...string) ([]model.APIKeyAPI, error) {
 	return nil, nil
 }
-func (m *mockAPIKeyApiRepo) FindByID(_ any, _ ...string) (*model.APIKeyApi, error) { return nil, nil }
-func (m *mockAPIKeyApiRepo) UpdateByUUID(_, _ any) (*model.APIKeyApi, error)       { return nil, nil }
-func (m *mockAPIKeyApiRepo) UpdateByID(_, _ any) (*model.APIKeyApi, error)         { return nil, nil }
-func (m *mockAPIKeyApiRepo) DeleteByUUID(_ any) error                              { return nil }
-func (m *mockAPIKeyApiRepo) DeleteByID(_ any) error                                { return nil }
-func (m *mockAPIKeyApiRepo) Paginate(_ map[string]any, _, _ int, _ ...string) (*repository.PaginationResult[model.APIKeyApi], error) {
+func (m *mockAPIKeyAPIRepo) FindByID(_ any, _ ...string) (*model.APIKeyAPI, error) { return nil, nil }
+func (m *mockAPIKeyAPIRepo) UpdateByUUID(_, _ any) (*model.APIKeyAPI, error)       { return nil, nil }
+func (m *mockAPIKeyAPIRepo) UpdateByID(_, _ any) (*model.APIKeyAPI, error)         { return nil, nil }
+func (m *mockAPIKeyAPIRepo) DeleteByUUID(_ any) error                              { return nil }
+func (m *mockAPIKeyAPIRepo) DeleteByID(_ any) error                                { return nil }
+func (m *mockAPIKeyAPIRepo) Paginate(_ map[string]any, _, _ int, _ ...string) (*repository.PaginationResult[model.APIKeyAPI], error) {
 	return nil, nil
 }
-func (m *mockAPIKeyApiRepo) FindByAPIKeyAndApi(akID, aID int64) (*model.APIKeyApi, error) {
-	if m.findByAPIKeyAndApiFn != nil {
-		return m.findByAPIKeyAndApiFn(akID, aID)
+func (m *mockAPIKeyAPIRepo) FindByAPIKeyAndAPI(akID, aID int64) (*model.APIKeyAPI, error) {
+	if m.findByAPIKeyAndAPIFn != nil {
+		return m.findByAPIKeyAndAPIFn(akID, aID)
 	}
 	return nil, nil
 }
-func (m *mockAPIKeyApiRepo) FindByAPIKeyUUID(akUUID uuid.UUID) ([]model.APIKeyApi, error) {
+func (m *mockAPIKeyAPIRepo) FindByAPIKeyUUID(akUUID uuid.UUID) ([]model.APIKeyAPI, error) {
 	if m.findByAPIKeyUUIDFn != nil {
 		return m.findByAPIKeyUUIDFn(akUUID)
 	}
 	return nil, nil
 }
-func (m *mockAPIKeyApiRepo) FindByAPIKeyUUIDPaginated(akUUID uuid.UUID, page, limit int, sortBy, sortOrder string) (*repository.PaginationResult[model.APIKeyApi], error) {
+func (m *mockAPIKeyAPIRepo) FindByAPIKeyUUIDPaginated(akUUID uuid.UUID, page, limit int, sortBy, sortOrder string) (*repository.PaginationResult[model.APIKeyAPI], error) {
 	if m.findByAPIKeyUUIDPaginatedFn != nil {
 		return m.findByAPIKeyUUIDPaginatedFn(akUUID, page, limit, sortBy, sortOrder)
 	}
-	return &repository.PaginationResult[model.APIKeyApi]{}, nil
+	return &repository.PaginationResult[model.APIKeyAPI]{}, nil
 }
-func (m *mockAPIKeyApiRepo) FindByAPIKeyUUIDAndApiUUID(akUUID, aUUID uuid.UUID) (*model.APIKeyApi, error) {
-	if m.findByAPIKeyUUIDAndApiUUIDFn != nil {
-		return m.findByAPIKeyUUIDAndApiUUIDFn(akUUID, aUUID)
+func (m *mockAPIKeyAPIRepo) FindByAPIKeyUUIDAndAPIUUID(akUUID, aUUID uuid.UUID) (*model.APIKeyAPI, error) {
+	if m.findByAPIKeyUUIDAndAPIUUIDFn != nil {
+		return m.findByAPIKeyUUIDAndAPIUUIDFn(akUUID, aUUID)
 	}
 	return nil, nil
 }
-func (m *mockAPIKeyApiRepo) RemoveByAPIKeyAndApi(akID, aID int64) error {
-	if m.removeByAPIKeyAndApiFn != nil {
-		return m.removeByAPIKeyAndApiFn(akID, aID)
+func (m *mockAPIKeyAPIRepo) RemoveByAPIKeyAndAPI(akID, aID int64) error {
+	if m.removeByAPIKeyAndAPIFn != nil {
+		return m.removeByAPIKeyAndAPIFn(akID, aID)
 	}
 	return nil
 }
-func (m *mockAPIKeyApiRepo) RemoveByAPIKeyUUIDAndApiUUID(akUUID, aUUID uuid.UUID) error {
-	if m.removeByAPIKeyUUIDAndApiUUIDFn != nil {
-		return m.removeByAPIKeyUUIDAndApiUUIDFn(akUUID, aUUID)
+func (m *mockAPIKeyAPIRepo) RemoveByAPIKeyUUIDAndAPIUUID(akUUID, aUUID uuid.UUID) error {
+	if m.removeByAPIKeyUUIDAndAPIUUIDFn != nil {
+		return m.removeByAPIKeyUUIDAndAPIUUIDFn(akUUID, aUUID)
 	}
 	return nil
 }
@@ -1655,9 +1655,9 @@ func (m *mockAPIKeyApiRepo) RemoveByAPIKeyUUIDAndApiUUID(akUUID, aUUID uuid.UUID
 
 type mockAPIKeyPermissionRepo struct {
 	createFn                         func(*model.APIKeyPermission) (*model.APIKeyPermission, error)
-	findByAPIKeyApiAndPermissionFn   func(int64, int64) (*model.APIKeyPermission, error)
-	removeByAPIKeyApiAndPermissionFn func(int64, int64) error
-	findByAPIKeyApiIDFn              func(int64) ([]model.APIKeyPermission, error)
+	findByAPIKeyAPIAndPermissionFn   func(int64, int64) (*model.APIKeyPermission, error)
+	removeByAPIKeyAPIAndPermissionFn func(int64, int64) error
+	findByAPIKeyAPIIDFn              func(int64) ([]model.APIKeyPermission, error)
 }
 
 func (m *mockAPIKeyPermissionRepo) WithTx(_ *gorm.DB) repository.APIKeyPermissionRepository {
@@ -1695,21 +1695,21 @@ func (m *mockAPIKeyPermissionRepo) DeleteByID(_ any) error   { return nil }
 func (m *mockAPIKeyPermissionRepo) Paginate(_ map[string]any, _, _ int, _ ...string) (*repository.PaginationResult[model.APIKeyPermission], error) {
 	return nil, nil
 }
-func (m *mockAPIKeyPermissionRepo) FindByAPIKeyApiAndPermission(akaID, pID int64) (*model.APIKeyPermission, error) {
-	if m.findByAPIKeyApiAndPermissionFn != nil {
-		return m.findByAPIKeyApiAndPermissionFn(akaID, pID)
+func (m *mockAPIKeyPermissionRepo) FindByAPIKeyAPIAndPermission(akaID, pID int64) (*model.APIKeyPermission, error) {
+	if m.findByAPIKeyAPIAndPermissionFn != nil {
+		return m.findByAPIKeyAPIAndPermissionFn(akaID, pID)
 	}
 	return nil, nil
 }
-func (m *mockAPIKeyPermissionRepo) RemoveByAPIKeyApiAndPermission(akaID, pID int64) error {
-	if m.removeByAPIKeyApiAndPermissionFn != nil {
-		return m.removeByAPIKeyApiAndPermissionFn(akaID, pID)
+func (m *mockAPIKeyPermissionRepo) RemoveByAPIKeyAPIAndPermission(akaID, pID int64) error {
+	if m.removeByAPIKeyAPIAndPermissionFn != nil {
+		return m.removeByAPIKeyAPIAndPermissionFn(akaID, pID)
 	}
 	return nil
 }
-func (m *mockAPIKeyPermissionRepo) FindByAPIKeyApiID(akaID int64) ([]model.APIKeyPermission, error) {
-	if m.findByAPIKeyApiIDFn != nil {
-		return m.findByAPIKeyApiIDFn(akaID)
+func (m *mockAPIKeyPermissionRepo) FindByAPIKeyAPIID(akaID int64) ([]model.APIKeyPermission, error) {
+	if m.findByAPIKeyAPIIDFn != nil {
+		return m.findByAPIKeyAPIIDFn(akaID)
 	}
 	return nil, nil
 }
