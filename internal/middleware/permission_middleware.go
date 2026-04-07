@@ -4,7 +4,7 @@ import (
 	"net/http"
 
 	"github.com/maintainerd/auth/internal/model"
-		resp "github.com/maintainerd/auth/internal/response"
+		resp "github.com/maintainerd/auth/internal/rest/response"
 )
 
 // PermissionMiddleware ensures the user has at least one of the required permissions

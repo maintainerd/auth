@@ -11,7 +11,7 @@ import (
 	"github.com/maintainerd/auth/internal/model"
 	"github.com/maintainerd/auth/internal/repository"
 	"github.com/maintainerd/auth/internal/ptr"
-	"github.com/maintainerd/auth/internal/generator"
+	"github.com/maintainerd/auth/internal/crypto"
 	"github.com/maintainerd/auth/internal/signedurl"
 	"github.com/maintainerd/auth/internal/email"
 	"gorm.io/gorm"
@@ -90,7 +90,7 @@ func (s *inviteService) SendInvite(
 			}
 		}
 
-		inviteToken := generator.GenerateIdentifier(32)
+		inviteToken := crypto.GenerateIdentifier(32)
 		expiresAt := ptr.TimePtr(time.Now().Add(72 * time.Hour))
 
 		invite = &model.Invite{

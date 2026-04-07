@@ -11,7 +11,7 @@ import (
 	"github.com/maintainerd/auth/internal/repository"
 	"github.com/maintainerd/auth/internal/runner"
 	"github.com/maintainerd/auth/internal/ptr"
-	"github.com/maintainerd/auth/internal/generator"
+	"github.com/maintainerd/auth/internal/crypto"
 	"github.com/maintainerd/auth/internal/security"
 	"gorm.io/datatypes"
 	"gorm.io/gorm"
@@ -122,7 +122,7 @@ func (s *setupService) CreateTenant(req dto.CreateTenantRequestDTO) (*dto.Create
 		txTenantRepo := s.tenantRepo.WithTx(tx)
 
 		// Generate identifier
-		identifier := generator.GenerateIdentifier(24)
+		identifier := crypto.GenerateIdentifier(24)
 
 		// Handle description (optional field)
 		description := ""

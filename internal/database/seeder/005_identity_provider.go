@@ -5,7 +5,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/model"
-	"github.com/maintainerd/auth/internal/generator"
+	"github.com/maintainerd/auth/internal/crypto"
 	"gorm.io/datatypes"
 	"gorm.io/gorm"
 )
@@ -35,7 +35,7 @@ func SeedIdentityProviders(db *gorm.DB, tenantID int64) (*model.IdentityProvider
 		DisplayName:          "Built-in Authentication System",
 		Provider:             "internal",
 		ProviderType:         "identity",
-		Identifier:           generator.GenerateIdentifier(15),
+		Identifier:           crypto.GenerateIdentifier(15),
 		Config: datatypes.JSON([]byte(`{
 			"allow_registration": true,
 			"allow_login": true,

@@ -8,7 +8,7 @@ import (
 
 	"github.com/maintainerd/auth/internal/model"
 	"github.com/maintainerd/auth/internal/repository"
-		resp "github.com/maintainerd/auth/internal/response"
+		resp "github.com/maintainerd/auth/internal/rest/response"
 	"github.com/redis/go-redis/v9"
 )
 

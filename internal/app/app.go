@@ -1,9 +1,8 @@
 package app
 
 import (
-	"github.com/maintainerd/auth/internal/handler/grpchandler"
-	"github.com/maintainerd/auth/internal/handler/resthandler"
 	"github.com/maintainerd/auth/internal/repository"
+	"github.com/maintainerd/auth/internal/service"
 	"github.com/redis/go-redis/v9"
 	"gorm.io/gorm"
 )
@@ -11,76 +10,74 @@ import (
 type App struct {
 	DB          *gorm.DB
 	RedisClient *redis.Client
-	// REST handlers
-	ServiceRestHandler           *resthandler.ServiceHandler
-	APIRestHandler               *resthandler.APIHandler
-	PermissionRestHandler        *resthandler.PermissionHandler
-	PolicyRestHandler            *resthandler.PolicyHandler
-	TenantRestHandler            *resthandler.TenantHandler
-	IdentityProviderRestHandler  *resthandler.IdentityProviderHandler
-	ClientRestHandler            *resthandler.ClientHandler
-	RoleRestHandler              *resthandler.RoleHandler
-	UserRestHandler              *resthandler.UserHandler
-	RegisterRestHandler          *resthandler.RegisterHandler
-	LoginRestHandler             *resthandler.LoginHandler
-	ProfileRestHandler           *resthandler.ProfileHandler
-	UserSettingRestHandler       *resthandler.UserSettingHandler
-	InviteRestHandler            *resthandler.InviteHandler
-	ForgotPasswordRestHandler    *resthandler.ForgotPasswordHandler
-	ResetPasswordRestHandler     *resthandler.ResetPasswordHandler
-	SetupRestHandler             *resthandler.SetupHandler
-	APIKeyRestHandler            *resthandler.APIKeyHandler
-	SignupFlowRestHandler        *resthandler.SignupFlowHandler
-	SecuritySettingRestHandler   *resthandler.SecuritySettingHandler
-	IPRestrictionRuleRestHandler *resthandler.IPRestrictionRuleHandler
-	EmailTemplateRestHandler     *resthandler.EmailTemplateHandler
-	SMSTemplateRestHandler       *resthandler.SMSTemplateHandler
-	LoginTemplateRestHandler     *resthandler.LoginTemplateHandler
-	// gRPC handlers
-	SeederHandler *grpchandler.SeederHandler
+	// Services
+	ServiceService           service.ServiceService
+	APIService               service.APIService
+	PermissionService        service.PermissionService
+	PolicyService            service.PolicyService
+	TenantService            service.TenantService
+	TenantMemberService      service.TenantMemberService
+	IdentityProviderService  service.IdentityProviderService
+	ClientService            service.ClientService
+	RoleService              service.RoleService
+	UserService              service.UserService
+	RegisterService          service.RegisterService
+	LoginService             service.LoginService
+	ProfileService           service.ProfileService
+	UserSettingService       service.UserSettingService
+	InviteService            service.InviteService
+	ForgotPasswordService    service.ForgotPasswordService
+	ResetPasswordService     service.ResetPasswordService
+	SetupService             service.SetupService
+	SignupFlowService        service.SignupFlowService
+	APIKeyService            service.APIKeyService
+	SecuritySettingService   service.SecuritySettingService
+	IPRestrictionRuleService service.IPRestrictionRuleService
+	EmailTemplateService     service.EmailTemplateService
+	SMSTemplateService       service.SMSTemplateService
+	LoginTemplateService     service.LoginTemplateService
 	// Repositories exposed for middleware
 	UserRepository repository.UserRepository
 }
 
-// NewApp wires the full dependency graph in three focused steps:
-//  1. initRepos  — every repository, bound to db
+// NewApp wires the full dependency graph in two focused steps:
+//  1. initRepos    — every repository, bound to db
 //  2. initServices — every service, consuming repos
-//  3. initHandlers — every handler, consuming services
+//
+// Handler creation is delegated to transport packages (rest, grpcserver).
 func NewApp(db *gorm.DB, redisClient *redis.Client) *App {
 	r := initRepos(db)
 	s := initServices(db, r)
-	h := initHandlers(s)
 
 	return &App{
 		DB:          db,
 		RedisClient: redisClient,
-		// REST handlers
-		ServiceRestHandler:           h.serviceREST,
-		APIRestHandler:               h.apiREST,
-		PermissionRestHandler:        h.permissionREST,
-		PolicyRestHandler:            h.policyREST,
-		TenantRestHandler:            h.tenantREST,
-		IdentityProviderRestHandler:  h.idpREST,
-		ClientRestHandler:            h.clientREST,
-		RoleRestHandler:              h.roleREST,
-		UserRestHandler:              h.userREST,
-		RegisterRestHandler:          h.registerREST,
-		LoginRestHandler:             h.loginREST,
-		ProfileRestHandler:           h.profileREST,
-		UserSettingRestHandler:       h.userSettingREST,
-		InviteRestHandler:            h.inviteREST,
-		ForgotPasswordRestHandler:    h.forgotPasswordREST,
-		ResetPasswordRestHandler:     h.resetPasswordREST,
-		SetupRestHandler:             h.setupREST,
-		APIKeyRestHandler:            h.apiKeyREST,
-		SignupFlowRestHandler:        h.signupFlowREST,
-		SecuritySettingRestHandler:   h.securitySettingREST,
-		IPRestrictionRuleRestHandler: h.ipRestrictionRuleREST,
-		EmailTemplateRestHandler:     h.emailTemplateREST,
-		SMSTemplateRestHandler:       h.smsTemplateREST,
-		LoginTemplateRestHandler:     h.loginTemplateREST,
-		// gRPC handlers
-		SeederHandler: h.seederGRPC,
+		// Services
+		ServiceService:           s.serviceService,
+		APIService:               s.apiService,
+		PermissionService:        s.permissionService,
+		PolicyService:            s.policyService,
+		TenantService:            s.tenantService,
+		TenantMemberService:      s.tenantMemberService,
+		IdentityProviderService:  s.idpService,
+		ClientService:            s.clientService,
+		RoleService:              s.roleService,
+		UserService:              s.userService,
+		RegisterService:          s.registerService,
+		LoginService:             s.loginService,
+		ProfileService:           s.profileService,
+		UserSettingService:       s.userSettingService,
+		InviteService:            s.inviteService,
+		ForgotPasswordService:    s.forgotPasswordService,
+		ResetPasswordService:     s.resetPasswordService,
+		SetupService:             s.setupService,
+		SignupFlowService:        s.signupFlowService,
+		APIKeyService:            s.apiKeyService,
+		SecuritySettingService:   s.securitySettingService,
+		IPRestrictionRuleService: s.ipRestrictionRuleService,
+		EmailTemplateService:     s.emailTemplateService,
+		SMSTemplateService:       s.smsTemplateService,
+		LoginTemplateService:     s.loginTemplateService,
 		// Repositories exposed for middleware
 		UserRepository: r.userRepo,
 	}

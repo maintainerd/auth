@@ -10,7 +10,7 @@ import (
 	"github.com/maintainerd/auth/internal/repository"
 	"github.com/maintainerd/auth/internal/ptr"
 	"github.com/maintainerd/auth/internal/jwt"
-	"github.com/maintainerd/auth/internal/generator"
+	"github.com/maintainerd/auth/internal/crypto"
 	"github.com/maintainerd/auth/internal/security"
 	"gorm.io/datatypes"
 	"gorm.io/gorm"
@@ -239,7 +239,7 @@ func (s *registerService) RegisterPublic(
 		}
 
 		// Generate OTP
-		otp, txErr := generator.GenerateOTP(6)
+		otp, txErr := crypto.GenerateOTP(6)
 		if txErr != nil {
 			return txErr
 		}
@@ -403,7 +403,7 @@ func (s *registerService) Register(
 		}
 
 		// Generate OTP
-		otp, txErr := generator.GenerateOTP(6)
+		otp, txErr := crypto.GenerateOTP(6)
 		if txErr != nil {
 			return txErr
 		}

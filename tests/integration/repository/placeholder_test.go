@@ -18,10 +18,10 @@
 //
 // Each file in this package mirrors a file in internal/repository/:
 //
-//	user_repository_test.go       → internal/repository/user_repository.go
-//	role_repository_test.go       → internal/repository/role_repository.go
-//	client_repository_test.go     → internal/repository/client_repository.go
-//	base_repository_test.go       → internal/repository/base_repository.go
+//	user_test.go       → internal/repository/user.go
+//	role_test.go       → internal/repository/role.go
+//	client_test.go     → internal/repository/client.go
+//	base_test.go       → internal/repository/base.go
 //	...
 package repository_test
 
@@ -33,4 +33,3 @@ import "testing"
 func TestPlaceholder(t *testing.T) {
 	t.Skip("placeholder — add real integration tests in this package")
 }
-
