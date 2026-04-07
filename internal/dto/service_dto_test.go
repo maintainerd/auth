@@ -9,8 +9,8 @@ import (
 	"github.com/maintainerd/auth/internal/model"
 )
 
-func validServiceCreate() ServiceCreateOrUpdateRequestDto {
-	return ServiceCreateOrUpdateRequestDto{
+func validServiceCreate() ServiceCreateOrUpdateRequestDTO {
+	return ServiceCreateOrUpdateRequestDTO{
 		Name:        "auth-svc",
 		DisplayName: "Auth Service",
 		Description: "Handles authentication",
@@ -81,21 +81,21 @@ func TestServiceCreateOrUpdateRequestDto_Validate(t *testing.T) {
 
 func TestServiceFilterDto_Validate(t *testing.T) {
 	t.Run("valid with pagination", func(t *testing.T) {
-		f := ServiceFilterDto{PaginationRequestDto: validPagination()}
+		f := ServiceFilterDTO{PaginationRequestDTO: validPagination()}
 		assert.NoError(t, f.Validate())
 	})
 
 	t.Run("invalid status in list", func(t *testing.T) {
-		f := ServiceFilterDto{
-			PaginationRequestDto: validPagination(),
+		f := ServiceFilterDTO{
+			PaginationRequestDTO: validPagination(),
 			Status:               []string{"bad"},
 		}
 		require.Error(t, f.Validate())
 	})
 
 	t.Run("valid status list", func(t *testing.T) {
-		f := ServiceFilterDto{
-			PaginationRequestDto: validPagination(),
+		f := ServiceFilterDTO{
+			PaginationRequestDTO: validPagination(),
 			Status:               []string{model.StatusActive, model.StatusMaintenance},
 		}
 		assert.NoError(t, f.Validate())
@@ -103,9 +103,9 @@ func TestServiceFilterDto_Validate(t *testing.T) {
 }
 
 func TestServiceStatusUpdateRequestDto_Validate(t *testing.T) {
-	assert.NoError(t, ServiceStatusUpdateRequestDto{Status: model.StatusActive}.Validate())
-	assert.NoError(t, ServiceStatusUpdateRequestDto{Status: model.StatusDeprecated}.Validate())
-	require.Error(t, ServiceStatusUpdateRequestDto{Status: ""}.Validate())
-	require.Error(t, ServiceStatusUpdateRequestDto{Status: "bad"}.Validate())
+	assert.NoError(t, ServiceStatusUpdateRequestDTO{Status: model.StatusActive}.Validate())
+	assert.NoError(t, ServiceStatusUpdateRequestDTO{Status: model.StatusDeprecated}.Validate())
+	require.Error(t, ServiceStatusUpdateRequestDTO{Status: ""}.Validate())
+	require.Error(t, ServiceStatusUpdateRequestDTO{Status: "bad"}.Validate())
 }
 

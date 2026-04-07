@@ -10,13 +10,13 @@ const (
 	SortOrderDesc = "desc"
 )
 
-// SuccessResponseDto is a generic success message response used across all handlers.
-type SuccessResponseDto struct {
+// SuccessResponseDTO is a generic success message response used across all handlers.
+type SuccessResponseDTO struct {
 	Message string `json:"message"`
 }
 
 // PaginationRequest makes pagination and sorting reusable
-type PaginationRequestDto struct {
+type PaginationRequestDTO struct {
 	Page      int    `json:"page"`
 	Limit     int    `json:"limit"`
 	SortBy    string `json:"sort_by"`
@@ -24,7 +24,7 @@ type PaginationRequestDto struct {
 }
 
 // Validate validates the pagination request
-func (p PaginationRequestDto) Validate() error {
+func (p PaginationRequestDTO) Validate() error {
 	return validation.ValidateStruct(&p,
 		validation.Field(&p.Page,
 			validation.Required.Error("Page is required"),
@@ -44,7 +44,7 @@ func (p PaginationRequestDto) Validate() error {
 }
 
 // Generic paginated response
-type PaginatedResponseDto[T any] struct {
+type PaginatedResponseDTO[T any] struct {
 	Rows       []T   `json:"rows"`
 	Total      int64 `json:"total"`
 	Page       int   `json:"page"`

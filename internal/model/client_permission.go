@@ -10,12 +10,12 @@ import (
 type ClientPermission struct {
 	ClientPermissionID   int64     `gorm:"column:client_permission_id;primaryKey"`
 	ClientPermissionUUID uuid.UUID `gorm:"column:client_permission_uuid"`
-	ClientApiID          int64     `gorm:"column:client_api_id"`
+	ClientAPIID          int64     `gorm:"column:client_api_id"`
 	PermissionID         int64     `gorm:"column:permission_id"`
 	CreatedAt            time.Time `gorm:"column:created_at;autoCreateTime"`
 
 	// Relationships
-	ClientApi  *ClientApi  `gorm:"foreignKey:ClientApiID;references:ClientApiID"`
+	ClientAPI  *ClientAPI  `gorm:"foreignKey:ClientAPIID;references:ClientAPIID"`
 	Permission *Permission `gorm:"foreignKey:PermissionID;references:PermissionID"`
 }
 

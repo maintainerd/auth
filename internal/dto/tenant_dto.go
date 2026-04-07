@@ -13,7 +13,7 @@ import (
 var tenantNamePattern = regexp.MustCompile(`^[a-z0-9-]+$`)
 
 // Tenant output structure
-type TenantResponseDto struct {
+type TenantResponseDTO struct {
 	TenantUUID  uuid.UUID `json:"tenant_id"`
 	Name        string    `json:"name"`
 	DisplayName string    `json:"display_name"`
@@ -29,7 +29,7 @@ type TenantResponseDto struct {
 }
 
 // Create Tenant request DTO
-type TenantCreateRequestDto struct {
+type TenantCreateRequestDTO struct {
 	Name        string `json:"name"`
 	DisplayName string `json:"display_name"`
 	Description string `json:"description"`
@@ -38,7 +38,7 @@ type TenantCreateRequestDto struct {
 }
 
 // Validation
-func (r TenantCreateRequestDto) Validate() error {
+func (r TenantCreateRequestDTO) Validate() error {
 	return validation.ValidateStruct(&r,
 		validation.Field(&r.Name,
 			validation.Required.Error("Name is required"),
@@ -60,7 +60,7 @@ func (r TenantCreateRequestDto) Validate() error {
 }
 
 // Update Tenant request DTO
-type TenantUpdateRequestDto struct {
+type TenantUpdateRequestDTO struct {
 	Name        string `json:"name"`
 	DisplayName string `json:"display_name"`
 	Description string `json:"description"`
@@ -69,7 +69,7 @@ type TenantUpdateRequestDto struct {
 }
 
 // Validation
-func (r TenantUpdateRequestDto) Validate() error {
+func (r TenantUpdateRequestDTO) Validate() error {
 	return validation.ValidateStruct(&r,
 		validation.Field(&r.Name,
 			validation.Required.Error("Name is required"),
@@ -91,7 +91,7 @@ func (r TenantUpdateRequestDto) Validate() error {
 }
 
 // API listing / filter DTO
-type TenantFilterDto struct {
+type TenantFilterDTO struct {
 	Name        *string  `json:"name"`
 	DisplayName *string  `json:"display_name"`
 	Description *string  `json:"description"`
@@ -102,12 +102,12 @@ type TenantFilterDto struct {
 	IsSystem    *bool    `json:"is_system"`
 
 	// Pagination and sorting
-	PaginationRequestDto
+	PaginationRequestDTO
 }
 
 // Validation
-func (r TenantFilterDto) Validate() error {
+func (r TenantFilterDTO) Validate() error {
 	return validation.ValidateStruct(&r,
-		validation.Field(&r.PaginationRequestDto),
+		validation.Field(&r.PaginationRequestDTO),
 	)
 }

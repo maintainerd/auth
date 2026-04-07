@@ -9,7 +9,7 @@ import (
 
 func TestSecuritySettingUpdateConfigRequestDto_Validate(t *testing.T) {
 	t.Run("valid with data", func(t *testing.T) {
-		d := SecuritySettingUpdateConfigRequestDto{
+		d := SecuritySettingUpdateConfigRequestDTO{
 			"max_login_attempts": 5,
 			"lockout_duration":   300,
 		}
@@ -17,17 +17,17 @@ func TestSecuritySettingUpdateConfigRequestDto_Validate(t *testing.T) {
 	})
 
 	t.Run("valid single key", func(t *testing.T) {
-		d := SecuritySettingUpdateConfigRequestDto{"key": "value"}
+		d := SecuritySettingUpdateConfigRequestDTO{"key": "value"}
 		assert.NoError(t, d.Validate())
 	})
 
 	t.Run("empty config is invalid", func(t *testing.T) {
-		d := SecuritySettingUpdateConfigRequestDto{}
+		d := SecuritySettingUpdateConfigRequestDTO{}
 		require.Error(t, d.Validate())
 	})
 
 	t.Run("nil config is invalid", func(t *testing.T) {
-		var d SecuritySettingUpdateConfigRequestDto
+		var d SecuritySettingUpdateConfigRequestDTO
 		require.Error(t, d.Validate())
 	})
 }

@@ -1,0 +1,135 @@
+package repository
+
+import (
+	"github.com/maintainerd/auth/internal/model"
+	"gorm.io/gorm"
+)
+
+type IPRestrictionRuleRepositoryGetFilter struct {
+	TenantID    *int64
+	Type        *string
+	Status      []string
+	IPAddress   *string
+	Description *string
+	CreatedBy   *int64
+	UpdatedBy   *int64
+	Page        int
+	Limit       int
+	SortBy      string
+	SortOrder   string
+}
+
+type IPRestrictionRuleRepository interface {
+	BaseRepositoryMethods[model.IPRestrictionRule]
+	WithTx(tx *gorm.DB) IPRestrictionRuleRepository
+	FindByTenantID(tenantID int64) ([]model.IPRestrictionRule, error)
+	FindByTenantIDAndStatus(tenantID int64, status string) ([]model.IPRestrictionRule, error)
+	FindByTenantIDAndType(tenantID int64, ruleType string) ([]model.IPRestrictionRule, error)
+	FindPaginated(filter IPRestrictionRuleRepositoryGetFilter) (*PaginationResult[model.IPRestrictionRule], error)
+}
+
+type ipRestrictionRuleRepository struct {
+	*BaseRepository[model.IPRestrictionRule]
+}
+
+func NewIPRestrictionRuleRepository(db *gorm.DB) IPRestrictionRuleRepository {
+	return &ipRestrictionRuleRepository{
+		BaseRepository: NewBaseRepository[model.IPRestrictionRule](db, "ip_restriction_rule_uuid", "ip_restriction_rule_id"),
+	}
+}
+
+func (r *ipRestrictionRuleRepository) WithTx(tx *gorm.DB) IPRestrictionRuleRepository {
+	return &ipRestrictionRuleRepository{
+		BaseRepository: r.BaseRepository.WithTx(tx),
+	}
+}
+
+func (r *ipRestrictionRuleRepository) FindByTenantID(tenantID int64) ([]model.IPRestrictionRule, error) {
+	var rules []model.IPRestrictionRule
+	err := r.DB().Where("tenant_id = ?", tenantID).Find(&rules).Error
+	if err != nil {
+		return nil, err
+	}
+	return rules, nil
+}
+
+func (r *ipRestrictionRuleRepository) FindByTenantIDAndStatus(tenantID int64, status string) ([]model.IPRestrictionRule, error) {
+	var rules []model.IPRestrictionRule
+	err := r.DB().Where("tenant_id = ? AND status = ?", tenantID, status).Find(&rules).Error
+	if err != nil {
+		return nil, err
+	}
+	return rules, nil
+}
+
+func (r *ipRestrictionRuleRepository) FindByTenantIDAndType(tenantID int64, ruleType string) ([]model.IPRestrictionRule, error) {
+	var rules []model.IPRestrictionRule
+	err := r.DB().Where("tenant_id = ? AND type = ?", tenantID, ruleType).Find(&rules).Error
+	if err != nil {
+		return nil, err
+	}
+	return rules, nil
+}
+
+func (r *ipRestrictionRuleRepository) FindPaginated(filter IPRestrictionRuleRepositoryGetFilter) (*PaginationResult[model.IPRestrictionRule], error) {
+	query := r.DB().Model(&model.IPRestrictionRule{})
+
+	// Apply filters
+	if filter.TenantID != nil {
+		query = query.Where("tenant_id = ?", *filter.TenantID)
+	}
+	if filter.Type != nil {
+		query = query.Where("type = ?", *filter.Type)
+	}
+	if len(filter.Status) > 0 {
+		query = query.Where("status IN ?", filter.Status)
+	}
+	if filter.IPAddress != nil {
+		query = query.Where("ip_address ILIKE ?", "%"+*filter.IPAddress+"%")
+	}
+	if filter.Description != nil {
+		query = query.Where("description ILIKE ?", "%"+*filter.Description+"%")
+	}
+	if filter.CreatedBy != nil {
+		query = query.Where("created_by = ?", *filter.CreatedBy)
+	}
+	if filter.UpdatedBy != nil {
+		query = query.Where("updated_by = ?", *filter.UpdatedBy)
+	}
+
+	// Get total count
+	var total int64
+	if err := query.Count(&total).Error; err != nil {
+		return nil, err
+	}
+
+	// Apply sorting — protected against SQL injection via allowlist
+	query = query.Order(sanitizeOrder(filter.SortBy, filter.SortOrder, "created_at DESC"))
+
+	// Pagination guards prevent division-by-zero and negative offsets
+	if filter.Page < 1 {
+		filter.Page = 1
+	}
+	if filter.Limit < 1 {
+		filter.Limit = 10
+	}
+	offset := (filter.Page - 1) * filter.Limit
+	var rules []model.IPRestrictionRule
+	if err := query.Offset(offset).Limit(filter.Limit).Find(&rules).Error; err != nil {
+		return nil, err
+	}
+
+	// Calculate total pages
+	totalPages := int(total) / filter.Limit
+	if int(total)%filter.Limit > 0 {
+		totalPages++
+	}
+
+	return &PaginationResult[model.IPRestrictionRule]{
+		Data:       rules,
+		Total:      total,
+		Page:       filter.Page,
+		Limit:      filter.Limit,
+		TotalPages: totalPages,
+	}, nil
+}
