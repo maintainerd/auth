@@ -12,7 +12,7 @@ import (
 )
 
 // Identity provider list response structure (without config and tenant)
-type IdentityProviderResponseDto struct {
+type IdentityProviderResponseDTO struct {
 	IdentityProviderUUID uuid.UUID `json:"identity_provider_id"`
 	Name                 string    `json:"name"`
 	DisplayName          string    `json:"display_name"`
@@ -27,7 +27,7 @@ type IdentityProviderResponseDto struct {
 }
 
 // Identity provider detail response structure (with config and tenant)
-type IdentityProviderDetailResponseDto struct {
+type IdentityProviderDetailResponseDTO struct {
 	IdentityProviderUUID uuid.UUID          `json:"identity_provider_id"`
 	Name                 string             `json:"name"`
 	DisplayName          string             `json:"display_name"`
@@ -35,7 +35,7 @@ type IdentityProviderDetailResponseDto struct {
 	ProviderType         string             `json:"provider_type"`
 	Identifier           string             `json:"identifier"`
 	Config               *datatypes.JSON    `json:"config,omitempty"`
-	Tenant               *TenantResponseDto `json:"tenant,omitempty"`
+	Tenant               *TenantResponseDTO `json:"tenant,omitempty"`
 	Status               string             `json:"status"`
 	IsDefault            bool               `json:"is_default"`
 	IsSystem             bool               `json:"is_system"`
@@ -44,7 +44,7 @@ type IdentityProviderDetailResponseDto struct {
 }
 
 // Create identity provider request DTO
-type IdentityProviderCreateRequestDto struct {
+type IdentityProviderCreateRequestDTO struct {
 	Name         string         `json:"name"`
 	DisplayName  string         `json:"display_name"`
 	Provider     string         `json:"provider"`
@@ -55,7 +55,7 @@ type IdentityProviderCreateRequestDto struct {
 }
 
 // Validation for create request
-func (r IdentityProviderCreateRequestDto) Validate() error {
+func (r IdentityProviderCreateRequestDTO) Validate() error {
 	return validation.ValidateStruct(&r,
 		validation.Field(&r.Name,
 			validation.Required.Error("Name is required"),
@@ -88,7 +88,7 @@ func (r IdentityProviderCreateRequestDto) Validate() error {
 }
 
 // Update identity provider request DTO (without tenant_id)
-type IdentityProviderUpdateRequestDto struct {
+type IdentityProviderUpdateRequestDTO struct {
 	Name         string         `json:"name"`
 	DisplayName  string         `json:"display_name"`
 	Provider     string         `json:"provider"`
@@ -98,7 +98,7 @@ type IdentityProviderUpdateRequestDto struct {
 }
 
 // Validation for update request
-func (r IdentityProviderUpdateRequestDto) Validate() error {
+func (r IdentityProviderUpdateRequestDTO) Validate() error {
 	return validation.ValidateStruct(&r,
 		validation.Field(&r.Name,
 			validation.Required.Error("Name is required"),
@@ -127,11 +127,11 @@ func (r IdentityProviderUpdateRequestDto) Validate() error {
 }
 
 // Identity provider status update DTO
-type IdentityProviderStatusUpdateDto struct {
+type IdentityProviderStatusUpdateDTO struct {
 	Status string `json:"status"`
 }
 
-func (r IdentityProviderStatusUpdateDto) Validate() error {
+func (r IdentityProviderStatusUpdateDTO) Validate() error {
 	return validation.ValidateStruct(&r,
 		validation.Field(&r.Status,
 			validation.Required.Error("Status is required"),
@@ -141,7 +141,7 @@ func (r IdentityProviderStatusUpdateDto) Validate() error {
 }
 
 // Identity provider listing / filter DTO
-type IdentityProviderFilterDto struct {
+type IdentityProviderFilterDTO struct {
 	Name         *string  `json:"name"`
 	DisplayName  *string  `json:"display_name"`
 	Provider     []string `json:"provider"`
@@ -152,11 +152,11 @@ type IdentityProviderFilterDto struct {
 	IsSystem     *bool    `json:"is_system"`
 
 	// Pagination and sorting
-	PaginationRequestDto
+	PaginationRequestDTO
 }
 
 // Validate validates the identity provider filter DTO.
-func (f IdentityProviderFilterDto) Validate() error {
+func (f IdentityProviderFilterDTO) Validate() error {
 	return validation.ValidateStruct(&f,
 		validation.Field(&f.Provider,
 			validation.When(len(f.Provider) > 0,
@@ -173,6 +173,6 @@ func (f IdentityProviderFilterDto) Validate() error {
 				validation.Each(validation.In(model.StatusActive, model.StatusInactive).Error("Status must be 'active' or 'inactive'")),
 			),
 		),
-		validation.Field(&f.PaginationRequestDto),
+		validation.Field(&f.PaginationRequestDTO),
 	)
 }

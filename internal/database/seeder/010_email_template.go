@@ -4,7 +4,7 @@ import (
 	"log/slog"
 
 	"github.com/maintainerd/auth/internal/model"
-	emailtemplate "github.com/maintainerd/auth/internal/templates/email"
+	"github.com/maintainerd/auth/internal/templates/emailtemplate"
 	"gorm.io/gorm"
 )
 

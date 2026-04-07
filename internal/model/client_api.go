@@ -6,9 +6,9 @@ import (
 	"github.com/google/uuid"
 )
 
-type ClientApi struct {
-	ClientApiID   int64     `gorm:"column:client_api_id;primaryKey;autoIncrement"`
-	ClientApiUUID uuid.UUID `gorm:"column:client_api_uuid;type:uuid;not null;uniqueIndex"`
+type ClientAPI struct {
+	ClientAPIID   int64     `gorm:"column:client_api_id;primaryKey;autoIncrement"`
+	ClientAPIUUID uuid.UUID `gorm:"column:client_api_uuid;type:uuid;not null;uniqueIndex"`
 	ClientID      int64     `gorm:"column:client_id;not null;index"`
 	APIID         int64     `gorm:"column:api_id;not null;index"`
 	CreatedAt     time.Time `gorm:"column:created_at;default:now()"`
@@ -16,9 +16,9 @@ type ClientApi struct {
 	// Relationships
 	Client      Client             `gorm:"foreignKey:ClientID;references:ClientID"`
 	API         API                `gorm:"foreignKey:APIID;references:APIID"`
-	Permissions []ClientPermission `gorm:"foreignKey:ClientApiID;references:ClientApiID"`
+	Permissions []ClientPermission `gorm:"foreignKey:ClientAPIID;references:ClientAPIID"`
 }
 
-func (ClientApi) TableName() string {
+func (ClientAPI) TableName() string {
 	return "client_apis"
 }

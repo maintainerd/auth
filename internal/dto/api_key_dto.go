@@ -12,7 +12,7 @@ import (
 )
 
 // Response DTOs
-type APIKeyResponseDto struct {
+type APIKeyResponseDTO struct {
 	APIKeyID    uuid.UUID  `json:"api_key_id"`
 	Name        string     `json:"name"`
 	Description string     `json:"description"`
@@ -26,28 +26,28 @@ type APIKeyResponseDto struct {
 }
 
 // API Key API DTOs
-type APIKeyAPIResponseDto struct {
+type APIKeyAPIResponseDTO struct {
 	APIKeyAPIID uuid.UUID               `json:"api_key_api_id"`
-	API         APIResponseDto          `json:"api"`
-	Permissions []PermissionResponseDto `json:"permissions,omitempty"`
+	API         APIResponseDTO          `json:"api"`
+	Permissions []PermissionResponseDTO `json:"permissions,omitempty"`
 	CreatedAt   time.Time               `json:"created_at"`
 }
 
-type APIKeyAPIsResponseDto struct {
-	APIs []APIKeyAPIResponseDto `json:"apis"`
+type APIKeyAPIsResponseDTO struct {
+	APIs []APIKeyAPIResponseDTO `json:"apis"`
 }
 
 // API Key APIs pagination request DTO
-type APIKeyApisGetRequestDto struct {
-	PaginationRequestDto
+type APIKeyAPIsGetRequestDTO struct {
+	PaginationRequestDTO
 }
 
 // Add APIs to API key request dto
-type AddAPIKeyApisRequestDto struct {
+type AddAPIKeyAPIsRequestDTO struct {
 	APIUUIDs []uuid.UUID `json:"api_uuids"`
 }
 
-func (r AddAPIKeyApisRequestDto) Validate() error {
+func (r AddAPIKeyAPIsRequestDTO) Validate() error {
 	return validation.ValidateStruct(&r,
 		validation.Field(&r.APIUUIDs,
 			validation.Required.Error("API UUIDs are required"),
@@ -57,11 +57,11 @@ func (r AddAPIKeyApisRequestDto) Validate() error {
 }
 
 // Add permissions to API key API request dto
-type AddAPIKeyPermissionsRequestDto struct {
+type AddAPIKeyPermissionsRequestDTO struct {
 	PermissionUUIDs []uuid.UUID `json:"permission_uuids"`
 }
 
-func (r AddAPIKeyPermissionsRequestDto) Validate() error {
+func (r AddAPIKeyPermissionsRequestDTO) Validate() error {
 	return validation.ValidateStruct(&r,
 		validation.Field(&r.PermissionUUIDs,
 			validation.Required.Error("Permission UUIDs are required"),
@@ -71,11 +71,11 @@ func (r AddAPIKeyPermissionsRequestDto) Validate() error {
 }
 
 // API key status update DTO
-type APIKeyStatusUpdateDto struct {
+type APIKeyStatusUpdateDTO struct {
 	Status string `json:"status"`
 }
 
-func (r APIKeyStatusUpdateDto) Validate() error {
+func (r APIKeyStatusUpdateDTO) Validate() error {
 	return validation.ValidateStruct(&r,
 		validation.Field(&r.Status,
 			validation.Required.Error("Status is required"),
@@ -84,15 +84,15 @@ func (r APIKeyStatusUpdateDto) Validate() error {
 	)
 }
 
-type APIKeyPermissionResponseDto struct {
+type APIKeyPermissionResponseDTO struct {
 	APIKeyPermissionID uuid.UUID              `json:"api_key_permission_id"`
-	APIKey             *APIKeyResponseDto     `json:"api_key,omitempty"`
-	Permission         *PermissionResponseDto `json:"permission,omitempty"`
+	APIKey             *APIKeyResponseDTO     `json:"api_key,omitempty"`
+	Permission         *PermissionResponseDTO `json:"permission,omitempty"`
 	CreatedAt          time.Time              `json:"created_at"`
 }
 
 // API Key creation response DTO (includes the plain key)
-type APIKeyCreateResponseDto struct {
+type APIKeyCreateResponseDTO struct {
 	APIKeyID    uuid.UUID  `json:"api_key_id"`
 	Name        string     `json:"name"`
 	Description string     `json:"description"`
@@ -107,12 +107,12 @@ type APIKeyCreateResponseDto struct {
 }
 
 // API Key API permissions response DTO
-type APIKeyAPIPermissionsResponseDto struct {
-	Permissions []PermissionResponseDto `json:"permissions"`
+type APIKeyAPIPermissionsResponseDTO struct {
+	Permissions []PermissionResponseDTO `json:"permissions"`
 }
 
 // Request DTOs
-type APIKeyCreateRequestDto struct {
+type APIKeyCreateRequestDTO struct {
 	Name        string         `json:"name"`
 	Description string         `json:"description"`
 	Config      datatypes.JSON `json:"config,omitempty"`
@@ -121,7 +121,7 @@ type APIKeyCreateRequestDto struct {
 	Status      string         `json:"status,omitempty"`
 }
 
-func (dto APIKeyCreateRequestDto) Validate() error {
+func (dto APIKeyCreateRequestDTO) Validate() error {
 	return validation.ValidateStruct(&dto,
 		validation.Field(&dto.Name, validation.Required, validation.Length(1, 100)),
 		validation.Field(&dto.Description, validation.Length(0, 500)),
@@ -130,7 +130,7 @@ func (dto APIKeyCreateRequestDto) Validate() error {
 	)
 }
 
-type APIKeyUpdateRequestDto struct {
+type APIKeyUpdateRequestDTO struct {
 	Name        *string        `json:"name,omitempty"`
 	Description *string        `json:"description,omitempty"`
 	Config      datatypes.JSON `json:"config,omitempty"`
@@ -139,7 +139,7 @@ type APIKeyUpdateRequestDto struct {
 	Status      *string        `json:"status,omitempty"`
 }
 
-func (dto APIKeyUpdateRequestDto) Validate() error {
+func (dto APIKeyUpdateRequestDTO) Validate() error {
 	return validation.ValidateStruct(&dto,
 		validation.Field(&dto.Name, validation.Length(1, 100)),
 		validation.Field(&dto.Description, validation.Length(0, 500)),
@@ -149,15 +149,15 @@ func (dto APIKeyUpdateRequestDto) Validate() error {
 }
 
 // Query parameter DTOs
-type APIKeyGetRequestDto struct {
-	PaginationRequestDto
+type APIKeyGetRequestDTO struct {
+	PaginationRequestDTO
 	Name        *string `json:"name,omitempty"`
 	Description *string `json:"description,omitempty"`
 	Status      *string `json:"status,omitempty"`
 }
 
-func (dto APIKeyGetRequestDto) Validate() error {
-	if err := dto.PaginationRequestDto.Validate(); err != nil {
+func (dto APIKeyGetRequestDTO) Validate() error {
+	if err := dto.PaginationRequestDTO.Validate(); err != nil {
 		return err
 	}
 	return validation.ValidateStruct(&dto,

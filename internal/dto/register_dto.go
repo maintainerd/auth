@@ -5,13 +5,13 @@ import (
 	"net/url"
 
 	validation "github.com/go-ozzo/ozzo-validation/v4"
-	"github.com/maintainerd/auth/internal/util"
+	"github.com/maintainerd/auth/internal/valid"
 	"github.com/maintainerd/auth/internal/signedurl"
 	"github.com/maintainerd/auth/internal/security"
 )
 
 // Register request payload structure
-type RegisterRequestDto struct {
+type RegisterRequestDTO struct {
 	Username string  `json:"username"`
 	Fullname string  `json:"fullname"`
 	Email    *string `json:"email,omitempty"`
@@ -19,7 +19,7 @@ type RegisterRequestDto struct {
 	Password string  `json:"password"`
 }
 
-func (r *RegisterRequestDto) Validate() error {
+func (r *RegisterRequestDTO) Validate() error {
 	// Sanitize inputs first
 	r.Username = security.SanitizeInput(r.Username)
 	r.Fullname = security.SanitizeInput(r.Fullname)
@@ -44,7 +44,7 @@ func (r *RegisterRequestDto) Validate() error {
 			validation.When(r.Email != nil,
 				validation.By(func(value interface{}) error {
 					if email := value.(*string); email != nil && *email != "" {
-						if !util.IsValidEmail(*email) {
+						if !valid.IsValidEmail(*email) {
 							return errors.New("email must be a valid email address")
 						}
 					}
@@ -56,7 +56,7 @@ func (r *RegisterRequestDto) Validate() error {
 			validation.When(r.Phone != nil,
 				validation.By(func(value interface{}) error {
 					if phone := value.(*string); phone != nil && *phone != "" {
-						if !util.IsValidPhoneNumber(*phone) {
+						if !valid.IsValidPhoneNumber(*phone) {
 							return errors.New("phone must be a valid phone number")
 						}
 					}
@@ -72,7 +72,7 @@ func (r *RegisterRequestDto) Validate() error {
 }
 
 // ValidateForRegistration validates with additional password strength requirements
-func (r *RegisterRequestDto) ValidateForRegistration() error {
+func (r *RegisterRequestDTO) ValidateForRegistration() error {
 	// First do standard validation (includes sanitization)
 	if err := r.Validate(); err != nil {
 		return err
@@ -87,12 +87,12 @@ func (r *RegisterRequestDto) ValidateForRegistration() error {
 }
 
 // Register query parameters structure
-type RegisterQueryDto struct {
+type RegisterQueryDTO struct {
 	ClientID   string `json:"client_id"`
 	ProviderID string `json:"provider_id"`
 }
 
-func (q *RegisterQueryDto) Validate() error {
+func (q *RegisterQueryDTO) Validate() error {
 	// Sanitize inputs first
 	q.ClientID = security.SanitizeInput(q.ClientID)
 	q.ProviderID = security.SanitizeInput(q.ProviderID)
@@ -110,7 +110,7 @@ func (q *RegisterQueryDto) Validate() error {
 }
 
 // Register invite query parameters structure
-type RegisterInviteQueryDto struct {
+type RegisterInviteQueryDTO struct {
 	ClientID    string `json:"client_id"`
 	ProviderID  string `json:"provider_id"`
 	InviteToken string `json:"invite_token"`
@@ -118,7 +118,7 @@ type RegisterInviteQueryDto struct {
 	Sig         string `json:"sig"`
 }
 
-func (q *RegisterInviteQueryDto) Validate() error {
+func (q *RegisterInviteQueryDTO) Validate() error {
 	// Sanitize inputs first
 	q.ClientID = security.SanitizeInput(q.ClientID)
 	q.ProviderID = security.SanitizeInput(q.ProviderID)
@@ -151,7 +151,7 @@ func (q *RegisterInviteQueryDto) Validate() error {
 }
 
 // ValidateSignedURL validates signed URL parameters for register invite
-func (q *RegisterInviteQueryDto) ValidateSignedURL(values url.Values) error {
+func (q *RegisterInviteQueryDTO) ValidateSignedURL(values url.Values) error {
 	// Extract and validate signed URL parameters
 	if _, err := signedurl.ValidateSignedURL(values); err != nil {
 		return err
@@ -159,8 +159,8 @@ func (q *RegisterInviteQueryDto) ValidateSignedURL(values url.Values) error {
 	return nil
 }
 
-// RegisterResponseDto is the response structure for registration operations
-type RegisterResponseDto struct {
+// RegisterResponseDTO is the response structure for registration operations
+type RegisterResponseDTO struct {
 	AccessToken  string `json:"access_token"`
 	IDToken      string `json:"id_token"`
 	RefreshToken string `json:"refresh_token,omitempty"`

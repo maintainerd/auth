@@ -6,12 +6,12 @@ import (
 		"github.com/maintainerd/auth/internal/security"
 )
 
-// ForgotPasswordRequestDto represents the request payload for forgot password
-type ForgotPasswordRequestDto struct {
+// ForgotPasswordRequestDTO represents the request payload for forgot password
+type ForgotPasswordRequestDTO struct {
 	Email string `json:"email"`
 }
 
-func (r *ForgotPasswordRequestDto) Validate() error {
+func (r *ForgotPasswordRequestDTO) Validate() error {
 	// Sanitize inputs first
 	r.Email = security.SanitizeInput(r.Email)
 
@@ -24,8 +24,8 @@ func (r *ForgotPasswordRequestDto) Validate() error {
 	)
 }
 
-// ForgotPasswordResponseDto represents the response for forgot password request
-type ForgotPasswordResponseDto struct {
+// ForgotPasswordResponseDTO represents the response for forgot password request
+type ForgotPasswordResponseDTO struct {
 	Message string `json:"message"`
 	Success bool   `json:"success"`
 }

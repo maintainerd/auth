@@ -62,7 +62,7 @@ func TestPolicyStatement_Validate(t *testing.T) {
 }
 
 func TestPolicyCreateRequestDto_Validate(t *testing.T) {
-	valid := PolicyCreateRequestDto{
+	valid := PolicyCreateRequestDTO{
 		Name:     "auth:user:read",
 		Document: validPolicyDoc(),
 		Version:  "v1",
@@ -112,24 +112,24 @@ func TestPolicyCreateRequestDto_Validate(t *testing.T) {
 
 func TestPolicyFilterDto_Validate(t *testing.T) {
 	t.Run("valid with pagination", func(t *testing.T) {
-		f := PolicyFilterDto{PaginationRequestDto: validPagination()}
+		f := PolicyFilterDTO{PaginationRequestDTO: validPagination()}
 		assert.NoError(t, f.Validate())
 	})
 
 	t.Run("invalid status", func(t *testing.T) {
-		f := PolicyFilterDto{PaginationRequestDto: validPagination(), Status: []string{"bad"}}
+		f := PolicyFilterDTO{PaginationRequestDTO: validPagination(), Status: []string{"bad"}}
 		require.Error(t, f.Validate())
 	})
 }
 
 func TestPolicyStatusUpdateDto_Validate(t *testing.T) {
-	assert.NoError(t, PolicyStatusUpdateDto{Status: model.StatusActive}.Validate())
-	require.Error(t, PolicyStatusUpdateDto{Status: ""}.Validate())
-	require.Error(t, PolicyStatusUpdateDto{Status: "unknown"}.Validate())
+	assert.NoError(t, PolicyStatusUpdateDTO{Status: model.StatusActive}.Validate())
+	require.Error(t, PolicyStatusUpdateDTO{Status: ""}.Validate())
+	require.Error(t, PolicyStatusUpdateDTO{Status: "unknown"}.Validate())
 }
 
 func TestPolicyUpdateRequestDto_Validate(t *testing.T) {
-	valid := PolicyUpdateRequestDto{
+	valid := PolicyUpdateRequestDTO{
 		Name:     "auth:user:read",
 		Document: validPolicyDoc(),
 		Version:  "v1",
@@ -161,22 +161,22 @@ func TestPolicyUpdateRequestDto_Validate(t *testing.T) {
 
 func TestPolicyServicesFilterDto_Validate(t *testing.T) {
 	t.Run("valid empty", func(t *testing.T) {
-		f := PolicyServicesFilterDto{PaginationRequestDto: validPagination()}
+		f := PolicyServicesFilterDTO{PaginationRequestDTO: validPagination()}
 		assert.NoError(t, f.Validate())
 	})
 
 	t.Run("name too long", func(t *testing.T) {
-		f := PolicyServicesFilterDto{PaginationRequestDto: validPagination(), Name: strPtr(string(make([]byte, 151)))}
+		f := PolicyServicesFilterDTO{PaginationRequestDTO: validPagination(), Name: strPtr(string(make([]byte, 151)))}
 		require.Error(t, f.Validate())
 	})
 
 	t.Run("display_name too long", func(t *testing.T) {
-		f := PolicyServicesFilterDto{PaginationRequestDto: validPagination(), DisplayName: strPtr(string(make([]byte, 151)))}
+		f := PolicyServicesFilterDTO{PaginationRequestDTO: validPagination(), DisplayName: strPtr(string(make([]byte, 151)))}
 		require.Error(t, f.Validate())
 	})
 
 	t.Run("description too long", func(t *testing.T) {
-		f := PolicyServicesFilterDto{PaginationRequestDto: validPagination(), Description: strPtr(string(make([]byte, 501)))}
+		f := PolicyServicesFilterDTO{PaginationRequestDTO: validPagination(), Description: strPtr(string(make([]byte, 501)))}
 		require.Error(t, f.Validate())
 	})
 }

@@ -10,7 +10,7 @@ import (
 	"github.com/maintainerd/auth/internal/model"
 )
 
-type UserSettingRequestDto struct {
+type UserSettingRequestDTO struct {
 	// Internationalization
 	Timezone          *string `json:"timezone,omitempty"`
 	PreferredLanguage *string `json:"preferred_language,omitempty"`
@@ -36,7 +36,7 @@ type UserSettingRequestDto struct {
 	EmergencyContactRelation *string `json:"emergency_contact_relation,omitempty"`
 }
 
-func (r UserSettingRequestDto) Validate() error {
+func (r UserSettingRequestDTO) Validate() error {
 	return validation.ValidateStruct(&r,
 		// Internationalization
 		validation.Field(&r.Timezone,
@@ -85,7 +85,7 @@ func (r UserSettingRequestDto) Validate() error {
 	)
 }
 
-type UserSettingResponseDto struct {
+type UserSettingResponseDTO struct {
 	UserSettingUUID string `json:"user_setting_id"`
 
 	// Internationalization
@@ -119,7 +119,7 @@ type UserSettingResponseDto struct {
 	UpdatedAt time.Time `json:"updated_at"`
 }
 
-func NewUserSettingResponseDto(us *model.UserSetting) *UserSettingResponseDto {
+func NewUserSettingResponseDTO(us *model.UserSetting) *UserSettingResponseDTO {
 	// Convert GORM JSON to map for social links
 	var socialLinks map[string]any
 	if len(us.SocialLinks) > 0 {
@@ -128,7 +128,7 @@ func NewUserSettingResponseDto(us *model.UserSetting) *UserSettingResponseDto {
 		}
 	}
 
-	return &UserSettingResponseDto{
+	return &UserSettingResponseDTO{
 		UserSettingUUID: us.UserSettingUUID.String(),
 
 		// Internationalization

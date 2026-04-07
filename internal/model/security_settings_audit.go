@@ -16,7 +16,7 @@ type SecuritySettingsAudit struct {
 	ChangeType                string         `gorm:"column:change_type;type:varchar(50);not null" json:"change_type"`
 	OldConfig                 datatypes.JSON `gorm:"column:old_config;type:jsonb" json:"old_config"`
 	NewConfig                 datatypes.JSON `gorm:"column:new_config;type:jsonb" json:"new_config"`
-	IpAddress                 string         `gorm:"column:ip_address;type:varchar(50)" json:"ip_address"`
+	IPAddress                 string         `gorm:"column:ip_address;type:varchar(50)" json:"ip_address"`
 	UserAgent                 string         `gorm:"column:user_agent;type:text" json:"user_agent"`
 	CreatedBy                 *int64         `gorm:"column:created_by" json:"created_by"`
 	CreatedAt                 time.Time      `gorm:"column:created_at;autoCreateTime" json:"created_at"`

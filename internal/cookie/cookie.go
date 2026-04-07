@@ -34,7 +34,7 @@ func SetAuthCookies(w http.ResponseWriter, authResponse interface{}) {
 			}
 		}
 	} else {
-		// Use reflection for struct types (like AuthResponseDto)
+		// Use reflection for struct types (like AuthResponseDTO)
 		v := reflect.ValueOf(authResponse)
 		if v.Kind() == reflect.Ptr {
 			v = v.Elem()

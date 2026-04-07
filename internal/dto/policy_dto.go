@@ -87,7 +87,7 @@ func (s PolicyStatement) Validate() error {
 }
 
 // Policy output structure for listing (without document)
-type PolicyResponseDto struct {
+type PolicyResponseDTO struct {
 	PolicyUUID  uuid.UUID `json:"policy_id"`
 	Name        string    `json:"name"`
 	Description *string   `json:"description"`
@@ -99,7 +99,7 @@ type PolicyResponseDto struct {
 }
 
 // Policy output structure for individual retrieval (with document)
-type PolicyDetailResponseDto struct {
+type PolicyDetailResponseDTO struct {
 	PolicyUUID  uuid.UUID      `json:"policy_id"`
 	Name        string         `json:"name"`
 	Description *string        `json:"description"`
@@ -112,7 +112,7 @@ type PolicyDetailResponseDto struct {
 }
 
 // Create Policy request DTO
-type PolicyCreateRequestDto struct {
+type PolicyCreateRequestDTO struct {
 	Name        string         `json:"name"`
 	Description *string        `json:"description"`
 	Document    datatypes.JSON `json:"document"`
@@ -121,7 +121,7 @@ type PolicyCreateRequestDto struct {
 }
 
 // Validation
-func (r PolicyCreateRequestDto) Validate() error {
+func (r PolicyCreateRequestDTO) Validate() error {
 	return validation.ValidateStruct(&r,
 		validation.Field(&r.Name,
 			validation.Required.Error("Policy name is required"),
@@ -147,7 +147,7 @@ func (r PolicyCreateRequestDto) Validate() error {
 }
 
 // Update Policy request DTO
-type PolicyUpdateRequestDto struct {
+type PolicyUpdateRequestDTO struct {
 	Name        string         `json:"name"`
 	Description *string        `json:"description"`
 	Document    datatypes.JSON `json:"document"`
@@ -156,7 +156,7 @@ type PolicyUpdateRequestDto struct {
 }
 
 // Validation
-func (r PolicyUpdateRequestDto) Validate() error {
+func (r PolicyUpdateRequestDTO) Validate() error {
 	return validation.ValidateStruct(&r,
 		validation.Field(&r.Name,
 			validation.Required.Error("Policy name is required"),
@@ -182,7 +182,7 @@ func (r PolicyUpdateRequestDto) Validate() error {
 }
 
 // Policy listing / filter DTO
-type PolicyFilterDto struct {
+type PolicyFilterDTO struct {
 	Name        *string    `json:"name"`
 	Description *string    `json:"description"`
 	Version     *string    `json:"version"`
@@ -191,11 +191,11 @@ type PolicyFilterDto struct {
 	ServiceID   *uuid.UUID `json:"service_id"` // Filter policies by service UUID
 
 	// Pagination and sorting
-	PaginationRequestDto
+	PaginationRequestDTO
 }
 
 // Validation
-func (r PolicyFilterDto) Validate() error {
+func (r PolicyFilterDTO) Validate() error {
 	return validation.ValidateStruct(&r,
 		validation.Field(&r.Name,
 			validation.When(r.Name != nil,
@@ -223,16 +223,16 @@ func (r PolicyFilterDto) Validate() error {
 				is.UUID.Error("Service ID must be a valid UUID"),
 			),
 		),
-		validation.Field(&r.PaginationRequestDto),
+		validation.Field(&r.PaginationRequestDTO),
 	)
 }
 
 // Policy status update DTO
-type PolicyStatusUpdateDto struct {
+type PolicyStatusUpdateDTO struct {
 	Status string `json:"status"`
 }
 
-func (r PolicyStatusUpdateDto) Validate() error {
+func (r PolicyStatusUpdateDTO) Validate() error {
 	return validation.ValidateStruct(&r,
 		validation.Field(&r.Status,
 			validation.Required.Error("Status is required"),
@@ -242,17 +242,17 @@ func (r PolicyStatusUpdateDto) Validate() error {
 }
 
 // Policy services filter DTO - for getting services that use a specific policy
-type PolicyServicesFilterDto struct {
+type PolicyServicesFilterDTO struct {
 	Name        *string `json:"name"`
 	DisplayName *string `json:"display_name"`
 	Description *string `json:"description"`
 
 	// Pagination and sorting
-	PaginationRequestDto
+	PaginationRequestDTO
 }
 
 // Validation
-func (r PolicyServicesFilterDto) Validate() error {
+func (r PolicyServicesFilterDTO) Validate() error {
 	return validation.ValidateStruct(&r,
 		validation.Field(&r.Name,
 			validation.When(r.Name != nil,
@@ -269,7 +269,7 @@ func (r PolicyServicesFilterDto) Validate() error {
 				validation.Length(0, 500).Error("Description filter must be at most 500 characters"),
 			),
 		),
-		validation.Field(&r.PaginationRequestDto),
+		validation.Field(&r.PaginationRequestDTO),
 	)
 }
 

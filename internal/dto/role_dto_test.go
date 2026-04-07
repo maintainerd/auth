@@ -11,7 +11,7 @@ import (
 )
 
 func TestRoleCreateOrUpdateRequestDto_Validate(t *testing.T) {
-	valid := RoleCreateOrUpdateRequestDto{
+	valid := RoleCreateOrUpdateRequestDTO{
 		Name:        "admin",
 		Description: "Administrator role",
 		Status:      model.StatusActive,
@@ -72,36 +72,36 @@ func TestRoleCreateOrUpdateRequestDto_Validate(t *testing.T) {
 
 func TestRoleAddPermissionsRequestDto_Validate(t *testing.T) {
 	t.Run("valid single permission", func(t *testing.T) {
-		d := RoleAddPermissionsRequestDto{Permissions: []uuid.UUID{uuid.New()}}
+		d := RoleAddPermissionsRequestDTO{Permissions: []uuid.UUID{uuid.New()}}
 		assert.NoError(t, d.Validate())
 	})
 
 	t.Run("valid multiple permissions", func(t *testing.T) {
-		d := RoleAddPermissionsRequestDto{Permissions: []uuid.UUID{uuid.New(), uuid.New()}}
+		d := RoleAddPermissionsRequestDTO{Permissions: []uuid.UUID{uuid.New(), uuid.New()}}
 		assert.NoError(t, d.Validate())
 	})
 
 	t.Run("missing permissions", func(t *testing.T) {
-		d := RoleAddPermissionsRequestDto{}
+		d := RoleAddPermissionsRequestDTO{}
 		require.Error(t, d.Validate())
 	})
 }
 
 func TestRoleFilterDto_Validate(t *testing.T) {
 	t.Run("valid with pagination", func(t *testing.T) {
-		f := RoleFilterDto{PaginationRequestDto: validPagination()}
+		f := RoleFilterDTO{PaginationRequestDTO: validPagination()}
 		assert.NoError(t, f.Validate())
 	})
 
 	t.Run("invalid status filter", func(t *testing.T) {
 		bad := "pending"
-		f := RoleFilterDto{PaginationRequestDto: validPagination(), Status: &bad}
+		f := RoleFilterDTO{PaginationRequestDTO: validPagination(), Status: &bad}
 		require.Error(t, f.Validate())
 	})
 
 	t.Run("valid status filter", func(t *testing.T) {
 		s := model.StatusActive
-		f := RoleFilterDto{PaginationRequestDto: validPagination(), Status: &s}
+		f := RoleFilterDTO{PaginationRequestDTO: validPagination(), Status: &s}
 		assert.NoError(t, f.Validate())
 	})
 }

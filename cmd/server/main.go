@@ -7,10 +7,10 @@ import (
 
 	"github.com/maintainerd/auth/internal/app"
 	"github.com/maintainerd/auth/internal/config"
-	grpcserver "github.com/maintainerd/auth/internal/grpc"
-	restserver "github.com/maintainerd/auth/internal/rest"
+	"github.com/maintainerd/auth/internal/grpcserver"
+	"github.com/maintainerd/auth/internal/jwt"
+	"github.com/maintainerd/auth/internal/restserver"
 	"github.com/maintainerd/auth/internal/runner"
-		"github.com/maintainerd/auth/internal/jwt"
 	"github.com/maintainerd/auth/internal/security"
 )
 
