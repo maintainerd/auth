@@ -116,7 +116,7 @@ func TestLoginHandler_LoginPublic_InvalidBody(t *testing.T) {
 func TestLoginHandler_LoginPublic_ServiceError(t *testing.T) {
 	svc := &mockLoginService{
 		loginPublicFn: func(u, p, c, pr string) (*dto.LoginResponseDTO, error) {
-			return nil, assert.AnError
+			return nil, errUnauthorized
 		},
 	}
 	h := NewLoginHandler(svc)
@@ -196,7 +196,7 @@ func TestLoginHandler_Login_InvalidBody(t *testing.T) {
 func TestLoginHandler_Login_ServiceError(t *testing.T) {
 	svc := &mockLoginService{
 		loginFn: func(u, p string, c, pr *string) (*dto.LoginResponseDTO, error) {
-			return nil, assert.AnError
+			return nil, errUnauthorized
 		},
 	}
 	h := NewLoginHandler(svc)

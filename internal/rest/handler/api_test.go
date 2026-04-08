@@ -84,7 +84,7 @@ func TestAPIHandler_Get_InvalidServiceUUID(t *testing.T) {
 func TestAPIHandler_Get_ServiceIDLookupError(t *testing.T) {
 	svc := &mockAPIService{
 		getServiceIDByUUIDFn: func(id uuid.UUID) (int64, error) {
-			return 0, assert.AnError
+			return 0, errValidation
 		},
 	}
 	h := NewAPIHandler(svc)
@@ -132,7 +132,7 @@ func TestAPIHandler_GetByUUID_InvalidUUID(t *testing.T) {
 func TestAPIHandler_GetByUUID_NotFound(t *testing.T) {
 	svc := &mockAPIService{
 		getByUUIDFn: func(id uuid.UUID, tid int64) (*service.APIServiceDataResult, error) {
-			return nil, assert.AnError
+			return nil, errNotFound
 		},
 	}
 	h := NewAPIHandler(svc)

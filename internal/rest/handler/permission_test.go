@@ -119,7 +119,7 @@ func TestPermissionHandler_GetByUUID_Success(t *testing.T) {
 func TestPermissionHandler_GetByUUID_NotFound(t *testing.T) {
 	svc := &mockPermissionService{
 		getByUUIDFn: func(id uuid.UUID, tid int64) (*service.PermissionServiceDataResult, error) {
-			return nil, assert.AnError
+			return nil, errNotFound
 		},
 	}
 	h := NewPermissionHandler(svc)

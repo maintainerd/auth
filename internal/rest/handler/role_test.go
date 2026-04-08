@@ -63,7 +63,7 @@ func TestRoleHandler_GetByUUID_InvalidUUID(t *testing.T) {
 func TestRoleHandler_GetByUUID_NotFound(t *testing.T) {
 	svc := &mockRoleService{
 		getByUUIDFn: func(id uuid.UUID, tid int64) (*service.RoleServiceDataResult, error) {
-			return nil, assert.AnError
+			return nil, errNotFound
 		},
 	}
 	h := NewRoleHandler(svc)

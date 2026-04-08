@@ -106,7 +106,7 @@ func (h *ServiceHandler) Get(w http.ResponseWriter, r *http.Request) {
 	// Fetch services from service layer
 	result, err := h.service.Get(filter)
 	if err != nil {
-		resp.Error(w, http.StatusInternalServerError, "Failed to fetch services", err.Error())
+		resp.HandleServiceError(w, "Failed to fetch services", err)
 		return
 	}
 
@@ -152,7 +152,7 @@ func (h *ServiceHandler) GetByUUID(w http.ResponseWriter, r *http.Request) {
 	// Fetch service by UUID
 	svc, err := h.service.GetByUUID(serviceUUID, tenant.TenantID)
 	if err != nil {
-		resp.Error(w, http.StatusNotFound, "Service not found")
+		resp.HandleServiceError(w, "Service not found", err)
 		return
 	}
 
@@ -200,7 +200,7 @@ func (h *ServiceHandler) Create(w http.ResponseWriter, r *http.Request) {
 		tenant.TenantID,
 	)
 	if err != nil {
-		resp.Error(w, http.StatusInternalServerError, "Failed to create service", err.Error())
+		resp.HandleServiceError(w, "Failed to create service", err)
 		return
 	}
 
@@ -255,7 +255,7 @@ func (h *ServiceHandler) Update(w http.ResponseWriter, r *http.Request) {
 		req.Status,
 	)
 	if err != nil {
-		resp.Error(w, http.StatusInternalServerError, "Failed to update service", err.Error())
+		resp.HandleServiceError(w, "Failed to update service", err)
 		return
 	}
 
@@ -300,7 +300,7 @@ func (h *ServiceHandler) SetStatus(w http.ResponseWriter, r *http.Request) {
 	// Update service status
 	service, err := h.service.SetStatusByUUID(serviceUUID, tenant.TenantID, req.Status)
 	if err != nil {
-		resp.Error(w, http.StatusInternalServerError, "Failed to update service", err.Error())
+		resp.HandleServiceError(w, "Failed to update service", err)
 		return
 	}
 
@@ -334,7 +334,7 @@ func (h *ServiceHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	// Delete service
 	svc, err := h.service.DeleteByUUID(serviceUUID, tenant.TenantID)
 	if err != nil {
-		resp.Error(w, http.StatusInternalServerError, "Failed to delete service", err.Error())
+		resp.HandleServiceError(w, "Failed to delete service", err)
 		return
 	}
 
@@ -394,7 +394,7 @@ func (h *ServiceHandler) AssignPolicy(w http.ResponseWriter, r *http.Request) {
 	// Assign policy to service (service validates tenant ownership)
 	err = h.service.AssignPolicy(serviceUUID, policyUUID, tenant.TenantID)
 	if err != nil {
-		resp.Error(w, http.StatusInternalServerError, "Failed to assign policy to service", err.Error())
+		resp.HandleServiceError(w, "Failed to assign policy to service", err)
 		return
 	}
 
@@ -433,7 +433,7 @@ func (h *ServiceHandler) RemovePolicy(w http.ResponseWriter, r *http.Request) {
 	// Remove policy from service (service validates tenant ownership)
 	err = h.service.RemovePolicy(serviceUUID, policyUUID, tenant.TenantID)
 	if err != nil {
-		resp.Error(w, http.StatusInternalServerError, "Failed to remove policy from service", err.Error())
+		resp.HandleServiceError(w, "Failed to remove policy from service", err)
 		return
 	}
 

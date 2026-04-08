@@ -11,9 +11,19 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
+	"github.com/maintainerd/auth/internal/apperror"
 	"github.com/maintainerd/auth/internal/middleware"
 	"github.com/maintainerd/auth/internal/model"
 	"github.com/stretchr/testify/require"
+)
+
+// Typed test errors — HandleServiceError maps these to the correct HTTP status.
+var (
+	errNotFound     = apperror.NewNotFoundWithReason("not found")
+	errValidation   = apperror.NewValidation("validation error")
+	errUnauthorized = apperror.NewUnauthorized("unauthorized")
+	errForbidden    = apperror.NewForbidden("access denied")
+	errConflict     = apperror.NewConflict("conflict")
 )
 
 // tenantID is a shared test tenant ID.

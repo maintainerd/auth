@@ -2,13 +2,13 @@ package service
 
 import (
 	"encoding/json"
-	"errors"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/model"
 	"github.com/maintainerd/auth/internal/repository"
 	"gorm.io/datatypes"
+	"github.com/maintainerd/auth/internal/apperror"
 )
 
 type LoginTemplateServiceDataResult struct {
@@ -91,7 +91,7 @@ func (s *loginTemplateService) GetByUUID(loginTemplateUUID uuid.UUID, tenantID i
 	}
 
 	if template == nil {
-		return nil, errors.New("login template not found or access denied")
+		return nil, apperror.NewNotFoundWithReason("login template not found or access denied")
 	}
 
 	result := toLoginTemplateServiceDataResult(template)
@@ -137,12 +137,12 @@ func (s *loginTemplateService) Update(loginTemplateUUID uuid.UUID, tenantID int6
 	}
 
 	if loginTemplate == nil {
-		return nil, errors.New("login template not found or access denied")
+		return nil, apperror.NewNotFoundWithReason("login template not found or access denied")
 	}
 
 	// Prevent updating system templates
 	if loginTemplate.IsSystem {
-		return nil, errors.New("cannot update system login template")
+		return nil, apperror.NewValidation("cannot update system login template")
 	}
 
 	var metadataJSON datatypes.JSON
@@ -179,12 +179,12 @@ func (s *loginTemplateService) UpdateStatus(loginTemplateUUID uuid.UUID, tenantI
 	}
 
 	if template == nil {
-		return nil, errors.New("login template not found or access denied")
+		return nil, apperror.NewNotFoundWithReason("login template not found or access denied")
 	}
 
 	// Prevent updating system templates
 	if template.IsSystem {
-		return nil, errors.New("cannot update system login template")
+		return nil, apperror.NewValidation("cannot update system login template")
 	}
 
 	template.Status = status
@@ -205,12 +205,12 @@ func (s *loginTemplateService) Delete(loginTemplateUUID uuid.UUID, tenantID int6
 	}
 
 	if template == nil {
-		return nil, errors.New("login template not found or access denied")
+		return nil, apperror.NewNotFoundWithReason("login template not found or access denied")
 	}
 
 	// Prevent deleting system templates
 	if template.IsSystem {
-		return nil, errors.New("cannot delete system login template")
+		return nil, apperror.NewValidation("cannot delete system login template")
 	}
 
 	if err := s.loginTemplateRepo.DeleteByUUID(loginTemplateUUID); err != nil {

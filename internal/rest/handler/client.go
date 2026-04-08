@@ -11,9 +11,9 @@ import (
 	"github.com/maintainerd/auth/internal/dto"
 	"github.com/maintainerd/auth/internal/middleware"
 	"github.com/maintainerd/auth/internal/model"
-	"github.com/maintainerd/auth/internal/service"
 	"github.com/maintainerd/auth/internal/ptr"
 	resp "github.com/maintainerd/auth/internal/rest/response"
+	"github.com/maintainerd/auth/internal/service"
 )
 
 type ClientHandler struct {
@@ -116,7 +116,7 @@ func (h *ClientHandler) Get(w http.ResponseWriter, r *http.Request) {
 	// Fetch Auth Clients
 	result, err := h.ClientService.Get(ClientFilter)
 	if err != nil {
-		resp.Error(w, http.StatusInternalServerError, "Failed to fetch auth clients", err.Error())
+		resp.HandleServiceError(w, "Failed to fetch auth clients", err)
 		return
 	}
 
@@ -155,7 +155,7 @@ func (h *ClientHandler) GetByUUID(w http.ResponseWriter, r *http.Request) {
 
 	Client, err := h.ClientService.GetByUUID(ClientUUID, tenant.TenantID)
 	if err != nil {
-		resp.Error(w, http.StatusNotFound, "Auth client not found")
+		resp.HandleServiceError(w, "Auth client not found", err)
 		return
 	}
 
@@ -181,7 +181,7 @@ func (h *ClientHandler) GetSecretByUUID(w http.ResponseWriter, r *http.Request) 
 
 	Client, err := h.ClientService.GetSecretByUUID(ClientUUID, tenant.TenantID)
 	if err != nil {
-		resp.Error(w, http.StatusNotFound, "Auth client not found")
+		resp.HandleServiceError(w, "Auth client not found", err)
 		return
 	}
 
@@ -210,7 +210,7 @@ func (h *ClientHandler) GetConfigByUUID(w http.ResponseWriter, r *http.Request) 
 
 	ClientConfig, err := h.ClientService.GetConfigByUUID(ClientUUID, tenant.TenantID)
 	if err != nil {
-		resp.Error(w, http.StatusNotFound, "Auth client not found")
+		resp.HandleServiceError(w, "Auth client not found", err)
 		return
 	}
 
@@ -243,7 +243,7 @@ func (h *ClientHandler) Create(w http.ResponseWriter, r *http.Request) {
 
 	Client, err := h.ClientService.Create(tenant.TenantID, req.Name, req.DisplayName, req.ClientType, req.Domain, req.Config, req.Status, false, req.IdentityProviderUUID, user.UserUUID)
 	if err != nil {
-		resp.Error(w, http.StatusInternalServerError, "Failed to create auth client", err.Error())
+		resp.HandleServiceError(w, "Failed to create auth client", err)
 		return
 	}
 
@@ -283,7 +283,7 @@ func (h *ClientHandler) Update(w http.ResponseWriter, r *http.Request) {
 
 	Client, err := h.ClientService.Update(ClientUUID, tenant.TenantID, req.Name, req.DisplayName, req.ClientType, req.Domain, req.Config, req.Status, false, user.UserUUID)
 	if err != nil {
-		resp.Error(w, http.StatusInternalServerError, "Failed to update auth client", err.Error())
+		resp.HandleServiceError(w, "Failed to update auth client", err)
 		return
 	}
 
@@ -315,7 +315,7 @@ func (h *ClientHandler) SetStatus(w http.ResponseWriter, r *http.Request) {
 	// We need to get current status first to toggle it
 	currentClient, err := h.ClientService.GetByUUID(ClientUUID, tenant.TenantID)
 	if err != nil {
-		resp.Error(w, http.StatusNotFound, "Auth client not found")
+		resp.HandleServiceError(w, "Auth client not found", err)
 		return
 	}
 	if currentClient.Status == model.StatusActive {
@@ -324,7 +324,7 @@ func (h *ClientHandler) SetStatus(w http.ResponseWriter, r *http.Request) {
 
 	Client, err := h.ClientService.SetStatusByUUID(ClientUUID, tenant.TenantID, newStatus, user.UserUUID)
 	if err != nil {
-		resp.Error(w, http.StatusInternalServerError, "Failed to update API", err.Error())
+		resp.HandleServiceError(w, "Failed to update auth client status", err)
 		return
 	}
 
@@ -353,7 +353,7 @@ func (h *ClientHandler) Delete(w http.ResponseWriter, r *http.Request) {
 
 	Client, err := h.ClientService.DeleteByUUID(ClientUUID, tenant.TenantID, user.UserUUID)
 	if err != nil {
-		resp.Error(w, http.StatusInternalServerError, "Failed to delete auth client", err.Error())
+		resp.HandleServiceError(w, "Failed to delete auth client", err)
 		return
 	}
 
@@ -378,7 +378,7 @@ func (h *ClientHandler) GetURIs(w http.ResponseWriter, r *http.Request) {
 
 	Client, err := h.ClientService.GetByUUID(ClientUUID, tenant.TenantID)
 	if err != nil {
-		resp.Error(w, http.StatusNotFound, "Auth client not found", err.Error())
+		resp.HandleServiceError(w, "Auth client not found", err)
 		return
 	}
 
@@ -434,7 +434,7 @@ func (h *ClientHandler) CreateURI(w http.ResponseWriter, r *http.Request) {
 
 	uri, err := h.ClientService.CreateURI(ClientUUID, tenant.TenantID, req.URI, req.Type, user.UserUUID)
 	if err != nil {
-		resp.Error(w, http.StatusInternalServerError, "Failed to create URI", err.Error())
+		resp.HandleServiceError(w, "Failed to create URI", err)
 		return
 	}
 
@@ -485,7 +485,7 @@ func (h *ClientHandler) UpdateURI(w http.ResponseWriter, r *http.Request) {
 
 	uri, err := h.ClientService.UpdateURI(ClientUUID, tenant.TenantID, ClientURIUUID, req.URI, req.Type, user.UserUUID)
 	if err != nil {
-		resp.Error(w, http.StatusInternalServerError, "Failed to update URI", err.Error())
+		resp.HandleServiceError(w, "Failed to update URI", err)
 		return
 	}
 
@@ -541,7 +541,7 @@ func (h *ClientHandler) DeleteURI(w http.ResponseWriter, r *http.Request) {
 
 	Client, err := h.ClientService.DeleteURI(ClientUUID, tenant.TenantID, ClientURIUUID, user.UserUUID)
 	if err != nil {
-		resp.Error(w, http.StatusInternalServerError, "Failed to delete URI", err.Error())
+		resp.HandleServiceError(w, "Failed to delete URI", err)
 		return
 	}
 
@@ -569,7 +569,7 @@ func (h *ClientHandler) GetAPIs(w http.ResponseWriter, r *http.Request) {
 	// Get auth client APIs
 	ClientAPIs, err := h.ClientService.GetClientAPIs(tenant.TenantID, ClientUUID)
 	if err != nil {
-		resp.Error(w, http.StatusInternalServerError, "Failed to get auth client APIs")
+		resp.HandleServiceError(w, "Failed to get auth client APIs", err)
 		return
 	}
 
@@ -643,7 +643,7 @@ func (h *ClientHandler) AddAPIs(w http.ResponseWriter, r *http.Request) {
 	// Add APIs to auth client
 	err = h.ClientService.AddClientAPIs(tenant.TenantID, ClientUUID, req.APIUUIDs)
 	if err != nil {
-		resp.Error(w, http.StatusInternalServerError, "Failed to add APIs to auth client")
+		resp.HandleServiceError(w, "Failed to add APIs to auth client", err)
 		return
 	}
 
@@ -678,7 +678,7 @@ func (h *ClientHandler) RemoveAPI(w http.ResponseWriter, r *http.Request) {
 	// Remove API from auth client
 	err = h.ClientService.RemoveClientAPI(tenant.TenantID, ClientUUID, apiUUID)
 	if err != nil {
-		resp.Error(w, http.StatusInternalServerError, "Failed to remove API from auth client")
+		resp.HandleServiceError(w, "Failed to remove API from auth client", err)
 		return
 	}
 
@@ -713,7 +713,7 @@ func (h *ClientHandler) GetAPIPermissions(w http.ResponseWriter, r *http.Request
 	// Get auth client API permissions
 	permissions, err := h.ClientService.GetClientAPIPermissions(tenant.TenantID, ClientUUID, apiUUID)
 	if err != nil {
-		resp.Error(w, http.StatusInternalServerError, "Failed to get auth client API permissions")
+		resp.HandleServiceError(w, "Failed to get auth client API permissions", err)
 		return
 	}
 
@@ -770,7 +770,7 @@ func (h *ClientHandler) AddAPIPermissions(w http.ResponseWriter, r *http.Request
 	// Add permissions to auth client API
 	err = h.ClientService.AddClientAPIPermissions(tenant.TenantID, ClientUUID, apiUUID, req.PermissionUUIDs)
 	if err != nil {
-		resp.Error(w, http.StatusInternalServerError, "Failed to add permissions to auth client API")
+		resp.HandleServiceError(w, "Failed to add permissions to auth client API", err)
 		return
 	}
 
@@ -812,7 +812,7 @@ func (h *ClientHandler) RemoveAPIPermission(w http.ResponseWriter, r *http.Reque
 	// Remove permission from auth client API
 	err = h.ClientService.RemoveClientAPIPermission(tenant.TenantID, ClientUUID, apiUUID, permissionUUID)
 	if err != nil {
-		resp.Error(w, http.StatusInternalServerError, "Failed to remove permission from auth client API")
+		resp.HandleServiceError(w, "Failed to remove permission from auth client API", err)
 		return
 	}
 

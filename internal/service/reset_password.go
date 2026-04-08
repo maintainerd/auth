@@ -1,7 +1,6 @@
 package service
 
 import (
-	"errors"
 	"fmt"
 	"time"
 
@@ -10,6 +9,7 @@ import (
 	"github.com/maintainerd/auth/internal/repository"
 	"github.com/maintainerd/auth/internal/security"
 	"gorm.io/gorm"
+	"github.com/maintainerd/auth/internal/apperror"
 )
 
 type ResetPasswordService interface {
@@ -55,10 +55,10 @@ func (s *resetPasswordService) ResetPassword(token, newPassword string, clientID
 			Client, txErr = txClientRepo.FindDefault()
 		}
 		if txErr != nil {
-			return fmt.Errorf("failed to find auth client: %w", txErr)
+			return apperror.NewInternal("failed to find auth client", txErr)
 		}
 		if Client == nil {
-			return errors.New("invalid client credentials")
+			return apperror.NewUnauthorized("invalid client credentials")
 		}
 
 		// Find the reset token by searching all password reset tokens
@@ -70,11 +70,11 @@ func (s *resetPasswordService) ResetPassword(token, newPassword string, clientID
 		allTokens := []model.UserToken{}
 		txErr = tx.Where("token_type = ? AND token = ? AND is_revoked = false", model.TokenTypePasswordReset, token).Find(&allTokens).Error
 		if txErr != nil {
-			return fmt.Errorf("failed to find reset token: %w", txErr)
+			return apperror.NewInternal("failed to find reset token", txErr)
 		}
 
 		if len(allTokens) == 0 {
-			return errors.New("invalid or expired reset token")
+			return apperror.NewUnauthorized("invalid or expired reset token")
 		}
 
 		foundToken = &allTokens[0]
@@ -82,37 +82,37 @@ func (s *resetPasswordService) ResetPassword(token, newPassword string, clientID
 
 		// Check if token is expired
 		if userToken.ExpiresAt != nil && time.Now().After(*userToken.ExpiresAt) {
-			return errors.New("reset token has expired")
+			return apperror.NewUnauthorized("reset token has expired")
 		}
 
 		// Check if token is revoked
 		if userToken.IsRevoked {
-			return errors.New("reset token has been revoked")
+			return apperror.NewUnauthorized("reset token has been revoked")
 		}
 
 		// Find the user
 		user, txErr = txUserRepo.FindByID(userToken.UserID)
 		if txErr != nil {
-			return fmt.Errorf("failed to find user: %w", txErr)
+			return apperror.NewInternal("failed to find user", txErr)
 		}
 		if user == nil {
-			return errors.New("user not found")
+			return apperror.NewNotFound("user not found")
 		}
 
 		// Check if user is active
 		if user.Status != model.StatusActive {
-			return errors.New("user account is not active")
+			return apperror.NewUnauthorized("user account is not active")
 		}
 
 		// Validate password strength
 		if err := security.ValidatePasswordStrength(newPassword); err != nil {
-			return fmt.Errorf("password validation failed: %w", err)
+			return apperror.NewInternal("password validation failed", err)
 		}
 
 		// Hash the new password
 		hashedPassword, txErr := security.HashPassword([]byte(newPassword))
 		if txErr != nil {
-			return fmt.Errorf("failed to hash password: %w", txErr)
+			return apperror.NewInternal("failed to hash password", txErr)
 		}
 
 		// Update user password using the base repository method
@@ -120,24 +120,24 @@ func (s *resetPasswordService) ResetPassword(token, newPassword string, clientID
 			"password": string(hashedPassword),
 		})
 		if txErr != nil {
-			return fmt.Errorf("failed to update password: %w", txErr)
+			return apperror.NewInternal("failed to update password", txErr)
 		}
 
 		// Revoke the reset token
 		txErr = txUserTokenRepo.RevokeByUUID(userToken.UserTokenUUID)
 		if txErr != nil {
-			return fmt.Errorf("failed to revoke reset token: %w", txErr)
+			return apperror.NewInternal("failed to revoke reset token", txErr)
 		}
 
 		// Revoke all other password reset tokens for this user
 		existingTokens, txErr := txUserTokenRepo.FindByUserIDAndTokenType(user.UserID, model.TokenTypePasswordReset)
 		if txErr != nil {
-			return fmt.Errorf("failed to find existing tokens: %w", txErr)
+			return apperror.NewInternal("failed to find existing tokens", txErr)
 		}
 		for _, existingToken := range existingTokens {
 			if existingToken.UserTokenUUID != userToken.UserTokenUUID {
 				if txErr := txUserTokenRepo.RevokeByUUID(existingToken.UserTokenUUID); txErr != nil {
-					return fmt.Errorf("failed to revoke existing token: %w", txErr)
+					return apperror.NewInternal("failed to revoke existing token", txErr)
 				}
 			}
 		}

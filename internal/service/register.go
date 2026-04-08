@@ -1,16 +1,16 @@
 package service
 
 import (
-	"errors"
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/maintainerd/auth/internal/dto"
-	"github.com/maintainerd/auth/internal/model"
-	"github.com/maintainerd/auth/internal/repository"
-	"github.com/maintainerd/auth/internal/ptr"
-	"github.com/maintainerd/auth/internal/jwt"
+	"github.com/maintainerd/auth/internal/apperror"
 	"github.com/maintainerd/auth/internal/crypto"
+	"github.com/maintainerd/auth/internal/dto"
+	"github.com/maintainerd/auth/internal/jwt"
+	"github.com/maintainerd/auth/internal/model"
+	"github.com/maintainerd/auth/internal/ptr"
+	"github.com/maintainerd/auth/internal/repository"
 	"github.com/maintainerd/auth/internal/security"
 	"gorm.io/datatypes"
 	"gorm.io/gorm"
@@ -87,7 +87,7 @@ func (s *registerService) findDefaultRole(roleRepo repository.RoleRepository, te
 		return nil, err
 	}
 	if role == nil {
-		return nil, errors.New("no default role found for tenant")
+		return nil, apperror.NewValidation("no default role found for tenant")
 	}
 
 	return role, nil
@@ -133,17 +133,17 @@ func (s *registerService) RegisterPublic(
 		if Client == nil ||
 			Client.Status != model.StatusActive ||
 			Client.Domain == nil || *Client.Domain == "" {
-			return errors.New("invalid or inactive auth client")
+			return apperror.NewValidation("invalid or inactive auth client")
 		}
 
 		// Look up identity provider by identifier to get auth container
 		identityProvider, txErr := txIdentityProviderRepo.FindByIdentifier(providerID)
 		if txErr != nil {
-			return errors.New("identity provider lookup failed")
+			return apperror.NewInternal("identity provider lookup failed", txErr)
 		}
 
 		if identityProvider == nil {
-			return errors.New("identity provider not found")
+			return apperror.NewNotFoundWithReason("identity provider not found")
 		}
 
 		tenantId := identityProvider.TenantID
@@ -154,7 +154,7 @@ func (s *registerService) RegisterPublic(
 			return txErr
 		}
 		if existingUser != nil {
-			return errors.New("username already taken")
+			return apperror.NewConflict("username already taken")
 		}
 
 		// Check if email already exists (if provided)
@@ -164,7 +164,7 @@ func (s *registerService) RegisterPublic(
 				return txErr
 			}
 			if existingEmailUser != nil {
-				return errors.New("email already registered")
+				return apperror.NewConflict("email already registered")
 			}
 		}
 
@@ -175,7 +175,7 @@ func (s *registerService) RegisterPublic(
 				return txErr
 			}
 			if existingPhoneUser != nil {
-				return errors.New("phone number already registered")
+				return apperror.NewConflict("phone number already registered")
 			}
 		}
 
@@ -304,7 +304,7 @@ func (s *registerService) Register(
 			// Get auth client by client_id and identity provider identifier
 			Client, txErr = txClientRepo.FindByClientIDAndIdentityProvider(*clientID, *providerID)
 			if txErr != nil {
-				return errors.New("auth client lookup by client_id and provider_id failed")
+				return apperror.NewInternal("auth client lookup by client_id and provider_id failed", txErr)
 			}
 		} else {
 			// Get default auth client for internal authentication
@@ -317,7 +317,7 @@ func (s *registerService) Register(
 		if Client == nil ||
 			Client.Status != model.StatusActive ||
 			Client.Domain == nil || *Client.Domain == "" {
-			return errors.New("auth client not found or inactive")
+			return apperror.NewNotFoundWithReason("auth client not found or inactive")
 		}
 
 		// Get tenant ID from the default client's identity provider
@@ -329,7 +329,7 @@ func (s *registerService) Register(
 			return txErr
 		}
 		if existingUser != nil {
-			return errors.New("user already exists")
+			return apperror.NewConflict("user already exists")
 		}
 
 		// Hash password
@@ -461,7 +461,7 @@ func (s *registerService) RegisterInvite(
 			// Get auth client by client_id and identity provider identifier
 			Client, txErr = txClientRepo.FindByClientIDAndIdentityProvider(*clientID, *providerID)
 			if txErr != nil {
-				return errors.New("auth client lookup by client_id and provider_id failed")
+				return apperror.NewInternal("auth client lookup by client_id and provider_id failed", txErr)
 			}
 		} else {
 			// Get default auth client for internal authentication
@@ -474,7 +474,7 @@ func (s *registerService) RegisterInvite(
 		if Client == nil ||
 			Client.Status != model.StatusActive ||
 			Client.Domain == nil || *Client.Domain == "" {
-			return errors.New("auth client not found or inactive")
+			return apperror.NewNotFoundWithReason("auth client not found or inactive")
 		}
 
 		// Get tenant ID from the default client's identity provider
@@ -483,10 +483,10 @@ func (s *registerService) RegisterInvite(
 		// Validate invite token
 		invite, txErr := txInviteRepo.FindByToken(inviteToken)
 		if txErr != nil {
-			return errors.New("invalid invite token")
+			return apperror.NewUnauthorized("invalid invite token")
 		}
 		if invite == nil || invite.Status != model.StatusPending || (invite.ExpiresAt != nil && invite.ExpiresAt.Before(time.Now())) {
-			return errors.New("invite token is invalid or expired")
+			return apperror.NewUnauthorized("invite token is invalid or expired")
 		}
 
 		// Check if user already exists
@@ -495,7 +495,7 @@ func (s *registerService) RegisterInvite(
 			return txErr
 		}
 		if existingUser != nil {
-			return errors.New("user already exists")
+			return apperror.NewConflict("user already exists")
 		}
 
 		// Hash password
@@ -622,17 +622,17 @@ func (s *registerService) RegisterInvitePublic(
 		if Client == nil ||
 			Client.Status != model.StatusActive ||
 			Client.Domain == nil || *Client.Domain == "" {
-			return errors.New("invalid or inactive auth client")
+			return apperror.NewValidation("invalid or inactive auth client")
 		}
 
 		// Look up identity provider by identifier to get tenant
 		identityProvider, txErr := txIdentityProviderRepo.FindByIdentifier(providerID)
 		if txErr != nil {
-			return errors.New("identity provider lookup failed")
+			return apperror.NewInternal("identity provider lookup failed", txErr)
 		}
 
 		if identityProvider == nil {
-			return errors.New("identity provider not found")
+			return apperror.NewNotFoundWithReason("identity provider not found")
 		}
 
 		tenantId := identityProvider.TenantID
@@ -640,18 +640,18 @@ func (s *registerService) RegisterInvitePublic(
 		// Validate invite token
 		invite, txErr := txInviteRepo.FindByToken(inviteToken)
 		if txErr != nil {
-			return errors.New("invalid invite token")
+			return apperror.NewUnauthorized("invalid invite token")
 		}
 		if invite == nil {
-			return errors.New("invite not found")
+			return apperror.NewNotFound("invite not found")
 		}
 
 		// Check invite status and expiration
 		if invite.Status != model.StatusPending {
-			return errors.New("invite has already been used or is no longer valid")
+			return apperror.NewUnauthorized("invite has already been used or is no longer valid")
 		}
 		if invite.ExpiresAt != nil && time.Now().After(*invite.ExpiresAt) {
-			return errors.New("invite has expired")
+			return apperror.NewUnauthorized("invite has expired")
 		}
 
 		// Check if username already exists
@@ -660,7 +660,7 @@ func (s *registerService) RegisterInvitePublic(
 			return txErr
 		}
 		if existingUser != nil {
-			return errors.New("username already taken")
+			return apperror.NewConflict("username already taken")
 		}
 
 		// Check if invited email already exists
@@ -669,7 +669,7 @@ func (s *registerService) RegisterInvitePublic(
 			return txErr
 		}
 		if existingEmailUser != nil {
-			return errors.New("invited email already registered")
+			return apperror.NewConflict("invited email already registered")
 		}
 
 		// Hash password

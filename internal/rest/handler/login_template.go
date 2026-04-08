@@ -98,7 +98,7 @@ func (h *LoginTemplateHandler) GetAll(w http.ResponseWriter, r *http.Request) {
 	// Fetch templates from service - service filters by tenant_id
 	result, err := h.loginTemplateService.GetAll(tenant.TenantID, filter.Name, filter.Status, filter.Template, filter.IsDefault, filter.IsSystem, filter.Page, filter.Limit, filter.SortBy, filter.SortOrder)
 	if err != nil {
-		resp.Error(w, http.StatusInternalServerError, "Failed to retrieve login templates", err.Error())
+		resp.HandleServiceError(w, "Failed to retrieve login templates", err)
 		return
 	}
 
@@ -138,7 +138,7 @@ func (h *LoginTemplateHandler) Get(w http.ResponseWriter, r *http.Request) {
 	// Fetch template - service validates it belongs to tenant
 	template, err := h.loginTemplateService.GetByUUID(loginTemplateUUID, tenant.TenantID)
 	if err != nil {
-		resp.Error(w, http.StatusNotFound, "Login template not found")
+		resp.HandleServiceError(w, "Login template not found", err)
 		return
 	}
 
@@ -191,7 +191,7 @@ func (h *LoginTemplateHandler) Create(w http.ResponseWriter, r *http.Request) {
 		status,
 	)
 	if err != nil {
-		resp.Error(w, http.StatusBadRequest, "Failed to create login template", err.Error())
+		resp.HandleServiceError(w, "Failed to create login template", err)
 		return
 	}
 
@@ -255,7 +255,7 @@ func (h *LoginTemplateHandler) Update(w http.ResponseWriter, r *http.Request) {
 		status,
 	)
 	if err != nil {
-		resp.Error(w, http.StatusBadRequest, "Failed to update login template", err.Error())
+		resp.HandleServiceError(w, "Failed to update login template", err)
 		return
 	}
 
@@ -286,7 +286,7 @@ func (h *LoginTemplateHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	// Delete template - service validates it belongs to tenant
 	template, err := h.loginTemplateService.Delete(loginTemplateUUID, tenant.TenantID)
 	if err != nil {
-		resp.Error(w, http.StatusBadRequest, "Failed to delete login template", err.Error())
+		resp.HandleServiceError(w, "Failed to delete login template", err)
 		return
 	}
 
@@ -330,7 +330,7 @@ func (h *LoginTemplateHandler) UpdateStatus(w http.ResponseWriter, r *http.Reque
 	// Update status - service validates template belongs to tenant
 	template, err := h.loginTemplateService.UpdateStatus(loginTemplateUUID, tenant.TenantID, req.Status)
 	if err != nil {
-		resp.Error(w, http.StatusBadRequest, "Failed to update login template status", err.Error())
+		resp.HandleServiceError(w, "Failed to update login template status", err)
 		return
 	}
 

@@ -82,7 +82,7 @@ func TestIdentityProviderHandler_GetByUUID(t *testing.T) {
 	t.Run("service error returns 404", func(t *testing.T) {
 		svc := &mockIdentityProviderService{
 			getByUUIDFn: func(id uuid.UUID, tid int64) (*service.IdentityProviderServiceDataResult, error) {
-				return nil, errors.New("not found")
+				return nil, errNotFound
 			},
 		}
 		r := jsonReq(t, http.MethodGet, "/", nil)

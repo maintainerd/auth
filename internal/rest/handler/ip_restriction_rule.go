@@ -76,7 +76,7 @@ func (h *IPRestrictionRuleHandler) GetAll(w http.ResponseWriter, r *http.Request
 	// Fetch rules from service - service filters by tenant_id
 	result, err := h.ipRestrictionRuleService.GetAll(tenant.TenantID, filter.Type, filter.Status, filter.IPAddress, filter.Description, filter.Page, filter.Limit, filter.SortBy, filter.SortOrder)
 	if err != nil {
-		resp.Error(w, http.StatusInternalServerError, "Failed to get IP restriction rules", err.Error())
+		resp.HandleServiceError(w, "Failed to get IP restriction rules", err)
 		return
 	}
 
@@ -116,7 +116,7 @@ func (h *IPRestrictionRuleHandler) Get(w http.ResponseWriter, r *http.Request) {
 	// Fetch rule - service validates it belongs to tenant
 	rule, err := h.ipRestrictionRuleService.GetByUUID(tenant.TenantID, ipRestrictionRuleUUID)
 	if err != nil {
-		resp.Error(w, http.StatusNotFound, "IP restriction rule not found")
+		resp.HandleServiceError(w, "IP restriction rule not found", err)
 		return
 	}
 
@@ -170,7 +170,7 @@ func (h *IPRestrictionRuleHandler) Create(w http.ResponseWriter, r *http.Request
 		user.UserID,
 	)
 	if err != nil {
-		resp.Error(w, http.StatusBadRequest, "Failed to create IP restriction rule", err.Error())
+		resp.HandleServiceError(w, "Failed to create IP restriction rule", err)
 		return
 	}
 
@@ -235,7 +235,7 @@ func (h *IPRestrictionRuleHandler) Update(w http.ResponseWriter, r *http.Request
 		user.UserID,
 	)
 	if err != nil {
-		resp.Error(w, http.StatusBadRequest, "Failed to update IP restriction rule", err.Error())
+		resp.HandleServiceError(w, "Failed to update IP restriction rule", err)
 		return
 	}
 
@@ -266,7 +266,7 @@ func (h *IPRestrictionRuleHandler) Delete(w http.ResponseWriter, r *http.Request
 	// Delete rule - service validates it belongs to tenant
 	rule, err := h.ipRestrictionRuleService.Delete(tenant.TenantID, ipRestrictionRuleUUID)
 	if err != nil {
-		resp.Error(w, http.StatusBadRequest, "Failed to delete IP restriction rule", err.Error())
+		resp.HandleServiceError(w, "Failed to delete IP restriction rule", err)
 		return
 	}
 
@@ -317,7 +317,7 @@ func (h *IPRestrictionRuleHandler) UpdateStatus(w http.ResponseWriter, r *http.R
 	// Update status - service validates rule belongs to tenant
 	rule, err := h.ipRestrictionRuleService.UpdateStatus(tenant.TenantID, ipRestrictionRuleUUID, req.Status, user.UserID)
 	if err != nil {
-		resp.Error(w, http.StatusBadRequest, "Failed to update IP restriction rule status", err.Error())
+		resp.HandleServiceError(w, "Failed to update IP restriction rule status", err)
 		return
 	}
 

@@ -21,7 +21,7 @@ func TestProfileHandler_CreateOrUpdate(t *testing.T) {
 	t.Run("service error returns 400", func(t *testing.T) {
 		svc := &mockProfileService{
 			createOrUpdateFn: func(u uuid.UUID, fn string, mn, ln, suf, dn, bio *string, bd *time.Time, gen, ph, em, addr, city, co, tz, lang, purl *string, meta map[string]any) (*service.ProfileServiceDataResult, error) {
-				return nil, errors.New("save error")
+				return nil, errValidation
 			},
 		}
 		r := jsonReq(t, http.MethodPost, "/profiles", validProfileBody())
@@ -176,7 +176,7 @@ func TestProfileHandler_GetByUUID(t *testing.T) {
 	t.Run("not found returns 404", func(t *testing.T) {
 		svc := &mockProfileService{
 			getByUUIDFn: func(pUUID, uUUID uuid.UUID) (*service.ProfileServiceDataResult, error) {
-				return nil, errors.New("not found")
+				return nil, errNotFound
 			},
 		}
 		r := jsonReq(t, http.MethodGet, "/", nil)
@@ -429,7 +429,7 @@ func TestProfileHandler_CreateProfile_WithBirthdate(t *testing.T) {
 func TestProfileHandler_CreateProfile_ServiceError(t *testing.T) {
 	svc := &mockProfileService{
 		createOrUpdateSpecificFn: func(pUUID, uUUID uuid.UUID, fn string, mn, ln, suf, dn, bio *string, bdate *time.Time, gen, ph, em, addr, city, co, tz, lang, purl *string, meta map[string]any) (*service.ProfileServiceDataResult, error) {
-			return nil, errors.New("create error")
+			return nil, errValidation
 		},
 	}
 	r := jsonReq(t, http.MethodPost, "/profiles", validProfileBody())
@@ -481,7 +481,7 @@ func TestProfileHandler_UpdateProfile_ServiceError(t *testing.T) {
 	profUUID := uuid.New()
 	svc := &mockProfileService{
 		createOrUpdateSpecificFn: func(pUUID, uUUID uuid.UUID, fn string, mn, ln, suf, dn, bio *string, bdate *time.Time, gen, ph, em, addr, city, co, tz, lang, purl *string, meta map[string]any) (*service.ProfileServiceDataResult, error) {
-			return nil, errors.New("update error")
+			return nil, errValidation
 		},
 	}
 	r := jsonReq(t, http.MethodPut, "/", validProfileBody())
@@ -534,7 +534,7 @@ func TestProfileHandler_Delete_ServiceError(t *testing.T) {
 			return &service.ProfileServiceDataResult{ProfileUUID: profUUID}, nil
 		},
 		deleteByUUIDFn: func(pUUID, uUUID uuid.UUID) (*service.ProfileServiceDataResult, error) {
-			return nil, errors.New("delete error")
+			return nil, errValidation
 		},
 	}
 	r := jsonReq(t, http.MethodDelete, "/profiles", nil)
@@ -550,7 +550,7 @@ func TestProfileHandler_GetByUUID_Forbidden(t *testing.T) {
 	profUUID := uuid.New()
 	svc := &mockProfileService{
 		getByUUIDFn: func(pUUID, uUUID uuid.UUID) (*service.ProfileServiceDataResult, error) {
-			return nil, errors.New("profile does not belong to user")
+			return nil, errForbidden
 		},
 	}
 	r := jsonReq(t, http.MethodGet, "/", nil)
@@ -576,7 +576,7 @@ func TestProfileHandler_DeleteByUUID_Forbidden(t *testing.T) {
 	profUUID := uuid.New()
 	svc := &mockProfileService{
 		deleteByUUIDFn: func(pUUID, uUUID uuid.UUID) (*service.ProfileServiceDataResult, error) {
-			return nil, errors.New("profile does not belong to user")
+			return nil, errForbidden
 		},
 	}
 	r := jsonReq(t, http.MethodDelete, "/", nil)
@@ -591,7 +591,7 @@ func TestProfileHandler_DeleteByUUID_ServiceError(t *testing.T) {
 	profUUID := uuid.New()
 	svc := &mockProfileService{
 		deleteByUUIDFn: func(pUUID, uUUID uuid.UUID) (*service.ProfileServiceDataResult, error) {
-			return nil, errors.New("generic error")
+			return nil, errValidation
 		},
 	}
 	r := jsonReq(t, http.MethodDelete, "/", nil)
@@ -608,7 +608,7 @@ func TestProfileHandler_SetDefaultProfile_ServiceError(t *testing.T) {
 	profUUID := uuid.New()
 	svc := &mockProfileService{
 		setDefaultFn: func(pUUID, uUUID uuid.UUID) (*service.ProfileServiceDataResult, error) {
-			return nil, errors.New("set default error")
+			return nil, errValidation
 		},
 	}
 	r := jsonReq(t, http.MethodPost, "/", nil)
@@ -694,7 +694,7 @@ func TestProfileHandler_AdminGetProfile_NotFound(t *testing.T) {
 	profUUID := uuid.New()
 	svc := &mockProfileService{
 		getByUUIDFn: func(pUUID, uUUID uuid.UUID) (*service.ProfileServiceDataResult, error) {
-			return nil, errors.New("not found")
+			return nil, errNotFound
 		},
 	}
 	r := jsonReq(t, http.MethodGet, "/", nil)
@@ -752,7 +752,7 @@ func TestProfileHandler_AdminCreateProfile_ServiceError(t *testing.T) {
 	userUUID := uuid.New()
 	svc := &mockProfileService{
 		createOrUpdateSpecificFn: func(pUUID, uUUID uuid.UUID, fn string, mn, ln, suf, dn, bio *string, bdate *time.Time, gen, ph, em, addr, city, co, tz, lang, purl *string, meta map[string]any) (*service.ProfileServiceDataResult, error) {
-			return nil, errors.New("create error")
+			return nil, errValidation
 		},
 	}
 	r := jsonReq(t, http.MethodPost, "/", validProfileBody())
@@ -826,7 +826,7 @@ func TestProfileHandler_AdminUpdateProfile_ServiceError(t *testing.T) {
 	profUUID := uuid.New()
 	svc := &mockProfileService{
 		createOrUpdateSpecificFn: func(pUUID, uUUID uuid.UUID, fn string, mn, ln, suf, dn, bio *string, bdate *time.Time, gen, ph, em, addr, city, co, tz, lang, purl *string, meta map[string]any) (*service.ProfileServiceDataResult, error) {
-			return nil, errors.New("update error")
+			return nil, errValidation
 		},
 	}
 	r := jsonReq(t, http.MethodPut, "/", validProfileBody())
@@ -862,7 +862,7 @@ func TestProfileHandler_AdminDeleteProfile_ServiceError(t *testing.T) {
 	profUUID := uuid.New()
 	svc := &mockProfileService{
 		deleteByUUIDFn: func(pUUID, uUUID uuid.UUID) (*service.ProfileServiceDataResult, error) {
-			return nil, errors.New("delete error")
+			return nil, errValidation
 		},
 	}
 	r := jsonReq(t, http.MethodDelete, "/", nil)
@@ -898,7 +898,7 @@ func TestProfileHandler_AdminSetDefaultProfile_ServiceError(t *testing.T) {
 	profUUID := uuid.New()
 	svc := &mockProfileService{
 		setDefaultFn: func(pUUID, uUUID uuid.UUID) (*service.ProfileServiceDataResult, error) {
-			return nil, errors.New("set default error")
+			return nil, errValidation
 		},
 	}
 	r := jsonReq(t, http.MethodPost, "/", nil)

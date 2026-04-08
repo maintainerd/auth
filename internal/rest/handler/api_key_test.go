@@ -109,7 +109,7 @@ func TestAPIKeyHandler_GetByUUID(t *testing.T) {
 	t.Run("service error returns 404", func(t *testing.T) {
 		svc := &mockAPIKeyService{
 			getByUUIDFn: func(id uuid.UUID, tid int64, u uuid.UUID) (*service.APIKeyServiceDataResult, error) {
-				return nil, errors.New("not found")
+				return nil, errNotFound
 			},
 		}
 		r := jsonReq(t, http.MethodGet, "/", nil)
@@ -157,7 +157,7 @@ func TestAPIKeyHandler_GetConfigByUUID(t *testing.T) {
 	t.Run("service error returns 404", func(t *testing.T) {
 		svc := &mockAPIKeyService{
 			getConfigByUUIDFn: func(id uuid.UUID, tid int64) (datatypes.JSON, error) {
-				return nil, errors.New("not found")
+				return nil, errNotFound
 			},
 		}
 		r := jsonReq(t, http.MethodGet, "/", nil)

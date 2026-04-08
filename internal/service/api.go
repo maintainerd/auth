@@ -1,7 +1,6 @@
 package service
 
 import (
-	"errors"
 	"fmt"
 	"time"
 
@@ -10,6 +9,7 @@ import (
 	"github.com/maintainerd/auth/internal/repository"
 	"github.com/maintainerd/auth/internal/crypto"
 	"gorm.io/gorm"
+	"github.com/maintainerd/auth/internal/apperror"
 )
 
 type APIServiceDataResult struct {
@@ -121,7 +121,7 @@ func (s *apiService) GetByUUID(apiUUID uuid.UUID, tenantID int64) (*APIServiceDa
 		return nil, err
 	}
 	if api == nil {
-		return nil, errors.New("api not found")
+		return nil, apperror.NewNotFound("api not found")
 	}
 
 	return toAPIServiceDataResult(api), nil
@@ -130,7 +130,7 @@ func (s *apiService) GetByUUID(apiUUID uuid.UUID, tenantID int64) (*APIServiceDa
 func (s *apiService) GetServiceIDByUUID(serviceUUID uuid.UUID) (int64, error) {
 	service, err := s.serviceRepo.FindByUUID(serviceUUID)
 	if err != nil || service == nil {
-		return 0, errors.New("service not found")
+		return 0, apperror.NewNotFound("service not found")
 	}
 
 	return service.ServiceID, nil
@@ -149,13 +149,13 @@ func (s *apiService) Create(tenantID int64, name string, displayName string, des
 			return err
 		}
 		if existingAPI != nil {
-			return errors.New(name + " api already exists")
+			return apperror.NewConflict(name + " api already exists")
 		}
 
 		// Check if service exist
 		service, err := txServiceRepo.FindByUUID(serviceUUID)
 		if err != nil || service == nil {
-			return errors.New("service not found")
+			return apperror.NewNotFound("service not found")
 		}
 
 		// Generate identifier
@@ -209,37 +209,37 @@ func (s *apiService) Update(apiUUID uuid.UUID, tenantID int64, name string, disp
 			return err
 		}
 		if api == nil {
-			return errors.New("api not found or access denied")
+			return apperror.NewNotFoundWithReason("api not found or access denied")
 		}
 
 		// Verify API's service belongs to tenant
 		if api.ServiceID > 0 {
 			tenantService, err := txTenantServiceRepo.FindByTenantAndService(tenantID, api.ServiceID)
 			if err != nil || tenantService == nil {
-				return errors.New("api not found or access denied")
+				return apperror.NewNotFoundWithReason("api not found or access denied")
 			}
 		}
 
 		// Check if API is a system record (critical for app functionality)
 		if api.IsSystem {
-			return errors.New("system API cannot be updated")
+			return apperror.NewValidation("system API cannot be updated")
 		}
 
 		// Validate service exists
 		serviceUUIDParsed, err := uuid.Parse(serviceUUID)
 		if err != nil {
-			return errors.New("invalid service UUID format")
+			return apperror.NewValidation("invalid service UUID format")
 		}
 
 		service, err := txServiceRepo.FindByUUID(serviceUUIDParsed)
 		if err != nil || service == nil {
-			return errors.New("service not found")
+			return apperror.NewNotFound("service not found")
 		}
 
 		// Verify new service belongs to tenant
 		tenantService, err := txTenantServiceRepo.FindByTenantAndService(tenantID, service.ServiceID)
 		if err != nil || tenantService == nil {
-			return errors.New("service not found or access denied")
+			return apperror.NewNotFoundWithReason("service not found or access denied")
 		}
 
 		// Check if api already exist
@@ -249,7 +249,7 @@ func (s *apiService) Update(apiUUID uuid.UUID, tenantID int64, name string, disp
 				return err
 			}
 			if existingAPI != nil && existingAPI.APIUUID != apiUUID {
-				return errors.New(name + " api already exists")
+				return apperror.NewConflict(name + " api already exists")
 			}
 		}
 
@@ -292,20 +292,20 @@ func (s *apiService) SetStatusByUUID(apiUUID uuid.UUID, tenantID int64, status s
 			return err
 		}
 		if api == nil {
-			return errors.New("api not found or access denied")
+			return apperror.NewNotFoundWithReason("api not found or access denied")
 		}
 
 		// Verify API's service belongs to tenant
 		if api.ServiceID > 0 {
 			tenantService, err := txTenantServiceRepo.FindByTenantAndService(tenantID, api.ServiceID)
 			if err != nil || tenantService == nil {
-				return errors.New("api not found or access denied")
+				return apperror.NewNotFoundWithReason("api not found or access denied")
 			}
 		}
 
 		// Check if API is a system record (critical for app functionality)
 		if api.IsSystem {
-			return errors.New("system API status cannot be updated")
+			return apperror.NewValidation("system API status cannot be updated")
 		}
 
 		api.Status = status
@@ -334,20 +334,20 @@ func (s *apiService) DeleteByUUID(apiUUID uuid.UUID, tenantID int64) (*APIServic
 		return nil, err
 	}
 	if api == nil {
-		return nil, errors.New("api not found or access denied")
+		return nil, apperror.NewNotFoundWithReason("api not found or access denied")
 	}
 
 	// Verify API's service belongs to tenant
 	if api.ServiceID > 0 {
 		tenantService, err := s.tenantServiceRepo.FindByTenantAndService(tenantID, api.ServiceID)
 		if err != nil || tenantService == nil {
-			return nil, errors.New("api not found or access denied")
+			return nil, apperror.NewNotFoundWithReason("api not found or access denied")
 		}
 	}
 
 	// Check if API is a system record (critical for app functionality)
 	if api.IsSystem {
-		return nil, errors.New("system API cannot be deleted")
+		return nil, apperror.NewValidation("system API cannot be deleted")
 	}
 
 	err = s.apiRepo.DeleteByUUIDAndTenantID(apiUUID, tenantID)

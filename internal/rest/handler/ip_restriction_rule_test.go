@@ -83,7 +83,7 @@ func TestIPRestrictionRuleHandler_Get_BadUUID(t *testing.T) {
 
 func TestIPRestrictionRuleHandler_Get_NotFound(t *testing.T) {
 	svc := &mockIPRestrictionRuleService{getByUUIDFn: func(_ int64, _ uuid.UUID) (*service.IPRestrictionRuleServiceDataResult, error) {
-		return nil, errors.New("not found")
+		return nil, errNotFound
 	}}
 	h := NewIPRestrictionRuleHandler(svc)
 	r := withChiParam(withTenant(jsonReq(t, http.MethodGet, "/ip-rules/id", nil)), "ip_restriction_rule_uuid", testResourceUUID.String())
@@ -142,7 +142,7 @@ func TestIPRestrictionRuleHandler_Create_CustomStatus(t *testing.T) {
 
 func TestIPRestrictionRuleHandler_Create_Error(t *testing.T) {
 	svc := &mockIPRestrictionRuleService{createFn: func(_ int64, _, _, _, _ string, _ int64) (*service.IPRestrictionRuleServiceDataResult, error) {
-		return nil, errors.New("fail")
+		return nil, errValidation
 	}}
 	h := NewIPRestrictionRuleHandler(svc)
 	body := map[string]any{"type": "allow", "ip_address": "1.2.3.4", "description": "rule"}
@@ -213,7 +213,7 @@ func TestIPRestrictionRuleHandler_Update_CustomStatus(t *testing.T) {
 
 func TestIPRestrictionRuleHandler_Update_ServiceError(t *testing.T) {
 	svc := &mockIPRestrictionRuleService{updateFn: func(_ int64, _ uuid.UUID, _, _, _, _ string, _ int64) (*service.IPRestrictionRuleServiceDataResult, error) {
-		return nil, errors.New("fail")
+		return nil, errValidation
 	}}
 	body := map[string]any{"type": "allow", "ip_address": "1.2.3.4"}
 	w := httptest.NewRecorder()
@@ -247,7 +247,7 @@ func TestIPRestrictionRuleHandler_Delete_InvalidUUID(t *testing.T) {
 
 func TestIPRestrictionRuleHandler_Delete_ServiceError(t *testing.T) {
 	svc := &mockIPRestrictionRuleService{deleteFn: func(_ int64, _ uuid.UUID) (*service.IPRestrictionRuleServiceDataResult, error) {
-		return nil, errors.New("fail")
+		return nil, errValidation
 	}}
 	w := httptest.NewRecorder()
 	r := withTenant(withChiParam(httptest.NewRequest(http.MethodDelete, "/", nil), "ip_restriction_rule_uuid", testResourceUUID.String()))
@@ -303,7 +303,7 @@ func TestIPRestrictionRuleHandler_UpdateStatus_ValidationError(t *testing.T) {
 
 func TestIPRestrictionRuleHandler_UpdateStatus_ServiceError(t *testing.T) {
 	svc := &mockIPRestrictionRuleService{updateStatusFn: func(_ int64, _ uuid.UUID, _ string, _ int64) (*service.IPRestrictionRuleServiceDataResult, error) {
-		return nil, errors.New("fail")
+		return nil, errValidation
 	}}
 	w := httptest.NewRecorder()
 	r := withChiParam(withTenantAndUser(jsonReq(t, http.MethodPatch, "/", map[string]any{"status": "active"})), "ip_restriction_rule_uuid", testResourceUUID.String())

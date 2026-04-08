@@ -157,7 +157,7 @@ func (h *ResetPasswordHandler) ResetPasswordPublic(w http.ResponseWriter, r *htt
 			Details:   "Service error: " + err.Error(),
 			Severity:  "HIGH",
 		})
-		resp.Error(w, http.StatusBadRequest, err.Error())
+		resp.HandleServiceError(w, "Failed to reset password", err)
 		return
 	}
 
@@ -316,7 +316,7 @@ func (h *ResetPasswordHandler) ResetPassword(w http.ResponseWriter, r *http.Requ
 			Details:   "Service error: " + err.Error(),
 			Severity:  "HIGH",
 		})
-		resp.Error(w, http.StatusBadRequest, err.Error())
+		resp.HandleServiceError(w, "Failed to reset password", err)
 		return
 	}
 

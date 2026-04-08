@@ -1,13 +1,13 @@
 package service
 
 import (
-	"errors"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/model"
 	"github.com/maintainerd/auth/internal/repository"
 	"gorm.io/gorm"
+	"github.com/maintainerd/auth/internal/apperror"
 )
 
 type ServiceServiceDataResult struct {
@@ -126,13 +126,13 @@ func (s *serviceService) Get(filter ServiceServiceGetFilter) (*ServiceServiceGet
 func (s *serviceService) GetByUUID(serviceUUID uuid.UUID, tenantID int64) (*ServiceServiceDataResult, error) {
 	service, err := s.serviceRepo.FindByUUID(serviceUUID)
 	if err != nil || service == nil {
-		return nil, errors.New("service not found")
+		return nil, apperror.NewNotFound("service not found")
 	}
 
 	// Verify service belongs to tenant by checking tenant_services relationship
 	tenantService, err := s.tenantServiceRepo.FindByTenantAndService(tenantID, service.ServiceID)
 	if err != nil || tenantService == nil {
-		return nil, errors.New("service not found or access denied")
+		return nil, apperror.NewNotFoundWithReason("service not found or access denied")
 	}
 
 	return s.toServiceServiceDataResult(service, tenantID), nil
@@ -150,7 +150,7 @@ func (s *serviceService) Create(name string, displayName string, description str
 			return err
 		}
 		if existingService != nil {
-			return errors.New(name + " service already exists for this tenant")
+			return apperror.NewConflict(name + " service already exists for this tenant")
 		}
 
 		// Create service
@@ -201,18 +201,18 @@ func (s *serviceService) Update(serviceUUID uuid.UUID, tenantID int64, name stri
 
 		service, err := txServiceRepo.FindByUUID(serviceUUID)
 		if err != nil || service == nil {
-			return errors.New("service not found")
+			return apperror.NewNotFound("service not found")
 		}
 
 		// Verify service belongs to tenant
 		tenantService, err := txTenantServiceRepo.FindByTenantAndService(tenantID, service.ServiceID)
 		if err != nil || tenantService == nil {
-			return errors.New("service not found or access denied")
+			return apperror.NewNotFoundWithReason("service not found or access denied")
 		}
 
 		// Check if service is a system record (critical for app functionality)
 		if service.IsSystem {
-			return errors.New("system service cannot be updated")
+			return apperror.NewValidation("system service cannot be updated")
 		}
 
 		if service.Name != name {
@@ -221,7 +221,7 @@ func (s *serviceService) Update(serviceUUID uuid.UUID, tenantID int64, name stri
 				return err
 			}
 			if existingService != nil && existingService.ServiceUUID != serviceUUID {
-				return errors.New(name + " service already exists")
+				return apperror.NewConflict(name + " service already exists")
 			}
 		}
 
@@ -258,18 +258,18 @@ func (s *serviceService) SetStatusByUUID(serviceUUID uuid.UUID, tenantID int64, 
 
 		service, err := txServiceRepo.FindByUUID(serviceUUID)
 		if err != nil || service == nil {
-			return errors.New("service not found")
+			return apperror.NewNotFound("service not found")
 		}
 
 		// Verify service belongs to tenant
 		tenantService, err := txTenantServiceRepo.FindByTenantAndService(tenantID, service.ServiceID)
 		if err != nil || tenantService == nil {
-			return errors.New("service not found or access denied")
+			return apperror.NewNotFoundWithReason("service not found or access denied")
 		}
 
 		// Check if service is a system record (critical for app functionality)
 		if service.IsSystem {
-			return errors.New("system service status cannot be updated")
+			return apperror.NewValidation("system service status cannot be updated")
 		}
 
 		service.Status = status
@@ -294,18 +294,18 @@ func (s *serviceService) SetStatusByUUID(serviceUUID uuid.UUID, tenantID int64, 
 func (s *serviceService) DeleteByUUID(serviceUUID uuid.UUID, tenantID int64) (*ServiceServiceDataResult, error) {
 	service, err := s.serviceRepo.FindByUUID(serviceUUID)
 	if err != nil || service == nil {
-		return nil, errors.New("service not found")
+		return nil, apperror.NewNotFound("service not found")
 	}
 
 	// Verify service belongs to tenant
 	tenantService, err := s.tenantServiceRepo.FindByTenantAndService(tenantID, service.ServiceID)
 	if err != nil || tenantService == nil {
-		return nil, errors.New("service not found or access denied")
+		return nil, apperror.NewNotFoundWithReason("service not found or access denied")
 	}
 
 	// Check if service is a system record (critical for app functionality)
 	if service.IsSystem {
-		return nil, errors.New("system service cannot be deleted")
+		return nil, apperror.NewValidation("system service cannot be deleted")
 	}
 
 	err = s.serviceRepo.DeleteByUUID(serviceUUID)
@@ -351,7 +351,7 @@ func (s *serviceService) AssignPolicy(serviceUUID uuid.UUID, policyUUID uuid.UUI
 			return err
 		}
 		if service == nil {
-			return errors.New("service not found")
+			return apperror.NewNotFound("service not found")
 		}
 
 		// Check if policy exists and belongs to the same tenant
@@ -360,7 +360,7 @@ func (s *serviceService) AssignPolicy(serviceUUID uuid.UUID, policyUUID uuid.UUI
 			return err
 		}
 		if policy == nil {
-			return errors.New("policy not found or access denied")
+			return apperror.NewNotFoundWithReason("policy not found or access denied")
 		}
 
 		// Check if assignment already exists
@@ -397,7 +397,7 @@ func (s *serviceService) RemovePolicy(serviceUUID uuid.UUID, policyUUID uuid.UUI
 			return err
 		}
 		if service == nil {
-			return errors.New("service not found")
+			return apperror.NewNotFound("service not found")
 		}
 
 		// Check if policy exists and belongs to the same tenant
@@ -406,7 +406,7 @@ func (s *serviceService) RemovePolicy(serviceUUID uuid.UUID, policyUUID uuid.UUI
 			return err
 		}
 		if policy == nil {
-			return errors.New("policy not found or access denied")
+			return apperror.NewNotFoundWithReason("policy not found or access denied")
 		}
 
 		// Check if assignment exists

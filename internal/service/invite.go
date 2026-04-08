@@ -2,8 +2,6 @@ package service
 
 import (
 	"bytes"
-	"errors"
-	"fmt"
 	"html/template"
 	"time"
 
@@ -15,6 +13,7 @@ import (
 	"github.com/maintainerd/auth/internal/signedurl"
 	"github.com/maintainerd/auth/internal/email"
 	"gorm.io/gorm"
+	"github.com/maintainerd/auth/internal/apperror"
 )
 
 type InviteService interface {
@@ -68,7 +67,7 @@ func (s *inviteService) SendInvite(
 			Client.IdentityProvider == nil ||
 			Client.IdentityProvider.Tenant == nil ||
 			Client.IdentityProvider.Tenant.TenantID == 0 {
-			return errors.New("invalid client or identity provider")
+			return apperror.NewValidation("invalid client or identity provider")
 		}
 
 		// Get tenant id
@@ -82,11 +81,11 @@ func (s *inviteService) SendInvite(
 
 		// Validate all roles belong to the correct tenant
 		if len(foundRoles) != len(roleUUIDs) {
-			return errors.New("one or more roles not found")
+			return apperror.NewNotFoundWithReason("one or more roles not found")
 		}
 		for _, role := range foundRoles {
 			if role.TenantID != tenantId {
-				return errors.New("invalid role for the given client")
+				return apperror.NewValidation("invalid role for the given client")
 			}
 		}
 
@@ -133,19 +132,19 @@ func (s *inviteService) SendInvite(
 	apiBaseURL := config.AppPrivateHostname + "/register/invite"
 	signedAPIURL, err := signedurl.GenerateSignedURL(apiBaseURL, params, 72*time.Hour)
 	if err != nil {
-		return nil, fmt.Errorf("failed to generate signed invite URL: %w", err)
+		return nil, apperror.NewInternal("failed to generate signed invite URL", err)
 	}
 
 	// Convert it to frontend URL
 	frontendBaseURL := config.AccountHostname + "/register/invite"
 	inviteURL, err := signedurl.ConvertToFrontendURL(signedAPIURL, frontendBaseURL)
 	if err != nil {
-		return nil, fmt.Errorf("failed to convert invite URL: %w", err)
+		return nil, apperror.NewInternal("failed to convert invite URL", err)
 	}
 
 	// Send invite email
 	if err := s.sendInviteEmail(email, inviteURL); err != nil {
-		return nil, fmt.Errorf("failed to send invite email: %w", err)
+		return nil, apperror.NewInternal("failed to send invite email", err)
 	}
 
 	return invite, nil
@@ -155,7 +154,7 @@ func (s *inviteService) sendInviteEmail(to, inviteURL string) error {
 	// Get email template from DB
 	templateEntity, err := s.emailTemplateRepo.FindByName("internal:user:invite")
 	if err != nil {
-		return fmt.Errorf("failed to fetch invite email template: %w", err)
+		return apperror.NewInternal("failed to fetch invite email template", err)
 	}
 
 	// Prepare data for the template
@@ -169,11 +168,11 @@ func (s *inviteService) sendInviteEmail(to, inviteURL string) error {
 	// Parse HTML template
 	tmpl, err := template.New("invite_html").Parse(templateEntity.BodyHTML)
 	if err != nil {
-		return fmt.Errorf("failed to parse HTML invite template: %w", err)
+		return apperror.NewInternal("failed to parse HTML invite template", err)
 	}
 	var bodyHTML bytes.Buffer
 	if err := tmpl.Execute(&bodyHTML, data); err != nil {
-		return fmt.Errorf("failed to execute HTML invite template: %w", err)
+		return apperror.NewInternal("failed to execute HTML invite template", err)
 	}
 
 	// Parse plain-text template if available
@@ -181,11 +180,11 @@ func (s *inviteService) sendInviteEmail(to, inviteURL string) error {
 	if templateEntity.BodyPlain != nil {
 		tmplPlain, err := template.New("invite_plain").Parse(*templateEntity.BodyPlain)
 		if err != nil {
-			return fmt.Errorf("failed to parse plain invite template: %w", err)
+			return apperror.NewInternal("failed to parse plain invite template", err)
 		}
 		var bodyPlain bytes.Buffer
 		if err := tmplPlain.Execute(&bodyPlain, data); err != nil {
-			return fmt.Errorf("failed to execute plain invite template: %w", err)
+			return apperror.NewInternal("failed to execute plain invite template", err)
 		}
 		bodyPlainStr = bodyPlain.String()
 	}

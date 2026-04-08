@@ -1,7 +1,6 @@
 package service
 
 import (
-	"errors"
 	"fmt"
 	"time"
 
@@ -12,6 +11,7 @@ import (
 	"github.com/maintainerd/auth/internal/security"
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
+	"github.com/maintainerd/auth/internal/apperror"
 )
 
 type LoginService interface {
@@ -93,7 +93,7 @@ func (s *loginService) LoginPublic(usernameOrEmail, password, clientID, provider
 				Timestamp: startTime,
 				Details:   "Identity provider lookup failed",
 			})
-			return errors.New("authentication failed")
+			return apperror.NewUnauthorized("authentication failed")
 		}
 
 		if identityProvider == nil {
@@ -104,7 +104,7 @@ func (s *loginService) LoginPublic(usernameOrEmail, password, clientID, provider
 				Timestamp: startTime,
 				Details:   "Identity provider not found",
 			})
-			return errors.New("authentication failed")
+			return apperror.NewUnauthorized("authentication failed")
 		}
 
 		// Get and validate auth client with proper relationship preloading
@@ -117,7 +117,7 @@ func (s *loginService) LoginPublic(usernameOrEmail, password, clientID, provider
 				Timestamp: startTime,
 				Details:   "Client lookup failed",
 			})
-			return errors.New("authentication failed")
+			return apperror.NewUnauthorized("authentication failed")
 		}
 
 		if client == nil ||
@@ -130,7 +130,7 @@ func (s *loginService) LoginPublic(usernameOrEmail, password, clientID, provider
 				Timestamp: startTime,
 				Details:   "Invalid or inactive client configuration",
 			})
-			return errors.New("authentication failed")
+			return apperror.NewUnauthorized("authentication failed")
 		}
 
 		// Get user by username (timing-safe user lookup)
@@ -176,7 +176,7 @@ func (s *loginService) LoginPublic(usernameOrEmail, password, clientID, provider
 			Details:   "Invalid credentials provided",
 		})
 
-		return nil, errors.New("invalid credentials")
+		return nil, apperror.NewUnauthorized("invalid credentials")
 	}
 
 	// Check if user account is active
@@ -188,7 +188,7 @@ func (s *loginService) LoginPublic(usernameOrEmail, password, clientID, provider
 			Timestamp: startTime,
 			Details:   "Attempt to login with inactive user account",
 		})
-		return nil, errors.New("account is not active")
+		return nil, apperror.NewUnauthorized("account is not active")
 	}
 
 	// Reset failed attempts on successful authentication
@@ -249,7 +249,7 @@ func (s *loginService) Login(usernameOrEmail, password string, clientID, provide
 					Timestamp: startTime,
 					Details:   "Client lookup by client_id and provider_id failed",
 				})
-				return errors.New("authentication failed")
+				return apperror.NewUnauthorized("authentication failed")
 			}
 		} else {
 			// Get default auth client for internal authentication
@@ -262,7 +262,7 @@ func (s *loginService) Login(usernameOrEmail, password string, clientID, provide
 					Timestamp: startTime,
 					Details:   "Default client lookup failed",
 				})
-				return errors.New("authentication failed")
+				return apperror.NewUnauthorized("authentication failed")
 			}
 		}
 
@@ -276,7 +276,7 @@ func (s *loginService) Login(usernameOrEmail, password string, clientID, provide
 				Timestamp: startTime,
 				Details:   "Invalid or inactive default client configuration",
 			})
-			return errors.New("authentication failed")
+			return apperror.NewUnauthorized("authentication failed")
 		}
 
 		// Get user by username (timing-safe user lookup)
@@ -324,7 +324,7 @@ func (s *loginService) Login(usernameOrEmail, password string, clientID, provide
 			Details:   "Invalid credentials provided",
 		})
 
-		return nil, errors.New("invalid credentials")
+		return nil, apperror.NewUnauthorized("invalid credentials")
 	}
 
 	// Check if user account is active
@@ -336,7 +336,7 @@ func (s *loginService) Login(usernameOrEmail, password string, clientID, provide
 			Timestamp: startTime,
 			Details:   "Attempt to login with inactive user account",
 		})
-		return nil, errors.New("account is not active")
+		return nil, apperror.NewUnauthorized("account is not active")
 	}
 
 	// Reset failed attempts on successful authentication

@@ -1,10 +1,10 @@
 package service
 
 import (
-	"errors"
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/maintainerd/auth/internal/apperror"
 	"github.com/maintainerd/auth/internal/model"
 	"github.com/maintainerd/auth/internal/repository"
 	"gorm.io/gorm"
@@ -94,7 +94,7 @@ func (s *smsTemplateService) GetByUUID(smsTemplateUUID uuid.UUID, tenantID int64
 	}
 
 	if template == nil {
-		return nil, errors.New("SMS template not found or access denied")
+		return nil, apperror.NewNotFoundWithReason("SMS template not found or access denied")
 	}
 
 	result := toSMSTemplateServiceDataResult(template)
@@ -129,12 +129,12 @@ func (s *smsTemplateService) Update(smsTemplateUUID uuid.UUID, tenantID int64, n
 	}
 
 	if template == nil {
-		return nil, errors.New("SMS template not found or access denied")
+		return nil, apperror.NewNotFoundWithReason("SMS template not found or access denied")
 	}
 
 	// Prevent updating system templates
 	if template.IsSystem {
-		return nil, errors.New("cannot update system SMS template")
+		return nil, apperror.NewValidation("cannot update system SMS template")
 	}
 
 	template.Name = name
@@ -160,12 +160,12 @@ func (s *smsTemplateService) UpdateStatus(smsTemplateUUID uuid.UUID, tenantID in
 	}
 
 	if template == nil {
-		return nil, errors.New("SMS template not found or access denied")
+		return nil, apperror.NewNotFoundWithReason("SMS template not found or access denied")
 	}
 
 	// Prevent updating system templates
 	if template.IsSystem {
-		return nil, errors.New("cannot update status of system SMS template")
+		return nil, apperror.NewValidation("cannot update status of system SMS template")
 	}
 
 	template.Status = status
@@ -186,12 +186,12 @@ func (s *smsTemplateService) Delete(smsTemplateUUID uuid.UUID, tenantID int64) (
 	}
 
 	if template == nil {
-		return nil, errors.New("SMS template not found or access denied")
+		return nil, apperror.NewNotFoundWithReason("SMS template not found or access denied")
 	}
 
 	// Prevent deleting system templates
 	if template.IsSystem {
-		return nil, errors.New("cannot delete system SMS template")
+		return nil, apperror.NewValidation("cannot delete system SMS template")
 	}
 
 	err = s.smsTemplateRepo.DeleteByUUID(smsTemplateUUID)

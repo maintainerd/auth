@@ -1,7 +1,6 @@
 package service
 
 import (
-	"errors"
 	"fmt"
 	"time"
 
@@ -11,6 +10,7 @@ import (
 	"github.com/maintainerd/auth/internal/crypto"
 	"gorm.io/datatypes"
 	"gorm.io/gorm"
+	"github.com/maintainerd/auth/internal/apperror"
 )
 
 type IdentityProviderServiceDataResult struct {
@@ -123,12 +123,12 @@ func (s *identityProviderService) Get(filter IdentityProviderServiceGetFilter) (
 func (s *identityProviderService) GetByUUID(idpUUID uuid.UUID, tenantID int64) (*IdentityProviderServiceDataResult, error) {
 	idp, err := s.idpRepo.FindByUUID(idpUUID, "Tenant")
 	if err != nil || idp == nil {
-		return nil, errors.New("identity provider not found or access denied")
+		return nil, apperror.NewNotFoundWithReason("identity provider not found or access denied")
 	}
 
 	// Validate tenant ownership
 	if idp.TenantID != tenantID {
-		return nil, errors.New("identity provider not found or access denied")
+		return nil, apperror.NewNotFoundWithReason("identity provider not found or access denied")
 	}
 
 	return toIdpServiceDataResult(idp), nil
@@ -145,24 +145,24 @@ func (s *identityProviderService) Create(name string, displayName string, provid
 		// Parse and check if tenant UUID is valid
 		tenantUUIDParsed, err := uuid.Parse(tenantUUID)
 		if err != nil {
-			return errors.New("invalid tenant UUID")
+			return apperror.NewValidation("invalid tenant UUID")
 		}
 
 		// Check if tenant exist
 		tenant, err := txTenantRepo.FindByUUID(tenantUUIDParsed)
 		if err != nil || tenant == nil {
-			return errors.New("tenant not found")
+			return apperror.NewNotFound("tenant not found")
 		}
 
 		// Validate tenant ownership
 		if tenant.TenantID != tenantID {
-			return errors.New("access denied")
+			return apperror.NewForbidden("access denied")
 		}
 
 		// Get actor user with tenant info
 		actorUser, err := txUserRepo.FindByUUID(actorUserUUID, "UserIdentities.Tenant")
 		if err != nil || actorUser == nil {
-			return errors.New("actor user not found")
+			return apperror.NewNotFoundWithReason("actor user not found")
 		}
 
 		// Validate tenant access permissions
@@ -176,7 +176,7 @@ func (s *identityProviderService) Create(name string, displayName string, provid
 			return err
 		}
 		if existingIdp != nil {
-			return errors.New(name + " idp already exists")
+			return apperror.NewConflict(name + " idp already exists")
 		}
 
 		// Generate identifier
@@ -227,18 +227,18 @@ func (s *identityProviderService) Update(idpUUID uuid.UUID, name string, display
 		// Get idp
 		idp, err := txIdpRepo.FindByUUID(idpUUID, "Tenant")
 		if err != nil || idp == nil {
-			return errors.New("identity provider not found or access denied")
+			return apperror.NewNotFoundWithReason("identity provider not found or access denied")
 		}
 
 		// Validate tenant ownership
 		if idp.TenantID != tenantID {
-			return errors.New("identity provider not found or access denied")
+			return apperror.NewNotFoundWithReason("identity provider not found or access denied")
 		}
 
 		// Get actor user with tenant info
 		actorUser, err := txUserRepo.FindByUUID(actorUserUUID, "UserIdentities.Tenant")
 		if err != nil || actorUser == nil {
-			return errors.New("actor user not found")
+			return apperror.NewNotFoundWithReason("actor user not found")
 		}
 
 		// Validate tenant access permissions
@@ -248,10 +248,10 @@ func (s *identityProviderService) Update(idpUUID uuid.UUID, name string, display
 
 		// Check if system or default (cannot be updated)
 		if idp.IsSystem {
-			return errors.New("system idp cannot be updated")
+			return apperror.NewValidation("system idp cannot be updated")
 		}
 		if idp.IsDefault {
-			return errors.New("default idp cannot be updated")
+			return apperror.NewValidation("default idp cannot be updated")
 		}
 
 		// Check if idp already exist
@@ -261,7 +261,7 @@ func (s *identityProviderService) Update(idpUUID uuid.UUID, name string, display
 				return err
 			}
 			if existingIdp != nil && existingIdp.IdentityProviderUUID != idpUUID {
-				return errors.New(name + " idp already exists")
+				return apperror.NewConflict(name + " idp already exists")
 			}
 		}
 
@@ -302,18 +302,18 @@ func (s *identityProviderService) SetStatusByUUID(idpUUID uuid.UUID, status stri
 		// Get idp
 		idp, err := txIdpRepo.FindByUUID(idpUUID, "Tenant")
 		if err != nil || idp == nil {
-			return errors.New("identity provider not found or access denied")
+			return apperror.NewNotFoundWithReason("identity provider not found or access denied")
 		}
 
 		// Validate tenant ownership
 		if idp.TenantID != tenantID {
-			return errors.New("identity provider not found or access denied")
+			return apperror.NewNotFoundWithReason("identity provider not found or access denied")
 		}
 
 		// Get actor user with tenant info
 		actorUser, err := txUserRepo.FindByUUID(actorUserUUID, "UserIdentities.Tenant")
 		if err != nil || actorUser == nil {
-			return errors.New("actor user not found")
+			return apperror.NewNotFoundWithReason("actor user not found")
 		}
 
 		// Validate tenant access permissions
@@ -323,10 +323,10 @@ func (s *identityProviderService) SetStatusByUUID(idpUUID uuid.UUID, status stri
 
 		// Check if system or default (cannot be updated)
 		if idp.IsSystem {
-			return errors.New("system idp cannot be updated")
+			return apperror.NewValidation("system idp cannot be updated")
 		}
 		if idp.IsDefault {
-			return errors.New("default idp cannot be updated")
+			return apperror.NewValidation("default idp cannot be updated")
 		}
 
 		// Set status
@@ -353,18 +353,18 @@ func (s *identityProviderService) DeleteByUUID(idpUUID uuid.UUID, tenantID int64
 	// Get idp
 	idp, err := s.idpRepo.FindByUUID(idpUUID, "Tenant")
 	if err != nil || idp == nil {
-		return nil, errors.New("identity provider not found or access denied")
+		return nil, apperror.NewNotFoundWithReason("identity provider not found or access denied")
 	}
 
 	// Validate tenant ownership
 	if idp.TenantID != tenantID {
-		return nil, errors.New("identity provider not found or access denied")
+		return nil, apperror.NewNotFoundWithReason("identity provider not found or access denied")
 	}
 
 	// Get actor user with tenant info
 	actorUser, err := s.userRepo.FindByUUID(actorUserUUID, "UserIdentities.Tenant")
 	if err != nil || actorUser == nil {
-		return nil, errors.New("actor user not found")
+		return nil, apperror.NewNotFoundWithReason("actor user not found")
 	}
 
 	// Validate tenant access permissions
@@ -374,10 +374,10 @@ func (s *identityProviderService) DeleteByUUID(idpUUID uuid.UUID, tenantID int64
 
 	// Check if system or default (cannot be deleted)
 	if idp.IsSystem {
-		return nil, errors.New("system idp cannot be deleted")
+		return nil, apperror.NewValidation("system idp cannot be deleted")
 	}
 	if idp.IsDefault {
-		return nil, errors.New("default idp cannot be deleted")
+		return nil, apperror.NewValidation("default idp cannot be deleted")
 	}
 
 	err = s.idpRepo.DeleteByUUID(idpUUID)

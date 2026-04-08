@@ -88,7 +88,7 @@ func TestLoginTemplateHandler_Get_BadUUID(t *testing.T) {
 
 func TestLoginTemplateHandler_Get_NotFound(t *testing.T) {
 	svc := &mockLoginTemplateService{getByUUIDFn: func(_ uuid.UUID, _ int64) (*service.LoginTemplateServiceDataResult, error) {
-		return nil, errors.New("not found")
+		return nil, errNotFound
 	}}
 	h := NewLoginTemplateHandler(svc)
 	r := withChiParam(withTenant(jsonReq(t, http.MethodGet, "/login-templates/id", nil)), "login_template_uuid", testResourceUUID.String())
@@ -140,7 +140,7 @@ func TestLoginTemplateHandler_Create(t *testing.T) {
 
 func TestLoginTemplateHandler_Create_Error(t *testing.T) {
 	svc := &mockLoginTemplateService{createFn: func(_ int64, _ string, _ *string, _ string, _ map[string]any, _ string) (*service.LoginTemplateServiceDataResult, error) {
-		return nil, errors.New("fail")
+		return nil, errValidation
 	}}
 	h := NewLoginTemplateHandler(svc)
 	body := map[string]any{"name": "tmpl1", "template": "modern"}
@@ -179,7 +179,7 @@ func TestLoginTemplateHandler_Update_ValidationError(t *testing.T) {
 
 func TestLoginTemplateHandler_Update_ServiceError(t *testing.T) {
 	svc := &mockLoginTemplateService{updateFn: func(_ uuid.UUID, _ int64, _ string, _ *string, _ string, _ map[string]any, _ string) (*service.LoginTemplateServiceDataResult, error) {
-		return nil, errors.New("fail")
+		return nil, errValidation
 	}}
 	w := httptest.NewRecorder()
 	r := withTenantAndUser(withChiParam(jsonReq(t, http.MethodPut, "/", validLoginTemplateBody()), "login_template_uuid", testResourceUUID.String()))
@@ -228,7 +228,7 @@ func TestLoginTemplateHandler_Delete_InvalidUUID(t *testing.T) {
 
 func TestLoginTemplateHandler_Delete_ServiceError(t *testing.T) {
 	svc := &mockLoginTemplateService{deleteFn: func(_ uuid.UUID, _ int64) (*service.LoginTemplateServiceDataResult, error) {
-		return nil, errors.New("fail")
+		return nil, errValidation
 	}}
 	w := httptest.NewRecorder()
 	NewLoginTemplateHandler(svc).Delete(w,
@@ -276,7 +276,7 @@ func TestLoginTemplateHandler_UpdateStatus_ValidationError(t *testing.T) {
 
 func TestLoginTemplateHandler_UpdateStatus_ServiceError(t *testing.T) {
 	svc := &mockLoginTemplateService{updateStatusFn: func(_ uuid.UUID, _ int64, _ string) (*service.LoginTemplateServiceDataResult, error) {
-		return nil, errors.New("fail")
+		return nil, errValidation
 	}}
 	w := httptest.NewRecorder()
 	r := withTenantAndUser(withChiParam(jsonReq(t, http.MethodPatch, "/", map[string]any{"status": "active"}), "login_template_uuid", testResourceUUID.String()))

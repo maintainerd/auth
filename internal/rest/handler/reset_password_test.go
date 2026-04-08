@@ -82,7 +82,7 @@ func TestResetPasswordHandler_ResetPasswordPublic_ServiceError(t *testing.T) {
 	})
 	svc := &mockResetPasswordService{
 		resetPasswordFn: func(token, pw string, c, p *string) (*dto.ResetPasswordResponseDTO, error) {
-			return nil, assert.AnError
+			return nil, errValidation
 		},
 	}
 	h := NewResetPasswordHandler(svc)
@@ -144,7 +144,7 @@ func TestResetPasswordHandler_ResetPassword_ServiceError(t *testing.T) {
 	q := validSignedQuery(t, map[string]string{"token": "tok123"})
 	svc := &mockResetPasswordService{
 		resetPasswordFn: func(token, pw string, c, p *string) (*dto.ResetPasswordResponseDTO, error) {
-			return nil, assert.AnError
+			return nil, errValidation
 		},
 	}
 	h := NewResetPasswordHandler(svc)

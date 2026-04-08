@@ -1,13 +1,13 @@
 package service
 
 import (
-	"errors"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/model"
 	"github.com/maintainerd/auth/internal/repository"
 	"gorm.io/gorm"
+	"github.com/maintainerd/auth/internal/apperror"
 )
 
 type EmailTemplateServiceDataResult struct {
@@ -94,7 +94,7 @@ func (s *emailTemplateService) GetByUUID(emailTemplateUUID uuid.UUID, tenantID i
 	}
 
 	if template == nil {
-		return nil, errors.New("email template not found or access denied")
+		return nil, apperror.NewNotFoundWithReason("email template not found or access denied")
 	}
 
 	result := toEmailTemplateServiceDataResult(template)
@@ -129,12 +129,12 @@ func (s *emailTemplateService) Update(emailTemplateUUID uuid.UUID, tenantID int6
 	}
 
 	if template == nil {
-		return nil, errors.New("email template not found or access denied")
+		return nil, apperror.NewNotFoundWithReason("email template not found or access denied")
 	}
 
 	// Prevent updating system templates
 	if template.IsSystem {
-		return nil, errors.New("cannot update system email template")
+		return nil, apperror.NewValidation("cannot update system email template")
 	}
 
 	template.Name = name
@@ -160,12 +160,12 @@ func (s *emailTemplateService) UpdateStatus(emailTemplateUUID uuid.UUID, tenantI
 	}
 
 	if template == nil {
-		return nil, errors.New("email template not found or access denied")
+		return nil, apperror.NewNotFoundWithReason("email template not found or access denied")
 	}
 
 	// Prevent updating system templates
 	if template.IsSystem {
-		return nil, errors.New("cannot update status of system email template")
+		return nil, apperror.NewValidation("cannot update status of system email template")
 	}
 
 	template.Status = status
@@ -186,12 +186,12 @@ func (s *emailTemplateService) Delete(emailTemplateUUID uuid.UUID, tenantID int6
 	}
 
 	if template == nil {
-		return nil, errors.New("email template not found or access denied")
+		return nil, apperror.NewNotFoundWithReason("email template not found or access denied")
 	}
 
 	// Prevent deleting system templates
 	if template.IsSystem {
-		return nil, errors.New("cannot delete system email template")
+		return nil, apperror.NewValidation("cannot delete system email template")
 	}
 
 	err = s.emailTemplateRepo.DeleteByUUID(emailTemplateUUID)

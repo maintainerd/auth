@@ -2,7 +2,6 @@ package service
 
 import (
 	"encoding/json"
-	"errors"
 	"time"
 
 	"github.com/google/uuid"
@@ -11,6 +10,7 @@ import (
 	"github.com/maintainerd/auth/internal/crypto"
 	"gorm.io/datatypes"
 	"gorm.io/gorm"
+	"github.com/maintainerd/auth/internal/apperror"
 )
 
 type SignupFlowServiceDataResult struct {
@@ -95,7 +95,7 @@ func (s *signupFlowService) GetAll(tenantID int64, name, identifier *string, sta
 	if ClientUUID != nil {
 		Client, err := s.clientRepo.FindByUUID(*ClientUUID)
 		if err != nil || Client == nil {
-			return nil, errors.New("auth client not found")
+			return nil, apperror.NewNotFoundWithReason("auth client not found")
 		}
 		ClientID = &Client.ClientID
 	}
@@ -134,7 +134,7 @@ func (s *signupFlowService) GetAll(tenantID int64, name, identifier *string, sta
 func (s *signupFlowService) GetByUUID(signupFlowUUID uuid.UUID, tenantID int64) (*SignupFlowServiceDataResult, error) {
 	signupFlow, err := s.signupFlowRepo.FindByUUIDAndTenantID(signupFlowUUID, tenantID, "Client")
 	if err != nil || signupFlow == nil {
-		return nil, errors.New("signup flow not found or access denied")
+		return nil, apperror.NewNotFoundWithReason("signup flow not found or access denied")
 	}
 
 	return toSignupFlowServiceDataResult(signupFlow), nil
@@ -150,7 +150,7 @@ func (s *signupFlowService) Create(tenantID int64, name, description string, con
 		// Find auth client
 		Client, err := txClientRepo.FindByUUID(ClientUUID)
 		if err != nil || Client == nil {
-			return errors.New("auth client not found")
+			return apperror.NewNotFoundWithReason("auth client not found")
 		}
 
 		// Check if name already exists
@@ -159,7 +159,7 @@ func (s *signupFlowService) Create(tenantID int64, name, description string, con
 			return err
 		}
 		if existingName != nil {
-			return errors.New("signup flow with this name already exists")
+			return apperror.NewConflict("signup flow with this name already exists")
 		}
 
 		// Generate unique identifier
@@ -223,7 +223,7 @@ func (s *signupFlowService) Update(signupFlowUUID uuid.UUID, tenantID int64, nam
 		// Find existing signup flow and validate tenant ownership
 		signupFlow, err := txSignupFlowRepo.FindByUUIDAndTenantID(signupFlowUUID, tenantID)
 		if err != nil || signupFlow == nil {
-			return errors.New("signup flow not found or access denied")
+			return apperror.NewNotFoundWithReason("signup flow not found or access denied")
 		}
 
 		// Check if name is being changed and if it conflicts
@@ -233,7 +233,7 @@ func (s *signupFlowService) Update(signupFlowUUID uuid.UUID, tenantID int64, nam
 				return err
 			}
 			if existingName != nil && existingName.SignupFlowID != signupFlow.SignupFlowID {
-				return errors.New("signup flow with this name already exists")
+				return apperror.NewConflict("signup flow with this name already exists")
 			}
 		}
 
@@ -279,7 +279,7 @@ func (s *signupFlowService) UpdateStatus(signupFlowUUID uuid.UUID, tenantID int6
 
 		signupFlow, err := txSignupFlowRepo.FindByUUIDAndTenantID(signupFlowUUID, tenantID)
 		if err != nil || signupFlow == nil {
-			return errors.New("signup flow not found or access denied")
+			return apperror.NewNotFoundWithReason("signup flow not found or access denied")
 		}
 
 		signupFlow.Status = status
@@ -303,7 +303,7 @@ func (s *signupFlowService) UpdateStatus(signupFlowUUID uuid.UUID, tenantID int6
 func (s *signupFlowService) Delete(signupFlowUUID uuid.UUID, tenantID int64) (*SignupFlowServiceDataResult, error) {
 	signupFlow, err := s.signupFlowRepo.FindByUUIDAndTenantID(signupFlowUUID, tenantID, "Client")
 	if err != nil || signupFlow == nil {
-		return nil, errors.New("signup flow not found or access denied")
+		return nil, apperror.NewNotFoundWithReason("signup flow not found or access denied")
 	}
 
 	result := toSignupFlowServiceDataResult(signupFlow)
@@ -357,14 +357,14 @@ func (s *signupFlowService) AssignRoles(signupFlowUUID uuid.UUID, tenantID int64
 		// Verify signup flow exists and belongs to tenant
 		signupFlow, err := txSignupFlowRepo.FindByUUIDAndTenantID(signupFlowUUID, tenantID)
 		if err != nil || signupFlow == nil {
-			return errors.New("signup flow not found or access denied")
+			return apperror.NewNotFoundWithReason("signup flow not found or access denied")
 		}
 
 		// Assign each role
 		for _, roleUUID := range roleUUIDs {
 			role, err := txRoleRepo.FindByUUID(roleUUID)
 			if err != nil || role == nil {
-				return errors.New("role not found: " + roleUUID.String())
+				return apperror.NewNotFoundWithReason("role not found: " + roleUUID.String())
 			}
 
 			// Check if already assigned
@@ -415,7 +415,7 @@ func (s *signupFlowService) GetRoles(signupFlowUUID uuid.UUID, tenantID int64, p
 	// Verify signup flow exists and belongs to tenant
 	signupFlow, err := s.signupFlowRepo.FindByUUIDAndTenantID(signupFlowUUID, tenantID)
 	if err != nil || signupFlow == nil {
-		return nil, errors.New("signup flow not found or access denied")
+		return nil, apperror.NewNotFoundWithReason("signup flow not found or access denied")
 	}
 
 	// Get paginated signup flow roles
@@ -466,13 +466,13 @@ func (s *signupFlowService) RemoveRole(signupFlowUUID uuid.UUID, tenantID int64,
 		// Verify signup flow exists and belongs to tenant
 		signupFlow, err := txSignupFlowRepo.FindByUUIDAndTenantID(signupFlowUUID, tenantID)
 		if err != nil || signupFlow == nil {
-			return errors.New("signup flow not found or access denied")
+			return apperror.NewNotFoundWithReason("signup flow not found or access denied")
 		}
 
 		// Verify role exists
 		role, err := txRoleRepo.FindByUUID(roleUUID)
 		if err != nil || role == nil {
-			return errors.New("role not found")
+			return apperror.NewNotFound("role not found")
 		}
 
 		// Delete signup flow role

@@ -1,8 +1,7 @@
 package service
 
 import (
-	"errors"
-
+	"github.com/maintainerd/auth/internal/apperror"
 	"github.com/maintainerd/auth/internal/model"
 )
 
@@ -14,7 +13,7 @@ import (
 func ValidateTenantAccess(actorUser *model.User, targetTenant *model.Tenant) error {
 	// User must have at least one identity
 	if len(actorUser.UserIdentities) == 0 {
-		return errors.New("actor user has no identities")
+		return apperror.NewValidation("actor user has no identities")
 	}
 
 	// Check if user has access to the target tenant through any of their identities
@@ -44,7 +43,7 @@ func ValidateTenantAccess(actorUser *model.User, targetTenant *model.Tenant) err
 		return nil
 	}
 
-	return errors.New("access denied: user does not have access to this tenant")
+	return apperror.NewForbidden("access denied: user does not have access to this tenant")
 }
 
 // ValidateTenantAccessByID validates tenant access using tenant ID
@@ -55,7 +54,7 @@ func ValidateTenantAccess(actorUser *model.User, targetTenant *model.Tenant) err
 func ValidateTenantAccessByID(actorUser *model.User, targetTenantID int64) error {
 	// User must have at least one identity
 	if len(actorUser.UserIdentities) == 0 {
-		return errors.New("actor user has no identities")
+		return apperror.NewValidation("actor user has no identities")
 	}
 
 	// Check if user has access to the target tenant through any of their identities
@@ -85,5 +84,5 @@ func ValidateTenantAccessByID(actorUser *model.User, targetTenantID int64) error
 		return nil
 	}
 
-	return errors.New("access denied: user does not have access to this tenant")
+	return apperror.NewForbidden("access denied: user does not have access to this tenant")
 }

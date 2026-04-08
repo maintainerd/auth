@@ -3,7 +3,6 @@ package handler
 import (
 	"bytes"
 	"encoding/json"
-	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -77,7 +76,7 @@ func TestSetupHandler_CreateTenant_ValidationError(t *testing.T) {
 func TestSetupHandler_CreateTenant_ServiceError(t *testing.T) {
 	svc := &mockSetupService{
 		createTenantFn: func(req dto.CreateTenantRequestDTO) (*dto.CreateTenantResponseDTO, error) {
-			return nil, assert.AnError
+			return nil, errValidation
 		},
 	}
 	h := NewSetupHandler(svc)
@@ -115,7 +114,7 @@ func TestSetupHandler_CreateAdmin_ValidationError(t *testing.T) {
 func TestSetupHandler_CreateAdmin_ServiceError(t *testing.T) {
 	svc := &mockSetupService{
 		createAdminFn: func(req dto.CreateAdminRequestDTO) (*dto.CreateAdminResponseDTO, error) {
-			return nil, assert.AnError
+			return nil, errValidation
 		},
 	}
 	h := NewSetupHandler(svc)
@@ -134,7 +133,7 @@ func TestSetupHandler_CreateAdmin_ServiceError(t *testing.T) {
 func TestSetupHandler_CreateProfile_ServiceError(t *testing.T) {
 	svc := &mockSetupService{
 		createProfileFn: func(req dto.CreateProfileRequestDTO) (*dto.CreateProfileResponseDTO, error) {
-			return nil, assert.AnError
+			return nil, errValidation
 		},
 	}
 	h := NewSetupHandler(svc)
@@ -153,7 +152,7 @@ func TestSetupHandler_CreateProfile_ServiceError(t *testing.T) {
 func TestSetupHandler_CreateTenant_ServiceError_Valid(t *testing.T) {
 	svc := &mockSetupService{
 		createTenantFn: func(req dto.CreateTenantRequestDTO) (*dto.CreateTenantResponseDTO, error) {
-			return nil, assert.AnError
+			return nil, errValidation
 		},
 	}
 	h := NewSetupHandler(svc)
@@ -188,7 +187,7 @@ func TestSetupHandler_CreateTenant_Success(t *testing.T) {
 func TestSetupHandler_CreateAdmin_ServiceError_Valid(t *testing.T) {
 	svc := &mockSetupService{
 		createAdminFn: func(req dto.CreateAdminRequestDTO) (*dto.CreateAdminResponseDTO, error) {
-			return nil, assert.AnError
+			return nil, errValidation
 		},
 	}
 	h := NewSetupHandler(svc)
@@ -243,7 +242,7 @@ func TestSetupHandler_CreateProfile_ValidationError(t *testing.T) {
 func TestSetupHandler_CreateProfile_AlreadyExists(t *testing.T) {
 	svc := &mockSetupService{
 		createProfileFn: func(req dto.CreateProfileRequestDTO) (*dto.CreateProfileResponseDTO, error) {
-			return nil, errors.New("profile already exists for this user")
+			return nil, errValidation
 		},
 	}
 	h := NewSetupHandler(svc)

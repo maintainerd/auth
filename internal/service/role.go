@@ -1,13 +1,13 @@
 package service
 
 import (
-	"errors"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/model"
 	"github.com/maintainerd/auth/internal/repository"
 	"gorm.io/gorm"
+	"github.com/maintainerd/auth/internal/apperror"
 )
 
 type RoleServiceDataResult struct {
@@ -140,12 +140,12 @@ func (s *roleService) GetByUUID(roleUUID uuid.UUID, tenantID int64) (*RoleServic
 		return nil, err
 	}
 	if role == nil {
-		return nil, errors.New("role not found")
+		return nil, apperror.NewNotFound("role not found")
 	}
 
 	// Validate tenant ownership
 	if role.TenantID != tenantID {
-		return nil, errors.New("role not found or access denied")
+		return nil, apperror.NewNotFoundWithReason("role not found or access denied")
 	}
 
 	return toRoleServiceDataResult(role), nil
@@ -158,10 +158,10 @@ func (s *roleService) GetRolePermissions(filter RoleServiceGetPermissionsFilter)
 		return nil, err
 	}
 	if role == nil {
-		return nil, errors.New("role not found")
+		return nil, apperror.NewNotFound("role not found")
 	}
 	if role.TenantID != filter.TenantID {
-		return nil, errors.New("role not found")
+		return nil, apperror.NewNotFound("role not found")
 	}
 
 	// Build repository filter
@@ -207,19 +207,19 @@ func (s *roleService) Create(name string, description string, isDefault bool, is
 		// Parse tenant UUID
 		tenantUUIDParsed, err := uuid.Parse(tenantUUID)
 		if err != nil {
-			return errors.New("invalid tenant UUID")
+			return apperror.NewValidation("invalid tenant UUID")
 		}
 
 		// Validate tenant exists
 		targetTenant, err := txTenantRepo.FindByUUID(tenantUUIDParsed)
 		if err != nil || targetTenant == nil {
-			return errors.New("tenant not found")
+			return apperror.NewNotFound("tenant not found")
 		}
 
 		// Get actor user with user identities for tenant validation
 		actorUser, err := txUserRepo.FindByUUID(actorUserUUID, "UserIdentities.Tenant")
 		if err != nil || actorUser == nil {
-			return errors.New("actor user not found")
+			return apperror.NewNotFoundWithReason("actor user not found")
 		}
 
 		// Validate tenant access permissions
@@ -233,7 +233,7 @@ func (s *roleService) Create(name string, description string, isDefault bool, is
 			return err
 		}
 		if existingRole != nil {
-			return errors.New(name + " role already exist")
+			return apperror.NewConflict(name + " role already exist")
 		}
 
 		// Create role
@@ -277,18 +277,18 @@ func (s *roleService) Update(roleUUID uuid.UUID, tenantID int64, name string, de
 			return err
 		}
 		if role == nil {
-			return errors.New("role not found")
+			return apperror.NewNotFound("role not found")
 		}
 
 		// Validate tenant ownership
 		if role.TenantID != tenantID {
-			return errors.New("role not found or access denied")
+			return apperror.NewNotFoundWithReason("role not found or access denied")
 		}
 
 		// Get actor user with user identities for tenant validation
 		actorUser, err := txUserRepo.FindByUUID(actorUserUUID, "UserIdentities.Tenant")
 		if err != nil || actorUser == nil {
-			return errors.New("actor user not found")
+			return apperror.NewNotFoundWithReason("actor user not found")
 		}
 
 		// Validate tenant access permissions
@@ -298,7 +298,7 @@ func (s *roleService) Update(roleUUID uuid.UUID, tenantID int64, name string, de
 
 		// Check if role is a system record
 		if role.IsSystem {
-			return errors.New("system role is not allowed to be updated")
+			return apperror.NewValidation("system role is not allowed to be updated")
 		}
 
 		// If role name is changed, check if duplicate
@@ -308,7 +308,7 @@ func (s *roleService) Update(roleUUID uuid.UUID, tenantID int64, name string, de
 				return err
 			}
 			if existingRole != nil && existingRole.RoleUUID != roleUUID {
-				return errors.New(name + " role already exists")
+				return apperror.NewConflict(name + " role already exists")
 			}
 		}
 
@@ -350,18 +350,18 @@ func (s *roleService) SetStatusByUUID(roleUUID uuid.UUID, tenantID int64, status
 			return err
 		}
 		if role == nil {
-			return errors.New("role not found")
+			return apperror.NewNotFound("role not found")
 		}
 
 		// Validate tenant ownership
 		if role.TenantID != tenantID {
-			return errors.New("role not found or access denied")
+			return apperror.NewNotFoundWithReason("role not found or access denied")
 		}
 
 		// Get actor user with user identities for tenant validation
 		actorUser, err := txUserRepo.FindByUUID(actorUserUUID, "UserIdentities.Tenant")
 		if err != nil || actorUser == nil {
-			return errors.New("actor user not found")
+			return apperror.NewNotFoundWithReason("actor user not found")
 		}
 
 		// Validate tenant access permissions
@@ -371,7 +371,7 @@ func (s *roleService) SetStatusByUUID(roleUUID uuid.UUID, tenantID int64, status
 
 		// Check if role is a system record
 		if role.IsSystem {
-			return errors.New("system role is not allowed to be updated")
+			return apperror.NewValidation("system role is not allowed to be updated")
 		}
 
 		// Update role
@@ -401,18 +401,18 @@ func (s *roleService) DeleteByUUID(roleUUID uuid.UUID, tenantID int64, actorUser
 		return nil, err
 	}
 	if role == nil {
-		return nil, errors.New("role not found")
+		return nil, apperror.NewNotFound("role not found")
 	}
 
 	// Validate tenant ownership
 	if role.TenantID != tenantID {
-		return nil, errors.New("role not found or access denied")
+		return nil, apperror.NewNotFoundWithReason("role not found or access denied")
 	}
 
 	// Get actor user with user identities for tenant validation
 	actorUser, err := s.userRepo.FindByUUID(actorUserUUID, "UserIdentities.Tenant")
 	if err != nil || actorUser == nil {
-		return nil, errors.New("actor user not found")
+		return nil, apperror.NewNotFoundWithReason("actor user not found")
 	}
 
 	// Validate tenant access permissions
@@ -422,7 +422,7 @@ func (s *roleService) DeleteByUUID(roleUUID uuid.UUID, tenantID int64, actorUser
 
 	// Check if role is a system record
 	if role.IsSystem {
-		return nil, errors.New("system role is not allowed to be deleted")
+		return nil, apperror.NewValidation("system role is not allowed to be deleted")
 	}
 
 	// Delete role
@@ -450,18 +450,18 @@ func (s *roleService) AddRolePermissions(roleUUID uuid.UUID, tenantID int64, per
 			return err
 		}
 		if role == nil {
-			return errors.New("role not found")
+			return apperror.NewNotFound("role not found")
 		}
 
 		// Validate tenant ownership
 		if role.TenantID != tenantID {
-			return errors.New("role not found or access denied")
+			return apperror.NewNotFoundWithReason("role not found or access denied")
 		}
 
 		// Get actor user with user identities for tenant validation
 		actorUser, err := txUserRepo.FindByUUID(actorUserUUID, "UserIdentities.Tenant")
 		if err != nil || actorUser == nil {
-			return errors.New("actor user not found")
+			return apperror.NewNotFoundWithReason("actor user not found")
 		}
 
 		// Validate tenant access permissions
@@ -471,7 +471,7 @@ func (s *roleService) AddRolePermissions(roleUUID uuid.UUID, tenantID int64, per
 
 		// Check if role is a system record
 		if role.IsSystem {
-			return errors.New("system role is not allowed to be updated")
+			return apperror.NewValidation("system role is not allowed to be updated")
 		}
 
 		// Convert UUIDs to strings for the repository method
@@ -488,7 +488,7 @@ func (s *roleService) AddRolePermissions(roleUUID uuid.UUID, tenantID int64, per
 
 		// Validate that all permissions were found
 		if len(permissions) != len(permissionUUIDs) {
-			return errors.New("one or more permissions not found")
+			return apperror.NewNotFoundWithReason("one or more permissions not found")
 		}
 
 		// Create role-permission associations using the dedicated repository
@@ -548,18 +548,18 @@ func (s *roleService) RemoveRolePermissions(roleUUID uuid.UUID, tenantID int64, 
 			return err
 		}
 		if role == nil {
-			return errors.New("role not found")
+			return apperror.NewNotFound("role not found")
 		}
 
 		// Validate tenant ownership
 		if role.TenantID != tenantID {
-			return errors.New("role not found or access denied")
+			return apperror.NewNotFoundWithReason("role not found or access denied")
 		}
 
 		// Get actor user with user identities for tenant validation
 		actorUser, err := txUserRepo.FindByUUID(actorUserUUID, "UserIdentities.Tenant")
 		if err != nil || actorUser == nil {
-			return errors.New("actor user not found")
+			return apperror.NewNotFoundWithReason("actor user not found")
 		}
 
 		// Validate tenant access permissions
@@ -569,7 +569,7 @@ func (s *roleService) RemoveRolePermissions(roleUUID uuid.UUID, tenantID int64, 
 
 		// Check if role is a system record
 		if role.IsSystem {
-			return errors.New("system role is not allowed to be updated")
+			return apperror.NewValidation("system role is not allowed to be updated")
 		}
 
 		// Find permission by UUID
@@ -578,7 +578,7 @@ func (s *roleService) RemoveRolePermissions(roleUUID uuid.UUID, tenantID int64, 
 			return err
 		}
 		if permission == nil {
-			return errors.New("permission not found")
+			return apperror.NewNotFound("permission not found")
 		}
 
 		// Check if association exists

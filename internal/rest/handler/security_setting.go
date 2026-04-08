@@ -46,7 +46,7 @@ func (h *SecuritySettingHandler) GetGeneralConfig(w http.ResponseWriter, r *http
 	// Fetch general configuration for the tenant
 	config, err := h.securitySettingService.GetGeneralConfig(tenant.TenantID)
 	if err != nil {
-		resp.Error(w, http.StatusInternalServerError, "Failed to get general config", err.Error())
+		resp.HandleServiceError(w, "Failed to get general config", err)
 		return
 	}
 
@@ -73,7 +73,7 @@ func (h *SecuritySettingHandler) GetPasswordConfig(w http.ResponseWriter, r *htt
 	// Fetch password configuration for the tenant
 	config, err := h.securitySettingService.GetPasswordConfig(tenant.TenantID)
 	if err != nil {
-		resp.Error(w, http.StatusInternalServerError, "Failed to get password config", err.Error())
+		resp.HandleServiceError(w, "Failed to get password config", err)
 		return
 	}
 
@@ -100,7 +100,7 @@ func (h *SecuritySettingHandler) GetSessionConfig(w http.ResponseWriter, r *http
 	// Fetch session configuration for the tenant
 	config, err := h.securitySettingService.GetSessionConfig(tenant.TenantID)
 	if err != nil {
-		resp.Error(w, http.StatusInternalServerError, "Failed to get session config", err.Error())
+		resp.HandleServiceError(w, "Failed to get session config", err)
 		return
 	}
 
@@ -127,7 +127,7 @@ func (h *SecuritySettingHandler) GetThreatConfig(w http.ResponseWriter, r *http.
 	// Fetch threat configuration for the tenant
 	config, err := h.securitySettingService.GetThreatConfig(tenant.TenantID)
 	if err != nil {
-		resp.Error(w, http.StatusInternalServerError, "Failed to get threat config", err.Error())
+		resp.HandleServiceError(w, "Failed to get threat config", err)
 		return
 	}
 
@@ -154,7 +154,7 @@ func (h *SecuritySettingHandler) GetIPConfig(w http.ResponseWriter, r *http.Requ
 	// Fetch IP configuration for the tenant
 	config, err := h.securitySettingService.GetIPConfig(tenant.TenantID)
 	if err != nil {
-		resp.Error(w, http.StatusInternalServerError, "Failed to get IP config", err.Error())
+		resp.HandleServiceError(w, "Failed to get IP config", err)
 		return
 	}
 
@@ -210,14 +210,14 @@ func (h *SecuritySettingHandler) UpdateGeneralConfig(w http.ResponseWriter, r *h
 	// Update general configuration (creates audit record)
 	_, err := h.securitySettingService.UpdateGeneralConfig(tenant.TenantID, map[string]any(req), user.UserID, clientIPStr, userAgentStr)
 	if err != nil {
-		resp.Error(w, http.StatusBadRequest, "Failed to update general config", err.Error())
+		resp.HandleServiceError(w, "Failed to update general config", err)
 		return
 	}
 
 	// Fetch and return the updated configuration
 	config, err := h.securitySettingService.GetGeneralConfig(tenant.TenantID)
 	if err != nil {
-		resp.Error(w, http.StatusInternalServerError, "Failed to get updated config", err.Error())
+		resp.HandleServiceError(w, "Failed to get updated config", err)
 		return
 	}
 
@@ -272,14 +272,14 @@ func (h *SecuritySettingHandler) UpdatePasswordConfig(w http.ResponseWriter, r *
 	// Update password configuration (creates audit record)
 	_, err := h.securitySettingService.UpdatePasswordConfig(tenant.TenantID, map[string]any(req), user.UserID, clientIPStr, userAgentStr)
 	if err != nil {
-		resp.Error(w, http.StatusBadRequest, "Failed to update password config", err.Error())
+		resp.HandleServiceError(w, "Failed to update password config", err)
 		return
 	}
 
 	// Fetch and return the updated configuration
 	config, err := h.securitySettingService.GetPasswordConfig(tenant.TenantID)
 	if err != nil {
-		resp.Error(w, http.StatusInternalServerError, "Failed to get updated config", err.Error())
+		resp.HandleServiceError(w, "Failed to get updated config", err)
 		return
 	}
 
@@ -334,14 +334,14 @@ func (h *SecuritySettingHandler) UpdateSessionConfig(w http.ResponseWriter, r *h
 	// Update session configuration (creates audit record)
 	_, err := h.securitySettingService.UpdateSessionConfig(tenant.TenantID, map[string]any(req), user.UserID, clientIPStr, userAgentStr)
 	if err != nil {
-		resp.Error(w, http.StatusBadRequest, "Failed to update session config", err.Error())
+		resp.HandleServiceError(w, "Failed to update session config", err)
 		return
 	}
 
 	// Fetch and return the updated configuration
 	config, err := h.securitySettingService.GetSessionConfig(tenant.TenantID)
 	if err != nil {
-		resp.Error(w, http.StatusInternalServerError, "Failed to get updated config", err.Error())
+		resp.HandleServiceError(w, "Failed to get updated config", err)
 		return
 	}
 
@@ -396,14 +396,14 @@ func (h *SecuritySettingHandler) UpdateThreatConfig(w http.ResponseWriter, r *ht
 	// Update threat configuration (creates audit record)
 	_, err := h.securitySettingService.UpdateThreatConfig(tenant.TenantID, map[string]any(req), user.UserID, clientIPStr, userAgentStr)
 	if err != nil {
-		resp.Error(w, http.StatusBadRequest, "Failed to update threat config", err.Error())
+		resp.HandleServiceError(w, "Failed to update threat config", err)
 		return
 	}
 
 	// Fetch and return the updated configuration
 	config, err := h.securitySettingService.GetThreatConfig(tenant.TenantID)
 	if err != nil {
-		resp.Error(w, http.StatusInternalServerError, "Failed to get updated config", err.Error())
+		resp.HandleServiceError(w, "Failed to get updated config", err)
 		return
 	}
 
@@ -458,14 +458,14 @@ func (h *SecuritySettingHandler) UpdateIPConfig(w http.ResponseWriter, r *http.R
 	// Update IP configuration (creates audit record)
 	_, err := h.securitySettingService.UpdateIPConfig(tenant.TenantID, map[string]any(req), user.UserID, clientIPStr, userAgentStr)
 	if err != nil {
-		resp.Error(w, http.StatusBadRequest, "Failed to update IP config", err.Error())
+		resp.HandleServiceError(w, "Failed to update IP config", err)
 		return
 	}
 
 	// Fetch and return the updated configuration
 	config, err := h.securitySettingService.GetIPConfig(tenant.TenantID)
 	if err != nil {
-		resp.Error(w, http.StatusInternalServerError, "Failed to get updated config", err.Error())
+		resp.HandleServiceError(w, "Failed to get updated config", err)
 		return
 	}
 

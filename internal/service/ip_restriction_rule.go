@@ -1,13 +1,13 @@
 package service
 
 import (
-	"errors"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/model"
 	"github.com/maintainerd/auth/internal/repository"
 	"gorm.io/gorm"
+	"github.com/maintainerd/auth/internal/apperror"
 )
 
 type IPRestrictionRuleServiceDataResult struct {
@@ -92,12 +92,12 @@ func (s *ipRestrictionRuleService) GetByUUID(tenantID int64, ipRestrictionRuleUU
 	}
 
 	if rule == nil {
-		return nil, errors.New("ip restriction rule not found")
+		return nil, apperror.NewNotFoundWithReason("ip restriction rule not found")
 	}
 
 	// Verify tenant ownership
 	if rule.TenantID != tenantID {
-		return nil, errors.New("ip restriction rule not found")
+		return nil, apperror.NewNotFoundWithReason("ip restriction rule not found")
 	}
 
 	result := toIPRestrictionRuleServiceDataResult(rule)
@@ -130,12 +130,12 @@ func (s *ipRestrictionRuleService) Update(tenantID int64, ipRestrictionRuleUUID 
 	}
 
 	if rule == nil {
-		return nil, errors.New("ip restriction rule not found")
+		return nil, apperror.NewNotFoundWithReason("ip restriction rule not found")
 	}
 
 	// Verify tenant ownership
 	if rule.TenantID != tenantID {
-		return nil, errors.New("ip restriction rule not found")
+		return nil, apperror.NewNotFoundWithReason("ip restriction rule not found")
 	}
 
 	rule.Description = description
@@ -160,12 +160,12 @@ func (s *ipRestrictionRuleService) UpdateStatus(tenantID int64, ipRestrictionRul
 	}
 
 	if rule == nil {
-		return nil, errors.New("ip restriction rule not found")
+		return nil, apperror.NewNotFoundWithReason("ip restriction rule not found")
 	}
 
 	// Verify tenant ownership
 	if rule.TenantID != tenantID {
-		return nil, errors.New("ip restriction rule not found")
+		return nil, apperror.NewNotFoundWithReason("ip restriction rule not found")
 	}
 
 	rule.Status = status
@@ -187,12 +187,12 @@ func (s *ipRestrictionRuleService) Delete(tenantID int64, ipRestrictionRuleUUID 
 	}
 
 	if rule == nil {
-		return nil, errors.New("ip restriction rule not found")
+		return nil, apperror.NewNotFoundWithReason("ip restriction rule not found")
 	}
 
 	// Verify tenant ownership
 	if rule.TenantID != tenantID {
-		return nil, errors.New("ip restriction rule not found")
+		return nil, apperror.NewNotFoundWithReason("ip restriction rule not found")
 	}
 
 	if err := s.ipRestrictionRuleRepo.DeleteByUUID(ipRestrictionRuleUUID); err != nil {

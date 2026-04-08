@@ -11,9 +11,9 @@ import (
 	"github.com/maintainerd/auth/internal/dto"
 	"github.com/maintainerd/auth/internal/middleware"
 	"github.com/maintainerd/auth/internal/model"
-	"github.com/maintainerd/auth/internal/service"
 	"github.com/maintainerd/auth/internal/ptr"
 	resp "github.com/maintainerd/auth/internal/rest/response"
+	"github.com/maintainerd/auth/internal/service"
 )
 
 type IdentityProviderHandler struct {
@@ -110,7 +110,7 @@ func (h *IdentityProviderHandler) Get(w http.ResponseWriter, r *http.Request) {
 	// Fetch permissions
 	result, err := h.idpService.Get(idpFilter)
 	if err != nil {
-		resp.Error(w, http.StatusInternalServerError, "Failed to fetch identity providers", err.Error())
+		resp.HandleServiceError(w, "Failed to fetch identity providers", err)
 		return
 	}
 
@@ -145,7 +145,7 @@ func (h *IdentityProviderHandler) GetByUUID(w http.ResponseWriter, r *http.Reque
 
 	idp, err := h.idpService.GetByUUID(idpUUID, tenant.TenantID)
 	if err != nil {
-		resp.Error(w, http.StatusNotFound, "Identity provider not found")
+		resp.HandleServiceError(w, "Identity provider not found", err)
 		return
 	}
 
@@ -173,7 +173,7 @@ func (h *IdentityProviderHandler) Create(w http.ResponseWriter, r *http.Request)
 
 	idp, err := h.idpService.Create(req.Name, req.DisplayName, req.Provider, req.ProviderType, req.Config, req.Status, req.TenantUUID, tenant.TenantID, user.UserUUID)
 	if err != nil {
-		resp.Error(w, http.StatusInternalServerError, "Failed to create permission", err.Error())
+		resp.HandleServiceError(w, "Failed to create identity provider", err)
 		return
 	}
 
@@ -207,7 +207,7 @@ func (h *IdentityProviderHandler) Update(w http.ResponseWriter, r *http.Request)
 
 	idp, err := h.idpService.Update(idpUUID, req.Name, req.DisplayName, req.Provider, req.ProviderType, req.Config, req.Status, tenant.TenantID, user.UserUUID)
 	if err != nil {
-		resp.Error(w, http.StatusInternalServerError, "Failed to update identity provider", err.Error())
+		resp.HandleServiceError(w, "Failed to update identity provider", err)
 		return
 	}
 
@@ -242,7 +242,7 @@ func (h *IdentityProviderHandler) SetStatus(w http.ResponseWriter, r *http.Reque
 
 	idp, err := h.idpService.SetStatusByUUID(idpUUID, req.Status, tenant.TenantID, user.UserUUID)
 	if err != nil {
-		resp.Error(w, http.StatusInternalServerError, "Failed to update identity provider", err.Error())
+		resp.HandleServiceError(w, "Failed to update identity provider", err)
 		return
 	}
 
@@ -265,7 +265,7 @@ func (h *IdentityProviderHandler) Delete(w http.ResponseWriter, r *http.Request)
 
 	idp, err := h.idpService.DeleteByUUID(idpUUID, tenant.TenantID, user.UserUUID)
 	if err != nil {
-		resp.Error(w, http.StatusInternalServerError, "Failed to delete identity provider", err.Error())
+		resp.HandleServiceError(w, "Failed to delete identity provider", err)
 		return
 	}
 
