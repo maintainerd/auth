@@ -155,7 +155,7 @@ func (h *SignupFlowHandler) Create(w http.ResponseWriter, r *http.Request) {
 	// Decode and validate request body
 	var req dto.SignupFlowCreateRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		resp.Error(w, http.StatusBadRequest, "Invalid request", err.Error())
+		resp.Error(w, http.StatusBadRequest, "Invalid request")
 		return
 	}
 
@@ -215,7 +215,7 @@ func (h *SignupFlowHandler) Update(w http.ResponseWriter, r *http.Request) {
 	// Decode and validate request body
 	var req dto.SignupFlowUpdateRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		resp.Error(w, http.StatusBadRequest, "Invalid request", err.Error())
+		resp.Error(w, http.StatusBadRequest, "Invalid request")
 		return
 	}
 
@@ -304,7 +304,7 @@ func (h *SignupFlowHandler) UpdateStatus(w http.ResponseWriter, r *http.Request)
 	// Decode and validate request body
 	var req dto.SignupFlowUpdateStatusRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		resp.Error(w, http.StatusBadRequest, "Invalid request body", err.Error())
+		resp.Error(w, http.StatusBadRequest, "Invalid request body")
 		return
 	}
 
@@ -346,14 +346,14 @@ func (h *SignupFlowHandler) AssignRoles(w http.ResponseWriter, r *http.Request) 
 
 	signupFlowUUID, err := uuid.Parse(signupFlowUUIDStr)
 	if err != nil {
-		resp.Error(w, http.StatusBadRequest, "Invalid UUID format", err.Error())
+		resp.Error(w, http.StatusBadRequest, "Invalid UUID format")
 		return
 	}
 
 	// Decode and validate request body
 	var req dto.SignupFlowAssignRolesRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		resp.Error(w, http.StatusBadRequest, "Invalid request body", err.Error())
+		resp.Error(w, http.StatusBadRequest, "Invalid request body")
 		return
 	}
 
@@ -416,7 +416,7 @@ func (h *SignupFlowHandler) GetRoles(w http.ResponseWriter, r *http.Request) {
 
 	signupFlowUUID, err := uuid.Parse(signupFlowUUIDStr)
 	if err != nil {
-		resp.Error(w, http.StatusBadRequest, "Invalid UUID format", err.Error())
+		resp.Error(w, http.StatusBadRequest, "Invalid UUID format")
 		return
 	}
 
@@ -499,13 +499,13 @@ func (h *SignupFlowHandler) RemoveRole(w http.ResponseWriter, r *http.Request) {
 
 	signupFlowUUID, err := uuid.Parse(signupFlowUUIDStr)
 	if err != nil {
-		resp.Error(w, http.StatusBadRequest, "Invalid signup flow UUID format", err.Error())
+		resp.Error(w, http.StatusBadRequest, "Invalid signup flow UUID format")
 		return
 	}
 
 	roleUUID, err := uuid.Parse(roleUUIDStr)
 	if err != nil {
-		resp.Error(w, http.StatusBadRequest, "Invalid role UUID format", err.Error())
+		resp.Error(w, http.StatusBadRequest, "Invalid role UUID format")
 		return
 	}
 
