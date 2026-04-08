@@ -2,18 +2,19 @@ package service
 
 import (
 	"bytes"
+	"context"
 	"html/template"
 	"time"
 
-	"github.com/maintainerd/auth/internal/config"
-	"github.com/maintainerd/auth/internal/model"
-	"github.com/maintainerd/auth/internal/repository"
-	"github.com/maintainerd/auth/internal/ptr"
-	"github.com/maintainerd/auth/internal/crypto"
-	"github.com/maintainerd/auth/internal/signedurl"
-	"github.com/maintainerd/auth/internal/email"
-	"gorm.io/gorm"
 	"github.com/maintainerd/auth/internal/apperror"
+	"github.com/maintainerd/auth/internal/config"
+	"github.com/maintainerd/auth/internal/crypto"
+	"github.com/maintainerd/auth/internal/email"
+	"github.com/maintainerd/auth/internal/model"
+	"github.com/maintainerd/auth/internal/ptr"
+	"github.com/maintainerd/auth/internal/repository"
+	"github.com/maintainerd/auth/internal/signedurl"
+	"gorm.io/gorm"
 )
 
 type InviteService interface {
@@ -190,7 +191,7 @@ func (s *inviteService) sendInviteEmail(to, inviteURL string) error {
 	}
 
 	// Send email
-	return email.SendEmail(email.SendEmailParams{
+	return email.SendEmail(context.Background(), email.SendEmailParams{
 		To:        to,
 		Subject:   templateEntity.Subject,
 		BodyHTML:  bodyHTML.String(),

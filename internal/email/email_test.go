@@ -2,6 +2,7 @@ package email
 
 import (
 	"bufio"
+	"context"
 	"fmt"
 	"net"
 	"strings"
@@ -40,7 +41,7 @@ func TestSendEmail_FailsWhenSMTPUnreachable(t *testing.T) {
 	// Point SMTP at localhost:1 — guaranteed to be closed / unreachable
 	setSMTPConfig(t, "127.0.0.1", 1, "", "", "noreply@example.com", "Test")
 
-	err := SendEmail(SendEmailParams{
+	err := SendEmail(context.Background(), SendEmailParams{
 		To:       "user@example.com",
 		Subject:  "Hello",
 		BodyHTML: "<p>Hello</p>",
@@ -52,7 +53,7 @@ func TestSendEmail_FailsWhenSMTPUnreachable(t *testing.T) {
 func TestSendEmail_FailsWhenSMTPUnreachable_WithFrom(t *testing.T) {
 	setSMTPConfig(t, "127.0.0.1", 1, "", "", "noreply@example.com", "Test")
 
-	err := SendEmail(SendEmailParams{
+	err := SendEmail(context.Background(), SendEmailParams{
 		To:       "user@example.com",
 		From:     "custom@sender.com",
 		Subject:  "Custom From",
@@ -65,7 +66,7 @@ func TestSendEmail_FailsWhenSMTPUnreachable_WithFrom(t *testing.T) {
 func TestSendEmail_FailsWhenSMTPUnreachable_WithPlainText(t *testing.T) {
 	setSMTPConfig(t, "127.0.0.1", 1, "", "", "noreply@example.com", "Test")
 
-	err := SendEmail(SendEmailParams{
+	err := SendEmail(context.Background(), SendEmailParams{
 		To:        "user@example.com",
 		Subject:   "Plain + HTML",
 		BodyHTML:  "<p>Hello</p>",
@@ -78,7 +79,7 @@ func TestSendEmail_FailsWhenSMTPUnreachable_WithPlainText(t *testing.T) {
 func TestSendEmail_FailsWithBadHost(t *testing.T) {
 	setSMTPConfig(t, "this-host-does-not-exist.invalid", 587, "", "", "noreply@example.com", "Test")
 
-	err := SendEmail(SendEmailParams{
+	err := SendEmail(context.Background(), SendEmailParams{
 		To:       "user@example.com",
 		Subject:  "Bad host",
 		BodyHTML: "<p>body</p>",
@@ -139,7 +140,7 @@ func TestSendEmail_Success(t *testing.T) {
 	port := startMockSMTP(t)
 	setSMTPConfig(t, "127.0.0.1", port, "", "", "noreply@example.com", "Test")
 
-	err := SendEmail(SendEmailParams{
+	err := SendEmail(context.Background(), SendEmailParams{
 		To:       "user@example.com",
 		Subject:  "Hello",
 		BodyHTML: "<p>Hello</p>",

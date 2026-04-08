@@ -9,6 +9,7 @@ import (
 	"github.com/maintainerd/auth/internal/app"
 	authv1 "github.com/maintainerd/auth/internal/gen/go/maintainerd/auth"
 	"github.com/maintainerd/auth/internal/grpc/handler"
+	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"google.golang.org/grpc"
 )
 
@@ -24,7 +25,9 @@ func StartGRPCServer(ctx context.Context, application *app.App) error {
 
 	seederHandler := handler.NewSeederHandler(application.RegisterService)
 
-	s := grpc.NewServer()
+	s := grpc.NewServer(
+		grpc.StatsHandler(otelgrpc.NewServerHandler()),
+	)
 	authv1.RegisterSeederServiceServer(s, seederHandler)
 
 	// Stop the server when the context is cancelled (e.g. after REST servers drain).

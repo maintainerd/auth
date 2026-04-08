@@ -11,6 +11,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+	"go.opentelemetry.io/otel/trace"
 
 	resp "github.com/maintainerd/auth/internal/rest/response"
 )
@@ -108,4 +110,52 @@ func TestStatusRecorder_Unwrap(t *testing.T) {
 	inner := httptest.NewRecorder()
 	sr := &statusRecorder{ResponseWriter: inner, status: http.StatusOK}
 	assert.Equal(t, inner, sr.Unwrap())
+}
+
+func TestLoggingMiddleware_IncludesTraceID(t *testing.T) {
+	// Create a real SDK TracerProvider so a span produces valid trace/span IDs.
+	tp := sdktrace.NewTracerProvider()
+	defer func() { _ = tp.Shutdown(context.Background()) }()
+
+	var buf strings.Builder
+	logger := slog.New(slog.NewJSONHandler(&buf, nil))
+	slog.SetDefault(logger)
+	t.Cleanup(func() { slog.SetDefault(slog.New(slog.NewJSONHandler(io.Discard, nil))) })
+
+	// Start a span and embed it in the request context.
+	tracer := tp.Tracer("test")
+	ctx, span := tracer.Start(context.Background(), "test-request")
+	defer span.End()
+
+	sc := span.SpanContext()
+	require.True(t, sc.HasTraceID())
+	require.True(t, sc.HasSpanID())
+
+	req := httptest.NewRequest(http.MethodGet, "/traced", nil).WithContext(ctx)
+	req = withRequestID(req, "req-traced")
+	rr := httptest.NewRecorder()
+
+	LoggingMiddleware(okHandler()).ServeHTTP(rr, req)
+
+	out := buf.String()
+	assert.Contains(t, out, `"trace_id":"`)
+	assert.Contains(t, out, sc.TraceID().String())
+	assert.Contains(t, out, `"span_id":"`)
+}
+
+func TestLoggingMiddleware_OmitsTraceIDWhenNoSpan(t *testing.T) {
+	var buf strings.Builder
+	logger := slog.New(slog.NewJSONHandler(&buf, nil))
+	slog.SetDefault(logger)
+	t.Cleanup(func() { slog.SetDefault(slog.New(slog.NewJSONHandler(io.Discard, nil))) })
+
+	ctx := trace.ContextWithSpanContext(context.Background(), trace.SpanContext{})
+	req := httptest.NewRequest(http.MethodGet, "/no-span", nil).WithContext(ctx)
+	rr := httptest.NewRecorder()
+
+	LoggingMiddleware(okHandler()).ServeHTTP(rr, req)
+
+	out := buf.String()
+	assert.NotContains(t, out, `"trace_id"`)
+	assert.NotContains(t, out, `"span_id"`)
 }

@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"errors"
 	"os"
 	"testing"
@@ -206,7 +207,7 @@ func TestInviteService_SendInvite_FullSuccess(t *testing.T) {
 	origSendEmail := email.SendEmail
 	defer func() { email.SendEmail = origSendEmail }()
 	var emailSent bool
-	email.SendEmail = func(p email.SendEmailParams) error {
+	email.SendEmail = func(_ context.Context, p email.SendEmailParams) error {
 		emailSent = true
 		assert.Equal(t, "user@example.com", p.To)
 		assert.Contains(t, p.BodyHTML, "https://account.example.com/register/invite")
@@ -259,7 +260,7 @@ func TestInviteService_SendInvite_EmailSendError(t *testing.T) {
 
 	origSendEmail := email.SendEmail
 	defer func() { email.SendEmail = origSendEmail }()
-	email.SendEmail = func(_ email.SendEmailParams) error { return errors.New("smtp err") }
+	email.SendEmail = func(_ context.Context, _ email.SendEmailParams) error { return errors.New("smtp err") }
 
 	gormDB, mock := newMockGormDB(t)
 	mock.ExpectBegin()

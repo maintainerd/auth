@@ -18,6 +18,7 @@ import (
 	"github.com/maintainerd/auth/internal/rest/route"
 	"github.com/maintainerd/auth/internal/service"
 	"github.com/redis/go-redis/v9"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
 
 // handlers holds every REST handler instance. Created once per server start.
@@ -82,7 +83,7 @@ func StartRESTServer(application *app.App) {
 
 	internalSrv := &http.Server{
 		Addr:         ":8080",
-		Handler:      buildInternalRouter(h, application.UserService, application.RedisClient),
+		Handler:      otelhttp.NewHandler(buildInternalRouter(h, application.UserService, application.RedisClient), "internal"),
 		ReadTimeout:  15 * time.Second,
 		WriteTimeout: 60 * time.Second,
 		IdleTimeout:  120 * time.Second,
@@ -90,7 +91,7 @@ func StartRESTServer(application *app.App) {
 
 	publicSrv := &http.Server{
 		Addr:         ":8081",
-		Handler:      buildPublicRouter(h, application.UserService, application.RedisClient),
+		Handler:      otelhttp.NewHandler(buildPublicRouter(h, application.UserService, application.RedisClient), "public"),
 		ReadTimeout:  15 * time.Second,
 		WriteTimeout: 60 * time.Second,
 		IdleTimeout:  120 * time.Second,

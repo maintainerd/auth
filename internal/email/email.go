@@ -1,7 +1,12 @@
 package email
 
 import (
+	"context"
 	"fmt"
+
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
 
 	"github.com/maintainerd/auth/internal/config"
 	"gopkg.in/gomail.v2"
@@ -20,7 +25,17 @@ type SendEmailParams struct {
 var SendEmail = sendEmail
 
 // sendEmail sends an email with the given parameters.
-func sendEmail(params SendEmailParams) error {
+func sendEmail(ctx context.Context, params SendEmailParams) error {
+	_, span := otel.Tracer("email").Start(ctx, "smtp.send")
+	defer span.End()
+
+	span.SetAttributes(
+		attribute.String("smtp.host", config.SMTPHost),
+		attribute.Int("smtp.port", config.SMTPPort),
+		attribute.String("email.to", params.To),
+		attribute.String("email.subject", params.Subject),
+	)
+
 	from := params.From
 	if from == "" {
 		from = gomail.NewMessage().FormatAddress(config.SMTPFromEmail, config.SMTPFromName)
@@ -40,8 +55,11 @@ func sendEmail(params SendEmailParams) error {
 
 	d := gomail.NewDialer(config.SMTPHost, config.SMTPPort, config.SMTPUser, config.SMTPPass)
 	if err := d.DialAndSend(m); err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "smtp send failed")
 		return fmt.Errorf("failed to send email: %w", err)
 	}
 
+	span.SetStatus(codes.Ok, "sent")
 	return nil
 }

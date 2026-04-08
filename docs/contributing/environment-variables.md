@@ -99,6 +99,13 @@ SECRET_PREFIX=maintainerd/auth
 # =============================================================================
 JWT_PRIVATE_KEY=""
 JWT_PUBLIC_KEY=""
+
+# =============================================================================
+# OPENTELEMETRY (TRACING)  — optional, disabled by default
+# =============================================================================
+OTEL_ENABLED="false"
+# OTEL_EXPORTER_OTLP_ENDPOINT="localhost:4317"
+# OTEL_SERVICE_NAME="maintainerd-auth"
 ```
 
 > **Variables that need your attention before first run:**
@@ -118,6 +125,7 @@ JWT_PUBLIC_KEY=""
 - [Email (SMTP)](#email-smtp)
 - [Secret Management](#secret-management)
 - [JWT Configuration](#jwt-configuration)
+- [OpenTelemetry (Tracing)](#opentelemetry-tracing)
 
 ---
 
@@ -515,4 +523,53 @@ In production, use one of the following approaches instead:
 - Rotate JWT keys at least every **90 days** in production.
 - During rotation, keep the old public key active until all tokens signed with it have expired.
 - Update `JWT_PUBLIC_KEY` to the new public key and deploy; then remove the old key.
+
+---
+
+## OpenTelemetry (Tracing)
+
+Maintainerd Auth has built-in [OpenTelemetry](https://opentelemetry.io/) tracing. When enabled, the service exports distributed traces covering HTTP requests, gRPC calls, database queries, Redis commands, and outgoing SMTP email sends.
+
+Tracing is **disabled by default**. Set `OTEL_ENABLED=true` to activate it.
+
+| Variable | Required | Default | Description |
+|---|---|---|---|
+| `OTEL_ENABLED` | ❌ | `false` | Set to `true` to enable tracing. When `false`, a no-op tracer is installed (zero overhead). |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | ❌ | `localhost:4317` | gRPC endpoint of the OpenTelemetry Collector (or compatible backend like Jaeger, Tempo). |
+| `OTEL_SERVICE_NAME` | ❌ | `maintainerd-auth` | Service name attached to every span. |
+
+> All standard `OTEL_*` environment variables defined by the [OpenTelemetry SDK specification](https://opentelemetry.io/docs/specs/otel/configuration/sdk-environment-variables/) are supported automatically (e.g. `OTEL_EXPORTER_OTLP_HEADERS`, `OTEL_EXPORTER_OTLP_INSECURE`, `OTEL_TRACES_SAMPLER`).
+
+### What is instrumented
+
+| Layer | Instrumentation | Details |
+|---|---|---|
+| HTTP (REST) | Automatic | Every inbound request gets a span with method, route, status code. |
+| gRPC | Automatic | Every inbound RPC gets a span via `otelgrpc`. |
+| PostgreSQL | Automatic | Every query/transaction gets a span via `otelgorm`. |
+| Redis | Automatic | Every Redis command gets a span via `redisotel`. |
+| SMTP (email) | Explicit | Outgoing email sends are wrapped in a span with host, port, recipient, and subject attributes. |
+| Logs | Correlation | `trace_id` and `span_id` are automatically injected into structured JSON log output. |
+
+### Local development with Jaeger
+
+The easiest way to view traces locally is with [Jaeger](https://www.jaegertracing.io/):
+
+```bash
+# Start Jaeger all-in-one (receives OTLP on port 4317)
+docker run -d --name jaeger \
+  -p 4317:4317 \
+  -p 16686:16686 \
+  jaegertracing/all-in-one:latest
+```
+
+Then set these in your `.env`:
+
+```env
+OTEL_ENABLED="true"
+OTEL_EXPORTER_OTLP_ENDPOINT="localhost:4317"
+OTEL_SERVICE_NAME="maintainerd-auth"
+```
+
+Open <http://localhost:16686> to browse traces.
 

@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"time"
 
+	"github.com/redis/go-redis/extra/redisotel/v9"
 	"github.com/redis/go-redis/v9"
 )
 
@@ -30,5 +31,10 @@ func NewRedisClient() (*redis.Client, error) {
 	}
 
 	slog.Info("Redis connected", "addr", addr)
+
+	if err := redisotel.InstrumentTracing(rdb); err != nil {
+		return nil, fmt.Errorf("failed to register redisotel tracing: %w", err)
+	}
+
 	return rdb, nil
 }
