@@ -1,13 +1,15 @@
 package service
 
 import (
+	"context"
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/maintainerd/auth/internal/apperror"
+	"github.com/maintainerd/auth/internal/cache"
 	"github.com/maintainerd/auth/internal/model"
 	"github.com/maintainerd/auth/internal/repository"
 	"gorm.io/gorm"
-	"github.com/maintainerd/auth/internal/apperror"
 )
 
 type RoleServiceDataResult struct {
@@ -80,6 +82,7 @@ type roleService struct {
 	rolePermissionRepo repository.RolePermissionRepository
 	userRepo           repository.UserRepository
 	tenantRepo         repository.TenantRepository
+	cacheInvalidator   cache.Invalidator
 }
 
 func NewRoleService(
@@ -89,6 +92,7 @@ func NewRoleService(
 	rolePermissionRepo repository.RolePermissionRepository,
 	userRepo repository.UserRepository,
 	tenantRepo repository.TenantRepository,
+	cacheInvalidator cache.Invalidator,
 ) RoleService {
 	return &roleService{
 		db:                 db,
@@ -97,6 +101,7 @@ func NewRoleService(
 		rolePermissionRepo: rolePermissionRepo,
 		userRepo:           userRepo,
 		tenantRepo:         tenantRepo,
+		cacheInvalidator:   cacheInvalidator,
 	}
 }
 
@@ -333,6 +338,8 @@ func (s *roleService) Update(roleUUID uuid.UUID, tenantID int64, name string, de
 		return nil, err
 	}
 
+	s.cacheInvalidator.InvalidateAllUsers(context.Background())
+
 	return toRoleServiceDataResult(updatedRole), nil
 }
 
@@ -391,6 +398,8 @@ func (s *roleService) SetStatusByUUID(roleUUID uuid.UUID, tenantID int64, status
 		return nil, err
 	}
 
+	s.cacheInvalidator.InvalidateAllUsers(context.Background())
+
 	return toRoleServiceDataResult(updatedRole), nil
 }
 
@@ -430,6 +439,8 @@ func (s *roleService) DeleteByUUID(roleUUID uuid.UUID, tenantID int64, actorUser
 	if err != nil {
 		return nil, err
 	}
+
+	s.cacheInvalidator.InvalidateAllUsers(context.Background())
 
 	return toRoleServiceDataResult(role), nil
 }
@@ -529,6 +540,8 @@ func (s *roleService) AddRolePermissions(roleUUID uuid.UUID, tenantID int64, per
 		return nil, err
 	}
 
+	s.cacheInvalidator.InvalidateAllUsers(context.Background())
+
 	return toRoleServiceDataResult(roleWithPermissions), nil
 }
 
@@ -615,6 +628,8 @@ func (s *roleService) RemoveRolePermissions(roleUUID uuid.UUID, tenantID int64, 
 	if err != nil {
 		return nil, err
 	}
+
+	s.cacheInvalidator.InvalidateAllUsers(context.Background())
 
 	return toRoleServiceDataResult(roleWithPermissions), nil
 }

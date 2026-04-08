@@ -1,6 +1,7 @@
 package app
 
 import (
+	"github.com/maintainerd/auth/internal/cache"
 	"github.com/maintainerd/auth/internal/service"
 	"github.com/redis/go-redis/v9"
 	"gorm.io/gorm"
@@ -9,6 +10,7 @@ import (
 type App struct {
 	DB          *gorm.DB
 	RedisClient *redis.Client
+	Cache       *cache.Cache
 	// Services
 	ServiceService           service.ServiceService
 	APIService               service.APIService
@@ -44,11 +46,13 @@ type App struct {
 // Handler creation is delegated to transport packages (rest, grpcserver).
 func NewApp(db *gorm.DB, redisClient *redis.Client) *App {
 	r := initRepos(db)
-	s := initServices(db, r)
+	appCache := cache.New(redisClient)
+	s := initServices(db, r, appCache)
 
 	return &App{
 		DB:          db,
 		RedisClient: redisClient,
+		Cache:       appCache,
 		// Services
 		ServiceService:           s.serviceService,
 		APIService:               s.apiService,

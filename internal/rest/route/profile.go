@@ -5,19 +5,19 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/maintainerd/auth/internal/middleware"
 	"github.com/maintainerd/auth/internal/service"
-	"github.com/redis/go-redis/v9"
+	"github.com/maintainerd/auth/internal/cache"
 )
 
 func ProfileRoute(
 	r chi.Router,
 	profileHandler *handler.ProfileHandler,
 	userService service.UserService,
-	redisClient *redis.Client,
+	appCache *cache.Cache,
 ) {
 	// /profile - Default profile operations (shortcut for convenience)
 	r.Route("/profile", func(r chi.Router) {
 		r.Use(middleware.JWTAuthMiddleware)
-		r.Use(middleware.UserContextMiddleware(userService, redisClient))
+		r.Use(middleware.UserContextMiddleware(userService, appCache))
 
 		// Get default profile
 		r.With(middleware.PermissionMiddleware([]string{"account:profile:read:self"})).
@@ -39,7 +39,7 @@ func ProfileRoute(
 	// /profiles - All profiles operations (including default, with full CRUD)
 	r.Route("/profiles", func(r chi.Router) {
 		r.Use(middleware.JWTAuthMiddleware)
-		r.Use(middleware.UserContextMiddleware(userService, redisClient))
+		r.Use(middleware.UserContextMiddleware(userService, appCache))
 
 		// Get all profiles with pagination and filtering
 		r.With(middleware.PermissionMiddleware([]string{"account:profile:read:self"})).

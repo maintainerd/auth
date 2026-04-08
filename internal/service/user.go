@@ -1,10 +1,12 @@
 package service
 
 import (
+	"context"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/apperror"
+	"github.com/maintainerd/auth/internal/cache"
 	"github.com/maintainerd/auth/internal/model"
 	"github.com/maintainerd/auth/internal/repository"
 	"github.com/maintainerd/auth/internal/security"
@@ -91,6 +93,7 @@ type userService struct {
 	identityProviderRepo repository.IdentityProviderRepository
 	clientRepo           repository.ClientRepository
 	tenantUserRepo       repository.TenantUserRepository
+	cacheInvalidator     cache.Invalidator
 }
 
 func NewUserService(
@@ -103,6 +106,7 @@ func NewUserService(
 	identityProviderRepo repository.IdentityProviderRepository,
 	clientRepo repository.ClientRepository,
 	tenantUserRepo repository.TenantUserRepository,
+	cacheInvalidator cache.Invalidator,
 ) UserService {
 	return &userService{
 		db:                   db,
@@ -114,6 +118,21 @@ func NewUserService(
 		identityProviderRepo: identityProviderRepo,
 		clientRepo:           clientRepo,
 		tenantUserRepo:       tenantUserRepo,
+		cacheInvalidator:     cacheInvalidator,
+	}
+}
+
+// invalidateUserCache clears all cached user-context entries for the given
+// user's identities. Call this after any mutation that changes data visible
+// in the user-context cache (user fields, roles, status, etc.).
+func (s *userService) invalidateUserCache(identities []model.UserIdentity) {
+	seen := make(map[string]struct{})
+	for _, id := range identities {
+		if _, ok := seen[id.Sub]; ok {
+			continue
+		}
+		seen[id.Sub] = struct{}{}
+		s.cacheInvalidator.InvalidateUserAll(context.Background(), id.Sub)
 	}
 }
 
@@ -470,6 +489,7 @@ func (s *userService) Update(userUUID uuid.UUID, tenantID int64, username string
 		return nil, err
 	}
 
+	s.invalidateUserCache(updatedUser.UserIdentities)
 	return toUserServiceDataResult(updatedUser), nil
 }
 
@@ -514,6 +534,7 @@ func (s *userService) SetStatus(userUUID uuid.UUID, tenantID int64, status strin
 		return nil, err
 	}
 
+	s.invalidateUserCache(updatedUser.UserIdentities)
 	return toUserServiceDataResult(updatedUser), nil
 }
 
@@ -551,6 +572,8 @@ func (s *userService) VerifyEmail(userUUID uuid.UUID, tenantID int64) (*UserServ
 		return nil, err
 	}
 
+	s.invalidateUserCache(updatedUser.UserIdentities)
+
 	return toUserServiceDataResult(updatedUser), nil
 }
 
@@ -586,6 +609,8 @@ func (s *userService) VerifyPhone(userUUID uuid.UUID, tenantID int64) (*UserServ
 	if err != nil {
 		return nil, err
 	}
+
+	s.invalidateUserCache(updatedUser.UserIdentities)
 
 	return toUserServiceDataResult(updatedUser), nil
 }
@@ -623,6 +648,8 @@ func (s *userService) CompleteAccount(userUUID uuid.UUID, tenantID int64) (*User
 		return nil, err
 	}
 
+	s.invalidateUserCache(updatedUser.UserIdentities)
+
 	return toUserServiceDataResult(updatedUser), nil
 }
 
@@ -655,6 +682,9 @@ func (s *userService) DeleteByUUID(userUUID uuid.UUID, tenantID int64, deleterUs
 	if err := ValidateTenantAccess(deleterUser, user.UserIdentities[0].Tenant); err != nil {
 		return nil, err
 	}
+
+	// Invalidate cache before deletion (identities will be gone after)
+	s.invalidateUserCache(user.UserIdentities)
 
 	// Delete user (cascade will handle related records)
 	err = s.userRepo.DeleteByUUID(userUUID)
@@ -736,6 +766,8 @@ func (s *userService) AssignUserRoles(userUUID uuid.UUID, roleUUIDs []uuid.UUID,
 		return nil, err
 	}
 
+	s.invalidateUserCache(userWithRoles.UserIdentities)
+
 	return toUserServiceDataResult(userWithRoles), nil
 }
 
@@ -792,6 +824,8 @@ func (s *userService) RemoveUserRole(userUUID uuid.UUID, roleUUID uuid.UUID, ten
 	if err != nil {
 		return nil, err
 	}
+
+	s.invalidateUserCache(userWithRoles.UserIdentities)
 
 	return toUserServiceDataResult(userWithRoles), nil
 }

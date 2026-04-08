@@ -11,6 +11,7 @@ import (
 
 	"github.com/alicebob/miniredis/v2"
 	"github.com/google/uuid"
+	"github.com/maintainerd/auth/internal/cache"
 	"github.com/maintainerd/auth/internal/model"
 	"github.com/maintainerd/auth/internal/repository"
 	"github.com/redis/go-redis/v9"
@@ -79,14 +80,15 @@ func (m *mockUserRepoMW) FindBySubAndClientID(sub, cID string) (*model.User, err
 // Helpers
 // ---------------------------------------------------------------------------
 
-// newFakeRedis returns a Redis client pointing at an invalid address so every
+// newFakeCache returns a Cache backed by an unreachable Redis so every
 // cache operation fails immediately, exercising the database-fallback path.
-func newFakeRedis() *redis.Client {
-	return redis.NewClient(&redis.Options{
+func newFakeCache() *cache.Cache {
+	rdb := redis.NewClient(&redis.Options{
 		Addr:        "localhost:0",
 		DialTimeout: 20 * time.Millisecond,
 		ReadTimeout: 20 * time.Millisecond,
 	})
+	return cache.New(rdb)
 }
 
 // withJWTContext injects sub and clientID (normally set by JWTAuthMiddleware).
@@ -145,7 +147,7 @@ func TestUserContextMiddleware(t *testing.T) {
 			})
 
 			repo := &mockUserRepoMW{findBySubAndClientIDFn: tc.findBySubClientID}
-			mw := UserContextMiddleware(repo, newFakeRedis())
+			mw := UserContextMiddleware(repo, newFakeCache())
 
 			req := httptest.NewRequest(http.MethodGet, "/", nil)
 			req = withJWTContext(req, sub, clientID)
@@ -165,20 +167,16 @@ func TestUserContextMiddleware_CacheHit(t *testing.T) {
 	const clientID = "client-cache"
 	userUUID := uuid.New()
 
-	// Build a cache payload matching UserContextCache structure in the middleware
-	type UserContextCache struct {
-		User     *model.User             `json:"user"`
-		Tenant   *model.Tenant           `json:"tenant"`
-		Provider *model.IdentityProvider `json:"provider"`
-		Client   *model.Client           `json:"client"`
-	}
-	payload := UserContextCache{User: &model.User{UserUUID: userUUID}}
+	// Seed the cache via the cache package
+	payload := cache.UserContext{User: &model.User{UserUUID: userUUID}}
 	data, err := json.Marshal(payload)
 	require.NoError(t, err)
 
 	mr, redisCli := newMiniredisClient(t)
-	cacheKey := "user:" + sub + ":" + clientID
+	cacheKey := cache.UserContextKeyFor(sub, clientID)
 	require.NoError(t, mr.Set(cacheKey, string(data)))
+
+	appCache := cache.New(redisCli)
 
 	var captured *model.User
 	next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -186,7 +184,7 @@ func TestUserContextMiddleware_CacheHit(t *testing.T) {
 		w.WriteHeader(http.StatusOK)
 	})
 
-	mw := UserContextMiddleware(&mockUserRepoMW{}, redisCli)
+	mw := UserContextMiddleware(&mockUserRepoMW{}, appCache)
 	req := withJWTContext(httptest.NewRequest(http.MethodGet, "/", nil), sub, clientID)
 	rr := httptest.NewRecorder()
 	mw(next).ServeHTTP(rr, req)
@@ -223,7 +221,7 @@ func TestUserContextMiddleware_IdentityFiltering(t *testing.T) {
 	repo := &mockUserRepoMW{
 		findBySubAndClientIDFn: func(_, _ string) (*model.User, error) { return user, nil },
 	}
-	mw := UserContextMiddleware(repo, newFakeRedis())
+	mw := UserContextMiddleware(repo, newFakeCache())
 	req := withJWTContext(httptest.NewRequest(http.MethodGet, "/", nil), sub, clientID)
 	rr := httptest.NewRecorder()
 	mw(next).ServeHTTP(rr, req)

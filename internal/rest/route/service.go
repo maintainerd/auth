@@ -5,18 +5,18 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/maintainerd/auth/internal/middleware"
 	"github.com/maintainerd/auth/internal/service"
-	"github.com/redis/go-redis/v9"
+	"github.com/maintainerd/auth/internal/cache"
 )
 
 func ServiceRoute(
 	r chi.Router,
 	serviceHandler *handler.ServiceHandler,
 	userService service.UserService,
-	redisClient *redis.Client,
+	appCache *cache.Cache,
 ) {
 	r.Route("/services", func(r chi.Router) {
 		r.Use(middleware.JWTAuthMiddleware)
-		r.Use(middleware.UserContextMiddleware(userService, redisClient))
+		r.Use(middleware.UserContextMiddleware(userService, appCache))
 
 		r.With(middleware.PermissionMiddleware([]string{"service:read"})).
 			Get("/", serviceHandler.Get)

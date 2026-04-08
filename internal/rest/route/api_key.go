@@ -5,18 +5,18 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/maintainerd/auth/internal/middleware"
 	"github.com/maintainerd/auth/internal/service"
-	"github.com/redis/go-redis/v9"
+	"github.com/maintainerd/auth/internal/cache"
 )
 
 func APIKeyRoute(
 	r chi.Router,
 	apiKeyHandler *handler.APIKeyHandler,
 	userService service.UserService,
-	redisClient *redis.Client,
+	appCache *cache.Cache,
 ) {
 	r.Route("/api_keys", func(r chi.Router) {
 		r.Use(middleware.JWTAuthMiddleware)
-		r.Use(middleware.UserContextMiddleware(userService, redisClient))
+		r.Use(middleware.UserContextMiddleware(userService, appCache))
 
 		// API Key CRUD operations
 		r.With(middleware.PermissionMiddleware([]string{"api_key:read"})).

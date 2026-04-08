@@ -5,18 +5,18 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/maintainerd/auth/internal/middleware"
 	"github.com/maintainerd/auth/internal/service"
-	"github.com/redis/go-redis/v9"
+	"github.com/maintainerd/auth/internal/cache"
 )
 
 func UserSettingRoute(
 	r chi.Router,
 	userSettingHandler *handler.UserSettingHandler,
 	userService service.UserService,
-	redisClient *redis.Client,
+	appCache *cache.Cache,
 ) {
 	r.Route("/user-settings", func(r chi.Router) {
 		r.Use(middleware.JWTAuthMiddleware)
-		r.Use(middleware.UserContextMiddleware(userService, redisClient))
+		r.Use(middleware.UserContextMiddleware(userService, appCache))
 
 		// Create or update user settings - requires settings update permission
 		r.With(middleware.PermissionMiddleware([]string{"settings:update:self"})).
