@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -64,7 +63,7 @@ func TestEmailTemplateHandler_GetByUUID_InvalidUUID(t *testing.T) {
 func TestEmailTemplateHandler_GetByUUID_NotFound(t *testing.T) {
 	svc := &mockEmailTemplateService{
 		getByUUIDFn: func(id uuid.UUID, tid int64) (*service.EmailTemplateServiceDataResult, error) {
-			return nil, assert.AnError
+			return nil, errNotFound
 		},
 	}
 	h := NewEmailTemplateHandler(svc)
@@ -85,7 +84,7 @@ func TestEmailTemplateHandler_Create_NoTenant(t *testing.T) {
 func TestEmailTemplateHandler_Create_ServiceError(t *testing.T) {
 	svc := &mockEmailTemplateService{
 		createFn: func(tid int64, name, subject, bodyHTML string, bodyPlain *string, status string, isDefault bool) (*service.EmailTemplateServiceDataResult, error) {
-			return nil, assert.AnError
+			return nil, errValidation
 		},
 	}
 	h := NewEmailTemplateHandler(svc)
@@ -253,7 +252,7 @@ func TestEmailTemplateHandler_Update_ValidationError(t *testing.T) {
 func TestEmailTemplateHandler_Update_ServiceError(t *testing.T) {
 	svc := &mockEmailTemplateService{
 		updateFn: func(id uuid.UUID, tid int64, name, subject, bodyHTML string, bodyPlain *string, status string) (*service.EmailTemplateServiceDataResult, error) {
-			return nil, errors.New("db error")
+			return nil, errValidation
 		},
 	}
 	h := NewEmailTemplateHandler(svc)
@@ -311,7 +310,7 @@ func TestEmailTemplateHandler_Delete_NoTenant(t *testing.T) {
 func TestEmailTemplateHandler_Delete_ServiceError(t *testing.T) {
 	svc := &mockEmailTemplateService{
 		deleteFn: func(id uuid.UUID, tid int64) (*service.EmailTemplateServiceDataResult, error) {
-			return nil, errors.New("db error")
+			return nil, errValidation
 		},
 	}
 	h := NewEmailTemplateHandler(svc)
@@ -360,7 +359,7 @@ func TestEmailTemplateHandler_UpdateStatus_ValidationError(t *testing.T) {
 func TestEmailTemplateHandler_UpdateStatus_ServiceError(t *testing.T) {
 	svc := &mockEmailTemplateService{
 		updateStatusFn: func(id uuid.UUID, tid int64, status string) (*service.EmailTemplateServiceDataResult, error) {
-			return nil, errors.New("db error")
+			return nil, errValidation
 		},
 	}
 	h := NewEmailTemplateHandler(svc)

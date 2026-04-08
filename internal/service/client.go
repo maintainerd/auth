@@ -1,14 +1,14 @@
 package service
 
 import (
-	"errors"
 	"strings"
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/maintainerd/auth/internal/apperror"
+	"github.com/maintainerd/auth/internal/crypto"
 	"github.com/maintainerd/auth/internal/model"
 	"github.com/maintainerd/auth/internal/repository"
-	"github.com/maintainerd/auth/internal/crypto"
 	"gorm.io/datatypes"
 	"gorm.io/gorm"
 )
@@ -196,7 +196,7 @@ func (s *clientService) GetByUUID(ClientUUID uuid.UUID, tenantID int64) (*Client
 		return nil, err
 	}
 	if Client == nil {
-		return nil, errors.New("auth client not found or access denied")
+		return nil, apperror.NewNotFoundWithReason("auth client not found or access denied")
 	}
 
 	return ToClientServiceDataResult(Client), nil
@@ -208,7 +208,7 @@ func (s *clientService) GetSecretByUUID(ClientUUID uuid.UUID, tenantID int64) (*
 		return nil, err
 	}
 	if Client == nil {
-		return nil, errors.New("auth client not found or access denied")
+		return nil, apperror.NewNotFoundWithReason("auth client not found or access denied")
 	}
 
 	return &ClientSecretServiceDataResult{
@@ -223,7 +223,7 @@ func (s *clientService) GetConfigByUUID(ClientUUID uuid.UUID, tenantID int64) (d
 		return nil, err
 	}
 	if Client == nil {
-		return nil, errors.New("auth client not found or access denied")
+		return nil, apperror.NewNotFoundWithReason("auth client not found or access denied")
 	}
 
 	return Client.Config, nil
@@ -240,19 +240,19 @@ func (s *clientService) Create(tenantID int64, name string, displayName string, 
 		// Parse identity provider UUID
 		idpUUIDParsed, err := uuid.Parse(identityProviderUUID)
 		if err != nil {
-			return errors.New("invalid identity provider UUID")
+			return apperror.NewValidation("invalid identity provider UUID")
 		}
 
 		// Check if identity provider exists
 		identityProvider, err := txIdpRepo.FindByUUID(idpUUIDParsed, "Tenant")
 		if err != nil || identityProvider == nil {
-			return errors.New("identity provider not found")
+			return apperror.NewNotFoundWithReason("identity provider not found")
 		}
 
 		// Get actor user with tenant info
 		actorUser, err := txUserRepo.FindByUUID(actorUserUUID, "UserIdentities.Tenant")
 		if err != nil || actorUser == nil {
-			return errors.New("actor user not found")
+			return apperror.NewNotFoundWithReason("actor user not found")
 		}
 
 		// Validate tenant access permissions
@@ -266,7 +266,7 @@ func (s *clientService) Create(tenantID int64, name string, displayName string, 
 			return err
 		}
 		if existingClient != nil {
-			return errors.New(name + " auth client already exists")
+			return apperror.NewConflict(name + " auth client already exists")
 		}
 
 		// Generate identifier
@@ -320,13 +320,13 @@ func (s *clientService) Update(ClientUUID uuid.UUID, tenantID int64, name string
 		// Get auth client
 		Client, err := txClientRepo.FindByUUID(ClientUUID, "IdentityProvider.Tenant", "ClientURIs")
 		if err != nil || Client == nil {
-			return errors.New("auth client not found")
+			return apperror.NewNotFoundWithReason("auth client not found")
 		}
 
 		// Get actor user with tenant info
 		actorUser, err := txUserRepo.FindByUUID(actorUserUUID, "UserIdentities.Tenant")
 		if err != nil || actorUser == nil {
-			return errors.New("actor user not found")
+			return apperror.NewNotFoundWithReason("actor user not found")
 		}
 
 		// Validate tenant access permissions
@@ -336,7 +336,7 @@ func (s *clientService) Update(ClientUUID uuid.UUID, tenantID int64, name string
 
 		// Check if default
 		if Client.IsDefault {
-			return errors.New("default auth client cannot cannot be updated")
+			return apperror.NewValidation("default auth client cannot cannot be updated")
 		}
 
 		// Check if auth client already exist
@@ -346,7 +346,7 @@ func (s *clientService) Update(ClientUUID uuid.UUID, tenantID int64, name string
 				return err
 			}
 			if existingClient != nil && existingClient.ClientUUID != ClientUUID {
-				return errors.New(name + " auth client already exists")
+				return apperror.NewConflict(name + " auth client already exists")
 			}
 		}
 
@@ -387,13 +387,13 @@ func (s *clientService) SetStatusByUUID(ClientUUID uuid.UUID, tenantID int64, st
 		// Get auth client
 		Client, err := txClientRepo.FindByUUID(ClientUUID, "IdentityProvider.Tenant", "ClientURIs")
 		if err != nil || Client == nil {
-			return errors.New("auth client not found")
+			return apperror.NewNotFoundWithReason("auth client not found")
 		}
 
 		// Get actor user with tenant info
 		actorUser, err := txUserRepo.FindByUUID(actorUserUUID, "UserIdentities.Tenant")
 		if err != nil || actorUser == nil {
-			return errors.New("actor user not found")
+			return apperror.NewNotFoundWithReason("actor user not found")
 		}
 
 		// Validate tenant access permissions
@@ -403,10 +403,10 @@ func (s *clientService) SetStatusByUUID(ClientUUID uuid.UUID, tenantID int64, st
 
 		// Check if default or system
 		if Client.IsDefault {
-			return errors.New("default auth client cannot be updated")
+			return apperror.NewValidation("default auth client cannot be updated")
 		}
 		if Client.IsSystem {
-			return errors.New("system auth client cannot be updated")
+			return apperror.NewValidation("system auth client cannot be updated")
 		}
 
 		// Set values
@@ -440,13 +440,13 @@ func (s *clientService) DeleteByUUID(ClientUUID uuid.UUID, tenantID int64, actor
 		// Get auth client
 		Client, err := txClientRepo.FindByUUID(ClientUUID, "IdentityProvider.Tenant", "ClientURIs")
 		if err != nil || Client == nil {
-			return errors.New("auth client not found")
+			return apperror.NewNotFoundWithReason("auth client not found")
 		}
 
 		// Get actor user with tenant info
 		actorUser, err := txUserRepo.FindByUUID(actorUserUUID, "UserIdentities.Tenant")
 		if err != nil || actorUser == nil {
-			return errors.New("actor user not found")
+			return apperror.NewNotFoundWithReason("actor user not found")
 		}
 
 		// Validate tenant access permissions
@@ -456,7 +456,7 @@ func (s *clientService) DeleteByUUID(ClientUUID uuid.UUID, tenantID int64, actor
 
 		// Check if default
 		if Client.IsDefault {
-			return errors.New("default auth client cannot be deleted")
+			return apperror.NewValidation("default auth client cannot be deleted")
 		}
 
 		// Delete
@@ -487,18 +487,18 @@ func (s *clientService) CreateURI(ClientUUID uuid.UUID, tenantID int64, uri stri
 		// Find the auth client by UUID and tenant
 		Client, err := txClientRepo.FindByUUIDAndTenantID(ClientUUID, tenantID)
 		if err != nil || Client == nil {
-			return errors.New("auth client not found or access denied")
+			return apperror.NewNotFoundWithReason("auth client not found or access denied")
 		}
 
 		// Get actor user with tenant info
 		actorUser, err := txUserRepo.FindByUUID(actorUserUUID, "UserIdentities.Tenant")
 		if err != nil || actorUser == nil {
-			return errors.New("actor user not found")
+			return apperror.NewNotFoundWithReason("actor user not found")
 		}
 
 		// Validate tenant ownership
 		if Client.TenantID != tenantID {
-			return errors.New("auth client not found or access denied")
+			return apperror.NewNotFoundWithReason("auth client not found or access denied")
 		}
 
 		// Create the URI entry
@@ -517,7 +517,7 @@ func (s *clientService) CreateURI(ClientUUID uuid.UUID, tenantID int64, uri stri
 		// Find the auth client updated with the new URI
 		ClientCreated, err := txClientRepo.FindByUUIDAndTenantID(ClientUUID, tenantID)
 		if err != nil || ClientCreated == nil {
-			return errors.New("auth client not found")
+			return apperror.NewNotFoundWithReason("auth client not found")
 		}
 
 		createdClient = ClientCreated
@@ -543,29 +543,29 @@ func (s *clientService) UpdateURI(ClientUUID uuid.UUID, tenantID int64, ClientUR
 		// Find the auth client by UUID and tenant
 		Client, err := txClientRepo.FindByUUIDAndTenantID(ClientUUID, tenantID)
 		if err != nil || Client == nil {
-			return errors.New("auth client not found or access denied")
+			return apperror.NewNotFoundWithReason("auth client not found or access denied")
 		}
 
 		// Get actor user with tenant info
 		actorUser, err := txUserRepo.FindByUUID(actorUserUUID, "UserIdentities.Tenant")
 		if err != nil || actorUser == nil {
-			return errors.New("actor user not found")
+			return apperror.NewNotFoundWithReason("actor user not found")
 		}
 
 		// Validate tenant ownership
 		if Client.TenantID != tenantID {
-			return errors.New("auth client not found or access denied")
+			return apperror.NewNotFoundWithReason("auth client not found or access denied")
 		}
 
 		// Find the URI entry by UUID and tenant
 		existingURI, err := txURIRepo.FindByUUIDAndTenantID(ClientURIUUID.String(), tenantID)
 		if err != nil || existingURI == nil {
-			return errors.New("URI not found or access denied")
+			return apperror.NewNotFoundWithReason("URI not found or access denied")
 		}
 
 		// Check if the URI belongs to the auth client
 		if existingURI.ClientID != Client.ClientID {
-			return errors.New("URI does not belong to the specified auth client")
+			return apperror.NewValidation("URI does not belong to the specified auth client")
 		}
 
 		// Set new values
@@ -581,7 +581,7 @@ func (s *clientService) UpdateURI(ClientUUID uuid.UUID, tenantID int64, ClientUR
 		// Find the auth client updated with the new URI
 		ClientUpdated, err := txClientRepo.FindByUUIDAndTenantID(ClientUUID, tenantID)
 		if err != nil || ClientUpdated == nil {
-			return errors.New("auth client not found")
+			return apperror.NewNotFoundWithReason("auth client not found")
 		}
 
 		updatedClient = ClientUpdated
@@ -607,29 +607,29 @@ func (s *clientService) DeleteURI(ClientUUID uuid.UUID, tenantID int64, ClientUR
 		// Find the auth client by UUID and tenant
 		Client, err := txClientRepo.FindByUUIDAndTenantID(ClientUUID, tenantID)
 		if err != nil || Client == nil {
-			return errors.New("auth client not found or access denied")
+			return apperror.NewNotFoundWithReason("auth client not found or access denied")
 		}
 
 		// Get actor user with tenant info
 		actorUser, err := txUserRepo.FindByUUID(actorUserUUID, "UserIdentities.Tenant")
 		if err != nil || actorUser == nil {
-			return errors.New("actor user not found")
+			return apperror.NewNotFoundWithReason("actor user not found")
 		}
 
 		// Validate tenant ownership
 		if Client.TenantID != tenantID {
-			return errors.New("auth client not found or access denied")
+			return apperror.NewNotFoundWithReason("auth client not found or access denied")
 		}
 
 		// Find the URI entry by UUID and tenant
 		existingURI, err := txURIRepo.FindByUUIDAndTenantID(ClientURIUUID.String(), tenantID)
 		if err != nil || existingURI == nil {
-			return errors.New("URI not found or access denied")
+			return apperror.NewNotFoundWithReason("URI not found or access denied")
 		}
 
 		// Check if the URI belongs to the auth client
 		if existingURI.ClientID != Client.ClientID {
-			return errors.New("URI does not belong to the specified auth client")
+			return apperror.NewValidation("URI does not belong to the specified auth client")
 		}
 
 		// Delete the entry
@@ -769,12 +769,12 @@ func (s *clientService) AddClientAPIs(tenantID int64, ClientUUID uuid.UUID, apiU
 			return err
 		}
 		if Client == nil {
-			return errors.New("auth client not found")
+			return apperror.NewNotFoundWithReason("auth client not found")
 		}
 
 		// Validate tenant access
 		if Client.IdentityProvider == nil || Client.IdentityProvider.TenantID != tenantID {
-			return errors.New("unauthorized access to auth client")
+			return apperror.NewForbidden("unauthorized access to auth client")
 		}
 
 		// Process each API UUID
@@ -785,7 +785,7 @@ func (s *clientService) AddClientAPIs(tenantID int64, ClientUUID uuid.UUID, apiU
 				return err
 			}
 			if api == nil {
-				return errors.New("API not found: " + apiUUID.String())
+				return apperror.NewNotFoundWithReason("API not found: " + apiUUID.String())
 			}
 
 			// Check if relationship already exists
@@ -794,7 +794,7 @@ func (s *clientService) AddClientAPIs(tenantID int64, ClientUUID uuid.UUID, apiU
 				return err
 			}
 			if existing != nil {
-				return errors.New("API already assigned to auth client: " + apiUUID.String())
+				return apperror.NewConflict("API already assigned to auth client: " + apiUUID.String())
 			}
 
 			// Create new auth client API relationship
@@ -808,7 +808,7 @@ func (s *clientService) AddClientAPIs(tenantID int64, ClientUUID uuid.UUID, apiU
 			if err != nil {
 				// Check if it's a unique constraint violation
 				if strings.Contains(err.Error(), "uq_client_apis_client_api") {
-					return errors.New("API already assigned to auth client: " + apiUUID.String())
+					return apperror.NewConflict("API already assigned to auth client: " + apiUUID.String())
 				}
 				return err
 			}
@@ -830,12 +830,12 @@ func (s *clientService) RemoveClientAPI(tenantID int64, ClientUUID uuid.UUID, ap
 			return err
 		}
 		if Client == nil {
-			return errors.New("auth client not found")
+			return apperror.NewNotFoundWithReason("auth client not found")
 		}
 
 		// Validate tenant access
 		if Client.IdentityProvider == nil || Client.IdentityProvider.TenantID != tenantID {
-			return errors.New("unauthorized access to auth client")
+			return apperror.NewForbidden("unauthorized access to auth client")
 		}
 
 		// Remove the API relationship (this will cascade delete permissions)
@@ -856,7 +856,7 @@ func (s *clientService) GetClientAPIPermissions(tenantID int64, ClientUUID uuid.
 		return nil, err
 	}
 	if ClientAPI == nil {
-		return nil, errors.New("auth client API relationship not found")
+		return nil, apperror.NewNotFoundWithReason("auth client API relationship not found")
 	}
 
 	// Validate tenant access
@@ -865,10 +865,10 @@ func (s *clientService) GetClientAPIPermissions(tenantID int64, ClientUUID uuid.
 		return nil, err
 	}
 	if Client == nil {
-		return nil, errors.New("auth client not found")
+		return nil, apperror.NewNotFoundWithReason("auth client not found")
 	}
 	if Client.IdentityProvider == nil || Client.IdentityProvider.TenantID != tenantID {
-		return nil, errors.New("unauthorized access to auth client")
+		return nil, apperror.NewForbidden("unauthorized access to auth client")
 	}
 
 	// Get permissions for this auth client API
@@ -909,12 +909,12 @@ func (s *clientService) AddClientAPIPermissions(tenantID int64, ClientUUID uuid.
 			return err
 		}
 		if Client == nil {
-			return errors.New("auth client not found")
+			return apperror.NewNotFoundWithReason("auth client not found")
 		}
 
 		// Validate tenant access
 		if Client.IdentityProvider == nil || Client.IdentityProvider.TenantID != tenantID {
-			return errors.New("unauthorized access to auth client")
+			return apperror.NewForbidden("unauthorized access to auth client")
 		}
 
 		// Get auth client API relationship
@@ -923,7 +923,7 @@ func (s *clientService) AddClientAPIPermissions(tenantID int64, ClientUUID uuid.
 			return err
 		}
 		if ClientAPI == nil {
-			return errors.New("auth client API relationship not found")
+			return apperror.NewNotFoundWithReason("auth client API relationship not found")
 		}
 
 		// Process each permission UUID
@@ -934,7 +934,7 @@ func (s *clientService) AddClientAPIPermissions(tenantID int64, ClientUUID uuid.
 				return err
 			}
 			if permission == nil {
-				return errors.New("permission not found: " + permissionUUID.String())
+				return apperror.NewNotFoundWithReason("permission not found: " + permissionUUID.String())
 			}
 
 			// Check if relationship already exists
@@ -943,7 +943,7 @@ func (s *clientService) AddClientAPIPermissions(tenantID int64, ClientUUID uuid.
 				return err
 			}
 			if existing != nil {
-				return errors.New("permission already assigned to auth client API: " + permissionUUID.String())
+				return apperror.NewConflict("permission already assigned to auth client API: " + permissionUUID.String())
 			}
 
 			// Create new auth client permission relationship
@@ -957,7 +957,7 @@ func (s *clientService) AddClientAPIPermissions(tenantID int64, ClientUUID uuid.
 			if err != nil {
 				// Check if it's a unique constraint violation
 				if strings.Contains(err.Error(), "uq_client_permissions_client_permission") {
-					return errors.New("permission already assigned to auth client API: " + permissionUUID.String())
+					return apperror.NewConflict("permission already assigned to auth client API: " + permissionUUID.String())
 				}
 				return err
 			}
@@ -981,12 +981,12 @@ func (s *clientService) RemoveClientAPIPermission(tenantID int64, ClientUUID uui
 			return err
 		}
 		if Client == nil {
-			return errors.New("auth client not found")
+			return apperror.NewNotFoundWithReason("auth client not found")
 		}
 
 		// Validate tenant access
 		if Client.IdentityProvider == nil || Client.IdentityProvider.TenantID != tenantID {
-			return errors.New("unauthorized access to auth client")
+			return apperror.NewForbidden("unauthorized access to auth client")
 		}
 
 		// Get auth client API relationship
@@ -995,7 +995,7 @@ func (s *clientService) RemoveClientAPIPermission(tenantID int64, ClientUUID uui
 			return err
 		}
 		if ClientAPI == nil {
-			return errors.New("auth client API relationship not found")
+			return apperror.NewNotFoundWithReason("auth client API relationship not found")
 		}
 
 		// Get permission
@@ -1004,7 +1004,7 @@ func (s *clientService) RemoveClientAPIPermission(tenantID int64, ClientUUID uui
 			return err
 		}
 		if permission == nil {
-			return errors.New("permission not found")
+			return apperror.NewNotFound("permission not found")
 		}
 
 		// Remove the permission relationship

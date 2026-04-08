@@ -1,10 +1,10 @@
 package service
 
 import (
-	"errors"
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/maintainerd/auth/internal/apperror"
 	"github.com/maintainerd/auth/internal/model"
 	"github.com/maintainerd/auth/internal/repository"
 	"gorm.io/datatypes"
@@ -158,7 +158,7 @@ func (s *policyService) GetByUUID(policyUUID uuid.UUID, tenantID int64) (*Policy
 		return nil, err
 	}
 	if policy == nil {
-		return nil, errors.New("policy not found")
+		return nil, apperror.NewNotFound("policy")
 	}
 
 	return &PolicyServiceDataResult{
@@ -241,7 +241,7 @@ func (s *policyService) Create(tenantID int64, name string, description *string,
 			return err
 		}
 		if existingPolicy != nil {
-			return errors.New("policy with name '" + name + "' and version '" + version + "' already exists")
+			return apperror.NewConflict("policy with name '" + name + "' and version '" + version + "' already exists")
 		}
 
 		// Create new policy
@@ -294,12 +294,12 @@ func (s *policyService) Update(policyUUID uuid.UUID, tenantID int64, name string
 			return err
 		}
 		if policy == nil {
-			return errors.New("policy not found or access denied")
+			return apperror.NewNotFoundWithReason("policy not found or access denied")
 		}
 
 		// Check if policy is a system record (critical for app functionality)
 		if policy.IsSystem {
-			return errors.New("system policy cannot be updated")
+			return apperror.NewValidation("system policy cannot be updated")
 		}
 
 		// Check if another policy with same name and version exists (excluding current policy)
@@ -309,7 +309,7 @@ func (s *policyService) Update(policyUUID uuid.UUID, tenantID int64, name string
 				return err
 			}
 			if existingPolicy != nil && existingPolicy.PolicyUUID != policyUUID {
-				return errors.New("policy with name '" + name + "' and version '" + version + "' already exists")
+				return apperror.NewConflict("policy with name '" + name + "' and version '" + version + "' already exists")
 			}
 		}
 
@@ -357,12 +357,12 @@ func (s *policyService) SetStatusByUUID(policyUUID uuid.UUID, tenantID int64, st
 			return err
 		}
 		if policy == nil {
-			return errors.New("policy not found or access denied")
+			return apperror.NewNotFoundWithReason("policy not found or access denied")
 		}
 
 		// Check if policy is a system record (critical for app functionality)
 		if policy.IsSystem {
-			return errors.New("system policy status cannot be updated")
+			return apperror.NewValidation("system policy status cannot be updated")
 		}
 
 		// Update status
@@ -408,12 +408,12 @@ func (s *policyService) DeleteByUUID(policyUUID uuid.UUID, tenantID int64) (*Pol
 			return err
 		}
 		if policy == nil {
-			return errors.New("policy not found or access denied")
+			return apperror.NewNotFoundWithReason("policy not found or access denied")
 		}
 
 		// Check if policy is system policy (cannot be deleted)
 		if policy.IsSystem {
-			return errors.New("system policies cannot be deleted")
+			return apperror.NewValidation("system policies cannot be deleted")
 		}
 
 		deletedPolicy = policy

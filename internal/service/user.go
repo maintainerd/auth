@@ -1,7 +1,6 @@
 package service
 
 import (
-	"errors"
 	"time"
 
 	"github.com/google/uuid"
@@ -10,6 +9,7 @@ import (
 	"github.com/maintainerd/auth/internal/security"
 	"gorm.io/datatypes"
 	"gorm.io/gorm"
+	"github.com/maintainerd/auth/internal/apperror"
 )
 
 type UserServiceDataResult struct {
@@ -139,7 +139,7 @@ func (s *userService) findDefaultRole(roleRepo repository.RoleRepository, tenant
 		return nil, err
 	}
 	if role == nil {
-		return nil, errors.New("no default role found for tenant")
+		return nil, apperror.NewValidation("no default role found for tenant")
 	}
 
 	return role, nil
@@ -151,12 +151,12 @@ func (s *userService) Get(filter UserServiceGetFilter) (*UserServiceGetResult, e
 	if filter.RoleUUID != nil {
 		roleUUIDParsed, err := uuid.Parse(*filter.RoleUUID)
 		if err != nil {
-			return nil, errors.New("invalid role UUID")
+			return nil, apperror.NewValidation("invalid role UUID")
 		}
 
 		role, err := s.roleRepo.FindByUUID(roleUUIDParsed)
 		if err != nil || role == nil {
-			return nil, errors.New("role not found")
+			return nil, apperror.NewNotFound("role not found")
 		}
 		roleID = &role.RoleID
 	}
@@ -198,7 +198,7 @@ func (s *userService) Get(filter UserServiceGetFilter) (*UserServiceGetResult, e
 func (s *userService) GetByUUID(userUUID uuid.UUID, tenantID int64) (*UserServiceDataResult, error) {
 	user, err := s.userRepo.FindByUUID(userUUID, "UserIdentities.Tenant")
 	if err != nil || user == nil {
-		return nil, errors.New("user not found")
+		return nil, apperror.NewNotFound("user not found")
 	}
 
 	// Validate tenant ownership - check if user has an identity in this tenant
@@ -210,7 +210,7 @@ func (s *userService) GetByUUID(userUUID uuid.UUID, tenantID int64) (*UserServic
 		}
 	}
 	if !hasTenantAccess {
-		return nil, errors.New("user not found or access denied")
+		return nil, apperror.NewNotFoundWithReason("user not found or access denied")
 	}
 
 	return toUserServiceDataResult(user), nil
@@ -231,19 +231,19 @@ func (s *userService) Create(username string, fullname string, email *string, ph
 		// Parse tenant UUID
 		tenantUUIDParsed, err := uuid.Parse(tenantUUID)
 		if err != nil {
-			return errors.New("invalid tenant UUID")
+			return apperror.NewValidation("invalid tenant UUID")
 		}
 
 		// Validate tenant exists
 		targetTenant, err := txTenantRepo.FindByUUID(tenantUUIDParsed)
 		if err != nil || targetTenant == nil {
-			return errors.New("tenant not found")
+			return apperror.NewNotFound("tenant not found")
 		}
 
 		// Get creator user with tenant info
 		creatorUser, err := txUserRepo.FindByUUID(creatorUserUUID, "UserIdentities.Tenant")
 		if err != nil || creatorUser == nil {
-			return errors.New("creator user not found")
+			return apperror.NewNotFoundWithReason("creator user not found")
 		}
 
 		// Validate tenant access permissions
@@ -257,7 +257,7 @@ func (s *userService) Create(username string, fullname string, email *string, ph
 			return err
 		}
 		if existingUser != nil {
-			return errors.New("username already exists")
+			return apperror.NewConflict("username already exists")
 		}
 
 		// Check if user already exists by email (only if email is provided)
@@ -267,7 +267,7 @@ func (s *userService) Create(username string, fullname string, email *string, ph
 				return err
 			}
 			if existingUser != nil {
-				return errors.New("email already exists")
+				return apperror.NewConflict("email already exists")
 			}
 		}
 
@@ -308,7 +308,7 @@ func (s *userService) Create(username string, fullname string, email *string, ph
 		// Find default auth client for this tenant
 		defaultClient, err := txClientRepo.FindDefaultByTenantID(targetTenant.TenantID)
 		if err != nil || defaultClient == nil {
-			return errors.New("default auth client not found for tenant")
+			return apperror.NewNotFoundWithReason("default auth client not found for tenant")
 		}
 
 		// Create default user identity
@@ -377,7 +377,7 @@ func (s *userService) Update(userUUID uuid.UUID, tenantID int64, username string
 		// Check if target user exists
 		user, err := txUserRepo.FindByUUID(userUUID, "UserIdentities")
 		if err != nil || user == nil {
-			return errors.New("user not found")
+			return apperror.NewNotFound("user not found")
 		}
 
 		// Validate tenant ownership - check if user has an identity in this tenant
@@ -389,13 +389,13 @@ func (s *userService) Update(userUUID uuid.UUID, tenantID int64, username string
 			}
 		}
 		if !hasTenantAccess {
-			return errors.New("user not found or access denied")
+			return apperror.NewNotFoundWithReason("user not found or access denied")
 		}
 
 		// Get updater user with tenant info
 		updaterUser, err := txUserRepo.FindByUUID(updaterUserUUID, "UserIdentities.Tenant")
 		if err != nil || updaterUser == nil {
-			return errors.New("updater user not found")
+			return apperror.NewNotFoundWithReason("updater user not found")
 		}
 
 		// Validate tenant access permissions
@@ -410,7 +410,7 @@ func (s *userService) Update(userUUID uuid.UUID, tenantID int64, username string
 				return err
 			}
 			if existingUser != nil && existingUser.UserID != user.UserID {
-				return errors.New("username already exists")
+				return apperror.NewConflict("username already exists")
 			}
 		}
 
@@ -431,7 +431,7 @@ func (s *userService) Update(userUUID uuid.UUID, tenantID int64, username string
 				return err
 			}
 			if existingUser != nil && existingUser.UserID != user.UserID {
-				return errors.New("email already exists")
+				return apperror.NewConflict("email already exists")
 			}
 		}
 
@@ -474,7 +474,7 @@ func (s *userService) SetStatus(userUUID uuid.UUID, tenantID int64, status strin
 	// Check if target user exists
 	user, err := s.userRepo.FindByUUID(userUUID, "UserIdentities")
 	if err != nil || user == nil {
-		return nil, errors.New("user not found")
+		return nil, apperror.NewNotFound("user not found")
 	}
 
 	// Validate tenant ownership - check if user has an identity in this tenant
@@ -486,13 +486,13 @@ func (s *userService) SetStatus(userUUID uuid.UUID, tenantID int64, status strin
 		}
 	}
 	if !hasTenantAccess {
-		return nil, errors.New("user not found or access denied")
+		return nil, apperror.NewNotFoundWithReason("user not found or access denied")
 	}
 
 	// Get updater user with tenant info
 	updaterUser, err := s.userRepo.FindByUUID(updaterUserUUID, "UserIdentities.Tenant")
 	if err != nil || updaterUser == nil {
-		return nil, errors.New("updater user not found")
+		return nil, apperror.NewNotFoundWithReason("updater user not found")
 	}
 
 	// Validate tenant access permissions
@@ -518,7 +518,7 @@ func (s *userService) VerifyEmail(userUUID uuid.UUID, tenantID int64) (*UserServ
 	// Check if target user exists and preload identities for tenant validation
 	user, err := s.userRepo.FindByUUID(userUUID, "UserIdentities.Tenant")
 	if err != nil || user == nil {
-		return nil, errors.New("user not found")
+		return nil, apperror.NewNotFound("user not found")
 	}
 
 	// Validate tenant ownership - check if user has an identity in this tenant
@@ -530,7 +530,7 @@ func (s *userService) VerifyEmail(userUUID uuid.UUID, tenantID int64) (*UserServ
 		}
 	}
 	if !hasTenantAccess {
-		return nil, errors.New("user not found or access denied")
+		return nil, apperror.NewNotFoundWithReason("user not found or access denied")
 	}
 
 	// Update is_email_verified and is_account_completed
@@ -555,7 +555,7 @@ func (s *userService) VerifyPhone(userUUID uuid.UUID, tenantID int64) (*UserServ
 	// Check if target user exists and preload identities for tenant validation
 	user, err := s.userRepo.FindByUUID(userUUID, "UserIdentities.Tenant")
 	if err != nil || user == nil {
-		return nil, errors.New("user not found")
+		return nil, apperror.NewNotFound("user not found")
 	}
 
 	// Validate tenant ownership - check if user has an identity in this tenant
@@ -567,7 +567,7 @@ func (s *userService) VerifyPhone(userUUID uuid.UUID, tenantID int64) (*UserServ
 		}
 	}
 	if !hasTenantAccess {
-		return nil, errors.New("user not found or access denied")
+		return nil, apperror.NewNotFoundWithReason("user not found or access denied")
 	}
 
 	// Update is_phone_verified
@@ -591,7 +591,7 @@ func (s *userService) CompleteAccount(userUUID uuid.UUID, tenantID int64) (*User
 	// Check if target user exists and preload identities for tenant validation
 	user, err := s.userRepo.FindByUUID(userUUID, "UserIdentities.Tenant")
 	if err != nil || user == nil {
-		return nil, errors.New("user not found")
+		return nil, apperror.NewNotFound("user not found")
 	}
 
 	// Validate tenant ownership - check if user has an identity in this tenant
@@ -603,7 +603,7 @@ func (s *userService) CompleteAccount(userUUID uuid.UUID, tenantID int64) (*User
 		}
 	}
 	if !hasTenantAccess {
-		return nil, errors.New("user not found or access denied")
+		return nil, apperror.NewNotFoundWithReason("user not found or access denied")
 	}
 
 	// Update is_account_completed
@@ -627,7 +627,7 @@ func (s *userService) DeleteByUUID(userUUID uuid.UUID, tenantID int64, deleterUs
 	// Check if target user exists
 	user, err := s.userRepo.FindByUUID(userUUID, "UserIdentities.Client", "UserIdentities", "Roles")
 	if err != nil || user == nil {
-		return nil, errors.New("user not found")
+		return nil, apperror.NewNotFound("user not found")
 	}
 
 	// Validate tenant ownership - check if user has an identity in this tenant
@@ -639,13 +639,13 @@ func (s *userService) DeleteByUUID(userUUID uuid.UUID, tenantID int64, deleterUs
 		}
 	}
 	if !hasTenantAccess {
-		return nil, errors.New("user not found or access denied")
+		return nil, apperror.NewNotFoundWithReason("user not found or access denied")
 	}
 
 	// Get deleter user with tenant info
 	deleterUser, err := s.userRepo.FindByUUID(deleterUserUUID, "UserIdentities.Tenant")
 	if err != nil || deleterUser == nil {
-		return nil, errors.New("deleter user not found")
+		return nil, apperror.NewNotFoundWithReason("deleter user not found")
 	}
 
 	// Validate tenant access permissions
@@ -673,7 +673,7 @@ func (s *userService) AssignUserRoles(userUUID uuid.UUID, roleUUIDs []uuid.UUID,
 		// Check if user exists and preload identities for tenant validation
 		user, err := txUserRepo.FindByUUID(userUUID, "UserIdentities")
 		if err != nil || user == nil {
-			return errors.New("user not found")
+			return apperror.NewNotFound("user not found")
 		}
 
 		// Validate tenant ownership - check if user has an identity in this tenant
@@ -685,7 +685,7 @@ func (s *userService) AssignUserRoles(userUUID uuid.UUID, roleUUIDs []uuid.UUID,
 			}
 		}
 		if !hasTenantAccess {
-			return errors.New("user not found or access denied")
+			return apperror.NewNotFoundWithReason("user not found or access denied")
 		}
 
 		// Validate and assign roles
@@ -696,7 +696,7 @@ func (s *userService) AssignUserRoles(userUUID uuid.UUID, roleUUIDs []uuid.UUID,
 				return err
 			}
 			if role == nil {
-				return errors.New("role not found")
+				return apperror.NewNotFound("role not found")
 			}
 
 			// Check if user already has this role
@@ -747,7 +747,7 @@ func (s *userService) RemoveUserRole(userUUID uuid.UUID, roleUUID uuid.UUID, ten
 		// Check if user exists and preload identities for tenant validation
 		user, err := txUserRepo.FindByUUID(userUUID, "UserIdentities")
 		if err != nil || user == nil {
-			return errors.New("user not found")
+			return apperror.NewNotFound("user not found")
 		}
 
 		// Validate tenant ownership - check if user has an identity in this tenant
@@ -759,7 +759,7 @@ func (s *userService) RemoveUserRole(userUUID uuid.UUID, roleUUID uuid.UUID, ten
 			}
 		}
 		if !hasTenantAccess {
-			return errors.New("user not found or access denied")
+			return apperror.NewNotFoundWithReason("user not found or access denied")
 		}
 
 		// Find role by UUID
@@ -768,7 +768,7 @@ func (s *userService) RemoveUserRole(userUUID uuid.UUID, roleUUID uuid.UUID, ten
 			return err
 		}
 		if role == nil {
-			return errors.New("role not found")
+			return apperror.NewNotFound("role not found")
 		}
 
 		// Remove user-role association
@@ -855,7 +855,7 @@ func toUserServiceDataResult(user *model.User) *UserServiceDataResult {
 func (s *userService) GetUserRoles(userUUID uuid.UUID) ([]RoleServiceDataResult, error) {
 	user, err := s.userRepo.FindByUUID(userUUID)
 	if err != nil || user == nil {
-		return nil, errors.New("user not found")
+		return nil, apperror.NewNotFound("user not found")
 	}
 
 	roles, err := s.userRepo.FindRoles(user.UserID)
@@ -874,7 +874,7 @@ func (s *userService) GetUserRoles(userUUID uuid.UUID) ([]RoleServiceDataResult,
 func (s *userService) GetUserIdentities(userUUID uuid.UUID) ([]UserIdentityServiceDataResult, error) {
 	user, err := s.userRepo.FindByUUID(userUUID)
 	if err != nil || user == nil {
-		return nil, errors.New("user not found")
+		return nil, apperror.NewNotFound("user not found")
 	}
 
 	identities, err := s.userIdentityRepo.FindByUserID(user.UserID)

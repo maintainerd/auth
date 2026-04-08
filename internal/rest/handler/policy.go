@@ -119,7 +119,7 @@ func (h *PolicyHandler) Get(w http.ResponseWriter, r *http.Request) {
 
 	result, err := h.policyService.Get(serviceFilter)
 	if err != nil {
-		resp.Error(w, http.StatusInternalServerError, "Failed to get policies", err.Error())
+		resp.HandleServiceError(w, "Failed to get policies", err)
 		return
 	}
 
@@ -158,7 +158,7 @@ func (h *PolicyHandler) GetByUUID(w http.ResponseWriter, r *http.Request) {
 
 	policy, err := h.policyService.GetByUUID(policyUUID, tenant.TenantID)
 	if err != nil {
-		resp.Error(w, http.StatusNotFound, "Policy not found", err.Error())
+		resp.HandleServiceError(w, "Policy not found", err)
 		return
 	}
 
@@ -196,7 +196,7 @@ func (h *PolicyHandler) Create(w http.ResponseWriter, r *http.Request) {
 		false, // isSystem - only set by seeders
 	)
 	if err != nil {
-		resp.Error(w, http.StatusInternalServerError, "Failed to create policy", err.Error())
+		resp.HandleServiceError(w, "Failed to create policy", err)
 		return
 	}
 
@@ -241,7 +241,7 @@ func (h *PolicyHandler) Update(w http.ResponseWriter, r *http.Request) {
 		req.Status,
 	)
 	if err != nil {
-		resp.Error(w, http.StatusInternalServerError, "Failed to update policy", err.Error())
+		resp.HandleServiceError(w, "Failed to update policy", err)
 		return
 	}
 
@@ -278,7 +278,7 @@ func (h *PolicyHandler) UpdateStatus(w http.ResponseWriter, r *http.Request) {
 
 	policy, err := h.policyService.SetStatusByUUID(policyUUID, tenant.TenantID, req.Status)
 	if err != nil {
-		resp.Error(w, http.StatusInternalServerError, "Failed to update policy status", err.Error())
+		resp.HandleServiceError(w, "Failed to update policy status", err)
 		return
 	}
 
@@ -304,7 +304,7 @@ func (h *PolicyHandler) Delete(w http.ResponseWriter, r *http.Request) {
 
 	policy, err := h.policyService.DeleteByUUID(policyUUID, tenant.TenantID)
 	if err != nil {
-		resp.Error(w, http.StatusInternalServerError, "Failed to delete policy", err.Error())
+		resp.HandleServiceError(w, "Failed to delete policy", err)
 		return
 	}
 
@@ -383,7 +383,7 @@ func (h *PolicyHandler) GetServicesByPolicyUUID(w http.ResponseWriter, r *http.R
 	// Get services
 	result, err := h.policyService.GetServicesByPolicyUUID(policyUUID, tenant.TenantID, serviceFilter)
 	if err != nil {
-		resp.Error(w, http.StatusInternalServerError, "Failed to get services", err.Error())
+		resp.HandleServiceError(w, "Failed to get services", err)
 		return
 	}
 

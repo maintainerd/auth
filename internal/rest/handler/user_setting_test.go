@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -50,7 +49,7 @@ func TestUserSettingHandler_CreateOrUpdate_Success(t *testing.T) {
 func TestUserSettingHandler_Get_NotFound(t *testing.T) {
 	svc := &mockUserSettingService{
 		getByUserUUIDFn: func(id uuid.UUID) (*service.UserSettingServiceDataResult, error) {
-			return nil, assert.AnError
+			return nil, errNotFound
 		},
 	}
 	h := NewUserSettingHandler(svc)
@@ -103,7 +102,7 @@ func TestUserSettingHandler_CreateOrUpdate_WithSocialLinks(t *testing.T) {
 func TestUserSettingHandler_CreateOrUpdate_ServiceError(t *testing.T) {
 	svc := &mockUserSettingService{
 		createOrUpdateFn: func(userUUID uuid.UUID, tz, lang, locale *string, sl map[string]any, pcm *string, mec, sms, push *bool, pv *string, dpc *bool, ta, ppa *time.Time, ecn, ecp, ece, ecr *string) (*service.UserSettingServiceDataResult, error) {
-			return nil, errors.New("save error")
+			return nil, errValidation
 		},
 	}
 	h := NewUserSettingHandler(svc)
@@ -128,7 +127,7 @@ func TestUserSettingHandler_Delete_ServiceError(t *testing.T) {
 			return &service.UserSettingServiceDataResult{UserSettingUUID: settingUUID}, nil
 		},
 		deleteByUUIDFn: func(uuid.UUID) (*service.UserSettingServiceDataResult, error) {
-			return nil, errors.New("delete error")
+			return nil, errValidation
 		},
 	}
 	h := NewUserSettingHandler(svc)

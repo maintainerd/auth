@@ -1,10 +1,10 @@
 package service
 
 import (
-	"errors"
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/maintainerd/auth/internal/apperror"
 	"github.com/maintainerd/auth/internal/model"
 	"github.com/maintainerd/auth/internal/repository"
 	"gorm.io/gorm"
@@ -88,7 +88,7 @@ func (s *permissionService) Get(filter PermissionServiceGetFilter) (*PermissionS
 	if filter.APIUUID != nil {
 		api, err := s.apiRepo.FindByUUID(*filter.APIUUID)
 		if err != nil || api == nil {
-			return nil, errors.New("api not found")
+			return nil, apperror.NewNotFound("api not found")
 		}
 		apiID = &api.APIID
 	}
@@ -97,7 +97,7 @@ func (s *permissionService) Get(filter PermissionServiceGetFilter) (*PermissionS
 	if filter.RoleUUID != nil {
 		role, err := s.roleRepo.FindByUUID(*filter.RoleUUID)
 		if err != nil || role == nil {
-			return nil, errors.New("role not found")
+			return nil, apperror.NewNotFound("role not found")
 		}
 		roleID = &role.RoleID
 	}
@@ -106,7 +106,7 @@ func (s *permissionService) Get(filter PermissionServiceGetFilter) (*PermissionS
 	// Auth client permissions are now managed through the client_apis -> client_permissions relationship
 	// Use the auth client API endpoints instead: /clients/{client_uuid}/apis/{api_uuid}/permissions
 	if filter.ClientUUID != nil {
-		return nil, errors.New("auth client filtering is no longer supported - use auth client API endpoints instead")
+		return nil, apperror.NewValidation("auth client filtering is no longer supported - use auth client API endpoints instead")
 	}
 
 	// Build query filter
@@ -151,7 +151,7 @@ func (s *permissionService) GetByUUID(permissionUUID uuid.UUID, tenantID int64) 
 		return nil, err
 	}
 	if permission == nil {
-		return nil, errors.New("permission not found or access denied")
+		return nil, apperror.NewNotFoundWithReason("permission not found or access denied")
 	}
 
 	return toPermissionServiceDataResult(permission), nil
@@ -170,13 +170,13 @@ func (s *permissionService) Create(tenantID int64, name string, description stri
 			return err
 		}
 		if existingPermission != nil {
-			return errors.New(name + " permission already exists")
+			return apperror.NewConflict(name + " permission already exists")
 		}
 
 		// Parse and validate API UUID
 		apiUUIDParsed, err := uuid.Parse(apiUUID)
 		if err != nil {
-			return errors.New("invalid api uuid")
+			return apperror.NewValidation("invalid api uuid")
 		}
 
 		// Check if api exists and belongs to the same tenant
@@ -185,7 +185,7 @@ func (s *permissionService) Create(tenantID int64, name string, description stri
 			return err
 		}
 		if api == nil {
-			return errors.New("api not found or access denied")
+			return apperror.NewNotFoundWithReason("api not found or access denied")
 		}
 
 		// Create permission
@@ -232,12 +232,12 @@ func (s *permissionService) Update(permissionUUID uuid.UUID, tenantID int64, nam
 			return err
 		}
 		if permission == nil {
-			return errors.New("permission not found or access denied")
+			return apperror.NewNotFoundWithReason("permission not found or access denied")
 		}
 
 		// Check if default
 		if permission.IsDefault {
-			return errors.New("default permission cannot cannot be updated")
+			return apperror.NewValidation("default permission cannot cannot be updated")
 		}
 
 		// Check if permission already exist
@@ -247,7 +247,7 @@ func (s *permissionService) Update(permissionUUID uuid.UUID, tenantID int64, nam
 				return err
 			}
 			if existingPermission != nil && existingPermission.PermissionUUID != permissionUUID {
-				return errors.New(name + " permission already exists")
+				return apperror.NewConflict(name + " permission already exists")
 			}
 		}
 
@@ -286,12 +286,12 @@ func (s *permissionService) SetActiveStatusByUUID(permissionUUID uuid.UUID, tena
 			return err
 		}
 		if permission == nil {
-			return errors.New("permission not found or access denied")
+			return apperror.NewNotFoundWithReason("permission not found or access denied")
 		}
 
 		// Check if default
 		if permission.IsDefault {
-			return errors.New("default permission cannot be updated")
+			return apperror.NewValidation("default permission cannot be updated")
 		}
 
 		if permission.Status == model.StatusActive {
@@ -329,7 +329,7 @@ func (s *permissionService) SetStatus(permissionUUID uuid.UUID, tenantID int64, 
 			return err
 		}
 		if permission == nil {
-			return errors.New("permission not found or access denied")
+			return apperror.NewNotFoundWithReason("permission not found or access denied")
 		}
 
 		// Set status
@@ -359,12 +359,12 @@ func (s *permissionService) DeleteByUUID(permissionUUID uuid.UUID, tenantID int6
 		return nil, err
 	}
 	if permission == nil {
-		return nil, errors.New("permission not found or access denied")
+		return nil, apperror.NewNotFoundWithReason("permission not found or access denied")
 	}
 
 	// Check if default
 	if permission.IsDefault {
-		return nil, errors.New("default permission cannot be deleted")
+		return nil, apperror.NewValidation("default permission cannot be deleted")
 	}
 
 	err = s.permissionRepo.DeleteByUUIDAndTenantID(permissionUUID, tenantID)

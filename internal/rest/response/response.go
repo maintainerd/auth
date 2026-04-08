@@ -2,10 +2,13 @@ package response
 
 import (
 	"encoding/json"
+	"errors"
+	"log/slog"
 	"net/http"
 
 	validation "github.com/go-ozzo/ozzo-validation/v4"
 
+	"github.com/maintainerd/auth/internal/apperror"
 	"github.com/maintainerd/auth/internal/cookie"
 )
 
@@ -89,4 +92,36 @@ func writeJSON(w http.ResponseWriter, status int, payload interface{}) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	_ = json.NewEncoder(w).Encode(payload)
+}
+
+// HandleServiceError inspects the typed error returned by a service method and
+// writes the appropriate HTTP response. Internal/unexpected errors are logged
+// server-side and a generic message is sent to the client.
+func HandleServiceError(w http.ResponseWriter, fallbackMsg string, err error) {
+	var notFound *apperror.NotFoundError
+	var conflict *apperror.ConflictError
+	var forbidden *apperror.ForbiddenError
+	var unauthorized *apperror.UnauthorizedError
+	var validationErr *apperror.ValidationError
+	var internal *apperror.InternalError
+
+	switch {
+	case errors.As(err, &notFound):
+		Error(w, http.StatusNotFound, notFound.Error())
+	case errors.As(err, &conflict):
+		Error(w, http.StatusConflict, conflict.Error())
+	case errors.As(err, &forbidden):
+		Error(w, http.StatusForbidden, forbidden.Error())
+	case errors.As(err, &unauthorized):
+		Error(w, http.StatusUnauthorized, unauthorized.Error())
+	case errors.As(err, &validationErr):
+		Error(w, http.StatusBadRequest, validationErr.Error())
+	case errors.As(err, &internal):
+		slog.Error("internal service error", "error", internal.Error())
+		Error(w, http.StatusInternalServerError, fallbackMsg)
+	default:
+		// Untyped error — log it and return the fallback message.
+		slog.Error("unhandled service error", "error", err.Error())
+		Error(w, http.StatusInternalServerError, fallbackMsg)
+	}
 }

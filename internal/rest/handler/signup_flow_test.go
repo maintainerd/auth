@@ -99,7 +99,7 @@ func TestSignupFlowHandler_Get(t *testing.T) {
 	t.Run("not found returns 404", func(t *testing.T) {
 		svc := &mockSignupFlowService{
 			getByUUIDFn: func(id uuid.UUID, tid int64) (*service.SignupFlowServiceDataResult, error) {
-				return nil, errors.New("not found")
+				return nil, errNotFound
 			},
 		}
 		r := jsonReq(t, http.MethodGet, "/", nil)
@@ -159,7 +159,7 @@ func TestSignupFlowHandler_Create(t *testing.T) {
 	t.Run("service error returns 400", func(t *testing.T) {
 		svc := &mockSignupFlowService{
 			createFn: func(tid int64, name, desc string, cfg map[string]any, status string, clientUUID uuid.UUID) (*service.SignupFlowServiceDataResult, error) {
-				return nil, errors.New("create error")
+				return nil, errValidation
 			},
 		}
 		r := jsonReq(t, http.MethodPost, "/signup-flows", validBody)
@@ -243,7 +243,7 @@ func TestSignupFlowHandler_Update(t *testing.T) {
 	t.Run("service error returns 400", func(t *testing.T) {
 		svc := &mockSignupFlowService{
 			updateFn: func(id uuid.UUID, tid int64, name, desc string, cfg map[string]any, status string) (*service.SignupFlowServiceDataResult, error) {
-				return nil, errors.New("update error")
+				return nil, errValidation
 			},
 		}
 		r := jsonReq(t, http.MethodPut, "/", validBody)
@@ -306,7 +306,7 @@ func TestSignupFlowHandler_Delete(t *testing.T) {
 	t.Run("service error returns 400", func(t *testing.T) {
 		svc := &mockSignupFlowService{
 			deleteFn: func(id uuid.UUID, tid int64) (*service.SignupFlowServiceDataResult, error) {
-				return nil, errors.New("delete error")
+				return nil, errValidation
 			},
 		}
 		r := jsonReq(t, http.MethodDelete, "/", nil)
@@ -372,7 +372,7 @@ func TestSignupFlowHandler_UpdateStatus(t *testing.T) {
 	t.Run("service error returns 400", func(t *testing.T) {
 		svc := &mockSignupFlowService{
 			updateStatusFn: func(id uuid.UUID, tid int64, status string) (*service.SignupFlowServiceDataResult, error) {
-				return nil, errors.New("status update error")
+				return nil, errValidation
 			},
 		}
 		r := jsonReq(t, http.MethodPatch, "/", map[string]any{"status": "active"})
@@ -448,7 +448,7 @@ func TestSignupFlowHandler_AssignRoles(t *testing.T) {
 	t.Run("service error returns 400", func(t *testing.T) {
 		svc := &mockSignupFlowService{
 			assignRolesFn: func(id uuid.UUID, tid int64, roles []uuid.UUID) ([]service.SignupFlowRoleServiceDataResult, error) {
-				return nil, errors.New("assign error")
+				return nil, errValidation
 			},
 		}
 		r := jsonReq(t, http.MethodPost, "/", map[string]any{"role_uuids": []string{roleUUID.String()}})
@@ -524,7 +524,7 @@ func TestSignupFlowHandler_GetRoles(t *testing.T) {
 	t.Run("service error returns 400", func(t *testing.T) {
 		svc := &mockSignupFlowService{
 			getRolesFn: func(id uuid.UUID, tid int64, pg, lim int) (*service.SignupFlowRoleServiceListResult, error) {
-				return nil, errors.New("get roles error")
+				return nil, errValidation
 			},
 		}
 		r := jsonReq(t, http.MethodGet, "/?page=1&limit=10", nil)
@@ -607,7 +607,7 @@ func TestSignupFlowHandler_RemoveRole(t *testing.T) {
 	t.Run("service error returns 400", func(t *testing.T) {
 		svc := &mockSignupFlowService{
 			removeRoleFn: func(id uuid.UUID, tid int64, rID uuid.UUID) error {
-				return errors.New("remove error")
+				return errValidation
 			},
 		}
 		r := jsonReq(t, http.MethodDelete, "/", nil)

@@ -63,7 +63,7 @@ func TestServiceHandler_GetByUUID_InvalidUUID(t *testing.T) {
 func TestServiceHandler_GetByUUID_NotFound(t *testing.T) {
 	svc := &mockServiceService{
 		getByUUIDFn: func(id uuid.UUID, tid int64) (*service.ServiceServiceDataResult, error) {
-			return nil, assert.AnError
+			return nil, errNotFound
 		},
 	}
 	h := NewServiceHandler(svc)
