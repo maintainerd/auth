@@ -106,7 +106,7 @@ func (h *UserHandler) GetUsers(w http.ResponseWriter, r *http.Request) {
 	// Fetch users from service layer
 	result, err := h.userService.Get(filter)
 	if err != nil {
-		resp.HandleServiceError(w, "Failed to fetch users", err)
+		resp.HandleServiceError(w, r, "Failed to fetch users", err)
 		return
 	}
 
@@ -153,7 +153,7 @@ func (h *UserHandler) GetUser(w http.ResponseWriter, r *http.Request) {
 	// Fetch user (service validates tenant ownership)
 	user, err := h.userService.GetByUUID(userUUID, tenant.TenantID)
 	if err != nil {
-		resp.HandleServiceError(w, "User not found", err)
+		resp.HandleServiceError(w, r, "User not found", err)
 		return
 	}
 
@@ -195,7 +195,7 @@ func (h *UserHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
 	// Create user (includes creator context for audit trail)
 	user, err := h.userService.Create(req.Username, req.Fullname, req.Email, req.Phone, req.Password, req.Status, req.Metadata, tenant.TenantUUID.String(), creatorUser.UserUUID)
 	if err != nil {
-		resp.HandleServiceError(w, "Failed to create user", err)
+		resp.HandleServiceError(w, r, "Failed to create user", err)
 		return
 	}
 
@@ -245,7 +245,7 @@ func (h *UserHandler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 	// Update user (service validates tenant ownership, includes updater context for audit)
 	user, err := h.userService.Update(userUUID, tenant.TenantID, req.Username, req.Fullname, req.Email, req.Phone, req.Status, req.Metadata, updaterUser.UserUUID)
 	if err != nil {
-		resp.HandleServiceError(w, "Failed to update user", err)
+		resp.HandleServiceError(w, r, "Failed to update user", err)
 		return
 	}
 
@@ -295,7 +295,7 @@ func (h *UserHandler) SetUserStatus(w http.ResponseWriter, r *http.Request) {
 	// Update user status (service validates tenant ownership, includes updater context for audit)
 	user, err := h.userService.SetStatus(userUUID, tenant.TenantID, req.Status, updaterUser.UserUUID)
 	if err != nil {
-		resp.HandleServiceError(w, "Failed to update user status", err)
+		resp.HandleServiceError(w, r, "Failed to update user status", err)
 		return
 	}
 
@@ -330,7 +330,7 @@ func (h *UserHandler) VerifyEmail(w http.ResponseWriter, r *http.Request) {
 	// Verify email (service validates tenant ownership)
 	user, err := h.userService.VerifyEmail(userUUID, tenant.TenantID)
 	if err != nil {
-		resp.HandleServiceError(w, "Failed to verify email", err)
+		resp.HandleServiceError(w, r, "Failed to verify email", err)
 		return
 	}
 
@@ -363,7 +363,7 @@ func (h *UserHandler) VerifyPhone(w http.ResponseWriter, r *http.Request) {
 	// Verify phone (service validates tenant ownership)
 	user, err := h.userService.VerifyPhone(userUUID, tenant.TenantID)
 	if err != nil {
-		resp.HandleServiceError(w, "Failed to verify phone", err)
+		resp.HandleServiceError(w, r, "Failed to verify phone", err)
 		return
 	}
 
@@ -396,7 +396,7 @@ func (h *UserHandler) CompleteAccount(w http.ResponseWriter, r *http.Request) {
 	// Mark account as completed (service validates tenant ownership)
 	user, err := h.userService.CompleteAccount(userUUID, tenant.TenantID)
 	if err != nil {
-		resp.HandleServiceError(w, "Failed to complete account", err)
+		resp.HandleServiceError(w, r, "Failed to complete account", err)
 		return
 	}
 
@@ -432,7 +432,7 @@ func (h *UserHandler) DeleteUser(w http.ResponseWriter, r *http.Request) {
 	// Delete user (service validates tenant ownership, includes deleter context for audit)
 	user, err := h.userService.DeleteByUUID(userUUID, tenant.TenantID, deleterUser.UserUUID)
 	if err != nil {
-		resp.HandleServiceError(w, "Failed to delete user", err)
+		resp.HandleServiceError(w, r, "Failed to delete user", err)
 		return
 	}
 
@@ -479,7 +479,7 @@ func (h *UserHandler) AssignRoles(w http.ResponseWriter, r *http.Request) {
 	// Assign roles to user (service validates tenant ownership)
 	user, err := h.userService.AssignUserRoles(userUUID, req.RoleUUIDs, tenant.TenantID)
 	if err != nil {
-		resp.HandleServiceError(w, "Failed to assign roles to user", err)
+		resp.HandleServiceError(w, r, "Failed to assign roles to user", err)
 		return
 	}
 
@@ -522,7 +522,7 @@ func (h *UserHandler) RemoveRole(w http.ResponseWriter, r *http.Request) {
 	// Remove role from user (service validates tenant ownership)
 	user, err := h.userService.RemoveUserRole(userUUID, roleUUID, tenant.TenantID)
 	if err != nil {
-		resp.HandleServiceError(w, "Failed to remove role from user", err)
+		resp.HandleServiceError(w, r, "Failed to remove role from user", err)
 		return
 	}
 
@@ -622,14 +622,14 @@ func (h *UserHandler) GetUserRoles(w http.ResponseWriter, r *http.Request) {
 	// Verify user exists and belongs to tenant
 	user, err := h.userService.GetByUUID(userUUID, tenant.TenantID)
 	if err != nil {
-		resp.HandleServiceError(w, "User not found", err)
+		resp.HandleServiceError(w, r, "User not found", err)
 		return
 	}
 
 	// Fetch roles for the user
 	roles, err := h.userService.GetUserRoles(user.UserUUID)
 	if err != nil {
-		resp.HandleServiceError(w, "Failed to fetch user roles", err)
+		resp.HandleServiceError(w, r, "Failed to fetch user roles", err)
 		return
 	}
 
@@ -743,14 +743,14 @@ func (h *UserHandler) GetUserIdentities(w http.ResponseWriter, r *http.Request) 
 	// Verify user exists and belongs to tenant
 	user, err := h.userService.GetByUUID(userUUID, tenant.TenantID)
 	if err != nil {
-		resp.HandleServiceError(w, "User not found", err)
+		resp.HandleServiceError(w, r, "User not found", err)
 		return
 	}
 
 	// Fetch identities for the user
 	identities, err := h.userService.GetUserIdentities(user.UserUUID)
 	if err != nil {
-		resp.HandleServiceError(w, "Failed to fetch user identities", err)
+		resp.HandleServiceError(w, r, "Failed to fetch user identities", err)
 		return
 	}
 

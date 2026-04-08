@@ -98,7 +98,7 @@ func (h *PermissionHandler) Get(w http.ResponseWriter, r *http.Request) {
 	// Fetch permissions
 	result, err := h.permissionService.Get(permissionFilter)
 	if err != nil {
-		resp.HandleServiceError(w, "Failed to fetch permissions", err)
+		resp.HandleServiceError(w, r, "Failed to fetch permissions", err)
 		return
 	}
 
@@ -137,7 +137,7 @@ func (h *PermissionHandler) GetByUUID(w http.ResponseWriter, r *http.Request) {
 
 	permission, err := h.permissionService.GetByUUID(permissonUUID, tenant.TenantID)
 	if err != nil {
-		resp.HandleServiceError(w, "Permission not found", err)
+		resp.HandleServiceError(w, r, "Permission not found", err)
 		return
 	}
 
@@ -168,7 +168,7 @@ func (h *PermissionHandler) Create(w http.ResponseWriter, r *http.Request) {
 
 	permission, err := h.permissionService.Create(tenant.TenantID, req.Name, req.Description, req.Status, false, req.APIUUID)
 	if err != nil {
-		resp.HandleServiceError(w, "Failed to create permission", err)
+		resp.HandleServiceError(w, r, "Failed to create permission", err)
 		return
 	}
 
@@ -205,7 +205,7 @@ func (h *PermissionHandler) Update(w http.ResponseWriter, r *http.Request) {
 
 	permission, err := h.permissionService.Update(permissionUUID, tenant.TenantID, req.Name, req.Description, req.Status)
 	if err != nil {
-		resp.HandleServiceError(w, "Failed to update permission", err)
+		resp.HandleServiceError(w, r, "Failed to update permission", err)
 		return
 	}
 
@@ -242,7 +242,7 @@ func (h *PermissionHandler) SetStatus(w http.ResponseWriter, r *http.Request) {
 
 	permission, err := h.permissionService.SetStatus(permissionUUID, tenant.TenantID, req.Status)
 	if err != nil {
-		resp.HandleServiceError(w, "Failed to update permission status", err)
+		resp.HandleServiceError(w, r, "Failed to update permission status", err)
 		return
 	}
 
@@ -267,7 +267,7 @@ func (h *PermissionHandler) Delete(w http.ResponseWriter, r *http.Request) {
 
 	permission, err := h.permissionService.DeleteByUUID(permissionUUID, tenant.TenantID)
 	if err != nil {
-		resp.HandleServiceError(w, "Failed to delete permission", err)
+		resp.HandleServiceError(w, r, "Failed to delete permission", err)
 		return
 	}
 

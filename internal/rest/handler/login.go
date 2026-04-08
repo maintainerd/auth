@@ -147,7 +147,7 @@ func (h *LoginHandler) LoginPublic(w http.ResponseWriter, r *http.Request) {
 			Details:   "Authentication failed",
 			Severity:  "MEDIUM",
 		})
-		resp.HandleServiceError(w, "Authentication failed", err)
+		resp.HandleServiceError(w, r, "Authentication failed", err)
 		return
 	}
 
@@ -252,7 +252,7 @@ func (h *LoginHandler) Login(w http.ResponseWriter, r *http.Request) {
 			Details:   "Internal authentication failed",
 			Severity:  "MEDIUM",
 		})
-		resp.HandleServiceError(w, "Authentication failed", err)
+		resp.HandleServiceError(w, r, "Authentication failed", err)
 		return
 	}
 
