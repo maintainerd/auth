@@ -1,7 +1,6 @@
 package app
 
 import (
-	"github.com/maintainerd/auth/internal/repository"
 	"github.com/maintainerd/auth/internal/service"
 	"github.com/redis/go-redis/v9"
 	"gorm.io/gorm"
@@ -36,8 +35,6 @@ type App struct {
 	EmailTemplateService     service.EmailTemplateService
 	SMSTemplateService       service.SMSTemplateService
 	LoginTemplateService     service.LoginTemplateService
-	// Repositories exposed for middleware
-	UserRepository repository.UserRepository
 }
 
 // NewApp wires the full dependency graph in two focused steps:
@@ -78,7 +75,5 @@ func NewApp(db *gorm.DB, redisClient *redis.Client) *App {
 		EmailTemplateService:     s.emailTemplateService,
 		SMSTemplateService:       s.smsTemplateService,
 		LoginTemplateService:     s.loginTemplateService,
-		// Repositories exposed for middleware
-		UserRepository: r.userRepo,
 	}
 }
