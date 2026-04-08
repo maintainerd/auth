@@ -2,13 +2,11 @@ package middleware
 
 import (
 	"context"
-	"encoding/json"
 	"net/http"
-	"time"
 
+	"github.com/maintainerd/auth/internal/cache"
 	"github.com/maintainerd/auth/internal/model"
 	resp "github.com/maintainerd/auth/internal/rest/response"
-	"github.com/redis/go-redis/v9"
 )
 
 // UserContextProvider is the minimal interface required by UserContextMiddleware
@@ -31,7 +29,7 @@ const (
 
 func UserContextMiddleware(
 	userProvider UserContextProvider,
-	redisClient *redis.Client,
+	appCache *cache.Cache,
 ) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -39,37 +37,19 @@ func UserContextMiddleware(
 			sub, _ := r.Context().Value(SubKey).(string)
 			clientID, _ := r.Context().Value(ClientIDKey).(string)
 
-			// Create cache key
-			cacheKey := "user:" + sub + ":" + clientID
-
-			// Use the request context so Redis calls respect cancellation/timeouts
 			ctx := r.Context()
 
-			// Define cache structure for user context
-			type UserContextCache struct {
-				User     *model.User             `json:"user"`
-				Tenant   *model.Tenant           `json:"tenant"`
-				Provider *model.IdentityProvider `json:"provider"`
-				Client   *model.Client           `json:"client"`
+			// Try cache first
+			if uc := appCache.GetUserContext(ctx, sub, clientID); uc != nil {
+				reqCtx := context.WithValue(r.Context(), UserContextKey, uc.User)
+				reqCtx = context.WithValue(reqCtx, TenantContextKey, uc.Tenant)
+				reqCtx = context.WithValue(reqCtx, ProviderContextKey, uc.Provider)
+				reqCtx = context.WithValue(reqCtx, ClientContextKey, uc.Client)
+				next.ServeHTTP(w, r.WithContext(reqCtx))
+				return
 			}
 
-			var userContextCache *UserContextCache
-
-			// Check and set auth information from cache
-			cachedData, err := redisClient.Get(ctx, cacheKey).Result()
-			if err == nil {
-				if err := json.Unmarshal([]byte(cachedData), &userContextCache); err == nil {
-					// Set all context information
-					reqCtx := context.WithValue(r.Context(), UserContextKey, userContextCache.User)
-					reqCtx = context.WithValue(reqCtx, TenantContextKey, userContextCache.Tenant)
-					reqCtx = context.WithValue(reqCtx, ProviderContextKey, userContextCache.Provider)
-					reqCtx = context.WithValue(reqCtx, ClientContextKey, userContextCache.Client)
-					next.ServeHTTP(w, r.WithContext(reqCtx))
-					return
-				}
-			}
-
-			// Get auth information from database
+			// Cache miss — load from database
 			user, err := userProvider.FindBySubAndClientID(sub, clientID)
 			if err != nil {
 				resp.Error(w, http.StatusInternalServerError, "Failed to load user from database")
@@ -97,18 +77,13 @@ func UserContextMiddleware(
 				}
 			}
 
-			// Create cache structure
-			userContextCache = &UserContextCache{
+			// Write through to cache
+			appCache.SetUserContext(ctx, sub, clientID, &cache.UserContext{
 				User:     user,
 				Tenant:   tenant,
 				Provider: provider,
 				Client:   client,
-			}
-
-			// Cache user context for 10 minutes
-			if jsonData, err := json.Marshal(userContextCache); err == nil {
-				_ = redisClient.Set(ctx, cacheKey, jsonData, 10*time.Minute).Err()
-			}
+			})
 
 			// Set all context information
 			reqCtx := context.WithValue(r.Context(), UserContextKey, user)

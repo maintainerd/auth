@@ -5,18 +5,18 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/maintainerd/auth/internal/middleware"
 	"github.com/maintainerd/auth/internal/service"
-	"github.com/redis/go-redis/v9"
+	"github.com/maintainerd/auth/internal/cache"
 )
 
 func SMSTemplateRoute(
 	r chi.Router,
 	smsTemplateHandler *handler.SMSTemplateHandler,
 	userService service.UserService,
-	redisClient *redis.Client,
+	appCache *cache.Cache,
 ) {
 	r.Route("/sms_templates", func(r chi.Router) {
 		r.Use(middleware.JWTAuthMiddleware)
-		r.Use(middleware.UserContextMiddleware(userService, redisClient))
+		r.Use(middleware.UserContextMiddleware(userService, appCache))
 
 		// List SMS templates
 		r.With(middleware.PermissionMiddleware([]string{"sms-template:read"})).
