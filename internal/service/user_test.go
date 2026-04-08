@@ -6,6 +6,7 @@ import (
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/google/uuid"
+	"github.com/maintainerd/auth/internal/cache"
 	"github.com/maintainerd/auth/internal/model"
 	"github.com/maintainerd/auth/internal/repository"
 	"github.com/maintainerd/auth/internal/security"
@@ -32,7 +33,7 @@ func fullUserSvc(
 ) (*gorm.DB, UserService) {
 	t.Helper()
 	db, _ := newMockGormDB(t)
-	svc := NewUserService(db, userRepo, uiRepo, urRepo, roleRepo, tenantRepo, idpRepo, clientRepo, tuRepo)
+	svc := NewUserService(db, userRepo, uiRepo, urRepo, roleRepo, tenantRepo, idpRepo, clientRepo, tuRepo, cache.NopInvalidator{})
 	return db, svc
 }
 
@@ -49,7 +50,7 @@ func fullUserSvcWithMock(
 ) (*gorm.DB, sqlmock.Sqlmock, UserService) {
 	t.Helper()
 	db, mock := newMockGormDB(t)
-	svc := NewUserService(db, userRepo, uiRepo, urRepo, roleRepo, tenantRepo, idpRepo, clientRepo, tuRepo)
+	svc := NewUserService(db, userRepo, uiRepo, urRepo, roleRepo, tenantRepo, idpRepo, clientRepo, tuRepo, cache.NopInvalidator{})
 	return db, mock, svc
 }
 

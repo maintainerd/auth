@@ -27,12 +27,12 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "deployment/opentelemetry.md",
+                "file": "v1-features/templist.md",
                 "mode": "source",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "opentelemetry"
+              "title": "templist"
             }
           }
         ],
@@ -201,8 +201,8 @@
   "active": "05589c760d27ad96",
   "lastOpenFiles": [
     "contributing/opentelemetry.md",
-    "v1-features/templist.md",
     "deployment/opentelemetry.md",
+    "v1-features/templist.md",
     "v1-features",
     "contributing/environment-variables.md",
     "deployment/environment-variables.md",
