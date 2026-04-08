@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log/slog"
 
+	"github.com/uptrace/opentelemetry-go-extra/otelgorm"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
@@ -15,6 +16,10 @@ func InitDB() (*gorm.DB, error) {
 	db, err := gorm.Open(postgres.Open(GetDBConnectionString()), &gorm.Config{})
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to database: %w", err)
+	}
+
+	if err := db.Use(otelgorm.NewPlugin()); err != nil {
+		return nil, fmt.Errorf("failed to register otelgorm plugin: %w", err)
 	}
 
 	slog.Info("Database connected")

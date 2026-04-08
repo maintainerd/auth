@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"errors"
 	"os"
 	"testing"
@@ -130,7 +131,7 @@ func TestForgotPasswordService_SendPasswordResetEmail_UserInactive(t *testing.T)
 
 	origSendEmail := email.SendEmail
 	defer func() { email.SendEmail = origSendEmail }()
-	email.SendEmail = func(_ email.SendEmailParams) error { return nil }
+	email.SendEmail = func(_ context.Context, _ email.SendEmailParams) error { return nil }
 
 	gormDB, mock := newMockGormDB(t)
 	mock.ExpectBegin()
@@ -260,7 +261,7 @@ func TestForgotPasswordService_SendPasswordResetEmail_FullPath(t *testing.T) {
 	origSendEmail := email.SendEmail
 	defer func() { email.SendEmail = origSendEmail }()
 	var emailSent bool
-	email.SendEmail = func(p email.SendEmailParams) error {
+	email.SendEmail = func(_ context.Context, p email.SendEmailParams) error {
 		emailSent = true
 		assert.Equal(t, "user@example.com", p.To)
 		assert.Contains(t, p.BodyHTML, "https://auth.example.com/reset-password")
@@ -322,7 +323,7 @@ func TestForgotPasswordService_SendPasswordResetEmail_ExternalURL(t *testing.T) 
 
 	origSendEmail := email.SendEmail
 	defer func() { email.SendEmail = origSendEmail }()
-	email.SendEmail = func(p email.SendEmailParams) error {
+	email.SendEmail = func(_ context.Context, p email.SendEmailParams) error {
 		assert.Contains(t, p.BodyHTML, "https://account.example.com/reset-password")
 		return nil
 	}
@@ -377,7 +378,7 @@ func TestForgotPasswordService_SendPasswordResetEmail_EmailSendError(t *testing.
 
 	origSendEmail := email.SendEmail
 	defer func() { email.SendEmail = origSendEmail }()
-	email.SendEmail = func(_ email.SendEmailParams) error {
+	email.SendEmail = func(_ context.Context, _ email.SendEmailParams) error {
 		return errors.New("smtp failure")
 	}
 
@@ -431,7 +432,7 @@ func TestForgotPasswordService_SendPasswordResetEmail_TemplateError(t *testing.T
 
 	origSendEmail := email.SendEmail
 	defer func() { email.SendEmail = origSendEmail }()
-	email.SendEmail = func(_ email.SendEmailParams) error { return nil }
+	email.SendEmail = func(_ context.Context, _ email.SendEmailParams) error { return nil }
 
 	gormDB, mock := newMockGormDB(t)
 	mock.ExpectBegin()
@@ -691,7 +692,7 @@ func TestForgotPasswordService_SendPasswordResetEmail_WithExistingTokens(t *test
 
 	origSendEmail := email.SendEmail
 	defer func() { email.SendEmail = origSendEmail }()
-	email.SendEmail = func(_ email.SendEmailParams) error { return nil }
+	email.SendEmail = func(_ context.Context, _ email.SendEmailParams) error { return nil }
 
 	gormDB, mock := newMockGormDB(t)
 	mock.ExpectBegin()
@@ -816,7 +817,7 @@ func TestForgotPasswordService_SendPasswordResetEmail_ConvertToFrontendURLError(
 
 	origSendEmail := email.SendEmail
 	defer func() { email.SendEmail = origSendEmail }()
-	email.SendEmail = func(_ email.SendEmailParams) error { return nil }
+	email.SendEmail = func(_ context.Context, _ email.SendEmailParams) error { return nil }
 
 	gormDB, mock := newMockGormDB(t)
 	mock.ExpectBegin()

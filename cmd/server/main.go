@@ -4,6 +4,7 @@ import (
 	"context"
 	"log/slog"
 	"os"
+	"time"
 
 	"github.com/maintainerd/auth/internal/app"
 	"github.com/maintainerd/auth/internal/config"
@@ -12,6 +13,7 @@ import (
 	restserver "github.com/maintainerd/auth/internal/rest/server"
 	"github.com/maintainerd/auth/internal/runner"
 	"github.com/maintainerd/auth/internal/security"
+	"github.com/maintainerd/auth/internal/telemetry"
 )
 
 func main() {
@@ -23,6 +25,20 @@ func main() {
 		slog.Error("Configuration loading failed", "error", err)
 		os.Exit(1)
 	}
+
+	// ⚙️ Initialise OpenTelemetry tracing (safe no-op when OTEL_ENABLED != true)
+	otelShutdown, err := telemetry.Init(context.Background())
+	if err != nil {
+		slog.Error("OpenTelemetry initialization failed", "error", err)
+		os.Exit(1)
+	}
+	defer func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		if err := otelShutdown(ctx); err != nil {
+			slog.Error("OpenTelemetry shutdown error", "error", err)
+		}
+	}()
 
 	// ⚙️ Parse RSA keys (required for token signing)
 	if err := jwt.InitJWTKeys(); err != nil {

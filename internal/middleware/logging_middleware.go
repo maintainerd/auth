@@ -5,7 +5,8 @@ import (
 	"net/http"
 	"time"
 
-	resp "github.com/maintainerd/auth/internal/rest/response"
+	"github.com/maintainerd/auth/internal/rest/response"
+	"github.com/maintainerd/auth/internal/telemetry"
 )
 
 // statusRecorder wraps http.ResponseWriter to capture the HTTP status code
@@ -39,11 +40,18 @@ func LoggingMiddleware(next http.Handler) http.Handler {
 		// Read the request_id injected by SecurityContextMiddleware.
 		requestID, _ := r.Context().Value(RequestIDKey).(string)
 
-		// Build a request-scoped logger pre-seeded with the request_id.
-		logger := slog.Default().With("request_id", requestID)
+		// Extract W3C trace/span IDs from the OTel span (if present).
+		traceID, spanID := telemetry.TraceIDFromContext(r.Context())
+
+		// Build a request-scoped logger pre-seeded with correlation IDs.
+		attrs := []any{"request_id", requestID}
+		if traceID != "" {
+			attrs = append(attrs, "trace_id", traceID, "span_id", spanID)
+		}
+		logger := slog.Default().With(attrs...)
 
 		// Propagate the seeded logger through the request context.
-		ctx := resp.WithLogger(r.Context(), logger)
+		ctx := response.WithLogger(r.Context(), logger)
 
 		// Wrap the ResponseWriter so we can record the status code.
 		rec := &statusRecorder{ResponseWriter: w, status: http.StatusOK}
