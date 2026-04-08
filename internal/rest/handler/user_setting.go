@@ -22,7 +22,7 @@ func NewUserSettingHandler(userSettingService service.UserSettingService) *UserS
 func (h *UserSettingHandler) CreateOrUpdate(w http.ResponseWriter, r *http.Request) {
 	var req dto.UserSettingRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		resp.Error(w, http.StatusBadRequest, "Invalid request", err.Error())
+		resp.Error(w, http.StatusBadRequest, "Invalid request")
 		return
 	}
 
