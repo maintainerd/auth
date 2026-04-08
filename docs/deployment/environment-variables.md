@@ -59,14 +59,33 @@ EMAIL_LOGO_URL="https://cdn.yourdomain.com/logo.png" # ← replace
 # =============================================================================
 # SECRET MANAGEMENT
 # =============================================================================
-SECRET_PROVIDER=aws_secrets       # ← set to your provider: aws_secrets | aws_ssm | vault | file
+SECRET_PROVIDER=aws_secrets       # ← set to your provider: aws_secrets | aws_ssm | vault | gcp | azure_kv | file
 SECRET_PREFIX=maintainerd/auth
+
+## --- File provider ---
 # SECRET_FILE_PATH=/run/secrets
+
+## --- AWS providers (aws_secrets / aws_ssm) ---
 # AWS_REGION=us-east-1            # ← required for aws_secrets / aws_ssm
 # AWS_ACCESS_KEY_ID=              # ← prefer IAM roles over static keys
 # AWS_SECRET_ACCESS_KEY=
+
+## --- HashiCorp Vault provider (vault) ---
 # VAULT_ADDR=https://vault.yourdomain.com # ← required for vault
 # VAULT_TOKEN=                            # ← prefer AppRole auth over static tokens
+# VAULT_MOUNT=secret
+# VAULT_ROLE_ID=                          # ← for AppRole auth (when VAULT_TOKEN is empty)
+# VAULT_SECRET_ID=
+# VAULT_SECRET_FIELD=value
+
+## --- GCP Secret Manager provider (gcp) ---
+# GCP_PROJECT_ID=your-project-id  # ← required for gcp
+
+## --- Azure Key Vault provider (azure_kv) ---
+# AZURE_KEYVAULT_URL=https://your-vault.vault.azure.net # ← required for azure_kv
+# AZURE_TENANT_ID=                # ← for service principal auth
+# AZURE_CLIENT_ID=
+# AZURE_CLIENT_SECRET=
 
 # =============================================================================
 # JWT  ← generate with: ./scripts/generate-jwt-keys.sh 4096 /tmp/jwt-keys
@@ -218,25 +237,141 @@ EMAIL_LOGO_URL="https://cdn.yourdomain.com/logo.png"
 
 ## Secret Management
 
+### Core Variables
+
 | Variable | Required | Default | Description |
 |---|---|---|---|
-| `SECRET_PROVIDER` | ✅ | `env` | Secret backend. Use `env` only for local dev. In production use `aws_secrets`, `aws_ssm`, `vault`, or `file`. |
-| `SECRET_PREFIX` | ❌ | `maintainerd/auth` | Namespace prefix for secrets in external providers. |
-| `SECRET_FILE_PATH` | ❌ | `/run/secrets` | Base path for file-based secrets. Required when `SECRET_PROVIDER=file`. |
-| `AWS_REGION` | ❌ | — | AWS region. Required for `aws_ssm` and `aws_secrets`. Prefer IAM roles over static keys. |
-| `AWS_ACCESS_KEY_ID` | ❌ | — | AWS access key. Only if IAM roles are unavailable. |
-| `AWS_SECRET_ACCESS_KEY` | ❌ | — | AWS secret key. Only if IAM roles are unavailable. |
-| `VAULT_ADDR` | ❌ | — | HashiCorp Vault address. Required for `vault` provider. |
-| `VAULT_TOKEN` | ❌ | — | Vault token. Prefer AppRole or Kubernetes auth over static tokens. |
+| `SECRET_PROVIDER` | ✅ | `env` | Secret backend. Use `env` only for local dev. Production: `aws_secrets`, `aws_ssm`, `vault`, `gcp`, `azure_kv`, or `file`. |
+| `SECRET_PREFIX` | ❌ | `maintainerd/auth` | Namespace prefix for secrets in external providers. Not used by `env`, `file`, or `gcp`. |
 
-**Provider recommendations by platform:**
+### Provider-Specific Variables
 
-| Platform | `SECRET_PROVIDER` |
-|---|---|
-| AWS ECS / Lambda | `aws_secrets` or `aws_ssm` |
-| Kubernetes | `file` (Kubernetes Secrets) |
-| Docker Swarm | `file` (Docker Secrets) |
-| Self-hosted / bare metal | `vault` |
+#### `file` — File-Based Secrets (Docker / Kubernetes)
+
+| Variable | Required | Default | Description |
+|---|---|---|---|
+| `SECRET_FILE_PATH` | ❌ | `/run/secrets` | Base path for file-based secrets. |
+
+Key names are lowercased with underscores replaced by hyphens.
+Example: `JWT_PRIVATE_KEY` → `<SECRET_FILE_PATH>/jwt-private-key`
+
+#### `aws_secrets` — AWS Secrets Manager
+
+| Variable | Required | Default | Description |
+|---|---|---|---|
+| `AWS_REGION` | ✅ | `us-east-1` | AWS region where secrets are stored. |
+| `AWS_ACCESS_KEY_ID` | ❌ | — | Only if IAM roles are unavailable. |
+| `AWS_SECRET_ACCESS_KEY` | ❌ | — | Only if IAM roles are unavailable. |
+
+Secret naming: `<SECRET_PREFIX>/<key-lowercased-hyphens>`
+Example: `JWT_PRIVATE_KEY` → `maintainerd/auth/jwt-private-key`
+
+```bash
+# Store a secret in AWS Secrets Manager
+aws secretsmanager create-secret \
+  --name "maintainerd/auth/jwt-private-key" \
+  --secret-string file:///tmp/jwt-keys/jwt_private.pem
+```
+
+#### `aws_ssm` — AWS SSM Parameter Store
+
+| Variable | Required | Default | Description |
+|---|---|---|---|
+| `AWS_REGION` | ✅ | `us-east-1` | AWS region. |
+| `AWS_ACCESS_KEY_ID` | ❌ | — | Only if IAM roles are unavailable. |
+| `AWS_SECRET_ACCESS_KEY` | ❌ | — | Only if IAM roles are unavailable. |
+
+Parameter naming: `/<SECRET_PREFIX>/<key-lowercased-hyphens>`
+Example: `JWT_PRIVATE_KEY` → `/maintainerd/auth/jwt-private-key`
+SecureString parameters are automatically decrypted using the default KMS key.
+
+```bash
+# Store a parameter in SSM
+aws ssm put-parameter \
+  --name "/maintainerd/auth/jwt-private-key" \
+  --type SecureString \
+  --value file:///tmp/jwt-keys/jwt_private.pem
+```
+
+#### `vault` — HashiCorp Vault (KV v2)
+
+| Variable | Required | Default | Description |
+|---|---|---|---|
+| `VAULT_ADDR` | ✅ | `http://localhost:8200` | Vault server address. **Must use HTTPS in production.** |
+| `VAULT_TOKEN` | ❌ | — | Static token. Set this **or** use AppRole below. |
+| `VAULT_MOUNT` | ❌ | `secret` | KV v2 mount path. |
+| `VAULT_ROLE_ID` | ❌ | — | AppRole role ID (used when `VAULT_TOKEN` is empty). **Recommended for production.** |
+| `VAULT_SECRET_ID` | ❌ | — | AppRole secret ID (used when `VAULT_TOKEN` is empty). |
+| `VAULT_SECRET_FIELD` | ❌ | `value` | Field name within the KV secret that holds the value. |
+
+Secret path: `<VAULT_MOUNT>/data/<SECRET_PREFIX>/<key-lowercased-hyphens>`
+
+```bash
+# Store a secret in Vault
+vault kv put secret/maintainerd/auth/jwt-private-key value=@jwt_private.pem
+```
+
+> **Always use AppRole authentication in production** — static tokens do not support automatic renewal or revocation.
+
+#### `gcp` — GCP Secret Manager
+
+| Variable | Required | Default | Description |
+|---|---|---|---|
+| `GCP_PROJECT_ID` | ✅ | — | GCP project ID. |
+
+Authentication uses **Application Default Credentials (ADC)**:
+- **GKE / Cloud Run**: Workload Identity is used automatically.
+- **Compute Engine**: Attached service account is used.
+- **Local development**: `gcloud auth application-default login`.
+
+Secret naming: `projects/<GCP_PROJECT_ID>/secrets/<key-lowercased-hyphens>/versions/latest`
+
+```bash
+# Create a secret in GCP Secret Manager
+echo -n "$(cat jwt_private.pem)" | \
+  gcloud secrets create jwt-private-key --data-file=- --project=my-project
+```
+
+> `SECRET_PREFIX` is not used by the GCP provider. Use IAM policies to scope access instead.
+
+#### `azure_kv` — Azure Key Vault
+
+| Variable | Required | Default | Description |
+|---|---|---|---|
+| `AZURE_KEYVAULT_URL` | ✅ | — | Key Vault endpoint, e.g. `https://my-vault.vault.azure.net`. |
+| `AZURE_TENANT_ID` | ❌ | — | Azure AD tenant ID (for service principal auth). |
+| `AZURE_CLIENT_ID` | ❌ | — | Service principal / managed identity client ID. |
+| `AZURE_CLIENT_SECRET` | ❌ | — | Service principal client secret. |
+
+Authentication uses **DefaultAzureCredential**, which tries in order:
+1. Environment variables (`AZURE_TENANT_ID` + `AZURE_CLIENT_ID` + `AZURE_CLIENT_SECRET`)
+2. Workload Identity (AKS)
+3. Managed Identity (App Service, Azure Functions, VM)
+4. Azure CLI
+
+Secret naming: `<key-lowercased-hyphens>`
+Example: `JWT_PRIVATE_KEY` → `jwt-private-key`
+
+```bash
+# Store a secret in Azure Key Vault
+az keyvault secret set \
+  --vault-name my-vault \
+  --name jwt-private-key \
+  --file jwt_private.pem
+```
+
+> **Use Managed Identity in production** — avoid service principal secrets when possible.
+
+### Provider Recommendations by Platform
+
+| Platform | `SECRET_PROVIDER` | Authentication |
+|---|---|---|
+| AWS ECS / Lambda | `aws_secrets` or `aws_ssm` | IAM task/execution role |
+| GCP GKE / Cloud Run | `gcp` | Workload Identity |
+| Azure AKS / App Service | `azure_kv` | Managed Identity |
+| Kubernetes (any cloud) | `file` | Kubernetes Secrets mounted as volumes |
+| Docker Swarm | `file` | Docker Secrets |
+| Self-hosted / bare metal | `vault` | AppRole auth |
 
 ---
 
@@ -268,9 +403,28 @@ aws secretsmanager create-secret \
 **Store keys in HashiCorp Vault:**
 
 ```bash
-vault kv put secret/maintainerd/auth \
-  jwt_private_key=@/tmp/jwt-keys/jwt_private.pem \
-  jwt_public_key=@/tmp/jwt-keys/jwt_public.pem
+vault kv put secret/maintainerd/auth/jwt-private-key value=@/tmp/jwt-keys/jwt_private.pem
+vault kv put secret/maintainerd/auth/jwt-public-key value=@/tmp/jwt-keys/jwt_public.pem
+```
+
+**Store keys in GCP Secret Manager:**
+
+```bash
+gcloud secrets create jwt-private-key \
+  --data-file=/tmp/jwt-keys/jwt_private.pem --project=my-project
+
+gcloud secrets create jwt-public-key \
+  --data-file=/tmp/jwt-keys/jwt_public.pem --project=my-project
+```
+
+**Store keys in Azure Key Vault:**
+
+```bash
+az keyvault secret set --vault-name my-vault \
+  --name jwt-private-key --file /tmp/jwt-keys/jwt_private.pem
+
+az keyvault secret set --vault-name my-vault \
+  --name jwt-public-key --file /tmp/jwt-keys/jwt_public.pem
 ```
 
 **Key rotation procedure:**
@@ -292,6 +446,9 @@ Use this checklist before every production deployment.
 - [ ] `SECRET_PROVIDER` is **not** set to `env`
 - [ ] JWT keys are stored in the secret manager, not in a `.env` file on disk
 - [ ] SMTP credentials are stored in the secret manager
+- [ ] If using `vault`, `VAULT_ADDR` uses HTTPS and AppRole auth is configured (not a static token)
+- [ ] If using `gcp`, `GCP_PROJECT_ID` is set and Workload Identity is configured
+- [ ] If using `azure_kv`, Managed Identity is used (not service principal secrets)
 - [ ] Database password is at least 32 characters, randomly generated
 - [ ] Redis password is set and strong
 - [ ] `JWT_PRIVATE_KEY` permissions are `600` on any filesystem where it is stored

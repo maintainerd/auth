@@ -67,12 +67,31 @@ EMAIL_LOGO_URL=""
 # =============================================================================
 SECRET_PROVIDER=env
 SECRET_PREFIX=maintainerd/auth
+
+## --- File provider (Docker / Kubernetes Secrets) ---
 # SECRET_FILE_PATH=/run/secrets
+
+## --- AWS providers (aws_secrets / aws_ssm) ---
 # AWS_REGION=us-east-1
 # AWS_ACCESS_KEY_ID=
 # AWS_SECRET_ACCESS_KEY=
-# VAULT_ADDR=
+
+## --- HashiCorp Vault provider (vault) ---
+# VAULT_ADDR=http://localhost:8200
 # VAULT_TOKEN=
+# VAULT_MOUNT=secret
+# VAULT_ROLE_ID=
+# VAULT_SECRET_ID=
+# VAULT_SECRET_FIELD=value
+
+## --- GCP Secret Manager provider (gcp) ---
+# GCP_PROJECT_ID=
+
+## --- Azure Key Vault provider (azure_kv) ---
+# AZURE_KEYVAULT_URL=
+# AZURE_TENANT_ID=
+# AZURE_CLIENT_ID=
+# AZURE_CLIENT_SECRET=
 
 # =============================================================================
 # JWT  ← generate your own keys, see: #generating-a-key-pair
@@ -261,18 +280,107 @@ If you are using Gmail as your SMTP provider you must use an **App Password**, n
 
 Maintainerd Auth supports pluggable secret backends so sensitive values (JWT keys, database passwords) can be stored outside of environment variables in production.
 
+### Core Variables
+
 | Variable | Required | Default | Description |
 |---|---|---|---|
-| `SECRET_PROVIDER` | ✅ | `env` | Secret backend to use. One of: `env`, `file`, `aws_ssm`, `aws_secrets`, `vault`. |
-| `SECRET_PREFIX` | ❌ | `maintainerd/auth` | Namespace prefix for secrets in external providers. Not used when `SECRET_PROVIDER=env`. |
-| `SECRET_FILE_PATH` | ❌ | `/run/secrets` | Base directory for file-based secrets (Docker Secrets, Kubernetes Secrets). Only used when `SECRET_PROVIDER=file`. |
-| `AWS_REGION` | ❌ | — | AWS region. Required for `aws_ssm` and `aws_secrets` providers. |
-| `AWS_ACCESS_KEY_ID` | ❌ | — | AWS access key. Prefer IAM roles over static credentials in production. |
-| `AWS_SECRET_ACCESS_KEY` | ❌ | — | AWS secret key. |
-| `VAULT_ADDR` | ❌ | — | HashiCorp Vault server address (e.g. `https://vault.company.com`). Required for `vault` provider. |
-| `VAULT_TOKEN` | ❌ | — | Vault authentication token. Prefer AppRole or Kubernetes auth in production. |
+| `SECRET_PROVIDER` | ✅ | `env` | Secret backend to use. One of: `env`, `file`, `aws_secrets`, `aws_ssm`, `vault`, `gcp`, `azure_kv`. |
+| `SECRET_PREFIX` | ❌ | `maintainerd/auth` | Namespace prefix for secrets in external providers. Not used by `env`, `file`, or `gcp`. |
 
-**Provider quick-reference**
+### Provider-Specific Variables
+
+#### `env` — Environment Variables (default)
+
+No additional variables. Secrets are read directly from environment variables.
+Supports `base64:` prefix for binary secrets (e.g. `JWT_PRIVATE_KEY=base64:LS0tLS1C…`).
+
+#### `file` — File-Based Secrets (Docker / Kubernetes)
+
+| Variable | Required | Default | Description |
+|---|---|---|---|
+| `SECRET_FILE_PATH` | ❌ | `/run/secrets` | Base directory where secret files are mounted. |
+
+Key names are lowercased with underscores replaced by hyphens.
+Example: `JWT_PRIVATE_KEY` → `<SECRET_FILE_PATH>/jwt-private-key`
+
+#### `aws_secrets` — AWS Secrets Manager
+
+| Variable | Required | Default | Description |
+|---|---|---|---|
+| `AWS_REGION` | ✅ | `us-east-1` | AWS region where secrets are stored. |
+| `AWS_ACCESS_KEY_ID` | ❌ | — | AWS access key. Prefer IAM roles over static credentials. |
+| `AWS_SECRET_ACCESS_KEY` | ❌ | — | AWS secret key. |
+
+Secret naming: `<SECRET_PREFIX>/<key-lowercased-hyphens>`
+Example: `JWT_PRIVATE_KEY` → `maintainerd/auth/jwt-private-key`
+
+#### `aws_ssm` — AWS SSM Parameter Store
+
+| Variable | Required | Default | Description |
+|---|---|---|---|
+| `AWS_REGION` | ✅ | `us-east-1` | AWS region. |
+| `AWS_ACCESS_KEY_ID` | ❌ | — | AWS access key. Prefer IAM roles. |
+| `AWS_SECRET_ACCESS_KEY` | ❌ | — | AWS secret key. |
+
+Parameter naming: `/<SECRET_PREFIX>/<key-lowercased-hyphens>`
+Example: `JWT_PRIVATE_KEY` → `/maintainerd/auth/jwt-private-key`
+SecureString parameters are automatically decrypted.
+
+#### `vault` — HashiCorp Vault (KV v2)
+
+| Variable | Required | Default | Description |
+|---|---|---|---|
+| `VAULT_ADDR` | ❌ | `http://localhost:8200` | Vault server address. |
+| `VAULT_TOKEN` | ❌ | — | Static token. Set this **or** use AppRole below. |
+| `VAULT_MOUNT` | ❌ | `secret` | KV v2 mount path. |
+| `VAULT_ROLE_ID` | ❌ | — | AppRole role ID (used when `VAULT_TOKEN` is empty). |
+| `VAULT_SECRET_ID` | ❌ | — | AppRole secret ID (used when `VAULT_TOKEN` is empty). |
+| `VAULT_SECRET_FIELD` | ❌ | `value` | Field name within the KV secret that holds the value. |
+
+Secret path: `<VAULT_MOUNT>/data/<SECRET_PREFIX>/<key-lowercased-hyphens>`
+Example: `JWT_PRIVATE_KEY` → `secret/data/maintainerd/auth/jwt-private-key`
+
+Each secret must have a field (default: `value`) containing the actual secret data:
+```bash
+vault kv put secret/maintainerd/auth/jwt-private-key value=@jwt_private.pem
+```
+
+#### `gcp` — GCP Secret Manager
+
+| Variable | Required | Default | Description |
+|---|---|---|---|
+| `GCP_PROJECT_ID` | ✅ | — | GCP project ID. |
+
+Authentication uses **Application Default Credentials (ADC)**:
+- **GKE / Cloud Run**: Workload Identity is used automatically.
+- **Local development**: Run `gcloud auth application-default login`.
+
+Secret naming: `projects/<GCP_PROJECT_ID>/secrets/<key-lowercased-hyphens>/versions/latest`
+Example: `JWT_PRIVATE_KEY` → `projects/my-project/secrets/jwt-private-key/versions/latest`
+
+> `SECRET_PREFIX` is not used by the GCP provider. Use IAM policies to scope access.
+
+#### `azure_kv` — Azure Key Vault
+
+| Variable | Required | Default | Description |
+|---|---|---|---|
+| `AZURE_KEYVAULT_URL` | ✅ | — | Key Vault endpoint, e.g. `https://my-vault.vault.azure.net`. |
+| `AZURE_TENANT_ID` | ❌ | — | Azure AD tenant ID (for service principal auth). |
+| `AZURE_CLIENT_ID` | ❌ | — | Service principal client ID. |
+| `AZURE_CLIENT_SECRET` | ❌ | — | Service principal client secret. |
+
+Authentication uses **DefaultAzureCredential**, which tries in order:
+1. Environment variables (`AZURE_TENANT_ID` + `AZURE_CLIENT_ID` + `AZURE_CLIENT_SECRET`)
+2. Workload Identity (AKS)
+3. Managed Identity
+4. Azure CLI (local development)
+
+Secret naming: `<key-lowercased-hyphens>`
+Example: `JWT_PRIVATE_KEY` → `jwt-private-key`
+
+> Azure Key Vault names only allow lowercase letters, numbers, and hyphens.
+
+### Provider Quick-Reference
 
 | Environment | Recommended `SECRET_PROVIDER` |
 |---|---|
@@ -280,6 +388,8 @@ Maintainerd Auth supports pluggable secret backends so sensitive values (JWT key
 | Docker Compose / Docker Swarm | `file` (Docker Secrets) |
 | Kubernetes | `file` (Kubernetes Secrets) |
 | AWS ECS / Lambda | `aws_secrets` or `aws_ssm` |
+| GCP GKE / Cloud Run | `gcp` |
+| Azure AKS / App Service | `azure_kv` |
 | Self-hosted / on-prem | `vault` |
 
 **Example (local)**
@@ -298,6 +408,31 @@ AWS_REGION=us-east-1
 # Prefer an IAM role attached to the task/instance over static keys
 # AWS_ACCESS_KEY_ID=...
 # AWS_SECRET_ACCESS_KEY=...
+```
+
+**Example (Vault with AppRole)**
+
+```env
+SECRET_PROVIDER=vault
+SECRET_PREFIX=maintainerd/auth
+VAULT_ADDR=http://localhost:8200
+VAULT_MOUNT=secret
+VAULT_ROLE_ID=your-role-id
+VAULT_SECRET_ID=your-secret-id
+```
+
+**Example (GCP)**
+
+```env
+SECRET_PROVIDER=gcp
+GCP_PROJECT_ID=my-project-id
+```
+
+**Example (Azure)**
+
+```env
+SECRET_PROVIDER=azure_kv
+AZURE_KEYVAULT_URL=https://my-vault.vault.azure.net
 ```
 
 ---
@@ -370,6 +505,8 @@ In production, use one of the following approaches instead:
 | **AWS Secrets Manager** | Store the raw PEM as a secret value; set `SECRET_PROVIDER=aws_secrets` |
 | **AWS SSM Parameter Store** | Store as `SecureString`; set `SECRET_PROVIDER=aws_ssm` |
 | **HashiCorp Vault** | Store under `SECRET_PREFIX`; set `SECRET_PROVIDER=vault` |
+| **GCP Secret Manager** | Create a secret with the PEM contents; set `SECRET_PROVIDER=gcp` |
+| **Azure Key Vault** | Store the PEM as a secret; set `SECRET_PROVIDER=azure_kv` |
 | **Docker / Kubernetes Secrets** | Mount as files; set `SECRET_PROVIDER=file` and `SECRET_FILE_PATH` |
 | **Base64 inline** | Prefix the value with `base64:` — e.g. `JWT_PRIVATE_KEY=base64:LS0tLS1C…` |
 
