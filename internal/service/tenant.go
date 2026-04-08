@@ -1,7 +1,6 @@
 package service
 
 import (
-	"errors"
 	"time"
 
 	"github.com/google/uuid"
@@ -9,6 +8,7 @@ import (
 	"github.com/maintainerd/auth/internal/repository"
 	"github.com/maintainerd/auth/internal/crypto"
 	"gorm.io/gorm"
+	"github.com/maintainerd/auth/internal/apperror"
 )
 
 type TenantServiceDataResult struct {
@@ -113,7 +113,7 @@ func (s *tenantService) Get(filter TenantServiceGetFilter) (*TenantServiceGetRes
 func (s *tenantService) GetByUUID(tenantUUID uuid.UUID) (*TenantServiceDataResult, error) {
 	tenant, err := s.tenantRepo.FindByUUID(tenantUUID)
 	if err != nil || tenant == nil {
-		return nil, errors.New("tenant not found")
+		return nil, apperror.NewNotFound("tenant not found")
 	}
 
 	return toTenantServiceDataResult(tenant), nil
@@ -122,7 +122,7 @@ func (s *tenantService) GetByUUID(tenantUUID uuid.UUID) (*TenantServiceDataResul
 func (s *tenantService) GetDefault() (*TenantServiceDataResult, error) {
 	tenant, err := s.tenantRepo.FindDefault()
 	if err != nil || tenant == nil {
-		return nil, errors.New("default tenant not found")
+		return nil, apperror.NewNotFoundWithReason("default tenant not found")
 	}
 
 	return toTenantServiceDataResult(tenant), nil
@@ -131,7 +131,7 @@ func (s *tenantService) GetDefault() (*TenantServiceDataResult, error) {
 func (s *tenantService) GetByIdentifier(identifier string) (*TenantServiceDataResult, error) {
 	tenant, err := s.tenantRepo.FindByIdentifier(identifier)
 	if err != nil || tenant == nil {
-		return nil, errors.New("tenant not found")
+		return nil, apperror.NewNotFound("tenant not found")
 	}
 
 	return toTenantServiceDataResult(tenant), nil
@@ -149,7 +149,7 @@ func (s *tenantService) Create(name string, displayName string, description stri
 			return err
 		}
 		if existingTenant != nil {
-			return errors.New(name + " tenant already exists")
+			return apperror.NewConflict(name + " tenant already exists")
 		}
 
 		// Generate identifier
@@ -199,7 +199,7 @@ func (s *tenantService) Update(tenantUUID uuid.UUID, name string, displayName st
 			return err
 		}
 		if tenant == nil {
-			return errors.New("tenant not found")
+			return apperror.NewNotFound("tenant not found")
 		}
 
 		// Check if tenant name is taken by another tenant
@@ -209,7 +209,7 @@ func (s *tenantService) Update(tenantUUID uuid.UUID, name string, displayName st
 				return err
 			}
 			if existingTenant != nil {
-				return errors.New(name + " tenant already exists")
+				return apperror.NewConflict(name + " tenant already exists")
 			}
 		}
 
@@ -238,7 +238,7 @@ func (s *tenantService) Update(tenantUUID uuid.UUID, name string, displayName st
 func (s *tenantService) SetStatusByUUID(tenantUUID uuid.UUID, status string) (*TenantServiceDataResult, error) {
 	tenant, err := s.tenantRepo.FindByUUID(tenantUUID)
 	if err != nil || tenant == nil {
-		return nil, errors.New("tenant not found")
+		return nil, apperror.NewNotFound("tenant not found")
 	}
 
 	err = s.tenantRepo.SetStatusByUUID(tenantUUID, status)
@@ -258,7 +258,7 @@ func (s *tenantService) SetStatusByUUID(tenantUUID uuid.UUID, status string) (*T
 func (s *tenantService) SetActivePublicByUUID(tenantUUID uuid.UUID) (*TenantServiceDataResult, error) {
 	tenant, err := s.tenantRepo.FindByUUID(tenantUUID)
 	if err != nil || tenant == nil {
-		return nil, errors.New("tenant not found")
+		return nil, apperror.NewNotFound("tenant not found")
 	}
 
 	// Toggle public status
@@ -279,7 +279,7 @@ func (s *tenantService) SetActivePublicByUUID(tenantUUID uuid.UUID) (*TenantServ
 func (s *tenantService) SetDefaultStatusByUUID(tenantUUID uuid.UUID) (*TenantServiceDataResult, error) {
 	tenant, err := s.tenantRepo.FindByUUID(tenantUUID)
 	if err != nil || tenant == nil {
-		return nil, errors.New("tenant not found")
+		return nil, apperror.NewNotFound("tenant not found")
 	}
 
 	err = s.tenantRepo.SetDefaultStatusByUUID(tenantUUID, !tenant.IsDefault)
@@ -299,17 +299,17 @@ func (s *tenantService) SetDefaultStatusByUUID(tenantUUID uuid.UUID) (*TenantSer
 func (s *tenantService) DeleteByUUID(tenantUUID uuid.UUID) (*TenantServiceDataResult, error) {
 	tenant, err := s.tenantRepo.FindByUUID(tenantUUID)
 	if err != nil || tenant == nil {
-		return nil, errors.New("tenant not found")
+		return nil, apperror.NewNotFound("tenant not found")
 	}
 
 	// Prevent deletion of system tenants
 	if tenant.IsSystem {
-		return nil, errors.New("cannot delete system tenant")
+		return nil, apperror.NewValidation("cannot delete system tenant")
 	}
 
 	// Prevent deletion of default tenants
 	if tenant.IsDefault {
-		return nil, errors.New("cannot delete default tenant")
+		return nil, apperror.NewValidation("cannot delete default tenant")
 	}
 
 	result := toTenantServiceDataResult(tenant)

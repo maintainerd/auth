@@ -2,7 +2,6 @@ package service
 
 import (
 	"encoding/json"
-	"errors"
 	"time"
 
 	"github.com/google/uuid"
@@ -10,6 +9,7 @@ import (
 	"github.com/maintainerd/auth/internal/repository"
 	"gorm.io/datatypes"
 	"gorm.io/gorm"
+	"github.com/maintainerd/auth/internal/apperror"
 )
 
 type SecuritySettingServiceDataResult struct {
@@ -95,7 +95,7 @@ func (s *securitySettingService) GetByTenantID(tenantID int64) (*SecuritySetting
 		return nil, err
 	}
 	if setting == nil {
-		return nil, errors.New("security settings not found")
+		return nil, apperror.NewNotFoundWithReason("security settings not found")
 	}
 	return toSecuritySettingServiceDataResult(setting), nil
 }
@@ -243,7 +243,7 @@ func (s *securitySettingService) updateConfig(tenantID int64, configType string,
 			oldConfigJSON = setting.IPConfig
 			setting.IPConfig = newConfigJSON
 		default:
-			return errors.New("invalid config type")
+			return apperror.NewValidation("invalid config type")
 		}
 
 		setting.UpdatedBy = &updatedBy

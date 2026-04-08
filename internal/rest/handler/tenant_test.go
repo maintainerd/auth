@@ -60,7 +60,7 @@ func TestTenantHandler_GetByUUID(t *testing.T) {
 
 	t.Run("not found returns 404", func(t *testing.T) {
 		svc := &mockTenantService{getByUUIDFn: func(uuid.UUID) (*service.TenantServiceDataResult, error) {
-			return nil, errors.New("not found")
+			return nil, errNotFound
 		}}
 		r := withChiParam(httptest.NewRequest(http.MethodGet, "/", nil), "tenant_uuid", testResourceUUID.String())
 		w := httptest.NewRecorder()
@@ -82,7 +82,7 @@ func TestTenantHandler_GetByUUID(t *testing.T) {
 func TestTenantHandler_GetDefault(t *testing.T) {
 	t.Run("service error returns 404", func(t *testing.T) {
 		svc := &mockTenantService{getDefaultFn: func() (*service.TenantServiceDataResult, error) {
-			return nil, errors.New("not found")
+			return nil, errNotFound
 		}}
 		w := httptest.NewRecorder()
 		newTenantHandler(svc, nil).GetDefault(w, httptest.NewRequest(http.MethodGet, "/", nil))
@@ -109,7 +109,7 @@ func TestTenantHandler_GetByIdentifier(t *testing.T) {
 
 	t.Run("service error returns 404", func(t *testing.T) {
 		svc := &mockTenantService{getByIdentifierFn: func(string) (*service.TenantServiceDataResult, error) {
-			return nil, errors.New("not found")
+			return nil, errNotFound
 		}}
 		r := withChiParam(httptest.NewRequest(http.MethodGet, "/", nil), "identifier", "my-tenant")
 		w := httptest.NewRecorder()
@@ -369,7 +369,7 @@ func TestTenantHandler_Delete(t *testing.T) {
 
 	t.Run("GetByUUID error returns 404", func(t *testing.T) {
 		ts := &mockTenantService{getByUUIDFn: func(uuid.UUID) (*service.TenantServiceDataResult, error) {
-			return nil, errors.New("not found")
+			return nil, errNotFound
 		}}
 		ms := &mockTenantMemberService{isUserInTenantFn: func(int64, uuid.UUID) (bool, error) { return true, nil }}
 		r := withUser(withChiParam(httptest.NewRequest(http.MethodDelete, "/", nil), "tenant_uuid", testResourceUUID.String()))
@@ -444,7 +444,7 @@ func TestTenantHandler_GetMembers(t *testing.T) {
 
 	t.Run("GetByUUID error returns 404", func(t *testing.T) {
 		ts := &mockTenantService{getByUUIDFn: func(uuid.UUID) (*service.TenantServiceDataResult, error) {
-			return nil, errors.New("not found")
+			return nil, errNotFound
 		}}
 		r := withChiParam(jsonReq(t, http.MethodGet, "/?page=1&limit=10", nil), "tenant_uuid", testResourceUUID.String())
 		w := httptest.NewRecorder()
@@ -514,7 +514,7 @@ func TestTenantHandler_AddMember(t *testing.T) {
 
 	t.Run("GetByUUID error returns 404", func(t *testing.T) {
 		ts := &mockTenantService{getByUUIDFn: func(uuid.UUID) (*service.TenantServiceDataResult, error) {
-			return nil, errors.New("not found")
+			return nil, errNotFound
 		}}
 		r := withChiParam(jsonReq(t, http.MethodPost, "/", validBody), "tenant_uuid", testResourceUUID.String())
 		w := httptest.NewRecorder()
@@ -527,7 +527,7 @@ func TestTenantHandler_AddMember(t *testing.T) {
 			return &service.TenantServiceDataResult{}, nil
 		}}
 		ms := &mockTenantMemberService{createByUserUUIDFn: func(int64, uuid.UUID, string) (*service.TenantMemberServiceDataResult, error) {
-			return nil, errors.New("add error")
+			return nil, errValidation
 		}}
 		r := withChiParam(jsonReq(t, http.MethodPost, "/", validBody), "tenant_uuid", testResourceUUID.String())
 		w := httptest.NewRecorder()
@@ -582,7 +582,7 @@ func TestTenantHandler_UpdateMemberRole(t *testing.T) {
 
 	t.Run("service error returns 400", func(t *testing.T) {
 		ms := &mockTenantMemberService{updateRoleFn: func(uuid.UUID, string) (*service.TenantMemberServiceDataResult, error) {
-			return nil, errors.New("update error")
+			return nil, errValidation
 		}}
 		r := withChiParam(jsonReq(t, http.MethodPut, "/", map[string]any{"role": "owner"}), "tenant_member_uuid", memberUUID.String())
 		w := httptest.NewRecorder()
@@ -619,7 +619,7 @@ func TestTenantHandler_RemoveMember(t *testing.T) {
 	})
 
 	t.Run("service error returns 400", func(t *testing.T) {
-		ms := &mockTenantMemberService{deleteByUUIDFn: func(uuid.UUID) error { return errors.New("remove error") }}
+		ms := &mockTenantMemberService{deleteByUUIDFn: func(uuid.UUID) error { return errValidation }}
 		r := withChiParam(httptest.NewRequest(http.MethodDelete, "/", nil), "tenant_member_uuid", memberUUID.String())
 		w := httptest.NewRecorder()
 		newTenantHandler(nil, ms).RemoveMember(w, r)

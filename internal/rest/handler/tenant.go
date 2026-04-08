@@ -11,9 +11,9 @@ import (
 	"github.com/maintainerd/auth/internal/dto"
 	"github.com/maintainerd/auth/internal/middleware"
 	"github.com/maintainerd/auth/internal/model"
-	"github.com/maintainerd/auth/internal/service"
 	"github.com/maintainerd/auth/internal/ptr"
 	resp "github.com/maintainerd/auth/internal/rest/response"
+	"github.com/maintainerd/auth/internal/service"
 )
 
 type TenantHandler struct {
@@ -106,7 +106,7 @@ func (h *TenantHandler) Get(w http.ResponseWriter, r *http.Request) {
 	// Fetch Tenants
 	result, err := h.tenantService.Get(tenantFilter)
 	if err != nil {
-		resp.Error(w, http.StatusInternalServerError, "Failed to fetch tenants", err.Error())
+		resp.HandleServiceError(w, "Failed to fetch tenants", err)
 		return
 	}
 
@@ -138,7 +138,7 @@ func (h *TenantHandler) GetByUUID(w http.ResponseWriter, r *http.Request) {
 
 	tenant, err := h.tenantService.GetByUUID(tenantUUID)
 	if err != nil {
-		resp.Error(w, http.StatusNotFound, "Tenant not found")
+		resp.HandleServiceError(w, "Tenant not found", err)
 		return
 	}
 
@@ -151,7 +151,7 @@ func (h *TenantHandler) GetByUUID(w http.ResponseWriter, r *http.Request) {
 func (h *TenantHandler) GetDefault(w http.ResponseWriter, r *http.Request) {
 	tenant, err := h.tenantService.GetDefault()
 	if err != nil {
-		resp.Error(w, http.StatusNotFound, "Default tenant not found")
+		resp.HandleServiceError(w, "Default tenant not found", err)
 		return
 	}
 
@@ -170,7 +170,7 @@ func (h *TenantHandler) GetByIdentifier(w http.ResponseWriter, r *http.Request) 
 
 	tenant, err := h.tenantService.GetByIdentifier(identifier)
 	if err != nil {
-		resp.Error(w, http.StatusNotFound, "Tenant not found")
+		resp.HandleServiceError(w, "Tenant not found", err)
 		return
 	}
 
@@ -194,7 +194,7 @@ func (h *TenantHandler) Create(w http.ResponseWriter, r *http.Request) {
 
 	tenant, err := h.tenantService.Create(req.Name, req.DisplayName, req.Description, req.Status, req.IsPublic, false)
 	if err != nil {
-		resp.Error(w, http.StatusInternalServerError, "Failed to create tenant", err.Error())
+		resp.HandleServiceError(w, "Failed to create tenant", err)
 		return
 	}
 
@@ -220,7 +220,7 @@ func (h *TenantHandler) Update(w http.ResponseWriter, r *http.Request) {
 	// Check if user is a member of this tenant
 	isMember, err := h.tenantMemberService.IsUserInTenant(user.UserID, tenantUUID)
 	if err != nil {
-		resp.Error(w, http.StatusInternalServerError, "Failed to verify tenant membership", err.Error())
+		resp.HandleServiceError(w, "Failed to verify tenant membership", err)
 		return
 	}
 	if !isMember {
@@ -241,7 +241,7 @@ func (h *TenantHandler) Update(w http.ResponseWriter, r *http.Request) {
 
 	tenant, err := h.tenantService.Update(tenantUUID, req.Name, req.DisplayName, req.Description, req.Status, req.IsPublic)
 	if err != nil {
-		resp.Error(w, http.StatusInternalServerError, "Failed to update tenant", err.Error())
+		resp.HandleServiceError(w, "Failed to update tenant", err)
 		return
 	}
 
@@ -268,7 +268,7 @@ func (h *TenantHandler) SetStatus(w http.ResponseWriter, r *http.Request) {
 
 	tenant, err := h.tenantService.SetStatusByUUID(tenantUUID, req.Status)
 	if err != nil {
-		resp.Error(w, http.StatusInternalServerError, "Failed to update API", err.Error())
+		resp.HandleServiceError(w, "Failed to update tenant status", err)
 		return
 	}
 
@@ -287,7 +287,7 @@ func (h *TenantHandler) SetPublic(w http.ResponseWriter, r *http.Request) {
 
 	tenant, err := h.tenantService.SetActivePublicByUUID(tenantUUID)
 	if err != nil {
-		resp.Error(w, http.StatusInternalServerError, "Failed to update API", err.Error())
+		resp.HandleServiceError(w, "Failed to update tenant", err)
 		return
 	}
 
@@ -306,7 +306,7 @@ func (h *TenantHandler) SetDefault(w http.ResponseWriter, r *http.Request) {
 
 	tenant, err := h.tenantService.SetDefaultStatusByUUID(tenantUUID)
 	if err != nil {
-		resp.Error(w, http.StatusInternalServerError, "Failed to update tenant", err.Error())
+		resp.HandleServiceError(w, "Failed to update tenant", err)
 		return
 	}
 
@@ -332,7 +332,7 @@ func (h *TenantHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	// Check if user is a member of this tenant
 	isMember, err := h.tenantMemberService.IsUserInTenant(user.UserID, tenantUUID)
 	if err != nil {
-		resp.Error(w, http.StatusInternalServerError, "Failed to verify tenant membership", err.Error())
+		resp.HandleServiceError(w, "Failed to verify tenant membership", err)
 		return
 	}
 	if !isMember {
@@ -343,7 +343,7 @@ func (h *TenantHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	// Get tenant to check if it's a system tenant
 	tenant, err := h.tenantService.GetByUUID(tenantUUID)
 	if err != nil {
-		resp.Error(w, http.StatusNotFound, "Tenant not found", err.Error())
+		resp.HandleServiceError(w, "Tenant not found", err)
 		return
 	}
 
@@ -355,7 +355,7 @@ func (h *TenantHandler) Delete(w http.ResponseWriter, r *http.Request) {
 
 	deletedTenant, err := h.tenantService.DeleteByUUID(tenantUUID)
 	if err != nil {
-		resp.Error(w, http.StatusInternalServerError, "Failed to delete tenant", err.Error())
+		resp.HandleServiceError(w, "Failed to delete tenant", err)
 		return
 	}
 
@@ -404,13 +404,13 @@ func (h *TenantHandler) GetMembers(w http.ResponseWriter, r *http.Request) {
 	// Get tenant to retrieve tenant_id
 	tenant, err := h.tenantService.GetByUUID(tenantUUID)
 	if err != nil {
-		resp.Error(w, http.StatusNotFound, "Tenant not found", err.Error())
+		resp.HandleServiceError(w, "Tenant not found", err)
 		return
 	}
 
 	members, err := h.tenantMemberService.ListByTenant(tenant.TenantID)
 	if err != nil {
-		resp.Error(w, http.StatusInternalServerError, "Failed to fetch members", err.Error())
+		resp.HandleServiceError(w, "Failed to fetch members", err)
 		return
 	}
 
@@ -450,13 +450,13 @@ func (h *TenantHandler) AddMember(w http.ResponseWriter, r *http.Request) {
 	// Get tenant to retrieve tenant_id
 	tenant, err := h.tenantService.GetByUUID(tenantUUID)
 	if err != nil {
-		resp.Error(w, http.StatusNotFound, "Tenant not found", err.Error())
+		resp.HandleServiceError(w, "Tenant not found", err)
 		return
 	}
 
 	member, err := h.tenantMemberService.CreateByUserUUID(tenant.TenantID, req.UserUUID, req.Role)
 	if err != nil {
-		resp.Error(w, http.StatusBadRequest, "Failed to add member", err.Error())
+		resp.HandleServiceError(w, "Failed to add member", err)
 		return
 	}
 
@@ -491,7 +491,7 @@ func (h *TenantHandler) UpdateMemberRole(w http.ResponseWriter, r *http.Request)
 
 	member, err := h.tenantMemberService.UpdateRole(tenantMemberUUID, req.Role)
 	if err != nil {
-		resp.Error(w, http.StatusBadRequest, "Failed to update member role", err.Error())
+		resp.HandleServiceError(w, "Failed to update member role", err)
 		return
 	}
 
@@ -514,7 +514,7 @@ func (h *TenantHandler) RemoveMember(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.tenantMemberService.DeleteByUUID(tenantMemberUUID); err != nil {
-		resp.Error(w, http.StatusBadRequest, "Failed to remove member", err.Error())
+		resp.HandleServiceError(w, "Failed to remove member", err)
 		return
 	}
 

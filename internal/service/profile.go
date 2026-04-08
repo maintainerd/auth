@@ -2,10 +2,10 @@ package service
 
 import (
 	"encoding/json"
-	"errors"
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/maintainerd/auth/internal/apperror"
 	"github.com/maintainerd/auth/internal/model"
 	"github.com/maintainerd/auth/internal/repository"
 	"gorm.io/datatypes"
@@ -126,7 +126,7 @@ func (s *profileService) CreateOrUpdateProfile(
 		// Step 2: Find user by UUID to get userID
 		user, err := txUserRepo.FindByUUID(userUUID)
 		if err != nil || user == nil {
-			return errors.New("user not found")
+			return apperror.NewNotFound("user not found")
 		}
 
 		// Step 3: Try to find existing default profile
@@ -245,7 +245,7 @@ func (s *profileService) CreateOrUpdateSpecificProfile(
 		// Step 2: Find user by UUID to get userID
 		user, err := txUserRepo.FindByUUID(userUUID)
 		if err != nil || user == nil {
-			return errors.New("user not found")
+			return apperror.NewNotFound("user not found")
 		}
 
 		// Step 3: Try to find existing profile by UUID
@@ -270,7 +270,7 @@ func (s *profileService) CreateOrUpdateSpecificProfile(
 		} else {
 			// Verify profile belongs to user
 			if existingProfile.UserID != user.UserID {
-				return errors.New("profile does not belong to user")
+				return apperror.NewForbidden("profile does not belong to user")
 			}
 			// Use existing profile
 			profile = *existingProfile
@@ -355,18 +355,18 @@ func (s *profileService) GetByUUID(profileUUID uuid.UUID, userUUID uuid.UUID) (*
 	// Find user by UUID to get userID
 	user, err := s.userRepo.FindByUUID(userUUID)
 	if err != nil || user == nil {
-		return nil, errors.New("user not found")
+		return nil, apperror.NewNotFound("user not found")
 	}
 
 	// Get profile by UUID
 	profile, err := s.profileRepo.FindByUUID(profileUUID)
 	if err != nil || profile == nil {
-		return nil, errors.New("profile not found")
+		return nil, apperror.NewNotFound("profile not found")
 	}
 
 	// Verify ownership
 	if profile.UserID != user.UserID {
-		return nil, errors.New("profile does not belong to user")
+		return nil, apperror.NewForbidden("profile does not belong to user")
 	}
 
 	return toProfileServiceDataResult(profile), nil
@@ -376,13 +376,13 @@ func (s *profileService) GetByUserUUID(userUUID uuid.UUID) (*ProfileServiceDataR
 	// Find user by UUID to get userID
 	user, err := s.userRepo.FindByUUID(userUUID)
 	if err != nil || user == nil {
-		return nil, errors.New("user not found")
+		return nil, apperror.NewNotFound("user not found")
 	}
 
 	// Find default profile by user ID
 	profile, err := s.profileRepo.FindDefaultByUserID(user.UserID)
 	if err != nil || profile == nil {
-		return nil, errors.New("profile not found")
+		return nil, apperror.NewNotFound("profile not found")
 	}
 
 	return toProfileServiceDataResult(profile), nil
@@ -398,7 +398,7 @@ func (s *profileService) GetAll(
 	// Find user by UUID to get userID
 	user, err := s.userRepo.FindByUUID(userUUID)
 	if err != nil || user == nil {
-		return nil, errors.New("user not found")
+		return nil, apperror.NewNotFound("user not found")
 	}
 
 	// Build filter
@@ -451,7 +451,7 @@ func (s *profileService) SetDefaultProfile(profileUUID uuid.UUID, userUUID uuid.
 		// Step 2: Find user by UUID to get userID
 		user, err := txUserRepo.FindByUUID(userUUID)
 		if err != nil || user == nil {
-			return errors.New("user not found")
+			return apperror.NewNotFound("user not found")
 		}
 
 		// Step 3: Get the profile to verify ownership
@@ -460,12 +460,12 @@ func (s *profileService) SetDefaultProfile(profileUUID uuid.UUID, userUUID uuid.
 			return err
 		}
 		if profile == nil {
-			return errors.New("profile not found")
+			return apperror.NewNotFound("profile not found")
 		}
 
 		// Verify profile belongs to user
 		if profile.UserID != user.UserID {
-			return errors.New("profile does not belong to user")
+			return apperror.NewForbidden("profile does not belong to user")
 		}
 
 		// Step 4: Unset all other default profiles for this user
@@ -495,23 +495,23 @@ func (s *profileService) DeleteByUUID(profileUUID uuid.UUID, userUUID uuid.UUID)
 	// Find user by UUID to get userID
 	user, err := s.userRepo.FindByUUID(userUUID)
 	if err != nil || user == nil {
-		return nil, errors.New("user not found")
+		return nil, apperror.NewNotFound("user not found")
 	}
 
 	// Get the profile to verify ownership and return it
 	profile, err := s.profileRepo.FindByUUID(profileUUID)
 	if err != nil || profile == nil {
-		return nil, errors.New("profile not found")
+		return nil, apperror.NewNotFound("profile not found")
 	}
 
 	// Verify ownership
 	if profile.UserID != user.UserID {
-		return nil, errors.New("profile does not belong to user")
+		return nil, apperror.NewForbidden("profile does not belong to user")
 	}
 
 	// Prevent deletion of default profile
 	if profile.IsDefault {
-		return nil, errors.New("cannot delete default profile")
+		return nil, apperror.NewValidation("cannot delete default profile")
 	}
 
 	// Delete the profile

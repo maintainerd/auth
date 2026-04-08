@@ -2,16 +2,16 @@ package service
 
 import (
 	"encoding/json"
-	"errors"
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/maintainerd/auth/internal/apperror"
+	"github.com/maintainerd/auth/internal/crypto"
 	"github.com/maintainerd/auth/internal/dto"
 	"github.com/maintainerd/auth/internal/model"
+	"github.com/maintainerd/auth/internal/ptr"
 	"github.com/maintainerd/auth/internal/repository"
 	"github.com/maintainerd/auth/internal/runner"
-	"github.com/maintainerd/auth/internal/ptr"
-	"github.com/maintainerd/auth/internal/crypto"
 	"github.com/maintainerd/auth/internal/security"
 	"gorm.io/datatypes"
 	"gorm.io/gorm"
@@ -114,7 +114,7 @@ func (s *setupService) CreateTenant(req dto.CreateTenantRequestDTO) (*dto.Create
 		return nil, err
 	}
 	if len(tenants) > 0 {
-		return nil, errors.New("tenant already exists: setup can only be run once")
+		return nil, apperror.NewConflict("tenant already exists: setup can only be run once")
 	}
 
 	var createdTenant *model.Tenant
@@ -158,7 +158,7 @@ func (s *setupService) CreateTenant(req dto.CreateTenantRequestDTO) (*dto.Create
 
 		// Run all other seeders
 		if err := runner.RunSeeders(tx, "v0.1.0"); err != nil {
-			return errors.New("failed to initialize tenant structure: " + err.Error())
+			return apperror.NewInternal("failed to initialize tenant structure", err)
 		}
 
 		return nil
@@ -220,7 +220,7 @@ func (s *setupService) CreateAdmin(req dto.CreateAdminRequestDTO) (*dto.CreateAd
 		return nil, err
 	}
 	if len(tenants) == 0 {
-		return nil, errors.New("tenant must be created first")
+		return nil, apperror.NewValidation("tenant must be created first")
 	}
 
 	// Check if admin already exists
@@ -229,7 +229,7 @@ func (s *setupService) CreateAdmin(req dto.CreateAdminRequestDTO) (*dto.CreateAd
 		return nil, err
 	}
 	if superAdmin != nil {
-		return nil, errors.New("admin user already exists: setup can only be run once")
+		return nil, apperror.NewConflict("admin user already exists: setup can only be run once")
 	}
 
 	// Get default tenant
@@ -238,7 +238,7 @@ func (s *setupService) CreateAdmin(req dto.CreateAdminRequestDTO) (*dto.CreateAd
 		return nil, err
 	}
 	if defaultTenant == nil {
-		return nil, errors.New("default tenant not found")
+		return nil, apperror.NewNotFoundWithReason("default tenant not found")
 	}
 
 	// Get default auth client
@@ -247,7 +247,7 @@ func (s *setupService) CreateAdmin(req dto.CreateAdminRequestDTO) (*dto.CreateAd
 		return nil, err
 	}
 	if defaultClient == nil {
-		return nil, errors.New("default auth client not found")
+		return nil, apperror.NewNotFoundWithReason("default auth client not found")
 	}
 
 	var createdUser *model.User
@@ -265,7 +265,7 @@ func (s *setupService) CreateAdmin(req dto.CreateAdminRequestDTO) (*dto.CreateAd
 			return err
 		}
 		if existingUser != nil {
-			return errors.New("user with this email already exists")
+			return apperror.NewConflict("user with this email already exists")
 		}
 
 		// Hash password
@@ -308,7 +308,7 @@ func (s *setupService) CreateAdmin(req dto.CreateAdminRequestDTO) (*dto.CreateAd
 			return err
 		}
 		if registeredRole == nil {
-			return errors.New("registered role not found (is_default=true, is_system=true, name='registered')")
+			return apperror.NewNotFoundWithReason("registered role not found (is_default=true, is_system=true, name='registered')")
 		}
 
 		// Assign registered role
@@ -327,7 +327,7 @@ func (s *setupService) CreateAdmin(req dto.CreateAdminRequestDTO) (*dto.CreateAd
 			return err
 		}
 		if superAdminRole == nil {
-			return errors.New("super-admin role not found (is_system=true, name='super-admin')")
+			return apperror.NewNotFoundWithReason("super-admin role not found (is_system=true, name='super-admin')")
 		}
 
 		// Assign super-admin role
@@ -394,7 +394,7 @@ func (s *setupService) CreateProfile(req dto.CreateProfileRequestDTO) (*dto.Crea
 	}
 
 	if user == nil {
-		return nil, errors.New("no admin user found")
+		return nil, apperror.NewNotFoundWithReason("no admin user found")
 	}
 
 	// Check if profile already exists for this user
@@ -404,7 +404,7 @@ func (s *setupService) CreateProfile(req dto.CreateProfileRequestDTO) (*dto.Crea
 	}
 
 	if existingProfile != nil {
-		return nil, errors.New("profile already exists for this user")
+		return nil, apperror.NewConflict("profile already exists for this user")
 	}
 
 	// Parse birthdate if provided
@@ -412,7 +412,7 @@ func (s *setupService) CreateProfile(req dto.CreateProfileRequestDTO) (*dto.Crea
 	if req.Birthdate != nil && *req.Birthdate != "" {
 		parsed, err := time.Parse("2006-01-02", *req.Birthdate)
 		if err != nil {
-			return nil, errors.New("invalid birthdate format, must be YYYY-MM-DD")
+			return nil, apperror.NewValidation("invalid birthdate format, must be YYYY-MM-DD")
 		}
 		birthdate = &parsed
 	}
@@ -427,7 +427,7 @@ func (s *setupService) CreateProfile(req dto.CreateProfileRequestDTO) (*dto.Crea
 		if req.Metadata != nil {
 			metadataBytes, err := json.Marshal(req.Metadata)
 			if err != nil {
-				return errors.New("invalid metadata format")
+				return apperror.NewValidation("invalid metadata format")
 			}
 			metadataJSON = metadataBytes
 		} else {

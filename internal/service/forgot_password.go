@@ -16,6 +16,7 @@ import (
 	"github.com/maintainerd/auth/internal/repository"
 	"github.com/maintainerd/auth/internal/security"
 	"gorm.io/gorm"
+	"github.com/maintainerd/auth/internal/apperror"
 )
 
 type ForgotPasswordService interface {
@@ -64,7 +65,7 @@ func (s *forgotPasswordService) SendPasswordResetEmail(email string, clientID, p
 			Client, txErr = txClientRepo.FindDefault()
 		}
 		if txErr != nil {
-			return fmt.Errorf("failed to find auth client: %w", txErr)
+			return apperror.NewInternal("failed to find auth client", txErr)
 		}
 
 		// Find user by email
@@ -87,11 +88,11 @@ func (s *forgotPasswordService) SendPasswordResetEmail(email string, clientID, p
 		// Revoke any existing password reset tokens for this user
 		existingTokens, txErr := txUserTokenRepo.FindByUserIDAndTokenType(user.UserID, model.TokenTypePasswordReset)
 		if txErr != nil {
-			return fmt.Errorf("failed to find existing tokens: %w", txErr)
+			return apperror.NewInternal("failed to find existing tokens", txErr)
 		}
 		for _, token := range existingTokens {
 			if txErr := txUserTokenRepo.RevokeByUUID(token.UserTokenUUID); txErr != nil {
-				return fmt.Errorf("failed to revoke existing token: %w", txErr)
+				return apperror.NewInternal("failed to revoke existing token", txErr)
 			}
 		}
 
@@ -108,7 +109,7 @@ func (s *forgotPasswordService) SendPasswordResetEmail(email string, clientID, p
 		}
 		_, txErr = txUserTokenRepo.Create(userToken)
 		if txErr != nil {
-			return fmt.Errorf("failed to create reset token: %w", txErr)
+			return apperror.NewInternal("failed to create reset token", txErr)
 		}
 
 		return nil
@@ -154,7 +155,7 @@ func (s *forgotPasswordService) sendPasswordResetEmail(to, resetToken string, Cl
 	// Get email template from DB
 	templateEntity, err := s.emailTemplateRepo.FindByName("internal:user:password:reset")
 	if err != nil {
-		return fmt.Errorf("failed to fetch password reset email template: %w", err)
+		return apperror.NewInternal("failed to fetch password reset email template", err)
 	}
 
 	// Create signed URL for password reset
@@ -165,7 +166,7 @@ func (s *forgotPasswordService) sendPasswordResetEmail(to, resetToken string, Cl
 		"provider_id": Client.IdentityProvider.Identifier,
 	}, 1*time.Hour)
 	if err != nil {
-		return fmt.Errorf("failed to create signed URL: %w", err)
+		return apperror.NewInternal("failed to create signed URL", err)
 	}
 
 	// Convert to frontend URL - use different hostname based on request type
@@ -177,7 +178,7 @@ func (s *forgotPasswordService) sendPasswordResetEmail(to, resetToken string, Cl
 	}
 	resetURL, err := signedurl.ConvertToFrontendURL(signedAPIURL, frontendBaseURL)
 	if err != nil {
-		return fmt.Errorf("failed to convert to frontend URL: %w", err)
+		return apperror.NewInternal("failed to convert to frontend URL", err)
 	}
 
 	// Prepare data for the template
@@ -192,11 +193,11 @@ func (s *forgotPasswordService) sendPasswordResetEmail(to, resetToken string, Cl
 	// Parse HTML template
 	tmpl, err := template.New("reset_html").Parse(templateEntity.BodyHTML)
 	if err != nil {
-		return fmt.Errorf("failed to parse HTML reset template: %w", err)
+		return apperror.NewInternal("failed to parse HTML reset template", err)
 	}
 	var bodyHTML bytes.Buffer
 	if err := tmpl.Execute(&bodyHTML, data); err != nil {
-		return fmt.Errorf("failed to execute HTML reset template: %w", err)
+		return apperror.NewInternal("failed to execute HTML reset template", err)
 	}
 
 	// Parse plain-text template if available
@@ -204,11 +205,11 @@ func (s *forgotPasswordService) sendPasswordResetEmail(to, resetToken string, Cl
 	if templateEntity.BodyPlain != nil {
 		tmplPlain, err := template.New("reset_plain").Parse(*templateEntity.BodyPlain)
 		if err != nil {
-			return fmt.Errorf("failed to parse plain reset template: %w", err)
+			return apperror.NewInternal("failed to parse plain reset template", err)
 		}
 		var bodyPlain bytes.Buffer
 		if err := tmplPlain.Execute(&bodyPlain, data); err != nil {
-			return fmt.Errorf("failed to execute plain reset template: %w", err)
+			return apperror.NewInternal("failed to execute plain reset template", err)
 		}
 		bodyPlainStr = bodyPlain.String()
 	}

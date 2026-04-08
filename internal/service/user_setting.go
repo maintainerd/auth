@@ -2,7 +2,6 @@ package service
 
 import (
 	"encoding/json"
-	"errors"
 	"time"
 
 	"github.com/google/uuid"
@@ -10,6 +9,7 @@ import (
 	"github.com/maintainerd/auth/internal/repository"
 	"gorm.io/datatypes"
 	"gorm.io/gorm"
+	"github.com/maintainerd/auth/internal/apperror"
 )
 
 type UserSettingServiceDataResult struct {
@@ -90,7 +90,7 @@ func (s *userSettingService) CreateOrUpdateUserSetting(
 		// Step 2: Find user by UUID to get userID
 		user, err := txUserRepo.FindByUUID(userUUID)
 		if err != nil || user == nil {
-			return errors.New("user not found")
+			return apperror.NewNotFound("user not found")
 		}
 
 		// Step 3: Try to find existing user setting using repository
@@ -115,7 +115,7 @@ func (s *userSettingService) CreateOrUpdateUserSetting(
 		if len(socialLinks) > 0 {
 			socialLinksBytes, err := json.Marshal(socialLinks)
 			if err != nil {
-				return errors.New("invalid social links format")
+				return apperror.NewValidation("invalid social links format")
 			}
 			socialLinksJSON = socialLinksBytes
 		}
@@ -187,7 +187,7 @@ func (s *userSettingService) CreateOrUpdateUserSetting(
 func (s *userSettingService) GetByUUID(userSettingUUID uuid.UUID) (*UserSettingServiceDataResult, error) {
 	userSetting, err := s.userSettingRepo.FindByUUID(userSettingUUID)
 	if err != nil || userSetting == nil {
-		return nil, errors.New("user setting not found")
+		return nil, apperror.NewNotFoundWithReason("user setting not found")
 	}
 
 	return toUserSettingServiceDataResult(userSetting), nil
@@ -197,12 +197,12 @@ func (s *userSettingService) GetByUserUUID(userUUID uuid.UUID) (*UserSettingServ
 	// Find user by UUID to get userID
 	user, err := s.userRepo.FindByUUID(userUUID)
 	if err != nil || user == nil {
-		return nil, errors.New("user not found")
+		return nil, apperror.NewNotFound("user not found")
 	}
 
 	userSetting, err := s.userSettingRepo.FindByUserID(user.UserID)
 	if err != nil || userSetting == nil {
-		return nil, errors.New("user setting not found")
+		return nil, apperror.NewNotFoundWithReason("user setting not found")
 	}
 
 	return toUserSettingServiceDataResult(userSetting), nil
@@ -212,7 +212,7 @@ func (s *userSettingService) DeleteByUUID(userSettingUUID uuid.UUID) (*UserSetti
 	// First get the user setting to return it
 	userSetting, err := s.userSettingRepo.FindByUUID(userSettingUUID)
 	if err != nil || userSetting == nil {
-		return nil, errors.New("user setting not found")
+		return nil, apperror.NewNotFoundWithReason("user setting not found")
 	}
 
 	// Delete the user setting

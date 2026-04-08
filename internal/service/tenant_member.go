@@ -1,13 +1,13 @@
 package service
 
 import (
-	"errors"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/model"
 	"github.com/maintainerd/auth/internal/repository"
 	"gorm.io/gorm"
+	"github.com/maintainerd/auth/internal/apperror"
 )
 
 type TenantMemberServiceDataResult struct {
@@ -71,13 +71,13 @@ func (s *tenantMemberService) CreateByUserUUID(tenantID int64, userUUID uuid.UUI
 	// First get the user to retrieve the user_id
 	user, err := s.userRepo.FindByUUID(userUUID)
 	if err != nil || user == nil {
-		return nil, errors.New("user not found")
+		return nil, apperror.NewNotFound("user not found")
 	}
 
 	// Check if user is already a member of this tenant
 	existing, _ := s.tenantMemberRepo.FindByTenantAndUser(tenantID, user.UserID)
 	if existing != nil {
-		return nil, errors.New("user is already a member of this tenant")
+		return nil, apperror.NewConflict("user is already a member of this tenant")
 	}
 
 	result, err := s.Create(tenantID, user.UserID, role)
@@ -94,7 +94,7 @@ func (s *tenantMemberService) CreateByUserUUID(tenantID int64, userUUID uuid.UUI
 func (s *tenantMemberService) GetByUUID(tenantMemberUUID uuid.UUID) (*TenantMemberServiceDataResult, error) {
 	tu, err := s.tenantMemberRepo.FindByTenantMemberUUID(tenantMemberUUID)
 	if err != nil || tu == nil {
-		return nil, errors.New("tenant member not found")
+		return nil, apperror.NewNotFoundWithReason("tenant member not found")
 	}
 	return toTenantMemberServiceDataResult(tu), nil
 }
@@ -102,7 +102,7 @@ func (s *tenantMemberService) GetByUUID(tenantMemberUUID uuid.UUID) (*TenantMemb
 func (s *tenantMemberService) GetByTenantAndUser(tenantID int64, userID int64) (*TenantMemberServiceDataResult, error) {
 	tu, err := s.tenantMemberRepo.FindByTenantAndUser(tenantID, userID)
 	if err != nil || tu == nil {
-		return nil, errors.New("tenant member not found")
+		return nil, apperror.NewNotFoundWithReason("tenant member not found")
 	}
 	return toTenantMemberServiceDataResult(tu), nil
 }
@@ -150,7 +150,7 @@ func (s *tenantMemberService) UpdateRole(tenantMemberUUID uuid.UUID, role string
 			return err
 		}
 		if tu == nil {
-			return errors.New("tenant member not found")
+			return apperror.NewNotFoundWithReason("tenant member not found")
 		}
 		tu.Role = role
 		updated, err = repo.CreateOrUpdate(tu)
@@ -179,7 +179,7 @@ func (s *tenantMemberService) DeleteByUUID(tenantMemberUUID uuid.UUID) error {
 			return err
 		}
 		if tu == nil {
-			return errors.New("tenant member not found")
+			return apperror.NewNotFoundWithReason("tenant member not found")
 		}
 		return repo.DeleteByUUID(tenantMemberUUID)
 	})
@@ -190,7 +190,7 @@ func (s *tenantMemberService) IsUserInTenant(userID int64, tenantUUID uuid.UUID)
 	// First get the tenant to retrieve tenant_id
 	tenant, err := s.tenantRepo.FindByUUID(tenantUUID)
 	if err != nil || tenant == nil {
-		return false, errors.New("tenant not found")
+		return false, apperror.NewNotFound("tenant not found")
 	}
 
 	// Check if user is in tenant_members

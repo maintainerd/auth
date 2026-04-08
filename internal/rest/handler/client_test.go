@@ -113,7 +113,7 @@ func TestClientHandler_GetByUUID_InvalidUUID(t *testing.T) {
 func TestClientHandler_GetByUUID_NotFound(t *testing.T) {
 	svc := &mockClientService{
 		getByUUIDFn: func(id uuid.UUID, tid int64) (*service.ClientServiceDataResult, error) {
-			return nil, assert.AnError
+			return nil, errNotFound
 		},
 	}
 	h := NewClientHandler(svc)
@@ -151,7 +151,7 @@ func TestClientHandler_GetSecretByUUID(t *testing.T) {
 	})
 	t.Run("service error returns 404", func(t *testing.T) {
 		svc := &mockClientService{getSecretByUUIDFn: func(id uuid.UUID, tid int64) (*service.ClientSecretServiceDataResult, error) {
-			return nil, errors.New("not found")
+			return nil, errNotFound
 		}}
 		r := withTenant(withChiParam(httptest.NewRequest(http.MethodGet, "/", nil), "client_uuid", testResourceUUID.String()))
 		w := httptest.NewRecorder()
@@ -185,7 +185,7 @@ func TestClientHandler_GetConfigByUUID(t *testing.T) {
 	})
 	t.Run("service error returns 404", func(t *testing.T) {
 		svc := &mockClientService{getConfigByUUIDFn: func(id uuid.UUID, tid int64) (datatypes.JSON, error) {
-			return nil, errors.New("not found")
+			return nil, errNotFound
 		}}
 		r := withTenant(withChiParam(httptest.NewRequest(http.MethodGet, "/", nil), "client_uuid", testResourceUUID.String()))
 		w := httptest.NewRecorder()
@@ -314,7 +314,7 @@ func TestClientHandler_SetStatus(t *testing.T) {
 	})
 	t.Run("get by uuid error returns 404", func(t *testing.T) {
 		svc := &mockClientService{getByUUIDFn: func(id uuid.UUID, tid int64) (*service.ClientServiceDataResult, error) {
-			return nil, errors.New("not found")
+			return nil, errNotFound
 		}}
 		r := withTenantAndUser(withChiParam(httptest.NewRequest(http.MethodPatch, "/", nil), "client_uuid", testResourceUUID.String()))
 		w := httptest.NewRecorder()
@@ -382,7 +382,7 @@ func TestClientHandler_GetURIs(t *testing.T) {
 	})
 	t.Run("service error returns 404", func(t *testing.T) {
 		svc := &mockClientService{getByUUIDFn: func(id uuid.UUID, tid int64) (*service.ClientServiceDataResult, error) {
-			return nil, errors.New("not found")
+			return nil, errNotFound
 		}}
 		r := withTenant(withChiParam(httptest.NewRequest(http.MethodGet, "/", nil), "client_uuid", testResourceUUID.String()))
 		w := httptest.NewRecorder()

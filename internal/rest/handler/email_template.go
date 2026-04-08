@@ -89,7 +89,7 @@ func (h *EmailTemplateHandler) GetAll(w http.ResponseWriter, r *http.Request) {
 	// Fetch templates from service - service filters by tenant_id
 	result, err := h.emailTemplateService.GetAll(tenant.TenantID, filter.Name, filter.Status, filter.IsDefault, filter.IsSystem, filter.Page, filter.Limit, filter.SortBy, filter.SortOrder)
 	if err != nil {
-		resp.Error(w, http.StatusInternalServerError, "Failed to get email templates", err.Error())
+		resp.HandleServiceError(w, "Failed to get email templates", err)
 		return
 	}
 
@@ -129,7 +129,7 @@ func (h *EmailTemplateHandler) Get(w http.ResponseWriter, r *http.Request) {
 	// Fetch template - service validates it belongs to tenant
 	template, err := h.emailTemplateService.GetByUUID(emailTemplateUUID, tenant.TenantID)
 	if err != nil {
-		resp.Error(w, http.StatusNotFound, "Email template not found")
+		resp.HandleServiceError(w, "Email template not found", err)
 		return
 	}
 
@@ -177,7 +177,7 @@ func (h *EmailTemplateHandler) Create(w http.ResponseWriter, r *http.Request) {
 		false, // is_default always false on create
 	)
 	if err != nil {
-		resp.Error(w, http.StatusBadRequest, "Failed to create email template", err.Error())
+		resp.HandleServiceError(w, "Failed to create email template", err)
 		return
 	}
 
@@ -235,7 +235,7 @@ func (h *EmailTemplateHandler) Update(w http.ResponseWriter, r *http.Request) {
 		status,
 	)
 	if err != nil {
-		resp.Error(w, http.StatusBadRequest, "Failed to update email template", err.Error())
+		resp.HandleServiceError(w, "Failed to update email template", err)
 		return
 	}
 
@@ -266,7 +266,7 @@ func (h *EmailTemplateHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	// Delete template - service validates it belongs to tenant
 	template, err := h.emailTemplateService.Delete(emailTemplateUUID, tenant.TenantID)
 	if err != nil {
-		resp.Error(w, http.StatusBadRequest, "Failed to delete email template", err.Error())
+		resp.HandleServiceError(w, "Failed to delete email template", err)
 		return
 	}
 
@@ -310,7 +310,7 @@ func (h *EmailTemplateHandler) UpdateStatus(w http.ResponseWriter, r *http.Reque
 	// Update status - service validates template belongs to tenant
 	template, err := h.emailTemplateService.UpdateStatus(emailTemplateUUID, tenant.TenantID, req.Status)
 	if err != nil {
-		resp.Error(w, http.StatusBadRequest, "Failed to update email template status", err.Error())
+		resp.HandleServiceError(w, "Failed to update email template status", err)
 		return
 	}
 
