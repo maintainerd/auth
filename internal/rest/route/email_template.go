@@ -4,19 +4,19 @@ import (
 	"github.com/maintainerd/auth/internal/rest/handler"
 	"github.com/go-chi/chi/v5"
 	"github.com/maintainerd/auth/internal/middleware"
-	"github.com/maintainerd/auth/internal/repository"
+	"github.com/maintainerd/auth/internal/service"
 	"github.com/redis/go-redis/v9"
 )
 
 func EmailTemplateRoute(
 	r chi.Router,
 	emailTemplateHandler *handler.EmailTemplateHandler,
-	userRepo repository.UserRepository,
+	userService service.UserService,
 	redisClient *redis.Client,
 ) {
 	r.Route("/email_templates", func(r chi.Router) {
 		r.Use(middleware.JWTAuthMiddleware)
-		r.Use(middleware.UserContextMiddleware(userRepo, redisClient))
+		r.Use(middleware.UserContextMiddleware(userService, redisClient))
 
 		// List email templates
 		r.With(middleware.PermissionMiddleware([]string{"email-template:read"})).

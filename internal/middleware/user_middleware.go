@@ -7,10 +7,17 @@ import (
 	"time"
 
 	"github.com/maintainerd/auth/internal/model"
-	"github.com/maintainerd/auth/internal/repository"
-		resp "github.com/maintainerd/auth/internal/rest/response"
+	resp "github.com/maintainerd/auth/internal/rest/response"
 	"github.com/redis/go-redis/v9"
 )
+
+// UserContextProvider is the minimal interface required by UserContextMiddleware
+// to resolve a user from a JWT sub claim and client ID. This is intentionally
+// narrow so the middleware does not depend on a raw repository or the full
+// UserService interface.
+type UserContextProvider interface {
+	FindBySubAndClientID(sub string, clientID string) (*model.User, error)
+}
 
 // Context keys for accessing user-related information
 type userContextKey string
@@ -23,7 +30,7 @@ const (
 )
 
 func UserContextMiddleware(
-	userRepo repository.UserRepository,
+	userProvider UserContextProvider,
 	redisClient *redis.Client,
 ) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
@@ -63,9 +70,9 @@ func UserContextMiddleware(
 			}
 
 			// Get auth information from database
-			user, err := userRepo.FindBySubAndClientID(sub, clientID)
+			user, err := userProvider.FindBySubAndClientID(sub, clientID)
 			if err != nil {
-				resp.Error(w, http.StatusInternalServerError, "Failed to load user from database", err.Error())
+				resp.Error(w, http.StatusInternalServerError, "Failed to load user from database")
 				return
 			}
 			if user == nil {

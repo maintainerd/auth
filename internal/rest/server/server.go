@@ -14,9 +14,9 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/maintainerd/auth/internal/app"
 	securityMiddleware "github.com/maintainerd/auth/internal/middleware"
-	"github.com/maintainerd/auth/internal/repository"
 	"github.com/maintainerd/auth/internal/rest/handler"
 	"github.com/maintainerd/auth/internal/rest/route"
+	"github.com/maintainerd/auth/internal/service"
 	"github.com/redis/go-redis/v9"
 )
 
@@ -82,7 +82,7 @@ func StartRESTServer(application *app.App) {
 
 	internalSrv := &http.Server{
 		Addr:         ":8080",
-		Handler:      buildInternalRouter(h, application.UserRepository, application.RedisClient),
+		Handler:      buildInternalRouter(h, application.UserService, application.RedisClient),
 		ReadTimeout:  15 * time.Second,
 		WriteTimeout: 60 * time.Second,
 		IdleTimeout:  120 * time.Second,
@@ -90,7 +90,7 @@ func StartRESTServer(application *app.App) {
 
 	publicSrv := &http.Server{
 		Addr:         ":8081",
-		Handler:      buildPublicRouter(h, application.UserRepository, application.RedisClient),
+		Handler:      buildPublicRouter(h, application.UserService, application.RedisClient),
 		ReadTimeout:  15 * time.Second,
 		WriteTimeout: 60 * time.Second,
 		IdleTimeout:  120 * time.Second,
@@ -147,7 +147,7 @@ func StartRESTServer(application *app.App) {
 }
 
 // buildInternalRouter constructs the chi router for the internal API (port 8080, VPN access only).
-func buildInternalRouter(h *handlers, userRepo repository.UserRepository, redisClient *redis.Client) http.Handler {
+func buildInternalRouter(h *handlers, userService service.UserService, redisClient *redis.Client) http.Handler {
 	r := chi.NewRouter()
 
 	// Built-in Chi middlewares
@@ -175,34 +175,34 @@ func buildInternalRouter(h *handlers, userRepo repository.UserRepository, redisC
 		route.LoginRoute(api, h.login)
 		route.ForgotPasswordRoute(api, h.forgotPassword)
 		route.ResetPasswordRoute(api, h.resetPassword)
-		route.ProfileRoute(api, h.profile, userRepo, redisClient)
-		route.UserSettingRoute(api, h.userSetting, userRepo, redisClient)
+		route.ProfileRoute(api, h.profile, userService, redisClient)
+		route.UserSettingRoute(api, h.userSetting, userService, redisClient)
 
 		// Management Routes (internal access only)
-		route.TenantRoute(api, h.tenant, userRepo, redisClient)
-		route.ServiceRoute(api, h.service, userRepo, redisClient)
-		route.APIRoute(api, h.api, userRepo, redisClient)
-		route.PermissionRoute(api, h.permission, userRepo, redisClient)
-		route.PolicyRoute(api, h.policy, userRepo, redisClient)
-		route.IdentityProviderRoute(api, h.identityProvider, userRepo, redisClient)
-		route.ClientRoute(api, h.client, userRepo, redisClient)
-		route.RoleRoute(api, h.role, userRepo, redisClient)
-		route.UserRoute(api, h.user, h.profile, userRepo, redisClient)
-		route.InviteRoute(api, h.invite, userRepo, redisClient)
-		route.APIKeyRoute(api, h.apiKey, userRepo, redisClient)
-		route.SignupFlowRoute(api, h.signupFlow, userRepo, redisClient)
-		route.SecuritySettingRoute(api, h.securitySetting, userRepo, redisClient)
-		route.IPRestrictionRuleRoute(api, h.ipRestrictionRule, userRepo, redisClient)
-		route.EmailTemplateRoute(api, h.emailTemplate, userRepo, redisClient)
-		route.SMSTemplateRoute(api, h.smsTemplate, userRepo, redisClient)
-		route.LoginTemplateRoute(api, h.loginTemplate, userRepo, redisClient)
+		route.TenantRoute(api, h.tenant, userService, redisClient)
+		route.ServiceRoute(api, h.service, userService, redisClient)
+		route.APIRoute(api, h.api, userService, redisClient)
+		route.PermissionRoute(api, h.permission, userService, redisClient)
+		route.PolicyRoute(api, h.policy, userService, redisClient)
+		route.IdentityProviderRoute(api, h.identityProvider, userService, redisClient)
+		route.ClientRoute(api, h.client, userService, redisClient)
+		route.RoleRoute(api, h.role, userService, redisClient)
+		route.UserRoute(api, h.user, h.profile, userService, redisClient)
+		route.InviteRoute(api, h.invite, userService, redisClient)
+		route.APIKeyRoute(api, h.apiKey, userService, redisClient)
+		route.SignupFlowRoute(api, h.signupFlow, userService, redisClient)
+		route.SecuritySettingRoute(api, h.securitySetting, userService, redisClient)
+		route.IPRestrictionRuleRoute(api, h.ipRestrictionRule, userService, redisClient)
+		route.EmailTemplateRoute(api, h.emailTemplate, userService, redisClient)
+		route.SMSTemplateRoute(api, h.smsTemplate, userService, redisClient)
+		route.LoginTemplateRoute(api, h.loginTemplate, userService, redisClient)
 	})
 
 	return r
 }
 
 // buildPublicRouter constructs the chi router for the public API (port 8081, public internet).
-func buildPublicRouter(h *handlers, userRepo repository.UserRepository, redisClient *redis.Client) http.Handler {
+func buildPublicRouter(h *handlers, userService service.UserService, redisClient *redis.Client) http.Handler {
 	r := chi.NewRouter()
 
 	// Built-in Chi middlewares
@@ -223,15 +223,15 @@ func buildPublicRouter(h *handlers, userRepo repository.UserRepository, redisCli
 
 	r.Route("/api/v1", func(api chi.Router) {
 		// Public Tenant Routes (no authentication required - for login page)
-		route.TenantRoute(api, h.tenant, userRepo, redisClient)
+		route.TenantRoute(api, h.tenant, userService, redisClient)
 
 		// Public Authentication Routes (requires client_id/provider_id)
 		route.RegisterPublicRoute(api, h.register)
 		route.LoginPublicRoute(api, h.login)
 		route.ForgotPasswordPublicRoute(api, h.forgotPassword)
 		route.ResetPasswordPublicRoute(api, h.resetPassword)
-		route.ProfileRoute(api, h.profile, userRepo, redisClient)
-		route.UserSettingRoute(api, h.userSetting, userRepo, redisClient)
+		route.ProfileRoute(api, h.profile, userService, redisClient)
+		route.UserSettingRoute(api, h.userSetting, userService, redisClient)
 	})
 
 	return r

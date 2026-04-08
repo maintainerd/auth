@@ -4,12 +4,12 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/maintainerd/auth/internal/apperror"
 	"github.com/maintainerd/auth/internal/model"
 	"github.com/maintainerd/auth/internal/repository"
 	"github.com/maintainerd/auth/internal/security"
 	"gorm.io/datatypes"
 	"gorm.io/gorm"
-	"github.com/maintainerd/auth/internal/apperror"
 )
 
 type UserServiceDataResult struct {
@@ -76,6 +76,9 @@ type UserService interface {
 	RemoveUserRole(userUUID uuid.UUID, roleUUID uuid.UUID, tenantID int64) (*UserServiceDataResult, error)
 	GetUserRoles(userUUID uuid.UUID) ([]RoleServiceDataResult, error)
 	GetUserIdentities(userUUID uuid.UUID) ([]UserIdentityServiceDataResult, error)
+	// FindBySubAndClientID resolves a user from a JWT sub claim and client ID.
+	// Used by UserContextMiddleware to populate the request context.
+	FindBySubAndClientID(sub string, clientID string) (*model.User, error)
 }
 
 type userService struct {
@@ -905,4 +908,11 @@ func (s *userService) GetUserIdentities(userUUID uuid.UUID) ([]UserIdentityServi
 	}
 
 	return result, nil
+}
+
+// FindBySubAndClientID resolves a *model.User from a JWT sub claim and client
+// identifier. This satisfies the middleware.UserContextProvider interface so
+// the middleware can be wired without a direct repository dependency.
+func (s *userService) FindBySubAndClientID(sub string, clientID string) (*model.User, error) {
+	return s.userRepo.FindBySubAndClientID(sub, clientID)
 }
