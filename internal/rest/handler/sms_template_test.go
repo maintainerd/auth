@@ -71,7 +71,7 @@ func TestSMSTemplateHandler_Get(t *testing.T) {
 
 	t.Run("not found returns 404", func(t *testing.T) {
 		svc := &mockSMSTemplateService{getByUUIDFn: func(_ uuid.UUID, _ int64) (*service.SMSTemplateServiceDataResult, error) {
-			return nil, errors.New("not found")
+			return nil, errNotFound
 		}}
 		r := withChiParam(withTenant(jsonReq(t, http.MethodGet, "/", nil)), "sms_template_uuid", testResourceUUID.String())
 		w := httptest.NewRecorder()
@@ -117,7 +117,7 @@ func TestSMSTemplateHandler_Create(t *testing.T) {
 
 	t.Run("service error returns 400", func(t *testing.T) {
 		svc := &mockSMSTemplateService{createFn: func(_ int64, _ string, _ *string, _ string, _ *string, _ string) (*service.SMSTemplateServiceDataResult, error) {
-			return nil, errors.New("fail")
+			return nil, errValidation
 		}}
 		r := jsonReq(t, http.MethodPost, "/sms-templates", validBody)
 		r = withTenant(r)
@@ -185,7 +185,7 @@ func TestSMSTemplateHandler_Update(t *testing.T) {
 
 	t.Run("service error returns 400", func(t *testing.T) {
 		svc := &mockSMSTemplateService{updateFn: func(_ uuid.UUID, _ int64, _ string, _ *string, _ string, _ *string, _ string) (*service.SMSTemplateServiceDataResult, error) {
-			return nil, errors.New("update error")
+			return nil, errValidation
 		}}
 		r := withChiParam(withTenant(jsonReq(t, http.MethodPut, "/", validBody)), "sms_template_uuid", testResourceUUID.String())
 		w := httptest.NewRecorder()
@@ -234,7 +234,7 @@ func TestSMSTemplateHandler_Delete(t *testing.T) {
 
 	t.Run("service error returns 400", func(t *testing.T) {
 		svc := &mockSMSTemplateService{deleteFn: func(_ uuid.UUID, _ int64) (*service.SMSTemplateServiceDataResult, error) {
-			return nil, errors.New("delete error")
+			return nil, errValidation
 		}}
 		r := withChiParam(withTenant(jsonReq(t, http.MethodDelete, "/", nil)), "sms_template_uuid", testResourceUUID.String())
 		w := httptest.NewRecorder()
@@ -283,7 +283,7 @@ func TestSMSTemplateHandler_UpdateStatus(t *testing.T) {
 
 	t.Run("service error returns 400", func(t *testing.T) {
 		svc := &mockSMSTemplateService{updateStatusFn: func(_ uuid.UUID, _ int64, _ string) (*service.SMSTemplateServiceDataResult, error) {
-			return nil, errors.New("status error")
+			return nil, errValidation
 		}}
 		r := withChiParam(withTenant(jsonReq(t, http.MethodPatch, "/", map[string]any{"status": "active"})), "sms_template_uuid", testResourceUUID.String())
 		w := httptest.NewRecorder()

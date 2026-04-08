@@ -95,7 +95,7 @@ func (h *SMSTemplateHandler) GetAll(w http.ResponseWriter, r *http.Request) {
 	// Fetch SMS templates from service layer
 	result, err := h.smsTemplateService.GetAll(tenant.TenantID, filter.Name, filter.Status, filter.IsDefault, filter.IsSystem, filter.Page, filter.Limit, filter.SortBy, filter.SortOrder)
 	if err != nil {
-		resp.Error(w, http.StatusInternalServerError, "Failed to get SMS templates", err.Error())
+		resp.HandleServiceError(w, "Failed to get SMS templates", err)
 		return
 	}
 
@@ -136,7 +136,7 @@ func (h *SMSTemplateHandler) Get(w http.ResponseWriter, r *http.Request) {
 	// Fetch SMS template (service validates tenant ownership)
 	template, err := h.smsTemplateService.GetByUUID(smsTemplateUUID, tenant.TenantID)
 	if err != nil {
-		resp.Error(w, http.StatusNotFound, "SMS template not found")
+		resp.HandleServiceError(w, "SMS template not found", err)
 		return
 	}
 
@@ -185,7 +185,7 @@ func (h *SMSTemplateHandler) Create(w http.ResponseWriter, r *http.Request) {
 		status,
 	)
 	if err != nil {
-		resp.Error(w, http.StatusBadRequest, "Failed to create SMS template", err.Error())
+		resp.HandleServiceError(w, "Failed to create SMS template", err)
 		return
 	}
 
@@ -243,7 +243,7 @@ func (h *SMSTemplateHandler) Update(w http.ResponseWriter, r *http.Request) {
 		status,
 	)
 	if err != nil {
-		resp.Error(w, http.StatusBadRequest, "Failed to update SMS template", err.Error())
+		resp.HandleServiceError(w, "Failed to update SMS template", err)
 		return
 	}
 
@@ -275,7 +275,7 @@ func (h *SMSTemplateHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	// Delete SMS template (service validates tenant ownership)
 	template, err := h.smsTemplateService.Delete(smsTemplateUUID, tenant.TenantID)
 	if err != nil {
-		resp.Error(w, http.StatusBadRequest, "Failed to delete SMS template", err.Error())
+		resp.HandleServiceError(w, "Failed to delete SMS template", err)
 		return
 	}
 
@@ -319,7 +319,7 @@ func (h *SMSTemplateHandler) UpdateStatus(w http.ResponseWriter, r *http.Request
 	// Update status (service validates tenant ownership)
 	template, err := h.smsTemplateService.UpdateStatus(smsTemplateUUID, tenant.TenantID, req.Status)
 	if err != nil {
-		resp.Error(w, http.StatusBadRequest, "Failed to update SMS template status", err.Error())
+		resp.HandleServiceError(w, "Failed to update SMS template status", err)
 		return
 	}
 

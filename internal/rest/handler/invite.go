@@ -69,7 +69,7 @@ func (h *InviteHandler) Send(w http.ResponseWriter, r *http.Request) {
 	// Send invite associated with tenant
 	_, err := h.service.SendInvite(tenant.TenantID, req.Email, user.UserID, roleUUIDs)
 	if err != nil {
-		resp.Error(w, http.StatusInternalServerError, "Failed to send invite", err.Error())
+		resp.HandleServiceError(w, "Failed to send invite", err)
 		return
 	}
 

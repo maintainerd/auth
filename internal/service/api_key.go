@@ -4,10 +4,10 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
-	"errors"
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/maintainerd/auth/internal/apperror"
 	"github.com/maintainerd/auth/internal/model"
 	"github.com/maintainerd/auth/internal/repository"
 	"gorm.io/datatypes"
@@ -141,7 +141,7 @@ func (s *apiKeyService) Get(filter APIKeyServiceGetFilter, requestingUserUUID uu
 		return nil, err
 	}
 	if requestingUser == nil {
-		return nil, errors.New("requesting user not found")
+		return nil, apperror.NewNotFoundWithReason("requesting user not found")
 	}
 
 	// Build repository filter
@@ -208,7 +208,7 @@ func (s *apiKeyService) GetByUUID(apiKeyUUID uuid.UUID, tenantID int64, requesti
 			return err
 		}
 		if apiKey == nil {
-			return errors.New("API key not found or access denied")
+			return apperror.NewNotFoundWithReason("API key not found or access denied")
 		}
 
 		// Convert to service result
@@ -238,7 +238,7 @@ func (s *apiKeyService) GetByUUID(apiKeyUUID uuid.UUID, tenantID int64, requesti
 func (s *apiKeyService) GetConfigByUUID(apiKeyUUID uuid.UUID, tenantID int64) (datatypes.JSON, error) {
 	apiKey, err := s.apiKeyRepo.FindByUUIDAndTenantID(apiKeyUUID.String(), tenantID)
 	if err != nil || apiKey == nil {
-		return nil, errors.New("API key not found or access denied")
+		return nil, apperror.NewNotFoundWithReason("API key not found or access denied")
 	}
 
 	return apiKey.Config, nil
@@ -312,7 +312,7 @@ func (s *apiKeyService) Update(apiKeyUUID uuid.UUID, tenantID int64, name, descr
 			return err
 		}
 		if existing == nil {
-			return errors.New("API key not found or access denied")
+			return apperror.NewNotFoundWithReason("API key not found or access denied")
 		}
 
 		// Prepare update data
@@ -377,7 +377,7 @@ func (s *apiKeyService) Delete(apiKeyUUID uuid.UUID, tenantID int64, deleterUser
 			return err
 		}
 		if apiKey == nil {
-			return errors.New("API key not found or access denied")
+			return apperror.NewNotFoundWithReason("API key not found or access denied")
 		}
 
 		// Map to result before deletion
@@ -421,7 +421,7 @@ func (s *apiKeyService) SetStatusByUUID(apiKeyUUID uuid.UUID, tenantID int64, st
 			return err
 		}
 		if existing == nil {
-			return errors.New("API key not found or access denied")
+			return apperror.NewNotFoundWithReason("API key not found or access denied")
 		}
 
 		// Update status using base repository method
@@ -535,7 +535,7 @@ func (s *apiKeyService) AddAPIKeyAPIs(apiKeyUUID uuid.UUID, apiUUIDs []uuid.UUID
 			return err
 		}
 		if apiKey == nil {
-			return errors.New("API key not found")
+			return apperror.NewNotFoundWithReason("API key not found")
 		}
 
 		// Process each API UUID
@@ -546,7 +546,7 @@ func (s *apiKeyService) AddAPIKeyAPIs(apiKeyUUID uuid.UUID, apiUUIDs []uuid.UUID
 				return err
 			}
 			if api == nil {
-				return errors.New("API not found: " + apiUUID.String())
+				return apperror.NewNotFoundWithReason("API not found: " + apiUUID.String())
 			}
 
 			// Check if relationship already exists
@@ -585,7 +585,7 @@ func (s *apiKeyService) RemoveAPIKeyAPI(apiKeyUUID uuid.UUID, apiUUID uuid.UUID)
 			return err
 		}
 		if apiKeyAPI == nil {
-			return errors.New("API key API relationship not found")
+			return apperror.NewNotFoundWithReason("API key API relationship not found")
 		}
 
 		// Remove the API key API relationship (CASCADE will handle permissions)
@@ -601,7 +601,7 @@ func (s *apiKeyService) GetAPIKeyAPIPermissions(apiKeyUUID uuid.UUID, apiUUID uu
 		return nil, err
 	}
 	if apiKeyAPI == nil {
-		return nil, errors.New("API key API relationship not found")
+		return nil, apperror.NewNotFoundWithReason("API key API relationship not found")
 	}
 
 	// Get permissions for this API key API
@@ -642,7 +642,7 @@ func (s *apiKeyService) AddAPIKeyAPIPermissions(apiKeyUUID uuid.UUID, apiUUID uu
 			return err
 		}
 		if apiKeyAPI == nil {
-			return errors.New("API key API relationship not found")
+			return apperror.NewNotFoundWithReason("API key API relationship not found")
 		}
 
 		// Get the API to validate permissions belong to it
@@ -651,7 +651,7 @@ func (s *apiKeyService) AddAPIKeyAPIPermissions(apiKeyUUID uuid.UUID, apiUUID uu
 			return err
 		}
 		if api == nil {
-			return errors.New("API not found")
+			return apperror.NewNotFoundWithReason("API not found")
 		}
 
 		// Process each permission UUID
@@ -662,12 +662,12 @@ func (s *apiKeyService) AddAPIKeyAPIPermissions(apiKeyUUID uuid.UUID, apiUUID uu
 				return err
 			}
 			if permission == nil {
-				return errors.New("permission not found: " + permissionUUID.String())
+				return apperror.NewNotFoundWithReason("permission not found: " + permissionUUID.String())
 			}
 
 			// Validate that the permission belongs to the specified API
 			if permission.APIID != api.APIID {
-				return errors.New("permission does not belong to the specified API: " + permissionUUID.String())
+				return apperror.NewValidation("permission does not belong to the specified API: " + permissionUUID.String())
 			}
 
 			// Check if relationship already exists
@@ -709,7 +709,7 @@ func (s *apiKeyService) RemoveAPIKeyAPIPermission(apiKeyUUID uuid.UUID, apiUUID 
 			return err
 		}
 		if apiKeyAPI == nil {
-			return errors.New("API key API relationship not found")
+			return apperror.NewNotFoundWithReason("API key API relationship not found")
 		}
 
 		// Get the API to validate permission belongs to it
@@ -718,7 +718,7 @@ func (s *apiKeyService) RemoveAPIKeyAPIPermission(apiKeyUUID uuid.UUID, apiUUID 
 			return err
 		}
 		if api == nil {
-			return errors.New("API not found")
+			return apperror.NewNotFoundWithReason("API not found")
 		}
 
 		// Get permission
@@ -727,12 +727,12 @@ func (s *apiKeyService) RemoveAPIKeyAPIPermission(apiKeyUUID uuid.UUID, apiUUID 
 			return err
 		}
 		if permission == nil {
-			return errors.New("permission not found")
+			return apperror.NewNotFound("permission not found")
 		}
 
 		// Validate that the permission belongs to the specified API
 		if permission.APIID != api.APIID {
-			return errors.New("permission does not belong to the specified API")
+			return apperror.NewValidation("permission does not belong to the specified API")
 		}
 
 		// Remove the permission
@@ -741,5 +741,5 @@ func (s *apiKeyService) RemoveAPIKeyAPIPermission(apiKeyUUID uuid.UUID, apiUUID 
 }
 
 func (s *apiKeyService) ValidateAPIKey(keyHash string) (*APIKeyServiceDataResult, error) {
-	return nil, errors.New("not implemented")
+	return nil, apperror.NewValidation("not implemented")
 }

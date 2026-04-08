@@ -79,7 +79,7 @@ func TestPolicyHandler_GetByUUID_InvalidUUID(t *testing.T) {
 func TestPolicyHandler_GetByUUID_NotFound(t *testing.T) {
 	svc := &mockPolicyService{
 		getByUUIDFn: func(id uuid.UUID, tid int64) (*service.PolicyServiceDataResult, error) {
-			return nil, assert.AnError
+			return nil, errNotFound
 		},
 	}
 	h := NewPolicyHandler(svc)

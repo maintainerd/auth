@@ -130,7 +130,7 @@ func TestSecuritySettingHandler_UpdateGeneralConfig_ValidationError(t *testing.T
 func TestSecuritySettingHandler_UpdateGeneralConfig_ServiceError(t *testing.T) {
 	svc := &mockSecuritySettingService{
 		updateGeneralConfigFn: func(tid int64, cfg map[string]any, by int64, ip, ua string) (*service.SecuritySettingServiceDataResult, error) {
-			return nil, assert.AnError
+			return nil, errValidation
 		},
 	}
 	h := NewSecuritySettingHandler(svc)
@@ -286,7 +286,7 @@ func TestSecuritySettingHandler_UpdatePasswordConfig_ValidationError(t *testing.
 func TestSecuritySettingHandler_UpdatePasswordConfig_ServiceError(t *testing.T) {
 	svc := &mockSecuritySettingService{
 		updatePasswordConfigFn: func(tid int64, cfg map[string]any, by int64, ip, ua string) (*service.SecuritySettingServiceDataResult, error) {
-			return nil, assert.AnError
+			return nil, errValidation
 		},
 	}
 	h := NewSecuritySettingHandler(svc)
@@ -354,7 +354,7 @@ func TestSecuritySettingHandler_UpdateSessionConfig_ValidationError(t *testing.T
 func TestSecuritySettingHandler_UpdateSessionConfig_ServiceError(t *testing.T) {
 	svc := &mockSecuritySettingService{
 		updateSessionConfigFn: func(tid int64, cfg map[string]any, by int64, ip, ua string) (*service.SecuritySettingServiceDataResult, error) {
-			return nil, assert.AnError
+			return nil, errValidation
 		},
 	}
 	h := NewSecuritySettingHandler(svc)
@@ -422,7 +422,7 @@ func TestSecuritySettingHandler_UpdateThreatConfig_ValidationError(t *testing.T)
 func TestSecuritySettingHandler_UpdateThreatConfig_ServiceError(t *testing.T) {
 	svc := &mockSecuritySettingService{
 		updateThreatConfigFn: func(tid int64, cfg map[string]any, by int64, ip, ua string) (*service.SecuritySettingServiceDataResult, error) {
-			return nil, assert.AnError
+			return nil, errValidation
 		},
 	}
 	h := NewSecuritySettingHandler(svc)
@@ -490,7 +490,7 @@ func TestSecuritySettingHandler_UpdateIPConfig_ValidationError(t *testing.T) {
 func TestSecuritySettingHandler_UpdateIPConfig_ServiceError(t *testing.T) {
 	svc := &mockSecuritySettingService{
 		updateIPConfigFn: func(tid int64, cfg map[string]any, by int64, ip, ua string) (*service.SecuritySettingServiceDataResult, error) {
-			return nil, assert.AnError
+			return nil, errValidation
 		},
 	}
 	h := NewSecuritySettingHandler(svc)
