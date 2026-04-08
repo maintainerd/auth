@@ -156,43 +156,43 @@ type mockAPIService struct {
 	deleteByUUIDFn       func(uuid.UUID, int64) (*service.APIServiceDataResult, error)
 }
 
-func (m *mockAPIService) Get(f service.APIServiceGetFilter) (*service.APIServiceGetResult, error) {
+func (m *mockAPIService) Get(_ context.Context, f service.APIServiceGetFilter) (*service.APIServiceGetResult, error) {
 	if m.getFn != nil {
 		return m.getFn(f)
 	}
 	return &service.APIServiceGetResult{}, nil
 }
-func (m *mockAPIService) GetByUUID(id uuid.UUID, tid int64) (*service.APIServiceDataResult, error) {
+func (m *mockAPIService) GetByUUID(_ context.Context, id uuid.UUID, tid int64) (*service.APIServiceDataResult, error) {
 	if m.getByUUIDFn != nil {
 		return m.getByUUIDFn(id, tid)
 	}
 	return nil, nil
 }
-func (m *mockAPIService) GetServiceIDByUUID(id uuid.UUID) (int64, error) {
+func (m *mockAPIService) GetServiceIDByUUID(_ context.Context, id uuid.UUID) (int64, error) {
 	if m.getServiceIDByUUIDFn != nil {
 		return m.getServiceIDByUUIDFn(id)
 	}
 	return 0, nil
 }
-func (m *mockAPIService) Create(tid int64, n, dn, desc, t, s string, isSys bool, svcUUID string) (*service.APIServiceDataResult, error) {
+func (m *mockAPIService) Create(_ context.Context, tid int64, n, dn, desc, t, s string, isSys bool, svcUUID string) (*service.APIServiceDataResult, error) {
 	if m.createFn != nil {
 		return m.createFn(tid, n, dn, desc, t, s, isSys, svcUUID)
 	}
 	return nil, nil
 }
-func (m *mockAPIService) Update(id uuid.UUID, tid int64, n, dn, desc, t, s, svcUUID string) (*service.APIServiceDataResult, error) {
+func (m *mockAPIService) Update(_ context.Context, id uuid.UUID, tid int64, n, dn, desc, t, s, svcUUID string) (*service.APIServiceDataResult, error) {
 	if m.updateFn != nil {
 		return m.updateFn(id, tid, n, dn, desc, t, s, svcUUID)
 	}
 	return nil, nil
 }
-func (m *mockAPIService) SetStatusByUUID(id uuid.UUID, tid int64, s string) (*service.APIServiceDataResult, error) {
+func (m *mockAPIService) SetStatusByUUID(_ context.Context, id uuid.UUID, tid int64, s string) (*service.APIServiceDataResult, error) {
 	if m.setStatusByUUIDFn != nil {
 		return m.setStatusByUUIDFn(id, tid, s)
 	}
 	return nil, nil
 }
-func (m *mockAPIService) DeleteByUUID(id uuid.UUID, tid int64) (*service.APIServiceDataResult, error) {
+func (m *mockAPIService) DeleteByUUID(_ context.Context, id uuid.UUID, tid int64) (*service.APIServiceDataResult, error) {
 	if m.deleteByUUIDFn != nil {
 		return m.deleteByUUIDFn(id, tid)
 	}
