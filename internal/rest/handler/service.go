@@ -180,7 +180,7 @@ func (h *ServiceHandler) Create(w http.ResponseWriter, r *http.Request) {
 	// Decode and validate request body
 	var req dto.ServiceCreateOrUpdateRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		resp.Error(w, http.StatusBadRequest, "Invalid request", err.Error())
+		resp.Error(w, http.StatusBadRequest, "Invalid request")
 		return
 	}
 
@@ -234,7 +234,7 @@ func (h *ServiceHandler) Update(w http.ResponseWriter, r *http.Request) {
 	// Decode and validate request body
 	var req dto.ServiceCreateOrUpdateRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		resp.Error(w, http.StatusBadRequest, "Invalid request", err.Error())
+		resp.Error(w, http.StatusBadRequest, "Invalid request")
 		return
 	}
 
@@ -288,7 +288,7 @@ func (h *ServiceHandler) SetStatus(w http.ResponseWriter, r *http.Request) {
 	// Decode and validate request body
 	var req dto.ServiceStatusUpdateRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		resp.Error(w, http.StatusBadRequest, "Invalid request", err.Error())
+		resp.Error(w, http.StatusBadRequest, "Invalid request")
 		return
 	}
 

@@ -212,7 +212,7 @@ func (h *LoginHandler) Login(w http.ResponseWriter, r *http.Request) {
 	// Validate body payload
 	var req dto.LoginRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		resp.Error(w, http.StatusBadRequest, "Invalid request", err.Error())
+		resp.Error(w, http.StatusBadRequest, "Invalid request")
 		return
 	}
 

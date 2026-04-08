@@ -159,7 +159,7 @@ func (h *LoginTemplateHandler) Create(w http.ResponseWriter, r *http.Request) {
 	// Decode request body
 	var req dto.LoginTemplateCreateRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		resp.Error(w, http.StatusBadRequest, "Invalid request", err.Error())
+		resp.Error(w, http.StatusBadRequest, "Invalid request")
 		return
 	}
 
@@ -222,7 +222,7 @@ func (h *LoginTemplateHandler) Update(w http.ResponseWriter, r *http.Request) {
 	// Decode request body
 	var req dto.LoginTemplateUpdateRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		resp.Error(w, http.StatusBadRequest, "Invalid request", err.Error())
+		resp.Error(w, http.StatusBadRequest, "Invalid request")
 		return
 	}
 
@@ -317,7 +317,7 @@ func (h *LoginTemplateHandler) UpdateStatus(w http.ResponseWriter, r *http.Reque
 	// Decode request body
 	var req dto.LoginTemplateUpdateStatusRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		resp.Error(w, http.StatusBadRequest, "Invalid request", err.Error())
+		resp.Error(w, http.StatusBadRequest, "Invalid request")
 		return
 	}
 

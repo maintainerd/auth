@@ -150,7 +150,7 @@ func (h *EmailTemplateHandler) Create(w http.ResponseWriter, r *http.Request) {
 	// Decode request body
 	var req dto.EmailTemplateCreateRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		resp.Error(w, http.StatusBadRequest, "Invalid request", err.Error())
+		resp.Error(w, http.StatusBadRequest, "Invalid request")
 		return
 	}
 
@@ -208,7 +208,7 @@ func (h *EmailTemplateHandler) Update(w http.ResponseWriter, r *http.Request) {
 	// Decode request body
 	var req dto.EmailTemplateUpdateRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		resp.Error(w, http.StatusBadRequest, "Invalid request", err.Error())
+		resp.Error(w, http.StatusBadRequest, "Invalid request")
 		return
 	}
 
@@ -297,7 +297,7 @@ func (h *EmailTemplateHandler) UpdateStatus(w http.ResponseWriter, r *http.Reque
 	// Decode request body
 	var req dto.EmailTemplateUpdateStatusRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		resp.Error(w, http.StatusBadRequest, "Invalid request body", err.Error())
+		resp.Error(w, http.StatusBadRequest, "Invalid request body")
 		return
 	}
 

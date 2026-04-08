@@ -185,7 +185,7 @@ func (h *SecuritySettingHandler) UpdateGeneralConfig(w http.ResponseWriter, r *h
 	// Decode and validate request body
 	var req dto.SecuritySettingUpdateConfigRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		resp.Error(w, http.StatusBadRequest, "Invalid request", err.Error())
+		resp.Error(w, http.StatusBadRequest, "Invalid request")
 		return
 	}
 
@@ -247,7 +247,7 @@ func (h *SecuritySettingHandler) UpdatePasswordConfig(w http.ResponseWriter, r *
 	// Decode and validate request body
 	var req dto.SecuritySettingUpdateConfigRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		resp.Error(w, http.StatusBadRequest, "Invalid request", err.Error())
+		resp.Error(w, http.StatusBadRequest, "Invalid request")
 		return
 	}
 
@@ -309,7 +309,7 @@ func (h *SecuritySettingHandler) UpdateSessionConfig(w http.ResponseWriter, r *h
 	// Decode and validate request body
 	var req dto.SecuritySettingUpdateConfigRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		resp.Error(w, http.StatusBadRequest, "Invalid request", err.Error())
+		resp.Error(w, http.StatusBadRequest, "Invalid request")
 		return
 	}
 
@@ -371,7 +371,7 @@ func (h *SecuritySettingHandler) UpdateThreatConfig(w http.ResponseWriter, r *ht
 	// Decode and validate request body
 	var req dto.SecuritySettingUpdateConfigRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		resp.Error(w, http.StatusBadRequest, "Invalid request", err.Error())
+		resp.Error(w, http.StatusBadRequest, "Invalid request")
 		return
 	}
 
@@ -433,7 +433,7 @@ func (h *SecuritySettingHandler) UpdateIPConfig(w http.ResponseWriter, r *http.R
 	// Decode and validate request body
 	var req dto.SecuritySettingUpdateConfigRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		resp.Error(w, http.StatusBadRequest, "Invalid request", err.Error())
+		resp.Error(w, http.StatusBadRequest, "Invalid request")
 		return
 	}
 

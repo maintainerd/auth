@@ -175,7 +175,7 @@ func (h *RoleHandler) Create(w http.ResponseWriter, r *http.Request) {
 	// Decode request body
 	var req dto.RoleCreateOrUpdateRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		resp.Error(w, http.StatusBadRequest, "Invalid request", err.Error())
+		resp.Error(w, http.StatusBadRequest, "Invalid request")
 		return
 	}
 
@@ -223,7 +223,7 @@ func (h *RoleHandler) Update(w http.ResponseWriter, r *http.Request) {
 	// Decode request body
 	var req dto.RoleCreateOrUpdateRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		resp.Error(w, http.StatusBadRequest, "Invalid request", err.Error())
+		resp.Error(w, http.StatusBadRequest, "Invalid request")
 		return
 	}
 
@@ -273,7 +273,7 @@ func (h *RoleHandler) SetStatus(w http.ResponseWriter, r *http.Request) {
 		Status string `json:"status"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		resp.Error(w, http.StatusBadRequest, "Invalid request", err.Error())
+		resp.Error(w, http.StatusBadRequest, "Invalid request")
 		return
 	}
 
@@ -461,7 +461,7 @@ func (h *RoleHandler) AddPermissions(w http.ResponseWriter, r *http.Request) {
 	// Decode request body
 	var req dto.RoleAddPermissionsRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		resp.Error(w, http.StatusBadRequest, "Invalid request", err.Error())
+		resp.Error(w, http.StatusBadRequest, "Invalid request")
 		return
 	}
 

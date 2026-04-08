@@ -160,7 +160,7 @@ func (h *SMSTemplateHandler) Create(w http.ResponseWriter, r *http.Request) {
 	// Decode and validate request body
 	var req dto.SMSTemplateCreateRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		resp.Error(w, http.StatusBadRequest, "Invalid request", err.Error())
+		resp.Error(w, http.StatusBadRequest, "Invalid request")
 		return
 	}
 
@@ -217,7 +217,7 @@ func (h *SMSTemplateHandler) Update(w http.ResponseWriter, r *http.Request) {
 	// Decode and validate request body
 	var req dto.SMSTemplateUpdateRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		resp.Error(w, http.StatusBadRequest, "Invalid request", err.Error())
+		resp.Error(w, http.StatusBadRequest, "Invalid request")
 		return
 	}
 
@@ -307,7 +307,7 @@ func (h *SMSTemplateHandler) UpdateStatus(w http.ResponseWriter, r *http.Request
 	// Decode and validate request body
 	var req dto.SMSTemplateUpdateStatusRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		resp.Error(w, http.StatusBadRequest, "Invalid request body", err.Error())
+		resp.Error(w, http.StatusBadRequest, "Invalid request body")
 		return
 	}
 

@@ -188,7 +188,7 @@ func (h *UserHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := req.Validate(); err != nil {
-		resp.Error(w, http.StatusBadRequest, "Validation failed", err.Error())
+		resp.ValidationError(w, err)
 		return
 	}
 
@@ -238,7 +238,7 @@ func (h *UserHandler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := req.Validate(); err != nil {
-		resp.Error(w, http.StatusBadRequest, "Validation failed", err.Error())
+		resp.ValidationError(w, err)
 		return
 	}
 
@@ -288,7 +288,7 @@ func (h *UserHandler) SetUserStatus(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := req.Validate(); err != nil {
-		resp.Error(w, http.StatusBadRequest, "Validation failed", err.Error())
+		resp.ValidationError(w, err)
 		return
 	}
 
@@ -472,7 +472,7 @@ func (h *UserHandler) AssignRoles(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := req.Validate(); err != nil {
-		resp.Error(w, http.StatusBadRequest, "Validation failed", err.Error())
+		resp.ValidationError(w, err)
 		return
 	}
 

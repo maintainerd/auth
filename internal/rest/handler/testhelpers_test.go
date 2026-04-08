@@ -23,7 +23,6 @@ var (
 	errValidation   = apperror.NewValidation("validation error")
 	errUnauthorized = apperror.NewUnauthorized("unauthorized")
 	errForbidden    = apperror.NewForbidden("access denied")
-	errConflict     = apperror.NewConflict("conflict")
 )
 
 // tenantID is a shared test tenant ID.

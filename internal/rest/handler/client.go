@@ -232,7 +232,7 @@ func (h *ClientHandler) Create(w http.ResponseWriter, r *http.Request) {
 
 	var req dto.ClientCreateRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		resp.Error(w, http.StatusBadRequest, "Invalid request", err.Error())
+		resp.Error(w, http.StatusBadRequest, "Invalid request")
 		return
 	}
 
@@ -272,7 +272,7 @@ func (h *ClientHandler) Update(w http.ResponseWriter, r *http.Request) {
 
 	var req dto.ClientUpdateRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		resp.Error(w, http.StatusBadRequest, "Invalid request", err.Error())
+		resp.Error(w, http.StatusBadRequest, "Invalid request")
 		return
 	}
 
@@ -423,7 +423,7 @@ func (h *ClientHandler) CreateURI(w http.ResponseWriter, r *http.Request) {
 
 	var req dto.ClientURICreateOrUpdateRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		resp.Error(w, http.StatusBadRequest, "Invalid request", err.Error())
+		resp.Error(w, http.StatusBadRequest, "Invalid request")
 		return
 	}
 
@@ -474,7 +474,7 @@ func (h *ClientHandler) UpdateURI(w http.ResponseWriter, r *http.Request) {
 
 	var req dto.ClientURICreateOrUpdateRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		resp.Error(w, http.StatusBadRequest, "Invalid request", err.Error())
+		resp.Error(w, http.StatusBadRequest, "Invalid request")
 		return
 	}
 

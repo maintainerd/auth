@@ -154,7 +154,7 @@ func (h *APIKeyHandler) GetConfigByUUID(w http.ResponseWriter, r *http.Request) 
 
 	apiKeyUUID, err := uuid.Parse(chi.URLParam(r, "api_key_uuid"))
 	if err != nil {
-		resp.Error(w, http.StatusBadRequest, "Invalid API key UUID", err.Error())
+		resp.Error(w, http.StatusBadRequest, "Invalid API key UUID")
 		return
 	}
 
@@ -182,7 +182,7 @@ func (h *APIKeyHandler) Create(w http.ResponseWriter, r *http.Request) {
 
 	var req dto.APIKeyCreateRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		resp.Error(w, http.StatusBadRequest, "Invalid request", err.Error())
+		resp.Error(w, http.StatusBadRequest, "Invalid request")
 		return
 	}
 
@@ -241,7 +241,7 @@ func (h *APIKeyHandler) Update(w http.ResponseWriter, r *http.Request) {
 
 	var req dto.APIKeyUpdateRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		resp.Error(w, http.StatusBadRequest, "Invalid request", err.Error())
+		resp.Error(w, http.StatusBadRequest, "Invalid request")
 		return
 	}
 

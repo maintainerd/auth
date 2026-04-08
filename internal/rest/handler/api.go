@@ -176,7 +176,7 @@ func (h *APIHandler) Create(w http.ResponseWriter, r *http.Request) {
 
 	var req dto.APICreateRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		resp.Error(w, http.StatusBadRequest, "Invalid request", err.Error())
+		resp.Error(w, http.StatusBadRequest, "Invalid request")
 		return
 	}
 
@@ -213,7 +213,7 @@ func (h *APIHandler) Update(w http.ResponseWriter, r *http.Request) {
 
 	var req dto.APIUpdateRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		resp.Error(w, http.StatusBadRequest, "Invalid request", err.Error())
+		resp.Error(w, http.StatusBadRequest, "Invalid request")
 		return
 	}
 
@@ -257,7 +257,7 @@ func (h *APIHandler) SetStatus(w http.ResponseWriter, r *http.Request) {
 
 	// Validate request
 	if err := req.Validate(); err != nil {
-		resp.Error(w, http.StatusBadRequest, "Validation failed", err.Error())
+		resp.ValidationError(w, err)
 		return
 	}
 

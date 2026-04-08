@@ -28,7 +28,7 @@ func NewProfileHandler(profileService service.ProfileService) *ProfileHandler {
 func (h *ProfileHandler) CreateOrUpdate(w http.ResponseWriter, r *http.Request) {
 	var req dto.ProfileRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		resp.Error(w, http.StatusBadRequest, "Invalid request", err.Error())
+		resp.Error(w, http.StatusBadRequest, "Invalid request")
 		return
 	}
 
@@ -68,7 +68,7 @@ func (h *ProfileHandler) CreateOrUpdate(w http.ResponseWriter, r *http.Request) 
 func (h *ProfileHandler) CreateProfile(w http.ResponseWriter, r *http.Request) {
 	var req dto.ProfileRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		resp.Error(w, http.StatusBadRequest, "Invalid request", err.Error())
+		resp.Error(w, http.StatusBadRequest, "Invalid request")
 		return
 	}
 
@@ -115,13 +115,13 @@ func (h *ProfileHandler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 	profileUUIDStr := chi.URLParam(r, "profile_uuid")
 	profileUUID, err := uuid.Parse(profileUUIDStr)
 	if err != nil {
-		resp.Error(w, http.StatusBadRequest, "Invalid profile UUID", err.Error())
+		resp.Error(w, http.StatusBadRequest, "Invalid profile UUID")
 		return
 	}
 
 	var req dto.ProfileRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		resp.Error(w, http.StatusBadRequest, "Invalid request", err.Error())
+		resp.Error(w, http.StatusBadRequest, "Invalid request")
 		return
 	}
 
@@ -276,7 +276,7 @@ func (h *ProfileHandler) GetByUUID(w http.ResponseWriter, r *http.Request) {
 	profileUUIDStr := chi.URLParam(r, "profile_uuid")
 	profileUUID, err := uuid.Parse(profileUUIDStr)
 	if err != nil {
-		resp.Error(w, http.StatusBadRequest, "Invalid profile UUID", err.Error())
+		resp.Error(w, http.StatusBadRequest, "Invalid profile UUID")
 		return
 	}
 
@@ -297,7 +297,7 @@ func (h *ProfileHandler) DeleteByUUID(w http.ResponseWriter, r *http.Request) {
 	profileUUIDStr := chi.URLParam(r, "profile_uuid")
 	profileUUID, err := uuid.Parse(profileUUIDStr)
 	if err != nil {
-		resp.Error(w, http.StatusBadRequest, "Invalid profile UUID", err.Error())
+		resp.Error(w, http.StatusBadRequest, "Invalid profile UUID")
 		return
 	}
 
@@ -317,7 +317,7 @@ func (h *ProfileHandler) AdminGetAllProfiles(w http.ResponseWriter, r *http.Requ
 	userUUIDStr := chi.URLParam(r, "user_uuid")
 	userUUID, err := uuid.Parse(userUUIDStr)
 	if err != nil {
-		resp.Error(w, http.StatusBadRequest, "Invalid user UUID", err.Error())
+		resp.Error(w, http.StatusBadRequest, "Invalid user UUID")
 		return
 	}
 
@@ -403,7 +403,7 @@ func (h *ProfileHandler) AdminGetProfile(w http.ResponseWriter, r *http.Request)
 	userUUIDStr := chi.URLParam(r, "user_uuid")
 	userUUID, err := uuid.Parse(userUUIDStr)
 	if err != nil {
-		resp.Error(w, http.StatusBadRequest, "Invalid user UUID", err.Error())
+		resp.Error(w, http.StatusBadRequest, "Invalid user UUID")
 		return
 	}
 
@@ -411,7 +411,7 @@ func (h *ProfileHandler) AdminGetProfile(w http.ResponseWriter, r *http.Request)
 	profileUUIDStr := chi.URLParam(r, "profile_uuid")
 	profileUUID, err := uuid.Parse(profileUUIDStr)
 	if err != nil {
-		resp.Error(w, http.StatusBadRequest, "Invalid profile UUID", err.Error())
+		resp.Error(w, http.StatusBadRequest, "Invalid profile UUID")
 		return
 	}
 
@@ -430,13 +430,13 @@ func (h *ProfileHandler) AdminCreateProfile(w http.ResponseWriter, r *http.Reque
 	userUUIDStr := chi.URLParam(r, "user_uuid")
 	userUUID, err := uuid.Parse(userUUIDStr)
 	if err != nil {
-		resp.Error(w, http.StatusBadRequest, "Invalid user UUID", err.Error())
+		resp.Error(w, http.StatusBadRequest, "Invalid user UUID")
 		return
 	}
 
 	var req dto.ProfileRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		resp.Error(w, http.StatusBadRequest, "Invalid request", err.Error())
+		resp.Error(w, http.StatusBadRequest, "Invalid request")
 		return
 	}
 
@@ -481,7 +481,7 @@ func (h *ProfileHandler) AdminUpdateProfile(w http.ResponseWriter, r *http.Reque
 	userUUIDStr := chi.URLParam(r, "user_uuid")
 	userUUID, err := uuid.Parse(userUUIDStr)
 	if err != nil {
-		resp.Error(w, http.StatusBadRequest, "Invalid user UUID", err.Error())
+		resp.Error(w, http.StatusBadRequest, "Invalid user UUID")
 		return
 	}
 
@@ -489,13 +489,13 @@ func (h *ProfileHandler) AdminUpdateProfile(w http.ResponseWriter, r *http.Reque
 	profileUUIDStr := chi.URLParam(r, "profile_uuid")
 	profileUUID, err := uuid.Parse(profileUUIDStr)
 	if err != nil {
-		resp.Error(w, http.StatusBadRequest, "Invalid profile UUID", err.Error())
+		resp.Error(w, http.StatusBadRequest, "Invalid profile UUID")
 		return
 	}
 
 	var req dto.ProfileRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		resp.Error(w, http.StatusBadRequest, "Invalid request", err.Error())
+		resp.Error(w, http.StatusBadRequest, "Invalid request")
 		return
 	}
 
@@ -537,7 +537,7 @@ func (h *ProfileHandler) AdminDeleteProfile(w http.ResponseWriter, r *http.Reque
 	userUUIDStr := chi.URLParam(r, "user_uuid")
 	userUUID, err := uuid.Parse(userUUIDStr)
 	if err != nil {
-		resp.Error(w, http.StatusBadRequest, "Invalid user UUID", err.Error())
+		resp.Error(w, http.StatusBadRequest, "Invalid user UUID")
 		return
 	}
 
@@ -545,7 +545,7 @@ func (h *ProfileHandler) AdminDeleteProfile(w http.ResponseWriter, r *http.Reque
 	profileUUIDStr := chi.URLParam(r, "profile_uuid")
 	profileUUID, err := uuid.Parse(profileUUIDStr)
 	if err != nil {
-		resp.Error(w, http.StatusBadRequest, "Invalid profile UUID", err.Error())
+		resp.Error(w, http.StatusBadRequest, "Invalid profile UUID")
 		return
 	}
 
@@ -564,7 +564,7 @@ func (h *ProfileHandler) SetDefaultProfile(w http.ResponseWriter, r *http.Reques
 	profileUUIDStr := chi.URLParam(r, "profile_uuid")
 	profileUUID, err := uuid.Parse(profileUUIDStr)
 	if err != nil {
-		resp.Error(w, http.StatusBadRequest, "Invalid profile UUID", err.Error())
+		resp.Error(w, http.StatusBadRequest, "Invalid profile UUID")
 		return
 	}
 
@@ -585,7 +585,7 @@ func (h *ProfileHandler) AdminSetDefaultProfile(w http.ResponseWriter, r *http.R
 	userUUIDStr := chi.URLParam(r, "user_uuid")
 	userUUID, err := uuid.Parse(userUUIDStr)
 	if err != nil {
-		resp.Error(w, http.StatusBadRequest, "Invalid user UUID", err.Error())
+		resp.Error(w, http.StatusBadRequest, "Invalid user UUID")
 		return
 	}
 
@@ -593,7 +593,7 @@ func (h *ProfileHandler) AdminSetDefaultProfile(w http.ResponseWriter, r *http.R
 	profileUUIDStr := chi.URLParam(r, "profile_uuid")
 	profileUUID, err := uuid.Parse(profileUUIDStr)
 	if err != nil {
-		resp.Error(w, http.StatusBadRequest, "Invalid profile UUID", err.Error())
+		resp.Error(w, http.StatusBadRequest, "Invalid profile UUID")
 		return
 	}
 

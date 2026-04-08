@@ -171,7 +171,7 @@ func (h *RegisterHandler) Register(w http.ResponseWriter, r *http.Request) {
 	// Validate body payload
 	var req dto.RegisterRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		resp.Error(w, http.StatusBadRequest, "Invalid request", err.Error())
+		resp.Error(w, http.StatusBadRequest, "Invalid request")
 		return
 	}
 
@@ -264,7 +264,7 @@ func (h *RegisterHandler) RegisterInvite(w http.ResponseWriter, r *http.Request)
 	// Validate body payload
 	var req dto.LoginRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		resp.Error(w, http.StatusBadRequest, "Invalid request", err.Error())
+		resp.Error(w, http.StatusBadRequest, "Invalid request")
 		return
 	}
 
@@ -307,7 +307,7 @@ func (h *RegisterHandler) RegisterInvitePublic(w http.ResponseWriter, r *http.Re
 	// Validate body payload
 	var req dto.LoginRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		resp.Error(w, http.StatusBadRequest, "Invalid request", err.Error())
+		resp.Error(w, http.StatusBadRequest, "Invalid request")
 		return
 	}
 

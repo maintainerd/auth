@@ -152,7 +152,7 @@ func (h *PolicyHandler) GetByUUID(w http.ResponseWriter, r *http.Request) {
 	policyUUIDStr := chi.URLParam(r, "policy_uuid")
 	policyUUID, err := uuid.Parse(policyUUIDStr)
 	if err != nil {
-		resp.Error(w, http.StatusBadRequest, "Invalid policy UUID", err.Error())
+		resp.Error(w, http.StatusBadRequest, "Invalid policy UUID")
 		return
 	}
 
@@ -177,7 +177,7 @@ func (h *PolicyHandler) Create(w http.ResponseWriter, r *http.Request) {
 
 	var req dto.PolicyCreateRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		resp.Error(w, http.StatusBadRequest, "Invalid request", err.Error())
+		resp.Error(w, http.StatusBadRequest, "Invalid request")
 		return
 	}
 
@@ -216,13 +216,13 @@ func (h *PolicyHandler) Update(w http.ResponseWriter, r *http.Request) {
 	policyUUIDStr := chi.URLParam(r, "policy_uuid")
 	policyUUID, err := uuid.Parse(policyUUIDStr)
 	if err != nil {
-		resp.Error(w, http.StatusBadRequest, "Invalid policy UUID", err.Error())
+		resp.Error(w, http.StatusBadRequest, "Invalid policy UUID")
 		return
 	}
 
 	var req dto.PolicyUpdateRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		resp.Error(w, http.StatusBadRequest, "Invalid request", err.Error())
+		resp.Error(w, http.StatusBadRequest, "Invalid request")
 		return
 	}
 
@@ -261,13 +261,13 @@ func (h *PolicyHandler) UpdateStatus(w http.ResponseWriter, r *http.Request) {
 	policyUUIDStr := chi.URLParam(r, "policy_uuid")
 	policyUUID, err := uuid.Parse(policyUUIDStr)
 	if err != nil {
-		resp.Error(w, http.StatusBadRequest, "Invalid policy UUID", err.Error())
+		resp.Error(w, http.StatusBadRequest, "Invalid policy UUID")
 		return
 	}
 
 	var req dto.PolicyStatusUpdateDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		resp.Error(w, http.StatusBadRequest, "Invalid request", err.Error())
+		resp.Error(w, http.StatusBadRequest, "Invalid request")
 		return
 	}
 
@@ -298,7 +298,7 @@ func (h *PolicyHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	policyUUIDStr := chi.URLParam(r, "policy_uuid")
 	policyUUID, err := uuid.Parse(policyUUIDStr)
 	if err != nil {
-		resp.Error(w, http.StatusBadRequest, "Invalid policy UUID", err.Error())
+		resp.Error(w, http.StatusBadRequest, "Invalid policy UUID")
 		return
 	}
 
@@ -324,7 +324,7 @@ func (h *PolicyHandler) GetServicesByPolicyUUID(w http.ResponseWriter, r *http.R
 	policyUUIDStr := chi.URLParam(r, "policy_uuid")
 	policyUUID, err := uuid.Parse(policyUUIDStr)
 	if err != nil {
-		resp.Error(w, http.StatusBadRequest, "Invalid policy UUID", err.Error())
+		resp.Error(w, http.StatusBadRequest, "Invalid policy UUID")
 		return
 	}
 
