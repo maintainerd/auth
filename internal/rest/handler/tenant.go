@@ -183,7 +183,7 @@ func (h *TenantHandler) GetByIdentifier(w http.ResponseWriter, r *http.Request) 
 func (h *TenantHandler) Create(w http.ResponseWriter, r *http.Request) {
 	var req dto.TenantCreateRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		resp.Error(w, http.StatusBadRequest, "Invalid request", err.Error())
+		resp.Error(w, http.StatusBadRequest, "Invalid request")
 		return
 	}
 
@@ -230,7 +230,7 @@ func (h *TenantHandler) Update(w http.ResponseWriter, r *http.Request) {
 
 	var req dto.TenantUpdateRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		resp.Error(w, http.StatusBadRequest, "Invalid request", err.Error())
+		resp.Error(w, http.StatusBadRequest, "Invalid request")
 		return
 	}
 
@@ -262,7 +262,7 @@ func (h *TenantHandler) SetStatus(w http.ResponseWriter, r *http.Request) {
 		Status string `json:"status"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		resp.Error(w, http.StatusBadRequest, "Invalid request", err.Error())
+		resp.Error(w, http.StatusBadRequest, "Invalid request")
 		return
 	}
 
@@ -374,7 +374,7 @@ func (h *TenantHandler) GetMembers(w http.ResponseWriter, r *http.Request) {
 
 	tenantUUID, err := uuid.Parse(tenantUUIDStr)
 	if err != nil {
-		resp.Error(w, http.StatusBadRequest, "Invalid UUID format", err.Error())
+		resp.Error(w, http.StatusBadRequest, "Invalid UUID format")
 		return
 	}
 
@@ -432,13 +432,13 @@ func (h *TenantHandler) AddMember(w http.ResponseWriter, r *http.Request) {
 
 	tenantUUID, err := uuid.Parse(tenantUUIDStr)
 	if err != nil {
-		resp.Error(w, http.StatusBadRequest, "Invalid UUID format", err.Error())
+		resp.Error(w, http.StatusBadRequest, "Invalid UUID format")
 		return
 	}
 
 	var req dto.TenantMemberAddMemberRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		resp.Error(w, http.StatusBadRequest, "Invalid request body", err.Error())
+		resp.Error(w, http.StatusBadRequest, "Invalid request body")
 		return
 	}
 
@@ -474,13 +474,13 @@ func (h *TenantHandler) UpdateMemberRole(w http.ResponseWriter, r *http.Request)
 
 	tenantMemberUUID, err := uuid.Parse(tenantMemberUUIDStr)
 	if err != nil {
-		resp.Error(w, http.StatusBadRequest, "Invalid UUID format", err.Error())
+		resp.Error(w, http.StatusBadRequest, "Invalid UUID format")
 		return
 	}
 
 	var req dto.TenantMemberUpdateRoleRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		resp.Error(w, http.StatusBadRequest, "Invalid request body", err.Error())
+		resp.Error(w, http.StatusBadRequest, "Invalid request body")
 		return
 	}
 
@@ -509,7 +509,7 @@ func (h *TenantHandler) RemoveMember(w http.ResponseWriter, r *http.Request) {
 
 	tenantMemberUUID, err := uuid.Parse(tenantMemberUUIDStr)
 	if err != nil {
-		resp.Error(w, http.StatusBadRequest, "Invalid UUID format", err.Error())
+		resp.Error(w, http.StatusBadRequest, "Invalid UUID format")
 		return
 	}
 
