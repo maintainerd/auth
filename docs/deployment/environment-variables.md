@@ -93,6 +93,13 @@ SECRET_PREFIX=maintainerd/auth
 # =============================================================================
 JWT_PRIVATE_KEY="<retrieved-from-secret-manager>" # ← replace
 JWT_PUBLIC_KEY="<retrieved-from-secret-manager>"  # ← replace
+
+# =============================================================================
+# OPENTELEMETRY (TRACING)  — optional, disabled by default
+# =============================================================================
+OTEL_ENABLED="true"
+OTEL_EXPORTER_OTLP_ENDPOINT="otel-collector:4317" # ← replace with your collector address
+OTEL_SERVICE_NAME="maintainerd-auth"
 ```
 
 > **Every `← replace` value is required before deployment.** The service will fail to start or operate insecurely if any are left as placeholders.
@@ -110,6 +117,7 @@ JWT_PUBLIC_KEY="<retrieved-from-secret-manager>"  # ← replace
 - [Email (SMTP)](#email-smtp)
 - [Secret Management](#secret-management)
 - [JWT Configuration](#jwt-configuration)
+- [OpenTelemetry (Tracing)](#opentelemetry-tracing)
 - [Checklist](#pre-deployment-checklist)
 
 ---
@@ -436,6 +444,70 @@ az keyvault secret set --vault-name my-vault \
 
 ---
 
+## OpenTelemetry (Tracing)
+
+Maintainerd Auth has built-in [OpenTelemetry](https://opentelemetry.io/) tracing that provides end-to-end distributed observability across HTTP requests, gRPC calls, database queries, Redis commands, and outgoing SMTP email sends.
+
+Tracing is **disabled by default**. Set `OTEL_ENABLED=true` to activate it.
+
+| Variable | Required | Default | Description |
+|---|---|---|---|
+| `OTEL_ENABLED` | ❌ | `false` | Set to `true` to enable tracing. When `false`, a no-op tracer is installed (zero overhead). |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | ❌ | `localhost:4317` | gRPC endpoint of the OpenTelemetry Collector. In production, point to your collector sidecar or cluster service. |
+| `OTEL_SERVICE_NAME` | ❌ | `maintainerd-auth` | Service name attached to every span. Useful for distinguishing multiple instances. |
+
+> All standard `OTEL_*` environment variables defined by the [OpenTelemetry SDK specification](https://opentelemetry.io/docs/specs/otel/configuration/sdk-environment-variables/) are supported automatically. Key production variables include:
+>
+> | Variable | Example | Purpose |
+> |---|---|---|
+> | `OTEL_EXPORTER_OTLP_HEADERS` | `Authorization=Bearer <token>` | Authenticate with managed tracing backends (e.g. Grafana Cloud, Honeycomb). |
+> | `OTEL_EXPORTER_OTLP_INSECURE` | `false` | Whether to skip TLS verification. **Must be `false` in production.** |
+> | `OTEL_TRACES_SAMPLER` | `parentbased_traceidratio` | Sampling strategy. Use head-based sampling to control volume. |
+> | `OTEL_TRACES_SAMPLER_ARG` | `0.1` | Sampler argument (e.g. 10% sampling rate). |
+
+### What is instrumented
+
+| Layer | Instrumentation |
+|---|---|
+| HTTP (REST) | Automatic spans for every inbound request (method, route, status code). |
+| gRPC | Automatic spans for every inbound RPC. |
+| PostgreSQL | Automatic spans for every query and transaction. |
+| Redis | Automatic spans for every Redis command. |
+| SMTP (email) | Explicit spans for outgoing email sends (host, port, recipient, subject). |
+| Logs | `trace_id` and `span_id` are injected into structured JSON log output for correlation. |
+
+### Recommended collector architecture
+
+Deploy the [OpenTelemetry Collector](https://opentelemetry.io/docs/collector/) as a sidecar or DaemonSet and export traces to your backend of choice:
+
+| Backend | Notes |
+|---|---|
+| [Grafana Tempo](https://grafana.com/oss/tempo/) | Open-source, pairs with Grafana for visualization. |
+| [Jaeger](https://www.jaegertracing.io/) | Open-source, self-hosted. |
+| [Honeycomb](https://www.honeycomb.io/) | Managed, excellent query engine. |
+| [Datadog](https://www.datadoghq.com/) | Managed, full-stack observability. |
+| [AWS X-Ray](https://aws.amazon.com/xray/) | Native AWS integration. |
+| [GCP Cloud Trace](https://cloud.google.com/trace) | Native GCP integration. |
+
+**Example (Kubernetes sidecar)**
+
+```env
+OTEL_ENABLED="true"
+OTEL_EXPORTER_OTLP_ENDPOINT="localhost:4317"   # collector sidecar
+OTEL_SERVICE_NAME="maintainerd-auth"
+```
+
+**Example (Grafana Cloud)**
+
+```env
+OTEL_ENABLED="true"
+OTEL_EXPORTER_OTLP_ENDPOINT="tempo-us-central1.grafana.net:443"
+OTEL_EXPORTER_OTLP_HEADERS="Authorization=Basic <base64-encoded-credentials>"
+OTEL_SERVICE_NAME="maintainerd-auth"
+```
+
+---
+
 ## Pre-Deployment Checklist
 
 Use this checklist before every production deployment.
@@ -454,4 +526,5 @@ Use this checklist before every production deployment.
 - [ ] `JWT_PRIVATE_KEY` permissions are `600` on any filesystem where it is stored
 - [ ] No `.env` files are present on the production host
 - [ ] Key rotation schedule is documented and owned by a team member
+- [ ] If `OTEL_ENABLED=true`, `OTEL_EXPORTER_OTLP_ENDPOINT` points to a reachable collector and `OTEL_EXPORTER_OTLP_INSECURE` is not `true`
 

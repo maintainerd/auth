@@ -2,21 +2,22 @@ package service
 
 import (
 	"bytes"
+	"context"
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
 	"html/template"
 	"time"
 
+	"github.com/maintainerd/auth/internal/apperror"
 	"github.com/maintainerd/auth/internal/config"
 	"github.com/maintainerd/auth/internal/dto"
 	"github.com/maintainerd/auth/internal/email"
-	"github.com/maintainerd/auth/internal/signedurl"
 	"github.com/maintainerd/auth/internal/model"
 	"github.com/maintainerd/auth/internal/repository"
 	"github.com/maintainerd/auth/internal/security"
+	"github.com/maintainerd/auth/internal/signedurl"
 	"gorm.io/gorm"
-	"github.com/maintainerd/auth/internal/apperror"
 )
 
 type ForgotPasswordService interface {
@@ -215,7 +216,7 @@ func (s *forgotPasswordService) sendPasswordResetEmail(to, resetToken string, Cl
 	}
 
 	// Send email
-	return email.SendEmail(email.SendEmailParams{
+	return email.SendEmail(context.Background(), email.SendEmailParams{
 		To:        to,
 		Subject:   templateEntity.Subject,
 		BodyHTML:  bodyHTML.String(),
