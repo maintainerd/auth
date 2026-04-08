@@ -20,7 +20,7 @@
 // The handler does not need to inspect the error — HandleServiceError does it:
 //
 //	if err != nil {
-//	    resp.HandleServiceError(w, "Failed to create tenant", err)
+//	    resp.HandleServiceError(w, r, "Failed to create tenant", err)
 //	    return
 //	}
 package apperror

@@ -89,7 +89,7 @@ func (h *APIKeyHandler) Get(w http.ResponseWriter, r *http.Request) {
 	// Fetch API keys
 	result, err := h.apiKeyService.Get(serviceFilter, requestingUser.UserUUID)
 	if err != nil {
-		resp.HandleServiceError(w, "Failed to fetch API keys", err)
+		resp.HandleServiceError(w, r, "Failed to fetch API keys", err)
 		return
 	}
 
@@ -133,7 +133,7 @@ func (h *APIKeyHandler) GetByUUID(w http.ResponseWriter, r *http.Request) {
 
 	apiKey, err := h.apiKeyService.GetByUUID(apiKeyUUID, tenant.TenantID, requestingUser.UserUUID)
 	if err != nil {
-		resp.HandleServiceError(w, "API key not found", err)
+		resp.HandleServiceError(w, r, "API key not found", err)
 		return
 	}
 
@@ -160,7 +160,7 @@ func (h *APIKeyHandler) GetConfigByUUID(w http.ResponseWriter, r *http.Request) 
 
 	apiKeyConfig, err := h.apiKeyService.GetConfigByUUID(apiKeyUUID, tenant.TenantID)
 	if err != nil {
-		resp.HandleServiceError(w, "API key not found", err)
+		resp.HandleServiceError(w, r, "API key not found", err)
 		return
 	}
 
@@ -199,7 +199,7 @@ func (h *APIKeyHandler) Create(w http.ResponseWriter, r *http.Request) {
 
 	apiKey, plainKey, err := h.apiKeyService.Create(tenant.TenantID, req.Name, req.Description, req.Config, req.ExpiresAt, req.RateLimit, status)
 	if err != nil {
-		resp.HandleServiceError(w, "Failed to create API key", err)
+		resp.HandleServiceError(w, r, "Failed to create API key", err)
 		return
 	}
 
@@ -252,7 +252,7 @@ func (h *APIKeyHandler) Update(w http.ResponseWriter, r *http.Request) {
 
 	apiKey, err := h.apiKeyService.Update(apiKeyUUID, tenant.TenantID, req.Name, req.Description, req.Config, req.ExpiresAt, req.RateLimit, req.Status, updaterUser.UserUUID)
 	if err != nil {
-		resp.HandleServiceError(w, "Failed to update API key", err)
+		resp.HandleServiceError(w, r, "Failed to update API key", err)
 		return
 	}
 
@@ -292,7 +292,7 @@ func (h *APIKeyHandler) SetStatus(w http.ResponseWriter, r *http.Request) {
 
 	apiKey, err := h.apiKeyService.SetStatusByUUID(apiKeyUUID, tenant.TenantID, req.Status)
 	if err != nil {
-		resp.HandleServiceError(w, "Failed to update API key status", err)
+		resp.HandleServiceError(w, r, "Failed to update API key status", err)
 		return
 	}
 
@@ -322,7 +322,7 @@ func (h *APIKeyHandler) Delete(w http.ResponseWriter, r *http.Request) {
 
 	apiKey, err := h.apiKeyService.Delete(apiKeyUUID, tenant.TenantID, deleterUser.UserUUID)
 	if err != nil {
-		resp.HandleServiceError(w, "Failed to delete API key", err)
+		resp.HandleServiceError(w, r, "Failed to delete API key", err)
 		return
 	}
 
@@ -392,7 +392,7 @@ func (h *APIKeyHandler) GetAPIs(w http.ResponseWriter, r *http.Request) {
 	// Get API key APIs with pagination
 	result, err := h.apiKeyService.GetAPIKeyAPIs(apiKeyUUID, reqParams.Page, reqParams.Limit, reqParams.SortBy, reqParams.SortOrder)
 	if err != nil {
-		resp.HandleServiceError(w, "Failed to get API key APIs", err)
+		resp.HandleServiceError(w, r, "Failed to get API key APIs", err)
 		return
 	}
 
@@ -448,7 +448,7 @@ func (h *APIKeyHandler) AddAPIs(w http.ResponseWriter, r *http.Request) {
 	// Add APIs to API key
 	err = h.apiKeyService.AddAPIKeyAPIs(apiKeyUUID, req.APIUUIDs)
 	if err != nil {
-		resp.HandleServiceError(w, "Failed to add APIs to API key", err)
+		resp.HandleServiceError(w, r, "Failed to add APIs to API key", err)
 		return
 	}
 
@@ -472,7 +472,7 @@ func (h *APIKeyHandler) RemoveAPI(w http.ResponseWriter, r *http.Request) {
 	// Remove API from API key
 	err = h.apiKeyService.RemoveAPIKeyAPI(apiKeyUUID, apiUUID)
 	if err != nil {
-		resp.HandleServiceError(w, "Failed to remove API from API key", err)
+		resp.HandleServiceError(w, r, "Failed to remove API from API key", err)
 		return
 	}
 
@@ -496,7 +496,7 @@ func (h *APIKeyHandler) GetAPIPermissions(w http.ResponseWriter, r *http.Request
 	// Get API key API permissions
 	permissions, err := h.apiKeyService.GetAPIKeyAPIPermissions(apiKeyUUID, apiUUID)
 	if err != nil {
-		resp.HandleServiceError(w, "Failed to get API key API permissions", err)
+		resp.HandleServiceError(w, r, "Failed to get API key API permissions", err)
 		return
 	}
 
@@ -551,7 +551,7 @@ func (h *APIKeyHandler) AddAPIPermissions(w http.ResponseWriter, r *http.Request
 	// Add permissions to API key API
 	err = h.apiKeyService.AddAPIKeyAPIPermissions(apiKeyUUID, apiUUID, req.PermissionUUIDs)
 	if err != nil {
-		resp.HandleServiceError(w, "Failed to add permissions to API key API", err)
+		resp.HandleServiceError(w, r, "Failed to add permissions to API key API", err)
 		return
 	}
 
@@ -581,7 +581,7 @@ func (h *APIKeyHandler) RemoveAPIPermission(w http.ResponseWriter, r *http.Reque
 	// Remove permission from API key API
 	err = h.apiKeyService.RemoveAPIKeyAPIPermission(apiKeyUUID, apiUUID, permissionUUID)
 	if err != nil {
-		resp.HandleServiceError(w, "Failed to remove permission from API key API", err)
+		resp.HandleServiceError(w, r, "Failed to remove permission from API key API", err)
 		return
 	}
 
