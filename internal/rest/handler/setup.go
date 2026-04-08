@@ -23,7 +23,7 @@ func NewSetupHandler(setupService service.SetupService) *SetupHandler {
 func (h *SetupHandler) GetSetupStatus(w http.ResponseWriter, r *http.Request) {
 	status, err := h.setupService.GetSetupStatus()
 	if err != nil {
-		resp.HandleServiceError(w, "Failed to get setup status", err)
+		resp.HandleServiceError(w, r, "Failed to get setup status", err)
 		return
 	}
 
@@ -48,7 +48,7 @@ func (h *SetupHandler) CreateTenant(w http.ResponseWriter, r *http.Request) {
 	// Create tenant
 	response, err := h.setupService.CreateTenant(req)
 	if err != nil {
-		resp.HandleServiceError(w, "Failed to create tenant", err)
+		resp.HandleServiceError(w, r, "Failed to create tenant", err)
 		return
 	}
 
@@ -73,7 +73,7 @@ func (h *SetupHandler) CreateAdmin(w http.ResponseWriter, r *http.Request) {
 	// Create admin
 	response, err := h.setupService.CreateAdmin(req)
 	if err != nil {
-		resp.HandleServiceError(w, "Failed to create admin", err)
+		resp.HandleServiceError(w, r, "Failed to create admin", err)
 		return
 	}
 
@@ -98,7 +98,7 @@ func (h *SetupHandler) CreateProfile(w http.ResponseWriter, r *http.Request) {
 	// Create profile
 	response, err := h.setupService.CreateProfile(req)
 	if err != nil {
-		resp.HandleServiceError(w, "Failed to create profile", err)
+		resp.HandleServiceError(w, r, "Failed to create profile", err)
 		return
 	}
 

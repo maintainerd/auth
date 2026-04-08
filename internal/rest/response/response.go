@@ -1,6 +1,7 @@
 package response
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"log/slog"
@@ -11,6 +12,24 @@ import (
 	"github.com/maintainerd/auth/internal/apperror"
 	"github.com/maintainerd/auth/internal/cookie"
 )
+
+// loggerContextKey is the context key used to store a request-scoped slog.Logger.
+type loggerContextKey struct{}
+
+// WithLogger returns a copy of ctx carrying the given logger.
+// Called by LoggingMiddleware to propagate a request_id-seeded logger.
+func WithLogger(ctx context.Context, logger *slog.Logger) context.Context {
+	return context.WithValue(ctx, loggerContextKey{}, logger)
+}
+
+// LoggerFromContext returns the request-scoped logger stored in ctx.
+// Falls back to slog.Default() when no logger has been set.
+func LoggerFromContext(ctx context.Context) *slog.Logger {
+	if l, ok := ctx.Value(loggerContextKey{}).(*slog.Logger); ok && l != nil {
+		return l
+	}
+	return slog.Default()
+}
 
 type response struct {
 	Success bool        `json:"success"`
@@ -96,8 +115,9 @@ func writeJSON(w http.ResponseWriter, status int, payload interface{}) {
 
 // HandleServiceError inspects the typed error returned by a service method and
 // writes the appropriate HTTP response. Internal/unexpected errors are logged
-// server-side and a generic message is sent to the client.
-func HandleServiceError(w http.ResponseWriter, fallbackMsg string, err error) {
+// server-side (with the request-scoped logger so they carry request_id) and a
+// generic message is sent to the client.
+func HandleServiceError(w http.ResponseWriter, r *http.Request, fallbackMsg string, err error) {
 	var notFound *apperror.NotFoundError
 	var conflict *apperror.ConflictError
 	var forbidden *apperror.ForbiddenError
@@ -117,11 +137,11 @@ func HandleServiceError(w http.ResponseWriter, fallbackMsg string, err error) {
 	case errors.As(err, &validationErr):
 		Error(w, http.StatusBadRequest, validationErr.Error())
 	case errors.As(err, &internal):
-		slog.Error("internal service error", "error", internal.Error())
+		LoggerFromContext(r.Context()).Error("internal service error", "error", internal.Error())
 		Error(w, http.StatusInternalServerError, fallbackMsg)
 	default:
 		// Untyped error — log it and return the fallback message.
-		slog.Error("unhandled service error", "error", err.Error())
+		LoggerFromContext(r.Context()).Error("unhandled service error", "error", err.Error())
 		Error(w, http.StatusInternalServerError, fallbackMsg)
 	}
 }

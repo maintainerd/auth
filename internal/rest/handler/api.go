@@ -92,7 +92,7 @@ func (h *APIHandler) Get(w http.ResponseWriter, r *http.Request) {
 		// Look up service by UUID to get service_id
 		serviceIDValue, err := h.apiService.GetServiceIDByUUID(serviceUUID)
 		if err != nil {
-			resp.HandleServiceError(w, "Service not found", err)
+			resp.HandleServiceError(w, r, "Service not found", err)
 			return
 		}
 		serviceID = &serviceIDValue
@@ -117,7 +117,7 @@ func (h *APIHandler) Get(w http.ResponseWriter, r *http.Request) {
 	// Fetch APIs
 	result, err := h.apiService.Get(apiFilter)
 	if err != nil {
-		resp.HandleServiceError(w, "Failed to fetch APIs", err)
+		resp.HandleServiceError(w, r, "Failed to fetch APIs", err)
 		return
 	}
 
@@ -156,7 +156,7 @@ func (h *APIHandler) GetByUUID(w http.ResponseWriter, r *http.Request) {
 
 	api, err := h.apiService.GetByUUID(apiUUID, tenant.TenantID)
 	if err != nil {
-		resp.HandleServiceError(w, "API not found", err)
+		resp.HandleServiceError(w, r, "API not found", err)
 		return
 	}
 
@@ -187,7 +187,7 @@ func (h *APIHandler) Create(w http.ResponseWriter, r *http.Request) {
 
 	api, err := h.apiService.Create(tenant.TenantID, req.Name, req.DisplayName, req.Description, req.APIType, req.Status, false, req.ServiceUUID)
 	if err != nil {
-		resp.HandleServiceError(w, "Failed to create API", err)
+		resp.HandleServiceError(w, r, "Failed to create API", err)
 		return
 	}
 
@@ -224,7 +224,7 @@ func (h *APIHandler) Update(w http.ResponseWriter, r *http.Request) {
 
 	api, err := h.apiService.Update(apiUUID, tenant.TenantID, req.Name, req.DisplayName, req.Description, req.APIType, req.Status, req.ServiceUUID)
 	if err != nil {
-		resp.HandleServiceError(w, "Failed to update API", err)
+		resp.HandleServiceError(w, r, "Failed to update API", err)
 		return
 	}
 
@@ -263,7 +263,7 @@ func (h *APIHandler) SetStatus(w http.ResponseWriter, r *http.Request) {
 
 	api, err := h.apiService.SetStatusByUUID(apiUUID, tenant.TenantID, req.Status)
 	if err != nil {
-		resp.HandleServiceError(w, "Failed to update API", err)
+		resp.HandleServiceError(w, r, "Failed to update API", err)
 		return
 	}
 
@@ -289,7 +289,7 @@ func (h *APIHandler) Delete(w http.ResponseWriter, r *http.Request) {
 
 	api, err := h.apiService.DeleteByUUID(apiUUID, tenant.TenantID)
 	if err != nil {
-		resp.HandleServiceError(w, "Failed to delete API", err)
+		resp.HandleServiceError(w, r, "Failed to delete API", err)
 		return
 	}
 

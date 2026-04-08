@@ -53,7 +53,7 @@ func (h *UserSettingHandler) CreateOrUpdate(w http.ResponseWriter, r *http.Reque
 		req.EmergencyContactName, req.EmergencyContactPhone, req.EmergencyContactEmail, req.EmergencyContactRelation,
 	)
 	if err != nil {
-		resp.HandleServiceError(w, "Save user setting failed", err)
+		resp.HandleServiceError(w, r, "Save user setting failed", err)
 		return
 	}
 
@@ -84,7 +84,7 @@ func (h *UserSettingHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	// Delete by user setting UUID
 	deletedUserSetting, err := h.userSettingService.DeleteByUUID(userSetting.UserSettingUUID)
 	if err != nil {
-		resp.HandleServiceError(w, "Delete user setting failed", err)
+		resp.HandleServiceError(w, r, "Delete user setting failed", err)
 		return
 	}
 

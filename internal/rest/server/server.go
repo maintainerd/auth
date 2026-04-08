@@ -151,12 +151,15 @@ func buildInternalRouter(h *handlers, userService service.UserService, redisClie
 	r := chi.NewRouter()
 
 	// Built-in Chi middlewares
-	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
 
 	// Global security middleware for SOC2/ISO27001 compliance
 	r.Use(securityMiddleware.SecurityHeadersMiddleware)
 	r.Use(securityMiddleware.SecurityContextMiddleware)
+
+	// Structured JSON access logging — must follow SecurityContextMiddleware
+	// so that request_id is available for log correlation.
+	r.Use(securityMiddleware.LoggingMiddleware)
 
 	// Global DoS protection with reasonable limits
 	r.Use(securityMiddleware.RequestSizeLimitMiddleware(10 * 1024 * 1024)) // 10MB global limit
@@ -206,12 +209,15 @@ func buildPublicRouter(h *handlers, userService service.UserService, redisClient
 	r := chi.NewRouter()
 
 	// Built-in Chi middlewares
-	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
 
 	// Global security middleware for SOC2/ISO27001 compliance
 	r.Use(securityMiddleware.SecurityHeadersMiddleware)
 	r.Use(securityMiddleware.SecurityContextMiddleware)
+
+	// Structured JSON access logging — must follow SecurityContextMiddleware
+	// so that request_id is available for log correlation.
+	r.Use(securityMiddleware.LoggingMiddleware)
 
 	// Global DoS protection with reasonable limits
 	r.Use(securityMiddleware.RequestSizeLimitMiddleware(10 * 1024 * 1024)) // 10MB global limit

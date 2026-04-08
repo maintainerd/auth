@@ -58,7 +58,7 @@ func (h *ProfileHandler) CreateOrUpdate(w http.ResponseWriter, r *http.Request) 
 		req.Metadata,
 	)
 	if err != nil {
-		resp.HandleServiceError(w, "Save profile failed", err)
+		resp.HandleServiceError(w, r, "Save profile failed", err)
 		return
 	}
 
@@ -103,7 +103,7 @@ func (h *ProfileHandler) CreateProfile(w http.ResponseWriter, r *http.Request) {
 		req.Metadata,
 	)
 	if err != nil {
-		resp.HandleServiceError(w, "Create profile failed", err)
+		resp.HandleServiceError(w, r, "Create profile failed", err)
 		return
 	}
 
@@ -152,7 +152,7 @@ func (h *ProfileHandler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 		req.Metadata,
 	)
 	if err != nil {
-		resp.HandleServiceError(w, "Update profile failed", err)
+		resp.HandleServiceError(w, r, "Update profile failed", err)
 		return
 	}
 
@@ -227,7 +227,7 @@ func (h *ProfileHandler) GetAll(w http.ResponseWriter, r *http.Request) {
 		reqParams.SortOrder,
 	)
 	if err != nil {
-		resp.HandleServiceError(w, "Failed to fetch profiles", err)
+		resp.HandleServiceError(w, r, "Failed to fetch profiles", err)
 		return
 	}
 
@@ -262,7 +262,7 @@ func (h *ProfileHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	// Delete by profile UUID
 	deletedProfile, err := h.profileService.DeleteByUUID(profile.ProfileUUID, user.UserUUID)
 	if err != nil {
-		resp.HandleServiceError(w, "Delete profile failed", err)
+		resp.HandleServiceError(w, r, "Delete profile failed", err)
 		return
 	}
 
@@ -283,7 +283,7 @@ func (h *ProfileHandler) GetByUUID(w http.ResponseWriter, r *http.Request) {
 	// Get profile by UUID with ownership verification
 	profile, err := h.profileService.GetByUUID(profileUUID, user.UserUUID)
 	if err != nil {
-		resp.HandleServiceError(w, "Failed to fetch profile", err)
+		resp.HandleServiceError(w, r, "Failed to fetch profile", err)
 		return
 	}
 
@@ -304,7 +304,7 @@ func (h *ProfileHandler) DeleteByUUID(w http.ResponseWriter, r *http.Request) {
 	// Delete by profile UUID with ownership verification
 	deletedProfile, err := h.profileService.DeleteByUUID(profileUUID, user.UserUUID)
 	if err != nil {
-		resp.HandleServiceError(w, "Failed to delete profile", err)
+		resp.HandleServiceError(w, r, "Failed to delete profile", err)
 		return
 	}
 
@@ -376,7 +376,7 @@ func (h *ProfileHandler) AdminGetAllProfiles(w http.ResponseWriter, r *http.Requ
 		reqParams.SortOrder,
 	)
 	if err != nil {
-		resp.HandleServiceError(w, "Failed to fetch profiles", err)
+		resp.HandleServiceError(w, r, "Failed to fetch profiles", err)
 		return
 	}
 
@@ -418,7 +418,7 @@ func (h *ProfileHandler) AdminGetProfile(w http.ResponseWriter, r *http.Request)
 	// Get profile by UUID without ownership check (admin access)
 	profile, err := h.profileService.GetByUUID(profileUUID, userUUID)
 	if err != nil {
-		resp.HandleServiceError(w, "Profile not found", err)
+		resp.HandleServiceError(w, r, "Profile not found", err)
 		return
 	}
 
@@ -469,7 +469,7 @@ func (h *ProfileHandler) AdminCreateProfile(w http.ResponseWriter, r *http.Reque
 		req.Metadata,
 	)
 	if err != nil {
-		resp.HandleServiceError(w, "Create profile failed", err)
+		resp.HandleServiceError(w, r, "Create profile failed", err)
 		return
 	}
 
@@ -525,7 +525,7 @@ func (h *ProfileHandler) AdminUpdateProfile(w http.ResponseWriter, r *http.Reque
 		req.Metadata,
 	)
 	if err != nil {
-		resp.HandleServiceError(w, "Update profile failed", err)
+		resp.HandleServiceError(w, r, "Update profile failed", err)
 		return
 	}
 
@@ -552,7 +552,7 @@ func (h *ProfileHandler) AdminDeleteProfile(w http.ResponseWriter, r *http.Reque
 	// Delete by profile UUID without strict ownership check (admin access)
 	deletedProfile, err := h.profileService.DeleteByUUID(profileUUID, userUUID)
 	if err != nil {
-		resp.HandleServiceError(w, "Delete profile failed", err)
+		resp.HandleServiceError(w, r, "Delete profile failed", err)
 		return
 	}
 
@@ -573,7 +573,7 @@ func (h *ProfileHandler) SetDefaultProfile(w http.ResponseWriter, r *http.Reques
 	// Set profile as default with ownership verification
 	profile, err := h.profileService.SetDefaultProfile(profileUUID, user.UserUUID)
 	if err != nil {
-		resp.HandleServiceError(w, "Set default profile failed", err)
+		resp.HandleServiceError(w, r, "Set default profile failed", err)
 		return
 	}
 
@@ -600,7 +600,7 @@ func (h *ProfileHandler) AdminSetDefaultProfile(w http.ResponseWriter, r *http.R
 	// Set profile as default without strict ownership check (admin access)
 	profile, err := h.profileService.SetDefaultProfile(profileUUID, userUUID)
 	if err != nil {
-		resp.HandleServiceError(w, "Set default profile failed", err)
+		resp.HandleServiceError(w, r, "Set default profile failed", err)
 		return
 	}
 

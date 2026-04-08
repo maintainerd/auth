@@ -131,7 +131,7 @@ func (h *RegisterHandler) RegisterPublic(w http.ResponseWriter, r *http.Request)
 			Details:   "Registration failed: " + err.Error(),
 			Severity:  "MEDIUM",
 		})
-		resp.HandleServiceError(w, "Registration failed", err)
+		resp.HandleServiceError(w, r, "Registration failed", err)
 		return
 	}
 
@@ -222,7 +222,7 @@ func (h *RegisterHandler) Register(w http.ResponseWriter, r *http.Request) {
 			Details:   "Internal registration failed: " + err.Error(),
 			Severity:  "MEDIUM",
 		})
-		resp.HandleServiceError(w, "Registration failed", err)
+		resp.HandleServiceError(w, r, "Registration failed", err)
 		return
 	}
 
@@ -281,7 +281,7 @@ func (h *RegisterHandler) RegisterInvite(w http.ResponseWriter, r *http.Request)
 		clientIDPtr, providerIDPtr,
 	)
 	if err != nil {
-		resp.HandleServiceError(w, "Registration failed", err)
+		resp.HandleServiceError(w, r, "Registration failed", err)
 		return
 	}
 
@@ -325,7 +325,7 @@ func (h *RegisterHandler) RegisterInvitePublic(w http.ResponseWriter, r *http.Re
 		q.InviteToken,
 	)
 	if err != nil {
-		resp.HandleServiceError(w, "Registration failed", err)
+		resp.HandleServiceError(w, r, "Registration failed", err)
 		return
 	}
 

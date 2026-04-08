@@ -1,14 +1,21 @@
 package response
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
+	"io"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	validation "github.com/go-ozzo/ozzo-validation/v4"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/maintainerd/auth/internal/apperror"
 )
 
 type responseBody struct {
@@ -141,3 +148,67 @@ func TestCreatedWithCookies_WithCookieHeader(t *testing.T) {
 	assert.True(t, found)
 }
 
+func TestWithLogger_and_LoggerFromContext(t *testing.T) {
+	t.Run("stores and retrieves logger", func(t *testing.T) {
+		logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+		ctx := WithLogger(context.Background(), logger)
+		got := LoggerFromContext(ctx)
+		assert.Same(t, logger, got)
+	})
+
+	t.Run("falls back to slog.Default when none set", func(t *testing.T) {
+		got := LoggerFromContext(context.Background())
+		assert.Same(t, slog.Default(), got)
+	})
+
+	t.Run("nil logger value falls back to default", func(t *testing.T) {
+		ctx := context.WithValue(context.Background(), loggerContextKey{}, (*slog.Logger)(nil))
+		got := LoggerFromContext(ctx)
+		assert.Same(t, slog.Default(), got)
+	})
+}
+
+func TestHandleServiceError(t *testing.T) {
+	cases := []struct {
+		name       string
+		err        error
+		wantStatus int
+		wantError  string
+	}{
+		{"not found", apperror.NewNotFound("tenant"), http.StatusNotFound, "tenant not found"},
+		{"conflict", apperror.NewConflict("email already registered"), http.StatusConflict, "email already registered"},
+		{"forbidden", apperror.NewForbidden("profile does not belong to user"), http.StatusForbidden, "profile does not belong to user"},
+		{"unauthorized", apperror.NewUnauthorized("invalid credentials"), http.StatusUnauthorized, "invalid credentials"},
+		{"validation", apperror.NewValidation("cannot delete system policy"), http.StatusBadRequest, "cannot delete system policy"},
+		{"internal", apperror.NewInternal("hash password", errors.New("bcrypt failed")), http.StatusInternalServerError, "fallback message"},
+		{"untyped", errors.New("unexpected db error"), http.StatusInternalServerError, "fallback message"},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			rr := httptest.NewRecorder()
+			req := httptest.NewRequest(http.MethodGet, "/", nil)
+			HandleServiceError(rr, req, "fallback message", tc.err)
+
+			assert.Equal(t, tc.wantStatus, rr.Code)
+			body := decodeBody(t, rr)
+			assert.False(t, body.Success)
+			assert.Equal(t, tc.wantError, body.Error)
+		})
+	}
+}
+
+func TestHandleServiceError_UsesContextLogger(t *testing.T) {
+	var buf strings.Builder
+	logger := slog.New(slog.NewTextHandler(&buf, nil))
+
+	rr := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	ctx := WithLogger(req.Context(), logger)
+
+	HandleServiceError(rr, req.WithContext(ctx), "oops", apperror.NewInternal("op", errors.New("boom")))
+
+	assert.Equal(t, http.StatusInternalServerError, rr.Code)
+	assert.Contains(t, buf.String(), "internal service error")
+	assert.Contains(t, buf.String(), "boom")
+}

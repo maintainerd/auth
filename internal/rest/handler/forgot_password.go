@@ -115,7 +115,7 @@ func (h *ForgotPasswordHandler) ForgotPasswordPublic(w http.ResponseWriter, r *h
 			Details:   "Service error: " + err.Error(),
 			Severity:  "HIGH",
 		})
-		resp.HandleServiceError(w, "Failed to process password reset request", err)
+		resp.HandleServiceError(w, r, "Failed to process password reset request", err)
 		return
 	}
 
@@ -219,7 +219,7 @@ func (h *ForgotPasswordHandler) ForgotPassword(w http.ResponseWriter, r *http.Re
 			Details:   "Service error: " + err.Error(),
 			Severity:  "HIGH",
 		})
-		resp.HandleServiceError(w, "Failed to process password reset request", err)
+		resp.HandleServiceError(w, r, "Failed to process password reset request", err)
 		return
 	}
 
