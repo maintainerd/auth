@@ -13,12 +13,12 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "contributing/testing.md",
+                "file": "contributing/architecture.md",
                 "mode": "source",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "testing"
+              "title": "architecture"
             }
           }
         ]
@@ -185,8 +185,11 @@
   },
   "active": "dc8544e5e4f816b2",
   "lastOpenFiles": [
-    "contributing/environment-variables.md",
     "deployment/environment-variables.md",
+    "Untitled.md",
+    "contributing/architecture.md",
+    "contributing/environment-variables.md",
+    "contributing/testing.md",
     "contributing/getting-started.md",
     "deployment",
     "contributing",
