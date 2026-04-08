@@ -4,14 +4,14 @@ import (
 	"github.com/maintainerd/auth/internal/rest/handler"
 	"github.com/go-chi/chi/v5"
 	"github.com/maintainerd/auth/internal/middleware"
-	"github.com/maintainerd/auth/internal/repository"
+	"github.com/maintainerd/auth/internal/service"
 	"github.com/redis/go-redis/v9"
 )
 
 func TenantRoute(
 	r chi.Router,
 	tenantHandler *handler.TenantHandler,
-	userRepo repository.UserRepository,
+	userService service.UserService,
 	redisClient *redis.Client,
 ) {
 	// Single tenant endpoints (public - no authentication required)
@@ -27,7 +27,7 @@ func TenantRoute(
 	// Multiple tenants endpoints (existing)
 	r.Route("/tenants", func(r chi.Router) {
 		r.Use(middleware.JWTAuthMiddleware)
-		r.Use(middleware.UserContextMiddleware(userRepo, redisClient))
+		r.Use(middleware.UserContextMiddleware(userService, redisClient))
 
 		r.With(middleware.PermissionMiddleware([]string{"tenant:read"})).
 			Get("/", tenantHandler.Get)
