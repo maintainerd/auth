@@ -9,34 +9,39 @@ import (
 	"time"
 )
 
-// SecretManager interface for different secret providers
+// SecretManager is the interface all secret providers must implement.
+// Providers are selected at startup via the SECRET_PROVIDER environment variable.
 type SecretManager interface {
 	GetSecret(key string) ([]byte, error)
 	GetSecretString(key string) (string, error)
 }
 
-// EnvironmentSecretManager loads secrets from environment variables
-type EnvironmentSecretManager struct{}
+// activeSecretManager is the resolved provider, initialized once by initSecretManager.
+var activeSecretManager SecretManager
 
-func (e *EnvironmentSecretManager) GetSecret(key string) ([]byte, error) {
+// secretFetchTimeout caps each external provider call.
+const secretFetchTimeout = 10 * time.Second
+
+// ────────────────────────────────────────────────── env provider ──────────
+
+type envSecretManager struct{}
+
+func (e *envSecretManager) GetSecret(key string) ([]byte, error) {
 	value := os.Getenv(key)
 	if value == "" {
-		return nil, fmt.Errorf("environment variable %s is not set", key)
+		return nil, fmt.Errorf("environment variable %q is not set", key)
 	}
-
-	// Handle base64 encoded secrets (useful for binary data)
 	if strings.HasPrefix(value, "base64:") {
 		decoded, err := base64.StdEncoding.DecodeString(strings.TrimPrefix(value, "base64:"))
 		if err != nil {
-			return nil, fmt.Errorf("failed to decode base64 secret %s: %w", key, err)
+			return nil, fmt.Errorf("failed to decode base64 secret %q: %w", key, err)
 		}
 		return decoded, nil
 	}
-
 	return []byte(value), nil
 }
 
-func (e *EnvironmentSecretManager) GetSecretString(key string) (string, error) {
+func (e *envSecretManager) GetSecretString(key string) (string, error) {
 	data, err := e.GetSecret(key)
 	if err != nil {
 		return "", err
@@ -44,26 +49,25 @@ func (e *EnvironmentSecretManager) GetSecretString(key string) (string, error) {
 	return string(data), nil
 }
 
-// FileSecretManager loads secrets from files (useful for Docker secrets)
-type FileSecretManager struct {
-	BasePath string
-}
+// ────────────────────────────────────────────── file provider ──────────
 
-func (f *FileSecretManager) GetSecret(key string) ([]byte, error) {
-	// Convert environment variable name to file path
-	// e.g. JWT_PRIVATE_KEY -> /run/secrets/jwt-private-key
-	filename := strings.ToLower(strings.ReplaceAll(key, "_", "-"))
-	filepath := fmt.Sprintf("%s/%s", f.BasePath, filename)
+// fileSecretManager reads secrets from files — useful for Docker secrets
+// mounted under /run/secrets or a custom directory (SECRET_FILE_PATH).
+// Key names are lowercased and underscores replaced with hyphens.
+// e.g. JWT_PRIVATE_KEY → <base-path>/jwt-private-key
+type fileSecretManager struct{ basePath string }
 
-	data, err := os.ReadFile(filepath)
+func (f *fileSecretManager) GetSecret(key string) ([]byte, error) {
+	name := strings.ToLower(strings.ReplaceAll(key, "_", "-"))
+	path := fmt.Sprintf("%s/%s", f.basePath, name)
+	data, err := os.ReadFile(path)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read secret file %s: %w", filepath, err)
+		return nil, fmt.Errorf("failed to read secret file %q: %w", path, err)
 	}
-
 	return data, nil
 }
 
-func (f *FileSecretManager) GetSecretString(key string) (string, error) {
+func (f *fileSecretManager) GetSecretString(key string) (string, error) {
 	data, err := f.GetSecret(key)
 	if err != nil {
 		return "", err
@@ -71,120 +75,97 @@ func (f *FileSecretManager) GetSecretString(key string) (string, error) {
 	return strings.TrimSpace(string(data)), nil
 }
 
-// AWS Systems Manager Parameter Store (placeholder for future implementation)
-type AWSSSMSecretManager struct {
-	Region string
-	Prefix string
-}
+// ────────────────────────────────────────── factory & lifecycle ──────────
 
-func (a *AWSSSMSecretManager) GetSecret(key string) ([]byte, error) {
-	// TODO: Implement AWS SSM Parameter Store integration
-	// This would use AWS SDK to fetch parameters
-	return nil, fmt.Errorf("AWS SSM integration not implemented yet")
-}
-
-func (a *AWSSSMSecretManager) GetSecretString(key string) (string, error) {
-	data, err := a.GetSecret(key)
+// initSecretManager creates the active provider from the current configuration
+// and stores it in activeSecretManager. Must be called once from config.Init()
+// after SecretProvider and SecretPrefix are set.
+func initSecretManager() error {
+	sm, err := newSecretManager()
 	if err != nil {
-		return "", err
+		return err
 	}
-	return string(data), nil
+	activeSecretManager = sm
+	return nil
 }
 
-// AWS Secrets Manager (placeholder for future implementation)
-type AWSSecretsManager struct {
-	Region string
-	Prefix string
-}
-
-func (a *AWSSecretsManager) GetSecret(key string) ([]byte, error) {
-	// TODO: Implement AWS Secrets Manager integration
-	return nil, fmt.Errorf("AWS Secrets Manager integration not implemented yet")
-}
-
-func (a *AWSSecretsManager) GetSecretString(key string) (string, error) {
-	data, err := a.GetSecret(key)
-	if err != nil {
-		return "", err
-	}
-	return string(data), nil
-}
-
-// HashiCorp Vault (placeholder for future implementation)
-type VaultSecretManager struct {
-	Address string
-	Token   string
-	Prefix  string
-}
-
-func (v *VaultSecretManager) GetSecret(key string) ([]byte, error) {
-	// TODO: Implement HashiCorp Vault integration
-	return nil, fmt.Errorf("HashiCorp Vault integration not implemented yet")
-}
-
-func (v *VaultSecretManager) GetSecretString(key string) (string, error) {
-	data, err := v.GetSecret(key)
-	if err != nil {
-		return "", err
-	}
-	return string(data), nil
-}
-
-// getSecretManager returns the appropriate secret manager based on configuration
-func getSecretManager() SecretManager {
+// newSecretManager constructs the SecretManager for the configured SECRET_PROVIDER.
+//
+// Supported values (SECRET_PROVIDER):
+//
+//	env        – environment variables (default)
+//	file       – files under SECRET_FILE_PATH (default /run/secrets)
+//	aws_secrets – AWS Secrets Manager
+//	aws_ssm    – AWS SSM Parameter Store
+//	vault      – HashiCorp Vault (KV v2)
+//	gcp        – GCP Secret Manager
+//	azure_kv   – Azure Key Vault
+func newSecretManager() (SecretManager, error) {
 	switch SecretProvider {
 	case "env":
-		slog.Info("Using environment variable secret provider")
-		return &EnvironmentSecretManager{}
+		slog.Info("Secret provider: environment variables")
+		return &envSecretManager{}, nil
 
 	case "file":
 		basePath := GetEnvOrDefault("SECRET_FILE_PATH", "/run/secrets")
-		slog.Info("Using file secret provider", "path", basePath)
-		return &FileSecretManager{BasePath: basePath}
-
-	case "aws_ssm":
-		region := GetEnvOrDefault("AWS_REGION", "us-east-1")
-		slog.Info("Using AWS SSM Parameter Store", "region", region, "prefix", SecretPrefix)
-		return &AWSSSMSecretManager{Region: region, Prefix: SecretPrefix}
+		slog.Info("Secret provider: file", "path", basePath)
+		return &fileSecretManager{basePath: basePath}, nil
 
 	case "aws_secrets":
 		region := GetEnvOrDefault("AWS_REGION", "us-east-1")
-		slog.Info("Using AWS Secrets Manager", "region", region, "prefix", SecretPrefix)
-		return &AWSSecretsManager{Region: region, Prefix: SecretPrefix}
+		slog.Info("Secret provider: AWS Secrets Manager", "region", region, "prefix", SecretPrefix)
+		return newAWSSecretsManager(region, SecretPrefix)
+
+	case "aws_ssm":
+		region := GetEnvOrDefault("AWS_REGION", "us-east-1")
+		slog.Info("Secret provider: AWS SSM Parameter Store", "region", region, "prefix", SecretPrefix)
+		return newAWSSSMSecretManager(region, SecretPrefix)
 
 	case "vault":
 		address := GetEnvOrDefault("VAULT_ADDR", "http://localhost:8200")
-		slog.Info("Using HashiCorp Vault", "address", address, "prefix", SecretPrefix)
-		return &VaultSecretManager{
-			Address: address,
-			Token:   os.Getenv("VAULT_TOKEN"),
-			Prefix:  SecretPrefix,
+		token := os.Getenv("VAULT_TOKEN")
+		mount := GetEnvOrDefault("VAULT_MOUNT", "secret")
+		slog.Info("Secret provider: HashiCorp Vault", "address", address, "mount", mount, "prefix", SecretPrefix)
+		return newVaultSecretManager(address, token, SecretPrefix, mount)
+
+	case "gcp":
+		projectID, err := GetEnv("GCP_PROJECT_ID")
+		if err != nil {
+			return nil, fmt.Errorf("GCP Secret Manager requires GCP_PROJECT_ID: %w", err)
 		}
+		slog.Info("Secret provider: GCP Secret Manager", "project", projectID)
+		return newGCPSecretManager(projectID)
+
+	case "azure_kv":
+		vaultURL, err := GetEnv("AZURE_KEYVAULT_URL")
+		if err != nil {
+			return nil, fmt.Errorf("Azure Key Vault requires AZURE_KEYVAULT_URL: %w", err)
+		}
+		slog.Info("Secret provider: Azure Key Vault", "url", vaultURL)
+		return newAzureKeyVaultManager(vaultURL)
 
 	default:
-		slog.Warn("Unknown secret provider, falling back to environment variables", "provider", SecretProvider)
-		return &EnvironmentSecretManager{}
+		slog.Warn("Unknown SECRET_PROVIDER, falling back to environment variables", "provider", SecretProvider)
+		return &envSecretManager{}, nil
 	}
 }
 
-// loadSecret loads a secret using the configured secret manager
+// loadSecret fetches a secret through the active provider with up to 3 retries.
 func loadSecret(key string) ([]byte, error) {
-	manager := getSecretManager()
+	if activeSecretManager == nil {
+		return nil, fmt.Errorf("secret manager not initialized; ensure initSecretManager is called first")
+	}
 
-	// Add retry logic for production resilience
 	var lastErr error
 	for attempt := 1; attempt <= 3; attempt++ {
-		secret, err := manager.GetSecret(key)
+		secret, err := activeSecretManager.GetSecret(key)
 		if err == nil {
-			// Validate secret is not empty
 			if len(secret) == 0 {
-				return nil, fmt.Errorf("secret %s is empty", key)
+				return nil, fmt.Errorf("secret %q is empty", key)
 			}
-
-			slog.Info("Successfully loaded secret", "key", key, "bytes", len(secret))
+			slog.Info("Loaded secret", "key", key, "bytes", len(secret))
 			return secret, nil
 		}
-
 		lastErr = err
 		if attempt < 3 {
 			slog.Warn("Failed to load secret, retrying", "key", key, "attempt", attempt, "error", err)
@@ -192,18 +173,16 @@ func loadSecret(key string) ([]byte, error) {
 		}
 	}
 
-	return nil, fmt.Errorf("failed to load secret %s after 3 attempts: %w", key, lastErr)
+	return nil, fmt.Errorf("failed to load secret %q after 3 attempts: %w", key, lastErr)
 }
 
-// ValidateSecretProvider validates the secret provider configuration
+// ValidateSecretProvider returns an error if SECRET_PROVIDER is not a known value.
 func ValidateSecretProvider() error {
-	validProviders := []string{"env", "file", "aws_ssm", "aws_secrets", "vault"}
-
-	for _, provider := range validProviders {
-		if SecretProvider == provider {
+	valid := []string{"env", "file", "aws_secrets", "aws_ssm", "vault", "gcp", "azure_kv"}
+	for _, p := range valid {
+		if SecretProvider == p {
 			return nil
 		}
 	}
-
-	return fmt.Errorf("invalid secret provider '%s', must be one of: %v", SecretProvider, validProviders)
+	return fmt.Errorf("invalid SECRET_PROVIDER %q, must be one of: %v", SecretProvider, valid)
 }

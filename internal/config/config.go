@@ -61,6 +61,10 @@ func Init() error {
 		return fmt.Errorf("secret provider validation failed: %w", err)
 	}
 
+	if err := initSecretManager(); err != nil {
+		return fmt.Errorf("failed to initialize secret manager: %w", err)
+	}
+
 	// App Config
 	var err error
 	if AppVersion, err = GetEnv("APP_VERSION"); err != nil {
