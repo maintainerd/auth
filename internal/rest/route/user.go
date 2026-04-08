@@ -4,7 +4,7 @@ import (
 	"github.com/maintainerd/auth/internal/rest/handler"
 	"github.com/go-chi/chi/v5"
 	"github.com/maintainerd/auth/internal/middleware"
-	"github.com/maintainerd/auth/internal/repository"
+	"github.com/maintainerd/auth/internal/service"
 	"github.com/redis/go-redis/v9"
 )
 
@@ -12,12 +12,12 @@ func UserRoute(
 	r chi.Router,
 	userHandler *handler.UserHandler,
 	profileHandler *handler.ProfileHandler,
-	userRepo repository.UserRepository,
+	userService service.UserService,
 	redisClient *redis.Client,
 ) {
 	r.Route("/users", func(r chi.Router) {
 		r.Use(middleware.JWTAuthMiddleware)
-		r.Use(middleware.UserContextMiddleware(userRepo, redisClient))
+		r.Use(middleware.UserContextMiddleware(userService, redisClient))
 
 		// Get users with pagination and filtering
 		r.With(middleware.PermissionMiddleware([]string{"user:read"})).

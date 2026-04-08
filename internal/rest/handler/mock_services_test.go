@@ -743,6 +743,10 @@ func (m *mockUserService) GetUserIdentities(id uuid.UUID) ([]service.UserIdentit
 	return nil, nil
 }
 
+func (m *mockUserService) FindBySubAndClientID(sub, clientID string) (*model.User, error) {
+	return nil, nil
+}
+
 // ---------------------------------------------------------------------------
 // mockProfileService
 // ---------------------------------------------------------------------------
