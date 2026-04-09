@@ -41,12 +41,12 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "contributing/testing.md",
+                "file": "v1-features/templist.md",
                 "mode": "source",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "testing"
+              "title": "templist"
             }
           }
         ],
@@ -214,6 +214,7 @@
   },
   "active": "23e420a3d2a47962",
   "lastOpenFiles": [
+    "contributing/testing.md",
     "v1-features/templist.md",
     "contributing/opentelemetry-list.md",
     "contributing/opentelemetry.md",
@@ -223,7 +224,6 @@
     "contributing/environment-variables.md",
     "deployment/environment-variables.md",
     "contributing/architecture.md",
-    "contributing/testing.md",
     "contributing/getting-started.md",
     "deployment",
     "contributing",

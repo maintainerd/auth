@@ -34,8 +34,8 @@ func NewEmailTemplateHandler(emailTemplateService service.EmailTemplateService) 
 // The service layer filters templates by tenant_id to ensure data isolation.
 func (h *EmailTemplateHandler) GetAll(w http.ResponseWriter, r *http.Request) {
 	// Tenant is already validated by middleware - just extract from context
-	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
-	if !ok || tenant == nil {
+	tenant := middleware.AuthFromRequest(r).Tenant
+	if tenant == nil {
 		resp.Error(w, http.StatusUnauthorized, "Tenant not found in context")
 		return
 	}
@@ -110,8 +110,8 @@ func (h *EmailTemplateHandler) GetAll(w http.ResponseWriter, r *http.Request) {
 // The service layer verifies the template belongs to the tenant.
 func (h *EmailTemplateHandler) Get(w http.ResponseWriter, r *http.Request) {
 	// Tenant is already validated by middleware - just extract from context
-	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
-	if !ok || tenant == nil {
+	tenant := middleware.AuthFromRequest(r).Tenant
+	if tenant == nil {
 		resp.Error(w, http.StatusUnauthorized, "Tenant not found in context")
 		return
 	}
@@ -141,8 +141,8 @@ func (h *EmailTemplateHandler) Get(w http.ResponseWriter, r *http.Request) {
 // The template is automatically associated with the tenant from context.
 func (h *EmailTemplateHandler) Create(w http.ResponseWriter, r *http.Request) {
 	// Tenant is already validated by middleware - just extract from context
-	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
-	if !ok || tenant == nil {
+	tenant := middleware.AuthFromRequest(r).Tenant
+	if tenant == nil {
 		resp.Error(w, http.StatusUnauthorized, "Tenant not found in context")
 		return
 	}
@@ -190,8 +190,8 @@ func (h *EmailTemplateHandler) Create(w http.ResponseWriter, r *http.Request) {
 // The service layer verifies the template belongs to the tenant before updating.
 func (h *EmailTemplateHandler) Update(w http.ResponseWriter, r *http.Request) {
 	// Tenant is already validated by middleware - just extract from context
-	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
-	if !ok || tenant == nil {
+	tenant := middleware.AuthFromRequest(r).Tenant
+	if tenant == nil {
 		resp.Error(w, http.StatusUnauthorized, "Tenant not found in context")
 		return
 	}
@@ -249,8 +249,8 @@ func (h *EmailTemplateHandler) Update(w http.ResponseWriter, r *http.Request) {
 // The service layer verifies the template belongs to the tenant before deletion.
 func (h *EmailTemplateHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	// Tenant is already validated by middleware - just extract from context
-	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
-	if !ok || tenant == nil {
+	tenant := middleware.AuthFromRequest(r).Tenant
+	if tenant == nil {
 		resp.Error(w, http.StatusUnauthorized, "Tenant not found in context")
 		return
 	}
@@ -280,8 +280,8 @@ func (h *EmailTemplateHandler) Delete(w http.ResponseWriter, r *http.Request) {
 // The service layer verifies the template belongs to the tenant before updating status.
 func (h *EmailTemplateHandler) UpdateStatus(w http.ResponseWriter, r *http.Request) {
 	// Tenant is already validated by middleware - just extract from context
-	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
-	if !ok || tenant == nil {
+	tenant := middleware.AuthFromRequest(r).Tenant
+	if tenant == nil {
 		resp.Error(w, http.StatusUnauthorized, "Tenant not found in context")
 		return
 	}

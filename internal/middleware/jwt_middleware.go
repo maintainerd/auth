@@ -10,23 +10,39 @@ import (
 	resp "github.com/maintainerd/auth/internal/rest/response"
 )
 
-type contextKey string
+// jwtKey is the unexported context key type for JWTClaims, preventing key
+// collisions with other packages.
+type jwtKey struct{}
 
-const (
-	UserUUIDKey contextKey = "user_uuid"
-	SubKey      contextKey = "sub"
+// JWTClaims holds the parsed claims extracted from a validated JWT.
+// It is stored once by JWTAuthMiddleware and retrieved by downstream
+// middleware and handlers via JWTClaimsFromRequest.
+type JWTClaims struct {
+	Sub        string
+	UserUUID   uuid.UUID
+	Scope      string
+	Audience   string
+	Issuer     string
+	JTI        string
+	ClientID   string
+	ProviderID string
+}
 
-	// standard jwt fields
-	ScopeKey    contextKey = "scope"
-	AudienceKey contextKey = "audience"
-	IssuerKey   contextKey = "issuer"
-	JTIKey      contextKey = "jti"
+// JWTClaimsFromRequest returns the JWTClaims stored in the request context
+// by JWTAuthMiddleware, or nil if the middleware has not run.
+func JWTClaimsFromRequest(r *http.Request) *JWTClaims {
+	claims, _ := r.Context().Value(jwtKey{}).(*JWTClaims)
+	return claims
+}
 
-	// auth client identification fields
-	ClientIDKey   contextKey = "client_id"
-	ProviderIDKey contextKey = "provider_id"
-)
+// WithJWTClaims returns a shallow copy of r with the given JWTClaims stored
+// in its context. It is intended for use in tests.
+func WithJWTClaims(r *http.Request, claims *JWTClaims) *http.Request {
+	return r.WithContext(context.WithValue(r.Context(), jwtKey{}, claims))
+}
 
+// JWTAuthMiddleware validates the Bearer token (or access_token cookie) and
+// stores the parsed JWT claims in the request context for downstream use.
 func JWTAuthMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Get authorization header first
@@ -52,59 +68,58 @@ func JWTAuthMiddleware(next http.Handler) http.Handler {
 		}
 
 		// Validate token
-		claims, err := jwt.ValidateToken(token)
+		rawClaims, err := jwt.ValidateToken(token)
 		if err != nil {
 			resp.Error(w, http.StatusUnauthorized, "Invalid or expired token", err.Error())
 			return
 		}
 
-		// Extract subject (user_uuid) — validateTokenClaims already guarantees
-		// sub is a non-empty string, so the type assertion is always safe.
-		sub, _ := claims["sub"].(string)
+		// Extract subject — ValidateToken already guarantees sub is non-empty.
+		sub, _ := rawClaims["sub"].(string)
 
-		// Parse sub into uuid
+		// Parse sub into a UUID.
 		userUUID, err := uuid.Parse(sub)
 		if err != nil {
 			resp.Error(w, http.StatusBadRequest, "Invalid User UUID format", err.Error())
 			return
 		}
 
-		// Standard JWT fields
-		scope, _ := claims["scope"].(string)
-		aud, _ := claims["aud"].(string)
-		iss, _ := claims["iss"].(string)
-		jti, _ := claims["jti"].(string)
+		scope, _ := rawClaims["scope"].(string)
+		aud, _ := rawClaims["aud"].(string)
+		iss, _ := rawClaims["iss"].(string)
+		jti, _ := rawClaims["jti"].(string)
+		clientID, _ := rawClaims["client_id"].(string)
+		providerID, _ := rawClaims["provider_id"].(string)
 
-		// Auth client identification fields
-		clientID, _ := claims["client_id"].(string)
-		providerID, _ := claims["provider_id"].(string)
+		claims := &JWTClaims{
+			Sub:        sub,
+			UserUUID:   userUUID,
+			Scope:      scope,
+			Audience:   aud,
+			Issuer:     iss,
+			JTI:        jti,
+			ClientID:   clientID,
+			ProviderID: providerID,
+		}
 
-		// Build new context with all needed values
-		ctx := context.WithValue(r.Context(), SubKey, sub)
-		ctx = context.WithValue(ctx, ScopeKey, scope)
-		ctx = context.WithValue(ctx, AudienceKey, aud)
-		ctx = context.WithValue(ctx, IssuerKey, iss)
-		ctx = context.WithValue(ctx, JTIKey, jti)
-		ctx = context.WithValue(ctx, UserUUIDKey, userUUID)
-		ctx = context.WithValue(ctx, ClientIDKey, clientID)
-		ctx = context.WithValue(ctx, ProviderIDKey, providerID)
-
-		next.ServeHTTP(w, r.WithContext(ctx))
+		next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), jwtKey{}, claims)))
 	})
 }
 
-// GetClientIDFromContext extracts the client_id from the request context
+// GetClientIDFromContext extracts the client_id from the JWT claims stored in
+// the request context. Returns an empty string when claims are absent.
 func GetClientIDFromContext(r *http.Request) string {
-	if clientID, ok := r.Context().Value(ClientIDKey).(string); ok {
-		return clientID
+	if claims := JWTClaimsFromRequest(r); claims != nil {
+		return claims.ClientID
 	}
 	return ""
 }
 
-// GetProviderIDFromContext extracts the provider_id from the request context
+// GetProviderIDFromContext extracts the provider_id from the JWT claims stored
+// in the request context. Returns an empty string when claims are absent.
 func GetProviderIDFromContext(r *http.Request) string {
-	if providerID, ok := r.Context().Value(ProviderIDKey).(string); ok {
-		return providerID
+	if claims := JWTClaimsFromRequest(r); claims != nil {
+		return claims.ProviderID
 	}
 	return ""
 }

@@ -27,8 +27,8 @@ func NewClientHandler(ClientService service.ClientService) *ClientHandler {
 // Get all auth clients with pagination
 func (h *ClientHandler) Get(w http.ResponseWriter, r *http.Request) {
 	// Get tenant from context
-	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
-	if !ok || tenant == nil {
+	tenant := middleware.AuthFromRequest(r).Tenant
+	if tenant == nil {
 		resp.Error(w, http.StatusUnauthorized, "Tenant not found in context")
 		return
 	}
@@ -141,8 +141,8 @@ func (h *ClientHandler) Get(w http.ResponseWriter, r *http.Request) {
 // Get Auth client by UUID
 func (h *ClientHandler) GetByUUID(w http.ResponseWriter, r *http.Request) {
 	// Get tenant from context
-	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
-	if !ok || tenant == nil {
+	tenant := middleware.AuthFromRequest(r).Tenant
+	if tenant == nil {
 		resp.Error(w, http.StatusUnauthorized, "Tenant not found in context")
 		return
 	}
@@ -167,8 +167,8 @@ func (h *ClientHandler) GetByUUID(w http.ResponseWriter, r *http.Request) {
 // Get Auth client secret by UUID
 func (h *ClientHandler) GetSecretByUUID(w http.ResponseWriter, r *http.Request) {
 	// Get tenant from context
-	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
-	if !ok || tenant == nil {
+	tenant := middleware.AuthFromRequest(r).Tenant
+	if tenant == nil {
 		resp.Error(w, http.StatusUnauthorized, "Tenant not found in context")
 		return
 	}
@@ -196,8 +196,8 @@ func (h *ClientHandler) GetSecretByUUID(w http.ResponseWriter, r *http.Request) 
 // Get Auth client config by UUID
 func (h *ClientHandler) GetConfigByUUID(w http.ResponseWriter, r *http.Request) {
 	// Get tenant from context
-	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
-	if !ok || tenant == nil {
+	tenant := middleware.AuthFromRequest(r).Tenant
+	if tenant == nil {
 		resp.Error(w, http.StatusUnauthorized, "Tenant not found in context")
 		return
 	}
@@ -221,14 +221,14 @@ func (h *ClientHandler) GetConfigByUUID(w http.ResponseWriter, r *http.Request) 
 // Create Auth Client
 func (h *ClientHandler) Create(w http.ResponseWriter, r *http.Request) {
 	// Get tenant from context
-	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
-	if !ok || tenant == nil {
+	tenant := middleware.AuthFromRequest(r).Tenant
+	if tenant == nil {
 		resp.Error(w, http.StatusUnauthorized, "Tenant not found in context")
 		return
 	}
 
 	// Get authentication context
-	user := r.Context().Value(middleware.UserContextKey).(*model.User)
+	user := middleware.AuthFromRequest(r).User
 
 	var req dto.ClientCreateRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -255,14 +255,14 @@ func (h *ClientHandler) Create(w http.ResponseWriter, r *http.Request) {
 // Update Auth Client
 func (h *ClientHandler) Update(w http.ResponseWriter, r *http.Request) {
 	// Get tenant from context
-	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
-	if !ok || tenant == nil {
+	tenant := middleware.AuthFromRequest(r).Tenant
+	if tenant == nil {
 		resp.Error(w, http.StatusUnauthorized, "Tenant not found in context")
 		return
 	}
 
 	// Get authentication context
-	user := r.Context().Value(middleware.UserContextKey).(*model.User)
+	user := middleware.AuthFromRequest(r).User
 
 	ClientUUID, err := uuid.Parse(chi.URLParam(r, "client_uuid"))
 	if err != nil {
@@ -295,14 +295,14 @@ func (h *ClientHandler) Update(w http.ResponseWriter, r *http.Request) {
 // Set Auth client status
 func (h *ClientHandler) SetStatus(w http.ResponseWriter, r *http.Request) {
 	// Get tenant from context
-	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
-	if !ok || tenant == nil {
+	tenant := middleware.AuthFromRequest(r).Tenant
+	if tenant == nil {
 		resp.Error(w, http.StatusUnauthorized, "Tenant not found in context")
 		return
 	}
 
 	// Get authentication context
-	user := r.Context().Value(middleware.UserContextKey).(*model.User)
+	user := middleware.AuthFromRequest(r).User
 
 	ClientUUID, err := uuid.Parse(chi.URLParam(r, "client_uuid"))
 	if err != nil {
@@ -336,14 +336,14 @@ func (h *ClientHandler) SetStatus(w http.ResponseWriter, r *http.Request) {
 // Delete Auth Client
 func (h *ClientHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	// Get tenant from context
-	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
-	if !ok || tenant == nil {
+	tenant := middleware.AuthFromRequest(r).Tenant
+	if tenant == nil {
 		resp.Error(w, http.StatusUnauthorized, "Tenant not found in context")
 		return
 	}
 
 	// Get authentication context
-	user := r.Context().Value(middleware.UserContextKey).(*model.User)
+	user := middleware.AuthFromRequest(r).User
 
 	ClientUUID, err := uuid.Parse(chi.URLParam(r, "client_uuid"))
 	if err != nil {
@@ -364,8 +364,8 @@ func (h *ClientHandler) Delete(w http.ResponseWriter, r *http.Request) {
 
 func (h *ClientHandler) GetURIs(w http.ResponseWriter, r *http.Request) {
 	// Get tenant from context
-	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
-	if !ok || tenant == nil {
+	tenant := middleware.AuthFromRequest(r).Tenant
+	if tenant == nil {
 		resp.Error(w, http.StatusUnauthorized, "Tenant not found in context")
 		return
 	}
@@ -406,14 +406,14 @@ func (h *ClientHandler) GetURIs(w http.ResponseWriter, r *http.Request) {
 
 func (h *ClientHandler) CreateURI(w http.ResponseWriter, r *http.Request) {
 	// Get tenant from context
-	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
-	if !ok || tenant == nil {
+	tenant := middleware.AuthFromRequest(r).Tenant
+	if tenant == nil {
 		resp.Error(w, http.StatusUnauthorized, "Tenant not found in context")
 		return
 	}
 
 	// Get authentication context
-	user := r.Context().Value(middleware.UserContextKey).(*model.User)
+	user := middleware.AuthFromRequest(r).User
 
 	ClientUUID, err := uuid.Parse(chi.URLParam(r, "client_uuid"))
 	if err != nil {
@@ -451,14 +451,14 @@ func (h *ClientHandler) CreateURI(w http.ResponseWriter, r *http.Request) {
 
 func (h *ClientHandler) UpdateURI(w http.ResponseWriter, r *http.Request) {
 	// Get tenant from context
-	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
-	if !ok || tenant == nil {
+	tenant := middleware.AuthFromRequest(r).Tenant
+	if tenant == nil {
 		resp.Error(w, http.StatusUnauthorized, "Tenant not found in context")
 		return
 	}
 
 	// Get authentication context
-	user := r.Context().Value(middleware.UserContextKey).(*model.User)
+	user := middleware.AuthFromRequest(r).User
 
 	ClientUUID, err := uuid.Parse(chi.URLParam(r, "client_uuid"))
 	if err != nil {
@@ -518,14 +518,14 @@ func (h *ClientHandler) UpdateURI(w http.ResponseWriter, r *http.Request) {
 
 func (h *ClientHandler) DeleteURI(w http.ResponseWriter, r *http.Request) {
 	// Get tenant from context
-	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
-	if !ok || tenant == nil {
+	tenant := middleware.AuthFromRequest(r).Tenant
+	if tenant == nil {
 		resp.Error(w, http.StatusUnauthorized, "Tenant not found in context")
 		return
 	}
 
 	// Get authentication context
-	user := r.Context().Value(middleware.UserContextKey).(*model.User)
+	user := middleware.AuthFromRequest(r).User
 
 	ClientUUID, err := uuid.Parse(chi.URLParam(r, "client_uuid"))
 	if err != nil {
@@ -554,8 +554,8 @@ func (h *ClientHandler) DeleteURI(w http.ResponseWriter, r *http.Request) {
 func (h *ClientHandler) GetAPIs(w http.ResponseWriter, r *http.Request) {
 	// Get authentication context
 	// Get tenant from context
-	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
-	if !ok || tenant == nil {
+	tenant := middleware.AuthFromRequest(r).Tenant
+	if tenant == nil {
 		resp.Error(w, http.StatusUnauthorized, "Tenant not found in context")
 		return
 	}
@@ -634,8 +634,8 @@ func (h *ClientHandler) AddAPIs(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Get tenant from context
-	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
-	if !ok || tenant == nil {
+	tenant := middleware.AuthFromRequest(r).Tenant
+	if tenant == nil {
 		resp.Error(w, http.StatusUnauthorized, "Tenant not found in context")
 		return
 	}
@@ -669,8 +669,8 @@ func (h *ClientHandler) RemoveAPI(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Get tenant from context
-	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
-	if !ok || tenant == nil {
+	tenant := middleware.AuthFromRequest(r).Tenant
+	if tenant == nil {
 		resp.Error(w, http.StatusUnauthorized, "Tenant not found in context")
 		return
 	}
@@ -704,8 +704,8 @@ func (h *ClientHandler) GetAPIPermissions(w http.ResponseWriter, r *http.Request
 	}
 
 	// Get tenant from context
-	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
-	if !ok || tenant == nil {
+	tenant := middleware.AuthFromRequest(r).Tenant
+	if tenant == nil {
 		resp.Error(w, http.StatusUnauthorized, "Tenant not found in context")
 		return
 	}
@@ -761,8 +761,8 @@ func (h *ClientHandler) AddAPIPermissions(w http.ResponseWriter, r *http.Request
 	}
 
 	// Get tenant from context
-	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
-	if !ok || tenant == nil {
+	tenant := middleware.AuthFromRequest(r).Tenant
+	if tenant == nil {
 		resp.Error(w, http.StatusUnauthorized, "Tenant not found in context")
 		return
 	}
@@ -803,8 +803,8 @@ func (h *ClientHandler) RemoveAPIPermission(w http.ResponseWriter, r *http.Reque
 	}
 
 	// Get tenant from context
-	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
-	if !ok || tenant == nil {
+	tenant := middleware.AuthFromRequest(r).Tenant
+	if tenant == nil {
 		resp.Error(w, http.StatusUnauthorized, "Tenant not found in context")
 		return
 	}

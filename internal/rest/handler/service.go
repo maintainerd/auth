@@ -10,7 +10,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/dto"
 	"github.com/maintainerd/auth/internal/middleware"
-	"github.com/maintainerd/auth/internal/model"
 	"github.com/maintainerd/auth/internal/ptr"
 	resp "github.com/maintainerd/auth/internal/rest/response"
 	"github.com/maintainerd/auth/internal/service"
@@ -40,8 +39,8 @@ func NewServiceHandler(service service.ServiceService) *ServiceHandler {
 // Public services are available to all tenants, while non-public services are tenant-specific.
 func (h *ServiceHandler) Get(w http.ResponseWriter, r *http.Request) {
 	// Get tenant from context (middleware already validated access)
-	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
-	if !ok || tenant == nil {
+	tenant := middleware.AuthFromRequest(r).Tenant
+	if tenant == nil {
 		resp.Error(w, http.StatusUnauthorized, "Tenant not found in context")
 		return
 	}
@@ -136,8 +135,8 @@ func (h *ServiceHandler) Get(w http.ResponseWriter, r *http.Request) {
 // (available to all tenants) or tenant-specific.
 func (h *ServiceHandler) GetByUUID(w http.ResponseWriter, r *http.Request) {
 	// Get tenant from context (middleware already validated access)
-	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
-	if !ok || tenant == nil {
+	tenant := middleware.AuthFromRequest(r).Tenant
+	if tenant == nil {
 		resp.Error(w, http.StatusUnauthorized, "Tenant not found in context")
 		return
 	}
@@ -171,8 +170,8 @@ func (h *ServiceHandler) GetByUUID(w http.ResponseWriter, r *http.Request) {
 // flags are reserved for seeded services only.
 func (h *ServiceHandler) Create(w http.ResponseWriter, r *http.Request) {
 	// Get tenant from context (middleware already validated access)
-	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
-	if !ok || tenant == nil {
+	tenant := middleware.AuthFromRequest(r).Tenant
+	if tenant == nil {
 		resp.Error(w, http.StatusUnauthorized, "Tenant not found in context")
 		return
 	}
@@ -219,8 +218,8 @@ func (h *ServiceHandler) Create(w http.ResponseWriter, r *http.Request) {
 // (reserved for seeded services).
 func (h *ServiceHandler) Update(w http.ResponseWriter, r *http.Request) {
 	// Get tenant from context (middleware already validated access)
-	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
-	if !ok || tenant == nil {
+	tenant := middleware.AuthFromRequest(r).Tenant
+	if tenant == nil {
 		resp.Error(w, http.StatusUnauthorized, "Tenant not found in context")
 		return
 	}
@@ -274,8 +273,8 @@ func (h *ServiceHandler) Update(w http.ResponseWriter, r *http.Request) {
 // This is a convenience endpoint for status-only updates.
 func (h *ServiceHandler) SetStatus(w http.ResponseWriter, r *http.Request) {
 	// Get tenant from context (middleware already validated access)
-	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
-	if !ok || tenant == nil {
+	tenant := middleware.AuthFromRequest(r).Tenant
+	if tenant == nil {
 		resp.Error(w, http.StatusUnauthorized, "Tenant not found in context")
 		return
 	}
@@ -320,8 +319,8 @@ func (h *ServiceHandler) SetStatus(w http.ResponseWriter, r *http.Request) {
 // associated policies and API relationships. System services cannot be deleted.
 func (h *ServiceHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	// Get tenant from context (middleware already validated access)
-	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
-	if !ok || tenant == nil {
+	tenant := middleware.AuthFromRequest(r).Tenant
+	if tenant == nil {
 		resp.Error(w, http.StatusUnauthorized, "Tenant not found in context")
 		return
 	}
@@ -373,8 +372,8 @@ func toServiceResponseDTO(s service.ServiceServiceDataResult) dto.ServiceRespons
 // management for service access.
 func (h *ServiceHandler) AssignPolicy(w http.ResponseWriter, r *http.Request) {
 	// Get tenant from context (middleware already validated access)
-	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
-	if !ok || tenant == nil {
+	tenant := middleware.AuthFromRequest(r).Tenant
+	if tenant == nil {
 		resp.Error(w, http.StatusUnauthorized, "Tenant not found in context")
 		return
 	}
@@ -412,8 +411,8 @@ func (h *ServiceHandler) AssignPolicy(w http.ResponseWriter, r *http.Request) {
 // and service must belong to the tenant.
 func (h *ServiceHandler) RemovePolicy(w http.ResponseWriter, r *http.Request) {
 	// Get tenant from context (middleware already validated access)
-	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
-	if !ok || tenant == nil {
+	tenant := middleware.AuthFromRequest(r).Tenant
+	if tenant == nil {
 		resp.Error(w, http.StatusUnauthorized, "Tenant not found in context")
 		return
 	}

@@ -17,35 +17,61 @@ type UserContextProvider interface {
 	FindBySubAndClientID(ctx context.Context, sub string, clientID string) (*model.User, error)
 }
 
-// Context keys for accessing user-related information
-type userContextKey string
+// authKey is the unexported context key type for AuthContext, preventing key
+// collisions with other packages.
+type authKey struct{}
 
-const (
-	UserContextKey     userContextKey = "user"
-	TenantContextKey   userContextKey = "tenant"
-	ProviderContextKey userContextKey = "provider"
-	ClientContextKey   userContextKey = "client"
-)
+// AuthContext holds the authenticated principal and their associated tenant,
+// identity provider, and client. It is set once by UserContextMiddleware and
+// retrieved by downstream middleware and handlers via AuthFromRequest.
+type AuthContext struct {
+	User     *model.User
+	Tenant   *model.Tenant
+	Provider *model.IdentityProvider
+	Client   *model.Client
+}
 
+// AuthFromRequest returns the AuthContext stored in the request context by
+// UserContextMiddleware. It never returns nil — fields inside the struct may
+// be nil when the middleware has not populated them.
+func AuthFromRequest(r *http.Request) *AuthContext {
+	if auth, ok := r.Context().Value(authKey{}).(*AuthContext); ok {
+		return auth
+	}
+	return &AuthContext{}
+}
+
+// WithAuthContext returns a shallow copy of r with the given AuthContext stored
+// in its context. It is intended for use in tests.
+func WithAuthContext(r *http.Request, auth *AuthContext) *http.Request {
+	return r.WithContext(context.WithValue(r.Context(), authKey{}, auth))
+}
+
+// UserContextMiddleware resolves the authenticated user, tenant, provider, and
+// client from the JWT claims already stored by JWTAuthMiddleware, populates an
+// AuthContext, and stores it in the request context for downstream handlers.
 func UserContextMiddleware(
 	userProvider UserContextProvider,
 	appCache *cache.Cache,
 ) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			// Get sub and client_id from JWT context
-			sub, _ := r.Context().Value(SubKey).(string)
-			clientID, _ := r.Context().Value(ClientIDKey).(string)
+			var sub, clientID string
+			if c := JWTClaimsFromRequest(r); c != nil {
+				sub, clientID = c.Sub, c.ClientID
+			}
 
 			ctx := r.Context()
 
 			// Try cache first
 			if uc := appCache.GetUserContext(ctx, sub, clientID); uc != nil {
-				reqCtx := context.WithValue(r.Context(), UserContextKey, uc.User)
-				reqCtx = context.WithValue(reqCtx, TenantContextKey, uc.Tenant)
-				reqCtx = context.WithValue(reqCtx, ProviderContextKey, uc.Provider)
-				reqCtx = context.WithValue(reqCtx, ClientContextKey, uc.Client)
-				next.ServeHTTP(w, r.WithContext(reqCtx))
+				auth := &AuthContext{
+					User:     uc.User,
+					Tenant:   uc.Tenant,
+					Provider: uc.Provider,
+					Client:   uc.Client,
+				}
+				next.ServeHTTP(w, r.WithContext(context.WithValue(ctx, authKey{}, auth)))
 				return
 			}
 
@@ -60,19 +86,15 @@ func UserContextMiddleware(
 				return
 			}
 
-			// Extract tenant, provider, and client information from user relationships
+			// Extract tenant from user identities matching the current client.
 			var tenant *model.Tenant
 			var provider *model.IdentityProvider
 			var client *model.Client
 
-			// Get tenant, provider and client from user identities
-			if len(user.UserIdentities) > 0 {
-				for _, identity := range user.UserIdentities {
-					if identity.Client != nil && identity.Client.Identifier != nil && *identity.Client.Identifier == clientID {
-						// Get tenant from this identity
-						if identity.Tenant != nil {
-							tenant = identity.Tenant
-						}
+			for _, identity := range user.UserIdentities {
+				if identity.Client != nil && identity.Client.Identifier != nil && *identity.Client.Identifier == clientID {
+					if identity.Tenant != nil {
+						tenant = identity.Tenant
 					}
 				}
 			}
@@ -85,12 +107,13 @@ func UserContextMiddleware(
 				Client:   client,
 			})
 
-			// Set all context information
-			reqCtx := context.WithValue(r.Context(), UserContextKey, user)
-			reqCtx = context.WithValue(reqCtx, TenantContextKey, tenant)
-			reqCtx = context.WithValue(reqCtx, ProviderContextKey, provider)
-			reqCtx = context.WithValue(reqCtx, ClientContextKey, client)
-			next.ServeHTTP(w, r.WithContext(reqCtx))
+			auth := &AuthContext{
+				User:     user,
+				Tenant:   tenant,
+				Provider: provider,
+				Client:   client,
+			}
+			next.ServeHTTP(w, r.WithContext(context.WithValue(ctx, authKey{}, auth)))
 		})
 	}
 }
