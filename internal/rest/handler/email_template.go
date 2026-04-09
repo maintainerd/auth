@@ -10,9 +10,9 @@ import (
 	"github.com/maintainerd/auth/internal/dto"
 	"github.com/maintainerd/auth/internal/middleware"
 	"github.com/maintainerd/auth/internal/model"
-	"github.com/maintainerd/auth/internal/service"
 	"github.com/maintainerd/auth/internal/ptr"
 	resp "github.com/maintainerd/auth/internal/rest/response"
+	"github.com/maintainerd/auth/internal/service"
 )
 
 // EmailTemplateHandler handles HTTP requests for email template management.
@@ -87,7 +87,7 @@ func (h *EmailTemplateHandler) GetAll(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Fetch templates from service - service filters by tenant_id
-	result, err := h.emailTemplateService.GetAll(tenant.TenantID, filter.Name, filter.Status, filter.IsDefault, filter.IsSystem, filter.Page, filter.Limit, filter.SortBy, filter.SortOrder)
+	result, err := h.emailTemplateService.GetAll(r.Context(), tenant.TenantID, filter.Name, filter.Status, filter.IsDefault, filter.IsSystem, filter.Page, filter.Limit, filter.SortBy, filter.SortOrder)
 	if err != nil {
 		resp.HandleServiceError(w, r, "Failed to get email templates", err)
 		return
@@ -127,7 +127,7 @@ func (h *EmailTemplateHandler) Get(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Fetch template - service validates it belongs to tenant
-	template, err := h.emailTemplateService.GetByUUID(emailTemplateUUID, tenant.TenantID)
+	template, err := h.emailTemplateService.GetByUUID(r.Context(), emailTemplateUUID, tenant.TenantID)
 	if err != nil {
 		resp.HandleServiceError(w, r, "Email template not found", err)
 		return
@@ -168,6 +168,7 @@ func (h *EmailTemplateHandler) Create(w http.ResponseWriter, r *http.Request) {
 
 	// Create template associated with tenant
 	template, err := h.emailTemplateService.Create(
+		r.Context(),
 		tenant.TenantID,
 		req.Name,
 		req.Subject,
@@ -226,6 +227,7 @@ func (h *EmailTemplateHandler) Update(w http.ResponseWriter, r *http.Request) {
 
 	// Update template - service validates it belongs to tenant
 	template, err := h.emailTemplateService.Update(
+		r.Context(),
 		emailTemplateUUID,
 		tenant.TenantID,
 		req.Name,
@@ -264,7 +266,7 @@ func (h *EmailTemplateHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Delete template - service validates it belongs to tenant
-	template, err := h.emailTemplateService.Delete(emailTemplateUUID, tenant.TenantID)
+	template, err := h.emailTemplateService.Delete(r.Context(), emailTemplateUUID, tenant.TenantID)
 	if err != nil {
 		resp.HandleServiceError(w, r, "Failed to delete email template", err)
 		return
@@ -308,7 +310,7 @@ func (h *EmailTemplateHandler) UpdateStatus(w http.ResponseWriter, r *http.Reque
 	}
 
 	// Update status - service validates template belongs to tenant
-	template, err := h.emailTemplateService.UpdateStatus(emailTemplateUUID, tenant.TenantID, req.Status)
+	template, err := h.emailTemplateService.UpdateStatus(r.Context(), emailTemplateUUID, tenant.TenantID, req.Status)
 	if err != nil {
 		resp.HandleServiceError(w, r, "Failed to update email template status", err)
 		return
