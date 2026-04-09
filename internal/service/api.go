@@ -199,7 +199,11 @@ func (s *apiService) Create(ctx context.Context, tenantID int64, name string, di
 		}
 
 		// Generate identifier
-		identifier := fmt.Sprintf("api-%s", crypto.GenerateIdentifier(12))
+		idSuffix, err := crypto.GenerateIdentifier(12)
+		if err != nil {
+			return err
+		}
+		identifier := fmt.Sprintf("api-%s", idSuffix)
 
 		// Create api
 		newAPI := &model.API{

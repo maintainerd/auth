@@ -221,7 +221,8 @@ func TestDetermineSeverity(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestGenerateCSRFToken_Format(t *testing.T) {
-	tok := GenerateCSRFToken()
+	tok, err := GenerateCSRFToken()
+	require.NoError(t, err)
 	assert.Len(t, tok, 64, "32 random bytes hex-encoded = 64 chars")
 	for _, c := range tok {
 		assert.True(t, (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f'), "must be lowercase hex")
@@ -229,8 +230,10 @@ func TestGenerateCSRFToken_Format(t *testing.T) {
 }
 
 func TestGenerateCSRFToken_Unique(t *testing.T) {
-	a := GenerateCSRFToken()
-	b := GenerateCSRFToken()
+	a, err := GenerateCSRFToken()
+	require.NoError(t, err)
+	b, err := GenerateCSRFToken()
+	require.NoError(t, err)
 	assert.NotEqual(t, a, b)
 }
 

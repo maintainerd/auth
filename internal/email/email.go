@@ -2,6 +2,7 @@ package email
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
 
 	"go.opentelemetry.io/otel"
@@ -54,6 +55,10 @@ func sendEmail(ctx context.Context, params SendEmailParams) error {
 	}
 
 	d := gomail.NewDialer(config.SMTPHost, config.SMTPPort, config.SMTPUser, config.SMTPPass)
+	d.TLSConfig = &tls.Config{
+		MinVersion: tls.VersionTLS12,
+		ServerName: config.SMTPHost,
+	}
 	if err := d.DialAndSend(m); err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "smtp send failed")

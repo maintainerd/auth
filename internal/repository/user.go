@@ -224,6 +224,7 @@ func (r *userRepository) FindPaginated(filter UserRepositoryGetFilter) (*Paginat
 	query = query.Order(sanitizeOrderPrefixed("users.", filter.SortBy, filter.SortOrder, "users.created_at DESC"))
 
 	// Apply pagination
+	filter.Page, filter.Limit = normalizePagination(filter.Page, filter.Limit)
 	offset := (filter.Page - 1) * filter.Limit
 	if err := query.Offset(offset).Limit(filter.Limit).Find(&users).Error; err != nil {
 		return nil, err

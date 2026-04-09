@@ -531,7 +531,7 @@ Seeds default data required for the service to function (default tenant, roles, 
 | **DTO boundary** | `internal/dto/` | Decouples API shape from internal models. Sanitizes and validates at the edge. |
 | **Middleware composition** | `internal/middleware/` | Separates cross-cutting concerns (auth, logging, security) from business logic. |
 | **Dual-server split** | `internal/rest/server/` | Hard network-level separation between admin and public APIs. |
-| **Function variable injection** | `email.SendEmail`, `security.HashPassword` | Allows test doubles without interfaces for simple leaf dependencies. |
+| **Function variable injection** | `email.SendEmail`, `crypto.GenerateIdentifier`, `security.HashPassword` | Allows test doubles without interfaces for simple leaf dependencies. |
 | **Advisory-locked migrations** | `internal/runner/` | Safe for multi-pod deployments — only one pod migrates at a time. |
 
 ---
@@ -552,5 +552,5 @@ Seeds default data required for the service to function (default tenant, roles, 
 | Email | gomail (`gopkg.in/gomail.v2`) |
 | gRPC | `google.golang.org/grpc` + protobuf |
 | Testing | testify (`github.com/stretchr/testify`), go-sqlmock |
-| Container | Docker (multi-stage, `scratch` production image) |
+| Container | Docker (multi-stage, `alpine` production image) |
 | Proxy | Nginx (local development) |

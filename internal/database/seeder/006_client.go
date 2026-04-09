@@ -7,14 +7,40 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/config"
-	"github.com/maintainerd/auth/internal/model"
 	"github.com/maintainerd/auth/internal/crypto"
+	"github.com/maintainerd/auth/internal/model"
 	"gorm.io/datatypes"
 	"gorm.io/gorm"
 )
 
 func SeedClients(db *gorm.DB, tenantID int64, identityProviderID int64) error {
 	appHostName := config.AppPrivateHostname
+
+	// Pre-generate all client identifiers and secrets
+	traditionalID, err := crypto.GenerateIdentifier(32)
+	if err != nil {
+		return fmt.Errorf("failed to generate identifier: %w", err)
+	}
+	traditionalSecret, err := crypto.GenerateIdentifier(64)
+	if err != nil {
+		return fmt.Errorf("failed to generate secret: %w", err)
+	}
+	spaID, err := crypto.GenerateIdentifier(32)
+	if err != nil {
+		return fmt.Errorf("failed to generate identifier: %w", err)
+	}
+	mobileID, err := crypto.GenerateIdentifier(32)
+	if err != nil {
+		return fmt.Errorf("failed to generate identifier: %w", err)
+	}
+	m2mID, err := crypto.GenerateIdentifier(32)
+	if err != nil {
+		return fmt.Errorf("failed to generate identifier: %w", err)
+	}
+	m2mSecret, err := crypto.GenerateIdentifier(64)
+	if err != nil {
+		return fmt.Errorf("failed to generate secret: %w", err)
+	}
 
 	clients := []model.Client{
 		{
@@ -24,8 +50,8 @@ func SeedClients(db *gorm.DB, tenantID int64, identityProviderID int64) error {
 			DisplayName: "Traditional Web App Default",
 			ClientType:  "traditional",
 			Domain:      strPtr(appHostName),
-			Identifier:  strPtr(crypto.GenerateIdentifier(32)),
-			Secret:      strPtr(crypto.GenerateIdentifier(64)),
+			Identifier:  strPtr(traditionalID),
+			Secret:      strPtr(traditionalSecret),
 			Config: datatypes.JSON([]byte(`{
 				"grant_types": ["authorization_code"],
 				"response_type": "code",
@@ -45,7 +71,7 @@ func SeedClients(db *gorm.DB, tenantID int64, identityProviderID int64) error {
 			DisplayName: "Single Page App Default",
 			ClientType:  "spa",
 			Domain:      strPtr(appHostName),
-			Identifier:  strPtr(crypto.GenerateIdentifier(32)),
+			Identifier:  strPtr(spaID),
 			Secret:      nil,
 			Config: datatypes.JSON([]byte(`{
 				"grant_types": ["authorization_code"],
@@ -66,7 +92,7 @@ func SeedClients(db *gorm.DB, tenantID int64, identityProviderID int64) error {
 			DisplayName: "Mobile App Default",
 			ClientType:  "mobile",
 			Domain:      strPtr(appHostName),
-			Identifier:  strPtr(crypto.GenerateIdentifier(32)),
+			Identifier:  strPtr(mobileID),
 			Secret:      nil,
 			Config: datatypes.JSON([]byte(`{
 				"grant_types": ["authorization_code"],
@@ -87,8 +113,8 @@ func SeedClients(db *gorm.DB, tenantID int64, identityProviderID int64) error {
 			DisplayName: "Machine to Machine Default",
 			ClientType:  "m2m",
 			Domain:      strPtr(appHostName),
-			Identifier:  strPtr(crypto.GenerateIdentifier(32)),
-			Secret:      strPtr(crypto.GenerateIdentifier(64)),
+			Identifier:  strPtr(m2mID),
+			Secret:      strPtr(m2mSecret),
 			Config: datatypes.JSON([]byte(`{
 				"grant_types": ["client_credentials"]
 			}`)),

@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
+	"github.com/maintainerd/auth/internal/crypto"
 	"github.com/maintainerd/auth/internal/model"
 	"github.com/maintainerd/auth/internal/repository"
 	"github.com/stretchr/testify/assert"
@@ -199,6 +200,22 @@ func TestSignupFlowService_Create(t *testing.T) {
 		_, err := svc.Create(context.Background(), 1, "test-flow", "desc", nil, model.StatusActive, clientUUID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "name already exists")
+	})
+
+	t.Run("GenerateIdentifier failure", func(t *testing.T) {
+		orig := crypto.GenerateIdentifier
+		defer func() { crypto.GenerateIdentifier = orig }()
+		crypto.GenerateIdentifier = func(int) (string, error) { return "", errors.New("rand failure") }
+
+		db, mock := newMockGormDB(t)
+		mock.ExpectBegin()
+		mock.ExpectRollback()
+		cr := defaultCR()
+		cr.findByUUIDFn = func(_ any, _ ...string) (*model.Client, error) { return &model.Client{ClientID: 1}, nil }
+		svc := NewSignupFlowService(db, &mockSignupFlowRepo{}, &mockSignupFlowRoleRepo{}, &mockRoleRepo{}, cr)
+		_, err := svc.Create(context.Background(), 1, "test-flow", "desc", nil, model.StatusActive, clientUUID)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "rand failure")
 	})
 
 	t.Run("FindByIdentifierAndClientID error", func(t *testing.T) {

@@ -1,12 +1,13 @@
 package service
 
 import (
-	"errors"
 	"context"
+	"errors"
 	"testing"
 
 	sqlmock "github.com/DATA-DOG/go-sqlmock"
 	"github.com/google/uuid"
+	"github.com/maintainerd/auth/internal/crypto"
 	"github.com/maintainerd/auth/internal/model"
 	"github.com/maintainerd/auth/internal/repository"
 	"github.com/stretchr/testify/assert"
@@ -112,7 +113,7 @@ func TestTenantService_GetDefault(t *testing.T) {
 			repo := &mockTenantRepo{}
 			tc.setupRepo(repo)
 			svc := NewTenantService(nil, repo)
-			result, err := svc.GetDefault(context.Background(), )
+			result, err := svc.GetDefault(context.Background())
 			if tc.expectError {
 				require.Error(t, err)
 			} else {
@@ -417,6 +418,21 @@ func TestTenantService_Create(t *testing.T) {
 		_, err := svc.Create(context.Background(), "acme", "Acme Corp", "desc", "active", true, false)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "already exists")
+	})
+
+	t.Run("GenerateIdentifier failure", func(t *testing.T) {
+		orig := crypto.GenerateIdentifier
+		defer func() { crypto.GenerateIdentifier = orig }()
+		crypto.GenerateIdentifier = func(int) (string, error) { return "", errors.New("rand failure") }
+
+		repo := &mockTenantRepo{}
+		db, mock := newMockGormDB(t)
+		mock.ExpectBegin()
+		mock.ExpectRollback()
+		svc := NewTenantService(db, repo)
+		_, err := svc.Create(context.Background(), "acme", "Acme Corp", "desc", "active", true, false)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "rand failure")
 	})
 
 	t.Run("CreateOrUpdate error", func(t *testing.T) {

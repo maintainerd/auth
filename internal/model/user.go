@@ -15,7 +15,7 @@ type User struct {
 	Fullname           string         `gorm:"column:fullname"`
 	Email              string         `gorm:"column:email"`
 	Phone              string         `gorm:"column:phone"`
-	Password           *string        `gorm:"column:password"` // nullable for external users
+	Password           *string        `gorm:"column:password" json:"-"` // nullable for external users
 	IsEmailVerified    bool           `gorm:"column:is_email_verified;default:false"`
 	IsPhoneVerified    bool           `gorm:"column:is_phone_verified;default:false"`
 	IsProfileCompleted bool           `gorm:"column:is_profile_completed;default:false"`
