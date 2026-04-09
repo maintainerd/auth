@@ -1182,37 +1182,37 @@ type mockIdentityProviderService struct {
 	deleteByUUIDFn    func(uuid.UUID, int64, uuid.UUID) (*service.IdentityProviderServiceDataResult, error)
 }
 
-func (m *mockIdentityProviderService) Get(f service.IdentityProviderServiceGetFilter) (*service.IdentityProviderServiceGetResult, error) {
+func (m *mockIdentityProviderService) Get(_ context.Context, f service.IdentityProviderServiceGetFilter) (*service.IdentityProviderServiceGetResult, error) {
 	if m.getFn != nil {
 		return m.getFn(f)
 	}
 	return &service.IdentityProviderServiceGetResult{}, nil
 }
-func (m *mockIdentityProviderService) GetByUUID(id uuid.UUID, tid int64) (*service.IdentityProviderServiceDataResult, error) {
+func (m *mockIdentityProviderService) GetByUUID(_ context.Context, id uuid.UUID, tid int64) (*service.IdentityProviderServiceDataResult, error) {
 	if m.getByUUIDFn != nil {
 		return m.getByUUIDFn(id, tid)
 	}
 	return nil, nil
 }
-func (m *mockIdentityProviderService) Create(name, displayName, provider, providerType string, config datatypes.JSON, status, tenantUUID string, tenantID int64, actor uuid.UUID) (*service.IdentityProviderServiceDataResult, error) {
+func (m *mockIdentityProviderService) Create(_ context.Context, name, displayName, provider, providerType string, config datatypes.JSON, status, tenantUUID string, tenantID int64, actor uuid.UUID) (*service.IdentityProviderServiceDataResult, error) {
 	if m.createFn != nil {
 		return m.createFn(name, displayName, provider, providerType, config, status, tenantUUID, tenantID, actor)
 	}
 	return nil, nil
 }
-func (m *mockIdentityProviderService) Update(id uuid.UUID, name, displayName, provider, providerType string, config datatypes.JSON, status string, tenantID int64, actor uuid.UUID) (*service.IdentityProviderServiceDataResult, error) {
+func (m *mockIdentityProviderService) Update(_ context.Context, id uuid.UUID, name, displayName, provider, providerType string, config datatypes.JSON, status string, tenantID int64, actor uuid.UUID) (*service.IdentityProviderServiceDataResult, error) {
 	if m.updateFn != nil {
 		return m.updateFn(id, name, displayName, provider, providerType, config, status, tenantID, actor)
 	}
 	return nil, nil
 }
-func (m *mockIdentityProviderService) SetStatusByUUID(id uuid.UUID, status string, tenantID int64, actor uuid.UUID) (*service.IdentityProviderServiceDataResult, error) {
+func (m *mockIdentityProviderService) SetStatusByUUID(_ context.Context, id uuid.UUID, status string, tenantID int64, actor uuid.UUID) (*service.IdentityProviderServiceDataResult, error) {
 	if m.setStatusByUUIDFn != nil {
 		return m.setStatusByUUIDFn(id, status, tenantID, actor)
 	}
 	return nil, nil
 }
-func (m *mockIdentityProviderService) DeleteByUUID(id uuid.UUID, tenantID int64, actor uuid.UUID) (*service.IdentityProviderServiceDataResult, error) {
+func (m *mockIdentityProviderService) DeleteByUUID(_ context.Context, id uuid.UUID, tenantID int64, actor uuid.UUID) (*service.IdentityProviderServiceDataResult, error) {
 	if m.deleteByUUIDFn != nil {
 		return m.deleteByUUIDFn(id, tenantID, actor)
 	}
