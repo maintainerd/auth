@@ -16,6 +16,12 @@
     <a href="https://goreportcard.com/report/github.com/maintainerd/auth">
       <img src="https://goreportcard.com/badge/github.com/maintainerd/auth" alt="Go Report Card">
     </a>
+    <a href="https://scorecard.dev/viewer/?uri=github.com/maintainerd/auth">
+      <img src="https://api.scorecard.dev/projects/github.com/maintainerd/auth/badge" alt="OpenSSF Scorecard">
+    </a>
+    <a href="https://www.bestpractices.dev/projects/TODO">
+      <img src="https://www.bestpractices.dev/projects/TODO/badge" alt="OpenSSF Best Practices">
+    </a>
   </p>
 
   <p align="center">
@@ -241,6 +247,8 @@ MIT — see [LICENSE](LICENSE) for details.
 <p align="center">
   <sub>Security scanning powered by</sub>
   <br>
+  <a href="https://scorecard.dev/viewer/?uri=github.com/maintainerd/auth"><img src="https://img.shields.io/badge/OpenSSF_Scorecard-grey?logo=opensourcesecurityfoundation&logoColor=white" alt="OpenSSF Scorecard"></a>
+  <a href="https://www.bestpractices.dev/projects/TODO"><img src="https://img.shields.io/badge/OpenSSF_Best_Practices-grey?logo=opensourcesecurityfoundation&logoColor=white" alt="OpenSSF Best Practices"></a>
   <a href="https://semgrep.dev"><img src="https://img.shields.io/badge/Semgrep-grey?logo=semgrep&logoColor=white" alt="Semgrep"></a>
   <a href="https://snyk.io"><img src="https://img.shields.io/badge/Snyk-grey?logo=snyk&logoColor=white" alt="Snyk"></a>
   <a href="https://github.com/features/security"><img src="https://img.shields.io/badge/CodeQL-grey?logo=github&logoColor=white" alt="CodeQL"></a>
