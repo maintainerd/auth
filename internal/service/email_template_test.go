@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"errors"
 	"testing"
 
@@ -47,7 +48,7 @@ func TestEmailTemplateService_GetByUUID(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			svc := newEmailTemplateSvc(&mockEmailTemplateRepo{findByUUIDAndTenantIDFn: tc.repoFn})
-			res, err := svc.GetByUUID(id, tid)
+			res, err := svc.GetByUUID(context.Background(), id, tid)
 			if tc.wantErr != "" {
 				require.Error(t, err)
 				assert.Contains(t, err.Error(), tc.wantErr)
@@ -70,7 +71,7 @@ func TestEmailTemplateService_GetAll(t *testing.T) {
 			},
 		})
 
-		res, err := svc.GetAll(1, nil, nil, nil, nil, 1, 10, "created_at", "asc")
+		res, err := svc.GetAll(context.Background(), 1, nil, nil, nil, nil, 1, 10, "created_at", "asc")
 		require.NoError(t, err)
 		assert.Equal(t, int64(1), res.Total)
 		assert.Len(t, res.Data, 1)
@@ -83,7 +84,7 @@ func TestEmailTemplateService_GetAll(t *testing.T) {
 			},
 		})
 
-		_, err := svc.GetAll(1, nil, nil, nil, nil, 1, 10, "created_at", "asc")
+		_, err := svc.GetAll(context.Background(), 1, nil, nil, nil, nil, 1, 10, "created_at", "asc")
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "db err")
 	})
@@ -94,7 +95,7 @@ func TestEmailTemplateService_Create(t *testing.T) {
 		svc := newEmailTemplateSvc(&mockEmailTemplateRepo{
 			createFn: func(e *model.EmailTemplate) (*model.EmailTemplate, error) { return e, nil },
 		})
-		res, err := svc.Create(1, "Welcome", "Hi there", "<b>hi</b>", nil, "active", false)
+		res, err := svc.Create(context.Background(), 1, "Welcome", "Hi there", "<b>hi</b>", nil, "active", false)
 		require.NoError(t, err)
 		assert.Equal(t, "Welcome", res.Name)
 	})
@@ -103,7 +104,7 @@ func TestEmailTemplateService_Create(t *testing.T) {
 		svc := newEmailTemplateSvc(&mockEmailTemplateRepo{
 			createFn: func(_ *model.EmailTemplate) (*model.EmailTemplate, error) { return nil, errors.New("db fail") },
 		})
-		_, err := svc.Create(1, "Welcome", "Hi there", "<b>hi</b>", nil, "active", false)
+		_, err := svc.Create(context.Background(), 1, "Welcome", "Hi there", "<b>hi</b>", nil, "active", false)
 		require.Error(t, err)
 	})
 }
@@ -116,7 +117,7 @@ func TestEmailTemplateService_Update(t *testing.T) {
 		svc := newEmailTemplateSvc(&mockEmailTemplateRepo{
 			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64, _ ...string) (*model.EmailTemplate, error) { return nil, nil },
 		})
-		_, err := svc.Update(id, tid, "N", "S", "<b>b</b>", nil, "active")
+		_, err := svc.Update(context.Background(), id, tid, "N", "S", "<b>b</b>", nil, "active")
 		require.Error(t, err)
 	})
 
@@ -126,7 +127,7 @@ func TestEmailTemplateService_Update(t *testing.T) {
 				return &model.EmailTemplate{EmailTemplateUUID: i, IsSystem: true}, nil
 			},
 		})
-		_, err := svc.Update(id, tid, "N", "S", "<b>b</b>", nil, "active")
+		_, err := svc.Update(context.Background(), id, tid, "N", "S", "<b>b</b>", nil, "active")
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "system")
 	})
@@ -140,7 +141,7 @@ func TestEmailTemplateService_Update(t *testing.T) {
 				return &model.EmailTemplate{Name: "New"}, nil
 			},
 		})
-		res, err := svc.Update(id, tid, "New", "S", "<b>b</b>", nil, "active")
+		res, err := svc.Update(context.Background(), id, tid, "New", "S", "<b>b</b>", nil, "active")
 		require.NoError(t, err)
 		assert.Equal(t, "New", res.Name)
 	})
@@ -151,7 +152,7 @@ func TestEmailTemplateService_Update(t *testing.T) {
 				return nil, errors.New("db err")
 			},
 		})
-		_, err := svc.Update(id, tid, "N", "S", "<b>b</b>", nil, "active")
+		_, err := svc.Update(context.Background(), id, tid, "N", "S", "<b>b</b>", nil, "active")
 		require.Error(t, err)
 	})
 
@@ -164,7 +165,7 @@ func TestEmailTemplateService_Update(t *testing.T) {
 				return nil, errors.New("update err")
 			},
 		})
-		_, err := svc.Update(id, tid, "N", "S", "<b>b</b>", nil, "active")
+		_, err := svc.Update(context.Background(), id, tid, "N", "S", "<b>b</b>", nil, "active")
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "update err")
 	})
@@ -177,7 +178,7 @@ func TestEmailTemplateService_Delete(t *testing.T) {
 		svc := newEmailTemplateSvc(&mockEmailTemplateRepo{
 			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64, _ ...string) (*model.EmailTemplate, error) { return nil, nil },
 		})
-		_, err := svc.Delete(id, 1)
+		_, err := svc.Delete(context.Background(), id, 1)
 		require.Error(t, err)
 	})
 
@@ -187,7 +188,7 @@ func TestEmailTemplateService_Delete(t *testing.T) {
 				return nil, errors.New("db err")
 			},
 		})
-		_, err := svc.Delete(id, 1)
+		_, err := svc.Delete(context.Background(), id, 1)
 		require.Error(t, err)
 	})
 
@@ -197,7 +198,7 @@ func TestEmailTemplateService_Delete(t *testing.T) {
 				return &model.EmailTemplate{EmailTemplateUUID: i, IsSystem: true}, nil
 			},
 		})
-		_, err := svc.Delete(id, 1)
+		_, err := svc.Delete(context.Background(), id, 1)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "system")
 	})
@@ -209,7 +210,7 @@ func TestEmailTemplateService_Delete(t *testing.T) {
 			},
 			deleteByUUIDFn: func(_ any) error { return errors.New("del err") },
 		})
-		_, err := svc.Delete(id, 1)
+		_, err := svc.Delete(context.Background(), id, 1)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "del err")
 	})
@@ -221,7 +222,7 @@ func TestEmailTemplateService_Delete(t *testing.T) {
 			},
 			deleteByUUIDFn: func(_ any) error { return nil },
 		})
-		res, err := svc.Delete(id, 1)
+		res, err := svc.Delete(context.Background(), id, 1)
 		require.NoError(t, err)
 		assert.Equal(t, id, res.EmailTemplateUUID)
 	})
@@ -237,7 +238,7 @@ func TestEmailTemplateService_UpdateStatus(t *testing.T) {
 				return nil, errors.New("db err")
 			},
 		})
-		_, err := svc.UpdateStatus(id, tid, "active")
+		_, err := svc.UpdateStatus(context.Background(), id, tid, "active")
 		require.Error(t, err)
 	})
 
@@ -245,7 +246,7 @@ func TestEmailTemplateService_UpdateStatus(t *testing.T) {
 		svc := newEmailTemplateSvc(&mockEmailTemplateRepo{
 			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64, _ ...string) (*model.EmailTemplate, error) { return nil, nil },
 		})
-		_, err := svc.UpdateStatus(id, tid, "active")
+		_, err := svc.UpdateStatus(context.Background(), id, tid, "active")
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "not found")
 	})
@@ -256,7 +257,7 @@ func TestEmailTemplateService_UpdateStatus(t *testing.T) {
 				return &model.EmailTemplate{EmailTemplateUUID: i, IsSystem: true}, nil
 			},
 		})
-		_, err := svc.UpdateStatus(id, tid, "active")
+		_, err := svc.UpdateStatus(context.Background(), id, tid, "active")
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "system")
 	})
@@ -270,7 +271,7 @@ func TestEmailTemplateService_UpdateStatus(t *testing.T) {
 				return nil, errors.New("update err")
 			},
 		})
-		_, err := svc.UpdateStatus(id, tid, "active")
+		_, err := svc.UpdateStatus(context.Background(), id, tid, "active")
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "update err")
 	})
@@ -284,7 +285,7 @@ func TestEmailTemplateService_UpdateStatus(t *testing.T) {
 				return &model.EmailTemplate{Status: "active"}, nil
 			},
 		})
-		res, err := svc.UpdateStatus(id, tid, "active")
+		res, err := svc.UpdateStatus(context.Background(), id, tid, "active")
 		require.NoError(t, err)
 		assert.Equal(t, "active", res.Status)
 	})
