@@ -109,7 +109,7 @@ func TestInviteService_SendInvite(t *testing.T) {
 			tc.setupRepos(clientRepo, roleRepo, inviteRepo)
 
 			svc := NewInviteService(gormDB, inviteRepo, clientRepo, roleRepo, &mockEmailTemplateRepo{})
-			result, err := svc.SendInvite(1, "user@example.com", 1, []string{"role-uuid-1"})
+			result, err := svc.SendInvite(context.Background(), 1, "user@example.com", 1, []string{"role-uuid-1"})
 
 			if tc.wantErr {
 				require.Error(t, err)
@@ -141,7 +141,7 @@ func TestInviteService_SendInvite_RoleTenantMismatch(t *testing.T) {
 	}
 
 	svc := NewInviteService(gormDB, &mockInviteRepo{}, clientRepo, roleRepo, &mockEmailTemplateRepo{})
-	_, err := svc.SendInvite(1, "user@example.com", 1, []string{"role-uuid-1"})
+	_, err := svc.SendInvite(context.Background(), 1, "user@example.com", 1, []string{"role-uuid-1"})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "invalid role")
 }
@@ -164,7 +164,7 @@ func TestInviteService_SendInvite_InviteCreateError(t *testing.T) {
 	}
 
 	svc := NewInviteService(gormDB, inviteRepo, clientRepo, roleRepo, &mockEmailTemplateRepo{})
-	_, err := svc.SendInvite(1, "user@example.com", 1, []string{"role-uuid-1"})
+	_, err := svc.SendInvite(context.Background(), 1, "user@example.com", 1, []string{"role-uuid-1"})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "create err")
 }
@@ -186,7 +186,7 @@ func TestInviteService_SendInvite_BulkRoleCreateError(t *testing.T) {
 	}
 
 	svc := NewInviteService(gormDB, &mockInviteRepo{}, clientRepo, roleRepo, &mockEmailTemplateRepo{})
-	_, err := svc.SendInvite(1, "user@example.com", 1, []string{"role-uuid-1"})
+	_, err := svc.SendInvite(context.Background(), 1, "user@example.com", 1, []string{"role-uuid-1"})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "bulk insert err")
 }
@@ -239,7 +239,7 @@ func TestInviteService_SendInvite_FullSuccess(t *testing.T) {
 	}
 
 	svc := NewInviteService(gormDB, &mockInviteRepo{}, clientRepo, roleRepo, emailTemplateRepo)
-	result, err := svc.SendInvite(1, "user@example.com", 1, []string{"role-uuid-1"})
+	result, err := svc.SendInvite(context.Background(), 1, "user@example.com", 1, []string{"role-uuid-1"})
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 	assert.True(t, emailSent)
@@ -285,7 +285,7 @@ func TestInviteService_SendInvite_EmailSendError(t *testing.T) {
 	}
 
 	svc := NewInviteService(gormDB, &mockInviteRepo{}, clientRepo, roleRepo, emailTemplateRepo)
-	_, err := svc.SendInvite(1, "user@example.com", 1, []string{"role-uuid-1"})
+	_, err := svc.SendInvite(context.Background(), 1, "user@example.com", 1, []string{"role-uuid-1"})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "send invite email")
 }
@@ -326,7 +326,7 @@ func TestInviteService_SendInvite_TemplateFetchError(t *testing.T) {
 	}
 
 	svc := NewInviteService(gormDB, &mockInviteRepo{}, clientRepo, roleRepo, emailTemplateRepo)
-	_, err := svc.SendInvite(1, "user@example.com", 1, []string{"role-uuid-1"})
+	_, err := svc.SendInvite(context.Background(), 1, "user@example.com", 1, []string{"role-uuid-1"})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "send invite email")
 }
@@ -370,7 +370,7 @@ func TestInviteService_SendInvite_HTMLParseError(t *testing.T) {
 	}
 
 	svc := NewInviteService(gormDB, &mockInviteRepo{}, clientRepo, roleRepo, emailTemplateRepo)
-	_, err := svc.SendInvite(1, "user@example.com", 1, []string{"role-uuid-1"})
+	_, err := svc.SendInvite(context.Background(), 1, "user@example.com", 1, []string{"role-uuid-1"})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "send invite email")
 }
@@ -414,7 +414,7 @@ func TestInviteService_SendInvite_HTMLExecuteError(t *testing.T) {
 	}
 
 	svc := NewInviteService(gormDB, &mockInviteRepo{}, clientRepo, roleRepo, emailTemplateRepo)
-	_, err := svc.SendInvite(1, "user@example.com", 1, []string{"role-uuid-1"})
+	_, err := svc.SendInvite(context.Background(), 1, "user@example.com", 1, []string{"role-uuid-1"})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "send invite email")
 }
@@ -460,7 +460,7 @@ func TestInviteService_SendInvite_PlainParseError(t *testing.T) {
 	}
 
 	svc := NewInviteService(gormDB, &mockInviteRepo{}, clientRepo, roleRepo, emailTemplateRepo)
-	_, err := svc.SendInvite(1, "user@example.com", 1, []string{"role-uuid-1"})
+	_, err := svc.SendInvite(context.Background(), 1, "user@example.com", 1, []string{"role-uuid-1"})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "send invite email")
 }
@@ -506,7 +506,7 @@ func TestInviteService_SendInvite_PlainExecuteError(t *testing.T) {
 	}
 
 	svc := NewInviteService(gormDB, &mockInviteRepo{}, clientRepo, roleRepo, emailTemplateRepo)
-	_, err := svc.SendInvite(1, "user@example.com", 1, []string{"role-uuid-1"})
+	_, err := svc.SendInvite(context.Background(), 1, "user@example.com", 1, []string{"role-uuid-1"})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "send invite email")
 }
@@ -531,7 +531,7 @@ func TestInviteService_SendInvite_ClientInactive(t *testing.T) {
 	}
 
 	svc := NewInviteService(gormDB, &mockInviteRepo{}, clientRepo, &mockRoleRepo{}, &mockEmailTemplateRepo{})
-	_, err := svc.SendInvite(1, "user@example.com", 1, []string{"role-uuid-1"})
+	_, err := svc.SendInvite(context.Background(), 1, "user@example.com", 1, []string{"role-uuid-1"})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "invalid client")
 }
@@ -555,7 +555,7 @@ func TestInviteService_SendInvite_ClientNoDomain(t *testing.T) {
 	}
 
 	svc := NewInviteService(gormDB, &mockInviteRepo{}, clientRepo, &mockRoleRepo{}, &mockEmailTemplateRepo{})
-	_, err := svc.SendInvite(1, "user@example.com", 1, []string{"role-uuid-1"})
+	_, err := svc.SendInvite(context.Background(), 1, "user@example.com", 1, []string{"role-uuid-1"})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "invalid client")
 }
@@ -580,7 +580,7 @@ func TestInviteService_SendInvite_ClientEmptyDomain(t *testing.T) {
 	}
 
 	svc := NewInviteService(gormDB, &mockInviteRepo{}, clientRepo, &mockRoleRepo{}, &mockEmailTemplateRepo{})
-	_, err := svc.SendInvite(1, "user@example.com", 1, []string{"role-uuid-1"})
+	_, err := svc.SendInvite(context.Background(), 1, "user@example.com", 1, []string{"role-uuid-1"})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "invalid client")
 }
@@ -605,7 +605,7 @@ func TestInviteService_SendInvite_NoTenant(t *testing.T) {
 	}
 
 	svc := NewInviteService(gormDB, &mockInviteRepo{}, clientRepo, &mockRoleRepo{}, &mockEmailTemplateRepo{})
-	_, err := svc.SendInvite(1, "user@example.com", 1, []string{"role-uuid-1"})
+	_, err := svc.SendInvite(context.Background(), 1, "user@example.com", 1, []string{"role-uuid-1"})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "invalid client")
 }
@@ -630,7 +630,7 @@ func TestInviteService_SendInvite_TenantIDZero(t *testing.T) {
 	}
 
 	svc := NewInviteService(gormDB, &mockInviteRepo{}, clientRepo, &mockRoleRepo{}, &mockEmailTemplateRepo{})
-	_, err := svc.SendInvite(1, "user@example.com", 1, []string{"role-uuid-1"})
+	_, err := svc.SendInvite(context.Background(), 1, "user@example.com", 1, []string{"role-uuid-1"})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "invalid client")
 }
@@ -669,7 +669,7 @@ func TestInviteService_SendInvite_GenerateSignedURLError(t *testing.T) {
 	}
 
 	svc := NewInviteService(gormDB, &mockInviteRepo{}, clientRepo, roleRepo, &mockEmailTemplateRepo{})
-	_, err := svc.SendInvite(1, "user@example.com", 1, []string{"role-uuid-1"})
+	_, err := svc.SendInvite(context.Background(), 1, "user@example.com", 1, []string{"role-uuid-1"})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to generate signed invite URL")
 }
@@ -708,7 +708,7 @@ func TestInviteService_SendInvite_ConvertToFrontendURLError(t *testing.T) {
 	}
 
 	svc := NewInviteService(gormDB, &mockInviteRepo{}, clientRepo, roleRepo, &mockEmailTemplateRepo{})
-	_, err := svc.SendInvite(1, "user@example.com", 1, []string{"role-uuid-1"})
+	_, err := svc.SendInvite(context.Background(), 1, "user@example.com", 1, []string{"role-uuid-1"})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to convert invite URL")
 }

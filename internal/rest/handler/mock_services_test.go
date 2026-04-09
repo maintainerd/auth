@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"time"
 
 	"github.com/google/uuid"
@@ -119,7 +120,7 @@ type mockForgotPasswordService struct {
 	sendPasswordResetEmailFn func(string, *string, *string, bool) (*dto.ForgotPasswordResponseDTO, error)
 }
 
-func (m *mockForgotPasswordService) SendPasswordResetEmail(email string, clientID, providerID *string, isInternal bool) (*dto.ForgotPasswordResponseDTO, error) {
+func (m *mockForgotPasswordService) SendPasswordResetEmail(_ context.Context, email string, clientID, providerID *string, isInternal bool) (*dto.ForgotPasswordResponseDTO, error) {
 	if m.sendPasswordResetEmailFn != nil {
 		return m.sendPasswordResetEmailFn(email, clientID, providerID, isInternal)
 	}
@@ -607,37 +608,37 @@ func (m *mockRoleService) GetRolePermissions(f service.RoleServiceGetPermissions
 	}
 	return &service.RoleServiceGetPermissionsResult{}, nil
 }
-func (m *mockRoleService) Create(n, desc string, isDef, isSys bool, s, tenantUUID string, actor uuid.UUID) (*service.RoleServiceDataResult, error) {
+func (m *mockRoleService) Create(_ context.Context, n, desc string, isDef, isSys bool, s, tenantUUID string, actor uuid.UUID) (*service.RoleServiceDataResult, error) {
 	if m.createFn != nil {
 		return m.createFn(n, desc, isDef, isSys, s, tenantUUID, actor)
 	}
 	return nil, nil
 }
-func (m *mockRoleService) Update(id uuid.UUID, tid int64, n, desc string, isDef, isSys bool, s string, actor uuid.UUID) (*service.RoleServiceDataResult, error) {
+func (m *mockRoleService) Update(_ context.Context, id uuid.UUID, tid int64, n, desc string, isDef, isSys bool, s string, actor uuid.UUID) (*service.RoleServiceDataResult, error) {
 	if m.updateFn != nil {
 		return m.updateFn(id, tid, n, desc, isDef, isSys, s, actor)
 	}
 	return nil, nil
 }
-func (m *mockRoleService) SetStatusByUUID(id uuid.UUID, tid int64, s string, actor uuid.UUID) (*service.RoleServiceDataResult, error) {
+func (m *mockRoleService) SetStatusByUUID(_ context.Context, id uuid.UUID, tid int64, s string, actor uuid.UUID) (*service.RoleServiceDataResult, error) {
 	if m.setStatusByUUIDFn != nil {
 		return m.setStatusByUUIDFn(id, tid, s, actor)
 	}
 	return nil, nil
 }
-func (m *mockRoleService) DeleteByUUID(id uuid.UUID, tid int64, actor uuid.UUID) (*service.RoleServiceDataResult, error) {
+func (m *mockRoleService) DeleteByUUID(_ context.Context, id uuid.UUID, tid int64, actor uuid.UUID) (*service.RoleServiceDataResult, error) {
 	if m.deleteByUUIDFn != nil {
 		return m.deleteByUUIDFn(id, tid, actor)
 	}
 	return nil, nil
 }
-func (m *mockRoleService) AddRolePermissions(id uuid.UUID, tid int64, perms []uuid.UUID, actor uuid.UUID) (*service.RoleServiceDataResult, error) {
+func (m *mockRoleService) AddRolePermissions(_ context.Context, id uuid.UUID, tid int64, perms []uuid.UUID, actor uuid.UUID) (*service.RoleServiceDataResult, error) {
 	if m.addRolePermsFn != nil {
 		return m.addRolePermsFn(id, tid, perms, actor)
 	}
 	return nil, nil
 }
-func (m *mockRoleService) RemoveRolePermissions(id uuid.UUID, tid int64, perm uuid.UUID, actor uuid.UUID) (*service.RoleServiceDataResult, error) {
+func (m *mockRoleService) RemoveRolePermissions(_ context.Context, id uuid.UUID, tid int64, perm uuid.UUID, actor uuid.UUID) (*service.RoleServiceDataResult, error) {
 	if m.removeRolePermsFn != nil {
 		return m.removeRolePermsFn(id, tid, perm, actor)
 	}
@@ -682,49 +683,49 @@ func (m *mockUserService) Create(u, fn string, e, ph *string, pw, s string, meta
 	}
 	return nil, nil
 }
-func (m *mockUserService) Update(id uuid.UUID, tid int64, u, fn string, e, ph *string, s string, meta datatypes.JSON, updater uuid.UUID) (*service.UserServiceDataResult, error) {
+func (m *mockUserService) Update(_ context.Context, id uuid.UUID, tid int64, u, fn string, e, ph *string, s string, meta datatypes.JSON, updater uuid.UUID) (*service.UserServiceDataResult, error) {
 	if m.updateFn != nil {
 		return m.updateFn(id, tid, u, fn, e, ph, s, meta, updater)
 	}
 	return nil, nil
 }
-func (m *mockUserService) SetStatus(id uuid.UUID, tid int64, s string, updater uuid.UUID) (*service.UserServiceDataResult, error) {
+func (m *mockUserService) SetStatus(_ context.Context, id uuid.UUID, tid int64, s string, updater uuid.UUID) (*service.UserServiceDataResult, error) {
 	if m.setStatusFn != nil {
 		return m.setStatusFn(id, tid, s, updater)
 	}
 	return nil, nil
 }
-func (m *mockUserService) VerifyEmail(id uuid.UUID, tid int64) (*service.UserServiceDataResult, error) {
+func (m *mockUserService) VerifyEmail(_ context.Context, id uuid.UUID, tid int64) (*service.UserServiceDataResult, error) {
 	if m.verifyEmailFn != nil {
 		return m.verifyEmailFn(id, tid)
 	}
 	return nil, nil
 }
-func (m *mockUserService) VerifyPhone(id uuid.UUID, tid int64) (*service.UserServiceDataResult, error) {
+func (m *mockUserService) VerifyPhone(_ context.Context, id uuid.UUID, tid int64) (*service.UserServiceDataResult, error) {
 	if m.verifyPhoneFn != nil {
 		return m.verifyPhoneFn(id, tid)
 	}
 	return nil, nil
 }
-func (m *mockUserService) CompleteAccount(id uuid.UUID, tid int64) (*service.UserServiceDataResult, error) {
+func (m *mockUserService) CompleteAccount(_ context.Context, id uuid.UUID, tid int64) (*service.UserServiceDataResult, error) {
 	if m.completeAccountFn != nil {
 		return m.completeAccountFn(id, tid)
 	}
 	return nil, nil
 }
-func (m *mockUserService) DeleteByUUID(id uuid.UUID, tid int64, deleter uuid.UUID) (*service.UserServiceDataResult, error) {
+func (m *mockUserService) DeleteByUUID(_ context.Context, id uuid.UUID, tid int64, deleter uuid.UUID) (*service.UserServiceDataResult, error) {
 	if m.deleteByUUIDFn != nil {
 		return m.deleteByUUIDFn(id, tid, deleter)
 	}
 	return nil, nil
 }
-func (m *mockUserService) AssignUserRoles(id uuid.UUID, roles []uuid.UUID, tid int64) (*service.UserServiceDataResult, error) {
+func (m *mockUserService) AssignUserRoles(_ context.Context, id uuid.UUID, roles []uuid.UUID, tid int64) (*service.UserServiceDataResult, error) {
 	if m.assignUserRolesFn != nil {
 		return m.assignUserRolesFn(id, roles, tid)
 	}
 	return nil, nil
 }
-func (m *mockUserService) RemoveUserRole(id, role uuid.UUID, tid int64) (*service.UserServiceDataResult, error) {
+func (m *mockUserService) RemoveUserRole(_ context.Context, id, role uuid.UUID, tid int64) (*service.UserServiceDataResult, error) {
 	if m.removeUserRoleFn != nil {
 		return m.removeUserRoleFn(id, role, tid)
 	}
@@ -812,7 +813,7 @@ type mockInviteService struct {
 	sendInviteFn func(int64, string, int64, []string) (*model.Invite, error)
 }
 
-func (m *mockInviteService) SendInvite(tenantID int64, email string, userID int64, roleUUIDs []string) (*model.Invite, error) {
+func (m *mockInviteService) SendInvite(_ context.Context, tenantID int64, email string, userID int64, roleUUIDs []string) (*model.Invite, error) {
 	if m.sendInviteFn != nil {
 		return m.sendInviteFn(tenantID, email, userID, roleUUIDs)
 	}

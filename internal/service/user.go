@@ -68,14 +68,14 @@ type UserService interface {
 	Get(filter UserServiceGetFilter) (*UserServiceGetResult, error)
 	GetByUUID(userUUID uuid.UUID, tenantID int64) (*UserServiceDataResult, error)
 	Create(username string, fullname string, email *string, phone *string, password string, status string, metadata datatypes.JSON, tenantUUID string, creatorUserUUID uuid.UUID) (*UserServiceDataResult, error)
-	Update(userUUID uuid.UUID, tenantID int64, username string, fullname string, email *string, phone *string, status string, metadata datatypes.JSON, updaterUserUUID uuid.UUID) (*UserServiceDataResult, error)
-	SetStatus(userUUID uuid.UUID, tenantID int64, status string, updaterUserUUID uuid.UUID) (*UserServiceDataResult, error)
-	VerifyEmail(userUUID uuid.UUID, tenantID int64) (*UserServiceDataResult, error)
-	VerifyPhone(userUUID uuid.UUID, tenantID int64) (*UserServiceDataResult, error)
-	CompleteAccount(userUUID uuid.UUID, tenantID int64) (*UserServiceDataResult, error)
-	DeleteByUUID(userUUID uuid.UUID, tenantID int64, deleterUserUUID uuid.UUID) (*UserServiceDataResult, error)
-	AssignUserRoles(userUUID uuid.UUID, roleUUIDs []uuid.UUID, tenantID int64) (*UserServiceDataResult, error)
-	RemoveUserRole(userUUID uuid.UUID, roleUUID uuid.UUID, tenantID int64) (*UserServiceDataResult, error)
+	Update(ctx context.Context, userUUID uuid.UUID, tenantID int64, username string, fullname string, email *string, phone *string, status string, metadata datatypes.JSON, updaterUserUUID uuid.UUID) (*UserServiceDataResult, error)
+	SetStatus(ctx context.Context, userUUID uuid.UUID, tenantID int64, status string, updaterUserUUID uuid.UUID) (*UserServiceDataResult, error)
+	VerifyEmail(ctx context.Context, userUUID uuid.UUID, tenantID int64) (*UserServiceDataResult, error)
+	VerifyPhone(ctx context.Context, userUUID uuid.UUID, tenantID int64) (*UserServiceDataResult, error)
+	CompleteAccount(ctx context.Context, userUUID uuid.UUID, tenantID int64) (*UserServiceDataResult, error)
+	DeleteByUUID(ctx context.Context, userUUID uuid.UUID, tenantID int64, deleterUserUUID uuid.UUID) (*UserServiceDataResult, error)
+	AssignUserRoles(ctx context.Context, userUUID uuid.UUID, roleUUIDs []uuid.UUID, tenantID int64) (*UserServiceDataResult, error)
+	RemoveUserRole(ctx context.Context, userUUID uuid.UUID, roleUUID uuid.UUID, tenantID int64) (*UserServiceDataResult, error)
 	GetUserRoles(userUUID uuid.UUID) ([]RoleServiceDataResult, error)
 	GetUserIdentities(userUUID uuid.UUID) ([]UserIdentityServiceDataResult, error)
 	// FindBySubAndClientID resolves a user from a JWT sub claim and client ID.
@@ -125,14 +125,14 @@ func NewUserService(
 // invalidateUserCache clears all cached user-context entries for the given
 // user's identities. Call this after any mutation that changes data visible
 // in the user-context cache (user fields, roles, status, etc.).
-func (s *userService) invalidateUserCache(identities []model.UserIdentity) {
+func (s *userService) invalidateUserCache(ctx context.Context, identities []model.UserIdentity) {
 	seen := make(map[string]struct{})
 	for _, id := range identities {
 		if _, ok := seen[id.Sub]; ok {
 			continue
 		}
 		seen[id.Sub] = struct{}{}
-		s.cacheInvalidator.InvalidateUserAll(context.Background(), id.Sub)
+		s.cacheInvalidator.InvalidateUserAll(ctx, id.Sub)
 	}
 }
 
@@ -390,7 +390,7 @@ func (s *userService) Create(username string, fullname string, email *string, ph
 	return toUserServiceDataResult(createdUser), nil
 }
 
-func (s *userService) Update(userUUID uuid.UUID, tenantID int64, username string, fullname string, email *string, phone *string, status string, metadata datatypes.JSON, updaterUserUUID uuid.UUID) (*UserServiceDataResult, error) {
+func (s *userService) Update(ctx context.Context, userUUID uuid.UUID, tenantID int64, username string, fullname string, email *string, phone *string, status string, metadata datatypes.JSON, updaterUserUUID uuid.UUID) (*UserServiceDataResult, error) {
 	var updatedUser *model.User
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
@@ -489,11 +489,11 @@ func (s *userService) Update(userUUID uuid.UUID, tenantID int64, username string
 		return nil, err
 	}
 
-	s.invalidateUserCache(updatedUser.UserIdentities)
+	s.invalidateUserCache(ctx, updatedUser.UserIdentities)
 	return toUserServiceDataResult(updatedUser), nil
 }
 
-func (s *userService) SetStatus(userUUID uuid.UUID, tenantID int64, status string, updaterUserUUID uuid.UUID) (*UserServiceDataResult, error) {
+func (s *userService) SetStatus(ctx context.Context, userUUID uuid.UUID, tenantID int64, status string, updaterUserUUID uuid.UUID) (*UserServiceDataResult, error) {
 	// Check if target user exists
 	user, err := s.userRepo.FindByUUID(userUUID, "UserIdentities")
 	if err != nil || user == nil {
@@ -534,11 +534,11 @@ func (s *userService) SetStatus(userUUID uuid.UUID, tenantID int64, status strin
 		return nil, err
 	}
 
-	s.invalidateUserCache(updatedUser.UserIdentities)
+	s.invalidateUserCache(ctx, updatedUser.UserIdentities)
 	return toUserServiceDataResult(updatedUser), nil
 }
 
-func (s *userService) VerifyEmail(userUUID uuid.UUID, tenantID int64) (*UserServiceDataResult, error) {
+func (s *userService) VerifyEmail(ctx context.Context, userUUID uuid.UUID, tenantID int64) (*UserServiceDataResult, error) {
 	// Check if target user exists and preload identities for tenant validation
 	user, err := s.userRepo.FindByUUID(userUUID, "UserIdentities.Tenant")
 	if err != nil || user == nil {
@@ -572,12 +572,12 @@ func (s *userService) VerifyEmail(userUUID uuid.UUID, tenantID int64) (*UserServ
 		return nil, err
 	}
 
-	s.invalidateUserCache(updatedUser.UserIdentities)
+	s.invalidateUserCache(ctx, updatedUser.UserIdentities)
 
 	return toUserServiceDataResult(updatedUser), nil
 }
 
-func (s *userService) VerifyPhone(userUUID uuid.UUID, tenantID int64) (*UserServiceDataResult, error) {
+func (s *userService) VerifyPhone(ctx context.Context, userUUID uuid.UUID, tenantID int64) (*UserServiceDataResult, error) {
 	// Check if target user exists and preload identities for tenant validation
 	user, err := s.userRepo.FindByUUID(userUUID, "UserIdentities.Tenant")
 	if err != nil || user == nil {
@@ -610,12 +610,12 @@ func (s *userService) VerifyPhone(userUUID uuid.UUID, tenantID int64) (*UserServ
 		return nil, err
 	}
 
-	s.invalidateUserCache(updatedUser.UserIdentities)
+	s.invalidateUserCache(ctx, updatedUser.UserIdentities)
 
 	return toUserServiceDataResult(updatedUser), nil
 }
 
-func (s *userService) CompleteAccount(userUUID uuid.UUID, tenantID int64) (*UserServiceDataResult, error) {
+func (s *userService) CompleteAccount(ctx context.Context, userUUID uuid.UUID, tenantID int64) (*UserServiceDataResult, error) {
 	// Check if target user exists and preload identities for tenant validation
 	user, err := s.userRepo.FindByUUID(userUUID, "UserIdentities.Tenant")
 	if err != nil || user == nil {
@@ -648,12 +648,12 @@ func (s *userService) CompleteAccount(userUUID uuid.UUID, tenantID int64) (*User
 		return nil, err
 	}
 
-	s.invalidateUserCache(updatedUser.UserIdentities)
+	s.invalidateUserCache(ctx, updatedUser.UserIdentities)
 
 	return toUserServiceDataResult(updatedUser), nil
 }
 
-func (s *userService) DeleteByUUID(userUUID uuid.UUID, tenantID int64, deleterUserUUID uuid.UUID) (*UserServiceDataResult, error) {
+func (s *userService) DeleteByUUID(ctx context.Context, userUUID uuid.UUID, tenantID int64, deleterUserUUID uuid.UUID) (*UserServiceDataResult, error) {
 	// Check if target user exists
 	user, err := s.userRepo.FindByUUID(userUUID, "UserIdentities.Client", "UserIdentities", "Roles")
 	if err != nil || user == nil {
@@ -684,7 +684,7 @@ func (s *userService) DeleteByUUID(userUUID uuid.UUID, tenantID int64, deleterUs
 	}
 
 	// Invalidate cache before deletion (identities will be gone after)
-	s.invalidateUserCache(user.UserIdentities)
+	s.invalidateUserCache(ctx, user.UserIdentities)
 
 	// Delete user (cascade will handle related records)
 	err = s.userRepo.DeleteByUUID(userUUID)
@@ -695,7 +695,7 @@ func (s *userService) DeleteByUUID(userUUID uuid.UUID, tenantID int64, deleterUs
 	return toUserServiceDataResult(user), nil
 }
 
-func (s *userService) AssignUserRoles(userUUID uuid.UUID, roleUUIDs []uuid.UUID, tenantID int64) (*UserServiceDataResult, error) {
+func (s *userService) AssignUserRoles(ctx context.Context, userUUID uuid.UUID, roleUUIDs []uuid.UUID, tenantID int64) (*UserServiceDataResult, error) {
 	var userWithRoles *model.User
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
@@ -766,12 +766,12 @@ func (s *userService) AssignUserRoles(userUUID uuid.UUID, roleUUIDs []uuid.UUID,
 		return nil, err
 	}
 
-	s.invalidateUserCache(userWithRoles.UserIdentities)
+	s.invalidateUserCache(ctx, userWithRoles.UserIdentities)
 
 	return toUserServiceDataResult(userWithRoles), nil
 }
 
-func (s *userService) RemoveUserRole(userUUID uuid.UUID, roleUUID uuid.UUID, tenantID int64) (*UserServiceDataResult, error) {
+func (s *userService) RemoveUserRole(ctx context.Context, userUUID uuid.UUID, roleUUID uuid.UUID, tenantID int64) (*UserServiceDataResult, error) {
 	var userWithRoles *model.User
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
@@ -825,7 +825,7 @@ func (s *userService) RemoveUserRole(userUUID uuid.UUID, roleUUID uuid.UUID, ten
 		return nil, err
 	}
 
-	s.invalidateUserCache(userWithRoles.UserIdentities)
+	s.invalidateUserCache(ctx, userWithRoles.UserIdentities)
 
 	return toUserServiceDataResult(userWithRoles), nil
 }

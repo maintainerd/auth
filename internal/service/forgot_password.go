@@ -21,7 +21,7 @@ import (
 )
 
 type ForgotPasswordService interface {
-	SendPasswordResetEmail(email string, clientID, providerID *string, isInternal bool) (*dto.ForgotPasswordResponseDTO, error)
+	SendPasswordResetEmail(ctx context.Context, email string, clientID, providerID *string, isInternal bool) (*dto.ForgotPasswordResponseDTO, error)
 }
 
 type forgotPasswordService struct {
@@ -48,7 +48,7 @@ func NewForgotPasswordService(
 	}
 }
 
-func (s *forgotPasswordService) SendPasswordResetEmail(email string, clientID, providerID *string, isInternal bool) (*dto.ForgotPasswordResponseDTO, error) {
+func (s *forgotPasswordService) SendPasswordResetEmail(ctx context.Context, email string, clientID, providerID *string, isInternal bool) (*dto.ForgotPasswordResponseDTO, error) {
 	var user *model.User
 	var Client *model.Client
 	var resetToken string
@@ -129,7 +129,7 @@ func (s *forgotPasswordService) SendPasswordResetEmail(email string, clientID, p
 	// Only send email if user was found (user will be nil if not found due to security)
 	if user != nil {
 		// Generate reset URL and send email
-		if err := s.sendPasswordResetEmail(user.Email, resetToken, Client, isInternal); err != nil {
+		if err := s.sendPasswordResetEmail(ctx, user.Email, resetToken, Client, isInternal); err != nil {
 			// Log error but don't reveal it to user for security
 			security.LogSecurityEvent(security.SecurityEvent{
 				EventType: "password_reset_email_failure",
@@ -152,7 +152,7 @@ func generateSecureToken(length int) string {
 	return hex.EncodeToString(bytes)
 }
 
-func (s *forgotPasswordService) sendPasswordResetEmail(to, resetToken string, Client *model.Client, isInternal bool) error {
+func (s *forgotPasswordService) sendPasswordResetEmail(ctx context.Context, to, resetToken string, Client *model.Client, isInternal bool) error {
 	// Get email template from DB
 	templateEntity, err := s.emailTemplateRepo.FindByName("internal:user:password:reset")
 	if err != nil {
@@ -216,7 +216,7 @@ func (s *forgotPasswordService) sendPasswordResetEmail(to, resetToken string, Cl
 	}
 
 	// Send email
-	return email.SendEmail(context.Background(), email.SendEmailParams{
+	return email.SendEmail(ctx, email.SendEmailParams{
 		To:        to,
 		Subject:   templateEntity.Subject,
 		BodyHTML:  bodyHTML.String(),
