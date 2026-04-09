@@ -220,85 +220,85 @@ type mockAPIKeyService struct {
 	removeAPIKeyAPIPermFn func(uuid.UUID, uuid.UUID, uuid.UUID) error
 }
 
-func (m *mockAPIKeyService) Get(f service.APIKeyServiceGetFilter, u uuid.UUID) (*service.APIKeyServiceGetResult, error) {
+func (m *mockAPIKeyService) Get(_ context.Context, f service.APIKeyServiceGetFilter, u uuid.UUID) (*service.APIKeyServiceGetResult, error) {
 	if m.getFn != nil {
 		return m.getFn(f, u)
 	}
 	return &service.APIKeyServiceGetResult{}, nil
 }
-func (m *mockAPIKeyService) GetByUUID(id uuid.UUID, tid int64, u uuid.UUID) (*service.APIKeyServiceDataResult, error) {
+func (m *mockAPIKeyService) GetByUUID(_ context.Context, id uuid.UUID, tid int64, u uuid.UUID) (*service.APIKeyServiceDataResult, error) {
 	if m.getByUUIDFn != nil {
 		return m.getByUUIDFn(id, tid, u)
 	}
 	return nil, nil
 }
-func (m *mockAPIKeyService) GetConfigByUUID(id uuid.UUID, tid int64) (datatypes.JSON, error) {
+func (m *mockAPIKeyService) GetConfigByUUID(_ context.Context, id uuid.UUID, tid int64) (datatypes.JSON, error) {
 	if m.getConfigByUUIDFn != nil {
 		return m.getConfigByUUIDFn(id, tid)
 	}
 	return nil, nil
 }
-func (m *mockAPIKeyService) Create(tid int64, n, desc string, cfg datatypes.JSON, exp *time.Time, rl *int, s string) (*service.APIKeyServiceDataResult, string, error) {
+func (m *mockAPIKeyService) Create(_ context.Context, tid int64, n, desc string, cfg datatypes.JSON, exp *time.Time, rl *int, s string) (*service.APIKeyServiceDataResult, string, error) {
 	if m.createFn != nil {
 		return m.createFn(tid, n, desc, cfg, exp, rl, s)
 	}
 	return nil, "", nil
 }
-func (m *mockAPIKeyService) Update(id uuid.UUID, tid int64, n, desc *string, cfg datatypes.JSON, exp *time.Time, rl *int, s *string, u uuid.UUID) (*service.APIKeyServiceDataResult, error) {
+func (m *mockAPIKeyService) Update(_ context.Context, id uuid.UUID, tid int64, n, desc *string, cfg datatypes.JSON, exp *time.Time, rl *int, s *string, u uuid.UUID) (*service.APIKeyServiceDataResult, error) {
 	if m.updateFn != nil {
 		return m.updateFn(id, tid, n, desc, cfg, exp, rl, s, u)
 	}
 	return nil, nil
 }
-func (m *mockAPIKeyService) SetStatusByUUID(id uuid.UUID, tid int64, s string) (*service.APIKeyServiceDataResult, error) {
+func (m *mockAPIKeyService) SetStatusByUUID(_ context.Context, id uuid.UUID, tid int64, s string) (*service.APIKeyServiceDataResult, error) {
 	if m.setStatusByUUIDFn != nil {
 		return m.setStatusByUUIDFn(id, tid, s)
 	}
 	return nil, nil
 }
-func (m *mockAPIKeyService) Delete(id uuid.UUID, tid int64, u uuid.UUID) (*service.APIKeyServiceDataResult, error) {
+func (m *mockAPIKeyService) Delete(_ context.Context, id uuid.UUID, tid int64, u uuid.UUID) (*service.APIKeyServiceDataResult, error) {
 	if m.deleteFn != nil {
 		return m.deleteFn(id, tid, u)
 	}
 	return nil, nil
 }
-func (m *mockAPIKeyService) ValidateAPIKey(k string) (*service.APIKeyServiceDataResult, error) {
+func (m *mockAPIKeyService) ValidateAPIKey(_ context.Context, k string) (*service.APIKeyServiceDataResult, error) {
 	if m.validateAPIKeyFn != nil {
 		return m.validateAPIKeyFn(k)
 	}
 	return nil, nil
 }
-func (m *mockAPIKeyService) GetAPIKeyAPIs(id uuid.UUID, pg, lim int, sb, so string) (*service.APIKeyAPIServicePaginatedResult, error) {
+func (m *mockAPIKeyService) GetAPIKeyAPIs(_ context.Context, id uuid.UUID, pg, lim int, sb, so string) (*service.APIKeyAPIServicePaginatedResult, error) {
 	if m.getAPIKeyAPIsFn != nil {
 		return m.getAPIKeyAPIsFn(id, pg, lim, sb, so)
 	}
 	return &service.APIKeyAPIServicePaginatedResult{}, nil
 }
-func (m *mockAPIKeyService) AddAPIKeyAPIs(id uuid.UUID, apis []uuid.UUID) error {
+func (m *mockAPIKeyService) AddAPIKeyAPIs(_ context.Context, id uuid.UUID, apis []uuid.UUID) error {
 	if m.addAPIKeyAPIsFn != nil {
 		return m.addAPIKeyAPIsFn(id, apis)
 	}
 	return nil
 }
-func (m *mockAPIKeyService) RemoveAPIKeyAPI(id, api uuid.UUID) error {
+func (m *mockAPIKeyService) RemoveAPIKeyAPI(_ context.Context, id, api uuid.UUID) error {
 	if m.removeAPIKeyAPIFn != nil {
 		return m.removeAPIKeyAPIFn(id, api)
 	}
 	return nil
 }
-func (m *mockAPIKeyService) GetAPIKeyAPIPermissions(id, api uuid.UUID) ([]service.PermissionServiceDataResult, error) {
+func (m *mockAPIKeyService) GetAPIKeyAPIPermissions(_ context.Context, id, api uuid.UUID) ([]service.PermissionServiceDataResult, error) {
 	if m.getAPIKeyAPIPermsFn != nil {
 		return m.getAPIKeyAPIPermsFn(id, api)
 	}
 	return nil, nil
 }
-func (m *mockAPIKeyService) AddAPIKeyAPIPermissions(id, api uuid.UUID, perms []uuid.UUID) error {
+func (m *mockAPIKeyService) AddAPIKeyAPIPermissions(_ context.Context, id, api uuid.UUID, perms []uuid.UUID) error {
 	if m.addAPIKeyAPIPermsFn != nil {
 		return m.addAPIKeyAPIPermsFn(id, api, perms)
 	}
 	return nil
 }
-func (m *mockAPIKeyService) RemoveAPIKeyAPIPermission(id, api, perm uuid.UUID) error {
+func (m *mockAPIKeyService) RemoveAPIKeyAPIPermission(_ context.Context, id, api, perm uuid.UUID) error {
 	if m.removeAPIKeyAPIPermFn != nil {
 		return m.removeAPIKeyAPIPermFn(id, api, perm)
 	}
