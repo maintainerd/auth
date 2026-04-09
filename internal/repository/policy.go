@@ -150,6 +150,7 @@ func (r *policyRepository) FindPaginated(filter PolicyRepositoryGetFilter) (*Pag
 	query = query.Order(sanitizeOrder(filter.SortBy, filter.SortOrder, "created_at DESC"))
 
 	// Pagination
+	filter.Page, filter.Limit = normalizePagination(filter.Page, filter.Limit)
 	offset := (filter.Page - 1) * filter.Limit
 	var policies []model.Policy
 	if err := query.Limit(filter.Limit).Offset(offset).Find(&policies).Error; err != nil {

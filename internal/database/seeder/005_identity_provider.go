@@ -1,11 +1,12 @@
 package seeder
 
 import (
+	"fmt"
 	"log/slog"
 
 	"github.com/google/uuid"
-	"github.com/maintainerd/auth/internal/model"
 	"github.com/maintainerd/auth/internal/crypto"
+	"github.com/maintainerd/auth/internal/model"
 	"gorm.io/datatypes"
 	"gorm.io/gorm"
 )
@@ -28,6 +29,11 @@ func SeedIdentityProviders(db *gorm.DB, tenantID int64) (*model.IdentityProvider
 		return nil, err
 	}
 
+	idpIdentifier, err := crypto.GenerateIdentifier(15)
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate identifier: %w", err)
+	}
+
 	// Create a new default identity provider
 	provider := model.IdentityProvider{
 		IdentityProviderUUID: uuid.New(),
@@ -35,7 +41,7 @@ func SeedIdentityProviders(db *gorm.DB, tenantID int64) (*model.IdentityProvider
 		DisplayName:          "Built-in Authentication System",
 		Provider:             "internal",
 		ProviderType:         "identity",
-		Identifier:           crypto.GenerateIdentifier(15),
+		Identifier:           idpIdentifier,
 		Config: datatypes.JSON([]byte(`{
 			"allow_registration": true,
 			"allow_login": true,

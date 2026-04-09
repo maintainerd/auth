@@ -75,7 +75,7 @@ func (h *ForgotPasswordHandler) ForgotPasswordPublic(w http.ResponseWriter, r *h
 			Endpoint:  "/forgot-password",
 			Method:    r.Method,
 			Timestamp: startTime,
-			Details:   "Request validation failed: " + err.Error(),
+			Details:   "Request validation failed",
 			Severity:  "MEDIUM",
 		})
 		resp.ValidationError(w, err)
@@ -112,7 +112,7 @@ func (h *ForgotPasswordHandler) ForgotPasswordPublic(w http.ResponseWriter, r *h
 			Endpoint:  "/forgot-password",
 			Method:    r.Method,
 			Timestamp: startTime,
-			Details:   "Service error: " + err.Error(),
+			Details:   "Password reset request failed",
 			Severity:  "HIGH",
 		})
 		resp.HandleServiceError(w, r, "Failed to process password reset request", err)
@@ -179,7 +179,7 @@ func (h *ForgotPasswordHandler) ForgotPassword(w http.ResponseWriter, r *http.Re
 			Endpoint:  "/forgot-password",
 			Method:    r.Method,
 			Timestamp: startTime,
-			Details:   "Request validation failed: " + err.Error(),
+			Details:   "Request validation failed",
 			Severity:  "MEDIUM",
 		})
 		resp.ValidationError(w, err)
@@ -216,7 +216,7 @@ func (h *ForgotPasswordHandler) ForgotPassword(w http.ResponseWriter, r *http.Re
 			Endpoint:  "/forgot-password",
 			Method:    r.Method,
 			Timestamp: startTime,
-			Details:   "Service error: " + err.Error(),
+			Details:   "Password reset request failed",
 			Severity:  "HIGH",
 		})
 		resp.HandleServiceError(w, r, "Failed to process password reset request", err)
