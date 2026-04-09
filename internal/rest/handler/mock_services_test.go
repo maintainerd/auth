@@ -1032,37 +1032,37 @@ type mockEmailTemplateService struct {
 	deleteFn       func(uuid.UUID, int64) (*service.EmailTemplateServiceDataResult, error)
 }
 
-func (m *mockEmailTemplateService) GetAll(tid int64, name *string, status []string, isDefault, isSystem *bool, page, limit int, sortBy, sortOrder string) (*service.EmailTemplateServiceListResult, error) {
+func (m *mockEmailTemplateService) GetAll(_ context.Context, tid int64, name *string, status []string, isDefault, isSystem *bool, page, limit int, sortBy, sortOrder string) (*service.EmailTemplateServiceListResult, error) {
 	if m.getAllFn != nil {
 		return m.getAllFn(tid, name, status, isDefault, isSystem, page, limit, sortBy, sortOrder)
 	}
 	return &service.EmailTemplateServiceListResult{}, nil
 }
-func (m *mockEmailTemplateService) GetByUUID(id uuid.UUID, tid int64) (*service.EmailTemplateServiceDataResult, error) {
+func (m *mockEmailTemplateService) GetByUUID(_ context.Context, id uuid.UUID, tid int64) (*service.EmailTemplateServiceDataResult, error) {
 	if m.getByUUIDFn != nil {
 		return m.getByUUIDFn(id, tid)
 	}
 	return nil, nil
 }
-func (m *mockEmailTemplateService) Create(tid int64, name, subject, bodyHTML string, bodyPlain *string, status string, isDefault bool) (*service.EmailTemplateServiceDataResult, error) {
+func (m *mockEmailTemplateService) Create(_ context.Context, tid int64, name, subject, bodyHTML string, bodyPlain *string, status string, isDefault bool) (*service.EmailTemplateServiceDataResult, error) {
 	if m.createFn != nil {
 		return m.createFn(tid, name, subject, bodyHTML, bodyPlain, status, isDefault)
 	}
 	return nil, nil
 }
-func (m *mockEmailTemplateService) Update(id uuid.UUID, tid int64, name, subject, bodyHTML string, bodyPlain *string, status string) (*service.EmailTemplateServiceDataResult, error) {
+func (m *mockEmailTemplateService) Update(_ context.Context, id uuid.UUID, tid int64, name, subject, bodyHTML string, bodyPlain *string, status string) (*service.EmailTemplateServiceDataResult, error) {
 	if m.updateFn != nil {
 		return m.updateFn(id, tid, name, subject, bodyHTML, bodyPlain, status)
 	}
 	return nil, nil
 }
-func (m *mockEmailTemplateService) UpdateStatus(id uuid.UUID, tid int64, status string) (*service.EmailTemplateServiceDataResult, error) {
+func (m *mockEmailTemplateService) UpdateStatus(_ context.Context, id uuid.UUID, tid int64, status string) (*service.EmailTemplateServiceDataResult, error) {
 	if m.updateStatusFn != nil {
 		return m.updateStatusFn(id, tid, status)
 	}
 	return nil, nil
 }
-func (m *mockEmailTemplateService) Delete(id uuid.UUID, tid int64) (*service.EmailTemplateServiceDataResult, error) {
+func (m *mockEmailTemplateService) Delete(_ context.Context, id uuid.UUID, tid int64) (*service.EmailTemplateServiceDataResult, error) {
 	if m.deleteFn != nil {
 		return m.deleteFn(id, tid)
 	}
