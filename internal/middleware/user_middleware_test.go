@@ -59,11 +59,10 @@ func newFakeCache() *cache.Cache {
 	return cache.New(rdb)
 }
 
-// withJWTContext injects sub and clientID (normally set by JWTAuthMiddleware).
+// withJWTContext injects sub and clientID into the request context as a
+// JWTClaims struct, simulating what JWTAuthMiddleware does at runtime.
 func withJWTContext(r *http.Request, sub, clientID string) *http.Request {
-	ctx := context.WithValue(r.Context(), SubKey, sub)
-	ctx = context.WithValue(ctx, ClientIDKey, clientID)
-	return r.WithContext(ctx)
+	return WithJWTClaims(r, &JWTClaims{Sub: sub, ClientID: clientID})
 }
 
 // ---------------------------------------------------------------------------
@@ -110,7 +109,7 @@ func TestUserContextMiddleware(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			var captured *model.User
 			next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				captured, _ = r.Context().Value(UserContextKey).(*model.User)
+				captured = AuthFromRequest(r).User
 				w.WriteHeader(http.StatusOK)
 			})
 
@@ -148,7 +147,7 @@ func TestUserContextMiddleware_CacheHit(t *testing.T) {
 
 	var captured *model.User
 	next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		captured, _ = r.Context().Value(UserContextKey).(*model.User)
+		captured = AuthFromRequest(r).User
 		w.WriteHeader(http.StatusOK)
 	})
 
@@ -182,7 +181,7 @@ func TestUserContextMiddleware_IdentityFiltering(t *testing.T) {
 
 	var capturedTenant *model.Tenant
 	next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		capturedTenant, _ = r.Context().Value(TenantContextKey).(*model.Tenant)
+		capturedTenant = AuthFromRequest(r).Tenant
 		w.WriteHeader(http.StatusOK)
 	})
 

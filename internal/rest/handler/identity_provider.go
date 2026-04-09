@@ -10,7 +10,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/dto"
 	"github.com/maintainerd/auth/internal/middleware"
-	"github.com/maintainerd/auth/internal/model"
 	"github.com/maintainerd/auth/internal/ptr"
 	resp "github.com/maintainerd/auth/internal/rest/response"
 	"github.com/maintainerd/auth/internal/service"
@@ -27,8 +26,8 @@ func NewIdentityProviderHandler(idpService service.IdentityProviderService) *Ide
 // Get identity provider with pagination
 func (h *IdentityProviderHandler) Get(w http.ResponseWriter, r *http.Request) {
 	// Get tenant from context
-	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
-	if !ok || tenant == nil {
+	tenant := middleware.AuthFromRequest(r).Tenant
+	if tenant == nil {
 		resp.Error(w, http.StatusUnauthorized, "Tenant not found in context")
 		return
 	}
@@ -135,7 +134,7 @@ func (h *IdentityProviderHandler) Get(w http.ResponseWriter, r *http.Request) {
 // Get identity provider by UUID
 func (h *IdentityProviderHandler) GetByUUID(w http.ResponseWriter, r *http.Request) {
 	// Get tenant context
-	tenant := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
+	tenant := middleware.AuthFromRequest(r).Tenant
 
 	idpUUID, err := uuid.Parse(chi.URLParam(r, "identity_provider_uuid"))
 	if err != nil {
@@ -157,8 +156,8 @@ func (h *IdentityProviderHandler) GetByUUID(w http.ResponseWriter, r *http.Reque
 // Create identity provider
 func (h *IdentityProviderHandler) Create(w http.ResponseWriter, r *http.Request) {
 	// Get authentication context
-	tenant := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
-	user := r.Context().Value(middleware.UserContextKey).(*model.User)
+	tenant := middleware.AuthFromRequest(r).Tenant
+	user := middleware.AuthFromRequest(r).User
 
 	var req dto.IdentityProviderCreateRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -185,8 +184,8 @@ func (h *IdentityProviderHandler) Create(w http.ResponseWriter, r *http.Request)
 // Update identity provider
 func (h *IdentityProviderHandler) Update(w http.ResponseWriter, r *http.Request) {
 	// Get authentication context
-	tenant := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
-	user := r.Context().Value(middleware.UserContextKey).(*model.User)
+	tenant := middleware.AuthFromRequest(r).Tenant
+	user := middleware.AuthFromRequest(r).User
 
 	idpUUID, err := uuid.Parse(chi.URLParam(r, "identity_provider_uuid"))
 	if err != nil {
@@ -219,8 +218,8 @@ func (h *IdentityProviderHandler) Update(w http.ResponseWriter, r *http.Request)
 // Set identity provider status
 func (h *IdentityProviderHandler) SetStatus(w http.ResponseWriter, r *http.Request) {
 	// Get authentication context
-	tenant := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
-	user := r.Context().Value(middleware.UserContextKey).(*model.User)
+	tenant := middleware.AuthFromRequest(r).Tenant
+	user := middleware.AuthFromRequest(r).User
 
 	idpUUID, err := uuid.Parse(chi.URLParam(r, "identity_provider_uuid"))
 	if err != nil {
@@ -254,8 +253,8 @@ func (h *IdentityProviderHandler) SetStatus(w http.ResponseWriter, r *http.Reque
 // Delete identity provider
 func (h *IdentityProviderHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	// Get authentication context
-	tenant := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
-	user := r.Context().Value(middleware.UserContextKey).(*model.User)
+	tenant := middleware.AuthFromRequest(r).Tenant
+	user := middleware.AuthFromRequest(r).User
 
 	idpUUID, err := uuid.Parse(chi.URLParam(r, "identity_provider_uuid"))
 	if err != nil {

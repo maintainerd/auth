@@ -6,7 +6,6 @@ import (
 
 	"github.com/maintainerd/auth/internal/dto"
 	"github.com/maintainerd/auth/internal/middleware"
-	"github.com/maintainerd/auth/internal/model"
 	resp "github.com/maintainerd/auth/internal/rest/response"
 	"github.com/maintainerd/auth/internal/service"
 )
@@ -40,7 +39,7 @@ func (h *UserSettingHandler) CreateOrUpdate(w http.ResponseWriter, r *http.Reque
 		}
 	}
 
-	user := r.Context().Value(middleware.UserContextKey).(*model.User)
+	user := middleware.AuthFromRequest(r).User
 	userSetting, err := h.userSettingService.CreateOrUpdateUserSetting(
 		r.Context(),
 		user.UserUUID,
@@ -62,7 +61,7 @@ func (h *UserSettingHandler) CreateOrUpdate(w http.ResponseWriter, r *http.Reque
 }
 
 func (h *UserSettingHandler) Get(w http.ResponseWriter, r *http.Request) {
-	user := r.Context().Value(middleware.UserContextKey).(*model.User)
+	user := middleware.AuthFromRequest(r).User
 	userSetting, err := h.userSettingService.GetByUserUUID(r.Context(), user.UserUUID)
 	if err != nil || userSetting == nil {
 		resp.Error(w, http.StatusNotFound, "User setting not found")
@@ -73,7 +72,7 @@ func (h *UserSettingHandler) Get(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *UserSettingHandler) Delete(w http.ResponseWriter, r *http.Request) {
-	user := r.Context().Value(middleware.UserContextKey).(*model.User)
+	user := middleware.AuthFromRequest(r).User
 
 	// First get the user setting to get its UUID
 	userSetting, err := h.userSettingService.GetByUserUUID(r.Context(), user.UserUUID)

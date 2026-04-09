@@ -11,7 +11,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/dto"
 	"github.com/maintainerd/auth/internal/middleware"
-	"github.com/maintainerd/auth/internal/model"
 	"github.com/maintainerd/auth/internal/ptr"
 	resp "github.com/maintainerd/auth/internal/rest/response"
 	"github.com/maintainerd/auth/internal/service"
@@ -43,8 +42,8 @@ func NewUserHandler(userService service.UserService) *UserHandler {
 // Supports filtering by username, email, phone, status, and role UUID.
 func (h *UserHandler) GetUsers(w http.ResponseWriter, r *http.Request) {
 	// Get tenant from context (middleware already validated access)
-	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
-	if !ok || tenant == nil {
+	tenant := middleware.AuthFromRequest(r).Tenant
+	if tenant == nil {
 		resp.Error(w, http.StatusUnauthorized, "Tenant not found in context")
 		return
 	}
@@ -136,8 +135,8 @@ func (h *UserHandler) GetUsers(w http.ResponseWriter, r *http.Request) {
 // validates that the user belongs to the tenant.
 func (h *UserHandler) GetUser(w http.ResponseWriter, r *http.Request) {
 	// Get tenant from context (middleware already validated access)
-	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
-	if !ok || tenant == nil {
+	tenant := middleware.AuthFromRequest(r).Tenant
+	if tenant == nil {
 		resp.Error(w, http.StatusUnauthorized, "Tenant not found in context")
 		return
 	}
@@ -171,14 +170,14 @@ func (h *UserHandler) GetUser(w http.ResponseWriter, r *http.Request) {
 // context is used for audit tracking.
 func (h *UserHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
 	// Get tenant from context (middleware already validated access)
-	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
-	if !ok || tenant == nil {
+	tenant := middleware.AuthFromRequest(r).Tenant
+	if tenant == nil {
 		resp.Error(w, http.StatusUnauthorized, "Tenant not found in context")
 		return
 	}
 
 	// Get creator user from context (needed for audit trail)
-	creatorUser := r.Context().Value(middleware.UserContextKey).(*model.User)
+	creatorUser := middleware.AuthFromRequest(r).User
 
 	// Decode and validate request body
 	var req dto.UserCreateRequestDTO
@@ -213,14 +212,14 @@ func (h *UserHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
 // belongs to the tenant. The updater's context is used for audit tracking.
 func (h *UserHandler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 	// Get tenant from context (middleware already validated access)
-	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
-	if !ok || tenant == nil {
+	tenant := middleware.AuthFromRequest(r).Tenant
+	if tenant == nil {
 		resp.Error(w, http.StatusUnauthorized, "Tenant not found in context")
 		return
 	}
 
 	// Get updater user from context (needed for audit trail)
-	updaterUser := r.Context().Value(middleware.UserContextKey).(*model.User)
+	updaterUser := middleware.AuthFromRequest(r).User
 
 	// Parse and validate user UUID from URL parameter
 	userUUIDStr := chi.URLParam(r, "user_uuid")
@@ -263,14 +262,14 @@ func (h *UserHandler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 // This is a convenience endpoint for status-only updates.
 func (h *UserHandler) SetUserStatus(w http.ResponseWriter, r *http.Request) {
 	// Get tenant from context (middleware already validated access)
-	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
-	if !ok || tenant == nil {
+	tenant := middleware.AuthFromRequest(r).Tenant
+	if tenant == nil {
 		resp.Error(w, http.StatusUnauthorized, "Tenant not found in context")
 		return
 	}
 
 	// Get updater user from context (needed for audit trail)
-	updaterUser := r.Context().Value(middleware.UserContextKey).(*model.User)
+	updaterUser := middleware.AuthFromRequest(r).User
 
 	// Parse and validate user UUID from URL parameter
 	userUUIDStr := chi.URLParam(r, "user_uuid")
@@ -313,8 +312,8 @@ func (h *UserHandler) SetUserStatus(w http.ResponseWriter, r *http.Request) {
 // if all required verification steps are done.
 func (h *UserHandler) VerifyEmail(w http.ResponseWriter, r *http.Request) {
 	// Get tenant from context (middleware already validated access)
-	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
-	if !ok || tenant == nil {
+	tenant := middleware.AuthFromRequest(r).Tenant
+	if tenant == nil {
 		resp.Error(w, http.StatusUnauthorized, "Tenant not found in context")
 		return
 	}
@@ -346,8 +345,8 @@ func (h *UserHandler) VerifyEmail(w http.ResponseWriter, r *http.Request) {
 // or account recovery purposes.
 func (h *UserHandler) VerifyPhone(w http.ResponseWriter, r *http.Request) {
 	// Get tenant from context (middleware already validated access)
-	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
-	if !ok || tenant == nil {
+	tenant := middleware.AuthFromRequest(r).Tenant
+	if tenant == nil {
 		resp.Error(w, http.StatusUnauthorized, "Tenant not found in context")
 		return
 	}
@@ -379,8 +378,8 @@ func (h *UserHandler) VerifyPhone(w http.ResponseWriter, r *http.Request) {
 // profile information and verifications are done.
 func (h *UserHandler) CompleteAccount(w http.ResponseWriter, r *http.Request) {
 	// Get tenant from context (middleware already validated access)
-	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
-	if !ok || tenant == nil {
+	tenant := middleware.AuthFromRequest(r).Tenant
+	if tenant == nil {
 		resp.Error(w, http.StatusUnauthorized, "Tenant not found in context")
 		return
 	}
@@ -412,14 +411,14 @@ func (h *UserHandler) CompleteAccount(w http.ResponseWriter, r *http.Request) {
 // validates tenant ownership. The deleter's context is used for audit tracking.
 func (h *UserHandler) DeleteUser(w http.ResponseWriter, r *http.Request) {
 	// Get tenant from context (middleware already validated access)
-	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
-	if !ok || tenant == nil {
+	tenant := middleware.AuthFromRequest(r).Tenant
+	if tenant == nil {
 		resp.Error(w, http.StatusUnauthorized, "Tenant not found in context")
 		return
 	}
 
 	// Get deleter user from context (needed for audit trail)
-	deleterUser := r.Context().Value(middleware.UserContextKey).(*model.User)
+	deleterUser := middleware.AuthFromRequest(r).User
 
 	// Parse and validate user UUID from URL parameter
 	userUUIDStr := chi.URLParam(r, "user_uuid")
@@ -450,8 +449,8 @@ func (h *UserHandler) DeleteUser(w http.ResponseWriter, r *http.Request) {
 // defined by those roles.
 func (h *UserHandler) AssignRoles(w http.ResponseWriter, r *http.Request) {
 	// Get tenant from context (middleware already validated access)
-	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
-	if !ok || tenant == nil {
+	tenant := middleware.AuthFromRequest(r).Tenant
+	if tenant == nil {
 		resp.Error(w, http.StatusUnauthorized, "Tenant not found in context")
 		return
 	}
@@ -497,8 +496,8 @@ func (h *UserHandler) AssignRoles(w http.ResponseWriter, r *http.Request) {
 // granted by that role.
 func (h *UserHandler) RemoveRole(w http.ResponseWriter, r *http.Request) {
 	// Get tenant from context (middleware already validated access)
-	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
-	if !ok || tenant == nil {
+	tenant := middleware.AuthFromRequest(r).Tenant
+	if tenant == nil {
 		resp.Error(w, http.StatusUnauthorized, "Tenant not found in context")
 		return
 	}
@@ -613,8 +612,8 @@ func (h *UserHandler) GetUserRoles(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Get tenant from context (middleware already validated access)
-	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
-	if !ok || tenant == nil {
+	tenant := middleware.AuthFromRequest(r).Tenant
+	if tenant == nil {
 		resp.Error(w, http.StatusUnauthorized, "Tenant not found in context")
 		return
 	}
@@ -734,8 +733,8 @@ func (h *UserHandler) GetUserIdentities(w http.ResponseWriter, r *http.Request) 
 	}
 
 	// Get tenant from context (middleware already validated access)
-	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
-	if !ok || tenant == nil {
+	tenant := middleware.AuthFromRequest(r).Tenant
+	if tenant == nil {
 		resp.Error(w, http.StatusUnauthorized, "Tenant not found in context")
 		return
 	}

@@ -10,7 +10,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/dto"
 	"github.com/maintainerd/auth/internal/middleware"
-	"github.com/maintainerd/auth/internal/model"
 	"github.com/maintainerd/auth/internal/ptr"
 	resp "github.com/maintainerd/auth/internal/rest/response"
 	"github.com/maintainerd/auth/internal/service"
@@ -27,8 +26,8 @@ func NewAPIHandler(apiService service.APIService) *APIHandler {
 // GetAll APIs with pagination
 func (h *APIHandler) Get(w http.ResponseWriter, r *http.Request) {
 	// Get tenant from context
-	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
-	if !ok || tenant == nil {
+	tenant := middleware.AuthFromRequest(r).Tenant
+	if tenant == nil {
 		resp.Error(w, http.StatusUnauthorized, "Tenant not found in context")
 		return
 	}
@@ -142,8 +141,8 @@ func (h *APIHandler) Get(w http.ResponseWriter, r *http.Request) {
 // Get API by UUID
 func (h *APIHandler) GetByUUID(w http.ResponseWriter, r *http.Request) {
 	// Get tenant from context
-	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
-	if !ok || tenant == nil {
+	tenant := middleware.AuthFromRequest(r).Tenant
+	if tenant == nil {
 		resp.Error(w, http.StatusUnauthorized, "Tenant not found in context")
 		return
 	}
@@ -168,8 +167,8 @@ func (h *APIHandler) GetByUUID(w http.ResponseWriter, r *http.Request) {
 // Create API
 func (h *APIHandler) Create(w http.ResponseWriter, r *http.Request) {
 	// Get tenant from context
-	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
-	if !ok || tenant == nil {
+	tenant := middleware.AuthFromRequest(r).Tenant
+	if tenant == nil {
 		resp.Error(w, http.StatusUnauthorized, "Tenant not found in context")
 		return
 	}
@@ -199,8 +198,8 @@ func (h *APIHandler) Create(w http.ResponseWriter, r *http.Request) {
 // Update API
 func (h *APIHandler) Update(w http.ResponseWriter, r *http.Request) {
 	// Get tenant from context
-	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
-	if !ok || tenant == nil {
+	tenant := middleware.AuthFromRequest(r).Tenant
+	if tenant == nil {
 		resp.Error(w, http.StatusUnauthorized, "Tenant not found in context")
 		return
 	}
@@ -236,8 +235,8 @@ func (h *APIHandler) Update(w http.ResponseWriter, r *http.Request) {
 // Set API status
 func (h *APIHandler) SetStatus(w http.ResponseWriter, r *http.Request) {
 	// Get tenant from context
-	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
-	if !ok || tenant == nil {
+	tenant := middleware.AuthFromRequest(r).Tenant
+	if tenant == nil {
 		resp.Error(w, http.StatusUnauthorized, "Tenant not found in context")
 		return
 	}
@@ -275,8 +274,8 @@ func (h *APIHandler) SetStatus(w http.ResponseWriter, r *http.Request) {
 // Delete API
 func (h *APIHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	// Get tenant from context
-	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
-	if !ok || tenant == nil {
+	tenant := middleware.AuthFromRequest(r).Tenant
+	if tenant == nil {
 		resp.Error(w, http.StatusUnauthorized, "Tenant not found in context")
 		return
 	}
