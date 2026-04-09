@@ -10,9 +10,9 @@ import (
 	"github.com/maintainerd/auth/internal/dto"
 	"github.com/maintainerd/auth/internal/middleware"
 	"github.com/maintainerd/auth/internal/model"
-	"github.com/maintainerd/auth/internal/service"
 	"github.com/maintainerd/auth/internal/ptr"
 	resp "github.com/maintainerd/auth/internal/rest/response"
+	"github.com/maintainerd/auth/internal/service"
 )
 
 // IPRestrictionRuleHandler handles HTTP requests for IP restriction rule management.
@@ -74,7 +74,7 @@ func (h *IPRestrictionRuleHandler) GetAll(w http.ResponseWriter, r *http.Request
 	}
 
 	// Fetch rules from service - service filters by tenant_id
-	result, err := h.ipRestrictionRuleService.GetAll(tenant.TenantID, filter.Type, filter.Status, filter.IPAddress, filter.Description, filter.Page, filter.Limit, filter.SortBy, filter.SortOrder)
+	result, err := h.ipRestrictionRuleService.GetAll(r.Context(), tenant.TenantID, filter.Type, filter.Status, filter.IPAddress, filter.Description, filter.Page, filter.Limit, filter.SortBy, filter.SortOrder)
 	if err != nil {
 		resp.HandleServiceError(w, r, "Failed to get IP restriction rules", err)
 		return
@@ -114,7 +114,7 @@ func (h *IPRestrictionRuleHandler) Get(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Fetch rule - service validates it belongs to tenant
-	rule, err := h.ipRestrictionRuleService.GetByUUID(tenant.TenantID, ipRestrictionRuleUUID)
+	rule, err := h.ipRestrictionRuleService.GetByUUID(r.Context(), tenant.TenantID, ipRestrictionRuleUUID)
 	if err != nil {
 		resp.HandleServiceError(w, r, "IP restriction rule not found", err)
 		return
@@ -162,6 +162,7 @@ func (h *IPRestrictionRuleHandler) Create(w http.ResponseWriter, r *http.Request
 
 	// Create rule associated with tenant
 	rule, err := h.ipRestrictionRuleService.Create(
+		r.Context(),
 		tenant.TenantID,
 		req.Description,
 		req.Type,
@@ -226,6 +227,7 @@ func (h *IPRestrictionRuleHandler) Update(w http.ResponseWriter, r *http.Request
 
 	// Update rule - service validates it belongs to tenant
 	rule, err := h.ipRestrictionRuleService.Update(
+		r.Context(),
 		tenant.TenantID,
 		ipRestrictionRuleUUID,
 		req.Description,
@@ -264,7 +266,7 @@ func (h *IPRestrictionRuleHandler) Delete(w http.ResponseWriter, r *http.Request
 	}
 
 	// Delete rule - service validates it belongs to tenant
-	rule, err := h.ipRestrictionRuleService.Delete(tenant.TenantID, ipRestrictionRuleUUID)
+	rule, err := h.ipRestrictionRuleService.Delete(r.Context(), tenant.TenantID, ipRestrictionRuleUUID)
 	if err != nil {
 		resp.HandleServiceError(w, r, "Failed to delete IP restriction rule", err)
 		return
@@ -315,7 +317,7 @@ func (h *IPRestrictionRuleHandler) UpdateStatus(w http.ResponseWriter, r *http.R
 	}
 
 	// Update status - service validates rule belongs to tenant
-	rule, err := h.ipRestrictionRuleService.UpdateStatus(tenant.TenantID, ipRestrictionRuleUUID, req.Status, user.UserID)
+	rule, err := h.ipRestrictionRuleService.UpdateStatus(r.Context(), tenant.TenantID, ipRestrictionRuleUUID, req.Status, user.UserID)
 	if err != nil {
 		resp.HandleServiceError(w, r, "Failed to update IP restriction rule status", err)
 		return

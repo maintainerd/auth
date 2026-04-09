@@ -1,16 +1,20 @@
 package service
 
 import (
+	"context"
 	"encoding/json"
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/maintainerd/auth/internal/apperror"
+	"github.com/maintainerd/auth/internal/crypto"
 	"github.com/maintainerd/auth/internal/model"
 	"github.com/maintainerd/auth/internal/repository"
-	"github.com/maintainerd/auth/internal/crypto"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
 	"gorm.io/datatypes"
 	"gorm.io/gorm"
-	"github.com/maintainerd/auth/internal/apperror"
 )
 
 type SignupFlowServiceDataResult struct {
@@ -55,15 +59,15 @@ type SignupFlowRoleServiceListResult struct {
 }
 
 type SignupFlowService interface {
-	GetAll(tenantID int64, name, identifier *string, status []string, ClientUUID *uuid.UUID, page, limit int, sortBy, sortOrder string) (*SignupFlowServiceListResult, error)
-	GetByUUID(signupFlowUUID uuid.UUID, tenantID int64) (*SignupFlowServiceDataResult, error)
-	Create(tenantID int64, name, description string, config map[string]any, status string, ClientUUID uuid.UUID) (*SignupFlowServiceDataResult, error)
-	Update(signupFlowUUID uuid.UUID, tenantID int64, name, description string, config map[string]any, status string) (*SignupFlowServiceDataResult, error)
-	UpdateStatus(signupFlowUUID uuid.UUID, tenantID int64, status string) (*SignupFlowServiceDataResult, error)
-	Delete(signupFlowUUID uuid.UUID, tenantID int64) (*SignupFlowServiceDataResult, error)
-	AssignRoles(signupFlowUUID uuid.UUID, tenantID int64, roleUUIDs []uuid.UUID) ([]SignupFlowRoleServiceDataResult, error)
-	GetRoles(signupFlowUUID uuid.UUID, tenantID int64, page, limit int) (*SignupFlowRoleServiceListResult, error)
-	RemoveRole(signupFlowUUID uuid.UUID, tenantID int64, roleUUID uuid.UUID) error
+	GetAll(ctx context.Context, tenantID int64, name, identifier *string, status []string, ClientUUID *uuid.UUID, page, limit int, sortBy, sortOrder string) (*SignupFlowServiceListResult, error)
+	GetByUUID(ctx context.Context, signupFlowUUID uuid.UUID, tenantID int64) (*SignupFlowServiceDataResult, error)
+	Create(ctx context.Context, tenantID int64, name, description string, config map[string]any, status string, ClientUUID uuid.UUID) (*SignupFlowServiceDataResult, error)
+	Update(ctx context.Context, signupFlowUUID uuid.UUID, tenantID int64, name, description string, config map[string]any, status string) (*SignupFlowServiceDataResult, error)
+	UpdateStatus(ctx context.Context, signupFlowUUID uuid.UUID, tenantID int64, status string) (*SignupFlowServiceDataResult, error)
+	Delete(ctx context.Context, signupFlowUUID uuid.UUID, tenantID int64) (*SignupFlowServiceDataResult, error)
+	AssignRoles(ctx context.Context, signupFlowUUID uuid.UUID, tenantID int64, roleUUIDs []uuid.UUID) ([]SignupFlowRoleServiceDataResult, error)
+	GetRoles(ctx context.Context, signupFlowUUID uuid.UUID, tenantID int64, page, limit int) (*SignupFlowRoleServiceListResult, error)
+	RemoveRole(ctx context.Context, signupFlowUUID uuid.UUID, tenantID int64, roleUUID uuid.UUID) error
 }
 
 type signupFlowService struct {
@@ -90,7 +94,11 @@ func NewSignupFlowService(
 	}
 }
 
-func (s *signupFlowService) GetAll(tenantID int64, name, identifier *string, status []string, ClientUUID *uuid.UUID, page, limit int, sortBy, sortOrder string) (*SignupFlowServiceListResult, error) {
+func (s *signupFlowService) GetAll(ctx context.Context, tenantID int64, name, identifier *string, status []string, ClientUUID *uuid.UUID, page, limit int, sortBy, sortOrder string) (*SignupFlowServiceListResult, error) {
+	_, span := otel.Tracer("service").Start(ctx, "signupFlow.list")
+	defer span.End()
+	span.SetAttributes(attribute.Int64("tenant.id", tenantID))
+
 	var ClientID *int64
 	if ClientUUID != nil {
 		Client, err := s.clientRepo.FindByUUID(*ClientUUID)
@@ -114,6 +122,8 @@ func (s *signupFlowService) GetAll(tenantID int64, name, identifier *string, sta
 
 	result, err := s.signupFlowRepo.FindPaginated(filter)
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "list signup flows failed")
 		return nil, err
 	}
 
@@ -122,6 +132,7 @@ func (s *signupFlowService) GetAll(tenantID int64, name, identifier *string, sta
 		data[i] = *toSignupFlowServiceDataResult(&sf)
 	}
 
+	span.SetStatus(codes.Ok, "")
 	return &SignupFlowServiceListResult{
 		Data:       data,
 		Total:      result.Total,
@@ -131,16 +142,26 @@ func (s *signupFlowService) GetAll(tenantID int64, name, identifier *string, sta
 	}, nil
 }
 
-func (s *signupFlowService) GetByUUID(signupFlowUUID uuid.UUID, tenantID int64) (*SignupFlowServiceDataResult, error) {
+func (s *signupFlowService) GetByUUID(ctx context.Context, signupFlowUUID uuid.UUID, tenantID int64) (*SignupFlowServiceDataResult, error) {
+	_, span := otel.Tracer("service").Start(ctx, "signupFlow.getByUUID")
+	defer span.End()
+	span.SetAttributes(attribute.String("signupFlow.uuid", signupFlowUUID.String()), attribute.Int64("tenant.id", tenantID))
+
 	signupFlow, err := s.signupFlowRepo.FindByUUIDAndTenantID(signupFlowUUID, tenantID, "Client")
 	if err != nil || signupFlow == nil {
+		span.SetStatus(codes.Error, "signup flow not found or access denied")
 		return nil, apperror.NewNotFoundWithReason("signup flow not found or access denied")
 	}
 
+	span.SetStatus(codes.Ok, "")
 	return toSignupFlowServiceDataResult(signupFlow), nil
 }
 
-func (s *signupFlowService) Create(tenantID int64, name, description string, config map[string]any, status string, ClientUUID uuid.UUID) (*SignupFlowServiceDataResult, error) {
+func (s *signupFlowService) Create(ctx context.Context, tenantID int64, name, description string, config map[string]any, status string, ClientUUID uuid.UUID) (*SignupFlowServiceDataResult, error) {
+	_, span := otel.Tracer("service").Start(ctx, "signupFlow.create")
+	defer span.End()
+	span.SetAttributes(attribute.Int64("tenant.id", tenantID))
+
 	var createdSignupFlow *model.SignupFlow
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
@@ -208,13 +229,20 @@ func (s *signupFlowService) Create(tenantID int64, name, description string, con
 	})
 
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "create signup flow failed")
 		return nil, err
 	}
 
-	return s.GetByUUID(createdSignupFlow.SignupFlowUUID, tenantID)
+	span.SetStatus(codes.Ok, "")
+	return s.GetByUUID(ctx, createdSignupFlow.SignupFlowUUID, tenantID)
 }
 
-func (s *signupFlowService) Update(signupFlowUUID uuid.UUID, tenantID int64, name, description string, config map[string]any, status string) (*SignupFlowServiceDataResult, error) {
+func (s *signupFlowService) Update(ctx context.Context, signupFlowUUID uuid.UUID, tenantID int64, name, description string, config map[string]any, status string) (*SignupFlowServiceDataResult, error) {
+	_, span := otel.Tracer("service").Start(ctx, "signupFlow.update")
+	defer span.End()
+	span.SetAttributes(attribute.String("signupFlow.uuid", signupFlowUUID.String()), attribute.Int64("tenant.id", tenantID))
+
 	var updatedSignupFlow *model.SignupFlow
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
@@ -265,13 +293,20 @@ func (s *signupFlowService) Update(signupFlowUUID uuid.UUID, tenantID int64, nam
 	})
 
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "update signup flow failed")
 		return nil, err
 	}
 
-	return s.GetByUUID(updatedSignupFlow.SignupFlowUUID, tenantID)
+	span.SetStatus(codes.Ok, "")
+	return s.GetByUUID(ctx, updatedSignupFlow.SignupFlowUUID, tenantID)
 }
 
-func (s *signupFlowService) UpdateStatus(signupFlowUUID uuid.UUID, tenantID int64, status string) (*SignupFlowServiceDataResult, error) {
+func (s *signupFlowService) UpdateStatus(ctx context.Context, signupFlowUUID uuid.UUID, tenantID int64, status string) (*SignupFlowServiceDataResult, error) {
+	_, span := otel.Tracer("service").Start(ctx, "signupFlow.updateStatus")
+	defer span.End()
+	span.SetAttributes(attribute.String("signupFlow.uuid", signupFlowUUID.String()), attribute.Int64("tenant.id", tenantID))
+
 	var updatedSignupFlow *model.SignupFlow
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
@@ -294,15 +329,23 @@ func (s *signupFlowService) UpdateStatus(signupFlowUUID uuid.UUID, tenantID int6
 	})
 
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "update signup flow status failed")
 		return nil, err
 	}
 
-	return s.GetByUUID(updatedSignupFlow.SignupFlowUUID, tenantID)
+	span.SetStatus(codes.Ok, "")
+	return s.GetByUUID(ctx, updatedSignupFlow.SignupFlowUUID, tenantID)
 }
 
-func (s *signupFlowService) Delete(signupFlowUUID uuid.UUID, tenantID int64) (*SignupFlowServiceDataResult, error) {
+func (s *signupFlowService) Delete(ctx context.Context, signupFlowUUID uuid.UUID, tenantID int64) (*SignupFlowServiceDataResult, error) {
+	_, span := otel.Tracer("service").Start(ctx, "signupFlow.delete")
+	defer span.End()
+	span.SetAttributes(attribute.String("signupFlow.uuid", signupFlowUUID.String()), attribute.Int64("tenant.id", tenantID))
+
 	signupFlow, err := s.signupFlowRepo.FindByUUIDAndTenantID(signupFlowUUID, tenantID, "Client")
 	if err != nil || signupFlow == nil {
+		span.SetStatus(codes.Error, "signup flow not found or access denied")
 		return nil, apperror.NewNotFoundWithReason("signup flow not found or access denied")
 	}
 
@@ -310,9 +353,12 @@ func (s *signupFlowService) Delete(signupFlowUUID uuid.UUID, tenantID int64) (*S
 
 	err = s.signupFlowRepo.DeleteByUUID(signupFlowUUID)
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "delete signup flow failed")
 		return nil, err
 	}
 
+	span.SetStatus(codes.Ok, "")
 	return result, nil
 }
 
@@ -346,7 +392,11 @@ func toSignupFlowServiceDataResult(sf *model.SignupFlow) *SignupFlowServiceDataR
 	}
 }
 
-func (s *signupFlowService) AssignRoles(signupFlowUUID uuid.UUID, tenantID int64, roleUUIDs []uuid.UUID) ([]SignupFlowRoleServiceDataResult, error) {
+func (s *signupFlowService) AssignRoles(ctx context.Context, signupFlowUUID uuid.UUID, tenantID int64, roleUUIDs []uuid.UUID) ([]SignupFlowRoleServiceDataResult, error) {
+	_, span := otel.Tracer("service").Start(ctx, "signupFlow.assignRoles")
+	defer span.End()
+	span.SetAttributes(attribute.String("signupFlow.uuid", signupFlowUUID.String()), attribute.Int64("tenant.id", tenantID))
+
 	var assignedRoles []SignupFlowRoleServiceDataResult
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
@@ -405,16 +455,24 @@ func (s *signupFlowService) AssignRoles(signupFlowUUID uuid.UUID, tenantID int64
 	})
 
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "assign roles failed")
 		return nil, err
 	}
 
+	span.SetStatus(codes.Ok, "")
 	return assignedRoles, nil
 }
 
-func (s *signupFlowService) GetRoles(signupFlowUUID uuid.UUID, tenantID int64, page, limit int) (*SignupFlowRoleServiceListResult, error) {
+func (s *signupFlowService) GetRoles(ctx context.Context, signupFlowUUID uuid.UUID, tenantID int64, page, limit int) (*SignupFlowRoleServiceListResult, error) {
+	_, span := otel.Tracer("service").Start(ctx, "signupFlow.getRoles")
+	defer span.End()
+	span.SetAttributes(attribute.String("signupFlow.uuid", signupFlowUUID.String()), attribute.Int64("tenant.id", tenantID))
+
 	// Verify signup flow exists and belongs to tenant
 	signupFlow, err := s.signupFlowRepo.FindByUUIDAndTenantID(signupFlowUUID, tenantID)
 	if err != nil || signupFlow == nil {
+		span.SetStatus(codes.Error, "signup flow not found or access denied")
 		return nil, apperror.NewNotFoundWithReason("signup flow not found or access denied")
 	}
 
@@ -448,6 +506,7 @@ func (s *signupFlowService) GetRoles(signupFlowUUID uuid.UUID, tenantID int64, p
 		totalPages++
 	}
 
+	span.SetStatus(codes.Ok, "")
 	return &SignupFlowRoleServiceListResult{
 		Data:       roles,
 		Total:      total,
@@ -457,8 +516,12 @@ func (s *signupFlowService) GetRoles(signupFlowUUID uuid.UUID, tenantID int64, p
 	}, nil
 }
 
-func (s *signupFlowService) RemoveRole(signupFlowUUID uuid.UUID, tenantID int64, roleUUID uuid.UUID) error {
-	return s.db.Transaction(func(tx *gorm.DB) error {
+func (s *signupFlowService) RemoveRole(ctx context.Context, signupFlowUUID uuid.UUID, tenantID int64, roleUUID uuid.UUID) error {
+	_, span := otel.Tracer("service").Start(ctx, "signupFlow.removeRole")
+	defer span.End()
+	span.SetAttributes(attribute.String("signupFlow.uuid", signupFlowUUID.String()), attribute.Int64("tenant.id", tenantID))
+
+	err := s.db.Transaction(func(tx *gorm.DB) error {
 		txSignupFlowRepo := s.signupFlowRepo.WithTx(tx)
 		txSignupFlowRoleRepo := s.signupFlowRoleRepo.WithTx(tx)
 		txRoleRepo := s.roleRepo.WithTx(tx)
@@ -478,4 +541,11 @@ func (s *signupFlowService) RemoveRole(signupFlowUUID uuid.UUID, tenantID int64,
 		// Delete signup flow role
 		return txSignupFlowRoleRepo.DeleteBySignupFlowIDAndRoleID(signupFlow.SignupFlowID, role.RoleID)
 	})
+	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "remove role failed")
+		return err
+	}
+	span.SetStatus(codes.Ok, "")
+	return nil
 }

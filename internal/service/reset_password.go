@@ -1,19 +1,22 @@
 package service
 
 import (
+	"context"
 	"fmt"
 	"time"
 
+	"github.com/maintainerd/auth/internal/apperror"
 	"github.com/maintainerd/auth/internal/dto"
 	"github.com/maintainerd/auth/internal/model"
 	"github.com/maintainerd/auth/internal/repository"
 	"github.com/maintainerd/auth/internal/security"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/codes"
 	"gorm.io/gorm"
-	"github.com/maintainerd/auth/internal/apperror"
 )
 
 type ResetPasswordService interface {
-	ResetPassword(token, newPassword string, clientID, providerID *string) (*dto.ResetPasswordResponseDTO, error)
+	ResetPassword(ctx context.Context, token, newPassword string, clientID, providerID *string) (*dto.ResetPasswordResponseDTO, error)
 }
 
 type resetPasswordService struct {
@@ -37,7 +40,10 @@ func NewResetPasswordService(
 	}
 }
 
-func (s *resetPasswordService) ResetPassword(token, newPassword string, clientID, providerID *string) (*dto.ResetPasswordResponseDTO, error) {
+func (s *resetPasswordService) ResetPassword(ctx context.Context, token, newPassword string, clientID, providerID *string) (*dto.ResetPasswordResponseDTO, error) {
+	_, span := otel.Tracer("service").Start(ctx, "password.reset")
+	defer span.End()
+
 	var user *model.User
 	var userToken *model.UserToken
 
@@ -146,6 +152,8 @@ func (s *resetPasswordService) ResetPassword(token, newPassword string, clientID
 	})
 
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "reset password failed")
 		// Log security event for failed password reset
 		security.LogSecurityEvent(security.SecurityEvent{
 			EventType: "password_reset_failure",
@@ -169,6 +177,7 @@ func (s *resetPasswordService) ResetPassword(token, newPassword string, clientID
 	// Reset failed login attempts for this user
 	security.ResetFailedAttempts(user.Email)
 
+	span.SetStatus(codes.Ok, "")
 	return &dto.ResetPasswordResponseDTO{
 		Message: "Password has been reset successfully. You can now log in with your new password.",
 		Success: true,

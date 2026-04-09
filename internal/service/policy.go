@@ -1,12 +1,16 @@
 package service
 
 import (
+	"context"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/apperror"
 	"github.com/maintainerd/auth/internal/model"
 	"github.com/maintainerd/auth/internal/repository"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
 	"gorm.io/datatypes"
 	"gorm.io/gorm"
 )
@@ -78,13 +82,13 @@ type PolicyServiceServicesResult struct {
 }
 
 type PolicyService interface {
-	Get(filter PolicyServiceGetFilter) (*PolicyServiceGetResult, error)
-	GetByUUID(policyUUID uuid.UUID, tenantID int64) (*PolicyServiceDataResult, error)
-	GetServicesByPolicyUUID(policyUUID uuid.UUID, tenantID int64, filter PolicyServiceServicesFilter) (*PolicyServiceServicesResult, error)
-	Create(tenantID int64, name string, description *string, document datatypes.JSON, version string, status string, isSystem bool) (*PolicyServiceDataResult, error)
-	Update(policyUUID uuid.UUID, tenantID int64, name string, description *string, document datatypes.JSON, version string, status string) (*PolicyServiceDataResult, error)
-	SetStatusByUUID(policyUUID uuid.UUID, tenantID int64, status string) (*PolicyServiceDataResult, error)
-	DeleteByUUID(policyUUID uuid.UUID, tenantID int64) (*PolicyServiceDataResult, error)
+	Get(ctx context.Context, filter PolicyServiceGetFilter) (*PolicyServiceGetResult, error)
+	GetByUUID(ctx context.Context, policyUUID uuid.UUID, tenantID int64) (*PolicyServiceDataResult, error)
+	GetServicesByPolicyUUID(ctx context.Context, policyUUID uuid.UUID, tenantID int64, filter PolicyServiceServicesFilter) (*PolicyServiceServicesResult, error)
+	Create(ctx context.Context, tenantID int64, name string, description *string, document datatypes.JSON, version string, status string, isSystem bool) (*PolicyServiceDataResult, error)
+	Update(ctx context.Context, policyUUID uuid.UUID, tenantID int64, name string, description *string, document datatypes.JSON, version string, status string) (*PolicyServiceDataResult, error)
+	SetStatusByUUID(ctx context.Context, policyUUID uuid.UUID, tenantID int64, status string) (*PolicyServiceDataResult, error)
+	DeleteByUUID(ctx context.Context, policyUUID uuid.UUID, tenantID int64) (*PolicyServiceDataResult, error)
 }
 
 type policyService struct {
@@ -108,7 +112,10 @@ func NewPolicyService(
 	}
 }
 
-func (s *policyService) Get(filter PolicyServiceGetFilter) (*PolicyServiceGetResult, error) {
+func (s *policyService) Get(ctx context.Context, filter PolicyServiceGetFilter) (*PolicyServiceGetResult, error) {
+	_, span := otel.Tracer("service").Start(ctx, "policy.list")
+	defer span.End()
+	span.SetAttributes(attribute.Int64("tenant.id", filter.TenantID))
 	repoFilter := repository.PolicyRepositoryGetFilter{
 		TenantID:    filter.TenantID,
 		Name:        filter.Name,
@@ -125,6 +132,8 @@ func (s *policyService) Get(filter PolicyServiceGetFilter) (*PolicyServiceGetRes
 
 	result, err := s.policyRepo.FindPaginated(repoFilter)
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "list policies failed")
 		return nil, err
 	}
 
@@ -152,9 +161,14 @@ func (s *policyService) Get(filter PolicyServiceGetFilter) (*PolicyServiceGetRes
 	}, nil
 }
 
-func (s *policyService) GetByUUID(policyUUID uuid.UUID, tenantID int64) (*PolicyServiceDataResult, error) {
+func (s *policyService) GetByUUID(ctx context.Context, policyUUID uuid.UUID, tenantID int64) (*PolicyServiceDataResult, error) {
+	_, span := otel.Tracer("service").Start(ctx, "policy.get")
+	defer span.End()
+	span.SetAttributes(attribute.String("policy.uuid", policyUUID.String()), attribute.Int64("tenant.id", tenantID))
 	policy, err := s.policyRepo.FindByUUIDAndTenantID(policyUUID, tenantID)
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "get policy failed")
 		return nil, err
 	}
 	if policy == nil {
@@ -174,10 +188,15 @@ func (s *policyService) GetByUUID(policyUUID uuid.UUID, tenantID int64) (*Policy
 	}, nil
 }
 
-func (s *policyService) GetServicesByPolicyUUID(policyUUID uuid.UUID, tenantID int64, filter PolicyServiceServicesFilter) (*PolicyServiceServicesResult, error) {
+func (s *policyService) GetServicesByPolicyUUID(ctx context.Context, policyUUID uuid.UUID, tenantID int64, filter PolicyServiceServicesFilter) (*PolicyServiceServicesResult, error) {
+	_, span := otel.Tracer("service").Start(ctx, "policy.getServices")
+	defer span.End()
+	span.SetAttributes(attribute.String("policy.uuid", policyUUID.String()), attribute.Int64("tenant.id", tenantID))
 	// First check if policy exists and belongs to tenant
 	_, err := s.policyRepo.FindByUUIDAndTenantID(policyUUID, tenantID)
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "get services by policy failed")
 		return nil, err
 	}
 
@@ -195,6 +214,8 @@ func (s *policyService) GetServicesByPolicyUUID(policyUUID uuid.UUID, tenantID i
 	// Get services that use this policy
 	result, err := s.serviceRepo.FindServicesByPolicyUUID(policyUUID, repoFilter)
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "get services by policy failed")
 		return nil, err
 	}
 
@@ -229,7 +250,10 @@ func (s *policyService) GetServicesByPolicyUUID(policyUUID uuid.UUID, tenantID i
 	}, nil
 }
 
-func (s *policyService) Create(tenantID int64, name string, description *string, document datatypes.JSON, version string, status string, isSystem bool) (*PolicyServiceDataResult, error) {
+func (s *policyService) Create(ctx context.Context, tenantID int64, name string, description *string, document datatypes.JSON, version string, status string, isSystem bool) (*PolicyServiceDataResult, error) {
+	_, span := otel.Tracer("service").Start(ctx, "policy.create")
+	defer span.End()
+	span.SetAttributes(attribute.Int64("tenant.id", tenantID))
 	var createdPolicy *model.Policy
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
@@ -266,9 +290,12 @@ func (s *policyService) Create(tenantID int64, name string, description *string,
 	})
 
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "create policy failed")
 		return nil, err
 	}
 
+	span.SetStatus(codes.Ok, "")
 	return &PolicyServiceDataResult{
 		PolicyUUID:  createdPolicy.PolicyUUID,
 		Name:        createdPolicy.Name,
@@ -282,7 +309,10 @@ func (s *policyService) Create(tenantID int64, name string, description *string,
 	}, nil
 }
 
-func (s *policyService) Update(policyUUID uuid.UUID, tenantID int64, name string, description *string, document datatypes.JSON, version string, status string) (*PolicyServiceDataResult, error) {
+func (s *policyService) Update(ctx context.Context, policyUUID uuid.UUID, tenantID int64, name string, description *string, document datatypes.JSON, version string, status string) (*PolicyServiceDataResult, error) {
+	_, span := otel.Tracer("service").Start(ctx, "policy.update")
+	defer span.End()
+	span.SetAttributes(attribute.String("policy.uuid", policyUUID.String()), attribute.Int64("tenant.id", tenantID))
 	var updatedPolicy *model.Policy
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
@@ -329,9 +359,12 @@ func (s *policyService) Update(policyUUID uuid.UUID, tenantID int64, name string
 	})
 
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "update policy failed")
 		return nil, err
 	}
 
+	span.SetStatus(codes.Ok, "")
 	return &PolicyServiceDataResult{
 		PolicyUUID:  updatedPolicy.PolicyUUID,
 		Name:        updatedPolicy.Name,
@@ -345,7 +378,10 @@ func (s *policyService) Update(policyUUID uuid.UUID, tenantID int64, name string
 	}, nil
 }
 
-func (s *policyService) SetStatusByUUID(policyUUID uuid.UUID, tenantID int64, status string) (*PolicyServiceDataResult, error) {
+func (s *policyService) SetStatusByUUID(ctx context.Context, policyUUID uuid.UUID, tenantID int64, status string) (*PolicyServiceDataResult, error) {
+	_, span := otel.Tracer("service").Start(ctx, "policy.setStatus")
+	defer span.End()
+	span.SetAttributes(attribute.String("policy.uuid", policyUUID.String()), attribute.Int64("tenant.id", tenantID))
 	var updatedPolicy *model.Policy
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
@@ -380,9 +416,12 @@ func (s *policyService) SetStatusByUUID(policyUUID uuid.UUID, tenantID int64, st
 	})
 
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "set policy status failed")
 		return nil, err
 	}
 
+	span.SetStatus(codes.Ok, "")
 	return &PolicyServiceDataResult{
 		PolicyUUID:  updatedPolicy.PolicyUUID,
 		Name:        updatedPolicy.Name,
@@ -396,7 +435,10 @@ func (s *policyService) SetStatusByUUID(policyUUID uuid.UUID, tenantID int64, st
 	}, nil
 }
 
-func (s *policyService) DeleteByUUID(policyUUID uuid.UUID, tenantID int64) (*PolicyServiceDataResult, error) {
+func (s *policyService) DeleteByUUID(ctx context.Context, policyUUID uuid.UUID, tenantID int64) (*PolicyServiceDataResult, error) {
+	_, span := otel.Tracer("service").Start(ctx, "policy.delete")
+	defer span.End()
+	span.SetAttributes(attribute.String("policy.uuid", policyUUID.String()), attribute.Int64("tenant.id", tenantID))
 	var deletedPolicy *model.Policy
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
@@ -427,9 +469,12 @@ func (s *policyService) DeleteByUUID(policyUUID uuid.UUID, tenantID int64) (*Pol
 	})
 
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "delete policy failed")
 		return nil, err
 	}
 
+	span.SetStatus(codes.Ok, "")
 	return &PolicyServiceDataResult{
 		PolicyUUID:  deletedPolicy.PolicyUUID,
 		Name:        deletedPolicy.Name,

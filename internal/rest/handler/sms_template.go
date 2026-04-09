@@ -10,9 +10,9 @@ import (
 	"github.com/maintainerd/auth/internal/dto"
 	"github.com/maintainerd/auth/internal/middleware"
 	"github.com/maintainerd/auth/internal/model"
-	"github.com/maintainerd/auth/internal/service"
 	"github.com/maintainerd/auth/internal/ptr"
 	resp "github.com/maintainerd/auth/internal/rest/response"
+	"github.com/maintainerd/auth/internal/service"
 )
 
 // SMSTemplateHandler handles SMS template management operations.
@@ -93,7 +93,7 @@ func (h *SMSTemplateHandler) GetAll(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Fetch SMS templates from service layer
-	result, err := h.smsTemplateService.GetAll(tenant.TenantID, filter.Name, filter.Status, filter.IsDefault, filter.IsSystem, filter.Page, filter.Limit, filter.SortBy, filter.SortOrder)
+	result, err := h.smsTemplateService.GetAll(r.Context(), tenant.TenantID, filter.Name, filter.Status, filter.IsDefault, filter.IsSystem, filter.Page, filter.Limit, filter.SortBy, filter.SortOrder)
 	if err != nil {
 		resp.HandleServiceError(w, r, "Failed to get SMS templates", err)
 		return
@@ -134,7 +134,7 @@ func (h *SMSTemplateHandler) Get(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Fetch SMS template (service validates tenant ownership)
-	template, err := h.smsTemplateService.GetByUUID(smsTemplateUUID, tenant.TenantID)
+	template, err := h.smsTemplateService.GetByUUID(r.Context(), smsTemplateUUID, tenant.TenantID)
 	if err != nil {
 		resp.HandleServiceError(w, r, "SMS template not found", err)
 		return
@@ -177,6 +177,7 @@ func (h *SMSTemplateHandler) Create(w http.ResponseWriter, r *http.Request) {
 
 	// Create SMS template
 	template, err := h.smsTemplateService.Create(
+		r.Context(),
 		tenant.TenantID,
 		req.Name,
 		req.Description,
@@ -234,6 +235,7 @@ func (h *SMSTemplateHandler) Update(w http.ResponseWriter, r *http.Request) {
 
 	// Update SMS template (service validates tenant ownership)
 	template, err := h.smsTemplateService.Update(
+		r.Context(),
 		smsTemplateUUID,
 		tenant.TenantID,
 		req.Name,
@@ -273,7 +275,7 @@ func (h *SMSTemplateHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Delete SMS template (service validates tenant ownership)
-	template, err := h.smsTemplateService.Delete(smsTemplateUUID, tenant.TenantID)
+	template, err := h.smsTemplateService.Delete(r.Context(), smsTemplateUUID, tenant.TenantID)
 	if err != nil {
 		resp.HandleServiceError(w, r, "Failed to delete SMS template", err)
 		return
@@ -317,7 +319,7 @@ func (h *SMSTemplateHandler) UpdateStatus(w http.ResponseWriter, r *http.Request
 	}
 
 	// Update status (service validates tenant ownership)
-	template, err := h.smsTemplateService.UpdateStatus(smsTemplateUUID, tenant.TenantID, req.Status)
+	template, err := h.smsTemplateService.UpdateStatus(r.Context(), smsTemplateUUID, tenant.TenantID, req.Status)
 	if err != nil {
 		resp.HandleServiceError(w, r, "Failed to update SMS template status", err)
 		return

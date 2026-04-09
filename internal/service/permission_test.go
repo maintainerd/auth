@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"errors"
 	"testing"
 
@@ -74,7 +75,7 @@ func TestPermissionService_GetByUUID(t *testing.T) {
 			permRepo := &mockPermissionRepo{}
 			tc.setupRepo(permRepo)
 			svc := newPermissionService(permRepo, &mockAPIRepo{}, &mockRoleRepo{}, &mockClientRepo{})
-			result, err := svc.GetByUUID(permUUID, tenantID)
+			result, err := svc.GetByUUID(context.Background(), permUUID, tenantID)
 			if tc.expectError {
 				require.Error(t, err)
 				if tc.errContains != "" {
@@ -96,7 +97,7 @@ func TestPermissionService_Get(t *testing.T) {
 	t.Run("client uuid filter → error", func(t *testing.T) {
 		clientUUID := "some-client-uuid"
 		svc := newPermissionService(&mockPermissionRepo{}, &mockAPIRepo{}, &mockRoleRepo{}, &mockClientRepo{})
-		_, err := svc.Get(PermissionServiceGetFilter{ClientUUID: &clientUUID})
+		_, err := svc.Get(context.Background(), PermissionServiceGetFilter{ClientUUID: &clientUUID})
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "no longer supported")
 	})
@@ -107,7 +108,7 @@ func TestPermissionService_Get(t *testing.T) {
 			findByUUIDFn: func(_ any, _ ...string) (*model.API, error) { return nil, nil },
 		}
 		svc := newPermissionService(&mockPermissionRepo{}, apiRepo, &mockRoleRepo{}, &mockClientRepo{})
-		_, err := svc.Get(PermissionServiceGetFilter{APIUUID: &apiUUID})
+		_, err := svc.Get(context.Background(), PermissionServiceGetFilter{APIUUID: &apiUUID})
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "api not found")
 	})
@@ -120,7 +121,7 @@ func TestPermissionService_Get(t *testing.T) {
 			},
 		}
 		svc := newPermissionService(&mockPermissionRepo{}, apiRepo, &mockRoleRepo{}, &mockClientRepo{})
-		result, err := svc.Get(PermissionServiceGetFilter{APIUUID: &apiUUID, TenantID: 1, Page: 1, Limit: 10})
+		result, err := svc.Get(context.Background(), PermissionServiceGetFilter{APIUUID: &apiUUID, TenantID: 1, Page: 1, Limit: 10})
 		require.NoError(t, err)
 		assert.NotNil(t, result)
 	})
@@ -131,7 +132,7 @@ func TestPermissionService_Get(t *testing.T) {
 			findByUUIDFn: func(_ any, _ ...string) (*model.Role, error) { return nil, nil },
 		}
 		svc := newPermissionService(&mockPermissionRepo{}, &mockAPIRepo{}, roleRepo, &mockClientRepo{})
-		_, err := svc.Get(PermissionServiceGetFilter{RoleUUID: &roleUUID})
+		_, err := svc.Get(context.Background(), PermissionServiceGetFilter{RoleUUID: &roleUUID})
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "role not found")
 	})
@@ -144,7 +145,7 @@ func TestPermissionService_Get(t *testing.T) {
 			},
 		}
 		svc := newPermissionService(&mockPermissionRepo{}, &mockAPIRepo{}, roleRepo, &mockClientRepo{})
-		result, err := svc.Get(PermissionServiceGetFilter{RoleUUID: &roleUUID, TenantID: 1, Page: 1, Limit: 10})
+		result, err := svc.Get(context.Background(), PermissionServiceGetFilter{RoleUUID: &roleUUID, TenantID: 1, Page: 1, Limit: 10})
 		require.NoError(t, err)
 		assert.NotNil(t, result)
 	})
@@ -156,7 +157,7 @@ func TestPermissionService_Get(t *testing.T) {
 			},
 		}
 		svc := newPermissionService(permRepo, &mockAPIRepo{}, &mockRoleRepo{}, &mockClientRepo{})
-		_, err := svc.Get(PermissionServiceGetFilter{TenantID: 1, Page: 1, Limit: 10})
+		_, err := svc.Get(context.Background(), PermissionServiceGetFilter{TenantID: 1, Page: 1, Limit: 10})
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "db error")
 	})
@@ -172,7 +173,7 @@ func TestPermissionService_Get(t *testing.T) {
 			},
 		}
 		svc := newPermissionService(permRepo, &mockAPIRepo{}, &mockRoleRepo{}, &mockClientRepo{})
-		result, err := svc.Get(PermissionServiceGetFilter{TenantID: 1, Page: 1, Limit: 10})
+		result, err := svc.Get(context.Background(), PermissionServiceGetFilter{TenantID: 1, Page: 1, Limit: 10})
 		require.NoError(t, err)
 		assert.Equal(t, int64(1), result.Total)
 		assert.NotNil(t, result.Data[0].API)
@@ -180,7 +181,7 @@ func TestPermissionService_Get(t *testing.T) {
 
 	t.Run("success – empty result", func(t *testing.T) {
 		svc := newPermissionService(&mockPermissionRepo{}, &mockAPIRepo{}, &mockRoleRepo{}, &mockClientRepo{})
-		result, err := svc.Get(PermissionServiceGetFilter{TenantID: 1, Page: 1, Limit: 10})
+		result, err := svc.Get(context.Background(), PermissionServiceGetFilter{TenantID: 1, Page: 1, Limit: 10})
 		require.NoError(t, err)
 		assert.NotNil(t, result)
 		assert.Empty(t, result.Data)
@@ -205,7 +206,7 @@ func TestPermissionService_SetStatus(t *testing.T) {
 			},
 		}
 		svc := NewPermissionService(db, permRepo, &mockAPIRepo{}, &mockRoleRepo{}, &mockClientRepo{})
-		result, err := svc.SetStatus(permUUID, tenantID, model.StatusInactive)
+		result, err := svc.SetStatus(context.Background(), permUUID, tenantID, model.StatusInactive)
 		require.Error(t, err)
 		assert.Nil(t, result)
 		assert.Contains(t, err.Error(), "permission not found")
@@ -221,7 +222,7 @@ func TestPermissionService_SetStatus(t *testing.T) {
 			},
 		}
 		svc := NewPermissionService(db, permRepo, &mockAPIRepo{}, &mockRoleRepo{}, &mockClientRepo{})
-		_, err := svc.SetStatus(permUUID, tenantID, model.StatusInactive)
+		_, err := svc.SetStatus(context.Background(), permUUID, tenantID, model.StatusInactive)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "db err")
 	})
@@ -240,7 +241,7 @@ func TestPermissionService_SetStatus(t *testing.T) {
 			},
 		}
 		svc := NewPermissionService(db, permRepo, &mockAPIRepo{}, &mockRoleRepo{}, &mockClientRepo{})
-		_, err := svc.SetStatus(permUUID, tenantID, model.StatusInactive)
+		_, err := svc.SetStatus(context.Background(), permUUID, tenantID, model.StatusInactive)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "save err")
 	})
@@ -256,7 +257,7 @@ func TestPermissionService_SetStatus(t *testing.T) {
 			},
 		}
 		svc := NewPermissionService(db, permRepo, &mockAPIRepo{}, &mockRoleRepo{}, &mockClientRepo{})
-		result, err := svc.SetStatus(permUUID, tenantID, model.StatusInactive)
+		result, err := svc.SetStatus(context.Background(), permUUID, tenantID, model.StatusInactive)
 		require.NoError(t, err)
 		assert.NotNil(t, result)
 		assert.Equal(t, model.StatusInactive, result.Status)
@@ -277,7 +278,7 @@ func TestPermissionService_SetActiveStatusByUUID(t *testing.T) {
 			},
 		}
 		svc := NewPermissionService(db, permRepo, &mockAPIRepo{}, &mockRoleRepo{}, &mockClientRepo{})
-		_, err := svc.SetActiveStatusByUUID(permUUID, tenantID)
+		_, err := svc.SetActiveStatusByUUID(context.Background(), permUUID, tenantID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "db err")
 	})
@@ -292,7 +293,7 @@ func TestPermissionService_SetActiveStatusByUUID(t *testing.T) {
 			},
 		}
 		svc := NewPermissionService(db, permRepo, &mockAPIRepo{}, &mockRoleRepo{}, &mockClientRepo{})
-		_, err := svc.SetActiveStatusByUUID(permUUID, tenantID)
+		_, err := svc.SetActiveStatusByUUID(context.Background(), permUUID, tenantID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "permission not found")
 	})
@@ -309,7 +310,7 @@ func TestPermissionService_SetActiveStatusByUUID(t *testing.T) {
 			},
 		}
 		svc := NewPermissionService(db, permRepo, &mockAPIRepo{}, &mockRoleRepo{}, &mockClientRepo{})
-		result, err := svc.SetActiveStatusByUUID(permUUID, tenantID)
+		result, err := svc.SetActiveStatusByUUID(context.Background(), permUUID, tenantID)
 		require.Error(t, err)
 		assert.Nil(t, result)
 	})
@@ -328,7 +329,7 @@ func TestPermissionService_SetActiveStatusByUUID(t *testing.T) {
 			},
 		}
 		svc := NewPermissionService(db, permRepo, &mockAPIRepo{}, &mockRoleRepo{}, &mockClientRepo{})
-		_, err := svc.SetActiveStatusByUUID(permUUID, tenantID)
+		_, err := svc.SetActiveStatusByUUID(context.Background(), permUUID, tenantID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "save err")
 	})
@@ -345,7 +346,7 @@ func TestPermissionService_SetActiveStatusByUUID(t *testing.T) {
 			},
 		}
 		svc := NewPermissionService(db, permRepo, &mockAPIRepo{}, &mockRoleRepo{}, &mockClientRepo{})
-		result, err := svc.SetActiveStatusByUUID(permUUID, tenantID)
+		result, err := svc.SetActiveStatusByUUID(context.Background(), permUUID, tenantID)
 		require.NoError(t, err)
 		assert.Equal(t, model.StatusInactive, result.Status)
 	})
@@ -362,7 +363,7 @@ func TestPermissionService_SetActiveStatusByUUID(t *testing.T) {
 			},
 		}
 		svc := NewPermissionService(db, permRepo, &mockAPIRepo{}, &mockRoleRepo{}, &mockClientRepo{})
-		result, err := svc.SetActiveStatusByUUID(permUUID, tenantID)
+		result, err := svc.SetActiveStatusByUUID(context.Background(), permUUID, tenantID)
 		require.NoError(t, err)
 		assert.Equal(t, model.StatusActive, result.Status)
 	})
@@ -383,7 +384,7 @@ func TestPermissionService_DeleteByUUID(t *testing.T) {
 			},
 		}
 		svc := newPermissionService(permRepo, &mockAPIRepo{}, &mockRoleRepo{}, &mockClientRepo{})
-		_, err := svc.DeleteByUUID(permUUID, tenantID)
+		_, err := svc.DeleteByUUID(context.Background(), permUUID, tenantID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "db err")
 	})
@@ -395,7 +396,7 @@ func TestPermissionService_DeleteByUUID(t *testing.T) {
 			},
 		}
 		svc := newPermissionService(permRepo, &mockAPIRepo{}, &mockRoleRepo{}, &mockClientRepo{})
-		_, err := svc.DeleteByUUID(permUUID, tenantID)
+		_, err := svc.DeleteByUUID(context.Background(), permUUID, tenantID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "permission not found")
 	})
@@ -409,7 +410,7 @@ func TestPermissionService_DeleteByUUID(t *testing.T) {
 			},
 		}
 		svc := newPermissionService(permRepo, &mockAPIRepo{}, &mockRoleRepo{}, &mockClientRepo{})
-		_, err := svc.DeleteByUUID(permUUID, tenantID)
+		_, err := svc.DeleteByUUID(context.Background(), permUUID, tenantID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "default permission")
 	})
@@ -424,7 +425,7 @@ func TestPermissionService_DeleteByUUID(t *testing.T) {
 			},
 		}
 		svc := newPermissionService(permRepo, &mockAPIRepo{}, &mockRoleRepo{}, &mockClientRepo{})
-		_, err := svc.DeleteByUUID(permUUID, tenantID)
+		_, err := svc.DeleteByUUID(context.Background(), permUUID, tenantID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "delete fail")
 	})
@@ -436,7 +437,7 @@ func TestPermissionService_DeleteByUUID(t *testing.T) {
 			},
 		}
 		svc := newPermissionService(permRepo, &mockAPIRepo{}, &mockRoleRepo{}, &mockClientRepo{})
-		result, err := svc.DeleteByUUID(permUUID, tenantID)
+		result, err := svc.DeleteByUUID(context.Background(), permUUID, tenantID)
 		require.NoError(t, err)
 		assert.NotNil(t, result)
 	})
@@ -460,7 +461,7 @@ func TestPermissionService_Create(t *testing.T) {
 			},
 		}
 		svc := NewPermissionService(db, permRepo, &mockAPIRepo{}, &mockRoleRepo{}, &mockClientRepo{})
-		_, err := svc.Create(tenantID, "read:users", "desc", model.StatusActive, false, apiUUID.String())
+		_, err := svc.Create(context.Background(), tenantID, "read:users", "desc", model.StatusActive, false, apiUUID.String())
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "db err")
 	})
@@ -475,7 +476,7 @@ func TestPermissionService_Create(t *testing.T) {
 			},
 		}
 		svc := NewPermissionService(db, permRepo, &mockAPIRepo{}, &mockRoleRepo{}, &mockClientRepo{})
-		_, err := svc.Create(tenantID, "read:users", "desc", model.StatusActive, false, apiUUID.String())
+		_, err := svc.Create(context.Background(), tenantID, "read:users", "desc", model.StatusActive, false, apiUUID.String())
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "already exists")
 	})
@@ -486,7 +487,7 @@ func TestPermissionService_Create(t *testing.T) {
 		mock.ExpectRollback()
 		permRepo := &mockPermissionRepo{}
 		svc := NewPermissionService(db, permRepo, &mockAPIRepo{}, &mockRoleRepo{}, &mockClientRepo{})
-		_, err := svc.Create(tenantID, "read:users", "desc", model.StatusActive, false, "not-a-uuid")
+		_, err := svc.Create(context.Background(), tenantID, "read:users", "desc", model.StatusActive, false, "not-a-uuid")
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "invalid api uuid")
 	})
@@ -501,7 +502,7 @@ func TestPermissionService_Create(t *testing.T) {
 			},
 		}
 		svc := NewPermissionService(db, &mockPermissionRepo{}, apiRepo, &mockRoleRepo{}, &mockClientRepo{})
-		_, err := svc.Create(tenantID, "read:users", "desc", model.StatusActive, false, apiUUID.String())
+		_, err := svc.Create(context.Background(), tenantID, "read:users", "desc", model.StatusActive, false, apiUUID.String())
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "api db err")
 	})
@@ -516,7 +517,7 @@ func TestPermissionService_Create(t *testing.T) {
 			},
 		}
 		svc := NewPermissionService(db, &mockPermissionRepo{}, apiRepo, &mockRoleRepo{}, &mockClientRepo{})
-		_, err := svc.Create(tenantID, "read:users", "desc", model.StatusActive, false, apiUUID.String())
+		_, err := svc.Create(context.Background(), tenantID, "read:users", "desc", model.StatusActive, false, apiUUID.String())
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "api not found")
 	})
@@ -536,7 +537,7 @@ func TestPermissionService_Create(t *testing.T) {
 			},
 		}
 		svc := NewPermissionService(db, permRepo, apiRepo, &mockRoleRepo{}, &mockClientRepo{})
-		_, err := svc.Create(tenantID, "read:users", "desc", model.StatusActive, false, apiUUID.String())
+		_, err := svc.Create(context.Background(), tenantID, "read:users", "desc", model.StatusActive, false, apiUUID.String())
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "create err")
 	})
@@ -559,7 +560,7 @@ func TestPermissionService_Create(t *testing.T) {
 			},
 		}
 		svc := NewPermissionService(db, permRepo, apiRepo, &mockRoleRepo{}, &mockClientRepo{})
-		_, err := svc.Create(tenantID, "read:users", "desc", model.StatusActive, false, apiUUID.String())
+		_, err := svc.Create(context.Background(), tenantID, "read:users", "desc", model.StatusActive, false, apiUUID.String())
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "fetch err")
 	})
@@ -582,7 +583,7 @@ func TestPermissionService_Create(t *testing.T) {
 			},
 		}
 		svc := NewPermissionService(db, permRepo, apiRepo, &mockRoleRepo{}, &mockClientRepo{})
-		result, err := svc.Create(tenantID, "read:users", "desc", model.StatusActive, false, apiUUID.String())
+		result, err := svc.Create(context.Background(), tenantID, "read:users", "desc", model.StatusActive, false, apiUUID.String())
 		require.NoError(t, err)
 		assert.NotNil(t, result)
 		assert.Equal(t, "read:users", result.Name)
@@ -608,7 +609,7 @@ func TestPermissionService_Update(t *testing.T) {
 			},
 		}
 		svc := NewPermissionService(db, permRepo, &mockAPIRepo{}, &mockRoleRepo{}, &mockClientRepo{})
-		_, err := svc.Update(permUUID, tenantID, "new-name", "desc", model.StatusActive)
+		_, err := svc.Update(context.Background(), permUUID, tenantID, "new-name", "desc", model.StatusActive)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "db err")
 	})
@@ -623,7 +624,7 @@ func TestPermissionService_Update(t *testing.T) {
 			},
 		}
 		svc := NewPermissionService(db, permRepo, &mockAPIRepo{}, &mockRoleRepo{}, &mockClientRepo{})
-		_, err := svc.Update(permUUID, tenantID, "new-name", "desc", model.StatusActive)
+		_, err := svc.Update(context.Background(), permUUID, tenantID, "new-name", "desc", model.StatusActive)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "permission not found")
 	})
@@ -640,7 +641,7 @@ func TestPermissionService_Update(t *testing.T) {
 			},
 		}
 		svc := NewPermissionService(db, permRepo, &mockAPIRepo{}, &mockRoleRepo{}, &mockClientRepo{})
-		_, err := svc.Update(permUUID, tenantID, "new-name", "desc", model.StatusActive)
+		_, err := svc.Update(context.Background(), permUUID, tenantID, "new-name", "desc", model.StatusActive)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "default permission")
 	})
@@ -659,7 +660,7 @@ func TestPermissionService_Update(t *testing.T) {
 			},
 		}
 		svc := NewPermissionService(db, permRepo, &mockAPIRepo{}, &mockRoleRepo{}, &mockClientRepo{})
-		_, err := svc.Update(permUUID, tenantID, "write:users", "desc", model.StatusActive)
+		_, err := svc.Update(context.Background(), permUUID, tenantID, "write:users", "desc", model.StatusActive)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "name lookup err")
 	})
@@ -679,7 +680,7 @@ func TestPermissionService_Update(t *testing.T) {
 			},
 		}
 		svc := NewPermissionService(db, permRepo, &mockAPIRepo{}, &mockRoleRepo{}, &mockClientRepo{})
-		_, err := svc.Update(permUUID, tenantID, "write:users", "desc", model.StatusActive)
+		_, err := svc.Update(context.Background(), permUUID, tenantID, "write:users", "desc", model.StatusActive)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "already exists")
 	})
@@ -699,7 +700,7 @@ func TestPermissionService_Update(t *testing.T) {
 		}
 		svc := NewPermissionService(db, permRepo, &mockAPIRepo{}, &mockRoleRepo{}, &mockClientRepo{})
 		// Same name so no findByName path
-		_, err := svc.Update(permUUID, tenantID, "read:users", "new desc", model.StatusActive)
+		_, err := svc.Update(context.Background(), permUUID, tenantID, "read:users", "new desc", model.StatusActive)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "save err")
 	})
@@ -716,7 +717,7 @@ func TestPermissionService_Update(t *testing.T) {
 			},
 		}
 		svc := NewPermissionService(db, permRepo, &mockAPIRepo{}, &mockRoleRepo{}, &mockClientRepo{})
-		result, err := svc.Update(permUUID, tenantID, "read:users", "updated desc", model.StatusActive)
+		result, err := svc.Update(context.Background(), permUUID, tenantID, "read:users", "updated desc", model.StatusActive)
 		require.NoError(t, err)
 		assert.NotNil(t, result)
 		assert.Equal(t, "updated desc", result.Description)
@@ -736,7 +737,7 @@ func TestPermissionService_Update(t *testing.T) {
 			},
 		}
 		svc := NewPermissionService(db, permRepo, &mockAPIRepo{}, &mockRoleRepo{}, &mockClientRepo{})
-		result, err := svc.Update(permUUID, tenantID, "write:users", "desc", model.StatusActive)
+		result, err := svc.Update(context.Background(), permUUID, tenantID, "write:users", "desc", model.StatusActive)
 		require.NoError(t, err)
 		assert.NotNil(t, result)
 		assert.Equal(t, "write:users", result.Name)

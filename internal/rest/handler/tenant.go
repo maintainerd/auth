@@ -104,7 +104,7 @@ func (h *TenantHandler) Get(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Fetch Tenants
-	result, err := h.tenantService.Get(tenantFilter)
+	result, err := h.tenantService.Get(r.Context(), tenantFilter)
 	if err != nil {
 		resp.HandleServiceError(w, r, "Failed to fetch tenants", err)
 		return
@@ -136,7 +136,7 @@ func (h *TenantHandler) GetByUUID(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	tenant, err := h.tenantService.GetByUUID(tenantUUID)
+	tenant, err := h.tenantService.GetByUUID(r.Context(), tenantUUID)
 	if err != nil {
 		resp.HandleServiceError(w, r, "Tenant not found", err)
 		return
@@ -149,7 +149,7 @@ func (h *TenantHandler) GetByUUID(w http.ResponseWriter, r *http.Request) {
 
 // Get Default Tenant
 func (h *TenantHandler) GetDefault(w http.ResponseWriter, r *http.Request) {
-	tenant, err := h.tenantService.GetDefault()
+	tenant, err := h.tenantService.GetDefault(r.Context())
 	if err != nil {
 		resp.HandleServiceError(w, r, "Default tenant not found", err)
 		return
@@ -168,7 +168,7 @@ func (h *TenantHandler) GetByIdentifier(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	tenant, err := h.tenantService.GetByIdentifier(identifier)
+	tenant, err := h.tenantService.GetByIdentifier(r.Context(), identifier)
 	if err != nil {
 		resp.HandleServiceError(w, r, "Tenant not found", err)
 		return
@@ -192,7 +192,7 @@ func (h *TenantHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	tenant, err := h.tenantService.Create(req.Name, req.DisplayName, req.Description, req.Status, req.IsPublic, false)
+	tenant, err := h.tenantService.Create(r.Context(), req.Name, req.DisplayName, req.Description, req.Status, req.IsPublic, false)
 	if err != nil {
 		resp.HandleServiceError(w, r, "Failed to create tenant", err)
 		return
@@ -218,7 +218,7 @@ func (h *TenantHandler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Check if user is a member of this tenant
-	isMember, err := h.tenantMemberService.IsUserInTenant(user.UserID, tenantUUID)
+	isMember, err := h.tenantMemberService.IsUserInTenant(r.Context(), user.UserID, tenantUUID)
 	if err != nil {
 		resp.HandleServiceError(w, r, "Failed to verify tenant membership", err)
 		return
@@ -239,7 +239,7 @@ func (h *TenantHandler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	tenant, err := h.tenantService.Update(tenantUUID, req.Name, req.DisplayName, req.Description, req.Status, req.IsPublic)
+	tenant, err := h.tenantService.Update(r.Context(), tenantUUID, req.Name, req.DisplayName, req.Description, req.Status, req.IsPublic)
 	if err != nil {
 		resp.HandleServiceError(w, r, "Failed to update tenant", err)
 		return
@@ -266,7 +266,7 @@ func (h *TenantHandler) SetStatus(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	tenant, err := h.tenantService.SetStatusByUUID(tenantUUID, req.Status)
+	tenant, err := h.tenantService.SetStatusByUUID(r.Context(), tenantUUID, req.Status)
 	if err != nil {
 		resp.HandleServiceError(w, r, "Failed to update tenant status", err)
 		return
@@ -285,7 +285,7 @@ func (h *TenantHandler) SetPublic(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	tenant, err := h.tenantService.SetActivePublicByUUID(tenantUUID)
+	tenant, err := h.tenantService.SetActivePublicByUUID(r.Context(), tenantUUID)
 	if err != nil {
 		resp.HandleServiceError(w, r, "Failed to update tenant", err)
 		return
@@ -304,7 +304,7 @@ func (h *TenantHandler) SetDefault(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	tenant, err := h.tenantService.SetDefaultStatusByUUID(tenantUUID)
+	tenant, err := h.tenantService.SetDefaultStatusByUUID(r.Context(), tenantUUID)
 	if err != nil {
 		resp.HandleServiceError(w, r, "Failed to update tenant", err)
 		return
@@ -330,7 +330,7 @@ func (h *TenantHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Check if user is a member of this tenant
-	isMember, err := h.tenantMemberService.IsUserInTenant(user.UserID, tenantUUID)
+	isMember, err := h.tenantMemberService.IsUserInTenant(r.Context(), user.UserID, tenantUUID)
 	if err != nil {
 		resp.HandleServiceError(w, r, "Failed to verify tenant membership", err)
 		return
@@ -341,7 +341,7 @@ func (h *TenantHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Get tenant to check if it's a system tenant
-	tenant, err := h.tenantService.GetByUUID(tenantUUID)
+	tenant, err := h.tenantService.GetByUUID(r.Context(), tenantUUID)
 	if err != nil {
 		resp.HandleServiceError(w, r, "Tenant not found", err)
 		return
@@ -353,7 +353,7 @@ func (h *TenantHandler) Delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	deletedTenant, err := h.tenantService.DeleteByUUID(tenantUUID)
+	deletedTenant, err := h.tenantService.DeleteByUUID(r.Context(), tenantUUID)
 	if err != nil {
 		resp.HandleServiceError(w, r, "Failed to delete tenant", err)
 		return
@@ -402,13 +402,13 @@ func (h *TenantHandler) GetMembers(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Get tenant to retrieve tenant_id
-	tenant, err := h.tenantService.GetByUUID(tenantUUID)
+	tenant, err := h.tenantService.GetByUUID(r.Context(), tenantUUID)
 	if err != nil {
 		resp.HandleServiceError(w, r, "Tenant not found", err)
 		return
 	}
 
-	members, err := h.tenantMemberService.ListByTenant(tenant.TenantID)
+	members, err := h.tenantMemberService.ListByTenant(r.Context(), tenant.TenantID)
 	if err != nil {
 		resp.HandleServiceError(w, r, "Failed to fetch members", err)
 		return
@@ -448,13 +448,13 @@ func (h *TenantHandler) AddMember(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Get tenant to retrieve tenant_id
-	tenant, err := h.tenantService.GetByUUID(tenantUUID)
+	tenant, err := h.tenantService.GetByUUID(r.Context(), tenantUUID)
 	if err != nil {
 		resp.HandleServiceError(w, r, "Tenant not found", err)
 		return
 	}
 
-	member, err := h.tenantMemberService.CreateByUserUUID(tenant.TenantID, req.UserUUID, req.Role)
+	member, err := h.tenantMemberService.CreateByUserUUID(r.Context(), tenant.TenantID, req.UserUUID, req.Role)
 	if err != nil {
 		resp.HandleServiceError(w, r, "Failed to add member", err)
 		return
@@ -489,7 +489,7 @@ func (h *TenantHandler) UpdateMemberRole(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	member, err := h.tenantMemberService.UpdateRole(tenantMemberUUID, req.Role)
+	member, err := h.tenantMemberService.UpdateRole(r.Context(), tenantMemberUUID, req.Role)
 	if err != nil {
 		resp.HandleServiceError(w, r, "Failed to update member role", err)
 		return
@@ -513,7 +513,7 @@ func (h *TenantHandler) RemoveMember(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.tenantMemberService.DeleteByUUID(tenantMemberUUID); err != nil {
+	if err := h.tenantMemberService.DeleteByUUID(r.Context(), tenantMemberUUID); err != nil {
 		resp.HandleServiceError(w, r, "Failed to remove member", err)
 		return
 	}

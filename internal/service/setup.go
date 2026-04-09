@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"encoding/json"
 	"time"
 
@@ -13,15 +14,17 @@ import (
 	"github.com/maintainerd/auth/internal/repository"
 	"github.com/maintainerd/auth/internal/runner"
 	"github.com/maintainerd/auth/internal/security"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/codes"
 	"gorm.io/datatypes"
 	"gorm.io/gorm"
 )
 
 type SetupService interface {
-	GetSetupStatus() (*dto.SetupStatusResponseDTO, error)
-	CreateTenant(req dto.CreateTenantRequestDTO) (*dto.CreateTenantResponseDTO, error)
-	CreateAdmin(req dto.CreateAdminRequestDTO) (*dto.CreateAdminResponseDTO, error)
-	CreateProfile(req dto.CreateProfileRequestDTO) (*dto.CreateProfileResponseDTO, error)
+	GetSetupStatus(ctx context.Context) (*dto.SetupStatusResponseDTO, error)
+	CreateTenant(ctx context.Context, req dto.CreateTenantRequestDTO) (*dto.CreateTenantResponseDTO, error)
+	CreateAdmin(ctx context.Context, req dto.CreateAdminRequestDTO) (*dto.CreateAdminResponseDTO, error)
+	CreateProfile(ctx context.Context, req dto.CreateProfileRequestDTO) (*dto.CreateProfileResponseDTO, error)
 }
 
 type setupService struct {
@@ -69,7 +72,10 @@ func NewSetupService(
 	}
 }
 
-func (s *setupService) GetSetupStatus() (*dto.SetupStatusResponseDTO, error) {
+func (s *setupService) GetSetupStatus(ctx context.Context) (*dto.SetupStatusResponseDTO, error) {
+	_, span := otel.Tracer("service").Start(ctx, "setup.getStatus")
+	defer span.End()
+
 	// Check if tenant exists
 	tenants, err := s.tenantRepo.FindAll()
 	if err != nil {
@@ -99,6 +105,7 @@ func (s *setupService) GetSetupStatus() (*dto.SetupStatusResponseDTO, error) {
 		}
 	}
 
+	span.SetStatus(codes.Ok, "")
 	return &dto.SetupStatusResponseDTO{
 		IsTenantSetup:   isTenantSetup,
 		IsAdminSetup:    isAdminSetup,
@@ -107,7 +114,10 @@ func (s *setupService) GetSetupStatus() (*dto.SetupStatusResponseDTO, error) {
 	}, nil
 }
 
-func (s *setupService) CreateTenant(req dto.CreateTenantRequestDTO) (*dto.CreateTenantResponseDTO, error) {
+func (s *setupService) CreateTenant(ctx context.Context, req dto.CreateTenantRequestDTO) (*dto.CreateTenantResponseDTO, error) {
+	_, span := otel.Tracer("service").Start(ctx, "setup.createTenant")
+	defer span.End()
+
 	// Check if tenant already exists
 	tenants, err := s.tenantRepo.FindAll()
 	if err != nil {
@@ -165,6 +175,8 @@ func (s *setupService) CreateTenant(req dto.CreateTenantRequestDTO) (*dto.Create
 	})
 
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "create tenant failed")
 		return nil, err
 	}
 
@@ -206,6 +218,7 @@ func (s *setupService) CreateTenant(req dto.CreateTenantRequestDTO) (*dto.Create
 		}
 	}
 
+	span.SetStatus(codes.Ok, "")
 	return &dto.CreateTenantResponseDTO{
 		Tenant:            tenantResponse,
 		DefaultClientID:   defaultClientID,
@@ -213,7 +226,10 @@ func (s *setupService) CreateTenant(req dto.CreateTenantRequestDTO) (*dto.Create
 	}, nil
 }
 
-func (s *setupService) CreateAdmin(req dto.CreateAdminRequestDTO) (*dto.CreateAdminResponseDTO, error) {
+func (s *setupService) CreateAdmin(ctx context.Context, req dto.CreateAdminRequestDTO) (*dto.CreateAdminResponseDTO, error) {
+	_, span := otel.Tracer("service").Start(ctx, "setup.createAdmin")
+	defer span.End()
+
 	// Check if tenant exists
 	tenants, err := s.tenantRepo.FindAll()
 	if err != nil {
@@ -365,6 +381,8 @@ func (s *setupService) CreateAdmin(req dto.CreateAdminRequestDTO) (*dto.CreateAd
 	})
 
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "create admin failed")
 		return nil, err
 	}
 
@@ -380,13 +398,17 @@ func (s *setupService) CreateAdmin(req dto.CreateAdminRequestDTO) (*dto.CreateAd
 		UpdatedAt:       createdUser.UpdatedAt,
 	}
 
+	span.SetStatus(codes.Ok, "")
 	return &dto.CreateAdminResponseDTO{
 		User: userResponse,
 	}, nil
 }
 
 // Helper function to get string value from pointer
-func (s *setupService) CreateProfile(req dto.CreateProfileRequestDTO) (*dto.CreateProfileResponseDTO, error) {
+func (s *setupService) CreateProfile(ctx context.Context, req dto.CreateProfileRequestDTO) (*dto.CreateProfileResponseDTO, error) {
+	_, span := otel.Tracer("service").Start(ctx, "setup.createProfile")
+	defer span.End()
+
 	// Find the super admin user (the only user during setup)
 	user, err := s.userRepo.FindSuperAdmin()
 	if err != nil {
@@ -475,12 +497,15 @@ func (s *setupService) CreateProfile(req dto.CreateProfileRequestDTO) (*dto.Crea
 	})
 
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "create profile failed")
 		return nil, err
 	}
 
 	// Convert to response DTO using the existing helper function
 	profileResponse := dto.NewProfileResponseDTO(createdProfile)
 
+	span.SetStatus(codes.Ok, "")
 	return &dto.CreateProfileResponseDTO{
 		Profile: *profileResponse,
 	}, nil

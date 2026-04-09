@@ -6,9 +6,9 @@ import (
 	"time"
 
 	"github.com/maintainerd/auth/internal/dto"
-	"github.com/maintainerd/auth/internal/service"
-		resp "github.com/maintainerd/auth/internal/rest/response"
+	resp "github.com/maintainerd/auth/internal/rest/response"
 	"github.com/maintainerd/auth/internal/security"
+	"github.com/maintainerd/auth/internal/service"
 )
 
 type RegisterHandler struct {
@@ -115,7 +115,7 @@ func (h *RegisterHandler) RegisterPublic(w http.ResponseWriter, r *http.Request)
 
 	// Public registration attempt (requires client_id and provider_id)
 	tokenResponse, err := h.registerService.RegisterPublic(
-		req.Username, req.Fullname, req.Password, req.Email, req.Phone, q.ClientID, q.ProviderID,
+		r.Context(), req.Username, req.Fullname, req.Password, req.Email, req.Phone, q.ClientID, q.ProviderID,
 	)
 	if err != nil {
 		security.LogSecurityEvent(security.SecurityEvent{
@@ -207,7 +207,7 @@ func (h *RegisterHandler) Register(w http.ResponseWriter, r *http.Request) {
 
 	// Internal registration attempt (client_id/provider_id optional)
 	tokenResponse, err := h.registerService.Register(
-		req.Username, req.Fullname, req.Password, req.Email, req.Phone, clientIDPtr, providerIDPtr,
+		r.Context(), req.Username, req.Fullname, req.Password, req.Email, req.Phone, clientIDPtr, providerIDPtr,
 	)
 	if err != nil {
 		security.LogSecurityEvent(security.SecurityEvent{
@@ -275,6 +275,7 @@ func (h *RegisterHandler) RegisterInvite(w http.ResponseWriter, r *http.Request)
 
 	// Internal register with invite (client_id/provider_id optional)
 	tokenResponse, err := h.registerService.RegisterInvite(
+		r.Context(),
 		req.Username,
 		req.Password,
 		inviteToken,
@@ -318,6 +319,7 @@ func (h *RegisterHandler) RegisterInvitePublic(w http.ResponseWriter, r *http.Re
 
 	// Public register with invite (requires client_id and provider_id)
 	tokenResponse, err := h.registerService.RegisterInvitePublic(
+		r.Context(),
 		req.Username,
 		req.Password,
 		q.ClientID,
