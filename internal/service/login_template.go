@@ -1,14 +1,18 @@
 package service
 
 import (
+	"context"
 	"encoding/json"
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/maintainerd/auth/internal/apperror"
 	"github.com/maintainerd/auth/internal/model"
 	"github.com/maintainerd/auth/internal/repository"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
 	"gorm.io/datatypes"
-	"github.com/maintainerd/auth/internal/apperror"
 )
 
 type LoginTemplateServiceDataResult struct {
@@ -33,12 +37,12 @@ type LoginTemplateServiceListResult struct {
 }
 
 type LoginTemplateService interface {
-	GetAll(tenantID int64, name *string, status []string, template *string, isDefault, isSystem *bool, page, limit int, sortBy, sortOrder string) (*LoginTemplateServiceListResult, error)
-	GetByUUID(loginTemplateUUID uuid.UUID, tenantID int64) (*LoginTemplateServiceDataResult, error)
-	Create(tenantID int64, name string, description *string, template string, metadata map[string]any, status string) (*LoginTemplateServiceDataResult, error)
-	Update(loginTemplateUUID uuid.UUID, tenantID int64, name string, description *string, template string, metadata map[string]any, status string) (*LoginTemplateServiceDataResult, error)
-	UpdateStatus(loginTemplateUUID uuid.UUID, tenantID int64, status string) (*LoginTemplateServiceDataResult, error)
-	Delete(loginTemplateUUID uuid.UUID, tenantID int64) (*LoginTemplateServiceDataResult, error)
+	GetAll(ctx context.Context, tenantID int64, name *string, status []string, template *string, isDefault, isSystem *bool, page, limit int, sortBy, sortOrder string) (*LoginTemplateServiceListResult, error)
+	GetByUUID(ctx context.Context, loginTemplateUUID uuid.UUID, tenantID int64) (*LoginTemplateServiceDataResult, error)
+	Create(ctx context.Context, tenantID int64, name string, description *string, template string, metadata map[string]any, status string) (*LoginTemplateServiceDataResult, error)
+	Update(ctx context.Context, loginTemplateUUID uuid.UUID, tenantID int64, name string, description *string, template string, metadata map[string]any, status string) (*LoginTemplateServiceDataResult, error)
+	UpdateStatus(ctx context.Context, loginTemplateUUID uuid.UUID, tenantID int64, status string) (*LoginTemplateServiceDataResult, error)
+	Delete(ctx context.Context, loginTemplateUUID uuid.UUID, tenantID int64) (*LoginTemplateServiceDataResult, error)
 }
 
 type loginTemplateService struct {
@@ -51,7 +55,10 @@ func NewLoginTemplateService(loginTemplateRepo repository.LoginTemplateRepositor
 	}
 }
 
-func (s *loginTemplateService) GetAll(tenantID int64, name *string, status []string, template *string, isDefault, isSystem *bool, page, limit int, sortBy, sortOrder string) (*LoginTemplateServiceListResult, error) {
+func (s *loginTemplateService) GetAll(ctx context.Context, tenantID int64, name *string, status []string, template *string, isDefault, isSystem *bool, page, limit int, sortBy, sortOrder string) (*LoginTemplateServiceListResult, error) {
+	_, span := otel.Tracer("service").Start(ctx, "loginTemplate.list")
+	defer span.End()
+	span.SetAttributes(attribute.Int64("tenant.id", tenantID))
 	filter := repository.LoginTemplateRepositoryGetFilter{
 		Name:      name,
 		Status:    status,
@@ -67,6 +74,8 @@ func (s *loginTemplateService) GetAll(tenantID int64, name *string, status []str
 
 	result, err := s.loginTemplateRepo.FindPaginated(filter)
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "list login templates failed")
 		return nil, err
 	}
 
@@ -84,9 +93,14 @@ func (s *loginTemplateService) GetAll(tenantID int64, name *string, status []str
 	}, nil
 }
 
-func (s *loginTemplateService) GetByUUID(loginTemplateUUID uuid.UUID, tenantID int64) (*LoginTemplateServiceDataResult, error) {
+func (s *loginTemplateService) GetByUUID(ctx context.Context, loginTemplateUUID uuid.UUID, tenantID int64) (*LoginTemplateServiceDataResult, error) {
+	_, span := otel.Tracer("service").Start(ctx, "loginTemplate.get")
+	defer span.End()
+	span.SetAttributes(attribute.String("login_template.uuid", loginTemplateUUID.String()), attribute.Int64("tenant.id", tenantID))
 	template, err := s.loginTemplateRepo.FindByUUIDAndTenantID(loginTemplateUUID, tenantID)
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "get login template failed")
 		return nil, err
 	}
 
@@ -95,10 +109,14 @@ func (s *loginTemplateService) GetByUUID(loginTemplateUUID uuid.UUID, tenantID i
 	}
 
 	result := toLoginTemplateServiceDataResult(template)
+	span.SetStatus(codes.Ok, "")
 	return &result, nil
 }
 
-func (s *loginTemplateService) Create(tenantID int64, name string, description *string, template string, metadata map[string]any, status string) (*LoginTemplateServiceDataResult, error) {
+func (s *loginTemplateService) Create(ctx context.Context, tenantID int64, name string, description *string, template string, metadata map[string]any, status string) (*LoginTemplateServiceDataResult, error) {
+	_, span := otel.Tracer("service").Start(ctx, "loginTemplate.create")
+	defer span.End()
+	span.SetAttributes(attribute.Int64("tenant.id", tenantID))
 	var metadataJSON datatypes.JSON
 	if metadata != nil {
 		metadataBytes, err := json.Marshal(metadata)
@@ -123,16 +141,24 @@ func (s *loginTemplateService) Create(tenantID int64, name string, description *
 
 	created, err := s.loginTemplateRepo.Create(loginTemplate)
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "create login template failed")
 		return nil, err
 	}
 
 	result := toLoginTemplateServiceDataResult(created)
+	span.SetStatus(codes.Ok, "")
 	return &result, nil
 }
 
-func (s *loginTemplateService) Update(loginTemplateUUID uuid.UUID, tenantID int64, name string, description *string, template string, metadata map[string]any, status string) (*LoginTemplateServiceDataResult, error) {
+func (s *loginTemplateService) Update(ctx context.Context, loginTemplateUUID uuid.UUID, tenantID int64, name string, description *string, template string, metadata map[string]any, status string) (*LoginTemplateServiceDataResult, error) {
+	_, span := otel.Tracer("service").Start(ctx, "loginTemplate.update")
+	defer span.End()
+	span.SetAttributes(attribute.String("login_template.uuid", loginTemplateUUID.String()), attribute.Int64("tenant.id", tenantID))
 	loginTemplate, err := s.loginTemplateRepo.FindByUUIDAndTenantID(loginTemplateUUID, tenantID)
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "update login template failed")
 		return nil, err
 	}
 
@@ -165,16 +191,24 @@ func (s *loginTemplateService) Update(loginTemplateUUID uuid.UUID, tenantID int6
 
 	updatedTemplate, err := s.loginTemplateRepo.UpdateByUUID(loginTemplateUUID, loginTemplate)
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "update login template failed")
 		return nil, err
 	}
 
 	result := toLoginTemplateServiceDataResult(updatedTemplate)
+	span.SetStatus(codes.Ok, "")
 	return &result, nil
 }
 
-func (s *loginTemplateService) UpdateStatus(loginTemplateUUID uuid.UUID, tenantID int64, status string) (*LoginTemplateServiceDataResult, error) {
+func (s *loginTemplateService) UpdateStatus(ctx context.Context, loginTemplateUUID uuid.UUID, tenantID int64, status string) (*LoginTemplateServiceDataResult, error) {
+	_, span := otel.Tracer("service").Start(ctx, "loginTemplate.updateStatus")
+	defer span.End()
+	span.SetAttributes(attribute.String("login_template.uuid", loginTemplateUUID.String()), attribute.Int64("tenant.id", tenantID))
 	template, err := s.loginTemplateRepo.FindByUUIDAndTenantID(loginTemplateUUID, tenantID)
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "update login template status failed")
 		return nil, err
 	}
 
@@ -191,16 +225,24 @@ func (s *loginTemplateService) UpdateStatus(loginTemplateUUID uuid.UUID, tenantI
 
 	updatedTemplate, err := s.loginTemplateRepo.UpdateByUUID(loginTemplateUUID, template)
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "update login template status failed")
 		return nil, err
 	}
 
 	result := toLoginTemplateServiceDataResult(updatedTemplate)
+	span.SetStatus(codes.Ok, "")
 	return &result, nil
 }
 
-func (s *loginTemplateService) Delete(loginTemplateUUID uuid.UUID, tenantID int64) (*LoginTemplateServiceDataResult, error) {
+func (s *loginTemplateService) Delete(ctx context.Context, loginTemplateUUID uuid.UUID, tenantID int64) (*LoginTemplateServiceDataResult, error) {
+	_, span := otel.Tracer("service").Start(ctx, "loginTemplate.delete")
+	defer span.End()
+	span.SetAttributes(attribute.String("login_template.uuid", loginTemplateUUID.String()), attribute.Int64("tenant.id", tenantID))
 	template, err := s.loginTemplateRepo.FindByUUIDAndTenantID(loginTemplateUUID, tenantID)
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "delete login template failed")
 		return nil, err
 	}
 
@@ -214,10 +256,13 @@ func (s *loginTemplateService) Delete(loginTemplateUUID uuid.UUID, tenantID int6
 	}
 
 	if err := s.loginTemplateRepo.DeleteByUUID(loginTemplateUUID); err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "delete login template failed")
 		return nil, err
 	}
 
 	result := toLoginTemplateServiceDataResult(template)
+	span.SetStatus(codes.Ok, "")
 	return &result, nil
 }
 

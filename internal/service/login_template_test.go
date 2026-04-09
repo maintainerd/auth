@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"errors"
 	"testing"
 
@@ -46,7 +47,7 @@ func TestLoginTemplateService_GetByUUID(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			svc := newLoginTemplateSvc(&mockLoginTemplateRepo{findByUUIDAndTenantIDFn: tc.repoFn})
-			res, err := svc.GetByUUID(id, tid)
+			res, err := svc.GetByUUID(context.Background(), id, tid)
 			if tc.wantErr != "" {
 				require.Error(t, err)
 				assert.Contains(t, err.Error(), tc.wantErr)
@@ -69,7 +70,7 @@ func TestLoginTemplateService_GetAll(t *testing.T) {
 			},
 		})
 
-		res, err := svc.GetAll(1, nil, nil, nil, nil, nil, 1, 10, "created_at", "asc")
+		res, err := svc.GetAll(context.Background(), 1, nil, nil, nil, nil, nil, 1, 10, "created_at", "asc")
 		require.NoError(t, err)
 		assert.Equal(t, int64(1), res.Total)
 	})
@@ -81,7 +82,7 @@ func TestLoginTemplateService_GetAll(t *testing.T) {
 			},
 		})
 
-		_, err := svc.GetAll(1, nil, nil, nil, nil, nil, 1, 10, "created_at", "asc")
+		_, err := svc.GetAll(context.Background(), 1, nil, nil, nil, nil, nil, 1, 10, "created_at", "asc")
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "db error")
 	})
@@ -92,7 +93,7 @@ func TestLoginTemplateService_Create(t *testing.T) {
 		svc := newLoginTemplateSvc(&mockLoginTemplateRepo{
 			createFn: func(e *model.LoginTemplate) (*model.LoginTemplate, error) { return e, nil },
 		})
-		res, err := svc.Create(1, "Login", nil, "<html></html>", nil, "active")
+		res, err := svc.Create(context.Background(), 1, "Login", nil, "<html></html>", nil, "active")
 		require.NoError(t, err)
 		assert.Equal(t, "Login", res.Name)
 	})
@@ -102,7 +103,7 @@ func TestLoginTemplateService_Create(t *testing.T) {
 			createFn: func(e *model.LoginTemplate) (*model.LoginTemplate, error) { return e, nil },
 		})
 		meta := map[string]any{"theme": "dark"}
-		res, err := svc.Create(1, "Login", nil, "<html></html>", meta, "active")
+		res, err := svc.Create(context.Background(), 1, "Login", nil, "<html></html>", meta, "active")
 		require.NoError(t, err)
 		assert.Equal(t, "Login", res.Name)
 	})
@@ -110,7 +111,7 @@ func TestLoginTemplateService_Create(t *testing.T) {
 	t.Run("metadata marshal error", func(t *testing.T) {
 		svc := newLoginTemplateSvc(&mockLoginTemplateRepo{})
 		badMeta := map[string]any{"bad": make(chan int)}
-		_, err := svc.Create(1, "Login", nil, "<html></html>", badMeta, "active")
+		_, err := svc.Create(context.Background(), 1, "Login", nil, "<html></html>", badMeta, "active")
 		require.Error(t, err)
 	})
 
@@ -118,7 +119,7 @@ func TestLoginTemplateService_Create(t *testing.T) {
 		svc := newLoginTemplateSvc(&mockLoginTemplateRepo{
 			createFn: func(_ *model.LoginTemplate) (*model.LoginTemplate, error) { return nil, errors.New("db fail") },
 		})
-		_, err := svc.Create(1, "Login", nil, "<html></html>", nil, "active")
+		_, err := svc.Create(context.Background(), 1, "Login", nil, "<html></html>", nil, "active")
 		require.Error(t, err)
 	})
 }
@@ -132,7 +133,7 @@ func TestLoginTemplateService_Update(t *testing.T) {
 				return nil, errors.New("db err")
 			},
 		})
-		_, err := svc.Update(id, 1, "N", nil, "<html></html>", nil, "active")
+		_, err := svc.Update(context.Background(), id, 1, "N", nil, "<html></html>", nil, "active")
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "db err")
 	})
@@ -141,7 +142,7 @@ func TestLoginTemplateService_Update(t *testing.T) {
 		svc := newLoginTemplateSvc(&mockLoginTemplateRepo{
 			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64, _ ...string) (*model.LoginTemplate, error) { return nil, nil },
 		})
-		_, err := svc.Update(id, 1, "N", nil, "<html></html>", nil, "active")
+		_, err := svc.Update(context.Background(), id, 1, "N", nil, "<html></html>", nil, "active")
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "not found")
 	})
@@ -152,7 +153,7 @@ func TestLoginTemplateService_Update(t *testing.T) {
 				return &model.LoginTemplate{LoginTemplateUUID: i, IsSystem: true}, nil
 			},
 		})
-		_, err := svc.Update(id, 1, "N", nil, "<html></html>", nil, "active")
+		_, err := svc.Update(context.Background(), id, 1, "N", nil, "<html></html>", nil, "active")
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "system")
 	})
@@ -164,7 +165,7 @@ func TestLoginTemplateService_Update(t *testing.T) {
 			},
 		})
 		badMeta := map[string]any{"bad": make(chan int)}
-		_, err := svc.Update(id, 1, "N", nil, "<html></html>", badMeta, "active")
+		_, err := svc.Update(context.Background(), id, 1, "N", nil, "<html></html>", badMeta, "active")
 		require.Error(t, err)
 	})
 
@@ -177,7 +178,7 @@ func TestLoginTemplateService_Update(t *testing.T) {
 				return nil, errors.New("update fail")
 			},
 		})
-		_, err := svc.Update(id, 1, "N", nil, "<html></html>", nil, "active")
+		_, err := svc.Update(context.Background(), id, 1, "N", nil, "<html></html>", nil, "active")
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "update fail")
 	})
@@ -192,7 +193,7 @@ func TestLoginTemplateService_Update(t *testing.T) {
 			},
 		})
 		meta := map[string]any{"theme": "dark"}
-		res, err := svc.Update(id, 1, "Updated", nil, "<html></html>", meta, "active")
+		res, err := svc.Update(context.Background(), id, 1, "Updated", nil, "<html></html>", meta, "active")
 		require.NoError(t, err)
 		assert.Equal(t, "Updated", res.Name)
 	})
@@ -206,7 +207,7 @@ func TestLoginTemplateService_Update(t *testing.T) {
 				return &model.LoginTemplate{Name: "Updated"}, nil
 			},
 		})
-		res, err := svc.Update(id, 1, "Updated", nil, "<html></html>", nil, "active")
+		res, err := svc.Update(context.Background(), id, 1, "Updated", nil, "<html></html>", nil, "active")
 		require.NoError(t, err)
 		assert.Equal(t, "Updated", res.Name)
 	})
@@ -221,7 +222,7 @@ func TestLoginTemplateService_Delete(t *testing.T) {
 				return nil, errors.New("db err")
 			},
 		})
-		_, err := svc.Delete(id, 1)
+		_, err := svc.Delete(context.Background(), id, 1)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "db err")
 	})
@@ -230,7 +231,7 @@ func TestLoginTemplateService_Delete(t *testing.T) {
 		svc := newLoginTemplateSvc(&mockLoginTemplateRepo{
 			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64, _ ...string) (*model.LoginTemplate, error) { return nil, nil },
 		})
-		_, err := svc.Delete(id, 1)
+		_, err := svc.Delete(context.Background(), id, 1)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "not found")
 	})
@@ -241,7 +242,7 @@ func TestLoginTemplateService_Delete(t *testing.T) {
 				return &model.LoginTemplate{LoginTemplateUUID: i, IsSystem: true}, nil
 			},
 		})
-		_, err := svc.Delete(id, 1)
+		_, err := svc.Delete(context.Background(), id, 1)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "cannot delete system")
 	})
@@ -253,7 +254,7 @@ func TestLoginTemplateService_Delete(t *testing.T) {
 			},
 			deleteByUUIDFn: func(_ any) error { return errors.New("delete fail") },
 		})
-		_, err := svc.Delete(id, 1)
+		_, err := svc.Delete(context.Background(), id, 1)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "delete fail")
 	})
@@ -265,7 +266,7 @@ func TestLoginTemplateService_Delete(t *testing.T) {
 			},
 			deleteByUUIDFn: func(_ any) error { return nil },
 		})
-		res, err := svc.Delete(id, 1)
+		res, err := svc.Delete(context.Background(), id, 1)
 		require.NoError(t, err)
 		assert.Equal(t, id, res.LoginTemplateUUID)
 	})
@@ -280,7 +281,7 @@ func TestLoginTemplateService_UpdateStatus(t *testing.T) {
 				return nil, errors.New("db err")
 			},
 		})
-		_, err := svc.UpdateStatus(id, 1, "inactive")
+		_, err := svc.UpdateStatus(context.Background(), id, 1, "inactive")
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "db err")
 	})
@@ -289,7 +290,7 @@ func TestLoginTemplateService_UpdateStatus(t *testing.T) {
 		svc := newLoginTemplateSvc(&mockLoginTemplateRepo{
 			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64, _ ...string) (*model.LoginTemplate, error) { return nil, nil },
 		})
-		_, err := svc.UpdateStatus(id, 1, "inactive")
+		_, err := svc.UpdateStatus(context.Background(), id, 1, "inactive")
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "not found")
 	})
@@ -300,7 +301,7 @@ func TestLoginTemplateService_UpdateStatus(t *testing.T) {
 				return &model.LoginTemplate{LoginTemplateUUID: i, IsSystem: true}, nil
 			},
 		})
-		_, err := svc.UpdateStatus(id, 1, "inactive")
+		_, err := svc.UpdateStatus(context.Background(), id, 1, "inactive")
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "system")
 	})
@@ -314,7 +315,7 @@ func TestLoginTemplateService_UpdateStatus(t *testing.T) {
 				return nil, errors.New("update fail")
 			},
 		})
-		_, err := svc.UpdateStatus(id, 1, "inactive")
+		_, err := svc.UpdateStatus(context.Background(), id, 1, "inactive")
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "update fail")
 	})
@@ -328,7 +329,7 @@ func TestLoginTemplateService_UpdateStatus(t *testing.T) {
 				return &model.LoginTemplate{LoginTemplateUUID: id, Status: "inactive"}, nil
 			},
 		})
-		res, err := svc.UpdateStatus(id, 1, "inactive")
+		res, err := svc.UpdateStatus(context.Background(), id, 1, "inactive")
 		require.NoError(t, err)
 		assert.Equal(t, "inactive", res.Status)
 	})

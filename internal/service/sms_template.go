@@ -1,12 +1,16 @@
 package service
 
 import (
+	"context"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/apperror"
 	"github.com/maintainerd/auth/internal/model"
 	"github.com/maintainerd/auth/internal/repository"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
 	"gorm.io/gorm"
 )
 
@@ -32,12 +36,12 @@ type SMSTemplateServiceListResult struct {
 }
 
 type SMSTemplateService interface {
-	GetAll(tenantID int64, name *string, status []string, isDefault, isSystem *bool, page, limit int, sortBy, sortOrder string) (*SMSTemplateServiceListResult, error)
-	GetByUUID(uuid uuid.UUID, tenantID int64) (*SMSTemplateServiceDataResult, error)
-	Create(tenantID int64, name string, description *string, message string, senderID *string, status string) (*SMSTemplateServiceDataResult, error)
-	Update(uuid uuid.UUID, tenantID int64, name string, description *string, message string, senderID *string, status string) (*SMSTemplateServiceDataResult, error)
-	UpdateStatus(uuid uuid.UUID, tenantID int64, status string) (*SMSTemplateServiceDataResult, error)
-	Delete(uuid uuid.UUID, tenantID int64) (*SMSTemplateServiceDataResult, error)
+	GetAll(ctx context.Context, tenantID int64, name *string, status []string, isDefault, isSystem *bool, page, limit int, sortBy, sortOrder string) (*SMSTemplateServiceListResult, error)
+	GetByUUID(ctx context.Context, uuid uuid.UUID, tenantID int64) (*SMSTemplateServiceDataResult, error)
+	Create(ctx context.Context, tenantID int64, name string, description *string, message string, senderID *string, status string) (*SMSTemplateServiceDataResult, error)
+	Update(ctx context.Context, uuid uuid.UUID, tenantID int64, name string, description *string, message string, senderID *string, status string) (*SMSTemplateServiceDataResult, error)
+	UpdateStatus(ctx context.Context, uuid uuid.UUID, tenantID int64, status string) (*SMSTemplateServiceDataResult, error)
+	Delete(ctx context.Context, uuid uuid.UUID, tenantID int64) (*SMSTemplateServiceDataResult, error)
 }
 
 type smsTemplateService struct {
@@ -55,7 +59,11 @@ func NewSMSTemplateService(
 	}
 }
 
-func (s *smsTemplateService) GetAll(tenantID int64, name *string, status []string, isDefault, isSystem *bool, page, limit int, sortBy, sortOrder string) (*SMSTemplateServiceListResult, error) {
+func (s *smsTemplateService) GetAll(ctx context.Context, tenantID int64, name *string, status []string, isDefault, isSystem *bool, page, limit int, sortBy, sortOrder string) (*SMSTemplateServiceListResult, error) {
+	_, span := otel.Tracer("service").Start(ctx, "smsTemplate.list")
+	defer span.End()
+	span.SetAttributes(attribute.Int64("tenant.id", tenantID))
+
 	filter := repository.SMSTemplateRepositoryGetFilter{
 		TenantID:  &tenantID,
 		Name:      name,
@@ -70,6 +78,8 @@ func (s *smsTemplateService) GetAll(tenantID int64, name *string, status []strin
 
 	result, err := s.smsTemplateRepo.FindPaginated(filter)
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "list sms templates failed")
 		return nil, err
 	}
 
@@ -78,6 +88,7 @@ func (s *smsTemplateService) GetAll(tenantID int64, name *string, status []strin
 		data[i] = toSMSTemplateServiceDataResult(&template)
 	}
 
+	span.SetStatus(codes.Ok, "")
 	return &SMSTemplateServiceListResult{
 		Data:       data,
 		Total:      result.Total,
@@ -87,21 +98,33 @@ func (s *smsTemplateService) GetAll(tenantID int64, name *string, status []strin
 	}, nil
 }
 
-func (s *smsTemplateService) GetByUUID(smsTemplateUUID uuid.UUID, tenantID int64) (*SMSTemplateServiceDataResult, error) {
+func (s *smsTemplateService) GetByUUID(ctx context.Context, smsTemplateUUID uuid.UUID, tenantID int64) (*SMSTemplateServiceDataResult, error) {
+	_, span := otel.Tracer("service").Start(ctx, "smsTemplate.getByUUID")
+	defer span.End()
+	span.SetAttributes(attribute.String("smsTemplate.uuid", smsTemplateUUID.String()), attribute.Int64("tenant.id", tenantID))
+
 	template, err := s.smsTemplateRepo.FindByUUIDAndTenantID(smsTemplateUUID.String(), tenantID)
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "get sms template failed")
 		return nil, err
 	}
 
 	if template == nil {
+		span.SetStatus(codes.Error, "sms template not found or access denied")
 		return nil, apperror.NewNotFoundWithReason("SMS template not found or access denied")
 	}
 
+	span.SetStatus(codes.Ok, "")
 	result := toSMSTemplateServiceDataResult(template)
 	return &result, nil
 }
 
-func (s *smsTemplateService) Create(tenantID int64, name string, description *string, message string, senderID *string, status string) (*SMSTemplateServiceDataResult, error) {
+func (s *smsTemplateService) Create(ctx context.Context, tenantID int64, name string, description *string, message string, senderID *string, status string) (*SMSTemplateServiceDataResult, error) {
+	_, span := otel.Tracer("service").Start(ctx, "smsTemplate.create")
+	defer span.End()
+	span.SetAttributes(attribute.Int64("tenant.id", tenantID))
+
 	template := &model.SMSTemplate{
 		TenantID:    tenantID,
 		Name:        name,
@@ -115,25 +138,36 @@ func (s *smsTemplateService) Create(tenantID int64, name string, description *st
 
 	createdTemplate, err := s.smsTemplateRepo.Create(template)
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "create sms template failed")
 		return nil, err
 	}
 
+	span.SetStatus(codes.Ok, "")
 	result := toSMSTemplateServiceDataResult(createdTemplate)
 	return &result, nil
 }
 
-func (s *smsTemplateService) Update(smsTemplateUUID uuid.UUID, tenantID int64, name string, description *string, message string, senderID *string, status string) (*SMSTemplateServiceDataResult, error) {
+func (s *smsTemplateService) Update(ctx context.Context, smsTemplateUUID uuid.UUID, tenantID int64, name string, description *string, message string, senderID *string, status string) (*SMSTemplateServiceDataResult, error) {
+	_, span := otel.Tracer("service").Start(ctx, "smsTemplate.update")
+	defer span.End()
+	span.SetAttributes(attribute.String("smsTemplate.uuid", smsTemplateUUID.String()), attribute.Int64("tenant.id", tenantID))
+
 	template, err := s.smsTemplateRepo.FindByUUIDAndTenantID(smsTemplateUUID.String(), tenantID)
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "update sms template failed")
 		return nil, err
 	}
 
 	if template == nil {
+		span.SetStatus(codes.Error, "sms template not found or access denied")
 		return nil, apperror.NewNotFoundWithReason("SMS template not found or access denied")
 	}
 
 	// Prevent updating system templates
 	if template.IsSystem {
+		span.SetStatus(codes.Error, "cannot update system SMS template")
 		return nil, apperror.NewValidation("cannot update system SMS template")
 	}
 
@@ -146,25 +180,36 @@ func (s *smsTemplateService) Update(smsTemplateUUID uuid.UUID, tenantID int64, n
 
 	updatedTemplate, err := s.smsTemplateRepo.UpdateByUUID(smsTemplateUUID, template)
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "update sms template failed")
 		return nil, err
 	}
 
+	span.SetStatus(codes.Ok, "")
 	result := toSMSTemplateServiceDataResult(updatedTemplate)
 	return &result, nil
 }
 
-func (s *smsTemplateService) UpdateStatus(smsTemplateUUID uuid.UUID, tenantID int64, status string) (*SMSTemplateServiceDataResult, error) {
+func (s *smsTemplateService) UpdateStatus(ctx context.Context, smsTemplateUUID uuid.UUID, tenantID int64, status string) (*SMSTemplateServiceDataResult, error) {
+	_, span := otel.Tracer("service").Start(ctx, "smsTemplate.updateStatus")
+	defer span.End()
+	span.SetAttributes(attribute.String("smsTemplate.uuid", smsTemplateUUID.String()), attribute.Int64("tenant.id", tenantID))
+
 	template, err := s.smsTemplateRepo.FindByUUIDAndTenantID(smsTemplateUUID.String(), tenantID)
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "update sms template status failed")
 		return nil, err
 	}
 
 	if template == nil {
+		span.SetStatus(codes.Error, "sms template not found or access denied")
 		return nil, apperror.NewNotFoundWithReason("SMS template not found or access denied")
 	}
 
 	// Prevent updating system templates
 	if template.IsSystem {
+		span.SetStatus(codes.Error, "cannot update status of system SMS template")
 		return nil, apperror.NewValidation("cannot update status of system SMS template")
 	}
 
@@ -172,33 +217,47 @@ func (s *smsTemplateService) UpdateStatus(smsTemplateUUID uuid.UUID, tenantID in
 
 	updatedTemplate, err := s.smsTemplateRepo.UpdateByUUID(smsTemplateUUID, template)
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "update sms template status failed")
 		return nil, err
 	}
 
+	span.SetStatus(codes.Ok, "")
 	result := toSMSTemplateServiceDataResult(updatedTemplate)
 	return &result, nil
 }
 
-func (s *smsTemplateService) Delete(smsTemplateUUID uuid.UUID, tenantID int64) (*SMSTemplateServiceDataResult, error) {
+func (s *smsTemplateService) Delete(ctx context.Context, smsTemplateUUID uuid.UUID, tenantID int64) (*SMSTemplateServiceDataResult, error) {
+	_, span := otel.Tracer("service").Start(ctx, "smsTemplate.delete")
+	defer span.End()
+	span.SetAttributes(attribute.String("smsTemplate.uuid", smsTemplateUUID.String()), attribute.Int64("tenant.id", tenantID))
+
 	template, err := s.smsTemplateRepo.FindByUUIDAndTenantID(smsTemplateUUID.String(), tenantID)
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "delete sms template failed")
 		return nil, err
 	}
 
 	if template == nil {
+		span.SetStatus(codes.Error, "sms template not found or access denied")
 		return nil, apperror.NewNotFoundWithReason("SMS template not found or access denied")
 	}
 
 	// Prevent deleting system templates
 	if template.IsSystem {
+		span.SetStatus(codes.Error, "cannot delete system SMS template")
 		return nil, apperror.NewValidation("cannot delete system SMS template")
 	}
 
 	err = s.smsTemplateRepo.DeleteByUUID(smsTemplateUUID)
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "delete sms template failed")
 		return nil, err
 	}
 
+	span.SetStatus(codes.Ok, "")
 	result := toSMSTemplateServiceDataResult(template)
 	return &result, nil
 }

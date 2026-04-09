@@ -46,6 +46,7 @@ func (h *ProfileHandler) CreateOrUpdate(w http.ResponseWriter, r *http.Request) 
 
 	user := r.Context().Value(middleware.UserContextKey).(*model.User)
 	profile, err := h.profileService.CreateOrUpdateProfile(
+		r.Context(),
 		user.UserUUID,
 		req.FirstName,
 		req.MiddleName, req.LastName, req.Suffix, req.DisplayName, req.Bio,
@@ -90,6 +91,7 @@ func (h *ProfileHandler) CreateProfile(w http.ResponseWriter, r *http.Request) {
 	profileUUID := uuid.New()
 
 	profile, err := h.profileService.CreateOrUpdateSpecificProfile(
+		r.Context(),
 		profileUUID,
 		user.UserUUID,
 		req.FirstName,
@@ -139,6 +141,7 @@ func (h *ProfileHandler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 
 	user := r.Context().Value(middleware.UserContextKey).(*model.User)
 	profile, err := h.profileService.CreateOrUpdateSpecificProfile(
+		r.Context(),
 		profileUUID,
 		user.UserUUID,
 		req.FirstName,
@@ -161,7 +164,7 @@ func (h *ProfileHandler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 
 func (h *ProfileHandler) Get(w http.ResponseWriter, r *http.Request) {
 	user := r.Context().Value(middleware.UserContextKey).(*model.User)
-	profile, err := h.profileService.GetByUserUUID(user.UserUUID)
+	profile, err := h.profileService.GetByUserUUID(r.Context(), user.UserUUID)
 	if err != nil || profile == nil {
 		resp.Error(w, http.StatusNotFound, "Profile not found")
 		return
@@ -213,6 +216,7 @@ func (h *ProfileHandler) GetAll(w http.ResponseWriter, r *http.Request) {
 
 	// Get all profiles
 	result, err := h.profileService.GetAll(
+		r.Context(),
 		user.UserUUID,
 		reqParams.FirstName,
 		reqParams.LastName,
@@ -253,14 +257,14 @@ func (h *ProfileHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	user := r.Context().Value(middleware.UserContextKey).(*model.User)
 
 	// First get the profile to get its UUID
-	profile, err := h.profileService.GetByUserUUID(user.UserUUID)
+	profile, err := h.profileService.GetByUserUUID(r.Context(), user.UserUUID)
 	if err != nil || profile == nil {
 		resp.Error(w, http.StatusNotFound, "Profile not found")
 		return
 	}
 
 	// Delete by profile UUID
-	deletedProfile, err := h.profileService.DeleteByUUID(profile.ProfileUUID, user.UserUUID)
+	deletedProfile, err := h.profileService.DeleteByUUID(r.Context(), profile.ProfileUUID, user.UserUUID)
 	if err != nil {
 		resp.HandleServiceError(w, r, "Delete profile failed", err)
 		return
@@ -281,7 +285,7 @@ func (h *ProfileHandler) GetByUUID(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Get profile by UUID with ownership verification
-	profile, err := h.profileService.GetByUUID(profileUUID, user.UserUUID)
+	profile, err := h.profileService.GetByUUID(r.Context(), profileUUID, user.UserUUID)
 	if err != nil {
 		resp.HandleServiceError(w, r, "Failed to fetch profile", err)
 		return
@@ -302,7 +306,7 @@ func (h *ProfileHandler) DeleteByUUID(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Delete by profile UUID with ownership verification
-	deletedProfile, err := h.profileService.DeleteByUUID(profileUUID, user.UserUUID)
+	deletedProfile, err := h.profileService.DeleteByUUID(r.Context(), profileUUID, user.UserUUID)
 	if err != nil {
 		resp.HandleServiceError(w, r, "Failed to delete profile", err)
 		return
@@ -362,6 +366,7 @@ func (h *ProfileHandler) AdminGetAllProfiles(w http.ResponseWriter, r *http.Requ
 
 	// Get all profiles for specified user
 	result, err := h.profileService.GetAll(
+		r.Context(),
 		userUUID,
 		reqParams.FirstName,
 		reqParams.LastName,
@@ -416,7 +421,7 @@ func (h *ProfileHandler) AdminGetProfile(w http.ResponseWriter, r *http.Request)
 	}
 
 	// Get profile by UUID without ownership check (admin access)
-	profile, err := h.profileService.GetByUUID(profileUUID, userUUID)
+	profile, err := h.profileService.GetByUUID(r.Context(), profileUUID, userUUID)
 	if err != nil {
 		resp.HandleServiceError(w, r, "Profile not found", err)
 		return
@@ -456,6 +461,7 @@ func (h *ProfileHandler) AdminCreateProfile(w http.ResponseWriter, r *http.Reque
 	profileUUID := uuid.New()
 
 	profile, err := h.profileService.CreateOrUpdateSpecificProfile(
+		r.Context(),
 		profileUUID,
 		userUUID,
 		req.FirstName,
@@ -512,6 +518,7 @@ func (h *ProfileHandler) AdminUpdateProfile(w http.ResponseWriter, r *http.Reque
 	}
 
 	profile, err := h.profileService.CreateOrUpdateSpecificProfile(
+		r.Context(),
 		profileUUID,
 		userUUID,
 		req.FirstName,
@@ -550,7 +557,7 @@ func (h *ProfileHandler) AdminDeleteProfile(w http.ResponseWriter, r *http.Reque
 	}
 
 	// Delete by profile UUID without strict ownership check (admin access)
-	deletedProfile, err := h.profileService.DeleteByUUID(profileUUID, userUUID)
+	deletedProfile, err := h.profileService.DeleteByUUID(r.Context(), profileUUID, userUUID)
 	if err != nil {
 		resp.HandleServiceError(w, r, "Delete profile failed", err)
 		return
@@ -571,7 +578,7 @@ func (h *ProfileHandler) SetDefaultProfile(w http.ResponseWriter, r *http.Reques
 	user := r.Context().Value(middleware.UserContextKey).(*model.User)
 
 	// Set profile as default with ownership verification
-	profile, err := h.profileService.SetDefaultProfile(profileUUID, user.UserUUID)
+	profile, err := h.profileService.SetDefaultProfile(r.Context(), profileUUID, user.UserUUID)
 	if err != nil {
 		resp.HandleServiceError(w, r, "Set default profile failed", err)
 		return
@@ -598,7 +605,7 @@ func (h *ProfileHandler) AdminSetDefaultProfile(w http.ResponseWriter, r *http.R
 	}
 
 	// Set profile as default without strict ownership check (admin access)
-	profile, err := h.profileService.SetDefaultProfile(profileUUID, userUUID)
+	profile, err := h.profileService.SetDefaultProfile(r.Context(), profileUUID, userUUID)
 	if err != nil {
 		resp.HandleServiceError(w, r, "Set default profile failed", err)
 		return

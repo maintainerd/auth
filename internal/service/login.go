@@ -1,23 +1,26 @@
 package service
 
 import (
+	"context"
 	"fmt"
 	"time"
 
+	"github.com/maintainerd/auth/internal/apperror"
 	"github.com/maintainerd/auth/internal/dto"
 	"github.com/maintainerd/auth/internal/jwt"
 	"github.com/maintainerd/auth/internal/model"
 	"github.com/maintainerd/auth/internal/repository"
 	"github.com/maintainerd/auth/internal/security"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/codes"
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
-	"github.com/maintainerd/auth/internal/apperror"
 )
 
 type LoginService interface {
-	LoginPublic(usernameOrEmail, password, clientID, providerID string) (*dto.LoginResponseDTO, error)
-	Login(usernameOrEmail, password string, clientID, providerID *string) (*dto.LoginResponseDTO, error)
-	GetUserByEmail(email string, tenantID int64) (*model.User, error)
+	LoginPublic(ctx context.Context, usernameOrEmail, password, clientID, providerID string) (*dto.LoginResponseDTO, error)
+	Login(ctx context.Context, usernameOrEmail, password string, clientID, providerID *string) (*dto.LoginResponseDTO, error)
+	GetUserByEmail(ctx context.Context, email string, tenantID int64) (*model.User, error)
 }
 
 type loginService struct {
@@ -54,7 +57,17 @@ var generateRefreshTokenFn = jwt.GenerateRefreshToken
 // LoginPublic authenticates users for public-facing applications.
 // Requires clientID and providerID to identify the auth client.
 // Used by external applications on port 8081.
-func (s *loginService) LoginPublic(usernameOrEmail, password, clientID, providerID string) (*dto.LoginResponseDTO, error) {
+func (s *loginService) LoginPublic(ctx context.Context, usernameOrEmail, password, clientID, providerID string) (result *dto.LoginResponseDTO, err error) {
+	_, span := otel.Tracer("service").Start(ctx, "login.public")
+	defer func() {
+		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, "login failed")
+		} else {
+			span.SetStatus(codes.Ok, "")
+		}
+		span.End()
+	}()
 	startTime := time.Now()
 
 	// Input validation is now handled at the DTO/handler level
@@ -77,7 +90,7 @@ func (s *loginService) LoginPublic(usernameOrEmail, password, clientID, provider
 	var userIdentitySub string
 
 	// All database operations in transaction (read-only for consistency)
-	err := s.db.Transaction(func(tx *gorm.DB) error {
+	err = s.db.Transaction(func(tx *gorm.DB) error {
 		txUserRepo := s.userRepo.WithTx(tx)
 		txClientRepo := s.clientRepo.WithTx(tx)
 		txIdentityProviderRepo := s.identityProviderRepo.WithTx(tx)
@@ -211,7 +224,17 @@ func (s *loginService) LoginPublic(usernameOrEmail, password, clientID, provider
 // If clientID and providerID are provided, uses the specified auth client.
 // If not provided, uses the default auth client.
 // Used by internal applications on port 8080.
-func (s *loginService) Login(usernameOrEmail, password string, clientID, providerID *string) (*dto.LoginResponseDTO, error) {
+func (s *loginService) Login(ctx context.Context, usernameOrEmail, password string, clientID, providerID *string) (result *dto.LoginResponseDTO, err error) {
+	_, span := otel.Tracer("service").Start(ctx, "login.internal")
+	defer func() {
+		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, "login failed")
+		} else {
+			span.SetStatus(codes.Ok, "")
+		}
+		span.End()
+	}()
 	startTime := time.Now()
 
 	// Rate limiting check (SOC2 CC6.1 - Logical Access Controls)
@@ -231,7 +254,7 @@ func (s *loginService) Login(usernameOrEmail, password string, clientID, provide
 	var userIdentitySub string
 
 	// All database operations in transaction for consistency
-	err := s.db.Transaction(func(tx *gorm.DB) error {
+	err = s.db.Transaction(func(tx *gorm.DB) error {
 		txUserRepo := s.userRepo.WithTx(tx)
 		txClientRepo := s.clientRepo.WithTx(tx)
 		txUserIdentityRepo := s.userIdentityRepo.WithTx(tx)
@@ -357,11 +380,23 @@ func (s *loginService) Login(usernameOrEmail, password string, clientID, provide
 
 // GetUserByEmail looks up a user by email, scoped to the given tenant when
 // tenantID > 0. Falls back to a global lookup only when no tenant is specified.
-func (s *loginService) GetUserByEmail(email string, tenantID int64) (*model.User, error) {
+func (s *loginService) GetUserByEmail(ctx context.Context, email string, tenantID int64) (*model.User, error) {
+	_, span := otel.Tracer("service").Start(ctx, "login.getUserByEmail")
+	defer span.End()
+	var user *model.User
+	var err error
 	if tenantID > 0 {
-		return s.userRepo.FindByEmailAndTenantID(email, tenantID)
+		user, err = s.userRepo.FindByEmailAndTenantID(email, tenantID)
+	} else {
+		user, err = s.userRepo.FindByEmail(email)
 	}
-	return s.userRepo.FindByEmail(email)
+	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "get user by email failed")
+		return nil, err
+	}
+	span.SetStatus(codes.Ok, "")
+	return user, nil
 }
 
 func (s *loginService) generateTokenResponse(sub string, user *model.User, Client *model.Client) (*dto.LoginResponseDTO, error) {

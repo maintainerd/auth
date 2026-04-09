@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"errors"
 	"math"
 	"testing"
@@ -40,7 +41,7 @@ func TestSecuritySettingService_GetByTenantID(t *testing.T) {
 		svc := newSecuritySettingSvc(&mockSecuritySettingRepo{
 			findByTenantIDFn: func(_ int64) (*model.SecuritySetting, error) { return nil, nil },
 		}, &mockSecuritySettingsAuditRepo{})
-		_, err := svc.GetByTenantID(1)
+		_, err := svc.GetByTenantID(context.Background(), 1)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "not found")
 	})
@@ -49,7 +50,7 @@ func TestSecuritySettingService_GetByTenantID(t *testing.T) {
 		svc := newSecuritySettingSvc(&mockSecuritySettingRepo{
 			findByTenantIDFn: func(_ int64) (*model.SecuritySetting, error) { return nil, errors.New("db") },
 		}, &mockSecuritySettingsAuditRepo{})
-		_, err := svc.GetByTenantID(1)
+		_, err := svc.GetByTenantID(context.Background(), 1)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "db")
 	})
@@ -60,7 +61,7 @@ func TestSecuritySettingService_GetByTenantID(t *testing.T) {
 				return newSecSetting(tid), nil
 			},
 		}, &mockSecuritySettingsAuditRepo{})
-		res, err := svc.GetByTenantID(1)
+		res, err := svc.GetByTenantID(context.Background(), 1)
 		require.NoError(t, err)
 		assert.Equal(t, int64(1), res.TenantID)
 	})
@@ -75,7 +76,7 @@ func TestSecuritySettingService_GetGeneralConfig(t *testing.T) {
 		svc := newSecuritySettingSvc(&mockSecuritySettingRepo{
 			findByTenantIDFn: func(_ int64) (*model.SecuritySetting, error) { return nil, errors.New("fail") },
 		}, &mockSecuritySettingsAuditRepo{})
-		_, err := svc.GetGeneralConfig(1)
+		_, err := svc.GetGeneralConfig(context.Background(), 1)
 		require.Error(t, err)
 	})
 
@@ -83,7 +84,7 @@ func TestSecuritySettingService_GetGeneralConfig(t *testing.T) {
 		svc := newSecuritySettingSvc(&mockSecuritySettingRepo{
 			findByTenantIDFn: func(_ int64) (*model.SecuritySetting, error) { return nil, nil },
 		}, &mockSecuritySettingsAuditRepo{})
-		cfg, err := svc.GetGeneralConfig(1)
+		cfg, err := svc.GetGeneralConfig(context.Background(), 1)
 		require.NoError(t, err)
 		assert.NotNil(t, cfg)
 	})
@@ -95,7 +96,7 @@ func TestSecuritySettingService_GetGeneralConfig(t *testing.T) {
 				return nil, errors.New("create error")
 			},
 		}, &mockSecuritySettingsAuditRepo{})
-		_, err := svc.GetGeneralConfig(1)
+		_, err := svc.GetGeneralConfig(context.Background(), 1)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "create error")
 	})
@@ -108,7 +109,7 @@ func TestSecuritySettingService_GetGeneralConfig(t *testing.T) {
 				}, nil
 			},
 		}, &mockSecuritySettingsAuditRepo{})
-		cfg, err := svc.GetGeneralConfig(1)
+		cfg, err := svc.GetGeneralConfig(context.Background(), 1)
 		require.NoError(t, err)
 		assert.Equal(t, "val", cfg["key"])
 	})
@@ -127,7 +128,7 @@ func TestSecuritySettingService_GetPasswordConfig(t *testing.T) {
 				}, nil
 			},
 		}, &mockSecuritySettingsAuditRepo{})
-		cfg, err := svc.GetPasswordConfig(1)
+		cfg, err := svc.GetPasswordConfig(context.Background(), 1)
 		require.NoError(t, err)
 		assert.EqualValues(t, float64(8), cfg["min_length"])
 	})
@@ -136,7 +137,7 @@ func TestSecuritySettingService_GetPasswordConfig(t *testing.T) {
 		svc := newSecuritySettingSvc(&mockSecuritySettingRepo{
 			findByTenantIDFn: func(_ int64) (*model.SecuritySetting, error) { return nil, errors.New("fail") },
 		}, &mockSecuritySettingsAuditRepo{})
-		_, err := svc.GetPasswordConfig(1)
+		_, err := svc.GetPasswordConfig(context.Background(), 1)
 		require.Error(t, err)
 	})
 }
@@ -154,7 +155,7 @@ func TestSecuritySettingService_GetSessionConfig(t *testing.T) {
 				}, nil
 			},
 		}, &mockSecuritySettingsAuditRepo{})
-		cfg, err := svc.GetSessionConfig(1)
+		cfg, err := svc.GetSessionConfig(context.Background(), 1)
 		require.NoError(t, err)
 		assert.EqualValues(t, float64(3600), cfg["timeout"])
 	})
@@ -163,7 +164,7 @@ func TestSecuritySettingService_GetSessionConfig(t *testing.T) {
 		svc := newSecuritySettingSvc(&mockSecuritySettingRepo{
 			findByTenantIDFn: func(_ int64) (*model.SecuritySetting, error) { return nil, errors.New("fail") },
 		}, &mockSecuritySettingsAuditRepo{})
-		_, err := svc.GetSessionConfig(1)
+		_, err := svc.GetSessionConfig(context.Background(), 1)
 		require.Error(t, err)
 	})
 }
@@ -181,7 +182,7 @@ func TestSecuritySettingService_GetThreatConfig(t *testing.T) {
 				}, nil
 			},
 		}, &mockSecuritySettingsAuditRepo{})
-		cfg, err := svc.GetThreatConfig(1)
+		cfg, err := svc.GetThreatConfig(context.Background(), 1)
 		require.NoError(t, err)
 		assert.EqualValues(t, float64(5), cfg["max_attempts"])
 	})
@@ -190,7 +191,7 @@ func TestSecuritySettingService_GetThreatConfig(t *testing.T) {
 		svc := newSecuritySettingSvc(&mockSecuritySettingRepo{
 			findByTenantIDFn: func(_ int64) (*model.SecuritySetting, error) { return nil, errors.New("fail") },
 		}, &mockSecuritySettingsAuditRepo{})
-		_, err := svc.GetThreatConfig(1)
+		_, err := svc.GetThreatConfig(context.Background(), 1)
 		require.Error(t, err)
 	})
 }
@@ -208,7 +209,7 @@ func TestSecuritySettingService_GetIPConfig(t *testing.T) {
 				}, nil
 			},
 		}, &mockSecuritySettingsAuditRepo{})
-		cfg, err := svc.GetIPConfig(1)
+		cfg, err := svc.GetIPConfig(context.Background(), 1)
 		require.NoError(t, err)
 		assert.Equal(t, true, cfg["enabled"])
 	})
@@ -217,7 +218,7 @@ func TestSecuritySettingService_GetIPConfig(t *testing.T) {
 		svc := newSecuritySettingSvc(&mockSecuritySettingRepo{
 			findByTenantIDFn: func(_ int64) (*model.SecuritySetting, error) { return nil, errors.New("fail") },
 		}, &mockSecuritySettingsAuditRepo{})
-		_, err := svc.GetIPConfig(1)
+		_, err := svc.GetIPConfig(context.Background(), 1)
 		require.Error(t, err)
 	})
 }
@@ -261,7 +262,7 @@ func TestSecuritySettingService_UpdateGeneralConfig(t *testing.T) {
 		svc := NewSecuritySettingService(db, &mockSecuritySettingRepo{
 			findByTenantIDFn: func(_ int64) (*model.SecuritySetting, error) { return nil, errors.New("db") },
 		}, &mockSecuritySettingsAuditRepo{})
-		_, err := svc.UpdateGeneralConfig(tenantID, cfg, updatedBy, "1.2.3.4", "agent")
+		_, err := svc.UpdateGeneralConfig(context.Background(), tenantID, cfg, updatedBy, "1.2.3.4", "agent")
 		require.Error(t, err)
 	})
 
@@ -285,7 +286,7 @@ func TestSecuritySettingService_UpdateGeneralConfig(t *testing.T) {
 				return ss, nil
 			},
 		}, &mockSecuritySettingsAuditRepo{})
-		res, err := svc.UpdateGeneralConfig(tenantID, cfg, updatedBy, "1.2.3.4", "agent")
+		res, err := svc.UpdateGeneralConfig(context.Background(), tenantID, cfg, updatedBy, "1.2.3.4", "agent")
 		require.NoError(t, err)
 		assert.Equal(t, 2, res.Version)
 	})
@@ -302,7 +303,7 @@ func TestSecuritySettingService_UpdateGeneralConfig(t *testing.T) {
 				return existing, nil
 			},
 		}, &mockSecuritySettingsAuditRepo{})
-		res, err := svc.UpdateGeneralConfig(tenantID, cfg, updatedBy, "1.2.3.4", "agent")
+		res, err := svc.UpdateGeneralConfig(context.Background(), tenantID, cfg, updatedBy, "1.2.3.4", "agent")
 		require.NoError(t, err)
 		assert.NotNil(t, res)
 	})
@@ -316,7 +317,7 @@ func TestSecuritySettingService_UpdateGeneralConfig(t *testing.T) {
 			findByTenantIDFn: func(_ int64) (*model.SecuritySetting, error) { return existing, nil },
 		}, &mockSecuritySettingsAuditRepo{})
 		badCfg := map[string]any{"bad": math.Inf(1)}
-		_, err := svc.UpdateGeneralConfig(tenantID, badCfg, updatedBy, "1.2.3.4", "agent")
+		_, err := svc.UpdateGeneralConfig(context.Background(), tenantID, badCfg, updatedBy, "1.2.3.4", "agent")
 		require.Error(t, err)
 	})
 
@@ -331,7 +332,7 @@ func TestSecuritySettingService_UpdateGeneralConfig(t *testing.T) {
 				return nil, errors.New("save error")
 			},
 		}, &mockSecuritySettingsAuditRepo{})
-		_, err := svc.UpdateGeneralConfig(tenantID, cfg, updatedBy, "1.2.3.4", "agent")
+		_, err := svc.UpdateGeneralConfig(context.Background(), tenantID, cfg, updatedBy, "1.2.3.4", "agent")
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "save error")
 	})
@@ -346,7 +347,7 @@ func TestSecuritySettingService_UpdateGeneralConfig(t *testing.T) {
 			createOrUpdateFn:   func(e *model.SecuritySetting) (*model.SecuritySetting, error) { return e, nil },
 			incrementVersionFn: func(_ int64) error { return errors.New("version error") },
 		}, &mockSecuritySettingsAuditRepo{})
-		_, err := svc.UpdateGeneralConfig(tenantID, cfg, updatedBy, "1.2.3.4", "agent")
+		_, err := svc.UpdateGeneralConfig(context.Background(), tenantID, cfg, updatedBy, "1.2.3.4", "agent")
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "version error")
 	})
@@ -364,7 +365,7 @@ func TestSecuritySettingService_UpdateGeneralConfig(t *testing.T) {
 				return nil, errors.New("audit error")
 			},
 		})
-		_, err := svc.UpdateGeneralConfig(tenantID, cfg, updatedBy, "1.2.3.4", "agent")
+		_, err := svc.UpdateGeneralConfig(context.Background(), tenantID, cfg, updatedBy, "1.2.3.4", "agent")
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "audit error")
 	})
@@ -381,7 +382,7 @@ func TestSecuritySettingService_UpdateGeneralConfig(t *testing.T) {
 				return nil, errors.New("refresh error")
 			},
 		}, &mockSecuritySettingsAuditRepo{})
-		_, err := svc.UpdateGeneralConfig(tenantID, cfg, updatedBy, "1.2.3.4", "agent")
+		_, err := svc.UpdateGeneralConfig(context.Background(), tenantID, cfg, updatedBy, "1.2.3.4", "agent")
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "refresh error")
 	})
@@ -396,7 +397,7 @@ func TestSecuritySettingService_UpdateGeneralConfig(t *testing.T) {
 				return nil, errors.New("create error")
 			},
 		}, &mockSecuritySettingsAuditRepo{})
-		_, err := svc.UpdateGeneralConfig(tenantID, cfg, updatedBy, "1.2.3.4", "agent")
+		_, err := svc.UpdateGeneralConfig(context.Background(), tenantID, cfg, updatedBy, "1.2.3.4", "agent")
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "create error")
 	})
@@ -420,7 +421,7 @@ func TestSecuritySettingService_UpdatePasswordConfig(t *testing.T) {
 			createOrUpdateFn: func(e *model.SecuritySetting) (*model.SecuritySetting, error) { return e, nil },
 			findByUUIDFn:     func(_ any, _ ...string) (*model.SecuritySetting, error) { return existing, nil },
 		}, &mockSecuritySettingsAuditRepo{})
-		res, err := svc.UpdatePasswordConfig(tenantID, cfg, 10, "1.2.3.4", "agent")
+		res, err := svc.UpdatePasswordConfig(context.Background(), tenantID, cfg, 10, "1.2.3.4", "agent")
 		require.NoError(t, err)
 		assert.NotNil(t, res)
 	})
@@ -432,7 +433,7 @@ func TestSecuritySettingService_UpdatePasswordConfig(t *testing.T) {
 		svc := NewSecuritySettingService(db, &mockSecuritySettingRepo{
 			findByTenantIDFn: func(_ int64) (*model.SecuritySetting, error) { return nil, errors.New("db") },
 		}, &mockSecuritySettingsAuditRepo{})
-		_, err := svc.UpdatePasswordConfig(tenantID, cfg, 10, "1.2.3.4", "agent")
+		_, err := svc.UpdatePasswordConfig(context.Background(), tenantID, cfg, 10, "1.2.3.4", "agent")
 		require.Error(t, err)
 	})
 }
@@ -455,7 +456,7 @@ func TestSecuritySettingService_UpdateSessionConfig(t *testing.T) {
 			createOrUpdateFn: func(e *model.SecuritySetting) (*model.SecuritySetting, error) { return e, nil },
 			findByUUIDFn:     func(_ any, _ ...string) (*model.SecuritySetting, error) { return existing, nil },
 		}, &mockSecuritySettingsAuditRepo{})
-		res, err := svc.UpdateSessionConfig(tenantID, cfg, 10, "1.2.3.4", "agent")
+		res, err := svc.UpdateSessionConfig(context.Background(), tenantID, cfg, 10, "1.2.3.4", "agent")
 		require.NoError(t, err)
 		assert.NotNil(t, res)
 	})
@@ -467,7 +468,7 @@ func TestSecuritySettingService_UpdateSessionConfig(t *testing.T) {
 		svc := NewSecuritySettingService(db, &mockSecuritySettingRepo{
 			findByTenantIDFn: func(_ int64) (*model.SecuritySetting, error) { return nil, errors.New("db") },
 		}, &mockSecuritySettingsAuditRepo{})
-		_, err := svc.UpdateSessionConfig(tenantID, cfg, 10, "1.2.3.4", "agent")
+		_, err := svc.UpdateSessionConfig(context.Background(), tenantID, cfg, 10, "1.2.3.4", "agent")
 		require.Error(t, err)
 	})
 }
@@ -490,7 +491,7 @@ func TestSecuritySettingService_UpdateThreatConfig(t *testing.T) {
 			createOrUpdateFn: func(e *model.SecuritySetting) (*model.SecuritySetting, error) { return e, nil },
 			findByUUIDFn:     func(_ any, _ ...string) (*model.SecuritySetting, error) { return existing, nil },
 		}, &mockSecuritySettingsAuditRepo{})
-		res, err := svc.UpdateThreatConfig(tenantID, cfg, 10, "1.2.3.4", "agent")
+		res, err := svc.UpdateThreatConfig(context.Background(), tenantID, cfg, 10, "1.2.3.4", "agent")
 		require.NoError(t, err)
 		assert.NotNil(t, res)
 	})
@@ -502,7 +503,7 @@ func TestSecuritySettingService_UpdateThreatConfig(t *testing.T) {
 		svc := NewSecuritySettingService(db, &mockSecuritySettingRepo{
 			findByTenantIDFn: func(_ int64) (*model.SecuritySetting, error) { return nil, errors.New("db") },
 		}, &mockSecuritySettingsAuditRepo{})
-		_, err := svc.UpdateThreatConfig(tenantID, cfg, 10, "1.2.3.4", "agent")
+		_, err := svc.UpdateThreatConfig(context.Background(), tenantID, cfg, 10, "1.2.3.4", "agent")
 		require.Error(t, err)
 	})
 }
@@ -525,7 +526,7 @@ func TestSecuritySettingService_UpdateIPConfig(t *testing.T) {
 			createOrUpdateFn: func(e *model.SecuritySetting) (*model.SecuritySetting, error) { return e, nil },
 			findByUUIDFn:     func(_ any, _ ...string) (*model.SecuritySetting, error) { return existing, nil },
 		}, &mockSecuritySettingsAuditRepo{})
-		res, err := svc.UpdateIPConfig(tenantID, cfg, 10, "1.2.3.4", "agent")
+		res, err := svc.UpdateIPConfig(context.Background(), tenantID, cfg, 10, "1.2.3.4", "agent")
 		require.NoError(t, err)
 		assert.NotNil(t, res)
 	})
@@ -537,7 +538,7 @@ func TestSecuritySettingService_UpdateIPConfig(t *testing.T) {
 		svc := NewSecuritySettingService(db, &mockSecuritySettingRepo{
 			findByTenantIDFn: func(_ int64) (*model.SecuritySetting, error) { return nil, errors.New("db") },
 		}, &mockSecuritySettingsAuditRepo{})
-		_, err := svc.UpdateIPConfig(tenantID, cfg, 10, "1.2.3.4", "agent")
+		_, err := svc.UpdateIPConfig(context.Background(), tenantID, cfg, 10, "1.2.3.4", "agent")
 		require.Error(t, err)
 	})
 }

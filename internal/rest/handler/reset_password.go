@@ -7,10 +7,10 @@ import (
 
 	"github.com/maintainerd/auth/internal/dto"
 	"github.com/maintainerd/auth/internal/middleware"
-	"github.com/maintainerd/auth/internal/service"
-		"github.com/maintainerd/auth/internal/signedurl"
 	resp "github.com/maintainerd/auth/internal/rest/response"
 	"github.com/maintainerd/auth/internal/security"
+	"github.com/maintainerd/auth/internal/service"
+	"github.com/maintainerd/auth/internal/signedurl"
 )
 
 type ResetPasswordHandler struct {
@@ -143,7 +143,7 @@ func (h *ResetPasswordHandler) ResetPasswordPublic(w http.ResponseWriter, r *htt
 	}
 
 	// Process reset password request
-	response, err := h.resetPasswordService.ResetPassword(token, req.NewPassword, &clientID, &providerID)
+	response, err := h.resetPasswordService.ResetPassword(r.Context(), token, req.NewPassword, &clientID, &providerID)
 	if err != nil {
 		security.LogSecurityEvent(security.SecurityEvent{
 			EventType: "reset_password_service_error",
@@ -302,7 +302,7 @@ func (h *ResetPasswordHandler) ResetPassword(w http.ResponseWriter, r *http.Requ
 	}
 
 	// Process reset password request
-	response, err := h.resetPasswordService.ResetPassword(token, req.NewPassword, clientIDPtr, providerIDPtr)
+	response, err := h.resetPasswordService.ResetPassword(r.Context(), token, req.NewPassword, clientIDPtr, providerIDPtr)
 	if err != nil {
 		security.LogSecurityEvent(security.SecurityEvent{
 			EventType: "reset_password_service_error",

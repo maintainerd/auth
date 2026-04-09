@@ -3,6 +3,7 @@ package service
 import (
 	"errors"
 	"math"
+	"context"
 	"testing"
 	"time"
 
@@ -23,7 +24,7 @@ func TestUserSettingService_GetByUUID(t *testing.T) {
 		svc := newUserSettingSvc(&mockUserSettingRepo{
 			findByUUIDFn: func(_ any, _ ...string) (*model.UserSetting, error) { return nil, nil },
 		}, &mockUserRepo{})
-		_, err := svc.GetByUUID(id)
+		_, err := svc.GetByUUID(context.Background(), id)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "not found")
 	})
@@ -34,7 +35,7 @@ func TestUserSettingService_GetByUUID(t *testing.T) {
 				return &model.UserSetting{UserSettingUUID: id}, nil
 			},
 		}, &mockUserRepo{})
-		res, err := svc.GetByUUID(id)
+		res, err := svc.GetByUUID(context.Background(), id)
 		require.NoError(t, err)
 		assert.Equal(t, id, res.UserSettingUUID)
 	})
@@ -47,7 +48,7 @@ func TestUserSettingService_GetByUserUUID(t *testing.T) {
 		svc := newUserSettingSvc(&mockUserSettingRepo{}, &mockUserRepo{
 			findByUUIDFn: func(_ any, _ ...string) (*model.User, error) { return nil, nil },
 		})
-		_, err := svc.GetByUserUUID(userUUID)
+		_, err := svc.GetByUserUUID(context.Background(), userUUID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "user not found")
 	})
@@ -60,7 +61,7 @@ func TestUserSettingService_GetByUserUUID(t *testing.T) {
 				return &model.User{UserID: 1}, nil
 			},
 		})
-		_, err := svc.GetByUserUUID(userUUID)
+		_, err := svc.GetByUserUUID(context.Background(), userUUID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "not found")
 	})
@@ -76,7 +77,7 @@ func TestUserSettingService_GetByUserUUID(t *testing.T) {
 				return &model.User{UserID: 1}, nil
 			},
 		})
-		res, err := svc.GetByUserUUID(userUUID)
+		res, err := svc.GetByUserUUID(context.Background(), userUUID)
 		require.NoError(t, err)
 		assert.Equal(t, sid, res.UserSettingUUID)
 	})
@@ -89,7 +90,7 @@ func TestUserSettingService_DeleteByUUID(t *testing.T) {
 		svc := newUserSettingSvc(&mockUserSettingRepo{
 			findByUUIDFn: func(_ any, _ ...string) (*model.UserSetting, error) { return nil, nil },
 		}, &mockUserRepo{})
-		_, err := svc.DeleteByUUID(id)
+		_, err := svc.DeleteByUUID(context.Background(), id)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "not found")
 	})
@@ -101,7 +102,7 @@ func TestUserSettingService_DeleteByUUID(t *testing.T) {
 			},
 			deleteByUUIDFn: func(_ any) error { return errors.New("delete failed") },
 		}, &mockUserRepo{})
-		_, err := svc.DeleteByUUID(id)
+		_, err := svc.DeleteByUUID(context.Background(), id)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "delete failed")
 	})
@@ -113,7 +114,7 @@ func TestUserSettingService_DeleteByUUID(t *testing.T) {
 			},
 			deleteByUUIDFn: func(_ any) error { return nil },
 		}, &mockUserRepo{})
-		res, err := svc.DeleteByUUID(id)
+		res, err := svc.DeleteByUUID(context.Background(), id)
 		require.NoError(t, err)
 		assert.Equal(t, id, res.UserSettingUUID)
 	})
@@ -129,7 +130,7 @@ func TestUserSettingService_CreateOrUpdateUserSetting(t *testing.T) {
 		svc := NewUserSettingService(db, &mockUserSettingRepo{}, &mockUserRepo{
 			findByUUIDFn: func(_ any, _ ...string) (*model.User, error) { return nil, nil },
 		})
-		_, err := svc.CreateOrUpdateUserSetting(userUUID, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
+		_, err := svc.CreateOrUpdateUserSetting(context.Background(), userUUID, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "user not found")
 	})
@@ -150,7 +151,7 @@ func TestUserSettingService_CreateOrUpdateUserSetting(t *testing.T) {
 				return &model.User{UserID: 1}, nil
 			},
 		})
-		res, err := svc.CreateOrUpdateUserSetting(userUUID, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
+		res, err := svc.CreateOrUpdateUserSetting(context.Background(), userUUID, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
 		require.NoError(t, err)
 		assert.Equal(t, sid, res.UserSettingUUID)
 	})
@@ -168,7 +169,7 @@ func TestUserSettingService_CreateOrUpdateUserSetting(t *testing.T) {
 				return &model.User{UserID: 1}, nil
 			},
 		})
-		_, err := svc.CreateOrUpdateUserSetting(userUUID, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
+		_, err := svc.CreateOrUpdateUserSetting(context.Background(), userUUID, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "db error")
 	})
@@ -185,7 +186,7 @@ func TestUserSettingService_CreateOrUpdateUserSetting(t *testing.T) {
 				return &model.User{UserID: 1}, nil
 			},
 		})
-		_, err := svc.CreateOrUpdateUserSetting(userUUID, nil, nil, nil, badLinks, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
+		_, err := svc.CreateOrUpdateUserSetting(context.Background(), userUUID, nil, nil, nil, badLinks, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "invalid social links")
 	})
@@ -204,7 +205,7 @@ func TestUserSettingService_CreateOrUpdateUserSetting(t *testing.T) {
 				return &model.User{UserID: 1}, nil
 			},
 		})
-		_, err := svc.CreateOrUpdateUserSetting(userUUID, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
+		_, err := svc.CreateOrUpdateUserSetting(context.Background(), userUUID, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "create failed")
 	})
@@ -224,7 +225,7 @@ func TestUserSettingService_CreateOrUpdateUserSetting(t *testing.T) {
 				return &model.User{UserID: 1}, nil
 			},
 		})
-		res, err := svc.CreateOrUpdateUserSetting(userUUID, &tz, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
+		res, err := svc.CreateOrUpdateUserSetting(context.Background(), userUUID, &tz, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
 		require.NoError(t, err)
 		assert.Equal(t, sid, res.UserSettingUUID)
 		assert.Equal(t, &tz, res.Timezone)
@@ -246,7 +247,7 @@ func TestUserSettingService_CreateOrUpdateUserSetting(t *testing.T) {
 				return &model.User{UserID: 1}, nil
 			},
 		})
-		_, err := svc.CreateOrUpdateUserSetting(userUUID, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
+		_, err := svc.CreateOrUpdateUserSetting(context.Background(), userUUID, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "update failed")
 	})
@@ -277,7 +278,7 @@ func TestUserSettingService_CreateOrUpdateUserSetting(t *testing.T) {
 				return &model.User{UserID: 1}, nil
 			},
 		})
-		res, err := svc.CreateOrUpdateUserSetting(userUUID, &tz, &lang, &locale, links, &contact, &mktg, &sms, &push, &vis, &consent, &now, &now, &ecName, &ecPhone, &ecEmail, &ecRel)
+		res, err := svc.CreateOrUpdateUserSetting(context.Background(), userUUID, &tz, &lang, &locale, links, &contact, &mktg, &sms, &push, &vis, &consent, &now, &now, &ecName, &ecPhone, &ecEmail, &ecRel)
 		require.NoError(t, err)
 		assert.Equal(t, &tz, res.Timezone)
 		assert.Equal(t, &lang, res.PreferredLanguage)

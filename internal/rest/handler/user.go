@@ -104,7 +104,7 @@ func (h *UserHandler) GetUsers(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Fetch users from service layer
-	result, err := h.userService.Get(filter)
+	result, err := h.userService.Get(r.Context(), filter)
 	if err != nil {
 		resp.HandleServiceError(w, r, "Failed to fetch users", err)
 		return
@@ -151,7 +151,7 @@ func (h *UserHandler) GetUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Fetch user (service validates tenant ownership)
-	user, err := h.userService.GetByUUID(userUUID, tenant.TenantID)
+	user, err := h.userService.GetByUUID(r.Context(), userUUID, tenant.TenantID)
 	if err != nil {
 		resp.HandleServiceError(w, r, "User not found", err)
 		return
@@ -193,7 +193,7 @@ func (h *UserHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Create user (includes creator context for audit trail)
-	user, err := h.userService.Create(req.Username, req.Fullname, req.Email, req.Phone, req.Password, req.Status, req.Metadata, tenant.TenantUUID.String(), creatorUser.UserUUID)
+	user, err := h.userService.Create(r.Context(), req.Username, req.Fullname, req.Email, req.Phone, req.Password, req.Status, req.Metadata, tenant.TenantUUID.String(), creatorUser.UserUUID)
 	if err != nil {
 		resp.HandleServiceError(w, r, "Failed to create user", err)
 		return
@@ -620,14 +620,14 @@ func (h *UserHandler) GetUserRoles(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Verify user exists and belongs to tenant
-	user, err := h.userService.GetByUUID(userUUID, tenant.TenantID)
+	user, err := h.userService.GetByUUID(r.Context(), userUUID, tenant.TenantID)
 	if err != nil {
 		resp.HandleServiceError(w, r, "User not found", err)
 		return
 	}
 
 	// Fetch roles for the user
-	roles, err := h.userService.GetUserRoles(user.UserUUID)
+	roles, err := h.userService.GetUserRoles(r.Context(), user.UserUUID)
 	if err != nil {
 		resp.HandleServiceError(w, r, "Failed to fetch user roles", err)
 		return
@@ -741,14 +741,14 @@ func (h *UserHandler) GetUserIdentities(w http.ResponseWriter, r *http.Request) 
 	}
 
 	// Verify user exists and belongs to tenant
-	user, err := h.userService.GetByUUID(userUUID, tenant.TenantID)
+	user, err := h.userService.GetByUUID(r.Context(), userUUID, tenant.TenantID)
 	if err != nil {
 		resp.HandleServiceError(w, r, "User not found", err)
 		return
 	}
 
 	// Fetch identities for the user
-	identities, err := h.userService.GetUserIdentities(user.UserUUID)
+	identities, err := h.userService.GetUserIdentities(r.Context(), user.UserUUID)
 	if err != nil {
 		resp.HandleServiceError(w, r, "Failed to fetch user identities", err)
 		return

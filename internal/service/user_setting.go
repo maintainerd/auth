@@ -1,15 +1,19 @@
 package service
 
 import (
+	"context"
 	"encoding/json"
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/maintainerd/auth/internal/apperror"
 	"github.com/maintainerd/auth/internal/model"
 	"github.com/maintainerd/auth/internal/repository"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
 	"gorm.io/datatypes"
 	"gorm.io/gorm"
-	"github.com/maintainerd/auth/internal/apperror"
 )
 
 type UserSettingServiceDataResult struct {
@@ -36,6 +40,7 @@ type UserSettingServiceDataResult struct {
 
 type UserSettingService interface {
 	CreateOrUpdateUserSetting(
+		ctx context.Context,
 		userUUID uuid.UUID,
 		timezone, preferredLanguage, locale *string,
 		socialLinks map[string]any,
@@ -46,9 +51,9 @@ type UserSettingService interface {
 		termsAcceptedAt, privacyPolicyAcceptedAt *time.Time,
 		emergencyContactName, emergencyContactPhone, emergencyContactEmail, emergencyContactRelation *string,
 	) (*UserSettingServiceDataResult, error)
-	GetByUUID(userSettingUUID uuid.UUID) (*UserSettingServiceDataResult, error)
-	GetByUserUUID(userUUID uuid.UUID) (*UserSettingServiceDataResult, error)
-	DeleteByUUID(userSettingUUID uuid.UUID) (*UserSettingServiceDataResult, error)
+	GetByUUID(ctx context.Context, userSettingUUID uuid.UUID) (*UserSettingServiceDataResult, error)
+	GetByUserUUID(ctx context.Context, userUUID uuid.UUID) (*UserSettingServiceDataResult, error)
+	DeleteByUUID(ctx context.Context, userSettingUUID uuid.UUID) (*UserSettingServiceDataResult, error)
 }
 
 type userSettingService struct {
@@ -70,6 +75,7 @@ func NewUserSettingService(
 }
 
 func (s *userSettingService) CreateOrUpdateUserSetting(
+	ctx context.Context,
 	userUUID uuid.UUID,
 	timezone, preferredLanguage, locale *string,
 	socialLinks map[string]any,
@@ -80,6 +86,10 @@ func (s *userSettingService) CreateOrUpdateUserSetting(
 	termsAcceptedAt, privacyPolicyAcceptedAt *time.Time,
 	emergencyContactName, emergencyContactPhone, emergencyContactEmail, emergencyContactRelation *string,
 ) (*UserSettingServiceDataResult, error) {
+	_, span := otel.Tracer("service").Start(ctx, "user_setting.create_or_update")
+	defer span.End()
+	span.SetAttributes(attribute.String("user_uuid", userUUID.String()))
+
 	var updatedUserSetting *model.UserSetting
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
@@ -178,49 +188,73 @@ func (s *userSettingService) CreateOrUpdateUserSetting(
 	})
 
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "create or update user setting failed")
 		return nil, err
 	}
 
+	span.SetStatus(codes.Ok, "")
 	return toUserSettingServiceDataResult(updatedUserSetting), nil
 }
 
-func (s *userSettingService) GetByUUID(userSettingUUID uuid.UUID) (*UserSettingServiceDataResult, error) {
+func (s *userSettingService) GetByUUID(ctx context.Context, userSettingUUID uuid.UUID) (*UserSettingServiceDataResult, error) {
+	_, span := otel.Tracer("service").Start(ctx, "user_setting.get_by_uuid")
+	defer span.End()
+	span.SetAttributes(attribute.String("user_setting_uuid", userSettingUUID.String()))
+
 	userSetting, err := s.userSettingRepo.FindByUUID(userSettingUUID)
 	if err != nil || userSetting == nil {
+		span.SetStatus(codes.Error, "user setting not found")
 		return nil, apperror.NewNotFoundWithReason("user setting not found")
 	}
 
+	span.SetStatus(codes.Ok, "")
 	return toUserSettingServiceDataResult(userSetting), nil
 }
 
-func (s *userSettingService) GetByUserUUID(userUUID uuid.UUID) (*UserSettingServiceDataResult, error) {
+func (s *userSettingService) GetByUserUUID(ctx context.Context, userUUID uuid.UUID) (*UserSettingServiceDataResult, error) {
+	_, span := otel.Tracer("service").Start(ctx, "user_setting.get_by_user_uuid")
+	defer span.End()
+	span.SetAttributes(attribute.String("user_uuid", userUUID.String()))
+
 	// Find user by UUID to get userID
 	user, err := s.userRepo.FindByUUID(userUUID)
 	if err != nil || user == nil {
+		span.SetStatus(codes.Error, "user not found")
 		return nil, apperror.NewNotFound("user not found")
 	}
 
 	userSetting, err := s.userSettingRepo.FindByUserID(user.UserID)
 	if err != nil || userSetting == nil {
+		span.SetStatus(codes.Error, "user setting not found")
 		return nil, apperror.NewNotFoundWithReason("user setting not found")
 	}
 
+	span.SetStatus(codes.Ok, "")
 	return toUserSettingServiceDataResult(userSetting), nil
 }
 
-func (s *userSettingService) DeleteByUUID(userSettingUUID uuid.UUID) (*UserSettingServiceDataResult, error) {
+func (s *userSettingService) DeleteByUUID(ctx context.Context, userSettingUUID uuid.UUID) (*UserSettingServiceDataResult, error) {
+	_, span := otel.Tracer("service").Start(ctx, "user_setting.delete_by_uuid")
+	defer span.End()
+	span.SetAttributes(attribute.String("user_setting_uuid", userSettingUUID.String()))
+
 	// First get the user setting to return it
 	userSetting, err := s.userSettingRepo.FindByUUID(userSettingUUID)
 	if err != nil || userSetting == nil {
+		span.SetStatus(codes.Error, "user setting not found")
 		return nil, apperror.NewNotFoundWithReason("user setting not found")
 	}
 
 	// Delete the user setting
 	err = s.userSettingRepo.DeleteByUUID(userSettingUUID)
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "delete user setting failed")
 		return nil, err
 	}
 
+	span.SetStatus(codes.Ok, "")
 	return toUserSettingServiceDataResult(userSetting), nil
 }
 

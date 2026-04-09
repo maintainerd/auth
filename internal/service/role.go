@@ -9,6 +9,9 @@ import (
 	"github.com/maintainerd/auth/internal/cache"
 	"github.com/maintainerd/auth/internal/model"
 	"github.com/maintainerd/auth/internal/repository"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
 	"gorm.io/gorm"
 )
 
@@ -64,9 +67,9 @@ type RoleServiceGetPermissionsResult struct {
 }
 
 type RoleService interface {
-	Get(filter RoleServiceGetFilter) (*RoleServiceGetResult, error)
-	GetByUUID(roleUUID uuid.UUID, tenantID int64) (*RoleServiceDataResult, error)
-	GetRolePermissions(filter RoleServiceGetPermissionsFilter) (*RoleServiceGetPermissionsResult, error)
+	Get(ctx context.Context, filter RoleServiceGetFilter) (*RoleServiceGetResult, error)
+	GetByUUID(ctx context.Context, roleUUID uuid.UUID, tenantID int64) (*RoleServiceDataResult, error)
+	GetRolePermissions(ctx context.Context, filter RoleServiceGetPermissionsFilter) (*RoleServiceGetPermissionsResult, error)
 	Create(ctx context.Context, name string, description string, isDefault bool, isSystem bool, status string, tenantUUID string, actorUserUUID uuid.UUID) (*RoleServiceDataResult, error)
 	Update(ctx context.Context, roleUUID uuid.UUID, tenantID int64, name string, description string, isDefault bool, isSystem bool, status string, actorUserUUID uuid.UUID) (*RoleServiceDataResult, error)
 	SetStatusByUUID(ctx context.Context, roleUUID uuid.UUID, tenantID int64, status string, actorUserUUID uuid.UUID) (*RoleServiceDataResult, error)
@@ -105,7 +108,10 @@ func NewRoleService(
 	}
 }
 
-func (s *roleService) Get(filter RoleServiceGetFilter) (*RoleServiceGetResult, error) {
+func (s *roleService) Get(ctx context.Context, filter RoleServiceGetFilter) (*RoleServiceGetResult, error) {
+	_, span := otel.Tracer("service").Start(ctx, "role.list")
+	defer span.End()
+
 	roleFilter := repository.RoleRepositoryGetFilter{
 		Name:        filter.Name,
 		Description: filter.Description,
@@ -122,6 +128,8 @@ func (s *roleService) Get(filter RoleServiceGetFilter) (*RoleServiceGetResult, e
 	// Query paginated roles
 	result, err := s.roleRepo.FindPaginated(roleFilter)
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "list roles failed")
 		return nil, err
 	}
 
@@ -130,6 +138,7 @@ func (s *roleService) Get(filter RoleServiceGetFilter) (*RoleServiceGetResult, e
 		roles[i] = *toRoleServiceDataResult(&r)
 	}
 
+	span.SetStatus(codes.Ok, "")
 	return &RoleServiceGetResult{
 		Data:       roles,
 		Total:      result.Total,
@@ -139,33 +148,50 @@ func (s *roleService) Get(filter RoleServiceGetFilter) (*RoleServiceGetResult, e
 	}, nil
 }
 
-func (s *roleService) GetByUUID(roleUUID uuid.UUID, tenantID int64) (*RoleServiceDataResult, error) {
+func (s *roleService) GetByUUID(ctx context.Context, roleUUID uuid.UUID, tenantID int64) (*RoleServiceDataResult, error) {
+	_, span := otel.Tracer("service").Start(ctx, "role.get")
+	defer span.End()
+	span.SetAttributes(attribute.String("role.uuid", roleUUID.String()), attribute.Int64("tenant.id", tenantID))
+
 	role, err := s.roleRepo.FindByUUID(roleUUID)
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "get role failed")
 		return nil, err
 	}
 	if role == nil {
+		span.SetStatus(codes.Error, "get role failed")
 		return nil, apperror.NewNotFound("role not found")
 	}
 
 	// Validate tenant ownership
 	if role.TenantID != tenantID {
+		span.SetStatus(codes.Error, "get role failed")
 		return nil, apperror.NewNotFoundWithReason("role not found or access denied")
 	}
 
+	span.SetStatus(codes.Ok, "")
 	return toRoleServiceDataResult(role), nil
 }
 
-func (s *roleService) GetRolePermissions(filter RoleServiceGetPermissionsFilter) (*RoleServiceGetPermissionsResult, error) {
+func (s *roleService) GetRolePermissions(ctx context.Context, filter RoleServiceGetPermissionsFilter) (*RoleServiceGetPermissionsResult, error) {
+	_, span := otel.Tracer("service").Start(ctx, "role.listPermissions")
+	defer span.End()
+	span.SetAttributes(attribute.String("role.uuid", filter.RoleUUID.String()), attribute.Int64("tenant.id", filter.TenantID))
+
 	// Verify role exists and belongs to tenant
 	role, err := s.roleRepo.FindByUUID(filter.RoleUUID)
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "list role permissions failed")
 		return nil, err
 	}
 	if role == nil {
+		span.SetStatus(codes.Error, "list role permissions failed")
 		return nil, apperror.NewNotFound("role not found")
 	}
 	if role.TenantID != filter.TenantID {
+		span.SetStatus(codes.Error, "list role permissions failed")
 		return nil, apperror.NewNotFound("role not found")
 	}
 
@@ -182,6 +208,8 @@ func (s *roleService) GetRolePermissions(filter RoleServiceGetPermissionsFilter)
 	// Query paginated permissions
 	result, err := s.roleRepo.GetPermissionsByRoleUUID(repoFilter)
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "list role permissions failed")
 		return nil, err
 	}
 
@@ -191,6 +219,7 @@ func (s *roleService) GetRolePermissions(filter RoleServiceGetPermissionsFilter)
 		permissions[i] = *toPermissionServiceDataResult(&p)
 	}
 
+	span.SetStatus(codes.Ok, "")
 	return &RoleServiceGetPermissionsResult{
 		Data:       permissions,
 		Total:      result.Total,
@@ -201,6 +230,10 @@ func (s *roleService) GetRolePermissions(filter RoleServiceGetPermissionsFilter)
 }
 
 func (s *roleService) Create(ctx context.Context, name string, description string, isDefault bool, isSystem bool, status string, tenantUUID string, actorUserUUID uuid.UUID) (*RoleServiceDataResult, error) {
+	_, span := otel.Tracer("service").Start(ctx, "role.create")
+	defer span.End()
+	span.SetAttributes(attribute.String("tenant.uuid", tenantUUID))
+
 	var createdRole *model.Role
 
 	// Transaction
@@ -262,13 +295,20 @@ func (s *roleService) Create(ctx context.Context, name string, description strin
 	})
 
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "create role failed")
 		return nil, err
 	}
 
+	span.SetStatus(codes.Ok, "")
 	return toRoleServiceDataResult(createdRole), nil
 }
 
 func (s *roleService) Update(ctx context.Context, roleUUID uuid.UUID, tenantID int64, name string, description string, isDefault bool, isSystem bool, status string, actorUserUUID uuid.UUID) (*RoleServiceDataResult, error) {
+	_, span := otel.Tracer("service").Start(ctx, "role.update")
+	defer span.End()
+	span.SetAttributes(attribute.String("role.uuid", roleUUID.String()), attribute.Int64("tenant.id", tenantID))
+
 	var updatedRole *model.Role
 
 	// Transaction
@@ -335,15 +375,22 @@ func (s *roleService) Update(ctx context.Context, roleUUID uuid.UUID, tenantID i
 	})
 
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "update role failed")
 		return nil, err
 	}
 
 	s.cacheInvalidator.InvalidateAllUsers(ctx)
 
+	span.SetStatus(codes.Ok, "")
 	return toRoleServiceDataResult(updatedRole), nil
 }
 
 func (s *roleService) SetStatusByUUID(ctx context.Context, roleUUID uuid.UUID, tenantID int64, status string, actorUserUUID uuid.UUID) (*RoleServiceDataResult, error) {
+	_, span := otel.Tracer("service").Start(ctx, "role.setStatus")
+	defer span.End()
+	span.SetAttributes(attribute.String("role.uuid", roleUUID.String()), attribute.Int64("tenant.id", tenantID))
+
 	var updatedRole *model.Role
 
 	// Transaction
@@ -395,57 +442,79 @@ func (s *roleService) SetStatusByUUID(ctx context.Context, roleUUID uuid.UUID, t
 	})
 
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "set role status failed")
 		return nil, err
 	}
 
 	s.cacheInvalidator.InvalidateAllUsers(ctx)
 
+	span.SetStatus(codes.Ok, "")
 	return toRoleServiceDataResult(updatedRole), nil
 }
 
 func (s *roleService) DeleteByUUID(ctx context.Context, roleUUID uuid.UUID, tenantID int64, actorUserUUID uuid.UUID) (*RoleServiceDataResult, error) {
+	_, span := otel.Tracer("service").Start(ctx, "role.delete")
+	defer span.End()
+	span.SetAttributes(attribute.String("role.uuid", roleUUID.String()), attribute.Int64("tenant.id", tenantID))
+
 	// Check role existence
 	role, err := s.roleRepo.FindByUUID(roleUUID, "Tenant")
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "delete role failed")
 		return nil, err
 	}
 	if role == nil {
+		span.SetStatus(codes.Error, "delete role failed")
 		return nil, apperror.NewNotFound("role not found")
 	}
 
 	// Validate tenant ownership
 	if role.TenantID != tenantID {
+		span.SetStatus(codes.Error, "delete role failed")
 		return nil, apperror.NewNotFoundWithReason("role not found or access denied")
 	}
 
 	// Get actor user with user identities for tenant validation
 	actorUser, err := s.userRepo.FindByUUID(actorUserUUID, "UserIdentities.Tenant")
 	if err != nil || actorUser == nil {
+		span.SetStatus(codes.Error, "delete role failed")
 		return nil, apperror.NewNotFoundWithReason("actor user not found")
 	}
 
 	// Validate tenant access permissions
 	if err := ValidateTenantAccess(actorUser, role.Tenant); err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "delete role failed")
 		return nil, err
 	}
 
 	// Check if role is a system record
 	if role.IsSystem {
+		span.SetStatus(codes.Error, "delete role failed")
 		return nil, apperror.NewValidation("system role is not allowed to be deleted")
 	}
 
 	// Delete role
 	err = s.roleRepo.DeleteByUUID(roleUUID)
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "delete role failed")
 		return nil, err
 	}
 
 	s.cacheInvalidator.InvalidateAllUsers(ctx)
 
+	span.SetStatus(codes.Ok, "")
 	return toRoleServiceDataResult(role), nil
 }
 
 func (s *roleService) AddRolePermissions(ctx context.Context, roleUUID uuid.UUID, tenantID int64, permissionUUIDs []uuid.UUID, actorUserUUID uuid.UUID) (*RoleServiceDataResult, error) {
+	_, span := otel.Tracer("service").Start(ctx, "role.addPermissions")
+	defer span.End()
+	span.SetAttributes(attribute.String("role.uuid", roleUUID.String()), attribute.Int64("tenant.id", tenantID))
+
 	var roleWithPermissions *model.Role
 
 	// Transaction
@@ -537,15 +606,22 @@ func (s *roleService) AddRolePermissions(ctx context.Context, roleUUID uuid.UUID
 	})
 
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "add role permissions failed")
 		return nil, err
 	}
 
 	s.cacheInvalidator.InvalidateAllUsers(ctx)
 
+	span.SetStatus(codes.Ok, "")
 	return toRoleServiceDataResult(roleWithPermissions), nil
 }
 
 func (s *roleService) RemoveRolePermissions(ctx context.Context, roleUUID uuid.UUID, tenantID int64, permissionUUID uuid.UUID, actorUserUUID uuid.UUID) (*RoleServiceDataResult, error) {
+	_, span := otel.Tracer("service").Start(ctx, "role.removePermissions")
+	defer span.End()
+	span.SetAttributes(attribute.String("role.uuid", roleUUID.String()), attribute.Int64("tenant.id", tenantID))
+
 	var roleWithPermissions *model.Role
 
 	// Transaction
@@ -626,11 +702,14 @@ func (s *roleService) RemoveRolePermissions(ctx context.Context, roleUUID uuid.U
 	})
 
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "remove role permissions failed")
 		return nil, err
 	}
 
 	s.cacheInvalidator.InvalidateAllUsers(ctx)
 
+	span.SetStatus(codes.Ok, "")
 	return toRoleServiceDataResult(roleWithPermissions), nil
 }
 

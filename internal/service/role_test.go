@@ -51,7 +51,7 @@ func roleActorNoIdentities() *model.User {
 func TestRoleService_Get(t *testing.T) {
 	t.Run("success – empty result", func(t *testing.T) {
 		svc := newRoleService(&mockRoleRepo{}, &mockPermissionRepo{}, &mockRolePermissionRepo{}, &mockUserRepo{}, &mockTenantRepo{})
-		result, err := svc.Get(RoleServiceGetFilter{TenantID: 1, Page: 1, Limit: 10})
+		result, err := svc.Get(context.Background(), RoleServiceGetFilter{TenantID: 1, Page: 1, Limit: 10})
 		require.NoError(t, err)
 		assert.NotNil(t, result)
 		assert.Empty(t, result.Data)
@@ -63,7 +63,7 @@ func TestRoleService_Get(t *testing.T) {
 				return nil, errors.New("db error")
 			},
 		}, &mockPermissionRepo{}, &mockRolePermissionRepo{}, &mockUserRepo{}, &mockTenantRepo{})
-		_, err := svc.Get(RoleServiceGetFilter{TenantID: 1, Page: 1, Limit: 10})
+		_, err := svc.Get(context.Background(), RoleServiceGetFilter{TenantID: 1, Page: 1, Limit: 10})
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "db error")
 	})
@@ -80,7 +80,7 @@ func TestRoleService_Get(t *testing.T) {
 				}, nil
 			},
 		}, &mockPermissionRepo{}, &mockRolePermissionRepo{}, &mockUserRepo{}, &mockTenantRepo{})
-		result, err := svc.Get(RoleServiceGetFilter{TenantID: 1, Page: 1, Limit: 10})
+		result, err := svc.Get(context.Background(), RoleServiceGetFilter{TenantID: 1, Page: 1, Limit: 10})
 		require.NoError(t, err)
 		assert.Len(t, result.Data, 1)
 		assert.Equal(t, "admin", result.Data[0].Name)
@@ -101,7 +101,7 @@ func TestRoleService_GetByUUID(t *testing.T) {
 				return newRole(1, "admin", tenantID), nil
 			},
 		}, &mockPermissionRepo{}, &mockRolePermissionRepo{}, &mockUserRepo{}, &mockTenantRepo{})
-		result, err := svc.GetByUUID(roleUUID, tenantID)
+		result, err := svc.GetByUUID(context.Background(), roleUUID, tenantID)
 		require.NoError(t, err)
 		assert.NotNil(t, result)
 	})
@@ -110,7 +110,7 @@ func TestRoleService_GetByUUID(t *testing.T) {
 		svc := newRoleService(&mockRoleRepo{
 			findByUUIDFn: func(_ any, _ ...string) (*model.Role, error) { return nil, nil },
 		}, &mockPermissionRepo{}, &mockRolePermissionRepo{}, &mockUserRepo{}, &mockTenantRepo{})
-		_, err := svc.GetByUUID(roleUUID, tenantID)
+		_, err := svc.GetByUUID(context.Background(), roleUUID, tenantID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "role not found")
 	})
@@ -121,7 +121,7 @@ func TestRoleService_GetByUUID(t *testing.T) {
 				return newRole(1, "admin", 99), nil
 			},
 		}, &mockPermissionRepo{}, &mockRolePermissionRepo{}, &mockUserRepo{}, &mockTenantRepo{})
-		_, err := svc.GetByUUID(roleUUID, tenantID)
+		_, err := svc.GetByUUID(context.Background(), roleUUID, tenantID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "access denied")
 	})
@@ -132,7 +132,7 @@ func TestRoleService_GetByUUID(t *testing.T) {
 				return nil, errors.New("db error")
 			},
 		}, &mockPermissionRepo{}, &mockRolePermissionRepo{}, &mockUserRepo{}, &mockTenantRepo{})
-		_, err := svc.GetByUUID(roleUUID, tenantID)
+		_, err := svc.GetByUUID(context.Background(), roleUUID, tenantID)
 		require.Error(t, err)
 	})
 }
@@ -149,7 +149,7 @@ func TestRoleService_GetRolePermissions(t *testing.T) {
 		svc := newRoleService(&mockRoleRepo{
 			findByUUIDFn: func(_ any, _ ...string) (*model.Role, error) { return nil, nil },
 		}, &mockPermissionRepo{}, &mockRolePermissionRepo{}, &mockUserRepo{}, &mockTenantRepo{})
-		_, err := svc.GetRolePermissions(RoleServiceGetPermissionsFilter{RoleUUID: roleUUID, TenantID: tenantID})
+		_, err := svc.GetRolePermissions(context.Background(), RoleServiceGetPermissionsFilter{RoleUUID: roleUUID, TenantID: tenantID})
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "role not found")
 	})
@@ -160,7 +160,7 @@ func TestRoleService_GetRolePermissions(t *testing.T) {
 				return nil, errors.New("db error")
 			},
 		}, &mockPermissionRepo{}, &mockRolePermissionRepo{}, &mockUserRepo{}, &mockTenantRepo{})
-		_, err := svc.GetRolePermissions(RoleServiceGetPermissionsFilter{RoleUUID: roleUUID, TenantID: tenantID})
+		_, err := svc.GetRolePermissions(context.Background(), RoleServiceGetPermissionsFilter{RoleUUID: roleUUID, TenantID: tenantID})
 		require.Error(t, err)
 	})
 
@@ -170,7 +170,7 @@ func TestRoleService_GetRolePermissions(t *testing.T) {
 				return newRole(1, "admin", 99), nil
 			},
 		}, &mockPermissionRepo{}, &mockRolePermissionRepo{}, &mockUserRepo{}, &mockTenantRepo{})
-		_, err := svc.GetRolePermissions(RoleServiceGetPermissionsFilter{RoleUUID: roleUUID, TenantID: tenantID})
+		_, err := svc.GetRolePermissions(context.Background(), RoleServiceGetPermissionsFilter{RoleUUID: roleUUID, TenantID: tenantID})
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "role not found")
 	})
@@ -184,7 +184,7 @@ func TestRoleService_GetRolePermissions(t *testing.T) {
 				return nil, errors.New("repo error")
 			},
 		}, &mockPermissionRepo{}, &mockRolePermissionRepo{}, &mockUserRepo{}, &mockTenantRepo{})
-		_, err := svc.GetRolePermissions(RoleServiceGetPermissionsFilter{RoleUUID: roleUUID, TenantID: tenantID})
+		_, err := svc.GetRolePermissions(context.Background(), RoleServiceGetPermissionsFilter{RoleUUID: roleUUID, TenantID: tenantID})
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "repo error")
 	})
@@ -204,7 +204,7 @@ func TestRoleService_GetRolePermissions(t *testing.T) {
 				}, nil
 			},
 		}, &mockPermissionRepo{}, &mockRolePermissionRepo{}, &mockUserRepo{}, &mockTenantRepo{})
-		result, err := svc.GetRolePermissions(RoleServiceGetPermissionsFilter{RoleUUID: roleUUID, TenantID: tenantID})
+		result, err := svc.GetRolePermissions(context.Background(), RoleServiceGetPermissionsFilter{RoleUUID: roleUUID, TenantID: tenantID})
 		require.NoError(t, err)
 		assert.Len(t, result.Data, 1)
 		assert.Equal(t, "read", result.Data[0].Name)
@@ -216,7 +216,7 @@ func TestRoleService_GetRolePermissions(t *testing.T) {
 				return newRole(1, "admin", tenantID), nil
 			},
 		}, &mockPermissionRepo{}, &mockRolePermissionRepo{}, &mockUserRepo{}, &mockTenantRepo{})
-		result, err := svc.GetRolePermissions(RoleServiceGetPermissionsFilter{RoleUUID: roleUUID, TenantID: tenantID})
+		result, err := svc.GetRolePermissions(context.Background(), RoleServiceGetPermissionsFilter{RoleUUID: roleUUID, TenantID: tenantID})
 		require.NoError(t, err)
 		assert.NotNil(t, result)
 		assert.Empty(t, result.Data)

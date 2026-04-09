@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"errors"
 	"testing"
 	"time"
@@ -75,7 +76,7 @@ func TestResetPasswordService_ResetPassword(t *testing.T) {
 		svc := NewResetPasswordService(db, &mockUserRepo{}, &mockUserTokenRepo{}, &mockClientRepo{
 			findDefaultFn: func() (*model.Client, error) { return nil, errors.New("db error") },
 		})
-		resp, err := svc.ResetPassword(tok, strongPassword, nil, nil)
+		resp, err := svc.ResetPassword(context.Background(), tok, strongPassword, nil, nil)
 		require.Error(t, err)
 		assert.Nil(t, resp)
 		assert.Contains(t, err.Error(), "failed to find auth client")
@@ -89,7 +90,7 @@ func TestResetPasswordService_ResetPassword(t *testing.T) {
 		svc := NewResetPasswordService(db, &mockUserRepo{}, &mockUserTokenRepo{}, &mockClientRepo{
 			findDefaultFn: func() (*model.Client, error) { return nil, nil },
 		})
-		resp, err := svc.ResetPassword(tok, strongPassword, nil, nil)
+		resp, err := svc.ResetPassword(context.Background(), tok, strongPassword, nil, nil)
 		require.Error(t, err)
 		assert.Nil(t, resp)
 		assert.Contains(t, err.Error(), "invalid client credentials")
@@ -105,7 +106,7 @@ func TestResetPasswordService_ResetPassword(t *testing.T) {
 				return nil, errors.New("client lookup error")
 			},
 		})
-		resp, err := svc.ResetPassword(tok, strongPassword, &clientID, &providerID)
+		resp, err := svc.ResetPassword(context.Background(), tok, strongPassword, &clientID, &providerID)
 		require.Error(t, err)
 		assert.Nil(t, resp)
 		assert.Contains(t, err.Error(), "failed to find auth client")
@@ -121,7 +122,7 @@ func TestResetPasswordService_ResetPassword(t *testing.T) {
 				return nil, nil
 			},
 		})
-		resp, err := svc.ResetPassword(tok, strongPassword, &clientID, &providerID)
+		resp, err := svc.ResetPassword(context.Background(), tok, strongPassword, &clientID, &providerID)
 		require.Error(t, err)
 		assert.Nil(t, resp)
 		assert.Contains(t, err.Error(), "invalid client credentials")
@@ -141,7 +142,7 @@ func TestResetPasswordService_ResetPassword(t *testing.T) {
 				return &model.Client{ClientID: 1}, nil
 			},
 		})
-		resp, err := svc.ResetPassword(tok, strongPassword, nil, nil)
+		resp, err := svc.ResetPassword(context.Background(), tok, strongPassword, nil, nil)
 		require.Error(t, err)
 		assert.Nil(t, resp)
 		assert.Contains(t, err.Error(), "failed to find reset token")
@@ -159,7 +160,7 @@ func TestResetPasswordService_ResetPassword(t *testing.T) {
 				return &model.Client{ClientID: 1}, nil
 			},
 		})
-		resp, err := svc.ResetPassword(tok, strongPassword, nil, nil)
+		resp, err := svc.ResetPassword(context.Background(), tok, strongPassword, nil, nil)
 		require.Error(t, err)
 		assert.Nil(t, resp)
 		assert.Contains(t, err.Error(), "invalid or expired reset token")
@@ -179,7 +180,7 @@ func TestResetPasswordService_ResetPassword(t *testing.T) {
 				return &model.Client{ClientID: 1}, nil
 			},
 		})
-		resp, err := svc.ResetPassword(tok, strongPassword, nil, nil)
+		resp, err := svc.ResetPassword(context.Background(), tok, strongPassword, nil, nil)
 		require.Error(t, err)
 		assert.Nil(t, resp)
 		assert.Contains(t, err.Error(), "reset token has expired")
@@ -197,7 +198,7 @@ func TestResetPasswordService_ResetPassword(t *testing.T) {
 				return &model.Client{ClientID: 1}, nil
 			},
 		})
-		resp, err := svc.ResetPassword(tok, strongPassword, nil, nil)
+		resp, err := svc.ResetPassword(context.Background(), tok, strongPassword, nil, nil)
 		require.Error(t, err)
 		assert.Nil(t, resp)
 		assert.Contains(t, err.Error(), "reset token has been revoked")
@@ -221,7 +222,7 @@ func TestResetPasswordService_ResetPassword(t *testing.T) {
 				return &model.Client{ClientID: 1}, nil
 			},
 		})
-		resp, err := svc.ResetPassword(tok, strongPassword, nil, nil)
+		resp, err := svc.ResetPassword(context.Background(), tok, strongPassword, nil, nil)
 		require.Error(t, err)
 		assert.Nil(t, resp)
 		assert.Contains(t, err.Error(), "failed to find user")
@@ -243,7 +244,7 @@ func TestResetPasswordService_ResetPassword(t *testing.T) {
 				return &model.Client{ClientID: 1}, nil
 			},
 		})
-		resp, err := svc.ResetPassword(tok, strongPassword, nil, nil)
+		resp, err := svc.ResetPassword(context.Background(), tok, strongPassword, nil, nil)
 		require.Error(t, err)
 		assert.Nil(t, resp)
 		assert.Contains(t, err.Error(), "user not found")
@@ -267,7 +268,7 @@ func TestResetPasswordService_ResetPassword(t *testing.T) {
 				return &model.Client{ClientID: 1}, nil
 			},
 		})
-		resp, err := svc.ResetPassword(tok, strongPassword, nil, nil)
+		resp, err := svc.ResetPassword(context.Background(), tok, strongPassword, nil, nil)
 		require.Error(t, err)
 		assert.Nil(t, resp)
 		assert.Contains(t, err.Error(), "user account is not active")
@@ -291,7 +292,7 @@ func TestResetPasswordService_ResetPassword(t *testing.T) {
 				return &model.Client{ClientID: 1}, nil
 			},
 		})
-		resp, err := svc.ResetPassword(tok, "weak", nil, nil)
+		resp, err := svc.ResetPassword(context.Background(), tok, "weak", nil, nil)
 		require.Error(t, err)
 		assert.Nil(t, resp)
 		assert.Contains(t, err.Error(), "password validation failed")
@@ -318,7 +319,7 @@ func TestResetPasswordService_ResetPassword(t *testing.T) {
 				return &model.Client{ClientID: 1}, nil
 			},
 		})
-		resp, err := svc.ResetPassword(tok, strongPassword, nil, nil)
+		resp, err := svc.ResetPassword(context.Background(), tok, strongPassword, nil, nil)
 		require.Error(t, err)
 		assert.Nil(t, resp)
 		assert.Contains(t, err.Error(), "failed to update password")
@@ -346,7 +347,7 @@ func TestResetPasswordService_ResetPassword(t *testing.T) {
 				return &model.Client{ClientID: 1}, nil
 			},
 		})
-		resp, err := svc.ResetPassword(tok, strongPassword, nil, nil)
+		resp, err := svc.ResetPassword(context.Background(), tok, strongPassword, nil, nil)
 		require.Error(t, err)
 		assert.Nil(t, resp)
 		assert.Contains(t, err.Error(), "failed to revoke reset token")
@@ -374,7 +375,7 @@ func TestResetPasswordService_ResetPassword(t *testing.T) {
 				return &model.Client{ClientID: 1}, nil
 			},
 		})
-		resp, err := svc.ResetPassword(tok, strongPassword, nil, nil)
+		resp, err := svc.ResetPassword(context.Background(), tok, strongPassword, nil, nil)
 		require.Error(t, err)
 		assert.Nil(t, resp)
 		assert.Contains(t, err.Error(), "failed to find existing tokens")
@@ -416,7 +417,7 @@ func TestResetPasswordService_ResetPassword(t *testing.T) {
 				return &model.Client{ClientID: 1}, nil
 			},
 		})
-		resp, err := svc.ResetPassword(tok, strongPassword, nil, nil)
+		resp, err := svc.ResetPassword(context.Background(), tok, strongPassword, nil, nil)
 		require.Error(t, err)
 		assert.Nil(t, resp)
 		assert.Contains(t, err.Error(), "failed to revoke existing token")
@@ -444,7 +445,7 @@ func TestResetPasswordService_ResetPassword(t *testing.T) {
 				return &model.Client{ClientID: 1}, nil
 			},
 		})
-		resp, err := svc.ResetPassword(tok, strongPassword, nil, nil)
+		resp, err := svc.ResetPassword(context.Background(), tok, strongPassword, nil, nil)
 		require.NoError(t, err)
 		require.NotNil(t, resp)
 		assert.True(t, resp.Success)
@@ -471,7 +472,7 @@ func TestResetPasswordService_ResetPassword(t *testing.T) {
 				return &model.Client{ClientID: 1}, nil
 			},
 		})
-		resp, err := svc.ResetPassword(tok, strongPassword, &clientID, &providerID)
+		resp, err := svc.ResetPassword(context.Background(), tok, strongPassword, &clientID, &providerID)
 		require.NoError(t, err)
 		require.NotNil(t, resp)
 		assert.True(t, resp.Success)
@@ -501,7 +502,7 @@ func TestResetPasswordService_ResetPassword(t *testing.T) {
 				return &model.Client{ClientID: 1}, nil
 			},
 		})
-		resp, err := svc.ResetPassword(tok, strongPassword, nil, nil)
+		resp, err := svc.ResetPassword(context.Background(), tok, strongPassword, nil, nil)
 		require.NoError(t, err)
 		require.NotNil(t, resp)
 		assert.True(t, resp.Success)
@@ -532,7 +533,7 @@ func TestResetPasswordService_ResetPassword(t *testing.T) {
 				return &model.Client{ClientID: 1}, nil
 			},
 		})
-		resp, err := svc.ResetPassword(tok, strongPassword, nil, nil)
+		resp, err := svc.ResetPassword(context.Background(), tok, strongPassword, nil, nil)
 		require.NoError(t, err)
 		require.NotNil(t, resp)
 		assert.True(t, resp.Success)
@@ -558,7 +559,7 @@ func TestResetPasswordService_ResetPassword(t *testing.T) {
 				return &model.Client{ClientID: 1}, nil
 			},
 		})
-		resp, err := svc.ResetPassword(tok, strongPassword, nil, nil)
+		resp, err := svc.ResetPassword(context.Background(), tok, strongPassword, nil, nil)
 		require.Error(t, err)
 		assert.Nil(t, resp)
 		assert.Contains(t, err.Error(), "hash error")

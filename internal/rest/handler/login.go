@@ -5,12 +5,12 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/maintainerd/auth/internal/cookie"
 	"github.com/maintainerd/auth/internal/dto"
 	"github.com/maintainerd/auth/internal/middleware"
-	"github.com/maintainerd/auth/internal/service"
-		"github.com/maintainerd/auth/internal/cookie"
 	resp "github.com/maintainerd/auth/internal/rest/response"
 	"github.com/maintainerd/auth/internal/security"
+	"github.com/maintainerd/auth/internal/service"
 )
 
 type LoginHandler struct {
@@ -131,7 +131,7 @@ func (h *LoginHandler) LoginPublic(w http.ResponseWriter, r *http.Request) {
 
 	// Public login attempt (requires client_id and provider_id)
 	tokenResponse, err := h.loginService.LoginPublic(
-		req.Username, req.Password, q.ClientID, q.ProviderID,
+		r.Context(), req.Username, req.Password, q.ClientID, q.ProviderID,
 	)
 	if err != nil {
 		security.LogSecurityEvent(security.SecurityEvent{
@@ -236,7 +236,7 @@ func (h *LoginHandler) Login(w http.ResponseWriter, r *http.Request) {
 
 	// Internal login attempt (client_id/provider_id optional)
 	tokenResponse, err := h.loginService.Login(
-		req.Username, req.Password, clientIDPtr, providerIDPtr,
+		r.Context(), req.Username, req.Password, clientIDPtr, providerIDPtr,
 	)
 	if err != nil {
 		security.LogSecurityEvent(security.SecurityEvent{

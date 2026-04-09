@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"encoding/json"
 	"time"
 
@@ -8,6 +9,9 @@ import (
 	"github.com/maintainerd/auth/internal/apperror"
 	"github.com/maintainerd/auth/internal/model"
 	"github.com/maintainerd/auth/internal/repository"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
 	"gorm.io/datatypes"
 	"gorm.io/gorm"
 )
@@ -55,6 +59,7 @@ type ProfileServiceListResult struct {
 
 type ProfileService interface {
 	CreateOrUpdateProfile(
+		ctx context.Context,
 		userUUID uuid.UUID,
 		firstName string,
 		middleName, lastName, suffix, displayName, bio *string,
@@ -67,6 +72,7 @@ type ProfileService interface {
 		metadata map[string]any,
 	) (*ProfileServiceDataResult, error)
 	CreateOrUpdateSpecificProfile(
+		ctx context.Context,
 		profileUUID uuid.UUID,
 		userUUID uuid.UUID,
 		firstName string,
@@ -79,11 +85,11 @@ type ProfileService interface {
 		profileURL *string,
 		metadata map[string]any,
 	) (*ProfileServiceDataResult, error)
-	GetByUUID(profileUUID uuid.UUID, userUUID uuid.UUID) (*ProfileServiceDataResult, error)
-	GetByUserUUID(userUUID uuid.UUID) (*ProfileServiceDataResult, error)
-	GetAll(userUUID uuid.UUID, firstName, lastName, email, phone, city, country *string, isDefault *bool, page, limit int, sortBy, sortOrder string) (*ProfileServiceListResult, error)
-	SetDefaultProfile(profileUUID uuid.UUID, userUUID uuid.UUID) (*ProfileServiceDataResult, error)
-	DeleteByUUID(profileUUID uuid.UUID, userUUID uuid.UUID) (*ProfileServiceDataResult, error)
+	GetByUUID(ctx context.Context, profileUUID uuid.UUID, userUUID uuid.UUID) (*ProfileServiceDataResult, error)
+	GetByUserUUID(ctx context.Context, userUUID uuid.UUID) (*ProfileServiceDataResult, error)
+	GetAll(ctx context.Context, userUUID uuid.UUID, firstName, lastName, email, phone, city, country *string, isDefault *bool, page, limit int, sortBy, sortOrder string) (*ProfileServiceListResult, error)
+	SetDefaultProfile(ctx context.Context, profileUUID uuid.UUID, userUUID uuid.UUID) (*ProfileServiceDataResult, error)
+	DeleteByUUID(ctx context.Context, profileUUID uuid.UUID, userUUID uuid.UUID) (*ProfileServiceDataResult, error)
 }
 
 type profileService struct {
@@ -105,6 +111,7 @@ func NewProfileService(
 }
 
 func (s *profileService) CreateOrUpdateProfile(
+	ctx context.Context,
 	userUUID uuid.UUID,
 	firstName string,
 	middleName, lastName, suffix, displayName, bio *string,
@@ -116,6 +123,9 @@ func (s *profileService) CreateOrUpdateProfile(
 	profileURL *string,
 	metadata map[string]any,
 ) (*ProfileServiceDataResult, error) {
+	_, span := otel.Tracer("service").Start(ctx, "profile.createOrUpdate")
+	defer span.End()
+	span.SetAttributes(attribute.String("user.uuid", userUUID.String()))
 	var updatedProfile *model.Profile
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
@@ -216,13 +226,17 @@ func (s *profileService) CreateOrUpdateProfile(
 	})
 
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "create or update profile failed")
 		return nil, err
 	}
 
+	span.SetStatus(codes.Ok, "")
 	return toProfileServiceDataResult(updatedProfile), nil
 }
 
 func (s *profileService) CreateOrUpdateSpecificProfile(
+	ctx context.Context,
 	profileUUID uuid.UUID,
 	userUUID uuid.UUID,
 	firstName string,
@@ -235,6 +249,9 @@ func (s *profileService) CreateOrUpdateSpecificProfile(
 	profileURL *string,
 	metadata map[string]any,
 ) (*ProfileServiceDataResult, error) {
+	_, span := otel.Tracer("service").Start(ctx, "profile.createOrUpdateSpecific")
+	defer span.End()
+	span.SetAttributes(attribute.String("profile.uuid", profileUUID.String()), attribute.String("user.uuid", userUUID.String()))
 	var updatedProfile *model.Profile
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
@@ -345,59 +362,82 @@ func (s *profileService) CreateOrUpdateSpecificProfile(
 	})
 
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "create or update specific profile failed")
 		return nil, err
 	}
 
+	span.SetStatus(codes.Ok, "")
 	return toProfileServiceDataResult(updatedProfile), nil
 }
 
-func (s *profileService) GetByUUID(profileUUID uuid.UUID, userUUID uuid.UUID) (*ProfileServiceDataResult, error) {
+func (s *profileService) GetByUUID(ctx context.Context, profileUUID uuid.UUID, userUUID uuid.UUID) (*ProfileServiceDataResult, error) {
+	_, span := otel.Tracer("service").Start(ctx, "profile.get")
+	defer span.End()
+	span.SetAttributes(attribute.String("profile.uuid", profileUUID.String()), attribute.String("user.uuid", userUUID.String()))
 	// Find user by UUID to get userID
 	user, err := s.userRepo.FindByUUID(userUUID)
 	if err != nil || user == nil {
+		span.SetStatus(codes.Error, "get profile failed")
 		return nil, apperror.NewNotFound("user not found")
 	}
 
 	// Get profile by UUID
 	profile, err := s.profileRepo.FindByUUID(profileUUID)
 	if err != nil || profile == nil {
+		span.SetStatus(codes.Error, "get profile failed")
 		return nil, apperror.NewNotFound("profile not found")
 	}
 
 	// Verify ownership
 	if profile.UserID != user.UserID {
+		span.SetStatus(codes.Error, "get profile failed")
 		return nil, apperror.NewForbidden("profile does not belong to user")
 	}
 
+	span.SetStatus(codes.Ok, "")
 	return toProfileServiceDataResult(profile), nil
 }
 
-func (s *profileService) GetByUserUUID(userUUID uuid.UUID) (*ProfileServiceDataResult, error) {
+func (s *profileService) GetByUserUUID(ctx context.Context, userUUID uuid.UUID) (*ProfileServiceDataResult, error) {
+	_, span := otel.Tracer("service").Start(ctx, "profile.getByUser")
+	defer span.End()
+	span.SetAttributes(attribute.String("user.uuid", userUUID.String()))
+
 	// Find user by UUID to get userID
 	user, err := s.userRepo.FindByUUID(userUUID)
 	if err != nil || user == nil {
+		span.SetStatus(codes.Error, "get profile failed")
 		return nil, apperror.NewNotFound("user not found")
 	}
 
 	// Find default profile by user ID
 	profile, err := s.profileRepo.FindDefaultByUserID(user.UserID)
 	if err != nil || profile == nil {
+		span.SetStatus(codes.Error, "get profile failed")
 		return nil, apperror.NewNotFound("profile not found")
 	}
 
+	span.SetStatus(codes.Ok, "")
 	return toProfileServiceDataResult(profile), nil
 }
 
 func (s *profileService) GetAll(
+	ctx context.Context,
 	userUUID uuid.UUID,
 	firstName, lastName, email, phone, city, country *string,
 	isDefault *bool,
 	page, limit int,
 	sortBy, sortOrder string,
 ) (*ProfileServiceListResult, error) {
+	_, span := otel.Tracer("service").Start(ctx, "profile.list")
+	defer span.End()
+	span.SetAttributes(attribute.String("user.uuid", userUUID.String()))
+
 	// Find user by UUID to get userID
 	user, err := s.userRepo.FindByUUID(userUUID)
 	if err != nil || user == nil {
+		span.SetStatus(codes.Error, "list profiles failed")
 		return nil, apperror.NewNotFound("user not found")
 	}
 
@@ -420,6 +460,8 @@ func (s *profileService) GetAll(
 	// Get profiles
 	result, err := s.profileRepo.FindAllByUserID(filter)
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "list profiles failed")
 		return nil, err
 	}
 
@@ -431,6 +473,7 @@ func (s *profileService) GetAll(
 		}
 	}
 
+	span.SetStatus(codes.Ok, "")
 	return &ProfileServiceListResult{
 		Data:       data,
 		Total:      result.Total,
@@ -440,7 +483,10 @@ func (s *profileService) GetAll(
 	}, nil
 }
 
-func (s *profileService) SetDefaultProfile(profileUUID uuid.UUID, userUUID uuid.UUID) (*ProfileServiceDataResult, error) {
+func (s *profileService) SetDefaultProfile(ctx context.Context, profileUUID uuid.UUID, userUUID uuid.UUID) (*ProfileServiceDataResult, error) {
+	_, span := otel.Tracer("service").Start(ctx, "profile.setDefault")
+	defer span.End()
+	span.SetAttributes(attribute.String("profile.uuid", profileUUID.String()), attribute.String("user.uuid", userUUID.String()))
 	var updatedProfile *model.Profile
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
@@ -485,41 +531,55 @@ func (s *profileService) SetDefaultProfile(profileUUID uuid.UUID, userUUID uuid.
 	})
 
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "set default profile failed")
 		return nil, err
 	}
 
+	span.SetStatus(codes.Ok, "")
 	return toProfileServiceDataResult(updatedProfile), nil
 }
 
-func (s *profileService) DeleteByUUID(profileUUID uuid.UUID, userUUID uuid.UUID) (*ProfileServiceDataResult, error) {
+func (s *profileService) DeleteByUUID(ctx context.Context, profileUUID uuid.UUID, userUUID uuid.UUID) (*ProfileServiceDataResult, error) {
+	_, span := otel.Tracer("service").Start(ctx, "profile.delete")
+	defer span.End()
+	span.SetAttributes(attribute.String("profile.uuid", profileUUID.String()), attribute.String("user.uuid", userUUID.String()))
+
 	// Find user by UUID to get userID
 	user, err := s.userRepo.FindByUUID(userUUID)
 	if err != nil || user == nil {
+		span.SetStatus(codes.Error, "delete profile failed")
 		return nil, apperror.NewNotFound("user not found")
 	}
 
 	// Get the profile to verify ownership and return it
 	profile, err := s.profileRepo.FindByUUID(profileUUID)
 	if err != nil || profile == nil {
+		span.SetStatus(codes.Error, "delete profile failed")
 		return nil, apperror.NewNotFound("profile not found")
 	}
 
 	// Verify ownership
 	if profile.UserID != user.UserID {
+		span.SetStatus(codes.Error, "delete profile failed")
 		return nil, apperror.NewForbidden("profile does not belong to user")
 	}
 
 	// Prevent deletion of default profile
 	if profile.IsDefault {
+		span.SetStatus(codes.Error, "delete profile failed")
 		return nil, apperror.NewValidation("cannot delete default profile")
 	}
 
 	// Delete the profile
 	err = s.profileRepo.DeleteByUUID(profileUUID)
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "delete profile failed")
 		return nil, err
 	}
 
+	span.SetStatus(codes.Ok, "")
 	return toProfileServiceDataResult(profile), nil
 }
 

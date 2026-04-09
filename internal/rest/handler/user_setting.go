@@ -7,8 +7,8 @@ import (
 	"github.com/maintainerd/auth/internal/dto"
 	"github.com/maintainerd/auth/internal/middleware"
 	"github.com/maintainerd/auth/internal/model"
-	"github.com/maintainerd/auth/internal/service"
 	resp "github.com/maintainerd/auth/internal/rest/response"
+	"github.com/maintainerd/auth/internal/service"
 )
 
 type UserSettingHandler struct {
@@ -42,6 +42,7 @@ func (h *UserSettingHandler) CreateOrUpdate(w http.ResponseWriter, r *http.Reque
 
 	user := r.Context().Value(middleware.UserContextKey).(*model.User)
 	userSetting, err := h.userSettingService.CreateOrUpdateUserSetting(
+		r.Context(),
 		user.UserUUID,
 		req.Timezone, req.PreferredLanguage, req.Locale,
 		socialLinks,
@@ -62,7 +63,7 @@ func (h *UserSettingHandler) CreateOrUpdate(w http.ResponseWriter, r *http.Reque
 
 func (h *UserSettingHandler) Get(w http.ResponseWriter, r *http.Request) {
 	user := r.Context().Value(middleware.UserContextKey).(*model.User)
-	userSetting, err := h.userSettingService.GetByUserUUID(user.UserUUID)
+	userSetting, err := h.userSettingService.GetByUserUUID(r.Context(), user.UserUUID)
 	if err != nil || userSetting == nil {
 		resp.Error(w, http.StatusNotFound, "User setting not found")
 		return
@@ -75,14 +76,14 @@ func (h *UserSettingHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	user := r.Context().Value(middleware.UserContextKey).(*model.User)
 
 	// First get the user setting to get its UUID
-	userSetting, err := h.userSettingService.GetByUserUUID(user.UserUUID)
+	userSetting, err := h.userSettingService.GetByUserUUID(r.Context(), user.UserUUID)
 	if err != nil || userSetting == nil {
 		resp.Error(w, http.StatusNotFound, "User setting not found")
 		return
 	}
 
 	// Delete by user setting UUID
-	deletedUserSetting, err := h.userSettingService.DeleteByUUID(userSetting.UserSettingUUID)
+	deletedUserSetting, err := h.userSettingService.DeleteByUUID(r.Context(), userSetting.UserSettingUUID)
 	if err != nil {
 		resp.HandleServiceError(w, r, "Delete user setting failed", err)
 		return

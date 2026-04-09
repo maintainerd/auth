@@ -11,8 +11,8 @@ import (
 	"github.com/maintainerd/auth/internal/dto"
 	"github.com/maintainerd/auth/internal/middleware"
 	"github.com/maintainerd/auth/internal/model"
+	resp "github.com/maintainerd/auth/internal/rest/response"
 	"github.com/maintainerd/auth/internal/service"
-		resp "github.com/maintainerd/auth/internal/rest/response"
 )
 
 type PolicyHandler struct {
@@ -117,7 +117,7 @@ func (h *PolicyHandler) Get(w http.ResponseWriter, r *http.Request) {
 		SortOrder:   filter.SortOrder,
 	}
 
-	result, err := h.policyService.Get(serviceFilter)
+	result, err := h.policyService.Get(r.Context(), serviceFilter)
 	if err != nil {
 		resp.HandleServiceError(w, r, "Failed to get policies", err)
 		return
@@ -156,7 +156,7 @@ func (h *PolicyHandler) GetByUUID(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	policy, err := h.policyService.GetByUUID(policyUUID, tenant.TenantID)
+	policy, err := h.policyService.GetByUUID(r.Context(), policyUUID, tenant.TenantID)
 	if err != nil {
 		resp.HandleServiceError(w, r, "Policy not found", err)
 		return
@@ -187,6 +187,7 @@ func (h *PolicyHandler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	policy, err := h.policyService.Create(
+		r.Context(),
 		tenant.TenantID,
 		req.Name,
 		req.Description,
@@ -232,6 +233,7 @@ func (h *PolicyHandler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 
 	policy, err := h.policyService.Update(
+		r.Context(),
 		policyUUID,
 		tenant.TenantID,
 		req.Name,
@@ -276,7 +278,7 @@ func (h *PolicyHandler) UpdateStatus(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	policy, err := h.policyService.SetStatusByUUID(policyUUID, tenant.TenantID, req.Status)
+	policy, err := h.policyService.SetStatusByUUID(r.Context(), policyUUID, tenant.TenantID, req.Status)
 	if err != nil {
 		resp.HandleServiceError(w, r, "Failed to update policy status", err)
 		return
@@ -302,7 +304,7 @@ func (h *PolicyHandler) Delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	policy, err := h.policyService.DeleteByUUID(policyUUID, tenant.TenantID)
+	policy, err := h.policyService.DeleteByUUID(r.Context(), policyUUID, tenant.TenantID)
 	if err != nil {
 		resp.HandleServiceError(w, r, "Failed to delete policy", err)
 		return
@@ -381,7 +383,7 @@ func (h *PolicyHandler) GetServicesByPolicyUUID(w http.ResponseWriter, r *http.R
 	}
 
 	// Get services
-	result, err := h.policyService.GetServicesByPolicyUUID(policyUUID, tenant.TenantID, serviceFilter)
+	result, err := h.policyService.GetServicesByPolicyUUID(r.Context(), policyUUID, tenant.TenantID, serviceFilter)
 	if err != nil {
 		resp.HandleServiceError(w, r, "Failed to get services", err)
 		return

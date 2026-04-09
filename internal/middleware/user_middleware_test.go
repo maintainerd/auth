@@ -76,6 +76,18 @@ func (m *mockUserRepoMW) FindBySubAndClientID(sub, cID string) (*model.User, err
 	return nil, nil
 }
 
+// mockContextProvider implements UserContextProvider with ctx support.
+type mockContextProvider struct {
+	findFn func(sub, cID string) (*model.User, error)
+}
+
+func (m *mockContextProvider) FindBySubAndClientID(_ context.Context, sub, cID string) (*model.User, error) {
+	if m.findFn != nil {
+		return m.findFn(sub, cID)
+	}
+	return nil, nil
+}
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -146,7 +158,7 @@ func TestUserContextMiddleware(t *testing.T) {
 				w.WriteHeader(http.StatusOK)
 			})
 
-			repo := &mockUserRepoMW{findBySubAndClientIDFn: tc.findBySubClientID}
+			repo := &mockContextProvider{findFn: tc.findBySubClientID}
 			mw := UserContextMiddleware(repo, newFakeCache())
 
 			req := httptest.NewRequest(http.MethodGet, "/", nil)
@@ -184,7 +196,7 @@ func TestUserContextMiddleware_CacheHit(t *testing.T) {
 		w.WriteHeader(http.StatusOK)
 	})
 
-	mw := UserContextMiddleware(&mockUserRepoMW{}, appCache)
+	mw := UserContextMiddleware(&mockContextProvider{}, appCache)
 	req := withJWTContext(httptest.NewRequest(http.MethodGet, "/", nil), sub, clientID)
 	rr := httptest.NewRecorder()
 	mw(next).ServeHTTP(rr, req)
@@ -218,8 +230,8 @@ func TestUserContextMiddleware_IdentityFiltering(t *testing.T) {
 		w.WriteHeader(http.StatusOK)
 	})
 
-	repo := &mockUserRepoMW{
-		findBySubAndClientIDFn: func(_, _ string) (*model.User, error) { return user, nil },
+	repo := &mockContextProvider{
+		findFn: func(_, _ string) (*model.User, error) { return user, nil },
 	}
 	mw := UserContextMiddleware(repo, newFakeCache())
 	req := withJWTContext(httptest.NewRequest(http.MethodGet, "/", nil), sub, clientID)
