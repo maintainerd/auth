@@ -4,27 +4,6 @@
   # Maintainerd Auth
 
   <p align="center">
-    <a href="https://github.com/maintainerd/auth/actions/workflows/ci.yml">
-      <img src="https://github.com/maintainerd/auth/actions/workflows/ci.yml/badge.svg" alt="CI">
-    </a>
-    <a href="https://github.com/maintainerd/auth/actions/workflows/security.yml">
-      <img src="https://github.com/maintainerd/auth/actions/workflows/security.yml/badge.svg" alt="Security">
-    </a>
-    <a href="https://codecov.io/gh/maintainerd/auth">
-      <img src="https://codecov.io/gh/maintainerd/auth/graph/badge.svg" alt="Coverage">
-    </a>
-    <a href="https://goreportcard.com/report/github.com/maintainerd/auth">
-      <img src="https://goreportcard.com/badge/github.com/maintainerd/auth" alt="Go Report Card">
-    </a>
-    <a href="https://scorecard.dev/viewer/?uri=github.com/maintainerd/auth">
-      <img src="https://api.scorecard.dev/projects/github.com/maintainerd/auth/badge" alt="OpenSSF Scorecard">
-    </a>
-    <a href="https://www.bestpractices.dev/projects/TODO">
-      <img src="https://www.bestpractices.dev/projects/TODO/badge" alt="OpenSSF Best Practices">
-    </a>
-  </p>
-
-  <p align="center">
     <a href="LICENSE">
       <img src="https://img.shields.io/badge/License-MIT-blue" alt="License">
     </a>
@@ -37,6 +16,31 @@
   Run it standalone, drop it into a microservice architecture, or use it as part of the Maintainerd ecosystem.
 
 </div>
+
+---
+
+## Status
+
+<p>
+  <a href="https://github.com/maintainerd/auth/actions/workflows/ci.yml">
+    <img src="https://github.com/maintainerd/auth/actions/workflows/ci.yml/badge.svg" alt="CI">
+  </a>
+  <a href="https://github.com/maintainerd/auth/actions/workflows/security.yml">
+    <img src="https://github.com/maintainerd/auth/actions/workflows/security.yml/badge.svg" alt="Security">
+  </a>
+  <a href="https://goreportcard.com/report/github.com/maintainerd/auth">
+    <img src="https://goreportcard.com/badge/github.com/maintainerd/auth" alt="Go Report Card">
+  </a>
+  <a href="https://scorecard.dev/viewer/?uri=github.com/maintainerd/auth">
+    <img src="https://api.scorecard.dev/projects/github.com/maintainerd/auth/badge" alt="OpenSSF Scorecard">
+  </a>
+  <a href="https://www.bestpractices.dev/projects/TODO">
+    <img src="https://img.shields.io/badge/openssf_best_practices-in_progress-yellow?logo=opensourcesecurityfoundation&logoColor=white" alt="OpenSSF Best Practices">
+  </a>
+  <a href="https://codecov.io/gh/maintainerd/auth">
+    <img src="https://codecov.io/gh/maintainerd/auth/graph/badge.svg" alt="Coverage">
+  </a>
+</p>
 
 ---
 
