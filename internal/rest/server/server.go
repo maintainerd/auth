@@ -13,11 +13,9 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/maintainerd/auth/internal/app"
-	"github.com/maintainerd/auth/internal/cache"
 	securityMiddleware "github.com/maintainerd/auth/internal/middleware"
 	"github.com/maintainerd/auth/internal/rest/handler"
 	"github.com/maintainerd/auth/internal/rest/route"
-	"github.com/maintainerd/auth/internal/service"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
 
@@ -78,12 +76,14 @@ func initHandlers(application *app.App) *handlers {
 	}
 }
 
+// StartRESTServer launches the internal and public HTTP servers, blocks until
+// a termination signal is received, then drains connections gracefully.
 func StartRESTServer(application *app.App) {
 	h := initHandlers(application)
 
 	internalSrv := &http.Server{
 		Addr:         ":8080",
-		Handler:      otelhttp.NewHandler(buildInternalRouter(h, application.UserService, application.Cache), "internal"),
+		Handler:      otelhttp.NewHandler(buildInternalRouter(h, application), "internal"),
 		ReadTimeout:  15 * time.Second,
 		WriteTimeout: 60 * time.Second,
 		IdleTimeout:  120 * time.Second,
@@ -91,7 +91,7 @@ func StartRESTServer(application *app.App) {
 
 	publicSrv := &http.Server{
 		Addr:         ":8081",
-		Handler:      otelhttp.NewHandler(buildPublicRouter(h, application.UserService, application.Cache), "public"),
+		Handler:      otelhttp.NewHandler(buildPublicRouter(h, application), "public"),
 		ReadTimeout:  15 * time.Second,
 		WriteTimeout: 60 * time.Second,
 		IdleTimeout:  120 * time.Second,
@@ -148,7 +148,7 @@ func StartRESTServer(application *app.App) {
 }
 
 // buildInternalRouter constructs the chi router for the internal API (port 8080, VPN access only).
-func buildInternalRouter(h *handlers, userService service.UserService, appCache *cache.Cache) http.Handler {
+func buildInternalRouter(h *handlers, application *app.App) http.Handler {
 	r := chi.NewRouter()
 
 	// Built-in Chi middlewares
@@ -168,7 +168,7 @@ func buildInternalRouter(h *handlers, userService service.UserService, appCache 
 
 	// Health / readiness probes (no auth, no rate-limit)
 	r.Get("/health", handleHealth)
-	r.Get("/ready", handleReady)
+	r.Get("/ready", handleReady(application))
 
 	r.Route("/api/v1", func(api chi.Router) {
 		// Setup Routes (no authentication required)
@@ -179,34 +179,34 @@ func buildInternalRouter(h *handlers, userService service.UserService, appCache 
 		route.LoginRoute(api, h.login)
 		route.ForgotPasswordRoute(api, h.forgotPassword)
 		route.ResetPasswordRoute(api, h.resetPassword)
-		route.ProfileRoute(api, h.profile, userService, appCache)
-		route.UserSettingRoute(api, h.userSetting, userService, appCache)
+		route.ProfileRoute(api, h.profile, application.UserService, application.Cache)
+		route.UserSettingRoute(api, h.userSetting, application.UserService, application.Cache)
 
 		// Management Routes (internal access only)
-		route.TenantRoute(api, h.tenant, userService, appCache)
-		route.ServiceRoute(api, h.service, userService, appCache)
-		route.APIRoute(api, h.api, userService, appCache)
-		route.PermissionRoute(api, h.permission, userService, appCache)
-		route.PolicyRoute(api, h.policy, userService, appCache)
-		route.IdentityProviderRoute(api, h.identityProvider, userService, appCache)
-		route.ClientRoute(api, h.client, userService, appCache)
-		route.RoleRoute(api, h.role, userService, appCache)
-		route.UserRoute(api, h.user, h.profile, userService, appCache)
-		route.InviteRoute(api, h.invite, userService, appCache)
-		route.APIKeyRoute(api, h.apiKey, userService, appCache)
-		route.SignupFlowRoute(api, h.signupFlow, userService, appCache)
-		route.SecuritySettingRoute(api, h.securitySetting, userService, appCache)
-		route.IPRestrictionRuleRoute(api, h.ipRestrictionRule, userService, appCache)
-		route.EmailTemplateRoute(api, h.emailTemplate, userService, appCache)
-		route.SMSTemplateRoute(api, h.smsTemplate, userService, appCache)
-		route.LoginTemplateRoute(api, h.loginTemplate, userService, appCache)
+		route.TenantRoute(api, h.tenant, application.UserService, application.Cache)
+		route.ServiceRoute(api, h.service, application.UserService, application.Cache)
+		route.APIRoute(api, h.api, application.UserService, application.Cache)
+		route.PermissionRoute(api, h.permission, application.UserService, application.Cache)
+		route.PolicyRoute(api, h.policy, application.UserService, application.Cache)
+		route.IdentityProviderRoute(api, h.identityProvider, application.UserService, application.Cache)
+		route.ClientRoute(api, h.client, application.UserService, application.Cache)
+		route.RoleRoute(api, h.role, application.UserService, application.Cache)
+		route.UserRoute(api, h.user, h.profile, application.UserService, application.Cache)
+		route.InviteRoute(api, h.invite, application.UserService, application.Cache)
+		route.APIKeyRoute(api, h.apiKey, application.UserService, application.Cache)
+		route.SignupFlowRoute(api, h.signupFlow, application.UserService, application.Cache)
+		route.SecuritySettingRoute(api, h.securitySetting, application.UserService, application.Cache)
+		route.IPRestrictionRuleRoute(api, h.ipRestrictionRule, application.UserService, application.Cache)
+		route.EmailTemplateRoute(api, h.emailTemplate, application.UserService, application.Cache)
+		route.SMSTemplateRoute(api, h.smsTemplate, application.UserService, application.Cache)
+		route.LoginTemplateRoute(api, h.loginTemplate, application.UserService, application.Cache)
 	})
 
 	return r
 }
 
 // buildPublicRouter constructs the chi router for the public API (port 8081, public internet).
-func buildPublicRouter(h *handlers, userService service.UserService, appCache *cache.Cache) http.Handler {
+func buildPublicRouter(h *handlers, application *app.App) http.Handler {
 	r := chi.NewRouter()
 
 	// Built-in Chi middlewares
@@ -226,19 +226,19 @@ func buildPublicRouter(h *handlers, userService service.UserService, appCache *c
 
 	// Health / readiness probes (no auth, no rate-limit)
 	r.Get("/health", handleHealth)
-	r.Get("/ready", handleReady)
+	r.Get("/ready", handleReady(application))
 
 	r.Route("/api/v1", func(api chi.Router) {
 		// Public Tenant Routes (no authentication required - for login page)
-		route.TenantRoute(api, h.tenant, userService, appCache)
+		route.TenantRoute(api, h.tenant, application.UserService, application.Cache)
 
 		// Public Authentication Routes (requires client_id/provider_id)
 		route.RegisterPublicRoute(api, h.register)
 		route.LoginPublicRoute(api, h.login)
 		route.ForgotPasswordPublicRoute(api, h.forgotPassword)
 		route.ResetPasswordPublicRoute(api, h.resetPassword)
-		route.ProfileRoute(api, h.profile, userService, appCache)
-		route.UserSettingRoute(api, h.userSetting, userService, appCache)
+		route.ProfileRoute(api, h.profile, application.UserService, application.Cache)
+		route.UserSettingRoute(api, h.userSetting, application.UserService, application.Cache)
 	})
 
 	return r
@@ -252,10 +252,38 @@ func handleHealth(w http.ResponseWriter, _ *http.Request) {
 	w.Write([]byte(`{"status":"ok"}`)) //nolint:errcheck
 }
 
-// handleReady responds to readiness probes. Returns 200 OK once the server is
-// up and ready to accept traffic.
-func handleReady(w http.ResponseWriter, _ *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	w.Write([]byte(`{"status":"ready"}`)) //nolint:errcheck
+// handleReady returns an http.HandlerFunc that checks database and Redis
+// connectivity. It returns 200 OK when both dependencies are reachable, or
+// 503 Service Unavailable when either check fails.
+func handleReady(application *app.App) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		ctx := r.Context()
+
+		// Check database connectivity
+		sqlDB, err := application.DB.DB()
+		if err != nil {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusServiceUnavailable)
+			w.Write([]byte(`{"status":"not ready","reason":"database connection unavailable"}`)) //nolint:errcheck
+			return
+		}
+		if err := sqlDB.PingContext(ctx); err != nil {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusServiceUnavailable)
+			w.Write([]byte(`{"status":"not ready","reason":"database ping failed"}`)) //nolint:errcheck
+			return
+		}
+
+		// Check Redis connectivity
+		if err := application.RedisClient.Ping(ctx).Err(); err != nil {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusServiceUnavailable)
+			w.Write([]byte(`{"status":"not ready","reason":"redis ping failed"}`)) //nolint:errcheck
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{"status":"ready"}`)) //nolint:errcheck
+	}
 }

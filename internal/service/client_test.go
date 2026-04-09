@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
+	"github.com/maintainerd/auth/internal/crypto"
 	"github.com/maintainerd/auth/internal/model"
 	"github.com/maintainerd/auth/internal/repository"
 	"github.com/stretchr/testify/assert"
@@ -363,6 +364,61 @@ func TestClientService_Create(t *testing.T) {
 			&mockAPIRepo{}, userRepo, &mockTenantRepo{})
 		_, err := svc.Create(context.Background(), tenantID, "test", "Test", "public", "example.com", nil, "active", false, uuid.New().String(), actorUUID)
 		require.Error(t, err)
+	})
+
+	t.Run("GenerateIdentifier failure on clientId", func(t *testing.T) {
+		orig := crypto.GenerateIdentifier
+		defer func() { crypto.GenerateIdentifier = orig }()
+		crypto.GenerateIdentifier = func(int) (string, error) { return "", errors.New("rand failure") }
+
+		gormDB, mock := newMockGormDB(t)
+		mock.ExpectBegin()
+		mock.ExpectRollback()
+		idpRepo := &mockIdentityProviderRepo{
+			findByUUIDFn: func(_ any, _ ...string) (*model.IdentityProvider, error) {
+				return &model.IdentityProvider{IdentityProviderID: 1, Tenant: &model.Tenant{TenantID: tenantID, IsDefault: true}}, nil
+			},
+		}
+		userRepo := &mockUserRepo{
+			findByUUIDFn: func(_ any, _ ...string) (*model.User, error) { return actorUser(tenantID), nil },
+		}
+		svc := NewClientService(gormDB, &mockClientRepo{}, &mockClientURIRepo{}, idpRepo,
+			&mockPermissionRepo{}, &mockClientPermissionRepo{}, &mockClientAPIRepo{},
+			&mockAPIRepo{}, userRepo, &mockTenantRepo{})
+		_, err := svc.Create(context.Background(), tenantID, "test", "Test", "public", "example.com", nil, "active", false, uuid.New().String(), actorUUID)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "rand failure")
+	})
+
+	t.Run("GenerateIdentifier failure on clientSecret", func(t *testing.T) {
+		orig := crypto.GenerateIdentifier
+		defer func() { crypto.GenerateIdentifier = orig }()
+		callCount := 0
+		crypto.GenerateIdentifier = func(n int) (string, error) {
+			callCount++
+			if callCount == 1 {
+				return "fake-client-id", nil
+			}
+			return "", errors.New("rand failure on secret")
+		}
+
+		gormDB, mock := newMockGormDB(t)
+		mock.ExpectBegin()
+		mock.ExpectRollback()
+		idpRepo := &mockIdentityProviderRepo{
+			findByUUIDFn: func(_ any, _ ...string) (*model.IdentityProvider, error) {
+				return &model.IdentityProvider{IdentityProviderID: 1, Tenant: &model.Tenant{TenantID: tenantID, IsDefault: true}}, nil
+			},
+		}
+		userRepo := &mockUserRepo{
+			findByUUIDFn: func(_ any, _ ...string) (*model.User, error) { return actorUser(tenantID), nil },
+		}
+		svc := NewClientService(gormDB, &mockClientRepo{}, &mockClientURIRepo{}, idpRepo,
+			&mockPermissionRepo{}, &mockClientPermissionRepo{}, &mockClientAPIRepo{},
+			&mockAPIRepo{}, userRepo, &mockTenantRepo{})
+		_, err := svc.Create(context.Background(), tenantID, "test", "Test", "public", "example.com", nil, "active", false, uuid.New().String(), actorUUID)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "rand failure on secret")
 	})
 
 	t.Run("createOrUpdate error", func(t *testing.T) {

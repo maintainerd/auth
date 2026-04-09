@@ -208,7 +208,11 @@ func (s *identityProviderService) Create(ctx context.Context, name string, displ
 		}
 
 		// Generate identifier
-		identifier := fmt.Sprintf("idp-%s", crypto.GenerateIdentifier(12))
+		idSuffix, err := crypto.GenerateIdentifier(12)
+		if err != nil {
+			return err
+		}
+		identifier := fmt.Sprintf("idp-%s", idSuffix)
 
 		// Create idp
 		newIdp := &model.IdentityProvider{

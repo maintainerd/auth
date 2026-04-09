@@ -132,7 +132,10 @@ func (s *setupService) CreateTenant(ctx context.Context, req dto.CreateTenantReq
 		txTenantRepo := s.tenantRepo.WithTx(tx)
 
 		// Generate identifier
-		identifier := crypto.GenerateIdentifier(24)
+		identifier, err := crypto.GenerateIdentifier(24)
+		if err != nil {
+			return err
+		}
 
 		// Handle description (optional field)
 		description := ""
@@ -160,7 +163,6 @@ func (s *setupService) CreateTenant(ctx context.Context, req dto.CreateTenantReq
 			IsSystem:    true, // This is a system tenant that cannot be deleted
 		}
 
-		var err error
 		createdTenant, err = txTenantRepo.Create(newTenant)
 		if err != nil {
 			return err

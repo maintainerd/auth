@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 const identifierCharset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
@@ -22,7 +23,8 @@ func TestGenerateIdentifier(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			got := GenerateIdentifier(tc.length)
+			got, err := GenerateIdentifier(tc.length)
+			require.NoError(t, err)
 			assert.Len(t, got, tc.length)
 			for _, ch := range got {
 				assert.True(t, strings.ContainsRune(identifierCharset, ch),
@@ -35,7 +37,8 @@ func TestGenerateIdentifier(t *testing.T) {
 func TestGenerateIdentifierUniqueness(t *testing.T) {
 	seen := make(map[string]struct{}, 100)
 	for i := 0; i < 100; i++ {
-		id := GenerateIdentifier(16)
+		id, err := GenerateIdentifier(16)
+		require.NoError(t, err)
 		_, dup := seen[id]
 		assert.False(t, dup, "duplicate identifier generated: %s", id)
 		seen[id] = struct{}{}
@@ -43,12 +46,13 @@ func TestGenerateIdentifierUniqueness(t *testing.T) {
 }
 
 func TestGenerateIdentifierZeroLength(t *testing.T) {
-	// Zero length should return empty string, not panic
-	got := GenerateIdentifier(0)
+	got, err := GenerateIdentifier(0)
+	require.NoError(t, err)
 	assert.Equal(t, "", got)
 }
 
 func TestGenerateIdentifier_CryptoRandError(t *testing.T) {
 	withFailingRand(t)
-	assert.Panics(t, func() { GenerateIdentifier(8) })
+	_, err := GenerateIdentifier(8)
+	assert.Error(t, err)
 }

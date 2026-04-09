@@ -174,7 +174,8 @@ curl http://localhost:8080/health
 # Expected: {"status":"ok"}
 
 curl http://localhost:8080/ready
-# Expected: {"status":"ready"}
+# Expected (when DB and Redis are healthy): {"status":"ready"}
+# Returns 503 with {"status":"not ready","reason":"..."} if a dependency is down.
 ```
 
 ---

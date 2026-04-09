@@ -66,6 +66,7 @@ func (r *tenantServiceRepository) FindPaginated(filter TenantServiceRepositoryGe
 	query = query.Order(sanitizeOrder(filter.SortBy, filter.SortOrder, "tenant_service_id DESC"))
 
 	// Pagination
+	filter.Page, filter.Limit = normalizePagination(filter.Page, filter.Limit)
 	offset := (filter.Page - 1) * filter.Limit
 	if filter.Limit > 0 {
 		query = query.Offset(offset).Limit(filter.Limit)

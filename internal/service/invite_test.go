@@ -9,6 +9,7 @@ import (
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/maintainerd/auth/internal/config"
+	"github.com/maintainerd/auth/internal/crypto"
 	"github.com/maintainerd/auth/internal/email"
 	"github.com/maintainerd/auth/internal/model"
 	"github.com/maintainerd/auth/internal/signedurl"
@@ -144,6 +145,30 @@ func TestInviteService_SendInvite_RoleTenantMismatch(t *testing.T) {
 	_, err := svc.SendInvite(context.Background(), 1, "user@example.com", 1, []string{"role-uuid-1"})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "invalid role")
+}
+
+func TestInviteService_SendInvite_GenerateIdentifierFailure(t *testing.T) {
+	orig := crypto.GenerateIdentifier
+	defer func() { crypto.GenerateIdentifier = orig }()
+	crypto.GenerateIdentifier = func(int) (string, error) { return "", errors.New("rand failure") }
+
+	gormDB, mock := newMockGormDB(t)
+	mock.ExpectBegin()
+	mock.ExpectRollback()
+
+	clientRepo := &mockClientRepo{
+		findDefaultFn: func() (*model.Client, error) { return defaultInviteClient(), nil },
+	}
+	roleRepo := &mockRoleRepo{
+		findByUUIDsFn: func(_ []string, _ ...string) ([]model.Role, error) {
+			return []model.Role{{RoleID: 1, TenantID: 10}}, nil
+		},
+	}
+
+	svc := NewInviteService(gormDB, &mockInviteRepo{}, clientRepo, roleRepo, &mockEmailTemplateRepo{})
+	_, err := svc.SendInvite(context.Background(), 1, "user@example.com", 1, []string{"role-uuid-1"})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "rand failure")
 }
 
 func TestInviteService_SendInvite_InviteCreateError(t *testing.T) {

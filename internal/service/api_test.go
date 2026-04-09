@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
+	"github.com/maintainerd/auth/internal/crypto"
 	"github.com/maintainerd/auth/internal/model"
 	"github.com/maintainerd/auth/internal/repository"
 	"github.com/stretchr/testify/assert"
@@ -196,6 +197,25 @@ func TestAPIService_Create(t *testing.T) {
 		_, err := svc.Create(context.Background(), tenantID, "users-api", "", "", "rest", model.StatusActive, false, serviceUUID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "service not found")
+	})
+
+	t.Run("GenerateIdentifier failure", func(t *testing.T) {
+		orig := crypto.GenerateIdentifier
+		defer func() { crypto.GenerateIdentifier = orig }()
+		crypto.GenerateIdentifier = func(int) (string, error) { return "", errors.New("rand failure") }
+
+		db, mock := newMockGormDB(t)
+		mock.ExpectBegin()
+		mock.ExpectRollback()
+		svcRepo := &mockServiceRepo{
+			findByUUIDFn: func(_ any, _ ...string) (*model.Service, error) {
+				return &model.Service{ServiceID: 1}, nil
+			},
+		}
+		svc := NewAPIService(db, &mockAPIRepo{}, svcRepo, &mockTenantServiceRepo{})
+		_, err := svc.Create(context.Background(), tenantID, "users-api", "", "", "rest", model.StatusActive, false, serviceUUID)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "rand failure")
 	})
 
 	t.Run("success", func(t *testing.T) {

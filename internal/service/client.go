@@ -321,8 +321,14 @@ func (s *clientService) Create(ctx context.Context, tenantID int64, name string,
 		}
 
 		// Generate identifier
-		clientId := crypto.GenerateIdentifier(12)
-		clientSecret := crypto.GenerateIdentifier(64)
+		clientId, err := crypto.GenerateIdentifier(12)
+		if err != nil {
+			return err
+		}
+		clientSecret, err := crypto.GenerateIdentifier(64)
+		if err != nil {
+			return err
+		}
 
 		// Create auth client
 		newClient := &model.Client{
@@ -813,9 +819,6 @@ func ToClientServiceDataResult(Client *model.Client) *ClientServiceDataResult {
 		}
 		result.ClientURIs = &uris
 	}
-
-	// TODO: Permissions are now accessed via ClientAPIs relationship
-	// This will be implemented when we complete the new API structure
 
 	return result
 }

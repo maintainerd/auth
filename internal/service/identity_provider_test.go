@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
+	"github.com/maintainerd/auth/internal/crypto"
 	"github.com/maintainerd/auth/internal/model"
 	"github.com/maintainerd/auth/internal/repository"
 	"github.com/stretchr/testify/assert"
@@ -402,6 +403,31 @@ func TestIdentityProviderService_Create(t *testing.T) {
 		_, err := svc.Create(context.Background(), "idp", "IDP", "local", "password", cfg, "active", tenantUUID.String(), tenantID, actorUUID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "already exists")
+	})
+
+	t.Run("GenerateIdentifier failure", func(t *testing.T) {
+		orig := crypto.GenerateIdentifier
+		defer func() { crypto.GenerateIdentifier = orig }()
+		crypto.GenerateIdentifier = func(int) (string, error) { return "", errors.New("rand failure") }
+
+		gormDB, mock := newMockGormDB(t)
+		mock.ExpectBegin()
+		mock.ExpectRollback()
+		tenantRepo := &mockTenantRepo{
+			findByUUIDFn: func(_ any, _ ...string) (*model.Tenant, error) {
+				return &model.Tenant{TenantID: tenantID, IsDefault: true}, nil
+			},
+		}
+		userRepo := &mockUserRepo{
+			findByUUIDFn: func(_ any, _ ...string) (*model.User, error) {
+				return actorUserWithDefaultTenant(tenantID), nil
+			},
+		}
+		idpRepo := &mockIdentityProviderRepo{}
+		svc := NewIdentityProviderService(gormDB, idpRepo, tenantRepo, userRepo)
+		_, err := svc.Create(context.Background(), "idp", "IDP", "local", "password", cfg, "active", tenantUUID.String(), tenantID, actorUUID)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "rand failure")
 	})
 
 	t.Run("createOrUpdate error", func(t *testing.T) {

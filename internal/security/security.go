@@ -266,12 +266,15 @@ func ValidateIPAddress(ipStr string) error {
 // ============================================================================
 // Functions for secure random generation and cryptographic operations
 
-// GenerateCSRFToken generates a cryptographically secure CSRF token
+// GenerateCSRFToken generates a cryptographically secure CSRF token.
+// Returns an error if the system's random source fails.
 // Complies with SOC2 CC6.1 and ISO27001 A.13.2.1
-func GenerateCSRFToken() string {
+func GenerateCSRFToken() (string, error) {
 	bytes := make([]byte, 32)
-	_, _ = rand.Read(bytes)
-	return hex.EncodeToString(bytes)
+	if _, err := rand.Read(bytes); err != nil {
+		return "", fmt.Errorf("crypto/rand failure: %w", err)
+	}
+	return hex.EncodeToString(bytes), nil
 }
 
 // ValidateUserAgent checks for suspicious or malicious user agents

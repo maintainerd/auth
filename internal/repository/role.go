@@ -121,6 +121,7 @@ func (r *roleRepository) FindPaginated(filter RoleRepositoryGetFilter) (*Paginat
 	}
 
 	// Pagination
+	filter.Page, filter.Limit = normalizePagination(filter.Page, filter.Limit)
 	offset := (filter.Page - 1) * filter.Limit
 	var roles []model.Role
 	if err := query.Limit(filter.Limit).Offset(offset).Find(&roles).Error; err != nil {
@@ -204,6 +205,7 @@ func (r *roleRepository) GetPermissionsByRoleUUID(filter RoleRepositoryGetPermis
 	}
 
 	// Pagination
+	filter.Page, filter.Limit = normalizePagination(filter.Page, filter.Limit)
 	offset := (filter.Page - 1) * filter.Limit
 	var permissions []model.Permission
 	if err := query.Preload("API").Limit(filter.Limit).Offset(offset).Find(&permissions).Error; err != nil {

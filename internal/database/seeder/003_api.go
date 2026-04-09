@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"log/slog"
 
-	"github.com/maintainerd/auth/internal/model"
 	"github.com/maintainerd/auth/internal/crypto"
+	"github.com/maintainerd/auth/internal/model"
 	"gorm.io/gorm"
 )
 
@@ -21,13 +21,18 @@ func SeedAPI(db *gorm.DB, tenantID, serviceID int64) (*model.API, error) {
 		return nil, fmt.Errorf("failed to check existing API: %w", err)
 	}
 
+	apiIdentifier, err := crypto.GenerateIdentifier(12)
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate identifier: %w", err)
+	}
+
 	api := &model.API{
 		TenantID:    tenantID,
 		Name:        "auth",
 		DisplayName: "Auth API",
 		APIType:     "rest",
 		Description: "API for authentication",
-		Identifier:  fmt.Sprintf("api-%s", crypto.GenerateIdentifier(12)),
+		Identifier:  fmt.Sprintf("api-%s", apiIdentifier),
 		Status:      "active",
 		IsSystem:    true,
 		ServiceID:   serviceID,

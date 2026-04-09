@@ -121,8 +121,10 @@ func TestComputeSignature_Deterministic(t *testing.T) {
 	setHMACSecret(t)
 
 	values := url.Values{"token": {"abc"}, "expires": {"9999"}}
-	sig1 := ComputeSignature(values)
-	sig2 := ComputeSignature(values)
+	sig1, err := computeSignature(values)
+	require.NoError(t, err)
+	sig2, err := computeSignature(values)
+	require.NoError(t, err)
 	assert.Equal(t, sig1, sig2)
 }
 
@@ -131,7 +133,11 @@ func TestComputeSignature_DifferentInputDifferentSig(t *testing.T) {
 
 	v1 := url.Values{"token": {"abc"}, "expires": {"9999"}}
 	v2 := url.Values{"token": {"xyz"}, "expires": {"9999"}}
-	assert.NotEqual(t, ComputeSignature(v1), ComputeSignature(v2))
+	sig1, err := computeSignature(v1)
+	require.NoError(t, err)
+	sig2, err := computeSignature(v2)
+	require.NoError(t, err)
+	assert.NotEqual(t, sig1, sig2)
 }
 
 func TestComputeSignature_IgnoresSigKey(t *testing.T) {
@@ -139,17 +145,49 @@ func TestComputeSignature_IgnoresSigKey(t *testing.T) {
 
 	withSig := url.Values{"token": {"abc"}, "expires": {"9999"}, "sig": {"noise"}}
 	withoutSig := url.Values{"token": {"abc"}, "expires": {"9999"}}
-	assert.Equal(t, ComputeSignature(withSig), ComputeSignature(withoutSig))
+	sig1, err := computeSignature(withSig)
+	require.NoError(t, err)
+	sig2, err := computeSignature(withoutSig)
+	require.NoError(t, err)
+	assert.Equal(t, sig1, sig2)
 }
 
 // ---------------------------------------------------------------------------
-// hmacSecretKey — panic path
+// hmacSecretKey — error path
 // ---------------------------------------------------------------------------
 
-func TestHMACSecretKey_PanicsWhenMissing(t *testing.T) {
-	// Ensure the env var is absent for this test
+func TestHMACSecretKey_ErrorWhenMissing(t *testing.T) {
 	t.Setenv("HMAC_SECRET_KEY", "")
-	assert.Panics(t, func() { hmacSecretKey() })
+	_, err := hmacSecretKey()
+	assert.Error(t, err)
+}
+
+func TestComputeSignature_ErrorWhenNoHMAC(t *testing.T) {
+	t.Setenv("HMAC_SECRET_KEY", "")
+	_, err := computeSignature(url.Values{"key": {"val"}})
+	assert.Error(t, err)
+}
+
+func TestGenerateSignedURL_ErrorWhenNoHMAC(t *testing.T) {
+	t.Setenv("HMAC_SECRET_KEY", "")
+	_, err := GenerateSignedURL("https://example.com", map[string]string{"k": "v"}, time.Hour)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to compute signature")
+}
+
+func TestValidateSignedURL_ErrorWhenNoHMAC(t *testing.T) {
+	// First generate a valid URL, then clear the key before validating.
+	setHMACSecret(t)
+	signed, err := GenerateSignedURL("https://example.com/reset", map[string]string{"token": "abc"}, time.Hour)
+	require.NoError(t, err)
+
+	parsed, err := url.Parse(signed)
+	require.NoError(t, err)
+
+	t.Setenv("HMAC_SECRET_KEY", "")
+	_, err = ValidateSignedURL(parsed.Query())
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to compute signature")
 }
 
 // ---------------------------------------------------------------------------

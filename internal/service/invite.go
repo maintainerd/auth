@@ -96,7 +96,10 @@ func (s *inviteService) SendInvite(
 			}
 		}
 
-		inviteToken := crypto.GenerateIdentifier(32)
+		inviteToken, err := crypto.GenerateIdentifier(32)
+		if err != nil {
+			return err
+		}
 		expiresAt := ptr.TimePtr(time.Now().Add(72 * time.Hour))
 
 		invite = &model.Invite{

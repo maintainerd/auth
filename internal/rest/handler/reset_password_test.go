@@ -3,7 +3,6 @@ package handler
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -12,8 +11,9 @@ import (
 	"time"
 
 	"github.com/maintainerd/auth/internal/dto"
-		"github.com/maintainerd/auth/internal/signedurl"
+	"github.com/maintainerd/auth/internal/signedurl"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func init() {
@@ -24,15 +24,11 @@ func init() {
 
 func validSignedQuery(t *testing.T, params map[string]string) string {
 	t.Helper()
-	v := url.Values{}
-	for k, val := range params {
-		v.Set(k, val)
-	}
-	expires := time.Now().Add(10 * time.Minute).Unix()
-	v.Set("expires", fmt.Sprintf("%d", expires))
-	sig := signedurl.ComputeSignature(v)
-	v.Set("sig", sig)
-	return v.Encode()
+	signed, err := signedurl.GenerateSignedURL("http://x", params, 10*time.Minute)
+	require.NoError(t, err)
+	parsed, err := url.Parse(signed)
+	require.NoError(t, err)
+	return parsed.RawQuery
 }
 
 // ---------------------------------------------------------------------------

@@ -18,6 +18,18 @@ var allowedSortColumns = map[string]struct{}{
 	"priority": {}, "provider_name": {}, "client_id": {},
 }
 
+// normalizePagination clamps page and limit to safe positive values.
+// page defaults to 1 and limit defaults to 20 when zero or negative.
+func normalizePagination(page, limit int) (int, int) {
+	if page < 1 {
+		page = 1
+	}
+	if limit < 1 {
+		limit = 20
+	}
+	return page, limit
+}
+
 // sanitizeOrder validates sortBy against the allowlist and returns a safe
 // ORDER BY expression. Falls back to defaultCol (e.g. "created_at DESC") if
 // sortBy is empty or not in the allowlist.
@@ -54,6 +66,7 @@ func sanitizeOrderPrefixed(prefix, sortBy, sortOrder, defaultCol string) string 
 	return prefix + col + " " + order
 }
 
+// BaseRepository provides common CRUD operations for GORM-backed entities.
 type BaseRepository[T any] struct {
 	db            *gorm.DB
 	uuidFieldName string // e.g., "role_uuid", "user_uuid"
@@ -195,17 +208,35 @@ func (r *BaseRepository[T]) UpdateByID(id any, updatedData any) (*T, error) {
 }
 
 // DeleteByUUID deletes the record matching the given UUID.
+// Returns gorm.ErrRecordNotFound when no row matches.
 func (r *BaseRepository[T]) DeleteByUUID(uuid any) error {
-	return r.db.Where(r.uuidFieldName+" = ?", uuid).Delete(new(T)).Error
+	result := r.db.Where(r.uuidFieldName+" = ?", uuid).Delete(new(T))
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+	return nil
 }
 
 // DeleteByID deletes the record matching the given ID.
+// Returns gorm.ErrRecordNotFound when no row matches.
 func (r *BaseRepository[T]) DeleteByID(id any) error {
-	return r.db.Where(r.idFieldName+" = ?", id).Delete(new(T)).Error
+	result := r.db.Where(r.idFieldName+" = ?", id).Delete(new(T))
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+	return nil
 }
 
 // Paginate with optional preloads
 func (r *BaseRepository[T]) Paginate(conditions map[string]any, page int, limit int, preloads ...string) (*PaginationResult[T], error) {
+	page, limit = normalizePagination(page, limit)
+
 	var entities []T
 	var total int64
 

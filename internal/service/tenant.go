@@ -193,7 +193,10 @@ func (s *tenantService) Create(ctx context.Context, name string, displayName str
 		}
 
 		// Generate identifier
-		identifier := crypto.GenerateIdentifier(12)
+		identifier, err := crypto.GenerateIdentifier(12)
+		if err != nil {
+			return err
+		}
 
 		// Create tenant
 		newTenant := &model.Tenant{
