@@ -11,9 +11,9 @@ import (
 	"github.com/maintainerd/auth/internal/dto"
 	"github.com/maintainerd/auth/internal/middleware"
 	"github.com/maintainerd/auth/internal/model"
-	"github.com/maintainerd/auth/internal/service"
 	"github.com/maintainerd/auth/internal/ptr"
 	resp "github.com/maintainerd/auth/internal/rest/response"
+	"github.com/maintainerd/auth/internal/service"
 )
 
 // LoginTemplateHandler handles HTTP requests for login template management.
@@ -96,7 +96,7 @@ func (h *LoginTemplateHandler) GetAll(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Fetch templates from service - service filters by tenant_id
-	result, err := h.loginTemplateService.GetAll(tenant.TenantID, filter.Name, filter.Status, filter.Template, filter.IsDefault, filter.IsSystem, filter.Page, filter.Limit, filter.SortBy, filter.SortOrder)
+	result, err := h.loginTemplateService.GetAll(r.Context(), tenant.TenantID, filter.Name, filter.Status, filter.Template, filter.IsDefault, filter.IsSystem, filter.Page, filter.Limit, filter.SortBy, filter.SortOrder)
 	if err != nil {
 		resp.HandleServiceError(w, r, "Failed to retrieve login templates", err)
 		return
@@ -136,7 +136,7 @@ func (h *LoginTemplateHandler) Get(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Fetch template - service validates it belongs to tenant
-	template, err := h.loginTemplateService.GetByUUID(loginTemplateUUID, tenant.TenantID)
+	template, err := h.loginTemplateService.GetByUUID(r.Context(), loginTemplateUUID, tenant.TenantID)
 	if err != nil {
 		resp.HandleServiceError(w, r, "Login template not found", err)
 		return
@@ -183,6 +183,7 @@ func (h *LoginTemplateHandler) Create(w http.ResponseWriter, r *http.Request) {
 
 	// Create template associated with tenant
 	template, err := h.loginTemplateService.Create(
+		r.Context(),
 		tenant.TenantID,
 		req.Name,
 		req.Description,
@@ -246,6 +247,7 @@ func (h *LoginTemplateHandler) Update(w http.ResponseWriter, r *http.Request) {
 
 	// Update template - service validates it belongs to tenant
 	template, err := h.loginTemplateService.Update(
+		r.Context(),
 		loginTemplateUUID,
 		tenant.TenantID,
 		req.Name,
@@ -284,7 +286,7 @@ func (h *LoginTemplateHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Delete template - service validates it belongs to tenant
-	template, err := h.loginTemplateService.Delete(loginTemplateUUID, tenant.TenantID)
+	template, err := h.loginTemplateService.Delete(r.Context(), loginTemplateUUID, tenant.TenantID)
 	if err != nil {
 		resp.HandleServiceError(w, r, "Failed to delete login template", err)
 		return
@@ -328,7 +330,7 @@ func (h *LoginTemplateHandler) UpdateStatus(w http.ResponseWriter, r *http.Reque
 	}
 
 	// Update status - service validates template belongs to tenant
-	template, err := h.loginTemplateService.UpdateStatus(loginTemplateUUID, tenant.TenantID, req.Status)
+	template, err := h.loginTemplateService.UpdateStatus(r.Context(), loginTemplateUUID, tenant.TenantID, req.Status)
 	if err != nil {
 		resp.HandleServiceError(w, r, "Failed to update login template status", err)
 		return

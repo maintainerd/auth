@@ -1,13 +1,17 @@
 package service
 
 import (
+	"context"
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/maintainerd/auth/internal/apperror"
 	"github.com/maintainerd/auth/internal/model"
 	"github.com/maintainerd/auth/internal/repository"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
 	"gorm.io/gorm"
-	"github.com/maintainerd/auth/internal/apperror"
 )
 
 type ServiceServiceDataResult struct {
@@ -47,14 +51,14 @@ type ServiceServiceGetResult struct {
 }
 
 type ServiceService interface {
-	Get(filter ServiceServiceGetFilter) (*ServiceServiceGetResult, error)
-	GetByUUID(serviceUUID uuid.UUID, tenantID int64) (*ServiceServiceDataResult, error)
-	Create(name string, displayName string, description string, version string, isSystem bool, status string, tenantID int64) (*ServiceServiceDataResult, error)
-	Update(serviceUUID uuid.UUID, tenantID int64, name string, displayName string, description string, version string, isSystem bool, status string) (*ServiceServiceDataResult, error)
-	SetStatusByUUID(serviceUUID uuid.UUID, tenantID int64, status string) (*ServiceServiceDataResult, error)
-	DeleteByUUID(serviceUUID uuid.UUID, tenantID int64) (*ServiceServiceDataResult, error)
-	AssignPolicy(serviceUUID uuid.UUID, policyUUID uuid.UUID, tenantID int64) error
-	RemovePolicy(serviceUUID uuid.UUID, policyUUID uuid.UUID, tenantID int64) error
+	Get(ctx context.Context, filter ServiceServiceGetFilter) (*ServiceServiceGetResult, error)
+	GetByUUID(ctx context.Context, serviceUUID uuid.UUID, tenantID int64) (*ServiceServiceDataResult, error)
+	Create(ctx context.Context, name string, displayName string, description string, version string, isSystem bool, status string, tenantID int64) (*ServiceServiceDataResult, error)
+	Update(ctx context.Context, serviceUUID uuid.UUID, tenantID int64, name string, displayName string, description string, version string, isSystem bool, status string) (*ServiceServiceDataResult, error)
+	SetStatusByUUID(ctx context.Context, serviceUUID uuid.UUID, tenantID int64, status string) (*ServiceServiceDataResult, error)
+	DeleteByUUID(ctx context.Context, serviceUUID uuid.UUID, tenantID int64) (*ServiceServiceDataResult, error)
+	AssignPolicy(ctx context.Context, serviceUUID uuid.UUID, policyUUID uuid.UUID, tenantID int64) error
+	RemovePolicy(ctx context.Context, serviceUUID uuid.UUID, policyUUID uuid.UUID, tenantID int64) error
 }
 
 type serviceService struct {
@@ -84,7 +88,10 @@ func NewServiceService(
 	}
 }
 
-func (s *serviceService) Get(filter ServiceServiceGetFilter) (*ServiceServiceGetResult, error) {
+func (s *serviceService) Get(ctx context.Context, filter ServiceServiceGetFilter) (*ServiceServiceGetResult, error) {
+	_, span := otel.Tracer("service").Start(ctx, "service.list")
+	defer span.End()
+
 	serviceFilter := repository.ServiceRepositoryGetFilter{
 		Name:        filter.Name,
 		DisplayName: filter.DisplayName,
@@ -101,6 +108,8 @@ func (s *serviceService) Get(filter ServiceServiceGetFilter) (*ServiceServiceGet
 
 	result, err := s.serviceRepo.FindPaginated(serviceFilter)
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "list services failed")
 		return nil, err
 	}
 
@@ -114,6 +123,7 @@ func (s *serviceService) Get(filter ServiceServiceGetFilter) (*ServiceServiceGet
 		services[i] = *s.toServiceServiceDataResult(&svc, filterTenantID)
 	}
 
+	span.SetStatus(codes.Ok, "")
 	return &ServiceServiceGetResult{
 		Data:       services,
 		Total:      result.Total,
@@ -123,22 +133,33 @@ func (s *serviceService) Get(filter ServiceServiceGetFilter) (*ServiceServiceGet
 	}, nil
 }
 
-func (s *serviceService) GetByUUID(serviceUUID uuid.UUID, tenantID int64) (*ServiceServiceDataResult, error) {
+func (s *serviceService) GetByUUID(ctx context.Context, serviceUUID uuid.UUID, tenantID int64) (*ServiceServiceDataResult, error) {
+	_, span := otel.Tracer("service").Start(ctx, "service.getByUUID")
+	defer span.End()
+	span.SetAttributes(attribute.String("service.uuid", serviceUUID.String()), attribute.Int64("tenant.id", tenantID))
+
 	service, err := s.serviceRepo.FindByUUID(serviceUUID)
 	if err != nil || service == nil {
+		span.SetStatus(codes.Error, "service not found")
 		return nil, apperror.NewNotFound("service not found")
 	}
 
 	// Verify service belongs to tenant by checking tenant_services relationship
 	tenantService, err := s.tenantServiceRepo.FindByTenantAndService(tenantID, service.ServiceID)
 	if err != nil || tenantService == nil {
+		span.SetStatus(codes.Error, "service not found or access denied")
 		return nil, apperror.NewNotFoundWithReason("service not found or access denied")
 	}
 
+	span.SetStatus(codes.Ok, "")
 	return s.toServiceServiceDataResult(service, tenantID), nil
 }
 
-func (s *serviceService) Create(name string, displayName string, description string, version string, isSystem bool, status string, tenantID int64) (*ServiceServiceDataResult, error) {
+func (s *serviceService) Create(ctx context.Context, name string, displayName string, description string, version string, isSystem bool, status string, tenantID int64) (*ServiceServiceDataResult, error) {
+	_, span := otel.Tracer("service").Start(ctx, "service.create")
+	defer span.End()
+	span.SetAttributes(attribute.Int64("tenant.id", tenantID))
+
 	var createdService *model.Service
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
@@ -186,13 +207,20 @@ func (s *serviceService) Create(name string, displayName string, description str
 	})
 
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "create service failed")
 		return nil, err
 	}
 
+	span.SetStatus(codes.Ok, "")
 	return s.toServiceServiceDataResult(createdService, tenantID), nil
 }
 
-func (s *serviceService) Update(serviceUUID uuid.UUID, tenantID int64, name string, displayName string, description string, version string, isSystem bool, status string) (*ServiceServiceDataResult, error) {
+func (s *serviceService) Update(ctx context.Context, serviceUUID uuid.UUID, tenantID int64, name string, displayName string, description string, version string, isSystem bool, status string) (*ServiceServiceDataResult, error) {
+	_, span := otel.Tracer("service").Start(ctx, "service.update")
+	defer span.End()
+	span.SetAttributes(attribute.String("service.uuid", serviceUUID.String()), attribute.Int64("tenant.id", tenantID))
+
 	var updatedService *model.Service
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
@@ -243,13 +271,20 @@ func (s *serviceService) Update(serviceUUID uuid.UUID, tenantID int64, name stri
 	})
 
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "update service failed")
 		return nil, err
 	}
 
+	span.SetStatus(codes.Ok, "")
 	return s.toServiceServiceDataResult(updatedService, tenantID), nil
 }
 
-func (s *serviceService) SetStatusByUUID(serviceUUID uuid.UUID, tenantID int64, status string) (*ServiceServiceDataResult, error) {
+func (s *serviceService) SetStatusByUUID(ctx context.Context, serviceUUID uuid.UUID, tenantID int64, status string) (*ServiceServiceDataResult, error) {
+	_, span := otel.Tracer("service").Start(ctx, "service.setStatus")
+	defer span.End()
+	span.SetAttributes(attribute.String("service.uuid", serviceUUID.String()), attribute.Int64("tenant.id", tenantID))
+
 	var updatedService *model.Service
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
@@ -285,34 +320,47 @@ func (s *serviceService) SetStatusByUUID(serviceUUID uuid.UUID, tenantID int64, 
 	})
 
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "set service status failed")
 		return nil, err
 	}
 
+	span.SetStatus(codes.Ok, "")
 	return s.toServiceServiceDataResult(updatedService, tenantID), nil
 }
 
-func (s *serviceService) DeleteByUUID(serviceUUID uuid.UUID, tenantID int64) (*ServiceServiceDataResult, error) {
+func (s *serviceService) DeleteByUUID(ctx context.Context, serviceUUID uuid.UUID, tenantID int64) (*ServiceServiceDataResult, error) {
+	_, span := otel.Tracer("service").Start(ctx, "service.delete")
+	defer span.End()
+	span.SetAttributes(attribute.String("service.uuid", serviceUUID.String()), attribute.Int64("tenant.id", tenantID))
+
 	service, err := s.serviceRepo.FindByUUID(serviceUUID)
 	if err != nil || service == nil {
+		span.SetStatus(codes.Error, "service not found")
 		return nil, apperror.NewNotFound("service not found")
 	}
 
 	// Verify service belongs to tenant
 	tenantService, err := s.tenantServiceRepo.FindByTenantAndService(tenantID, service.ServiceID)
 	if err != nil || tenantService == nil {
+		span.SetStatus(codes.Error, "service not found or access denied")
 		return nil, apperror.NewNotFoundWithReason("service not found or access denied")
 	}
 
 	// Check if service is a system record (critical for app functionality)
 	if service.IsSystem {
+		span.SetStatus(codes.Error, "system service cannot be deleted")
 		return nil, apperror.NewValidation("system service cannot be deleted")
 	}
 
 	err = s.serviceRepo.DeleteByUUID(serviceUUID)
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "delete service failed")
 		return nil, err
 	}
 
+	span.SetStatus(codes.Ok, "")
 	return s.toServiceServiceDataResult(service, tenantID), nil
 }
 
@@ -339,8 +387,12 @@ func (s *serviceService) toServiceServiceDataResult(service *model.Service, tena
 	}
 }
 
-func (s *serviceService) AssignPolicy(serviceUUID uuid.UUID, policyUUID uuid.UUID, tenantID int64) error {
-	return s.db.Transaction(func(tx *gorm.DB) error {
+func (s *serviceService) AssignPolicy(ctx context.Context, serviceUUID uuid.UUID, policyUUID uuid.UUID, tenantID int64) error {
+	_, span := otel.Tracer("service").Start(ctx, "service.assignPolicy")
+	defer span.End()
+	span.SetAttributes(attribute.String("service.uuid", serviceUUID.String()), attribute.String("policy.uuid", policyUUID.String()), attribute.Int64("tenant.id", tenantID))
+
+	err := s.db.Transaction(func(tx *gorm.DB) error {
 		txServiceRepo := s.serviceRepo.WithTx(tx)
 		txPolicyRepo := s.policyRepo.WithTx(tx)
 		txServicePolicyRepo := s.servicePolicyRepo.WithTx(tx)
@@ -383,10 +435,21 @@ func (s *serviceService) AssignPolicy(serviceUUID uuid.UUID, policyUUID uuid.UUI
 		_, err = txServicePolicyRepo.Create(servicePolicy)
 		return err
 	})
+	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "assign policy failed")
+		return err
+	}
+	span.SetStatus(codes.Ok, "")
+	return nil
 }
 
-func (s *serviceService) RemovePolicy(serviceUUID uuid.UUID, policyUUID uuid.UUID, tenantID int64) error {
-	return s.db.Transaction(func(tx *gorm.DB) error {
+func (s *serviceService) RemovePolicy(ctx context.Context, serviceUUID uuid.UUID, policyUUID uuid.UUID, tenantID int64) error {
+	_, span := otel.Tracer("service").Start(ctx, "service.removePolicy")
+	defer span.End()
+	span.SetAttributes(attribute.String("service.uuid", serviceUUID.String()), attribute.String("policy.uuid", policyUUID.String()), attribute.Int64("tenant.id", tenantID))
+
+	err := s.db.Transaction(func(tx *gorm.DB) error {
 		txServiceRepo := s.serviceRepo.WithTx(tx)
 		txPolicyRepo := s.policyRepo.WithTx(tx)
 		txServicePolicyRepo := s.servicePolicyRepo.WithTx(tx)
@@ -422,4 +485,11 @@ func (s *serviceService) RemovePolicy(serviceUUID uuid.UUID, policyUUID uuid.UUI
 		// Remove the service-policy assignment
 		return txServicePolicyRepo.DeleteByServiceAndPolicy(service.ServiceID, policy.PolicyID)
 	})
+	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "remove policy failed")
+		return err
+	}
+	span.SetStatus(codes.Ok, "")
+	return nil
 }

@@ -102,7 +102,7 @@ func (h *RoleHandler) Get(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Fetch roles from service - service filters by tenant_id
-	result, err := h.service.Get(roleFilter)
+	result, err := h.service.Get(r.Context(), roleFilter)
 	if err != nil {
 		resp.HandleServiceError(w, r, "Failed to fetch roles", err)
 		return
@@ -145,7 +145,7 @@ func (h *RoleHandler) GetByUUID(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Fetch role - service validates it belongs to tenant
-	role, err := h.service.GetByUUID(roleUUID, tenant.TenantID)
+	role, err := h.service.GetByUUID(r.Context(), roleUUID, tenant.TenantID)
 	if err != nil {
 		resp.HandleServiceError(w, r, "Role not found", err)
 		return
@@ -385,7 +385,7 @@ func (h *RoleHandler) GetPermissions(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Fetch permissions from service - service validates role belongs to tenant
-	result, err := h.service.GetRolePermissions(filter)
+	result, err := h.service.GetRolePermissions(r.Context(), filter)
 	if err != nil {
 		resp.HandleServiceError(w, r, "Failed to fetch role permissions", err)
 		return

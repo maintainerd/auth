@@ -55,6 +55,9 @@ import (
 	"time"
 
 	"github.com/redis/go-redis/v9"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -342,6 +345,10 @@ func rateLimitLockKey(identifier string) string {
 // CheckRateLimit returns an error if the identifier is currently locked out.
 // Complies with SOC2 CC6.1 and ISO27001 A.9.4.2
 func CheckRateLimit(identifier string) error {
+	_, span := otel.Tracer("security").Start(context.Background(), "security.check_rate_limit")
+	defer span.End()
+	span.SetAttributes(attribute.String("identifier", identifier))
+
 	if rateLimiterClient == nil {
 		return nil // graceful degradation during unit tests that skip InitRateLimiter
 	}
@@ -353,6 +360,7 @@ func CheckRateLimit(identifier string) error {
 	if err == nil && lockVal != "" {
 		// Parse remaining TTL for a useful error message
 		ttl, _ := rateLimiterClient.TTL(ctx, rateLimitLockKey(identifier)).Result()
+		span.SetStatus(codes.Error, "account locked")
 		return fmt.Errorf("account is locked for %v due to too many failed login attempts", ttl.Round(time.Minute))
 	}
 
@@ -374,14 +382,20 @@ func CheckRateLimit(identifier string) error {
 			Details:   fmt.Sprintf("Account locked after %d failed login attempts", count),
 		})
 
+		span.SetStatus(codes.Error, "account locked")
 		return fmt.Errorf("account locked for %v due to too many failed login attempts", AccountLockoutTime)
 	}
 
+	span.SetStatus(codes.Ok, "")
 	return nil
 }
 
 // RecordFailedAttempt increments the failure counter in Redis with a sliding window TTL.
 func RecordFailedAttempt(identifier string) {
+	_, span := otel.Tracer("security").Start(context.Background(), "security.record_failed_attempt")
+	defer span.End()
+	span.SetAttributes(attribute.String("identifier", identifier))
+
 	if rateLimiterClient == nil {
 		return
 	}
@@ -395,11 +409,16 @@ func RecordFailedAttempt(identifier string) {
 
 // ResetFailedAttempts clears all rate-limit state after a successful login.
 func ResetFailedAttempts(identifier string) {
+	_, span := otel.Tracer("security").Start(context.Background(), "security.reset_failed_attempts")
+	defer span.End()
+	span.SetAttributes(attribute.String("identifier", identifier))
+
 	if rateLimiterClient == nil {
 		return
 	}
 	ctx := context.Background()
 	_ = rateLimiterClient.Del(ctx, rateLimitCountKey(identifier), rateLimitLockKey(identifier)).Err()
+	span.SetStatus(codes.Ok, "")
 }
 
 // ============================================================================
@@ -411,8 +430,17 @@ func ResetFailedAttempts(identifier string) {
 // This can be used by services that need to enforce session limits
 // Complies with SOC2 CC6.3 and ISO27001 A.9.4.2
 func ValidateSessionLimit(userID string, currentSessionCount int) error {
+	_, span := otel.Tracer("security").Start(context.Background(), "security.validate_session_limit")
+	defer span.End()
+	span.SetAttributes(
+		attribute.String("user_id", userID),
+		attribute.Int("session_count", currentSessionCount),
+	)
+
 	if currentSessionCount >= MaxConcurrentSessions {
+		span.SetStatus(codes.Error, "session limit exceeded")
 		return fmt.Errorf("maximum concurrent sessions (%d) exceeded for user", MaxConcurrentSessions)
 	}
+	span.SetStatus(codes.Ok, "")
 	return nil
 }

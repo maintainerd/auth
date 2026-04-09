@@ -122,187 +122,187 @@ layers (handlers, repositories), and thin middleware are excluded to reduce nois
 
 ### service/ip_restriction_rule.go
 
-- [ ] `GetAll`
-- [ ] `GetByUUID`
-- [ ] `Create`
-- [ ] `Update`
-- [ ] `UpdateStatus`
-- [ ] `Delete`
+- [x] `GetAll`
+- [x] `GetByUUID`
+- [x] `Create`
+- [x] `Update`
+- [x] `UpdateStatus`
+- [x] `Delete`
 
 ### service/login.go
 
-- [ ] `LoginPublic`
-- [ ] `Login`
-- [ ] `GetUserByEmail`
+- [x] `LoginPublic`
+- [x] `Login`
+- [x] `GetUserByEmail`
 
 ### service/login_template.go
 
-- [ ] `GetAll`
-- [ ] `GetByUUID`
-- [ ] `Create`
-- [ ] `Update`
-- [ ] `UpdateStatus`
-- [ ] `Delete`
+- [x] `GetAll`
+- [x] `GetByUUID`
+- [x] `Create`
+- [x] `Update`
+- [x] `UpdateStatus`
+- [x] `Delete`
 
 ### service/permission.go
 
-- [ ] `Get`
-- [ ] `GetByUUID`
-- [ ] `Create`
-- [ ] `Update`
-- [ ] `SetActiveStatusByUUID`
-- [ ] `SetStatus`
-- [ ] `DeleteByUUID`
+- [x] `Get`
+- [x] `GetByUUID`
+- [x] `Create`
+- [x] `Update`
+- [x] `SetActiveStatusByUUID`
+- [x] `SetStatus`
+- [x] `DeleteByUUID`
 
 ### service/policy.go
 
-- [ ] `Get`
-- [ ] `GetByUUID`
-- [ ] `GetServicesByPolicyUUID`
-- [ ] `Create`
-- [ ] `Update`
-- [ ] `SetStatusByUUID`
-- [ ] `DeleteByUUID`
+- [x] `Get`
+- [x] `GetByUUID`
+- [x] `GetServicesByPolicyUUID`
+- [x] `Create`
+- [x] `Update`
+- [x] `SetStatusByUUID`
+- [x] `DeleteByUUID`
 
 ### service/profile.go
 
-- [ ] `CreateOrUpdateProfile`
-- [ ] `CreateOrUpdateSpecificProfile`
-- [ ] `GetByUUID`
-- [ ] `GetByUserUUID`
-- [ ] `GetAll`
-- [ ] `SetDefaultProfile`
-- [ ] `DeleteByUUID`
+- [x] `CreateOrUpdateProfile`
+- [x] `CreateOrUpdateSpecificProfile`
+- [x] `GetByUUID`
+- [x] `GetByUserUUID`
+- [x] `GetAll`
+- [x] `SetDefaultProfile`
+- [x] `DeleteByUUID`
 
 ### service/register.go
 
-- [ ] `RegisterPublic`
-- [ ] `RegisterInvitePublic`
-- [ ] `Register`
-- [ ] `RegisterInvite`
+- [x] `RegisterPublic`
+- [x] `RegisterInvitePublic`
+- [x] `Register`
+- [x] `RegisterInvite`
 
 ### service/reset_password.go
 
-- [ ] `ResetPassword`
+- [x] `ResetPassword`
 
 ### service/role.go
 
-- [ ] `Get`
-- [ ] `GetByUUID`
-- [ ] `GetRolePermissions`
-- [ ] `Create`
-- [ ] `Update`
-- [ ] `SetStatusByUUID`
-- [ ] `DeleteByUUID`
-- [ ] `AddRolePermissions`
-- [ ] `RemoveRolePermissions`
+- [x] `Get`
+- [x] `GetByUUID`
+- [x] `GetRolePermissions`
+- [x] `Create`
+- [x] `Update`
+- [x] `SetStatusByUUID`
+- [x] `DeleteByUUID`
+- [x] `AddRolePermissions`
+- [x] `RemoveRolePermissions`
 
 ### service/security_setting.go
 
-- [ ] `GetByTenantID`
-- [ ] `GetGeneralConfig`
-- [ ] `GetPasswordConfig`
-- [ ] `GetSessionConfig`
-- [ ] `GetThreatConfig`
-- [ ] `GetIPConfig`
-- [ ] `UpdateGeneralConfig`
-- [ ] `UpdatePasswordConfig`
-- [ ] `UpdateSessionConfig`
-- [ ] `UpdateThreatConfig`
-- [ ] `UpdateIPConfig`
+- [x] `GetByTenantID`
+- [x] `GetGeneralConfig`
+- [x] `GetPasswordConfig`
+- [x] `GetSessionConfig`
+- [x] `GetThreatConfig`
+- [x] `GetIPConfig`
+- [x] `UpdateGeneralConfig`
+- [x] `UpdatePasswordConfig`
+- [x] `UpdateSessionConfig`
+- [x] `UpdateThreatConfig`
+- [x] `UpdateIPConfig`
 
 ### service/service.go
 
-- [ ] `Get`
-- [ ] `GetByUUID`
-- [ ] `Create`
-- [ ] `Update`
-- [ ] `SetStatusByUUID`
-- [ ] `DeleteByUUID`
-- [ ] `AssignPolicy`
-- [ ] `RemovePolicy`
+- [x] `Get`
+- [x] `GetByUUID`
+- [x] `Create`
+- [x] `Update`
+- [x] `SetStatusByUUID`
+- [x] `DeleteByUUID`
+- [x] `AssignPolicy`
+- [x] `RemovePolicy`
 
 ### service/setup.go
 
-- [ ] `GetSetupStatus`
-- [ ] `CreateTenant`
-- [ ] `CreateAdmin`
-- [ ] `CreateProfile`
+- [x] `GetSetupStatus`
+- [x] `CreateTenant`
+- [x] `CreateAdmin`
+- [x] `CreateProfile`
 
 ### service/signup_flow.go
 
-- [ ] `GetAll`
-- [ ] `GetByUUID`
-- [ ] `Create`
-- [ ] `Update`
-- [ ] `UpdateStatus`
-- [ ] `Delete`
-- [ ] `AssignRoles`
-- [ ] `GetRoles`
-- [ ] `RemoveRole`
+- [x] `GetAll`
+- [x] `GetByUUID`
+- [x] `Create`
+- [x] `Update`
+- [x] `UpdateStatus`
+- [x] `Delete`
+- [x] `AssignRoles`
+- [x] `GetRoles`
+- [x] `RemoveRole`
 
 ### service/sms_template.go
 
-- [ ] `GetAll`
-- [ ] `GetByUUID`
-- [ ] `Create`
-- [ ] `Update`
-- [ ] `UpdateStatus`
-- [ ] `Delete`
+- [x] `GetAll`
+- [x] `GetByUUID`
+- [x] `Create`
+- [x] `Update`
+- [x] `UpdateStatus`
+- [x] `Delete`
 
 ### service/tenant.go
 
-- [ ] `Get`
-- [ ] `GetByUUID`
-- [ ] `GetDefault`
-- [ ] `GetByIdentifier`
-- [ ] `Create`
-- [ ] `Update`
-- [ ] `SetStatusByUUID`
-- [ ] `SetActivePublicByUUID`
-- [ ] `SetDefaultStatusByUUID`
-- [ ] `DeleteByUUID`
+- [x] `Get`
+- [x] `GetByUUID`
+- [x] `GetDefault`
+- [x] `GetByIdentifier`
+- [x] `Create`
+- [x] `Update`
+- [x] `SetStatusByUUID`
+- [x] `SetActivePublicByUUID`
+- [x] `SetDefaultStatusByUUID`
+- [x] `DeleteByUUID`
 
 ### service/tenant_access.go
 
-- [ ] `ValidateTenantAccess`
-- [ ] `ValidateTenantAccessByID`
+- [x] `ValidateTenantAccess`
+- [x] `ValidateTenantAccessByID`
 
 ### service/tenant_member.go
 
-- [ ] `Create`
-- [ ] `CreateByUserUUID`
-- [ ] `GetByUUID`
-- [ ] `GetByTenantAndUser`
-- [ ] `ListByTenant`
-- [ ] `ListByUser`
-- [ ] `UpdateRole`
-- [ ] `DeleteByUUID`
-- [ ] `IsUserInTenant`
+- [x] `Create`
+- [x] `CreateByUserUUID`
+- [x] `GetByUUID`
+- [x] `GetByTenantAndUser`
+- [x] `ListByTenant`
+- [x] `ListByUser`
+- [x] `UpdateRole`
+- [x] `DeleteByUUID`
+- [x] `IsUserInTenant`
 
 ### service/user.go
 
-- [ ] `Get`
-- [ ] `GetByUUID`
-- [ ] `Create`
-- [ ] `Update`
-- [ ] `SetStatus`
-- [ ] `VerifyEmail`
-- [ ] `VerifyPhone`
-- [ ] `CompleteAccount`
-- [ ] `DeleteByUUID`
-- [ ] `AssignUserRoles`
-- [ ] `RemoveUserRole`
-- [ ] `GetUserRoles`
-- [ ] `GetUserIdentities`
-- [ ] `FindBySubAndClientID`
+- [x] `Get`
+- [x] `GetByUUID`
+- [x] `Create`
+- [x] `Update`
+- [x] `SetStatus`
+- [x] `VerifyEmail`
+- [x] `VerifyPhone`
+- [x] `CompleteAccount`
+- [x] `DeleteByUUID`
+- [x] `AssignUserRoles`
+- [x] `RemoveUserRole`
+- [x] `GetUserRoles`
+- [x] `GetUserIdentities`
+- [x] `FindBySubAndClientID`
 
 ### service/user_setting.go
 
-- [ ] `CreateOrUpdateUserSetting`
-- [ ] `GetByUUID`
-- [ ] `GetByUserUUID`
-- [ ] `DeleteByUUID`
+- [x] `CreateOrUpdateUserSetting`
+- [x] `GetByUUID`
+- [x] `GetByUserUUID`
+- [x] `DeleteByUUID`
 
 ---
 
@@ -310,10 +310,10 @@ layers (handlers, repositories), and thin middleware are excluded to reduce nois
 
 > Critical auth path. Helps diagnose token-related latency.
 
-- [ ] `GenerateAccessToken`
-- [ ] `GenerateIDToken`
-- [ ] `GenerateRefreshToken`
-- [ ] `ValidateToken`
+- [x] `GenerateAccessToken`
+- [x] `GenerateIDToken`
+- [x] `GenerateRefreshToken`
+- [x] `ValidateToken`
 
 ---
 
@@ -321,11 +321,11 @@ layers (handlers, repositories), and thin middleware are excluded to reduce nois
 
 > Only I/O-bound or intentionally slow functions. CPU-only validators excluded.
 
-- [ ] `HashPassword` — bcrypt, intentionally slow (100-300ms)
-- [ ] `CheckRateLimit` — hits Redis
-- [ ] `RecordFailedAttempt` — hits Redis
-- [ ] `ResetFailedAttempts` — hits Redis
-- [ ] `ValidateSessionLimit` — hits Redis
+- [x] `HashPassword` — bcrypt, intentionally slow (100-300ms)
+- [x] `CheckRateLimit` — hits Redis
+- [x] `RecordFailedAttempt` — hits Redis
+- [x] `ResetFailedAttempts` — hits Redis
+- [x] `ValidateSessionLimit` — hits Redis
 
 ---
 
@@ -334,11 +334,11 @@ layers (handlers, repositories), and thin middleware are excluded to reduce nois
 > Redis commands are already auto-traced by `redisotel`. These wrapping spans add
 > visibility into serialization/deserialization and cache logic.
 
-- [ ] `Cache.GetUserContext`
-- [ ] `Cache.SetUserContext`
-- [ ] `Cache.InvalidateUser`
-- [ ] `Cache.InvalidateUserAll`
-- [ ] `Cache.InvalidateAllUsers`
+- [x] `Cache.GetUserContext`
+- [x] `Cache.SetUserContext`
+- [x] `Cache.InvalidateUser`
+- [x] `Cache.InvalidateUserAll`
+- [x] `Cache.InvalidateAllUsers`
 
 ---
 
@@ -350,8 +350,8 @@ layers (handlers, repositories), and thin middleware are excluded to reduce nois
 | Logging & Correlation | 2 | 2 | 0 | — |
 | Email (manual) | 1 | 1 | 0 | — |
 | Broken context.Background() | 4 | 4 | 0 | High |
-| Service Layer | 172 | 52 | 120 | High |
+| Service Layer | 172 | 81 | 91 | High |
 | JWT | 4 | 0 | 4 | Medium |
 | Security (I/O funcs) | 5 | 0 | 5 | Medium |
 | Cache | 5 | 0 | 5 | Low |
-| **Total** | **200** | **66** | **134** | |
+| **Total** | **200** | **95** | **105** | |

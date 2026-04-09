@@ -1,6 +1,7 @@
 package jwt
 
 import (
+	"context"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/sha256"
@@ -12,6 +13,9 @@ import (
 
 	jwtlib "github.com/golang-jwt/jwt/v5"
 	"github.com/maintainerd/auth/internal/config"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
 )
 
 // Security constants for SOC2/ISO27001 compliance
@@ -110,20 +114,33 @@ func GenerateAccessToken(
 	clientID string,
 	providerID string,
 ) (string, error) {
+	_, span := otel.Tracer("jwt").Start(context.Background(), "jwt.generate_access_token")
+	defer span.End()
+	span.SetAttributes(
+		attribute.String("user_id", userId),
+		attribute.String("issuer", issuer),
+		attribute.String("audience", audience),
+		attribute.String("client_id", clientID),
+	)
 	// Input validation (SOC2 CC6.1 - Logical Access Controls)
 	if strings.TrimSpace(userId) == "" {
+		span.SetStatus(codes.Error, "invalid input")
 		return "", errors.New("userId cannot be empty")
 	}
 	if strings.TrimSpace(issuer) == "" {
+		span.SetStatus(codes.Error, "invalid input")
 		return "", errors.New("issuer cannot be empty")
 	}
 	if strings.TrimSpace(audience) == "" {
+		span.SetStatus(codes.Error, "invalid input")
 		return "", errors.New("audience cannot be empty")
 	}
 	if strings.TrimSpace(clientID) == "" {
+		span.SetStatus(codes.Error, "invalid input")
 		return "", errors.New("clientID cannot be empty")
 	}
 	if strings.TrimSpace(providerID) == "" {
+		span.SetStatus(codes.Error, "invalid input")
 		return "", errors.New("providerID cannot be empty")
 	}
 
@@ -150,7 +167,14 @@ func GenerateAccessToken(
 		"provider_id": providerID,
 	}
 
-	return generateToken(claims)
+	tok, err := generateToken(claims)
+	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "generate access token failed")
+		return "", err
+	}
+	span.SetStatus(codes.Ok, "")
+	return tok, nil
 }
 
 // UserProfile represents user profile data for ID tokens
@@ -172,17 +196,28 @@ type UserProfile struct {
 var GenerateIDToken = generateIDToken
 
 func generateIDToken(userUUID, issuer, clientID, providerID string, profile *UserProfile, nonce string) (string, error) {
+	_, span := otel.Tracer("jwt").Start(context.Background(), "jwt.generate_id_token")
+	defer span.End()
+	span.SetAttributes(
+		attribute.String("user_uuid", userUUID),
+		attribute.String("issuer", issuer),
+		attribute.String("client_id", clientID),
+	)
 	// Input validation (SOC2 CC6.1 - Logical Access Controls)
 	if strings.TrimSpace(userUUID) == "" {
+		span.SetStatus(codes.Error, "invalid input")
 		return "", errors.New("userUUID cannot be empty")
 	}
 	if strings.TrimSpace(issuer) == "" {
+		span.SetStatus(codes.Error, "invalid input")
 		return "", errors.New("issuer cannot be empty")
 	}
 	if strings.TrimSpace(clientID) == "" {
+		span.SetStatus(codes.Error, "invalid input")
 		return "", errors.New("clientID cannot be empty")
 	}
 	if strings.TrimSpace(providerID) == "" {
+		span.SetStatus(codes.Error, "invalid input")
 		return "", errors.New("providerID cannot be empty")
 	}
 
@@ -248,23 +283,41 @@ func generateIDToken(userUUID, issuer, clientID, providerID string, profile *Use
 		}
 	}
 
-	return generateToken(claims)
+	tok, err := generateToken(claims)
+	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "generate id token failed")
+		return "", err
+	}
+	span.SetStatus(codes.Ok, "")
+	return tok, nil
 }
 
 var GenerateRefreshToken = generateRefreshToken
 
 func generateRefreshToken(userUUID, issuer, clientID, providerID string) (string, error) {
+	_, span := otel.Tracer("jwt").Start(context.Background(), "jwt.generate_refresh_token")
+	defer span.End()
+	span.SetAttributes(
+		attribute.String("user_uuid", userUUID),
+		attribute.String("issuer", issuer),
+		attribute.String("client_id", clientID),
+	)
 	// Input validation (SOC2 CC6.1 - Logical Access Controls)
 	if strings.TrimSpace(userUUID) == "" {
+		span.SetStatus(codes.Error, "invalid input")
 		return "", errors.New("userUUID cannot be empty")
 	}
 	if strings.TrimSpace(issuer) == "" {
+		span.SetStatus(codes.Error, "invalid input")
 		return "", errors.New("issuer cannot be empty")
 	}
 	if strings.TrimSpace(clientID) == "" {
+		span.SetStatus(codes.Error, "invalid input")
 		return "", errors.New("clientID cannot be empty")
 	}
 	if strings.TrimSpace(providerID) == "" {
+		span.SetStatus(codes.Error, "invalid input")
 		return "", errors.New("providerID cannot be empty")
 	}
 
@@ -288,7 +341,14 @@ func generateRefreshToken(userUUID, issuer, clientID, providerID string) (string
 		"provider_id": providerID,
 	}
 
-	return generateToken(claims)
+	tok, err := generateToken(claims)
+	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "generate refresh token failed")
+		return "", err
+	}
+	span.SetStatus(codes.Ok, "")
+	return tok, nil
 }
 
 // generateToken creates a JWT with enhanced security validation
@@ -318,12 +378,19 @@ func generateToken(claims jwtlib.MapClaims) (string, error) {
 // ValidateToken performs comprehensive JWT validation
 // Complies with SOC2 CC6.1, CC6.3 and ISO27001 A.9.4.2
 func ValidateToken(tokenString string) (jwtlib.MapClaims, error) {
+	_, span := otel.Tracer("jwt").Start(context.Background(), "jwt.validate_token")
+	defer span.End()
+
 	if publicKey == nil {
-		return nil, errors.New("public key not initialized - call InitJWTKeys() first")
+		err := errors.New("public key not initialized - call InitJWTKeys() first")
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "validate token failed")
+		return nil, err
 	}
 
 	// Input validation
 	if strings.TrimSpace(tokenString) == "" {
+		span.SetStatus(codes.Error, "invalid input")
 		return nil, errors.New("token cannot be empty")
 	}
 
@@ -348,6 +415,8 @@ func ValidateToken(tokenString string) (jwtlib.MapClaims, error) {
 	})
 
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "token parsing failed")
 		return nil, fmt.Errorf("token parsing failed: %w", err)
 	}
 
@@ -357,9 +426,12 @@ func ValidateToken(tokenString string) (jwtlib.MapClaims, error) {
 
 	// Additional security validations
 	if err := validateTokenClaims(claims); err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "token claims validation failed")
 		return nil, fmt.Errorf("token validation failed: %w", err)
 	}
 
+	span.SetStatus(codes.Ok, "")
 	return claims, nil
 }
 

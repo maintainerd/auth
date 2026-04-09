@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"errors"
 	"testing"
 
@@ -25,7 +26,7 @@ func TestIPRestrictionRuleService_GetAll(t *testing.T) {
 				}, nil
 			},
 		})
-		res, err := svc.GetAll(1, nil, nil, nil, nil, 1, 10, "created_at", "asc")
+		res, err := svc.GetAll(context.Background(), 1, nil, nil, nil, nil, 1, 10, "created_at", "asc")
 		require.NoError(t, err)
 		assert.Equal(t, int64(1), res.Total)
 		assert.Len(t, res.Data, 1)
@@ -37,7 +38,7 @@ func TestIPRestrictionRuleService_GetAll(t *testing.T) {
 				return nil, errors.New("db err")
 			},
 		})
-		_, err := svc.GetAll(1, nil, nil, nil, nil, 1, 10, "created_at", "asc")
+		_, err := svc.GetAll(context.Background(), 1, nil, nil, nil, nil, 1, 10, "created_at", "asc")
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "db err")
 	})
@@ -82,7 +83,7 @@ func TestIPRestrictionRuleService_GetByUUID(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			svc := newIPRuleSvc(&mockIPRestrictionRuleRepo{findByUUIDFn: tc.repoFn})
-			res, err := svc.GetByUUID(tid, id)
+			res, err := svc.GetByUUID(context.Background(), tid, id)
 			if tc.wantErr != "" {
 				require.Error(t, err)
 				assert.Contains(t, err.Error(), tc.wantErr)
@@ -99,7 +100,7 @@ func TestIPRestrictionRuleService_Create(t *testing.T) {
 		svc := newIPRuleSvc(&mockIPRestrictionRuleRepo{
 			createFn: func(e *model.IPRestrictionRule) (*model.IPRestrictionRule, error) { return e, nil },
 		})
-		res, err := svc.Create(1, "block malicious", "blacklist", "10.0.0.1", "active", 42)
+		res, err := svc.Create(context.Background(), 1, "block malicious", "blacklist", "10.0.0.1", "active", 42)
 		require.NoError(t, err)
 		assert.Equal(t, "10.0.0.1", res.IPAddress)
 	})
@@ -108,7 +109,7 @@ func TestIPRestrictionRuleService_Create(t *testing.T) {
 		svc := newIPRuleSvc(&mockIPRestrictionRuleRepo{
 			createFn: func(_ *model.IPRestrictionRule) (*model.IPRestrictionRule, error) { return nil, errors.New("fail") },
 		})
-		_, err := svc.Create(1, "d", "blacklist", "10.0.0.1", "active", 42)
+		_, err := svc.Create(context.Background(), 1, "d", "blacklist", "10.0.0.1", "active", 42)
 		require.Error(t, err)
 	})
 }
@@ -121,7 +122,7 @@ func TestIPRestrictionRuleService_Update(t *testing.T) {
 		svc := newIPRuleSvc(&mockIPRestrictionRuleRepo{
 			findByUUIDFn: func(_ any, _ ...string) (*model.IPRestrictionRule, error) { return nil, nil },
 		})
-		_, err := svc.Update(tid, id, "d", "blacklist", "10.0.0.1", "active", 1)
+		_, err := svc.Update(context.Background(), tid, id, "d", "blacklist", "10.0.0.1", "active", 1)
 		require.Error(t, err)
 	})
 
@@ -131,7 +132,7 @@ func TestIPRestrictionRuleService_Update(t *testing.T) {
 				return nil, errors.New("db err")
 			},
 		})
-		_, err := svc.Update(tid, id, "d", "blacklist", "10.0.0.1", "active", 1)
+		_, err := svc.Update(context.Background(), tid, id, "d", "blacklist", "10.0.0.1", "active", 1)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "db err")
 	})
@@ -142,7 +143,7 @@ func TestIPRestrictionRuleService_Update(t *testing.T) {
 				return &model.IPRestrictionRule{TenantID: 999}, nil
 			},
 		})
-		_, err := svc.Update(tid, id, "d", "blacklist", "10.0.0.1", "active", 1)
+		_, err := svc.Update(context.Background(), tid, id, "d", "blacklist", "10.0.0.1", "active", 1)
 		require.Error(t, err)
 	})
 
@@ -155,7 +156,7 @@ func TestIPRestrictionRuleService_Update(t *testing.T) {
 				return nil, errors.New("update err")
 			},
 		})
-		_, err := svc.Update(tid, id, "d", "blacklist", "10.0.0.1", "active", 1)
+		_, err := svc.Update(context.Background(), tid, id, "d", "blacklist", "10.0.0.1", "active", 1)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "update err")
 	})
@@ -169,7 +170,7 @@ func TestIPRestrictionRuleService_Update(t *testing.T) {
 				return &model.IPRestrictionRule{IPAddress: "10.0.0.1", TenantID: tid}, nil
 			},
 		})
-		res, err := svc.Update(tid, id, "d", "blacklist", "10.0.0.1", "active", 1)
+		res, err := svc.Update(context.Background(), tid, id, "d", "blacklist", "10.0.0.1", "active", 1)
 		require.NoError(t, err)
 		assert.Equal(t, "10.0.0.1", res.IPAddress)
 	})
@@ -185,7 +186,7 @@ func TestIPRestrictionRuleService_UpdateStatus(t *testing.T) {
 				return nil, errors.New("db err")
 			},
 		})
-		_, err := svc.UpdateStatus(tid, id, "inactive", 1)
+		_, err := svc.UpdateStatus(context.Background(), tid, id, "inactive", 1)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "db err")
 	})
@@ -194,7 +195,7 @@ func TestIPRestrictionRuleService_UpdateStatus(t *testing.T) {
 		svc := newIPRuleSvc(&mockIPRestrictionRuleRepo{
 			findByUUIDFn: func(_ any, _ ...string) (*model.IPRestrictionRule, error) { return nil, nil },
 		})
-		_, err := svc.UpdateStatus(tid, id, "inactive", 1)
+		_, err := svc.UpdateStatus(context.Background(), tid, id, "inactive", 1)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "not found")
 	})
@@ -205,7 +206,7 @@ func TestIPRestrictionRuleService_UpdateStatus(t *testing.T) {
 				return &model.IPRestrictionRule{TenantID: 999}, nil
 			},
 		})
-		_, err := svc.UpdateStatus(tid, id, "inactive", 1)
+		_, err := svc.UpdateStatus(context.Background(), tid, id, "inactive", 1)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "not found")
 	})
@@ -219,7 +220,7 @@ func TestIPRestrictionRuleService_UpdateStatus(t *testing.T) {
 				return nil, errors.New("update err")
 			},
 		})
-		_, err := svc.UpdateStatus(tid, id, "inactive", 1)
+		_, err := svc.UpdateStatus(context.Background(), tid, id, "inactive", 1)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "update err")
 	})
@@ -233,7 +234,7 @@ func TestIPRestrictionRuleService_UpdateStatus(t *testing.T) {
 				return &model.IPRestrictionRule{IPRestrictionRuleUUID: id, TenantID: tid, Status: "inactive"}, nil
 			},
 		})
-		res, err := svc.UpdateStatus(tid, id, "inactive", 1)
+		res, err := svc.UpdateStatus(context.Background(), tid, id, "inactive", 1)
 		require.NoError(t, err)
 		assert.Equal(t, "inactive", res.Status)
 	})
@@ -249,7 +250,7 @@ func TestIPRestrictionRuleService_Delete(t *testing.T) {
 				return nil, errors.New("db err")
 			},
 		})
-		_, err := svc.Delete(tid, id)
+		_, err := svc.Delete(context.Background(), tid, id)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "db err")
 	})
@@ -258,7 +259,7 @@ func TestIPRestrictionRuleService_Delete(t *testing.T) {
 		svc := newIPRuleSvc(&mockIPRestrictionRuleRepo{
 			findByUUIDFn: func(_ any, _ ...string) (*model.IPRestrictionRule, error) { return nil, nil },
 		})
-		_, err := svc.Delete(tid, id)
+		_, err := svc.Delete(context.Background(), tid, id)
 		require.Error(t, err)
 	})
 
@@ -268,7 +269,7 @@ func TestIPRestrictionRuleService_Delete(t *testing.T) {
 				return &model.IPRestrictionRule{TenantID: 999}, nil
 			},
 		})
-		_, err := svc.Delete(tid, id)
+		_, err := svc.Delete(context.Background(), tid, id)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "not found")
 	})
@@ -280,7 +281,7 @@ func TestIPRestrictionRuleService_Delete(t *testing.T) {
 			},
 			deleteByUUIDFn: func(_ any) error { return errors.New("delete err") },
 		})
-		_, err := svc.Delete(tid, id)
+		_, err := svc.Delete(context.Background(), tid, id)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "delete err")
 	})
@@ -292,7 +293,7 @@ func TestIPRestrictionRuleService_Delete(t *testing.T) {
 			},
 			deleteByUUIDFn: func(_ any) error { return nil },
 		})
-		res, err := svc.Delete(tid, id)
+		res, err := svc.Delete(context.Background(), tid, id)
 		require.NoError(t, err)
 		assert.Equal(t, "1.2.3.4", res.IPAddress)
 	})

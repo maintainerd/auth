@@ -10,9 +10,9 @@ import (
 	"github.com/maintainerd/auth/internal/dto"
 	"github.com/maintainerd/auth/internal/middleware"
 	"github.com/maintainerd/auth/internal/model"
-	"github.com/maintainerd/auth/internal/service"
 	"github.com/maintainerd/auth/internal/ptr"
 	resp "github.com/maintainerd/auth/internal/rest/response"
+	"github.com/maintainerd/auth/internal/service"
 )
 
 // SignupFlowHandler handles signup flow management operations.
@@ -88,7 +88,7 @@ func (h *SignupFlowHandler) GetAll(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Fetch signup flows from service layer
-	result, err := h.signupFlowService.GetAll(tenant.TenantID, filter.Name, filter.Identifier, filter.Status, ClientUUIDPtr, filter.Page, filter.Limit, filter.SortBy, filter.SortOrder)
+	result, err := h.signupFlowService.GetAll(r.Context(), tenant.TenantID, filter.Name, filter.Identifier, filter.Status, ClientUUIDPtr, filter.Page, filter.Limit, filter.SortBy, filter.SortOrder)
 	if err != nil {
 		resp.HandleServiceError(w, r, "Failed to get signup flows", err)
 		return
@@ -129,7 +129,7 @@ func (h *SignupFlowHandler) Get(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Fetch signup flow (service validates tenant ownership)
-	signupFlow, err := h.signupFlowService.GetByUUID(signupFlowUUID, tenant.TenantID)
+	signupFlow, err := h.signupFlowService.GetByUUID(r.Context(), signupFlowUUID, tenant.TenantID)
 	if err != nil {
 		resp.HandleServiceError(w, r, "Signup flow not found", err)
 		return
@@ -175,6 +175,7 @@ func (h *SignupFlowHandler) Create(w http.ResponseWriter, r *http.Request) {
 
 	// Create signup flow
 	signupFlow, err := h.signupFlowService.Create(
+		r.Context(),
 		tenant.TenantID,
 		req.Name,
 		req.Description,
@@ -232,6 +233,7 @@ func (h *SignupFlowHandler) Update(w http.ResponseWriter, r *http.Request) {
 
 	// Update signup flow (service validates tenant ownership)
 	signupFlow, err := h.signupFlowService.Update(
+		r.Context(),
 		signupFlowUUID,
 		tenant.TenantID,
 		req.Name,
@@ -270,7 +272,7 @@ func (h *SignupFlowHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Delete signup flow (service validates tenant ownership)
-	signupFlow, err := h.signupFlowService.Delete(signupFlowUUID, tenant.TenantID)
+	signupFlow, err := h.signupFlowService.Delete(r.Context(), signupFlowUUID, tenant.TenantID)
 	if err != nil {
 		resp.HandleServiceError(w, r, "Failed to delete signup flow", err)
 		return
@@ -314,7 +316,7 @@ func (h *SignupFlowHandler) UpdateStatus(w http.ResponseWriter, r *http.Request)
 	}
 
 	// Update status (service validates tenant ownership)
-	signupFlow, err := h.signupFlowService.UpdateStatus(signupFlowUUID, tenant.TenantID, req.Status)
+	signupFlow, err := h.signupFlowService.UpdateStatus(r.Context(), signupFlowUUID, tenant.TenantID, req.Status)
 	if err != nil {
 		resp.HandleServiceError(w, r, "Failed to update signup flow status", err)
 		return
@@ -369,7 +371,7 @@ func (h *SignupFlowHandler) AssignRoles(w http.ResponseWriter, r *http.Request) 
 	}
 
 	// Assign roles to signup flow (service validates tenant ownership)
-	roles, err := h.signupFlowService.AssignRoles(signupFlowUUID, tenant.TenantID, roleUUIDs)
+	roles, err := h.signupFlowService.AssignRoles(r.Context(), signupFlowUUID, tenant.TenantID, roleUUIDs)
 	if err != nil {
 		resp.HandleServiceError(w, r, "Failed to assign roles", err)
 		return
@@ -441,7 +443,7 @@ func (h *SignupFlowHandler) GetRoles(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Fetch roles for the signup flow (service validates tenant ownership)
-	result, err := h.signupFlowService.GetRoles(signupFlowUUID, tenant.TenantID, reqParams.Page, reqParams.Limit)
+	result, err := h.signupFlowService.GetRoles(r.Context(), signupFlowUUID, tenant.TenantID, reqParams.Page, reqParams.Limit)
 	if err != nil {
 		resp.HandleServiceError(w, r, "Failed to retrieve roles", err)
 		return
@@ -510,7 +512,7 @@ func (h *SignupFlowHandler) RemoveRole(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Remove role from signup flow (service validates tenant ownership)
-	if err := h.signupFlowService.RemoveRole(signupFlowUUID, tenant.TenantID, roleUUID); err != nil {
+	if err := h.signupFlowService.RemoveRole(r.Context(), signupFlowUUID, tenant.TenantID, roleUUID); err != nil {
 		resp.HandleServiceError(w, r, "Failed to remove role", err)
 		return
 	}

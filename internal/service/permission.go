@@ -1,12 +1,16 @@
 package service
 
 import (
+	"context"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/apperror"
 	"github.com/maintainerd/auth/internal/model"
 	"github.com/maintainerd/auth/internal/repository"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
 	"gorm.io/gorm"
 )
 
@@ -47,13 +51,13 @@ type PermissionServiceGetResult struct {
 }
 
 type PermissionService interface {
-	Get(filter PermissionServiceGetFilter) (*PermissionServiceGetResult, error)
-	GetByUUID(permissionUUID uuid.UUID, tenantID int64) (*PermissionServiceDataResult, error)
-	Create(tenantID int64, name string, description string, status string, isSystem bool, apiUUID string) (*PermissionServiceDataResult, error)
-	Update(permissionUUID uuid.UUID, tenantID int64, name string, description string, status string) (*PermissionServiceDataResult, error)
-	SetActiveStatusByUUID(permissionUUID uuid.UUID, tenantID int64) (*PermissionServiceDataResult, error)
-	SetStatus(permissionUUID uuid.UUID, tenantID int64, status string) (*PermissionServiceDataResult, error)
-	DeleteByUUID(permissionUUID uuid.UUID, tenantID int64) (*PermissionServiceDataResult, error)
+	Get(ctx context.Context, filter PermissionServiceGetFilter) (*PermissionServiceGetResult, error)
+	GetByUUID(ctx context.Context, permissionUUID uuid.UUID, tenantID int64) (*PermissionServiceDataResult, error)
+	Create(ctx context.Context, tenantID int64, name string, description string, status string, isSystem bool, apiUUID string) (*PermissionServiceDataResult, error)
+	Update(ctx context.Context, permissionUUID uuid.UUID, tenantID int64, name string, description string, status string) (*PermissionServiceDataResult, error)
+	SetActiveStatusByUUID(ctx context.Context, permissionUUID uuid.UUID, tenantID int64) (*PermissionServiceDataResult, error)
+	SetStatus(ctx context.Context, permissionUUID uuid.UUID, tenantID int64, status string) (*PermissionServiceDataResult, error)
+	DeleteByUUID(ctx context.Context, permissionUUID uuid.UUID, tenantID int64) (*PermissionServiceDataResult, error)
 }
 
 type permissionService struct {
@@ -80,7 +84,10 @@ func NewPermissionService(
 	}
 }
 
-func (s *permissionService) Get(filter PermissionServiceGetFilter) (*PermissionServiceGetResult, error) {
+func (s *permissionService) Get(ctx context.Context, filter PermissionServiceGetFilter) (*PermissionServiceGetResult, error) {
+	_, span := otel.Tracer("service").Start(ctx, "permission.list")
+	defer span.End()
+	span.SetAttributes(attribute.Int64("tenant.id", filter.TenantID))
 	var apiID *int64
 	var roleID *int64
 
@@ -127,6 +134,8 @@ func (s *permissionService) Get(filter PermissionServiceGetFilter) (*PermissionS
 
 	result, err := s.permissionRepo.FindPaginated(queryFilter)
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "list permissions failed")
 		return nil, err
 	}
 
@@ -145,19 +154,27 @@ func (s *permissionService) Get(filter PermissionServiceGetFilter) (*PermissionS
 	}, nil
 }
 
-func (s *permissionService) GetByUUID(permissionUUID uuid.UUID, tenantID int64) (*PermissionServiceDataResult, error) {
+func (s *permissionService) GetByUUID(ctx context.Context, permissionUUID uuid.UUID, tenantID int64) (*PermissionServiceDataResult, error) {
+	_, span := otel.Tracer("service").Start(ctx, "permission.get")
+	defer span.End()
+	span.SetAttributes(attribute.String("permission.uuid", permissionUUID.String()), attribute.Int64("tenant.id", tenantID))
 	permission, err := s.permissionRepo.FindByUUIDAndTenantID(permissionUUID, tenantID)
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "get permission failed")
 		return nil, err
 	}
 	if permission == nil {
 		return nil, apperror.NewNotFoundWithReason("permission not found or access denied")
 	}
-
+	span.SetStatus(codes.Ok, "")
 	return toPermissionServiceDataResult(permission), nil
 }
 
-func (s *permissionService) Create(tenantID int64, name string, description string, status string, isSystem bool, apiUUID string) (*PermissionServiceDataResult, error) {
+func (s *permissionService) Create(ctx context.Context, tenantID int64, name string, description string, status string, isSystem bool, apiUUID string) (*PermissionServiceDataResult, error) {
+	_, span := otel.Tracer("service").Start(ctx, "permission.create")
+	defer span.End()
+	span.SetAttributes(attribute.Int64("tenant.id", tenantID))
 	var createdPermission *model.Permission
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
@@ -214,13 +231,19 @@ func (s *permissionService) Create(tenantID int64, name string, description stri
 	})
 
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "create permission failed")
 		return nil, err
 	}
 
+	span.SetStatus(codes.Ok, "")
 	return toPermissionServiceDataResult(createdPermission), nil
 }
 
-func (s *permissionService) Update(permissionUUID uuid.UUID, tenantID int64, name string, description string, status string) (*PermissionServiceDataResult, error) {
+func (s *permissionService) Update(ctx context.Context, permissionUUID uuid.UUID, tenantID int64, name string, description string, status string) (*PermissionServiceDataResult, error) {
+	_, span := otel.Tracer("service").Start(ctx, "permission.update")
+	defer span.End()
+	span.SetAttributes(attribute.String("permission.uuid", permissionUUID.String()), attribute.Int64("tenant.id", tenantID))
 	var updatedPermission *model.Permission
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
@@ -268,13 +291,19 @@ func (s *permissionService) Update(permissionUUID uuid.UUID, tenantID int64, nam
 	})
 
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "update permission failed")
 		return nil, err
 	}
 
+	span.SetStatus(codes.Ok, "")
 	return toPermissionServiceDataResult(updatedPermission), nil
 }
 
-func (s *permissionService) SetActiveStatusByUUID(permissionUUID uuid.UUID, tenantID int64) (*PermissionServiceDataResult, error) {
+func (s *permissionService) SetActiveStatusByUUID(ctx context.Context, permissionUUID uuid.UUID, tenantID int64) (*PermissionServiceDataResult, error) {
+	_, span := otel.Tracer("service").Start(ctx, "permission.setActiveStatus")
+	defer span.End()
+	span.SetAttributes(attribute.String("permission.uuid", permissionUUID.String()), attribute.Int64("tenant.id", tenantID))
 	var updatedPermission *model.Permission
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
@@ -311,13 +340,19 @@ func (s *permissionService) SetActiveStatusByUUID(permissionUUID uuid.UUID, tena
 	})
 
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "set active status failed")
 		return nil, err
 	}
 
+	span.SetStatus(codes.Ok, "")
 	return toPermissionServiceDataResult(updatedPermission), nil
 }
 
-func (s *permissionService) SetStatus(permissionUUID uuid.UUID, tenantID int64, status string) (*PermissionServiceDataResult, error) {
+func (s *permissionService) SetStatus(ctx context.Context, permissionUUID uuid.UUID, tenantID int64, status string) (*PermissionServiceDataResult, error) {
+	_, span := otel.Tracer("service").Start(ctx, "permission.setStatus")
+	defer span.End()
+	span.SetAttributes(attribute.String("permission.uuid", permissionUUID.String()), attribute.Int64("tenant.id", tenantID))
 	var updatedPermission *model.Permission
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
@@ -346,16 +381,24 @@ func (s *permissionService) SetStatus(permissionUUID uuid.UUID, tenantID int64, 
 	})
 
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "set status failed")
 		return nil, err
 	}
 
+	span.SetStatus(codes.Ok, "")
 	return toPermissionServiceDataResult(updatedPermission), nil
 }
 
-func (s *permissionService) DeleteByUUID(permissionUUID uuid.UUID, tenantID int64) (*PermissionServiceDataResult, error) {
+func (s *permissionService) DeleteByUUID(ctx context.Context, permissionUUID uuid.UUID, tenantID int64) (*PermissionServiceDataResult, error) {
+	_, span := otel.Tracer("service").Start(ctx, "permission.delete")
+	defer span.End()
+	span.SetAttributes(attribute.String("permission.uuid", permissionUUID.String()), attribute.Int64("tenant.id", tenantID))
 	// Get permission and validate tenant ownership
 	permission, err := s.permissionRepo.FindByUUIDAndTenantID(permissionUUID, tenantID)
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "delete permission failed")
 		return nil, err
 	}
 	if permission == nil {
@@ -369,9 +412,12 @@ func (s *permissionService) DeleteByUUID(permissionUUID uuid.UUID, tenantID int6
 
 	err = s.permissionRepo.DeleteByUUIDAndTenantID(permissionUUID, tenantID)
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "delete permission failed")
 		return nil, err
 	}
 
+	span.SetStatus(codes.Ok, "")
 	return toPermissionServiceDataResult(permission), nil
 }
 

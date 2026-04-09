@@ -5,6 +5,7 @@ import (
 	"crypto/rsa"
 	"crypto/x509"
 	"encoding/pem"
+	"context"
 	"errors"
 	"testing"
 	"time"
@@ -558,7 +559,7 @@ func TestGetUserByEmail(t *testing.T) {
 			userRepo := &mockUserRepo{}
 			tc.setupRepo(userRepo)
 			svc := &loginService{userRepo: userRepo}
-			got, err := svc.GetUserByEmail(tc.email, tc.tenantID)
+			got, err := svc.GetUserByEmail(context.Background(), tc.email, tc.tenantID)
 			if tc.wantErr {
 				assert.Error(t, err)
 				assert.Nil(t, got)
@@ -740,7 +741,7 @@ func TestLoginPublic(t *testing.T) {
 			tc.setup(t, repos)
 
 			svc := NewLoginService(gormDB, repos.clientRepo, repos.userRepo, &mockUserTokenRepo{}, repos.userIdentity, repos.idpRepo)
-			resp, err := svc.LoginPublic(tc.username, tc.password, tc.clientID, tc.providerID)
+			resp, err := svc.LoginPublic(context.Background(), tc.username, tc.password, tc.clientID, tc.providerID)
 
 			if tc.wantErr {
 				require.Error(t, err)
@@ -913,7 +914,7 @@ func TestLogin(t *testing.T) {
 			tc.setup(t, repos)
 
 			svc := NewLoginService(gormDB, repos.clientRepo, repos.userRepo, &mockUserTokenRepo{}, repos.userIdentity, &mockIdentityProviderRepo{})
-			resp, err := svc.Login(tc.username, tc.password, tc.clientID, tc.providerID)
+			resp, err := svc.Login(context.Background(), tc.username, tc.password, tc.clientID, tc.providerID)
 
 			if tc.wantErr {
 				require.Error(t, err)
@@ -973,7 +974,7 @@ func TestLoginPublic_RateLimited(t *testing.T) {
 	svc := NewLoginService(gormDB, &mockClientRepo{}, &mockUserRepo{}, &mockUserTokenRepo{},
 		&mockUserIdentityRepo{findByUserIDAndClientIDFn: func(_, _ int64) (*model.UserIdentity, error) { return nil, nil }},
 		&mockIdentityProviderRepo{})
-	_, err := svc.LoginPublic(username, "pass", "c1", "p1")
+	_, err := svc.LoginPublic(context.Background(), username, "pass", "c1", "p1")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "locked")
 }
@@ -998,7 +999,7 @@ func TestLoginPublic_ClientLookupError(t *testing.T) {
 	svc := NewLoginService(gormDB, clientRepo, &mockUserRepo{}, &mockUserTokenRepo{},
 		&mockUserIdentityRepo{findByUserIDAndClientIDFn: func(_, _ int64) (*model.UserIdentity, error) { return nil, nil }},
 		idpRepo)
-	_, err := svc.LoginPublic("pub-client-err", "pass", "c1", "p1")
+	_, err := svc.LoginPublic(context.Background(), "pub-client-err", "pass", "c1", "p1")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "authentication failed")
 }
@@ -1028,7 +1029,7 @@ func TestLoginPublic_UserNotFound(t *testing.T) {
 	svc := NewLoginService(gormDB, clientRepo, userRepo, &mockUserTokenRepo{},
 		&mockUserIdentityRepo{findByUserIDAndClientIDFn: func(_, _ int64) (*model.UserIdentity, error) { return nil, nil }},
 		idpRepo)
-	_, err := svc.LoginPublic("pub-user-missing", "pass", "c1", "p1")
+	_, err := svc.LoginPublic(context.Background(), "pub-user-missing", "pass", "c1", "p1")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "invalid credentials")
 }
@@ -1048,7 +1049,7 @@ func TestLogin_RateLimited(t *testing.T) {
 	svc := NewLoginService(gormDB, &mockClientRepo{}, &mockUserRepo{}, &mockUserTokenRepo{},
 		&mockUserIdentityRepo{findByUserIDAndClientIDFn: func(_, _ int64) (*model.UserIdentity, error) { return nil, nil }},
 		&mockIdentityProviderRepo{})
-	_, err := svc.Login(username, "pass", nil, nil)
+	_, err := svc.Login(context.Background(), username, "pass", nil, nil)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "locked")
 }
@@ -1070,7 +1071,7 @@ func TestLogin_ExplicitClientLookupError(t *testing.T) {
 	svc := NewLoginService(gormDB, clientRepo, &mockUserRepo{}, &mockUserTokenRepo{},
 		&mockUserIdentityRepo{findByUserIDAndClientIDFn: func(_, _ int64) (*model.UserIdentity, error) { return nil, nil }},
 		&mockIdentityProviderRepo{})
-	_, err := svc.Login("int-explicit-err", "pass", &cID, &pID)
+	_, err := svc.Login(context.Background(), "int-explicit-err", "pass", &cID, &pID)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "authentication failed")
 }
@@ -1091,7 +1092,7 @@ func TestLogin_UserNotFound(t *testing.T) {
 	svc := NewLoginService(gormDB, clientRepo, userRepo, &mockUserTokenRepo{},
 		&mockUserIdentityRepo{findByUserIDAndClientIDFn: func(_, _ int64) (*model.UserIdentity, error) { return nil, nil }},
 		&mockIdentityProviderRepo{})
-	_, err := svc.Login("int-user-missing", "pass", nil, nil)
+	_, err := svc.Login(context.Background(), "int-user-missing", "pass", nil, nil)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "invalid credentials")
 }
@@ -1133,7 +1134,7 @@ func TestLoginPublic_GenerateAccessTokenError(t *testing.T) {
 	}
 
 	svc := NewLoginService(gormDB, clientRepo, userRepo, &mockUserTokenRepo{}, userIdentityRepo, idpRepo)
-	_, err := svc.LoginPublic("pub-token-err", correctPassword, "c1", "p1")
+	_, err := svc.LoginPublic(context.Background(), "pub-token-err", correctPassword, "c1", "p1")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "private key not initialized")
 }
@@ -1164,7 +1165,7 @@ func TestLogin_GenerateAccessTokenError(t *testing.T) {
 	}
 
 	svc := NewLoginService(gormDB, clientRepo, userRepo, &mockUserTokenRepo{}, userIdentityRepo, &mockIdentityProviderRepo{})
-	_, err := svc.Login("int-token-err", correctPassword, nil, nil)
+	_, err := svc.Login(context.Background(), "int-token-err", correctPassword, nil, nil)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "private key not initialized")
 }
@@ -1206,7 +1207,7 @@ func TestLoginPublic_GenerateIDTokenError(t *testing.T) {
 	}
 
 	svc := NewLoginService(gormDB, clientRepo, userRepo, &mockUserTokenRepo{}, userIdentityRepo, idpRepo)
-	_, err := svc.LoginPublic("pub-idtoken-err", correctPassword, "c1", "p1")
+	_, err := svc.LoginPublic(context.Background(), "pub-idtoken-err", correctPassword, "c1", "p1")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "id token error")
 }
@@ -1248,7 +1249,7 @@ func TestLoginPublic_GenerateRefreshTokenError(t *testing.T) {
 	}
 
 	svc := NewLoginService(gormDB, clientRepo, userRepo, &mockUserTokenRepo{}, userIdentityRepo, idpRepo)
-	_, err := svc.LoginPublic("pub-refresh-err", correctPassword, "c1", "p1")
+	_, err := svc.LoginPublic(context.Background(), "pub-refresh-err", correctPassword, "c1", "p1")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "refresh token error")
 }
