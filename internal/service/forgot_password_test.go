@@ -55,7 +55,7 @@ func TestForgotPasswordService_SendPasswordResetEmail(t *testing.T) {
 			tc.setupClient(clientRepo)
 
 			svc := NewForgotPasswordService(gormDB, &mockUserRepo{}, &mockUserTokenRepo{}, clientRepo, &mockEmailTemplateRepo{})
-			resp, err := svc.SendPasswordResetEmail("user@example.com", nil, nil, false)
+			resp, err := svc.SendPasswordResetEmail(context.Background(), "user@example.com", nil, nil, false)
 
 			if tc.wantErr {
 				require.Error(t, err)
@@ -86,7 +86,7 @@ func TestForgotPasswordService_SendPasswordResetEmail_ClientIDAndProviderID(t *t
 	}
 
 	svc := NewForgotPasswordService(gormDB, &mockUserRepo{}, &mockUserTokenRepo{}, clientRepo, &mockEmailTemplateRepo{})
-	resp, err := svc.SendPasswordResetEmail("user@example.com", &clientID, &providerID, false)
+	resp, err := svc.SendPasswordResetEmail(context.Background(), "user@example.com", &clientID, &providerID, false)
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 	assert.True(t, resp.Success)
@@ -105,7 +105,7 @@ func TestForgotPasswordService_SendPasswordResetEmail_FindByEmailError(t *testin
 	}
 
 	svc := NewForgotPasswordService(gormDB, userRepo, &mockUserTokenRepo{}, clientRepo, &mockEmailTemplateRepo{})
-	resp, err := svc.SendPasswordResetEmail("user@example.com", nil, nil, false)
+	resp, err := svc.SendPasswordResetEmail(context.Background(), "user@example.com", nil, nil, false)
 	// FindByEmail error returns nil (security masking), user stays nil so no email sent
 	require.NoError(t, err)
 	require.NotNil(t, resp)
@@ -152,7 +152,7 @@ func TestForgotPasswordService_SendPasswordResetEmail_UserInactive(t *testing.T)
 	}
 
 	svc := NewForgotPasswordService(gormDB, userRepo, &mockUserTokenRepo{}, clientRepo, emailTemplateRepo)
-	resp, err := svc.SendPasswordResetEmail("user@example.com", nil, nil, true)
+	resp, err := svc.SendPasswordResetEmail(context.Background(), "user@example.com", nil, nil, true)
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 	assert.True(t, resp.Success)
@@ -178,7 +178,7 @@ func TestForgotPasswordService_SendPasswordResetEmail_FindTokensError(t *testing
 	}
 
 	svc := NewForgotPasswordService(gormDB, userRepo, tokenRepo, clientRepo, &mockEmailTemplateRepo{})
-	_, err := svc.SendPasswordResetEmail("user@example.com", nil, nil, false)
+	_, err := svc.SendPasswordResetEmail(context.Background(), "user@example.com", nil, nil, false)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "find existing tokens")
 }
@@ -205,7 +205,7 @@ func TestForgotPasswordService_SendPasswordResetEmail_RevokeTokenError(t *testin
 	}
 
 	svc := NewForgotPasswordService(gormDB, userRepo, tokenRepo, clientRepo, &mockEmailTemplateRepo{})
-	_, err := svc.SendPasswordResetEmail("user@example.com", nil, nil, false)
+	_, err := svc.SendPasswordResetEmail(context.Background(), "user@example.com", nil, nil, false)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "revoke existing token")
 }
@@ -231,7 +231,7 @@ func TestForgotPasswordService_SendPasswordResetEmail_CreateTokenError(t *testin
 	}
 
 	svc := NewForgotPasswordService(gormDB, userRepo, tokenRepo, clientRepo, &mockEmailTemplateRepo{})
-	_, err := svc.SendPasswordResetEmail("user@example.com", nil, nil, false)
+	_, err := svc.SendPasswordResetEmail(context.Background(), "user@example.com", nil, nil, false)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "create reset token")
 }
@@ -297,7 +297,7 @@ func TestForgotPasswordService_SendPasswordResetEmail_FullPath(t *testing.T) {
 	}
 
 	svc := NewForgotPasswordService(gormDB, userRepo, tokenRepo, clientRepo, emailTemplateRepo)
-	resp, err := svc.SendPasswordResetEmail("user@example.com", nil, nil, true)
+	resp, err := svc.SendPasswordResetEmail(context.Background(), "user@example.com", nil, nil, true)
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 	assert.True(t, resp.Success)
@@ -353,7 +353,7 @@ func TestForgotPasswordService_SendPasswordResetEmail_ExternalURL(t *testing.T) 
 	}
 
 	svc := NewForgotPasswordService(gormDB, userRepo, tokenRepo, clientRepo, emailTemplateRepo)
-	resp, err := svc.SendPasswordResetEmail("user@example.com", nil, nil, false)
+	resp, err := svc.SendPasswordResetEmail(context.Background(), "user@example.com", nil, nil, false)
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 	assert.True(t, resp.Success)
@@ -407,7 +407,7 @@ func TestForgotPasswordService_SendPasswordResetEmail_EmailSendError(t *testing.
 	}
 
 	svc := NewForgotPasswordService(gormDB, userRepo, tokenRepo, clientRepo, emailTemplateRepo)
-	resp, err := svc.SendPasswordResetEmail("user@example.com", nil, nil, true)
+	resp, err := svc.SendPasswordResetEmail(context.Background(), "user@example.com", nil, nil, true)
 	require.NoError(t, err) // email failure is silently logged
 	require.NotNil(t, resp)
 	assert.True(t, resp.Success)
@@ -456,7 +456,7 @@ func TestForgotPasswordService_SendPasswordResetEmail_TemplateError(t *testing.T
 	}
 
 	svc := NewForgotPasswordService(gormDB, userRepo, tokenRepo, clientRepo, emailTemplateRepo)
-	resp, err := svc.SendPasswordResetEmail("user@example.com", nil, nil, true)
+	resp, err := svc.SendPasswordResetEmail(context.Background(), "user@example.com", nil, nil, true)
 	require.NoError(t, err) // template error is logged silently
 	require.NotNil(t, resp)
 	assert.True(t, resp.Success)
@@ -506,7 +506,7 @@ func TestForgotPasswordService_SendPasswordResetEmail_HTMLParseError(t *testing.
 	}
 
 	svc := NewForgotPasswordService(gormDB, userRepo, tokenRepo, clientRepo, emailTemplateRepo)
-	resp, err := svc.SendPasswordResetEmail("user@example.com", nil, nil, true)
+	resp, err := svc.SendPasswordResetEmail(context.Background(), "user@example.com", nil, nil, true)
 	require.NoError(t, err) // error is logged silently
 	require.NotNil(t, resp)
 	assert.True(t, resp.Success)
@@ -558,7 +558,7 @@ func TestForgotPasswordService_SendPasswordResetEmail_PlainParseError(t *testing
 	}
 
 	svc := NewForgotPasswordService(gormDB, userRepo, tokenRepo, clientRepo, emailTemplateRepo)
-	resp, err := svc.SendPasswordResetEmail("user@example.com", nil, nil, true)
+	resp, err := svc.SendPasswordResetEmail(context.Background(), "user@example.com", nil, nil, true)
 	require.NoError(t, err) // error is logged silently
 	require.NotNil(t, resp)
 	assert.True(t, resp.Success)
@@ -608,7 +608,7 @@ func TestForgotPasswordService_SendPasswordResetEmail_HTMLExecuteError(t *testin
 	}
 
 	svc := NewForgotPasswordService(gormDB, userRepo, tokenRepo, clientRepo, emailTemplateRepo)
-	resp, err := svc.SendPasswordResetEmail("user@example.com", nil, nil, true)
+	resp, err := svc.SendPasswordResetEmail(context.Background(), "user@example.com", nil, nil, true)
 	require.NoError(t, err) // error is logged silently
 	require.NotNil(t, resp)
 	assert.True(t, resp.Success)
@@ -660,7 +660,7 @@ func TestForgotPasswordService_SendPasswordResetEmail_PlainExecuteError(t *testi
 	}
 
 	svc := NewForgotPasswordService(gormDB, userRepo, tokenRepo, clientRepo, emailTemplateRepo)
-	resp, err := svc.SendPasswordResetEmail("user@example.com", nil, nil, true)
+	resp, err := svc.SendPasswordResetEmail(context.Background(), "user@example.com", nil, nil, true)
 	require.NoError(t, err) // error is logged silently
 	require.NotNil(t, resp)
 	assert.True(t, resp.Success)
@@ -731,7 +731,7 @@ func TestForgotPasswordService_SendPasswordResetEmail_WithExistingTokens(t *test
 	}
 
 	svc := NewForgotPasswordService(gormDB, userRepo, tokenRepo, clientRepo, emailTemplateRepo)
-	resp, err := svc.SendPasswordResetEmail("user@example.com", nil, nil, true)
+	resp, err := svc.SendPasswordResetEmail(context.Background(), "user@example.com", nil, nil, true)
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 	assert.True(t, resp.Success)
@@ -787,7 +787,7 @@ func TestForgotPasswordService_SendPasswordResetEmail_GenerateSignedURLError(t *
 	}
 
 	svc := NewForgotPasswordService(gormDB, userRepo, tokenRepo, clientRepo, emailTemplateRepo)
-	resp, err := svc.SendPasswordResetEmail("user@example.com", nil, nil, true)
+	resp, err := svc.SendPasswordResetEmail(context.Background(), "user@example.com", nil, nil, true)
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 	assert.True(t, resp.Success)
@@ -844,7 +844,7 @@ func TestForgotPasswordService_SendPasswordResetEmail_ConvertToFrontendURLError(
 	}
 
 	svc := NewForgotPasswordService(gormDB, userRepo, tokenRepo, clientRepo, emailTemplateRepo)
-	resp, err := svc.SendPasswordResetEmail("user@example.com", nil, nil, true)
+	resp, err := svc.SendPasswordResetEmail(context.Background(), "user@example.com", nil, nil, true)
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 	assert.True(t, resp.Success)

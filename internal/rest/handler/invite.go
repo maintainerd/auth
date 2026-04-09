@@ -7,8 +7,8 @@ import (
 	"github.com/maintainerd/auth/internal/dto"
 	"github.com/maintainerd/auth/internal/middleware"
 	"github.com/maintainerd/auth/internal/model"
+	resp "github.com/maintainerd/auth/internal/rest/response"
 	"github.com/maintainerd/auth/internal/service"
-		resp "github.com/maintainerd/auth/internal/rest/response"
 )
 
 // InviteHandler handles HTTP requests for user invitation management.
@@ -67,7 +67,7 @@ func (h *InviteHandler) Send(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Send invite associated with tenant
-	_, err := h.service.SendInvite(tenant.TenantID, req.Email, user.UserID, roleUUIDs)
+	_, err := h.service.SendInvite(r.Context(), tenant.TenantID, req.Email, user.UserID, roleUUIDs)
 	if err != nil {
 		resp.HandleServiceError(w, r, "Failed to send invite", err)
 		return

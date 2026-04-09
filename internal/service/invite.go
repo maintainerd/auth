@@ -18,7 +18,7 @@ import (
 )
 
 type InviteService interface {
-	SendInvite(tenantID int64, email string, userID int64, roleUUIDs []string) (*model.Invite, error)
+	SendInvite(ctx context.Context, tenantID int64, email string, userID int64, roleUUIDs []string) (*model.Invite, error)
 }
 
 type inviteService struct {
@@ -46,6 +46,7 @@ func NewInviteService(
 }
 
 func (s *inviteService) SendInvite(
+	ctx context.Context,
 	tenantID int64,
 	email string,
 	userID int64,
@@ -144,14 +145,14 @@ func (s *inviteService) SendInvite(
 	}
 
 	// Send invite email
-	if err := s.sendInviteEmail(email, inviteURL); err != nil {
+	if err := s.sendInviteEmail(ctx, email, inviteURL); err != nil {
 		return nil, apperror.NewInternal("failed to send invite email", err)
 	}
 
 	return invite, nil
 }
 
-func (s *inviteService) sendInviteEmail(to, inviteURL string) error {
+func (s *inviteService) sendInviteEmail(ctx context.Context, to, inviteURL string) error {
 	// Get email template from DB
 	templateEntity, err := s.emailTemplateRepo.FindByName("internal:user:invite")
 	if err != nil {
@@ -191,7 +192,7 @@ func (s *inviteService) sendInviteEmail(to, inviteURL string) error {
 	}
 
 	// Send email
-	return email.SendEmail(context.Background(), email.SendEmailParams{
+	return email.SendEmail(ctx, email.SendEmailParams{
 		To:        to,
 		Subject:   templateEntity.Subject,
 		BodyHTML:  bodyHTML.String(),
