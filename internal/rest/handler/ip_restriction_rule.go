@@ -34,8 +34,8 @@ func NewIPRestrictionRuleHandler(ipRestrictionRuleService service.IPRestrictionR
 // The service layer filters rules by tenant_id to ensure data isolation.
 func (h *IPRestrictionRuleHandler) GetAll(w http.ResponseWriter, r *http.Request) {
 	// Tenant is already validated by middleware - just extract from context
-	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
-	if !ok || tenant == nil {
+	tenant := middleware.AuthFromRequest(r).Tenant
+	if tenant == nil {
 		resp.Error(w, http.StatusUnauthorized, "Tenant not found in context")
 		return
 	}
@@ -97,8 +97,8 @@ func (h *IPRestrictionRuleHandler) GetAll(w http.ResponseWriter, r *http.Request
 // The service layer verifies the rule belongs to the tenant.
 func (h *IPRestrictionRuleHandler) Get(w http.ResponseWriter, r *http.Request) {
 	// Tenant is already validated by middleware - just extract from context
-	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
-	if !ok || tenant == nil {
+	tenant := middleware.AuthFromRequest(r).Tenant
+	if tenant == nil {
 		resp.Error(w, http.StatusUnauthorized, "Tenant not found in context")
 		return
 	}
@@ -128,15 +128,15 @@ func (h *IPRestrictionRuleHandler) Get(w http.ResponseWriter, r *http.Request) {
 // The rule is automatically associated with the tenant from context.
 func (h *IPRestrictionRuleHandler) Create(w http.ResponseWriter, r *http.Request) {
 	// Tenant is already validated by middleware - just extract from context
-	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
-	if !ok || tenant == nil {
+	tenant := middleware.AuthFromRequest(r).Tenant
+	if tenant == nil {
 		resp.Error(w, http.StatusUnauthorized, "Tenant not found in context")
 		return
 	}
 
 	// Extract authenticated user from context (needed for audit tracking)
-	user, ok := r.Context().Value(middleware.UserContextKey).(*model.User)
-	if !ok || user == nil {
+	user := middleware.AuthFromRequest(r).User
+	if user == nil {
 		resp.Error(w, http.StatusUnauthorized, "User not found in context")
 		return
 	}
@@ -183,15 +183,15 @@ func (h *IPRestrictionRuleHandler) Create(w http.ResponseWriter, r *http.Request
 // The service layer verifies the rule belongs to the tenant before updating.
 func (h *IPRestrictionRuleHandler) Update(w http.ResponseWriter, r *http.Request) {
 	// Tenant is already validated by middleware - just extract from context
-	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
-	if !ok || tenant == nil {
+	tenant := middleware.AuthFromRequest(r).Tenant
+	if tenant == nil {
 		resp.Error(w, http.StatusUnauthorized, "Tenant not found in context")
 		return
 	}
 
 	// Extract authenticated user from context (needed for audit tracking)
-	user, ok := r.Context().Value(middleware.UserContextKey).(*model.User)
-	if !ok || user == nil {
+	user := middleware.AuthFromRequest(r).User
+	if user == nil {
 		resp.Error(w, http.StatusUnauthorized, "User not found in context")
 		return
 	}
@@ -249,8 +249,8 @@ func (h *IPRestrictionRuleHandler) Update(w http.ResponseWriter, r *http.Request
 // The service layer verifies the rule belongs to the tenant before deletion.
 func (h *IPRestrictionRuleHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	// Tenant is already validated by middleware - just extract from context
-	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
-	if !ok || tenant == nil {
+	tenant := middleware.AuthFromRequest(r).Tenant
+	if tenant == nil {
 		resp.Error(w, http.StatusUnauthorized, "Tenant not found in context")
 		return
 	}
@@ -280,15 +280,15 @@ func (h *IPRestrictionRuleHandler) Delete(w http.ResponseWriter, r *http.Request
 // The service layer verifies the rule belongs to the tenant before updating status.
 func (h *IPRestrictionRuleHandler) UpdateStatus(w http.ResponseWriter, r *http.Request) {
 	// Tenant is already validated by middleware - just extract from context
-	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
-	if !ok || tenant == nil {
+	tenant := middleware.AuthFromRequest(r).Tenant
+	if tenant == nil {
 		resp.Error(w, http.StatusUnauthorized, "Tenant not found in context")
 		return
 	}
 
 	// Extract authenticated user from context (needed for audit tracking)
-	user, ok := r.Context().Value(middleware.UserContextKey).(*model.User)
-	if !ok || user == nil {
+	user := middleware.AuthFromRequest(r).User
+	if user == nil {
 		resp.Error(w, http.StatusUnauthorized, "User not found in context")
 		return
 	}

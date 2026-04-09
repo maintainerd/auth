@@ -27,11 +27,11 @@ func NewAPIKeyHandler(apiKeyService service.APIKeyService) *APIKeyHandler {
 // Get API keys with pagination and filtering
 func (h *APIKeyHandler) Get(w http.ResponseWriter, r *http.Request) {
 	// Get authentication context
-	requestingUser := r.Context().Value(middleware.UserContextKey).(*model.User)
+	requestingUser := middleware.AuthFromRequest(r).User
 
 	// Get tenant from context
-	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
-	if !ok || tenant == nil {
+	tenant := middleware.AuthFromRequest(r).Tenant
+	if tenant == nil {
 		resp.Error(w, http.StatusUnauthorized, "Tenant not found in context")
 		return
 	}
@@ -115,11 +115,11 @@ func (h *APIKeyHandler) Get(w http.ResponseWriter, r *http.Request) {
 // Get API key by UUID
 func (h *APIKeyHandler) GetByUUID(w http.ResponseWriter, r *http.Request) {
 	// Get authentication context
-	requestingUser := r.Context().Value(middleware.UserContextKey).(*model.User)
+	requestingUser := middleware.AuthFromRequest(r).User
 
 	// Get tenant from context
-	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
-	if !ok || tenant == nil {
+	tenant := middleware.AuthFromRequest(r).Tenant
+	if tenant == nil {
 		resp.Error(w, http.StatusUnauthorized, "Tenant not found in context")
 		return
 	}
@@ -146,8 +146,8 @@ func (h *APIKeyHandler) GetByUUID(w http.ResponseWriter, r *http.Request) {
 // Get API key config by UUID
 func (h *APIKeyHandler) GetConfigByUUID(w http.ResponseWriter, r *http.Request) {
 	// Get tenant from context
-	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
-	if !ok || tenant == nil {
+	tenant := middleware.AuthFromRequest(r).Tenant
+	if tenant == nil {
 		resp.Error(w, http.StatusUnauthorized, "Tenant not found in context")
 		return
 	}
@@ -170,12 +170,9 @@ func (h *APIKeyHandler) GetConfigByUUID(w http.ResponseWriter, r *http.Request) 
 
 // Create API key
 func (h *APIKeyHandler) Create(w http.ResponseWriter, r *http.Request) {
-	// Get authentication context (not needed for API key creation anymore)
-	_ = r.Context().Value(middleware.UserContextKey).(*model.User)
-
 	// Get tenant from context
-	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
-	if !ok || tenant == nil {
+	tenant := middleware.AuthFromRequest(r).Tenant
+	if tenant == nil {
 		resp.Error(w, http.StatusUnauthorized, "Tenant not found in context")
 		return
 	}
@@ -223,11 +220,11 @@ func (h *APIKeyHandler) Create(w http.ResponseWriter, r *http.Request) {
 // Update API key
 func (h *APIKeyHandler) Update(w http.ResponseWriter, r *http.Request) {
 	// Get authentication context
-	updaterUser := r.Context().Value(middleware.UserContextKey).(*model.User)
+	updaterUser := middleware.AuthFromRequest(r).User
 
 	// Get tenant from context
-	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
-	if !ok || tenant == nil {
+	tenant := middleware.AuthFromRequest(r).Tenant
+	if tenant == nil {
 		resp.Error(w, http.StatusUnauthorized, "Tenant not found in context")
 		return
 	}
@@ -265,8 +262,8 @@ func (h *APIKeyHandler) Update(w http.ResponseWriter, r *http.Request) {
 // Set API key status
 func (h *APIKeyHandler) SetStatus(w http.ResponseWriter, r *http.Request) {
 	// Get tenant from context
-	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
-	if !ok || tenant == nil {
+	tenant := middleware.AuthFromRequest(r).Tenant
+	if tenant == nil {
 		resp.Error(w, http.StatusUnauthorized, "Tenant not found in context")
 		return
 	}
@@ -304,11 +301,11 @@ func (h *APIKeyHandler) SetStatus(w http.ResponseWriter, r *http.Request) {
 // Delete API key
 func (h *APIKeyHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	// Get authentication context
-	deleterUser := r.Context().Value(middleware.UserContextKey).(*model.User)
+	deleterUser := middleware.AuthFromRequest(r).User
 
 	// Get tenant from context
-	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
-	if !ok || tenant == nil {
+	tenant := middleware.AuthFromRequest(r).Tenant
+	if tenant == nil {
 		resp.Error(w, http.StatusUnauthorized, "Tenant not found in context")
 		return
 	}

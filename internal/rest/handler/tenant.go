@@ -10,7 +10,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/dto"
 	"github.com/maintainerd/auth/internal/middleware"
-	"github.com/maintainerd/auth/internal/model"
 	"github.com/maintainerd/auth/internal/ptr"
 	resp "github.com/maintainerd/auth/internal/rest/response"
 	"github.com/maintainerd/auth/internal/service"
@@ -205,8 +204,8 @@ func (h *TenantHandler) Create(w http.ResponseWriter, r *http.Request) {
 
 // Update Tenant
 func (h *TenantHandler) Update(w http.ResponseWriter, r *http.Request) {
-	user, ok := r.Context().Value(middleware.UserContextKey).(*model.User)
-	if !ok || user == nil {
+	user := middleware.AuthFromRequest(r).User
+	if user == nil {
 		resp.Error(w, http.StatusUnauthorized, "Unauthorized")
 		return
 	}
@@ -317,8 +316,8 @@ func (h *TenantHandler) SetDefault(w http.ResponseWriter, r *http.Request) {
 
 // Delete Tenant
 func (h *TenantHandler) Delete(w http.ResponseWriter, r *http.Request) {
-	user, ok := r.Context().Value(middleware.UserContextKey).(*model.User)
-	if !ok || user == nil {
+	user := middleware.AuthFromRequest(r).User
+	if user == nil {
 		resp.Error(w, http.StatusUnauthorized, "Unauthorized")
 		return
 	}
