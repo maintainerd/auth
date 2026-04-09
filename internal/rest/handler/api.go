@@ -11,9 +11,9 @@ import (
 	"github.com/maintainerd/auth/internal/dto"
 	"github.com/maintainerd/auth/internal/middleware"
 	"github.com/maintainerd/auth/internal/model"
-	"github.com/maintainerd/auth/internal/service"
 	"github.com/maintainerd/auth/internal/ptr"
 	resp "github.com/maintainerd/auth/internal/rest/response"
+	"github.com/maintainerd/auth/internal/service"
 )
 
 type APIHandler struct {
@@ -90,7 +90,7 @@ func (h *APIHandler) Get(w http.ResponseWriter, r *http.Request) {
 		}
 
 		// Look up service by UUID to get service_id
-		serviceIDValue, err := h.apiService.GetServiceIDByUUID(serviceUUID)
+		serviceIDValue, err := h.apiService.GetServiceIDByUUID(r.Context(), serviceUUID)
 		if err != nil {
 			resp.HandleServiceError(w, r, "Service not found", err)
 			return
@@ -115,7 +115,7 @@ func (h *APIHandler) Get(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Fetch APIs
-	result, err := h.apiService.Get(apiFilter)
+	result, err := h.apiService.Get(r.Context(), apiFilter)
 	if err != nil {
 		resp.HandleServiceError(w, r, "Failed to fetch APIs", err)
 		return
@@ -154,7 +154,7 @@ func (h *APIHandler) GetByUUID(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	api, err := h.apiService.GetByUUID(apiUUID, tenant.TenantID)
+	api, err := h.apiService.GetByUUID(r.Context(), apiUUID, tenant.TenantID)
 	if err != nil {
 		resp.HandleServiceError(w, r, "API not found", err)
 		return
@@ -185,7 +185,7 @@ func (h *APIHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	api, err := h.apiService.Create(tenant.TenantID, req.Name, req.DisplayName, req.Description, req.APIType, req.Status, false, req.ServiceUUID)
+	api, err := h.apiService.Create(r.Context(), tenant.TenantID, req.Name, req.DisplayName, req.Description, req.APIType, req.Status, false, req.ServiceUUID)
 	if err != nil {
 		resp.HandleServiceError(w, r, "Failed to create API", err)
 		return
@@ -222,7 +222,7 @@ func (h *APIHandler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	api, err := h.apiService.Update(apiUUID, tenant.TenantID, req.Name, req.DisplayName, req.Description, req.APIType, req.Status, req.ServiceUUID)
+	api, err := h.apiService.Update(r.Context(), apiUUID, tenant.TenantID, req.Name, req.DisplayName, req.Description, req.APIType, req.Status, req.ServiceUUID)
 	if err != nil {
 		resp.HandleServiceError(w, r, "Failed to update API", err)
 		return
@@ -261,7 +261,7 @@ func (h *APIHandler) SetStatus(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	api, err := h.apiService.SetStatusByUUID(apiUUID, tenant.TenantID, req.Status)
+	api, err := h.apiService.SetStatusByUUID(r.Context(), apiUUID, tenant.TenantID, req.Status)
 	if err != nil {
 		resp.HandleServiceError(w, r, "Failed to update API", err)
 		return
@@ -287,7 +287,7 @@ func (h *APIHandler) Delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	api, err := h.apiService.DeleteByUUID(apiUUID, tenant.TenantID)
+	api, err := h.apiService.DeleteByUUID(r.Context(), apiUUID, tenant.TenantID)
 	if err != nil {
 		resp.HandleServiceError(w, r, "Failed to delete API", err)
 		return

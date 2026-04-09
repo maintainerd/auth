@@ -49,13 +49,13 @@ layers (handlers, repositories), and thin middleware are excluded to reduce nois
 
 ### service/api.go
 
-- [ ] `Get`
-- [ ] `GetByUUID`
-- [ ] `GetServiceIDByUUID`
-- [ ] `Create`
-- [ ] `Update`
-- [ ] `SetStatusByUUID`
-- [ ] `DeleteByUUID`
+- [x] `Get`
+- [x] `GetByUUID`
+- [x] `GetServiceIDByUUID`
+- [x] `Create`
+- [x] `Update`
+- [x] `SetStatusByUUID`
+- [x] `DeleteByUUID`
 
 ### service/api_key.go
 
@@ -350,8 +350,8 @@ layers (handlers, repositories), and thin middleware are excluded to reduce nois
 | Logging & Correlation | 2 | 2 | 0 | — |
 | Email (manual) | 1 | 1 | 0 | — |
 | Broken context.Background() | 4 | 4 | 0 | High |
-| Service Layer | 172 | 0 | 172 | High |
+| Service Layer | 172 | 7 | 165 | High |
 | JWT | 4 | 0 | 4 | Medium |
 | Security (I/O funcs) | 5 | 0 | 5 | Medium |
 | Cache | 5 | 0 | 5 | Low |
-| **Total** | **200** | **14** | **186** | |
+| **Total** | **200** | **21** | **179** | |

@@ -1,15 +1,19 @@
 package service
 
 import (
+	"context"
 	"fmt"
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/maintainerd/auth/internal/apperror"
+	"github.com/maintainerd/auth/internal/crypto"
 	"github.com/maintainerd/auth/internal/model"
 	"github.com/maintainerd/auth/internal/repository"
-	"github.com/maintainerd/auth/internal/crypto"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
 	"gorm.io/gorm"
-	"github.com/maintainerd/auth/internal/apperror"
 )
 
 type APIServiceDataResult struct {
@@ -50,13 +54,13 @@ type APIServiceGetResult struct {
 }
 
 type APIService interface {
-	Get(filter APIServiceGetFilter) (*APIServiceGetResult, error)
-	GetByUUID(apiUUID uuid.UUID, tenantID int64) (*APIServiceDataResult, error)
-	GetServiceIDByUUID(serviceUUID uuid.UUID) (int64, error)
-	Create(tenantID int64, name string, displayName string, description string, apiType string, status string, isSystem bool, serviceUUID string) (*APIServiceDataResult, error)
-	Update(apiUUID uuid.UUID, tenantID int64, name string, displayName string, description string, apiType string, status string, serviceUUID string) (*APIServiceDataResult, error)
-	SetStatusByUUID(apiUUID uuid.UUID, tenantID int64, status string) (*APIServiceDataResult, error)
-	DeleteByUUID(apiUUID uuid.UUID, tenantID int64) (*APIServiceDataResult, error)
+	Get(ctx context.Context, filter APIServiceGetFilter) (*APIServiceGetResult, error)
+	GetByUUID(ctx context.Context, apiUUID uuid.UUID, tenantID int64) (*APIServiceDataResult, error)
+	GetServiceIDByUUID(ctx context.Context, serviceUUID uuid.UUID) (int64, error)
+	Create(ctx context.Context, tenantID int64, name string, displayName string, description string, apiType string, status string, isSystem bool, serviceUUID string) (*APIServiceDataResult, error)
+	Update(ctx context.Context, apiUUID uuid.UUID, tenantID int64, name string, displayName string, description string, apiType string, status string, serviceUUID string) (*APIServiceDataResult, error)
+	SetStatusByUUID(ctx context.Context, apiUUID uuid.UUID, tenantID int64, status string) (*APIServiceDataResult, error)
+	DeleteByUUID(ctx context.Context, apiUUID uuid.UUID, tenantID int64) (*APIServiceDataResult, error)
 }
 
 type apiService struct {
@@ -80,7 +84,11 @@ func NewAPIService(
 	}
 }
 
-func (s *apiService) Get(filter APIServiceGetFilter) (*APIServiceGetResult, error) {
+func (s *apiService) Get(ctx context.Context, filter APIServiceGetFilter) (*APIServiceGetResult, error) {
+	_, span := otel.Tracer("service").Start(ctx, "api.list")
+	defer span.End()
+	span.SetAttributes(attribute.Int64("tenant.id", filter.TenantID))
+
 	apiFilter := repository.APIRepositoryGetFilter{
 		TenantID:    filter.TenantID,
 		Name:        filter.Name,
@@ -98,6 +106,8 @@ func (s *apiService) Get(filter APIServiceGetFilter) (*APIServiceGetResult, erro
 
 	result, err := s.apiRepo.FindPaginated(apiFilter)
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "failed to fetch apis")
 		return nil, err
 	}
 
@@ -106,6 +116,7 @@ func (s *apiService) Get(filter APIServiceGetFilter) (*APIServiceGetResult, erro
 		apis[i] = *toAPIServiceDataResult(&api)
 	}
 
+	span.SetStatus(codes.Ok, "")
 	return &APIServiceGetResult{
 		Data:       apis,
 		Total:      result.Total,
@@ -115,28 +126,57 @@ func (s *apiService) Get(filter APIServiceGetFilter) (*APIServiceGetResult, erro
 	}, nil
 }
 
-func (s *apiService) GetByUUID(apiUUID uuid.UUID, tenantID int64) (*APIServiceDataResult, error) {
+func (s *apiService) GetByUUID(ctx context.Context, apiUUID uuid.UUID, tenantID int64) (*APIServiceDataResult, error) {
+	_, span := otel.Tracer("service").Start(ctx, "api.get")
+	defer span.End()
+	span.SetAttributes(
+		attribute.String("api.uuid", apiUUID.String()),
+		attribute.Int64("tenant.id", tenantID),
+	)
+
 	api, err := s.apiRepo.FindByUUIDAndTenantID(apiUUID, tenantID)
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "failed to fetch api")
 		return nil, err
 	}
 	if api == nil {
+		span.SetStatus(codes.Error, "api not found")
 		return nil, apperror.NewNotFound("api not found")
 	}
 
+	span.SetStatus(codes.Ok, "")
 	return toAPIServiceDataResult(api), nil
 }
 
-func (s *apiService) GetServiceIDByUUID(serviceUUID uuid.UUID) (int64, error) {
+func (s *apiService) GetServiceIDByUUID(ctx context.Context, serviceUUID uuid.UUID) (int64, error) {
+	_, span := otel.Tracer("service").Start(ctx, "api.getServiceID")
+	defer span.End()
+	span.SetAttributes(attribute.String("service.uuid", serviceUUID.String()))
+
 	service, err := s.serviceRepo.FindByUUID(serviceUUID)
-	if err != nil || service == nil {
+	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "failed to fetch service")
+		return 0, apperror.NewNotFound("service not found")
+	}
+	if service == nil {
+		span.SetStatus(codes.Error, "service not found")
 		return 0, apperror.NewNotFound("service not found")
 	}
 
+	span.SetStatus(codes.Ok, "")
 	return service.ServiceID, nil
 }
 
-func (s *apiService) Create(tenantID int64, name string, displayName string, description string, apiType string, status string, isSystem bool, serviceUUID string) (*APIServiceDataResult, error) {
+func (s *apiService) Create(ctx context.Context, tenantID int64, name string, displayName string, description string, apiType string, status string, isSystem bool, serviceUUID string) (*APIServiceDataResult, error) {
+	_, span := otel.Tracer("service").Start(ctx, "api.create")
+	defer span.End()
+	span.SetAttributes(
+		attribute.Int64("tenant.id", tenantID),
+		attribute.String("api.name", name),
+	)
+
 	var createdAPI *model.API
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
@@ -189,13 +229,23 @@ func (s *apiService) Create(tenantID int64, name string, displayName string, des
 	})
 
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "failed to create api")
 		return nil, err
 	}
 
+	span.SetStatus(codes.Ok, "")
 	return toAPIServiceDataResult(createdAPI), nil
 }
 
-func (s *apiService) Update(apiUUID uuid.UUID, tenantID int64, name string, displayName string, description string, apiType string, status string, serviceUUID string) (*APIServiceDataResult, error) {
+func (s *apiService) Update(ctx context.Context, apiUUID uuid.UUID, tenantID int64, name string, displayName string, description string, apiType string, status string, serviceUUID string) (*APIServiceDataResult, error) {
+	_, span := otel.Tracer("service").Start(ctx, "api.update")
+	defer span.End()
+	span.SetAttributes(
+		attribute.String("api.uuid", apiUUID.String()),
+		attribute.Int64("tenant.id", tenantID),
+	)
+
 	var updatedAPI *model.API
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
@@ -273,13 +323,24 @@ func (s *apiService) Update(apiUUID uuid.UUID, tenantID int64, name string, disp
 	})
 
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "failed to update api")
 		return nil, err
 	}
 
+	span.SetStatus(codes.Ok, "")
 	return toAPIServiceDataResult(updatedAPI), nil
 }
 
-func (s *apiService) SetStatusByUUID(apiUUID uuid.UUID, tenantID int64, status string) (*APIServiceDataResult, error) {
+func (s *apiService) SetStatusByUUID(ctx context.Context, apiUUID uuid.UUID, tenantID int64, status string) (*APIServiceDataResult, error) {
+	_, span := otel.Tracer("service").Start(ctx, "api.setStatus")
+	defer span.End()
+	span.SetAttributes(
+		attribute.String("api.uuid", apiUUID.String()),
+		attribute.Int64("tenant.id", tenantID),
+		attribute.String("api.status", status),
+	)
+
 	var updatedAPI *model.API
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
@@ -321,19 +382,32 @@ func (s *apiService) SetStatusByUUID(apiUUID uuid.UUID, tenantID int64, status s
 	})
 
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "failed to update api status")
 		return nil, err
 	}
 
+	span.SetStatus(codes.Ok, "")
 	return toAPIServiceDataResult(updatedAPI), nil
 }
 
-func (s *apiService) DeleteByUUID(apiUUID uuid.UUID, tenantID int64) (*APIServiceDataResult, error) {
+func (s *apiService) DeleteByUUID(ctx context.Context, apiUUID uuid.UUID, tenantID int64) (*APIServiceDataResult, error) {
+	_, span := otel.Tracer("service").Start(ctx, "api.delete")
+	defer span.End()
+	span.SetAttributes(
+		attribute.String("api.uuid", apiUUID.String()),
+		attribute.Int64("tenant.id", tenantID),
+	)
+
 	// Get api and validate tenant ownership
 	api, err := s.apiRepo.FindByUUIDAndTenantID(apiUUID, tenantID)
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "failed to fetch api")
 		return nil, err
 	}
 	if api == nil {
+		span.SetStatus(codes.Error, "api not found or access denied")
 		return nil, apperror.NewNotFoundWithReason("api not found or access denied")
 	}
 
@@ -341,20 +415,25 @@ func (s *apiService) DeleteByUUID(apiUUID uuid.UUID, tenantID int64) (*APIServic
 	if api.ServiceID > 0 {
 		tenantService, err := s.tenantServiceRepo.FindByTenantAndService(tenantID, api.ServiceID)
 		if err != nil || tenantService == nil {
+			span.SetStatus(codes.Error, "api not found or access denied")
 			return nil, apperror.NewNotFoundWithReason("api not found or access denied")
 		}
 	}
 
 	// Check if API is a system record (critical for app functionality)
 	if api.IsSystem {
+		span.SetStatus(codes.Error, "system API cannot be deleted")
 		return nil, apperror.NewValidation("system API cannot be deleted")
 	}
 
 	err = s.apiRepo.DeleteByUUIDAndTenantID(apiUUID, tenantID)
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "failed to delete api")
 		return nil, err
 	}
 
+	span.SetStatus(codes.Ok, "")
 	return toAPIServiceDataResult(api), nil
 }
 

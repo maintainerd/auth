@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"errors"
 	"testing"
 
@@ -74,7 +75,7 @@ func TestAPIService_GetByUUID(t *testing.T) {
 			apiRepo := &mockAPIRepo{}
 			tc.setupRepo(apiRepo)
 			svc := newAPIService(apiRepo, &mockServiceRepo{}, &mockTenantServiceRepo{})
-			result, err := svc.GetByUUID(apiUUID, tenantID)
+			result, err := svc.GetByUUID(context.Background(), apiUUID, tenantID)
 			if tc.expectError {
 				require.Error(t, err)
 				if tc.errContains != "" {
@@ -95,7 +96,7 @@ func TestAPIService_GetByUUID(t *testing.T) {
 func TestAPIService_Get(t *testing.T) {
 	t.Run("success – empty result", func(t *testing.T) {
 		svc := newAPIService(&mockAPIRepo{}, &mockServiceRepo{}, &mockTenantServiceRepo{})
-		result, err := svc.Get(APIServiceGetFilter{TenantID: 1, Page: 1, Limit: 10})
+		result, err := svc.Get(context.Background(), APIServiceGetFilter{TenantID: 1, Page: 1, Limit: 10})
 		require.NoError(t, err)
 		assert.NotNil(t, result)
 		assert.Empty(t, result.Data)
@@ -108,7 +109,7 @@ func TestAPIService_Get(t *testing.T) {
 			},
 		}
 		svc := newAPIService(apiRepo, &mockServiceRepo{}, &mockTenantServiceRepo{})
-		_, err := svc.Get(APIServiceGetFilter{TenantID: 1, Page: 1, Limit: 10})
+		_, err := svc.Get(context.Background(), APIServiceGetFilter{TenantID: 1, Page: 1, Limit: 10})
 		require.Error(t, err)
 	})
 
@@ -123,7 +124,7 @@ func TestAPIService_Get(t *testing.T) {
 			},
 		}
 		svc := newAPIService(apiRepo, &mockServiceRepo{}, &mockTenantServiceRepo{})
-		result, err := svc.Get(APIServiceGetFilter{TenantID: 1, Page: 1, Limit: 10})
+		result, err := svc.Get(context.Background(), APIServiceGetFilter{TenantID: 1, Page: 1, Limit: 10})
 		require.NoError(t, err)
 		assert.Len(t, result.Data, 1)
 		assert.NotNil(t, result.Data[0].Service)
@@ -145,7 +146,7 @@ func TestAPIService_GetServiceIDByUUID(t *testing.T) {
 			},
 		}
 		svc := newAPIService(&mockAPIRepo{}, svcRepo, &mockTenantServiceRepo{})
-		id, err := svc.GetServiceIDByUUID(serviceUUID)
+		id, err := svc.GetServiceIDByUUID(context.Background(), serviceUUID)
 		require.NoError(t, err)
 		assert.Equal(t, int64(42), id)
 	})
@@ -155,7 +156,7 @@ func TestAPIService_GetServiceIDByUUID(t *testing.T) {
 			findByUUIDFn: func(_ any, _ ...string) (*model.Service, error) { return nil, nil },
 		}
 		svc := newAPIService(&mockAPIRepo{}, svcRepo, &mockTenantServiceRepo{})
-		_, err := svc.GetServiceIDByUUID(serviceUUID)
+		_, err := svc.GetServiceIDByUUID(context.Background(), serviceUUID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "service not found")
 	})
@@ -179,7 +180,7 @@ func TestAPIService_Create(t *testing.T) {
 			},
 		}
 		svc := NewAPIService(db, apiRepo, &mockServiceRepo{}, &mockTenantServiceRepo{})
-		_, err := svc.Create(tenantID, "users-api", "", "", "rest", model.StatusActive, false, serviceUUID)
+		_, err := svc.Create(context.Background(), tenantID, "users-api", "", "", "rest", model.StatusActive, false, serviceUUID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "already exists")
 	})
@@ -192,7 +193,7 @@ func TestAPIService_Create(t *testing.T) {
 			findByUUIDFn: func(_ any, _ ...string) (*model.Service, error) { return nil, nil },
 		}
 		svc := NewAPIService(db, &mockAPIRepo{}, svcRepo, &mockTenantServiceRepo{})
-		_, err := svc.Create(tenantID, "users-api", "", "", "rest", model.StatusActive, false, serviceUUID)
+		_, err := svc.Create(context.Background(), tenantID, "users-api", "", "", "rest", model.StatusActive, false, serviceUUID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "service not found")
 	})
@@ -211,7 +212,7 @@ func TestAPIService_Create(t *testing.T) {
 			findByUUIDFn: func(_ any, _ ...string) (*model.API, error) { return createdAPI, nil },
 		}
 		svc := NewAPIService(db, apiRepo, svcRepo, &mockTenantServiceRepo{})
-		result, err := svc.Create(tenantID, "users-api", "", "", "rest", model.StatusActive, false, serviceUUID)
+		result, err := svc.Create(context.Background(), tenantID, "users-api", "", "", "rest", model.StatusActive, false, serviceUUID)
 		require.NoError(t, err)
 		assert.NotNil(t, result)
 	})
@@ -279,7 +280,7 @@ func TestAPIService_DeleteByUUID(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			svc := newAPIService(tc.apiRepo, &mockServiceRepo{}, tc.tsRepo)
-			result, err := svc.DeleteByUUID(apiUUID, tenantID)
+			result, err := svc.DeleteByUUID(context.Background(), apiUUID, tenantID)
 			if tc.expectError {
 				require.Error(t, err)
 				if tc.errContains != "" {
@@ -315,7 +316,7 @@ func TestAPIService_DeleteByUUID_ServiceTenantValidation(t *testing.T) {
 			},
 		}
 		svc := newAPIService(apiRepo, &mockServiceRepo{}, tsRepo)
-		result, err := svc.DeleteByUUID(apiUUID, tenantID)
+		result, err := svc.DeleteByUUID(context.Background(), apiUUID, tenantID)
 		require.NoError(t, err)
 		assert.NotNil(t, result)
 	})
@@ -334,7 +335,7 @@ func TestAPIService_DeleteByUUID_ServiceTenantValidation(t *testing.T) {
 			},
 		}
 		svc := newAPIService(apiRepo, &mockServiceRepo{}, tsRepo)
-		_, err := svc.DeleteByUUID(apiUUID, tenantID)
+		_, err := svc.DeleteByUUID(context.Background(), apiUUID, tenantID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "access denied")
 	})
@@ -349,7 +350,7 @@ func TestAPIService_DeleteByUUID_ServiceTenantValidation(t *testing.T) {
 			},
 		}
 		svc := newAPIService(apiRepo, &mockServiceRepo{}, &mockTenantServiceRepo{})
-		_, err := svc.DeleteByUUID(apiUUID, tenantID)
+		_, err := svc.DeleteByUUID(context.Background(), apiUUID, tenantID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "delete failed")
 	})
@@ -368,7 +369,7 @@ func TestAPIService_DeleteByUUID_ServiceTenantValidation(t *testing.T) {
 			},
 		}
 		svc := newAPIService(apiRepo, &mockServiceRepo{}, tsRepo)
-		_, err := svc.DeleteByUUID(apiUUID, tenantID)
+		_, err := svc.DeleteByUUID(context.Background(), apiUUID, tenantID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "access denied")
 	})
@@ -391,7 +392,7 @@ func TestAPIService_Update(t *testing.T) {
 			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*model.API, error) { return nil, nil },
 		}
 		svc := NewAPIService(db, apiRepo, &mockServiceRepo{}, &mockTenantServiceRepo{})
-		_, err := svc.Update(apiUUID, tenantID, "n", "d", "desc", "rest", "active", serviceUUID)
+		_, err := svc.Update(context.Background(), apiUUID, tenantID, "n", "d", "desc", "rest", "active", serviceUUID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "not found")
 	})
@@ -406,7 +407,7 @@ func TestAPIService_Update(t *testing.T) {
 			},
 		}
 		svc := NewAPIService(db, apiRepo, &mockServiceRepo{}, &mockTenantServiceRepo{})
-		_, err := svc.Update(apiUUID, tenantID, "n", "d", "desc", "rest", "active", serviceUUID)
+		_, err := svc.Update(context.Background(), apiUUID, tenantID, "n", "d", "desc", "rest", "active", serviceUUID)
 		require.Error(t, err)
 	})
 
@@ -423,7 +424,7 @@ func TestAPIService_Update(t *testing.T) {
 			findByTenantAndServiceFn: func(_, _ int64) (*model.TenantService, error) { return nil, nil },
 		}
 		svc := NewAPIService(db, apiRepo, &mockServiceRepo{}, tsRepo)
-		_, err := svc.Update(apiUUID, tenantID, "n", "d", "desc", "rest", "active", serviceUUID)
+		_, err := svc.Update(context.Background(), apiUUID, tenantID, "n", "d", "desc", "rest", "active", serviceUUID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "access denied")
 	})
@@ -438,7 +439,7 @@ func TestAPIService_Update(t *testing.T) {
 			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*model.API, error) { return api, nil },
 		}
 		svc := NewAPIService(db, apiRepo, &mockServiceRepo{}, &mockTenantServiceRepo{})
-		_, err := svc.Update(apiUUID, tenantID, "n", "d", "desc", "rest", "active", serviceUUID)
+		_, err := svc.Update(context.Background(), apiUUID, tenantID, "n", "d", "desc", "rest", "active", serviceUUID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "system API")
 	})
@@ -453,7 +454,7 @@ func TestAPIService_Update(t *testing.T) {
 			},
 		}
 		svc := NewAPIService(db, apiRepo, &mockServiceRepo{}, &mockTenantServiceRepo{})
-		_, err := svc.Update(apiUUID, tenantID, "n", "d", "desc", "rest", "active", "bad-uuid")
+		_, err := svc.Update(context.Background(), apiUUID, tenantID, "n", "d", "desc", "rest", "active", "bad-uuid")
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "invalid service UUID")
 	})
@@ -471,7 +472,7 @@ func TestAPIService_Update(t *testing.T) {
 			findByUUIDFn: func(_ any, _ ...string) (*model.Service, error) { return nil, nil },
 		}
 		svc := NewAPIService(db, apiRepo, svcRepo, &mockTenantServiceRepo{})
-		_, err := svc.Update(apiUUID, tenantID, "n", "d", "desc", "rest", "active", serviceUUID)
+		_, err := svc.Update(context.Background(), apiUUID, tenantID, "n", "d", "desc", "rest", "active", serviceUUID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "service not found")
 	})
@@ -494,7 +495,7 @@ func TestAPIService_Update(t *testing.T) {
 			findByTenantAndServiceFn: func(_, _ int64) (*model.TenantService, error) { return nil, nil },
 		}
 		svc := NewAPIService(db, apiRepo, svcRepo, tsRepo)
-		_, err := svc.Update(apiUUID, tenantID, "n", "d", "desc", "rest", "active", serviceUUID)
+		_, err := svc.Update(context.Background(), apiUUID, tenantID, "n", "d", "desc", "rest", "active", serviceUUID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "service not found or access denied")
 	})
@@ -518,7 +519,7 @@ func TestAPIService_Update(t *testing.T) {
 			},
 		}
 		svc := NewAPIService(db, apiRepo, svcRepo, &mockTenantServiceRepo{})
-		_, err := svc.Update(apiUUID, tenantID, "new-name", "d", "desc", "rest", "active", serviceUUID)
+		_, err := svc.Update(context.Background(), apiUUID, tenantID, "new-name", "d", "desc", "rest", "active", serviceUUID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "already exists")
 	})
@@ -541,7 +542,7 @@ func TestAPIService_Update(t *testing.T) {
 			},
 		}
 		svc := NewAPIService(db, apiRepo, svcRepo, &mockTenantServiceRepo{})
-		_, err := svc.Update(apiUUID, tenantID, "old", "d", "desc", "rest", "active", serviceUUID)
+		_, err := svc.Update(context.Background(), apiUUID, tenantID, "old", "d", "desc", "rest", "active", serviceUUID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "save failed")
 	})
@@ -560,7 +561,7 @@ func TestAPIService_Update(t *testing.T) {
 			},
 		}
 		svc := NewAPIService(db, apiRepo, svcRepo, &mockTenantServiceRepo{})
-		result, err := svc.Update(apiUUID, tenantID, "old", "New Display", "desc", "rest", "active", serviceUUID)
+		result, err := svc.Update(context.Background(), apiUUID, tenantID, "old", "New Display", "desc", "rest", "active", serviceUUID)
 		require.NoError(t, err)
 		assert.NotNil(t, result)
 		assert.NoError(t, mock.ExpectationsWereMet())
@@ -581,7 +582,7 @@ func TestAPIService_Update(t *testing.T) {
 			},
 		}
 		svc := NewAPIService(db, apiRepo, &mockServiceRepo{}, tsRepo)
-		_, err := svc.Update(apiUUID, tenantID, "n", "d", "desc", "rest", "active", serviceUUID)
+		_, err := svc.Update(context.Background(), apiUUID, tenantID, "n", "d", "desc", "rest", "active", serviceUUID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "access denied")
 	})
@@ -601,7 +602,7 @@ func TestAPIService_Update(t *testing.T) {
 			},
 		}
 		svc := NewAPIService(db, apiRepo, svcRepo, &mockTenantServiceRepo{})
-		_, err := svc.Update(apiUUID, tenantID, "n", "d", "desc", "rest", "active", serviceUUID)
+		_, err := svc.Update(context.Background(), apiUUID, tenantID, "n", "d", "desc", "rest", "active", serviceUUID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "service not found")
 	})
@@ -626,7 +627,7 @@ func TestAPIService_Update(t *testing.T) {
 			},
 		}
 		svc := NewAPIService(db, apiRepo, svcRepo, tsRepo)
-		_, err := svc.Update(apiUUID, tenantID, "n", "d", "desc", "rest", "active", serviceUUID)
+		_, err := svc.Update(context.Background(), apiUUID, tenantID, "n", "d", "desc", "rest", "active", serviceUUID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "service not found or access denied")
 	})
@@ -649,7 +650,7 @@ func TestAPIService_Update(t *testing.T) {
 			},
 		}
 		svc := NewAPIService(db, apiRepo, svcRepo, &mockTenantServiceRepo{})
-		_, err := svc.Update(apiUUID, tenantID, "new-name", "d", "desc", "rest", "active", serviceUUID)
+		_, err := svc.Update(context.Background(), apiUUID, tenantID, "new-name", "d", "desc", "rest", "active", serviceUUID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "name lookup err")
 	})
@@ -673,7 +674,7 @@ func TestAPIService_SetStatusByUUID(t *testing.T) {
 			},
 		}
 		svc := NewAPIService(db, apiRepo, &mockServiceRepo{}, &mockTenantServiceRepo{})
-		_, err := svc.SetStatusByUUID(apiUUID, tenantID, "inactive")
+		_, err := svc.SetStatusByUUID(context.Background(), apiUUID, tenantID, "inactive")
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "db error")
 	})
@@ -686,7 +687,7 @@ func TestAPIService_SetStatusByUUID(t *testing.T) {
 			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*model.API, error) { return nil, nil },
 		}
 		svc := NewAPIService(db, apiRepo, &mockServiceRepo{}, &mockTenantServiceRepo{})
-		_, err := svc.SetStatusByUUID(apiUUID, tenantID, "inactive")
+		_, err := svc.SetStatusByUUID(context.Background(), apiUUID, tenantID, "inactive")
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "not found")
 	})
@@ -704,7 +705,7 @@ func TestAPIService_SetStatusByUUID(t *testing.T) {
 			findByTenantAndServiceFn: func(_, _ int64) (*model.TenantService, error) { return nil, nil },
 		}
 		svc := NewAPIService(db, apiRepo, &mockServiceRepo{}, tsRepo)
-		_, err := svc.SetStatusByUUID(apiUUID, tenantID, "inactive")
+		_, err := svc.SetStatusByUUID(context.Background(), apiUUID, tenantID, "inactive")
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "access denied")
 	})
@@ -719,7 +720,7 @@ func TestAPIService_SetStatusByUUID(t *testing.T) {
 			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*model.API, error) { return api, nil },
 		}
 		svc := NewAPIService(db, apiRepo, &mockServiceRepo{}, &mockTenantServiceRepo{})
-		_, err := svc.SetStatusByUUID(apiUUID, tenantID, "inactive")
+		_, err := svc.SetStatusByUUID(context.Background(), apiUUID, tenantID, "inactive")
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "system API")
 	})
@@ -735,7 +736,7 @@ func TestAPIService_SetStatusByUUID(t *testing.T) {
 			createOrUpdateFn: func(_ *model.API) (*model.API, error) { return nil, errors.New("save err") },
 		}
 		svc := NewAPIService(db, apiRepo, &mockServiceRepo{}, &mockTenantServiceRepo{})
-		_, err := svc.SetStatusByUUID(apiUUID, tenantID, "inactive")
+		_, err := svc.SetStatusByUUID(context.Background(), apiUUID, tenantID, "inactive")
 		require.Error(t, err)
 	})
 
@@ -754,7 +755,7 @@ func TestAPIService_SetStatusByUUID(t *testing.T) {
 			},
 		}
 		svc := NewAPIService(db, apiRepo, &mockServiceRepo{}, tsRepo)
-		_, err := svc.SetStatusByUUID(apiUUID, tenantID, "inactive")
+		_, err := svc.SetStatusByUUID(context.Background(), apiUUID, tenantID, "inactive")
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "access denied")
 	})
@@ -769,7 +770,7 @@ func TestAPIService_SetStatusByUUID(t *testing.T) {
 			},
 		}
 		svc := NewAPIService(db, apiRepo, &mockServiceRepo{}, &mockTenantServiceRepo{})
-		result, err := svc.SetStatusByUUID(apiUUID, tenantID, "inactive")
+		result, err := svc.SetStatusByUUID(context.Background(), apiUUID, tenantID, "inactive")
 		require.NoError(t, err)
 		assert.NotNil(t, result)
 		assert.NoError(t, mock.ExpectationsWereMet())
@@ -788,7 +789,7 @@ func TestAPIService_Create_FindByNameError(t *testing.T) {
 		findByNameFn: func(_ string, _ int64) (*model.API, error) { return nil, errors.New("name lookup err") },
 	}
 	svc := NewAPIService(db, apiRepo, &mockServiceRepo{}, &mockTenantServiceRepo{})
-	_, err := svc.Create(1, "api", "", "", "rest", "active", false, uuid.New().String())
+	_, err := svc.Create(context.Background(), 1, "api", "", "", "rest", "active", false, uuid.New().String())
 	require.Error(t, err)
 }
 
@@ -803,7 +804,7 @@ func TestAPIService_Create_SaveError(t *testing.T) {
 		findByUUIDFn: func(_ any, _ ...string) (*model.Service, error) { return &model.Service{ServiceID: 1}, nil },
 	}
 	svc := NewAPIService(db, apiRepo, svcRepo, &mockTenantServiceRepo{})
-	_, err := svc.Create(1, "api", "", "", "rest", "active", false, uuid.New().String())
+	_, err := svc.Create(context.Background(), 1, "api", "", "", "rest", "active", false, uuid.New().String())
 	require.Error(t, err)
 }
 
@@ -818,7 +819,7 @@ func TestAPIService_Create_FetchAfterSaveError(t *testing.T) {
 		findByUUIDFn: func(_ any, _ ...string) (*model.Service, error) { return &model.Service{ServiceID: 1}, nil },
 	}
 	svc := NewAPIService(db, apiRepo, svcRepo, &mockTenantServiceRepo{})
-	_, err := svc.Create(1, "api", "", "", "rest", "active", false, uuid.New().String())
+	_, err := svc.Create(context.Background(), 1, "api", "", "", "rest", "active", false, uuid.New().String())
 	require.Error(t, err)
 }
 
