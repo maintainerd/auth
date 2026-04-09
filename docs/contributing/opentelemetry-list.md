@@ -118,7 +118,7 @@ layers (handlers, repositories), and thin middleware are excluded to reduce nois
 
 ### service/invite.go
 
-- [ ] `SendInvite`
+- [x] `SendInvite`
 
 ### service/ip_restriction_rule.go
 
@@ -350,8 +350,8 @@ layers (handlers, repositories), and thin middleware are excluded to reduce nois
 | Logging & Correlation | 2 | 2 | 0 | — |
 | Email (manual) | 1 | 1 | 0 | — |
 | Broken context.Background() | 4 | 4 | 0 | High |
-| Service Layer | 172 | 51 | 121 | High |
+| Service Layer | 172 | 52 | 120 | High |
 | JWT | 4 | 0 | 4 | Medium |
 | Security (I/O funcs) | 5 | 0 | 5 | Medium |
 | Cache | 5 | 0 | 5 | Low |
-| **Total** | **200** | **65** | **135** | |
+| **Total** | **200** | **66** | **134** | |
