@@ -1,7 +1,9 @@
-<table border="0" cellpadding="0" cellspacing="0"><tr>
-  <td width="66"><img src="https://github.com/user-attachments/assets/4bc6f3d9-761e-477e-90ad-1b305b5b5e23" alt="" width="64" height="64"></td>
-  <td valign="middle"><b><font size="6">Maintainerd Auth</font></b></td>
-</tr></table>
+<div align="left">
+  <img src="https://github.com/user-attachments/assets/4bc6f3d9-761e-477e-90ad-1b305b5b5e23" alt="Maintainerd Auth" width="100" height="100" align="left" hspace="15">
+  <br>
+  <h1><font size="7">Maintainerd Auth</font></h1>
+  <br clear="left">
+</div>
 
 <p>
   <a href="https://github.com/maintainerd/auth/actions/workflows/ci.yml">
