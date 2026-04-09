@@ -1,16 +1,20 @@
 package service
 
 import (
+	"context"
 	"fmt"
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/maintainerd/auth/internal/apperror"
+	"github.com/maintainerd/auth/internal/crypto"
 	"github.com/maintainerd/auth/internal/model"
 	"github.com/maintainerd/auth/internal/repository"
-	"github.com/maintainerd/auth/internal/crypto"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
 	"gorm.io/datatypes"
 	"gorm.io/gorm"
-	"github.com/maintainerd/auth/internal/apperror"
 )
 
 type IdentityProviderServiceDataResult struct {
@@ -54,12 +58,12 @@ type IdentityProviderServiceGetResult struct {
 }
 
 type IdentityProviderService interface {
-	Get(filter IdentityProviderServiceGetFilter) (*IdentityProviderServiceGetResult, error)
-	GetByUUID(idpUUID uuid.UUID, tenantID int64) (*IdentityProviderServiceDataResult, error)
-	Create(name string, displayName string, provider string, providerType string, config datatypes.JSON, status string, tenantUUID string, tenantID int64, actorUserUUID uuid.UUID) (*IdentityProviderServiceDataResult, error)
-	Update(idpUUID uuid.UUID, name string, displayName string, provider string, providerType string, config datatypes.JSON, status string, tenantID int64, actorUserUUID uuid.UUID) (*IdentityProviderServiceDataResult, error)
-	SetStatusByUUID(idpUUID uuid.UUID, status string, tenantID int64, actorUserUUID uuid.UUID) (*IdentityProviderServiceDataResult, error)
-	DeleteByUUID(idpUUID uuid.UUID, tenantID int64, actorUserUUID uuid.UUID) (*IdentityProviderServiceDataResult, error)
+	Get(ctx context.Context, filter IdentityProviderServiceGetFilter) (*IdentityProviderServiceGetResult, error)
+	GetByUUID(ctx context.Context, idpUUID uuid.UUID, tenantID int64) (*IdentityProviderServiceDataResult, error)
+	Create(ctx context.Context, name string, displayName string, provider string, providerType string, config datatypes.JSON, status string, tenantUUID string, tenantID int64, actorUserUUID uuid.UUID) (*IdentityProviderServiceDataResult, error)
+	Update(ctx context.Context, idpUUID uuid.UUID, name string, displayName string, provider string, providerType string, config datatypes.JSON, status string, tenantID int64, actorUserUUID uuid.UUID) (*IdentityProviderServiceDataResult, error)
+	SetStatusByUUID(ctx context.Context, idpUUID uuid.UUID, status string, tenantID int64, actorUserUUID uuid.UUID) (*IdentityProviderServiceDataResult, error)
+	DeleteByUUID(ctx context.Context, idpUUID uuid.UUID, tenantID int64, actorUserUUID uuid.UUID) (*IdentityProviderServiceDataResult, error)
 }
 
 type identityProviderService struct {
@@ -83,7 +87,11 @@ func NewIdentityProviderService(
 	}
 }
 
-func (s *identityProviderService) Get(filter IdentityProviderServiceGetFilter) (*IdentityProviderServiceGetResult, error) {
+func (s *identityProviderService) Get(ctx context.Context, filter IdentityProviderServiceGetFilter) (*IdentityProviderServiceGetResult, error) {
+	_, span := otel.Tracer("service").Start(ctx, "identityProvider.list")
+	defer span.End()
+	span.SetAttributes(attribute.Int64("tenant.id", filter.TenantID))
+
 	// Build query filter
 	queryFilter := repository.IdentityProviderRepositoryGetFilter{
 		Name:         filter.Name,
@@ -103,6 +111,8 @@ func (s *identityProviderService) Get(filter IdentityProviderServiceGetFilter) (
 
 	result, err := s.idpRepo.FindPaginated(queryFilter)
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "failed to list identity providers")
 		return nil, err
 	}
 
@@ -111,6 +121,7 @@ func (s *identityProviderService) Get(filter IdentityProviderServiceGetFilter) (
 		idps[i] = *toIdpServiceDataResult(&idp)
 	}
 
+	span.SetStatus(codes.Ok, "")
 	return &IdentityProviderServiceGetResult{
 		Data:       idps,
 		Total:      result.Total,
@@ -120,21 +131,38 @@ func (s *identityProviderService) Get(filter IdentityProviderServiceGetFilter) (
 	}, nil
 }
 
-func (s *identityProviderService) GetByUUID(idpUUID uuid.UUID, tenantID int64) (*IdentityProviderServiceDataResult, error) {
+func (s *identityProviderService) GetByUUID(ctx context.Context, idpUUID uuid.UUID, tenantID int64) (*IdentityProviderServiceDataResult, error) {
+	_, span := otel.Tracer("service").Start(ctx, "identityProvider.get")
+	defer span.End()
+	span.SetAttributes(
+		attribute.String("idp.uuid", idpUUID.String()),
+		attribute.Int64("tenant.id", tenantID),
+	)
+
 	idp, err := s.idpRepo.FindByUUID(idpUUID, "Tenant")
 	if err != nil || idp == nil {
+		span.SetStatus(codes.Error, "identity provider not found or access denied")
 		return nil, apperror.NewNotFoundWithReason("identity provider not found or access denied")
 	}
 
 	// Validate tenant ownership
 	if idp.TenantID != tenantID {
+		span.SetStatus(codes.Error, "identity provider not found or access denied")
 		return nil, apperror.NewNotFoundWithReason("identity provider not found or access denied")
 	}
 
+	span.SetStatus(codes.Ok, "")
 	return toIdpServiceDataResult(idp), nil
 }
 
-func (s *identityProviderService) Create(name string, displayName string, provider string, providerType string, config datatypes.JSON, status string, tenantUUID string, tenantID int64, actorUserUUID uuid.UUID) (*IdentityProviderServiceDataResult, error) {
+func (s *identityProviderService) Create(ctx context.Context, name string, displayName string, provider string, providerType string, config datatypes.JSON, status string, tenantUUID string, tenantID int64, actorUserUUID uuid.UUID) (*IdentityProviderServiceDataResult, error) {
+	_, span := otel.Tracer("service").Start(ctx, "identityProvider.create")
+	defer span.End()
+	span.SetAttributes(
+		attribute.Int64("tenant.id", tenantID),
+		attribute.String("idp.name", name),
+	)
+
 	var createdIdp *model.IdentityProvider
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
@@ -211,13 +239,23 @@ func (s *identityProviderService) Create(name string, displayName string, provid
 	})
 
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "failed to create identity provider")
 		return nil, err
 	}
 
+	span.SetStatus(codes.Ok, "")
 	return toIdpServiceDataResult(createdIdp), nil
 }
 
-func (s *identityProviderService) Update(idpUUID uuid.UUID, name string, displayName string, provider string, providerType string, config datatypes.JSON, status string, tenantID int64, actorUserUUID uuid.UUID) (*IdentityProviderServiceDataResult, error) {
+func (s *identityProviderService) Update(ctx context.Context, idpUUID uuid.UUID, name string, displayName string, provider string, providerType string, config datatypes.JSON, status string, tenantID int64, actorUserUUID uuid.UUID) (*IdentityProviderServiceDataResult, error) {
+	_, span := otel.Tracer("service").Start(ctx, "identityProvider.update")
+	defer span.End()
+	span.SetAttributes(
+		attribute.String("idp.uuid", idpUUID.String()),
+		attribute.Int64("tenant.id", tenantID),
+	)
+
 	var updatedIdp *model.IdentityProvider
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
@@ -286,13 +324,24 @@ func (s *identityProviderService) Update(idpUUID uuid.UUID, name string, display
 	})
 
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "failed to update identity provider")
 		return nil, err
 	}
 
+	span.SetStatus(codes.Ok, "")
 	return toIdpServiceDataResult(updatedIdp), nil
 }
 
-func (s *identityProviderService) SetStatusByUUID(idpUUID uuid.UUID, status string, tenantID int64, actorUserUUID uuid.UUID) (*IdentityProviderServiceDataResult, error) {
+func (s *identityProviderService) SetStatusByUUID(ctx context.Context, idpUUID uuid.UUID, status string, tenantID int64, actorUserUUID uuid.UUID) (*IdentityProviderServiceDataResult, error) {
+	_, span := otel.Tracer("service").Start(ctx, "identityProvider.setStatus")
+	defer span.End()
+	span.SetAttributes(
+		attribute.String("idp.uuid", idpUUID.String()),
+		attribute.Int64("tenant.id", tenantID),
+		attribute.String("idp.status", status),
+	)
+
 	var updatedIdp *model.IdentityProvider
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
@@ -343,48 +392,68 @@ func (s *identityProviderService) SetStatusByUUID(idpUUID uuid.UUID, status stri
 	})
 
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "failed to update identity provider status")
 		return nil, err
 	}
 
+	span.SetStatus(codes.Ok, "")
 	return toIdpServiceDataResult(updatedIdp), nil
 }
 
-func (s *identityProviderService) DeleteByUUID(idpUUID uuid.UUID, tenantID int64, actorUserUUID uuid.UUID) (*IdentityProviderServiceDataResult, error) {
+func (s *identityProviderService) DeleteByUUID(ctx context.Context, idpUUID uuid.UUID, tenantID int64, actorUserUUID uuid.UUID) (*IdentityProviderServiceDataResult, error) {
+	_, span := otel.Tracer("service").Start(ctx, "identityProvider.delete")
+	defer span.End()
+	span.SetAttributes(
+		attribute.String("idp.uuid", idpUUID.String()),
+		attribute.Int64("tenant.id", tenantID),
+	)
+
 	// Get idp
 	idp, err := s.idpRepo.FindByUUID(idpUUID, "Tenant")
 	if err != nil || idp == nil {
+		span.SetStatus(codes.Error, "identity provider not found or access denied")
 		return nil, apperror.NewNotFoundWithReason("identity provider not found or access denied")
 	}
 
 	// Validate tenant ownership
 	if idp.TenantID != tenantID {
+		span.SetStatus(codes.Error, "identity provider not found or access denied")
 		return nil, apperror.NewNotFoundWithReason("identity provider not found or access denied")
 	}
 
 	// Get actor user with tenant info
 	actorUser, err := s.userRepo.FindByUUID(actorUserUUID, "UserIdentities.Tenant")
 	if err != nil || actorUser == nil {
+		span.SetStatus(codes.Error, "actor user not found")
 		return nil, apperror.NewNotFoundWithReason("actor user not found")
 	}
 
 	// Validate tenant access permissions
 	if err := ValidateTenantAccess(actorUser, idp.Tenant); err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "tenant access denied")
 		return nil, err
 	}
 
 	// Check if system or default (cannot be deleted)
 	if idp.IsSystem {
+		span.SetStatus(codes.Error, "system idp cannot be deleted")
 		return nil, apperror.NewValidation("system idp cannot be deleted")
 	}
 	if idp.IsDefault {
+		span.SetStatus(codes.Error, "default idp cannot be deleted")
 		return nil, apperror.NewValidation("default idp cannot be deleted")
 	}
 
 	err = s.idpRepo.DeleteByUUID(idpUUID)
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "failed to delete identity provider")
 		return nil, err
 	}
 
+	span.SetStatus(codes.Ok, "")
 	return toIdpServiceDataResult(idp), nil
 }
 

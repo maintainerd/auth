@@ -109,12 +109,12 @@ layers (handlers, repositories), and thin middleware are excluded to reduce nois
 
 ### service/identity_provider.go
 
-- [ ] `Get`
-- [ ] `GetByUUID`
-- [ ] `Create`
-- [ ] `Update`
-- [ ] `SetStatusByUUID`
-- [ ] `DeleteByUUID`
+- [x] `Get`
+- [x] `GetByUUID`
+- [x] `Create`
+- [x] `Update`
+- [x] `SetStatusByUUID`
+- [x] `DeleteByUUID`
 
 ### service/invite.go
 
@@ -350,8 +350,8 @@ layers (handlers, repositories), and thin middleware are excluded to reduce nois
 | Logging & Correlation | 2 | 2 | 0 | — |
 | Email (manual) | 1 | 1 | 0 | — |
 | Broken context.Background() | 4 | 4 | 0 | High |
-| Service Layer | 172 | 45 | 127 | High |
+| Service Layer | 172 | 51 | 121 | High |
 | JWT | 4 | 0 | 4 | Medium |
 | Security (I/O funcs) | 5 | 0 | 5 | Medium |
 | Cache | 5 | 0 | 5 | Low |
-| **Total** | **200** | **59** | **141** | |
+| **Total** | **200** | **65** | **135** | |

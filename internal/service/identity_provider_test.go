@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"errors"
 	"testing"
 
@@ -53,7 +54,7 @@ func TestIdentityProviderService_Get(t *testing.T) {
 			},
 		}
 		svc := NewIdentityProviderService(nil, idpRepo, &mockTenantRepo{}, &mockUserRepo{})
-		_, err := svc.Get(IdentityProviderServiceGetFilter{TenantID: tenantID, Page: 1, Limit: 10})
+		_, err := svc.Get(context.Background(), IdentityProviderServiceGetFilter{TenantID: tenantID, Page: 1, Limit: 10})
 		require.Error(t, err)
 	})
 
@@ -67,7 +68,7 @@ func TestIdentityProviderService_Get(t *testing.T) {
 			},
 		}
 		svc := NewIdentityProviderService(nil, idpRepo, &mockTenantRepo{}, &mockUserRepo{})
-		result, err := svc.Get(IdentityProviderServiceGetFilter{TenantID: tenantID, Page: 1, Limit: 10})
+		result, err := svc.Get(context.Background(), IdentityProviderServiceGetFilter{TenantID: tenantID, Page: 1, Limit: 10})
 		require.NoError(t, err)
 		assert.Len(t, result.Data, 1)
 		assert.Equal(t, "local", result.Data[0].Name)
@@ -87,7 +88,7 @@ func TestIdentityProviderService_GetByUUID(t *testing.T) {
 			findByUUIDFn: func(_ any, _ ...string) (*model.IdentityProvider, error) { return nil, nil },
 		}
 		svc := NewIdentityProviderService(nil, idpRepo, &mockTenantRepo{}, &mockUserRepo{})
-		_, err := svc.GetByUUID(idpUUID, tenantID)
+		_, err := svc.GetByUUID(context.Background(), idpUUID, tenantID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "not found")
 	})
@@ -99,7 +100,7 @@ func TestIdentityProviderService_GetByUUID(t *testing.T) {
 			},
 		}
 		svc := NewIdentityProviderService(nil, idpRepo, &mockTenantRepo{}, &mockUserRepo{})
-		_, err := svc.GetByUUID(idpUUID, tenantID)
+		_, err := svc.GetByUUID(context.Background(), idpUUID, tenantID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "access denied")
 	})
@@ -110,7 +111,7 @@ func TestIdentityProviderService_GetByUUID(t *testing.T) {
 			findByUUIDFn: func(_ any, _ ...string) (*model.IdentityProvider, error) { return idp, nil },
 		}
 		svc := NewIdentityProviderService(nil, idpRepo, &mockTenantRepo{}, &mockUserRepo{})
-		result, err := svc.GetByUUID(idpUUID, tenantID)
+		result, err := svc.GetByUUID(context.Background(), idpUUID, tenantID)
 		require.NoError(t, err)
 		assert.Equal(t, "local", result.Name)
 	})
@@ -130,7 +131,7 @@ func TestIdentityProviderService_DeleteByUUID(t *testing.T) {
 			findByUUIDFn: func(_ any, _ ...string) (*model.IdentityProvider, error) { return nil, nil },
 		}
 		svc := NewIdentityProviderService(nil, idpRepo, &mockTenantRepo{}, &mockUserRepo{})
-		_, err := svc.DeleteByUUID(idpUUID, tenantID, actorUUID)
+		_, err := svc.DeleteByUUID(context.Background(), idpUUID, tenantID, actorUUID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "not found")
 	})
@@ -142,7 +143,7 @@ func TestIdentityProviderService_DeleteByUUID(t *testing.T) {
 			},
 		}
 		svc := NewIdentityProviderService(nil, idpRepo, &mockTenantRepo{}, &mockUserRepo{})
-		_, err := svc.DeleteByUUID(idpUUID, tenantID, actorUUID)
+		_, err := svc.DeleteByUUID(context.Background(), idpUUID, tenantID, actorUUID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "access denied")
 	})
@@ -157,7 +158,7 @@ func TestIdentityProviderService_DeleteByUUID(t *testing.T) {
 			findByUUIDFn: func(_ any, _ ...string) (*model.User, error) { return nil, nil },
 		}
 		svc := NewIdentityProviderService(nil, idpRepo, &mockTenantRepo{}, userRepo)
-		_, err := svc.DeleteByUUID(idpUUID, tenantID, actorUUID)
+		_, err := svc.DeleteByUUID(context.Background(), idpUUID, tenantID, actorUUID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "actor user not found")
 	})
@@ -174,7 +175,7 @@ func TestIdentityProviderService_DeleteByUUID(t *testing.T) {
 			},
 		}
 		svc := NewIdentityProviderService(nil, idpRepo, &mockTenantRepo{}, userRepo)
-		_, err := svc.DeleteByUUID(idpUUID, tenantID, actorUUID)
+		_, err := svc.DeleteByUUID(context.Background(), idpUUID, tenantID, actorUUID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "system idp")
 	})
@@ -190,7 +191,7 @@ func TestIdentityProviderService_DeleteByUUID(t *testing.T) {
 			},
 		}
 		svc := NewIdentityProviderService(nil, idpRepo, &mockTenantRepo{}, userRepo)
-		result, err := svc.DeleteByUUID(idpUUID, tenantID, actorUUID)
+		result, err := svc.DeleteByUUID(context.Background(), idpUUID, tenantID, actorUUID)
 		require.NoError(t, err)
 		assert.Equal(t, "local", result.Name)
 	})
@@ -207,7 +208,7 @@ func TestIdentityProviderService_DeleteByUUID(t *testing.T) {
 			},
 		}
 		svc := NewIdentityProviderService(nil, idpRepo, &mockTenantRepo{}, userRepo)
-		_, err := svc.DeleteByUUID(idpUUID, tenantID, actorUUID)
+		_, err := svc.DeleteByUUID(context.Background(), idpUUID, tenantID, actorUUID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "default idp")
 	})
@@ -224,7 +225,7 @@ func TestIdentityProviderService_DeleteByUUID(t *testing.T) {
 			},
 		}
 		svc := NewIdentityProviderService(nil, idpRepo, &mockTenantRepo{}, userRepo)
-		_, err := svc.DeleteByUUID(idpUUID, tenantID, actorUUID)
+		_, err := svc.DeleteByUUID(context.Background(), idpUUID, tenantID, actorUUID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "del err")
 	})
@@ -246,7 +247,7 @@ func TestIdentityProviderService_DeleteByUUID(t *testing.T) {
 			},
 		}
 		svc := NewIdentityProviderService(nil, idpRepo, &mockTenantRepo{}, userRepo)
-		_, err := svc.DeleteByUUID(idpUUID, tenantID, actorUUID)
+		_, err := svc.DeleteByUUID(context.Background(), idpUUID, tenantID, actorUUID)
 		require.Error(t, err)
 	})
 }
@@ -266,7 +267,7 @@ func TestIdentityProviderService_Create(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		svc := NewIdentityProviderService(gormDB, &mockIdentityProviderRepo{}, &mockTenantRepo{}, &mockUserRepo{})
-		_, err := svc.Create("idp", "IDP", "local", "password", cfg, "active", "invalid-uuid", tenantID, actorUUID)
+		_, err := svc.Create(context.Background(), "idp", "IDP", "local", "password", cfg, "active", "invalid-uuid", tenantID, actorUUID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "invalid tenant UUID")
 	})
@@ -279,7 +280,7 @@ func TestIdentityProviderService_Create(t *testing.T) {
 			findByUUIDFn: func(_ any, _ ...string) (*model.Tenant, error) { return nil, nil },
 		}
 		svc := NewIdentityProviderService(gormDB, &mockIdentityProviderRepo{}, tenantRepo, &mockUserRepo{})
-		_, err := svc.Create("idp", "IDP", "local", "password", cfg, "active", tenantUUID.String(), tenantID, actorUUID)
+		_, err := svc.Create(context.Background(), "idp", "IDP", "local", "password", cfg, "active", tenantUUID.String(), tenantID, actorUUID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "tenant not found")
 	})
@@ -292,7 +293,7 @@ func TestIdentityProviderService_Create(t *testing.T) {
 			findByUUIDFn: func(_ any, _ ...string) (*model.Tenant, error) { return nil, errors.New("db err") },
 		}
 		svc := NewIdentityProviderService(gormDB, &mockIdentityProviderRepo{}, tenantRepo, &mockUserRepo{})
-		_, err := svc.Create("idp", "IDP", "local", "password", cfg, "active", tenantUUID.String(), tenantID, actorUUID)
+		_, err := svc.Create(context.Background(), "idp", "IDP", "local", "password", cfg, "active", tenantUUID.String(), tenantID, actorUUID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "tenant not found")
 	})
@@ -307,7 +308,7 @@ func TestIdentityProviderService_Create(t *testing.T) {
 			},
 		}
 		svc := NewIdentityProviderService(gormDB, &mockIdentityProviderRepo{}, tenantRepo, &mockUserRepo{})
-		_, err := svc.Create("idp", "IDP", "local", "password", cfg, "active", tenantUUID.String(), tenantID, actorUUID)
+		_, err := svc.Create(context.Background(), "idp", "IDP", "local", "password", cfg, "active", tenantUUID.String(), tenantID, actorUUID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "access denied")
 	})
@@ -325,7 +326,7 @@ func TestIdentityProviderService_Create(t *testing.T) {
 			findByUUIDFn: func(_ any, _ ...string) (*model.User, error) { return nil, nil },
 		}
 		svc := NewIdentityProviderService(gormDB, &mockIdentityProviderRepo{}, tenantRepo, userRepo)
-		_, err := svc.Create("idp", "IDP", "local", "password", cfg, "active", tenantUUID.String(), tenantID, actorUUID)
+		_, err := svc.Create(context.Background(), "idp", "IDP", "local", "password", cfg, "active", tenantUUID.String(), tenantID, actorUUID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "actor user not found")
 	})
@@ -350,7 +351,7 @@ func TestIdentityProviderService_Create(t *testing.T) {
 			},
 		}
 		svc := NewIdentityProviderService(gormDB, &mockIdentityProviderRepo{}, tenantRepo, userRepo)
-		_, err := svc.Create("idp", "IDP", "local", "password", cfg, "active", tenantUUID.String(), tenantID, actorUUID)
+		_, err := svc.Create(context.Background(), "idp", "IDP", "local", "password", cfg, "active", tenantUUID.String(), tenantID, actorUUID)
 		require.Error(t, err)
 	})
 
@@ -374,7 +375,7 @@ func TestIdentityProviderService_Create(t *testing.T) {
 			},
 		}
 		svc := NewIdentityProviderService(gormDB, idpRepo, tenantRepo, userRepo)
-		_, err := svc.Create("idp", "IDP", "local", "password", cfg, "active", tenantUUID.String(), tenantID, actorUUID)
+		_, err := svc.Create(context.Background(), "idp", "IDP", "local", "password", cfg, "active", tenantUUID.String(), tenantID, actorUUID)
 		require.Error(t, err)
 	})
 
@@ -398,7 +399,7 @@ func TestIdentityProviderService_Create(t *testing.T) {
 			},
 		}
 		svc := NewIdentityProviderService(gormDB, idpRepo, tenantRepo, userRepo)
-		_, err := svc.Create("idp", "IDP", "local", "password", cfg, "active", tenantUUID.String(), tenantID, actorUUID)
+		_, err := svc.Create(context.Background(), "idp", "IDP", "local", "password", cfg, "active", tenantUUID.String(), tenantID, actorUUID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "already exists")
 	})
@@ -423,7 +424,7 @@ func TestIdentityProviderService_Create(t *testing.T) {
 			},
 		}
 		svc := NewIdentityProviderService(gormDB, idpRepo, tenantRepo, userRepo)
-		_, err := svc.Create("idp", "IDP", "local", "password", cfg, "active", tenantUUID.String(), tenantID, actorUUID)
+		_, err := svc.Create(context.Background(), "idp", "IDP", "local", "password", cfg, "active", tenantUUID.String(), tenantID, actorUUID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "create err")
 	})
@@ -448,7 +449,7 @@ func TestIdentityProviderService_Create(t *testing.T) {
 			},
 		}
 		svc := NewIdentityProviderService(gormDB, idpRepo, tenantRepo, userRepo)
-		_, err := svc.Create("idp", "IDP", "local", "password", cfg, "active", tenantUUID.String(), tenantID, actorUUID)
+		_, err := svc.Create(context.Background(), "idp", "IDP", "local", "password", cfg, "active", tenantUUID.String(), tenantID, actorUUID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "fetch err")
 	})
@@ -475,7 +476,7 @@ func TestIdentityProviderService_Create(t *testing.T) {
 			},
 		}
 		svc := NewIdentityProviderService(gormDB, idpRepo, tenantRepo, userRepo)
-		res, err := svc.Create("idp", "IDP", "local", "password", cfg, "active", tenantUUID.String(), tenantID, actorUUID)
+		res, err := svc.Create(context.Background(), "idp", "IDP", "local", "password", cfg, "active", tenantUUID.String(), tenantID, actorUUID)
 		require.NoError(t, err)
 		assert.Equal(t, "idp", res.Name)
 		assert.NotNil(t, res.Tenant)
@@ -500,7 +501,7 @@ func TestIdentityProviderService_Update(t *testing.T) {
 			findByUUIDFn: func(_ any, _ ...string) (*model.IdentityProvider, error) { return nil, nil },
 		}
 		svc := NewIdentityProviderService(gormDB, idpRepo, &mockTenantRepo{}, &mockUserRepo{})
-		_, err := svc.Update(idpUUID, "n", "d", "local", "password", cfg, "active", tenantID, actorUUID)
+		_, err := svc.Update(context.Background(), idpUUID, "n", "d", "local", "password", cfg, "active", tenantID, actorUUID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "not found")
 	})
@@ -515,7 +516,7 @@ func TestIdentityProviderService_Update(t *testing.T) {
 			},
 		}
 		svc := NewIdentityProviderService(gormDB, idpRepo, &mockTenantRepo{}, &mockUserRepo{})
-		_, err := svc.Update(idpUUID, "n", "d", "local", "password", cfg, "active", tenantID, actorUUID)
+		_, err := svc.Update(context.Background(), idpUUID, "n", "d", "local", "password", cfg, "active", tenantID, actorUUID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "access denied")
 	})
@@ -533,7 +534,7 @@ func TestIdentityProviderService_Update(t *testing.T) {
 			findByUUIDFn: func(_ any, _ ...string) (*model.User, error) { return nil, nil },
 		}
 		svc := NewIdentityProviderService(gormDB, idpRepo, &mockTenantRepo{}, userRepo)
-		_, err := svc.Update(idpUUID, "n", "d", "local", "password", cfg, "active", tenantID, actorUUID)
+		_, err := svc.Update(context.Background(), idpUUID, "n", "d", "local", "password", cfg, "active", tenantID, actorUUID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "actor user not found")
 	})
@@ -558,7 +559,7 @@ func TestIdentityProviderService_Update(t *testing.T) {
 			},
 		}
 		svc := NewIdentityProviderService(gormDB, idpRepo, &mockTenantRepo{}, userRepo)
-		_, err := svc.Update(idpUUID, "n", "d", "local", "password", cfg, "active", tenantID, actorUUID)
+		_, err := svc.Update(context.Background(), idpUUID, "n", "d", "local", "password", cfg, "active", tenantID, actorUUID)
 		require.Error(t, err)
 	})
 
@@ -577,7 +578,7 @@ func TestIdentityProviderService_Update(t *testing.T) {
 			},
 		}
 		svc := NewIdentityProviderService(gormDB, idpRepo, &mockTenantRepo{}, userRepo)
-		_, err := svc.Update(idpUUID, "n", "d", "local", "password", cfg, "active", tenantID, actorUUID)
+		_, err := svc.Update(context.Background(), idpUUID, "n", "d", "local", "password", cfg, "active", tenantID, actorUUID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "system idp")
 	})
@@ -597,7 +598,7 @@ func TestIdentityProviderService_Update(t *testing.T) {
 			},
 		}
 		svc := NewIdentityProviderService(gormDB, idpRepo, &mockTenantRepo{}, userRepo)
-		_, err := svc.Update(idpUUID, "n", "d", "local", "password", cfg, "active", tenantID, actorUUID)
+		_, err := svc.Update(context.Background(), idpUUID, "n", "d", "local", "password", cfg, "active", tenantID, actorUUID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "default idp")
 	})
@@ -619,7 +620,7 @@ func TestIdentityProviderService_Update(t *testing.T) {
 			},
 		}
 		svc := NewIdentityProviderService(gormDB, idpRepo, &mockTenantRepo{}, userRepo)
-		_, err := svc.Update(idpUUID, "new-name", "d", "local", "password", cfg, "active", tenantID, actorUUID)
+		_, err := svc.Update(context.Background(), idpUUID, "new-name", "d", "local", "password", cfg, "active", tenantID, actorUUID)
 		require.Error(t, err)
 	})
 
@@ -641,7 +642,7 @@ func TestIdentityProviderService_Update(t *testing.T) {
 			},
 		}
 		svc := NewIdentityProviderService(gormDB, idpRepo, &mockTenantRepo{}, userRepo)
-		_, err := svc.Update(idpUUID, "new-name", "d", "local", "password", cfg, "active", tenantID, actorUUID)
+		_, err := svc.Update(context.Background(), idpUUID, "new-name", "d", "local", "password", cfg, "active", tenantID, actorUUID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "already exists")
 	})
@@ -663,7 +664,7 @@ func TestIdentityProviderService_Update(t *testing.T) {
 			},
 		}
 		svc := NewIdentityProviderService(gormDB, idpRepo, &mockTenantRepo{}, userRepo)
-		_, err := svc.Update(idpUUID, "local", "d", "local", "password", cfg, "active", tenantID, actorUUID)
+		_, err := svc.Update(context.Background(), idpUUID, "local", "d", "local", "password", cfg, "active", tenantID, actorUUID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "save err")
 	})
@@ -682,7 +683,7 @@ func TestIdentityProviderService_Update(t *testing.T) {
 			},
 		}
 		svc := NewIdentityProviderService(gormDB, idpRepo, &mockTenantRepo{}, userRepo)
-		res, err := svc.Update(idpUUID, "local", "New Display", "local", "password", cfg, "active", tenantID, actorUUID)
+		res, err := svc.Update(context.Background(), idpUUID, "local", "New Display", "local", "password", cfg, "active", tenantID, actorUUID)
 		require.NoError(t, err)
 		assert.Equal(t, "New Display", res.DisplayName)
 	})
@@ -702,7 +703,7 @@ func TestIdentityProviderService_Update(t *testing.T) {
 			},
 		}
 		svc := NewIdentityProviderService(gormDB, idpRepo, &mockTenantRepo{}, userRepo)
-		res, err := svc.Update(idpUUID, "new-name", "d", "local", "password", cfg, "active", tenantID, actorUUID)
+		res, err := svc.Update(context.Background(), idpUUID, "new-name", "d", "local", "password", cfg, "active", tenantID, actorUUID)
 		require.NoError(t, err)
 		assert.Equal(t, "new-name", res.Name)
 	})
@@ -725,7 +726,7 @@ func TestIdentityProviderService_SetStatusByUUID(t *testing.T) {
 			findByUUIDFn: func(_ any, _ ...string) (*model.IdentityProvider, error) { return nil, nil },
 		}
 		svc := NewIdentityProviderService(gormDB, idpRepo, &mockTenantRepo{}, &mockUserRepo{})
-		_, err := svc.SetStatusByUUID(idpUUID, "active", tenantID, actorUUID)
+		_, err := svc.SetStatusByUUID(context.Background(), idpUUID, "active", tenantID, actorUUID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "not found")
 	})
@@ -740,7 +741,7 @@ func TestIdentityProviderService_SetStatusByUUID(t *testing.T) {
 			},
 		}
 		svc := NewIdentityProviderService(gormDB, idpRepo, &mockTenantRepo{}, &mockUserRepo{})
-		_, err := svc.SetStatusByUUID(idpUUID, "active", tenantID, actorUUID)
+		_, err := svc.SetStatusByUUID(context.Background(), idpUUID, "active", tenantID, actorUUID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "access denied")
 	})
@@ -758,7 +759,7 @@ func TestIdentityProviderService_SetStatusByUUID(t *testing.T) {
 			findByUUIDFn: func(_ any, _ ...string) (*model.User, error) { return nil, nil },
 		}
 		svc := NewIdentityProviderService(gormDB, idpRepo, &mockTenantRepo{}, userRepo)
-		_, err := svc.SetStatusByUUID(idpUUID, "active", tenantID, actorUUID)
+		_, err := svc.SetStatusByUUID(context.Background(), idpUUID, "active", tenantID, actorUUID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "actor user not found")
 	})
@@ -783,7 +784,7 @@ func TestIdentityProviderService_SetStatusByUUID(t *testing.T) {
 			},
 		}
 		svc := NewIdentityProviderService(gormDB, idpRepo, &mockTenantRepo{}, userRepo)
-		_, err := svc.SetStatusByUUID(idpUUID, "active", tenantID, actorUUID)
+		_, err := svc.SetStatusByUUID(context.Background(), idpUUID, "active", tenantID, actorUUID)
 		require.Error(t, err)
 	})
 
@@ -802,7 +803,7 @@ func TestIdentityProviderService_SetStatusByUUID(t *testing.T) {
 			},
 		}
 		svc := NewIdentityProviderService(gormDB, idpRepo, &mockTenantRepo{}, userRepo)
-		_, err := svc.SetStatusByUUID(idpUUID, "active", tenantID, actorUUID)
+		_, err := svc.SetStatusByUUID(context.Background(), idpUUID, "active", tenantID, actorUUID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "system idp")
 	})
@@ -822,7 +823,7 @@ func TestIdentityProviderService_SetStatusByUUID(t *testing.T) {
 			},
 		}
 		svc := NewIdentityProviderService(gormDB, idpRepo, &mockTenantRepo{}, userRepo)
-		_, err := svc.SetStatusByUUID(idpUUID, "active", tenantID, actorUUID)
+		_, err := svc.SetStatusByUUID(context.Background(), idpUUID, "active", tenantID, actorUUID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "default idp")
 	})
@@ -844,7 +845,7 @@ func TestIdentityProviderService_SetStatusByUUID(t *testing.T) {
 			},
 		}
 		svc := NewIdentityProviderService(gormDB, idpRepo, &mockTenantRepo{}, userRepo)
-		_, err := svc.SetStatusByUUID(idpUUID, "active", tenantID, actorUUID)
+		_, err := svc.SetStatusByUUID(context.Background(), idpUUID, "active", tenantID, actorUUID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "save err")
 	})
@@ -863,7 +864,7 @@ func TestIdentityProviderService_SetStatusByUUID(t *testing.T) {
 			},
 		}
 		svc := NewIdentityProviderService(gormDB, idpRepo, &mockTenantRepo{}, userRepo)
-		res, err := svc.SetStatusByUUID(idpUUID, "inactive", tenantID, actorUUID)
+		res, err := svc.SetStatusByUUID(context.Background(), idpUUID, "inactive", tenantID, actorUUID)
 		require.NoError(t, err)
 		assert.Equal(t, "local", res.Name)
 	})
