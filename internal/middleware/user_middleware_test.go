@@ -13,11 +13,9 @@ import (
 	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/cache"
 	"github.com/maintainerd/auth/internal/model"
-	"github.com/maintainerd/auth/internal/repository"
 	"github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"gorm.io/gorm"
 )
 
 // newMiniredisClient starts an in-process Redis and returns a client pointing at it.
@@ -33,48 +31,6 @@ func newMiniredisClient(t *testing.T) (*miniredis.Miniredis, *redis.Client) {
 // ---------------------------------------------------------------------------
 // Mock: UserRepository (middleware package scope)
 // ---------------------------------------------------------------------------
-
-type mockUserRepoMW struct {
-	findBySubAndClientIDFn func(sub, cID string) (*model.User, error)
-}
-
-func (m *mockUserRepoMW) WithTx(_ *gorm.DB) repository.UserRepository { return m }
-func (m *mockUserRepoMW) Create(e *model.User) (*model.User, error)   { return e, nil }
-func (m *mockUserRepoMW) CreateOrUpdate(e *model.User) (*model.User, error) {
-	return e, nil
-}
-func (m *mockUserRepoMW) FindAll(p ...string) ([]model.User, error)           { return nil, nil }
-func (m *mockUserRepoMW) FindByUUID(id any, p ...string) (*model.User, error) { return nil, nil }
-func (m *mockUserRepoMW) FindByUUIDs(ids []string, p ...string) ([]model.User, error) {
-	return nil, nil
-}
-func (m *mockUserRepoMW) FindByID(id any, p ...string) (*model.User, error) { return nil, nil }
-func (m *mockUserRepoMW) UpdateByUUID(id, data any) (*model.User, error)    { return nil, nil }
-func (m *mockUserRepoMW) UpdateByID(id, data any) (*model.User, error)      { return nil, nil }
-func (m *mockUserRepoMW) DeleteByUUID(id any) error                         { return nil }
-func (m *mockUserRepoMW) DeleteByID(id any) error                           { return nil }
-func (m *mockUserRepoMW) Paginate(c map[string]any, pg, lim int, p ...string) (*repository.PaginationResult[model.User], error) {
-	return nil, nil
-}
-func (m *mockUserRepoMW) FindByUsername(u string) (*model.User, error) { return nil, nil }
-func (m *mockUserRepoMW) FindByEmail(e string) (*model.User, error)    { return nil, nil }
-func (m *mockUserRepoMW) FindByPhone(p string) (*model.User, error)    { return nil, nil }
-func (m *mockUserRepoMW) FindSuperAdmin() (*model.User, error)         { return nil, nil }
-func (m *mockUserRepoMW) FindRoles(userID int64) ([]model.Role, error) { return nil, nil }
-func (m *mockUserRepoMW) SetEmailVerified(id uuid.UUID, v bool) error  { return nil }
-func (m *mockUserRepoMW) SetStatus(id uuid.UUID, s string) error       { return nil }
-func (m *mockUserRepoMW) FindByEmailAndTenantID(e string, tID int64) (*model.User, error) {
-	return nil, nil
-}
-func (m *mockUserRepoMW) FindPaginated(f repository.UserRepositoryGetFilter) (*repository.PaginationResult[model.User], error) {
-	return &repository.PaginationResult[model.User]{}, nil
-}
-func (m *mockUserRepoMW) FindBySubAndClientID(sub, cID string) (*model.User, error) {
-	if m.findBySubAndClientIDFn != nil {
-		return m.findBySubAndClientIDFn(sub, cID)
-	}
-	return nil, nil
-}
 
 // mockContextProvider implements UserContextProvider with ctx support.
 type mockContextProvider struct {

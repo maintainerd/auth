@@ -6,6 +6,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/apperror"
+	"github.com/maintainerd/auth/internal/cache"
 	"github.com/maintainerd/auth/internal/model"
 	"github.com/maintainerd/auth/internal/repository"
 	"go.opentelemetry.io/otel"
@@ -61,11 +62,12 @@ type PermissionService interface {
 }
 
 type permissionService struct {
-	db             *gorm.DB
-	permissionRepo repository.PermissionRepository
-	apiRepo        repository.APIRepository
-	roleRepo       repository.RoleRepository
-	clientRepo     repository.ClientRepository
+	db               *gorm.DB
+	permissionRepo   repository.PermissionRepository
+	apiRepo          repository.APIRepository
+	roleRepo         repository.RoleRepository
+	clientRepo       repository.ClientRepository
+	cacheInvalidator cache.Invalidator
 }
 
 func NewPermissionService(
@@ -74,13 +76,15 @@ func NewPermissionService(
 	apiRepo repository.APIRepository,
 	roleRepo repository.RoleRepository,
 	clientRepo repository.ClientRepository,
+	cacheInvalidator cache.Invalidator,
 ) PermissionService {
 	return &permissionService{
-		db:             db,
-		permissionRepo: permissionRepo,
-		apiRepo:        apiRepo,
-		roleRepo:       roleRepo,
-		clientRepo:     clientRepo,
+		db:               db,
+		permissionRepo:   permissionRepo,
+		apiRepo:          apiRepo,
+		roleRepo:         roleRepo,
+		clientRepo:       clientRepo,
+		cacheInvalidator: cacheInvalidator,
 	}
 }
 
@@ -296,6 +300,7 @@ func (s *permissionService) Update(ctx context.Context, permissionUUID uuid.UUID
 		return nil, err
 	}
 
+	s.cacheInvalidator.InvalidateAllUsers(ctx)
 	span.SetStatus(codes.Ok, "")
 	return toPermissionServiceDataResult(updatedPermission), nil
 }
@@ -345,6 +350,7 @@ func (s *permissionService) SetActiveStatusByUUID(ctx context.Context, permissio
 		return nil, err
 	}
 
+	s.cacheInvalidator.InvalidateAllUsers(ctx)
 	span.SetStatus(codes.Ok, "")
 	return toPermissionServiceDataResult(updatedPermission), nil
 }
@@ -386,6 +392,7 @@ func (s *permissionService) SetStatus(ctx context.Context, permissionUUID uuid.U
 		return nil, err
 	}
 
+	s.cacheInvalidator.InvalidateAllUsers(ctx)
 	span.SetStatus(codes.Ok, "")
 	return toPermissionServiceDataResult(updatedPermission), nil
 }
@@ -417,6 +424,7 @@ func (s *permissionService) DeleteByUUID(ctx context.Context, permissionUUID uui
 		return nil, err
 	}
 
+	s.cacheInvalidator.InvalidateAllUsers(ctx)
 	span.SetStatus(codes.Ok, "")
 	return toPermissionServiceDataResult(permission), nil
 }

@@ -39,7 +39,7 @@ func initServices(db *gorm.DB, r *repos, appCache *cache.Cache) *svcs {
 	return &svcs{
 		serviceService:           service.NewServiceService(db, r.serviceRepo, r.tenantServiceRepo, r.apiRepo, r.servicePolicyRepo, r.policyRepo),
 		apiService:               service.NewAPIService(db, r.apiRepo, r.serviceRepo, r.tenantServiceRepo),
-		permissionService:        service.NewPermissionService(db, r.permissionRepo, r.apiRepo, r.roleRepo, r.clientRepo),
+		permissionService:        service.NewPermissionService(db, r.permissionRepo, r.apiRepo, r.roleRepo, r.clientRepo, appCache),
 		tenantService:            service.NewTenantService(db, r.tenantRepo),
 		tenantMemberService:      service.NewTenantMemberService(db, r.tenantMemberRepo, r.userRepo, r.tenantRepo),
 		idpService:               service.NewIdentityProviderService(db, r.idpRepo, r.tenantRepo, r.userRepo),
