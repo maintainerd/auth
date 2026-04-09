@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"time"
 
 	"github.com/google/uuid"
@@ -12,15 +13,18 @@ import (
 	"github.com/maintainerd/auth/internal/ptr"
 	"github.com/maintainerd/auth/internal/repository"
 	"github.com/maintainerd/auth/internal/security"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
 	"gorm.io/datatypes"
 	"gorm.io/gorm"
 )
 
 type RegisterService interface {
-	RegisterPublic(username, fullname, password string, email, phone *string, clientID, providerID string) (*dto.RegisterResponseDTO, error)
-	RegisterInvitePublic(username, password, clientID, providerID, inviteToken string) (*dto.RegisterResponseDTO, error)
-	Register(username, fullname, password string, email, phone *string, clientID, providerID *string) (*dto.RegisterResponseDTO, error)
-	RegisterInvite(username, password, inviteToken string, clientID, providerID *string) (*dto.RegisterResponseDTO, error)
+	RegisterPublic(ctx context.Context, username, fullname, password string, email, phone *string, clientID, providerID string) (*dto.RegisterResponseDTO, error)
+	RegisterInvitePublic(ctx context.Context, username, password, clientID, providerID, inviteToken string) (*dto.RegisterResponseDTO, error)
+	Register(ctx context.Context, username, fullname, password string, email, phone *string, clientID, providerID *string) (*dto.RegisterResponseDTO, error)
+	RegisterInvite(ctx context.Context, username, password, inviteToken string, clientID, providerID *string) (*dto.RegisterResponseDTO, error)
 }
 
 type registerService struct {
@@ -97,6 +101,7 @@ func (s *registerService) findDefaultRole(roleRepo repository.RoleRepository, te
 // Requires clientID and providerID to identify the auth client.
 // Used by external applications on port 8081.
 func (s *registerService) RegisterPublic(
+	ctx context.Context,
 	username,
 	fullname,
 	password string,
@@ -105,8 +110,14 @@ func (s *registerService) RegisterPublic(
 	clientID,
 	providerID string,
 ) (*dto.RegisterResponseDTO, error) {
+	_, span := otel.Tracer("service").Start(ctx, "register.public")
+	defer span.End()
+	span.SetAttributes(attribute.String("client.id", clientID), attribute.String("provider.id", providerID))
+
 	// Rate limiting check to prevent registration abuse
 	if err := security.CheckRateLimit(username); err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "register public failed")
 		return nil, err
 	}
 
@@ -259,9 +270,12 @@ func (s *registerService) RegisterPublic(
 	})
 
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "register public failed")
 		return nil, err
 	}
 
+	span.SetStatus(codes.Ok, "")
 	// Return token response
 	return s.generateTokenResponse(userIdentitySub, createdUser, Client)
 }
@@ -271,6 +285,7 @@ func (s *registerService) RegisterPublic(
 // If not provided, uses the default auth client.
 // Used by internal applications on port 8080.
 func (s *registerService) Register(
+	ctx context.Context,
 	username,
 	fullname,
 	password string,
@@ -279,8 +294,13 @@ func (s *registerService) Register(
 	clientID,
 	providerID *string,
 ) (*dto.RegisterResponseDTO, error) {
+	_, span := otel.Tracer("service").Start(ctx, "register.internal")
+	defer span.End()
+
 	// Rate limiting check to prevent registration abuse
 	if err := security.CheckRateLimit(username); err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "register failed")
 		return nil, err
 	}
 
@@ -423,9 +443,12 @@ func (s *registerService) Register(
 	})
 
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "register failed")
 		return nil, err
 	}
 
+	span.SetStatus(codes.Ok, "")
 	// Return token response
 	return s.generateTokenResponse(userIdentitySub, createdUser, Client)
 }
@@ -435,12 +458,16 @@ func (s *registerService) Register(
 // If not provided, uses the default auth client.
 // Used by internal applications on port 8080.
 func (s *registerService) RegisterInvite(
+	ctx context.Context,
 	username,
 	password,
 	inviteToken string,
 	clientID,
 	providerID *string,
 ) (*dto.RegisterResponseDTO, error) {
+	_, span := otel.Tracer("service").Start(ctx, "register.invite")
+	defer span.End()
+
 	var createdUser *model.User
 	var Client *model.Client
 	var userIdentitySub string
@@ -581,9 +608,12 @@ func (s *registerService) RegisterInvite(
 	})
 
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "register invite failed")
 		return nil, err
 	}
 
+	span.SetStatus(codes.Ok, "")
 	// Return token response
 	return s.generateTokenResponse(userIdentitySub, createdUser, Client)
 }
@@ -592,12 +622,17 @@ func (s *registerService) RegisterInvite(
 // Requires clientID and providerID to identify the auth client.
 // Used by external applications on port 8081.
 func (s *registerService) RegisterInvitePublic(
+	ctx context.Context,
 	username,
 	password,
 	clientID,
 	providerID,
 	inviteToken string,
 ) (*dto.RegisterResponseDTO, error) {
+	_, span := otel.Tracer("service").Start(ctx, "register.invitePublic")
+	defer span.End()
+	span.SetAttributes(attribute.String("client.id", clientID), attribute.String("provider.id", providerID))
+
 	var createdUser *model.User
 	var Client *model.Client
 	var userIdentitySub string
@@ -766,9 +801,12 @@ func (s *registerService) RegisterInvitePublic(
 	})
 
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "register invite public failed")
 		return nil, err
 	}
 
+	span.SetStatus(codes.Ok, "")
 	// Return token response
 	return s.generateTokenResponse(userIdentitySub, createdUser, Client)
 }

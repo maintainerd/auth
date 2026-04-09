@@ -14,7 +14,7 @@ import (
 // narrow so the middleware does not depend on a raw repository or the full
 // UserService interface.
 type UserContextProvider interface {
-	FindBySubAndClientID(sub string, clientID string) (*model.User, error)
+	FindBySubAndClientID(ctx context.Context, sub string, clientID string) (*model.User, error)
 }
 
 // Context keys for accessing user-related information
@@ -50,7 +50,7 @@ func UserContextMiddleware(
 			}
 
 			// Cache miss — load from database
-			user, err := userProvider.FindBySubAndClientID(sub, clientID)
+			user, err := userProvider.FindBySubAndClientID(ctx, sub, clientID)
 			if err != nil {
 				resp.Error(w, http.StatusInternalServerError, "Failed to load user from database")
 				return

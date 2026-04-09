@@ -10,6 +10,9 @@ import (
 	"github.com/maintainerd/auth/internal/model"
 	"github.com/maintainerd/auth/internal/repository"
 	"github.com/maintainerd/auth/internal/security"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
 	"gorm.io/datatypes"
 	"gorm.io/gorm"
 )
@@ -65,9 +68,9 @@ type UserServiceGetResult struct {
 }
 
 type UserService interface {
-	Get(filter UserServiceGetFilter) (*UserServiceGetResult, error)
-	GetByUUID(userUUID uuid.UUID, tenantID int64) (*UserServiceDataResult, error)
-	Create(username string, fullname string, email *string, phone *string, password string, status string, metadata datatypes.JSON, tenantUUID string, creatorUserUUID uuid.UUID) (*UserServiceDataResult, error)
+	Get(ctx context.Context, filter UserServiceGetFilter) (*UserServiceGetResult, error)
+	GetByUUID(ctx context.Context, userUUID uuid.UUID, tenantID int64) (*UserServiceDataResult, error)
+	Create(ctx context.Context, username string, fullname string, email *string, phone *string, password string, status string, metadata datatypes.JSON, tenantUUID string, creatorUserUUID uuid.UUID) (*UserServiceDataResult, error)
 	Update(ctx context.Context, userUUID uuid.UUID, tenantID int64, username string, fullname string, email *string, phone *string, status string, metadata datatypes.JSON, updaterUserUUID uuid.UUID) (*UserServiceDataResult, error)
 	SetStatus(ctx context.Context, userUUID uuid.UUID, tenantID int64, status string, updaterUserUUID uuid.UUID) (*UserServiceDataResult, error)
 	VerifyEmail(ctx context.Context, userUUID uuid.UUID, tenantID int64) (*UserServiceDataResult, error)
@@ -76,11 +79,11 @@ type UserService interface {
 	DeleteByUUID(ctx context.Context, userUUID uuid.UUID, tenantID int64, deleterUserUUID uuid.UUID) (*UserServiceDataResult, error)
 	AssignUserRoles(ctx context.Context, userUUID uuid.UUID, roleUUIDs []uuid.UUID, tenantID int64) (*UserServiceDataResult, error)
 	RemoveUserRole(ctx context.Context, userUUID uuid.UUID, roleUUID uuid.UUID, tenantID int64) (*UserServiceDataResult, error)
-	GetUserRoles(userUUID uuid.UUID) ([]RoleServiceDataResult, error)
-	GetUserIdentities(userUUID uuid.UUID) ([]UserIdentityServiceDataResult, error)
+	GetUserRoles(ctx context.Context, userUUID uuid.UUID) ([]RoleServiceDataResult, error)
+	GetUserIdentities(ctx context.Context, userUUID uuid.UUID) ([]UserIdentityServiceDataResult, error)
 	// FindBySubAndClientID resolves a user from a JWT sub claim and client ID.
 	// Used by UserContextMiddleware to populate the request context.
-	FindBySubAndClientID(sub string, clientID string) (*model.User, error)
+	FindBySubAndClientID(ctx context.Context, sub string, clientID string) (*model.User, error)
 }
 
 type userService struct {
@@ -167,7 +170,10 @@ func (s *userService) findDefaultRole(roleRepo repository.RoleRepository, tenant
 	return role, nil
 }
 
-func (s *userService) Get(filter UserServiceGetFilter) (*UserServiceGetResult, error) {
+func (s *userService) Get(ctx context.Context, filter UserServiceGetFilter) (*UserServiceGetResult, error) {
+	_, span := otel.Tracer("service").Start(ctx, "user.list")
+	defer span.End()
+
 	// Convert role UUID to ID if provided
 	var roleID *int64
 	if filter.RoleUUID != nil {
@@ -199,6 +205,8 @@ func (s *userService) Get(filter UserServiceGetFilter) (*UserServiceGetResult, e
 
 	result, err := s.userRepo.FindPaginated(queryFilter)
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "list users failed")
 		return nil, err
 	}
 
@@ -208,6 +216,7 @@ func (s *userService) Get(filter UserServiceGetFilter) (*UserServiceGetResult, e
 		resData[i] = *toUserServiceDataResult(&rdata)
 	}
 
+	span.SetStatus(codes.Ok, "")
 	return &UserServiceGetResult{
 		Data:       resData,
 		Total:      result.Total,
@@ -217,9 +226,17 @@ func (s *userService) Get(filter UserServiceGetFilter) (*UserServiceGetResult, e
 	}, nil
 }
 
-func (s *userService) GetByUUID(userUUID uuid.UUID, tenantID int64) (*UserServiceDataResult, error) {
+func (s *userService) GetByUUID(ctx context.Context, userUUID uuid.UUID, tenantID int64) (*UserServiceDataResult, error) {
+	_, span := otel.Tracer("service").Start(ctx, "user.getByUUID")
+	defer span.End()
+	span.SetAttributes(attribute.String("user.uuid", userUUID.String()), attribute.Int64("tenant.id", tenantID))
+
 	user, err := s.userRepo.FindByUUID(userUUID, "UserIdentities.Tenant")
 	if err != nil || user == nil {
+		if err != nil {
+			span.RecordError(err)
+		}
+		span.SetStatus(codes.Error, "user not found")
 		return nil, apperror.NewNotFound("user not found")
 	}
 
@@ -232,13 +249,19 @@ func (s *userService) GetByUUID(userUUID uuid.UUID, tenantID int64) (*UserServic
 		}
 	}
 	if !hasTenantAccess {
+		span.SetStatus(codes.Error, "user not found or access denied")
 		return nil, apperror.NewNotFoundWithReason("user not found or access denied")
 	}
 
+	span.SetStatus(codes.Ok, "")
 	return toUserServiceDataResult(user), nil
 }
 
-func (s *userService) Create(username string, fullname string, email *string, phone *string, password string, status string, metadata datatypes.JSON, tenantUUID string, creatorUserUUID uuid.UUID) (*UserServiceDataResult, error) {
+func (s *userService) Create(ctx context.Context, username string, fullname string, email *string, phone *string, password string, status string, metadata datatypes.JSON, tenantUUID string, creatorUserUUID uuid.UUID) (*UserServiceDataResult, error) {
+	_, span := otel.Tracer("service").Start(ctx, "user.create")
+	defer span.End()
+	span.SetAttributes(attribute.String("user.username", username))
+
 	var createdUser *model.User
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
@@ -384,13 +407,20 @@ func (s *userService) Create(username string, fullname string, email *string, ph
 	})
 
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "create user failed")
 		return nil, err
 	}
 
+	span.SetStatus(codes.Ok, "")
 	return toUserServiceDataResult(createdUser), nil
 }
 
 func (s *userService) Update(ctx context.Context, userUUID uuid.UUID, tenantID int64, username string, fullname string, email *string, phone *string, status string, metadata datatypes.JSON, updaterUserUUID uuid.UUID) (*UserServiceDataResult, error) {
+	_, span := otel.Tracer("service").Start(ctx, "user.update")
+	defer span.End()
+	span.SetAttributes(attribute.String("user.uuid", userUUID.String()), attribute.Int64("tenant.id", tenantID))
+
 	var updatedUser *model.User
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
@@ -486,14 +516,21 @@ func (s *userService) Update(ctx context.Context, userUUID uuid.UUID, tenantID i
 	})
 
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "update user failed")
 		return nil, err
 	}
 
+	span.SetStatus(codes.Ok, "")
 	s.invalidateUserCache(ctx, updatedUser.UserIdentities)
 	return toUserServiceDataResult(updatedUser), nil
 }
 
 func (s *userService) SetStatus(ctx context.Context, userUUID uuid.UUID, tenantID int64, status string, updaterUserUUID uuid.UUID) (*UserServiceDataResult, error) {
+	_, span := otel.Tracer("service").Start(ctx, "user.setStatus")
+	defer span.End()
+	span.SetAttributes(attribute.String("user.uuid", userUUID.String()), attribute.Int64("tenant.id", tenantID), attribute.String("user.status", status))
+
 	// Check if target user exists
 	user, err := s.userRepo.FindByUUID(userUUID, "UserIdentities")
 	if err != nil || user == nil {
@@ -534,11 +571,16 @@ func (s *userService) SetStatus(ctx context.Context, userUUID uuid.UUID, tenantI
 		return nil, err
 	}
 
+	span.SetStatus(codes.Ok, "")
 	s.invalidateUserCache(ctx, updatedUser.UserIdentities)
 	return toUserServiceDataResult(updatedUser), nil
 }
 
 func (s *userService) VerifyEmail(ctx context.Context, userUUID uuid.UUID, tenantID int64) (*UserServiceDataResult, error) {
+	_, span := otel.Tracer("service").Start(ctx, "user.verifyEmail")
+	defer span.End()
+	span.SetAttributes(attribute.String("user.uuid", userUUID.String()), attribute.Int64("tenant.id", tenantID))
+
 	// Check if target user exists and preload identities for tenant validation
 	user, err := s.userRepo.FindByUUID(userUUID, "UserIdentities.Tenant")
 	if err != nil || user == nil {
@@ -572,12 +614,17 @@ func (s *userService) VerifyEmail(ctx context.Context, userUUID uuid.UUID, tenan
 		return nil, err
 	}
 
+	span.SetStatus(codes.Ok, "")
 	s.invalidateUserCache(ctx, updatedUser.UserIdentities)
 
 	return toUserServiceDataResult(updatedUser), nil
 }
 
 func (s *userService) VerifyPhone(ctx context.Context, userUUID uuid.UUID, tenantID int64) (*UserServiceDataResult, error) {
+	_, span := otel.Tracer("service").Start(ctx, "user.verifyPhone")
+	defer span.End()
+	span.SetAttributes(attribute.String("user.uuid", userUUID.String()), attribute.Int64("tenant.id", tenantID))
+
 	// Check if target user exists and preload identities for tenant validation
 	user, err := s.userRepo.FindByUUID(userUUID, "UserIdentities.Tenant")
 	if err != nil || user == nil {
@@ -610,12 +657,17 @@ func (s *userService) VerifyPhone(ctx context.Context, userUUID uuid.UUID, tenan
 		return nil, err
 	}
 
+	span.SetStatus(codes.Ok, "")
 	s.invalidateUserCache(ctx, updatedUser.UserIdentities)
 
 	return toUserServiceDataResult(updatedUser), nil
 }
 
 func (s *userService) CompleteAccount(ctx context.Context, userUUID uuid.UUID, tenantID int64) (*UserServiceDataResult, error) {
+	_, span := otel.Tracer("service").Start(ctx, "user.completeAccount")
+	defer span.End()
+	span.SetAttributes(attribute.String("user.uuid", userUUID.String()), attribute.Int64("tenant.id", tenantID))
+
 	// Check if target user exists and preload identities for tenant validation
 	user, err := s.userRepo.FindByUUID(userUUID, "UserIdentities.Tenant")
 	if err != nil || user == nil {
@@ -648,12 +700,17 @@ func (s *userService) CompleteAccount(ctx context.Context, userUUID uuid.UUID, t
 		return nil, err
 	}
 
+	span.SetStatus(codes.Ok, "")
 	s.invalidateUserCache(ctx, updatedUser.UserIdentities)
 
 	return toUserServiceDataResult(updatedUser), nil
 }
 
 func (s *userService) DeleteByUUID(ctx context.Context, userUUID uuid.UUID, tenantID int64, deleterUserUUID uuid.UUID) (*UserServiceDataResult, error) {
+	_, span := otel.Tracer("service").Start(ctx, "user.delete")
+	defer span.End()
+	span.SetAttributes(attribute.String("user.uuid", userUUID.String()), attribute.Int64("tenant.id", tenantID))
+
 	// Check if target user exists
 	user, err := s.userRepo.FindByUUID(userUUID, "UserIdentities.Client", "UserIdentities", "Roles")
 	if err != nil || user == nil {
@@ -689,13 +746,20 @@ func (s *userService) DeleteByUUID(ctx context.Context, userUUID uuid.UUID, tena
 	// Delete user (cascade will handle related records)
 	err = s.userRepo.DeleteByUUID(userUUID)
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "delete user failed")
 		return nil, err
 	}
 
+	span.SetStatus(codes.Ok, "")
 	return toUserServiceDataResult(user), nil
 }
 
 func (s *userService) AssignUserRoles(ctx context.Context, userUUID uuid.UUID, roleUUIDs []uuid.UUID, tenantID int64) (*UserServiceDataResult, error) {
+	_, span := otel.Tracer("service").Start(ctx, "user.assignRoles")
+	defer span.End()
+	span.SetAttributes(attribute.String("user.uuid", userUUID.String()), attribute.Int64("tenant.id", tenantID))
+
 	var userWithRoles *model.User
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
@@ -763,15 +827,22 @@ func (s *userService) AssignUserRoles(ctx context.Context, userUUID uuid.UUID, r
 	})
 
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "assign user roles failed")
 		return nil, err
 	}
 
+	span.SetStatus(codes.Ok, "")
 	s.invalidateUserCache(ctx, userWithRoles.UserIdentities)
 
 	return toUserServiceDataResult(userWithRoles), nil
 }
 
 func (s *userService) RemoveUserRole(ctx context.Context, userUUID uuid.UUID, roleUUID uuid.UUID, tenantID int64) (*UserServiceDataResult, error) {
+	_, span := otel.Tracer("service").Start(ctx, "user.removeRole")
+	defer span.End()
+	span.SetAttributes(attribute.String("user.uuid", userUUID.String()), attribute.Int64("tenant.id", tenantID))
+
 	var userWithRoles *model.User
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
@@ -822,9 +893,12 @@ func (s *userService) RemoveUserRole(ctx context.Context, userUUID uuid.UUID, ro
 	})
 
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "remove user role failed")
 		return nil, err
 	}
 
+	span.SetStatus(codes.Ok, "")
 	s.invalidateUserCache(ctx, userWithRoles.UserIdentities)
 
 	return toUserServiceDataResult(userWithRoles), nil
@@ -889,14 +963,24 @@ func toUserServiceDataResult(user *model.User) *UserServiceDataResult {
 	return result
 }
 
-func (s *userService) GetUserRoles(userUUID uuid.UUID) ([]RoleServiceDataResult, error) {
+func (s *userService) GetUserRoles(ctx context.Context, userUUID uuid.UUID) ([]RoleServiceDataResult, error) {
+	_, span := otel.Tracer("service").Start(ctx, "user.getUserRoles")
+	defer span.End()
+	span.SetAttributes(attribute.String("user.uuid", userUUID.String()))
+
 	user, err := s.userRepo.FindByUUID(userUUID)
 	if err != nil || user == nil {
+		if err != nil {
+			span.RecordError(err)
+		}
+		span.SetStatus(codes.Error, "user not found")
 		return nil, apperror.NewNotFound("user not found")
 	}
 
 	roles, err := s.userRepo.FindRoles(user.UserID)
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "get user roles failed")
 		return nil, err
 	}
 
@@ -905,12 +989,21 @@ func (s *userService) GetUserRoles(userUUID uuid.UUID) ([]RoleServiceDataResult,
 		result[i] = *toRoleServiceDataResult(&role)
 	}
 
+	span.SetStatus(codes.Ok, "")
 	return result, nil
 }
 
-func (s *userService) GetUserIdentities(userUUID uuid.UUID) ([]UserIdentityServiceDataResult, error) {
+func (s *userService) GetUserIdentities(ctx context.Context, userUUID uuid.UUID) ([]UserIdentityServiceDataResult, error) {
+	_, span := otel.Tracer("service").Start(ctx, "user.getUserIdentities")
+	defer span.End()
+	span.SetAttributes(attribute.String("user.uuid", userUUID.String()))
+
 	user, err := s.userRepo.FindByUUID(userUUID)
 	if err != nil || user == nil {
+		if err != nil {
+			span.RecordError(err)
+		}
+		span.SetStatus(codes.Error, "user not found")
 		return nil, apperror.NewNotFound("user not found")
 	}
 
@@ -941,12 +1034,24 @@ func (s *userService) GetUserIdentities(userUUID uuid.UUID) ([]UserIdentityServi
 		}
 	}
 
+	span.SetStatus(codes.Ok, "")
 	return result, nil
 }
 
 // FindBySubAndClientID resolves a *model.User from a JWT sub claim and client
 // identifier. This satisfies the middleware.UserContextProvider interface so
 // the middleware can be wired without a direct repository dependency.
-func (s *userService) FindBySubAndClientID(sub string, clientID string) (*model.User, error) {
-	return s.userRepo.FindBySubAndClientID(sub, clientID)
+func (s *userService) FindBySubAndClientID(ctx context.Context, sub string, clientID string) (*model.User, error) {
+	_, span := otel.Tracer("service").Start(ctx, "user.findBySubAndClientID")
+	defer span.End()
+	span.SetAttributes(attribute.String("user.sub", sub), attribute.String("client.id", clientID))
+
+	user, err := s.userRepo.FindBySubAndClientID(sub, clientID)
+	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "find user by sub and client id failed")
+		return nil, err
+	}
+	span.SetStatus(codes.Ok, "")
+	return user, nil
 }

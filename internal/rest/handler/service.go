@@ -11,9 +11,9 @@ import (
 	"github.com/maintainerd/auth/internal/dto"
 	"github.com/maintainerd/auth/internal/middleware"
 	"github.com/maintainerd/auth/internal/model"
-	"github.com/maintainerd/auth/internal/service"
 	"github.com/maintainerd/auth/internal/ptr"
 	resp "github.com/maintainerd/auth/internal/rest/response"
+	"github.com/maintainerd/auth/internal/service"
 )
 
 // ServiceHandler handles service management operations.
@@ -104,7 +104,7 @@ func (h *ServiceHandler) Get(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Fetch services from service layer
-	result, err := h.service.Get(filter)
+	result, err := h.service.Get(r.Context(), filter)
 	if err != nil {
 		resp.HandleServiceError(w, r, "Failed to fetch services", err)
 		return
@@ -150,7 +150,7 @@ func (h *ServiceHandler) GetByUUID(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Fetch service by UUID
-	svc, err := h.service.GetByUUID(serviceUUID, tenant.TenantID)
+	svc, err := h.service.GetByUUID(r.Context(), serviceUUID, tenant.TenantID)
 	if err != nil {
 		resp.HandleServiceError(w, r, "Service not found", err)
 		return
@@ -191,6 +191,7 @@ func (h *ServiceHandler) Create(w http.ResponseWriter, r *http.Request) {
 
 	// Create service
 	svc, err := h.service.Create(
+		r.Context(),
 		req.Name,
 		req.DisplayName,
 		req.Description,
@@ -245,6 +246,7 @@ func (h *ServiceHandler) Update(w http.ResponseWriter, r *http.Request) {
 
 	// Update service
 	svc, err := h.service.Update(
+		r.Context(),
 		serviceUUID,
 		tenant.TenantID,
 		req.Name,
@@ -298,7 +300,7 @@ func (h *ServiceHandler) SetStatus(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Update service status
-	service, err := h.service.SetStatusByUUID(serviceUUID, tenant.TenantID, req.Status)
+	service, err := h.service.SetStatusByUUID(r.Context(), serviceUUID, tenant.TenantID, req.Status)
 	if err != nil {
 		resp.HandleServiceError(w, r, "Failed to update service", err)
 		return
@@ -332,7 +334,7 @@ func (h *ServiceHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Delete service
-	svc, err := h.service.DeleteByUUID(serviceUUID, tenant.TenantID)
+	svc, err := h.service.DeleteByUUID(r.Context(), serviceUUID, tenant.TenantID)
 	if err != nil {
 		resp.HandleServiceError(w, r, "Failed to delete service", err)
 		return
@@ -392,7 +394,7 @@ func (h *ServiceHandler) AssignPolicy(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Assign policy to service (service validates tenant ownership)
-	err = h.service.AssignPolicy(serviceUUID, policyUUID, tenant.TenantID)
+	err = h.service.AssignPolicy(r.Context(), serviceUUID, policyUUID, tenant.TenantID)
 	if err != nil {
 		resp.HandleServiceError(w, r, "Failed to assign policy to service", err)
 		return
@@ -431,7 +433,7 @@ func (h *ServiceHandler) RemovePolicy(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Remove policy from service (service validates tenant ownership)
-	err = h.service.RemovePolicy(serviceUUID, policyUUID, tenant.TenantID)
+	err = h.service.RemovePolicy(r.Context(), serviceUUID, policyUUID, tenant.TenantID)
 	if err != nil {
 		resp.HandleServiceError(w, r, "Failed to remove policy from service", err)
 		return

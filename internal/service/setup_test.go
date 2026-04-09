@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"errors"
 	"math"
 	"testing"
@@ -44,7 +45,7 @@ func TestSetupService_GetSetupStatus(t *testing.T) {
 			&mockUserRepo{}, &mockProfileRepo{}, &mockClientRepo{}, &mockIdentityProviderRepo{},
 			&mockRoleRepo{}, &mockUserRoleRepo{}, &mockUserIdentityRepo{}, &mockTenantMemberRepo{}, &mockTenantUserRepo{},
 		)
-		_, err := svc.GetSetupStatus()
+		_, err := svc.GetSetupStatus(context.Background())
 		require.Error(t, err)
 	})
 
@@ -54,7 +55,7 @@ func TestSetupService_GetSetupStatus(t *testing.T) {
 			&mockUserRepo{}, &mockProfileRepo{}, &mockClientRepo{}, &mockIdentityProviderRepo{},
 			&mockRoleRepo{}, &mockUserRoleRepo{}, &mockUserIdentityRepo{}, &mockTenantMemberRepo{}, &mockTenantUserRepo{},
 		)
-		res, err := svc.GetSetupStatus()
+		res, err := svc.GetSetupStatus(context.Background())
 		require.NoError(t, err)
 		assert.False(t, res.IsTenantSetup)
 		assert.False(t, res.IsAdminSetup)
@@ -71,7 +72,7 @@ func TestSetupService_GetSetupStatus(t *testing.T) {
 			&mockUserRepo{}, &mockProfileRepo{}, &mockClientRepo{}, &mockIdentityProviderRepo{},
 			&mockRoleRepo{}, &mockUserRoleRepo{}, &mockUserIdentityRepo{}, &mockTenantMemberRepo{}, &mockTenantUserRepo{},
 		)
-		res, err := svc.GetSetupStatus()
+		res, err := svc.GetSetupStatus(context.Background())
 		require.NoError(t, err)
 		assert.True(t, res.IsTenantSetup)
 		assert.False(t, res.IsAdminSetup)
@@ -86,7 +87,7 @@ func TestSetupService_GetSetupStatus(t *testing.T) {
 			&mockUserRepo{}, &mockProfileRepo{}, &mockClientRepo{}, &mockIdentityProviderRepo{},
 			&mockRoleRepo{}, &mockUserRoleRepo{}, &mockUserIdentityRepo{}, &mockTenantMemberRepo{}, &mockTenantUserRepo{},
 		)
-		res, err := svc.GetSetupStatus()
+		res, err := svc.GetSetupStatus(context.Background())
 		require.NoError(t, err)
 		assert.True(t, res.IsTenantSetup)
 		assert.False(t, res.IsAdminSetup)
@@ -102,7 +103,7 @@ func TestSetupService_GetSetupStatus(t *testing.T) {
 			&mockProfileRepo{}, &mockClientRepo{}, &mockIdentityProviderRepo{},
 			&mockRoleRepo{}, &mockUserRoleRepo{}, &mockUserIdentityRepo{}, &mockTenantMemberRepo{}, &mockTenantUserRepo{},
 		)
-		res, err := svc.GetSetupStatus()
+		res, err := svc.GetSetupStatus(context.Background())
 		require.NoError(t, err)
 		assert.True(t, res.IsTenantSetup)
 		assert.False(t, res.IsAdminSetup)
@@ -118,7 +119,7 @@ func TestSetupService_GetSetupStatus(t *testing.T) {
 			&mockProfileRepo{}, &mockClientRepo{}, &mockIdentityProviderRepo{},
 			&mockRoleRepo{}, &mockUserRoleRepo{}, &mockUserIdentityRepo{}, &mockTenantMemberRepo{}, &mockTenantUserRepo{},
 		)
-		res, err := svc.GetSetupStatus()
+		res, err := svc.GetSetupStatus(context.Background())
 		require.NoError(t, err)
 		assert.True(t, res.IsTenantSetup)
 		assert.False(t, res.IsAdminSetup)
@@ -135,7 +136,7 @@ func TestSetupService_GetSetupStatus(t *testing.T) {
 			&mockClientRepo{}, &mockIdentityProviderRepo{},
 			&mockRoleRepo{}, &mockUserRoleRepo{}, &mockUserIdentityRepo{}, &mockTenantMemberRepo{}, &mockTenantUserRepo{},
 		)
-		res, err := svc.GetSetupStatus()
+		res, err := svc.GetSetupStatus(context.Background())
 		require.NoError(t, err)
 		assert.True(t, res.IsAdminSetup)
 		assert.False(t, res.IsProfileSetup)
@@ -152,7 +153,7 @@ func TestSetupService_GetSetupStatus(t *testing.T) {
 			&mockClientRepo{}, &mockIdentityProviderRepo{},
 			&mockRoleRepo{}, &mockUserRoleRepo{}, &mockUserIdentityRepo{}, &mockTenantMemberRepo{}, &mockTenantUserRepo{},
 		)
-		res, err := svc.GetSetupStatus()
+		res, err := svc.GetSetupStatus(context.Background())
 		require.NoError(t, err)
 		assert.True(t, res.IsAdminSetup)
 		assert.False(t, res.IsProfileSetup)
@@ -169,7 +170,7 @@ func TestSetupService_GetSetupStatus(t *testing.T) {
 			&mockClientRepo{}, &mockIdentityProviderRepo{},
 			&mockRoleRepo{}, &mockUserRoleRepo{}, &mockUserIdentityRepo{}, &mockTenantMemberRepo{}, &mockTenantUserRepo{},
 		)
-		res, err := svc.GetSetupStatus()
+		res, err := svc.GetSetupStatus(context.Background())
 		require.NoError(t, err)
 		assert.True(t, res.IsTenantSetup)
 		assert.True(t, res.IsAdminSetup)
@@ -193,7 +194,7 @@ func TestSetupService_CreateTenant(t *testing.T) {
 			&mockUserRepo{}, &mockProfileRepo{}, &mockClientRepo{}, &mockIdentityProviderRepo{},
 			&mockRoleRepo{}, &mockUserRoleRepo{}, &mockUserIdentityRepo{}, &mockTenantMemberRepo{}, &mockTenantUserRepo{},
 		)
-		_, err := svc.CreateTenant(validReq)
+		_, err := svc.CreateTenant(context.Background(), validReq)
 		require.Error(t, err)
 	})
 
@@ -203,7 +204,7 @@ func TestSetupService_CreateTenant(t *testing.T) {
 			&mockUserRepo{}, &mockProfileRepo{}, &mockClientRepo{}, &mockIdentityProviderRepo{},
 			&mockRoleRepo{}, &mockUserRoleRepo{}, &mockUserIdentityRepo{}, &mockTenantMemberRepo{}, &mockTenantUserRepo{},
 		)
-		_, err := svc.CreateTenant(validReq)
+		_, err := svc.CreateTenant(context.Background(), validReq)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "tenant already exists")
 	})
@@ -220,7 +221,7 @@ func TestSetupService_CreateTenant(t *testing.T) {
 			&mockIdentityProviderRepo{}, &mockRoleRepo{}, &mockUserRoleRepo{}, nil,
 			&mockUserIdentityRepo{}, &mockProfileRepo{},
 		)
-		_, err := svc.CreateTenant(validReq)
+		_, err := svc.CreateTenant(context.Background(), validReq)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "create failed")
 	})
@@ -236,7 +237,7 @@ func TestSetupService_CreateTenant(t *testing.T) {
 			&mockUserIdentityRepo{}, &mockProfileRepo{},
 		)
 		// RunSeeders will fail because sqlmock has no matching SQL expectations
-		_, err := svc.CreateTenant(reqWithDesc)
+		_, err := svc.CreateTenant(context.Background(), reqWithDesc)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "failed to initialize tenant structure")
 	})
@@ -251,7 +252,7 @@ func TestSetupService_CreateTenant(t *testing.T) {
 			&mockIdentityProviderRepo{}, &mockRoleRepo{}, &mockUserRoleRepo{}, nil,
 			&mockUserIdentityRepo{}, &mockProfileRepo{},
 		)
-		_, err := svc.CreateTenant(validReq)
+		_, err := svc.CreateTenant(context.Background(), validReq)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "failed to initialize tenant structure")
 	})
@@ -268,7 +269,7 @@ func TestSetupService_CreateTenant(t *testing.T) {
 			&mockIdentityProviderRepo{}, &mockRoleRepo{}, &mockUserRoleRepo{}, nil,
 			&mockUserIdentityRepo{}, &mockProfileRepo{},
 		)
-		_, err := svc.CreateTenant(req)
+		_, err := svc.CreateTenant(context.Background(), req)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "failed to initialize tenant structure")
 	})
@@ -304,7 +305,7 @@ func TestSetupService_CreateTenant(t *testing.T) {
 			&mockIdentityProviderRepo{}, &mockRoleRepo{}, &mockUserRoleRepo{}, nil,
 			&mockUserIdentityRepo{}, &mockProfileRepo{},
 		)
-		res, err := svc.CreateTenant(validReq)
+		res, err := svc.CreateTenant(context.Background(), validReq)
 		require.NoError(t, err)
 		assert.Equal(t, "maintainerd", res.Tenant.Name)
 		assert.Equal(t, "default-client", res.DefaultClientID)
@@ -343,7 +344,7 @@ func TestSetupService_CreateTenant(t *testing.T) {
 			&mockIdentityProviderRepo{}, &mockRoleRepo{}, &mockUserRoleRepo{}, nil,
 			&mockUserIdentityRepo{}, &mockProfileRepo{},
 		)
-		res, err := svc.CreateTenant(req)
+		res, err := svc.CreateTenant(context.Background(), req)
 		require.NoError(t, err)
 		assert.Equal(t, "maintainerd", res.Tenant.Name)
 		assert.Empty(t, res.DefaultClientID)
@@ -374,7 +375,7 @@ func TestSetupService_CreateTenant(t *testing.T) {
 			&mockIdentityProviderRepo{}, &mockRoleRepo{}, &mockUserRoleRepo{}, nil,
 			&mockUserIdentityRepo{}, &mockProfileRepo{},
 		)
-		_, err := svc.CreateTenant(validReq)
+		_, err := svc.CreateTenant(context.Background(), validReq)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "find err")
 	})
@@ -403,7 +404,7 @@ func TestSetupService_CreateTenant(t *testing.T) {
 			&mockIdentityProviderRepo{}, &mockRoleRepo{}, &mockUserRoleRepo{}, nil,
 			&mockUserIdentityRepo{}, &mockProfileRepo{},
 		)
-		res, err := svc.CreateTenant(validReq)
+		res, err := svc.CreateTenant(context.Background(), validReq)
 		require.NoError(t, err)
 		assert.Nil(t, res.Tenant.Metadata)
 	})
@@ -431,7 +432,7 @@ func TestSetupService_CreateAdmin(t *testing.T) {
 			&mockUserRepo{}, &mockProfileRepo{}, &mockClientRepo{}, &mockIdentityProviderRepo{},
 			&mockRoleRepo{}, &mockUserRoleRepo{}, &mockUserIdentityRepo{}, &mockTenantMemberRepo{}, &mockTenantUserRepo{},
 		)
-		_, err := svc.CreateAdmin(validReq)
+		_, err := svc.CreateAdmin(context.Background(), validReq)
 		require.Error(t, err)
 	})
 
@@ -441,7 +442,7 @@ func TestSetupService_CreateAdmin(t *testing.T) {
 			&mockUserRepo{}, &mockProfileRepo{}, &mockClientRepo{}, &mockIdentityProviderRepo{},
 			&mockRoleRepo{}, &mockUserRoleRepo{}, &mockUserIdentityRepo{}, &mockTenantMemberRepo{}, &mockTenantUserRepo{},
 		)
-		_, err := svc.CreateAdmin(validReq)
+		_, err := svc.CreateAdmin(context.Background(), validReq)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "tenant must be created first")
 	})
@@ -453,7 +454,7 @@ func TestSetupService_CreateAdmin(t *testing.T) {
 			&mockProfileRepo{}, &mockClientRepo{}, &mockIdentityProviderRepo{},
 			&mockRoleRepo{}, &mockUserRoleRepo{}, &mockUserIdentityRepo{}, &mockTenantMemberRepo{}, &mockTenantUserRepo{},
 		)
-		_, err := svc.CreateAdmin(validReq)
+		_, err := svc.CreateAdmin(context.Background(), validReq)
 		require.Error(t, err)
 	})
 
@@ -464,7 +465,7 @@ func TestSetupService_CreateAdmin(t *testing.T) {
 			&mockProfileRepo{}, &mockClientRepo{}, &mockIdentityProviderRepo{},
 			&mockRoleRepo{}, &mockUserRoleRepo{}, &mockUserIdentityRepo{}, &mockTenantMemberRepo{}, &mockTenantUserRepo{},
 		)
-		_, err := svc.CreateAdmin(validReq)
+		_, err := svc.CreateAdmin(context.Background(), validReq)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "admin user already exists")
 	})
@@ -478,7 +479,7 @@ func TestSetupService_CreateAdmin(t *testing.T) {
 			&mockUserRepo{}, &mockProfileRepo{}, &mockClientRepo{}, &mockIdentityProviderRepo{},
 			&mockRoleRepo{}, &mockUserRoleRepo{}, &mockUserIdentityRepo{}, &mockTenantMemberRepo{}, &mockTenantUserRepo{},
 		)
-		_, err := svc.CreateAdmin(validReq)
+		_, err := svc.CreateAdmin(context.Background(), validReq)
 		require.Error(t, err)
 	})
 
@@ -491,7 +492,7 @@ func TestSetupService_CreateAdmin(t *testing.T) {
 			&mockUserRepo{}, &mockProfileRepo{}, &mockClientRepo{}, &mockIdentityProviderRepo{},
 			&mockRoleRepo{}, &mockUserRoleRepo{}, &mockUserIdentityRepo{}, &mockTenantMemberRepo{}, &mockTenantUserRepo{},
 		)
-		_, err := svc.CreateAdmin(validReq)
+		_, err := svc.CreateAdmin(context.Background(), validReq)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "default tenant not found")
 	})
@@ -507,7 +508,7 @@ func TestSetupService_CreateAdmin(t *testing.T) {
 			&mockIdentityProviderRepo{},
 			&mockRoleRepo{}, &mockUserRoleRepo{}, &mockUserIdentityRepo{}, &mockTenantMemberRepo{}, &mockTenantUserRepo{},
 		)
-		_, err := svc.CreateAdmin(validReq)
+		_, err := svc.CreateAdmin(context.Background(), validReq)
 		require.Error(t, err)
 	})
 
@@ -522,7 +523,7 @@ func TestSetupService_CreateAdmin(t *testing.T) {
 			&mockIdentityProviderRepo{},
 			&mockRoleRepo{}, &mockUserRoleRepo{}, &mockUserIdentityRepo{}, &mockTenantMemberRepo{}, &mockTenantUserRepo{},
 		)
-		_, err := svc.CreateAdmin(validReq)
+		_, err := svc.CreateAdmin(context.Background(), validReq)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "default auth client not found")
 	})
@@ -560,7 +561,7 @@ func TestSetupService_CreateAdmin(t *testing.T) {
 			u.findByEmailFn = func(_ string) (*model.User, error) { return nil, errors.New("db err") }
 		})
 		svc := NewSetupService(db, ur, tr, tmr, tur, cr, &mockIdentityProviderRepo{}, rr, urr, nil, uir, &mockProfileRepo{})
-		_, err := svc.CreateAdmin(validReq)
+		_, err := svc.CreateAdmin(context.Background(), validReq)
 		require.Error(t, err)
 	})
 
@@ -572,7 +573,7 @@ func TestSetupService_CreateAdmin(t *testing.T) {
 			u.findByEmailFn = func(_ string) (*model.User, error) { return &model.User{Email: "admin@test.com"}, nil }
 		})
 		svc := NewSetupService(db, ur, tr, tmr, tur, cr, &mockIdentityProviderRepo{}, rr, urr, nil, uir, &mockProfileRepo{})
-		_, err := svc.CreateAdmin(validReq)
+		_, err := svc.CreateAdmin(context.Background(), validReq)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "user with this email already exists")
 	})
@@ -585,7 +586,7 @@ func TestSetupService_CreateAdmin(t *testing.T) {
 			u.createFn = func(_ *model.User) (*model.User, error) { return nil, errors.New("create failed") }
 		})
 		svc := NewSetupService(db, ur, tr, tmr, tur, cr, &mockIdentityProviderRepo{}, rr, urr, nil, uir, &mockProfileRepo{})
-		_, err := svc.CreateAdmin(validReq)
+		_, err := svc.CreateAdmin(context.Background(), validReq)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "create failed")
 	})
@@ -598,7 +599,7 @@ func TestSetupService_CreateAdmin(t *testing.T) {
 			ui.createFn = func(_ *model.UserIdentity) (*model.UserIdentity, error) { return nil, errors.New("identity failed") }
 		})
 		svc := NewSetupService(db, ur, tr, tmr, tur, cr, &mockIdentityProviderRepo{}, rr, urr, nil, uir, &mockProfileRepo{})
-		_, err := svc.CreateAdmin(validReq)
+		_, err := svc.CreateAdmin(context.Background(), validReq)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "identity failed")
 	})
@@ -611,7 +612,7 @@ func TestSetupService_CreateAdmin(t *testing.T) {
 			r.findRegisteredRoleForSetupFn = func(_ int64) (*model.Role, error) { return nil, errors.New("db err") }
 		})
 		svc := NewSetupService(db, ur, tr, tmr, tur, cr, &mockIdentityProviderRepo{}, rr, urr, nil, uir, &mockProfileRepo{})
-		_, err := svc.CreateAdmin(validReq)
+		_, err := svc.CreateAdmin(context.Background(), validReq)
 		require.Error(t, err)
 	})
 
@@ -623,7 +624,7 @@ func TestSetupService_CreateAdmin(t *testing.T) {
 			r.findRegisteredRoleForSetupFn = func(_ int64) (*model.Role, error) { return nil, nil }
 		})
 		svc := NewSetupService(db, ur, tr, tmr, tur, cr, &mockIdentityProviderRepo{}, rr, urr, nil, uir, &mockProfileRepo{})
-		_, err := svc.CreateAdmin(validReq)
+		_, err := svc.CreateAdmin(context.Background(), validReq)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "registered role not found")
 	})
@@ -643,7 +644,7 @@ func TestSetupService_CreateAdmin(t *testing.T) {
 			}
 		})
 		svc := NewSetupService(db, ur, tr, tmr, tur, cr, &mockIdentityProviderRepo{}, rr, urr, nil, uir, &mockProfileRepo{})
-		_, err := svc.CreateAdmin(validReq)
+		_, err := svc.CreateAdmin(context.Background(), validReq)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "user role failed")
 	})
@@ -656,7 +657,7 @@ func TestSetupService_CreateAdmin(t *testing.T) {
 			r.findSuperAdminRoleForSetupFn = func(_ int64) (*model.Role, error) { return nil, errors.New("db err") }
 		})
 		svc := NewSetupService(db, ur, tr, tmr, tur, cr, &mockIdentityProviderRepo{}, rr, urr, nil, uir, &mockProfileRepo{})
-		_, err := svc.CreateAdmin(validReq)
+		_, err := svc.CreateAdmin(context.Background(), validReq)
 		require.Error(t, err)
 	})
 
@@ -668,7 +669,7 @@ func TestSetupService_CreateAdmin(t *testing.T) {
 			r.findSuperAdminRoleForSetupFn = func(_ int64) (*model.Role, error) { return nil, nil }
 		})
 		svc := NewSetupService(db, ur, tr, tmr, tur, cr, &mockIdentityProviderRepo{}, rr, urr, nil, uir, &mockProfileRepo{})
-		_, err := svc.CreateAdmin(validReq)
+		_, err := svc.CreateAdmin(context.Background(), validReq)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "super-admin role not found")
 	})
@@ -688,7 +689,7 @@ func TestSetupService_CreateAdmin(t *testing.T) {
 			}
 		})
 		svc := NewSetupService(db, ur, tr, tmr, tur, cr, &mockIdentityProviderRepo{}, rr, urr, nil, uir, &mockProfileRepo{})
-		_, err := svc.CreateAdmin(validReq)
+		_, err := svc.CreateAdmin(context.Background(), validReq)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "super role failed")
 	})
@@ -701,7 +702,7 @@ func TestSetupService_CreateAdmin(t *testing.T) {
 			tm.createFn = func(_ *model.TenantMember) (*model.TenantMember, error) { return nil, errors.New("member failed") }
 		})
 		svc := NewSetupService(db, ur, tr, tmr, tur, cr, &mockIdentityProviderRepo{}, rr, urr, nil, uir, &mockProfileRepo{})
-		_, err := svc.CreateAdmin(validReq)
+		_, err := svc.CreateAdmin(context.Background(), validReq)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "member failed")
 	})
@@ -714,7 +715,7 @@ func TestSetupService_CreateAdmin(t *testing.T) {
 			tu.createFn = func(_ *model.TenantUser) (*model.TenantUser, error) { return nil, errors.New("tenant user failed") }
 		})
 		svc := NewSetupService(db, ur, tr, tmr, tur, cr, &mockIdentityProviderRepo{}, rr, urr, nil, uir, &mockProfileRepo{})
-		_, err := svc.CreateAdmin(validReq)
+		_, err := svc.CreateAdmin(context.Background(), validReq)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "tenant user failed")
 	})
@@ -725,7 +726,7 @@ func TestSetupService_CreateAdmin(t *testing.T) {
 		mock.ExpectCommit()
 		tr, ur, cr, rr, uir, urr, tmr, tur := adminRepos()
 		svc := NewSetupService(db, ur, tr, tmr, tur, cr, &mockIdentityProviderRepo{}, rr, urr, nil, uir, &mockProfileRepo{})
-		res, err := svc.CreateAdmin(validReq)
+		res, err := svc.CreateAdmin(context.Background(), validReq)
 		require.NoError(t, err)
 		assert.Equal(t, "admin@test.com", res.User.Email)
 		assert.Equal(t, "admin", res.User.Username)
@@ -742,7 +743,7 @@ func TestSetupService_CreateAdmin(t *testing.T) {
 		mock.ExpectRollback()
 		tr, _, cr, rr, uir, urr, tmr, tur := adminRepos()
 		svc := NewSetupService(db, &mockUserRepo{}, tr, tmr, tur, cr, &mockIdentityProviderRepo{}, rr, urr, nil, uir, &mockProfileRepo{})
-		_, err := svc.CreateAdmin(validReq)
+		_, err := svc.CreateAdmin(context.Background(), validReq)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "hash error")
 	})
@@ -762,7 +763,7 @@ func TestSetupService_CreateProfile(t *testing.T) {
 			&mockProfileRepo{}, &mockClientRepo{}, &mockIdentityProviderRepo{},
 			&mockRoleRepo{}, &mockUserRoleRepo{}, &mockUserIdentityRepo{}, &mockTenantMemberRepo{}, &mockTenantUserRepo{},
 		)
-		_, err := svc.CreateProfile(validReq)
+		_, err := svc.CreateProfile(context.Background(), validReq)
 		require.Error(t, err)
 	})
 
@@ -772,7 +773,7 @@ func TestSetupService_CreateProfile(t *testing.T) {
 			&mockProfileRepo{}, &mockClientRepo{}, &mockIdentityProviderRepo{},
 			&mockRoleRepo{}, &mockUserRoleRepo{}, &mockUserIdentityRepo{}, &mockTenantMemberRepo{}, &mockTenantUserRepo{},
 		)
-		_, err := svc.CreateProfile(validReq)
+		_, err := svc.CreateProfile(context.Background(), validReq)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "no admin user found")
 	})
@@ -785,7 +786,7 @@ func TestSetupService_CreateProfile(t *testing.T) {
 			&mockClientRepo{}, &mockIdentityProviderRepo{},
 			&mockRoleRepo{}, &mockUserRoleRepo{}, &mockUserIdentityRepo{}, &mockTenantMemberRepo{}, &mockTenantUserRepo{},
 		)
-		_, err := svc.CreateProfile(validReq)
+		_, err := svc.CreateProfile(context.Background(), validReq)
 		require.Error(t, err)
 	})
 
@@ -797,7 +798,7 @@ func TestSetupService_CreateProfile(t *testing.T) {
 			&mockClientRepo{}, &mockIdentityProviderRepo{},
 			&mockRoleRepo{}, &mockUserRoleRepo{}, &mockUserIdentityRepo{}, &mockTenantMemberRepo{}, &mockTenantUserRepo{},
 		)
-		_, err := svc.CreateProfile(validReq)
+		_, err := svc.CreateProfile(context.Background(), validReq)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "profile already exists")
 	})
@@ -811,7 +812,7 @@ func TestSetupService_CreateProfile(t *testing.T) {
 			&mockProfileRepo{}, &mockClientRepo{}, &mockIdentityProviderRepo{},
 			&mockRoleRepo{}, &mockUserRoleRepo{}, &mockUserIdentityRepo{}, &mockTenantMemberRepo{}, &mockTenantUserRepo{},
 		)
-		_, err := svc.CreateProfile(req)
+		_, err := svc.CreateProfile(context.Background(), req)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "invalid birthdate format")
 	})
@@ -828,7 +829,7 @@ func TestSetupService_CreateProfile(t *testing.T) {
 			&mockIdentityProviderRepo{}, &mockRoleRepo{}, &mockUserRoleRepo{}, nil,
 			&mockUserIdentityRepo{}, &mockProfileRepo{},
 		)
-		res, err := svc.CreateProfile(req)
+		res, err := svc.CreateProfile(context.Background(), req)
 		require.NoError(t, err)
 		assert.Equal(t, "John", res.Profile.FirstName)
 	})
@@ -845,7 +846,7 @@ func TestSetupService_CreateProfile(t *testing.T) {
 			&mockIdentityProviderRepo{}, &mockRoleRepo{}, &mockUserRoleRepo{}, nil,
 			&mockUserIdentityRepo{}, &mockProfileRepo{},
 		)
-		res, err := svc.CreateProfile(req)
+		res, err := svc.CreateProfile(context.Background(), req)
 		require.NoError(t, err)
 		assert.Equal(t, "John", res.Profile.FirstName)
 	})
@@ -861,7 +862,7 @@ func TestSetupService_CreateProfile(t *testing.T) {
 			&mockIdentityProviderRepo{}, &mockRoleRepo{}, &mockUserRoleRepo{}, nil,
 			&mockUserIdentityRepo{}, &mockProfileRepo{},
 		)
-		_, err := svc.CreateProfile(req)
+		_, err := svc.CreateProfile(context.Background(), req)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "invalid metadata format")
 	})
@@ -877,7 +878,7 @@ func TestSetupService_CreateProfile(t *testing.T) {
 			&mockIdentityProviderRepo{}, &mockRoleRepo{}, &mockUserRoleRepo{}, nil,
 			&mockUserIdentityRepo{}, &mockProfileRepo{},
 		)
-		res, err := svc.CreateProfile(req)
+		res, err := svc.CreateProfile(context.Background(), req)
 		require.NoError(t, err)
 		assert.Equal(t, "John", res.Profile.FirstName)
 	})
@@ -893,7 +894,7 @@ func TestSetupService_CreateProfile(t *testing.T) {
 			&mockUserIdentityRepo{},
 			&mockProfileRepo{createFn: func(_ *model.Profile) (*model.Profile, error) { return nil, errors.New("create failed") }},
 		)
-		_, err := svc.CreateProfile(validReq)
+		_, err := svc.CreateProfile(context.Background(), validReq)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "create failed")
 	})
@@ -911,7 +912,7 @@ func TestSetupService_CreateProfile(t *testing.T) {
 			&mockIdentityProviderRepo{}, &mockRoleRepo{}, &mockUserRoleRepo{}, nil,
 			&mockUserIdentityRepo{}, &mockProfileRepo{},
 		)
-		_, err := svc.CreateProfile(validReq)
+		_, err := svc.CreateProfile(context.Background(), validReq)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "update failed")
 	})
@@ -926,7 +927,7 @@ func TestSetupService_CreateProfile(t *testing.T) {
 			&mockIdentityProviderRepo{}, &mockRoleRepo{}, &mockUserRoleRepo{}, nil,
 			&mockUserIdentityRepo{}, &mockProfileRepo{},
 		)
-		res, err := svc.CreateProfile(validReq)
+		res, err := svc.CreateProfile(context.Background(), validReq)
 		require.NoError(t, err)
 		assert.Equal(t, "John", res.Profile.FirstName)
 	})
