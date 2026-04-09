@@ -106,7 +106,7 @@ func (h *RegisterHandler) RegisterPublic(w http.ResponseWriter, r *http.Request)
 			Endpoint:  "/register",
 			Method:    r.Method,
 			Timestamp: startTime,
-			Details:   "Request validation failed: " + err.Error(),
+			Details:   "Request validation failed",
 			Severity:  severity,
 		})
 		resp.ValidationError(w, err)
@@ -128,7 +128,7 @@ func (h *RegisterHandler) RegisterPublic(w http.ResponseWriter, r *http.Request)
 			Endpoint:  "/register",
 			Method:    r.Method,
 			Timestamp: startTime,
-			Details:   "Registration failed: " + err.Error(),
+			Details:   "Registration failed",
 			Severity:  "MEDIUM",
 		})
 		resp.HandleServiceError(w, r, "Registration failed", err)
@@ -198,7 +198,7 @@ func (h *RegisterHandler) Register(w http.ResponseWriter, r *http.Request) {
 			Endpoint:  "/register",
 			Method:    r.Method,
 			Timestamp: startTime,
-			Details:   "Request validation failed: " + err.Error(),
+			Details:   "Request validation failed",
 			Severity:  severity,
 		})
 		resp.ValidationError(w, err)
@@ -219,7 +219,7 @@ func (h *RegisterHandler) Register(w http.ResponseWriter, r *http.Request) {
 			Endpoint:  "/register",
 			Method:    r.Method,
 			Timestamp: startTime,
-			Details:   "Internal registration failed: " + err.Error(),
+			Details:   "Internal registration failed",
 			Severity:  "MEDIUM",
 		})
 		resp.HandleServiceError(w, r, "Registration failed", err)

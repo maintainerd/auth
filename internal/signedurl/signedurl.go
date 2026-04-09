@@ -50,13 +50,13 @@ import (
 // ============================================================================
 
 // hmacSecretKey returns the HMAC signing key, loaded from the HMAC_SECRET_KEY
-// environment variable. Panics at startup if the variable is unset or empty.
-func hmacSecretKey() []byte {
+// environment variable. Returns an error if the variable is unset or empty.
+func hmacSecretKey() ([]byte, error) {
 	key := os.Getenv("HMAC_SECRET_KEY")
 	if key == "" {
-		panic("HMAC_SECRET_KEY environment variable is required but not set")
+		return nil, fmt.Errorf("HMAC_SECRET_KEY environment variable is required but not set")
 	}
-	return []byte(key)
+	return []byte(key), nil
 }
 
 // ============================================================================
@@ -78,7 +78,10 @@ func generateSignedURL(baseURL string, params map[string]string, ttl time.Durati
 	values.Set("expires", fmt.Sprintf("%d", expires))
 
 	// Compute signature
-	sig := ComputeSignature(values)
+	sig, err := computeSignature(values)
+	if err != nil {
+		return "", fmt.Errorf("failed to compute signature: %w", err)
+	}
 	values.Set("sig", sig)
 
 	return fmt.Sprintf("%s?%s", baseURL, values.Encode()), nil
@@ -107,7 +110,10 @@ func ValidateSignedURL(values url.Values) (map[string]string, error) {
 	expected := cloneValues(values)
 	expected.Del("sig") // remove sig before recomputing
 
-	expectedSig := ComputeSignature(expected)
+	expectedSig, err := computeSignature(expected)
+	if err != nil {
+		return nil, fmt.Errorf("failed to compute signature: %w", err)
+	}
 	if !hmac.Equal([]byte(expectedSig), []byte(sig)) {
 		return nil, fmt.Errorf("invalid signature")
 	}
@@ -145,9 +151,9 @@ func convertToFrontendURL(apiSignedURL, frontendBaseURL string) (string, error) 
 // INTERNAL UTILITIES
 // ============================================================================
 
-// ComputeSignature generates HMAC signature for url.Values
-// Used internally by signed URL functions
-func ComputeSignature(values url.Values) string {
+// computeSignature generates HMAC signature for url.Values.
+// Used internally by signed URL functions.
+func computeSignature(values url.Values) (string, error) {
 	// Sort keys for deterministic signing
 	keys := make([]string, 0, len(values))
 	for k := range values {
@@ -169,9 +175,13 @@ func ComputeSignature(values url.Values) string {
 	data := strings.TrimRight(sb.String(), "&")
 
 	// Compute HMAC SHA256
-	mac := hmac.New(sha256.New, hmacSecretKey())
+	secret, err := hmacSecretKey()
+	if err != nil {
+		return "", err
+	}
+	mac := hmac.New(sha256.New, secret)
 	mac.Write([]byte(data))
-	return base64.URLEncoding.EncodeToString(mac.Sum(nil))
+	return base64.URLEncoding.EncodeToString(mac.Sum(nil)), nil
 }
 
 // cloneValues safely clones url.Values to avoid mutation

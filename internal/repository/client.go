@@ -182,6 +182,7 @@ func (r *clientRepository) FindPaginated(filter ClientRepositoryGetFilter) (*Pag
 	}
 
 	// Pagination
+	filter.Page, filter.Limit = normalizePagination(filter.Page, filter.Limit)
 	offset := (filter.Page - 1) * filter.Limit
 	var clients []model.Client
 	if err := query.

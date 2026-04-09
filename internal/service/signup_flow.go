@@ -186,7 +186,10 @@ func (s *signupFlowService) Create(ctx context.Context, tenantID int64, name, de
 		// Generate unique identifier
 		var identifier string
 		for {
-			identifier = crypto.GenerateIdentifier(16)
+			identifier, err = crypto.GenerateIdentifier(16)
+			if err != nil {
+				return err
+			}
 			existing, err := txSignupFlowRepo.FindByIdentifierAndClientID(identifier, Client.ClientID)
 			if err != nil {
 				return err

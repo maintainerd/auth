@@ -57,7 +57,7 @@ func (h *ResetPasswordHandler) ResetPasswordPublic(w http.ResponseWriter, r *htt
 			Endpoint:  "/reset-password",
 			Method:    r.Method,
 			Timestamp: startTime,
-			Details:   "Invalid signed URL: " + err.Error(),
+			Details:   "Invalid signed URL",
 			Severity:  "HIGH",
 		})
 		resp.Error(w, http.StatusBadRequest, "Invalid or expired reset link")
@@ -114,7 +114,7 @@ func (h *ResetPasswordHandler) ResetPasswordPublic(w http.ResponseWriter, r *htt
 			Endpoint:  "/reset-password",
 			Method:    r.Method,
 			Timestamp: startTime,
-			Details:   "Request validation failed: " + err.Error(),
+			Details:   "Request validation failed",
 			Severity:  "MEDIUM",
 		})
 		resp.ValidationError(w, err)
@@ -154,7 +154,7 @@ func (h *ResetPasswordHandler) ResetPasswordPublic(w http.ResponseWriter, r *htt
 			Endpoint:  "/reset-password",
 			Method:    r.Method,
 			Timestamp: startTime,
-			Details:   "Service error: " + err.Error(),
+			Details:   "Password reset failed",
 			Severity:  "HIGH",
 		})
 		resp.HandleServiceError(w, r, "Failed to reset password", err)
@@ -212,7 +212,7 @@ func (h *ResetPasswordHandler) ResetPassword(w http.ResponseWriter, r *http.Requ
 			Endpoint:  "/reset-password",
 			Method:    r.Method,
 			Timestamp: startTime,
-			Details:   "Invalid signed URL: " + err.Error(),
+			Details:   "Invalid signed URL",
 			Severity:  "HIGH",
 		})
 		resp.Error(w, http.StatusBadRequest, "Invalid or expired reset link")
@@ -274,7 +274,7 @@ func (h *ResetPasswordHandler) ResetPassword(w http.ResponseWriter, r *http.Requ
 			Endpoint:  "/reset-password",
 			Method:    r.Method,
 			Timestamp: startTime,
-			Details:   "Request validation failed: " + err.Error(),
+			Details:   "Request validation failed",
 			Severity:  "MEDIUM",
 		})
 		resp.ValidationError(w, err)
@@ -313,7 +313,7 @@ func (h *ResetPasswordHandler) ResetPassword(w http.ResponseWriter, r *http.Requ
 			Endpoint:  "/reset-password",
 			Method:    r.Method,
 			Timestamp: startTime,
-			Details:   "Service error: " + err.Error(),
+			Details:   "Password reset failed",
 			Severity:  "HIGH",
 		})
 		resp.HandleServiceError(w, r, "Failed to reset password", err)

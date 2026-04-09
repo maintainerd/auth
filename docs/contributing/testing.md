@@ -156,7 +156,7 @@ func (m *mockUserRepo) FindByEmail(email string) (*model.User, error) {
 Some utilities read environment variables at call time. Set them safely inside a test with `t.Setenv` — the value is restored automatically when the test ends.
 
 ```go
-func TestComputeSignature_Deterministic(t *testing.T) {
+func TestGenerateSignedURL(t *testing.T) {
     t.Setenv("HMAC_SECRET_KEY", "test-secret")
     // ...
 }
