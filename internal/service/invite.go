@@ -14,6 +14,8 @@ import (
 	"github.com/maintainerd/auth/internal/ptr"
 	"github.com/maintainerd/auth/internal/repository"
 	"github.com/maintainerd/auth/internal/signedurl"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/codes"
 	"gorm.io/gorm"
 )
 
@@ -52,6 +54,9 @@ func (s *inviteService) SendInvite(
 	userID int64,
 	roleUUIDs []string,
 ) (*model.Invite, error) {
+	_, span := otel.Tracer("service").Start(ctx, "invite.send")
+	defer span.End()
+
 	var invite *model.Invite
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
@@ -126,6 +131,8 @@ func (s *inviteService) SendInvite(
 	})
 
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "transaction failed")
 		return nil, err
 	}
 
@@ -146,9 +153,12 @@ func (s *inviteService) SendInvite(
 
 	// Send invite email
 	if err := s.sendInviteEmail(ctx, email, inviteURL); err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "failed to send invite email")
 		return nil, apperror.NewInternal("failed to send invite email", err)
 	}
 
+	span.SetStatus(codes.Ok, "")
 	return invite, nil
 }
 
