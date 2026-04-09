@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"errors"
 	"testing"
 
@@ -511,7 +512,7 @@ func TestUserService_Update(t *testing.T) {
 		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr, tu)
 		mock.ExpectBegin()
 		mock.ExpectRollback()
-		_, err := svc.Update(uid, tenantID, "u", "f", nil, nil, "active", nil, updaterUUID)
+		_, err := svc.Update(context.Background(), uid, tenantID, "u", "f", nil, nil, "active", nil, updaterUUID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "user not found")
 	})
@@ -524,7 +525,7 @@ func TestUserService_Update(t *testing.T) {
 		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr, tu)
 		mock.ExpectBegin()
 		mock.ExpectRollback()
-		_, err := svc.Update(uid, tenantID, "u", "f", nil, nil, "active", nil, updaterUUID)
+		_, err := svc.Update(context.Background(), uid, tenantID, "u", "f", nil, nil, "active", nil, updaterUUID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "access denied")
 	})
@@ -542,7 +543,7 @@ func TestUserService_Update(t *testing.T) {
 		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr, tu)
 		mock.ExpectBegin()
 		mock.ExpectRollback()
-		_, err := svc.Update(uid, tenantID, "old", "f", nil, nil, "active", nil, updaterUUID)
+		_, err := svc.Update(context.Background(), uid, tenantID, "old", "f", nil, nil, "active", nil, updaterUUID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "updater user not found")
 	})
@@ -560,7 +561,7 @@ func TestUserService_Update(t *testing.T) {
 		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr, tu)
 		mock.ExpectBegin()
 		mock.ExpectRollback()
-		_, err := svc.Update(uid, tenantID, "old", "f", nil, nil, "active", nil, updaterUUID)
+		_, err := svc.Update(context.Background(), uid, tenantID, "old", "f", nil, nil, "active", nil, updaterUUID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "actor user has no identities")
 	})
@@ -579,7 +580,7 @@ func TestUserService_Update(t *testing.T) {
 		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr, tu)
 		mock.ExpectBegin()
 		mock.ExpectRollback()
-		_, err := svc.Update(uid, tenantID, "new-name", "f", nil, nil, "active", nil, updaterUUID)
+		_, err := svc.Update(context.Background(), uid, tenantID, "new-name", "f", nil, nil, "active", nil, updaterUUID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "uname err")
 	})
@@ -598,7 +599,7 @@ func TestUserService_Update(t *testing.T) {
 		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr, tu)
 		mock.ExpectBegin()
 		mock.ExpectRollback()
-		_, err := svc.Update(uid, tenantID, "new-name", "f", nil, nil, "active", nil, updaterUUID)
+		_, err := svc.Update(context.Background(), uid, tenantID, "new-name", "f", nil, nil, "active", nil, updaterUUID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "username already exists")
 	})
@@ -618,7 +619,7 @@ func TestUserService_Update(t *testing.T) {
 		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr, tu)
 		mock.ExpectBegin()
 		mock.ExpectRollback()
-		_, err := svc.Update(uid, tenantID, "u", "f", &newEmail, nil, "active", nil, updaterUUID)
+		_, err := svc.Update(context.Background(), uid, tenantID, "u", "f", &newEmail, nil, "active", nil, updaterUUID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "email err")
 	})
@@ -638,7 +639,7 @@ func TestUserService_Update(t *testing.T) {
 		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr, tu)
 		mock.ExpectBegin()
 		mock.ExpectRollback()
-		_, err := svc.Update(uid, tenantID, "u", "f", &newEmail, nil, "active", nil, updaterUUID)
+		_, err := svc.Update(context.Background(), uid, tenantID, "u", "f", &newEmail, nil, "active", nil, updaterUUID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "email already exists")
 	})
@@ -657,7 +658,7 @@ func TestUserService_Update(t *testing.T) {
 		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr, tu)
 		mock.ExpectBegin()
 		mock.ExpectRollback()
-		_, err := svc.Update(uid, tenantID, "u", "f", nil, nil, "active", nil, updaterUUID)
+		_, err := svc.Update(context.Background(), uid, tenantID, "u", "f", nil, nil, "active", nil, updaterUUID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "update err")
 	})
@@ -678,7 +679,7 @@ func TestUserService_Update(t *testing.T) {
 		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr, tu)
 		mock.ExpectBegin()
 		mock.ExpectRollback()
-		_, err := svc.Update(uid, tenantID, "u", "f", nil, nil, "active", nil, updaterUUID)
+		_, err := svc.Update(context.Background(), uid, tenantID, "u", "f", nil, nil, "active", nil, updaterUUID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "fetch err")
 	})
@@ -701,7 +702,7 @@ func TestUserService_Update(t *testing.T) {
 		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr, tu)
 		mock.ExpectBegin()
 		mock.ExpectCommit()
-		res, err := svc.Update(uid, tenantID, "u", "f", &newEmail, &phone, "active", datatypes.JSON([]byte("{}")), updaterUUID)
+		res, err := svc.Update(context.Background(), uid, tenantID, "u", "f", &newEmail, &phone, "active", datatypes.JSON([]byte("{}")), updaterUUID)
 		require.NoError(t, err)
 		assert.NotNil(t, res)
 	})
@@ -720,7 +721,7 @@ func TestUserService_SetStatus(t *testing.T) {
 		ur, ui, urr, rr, tr, idp, cr, tu := defaultMocks()
 		ur.findByUUIDFn = func(_ any, _ ...string) (*model.User, error) { return nil, nil }
 		_, svc := fullUserSvc(t, ur, ui, urr, rr, tr, idp, cr, tu)
-		_, err := svc.SetStatus(uid, tenantID, "inactive", updaterUUID)
+		_, err := svc.SetStatus(context.Background(), uid, tenantID, "inactive", updaterUUID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "user not found")
 	})
@@ -731,7 +732,7 @@ func TestUserService_SetStatus(t *testing.T) {
 			return &model.User{UserID: 1, UserIdentities: []model.UserIdentity{{TenantID: 99}}}, nil
 		}
 		_, svc := fullUserSvc(t, ur, ui, urr, rr, tr, idp, cr, tu)
-		_, err := svc.SetStatus(uid, tenantID, "inactive", updaterUUID)
+		_, err := svc.SetStatus(context.Background(), uid, tenantID, "inactive", updaterUUID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "access denied")
 	})
@@ -747,7 +748,7 @@ func TestUserService_SetStatus(t *testing.T) {
 			return nil, nil
 		}
 		_, svc := fullUserSvc(t, ur, ui, urr, rr, tr, idp, cr, tu)
-		_, err := svc.SetStatus(uid, tenantID, "inactive", updaterUUID)
+		_, err := svc.SetStatus(context.Background(), uid, tenantID, "inactive", updaterUUID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "updater user not found")
 	})
@@ -763,7 +764,7 @@ func TestUserService_SetStatus(t *testing.T) {
 			return &model.User{UserID: 2, UserIdentities: []model.UserIdentity{}}, nil
 		}
 		_, svc := fullUserSvc(t, ur, ui, urr, rr, tr, idp, cr, tu)
-		_, err := svc.SetStatus(uid, tenantID, "inactive", updaterUUID)
+		_, err := svc.SetStatus(context.Background(), uid, tenantID, "inactive", updaterUUID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "actor user has no identities")
 	})
@@ -780,7 +781,7 @@ func TestUserService_SetStatus(t *testing.T) {
 		}
 		ur.setStatusFn = func(_ uuid.UUID, _ string) error { return errors.New("status err") }
 		_, svc := fullUserSvc(t, ur, ui, urr, rr, tr, idp, cr, tu)
-		_, err := svc.SetStatus(uid, tenantID, "inactive", updaterUUID)
+		_, err := svc.SetStatus(context.Background(), uid, tenantID, "inactive", updaterUUID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "status err")
 	})
@@ -799,7 +800,7 @@ func TestUserService_SetStatus(t *testing.T) {
 			return nil, errors.New("fetch err")
 		}
 		_, svc := fullUserSvc(t, ur, ui, urr, rr, tr, idp, cr, tu)
-		_, err := svc.SetStatus(uid, tenantID, "inactive", updaterUUID)
+		_, err := svc.SetStatus(context.Background(), uid, tenantID, "inactive", updaterUUID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "fetch err")
 	})
@@ -818,7 +819,7 @@ func TestUserService_SetStatus(t *testing.T) {
 			return &model.User{UserUUID: uid, Status: "inactive"}, nil
 		}
 		_, svc := fullUserSvc(t, ur, ui, urr, rr, tr, idp, cr, tu)
-		res, err := svc.SetStatus(uid, tenantID, "inactive", updaterUUID)
+		res, err := svc.SetStatus(context.Background(), uid, tenantID, "inactive", updaterUUID)
 		require.NoError(t, err)
 		assert.NotNil(t, res)
 	})
@@ -835,7 +836,7 @@ func TestUserService_VerifyEmail(t *testing.T) {
 		ur, ui, urr, rr, tr, idp, cr, tu := defaultMocks()
 		ur.findByUUIDFn = func(_ any, _ ...string) (*model.User, error) { return nil, nil }
 		_, svc := fullUserSvc(t, ur, ui, urr, rr, tr, idp, cr, tu)
-		_, err := svc.VerifyEmail(uid, 1)
+		_, err := svc.VerifyEmail(context.Background(), uid, 1)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "user not found")
 	})
@@ -846,7 +847,7 @@ func TestUserService_VerifyEmail(t *testing.T) {
 			return &model.User{UserID: 1, UserIdentities: []model.UserIdentity{{TenantID: 99}}}, nil
 		}
 		_, svc := fullUserSvc(t, ur, ui, urr, rr, tr, idp, cr, tu)
-		_, err := svc.VerifyEmail(uid, 1)
+		_, err := svc.VerifyEmail(context.Background(), uid, 1)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "access denied")
 	})
@@ -858,7 +859,7 @@ func TestUserService_VerifyEmail(t *testing.T) {
 		}
 		ur.updateByUUIDFn = func(_, _ any) (*model.User, error) { return nil, errors.New("upd err") }
 		_, svc := fullUserSvc(t, ur, ui, urr, rr, tr, idp, cr, tu)
-		_, err := svc.VerifyEmail(uid, 1)
+		_, err := svc.VerifyEmail(context.Background(), uid, 1)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "upd err")
 	})
@@ -874,7 +875,7 @@ func TestUserService_VerifyEmail(t *testing.T) {
 			return nil, errors.New("fetch err")
 		}
 		_, svc := fullUserSvc(t, ur, ui, urr, rr, tr, idp, cr, tu)
-		_, err := svc.VerifyEmail(uid, 1)
+		_, err := svc.VerifyEmail(context.Background(), uid, 1)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "fetch err")
 	})
@@ -890,7 +891,7 @@ func TestUserService_VerifyEmail(t *testing.T) {
 			return &model.User{UserUUID: uid, IsEmailVerified: true}, nil
 		}
 		_, svc := fullUserSvc(t, ur, ui, urr, rr, tr, idp, cr, tu)
-		res, err := svc.VerifyEmail(uid, 1)
+		res, err := svc.VerifyEmail(context.Background(), uid, 1)
 		require.NoError(t, err)
 		assert.NotNil(t, res)
 	})
@@ -907,7 +908,7 @@ func TestUserService_VerifyPhone(t *testing.T) {
 		ur, ui, urr, rr, tr, idp, cr, tu := defaultMocks()
 		ur.findByUUIDFn = func(_ any, _ ...string) (*model.User, error) { return nil, nil }
 		_, svc := fullUserSvc(t, ur, ui, urr, rr, tr, idp, cr, tu)
-		_, err := svc.VerifyPhone(uid, 1)
+		_, err := svc.VerifyPhone(context.Background(), uid, 1)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "user not found")
 	})
@@ -918,7 +919,7 @@ func TestUserService_VerifyPhone(t *testing.T) {
 			return &model.User{UserID: 1, UserIdentities: []model.UserIdentity{{TenantID: 99}}}, nil
 		}
 		_, svc := fullUserSvc(t, ur, ui, urr, rr, tr, idp, cr, tu)
-		_, err := svc.VerifyPhone(uid, 1)
+		_, err := svc.VerifyPhone(context.Background(), uid, 1)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "access denied")
 	})
@@ -930,7 +931,7 @@ func TestUserService_VerifyPhone(t *testing.T) {
 		}
 		ur.updateByUUIDFn = func(_, _ any) (*model.User, error) { return nil, errors.New("upd err") }
 		_, svc := fullUserSvc(t, ur, ui, urr, rr, tr, idp, cr, tu)
-		_, err := svc.VerifyPhone(uid, 1)
+		_, err := svc.VerifyPhone(context.Background(), uid, 1)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "upd err")
 	})
@@ -946,7 +947,7 @@ func TestUserService_VerifyPhone(t *testing.T) {
 			return nil, errors.New("fetch err")
 		}
 		_, svc := fullUserSvc(t, ur, ui, urr, rr, tr, idp, cr, tu)
-		_, err := svc.VerifyPhone(uid, 1)
+		_, err := svc.VerifyPhone(context.Background(), uid, 1)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "fetch err")
 	})
@@ -962,7 +963,7 @@ func TestUserService_VerifyPhone(t *testing.T) {
 			return &model.User{UserUUID: uid}, nil
 		}
 		_, svc := fullUserSvc(t, ur, ui, urr, rr, tr, idp, cr, tu)
-		res, err := svc.VerifyPhone(uid, 1)
+		res, err := svc.VerifyPhone(context.Background(), uid, 1)
 		require.NoError(t, err)
 		assert.NotNil(t, res)
 	})
@@ -979,7 +980,7 @@ func TestUserService_CompleteAccount(t *testing.T) {
 		ur, ui, urr, rr, tr, idp, cr, tu := defaultMocks()
 		ur.findByUUIDFn = func(_ any, _ ...string) (*model.User, error) { return nil, nil }
 		_, svc := fullUserSvc(t, ur, ui, urr, rr, tr, idp, cr, tu)
-		_, err := svc.CompleteAccount(uid, 1)
+		_, err := svc.CompleteAccount(context.Background(), uid, 1)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "user not found")
 	})
@@ -990,7 +991,7 @@ func TestUserService_CompleteAccount(t *testing.T) {
 			return &model.User{UserID: 1, UserIdentities: []model.UserIdentity{{TenantID: 99}}}, nil
 		}
 		_, svc := fullUserSvc(t, ur, ui, urr, rr, tr, idp, cr, tu)
-		_, err := svc.CompleteAccount(uid, 1)
+		_, err := svc.CompleteAccount(context.Background(), uid, 1)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "access denied")
 	})
@@ -1002,7 +1003,7 @@ func TestUserService_CompleteAccount(t *testing.T) {
 		}
 		ur.updateByUUIDFn = func(_, _ any) (*model.User, error) { return nil, errors.New("upd err") }
 		_, svc := fullUserSvc(t, ur, ui, urr, rr, tr, idp, cr, tu)
-		_, err := svc.CompleteAccount(uid, 1)
+		_, err := svc.CompleteAccount(context.Background(), uid, 1)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "upd err")
 	})
@@ -1018,7 +1019,7 @@ func TestUserService_CompleteAccount(t *testing.T) {
 			return nil, errors.New("fetch err")
 		}
 		_, svc := fullUserSvc(t, ur, ui, urr, rr, tr, idp, cr, tu)
-		_, err := svc.CompleteAccount(uid, 1)
+		_, err := svc.CompleteAccount(context.Background(), uid, 1)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "fetch err")
 	})
@@ -1034,7 +1035,7 @@ func TestUserService_CompleteAccount(t *testing.T) {
 			return &model.User{UserUUID: uid}, nil
 		}
 		_, svc := fullUserSvc(t, ur, ui, urr, rr, tr, idp, cr, tu)
-		res, err := svc.CompleteAccount(uid, 1)
+		res, err := svc.CompleteAccount(context.Background(), uid, 1)
 		require.NoError(t, err)
 		assert.NotNil(t, res)
 	})
@@ -1052,7 +1053,7 @@ func TestUserService_DeleteByUUID(t *testing.T) {
 		ur, ui, urr, rr, tr, idp, cr, tu := defaultMocks()
 		ur.findByUUIDFn = func(_ any, _ ...string) (*model.User, error) { return nil, nil }
 		_, svc := fullUserSvc(t, ur, ui, urr, rr, tr, idp, cr, tu)
-		_, err := svc.DeleteByUUID(uid, 1, deleterUUID)
+		_, err := svc.DeleteByUUID(context.Background(), uid, 1, deleterUUID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "user not found")
 	})
@@ -1063,7 +1064,7 @@ func TestUserService_DeleteByUUID(t *testing.T) {
 			return &model.User{UserID: 1, UserIdentities: []model.UserIdentity{{TenantID: 99}}}, nil
 		}
 		_, svc := fullUserSvc(t, ur, ui, urr, rr, tr, idp, cr, tu)
-		_, err := svc.DeleteByUUID(uid, 1, deleterUUID)
+		_, err := svc.DeleteByUUID(context.Background(), uid, 1, deleterUUID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "access denied")
 	})
@@ -1079,7 +1080,7 @@ func TestUserService_DeleteByUUID(t *testing.T) {
 			return nil, nil
 		}
 		_, svc := fullUserSvc(t, ur, ui, urr, rr, tr, idp, cr, tu)
-		_, err := svc.DeleteByUUID(uid, 1, deleterUUID)
+		_, err := svc.DeleteByUUID(context.Background(), uid, 1, deleterUUID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "deleter user not found")
 	})
@@ -1095,7 +1096,7 @@ func TestUserService_DeleteByUUID(t *testing.T) {
 			return &model.User{UserID: 2, UserIdentities: []model.UserIdentity{}}, nil
 		}
 		_, svc := fullUserSvc(t, ur, ui, urr, rr, tr, idp, cr, tu)
-		_, err := svc.DeleteByUUID(uid, 1, deleterUUID)
+		_, err := svc.DeleteByUUID(context.Background(), uid, 1, deleterUUID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "actor user has no identities")
 	})
@@ -1112,7 +1113,7 @@ func TestUserService_DeleteByUUID(t *testing.T) {
 		}
 		ur.deleteByUUIDFn = func(_ any) error { return errors.New("del err") }
 		_, svc := fullUserSvc(t, ur, ui, urr, rr, tr, idp, cr, tu)
-		_, err := svc.DeleteByUUID(uid, 1, deleterUUID)
+		_, err := svc.DeleteByUUID(context.Background(), uid, 1, deleterUUID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "del err")
 	})
@@ -1128,7 +1129,7 @@ func TestUserService_DeleteByUUID(t *testing.T) {
 			return userWithAccess(2, 1), nil
 		}
 		_, svc := fullUserSvc(t, ur, ui, urr, rr, tr, idp, cr, tu)
-		res, err := svc.DeleteByUUID(uid, 1, deleterUUID)
+		res, err := svc.DeleteByUUID(context.Background(), uid, 1, deleterUUID)
 		require.NoError(t, err)
 		assert.NotNil(t, res)
 	})
@@ -1148,7 +1149,7 @@ func TestUserService_AssignUserRoles(t *testing.T) {
 		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr, tu)
 		mock.ExpectBegin()
 		mock.ExpectRollback()
-		_, err := svc.AssignUserRoles(uid, []uuid.UUID{roleUUID}, 1)
+		_, err := svc.AssignUserRoles(context.Background(), uid, []uuid.UUID{roleUUID}, 1)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "user not found")
 	})
@@ -1161,7 +1162,7 @@ func TestUserService_AssignUserRoles(t *testing.T) {
 		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr, tu)
 		mock.ExpectBegin()
 		mock.ExpectRollback()
-		_, err := svc.AssignUserRoles(uid, []uuid.UUID{roleUUID}, 1)
+		_, err := svc.AssignUserRoles(context.Background(), uid, []uuid.UUID{roleUUID}, 1)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "access denied")
 	})
@@ -1175,7 +1176,7 @@ func TestUserService_AssignUserRoles(t *testing.T) {
 		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr, tu)
 		mock.ExpectBegin()
 		mock.ExpectRollback()
-		_, err := svc.AssignUserRoles(uid, []uuid.UUID{roleUUID}, 1)
+		_, err := svc.AssignUserRoles(context.Background(), uid, []uuid.UUID{roleUUID}, 1)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "role err")
 	})
@@ -1189,7 +1190,7 @@ func TestUserService_AssignUserRoles(t *testing.T) {
 		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr, tu)
 		mock.ExpectBegin()
 		mock.ExpectRollback()
-		_, err := svc.AssignUserRoles(uid, []uuid.UUID{roleUUID}, 1)
+		_, err := svc.AssignUserRoles(context.Background(), uid, []uuid.UUID{roleUUID}, 1)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "role not found")
 	})
@@ -1204,7 +1205,7 @@ func TestUserService_AssignUserRoles(t *testing.T) {
 		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr, tu)
 		mock.ExpectBegin()
 		mock.ExpectRollback()
-		_, err := svc.AssignUserRoles(uid, []uuid.UUID{roleUUID}, 1)
+		_, err := svc.AssignUserRoles(context.Background(), uid, []uuid.UUID{roleUUID}, 1)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "ur find err")
 	})
@@ -1223,7 +1224,7 @@ func TestUserService_AssignUserRoles(t *testing.T) {
 		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr, tu)
 		mock.ExpectBegin()
 		mock.ExpectRollback()
-		_, err := svc.AssignUserRoles(uid, []uuid.UUID{roleUUID}, 1)
+		_, err := svc.AssignUserRoles(context.Background(), uid, []uuid.UUID{roleUUID}, 1)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "fetch err")
 	})
@@ -1243,7 +1244,7 @@ func TestUserService_AssignUserRoles(t *testing.T) {
 		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr, tu)
 		mock.ExpectBegin()
 		mock.ExpectCommit()
-		res, err := svc.AssignUserRoles(uid, []uuid.UUID{roleUUID}, 1)
+		res, err := svc.AssignUserRoles(context.Background(), uid, []uuid.UUID{roleUUID}, 1)
 		require.NoError(t, err)
 		assert.NotNil(t, res)
 	})
@@ -1258,7 +1259,7 @@ func TestUserService_AssignUserRoles(t *testing.T) {
 		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr, tu)
 		mock.ExpectBegin()
 		mock.ExpectRollback()
-		_, err := svc.AssignUserRoles(uid, []uuid.UUID{roleUUID}, 1)
+		_, err := svc.AssignUserRoles(context.Background(), uid, []uuid.UUID{roleUUID}, 1)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "ur create err")
 	})
@@ -1277,7 +1278,7 @@ func TestUserService_AssignUserRoles(t *testing.T) {
 		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr, tu)
 		mock.ExpectBegin()
 		mock.ExpectCommit()
-		res, err := svc.AssignUserRoles(uid, []uuid.UUID{roleUUID}, 1)
+		res, err := svc.AssignUserRoles(context.Background(), uid, []uuid.UUID{roleUUID}, 1)
 		require.NoError(t, err)
 		assert.NotNil(t, res)
 	})
@@ -1297,7 +1298,7 @@ func TestUserService_RemoveUserRole(t *testing.T) {
 		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr, tu)
 		mock.ExpectBegin()
 		mock.ExpectRollback()
-		_, err := svc.RemoveUserRole(uid, roleUUID, 1)
+		_, err := svc.RemoveUserRole(context.Background(), uid, roleUUID, 1)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "user not found")
 	})
@@ -1310,7 +1311,7 @@ func TestUserService_RemoveUserRole(t *testing.T) {
 		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr, tu)
 		mock.ExpectBegin()
 		mock.ExpectRollback()
-		_, err := svc.RemoveUserRole(uid, roleUUID, 1)
+		_, err := svc.RemoveUserRole(context.Background(), uid, roleUUID, 1)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "access denied")
 	})
@@ -1324,7 +1325,7 @@ func TestUserService_RemoveUserRole(t *testing.T) {
 		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr, tu)
 		mock.ExpectBegin()
 		mock.ExpectRollback()
-		_, err := svc.RemoveUserRole(uid, roleUUID, 1)
+		_, err := svc.RemoveUserRole(context.Background(), uid, roleUUID, 1)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "role err")
 	})
@@ -1338,7 +1339,7 @@ func TestUserService_RemoveUserRole(t *testing.T) {
 		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr, tu)
 		mock.ExpectBegin()
 		mock.ExpectRollback()
-		_, err := svc.RemoveUserRole(uid, roleUUID, 1)
+		_, err := svc.RemoveUserRole(context.Background(), uid, roleUUID, 1)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "role not found")
 	})
@@ -1357,7 +1358,7 @@ func TestUserService_RemoveUserRole(t *testing.T) {
 		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr, tu)
 		mock.ExpectBegin()
 		mock.ExpectRollback()
-		_, err := svc.RemoveUserRole(uid, roleUUID, 1)
+		_, err := svc.RemoveUserRole(context.Background(), uid, roleUUID, 1)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "fetch err")
 	})
@@ -1372,7 +1373,7 @@ func TestUserService_RemoveUserRole(t *testing.T) {
 		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr, tu)
 		mock.ExpectBegin()
 		mock.ExpectRollback()
-		_, err := svc.RemoveUserRole(uid, roleUUID, 1)
+		_, err := svc.RemoveUserRole(context.Background(), uid, roleUUID, 1)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "del ur err")
 	})
@@ -1391,7 +1392,7 @@ func TestUserService_RemoveUserRole(t *testing.T) {
 		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr, tu)
 		mock.ExpectBegin()
 		mock.ExpectCommit()
-		res, err := svc.RemoveUserRole(uid, roleUUID, 1)
+		res, err := svc.RemoveUserRole(context.Background(), uid, roleUUID, 1)
 		require.NoError(t, err)
 		assert.NotNil(t, res)
 	})

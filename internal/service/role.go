@@ -67,12 +67,12 @@ type RoleService interface {
 	Get(filter RoleServiceGetFilter) (*RoleServiceGetResult, error)
 	GetByUUID(roleUUID uuid.UUID, tenantID int64) (*RoleServiceDataResult, error)
 	GetRolePermissions(filter RoleServiceGetPermissionsFilter) (*RoleServiceGetPermissionsResult, error)
-	Create(name string, description string, isDefault bool, isSystem bool, status string, tenantUUID string, actorUserUUID uuid.UUID) (*RoleServiceDataResult, error)
-	Update(roleUUID uuid.UUID, tenantID int64, name string, description string, isDefault bool, isSystem bool, status string, actorUserUUID uuid.UUID) (*RoleServiceDataResult, error)
-	SetStatusByUUID(roleUUID uuid.UUID, tenantID int64, status string, actorUserUUID uuid.UUID) (*RoleServiceDataResult, error)
-	DeleteByUUID(roleUUID uuid.UUID, tenantID int64, actorUserUUID uuid.UUID) (*RoleServiceDataResult, error)
-	AddRolePermissions(roleUUID uuid.UUID, tenantID int64, permissionUUIDs []uuid.UUID, actorUserUUID uuid.UUID) (*RoleServiceDataResult, error)
-	RemoveRolePermissions(roleUUID uuid.UUID, tenantID int64, permissionUUID uuid.UUID, actorUserUUID uuid.UUID) (*RoleServiceDataResult, error)
+	Create(ctx context.Context, name string, description string, isDefault bool, isSystem bool, status string, tenantUUID string, actorUserUUID uuid.UUID) (*RoleServiceDataResult, error)
+	Update(ctx context.Context, roleUUID uuid.UUID, tenantID int64, name string, description string, isDefault bool, isSystem bool, status string, actorUserUUID uuid.UUID) (*RoleServiceDataResult, error)
+	SetStatusByUUID(ctx context.Context, roleUUID uuid.UUID, tenantID int64, status string, actorUserUUID uuid.UUID) (*RoleServiceDataResult, error)
+	DeleteByUUID(ctx context.Context, roleUUID uuid.UUID, tenantID int64, actorUserUUID uuid.UUID) (*RoleServiceDataResult, error)
+	AddRolePermissions(ctx context.Context, roleUUID uuid.UUID, tenantID int64, permissionUUIDs []uuid.UUID, actorUserUUID uuid.UUID) (*RoleServiceDataResult, error)
+	RemoveRolePermissions(ctx context.Context, roleUUID uuid.UUID, tenantID int64, permissionUUID uuid.UUID, actorUserUUID uuid.UUID) (*RoleServiceDataResult, error)
 }
 
 type roleService struct {
@@ -200,7 +200,7 @@ func (s *roleService) GetRolePermissions(filter RoleServiceGetPermissionsFilter)
 	}, nil
 }
 
-func (s *roleService) Create(name string, description string, isDefault bool, isSystem bool, status string, tenantUUID string, actorUserUUID uuid.UUID) (*RoleServiceDataResult, error) {
+func (s *roleService) Create(ctx context.Context, name string, description string, isDefault bool, isSystem bool, status string, tenantUUID string, actorUserUUID uuid.UUID) (*RoleServiceDataResult, error) {
 	var createdRole *model.Role
 
 	// Transaction
@@ -268,7 +268,7 @@ func (s *roleService) Create(name string, description string, isDefault bool, is
 	return toRoleServiceDataResult(createdRole), nil
 }
 
-func (s *roleService) Update(roleUUID uuid.UUID, tenantID int64, name string, description string, isDefault bool, isSystem bool, status string, actorUserUUID uuid.UUID) (*RoleServiceDataResult, error) {
+func (s *roleService) Update(ctx context.Context, roleUUID uuid.UUID, tenantID int64, name string, description string, isDefault bool, isSystem bool, status string, actorUserUUID uuid.UUID) (*RoleServiceDataResult, error) {
 	var updatedRole *model.Role
 
 	// Transaction
@@ -338,12 +338,12 @@ func (s *roleService) Update(roleUUID uuid.UUID, tenantID int64, name string, de
 		return nil, err
 	}
 
-	s.cacheInvalidator.InvalidateAllUsers(context.Background())
+	s.cacheInvalidator.InvalidateAllUsers(ctx)
 
 	return toRoleServiceDataResult(updatedRole), nil
 }
 
-func (s *roleService) SetStatusByUUID(roleUUID uuid.UUID, tenantID int64, status string, actorUserUUID uuid.UUID) (*RoleServiceDataResult, error) {
+func (s *roleService) SetStatusByUUID(ctx context.Context, roleUUID uuid.UUID, tenantID int64, status string, actorUserUUID uuid.UUID) (*RoleServiceDataResult, error) {
 	var updatedRole *model.Role
 
 	// Transaction
@@ -398,12 +398,12 @@ func (s *roleService) SetStatusByUUID(roleUUID uuid.UUID, tenantID int64, status
 		return nil, err
 	}
 
-	s.cacheInvalidator.InvalidateAllUsers(context.Background())
+	s.cacheInvalidator.InvalidateAllUsers(ctx)
 
 	return toRoleServiceDataResult(updatedRole), nil
 }
 
-func (s *roleService) DeleteByUUID(roleUUID uuid.UUID, tenantID int64, actorUserUUID uuid.UUID) (*RoleServiceDataResult, error) {
+func (s *roleService) DeleteByUUID(ctx context.Context, roleUUID uuid.UUID, tenantID int64, actorUserUUID uuid.UUID) (*RoleServiceDataResult, error) {
 	// Check role existence
 	role, err := s.roleRepo.FindByUUID(roleUUID, "Tenant")
 	if err != nil {
@@ -440,12 +440,12 @@ func (s *roleService) DeleteByUUID(roleUUID uuid.UUID, tenantID int64, actorUser
 		return nil, err
 	}
 
-	s.cacheInvalidator.InvalidateAllUsers(context.Background())
+	s.cacheInvalidator.InvalidateAllUsers(ctx)
 
 	return toRoleServiceDataResult(role), nil
 }
 
-func (s *roleService) AddRolePermissions(roleUUID uuid.UUID, tenantID int64, permissionUUIDs []uuid.UUID, actorUserUUID uuid.UUID) (*RoleServiceDataResult, error) {
+func (s *roleService) AddRolePermissions(ctx context.Context, roleUUID uuid.UUID, tenantID int64, permissionUUIDs []uuid.UUID, actorUserUUID uuid.UUID) (*RoleServiceDataResult, error) {
 	var roleWithPermissions *model.Role
 
 	// Transaction
@@ -540,12 +540,12 @@ func (s *roleService) AddRolePermissions(roleUUID uuid.UUID, tenantID int64, per
 		return nil, err
 	}
 
-	s.cacheInvalidator.InvalidateAllUsers(context.Background())
+	s.cacheInvalidator.InvalidateAllUsers(ctx)
 
 	return toRoleServiceDataResult(roleWithPermissions), nil
 }
 
-func (s *roleService) RemoveRolePermissions(roleUUID uuid.UUID, tenantID int64, permissionUUID uuid.UUID, actorUserUUID uuid.UUID) (*RoleServiceDataResult, error) {
+func (s *roleService) RemoveRolePermissions(ctx context.Context, roleUUID uuid.UUID, tenantID int64, permissionUUID uuid.UUID, actorUserUUID uuid.UUID) (*RoleServiceDataResult, error) {
 	var roleWithPermissions *model.Role
 
 	// Transaction
@@ -629,7 +629,7 @@ func (s *roleService) RemoveRolePermissions(roleUUID uuid.UUID, tenantID int64, 
 		return nil, err
 	}
 
-	s.cacheInvalidator.InvalidateAllUsers(context.Background())
+	s.cacheInvalidator.InvalidateAllUsers(ctx)
 
 	return toRoleServiceDataResult(roleWithPermissions), nil
 }

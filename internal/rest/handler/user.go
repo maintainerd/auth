@@ -12,9 +12,9 @@ import (
 	"github.com/maintainerd/auth/internal/dto"
 	"github.com/maintainerd/auth/internal/middleware"
 	"github.com/maintainerd/auth/internal/model"
-	"github.com/maintainerd/auth/internal/service"
 	"github.com/maintainerd/auth/internal/ptr"
 	resp "github.com/maintainerd/auth/internal/rest/response"
+	"github.com/maintainerd/auth/internal/service"
 )
 
 // UserHandler handles user management operations.
@@ -243,7 +243,7 @@ func (h *UserHandler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Update user (service validates tenant ownership, includes updater context for audit)
-	user, err := h.userService.Update(userUUID, tenant.TenantID, req.Username, req.Fullname, req.Email, req.Phone, req.Status, req.Metadata, updaterUser.UserUUID)
+	user, err := h.userService.Update(r.Context(), userUUID, tenant.TenantID, req.Username, req.Fullname, req.Email, req.Phone, req.Status, req.Metadata, updaterUser.UserUUID)
 	if err != nil {
 		resp.HandleServiceError(w, r, "Failed to update user", err)
 		return
@@ -293,7 +293,7 @@ func (h *UserHandler) SetUserStatus(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Update user status (service validates tenant ownership, includes updater context for audit)
-	user, err := h.userService.SetStatus(userUUID, tenant.TenantID, req.Status, updaterUser.UserUUID)
+	user, err := h.userService.SetStatus(r.Context(), userUUID, tenant.TenantID, req.Status, updaterUser.UserUUID)
 	if err != nil {
 		resp.HandleServiceError(w, r, "Failed to update user status", err)
 		return
@@ -328,7 +328,7 @@ func (h *UserHandler) VerifyEmail(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Verify email (service validates tenant ownership)
-	user, err := h.userService.VerifyEmail(userUUID, tenant.TenantID)
+	user, err := h.userService.VerifyEmail(r.Context(), userUUID, tenant.TenantID)
 	if err != nil {
 		resp.HandleServiceError(w, r, "Failed to verify email", err)
 		return
@@ -361,7 +361,7 @@ func (h *UserHandler) VerifyPhone(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Verify phone (service validates tenant ownership)
-	user, err := h.userService.VerifyPhone(userUUID, tenant.TenantID)
+	user, err := h.userService.VerifyPhone(r.Context(), userUUID, tenant.TenantID)
 	if err != nil {
 		resp.HandleServiceError(w, r, "Failed to verify phone", err)
 		return
@@ -394,7 +394,7 @@ func (h *UserHandler) CompleteAccount(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Mark account as completed (service validates tenant ownership)
-	user, err := h.userService.CompleteAccount(userUUID, tenant.TenantID)
+	user, err := h.userService.CompleteAccount(r.Context(), userUUID, tenant.TenantID)
 	if err != nil {
 		resp.HandleServiceError(w, r, "Failed to complete account", err)
 		return
@@ -430,7 +430,7 @@ func (h *UserHandler) DeleteUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Delete user (service validates tenant ownership, includes deleter context for audit)
-	user, err := h.userService.DeleteByUUID(userUUID, tenant.TenantID, deleterUser.UserUUID)
+	user, err := h.userService.DeleteByUUID(r.Context(), userUUID, tenant.TenantID, deleterUser.UserUUID)
 	if err != nil {
 		resp.HandleServiceError(w, r, "Failed to delete user", err)
 		return
@@ -477,7 +477,7 @@ func (h *UserHandler) AssignRoles(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Assign roles to user (service validates tenant ownership)
-	user, err := h.userService.AssignUserRoles(userUUID, req.RoleUUIDs, tenant.TenantID)
+	user, err := h.userService.AssignUserRoles(r.Context(), userUUID, req.RoleUUIDs, tenant.TenantID)
 	if err != nil {
 		resp.HandleServiceError(w, r, "Failed to assign roles to user", err)
 		return
@@ -520,7 +520,7 @@ func (h *UserHandler) RemoveRole(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Remove role from user (service validates tenant ownership)
-	user, err := h.userService.RemoveUserRole(userUUID, roleUUID, tenant.TenantID)
+	user, err := h.userService.RemoveUserRole(r.Context(), userUUID, roleUUID, tenant.TenantID)
 	if err != nil {
 		resp.HandleServiceError(w, r, "Failed to remove role from user", err)
 		return
