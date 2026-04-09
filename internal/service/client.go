@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"strings"
 	"time"
 
@@ -9,6 +10,9 @@ import (
 	"github.com/maintainerd/auth/internal/crypto"
 	"github.com/maintainerd/auth/internal/model"
 	"github.com/maintainerd/auth/internal/repository"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
 	"gorm.io/datatypes"
 	"gorm.io/gorm"
 )
@@ -73,27 +77,27 @@ type ClientServiceGetResult struct {
 }
 
 type ClientService interface {
-	Get(filter ClientServiceGetFilter) (*ClientServiceGetResult, error)
-	GetByUUID(ClientUUID uuid.UUID, tenantID int64) (*ClientServiceDataResult, error)
-	GetSecretByUUID(ClientUUID uuid.UUID, tenantID int64) (*ClientSecretServiceDataResult, error)
-	GetConfigByUUID(ClientUUID uuid.UUID, tenantID int64) (datatypes.JSON, error)
-	Create(tenantID int64, name string, displayName string, clientType string, domain string, config datatypes.JSON, status string, isDefault bool, identityProviderUUID string, actorUserUUID uuid.UUID) (*ClientServiceDataResult, error)
-	Update(ClientUUID uuid.UUID, tenantID int64, name string, displayName string, clientType string, domain string, config datatypes.JSON, status string, isDefault bool, actorUserUUID uuid.UUID) (*ClientServiceDataResult, error)
-	SetStatusByUUID(ClientUUID uuid.UUID, tenantID int64, status string, actorUserUUID uuid.UUID) (*ClientServiceDataResult, error)
-	DeleteByUUID(ClientUUID uuid.UUID, tenantID int64, actorUserUUID uuid.UUID) (*ClientServiceDataResult, error)
-	CreateURI(ClientUUID uuid.UUID, tenantID int64, uri string, uriType string, actorUserUUID uuid.UUID) (*ClientServiceDataResult, error)
-	UpdateURI(ClientUUID uuid.UUID, tenantID int64, ClientURIUUID uuid.UUID, uri string, uriType string, actorUserUUID uuid.UUID) (*ClientServiceDataResult, error)
-	DeleteURI(ClientUUID uuid.UUID, tenantID int64, ClientURIUUID uuid.UUID, actorUserUUID uuid.UUID) (*ClientServiceDataResult, error)
+	Get(ctx context.Context, filter ClientServiceGetFilter) (*ClientServiceGetResult, error)
+	GetByUUID(ctx context.Context, ClientUUID uuid.UUID, tenantID int64) (*ClientServiceDataResult, error)
+	GetSecretByUUID(ctx context.Context, ClientUUID uuid.UUID, tenantID int64) (*ClientSecretServiceDataResult, error)
+	GetConfigByUUID(ctx context.Context, ClientUUID uuid.UUID, tenantID int64) (datatypes.JSON, error)
+	Create(ctx context.Context, tenantID int64, name string, displayName string, clientType string, domain string, config datatypes.JSON, status string, isDefault bool, identityProviderUUID string, actorUserUUID uuid.UUID) (*ClientServiceDataResult, error)
+	Update(ctx context.Context, ClientUUID uuid.UUID, tenantID int64, name string, displayName string, clientType string, domain string, config datatypes.JSON, status string, isDefault bool, actorUserUUID uuid.UUID) (*ClientServiceDataResult, error)
+	SetStatusByUUID(ctx context.Context, ClientUUID uuid.UUID, tenantID int64, status string, actorUserUUID uuid.UUID) (*ClientServiceDataResult, error)
+	DeleteByUUID(ctx context.Context, ClientUUID uuid.UUID, tenantID int64, actorUserUUID uuid.UUID) (*ClientServiceDataResult, error)
+	CreateURI(ctx context.Context, ClientUUID uuid.UUID, tenantID int64, uri string, uriType string, actorUserUUID uuid.UUID) (*ClientServiceDataResult, error)
+	UpdateURI(ctx context.Context, ClientUUID uuid.UUID, tenantID int64, ClientURIUUID uuid.UUID, uri string, uriType string, actorUserUUID uuid.UUID) (*ClientServiceDataResult, error)
+	DeleteURI(ctx context.Context, ClientUUID uuid.UUID, tenantID int64, ClientURIUUID uuid.UUID, actorUserUUID uuid.UUID) (*ClientServiceDataResult, error)
 
 	// Auth Client API methods
-	GetClientAPIs(tenantID int64, ClientUUID uuid.UUID) ([]ClientAPIServiceDataResult, error)
-	AddClientAPIs(tenantID int64, ClientUUID uuid.UUID, apiUUIDs []uuid.UUID) error
-	RemoveClientAPI(tenantID int64, ClientUUID uuid.UUID, apiUUID uuid.UUID) error
+	GetClientAPIs(ctx context.Context, tenantID int64, ClientUUID uuid.UUID) ([]ClientAPIServiceDataResult, error)
+	AddClientAPIs(ctx context.Context, tenantID int64, ClientUUID uuid.UUID, apiUUIDs []uuid.UUID) error
+	RemoveClientAPI(ctx context.Context, tenantID int64, ClientUUID uuid.UUID, apiUUID uuid.UUID) error
 
 	// Auth Client API Permission methods
-	GetClientAPIPermissions(tenantID int64, ClientUUID uuid.UUID, apiUUID uuid.UUID) ([]PermissionServiceDataResult, error)
-	AddClientAPIPermissions(tenantID int64, ClientUUID uuid.UUID, apiUUID uuid.UUID, permissionUUIDs []uuid.UUID) error
-	RemoveClientAPIPermission(tenantID int64, ClientUUID uuid.UUID, apiUUID uuid.UUID, permissionUUID uuid.UUID) error
+	GetClientAPIPermissions(ctx context.Context, tenantID int64, ClientUUID uuid.UUID, apiUUID uuid.UUID) ([]PermissionServiceDataResult, error)
+	AddClientAPIPermissions(ctx context.Context, tenantID int64, ClientUUID uuid.UUID, apiUUID uuid.UUID, permissionUUIDs []uuid.UUID) error
+	RemoveClientAPIPermission(ctx context.Context, tenantID int64, ClientUUID uuid.UUID, apiUUID uuid.UUID, permissionUUID uuid.UUID) error
 }
 
 type clientService struct {
@@ -135,7 +139,11 @@ func NewClientService(
 	}
 }
 
-func (s *clientService) Get(filter ClientServiceGetFilter) (*ClientServiceGetResult, error) {
+func (s *clientService) Get(ctx context.Context, filter ClientServiceGetFilter) (*ClientServiceGetResult, error) {
+	_, span := otel.Tracer("service").Start(ctx, "client.list")
+	defer span.End()
+	span.SetAttributes(attribute.Int64("tenant.id", filter.TenantID))
+
 	var idpID *int64
 
 	// Get identity provider
@@ -172,6 +180,8 @@ func (s *clientService) Get(filter ClientServiceGetFilter) (*ClientServiceGetRes
 
 	result, err := s.clientRepo.FindPaginated(queryFilter)
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "failed to fetch clients")
 		return nil, err
 	}
 
@@ -181,6 +191,7 @@ func (s *clientService) Get(filter ClientServiceGetFilter) (*ClientServiceGetRes
 		resData[i] = *ToClientServiceDataResult(&rdata)
 	}
 
+	span.SetStatus(codes.Ok, "")
 	return &ClientServiceGetResult{
 		Data:       resData,
 		Total:      result.Total,
@@ -190,46 +201,86 @@ func (s *clientService) Get(filter ClientServiceGetFilter) (*ClientServiceGetRes
 	}, nil
 }
 
-func (s *clientService) GetByUUID(ClientUUID uuid.UUID, tenantID int64) (*ClientServiceDataResult, error) {
+func (s *clientService) GetByUUID(ctx context.Context, ClientUUID uuid.UUID, tenantID int64) (*ClientServiceDataResult, error) {
+	_, span := otel.Tracer("service").Start(ctx, "client.get")
+	defer span.End()
+	span.SetAttributes(
+		attribute.String("client.uuid", ClientUUID.String()),
+		attribute.Int64("tenant.id", tenantID),
+	)
+
 	Client, err := s.clientRepo.FindByUUIDAndTenantID(ClientUUID, tenantID)
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "failed to fetch client")
 		return nil, err
 	}
 	if Client == nil {
+		span.SetStatus(codes.Error, "auth client not found or access denied")
 		return nil, apperror.NewNotFoundWithReason("auth client not found or access denied")
 	}
 
+	span.SetStatus(codes.Ok, "")
 	return ToClientServiceDataResult(Client), nil
 }
 
-func (s *clientService) GetSecretByUUID(ClientUUID uuid.UUID, tenantID int64) (*ClientSecretServiceDataResult, error) {
+func (s *clientService) GetSecretByUUID(ctx context.Context, ClientUUID uuid.UUID, tenantID int64) (*ClientSecretServiceDataResult, error) {
+	_, span := otel.Tracer("service").Start(ctx, "client.getSecret")
+	defer span.End()
+	span.SetAttributes(
+		attribute.String("client.uuid", ClientUUID.String()),
+		attribute.Int64("tenant.id", tenantID),
+	)
+
 	Client, err := s.clientRepo.FindByUUIDAndTenantID(ClientUUID, tenantID)
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "failed to fetch client")
 		return nil, err
 	}
 	if Client == nil {
+		span.SetStatus(codes.Error, "auth client not found or access denied")
 		return nil, apperror.NewNotFoundWithReason("auth client not found or access denied")
 	}
 
+	span.SetStatus(codes.Ok, "")
 	return &ClientSecretServiceDataResult{
 		ClientID:     *Client.Identifier,
 		ClientSecret: Client.Secret,
 	}, nil
 }
 
-func (s *clientService) GetConfigByUUID(ClientUUID uuid.UUID, tenantID int64) (datatypes.JSON, error) {
+func (s *clientService) GetConfigByUUID(ctx context.Context, ClientUUID uuid.UUID, tenantID int64) (datatypes.JSON, error) {
+	_, span := otel.Tracer("service").Start(ctx, "client.getConfig")
+	defer span.End()
+	span.SetAttributes(
+		attribute.String("client.uuid", ClientUUID.String()),
+		attribute.Int64("tenant.id", tenantID),
+	)
+
 	Client, err := s.clientRepo.FindByUUIDAndTenantID(ClientUUID, tenantID)
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "failed to fetch client")
 		return nil, err
 	}
 	if Client == nil {
+		span.SetStatus(codes.Error, "auth client not found or access denied")
 		return nil, apperror.NewNotFoundWithReason("auth client not found or access denied")
 	}
 
+	span.SetStatus(codes.Ok, "")
 	return Client.Config, nil
 }
 
-func (s *clientService) Create(tenantID int64, name string, displayName string, clientType string, domain string, config datatypes.JSON, status string, isDefault bool, identityProviderUUID string, actorUserUUID uuid.UUID) (*ClientServiceDataResult, error) {
+func (s *clientService) Create(ctx context.Context, tenantID int64, name string, displayName string, clientType string, domain string, config datatypes.JSON, status string, isDefault bool, identityProviderUUID string, actorUserUUID uuid.UUID) (*ClientServiceDataResult, error) {
+	_, span := otel.Tracer("service").Start(ctx, "client.create")
+	defer span.End()
+	span.SetAttributes(
+		attribute.Int64("tenant.id", tenantID),
+		attribute.String("client.name", name),
+	)
+
 	var createdClient *model.Client
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
@@ -304,13 +355,23 @@ func (s *clientService) Create(tenantID int64, name string, displayName string, 
 	})
 
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "failed to create client")
 		return nil, err
 	}
 
+	span.SetStatus(codes.Ok, "")
 	return ToClientServiceDataResult(createdClient), nil
 }
 
-func (s *clientService) Update(ClientUUID uuid.UUID, tenantID int64, name string, displayName string, clientType string, domain string, config datatypes.JSON, status string, isDefault bool, actorUserUUID uuid.UUID) (*ClientServiceDataResult, error) {
+func (s *clientService) Update(ctx context.Context, ClientUUID uuid.UUID, tenantID int64, name string, displayName string, clientType string, domain string, config datatypes.JSON, status string, isDefault bool, actorUserUUID uuid.UUID) (*ClientServiceDataResult, error) {
+	_, span := otel.Tracer("service").Start(ctx, "client.update")
+	defer span.End()
+	span.SetAttributes(
+		attribute.String("client.uuid", ClientUUID.String()),
+		attribute.Int64("tenant.id", tenantID),
+	)
+
 	var updatedClient *model.Client
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
@@ -371,13 +432,24 @@ func (s *clientService) Update(ClientUUID uuid.UUID, tenantID int64, name string
 	})
 
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "failed to update client")
 		return nil, err
 	}
 
+	span.SetStatus(codes.Ok, "")
 	return ToClientServiceDataResult(updatedClient), nil
 }
 
-func (s *clientService) SetStatusByUUID(ClientUUID uuid.UUID, tenantID int64, status string, actorUserUUID uuid.UUID) (*ClientServiceDataResult, error) {
+func (s *clientService) SetStatusByUUID(ctx context.Context, ClientUUID uuid.UUID, tenantID int64, status string, actorUserUUID uuid.UUID) (*ClientServiceDataResult, error) {
+	_, span := otel.Tracer("service").Start(ctx, "client.setStatus")
+	defer span.End()
+	span.SetAttributes(
+		attribute.String("client.uuid", ClientUUID.String()),
+		attribute.Int64("tenant.id", tenantID),
+		attribute.String("client.status", status),
+	)
+
 	var updatedClient *model.Client
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
@@ -424,13 +496,23 @@ func (s *clientService) SetStatusByUUID(ClientUUID uuid.UUID, tenantID int64, st
 	})
 
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "failed to update client status")
 		return nil, err
 	}
 
+	span.SetStatus(codes.Ok, "")
 	return ToClientServiceDataResult(updatedClient), nil
 }
 
-func (s *clientService) DeleteByUUID(ClientUUID uuid.UUID, tenantID int64, actorUserUUID uuid.UUID) (*ClientServiceDataResult, error) {
+func (s *clientService) DeleteByUUID(ctx context.Context, ClientUUID uuid.UUID, tenantID int64, actorUserUUID uuid.UUID) (*ClientServiceDataResult, error) {
+	_, span := otel.Tracer("service").Start(ctx, "client.delete")
+	defer span.End()
+	span.SetAttributes(
+		attribute.String("client.uuid", ClientUUID.String()),
+		attribute.Int64("tenant.id", tenantID),
+	)
+
 	var deletedClient *model.Client
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
@@ -470,13 +552,23 @@ func (s *clientService) DeleteByUUID(ClientUUID uuid.UUID, tenantID int64, actor
 	})
 
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "failed to delete client")
 		return nil, err
 	}
 
+	span.SetStatus(codes.Ok, "")
 	return ToClientServiceDataResult(deletedClient), nil
 }
 
-func (s *clientService) CreateURI(ClientUUID uuid.UUID, tenantID int64, uri string, uriType string, actorUserUUID uuid.UUID) (*ClientServiceDataResult, error) {
+func (s *clientService) CreateURI(ctx context.Context, ClientUUID uuid.UUID, tenantID int64, uri string, uriType string, actorUserUUID uuid.UUID) (*ClientServiceDataResult, error) {
+	_, span := otel.Tracer("service").Start(ctx, "client.createURI")
+	defer span.End()
+	span.SetAttributes(
+		attribute.String("client.uuid", ClientUUID.String()),
+		attribute.Int64("tenant.id", tenantID),
+	)
+
 	var createdClient *model.Client
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
@@ -526,13 +618,23 @@ func (s *clientService) CreateURI(ClientUUID uuid.UUID, tenantID int64, uri stri
 	})
 
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "failed to create client uri")
 		return nil, err
 	}
 
+	span.SetStatus(codes.Ok, "")
 	return ToClientServiceDataResult(createdClient), nil
 }
 
-func (s *clientService) UpdateURI(ClientUUID uuid.UUID, tenantID int64, ClientURIUUID uuid.UUID, uri string, uriType string, actorUserUUID uuid.UUID) (*ClientServiceDataResult, error) {
+func (s *clientService) UpdateURI(ctx context.Context, ClientUUID uuid.UUID, tenantID int64, ClientURIUUID uuid.UUID, uri string, uriType string, actorUserUUID uuid.UUID) (*ClientServiceDataResult, error) {
+	_, span := otel.Tracer("service").Start(ctx, "client.updateURI")
+	defer span.End()
+	span.SetAttributes(
+		attribute.String("client.uuid", ClientUUID.String()),
+		attribute.Int64("tenant.id", tenantID),
+	)
+
 	var updatedClient *model.Client
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
@@ -590,13 +692,23 @@ func (s *clientService) UpdateURI(ClientUUID uuid.UUID, tenantID int64, ClientUR
 	})
 
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "failed to update client uri")
 		return nil, err
 	}
 
+	span.SetStatus(codes.Ok, "")
 	return ToClientServiceDataResult(updatedClient), nil
 }
 
-func (s *clientService) DeleteURI(ClientUUID uuid.UUID, tenantID int64, ClientURIUUID uuid.UUID, actorUserUUID uuid.UUID) (*ClientServiceDataResult, error) {
+func (s *clientService) DeleteURI(ctx context.Context, ClientUUID uuid.UUID, tenantID int64, ClientURIUUID uuid.UUID, actorUserUUID uuid.UUID) (*ClientServiceDataResult, error) {
+	_, span := otel.Tracer("service").Start(ctx, "client.deleteURI")
+	defer span.End()
+	span.SetAttributes(
+		attribute.String("client.uuid", ClientUUID.String()),
+		attribute.Int64("tenant.id", tenantID),
+	)
+
 	var deletedClient *model.Client
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
@@ -643,9 +755,12 @@ func (s *clientService) DeleteURI(ClientUUID uuid.UUID, tenantID int64, ClientUR
 	})
 
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "failed to delete client uri")
 		return nil, err
 	}
 
+	span.SetStatus(codes.Ok, "")
 	return ToClientServiceDataResult(deletedClient), nil
 }
 
@@ -706,10 +821,19 @@ func ToClientServiceDataResult(Client *model.Client) *ClientServiceDataResult {
 }
 
 // Get APIs assigned to auth client
-func (s *clientService) GetClientAPIs(tenantID int64, ClientUUID uuid.UUID) ([]ClientAPIServiceDataResult, error) {
+func (s *clientService) GetClientAPIs(ctx context.Context, tenantID int64, ClientUUID uuid.UUID) ([]ClientAPIServiceDataResult, error) {
+	_, span := otel.Tracer("service").Start(ctx, "client.getAPIs")
+	defer span.End()
+	span.SetAttributes(
+		attribute.String("client.uuid", ClientUUID.String()),
+		attribute.Int64("tenant.id", tenantID),
+	)
+
 	// Get auth client APIs from repository
 	ClientAPIs, err := s.clientAPIRepo.FindByClientUUID(ClientUUID)
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "failed to fetch client apis")
 		return nil, err
 	}
 
@@ -753,12 +877,20 @@ func (s *clientService) GetClientAPIs(tenantID int64, ClientUUID uuid.UUID) ([]C
 		}
 	}
 
+	span.SetStatus(codes.Ok, "")
 	return results, nil
 }
 
 // Add APIs to auth client
-func (s *clientService) AddClientAPIs(tenantID int64, ClientUUID uuid.UUID, apiUUIDs []uuid.UUID) error {
-	return s.db.Transaction(func(tx *gorm.DB) error {
+func (s *clientService) AddClientAPIs(ctx context.Context, tenantID int64, ClientUUID uuid.UUID, apiUUIDs []uuid.UUID) error {
+	_, span := otel.Tracer("service").Start(ctx, "client.addAPIs")
+	defer span.End()
+	span.SetAttributes(
+		attribute.String("client.uuid", ClientUUID.String()),
+		attribute.Int64("tenant.id", tenantID),
+	)
+
+	err := s.db.Transaction(func(tx *gorm.DB) error {
 		txClientRepo := s.clientRepo.WithTx(tx)
 		txClientAPIRepo := s.clientAPIRepo.WithTx(tx)
 		apiRepo := s.apiRepo.WithTx(tx)
@@ -816,11 +948,26 @@ func (s *clientService) AddClientAPIs(tenantID int64, ClientUUID uuid.UUID, apiU
 
 		return nil
 	})
+	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "failed to add apis to client")
+		return err
+	}
+	span.SetStatus(codes.Ok, "")
+	return nil
 }
 
 // Remove API from auth client
-func (s *clientService) RemoveClientAPI(tenantID int64, ClientUUID uuid.UUID, apiUUID uuid.UUID) error {
-	return s.db.Transaction(func(tx *gorm.DB) error {
+func (s *clientService) RemoveClientAPI(ctx context.Context, tenantID int64, ClientUUID uuid.UUID, apiUUID uuid.UUID) error {
+	_, span := otel.Tracer("service").Start(ctx, "client.removeAPI")
+	defer span.End()
+	span.SetAttributes(
+		attribute.String("client.uuid", ClientUUID.String()),
+		attribute.Int64("tenant.id", tenantID),
+		attribute.String("api.uuid", apiUUID.String()),
+	)
+
+	err := s.db.Transaction(func(tx *gorm.DB) error {
 		txClientRepo := s.clientRepo.WithTx(tx)
 		txClientAPIRepo := s.clientAPIRepo.WithTx(tx)
 
@@ -846,34 +993,58 @@ func (s *clientService) RemoveClientAPI(tenantID int64, ClientUUID uuid.UUID, ap
 
 		return nil
 	})
+	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "failed to remove api from client")
+		return err
+	}
+	span.SetStatus(codes.Ok, "")
+	return nil
 }
 
 // Get permissions for a specific API assigned to auth client
-func (s *clientService) GetClientAPIPermissions(tenantID int64, ClientUUID uuid.UUID, apiUUID uuid.UUID) ([]PermissionServiceDataResult, error) {
+func (s *clientService) GetClientAPIPermissions(ctx context.Context, tenantID int64, ClientUUID uuid.UUID, apiUUID uuid.UUID) ([]PermissionServiceDataResult, error) {
+	_, span := otel.Tracer("service").Start(ctx, "client.getAPIPermissions")
+	defer span.End()
+	span.SetAttributes(
+		attribute.String("client.uuid", ClientUUID.String()),
+		attribute.Int64("tenant.id", tenantID),
+		attribute.String("api.uuid", apiUUID.String()),
+	)
+
 	// Get auth client API relationship
 	ClientAPI, err := s.clientAPIRepo.FindByClientUUIDAndAPIUUID(ClientUUID, apiUUID)
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "failed to fetch client api relationship")
 		return nil, err
 	}
 	if ClientAPI == nil {
+		span.SetStatus(codes.Error, "auth client API relationship not found")
 		return nil, apperror.NewNotFoundWithReason("auth client API relationship not found")
 	}
 
 	// Validate tenant access
 	Client, err := s.clientRepo.FindByUUID(ClientUUID, "IdentityProvider")
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "failed to fetch client")
 		return nil, err
 	}
 	if Client == nil {
+		span.SetStatus(codes.Error, "auth client not found")
 		return nil, apperror.NewNotFoundWithReason("auth client not found")
 	}
 	if Client.IdentityProvider == nil || Client.IdentityProvider.TenantID != tenantID {
+		span.SetStatus(codes.Error, "unauthorized access to auth client")
 		return nil, apperror.NewForbidden("unauthorized access to auth client")
 	}
 
 	// Get permissions for this auth client API
 	ClientPermissions, err := s.clientPermissionRepo.FindByClientAPIID(ClientAPI.ClientAPIID)
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "failed to fetch permissions")
 		return nil, err
 	}
 
@@ -892,12 +1063,21 @@ func (s *clientService) GetClientAPIPermissions(tenantID int64, ClientUUID uuid.
 		}
 	}
 
+	span.SetStatus(codes.Ok, "")
 	return results, nil
 }
 
 // Add permissions to a specific API for auth client
-func (s *clientService) AddClientAPIPermissions(tenantID int64, ClientUUID uuid.UUID, apiUUID uuid.UUID, permissionUUIDs []uuid.UUID) error {
-	return s.db.Transaction(func(tx *gorm.DB) error {
+func (s *clientService) AddClientAPIPermissions(ctx context.Context, tenantID int64, ClientUUID uuid.UUID, apiUUID uuid.UUID, permissionUUIDs []uuid.UUID) error {
+	_, span := otel.Tracer("service").Start(ctx, "client.addAPIPermissions")
+	defer span.End()
+	span.SetAttributes(
+		attribute.String("client.uuid", ClientUUID.String()),
+		attribute.Int64("tenant.id", tenantID),
+		attribute.String("api.uuid", apiUUID.String()),
+	)
+
+	err := s.db.Transaction(func(tx *gorm.DB) error {
 		txClientRepo := s.clientRepo.WithTx(tx)
 		txClientAPIRepo := s.clientAPIRepo.WithTx(tx)
 		txClientPermissionRepo := s.clientPermissionRepo.WithTx(tx)
@@ -965,11 +1145,27 @@ func (s *clientService) AddClientAPIPermissions(tenantID int64, ClientUUID uuid.
 
 		return nil
 	})
+	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "failed to add permissions to client api")
+		return err
+	}
+	span.SetStatus(codes.Ok, "")
+	return nil
 }
 
 // Remove permission from a specific API for auth client
-func (s *clientService) RemoveClientAPIPermission(tenantID int64, ClientUUID uuid.UUID, apiUUID uuid.UUID, permissionUUID uuid.UUID) error {
-	return s.db.Transaction(func(tx *gorm.DB) error {
+func (s *clientService) RemoveClientAPIPermission(ctx context.Context, tenantID int64, ClientUUID uuid.UUID, apiUUID uuid.UUID, permissionUUID uuid.UUID) error {
+	_, span := otel.Tracer("service").Start(ctx, "client.removeAPIPermission")
+	defer span.End()
+	span.SetAttributes(
+		attribute.String("client.uuid", ClientUUID.String()),
+		attribute.Int64("tenant.id", tenantID),
+		attribute.String("api.uuid", apiUUID.String()),
+		attribute.String("permission.uuid", permissionUUID.String()),
+	)
+
+	err := s.db.Transaction(func(tx *gorm.DB) error {
 		txClientRepo := s.clientRepo.WithTx(tx)
 		txClientAPIRepo := s.clientAPIRepo.WithTx(tx)
 		txClientPermissionRepo := s.clientPermissionRepo.WithTx(tx)
@@ -1015,4 +1211,11 @@ func (s *clientService) RemoveClientAPIPermission(tenantID int64, ClientUUID uui
 
 		return nil
 	})
+	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "failed to remove permission from client api")
+		return err
+	}
+	span.SetStatus(codes.Ok, "")
+	return nil
 }

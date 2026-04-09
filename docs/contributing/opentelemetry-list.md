@@ -76,23 +76,23 @@ layers (handlers, repositories), and thin middleware are excluded to reduce nois
 
 ### service/client.go
 
-- [ ] `Get`
-- [ ] `GetByUUID`
-- [ ] `GetSecretByUUID`
-- [ ] `GetConfigByUUID`
-- [ ] `Create`
-- [ ] `Update`
-- [ ] `SetStatusByUUID`
-- [ ] `DeleteByUUID`
-- [ ] `CreateURI`
-- [ ] `UpdateURI`
-- [ ] `DeleteURI`
-- [ ] `GetClientAPIs`
-- [ ] `AddClientAPIs`
-- [ ] `RemoveClientAPI`
-- [ ] `GetClientAPIPermissions`
-- [ ] `AddClientAPIPermissions`
-- [ ] `RemoveClientAPIPermission`
+- [x] `Get`
+- [x] `GetByUUID`
+- [x] `GetSecretByUUID`
+- [x] `GetConfigByUUID`
+- [x] `Create`
+- [x] `Update`
+- [x] `SetStatusByUUID`
+- [x] `DeleteByUUID`
+- [x] `CreateURI`
+- [x] `UpdateURI`
+- [x] `DeleteURI`
+- [x] `GetClientAPIs`
+- [x] `AddClientAPIs`
+- [x] `RemoveClientAPI`
+- [x] `GetClientAPIPermissions`
+- [x] `AddClientAPIPermissions`
+- [x] `RemoveClientAPIPermission`
 
 ### service/email_template.go
 
@@ -350,8 +350,8 @@ layers (handlers, repositories), and thin middleware are excluded to reduce nois
 | Logging & Correlation | 2 | 2 | 0 | — |
 | Email (manual) | 1 | 1 | 0 | — |
 | Broken context.Background() | 4 | 4 | 0 | High |
-| Service Layer | 172 | 21 | 151 | High |
+| Service Layer | 172 | 38 | 134 | High |
 | JWT | 4 | 0 | 4 | Medium |
 | Security (I/O funcs) | 5 | 0 | 5 | Medium |
 | Cache | 5 | 0 | 5 | Low |
-| **Total** | **200** | **35** | **165** | |
+| **Total** | **200** | **52** | **148** | |

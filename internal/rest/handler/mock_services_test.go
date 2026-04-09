@@ -329,103 +329,103 @@ type mockClientService struct {
 	removeClientAPIPermFn func(int64, uuid.UUID, uuid.UUID, uuid.UUID) error
 }
 
-func (m *mockClientService) Get(f service.ClientServiceGetFilter) (*service.ClientServiceGetResult, error) {
+func (m *mockClientService) Get(_ context.Context, f service.ClientServiceGetFilter) (*service.ClientServiceGetResult, error) {
 	if m.getFn != nil {
 		return m.getFn(f)
 	}
 	return &service.ClientServiceGetResult{}, nil
 }
-func (m *mockClientService) GetByUUID(id uuid.UUID, tid int64) (*service.ClientServiceDataResult, error) {
+func (m *mockClientService) GetByUUID(_ context.Context, id uuid.UUID, tid int64) (*service.ClientServiceDataResult, error) {
 	if m.getByUUIDFn != nil {
 		return m.getByUUIDFn(id, tid)
 	}
 	return nil, nil
 }
-func (m *mockClientService) GetSecretByUUID(id uuid.UUID, tid int64) (*service.ClientSecretServiceDataResult, error) {
+func (m *mockClientService) GetSecretByUUID(_ context.Context, id uuid.UUID, tid int64) (*service.ClientSecretServiceDataResult, error) {
 	if m.getSecretByUUIDFn != nil {
 		return m.getSecretByUUIDFn(id, tid)
 	}
 	return nil, nil
 }
-func (m *mockClientService) GetConfigByUUID(id uuid.UUID, tid int64) (datatypes.JSON, error) {
+func (m *mockClientService) GetConfigByUUID(_ context.Context, id uuid.UUID, tid int64) (datatypes.JSON, error) {
 	if m.getConfigByUUIDFn != nil {
 		return m.getConfigByUUIDFn(id, tid)
 	}
 	return nil, nil
 }
-func (m *mockClientService) Create(tid int64, n, dn, ct, d string, cfg datatypes.JSON, s string, isDef bool, idpUUID string, actor uuid.UUID) (*service.ClientServiceDataResult, error) {
+func (m *mockClientService) Create(_ context.Context, tid int64, n, dn, ct, d string, cfg datatypes.JSON, s string, isDef bool, idpUUID string, actor uuid.UUID) (*service.ClientServiceDataResult, error) {
 	if m.createFn != nil {
 		return m.createFn(tid, n, dn, ct, d, cfg, s, isDef, idpUUID, actor)
 	}
 	return nil, nil
 }
-func (m *mockClientService) Update(id uuid.UUID, tid int64, n, dn, ct, d string, cfg datatypes.JSON, s string, isDef bool, actor uuid.UUID) (*service.ClientServiceDataResult, error) {
+func (m *mockClientService) Update(_ context.Context, id uuid.UUID, tid int64, n, dn, ct, d string, cfg datatypes.JSON, s string, isDef bool, actor uuid.UUID) (*service.ClientServiceDataResult, error) {
 	if m.updateFn != nil {
 		return m.updateFn(id, tid, n, dn, ct, d, cfg, s, isDef, actor)
 	}
 	return nil, nil
 }
-func (m *mockClientService) SetStatusByUUID(id uuid.UUID, tid int64, s string, actor uuid.UUID) (*service.ClientServiceDataResult, error) {
+func (m *mockClientService) SetStatusByUUID(_ context.Context, id uuid.UUID, tid int64, s string, actor uuid.UUID) (*service.ClientServiceDataResult, error) {
 	if m.setStatusByUUIDFn != nil {
 		return m.setStatusByUUIDFn(id, tid, s, actor)
 	}
 	return nil, nil
 }
-func (m *mockClientService) DeleteByUUID(id uuid.UUID, tid int64, actor uuid.UUID) (*service.ClientServiceDataResult, error) {
+func (m *mockClientService) DeleteByUUID(_ context.Context, id uuid.UUID, tid int64, actor uuid.UUID) (*service.ClientServiceDataResult, error) {
 	if m.deleteByUUIDFn != nil {
 		return m.deleteByUUIDFn(id, tid, actor)
 	}
 	return nil, nil
 }
-func (m *mockClientService) CreateURI(id uuid.UUID, tid int64, uri, uriType string, actor uuid.UUID) (*service.ClientServiceDataResult, error) {
+func (m *mockClientService) CreateURI(_ context.Context, id uuid.UUID, tid int64, uri, uriType string, actor uuid.UUID) (*service.ClientServiceDataResult, error) {
 	if m.createURIFn != nil {
 		return m.createURIFn(id, tid, uri, uriType, actor)
 	}
 	return nil, nil
 }
-func (m *mockClientService) UpdateURI(id uuid.UUID, tid int64, uriID uuid.UUID, uri, uriType string, actor uuid.UUID) (*service.ClientServiceDataResult, error) {
+func (m *mockClientService) UpdateURI(_ context.Context, id uuid.UUID, tid int64, uriID uuid.UUID, uri, uriType string, actor uuid.UUID) (*service.ClientServiceDataResult, error) {
 	if m.updateURIFn != nil {
 		return m.updateURIFn(id, tid, uriID, uri, uriType, actor)
 	}
 	return nil, nil
 }
-func (m *mockClientService) DeleteURI(id uuid.UUID, tid int64, uriID uuid.UUID, actor uuid.UUID) (*service.ClientServiceDataResult, error) {
+func (m *mockClientService) DeleteURI(_ context.Context, id uuid.UUID, tid int64, uriID uuid.UUID, actor uuid.UUID) (*service.ClientServiceDataResult, error) {
 	if m.deleteURIFn != nil {
 		return m.deleteURIFn(id, tid, uriID, actor)
 	}
 	return nil, nil
 }
-func (m *mockClientService) GetClientAPIs(tid int64, id uuid.UUID) ([]service.ClientAPIServiceDataResult, error) {
+func (m *mockClientService) GetClientAPIs(_ context.Context, tid int64, id uuid.UUID) ([]service.ClientAPIServiceDataResult, error) {
 	if m.getClientAPIsFn != nil {
 		return m.getClientAPIsFn(tid, id)
 	}
 	return nil, nil
 }
-func (m *mockClientService) AddClientAPIs(tid int64, id uuid.UUID, apis []uuid.UUID) error {
+func (m *mockClientService) AddClientAPIs(_ context.Context, tid int64, id uuid.UUID, apis []uuid.UUID) error {
 	if m.addClientAPIsFn != nil {
 		return m.addClientAPIsFn(tid, id, apis)
 	}
 	return nil
 }
-func (m *mockClientService) RemoveClientAPI(tid int64, id, api uuid.UUID) error {
+func (m *mockClientService) RemoveClientAPI(_ context.Context, tid int64, id, api uuid.UUID) error {
 	if m.removeClientAPIFn != nil {
 		return m.removeClientAPIFn(tid, id, api)
 	}
 	return nil
 }
-func (m *mockClientService) GetClientAPIPermissions(tid int64, id, api uuid.UUID) ([]service.PermissionServiceDataResult, error) {
+func (m *mockClientService) GetClientAPIPermissions(_ context.Context, tid int64, id, api uuid.UUID) ([]service.PermissionServiceDataResult, error) {
 	if m.getClientAPIPermsFn != nil {
 		return m.getClientAPIPermsFn(tid, id, api)
 	}
 	return nil, nil
 }
-func (m *mockClientService) AddClientAPIPermissions(tid int64, id, api uuid.UUID, perms []uuid.UUID) error {
+func (m *mockClientService) AddClientAPIPermissions(_ context.Context, tid int64, id, api uuid.UUID, perms []uuid.UUID) error {
 	if m.addClientAPIPermsFn != nil {
 		return m.addClientAPIPermsFn(tid, id, api, perms)
 	}
 	return nil
 }
-func (m *mockClientService) RemoveClientAPIPermission(tid int64, id, api, perm uuid.UUID) error {
+func (m *mockClientService) RemoveClientAPIPermission(_ context.Context, tid int64, id, api, perm uuid.UUID) error {
 	if m.removeClientAPIPermFn != nil {
 		return m.removeClientAPIPermFn(tid, id, api, perm)
 	}

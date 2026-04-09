@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"errors"
 	"testing"
 
@@ -72,7 +73,7 @@ func TestClientService_Get(t *testing.T) {
 			findByUUIDFn: func(_ any, _ ...string) (*model.IdentityProvider, error) { return nil, nil },
 		}
 		svc := buildClientService(t, &mockClientRepo{}, idpRepo, &mockUserRepo{})
-		res, err := svc.Get(ClientServiceGetFilter{IdentityProviderUUID: &idpUUID, TenantID: 1})
+		res, err := svc.Get(context.Background(), ClientServiceGetFilter{IdentityProviderUUID: &idpUUID, TenantID: 1})
 		require.NoError(t, err)
 		assert.NotNil(t, res)
 		assert.Empty(t, res.Data)
@@ -85,13 +86,13 @@ func TestClientService_Get(t *testing.T) {
 			},
 		}
 		svc := buildClientService(t, clientRepo, &mockIdentityProviderRepo{}, &mockUserRepo{})
-		_, err := svc.Get(ClientServiceGetFilter{TenantID: 1})
+		_, err := svc.Get(context.Background(), ClientServiceGetFilter{TenantID: 1})
 		require.Error(t, err)
 	})
 
 	t.Run("success with no filter - returns empty list", func(t *testing.T) {
 		svc := buildClientService(t, &mockClientRepo{}, &mockIdentityProviderRepo{}, &mockUserRepo{})
-		res, err := svc.Get(ClientServiceGetFilter{TenantID: 1})
+		res, err := svc.Get(context.Background(), ClientServiceGetFilter{TenantID: 1})
 		require.NoError(t, err)
 		assert.NotNil(t, res)
 	})
@@ -113,7 +114,7 @@ func TestClientService_Get(t *testing.T) {
 			},
 		}
 		svc := buildClientService(t, clientRepo, idpRepo, &mockUserRepo{})
-		res, err := svc.Get(ClientServiceGetFilter{TenantID: 1, IdentityProviderUUID: &idpUUID})
+		res, err := svc.Get(context.Background(), ClientServiceGetFilter{TenantID: 1, IdentityProviderUUID: &idpUUID})
 		require.NoError(t, err)
 		assert.Len(t, res.Data, 1)
 		assert.NotNil(t, res.Data[0].IdentityProvider)
@@ -130,7 +131,7 @@ func TestClientService_GetByUUID(t *testing.T) {
 
 	t.Run("client not found returns error", func(t *testing.T) {
 		svc := buildClientService(t, &mockClientRepo{}, &mockIdentityProviderRepo{}, &mockUserRepo{})
-		_, err := svc.GetByUUID(cUUID, 1)
+		_, err := svc.GetByUUID(context.Background(), cUUID, 1)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "not found")
 	})
@@ -142,7 +143,7 @@ func TestClientService_GetByUUID(t *testing.T) {
 			},
 		}
 		svc := buildClientService(t, clientRepo, &mockIdentityProviderRepo{}, &mockUserRepo{})
-		_, err := svc.GetByUUID(cUUID, 1)
+		_, err := svc.GetByUUID(context.Background(), cUUID, 1)
 		require.Error(t, err)
 	})
 
@@ -153,7 +154,7 @@ func TestClientService_GetByUUID(t *testing.T) {
 			},
 		}
 		svc := buildClientService(t, clientRepo, &mockIdentityProviderRepo{}, &mockUserRepo{})
-		res, err := svc.GetByUUID(cUUID, 1)
+		res, err := svc.GetByUUID(context.Background(), cUUID, 1)
 		require.NoError(t, err)
 		assert.NotNil(t, res)
 	})
@@ -168,7 +169,7 @@ func TestClientService_GetSecretByUUID(t *testing.T) {
 
 	t.Run("not found → error", func(t *testing.T) {
 		svc := buildClientService(t, &mockClientRepo{}, &mockIdentityProviderRepo{}, &mockUserRepo{})
-		_, err := svc.GetSecretByUUID(cUUID, 1)
+		_, err := svc.GetSecretByUUID(context.Background(), cUUID, 1)
 		require.Error(t, err)
 	})
 
@@ -179,7 +180,7 @@ func TestClientService_GetSecretByUUID(t *testing.T) {
 			},
 		}
 		svc := buildClientService(t, clientRepo, &mockIdentityProviderRepo{}, &mockUserRepo{})
-		_, err := svc.GetSecretByUUID(cUUID, 1)
+		_, err := svc.GetSecretByUUID(context.Background(), cUUID, 1)
 		require.Error(t, err)
 	})
 
@@ -192,7 +193,7 @@ func TestClientService_GetSecretByUUID(t *testing.T) {
 			},
 		}
 		svc := buildClientService(t, clientRepo, &mockIdentityProviderRepo{}, &mockUserRepo{})
-		res, err := svc.GetSecretByUUID(cUUID, 1)
+		res, err := svc.GetSecretByUUID(context.Background(), cUUID, 1)
 		require.NoError(t, err)
 		assert.Equal(t, id, res.ClientID)
 		assert.Equal(t, &secret, res.ClientSecret)
@@ -208,7 +209,7 @@ func TestClientService_GetConfigByUUID(t *testing.T) {
 
 	t.Run("not found → error", func(t *testing.T) {
 		svc := buildClientService(t, &mockClientRepo{}, &mockIdentityProviderRepo{}, &mockUserRepo{})
-		_, err := svc.GetConfigByUUID(cUUID, 1)
+		_, err := svc.GetConfigByUUID(context.Background(), cUUID, 1)
 		require.Error(t, err)
 	})
 
@@ -219,7 +220,7 @@ func TestClientService_GetConfigByUUID(t *testing.T) {
 			},
 		}
 		svc := buildClientService(t, clientRepo, &mockIdentityProviderRepo{}, &mockUserRepo{})
-		_, err := svc.GetConfigByUUID(cUUID, 1)
+		_, err := svc.GetConfigByUUID(context.Background(), cUUID, 1)
 		require.Error(t, err)
 	})
 
@@ -230,7 +231,7 @@ func TestClientService_GetConfigByUUID(t *testing.T) {
 			},
 		}
 		svc := buildClientService(t, clientRepo, &mockIdentityProviderRepo{}, &mockUserRepo{})
-		cfg, err := svc.GetConfigByUUID(cUUID, 1)
+		cfg, err := svc.GetConfigByUUID(context.Background(), cUUID, 1)
 		require.NoError(t, err)
 		assert.NotNil(t, cfg)
 	})
@@ -251,7 +252,7 @@ func TestClientService_Create(t *testing.T) {
 		svc := NewClientService(gormDB, &mockClientRepo{}, &mockClientURIRepo{}, &mockIdentityProviderRepo{},
 			&mockPermissionRepo{}, &mockClientPermissionRepo{}, &mockClientAPIRepo{},
 			&mockAPIRepo{}, &mockUserRepo{}, &mockTenantRepo{})
-		_, err := svc.Create(tenantID, "test", "Test", "public", "example.com", nil, "active", false, "not-a-valid-uuid", actorUUID)
+		_, err := svc.Create(context.Background(), tenantID, "test", "Test", "public", "example.com", nil, "active", false, "not-a-valid-uuid", actorUUID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "invalid identity provider UUID")
 	})
@@ -266,7 +267,7 @@ func TestClientService_Create(t *testing.T) {
 		svc := NewClientService(gormDB, &mockClientRepo{}, &mockClientURIRepo{}, idpRepo,
 			&mockPermissionRepo{}, &mockClientPermissionRepo{}, &mockClientAPIRepo{},
 			&mockAPIRepo{}, &mockUserRepo{}, &mockTenantRepo{})
-		_, err := svc.Create(tenantID, "test", "Test", "public", "example.com", nil, "active", false, uuid.New().String(), actorUUID)
+		_, err := svc.Create(context.Background(), tenantID, "test", "Test", "public", "example.com", nil, "active", false, uuid.New().String(), actorUUID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "identity provider not found")
 	})
@@ -286,7 +287,7 @@ func TestClientService_Create(t *testing.T) {
 		svc := NewClientService(gormDB, &mockClientRepo{}, &mockClientURIRepo{}, idpRepo,
 			&mockPermissionRepo{}, &mockClientPermissionRepo{}, &mockClientAPIRepo{},
 			&mockAPIRepo{}, userRepo, &mockTenantRepo{})
-		_, err := svc.Create(tenantID, "test", "Test", "public", "example.com", nil, "active", false, uuid.New().String(), actorUUID)
+		_, err := svc.Create(context.Background(), tenantID, "test", "Test", "public", "example.com", nil, "active", false, uuid.New().String(), actorUUID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "actor user not found")
 	})
@@ -310,7 +311,7 @@ func TestClientService_Create(t *testing.T) {
 		svc := NewClientService(gormDB, &mockClientRepo{}, &mockClientURIRepo{}, idpRepo,
 			&mockPermissionRepo{}, &mockClientPermissionRepo{}, &mockClientAPIRepo{},
 			&mockAPIRepo{}, userRepo, &mockTenantRepo{})
-		_, err := svc.Create(tenantID, "test", "Test", "public", "example.com", nil, "active", false, uuid.New().String(), actorUUID)
+		_, err := svc.Create(context.Background(), tenantID, "test", "Test", "public", "example.com", nil, "active", false, uuid.New().String(), actorUUID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "access denied")
 	})
@@ -335,7 +336,7 @@ func TestClientService_Create(t *testing.T) {
 		svc := NewClientService(gormDB, clientRepo, &mockClientURIRepo{}, idpRepo,
 			&mockPermissionRepo{}, &mockClientPermissionRepo{}, &mockClientAPIRepo{},
 			&mockAPIRepo{}, userRepo, &mockTenantRepo{})
-		_, err := svc.Create(tenantID, "test", "Test", "public", "example.com", nil, "active", false, uuid.New().String(), actorUUID)
+		_, err := svc.Create(context.Background(), tenantID, "test", "Test", "public", "example.com", nil, "active", false, uuid.New().String(), actorUUID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "already exists")
 	})
@@ -360,7 +361,7 @@ func TestClientService_Create(t *testing.T) {
 		svc := NewClientService(gormDB, clientRepo, &mockClientURIRepo{}, idpRepo,
 			&mockPermissionRepo{}, &mockClientPermissionRepo{}, &mockClientAPIRepo{},
 			&mockAPIRepo{}, userRepo, &mockTenantRepo{})
-		_, err := svc.Create(tenantID, "test", "Test", "public", "example.com", nil, "active", false, uuid.New().String(), actorUUID)
+		_, err := svc.Create(context.Background(), tenantID, "test", "Test", "public", "example.com", nil, "active", false, uuid.New().String(), actorUUID)
 		require.Error(t, err)
 	})
 
@@ -382,7 +383,7 @@ func TestClientService_Create(t *testing.T) {
 		svc := NewClientService(gormDB, clientRepo, &mockClientURIRepo{}, idpRepo,
 			&mockPermissionRepo{}, &mockClientPermissionRepo{}, &mockClientAPIRepo{},
 			&mockAPIRepo{}, userRepo, &mockTenantRepo{})
-		_, err := svc.Create(tenantID, "test", "Test", "public", "example.com", nil, "active", false, uuid.New().String(), actorUUID)
+		_, err := svc.Create(context.Background(), tenantID, "test", "Test", "public", "example.com", nil, "active", false, uuid.New().String(), actorUUID)
 		require.Error(t, err)
 	})
 
@@ -404,7 +405,7 @@ func TestClientService_Create(t *testing.T) {
 		svc := NewClientService(gormDB, clientRepo, &mockClientURIRepo{}, idpRepo,
 			&mockPermissionRepo{}, &mockClientPermissionRepo{}, &mockClientAPIRepo{},
 			&mockAPIRepo{}, userRepo, &mockTenantRepo{})
-		_, err := svc.Create(tenantID, "test", "Test", "public", "example.com", nil, "active", false, uuid.New().String(), actorUUID)
+		_, err := svc.Create(context.Background(), tenantID, "test", "Test", "public", "example.com", nil, "active", false, uuid.New().String(), actorUUID)
 		require.Error(t, err)
 	})
 
@@ -427,7 +428,7 @@ func TestClientService_Create(t *testing.T) {
 		svc := NewClientService(gormDB, clientRepo, &mockClientURIRepo{}, idpRepo,
 			&mockPermissionRepo{}, &mockClientPermissionRepo{}, &mockClientAPIRepo{},
 			&mockAPIRepo{}, userRepo, &mockTenantRepo{})
-		res, err := svc.Create(tenantID, "test", "Test", "public", "example.com", nil, "active", false, uuid.New().String(), actorUUID)
+		res, err := svc.Create(context.Background(), tenantID, "test", "Test", "public", "example.com", nil, "active", false, uuid.New().String(), actorUUID)
 		require.NoError(t, err)
 		assert.NotNil(t, res)
 	})
@@ -452,7 +453,7 @@ func TestClientService_Update(t *testing.T) {
 		svc := NewClientService(gormDB, clientRepo, &mockClientURIRepo{}, &mockIdentityProviderRepo{},
 			&mockPermissionRepo{}, &mockClientPermissionRepo{}, &mockClientAPIRepo{},
 			&mockAPIRepo{}, &mockUserRepo{}, &mockTenantRepo{})
-		_, err := svc.Update(cUUID, tenantID, "n", "d", "pub", "ex.com", nil, "active", false, actorUUID)
+		_, err := svc.Update(context.Background(), cUUID, tenantID, "n", "d", "pub", "ex.com", nil, "active", false, actorUUID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "not found")
 	})
@@ -470,7 +471,7 @@ func TestClientService_Update(t *testing.T) {
 		svc := NewClientService(gormDB, clientRepo, &mockClientURIRepo{}, &mockIdentityProviderRepo{},
 			&mockPermissionRepo{}, &mockClientPermissionRepo{}, &mockClientAPIRepo{},
 			&mockAPIRepo{}, userRepo, &mockTenantRepo{})
-		_, err := svc.Update(cUUID, tenantID, "n", "d", "pub", "ex.com", nil, "active", false, actorUUID)
+		_, err := svc.Update(context.Background(), cUUID, tenantID, "n", "d", "pub", "ex.com", nil, "active", false, actorUUID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "actor user not found")
 	})
@@ -490,7 +491,7 @@ func TestClientService_Update(t *testing.T) {
 		svc := NewClientService(gormDB, clientRepo, &mockClientURIRepo{}, &mockIdentityProviderRepo{},
 			&mockPermissionRepo{}, &mockClientPermissionRepo{}, &mockClientAPIRepo{},
 			&mockAPIRepo{}, userRepo, &mockTenantRepo{})
-		_, err := svc.Update(cUUID, tenantID, "n", "d", "pub", "ex.com", nil, "active", false, actorUUID)
+		_, err := svc.Update(context.Background(), cUUID, tenantID, "n", "d", "pub", "ex.com", nil, "active", false, actorUUID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "default")
 	})
@@ -515,7 +516,7 @@ func TestClientService_Update(t *testing.T) {
 		svc := NewClientService(gormDB, clientRepo, &mockClientURIRepo{}, &mockIdentityProviderRepo{},
 			&mockPermissionRepo{}, &mockClientPermissionRepo{}, &mockClientAPIRepo{},
 			&mockAPIRepo{}, userRepo, &mockTenantRepo{})
-		_, err := svc.Update(cUUID, tenantID, "new-name", "d", "pub", "ex.com", nil, "active", false, actorUUID)
+		_, err := svc.Update(context.Background(), cUUID, tenantID, "new-name", "d", "pub", "ex.com", nil, "active", false, actorUUID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "already exists")
 	})
@@ -535,7 +536,7 @@ func TestClientService_Update(t *testing.T) {
 		svc := NewClientService(gormDB, clientRepo, &mockClientURIRepo{}, &mockIdentityProviderRepo{},
 			&mockPermissionRepo{}, &mockClientPermissionRepo{}, &mockClientAPIRepo{},
 			&mockAPIRepo{}, userRepo, &mockTenantRepo{})
-		_, err := svc.Update(cUUID, tenantID, "test", "d", "pub", "ex.com", nil, "active", false, actorUUID)
+		_, err := svc.Update(context.Background(), cUUID, tenantID, "test", "d", "pub", "ex.com", nil, "active", false, actorUUID)
 		require.Error(t, err)
 	})
 
@@ -553,7 +554,7 @@ func TestClientService_Update(t *testing.T) {
 		svc := NewClientService(gormDB, clientRepo, &mockClientURIRepo{}, &mockIdentityProviderRepo{},
 			&mockPermissionRepo{}, &mockClientPermissionRepo{}, &mockClientAPIRepo{},
 			&mockAPIRepo{}, userRepo, &mockTenantRepo{})
-		res, err := svc.Update(cUUID, tenantID, "test", "Test", "pub", "ex.com", nil, "active", false, actorUUID)
+		res, err := svc.Update(context.Background(), cUUID, tenantID, "test", "Test", "pub", "ex.com", nil, "active", false, actorUUID)
 		require.NoError(t, err)
 		assert.NotNil(t, res)
 	})
@@ -578,7 +579,7 @@ func TestClientService_SetStatusByUUID(t *testing.T) {
 		svc := NewClientService(gormDB, clientRepo, &mockClientURIRepo{}, &mockIdentityProviderRepo{},
 			&mockPermissionRepo{}, &mockClientPermissionRepo{}, &mockClientAPIRepo{},
 			&mockAPIRepo{}, &mockUserRepo{}, &mockTenantRepo{})
-		_, err := svc.SetStatusByUUID(cUUID, tenantID, "inactive", actorUUID)
+		_, err := svc.SetStatusByUUID(context.Background(), cUUID, tenantID, "inactive", actorUUID)
 		require.Error(t, err)
 	})
 
@@ -595,7 +596,7 @@ func TestClientService_SetStatusByUUID(t *testing.T) {
 		svc := NewClientService(gormDB, clientRepo, &mockClientURIRepo{}, &mockIdentityProviderRepo{},
 			&mockPermissionRepo{}, &mockClientPermissionRepo{}, &mockClientAPIRepo{},
 			&mockAPIRepo{}, userRepo, &mockTenantRepo{})
-		_, err := svc.SetStatusByUUID(cUUID, tenantID, "inactive", actorUUID)
+		_, err := svc.SetStatusByUUID(context.Background(), cUUID, tenantID, "inactive", actorUUID)
 		require.Error(t, err)
 	})
 
@@ -614,7 +615,7 @@ func TestClientService_SetStatusByUUID(t *testing.T) {
 		svc := NewClientService(gormDB, clientRepo, &mockClientURIRepo{}, &mockIdentityProviderRepo{},
 			&mockPermissionRepo{}, &mockClientPermissionRepo{}, &mockClientAPIRepo{},
 			&mockAPIRepo{}, userRepo, &mockTenantRepo{})
-		_, err := svc.SetStatusByUUID(cUUID, tenantID, "inactive", actorUUID)
+		_, err := svc.SetStatusByUUID(context.Background(), cUUID, tenantID, "inactive", actorUUID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "default")
 	})
@@ -634,7 +635,7 @@ func TestClientService_SetStatusByUUID(t *testing.T) {
 		svc := NewClientService(gormDB, clientRepo, &mockClientURIRepo{}, &mockIdentityProviderRepo{},
 			&mockPermissionRepo{}, &mockClientPermissionRepo{}, &mockClientAPIRepo{},
 			&mockAPIRepo{}, userRepo, &mockTenantRepo{})
-		_, err := svc.SetStatusByUUID(cUUID, tenantID, "inactive", actorUUID)
+		_, err := svc.SetStatusByUUID(context.Background(), cUUID, tenantID, "inactive", actorUUID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "system")
 	})
@@ -653,7 +654,7 @@ func TestClientService_SetStatusByUUID(t *testing.T) {
 		svc := NewClientService(gormDB, clientRepo, &mockClientURIRepo{}, &mockIdentityProviderRepo{},
 			&mockPermissionRepo{}, &mockClientPermissionRepo{}, &mockClientAPIRepo{},
 			&mockAPIRepo{}, userRepo, &mockTenantRepo{})
-		_, err := svc.SetStatusByUUID(cUUID, tenantID, "inactive", actorUUID)
+		_, err := svc.SetStatusByUUID(context.Background(), cUUID, tenantID, "inactive", actorUUID)
 		require.Error(t, err)
 	})
 
@@ -670,7 +671,7 @@ func TestClientService_SetStatusByUUID(t *testing.T) {
 		svc := NewClientService(gormDB, clientRepo, &mockClientURIRepo{}, &mockIdentityProviderRepo{},
 			&mockPermissionRepo{}, &mockClientPermissionRepo{}, &mockClientAPIRepo{},
 			&mockAPIRepo{}, userRepo, &mockTenantRepo{})
-		res, err := svc.SetStatusByUUID(cUUID, tenantID, "inactive", actorUUID)
+		res, err := svc.SetStatusByUUID(context.Background(), cUUID, tenantID, "inactive", actorUUID)
 		require.NoError(t, err)
 		assert.NotNil(t, res)
 	})
@@ -695,7 +696,7 @@ func TestClientService_DeleteByUUID(t *testing.T) {
 		svc := NewClientService(gormDB, clientRepo, &mockClientURIRepo{}, &mockIdentityProviderRepo{},
 			&mockPermissionRepo{}, &mockClientPermissionRepo{}, &mockClientAPIRepo{},
 			&mockAPIRepo{}, &mockUserRepo{}, &mockTenantRepo{})
-		_, err := svc.DeleteByUUID(cUUID, tenantID, actorUUID)
+		_, err := svc.DeleteByUUID(context.Background(), cUUID, tenantID, actorUUID)
 		require.Error(t, err)
 	})
 
@@ -712,7 +713,7 @@ func TestClientService_DeleteByUUID(t *testing.T) {
 		svc := NewClientService(gormDB, clientRepo, &mockClientURIRepo{}, &mockIdentityProviderRepo{},
 			&mockPermissionRepo{}, &mockClientPermissionRepo{}, &mockClientAPIRepo{},
 			&mockAPIRepo{}, userRepo, &mockTenantRepo{})
-		_, err := svc.DeleteByUUID(cUUID, tenantID, actorUUID)
+		_, err := svc.DeleteByUUID(context.Background(), cUUID, tenantID, actorUUID)
 		require.Error(t, err)
 	})
 
@@ -731,7 +732,7 @@ func TestClientService_DeleteByUUID(t *testing.T) {
 		svc := NewClientService(gormDB, clientRepo, &mockClientURIRepo{}, &mockIdentityProviderRepo{},
 			&mockPermissionRepo{}, &mockClientPermissionRepo{}, &mockClientAPIRepo{},
 			&mockAPIRepo{}, userRepo, &mockTenantRepo{})
-		_, err := svc.DeleteByUUID(cUUID, tenantID, actorUUID)
+		_, err := svc.DeleteByUUID(context.Background(), cUUID, tenantID, actorUUID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "default")
 	})
@@ -750,7 +751,7 @@ func TestClientService_DeleteByUUID(t *testing.T) {
 		svc := NewClientService(gormDB, clientRepo, &mockClientURIRepo{}, &mockIdentityProviderRepo{},
 			&mockPermissionRepo{}, &mockClientPermissionRepo{}, &mockClientAPIRepo{},
 			&mockAPIRepo{}, userRepo, &mockTenantRepo{})
-		_, err := svc.DeleteByUUID(cUUID, tenantID, actorUUID)
+		_, err := svc.DeleteByUUID(context.Background(), cUUID, tenantID, actorUUID)
 		require.Error(t, err)
 	})
 
@@ -767,7 +768,7 @@ func TestClientService_DeleteByUUID(t *testing.T) {
 		svc := NewClientService(gormDB, clientRepo, &mockClientURIRepo{}, &mockIdentityProviderRepo{},
 			&mockPermissionRepo{}, &mockClientPermissionRepo{}, &mockClientAPIRepo{},
 			&mockAPIRepo{}, userRepo, &mockTenantRepo{})
-		res, err := svc.DeleteByUUID(cUUID, tenantID, actorUUID)
+		res, err := svc.DeleteByUUID(context.Background(), cUUID, tenantID, actorUUID)
 		require.NoError(t, err)
 		assert.NotNil(t, res)
 	})
@@ -789,7 +790,7 @@ func TestClientService_CreateURI(t *testing.T) {
 		svc := NewClientService(gormDB, &mockClientRepo{}, &mockClientURIRepo{}, &mockIdentityProviderRepo{},
 			&mockPermissionRepo{}, &mockClientPermissionRepo{}, &mockClientAPIRepo{},
 			&mockAPIRepo{}, &mockUserRepo{}, &mockTenantRepo{})
-		_, err := svc.CreateURI(cUUID, tenantID, "https://cb.test", "redirect", actorUUID)
+		_, err := svc.CreateURI(context.Background(), cUUID, tenantID, "https://cb.test", "redirect", actorUUID)
 		require.Error(t, err)
 	})
 
@@ -808,7 +809,7 @@ func TestClientService_CreateURI(t *testing.T) {
 		svc := NewClientService(gormDB, clientRepo, &mockClientURIRepo{}, &mockIdentityProviderRepo{},
 			&mockPermissionRepo{}, &mockClientPermissionRepo{}, &mockClientAPIRepo{},
 			&mockAPIRepo{}, userRepo, &mockTenantRepo{})
-		_, err := svc.CreateURI(cUUID, tenantID, "https://cb.test", "redirect", actorUUID)
+		_, err := svc.CreateURI(context.Background(), cUUID, tenantID, "https://cb.test", "redirect", actorUUID)
 		require.Error(t, err)
 	})
 
@@ -827,7 +828,7 @@ func TestClientService_CreateURI(t *testing.T) {
 		svc := NewClientService(gormDB, clientRepo, &mockClientURIRepo{}, &mockIdentityProviderRepo{},
 			&mockPermissionRepo{}, &mockClientPermissionRepo{}, &mockClientAPIRepo{},
 			&mockAPIRepo{}, userRepo, &mockTenantRepo{})
-		_, err := svc.CreateURI(cUUID, tenantID, "https://cb.test", "redirect", actorUUID)
+		_, err := svc.CreateURI(context.Background(), cUUID, tenantID, "https://cb.test", "redirect", actorUUID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "access denied")
 	})
@@ -847,7 +848,7 @@ func TestClientService_CreateURI(t *testing.T) {
 		svc := NewClientService(gormDB, clientRepo, &mockClientURIRepo{}, &mockIdentityProviderRepo{},
 			&mockPermissionRepo{}, &mockClientPermissionRepo{}, &mockClientAPIRepo{},
 			&mockAPIRepo{}, userRepo, &mockTenantRepo{})
-		res, err := svc.CreateURI(cUUID, tenantID, "https://cb.test", "redirect", actorUUID)
+		res, err := svc.CreateURI(context.Background(), cUUID, tenantID, "https://cb.test", "redirect", actorUUID)
 		require.NoError(t, err)
 		assert.NotNil(t, res)
 	})
@@ -866,7 +867,7 @@ func TestClientService_UpdateURI(t *testing.T) {
 		svc := NewClientService(gormDB, &mockClientRepo{}, &mockClientURIRepo{}, &mockIdentityProviderRepo{},
 			&mockPermissionRepo{}, &mockClientPermissionRepo{}, &mockClientAPIRepo{},
 			&mockAPIRepo{}, &mockUserRepo{}, &mockTenantRepo{})
-		_, err := svc.UpdateURI(cUUID, tenantID, uriUUID, "https://new.test", "redirect", actorUUID)
+		_, err := svc.UpdateURI(context.Background(), cUUID, tenantID, uriUUID, "https://new.test", "redirect", actorUUID)
 		require.Error(t, err)
 	})
 
@@ -885,7 +886,7 @@ func TestClientService_UpdateURI(t *testing.T) {
 		svc := NewClientService(gormDB, clientRepo, &mockClientURIRepo{}, &mockIdentityProviderRepo{},
 			&mockPermissionRepo{}, &mockClientPermissionRepo{}, &mockClientAPIRepo{},
 			&mockAPIRepo{}, userRepo, &mockTenantRepo{})
-		_, err := svc.UpdateURI(cUUID, tenantID, uriUUID, "https://new.test", "redirect", actorUUID)
+		_, err := svc.UpdateURI(context.Background(), cUUID, tenantID, uriUUID, "https://new.test", "redirect", actorUUID)
 		require.Error(t, err)
 	})
 
@@ -907,7 +908,7 @@ func TestClientService_UpdateURI(t *testing.T) {
 		svc := NewClientService(gormDB, clientRepo, uriRepo, &mockIdentityProviderRepo{},
 			&mockPermissionRepo{}, &mockClientPermissionRepo{}, &mockClientAPIRepo{},
 			&mockAPIRepo{}, userRepo, &mockTenantRepo{})
-		_, err := svc.UpdateURI(cUUID, tenantID, uriUUID, "https://new.test", "redirect", actorUUID)
+		_, err := svc.UpdateURI(context.Background(), cUUID, tenantID, uriUUID, "https://new.test", "redirect", actorUUID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "URI not found")
 	})
@@ -932,7 +933,7 @@ func TestClientService_UpdateURI(t *testing.T) {
 		svc := NewClientService(gormDB, clientRepo, uriRepo, &mockIdentityProviderRepo{},
 			&mockPermissionRepo{}, &mockClientPermissionRepo{}, &mockClientAPIRepo{},
 			&mockAPIRepo{}, userRepo, &mockTenantRepo{})
-		_, err := svc.UpdateURI(cUUID, tenantID, uriUUID, "https://new.test", "redirect", actorUUID)
+		_, err := svc.UpdateURI(context.Background(), cUUID, tenantID, uriUUID, "https://new.test", "redirect", actorUUID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "does not belong")
 	})
@@ -957,7 +958,7 @@ func TestClientService_UpdateURI(t *testing.T) {
 		svc := NewClientService(gormDB, clientRepo, uriRepo, &mockIdentityProviderRepo{},
 			&mockPermissionRepo{}, &mockClientPermissionRepo{}, &mockClientAPIRepo{},
 			&mockAPIRepo{}, userRepo, &mockTenantRepo{})
-		res, err := svc.UpdateURI(cUUID, tenantID, uriUUID, "https://new.test", "redirect", actorUUID)
+		res, err := svc.UpdateURI(context.Background(), cUUID, tenantID, uriUUID, "https://new.test", "redirect", actorUUID)
 		require.NoError(t, err)
 		assert.NotNil(t, res)
 	})
@@ -976,7 +977,7 @@ func TestClientService_DeleteURI(t *testing.T) {
 		svc := NewClientService(gormDB, &mockClientRepo{}, &mockClientURIRepo{}, &mockIdentityProviderRepo{},
 			&mockPermissionRepo{}, &mockClientPermissionRepo{}, &mockClientAPIRepo{},
 			&mockAPIRepo{}, &mockUserRepo{}, &mockTenantRepo{})
-		_, err := svc.DeleteURI(cUUID, tenantID, uriUUID, actorUUID)
+		_, err := svc.DeleteURI(context.Background(), cUUID, tenantID, uriUUID, actorUUID)
 		require.Error(t, err)
 	})
 
@@ -995,7 +996,7 @@ func TestClientService_DeleteURI(t *testing.T) {
 		svc := NewClientService(gormDB, clientRepo, &mockClientURIRepo{}, &mockIdentityProviderRepo{},
 			&mockPermissionRepo{}, &mockClientPermissionRepo{}, &mockClientAPIRepo{},
 			&mockAPIRepo{}, userRepo, &mockTenantRepo{})
-		_, err := svc.DeleteURI(cUUID, tenantID, uriUUID, actorUUID)
+		_, err := svc.DeleteURI(context.Background(), cUUID, tenantID, uriUUID, actorUUID)
 		require.Error(t, err)
 	})
 
@@ -1014,7 +1015,7 @@ func TestClientService_DeleteURI(t *testing.T) {
 		svc := NewClientService(gormDB, clientRepo, &mockClientURIRepo{}, &mockIdentityProviderRepo{},
 			&mockPermissionRepo{}, &mockClientPermissionRepo{}, &mockClientAPIRepo{},
 			&mockAPIRepo{}, userRepo, &mockTenantRepo{})
-		_, err := svc.DeleteURI(cUUID, tenantID, uriUUID, actorUUID)
+		_, err := svc.DeleteURI(context.Background(), cUUID, tenantID, uriUUID, actorUUID)
 		require.Error(t, err)
 	})
 
@@ -1038,7 +1039,7 @@ func TestClientService_DeleteURI(t *testing.T) {
 		svc := NewClientService(gormDB, clientRepo, uriRepo, &mockIdentityProviderRepo{},
 			&mockPermissionRepo{}, &mockClientPermissionRepo{}, &mockClientAPIRepo{},
 			&mockAPIRepo{}, userRepo, &mockTenantRepo{})
-		_, err := svc.DeleteURI(cUUID, tenantID, uriUUID, actorUUID)
+		_, err := svc.DeleteURI(context.Background(), cUUID, tenantID, uriUUID, actorUUID)
 		require.Error(t, err)
 	})
 
@@ -1062,7 +1063,7 @@ func TestClientService_DeleteURI(t *testing.T) {
 		svc := NewClientService(gormDB, clientRepo, uriRepo, &mockIdentityProviderRepo{},
 			&mockPermissionRepo{}, &mockClientPermissionRepo{}, &mockClientAPIRepo{},
 			&mockAPIRepo{}, userRepo, &mockTenantRepo{})
-		res, err := svc.DeleteURI(cUUID, tenantID, uriUUID, actorUUID)
+		res, err := svc.DeleteURI(context.Background(), cUUID, tenantID, uriUUID, actorUUID)
 		require.NoError(t, err)
 		assert.NotNil(t, res)
 	})
@@ -1081,7 +1082,7 @@ func TestClientService_GetClientAPIs(t *testing.T) {
 		}
 		svc := buildFullClientService(t, &mockClientRepo{}, &mockClientURIRepo{}, &mockIdentityProviderRepo{},
 			&mockPermissionRepo{}, &mockClientPermissionRepo{}, caRepo, &mockAPIRepo{}, &mockUserRepo{}, &mockTenantRepo{})
-		_, err := svc.GetClientAPIs(1, cUUID)
+		_, err := svc.GetClientAPIs(context.Background(), 1, cUUID)
 		require.Error(t, err)
 	})
 
@@ -1097,7 +1098,7 @@ func TestClientService_GetClientAPIs(t *testing.T) {
 		}
 		svc := buildFullClientService(t, &mockClientRepo{}, &mockClientURIRepo{}, &mockIdentityProviderRepo{},
 			&mockPermissionRepo{}, &mockClientPermissionRepo{}, caRepo, &mockAPIRepo{}, &mockUserRepo{}, &mockTenantRepo{})
-		results, err := svc.GetClientAPIs(1, cUUID)
+		results, err := svc.GetClientAPIs(context.Background(), 1, cUUID)
 		require.NoError(t, err)
 		assert.Len(t, results, 1)
 		assert.Len(t, results[0].Permissions, 1)
@@ -1114,7 +1115,7 @@ func TestClientService_GetClientAPIs(t *testing.T) {
 		}
 		svc := buildFullClientService(t, &mockClientRepo{}, &mockClientURIRepo{}, &mockIdentityProviderRepo{},
 			&mockPermissionRepo{}, &mockClientPermissionRepo{}, caRepo, &mockAPIRepo{}, &mockUserRepo{}, &mockTenantRepo{})
-		results, err := svc.GetClientAPIs(1, cUUID)
+		results, err := svc.GetClientAPIs(context.Background(), 1, cUUID)
 		require.NoError(t, err)
 		assert.Len(t, results, 1)
 	})
@@ -1135,7 +1136,7 @@ func TestClientService_AddClientAPIs(t *testing.T) {
 		svc := NewClientService(gormDB, clientRepo, &mockClientURIRepo{}, &mockIdentityProviderRepo{},
 			&mockPermissionRepo{}, &mockClientPermissionRepo{}, &mockClientAPIRepo{},
 			&mockAPIRepo{}, &mockUserRepo{}, &mockTenantRepo{})
-		err := svc.AddClientAPIs(tenantID, cUUID, []uuid.UUID{apiUUID})
+		err := svc.AddClientAPIs(context.Background(), tenantID, cUUID, []uuid.UUID{apiUUID})
 		require.Error(t, err)
 	})
 
@@ -1151,7 +1152,7 @@ func TestClientService_AddClientAPIs(t *testing.T) {
 		svc := NewClientService(gormDB, clientRepo, &mockClientURIRepo{}, &mockIdentityProviderRepo{},
 			&mockPermissionRepo{}, &mockClientPermissionRepo{}, &mockClientAPIRepo{},
 			&mockAPIRepo{}, &mockUserRepo{}, &mockTenantRepo{})
-		err := svc.AddClientAPIs(tenantID, cUUID, []uuid.UUID{apiUUID})
+		err := svc.AddClientAPIs(context.Background(), tenantID, cUUID, []uuid.UUID{apiUUID})
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "unauthorized")
 	})
@@ -1171,7 +1172,7 @@ func TestClientService_AddClientAPIs(t *testing.T) {
 		svc := NewClientService(gormDB, clientRepo, &mockClientURIRepo{}, &mockIdentityProviderRepo{},
 			&mockPermissionRepo{}, &mockClientPermissionRepo{}, &mockClientAPIRepo{},
 			apiRepo, &mockUserRepo{}, &mockTenantRepo{})
-		err := svc.AddClientAPIs(tenantID, cUUID, []uuid.UUID{apiUUID})
+		err := svc.AddClientAPIs(context.Background(), tenantID, cUUID, []uuid.UUID{apiUUID})
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "API not found")
 	})
@@ -1194,7 +1195,7 @@ func TestClientService_AddClientAPIs(t *testing.T) {
 		svc := NewClientService(gormDB, clientRepo, &mockClientURIRepo{}, &mockIdentityProviderRepo{},
 			&mockPermissionRepo{}, &mockClientPermissionRepo{}, caRepo,
 			apiRepo, &mockUserRepo{}, &mockTenantRepo{})
-		err := svc.AddClientAPIs(tenantID, cUUID, []uuid.UUID{apiUUID})
+		err := svc.AddClientAPIs(context.Background(), tenantID, cUUID, []uuid.UUID{apiUUID})
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "already assigned")
 	})
@@ -1214,7 +1215,7 @@ func TestClientService_AddClientAPIs(t *testing.T) {
 		svc := NewClientService(gormDB, clientRepo, &mockClientURIRepo{}, &mockIdentityProviderRepo{},
 			&mockPermissionRepo{}, &mockClientPermissionRepo{}, &mockClientAPIRepo{},
 			apiRepo, &mockUserRepo{}, &mockTenantRepo{})
-		err := svc.AddClientAPIs(tenantID, cUUID, []uuid.UUID{apiUUID})
+		err := svc.AddClientAPIs(context.Background(), tenantID, cUUID, []uuid.UUID{apiUUID})
 		require.NoError(t, err)
 	})
 }
@@ -1234,7 +1235,7 @@ func TestClientService_RemoveClientAPI(t *testing.T) {
 		svc := NewClientService(gormDB, clientRepo, &mockClientURIRepo{}, &mockIdentityProviderRepo{},
 			&mockPermissionRepo{}, &mockClientPermissionRepo{}, &mockClientAPIRepo{},
 			&mockAPIRepo{}, &mockUserRepo{}, &mockTenantRepo{})
-		err := svc.RemoveClientAPI(tenantID, cUUID, apiUUID)
+		err := svc.RemoveClientAPI(context.Background(), tenantID, cUUID, apiUUID)
 		require.Error(t, err)
 	})
 
@@ -1250,7 +1251,7 @@ func TestClientService_RemoveClientAPI(t *testing.T) {
 		svc := NewClientService(gormDB, clientRepo, &mockClientURIRepo{}, &mockIdentityProviderRepo{},
 			&mockPermissionRepo{}, &mockClientPermissionRepo{}, &mockClientAPIRepo{},
 			&mockAPIRepo{}, &mockUserRepo{}, &mockTenantRepo{})
-		err := svc.RemoveClientAPI(tenantID, cUUID, apiUUID)
+		err := svc.RemoveClientAPI(context.Background(), tenantID, cUUID, apiUUID)
 		require.Error(t, err)
 	})
 
@@ -1269,7 +1270,7 @@ func TestClientService_RemoveClientAPI(t *testing.T) {
 		svc := NewClientService(gormDB, clientRepo, &mockClientURIRepo{}, &mockIdentityProviderRepo{},
 			&mockPermissionRepo{}, &mockClientPermissionRepo{}, caRepo,
 			&mockAPIRepo{}, &mockUserRepo{}, &mockTenantRepo{})
-		err := svc.RemoveClientAPI(tenantID, cUUID, apiUUID)
+		err := svc.RemoveClientAPI(context.Background(), tenantID, cUUID, apiUUID)
 		require.Error(t, err)
 	})
 
@@ -1285,7 +1286,7 @@ func TestClientService_RemoveClientAPI(t *testing.T) {
 		svc := NewClientService(gormDB, clientRepo, &mockClientURIRepo{}, &mockIdentityProviderRepo{},
 			&mockPermissionRepo{}, &mockClientPermissionRepo{}, &mockClientAPIRepo{},
 			&mockAPIRepo{}, &mockUserRepo{}, &mockTenantRepo{})
-		err := svc.RemoveClientAPI(tenantID, cUUID, apiUUID)
+		err := svc.RemoveClientAPI(context.Background(), tenantID, cUUID, apiUUID)
 		require.NoError(t, err)
 	})
 }
@@ -1302,7 +1303,7 @@ func TestClientService_GetClientAPIPermissions(t *testing.T) {
 	t.Run("client API relationship not found", func(t *testing.T) {
 		svc := buildFullClientService(t, &mockClientRepo{}, &mockClientURIRepo{}, &mockIdentityProviderRepo{},
 			&mockPermissionRepo{}, &mockClientPermissionRepo{}, &mockClientAPIRepo{}, &mockAPIRepo{}, &mockUserRepo{}, &mockTenantRepo{})
-		_, err := svc.GetClientAPIPermissions(tenantID, cUUID, apiUUID)
+		_, err := svc.GetClientAPIPermissions(context.Background(), tenantID, cUUID, apiUUID)
 		require.Error(t, err)
 	})
 
@@ -1317,7 +1318,7 @@ func TestClientService_GetClientAPIPermissions(t *testing.T) {
 		}
 		svc := buildFullClientService(t, clientRepo, &mockClientURIRepo{}, &mockIdentityProviderRepo{},
 			&mockPermissionRepo{}, &mockClientPermissionRepo{}, caRepo, &mockAPIRepo{}, &mockUserRepo{}, &mockTenantRepo{})
-		_, err := svc.GetClientAPIPermissions(tenantID, cUUID, apiUUID)
+		_, err := svc.GetClientAPIPermissions(context.Background(), tenantID, cUUID, apiUUID)
 		require.Error(t, err)
 	})
 
@@ -1334,7 +1335,7 @@ func TestClientService_GetClientAPIPermissions(t *testing.T) {
 		}
 		svc := buildFullClientService(t, clientRepo, &mockClientURIRepo{}, &mockIdentityProviderRepo{},
 			&mockPermissionRepo{}, &mockClientPermissionRepo{}, caRepo, &mockAPIRepo{}, &mockUserRepo{}, &mockTenantRepo{})
-		_, err := svc.GetClientAPIPermissions(tenantID, cUUID, apiUUID)
+		_, err := svc.GetClientAPIPermissions(context.Background(), tenantID, cUUID, apiUUID)
 		require.Error(t, err)
 	})
 
@@ -1356,7 +1357,7 @@ func TestClientService_GetClientAPIPermissions(t *testing.T) {
 		}
 		svc := buildFullClientService(t, clientRepo, &mockClientURIRepo{}, &mockIdentityProviderRepo{},
 			&mockPermissionRepo{}, cpRepo, caRepo, &mockAPIRepo{}, &mockUserRepo{}, &mockTenantRepo{})
-		results, err := svc.GetClientAPIPermissions(tenantID, cUUID, apiUUID)
+		results, err := svc.GetClientAPIPermissions(context.Background(), tenantID, cUUID, apiUUID)
 		require.NoError(t, err)
 		assert.Len(t, results, 1)
 	})
@@ -1378,7 +1379,7 @@ func TestClientService_AddClientAPIPermissions(t *testing.T) {
 		svc := NewClientService(gormDB, clientRepo, &mockClientURIRepo{}, &mockIdentityProviderRepo{},
 			&mockPermissionRepo{}, &mockClientPermissionRepo{}, &mockClientAPIRepo{},
 			&mockAPIRepo{}, &mockUserRepo{}, &mockTenantRepo{})
-		err := svc.AddClientAPIPermissions(tenantID, cUUID, apiUUID, []uuid.UUID{permUUID})
+		err := svc.AddClientAPIPermissions(context.Background(), tenantID, cUUID, apiUUID, []uuid.UUID{permUUID})
 		require.Error(t, err)
 	})
 
@@ -1394,7 +1395,7 @@ func TestClientService_AddClientAPIPermissions(t *testing.T) {
 		svc := NewClientService(gormDB, clientRepo, &mockClientURIRepo{}, &mockIdentityProviderRepo{},
 			&mockPermissionRepo{}, &mockClientPermissionRepo{}, &mockClientAPIRepo{},
 			&mockAPIRepo{}, &mockUserRepo{}, &mockTenantRepo{})
-		err := svc.AddClientAPIPermissions(tenantID, cUUID, apiUUID, []uuid.UUID{permUUID})
+		err := svc.AddClientAPIPermissions(context.Background(), tenantID, cUUID, apiUUID, []uuid.UUID{permUUID})
 		require.Error(t, err)
 	})
 
@@ -1410,7 +1411,7 @@ func TestClientService_AddClientAPIPermissions(t *testing.T) {
 		svc := NewClientService(gormDB, clientRepo, &mockClientURIRepo{}, &mockIdentityProviderRepo{},
 			&mockPermissionRepo{}, &mockClientPermissionRepo{}, &mockClientAPIRepo{},
 			&mockAPIRepo{}, &mockUserRepo{}, &mockTenantRepo{})
-		err := svc.AddClientAPIPermissions(tenantID, cUUID, apiUUID, []uuid.UUID{permUUID})
+		err := svc.AddClientAPIPermissions(context.Background(), tenantID, cUUID, apiUUID, []uuid.UUID{permUUID})
 		require.Error(t, err)
 	})
 
@@ -1434,7 +1435,7 @@ func TestClientService_AddClientAPIPermissions(t *testing.T) {
 		svc := NewClientService(gormDB, clientRepo, &mockClientURIRepo{}, &mockIdentityProviderRepo{},
 			permRepo, &mockClientPermissionRepo{}, caRepo,
 			&mockAPIRepo{}, &mockUserRepo{}, &mockTenantRepo{})
-		err := svc.AddClientAPIPermissions(tenantID, cUUID, apiUUID, []uuid.UUID{permUUID})
+		err := svc.AddClientAPIPermissions(context.Background(), tenantID, cUUID, apiUUID, []uuid.UUID{permUUID})
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "permission not found")
 	})
@@ -1466,7 +1467,7 @@ func TestClientService_AddClientAPIPermissions(t *testing.T) {
 		svc := NewClientService(gormDB, clientRepo, &mockClientURIRepo{}, &mockIdentityProviderRepo{},
 			permRepo, cpRepo, caRepo,
 			&mockAPIRepo{}, &mockUserRepo{}, &mockTenantRepo{})
-		err := svc.AddClientAPIPermissions(tenantID, cUUID, apiUUID, []uuid.UUID{permUUID})
+		err := svc.AddClientAPIPermissions(context.Background(), tenantID, cUUID, apiUUID, []uuid.UUID{permUUID})
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "already assigned")
 	})
@@ -1493,7 +1494,7 @@ func TestClientService_AddClientAPIPermissions(t *testing.T) {
 		svc := NewClientService(gormDB, clientRepo, &mockClientURIRepo{}, &mockIdentityProviderRepo{},
 			permRepo, &mockClientPermissionRepo{}, caRepo,
 			&mockAPIRepo{}, &mockUserRepo{}, &mockTenantRepo{})
-		err := svc.AddClientAPIPermissions(tenantID, cUUID, apiUUID, []uuid.UUID{permUUID})
+		err := svc.AddClientAPIPermissions(context.Background(), tenantID, cUUID, apiUUID, []uuid.UUID{permUUID})
 		require.NoError(t, err)
 	})
 }
@@ -1514,7 +1515,7 @@ func TestClientService_RemoveClientAPIPermission(t *testing.T) {
 		svc := NewClientService(gormDB, clientRepo, &mockClientURIRepo{}, &mockIdentityProviderRepo{},
 			&mockPermissionRepo{}, &mockClientPermissionRepo{}, &mockClientAPIRepo{},
 			&mockAPIRepo{}, &mockUserRepo{}, &mockTenantRepo{})
-		err := svc.RemoveClientAPIPermission(tenantID, cUUID, apiUUID, permUUID)
+		err := svc.RemoveClientAPIPermission(context.Background(), tenantID, cUUID, apiUUID, permUUID)
 		require.Error(t, err)
 	})
 
@@ -1530,7 +1531,7 @@ func TestClientService_RemoveClientAPIPermission(t *testing.T) {
 		svc := NewClientService(gormDB, clientRepo, &mockClientURIRepo{}, &mockIdentityProviderRepo{},
 			&mockPermissionRepo{}, &mockClientPermissionRepo{}, &mockClientAPIRepo{},
 			&mockAPIRepo{}, &mockUserRepo{}, &mockTenantRepo{})
-		err := svc.RemoveClientAPIPermission(tenantID, cUUID, apiUUID, permUUID)
+		err := svc.RemoveClientAPIPermission(context.Background(), tenantID, cUUID, apiUUID, permUUID)
 		require.Error(t, err)
 	})
 
@@ -1546,7 +1547,7 @@ func TestClientService_RemoveClientAPIPermission(t *testing.T) {
 		svc := NewClientService(gormDB, clientRepo, &mockClientURIRepo{}, &mockIdentityProviderRepo{},
 			&mockPermissionRepo{}, &mockClientPermissionRepo{}, &mockClientAPIRepo{},
 			&mockAPIRepo{}, &mockUserRepo{}, &mockTenantRepo{})
-		err := svc.RemoveClientAPIPermission(tenantID, cUUID, apiUUID, permUUID)
+		err := svc.RemoveClientAPIPermission(context.Background(), tenantID, cUUID, apiUUID, permUUID)
 		require.Error(t, err)
 	})
 
@@ -1570,7 +1571,7 @@ func TestClientService_RemoveClientAPIPermission(t *testing.T) {
 		svc := NewClientService(gormDB, clientRepo, &mockClientURIRepo{}, &mockIdentityProviderRepo{},
 			permRepo, &mockClientPermissionRepo{}, caRepo,
 			&mockAPIRepo{}, &mockUserRepo{}, &mockTenantRepo{})
-		err := svc.RemoveClientAPIPermission(tenantID, cUUID, apiUUID, permUUID)
+		err := svc.RemoveClientAPIPermission(context.Background(), tenantID, cUUID, apiUUID, permUUID)
 		require.Error(t, err)
 	})
 
@@ -1596,7 +1597,7 @@ func TestClientService_RemoveClientAPIPermission(t *testing.T) {
 		svc := NewClientService(gormDB, clientRepo, &mockClientURIRepo{}, &mockIdentityProviderRepo{},
 			permRepo, &mockClientPermissionRepo{}, caRepo,
 			&mockAPIRepo{}, &mockUserRepo{}, &mockTenantRepo{})
-		err := svc.RemoveClientAPIPermission(tenantID, cUUID, apiUUID, permUUID)
+		err := svc.RemoveClientAPIPermission(context.Background(), tenantID, cUUID, apiUUID, permUUID)
 		require.NoError(t, err)
 	})
 }
@@ -1637,7 +1638,7 @@ func TestClientService_Update_ValidateTenantAccess(t *testing.T) {
 		svc := NewClientService(gormDB, clientRepo, &mockClientURIRepo{}, &mockIdentityProviderRepo{},
 			&mockPermissionRepo{}, &mockClientPermissionRepo{}, &mockClientAPIRepo{},
 			&mockAPIRepo{}, userRepo, &mockTenantRepo{})
-		_, err := svc.Update(cUUID, tenantID, "n", "d", "pub", "ex.com", nil, "active", false, actorUUID)
+		_, err := svc.Update(context.Background(), cUUID, tenantID, "n", "d", "pub", "ex.com", nil, "active", false, actorUUID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "access denied")
 	})
@@ -1660,7 +1661,7 @@ func TestClientService_Update_ValidateTenantAccess(t *testing.T) {
 		svc := NewClientService(gormDB, clientRepo, &mockClientURIRepo{}, &mockIdentityProviderRepo{},
 			&mockPermissionRepo{}, &mockClientPermissionRepo{}, &mockClientAPIRepo{},
 			&mockAPIRepo{}, userRepo, &mockTenantRepo{})
-		_, err := svc.Update(cUUID, tenantID, "new-name", "d", "pub", "ex.com", nil, "active", false, actorUUID)
+		_, err := svc.Update(context.Background(), cUUID, tenantID, "new-name", "d", "pub", "ex.com", nil, "active", false, actorUUID)
 		require.Error(t, err)
 	})
 }
@@ -1688,7 +1689,7 @@ func TestClientService_SetStatusByUUID_ValidateTenantAccess(t *testing.T) {
 	svc := NewClientService(gormDB, clientRepo, &mockClientURIRepo{}, &mockIdentityProviderRepo{},
 		&mockPermissionRepo{}, &mockClientPermissionRepo{}, &mockClientAPIRepo{},
 		&mockAPIRepo{}, userRepo, &mockTenantRepo{})
-	_, err := svc.SetStatusByUUID(cUUID, tenantID, "inactive", actorUUID)
+	_, err := svc.SetStatusByUUID(context.Background(), cUUID, tenantID, "inactive", actorUUID)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "access denied")
 }
@@ -1716,7 +1717,7 @@ func TestClientService_DeleteByUUID_ValidateTenantAccess(t *testing.T) {
 	svc := NewClientService(gormDB, clientRepo, &mockClientURIRepo{}, &mockIdentityProviderRepo{},
 		&mockPermissionRepo{}, &mockClientPermissionRepo{}, &mockClientAPIRepo{},
 		&mockAPIRepo{}, userRepo, &mockTenantRepo{})
-	_, err := svc.DeleteByUUID(cUUID, tenantID, actorUUID)
+	_, err := svc.DeleteByUUID(context.Background(), cUUID, tenantID, actorUUID)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "access denied")
 }
@@ -1746,7 +1747,7 @@ func TestClientService_CreateURI_EdgeCases(t *testing.T) {
 		svc := NewClientService(gormDB, clientRepo, uriRepo, &mockIdentityProviderRepo{},
 			&mockPermissionRepo{}, &mockClientPermissionRepo{}, &mockClientAPIRepo{},
 			&mockAPIRepo{}, userRepo, &mockTenantRepo{})
-		_, err := svc.CreateURI(cUUID, tenantID, "https://cb.test", "redirect", actorUUID)
+		_, err := svc.CreateURI(context.Background(), cUUID, tenantID, "https://cb.test", "redirect", actorUUID)
 		require.Error(t, err)
 	})
 
@@ -1770,7 +1771,7 @@ func TestClientService_CreateURI_EdgeCases(t *testing.T) {
 		svc := NewClientService(gormDB, clientRepo, &mockClientURIRepo{}, &mockIdentityProviderRepo{},
 			&mockPermissionRepo{}, &mockClientPermissionRepo{}, &mockClientAPIRepo{},
 			&mockAPIRepo{}, userRepo, &mockTenantRepo{})
-		_, err := svc.CreateURI(cUUID, tenantID, "https://cb.test", "redirect", actorUUID)
+		_, err := svc.CreateURI(context.Background(), cUUID, tenantID, "https://cb.test", "redirect", actorUUID)
 		require.Error(t, err)
 	})
 
@@ -1789,7 +1790,7 @@ func TestClientService_CreateURI_EdgeCases(t *testing.T) {
 		svc := NewClientService(gormDB, clientRepo, &mockClientURIRepo{}, &mockIdentityProviderRepo{},
 			&mockPermissionRepo{}, &mockClientPermissionRepo{}, &mockClientAPIRepo{},
 			&mockAPIRepo{}, userRepo, &mockTenantRepo{})
-		_, err := svc.CreateURI(cUUID, tenantID, "https://cb.test", "redirect", actorUUID)
+		_, err := svc.CreateURI(context.Background(), cUUID, tenantID, "https://cb.test", "redirect", actorUUID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "access denied")
 	})
@@ -1816,7 +1817,7 @@ func TestClientService_UpdateURI_EdgeCases(t *testing.T) {
 		svc := NewClientService(gormDB, clientRepo, &mockClientURIRepo{}, &mockIdentityProviderRepo{},
 			&mockPermissionRepo{}, &mockClientPermissionRepo{}, &mockClientAPIRepo{},
 			&mockAPIRepo{}, userRepo, &mockTenantRepo{})
-		_, err := svc.UpdateURI(cUUID, tenantID, uriUUID, "https://new.test", "redirect", actorUUID)
+		_, err := svc.UpdateURI(context.Background(), cUUID, tenantID, uriUUID, "https://new.test", "redirect", actorUUID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "access denied")
 	})
@@ -1844,7 +1845,7 @@ func TestClientService_UpdateURI_EdgeCases(t *testing.T) {
 		svc := NewClientService(gormDB, clientRepo, uriRepo, &mockIdentityProviderRepo{},
 			&mockPermissionRepo{}, &mockClientPermissionRepo{}, &mockClientAPIRepo{},
 			&mockAPIRepo{}, userRepo, &mockTenantRepo{})
-		_, err := svc.UpdateURI(cUUID, tenantID, uriUUID, "https://new.test", "redirect", actorUUID)
+		_, err := svc.UpdateURI(context.Background(), cUUID, tenantID, uriUUID, "https://new.test", "redirect", actorUUID)
 		require.Error(t, err)
 	})
 
@@ -1873,7 +1874,7 @@ func TestClientService_UpdateURI_EdgeCases(t *testing.T) {
 		svc := NewClientService(gormDB, clientRepo, uriRepo, &mockIdentityProviderRepo{},
 			&mockPermissionRepo{}, &mockClientPermissionRepo{}, &mockClientAPIRepo{},
 			&mockAPIRepo{}, userRepo, &mockTenantRepo{})
-		_, err := svc.UpdateURI(cUUID, tenantID, uriUUID, "https://new.test", "redirect", actorUUID)
+		_, err := svc.UpdateURI(context.Background(), cUUID, tenantID, uriUUID, "https://new.test", "redirect", actorUUID)
 		require.Error(t, err)
 	})
 }
@@ -1899,7 +1900,7 @@ func TestClientService_DeleteURI_EdgeCases(t *testing.T) {
 		svc := NewClientService(gormDB, clientRepo, &mockClientURIRepo{}, &mockIdentityProviderRepo{},
 			&mockPermissionRepo{}, &mockClientPermissionRepo{}, &mockClientAPIRepo{},
 			&mockAPIRepo{}, userRepo, &mockTenantRepo{})
-		_, err := svc.DeleteURI(cUUID, tenantID, uriUUID, actorUUID)
+		_, err := svc.DeleteURI(context.Background(), cUUID, tenantID, uriUUID, actorUUID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "access denied")
 	})
@@ -1925,7 +1926,7 @@ func TestClientService_DeleteURI_EdgeCases(t *testing.T) {
 		svc := NewClientService(gormDB, clientRepo, uriRepo, &mockIdentityProviderRepo{},
 			&mockPermissionRepo{}, &mockClientPermissionRepo{}, &mockClientAPIRepo{},
 			&mockAPIRepo{}, userRepo, &mockTenantRepo{})
-		_, err := svc.DeleteURI(cUUID, tenantID, uriUUID, actorUUID)
+		_, err := svc.DeleteURI(context.Background(), cUUID, tenantID, uriUUID, actorUUID)
 		require.Error(t, err)
 	})
 }
@@ -1953,7 +1954,7 @@ func TestClientService_AddClientAPIs_EdgeCases(t *testing.T) {
 		svc := NewClientService(gormDB, clientRepo, &mockClientURIRepo{}, &mockIdentityProviderRepo{},
 			&mockPermissionRepo{}, &mockClientPermissionRepo{}, caRepo,
 			apiRepo, &mockUserRepo{}, &mockTenantRepo{})
-		err := svc.AddClientAPIs(tenantID, cUUID, []uuid.UUID{apiUUID})
+		err := svc.AddClientAPIs(context.Background(), tenantID, cUUID, []uuid.UUID{apiUUID})
 		require.Error(t, err)
 	})
 
@@ -1972,7 +1973,7 @@ func TestClientService_AddClientAPIs_EdgeCases(t *testing.T) {
 		svc := NewClientService(gormDB, clientRepo, &mockClientURIRepo{}, &mockIdentityProviderRepo{},
 			&mockPermissionRepo{}, &mockClientPermissionRepo{}, &mockClientAPIRepo{},
 			apiRepo, &mockUserRepo{}, &mockTenantRepo{})
-		err := svc.AddClientAPIs(tenantID, cUUID, []uuid.UUID{apiUUID})
+		err := svc.AddClientAPIs(context.Background(), tenantID, cUUID, []uuid.UUID{apiUUID})
 		require.Error(t, err)
 	})
 
@@ -1986,7 +1987,7 @@ func TestClientService_AddClientAPIs_EdgeCases(t *testing.T) {
 		svc := NewClientService(gormDB, clientRepo, &mockClientURIRepo{}, &mockIdentityProviderRepo{},
 			&mockPermissionRepo{}, &mockClientPermissionRepo{}, &mockClientAPIRepo{},
 			&mockAPIRepo{}, &mockUserRepo{}, &mockTenantRepo{})
-		err := svc.AddClientAPIs(tenantID, cUUID, []uuid.UUID{apiUUID})
+		err := svc.AddClientAPIs(context.Background(), tenantID, cUUID, []uuid.UUID{apiUUID})
 		require.Error(t, err)
 	})
 
@@ -2010,7 +2011,7 @@ func TestClientService_AddClientAPIs_EdgeCases(t *testing.T) {
 		svc := NewClientService(gormDB, clientRepo, &mockClientURIRepo{}, &mockIdentityProviderRepo{},
 			&mockPermissionRepo{}, &mockClientPermissionRepo{}, caRepo,
 			apiRepo, &mockUserRepo{}, &mockTenantRepo{})
-		err := svc.AddClientAPIs(tenantID, cUUID, []uuid.UUID{apiUUID})
+		err := svc.AddClientAPIs(context.Background(), tenantID, cUUID, []uuid.UUID{apiUUID})
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "already assigned")
 	})
@@ -2035,7 +2036,7 @@ func TestClientService_AddClientAPIs_EdgeCases(t *testing.T) {
 		svc := NewClientService(gormDB, clientRepo, &mockClientURIRepo{}, &mockIdentityProviderRepo{},
 			&mockPermissionRepo{}, &mockClientPermissionRepo{}, caRepo,
 			apiRepo, &mockUserRepo{}, &mockTenantRepo{})
-		err := svc.AddClientAPIs(tenantID, cUUID, []uuid.UUID{apiUUID})
+		err := svc.AddClientAPIs(context.Background(), tenantID, cUUID, []uuid.UUID{apiUUID})
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "generic db error")
 	})
@@ -2056,7 +2057,7 @@ func TestClientService_RemoveClientAPI_EdgeCases(t *testing.T) {
 		svc := NewClientService(gormDB, clientRepo, &mockClientURIRepo{}, &mockIdentityProviderRepo{},
 			&mockPermissionRepo{}, &mockClientPermissionRepo{}, &mockClientAPIRepo{},
 			&mockAPIRepo{}, &mockUserRepo{}, &mockTenantRepo{})
-		err := svc.RemoveClientAPI(tenantID, cUUID, apiUUID)
+		err := svc.RemoveClientAPI(context.Background(), tenantID, cUUID, apiUUID)
 		require.Error(t, err)
 	})
 }
@@ -2074,7 +2075,7 @@ func TestClientService_GetClientAPIPermissions_EdgeCases(t *testing.T) {
 		}
 		svc := buildFullClientService(t, &mockClientRepo{}, &mockClientURIRepo{}, &mockIdentityProviderRepo{},
 			&mockPermissionRepo{}, &mockClientPermissionRepo{}, caRepo, &mockAPIRepo{}, &mockUserRepo{}, &mockTenantRepo{})
-		_, err := svc.GetClientAPIPermissions(tenantID, cUUID, apiUUID)
+		_, err := svc.GetClientAPIPermissions(context.Background(), tenantID, cUUID, apiUUID)
 		require.Error(t, err)
 	})
 
@@ -2089,7 +2090,7 @@ func TestClientService_GetClientAPIPermissions_EdgeCases(t *testing.T) {
 		}
 		svc := buildFullClientService(t, clientRepo, &mockClientURIRepo{}, &mockIdentityProviderRepo{},
 			&mockPermissionRepo{}, &mockClientPermissionRepo{}, caRepo, &mockAPIRepo{}, &mockUserRepo{}, &mockTenantRepo{})
-		_, err := svc.GetClientAPIPermissions(tenantID, cUUID, apiUUID)
+		_, err := svc.GetClientAPIPermissions(context.Background(), tenantID, cUUID, apiUUID)
 		require.Error(t, err)
 	})
 
@@ -2109,7 +2110,7 @@ func TestClientService_GetClientAPIPermissions_EdgeCases(t *testing.T) {
 		}
 		svc := buildFullClientService(t, clientRepo, &mockClientURIRepo{}, &mockIdentityProviderRepo{},
 			&mockPermissionRepo{}, cpRepo, caRepo, &mockAPIRepo{}, &mockUserRepo{}, &mockTenantRepo{})
-		_, err := svc.GetClientAPIPermissions(tenantID, cUUID, apiUUID)
+		_, err := svc.GetClientAPIPermissions(context.Background(), tenantID, cUUID, apiUUID)
 		require.Error(t, err)
 	})
 }
@@ -2130,7 +2131,7 @@ func TestClientService_AddClientAPIPermissions_EdgeCases(t *testing.T) {
 		svc := NewClientService(gormDB, clientRepo, &mockClientURIRepo{}, &mockIdentityProviderRepo{},
 			&mockPermissionRepo{}, &mockClientPermissionRepo{}, &mockClientAPIRepo{},
 			&mockAPIRepo{}, &mockUserRepo{}, &mockTenantRepo{})
-		err := svc.AddClientAPIPermissions(tenantID, cUUID, apiUUID, []uuid.UUID{permUUID})
+		err := svc.AddClientAPIPermissions(context.Background(), tenantID, cUUID, apiUUID, []uuid.UUID{permUUID})
 		require.Error(t, err)
 	})
 
@@ -2151,7 +2152,7 @@ func TestClientService_AddClientAPIPermissions_EdgeCases(t *testing.T) {
 		svc := NewClientService(gormDB, clientRepo, &mockClientURIRepo{}, &mockIdentityProviderRepo{},
 			&mockPermissionRepo{}, &mockClientPermissionRepo{}, caRepo,
 			&mockAPIRepo{}, &mockUserRepo{}, &mockTenantRepo{})
-		err := svc.AddClientAPIPermissions(tenantID, cUUID, apiUUID, []uuid.UUID{permUUID})
+		err := svc.AddClientAPIPermissions(context.Background(), tenantID, cUUID, apiUUID, []uuid.UUID{permUUID})
 		require.Error(t, err)
 	})
 
@@ -2175,7 +2176,7 @@ func TestClientService_AddClientAPIPermissions_EdgeCases(t *testing.T) {
 		svc := NewClientService(gormDB, clientRepo, &mockClientURIRepo{}, &mockIdentityProviderRepo{},
 			permRepo, &mockClientPermissionRepo{}, caRepo,
 			&mockAPIRepo{}, &mockUserRepo{}, &mockTenantRepo{})
-		err := svc.AddClientAPIPermissions(tenantID, cUUID, apiUUID, []uuid.UUID{permUUID})
+		err := svc.AddClientAPIPermissions(context.Background(), tenantID, cUUID, apiUUID, []uuid.UUID{permUUID})
 		require.Error(t, err)
 	})
 
@@ -2206,7 +2207,7 @@ func TestClientService_AddClientAPIPermissions_EdgeCases(t *testing.T) {
 		svc := NewClientService(gormDB, clientRepo, &mockClientURIRepo{}, &mockIdentityProviderRepo{},
 			permRepo, cpRepo, caRepo,
 			&mockAPIRepo{}, &mockUserRepo{}, &mockTenantRepo{})
-		err := svc.AddClientAPIPermissions(tenantID, cUUID, apiUUID, []uuid.UUID{permUUID})
+		err := svc.AddClientAPIPermissions(context.Background(), tenantID, cUUID, apiUUID, []uuid.UUID{permUUID})
 		require.Error(t, err)
 	})
 
@@ -2240,7 +2241,7 @@ func TestClientService_AddClientAPIPermissions_EdgeCases(t *testing.T) {
 		svc := NewClientService(gormDB, clientRepo, &mockClientURIRepo{}, &mockIdentityProviderRepo{},
 			permRepo, cpRepo, caRepo,
 			&mockAPIRepo{}, &mockUserRepo{}, &mockTenantRepo{})
-		err := svc.AddClientAPIPermissions(tenantID, cUUID, apiUUID, []uuid.UUID{permUUID})
+		err := svc.AddClientAPIPermissions(context.Background(), tenantID, cUUID, apiUUID, []uuid.UUID{permUUID})
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "already assigned")
 	})
@@ -2275,7 +2276,7 @@ func TestClientService_AddClientAPIPermissions_EdgeCases(t *testing.T) {
 		svc := NewClientService(gormDB, clientRepo, &mockClientURIRepo{}, &mockIdentityProviderRepo{},
 			permRepo, cpRepo, caRepo,
 			&mockAPIRepo{}, &mockUserRepo{}, &mockTenantRepo{})
-		err := svc.AddClientAPIPermissions(tenantID, cUUID, apiUUID, []uuid.UUID{permUUID})
+		err := svc.AddClientAPIPermissions(context.Background(), tenantID, cUUID, apiUUID, []uuid.UUID{permUUID})
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "generic db error")
 	})
@@ -2297,7 +2298,7 @@ func TestClientService_RemoveClientAPIPermission_EdgeCases(t *testing.T) {
 		svc := NewClientService(gormDB, clientRepo, &mockClientURIRepo{}, &mockIdentityProviderRepo{},
 			&mockPermissionRepo{}, &mockClientPermissionRepo{}, &mockClientAPIRepo{},
 			&mockAPIRepo{}, &mockUserRepo{}, &mockTenantRepo{})
-		err := svc.RemoveClientAPIPermission(tenantID, cUUID, apiUUID, permUUID)
+		err := svc.RemoveClientAPIPermission(context.Background(), tenantID, cUUID, apiUUID, permUUID)
 		require.Error(t, err)
 	})
 
@@ -2318,7 +2319,7 @@ func TestClientService_RemoveClientAPIPermission_EdgeCases(t *testing.T) {
 		svc := NewClientService(gormDB, clientRepo, &mockClientURIRepo{}, &mockIdentityProviderRepo{},
 			&mockPermissionRepo{}, &mockClientPermissionRepo{}, caRepo,
 			&mockAPIRepo{}, &mockUserRepo{}, &mockTenantRepo{})
-		err := svc.RemoveClientAPIPermission(tenantID, cUUID, apiUUID, permUUID)
+		err := svc.RemoveClientAPIPermission(context.Background(), tenantID, cUUID, apiUUID, permUUID)
 		require.Error(t, err)
 	})
 
@@ -2342,7 +2343,7 @@ func TestClientService_RemoveClientAPIPermission_EdgeCases(t *testing.T) {
 		svc := NewClientService(gormDB, clientRepo, &mockClientURIRepo{}, &mockIdentityProviderRepo{},
 			permRepo, &mockClientPermissionRepo{}, caRepo,
 			&mockAPIRepo{}, &mockUserRepo{}, &mockTenantRepo{})
-		err := svc.RemoveClientAPIPermission(tenantID, cUUID, apiUUID, permUUID)
+		err := svc.RemoveClientAPIPermission(context.Background(), tenantID, cUUID, apiUUID, permUUID)
 		require.Error(t, err)
 	})
 
@@ -2371,7 +2372,7 @@ func TestClientService_RemoveClientAPIPermission_EdgeCases(t *testing.T) {
 		svc := NewClientService(gormDB, clientRepo, &mockClientURIRepo{}, &mockIdentityProviderRepo{},
 			permRepo, cpRepo, caRepo,
 			&mockAPIRepo{}, &mockUserRepo{}, &mockTenantRepo{})
-		err := svc.RemoveClientAPIPermission(tenantID, cUUID, apiUUID, permUUID)
+		err := svc.RemoveClientAPIPermission(context.Background(), tenantID, cUUID, apiUUID, permUUID)
 		require.Error(t, err)
 	})
 }
