@@ -17,6 +17,8 @@ import (
 	"github.com/maintainerd/auth/internal/repository"
 	"github.com/maintainerd/auth/internal/security"
 	"github.com/maintainerd/auth/internal/signedurl"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/codes"
 	"gorm.io/gorm"
 )
 
@@ -49,6 +51,9 @@ func NewForgotPasswordService(
 }
 
 func (s *forgotPasswordService) SendPasswordResetEmail(ctx context.Context, email string, clientID, providerID *string, isInternal bool) (*dto.ForgotPasswordResponseDTO, error) {
+	_, span := otel.Tracer("service").Start(ctx, "forgotPassword.sendResetEmail")
+	defer span.End()
+
 	var user *model.User
 	var Client *model.Client
 	var resetToken string
@@ -117,6 +122,8 @@ func (s *forgotPasswordService) SendPasswordResetEmail(ctx context.Context, emai
 	})
 
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "transaction failed")
 		return nil, err
 	}
 
@@ -141,6 +148,7 @@ func (s *forgotPasswordService) SendPasswordResetEmail(ctx context.Context, emai
 		}
 	}
 
+	span.SetStatus(codes.Ok, "")
 	return response, nil
 }
 
