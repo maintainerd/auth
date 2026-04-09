@@ -1,39 +1,32 @@
-<div align="center">
-  <img src="https://github.com/user-attachments/assets/4bc6f3d9-761e-477e-90ad-1b305b5b5e23" alt="Maintainerd Auth" width="120" height="120">
+<table border="0" cellpadding="0" cellspacing="0"><tr>
+  <td width="66"><img src="https://github.com/user-attachments/assets/4bc6f3d9-761e-477e-90ad-1b305b5b5e23" alt="" width="64" height="64"></td>
+  <td valign="middle"><b><font size="6">Maintainerd Auth</font></b></td>
+</tr></table>
 
-  # Maintainerd Auth
-
-  <p align="center">
-    <a href="https://github.com/maintainerd/auth/actions/workflows/ci.yml">
-      <img src="https://github.com/maintainerd/auth/actions/workflows/ci.yml/badge.svg" alt="CI">
-    </a>
-    <a href="https://github.com/maintainerd/auth/actions/workflows/security.yml">
-      <img src="https://github.com/maintainerd/auth/actions/workflows/security.yml/badge.svg" alt="Security">
-    </a>
-    <a href="https://goreportcard.com/report/github.com/maintainerd/auth">
-      <img src="https://goreportcard.com/badge/github.com/maintainerd/auth" alt="Go Report Card">
-    </a>
-    <a href="https://scorecard.dev/viewer/?uri=github.com/maintainerd/auth">
-      <img src="https://api.scorecard.dev/projects/github.com/maintainerd/auth/badge" alt="OpenSSF Scorecard">
-    </a>
-    <a href="https://www.bestpractices.dev/projects/TODO">
-      <img src="https://img.shields.io/badge/openssf_best_practices-in_progress-yellow?logo=opensourcesecurityfoundation&logoColor=white" alt="OpenSSF Best Practices">
-    </a>
-    <a href="https://codecov.io/gh/maintainerd/auth">
-      <img src="https://codecov.io/gh/maintainerd/auth/graph/badge.svg" alt="Coverage">
-    </a>
-  </p>
-
-  A self-hostable authentication service built in Go.
-  Run it standalone, drop it into a microservice architecture, or use it as part of the Maintainerd ecosystem.
-
-</div>
-
----
+<p>
+  <a href="https://github.com/maintainerd/auth/actions/workflows/ci.yml">
+    <img src="https://github.com/maintainerd/auth/actions/workflows/ci.yml/badge.svg" alt="CI">
+  </a>
+  <a href="https://github.com/maintainerd/auth/actions/workflows/security.yml">
+    <img src="https://github.com/maintainerd/auth/actions/workflows/security.yml/badge.svg" alt="Security">
+  </a>
+  <a href="https://goreportcard.com/report/github.com/maintainerd/auth">
+    <img src="https://goreportcard.com/badge/github.com/maintainerd/auth" alt="Go Report Card">
+  </a>
+  <a href="https://scorecard.dev/viewer/?uri=github.com/maintainerd/auth">
+    <img src="https://api.scorecard.dev/projects/github.com/maintainerd/auth/badge" alt="OpenSSF Scorecard">
+  </a>
+  <a href="https://www.bestpractices.dev/projects/TODO">
+    <img src="https://img.shields.io/badge/openssf_best_practices-in_progress-yellow?logo=opensourcesecurityfoundation&logoColor=white" alt="OpenSSF Best Practices">
+  </a>
+  <a href="https://codecov.io/gh/maintainerd/auth">
+    <img src="https://codecov.io/gh/maintainerd/auth/graph/badge.svg" alt="Coverage">
+  </a>
+</p>
 
 ## Overview
 
-Maintainerd Auth is a dedicated authentication and identity service. It handles user registration, login, multi-tenancy, role-based access control, and token issuance so that your other services don't have to.
+Maintainerd Auth handles user registration, login, multi-tenancy, role-based access control, and token issuance so that your other services don't have to.
 
 It exposes two interfaces:
 
