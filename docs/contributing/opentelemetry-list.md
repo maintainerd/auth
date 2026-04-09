@@ -350,8 +350,8 @@ layers (handlers, repositories), and thin middleware are excluded to reduce nois
 | Logging & Correlation | 2 | 2 | 0 | — |
 | Email (manual) | 1 | 1 | 0 | — |
 | Broken context.Background() | 4 | 4 | 0 | High |
-| Service Layer | 172 | 81 | 91 | High |
-| JWT | 4 | 0 | 4 | Medium |
-| Security (I/O funcs) | 5 | 0 | 5 | Medium |
-| Cache | 5 | 0 | 5 | Low |
-| **Total** | **200** | **95** | **105** | |
+| Service Layer | 179 | 179 | 0 | High |
+| JWT | 4 | 4 | 0 | Medium |
+| Security (I/O funcs) | 5 | 5 | 0 | Medium |
+| Cache | 5 | 5 | 0 | Low |
+| **Total** | **207** | **207** | **0** | |
