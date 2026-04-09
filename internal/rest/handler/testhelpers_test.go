@@ -40,25 +40,21 @@ var testResourceUUID = uuid.MustParse("00000000-0000-0000-0000-000000000099")
 // withTenant injects a *model.Tenant into the request context.
 func withTenant(r *http.Request) *http.Request {
 	tenant := &model.Tenant{TenantID: tenantID, TenantUUID: testTenantUUID}
-	ctx := context.WithValue(r.Context(), middleware.TenantContextKey, tenant)
-	return r.WithContext(ctx)
+	return middleware.WithAuthContext(r, &middleware.AuthContext{Tenant: tenant})
 }
 
 // withUser injects only a *model.User into the request context (no tenant).
 // Used to test handlers that fetch user before tenant, where we want tenant to be absent.
 func withUser(r *http.Request) *http.Request {
 	user := &model.User{UserUUID: testUserUUID}
-	ctx := context.WithValue(r.Context(), middleware.UserContextKey, user)
-	return r.WithContext(ctx)
+	return middleware.WithAuthContext(r, &middleware.AuthContext{User: user})
 }
 
 // withTenantAndUser injects both tenant and user into the request context.
 func withTenantAndUser(r *http.Request) *http.Request {
 	tenant := &model.Tenant{TenantID: tenantID, TenantUUID: testTenantUUID}
 	user := &model.User{UserUUID: testUserUUID}
-	ctx := context.WithValue(r.Context(), middleware.TenantContextKey, tenant)
-	ctx = context.WithValue(ctx, middleware.UserContextKey, user)
-	return r.WithContext(ctx)
+	return middleware.WithAuthContext(r, &middleware.AuthContext{Tenant: tenant, User: user})
 }
 
 // withChiParam injects a chi URL parameter into the request context.

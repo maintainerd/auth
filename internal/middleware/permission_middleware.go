@@ -4,29 +4,21 @@ import (
 	"net/http"
 
 	"github.com/maintainerd/auth/internal/model"
-		resp "github.com/maintainerd/auth/internal/rest/response"
+	resp "github.com/maintainerd/auth/internal/rest/response"
 )
 
 // PermissionMiddleware ensures the user has at least one of the required permissions
 func PermissionMiddleware(requiredPermissions []string) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			// Get user context
-			val := r.Context().Value(UserContextKey)
-			if val == nil {
+			auth := AuthFromRequest(r)
+			if auth.User == nil {
 				resp.Error(w, http.StatusUnauthorized, "User not found in context")
 				return
 			}
 
-			// Validate user context
-			user, ok := val.(*model.User)
-			if !ok || user == nil {
-				resp.Error(w, http.StatusInternalServerError, "Invalid user in context")
-				return
-			}
-
 			// Check user permission
-			if !hasAnyPermission(user, requiredPermissions) {
+			if !hasAnyPermission(auth.User, requiredPermissions) {
 				resp.Error(w, http.StatusForbidden, "Insufficient permissions")
 				return
 			}

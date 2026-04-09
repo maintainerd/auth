@@ -40,8 +40,8 @@ func NewSignupFlowHandler(signupFlowService service.SignupFlowService) *SignupFl
 // Supports filtering by name, identifier, status, and auth client UUID.
 func (h *SignupFlowHandler) GetAll(w http.ResponseWriter, r *http.Request) {
 	// Get tenant from context (middleware already validated access)
-	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
-	if !ok || tenant == nil {
+	tenant := middleware.AuthFromRequest(r).Tenant
+	if tenant == nil {
 		resp.Error(w, http.StatusUnauthorized, "Tenant not found in context")
 		return
 	}
@@ -114,8 +114,8 @@ func (h *SignupFlowHandler) GetAll(w http.ResponseWriter, r *http.Request) {
 // validates that the signup flow belongs to the tenant.
 func (h *SignupFlowHandler) Get(w http.ResponseWriter, r *http.Request) {
 	// Get tenant from context (middleware already validated access)
-	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
-	if !ok || tenant == nil {
+	tenant := middleware.AuthFromRequest(r).Tenant
+	if tenant == nil {
 		resp.Error(w, http.StatusUnauthorized, "Tenant not found in context")
 		return
 	}
@@ -146,8 +146,8 @@ func (h *SignupFlowHandler) Get(w http.ResponseWriter, r *http.Request) {
 // includes configuration for the signup experience and is linked to an auth client.
 func (h *SignupFlowHandler) Create(w http.ResponseWriter, r *http.Request) {
 	// Get tenant from context (middleware already validated access)
-	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
-	if !ok || tenant == nil {
+	tenant := middleware.AuthFromRequest(r).Tenant
+	if tenant == nil {
 		resp.Error(w, http.StatusUnauthorized, "Tenant not found in context")
 		return
 	}
@@ -199,8 +199,8 @@ func (h *SignupFlowHandler) Create(w http.ResponseWriter, r *http.Request) {
 // The service layer validates that the signup flow belongs to the tenant.
 func (h *SignupFlowHandler) Update(w http.ResponseWriter, r *http.Request) {
 	// Get tenant from context (middleware already validated access)
-	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
-	if !ok || tenant == nil {
+	tenant := middleware.AuthFromRequest(r).Tenant
+	if tenant == nil {
 		resp.Error(w, http.StatusUnauthorized, "Tenant not found in context")
 		return
 	}
@@ -257,8 +257,8 @@ func (h *SignupFlowHandler) Update(w http.ResponseWriter, r *http.Request) {
 // any associated role assignments for the flow.
 func (h *SignupFlowHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	// Get tenant from context (middleware already validated access)
-	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
-	if !ok || tenant == nil {
+	tenant := middleware.AuthFromRequest(r).Tenant
+	if tenant == nil {
 		resp.Error(w, http.StatusUnauthorized, "Tenant not found in context")
 		return
 	}
@@ -289,8 +289,8 @@ func (h *SignupFlowHandler) Delete(w http.ResponseWriter, r *http.Request) {
 // This is a convenience endpoint for status-only updates.
 func (h *SignupFlowHandler) UpdateStatus(w http.ResponseWriter, r *http.Request) {
 	// Get tenant from context (middleware already validated access)
-	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
-	if !ok || tenant == nil {
+	tenant := middleware.AuthFromRequest(r).Tenant
+	if tenant == nil {
 		resp.Error(w, http.StatusUnauthorized, "Tenant not found in context")
 		return
 	}
@@ -333,8 +333,8 @@ func (h *SignupFlowHandler) UpdateStatus(w http.ResponseWriter, r *http.Request)
 // through this flow will automatically be assigned these roles.
 func (h *SignupFlowHandler) AssignRoles(w http.ResponseWriter, r *http.Request) {
 	// Get tenant from context (middleware already validated access)
-	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
-	if !ok || tenant == nil {
+	tenant := middleware.AuthFromRequest(r).Tenant
+	if tenant == nil {
 		resp.Error(w, http.StatusUnauthorized, "Tenant not found in context")
 		return
 	}
@@ -403,8 +403,8 @@ func (h *SignupFlowHandler) AssignRoles(w http.ResponseWriter, r *http.Request) 
 // who complete registration through this signup flow.
 func (h *SignupFlowHandler) GetRoles(w http.ResponseWriter, r *http.Request) {
 	// Get tenant from context (middleware already validated access)
-	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
-	if !ok || tenant == nil {
+	tenant := middleware.AuthFromRequest(r).Tenant
+	if tenant == nil {
 		resp.Error(w, http.StatusUnauthorized, "Tenant not found in context")
 		return
 	}
@@ -484,8 +484,8 @@ func (h *SignupFlowHandler) GetRoles(w http.ResponseWriter, r *http.Request) {
 // through this flow will no longer automatically receive this role.
 func (h *SignupFlowHandler) RemoveRole(w http.ResponseWriter, r *http.Request) {
 	// Get tenant from context (middleware already validated access)
-	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
-	if !ok || tenant == nil {
+	tenant := middleware.AuthFromRequest(r).Tenant
+	if tenant == nil {
 		resp.Error(w, http.StatusUnauthorized, "Tenant not found in context")
 		return
 	}

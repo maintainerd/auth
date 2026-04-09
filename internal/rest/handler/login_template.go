@@ -35,8 +35,8 @@ func NewLoginTemplateHandler(loginTemplateService service.LoginTemplateService) 
 // The service layer filters templates by tenant_id to ensure data isolation.
 func (h *LoginTemplateHandler) GetAll(w http.ResponseWriter, r *http.Request) {
 	// Tenant is already validated by middleware - just extract from context
-	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
-	if !ok || tenant == nil {
+	tenant := middleware.AuthFromRequest(r).Tenant
+	if tenant == nil {
 		resp.Error(w, http.StatusUnauthorized, "Tenant not found in context")
 		return
 	}
@@ -119,8 +119,8 @@ func (h *LoginTemplateHandler) GetAll(w http.ResponseWriter, r *http.Request) {
 // The service layer verifies the template belongs to the tenant.
 func (h *LoginTemplateHandler) Get(w http.ResponseWriter, r *http.Request) {
 	// Tenant is already validated by middleware - just extract from context
-	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
-	if !ok || tenant == nil {
+	tenant := middleware.AuthFromRequest(r).Tenant
+	if tenant == nil {
 		resp.Error(w, http.StatusUnauthorized, "Tenant not found in context")
 		return
 	}
@@ -150,8 +150,8 @@ func (h *LoginTemplateHandler) Get(w http.ResponseWriter, r *http.Request) {
 // The template is automatically associated with the tenant from context.
 func (h *LoginTemplateHandler) Create(w http.ResponseWriter, r *http.Request) {
 	// Tenant is already validated by middleware - just extract from context
-	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
-	if !ok || tenant == nil {
+	tenant := middleware.AuthFromRequest(r).Tenant
+	if tenant == nil {
 		resp.Error(w, http.StatusUnauthorized, "Tenant not found in context")
 		return
 	}
@@ -204,8 +204,8 @@ func (h *LoginTemplateHandler) Create(w http.ResponseWriter, r *http.Request) {
 // The service layer verifies the template belongs to the tenant before updating.
 func (h *LoginTemplateHandler) Update(w http.ResponseWriter, r *http.Request) {
 	// Tenant is already validated by middleware - just extract from context
-	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
-	if !ok || tenant == nil {
+	tenant := middleware.AuthFromRequest(r).Tenant
+	if tenant == nil {
 		resp.Error(w, http.StatusUnauthorized, "Tenant not found in context")
 		return
 	}
@@ -269,8 +269,8 @@ func (h *LoginTemplateHandler) Update(w http.ResponseWriter, r *http.Request) {
 // The service layer verifies the template belongs to the tenant before deletion.
 func (h *LoginTemplateHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	// Tenant is already validated by middleware - just extract from context
-	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
-	if !ok || tenant == nil {
+	tenant := middleware.AuthFromRequest(r).Tenant
+	if tenant == nil {
 		resp.Error(w, http.StatusUnauthorized, "Tenant not found in context")
 		return
 	}
@@ -300,8 +300,8 @@ func (h *LoginTemplateHandler) Delete(w http.ResponseWriter, r *http.Request) {
 // The service layer verifies the template belongs to the tenant before updating status.
 func (h *LoginTemplateHandler) UpdateStatus(w http.ResponseWriter, r *http.Request) {
 	// Tenant is already validated by middleware - just extract from context
-	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
-	if !ok || tenant == nil {
+	tenant := middleware.AuthFromRequest(r).Tenant
+	if tenant == nil {
 		resp.Error(w, http.StatusUnauthorized, "Tenant not found in context")
 		return
 	}

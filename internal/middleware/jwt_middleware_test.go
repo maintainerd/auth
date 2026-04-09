@@ -1,7 +1,6 @@
 package middleware
 
 import (
-	"context"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
@@ -130,8 +129,8 @@ func TestJWTAuthMiddleware_ContextValues(t *testing.T) {
 func TestGetClientIDFromContext(t *testing.T) {
 	t.Run("present → returns value", func(t *testing.T) {
 		req := httptest.NewRequest(http.MethodGet, "/", nil)
-		ctx := context.WithValue(req.Context(), ClientIDKey, "test-client")
-		assert.Equal(t, "test-client", GetClientIDFromContext(req.WithContext(ctx)))
+		req = WithJWTClaims(req, &JWTClaims{ClientID: "test-client"})
+		assert.Equal(t, "test-client", GetClientIDFromContext(req))
 	})
 
 	t.Run("absent → empty string", func(t *testing.T) {
@@ -143,8 +142,8 @@ func TestGetClientIDFromContext(t *testing.T) {
 func TestGetProviderIDFromContext(t *testing.T) {
 	t.Run("present → returns value", func(t *testing.T) {
 		req := httptest.NewRequest(http.MethodGet, "/", nil)
-		ctx := context.WithValue(req.Context(), ProviderIDKey, "test-provider")
-		assert.Equal(t, "test-provider", GetProviderIDFromContext(req.WithContext(ctx)))
+		req = WithJWTClaims(req, &JWTClaims{ProviderID: "test-provider"})
+		assert.Equal(t, "test-provider", GetProviderIDFromContext(req))
 	})
 
 	t.Run("absent → empty string", func(t *testing.T) {

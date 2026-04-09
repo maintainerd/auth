@@ -11,7 +11,6 @@ import (
 
 	"github.com/maintainerd/auth/internal/dto"
 	"github.com/maintainerd/auth/internal/middleware"
-	"github.com/maintainerd/auth/internal/model"
 	"github.com/maintainerd/auth/internal/ptr"
 	resp "github.com/maintainerd/auth/internal/rest/response"
 	"github.com/maintainerd/auth/internal/service"
@@ -44,7 +43,7 @@ func (h *ProfileHandler) CreateOrUpdate(w http.ResponseWriter, r *http.Request) 
 		birthdate = &parsed
 	}
 
-	user := r.Context().Value(middleware.UserContextKey).(*model.User)
+	user := middleware.AuthFromRequest(r).User
 	profile, err := h.profileService.CreateOrUpdateProfile(
 		r.Context(),
 		user.UserUUID,
@@ -85,7 +84,7 @@ func (h *ProfileHandler) CreateProfile(w http.ResponseWriter, r *http.Request) {
 		birthdate = &parsed
 	}
 
-	user := r.Context().Value(middleware.UserContextKey).(*model.User)
+	user := middleware.AuthFromRequest(r).User
 
 	// Generate new UUID for the profile
 	profileUUID := uuid.New()
@@ -139,7 +138,7 @@ func (h *ProfileHandler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 		birthdate = &parsed
 	}
 
-	user := r.Context().Value(middleware.UserContextKey).(*model.User)
+	user := middleware.AuthFromRequest(r).User
 	profile, err := h.profileService.CreateOrUpdateSpecificProfile(
 		r.Context(),
 		profileUUID,
@@ -163,7 +162,7 @@ func (h *ProfileHandler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *ProfileHandler) Get(w http.ResponseWriter, r *http.Request) {
-	user := r.Context().Value(middleware.UserContextKey).(*model.User)
+	user := middleware.AuthFromRequest(r).User
 	profile, err := h.profileService.GetByUserUUID(r.Context(), user.UserUUID)
 	if err != nil || profile == nil {
 		resp.Error(w, http.StatusNotFound, "Profile not found")
@@ -174,7 +173,7 @@ func (h *ProfileHandler) Get(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *ProfileHandler) GetAll(w http.ResponseWriter, r *http.Request) {
-	user := r.Context().Value(middleware.UserContextKey).(*model.User)
+	user := middleware.AuthFromRequest(r).User
 	q := r.URL.Query()
 
 	// Parse pagination
@@ -254,7 +253,7 @@ func (h *ProfileHandler) GetAll(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *ProfileHandler) Delete(w http.ResponseWriter, r *http.Request) {
-	user := r.Context().Value(middleware.UserContextKey).(*model.User)
+	user := middleware.AuthFromRequest(r).User
 
 	// First get the profile to get its UUID
 	profile, err := h.profileService.GetByUserUUID(r.Context(), user.UserUUID)
@@ -274,7 +273,7 @@ func (h *ProfileHandler) Delete(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *ProfileHandler) GetByUUID(w http.ResponseWriter, r *http.Request) {
-	user := r.Context().Value(middleware.UserContextKey).(*model.User)
+	user := middleware.AuthFromRequest(r).User
 
 	// Get profile UUID from URL parameter
 	profileUUIDStr := chi.URLParam(r, "profile_uuid")
@@ -295,7 +294,7 @@ func (h *ProfileHandler) GetByUUID(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *ProfileHandler) DeleteByUUID(w http.ResponseWriter, r *http.Request) {
-	user := r.Context().Value(middleware.UserContextKey).(*model.User)
+	user := middleware.AuthFromRequest(r).User
 
 	// Get profile UUID from URL parameter
 	profileUUIDStr := chi.URLParam(r, "profile_uuid")
@@ -575,7 +574,7 @@ func (h *ProfileHandler) SetDefaultProfile(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	user := r.Context().Value(middleware.UserContextKey).(*model.User)
+	user := middleware.AuthFromRequest(r).User
 
 	// Set profile as default with ownership verification
 	profile, err := h.profileService.SetDefaultProfile(r.Context(), profileUUID, user.UserUUID)

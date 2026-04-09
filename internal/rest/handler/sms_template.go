@@ -40,8 +40,8 @@ func NewSMSTemplateHandler(smsTemplateService service.SMSTemplateService) *SMSTe
 // Supports filtering by name, status, is_default, and is_system flags.
 func (h *SMSTemplateHandler) GetAll(w http.ResponseWriter, r *http.Request) {
 	// Get tenant from context (middleware already validated access)
-	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
-	if !ok || tenant == nil {
+	tenant := middleware.AuthFromRequest(r).Tenant
+	if tenant == nil {
 		resp.Error(w, http.StatusUnauthorized, "Unauthorized")
 		return
 	}
@@ -119,8 +119,8 @@ func (h *SMSTemplateHandler) GetAll(w http.ResponseWriter, r *http.Request) {
 // The service layer validates that the template belongs to the tenant.
 func (h *SMSTemplateHandler) Get(w http.ResponseWriter, r *http.Request) {
 	// Get tenant from context (middleware already validated access)
-	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
-	if !ok || tenant == nil {
+	tenant := middleware.AuthFromRequest(r).Tenant
+	if tenant == nil {
 		resp.Error(w, http.StatusUnauthorized, "Unauthorized")
 		return
 	}
@@ -151,8 +151,8 @@ func (h *SMSTemplateHandler) Get(w http.ResponseWriter, r *http.Request) {
 // Templates can be marked as default or system templates with appropriate flags.
 func (h *SMSTemplateHandler) Create(w http.ResponseWriter, r *http.Request) {
 	// Get tenant from context (middleware already validated access)
-	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
-	if !ok || tenant == nil {
+	tenant := middleware.AuthFromRequest(r).Tenant
+	if tenant == nil {
 		resp.Error(w, http.StatusUnauthorized, "Unauthorized")
 		return
 	}
@@ -201,8 +201,8 @@ func (h *SMSTemplateHandler) Create(w http.ResponseWriter, r *http.Request) {
 // The service layer validates that the template belongs to the tenant.
 func (h *SMSTemplateHandler) Update(w http.ResponseWriter, r *http.Request) {
 	// Get tenant from context (middleware already validated access)
-	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
-	if !ok || tenant == nil {
+	tenant := middleware.AuthFromRequest(r).Tenant
+	if tenant == nil {
 		resp.Error(w, http.StatusUnauthorized, "Unauthorized")
 		return
 	}
@@ -260,8 +260,8 @@ func (h *SMSTemplateHandler) Update(w http.ResponseWriter, r *http.Request) {
 // may be protected from deletion at the service layer.
 func (h *SMSTemplateHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	// Get tenant from context (middleware already validated access)
-	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
-	if !ok || tenant == nil {
+	tenant := middleware.AuthFromRequest(r).Tenant
+	if tenant == nil {
 		resp.Error(w, http.StatusUnauthorized, "Unauthorized")
 		return
 	}
@@ -292,8 +292,8 @@ func (h *SMSTemplateHandler) Delete(w http.ResponseWriter, r *http.Request) {
 // This is a convenience endpoint for status-only updates.
 func (h *SMSTemplateHandler) UpdateStatus(w http.ResponseWriter, r *http.Request) {
 	// Get tenant from context (middleware already validated access)
-	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
-	if !ok || tenant == nil {
+	tenant := middleware.AuthFromRequest(r).Tenant
+	if tenant == nil {
 		resp.Error(w, http.StatusUnauthorized, "Unauthorized")
 		return
 	}

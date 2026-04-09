@@ -9,7 +9,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/dto"
 	"github.com/maintainerd/auth/internal/middleware"
-	"github.com/maintainerd/auth/internal/model"
 	"github.com/maintainerd/auth/internal/ptr"
 	resp "github.com/maintainerd/auth/internal/rest/response"
 	"github.com/maintainerd/auth/internal/service"
@@ -26,8 +25,8 @@ func NewPermissionHandler(permissionService service.PermissionService) *Permissi
 // Get permissions with pagination
 func (h *PermissionHandler) Get(w http.ResponseWriter, r *http.Request) {
 	// Get tenant from context
-	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
-	if !ok || tenant == nil {
+	tenant := middleware.AuthFromRequest(r).Tenant
+	if tenant == nil {
 		resp.Error(w, http.StatusUnauthorized, "Tenant not found in context")
 		return
 	}
@@ -123,8 +122,8 @@ func (h *PermissionHandler) Get(w http.ResponseWriter, r *http.Request) {
 // Get permission by UUID
 func (h *PermissionHandler) GetByUUID(w http.ResponseWriter, r *http.Request) {
 	// Get tenant from context
-	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
-	if !ok || tenant == nil {
+	tenant := middleware.AuthFromRequest(r).Tenant
+	if tenant == nil {
 		resp.Error(w, http.StatusUnauthorized, "Tenant not found in context")
 		return
 	}
@@ -149,8 +148,8 @@ func (h *PermissionHandler) GetByUUID(w http.ResponseWriter, r *http.Request) {
 // Create permission
 func (h *PermissionHandler) Create(w http.ResponseWriter, r *http.Request) {
 	// Get tenant from context
-	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
-	if !ok || tenant == nil {
+	tenant := middleware.AuthFromRequest(r).Tenant
+	if tenant == nil {
 		resp.Error(w, http.StatusUnauthorized, "Tenant not found in context")
 		return
 	}
@@ -180,8 +179,8 @@ func (h *PermissionHandler) Create(w http.ResponseWriter, r *http.Request) {
 // Update permission
 func (h *PermissionHandler) Update(w http.ResponseWriter, r *http.Request) {
 	// Get tenant from context
-	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
-	if !ok || tenant == nil {
+	tenant := middleware.AuthFromRequest(r).Tenant
+	if tenant == nil {
 		resp.Error(w, http.StatusUnauthorized, "Tenant not found in context")
 		return
 	}
@@ -217,8 +216,8 @@ func (h *PermissionHandler) Update(w http.ResponseWriter, r *http.Request) {
 // Set permission status
 func (h *PermissionHandler) SetStatus(w http.ResponseWriter, r *http.Request) {
 	// Get tenant from context
-	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
-	if !ok || tenant == nil {
+	tenant := middleware.AuthFromRequest(r).Tenant
+	if tenant == nil {
 		resp.Error(w, http.StatusUnauthorized, "Tenant not found in context")
 		return
 	}
@@ -253,8 +252,8 @@ func (h *PermissionHandler) SetStatus(w http.ResponseWriter, r *http.Request) {
 // Delete permission
 func (h *PermissionHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	// Get tenant from context
-	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
-	if !ok || tenant == nil {
+	tenant := middleware.AuthFromRequest(r).Tenant
+	if tenant == nil {
 		resp.Error(w, http.StatusUnauthorized, "Tenant not found in context")
 		return
 	}

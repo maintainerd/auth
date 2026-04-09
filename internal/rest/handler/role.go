@@ -32,8 +32,8 @@ func NewRoleHandler(service service.RoleService) *RoleHandler {
 // The service layer filters roles by tenant_id to ensure data isolation.
 func (h *RoleHandler) Get(w http.ResponseWriter, r *http.Request) {
 	// Tenant is already validated by middleware - just extract from context
-	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
-	if !ok || tenant == nil {
+	tenant := middleware.AuthFromRequest(r).Tenant
+	if tenant == nil {
 		resp.Error(w, http.StatusUnauthorized, "Tenant not found in context")
 		return
 	}
@@ -131,8 +131,8 @@ func (h *RoleHandler) Get(w http.ResponseWriter, r *http.Request) {
 // The service layer verifies the role belongs to the tenant.
 func (h *RoleHandler) GetByUUID(w http.ResponseWriter, r *http.Request) {
 	// Tenant is already validated by middleware - just extract from context
-	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
-	if !ok || tenant == nil {
+	tenant := middleware.AuthFromRequest(r).Tenant
+	if tenant == nil {
 		resp.Error(w, http.StatusUnauthorized, "Tenant not found in context")
 		return
 	}
@@ -159,15 +159,15 @@ func (h *RoleHandler) GetByUUID(w http.ResponseWriter, r *http.Request) {
 // The role is automatically associated with the tenant from context.
 func (h *RoleHandler) Create(w http.ResponseWriter, r *http.Request) {
 	// Tenant is already validated by middleware - just extract from context
-	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
-	if !ok || tenant == nil {
+	tenant := middleware.AuthFromRequest(r).Tenant
+	if tenant == nil {
 		resp.Error(w, http.StatusUnauthorized, "Tenant not found in context")
 		return
 	}
 
 	// Extract authenticated user from context (needed for audit tracking)
-	user, ok := r.Context().Value(middleware.UserContextKey).(*model.User)
-	if !ok || user == nil {
+	user := middleware.AuthFromRequest(r).User
+	if user == nil {
 		resp.Error(w, http.StatusUnauthorized, "User not found in context")
 		return
 	}
@@ -200,15 +200,15 @@ func (h *RoleHandler) Create(w http.ResponseWriter, r *http.Request) {
 // The service layer verifies the role belongs to the tenant before updating.
 func (h *RoleHandler) Update(w http.ResponseWriter, r *http.Request) {
 	// Tenant is already validated by middleware - just extract from context
-	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
-	if !ok || tenant == nil {
+	tenant := middleware.AuthFromRequest(r).Tenant
+	if tenant == nil {
 		resp.Error(w, http.StatusUnauthorized, "Tenant not found in context")
 		return
 	}
 
 	// Extract authenticated user from context (needed for audit tracking)
-	user, ok := r.Context().Value(middleware.UserContextKey).(*model.User)
-	if !ok || user == nil {
+	user := middleware.AuthFromRequest(r).User
+	if user == nil {
 		resp.Error(w, http.StatusUnauthorized, "User not found in context")
 		return
 	}
@@ -248,15 +248,15 @@ func (h *RoleHandler) Update(w http.ResponseWriter, r *http.Request) {
 // The service layer verifies the role belongs to the tenant before updating status.
 func (h *RoleHandler) SetStatus(w http.ResponseWriter, r *http.Request) {
 	// Tenant is already validated by middleware - just extract from context
-	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
-	if !ok || tenant == nil {
+	tenant := middleware.AuthFromRequest(r).Tenant
+	if tenant == nil {
 		resp.Error(w, http.StatusUnauthorized, "Tenant not found in context")
 		return
 	}
 
 	// Extract authenticated user from context (needed for audit tracking)
-	user, ok := r.Context().Value(middleware.UserContextKey).(*model.User)
-	if !ok || user == nil {
+	user := middleware.AuthFromRequest(r).User
+	if user == nil {
 		resp.Error(w, http.StatusUnauthorized, "User not found in context")
 		return
 	}
@@ -298,15 +298,15 @@ func (h *RoleHandler) SetStatus(w http.ResponseWriter, r *http.Request) {
 // The service layer verifies the role belongs to the tenant before deletion.
 func (h *RoleHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	// Tenant is already validated by middleware - just extract from context
-	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
-	if !ok || tenant == nil {
+	tenant := middleware.AuthFromRequest(r).Tenant
+	if tenant == nil {
 		resp.Error(w, http.StatusUnauthorized, "Tenant not found in context")
 		return
 	}
 
 	// Extract authenticated user from context (needed for audit tracking)
-	user, ok := r.Context().Value(middleware.UserContextKey).(*model.User)
-	if !ok || user == nil {
+	user := middleware.AuthFromRequest(r).User
+	if user == nil {
 		resp.Error(w, http.StatusUnauthorized, "User not found in context")
 		return
 	}
@@ -333,8 +333,8 @@ func (h *RoleHandler) Delete(w http.ResponseWriter, r *http.Request) {
 // The service layer verifies the role belongs to the tenant.
 func (h *RoleHandler) GetPermissions(w http.ResponseWriter, r *http.Request) {
 	// Tenant is already validated by middleware - just extract from context
-	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
-	if !ok || tenant == nil {
+	tenant := middleware.AuthFromRequest(r).Tenant
+	if tenant == nil {
 		resp.Error(w, http.StatusUnauthorized, "Tenant not found in context")
 		return
 	}
@@ -438,15 +438,15 @@ func (h *RoleHandler) GetPermissions(w http.ResponseWriter, r *http.Request) {
 // The service layer verifies the role belongs to the tenant before adding permissions.
 func (h *RoleHandler) AddPermissions(w http.ResponseWriter, r *http.Request) {
 	// Tenant is already validated by middleware - just extract from context
-	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
-	if !ok || tenant == nil {
+	tenant := middleware.AuthFromRequest(r).Tenant
+	if tenant == nil {
 		resp.Error(w, http.StatusUnauthorized, "Tenant not found in context")
 		return
 	}
 
 	// Extract authenticated user from context (needed for audit tracking)
-	user, ok := r.Context().Value(middleware.UserContextKey).(*model.User)
-	if !ok || user == nil {
+	user := middleware.AuthFromRequest(r).User
+	if user == nil {
 		resp.Error(w, http.StatusUnauthorized, "User not found in context")
 		return
 	}
@@ -486,15 +486,15 @@ func (h *RoleHandler) AddPermissions(w http.ResponseWriter, r *http.Request) {
 // The service layer verifies the role belongs to the tenant before removing the permission.
 func (h *RoleHandler) RemovePermission(w http.ResponseWriter, r *http.Request) {
 	// Tenant is already validated by middleware - just extract from context
-	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
-	if !ok || tenant == nil {
+	tenant := middleware.AuthFromRequest(r).Tenant
+	if tenant == nil {
 		resp.Error(w, http.StatusUnauthorized, "Tenant not found in context")
 		return
 	}
 
 	// Extract authenticated user from context (needed for audit tracking)
-	user, ok := r.Context().Value(middleware.UserContextKey).(*model.User)
-	if !ok || user == nil {
+	user := middleware.AuthFromRequest(r).User
+	if user == nil {
 		resp.Error(w, http.StatusUnauthorized, "User not found in context")
 		return
 	}

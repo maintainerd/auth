@@ -6,9 +6,8 @@ import (
 
 	"github.com/maintainerd/auth/internal/dto"
 	"github.com/maintainerd/auth/internal/middleware"
-	"github.com/maintainerd/auth/internal/model"
-	"github.com/maintainerd/auth/internal/service"
 	resp "github.com/maintainerd/auth/internal/rest/response"
+	"github.com/maintainerd/auth/internal/service"
 )
 
 // SecuritySettingHandler handles security configuration operations.
@@ -37,8 +36,8 @@ func NewSecuritySettingHandler(securitySettingService service.SecuritySettingSer
 // tenant. The tenant is extracted from the request context (validated by middleware).
 func (h *SecuritySettingHandler) GetGeneralConfig(w http.ResponseWriter, r *http.Request) {
 	// Get tenant from context (middleware already validated access)
-	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
-	if !ok || tenant == nil {
+	tenant := middleware.AuthFromRequest(r).Tenant
+	if tenant == nil {
 		resp.Error(w, http.StatusUnauthorized, "Tenant not found in context")
 		return
 	}
@@ -64,8 +63,8 @@ func (h *SecuritySettingHandler) GetGeneralConfig(w http.ResponseWriter, r *http
 // history, etc.) for the authenticated tenant.
 func (h *SecuritySettingHandler) GetPasswordConfig(w http.ResponseWriter, r *http.Request) {
 	// Get tenant from context (middleware already validated access)
-	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
-	if !ok || tenant == nil {
+	tenant := middleware.AuthFromRequest(r).Tenant
+	if tenant == nil {
 		resp.Error(w, http.StatusUnauthorized, "Tenant not found in context")
 		return
 	}
@@ -91,8 +90,8 @@ func (h *SecuritySettingHandler) GetPasswordConfig(w http.ResponseWriter, r *htt
 // idle timeout, etc.) for the authenticated tenant.
 func (h *SecuritySettingHandler) GetSessionConfig(w http.ResponseWriter, r *http.Request) {
 	// Get tenant from context (middleware already validated access)
-	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
-	if !ok || tenant == nil {
+	tenant := middleware.AuthFromRequest(r).Tenant
+	if tenant == nil {
 		resp.Error(w, http.StatusUnauthorized, "Tenant not found in context")
 		return
 	}
@@ -118,8 +117,8 @@ func (h *SecuritySettingHandler) GetSessionConfig(w http.ResponseWriter, r *http
 // suspicious activity detection, etc.) for the authenticated tenant.
 func (h *SecuritySettingHandler) GetThreatConfig(w http.ResponseWriter, r *http.Request) {
 	// Get tenant from context (middleware already validated access)
-	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
-	if !ok || tenant == nil {
+	tenant := middleware.AuthFromRequest(r).Tenant
+	if tenant == nil {
 		resp.Error(w, http.StatusUnauthorized, "Tenant not found in context")
 		return
 	}
@@ -145,8 +144,8 @@ func (h *SecuritySettingHandler) GetThreatConfig(w http.ResponseWriter, r *http.
 // restrictions, etc.) for the authenticated tenant.
 func (h *SecuritySettingHandler) GetIPConfig(w http.ResponseWriter, r *http.Request) {
 	// Get tenant from context (middleware already validated access)
-	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
-	if !ok || tenant == nil {
+	tenant := middleware.AuthFromRequest(r).Tenant
+	if tenant == nil {
 		resp.Error(w, http.StatusUnauthorized, "Tenant not found in context")
 		return
 	}
@@ -173,11 +172,11 @@ func (h *SecuritySettingHandler) GetIPConfig(w http.ResponseWriter, r *http.Requ
 // and user agent for compliance tracking.
 func (h *SecuritySettingHandler) UpdateGeneralConfig(w http.ResponseWriter, r *http.Request) {
 	// Get user from context (needed for audit tracking)
-	user := r.Context().Value(middleware.UserContextKey).(*model.User)
+	user := middleware.AuthFromRequest(r).User
 
 	// Get tenant from context (middleware already validated access)
-	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
-	if !ok || tenant == nil {
+	tenant := middleware.AuthFromRequest(r).Tenant
+	if tenant == nil {
 		resp.Error(w, http.StatusUnauthorized, "Tenant not found in context")
 		return
 	}
@@ -235,11 +234,11 @@ func (h *SecuritySettingHandler) UpdateGeneralConfig(w http.ResponseWriter, r *h
 // expiration rules, history tracking, etc.). This operation is audited.
 func (h *SecuritySettingHandler) UpdatePasswordConfig(w http.ResponseWriter, r *http.Request) {
 	// Get user from context (needed for audit tracking)
-	user := r.Context().Value(middleware.UserContextKey).(*model.User)
+	user := middleware.AuthFromRequest(r).User
 
 	// Get tenant from context (middleware already validated access)
-	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
-	if !ok || tenant == nil {
+	tenant := middleware.AuthFromRequest(r).Tenant
+	if tenant == nil {
 		resp.Error(w, http.StatusUnauthorized, "Tenant not found in context")
 		return
 	}
@@ -297,11 +296,11 @@ func (h *SecuritySettingHandler) UpdatePasswordConfig(w http.ResponseWriter, r *
 // session limits, idle timeout policies, etc.). This operation is audited.
 func (h *SecuritySettingHandler) UpdateSessionConfig(w http.ResponseWriter, r *http.Request) {
 	// Get user from context (needed for audit tracking)
-	user := r.Context().Value(middleware.UserContextKey).(*model.User)
+	user := middleware.AuthFromRequest(r).User
 
 	// Get tenant from context (middleware already validated access)
-	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
-	if !ok || tenant == nil {
+	tenant := middleware.AuthFromRequest(r).Tenant
+	if tenant == nil {
 		resp.Error(w, http.StatusUnauthorized, "Tenant not found in context")
 		return
 	}
@@ -359,11 +358,11 @@ func (h *SecuritySettingHandler) UpdateSessionConfig(w http.ResponseWriter, r *h
 // rate limiting, suspicious activity thresholds, etc.). This operation is audited.
 func (h *SecuritySettingHandler) UpdateThreatConfig(w http.ResponseWriter, r *http.Request) {
 	// Get user from context (needed for audit tracking)
-	user := r.Context().Value(middleware.UserContextKey).(*model.User)
+	user := middleware.AuthFromRequest(r).User
 
 	// Get tenant from context (middleware already validated access)
-	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
-	if !ok || tenant == nil {
+	tenant := middleware.AuthFromRequest(r).Tenant
+	if tenant == nil {
 		resp.Error(w, http.StatusUnauthorized, "Tenant not found in context")
 		return
 	}
@@ -421,11 +420,11 @@ func (h *SecuritySettingHandler) UpdateThreatConfig(w http.ResponseWriter, r *ht
 // geolocation restrictions, VPN/proxy detection, etc.). This operation is audited.
 func (h *SecuritySettingHandler) UpdateIPConfig(w http.ResponseWriter, r *http.Request) {
 	// Get user from context (needed for audit tracking)
-	user := r.Context().Value(middleware.UserContextKey).(*model.User)
+	user := middleware.AuthFromRequest(r).User
 
 	// Get tenant from context (middleware already validated access)
-	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
-	if !ok || tenant == nil {
+	tenant := middleware.AuthFromRequest(r).Tenant
+	if tenant == nil {
 		resp.Error(w, http.StatusUnauthorized, "Tenant not found in context")
 		return
 	}

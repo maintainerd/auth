@@ -10,7 +10,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/dto"
 	"github.com/maintainerd/auth/internal/middleware"
-	"github.com/maintainerd/auth/internal/model"
 	resp "github.com/maintainerd/auth/internal/rest/response"
 	"github.com/maintainerd/auth/internal/service"
 )
@@ -28,8 +27,8 @@ func NewPolicyHandler(policyService service.PolicyService) *PolicyHandler {
 // Get policies with filtering and pagination
 func (h *PolicyHandler) Get(w http.ResponseWriter, r *http.Request) {
 	// Get tenant from context
-	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
-	if !ok || tenant == nil {
+	tenant := middleware.AuthFromRequest(r).Tenant
+	if tenant == nil {
 		resp.Error(w, http.StatusUnauthorized, "Tenant not found in context")
 		return
 	}
@@ -143,8 +142,8 @@ func (h *PolicyHandler) Get(w http.ResponseWriter, r *http.Request) {
 // Get policy by UUID
 func (h *PolicyHandler) GetByUUID(w http.ResponseWriter, r *http.Request) {
 	// Get tenant from context
-	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
-	if !ok || tenant == nil {
+	tenant := middleware.AuthFromRequest(r).Tenant
+	if tenant == nil {
 		resp.Error(w, http.StatusUnauthorized, "Tenant not found in context")
 		return
 	}
@@ -169,8 +168,8 @@ func (h *PolicyHandler) GetByUUID(w http.ResponseWriter, r *http.Request) {
 // Create policy
 func (h *PolicyHandler) Create(w http.ResponseWriter, r *http.Request) {
 	// Get tenant from context
-	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
-	if !ok || tenant == nil {
+	tenant := middleware.AuthFromRequest(r).Tenant
+	if tenant == nil {
 		resp.Error(w, http.StatusUnauthorized, "Tenant not found in context")
 		return
 	}
@@ -208,8 +207,8 @@ func (h *PolicyHandler) Create(w http.ResponseWriter, r *http.Request) {
 // Update policy
 func (h *PolicyHandler) Update(w http.ResponseWriter, r *http.Request) {
 	// Get tenant from context
-	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
-	if !ok || tenant == nil {
+	tenant := middleware.AuthFromRequest(r).Tenant
+	if tenant == nil {
 		resp.Error(w, http.StatusUnauthorized, "Tenant not found in context")
 		return
 	}
@@ -254,8 +253,8 @@ func (h *PolicyHandler) Update(w http.ResponseWriter, r *http.Request) {
 // Update policy status
 func (h *PolicyHandler) UpdateStatus(w http.ResponseWriter, r *http.Request) {
 	// Get tenant from context
-	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
-	if !ok || tenant == nil {
+	tenant := middleware.AuthFromRequest(r).Tenant
+	if tenant == nil {
 		resp.Error(w, http.StatusUnauthorized, "Tenant not found in context")
 		return
 	}
@@ -291,8 +290,8 @@ func (h *PolicyHandler) UpdateStatus(w http.ResponseWriter, r *http.Request) {
 // Delete policy
 func (h *PolicyHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	// Get tenant from context
-	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
-	if !ok || tenant == nil {
+	tenant := middleware.AuthFromRequest(r).Tenant
+	if tenant == nil {
 		resp.Error(w, http.StatusUnauthorized, "Tenant not found in context")
 		return
 	}
@@ -317,8 +316,8 @@ func (h *PolicyHandler) Delete(w http.ResponseWriter, r *http.Request) {
 // Get services that use a specific policy
 func (h *PolicyHandler) GetServicesByPolicyUUID(w http.ResponseWriter, r *http.Request) {
 	// Get tenant from context
-	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
-	if !ok || tenant == nil {
+	tenant := middleware.AuthFromRequest(r).Tenant
+	if tenant == nil {
 		resp.Error(w, http.StatusUnauthorized, "Tenant not found in context")
 		return
 	}

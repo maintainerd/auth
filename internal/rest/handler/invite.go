@@ -6,7 +6,6 @@ import (
 
 	"github.com/maintainerd/auth/internal/dto"
 	"github.com/maintainerd/auth/internal/middleware"
-	"github.com/maintainerd/auth/internal/model"
 	resp "github.com/maintainerd/auth/internal/rest/response"
 	"github.com/maintainerd/auth/internal/service"
 )
@@ -28,22 +27,16 @@ func NewInviteHandler(service service.InviteService) *InviteHandler {
 // The invite is automatically associated with the tenant from context.
 func (h *InviteHandler) Send(w http.ResponseWriter, r *http.Request) {
 	// Tenant is already validated by middleware - just extract from context
-	tenant, ok := r.Context().Value(middleware.TenantContextKey).(*model.Tenant)
-	if !ok || tenant == nil {
+	tenant := middleware.AuthFromRequest(r).Tenant
+	if tenant == nil {
 		resp.Error(w, http.StatusUnauthorized, "Tenant not found in context")
 		return
 	}
 
 	// Extract authenticated user from context (needed for inviter tracking)
-	userVal := r.Context().Value(middleware.UserContextKey)
-	if userVal == nil {
+	user := middleware.AuthFromRequest(r).User
+	if user == nil {
 		resp.Error(w, http.StatusUnauthorized, "User not found in context")
-		return
-	}
-
-	user, ok := userVal.(*model.User)
-	if !ok {
-		resp.Error(w, http.StatusInternalServerError, "Invalid user in context")
 		return
 	}
 

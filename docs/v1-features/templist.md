@@ -10,7 +10,7 @@ Areas to Consider Improving
 7. No OpenTelemetry / Tracing
 8. Redis Cache Invalidation
 9. No Health/Readiness Endpoints Visible
-10. context.WithValue for Auth Context
+10. context.WithValue for Auth Context ✅
 
 
 ---
@@ -81,16 +81,12 @@ User context is cached in Redis for 5 minutes. If a user's roles/permissions cha
 #### 9. **No Health/Readiness Endpoints Visible**
 Kubernetes-style `/healthz` and `/readyz` endpoints weren't observed. These are essential for container orchestration.
 
-#### 10. **`context.WithValue` for Auth Context**
-Using `context.WithValue` with custom keys works but is fragile. Consider a single typed struct:
-```go
-type AuthContext struct {
-    User    *model.User
-    Tenant  *model.Tenant
-    Client  *model.Client
-}
-```
-This reduces the number of context lookups and type assertions in handlers.
+#### 10. **`context.WithValue` for Auth Context** ✅ Implemented
+Consolidated all separate `context.WithValue` calls into two typed structs:
+- `AuthContext` (User, Tenant, Provider, Client) — set by `UserContextMiddleware`, retrieved via `middleware.AuthFromRequest(r)`
+- `JWTClaims` (Sub, UserUUID, Scope, Audience, Issuer, JTI, ClientID, ProviderID) — set by `JWTAuthMiddleware`, retrieved via `middleware.JWTClaimsFromRequest(r)`
+
+This eliminates scattered multi-key context writes (12 separate `WithValue` calls replaced by 2), removes runtime type-assertion fragility in handlers, and provides typed accessor helpers `WithAuthContext` and `WithJWTClaims` for tests.
 
 ---
 

@@ -1,7 +1,6 @@
 package middleware
 
 import (
-	"context"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -36,20 +35,10 @@ func TestPermissionMiddleware(t *testing.T) {
 			wantStatus:   http.StatusUnauthorized,
 		},
 		{
-			name:     "invalid type in context → 500",
-			required: []string{"read"},
-			setupContext: func(r *http.Request) *http.Request {
-				ctx := context.WithValue(r.Context(), UserContextKey, "not-a-user")
-				return r.WithContext(ctx)
-			},
-			wantStatus: http.StatusInternalServerError,
-		},
-		{
 			name:     "user lacks required permission → 403",
 			required: []string{"write"},
 			setupContext: func(r *http.Request) *http.Request {
-				ctx := context.WithValue(r.Context(), UserContextKey, userWithPermissions("read"))
-				return r.WithContext(ctx)
+				return WithAuthContext(r, &AuthContext{User: userWithPermissions("read")})
 			},
 			wantStatus: http.StatusForbidden,
 		},
@@ -57,8 +46,7 @@ func TestPermissionMiddleware(t *testing.T) {
 			name:     "user has required permission → 200",
 			required: []string{"read"},
 			setupContext: func(r *http.Request) *http.Request {
-				ctx := context.WithValue(r.Context(), UserContextKey, userWithPermissions("read", "write"))
-				return r.WithContext(ctx)
+				return WithAuthContext(r, &AuthContext{User: userWithPermissions("read", "write")})
 			},
 			wantStatus: http.StatusOK,
 		},
@@ -66,8 +54,7 @@ func TestPermissionMiddleware(t *testing.T) {
 			name:     "user has one of multiple required permissions → 200",
 			required: []string{"admin", "write"},
 			setupContext: func(r *http.Request) *http.Request {
-				ctx := context.WithValue(r.Context(), UserContextKey, userWithPermissions("write"))
-				return r.WithContext(ctx)
+				return WithAuthContext(r, &AuthContext{User: userWithPermissions("write")})
 			},
 			wantStatus: http.StatusOK,
 		},
@@ -75,8 +62,7 @@ func TestPermissionMiddleware(t *testing.T) {
 			name:     "empty required list → 403",
 			required: []string{},
 			setupContext: func(r *http.Request) *http.Request {
-				ctx := context.WithValue(r.Context(), UserContextKey, userWithPermissions("read"))
-				return r.WithContext(ctx)
+				return WithAuthContext(r, &AuthContext{User: userWithPermissions("read")})
 			},
 			wantStatus: http.StatusForbidden,
 		},
@@ -120,4 +106,3 @@ func TestHasAnyPermission(t *testing.T) {
 		assert.True(t, hasAnyPermission(user, []string{"admin"}))
 	})
 }
-
