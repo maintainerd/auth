@@ -1,9 +1,8 @@
 <div align="left">
-  <img src="https://github.com/user-attachments/assets/4bc6f3d9-761e-477e-90ad-1b305b5b5e23" alt="Maintainerd Auth" width="100" height="100" align="left" hspace="15">
-  <br>
-  <h1><font size="7">Maintainerd Auth</font></h1>
-  <br clear="left">
+  <img src="https://github.com/user-attachments/assets/8ecfd8bd-e8df-4fe5-a291-bd6192c23a5d" alt="Maintainerd Auth" height="80">
 </div>
+
+<br clear="left">
 
 <p>
   <a href="https://github.com/maintainerd/auth/actions/workflows/ci.yml">
