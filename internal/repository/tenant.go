@@ -15,7 +15,6 @@ type TenantRepositoryGetFilter struct {
 	Identifier  *string
 	Status      []string
 	IsPublic    *bool
-	IsDefault   *bool
 	IsSystem    *bool
 	Page        int
 	Limit       int
@@ -28,10 +27,9 @@ type TenantRepository interface {
 	WithTx(tx *gorm.DB) TenantRepository
 	FindByName(name string) (*model.Tenant, error)
 	FindByIdentifier(identifier string) (*model.Tenant, error)
-	FindDefault() (*model.Tenant, error)
+	FindSystem() (*model.Tenant, error)
 	FindPaginated(filter TenantRepositoryGetFilter) (*PaginationResult[model.Tenant], error)
 	SetStatusByUUID(tenantUUID uuid.UUID, status string) error
-	SetDefaultStatusByUUID(tenantUUID uuid.UUID, isDefault bool) error
 	SetSystemStatusByUUID(tenantUUID uuid.UUID, isSystem bool) error
 }
 
@@ -75,9 +73,11 @@ func (r *tenantRepository) FindByIdentifier(identifier string) (*model.Tenant, e
 	return &tenant, nil
 }
 
-func (r *tenantRepository) FindDefault() (*model.Tenant, error) {
+// FindSystem returns the unique system tenant (is_system = true).
+// There is always exactly one system tenant; it cannot be deleted.
+func (r *tenantRepository) FindSystem() (*model.Tenant, error) {
 	var tenant model.Tenant
-	err := r.DB().Where("is_default = ?", true).First(&tenant).Error
+	err := r.DB().Where("is_system = ?", true).First(&tenant).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, nil
@@ -110,9 +110,6 @@ func (r *tenantRepository) FindPaginated(filter TenantRepositoryGetFilter) (*Pag
 	}
 	if filter.IsPublic != nil {
 		query = query.Where("is_public = ?", *filter.IsPublic)
-	}
-	if filter.IsDefault != nil {
-		query = query.Where("is_default = ?", *filter.IsDefault)
 	}
 	if filter.IsSystem != nil {
 		query = query.Where("is_system = ?", *filter.IsSystem)
@@ -153,10 +150,6 @@ func (r *tenantRepository) FindPaginated(filter TenantRepositoryGetFilter) (*Pag
 
 func (r *tenantRepository) SetStatusByUUID(tenantUUID uuid.UUID, status string) error {
 	return r.DB().Model(&model.Tenant{}).Where("tenant_uuid = ?", tenantUUID).Update("status", status).Error
-}
-
-func (r *tenantRepository) SetDefaultStatusByUUID(tenantUUID uuid.UUID, isDefault bool) error {
-	return r.DB().Model(&model.Tenant{}).Where("tenant_uuid = ?", tenantUUID).Update("is_default", isDefault).Error
 }
 
 func (r *tenantRepository) SetSystemStatusByUUID(tenantUUID uuid.UUID, isSystem bool) error {

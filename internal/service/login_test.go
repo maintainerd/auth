@@ -1,11 +1,11 @@
 package service
 
 import (
+	"context"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
 	"encoding/pem"
-	"context"
 	"errors"
 	"testing"
 	"time"
@@ -33,7 +33,7 @@ import (
 
 type mockClientRepo struct {
 	findByClientIDAndIdentityProviderFn func(clientID, providerID string) (*model.Client, error)
-	findDefaultFn                       func() (*model.Client, error)
+	findSystemFn                        func() (*model.Client, error)
 	findByUUIDFn                        func(any, ...string) (*model.Client, error)
 	findByUUIDAndTenantIDFn             func(uuid.UUID, int64) (*model.Client, error)
 	findPaginatedFn                     func(repository.ClientRepositoryGetFilter) (*repository.PaginationResult[model.Client], error)
@@ -51,9 +51,9 @@ func (m *mockClientRepo) FindByClientIDAndIdentityProvider(a, b string) (*model.
 	}
 	return nil, nil
 }
-func (m *mockClientRepo) FindDefault() (*model.Client, error) {
-	if m.findDefaultFn != nil {
-		return m.findDefaultFn()
+func (m *mockClientRepo) FindSystem() (*model.Client, error) {
+	if m.findSystemFn != nil {
+		return m.findSystemFn()
 	}
 	return nil, nil
 }
@@ -794,7 +794,7 @@ func TestLogin(t *testing.T) {
 			providerID:   nil,
 			expectCommit: true,
 			setup: func(t *testing.T, r repoSetup) {
-				r.clientRepo.findDefaultFn = func() (*model.Client, error) { return buildActiveClient(), nil }
+				r.clientRepo.findSystemFn = func() (*model.Client, error) { return buildActiveClient(), nil }
 				r.userRepo.findByUsernameFn = func(_ string) (*model.User, error) {
 					return buildActiveUser(t, correctPassword), nil
 				}
@@ -832,7 +832,7 @@ func TestLogin(t *testing.T) {
 			wantErr:        true,
 			wantErrContain: "authentication failed",
 			setup: func(t *testing.T, r repoSetup) {
-				r.clientRepo.findDefaultFn = func() (*model.Client, error) { return nil, errors.New("db error") }
+				r.clientRepo.findSystemFn = func() (*model.Client, error) { return nil, errors.New("db error") }
 			},
 		},
 		{
@@ -845,7 +845,7 @@ func TestLogin(t *testing.T) {
 			wantErr:        true,
 			wantErrContain: "authentication failed",
 			setup: func(t *testing.T, r repoSetup) {
-				r.clientRepo.findDefaultFn = func() (*model.Client, error) {
+				r.clientRepo.findSystemFn = func() (*model.Client, error) {
 					c := buildActiveClient()
 					c.Status = model.StatusInactive
 					return c, nil
@@ -862,7 +862,7 @@ func TestLogin(t *testing.T) {
 			wantErr:        true,
 			wantErrContain: "invalid credentials",
 			setup: func(t *testing.T, r repoSetup) {
-				r.clientRepo.findDefaultFn = func() (*model.Client, error) { return buildActiveClient(), nil }
+				r.clientRepo.findSystemFn = func() (*model.Client, error) { return buildActiveClient(), nil }
 				r.userRepo.findByUsernameFn = func(_ string) (*model.User, error) {
 					return buildActiveUser(t, correctPassword), nil
 				}
@@ -881,7 +881,7 @@ func TestLogin(t *testing.T) {
 			wantErr:        true,
 			wantErrContain: "account is not active",
 			setup: func(t *testing.T, r repoSetup) {
-				r.clientRepo.findDefaultFn = func() (*model.Client, error) { return buildActiveClient(), nil }
+				r.clientRepo.findSystemFn = func() (*model.Client, error) { return buildActiveClient(), nil }
 				r.userRepo.findByUsernameFn = func(_ string) (*model.User, error) {
 					u := buildActiveUser(t, correctPassword)
 					u.Status = model.StatusInactive
@@ -1083,7 +1083,7 @@ func TestLogin_UserNotFound(t *testing.T) {
 	mock.ExpectCommit()
 
 	clientRepo := &mockClientRepo{
-		findDefaultFn: func() (*model.Client, error) { return buildActiveClient(), nil },
+		findSystemFn: func() (*model.Client, error) { return buildActiveClient(), nil },
 	}
 	userRepo := &mockUserRepo{
 		findByUsernameFn: func(_ string) (*model.User, error) { return nil, nil },
@@ -1151,7 +1151,7 @@ func TestLogin_GenerateAccessTokenError(t *testing.T) {
 	const correctPassword = "S3cur3P@ss!"
 
 	clientRepo := &mockClientRepo{
-		findDefaultFn: func() (*model.Client, error) { return buildActiveClient(), nil },
+		findSystemFn: func() (*model.Client, error) { return buildActiveClient(), nil },
 	}
 	userRepo := &mockUserRepo{
 		findByUsernameFn: func(_ string) (*model.User, error) {

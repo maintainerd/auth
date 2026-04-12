@@ -64,7 +64,7 @@ func (s *inviteService) SendInvite(
 		roleRepo := s.roleRepo.WithTx(tx)
 		inviteRepo := s.inviteRepo.WithTx(tx)
 
-		Client, err := clientRepo.FindDefault()
+		Client, err := clientRepo.FindSystem()
 		if err != nil {
 			return err
 		}

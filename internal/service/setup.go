@@ -32,7 +32,6 @@ type setupService struct {
 	userRepo             repository.UserRepository
 	tenantRepo           repository.TenantRepository
 	tenantMemberRepo     repository.TenantMemberRepository
-	tenantUserRepo       repository.TenantUserRepository
 	clientRepo           repository.ClientRepository
 	identityProviderRepo repository.IdentityProviderRepository
 	roleRepo             repository.RoleRepository
@@ -47,7 +46,6 @@ func NewSetupService(
 	userRepo repository.UserRepository,
 	tenantRepo repository.TenantRepository,
 	tenantMemberRepo repository.TenantMemberRepository,
-	tenantUserRepo repository.TenantUserRepository,
 	clientRepo repository.ClientRepository,
 	identityProviderRepo repository.IdentityProviderRepository,
 	roleRepo repository.RoleRepository,
@@ -61,7 +59,6 @@ func NewSetupService(
 		userRepo:             userRepo,
 		tenantRepo:           tenantRepo,
 		tenantMemberRepo:     tenantMemberRepo,
-		tenantUserRepo:       tenantUserRepo,
 		clientRepo:           clientRepo,
 		identityProviderRepo: identityProviderRepo,
 		roleRepo:             roleRepo,
@@ -89,7 +86,7 @@ func (s *setupService) GetSetupStatus(ctx context.Context) (*dto.SetupStatusResp
 
 	if isTenantSetup {
 		// Find default tenant
-		defaultTenant, err := s.tenantRepo.FindDefault()
+		defaultTenant, err := s.tenantRepo.FindSystem()
 		if err == nil && defaultTenant != nil {
 			// Check if super-admin user exists
 			superAdmin, err := s.userRepo.FindSuperAdmin()
@@ -159,7 +156,6 @@ func (s *setupService) CreateTenant(ctx context.Context, req dto.CreateTenantReq
 			Identifier:  identifier,
 			Metadata:    metadataJSON,
 			Status:      model.StatusActive,
-			IsDefault:   true, // This is the default tenant for new users
 			IsSystem:    true, // This is a system tenant that cannot be deleted
 		}
 
@@ -199,15 +195,14 @@ func (s *setupService) CreateTenant(ctx context.Context, req dto.CreateTenantReq
 		Identifier:  createdTenant.Identifier,
 		Status:      createdTenant.Status,
 		IsPublic:    createdTenant.IsPublic,
-		IsDefault:   createdTenant.IsDefault,
 		IsSystem:    createdTenant.IsSystem,
 		Metadata:    metadata,
 		CreatedAt:   createdTenant.CreatedAt,
 		UpdatedAt:   createdTenant.UpdatedAt,
 	}
 
-	// Get default auth client and identity provider for user reference
-	defaultClient, err := s.clientRepo.FindDefault()
+	// Get system client and identity provider for user reference
+	defaultClient, err := s.clientRepo.FindSystem()
 	if err != nil {
 		return nil, err
 	}
@@ -251,7 +246,7 @@ func (s *setupService) CreateAdmin(ctx context.Context, req dto.CreateAdminReque
 	}
 
 	// Get default tenant
-	defaultTenant, err := s.tenantRepo.FindDefault()
+	defaultTenant, err := s.tenantRepo.FindSystem()
 	if err != nil {
 		return nil, err
 	}
@@ -260,7 +255,7 @@ func (s *setupService) CreateAdmin(ctx context.Context, req dto.CreateAdminReque
 	}
 
 	// Get default auth client
-	defaultClient, err := s.clientRepo.FindDefault()
+	defaultClient, err := s.clientRepo.FindSystem()
 	if err != nil {
 		return nil, err
 	}
@@ -275,7 +270,6 @@ func (s *setupService) CreateAdmin(ctx context.Context, req dto.CreateAdminReque
 		txRoleRepo := s.roleRepo.WithTx(tx)
 		txUserIdentityRepo := s.userIdentityRepo.WithTx(tx)
 		txTenantMemberRepo := s.tenantMemberRepo.WithTx(tx)
-		txTenantUserRepo := s.tenantUserRepo.WithTx(tx)
 
 		// Check if user already exists
 		existingUser, err := txUserRepo.FindByEmail(req.Email)
@@ -365,16 +359,6 @@ func (s *setupService) CreateAdmin(ctx context.Context, req dto.CreateAdminReque
 			Role:     "owner",
 		}
 		_, err = txTenantMemberRepo.Create(tenantMember)
-		if err != nil {
-			return err
-		}
-
-		// Add user to tenant_users (tracks creator tenant)
-		tenantUser := &model.TenantUser{
-			TenantID: defaultTenant.TenantID,
-			UserID:   createdUser.UserID,
-		}
-		_, err = txTenantUserRepo.Create(tenantUser)
 		if err != nil {
 			return err
 		}
