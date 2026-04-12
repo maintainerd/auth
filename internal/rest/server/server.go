@@ -230,7 +230,9 @@ func buildPublicRouter(h *handlers, application *app.App) http.Handler {
 
 	r.Route("/api/v1", func(api chi.Router) {
 		// Public Tenant Routes (no authentication required - for login page)
-		route.TenantRoute(api, h.tenant, application.UserService, application.Cache)
+		// Only exposes GET /tenant/ and GET /tenant/{identifier} — management endpoints
+		// are intentionally absent from the public surface.
+		route.TenantPublicRoute(api, h.tenant)
 
 		// Public Authentication Routes (requires client_id/provider_id)
 		route.RegisterPublicRoute(api, h.register)

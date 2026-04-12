@@ -17,18 +17,18 @@ func buildUserWithIdentities(identities []model.UserIdentity) *model.User {
 }
 
 // buildTenant creates a minimal tenant for tests.
-func buildTenant(id int64, isDefault bool) *model.Tenant {
+func buildTenant(id int64, isSystem bool) *model.Tenant {
 	return &model.Tenant{
-		TenantID:  id,
-		IsDefault: isDefault,
+		TenantID: id,
+		IsSystem: isSystem,
 	}
 }
 
 // buildIdentity creates a UserIdentity linked to the given tenant.
-func buildIdentity(tenantID int64, isDefault bool) model.UserIdentity {
+func buildIdentity(tenantID int64, isSystem bool) model.UserIdentity {
 	return model.UserIdentity{
 		TenantID: tenantID,
-		Tenant:   &model.Tenant{TenantID: tenantID, IsDefault: isDefault},
+		Tenant:   &model.Tenant{TenantID: tenantID, IsSystem: isSystem},
 	}
 }
 
@@ -98,11 +98,11 @@ func TestValidateTenantAccess(t *testing.T) {
 
 func TestValidateTenantAccessByID(t *testing.T) {
 	cases := []struct {
-		name          string
-		user          *model.User
+		name           string
+		user           *model.User
 		targetTenantID int64
-		expectError   bool
-		errContains   string
+		expectError    bool
+		errContains    string
 	}{
 		{
 			name:           "no identities → error",
@@ -150,4 +150,3 @@ func TestValidateTenantAccessByID(t *testing.T) {
 		})
 	}
 }
-

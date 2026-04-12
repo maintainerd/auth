@@ -34,7 +34,7 @@ func roleActorUser(tenantID int64) *model.User {
 	return &model.User{
 		UserID: 1,
 		UserIdentities: []model.UserIdentity{
-			{TenantID: tenantID, Tenant: &model.Tenant{TenantID: tenantID, IsDefault: true}},
+			{TenantID: tenantID, Tenant: &model.Tenant{TenantID: tenantID, IsSystem: true}},
 		},
 	}
 }

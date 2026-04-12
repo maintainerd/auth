@@ -27,11 +27,10 @@ func buildSetupService(t *testing.T,
 	userRoleRepo *mockUserRoleRepo,
 	userIdentityRepo *mockUserIdentityRepo,
 	tenantMemberRepo *mockTenantMemberRepo,
-	tenantUserRepo *mockTenantUserRepo,
 ) SetupService {
 	t.Helper()
 	db, _ := newMockGormDB(t)
-	return NewSetupService(db, userRepo, tenantRepo, tenantMemberRepo, tenantUserRepo,
+	return NewSetupService(db, userRepo, tenantRepo, tenantMemberRepo,
 		clientRepo, idpRepo, roleRepo, userRoleRepo, nil, userIdentityRepo, profileRepo)
 }
 
@@ -44,7 +43,7 @@ func TestSetupService_GetSetupStatus(t *testing.T) {
 		svc := buildSetupService(t,
 			&mockTenantRepo{findAllFn: func(...string) ([]model.Tenant, error) { return nil, errors.New("db error") }},
 			&mockUserRepo{}, &mockProfileRepo{}, &mockClientRepo{}, &mockIdentityProviderRepo{},
-			&mockRoleRepo{}, &mockUserRoleRepo{}, &mockUserIdentityRepo{}, &mockTenantMemberRepo{}, &mockTenantUserRepo{},
+			&mockRoleRepo{}, &mockUserRoleRepo{}, &mockUserIdentityRepo{}, &mockTenantMemberRepo{},
 		)
 		_, err := svc.GetSetupStatus(context.Background())
 		require.Error(t, err)
@@ -54,7 +53,7 @@ func TestSetupService_GetSetupStatus(t *testing.T) {
 		svc := buildSetupService(t,
 			&mockTenantRepo{findAllFn: func(...string) ([]model.Tenant, error) { return []model.Tenant{}, nil }},
 			&mockUserRepo{}, &mockProfileRepo{}, &mockClientRepo{}, &mockIdentityProviderRepo{},
-			&mockRoleRepo{}, &mockUserRoleRepo{}, &mockUserIdentityRepo{}, &mockTenantMemberRepo{}, &mockTenantUserRepo{},
+			&mockRoleRepo{}, &mockUserRoleRepo{}, &mockUserIdentityRepo{}, &mockTenantMemberRepo{},
 		)
 		res, err := svc.GetSetupStatus(context.Background())
 		require.NoError(t, err)
@@ -67,11 +66,11 @@ func TestSetupService_GetSetupStatus(t *testing.T) {
 	t.Run("tenant exists, FindDefault error", func(t *testing.T) {
 		svc := buildSetupService(t,
 			&mockTenantRepo{
-				findAllFn:     func(...string) ([]model.Tenant, error) { return []model.Tenant{{Name: "main"}}, nil },
-				findDefaultFn: func() (*model.Tenant, error) { return nil, errors.New("db err") },
+				findAllFn:    func(...string) ([]model.Tenant, error) { return []model.Tenant{{Name: "main"}}, nil },
+				findSystemFn: func() (*model.Tenant, error) { return nil, errors.New("db err") },
 			},
 			&mockUserRepo{}, &mockProfileRepo{}, &mockClientRepo{}, &mockIdentityProviderRepo{},
-			&mockRoleRepo{}, &mockUserRoleRepo{}, &mockUserIdentityRepo{}, &mockTenantMemberRepo{}, &mockTenantUserRepo{},
+			&mockRoleRepo{}, &mockUserRoleRepo{}, &mockUserIdentityRepo{}, &mockTenantMemberRepo{},
 		)
 		res, err := svc.GetSetupStatus(context.Background())
 		require.NoError(t, err)
@@ -82,11 +81,11 @@ func TestSetupService_GetSetupStatus(t *testing.T) {
 	t.Run("tenant exists, FindDefault nil", func(t *testing.T) {
 		svc := buildSetupService(t,
 			&mockTenantRepo{
-				findAllFn:     func(...string) ([]model.Tenant, error) { return []model.Tenant{{Name: "main"}}, nil },
-				findDefaultFn: func() (*model.Tenant, error) { return nil, nil },
+				findAllFn:    func(...string) ([]model.Tenant, error) { return []model.Tenant{{Name: "main"}}, nil },
+				findSystemFn: func() (*model.Tenant, error) { return nil, nil },
 			},
 			&mockUserRepo{}, &mockProfileRepo{}, &mockClientRepo{}, &mockIdentityProviderRepo{},
-			&mockRoleRepo{}, &mockUserRoleRepo{}, &mockUserIdentityRepo{}, &mockTenantMemberRepo{}, &mockTenantUserRepo{},
+			&mockRoleRepo{}, &mockUserRoleRepo{}, &mockUserIdentityRepo{}, &mockTenantMemberRepo{},
 		)
 		res, err := svc.GetSetupStatus(context.Background())
 		require.NoError(t, err)
@@ -97,12 +96,12 @@ func TestSetupService_GetSetupStatus(t *testing.T) {
 	t.Run("tenant exists, FindSuperAdmin error", func(t *testing.T) {
 		svc := buildSetupService(t,
 			&mockTenantRepo{
-				findAllFn:     func(...string) ([]model.Tenant, error) { return []model.Tenant{{Name: "main"}}, nil },
-				findDefaultFn: func() (*model.Tenant, error) { return &model.Tenant{TenantID: 1}, nil },
+				findAllFn:    func(...string) ([]model.Tenant, error) { return []model.Tenant{{Name: "main"}}, nil },
+				findSystemFn: func() (*model.Tenant, error) { return &model.Tenant{TenantID: 1}, nil },
 			},
 			&mockUserRepo{findSuperAdminFn: func() (*model.User, error) { return nil, errors.New("err") }},
 			&mockProfileRepo{}, &mockClientRepo{}, &mockIdentityProviderRepo{},
-			&mockRoleRepo{}, &mockUserRoleRepo{}, &mockUserIdentityRepo{}, &mockTenantMemberRepo{}, &mockTenantUserRepo{},
+			&mockRoleRepo{}, &mockUserRoleRepo{}, &mockUserIdentityRepo{}, &mockTenantMemberRepo{},
 		)
 		res, err := svc.GetSetupStatus(context.Background())
 		require.NoError(t, err)
@@ -113,12 +112,12 @@ func TestSetupService_GetSetupStatus(t *testing.T) {
 	t.Run("tenant exists, no admin", func(t *testing.T) {
 		svc := buildSetupService(t,
 			&mockTenantRepo{
-				findAllFn:     func(...string) ([]model.Tenant, error) { return []model.Tenant{{Name: "main"}}, nil },
-				findDefaultFn: func() (*model.Tenant, error) { return &model.Tenant{TenantID: 1}, nil },
+				findAllFn:    func(...string) ([]model.Tenant, error) { return []model.Tenant{{Name: "main"}}, nil },
+				findSystemFn: func() (*model.Tenant, error) { return &model.Tenant{TenantID: 1}, nil },
 			},
 			&mockUserRepo{findSuperAdminFn: func() (*model.User, error) { return nil, nil }},
 			&mockProfileRepo{}, &mockClientRepo{}, &mockIdentityProviderRepo{},
-			&mockRoleRepo{}, &mockUserRoleRepo{}, &mockUserIdentityRepo{}, &mockTenantMemberRepo{}, &mockTenantUserRepo{},
+			&mockRoleRepo{}, &mockUserRoleRepo{}, &mockUserIdentityRepo{}, &mockTenantMemberRepo{},
 		)
 		res, err := svc.GetSetupStatus(context.Background())
 		require.NoError(t, err)
@@ -129,13 +128,13 @@ func TestSetupService_GetSetupStatus(t *testing.T) {
 	t.Run("admin exists, FindByUserID error", func(t *testing.T) {
 		svc := buildSetupService(t,
 			&mockTenantRepo{
-				findAllFn:     func(...string) ([]model.Tenant, error) { return []model.Tenant{{Name: "main"}}, nil },
-				findDefaultFn: func() (*model.Tenant, error) { return &model.Tenant{TenantID: 1}, nil },
+				findAllFn:    func(...string) ([]model.Tenant, error) { return []model.Tenant{{Name: "main"}}, nil },
+				findSystemFn: func() (*model.Tenant, error) { return &model.Tenant{TenantID: 1}, nil },
 			},
 			&mockUserRepo{findSuperAdminFn: func() (*model.User, error) { return &model.User{UserID: 1}, nil }},
 			&mockProfileRepo{findByUserIDFn: func(_ int64) (*model.Profile, error) { return nil, errors.New("err") }},
 			&mockClientRepo{}, &mockIdentityProviderRepo{},
-			&mockRoleRepo{}, &mockUserRoleRepo{}, &mockUserIdentityRepo{}, &mockTenantMemberRepo{}, &mockTenantUserRepo{},
+			&mockRoleRepo{}, &mockUserRoleRepo{}, &mockUserIdentityRepo{}, &mockTenantMemberRepo{},
 		)
 		res, err := svc.GetSetupStatus(context.Background())
 		require.NoError(t, err)
@@ -146,13 +145,13 @@ func TestSetupService_GetSetupStatus(t *testing.T) {
 	t.Run("admin exists, no profile", func(t *testing.T) {
 		svc := buildSetupService(t,
 			&mockTenantRepo{
-				findAllFn:     func(...string) ([]model.Tenant, error) { return []model.Tenant{{Name: "main"}}, nil },
-				findDefaultFn: func() (*model.Tenant, error) { return &model.Tenant{TenantID: 1}, nil },
+				findAllFn:    func(...string) ([]model.Tenant, error) { return []model.Tenant{{Name: "main"}}, nil },
+				findSystemFn: func() (*model.Tenant, error) { return &model.Tenant{TenantID: 1}, nil },
 			},
 			&mockUserRepo{findSuperAdminFn: func() (*model.User, error) { return &model.User{UserID: 1}, nil }},
 			&mockProfileRepo{findByUserIDFn: func(_ int64) (*model.Profile, error) { return nil, nil }},
 			&mockClientRepo{}, &mockIdentityProviderRepo{},
-			&mockRoleRepo{}, &mockUserRoleRepo{}, &mockUserIdentityRepo{}, &mockTenantMemberRepo{}, &mockTenantUserRepo{},
+			&mockRoleRepo{}, &mockUserRoleRepo{}, &mockUserIdentityRepo{}, &mockTenantMemberRepo{},
 		)
 		res, err := svc.GetSetupStatus(context.Background())
 		require.NoError(t, err)
@@ -163,13 +162,13 @@ func TestSetupService_GetSetupStatus(t *testing.T) {
 	t.Run("full setup complete", func(t *testing.T) {
 		svc := buildSetupService(t,
 			&mockTenantRepo{
-				findAllFn:     func(...string) ([]model.Tenant, error) { return []model.Tenant{{Name: "main"}}, nil },
-				findDefaultFn: func() (*model.Tenant, error) { return &model.Tenant{TenantID: 1}, nil },
+				findAllFn:    func(...string) ([]model.Tenant, error) { return []model.Tenant{{Name: "main"}}, nil },
+				findSystemFn: func() (*model.Tenant, error) { return &model.Tenant{TenantID: 1}, nil },
 			},
 			&mockUserRepo{findSuperAdminFn: func() (*model.User, error) { return &model.User{UserID: 1}, nil }},
 			&mockProfileRepo{findByUserIDFn: func(_ int64) (*model.Profile, error) { return &model.Profile{ProfileID: 1}, nil }},
 			&mockClientRepo{}, &mockIdentityProviderRepo{},
-			&mockRoleRepo{}, &mockUserRoleRepo{}, &mockUserIdentityRepo{}, &mockTenantMemberRepo{}, &mockTenantUserRepo{},
+			&mockRoleRepo{}, &mockUserRoleRepo{}, &mockUserIdentityRepo{}, &mockTenantMemberRepo{},
 		)
 		res, err := svc.GetSetupStatus(context.Background())
 		require.NoError(t, err)
@@ -193,7 +192,7 @@ func TestSetupService_CreateTenant(t *testing.T) {
 		svc := buildSetupService(t,
 			&mockTenantRepo{findAllFn: func(...string) ([]model.Tenant, error) { return nil, errors.New("db err") }},
 			&mockUserRepo{}, &mockProfileRepo{}, &mockClientRepo{}, &mockIdentityProviderRepo{},
-			&mockRoleRepo{}, &mockUserRoleRepo{}, &mockUserIdentityRepo{}, &mockTenantMemberRepo{}, &mockTenantUserRepo{},
+			&mockRoleRepo{}, &mockUserRoleRepo{}, &mockUserIdentityRepo{}, &mockTenantMemberRepo{},
 		)
 		_, err := svc.CreateTenant(context.Background(), validReq)
 		require.Error(t, err)
@@ -203,7 +202,7 @@ func TestSetupService_CreateTenant(t *testing.T) {
 		svc := buildSetupService(t,
 			&mockTenantRepo{findAllFn: func(...string) ([]model.Tenant, error) { return []model.Tenant{{Name: "main"}}, nil }},
 			&mockUserRepo{}, &mockProfileRepo{}, &mockClientRepo{}, &mockIdentityProviderRepo{},
-			&mockRoleRepo{}, &mockUserRoleRepo{}, &mockUserIdentityRepo{}, &mockTenantMemberRepo{}, &mockTenantUserRepo{},
+			&mockRoleRepo{}, &mockUserRoleRepo{}, &mockUserIdentityRepo{}, &mockTenantMemberRepo{},
 		)
 		_, err := svc.CreateTenant(context.Background(), validReq)
 		require.Error(t, err)
@@ -220,7 +219,7 @@ func TestSetupService_CreateTenant(t *testing.T) {
 		mock.ExpectRollback()
 		svc := NewSetupService(db, &mockUserRepo{},
 			&mockTenantRepo{},
-			&mockTenantMemberRepo{}, &mockTenantUserRepo{}, &mockClientRepo{},
+			&mockTenantMemberRepo{}, &mockClientRepo{},
 			&mockIdentityProviderRepo{}, &mockRoleRepo{}, &mockUserRoleRepo{}, nil,
 			&mockUserIdentityRepo{}, &mockProfileRepo{},
 		)
@@ -237,7 +236,7 @@ func TestSetupService_CreateTenant(t *testing.T) {
 			&mockTenantRepo{
 				createFn: func(_ *model.Tenant) (*model.Tenant, error) { return nil, errors.New("create failed") },
 			},
-			&mockTenantMemberRepo{}, &mockTenantUserRepo{}, &mockClientRepo{},
+			&mockTenantMemberRepo{}, &mockClientRepo{},
 			&mockIdentityProviderRepo{}, &mockRoleRepo{}, &mockUserRoleRepo{}, nil,
 			&mockUserIdentityRepo{}, &mockProfileRepo{},
 		)
@@ -252,7 +251,7 @@ func TestSetupService_CreateTenant(t *testing.T) {
 		mock.ExpectRollback()
 		svc := NewSetupService(db, &mockUserRepo{},
 			&mockTenantRepo{},
-			&mockTenantMemberRepo{}, &mockTenantUserRepo{}, &mockClientRepo{},
+			&mockTenantMemberRepo{}, &mockClientRepo{},
 			&mockIdentityProviderRepo{}, &mockRoleRepo{}, &mockUserRoleRepo{}, nil,
 			&mockUserIdentityRepo{}, &mockProfileRepo{},
 		)
@@ -268,7 +267,7 @@ func TestSetupService_CreateTenant(t *testing.T) {
 		mock.ExpectRollback()
 		svc := NewSetupService(db, &mockUserRepo{},
 			&mockTenantRepo{},
-			&mockTenantMemberRepo{}, &mockTenantUserRepo{}, &mockClientRepo{},
+			&mockTenantMemberRepo{}, &mockClientRepo{},
 			&mockIdentityProviderRepo{}, &mockRoleRepo{}, &mockUserRoleRepo{}, nil,
 			&mockUserIdentityRepo{}, &mockProfileRepo{},
 		)
@@ -285,7 +284,7 @@ func TestSetupService_CreateTenant(t *testing.T) {
 		req := dto.CreateTenantRequestDTO{Name: "maintainerd", DisplayName: "Maintainerd", Metadata: meta}
 		svc := NewSetupService(db, &mockUserRepo{},
 			&mockTenantRepo{},
-			&mockTenantMemberRepo{}, &mockTenantUserRepo{}, &mockClientRepo{},
+			&mockTenantMemberRepo{}, &mockClientRepo{},
 			&mockIdentityProviderRepo{}, &mockRoleRepo{}, &mockUserRoleRepo{}, nil,
 			&mockUserIdentityRepo{}, &mockProfileRepo{},
 		)
@@ -311,9 +310,9 @@ func TestSetupService_CreateTenant(t *testing.T) {
 					return tenant, nil
 				},
 			},
-			&mockTenantMemberRepo{}, &mockTenantUserRepo{},
+			&mockTenantMemberRepo{},
 			&mockClientRepo{
-				findDefaultFn: func() (*model.Client, error) {
+				findSystemFn: func() (*model.Client, error) {
 					return &model.Client{
 						Identifier: &clientIdent,
 						IdentityProvider: &model.IdentityProvider{
@@ -357,9 +356,9 @@ func TestSetupService_CreateTenant(t *testing.T) {
 					return tenant, nil
 				},
 			},
-			&mockTenantMemberRepo{}, &mockTenantUserRepo{},
+			&mockTenantMemberRepo{},
 			&mockClientRepo{
-				findDefaultFn: func() (*model.Client, error) { return nil, nil },
+				findSystemFn: func() (*model.Client, error) { return nil, nil },
 			},
 			&mockIdentityProviderRepo{}, &mockRoleRepo{}, &mockUserRoleRepo{}, nil,
 			&mockUserIdentityRepo{}, &mockProfileRepo{},
@@ -388,9 +387,9 @@ func TestSetupService_CreateTenant(t *testing.T) {
 					return tenant, nil
 				},
 			},
-			&mockTenantMemberRepo{}, &mockTenantUserRepo{},
+			&mockTenantMemberRepo{},
 			&mockClientRepo{
-				findDefaultFn: func() (*model.Client, error) { return nil, errors.New("find err") },
+				findSystemFn: func() (*model.Client, error) { return nil, errors.New("find err") },
 			},
 			&mockIdentityProviderRepo{}, &mockRoleRepo{}, &mockUserRoleRepo{}, nil,
 			&mockUserIdentityRepo{}, &mockProfileRepo{},
@@ -417,9 +416,9 @@ func TestSetupService_CreateTenant(t *testing.T) {
 					return tenant, nil
 				},
 			},
-			&mockTenantMemberRepo{}, &mockTenantUserRepo{},
+			&mockTenantMemberRepo{},
 			&mockClientRepo{
-				findDefaultFn: func() (*model.Client, error) { return nil, nil },
+				findSystemFn: func() (*model.Client, error) { return nil, nil },
 			},
 			&mockIdentityProviderRepo{}, &mockRoleRepo{}, &mockUserRoleRepo{}, nil,
 			&mockUserIdentityRepo{}, &mockProfileRepo{},
@@ -450,7 +449,7 @@ func TestSetupService_CreateAdmin(t *testing.T) {
 		svc := buildSetupService(t,
 			&mockTenantRepo{findAllFn: func(...string) ([]model.Tenant, error) { return nil, errors.New("db err") }},
 			&mockUserRepo{}, &mockProfileRepo{}, &mockClientRepo{}, &mockIdentityProviderRepo{},
-			&mockRoleRepo{}, &mockUserRoleRepo{}, &mockUserIdentityRepo{}, &mockTenantMemberRepo{}, &mockTenantUserRepo{},
+			&mockRoleRepo{}, &mockUserRoleRepo{}, &mockUserIdentityRepo{}, &mockTenantMemberRepo{},
 		)
 		_, err := svc.CreateAdmin(context.Background(), validReq)
 		require.Error(t, err)
@@ -460,7 +459,7 @@ func TestSetupService_CreateAdmin(t *testing.T) {
 		svc := buildSetupService(t,
 			&mockTenantRepo{findAllFn: func(...string) ([]model.Tenant, error) { return []model.Tenant{}, nil }},
 			&mockUserRepo{}, &mockProfileRepo{}, &mockClientRepo{}, &mockIdentityProviderRepo{},
-			&mockRoleRepo{}, &mockUserRoleRepo{}, &mockUserIdentityRepo{}, &mockTenantMemberRepo{}, &mockTenantUserRepo{},
+			&mockRoleRepo{}, &mockUserRoleRepo{}, &mockUserIdentityRepo{}, &mockTenantMemberRepo{},
 		)
 		_, err := svc.CreateAdmin(context.Background(), validReq)
 		require.Error(t, err)
@@ -472,7 +471,7 @@ func TestSetupService_CreateAdmin(t *testing.T) {
 			&mockTenantRepo{findAllFn: func(...string) ([]model.Tenant, error) { return []model.Tenant{{Name: "t"}}, nil }},
 			&mockUserRepo{findSuperAdminFn: func() (*model.User, error) { return nil, errors.New("db err") }},
 			&mockProfileRepo{}, &mockClientRepo{}, &mockIdentityProviderRepo{},
-			&mockRoleRepo{}, &mockUserRoleRepo{}, &mockUserIdentityRepo{}, &mockTenantMemberRepo{}, &mockTenantUserRepo{},
+			&mockRoleRepo{}, &mockUserRoleRepo{}, &mockUserIdentityRepo{}, &mockTenantMemberRepo{},
 		)
 		_, err := svc.CreateAdmin(context.Background(), validReq)
 		require.Error(t, err)
@@ -483,7 +482,7 @@ func TestSetupService_CreateAdmin(t *testing.T) {
 			&mockTenantRepo{findAllFn: func(...string) ([]model.Tenant, error) { return []model.Tenant{{Name: "t"}}, nil }},
 			&mockUserRepo{findSuperAdminFn: func() (*model.User, error) { return &model.User{UserID: 1}, nil }},
 			&mockProfileRepo{}, &mockClientRepo{}, &mockIdentityProviderRepo{},
-			&mockRoleRepo{}, &mockUserRoleRepo{}, &mockUserIdentityRepo{}, &mockTenantMemberRepo{}, &mockTenantUserRepo{},
+			&mockRoleRepo{}, &mockUserRoleRepo{}, &mockUserIdentityRepo{}, &mockTenantMemberRepo{},
 		)
 		_, err := svc.CreateAdmin(context.Background(), validReq)
 		require.Error(t, err)
@@ -493,11 +492,11 @@ func TestSetupService_CreateAdmin(t *testing.T) {
 	t.Run("FindDefault tenant error", func(t *testing.T) {
 		svc := buildSetupService(t,
 			&mockTenantRepo{
-				findAllFn:     func(...string) ([]model.Tenant, error) { return []model.Tenant{{Name: "t"}}, nil },
-				findDefaultFn: func() (*model.Tenant, error) { return nil, errors.New("db err") },
+				findAllFn:    func(...string) ([]model.Tenant, error) { return []model.Tenant{{Name: "t"}}, nil },
+				findSystemFn: func() (*model.Tenant, error) { return nil, errors.New("db err") },
 			},
 			&mockUserRepo{}, &mockProfileRepo{}, &mockClientRepo{}, &mockIdentityProviderRepo{},
-			&mockRoleRepo{}, &mockUserRoleRepo{}, &mockUserIdentityRepo{}, &mockTenantMemberRepo{}, &mockTenantUserRepo{},
+			&mockRoleRepo{}, &mockUserRoleRepo{}, &mockUserIdentityRepo{}, &mockTenantMemberRepo{},
 		)
 		_, err := svc.CreateAdmin(context.Background(), validReq)
 		require.Error(t, err)
@@ -506,11 +505,11 @@ func TestSetupService_CreateAdmin(t *testing.T) {
 	t.Run("default tenant nil", func(t *testing.T) {
 		svc := buildSetupService(t,
 			&mockTenantRepo{
-				findAllFn:     func(...string) ([]model.Tenant, error) { return []model.Tenant{{Name: "t"}}, nil },
-				findDefaultFn: func() (*model.Tenant, error) { return nil, nil },
+				findAllFn:    func(...string) ([]model.Tenant, error) { return []model.Tenant{{Name: "t"}}, nil },
+				findSystemFn: func() (*model.Tenant, error) { return nil, nil },
 			},
 			&mockUserRepo{}, &mockProfileRepo{}, &mockClientRepo{}, &mockIdentityProviderRepo{},
-			&mockRoleRepo{}, &mockUserRoleRepo{}, &mockUserIdentityRepo{}, &mockTenantMemberRepo{}, &mockTenantUserRepo{},
+			&mockRoleRepo{}, &mockUserRoleRepo{}, &mockUserIdentityRepo{}, &mockTenantMemberRepo{},
 		)
 		_, err := svc.CreateAdmin(context.Background(), validReq)
 		require.Error(t, err)
@@ -520,13 +519,13 @@ func TestSetupService_CreateAdmin(t *testing.T) {
 	t.Run("FindDefault client error", func(t *testing.T) {
 		svc := buildSetupService(t,
 			&mockTenantRepo{
-				findAllFn:     func(...string) ([]model.Tenant, error) { return []model.Tenant{{Name: "t"}}, nil },
-				findDefaultFn: func() (*model.Tenant, error) { return defaultTenant, nil },
+				findAllFn:    func(...string) ([]model.Tenant, error) { return []model.Tenant{{Name: "t"}}, nil },
+				findSystemFn: func() (*model.Tenant, error) { return defaultTenant, nil },
 			},
 			&mockUserRepo{}, &mockProfileRepo{},
-			&mockClientRepo{findDefaultFn: func() (*model.Client, error) { return nil, errors.New("db err") }},
+			&mockClientRepo{findSystemFn: func() (*model.Client, error) { return nil, errors.New("db err") }},
 			&mockIdentityProviderRepo{},
-			&mockRoleRepo{}, &mockUserRoleRepo{}, &mockUserIdentityRepo{}, &mockTenantMemberRepo{}, &mockTenantUserRepo{},
+			&mockRoleRepo{}, &mockUserRoleRepo{}, &mockUserIdentityRepo{}, &mockTenantMemberRepo{},
 		)
 		_, err := svc.CreateAdmin(context.Background(), validReq)
 		require.Error(t, err)
@@ -535,13 +534,13 @@ func TestSetupService_CreateAdmin(t *testing.T) {
 	t.Run("default client nil", func(t *testing.T) {
 		svc := buildSetupService(t,
 			&mockTenantRepo{
-				findAllFn:     func(...string) ([]model.Tenant, error) { return []model.Tenant{{Name: "t"}}, nil },
-				findDefaultFn: func() (*model.Tenant, error) { return defaultTenant, nil },
+				findAllFn:    func(...string) ([]model.Tenant, error) { return []model.Tenant{{Name: "t"}}, nil },
+				findSystemFn: func() (*model.Tenant, error) { return defaultTenant, nil },
 			},
 			&mockUserRepo{}, &mockProfileRepo{},
-			&mockClientRepo{findDefaultFn: func() (*model.Client, error) { return nil, nil }},
+			&mockClientRepo{findSystemFn: func() (*model.Client, error) { return nil, nil }},
 			&mockIdentityProviderRepo{},
-			&mockRoleRepo{}, &mockUserRoleRepo{}, &mockUserIdentityRepo{}, &mockTenantMemberRepo{}, &mockTenantUserRepo{},
+			&mockRoleRepo{}, &mockUserRoleRepo{}, &mockUserIdentityRepo{}, &mockTenantMemberRepo{},
 		)
 		_, err := svc.CreateAdmin(context.Background(), validReq)
 		require.Error(t, err)
@@ -550,15 +549,15 @@ func TestSetupService_CreateAdmin(t *testing.T) {
 
 	// --- Transaction tests ---
 
-	adminRepos := func(overrides ...func(*mockUserRepo, *mockRoleRepo, *mockUserIdentityRepo, *mockUserRoleRepo, *mockTenantMemberRepo, *mockTenantUserRepo)) (
-		*mockTenantRepo, *mockUserRepo, *mockClientRepo, *mockRoleRepo, *mockUserIdentityRepo, *mockUserRoleRepo, *mockTenantMemberRepo, *mockTenantUserRepo,
+	adminRepos := func(overrides ...func(*mockUserRepo, *mockRoleRepo, *mockUserIdentityRepo, *mockUserRoleRepo, *mockTenantMemberRepo)) (
+		*mockTenantRepo, *mockUserRepo, *mockClientRepo, *mockRoleRepo, *mockUserIdentityRepo, *mockUserRoleRepo, *mockTenantMemberRepo,
 	) {
 		tr := &mockTenantRepo{
-			findAllFn:     func(...string) ([]model.Tenant, error) { return []model.Tenant{{Name: "t"}}, nil },
-			findDefaultFn: func() (*model.Tenant, error) { return defaultTenant, nil },
+			findAllFn:    func(...string) ([]model.Tenant, error) { return []model.Tenant{{Name: "t"}}, nil },
+			findSystemFn: func() (*model.Tenant, error) { return defaultTenant, nil },
 		}
 		ur := &mockUserRepo{}
-		cr := &mockClientRepo{findDefaultFn: func() (*model.Client, error) { return defaultClient, nil }}
+		cr := &mockClientRepo{findSystemFn: func() (*model.Client, error) { return defaultClient, nil }}
 		rr := &mockRoleRepo{
 			findRegisteredRoleForSetupFn: func(_ int64) (*model.Role, error) { return &model.Role{RoleID: 10}, nil },
 			findSuperAdminRoleForSetupFn: func(_ int64) (*model.Role, error) { return &model.Role{RoleID: 20}, nil },
@@ -566,21 +565,20 @@ func TestSetupService_CreateAdmin(t *testing.T) {
 		uir := &mockUserIdentityRepo{}
 		urr := &mockUserRoleRepo{}
 		tmr := &mockTenantMemberRepo{}
-		tur := &mockTenantUserRepo{}
 		for _, o := range overrides {
-			o(ur, rr, uir, urr, tmr, tur)
+			o(ur, rr, uir, urr, tmr)
 		}
-		return tr, ur, cr, rr, uir, urr, tmr, tur
+		return tr, ur, cr, rr, uir, urr, tmr
 	}
 
 	t.Run("TX: FindByEmail error → rollback", func(t *testing.T) {
 		db, mock := newMockGormDB(t)
 		mock.ExpectBegin()
 		mock.ExpectRollback()
-		tr, ur, cr, rr, uir, urr, tmr, tur := adminRepos(func(u *mockUserRepo, _ *mockRoleRepo, _ *mockUserIdentityRepo, _ *mockUserRoleRepo, _ *mockTenantMemberRepo, _ *mockTenantUserRepo) {
+		tr, ur, cr, rr, uir, urr, tmr := adminRepos(func(u *mockUserRepo, _ *mockRoleRepo, _ *mockUserIdentityRepo, _ *mockUserRoleRepo, _ *mockTenantMemberRepo) {
 			u.findByEmailFn = func(_ string) (*model.User, error) { return nil, errors.New("db err") }
 		})
-		svc := NewSetupService(db, ur, tr, tmr, tur, cr, &mockIdentityProviderRepo{}, rr, urr, nil, uir, &mockProfileRepo{})
+		svc := NewSetupService(db, ur, tr, tmr, cr, &mockIdentityProviderRepo{}, rr, urr, nil, uir, &mockProfileRepo{})
 		_, err := svc.CreateAdmin(context.Background(), validReq)
 		require.Error(t, err)
 	})
@@ -589,10 +587,10 @@ func TestSetupService_CreateAdmin(t *testing.T) {
 		db, mock := newMockGormDB(t)
 		mock.ExpectBegin()
 		mock.ExpectRollback()
-		tr, ur, cr, rr, uir, urr, tmr, tur := adminRepos(func(u *mockUserRepo, _ *mockRoleRepo, _ *mockUserIdentityRepo, _ *mockUserRoleRepo, _ *mockTenantMemberRepo, _ *mockTenantUserRepo) {
+		tr, ur, cr, rr, uir, urr, tmr := adminRepos(func(u *mockUserRepo, _ *mockRoleRepo, _ *mockUserIdentityRepo, _ *mockUserRoleRepo, _ *mockTenantMemberRepo) {
 			u.findByEmailFn = func(_ string) (*model.User, error) { return &model.User{Email: "admin@test.com"}, nil }
 		})
-		svc := NewSetupService(db, ur, tr, tmr, tur, cr, &mockIdentityProviderRepo{}, rr, urr, nil, uir, &mockProfileRepo{})
+		svc := NewSetupService(db, ur, tr, tmr, cr, &mockIdentityProviderRepo{}, rr, urr, nil, uir, &mockProfileRepo{})
 		_, err := svc.CreateAdmin(context.Background(), validReq)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "user with this email already exists")
@@ -602,10 +600,10 @@ func TestSetupService_CreateAdmin(t *testing.T) {
 		db, mock := newMockGormDB(t)
 		mock.ExpectBegin()
 		mock.ExpectRollback()
-		tr, ur, cr, rr, uir, urr, tmr, tur := adminRepos(func(u *mockUserRepo, _ *mockRoleRepo, _ *mockUserIdentityRepo, _ *mockUserRoleRepo, _ *mockTenantMemberRepo, _ *mockTenantUserRepo) {
+		tr, ur, cr, rr, uir, urr, tmr := adminRepos(func(u *mockUserRepo, _ *mockRoleRepo, _ *mockUserIdentityRepo, _ *mockUserRoleRepo, _ *mockTenantMemberRepo) {
 			u.createFn = func(_ *model.User) (*model.User, error) { return nil, errors.New("create failed") }
 		})
-		svc := NewSetupService(db, ur, tr, tmr, tur, cr, &mockIdentityProviderRepo{}, rr, urr, nil, uir, &mockProfileRepo{})
+		svc := NewSetupService(db, ur, tr, tmr, cr, &mockIdentityProviderRepo{}, rr, urr, nil, uir, &mockProfileRepo{})
 		_, err := svc.CreateAdmin(context.Background(), validReq)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "create failed")
@@ -615,10 +613,10 @@ func TestSetupService_CreateAdmin(t *testing.T) {
 		db, mock := newMockGormDB(t)
 		mock.ExpectBegin()
 		mock.ExpectRollback()
-		tr, ur, cr, rr, uir, urr, tmr, tur := adminRepos(func(_ *mockUserRepo, _ *mockRoleRepo, ui *mockUserIdentityRepo, _ *mockUserRoleRepo, _ *mockTenantMemberRepo, _ *mockTenantUserRepo) {
+		tr, ur, cr, rr, uir, urr, tmr := adminRepos(func(_ *mockUserRepo, _ *mockRoleRepo, ui *mockUserIdentityRepo, _ *mockUserRoleRepo, _ *mockTenantMemberRepo) {
 			ui.createFn = func(_ *model.UserIdentity) (*model.UserIdentity, error) { return nil, errors.New("identity failed") }
 		})
-		svc := NewSetupService(db, ur, tr, tmr, tur, cr, &mockIdentityProviderRepo{}, rr, urr, nil, uir, &mockProfileRepo{})
+		svc := NewSetupService(db, ur, tr, tmr, cr, &mockIdentityProviderRepo{}, rr, urr, nil, uir, &mockProfileRepo{})
 		_, err := svc.CreateAdmin(context.Background(), validReq)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "identity failed")
@@ -628,10 +626,10 @@ func TestSetupService_CreateAdmin(t *testing.T) {
 		db, mock := newMockGormDB(t)
 		mock.ExpectBegin()
 		mock.ExpectRollback()
-		tr, ur, cr, rr, uir, urr, tmr, tur := adminRepos(func(_ *mockUserRepo, r *mockRoleRepo, _ *mockUserIdentityRepo, _ *mockUserRoleRepo, _ *mockTenantMemberRepo, _ *mockTenantUserRepo) {
+		tr, ur, cr, rr, uir, urr, tmr := adminRepos(func(_ *mockUserRepo, r *mockRoleRepo, _ *mockUserIdentityRepo, _ *mockUserRoleRepo, _ *mockTenantMemberRepo) {
 			r.findRegisteredRoleForSetupFn = func(_ int64) (*model.Role, error) { return nil, errors.New("db err") }
 		})
-		svc := NewSetupService(db, ur, tr, tmr, tur, cr, &mockIdentityProviderRepo{}, rr, urr, nil, uir, &mockProfileRepo{})
+		svc := NewSetupService(db, ur, tr, tmr, cr, &mockIdentityProviderRepo{}, rr, urr, nil, uir, &mockProfileRepo{})
 		_, err := svc.CreateAdmin(context.Background(), validReq)
 		require.Error(t, err)
 	})
@@ -640,10 +638,10 @@ func TestSetupService_CreateAdmin(t *testing.T) {
 		db, mock := newMockGormDB(t)
 		mock.ExpectBegin()
 		mock.ExpectRollback()
-		tr, ur, cr, rr, uir, urr, tmr, tur := adminRepos(func(_ *mockUserRepo, r *mockRoleRepo, _ *mockUserIdentityRepo, _ *mockUserRoleRepo, _ *mockTenantMemberRepo, _ *mockTenantUserRepo) {
+		tr, ur, cr, rr, uir, urr, tmr := adminRepos(func(_ *mockUserRepo, r *mockRoleRepo, _ *mockUserIdentityRepo, _ *mockUserRoleRepo, _ *mockTenantMemberRepo) {
 			r.findRegisteredRoleForSetupFn = func(_ int64) (*model.Role, error) { return nil, nil }
 		})
-		svc := NewSetupService(db, ur, tr, tmr, tur, cr, &mockIdentityProviderRepo{}, rr, urr, nil, uir, &mockProfileRepo{})
+		svc := NewSetupService(db, ur, tr, tmr, cr, &mockIdentityProviderRepo{}, rr, urr, nil, uir, &mockProfileRepo{})
 		_, err := svc.CreateAdmin(context.Background(), validReq)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "registered role not found")
@@ -654,7 +652,7 @@ func TestSetupService_CreateAdmin(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		callCount := 0
-		tr, ur, cr, rr, uir, urr, tmr, tur := adminRepos(func(_ *mockUserRepo, _ *mockRoleRepo, _ *mockUserIdentityRepo, ur2 *mockUserRoleRepo, _ *mockTenantMemberRepo, _ *mockTenantUserRepo) {
+		tr, ur, cr, rr, uir, urr, tmr := adminRepos(func(_ *mockUserRepo, _ *mockRoleRepo, _ *mockUserIdentityRepo, ur2 *mockUserRoleRepo, _ *mockTenantMemberRepo) {
 			ur2.createFn = func(_ *model.UserRole) (*model.UserRole, error) {
 				callCount++
 				if callCount == 1 {
@@ -663,7 +661,7 @@ func TestSetupService_CreateAdmin(t *testing.T) {
 				return &model.UserRole{}, nil
 			}
 		})
-		svc := NewSetupService(db, ur, tr, tmr, tur, cr, &mockIdentityProviderRepo{}, rr, urr, nil, uir, &mockProfileRepo{})
+		svc := NewSetupService(db, ur, tr, tmr, cr, &mockIdentityProviderRepo{}, rr, urr, nil, uir, &mockProfileRepo{})
 		_, err := svc.CreateAdmin(context.Background(), validReq)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "user role failed")
@@ -673,10 +671,10 @@ func TestSetupService_CreateAdmin(t *testing.T) {
 		db, mock := newMockGormDB(t)
 		mock.ExpectBegin()
 		mock.ExpectRollback()
-		tr, ur, cr, rr, uir, urr, tmr, tur := adminRepos(func(_ *mockUserRepo, r *mockRoleRepo, _ *mockUserIdentityRepo, _ *mockUserRoleRepo, _ *mockTenantMemberRepo, _ *mockTenantUserRepo) {
+		tr, ur, cr, rr, uir, urr, tmr := adminRepos(func(_ *mockUserRepo, r *mockRoleRepo, _ *mockUserIdentityRepo, _ *mockUserRoleRepo, _ *mockTenantMemberRepo) {
 			r.findSuperAdminRoleForSetupFn = func(_ int64) (*model.Role, error) { return nil, errors.New("db err") }
 		})
-		svc := NewSetupService(db, ur, tr, tmr, tur, cr, &mockIdentityProviderRepo{}, rr, urr, nil, uir, &mockProfileRepo{})
+		svc := NewSetupService(db, ur, tr, tmr, cr, &mockIdentityProviderRepo{}, rr, urr, nil, uir, &mockProfileRepo{})
 		_, err := svc.CreateAdmin(context.Background(), validReq)
 		require.Error(t, err)
 	})
@@ -685,10 +683,10 @@ func TestSetupService_CreateAdmin(t *testing.T) {
 		db, mock := newMockGormDB(t)
 		mock.ExpectBegin()
 		mock.ExpectRollback()
-		tr, ur, cr, rr, uir, urr, tmr, tur := adminRepos(func(_ *mockUserRepo, r *mockRoleRepo, _ *mockUserIdentityRepo, _ *mockUserRoleRepo, _ *mockTenantMemberRepo, _ *mockTenantUserRepo) {
+		tr, ur, cr, rr, uir, urr, tmr := adminRepos(func(_ *mockUserRepo, r *mockRoleRepo, _ *mockUserIdentityRepo, _ *mockUserRoleRepo, _ *mockTenantMemberRepo) {
 			r.findSuperAdminRoleForSetupFn = func(_ int64) (*model.Role, error) { return nil, nil }
 		})
-		svc := NewSetupService(db, ur, tr, tmr, tur, cr, &mockIdentityProviderRepo{}, rr, urr, nil, uir, &mockProfileRepo{})
+		svc := NewSetupService(db, ur, tr, tmr, cr, &mockIdentityProviderRepo{}, rr, urr, nil, uir, &mockProfileRepo{})
 		_, err := svc.CreateAdmin(context.Background(), validReq)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "super-admin role not found")
@@ -699,7 +697,7 @@ func TestSetupService_CreateAdmin(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		callCount := 0
-		tr, ur, cr, rr, uir, urr, tmr, tur := adminRepos(func(_ *mockUserRepo, _ *mockRoleRepo, _ *mockUserIdentityRepo, ur2 *mockUserRoleRepo, _ *mockTenantMemberRepo, _ *mockTenantUserRepo) {
+		tr, ur, cr, rr, uir, urr, tmr := adminRepos(func(_ *mockUserRepo, _ *mockRoleRepo, _ *mockUserIdentityRepo, ur2 *mockUserRoleRepo, _ *mockTenantMemberRepo) {
 			ur2.createFn = func(_ *model.UserRole) (*model.UserRole, error) {
 				callCount++
 				if callCount == 2 {
@@ -708,7 +706,7 @@ func TestSetupService_CreateAdmin(t *testing.T) {
 				return &model.UserRole{}, nil
 			}
 		})
-		svc := NewSetupService(db, ur, tr, tmr, tur, cr, &mockIdentityProviderRepo{}, rr, urr, nil, uir, &mockProfileRepo{})
+		svc := NewSetupService(db, ur, tr, tmr, cr, &mockIdentityProviderRepo{}, rr, urr, nil, uir, &mockProfileRepo{})
 		_, err := svc.CreateAdmin(context.Background(), validReq)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "super role failed")
@@ -718,34 +716,20 @@ func TestSetupService_CreateAdmin(t *testing.T) {
 		db, mock := newMockGormDB(t)
 		mock.ExpectBegin()
 		mock.ExpectRollback()
-		tr, ur, cr, rr, uir, urr, tmr, tur := adminRepos(func(_ *mockUserRepo, _ *mockRoleRepo, _ *mockUserIdentityRepo, _ *mockUserRoleRepo, tm *mockTenantMemberRepo, _ *mockTenantUserRepo) {
+		tr, ur, cr, rr, uir, urr, tmr := adminRepos(func(_ *mockUserRepo, _ *mockRoleRepo, _ *mockUserIdentityRepo, _ *mockUserRoleRepo, tm *mockTenantMemberRepo) {
 			tm.createFn = func(_ *model.TenantMember) (*model.TenantMember, error) { return nil, errors.New("member failed") }
 		})
-		svc := NewSetupService(db, ur, tr, tmr, tur, cr, &mockIdentityProviderRepo{}, rr, urr, nil, uir, &mockProfileRepo{})
+		svc := NewSetupService(db, ur, tr, tmr, cr, &mockIdentityProviderRepo{}, rr, urr, nil, uir, &mockProfileRepo{})
 		_, err := svc.CreateAdmin(context.Background(), validReq)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "member failed")
 	})
-
-	t.Run("TX: Create tenant user error → rollback", func(t *testing.T) {
-		db, mock := newMockGormDB(t)
-		mock.ExpectBegin()
-		mock.ExpectRollback()
-		tr, ur, cr, rr, uir, urr, tmr, tur := adminRepos(func(_ *mockUserRepo, _ *mockRoleRepo, _ *mockUserIdentityRepo, _ *mockUserRoleRepo, _ *mockTenantMemberRepo, tu *mockTenantUserRepo) {
-			tu.createFn = func(_ *model.TenantUser) (*model.TenantUser, error) { return nil, errors.New("tenant user failed") }
-		})
-		svc := NewSetupService(db, ur, tr, tmr, tur, cr, &mockIdentityProviderRepo{}, rr, urr, nil, uir, &mockProfileRepo{})
-		_, err := svc.CreateAdmin(context.Background(), validReq)
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "tenant user failed")
-	})
-
 	t.Run("success → commit", func(t *testing.T) {
 		db, mock := newMockGormDB(t)
 		mock.ExpectBegin()
 		mock.ExpectCommit()
-		tr, ur, cr, rr, uir, urr, tmr, tur := adminRepos()
-		svc := NewSetupService(db, ur, tr, tmr, tur, cr, &mockIdentityProviderRepo{}, rr, urr, nil, uir, &mockProfileRepo{})
+		tr, ur, cr, rr, uir, urr, tmr := adminRepos()
+		svc := NewSetupService(db, ur, tr, tmr, cr, &mockIdentityProviderRepo{}, rr, urr, nil, uir, &mockProfileRepo{})
 		res, err := svc.CreateAdmin(context.Background(), validReq)
 		require.NoError(t, err)
 		assert.Equal(t, "admin@test.com", res.User.Email)
@@ -761,8 +745,8 @@ func TestSetupService_CreateAdmin(t *testing.T) {
 		db, mock := newMockGormDB(t)
 		mock.ExpectBegin()
 		mock.ExpectRollback()
-		tr, _, cr, rr, uir, urr, tmr, tur := adminRepos()
-		svc := NewSetupService(db, &mockUserRepo{}, tr, tmr, tur, cr, &mockIdentityProviderRepo{}, rr, urr, nil, uir, &mockProfileRepo{})
+		tr, _, cr, rr, uir, urr, tmr := adminRepos()
+		svc := NewSetupService(db, &mockUserRepo{}, tr, tmr, cr, &mockIdentityProviderRepo{}, rr, urr, nil, uir, &mockProfileRepo{})
 		_, err := svc.CreateAdmin(context.Background(), validReq)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "hash error")
@@ -781,7 +765,7 @@ func TestSetupService_CreateProfile(t *testing.T) {
 		svc := buildSetupService(t,
 			&mockTenantRepo{}, &mockUserRepo{findSuperAdminFn: func() (*model.User, error) { return nil, errors.New("db err") }},
 			&mockProfileRepo{}, &mockClientRepo{}, &mockIdentityProviderRepo{},
-			&mockRoleRepo{}, &mockUserRoleRepo{}, &mockUserIdentityRepo{}, &mockTenantMemberRepo{}, &mockTenantUserRepo{},
+			&mockRoleRepo{}, &mockUserRoleRepo{}, &mockUserIdentityRepo{}, &mockTenantMemberRepo{},
 		)
 		_, err := svc.CreateProfile(context.Background(), validReq)
 		require.Error(t, err)
@@ -791,7 +775,7 @@ func TestSetupService_CreateProfile(t *testing.T) {
 		svc := buildSetupService(t,
 			&mockTenantRepo{}, &mockUserRepo{findSuperAdminFn: func() (*model.User, error) { return nil, nil }},
 			&mockProfileRepo{}, &mockClientRepo{}, &mockIdentityProviderRepo{},
-			&mockRoleRepo{}, &mockUserRoleRepo{}, &mockUserIdentityRepo{}, &mockTenantMemberRepo{}, &mockTenantUserRepo{},
+			&mockRoleRepo{}, &mockUserRoleRepo{}, &mockUserIdentityRepo{}, &mockTenantMemberRepo{},
 		)
 		_, err := svc.CreateProfile(context.Background(), validReq)
 		require.Error(t, err)
@@ -804,7 +788,7 @@ func TestSetupService_CreateProfile(t *testing.T) {
 			&mockUserRepo{findSuperAdminFn: func() (*model.User, error) { return superAdmin, nil }},
 			&mockProfileRepo{findByUserIDFn: func(_ int64) (*model.Profile, error) { return nil, errors.New("db err") }},
 			&mockClientRepo{}, &mockIdentityProviderRepo{},
-			&mockRoleRepo{}, &mockUserRoleRepo{}, &mockUserIdentityRepo{}, &mockTenantMemberRepo{}, &mockTenantUserRepo{},
+			&mockRoleRepo{}, &mockUserRoleRepo{}, &mockUserIdentityRepo{}, &mockTenantMemberRepo{},
 		)
 		_, err := svc.CreateProfile(context.Background(), validReq)
 		require.Error(t, err)
@@ -816,7 +800,7 @@ func TestSetupService_CreateProfile(t *testing.T) {
 			&mockUserRepo{findSuperAdminFn: func() (*model.User, error) { return superAdmin, nil }},
 			&mockProfileRepo{findByUserIDFn: func(_ int64) (*model.Profile, error) { return &model.Profile{ProfileID: 1}, nil }},
 			&mockClientRepo{}, &mockIdentityProviderRepo{},
-			&mockRoleRepo{}, &mockUserRoleRepo{}, &mockUserIdentityRepo{}, &mockTenantMemberRepo{}, &mockTenantUserRepo{},
+			&mockRoleRepo{}, &mockUserRoleRepo{}, &mockUserIdentityRepo{}, &mockTenantMemberRepo{},
 		)
 		_, err := svc.CreateProfile(context.Background(), validReq)
 		require.Error(t, err)
@@ -830,7 +814,7 @@ func TestSetupService_CreateProfile(t *testing.T) {
 			&mockTenantRepo{},
 			&mockUserRepo{findSuperAdminFn: func() (*model.User, error) { return superAdmin, nil }},
 			&mockProfileRepo{}, &mockClientRepo{}, &mockIdentityProviderRepo{},
-			&mockRoleRepo{}, &mockUserRoleRepo{}, &mockUserIdentityRepo{}, &mockTenantMemberRepo{}, &mockTenantUserRepo{},
+			&mockRoleRepo{}, &mockUserRoleRepo{}, &mockUserIdentityRepo{}, &mockTenantMemberRepo{},
 		)
 		_, err := svc.CreateProfile(context.Background(), req)
 		require.Error(t, err)
@@ -845,7 +829,7 @@ func TestSetupService_CreateProfile(t *testing.T) {
 		mock.ExpectCommit()
 		svc := NewSetupService(db,
 			&mockUserRepo{findSuperAdminFn: func() (*model.User, error) { return superAdmin, nil }},
-			&mockTenantRepo{}, &mockTenantMemberRepo{}, &mockTenantUserRepo{}, &mockClientRepo{},
+			&mockTenantRepo{}, &mockTenantMemberRepo{}, &mockClientRepo{},
 			&mockIdentityProviderRepo{}, &mockRoleRepo{}, &mockUserRoleRepo{}, nil,
 			&mockUserIdentityRepo{}, &mockProfileRepo{},
 		)
@@ -862,7 +846,7 @@ func TestSetupService_CreateProfile(t *testing.T) {
 		mock.ExpectCommit()
 		svc := NewSetupService(db,
 			&mockUserRepo{findSuperAdminFn: func() (*model.User, error) { return superAdmin, nil }},
-			&mockTenantRepo{}, &mockTenantMemberRepo{}, &mockTenantUserRepo{}, &mockClientRepo{},
+			&mockTenantRepo{}, &mockTenantMemberRepo{}, &mockClientRepo{},
 			&mockIdentityProviderRepo{}, &mockRoleRepo{}, &mockUserRoleRepo{}, nil,
 			&mockUserIdentityRepo{}, &mockProfileRepo{},
 		)
@@ -878,7 +862,7 @@ func TestSetupService_CreateProfile(t *testing.T) {
 		mock.ExpectRollback()
 		svc := NewSetupService(db,
 			&mockUserRepo{findSuperAdminFn: func() (*model.User, error) { return superAdmin, nil }},
-			&mockTenantRepo{}, &mockTenantMemberRepo{}, &mockTenantUserRepo{}, &mockClientRepo{},
+			&mockTenantRepo{}, &mockTenantMemberRepo{}, &mockClientRepo{},
 			&mockIdentityProviderRepo{}, &mockRoleRepo{}, &mockUserRoleRepo{}, nil,
 			&mockUserIdentityRepo{}, &mockProfileRepo{},
 		)
@@ -894,7 +878,7 @@ func TestSetupService_CreateProfile(t *testing.T) {
 		mock.ExpectCommit()
 		svc := NewSetupService(db,
 			&mockUserRepo{findSuperAdminFn: func() (*model.User, error) { return superAdmin, nil }},
-			&mockTenantRepo{}, &mockTenantMemberRepo{}, &mockTenantUserRepo{}, &mockClientRepo{},
+			&mockTenantRepo{}, &mockTenantMemberRepo{}, &mockClientRepo{},
 			&mockIdentityProviderRepo{}, &mockRoleRepo{}, &mockUserRoleRepo{}, nil,
 			&mockUserIdentityRepo{}, &mockProfileRepo{},
 		)
@@ -909,7 +893,7 @@ func TestSetupService_CreateProfile(t *testing.T) {
 		mock.ExpectRollback()
 		svc := NewSetupService(db,
 			&mockUserRepo{findSuperAdminFn: func() (*model.User, error) { return superAdmin, nil }},
-			&mockTenantRepo{}, &mockTenantMemberRepo{}, &mockTenantUserRepo{}, &mockClientRepo{},
+			&mockTenantRepo{}, &mockTenantMemberRepo{}, &mockClientRepo{},
 			&mockIdentityProviderRepo{}, &mockRoleRepo{}, &mockUserRoleRepo{}, nil,
 			&mockUserIdentityRepo{},
 			&mockProfileRepo{createFn: func(_ *model.Profile) (*model.Profile, error) { return nil, errors.New("create failed") }},
@@ -928,7 +912,7 @@ func TestSetupService_CreateProfile(t *testing.T) {
 				findSuperAdminFn: func() (*model.User, error) { return superAdmin, nil },
 				updateByUUIDFn:   func(_, _ any) (*model.User, error) { return nil, errors.New("update failed") },
 			},
-			&mockTenantRepo{}, &mockTenantMemberRepo{}, &mockTenantUserRepo{}, &mockClientRepo{},
+			&mockTenantRepo{}, &mockTenantMemberRepo{}, &mockClientRepo{},
 			&mockIdentityProviderRepo{}, &mockRoleRepo{}, &mockUserRoleRepo{}, nil,
 			&mockUserIdentityRepo{}, &mockProfileRepo{},
 		)
@@ -943,7 +927,7 @@ func TestSetupService_CreateProfile(t *testing.T) {
 		mock.ExpectCommit()
 		svc := NewSetupService(db,
 			&mockUserRepo{findSuperAdminFn: func() (*model.User, error) { return superAdmin, nil }},
-			&mockTenantRepo{}, &mockTenantMemberRepo{}, &mockTenantUserRepo{}, &mockClientRepo{},
+			&mockTenantRepo{}, &mockTenantMemberRepo{}, &mockClientRepo{},
 			&mockIdentityProviderRepo{}, &mockRoleRepo{}, &mockUserRoleRepo{}, nil,
 			&mockUserIdentityRepo{}, &mockProfileRepo{},
 		)
