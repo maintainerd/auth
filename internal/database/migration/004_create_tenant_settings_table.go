@@ -35,7 +35,7 @@ END$$;
 
 -- CREATE INDEXES
 CREATE INDEX IF NOT EXISTS idx_tenant_settings_uuid ON tenant_settings (tenant_setting_uuid);
-CREATE INDEX IF NOT EXISTS idx_tenant_settings_tenant_id ON tenant_settings (tenant_id);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_tenant_settings_tenant_id ON tenant_settings (tenant_id);
 CREATE INDEX IF NOT EXISTS idx_tenant_settings_created_at ON tenant_settings (created_at);
 `
 

@@ -1467,3 +1467,190 @@ func (m *mockUserSettingService) DeleteByUUID(_ context.Context, id uuid.UUID) (
 	}
 	return nil, nil
 }
+
+// ---------------------------------------------------------------------------
+// mockBrandingService
+// ---------------------------------------------------------------------------
+
+type mockBrandingService struct {
+	getFn    func(int64) (*service.BrandingServiceDataResult, error)
+	updateFn func(int64, string, string, string, string, string, string, string, string, string, string, string) (*service.BrandingServiceDataResult, error)
+}
+
+func (m *mockBrandingService) Get(_ context.Context, tid int64) (*service.BrandingServiceDataResult, error) {
+	if m.getFn != nil {
+		return m.getFn(tid)
+	}
+	return nil, nil
+}
+func (m *mockBrandingService) Update(_ context.Context, tid int64, companyName, logoURL, faviconURL, primaryColor, secondaryColor, accentColor, fontFamily, customCSS, supportURL, privacyPolicyURL, termsOfServiceURL string) (*service.BrandingServiceDataResult, error) {
+	if m.updateFn != nil {
+		return m.updateFn(tid, companyName, logoURL, faviconURL, primaryColor, secondaryColor, accentColor, fontFamily, customCSS, supportURL, privacyPolicyURL, termsOfServiceURL)
+	}
+	return nil, nil
+}
+
+// ---------------------------------------------------------------------------
+// mockTenantSettingService
+// ---------------------------------------------------------------------------
+
+type mockTenantSettingService struct {
+	getFn                     func(int64) (*service.TenantSettingServiceDataResult, error)
+	getRateLimitConfigFn      func(int64) (map[string]any, error)
+	getAuditConfigFn          func(int64) (map[string]any, error)
+	getMaintenanceConfigFn    func(int64) (map[string]any, error)
+	getFeatureFlagsFn         func(int64) (map[string]any, error)
+	updateRateLimitConfigFn   func(int64, map[string]any) (*service.TenantSettingServiceDataResult, error)
+	updateAuditConfigFn       func(int64, map[string]any) (*service.TenantSettingServiceDataResult, error)
+	updateMaintenanceConfigFn func(int64, map[string]any) (*service.TenantSettingServiceDataResult, error)
+	updateFeatureFlagsFn      func(int64, map[string]any) (*service.TenantSettingServiceDataResult, error)
+}
+
+func (m *mockTenantSettingService) Get(_ context.Context, tid int64) (*service.TenantSettingServiceDataResult, error) {
+	if m.getFn != nil {
+		return m.getFn(tid)
+	}
+	return nil, nil
+}
+func (m *mockTenantSettingService) GetRateLimitConfig(_ context.Context, tid int64) (map[string]any, error) {
+	if m.getRateLimitConfigFn != nil {
+		return m.getRateLimitConfigFn(tid)
+	}
+	return nil, nil
+}
+func (m *mockTenantSettingService) GetAuditConfig(_ context.Context, tid int64) (map[string]any, error) {
+	if m.getAuditConfigFn != nil {
+		return m.getAuditConfigFn(tid)
+	}
+	return nil, nil
+}
+func (m *mockTenantSettingService) GetMaintenanceConfig(_ context.Context, tid int64) (map[string]any, error) {
+	if m.getMaintenanceConfigFn != nil {
+		return m.getMaintenanceConfigFn(tid)
+	}
+	return nil, nil
+}
+func (m *mockTenantSettingService) GetFeatureFlags(_ context.Context, tid int64) (map[string]any, error) {
+	if m.getFeatureFlagsFn != nil {
+		return m.getFeatureFlagsFn(tid)
+	}
+	return nil, nil
+}
+func (m *mockTenantSettingService) UpdateRateLimitConfig(_ context.Context, tid int64, cfg map[string]any) (*service.TenantSettingServiceDataResult, error) {
+	if m.updateRateLimitConfigFn != nil {
+		return m.updateRateLimitConfigFn(tid, cfg)
+	}
+	return nil, nil
+}
+func (m *mockTenantSettingService) UpdateAuditConfig(_ context.Context, tid int64, cfg map[string]any) (*service.TenantSettingServiceDataResult, error) {
+	if m.updateAuditConfigFn != nil {
+		return m.updateAuditConfigFn(tid, cfg)
+	}
+	return nil, nil
+}
+func (m *mockTenantSettingService) UpdateMaintenanceConfig(_ context.Context, tid int64, cfg map[string]any) (*service.TenantSettingServiceDataResult, error) {
+	if m.updateMaintenanceConfigFn != nil {
+		return m.updateMaintenanceConfigFn(tid, cfg)
+	}
+	return nil, nil
+}
+func (m *mockTenantSettingService) UpdateFeatureFlags(_ context.Context, tid int64, cfg map[string]any) (*service.TenantSettingServiceDataResult, error) {
+	if m.updateFeatureFlagsFn != nil {
+		return m.updateFeatureFlagsFn(tid, cfg)
+	}
+	return nil, nil
+}
+
+// ---------------------------------------------------------------------------
+// mockEmailConfigService
+// ---------------------------------------------------------------------------
+
+type mockEmailConfigService struct {
+	getFn    func(int64) (*service.EmailConfigServiceDataResult, error)
+	updateFn func(int64, string, string, int, string, string, string, string, string, string, *bool) (*service.EmailConfigServiceDataResult, error)
+}
+
+func (m *mockEmailConfigService) Get(_ context.Context, tid int64) (*service.EmailConfigServiceDataResult, error) {
+	if m.getFn != nil {
+		return m.getFn(tid)
+	}
+	return nil, nil
+}
+func (m *mockEmailConfigService) Update(_ context.Context, tid int64, provider, host string, port int, username, password, fromAddress, fromName, replyTo, encryption string, testMode *bool) (*service.EmailConfigServiceDataResult, error) {
+	if m.updateFn != nil {
+		return m.updateFn(tid, provider, host, port, username, password, fromAddress, fromName, replyTo, encryption, testMode)
+	}
+	return nil, nil
+}
+
+// ---------------------------------------------------------------------------
+// mockSMSConfigService
+// ---------------------------------------------------------------------------
+
+type mockSMSConfigService struct {
+	getFn    func(int64) (*service.SMSConfigServiceDataResult, error)
+	updateFn func(int64, string, string, string, string, string, *bool) (*service.SMSConfigServiceDataResult, error)
+}
+
+func (m *mockSMSConfigService) Get(_ context.Context, tid int64) (*service.SMSConfigServiceDataResult, error) {
+	if m.getFn != nil {
+		return m.getFn(tid)
+	}
+	return nil, nil
+}
+func (m *mockSMSConfigService) Update(_ context.Context, tid int64, provider, accountSID, authToken, fromNumber, senderID string, testMode *bool) (*service.SMSConfigServiceDataResult, error) {
+	if m.updateFn != nil {
+		return m.updateFn(tid, provider, accountSID, authToken, fromNumber, senderID, testMode)
+	}
+	return nil, nil
+}
+
+// ---------------------------------------------------------------------------
+// mockWebhookEndpointService
+// ---------------------------------------------------------------------------
+
+type mockWebhookEndpointService struct {
+	getAllFn       func(int64, []string, int, int, string, string) (*service.WebhookEndpointServiceListResult, error)
+	getByUUIDFn    func(int64, uuid.UUID) (*service.WebhookEndpointServiceDataResult, error)
+	createFn       func(int64, string, string, []string, *int, *int, string, string) (*service.WebhookEndpointServiceDataResult, error)
+	updateFn       func(int64, uuid.UUID, string, string, []string, *int, *int, string, string) (*service.WebhookEndpointServiceDataResult, error)
+	updateStatusFn func(int64, uuid.UUID, string) (*service.WebhookEndpointServiceDataResult, error)
+	deleteFn       func(int64, uuid.UUID) (*service.WebhookEndpointServiceDataResult, error)
+}
+
+func (m *mockWebhookEndpointService) GetAll(_ context.Context, tid int64, status []string, page, limit int, sortBy, sortOrder string) (*service.WebhookEndpointServiceListResult, error) {
+	if m.getAllFn != nil {
+		return m.getAllFn(tid, status, page, limit, sortBy, sortOrder)
+	}
+	return &service.WebhookEndpointServiceListResult{}, nil
+}
+func (m *mockWebhookEndpointService) GetByUUID(_ context.Context, tid int64, id uuid.UUID) (*service.WebhookEndpointServiceDataResult, error) {
+	if m.getByUUIDFn != nil {
+		return m.getByUUIDFn(tid, id)
+	}
+	return nil, nil
+}
+func (m *mockWebhookEndpointService) Create(_ context.Context, tid int64, url, secret string, events []string, maxRetries, timeoutSeconds *int, description, status string) (*service.WebhookEndpointServiceDataResult, error) {
+	if m.createFn != nil {
+		return m.createFn(tid, url, secret, events, maxRetries, timeoutSeconds, description, status)
+	}
+	return nil, nil
+}
+func (m *mockWebhookEndpointService) Update(_ context.Context, tid int64, id uuid.UUID, url, secret string, events []string, maxRetries, timeoutSeconds *int, description, status string) (*service.WebhookEndpointServiceDataResult, error) {
+	if m.updateFn != nil {
+		return m.updateFn(tid, id, url, secret, events, maxRetries, timeoutSeconds, description, status)
+	}
+	return nil, nil
+}
+func (m *mockWebhookEndpointService) UpdateStatus(_ context.Context, tid int64, id uuid.UUID, status string) (*service.WebhookEndpointServiceDataResult, error) {
+	if m.updateStatusFn != nil {
+		return m.updateStatusFn(tid, id, status)
+	}
+	return nil, nil
+}
+func (m *mockWebhookEndpointService) Delete(_ context.Context, tid int64, id uuid.UUID) (*service.WebhookEndpointServiceDataResult, error) {
+	if m.deleteFn != nil {
+		return m.deleteFn(tid, id)
+	}
+	return nil, nil
+}
