@@ -33,6 +33,11 @@ type svcs struct {
 	emailTemplateService     service.EmailTemplateService
 	smsTemplateService       service.SMSTemplateService
 	loginTemplateService     service.LoginTemplateService
+	brandingService          service.BrandingService
+	tenantSettingService     service.TenantSettingService
+	emailConfigService       service.EmailConfigService
+	smsConfigService         service.SMSConfigService
+	webhookEndpointService   service.WebhookEndpointService
 }
 
 func initServices(db *gorm.DB, r *repos, appCache *cache.Cache) *svcs {
@@ -62,5 +67,10 @@ func initServices(db *gorm.DB, r *repos, appCache *cache.Cache) *svcs {
 		emailTemplateService:     service.NewEmailTemplateService(db, r.emailTemplateRepo),
 		smsTemplateService:       service.NewSMSTemplateService(db, r.smsTemplateRepo),
 		loginTemplateService:     service.NewLoginTemplateService(r.loginTemplateRepo),
+		brandingService:          service.NewBrandingService(r.brandingRepo),
+		tenantSettingService:     service.NewTenantSettingService(r.tenantSettingRepo),
+		emailConfigService:       service.NewEmailConfigService(r.emailConfigRepo),
+		smsConfigService:         service.NewSMSConfigService(r.smsConfigRepo),
+		webhookEndpointService:   service.NewWebhookEndpointService(r.webhookEndpointRepo),
 	}
 }
