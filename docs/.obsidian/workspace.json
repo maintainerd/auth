@@ -214,6 +214,8 @@
   },
   "active": "23e420a3d2a47962",
   "lastOpenFiles": [
+    "v1-features/oidc-provider.md",
+    "v1-features/frontend-initialization.md",
     "contributing/testing.md",
     "v1-features/templist.md",
     "contributing/opentelemetry-list.md",
