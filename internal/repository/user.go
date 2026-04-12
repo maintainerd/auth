@@ -9,16 +9,18 @@ import (
 )
 
 type UserRepositoryGetFilter struct {
-	Username  *string
-	Email     *string
-	Phone     *string
-	Status    []string
-	TenantID  *int64
-	RoleID    *int64
-	Page      int
-	Limit     int
-	SortBy    string
-	SortOrder string
+	Username   *string
+	Email      *string
+	Phone      *string
+	Status     []string
+	TenantID   *int64
+	RoleID     *int64
+	ClientID   *int64
+	UserPoolID *int64
+	Page       int
+	Limit      int
+	SortBy     string
+	SortOrder  string
 }
 
 type UserRepository interface {
@@ -27,8 +29,8 @@ type UserRepository interface {
 	FindByUsername(username string) (*model.User, error)
 	FindByEmail(email string) (*model.User, error)
 	// FindByEmailAndTenantID finds a user by email scoped to a specific tenant
-	// via the tenant_users junction table. Use this in preference to FindByEmail
-	// whenever a tenantID is available to avoid cross-tenant data leakage.
+	// via user_identities. Use this in preference to FindByEmail whenever a
+	// tenantID is available to avoid cross-tenant data leakage.
 	FindByEmailAndTenantID(email string, tenantID int64) (*model.User, error)
 	FindByPhone(phone string) (*model.User, error)
 	FindSuperAdmin() (*model.User, error)
@@ -90,8 +92,8 @@ func (r *userRepository) FindByEmail(email string) (*model.User, error) {
 func (r *userRepository) FindByEmailAndTenantID(email string, tenantID int64) (*model.User, error) {
 	var user model.User
 	err := r.DB().
-		Joins("JOIN tenant_users ON users.user_id = tenant_users.user_id").
-		Where("users.email = ? AND tenant_users.tenant_id = ?", email, tenantID).
+		Joins("JOIN user_identities ON users.user_id = user_identities.user_id").
+		Where("users.email = ? AND user_identities.tenant_id = ?", email, tenantID).
 		First(&user).Error
 
 	if err != nil {
@@ -192,10 +194,16 @@ func (r *userRepository) FindPaginated(filter UserRepositoryGetFilter) (*Paginat
 
 	query := r.DB().Model(&model.User{})
 
-	// Filter by tenant - join with tenant_users table
-	if filter.TenantID != nil {
-		query = query.Joins("JOIN tenant_users ON users.user_id = tenant_users.user_id").
-			Where("tenant_users.tenant_id = ?", *filter.TenantID)
+	// Filter by user_identities fields (tenant, client) — join once to avoid duplicates.
+	if filter.TenantID != nil || filter.ClientID != nil {
+		query = query.Joins("JOIN user_identities ON users.user_id = user_identities.user_id")
+		if filter.TenantID != nil {
+			query = query.Where("user_identities.tenant_id = ?", *filter.TenantID)
+		}
+		if filter.ClientID != nil {
+			query = query.Where("user_identities.client_id = ?", *filter.ClientID)
+		}
+		// TODO(Phase 2): add user_identities.user_pool_id filter once the column exists.
 	}
 
 	// Apply filters

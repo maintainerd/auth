@@ -104,12 +104,14 @@ func (dto UserAssignRolesRequestDTO) Validate() error {
 
 // User filter structure
 type UserFilterDTO struct {
-	Username   *string  `json:"username,omitempty"`
-	Email      *string  `json:"email,omitempty"`
-	Phone      *string  `json:"phone,omitempty"`
-	Status     []string `json:"status,omitempty"`
-	TenantUUID *string  `json:"tenant_id,omitempty"`
-	RoleUUID   *string  `json:"role_id,omitempty"`
+	Username     *string  `json:"username,omitempty"`
+	Email        *string  `json:"email,omitempty"`
+	Phone        *string  `json:"phone,omitempty"`
+	Status       []string `json:"status,omitempty"`
+	TenantUUID   *string  `json:"tenant_id,omitempty"`
+	RoleUUID     *string  `json:"role_id,omitempty"`
+	UserPoolUUID *string  `json:"user_pool_id,omitempty"`
+	ClientUUID   *string  `json:"client_id,omitempty"`
 
 	// Pagination and sorting
 	PaginationRequestDTO
@@ -131,6 +133,16 @@ func (f UserFilterDTO) Validate() error {
 		validation.Field(&f.RoleUUID,
 			validation.When(f.RoleUUID != nil,
 				is.UUID.Error("Role ID must be a valid UUID"),
+			),
+		),
+		validation.Field(&f.UserPoolUUID,
+			validation.When(f.UserPoolUUID != nil,
+				is.UUID.Error("User pool ID must be a valid UUID"),
+			),
+		),
+		validation.Field(&f.ClientUUID,
+			validation.When(f.ClientUUID != nil,
+				is.UUID.Error("Client ID must be a valid UUID"),
 			),
 		),
 		validation.Field(&f.PaginationRequestDTO),

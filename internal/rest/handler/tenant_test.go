@@ -81,7 +81,7 @@ func TestTenantHandler_GetByUUID(t *testing.T) {
 
 func TestTenantHandler_GetDefault(t *testing.T) {
 	t.Run("service error returns 404", func(t *testing.T) {
-		svc := &mockTenantService{getDefaultFn: func() (*service.TenantServiceDataResult, error) {
+		svc := &mockTenantService{getSystemFn: func() (*service.TenantServiceDataResult, error) {
 			return nil, errNotFound
 		}}
 		w := httptest.NewRecorder()
@@ -90,8 +90,8 @@ func TestTenantHandler_GetDefault(t *testing.T) {
 	})
 
 	t.Run("success returns 200", func(t *testing.T) {
-		svc := &mockTenantService{getDefaultFn: func() (*service.TenantServiceDataResult, error) {
-			return &service.TenantServiceDataResult{Name: "default"}, nil
+		svc := &mockTenantService{getSystemFn: func() (*service.TenantServiceDataResult, error) {
+			return &service.TenantServiceDataResult{Name: "system"}, nil
 		}}
 		w := httptest.NewRecorder()
 		newTenantHandler(svc, nil).GetDefault(w, httptest.NewRequest(http.MethodGet, "/", nil))
@@ -146,7 +146,7 @@ func TestTenantHandler_Create(t *testing.T) {
 	})
 
 	t.Run("service error returns 500", func(t *testing.T) {
-		svc := &mockTenantService{createFn: func(n, dn, desc, s string, isPublic, isDef bool) (*service.TenantServiceDataResult, error) {
+		svc := &mockTenantService{createFn: func(n, dn, desc, s string, isPublic bool) (*service.TenantServiceDataResult, error) {
 			return nil, errors.New("db error")
 		}}
 		r := jsonReq(t, http.MethodPost, "/tenants", validBody)
@@ -156,7 +156,7 @@ func TestTenantHandler_Create(t *testing.T) {
 	})
 
 	t.Run("success returns 201", func(t *testing.T) {
-		svc := &mockTenantService{createFn: func(n, dn, desc, s string, isPublic, isDef bool) (*service.TenantServiceDataResult, error) {
+		svc := &mockTenantService{createFn: func(n, dn, desc, s string, isPublic bool) (*service.TenantServiceDataResult, error) {
 			return &service.TenantServiceDataResult{Name: n}, nil
 		}}
 		r := jsonReq(t, http.MethodPost, "/tenants", validBody)
@@ -301,35 +301,6 @@ func TestTenantHandler_SetPublic(t *testing.T) {
 		r := withChiParam(httptest.NewRequest(http.MethodPatch, "/", nil), "tenant_uuid", testResourceUUID.String())
 		w := httptest.NewRecorder()
 		newTenantHandler(ts, nil).SetPublic(w, r)
-		assert.Equal(t, http.StatusOK, w.Code)
-	})
-}
-
-func TestTenantHandler_SetDefault(t *testing.T) {
-	t.Run("invalid UUID returns 400", func(t *testing.T) {
-		r := withChiParam(httptest.NewRequest(http.MethodPatch, "/", nil), "tenant_uuid", "bad")
-		w := httptest.NewRecorder()
-		newTenantHandler(nil, nil).SetDefault(w, r)
-		assert.Equal(t, http.StatusBadRequest, w.Code)
-	})
-
-	t.Run("service error returns 500", func(t *testing.T) {
-		ts := &mockTenantService{setDefaultStatusByUUIDFn: func(uuid.UUID) (*service.TenantServiceDataResult, error) {
-			return nil, errors.New("error")
-		}}
-		r := withChiParam(httptest.NewRequest(http.MethodPatch, "/", nil), "tenant_uuid", testResourceUUID.String())
-		w := httptest.NewRecorder()
-		newTenantHandler(ts, nil).SetDefault(w, r)
-		assert.Equal(t, http.StatusInternalServerError, w.Code)
-	})
-
-	t.Run("success returns 200", func(t *testing.T) {
-		ts := &mockTenantService{setDefaultStatusByUUIDFn: func(uuid.UUID) (*service.TenantServiceDataResult, error) {
-			return &service.TenantServiceDataResult{IsDefault: true}, nil
-		}}
-		r := withChiParam(httptest.NewRequest(http.MethodPatch, "/", nil), "tenant_uuid", testResourceUUID.String())
-		w := httptest.NewRecorder()
-		newTenantHandler(ts, nil).SetDefault(w, r)
 		assert.Equal(t, http.StatusOK, w.Code)
 	})
 }

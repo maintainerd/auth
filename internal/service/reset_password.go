@@ -58,7 +58,7 @@ func (s *resetPasswordService) ResetPassword(ctx context.Context, token, newPass
 		if clientID != nil && providerID != nil {
 			Client, txErr = txClientRepo.FindByClientIDAndIdentityProvider(*clientID, *providerID)
 		} else {
-			Client, txErr = txClientRepo.FindDefault()
+			Client, txErr = txClientRepo.FindSystem()
 		}
 		if txErr != nil {
 			return apperror.NewInternal("failed to find auth client", txErr)

@@ -275,8 +275,8 @@ func (s *loginService) Login(ctx context.Context, usernameOrEmail, password stri
 				return apperror.NewUnauthorized("authentication failed")
 			}
 		} else {
-			// Get default auth client for internal authentication
-			client, txErr = txClientRepo.FindDefault()
+			// Get system client for no-client_id authentication (always the system tenant)
+			client, txErr = txClientRepo.FindSystem()
 			if txErr != nil {
 				security.LogSecurityEvent(security.SecurityEvent{
 					EventType: "login_client_lookup_failure",

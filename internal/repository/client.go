@@ -30,7 +30,7 @@ type ClientRepository interface {
 	FindByNameAndIdentityProvider(name string, identityProviderID int64, tenantID int64) (*model.Client, error)
 	FindByClientID(clientID string, tenantID int64) (*model.Client, error)
 	FindAllByTenantID(tenantID int64) ([]model.Client, error)
-	FindDefault() (*model.Client, error)
+	FindSystem() (*model.Client, error)
 	FindDefaultByTenantID(tenantID int64) (*model.Client, error)
 	FindPaginated(filter ClientRepositoryGetFilter) (*PaginationResult[model.Client], error)
 	SetStatusByUUID(clientUUID uuid.UUID, tenantID int64, status string) error
@@ -107,13 +107,18 @@ func (r *clientRepository) FindAllByTenantID(tenantID int64) ([]model.Client, er
 	return clients, err
 }
 
-func (r *clientRepository) FindDefault() (*model.Client, error) {
+// FindSystem returns the active traditional client belonging to the system
+// tenant (is_system = true on both tenant and client). Used for no-client_id
+// login/register on port 8080.
+func (r *clientRepository) FindSystem() (*model.Client, error) {
 	var client model.Client
 	err := r.DB().
 		Joins("JOIN identity_providers ON identity_providers.identity_provider_id = clients.identity_provider_id").
-		Where("clients.is_default = ? AND clients.status = ?", true, model.StatusActive).
+		Joins("JOIN tenants ON tenants.tenant_id = identity_providers.tenant_id").
+		Where("clients.is_system = ? AND clients.status = ?", true, model.StatusActive).
 		Where("clients.client_type = ?", model.ClientTypeTraditional).
 		Where("identity_providers.status = ?", model.StatusActive).
+		Where("tenants.is_system = ?", true).
 		Preload("IdentityProvider").
 		Preload("IdentityProvider.Tenant").
 		First(&client).Error

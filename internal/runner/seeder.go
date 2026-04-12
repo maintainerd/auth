@@ -22,9 +22,9 @@ func runSeeders(db *gorm.DB, appVersion string) error {
 
 	// 002: Get existing tenant (created by setup service)
 	var tenant model.Tenant
-	err = db.Where("is_default = ?", true).First(&tenant).Error
+	err = db.Where("is_system = ?", true).First(&tenant).Error
 	if err != nil {
-		slog.Error("Failed to find default tenant", "error", err)
+		slog.Error("Failed to find system tenant", "error", err)
 		return err
 	}
 	slog.Info("Found default tenant", "tenant_id", tenant.TenantID)

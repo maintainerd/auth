@@ -315,9 +315,9 @@ func toIdpDetailResponseDTO(r service.IdentityProviderServiceDataResult) dto.Ide
 			Identifier:  r.Tenant.Identifier,
 			Status:      r.Tenant.Status,
 			IsPublic:    r.Tenant.IsPublic,
-			IsDefault:   r.Tenant.IsDefault,
-			CreatedAt:   r.Tenant.CreatedAt,
-			UpdatedAt:   r.Tenant.UpdatedAt,
+
+			CreatedAt: r.Tenant.CreatedAt,
+			UpdatedAt: r.Tenant.UpdatedAt,
 		}
 	}
 

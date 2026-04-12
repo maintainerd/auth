@@ -48,7 +48,7 @@ func clientWithIDP(tenantID int64) *model.Client {
 		Status:     model.StatusActive,
 		IdentityProvider: &model.IdentityProvider{
 			TenantID: tenantID,
-			Tenant:   &model.Tenant{TenantID: tenantID, IsDefault: true},
+			Tenant:   &model.Tenant{TenantID: tenantID, IsSystem: true},
 		},
 	}
 }
@@ -57,7 +57,7 @@ func actorUser(tenantID int64) *model.User {
 	return &model.User{
 		UserID: 1,
 		UserIdentities: []model.UserIdentity{
-			{TenantID: tenantID, Tenant: &model.Tenant{TenantID: tenantID, IsDefault: true}},
+			{TenantID: tenantID, Tenant: &model.Tenant{TenantID: tenantID, IsSystem: true}},
 		},
 	}
 }
@@ -279,7 +279,7 @@ func TestClientService_Create(t *testing.T) {
 		mock.ExpectRollback()
 		idpRepo := &mockIdentityProviderRepo{
 			findByUUIDFn: func(_ any, _ ...string) (*model.IdentityProvider, error) {
-				return &model.IdentityProvider{IdentityProviderID: 1, Tenant: &model.Tenant{TenantID: tenantID, IsDefault: true}}, nil
+				return &model.IdentityProvider{IdentityProviderID: 1, Tenant: &model.Tenant{TenantID: tenantID, IsSystem: true}}, nil
 			},
 		}
 		userRepo := &mockUserRepo{
@@ -299,13 +299,13 @@ func TestClientService_Create(t *testing.T) {
 		mock.ExpectRollback()
 		idpRepo := &mockIdentityProviderRepo{
 			findByUUIDFn: func(_ any, _ ...string) (*model.IdentityProvider, error) {
-				return &model.IdentityProvider{IdentityProviderID: 1, Tenant: &model.Tenant{TenantID: tenantID, IsDefault: false}}, nil
+				return &model.IdentityProvider{IdentityProviderID: 1, Tenant: &model.Tenant{TenantID: tenantID, IsSystem: false}}, nil
 			},
 		}
 		userRepo := &mockUserRepo{
 			findByUUIDFn: func(_ any, _ ...string) (*model.User, error) {
 				return &model.User{UserID: 1, UserIdentities: []model.UserIdentity{
-					{TenantID: 999, Tenant: &model.Tenant{TenantID: 999, IsDefault: false}},
+					{TenantID: 999, Tenant: &model.Tenant{TenantID: 999, IsSystem: false}},
 				}}, nil
 			},
 		}
@@ -323,7 +323,7 @@ func TestClientService_Create(t *testing.T) {
 		mock.ExpectRollback()
 		idpRepo := &mockIdentityProviderRepo{
 			findByUUIDFn: func(_ any, _ ...string) (*model.IdentityProvider, error) {
-				return &model.IdentityProvider{IdentityProviderID: 1, Tenant: &model.Tenant{TenantID: tenantID, IsDefault: true}}, nil
+				return &model.IdentityProvider{IdentityProviderID: 1, Tenant: &model.Tenant{TenantID: tenantID, IsSystem: true}}, nil
 			},
 		}
 		userRepo := &mockUserRepo{
@@ -348,7 +348,7 @@ func TestClientService_Create(t *testing.T) {
 		mock.ExpectRollback()
 		idpRepo := &mockIdentityProviderRepo{
 			findByUUIDFn: func(_ any, _ ...string) (*model.IdentityProvider, error) {
-				return &model.IdentityProvider{IdentityProviderID: 1, Tenant: &model.Tenant{TenantID: tenantID, IsDefault: true}}, nil
+				return &model.IdentityProvider{IdentityProviderID: 1, Tenant: &model.Tenant{TenantID: tenantID, IsSystem: true}}, nil
 			},
 		}
 		userRepo := &mockUserRepo{
@@ -376,7 +376,7 @@ func TestClientService_Create(t *testing.T) {
 		mock.ExpectRollback()
 		idpRepo := &mockIdentityProviderRepo{
 			findByUUIDFn: func(_ any, _ ...string) (*model.IdentityProvider, error) {
-				return &model.IdentityProvider{IdentityProviderID: 1, Tenant: &model.Tenant{TenantID: tenantID, IsDefault: true}}, nil
+				return &model.IdentityProvider{IdentityProviderID: 1, Tenant: &model.Tenant{TenantID: tenantID, IsSystem: true}}, nil
 			},
 		}
 		userRepo := &mockUserRepo{
@@ -407,7 +407,7 @@ func TestClientService_Create(t *testing.T) {
 		mock.ExpectRollback()
 		idpRepo := &mockIdentityProviderRepo{
 			findByUUIDFn: func(_ any, _ ...string) (*model.IdentityProvider, error) {
-				return &model.IdentityProvider{IdentityProviderID: 1, Tenant: &model.Tenant{TenantID: tenantID, IsDefault: true}}, nil
+				return &model.IdentityProvider{IdentityProviderID: 1, Tenant: &model.Tenant{TenantID: tenantID, IsSystem: true}}, nil
 			},
 		}
 		userRepo := &mockUserRepo{
@@ -427,7 +427,7 @@ func TestClientService_Create(t *testing.T) {
 		mock.ExpectRollback()
 		idpRepo := &mockIdentityProviderRepo{
 			findByUUIDFn: func(_ any, _ ...string) (*model.IdentityProvider, error) {
-				return &model.IdentityProvider{IdentityProviderID: 1, Tenant: &model.Tenant{TenantID: tenantID, IsDefault: true}}, nil
+				return &model.IdentityProvider{IdentityProviderID: 1, Tenant: &model.Tenant{TenantID: tenantID, IsSystem: true}}, nil
 			},
 		}
 		userRepo := &mockUserRepo{
@@ -449,7 +449,7 @@ func TestClientService_Create(t *testing.T) {
 		mock.ExpectRollback()
 		idpRepo := &mockIdentityProviderRepo{
 			findByUUIDFn: func(_ any, _ ...string) (*model.IdentityProvider, error) {
-				return &model.IdentityProvider{IdentityProviderID: 1, Tenant: &model.Tenant{TenantID: tenantID, IsDefault: true}}, nil
+				return &model.IdentityProvider{IdentityProviderID: 1, Tenant: &model.Tenant{TenantID: tenantID, IsSystem: true}}, nil
 			},
 		}
 		userRepo := &mockUserRepo{
@@ -471,7 +471,7 @@ func TestClientService_Create(t *testing.T) {
 		mock.ExpectCommit()
 		idpRepo := &mockIdentityProviderRepo{
 			findByUUIDFn: func(_ any, _ ...string) (*model.IdentityProvider, error) {
-				return &model.IdentityProvider{IdentityProviderID: 1, Tenant: &model.Tenant{TenantID: tenantID, IsDefault: true}}, nil
+				return &model.IdentityProvider{IdentityProviderID: 1, Tenant: &model.Tenant{TenantID: tenantID, IsSystem: true}}, nil
 			},
 		}
 		userRepo := &mockUserRepo{
@@ -1680,14 +1680,14 @@ func TestClientService_Update_ValidateTenantAccess(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		c := clientWithIDP(tenantID)
-		c.IdentityProvider.Tenant = &model.Tenant{TenantID: tenantID, IsDefault: false}
+		c.IdentityProvider.Tenant = &model.Tenant{TenantID: tenantID, IsSystem: false}
 		clientRepo := &mockClientRepo{
 			findByUUIDFn: func(_ any, _ ...string) (*model.Client, error) { return c, nil },
 		}
 		userRepo := &mockUserRepo{
 			findByUUIDFn: func(_ any, _ ...string) (*model.User, error) {
 				return &model.User{UserID: 1, UserIdentities: []model.UserIdentity{
-					{TenantID: 999, Tenant: &model.Tenant{TenantID: 999, IsDefault: false}},
+					{TenantID: 999, Tenant: &model.Tenant{TenantID: 999, IsSystem: false}},
 				}}, nil
 			},
 		}
@@ -1731,14 +1731,14 @@ func TestClientService_SetStatusByUUID_ValidateTenantAccess(t *testing.T) {
 	mock.ExpectBegin()
 	mock.ExpectRollback()
 	c := clientWithIDP(tenantID)
-	c.IdentityProvider.Tenant = &model.Tenant{TenantID: tenantID, IsDefault: false}
+	c.IdentityProvider.Tenant = &model.Tenant{TenantID: tenantID, IsSystem: false}
 	clientRepo := &mockClientRepo{
 		findByUUIDFn: func(_ any, _ ...string) (*model.Client, error) { return c, nil },
 	}
 	userRepo := &mockUserRepo{
 		findByUUIDFn: func(_ any, _ ...string) (*model.User, error) {
 			return &model.User{UserID: 1, UserIdentities: []model.UserIdentity{
-				{TenantID: 999, Tenant: &model.Tenant{TenantID: 999, IsDefault: false}},
+				{TenantID: 999, Tenant: &model.Tenant{TenantID: 999, IsSystem: false}},
 			}}, nil
 		},
 	}
@@ -1759,14 +1759,14 @@ func TestClientService_DeleteByUUID_ValidateTenantAccess(t *testing.T) {
 	mock.ExpectBegin()
 	mock.ExpectRollback()
 	c := clientWithIDP(tenantID)
-	c.IdentityProvider.Tenant = &model.Tenant{TenantID: tenantID, IsDefault: false}
+	c.IdentityProvider.Tenant = &model.Tenant{TenantID: tenantID, IsSystem: false}
 	clientRepo := &mockClientRepo{
 		findByUUIDFn: func(_ any, _ ...string) (*model.Client, error) { return c, nil },
 	}
 	userRepo := &mockUserRepo{
 		findByUUIDFn: func(_ any, _ ...string) (*model.User, error) {
 			return &model.User{UserID: 1, UserIdentities: []model.UserIdentity{
-				{TenantID: 999, Tenant: &model.Tenant{TenantID: 999, IsDefault: false}},
+				{TenantID: 999, Tenant: &model.Tenant{TenantID: 999, IsSystem: false}},
 			}}, nil
 		},
 	}

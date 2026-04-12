@@ -21,7 +21,6 @@ type TenantResponseDTO struct {
 	Identifier  string    `json:"identifier"`
 	Status      string    `json:"status"`
 	IsPublic    bool      `json:"is_public"`
-	IsDefault   bool      `json:"is_default"`
 	IsSystem    bool      `json:"is_system"`
 	Metadata    any       `json:"metadata,omitempty"`
 	CreatedAt   time.Time `json:"created_at"`
@@ -98,7 +97,6 @@ type TenantFilterDTO struct {
 	Identifier  *string  `json:"identifier"`
 	Status      []string `json:"status"`
 	IsPublic    *bool    `json:"is_public"`
-	IsDefault   *bool    `json:"is_default"`
 	IsSystem    *bool    `json:"is_system"`
 
 	// Pagination and sorting

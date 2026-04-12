@@ -437,16 +437,15 @@ func (m *mockClientService) RemoveClientAPIPermission(_ context.Context, tid int
 // ---------------------------------------------------------------------------
 
 type mockTenantService struct {
-	getFn                    func(service.TenantServiceGetFilter) (*service.TenantServiceGetResult, error)
-	getByUUIDFn              func(uuid.UUID) (*service.TenantServiceDataResult, error)
-	getDefaultFn             func() (*service.TenantServiceDataResult, error)
-	getByIdentifierFn        func(string) (*service.TenantServiceDataResult, error)
-	createFn                 func(string, string, string, string, bool, bool) (*service.TenantServiceDataResult, error)
-	updateFn                 func(uuid.UUID, string, string, string, string, bool) (*service.TenantServiceDataResult, error)
-	setStatusByUUIDFn        func(uuid.UUID, string) (*service.TenantServiceDataResult, error)
-	setActivePublicByUUIDFn  func(uuid.UUID) (*service.TenantServiceDataResult, error)
-	setDefaultStatusByUUIDFn func(uuid.UUID) (*service.TenantServiceDataResult, error)
-	deleteByUUIDFn           func(uuid.UUID) (*service.TenantServiceDataResult, error)
+	getFn                   func(service.TenantServiceGetFilter) (*service.TenantServiceGetResult, error)
+	getByUUIDFn             func(uuid.UUID) (*service.TenantServiceDataResult, error)
+	getSystemFn             func() (*service.TenantServiceDataResult, error)
+	getByIdentifierFn       func(string) (*service.TenantServiceDataResult, error)
+	createFn                func(string, string, string, string, bool) (*service.TenantServiceDataResult, error)
+	updateFn                func(uuid.UUID, string, string, string, string, bool) (*service.TenantServiceDataResult, error)
+	setStatusByUUIDFn       func(uuid.UUID, string) (*service.TenantServiceDataResult, error)
+	setActivePublicByUUIDFn func(uuid.UUID) (*service.TenantServiceDataResult, error)
+	deleteByUUIDFn          func(uuid.UUID) (*service.TenantServiceDataResult, error)
 }
 
 func (m *mockTenantService) Get(_ context.Context, f service.TenantServiceGetFilter) (*service.TenantServiceGetResult, error) {
@@ -461,9 +460,9 @@ func (m *mockTenantService) GetByUUID(_ context.Context, id uuid.UUID) (*service
 	}
 	return nil, nil
 }
-func (m *mockTenantService) GetDefault(_ context.Context) (*service.TenantServiceDataResult, error) {
-	if m.getDefaultFn != nil {
-		return m.getDefaultFn()
+func (m *mockTenantService) GetSystem(_ context.Context) (*service.TenantServiceDataResult, error) {
+	if m.getSystemFn != nil {
+		return m.getSystemFn()
 	}
 	return nil, nil
 }
@@ -473,9 +472,9 @@ func (m *mockTenantService) GetByIdentifier(_ context.Context, id string) (*serv
 	}
 	return nil, nil
 }
-func (m *mockTenantService) Create(_ context.Context, n, dn, desc, s string, isPublic, isDef bool) (*service.TenantServiceDataResult, error) {
+func (m *mockTenantService) Create(_ context.Context, n, dn, desc, s string, isPublic bool) (*service.TenantServiceDataResult, error) {
 	if m.createFn != nil {
-		return m.createFn(n, dn, desc, s, isPublic, isDef)
+		return m.createFn(n, dn, desc, s, isPublic)
 	}
 	return nil, nil
 }
@@ -494,12 +493,6 @@ func (m *mockTenantService) SetStatusByUUID(_ context.Context, id uuid.UUID, s s
 func (m *mockTenantService) SetActivePublicByUUID(_ context.Context, id uuid.UUID) (*service.TenantServiceDataResult, error) {
 	if m.setActivePublicByUUIDFn != nil {
 		return m.setActivePublicByUUIDFn(id)
-	}
-	return nil, nil
-}
-func (m *mockTenantService) SetDefaultStatusByUUID(_ context.Context, id uuid.UUID) (*service.TenantServiceDataResult, error) {
-	if m.setDefaultStatusByUUIDFn != nil {
-		return m.setDefaultStatusByUUIDFn(id)
 	}
 	return nil, nil
 }

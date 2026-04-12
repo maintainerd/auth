@@ -67,13 +67,27 @@ func (h *UserHandler) GetUsers(w http.ResponseWriter, r *http.Request) {
 		roleUUID = &v
 	}
 
+	// Parse user pool UUID filter
+	var userPoolUUID *string
+	if v := q.Get("user_pool_id"); v != "" {
+		userPoolUUID = &v
+	}
+
+	// Parse client UUID filter
+	var clientUUID *string
+	if v := q.Get("client_id"); v != "" {
+		clientUUID = &v
+	}
+
 	// Build filter DTO for validation
 	reqParams := dto.UserFilterDTO{
-		Username: ptr.PtrOrNil(q.Get("username")),
-		Email:    ptr.PtrOrNil(q.Get("email")),
-		Phone:    ptr.PtrOrNil(q.Get("phone")),
-		Status:   status,
-		RoleUUID: roleUUID,
+		Username:     ptr.PtrOrNil(q.Get("username")),
+		Email:        ptr.PtrOrNil(q.Get("email")),
+		Phone:        ptr.PtrOrNil(q.Get("phone")),
+		Status:       status,
+		RoleUUID:     roleUUID,
+		UserPoolUUID: userPoolUUID,
+		ClientUUID:   clientUUID,
 		PaginationRequestDTO: dto.PaginationRequestDTO{
 			Page:      page,
 			Limit:     limit,
@@ -90,16 +104,18 @@ func (h *UserHandler) GetUsers(w http.ResponseWriter, r *http.Request) {
 
 	// Build service filter with tenant context
 	filter := service.UserServiceGetFilter{
-		Username:  reqParams.Username,
-		Email:     reqParams.Email,
-		Phone:     reqParams.Phone,
-		Status:    reqParams.Status,
-		TenantID:  tenant.TenantID,
-		RoleUUID:  reqParams.RoleUUID,
-		Page:      reqParams.PaginationRequestDTO.Page,
-		Limit:     reqParams.PaginationRequestDTO.Limit,
-		SortBy:    reqParams.PaginationRequestDTO.SortBy,
-		SortOrder: reqParams.PaginationRequestDTO.SortOrder,
+		Username:     reqParams.Username,
+		Email:        reqParams.Email,
+		Phone:        reqParams.Phone,
+		Status:       reqParams.Status,
+		TenantID:     tenant.TenantID,
+		RoleUUID:     reqParams.RoleUUID,
+		UserPoolUUID: reqParams.UserPoolUUID,
+		ClientUUID:   reqParams.ClientUUID,
+		Page:         reqParams.PaginationRequestDTO.Page,
+		Limit:        reqParams.PaginationRequestDTO.Limit,
+		SortBy:       reqParams.PaginationRequestDTO.SortBy,
+		SortOrder:    reqParams.PaginationRequestDTO.SortOrder,
 	}
 
 	// Fetch users from service layer
@@ -560,10 +576,10 @@ func toUserResponseDTO(u service.UserServiceDataResult) dto.UserResponseDTO {
 			Identifier:  u.Tenant.Identifier,
 			Status:      u.Tenant.Status,
 			IsPublic:    u.Tenant.IsPublic,
-			IsDefault:   u.Tenant.IsDefault,
-			IsSystem:    u.Tenant.IsSystem,
-			CreatedAt:   u.Tenant.CreatedAt,
-			UpdatedAt:   u.Tenant.UpdatedAt,
+
+			IsSystem:  u.Tenant.IsSystem,
+			CreatedAt: u.Tenant.CreatedAt,
+			UpdatedAt: u.Tenant.UpdatedAt,
 		}
 	}
 

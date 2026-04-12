@@ -1,13 +1,27 @@
 package route
 
 import (
-	"github.com/maintainerd/auth/internal/rest/handler"
 	"github.com/go-chi/chi/v5"
-	"github.com/maintainerd/auth/internal/middleware"
-	"github.com/maintainerd/auth/internal/service"
 	"github.com/maintainerd/auth/internal/cache"
+	"github.com/maintainerd/auth/internal/middleware"
+	"github.com/maintainerd/auth/internal/rest/handler"
+	"github.com/maintainerd/auth/internal/service"
 )
 
+// TenantPublicRoute registers the unauthenticated tenant discovery endpoints used
+// by the public identity app (port 8081) to look up tenant info before login.
+func TenantPublicRoute(r chi.Router, tenantHandler *handler.TenantHandler) {
+	r.Route("/tenant", func(r chi.Router) {
+		// Get default tenant (public endpoint)
+		r.Get("/", tenantHandler.GetDefault)
+
+		// Get tenant by identifier (public endpoint)
+		r.Get("/{identifier}", tenantHandler.GetByIdentifier)
+	})
+}
+
+// TenantRoute registers all tenant management endpoints (internal port 8080 only).
+// It also includes the public read endpoints so the admin console can use them.
 func TenantRoute(
 	r chi.Router,
 	tenantHandler *handler.TenantHandler,
@@ -15,7 +29,7 @@ func TenantRoute(
 	appCache *cache.Cache,
 ) {
 	// Single tenant endpoints (public - no authentication required)
-	// Used by login page to validate tenant and get tenant info
+	// Used by the admin console to look up tenant info
 	r.Route("/tenant", func(r chi.Router) {
 		// Get default tenant (public endpoint)
 		r.Get("/", tenantHandler.GetDefault)
@@ -46,9 +60,6 @@ func TenantRoute(
 
 		r.With(middleware.PermissionMiddleware([]string{"tenant:update"})).
 			Put("/{tenant_uuid}/public", tenantHandler.SetPublic)
-
-		r.With(middleware.PermissionMiddleware([]string{"tenant:update"})).
-			Put("/{tenant_uuid}/default", tenantHandler.SetDefault)
 
 		r.With(middleware.PermissionMiddleware([]string{"tenant:delete"})).
 			Delete("/{tenant_uuid}", tenantHandler.Delete)

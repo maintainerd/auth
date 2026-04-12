@@ -37,13 +37,7 @@ func (h *TenantHandler) Get(w http.ResponseWriter, r *http.Request) {
 	limit, _ := strconv.Atoi(q.Get("limit"))
 
 	// Parse bools safely
-	var isDefault, isSystem, isPublic *bool
-	if v := q.Get("is_default"); v != "" {
-		parsed, err := strconv.ParseBool(v)
-		if err == nil {
-			isDefault = &parsed
-		}
-	}
+	var isSystem, isPublic *bool
 	if v := q.Get("is_system"); v != "" {
 		parsed, err := strconv.ParseBool(v)
 		if err == nil {
@@ -69,7 +63,6 @@ func (h *TenantHandler) Get(w http.ResponseWriter, r *http.Request) {
 		DisplayName: ptr.PtrOrNil(q.Get("display_name")),
 		Description: ptr.PtrOrNil(q.Get("description")),
 		Identifier:  ptr.PtrOrNil(q.Get("identifier")),
-		IsDefault:   isDefault,
 		IsSystem:    isSystem,
 		IsPublic:    isPublic,
 		Status:      status,
@@ -92,7 +85,6 @@ func (h *TenantHandler) Get(w http.ResponseWriter, r *http.Request) {
 		DisplayName: reqParams.DisplayName,
 		Description: reqParams.Description,
 		Identifier:  reqParams.Identifier,
-		IsDefault:   reqParams.IsDefault,
 		IsSystem:    reqParams.IsSystem,
 		IsPublic:    isPublic,
 		Status:      reqParams.Status,
@@ -146,17 +138,17 @@ func (h *TenantHandler) GetByUUID(w http.ResponseWriter, r *http.Request) {
 	resp.Success(w, dtoRes, "Tenant fetched successfully")
 }
 
-// Get Default Tenant
+// GetDefault returns the system tenant, which is the root of the tenant hierarchy.
 func (h *TenantHandler) GetDefault(w http.ResponseWriter, r *http.Request) {
-	tenant, err := h.tenantService.GetDefault(r.Context())
+	tenant, err := h.tenantService.GetSystem(r.Context())
 	if err != nil {
-		resp.HandleServiceError(w, r, "Default tenant not found", err)
+		resp.HandleServiceError(w, r, "System tenant not found", err)
 		return
 	}
 
 	dtoRes := toTenantResponseDTO(*tenant)
 
-	resp.Success(w, dtoRes, "Default tenant fetched successfully")
+	resp.Success(w, dtoRes, "System tenant fetched successfully")
 }
 
 // Get Tenant by Identifier
@@ -191,7 +183,7 @@ func (h *TenantHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	tenant, err := h.tenantService.Create(r.Context(), req.Name, req.DisplayName, req.Description, req.Status, req.IsPublic, false)
+	tenant, err := h.tenantService.Create(r.Context(), req.Name, req.DisplayName, req.Description, req.Status, req.IsPublic)
 	if err != nil {
 		resp.HandleServiceError(w, r, "Failed to create tenant", err)
 		return
@@ -293,25 +285,6 @@ func (h *TenantHandler) SetPublic(w http.ResponseWriter, r *http.Request) {
 	dtoRes := toTenantResponseDTO(*tenant)
 
 	resp.Success(w, dtoRes, "Tenant public updated successfully")
-}
-
-// Set Tenant default
-func (h *TenantHandler) SetDefault(w http.ResponseWriter, r *http.Request) {
-	tenantUUID, err := uuid.Parse(chi.URLParam(r, "tenant_uuid"))
-	if err != nil {
-		resp.Error(w, http.StatusBadRequest, "Invalid tenant UUID")
-		return
-	}
-
-	tenant, err := h.tenantService.SetDefaultStatusByUUID(r.Context(), tenantUUID)
-	if err != nil {
-		resp.HandleServiceError(w, r, "Failed to update tenant", err)
-		return
-	}
-
-	dtoRes := toTenantResponseDTO(*tenant)
-
-	resp.Success(w, dtoRes, "Tenant default updated successfully")
 }
 
 // Delete Tenant
@@ -530,7 +503,6 @@ func toTenantResponseDTO(r service.TenantServiceDataResult) dto.TenantResponseDT
 		Identifier:  r.Identifier,
 		Status:      r.Status,
 		IsPublic:    r.IsPublic,
-		IsDefault:   r.IsDefault,
 		IsSystem:    r.IsSystem,
 		CreatedAt:   r.CreatedAt,
 		UpdatedAt:   r.UpdatedAt,

@@ -47,16 +47,18 @@ type UserIdentityServiceDataResult struct {
 }
 
 type UserServiceGetFilter struct {
-	Username  *string
-	Email     *string
-	Phone     *string
-	Status    []string
-	TenantID  int64
-	RoleUUID  *string
-	Page      int
-	Limit     int
-	SortBy    string
-	SortOrder string
+	Username     *string
+	Email        *string
+	Phone        *string
+	Status       []string
+	TenantID     int64
+	RoleUUID     *string
+	UserPoolUUID *string
+	ClientUUID   *string
+	Page         int
+	Limit        int
+	SortBy       string
+	SortOrder    string
 }
 
 type UserServiceGetResult struct {
@@ -95,7 +97,7 @@ type userService struct {
 	tenantRepo           repository.TenantRepository
 	identityProviderRepo repository.IdentityProviderRepository
 	clientRepo           repository.ClientRepository
-	tenantUserRepo       repository.TenantUserRepository
+	userPoolRepo         repository.UserPoolRepository
 	cacheInvalidator     cache.Invalidator
 }
 
@@ -108,7 +110,7 @@ func NewUserService(
 	tenantRepo repository.TenantRepository,
 	identityProviderRepo repository.IdentityProviderRepository,
 	clientRepo repository.ClientRepository,
-	tenantUserRepo repository.TenantUserRepository,
+	userPoolRepo repository.UserPoolRepository,
 	cacheInvalidator cache.Invalidator,
 ) UserService {
 	return &userService{
@@ -120,7 +122,7 @@ func NewUserService(
 		tenantRepo:           tenantRepo,
 		identityProviderRepo: identityProviderRepo,
 		clientRepo:           clientRepo,
-		tenantUserRepo:       tenantUserRepo,
+		userPoolRepo:         userPoolRepo,
 		cacheInvalidator:     cacheInvalidator,
 	}
 }
@@ -189,18 +191,48 @@ func (s *userService) Get(ctx context.Context, filter UserServiceGetFilter) (*Us
 		roleID = &role.RoleID
 	}
 
+	// Convert client UUID to ID if provided
+	var clientID *int64
+	if filter.ClientUUID != nil {
+		clientUUIDParsed, err := uuid.Parse(*filter.ClientUUID)
+		if err != nil {
+			return nil, apperror.NewValidation("invalid client UUID")
+		}
+		client, err := s.clientRepo.FindByUUIDAndTenantID(clientUUIDParsed, filter.TenantID)
+		if err != nil || client == nil {
+			return nil, apperror.NewNotFound("client not found")
+		}
+		clientID = &client.ClientID
+	}
+
+	// Convert user pool UUID to ID if provided
+	var userPoolID *int64
+	if filter.UserPoolUUID != nil {
+		poolUUIDParsed, err := uuid.Parse(*filter.UserPoolUUID)
+		if err != nil {
+			return nil, apperror.NewValidation("invalid user pool UUID")
+		}
+		pool, err := s.userPoolRepo.FindByUUID(poolUUIDParsed)
+		if err != nil || pool == nil {
+			return nil, apperror.NewNotFound("user pool not found")
+		}
+		userPoolID = &pool.UserPoolID
+	}
+
 	// Build query filter
 	queryFilter := repository.UserRepositoryGetFilter{
-		Username:  filter.Username,
-		Email:     filter.Email,
-		Phone:     filter.Phone,
-		Status:    filter.Status,
-		TenantID:  &filter.TenantID,
-		RoleID:    roleID,
-		Page:      filter.Page,
-		Limit:     filter.Limit,
-		SortBy:    filter.SortBy,
-		SortOrder: filter.SortOrder,
+		Username:   filter.Username,
+		Email:      filter.Email,
+		Phone:      filter.Phone,
+		Status:     filter.Status,
+		TenantID:   &filter.TenantID,
+		RoleID:     roleID,
+		ClientID:   clientID,
+		UserPoolID: userPoolID,
+		Page:       filter.Page,
+		Limit:      filter.Limit,
+		SortBy:     filter.SortBy,
+		SortOrder:  filter.SortOrder,
 	}
 
 	result, err := s.userRepo.FindPaginated(queryFilter)
@@ -271,7 +303,6 @@ func (s *userService) Create(ctx context.Context, username string, fullname stri
 		txClientRepo := s.clientRepo.WithTx(tx)
 		txRoleRepo := s.roleRepo.WithTx(tx)
 		txUserRoleRepo := s.userRoleRepo.WithTx(tx)
-		txTenantUserRepo := s.tenantUserRepo.WithTx(tx)
 
 		// Parse tenant UUID
 		tenantUUIDParsed, err := uuid.Parse(tenantUUID)
@@ -367,16 +398,6 @@ func (s *userService) Create(ctx context.Context, username string, fullname stri
 		}
 
 		_, err = txUserIdentityRepo.Create(userIdentity)
-		if err != nil {
-			return err
-		}
-
-		// Create tenant_users record to track that this tenant created the user
-		tenantUser := &model.TenantUser{
-			TenantID: targetTenant.TenantID,
-			UserID:   newUser.UserID,
-		}
-		_, err = txTenantUserRepo.Create(tenantUser)
 		if err != nil {
 			return err
 		}

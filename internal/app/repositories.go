@@ -14,7 +14,7 @@ type repos struct {
 	permissionRepo            repository.PermissionRepository
 	tenantRepo                repository.TenantRepository
 	tenantMemberRepo          repository.TenantMemberRepository
-	tenantUserRepo            repository.TenantUserRepository
+	userPoolRepo              repository.UserPoolRepository
 	idpRepo                   repository.IdentityProviderRepository
 	roleRepo                  repository.RoleRepository
 	rolePermissionRepo        repository.RolePermissionRepository
@@ -52,7 +52,7 @@ func initRepos(db *gorm.DB) *repos {
 		permissionRepo:            repository.NewPermissionRepository(db),
 		tenantRepo:                repository.NewTenantRepository(db),
 		tenantMemberRepo:          repository.NewTenantMemberRepository(db),
-		tenantUserRepo:            repository.NewTenantUserRepository(db),
+		userPoolRepo:              repository.NewUserPoolRepository(db),
 		idpRepo:                   repository.NewIdentityProviderRepository(db),
 		roleRepo:                  repository.NewRoleRepository(db),
 		rolePermissionRepo:        repository.NewRolePermissionRepository(db),

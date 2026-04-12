@@ -24,7 +24,6 @@ type TenantServiceDataResult struct {
 	Identifier  string
 	Status      string
 	IsPublic    bool
-	IsDefault   bool
 	IsSystem    bool
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
@@ -38,7 +37,6 @@ type TenantServiceGetFilter struct {
 	Identifier  *string
 	Status      []string
 	IsPublic    *bool
-	IsDefault   *bool
 	IsSystem    *bool
 	Page        int
 	Limit       int
@@ -57,13 +55,12 @@ type TenantServiceGetResult struct {
 type TenantService interface {
 	Get(ctx context.Context, filter TenantServiceGetFilter) (*TenantServiceGetResult, error)
 	GetByUUID(ctx context.Context, tenantUUID uuid.UUID) (*TenantServiceDataResult, error)
-	GetDefault(ctx context.Context) (*TenantServiceDataResult, error)
+	GetSystem(ctx context.Context) (*TenantServiceDataResult, error)
 	GetByIdentifier(ctx context.Context, identifier string) (*TenantServiceDataResult, error)
-	Create(ctx context.Context, name string, displayName string, description string, status string, isPublic bool, isDefault bool) (*TenantServiceDataResult, error)
+	Create(ctx context.Context, name string, displayName string, description string, status string, isPublic bool) (*TenantServiceDataResult, error)
 	Update(ctx context.Context, tenantUUID uuid.UUID, name string, displayName string, description string, status string, isPublic bool) (*TenantServiceDataResult, error)
 	SetStatusByUUID(ctx context.Context, tenantUUID uuid.UUID, status string) (*TenantServiceDataResult, error)
 	SetActivePublicByUUID(ctx context.Context, tenantUUID uuid.UUID) (*TenantServiceDataResult, error)
-	SetDefaultStatusByUUID(ctx context.Context, tenantUUID uuid.UUID) (*TenantServiceDataResult, error)
 	DeleteByUUID(ctx context.Context, tenantUUID uuid.UUID) (*TenantServiceDataResult, error)
 }
 
@@ -90,7 +87,6 @@ func (s *tenantService) Get(ctx context.Context, filter TenantServiceGetFilter) 
 		Identifier:  filter.Identifier,
 		Status:      filter.Status,
 		IsPublic:    filter.IsPublic,
-		IsDefault:   filter.IsDefault,
 		IsSystem:    filter.IsSystem,
 		Page:        filter.Page,
 		Limit:       filter.Limit,
@@ -138,17 +134,19 @@ func (s *tenantService) GetByUUID(ctx context.Context, tenantUUID uuid.UUID) (*T
 	return toTenantServiceDataResult(tenant), nil
 }
 
-func (s *tenantService) GetDefault(ctx context.Context) (*TenantServiceDataResult, error) {
-	_, span := otel.Tracer("service").Start(ctx, "tenant.getDefault")
+// GetSystem returns the unique system tenant (is_system = true).
+// This is the root tenant used for no-client_id login and registration on port 8080.
+func (s *tenantService) GetSystem(ctx context.Context) (*TenantServiceDataResult, error) {
+	_, span := otel.Tracer("service").Start(ctx, "tenant.getSystem")
 	defer span.End()
 
-	tenant, err := s.tenantRepo.FindDefault()
+	tenant, err := s.tenantRepo.FindSystem()
 	if err != nil || tenant == nil {
 		if err != nil {
 			span.RecordError(err)
 		}
-		span.SetStatus(codes.Error, "default tenant not found")
-		return nil, apperror.NewNotFoundWithReason("default tenant not found")
+		span.SetStatus(codes.Error, "system tenant not found")
+		return nil, apperror.NewNotFoundWithReason("system tenant not found")
 	}
 
 	span.SetStatus(codes.Ok, "")
@@ -173,7 +171,7 @@ func (s *tenantService) GetByIdentifier(ctx context.Context, identifier string) 
 	return toTenantServiceDataResult(tenant), nil
 }
 
-func (s *tenantService) Create(ctx context.Context, name string, displayName string, description string, status string, isPublic bool, isDefault bool) (*TenantServiceDataResult, error) {
+func (s *tenantService) Create(ctx context.Context, name string, displayName string, description string, status string, isPublic bool) (*TenantServiceDataResult, error) {
 	_, span := otel.Tracer("service").Start(ctx, "tenant.create")
 	defer span.End()
 	span.SetAttributes(attribute.String("tenant.name", name))
@@ -206,7 +204,6 @@ func (s *tenantService) Create(ctx context.Context, name string, displayName str
 			Identifier:  identifier,
 			Status:      status,
 			IsPublic:    isPublic,
-			IsDefault:   isDefault,
 		}
 
 		_, err = txTenantRepo.CreateOrUpdate(newTenant)
@@ -355,39 +352,6 @@ func (s *tenantService) SetActivePublicByUUID(ctx context.Context, tenantUUID uu
 	return toTenantServiceDataResult(updatedTenant), nil
 }
 
-func (s *tenantService) SetDefaultStatusByUUID(ctx context.Context, tenantUUID uuid.UUID) (*TenantServiceDataResult, error) {
-	_, span := otel.Tracer("service").Start(ctx, "tenant.setDefaultStatus")
-	defer span.End()
-	span.SetAttributes(attribute.String("tenant.uuid", tenantUUID.String()))
-
-	tenant, err := s.tenantRepo.FindByUUID(tenantUUID)
-	if err != nil || tenant == nil {
-		if err != nil {
-			span.RecordError(err)
-		}
-		span.SetStatus(codes.Error, "tenant not found")
-		return nil, apperror.NewNotFound("tenant not found")
-	}
-
-	err = s.tenantRepo.SetDefaultStatusByUUID(tenantUUID, !tenant.IsDefault)
-	if err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, "set default status failed")
-		return nil, err
-	}
-
-	// Fetch updated tenant
-	updatedTenant, err := s.tenantRepo.FindByUUID(tenantUUID)
-	if err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, "get updated tenant failed")
-		return nil, err
-	}
-
-	span.SetStatus(codes.Ok, "")
-	return toTenantServiceDataResult(updatedTenant), nil
-}
-
 func (s *tenantService) DeleteByUUID(ctx context.Context, tenantUUID uuid.UUID) (*TenantServiceDataResult, error) {
 	_, span := otel.Tracer("service").Start(ctx, "tenant.delete")
 	defer span.End()
@@ -406,12 +370,6 @@ func (s *tenantService) DeleteByUUID(ctx context.Context, tenantUUID uuid.UUID) 
 	if tenant.IsSystem {
 		span.SetStatus(codes.Error, "cannot delete system tenant")
 		return nil, apperror.NewValidation("cannot delete system tenant")
-	}
-
-	// Prevent deletion of default tenants
-	if tenant.IsDefault {
-		span.SetStatus(codes.Error, "cannot delete default tenant")
-		return nil, apperror.NewValidation("cannot delete default tenant")
 	}
 
 	result := toTenantServiceDataResult(tenant)
@@ -437,7 +395,6 @@ func toTenantServiceDataResult(tenant *model.Tenant) *TenantServiceDataResult {
 		Identifier:  tenant.Identifier,
 		Status:      tenant.Status,
 		IsPublic:    tenant.IsPublic,
-		IsDefault:   tenant.IsDefault,
 		IsSystem:    tenant.IsSystem,
 		CreatedAt:   tenant.CreatedAt,
 		UpdatedAt:   tenant.UpdatedAt,

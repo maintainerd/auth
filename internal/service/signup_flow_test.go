@@ -34,7 +34,7 @@ func buildSignupFlow() *model.SignupFlow {
 
 func defaultCR() *mockClientRepo {
 	return &mockClientRepo{
-		findDefaultFn:                       func() (*model.Client, error) { return nil, nil },
+		findSystemFn:                        func() (*model.Client, error) { return nil, nil },
 		findByClientIDAndIdentityProviderFn: func(_, _ string) (*model.Client, error) { return nil, nil },
 	}
 }

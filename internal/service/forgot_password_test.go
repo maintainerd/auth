@@ -26,7 +26,7 @@ func TestForgotPasswordService_SendPasswordResetEmail(t *testing.T) {
 		{
 			name: "client findDefault error - returns error",
 			setupClient: func(c *mockClientRepo) {
-				c.findDefaultFn = func() (*model.Client, error) { return nil, errors.New("db error") }
+				c.findSystemFn = func() (*model.Client, error) { return nil, errors.New("db error") }
 			},
 			expectCommit: false,
 			wantErr:      true,
@@ -34,7 +34,7 @@ func TestForgotPasswordService_SendPasswordResetEmail(t *testing.T) {
 		{
 			name: "user not found - returns success (security masking)",
 			setupClient: func(c *mockClientRepo) {
-				c.findDefaultFn = func() (*model.Client, error) { return buildActiveClient(), nil }
+				c.findSystemFn = func() (*model.Client, error) { return buildActiveClient(), nil }
 			},
 			expectCommit: true,
 			wantErr:      false,
@@ -98,7 +98,7 @@ func TestForgotPasswordService_SendPasswordResetEmail_FindByEmailError(t *testin
 	mock.ExpectCommit()
 
 	clientRepo := &mockClientRepo{
-		findDefaultFn: func() (*model.Client, error) { return buildActiveClient(), nil },
+		findSystemFn: func() (*model.Client, error) { return buildActiveClient(), nil },
 	}
 	userRepo := &mockUserRepo{
 		findByEmailFn: func(_ string) (*model.User, error) { return nil, errors.New("db err") },
@@ -138,7 +138,7 @@ func TestForgotPasswordService_SendPasswordResetEmail_UserInactive(t *testing.T)
 	mock.ExpectCommit()
 
 	clientRepo := &mockClientRepo{
-		findDefaultFn: func() (*model.Client, error) { return buildActiveClient(), nil },
+		findSystemFn: func() (*model.Client, error) { return buildActiveClient(), nil },
 	}
 	userRepo := &mockUserRepo{
 		findByEmailFn: func(_ string) (*model.User, error) {
@@ -164,7 +164,7 @@ func TestForgotPasswordService_SendPasswordResetEmail_FindTokensError(t *testing
 	mock.ExpectRollback()
 
 	clientRepo := &mockClientRepo{
-		findDefaultFn: func() (*model.Client, error) { return buildActiveClient(), nil },
+		findSystemFn: func() (*model.Client, error) { return buildActiveClient(), nil },
 	}
 	userRepo := &mockUserRepo{
 		findByEmailFn: func(_ string) (*model.User, error) {
@@ -190,7 +190,7 @@ func TestForgotPasswordService_SendPasswordResetEmail_RevokeTokenError(t *testin
 
 	tokenUUID := uuid.New()
 	clientRepo := &mockClientRepo{
-		findDefaultFn: func() (*model.Client, error) { return buildActiveClient(), nil },
+		findSystemFn: func() (*model.Client, error) { return buildActiveClient(), nil },
 	}
 	userRepo := &mockUserRepo{
 		findByEmailFn: func(_ string) (*model.User, error) {
@@ -216,7 +216,7 @@ func TestForgotPasswordService_SendPasswordResetEmail_CreateTokenError(t *testin
 	mock.ExpectRollback()
 
 	clientRepo := &mockClientRepo{
-		findDefaultFn: func() (*model.Client, error) { return buildActiveClient(), nil },
+		findSystemFn: func() (*model.Client, error) { return buildActiveClient(), nil },
 	}
 	userRepo := &mockUserRepo{
 		findByEmailFn: func(_ string) (*model.User, error) {
@@ -273,7 +273,7 @@ func TestForgotPasswordService_SendPasswordResetEmail_FullPath(t *testing.T) {
 	mock.ExpectCommit()
 
 	clientRepo := &mockClientRepo{
-		findDefaultFn: func() (*model.Client, error) { return buildActiveClient(), nil },
+		findSystemFn: func() (*model.Client, error) { return buildActiveClient(), nil },
 	}
 	userRepo := &mockUserRepo{
 		findByEmailFn: func(_ string) (*model.User, error) {
@@ -333,7 +333,7 @@ func TestForgotPasswordService_SendPasswordResetEmail_ExternalURL(t *testing.T) 
 	mock.ExpectCommit()
 
 	clientRepo := &mockClientRepo{
-		findDefaultFn: func() (*model.Client, error) { return buildActiveClient(), nil },
+		findSystemFn: func() (*model.Client, error) { return buildActiveClient(), nil },
 	}
 	userRepo := &mockUserRepo{
 		findByEmailFn: func(_ string) (*model.User, error) {
@@ -387,7 +387,7 @@ func TestForgotPasswordService_SendPasswordResetEmail_EmailSendError(t *testing.
 	mock.ExpectCommit()
 
 	clientRepo := &mockClientRepo{
-		findDefaultFn: func() (*model.Client, error) { return buildActiveClient(), nil },
+		findSystemFn: func() (*model.Client, error) { return buildActiveClient(), nil },
 	}
 	userRepo := &mockUserRepo{
 		findByEmailFn: func(_ string) (*model.User, error) {
@@ -439,7 +439,7 @@ func TestForgotPasswordService_SendPasswordResetEmail_TemplateError(t *testing.T
 	mock.ExpectCommit()
 
 	clientRepo := &mockClientRepo{
-		findDefaultFn: func() (*model.Client, error) { return buildActiveClient(), nil },
+		findSystemFn: func() (*model.Client, error) { return buildActiveClient(), nil },
 	}
 	userRepo := &mockUserRepo{
 		findByEmailFn: func(_ string) (*model.User, error) {
@@ -486,7 +486,7 @@ func TestForgotPasswordService_SendPasswordResetEmail_HTMLParseError(t *testing.
 	mock.ExpectCommit()
 
 	clientRepo := &mockClientRepo{
-		findDefaultFn: func() (*model.Client, error) { return buildActiveClient(), nil },
+		findSystemFn: func() (*model.Client, error) { return buildActiveClient(), nil },
 	}
 	userRepo := &mockUserRepo{
 		findByEmailFn: func(_ string) (*model.User, error) {
@@ -536,7 +536,7 @@ func TestForgotPasswordService_SendPasswordResetEmail_PlainParseError(t *testing
 	mock.ExpectCommit()
 
 	clientRepo := &mockClientRepo{
-		findDefaultFn: func() (*model.Client, error) { return buildActiveClient(), nil },
+		findSystemFn: func() (*model.Client, error) { return buildActiveClient(), nil },
 	}
 	userRepo := &mockUserRepo{
 		findByEmailFn: func(_ string) (*model.User, error) {
@@ -588,7 +588,7 @@ func TestForgotPasswordService_SendPasswordResetEmail_HTMLExecuteError(t *testin
 	mock.ExpectCommit()
 
 	clientRepo := &mockClientRepo{
-		findDefaultFn: func() (*model.Client, error) { return buildActiveClient(), nil },
+		findSystemFn: func() (*model.Client, error) { return buildActiveClient(), nil },
 	}
 	userRepo := &mockUserRepo{
 		findByEmailFn: func(_ string) (*model.User, error) {
@@ -638,7 +638,7 @@ func TestForgotPasswordService_SendPasswordResetEmail_PlainExecuteError(t *testi
 	mock.ExpectCommit()
 
 	clientRepo := &mockClientRepo{
-		findDefaultFn: func() (*model.Client, error) { return buildActiveClient(), nil },
+		findSystemFn: func() (*model.Client, error) { return buildActiveClient(), nil },
 	}
 	userRepo := &mockUserRepo{
 		findByEmailFn: func(_ string) (*model.User, error) {
@@ -702,7 +702,7 @@ func TestForgotPasswordService_SendPasswordResetEmail_WithExistingTokens(t *test
 	token2UUID := uuid.New()
 	var revokedUUIDs []uuid.UUID
 	clientRepo := &mockClientRepo{
-		findDefaultFn: func() (*model.Client, error) { return buildActiveClient(), nil },
+		findSystemFn: func() (*model.Client, error) { return buildActiveClient(), nil },
 	}
 	userRepo := &mockUserRepo{
 		findByEmailFn: func(_ string) (*model.User, error) {
@@ -767,7 +767,7 @@ func TestForgotPasswordService_SendPasswordResetEmail_GenerateSignedURLError(t *
 	mock.ExpectCommit()
 
 	clientRepo := &mockClientRepo{
-		findDefaultFn: func() (*model.Client, error) { return buildActiveClient(), nil },
+		findSystemFn: func() (*model.Client, error) { return buildActiveClient(), nil },
 	}
 	userRepo := &mockUserRepo{
 		findByEmailFn: func(_ string) (*model.User, error) {
@@ -824,7 +824,7 @@ func TestForgotPasswordService_SendPasswordResetEmail_ConvertToFrontendURLError(
 	mock.ExpectCommit()
 
 	clientRepo := &mockClientRepo{
-		findDefaultFn: func() (*model.Client, error) { return buildActiveClient(), nil },
+		findSystemFn: func() (*model.Client, error) { return buildActiveClient(), nil },
 	}
 	userRepo := &mockUserRepo{
 		findByEmailFn: func(_ string) (*model.User, error) {
