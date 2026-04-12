@@ -28,13 +28,13 @@ func NewSecuritySettingHandler(securitySettingService service.SecuritySettingSer
 	}
 }
 
-// GetGeneralConfig retrieves general security configuration for the tenant.
+// GetMFAConfig retrieves general security configuration for the tenant.
 //
 // GET /security-settings/general
 //
 // Returns the current general security configuration settings for the authenticated
 // tenant. The tenant is extracted from the request context (validated by middleware).
-func (h *SecuritySettingHandler) GetGeneralConfig(w http.ResponseWriter, r *http.Request) {
+func (h *SecuritySettingHandler) GetMFAConfig(w http.ResponseWriter, r *http.Request) {
 	// Get tenant from context (middleware already validated access)
 	tenant := middleware.AuthFromRequest(r).Tenant
 	if tenant == nil {
@@ -43,7 +43,7 @@ func (h *SecuritySettingHandler) GetGeneralConfig(w http.ResponseWriter, r *http
 	}
 
 	// Fetch general configuration for the tenant
-	config, err := h.securitySettingService.GetGeneralConfig(r.Context(), tenant.TenantID)
+	config, err := h.securitySettingService.GetMFAConfig(r.Context(), tenant.TenantID)
 	if err != nil {
 		resp.HandleServiceError(w, r, "Failed to get general config", err)
 		return
@@ -136,13 +136,13 @@ func (h *SecuritySettingHandler) GetThreatConfig(w http.ResponseWriter, r *http.
 	resp.Success(w, response, "Threat config retrieved successfully")
 }
 
-// GetIPConfig retrieves IP security configuration for the tenant.
+// GetLockoutConfig retrieves IP security configuration for the tenant.
 //
 // GET /security-settings/ip
 //
 // Returns the current IP-based security settings (IP whitelisting, geolocation
 // restrictions, etc.) for the authenticated tenant.
-func (h *SecuritySettingHandler) GetIPConfig(w http.ResponseWriter, r *http.Request) {
+func (h *SecuritySettingHandler) GetLockoutConfig(w http.ResponseWriter, r *http.Request) {
 	// Get tenant from context (middleware already validated access)
 	tenant := middleware.AuthFromRequest(r).Tenant
 	if tenant == nil {
@@ -151,7 +151,7 @@ func (h *SecuritySettingHandler) GetIPConfig(w http.ResponseWriter, r *http.Requ
 	}
 
 	// Fetch IP configuration for the tenant
-	config, err := h.securitySettingService.GetIPConfig(r.Context(), tenant.TenantID)
+	config, err := h.securitySettingService.GetLockoutConfig(r.Context(), tenant.TenantID)
 	if err != nil {
 		resp.HandleServiceError(w, r, "Failed to get IP config", err)
 		return
@@ -163,14 +163,14 @@ func (h *SecuritySettingHandler) GetIPConfig(w http.ResponseWriter, r *http.Requ
 	resp.Success(w, response, "IP config retrieved successfully")
 }
 
-// UpdateGeneralConfig updates general security configuration for the tenant.
+// UpdateMFAConfig updates general security configuration for the tenant.
 //
 // PUT /security-settings/general
 //
 // Updates general security settings for the authenticated tenant. This operation
 // is audited, capturing the user who made the change along with their IP address
 // and user agent for compliance tracking.
-func (h *SecuritySettingHandler) UpdateGeneralConfig(w http.ResponseWriter, r *http.Request) {
+func (h *SecuritySettingHandler) UpdateMFAConfig(w http.ResponseWriter, r *http.Request) {
 	// Get user from context (needed for audit tracking)
 	user := middleware.AuthFromRequest(r).User
 
@@ -207,14 +207,14 @@ func (h *SecuritySettingHandler) UpdateGeneralConfig(w http.ResponseWriter, r *h
 	}
 
 	// Update general configuration (creates audit record)
-	_, err := h.securitySettingService.UpdateGeneralConfig(r.Context(), tenant.TenantID, map[string]any(req), user.UserID, clientIPStr, userAgentStr)
+	_, err := h.securitySettingService.UpdateMFAConfig(r.Context(), tenant.TenantID, map[string]any(req), user.UserID, clientIPStr, userAgentStr)
 	if err != nil {
 		resp.HandleServiceError(w, r, "Failed to update general config", err)
 		return
 	}
 
 	// Fetch and return the updated configuration
-	config, err := h.securitySettingService.GetGeneralConfig(r.Context(), tenant.TenantID)
+	config, err := h.securitySettingService.GetMFAConfig(r.Context(), tenant.TenantID)
 	if err != nil {
 		resp.HandleServiceError(w, r, "Failed to get updated config", err)
 		return
@@ -412,13 +412,13 @@ func (h *SecuritySettingHandler) UpdateThreatConfig(w http.ResponseWriter, r *ht
 	resp.Success(w, response, "Threat config updated successfully")
 }
 
-// UpdateIPConfig updates IP security configuration for the tenant.
+// UpdateLockoutConfig updates IP security configuration for the tenant.
 //
 // PUT /security-settings/ip
 //
 // Updates IP-based security settings for the authenticated tenant (IP whitelisting,
 // geolocation restrictions, VPN/proxy detection, etc.). This operation is audited.
-func (h *SecuritySettingHandler) UpdateIPConfig(w http.ResponseWriter, r *http.Request) {
+func (h *SecuritySettingHandler) UpdateLockoutConfig(w http.ResponseWriter, r *http.Request) {
 	// Get user from context (needed for audit tracking)
 	user := middleware.AuthFromRequest(r).User
 
@@ -455,14 +455,14 @@ func (h *SecuritySettingHandler) UpdateIPConfig(w http.ResponseWriter, r *http.R
 	}
 
 	// Update IP configuration (creates audit record)
-	_, err := h.securitySettingService.UpdateIPConfig(r.Context(), tenant.TenantID, map[string]any(req), user.UserID, clientIPStr, userAgentStr)
+	_, err := h.securitySettingService.UpdateLockoutConfig(r.Context(), tenant.TenantID, map[string]any(req), user.UserID, clientIPStr, userAgentStr)
 	if err != nil {
 		resp.HandleServiceError(w, r, "Failed to update IP config", err)
 		return
 	}
 
 	// Fetch and return the updated configuration
-	config, err := h.securitySettingService.GetIPConfig(r.Context(), tenant.TenantID)
+	config, err := h.securitySettingService.GetLockoutConfig(r.Context(), tenant.TenantID)
 	if err != nil {
 		resp.HandleServiceError(w, r, "Failed to get updated config", err)
 		return
@@ -472,4 +472,140 @@ func (h *SecuritySettingHandler) UpdateIPConfig(w http.ResponseWriter, r *http.R
 	response := dto.SecuritySettingConfigResponseDTO(config)
 
 	resp.Success(w, response, "IP config updated successfully")
+}
+
+// GetRegistrationConfig retrieves registration security configuration for the tenant.
+//
+// GET /security-settings/registration
+func (h *SecuritySettingHandler) GetRegistrationConfig(w http.ResponseWriter, r *http.Request) {
+	tenant := middleware.AuthFromRequest(r).Tenant
+	if tenant == nil {
+		resp.Error(w, http.StatusUnauthorized, "Tenant not found in context")
+		return
+	}
+
+	config, err := h.securitySettingService.GetRegistrationConfig(r.Context(), tenant.TenantID)
+	if err != nil {
+		resp.HandleServiceError(w, r, "Failed to get registration config", err)
+		return
+	}
+
+	response := dto.SecuritySettingConfigResponseDTO(config)
+	resp.Success(w, response, "Registration config retrieved successfully")
+}
+
+// GetTokenConfig retrieves token security configuration for the tenant.
+//
+// GET /security-settings/token
+func (h *SecuritySettingHandler) GetTokenConfig(w http.ResponseWriter, r *http.Request) {
+	tenant := middleware.AuthFromRequest(r).Tenant
+	if tenant == nil {
+		resp.Error(w, http.StatusUnauthorized, "Tenant not found in context")
+		return
+	}
+
+	config, err := h.securitySettingService.GetTokenConfig(r.Context(), tenant.TenantID)
+	if err != nil {
+		resp.HandleServiceError(w, r, "Failed to get token config", err)
+		return
+	}
+
+	response := dto.SecuritySettingConfigResponseDTO(config)
+	resp.Success(w, response, "Token config retrieved successfully")
+}
+
+// UpdateRegistrationConfig updates registration security configuration for the tenant.
+//
+// PUT /security-settings/registration
+func (h *SecuritySettingHandler) UpdateRegistrationConfig(w http.ResponseWriter, r *http.Request) {
+	user := middleware.AuthFromRequest(r).User
+	tenant := middleware.AuthFromRequest(r).Tenant
+	if tenant == nil {
+		resp.Error(w, http.StatusUnauthorized, "Tenant not found in context")
+		return
+	}
+
+	var req dto.SecuritySettingUpdateConfigRequestDTO
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		resp.Error(w, http.StatusBadRequest, "Invalid request")
+		return
+	}
+	if err := req.Validate(); err != nil {
+		resp.ValidationError(w, err)
+		return
+	}
+
+	clientIP := r.Context().Value(middleware.ClientIPKey)
+	userAgentCtx := r.Context().Value(middleware.UserAgentKey)
+	clientIPStr := ""
+	userAgentStr := ""
+	if clientIP != nil {
+		clientIPStr = clientIP.(string)
+	}
+	if userAgentCtx != nil {
+		userAgentStr = userAgentCtx.(string)
+	}
+
+	_, err := h.securitySettingService.UpdateRegistrationConfig(r.Context(), tenant.TenantID, map[string]any(req), user.UserID, clientIPStr, userAgentStr)
+	if err != nil {
+		resp.HandleServiceError(w, r, "Failed to update registration config", err)
+		return
+	}
+
+	config, err := h.securitySettingService.GetRegistrationConfig(r.Context(), tenant.TenantID)
+	if err != nil {
+		resp.HandleServiceError(w, r, "Failed to get updated config", err)
+		return
+	}
+
+	response := dto.SecuritySettingConfigResponseDTO(config)
+	resp.Success(w, response, "Registration config updated successfully")
+}
+
+// UpdateTokenConfig updates token security configuration for the tenant.
+//
+// PUT /security-settings/token
+func (h *SecuritySettingHandler) UpdateTokenConfig(w http.ResponseWriter, r *http.Request) {
+	user := middleware.AuthFromRequest(r).User
+	tenant := middleware.AuthFromRequest(r).Tenant
+	if tenant == nil {
+		resp.Error(w, http.StatusUnauthorized, "Tenant not found in context")
+		return
+	}
+
+	var req dto.SecuritySettingUpdateConfigRequestDTO
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		resp.Error(w, http.StatusBadRequest, "Invalid request")
+		return
+	}
+	if err := req.Validate(); err != nil {
+		resp.ValidationError(w, err)
+		return
+	}
+
+	clientIP := r.Context().Value(middleware.ClientIPKey)
+	userAgentCtx := r.Context().Value(middleware.UserAgentKey)
+	clientIPStr := ""
+	userAgentStr := ""
+	if clientIP != nil {
+		clientIPStr = clientIP.(string)
+	}
+	if userAgentCtx != nil {
+		userAgentStr = userAgentCtx.(string)
+	}
+
+	_, err := h.securitySettingService.UpdateTokenConfig(r.Context(), tenant.TenantID, map[string]any(req), user.UserID, clientIPStr, userAgentStr)
+	if err != nil {
+		resp.HandleServiceError(w, r, "Failed to update token config", err)
+		return
+	}
+
+	config, err := h.securitySettingService.GetTokenConfig(r.Context(), tenant.TenantID)
+	if err != nil {
+		resp.HandleServiceError(w, r, "Failed to get updated config", err)
+		return
+	}
+
+	response := dto.SecuritySettingConfigResponseDTO(config)
+	resp.Success(w, response, "Token config updated successfully")
 }

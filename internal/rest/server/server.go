@@ -45,6 +45,11 @@ type handlers struct {
 	emailTemplate     *handler.EmailTemplateHandler
 	smsTemplate       *handler.SMSTemplateHandler
 	loginTemplate     *handler.LoginTemplateHandler
+	branding          *handler.BrandingHandler
+	tenantSetting     *handler.TenantSettingHandler
+	emailConfig       *handler.EmailConfigHandler
+	smsConfig         *handler.SMSConfigHandler
+	webhookEndpoint   *handler.WebhookEndpointHandler
 }
 
 func initHandlers(application *app.App) *handlers {
@@ -73,6 +78,11 @@ func initHandlers(application *app.App) *handlers {
 		emailTemplate:     handler.NewEmailTemplateHandler(application.EmailTemplateService),
 		smsTemplate:       handler.NewSMSTemplateHandler(application.SMSTemplateService),
 		loginTemplate:     handler.NewLoginTemplateHandler(application.LoginTemplateService),
+		branding:          handler.NewBrandingHandler(application.BrandingService),
+		tenantSetting:     handler.NewTenantSettingHandler(application.TenantSettingService),
+		emailConfig:       handler.NewEmailConfigHandler(application.EmailConfigService),
+		smsConfig:         handler.NewSMSConfigHandler(application.SMSConfigService),
+		webhookEndpoint:   handler.NewWebhookEndpointHandler(application.WebhookEndpointService),
 	}
 }
 
@@ -200,6 +210,11 @@ func buildInternalRouter(h *handlers, application *app.App) http.Handler {
 		route.EmailTemplateRoute(api, h.emailTemplate, application.UserService, application.Cache)
 		route.SMSTemplateRoute(api, h.smsTemplate, application.UserService, application.Cache)
 		route.LoginTemplateRoute(api, h.loginTemplate, application.UserService, application.Cache)
+		route.BrandingRoute(api, h.branding, application.UserService, application.Cache)
+		route.TenantSettingRoute(api, h.tenantSetting, application.UserService, application.Cache)
+		route.EmailConfigRoute(api, h.emailConfig, application.UserService, application.Cache)
+		route.SMSConfigRoute(api, h.smsConfig, application.UserService, application.Cache)
+		route.WebhookEndpointRoute(api, h.webhookEndpoint, application.UserService, application.Cache)
 	})
 
 	return r

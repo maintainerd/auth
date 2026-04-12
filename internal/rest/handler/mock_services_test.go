@@ -818,28 +818,32 @@ func (m *mockInviteService) SendInvite(_ context.Context, tenantID int64, email 
 // ---------------------------------------------------------------------------
 
 type mockSecuritySettingService struct {
-	getByTenantIDFn        func(int64) (*service.SecuritySettingServiceDataResult, error)
-	getGeneralConfigFn     func(int64) (map[string]any, error)
-	getPasswordConfigFn    func(int64) (map[string]any, error)
-	getSessionConfigFn     func(int64) (map[string]any, error)
-	getThreatConfigFn      func(int64) (map[string]any, error)
-	getIPConfigFn          func(int64) (map[string]any, error)
-	updateGeneralConfigFn  func(int64, map[string]any, int64, string, string) (*service.SecuritySettingServiceDataResult, error)
-	updatePasswordConfigFn func(int64, map[string]any, int64, string, string) (*service.SecuritySettingServiceDataResult, error)
-	updateSessionConfigFn  func(int64, map[string]any, int64, string, string) (*service.SecuritySettingServiceDataResult, error)
-	updateThreatConfigFn   func(int64, map[string]any, int64, string, string) (*service.SecuritySettingServiceDataResult, error)
-	updateIPConfigFn       func(int64, map[string]any, int64, string, string) (*service.SecuritySettingServiceDataResult, error)
+	getByTenantIDFn            func(int64) (*service.SecuritySettingServiceDataResult, error)
+	getMFAConfigFn             func(int64) (map[string]any, error)
+	getPasswordConfigFn        func(int64) (map[string]any, error)
+	getSessionConfigFn         func(int64) (map[string]any, error)
+	getThreatConfigFn          func(int64) (map[string]any, error)
+	getLockoutConfigFn         func(int64) (map[string]any, error)
+	updateMFAConfigFn          func(int64, map[string]any, int64, string, string) (*service.SecuritySettingServiceDataResult, error)
+	updatePasswordConfigFn     func(int64, map[string]any, int64, string, string) (*service.SecuritySettingServiceDataResult, error)
+	updateSessionConfigFn      func(int64, map[string]any, int64, string, string) (*service.SecuritySettingServiceDataResult, error)
+	updateThreatConfigFn       func(int64, map[string]any, int64, string, string) (*service.SecuritySettingServiceDataResult, error)
+	updateLockoutConfigFn      func(int64, map[string]any, int64, string, string) (*service.SecuritySettingServiceDataResult, error)
+	getRegistrationConfigFn    func(int64) (map[string]any, error)
+	getTokenConfigFn           func(int64) (map[string]any, error)
+	updateRegistrationConfigFn func(int64, map[string]any, int64, string, string) (*service.SecuritySettingServiceDataResult, error)
+	updateTokenConfigFn        func(int64, map[string]any, int64, string, string) (*service.SecuritySettingServiceDataResult, error)
 }
 
-func (m *mockSecuritySettingService) GetByTenantID(_ context.Context, tid int64) (*service.SecuritySettingServiceDataResult, error) {
+func (m *mockSecuritySettingService) GetByUserPoolID(_ context.Context, tid int64) (*service.SecuritySettingServiceDataResult, error) {
 	if m.getByTenantIDFn != nil {
 		return m.getByTenantIDFn(tid)
 	}
 	return nil, nil
 }
-func (m *mockSecuritySettingService) GetGeneralConfig(_ context.Context, tid int64) (map[string]any, error) {
-	if m.getGeneralConfigFn != nil {
-		return m.getGeneralConfigFn(tid)
+func (m *mockSecuritySettingService) GetMFAConfig(_ context.Context, tid int64) (map[string]any, error) {
+	if m.getMFAConfigFn != nil {
+		return m.getMFAConfigFn(tid)
 	}
 	return nil, nil
 }
@@ -861,15 +865,15 @@ func (m *mockSecuritySettingService) GetThreatConfig(_ context.Context, tid int6
 	}
 	return nil, nil
 }
-func (m *mockSecuritySettingService) GetIPConfig(_ context.Context, tid int64) (map[string]any, error) {
-	if m.getIPConfigFn != nil {
-		return m.getIPConfigFn(tid)
+func (m *mockSecuritySettingService) GetLockoutConfig(_ context.Context, tid int64) (map[string]any, error) {
+	if m.getLockoutConfigFn != nil {
+		return m.getLockoutConfigFn(tid)
 	}
 	return nil, nil
 }
-func (m *mockSecuritySettingService) UpdateGeneralConfig(_ context.Context, tid int64, cfg map[string]any, by int64, ip, ua string) (*service.SecuritySettingServiceDataResult, error) {
-	if m.updateGeneralConfigFn != nil {
-		return m.updateGeneralConfigFn(tid, cfg, by, ip, ua)
+func (m *mockSecuritySettingService) UpdateMFAConfig(_ context.Context, tid int64, cfg map[string]any, by int64, ip, ua string) (*service.SecuritySettingServiceDataResult, error) {
+	if m.updateMFAConfigFn != nil {
+		return m.updateMFAConfigFn(tid, cfg, by, ip, ua)
 	}
 	return nil, nil
 }
@@ -891,9 +895,33 @@ func (m *mockSecuritySettingService) UpdateThreatConfig(_ context.Context, tid i
 	}
 	return nil, nil
 }
-func (m *mockSecuritySettingService) UpdateIPConfig(_ context.Context, tid int64, cfg map[string]any, by int64, ip, ua string) (*service.SecuritySettingServiceDataResult, error) {
-	if m.updateIPConfigFn != nil {
-		return m.updateIPConfigFn(tid, cfg, by, ip, ua)
+func (m *mockSecuritySettingService) UpdateLockoutConfig(_ context.Context, tid int64, cfg map[string]any, by int64, ip, ua string) (*service.SecuritySettingServiceDataResult, error) {
+	if m.updateLockoutConfigFn != nil {
+		return m.updateLockoutConfigFn(tid, cfg, by, ip, ua)
+	}
+	return nil, nil
+}
+func (m *mockSecuritySettingService) GetRegistrationConfig(_ context.Context, tid int64) (map[string]any, error) {
+	if m.getRegistrationConfigFn != nil {
+		return m.getRegistrationConfigFn(tid)
+	}
+	return nil, nil
+}
+func (m *mockSecuritySettingService) GetTokenConfig(_ context.Context, tid int64) (map[string]any, error) {
+	if m.getTokenConfigFn != nil {
+		return m.getTokenConfigFn(tid)
+	}
+	return nil, nil
+}
+func (m *mockSecuritySettingService) UpdateRegistrationConfig(_ context.Context, tid int64, cfg map[string]any, by int64, ip, ua string) (*service.SecuritySettingServiceDataResult, error) {
+	if m.updateRegistrationConfigFn != nil {
+		return m.updateRegistrationConfigFn(tid, cfg, by, ip, ua)
+	}
+	return nil, nil
+}
+func (m *mockSecuritySettingService) UpdateTokenConfig(_ context.Context, tid int64, cfg map[string]any, by int64, ip, ua string) (*service.SecuritySettingServiceDataResult, error) {
+	if m.updateTokenConfigFn != nil {
+		return m.updateTokenConfigFn(tid, cfg, by, ip, ua)
 	}
 	return nil, nil
 }
