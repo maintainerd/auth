@@ -14,6 +14,8 @@ import (
 	"gorm.io/gorm"
 )
 
+// IPRestrictionRuleServiceDataResult is the service-layer representation of a
+// single IP restriction rule.
 type IPRestrictionRuleServiceDataResult struct {
 	IPRestrictionRuleUUID uuid.UUID
 	TenantID              int64
@@ -25,6 +27,8 @@ type IPRestrictionRuleServiceDataResult struct {
 	UpdatedAt             time.Time
 }
 
+// IPRestrictionRuleServiceListResult is the paginated result returned by
+// listing IP restriction rules.
 type IPRestrictionRuleServiceListResult struct {
 	Data       []IPRestrictionRuleServiceDataResult
 	Total      int64
@@ -33,6 +37,7 @@ type IPRestrictionRuleServiceListResult struct {
 	TotalPages int
 }
 
+// IPRestrictionRuleService defines business operations on IP restriction rules.
 type IPRestrictionRuleService interface {
 	GetAll(ctx context.Context, tenantID int64, ruleType *string, status []string, ipAddress, description *string, page, limit int, sortBy, sortOrder string) (*IPRestrictionRuleServiceListResult, error)
 	GetByUUID(ctx context.Context, tenantID int64, ipRestrictionRuleUUID uuid.UUID) (*IPRestrictionRuleServiceDataResult, error)
@@ -47,6 +52,7 @@ type ipRestrictionRuleService struct {
 	ipRestrictionRuleRepo repository.IPRestrictionRuleRepository
 }
 
+// NewIPRestrictionRuleService creates a new IPRestrictionRuleService.
 func NewIPRestrictionRuleService(
 	db *gorm.DB,
 	ipRestrictionRuleRepo repository.IPRestrictionRuleRepository,
@@ -279,7 +285,8 @@ func (s *ipRestrictionRuleService) Delete(ctx context.Context, tenantID int64, i
 	return &result, nil
 }
 
-// Helper functions
+// toIPRestrictionRuleServiceDataResult converts a model.IPRestrictionRule into
+// its service-layer representation.
 func toIPRestrictionRuleServiceDataResult(rule *model.IPRestrictionRule) IPRestrictionRuleServiceDataResult {
 	return IPRestrictionRuleServiceDataResult{
 		IPRestrictionRuleUUID: rule.IPRestrictionRuleUUID,

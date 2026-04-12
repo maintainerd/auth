@@ -1,4 +1,3 @@
-# OIDC Provider Compatibility
 
 ## What this is
 

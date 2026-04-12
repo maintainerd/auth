@@ -47,6 +47,8 @@ func NewBrandingService(brandingRepo repository.BrandingRepository) BrandingServ
 	return &brandingService{brandingRepo: brandingRepo}
 }
 
+// toBrandingServiceDataResult converts a model.Branding into its service-layer
+// representation.
 func toBrandingServiceDataResult(b *model.Branding) *BrandingServiceDataResult {
 	return &BrandingServiceDataResult{
 		BrandingUUID:      b.BrandingUUID,
@@ -120,6 +122,8 @@ func (s *brandingService) Update(ctx context.Context, tenantID int64, companyNam
 	return toBrandingServiceDataResult(updated), nil
 }
 
+// getOrCreate retrieves the branding record for the given tenant,
+// automatically creating a default empty record if none exists.
 func (s *brandingService) getOrCreate(tenantID int64) (*model.Branding, error) {
 	branding, err := s.brandingRepo.FindByTenantID(tenantID)
 	if err != nil {
