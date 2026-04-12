@@ -36,7 +36,7 @@ func actorUserWithDefaultTenant(tenantID int64) *model.User {
 	return &model.User{
 		UserID: 1,
 		UserIdentities: []model.UserIdentity{
-			{TenantID: tenantID, Tenant: &model.Tenant{TenantID: tenantID, IsDefault: true}},
+			{TenantID: tenantID, Tenant: &model.Tenant{TenantID: tenantID, IsSystem: true}},
 		},
 	}
 }
@@ -242,7 +242,7 @@ func TestIdentityProviderService_DeleteByUUID(t *testing.T) {
 				return &model.User{
 					UserID: 1,
 					UserIdentities: []model.UserIdentity{
-						{TenantID: 999, Tenant: &model.Tenant{TenantID: 999, IsDefault: false}},
+						{TenantID: 999, Tenant: &model.Tenant{TenantID: 999, IsSystem: false}},
 					},
 				}, nil
 			},
@@ -320,7 +320,7 @@ func TestIdentityProviderService_Create(t *testing.T) {
 		mock.ExpectRollback()
 		tenantRepo := &mockTenantRepo{
 			findByUUIDFn: func(_ any, _ ...string) (*model.Tenant, error) {
-				return &model.Tenant{TenantID: tenantID, IsDefault: true}, nil
+				return &model.Tenant{TenantID: tenantID, IsSystem: true}, nil
 			},
 		}
 		userRepo := &mockUserRepo{
@@ -338,7 +338,7 @@ func TestIdentityProviderService_Create(t *testing.T) {
 		mock.ExpectRollback()
 		tenantRepo := &mockTenantRepo{
 			findByUUIDFn: func(_ any, _ ...string) (*model.Tenant, error) {
-				return &model.Tenant{TenantID: tenantID, IsDefault: false}, nil
+				return &model.Tenant{TenantID: tenantID, IsSystem: false}, nil
 			},
 		}
 		userRepo := &mockUserRepo{
@@ -346,7 +346,7 @@ func TestIdentityProviderService_Create(t *testing.T) {
 				return &model.User{
 					UserID: 1,
 					UserIdentities: []model.UserIdentity{
-						{TenantID: 999, Tenant: &model.Tenant{TenantID: 999, IsDefault: false}},
+						{TenantID: 999, Tenant: &model.Tenant{TenantID: 999, IsSystem: false}},
 					},
 				}, nil
 			},
@@ -362,7 +362,7 @@ func TestIdentityProviderService_Create(t *testing.T) {
 		mock.ExpectRollback()
 		tenantRepo := &mockTenantRepo{
 			findByUUIDFn: func(_ any, _ ...string) (*model.Tenant, error) {
-				return &model.Tenant{TenantID: tenantID, IsDefault: true}, nil
+				return &model.Tenant{TenantID: tenantID, IsSystem: true}, nil
 			},
 		}
 		userRepo := &mockUserRepo{
@@ -386,7 +386,7 @@ func TestIdentityProviderService_Create(t *testing.T) {
 		mock.ExpectRollback()
 		tenantRepo := &mockTenantRepo{
 			findByUUIDFn: func(_ any, _ ...string) (*model.Tenant, error) {
-				return &model.Tenant{TenantID: tenantID, IsDefault: true}, nil
+				return &model.Tenant{TenantID: tenantID, IsSystem: true}, nil
 			},
 		}
 		userRepo := &mockUserRepo{
@@ -415,7 +415,7 @@ func TestIdentityProviderService_Create(t *testing.T) {
 		mock.ExpectRollback()
 		tenantRepo := &mockTenantRepo{
 			findByUUIDFn: func(_ any, _ ...string) (*model.Tenant, error) {
-				return &model.Tenant{TenantID: tenantID, IsDefault: true}, nil
+				return &model.Tenant{TenantID: tenantID, IsSystem: true}, nil
 			},
 		}
 		userRepo := &mockUserRepo{
@@ -436,7 +436,7 @@ func TestIdentityProviderService_Create(t *testing.T) {
 		mock.ExpectRollback()
 		tenantRepo := &mockTenantRepo{
 			findByUUIDFn: func(_ any, _ ...string) (*model.Tenant, error) {
-				return &model.Tenant{TenantID: tenantID, IsDefault: true}, nil
+				return &model.Tenant{TenantID: tenantID, IsSystem: true}, nil
 			},
 		}
 		userRepo := &mockUserRepo{
@@ -461,7 +461,7 @@ func TestIdentityProviderService_Create(t *testing.T) {
 		mock.ExpectRollback()
 		tenantRepo := &mockTenantRepo{
 			findByUUIDFn: func(_ any, _ ...string) (*model.Tenant, error) {
-				return &model.Tenant{TenantID: tenantID, IsDefault: true}, nil
+				return &model.Tenant{TenantID: tenantID, IsSystem: true}, nil
 			},
 		}
 		userRepo := &mockUserRepo{
@@ -484,7 +484,7 @@ func TestIdentityProviderService_Create(t *testing.T) {
 		gormDB, mock := newMockGormDB(t)
 		mock.ExpectBegin()
 		mock.ExpectCommit()
-		tenant := &model.Tenant{TenantID: tenantID, TenantUUID: tenantUUID, IsDefault: true}
+		tenant := &model.Tenant{TenantID: tenantID, TenantUUID: tenantUUID, IsSystem: true}
 		tenantRepo := &mockTenantRepo{
 			findByUUIDFn: func(_ any, _ ...string) (*model.Tenant, error) { return tenant, nil },
 		}
@@ -579,7 +579,7 @@ func TestIdentityProviderService_Update(t *testing.T) {
 				return &model.User{
 					UserID: 1,
 					UserIdentities: []model.UserIdentity{
-						{TenantID: 999, Tenant: &model.Tenant{TenantID: 999, IsDefault: false}},
+						{TenantID: 999, Tenant: &model.Tenant{TenantID: 999, IsSystem: false}},
 					},
 				}, nil
 			},
@@ -804,7 +804,7 @@ func TestIdentityProviderService_SetStatusByUUID(t *testing.T) {
 				return &model.User{
 					UserID: 1,
 					UserIdentities: []model.UserIdentity{
-						{TenantID: 999, Tenant: &model.Tenant{TenantID: 999, IsDefault: false}},
+						{TenantID: 999, Tenant: &model.Tenant{TenantID: 999, IsSystem: false}},
 					},
 				}, nil
 			},

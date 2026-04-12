@@ -22,7 +22,7 @@ func ValidateTenantAccess(actorUser *model.User, targetTenant *model.Tenant) err
 
 	for _, identity := range actorUser.UserIdentities {
 		// If user has identity in a default tenant, they can access any tenant
-		if identity.Tenant.IsDefault {
+		if identity.Tenant.IsSystem {
 			hasDefaultTenantAccess = true
 			break
 		}
@@ -63,7 +63,7 @@ func ValidateTenantAccessByID(actorUser *model.User, targetTenantID int64) error
 
 	for _, identity := range actorUser.UserIdentities {
 		// If user has identity in a default tenant, they can access any tenant
-		if identity.Tenant.IsDefault {
+		if identity.Tenant.IsSystem {
 			hasDefaultTenantAccess = true
 			break
 		}

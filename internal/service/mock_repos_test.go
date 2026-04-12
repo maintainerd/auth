@@ -12,17 +12,16 @@ import (
 // ---------------------------------------------------------------------------
 
 type mockTenantRepo struct {
-	findAllFn                func(preloads ...string) ([]model.Tenant, error)
-	findByUUIDFn             func(id any, preloads ...string) (*model.Tenant, error)
-	findByNameFn             func(name string) (*model.Tenant, error)
-	findByIdentifierFn       func(identifier string) (*model.Tenant, error)
-	findDefaultFn            func() (*model.Tenant, error)
-	findPaginatedFn          func(filter repository.TenantRepositoryGetFilter) (*repository.PaginationResult[model.Tenant], error)
-	createFn                 func(e *model.Tenant) (*model.Tenant, error)
-	createOrUpdateFn         func(e *model.Tenant) (*model.Tenant, error)
-	setStatusByUUIDFn        func(tenantUUID uuid.UUID, status string) error
-	setDefaultStatusByUUIDFn func(tenantUUID uuid.UUID, isDefault bool) error
-	deleteByUUIDFn           func(id any) error
+	findAllFn          func(preloads ...string) ([]model.Tenant, error)
+	findByUUIDFn       func(id any, preloads ...string) (*model.Tenant, error)
+	findByNameFn       func(name string) (*model.Tenant, error)
+	findByIdentifierFn func(identifier string) (*model.Tenant, error)
+	findSystemFn       func() (*model.Tenant, error)
+	findPaginatedFn    func(filter repository.TenantRepositoryGetFilter) (*repository.PaginationResult[model.Tenant], error)
+	createFn           func(e *model.Tenant) (*model.Tenant, error)
+	createOrUpdateFn   func(e *model.Tenant) (*model.Tenant, error)
+	setStatusByUUIDFn  func(tenantUUID uuid.UUID, status string) error
+	deleteByUUIDFn     func(id any) error
 }
 
 func (m *mockTenantRepo) WithTx(_ *gorm.DB) repository.TenantRepository { return m }
@@ -74,9 +73,9 @@ func (m *mockTenantRepo) FindByIdentifier(id string) (*model.Tenant, error) {
 	}
 	return nil, nil
 }
-func (m *mockTenantRepo) FindDefault() (*model.Tenant, error) {
-	if m.findDefaultFn != nil {
-		return m.findDefaultFn()
+func (m *mockTenantRepo) FindSystem() (*model.Tenant, error) {
+	if m.findSystemFn != nil {
+		return m.findSystemFn()
 	}
 	return nil, nil
 }
@@ -89,12 +88,6 @@ func (m *mockTenantRepo) FindPaginated(f repository.TenantRepositoryGetFilter) (
 func (m *mockTenantRepo) SetStatusByUUID(id uuid.UUID, s string) error {
 	if m.setStatusByUUIDFn != nil {
 		return m.setStatusByUUIDFn(id, s)
-	}
-	return nil
-}
-func (m *mockTenantRepo) SetDefaultStatusByUUID(id uuid.UUID, v bool) error {
-	if m.setDefaultStatusByUUIDFn != nil {
-		return m.setDefaultStatusByUUIDFn(id, v)
 	}
 	return nil
 }
@@ -1915,52 +1908,6 @@ func (m *mockSignupFlowRoleRepo) FindBySignupFlowIDAndRoleID(sfID, rID int64) (*
 }
 
 // ---------------------------------------------------------------------------
-// Mock: TenantUserRepository
-// ---------------------------------------------------------------------------
-
-type mockTenantUserRepo struct {
-	findByTenantAndUserFn func(int64, int64) (*model.TenantUser, error)
-	createFn              func(*model.TenantUser) (*model.TenantUser, error)
-}
-
-func (m *mockTenantUserRepo) WithTx(_ *gorm.DB) repository.TenantUserRepository { return m }
-func (m *mockTenantUserRepo) Create(e *model.TenantUser) (*model.TenantUser, error) {
-	if m.createFn != nil {
-		return m.createFn(e)
-	}
-	return e, nil
-}
-func (m *mockTenantUserRepo) CreateOrUpdate(e *model.TenantUser) (*model.TenantUser, error) {
-	return e, nil
-}
-func (m *mockTenantUserRepo) FindAll(_ ...string) ([]model.TenantUser, error) { return nil, nil }
-func (m *mockTenantUserRepo) FindByUUID(_ any, _ ...string) (*model.TenantUser, error) {
-	return nil, nil
-}
-func (m *mockTenantUserRepo) FindByUUIDs(_ []string, _ ...string) ([]model.TenantUser, error) {
-	return nil, nil
-}
-func (m *mockTenantUserRepo) FindByID(_ any, _ ...string) (*model.TenantUser, error) { return nil, nil }
-func (m *mockTenantUserRepo) UpdateByUUID(_, _ any) (*model.TenantUser, error)       { return nil, nil }
-func (m *mockTenantUserRepo) UpdateByID(_, _ any) (*model.TenantUser, error)         { return nil, nil }
-func (m *mockTenantUserRepo) DeleteByUUID(_ any) error                               { return nil }
-func (m *mockTenantUserRepo) DeleteByID(_ any) error                                 { return nil }
-func (m *mockTenantUserRepo) Paginate(_ map[string]any, _, _ int, _ ...string) (*repository.PaginationResult[model.TenantUser], error) {
-	return nil, nil
-}
-func (m *mockTenantUserRepo) FindByTenantUserUUID(_ uuid.UUID) (*model.TenantUser, error) {
-	return nil, nil
-}
-func (m *mockTenantUserRepo) FindByTenantAndUser(tID, uID int64) (*model.TenantUser, error) {
-	if m.findByTenantAndUserFn != nil {
-		return m.findByTenantAndUserFn(tID, uID)
-	}
-	return nil, nil
-}
-func (m *mockTenantUserRepo) FindAllByTenant(_ int64) ([]model.TenantUser, error) { return nil, nil }
-func (m *mockTenantUserRepo) FindAllByUser(_ int64) ([]model.TenantUser, error)   { return nil, nil }
-
-// ---------------------------------------------------------------------------
 // Mock: UserRoleRepository
 // ---------------------------------------------------------------------------
 
@@ -2014,3 +1961,43 @@ func (m *mockUserRoleRepo) DeleteByUserIDAndRoleID(uID, rID int64) error {
 	}
 	return nil
 }
+
+// ---------------------------------------------------------------------------
+// Mock: UserPoolRepository
+// ---------------------------------------------------------------------------
+
+type mockUserPoolRepo struct {
+	findByUUIDFn func(any, ...string) (*model.UserPool, error)
+}
+
+func (m *mockUserPoolRepo) WithTx(_ *gorm.DB) repository.UserPoolRepository { return m }
+func (m *mockUserPoolRepo) Create(e *model.UserPool) (*model.UserPool, error) {
+	return e, nil
+}
+func (m *mockUserPoolRepo) CreateOrUpdate(e *model.UserPool) (*model.UserPool, error) {
+	return e, nil
+}
+func (m *mockUserPoolRepo) FindAll(_ ...string) ([]model.UserPool, error) { return nil, nil }
+func (m *mockUserPoolRepo) FindByUUID(id any, p ...string) (*model.UserPool, error) {
+	if m.findByUUIDFn != nil {
+		return m.findByUUIDFn(id, p...)
+	}
+	return nil, nil
+}
+func (m *mockUserPoolRepo) FindByUUIDs(_ []string, _ ...string) ([]model.UserPool, error) {
+	return nil, nil
+}
+func (m *mockUserPoolRepo) FindByID(_ any, _ ...string) (*model.UserPool, error) { return nil, nil }
+func (m *mockUserPoolRepo) UpdateByUUID(_, _ any) (*model.UserPool, error)       { return nil, nil }
+func (m *mockUserPoolRepo) UpdateByID(_, _ any) (*model.UserPool, error)         { return nil, nil }
+func (m *mockUserPoolRepo) DeleteByUUID(_ any) error                             { return nil }
+func (m *mockUserPoolRepo) DeleteByID(_ any) error                               { return nil }
+func (m *mockUserPoolRepo) Paginate(_ map[string]any, _, _ int, _ ...string) (*repository.PaginationResult[model.UserPool], error) {
+	return nil, nil
+}
+func (m *mockUserPoolRepo) FindByIdentifier(_ int64, _ string) (*model.UserPool, error) {
+	return nil, nil
+}
+func (m *mockUserPoolRepo) FindDefault(_ int64) (*model.UserPool, error)        { return nil, nil }
+func (m *mockUserPoolRepo) FindSystem(_ int64) (*model.UserPool, error)         { return nil, nil }
+func (m *mockUserPoolRepo) FindAllByTenantID(_ int64) ([]model.UserPool, error) { return nil, nil }
