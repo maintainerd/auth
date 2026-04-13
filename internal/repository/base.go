@@ -16,6 +16,7 @@ var allowedSortColumns = map[string]struct{}{
 	"country": {}, "is_default": {}, "event_type": {}, "tenant_id": {},
 	"is_system": {}, "is_active": {}, "type": {}, "version": {},
 	"priority": {}, "provider_name": {}, "client_id": {},
+	"category": {}, "severity": {}, "result": {}, "error_reason": {},
 }
 
 // normalizePagination clamps page and limit to safe positive values.

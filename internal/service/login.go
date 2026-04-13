@@ -8,7 +8,9 @@ import (
 	"github.com/maintainerd/auth/internal/apperror"
 	"github.com/maintainerd/auth/internal/dto"
 	"github.com/maintainerd/auth/internal/jwt"
+	"github.com/maintainerd/auth/internal/middleware"
 	"github.com/maintainerd/auth/internal/model"
+	"github.com/maintainerd/auth/internal/ptr"
 	"github.com/maintainerd/auth/internal/repository"
 	"github.com/maintainerd/auth/internal/security"
 	"go.opentelemetry.io/otel"
@@ -30,6 +32,7 @@ type loginService struct {
 	userTokenRepo        repository.UserTokenRepository
 	userIdentityRepo     repository.UserIdentityRepository
 	identityProviderRepo repository.IdentityProviderRepository
+	authEventService     AuthEventService
 }
 
 func NewLoginService(
@@ -39,6 +42,7 @@ func NewLoginService(
 	userTokenRepo repository.UserTokenRepository,
 	userIdentityRepo repository.UserIdentityRepository,
 	identityProviderRepo repository.IdentityProviderRepository,
+	authEventService AuthEventService,
 ) LoginService {
 	return &loginService{
 		db:                   db,
@@ -47,6 +51,7 @@ func NewLoginService(
 		userTokenRepo:        userTokenRepo,
 		userIdentityRepo:     userIdentityRepo,
 		identityProviderRepo: identityProviderRepo,
+		authEventService:     authEventService,
 	}
 }
 
@@ -189,6 +194,20 @@ func (s *loginService) LoginPublic(ctx context.Context, usernameOrEmail, passwor
 			Details:   "Invalid credentials provided",
 		})
 
+		// Log structured auth event
+		if client != nil {
+			s.authEventService.Log(ctx, AuthEventInput{
+				TenantID:    client.IdentityProvider.TenantID,
+				IPAddress:   middleware.ClientIPFromContext(ctx),
+				UserAgent:   ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),
+				Category:    model.AuthEventCategoryAuthn,
+				EventType:   model.AuthEventTypeLoginFail,
+				Severity:    model.AuthEventSeverityWarn,
+				Result:      model.AuthEventResultFailure,
+				Description: ptr.Ptr("Invalid credentials"),
+			})
+		}
+
 		return nil, apperror.NewUnauthorized("invalid credentials")
 	}
 
@@ -201,6 +220,19 @@ func (s *loginService) LoginPublic(ctx context.Context, usernameOrEmail, passwor
 			Timestamp: startTime,
 			Details:   "Attempt to login with inactive user account",
 		})
+
+		s.authEventService.Log(ctx, AuthEventInput{
+			TenantID:    client.IdentityProvider.TenantID,
+			ActorUserID: &user.UserID,
+			IPAddress:   middleware.ClientIPFromContext(ctx),
+			UserAgent:   ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),
+			Category:    model.AuthEventCategoryAuthn,
+			EventType:   model.AuthEventTypeLoginFail,
+			Severity:    model.AuthEventSeverityWarn,
+			Result:      model.AuthEventResultFailure,
+			Description: ptr.Ptr("Attempt to login with inactive account"),
+		})
+
 		return nil, apperror.NewUnauthorized("account is not active")
 	}
 
@@ -214,6 +246,18 @@ func (s *loginService) LoginPublic(ctx context.Context, usernameOrEmail, passwor
 		ClientID:  clientID,
 		Timestamp: startTime,
 		Details:   fmt.Sprintf("Successful login for user %s", user.Username),
+	})
+
+	s.authEventService.Log(ctx, AuthEventInput{
+		TenantID:    client.IdentityProvider.TenantID,
+		ActorUserID: &user.UserID,
+		IPAddress:   middleware.ClientIPFromContext(ctx),
+		UserAgent:   ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),
+		Category:    model.AuthEventCategoryAuthn,
+		EventType:   model.AuthEventTypeLoginSuccess,
+		Severity:    model.AuthEventSeverityInfo,
+		Result:      model.AuthEventResultSuccess,
+		Description: ptr.Ptr(fmt.Sprintf("Successful login for user %s", user.Username)),
 	})
 
 	// Generate token response
@@ -347,6 +391,20 @@ func (s *loginService) Login(ctx context.Context, usernameOrEmail, password stri
 			Details:   "Invalid credentials provided",
 		})
 
+		// Log structured auth event
+		if client != nil {
+			s.authEventService.Log(ctx, AuthEventInput{
+				TenantID:    client.IdentityProvider.TenantID,
+				IPAddress:   middleware.ClientIPFromContext(ctx),
+				UserAgent:   ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),
+				Category:    model.AuthEventCategoryAuthn,
+				EventType:   model.AuthEventTypeLoginFail,
+				Severity:    model.AuthEventSeverityWarn,
+				Result:      model.AuthEventResultFailure,
+				Description: ptr.Ptr("Invalid credentials"),
+			})
+		}
+
 		return nil, apperror.NewUnauthorized("invalid credentials")
 	}
 
@@ -359,6 +417,19 @@ func (s *loginService) Login(ctx context.Context, usernameOrEmail, password stri
 			Timestamp: startTime,
 			Details:   "Attempt to login with inactive user account",
 		})
+
+		s.authEventService.Log(ctx, AuthEventInput{
+			TenantID:    client.IdentityProvider.TenantID,
+			ActorUserID: &user.UserID,
+			IPAddress:   middleware.ClientIPFromContext(ctx),
+			UserAgent:   ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),
+			Category:    model.AuthEventCategoryAuthn,
+			EventType:   model.AuthEventTypeLoginFail,
+			Severity:    model.AuthEventSeverityWarn,
+			Result:      model.AuthEventResultFailure,
+			Description: ptr.Ptr("Attempt to login with inactive account"),
+		})
+
 		return nil, apperror.NewUnauthorized("account is not active")
 	}
 
@@ -372,6 +443,18 @@ func (s *loginService) Login(ctx context.Context, usernameOrEmail, password stri
 		ClientID:  "internal",
 		Timestamp: startTime,
 		Details:   fmt.Sprintf("Successful internal login for user %s", user.Username),
+	})
+
+	s.authEventService.Log(ctx, AuthEventInput{
+		TenantID:    client.IdentityProvider.TenantID,
+		ActorUserID: &user.UserID,
+		IPAddress:   middleware.ClientIPFromContext(ctx),
+		UserAgent:   ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),
+		Category:    model.AuthEventCategoryAuthn,
+		EventType:   model.AuthEventTypeLoginSuccess,
+		Severity:    model.AuthEventSeverityInfo,
+		Result:      model.AuthEventResultSuccess,
+		Description: ptr.Ptr(fmt.Sprintf("Successful internal login for user %s", user.Username)),
 	})
 
 	// Generate token response
