@@ -9,7 +9,8 @@ import (
 	"github.com/maintainerd/auth/internal/model"
 )
 
-// IP restriction rule response DTO
+// IPRestrictionRuleResponseDTO is the JSON representation of an IP restriction
+// rule.
 type IPRestrictionRuleResponseDTO struct {
 	IPRestrictionRuleID string    `json:"ip_restriction_rule_id"`
 	Description         string    `json:"description"`
@@ -20,7 +21,8 @@ type IPRestrictionRuleResponseDTO struct {
 	UpdatedAt           time.Time `json:"updated_at"`
 }
 
-// Create IP restriction rule request DTO
+// IPRestrictionRuleCreateRequestDTO is the request body for creating an IP
+// restriction rule.
 type IPRestrictionRuleCreateRequestDTO struct {
 	Description string  `json:"description"`
 	Type        string  `json:"type"`
@@ -28,6 +30,7 @@ type IPRestrictionRuleCreateRequestDTO struct {
 	Status      *string `json:"status,omitempty"`
 }
 
+// Validate validates the IP restriction rule create request.
 func (r IPRestrictionRuleCreateRequestDTO) Validate() error {
 	return validation.ValidateStruct(&r,
 		validation.Field(&r.Description,
@@ -48,7 +51,8 @@ func (r IPRestrictionRuleCreateRequestDTO) Validate() error {
 	)
 }
 
-// Update IP restriction rule request DTO
+// IPRestrictionRuleUpdateRequestDTO is the request body for updating an IP
+// restriction rule.
 type IPRestrictionRuleUpdateRequestDTO struct {
 	Description string  `json:"description"`
 	Type        string  `json:"type"`
@@ -56,6 +60,7 @@ type IPRestrictionRuleUpdateRequestDTO struct {
 	Status      *string `json:"status,omitempty"`
 }
 
+// Validate validates the IP restriction rule update request.
 func (r IPRestrictionRuleUpdateRequestDTO) Validate() error {
 	return validation.ValidateStruct(&r,
 		validation.Field(&r.Description,
@@ -76,11 +81,13 @@ func (r IPRestrictionRuleUpdateRequestDTO) Validate() error {
 	)
 }
 
-// Update IP restriction rule status request DTO
+// IPRestrictionRuleUpdateStatusRequestDTO is the request body for updating an
+// IP restriction rule's status.
 type IPRestrictionRuleUpdateStatusRequestDTO struct {
 	Status string `json:"status"`
 }
 
+// Validate validates the IP restriction rule status update request.
 func (r IPRestrictionRuleUpdateStatusRequestDTO) Validate() error {
 	return validation.ValidateStruct(&r,
 		validation.Field(&r.Status,
@@ -90,7 +97,8 @@ func (r IPRestrictionRuleUpdateStatusRequestDTO) Validate() error {
 	)
 }
 
-// IP restriction rule filter DTO
+// IPRestrictionRuleFilterDTO holds query parameters for listing and filtering
+// IP restriction rules.
 type IPRestrictionRuleFilterDTO struct {
 	Type        *string  `json:"type"`
 	Status      []string `json:"status"`
@@ -101,8 +109,12 @@ type IPRestrictionRuleFilterDTO struct {
 	PaginationRequestDTO
 }
 
+// Validate validates the IP restriction rule filter parameters.
 func (f IPRestrictionRuleFilterDTO) Validate() error {
 	return validation.ValidateStruct(&f,
+		validation.Field(&f.Type,
+			validation.When(f.Type != nil, validation.In(model.IPRuleTypeAllow, model.IPRuleTypeDeny, model.IPRuleTypeWhitelist, model.IPRuleTypeBlacklist).Error("Type must be 'allow', 'deny', 'whitelist', or 'blacklist'")),
+		),
 		validation.Field(&f.PaginationRequestDTO),
 	)
 }

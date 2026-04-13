@@ -1,13 +1,15 @@
 package route
 
 import (
-	"github.com/maintainerd/auth/internal/rest/handler"
 	"github.com/go-chi/chi/v5"
-	"github.com/maintainerd/auth/internal/middleware"
-	"github.com/maintainerd/auth/internal/service"
 	"github.com/maintainerd/auth/internal/cache"
+	"github.com/maintainerd/auth/internal/middleware"
+	"github.com/maintainerd/auth/internal/rest/handler"
+	"github.com/maintainerd/auth/internal/service"
 )
 
+// IPRestrictionRuleRoute registers IP restriction rule CRUD endpoints under
+// /ip-restriction-rules with appropriate permission middleware.
 func IPRestrictionRuleRoute(
 	r chi.Router,
 	ipRestrictionRuleHandler *handler.IPRestrictionRuleHandler,

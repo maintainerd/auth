@@ -5,6 +5,8 @@ import (
 	"gorm.io/gorm"
 )
 
+// IPRestrictionRuleRepositoryGetFilter holds filter, pagination, and sorting
+// parameters for paginated IP restriction rule queries.
 type IPRestrictionRuleRepositoryGetFilter struct {
 	TenantID    *int64
 	Type        *string
@@ -19,6 +21,8 @@ type IPRestrictionRuleRepositoryGetFilter struct {
 	SortOrder   string
 }
 
+// IPRestrictionRuleRepository defines persistence operations for IP restriction
+// rules.
 type IPRestrictionRuleRepository interface {
 	BaseRepositoryMethods[model.IPRestrictionRule]
 	WithTx(tx *gorm.DB) IPRestrictionRuleRepository
@@ -32,18 +36,22 @@ type ipRestrictionRuleRepository struct {
 	*BaseRepository[model.IPRestrictionRule]
 }
 
+// NewIPRestrictionRuleRepository creates a new IPRestrictionRuleRepository
+// backed by the given database connection.
 func NewIPRestrictionRuleRepository(db *gorm.DB) IPRestrictionRuleRepository {
 	return &ipRestrictionRuleRepository{
 		BaseRepository: NewBaseRepository[model.IPRestrictionRule](db, "ip_restriction_rule_uuid", "ip_restriction_rule_id"),
 	}
 }
 
+// WithTx returns a copy of the repository that uses the given transaction.
 func (r *ipRestrictionRuleRepository) WithTx(tx *gorm.DB) IPRestrictionRuleRepository {
 	return &ipRestrictionRuleRepository{
 		BaseRepository: r.BaseRepository.WithTx(tx),
 	}
 }
 
+// FindByTenantID returns all IP restriction rules belonging to the given tenant.
 func (r *ipRestrictionRuleRepository) FindByTenantID(tenantID int64) ([]model.IPRestrictionRule, error) {
 	var rules []model.IPRestrictionRule
 	err := r.DB().Where("tenant_id = ?", tenantID).Find(&rules).Error
@@ -53,6 +61,8 @@ func (r *ipRestrictionRuleRepository) FindByTenantID(tenantID int64) ([]model.IP
 	return rules, nil
 }
 
+// FindByTenantIDAndStatus returns all IP restriction rules for a tenant
+// filtered by status.
 func (r *ipRestrictionRuleRepository) FindByTenantIDAndStatus(tenantID int64, status string) ([]model.IPRestrictionRule, error) {
 	var rules []model.IPRestrictionRule
 	err := r.DB().Where("tenant_id = ? AND status = ?", tenantID, status).Find(&rules).Error
@@ -62,6 +72,8 @@ func (r *ipRestrictionRuleRepository) FindByTenantIDAndStatus(tenantID int64, st
 	return rules, nil
 }
 
+// FindByTenantIDAndType returns all IP restriction rules for a tenant
+// filtered by rule type.
 func (r *ipRestrictionRuleRepository) FindByTenantIDAndType(tenantID int64, ruleType string) ([]model.IPRestrictionRule, error) {
 	var rules []model.IPRestrictionRule
 	err := r.DB().Where("tenant_id = ? AND type = ?", tenantID, ruleType).Find(&rules).Error
@@ -71,6 +83,8 @@ func (r *ipRestrictionRuleRepository) FindByTenantIDAndType(tenantID int64, rule
 	return rules, nil
 }
 
+// FindPaginated returns a paginated, filtered, and sorted list of IP
+// restriction rules.
 func (r *ipRestrictionRuleRepository) FindPaginated(filter IPRestrictionRuleRepositoryGetFilter) (*PaginationResult[model.IPRestrictionRule], error) {
 	query := r.DB().Model(&model.IPRestrictionRule{})
 

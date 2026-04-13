@@ -16,7 +16,7 @@ type WebhookEndpoint struct {
 	WebhookEndpointUUID uuid.UUID      `gorm:"column:webhook_endpoint_uuid;type:uuid;uniqueIndex;not null" json:"webhook_endpoint_uuid"`
 	TenantID            int64          `gorm:"column:tenant_id;not null" json:"tenant_id"`
 	URL                 string         `gorm:"column:url;type:text;not null" json:"url"`
-	SecretEncrypted     string         `gorm:"column:secret_encrypted;type:text" json:"secret_encrypted"`
+	SecretEncrypted     string         `gorm:"column:secret_encrypted;type:text" json:"-"`
 	Events              datatypes.JSON `gorm:"column:events;type:jsonb;default:'[]'" json:"events"`
 	MaxRetries          int            `gorm:"column:max_retries;not null;default:3" json:"max_retries"`
 	TimeoutSeconds      int            `gorm:"column:timeout_seconds;not null;default:30" json:"timeout_seconds"`

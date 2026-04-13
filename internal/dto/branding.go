@@ -4,6 +4,7 @@ import (
 	"time"
 
 	validation "github.com/go-ozzo/ozzo-validation/v4"
+	"github.com/go-ozzo/ozzo-validation/v4/is"
 )
 
 // BrandingResponseDTO is the JSON representation of a branding record.
@@ -45,6 +46,14 @@ func (r BrandingUpdateRequestDTO) Validate() error {
 		validation.Field(&r.CompanyName,
 			validation.Length(0, 255).Error("Company name must not exceed 255 characters"),
 		),
+		validation.Field(&r.LogoURL,
+			validation.Length(0, 2048).Error("Logo URL must not exceed 2048 characters"),
+			validation.When(r.LogoURL != "", is.URL.Error("Logo URL must be a valid URL")),
+		),
+		validation.Field(&r.FaviconURL,
+			validation.Length(0, 2048).Error("Favicon URL must not exceed 2048 characters"),
+			validation.When(r.FaviconURL != "", is.URL.Error("Favicon URL must be a valid URL")),
+		),
 		validation.Field(&r.PrimaryColor,
 			validation.Length(0, 20).Error("Primary color must not exceed 20 characters"),
 		),
@@ -56,6 +65,21 @@ func (r BrandingUpdateRequestDTO) Validate() error {
 		),
 		validation.Field(&r.FontFamily,
 			validation.Length(0, 100).Error("Font family must not exceed 100 characters"),
+		),
+		validation.Field(&r.CustomCSS,
+			validation.Length(0, 50000).Error("Custom CSS must not exceed 50000 characters"),
+		),
+		validation.Field(&r.SupportURL,
+			validation.Length(0, 2048).Error("Support URL must not exceed 2048 characters"),
+			validation.When(r.SupportURL != "", is.URL.Error("Support URL must be a valid URL")),
+		),
+		validation.Field(&r.PrivacyPolicyURL,
+			validation.Length(0, 2048).Error("Privacy policy URL must not exceed 2048 characters"),
+			validation.When(r.PrivacyPolicyURL != "", is.URL.Error("Privacy policy URL must be a valid URL")),
+		),
+		validation.Field(&r.TermsOfServiceURL,
+			validation.Length(0, 2048).Error("Terms of service URL must not exceed 2048 characters"),
+			validation.When(r.TermsOfServiceURL != "", is.URL.Error("Terms of service URL must be a valid URL")),
 		),
 	)
 }

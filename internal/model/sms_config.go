@@ -16,7 +16,7 @@ type SMSConfig struct {
 	TenantID           int64          `gorm:"column:tenant_id;not null" json:"tenant_id"`
 	Provider           string         `gorm:"column:provider;type:varchar(50);not null" json:"provider"`
 	AccountSID         string         `gorm:"column:account_sid;type:varchar(255)" json:"account_sid"`
-	AuthTokenEncrypted string         `gorm:"column:auth_token_encrypted;type:text" json:"auth_token_encrypted"`
+	AuthTokenEncrypted string         `gorm:"column:auth_token_encrypted;type:text" json:"-"`
 	FromNumber         string         `gorm:"column:from_number;type:varchar(50)" json:"from_number"`
 	SenderID           string         `gorm:"column:sender_id;type:varchar(50)" json:"sender_id"`
 	TestMode           bool           `gorm:"column:test_mode;not null;default:false" json:"test_mode"`

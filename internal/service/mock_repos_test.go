@@ -2001,3 +2001,262 @@ func (m *mockUserPoolRepo) FindByIdentifier(_ int64, _ string) (*model.UserPool,
 func (m *mockUserPoolRepo) FindDefault(_ int64) (*model.UserPool, error)        { return nil, nil }
 func (m *mockUserPoolRepo) FindSystem(_ int64) (*model.UserPool, error)         { return nil, nil }
 func (m *mockUserPoolRepo) FindAllByTenantID(_ int64) ([]model.UserPool, error) { return nil, nil }
+
+// ---------------------------------------------------------------------------
+// Mock: BrandingRepository
+// ---------------------------------------------------------------------------
+
+type mockBrandingRepo struct {
+	findByTenantIDFn func(int64) (*model.Branding, error)
+	createFn         func(*model.Branding) (*model.Branding, error)
+	createOrUpdateFn func(*model.Branding) (*model.Branding, error)
+}
+
+func (m *mockBrandingRepo) WithTx(_ *gorm.DB) repository.BrandingRepository { return m }
+func (m *mockBrandingRepo) FindAll(_ ...string) ([]model.Branding, error)   { return nil, nil }
+func (m *mockBrandingRepo) FindByUUID(_ any, _ ...string) (*model.Branding, error) {
+	return nil, nil
+}
+func (m *mockBrandingRepo) FindByUUIDs(_ []string, _ ...string) ([]model.Branding, error) {
+	return nil, nil
+}
+func (m *mockBrandingRepo) FindByID(_ any, _ ...string) (*model.Branding, error) { return nil, nil }
+func (m *mockBrandingRepo) UpdateByUUID(_, _ any) (*model.Branding, error)       { return nil, nil }
+func (m *mockBrandingRepo) UpdateByID(_, _ any) (*model.Branding, error)         { return nil, nil }
+func (m *mockBrandingRepo) DeleteByUUID(_ any) error                             { return nil }
+func (m *mockBrandingRepo) DeleteByID(_ any) error                               { return nil }
+func (m *mockBrandingRepo) Paginate(_ map[string]any, _, _ int, _ ...string) (*repository.PaginationResult[model.Branding], error) {
+	return nil, nil
+}
+func (m *mockBrandingRepo) FindByTenantID(tid int64) (*model.Branding, error) {
+	if m.findByTenantIDFn != nil {
+		return m.findByTenantIDFn(tid)
+	}
+	return nil, nil
+}
+func (m *mockBrandingRepo) Create(e *model.Branding) (*model.Branding, error) {
+	if m.createFn != nil {
+		return m.createFn(e)
+	}
+	return e, nil
+}
+func (m *mockBrandingRepo) CreateOrUpdate(e *model.Branding) (*model.Branding, error) {
+	if m.createOrUpdateFn != nil {
+		return m.createOrUpdateFn(e)
+	}
+	return e, nil
+}
+
+// ---------------------------------------------------------------------------
+// Mock: TenantSettingRepository
+// ---------------------------------------------------------------------------
+
+type mockTenantSettingRepo struct {
+	findByTenantIDFn func(int64) (*model.TenantSetting, error)
+	createFn         func(*model.TenantSetting) (*model.TenantSetting, error)
+	createOrUpdateFn func(*model.TenantSetting) (*model.TenantSetting, error)
+}
+
+func (m *mockTenantSettingRepo) WithTx(_ *gorm.DB) repository.TenantSettingRepository { return m }
+func (m *mockTenantSettingRepo) FindAll(_ ...string) ([]model.TenantSetting, error)   { return nil, nil }
+func (m *mockTenantSettingRepo) FindByUUID(_ any, _ ...string) (*model.TenantSetting, error) {
+	return nil, nil
+}
+func (m *mockTenantSettingRepo) FindByUUIDs(_ []string, _ ...string) ([]model.TenantSetting, error) {
+	return nil, nil
+}
+func (m *mockTenantSettingRepo) FindByID(_ any, _ ...string) (*model.TenantSetting, error) {
+	return nil, nil
+}
+func (m *mockTenantSettingRepo) UpdateByUUID(_, _ any) (*model.TenantSetting, error) { return nil, nil }
+func (m *mockTenantSettingRepo) UpdateByID(_, _ any) (*model.TenantSetting, error)   { return nil, nil }
+func (m *mockTenantSettingRepo) DeleteByUUID(_ any) error                            { return nil }
+func (m *mockTenantSettingRepo) DeleteByID(_ any) error                              { return nil }
+func (m *mockTenantSettingRepo) Paginate(_ map[string]any, _, _ int, _ ...string) (*repository.PaginationResult[model.TenantSetting], error) {
+	return nil, nil
+}
+func (m *mockTenantSettingRepo) FindByTenantID(tid int64) (*model.TenantSetting, error) {
+	if m.findByTenantIDFn != nil {
+		return m.findByTenantIDFn(tid)
+	}
+	return nil, nil
+}
+func (m *mockTenantSettingRepo) Create(e *model.TenantSetting) (*model.TenantSetting, error) {
+	if m.createFn != nil {
+		return m.createFn(e)
+	}
+	return e, nil
+}
+func (m *mockTenantSettingRepo) CreateOrUpdate(e *model.TenantSetting) (*model.TenantSetting, error) {
+	if m.createOrUpdateFn != nil {
+		return m.createOrUpdateFn(e)
+	}
+	return e, nil
+}
+
+// ---------------------------------------------------------------------------
+// Mock: EmailConfigRepository
+// ---------------------------------------------------------------------------
+
+type mockEmailConfigRepo struct {
+	findByTenantIDFn func(int64) (*model.EmailConfig, error)
+	createFn         func(*model.EmailConfig) (*model.EmailConfig, error)
+	createOrUpdateFn func(*model.EmailConfig) (*model.EmailConfig, error)
+}
+
+func (m *mockEmailConfigRepo) WithTx(_ *gorm.DB) repository.EmailConfigRepository { return m }
+func (m *mockEmailConfigRepo) FindAll(_ ...string) ([]model.EmailConfig, error)   { return nil, nil }
+func (m *mockEmailConfigRepo) FindByUUID(_ any, _ ...string) (*model.EmailConfig, error) {
+	return nil, nil
+}
+func (m *mockEmailConfigRepo) FindByUUIDs(_ []string, _ ...string) ([]model.EmailConfig, error) {
+	return nil, nil
+}
+func (m *mockEmailConfigRepo) FindByID(_ any, _ ...string) (*model.EmailConfig, error) {
+	return nil, nil
+}
+func (m *mockEmailConfigRepo) UpdateByUUID(_, _ any) (*model.EmailConfig, error) { return nil, nil }
+func (m *mockEmailConfigRepo) UpdateByID(_, _ any) (*model.EmailConfig, error)   { return nil, nil }
+func (m *mockEmailConfigRepo) DeleteByUUID(_ any) error                          { return nil }
+func (m *mockEmailConfigRepo) DeleteByID(_ any) error                            { return nil }
+func (m *mockEmailConfigRepo) Paginate(_ map[string]any, _, _ int, _ ...string) (*repository.PaginationResult[model.EmailConfig], error) {
+	return nil, nil
+}
+func (m *mockEmailConfigRepo) FindByTenantID(tid int64) (*model.EmailConfig, error) {
+	if m.findByTenantIDFn != nil {
+		return m.findByTenantIDFn(tid)
+	}
+	return nil, nil
+}
+func (m *mockEmailConfigRepo) Create(e *model.EmailConfig) (*model.EmailConfig, error) {
+	if m.createFn != nil {
+		return m.createFn(e)
+	}
+	return e, nil
+}
+func (m *mockEmailConfigRepo) CreateOrUpdate(e *model.EmailConfig) (*model.EmailConfig, error) {
+	if m.createOrUpdateFn != nil {
+		return m.createOrUpdateFn(e)
+	}
+	return e, nil
+}
+
+// ---------------------------------------------------------------------------
+// Mock: SMSConfigRepository
+// ---------------------------------------------------------------------------
+
+type mockSMSConfigRepo struct {
+	findByTenantIDFn func(int64) (*model.SMSConfig, error)
+	createFn         func(*model.SMSConfig) (*model.SMSConfig, error)
+	createOrUpdateFn func(*model.SMSConfig) (*model.SMSConfig, error)
+}
+
+func (m *mockSMSConfigRepo) WithTx(_ *gorm.DB) repository.SMSConfigRepository { return m }
+func (m *mockSMSConfigRepo) FindAll(_ ...string) ([]model.SMSConfig, error)   { return nil, nil }
+func (m *mockSMSConfigRepo) FindByUUID(_ any, _ ...string) (*model.SMSConfig, error) {
+	return nil, nil
+}
+func (m *mockSMSConfigRepo) FindByUUIDs(_ []string, _ ...string) ([]model.SMSConfig, error) {
+	return nil, nil
+}
+func (m *mockSMSConfigRepo) FindByID(_ any, _ ...string) (*model.SMSConfig, error) { return nil, nil }
+func (m *mockSMSConfigRepo) UpdateByUUID(_, _ any) (*model.SMSConfig, error)       { return nil, nil }
+func (m *mockSMSConfigRepo) UpdateByID(_, _ any) (*model.SMSConfig, error)         { return nil, nil }
+func (m *mockSMSConfigRepo) DeleteByUUID(_ any) error                              { return nil }
+func (m *mockSMSConfigRepo) DeleteByID(_ any) error                                { return nil }
+func (m *mockSMSConfigRepo) Paginate(_ map[string]any, _, _ int, _ ...string) (*repository.PaginationResult[model.SMSConfig], error) {
+	return nil, nil
+}
+func (m *mockSMSConfigRepo) FindByTenantID(tid int64) (*model.SMSConfig, error) {
+	if m.findByTenantIDFn != nil {
+		return m.findByTenantIDFn(tid)
+	}
+	return nil, nil
+}
+func (m *mockSMSConfigRepo) Create(e *model.SMSConfig) (*model.SMSConfig, error) {
+	if m.createFn != nil {
+		return m.createFn(e)
+	}
+	return e, nil
+}
+func (m *mockSMSConfigRepo) CreateOrUpdate(e *model.SMSConfig) (*model.SMSConfig, error) {
+	if m.createOrUpdateFn != nil {
+		return m.createOrUpdateFn(e)
+	}
+	return e, nil
+}
+
+// ---------------------------------------------------------------------------
+// Mock: WebhookEndpointRepository
+// ---------------------------------------------------------------------------
+
+type mockWebhookEndpointRepo struct {
+	findByTenantIDFn      func(int64) ([]model.WebhookEndpoint, error)
+	findByUUIDAndTenantFn func(uuid.UUID, int64) (*model.WebhookEndpoint, error)
+	findPaginatedFn       func(repository.WebhookEndpointRepositoryGetFilter) (*repository.PaginationResult[model.WebhookEndpoint], error)
+	createFn              func(*model.WebhookEndpoint) (*model.WebhookEndpoint, error)
+	updateByUUIDFn        func(any, any) (*model.WebhookEndpoint, error)
+	deleteByUUIDFn        func(any) error
+}
+
+func (m *mockWebhookEndpointRepo) WithTx(_ *gorm.DB) repository.WebhookEndpointRepository {
+	return m
+}
+func (m *mockWebhookEndpointRepo) FindAll(_ ...string) ([]model.WebhookEndpoint, error) {
+	return nil, nil
+}
+func (m *mockWebhookEndpointRepo) FindByUUID(_ any, _ ...string) (*model.WebhookEndpoint, error) {
+	return nil, nil
+}
+func (m *mockWebhookEndpointRepo) FindByUUIDs(_ []string, _ ...string) ([]model.WebhookEndpoint, error) {
+	return nil, nil
+}
+func (m *mockWebhookEndpointRepo) FindByID(_ any, _ ...string) (*model.WebhookEndpoint, error) {
+	return nil, nil
+}
+func (m *mockWebhookEndpointRepo) UpdateByID(_, _ any) (*model.WebhookEndpoint, error) {
+	return nil, nil
+}
+func (m *mockWebhookEndpointRepo) DeleteByID(_ any) error { return nil }
+func (m *mockWebhookEndpointRepo) Paginate(_ map[string]any, _, _ int, _ ...string) (*repository.PaginationResult[model.WebhookEndpoint], error) {
+	return nil, nil
+}
+func (m *mockWebhookEndpointRepo) CreateOrUpdate(e *model.WebhookEndpoint) (*model.WebhookEndpoint, error) {
+	return e, nil
+}
+func (m *mockWebhookEndpointRepo) FindByTenantID(tid int64) ([]model.WebhookEndpoint, error) {
+	if m.findByTenantIDFn != nil {
+		return m.findByTenantIDFn(tid)
+	}
+	return nil, nil
+}
+func (m *mockWebhookEndpointRepo) FindByUUIDAndTenantID(id uuid.UUID, tid int64) (*model.WebhookEndpoint, error) {
+	if m.findByUUIDAndTenantFn != nil {
+		return m.findByUUIDAndTenantFn(id, tid)
+	}
+	return nil, nil
+}
+func (m *mockWebhookEndpointRepo) FindPaginated(f repository.WebhookEndpointRepositoryGetFilter) (*repository.PaginationResult[model.WebhookEndpoint], error) {
+	if m.findPaginatedFn != nil {
+		return m.findPaginatedFn(f)
+	}
+	return &repository.PaginationResult[model.WebhookEndpoint]{}, nil
+}
+func (m *mockWebhookEndpointRepo) Create(e *model.WebhookEndpoint) (*model.WebhookEndpoint, error) {
+	if m.createFn != nil {
+		return m.createFn(e)
+	}
+	return e, nil
+}
+func (m *mockWebhookEndpointRepo) UpdateByUUID(id, data any) (*model.WebhookEndpoint, error) {
+	if m.updateByUUIDFn != nil {
+		return m.updateByUUIDFn(id, data)
+	}
+	return nil, nil
+}
+func (m *mockWebhookEndpointRepo) DeleteByUUID(id any) error {
+	if m.deleteByUUIDFn != nil {
+		return m.deleteByUUIDFn(id)
+	}
+	return nil
+}
