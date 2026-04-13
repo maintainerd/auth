@@ -87,8 +87,13 @@ func runSeeders(db *gorm.DB, appVersion string) error {
 		return err
 	}
 
-	// 011: Seed security settings
-	if err := seeder.SeedSecuritySettings(db, tenant.TenantID); err != nil {
+	// 011: Seed security settings (scoped to the system user pool)
+	var systemPool model.UserPool
+	if err := db.Where("tenant_id = ? AND is_system = ?", tenant.TenantID, true).First(&systemPool).Error; err != nil {
+		slog.Error("Failed to find system user pool", "error", err)
+		return err
+	}
+	if err := seeder.SeedSecuritySettings(db, systemPool.UserPoolID); err != nil {
 		slog.Error("Failed to seed security settings", "error", err)
 		return err
 	}
