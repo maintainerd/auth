@@ -799,7 +799,7 @@ func (m *mockIPRestrictionRuleRepo) DeleteByUUID(id any) error {
 // ---------------------------------------------------------------------------
 
 type mockSecuritySettingRepo struct {
-	findByTenantIDFn   func(tenantID int64) (*model.SecuritySetting, error)
+	findByUserPoolIDFn func(userPoolID int64) (*model.SecuritySetting, error)
 	updateByUUIDFn     func(any, any) (*model.SecuritySetting, error)
 	createFn           func(*model.SecuritySetting) (*model.SecuritySetting, error)
 	createOrUpdateFn   func(*model.SecuritySetting) (*model.SecuritySetting, error)
@@ -853,9 +853,9 @@ func (m *mockSecuritySettingRepo) IncrementVersion(id int64) error {
 	return nil
 }
 
-func (m *mockSecuritySettingRepo) FindByTenantID(tID int64) (*model.SecuritySetting, error) {
-	if m.findByTenantIDFn != nil {
-		return m.findByTenantIDFn(tID)
+func (m *mockSecuritySettingRepo) FindByUserPoolID(tID int64) (*model.SecuritySetting, error) {
+	if m.findByUserPoolIDFn != nil {
+		return m.findByUserPoolIDFn(tID)
 	}
 	return nil, nil
 }
@@ -906,7 +906,7 @@ func (m *mockSecuritySettingsAuditRepo) Paginate(_ map[string]any, _, _ int, _ .
 func (m *mockSecuritySettingsAuditRepo) FindBySecuritySettingID(_ int64) ([]model.SecuritySettingsAudit, error) {
 	return nil, nil
 }
-func (m *mockSecuritySettingsAuditRepo) FindByTenantID(_ int64) ([]model.SecuritySettingsAudit, error) {
+func (m *mockSecuritySettingsAuditRepo) FindByUserPoolID(_ int64) ([]model.SecuritySettingsAudit, error) {
 	return nil, nil
 }
 func (m *mockSecuritySettingsAuditRepo) FindPaginated(_ repository.SecuritySettingsAuditRepositoryGetFilter) (*repository.PaginationResult[model.SecuritySettingsAudit], error) {

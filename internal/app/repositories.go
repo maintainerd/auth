@@ -42,6 +42,11 @@ type repos struct {
 	securitySettingRepo       repository.SecuritySettingRepository
 	securitySettingsAuditRepo repository.SecuritySettingsAuditRepository
 	ipRestrictionRuleRepo     repository.IPRestrictionRuleRepository
+	brandingRepo              repository.BrandingRepository
+	tenantSettingRepo         repository.TenantSettingRepository
+	emailConfigRepo           repository.EmailConfigRepository
+	smsConfigRepo             repository.SMSConfigRepository
+	webhookEndpointRepo       repository.WebhookEndpointRepository
 }
 
 func initRepos(db *gorm.DB) *repos {
@@ -80,5 +85,10 @@ func initRepos(db *gorm.DB) *repos {
 		securitySettingRepo:       repository.NewSecuritySettingRepository(db),
 		securitySettingsAuditRepo: repository.NewSecuritySettingsAuditRepository(db),
 		ipRestrictionRuleRepo:     repository.NewIPRestrictionRuleRepository(db),
+		brandingRepo:              repository.NewBrandingRepository(db),
+		tenantSettingRepo:         repository.NewTenantSettingRepository(db),
+		emailConfigRepo:           repository.NewEmailConfigRepository(db),
+		smsConfigRepo:             repository.NewSMSConfigRepository(db),
+		webhookEndpointRepo:       repository.NewWebhookEndpointRepository(db),
 	}
 }

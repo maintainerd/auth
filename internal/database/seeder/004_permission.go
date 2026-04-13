@@ -216,6 +216,28 @@ func SeedPermissions(db *gorm.DB, tenantID, apiID int64) error {
 		newPermission("login-template:update", "Update login template", tenantID, apiID),
 		newPermission("login-template:delete", "Delete login template", tenantID, apiID),
 
+		// Branding
+		newPermission("branding:read", "Read tenant branding", tenantID, apiID),
+		newPermission("branding:update", "Update tenant branding", tenantID, apiID),
+
+		// Tenant Settings
+		newPermission("tenant-setting:read", "Read tenant settings", tenantID, apiID),
+		newPermission("tenant-setting:update", "Update tenant settings", tenantID, apiID),
+
+		// Email Config
+		newPermission("email-config:read", "Read email delivery configuration", tenantID, apiID),
+		newPermission("email-config:update", "Update email delivery configuration", tenantID, apiID),
+
+		// SMS Config
+		newPermission("sms-config:read", "Read SMS delivery configuration", tenantID, apiID),
+		newPermission("sms-config:update", "Update SMS delivery configuration", tenantID, apiID),
+
+		// Webhook Endpoints
+		newPermission("webhook-endpoint:read", "Read webhook endpoints", tenantID, apiID),
+		newPermission("webhook-endpoint:create", "Create webhook endpoint", tenantID, apiID),
+		newPermission("webhook-endpoint:update", "Update webhook endpoint", tenantID, apiID),
+		newPermission("webhook-endpoint:delete", "Delete webhook endpoint", tenantID, apiID),
+
 		// OTHER PERMISSIONS
 		// Email
 		newPermission("email:read-config", "View email delivery config", tenantID, apiID),
