@@ -17,7 +17,7 @@ type EmailConfig struct {
 	Host              string         `gorm:"column:host;type:varchar(255)" json:"host"`
 	Port              int            `gorm:"column:port" json:"port"`
 	Username          string         `gorm:"column:username;type:varchar(255)" json:"username"`
-	PasswordEncrypted string         `gorm:"column:password_encrypted;type:text" json:"password_encrypted"`
+	PasswordEncrypted string         `gorm:"column:password_encrypted;type:text" json:"-"`
 	FromAddress       string         `gorm:"column:from_address;type:varchar(255);not null" json:"from_address"`
 	FromName          string         `gorm:"column:from_name;type:varchar(255)" json:"from_name"`
 	ReplyTo           string         `gorm:"column:reply_to;type:varchar(255)" json:"reply_to"`

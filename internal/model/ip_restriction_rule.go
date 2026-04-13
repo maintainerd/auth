@@ -7,6 +7,8 @@ import (
 	"gorm.io/gorm"
 )
 
+// IPRestrictionRule represents a tenant-scoped IP allow/deny rule that
+// controls access to authentication endpoints.
 type IPRestrictionRule struct {
 	IPRestrictionRuleID   int64     `gorm:"column:ip_restriction_rule_id;primaryKey;autoIncrement" json:"ip_restriction_rule_id"`
 	IPRestrictionRuleUUID uuid.UUID `gorm:"column:ip_restriction_rule_uuid;type:uuid;uniqueIndex;not null" json:"ip_restriction_rule_uuid"`
@@ -26,10 +28,13 @@ type IPRestrictionRule struct {
 	Updater *User   `gorm:"foreignKey:UpdatedBy;references:UserID"`
 }
 
+// TableName returns the database table name for IPRestrictionRule.
 func (IPRestrictionRule) TableName() string {
 	return "ip_restriction_rules"
 }
 
+// BeforeCreate sets a new UUID on the IPRestrictionRule before it is inserted
+// into the database if one has not already been assigned.
 func (irr *IPRestrictionRule) BeforeCreate(tx *gorm.DB) error {
 	if irr.IPRestrictionRuleUUID == uuid.Nil {
 		irr.IPRestrictionRuleUUID = uuid.New()

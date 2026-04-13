@@ -49,6 +49,8 @@ func NewTenantSettingService(tenantSettingRepo repository.TenantSettingRepositor
 	return &tenantSettingService{tenantSettingRepo: tenantSettingRepo}
 }
 
+// toTenantSettingServiceDataResult converts a model.TenantSetting into its
+// service-layer representation by unmarshalling each JSONB column.
 func toTenantSettingServiceDataResult(ts *model.TenantSetting) *TenantSettingServiceDataResult {
 	return &TenantSettingServiceDataResult{
 		TenantSettingUUID: ts.TenantSettingUUID,
@@ -163,7 +165,7 @@ func (s *tenantSettingService) UpdateFeatureFlags(ctx context.Context, tenantID 
 }
 
 func (s *tenantSettingService) updateConfig(ctx context.Context, tenantID int64, configType string, config map[string]any) (*TenantSettingServiceDataResult, error) {
-	_, span := otel.Tracer("service").Start(ctx, "tenantSetting.update"+configType)
+	_, span := otel.Tracer("service").Start(ctx, "tenantSetting.update."+configType)
 	defer span.End()
 	span.SetAttributes(attribute.Int64("tenant.id", tenantID))
 
@@ -206,6 +208,8 @@ func (s *tenantSettingService) updateConfig(ctx context.Context, tenantID int64,
 	return toTenantSettingServiceDataResult(updated), nil
 }
 
+// getOrCreate retrieves the tenant setting record for the given tenant,
+// automatically creating a default empty-config record if none exists.
 func (s *tenantSettingService) getOrCreate(tenantID int64) (*model.TenantSetting, error) {
 	setting, err := s.tenantSettingRepo.FindByTenantID(tenantID)
 	if err != nil {

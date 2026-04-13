@@ -61,19 +61,13 @@ func (h *TenantSettingHandler) UpdateRateLimitConfig(w http.ResponseWriter, r *h
 		return
 	}
 
-	_, err := h.tenantSettingService.UpdateRateLimitConfig(r.Context(), tenant.TenantID, map[string]any(req))
+	result, err := h.tenantSettingService.UpdateRateLimitConfig(r.Context(), tenant.TenantID, map[string]any(req))
 	if err != nil {
 		resp.HandleServiceError(w, r, "Failed to update rate limit config", err)
 		return
 	}
 
-	config, err := h.tenantSettingService.GetRateLimitConfig(r.Context(), tenant.TenantID)
-	if err != nil {
-		resp.HandleServiceError(w, r, "Failed to get updated config", err)
-		return
-	}
-
-	resp.Success(w, dto.TenantSettingConfigResponseDTO(config), "Rate limit config updated successfully")
+	resp.Success(w, dto.TenantSettingConfigResponseDTO(result.RateLimitConfig), "Rate limit config updated successfully")
 }
 
 // GetAuditConfig retrieves the audit configuration for the tenant.
@@ -116,19 +110,13 @@ func (h *TenantSettingHandler) UpdateAuditConfig(w http.ResponseWriter, r *http.
 		return
 	}
 
-	_, err := h.tenantSettingService.UpdateAuditConfig(r.Context(), tenant.TenantID, map[string]any(req))
+	result, err := h.tenantSettingService.UpdateAuditConfig(r.Context(), tenant.TenantID, map[string]any(req))
 	if err != nil {
 		resp.HandleServiceError(w, r, "Failed to update audit config", err)
 		return
 	}
 
-	config, err := h.tenantSettingService.GetAuditConfig(r.Context(), tenant.TenantID)
-	if err != nil {
-		resp.HandleServiceError(w, r, "Failed to get updated config", err)
-		return
-	}
-
-	resp.Success(w, dto.TenantSettingConfigResponseDTO(config), "Audit config updated successfully")
+	resp.Success(w, dto.TenantSettingConfigResponseDTO(result.AuditConfig), "Audit config updated successfully")
 }
 
 // GetMaintenanceConfig retrieves the maintenance configuration for the tenant.
@@ -171,19 +159,13 @@ func (h *TenantSettingHandler) UpdateMaintenanceConfig(w http.ResponseWriter, r 
 		return
 	}
 
-	_, err := h.tenantSettingService.UpdateMaintenanceConfig(r.Context(), tenant.TenantID, map[string]any(req))
+	result, err := h.tenantSettingService.UpdateMaintenanceConfig(r.Context(), tenant.TenantID, map[string]any(req))
 	if err != nil {
 		resp.HandleServiceError(w, r, "Failed to update maintenance config", err)
 		return
 	}
 
-	config, err := h.tenantSettingService.GetMaintenanceConfig(r.Context(), tenant.TenantID)
-	if err != nil {
-		resp.HandleServiceError(w, r, "Failed to get updated config", err)
-		return
-	}
-
-	resp.Success(w, dto.TenantSettingConfigResponseDTO(config), "Maintenance config updated successfully")
+	resp.Success(w, dto.TenantSettingConfigResponseDTO(result.MaintenanceConfig), "Maintenance config updated successfully")
 }
 
 // GetFeatureFlags retrieves the feature flags for the tenant.
@@ -226,17 +208,11 @@ func (h *TenantSettingHandler) UpdateFeatureFlags(w http.ResponseWriter, r *http
 		return
 	}
 
-	_, err := h.tenantSettingService.UpdateFeatureFlags(r.Context(), tenant.TenantID, map[string]any(req))
+	result, err := h.tenantSettingService.UpdateFeatureFlags(r.Context(), tenant.TenantID, map[string]any(req))
 	if err != nil {
 		resp.HandleServiceError(w, r, "Failed to update feature flags", err)
 		return
 	}
 
-	config, err := h.tenantSettingService.GetFeatureFlags(r.Context(), tenant.TenantID)
-	if err != nil {
-		resp.HandleServiceError(w, r, "Failed to get updated config", err)
-		return
-	}
-
-	resp.Success(w, dto.TenantSettingConfigResponseDTO(config), "Feature flags updated successfully")
+	resp.Success(w, dto.TenantSettingConfigResponseDTO(result.FeatureFlags), "Feature flags updated successfully")
 }

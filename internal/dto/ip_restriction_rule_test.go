@@ -109,5 +109,30 @@ func TestIPRestrictionRuleFilterDto_Validate(t *testing.T) {
 		f := IPRestrictionRuleFilterDTO{PaginationRequestDTO: validPagination()}
 		assert.NoError(t, f.Validate())
 	})
-}
 
+	t.Run("valid type filter", func(t *testing.T) {
+		tp := model.IPRuleTypeAllow
+		f := IPRestrictionRuleFilterDTO{
+			Type:                 &tp,
+			PaginationRequestDTO: validPagination(),
+		}
+		assert.NoError(t, f.Validate())
+	})
+
+	t.Run("invalid type filter", func(t *testing.T) {
+		tp := "block"
+		f := IPRestrictionRuleFilterDTO{
+			Type:                 &tp,
+			PaginationRequestDTO: validPagination(),
+		}
+		require.Error(t, f.Validate())
+	})
+
+	t.Run("nil type allowed", func(t *testing.T) {
+		f := IPRestrictionRuleFilterDTO{
+			Type:                 nil,
+			PaginationRequestDTO: validPagination(),
+		}
+		assert.NoError(t, f.Validate())
+	})
+}

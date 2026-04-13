@@ -4,6 +4,8 @@ import (
 	"gorm.io/gorm"
 )
 
+// CreateIPRestrictionRulesTable creates the ip_restriction_rules table and its
+// associated indexes and constraints.
 func CreateIPRestrictionRulesTable(db *gorm.DB) error {
 	sql := `
 -- CREATE TABLE
