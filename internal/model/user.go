@@ -30,7 +30,6 @@ type User struct {
 	UserRoles      []UserRole     `gorm:"foreignKey:UserID;references:UserID"`
 	Roles          []Role         `gorm:"many2many:user_roles;joinForeignKey:UserID;joinReferences:RoleID"`
 	UserTokens     []UserToken    `gorm:"foreignKey:UserID;references:UserID;constraint:OnDelete:CASCADE"`
-	AuthLogs       []AuthLog      `gorm:"foreignKey:UserID;references:UserID;constraint:OnDelete:SET NULL"`
 	Profile        *Profile       `gorm:"foreignKey:UserID;references:UserID"`
 	UserSetting    *UserSetting   `gorm:"foreignKey:UserID;references:UserID"`
 }

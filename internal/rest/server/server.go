@@ -50,6 +50,7 @@ type handlers struct {
 	emailConfig       *handler.EmailConfigHandler
 	smsConfig         *handler.SMSConfigHandler
 	webhookEndpoint   *handler.WebhookEndpointHandler
+	authEvent         *handler.AuthEventHandler
 }
 
 func initHandlers(application *app.App) *handlers {
@@ -83,6 +84,7 @@ func initHandlers(application *app.App) *handlers {
 		emailConfig:       handler.NewEmailConfigHandler(application.EmailConfigService),
 		smsConfig:         handler.NewSMSConfigHandler(application.SMSConfigService),
 		webhookEndpoint:   handler.NewWebhookEndpointHandler(application.WebhookEndpointService),
+		authEvent:         handler.NewAuthEventHandler(application.AuthEventService),
 	}
 }
 
@@ -215,6 +217,7 @@ func buildInternalRouter(h *handlers, application *app.App) http.Handler {
 		route.EmailConfigRoute(api, h.emailConfig, application.UserService, application.Cache)
 		route.SMSConfigRoute(api, h.smsConfig, application.UserService, application.Cache)
 		route.WebhookEndpointRoute(api, h.webhookEndpoint, application.UserService, application.Cache)
+		route.AuthEventRoute(api, h.authEvent, application.UserService, application.Cache)
 	})
 
 	return r

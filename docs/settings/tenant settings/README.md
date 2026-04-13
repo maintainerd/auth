@@ -22,6 +22,12 @@ Use these docs to understand what's built, what's missing, and where to contribu
 | [Tenant Settings](tenant-settings.md) | Tenant | Singleton (4 JSONB sub-configs) | Get / Update per sub-config |
 | [Security Settings](security-settings/README.md) | User Pool | Singleton (7 JSONB sub-configs) | Get / Update per sub-config |
 
+### Cross-Cutting Concerns
+
+| Document | Scope | Description |
+|----------|-------|-------------|
+| [Logging & Audit Architecture](logging-and-audit.md) | System-wide | Three-layer logging strategy, `auth_events` redesign, standards references (OWASP, PCI DSS, NIST) |
+
 ---
 
 ## Implementation Status Summary

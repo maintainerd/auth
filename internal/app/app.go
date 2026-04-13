@@ -42,6 +42,7 @@ type App struct {
 	EmailConfigService       service.EmailConfigService
 	SMSConfigService         service.SMSConfigService
 	WebhookEndpointService   service.WebhookEndpointService
+	AuthEventService         service.AuthEventService
 }
 
 // NewApp wires the full dependency graph in two focused steps:
@@ -89,5 +90,6 @@ func NewApp(db *gorm.DB, redisClient *redis.Client) *App {
 		EmailConfigService:       s.emailConfigService,
 		SMSConfigService:         s.smsConfigService,
 		WebhookEndpointService:   s.webhookEndpointService,
+		AuthEventService:         s.authEventService,
 	}
 }
