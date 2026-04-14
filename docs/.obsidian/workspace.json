@@ -55,12 +55,12 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "templist.md",
+                "file": "v1-features/oauth2.md",
                 "mode": "source",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "templist"
+              "title": "oauth2"
             }
           }
         ],
@@ -228,6 +228,11 @@
   },
   "active": "04b24bf5877f427b",
   "lastOpenFiles": [
+    "oidc-provider.md",
+    "v1-features/oauth2.md",
+    "overview.md",
+    "templist.md",
+    "v1-features",
     "Untitled.md",
     "settings/logging-and-audit.md",
     "settings/security-settings/threat-config.md",
@@ -245,19 +250,14 @@
     "settings/security-settings.md",
     "settings/tenant settings/README.md",
     "settings/tenant settings/ip-restriction-rules.md",
-    "overview.md",
     "settings/tenant settings/tenant-settings.md",
     "settings/tenant settings/webhook-endpoints.md",
     "settings/tenant settings/sms-config.md",
     "settings",
-    "oidc-provider.md",
     "frontend-initialization.md",
-    "templist.md",
     "contributing/testing.md",
     "contributing/opentelemetry-list.md",
     "contributing/opentelemetry.md",
-    "deployment/opentelemetry.md",
-    "v1-features",
     "deployment",
     "contributing",
     "development"

@@ -2,6 +2,7 @@ package crypto
 
 import (
 	"crypto/rand"
+	"encoding/base64"
 	"fmt"
 	"math/big"
 )
@@ -22,4 +23,14 @@ func generateIdentifier(n int) (string, error) {
 		b[i] = charset[num.Int64()]
 	}
 	return string(b), nil
+}
+
+// GenerateRandomString returns a URL-safe base64-encoded string derived from
+// n random bytes. The resulting string length is approximately 4*n/3.
+func GenerateRandomString(n int) (string, error) {
+	b := make([]byte, n)
+	if _, err := rand.Read(b); err != nil {
+		return "", fmt.Errorf("crypto/rand failure: %w", err)
+	}
+	return base64.RawURLEncoding.EncodeToString(b), nil
 }

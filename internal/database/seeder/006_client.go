@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/lib/pq"
 	"github.com/maintainerd/auth/internal/config"
 	"github.com/maintainerd/auth/internal/crypto"
 	"github.com/maintainerd/auth/internal/model"
@@ -57,12 +58,16 @@ func SeedClients(db *gorm.DB, tenantID int64, identityProviderID int64) error {
 				"response_type": "code",
 				"pkce": false
 			}`)),
-			Status:             "active",
-			IsDefault:          true,
-			IsSystem:           true,
-			IdentityProviderID: identityProviderID,
-			CreatedAt:          time.Now(),
-			UpdatedAt:          time.Now(),
+			Status:                  "active",
+			IsDefault:               true,
+			IsSystem:                true,
+			IdentityProviderID:      identityProviderID,
+			TokenEndpointAuthMethod: model.TokenAuthMethodSecretBasic,
+			GrantTypes:              pq.StringArray{model.GrantTypeAuthorizationCode, model.GrantTypeRefreshToken},
+			ResponseTypes:           pq.StringArray{model.ResponseTypeCode},
+			RequireConsent:          false,
+			CreatedAt:               time.Now(),
+			UpdatedAt:               time.Now(),
 		},
 		{
 			ClientUUID:  uuid.New(),
@@ -78,12 +83,16 @@ func SeedClients(db *gorm.DB, tenantID int64, identityProviderID int64) error {
 				"response_type": "code",
 				"pkce": true
 			}`)),
-			Status:             "active",
-			IsDefault:          true,
-			IsSystem:           true,
-			IdentityProviderID: identityProviderID,
-			CreatedAt:          time.Now(),
-			UpdatedAt:          time.Now(),
+			Status:                  "active",
+			IsDefault:               true,
+			IsSystem:                true,
+			IdentityProviderID:      identityProviderID,
+			TokenEndpointAuthMethod: model.TokenAuthMethodNone,
+			GrantTypes:              pq.StringArray{model.GrantTypeAuthorizationCode, model.GrantTypeRefreshToken},
+			ResponseTypes:           pq.StringArray{model.ResponseTypeCode},
+			RequireConsent:          false,
+			CreatedAt:               time.Now(),
+			UpdatedAt:               time.Now(),
 		},
 		{
 			ClientUUID:  uuid.New(),
@@ -99,12 +108,16 @@ func SeedClients(db *gorm.DB, tenantID int64, identityProviderID int64) error {
 				"response_type": "code",
 				"pkce": true
 			}`)),
-			Status:             "active",
-			IsDefault:          true,
-			IsSystem:           true,
-			IdentityProviderID: identityProviderID,
-			CreatedAt:          time.Now(),
-			UpdatedAt:          time.Now(),
+			Status:                  "active",
+			IsDefault:               true,
+			IsSystem:                true,
+			IdentityProviderID:      identityProviderID,
+			TokenEndpointAuthMethod: model.TokenAuthMethodNone,
+			GrantTypes:              pq.StringArray{model.GrantTypeAuthorizationCode, model.GrantTypeRefreshToken},
+			ResponseTypes:           pq.StringArray{model.ResponseTypeCode},
+			RequireConsent:          false,
+			CreatedAt:               time.Now(),
+			UpdatedAt:               time.Now(),
 		},
 		{
 			ClientUUID:  uuid.New(),
@@ -118,12 +131,16 @@ func SeedClients(db *gorm.DB, tenantID int64, identityProviderID int64) error {
 			Config: datatypes.JSON([]byte(`{
 				"grant_types": ["client_credentials"]
 			}`)),
-			Status:             "active",
-			IsDefault:          true,
-			IsSystem:           true,
-			IdentityProviderID: identityProviderID,
-			CreatedAt:          time.Now(),
-			UpdatedAt:          time.Now(),
+			Status:                  "active",
+			IsDefault:               true,
+			IsSystem:                true,
+			IdentityProviderID:      identityProviderID,
+			TokenEndpointAuthMethod: model.TokenAuthMethodSecretBasic,
+			GrantTypes:              pq.StringArray{model.GrantTypeClientCredentials},
+			ResponseTypes:           pq.StringArray{},
+			RequireConsent:          false,
+			CreatedAt:               time.Now(),
+			UpdatedAt:               time.Now(),
 		},
 	}
 

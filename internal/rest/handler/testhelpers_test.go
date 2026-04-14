@@ -3,7 +3,10 @@ package handler
 import (
 	"bytes"
 	"context"
+	"crypto/rsa"
+	"crypto/x509"
 	"encoding/json"
+	"encoding/pem"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -86,4 +89,21 @@ func jsonReq(t *testing.T, method, url string, body any) *http.Request {
 	r := httptest.NewRequest(method, url, &buf)
 	r.Header.Set("Content-Type", "application/json")
 	return r
+}
+
+// pemEncodeRSAPrivateKey encodes an RSA private key as PEM bytes.
+func pemEncodeRSAPrivateKey(key *rsa.PrivateKey) []byte {
+	return pem.EncodeToMemory(&pem.Block{
+		Type:  "RSA PRIVATE KEY",
+		Bytes: x509.MarshalPKCS1PrivateKey(key),
+	})
+}
+
+// pemEncodeRSAPublicKey encodes an RSA public key as PEM bytes.
+func pemEncodeRSAPublicKey(key *rsa.PublicKey) []byte {
+	b, _ := x509.MarshalPKIXPublicKey(key)
+	return pem.EncodeToMemory(&pem.Block{
+		Type:  "PUBLIC KEY",
+		Bytes: b,
+	})
 }

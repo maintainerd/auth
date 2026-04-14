@@ -43,6 +43,12 @@ var (
 	publicKey  *rsa.PublicKey
 )
 
+// GetPublicKey returns the parsed RSA public key used for JWT verification.
+// Returns nil if InitJWTKeys has not been called.
+func GetPublicKey() *rsa.PublicKey {
+	return publicKey
+}
+
 // generateSecureJTI creates a cryptographically secure unique token identifier
 // Complies with SOC2 CC6.1 and ISO27001 A.10.1.1
 func generateSecureJTI() string {
@@ -156,7 +162,7 @@ func GenerateAccessToken(
 		"iat": jwtlib.NewNumericDate(now),
 		"exp": jwtlib.NewNumericDate(now.Add(AccessTokenTTL)), // Short-lived tokens
 		"nbf": jwtlib.NewNumericDate(now),                     // Not before
-		"jti": jti,                                         // Secure unique identifier
+		"jti": jti,                                            // Secure unique identifier
 
 		// OAuth2 claims
 		"scope":      scope,

@@ -51,6 +51,11 @@ type handlers struct {
 	smsConfig         *handler.SMSConfigHandler
 	webhookEndpoint   *handler.WebhookEndpointHandler
 	authEvent         *handler.AuthEventHandler
+	oauthAuthorize    *handler.OAuthAuthorizeHandler
+	oauthToken        *handler.OAuthTokenHandler
+	oauthConsent      *handler.OAuthConsentHandler
+	oauthDiscovery    *handler.OAuthDiscoveryHandler
+	oauthUserInfo     *handler.OAuthUserInfoHandler
 }
 
 func initHandlers(application *app.App) *handlers {
@@ -85,6 +90,11 @@ func initHandlers(application *app.App) *handlers {
 		smsConfig:         handler.NewSMSConfigHandler(application.SMSConfigService),
 		webhookEndpoint:   handler.NewWebhookEndpointHandler(application.WebhookEndpointService),
 		authEvent:         handler.NewAuthEventHandler(application.AuthEventService),
+		oauthAuthorize:    handler.NewOAuthAuthorizeHandler(application.OAuthAuthorizeService),
+		oauthToken:        handler.NewOAuthTokenHandler(application.OAuthTokenService),
+		oauthConsent:      handler.NewOAuthConsentHandler(application.OAuthConsentService),
+		oauthDiscovery:    handler.NewOAuthDiscoveryHandler(),
+		oauthUserInfo:     handler.NewOAuthUserInfoHandler(),
 	}
 }
 
@@ -218,6 +228,7 @@ func buildInternalRouter(h *handlers, application *app.App) http.Handler {
 		route.SMSConfigRoute(api, h.smsConfig, application.UserService, application.Cache)
 		route.WebhookEndpointRoute(api, h.webhookEndpoint, application.UserService, application.Cache)
 		route.AuthEventRoute(api, h.authEvent, application.UserService, application.Cache)
+		route.OAuthInternalRoute(api, h.oauthToken, application.UserService, application.Cache)
 	})
 
 	return r
@@ -246,6 +257,9 @@ func buildPublicRouter(h *handlers, application *app.App) http.Handler {
 	r.Get("/health", handleHealth)
 	r.Get("/ready", handleReady(application))
 
+	// OpenID Connect discovery endpoints (root-level, fully public)
+	route.OAuthDiscoveryRoute(r, h.oauthDiscovery)
+
 	r.Route("/api/v1", func(api chi.Router) {
 		// Public Tenant Routes (no authentication required - for login page)
 		// Only exposes GET /tenant/ and GET /tenant/{identifier} — management endpoints
@@ -259,6 +273,7 @@ func buildPublicRouter(h *handlers, application *app.App) http.Handler {
 		route.ResetPasswordPublicRoute(api, h.resetPassword)
 		route.ProfileRoute(api, h.profile, application.UserService, application.Cache)
 		route.UserSettingRoute(api, h.userSetting, application.UserService, application.Cache)
+		route.OAuthPublicRoute(api, h.oauthAuthorize, h.oauthToken, h.oauthConsent, h.oauthUserInfo, application.UserService, application.Cache)
 	})
 
 	return r

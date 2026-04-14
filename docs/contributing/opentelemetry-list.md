@@ -337,6 +337,32 @@ layers (handlers, repositories), and thin middleware are excluded to reduce nois
 
 ---
 
+## OAuth Services — `internal/service/oauth_*.go` (High Priority)
+
+> OAuth 2.0 / OIDC provider flow methods. All instrumented.
+
+### service/oauth_authorize.go
+
+- [x] `Authorize` — `oauth_authorize.authorize`
+- [x] `GetConsentChallenge` — `oauth_authorize.get_consent_challenge`
+- [x] `HandleConsent` — `oauth_authorize.handle_consent`
+
+### service/oauth_token.go
+
+- [x] `Exchange` — `oauth_token.exchange`
+- [x] `exchangeAuthorizationCode` — `oauth_token.exchange_authorization_code`
+- [x] `exchangeRefreshToken` — `oauth_token.exchange_refresh_token`
+- [x] `exchangeClientCredentials` — `oauth_token.exchange_client_credentials`
+- [x] `Revoke` — `oauth_token.revoke`
+- [x] `Introspect` — `oauth_token.introspect`
+
+### service/oauth_consent.go
+
+- [x] `ListGrants` — `oauth_consent.list_grants`
+- [x] `RevokeGrant` — `oauth_consent.revoke_grant`
+
+---
+
 ## Cache — `internal/cache/` (Low Priority)
 
 > Redis commands are already auto-traced by `redisotel`. These wrapping spans add
@@ -359,6 +385,7 @@ layers (handlers, repositories), and thin middleware are excluded to reduce nois
 | Email (manual) | 1 | 1 | 0 | — |
 | Broken context.Background() | 4 | 4 | 0 | High |
 | Service Layer | 184 | 184 | 0 | High |
+| OAuth Services | 11 | 11 | 0 | High |
 | JWT | 4 | 4 | 0 | Medium |
 | Security (I/O funcs) | 5 | 5 | 0 | Medium |
 | Cache | 5 | 5 | 0 | Low |

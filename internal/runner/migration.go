@@ -68,6 +68,10 @@ var migrations = []migrationEntry{
 	{"041_create_email_templates_table", migration.CreateEmailTemplatesTable},
 	{"042_create_sms_templates_table", migration.CreateSMSTemplatesTable},
 	{"043_create_auth_events_table", migration.CreateAuthEventsTable},
+	{"044_create_oauth_authorization_codes_table", migration.CreateOAuthAuthorizationCodesTable},
+	{"045_create_oauth_refresh_tokens_table", migration.CreateOAuthRefreshTokensTable},
+	{"046_create_oauth_consent_grants_table", migration.CreateOAuthConsentGrantsTable},
+	{"047_create_oauth_consent_challenges_table", migration.CreateOAuthConsentChallengesTable},
 }
 
 // RunMigrations bootstraps the schema_migrations tracking table, acquires a

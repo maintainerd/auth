@@ -44,6 +44,14 @@ const (
 	AuthEventTypeTokenReuse            = "authn_token_reuse"
 	AuthEventTypeTokenDelete           = "authn_token_delete"
 	AuthEventTypeImpossibleTravel      = "authn_impossible_travel"
+	AuthEventTypeOAuthAuthorize        = "authn_oauth_authorize"
+	AuthEventTypeOAuthConsent          = "authn_oauth_consent"
+	AuthEventTypeOAuthConsentDeny      = "authn_oauth_consent_deny"
+	AuthEventTypeOAuthTokenExchange    = "authn_oauth_token_exchange"
+	AuthEventTypeOAuthTokenRefresh     = "authn_oauth_token_refresh"
+	AuthEventTypeOAuthTokenRevoke      = "authn_oauth_token_revoke"
+	AuthEventTypeOAuthClientAuth       = "authn_oauth_client_auth"
+	AuthEventTypeOAuthClientAuthFail   = "authn_oauth_client_auth_fail"
 )
 
 // OWASP Logging Vocabulary event type constants for the AUTHZ category.
