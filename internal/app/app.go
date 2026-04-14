@@ -43,6 +43,9 @@ type App struct {
 	SMSConfigService         service.SMSConfigService
 	WebhookEndpointService   service.WebhookEndpointService
 	AuthEventService         service.AuthEventService
+	OAuthAuthorizeService    service.OAuthAuthorizeService
+	OAuthTokenService        service.OAuthTokenService
+	OAuthConsentService      service.OAuthConsentService
 }
 
 // NewApp wires the full dependency graph in two focused steps:
@@ -91,5 +94,8 @@ func NewApp(db *gorm.DB, redisClient *redis.Client) *App {
 		SMSConfigService:         s.smsConfigService,
 		WebhookEndpointService:   s.webhookEndpointService,
 		AuthEventService:         s.authEventService,
+		OAuthAuthorizeService:    s.oauthAuthorizeService,
+		OAuthTokenService:        s.oauthTokenService,
+		OAuthConsentService:      s.oauthConsentService,
 	}
 }

@@ -1,6 +1,8 @@
 package service
 
 import (
+	"time"
+
 	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/model"
 	"github.com/maintainerd/auth/internal/repository"
@@ -2259,4 +2261,313 @@ func (m *mockWebhookEndpointRepo) DeleteByUUID(id any) error {
 		return m.deleteByUUIDFn(id)
 	}
 	return nil
+}
+
+// ---------------------------------------------------------------------------
+// Mock: OAuthAuthorizationCodeRepository
+// ---------------------------------------------------------------------------
+
+type mockOAuthAuthCodeRepo struct {
+	createFn         func(*model.OAuthAuthorizationCode) (*model.OAuthAuthorizationCode, error)
+	findByCodeHashFn func(string) (*model.OAuthAuthorizationCode, error)
+	markUsedFn       func(int64) error
+	deleteExpiredFn  func(time.Time) (int64, error)
+}
+
+func (m *mockOAuthAuthCodeRepo) WithTx(_ *gorm.DB) repository.OAuthAuthorizationCodeRepository {
+	return m
+}
+func (m *mockOAuthAuthCodeRepo) Create(e *model.OAuthAuthorizationCode) (*model.OAuthAuthorizationCode, error) {
+	if m.createFn != nil {
+		return m.createFn(e)
+	}
+	return e, nil
+}
+func (m *mockOAuthAuthCodeRepo) CreateOrUpdate(e *model.OAuthAuthorizationCode) (*model.OAuthAuthorizationCode, error) {
+	return e, nil
+}
+func (m *mockOAuthAuthCodeRepo) FindAll(_ ...string) ([]model.OAuthAuthorizationCode, error) {
+	return nil, nil
+}
+func (m *mockOAuthAuthCodeRepo) FindByUUID(_ any, _ ...string) (*model.OAuthAuthorizationCode, error) {
+	return nil, nil
+}
+func (m *mockOAuthAuthCodeRepo) FindByUUIDs(_ []string, _ ...string) ([]model.OAuthAuthorizationCode, error) {
+	return nil, nil
+}
+func (m *mockOAuthAuthCodeRepo) FindByID(_ any, _ ...string) (*model.OAuthAuthorizationCode, error) {
+	return nil, nil
+}
+func (m *mockOAuthAuthCodeRepo) UpdateByUUID(_, _ any) (*model.OAuthAuthorizationCode, error) {
+	return nil, nil
+}
+func (m *mockOAuthAuthCodeRepo) UpdateByID(_, _ any) (*model.OAuthAuthorizationCode, error) {
+	return nil, nil
+}
+func (m *mockOAuthAuthCodeRepo) DeleteByUUID(_ any) error { return nil }
+func (m *mockOAuthAuthCodeRepo) DeleteByID(_ any) error   { return nil }
+func (m *mockOAuthAuthCodeRepo) Paginate(_ map[string]any, _, _ int, _ ...string) (*repository.PaginationResult[model.OAuthAuthorizationCode], error) {
+	return nil, nil
+}
+func (m *mockOAuthAuthCodeRepo) FindByCodeHash(hash string) (*model.OAuthAuthorizationCode, error) {
+	if m.findByCodeHashFn != nil {
+		return m.findByCodeHashFn(hash)
+	}
+	return nil, nil
+}
+func (m *mockOAuthAuthCodeRepo) MarkUsed(id int64) error {
+	if m.markUsedFn != nil {
+		return m.markUsedFn(id)
+	}
+	return nil
+}
+func (m *mockOAuthAuthCodeRepo) DeleteExpired(before time.Time) (int64, error) {
+	if m.deleteExpiredFn != nil {
+		return m.deleteExpiredFn(before)
+	}
+	return 0, nil
+}
+
+// ---------------------------------------------------------------------------
+// Mock: OAuthRefreshTokenRepository
+// ---------------------------------------------------------------------------
+
+type mockOAuthRefreshTokenRepo struct {
+	createFn                 func(*model.OAuthRefreshToken) (*model.OAuthRefreshToken, error)
+	findByTokenHashFn        func(string) (*model.OAuthRefreshToken, error)
+	findActiveByUserClientFn func(int64, int64) ([]model.OAuthRefreshToken, error)
+	revokeByIDFn             func(int64) error
+	revokeByFamilyFn         func(uuid.UUID) (int64, error)
+	revokeByUserAndClientFn  func(int64, int64) (int64, error)
+	revokeByUserIDFn         func(int64) (int64, error)
+	updateLastUsedFn         func(int64) error
+	deleteExpiredFn          func(time.Time) (int64, error)
+	countByUserAndClientFn   func(int64, int64) (int64, error)
+}
+
+func (m *mockOAuthRefreshTokenRepo) WithTx(_ *gorm.DB) repository.OAuthRefreshTokenRepository {
+	return m
+}
+func (m *mockOAuthRefreshTokenRepo) Create(e *model.OAuthRefreshToken) (*model.OAuthRefreshToken, error) {
+	if m.createFn != nil {
+		return m.createFn(e)
+	}
+	return e, nil
+}
+func (m *mockOAuthRefreshTokenRepo) CreateOrUpdate(e *model.OAuthRefreshToken) (*model.OAuthRefreshToken, error) {
+	return e, nil
+}
+func (m *mockOAuthRefreshTokenRepo) FindAll(_ ...string) ([]model.OAuthRefreshToken, error) {
+	return nil, nil
+}
+func (m *mockOAuthRefreshTokenRepo) FindByUUID(_ any, _ ...string) (*model.OAuthRefreshToken, error) {
+	return nil, nil
+}
+func (m *mockOAuthRefreshTokenRepo) FindByUUIDs(_ []string, _ ...string) ([]model.OAuthRefreshToken, error) {
+	return nil, nil
+}
+func (m *mockOAuthRefreshTokenRepo) FindByID(_ any, _ ...string) (*model.OAuthRefreshToken, error) {
+	return nil, nil
+}
+func (m *mockOAuthRefreshTokenRepo) UpdateByUUID(_, _ any) (*model.OAuthRefreshToken, error) {
+	return nil, nil
+}
+func (m *mockOAuthRefreshTokenRepo) UpdateByID(_, _ any) (*model.OAuthRefreshToken, error) {
+	return nil, nil
+}
+func (m *mockOAuthRefreshTokenRepo) DeleteByUUID(_ any) error { return nil }
+func (m *mockOAuthRefreshTokenRepo) DeleteByID(_ any) error   { return nil }
+func (m *mockOAuthRefreshTokenRepo) Paginate(_ map[string]any, _, _ int, _ ...string) (*repository.PaginationResult[model.OAuthRefreshToken], error) {
+	return nil, nil
+}
+func (m *mockOAuthRefreshTokenRepo) FindByTokenHash(hash string) (*model.OAuthRefreshToken, error) {
+	if m.findByTokenHashFn != nil {
+		return m.findByTokenHashFn(hash)
+	}
+	return nil, nil
+}
+func (m *mockOAuthRefreshTokenRepo) FindActiveByUserAndClient(uid, cid int64) ([]model.OAuthRefreshToken, error) {
+	if m.findActiveByUserClientFn != nil {
+		return m.findActiveByUserClientFn(uid, cid)
+	}
+	return nil, nil
+}
+func (m *mockOAuthRefreshTokenRepo) RevokeByID(id int64) error {
+	if m.revokeByIDFn != nil {
+		return m.revokeByIDFn(id)
+	}
+	return nil
+}
+func (m *mockOAuthRefreshTokenRepo) RevokeByFamily(fid uuid.UUID) (int64, error) {
+	if m.revokeByFamilyFn != nil {
+		return m.revokeByFamilyFn(fid)
+	}
+	return 0, nil
+}
+func (m *mockOAuthRefreshTokenRepo) RevokeByUserAndClient(uid, cid int64) (int64, error) {
+	if m.revokeByUserAndClientFn != nil {
+		return m.revokeByUserAndClientFn(uid, cid)
+	}
+	return 0, nil
+}
+func (m *mockOAuthRefreshTokenRepo) RevokeByUserID(uid int64) (int64, error) {
+	if m.revokeByUserIDFn != nil {
+		return m.revokeByUserIDFn(uid)
+	}
+	return 0, nil
+}
+func (m *mockOAuthRefreshTokenRepo) UpdateLastUsed(id int64) error {
+	if m.updateLastUsedFn != nil {
+		return m.updateLastUsedFn(id)
+	}
+	return nil
+}
+func (m *mockOAuthRefreshTokenRepo) DeleteExpired(before time.Time) (int64, error) {
+	if m.deleteExpiredFn != nil {
+		return m.deleteExpiredFn(before)
+	}
+	return 0, nil
+}
+func (m *mockOAuthRefreshTokenRepo) CountByUserAndClient(uid, cid int64) (int64, error) {
+	if m.countByUserAndClientFn != nil {
+		return m.countByUserAndClientFn(uid, cid)
+	}
+	return 0, nil
+}
+
+// ---------------------------------------------------------------------------
+// Mock: OAuthConsentGrantRepository
+// ---------------------------------------------------------------------------
+
+type mockOAuthConsentGrantRepo struct {
+	findByUserAndClientFn   func(int64, int64) (*model.OAuthConsentGrant, error)
+	upsertFn                func(*model.OAuthConsentGrant) (*model.OAuthConsentGrant, error)
+	deleteByUserAndClientFn func(int64, int64) error
+	findByUserIDFn          func(int64) ([]model.OAuthConsentGrant, error)
+	createFn                func(*model.OAuthConsentGrant) (*model.OAuthConsentGrant, error)
+}
+
+func (m *mockOAuthConsentGrantRepo) WithTx(_ *gorm.DB) repository.OAuthConsentGrantRepository {
+	return m
+}
+func (m *mockOAuthConsentGrantRepo) Create(e *model.OAuthConsentGrant) (*model.OAuthConsentGrant, error) {
+	if m.createFn != nil {
+		return m.createFn(e)
+	}
+	return e, nil
+}
+func (m *mockOAuthConsentGrantRepo) CreateOrUpdate(e *model.OAuthConsentGrant) (*model.OAuthConsentGrant, error) {
+	return e, nil
+}
+func (m *mockOAuthConsentGrantRepo) FindAll(_ ...string) ([]model.OAuthConsentGrant, error) {
+	return nil, nil
+}
+func (m *mockOAuthConsentGrantRepo) FindByUUID(_ any, _ ...string) (*model.OAuthConsentGrant, error) {
+	return nil, nil
+}
+func (m *mockOAuthConsentGrantRepo) FindByUUIDs(_ []string, _ ...string) ([]model.OAuthConsentGrant, error) {
+	return nil, nil
+}
+func (m *mockOAuthConsentGrantRepo) FindByID(_ any, _ ...string) (*model.OAuthConsentGrant, error) {
+	return nil, nil
+}
+func (m *mockOAuthConsentGrantRepo) UpdateByUUID(_, _ any) (*model.OAuthConsentGrant, error) {
+	return nil, nil
+}
+func (m *mockOAuthConsentGrantRepo) UpdateByID(_, _ any) (*model.OAuthConsentGrant, error) {
+	return nil, nil
+}
+func (m *mockOAuthConsentGrantRepo) DeleteByUUID(_ any) error { return nil }
+func (m *mockOAuthConsentGrantRepo) DeleteByID(_ any) error   { return nil }
+func (m *mockOAuthConsentGrantRepo) Paginate(_ map[string]any, _, _ int, _ ...string) (*repository.PaginationResult[model.OAuthConsentGrant], error) {
+	return nil, nil
+}
+func (m *mockOAuthConsentGrantRepo) FindByUserAndClient(uid, cid int64) (*model.OAuthConsentGrant, error) {
+	if m.findByUserAndClientFn != nil {
+		return m.findByUserAndClientFn(uid, cid)
+	}
+	return nil, nil
+}
+func (m *mockOAuthConsentGrantRepo) Upsert(g *model.OAuthConsentGrant) (*model.OAuthConsentGrant, error) {
+	if m.upsertFn != nil {
+		return m.upsertFn(g)
+	}
+	return g, nil
+}
+func (m *mockOAuthConsentGrantRepo) DeleteByUserAndClient(uid, cid int64) error {
+	if m.deleteByUserAndClientFn != nil {
+		return m.deleteByUserAndClientFn(uid, cid)
+	}
+	return nil
+}
+func (m *mockOAuthConsentGrantRepo) FindByUserID(uid int64) ([]model.OAuthConsentGrant, error) {
+	if m.findByUserIDFn != nil {
+		return m.findByUserIDFn(uid)
+	}
+	return nil, nil
+}
+
+// ---------------------------------------------------------------------------
+// Mock: OAuthConsentChallengeRepository
+// ---------------------------------------------------------------------------
+
+type mockOAuthConsentChallRepo struct {
+	findChallengeByUUIDFn   func(uuid.UUID) (*model.OAuthConsentChallenge, error)
+	deleteChallengeByUUIDFn func(uuid.UUID) error
+	deleteExpiredFn         func(time.Time) (int64, error)
+	createFn                func(*model.OAuthConsentChallenge) (*model.OAuthConsentChallenge, error)
+}
+
+func (m *mockOAuthConsentChallRepo) WithTx(_ *gorm.DB) repository.OAuthConsentChallengeRepository {
+	return m
+}
+func (m *mockOAuthConsentChallRepo) Create(e *model.OAuthConsentChallenge) (*model.OAuthConsentChallenge, error) {
+	if m.createFn != nil {
+		return m.createFn(e)
+	}
+	return e, nil
+}
+func (m *mockOAuthConsentChallRepo) CreateOrUpdate(e *model.OAuthConsentChallenge) (*model.OAuthConsentChallenge, error) {
+	return e, nil
+}
+func (m *mockOAuthConsentChallRepo) FindAll(_ ...string) ([]model.OAuthConsentChallenge, error) {
+	return nil, nil
+}
+func (m *mockOAuthConsentChallRepo) FindByUUID(_ any, _ ...string) (*model.OAuthConsentChallenge, error) {
+	return nil, nil
+}
+func (m *mockOAuthConsentChallRepo) FindByUUIDs(_ []string, _ ...string) ([]model.OAuthConsentChallenge, error) {
+	return nil, nil
+}
+func (m *mockOAuthConsentChallRepo) FindByID(_ any, _ ...string) (*model.OAuthConsentChallenge, error) {
+	return nil, nil
+}
+func (m *mockOAuthConsentChallRepo) UpdateByUUID(_, _ any) (*model.OAuthConsentChallenge, error) {
+	return nil, nil
+}
+func (m *mockOAuthConsentChallRepo) UpdateByID(_, _ any) (*model.OAuthConsentChallenge, error) {
+	return nil, nil
+}
+func (m *mockOAuthConsentChallRepo) DeleteByUUID(_ any) error { return nil }
+func (m *mockOAuthConsentChallRepo) DeleteByID(_ any) error   { return nil }
+func (m *mockOAuthConsentChallRepo) Paginate(_ map[string]any, _, _ int, _ ...string) (*repository.PaginationResult[model.OAuthConsentChallenge], error) {
+	return nil, nil
+}
+func (m *mockOAuthConsentChallRepo) FindChallengeByUUID(id uuid.UUID) (*model.OAuthConsentChallenge, error) {
+	if m.findChallengeByUUIDFn != nil {
+		return m.findChallengeByUUIDFn(id)
+	}
+	return nil, nil
+}
+func (m *mockOAuthConsentChallRepo) DeleteChallengeByUUID(id uuid.UUID) error {
+	if m.deleteChallengeByUUIDFn != nil {
+		return m.deleteChallengeByUUIDFn(id)
+	}
+	return nil
+}
+func (m *mockOAuthConsentChallRepo) DeleteExpired(before time.Time) (int64, error) {
+	if m.deleteExpiredFn != nil {
+		return m.deleteExpiredFn(before)
+	}
+	return 0, nil
 }
