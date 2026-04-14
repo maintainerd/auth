@@ -37,7 +37,6 @@ var migrations = []migrationEntry{
 	{"009_create_tenant_services_table", migration.CreateTenantServicesTable},
 	{"010_create_policies_table", migration.CreatePoliciesTable},
 	{"011_create_service_policies_table", migration.CreateServicePoliciesTable},
-	{"012_create_service_logs_table", migration.CreateServiceLogsTable},
 	{"013_create_apis_table", migration.CreateAPITable},
 	{"014_create_permissions_table", migration.CreatePermissionTable},
 	{"015_create_api_permissions_table", migration.CreateApiPermissionTable},
@@ -68,7 +67,7 @@ var migrations = []migrationEntry{
 	{"040_create_login_templates_table", migration.CreateLoginTemplatesTable},
 	{"041_create_email_templates_table", migration.CreateEmailTemplatesTable},
 	{"042_create_sms_templates_table", migration.CreateSMSTemplatesTable},
-	{"043_create_auth_logs_table", migration.CreateAuthLogTable},
+	{"043_create_auth_events_table", migration.CreateAuthEventsTable},
 }
 
 // RunMigrations bootstraps the schema_migrations tracking table, acquires a

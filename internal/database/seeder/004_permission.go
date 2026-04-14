@@ -113,12 +113,6 @@ func SeedPermissions(db *gorm.DB, tenantID, apiID int64) error {
 		newPermission("policy:update", "Update policy", tenantID, apiID),
 		newPermission("policy:delete", "Delete policy", tenantID, apiID),
 
-		// Service logs
-		newPermission("service_log:read", "Read service logs", tenantID, apiID),
-		newPermission("service_log:create", "Create service log", tenantID, apiID),
-		newPermission("service_log:update", "Update service log", tenantID, apiID),
-		newPermission("service_log:delete", "Delete service log", tenantID, apiID),
-
 		// USER LEVEL ACCESS
 		// Roles
 		newPermission("role:read", "Read roles", tenantID, apiID),
@@ -176,11 +170,9 @@ func SeedPermissions(db *gorm.DB, tenantID, apiID int64) error {
 		newPermission("user:role:remove", "Remove role from a user", tenantID, apiID),
 		newPermission("user:invite", "Invite user via email", tenantID, apiID),
 
-		// Auth Logs
-		newPermission("auth_log:read", "Read auth logs", tenantID, apiID),
-		newPermission("auth_log:create", "Create auth log", tenantID, apiID),
-		newPermission("auth_log:update", "Update auth log", tenantID, apiID),
-		newPermission("auth_log:delete", "Delete auth log", tenantID, apiID),
+		// Auth Events (OWASP-compliant security event log)
+		newPermission("auth_event:read", "Read auth events", tenantID, apiID),
+		newPermission("auth_event:delete", "Delete auth events (retention)", tenantID, apiID),
 
 		// Signup Flows
 		newPermission("signup-flow:read", "Read signup flows", tenantID, apiID),

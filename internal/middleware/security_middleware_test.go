@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -183,4 +184,32 @@ func TestSecurityHeadersMiddleware_Production(t *testing.T) {
 	rr := httptest.NewRecorder()
 	SecurityHeadersMiddleware(okHandler()).ServeHTTP(rr, req)
 	assert.NotEmpty(t, rr.Header().Get("Strict-Transport-Security"))
+}
+
+func TestClientIPFromContext(t *testing.T) {
+	t.Run("present", func(t *testing.T) {
+		ctx := context.WithValue(context.Background(), ClientIPKey, "10.0.0.1")
+		assert.Equal(t, "10.0.0.1", ClientIPFromContext(ctx))
+	})
+	t.Run("absent", func(t *testing.T) {
+		assert.Equal(t, "", ClientIPFromContext(context.Background()))
+	})
+	t.Run("wrong type", func(t *testing.T) {
+		ctx := context.WithValue(context.Background(), ClientIPKey, 123)
+		assert.Equal(t, "", ClientIPFromContext(ctx))
+	})
+}
+
+func TestUserAgentFromContext(t *testing.T) {
+	t.Run("present", func(t *testing.T) {
+		ctx := context.WithValue(context.Background(), UserAgentKey, "Mozilla/5.0")
+		assert.Equal(t, "Mozilla/5.0", UserAgentFromContext(ctx))
+	})
+	t.Run("absent", func(t *testing.T) {
+		assert.Equal(t, "", UserAgentFromContext(context.Background()))
+	})
+	t.Run("wrong type", func(t *testing.T) {
+		ctx := context.WithValue(context.Background(), UserAgentKey, 42)
+		assert.Equal(t, "", UserAgentFromContext(ctx))
+	})
 }

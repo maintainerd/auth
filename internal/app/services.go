@@ -38,9 +38,14 @@ type svcs struct {
 	emailConfigService       service.EmailConfigService
 	smsConfigService         service.SMSConfigService
 	webhookEndpointService   service.WebhookEndpointService
+	authEventService         service.AuthEventService
 }
 
 func initServices(db *gorm.DB, r *repos, appCache *cache.Cache) *svcs {
+	// Create authEventService first — it is injected into other services that
+	// need structured audit logging.
+	authEventSvc := service.NewAuthEventService(r.authEventRepo)
+
 	return &svcs{
 		serviceService:           service.NewServiceService(db, r.serviceRepo, r.tenantServiceRepo, r.apiRepo, r.servicePolicyRepo, r.policyRepo),
 		apiService:               service.NewAPIService(db, r.apiRepo, r.serviceRepo, r.tenantServiceRepo),
@@ -52,7 +57,7 @@ func initServices(db *gorm.DB, r *repos, appCache *cache.Cache) *svcs {
 		roleService:              service.NewRoleService(db, r.roleRepo, r.permissionRepo, r.rolePermissionRepo, r.userRepo, r.tenantRepo, appCache),
 		userService:              service.NewUserService(db, r.userRepo, r.userIdentityRepo, r.userRoleRepo, r.roleRepo, r.tenantRepo, r.idpRepo, r.clientRepo, r.userPoolRepo, appCache),
 		registerService:          service.NewRegistrationService(db, r.clientRepo, r.userRepo, r.userRoleRepo, r.userTokenRepo, r.userIdentityRepo, r.roleRepo, r.inviteRepo, r.idpRepo),
-		loginService:             service.NewLoginService(db, r.clientRepo, r.userRepo, r.userTokenRepo, r.userIdentityRepo, r.idpRepo),
+		loginService:             service.NewLoginService(db, r.clientRepo, r.userRepo, r.userTokenRepo, r.userIdentityRepo, r.idpRepo, authEventSvc),
 		profileService:           service.NewProfileService(db, r.profileRepo, r.userRepo),
 		userSettingService:       service.NewUserSettingService(db, r.userSettingRepo, r.userRepo),
 		inviteService:            service.NewInviteService(db, r.inviteRepo, r.clientRepo, r.roleRepo, r.emailTemplateRepo),
@@ -72,5 +77,6 @@ func initServices(db *gorm.DB, r *repos, appCache *cache.Cache) *svcs {
 		emailConfigService:       service.NewEmailConfigService(r.emailConfigRepo),
 		smsConfigService:         service.NewSMSConfigService(r.smsConfigRepo),
 		webhookEndpointService:   service.NewWebhookEndpointService(r.webhookEndpointRepo),
+		authEventService:         authEventSvc,
 	}
 }

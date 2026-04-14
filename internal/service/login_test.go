@@ -740,7 +740,7 @@ func TestLoginPublic(t *testing.T) {
 			}
 			tc.setup(t, repos)
 
-			svc := NewLoginService(gormDB, repos.clientRepo, repos.userRepo, &mockUserTokenRepo{}, repos.userIdentity, repos.idpRepo)
+			svc := NewLoginService(gormDB, repos.clientRepo, repos.userRepo, &mockUserTokenRepo{}, repos.userIdentity, repos.idpRepo, &mockAuthEventService{})
 			resp, err := svc.LoginPublic(context.Background(), tc.username, tc.password, tc.clientID, tc.providerID)
 
 			if tc.wantErr {
@@ -913,7 +913,7 @@ func TestLogin(t *testing.T) {
 			}
 			tc.setup(t, repos)
 
-			svc := NewLoginService(gormDB, repos.clientRepo, repos.userRepo, &mockUserTokenRepo{}, repos.userIdentity, &mockIdentityProviderRepo{})
+			svc := NewLoginService(gormDB, repos.clientRepo, repos.userRepo, &mockUserTokenRepo{}, repos.userIdentity, &mockIdentityProviderRepo{}, &mockAuthEventService{})
 			resp, err := svc.Login(context.Background(), tc.username, tc.password, tc.clientID, tc.providerID)
 
 			if tc.wantErr {
@@ -973,7 +973,7 @@ func TestLoginPublic_RateLimited(t *testing.T) {
 
 	svc := NewLoginService(gormDB, &mockClientRepo{}, &mockUserRepo{}, &mockUserTokenRepo{},
 		&mockUserIdentityRepo{findByUserIDAndClientIDFn: func(_, _ int64) (*model.UserIdentity, error) { return nil, nil }},
-		&mockIdentityProviderRepo{})
+		&mockIdentityProviderRepo{}, &mockAuthEventService{})
 	_, err := svc.LoginPublic(context.Background(), username, "pass", "c1", "p1")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "locked")
@@ -998,7 +998,7 @@ func TestLoginPublic_ClientLookupError(t *testing.T) {
 
 	svc := NewLoginService(gormDB, clientRepo, &mockUserRepo{}, &mockUserTokenRepo{},
 		&mockUserIdentityRepo{findByUserIDAndClientIDFn: func(_, _ int64) (*model.UserIdentity, error) { return nil, nil }},
-		idpRepo)
+		idpRepo, &mockAuthEventService{})
 	_, err := svc.LoginPublic(context.Background(), "pub-client-err", "pass", "c1", "p1")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "authentication failed")
@@ -1028,7 +1028,7 @@ func TestLoginPublic_UserNotFound(t *testing.T) {
 
 	svc := NewLoginService(gormDB, clientRepo, userRepo, &mockUserTokenRepo{},
 		&mockUserIdentityRepo{findByUserIDAndClientIDFn: func(_, _ int64) (*model.UserIdentity, error) { return nil, nil }},
-		idpRepo)
+		idpRepo, &mockAuthEventService{})
 	_, err := svc.LoginPublic(context.Background(), "pub-user-missing", "pass", "c1", "p1")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "invalid credentials")
@@ -1048,7 +1048,7 @@ func TestLogin_RateLimited(t *testing.T) {
 
 	svc := NewLoginService(gormDB, &mockClientRepo{}, &mockUserRepo{}, &mockUserTokenRepo{},
 		&mockUserIdentityRepo{findByUserIDAndClientIDFn: func(_, _ int64) (*model.UserIdentity, error) { return nil, nil }},
-		&mockIdentityProviderRepo{})
+		&mockIdentityProviderRepo{}, &mockAuthEventService{})
 	_, err := svc.Login(context.Background(), username, "pass", nil, nil)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "locked")
@@ -1070,7 +1070,7 @@ func TestLogin_ExplicitClientLookupError(t *testing.T) {
 	pID := "provider-x"
 	svc := NewLoginService(gormDB, clientRepo, &mockUserRepo{}, &mockUserTokenRepo{},
 		&mockUserIdentityRepo{findByUserIDAndClientIDFn: func(_, _ int64) (*model.UserIdentity, error) { return nil, nil }},
-		&mockIdentityProviderRepo{})
+		&mockIdentityProviderRepo{}, &mockAuthEventService{})
 	_, err := svc.Login(context.Background(), "int-explicit-err", "pass", &cID, &pID)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "authentication failed")
@@ -1091,7 +1091,7 @@ func TestLogin_UserNotFound(t *testing.T) {
 
 	svc := NewLoginService(gormDB, clientRepo, userRepo, &mockUserTokenRepo{},
 		&mockUserIdentityRepo{findByUserIDAndClientIDFn: func(_, _ int64) (*model.UserIdentity, error) { return nil, nil }},
-		&mockIdentityProviderRepo{})
+		&mockIdentityProviderRepo{}, &mockAuthEventService{})
 	_, err := svc.Login(context.Background(), "int-user-missing", "pass", nil, nil)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "invalid credentials")
@@ -1133,7 +1133,7 @@ func TestLoginPublic_GenerateAccessTokenError(t *testing.T) {
 		},
 	}
 
-	svc := NewLoginService(gormDB, clientRepo, userRepo, &mockUserTokenRepo{}, userIdentityRepo, idpRepo)
+	svc := NewLoginService(gormDB, clientRepo, userRepo, &mockUserTokenRepo{}, userIdentityRepo, idpRepo, &mockAuthEventService{})
 	_, err := svc.LoginPublic(context.Background(), "pub-token-err", correctPassword, "c1", "p1")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "private key not initialized")
@@ -1164,7 +1164,7 @@ func TestLogin_GenerateAccessTokenError(t *testing.T) {
 		},
 	}
 
-	svc := NewLoginService(gormDB, clientRepo, userRepo, &mockUserTokenRepo{}, userIdentityRepo, &mockIdentityProviderRepo{})
+	svc := NewLoginService(gormDB, clientRepo, userRepo, &mockUserTokenRepo{}, userIdentityRepo, &mockIdentityProviderRepo{}, &mockAuthEventService{})
 	_, err := svc.Login(context.Background(), "int-token-err", correctPassword, nil, nil)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "private key not initialized")
@@ -1206,7 +1206,7 @@ func TestLoginPublic_GenerateIDTokenError(t *testing.T) {
 		},
 	}
 
-	svc := NewLoginService(gormDB, clientRepo, userRepo, &mockUserTokenRepo{}, userIdentityRepo, idpRepo)
+	svc := NewLoginService(gormDB, clientRepo, userRepo, &mockUserTokenRepo{}, userIdentityRepo, idpRepo, &mockAuthEventService{})
 	_, err := svc.LoginPublic(context.Background(), "pub-idtoken-err", correctPassword, "c1", "p1")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "id token error")
@@ -1248,7 +1248,7 @@ func TestLoginPublic_GenerateRefreshTokenError(t *testing.T) {
 		},
 	}
 
-	svc := NewLoginService(gormDB, clientRepo, userRepo, &mockUserTokenRepo{}, userIdentityRepo, idpRepo)
+	svc := NewLoginService(gormDB, clientRepo, userRepo, &mockUserTokenRepo{}, userIdentityRepo, idpRepo, &mockAuthEventService{})
 	_, err := svc.LoginPublic(context.Background(), "pub-refresh-err", correctPassword, "c1", "p1")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "refresh token error")

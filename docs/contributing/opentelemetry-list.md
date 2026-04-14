@@ -47,6 +47,14 @@ layers (handlers, repositories), and thin middleware are excluded to reduce nois
 > HTTP root span and the auto-traced DB/Redis leaf spans. Without these, the middle
 > of every trace is a black box.
 
+### service/auth_event.go
+
+- [x] `Log`
+- [x] `FindPaginated`
+- [x] `FindByUUID`
+- [x] `CountByEventType`
+- [x] `DeleteOlderThan`
+
 ### service/api.go
 
 - [x] `Get`
@@ -350,8 +358,8 @@ layers (handlers, repositories), and thin middleware are excluded to reduce nois
 | Logging & Correlation | 2 | 2 | 0 | — |
 | Email (manual) | 1 | 1 | 0 | — |
 | Broken context.Background() | 4 | 4 | 0 | High |
-| Service Layer | 179 | 179 | 0 | High |
+| Service Layer | 184 | 184 | 0 | High |
 | JWT | 4 | 4 | 0 | Medium |
 | Security (I/O funcs) | 5 | 5 | 0 | Medium |
 | Cache | 5 | 5 | 0 | Low |
-| **Total** | **207** | **207** | **0** | |
+| **Total** | **212** | **212** | **0** | |

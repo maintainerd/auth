@@ -203,6 +203,24 @@ func extractClientIP(r *http.Request) string {
 	return ip
 }
 
+// ClientIPFromContext returns the client IP address stored in ctx by
+// SecurityContextMiddleware. Returns an empty string when the value is absent.
+func ClientIPFromContext(ctx context.Context) string {
+	if v, ok := ctx.Value(ClientIPKey).(string); ok {
+		return v
+	}
+	return ""
+}
+
+// UserAgentFromContext returns the User-Agent string stored in ctx by
+// SecurityContextMiddleware. Returns an empty string when the value is absent.
+func UserAgentFromContext(ctx context.Context) string {
+	if v, ok := ctx.Value(UserAgentKey).(string); ok {
+		return v
+	}
+	return ""
+}
+
 // isProduction checks if running in production environment
 func isProduction() bool {
 	return config.GetEnvOrDefault("ENV", "development") == "production"

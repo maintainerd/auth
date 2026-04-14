@@ -47,6 +47,7 @@ type repos struct {
 	emailConfigRepo           repository.EmailConfigRepository
 	smsConfigRepo             repository.SMSConfigRepository
 	webhookEndpointRepo       repository.WebhookEndpointRepository
+	authEventRepo             repository.AuthEventRepository
 }
 
 func initRepos(db *gorm.DB) *repos {
@@ -90,5 +91,6 @@ func initRepos(db *gorm.DB) *repos {
 		emailConfigRepo:           repository.NewEmailConfigRepository(db),
 		smsConfigRepo:             repository.NewSMSConfigRepository(db),
 		webhookEndpointRepo:       repository.NewWebhookEndpointRepository(db),
+		authEventRepo:             repository.NewAuthEventRepository(db),
 	}
 }

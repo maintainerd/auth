@@ -55,12 +55,12 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "settings/security-settings/threat-config.md",
+                "file": "templist.md",
                 "mode": "source",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "threat-config"
+              "title": "templist"
             }
           }
         ],
@@ -228,13 +228,15 @@
   },
   "active": "04b24bf5877f427b",
   "lastOpenFiles": [
+    "Untitled.md",
+    "settings/logging-and-audit.md",
+    "settings/security-settings/threat-config.md",
     "settings/tenant settings/branding.md",
     "settings/security-settings/lockout-config.md",
     "settings/tenant settings",
     "settings/security-settings/README.md",
     "settings/security-settings/password-config.md",
     "settings/security-settings/token-config.md",
-    "settings/security-settings/threat-config.md",
     "settings/security-settings/registration-config.md",
     "settings/tenant settings/email-config.md",
     "settings/security-settings/session-config.md",
@@ -254,7 +256,6 @@
     "contributing/testing.md",
     "contributing/opentelemetry-list.md",
     "contributing/opentelemetry.md",
-    "Untitled.md",
     "deployment/opentelemetry.md",
     "v1-features",
     "deployment",

@@ -27,7 +27,6 @@ type Tenant struct {
 	IdentityProviders []*IdentityProvider `gorm:"foreignKey:TenantID;references:TenantID"`
 	Roles             []*Role             `gorm:"foreignKey:TenantID;references:TenantID"`
 	UserIdentities    []*UserIdentity     `gorm:"foreignKey:TenantID;references:TenantID"`
-	AuthLogs          []*AuthLog          `gorm:"foreignKey:TenantID;references:TenantID"`
 }
 
 func (Tenant) TableName() string {
