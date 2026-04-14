@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/maintainerd/auth/internal/apperror"
 	"github.com/maintainerd/auth/internal/dto"
 	"github.com/maintainerd/auth/internal/model"
 	"github.com/maintainerd/auth/internal/repository"
@@ -1696,4 +1697,89 @@ func (m *mockAuthEventService) DeleteOlderThan(ctx context.Context, cutoff time.
 		return m.deleteOlderThanFn(ctx, cutoff)
 	}
 	return 0, nil
+}
+
+// ---------------------------------------------------------------------------
+// mockOAuthAuthorizeService
+// ---------------------------------------------------------------------------
+
+type mockOAuthAuthorizeService struct {
+	authorizeFn           func(ctx context.Context, req dto.OAuthAuthorizeRequestDTO, userID int64) (*dto.OAuthAuthorizeResult, *apperror.OAuthError)
+	getConsentChallengeFn func(ctx context.Context, challengeUUID uuid.UUID, userID int64) (*dto.OAuthConsentChallengeResponseDTO, error)
+	handleConsentFn       func(ctx context.Context, decision dto.OAuthConsentDecisionDTO, userID int64) (*dto.OAuthConsentDecisionResult, *apperror.OAuthError)
+}
+
+func (m *mockOAuthAuthorizeService) Authorize(ctx context.Context, req dto.OAuthAuthorizeRequestDTO, userID int64) (*dto.OAuthAuthorizeResult, *apperror.OAuthError) {
+	if m.authorizeFn != nil {
+		return m.authorizeFn(ctx, req, userID)
+	}
+	return nil, nil
+}
+
+func (m *mockOAuthAuthorizeService) GetConsentChallenge(ctx context.Context, challengeUUID uuid.UUID, userID int64) (*dto.OAuthConsentChallengeResponseDTO, error) {
+	if m.getConsentChallengeFn != nil {
+		return m.getConsentChallengeFn(ctx, challengeUUID, userID)
+	}
+	return nil, nil
+}
+
+func (m *mockOAuthAuthorizeService) HandleConsent(ctx context.Context, decision dto.OAuthConsentDecisionDTO, userID int64) (*dto.OAuthConsentDecisionResult, *apperror.OAuthError) {
+	if m.handleConsentFn != nil {
+		return m.handleConsentFn(ctx, decision, userID)
+	}
+	return nil, nil
+}
+
+// ---------------------------------------------------------------------------
+// mockOAuthTokenService
+// ---------------------------------------------------------------------------
+
+type mockOAuthTokenService struct {
+	exchangeFn   func(ctx context.Context, req dto.OAuthTokenRequestDTO, creds dto.OAuthClientCredentials) (*dto.OAuthTokenResult, *apperror.OAuthError)
+	revokeFn     func(ctx context.Context, req dto.OAuthRevokeRequestDTO, creds dto.OAuthClientCredentials) *apperror.OAuthError
+	introspectFn func(ctx context.Context, req dto.OAuthIntrospectRequestDTO) (*dto.OAuthIntrospectResponseDTO, *apperror.OAuthError)
+}
+
+func (m *mockOAuthTokenService) Exchange(ctx context.Context, req dto.OAuthTokenRequestDTO, creds dto.OAuthClientCredentials) (*dto.OAuthTokenResult, *apperror.OAuthError) {
+	if m.exchangeFn != nil {
+		return m.exchangeFn(ctx, req, creds)
+	}
+	return nil, nil
+}
+
+func (m *mockOAuthTokenService) Revoke(ctx context.Context, req dto.OAuthRevokeRequestDTO, creds dto.OAuthClientCredentials) *apperror.OAuthError {
+	if m.revokeFn != nil {
+		return m.revokeFn(ctx, req, creds)
+	}
+	return nil
+}
+
+func (m *mockOAuthTokenService) Introspect(ctx context.Context, req dto.OAuthIntrospectRequestDTO) (*dto.OAuthIntrospectResponseDTO, *apperror.OAuthError) {
+	if m.introspectFn != nil {
+		return m.introspectFn(ctx, req)
+	}
+	return nil, nil
+}
+
+// ---------------------------------------------------------------------------
+// mockOAuthConsentService
+// ---------------------------------------------------------------------------
+
+type mockOAuthConsentService struct {
+	listGrantsFn  func(ctx context.Context, userID int64) ([]dto.OAuthConsentGrantResponseDTO, error)
+	revokeGrantFn func(ctx context.Context, grantUUID uuid.UUID, userID int64) error
+}
+
+func (m *mockOAuthConsentService) ListGrants(ctx context.Context, userID int64) ([]dto.OAuthConsentGrantResponseDTO, error) {
+	if m.listGrantsFn != nil {
+		return m.listGrantsFn(ctx, userID)
+	}
+	return nil, nil
+}
+
+func (m *mockOAuthConsentService) RevokeGrant(ctx context.Context, grantUUID uuid.UUID, userID int64) error {
+	if m.revokeGrantFn != nil {
+		return m.revokeGrantFn(ctx, grantUUID, userID)
+	}
+	return nil
 }

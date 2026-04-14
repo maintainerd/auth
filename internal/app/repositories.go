@@ -48,6 +48,10 @@ type repos struct {
 	smsConfigRepo             repository.SMSConfigRepository
 	webhookEndpointRepo       repository.WebhookEndpointRepository
 	authEventRepo             repository.AuthEventRepository
+	oauthAuthCodeRepo         repository.OAuthAuthorizationCodeRepository
+	oauthRefreshTokenRepo     repository.OAuthRefreshTokenRepository
+	oauthConsentGrantRepo     repository.OAuthConsentGrantRepository
+	oauthConsentChallengeRepo repository.OAuthConsentChallengeRepository
 }
 
 func initRepos(db *gorm.DB) *repos {
@@ -92,5 +96,9 @@ func initRepos(db *gorm.DB) *repos {
 		smsConfigRepo:             repository.NewSMSConfigRepository(db),
 		webhookEndpointRepo:       repository.NewWebhookEndpointRepository(db),
 		authEventRepo:             repository.NewAuthEventRepository(db),
+		oauthAuthCodeRepo:         repository.NewOAuthAuthorizationCodeRepository(db),
+		oauthRefreshTokenRepo:     repository.NewOAuthRefreshTokenRepository(db),
+		oauthConsentGrantRepo:     repository.NewOAuthConsentGrantRepository(db),
+		oauthConsentChallengeRepo: repository.NewOAuthConsentChallengeRepository(db),
 	}
 }

@@ -75,14 +75,14 @@ All cross-layer communication happens through **interfaces**, making every layer
   └───────────────────────────┬─────────────────────────────┘
                               │
   ┌───────────────────────────▼─────────────────────────────┐
-  │                   REST Handlers (24)                     │
+  │                   REST Handlers (29)                     │
   │                                                         │
   │  Parse request → Validate DTO → Call service            │
   │  → Map result to response DTO → Write JSON response     │
   └───────────────────────────┬─────────────────────────────┘
                               │
   ┌───────────────────────────▼─────────────────────────────┐
-  │                Service Interfaces (23)                   │
+  │                Service Interfaces (26)                   │
   │                                                         │
   │  Business rules, transaction management,                │
   │  tenant isolation, audit logging                        │
@@ -90,7 +90,7 @@ All cross-layer communication happens through **interfaces**, making every layer
              │                                │
   ┌──────────▼───────────┐         ┌──────────▼──────────┐
   │  Repository Layer    │         │      Redis           │
-  │  (35 interfaces)     │         │  (cache + rate       │
+  │  (39 interfaces)     │         │  (cache + rate       │
   │                      │         │   limiting)          │
   │  Generic CRUD base   │         └─────────────────────┘
   │  + domain queries    │
@@ -156,8 +156,8 @@ DI is **manual and constructor-based** — no frameworks, no reflection, no glob
 The wiring happens in three phases:
 
 ```
-Phase 1: initRepos(db)           → creates 35 repository instances
-Phase 2: initServices(db, repos) → creates 23 service instances, injecting repos
+Phase 1: initRepos(db)           → creates 39 repository instances
+Phase 2: initServices(db, repos) → creates 26 service instances, injecting repos
 Phase 3: NewApp(db, redis)       → returns App struct exposing services
 ```
 
@@ -217,6 +217,10 @@ GORM model structs representing database tables. Key entities:
 | `UserIdentity` | Links a user to a tenant + client + provider (multi-tenant identity). |
 | `UserRole` | Junction table: user ↔ role assignment within a tenant. |
 | `UserToken` | Tokens for email verification, password reset, etc. |
+| `OAuthAuthorizationCode` | Short-lived authorization code for the OAuth 2.0 authorization code grant (RFC 6749 §4.1). Stored as SHA-256 hash. |
+| `OAuthRefreshToken` | Long-lived opaque refresh token with family-based rotation and reuse detection. Stored as SHA-256 hash. |
+| `OAuthConsentGrant` | Persisted record of which scopes a user has approved for a client. Unique per user-client pair. |
+| `OAuthConsentChallenge` | Short-lived pending consent challenge created during the authorization flow when user approval is required. |
 
 **Common patterns across all models:**
 - UUID auto-generation in `BeforeCreate` hook.
@@ -300,6 +304,9 @@ err := s.db.Transaction(func(tx *gorm.DB) error {
 | `EmailTemplateService` | Email template management. |
 | `SMSTemplateService` | SMS template management. |
 | `LoginTemplateService` | Login page template management. |
+| `OAuthAuthorizeService` | OAuth 2.0 authorization endpoint logic: validates clients, redirect URIs, PKCE; issues authorization codes or creates consent challenges. |
+| `OAuthTokenService` | OAuth 2.0 token endpoint logic: authorization code exchange, refresh token rotation with reuse detection, client credentials grant, token revocation (RFC 7009), and introspection (RFC 7662). |
+| `OAuthConsentService` | Manages user consent grants: lists and revokes persisted consent records. |
 
 ---
 
@@ -352,8 +359,8 @@ type PaginatedResponseDTO[T any] struct {
 
 | Server | Port | Purpose | Access |
 |---|---|---|---|
-| Internal | `:8080` | Admin and management endpoints | VPN / private network only |
-| Public | `:8081` | Login, register, password reset | Public internet |
+| Internal | `:8080` | Admin and management endpoints, token introspection | VPN / private network only |
+| Public | `:8081` | Login, register, password reset, OAuth 2.0 flows, OIDC discovery | Public internet |
 
 This enforces a hard trust boundary at the network level.
 
@@ -438,12 +445,17 @@ The stack is ordered so that **cheap checks run first** (headers, size limits) a
 | Access Token | 15 minutes | API authentication |
 | ID Token | 1 hour | User identity claims |
 | Refresh Token | 7 days | Obtain new access tokens |
+| Authorization Code | 10 minutes | OAuth 2.0 authorization code grant (stored as SHA-256 hash, single-use) |
+| OAuth Refresh Token | 7 days (configurable per client) | Opaque token with family-based rotation and reuse detection |
 
 **Security properties:**
 - RSA-256 signing algorithm.
 - Minimum 2048-bit key size enforced at startup.
 - Cryptographically secure JTI (JWT ID) for uniqueness.
 - Key pair validation on boot (private and public keys must match).
+- PKCE (S256 only) required for all authorization code grants.
+- Refresh token rotation with family-based reuse detection — replaying a revoked token revokes the entire family.
+- JWKS endpoint exposes the public RSA key for external token verification.
 
 ---
 
@@ -461,6 +473,9 @@ The stack is ordered so that **cheap checks run first** (headers, size limits) a
 | **Signed URLs** | HMAC-SHA256 signed, time-limited URLs for email verification, password reset, invites. |
 | **Secure cookies** | `HttpOnly`, `Secure`, `SameSite=Strict`. Refresh token scoped to `/auth/refresh` path. |
 | **Security event logging** | Structured logs for login success/failure, rate limiting, lockout — aligned with SOC2 CC7.2. |
+| **PKCE** | S256-only code challenge enforcement for all OAuth authorization code grants. |
+| **Redirect URI validation** | Exact-match validation against pre-registered client URIs. |
+| **Token rotation** | Family-based refresh token rotation with reuse detection (compromised tokens revoke the entire family). |
 
 ---
 

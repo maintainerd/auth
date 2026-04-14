@@ -39,6 +39,9 @@ type svcs struct {
 	smsConfigService         service.SMSConfigService
 	webhookEndpointService   service.WebhookEndpointService
 	authEventService         service.AuthEventService
+	oauthAuthorizeService    service.OAuthAuthorizeService
+	oauthTokenService        service.OAuthTokenService
+	oauthConsentService      service.OAuthConsentService
 }
 
 func initServices(db *gorm.DB, r *repos, appCache *cache.Cache) *svcs {
@@ -78,5 +81,8 @@ func initServices(db *gorm.DB, r *repos, appCache *cache.Cache) *svcs {
 		smsConfigService:         service.NewSMSConfigService(r.smsConfigRepo),
 		webhookEndpointService:   service.NewWebhookEndpointService(r.webhookEndpointRepo),
 		authEventService:         authEventSvc,
+		oauthAuthorizeService:    service.NewOAuthAuthorizeService(db, r.clientRepo, r.clientURIRepo, r.oauthAuthCodeRepo, r.oauthConsentGrantRepo, r.oauthConsentChallengeRepo, authEventSvc),
+		oauthTokenService:        service.NewOAuthTokenService(db, r.clientRepo, r.oauthAuthCodeRepo, r.oauthRefreshTokenRepo, r.userRepo, r.userIdentityRepo, authEventSvc),
+		oauthConsentService:      service.NewOAuthConsentService(r.oauthConsentGrantRepo),
 	}
 }
