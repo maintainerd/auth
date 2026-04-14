@@ -72,14 +72,17 @@ func main() {
 	// ⚙️ App wiring (handlers, services, etc.)
 	application := app.NewApp(db, redisClient)
 
-	// Create a cancellable context for the gRPC server.
-	// It is cancelled after the REST servers have drained so that gRPC also
-	// shuts down gracefully when an OS signal is received.
-	grpcCtx, cancelGRPC := context.WithCancel(context.Background())
+	// Create a cancellable context for background workers.
+	// It is cancelled after the REST servers have drained so that background
+	// goroutines also shut down gracefully when an OS signal is received.
+	bgCtx, cancelBG := context.WithCancel(context.Background())
+
+	// 🗑️ Auth event retention runner (background)
+	go runner.StartRetentionRunner(bgCtx, application.AuthEventService, runner.DefaultRetentionPeriod, runner.DefaultRetentionInterval)
 
 	// 🚀 gRPC server (background) — errors are logged; they don't affect REST.
 	go func() {
-		if err := grpcserver.StartGRPCServer(grpcCtx, application); err != nil {
+		if err := grpcserver.StartGRPCServer(bgCtx, application); err != nil {
 			slog.Error("gRPC server error", "error", err)
 		}
 	}()
@@ -87,6 +90,7 @@ func main() {
 	// 🚀 REST servers — blocks until OS signal then drains.
 	restserver.StartRESTServer(application)
 
-	// Cancel the gRPC context after REST has drained so gRPC also shuts down.
-	cancelGRPC()
+	// Cancel the background context after REST has drained so gRPC and
+	// retention runner also shut down.
+	cancelBG()
 }
