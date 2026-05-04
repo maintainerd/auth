@@ -38,6 +38,7 @@ type mockClientRepo struct {
 	findByUUIDAndTenantIDFn             func(uuid.UUID, int64) (*model.Client, error)
 	findPaginatedFn                     func(repository.ClientRepositoryGetFilter) (*repository.PaginationResult[model.Client], error)
 	findByNameAndIdentityProviderFn     func(string, int64, int64) (*model.Client, error)
+	findByNameAndTenantIDFn             func(string, int64) (*model.Client, error)
 	findDefaultByTenantIDFn             func(tID int64) (*model.Client, error)
 	createOrUpdateFn                    func(*model.Client) (*model.Client, error)
 	deleteByUUIDFn                      func(any) error
@@ -101,6 +102,12 @@ func (m *mockClientRepo) FindByUUIDAndTenantID(id uuid.UUID, tID int64) (*model.
 func (m *mockClientRepo) FindByNameAndIdentityProvider(n string, ipID, tID int64) (*model.Client, error) {
 	if m.findByNameAndIdentityProviderFn != nil {
 		return m.findByNameAndIdentityProviderFn(n, ipID, tID)
+	}
+	return nil, nil
+}
+func (m *mockClientRepo) FindByNameAndTenantID(n string, tID int64) (*model.Client, error) {
+	if m.findByNameAndTenantIDFn != nil {
+		return m.findByNameAndTenantIDFn(n, tID)
 	}
 	return nil, nil
 }

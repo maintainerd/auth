@@ -28,6 +28,7 @@ type ClientRepository interface {
 	WithTx(tx *gorm.DB) ClientRepository
 	FindByUUIDAndTenantID(clientUUID uuid.UUID, tenantID int64) (*model.Client, error)
 	FindByNameAndIdentityProvider(name string, identityProviderID int64, tenantID int64) (*model.Client, error)
+	FindByNameAndTenantID(name string, tenantID int64) (*model.Client, error)
 	FindByClientID(clientID string, tenantID int64) (*model.Client, error)
 	FindAllByTenantID(tenantID int64) ([]model.Client, error)
 	FindSystem() (*model.Client, error)
@@ -107,20 +108,37 @@ func (r *clientRepository) FindAllByTenantID(tenantID int64) ([]model.Client, er
 	return clients, err
 }
 
-// FindSystem returns the active traditional client belonging to the system
-// tenant (is_system = true on both tenant and client). Used for no-client_id
-// login/register on port 8080.
+// FindSystem returns the active system client belonging to the system tenant
+// (is_system = true on both tenant and client). The seeded system client is the
+// auth-console SPA used to bootstrap the management surface on port 8080.
 func (r *clientRepository) FindSystem() (*model.Client, error) {
 	var client model.Client
 	err := r.DB().
 		Joins("JOIN identity_providers ON identity_providers.identity_provider_id = clients.identity_provider_id").
 		Joins("JOIN tenants ON tenants.tenant_id = identity_providers.tenant_id").
 		Where("clients.is_system = ? AND clients.status = ?", true, model.StatusActive).
-		Where("clients.client_type = ?", model.ClientTypeTraditional).
 		Where("identity_providers.status = ?", model.StatusActive).
 		Where("tenants.is_system = ?", true).
 		Preload("IdentityProvider").
 		Preload("IdentityProvider.Tenant").
+		First(&client).Error
+
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &client, nil
+}
+
+// FindByNameAndTenantID returns the client with the given name within the
+// tenant, regardless of which identity provider it is attached to.
+func (r *clientRepository) FindByNameAndTenantID(name string, tenantID int64) (*model.Client, error) {
+	var client model.Client
+	err := r.DB().
+		Where("name = ? AND tenant_id = ?", name, tenantID).
+		Preload("IdentityProvider").
 		First(&client).Error
 
 	if err != nil {
