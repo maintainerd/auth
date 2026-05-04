@@ -8,6 +8,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/apperror"
 	"github.com/maintainerd/auth/internal/crypto"
+	"github.com/maintainerd/auth/internal/database/seeder"
 	"github.com/maintainerd/auth/internal/dto"
 	"github.com/maintainerd/auth/internal/model"
 	"github.com/maintainerd/auth/internal/ptr"
@@ -254,13 +255,14 @@ func (s *setupService) CreateAdmin(ctx context.Context, req dto.CreateAdminReque
 		return nil, apperror.NewNotFoundWithReason("default tenant not found")
 	}
 
-	// Get default auth client
-	defaultClient, err := s.clientRepo.FindSystem()
+	// Bind the super-admin's identity to the seeded auth-console system client
+	// by explicit name. The console is the only surface that exists at boot.
+	defaultClient, err := s.clientRepo.FindByNameAndTenantID(seeder.SystemClientNameAuthConsole, defaultTenant.TenantID)
 	if err != nil {
 		return nil, err
 	}
 	if defaultClient == nil {
-		return nil, apperror.NewNotFoundWithReason("default auth client not found")
+		return nil, apperror.NewNotFoundWithReason("auth-console system client not found")
 	}
 
 	var createdUser *model.User

@@ -523,7 +523,7 @@ func TestSetupService_CreateAdmin(t *testing.T) {
 				findSystemFn: func() (*model.Tenant, error) { return defaultTenant, nil },
 			},
 			&mockUserRepo{}, &mockProfileRepo{},
-			&mockClientRepo{findSystemFn: func() (*model.Client, error) { return nil, errors.New("db err") }},
+			&mockClientRepo{findByNameAndTenantIDFn: func(string, int64) (*model.Client, error) { return nil, errors.New("db err") }},
 			&mockIdentityProviderRepo{},
 			&mockRoleRepo{}, &mockUserRoleRepo{}, &mockUserIdentityRepo{}, &mockTenantMemberRepo{},
 		)
@@ -538,13 +538,13 @@ func TestSetupService_CreateAdmin(t *testing.T) {
 				findSystemFn: func() (*model.Tenant, error) { return defaultTenant, nil },
 			},
 			&mockUserRepo{}, &mockProfileRepo{},
-			&mockClientRepo{findSystemFn: func() (*model.Client, error) { return nil, nil }},
+			&mockClientRepo{findByNameAndTenantIDFn: func(string, int64) (*model.Client, error) { return nil, nil }},
 			&mockIdentityProviderRepo{},
 			&mockRoleRepo{}, &mockUserRoleRepo{}, &mockUserIdentityRepo{}, &mockTenantMemberRepo{},
 		)
 		_, err := svc.CreateAdmin(context.Background(), validReq)
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), "default auth client not found")
+		assert.Contains(t, err.Error(), "auth-console system client not found")
 	})
 
 	// --- Transaction tests ---
@@ -557,7 +557,7 @@ func TestSetupService_CreateAdmin(t *testing.T) {
 			findSystemFn: func() (*model.Tenant, error) { return defaultTenant, nil },
 		}
 		ur := &mockUserRepo{}
-		cr := &mockClientRepo{findSystemFn: func() (*model.Client, error) { return defaultClient, nil }}
+		cr := &mockClientRepo{findByNameAndTenantIDFn: func(string, int64) (*model.Client, error) { return defaultClient, nil }}
 		rr := &mockRoleRepo{
 			findRegisteredRoleForSetupFn: func(_ int64) (*model.Role, error) { return &model.Role{RoleID: 10}, nil },
 			findSuperAdminRoleForSetupFn: func(_ int64) (*model.Role, error) { return &model.Role{RoleID: 20}, nil },
