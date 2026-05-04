@@ -14,130 +14,42 @@ import (
 	"gorm.io/gorm"
 )
 
+// SystemClientNameAuthConsole is the seeded system client used by the
+// maintainerd-auth-console SPA frontend during initial bootstrap. Additional
+// clients (public identity, mobile, m2m, third-party apps) are created at
+// runtime through the console and are not part of the system seed.
+const SystemClientNameAuthConsole = "auth-console"
+
 func SeedClients(db *gorm.DB, tenantID int64, identityProviderID int64) error {
 	appHostName := config.AppPrivateHostname
 
-	// Pre-generate all client identifiers and secrets
-	traditionalID, err := crypto.GenerateIdentifier(32)
+	consoleID, err := crypto.GenerateIdentifier(32)
 	if err != nil {
 		return fmt.Errorf("failed to generate identifier: %w", err)
-	}
-	traditionalSecret, err := crypto.GenerateIdentifier(64)
-	if err != nil {
-		return fmt.Errorf("failed to generate secret: %w", err)
-	}
-	spaID, err := crypto.GenerateIdentifier(32)
-	if err != nil {
-		return fmt.Errorf("failed to generate identifier: %w", err)
-	}
-	mobileID, err := crypto.GenerateIdentifier(32)
-	if err != nil {
-		return fmt.Errorf("failed to generate identifier: %w", err)
-	}
-	m2mID, err := crypto.GenerateIdentifier(32)
-	if err != nil {
-		return fmt.Errorf("failed to generate identifier: %w", err)
-	}
-	m2mSecret, err := crypto.GenerateIdentifier(64)
-	if err != nil {
-		return fmt.Errorf("failed to generate secret: %w", err)
 	}
 
 	clients := []model.Client{
 		{
 			ClientUUID:  uuid.New(),
 			TenantID:    tenantID,
-			Name:        "traditional-default",
-			DisplayName: "Traditional Web App Default",
-			ClientType:  "traditional",
+			Name:        SystemClientNameAuthConsole,
+			DisplayName: "Maintainerd Auth Console",
+			ClientType:  model.ClientTypeSPA,
 			Domain:      strPtr(appHostName),
-			Identifier:  strPtr(traditionalID),
-			Secret:      strPtr(traditionalSecret),
-			Config: datatypes.JSON([]byte(`{
-				"grant_types": ["authorization_code"],
-				"response_type": "code",
-				"pkce": false
-			}`)),
-			Status:                  "active",
-			IsDefault:               true,
-			IsSystem:                true,
-			IdentityProviderID:      identityProviderID,
-			TokenEndpointAuthMethod: model.TokenAuthMethodSecretBasic,
-			GrantTypes:              pq.StringArray{model.GrantTypeAuthorizationCode, model.GrantTypeRefreshToken},
-			ResponseTypes:           pq.StringArray{model.ResponseTypeCode},
-			RequireConsent:          false,
-			CreatedAt:               time.Now(),
-			UpdatedAt:               time.Now(),
-		},
-		{
-			ClientUUID:  uuid.New(),
-			TenantID:    tenantID,
-			Name:        "spa-default",
-			DisplayName: "Single Page App Default",
-			ClientType:  "spa",
-			Domain:      strPtr(appHostName),
-			Identifier:  strPtr(spaID),
+			Identifier:  strPtr(consoleID),
 			Secret:      nil,
 			Config: datatypes.JSON([]byte(`{
-				"grant_types": ["authorization_code"],
+				"grant_types": ["authorization_code", "refresh_token"],
 				"response_type": "code",
 				"pkce": true
 			}`)),
-			Status:                  "active",
+			Status:                  model.StatusActive,
 			IsDefault:               true,
 			IsSystem:                true,
 			IdentityProviderID:      identityProviderID,
 			TokenEndpointAuthMethod: model.TokenAuthMethodNone,
 			GrantTypes:              pq.StringArray{model.GrantTypeAuthorizationCode, model.GrantTypeRefreshToken},
 			ResponseTypes:           pq.StringArray{model.ResponseTypeCode},
-			RequireConsent:          false,
-			CreatedAt:               time.Now(),
-			UpdatedAt:               time.Now(),
-		},
-		{
-			ClientUUID:  uuid.New(),
-			TenantID:    tenantID,
-			Name:        "mobile-default",
-			DisplayName: "Mobile App Default",
-			ClientType:  "mobile",
-			Domain:      strPtr(appHostName),
-			Identifier:  strPtr(mobileID),
-			Secret:      nil,
-			Config: datatypes.JSON([]byte(`{
-				"grant_types": ["authorization_code"],
-				"response_type": "code",
-				"pkce": true
-			}`)),
-			Status:                  "active",
-			IsDefault:               true,
-			IsSystem:                true,
-			IdentityProviderID:      identityProviderID,
-			TokenEndpointAuthMethod: model.TokenAuthMethodNone,
-			GrantTypes:              pq.StringArray{model.GrantTypeAuthorizationCode, model.GrantTypeRefreshToken},
-			ResponseTypes:           pq.StringArray{model.ResponseTypeCode},
-			RequireConsent:          false,
-			CreatedAt:               time.Now(),
-			UpdatedAt:               time.Now(),
-		},
-		{
-			ClientUUID:  uuid.New(),
-			TenantID:    tenantID,
-			Name:        "m2m-default",
-			DisplayName: "Machine to Machine Default",
-			ClientType:  "m2m",
-			Domain:      strPtr(appHostName),
-			Identifier:  strPtr(m2mID),
-			Secret:      strPtr(m2mSecret),
-			Config: datatypes.JSON([]byte(`{
-				"grant_types": ["client_credentials"]
-			}`)),
-			Status:                  "active",
-			IsDefault:               true,
-			IsSystem:                true,
-			IdentityProviderID:      identityProviderID,
-			TokenEndpointAuthMethod: model.TokenAuthMethodSecretBasic,
-			GrantTypes:              pq.StringArray{model.GrantTypeClientCredentials},
-			ResponseTypes:           pq.StringArray{},
 			RequireConsent:          false,
 			CreatedAt:               time.Now(),
 			UpdatedAt:               time.Now(),

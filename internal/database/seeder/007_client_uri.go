@@ -14,32 +14,19 @@ import (
 func SeedClientURIs(db *gorm.DB, tenantID int64, identityProviderID int64) error {
 	appHostName := config.AppPrivateHostname
 
-	// Map of client name -> URIs with their types
+	// Map of client name -> URIs with their types. Only the auth-console SPA is
+	// seeded; non-system clients (public identity, third-party apps) are
+	// registered at runtime through the console.
 	uris := map[string][]struct {
 		URI  string
 		Type string
 	}{
-		"traditional-default": {
-			{URI: "http://" + appHostName + "/callback", Type: "redirect-uri"},
-			{URI: "https://" + appHostName + "/callback", Type: "redirect-uri"},
-			{URI: "http://" + appHostName, Type: "origin-uri"},
-			{URI: "https://" + appHostName, Type: "origin-uri"},
-			{URI: "http://" + appHostName + "/logout", Type: "logout-uri"},
-			{URI: "https://" + appHostName + "/logout", Type: "logout-uri"},
+		SystemClientNameAuthConsole: {
+			{URI: "https://" + appHostName + "/callback", Type: model.ClientURITypeRedirect},
+			{URI: "https://" + appHostName, Type: model.ClientURITypeOrigin},
+			{URI: "https://" + appHostName, Type: model.ClientURITypeCORSOrigin},
+			{URI: "https://" + appHostName + "/logout", Type: model.ClientURITypeLogout},
 		},
-		"spa-default": {
-			{URI: "http://localhost:3000/callback", Type: "redirect-uri"},
-			{URI: "https://" + appHostName + "/callback", Type: "redirect-uri"},
-			{URI: "http://localhost:3000", Type: "origin-uri"},
-			{URI: "https://" + appHostName, Type: "origin-uri"},
-			{URI: "http://localhost:3000", Type: "cors-origin-uri"},
-			{URI: "https://" + appHostName, Type: "cors-origin-uri"},
-		},
-		"mobile-default": {
-			{URI: "myapp://callback", Type: "redirect-uri"},
-			{URI: "myapp://logout", Type: "logout-uri"},
-		},
-		"m2m-default": {}, // no URIs for m2m
 	}
 
 	for clientName, clientURIs := range uris {
