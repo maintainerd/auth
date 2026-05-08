@@ -24,6 +24,13 @@ func SeedEmailTemplates(db *gorm.DB, tenantID int64) error {
 			emailtemplate.ForgotPasswordEmailHTML,
 			emailtemplate.ForgotPasswordEmailPlain,
 		),
+		newEmailTemplate(
+			tenantID,
+			"internal:user:email:verification",
+			"Verify Your Email Address",
+			emailtemplate.EmailVerificationEmailHTML,
+			emailtemplate.EmailVerificationEmailPlain,
+		),
 	}
 
 	for _, t := range templates {

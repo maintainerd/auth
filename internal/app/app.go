@@ -29,6 +29,7 @@ type App struct {
 	InviteService            service.InviteService
 	ForgotPasswordService    service.ForgotPasswordService
 	ResetPasswordService     service.ResetPasswordService
+	EmailVerificationService service.EmailVerificationService
 	SetupService             service.SetupService
 	SignupFlowService        service.SignupFlowService
 	APIKeyService            service.APIKeyService
@@ -80,6 +81,7 @@ func NewApp(db *gorm.DB, redisClient *redis.Client) *App {
 		InviteService:            s.inviteService,
 		ForgotPasswordService:    s.forgotPasswordService,
 		ResetPasswordService:     s.resetPasswordService,
+		EmailVerificationService: s.emailVerificationService,
 		SetupService:             s.setupService,
 		SignupFlowService:        s.signupFlowService,
 		APIKeyService:            s.apiKeyService,

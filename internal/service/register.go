@@ -6,7 +6,6 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/apperror"
-	"github.com/maintainerd/auth/internal/crypto"
 	"github.com/maintainerd/auth/internal/dto"
 	"github.com/maintainerd/auth/internal/jwt"
 	"github.com/maintainerd/auth/internal/model"
@@ -125,7 +124,6 @@ func (s *registerService) RegisterPublic(
 	// All database operations in transaction
 	err := s.db.Transaction(func(tx *gorm.DB) error {
 		txUserRepo := s.userRepo.WithTx(tx)
-		txUserTokenRepo := s.userTokenRepo.WithTx(tx)
 		txClientRepo := s.clientRepo.WithTx(tx)
 		txUserIdentityRepo := s.userIdentityRepo.WithTx(tx)
 		txIdentityProviderRepo := s.identityProviderRepo.WithTx(tx)
@@ -246,23 +244,6 @@ func (s *registerService) RegisterPublic(
 			return txErr
 		}
 
-		// Generate OTP
-		otp, txErr := crypto.GenerateOTP(6)
-		if txErr != nil {
-			return txErr
-		}
-
-		// Create user token
-		userToken := &model.UserToken{
-			UserID:    createdUser.UserID,
-			TokenType: model.TokenTypeEmailVerification,
-			Token:     otp,
-		}
-		_, txErr = txUserTokenRepo.Create(userToken)
-		if txErr != nil {
-			return txErr
-		}
-
 		return nil // commit transaction
 	})
 
@@ -308,7 +289,6 @@ func (s *registerService) Register(
 	// All database operations in transaction
 	err := s.db.Transaction(func(tx *gorm.DB) error {
 		txUserRepo := s.userRepo.WithTx(tx)
-		txUserTokenRepo := s.userTokenRepo.WithTx(tx)
 		txClientRepo := s.clientRepo.WithTx(tx)
 		txUserIdentityRepo := s.userIdentityRepo.WithTx(tx)
 		txRoleRepo := s.roleRepo.WithTx(tx)
@@ -392,7 +372,6 @@ func (s *registerService) Register(
 			return txErr
 		}
 
-
 		// Get default role
 		defaultRole, txErr := s.findDefaultRole(txRoleRepo, tenantId)
 		if txErr != nil {
@@ -405,23 +384,6 @@ func (s *registerService) Register(
 			RoleID: defaultRole.RoleID,
 		}
 		_, txErr = txUserRoleRepo.Create(userRole)
-		if txErr != nil {
-			return txErr
-		}
-
-		// Generate OTP
-		otp, txErr := crypto.GenerateOTP(6)
-		if txErr != nil {
-			return txErr
-		}
-
-		// Create user token
-		userToken := &model.UserToken{
-			UserID:    createdUser.UserID,
-			TokenType: model.TokenTypeEmailVerification,
-			Token:     otp,
-		}
-		_, txErr = txUserTokenRepo.Create(userToken)
 		if txErr != nil {
 			return txErr
 		}
@@ -545,7 +507,6 @@ func (s *registerService) RegisterInvite(
 		if txErr != nil {
 			return txErr
 		}
-
 
 		// Get default role and assign it first
 		defaultRole, txErr := s.findDefaultRole(txRoleRepo, tenantId)
@@ -717,7 +678,6 @@ func (s *registerService) RegisterInvitePublic(
 		if txErr != nil {
 			return txErr
 		}
-
 
 		// Get default role and assign it first
 		defaultRole, txErr := s.findDefaultRole(txRoleRepo, tenantId)
