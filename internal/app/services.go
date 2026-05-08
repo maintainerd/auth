@@ -24,6 +24,7 @@ type svcs struct {
 	inviteService            service.InviteService
 	forgotPasswordService    service.ForgotPasswordService
 	resetPasswordService     service.ResetPasswordService
+	emailVerificationService service.EmailVerificationService
 	setupService             service.SetupService
 	signupFlowService        service.SignupFlowService
 	policyService            service.PolicyService
@@ -66,6 +67,7 @@ func initServices(db *gorm.DB, r *repos, appCache *cache.Cache) *svcs {
 		inviteService:            service.NewInviteService(db, r.inviteRepo, r.clientRepo, r.roleRepo, r.emailTemplateRepo),
 		forgotPasswordService:    service.NewForgotPasswordService(db, r.userRepo, r.userTokenRepo, r.clientRepo, r.emailTemplateRepo),
 		resetPasswordService:     service.NewResetPasswordService(db, r.userRepo, r.userTokenRepo, r.clientRepo),
+		emailVerificationService: service.NewEmailVerificationService(db, r.userRepo, r.userTokenRepo, r.clientRepo, r.emailTemplateRepo),
 		setupService:             service.NewSetupService(db, r.userRepo, r.tenantRepo, r.tenantMemberRepo, r.clientRepo, r.idpRepo, r.roleRepo, r.userRoleRepo, r.userTokenRepo, r.userIdentityRepo, r.profileRepo),
 		signupFlowService:        service.NewSignupFlowService(db, r.signupFlowRepo, r.signupFlowRoleRepo, r.roleRepo, r.clientRepo),
 		policyService:            service.NewPolicyService(db, r.policyRepo, r.serviceRepo, r.apiRepo),

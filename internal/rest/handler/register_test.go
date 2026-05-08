@@ -38,7 +38,7 @@ func withEmptyUACtx(r *http.Request) *http.Request {
 // ---------------------------------------------------------------------------
 
 func TestRegisterHandler_RegisterPublic_MissingClientID(t *testing.T) {
-	h := NewRegisterHandler(&mockRegisterService{})
+	h := NewRegisterHandler(&mockRegisterService{}, &mockEmailVerificationService{})
 	r := regRequest(t, "/public/register", map[string]string{
 		"username": "user1", "password": "Pass@1234", "fullname": "User One",
 	})
@@ -48,7 +48,7 @@ func TestRegisterHandler_RegisterPublic_MissingClientID(t *testing.T) {
 }
 
 func TestRegisterHandler_RegisterPublic_EmptyUserAgent(t *testing.T) {
-	h := NewRegisterHandler(&mockRegisterService{})
+	h := NewRegisterHandler(&mockRegisterService{}, &mockEmailVerificationService{})
 	body, _ := json.Marshal(map[string]string{
 		"username": "user1", "password": "Pass@1234", "fullname": "User One",
 	})
@@ -62,7 +62,7 @@ func TestRegisterHandler_RegisterPublic_EmptyUserAgent(t *testing.T) {
 }
 
 func TestRegisterHandler_RegisterPublic_InvalidBody(t *testing.T) {
-	h := NewRegisterHandler(&mockRegisterService{})
+	h := NewRegisterHandler(&mockRegisterService{}, &mockEmailVerificationService{})
 	r := httptest.NewRequest(http.MethodPost, "/public/register?client_id=c1&provider_id=p1",
 		bytes.NewBufferString(`bad json`))
 	r.Header.Set("Content-Type", "application/json")
@@ -78,7 +78,7 @@ func TestRegisterHandler_RegisterPublic_ServiceError(t *testing.T) {
 			return nil, assert.AnError
 		},
 	}
-	h := NewRegisterHandler(svc)
+	h := NewRegisterHandler(svc, &mockEmailVerificationService{})
 	r := regRequest(t, "/public/register?client_id=c1&provider_id=p1", map[string]string{
 		"username": "user1", "password": "Pass@1234!", "fullname": "User One",
 	})
@@ -93,7 +93,7 @@ func TestRegisterHandler_RegisterPublic_Success(t *testing.T) {
 			return &dto.RegisterResponseDTO{}, nil
 		},
 	}
-	h := NewRegisterHandler(svc)
+	h := NewRegisterHandler(svc, &mockEmailVerificationService{})
 	r := regRequest(t, "/public/register?client_id=c1&provider_id=p1", map[string]string{
 		"username": "user1", "password": "Pass@1234!", "fullname": "User One",
 	})
@@ -107,7 +107,7 @@ func TestRegisterHandler_RegisterPublic_Success(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestRegisterHandler_Register_InvalidBody(t *testing.T) {
-	h := NewRegisterHandler(&mockRegisterService{})
+	h := NewRegisterHandler(&mockRegisterService{}, &mockEmailVerificationService{})
 	r := httptest.NewRequest(http.MethodPost, "/register", bytes.NewBufferString(`{bad}`))
 	r.Header.Set("Content-Type", "application/json")
 	r = withSecurityCtx(r)
@@ -122,7 +122,7 @@ func TestRegisterHandler_Register_ServiceError(t *testing.T) {
 			return nil, assert.AnError
 		},
 	}
-	h := NewRegisterHandler(svc)
+	h := NewRegisterHandler(svc, &mockEmailVerificationService{})
 	r := regRequest(t, "/register", map[string]string{
 		"username": "user1", "password": "Pass@1234!", "fullname": "User One",
 	})
@@ -137,7 +137,7 @@ func TestRegisterHandler_Register_Success(t *testing.T) {
 			return &dto.RegisterResponseDTO{}, nil
 		},
 	}
-	h := NewRegisterHandler(svc)
+	h := NewRegisterHandler(svc, &mockEmailVerificationService{})
 	r := regRequest(t, "/register", map[string]string{
 		"username": "user1", "password": "Pass@1234!", "fullname": "User One",
 	})
@@ -151,7 +151,7 @@ func TestRegisterHandler_Register_Success(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestRegisterHandler_RegisterInvite_MissingToken(t *testing.T) {
-	h := NewRegisterHandler(&mockRegisterService{})
+	h := NewRegisterHandler(&mockRegisterService{}, &mockEmailVerificationService{})
 	r := regRequest(t, "/register/invite", map[string]string{"username": "u", "password": "p"})
 	w := httptest.NewRecorder()
 	h.RegisterInvite(w, r)
@@ -164,7 +164,7 @@ func TestRegisterHandler_RegisterInvite_ServiceError(t *testing.T) {
 			return nil, assert.AnError
 		},
 	}
-	h := NewRegisterHandler(svc)
+	h := NewRegisterHandler(svc, &mockEmailVerificationService{})
 	r := regRequest(t, "/register/invite?invite_token=tok", map[string]string{
 		"username": "user1", "password": "Pass@1234",
 	})
@@ -179,7 +179,7 @@ func TestRegisterHandler_RegisterInvite_Success(t *testing.T) {
 			return &dto.RegisterResponseDTO{}, nil
 		},
 	}
-	h := NewRegisterHandler(svc)
+	h := NewRegisterHandler(svc, &mockEmailVerificationService{})
 	r := regRequest(t, "/register/invite?invite_token=tok", map[string]string{
 		"username": "user1", "password": "Pass@1234",
 	})
@@ -193,7 +193,7 @@ func TestRegisterHandler_RegisterInvite_Success(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestRegisterHandler_RegisterInvitePublic_MissingParams(t *testing.T) {
-	h := NewRegisterHandler(&mockRegisterService{})
+	h := NewRegisterHandler(&mockRegisterService{}, &mockEmailVerificationService{})
 	// Missing required client_id/provider_id/invite_token
 	r := regRequest(t, "/public/register/invite", map[string]string{"username": "u", "password": "p"})
 	w := httptest.NewRecorder()
@@ -207,7 +207,7 @@ func TestRegisterHandler_RegisterInvitePublic_ServiceError(t *testing.T) {
 			return nil, assert.AnError
 		},
 	}
-	h := NewRegisterHandler(svc)
+	h := NewRegisterHandler(svc, &mockEmailVerificationService{})
 	r := regRequest(t, "/public/register/invite?client_id=c1&provider_id=p1&invite_token=tok&expires=9999999999&sig=fake",
 		map[string]string{"username": "user1", "password": "pass1"})
 	w := httptest.NewRecorder()
@@ -221,7 +221,7 @@ func TestRegisterHandler_RegisterInvitePublic_ServiceError(t *testing.T) {
 // fullname present) but fails ValidatePasswordStrength() → covers the
 // ValidateForRegistration() error path including "registration_weak_password" branch.
 func TestRegisterHandler_RegisterPublic_ValidationError(t *testing.T) {
-	h := NewRegisterHandler(&mockRegisterService{})
+	h := NewRegisterHandler(&mockRegisterService{}, &mockEmailVerificationService{})
 	r := regRequest(t, "/public/register?client_id=c1&provider_id=p1", map[string]string{
 		"username": "user1",
 		"fullname": "User One",
@@ -236,7 +236,7 @@ func TestRegisterHandler_RegisterPublic_ValidationError(t *testing.T) {
 
 // ValidationError: covers the ValidateForRegistration() error path + weak-password branch.
 func TestRegisterHandler_Register_ValidationError(t *testing.T) {
-	h := NewRegisterHandler(&mockRegisterService{})
+	h := NewRegisterHandler(&mockRegisterService{}, &mockEmailVerificationService{})
 	r := regRequest(t, "/register", map[string]string{
 		"username": "user1",
 		"fullname": "User One",
@@ -255,7 +255,7 @@ func TestRegisterHandler_Register_WithOptionalParams(t *testing.T) {
 			return &dto.RegisterResponseDTO{}, nil
 		},
 	}
-	h := NewRegisterHandler(svc)
+	h := NewRegisterHandler(svc, &mockEmailVerificationService{})
 	r := regRequest(t, "/register?client_id=c1&provider_id=p1", map[string]string{
 		"username": "user1", "password": "Pass@1234!", "fullname": "User One",
 	})
@@ -268,7 +268,7 @@ func TestRegisterHandler_Register_WithOptionalParams(t *testing.T) {
 
 // BadJSON: invite_token present, body is malformed → covers decode error path.
 func TestRegisterHandler_RegisterInvite_BadJSON(t *testing.T) {
-	h := NewRegisterHandler(&mockRegisterService{})
+	h := NewRegisterHandler(&mockRegisterService{}, &mockEmailVerificationService{})
 	r := httptest.NewRequest(http.MethodPost, "/register/invite?invite_token=tok",
 		bytes.NewBufferString("{bad}"))
 	r.Header.Set("Content-Type", "application/json")
@@ -279,7 +279,7 @@ func TestRegisterHandler_RegisterInvite_BadJSON(t *testing.T) {
 
 // ValidationError: invite_token present, body decodes but fails LoginRequestDTO.Validate().
 func TestRegisterHandler_RegisterInvite_ValidationError(t *testing.T) {
-	h := NewRegisterHandler(&mockRegisterService{})
+	h := NewRegisterHandler(&mockRegisterService{}, &mockEmailVerificationService{})
 	r := regRequest(t, "/register/invite?invite_token=tok", map[string]string{})
 	w := httptest.NewRecorder()
 	h.RegisterInvite(w, r)
@@ -293,7 +293,7 @@ func TestRegisterHandler_RegisterInvite_WithOptionalParams(t *testing.T) {
 			return &dto.RegisterResponseDTO{}, nil
 		},
 	}
-	h := NewRegisterHandler(svc)
+	h := NewRegisterHandler(svc, &mockEmailVerificationService{})
 	r := regRequest(t, "/register/invite?invite_token=tok&client_id=c1&provider_id=p1",
 		map[string]string{"username": "user1", "password": "Pass@1234"})
 	w := httptest.NewRecorder()
@@ -307,7 +307,7 @@ const invitePublicURL = "/public/register/invite?client_id=c1&provider_id=p1&inv
 
 // BadJSON: query params valid, body malformed → covers decode error path.
 func TestRegisterHandler_RegisterInvitePublic_BadJSON(t *testing.T) {
-	h := NewRegisterHandler(&mockRegisterService{})
+	h := NewRegisterHandler(&mockRegisterService{}, &mockEmailVerificationService{})
 	r := httptest.NewRequest(http.MethodPost, invitePublicURL, bytes.NewBufferString("{bad}"))
 	r.Header.Set("Content-Type", "application/json")
 	r = withSecurityCtx(r)
@@ -318,7 +318,7 @@ func TestRegisterHandler_RegisterInvitePublic_BadJSON(t *testing.T) {
 
 // ValidationError: query params valid, body decodes but fails LoginRequestDTO.Validate().
 func TestRegisterHandler_RegisterInvitePublic_ValidationError(t *testing.T) {
-	h := NewRegisterHandler(&mockRegisterService{})
+	h := NewRegisterHandler(&mockRegisterService{}, &mockEmailVerificationService{})
 	r := regRequest(t, invitePublicURL, map[string]string{})
 	w := httptest.NewRecorder()
 	h.RegisterInvitePublic(w, r)
@@ -332,7 +332,7 @@ func TestRegisterHandler_RegisterInvitePublic_Success(t *testing.T) {
 			return &dto.RegisterResponseDTO{}, nil
 		},
 	}
-	h := NewRegisterHandler(svc)
+	h := NewRegisterHandler(svc, &mockEmailVerificationService{})
 	r := regRequest(t, invitePublicURL, map[string]string{"username": "user1", "password": "pass1"})
 	w := httptest.NewRecorder()
 	h.RegisterInvitePublic(w, r)

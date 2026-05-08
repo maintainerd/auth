@@ -79,6 +79,29 @@ func (m *mockRegisterService) RegisterInvite(_ context.Context, u, p, t string, 
 }
 
 // ---------------------------------------------------------------------------
+// mockEmailVerificationService
+// ---------------------------------------------------------------------------
+
+type mockEmailVerificationService struct {
+	sendVerificationEmailFn func(string, *string, *string) (*dto.SendEmailVerificationResponseDTO, error)
+	verifyEmailFn           func(string, string) (*dto.VerifyEmailResponseDTO, error)
+}
+
+func (m *mockEmailVerificationService) SendVerificationEmail(_ context.Context, e string, c, pr *string) (*dto.SendEmailVerificationResponseDTO, error) {
+	if m.sendVerificationEmailFn != nil {
+		return m.sendVerificationEmailFn(e, c, pr)
+	}
+	return &dto.SendEmailVerificationResponseDTO{Success: true}, nil
+}
+
+func (m *mockEmailVerificationService) VerifyEmail(_ context.Context, e, otp string) (*dto.VerifyEmailResponseDTO, error) {
+	if m.verifyEmailFn != nil {
+		return m.verifyEmailFn(e, otp)
+	}
+	return &dto.VerifyEmailResponseDTO{Success: true}, nil
+}
+
+// ---------------------------------------------------------------------------
 // mockSetupService
 // ---------------------------------------------------------------------------
 

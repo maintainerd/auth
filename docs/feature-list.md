@@ -71,7 +71,7 @@ Legend:
 - [x] Helper packages: `ptr`, `cookie`, `signedurl`, `crypto`
 - [ ] 🟢 Single canonical `Config` struct injected into `app.New(cfg)` (currently package-level globals in `internal/config`)
 - [ ] 🟢 Public router invariant test that fails the build if any management-only route is mounted on port 8081
-- [ ] 🟢 `CONTRIBUTING.md`, `ARCHITECTURE.md`, `CODE_OF_CONDUCT.md`
+- [x] Contributor guide (`docs/contributing/`), architecture doc (`docs/contributing/architecture.md`), `CODE_OF_CONDUCT.md`
 - [ ] ⚪ ADRs (Architecture Decision Records) under `docs/adr/`
 - [ ] ⚪ Domain-driven module split if the project grows beyond ~150 service files
 
@@ -90,7 +90,7 @@ Legend:
 - [x] Bcrypt password hashing
 - [x] Initial bootstrap / setup flow (`internal/service/setup.go`)
 - [x] Invite flow with role assignment
-- [ ] 🟡 Email verification on signup (verification token + status flag)
+- [x] Email verification on signup (6-digit OTP, 1h TTL, send + verify endpoints, register-flow trigger)
 - [ ] 🟡 Account recovery via secondary channel (SMS / backup codes)
 - [ ] 🟡 Magic link / passwordless email login
 - [ ] 🟡 SMS one-time code login
@@ -731,10 +731,10 @@ Legend:
 ## 31. Documentation
 
 - [x] README with quick-start
-- [ ] 🟡 `ARCHITECTURE.md` (component diagram, request flow)
+- [x] Architecture doc — `docs/contributing/architecture.md` (component diagram, request flow)
 - [ ] 🟡 `SECURITY.md` (threat model, reporting, supported versions)
-- [ ] 🟡 `CONTRIBUTING.md`
-- [ ] 🟡 `CODE_OF_CONDUCT.md`
+- [x] Contributor guide — `docs/contributing/` (getting started, environment variables, testing, OpenTelemetry)
+- [x] `CODE_OF_CONDUCT.md`
 - [ ] 🟡 OpenAPI spec (machine-readable) for both ports
 - [ ] 🟡 Operator runbook (deploy, rotate keys, scale, recover)
 - [ ] 🟡 Migration guide from Keycloak / Auth0 / Zitadel
@@ -784,6 +784,6 @@ If you address these eight items before public exposure of port 8081 you will cl
 5. CSRF protection on cookie-authenticated state-changing endpoints (§14)
 6. CORS allow-list (no wildcard with credentials) and HSTS (§14)
 7. Secure / SameSite / `__Host-` cookie flags in production (§13)
-8. Email verification on signup (§2)
+8. ~~Email verification on signup (§2)~~ ✅ done
 
 Everything else is incremental hardening on top of those foundations.
