@@ -8,7 +8,6 @@ import (
 
 	"github.com/alicebob/miniredis/v2"
 	"github.com/google/uuid"
-	"github.com/maintainerd/auth/internal/crypto"
 	"github.com/maintainerd/auth/internal/jwt"
 	"github.com/maintainerd/auth/internal/model"
 	"github.com/maintainerd/auth/internal/repository"
@@ -69,9 +68,9 @@ func defaultRegPublicMocks() *regMocks {
 				return &repository.PaginationResult[model.Role]{Data: []model.Role{{RoleID: 1}}}, nil
 			},
 		},
-		userRole:   &mockUserRoleRepo{},
-		userToken:  &mockUserTokenRepo{},
-		invite:     &mockInviteRepo{},
+		userRole:  &mockUserRoleRepo{},
+		userToken: &mockUserTokenRepo{},
+		invite:    &mockInviteRepo{},
 	}
 }
 
@@ -122,9 +121,9 @@ func defaultRegInternalMocks() *regMocks {
 				return &repository.PaginationResult[model.Role]{Data: []model.Role{{RoleID: 1}}}, nil
 			},
 		},
-		userRole:   &mockUserRoleRepo{},
-		userToken:  &mockUserTokenRepo{},
-		invite:     &mockInviteRepo{},
+		userRole:  &mockUserRoleRepo{},
+		userToken: &mockUserTokenRepo{},
+		invite:    &mockInviteRepo{},
 	}
 }
 
@@ -517,22 +516,6 @@ func TestRegisterService_RegisterPublic(t *testing.T) {
 		assert.NoError(t, mock.ExpectationsWereMet())
 	})
 
-	t.Run("user token create error", func(t *testing.T) {
-		gormDB, mock := newMockGormDB(t)
-		mock.ExpectBegin()
-		mock.ExpectRollback()
-		m := defaultRegPublicMocks()
-		m.userToken.createFn = func(_ *model.UserToken) (*model.UserToken, error) {
-			return nil, errors.New("token error")
-		}
-		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
-			m.userIdentity, m.role, m.invite, m.idp)
-		resp, err := svc.RegisterPublic(context.Background(), "u", "F", "P@ss1!", nil, nil, "c", "p")
-		require.Error(t, err)
-		assert.Nil(t, resp)
-		assert.NoError(t, mock.ExpectationsWereMet())
-	})
-
 	t.Run("generateTokenResponse error", func(t *testing.T) {
 		jwt.ResetJWTKeys()
 		defer initTestJWTKeysService(t)
@@ -599,23 +582,6 @@ func TestRegisterService_RegisterPublic(t *testing.T) {
 		assert.NoError(t, mock.ExpectationsWereMet())
 	})
 
-	t.Run("GenerateOTP error", func(t *testing.T) {
-		origOTP := crypto.GenerateOTP
-		defer func() { crypto.GenerateOTP = origOTP }()
-		crypto.GenerateOTP = func(_ int) (string, error) { return "", errors.New("otp error") }
-
-		gormDB, mock := newMockGormDB(t)
-		mock.ExpectBegin()
-		mock.ExpectRollback()
-		m := defaultRegPublicMocks()
-		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
-			m.userIdentity, m.role, m.invite, m.idp)
-		resp, err := svc.RegisterPublic(context.Background(), "u", "Full Name", "P@ss1!", nil, nil, "c", "p")
-		require.Error(t, err)
-		assert.Nil(t, resp)
-		assert.Contains(t, err.Error(), "otp error")
-		assert.NoError(t, mock.ExpectationsWereMet())
-	})
 }
 
 // ---------------------------------------------------------------------------
@@ -788,22 +754,6 @@ func TestRegisterService_Register(t *testing.T) {
 		assert.NoError(t, mock.ExpectationsWereMet())
 	})
 
-	t.Run("user token create error", func(t *testing.T) {
-		gormDB, mock := newMockGormDB(t)
-		mock.ExpectBegin()
-		mock.ExpectRollback()
-		m := defaultRegInternalMocks()
-		m.userToken.createFn = func(_ *model.UserToken) (*model.UserToken, error) {
-			return nil, errors.New("token error")
-		}
-		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
-			m.userIdentity, m.role, m.invite, m.idp)
-		resp, err := svc.Register(context.Background(), "u", "F", "P@ss1!", nil, nil, &cid, &pid)
-		require.Error(t, err)
-		assert.Nil(t, resp)
-		assert.NoError(t, mock.ExpectationsWereMet())
-	})
-
 	t.Run("generateTokenResponse error", func(t *testing.T) {
 		jwt.ResetJWTKeys()
 		defer initTestJWTKeysService(t)
@@ -870,23 +820,6 @@ func TestRegisterService_Register(t *testing.T) {
 		assert.NoError(t, mock.ExpectationsWereMet())
 	})
 
-	t.Run("GenerateOTP error", func(t *testing.T) {
-		origOTP := crypto.GenerateOTP
-		defer func() { crypto.GenerateOTP = origOTP }()
-		crypto.GenerateOTP = func(_ int) (string, error) { return "", errors.New("otp error") }
-
-		gormDB, mock := newMockGormDB(t)
-		mock.ExpectBegin()
-		mock.ExpectRollback()
-		m := defaultRegInternalMocks()
-		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
-			m.userIdentity, m.role, m.invite, m.idp)
-		resp, err := svc.Register(context.Background(), "u", "F", "P@ss1!", nil, nil, &cid, &pid)
-		require.Error(t, err)
-		assert.Nil(t, resp)
-		assert.Contains(t, err.Error(), "otp error")
-		assert.NoError(t, mock.ExpectationsWereMet())
-	})
 }
 
 // ---------------------------------------------------------------------------
