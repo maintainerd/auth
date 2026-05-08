@@ -26,6 +26,7 @@ const (
 	// Token types (UserToken.TokenType)
 	TokenTypeEmailVerification = "user:email:verification"
 	TokenTypePasswordReset     = "user:password:reset"
+	TokenTypeMagicLink         = "user:magic_link"
 
 	// Role names (Role.Name) — system-defined roles
 	RoleSuperAdmin = "super-admin"

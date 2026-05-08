@@ -31,6 +31,13 @@ func SeedEmailTemplates(db *gorm.DB, tenantID int64) error {
 			emailtemplate.EmailVerificationEmailHTML,
 			emailtemplate.EmailVerificationEmailPlain,
 		),
+		newEmailTemplate(
+			tenantID,
+			"internal:user:magic_link",
+			"Sign in to your account",
+			emailtemplate.MagicLinkEmailHTML,
+			emailtemplate.MagicLinkEmailPlain,
+		),
 	}
 
 	for _, t := range templates {

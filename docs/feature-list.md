@@ -92,7 +92,7 @@ Legend:
 - [x] Invite flow with role assignment
 - [x] Email verification on signup (6-digit OTP, 1h TTL, send + verify endpoints, register-flow trigger)
 - [ ] 🟡 Account recovery via secondary channel (SMS / backup codes)
-- [ ] 🟡 Magic link / passwordless email login
+- [x] Magic link / passwordless email login (15min TTL, signed URL, send + verify endpoints, single-use; auto-verifies email on login)
 - [ ] 🟡 SMS one-time code login
 - [ ] 🟢 Username/email change with re-verification
 - [ ] 🟢 Account deletion / GDPR right-to-erasure flow

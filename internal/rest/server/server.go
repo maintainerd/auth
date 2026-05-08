@@ -38,6 +38,7 @@ type handlers struct {
 	forgotPassword    *handler.ForgotPasswordHandler
 	resetPassword     *handler.ResetPasswordHandler
 	emailVerification *handler.EmailVerificationHandler
+	magicLink         *handler.MagicLinkHandler
 	setup             *handler.SetupHandler
 	apiKey            *handler.APIKeyHandler
 	signupFlow        *handler.SignupFlowHandler
@@ -78,6 +79,7 @@ func initHandlers(application *app.App) *handlers {
 		forgotPassword:    handler.NewForgotPasswordHandler(application.ForgotPasswordService),
 		resetPassword:     handler.NewResetPasswordHandler(application.ResetPasswordService),
 		emailVerification: handler.NewEmailVerificationHandler(application.EmailVerificationService),
+		magicLink:         handler.NewMagicLinkHandler(application.MagicLinkService),
 		setup:             handler.NewSetupHandler(application.SetupService),
 		apiKey:            handler.NewAPIKeyHandler(application.APIKeyService),
 		signupFlow:        handler.NewSignupFlowHandler(application.SignupFlowService),
@@ -204,6 +206,7 @@ func buildInternalRouter(h *handlers, application *app.App) http.Handler {
 		route.ForgotPasswordRoute(api, h.forgotPassword)
 		route.ResetPasswordRoute(api, h.resetPassword)
 		route.EmailVerificationRoute(api, h.emailVerification)
+		route.MagicLinkRoute(api, h.magicLink)
 		route.ProfileRoute(api, h.profile, application.UserService, application.Cache)
 		route.UserSettingRoute(api, h.userSetting, application.UserService, application.Cache)
 
@@ -275,6 +278,7 @@ func buildPublicRouter(h *handlers, application *app.App) http.Handler {
 		route.ForgotPasswordPublicRoute(api, h.forgotPassword)
 		route.ResetPasswordPublicRoute(api, h.resetPassword)
 		route.EmailVerificationPublicRoute(api, h.emailVerification)
+		route.MagicLinkPublicRoute(api, h.magicLink)
 		route.ProfileRoute(api, h.profile, application.UserService, application.Cache)
 		route.UserSettingRoute(api, h.userSetting, application.UserService, application.Cache)
 		route.OAuthPublicRoute(api, h.oauthAuthorize, h.oauthToken, h.oauthConsent, h.oauthUserInfo, application.UserService, application.Cache)
