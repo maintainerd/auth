@@ -249,6 +249,45 @@ func (NopJTIDenylister) IsJTIDenied(context.Context, string) (bool, error)    { 
 var _ JTIDenylister = NopJTIDenylister{}
 
 // ---------------------------------------------------------------------------
+// Generic JSON session storage (used by WebAuthn ceremony sessions)
+// ---------------------------------------------------------------------------
+
+// SetSession serializes value to JSON and stores it under key with TTL.
+func (c *Cache) SetSession(ctx context.Context, key string, value any, ttl time.Duration) error {
+	data, err := json.Marshal(value)
+	if err != nil {
+		return err
+	}
+	return c.rdb.Set(ctx, key, data, ttl).Err()
+}
+
+// GetSession retrieves the key from Redis and deserializes it into dest.
+// Returns redis.Nil when the key does not exist.
+func (c *Cache) GetSession(ctx context.Context, key string, dest any) error {
+	raw, err := c.rdb.Get(ctx, key).Result()
+	if err != nil {
+		return err
+	}
+	return json.Unmarshal([]byte(raw), dest)
+}
+
+// DeleteSession removes a session key from Redis.
+func (c *Cache) DeleteSession(ctx context.Context, key string) error {
+	return c.rdb.Del(ctx, key).Err()
+}
+
+// WebAuthnSessionStore is the interface used by WebAuthnService to persist
+// ceremony session data (challenge, user ID) between Begin and Finish calls.
+type WebAuthnSessionStore interface {
+	SetSession(ctx context.Context, key string, value any, ttl time.Duration) error
+	GetSession(ctx context.Context, key string, dest any) error
+	DeleteSession(ctx context.Context, key string) error
+}
+
+// Compile-time check that *Cache satisfies WebAuthnSessionStore.
+var _ WebAuthnSessionStore = (*Cache)(nil)
+
+// ---------------------------------------------------------------------------
 // Key helpers (exported for middleware)
 // ---------------------------------------------------------------------------
 

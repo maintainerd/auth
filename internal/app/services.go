@@ -52,14 +52,16 @@ type svcs struct {
 	oauthRegisterService      service.OAuthRegisterService
 	accountService            service.AccountService
 	smsLoginService           service.SMSLoginService
+	mfaService                service.MFAService
+	webAuthnService           service.WebAuthnService
 }
 
-func initServices(db *gorm.DB, r *repos, appCache *cache.Cache) *svcs {
+func initServices(db *gorm.DB, r *repos, appCache *cache.Cache) (*svcs, error) {
 	// Create authEventService first — it is injected into other services that
 	// need structured audit logging.
 	authEventSvc := service.NewAuthEventService(r.authEventRepo)
 
-	return &svcs{
+	s := &svcs{
 		serviceService:           service.NewServiceService(db, r.serviceRepo, r.tenantServiceRepo, r.apiRepo, r.servicePolicyRepo, r.policyRepo),
 		apiService:               service.NewAPIService(db, r.apiRepo, r.serviceRepo, r.tenantServiceRepo),
 		permissionService:        service.NewPermissionService(db, r.permissionRepo, r.apiRepo, r.roleRepo, r.clientRepo, appCache),
@@ -104,5 +106,13 @@ func initServices(db *gorm.DB, r *repos, appCache *cache.Cache) *svcs {
 		oauthRegisterService:      service.NewOAuthRegisterService(db, r.clientRepo, r.clientURIRepo, r.tenantRepo, authEventSvc),
 		accountService:            service.NewAccountService(db, r.userRepo, r.userTokenRepo, r.profileRepo, r.userSettingRepo, r.roleRepo, r.clientRepo, r.userBackupCodeRepo, r.userIdentityRepo, r.idpRepo, authEventSvc),
 		smsLoginService:           service.NewSMSLoginService(db, r.userRepo, r.smsOtpRepo, r.clientRepo, r.userIdentityRepo, r.idpRepo, authEventSvc),
+		mfaService: service.NewMFAService(db, r.userRepo, r.totpSecretRepo, r.webAuthnCredRepo, r.userBackupCodeRepo, r.securitySettingRepo, authEventSvc),
 	}
+
+	waSvc, err := service.NewWebAuthnService(db, r.userRepo, r.webAuthnCredRepo, appCache, authEventSvc)
+	if err != nil {
+		return nil, err
+	}
+	s.webAuthnService = waSvc
+	return s, nil
 }
