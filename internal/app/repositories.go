@@ -52,6 +52,9 @@ type repos struct {
 	oauthRefreshTokenRepo     repository.OAuthRefreshTokenRepository
 	oauthConsentGrantRepo     repository.OAuthConsentGrantRepository
 	oauthConsentChallengeRepo repository.OAuthConsentChallengeRepository
+	oauthPARRequestRepo       repository.OAuthPARRequestRepository
+	oauthDeviceCodeRepo       repository.OAuthDeviceCodeRepository
+	oauthCIBARequestRepo      repository.OAuthCIBARequestRepository
 }
 
 func initRepos(db *gorm.DB) *repos {
@@ -100,5 +103,8 @@ func initRepos(db *gorm.DB) *repos {
 		oauthRefreshTokenRepo:     repository.NewOAuthRefreshTokenRepository(db),
 		oauthConsentGrantRepo:     repository.NewOAuthConsentGrantRepository(db),
 		oauthConsentChallengeRepo: repository.NewOAuthConsentChallengeRepository(db),
+		oauthPARRequestRepo:       repository.NewOAuthPARRequestRepository(db),
+		oauthDeviceCodeRepo:       repository.NewOAuthDeviceCodeRepository(db),
+		oauthCIBARequestRepo:      repository.NewOAuthCIBARequestRepository(db),
 	}
 }
