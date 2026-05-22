@@ -56,6 +56,8 @@ type App struct {
 	OAuthRegisterService       service.OAuthRegisterService
 	AccountService             service.AccountService
 	SMSLoginService            service.SMSLoginService
+	MFAService                 service.MFAService
+	WebAuthnService            service.WebAuthnService
 }
 
 // NewApp wires the full dependency graph in two focused steps:
@@ -66,7 +68,10 @@ type App struct {
 func NewApp(db *gorm.DB, redisClient *redis.Client) *App {
 	r := initRepos(db)
 	appCache := cache.New(redisClient)
-	s := initServices(db, r, appCache)
+	s, err := initServices(db, r, appCache)
+	if err != nil {
+		panic("app: service init failed: " + err.Error())
+	}
 
 	return &App{
 		DB:          db,
@@ -117,5 +122,7 @@ func NewApp(db *gorm.DB, redisClient *redis.Client) *App {
 		OAuthRegisterService:      s.oauthRegisterService,
 		AccountService:            s.accountService,
 		SMSLoginService:           s.smsLoginService,
+		MFAService:                s.mfaService,
+		WebAuthnService:           s.webAuthnService,
 	}
 }

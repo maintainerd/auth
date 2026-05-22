@@ -66,6 +66,7 @@ type handlers struct {
 	oauthRegister       *handler.OAuthRegisterHandler
 	account             *handler.AccountHandler
 	smsLogin            *handler.SMSLoginHandler
+	mfa                 *handler.MFAHandler
 }
 
 func initHandlers(application *app.App) *handlers {
@@ -115,6 +116,7 @@ func initHandlers(application *app.App) *handlers {
 		oauthRegister:      handler.NewOAuthRegisterHandler(application.OAuthRegisterService),
 		account:            handler.NewAccountHandler(application.AccountService),
 		smsLogin:           handler.NewSMSLoginHandler(application.SMSLoginService),
+		mfa:                handler.NewMFAHandler(application.MFAService, application.WebAuthnService),
 	}
 }
 
@@ -254,6 +256,8 @@ func buildInternalRouter(h *handlers, application *app.App) http.Handler {
 
 		// Account self-service routes (authenticated)
 		route.AccountRoute(api, h.account, application.UserService, application.Cache)
+		// MFA self-service routes (authenticated)
+		route.MFARoute(api, h.mfa, application.UserService, application.Cache)
 		// SMS login (unauthenticated)
 		route.SMSLoginRoute(api, h.smsLogin)
 		// Account recovery via backup code (unauthenticated)
@@ -308,6 +312,8 @@ func buildPublicRouter(h *handlers, application *app.App) http.Handler {
 
 		// Account self-service routes (authenticated)
 		route.AccountRoute(api, h.account, application.UserService, application.Cache)
+		// MFA self-service routes (authenticated)
+		route.MFARoute(api, h.mfa, application.UserService, application.Cache)
 		// SMS login (unauthenticated)
 		route.SMSLoginRoute(api, h.smsLogin)
 		// Account recovery via backup code (unauthenticated)

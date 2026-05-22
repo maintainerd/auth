@@ -25,6 +25,12 @@ CREATE TABLE IF NOT EXISTS users (
     pending_email               VARCHAR(255),
     email_change_otp            VARCHAR(10),
     email_change_otp_expires_at TIMESTAMPTZ,
+
+    -- MFA status flags
+    is_totp_enabled             BOOLEAN NOT NULL DEFAULT FALSE,
+    is_webauthn_enabled         BOOLEAN NOT NULL DEFAULT FALSE,
+    mfa_enabled_at              TIMESTAMPTZ,
+
     created_at                  TIMESTAMPTZ DEFAULT now(),
     updated_at                  TIMESTAMPTZ DEFAULT now(),
     deleted_at                  TIMESTAMPTZ
