@@ -13,12 +13,12 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "apis/api-keys/api-key-apis.md",
+                "file": "releases/v1.0.0.md",
                 "mode": "source",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "api-key-apis"
+              "title": "v1.0.0"
             }
           }
         ]
@@ -183,8 +183,16 @@
       "bases:Create new base": false
     }
   },
-  "active": "24be1ea75dfaf337",
+  "active": "aa6340e1616364ae",
   "lastOpenFiles": [
+    "releases/v2.0.0.md",
+    "releases/v2.0.0.md.tmp.31161.ea946d50974d",
+    "feature-list.md",
+    "releases/v1.0.0.md.tmp.31161.e7426da25946",
+    "releases/v1.0.0.md",
+    "releases/v1.0.0.md.tmp.31161.244b3ac484af",
+    "releases",
+    "apis/api-keys/api-key-apis.md",
     "apis/profile/profile.md.tmp.5618.9aad4c864560",
     "apis/profile/profile.md.tmp.5618.8a78d04d1cfc",
     "apis/profile/profile.md.tmp.5618.4ae67d2fc4e9",
@@ -194,19 +202,12 @@
     "apis/idp/identity-provider.md",
     "apis/oauth2.md",
     "apis/document-checklist.md",
-    "apis/api-keys/api-key-apis.md",
-    "feature-list.md",
     "apis/document-checklist.md.tmp.5618.837a4fa9725c",
     "apis/signup/signup-flow.md",
     "apis/signup/signup-flow.md.tmp.5618.c2bedf243efa",
     "apis/audit/auth-events.md.tmp.5618.8fa0b1319846",
-    "apis/auth/invite.md.tmp.5618.f57d07956204",
-    "apis/api-keys/api-key-apis.md.tmp.5618.02f27070970a",
     "apis/webhooks/webhook-endpoint.md",
-    "apis/webhooks/webhook-endpoint.md.tmp.5618.510d3c7cf1f5",
-    "apis/api-keys/api-key.md.tmp.5618.b1cbdd0850f2",
     "apis/auth/magic-link.md",
-    "apis/auth/magic-link.md.tmp.5618.f0c7945d7fdd",
     "apis/templates/login-template.md",
     "apis/client/client-apis.md",
     "apis/auth/email-verification.md",
@@ -219,7 +220,6 @@
     "apis/client/client-secret.md",
     "apis/auth/register-public.md",
     "apis/profile/profile.md",
-    "apis/templates/email-template.md",
-    "apis/oauth/backchannel-logout.md"
+    "apis/templates/email-template.md"
   ]
 }
