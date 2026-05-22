@@ -53,11 +53,17 @@ type handlers struct {
 	smsConfig         *handler.SMSConfigHandler
 	webhookEndpoint   *handler.WebhookEndpointHandler
 	authEvent         *handler.AuthEventHandler
-	oauthAuthorize    *handler.OAuthAuthorizeHandler
-	oauthToken        *handler.OAuthTokenHandler
-	oauthConsent      *handler.OAuthConsentHandler
-	oauthDiscovery    *handler.OAuthDiscoveryHandler
-	oauthUserInfo     *handler.OAuthUserInfoHandler
+	oauthAuthorize      *handler.OAuthAuthorizeHandler
+	oauthToken          *handler.OAuthTokenHandler
+	oauthTokenExchange  *handler.OAuthTokenExchangeHandler
+	oauthConsent        *handler.OAuthConsentHandler
+	oauthDiscovery      *handler.OAuthDiscoveryHandler
+	oauthUserInfo       *handler.OAuthUserInfoHandler
+	oauthPAR            *handler.OAuthPARHandler
+	oauthDevice         *handler.OAuthDeviceHandler
+	oauthSession        *handler.OAuthSessionHandler
+	oauthCIBA           *handler.OAuthCIBAHandler
+	oauthRegister       *handler.OAuthRegisterHandler
 }
 
 func initHandlers(application *app.App) *handlers {
@@ -94,11 +100,17 @@ func initHandlers(application *app.App) *handlers {
 		smsConfig:         handler.NewSMSConfigHandler(application.SMSConfigService),
 		webhookEndpoint:   handler.NewWebhookEndpointHandler(application.WebhookEndpointService),
 		authEvent:         handler.NewAuthEventHandler(application.AuthEventService),
-		oauthAuthorize:    handler.NewOAuthAuthorizeHandler(application.OAuthAuthorizeService),
-		oauthToken:        handler.NewOAuthTokenHandler(application.OAuthTokenService),
-		oauthConsent:      handler.NewOAuthConsentHandler(application.OAuthConsentService),
-		oauthDiscovery:    handler.NewOAuthDiscoveryHandler(),
-		oauthUserInfo:     handler.NewOAuthUserInfoHandler(),
+		oauthAuthorize:     handler.NewOAuthAuthorizeHandler(application.OAuthAuthorizeService),
+		oauthToken:         handler.NewOAuthTokenHandler(application.OAuthTokenService),
+		oauthTokenExchange: handler.NewOAuthTokenExchangeHandler(application.OAuthTokenExchangeService),
+		oauthConsent:       handler.NewOAuthConsentHandler(application.OAuthConsentService),
+		oauthDiscovery:     handler.NewOAuthDiscoveryHandler(),
+		oauthUserInfo:      handler.NewOAuthUserInfoHandler(),
+		oauthPAR:           handler.NewOAuthPARHandler(application.OAuthPARService),
+		oauthDevice:        handler.NewOAuthDeviceHandler(application.OAuthDeviceService),
+		oauthSession:       handler.NewOAuthSessionHandler(application.OAuthSessionService),
+		oauthCIBA:          handler.NewOAuthCIBAHandler(application.OAuthCIBAService),
+		oauthRegister:      handler.NewOAuthRegisterHandler(application.OAuthRegisterService),
 	}
 }
 
@@ -281,7 +293,7 @@ func buildPublicRouter(h *handlers, application *app.App) http.Handler {
 		route.MagicLinkPublicRoute(api, h.magicLink)
 		route.ProfileRoute(api, h.profile, application.UserService, application.Cache)
 		route.UserSettingRoute(api, h.userSetting, application.UserService, application.Cache)
-		route.OAuthPublicRoute(api, h.oauthAuthorize, h.oauthToken, h.oauthConsent, h.oauthUserInfo, application.UserService, application.Cache)
+		route.OAuthPublicRoute(api, h.oauthAuthorize, h.oauthToken, h.oauthTokenExchange, h.oauthConsent, h.oauthUserInfo, h.oauthPAR, h.oauthDevice, h.oauthSession, h.oauthCIBA, h.oauthRegister, application.UserService, application.Cache)
 	})
 
 	return r

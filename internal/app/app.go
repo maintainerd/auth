@@ -45,9 +45,15 @@ type App struct {
 	SMSConfigService         service.SMSConfigService
 	WebhookEndpointService   service.WebhookEndpointService
 	AuthEventService         service.AuthEventService
-	OAuthAuthorizeService    service.OAuthAuthorizeService
-	OAuthTokenService        service.OAuthTokenService
-	OAuthConsentService      service.OAuthConsentService
+	OAuthAuthorizeService      service.OAuthAuthorizeService
+	OAuthTokenService          service.OAuthTokenService
+	OAuthConsentService        service.OAuthConsentService
+	OAuthPARService            service.OAuthPARService
+	OAuthDeviceService         service.OAuthDeviceService
+	OAuthTokenExchangeService  service.OAuthTokenExchangeService
+	OAuthSessionService        service.OAuthSessionService
+	OAuthCIBAService           service.OAuthCIBAService
+	OAuthRegisterService       service.OAuthRegisterService
 }
 
 // NewApp wires the full dependency graph in two focused steps:
@@ -98,8 +104,14 @@ func NewApp(db *gorm.DB, redisClient *redis.Client) *App {
 		SMSConfigService:         s.smsConfigService,
 		WebhookEndpointService:   s.webhookEndpointService,
 		AuthEventService:         s.authEventService,
-		OAuthAuthorizeService:    s.oauthAuthorizeService,
-		OAuthTokenService:        s.oauthTokenService,
-		OAuthConsentService:      s.oauthConsentService,
+		OAuthAuthorizeService:     s.oauthAuthorizeService,
+		OAuthTokenService:         s.oauthTokenService,
+		OAuthConsentService:       s.oauthConsentService,
+		OAuthPARService:           s.oauthPARService,
+		OAuthDeviceService:        s.oauthDeviceService,
+		OAuthTokenExchangeService: s.oauthTokenExchangeService,
+		OAuthSessionService:       s.oauthSessionService,
+		OAuthCIBAService:          s.oauthCIBAService,
+		OAuthRegisterService:      s.oauthRegisterService,
 	}
 }
