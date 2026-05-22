@@ -72,6 +72,9 @@ var migrations = []migrationEntry{
 	{"045_create_oauth_refresh_tokens_table", migration.CreateOAuthRefreshTokensTable},
 	{"046_create_oauth_consent_grants_table", migration.CreateOAuthConsentGrantsTable},
 	{"047_create_oauth_consent_challenges_table", migration.CreateOAuthConsentChallengesTable},
+	{"048_create_oauth_par_requests_table", migration.CreateOAuthPARRequestsTable},
+	{"049_create_oauth_device_codes_table", migration.CreateOAuthDeviceCodesTable},
+	{"050_create_oauth_ciba_requests_table", migration.CreateOAuthCIBARequestsTable},
 }
 
 // RunMigrations bootstraps the schema_migrations tracking table, acquires a

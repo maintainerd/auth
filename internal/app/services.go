@@ -41,9 +41,15 @@ type svcs struct {
 	smsConfigService         service.SMSConfigService
 	webhookEndpointService   service.WebhookEndpointService
 	authEventService         service.AuthEventService
-	oauthAuthorizeService    service.OAuthAuthorizeService
-	oauthTokenService        service.OAuthTokenService
-	oauthConsentService      service.OAuthConsentService
+	oauthAuthorizeService     service.OAuthAuthorizeService
+	oauthTokenService         service.OAuthTokenService
+	oauthConsentService       service.OAuthConsentService
+	oauthPARService           service.OAuthPARService
+	oauthDeviceService        service.OAuthDeviceService
+	oauthTokenExchangeService service.OAuthTokenExchangeService
+	oauthSessionService       service.OAuthSessionService
+	oauthCIBAService          service.OAuthCIBAService
+	oauthRegisterService      service.OAuthRegisterService
 }
 
 func initServices(db *gorm.DB, r *repos, appCache *cache.Cache) *svcs {
@@ -85,8 +91,14 @@ func initServices(db *gorm.DB, r *repos, appCache *cache.Cache) *svcs {
 		smsConfigService:         service.NewSMSConfigService(r.smsConfigRepo),
 		webhookEndpointService:   service.NewWebhookEndpointService(r.webhookEndpointRepo),
 		authEventService:         authEventSvc,
-		oauthAuthorizeService:    service.NewOAuthAuthorizeService(db, r.clientRepo, r.clientURIRepo, r.oauthAuthCodeRepo, r.oauthConsentGrantRepo, r.oauthConsentChallengeRepo, authEventSvc),
-		oauthTokenService:        service.NewOAuthTokenService(db, r.clientRepo, r.oauthAuthCodeRepo, r.oauthRefreshTokenRepo, r.userRepo, r.userIdentityRepo, authEventSvc),
-		oauthConsentService:      service.NewOAuthConsentService(r.oauthConsentGrantRepo),
+		oauthAuthorizeService:     service.NewOAuthAuthorizeService(db, r.clientRepo, r.clientURIRepo, r.oauthAuthCodeRepo, r.oauthConsentGrantRepo, r.oauthConsentChallengeRepo, authEventSvc),
+		oauthTokenService:         service.NewOAuthTokenService(db, r.clientRepo, r.oauthAuthCodeRepo, r.oauthRefreshTokenRepo, r.userRepo, r.userIdentityRepo, authEventSvc),
+		oauthConsentService:       service.NewOAuthConsentService(r.oauthConsentGrantRepo),
+		oauthPARService:           service.NewOAuthPARService(db, r.clientRepo, r.clientURIRepo, r.oauthPARRequestRepo, authEventSvc),
+		oauthDeviceService:        service.NewOAuthDeviceService(db, r.clientRepo, r.oauthDeviceCodeRepo, r.userRepo, r.userIdentityRepo, authEventSvc),
+		oauthTokenExchangeService: service.NewOAuthTokenExchangeService(db, r.clientRepo, r.userRepo, authEventSvc),
+		oauthSessionService:       service.NewOAuthSessionService(r.clientRepo, r.userRepo, r.oauthRefreshTokenRepo, authEventSvc),
+		oauthCIBAService:          service.NewOAuthCIBAService(db, r.clientRepo, r.oauthCIBARequestRepo, r.userRepo, authEventSvc),
+		oauthRegisterService:      service.NewOAuthRegisterService(db, r.clientRepo, r.clientURIRepo, r.tenantRepo, authEventSvc),
 	}
 }

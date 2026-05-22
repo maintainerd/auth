@@ -115,22 +115,22 @@ Legend:
 - [x] GET  /.well-known/jwks.json (RFC 7517)
 - [x] Consent challenge + decision endpoints
 - [x] List & revoke consent grants per user
-- [ ] 🟢 GET /.well-known/oauth-authorization-server (RFC 8414, separate from OIDC)
-- [ ] 🟢 POST /oauth/par — Pushed Authorization Requests (RFC 9126)
-- [ ] 🟢 POST /oauth/device_authorization — Device Authorization Grant (RFC 8628)
-- [ ] 🟢 POST /oauth/register — Dynamic Client Registration (RFC 7591)
-- [ ] 🟢 Token Exchange grant (RFC 8693)
-- [ ] 🟢 Backchannel logout endpoint (OIDC Back-Channel Logout 1.0)
-- [ ] 🟢 RP-Initiated Logout (/oauth/end_session) (OIDC Session Mgmt 1.0)
-- [ ] 🟢 CIBA — Client-Initiated Backchannel Authentication
+- [x] GET /.well-known/oauth-authorization-server (RFC 8414, separate from OIDC)
+- [x] POST /oauth/par — Pushed Authorization Requests (RFC 9126)
+- [x] POST /oauth/device_authorization — Device Authorization Grant (RFC 8628)
+- [x] POST /oauth/register — Dynamic Client Registration (RFC 7591)
+- [x] Token Exchange grant (RFC 8693) at POST /oauth/token
+- [x] Backchannel logout endpoint (OIDC Back-Channel Logout 1.0)
+- [x] RP-Initiated Logout (/oauth/end_session) (OIDC Session Mgmt 1.0)
+- [x] CIBA — Client-Initiated Backchannel Authentication (poll mode)
 - [ ] ⚪ check_session_iframe (front-channel session monitoring)
 
 ### 3.2 Grants
 - [x] authorization_code with PKCE S256 (RFC 7636)
 - [x] refresh_token with rotation, family revocation, reuse detection (RFC 6749 §6)
 - [x] client_credentials (RFC 6749 §4.4)
-- [ ] 🟢 device_code grant (RFC 8628)
-- [ ] 🟢 token-exchange grant (RFC 8693)
+- [x] device_code grant (RFC 8628)
+- [x] token-exchange grant (RFC 8693)
 - [ ] ⚪ password grant (legacy; generally avoid)
 
 ### 3.3 Client model
