@@ -395,6 +395,10 @@ func (s *profileService) GetByUUID(ctx context.Context, profileUUID uuid.UUID, u
 		return nil, apperror.NewForbidden("profile does not belong to user")
 	}
 
+	// Profile.Email column was removed — hydrate the transient field from
+	// the owning user so API consumers still see the email.
+	hydrateProfileTransients(profile, user, nil)
+
 	span.SetStatus(codes.Ok, "")
 	return toProfileServiceDataResult(profile), nil
 }
@@ -417,6 +421,9 @@ func (s *profileService) GetByUserUUID(ctx context.Context, userUUID uuid.UUID) 
 		span.SetStatus(codes.Error, "get profile failed")
 		return nil, apperror.NewNotFound("profile not found")
 	}
+
+	// Profile.Email column was removed — hydrate the transient field.
+	hydrateProfileTransients(profile, user, nil)
 
 	span.SetStatus(codes.Ok, "")
 	return toProfileServiceDataResult(profile), nil
@@ -465,10 +472,12 @@ func (s *profileService) GetAll(
 		return nil, err
 	}
 
-	// Convert to service result
+	// Convert to service result. All profiles belong to the same user (filter
+	// scopes by user_id), so we can hydrate them all with the same User.
 	data := make([]ProfileServiceDataResult, len(result.Data))
-	for i, profile := range result.Data {
-		if sr := toProfileServiceDataResult(&profile); sr != nil {
+	for i := range result.Data {
+		hydrateProfileTransients(&result.Data[i], user, nil)
+		if sr := toProfileServiceDataResult(&result.Data[i]); sr != nil {
 			data[i] = *sr
 		}
 	}

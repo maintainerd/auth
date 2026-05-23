@@ -8,11 +8,11 @@ func CreateClientAPIsTable(db *gorm.DB) error {
 	sql := `
 -- CREATE TABLE
 CREATE TABLE IF NOT EXISTS client_apis (
-    client_api_id   		SERIAL PRIMARY KEY,
-    client_api_uuid		UUID NOT NULL UNIQUE,
-    client_id              INTEGER NOT NULL,
-    api_id                      INTEGER NOT NULL,
-    created_at                  TIMESTAMPTZ DEFAULT now()
+    client_api_id   BIGSERIAL PRIMARY KEY,
+    client_api_uuid UUID NOT NULL UNIQUE,
+    client_id       BIGINT NOT NULL,
+    api_id          BIGINT NOT NULL,
+    created_at      TIMESTAMPTZ DEFAULT now()
 );
 
 -- ADD CONSTRAINTS
@@ -34,7 +34,6 @@ BEGIN
             REFERENCES apis(api_id) ON DELETE CASCADE;
     END IF;
 
-    -- Add unique constraint to prevent duplicate client + api combinations
     IF NOT EXISTS (
         SELECT 1 FROM pg_constraint WHERE conname = 'uq_client_apis_client_api'
     ) THEN

@@ -8,11 +8,11 @@ func CreateInviteRolesTable(db *gorm.DB) error {
 	sql := `
 -- CREATE TABLE
 CREATE TABLE IF NOT EXISTS invite_roles (
-    invite_role_id			SERIAL PRIMARY KEY,
-		invite_role_uuid		UUID NOT NULL UNIQUE,
-    invite_id						INTEGER NOT NULL,
-    role_id							INTEGER NOT NULL,
-    created_at					TIMESTAMPTZ DEFAULT now()
+    invite_role_id    BIGSERIAL PRIMARY KEY,
+    invite_role_uuid  UUID NOT NULL UNIQUE,
+    invite_id         BIGINT NOT NULL,
+    role_id           BIGINT NOT NULL,
+    created_at        TIMESTAMPTZ DEFAULT now()
 );
 
 DO $$
@@ -31,6 +31,13 @@ BEGIN
         ALTER TABLE invite_roles
             ADD CONSTRAINT fk_invite_roles_role_id FOREIGN KEY (role_id)
             REFERENCES roles(role_id) ON DELETE CASCADE;
+    END IF;
+
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint WHERE conname = 'uq_invite_roles_invite_role'
+    ) THEN
+        ALTER TABLE invite_roles
+            ADD CONSTRAINT uq_invite_roles_invite_role UNIQUE (invite_id, role_id);
     END IF;
 END$$;
 

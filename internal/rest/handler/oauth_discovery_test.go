@@ -55,7 +55,14 @@ func TestOAuthDiscoveryHandler_Discovery(t *testing.T) {
 	assert.Equal(t, "https://auth.example.com/api/v1/oauth/introspect", doc.IntrospectionEndpoint)
 	assert.Equal(t, []string{"openid", "profile", "email", "offline_access"}, doc.ScopesSupported)
 	assert.Equal(t, []string{"code"}, doc.ResponseTypesSupp)
-	assert.Equal(t, []string{"authorization_code", "refresh_token", "client_credentials"}, doc.GrantTypesSupported)
+	assert.Equal(t, []string{
+		"authorization_code",
+		"refresh_token",
+		"client_credentials",
+		"urn:ietf:params:oauth:grant-type:device_code",
+		"urn:ietf:params:oauth:grant-type:token-exchange",
+		"urn:openid:params:grant-type:ciba",
+	}, doc.GrantTypesSupported)
 	assert.Equal(t, []string{"public"}, doc.SubjectTypesSupported)
 	assert.Equal(t, []string{"RS256"}, doc.IDTokenSignAlgValues)
 	assert.Equal(t, []string{"client_secret_basic", "client_secret_post", "none"}, doc.TokenEndpointAuth)

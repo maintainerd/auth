@@ -8,11 +8,11 @@ func CreateApiPermissionTable(db *gorm.DB) error {
 	sql := `
 -- CREATE TABLE
 CREATE TABLE IF NOT EXISTS api_permissions (
-    api_permission_id   	SERIAL PRIMARY KEY,
-    api_permission_uuid		UUID NOT NULL UNIQUE,
-    api_id              	INTEGER NOT NULL,
-    permission_id       	INTEGER NOT NULL,
-    created_at          	TIMESTAMPTZ DEFAULT now()
+    api_permission_id   BIGSERIAL PRIMARY KEY,
+    api_permission_uuid UUID NOT NULL UNIQUE,
+    api_id              BIGINT NOT NULL,
+    permission_id       BIGINT NOT NULL,
+    created_at          TIMESTAMPTZ DEFAULT now()
 );
 
 -- ADD CONSTRAINTS

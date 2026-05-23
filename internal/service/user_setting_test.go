@@ -281,7 +281,9 @@ func TestUserSettingService_CreateOrUpdateUserSetting(t *testing.T) {
 		res, err := svc.CreateOrUpdateUserSetting(context.Background(), userUUID, &tz, &lang, &locale, links, &contact, &mktg, &sms, &push, &vis, &consent, &now, &now, &ecName, &ecPhone, &ecEmail, &ecRel)
 		require.NoError(t, err)
 		assert.Equal(t, &tz, res.Timezone)
-		assert.Equal(t, &lang, res.PreferredLanguage)
+		// preferred_language column was removed; Locale is the source of truth
+		// and PreferredLanguage is now a transient mirror of Locale.
+		assert.Equal(t, locale, *res.PreferredLanguage)
 		assert.Equal(t, &locale, res.Locale)
 		assert.Equal(t, &contact, res.PreferredContactMethod)
 		assert.True(t, res.MarketingEmailConsent)

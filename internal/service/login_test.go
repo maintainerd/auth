@@ -245,6 +245,12 @@ func (m *mockUserRepo) SetStatus(id uuid.UUID, s string) error {
 	}
 	return nil
 }
+func (m *mockUserRepo) SetForcePasswordChange(_ uuid.UUID, _ bool) error        { return nil }
+func (m *mockUserRepo) SetPendingEmail(_ uuid.UUID, _, _ string, _ time.Time) error { return nil }
+func (m *mockUserRepo) ClearEmailChange(_ uuid.UUID) error                       { return nil }
+func (m *mockUserRepo) UpdateEmail(_ uuid.UUID, _ string) error                  { return nil }
+func (m *mockUserRepo) UpdateUsername(_ uuid.UUID, _ string) error               { return nil }
+func (m *mockUserRepo) FindByPendingEmail(_ string) (*model.User, error)         { return nil, nil }
 
 // ---------------------------------------------------------------------------
 // Mock: UserIdentityRepository

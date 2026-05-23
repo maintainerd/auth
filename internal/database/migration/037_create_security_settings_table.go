@@ -7,13 +7,14 @@ import (
 // CreateSecuritySettingsTable creates the security_settings table scoped to a
 // user pool. Each pool gets exactly one row that holds JSONB configs for MFA,
 // passwords, sessions, threat detection, lockout, registration, and tokens.
+// 1:1 with user_pool, cascade-deletes with parent — no soft delete needed.
 func CreateSecuritySettingsTable(db *gorm.DB) error {
 	sql := `
 -- CREATE TABLE
 CREATE TABLE IF NOT EXISTS security_settings (
-    security_setting_id     SERIAL PRIMARY KEY,
+    security_setting_id     BIGSERIAL PRIMARY KEY,
     security_setting_uuid   UUID NOT NULL UNIQUE,
-    user_pool_id            INTEGER NOT NULL,
+    user_pool_id            BIGINT NOT NULL,
     mfa_config              JSONB DEFAULT '{}'::jsonb,
     password_config         JSONB DEFAULT '{}'::jsonb,
     session_config          JSONB DEFAULT '{}'::jsonb,
@@ -22,8 +23,8 @@ CREATE TABLE IF NOT EXISTS security_settings (
     registration_config     JSONB DEFAULT '{}'::jsonb,
     token_config            JSONB DEFAULT '{}'::jsonb,
     version                 INTEGER DEFAULT 1,
-    created_by              INTEGER,
-    updated_by              INTEGER,
+    created_by              BIGINT,
+    updated_by              BIGINT,
     created_at              TIMESTAMPTZ DEFAULT now(),
     updated_at              TIMESTAMPTZ DEFAULT now()
 );
@@ -58,7 +59,7 @@ END$$;
 
 -- CREATE INDEXES
 CREATE INDEX IF NOT EXISTS idx_security_settings_uuid ON security_settings (security_setting_uuid);
-CREATE INDEX IF NOT EXISTS idx_security_settings_user_pool_id ON security_settings (user_pool_id);
+CREATE UNIQUE INDEX IF NOT EXISTS uq_security_settings_user_pool_id ON security_settings (user_pool_id);
 CREATE INDEX IF NOT EXISTS idx_security_settings_version ON security_settings (version);
 CREATE INDEX IF NOT EXISTS idx_security_settings_created_at ON security_settings (created_at);
 `

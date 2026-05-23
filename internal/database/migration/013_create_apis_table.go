@@ -8,19 +8,22 @@ func CreateAPITable(db *gorm.DB) error {
 	sql := `
 -- CREATE TABLE
 CREATE TABLE IF NOT EXISTS apis (
-    api_id					SERIAL PRIMARY KEY,
-    api_uuid				UUID NOT NULL UNIQUE,
-    tenant_id       INTEGER NOT NULL,
-    service_id			INTEGER NOT NULL,
+    api_id          BIGSERIAL PRIMARY KEY,
+    api_uuid        UUID NOT NULL UNIQUE,
+    tenant_id       BIGINT NOT NULL,
+    service_id      BIGINT NOT NULL,
     name            VARCHAR(100) NOT NULL,
-    display_name		TEXT NOT NULL,
-		description			TEXT NOT NULL,
-    api_type				TEXT NOT NULL,
-    identifier			TEXT NOT NULL,
-    status					TEXT DEFAULT 'inactive' CHECK (status IN ('active', 'inactive')),
-    is_system				BOOLEAN DEFAULT FALSE,
-    created_at			TIMESTAMPTZ DEFAULT now(),
-    updated_at			TIMESTAMPTZ DEFAULT now()
+    display_name    TEXT NOT NULL,
+    description     TEXT NOT NULL,
+    api_type        TEXT NOT NULL,
+    identifier      TEXT NOT NULL,
+    status          TEXT DEFAULT 'inactive' CHECK (status IN ('active', 'inactive')),
+    is_system       BOOLEAN DEFAULT FALSE,
+    created_by      BIGINT,
+    updated_by      BIGINT,
+    created_at      TIMESTAMPTZ DEFAULT now(),
+    updated_at      TIMESTAMPTZ DEFAULT now(),
+    deleted_at      TIMESTAMPTZ
 );
 
 -- ADD CONSTRAINTS
@@ -45,6 +48,7 @@ END$$;
 
 -- ADD INDEXES
 CREATE INDEX IF NOT EXISTS idx_apis_api_uuid ON apis (api_uuid);
+CREATE UNIQUE INDEX IF NOT EXISTS uq_apis_tenant_identifier ON apis (tenant_id, identifier) WHERE deleted_at IS NULL;
 CREATE INDEX IF NOT EXISTS idx_apis_name ON apis (name);
 CREATE INDEX IF NOT EXISTS idx_apis_display_name ON apis (display_name);
 CREATE INDEX IF NOT EXISTS idx_apis_api_type ON apis (api_type);
@@ -54,6 +58,7 @@ CREATE INDEX IF NOT EXISTS idx_apis_tenant_id ON apis (tenant_id);
 CREATE INDEX IF NOT EXISTS idx_apis_status ON apis (status);
 CREATE INDEX IF NOT EXISTS idx_apis_is_system ON apis (is_system);
 CREATE INDEX IF NOT EXISTS idx_apis_created_at ON apis (created_at);
+CREATE INDEX IF NOT EXISTS idx_apis_deleted_at ON apis (deleted_at) WHERE deleted_at IS NULL;
 `
 	return db.Exec(sql).Error
 }

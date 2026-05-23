@@ -8,13 +8,13 @@ func CreateClientTable(db *gorm.DB) error {
 	sql := `
 -- CREATE TABLE
 CREATE TABLE IF NOT EXISTS clients (
-    client_id          SERIAL PRIMARY KEY,
-    client_uuid        UUID NOT NULL UNIQUE,
-    tenant_id               INTEGER NOT NULL,
-	identity_provider_id    INTEGER NOT NULL,
-    name             		VARCHAR(100) NOT NULL, -- 'default', 'google', 'facebook', 'github'
+    client_id               BIGSERIAL PRIMARY KEY,
+    client_uuid             UUID NOT NULL UNIQUE,
+    tenant_id               BIGINT NOT NULL,
+    identity_provider_id    BIGINT NOT NULL,
+    name                    VARCHAR(100) NOT NULL,
     display_name            TEXT NOT NULL,
-    client_type             VARCHAR(100) NOT NULL, -- 'traditional', 'spa', 'native', 'm2m'
+    client_type             VARCHAR(100) NOT NULL,
     domain                  TEXT,
     identifier              TEXT,
     secret                  TEXT,
@@ -31,10 +31,12 @@ CREATE TABLE IF NOT EXISTS clients (
     refresh_token_ttl          INTEGER,
     require_consent            BOOLEAN      NOT NULL DEFAULT TRUE,
 
+    created_by              BIGINT,
+    updated_by              BIGINT,
     created_at              TIMESTAMPTZ DEFAULT now(),
     updated_at              TIMESTAMPTZ DEFAULT now(),
+    deleted_at              TIMESTAMPTZ,
 
-    -- Constraint for allowed auth methods
     CONSTRAINT chk_clients_token_auth_method CHECK (
         token_endpoint_auth_method IN ('client_secret_basic', 'client_secret_post', 'none')
     )
@@ -50,10 +52,7 @@ BEGIN
             ADD CONSTRAINT fk_clients_tenant_id FOREIGN KEY (tenant_id)
             REFERENCES tenants(tenant_id) ON DELETE CASCADE;
     END IF;
-END$$;
 
-DO $$
-BEGIN
     IF NOT EXISTS (
         SELECT 1 FROM pg_constraint WHERE conname = 'fk_clients_identity_provider_id'
     ) THEN
@@ -68,13 +67,14 @@ END$$;
 CREATE INDEX IF NOT EXISTS idx_clients_tenant_id_status ON clients (tenant_id, status);
 CREATE INDEX IF NOT EXISTS idx_clients_tenant_id_is_default ON clients (tenant_id, is_default) WHERE is_default = TRUE;
 CREATE INDEX IF NOT EXISTS idx_clients_tenant_id_identity_provider_id ON clients (tenant_id, identity_provider_id);
-CREATE INDEX IF NOT EXISTS idx_clients_tenant_id_name ON clients (tenant_id, name);
+CREATE UNIQUE INDEX IF NOT EXISTS uq_clients_tenant_name ON clients (tenant_id, name) WHERE deleted_at IS NULL;
 
 -- Single column indexes
 CREATE INDEX IF NOT EXISTS idx_clients_identifier ON clients (identifier) WHERE identifier IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_clients_identity_provider_id ON clients (identity_provider_id);
 CREATE INDEX IF NOT EXISTS idx_clients_is_system ON clients (is_system) WHERE is_system = TRUE;
 CREATE INDEX IF NOT EXISTS idx_clients_created_at ON clients (created_at);
+CREATE INDEX IF NOT EXISTS idx_clients_deleted_at ON clients (deleted_at) WHERE deleted_at IS NULL;
 
 -- OAuth indexes
 CREATE INDEX IF NOT EXISTS idx_clients_grant_types ON clients USING GIN (grant_types);

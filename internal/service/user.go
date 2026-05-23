@@ -86,6 +86,8 @@ type UserService interface {
 	// FindBySubAndClientID resolves a user from a JWT sub claim and client ID.
 	// Used by UserContextMiddleware to populate the request context.
 	FindBySubAndClientID(ctx context.Context, sub string, clientID string) (*model.User, error)
+	// ForcePasswordChange sets or clears the force_password_change flag for a user.
+	ForcePasswordChange(ctx context.Context, userUUID uuid.UUID, force bool) error
 }
 
 type userService struct {
@@ -418,8 +420,14 @@ func (s *userService) Create(ctx context.Context, username string, fullname stri
 			return err
 		}
 
+		// NOTE: users.fullname column was removed. The fullname argument is held
+		// on the in-memory User struct (transient gorm:"-" field) so the
+		// immediate response carries it. To persist the name, the orchestration
+		// layer (handlers / register / setup) must explicitly create a Profile
+		// via the profile service. See ensureDefaultProfile() in user_compat.go.
+
 		// Fetch created user with relationships
-		createdUser, err = txUserRepo.FindByUUID(newUser.UserUUID, "UserIdentities.Client", "UserIdentities.Tenant", "Roles")
+		createdUser, err = txUserRepo.FindByUUID(newUser.UserUUID, "UserIdentities.Client", "UserIdentities.Tenant", "Roles", "Profile")
 		if err != nil {
 			return err
 		}
@@ -527,8 +535,12 @@ func (s *userService) Update(ctx context.Context, userUUID uuid.UUID, tenantID i
 			return err
 		}
 
+		// NOTE: users.fullname was removed; persisting a name change requires
+		// updating the user's default Profile. Orchestration callers should
+		// invoke the profile service after this update if fullname changed.
+
 		// Fetch updated user with relationships
-		updatedUser, err = txUserRepo.FindByUUID(userUUID, "UserIdentities.Client", "UserIdentities.Tenant", "Roles")
+		updatedUser, err = txUserRepo.FindByUUID(userUUID, "UserIdentities.Client", "UserIdentities.Tenant", "Roles", "Profile")
 		if err != nil {
 			return err
 		}
@@ -931,10 +943,19 @@ func toUserServiceDataResult(user *model.User) *UserServiceDataResult {
 		return nil
 	}
 
+	// Fullname is derived from Profile (DisplayName, or FirstName + LastName)
+	// since users.fullname column was removed. computeFullname returns "" when
+	// Profile isn't preloaded or has no name set.
+	derivedFullname := computeFullname(user)
+	if derivedFullname == "" {
+		// Fall back to the transient in-memory value (e.g. just-created users
+		// where Profile hasn't been refetched yet).
+		derivedFullname = user.Fullname
+	}
 	result := &UserServiceDataResult{
 		UserUUID:           user.UserUUID,
 		Username:           user.Username,
-		Fullname:           user.Fullname,
+		Fullname:           derivedFullname,
 		Email:              user.Email,
 		Phone:              user.Phone,
 		IsEmailVerified:    user.IsEmailVerified,
@@ -1057,6 +1078,22 @@ func (s *userService) GetUserIdentities(ctx context.Context, userUUID uuid.UUID)
 
 	span.SetStatus(codes.Ok, "")
 	return result, nil
+}
+
+// ForcePasswordChange sets or clears the force_password_change flag for a user.
+func (s *userService) ForcePasswordChange(ctx context.Context, userUUID uuid.UUID, force bool) error {
+	_, span := otel.Tracer("service").Start(ctx, "user.forcePasswordChange")
+	defer span.End()
+	span.SetAttributes(attribute.String("user.uuid", userUUID.String()))
+
+	if err := s.userRepo.SetForcePasswordChange(userUUID, force); err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "force password change update failed")
+		return apperror.NewInternal("failed to update force_password_change", err)
+	}
+
+	span.SetStatus(codes.Ok, "")
+	return nil
 }
 
 // FindBySubAndClientID resolves a *model.User from a JWT sub claim and client

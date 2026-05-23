@@ -12,9 +12,12 @@ type TenantMember struct {
 	TenantMemberUUID uuid.UUID `gorm:"column:tenant_member_uuid;unique;not null"`
 	TenantID         int64     `gorm:"column:tenant_id;not null"`
 	UserID           int64     `gorm:"column:user_id;not null"`
-	Role             string    `gorm:"column:role;not null;default:'member'"`
-	CreatedAt        time.Time `gorm:"column:created_at;autoCreateTime"`
-	UpdatedAt        time.Time `gorm:"column:updated_at;autoUpdateTime"`
+	Role             string         `gorm:"column:role;not null;default:'member'"`
+	CreatedBy        *int64         `gorm:"column:created_by"`
+	UpdatedBy        *int64         `gorm:"column:updated_by"`
+	CreatedAt        time.Time      `gorm:"column:created_at;autoCreateTime"`
+	UpdatedAt        time.Time      `gorm:"column:updated_at;autoUpdateTime"`
+	DeletedAt        gorm.DeletedAt `gorm:"column:deleted_at;index"`
 }
 
 func (TenantMember) TableName() string {

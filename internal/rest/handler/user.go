@@ -547,6 +547,27 @@ func (h *UserHandler) RemoveRole(w http.ResponseWriter, r *http.Request) {
 	resp.Success(w, dtoRes, "Role removed from user successfully")
 }
 
+// ForcePasswordChange sets the force_password_change flag on a user.
+//
+// PUT /users/{user_uuid}/force-password-change
+//
+// Marks a user account so that they must change their password on next login.
+func (h *UserHandler) ForcePasswordChange(w http.ResponseWriter, r *http.Request) {
+	userUUIDStr := chi.URLParam(r, "user_uuid")
+	userUUID, err := uuid.Parse(userUUIDStr)
+	if err != nil {
+		resp.Error(w, http.StatusBadRequest, "Invalid user UUID")
+		return
+	}
+
+	if err := h.userService.ForcePasswordChange(r.Context(), userUUID, true); err != nil {
+		resp.HandleServiceError(w, r, "Failed to set force password change", err)
+		return
+	}
+
+	resp.Success(w, nil, "User will be required to change password on next login")
+}
+
 // Helper functions for converting service data to response DTOs
 
 // toUserResponseDTO converts a service result to a user response DTO.

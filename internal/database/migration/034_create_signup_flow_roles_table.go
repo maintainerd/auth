@@ -8,11 +8,11 @@ func CreateSignupFlowRoleTable(db *gorm.DB) error {
 	sql := `
 -- CREATE TABLE
 CREATE TABLE IF NOT EXISTS signup_flow_roles (
-    signup_flow_role_id			SERIAL PRIMARY KEY,
-		signup_flow_role_uuid		UUID NOT NULL UNIQUE,
-    signup_flow_id					INTEGER NOT NULL,
-    role_id									INTEGER NOT NULL,
-    created_at							TIMESTAMPTZ DEFAULT now()
+    signup_flow_role_id    BIGSERIAL PRIMARY KEY,
+    signup_flow_role_uuid  UUID NOT NULL UNIQUE,
+    signup_flow_id         BIGINT NOT NULL,
+    role_id                BIGINT NOT NULL,
+    created_at             TIMESTAMPTZ DEFAULT now()
 );
 
 -- ADD CONSTRAINTS
@@ -32,6 +32,13 @@ BEGIN
         ALTER TABLE signup_flow_roles
             ADD CONSTRAINT fk_signup_flow_roles_role_id FOREIGN KEY (role_id)
             REFERENCES roles(role_id) ON DELETE CASCADE;
+    END IF;
+
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint WHERE conname = 'uq_signup_flow_roles_flow_role'
+    ) THEN
+        ALTER TABLE signup_flow_roles
+            ADD CONSTRAINT uq_signup_flow_roles_flow_role UNIQUE (signup_flow_id, role_id);
     END IF;
 END$$;
 

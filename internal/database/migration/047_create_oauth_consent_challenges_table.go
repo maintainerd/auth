@@ -14,9 +14,9 @@ func CreateOAuthConsentChallengesTable(db *gorm.DB) error {
 CREATE TABLE IF NOT EXISTS oauth_consent_challenges (
     oauth_consent_challenge_id   BIGSERIAL     PRIMARY KEY,
     oauth_consent_challenge_uuid UUID          NOT NULL DEFAULT gen_random_uuid() UNIQUE,
-    client_id                    INTEGER       NOT NULL,
-    user_id                      INTEGER       NOT NULL,
-    tenant_id                    INTEGER       NOT NULL,
+    client_id                    BIGINT        NOT NULL,
+    user_id                      BIGINT        NOT NULL,
+    tenant_id                    BIGINT        NOT NULL,
     redirect_uri                 TEXT          NOT NULL,
     scope                        TEXT          NOT NULL DEFAULT '',
     state                        TEXT,

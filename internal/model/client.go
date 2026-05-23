@@ -45,8 +45,11 @@ type Client struct {
 	Status             string         `gorm:"column:status;default:'inactive'"`
 	IsDefault          bool           `gorm:"column:is_default;default:false"`
 	IsSystem           bool           `gorm:"column:is_system;default:false"`
+	CreatedBy          *int64         `gorm:"column:created_by"`
+	UpdatedBy          *int64         `gorm:"column:updated_by"`
 	CreatedAt          time.Time      `gorm:"column:created_at;autoCreateTime"`
 	UpdatedAt          time.Time      `gorm:"column:updated_at;autoUpdateTime"`
+	DeletedAt          gorm.DeletedAt `gorm:"column:deleted_at;index"`
 
 	// OAuth 2.0 fields
 	TokenEndpointAuthMethod string         `gorm:"column:token_endpoint_auth_method;default:'client_secret_basic'"`

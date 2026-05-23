@@ -8,10 +8,10 @@ func CreateUserRoleTable(db *gorm.DB) error {
 	sql := `
 -- CREATE TABLE
 CREATE TABLE IF NOT EXISTS user_roles (
-    user_role_id      SERIAL PRIMARY KEY,
+    user_role_id      BIGSERIAL PRIMARY KEY,
     user_role_uuid    UUID NOT NULL UNIQUE,
-    user_id           INTEGER NOT NULL,
-    role_id           INTEGER NOT NULL,
+    user_id           BIGINT NOT NULL,
+    role_id           BIGINT NOT NULL,
     created_at        TIMESTAMPTZ DEFAULT now()
 );
 
@@ -32,6 +32,13 @@ BEGIN
         ALTER TABLE user_roles
             ADD CONSTRAINT fk_user_roles_role_id FOREIGN KEY (role_id)
             REFERENCES roles(role_id) ON DELETE CASCADE;
+    END IF;
+
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint WHERE conname = 'uq_user_roles_user_role'
+    ) THEN
+        ALTER TABLE user_roles
+            ADD CONSTRAINT uq_user_roles_user_role UNIQUE (user_id, role_id);
     END IF;
 END$$;
 

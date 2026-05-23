@@ -12,7 +12,10 @@ type User struct {
 	UserID             int64          `gorm:"column:user_id;primaryKey"`
 	UserUUID           uuid.UUID      `gorm:"column:user_uuid;unique"`
 	Username           string         `gorm:"column:username"`
-	Fullname           string         `gorm:"column:fullname"`
+	// Fullname is not persisted on users — it lives in Profile (first_name + last_name + display_name).
+	// Kept as a transient field for API compatibility; populated by services when loading users
+	// with their Profile, and split into Profile fields when creating/updating.
+	Fullname           string         `gorm:"-"`
 	Email              string         `gorm:"column:email"`
 	Phone              string         `gorm:"column:phone"`
 	Password           *string        `gorm:"column:password" json:"-"` // nullable for external users
@@ -22,8 +25,15 @@ type User struct {
 	IsAccountCompleted bool           `gorm:"column:is_account_completed;default:false"`
 	Status             string         `gorm:"column:status;default:'active'"`
 	Metadata           datatypes.JSON `gorm:"column:metadata;type:jsonb;default:'{}'"`
-	CreatedAt          time.Time      `gorm:"column:created_at;autoCreateTime"`
-	UpdatedAt          time.Time      `gorm:"column:updated_at;autoUpdateTime"`
+	// Feature: Force password change on next login
+	ForcePasswordChange bool `gorm:"column:force_password_change;default:false"`
+	// Feature: Email change with re-verification
+	PendingEmail            *string        `gorm:"column:pending_email"`
+	EmailChangeOTP          *string        `gorm:"column:email_change_otp"`
+	EmailChangeOTPExpiresAt *time.Time     `gorm:"column:email_change_otp_expires_at"`
+	CreatedAt               time.Time      `gorm:"column:created_at;autoCreateTime"`
+	UpdatedAt               time.Time      `gorm:"column:updated_at;autoUpdateTime"`
+	DeletedAt               gorm.DeletedAt `gorm:"column:deleted_at;index"`
 
 	// Relationships
 	UserIdentities []UserIdentity `gorm:"foreignKey:UserID;references:UserID;constraint:OnDelete:CASCADE"`

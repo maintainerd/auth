@@ -6,13 +6,15 @@ import (
 
 // CreateTenantSettingsTable creates the tenant_settings table for tenant-level
 // operational configuration (rate limits, audit, maintenance, feature flags).
+// This is a 1:1 config row per tenant — no soft delete or audit columns since
+// the row's lifecycle is bound to the parent tenant via ON DELETE CASCADE.
 func CreateTenantSettingsTable(db *gorm.DB) error {
 	sql := `
 -- CREATE TABLE
 CREATE TABLE IF NOT EXISTS tenant_settings (
-    tenant_setting_id   SERIAL PRIMARY KEY,
+    tenant_setting_id   BIGSERIAL PRIMARY KEY,
     tenant_setting_uuid UUID NOT NULL UNIQUE,
-    tenant_id           INTEGER NOT NULL,
+    tenant_id           BIGINT NOT NULL,
     rate_limit_config   JSONB DEFAULT '{}',
     audit_config        JSONB DEFAULT '{}',
     maintenance_config  JSONB DEFAULT '{}',

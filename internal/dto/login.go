@@ -65,10 +65,11 @@ func (q *LoginQueryDTO) ValidateSignedURL(values url.Values) error {
 
 // LoginResponseDTO is the response structure for login operations
 type LoginResponseDTO struct {
-	AccessToken  string `json:"access_token"`
-	IDToken      string `json:"id_token"`
-	RefreshToken string `json:"refresh_token,omitempty"`
-	ExpiresIn    int64  `json:"expires_in"`
-	TokenType    string `json:"token_type"`
-	IssuedAt     int64  `json:"issued_at"`
+	AccessToken           string `json:"access_token"`
+	IDToken               string `json:"id_token"`
+	RefreshToken          string `json:"refresh_token,omitempty"`
+	ExpiresIn             int64  `json:"expires_in"`
+	TokenType             string `json:"token_type"`
+	IssuedAt              int64  `json:"issued_at"`
+	RequirePasswordChange bool   `json:"require_password_change,omitempty"`
 }
