@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
@@ -164,33 +165,10 @@ func (h *ClientHandler) GetByUUID(w http.ResponseWriter, r *http.Request) {
 	resp.Success(w, dtoRes, "Auth client fetched successfully")
 }
 
-// Get Auth client secret by UUID
+// GetSecretByUUID is intentionally disabled — secrets are hashed at rest and
+// cannot be recovered. Clients should rotate their secret to obtain a new one.
 func (h *ClientHandler) GetSecretByUUID(w http.ResponseWriter, r *http.Request) {
-	// Get tenant from context
-	tenant := middleware.AuthFromRequest(r).Tenant
-	if tenant == nil {
-		resp.Error(w, http.StatusUnauthorized, "Tenant not found in context")
-		return
-	}
-
-	ClientUUID, err := uuid.Parse(chi.URLParam(r, "client_uuid"))
-	if err != nil {
-		resp.Error(w, http.StatusBadRequest, "Invalid Auth client UUID")
-		return
-	}
-
-	Client, err := h.ClientService.GetSecretByUUID(r.Context(), ClientUUID, tenant.TenantID)
-	if err != nil {
-		resp.HandleServiceError(w, r, "Auth client not found", err)
-		return
-	}
-
-	dtoRes := dto.ClientSecretResponseDTO{
-		ClientID:     Client.ClientID,
-		ClientSecret: Client.ClientSecret,
-	}
-
-	resp.Success(w, dtoRes, "Auth client secret fetched successfully")
+	resp.Error(w, http.StatusGone, "Client secrets cannot be retrieved after creation. Use POST /{client_uuid}/rotate-secret to issue a new secret.")
 }
 
 // Get Auth client config by UUID
@@ -241,15 +219,25 @@ func (h *ClientHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	Client, err := h.ClientService.Create(r.Context(), tenant.TenantID, req.Name, req.DisplayName, req.ClientType, req.Domain, req.Config, req.Status, false, req.IdentityProviderUUID, user.UserUUID)
+	result, err := h.ClientService.Create(r.Context(), tenant.TenantID, req.Name, req.DisplayName, req.ClientType, req.Domain, req.Config, req.Status, false, req.IdentityProviderUUID, user.UserUUID)
 	if err != nil {
 		resp.HandleServiceError(w, r, "Failed to create auth client", err)
 		return
 	}
 
-	dtoRes := toClientResponseDTO(*Client)
+	dtoRes := struct {
+		Client       interface{}                    `json:"client"`
+		Credentials  dto.ClientCreateSecretResponseDTO `json:"credentials"`
+	}{
+		Client: toClientResponseDTO(*result.Client),
+		Credentials: dto.ClientCreateSecretResponseDTO{
+			ClientUUID:   result.Client.ClientUUID.String(),
+			ClientID:     result.ClientIdentifier,
+			ClientSecret: result.PlaintextSecret,
+		},
+	}
 
-	resp.Created(w, dtoRes, "Auth client created successfully")
+	resp.Created(w, dtoRes, "Auth client created successfully. Store the client_secret now — it will not be shown again.")
 }
 
 // Update Auth Client
@@ -331,6 +319,47 @@ func (h *ClientHandler) SetStatus(w http.ResponseWriter, r *http.Request) {
 	dtoRes := toClientResponseDTO(*Client)
 
 	resp.Success(w, dtoRes, "Auth client status updated successfully")
+}
+
+// RotateSecret generates a new client secret, optionally keeping the old one
+// valid for a grace period, and returns the new plaintext secret exactly once.
+func (h *ClientHandler) RotateSecret(w http.ResponseWriter, r *http.Request) {
+	tenant := middleware.AuthFromRequest(r).Tenant
+	if tenant == nil {
+		resp.Error(w, http.StatusUnauthorized, "Tenant not found in context")
+		return
+	}
+	user := middleware.AuthFromRequest(r).User
+
+	clientUUID, err := uuid.Parse(chi.URLParam(r, "client_uuid"))
+	if err != nil {
+		resp.Error(w, http.StatusBadRequest, "Invalid auth client UUID")
+		return
+	}
+
+	var req dto.RotateSecretRequestDTO
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		req = dto.RotateSecretRequestDTO{GracePeriodHours: 24}
+	}
+
+	newSecret, err := h.ClientService.RotateSecret(r.Context(), clientUUID, tenant.TenantID, user.UserUUID, req.GracePeriodHours)
+	if err != nil {
+		resp.HandleServiceError(w, r, "Failed to rotate client secret", err)
+		return
+	}
+
+	var expiresAt *string
+	if req.GracePeriodHours > 0 {
+		t := time.Now().Add(time.Duration(req.GracePeriodHours) * time.Hour).UTC().Format(time.RFC3339)
+		expiresAt = &t
+	}
+
+	dtoRes := dto.RotateSecretResponseDTO{
+		ClientSecret:            newSecret,
+		PreviousSecretExpiresAt: expiresAt,
+	}
+
+	resp.Success(w, dtoRes, "Client secret rotated successfully. Store the new secret now — it will not be shown again.")
 }
 
 // Delete Auth Client

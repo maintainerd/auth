@@ -105,7 +105,7 @@ func (s *oauthRegisterService) Register(ctx context.Context, req dto.OAuthClient
 		ClientType:    "public",
 	}
 
-	// Confidential clients get a generated secret.
+	// Confidential clients get a generated secret (hashed at rest, returned once).
 	clientSecret := ""
 	tokenEndpointAuthMethod := req.TokenEndpointAuthMethod
 	if tokenEndpointAuthMethod == "" {
@@ -117,8 +117,13 @@ func (s *oauthRegisterService) Register(ctx context.Context, req dto.OAuthClient
 			span.RecordError(serr)
 			return nil, apperror.NewOAuthServerError("an unexpected error occurred")
 		}
+		secretHash, herr := security.HashClientSecret(rawSecret)
+		if herr != nil {
+			span.RecordError(herr)
+			return nil, apperror.NewOAuthServerError("an unexpected error occurred")
+		}
 		clientSecret = rawSecret
-		client.Secret = ptr.Ptr(rawSecret)
+		client.SecretHash = ptr.Ptr(secretHash)
 		client.ClientType = "confidential"
 	}
 
