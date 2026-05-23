@@ -22,9 +22,11 @@ type UserPool struct {
 	IsSystem     bool           `gorm:"column:is_system;default:false"`
 	Status       string         `gorm:"column:status;type:varchar(16);default:'active'"`
 	Metadata     datatypes.JSON `gorm:"column:metadata;type:jsonb;default:'{}'"`
+	CreatedBy    *int64         `gorm:"column:created_by"`
+	UpdatedBy    *int64         `gorm:"column:updated_by"`
 	CreatedAt    time.Time      `gorm:"column:created_at;autoCreateTime"`
 	UpdatedAt    time.Time      `gorm:"column:updated_at;autoUpdateTime"`
-	DeletedAt    *time.Time     `gorm:"column:deleted_at"`
+	DeletedAt    gorm.DeletedAt `gorm:"column:deleted_at;index"`
 
 	// Relationships
 	Tenant *Tenant `gorm:"foreignKey:TenantID;references:TenantID"`

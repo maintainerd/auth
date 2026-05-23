@@ -230,7 +230,7 @@ func (s *securitySettingService) UpdateMFAConfig(ctx context.Context, userPoolID
 	defer span.End()
 	span.SetAttributes(attribute.Int64("user_pool.id", userPoolID))
 
-	result, err := s.updateConfig(userPoolID, "general", config, updatedBy, ipAddress, userAgent)
+	result, err := s.updateConfig(userPoolID, "mfa", config, updatedBy, ipAddress, userAgent)
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "update mfa config failed")

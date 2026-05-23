@@ -106,7 +106,7 @@ func (s *inviteService) SendInvite(
 			TenantID:        tenantID,
 			ClientID:        Client.ClientID,
 			InvitedEmail:    email,
-			InvitedByUserID: userID,
+			InvitedByUserID: &userID,
 			InviteToken:     inviteToken,
 			Status:          model.StatusPending,
 			ExpiresAt:       expiresAt,

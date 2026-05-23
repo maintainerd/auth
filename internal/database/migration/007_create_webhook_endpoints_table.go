@@ -10,9 +10,9 @@ func CreateWebhookEndpointsTable(db *gorm.DB) error {
 	sql := `
 -- CREATE TABLE
 CREATE TABLE IF NOT EXISTS webhook_endpoints (
-    webhook_endpoint_id     SERIAL PRIMARY KEY,
+    webhook_endpoint_id     BIGSERIAL PRIMARY KEY,
     webhook_endpoint_uuid   UUID NOT NULL UNIQUE,
-    tenant_id               INTEGER NOT NULL,
+    tenant_id               BIGINT NOT NULL,
     url                     TEXT NOT NULL,
     secret_encrypted        TEXT,
     events                  JSONB DEFAULT '[]',
@@ -22,8 +22,11 @@ CREATE TABLE IF NOT EXISTS webhook_endpoints (
     description             TEXT,
     metadata                JSONB DEFAULT '{}',
     last_triggered_at       TIMESTAMPTZ,
+    created_by              BIGINT,
+    updated_by              BIGINT,
     created_at              TIMESTAMPTZ DEFAULT now(),
-    updated_at              TIMESTAMPTZ DEFAULT now()
+    updated_at              TIMESTAMPTZ DEFAULT now(),
+    deleted_at              TIMESTAMPTZ
 );
 
 -- ADD CONSTRAINTS
@@ -50,6 +53,7 @@ CREATE INDEX IF NOT EXISTS idx_webhook_endpoints_uuid ON webhook_endpoints (webh
 CREATE INDEX IF NOT EXISTS idx_webhook_endpoints_tenant_id ON webhook_endpoints (tenant_id);
 CREATE INDEX IF NOT EXISTS idx_webhook_endpoints_status ON webhook_endpoints (status);
 CREATE INDEX IF NOT EXISTS idx_webhook_endpoints_created_at ON webhook_endpoints (created_at);
+CREATE INDEX IF NOT EXISTS idx_webhook_endpoints_deleted_at ON webhook_endpoints (deleted_at) WHERE deleted_at IS NULL;
 `
 
 	return db.Exec(sql).Error

@@ -8,10 +8,10 @@ func CreateRolePermissionTable(db *gorm.DB) error {
 	sql := `
 -- CREATE TABLE
 CREATE TABLE IF NOT EXISTS role_permissions (
-    role_permission_id      SERIAL PRIMARY KEY,
+    role_permission_id      BIGSERIAL PRIMARY KEY,
     role_permission_uuid    UUID NOT NULL UNIQUE,
-    role_id                 INTEGER NOT NULL,
-    permission_id           INTEGER NOT NULL,
+    role_id                 BIGINT NOT NULL,
+    permission_id           BIGINT NOT NULL,
     created_at              TIMESTAMPTZ DEFAULT now()
 );
 

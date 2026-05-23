@@ -64,6 +64,8 @@ type handlers struct {
 	oauthSession        *handler.OAuthSessionHandler
 	oauthCIBA           *handler.OAuthCIBAHandler
 	oauthRegister       *handler.OAuthRegisterHandler
+	account             *handler.AccountHandler
+	smsLogin            *handler.SMSLoginHandler
 }
 
 func initHandlers(application *app.App) *handlers {
@@ -111,6 +113,8 @@ func initHandlers(application *app.App) *handlers {
 		oauthSession:       handler.NewOAuthSessionHandler(application.OAuthSessionService),
 		oauthCIBA:          handler.NewOAuthCIBAHandler(application.OAuthCIBAService),
 		oauthRegister:      handler.NewOAuthRegisterHandler(application.OAuthRegisterService),
+		account:            handler.NewAccountHandler(application.AccountService),
+		smsLogin:           handler.NewSMSLoginHandler(application.SMSLoginService),
 	}
 }
 
@@ -247,6 +251,13 @@ func buildInternalRouter(h *handlers, application *app.App) http.Handler {
 		route.WebhookEndpointRoute(api, h.webhookEndpoint, application.UserService, application.Cache)
 		route.AuthEventRoute(api, h.authEvent, application.UserService, application.Cache)
 		route.OAuthInternalRoute(api, h.oauthToken, application.UserService, application.Cache)
+
+		// Account self-service routes (authenticated)
+		route.AccountRoute(api, h.account, application.UserService, application.Cache)
+		// SMS login (unauthenticated)
+		route.SMSLoginRoute(api, h.smsLogin)
+		// Account recovery via backup code (unauthenticated)
+		route.RecoveryRoute(api, h.account)
 	})
 
 	return r
@@ -294,6 +305,13 @@ func buildPublicRouter(h *handlers, application *app.App) http.Handler {
 		route.ProfileRoute(api, h.profile, application.UserService, application.Cache)
 		route.UserSettingRoute(api, h.userSetting, application.UserService, application.Cache)
 		route.OAuthPublicRoute(api, h.oauthAuthorize, h.oauthToken, h.oauthTokenExchange, h.oauthConsent, h.oauthUserInfo, h.oauthPAR, h.oauthDevice, h.oauthSession, h.oauthCIBA, h.oauthRegister, application.UserService, application.Cache)
+
+		// Account self-service routes (authenticated)
+		route.AccountRoute(api, h.account, application.UserService, application.Cache)
+		// SMS login (unauthenticated)
+		route.SMSLoginRoute(api, h.smsLogin)
+		// Account recovery via backup code (unauthenticated)
+		route.RecoveryRoute(api, h.account)
 	})
 
 	return r

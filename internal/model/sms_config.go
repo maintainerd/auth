@@ -22,8 +22,11 @@ type SMSConfig struct {
 	TestMode           bool           `gorm:"column:test_mode;not null;default:false" json:"test_mode"`
 	Status             string         `gorm:"column:status;type:varchar(20);not null;default:'active'" json:"status"`
 	Metadata           datatypes.JSON `gorm:"column:metadata;type:jsonb;default:'{}'" json:"metadata"`
+	CreatedBy          *int64         `gorm:"column:created_by" json:"created_by,omitempty"`
+	UpdatedBy          *int64         `gorm:"column:updated_by" json:"updated_by,omitempty"`
 	CreatedAt          time.Time      `gorm:"column:created_at;autoCreateTime" json:"created_at"`
 	UpdatedAt          time.Time      `gorm:"column:updated_at;autoUpdateTime" json:"updated_at"`
+	DeletedAt          gorm.DeletedAt `gorm:"column:deleted_at;index" json:"deleted_at,omitempty"`
 
 	// Relationships
 	Tenant *Tenant `gorm:"foreignKey:TenantID;references:TenantID"`

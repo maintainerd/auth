@@ -50,6 +50,8 @@ type svcs struct {
 	oauthSessionService       service.OAuthSessionService
 	oauthCIBAService          service.OAuthCIBAService
 	oauthRegisterService      service.OAuthRegisterService
+	accountService            service.AccountService
+	smsLoginService           service.SMSLoginService
 }
 
 func initServices(db *gorm.DB, r *repos, appCache *cache.Cache) *svcs {
@@ -100,5 +102,7 @@ func initServices(db *gorm.DB, r *repos, appCache *cache.Cache) *svcs {
 		oauthSessionService:       service.NewOAuthSessionService(r.clientRepo, r.userRepo, r.oauthRefreshTokenRepo, authEventSvc),
 		oauthCIBAService:          service.NewOAuthCIBAService(db, r.clientRepo, r.oauthCIBARequestRepo, r.userRepo, authEventSvc),
 		oauthRegisterService:      service.NewOAuthRegisterService(db, r.clientRepo, r.clientURIRepo, r.tenantRepo, authEventSvc),
+		accountService:            service.NewAccountService(db, r.userRepo, r.userTokenRepo, r.profileRepo, r.userSettingRepo, r.roleRepo, r.clientRepo, r.userBackupCodeRepo, r.userIdentityRepo, r.idpRepo, authEventSvc),
+		smsLoginService:           service.NewSMSLoginService(db, r.userRepo, r.smsOtpRepo, r.clientRepo, r.userIdentityRepo, r.idpRepo, authEventSvc),
 	}
 }

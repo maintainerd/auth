@@ -13,10 +13,12 @@ type UserSetting struct {
 	UserSettingUUID uuid.UUID `gorm:"column:user_setting_uuid;unique;not null"`
 	UserID          int64     `gorm:"column:user_id;not null;unique"`
 
-	// Internationalization
-	Timezone          *string `gorm:"column:timezone"`
-	PreferredLanguage *string `gorm:"column:preferred_language"` // ISO 639-1 code (en, es, fr, etc.)
-	Locale            *string `gorm:"column:locale"`             // Locale code (en_US, es_ES, etc.)
+	// Internationalization (BCP-47 locale is the single source of truth)
+	Timezone *string `gorm:"column:timezone"`
+	Locale   *string `gorm:"column:locale"` // BCP-47 locale code (en-US, es-ES, fr-FR)
+	// PreferredLanguage was removed from the DB; kept as transient field for API compatibility.
+	// Mirror it to/from Locale in the service layer.
+	PreferredLanguage *string `gorm:"-"`
 
 	// Social Media & External Links
 	SocialLinks datatypes.JSON `gorm:"column:social_links"` // JSON object for flexible social media links

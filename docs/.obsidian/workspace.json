@@ -13,12 +13,12 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "features.md",
+                "file": "releases/v2.0.0.md",
                 "mode": "source",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "features"
+              "title": "v2.0.0"
             }
           }
         ]
@@ -185,11 +185,11 @@
   },
   "active": "aa6340e1616364ae",
   "lastOpenFiles": [
+    "releases/v1.0.0.md",
+    "features.md",
     "releases/v2.0.0.md",
     "feature-list.md",
-    "features.md",
     "features.md.tmp.31161.76d9261b3d95",
-    "releases/v1.0.0.md",
     "releases/v2.0.0.md.tmp.31161.ea946d50974d",
     "releases/v1.0.0.md.tmp.31161.e7426da25946",
     "releases/v1.0.0.md.tmp.31161.244b3ac484af",

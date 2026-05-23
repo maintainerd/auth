@@ -18,7 +18,7 @@ CREATE TABLE IF NOT EXISTS auth_events (
     -- WHO
     actor_user_id     BIGINT,
     target_user_id    BIGINT,
-    ip_address        VARCHAR(45)   NOT NULL,
+    ip_address        INET          NOT NULL,
     user_agent        TEXT,
 
     -- WHAT  (OWASP Logging Vocabulary)

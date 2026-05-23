@@ -131,10 +131,16 @@ func (s *userSettingService) CreateOrUpdateUserSetting(
 		}
 
 		// Step 3: Set all fields
-		// Internationalization
+		// Internationalization. preferred_language was removed from the schema;
+		// Locale (BCP-47) is the persisted source of truth. Fall back to the
+		// caller-supplied preferredLanguage when locale is missing for
+		// backward compatibility.
 		userSetting.Timezone = timezone
-		userSetting.PreferredLanguage = preferredLanguage
-		userSetting.Locale = locale
+		if locale != nil {
+			userSetting.Locale = locale
+		} else if preferredLanguage != nil {
+			userSetting.Locale = preferredLanguage
+		}
 
 		// Social Media & External Links
 		if socialLinksJSON != nil {
@@ -263,6 +269,10 @@ func toUserSettingServiceDataResult(userSetting *model.UserSetting) *UserSetting
 	if userSetting == nil {
 		return nil
 	}
+
+	// preferred_language column was removed — mirror Locale into the transient
+	// PreferredLanguage field so API consumers still see a value.
+	hydrateUserSettingTransients(userSetting)
 
 	result := &UserSettingServiceDataResult{
 		UserSettingUUID:          userSetting.UserSettingUUID,

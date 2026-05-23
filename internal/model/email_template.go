@@ -11,15 +11,18 @@ type EmailTemplate struct {
 	EmailTemplateID   int64     `gorm:"column:email_template_id;primaryKey"`
 	EmailTemplateUUID uuid.UUID `gorm:"column:email_template_uuid;unique"`
 	TenantID          int64     `gorm:"column:tenant_id;not null"`
-	Name              string    `gorm:"column:name;unique"`
-	Subject           string    `gorm:"column:subject"`
-	BodyHTML          string    `gorm:"column:body_html"`
-	BodyPlain         *string   `gorm:"column:body_plain"`
-	Status            string    `gorm:"column:status;default:'active'"`
-	IsDefault         bool      `gorm:"column:is_default;default:false"`
-	IsSystem          bool      `gorm:"column:is_system;default:false"`
-	CreatedAt         time.Time `gorm:"column:created_at;autoCreateTime"`
-	UpdatedAt         time.Time `gorm:"column:updated_at;autoUpdateTime"`
+	Name              string         `gorm:"column:name"`
+	Subject           string         `gorm:"column:subject"`
+	BodyHTML          string         `gorm:"column:body_html"`
+	BodyPlain         *string        `gorm:"column:body_plain"`
+	Status            string         `gorm:"column:status;default:'active'"`
+	IsDefault         bool           `gorm:"column:is_default;default:false"`
+	IsSystem          bool           `gorm:"column:is_system;default:false"`
+	CreatedBy         *int64         `gorm:"column:created_by"`
+	UpdatedBy         *int64         `gorm:"column:updated_by"`
+	CreatedAt         time.Time      `gorm:"column:created_at;autoCreateTime"`
+	UpdatedAt         time.Time      `gorm:"column:updated_at;autoUpdateTime"`
+	DeletedAt         gorm.DeletedAt `gorm:"column:deleted_at;index"`
 }
 
 func (EmailTemplate) TableName() string {
