@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(go vet *)",
+      "Bash(fc-list *)",
+      "Bash(snap list *)",
+      "Bash(snap info *)",
+      "Bash(snap connections *)",
+      "Bash(go build *)"
+    ]
+  }
+}

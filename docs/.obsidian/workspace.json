@@ -13,12 +13,12 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "releases/v2.0.0.md",
+                "file": "releases/v1.0.0.md",
                 "mode": "source",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "v2.0.0"
+              "title": "v1.0.0"
             }
           }
         ]
@@ -185,9 +185,14 @@
   },
   "active": "aa6340e1616364ae",
   "lastOpenFiles": [
+    "releases/v1.0.0.md.tmp.17062.f8d990c6981a",
+    "releases/v1.0.0.md.tmp.17062.3f3ef00be9a7",
+    "releases/v1.0.0.md.tmp.17062.eb8a32459dd1",
+    "releases/v1.0.0.md.tmp.17062.c4479fa36e43",
+    "releases/v1.0.0.md.tmp.17062.d3e6cbc3b930",
+    "releases/v2.0.0.md",
     "releases/v1.0.0.md",
     "features.md",
-    "releases/v2.0.0.md",
     "feature-list.md",
     "features.md.tmp.31161.76d9261b3d95",
     "releases/v2.0.0.md.tmp.31161.ea946d50974d",
@@ -196,17 +201,13 @@
     "releases",
     "apis/api-keys/api-key-apis.md",
     "apis/profile/profile.md.tmp.5618.9aad4c864560",
-    "apis/profile/profile.md.tmp.5618.8a78d04d1cfc",
-    "apis/profile/profile.md.tmp.5618.4ae67d2fc4e9",
     "apis/oauth/oauth2.md",
     "apis/api-keys/api-key.md",
     "apis/audit/auth-events.md",
     "apis/idp/identity-provider.md",
     "apis/oauth2.md",
     "apis/document-checklist.md",
-    "apis/document-checklist.md.tmp.5618.837a4fa9725c",
     "apis/signup/signup-flow.md",
-    "apis/signup/signup-flow.md.tmp.5618.c2bedf243efa",
     "apis/webhooks/webhook-endpoint.md",
     "apis/auth/magic-link.md",
     "apis/templates/login-template.md",
@@ -219,7 +220,6 @@
     "apis/profile/user-settings.md",
     "apis/auth/forgot-password.md",
     "apis/client/client-secret.md",
-    "apis/auth/register-public.md",
-    "apis/profile/profile.md"
+    "apis/auth/register-public.md"
   ]
 }

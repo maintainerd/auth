@@ -128,6 +128,18 @@ func (s *oauthAuthorizeService) Authorize(ctx context.Context, req dto.OAuthAuth
 		return nil, oerr
 	}
 
+	// Enforce state parameter for CSRF protection (RFC 6749 §10.12).
+	if req.State == "" {
+		span.SetStatus(codes.Error, "missing state")
+		return nil, apperror.NewOAuthInvalidRequest("state parameter is required")
+	}
+
+	// Nonce is required when response_type includes id_token (OIDC Core §3.1.2.1).
+	if strings.Contains(req.ResponseType, "id_token") && req.Nonce == "" {
+		span.SetStatus(codes.Error, "missing nonce")
+		return nil, apperror.NewOAuthInvalidRequest("nonce parameter is required when response_type includes id_token")
+	}
+
 	// Check if user has already consented to the requested scopes for this client.
 	needsConsent, err := s.needsConsent(client, userID, req.Scope)
 	if err != nil {

@@ -357,7 +357,7 @@ func (s *magicLinkService) generateTokenResponse(sub string, user *model.User, C
 		PhoneVerified: user.IsPhoneVerified,
 	}
 
-	idToken, err := generateIDTokenFn(sub, *Client.Domain, *Client.Identifier, Client.IdentityProvider.Identifier, profile, "")
+	idToken, err := generateIDTokenFn(sub, *Client.Domain, *Client.Identifier, Client.IdentityProvider.Identifier, profile, "", nil)
 	if err != nil {
 		return nil, err
 	}
