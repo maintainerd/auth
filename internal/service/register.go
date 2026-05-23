@@ -186,7 +186,7 @@ func (s *registerService) RegisterPublic(
 		}
 
 		// Hash password
-		hashed, txErr := security.HashPassword([]byte(password))
+		hashed, txErr := security.HashPassword(ctx, []byte(password))
 		if txErr != nil {
 			return txErr
 		}
@@ -329,7 +329,7 @@ func (s *registerService) Register(
 		}
 
 		// Hash password
-		hashed, txErr := security.HashPassword([]byte(password))
+		hashed, txErr := security.HashPassword(ctx, []byte(password))
 		if txErr != nil {
 			return txErr
 		}
@@ -474,7 +474,7 @@ func (s *registerService) RegisterInvite(
 		}
 
 		// Hash password
-		hashed, txErr := security.HashPassword([]byte(password))
+		hashed, txErr := security.HashPassword(ctx, []byte(password))
 		if txErr != nil {
 			return txErr
 		}
@@ -645,7 +645,7 @@ func (s *registerService) RegisterInvitePublic(
 		}
 
 		// Hash password
-		hashed, txErr := security.HashPassword([]byte(password))
+		hashed, txErr := security.HashPassword(ctx, []byte(password))
 		if txErr != nil {
 			return txErr
 		}

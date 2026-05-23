@@ -116,7 +116,7 @@ func (s *resetPasswordService) ResetPassword(ctx context.Context, token, newPass
 		}
 
 		// Hash the new password
-		hashedPassword, txErr := security.HashPassword([]byte(newPassword))
+		hashedPassword, txErr := security.HashPassword(ctx, []byte(newPassword))
 		if txErr != nil {
 			return apperror.NewInternal("failed to hash password", txErr)
 		}

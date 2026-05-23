@@ -117,7 +117,7 @@ func (s *oauthRegisterService) Register(ctx context.Context, req dto.OAuthClient
 			span.RecordError(serr)
 			return nil, apperror.NewOAuthServerError("an unexpected error occurred")
 		}
-		secretHash, herr := security.HashClientSecret(rawSecret)
+		secretHash, herr := security.HashClientSecret(ctx, rawSecret)
 		if herr != nil {
 			span.RecordError(herr)
 			return nil, apperror.NewOAuthServerError("an unexpected error occurred")

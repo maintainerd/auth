@@ -87,36 +87,34 @@ func (h *OAuthDiscoveryHandler) AuthorizationServerMetadata(w http.ResponseWrite
 	_ = json.NewEncoder(w).Encode(doc)
 }
 
-// JWKS handles GET /.well-known/jwks.json (RFC 7517). Returns the public RSA
-// key used to verify JWTs.
+// JWKS handles GET /.well-known/jwks.json (RFC 7517). Returns the active public
+// RSA key plus any recently retired keys so that tokens signed before the last
+// rotation continue to verify until they expire naturally.
 func (h *OAuthDiscoveryHandler) JWKS(w http.ResponseWriter, r *http.Request) {
-	pubKey := jwt.GetPublicKey()
-	if pubKey == nil {
+	entries := jwt.GetAllPublicKeys()
+	if len(entries) == 0 {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusInternalServerError)
 		_ = json.NewEncoder(w).Encode(map[string]string{"error": "keys not initialised"})
 		return
 	}
 
-	kid := config.GetEnvOrDefault("JWT_KEY_ID", "maintainerd-auth-key-1")
-
-	jwk := dto.JWKKeyDTO{
-		Kty: "RSA",
-		Use: "sig",
-		Kid: kid,
-		Alg: "RS256",
-		N:   base64URLEncodeUint(pubKey.N),
-		E:   base64URLEncodeUint(big.NewInt(int64(pubKey.E))),
-	}
-
-	result := dto.JWKSResponseDTO{
-		Keys: []dto.JWKKeyDTO{jwk},
+	keys := make([]dto.JWKKeyDTO, 0, len(entries))
+	for _, e := range entries {
+		keys = append(keys, dto.JWKKeyDTO{
+			Kty: "RSA",
+			Use: "sig",
+			Kid: e.KID,
+			Alg: "RS256",
+			N:   base64URLEncodeUint(e.PubKey.N),
+			E:   base64URLEncodeUint(big.NewInt(int64(e.PubKey.E))),
+		})
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Cache-Control", "public, max-age=3600")
 	w.WriteHeader(http.StatusOK)
-	_ = json.NewEncoder(w).Encode(result)
+	_ = json.NewEncoder(w).Encode(dto.JWKSResponseDTO{Keys: keys})
 }
 
 // base64URLEncodeUint encodes a big.Int as a base64url string without padding
