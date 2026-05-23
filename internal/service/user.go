@@ -353,7 +353,7 @@ func (s *userService) Create(ctx context.Context, username string, fullname stri
 		}
 
 		// Hash password
-		hashedPassword, err := security.HashPassword([]byte(password))
+		hashedPassword, err := security.HashPassword(ctx, []byte(password))
 		if err != nil {
 			return err
 		}

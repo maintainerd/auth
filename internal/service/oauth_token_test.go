@@ -1366,7 +1366,7 @@ func TestAuthenticateClient(t *testing.T) {
 	t.Run("secret_basic — valid secret", func(t *testing.T) {
 		db, mock := newMockDB(t)
 		secret := "super-secret"
-		hash, hashErr := security.HashClientSecret(secret)
+		hash, hashErr := security.HashClientSecret(context.Background(), secret)
 		require.NoError(t, hashErr)
 		rows := sqlmock.NewRows([]string{
 			"client_id", "client_uuid", "tenant_id", "identity_provider_id", "name", "display_name",
@@ -1391,7 +1391,7 @@ func TestAuthenticateClient(t *testing.T) {
 	t.Run("secret_basic — invalid secret", func(t *testing.T) {
 		db, mock := newMockDB(t)
 		secret := "super-secret"
-		hash, hashErr := security.HashClientSecret(secret)
+		hash, hashErr := security.HashClientSecret(context.Background(), secret)
 		require.NoError(t, hashErr)
 		rows := sqlmock.NewRows([]string{
 			"client_id", "client_uuid", "tenant_id", "identity_provider_id", "name", "display_name",
@@ -1416,7 +1416,7 @@ func TestAuthenticateClient(t *testing.T) {
 	t.Run("secret_post — valid secret", func(t *testing.T) {
 		db, mock := newMockDB(t)
 		secret := "post-secret"
-		hash, hashErr := security.HashClientSecret(secret)
+		hash, hashErr := security.HashClientSecret(context.Background(), secret)
 		require.NoError(t, hashErr)
 		rows := sqlmock.NewRows([]string{
 			"client_id", "client_uuid", "tenant_id", "identity_provider_id", "name", "display_name",

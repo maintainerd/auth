@@ -92,10 +92,9 @@ func TestOAuthDiscoveryHandler_JWKS_KeysNotInitialised(t *testing.T) {
 }
 
 func TestOAuthDiscoveryHandler_JWKS_Success(t *testing.T) {
-	// Generate an RSA key pair and set it via config + init.
-	initTestJWTKeysForHandler(t)
-
+	// Set the KID env var before init so activeKID is captured correctly.
 	t.Setenv("JWT_KEY_ID", "test-kid-1")
+	initTestJWTKeysForHandler(t)
 
 	h := NewOAuthDiscoveryHandler()
 	r := httptest.NewRequest(http.MethodGet, "/.well-known/jwks.json", nil)

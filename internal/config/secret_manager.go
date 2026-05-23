@@ -176,6 +176,13 @@ func loadSecret(key string) ([]byte, error) {
 	return nil, fmt.Errorf("failed to load secret %q after 3 attempts: %w", key, lastErr)
 }
 
+// LoadSecret is the exported entry point for runtime secret refresh.
+// It re-fetches a secret through the active provider with up to 3 retries,
+// identical to the behaviour used at startup.
+func LoadSecret(key string) ([]byte, error) {
+	return loadSecret(key)
+}
+
 // ValidateSecretProvider returns an error if SECRET_PROVIDER is not a known value.
 func ValidateSecretProvider() error {
 	valid := []string{"env", "file", "aws_secrets", "aws_ssm", "vault", "gcp", "azure_kv"}

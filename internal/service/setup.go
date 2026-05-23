@@ -283,7 +283,7 @@ func (s *setupService) CreateAdmin(ctx context.Context, req dto.CreateAdminReque
 		}
 
 		// Hash password
-		hashedPassword, err := security.HashPassword([]byte(req.Password))
+		hashedPassword, err := security.HashPassword(ctx, []byte(req.Password))
 		if err != nil {
 			return err
 		}

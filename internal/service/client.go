@@ -321,7 +321,7 @@ func (s *clientService) Create(ctx context.Context, tenantID int64, name string,
 		if err != nil {
 			return err
 		}
-		secretHash, err := security.HashClientSecret(rawSecret)
+		secretHash, err := security.HashClientSecret(ctx, rawSecret)
 		if err != nil {
 			return err
 		}
@@ -399,7 +399,7 @@ func (s *clientService) RotateSecret(ctx context.Context, clientUUID uuid.UUID, 
 		if err != nil {
 			return err
 		}
-		newHash, err := security.HashClientSecret(rawSecret)
+		newHash, err := security.HashClientSecret(ctx, rawSecret)
 		if err != nil {
 			return err
 		}
