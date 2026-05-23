@@ -8,25 +8,29 @@ func CreateServiceTable(db *gorm.DB) error {
 	sql := `
 -- CREATE TABLE
 CREATE TABLE IF NOT EXISTS services (
-    service_id      SERIAL PRIMARY KEY,
+    service_id      BIGSERIAL PRIMARY KEY,
     service_uuid    UUID NOT NULL UNIQUE,
-    name    		VARCHAR(100) NOT NULL,
+    name            VARCHAR(100) NOT NULL,
     display_name    TEXT NOT NULL,
     description     TEXT NOT NULL,
     version         VARCHAR(20) NOT NULL,
     status          VARCHAR(20) DEFAULT 'inactive',
-	is_system       BOOLEAN DEFAULT FALSE,
+    is_system       BOOLEAN DEFAULT FALSE,
+    created_by      BIGINT,
+    updated_by      BIGINT,
     created_at      TIMESTAMPTZ DEFAULT now(),
-    updated_at      TIMESTAMPTZ DEFAULT now()
+    updated_at      TIMESTAMPTZ DEFAULT now(),
+    deleted_at      TIMESTAMPTZ
 );
 
 -- ADD INDEXES
 CREATE INDEX IF NOT EXISTS idx_services_uuid ON services (service_uuid);
-CREATE INDEX IF NOT EXISTS idx_services_name ON services (name);
+CREATE UNIQUE INDEX IF NOT EXISTS uq_services_name ON services (name) WHERE deleted_at IS NULL;
 CREATE INDEX IF NOT EXISTS idx_services_display_name ON services (display_name);
 CREATE INDEX IF NOT EXISTS idx_services_status ON services (status);
 CREATE INDEX IF NOT EXISTS idx_services_is_system ON services (is_system);
 CREATE INDEX IF NOT EXISTS idx_services_created_at ON services (created_at);
+CREATE INDEX IF NOT EXISTS idx_services_deleted_at ON services (deleted_at) WHERE deleted_at IS NULL;
 
 -- ADD CONSTRAINTS
 DO $$

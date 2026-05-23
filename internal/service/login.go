@@ -515,11 +515,12 @@ func (s *loginService) generateTokenResponse(sub string, user *model.User, Clien
 	}
 
 	return &dto.LoginResponseDTO{
-		AccessToken:  accessToken,
-		IDToken:      idToken,
-		RefreshToken: refreshToken,
-		ExpiresIn:    3600,
-		TokenType:    "Bearer",
-		IssuedAt:     time.Now().Unix(),
+		AccessToken:           accessToken,
+		IDToken:               idToken,
+		RefreshToken:          refreshToken,
+		ExpiresIn:             3600,
+		TokenType:             "Bearer",
+		IssuedAt:              time.Now().Unix(),
+		RequirePasswordChange: user.ForcePasswordChange,
 	}, nil
 }

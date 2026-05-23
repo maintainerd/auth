@@ -8,10 +8,10 @@ func CreateAPIKeyPermissionsTable(db *gorm.DB) error {
 	sql := `
 -- CREATE TABLE
 CREATE TABLE IF NOT EXISTS api_key_permissions (
-    api_key_permission_id   SERIAL PRIMARY KEY,
+    api_key_permission_id   BIGSERIAL PRIMARY KEY,
     api_key_permission_uuid UUID NOT NULL UNIQUE,
-    api_key_api_id          INTEGER NOT NULL,
-    permission_id           INTEGER NOT NULL,
+    api_key_api_id          BIGINT NOT NULL,
+    permission_id           BIGINT NOT NULL,
     created_at              TIMESTAMPTZ DEFAULT now()
 );
 
@@ -34,7 +34,6 @@ BEGIN
             REFERENCES permissions(permission_id) ON DELETE CASCADE;
     END IF;
 
-    -- Add unique constraint to prevent duplicate api_key_api + permission combinations
     IF NOT EXISTS (
         SELECT 1 FROM pg_constraint WHERE conname = 'uq_api_key_permissions_api_key_api_permission'
     ) THEN

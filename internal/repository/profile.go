@@ -88,7 +88,10 @@ func (r *profileRepository) FindAllByUserID(filter ProfileRepositoryGetFilter) (
 		query = query.Where("LOWER(last_name) LIKE ?", "%"+strings.ToLower(*filter.LastName)+"%")
 	}
 	if filter.Email != nil && *filter.Email != "" {
-		query = query.Where("LOWER(email) LIKE ?", "%"+strings.ToLower(*filter.Email)+"%")
+		// Email lives on users (not profiles) since the column was removed —
+		// join to users to preserve the existing filter API.
+		query = query.Joins("JOIN users ON users.user_id = profiles.user_id").
+			Where("LOWER(users.email) LIKE ?", "%"+strings.ToLower(*filter.Email)+"%")
 	}
 	if filter.Phone != nil && *filter.Phone != "" {
 		query = query.Where("phone LIKE ?", "%"+*filter.Phone+"%")

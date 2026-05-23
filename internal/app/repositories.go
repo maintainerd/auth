@@ -55,6 +55,8 @@ type repos struct {
 	oauthPARRequestRepo       repository.OAuthPARRequestRepository
 	oauthDeviceCodeRepo       repository.OAuthDeviceCodeRepository
 	oauthCIBARequestRepo      repository.OAuthCIBARequestRepository
+	smsOtpRepo                repository.SMSOtpRepository
+	userBackupCodeRepo        repository.UserBackupCodeRepository
 }
 
 func initRepos(db *gorm.DB) *repos {
@@ -106,5 +108,7 @@ func initRepos(db *gorm.DB) *repos {
 		oauthPARRequestRepo:       repository.NewOAuthPARRequestRepository(db),
 		oauthDeviceCodeRepo:       repository.NewOAuthDeviceCodeRepository(db),
 		oauthCIBARequestRepo:      repository.NewOAuthCIBARequestRepository(db),
+		smsOtpRepo:                repository.NewSMSOtpRepository(db),
+		userBackupCodeRepo:        repository.NewUserBackupCodeRepository(db),
 	}
 }

@@ -8,20 +8,23 @@ func CreateIdentityProviderTable(db *gorm.DB) error {
 	sql := `
 -- CREATE TABLE
 CREATE TABLE IF NOT EXISTS identity_providers (
-    identity_provider_id    SERIAL PRIMARY KEY,
+    identity_provider_id    BIGSERIAL PRIMARY KEY,
     identity_provider_uuid  UUID NOT NULL UNIQUE,
-    tenant_id               INTEGER NOT NULL,
-    name                    VARCHAR(100) NOT NULL, -- 'default' or any lowercase no space
+    tenant_id               BIGINT NOT NULL,
+    name                    VARCHAR(100) NOT NULL,
     display_name            TEXT NOT NULL,
-    provider                VARCHAR(100) NOT NULL, -- 'internal', 'cognito', 'auth0', 'google', 'facebook', 'github', etc.
-    provider_type           VARCHAR(100) NOT NULL, -- 'identity', 'social'
-    identifier              TEXT, -- random alphanumeric string
-    config                  JSONB, -- dynamic configuration for the provider
-    status                  VARCHAR(20) DEFAULT 'inactive', -- 'active', 'inactive'
+    provider                VARCHAR(100) NOT NULL,
+    provider_type           VARCHAR(100) NOT NULL,
+    identifier              TEXT,
+    config                  JSONB,
+    status                  VARCHAR(20) DEFAULT 'inactive',
     is_default              BOOLEAN DEFAULT FALSE,
     is_system               BOOLEAN DEFAULT FALSE,
+    created_by              BIGINT,
+    updated_by              BIGINT,
     created_at              TIMESTAMPTZ DEFAULT now(),
-    updated_at              TIMESTAMPTZ DEFAULT now()
+    updated_at              TIMESTAMPTZ DEFAULT now(),
+    deleted_at              TIMESTAMPTZ
 );
 
 -- ADD CONSTRAINTS (safe)
@@ -34,12 +37,7 @@ BEGIN
             ADD CONSTRAINT fk_identity_providers_tenant_id FOREIGN KEY (tenant_id)
             REFERENCES tenants(tenant_id) ON DELETE CASCADE;
     END IF;
-END$$;
 
--- ADD CHECK CONSTRAINTS FOR DATA INTEGRITY
-
-DO $$
-BEGIN
     IF NOT EXISTS (
         SELECT 1 FROM pg_constraint WHERE conname = 'chk_identity_providers_provider_type'
     ) THEN
@@ -47,10 +45,7 @@ BEGIN
             ADD CONSTRAINT chk_identity_providers_provider_type
             CHECK (provider_type IN ('identity', 'social'));
     END IF;
-END$$;
 
-DO $$
-BEGIN
     IF NOT EXISTS (
         SELECT 1 FROM pg_constraint WHERE conname = 'chk_identity_providers_status'
     ) THEN
@@ -62,7 +57,7 @@ END$$;
 
 -- ADD INDEXES
 CREATE INDEX IF NOT EXISTS idx_identity_providers_uuid ON identity_providers (identity_provider_uuid);
-CREATE INDEX IF NOT EXISTS idx_identity_providers_name ON identity_providers (name);
+CREATE UNIQUE INDEX IF NOT EXISTS uq_identity_providers_tenant_name ON identity_providers (tenant_id, name) WHERE deleted_at IS NULL;
 CREATE INDEX IF NOT EXISTS idx_identity_providers_display_name ON identity_providers (display_name);
 CREATE INDEX IF NOT EXISTS idx_identity_providers_provider ON identity_providers (provider);
 CREATE INDEX IF NOT EXISTS idx_identity_providers_provider_type ON identity_providers (provider_type);
@@ -72,6 +67,7 @@ CREATE INDEX IF NOT EXISTS idx_identity_providers_is_default ON identity_provide
 CREATE INDEX IF NOT EXISTS idx_identity_providers_is_system ON identity_providers (is_system);
 CREATE INDEX IF NOT EXISTS idx_identity_providers_tenant_id ON identity_providers (tenant_id);
 CREATE INDEX IF NOT EXISTS idx_identity_providers_created_at ON identity_providers (created_at);
+CREATE INDEX IF NOT EXISTS idx_identity_providers_deleted_at ON identity_providers (deleted_at) WHERE deleted_at IS NULL;
 `
 	return db.Exec(sql).Error
 }

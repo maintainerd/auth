@@ -2,6 +2,7 @@ package repository
 
 import (
 	"errors"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/model"
@@ -39,6 +40,14 @@ type UserRepository interface {
 	FindPaginated(filter UserRepositoryGetFilter) (*PaginationResult[model.User], error)
 	SetEmailVerified(userUUID uuid.UUID, verified bool) error
 	SetStatus(userUUID uuid.UUID, status string) error
+	// Feature: Force password change
+	SetForcePasswordChange(userUUID uuid.UUID, force bool) error
+	// Feature: Email change with OTP re-verification
+	SetPendingEmail(userUUID uuid.UUID, pendingEmail, otp string, expiresAt time.Time) error
+	ClearEmailChange(userUUID uuid.UUID) error
+	UpdateEmail(userUUID uuid.UUID, email string) error
+	UpdateUsername(userUUID uuid.UUID, username string) error
+	FindByPendingEmail(email string) (*model.User, error)
 }
 
 type userRepository struct {
@@ -162,6 +171,10 @@ func (r *userRepository) FindBySubAndClientID(sub string, clientID string) (*mod
 		Preload("UserIdentities.Client.IdentityProvider").
 		Preload("UserIdentities.Client").
 		Preload("Roles.Permissions").
+		// Profile is preloaded so OIDC userinfo and other handlers can derive
+		// the display name from profiles.first_name/last_name/display_name
+		// (the users.fullname column was removed).
+		Preload("Profile", "is_default = ?", true).
 		Joins("JOIN user_identities ON users.user_id = user_identities.user_id").
 		Joins("JOIN clients ON user_identities.client_id = clients.client_id").
 		Where("user_identities.sub = ? AND clients.client_id = ?", sub, clientID).
@@ -186,6 +199,58 @@ func (r *userRepository) SetStatus(userUUID uuid.UUID, status string) error {
 	return r.DB().Model(&model.User{}).
 		Where("user_uuid = ?", userUUID).
 		Update("status", status).Error
+}
+
+func (r *userRepository) SetForcePasswordChange(userUUID uuid.UUID, force bool) error {
+	return r.DB().Model(&model.User{}).
+		Where("user_uuid = ?", userUUID).
+		Update("force_password_change", force).Error
+}
+
+func (r *userRepository) SetPendingEmail(userUUID uuid.UUID, pendingEmail, otp string, expiresAt time.Time) error {
+	return r.DB().Model(&model.User{}).
+		Where("user_uuid = ?", userUUID).
+		Updates(map[string]interface{}{
+			"pending_email":              pendingEmail,
+			"email_change_otp":           otp,
+			"email_change_otp_expires_at": expiresAt,
+		}).Error
+}
+
+func (r *userRepository) ClearEmailChange(userUUID uuid.UUID) error {
+	return r.DB().Model(&model.User{}).
+		Where("user_uuid = ?", userUUID).
+		Updates(map[string]interface{}{
+			"pending_email":              nil,
+			"email_change_otp":           nil,
+			"email_change_otp_expires_at": nil,
+		}).Error
+}
+
+func (r *userRepository) UpdateEmail(userUUID uuid.UUID, email string) error {
+	return r.DB().Model(&model.User{}).
+		Where("user_uuid = ?", userUUID).
+		Update("email", email).Error
+}
+
+func (r *userRepository) UpdateUsername(userUUID uuid.UUID, username string) error {
+	return r.DB().Model(&model.User{}).
+		Where("user_uuid = ?", userUUID).
+		Update("username", username).Error
+}
+
+func (r *userRepository) FindByPendingEmail(email string) (*model.User, error) {
+	var user model.User
+	err := r.DB().
+		Where("pending_email = ?", email).
+		First(&user).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &user, nil
 }
 
 func (r *userRepository) FindPaginated(filter UserRepositoryGetFilter) (*PaginationResult[model.User], error) {

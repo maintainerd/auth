@@ -55,6 +55,10 @@ func UserRoute(
 		r.With(middleware.PermissionMiddleware([]string{"user:delete"})).
 			Delete("/{user_uuid}", userHandler.DeleteUser)
 
+		// Force password change on next login
+		r.With(middleware.PermissionMiddleware([]string{"user:update"})).
+			Put("/{user_uuid}/force-password-change", userHandler.ForcePasswordChange)
+
 		// Role management
 		// Get user roles
 		r.With(middleware.PermissionMiddleware([]string{"user:read"})).

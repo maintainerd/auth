@@ -766,6 +766,10 @@ func (m *mockUserService) FindBySubAndClientID(_ context.Context, sub, clientID 
 	return nil, nil
 }
 
+func (m *mockUserService) ForcePasswordChange(_ context.Context, _ uuid.UUID, _ bool) error {
+	return nil
+}
+
 // ---------------------------------------------------------------------------
 // mockProfileService
 // ---------------------------------------------------------------------------

@@ -8,11 +8,11 @@ func CreateAPIKeyAPITable(db *gorm.DB) error {
 	sql := `
 -- CREATE TABLE
 CREATE TABLE IF NOT EXISTS api_key_apis (
-    api_key_api_id   		SERIAL PRIMARY KEY,
-    api_key_api_uuid		UUID NOT NULL UNIQUE,
-    api_key_id              INTEGER NOT NULL,
-    api_id                  INTEGER NOT NULL,
-    created_at              TIMESTAMPTZ DEFAULT now()
+    api_key_api_id   BIGSERIAL PRIMARY KEY,
+    api_key_api_uuid UUID NOT NULL UNIQUE,
+    api_key_id       BIGINT NOT NULL,
+    api_id           BIGINT NOT NULL,
+    created_at       TIMESTAMPTZ DEFAULT now()
 );
 
 -- ADD CONSTRAINTS
@@ -34,7 +34,6 @@ BEGIN
             REFERENCES apis(api_id) ON DELETE CASCADE;
     END IF;
 
-    -- Add unique constraint to prevent duplicate api_key + api combinations
     IF NOT EXISTS (
         SELECT 1 FROM pg_constraint WHERE conname = 'uq_api_key_apis_key_api'
     ) THEN

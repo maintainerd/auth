@@ -8,6 +8,11 @@ import (
 	"gorm.io/gorm"
 )
 
+// Profile holds biographical/PII data for a user. Multiple profiles per user
+// are supported (is_default marks the active one). Removed columns:
+//   - email     → use users.email
+//   - timezone  → use user_settings.timezone
+//   - language  → use user_settings.locale
 type Profile struct {
 	ProfileID   int64     `gorm:"column:profile_id;primaryKey"`
 	ProfileUUID uuid.UUID `gorm:"column:profile_uuid;unique;not null"`
@@ -26,30 +31,39 @@ type Profile struct {
 
 	// Personal Information
 	Birthdate *time.Time `gorm:"column:birthdate"`
-	Gender    *string    `gorm:"column:gender"` // 'male', 'female', 'other', 'prefer_not_to_say'
+	Gender    *string    `gorm:"column:gender"`
 
-	// Contact Information
+	// Contact Information (profile-level contact, distinct from users.phone which is the login phone)
 	Phone   *string `gorm:"column:phone"`
-	Email   *string `gorm:"column:email"`
 	Address *string `gorm:"column:address"`
 
-	// Location Information
-	City    *string `gorm:"column:city"`    // Current city
-	Country *string `gorm:"column:country"` // ISO 3166-1 alpha-2 code (US, PH, etc.)
+	// Email is NOT persisted on profiles — it lives in users.email.
+	// Kept as a transient field for API compatibility.
+	Email *string `gorm:"-"`
 
-	// Preference
-	Timezone *string `gorm:"column:timezone"` // User timezone (e.g., America/New_York, Europe/London)
-	Language *string `gorm:"column:language"` // ISO 639-1 language code (e.g., en, es, fr)
+	// Location Information
+	City    *string `gorm:"column:city"`
+	Country *string `gorm:"column:country"`
+
+	// Timezone/Language are NOT persisted on profiles — they live in user_settings.
+	// Kept as transient fields for API compatibility (Language maps to user_settings.locale).
+	Timezone *string `gorm:"-"`
+	Language *string `gorm:"-"`
 
 	// Media & Assets (auth-centric)
-	ProfileURL *string `gorm:"column:profile_url"` // User profile picture
+	ProfileURL *string `gorm:"column:profile_url"`
 
 	// Extended data
 	Metadata datatypes.JSON `gorm:"column:metadata;type:jsonb;default:'{}'"`
 
+	// Audit
+	CreatedBy *int64 `gorm:"column:created_by"`
+	UpdatedBy *int64 `gorm:"column:updated_by"`
+
 	// System Fields
-	CreatedAt time.Time `gorm:"column:created_at;autoCreateTime"`
-	UpdatedAt time.Time `gorm:"column:updated_at;autoUpdateTime"`
+	CreatedAt time.Time      `gorm:"column:created_at;autoCreateTime"`
+	UpdatedAt time.Time      `gorm:"column:updated_at;autoUpdateTime"`
+	DeletedAt gorm.DeletedAt `gorm:"column:deleted_at;index"`
 
 	// Relationships
 	User *User `gorm:"foreignKey:UserID;references:UserID"`

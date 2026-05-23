@@ -24,8 +24,11 @@ type WebhookEndpoint struct {
 	Description         string         `gorm:"column:description;type:text" json:"description"`
 	Metadata            datatypes.JSON `gorm:"column:metadata;type:jsonb;default:'{}'" json:"metadata"`
 	LastTriggeredAt     *time.Time     `gorm:"column:last_triggered_at" json:"last_triggered_at"`
+	CreatedBy           *int64         `gorm:"column:created_by" json:"created_by,omitempty"`
+	UpdatedBy           *int64         `gorm:"column:updated_by" json:"updated_by,omitempty"`
 	CreatedAt           time.Time      `gorm:"column:created_at;autoCreateTime" json:"created_at"`
 	UpdatedAt           time.Time      `gorm:"column:updated_at;autoUpdateTime" json:"updated_at"`
+	DeletedAt           gorm.DeletedAt `gorm:"column:deleted_at;index" json:"deleted_at,omitempty"`
 
 	// Relationships
 	Tenant *Tenant `gorm:"foreignKey:TenantID;references:TenantID"`

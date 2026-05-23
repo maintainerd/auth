@@ -6,22 +6,22 @@ import (
 
 // CreateSecuritySettingsAuditTable creates the security_settings_audit table
 // for tracking changes to pool-level security configuration.
+// Append-only log — no soft delete, no updated_at.
 func CreateSecuritySettingsAuditTable(db *gorm.DB) error {
 	sql := `
 -- CREATE TABLE
 CREATE TABLE IF NOT EXISTS security_settings_audit (
-    security_settings_audit_id   SERIAL PRIMARY KEY,
+    security_settings_audit_id   BIGSERIAL PRIMARY KEY,
     security_settings_audit_uuid UUID NOT NULL UNIQUE,
-    user_pool_id                 INTEGER NOT NULL,
-    security_setting_id          INTEGER NOT NULL,
+    user_pool_id                 BIGINT NOT NULL,
+    security_setting_id          BIGINT NOT NULL,
     change_type                  VARCHAR(50) NOT NULL,
     old_config                   JSONB,
     new_config                   JSONB,
-    ip_address                   VARCHAR(50),
+    ip_address                   INET,
     user_agent                   TEXT,
-    created_by                   INTEGER,
-    created_at                   TIMESTAMPTZ DEFAULT now(),
-    updated_at                   TIMESTAMPTZ DEFAULT now()
+    created_by                   BIGINT,
+    created_at                   TIMESTAMPTZ DEFAULT now()
 );
 
 -- ADD CONSTRAINTS

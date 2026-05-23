@@ -10,9 +10,9 @@ func CreateEmailConfigTable(db *gorm.DB) error {
 	sql := `
 -- CREATE TABLE
 CREATE TABLE IF NOT EXISTS email_config (
-    email_config_id     SERIAL PRIMARY KEY,
+    email_config_id     BIGSERIAL PRIMARY KEY,
     email_config_uuid   UUID NOT NULL UNIQUE,
-    tenant_id           INTEGER NOT NULL,
+    tenant_id           BIGINT NOT NULL,
     provider            VARCHAR(50) NOT NULL,
     host                VARCHAR(255),
     port                INTEGER,
@@ -25,8 +25,11 @@ CREATE TABLE IF NOT EXISTS email_config (
     test_mode           BOOLEAN NOT NULL DEFAULT false,
     status              VARCHAR(20) NOT NULL DEFAULT 'active',
     metadata            JSONB DEFAULT '{}',
+    created_by          BIGINT,
+    updated_by          BIGINT,
     created_at          TIMESTAMPTZ DEFAULT now(),
-    updated_at          TIMESTAMPTZ DEFAULT now()
+    updated_at          TIMESTAMPTZ DEFAULT now(),
+    deleted_at          TIMESTAMPTZ
 );
 
 -- ADD CONSTRAINTS
@@ -67,6 +70,7 @@ CREATE INDEX IF NOT EXISTS idx_email_config_uuid ON email_config (email_config_u
 CREATE INDEX IF NOT EXISTS idx_email_config_tenant_id ON email_config (tenant_id);
 CREATE INDEX IF NOT EXISTS idx_email_config_status ON email_config (status);
 CREATE INDEX IF NOT EXISTS idx_email_config_created_at ON email_config (created_at);
+CREATE INDEX IF NOT EXISTS idx_email_config_deleted_at ON email_config (deleted_at) WHERE deleted_at IS NULL;
 `
 
 	return db.Exec(sql).Error

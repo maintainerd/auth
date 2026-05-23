@@ -8,16 +8,16 @@ func CreateUserIdentityTable(db *gorm.DB) error {
 	sql := `
 -- CREATE TABLE
 CREATE TABLE IF NOT EXISTS user_identities (
-    user_identity_id    SERIAL PRIMARY KEY,
+    user_identity_id    BIGSERIAL PRIMARY KEY,
     user_identity_uuid  UUID NOT NULL UNIQUE,
-	tenant_id           INTEGER NOT NULL,
-	user_id             INTEGER NOT NULL,
-    client_id      INTEGER NOT NULL,
-	sub                 VARCHAR(255) NOT NULL, -- external subject (user identifier from provider)
-    provider            VARCHAR(100) NOT NULL, -- 'google', 'cognito', 'microsoft'
-    metadata           	JSONB,
+    tenant_id           BIGINT NOT NULL,
+    user_id             BIGINT NOT NULL,
+    client_id           BIGINT NOT NULL,
+    sub                 VARCHAR(255) NOT NULL,
+    provider            VARCHAR(100) NOT NULL,
+    metadata            JSONB,
     created_at          TIMESTAMPTZ DEFAULT now(),
-	updated_at          TIMESTAMPTZ DEFAULT now()
+    updated_at          TIMESTAMPTZ DEFAULT now()
 );
 
 -- ADD CONSTRAINTS
@@ -45,6 +45,13 @@ BEGIN
         ALTER TABLE user_identities
             ADD CONSTRAINT fk_user_identities_tenant FOREIGN KEY (tenant_id)
             REFERENCES tenants(tenant_id) ON DELETE CASCADE;
+    END IF;
+
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint WHERE conname = 'uq_user_identities_provider_sub'
+    ) THEN
+        ALTER TABLE user_identities
+            ADD CONSTRAINT uq_user_identities_provider_sub UNIQUE (provider, sub);
     END IF;
 END$$;
 

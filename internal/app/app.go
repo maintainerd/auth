@@ -54,6 +54,8 @@ type App struct {
 	OAuthSessionService        service.OAuthSessionService
 	OAuthCIBAService           service.OAuthCIBAService
 	OAuthRegisterService       service.OAuthRegisterService
+	AccountService             service.AccountService
+	SMSLoginService            service.SMSLoginService
 }
 
 // NewApp wires the full dependency graph in two focused steps:
@@ -113,5 +115,7 @@ func NewApp(db *gorm.DB, redisClient *redis.Client) *App {
 		OAuthSessionService:       s.oauthSessionService,
 		OAuthCIBAService:          s.oauthCIBAService,
 		OAuthRegisterService:      s.oauthRegisterService,
+		AccountService:            s.accountService,
+		SMSLoginService:           s.smsLoginService,
 	}
 }

@@ -8,11 +8,11 @@ func CreateServicePoliciesTable(db *gorm.DB) error {
 	sql := `
 -- CREATE TABLE
 CREATE TABLE IF NOT EXISTS service_policies (
-    service_policy_id   	SERIAL PRIMARY KEY,
-    service_policy_uuid 	UUID NOT NULL UNIQUE,
-    service_id          	INTEGER NOT NULL,
-    policy_id           	INTEGER NOT NULL,
-    created_at          	TIMESTAMPTZ DEFAULT now()
+    service_policy_id   BIGSERIAL PRIMARY KEY,
+    service_policy_uuid UUID NOT NULL UNIQUE,
+    service_id          BIGINT NOT NULL,
+    policy_id           BIGINT NOT NULL,
+    created_at          TIMESTAMPTZ DEFAULT now()
 );
 
 -- ADD CONSTRAINTS

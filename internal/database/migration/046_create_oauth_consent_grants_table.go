@@ -13,9 +13,9 @@ func CreateOAuthConsentGrantsTable(db *gorm.DB) error {
 CREATE TABLE IF NOT EXISTS oauth_consent_grants (
     oauth_consent_grant_id   BIGSERIAL     PRIMARY KEY,
     oauth_consent_grant_uuid UUID          NOT NULL DEFAULT gen_random_uuid() UNIQUE,
-    user_id                  INTEGER       NOT NULL,
-    client_id                INTEGER       NOT NULL,
-    tenant_id                INTEGER       NOT NULL,
+    user_id                  BIGINT        NOT NULL,
+    client_id                BIGINT        NOT NULL,
+    tenant_id                BIGINT        NOT NULL,
     scopes                   TEXT          NOT NULL DEFAULT '',
     created_at               TIMESTAMPTZ   NOT NULL DEFAULT NOW(),
     updated_at               TIMESTAMPTZ   NOT NULL DEFAULT NOW(),

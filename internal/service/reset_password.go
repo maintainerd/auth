@@ -123,7 +123,8 @@ func (s *resetPasswordService) ResetPassword(ctx context.Context, token, newPass
 
 		// Update user password using the base repository method
 		_, txErr = txUserRepo.UpdateByID(user.UserID, map[string]any{
-			"password": string(hashedPassword),
+			"password":             string(hashedPassword),
+			"force_password_change": false,
 		})
 		if txErr != nil {
 			return apperror.NewInternal("failed to update password", txErr)

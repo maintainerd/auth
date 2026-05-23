@@ -8,11 +8,11 @@ func CreateTenantServicesTable(db *gorm.DB) error {
 	sql := `
 -- CREATE TABLE
 CREATE TABLE IF NOT EXISTS tenant_services (
-    tenant_service_id   	SERIAL PRIMARY KEY,
-    tenant_id           	INTEGER NOT NULL,
-    service_id          	INTEGER NOT NULL,
-    created_at          	TIMESTAMPTZ DEFAULT now(),
-    updated_at          	TIMESTAMPTZ DEFAULT now()
+    tenant_service_id   BIGSERIAL PRIMARY KEY,
+    tenant_id           BIGINT NOT NULL,
+    service_id          BIGINT NOT NULL,
+    created_at          TIMESTAMPTZ DEFAULT now(),
+    updated_at          TIMESTAMPTZ DEFAULT now()
 );
 
 -- ADD CONSTRAINTS

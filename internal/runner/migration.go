@@ -75,6 +75,8 @@ var migrations = []migrationEntry{
 	{"048_create_oauth_par_requests_table", migration.CreateOAuthPARRequestsTable},
 	{"049_create_oauth_device_codes_table", migration.CreateOAuthDeviceCodesTable},
 	{"050_create_oauth_ciba_requests_table", migration.CreateOAuthCIBARequestsTable},
+	{"051_create_sms_otps_table", migration.CreateSMSOtpsTable},
+	{"052_create_user_backup_codes_table", migration.CreateUserBackupCodesTable},
 }
 
 // RunMigrations bootstraps the schema_migrations tracking table, acquires a
