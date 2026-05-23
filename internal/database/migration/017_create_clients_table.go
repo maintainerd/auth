@@ -46,6 +46,15 @@ CREATE TABLE IF NOT EXISTS clients (
     -- mTLS client auth (RFC 8705): expected certificate SHA-256 thumbprint.
     mtls_bound_cert_thumbprint TEXT,
 
+    -- Scope-to-claim mapping: maps scope names to OIDC claim names to include in tokens.
+    -- Format: {"email": ["email", "email_verified"], "profile": ["given_name", "family_name"]}
+    -- When null, the standard OIDC default mapping applies.
+    scope_claim_mappings       JSONB,
+
+    -- Custom claim mappers: static or metadata-derived claims injected into tokens per client/tenant.
+    -- Format: {"claim_name": "static_value", "org_id": "{{user.metadata.org_id}}"}
+    claim_mappers              JSONB,
+
     created_by              BIGINT,
     updated_by              BIGINT,
     created_at              TIMESTAMPTZ DEFAULT now(),

@@ -504,7 +504,7 @@ func (s *loginService) generateTokenResponse(sub string, user *model.User, Clien
 	}
 
 	// Generate ID token with user profile (no nonce for login flow)
-	idToken, err := generateIDTokenFn(sub, *Client.Domain, *Client.Identifier, Client.IdentityProvider.Identifier, profile, "")
+	idToken, err := generateIDTokenFn(sub, *Client.Domain, *Client.Identifier, Client.IdentityProvider.Identifier, profile, "", nil)
 	if err != nil {
 		return nil, err
 	}

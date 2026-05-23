@@ -72,6 +72,9 @@ func main() {
 	// ⚙️ App wiring (handlers, services, etc.)
 	application := app.NewApp(db, redisClient)
 
+	// Wire the JTI denylist checker so ValidateToken rejects revoked access tokens.
+	jwt.JTIChecker = application.Cache.IsJTIDenied
+
 	// Create a cancellable context for background workers.
 	// It is cancelled after the REST servers have drained so that background
 	// goroutines also shut down gracefully when an OS signal is received.

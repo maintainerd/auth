@@ -73,6 +73,14 @@ type Client struct {
 	// mTLS client auth (RFC 8705) — SHA-256 fingerprint of the expected certificate
 	MTLSBoundCertThumbprint *string `gorm:"column:mtls_bound_cert_thumbprint"`
 
+	// Scope-to-claim mapping: overrides default OIDC scope → claims table per client.
+	// Stored as {"scope": ["claim1", "claim2"]}.
+	ScopeClaimMappings datatypes.JSON `gorm:"column:scope_claim_mappings;type:jsonb"`
+
+	// ClaimMappers: static or metadata-derived extra claims injected into tokens.
+	// Stored as {"claim_name": "static_value"}.
+	ClaimMappers datatypes.JSON `gorm:"column:claim_mappers;type:jsonb"`
+
 	// Relationships
 	IdentityProvider *IdentityProvider `gorm:"foreignKey:IdentityProviderID;references:IdentityProviderID"`
 	ClientURIs       *[]ClientURI      `gorm:"foreignKey:ClientID;references:ClientID"`

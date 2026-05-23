@@ -195,7 +195,7 @@ func (s *smsLoginService) generateSMSTokenResponse(sub string, user *model.User,
 		PhoneVerified: user.IsPhoneVerified,
 	}
 
-	idToken, err := generateIDTokenFn(sub, *client.Domain, *client.Identifier, client.IdentityProvider.Identifier, profile, "")
+	idToken, err := generateIDTokenFn(sub, *client.Domain, *client.Identifier, client.IdentityProvider.Identifier, profile, "", nil)
 	if err != nil {
 		return nil, err
 	}

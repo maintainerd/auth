@@ -43,6 +43,12 @@ var (
 	publicKey  *rsa.PublicKey
 )
 
+// JTIChecker is called during ValidateToken to check whether a token's JTI
+// has been added to the denylist (e.g. by an explicit revocation call).
+// Set this at startup: jwt.JTIChecker = cache.IsJTIDenied
+// When nil, no denylist check is performed (tokens are validated purely by signature + expiry).
+var JTIChecker func(ctx context.Context, jti string) (bool, error)
+
 // GetPublicKey returns the parsed RSA public key used for JWT verification.
 // Returns nil if InitJWTKeys has not been called.
 func GetPublicKey() *rsa.PublicKey {
@@ -112,6 +118,16 @@ func ResetJWTKeys() {
 	publicKey = nil
 }
 
+// AccessTokenOptions carries optional per-issuance parameters for access tokens.
+type AccessTokenOptions struct {
+	// DPoPThumbprint is the RFC 7638 JWK thumbprint of the client's DPoP key.
+	// When non-empty, the token will contain a cnf.jkt claim and must be
+	// presented with a matching DPoP proof on each resource request (RFC 9449).
+	DPoPThumbprint string
+}
+
+// GenerateAccessToken is the standard (Bearer) entry point for access token
+// issuance. Use GenerateAccessTokenWithOptions when DPoP binding is needed.
 func GenerateAccessToken(
 	userId string,
 	scope string,
@@ -119,6 +135,20 @@ func GenerateAccessToken(
 	audience string,
 	clientID string,
 	providerID string,
+) (string, error) {
+	return GenerateAccessTokenWithOptions(userId, scope, issuer, audience, clientID, providerID, nil)
+}
+
+// GenerateAccessTokenWithOptions issues an access token and optionally binds
+// it to a DPoP key via the cnf.jkt claim (RFC 9449 §6.1).
+func GenerateAccessTokenWithOptions(
+	userId string,
+	scope string,
+	issuer string,
+	audience string,
+	clientID string,
+	providerID string,
+	opts *AccessTokenOptions,
 ) (string, error) {
 	_, span := otel.Tracer("jwt").Start(context.Background(), "jwt.generate_access_token")
 	defer span.End()
@@ -173,6 +203,12 @@ func GenerateAccessToken(
 		"provider_id": providerID,
 	}
 
+	// Bind to the client's DPoP key when a thumbprint was provided (RFC 9449 §6.1).
+	if opts != nil && opts.DPoPThumbprint != "" {
+		claims["cnf"] = map[string]string{"jkt": opts.DPoPThumbprint}
+		claims["token_type"] = "DPoP"
+	}
+
 	tok, err := generateToken(claims)
 	if err != nil {
 		span.RecordError(err)
@@ -199,9 +235,50 @@ type UserProfile struct {
 	Picture       string `json:"picture,omitempty"`
 }
 
+// defaultScopeClaimMap is the standard OIDC scope → profile claim mapping
+// (OpenID Connect Core 1.0 §5.4). Clients may override this via ScopeClaimMappings.
+var defaultScopeClaimMap = map[string][]string{
+	"profile": {"first_name", "middle_name", "last_name", "suffix", "birthdate", "gender", "picture"},
+	"email":   {"email", "email_verified"},
+	"phone":   {"phone", "phone_verified"},
+	"address": {"address"},
+}
+
+// IDTokenParams carries optional scope-filtering and custom claim data for
+// ID token generation. Pass nil to get the legacy behaviour (all claims).
+type IDTokenParams struct {
+	// RequestedScopes is the set of scopes the client requested.
+	// When non-nil, only claims mapped to these scopes are included.
+	RequestedScopes []string
+	// ScopeClaimMappings overrides defaultScopeClaimMap for this client.
+	ScopeClaimMappings map[string][]string
+	// ExtraClaims are static custom claims merged into the token last.
+	ExtraClaims map[string]any
+}
+
+// buildAllowedClaimsSet returns the set of profile claim names that should be
+// included based on the requested scopes and the client's mapping config.
+// Returns nil when all claims should be included (params == nil).
+func buildAllowedClaimsSet(params *IDTokenParams) map[string]struct{} {
+	if params == nil || len(params.RequestedScopes) == 0 {
+		return nil // include everything
+	}
+	mapping := defaultScopeClaimMap
+	if params.ScopeClaimMappings != nil {
+		mapping = params.ScopeClaimMappings
+	}
+	allowed := make(map[string]struct{})
+	for _, scope := range params.RequestedScopes {
+		for _, claim := range mapping[scope] {
+			allowed[claim] = struct{}{}
+		}
+	}
+	return allowed
+}
+
 var GenerateIDToken = generateIDToken
 
-func generateIDToken(userUUID, issuer, clientID, providerID string, profile *UserProfile, nonce string) (string, error) {
+func generateIDToken(userUUID, issuer, clientID, providerID string, profile *UserProfile, nonce string, params *IDTokenParams) (string, error) {
 	_, span := otel.Tracer("jwt").Start(context.Background(), "jwt.generate_id_token")
 	defer span.End()
 	span.SetAttributes(
@@ -253,39 +330,60 @@ func generateIDToken(userUUID, issuer, clientID, providerID string, profile *Use
 		claims["nonce"] = nonce
 	}
 
-	// Add profile claims if provided (avoid hardcoded data)
+	// Build the set of allowed profile claims based on requested scopes.
+	allowedClaims := buildAllowedClaimsSet(params)
+
+	// addClaim adds a claim only when it passes the scope-filter.
+	addClaim := func(name string, value any) {
+		if allowedClaims == nil {
+			claims[name] = value
+			return
+		}
+		if _, ok := allowedClaims[name]; ok {
+			claims[name] = value
+		}
+	}
+
+	// Add profile claims filtered by the requested scopes.
 	if profile != nil {
 		if profile.Email != "" {
-			claims["email"] = profile.Email
-			claims["email_verified"] = profile.EmailVerified
+			addClaim("email", profile.Email)
+			addClaim("email_verified", profile.EmailVerified)
 		}
 		if profile.Phone != "" {
-			claims["phone"] = profile.Phone
-			claims["phone_verified"] = profile.PhoneVerified
+			addClaim("phone", profile.Phone)
+			addClaim("phone_verified", profile.PhoneVerified)
 		}
 		if profile.FirstName != "" {
-			claims["first_name"] = profile.FirstName
+			addClaim("first_name", profile.FirstName)
 		}
 		if profile.MiddleName != "" {
-			claims["middle_name"] = profile.MiddleName
+			addClaim("middle_name", profile.MiddleName)
 		}
 		if profile.LastName != "" {
-			claims["last_name"] = profile.LastName
+			addClaim("last_name", profile.LastName)
 		}
 		if profile.Suffix != "" {
-			claims["suffix"] = profile.Suffix
+			addClaim("suffix", profile.Suffix)
 		}
 		if profile.Birthdate != "" {
-			claims["birthdate"] = profile.Birthdate
+			addClaim("birthdate", profile.Birthdate)
 		}
 		if profile.Gender != "" {
-			claims["gender"] = profile.Gender
+			addClaim("gender", profile.Gender)
 		}
 		if profile.Address != "" {
-			claims["address"] = profile.Address
+			addClaim("address", profile.Address)
 		}
 		if profile.Picture != "" {
-			claims["picture"] = profile.Picture
+			addClaim("picture", profile.Picture)
+		}
+	}
+
+	// Merge custom claim mappers last (they may override profile claims).
+	if params != nil {
+		for k, v := range params.ExtraClaims {
+			claims[k] = v
 		}
 	}
 
@@ -435,6 +533,22 @@ func ValidateToken(tokenString string) (jwtlib.MapClaims, error) {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "token claims validation failed")
 		return nil, fmt.Errorf("token validation failed: %w", err)
+	}
+
+	// JTI denylist check — rejects explicitly revoked access tokens.
+	if JTIChecker != nil {
+		if jti, ok := claims["jti"].(string); ok && jti != "" {
+			denied, checkErr := JTIChecker(context.Background(), jti)
+			if checkErr != nil {
+				span.RecordError(checkErr)
+				span.SetStatus(codes.Error, "jti denylist check failed")
+				return nil, fmt.Errorf("token revocation check failed: %w", checkErr)
+			}
+			if denied {
+				span.SetStatus(codes.Error, "token revoked")
+				return nil, errors.New("token has been revoked")
+			}
+		}
 	}
 
 	span.SetStatus(codes.Ok, "")

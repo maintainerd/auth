@@ -17,6 +17,9 @@ const (
 	// userContextPrefix is the key prefix for cached user context entries.
 	userContextPrefix = "user:"
 
+	// jtiDenylistPrefix is the key prefix for revoked access token JTIs.
+	jtiDenylistPrefix = "jti:deny:"
+
 	// UserContextTTL is how long a user context entry stays in cache.
 	UserContextTTL = 10 * time.Minute
 
@@ -93,6 +96,49 @@ func (c *Cache) SetUserContext(ctx context.Context, sub, clientID string, uc *Us
 	}
 	_ = c.rdb.Set(ctx, userContextKey(sub, clientID), data, UserContextTTL).Err()
 	span.SetStatus(codes.Ok, "")
+}
+
+// ---------------------------------------------------------------------------
+// JTI denylist — access token revocation
+// ---------------------------------------------------------------------------
+
+// jtiDenylistKey builds the Redis key for a denied JTI.
+func jtiDenylistKey(jti string) string {
+	return jtiDenylistPrefix + jti
+}
+
+// DenyJTI adds a JTI to the denylist with the given TTL.
+// Call this when an access token is explicitly revoked.
+func (c *Cache) DenyJTI(ctx context.Context, jti string, ttl time.Duration) error {
+	_, span := otel.Tracer("cache").Start(ctx, "cache.deny_jti")
+	defer span.End()
+	span.SetAttributes(attribute.String("jti", jti))
+
+	if err := c.rdb.Set(ctx, jtiDenylistKey(jti), "1", ttl).Err(); err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "jti deny failed")
+		return err
+	}
+	span.SetStatus(codes.Ok, "")
+	return nil
+}
+
+// IsJTIDenied reports whether a JTI has been revoked. Returns false on Redis
+// errors so that a cache outage does not break token validation.
+func (c *Cache) IsJTIDenied(ctx context.Context, jti string) (bool, error) {
+	_, span := otel.Tracer("cache").Start(ctx, "cache.is_jti_denied")
+	defer span.End()
+	span.SetAttributes(attribute.String("jti", jti))
+
+	result, err := c.rdb.Exists(ctx, jtiDenylistKey(jti)).Result()
+	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "jti check failed")
+		return false, err
+	}
+	denied := result > 0
+	span.SetStatus(codes.Ok, "")
+	return denied, nil
 }
 
 // ---------------------------------------------------------------------------
@@ -180,6 +226,27 @@ func (NopInvalidator) InvalidateAllUsers(context.Context)             {}
 
 // Compile-time check.
 var _ Invalidator = NopInvalidator{}
+
+// JTIDenylister is the interface consumed by JWT validation and token
+// revocation to manage the access-token denylist.
+type JTIDenylister interface {
+	// DenyJTI adds the JTI to the denylist for the given TTL.
+	DenyJTI(ctx context.Context, jti string, ttl time.Duration) error
+	// IsJTIDenied reports whether the JTI has been revoked.
+	IsJTIDenied(ctx context.Context, jti string) (bool, error)
+}
+
+// Compile-time check that *Cache satisfies JTIDenylister.
+var _ JTIDenylister = (*Cache)(nil)
+
+// NopJTIDenylister is a no-op JTIDenylister for use in tests.
+type NopJTIDenylister struct{}
+
+func (NopJTIDenylister) DenyJTI(context.Context, string, time.Duration) error { return nil }
+func (NopJTIDenylister) IsJTIDenied(context.Context, string) (bool, error)    { return false, nil }
+
+// Compile-time check.
+var _ JTIDenylister = NopJTIDenylister{}
 
 // ---------------------------------------------------------------------------
 // Key helpers (exported for middleware)

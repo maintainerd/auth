@@ -624,7 +624,7 @@ func (s *oauthTokenService) generateTokens(ctx context.Context, sub string, user
 		PhoneVerified: user.IsPhoneVerified,
 	}
 
-	idToken, err := jwt.GenerateIDToken(sub, issuer, identifier, providerID, profile, nonceStr)
+	idToken, err := jwt.GenerateIDToken(sub, issuer, identifier, providerID, profile, nonceStr, nil)
 	if err != nil {
 		return nil, apperror.NewOAuthServerError("an unexpected error occurred")
 	}

@@ -760,7 +760,7 @@ func (s *registerService) generateTokenResponse(sub string, user *model.User, Cl
 	}
 
 	// Generate ID token with user profile (no nonce for registration flow)
-	idToken, err := jwt.GenerateIDToken(sub, *Client.Domain, *Client.Identifier, Client.IdentityProvider.Identifier, profile, "")
+	idToken, err := jwt.GenerateIDToken(sub, *Client.Domain, *Client.Identifier, Client.IdentityProvider.Identifier, profile, "", nil)
 	if err != nil {
 		return nil, err
 	}
