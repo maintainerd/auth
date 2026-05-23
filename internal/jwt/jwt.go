@@ -254,6 +254,12 @@ type IDTokenParams struct {
 	ScopeClaimMappings map[string][]string
 	// ExtraClaims are static custom claims merged into the token last.
 	ExtraClaims map[string]any
+	// AMR is the list of Authentication Methods References (RFC 8176).
+	// e.g. ["pwd"], ["pwd", "otp"], ["webauthn"]
+	AMR []string
+	// ACR is the Authentication Context Class Reference.
+	// "1" = single-factor, "2" = multi-factor.
+	ACR string
 }
 
 // buildAllowedClaimsSet returns the set of profile claim names that should be
@@ -385,6 +391,13 @@ func generateIDToken(userUUID, issuer, clientID, providerID string, profile *Use
 		for k, v := range params.ExtraClaims {
 			claims[k] = v
 		}
+		// Authentication context claims (OIDC Core §2 + RFC 8176).
+		if len(params.AMR) > 0 {
+			claims["amr"] = params.AMR
+		}
+		if params.ACR != "" {
+			claims["acr"] = params.ACR
+		}
 	}
 
 	tok, err := generateToken(claims)
@@ -481,6 +494,62 @@ func generateToken(claims jwtlib.MapClaims) (string, error) {
 
 // ValidateToken performs comprehensive JWT validation
 // Complies with SOC2 CC6.1, CC6.3 and ISO27001 A.9.4.2
+// ──────────────────────────────────────────────────────────────────────────────
+// Step-up challenge tokens (short-lived, MFA re-auth)
+// ──────────────────────────────────────────────────────────────────────────────
+
+// GenerateStepUpChallengeToken issues a short-lived signed JWT used as a
+// step-up challenge handle. The token encodes the user's UUID so the MFA
+// endpoint can cross-check it against the authenticated session.
+func GenerateStepUpChallengeToken(userUUID string, ttl time.Duration) (string, error) {
+	jti := generateSecureJTI()
+	now := time.Now()
+	claims := jwtlib.MapClaims{
+		"sub": userUUID,
+		"jti": jti,
+		"typ": "step_up_challenge",
+		"iat": jwtlib.NewNumericDate(now),
+		"exp": jwtlib.NewNumericDate(now.Add(ttl)),
+	}
+	tok, err := generateToken(claims)
+	if err != nil {
+		return "", fmt.Errorf("step-up challenge token: %w", err)
+	}
+	return tok, nil
+}
+
+// ValidateStepUpChallengeToken validates a step-up challenge token and returns
+// its claims. Returns an error when expired, wrong type, or signature invalid.
+func ValidateStepUpChallengeToken(tokenString string) (jwtlib.MapClaims, error) {
+	claims, err := ValidateToken(tokenString)
+	if err != nil {
+		return nil, err
+	}
+	if typ, _ := claims["typ"].(string); typ != "step_up_challenge" {
+		return nil, errors.New("token is not a step-up challenge token")
+	}
+	return claims, nil
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// acr / amr helpers
+// ──────────────────────────────────────────────────────────────────────────────
+
+// AMRValues contains the standard Authentication Methods References.
+const (
+	AMRPassword  = "pwd"
+	AMROTP       = "otp"
+	AMRMFA       = "mfa"
+	AMRWebAuthn  = "webauthn"
+	AMRSMS       = "sms"
+)
+
+// ACRLevel1 is the ACR value for single-factor authentication (password only).
+const ACRLevel1 = "1"
+
+// ACRLevel2 is the ACR value for multi-factor authentication.
+const ACRLevel2 = "2"
+
 func ValidateToken(tokenString string) (jwtlib.MapClaims, error) {
 	_, span := otel.Tracer("jwt").Start(context.Background(), "jwt.validate_token")
 	defer span.End()
