@@ -11,9 +11,13 @@ import (
 
 // TokenEndpointAuthMethod constants for the token_endpoint_auth_method column.
 const (
-	TokenAuthMethodSecretBasic = "client_secret_basic"
-	TokenAuthMethodSecretPost  = "client_secret_post"
-	TokenAuthMethodNone        = "none"
+	TokenAuthMethodSecretBasic           = "client_secret_basic"
+	TokenAuthMethodSecretPost            = "client_secret_post"
+	TokenAuthMethodNone                  = "none"
+	TokenAuthMethodPrivateKeyJWT         = "private_key_jwt"
+	TokenAuthMethodClientSecretJWT       = "client_secret_jwt"
+	TokenAuthMethodTLSClientAuth         = "tls_client_auth"
+	TokenAuthMethodSelfSignedTLSClientAuth = "self_signed_tls_client_auth"
 )
 
 // OAuth grant type constants.
@@ -40,7 +44,9 @@ type Client struct {
 	ClientType         string         `gorm:"column:client_type"`
 	Domain             *string        `gorm:"column:domain"`
 	Identifier         *string        `gorm:"column:identifier"`
-	Secret             *string        `gorm:"column:secret"`
+	SecretHash             *string        `gorm:"column:secret_hash"`
+	PreviousSecretHash     *string        `gorm:"column:previous_secret_hash"`
+	PreviousSecretExpiresAt *time.Time    `gorm:"column:previous_secret_expires_at"`
 	Config             datatypes.JSON `gorm:"column:config"`
 	Status             string         `gorm:"column:status;default:'inactive'"`
 	IsDefault          bool           `gorm:"column:is_default;default:false"`
@@ -58,6 +64,14 @@ type Client struct {
 	AccessTokenTTL          *int           `gorm:"column:access_token_ttl"`
 	RefreshTokenTTL         *int           `gorm:"column:refresh_token_ttl"`
 	RequireConsent          bool           `gorm:"column:require_consent;default:true"`
+	AllowedScopes           pq.StringArray `gorm:"column:allowed_scopes;type:text[]"`
+
+	// JWT client auth (RFC 7523)
+	JWKS    datatypes.JSON `gorm:"column:jwks;type:jsonb"`
+	JWKSUri *string        `gorm:"column:jwks_uri"`
+
+	// mTLS client auth (RFC 8705) — SHA-256 fingerprint of the expected certificate
+	MTLSBoundCertThumbprint *string `gorm:"column:mtls_bound_cert_thumbprint"`
 
 	// Relationships
 	IdentityProvider *IdentityProvider `gorm:"foreignKey:IdentityProviderID;references:IdentityProviderID"`

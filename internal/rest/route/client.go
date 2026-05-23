@@ -27,6 +27,9 @@ func ClientRoute(
 		r.With(middleware.PermissionMiddleware([]string{"client:secret:read"})).
 			Get("/{client_uuid}/secret", ClientHandler.GetSecretByUUID)
 
+		r.With(middleware.PermissionMiddleware([]string{"client:secret:rotate"})).
+			Post("/{client_uuid}/rotate-secret", ClientHandler.RotateSecret)
+
 		r.With(middleware.PermissionMiddleware([]string{"client:config:read"})).
 			Get("/{client_uuid}/config", ClientHandler.GetConfigByUUID)
 

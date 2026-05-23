@@ -17,7 +17,12 @@ CREATE TABLE IF NOT EXISTS clients (
     client_type             VARCHAR(100) NOT NULL,
     domain                  TEXT,
     identifier              TEXT,
-    secret                  TEXT,
+
+    -- Secret storage: bcrypt hash of current secret; plaintext never persisted.
+    secret_hash                  TEXT,
+    previous_secret_hash         TEXT,
+    previous_secret_expires_at   TIMESTAMPTZ,
+
     config                  JSONB,
     status                  VARCHAR(20) DEFAULT 'inactive',
     is_default              BOOLEAN DEFAULT FALSE,
@@ -31,6 +36,16 @@ CREATE TABLE IF NOT EXISTS clients (
     refresh_token_ttl          INTEGER,
     require_consent            BOOLEAN      NOT NULL DEFAULT TRUE,
 
+    -- Per-client scope allowlist (empty = all scopes permitted).
+    allowed_scopes             TEXT[]       NOT NULL DEFAULT '{}',
+
+    -- JWT client auth (RFC 7523): embedded JWKS or URI for private_key_jwt / client_secret_jwt.
+    jwks                       JSONB,
+    jwks_uri                   TEXT,
+
+    -- mTLS client auth (RFC 8705): expected certificate SHA-256 thumbprint.
+    mtls_bound_cert_thumbprint TEXT,
+
     created_by              BIGINT,
     updated_by              BIGINT,
     created_at              TIMESTAMPTZ DEFAULT now(),
@@ -38,7 +53,11 @@ CREATE TABLE IF NOT EXISTS clients (
     deleted_at              TIMESTAMPTZ,
 
     CONSTRAINT chk_clients_token_auth_method CHECK (
-        token_endpoint_auth_method IN ('client_secret_basic', 'client_secret_post', 'none')
+        token_endpoint_auth_method IN (
+            'client_secret_basic', 'client_secret_post', 'none',
+            'private_key_jwt', 'client_secret_jwt',
+            'tls_client_auth', 'self_signed_tls_client_auth'
+        )
     )
 );
 

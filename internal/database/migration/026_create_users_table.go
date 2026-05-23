@@ -45,9 +45,9 @@ DO $$
 DECLARE
     t TEXT;
     tables TEXT[] := ARRAY[
-        'tenants', 'branding', 'email_config', 'sms_config', 'webhook_endpoints',
-        'services', 'policies', 'apis', 'permissions', 'identity_providers',
-        'clients', 'api_keys', 'roles'
+        'tenants', 'user_pools', 'branding', 'email_config', 'sms_config',
+        'webhook_endpoints', 'services', 'policies', 'apis', 'permissions',
+        'identity_providers', 'clients', 'api_keys', 'roles'
     ];
 BEGIN
     FOREACH t IN ARRAY tables LOOP

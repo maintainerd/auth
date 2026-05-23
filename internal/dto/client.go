@@ -16,6 +16,27 @@ type ClientSecretResponseDTO struct {
 	ClientSecret *string `json:"client_secret"`
 }
 
+// ClientCreateSecretResponseDTO is returned exactly once at client creation.
+// The plaintext secret is never stored and cannot be retrieved again.
+type ClientCreateSecretResponseDTO struct {
+	ClientUUID   string `json:"client_uuid"`
+	ClientID     string `json:"client_id"`
+	ClientSecret string `json:"client_secret"`
+}
+
+// RotateSecretRequestDTO controls secret rotation behaviour.
+type RotateSecretRequestDTO struct {
+	// GracePeriodHours keeps the old secret valid for this many hours (0 = revoke immediately).
+	GracePeriodHours int `json:"grace_period_hours"`
+}
+
+// RotateSecretResponseDTO is returned exactly once after rotation.
+type RotateSecretResponseDTO struct {
+	ClientID                  string  `json:"client_id"`
+	ClientSecret              string  `json:"client_secret"`
+	PreviousSecretExpiresAt   *string `json:"previous_secret_expires_at,omitempty"`
+}
+
 type ClientURIResponseDTO struct {
 	ClientURIUUID uuid.UUID `json:"uri_id"`
 	URI           string    `json:"uri"`
