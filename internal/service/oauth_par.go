@@ -12,6 +12,7 @@ import (
 	"github.com/maintainerd/auth/internal/model"
 	"github.com/maintainerd/auth/internal/ptr"
 	"github.com/maintainerd/auth/internal/repository"
+	"github.com/maintainerd/auth/internal/security"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -217,8 +218,8 @@ func (s *oauthPARService) resolveAndAuthenticateClient(creds dto.OAuthClientCred
 	}
 
 	// Verify client secret when the client has one.
-	if client.Secret != nil && *client.Secret != "" {
-		if creds.ClientSecret == "" || creds.ClientSecret != *client.Secret {
+	if client.SecretHash != nil && *client.SecretHash != "" {
+		if creds.ClientSecret == "" || !security.CompareClientSecret(creds.ClientSecret, *client.SecretHash) {
 			return nil, apperror.NewOAuthInvalidClient("client authentication failed")
 		}
 	}

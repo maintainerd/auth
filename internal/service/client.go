@@ -10,6 +10,7 @@ import (
 	"github.com/maintainerd/auth/internal/crypto"
 	"github.com/maintainerd/auth/internal/model"
 	"github.com/maintainerd/auth/internal/repository"
+	"github.com/maintainerd/auth/internal/security"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -19,7 +20,15 @@ import (
 
 type ClientSecretServiceDataResult struct {
 	ClientID     string
-	ClientSecret *string
+	ClientSecret *string // populated only on creation or rotation, never retrieved from DB
+}
+
+// ClientCreateServiceResult wraps the new client data together with the one-time
+// plaintext secret. The secret is returned exactly once and cannot be retrieved later.
+type ClientCreateServiceResult struct {
+	Client           *ClientServiceDataResult
+	ClientIdentifier string // OAuth client_id (the identifier string)
+	PlaintextSecret  string
 }
 
 type ClientURIServiceDataResult struct {
@@ -79,10 +88,16 @@ type ClientServiceGetResult struct {
 type ClientService interface {
 	Get(ctx context.Context, filter ClientServiceGetFilter) (*ClientServiceGetResult, error)
 	GetByUUID(ctx context.Context, ClientUUID uuid.UUID, tenantID int64) (*ClientServiceDataResult, error)
+	// GetSecretByUUID always returns an error — secrets cannot be retrieved after creation.
+	// Use RotateSecret to obtain a new secret.
 	GetSecretByUUID(ctx context.Context, ClientUUID uuid.UUID, tenantID int64) (*ClientSecretServiceDataResult, error)
 	GetConfigByUUID(ctx context.Context, ClientUUID uuid.UUID, tenantID int64) (datatypes.JSON, error)
-	Create(ctx context.Context, tenantID int64, name string, displayName string, clientType string, domain string, config datatypes.JSON, status string, isDefault bool, identityProviderUUID string, actorUserUUID uuid.UUID) (*ClientServiceDataResult, error)
+	Create(ctx context.Context, tenantID int64, name string, displayName string, clientType string, domain string, config datatypes.JSON, status string, isDefault bool, identityProviderUUID string, actorUserUUID uuid.UUID) (*ClientCreateServiceResult, error)
 	Update(ctx context.Context, ClientUUID uuid.UUID, tenantID int64, name string, displayName string, clientType string, domain string, config datatypes.JSON, status string, isDefault bool, actorUserUUID uuid.UUID) (*ClientServiceDataResult, error)
+	// RotateSecret generates a new secret, hashes and persists it, and keeps the old
+	// hash valid for the specified grace period (gracePeriodHours=0 revokes immediately).
+	// Returns the new plaintext secret once — it cannot be retrieved again.
+	RotateSecret(ctx context.Context, clientUUID uuid.UUID, tenantID int64, actorUserUUID uuid.UUID, gracePeriodHours int) (string, error)
 	SetStatusByUUID(ctx context.Context, ClientUUID uuid.UUID, tenantID int64, status string, actorUserUUID uuid.UUID) (*ClientServiceDataResult, error)
 	DeleteByUUID(ctx context.Context, ClientUUID uuid.UUID, tenantID int64, actorUserUUID uuid.UUID) (*ClientServiceDataResult, error)
 	CreateURI(ctx context.Context, ClientUUID uuid.UUID, tenantID int64, uri string, uriType string, actorUserUUID uuid.UUID) (*ClientServiceDataResult, error)
@@ -227,27 +242,9 @@ func (s *clientService) GetByUUID(ctx context.Context, ClientUUID uuid.UUID, ten
 func (s *clientService) GetSecretByUUID(ctx context.Context, ClientUUID uuid.UUID, tenantID int64) (*ClientSecretServiceDataResult, error) {
 	_, span := otel.Tracer("service").Start(ctx, "client.getSecret")
 	defer span.End()
-	span.SetAttributes(
-		attribute.String("client.uuid", ClientUUID.String()),
-		attribute.Int64("tenant.id", tenantID),
-	)
-
-	Client, err := s.clientRepo.FindByUUIDAndTenantID(ClientUUID, tenantID)
-	if err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, "failed to fetch client")
-		return nil, err
-	}
-	if Client == nil {
-		span.SetStatus(codes.Error, "auth client not found or access denied")
-		return nil, apperror.NewNotFoundWithReason("auth client not found or access denied")
-	}
-
-	span.SetStatus(codes.Ok, "")
-	return &ClientSecretServiceDataResult{
-		ClientID:     *Client.Identifier,
-		ClientSecret: Client.Secret,
-	}, nil
+	// Secrets are hashed at rest and cannot be retrieved. Callers must rotate.
+	span.SetStatus(codes.Error, "secret retrieval not supported")
+	return nil, apperror.NewValidation("client secret cannot be retrieved after creation; use POST /{client_uuid}/rotate-secret to issue a new one")
 }
 
 func (s *clientService) GetConfigByUUID(ctx context.Context, ClientUUID uuid.UUID, tenantID int64) (datatypes.JSON, error) {
@@ -273,7 +270,7 @@ func (s *clientService) GetConfigByUUID(ctx context.Context, ClientUUID uuid.UUI
 	return Client.Config, nil
 }
 
-func (s *clientService) Create(ctx context.Context, tenantID int64, name string, displayName string, clientType string, domain string, config datatypes.JSON, status string, isDefault bool, identityProviderUUID string, actorUserUUID uuid.UUID) (*ClientServiceDataResult, error) {
+func (s *clientService) Create(ctx context.Context, tenantID int64, name string, displayName string, clientType string, domain string, config datatypes.JSON, status string, isDefault bool, identityProviderUUID string, actorUserUUID uuid.UUID) (*ClientCreateServiceResult, error) {
 	_, span := otel.Tracer("service").Start(ctx, "client.create")
 	defer span.End()
 	span.SetAttributes(
@@ -282,36 +279,32 @@ func (s *clientService) Create(ctx context.Context, tenantID int64, name string,
 	)
 
 	var createdClient *model.Client
+	var plaintextSecret string
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
 		txClientRepo := s.clientRepo.WithTx(tx)
 		txIdpRepo := s.idpRepo.WithTx(tx)
 		txUserRepo := s.userRepo.WithTx(tx)
 
-		// Parse identity provider UUID
 		idpUUIDParsed, err := uuid.Parse(identityProviderUUID)
 		if err != nil {
 			return apperror.NewValidation("invalid identity provider UUID")
 		}
 
-		// Check if identity provider exists
 		identityProvider, err := txIdpRepo.FindByUUID(idpUUIDParsed, "Tenant")
 		if err != nil || identityProvider == nil {
 			return apperror.NewNotFoundWithReason("identity provider not found")
 		}
 
-		// Get actor user with tenant info
 		actorUser, err := txUserRepo.FindByUUID(actorUserUUID, "UserIdentities.Tenant")
 		if err != nil || actorUser == nil {
 			return apperror.NewNotFoundWithReason("actor user not found")
 		}
 
-		// Validate tenant access permissions
 		if err := ValidateTenantAccess(actorUser, identityProvider.Tenant); err != nil {
 			return err
 		}
 
-		// Check if auth client already exists
 		existingClient, err := txClientRepo.FindByNameAndIdentityProvider(name, identityProvider.IdentityProviderID, tenantID)
 		if err != nil {
 			return err
@@ -320,24 +313,27 @@ func (s *clientService) Create(ctx context.Context, tenantID int64, name string,
 			return apperror.NewConflict(name + " auth client already exists")
 		}
 
-		// Generate identifier
-		clientId, err := crypto.GenerateIdentifier(12)
+		clientID, err := crypto.GenerateIdentifier(12)
 		if err != nil {
 			return err
 		}
-		clientSecret, err := crypto.GenerateIdentifier(64)
+		rawSecret, err := crypto.GenerateIdentifier(64)
 		if err != nil {
 			return err
 		}
+		secretHash, err := security.HashClientSecret(rawSecret)
+		if err != nil {
+			return err
+		}
+		plaintextSecret = rawSecret
 
-		// Create auth client
 		newClient := &model.Client{
 			Name:               name,
 			DisplayName:        displayName,
 			ClientType:         clientType,
 			Domain:             &domain,
-			Identifier:         &clientId,
-			Secret:             &clientSecret,
+			Identifier:         &clientID,
+			SecretHash:         &secretHash,
 			Config:             config,
 			TenantID:           tenantID,
 			IdentityProviderID: identityProvider.IdentityProviderID,
@@ -351,13 +347,8 @@ func (s *clientService) Create(ctx context.Context, tenantID int64, name string,
 			return err
 		}
 
-		// Fetch Client with Service preloaded
 		createdClient, err = txClientRepo.FindByUUID(newClient.ClientUUID, "IdentityProvider", "ClientURIs")
-		if err != nil {
-			return err
-		}
-
-		return nil
+		return err
 	})
 
 	if err != nil {
@@ -366,8 +357,77 @@ func (s *clientService) Create(ctx context.Context, tenantID int64, name string,
 		return nil, err
 	}
 
+	identifier := ""
+	if createdClient.Identifier != nil {
+		identifier = *createdClient.Identifier
+	}
+
 	span.SetStatus(codes.Ok, "")
-	return ToClientServiceDataResult(createdClient), nil
+	return &ClientCreateServiceResult{
+		Client:           ToClientServiceDataResult(createdClient),
+		ClientIdentifier: identifier,
+		PlaintextSecret:  plaintextSecret,
+	}, nil
+}
+
+// RotateSecret generates a new client secret, hashes it, and keeps the previous
+// hash valid for gracePeriodHours (0 = revoke immediately). Returns the new
+// plaintext secret exactly once — it cannot be retrieved again.
+func (s *clientService) RotateSecret(ctx context.Context, clientUUID uuid.UUID, tenantID int64, actorUserUUID uuid.UUID, gracePeriodHours int) (string, error) {
+	_, span := otel.Tracer("service").Start(ctx, "client.rotateSecret")
+	defer span.End()
+	span.SetAttributes(
+		attribute.String("client.uuid", clientUUID.String()),
+		attribute.Int64("tenant.id", tenantID),
+		attribute.Int("grace_period_hours", gracePeriodHours),
+	)
+
+	var plaintextSecret string
+
+	err := s.db.Transaction(func(tx *gorm.DB) error {
+		txClientRepo := s.clientRepo.WithTx(tx)
+
+		client, err := txClientRepo.FindByUUIDAndTenantID(clientUUID, tenantID)
+		if err != nil {
+			return err
+		}
+		if client == nil {
+			return apperror.NewNotFoundWithReason("auth client not found or access denied")
+		}
+
+		rawSecret, err := crypto.GenerateIdentifier(64)
+		if err != nil {
+			return err
+		}
+		newHash, err := security.HashClientSecret(rawSecret)
+		if err != nil {
+			return err
+		}
+		plaintextSecret = rawSecret
+
+		// Move current hash to previous for the grace window.
+		client.PreviousSecretHash = client.SecretHash
+		if gracePeriodHours > 0 {
+			exp := time.Now().Add(time.Duration(gracePeriodHours) * time.Hour)
+			client.PreviousSecretExpiresAt = &exp
+		} else {
+			client.PreviousSecretHash = nil
+			client.PreviousSecretExpiresAt = nil
+		}
+		client.SecretHash = &newHash
+
+		_, err = txClientRepo.CreateOrUpdate(client)
+		return err
+	})
+
+	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "failed to rotate client secret")
+		return "", err
+	}
+
+	span.SetStatus(codes.Ok, "")
+	return plaintextSecret, nil
 }
 
 func (s *clientService) Update(ctx context.Context, ClientUUID uuid.UUID, tenantID int64, name string, displayName string, clientType string, domain string, config datatypes.JSON, status string, isDefault bool, actorUserUUID uuid.UUID) (*ClientServiceDataResult, error) {

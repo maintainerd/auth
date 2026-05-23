@@ -37,7 +37,7 @@ func SeedClients(db *gorm.DB, tenantID int64, identityProviderID int64) error {
 			ClientType:  model.ClientTypeSPA,
 			Domain:      strPtr(appHostName),
 			Identifier:  strPtr(consoleID),
-			Secret:      nil,
+			SecretHash:  nil, // public client (TokenAuthMethodNone) — no secret
 			Config: datatypes.JSON([]byte(`{
 				"grant_types": ["authorization_code", "refresh_token"],
 				"response_type": "code",

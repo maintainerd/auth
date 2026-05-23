@@ -97,7 +97,7 @@ type AuthEvent struct {
 	TenantID      int64          `gorm:"column:tenant_id;not null"`
 	ActorUserID   *int64         `gorm:"column:actor_user_id"`
 	TargetUserID  *int64         `gorm:"column:target_user_id"`
-	IPAddress     string         `gorm:"column:ip_address;type:varchar(45);not null"`
+	IPAddress     string         `gorm:"column:ip_address;type:inet;not null"`
 	UserAgent     *string        `gorm:"column:user_agent;type:text"`
 	Category      string         `gorm:"column:category;type:varchar(20);not null"`
 	EventType     string         `gorm:"column:event_type;type:varchar(60);not null"`
