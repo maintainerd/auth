@@ -12,8 +12,13 @@ type UserIdentityRepository interface {
 	WithTx(tx *gorm.DB) UserIdentityRepository
 	FindByUserID(userID int64) ([]model.UserIdentity, error)
 	FindByUserIDAndClientID(userID int64, clientID int64) (*model.UserIdentity, error)
-	FindByProviderAndUserID(providerName string, providerUserID string) (*model.UserIdentity, error)
-	FindByEmail(email string) ([]model.UserIdentity, error)
+	// FindByProviderAndSub looks up an identity by the provider slug and the external subject.
+	// Used by federation to match an incoming OIDC token to a known user.
+	FindByProviderAndSub(provider string, sub string) (*model.UserIdentity, error)
+	// FindByUserIDAndProvider returns the first identity for a user with the given provider slug.
+	FindByUserIDAndProvider(userID int64, provider string) (*model.UserIdentity, error)
+	// FindByIdentityProviderID lists all identities linked to a configured IDP.
+	FindByIdentityProviderID(idpID int64) ([]model.UserIdentity, error)
 	DeleteByUserID(userID int64) error
 }
 
@@ -51,23 +56,33 @@ func (r *userIdentityRepository) FindByUserIDAndClientID(userID int64, clientID 
 	return &identity, nil
 }
 
-func (r *userIdentityRepository) FindByProviderAndUserID(providerName string, providerUserID string) (*model.UserIdentity, error) {
-	var ui model.UserIdentity
-	err := r.DB().
-		Where("provider_name = ? AND provider_user_id = ?", providerName, providerUserID).
-		First(&ui).Error
+func (r *userIdentityRepository) FindByProviderAndSub(provider string, sub string) (*model.UserIdentity, error) {
+	var identity model.UserIdentity
+	err := r.DB().Where("provider = ? AND sub = ?", provider, sub).First(&identity).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, nil
 		}
 		return nil, err
 	}
-	return &ui, nil
+	return &identity, nil
 }
 
-func (r *userIdentityRepository) FindByEmail(email string) ([]model.UserIdentity, error) {
+func (r *userIdentityRepository) FindByUserIDAndProvider(userID int64, provider string) (*model.UserIdentity, error) {
+	var identity model.UserIdentity
+	err := r.DB().Where("user_id = ? AND provider = ?", userID, provider).First(&identity).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &identity, nil
+}
+
+func (r *userIdentityRepository) FindByIdentityProviderID(idpID int64) ([]model.UserIdentity, error) {
 	var identities []model.UserIdentity
-	err := r.DB().Where("email = ?", email).Find(&identities).Error
+	err := r.DB().Where("identity_provider_id = ?", idpID).Find(&identities).Error
 	return identities, err
 }
 

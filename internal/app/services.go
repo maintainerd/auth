@@ -54,6 +54,7 @@ type svcs struct {
 	smsLoginService           service.SMSLoginService
 	mfaService                service.MFAService
 	webAuthnService           service.WebAuthnService
+	federationService         service.FederationService
 }
 
 func initServices(db *gorm.DB, r *repos, appCache *cache.Cache) (*svcs, error) {
@@ -106,7 +107,8 @@ func initServices(db *gorm.DB, r *repos, appCache *cache.Cache) (*svcs, error) {
 		oauthRegisterService:      service.NewOAuthRegisterService(db, r.clientRepo, r.clientURIRepo, r.tenantRepo, authEventSvc),
 		accountService:            service.NewAccountService(db, r.userRepo, r.userTokenRepo, r.profileRepo, r.userSettingRepo, r.roleRepo, r.clientRepo, r.userBackupCodeRepo, r.userIdentityRepo, r.idpRepo, authEventSvc),
 		smsLoginService:           service.NewSMSLoginService(db, r.userRepo, r.smsOtpRepo, r.clientRepo, r.userIdentityRepo, r.idpRepo, authEventSvc),
-		mfaService: service.NewMFAService(db, r.userRepo, r.totpSecretRepo, r.webAuthnCredRepo, r.userBackupCodeRepo, r.securitySettingRepo, authEventSvc),
+		mfaService:        service.NewMFAService(db, r.userRepo, r.totpSecretRepo, r.webAuthnCredRepo, r.userBackupCodeRepo, r.securitySettingRepo, authEventSvc),
+		federationService: service.NewFederationService(db, r.userRepo, r.userIdentityRepo, r.idpRepo, r.clientRepo, r.userRoleRepo, r.roleRepo, authEventSvc),
 	}
 
 	waSvc, err := service.NewWebAuthnService(db, r.userRepo, r.webAuthnCredRepo, appCache, authEventSvc)
