@@ -14,6 +14,7 @@ import (
 	"github.com/maintainerd/auth/internal/dto"
 	"github.com/maintainerd/auth/internal/jwt"
 	"github.com/maintainerd/auth/internal/model"
+	"github.com/maintainerd/auth/internal/security"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
@@ -1365,15 +1366,17 @@ func TestAuthenticateClient(t *testing.T) {
 	t.Run("secret_basic — valid secret", func(t *testing.T) {
 		db, mock := newMockDB(t)
 		secret := "super-secret"
+		hash, hashErr := security.HashClientSecret(secret)
+		require.NoError(t, hashErr)
 		rows := sqlmock.NewRows([]string{
 			"client_id", "client_uuid", "tenant_id", "identity_provider_id", "name", "display_name",
-			"client_type", "domain", "identifier", "secret", "status",
+			"client_type", "domain", "identifier", "secret_hash", "status",
 			"is_default", "is_system", "token_endpoint_auth_method",
 			"grant_types", "response_types", "access_token_ttl", "refresh_token_ttl",
 			"require_consent", "created_at", "updated_at",
 		}).AddRow(
 			10, uuid.New(), 1, int64(100), "test-client", "Test Client",
-			"m2m", nil, "my-client", secret, "active",
+			"m2m", nil, "my-client", hash, "active",
 			false, false, "client_secret_basic",
 			`{authorization_code}`, `{code}`, nil, nil,
 			true, time.Now(), time.Now(),
@@ -1388,15 +1391,17 @@ func TestAuthenticateClient(t *testing.T) {
 	t.Run("secret_basic — invalid secret", func(t *testing.T) {
 		db, mock := newMockDB(t)
 		secret := "super-secret"
+		hash, hashErr := security.HashClientSecret(secret)
+		require.NoError(t, hashErr)
 		rows := sqlmock.NewRows([]string{
 			"client_id", "client_uuid", "tenant_id", "identity_provider_id", "name", "display_name",
-			"client_type", "domain", "identifier", "secret", "status",
+			"client_type", "domain", "identifier", "secret_hash", "status",
 			"is_default", "is_system", "token_endpoint_auth_method",
 			"grant_types", "response_types", "access_token_ttl", "refresh_token_ttl",
 			"require_consent", "created_at", "updated_at",
 		}).AddRow(
 			10, uuid.New(), 1, int64(100), "test-client", "Test Client",
-			"m2m", nil, "my-client", secret, "active",
+			"m2m", nil, "my-client", hash, "active",
 			false, false, "client_secret_basic",
 			`{authorization_code}`, `{code}`, nil, nil,
 			true, time.Now(), time.Now(),
@@ -1411,15 +1416,17 @@ func TestAuthenticateClient(t *testing.T) {
 	t.Run("secret_post — valid secret", func(t *testing.T) {
 		db, mock := newMockDB(t)
 		secret := "post-secret"
+		hash, hashErr := security.HashClientSecret(secret)
+		require.NoError(t, hashErr)
 		rows := sqlmock.NewRows([]string{
 			"client_id", "client_uuid", "tenant_id", "identity_provider_id", "name", "display_name",
-			"client_type", "domain", "identifier", "secret", "status",
+			"client_type", "domain", "identifier", "secret_hash", "status",
 			"is_default", "is_system", "token_endpoint_auth_method",
 			"grant_types", "response_types", "access_token_ttl", "refresh_token_ttl",
 			"require_consent", "created_at", "updated_at",
 		}).AddRow(
 			10, uuid.New(), 1, int64(100), "test-client", "Test Client",
-			"m2m", nil, "my-client", secret, "active",
+			"m2m", nil, "my-client", hash, "active",
 			false, false, "client_secret_post",
 			`{authorization_code}`, `{code}`, nil, nil,
 			true, time.Now(), time.Now(),
