@@ -55,6 +55,7 @@ type App struct {
 	OAuthCIBAService           service.OAuthCIBAService
 	OAuthRegisterService       service.OAuthRegisterService
 	AccountService             service.AccountService
+	SessionService             service.SessionService
 	SMSLoginService            service.SMSLoginService
 	MFAService                 service.MFAService
 	WebAuthnService            service.WebAuthnService
@@ -122,6 +123,7 @@ func NewApp(db *gorm.DB, redisClient *redis.Client) *App {
 		OAuthCIBAService:          s.oauthCIBAService,
 		OAuthRegisterService:      s.oauthRegisterService,
 		AccountService:            s.accountService,
+		SessionService:            s.sessionService,
 		SMSLoginService:           s.smsLoginService,
 		MFAService:                s.mfaService,
 		WebAuthnService:           s.webAuthnService,

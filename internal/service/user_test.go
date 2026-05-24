@@ -34,7 +34,7 @@ func fullUserSvc(
 ) (*gorm.DB, UserService) {
 	t.Helper()
 	db, _ := newMockGormDB(t)
-	svc := NewUserService(db, userRepo, uiRepo, urRepo, roleRepo, tenantRepo, idpRepo, clientRepo, upRepo, cache.NopInvalidator{})
+	svc := NewUserService(db, userRepo, uiRepo, urRepo, roleRepo, tenantRepo, idpRepo, clientRepo, upRepo, cache.NopInvalidator{}, nil)
 	return db, svc
 }
 
@@ -51,7 +51,7 @@ func fullUserSvcWithMock(
 ) (*gorm.DB, sqlmock.Sqlmock, UserService) {
 	t.Helper()
 	db, mock := newMockGormDB(t)
-	svc := NewUserService(db, userRepo, uiRepo, urRepo, roleRepo, tenantRepo, idpRepo, clientRepo, upRepo, cache.NopInvalidator{})
+	svc := NewUserService(db, userRepo, uiRepo, urRepo, roleRepo, tenantRepo, idpRepo, clientRepo, upRepo, cache.NopInvalidator{}, nil)
 	return db, mock, svc
 }
 

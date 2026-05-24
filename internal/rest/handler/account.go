@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"net/http"
 
+	"github.com/go-chi/chi/v5"
+	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/dto"
 	"github.com/maintainerd/auth/internal/middleware"
 	resp "github.com/maintainerd/auth/internal/rest/response"
@@ -13,10 +15,11 @@ import (
 // AccountHandler handles self-service account management operations.
 type AccountHandler struct {
 	accountService service.AccountService
+	sessionService service.SessionService
 }
 
-func NewAccountHandler(accountService service.AccountService) *AccountHandler {
-	return &AccountHandler{accountService: accountService}
+func NewAccountHandler(accountService service.AccountService, sessionService service.SessionService) *AccountHandler {
+	return &AccountHandler{accountService: accountService, sessionService: sessionService}
 }
 
 // InitiateEmailChange starts the email change flow by sending an OTP to the new address.
@@ -190,4 +193,65 @@ func (h *AccountHandler) VerifyBackupCode(w http.ResponseWriter, r *http.Request
 	}
 
 	resp.Success(w, tokens, "Account recovered successfully")
+}
+
+// ListSessions returns all active sessions for the authenticated user.
+//
+// GET /account/sessions
+func (h *AccountHandler) ListSessions(w http.ResponseWriter, r *http.Request) {
+	user := middleware.AuthFromRequest(r).User
+	if user == nil {
+		resp.Error(w, http.StatusUnauthorized, "Unauthorized")
+		return
+	}
+
+	sessions, err := h.sessionService.ListSessions(r.Context(), user.UserID)
+	if err != nil {
+		resp.HandleServiceError(w, r, "Failed to list sessions", err)
+		return
+	}
+
+	resp.Success(w, sessions, "Sessions retrieved successfully")
+}
+
+// RevokeSession revokes a single session by UUID for the authenticated user.
+//
+// DELETE /account/sessions/{session_uuid}
+func (h *AccountHandler) RevokeSession(w http.ResponseWriter, r *http.Request) {
+	user := middleware.AuthFromRequest(r).User
+	if user == nil {
+		resp.Error(w, http.StatusUnauthorized, "Unauthorized")
+		return
+	}
+
+	sessionUUID, err := uuid.Parse(chi.URLParam(r, "session_uuid"))
+	if err != nil {
+		resp.Error(w, http.StatusBadRequest, "Invalid session UUID")
+		return
+	}
+
+	if err := h.sessionService.RevokeSession(r.Context(), user.UserID, sessionUUID); err != nil {
+		resp.HandleServiceError(w, r, "Failed to revoke session", err)
+		return
+	}
+
+	resp.Success(w, nil, "Session revoked successfully")
+}
+
+// RevokeAllSessions revokes every active session for the authenticated user.
+//
+// DELETE /account/sessions
+func (h *AccountHandler) RevokeAllSessions(w http.ResponseWriter, r *http.Request) {
+	user := middleware.AuthFromRequest(r).User
+	if user == nil {
+		resp.Error(w, http.StatusUnauthorized, "Unauthorized")
+		return
+	}
+
+	if err := h.sessionService.RevokeAllSessions(r.Context(), user.UserID); err != nil {
+		resp.HandleServiceError(w, r, "Failed to revoke all sessions", err)
+		return
+	}
+
+	resp.Success(w, nil, "All sessions revoked successfully")
 }

@@ -77,7 +77,7 @@ func TestGenerateAccessToken_EmptyAudience(t *testing.T) {
 
 func TestGenerateIDToken_ValidInputs(t *testing.T) {
 	initTestJWTKeys(t)
-	tok, err := GenerateIDToken("user-uuid", "https://auth.example.com", "client-1", "provider-1", nil, "nonce123")
+	tok, err := GenerateIDToken("user-uuid", "https://auth.example.com", "client-1", "provider-1", nil, "nonce123", nil)
 	require.NoError(t, err)
 	assert.NotEmpty(t, tok)
 }
@@ -85,7 +85,7 @@ func TestGenerateIDToken_ValidInputs(t *testing.T) {
 func TestGenerateIDToken_WithProfile(t *testing.T) {
 	initTestJWTKeys(t)
 	profile := &UserProfile{Email: "user@example.com", EmailVerified: true, FirstName: "Test"}
-	tok, err := GenerateIDToken("user-uuid", "https://auth.example.com", "client-1", "provider-1", profile, "")
+	tok, err := GenerateIDToken("user-uuid", "https://auth.example.com", "client-1", "provider-1", profile, "", nil)
 	require.NoError(t, err)
 	assert.NotEmpty(t, tok)
 }
@@ -264,28 +264,28 @@ func TestGenerateAccessToken_EmptyProviderID(t *testing.T) {
 
 func TestGenerateIDToken_EmptyUserUUID(t *testing.T) {
 	initTestJWTKeys(t)
-	_, err := GenerateIDToken("", "https://auth.example.com", "client-1", "provider-1", nil, "")
+	_, err := GenerateIDToken("", "https://auth.example.com", "client-1", "provider-1", nil, "", nil)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "userUUID")
 }
 
 func TestGenerateIDToken_EmptyIssuer(t *testing.T) {
 	initTestJWTKeys(t)
-	_, err := GenerateIDToken("user-uuid", "", "client-1", "provider-1", nil, "")
+	_, err := GenerateIDToken("user-uuid", "", "client-1", "provider-1", nil, "", nil)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "issuer")
 }
 
 func TestGenerateIDToken_EmptyClientID(t *testing.T) {
 	initTestJWTKeys(t)
-	_, err := GenerateIDToken("user-uuid", "https://auth.example.com", "", "provider-1", nil, "")
+	_, err := GenerateIDToken("user-uuid", "https://auth.example.com", "", "provider-1", nil, "", nil)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "clientID")
 }
 
 func TestGenerateIDToken_EmptyProviderID(t *testing.T) {
 	initTestJWTKeys(t)
-	_, err := GenerateIDToken("user-uuid", "https://auth.example.com", "client-1", "", nil, "")
+	_, err := GenerateIDToken("user-uuid", "https://auth.example.com", "client-1", "", nil, "", nil)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "providerID")
 }
@@ -299,7 +299,7 @@ func TestGenerateIDToken_FullProfile(t *testing.T) {
 		Suffix: "Jr", Birthdate: "1990-01-01", Gender: "F",
 		Address: "123 Main St", Picture: "https://example.com/pic.jpg",
 	}
-	tok, err := GenerateIDToken("user-uuid", "https://auth.example.com", "client-1", "provider-1", profile, "nonce-abc")
+	tok, err := GenerateIDToken("user-uuid", "https://auth.example.com", "client-1", "provider-1", profile, "nonce-abc", nil)
 	require.NoError(t, err)
 	assert.NotEmpty(t, tok)
 }

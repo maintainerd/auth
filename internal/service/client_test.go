@@ -185,7 +185,7 @@ func TestClientService_GetSecretByUUID(t *testing.T) {
 		require.Error(t, err)
 	})
 
-	t.Run("success", func(t *testing.T) {
+	t.Run("always errors — secret not retrievable after creation", func(t *testing.T) {
 		id := "client-id"
 		secret := "client-secret"
 		clientRepo := &mockClientRepo{
@@ -194,10 +194,9 @@ func TestClientService_GetSecretByUUID(t *testing.T) {
 			},
 		}
 		svc := buildClientService(t, clientRepo, &mockIdentityProviderRepo{}, &mockUserRepo{})
-		res, err := svc.GetSecretByUUID(context.Background(), cUUID, 1)
-		require.NoError(t, err)
-		assert.Equal(t, id, res.ClientID)
-		assert.Equal(t, &secret, res.ClientSecret)
+		_, err := svc.GetSecretByUUID(context.Background(), cUUID, 1)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "rotate-secret")
 	})
 }
 

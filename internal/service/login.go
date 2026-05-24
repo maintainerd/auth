@@ -33,6 +33,7 @@ type loginService struct {
 	userIdentityRepo     repository.UserIdentityRepository
 	identityProviderRepo repository.IdentityProviderRepository
 	authEventService     AuthEventService
+	sessionService       SessionService
 }
 
 func NewLoginService(
@@ -43,6 +44,7 @@ func NewLoginService(
 	userIdentityRepo repository.UserIdentityRepository,
 	identityProviderRepo repository.IdentityProviderRepository,
 	authEventService AuthEventService,
+	sessionService SessionService,
 ) LoginService {
 	return &loginService{
 		db:                   db,
@@ -52,6 +54,7 @@ func NewLoginService(
 		userIdentityRepo:     userIdentityRepo,
 		identityProviderRepo: identityProviderRepo,
 		authEventService:     authEventService,
+		sessionService:       sessionService,
 	}
 }
 
@@ -261,7 +264,7 @@ func (s *loginService) LoginPublic(ctx context.Context, usernameOrEmail, passwor
 	})
 
 	// Generate token response
-	return s.generateTokenResponse(userIdentitySub, user, client)
+	return s.generateTokenResponse(ctx, userIdentitySub, user, client)
 }
 
 // Login authenticates users for internal applications.
@@ -458,7 +461,7 @@ func (s *loginService) Login(ctx context.Context, usernameOrEmail, password stri
 	})
 
 	// Generate token response
-	return s.generateTokenResponse(userIdentitySub, user, client)
+	return s.generateTokenResponse(ctx, userIdentitySub, user, client)
 }
 
 // GetUserByEmail looks up a user by email, scoped to the given tenant when
@@ -482,7 +485,7 @@ func (s *loginService) GetUserByEmail(ctx context.Context, email string, tenantI
 	return user, nil
 }
 
-func (s *loginService) generateTokenResponse(sub string, user *model.User, Client *model.Client) (*dto.LoginResponseDTO, error) {
+func (s *loginService) generateTokenResponse(ctx context.Context, sub string, user *model.User, Client *model.Client) (*dto.LoginResponseDTO, error) {
 	accessToken, err := jwt.GenerateAccessToken(
 		sub,
 		"openid profile email",
@@ -514,7 +517,7 @@ func (s *loginService) generateTokenResponse(sub string, user *model.User, Clien
 		return nil, err
 	}
 
-	return &dto.LoginResponseDTO{
+	resp := &dto.LoginResponseDTO{
 		AccessToken:           accessToken,
 		IDToken:               idToken,
 		RefreshToken:          refreshToken,
@@ -522,5 +525,22 @@ func (s *loginService) generateTokenResponse(sub string, user *model.User, Clien
 		TokenType:             "Bearer",
 		IssuedAt:              time.Now().Unix(),
 		RequirePasswordChange: user.ForcePasswordChange,
-	}, nil
+	}
+
+	// Create a session record and enforce concurrent session limit.
+	if s.sessionService != nil {
+		if err := s.sessionService.EnforceConcurrentLimit(ctx, user.UserUUID, user.UserID); err != nil {
+			return nil, err
+		}
+		ipAddress := middleware.ClientIPFromContext(ctx)
+		userAgent := middleware.UserAgentFromContext(ctx)
+		sess, err := s.sessionService.CreateSession(ctx, user.UserID, ipAddress, userAgent)
+		if err != nil {
+			return nil, err
+		}
+		sessionID := sess.UserTokenUUID.String()
+		resp.SessionID = &sessionID
+	}
+
+	return resp, nil
 }

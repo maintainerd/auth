@@ -447,6 +447,18 @@ func (m *mockUserTokenRepo) RevokeByUUID(id uuid.UUID) error {
 func (m *mockUserTokenRepo) RevokeAllByUserID(uID int64) error          { return nil }
 func (m *mockUserTokenRepo) DeleteByUserID(uID int64) error             { return nil }
 func (m *mockUserTokenRepo) DeleteExpiredTokens(before time.Time) error { return nil }
+func (m *mockUserTokenRepo) FindActiveSessions(userID int64) ([]model.UserToken, error) {
+	return nil, nil
+}
+func (m *mockUserTokenRepo) FindActiveSessionByUUID(userID int64, sessionUUID uuid.UUID) (*model.UserToken, error) {
+	return nil, nil
+}
+func (m *mockUserTokenRepo) CountActiveSessions(userID int64) (int64, error) { return 0, nil }
+func (m *mockUserTokenRepo) TouchSession(sessionUUID uuid.UUID, now time.Time) error { return nil }
+func (m *mockUserTokenRepo) RevokeSessionByUUID(userID int64, sessionUUID uuid.UUID) error {
+	return nil
+}
+func (m *mockUserTokenRepo) RevokeAllSessionsByUserID(userID int64) error { return nil }
 
 // ---------------------------------------------------------------------------
 // Test helpers
@@ -764,7 +776,7 @@ func TestLoginPublic(t *testing.T) {
 			}
 			tc.setup(t, repos)
 
-			svc := NewLoginService(gormDB, repos.clientRepo, repos.userRepo, &mockUserTokenRepo{}, repos.userIdentity, repos.idpRepo, &mockAuthEventService{})
+			svc := NewLoginService(gormDB, repos.clientRepo, repos.userRepo, &mockUserTokenRepo{}, repos.userIdentity, repos.idpRepo, &mockAuthEventService{}, nil)
 			resp, err := svc.LoginPublic(context.Background(), tc.username, tc.password, tc.clientID, tc.providerID)
 
 			if tc.wantErr {
@@ -937,7 +949,7 @@ func TestLogin(t *testing.T) {
 			}
 			tc.setup(t, repos)
 
-			svc := NewLoginService(gormDB, repos.clientRepo, repos.userRepo, &mockUserTokenRepo{}, repos.userIdentity, &mockIdentityProviderRepo{}, &mockAuthEventService{})
+			svc := NewLoginService(gormDB, repos.clientRepo, repos.userRepo, &mockUserTokenRepo{}, repos.userIdentity, &mockIdentityProviderRepo{}, &mockAuthEventService{}, nil)
 			resp, err := svc.Login(context.Background(), tc.username, tc.password, tc.clientID, tc.providerID)
 
 			if tc.wantErr {
@@ -997,7 +1009,7 @@ func TestLoginPublic_RateLimited(t *testing.T) {
 
 	svc := NewLoginService(gormDB, &mockClientRepo{}, &mockUserRepo{}, &mockUserTokenRepo{},
 		&mockUserIdentityRepo{findByUserIDAndClientIDFn: func(_, _ int64) (*model.UserIdentity, error) { return nil, nil }},
-		&mockIdentityProviderRepo{}, &mockAuthEventService{})
+		&mockIdentityProviderRepo{}, &mockAuthEventService{}, nil)
 	_, err := svc.LoginPublic(context.Background(), username, "pass", "c1", "p1")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "locked")
@@ -1022,7 +1034,7 @@ func TestLoginPublic_ClientLookupError(t *testing.T) {
 
 	svc := NewLoginService(gormDB, clientRepo, &mockUserRepo{}, &mockUserTokenRepo{},
 		&mockUserIdentityRepo{findByUserIDAndClientIDFn: func(_, _ int64) (*model.UserIdentity, error) { return nil, nil }},
-		idpRepo, &mockAuthEventService{})
+		idpRepo, &mockAuthEventService{}, nil)
 	_, err := svc.LoginPublic(context.Background(), "pub-client-err", "pass", "c1", "p1")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "authentication failed")
@@ -1052,7 +1064,7 @@ func TestLoginPublic_UserNotFound(t *testing.T) {
 
 	svc := NewLoginService(gormDB, clientRepo, userRepo, &mockUserTokenRepo{},
 		&mockUserIdentityRepo{findByUserIDAndClientIDFn: func(_, _ int64) (*model.UserIdentity, error) { return nil, nil }},
-		idpRepo, &mockAuthEventService{})
+		idpRepo, &mockAuthEventService{}, nil)
 	_, err := svc.LoginPublic(context.Background(), "pub-user-missing", "pass", "c1", "p1")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "invalid credentials")
@@ -1072,7 +1084,7 @@ func TestLogin_RateLimited(t *testing.T) {
 
 	svc := NewLoginService(gormDB, &mockClientRepo{}, &mockUserRepo{}, &mockUserTokenRepo{},
 		&mockUserIdentityRepo{findByUserIDAndClientIDFn: func(_, _ int64) (*model.UserIdentity, error) { return nil, nil }},
-		&mockIdentityProviderRepo{}, &mockAuthEventService{})
+		&mockIdentityProviderRepo{}, &mockAuthEventService{}, nil)
 	_, err := svc.Login(context.Background(), username, "pass", nil, nil)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "locked")
@@ -1094,7 +1106,7 @@ func TestLogin_ExplicitClientLookupError(t *testing.T) {
 	pID := "provider-x"
 	svc := NewLoginService(gormDB, clientRepo, &mockUserRepo{}, &mockUserTokenRepo{},
 		&mockUserIdentityRepo{findByUserIDAndClientIDFn: func(_, _ int64) (*model.UserIdentity, error) { return nil, nil }},
-		&mockIdentityProviderRepo{}, &mockAuthEventService{})
+		&mockIdentityProviderRepo{}, &mockAuthEventService{}, nil)
 	_, err := svc.Login(context.Background(), "int-explicit-err", "pass", &cID, &pID)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "authentication failed")
@@ -1115,7 +1127,7 @@ func TestLogin_UserNotFound(t *testing.T) {
 
 	svc := NewLoginService(gormDB, clientRepo, userRepo, &mockUserTokenRepo{},
 		&mockUserIdentityRepo{findByUserIDAndClientIDFn: func(_, _ int64) (*model.UserIdentity, error) { return nil, nil }},
-		&mockIdentityProviderRepo{}, &mockAuthEventService{})
+		&mockIdentityProviderRepo{}, &mockAuthEventService{}, nil)
 	_, err := svc.Login(context.Background(), "int-user-missing", "pass", nil, nil)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "invalid credentials")
@@ -1157,7 +1169,7 @@ func TestLoginPublic_GenerateAccessTokenError(t *testing.T) {
 		},
 	}
 
-	svc := NewLoginService(gormDB, clientRepo, userRepo, &mockUserTokenRepo{}, userIdentityRepo, idpRepo, &mockAuthEventService{})
+	svc := NewLoginService(gormDB, clientRepo, userRepo, &mockUserTokenRepo{}, userIdentityRepo, idpRepo, &mockAuthEventService{}, nil)
 	_, err := svc.LoginPublic(context.Background(), "pub-token-err", correctPassword, "c1", "p1")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "private key not initialized")
@@ -1188,7 +1200,7 @@ func TestLogin_GenerateAccessTokenError(t *testing.T) {
 		},
 	}
 
-	svc := NewLoginService(gormDB, clientRepo, userRepo, &mockUserTokenRepo{}, userIdentityRepo, &mockIdentityProviderRepo{}, &mockAuthEventService{})
+	svc := NewLoginService(gormDB, clientRepo, userRepo, &mockUserTokenRepo{}, userIdentityRepo, &mockIdentityProviderRepo{}, &mockAuthEventService{}, nil)
 	_, err := svc.Login(context.Background(), "int-token-err", correctPassword, nil, nil)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "private key not initialized")
@@ -1230,7 +1242,7 @@ func TestLoginPublic_GenerateIDTokenError(t *testing.T) {
 		},
 	}
 
-	svc := NewLoginService(gormDB, clientRepo, userRepo, &mockUserTokenRepo{}, userIdentityRepo, idpRepo, &mockAuthEventService{})
+	svc := NewLoginService(gormDB, clientRepo, userRepo, &mockUserTokenRepo{}, userIdentityRepo, idpRepo, &mockAuthEventService{}, nil)
 	_, err := svc.LoginPublic(context.Background(), "pub-idtoken-err", correctPassword, "c1", "p1")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "id token error")
@@ -1272,7 +1284,7 @@ func TestLoginPublic_GenerateRefreshTokenError(t *testing.T) {
 		},
 	}
 
-	svc := NewLoginService(gormDB, clientRepo, userRepo, &mockUserTokenRepo{}, userIdentityRepo, idpRepo, &mockAuthEventService{})
+	svc := NewLoginService(gormDB, clientRepo, userRepo, &mockUserTokenRepo{}, userIdentityRepo, idpRepo, &mockAuthEventService{}, nil)
 	_, err := svc.LoginPublic(context.Background(), "pub-refresh-err", correctPassword, "c1", "p1")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "refresh token error")
