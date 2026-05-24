@@ -17,144 +17,46 @@
   <a href="https://scorecard.dev/viewer/?uri=github.com/maintainerd/auth">
     <img src="https://api.scorecard.dev/projects/github.com/maintainerd/auth/badge" alt="OpenSSF Scorecard">
   </a>
-  <a href="https://www.bestpractices.dev/projects/TODO">
-    <img src="https://img.shields.io/badge/openssf_best_practices-in_progress-yellow?logo=opensourcesecurityfoundation&logoColor=white" alt="OpenSSF Best Practices">
-  </a>
   <a href="https://codecov.io/gh/maintainerd/auth">
     <img src="https://codecov.io/gh/maintainerd/auth/graph/badge.svg" alt="Coverage">
   </a>
 </p>
 
-## Overview
-
-Maintainerd Auth handles user registration, login, multi-tenancy, role-based access control, and token issuance so that your other services don't have to.
-
-It exposes two interfaces:
-
-- **REST API** — for web and mobile clients
-- **gRPC API** — for internal service-to-service communication
-
-It can be used in three ways:
-
-| Mode | Description |
-|---|---|
-| **Standalone** | Deploy it as a dedicated auth service in front of your own application |
-| **Microservice** | Other services authenticate requests by calling this service over gRPC or REST |
-| **Maintainerd ecosystem** | Plug it in as the identity layer alongside other Maintainerd services |
+An open-source, self-hostable identity server. Handles authentication, authorization, and user management so your services don't have to.
 
 ---
 
 ## Features
 
-- **JWT authentication** with RSA key pairs (RS256)
-- **Multi-tenant** support — organisations, tenants, and users are fully isolated
-- **Role-based access control (RBAC)** with granular permissions
-- **Dual API surface** — private management API (`:8080`) and public auth API (`:8081`)
-- **Invite-based registration** and standard open registration
-- **Transactional email** for verification, password reset, and invitations
-- **Distributed rate limiting** via Redis
-- **Pluggable secret management** — env vars, AWS Secrets Manager, SSM, HashiCorp Vault, or file-based secrets
-- **Docker-first** with a production multi-stage `Dockerfile` and a local development `Dockerfile.local`
+- **Full OAuth 2.0 + OIDC** — authorization code (PKCE), client credentials, device, token exchange, PAR, CIBA, dynamic client registration, DPoP
+- **JWT (RS256)** with multi-key JWKS and automatic key rotation
+- **Multi-factor authentication** — TOTP, WebAuthn/passkeys, SMS OTP, backup codes, step-up auth
+- **Federation** — OIDC upstream connectors (Google, Microsoft, Apple, GitHub, GitLab), JIT provisioning, identity linking, home-realm discovery
+- **Multi-tenant** — full tenant isolation, RBAC with granular permissions, API keys, invite flows
+- **Session management** — refresh token rotation, family revocation, reuse detection, concurrent session limits
+- **Webhook delivery** — auth event notifications with HMAC-SHA256 signatures and replay protection
+- **Audit logging** — structured auth events with retention, per-tenant isolation, and PII redaction
+- **Pluggable secret management** — env vars, AWS Secrets Manager, SSM, HashiCorp Vault, Azure Key Vault, GCP Secret Manager
+- **Pluggable email providers** — SMTP, SES, SendGrid, Postmark, Mailgun, Resend
+- **OpenTelemetry** — traces, metrics, and Prometheus endpoint
 
 ---
 
 ## Quick Start
 
-### Option 1 — Docker Compose (recommended)
-
-The fastest way to get everything running locally, including PostgreSQL, Redis, RabbitMQ, and an Nginx proxy.
-
 ```bash
 git clone https://github.com/maintainerd/auth.git
 cd auth
 
-# Set up your environment
 cp .env.example .env
-# Follow docs/contributing/environment-variables.md to fill in your values
+# Edit .env with your database, Redis, and JWT key settings
 
-# Start all services
-docker-compose up --build -d
+docker compose up --build -d
 ```
 
-Services available after startup:
-
-| Service | Address |
-|---|---|
-| Public REST API | `http://localhost:80/api/v1` (via Nginx) |
-| Private REST API | `http://localhost:8080/api/v1` |
-| PostgreSQL | `localhost:5433` |
-| Redis | `localhost:6379` |
-| RabbitMQ management | `http://localhost:15672` |
-
-### Option 2 — Bare metal
-
-```bash
-# Prerequisites: Go 1.26+, PostgreSQL, Redis
-
-git clone https://github.com/maintainerd/auth.git
-cd auth
-
-cp .env.example .env
-# Edit .env with your local database and Redis credentials
-
-go run cmd/server/main.go
-```
-
-### Health check
-
-```bash
-curl http://localhost:8080/health
-# {"status":"ok"}
-
-curl http://localhost:8080/ready
-# {"status":"ready"}
-```
-
----
-
-## Architecture
-
-Maintainerd Auth runs two HTTP servers behind an Nginx proxy:
-
-```
-                  ┌─────────────────────────────────────┐
-                  │              Nginx                   │
-                  │  api.maintainerd.auth        → :8080 │  (private / management)
-                  │  api.public.maintainerd.auth → :8081 │  (public / auth only)
-                  └─────────────────────────────────────┘
-                              │               │
-               ┌──────────────┘               └──────────────┐
-               ▼                                             ▼
-        Private API (:8080)                       Public API (:8081)
-        All routes including                      Auth routes only
-        management & setup                        (login, register, etc.)
-```
-
-Other services communicate with Maintainerd Auth over **gRPC** for token validation and user lookups, keeping service-to-service calls fast and typed.
-
-**Data layer:**
-
-| Component | Role |
-|---|---|
-| PostgreSQL | Persistent storage for users, tenants, roles, permissions |
-| Redis | Distributed rate limiting and session caching |
-| RabbitMQ | Async event publishing (email dispatch, audit events) |
-
----
-
-## Configuration
-
-Copy the environment file and follow the documentation to fill in your values:
-
-```bash
-cp .env.example .env
-```
-
-See [`docs/contributing/environment-variables.md`](docs/contributing/environment-variables.md) for the full variable reference and a ready-to-use Quick Setup block.
+The management API is available at `http://localhost:8080/api/v1` and the public auth API at `http://localhost:8081/api/v1`.
 
 ### JWT keys
-
-Generate a key pair before starting the service:
 
 ```bash
 ./scripts/generate-jwt-keys.sh
@@ -163,36 +65,14 @@ cat keys/jwt_env_vars.txt >> .env
 
 ---
 
-## Deployment
-
-Build the production image:
-
-```bash
-docker build -t maintainerd/auth:latest .
-```
-
-Run it:
-
-```bash
-docker run -d \
-  --name maintainerd-auth \
-  -p 8080:8080 \
-  -p 8081:8081 \
-  --env-file .env \
-  maintainerd/auth:latest
-```
-
-For full environment variable guidance including secret management options (AWS Secrets Manager, HashiCorp Vault, Kubernetes Secrets), see [`docs/deployment/environment-variables.md`](docs/deployment/environment-variables.md).
-
----
-
 ## Documentation
 
-| Document | Description |
+| Document | |
 |---|---|
-| [Contributing — Getting Started](docs/contributing/getting-started.md) | Set up your local development environment |
-| [Contributing — Environment Variables](docs/contributing/environment-variables.md) | All variables for local development |
-| [Deployment — Environment Variables](docs/deployment/environment-variables.md) | All variables for production deployment |
+| [Getting Started](docs/contributing/getting-started.md) | Set up your local development environment |
+| [Environment Variables](docs/contributing/environment-variables.md) | All configuration variables |
+| [API Reference](docs/apis/) | Full REST API reference |
+| [Architecture](docs/architecture/) | System design and data flow |
 
 ---
 
@@ -213,9 +93,8 @@ go test ./...            # run tests
 
 ## Related Projects
 
-- [`maintainerd/core`](https://github.com/maintainerd/core) — Core platform services
-- [`maintainerd/contracts`](https://github.com/maintainerd/contracts) — Shared gRPC contracts
-- [`maintainerd/web`](https://github.com/maintainerd/web) — Web dashboard *(coming soon)*
+- [`maintainerd/auth-console`](https://github.com/maintainerd/auth-console) — Admin console UI
+- [`maintainerd/auth-identity`](https://github.com/maintainerd/auth-identity) — End-user identity portal
 
 ---
 
@@ -227,15 +106,4 @@ MIT — see [LICENSE](LICENSE) for details.
 
 <p align="center">
   <em>Built by <a href="https://github.com/xreyc">@xreyc</a> and the Maintainerd community.</em>
-</p>
-
-<p align="center">
-  <sub>Security scanning powered by</sub>
-  <br>
-  <a href="https://scorecard.dev/viewer/?uri=github.com/maintainerd/auth"><img src="https://img.shields.io/badge/OpenSSF_Scorecard-grey?logo=opensourcesecurityfoundation&logoColor=white" alt="OpenSSF Scorecard"></a>
-  <a href="https://www.bestpractices.dev/projects/TODO"><img src="https://img.shields.io/badge/OpenSSF_Best_Practices-grey?logo=opensourcesecurityfoundation&logoColor=white" alt="OpenSSF Best Practices"></a>
-  <a href="https://semgrep.dev"><img src="https://img.shields.io/badge/Semgrep-grey?logo=semgrep&logoColor=white" alt="Semgrep"></a>
-  <a href="https://snyk.io"><img src="https://img.shields.io/badge/Snyk-grey?logo=snyk&logoColor=white" alt="Snyk"></a>
-  <a href="https://github.com/features/security"><img src="https://img.shields.io/badge/CodeQL-grey?logo=github&logoColor=white" alt="CodeQL"></a>
-  <a href="https://codecov.io"><img src="https://img.shields.io/badge/Codecov-grey?logo=codecov&logoColor=white" alt="Codecov"></a>
 </p>
