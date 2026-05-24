@@ -36,6 +36,8 @@ type registerService struct {
 	roleRepo             repository.RoleRepository
 	inviteRepo           repository.InviteRepository
 	identityProviderRepo repository.IdentityProviderRepository
+	securitySettingRepo  repository.SecuritySettingRepository        // nil → use defaults
+	passwordHistoryRepo  repository.UserPasswordHistoryRepository    // nil → skip history
 }
 
 func NewRegistrationService(
@@ -48,6 +50,8 @@ func NewRegistrationService(
 	roleRepo repository.RoleRepository,
 	inviteRepo repository.InviteRepository,
 	identityProviderRepo repository.IdentityProviderRepository,
+	securitySettingRepo repository.SecuritySettingRepository,
+	passwordHistoryRepo repository.UserPasswordHistoryRepository,
 ) RegisterService {
 	return &registerService{
 		db:                   db,
@@ -59,6 +63,8 @@ func NewRegistrationService(
 		roleRepo:             roleRepo,
 		inviteRepo:           inviteRepo,
 		identityProviderRepo: identityProviderRepo,
+		securitySettingRepo:  securitySettingRepo,
+		passwordHistoryRepo:  passwordHistoryRepo,
 	}
 }
 
@@ -185,18 +191,26 @@ func (s *registerService) RegisterPublic(
 			}
 		}
 
+		// Validate password against tenant policy
+		policy := loadPolicy(s.securitySettingRepo, tenantId)
+		if txErr = security.ValidatePasswordPolicy(password, policy); txErr != nil {
+			return apperror.NewValidation(txErr.Error())
+		}
+
 		// Hash password
 		hashed, txErr := security.HashPassword(ctx, []byte(password))
 		if txErr != nil {
 			return txErr
 		}
 
+		now := time.Now()
 		// Create user
 		newUser := &model.User{
-			Username: username,
-			Fullname: fullname,
-			Password: ptr.Ptr(string(hashed)),
-			Status:   model.StatusActive,
+			Username:          username,
+			Fullname:          fullname,
+			Password:          ptr.Ptr(string(hashed)),
+			Status:            model.StatusActive,
+			PasswordChangedAt: &now,
 		}
 
 		// Set email if provided
@@ -213,6 +227,9 @@ func (s *registerService) RegisterPublic(
 		if txErr != nil {
 			return txErr
 		}
+
+		// Record password history
+		recordPasswordHistory(s.passwordHistoryRepo, createdUser.UserID, policy.HistoryCount, string(hashed))
 
 		// Create user identity
 		userIdentity := &model.UserIdentity{
@@ -328,18 +345,26 @@ func (s *registerService) Register(
 			return apperror.NewConflict("user already exists")
 		}
 
+		// Validate password against tenant policy
+		policy := loadPolicy(s.securitySettingRepo, tenantId)
+		if txErr = security.ValidatePasswordPolicy(password, policy); txErr != nil {
+			return apperror.NewValidation(txErr.Error())
+		}
+
 		// Hash password
 		hashed, txErr := security.HashPassword(ctx, []byte(password))
 		if txErr != nil {
 			return txErr
 		}
 
+		now := time.Now()
 		// Create user
 		newUser := &model.User{
-			Username: username,
-			Fullname: fullname,
-			Password: ptr.Ptr(string(hashed)),
-			Status:   model.StatusActive,
+			Username:          username,
+			Fullname:          fullname,
+			Password:          ptr.Ptr(string(hashed)),
+			Status:            model.StatusActive,
+			PasswordChangedAt: &now,
 		}
 
 		// Set email if provided
@@ -356,6 +381,9 @@ func (s *registerService) Register(
 		if txErr != nil {
 			return txErr
 		}
+
+		// Record password history
+		recordPasswordHistory(s.passwordHistoryRepo, createdUser.UserID, policy.HistoryCount, string(hashed))
 
 		// Create user identity
 		userIdentity := &model.UserIdentity{
@@ -473,25 +501,36 @@ func (s *registerService) RegisterInvite(
 			return apperror.NewConflict("user already exists")
 		}
 
+		// Validate password against tenant policy
+		policy := loadPolicy(s.securitySettingRepo, tenantId)
+		if txErr = security.ValidatePasswordPolicy(password, policy); txErr != nil {
+			return apperror.NewValidation(txErr.Error())
+		}
+
 		// Hash password
 		hashed, txErr := security.HashPassword(ctx, []byte(password))
 		if txErr != nil {
 			return txErr
 		}
 
+		now := time.Now()
 		// Create user
 		newUser := &model.User{
-			Username: username,
-			Fullname: username, // Use username as fullname since invite doesn't have fullname
-			Password: ptr.Ptr(string(hashed)),
-			Email:    invite.InvitedEmail,
-			Status:   model.StatusActive,
+			Username:          username,
+			Fullname:          username, // Use username as fullname since invite doesn't have fullname
+			Password:          ptr.Ptr(string(hashed)),
+			Email:             invite.InvitedEmail,
+			Status:            model.StatusActive,
+			PasswordChangedAt: &now,
 		}
 
 		createdUser, txErr = txUserRepo.Create(newUser)
 		if txErr != nil {
 			return txErr
 		}
+
+		// Record password history
+		recordPasswordHistory(s.passwordHistoryRepo, createdUser.UserID, policy.HistoryCount, string(hashed))
 
 		// Create user identity
 		userIdentity := &model.UserIdentity{
@@ -644,25 +683,36 @@ func (s *registerService) RegisterInvitePublic(
 			return apperror.NewConflict("invited email already registered")
 		}
 
+		// Validate password against tenant policy
+		policy := loadPolicy(s.securitySettingRepo, tenantId)
+		if txErr = security.ValidatePasswordPolicy(password, policy); txErr != nil {
+			return apperror.NewValidation(txErr.Error())
+		}
+
 		// Hash password
 		hashed, txErr := security.HashPassword(ctx, []byte(password))
 		if txErr != nil {
 			return txErr
 		}
 
+		now := time.Now()
 		// Create user
 		newUser := &model.User{
-			Username:        username,
-			Email:           invite.InvitedEmail, // Always use the invited email
-			Password:        ptr.Ptr(string(hashed)),
-			Status:          model.StatusActive,
-			IsEmailVerified: true, // Auto-verify email for invited users
+			Username:          username,
+			Email:             invite.InvitedEmail, // Always use the invited email
+			Password:          ptr.Ptr(string(hashed)),
+			Status:            model.StatusActive,
+			IsEmailVerified:   true, // Auto-verify email for invited users
+			PasswordChangedAt: &now,
 		}
 
 		createdUser, txErr = txUserRepo.Create(newUser)
 		if txErr != nil {
 			return txErr
 		}
+
+		// Record password history
+		recordPasswordHistory(s.passwordHistoryRepo, createdUser.UserID, policy.HistoryCount, string(hashed))
 
 		// Create user identity
 		userIdentity := &model.UserIdentity{

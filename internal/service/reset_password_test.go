@@ -75,7 +75,7 @@ func TestResetPasswordService_ResetPassword(t *testing.T) {
 		mock.ExpectRollback()
 		svc := NewResetPasswordService(db, &mockUserRepo{}, &mockUserTokenRepo{}, &mockClientRepo{
 			findSystemFn: func() (*model.Client, error) { return nil, errors.New("db error") },
-		})
+		}, nil, nil)
 		resp, err := svc.ResetPassword(context.Background(), tok, strongPassword, nil, nil)
 		require.Error(t, err)
 		assert.Nil(t, resp)
@@ -89,7 +89,7 @@ func TestResetPasswordService_ResetPassword(t *testing.T) {
 		mock.ExpectRollback()
 		svc := NewResetPasswordService(db, &mockUserRepo{}, &mockUserTokenRepo{}, &mockClientRepo{
 			findSystemFn: func() (*model.Client, error) { return nil, nil },
-		})
+		}, nil, nil)
 		resp, err := svc.ResetPassword(context.Background(), tok, strongPassword, nil, nil)
 		require.Error(t, err)
 		assert.Nil(t, resp)
@@ -105,7 +105,7 @@ func TestResetPasswordService_ResetPassword(t *testing.T) {
 			findByClientIDAndIdentityProviderFn: func(_, _ string) (*model.Client, error) {
 				return nil, errors.New("client lookup error")
 			},
-		})
+		}, nil, nil)
 		resp, err := svc.ResetPassword(context.Background(), tok, strongPassword, &clientID, &providerID)
 		require.Error(t, err)
 		assert.Nil(t, resp)
@@ -121,7 +121,7 @@ func TestResetPasswordService_ResetPassword(t *testing.T) {
 			findByClientIDAndIdentityProviderFn: func(_, _ string) (*model.Client, error) {
 				return nil, nil
 			},
-		})
+		}, nil, nil)
 		resp, err := svc.ResetPassword(context.Background(), tok, strongPassword, &clientID, &providerID)
 		require.Error(t, err)
 		assert.Nil(t, resp)
@@ -141,7 +141,7 @@ func TestResetPasswordService_ResetPassword(t *testing.T) {
 			findSystemFn: func() (*model.Client, error) {
 				return &model.Client{ClientID: 1}, nil
 			},
-		})
+		}, nil, nil)
 		resp, err := svc.ResetPassword(context.Background(), tok, strongPassword, nil, nil)
 		require.Error(t, err)
 		assert.Nil(t, resp)
@@ -159,7 +159,7 @@ func TestResetPasswordService_ResetPassword(t *testing.T) {
 			findSystemFn: func() (*model.Client, error) {
 				return &model.Client{ClientID: 1}, nil
 			},
-		})
+		}, nil, nil)
 		resp, err := svc.ResetPassword(context.Background(), tok, strongPassword, nil, nil)
 		require.Error(t, err)
 		assert.Nil(t, resp)
@@ -179,7 +179,7 @@ func TestResetPasswordService_ResetPassword(t *testing.T) {
 			findSystemFn: func() (*model.Client, error) {
 				return &model.Client{ClientID: 1}, nil
 			},
-		})
+		}, nil, nil)
 		resp, err := svc.ResetPassword(context.Background(), tok, strongPassword, nil, nil)
 		require.Error(t, err)
 		assert.Nil(t, resp)
@@ -197,7 +197,7 @@ func TestResetPasswordService_ResetPassword(t *testing.T) {
 			findSystemFn: func() (*model.Client, error) {
 				return &model.Client{ClientID: 1}, nil
 			},
-		})
+		}, nil, nil)
 		resp, err := svc.ResetPassword(context.Background(), tok, strongPassword, nil, nil)
 		require.Error(t, err)
 		assert.Nil(t, resp)
@@ -221,7 +221,7 @@ func TestResetPasswordService_ResetPassword(t *testing.T) {
 			findSystemFn: func() (*model.Client, error) {
 				return &model.Client{ClientID: 1}, nil
 			},
-		})
+		}, nil, nil)
 		resp, err := svc.ResetPassword(context.Background(), tok, strongPassword, nil, nil)
 		require.Error(t, err)
 		assert.Nil(t, resp)
@@ -243,7 +243,7 @@ func TestResetPasswordService_ResetPassword(t *testing.T) {
 			findSystemFn: func() (*model.Client, error) {
 				return &model.Client{ClientID: 1}, nil
 			},
-		})
+		}, nil, nil)
 		resp, err := svc.ResetPassword(context.Background(), tok, strongPassword, nil, nil)
 		require.Error(t, err)
 		assert.Nil(t, resp)
@@ -267,7 +267,7 @@ func TestResetPasswordService_ResetPassword(t *testing.T) {
 			findSystemFn: func() (*model.Client, error) {
 				return &model.Client{ClientID: 1}, nil
 			},
-		})
+		}, nil, nil)
 		resp, err := svc.ResetPassword(context.Background(), tok, strongPassword, nil, nil)
 		require.Error(t, err)
 		assert.Nil(t, resp)
@@ -291,11 +291,11 @@ func TestResetPasswordService_ResetPassword(t *testing.T) {
 			findSystemFn: func() (*model.Client, error) {
 				return &model.Client{ClientID: 1}, nil
 			},
-		})
+		}, nil, nil)
 		resp, err := svc.ResetPassword(context.Background(), tok, "weak", nil, nil)
 		require.Error(t, err)
 		assert.Nil(t, resp)
-		assert.Contains(t, err.Error(), "password validation failed")
+		assert.Contains(t, err.Error(), "password must be at least")
 		assert.NoError(t, mock.ExpectationsWereMet())
 	})
 
@@ -318,7 +318,7 @@ func TestResetPasswordService_ResetPassword(t *testing.T) {
 			findSystemFn: func() (*model.Client, error) {
 				return &model.Client{ClientID: 1}, nil
 			},
-		})
+		}, nil, nil)
 		resp, err := svc.ResetPassword(context.Background(), tok, strongPassword, nil, nil)
 		require.Error(t, err)
 		assert.Nil(t, resp)
@@ -346,7 +346,7 @@ func TestResetPasswordService_ResetPassword(t *testing.T) {
 			findSystemFn: func() (*model.Client, error) {
 				return &model.Client{ClientID: 1}, nil
 			},
-		})
+		}, nil, nil)
 		resp, err := svc.ResetPassword(context.Background(), tok, strongPassword, nil, nil)
 		require.Error(t, err)
 		assert.Nil(t, resp)
@@ -374,7 +374,7 @@ func TestResetPasswordService_ResetPassword(t *testing.T) {
 			findSystemFn: func() (*model.Client, error) {
 				return &model.Client{ClientID: 1}, nil
 			},
-		})
+		}, nil, nil)
 		resp, err := svc.ResetPassword(context.Background(), tok, strongPassword, nil, nil)
 		require.Error(t, err)
 		assert.Nil(t, resp)
@@ -416,7 +416,7 @@ func TestResetPasswordService_ResetPassword(t *testing.T) {
 			findSystemFn: func() (*model.Client, error) {
 				return &model.Client{ClientID: 1}, nil
 			},
-		})
+		}, nil, nil)
 		resp, err := svc.ResetPassword(context.Background(), tok, strongPassword, nil, nil)
 		require.Error(t, err)
 		assert.Nil(t, resp)
@@ -444,7 +444,7 @@ func TestResetPasswordService_ResetPassword(t *testing.T) {
 			findSystemFn: func() (*model.Client, error) {
 				return &model.Client{ClientID: 1}, nil
 			},
-		})
+		}, nil, nil)
 		resp, err := svc.ResetPassword(context.Background(), tok, strongPassword, nil, nil)
 		require.NoError(t, err)
 		require.NotNil(t, resp)
@@ -471,7 +471,7 @@ func TestResetPasswordService_ResetPassword(t *testing.T) {
 			findByClientIDAndIdentityProviderFn: func(_, _ string) (*model.Client, error) {
 				return &model.Client{ClientID: 1}, nil
 			},
-		})
+		}, nil, nil)
 		resp, err := svc.ResetPassword(context.Background(), tok, strongPassword, &clientID, &providerID)
 		require.NoError(t, err)
 		require.NotNil(t, resp)
@@ -501,7 +501,7 @@ func TestResetPasswordService_ResetPassword(t *testing.T) {
 			findSystemFn: func() (*model.Client, error) {
 				return &model.Client{ClientID: 1}, nil
 			},
-		})
+		}, nil, nil)
 		resp, err := svc.ResetPassword(context.Background(), tok, strongPassword, nil, nil)
 		require.NoError(t, err)
 		require.NotNil(t, resp)
@@ -532,7 +532,7 @@ func TestResetPasswordService_ResetPassword(t *testing.T) {
 			findSystemFn: func() (*model.Client, error) {
 				return &model.Client{ClientID: 1}, nil
 			},
-		})
+		}, nil, nil)
 		resp, err := svc.ResetPassword(context.Background(), tok, strongPassword, nil, nil)
 		require.NoError(t, err)
 		require.NotNil(t, resp)
@@ -558,7 +558,7 @@ func TestResetPasswordService_ResetPassword(t *testing.T) {
 			findSystemFn: func() (*model.Client, error) {
 				return &model.Client{ClientID: 1}, nil
 			},
-		})
+		}, nil, nil)
 		resp, err := svc.ResetPassword(context.Background(), tok, strongPassword, nil, nil)
 		require.Error(t, err)
 		assert.Nil(t, resp)

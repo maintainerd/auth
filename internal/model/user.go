@@ -26,7 +26,8 @@ type User struct {
 	Status             string         `gorm:"column:status;default:'active'"`
 	Metadata           datatypes.JSON `gorm:"column:metadata;type:jsonb;default:'{}'"`
 	// Feature: Force password change on next login
-	ForcePasswordChange bool `gorm:"column:force_password_change;default:false"`
+	ForcePasswordChange bool       `gorm:"column:force_password_change;default:false"`
+	PasswordChangedAt   *time.Time `gorm:"column:password_changed_at"`
 	// Feature: Email change with re-verification
 	PendingEmail            *string        `gorm:"column:pending_email"`
 	EmailChangeOTP          *string        `gorm:"column:email_change_otp"`

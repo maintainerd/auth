@@ -20,10 +20,12 @@ type ResetPasswordService interface {
 }
 
 type resetPasswordService struct {
-	db            *gorm.DB
-	userRepo      repository.UserRepository
-	userTokenRepo repository.UserTokenRepository
-	clientRepo    repository.ClientRepository
+	db                  *gorm.DB
+	userRepo            repository.UserRepository
+	userTokenRepo       repository.UserTokenRepository
+	clientRepo          repository.ClientRepository
+	securitySettingRepo repository.SecuritySettingRepository     // nil → use defaults
+	passwordHistoryRepo repository.UserPasswordHistoryRepository // nil → skip history
 }
 
 func NewResetPasswordService(
@@ -31,12 +33,16 @@ func NewResetPasswordService(
 	userRepo repository.UserRepository,
 	userTokenRepo repository.UserTokenRepository,
 	clientRepo repository.ClientRepository,
+	securitySettingRepo repository.SecuritySettingRepository,
+	passwordHistoryRepo repository.UserPasswordHistoryRepository,
 ) ResetPasswordService {
 	return &resetPasswordService{
-		db:            db,
-		userRepo:      userRepo,
-		userTokenRepo: userTokenRepo,
-		clientRepo:    clientRepo,
+		db:                  db,
+		userRepo:            userRepo,
+		userTokenRepo:       userTokenRepo,
+		clientRepo:          clientRepo,
+		securitySettingRepo: securitySettingRepo,
+		passwordHistoryRepo: passwordHistoryRepo,
 	}
 }
 
@@ -110,9 +116,19 @@ func (s *resetPasswordService) ResetPassword(ctx context.Context, token, newPass
 			return apperror.NewUnauthorized("user account is not active")
 		}
 
-		// Validate password strength
-		if err := security.ValidatePasswordStrength(newPassword); err != nil {
-			return apperror.NewInternal("password validation failed", err)
+		// Validate password against tenant policy
+		var tenantID int64
+		if Client.IdentityProvider != nil {
+			tenantID = Client.IdentityProvider.TenantID
+		}
+		policy := loadPolicy(s.securitySettingRepo, tenantID)
+		if err := security.ValidatePasswordPolicy(newPassword, policy); err != nil {
+			return apperror.NewValidation(err.Error())
+		}
+
+		// Check password history
+		if err := checkPasswordHistory(s.passwordHistoryRepo, user.UserID, policy.HistoryCount, newPassword); err != nil {
+			return apperror.NewValidation(err.Error())
 		}
 
 		// Hash the new password
@@ -121,14 +137,19 @@ func (s *resetPasswordService) ResetPassword(ctx context.Context, token, newPass
 			return apperror.NewInternal("failed to hash password", txErr)
 		}
 
+		now := time.Now()
 		// Update user password using the base repository method
 		_, txErr = txUserRepo.UpdateByID(user.UserID, map[string]any{
-			"password":             string(hashedPassword),
+			"password":              string(hashedPassword),
 			"force_password_change": false,
+			"password_changed_at":   now,
 		})
 		if txErr != nil {
 			return apperror.NewInternal("failed to update password", txErr)
 		}
+
+		// Record new hash in history
+		recordPasswordHistory(s.passwordHistoryRepo, user.UserID, policy.HistoryCount, string(hashedPassword))
 
 		// Revoke all sessions so existing logins are invalidated after password change.
 		if txErr = txUserTokenRepo.RevokeAllSessionsByUserID(user.UserID); txErr != nil {

@@ -172,47 +172,11 @@ var (
 	reSpecial = regexp.MustCompile(`[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]`)
 )
 
-// ValidatePasswordStrength enforces password complexity requirements
+// ValidatePasswordStrength enforces the system-default password complexity requirements.
+// For per-tenant policy enforcement, use ValidatePasswordPolicy with a loaded PasswordPolicy.
 // Complies with SOC2 CC6.1 and ISO27001 A.9.4.3
 func ValidatePasswordStrength(password string) error {
-	if len(password) < 8 {
-		return fmt.Errorf("password must be at least 8 characters long")
-	}
-
-	if len(password) > 128 {
-		return fmt.Errorf("password must not exceed 128 characters")
-	}
-
-	if !reUpper.MatchString(password) {
-		return fmt.Errorf("password must contain at least one uppercase letter")
-	}
-
-	if !reLower.MatchString(password) {
-		return fmt.Errorf("password must contain at least one lowercase letter")
-	}
-
-	if !reDigit.MatchString(password) {
-		return fmt.Errorf("password must contain at least one digit")
-	}
-
-	if !reSpecial.MatchString(password) {
-		return fmt.Errorf("password must contain at least one special character")
-	}
-
-	// Check for common weak passwords
-	weakPasswords := []string{
-		"password", "123456", "password123", "admin", "qwerty",
-		"letmein", "welcome", "monkey", "dragon", "master",
-	}
-
-	lowerPassword := strings.ToLower(password)
-	for _, weak := range weakPasswords {
-		if strings.Contains(lowerPassword, weak) {
-			return fmt.Errorf("password contains common weak patterns")
-		}
-	}
-
-	return nil
+	return ValidatePasswordPolicy(password, DefaultPasswordPolicy())
 }
 
 // SanitizeInput sanitizes user input to prevent injection attacks
