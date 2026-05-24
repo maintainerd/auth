@@ -34,6 +34,11 @@ func AccountRoute(
 
 		// Backup codes — generate and store securely
 		r.Post("/backup-codes", accountHandler.GenerateBackupCodes)
+
+		// Session management
+		r.Get("/sessions", accountHandler.ListSessions)
+		r.Delete("/sessions", accountHandler.RevokeAllSessions)
+		r.Delete("/sessions/{session_uuid}", accountHandler.RevokeSession)
 	})
 }
 

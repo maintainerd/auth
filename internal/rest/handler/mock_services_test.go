@@ -339,7 +339,7 @@ type mockClientService struct {
 	getByUUIDFn           func(uuid.UUID, int64) (*service.ClientServiceDataResult, error)
 	getSecretByUUIDFn     func(uuid.UUID, int64) (*service.ClientSecretServiceDataResult, error)
 	getConfigByUUIDFn     func(uuid.UUID, int64) (datatypes.JSON, error)
-	createFn              func(int64, string, string, string, string, datatypes.JSON, string, bool, string, uuid.UUID) (*service.ClientServiceDataResult, error)
+	createFn              func(int64, string, string, string, string, datatypes.JSON, string, bool, string, uuid.UUID) (*service.ClientCreateServiceResult, error)
 	updateFn              func(uuid.UUID, int64, string, string, string, string, datatypes.JSON, string, bool, uuid.UUID) (*service.ClientServiceDataResult, error)
 	setStatusByUUIDFn     func(uuid.UUID, int64, string, uuid.UUID) (*service.ClientServiceDataResult, error)
 	deleteByUUIDFn        func(uuid.UUID, int64, uuid.UUID) (*service.ClientServiceDataResult, error)
@@ -378,7 +378,7 @@ func (m *mockClientService) GetConfigByUUID(_ context.Context, id uuid.UUID, tid
 	}
 	return nil, nil
 }
-func (m *mockClientService) Create(_ context.Context, tid int64, n, dn, ct, d string, cfg datatypes.JSON, s string, isDef bool, idpUUID string, actor uuid.UUID) (*service.ClientServiceDataResult, error) {
+func (m *mockClientService) Create(_ context.Context, tid int64, n, dn, ct, d string, cfg datatypes.JSON, s string, isDef bool, idpUUID string, actor uuid.UUID) (*service.ClientCreateServiceResult, error) {
 	if m.createFn != nil {
 		return m.createFn(tid, n, dn, ct, d, cfg, s, isDef, idpUUID, actor)
 	}
@@ -455,6 +455,9 @@ func (m *mockClientService) RemoveClientAPIPermission(_ context.Context, tid int
 		return m.removeClientAPIPermFn(tid, id, api, perm)
 	}
 	return nil
+}
+func (m *mockClientService) RotateSecret(_ context.Context, id uuid.UUID, tid int64, actor uuid.UUID, gracePeriodHours int) (string, error) {
+	return "", nil
 }
 
 // ---------------------------------------------------------------------------

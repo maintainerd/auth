@@ -101,6 +101,7 @@ type userService struct {
 	clientRepo           repository.ClientRepository
 	userPoolRepo         repository.UserPoolRepository
 	cacheInvalidator     cache.Invalidator
+	userTokenRepo        repository.UserTokenRepository
 }
 
 func NewUserService(
@@ -114,6 +115,7 @@ func NewUserService(
 	clientRepo repository.ClientRepository,
 	userPoolRepo repository.UserPoolRepository,
 	cacheInvalidator cache.Invalidator,
+	userTokenRepo repository.UserTokenRepository,
 ) UserService {
 	return &userService{
 		db:                   db,
@@ -126,6 +128,7 @@ func NewUserService(
 		clientRepo:           clientRepo,
 		userPoolRepo:         userPoolRepo,
 		cacheInvalidator:     cacheInvalidator,
+		userTokenRepo:        userTokenRepo,
 	}
 }
 
@@ -867,6 +870,10 @@ func (s *userService) AssignUserRoles(ctx context.Context, userUUID uuid.UUID, r
 
 	span.SetStatus(codes.Ok, "")
 	s.invalidateUserCache(ctx, userWithRoles.UserIdentities)
+	// Revoke all active sessions so the permission change takes effect immediately.
+	if s.userTokenRepo != nil {
+		_ = s.userTokenRepo.RevokeAllSessionsByUserID(userWithRoles.UserID)
+	}
 
 	return toUserServiceDataResult(userWithRoles), nil
 }
@@ -933,6 +940,10 @@ func (s *userService) RemoveUserRole(ctx context.Context, userUUID uuid.UUID, ro
 
 	span.SetStatus(codes.Ok, "")
 	s.invalidateUserCache(ctx, userWithRoles.UserIdentities)
+	// Revoke all active sessions so the permission change takes effect immediately.
+	if s.userTokenRepo != nil {
+		_ = s.userTokenRepo.RevokeAllSessionsByUserID(userWithRoles.UserID)
+	}
 
 	return toUserServiceDataResult(userWithRoles), nil
 }

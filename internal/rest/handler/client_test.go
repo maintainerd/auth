@@ -137,36 +137,12 @@ func TestClientHandler_GetByUUID_Success(t *testing.T) {
 }
 
 func TestClientHandler_GetSecretByUUID(t *testing.T) {
-	t.Run("no tenant returns 401", func(t *testing.T) {
-		r := withChiParam(httptest.NewRequest(http.MethodGet, "/", nil), "client_uuid", testResourceUUID.String())
-		w := httptest.NewRecorder()
-		NewClientHandler(&mockClientService{}).GetSecretByUUID(w, r)
-		assert.Equal(t, http.StatusUnauthorized, w.Code)
-	})
-	t.Run("invalid uuid returns 400", func(t *testing.T) {
-		r := withTenant(withChiParam(httptest.NewRequest(http.MethodGet, "/", nil), "client_uuid", "bad"))
-		w := httptest.NewRecorder()
-		NewClientHandler(&mockClientService{}).GetSecretByUUID(w, r)
-		assert.Equal(t, http.StatusBadRequest, w.Code)
-	})
-	t.Run("service error returns 404", func(t *testing.T) {
-		svc := &mockClientService{getSecretByUUIDFn: func(id uuid.UUID, tid int64) (*service.ClientSecretServiceDataResult, error) {
-			return nil, errNotFound
-		}}
+	// Handler always returns 410 Gone — secrets cannot be retrieved after creation.
+	t.Run("always returns 410", func(t *testing.T) {
 		r := withTenant(withChiParam(httptest.NewRequest(http.MethodGet, "/", nil), "client_uuid", testResourceUUID.String()))
 		w := httptest.NewRecorder()
-		NewClientHandler(svc).GetSecretByUUID(w, r)
-		assert.Equal(t, http.StatusNotFound, w.Code)
-	})
-	t.Run("success", func(t *testing.T) {
-		svc := &mockClientService{getSecretByUUIDFn: func(id uuid.UUID, tid int64) (*service.ClientSecretServiceDataResult, error) {
-			secret := "s3cr3t"
-			return &service.ClientSecretServiceDataResult{ClientID: "cid", ClientSecret: &secret}, nil
-		}}
-		r := withTenant(withChiParam(httptest.NewRequest(http.MethodGet, "/", nil), "client_uuid", testResourceUUID.String()))
-		w := httptest.NewRecorder()
-		NewClientHandler(svc).GetSecretByUUID(w, r)
-		assert.Equal(t, http.StatusOK, w.Code)
+		NewClientHandler(&mockClientService{}).GetSecretByUUID(w, r)
+		assert.Equal(t, http.StatusGone, w.Code)
 	})
 }
 
@@ -235,7 +211,7 @@ func TestClientHandler_Create(t *testing.T) {
 		assert.Equal(t, http.StatusBadRequest, w.Code)
 	})
 	t.Run("service error returns 500", func(t *testing.T) {
-		svc := &mockClientService{createFn: func(tid int64, n, dn, ct, d string, cfg datatypes.JSON, s string, isDefault bool, idpUUID string, actor uuid.UUID) (*service.ClientServiceDataResult, error) {
+		svc := &mockClientService{createFn: func(tid int64, n, dn, ct, d string, cfg datatypes.JSON, s string, isDefault bool, idpUUID string, actor uuid.UUID) (*service.ClientCreateServiceResult, error) {
 			return nil, errors.New("db error")
 		}}
 		r := withTenantAndUser(jsonReq(t, http.MethodPost, "/clients", validClientBody()))
@@ -244,8 +220,8 @@ func TestClientHandler_Create(t *testing.T) {
 		assert.Equal(t, http.StatusInternalServerError, w.Code)
 	})
 	t.Run("success", func(t *testing.T) {
-		svc := &mockClientService{createFn: func(tid int64, n, dn, ct, d string, cfg datatypes.JSON, s string, isDefault bool, idpUUID string, actor uuid.UUID) (*service.ClientServiceDataResult, error) {
-			return &service.ClientServiceDataResult{Name: n}, nil
+		svc := &mockClientService{createFn: func(tid int64, n, dn, ct, d string, cfg datatypes.JSON, s string, isDefault bool, idpUUID string, actor uuid.UUID) (*service.ClientCreateServiceResult, error) {
+			return &service.ClientCreateServiceResult{Client: &service.ClientServiceDataResult{Name: n}}, nil
 		}}
 		r := withTenantAndUser(jsonReq(t, http.MethodPost, "/clients", validClientBody()))
 		w := httptest.NewRecorder()
