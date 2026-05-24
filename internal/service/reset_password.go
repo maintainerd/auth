@@ -130,6 +130,11 @@ func (s *resetPasswordService) ResetPassword(ctx context.Context, token, newPass
 			return apperror.NewInternal("failed to update password", txErr)
 		}
 
+		// Revoke all sessions so existing logins are invalidated after password change.
+		if txErr = txUserTokenRepo.RevokeAllSessionsByUserID(user.UserID); txErr != nil {
+			return apperror.NewInternal("failed to revoke sessions on password reset", txErr)
+		}
+
 		// Revoke the reset token
 		txErr = txUserTokenRepo.RevokeByUUID(userToken.UserTokenUUID)
 		if txErr != nil {
