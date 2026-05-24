@@ -11,6 +11,9 @@ import (
 // - Users from non-default tenant can only access their own tenant
 // - User must have at least one identity to validate access
 func ValidateTenantAccess(actorUser *model.User, targetTenant *model.Tenant) error {
+	if actorUser == nil {
+		return apperror.NewValidation("actor user is nil")
+	}
 	// User must have at least one identity
 	if len(actorUser.UserIdentities) == 0 {
 		return apperror.NewValidation("actor user has no identities")

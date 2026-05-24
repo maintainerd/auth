@@ -1633,7 +1633,7 @@ func TestRegisterService_GenerateTokenResponse(t *testing.T) {
 		initTestJWTKeysService(t)
 		origIDToken := jwt.GenerateIDToken
 		defer func() { jwt.GenerateIDToken = origIDToken }()
-		jwt.GenerateIDToken = func(_, _, _, _ string, _ *jwt.UserProfile, _ string) (string, error) {
+		jwt.GenerateIDToken = func(_, _, _, _ string, _ *jwt.UserProfile, _ string, _ *jwt.IDTokenParams) (string, error) {
 			return "", errors.New("id token error")
 		}
 
