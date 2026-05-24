@@ -357,24 +357,74 @@ func (s *tenantService) DeleteByUUID(ctx context.Context, tenantUUID uuid.UUID) 
 	defer span.End()
 	span.SetAttributes(attribute.String("tenant.uuid", tenantUUID.String()))
 
-	tenant, err := s.tenantRepo.FindByUUID(tenantUUID)
-	if err != nil || tenant == nil {
+	var result *TenantServiceDataResult
+
+	err := s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		tenant, err := s.tenantRepo.WithTx(tx).FindByUUID(tenantUUID)
 		if err != nil {
-			span.RecordError(err)
+			return err
 		}
-		span.SetStatus(codes.Error, "tenant not found")
-		return nil, apperror.NewNotFound("tenant not found")
-	}
+		if tenant == nil {
+			return apperror.NewNotFound("tenant not found")
+		}
+		if tenant.IsSystem {
+			return apperror.NewValidation("cannot delete system tenant")
+		}
 
-	// Prevent deletion of system tenants
-	if tenant.IsSystem {
-		span.SetStatus(codes.Error, "cannot delete system tenant")
-		return nil, apperror.NewValidation("cannot delete system tenant")
-	}
+		result = toTenantServiceDataResult(tenant)
+		id := tenant.TenantID
 
-	result := toTenantServiceDataResult(tenant)
+		// Cascade order: children before parents to respect FK constraints.
+		// Soft-delete capable models (have gorm.DeletedAt) — GORM issues UPDATE SET deleted_at.
+		// Hard-delete models (no DeletedAt) — GORM issues DELETE FROM.
+		// AuthEvent is intentionally excluded: audit logs must be retained for compliance.
+		cascade := []interface{}{
+			// OAuth protocol state (hard-delete — no audit value after tenant gone)
+			&model.OAuthAuthorizationCode{},
+			&model.OAuthRefreshToken{},
+			&model.OAuthConsentGrant{},
+			&model.OAuthConsentChallenge{},
+			&model.OAuthPARRequest{},
+			&model.OAuthDeviceCode{},
+			&model.OAuthCIBARequest{},
+			// Tenant config (hard-delete)
+			&model.TenantSetting{},
+			&model.TenantService{},
+			// Identity linkage (hard-delete)
+			&model.UserIdentity{},
+			// Client sub-resources (hard-delete before Client soft-delete)
+			&model.ClientURI{},
+			// Soft-delete capable resources
+			&model.TenantMember{},
+			&model.Client{},
+			&model.Role{},
+			&model.Permission{},
+			&model.Policy{},
+			&model.IdentityProvider{},
+			&model.Invite{},
+			&model.SignupFlow{},
+			&model.APIKey{},
+			&model.WebhookEndpoint{},
+			&model.IPRestrictionRule{},
+			&model.EmailTemplate{},
+			&model.SMSTemplate{},
+			&model.LoginTemplate{},
+			&model.Branding{},
+			&model.EmailConfig{},
+			&model.SMSConfig{},
+			&model.UserPool{},
+			&model.API{},
+		}
 
-	err = s.tenantRepo.DeleteByUUID(tenantUUID)
+		for _, m := range cascade {
+			if err := tx.Where("tenant_id = ?", id).Delete(m).Error; err != nil {
+				return err
+			}
+		}
+
+		return s.tenantRepo.WithTx(tx).DeleteByUUID(tenantUUID)
+	})
+
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "delete tenant failed")

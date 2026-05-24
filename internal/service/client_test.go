@@ -190,7 +190,7 @@ func TestClientService_GetSecretByUUID(t *testing.T) {
 		secret := "client-secret"
 		clientRepo := &mockClientRepo{
 			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*model.Client, error) {
-				return &model.Client{Identifier: &id, Secret: &secret}, nil
+				return &model.Client{Identifier: &id, SecretHash: &secret}, nil
 			},
 		}
 		svc := buildClientService(t, clientRepo, &mockIdentityProviderRepo{}, &mockUserRepo{})
