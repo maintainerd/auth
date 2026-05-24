@@ -102,6 +102,8 @@ type userService struct {
 	userPoolRepo         repository.UserPoolRepository
 	cacheInvalidator     cache.Invalidator
 	userTokenRepo        repository.UserTokenRepository
+	securitySettingRepo  repository.SecuritySettingRepository     // nil → use defaults
+	passwordHistoryRepo  repository.UserPasswordHistoryRepository // nil → skip history
 }
 
 func NewUserService(
@@ -116,6 +118,8 @@ func NewUserService(
 	userPoolRepo repository.UserPoolRepository,
 	cacheInvalidator cache.Invalidator,
 	userTokenRepo repository.UserTokenRepository,
+	securitySettingRepo repository.SecuritySettingRepository,
+	passwordHistoryRepo repository.UserPasswordHistoryRepository,
 ) UserService {
 	return &userService{
 		db:                   db,
@@ -129,6 +133,8 @@ func NewUserService(
 		userPoolRepo:         userPoolRepo,
 		cacheInvalidator:     cacheInvalidator,
 		userTokenRepo:        userTokenRepo,
+		securitySettingRepo:  securitySettingRepo,
+		passwordHistoryRepo:  passwordHistoryRepo,
 	}
 }
 
@@ -352,6 +358,12 @@ func (s *userService) Create(ctx context.Context, username string, fullname stri
 			}
 		}
 
+		// Validate password against tenant policy
+		policy := loadPolicy(s.securitySettingRepo, targetTenant.TenantID)
+		if err = security.ValidatePasswordPolicy(password, policy); err != nil {
+			return apperror.NewValidation(err.Error())
+		}
+
 		// Hash password
 		hashedPassword, err := security.HashPassword(ctx, []byte(password))
 		if err != nil {
@@ -360,6 +372,7 @@ func (s *userService) Create(ctx context.Context, username string, fullname stri
 
 		// Create user
 		hashedPasswordStr := string(hashedPassword)
+		now := time.Now()
 
 		// Convert optional pointers to strings
 		emailStr := ""
@@ -372,19 +385,23 @@ func (s *userService) Create(ctx context.Context, username string, fullname stri
 		}
 
 		newUser := &model.User{
-			Username: username,
-			Fullname: fullname,
-			Email:    emailStr,
-			Phone:    phoneStr,
-			Password: &hashedPasswordStr,
-			Status:   status,
-			Metadata: metadata,
+			Username:          username,
+			Fullname:          fullname,
+			Email:             emailStr,
+			Phone:             phoneStr,
+			Password:          &hashedPasswordStr,
+			Status:            status,
+			Metadata:          metadata,
+			PasswordChangedAt: &now,
 		}
 
 		_, err = txUserRepo.Create(newUser)
 		if err != nil {
 			return err
 		}
+
+		// Record password history
+		recordPasswordHistory(s.passwordHistoryRepo, newUser.UserID, policy.HistoryCount, hashedPasswordStr)
 
 		// Find default auth client for this tenant
 		defaultClient, err := txClientRepo.FindDefaultByTenantID(targetTenant.TenantID)

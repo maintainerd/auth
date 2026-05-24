@@ -861,6 +861,10 @@ func (m *mockSecuritySettingRepo) FindByUserPoolID(tID int64) (*model.SecuritySe
 	}
 	return nil, nil
 }
+
+func (m *mockSecuritySettingRepo) FindDefaultByTenantID(_ int64) (*model.SecuritySetting, error) {
+	return nil, nil
+}
 func (m *mockSecuritySettingRepo) UpdateByUUID(id, data any) (*model.SecuritySetting, error) {
 	if m.updateByUUIDFn != nil {
 		return m.updateByUUIDFn(id, data)

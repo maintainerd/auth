@@ -34,6 +34,7 @@ type loginService struct {
 	identityProviderRepo repository.IdentityProviderRepository
 	authEventService     AuthEventService
 	sessionService       SessionService
+	securitySettingRepo  repository.SecuritySettingRepository // nil → skip expiry check
 }
 
 func NewLoginService(
@@ -45,6 +46,7 @@ func NewLoginService(
 	identityProviderRepo repository.IdentityProviderRepository,
 	authEventService AuthEventService,
 	sessionService SessionService,
+	securitySettingRepo repository.SecuritySettingRepository,
 ) LoginService {
 	return &loginService{
 		db:                   db,
@@ -55,6 +57,7 @@ func NewLoginService(
 		identityProviderRepo: identityProviderRepo,
 		authEventService:     authEventService,
 		sessionService:       sessionService,
+		securitySettingRepo:  securitySettingRepo,
 	}
 }
 
@@ -263,6 +266,9 @@ func (s *loginService) LoginPublic(ctx context.Context, usernameOrEmail, passwor
 		Description: ptr.Ptr(fmt.Sprintf("Successful login for user %s", user.Username)),
 	})
 
+	// Check password expiry and set ForcePasswordChange if needed
+	s.checkPasswordExpiry(ctx, user, client.IdentityProvider.TenantID)
+
 	// Generate token response
 	return s.generateTokenResponse(ctx, userIdentitySub, user, client)
 }
@@ -460,6 +466,9 @@ func (s *loginService) Login(ctx context.Context, usernameOrEmail, password stri
 		Description: ptr.Ptr(fmt.Sprintf("Successful internal login for user %s", user.Username)),
 	})
 
+	// Check password expiry and set ForcePasswordChange if needed
+	s.checkPasswordExpiry(ctx, user, client.IdentityProvider.TenantID)
+
 	// Generate token response
 	return s.generateTokenResponse(ctx, userIdentitySub, user, client)
 }
@@ -483,6 +492,24 @@ func (s *loginService) GetUserByEmail(ctx context.Context, email string, tenantI
 	}
 	span.SetStatus(codes.Ok, "")
 	return user, nil
+}
+
+// checkPasswordExpiry marks ForcePasswordChange on the user if the policy has an
+// ExpiryDays > 0 and the password was last changed more than ExpiryDays ago.
+// A nil securitySettingRepo or a user with no PasswordChangedAt is a no-op.
+func (s *loginService) checkPasswordExpiry(ctx context.Context, user *model.User, tenantID int64) {
+	if s.securitySettingRepo == nil || user.PasswordChangedAt == nil {
+		return
+	}
+	policy := loadPolicy(s.securitySettingRepo, tenantID)
+	if policy.ExpiryDays <= 0 {
+		return
+	}
+	deadline := user.PasswordChangedAt.AddDate(0, 0, policy.ExpiryDays)
+	if time.Now().After(deadline) {
+		user.ForcePasswordChange = true
+		_, _ = s.userRepo.UpdateByID(user.UserID, map[string]any{"force_password_change": true})
+	}
 }
 
 func (s *loginService) generateTokenResponse(ctx context.Context, sub string, user *model.User, Client *model.Client) (*dto.LoginResponseDTO, error) {

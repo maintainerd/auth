@@ -289,13 +289,15 @@ func (s *setupService) CreateAdmin(ctx context.Context, req dto.CreateAdminReque
 		}
 
 		// Create admin user
+		now := time.Now()
 		newUser := &model.User{
-			Username:        req.Username,
-			Fullname:        req.Fullname,
-			Email:           req.Email,
-			Password:        ptr.Ptr(string(hashedPassword)),
-			IsEmailVerified: true,
-			Status:          model.StatusActive,
+			Username:          req.Username,
+			Fullname:          req.Fullname,
+			Email:             req.Email,
+			Password:          ptr.Ptr(string(hashedPassword)),
+			IsEmailVerified:   true,
+			Status:            model.StatusActive,
+			PasswordChangedAt: &now,
 		}
 
 		createdUser, err = txUserRepo.Create(newUser)
