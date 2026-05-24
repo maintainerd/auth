@@ -124,7 +124,7 @@ func TestSuccessWithCookies_WithCookieHeader(t *testing.T) {
 	assert.Equal(t, http.StatusOK, rr.Code)
 	var found bool
 	for _, c := range rr.Result().Cookies() {
-		if c.Name == "access_token" {
+		if c.Name == "__Host-access_token" {
 			found = true
 			assert.Equal(t, "my-token", c.Value)
 		}
@@ -141,7 +141,7 @@ func TestCreatedWithCookies_WithCookieHeader(t *testing.T) {
 	assert.Equal(t, http.StatusCreated, rr.Code)
 	var found bool
 	for _, c := range rr.Result().Cookies() {
-		if c.Name == "access_token" {
+		if c.Name == "__Host-access_token" {
 			found = true
 		}
 	}

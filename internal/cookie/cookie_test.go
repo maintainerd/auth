@@ -38,20 +38,19 @@ func TestSetAuthCookies_FromMap(t *testing.T) {
 	}
 	SetAuthCookies(rr, data)
 
-	at := findCookie(t, rr, "access_token")
+	at := findCookie(t, rr, "__Host-access_token")
 	require.NotNil(t, at)
 	assert.Equal(t, "at-value", at.Value)
 	assert.Equal(t, 1800, at.MaxAge)
 	assert.True(t, at.HttpOnly)
-	assert.True(t, at.Secure)
 	assert.Equal(t, "/", at.Path)
 
-	it := findCookie(t, rr, "id_token")
+	it := findCookie(t, rr, "__Host-id_token")
 	require.NotNil(t, it)
 	assert.Equal(t, "it-value", it.Value)
 	assert.Equal(t, 3600, it.MaxAge)
 
-	rt := findCookie(t, rr, "refresh_token")
+	rt := findCookie(t, rr, "__Secure-refresh_token")
 	require.NotNil(t, rt)
 	assert.Equal(t, "rt-value", rt.Value)
 	assert.Equal(t, 7*24*60*60, rt.MaxAge)
@@ -68,16 +67,16 @@ func TestSetAuthCookies_FromStruct(t *testing.T) {
 	}
 	SetAuthCookies(rr, data)
 
-	at := findCookie(t, rr, "access_token")
+	at := findCookie(t, rr, "__Host-access_token")
 	require.NotNil(t, at)
 	assert.Equal(t, "at-struct", at.Value)
 	assert.Equal(t, 900, at.MaxAge)
 
-	it := findCookie(t, rr, "id_token")
+	it := findCookie(t, rr, "__Host-id_token")
 	require.NotNil(t, it)
 	assert.Equal(t, "it-struct", it.Value)
 
-	rt := findCookie(t, rr, "refresh_token")
+	rt := findCookie(t, rr, "__Secure-refresh_token")
 	require.NotNil(t, rt)
 	assert.Equal(t, "rt-struct", rt.Value)
 }
@@ -92,7 +91,7 @@ func TestSetAuthCookies_FromStructPtr(t *testing.T) {
 	}
 	SetAuthCookies(rr, data)
 
-	at := findCookie(t, rr, "access_token")
+	at := findCookie(t, rr, "__Host-access_token")
 	require.NotNil(t, at)
 	assert.Equal(t, "at-ptr", at.Value)
 }
@@ -101,27 +100,25 @@ func TestSetAuthCookies_EmptyTokensNotSet(t *testing.T) {
 	rr := httptest.NewRecorder()
 	SetAuthCookies(rr, map[string]interface{}{})
 
-	assert.Nil(t, findCookie(t, rr, "access_token"))
-	assert.Nil(t, findCookie(t, rr, "id_token"))
-	assert.Nil(t, findCookie(t, rr, "refresh_token"))
+	assert.Nil(t, findCookie(t, rr, "__Host-access_token"))
+	assert.Nil(t, findCookie(t, rr, "__Host-id_token"))
+	assert.Nil(t, findCookie(t, rr, "__Secure-refresh_token"))
 }
 
 func TestClearAuthCookies(t *testing.T) {
 	rr := httptest.NewRecorder()
 	ClearAuthCookies(rr)
 
-	names := []string{"access_token", "id_token", "refresh_token"}
+	names := []string{"__Host-access_token", "__Host-id_token", "__Secure-refresh_token"}
 	for _, name := range names {
 		c := findCookie(t, rr, name)
 		require.NotNil(t, c, "cookie %s should be present in clear response", name)
 		assert.Equal(t, "", c.Value)
 		assert.Equal(t, -1, c.MaxAge, "MaxAge -1 signals deletion for %s", name)
 		assert.True(t, c.HttpOnly)
-		assert.True(t, c.Secure)
 	}
 
-	rt := findCookie(t, rr, "refresh_token")
+	rt := findCookie(t, rr, "__Secure-refresh_token")
 	require.NotNil(t, rt)
 	assert.Equal(t, "/auth/refresh", rt.Path)
 }
-

@@ -34,6 +34,10 @@ var (
 	DBName     string
 	DBSSLMode  string
 
+	// Cookie Config
+	CookieSecure   bool   // defaults true; set COOKIE_SECURE=false for local dev
+	CookieSameSite string // "strict", "lax", or "none"; defaults "strict"
+
 	// Email Config
 	SMTPHost      string
 	SMTPPort      int
@@ -134,6 +138,10 @@ func Init() error {
 	SMTPFromEmail = GetEnvOrDefault("SMTP_FROM_EMAIL", "noreply@maintainerd.com")
 	SMTPFromName = GetEnvOrDefault("SMTP_FROM_NAME", "Maintainerd")
 	EmailLogo = GetEnvOrDefault("EMAIL_LOGO_URL", "https://avatars.githubusercontent.com/u/215448978?s=400&u=f6f4016d81d3ef54ea34cd9cf3028a8ca1183afc&v=4")
+
+	// Cookie Config
+	CookieSecure = GetEnvOrDefault("COOKIE_SECURE", "true") != "false"
+	CookieSameSite = GetEnvOrDefault("COOKIE_SAMESITE", "strict")
 
 	return nil
 }
