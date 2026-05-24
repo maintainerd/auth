@@ -13,6 +13,7 @@ import (
 	"github.com/maintainerd/auth/internal/model"
 	"github.com/maintainerd/auth/internal/ptr"
 	"github.com/maintainerd/auth/internal/repository"
+	"github.com/maintainerd/auth/internal/security"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -412,7 +413,13 @@ func (s *oauthAuthorizeService) clientSupportsResponseType(client *model.Client,
 
 // validateRedirectURI checks the redirect_uri against the client's registered
 // redirect URIs. Exact match is required per RFC 6749 §3.1.2.3.
+// Dangerous schemes (javascript:, data:, vbscript:) are rejected before the
+// registered-URI check to prevent open-redirect → code-execution attacks.
 func (s *oauthAuthorizeService) validateRedirectURI(client *model.Client, redirectURI string) *apperror.OAuthError {
+	if err := security.ValidateRedirectURI(redirectURI); err != nil {
+		return apperror.NewOAuthInvalidRequest(err.Error())
+	}
+
 	if client.ClientURIs == nil {
 		return apperror.NewOAuthInvalidRequest("no redirect URIs registered for this client")
 	}

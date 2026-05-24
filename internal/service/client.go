@@ -659,6 +659,12 @@ func (s *clientService) CreateURI(ctx context.Context, ClientUUID uuid.UUID, ten
 			return apperror.NewNotFoundWithReason("auth client not found or access denied")
 		}
 
+		if uriType == model.ClientURITypeRedirect || uriType == model.ClientURITypeLogout || uriType == model.ClientURITypeLogin {
+			if err := security.ValidateRedirectURI(uri); err != nil {
+				return apperror.NewValidation(err.Error())
+			}
+		}
+
 		// Create the URI entry
 		newURI := &model.ClientURI{
 			TenantID: tenantID,
@@ -734,6 +740,13 @@ func (s *clientService) UpdateURI(ctx context.Context, ClientUUID uuid.UUID, ten
 		// Check if the URI belongs to the auth client
 		if existingURI.ClientID != Client.ClientID {
 			return apperror.NewValidation("URI does not belong to the specified auth client")
+		}
+
+		// Reject dangerous schemes on redirect/logout/login URIs
+		if uriType == model.ClientURITypeRedirect || uriType == model.ClientURITypeLogout || uriType == model.ClientURITypeLogin {
+			if err := security.ValidateRedirectURI(uri); err != nil {
+				return apperror.NewValidation(err.Error())
+			}
 		}
 
 		// Set new values

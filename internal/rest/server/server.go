@@ -212,6 +212,10 @@ func buildInternalRouter(h *handlers, application *app.App) http.Handler {
 	r.Use(securityMiddleware.RequestSizeLimitMiddleware(10 * 1024 * 1024)) // 10MB global limit
 	r.Use(securityMiddleware.TimeoutMiddleware(60 * time.Second))          // 60s global timeout
 
+	// CORS allow-list and Content-Type enforcement
+	r.Use(securityMiddleware.CORSMiddleware)
+	r.Use(securityMiddleware.EnforceJSONContentType)
+
 	// Health / readiness probes (no auth, no rate-limit)
 	r.Get("/health", handleHealth)
 	r.Get("/ready", handleReady(application))
@@ -291,6 +295,13 @@ func buildPublicRouter(h *handlers, application *app.App) http.Handler {
 	r.Use(securityMiddleware.RequestSizeLimitMiddleware(10 * 1024 * 1024)) // 10MB global limit
 	r.Use(securityMiddleware.TimeoutMiddleware(60 * time.Second))          // 60s global timeout
 
+	// CORS allow-list and Content-Type enforcement
+	r.Use(securityMiddleware.CORSMiddleware)
+	r.Use(securityMiddleware.EnforceJSONContentType)
+
+	// Global IP rate limit — 100 req/min per IP on the public port
+	r.Use(securityMiddleware.IPRateLimitMiddleware(application.RedisClient, 100, time.Minute))
+
 	// Health / readiness probes (no auth, no rate-limit)
 	r.Get("/health", handleHealth)
 	r.Get("/ready", handleReady(application))
@@ -298,30 +309,42 @@ func buildPublicRouter(h *handlers, application *app.App) http.Handler {
 	// OpenID Connect discovery endpoints (root-level, fully public)
 	route.OAuthDiscoveryRoute(r, h.oauthDiscovery)
 
+	// Tight rate limit for credential / credential-reset endpoints (10 req/min per IP)
+	authRateLimit := securityMiddleware.IPRateLimitMiddleware(application.RedisClient, 10, time.Minute)
+
 	r.Route("/api/v1", func(api chi.Router) {
 		// Public Tenant Routes (no authentication required - for login page)
 		// Only exposes GET /tenant/ and GET /tenant/{identifier} — management endpoints
 		// are intentionally absent from the public surface.
 		route.TenantPublicRoute(api, h.tenant)
 
-		// Public Authentication Routes (requires client_id/provider_id)
-		route.RegisterPublicRoute(api, h.register)
-		route.LoginPublicRoute(api, h.login)
-		route.ForgotPasswordPublicRoute(api, h.forgotPassword)
-		route.ResetPasswordPublicRoute(api, h.resetPassword)
+		// Rate-limited credential endpoints
+		api.Group(func(rl chi.Router) {
+			rl.Use(authRateLimit)
+			route.RegisterPublicRoute(rl, h.register)
+			route.LoginPublicRoute(rl, h.login)
+			route.ForgotPasswordPublicRoute(rl, h.forgotPassword)
+			route.ResetPasswordPublicRoute(rl, h.resetPassword)
+		})
+
+		// Remaining public authentication routes
 		route.EmailVerificationPublicRoute(api, h.emailVerification)
 		route.MagicLinkPublicRoute(api, h.magicLink)
-		route.ProfileRoute(api, h.profile, application.UserService, application.Cache)
-		route.UserSettingRoute(api, h.userSetting, application.UserService, application.Cache)
+
+		// Cookie-auth state-changing routes — apply CSRF protection
+		api.Group(func(cookieAuth chi.Router) {
+			cookieAuth.Use(securityMiddleware.CSRFMiddleware)
+			route.ProfileRoute(cookieAuth, h.profile, application.UserService, application.Cache)
+			route.UserSettingRoute(cookieAuth, h.userSetting, application.UserService, application.Cache)
+			route.AccountRoute(cookieAuth, h.account, application.UserService, application.Cache)
+			route.MFARoute(cookieAuth, h.mfa, application.UserService, application.Cache)
+			route.FederationIdentityRoute(cookieAuth, h.federation, application.UserService, application.Cache)
+		})
+
 		route.OAuthPublicRoute(api, h.oauthAuthorize, h.oauthToken, h.oauthTokenExchange, h.oauthConsent, h.oauthUserInfo, h.oauthPAR, h.oauthDevice, h.oauthSession, h.oauthCIBA, h.oauthRegister, application.UserService, application.Cache)
 
-		// Account self-service routes (authenticated)
-		route.AccountRoute(api, h.account, application.UserService, application.Cache)
-		// MFA self-service routes (authenticated)
-		route.MFARoute(api, h.mfa, application.UserService, application.Cache)
-		// Federation: token exchange + HRD (public) + identity link/unlink (authenticated)
+		// Federation HRD (public, no cookie auth)
 		route.FederationPublicRoute(api, h.federation)
-		route.FederationIdentityRoute(api, h.federation, application.UserService, application.Cache)
 		// SMS login (unauthenticated)
 		route.SMSLoginRoute(api, h.smsLogin)
 		// Account recovery via backup code (unauthenticated)
