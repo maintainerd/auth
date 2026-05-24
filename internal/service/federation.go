@@ -182,7 +182,7 @@ func (s *federationService) ExchangeExternalToken(ctx context.Context, req dto.F
 		// Fallback: any client associated with the tenant's default IDP.
 		defaultIDP, _ := s.idpRepo.FindDefaultByTenantID(idp.TenantID)
 		if defaultIDP != nil {
-			client, err = s.clientRepo.FindByClientIDAndIdentityProvider(req.ClientID, defaultIDP.Identifier)
+			client, _ = s.clientRepo.FindByClientIDAndIdentityProvider(req.ClientID, defaultIDP.Identifier)
 		}
 	}
 	if client == nil {
