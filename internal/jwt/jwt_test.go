@@ -136,9 +136,15 @@ func TestValidateToken_TamperedToken(t *testing.T) {
 
 func TestValidateToken_NilPublicKey(t *testing.T) {
 	initTestJWTKeys(t)
-	saved := publicKey
-	publicKey = nil
-	t.Cleanup(func() { publicKey = saved })
+	keyMu.Lock()
+	saved := activePubKey
+	activePubKey = nil
+	keyMu.Unlock()
+	t.Cleanup(func() {
+		keyMu.Lock()
+		activePubKey = saved
+		keyMu.Unlock()
+	})
 
 	_, err := ValidateToken("any.token.string")
 	require.Error(t, err)
@@ -362,9 +368,15 @@ func TestInitJWTKeys_WeakPrivateKey(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestGenerateToken_NilPrivateKey(t *testing.T) {
-	saved := privateKey
-	privateKey = nil
-	t.Cleanup(func() { privateKey = saved })
+	keyMu.Lock()
+	saved := activePrivKey
+	activePrivKey = nil
+	keyMu.Unlock()
+	t.Cleanup(func() {
+		keyMu.Lock()
+		activePrivKey = saved
+		keyMu.Unlock()
+	})
 
 	claims := jwtlib.MapClaims{
 		"sub": "user-uuid", "aud": "myapp", "iss": "https://auth.example.com",
@@ -395,13 +407,24 @@ func TestGenerateToken_MissingRequiredClaim(t *testing.T) {
 
 func TestValidateToken_KIDMismatch(t *testing.T) {
 	initTestJWTKeys(t)
-	// Generate token with default KID "maintainerd-auth-key-1"
-	tok, err := GenerateAccessToken("user-uuid", "read", "https://auth.example.com", "myapp", "client-1", "provider-1")
+
+	// Craft a token signed with the real private key but carrying a KID that
+	// is not registered in the active or retiring key set.
+	keyMu.RLock()
+	priv := activePrivKey
+	keyMu.RUnlock()
+
+	now := time.Now()
+	tok := jwtlib.NewWithClaims(jwtlib.SigningMethodRS256, jwtlib.MapClaims{
+		"sub": "user-uuid", "aud": "myapp", "iss": "https://auth.example.com",
+		"iat": jwtlib.NewNumericDate(now), "exp": jwtlib.NewNumericDate(now.Add(time.Hour)),
+		"jti": generateSecureJTI(),
+	})
+	tok.Header["kid"] = "totally-unknown-key-id"
+	tokenString, err := tok.SignedString(priv)
 	require.NoError(t, err)
 
-	// Now tell ValidateToken to expect a different KID
-	t.Setenv("JWT_KEY_ID", "rotated-key-2")
-	_, err = ValidateToken(tok)
+	_, err = ValidateToken(tokenString)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "unknown key ID")
 }
@@ -437,6 +460,9 @@ func TestValidateToken_WrongRSAVariant(t *testing.T) {
 	initTestJWTKeys(t)
 
 	// RS384-signed token — only RS256 is allowed
+	keyMu.RLock()
+	testPrivKey := activePrivKey
+	keyMu.RUnlock()
 	rs384Tok, err := jwtlib.NewWithClaims(jwtlib.SigningMethodRS384, jwtlib.MapClaims{
 		"sub": "user-uuid",
 		"aud": "myapp",
@@ -444,7 +470,7 @@ func TestValidateToken_WrongRSAVariant(t *testing.T) {
 		"iat": jwtlib.NewNumericDate(time.Now()),
 		"exp": jwtlib.NewNumericDate(time.Now().Add(time.Hour)),
 		"jti": "test-jti",
-	}).SignedString(privateKey)
+	}).SignedString(testPrivKey)
 	require.NoError(t, err)
 
 	_, err = ValidateToken(rs384Tok)
@@ -562,9 +588,14 @@ func TestValidateToken_MissingJTIInSignedToken(t *testing.T) {
 		"exp": jwtlib.NewNumericDate(now.Add(time.Hour)),
 		// "jti" deliberately omitted
 	}
+	keyMu.RLock()
+	sigPrivKey := activePrivKey
+	sigKID := activeKID
+	keyMu.RUnlock()
+
 	token := jwtlib.NewWithClaims(jwtlib.SigningMethodRS256, claims)
-	token.Header["kid"] = "maintainerd-auth-key-1"
-	tokenString, err := token.SignedString(privateKey)
+	token.Header["kid"] = sigKID
+	tokenString, err := token.SignedString(sigPrivKey)
 	require.NoError(t, err)
 
 	_, err = ValidateToken(tokenString)

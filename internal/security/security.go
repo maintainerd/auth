@@ -314,7 +314,7 @@ var dummyBcryptHash []byte
 func init() {
 	// bcrypt.GenerateFromPassword with DefaultCost cannot fail:
 	// the cost is valid and crypto/rand.Read is guaranteed to succeed (Go 1.24+).
-	dummyBcryptHash, _ = bcrypt.GenerateFromPassword([]byte("dummy_password_for_timing_safety"), bcrypt.DefaultCost)
+	dummyBcryptHash, _ = bcrypt.GenerateFromPassword([]byte("dummy_password_for_timing_safety"), BcryptCost)
 }
 
 // GetDummyBcryptHash returns the pre-computed dummy bcrypt hash for timing-safe operations.

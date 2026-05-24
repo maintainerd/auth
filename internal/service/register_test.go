@@ -567,7 +567,7 @@ func TestRegisterService_RegisterPublic(t *testing.T) {
 	t.Run("HashPassword error", func(t *testing.T) {
 		origHash := security.HashPassword
 		defer func() { security.HashPassword = origHash }()
-		security.HashPassword = func(_ []byte) ([]byte, error) { return nil, errors.New("hash error") }
+		security.HashPassword = func(_ context.Context, _ []byte) ([]byte, error) { return nil, errors.New("hash error") }
 
 		gormDB, mock := newMockGormDB(t)
 		mock.ExpectBegin()
@@ -805,7 +805,7 @@ func TestRegisterService_Register(t *testing.T) {
 	t.Run("HashPassword error", func(t *testing.T) {
 		origHash := security.HashPassword
 		defer func() { security.HashPassword = origHash }()
-		security.HashPassword = func(_ []byte) ([]byte, error) { return nil, errors.New("hash error") }
+		security.HashPassword = func(_ context.Context, _ []byte) ([]byte, error) { return nil, errors.New("hash error") }
 
 		gormDB, mock := newMockGormDB(t)
 		mock.ExpectBegin()
@@ -1151,7 +1151,7 @@ func TestRegisterService_RegisterInvite(t *testing.T) {
 	t.Run("HashPassword error", func(t *testing.T) {
 		origHash := security.HashPassword
 		defer func() { security.HashPassword = origHash }()
-		security.HashPassword = func(_ []byte) ([]byte, error) { return nil, errors.New("hash error") }
+		security.HashPassword = func(_ context.Context, _ []byte) ([]byte, error) { return nil, errors.New("hash error") }
 
 		gormDB, mock := newMockGormDB(t)
 		mock.ExpectBegin()
@@ -1568,7 +1568,7 @@ func TestRegisterService_RegisterInvitePublic(t *testing.T) {
 	t.Run("HashPassword error", func(t *testing.T) {
 		origHash := security.HashPassword
 		defer func() { security.HashPassword = origHash }()
-		security.HashPassword = func(_ []byte) ([]byte, error) { return nil, errors.New("hash error") }
+		security.HashPassword = func(_ context.Context, _ []byte) ([]byte, error) { return nil, errors.New("hash error") }
 
 		gormDB, mock := newMockGormDB(t)
 		mock.ExpectBegin()

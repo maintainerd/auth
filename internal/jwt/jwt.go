@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"sync"
 	"time"
 
 	jwtlib "github.com/golang-jwt/jwt/v5"
@@ -38,10 +39,32 @@ func GenerateSecureID() string {
 	return hex.EncodeToString(bytes)
 }
 
+// keyMu guards all fields below. Use RLock for reads, Lock for writes.
+var keyMu sync.RWMutex
+
+// activePrivKey / activePubKey are the current signing key pair.
 var (
-	privateKey *rsa.PrivateKey
-	publicKey  *rsa.PublicKey
+	activePrivKey *rsa.PrivateKey
+	activePubKey  *rsa.PublicKey
+	activeKID     string
 )
+
+// retiredKey holds a public key that has been rotated out but may still be
+// needed to verify tokens whose refresh window has not yet expired.
+type retiredKey struct {
+	kid      string
+	pubKey   *rsa.PublicKey
+	retiredAt time.Time
+}
+
+// retiringKeys is the ordered list of recently retired keys (oldest first).
+var retiringKeys []retiredKey
+
+// PublicKeyEntry is a KID-tagged public key returned by GetAllPublicKeys.
+type PublicKeyEntry struct {
+	KID    string
+	PubKey *rsa.PublicKey
+}
 
 // JTIChecker is called during ValidateToken to check whether a token's JTI
 // has been added to the denylist (e.g. by an explicit revocation call).
@@ -49,10 +72,68 @@ var (
 // When nil, no denylist check is performed (tokens are validated purely by signature + expiry).
 var JTIChecker func(ctx context.Context, jti string) (bool, error)
 
-// GetPublicKey returns the parsed RSA public key used for JWT verification.
+// GetPublicKey returns the active RSA public key used for JWT verification.
 // Returns nil if InitJWTKeys has not been called.
 func GetPublicKey() *rsa.PublicKey {
-	return publicKey
+	keyMu.RLock()
+	defer keyMu.RUnlock()
+	return activePubKey
+}
+
+// GetAllPublicKeys returns the active key followed by any retiring keys that
+// are still within the refresh-token validity window. The JWKS endpoint calls
+// this so that clients can verify tokens signed by recently rotated keys.
+func GetAllPublicKeys() []PublicKeyEntry {
+	keyMu.RLock()
+	defer keyMu.RUnlock()
+
+	out := make([]PublicKeyEntry, 0, 1+len(retiringKeys))
+	if activePubKey != nil {
+		out = append(out, PublicKeyEntry{KID: activeKID, PubKey: activePubKey})
+	}
+	for _, rk := range retiringKeys {
+		out = append(out, PublicKeyEntry{KID: rk.kid, PubKey: rk.pubKey})
+	}
+	return out
+}
+
+// RotateKeys generates a fresh RSA-2048 key pair, promotes the current active
+// key to the retiring list, and prunes any retiring keys older than
+// RefreshTokenTTL (tokens signed with them cannot be valid any more).
+func RotateKeys() error {
+	newKey, err := rsa.GenerateKey(rand.Reader, MinKeySize)
+	if err != nil {
+		return fmt.Errorf("jwt: generate rotation key: %w", err)
+	}
+	newKID := GenerateSecureID()
+
+	keyMu.Lock()
+	defer keyMu.Unlock()
+
+	// Promote current active key to retiring list.
+	if activePubKey != nil {
+		retiringKeys = append(retiringKeys, retiredKey{
+			kid:       activeKID,
+			pubKey:    activePubKey,
+			retiredAt: time.Now(),
+		})
+	}
+
+	// Prune keys that are older than RefreshTokenTTL — no valid token can
+	// still carry one of those KIDs.
+	cutoff := time.Now().Add(-RefreshTokenTTL)
+	live := retiringKeys[:0]
+	for _, rk := range retiringKeys {
+		if rk.retiredAt.After(cutoff) {
+			live = append(live, rk)
+		}
+	}
+	retiringKeys = live
+
+	activePrivKey = newKey
+	activePubKey = &newKey.PublicKey
+	activeKID = newKID
+	return nil
 }
 
 // generateSecureJTI creates a cryptographically secure unique token identifier
@@ -87,26 +168,32 @@ func InitJWTKeys() error {
 	}
 
 	// Parse private key with security validation
-	privateKey, err = jwtlib.ParseRSAPrivateKeyFromPEM(config.JWTPrivateKey)
+	privKey, err := jwtlib.ParseRSAPrivateKeyFromPEM(config.JWTPrivateKey)
 	if err != nil {
 		return fmt.Errorf("failed to parse private key: %w", err)
 	}
 
 	// Validate key strength (SOC2/ISO27001 compliance)
-	if err := validateKeyStrength(privateKey); err != nil {
+	if err := validateKeyStrength(privKey); err != nil {
 		return fmt.Errorf("private key security validation failed: %w", err)
 	}
 
 	// Parse public key
-	publicKey, err = jwtlib.ParseRSAPublicKeyFromPEM(config.JWTPublicKey)
+	pubKey, err := jwtlib.ParseRSAPublicKeyFromPEM(config.JWTPublicKey)
 	if err != nil {
 		return fmt.Errorf("failed to parse public key: %w", err)
 	}
 
 	// Validate key pair consistency
-	if privateKey.PublicKey.N.Cmp(publicKey.N) != 0 || privateKey.PublicKey.E != publicKey.E {
+	if privKey.PublicKey.N.Cmp(pubKey.N) != 0 || privKey.PublicKey.E != pubKey.E {
 		return errors.New("private and public keys do not form a valid key pair")
 	}
+
+	keyMu.Lock()
+	activePrivKey = privKey
+	activePubKey = pubKey
+	activeKID = config.GetEnvOrDefault("JWT_KEY_ID", "maintainerd-auth-key-1")
+	keyMu.Unlock()
 
 	return nil
 }
@@ -114,8 +201,12 @@ func InitJWTKeys() error {
 // ResetJWTKeys clears the cached JWT signing keys.
 // Intended for testing only.
 func ResetJWTKeys() {
-	privateKey = nil
-	publicKey = nil
+	keyMu.Lock()
+	activePrivKey = nil
+	activePubKey = nil
+	activeKID = ""
+	retiringKeys = nil
+	keyMu.Unlock()
 }
 
 // AccessTokenOptions carries optional per-issuance parameters for access tokens.
@@ -471,7 +562,12 @@ func generateRefreshToken(userUUID, issuer, clientID, providerID string) (string
 // generateToken creates a JWT with enhanced security validation
 // Complies with SOC2 CC6.1 and ISO27001 A.10.1.1
 func generateToken(claims jwtlib.MapClaims) (string, error) {
-	if privateKey == nil {
+	keyMu.RLock()
+	priv := activePrivKey
+	kid := activeKID
+	keyMu.RUnlock()
+
+	if priv == nil {
 		return "", errors.New("private key not initialized - call InitJWTKeys() first")
 	}
 
@@ -483,13 +579,10 @@ func generateToken(claims jwtlib.MapClaims) (string, error) {
 		}
 	}
 
-	// Use RS256 for asymmetric signing (more secure than HS256)
 	token := jwtlib.NewWithClaims(jwtlib.SigningMethodRS256, claims)
+	token.Header["kid"] = kid
 
-	// Add key ID header for key rotation support (configurable via JWT_KEY_ID env var)
-	token.Header["kid"] = config.GetEnvOrDefault("JWT_KEY_ID", "maintainerd-auth-key-1")
-
-	return token.SignedString(privateKey)
+	return token.SignedString(priv)
 }
 
 // ValidateToken performs comprehensive JWT validation
@@ -554,7 +647,11 @@ func ValidateToken(tokenString string) (jwtlib.MapClaims, error) {
 	_, span := otel.Tracer("jwt").Start(context.Background(), "jwt.validate_token")
 	defer span.End()
 
-	if publicKey == nil {
+	keyMu.RLock()
+	noKeys := activePubKey == nil
+	keyMu.RUnlock()
+
+	if noKeys {
 		err := errors.New("public key not initialized - call InitJWTKeys() first")
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "validate token failed")
@@ -576,15 +673,25 @@ func ValidateToken(tokenString string) (jwtlib.MapClaims, error) {
 			return nil, fmt.Errorf("unexpected RSA signing method: %v", method.Alg())
 		}
 
-		// Validate key ID if present (for key rotation)
-		if kid, exists := t.Header["kid"]; exists {
-			expectedKID := config.GetEnvOrDefault("JWT_KEY_ID", "maintainerd-auth-key-1")
-			if kid != expectedKID {
-				return nil, fmt.Errorf("unknown key ID: %v", kid)
+		// Look up the public key by KID. This supports both the active key and
+		// any recently retired keys (within RefreshTokenTTL) so tokens signed
+		// before a rotation remain valid until they naturally expire.
+		// Tokens without a KID header (pre-rotation or test-crafted) are
+		// verified with the active key for backward compatibility.
+		kidVal, _ := t.Header["kid"].(string)
+
+		keyMu.RLock()
+		defer keyMu.RUnlock()
+
+		if kidVal == "" || kidVal == activeKID {
+			return activePubKey, nil
+		}
+		for _, rk := range retiringKeys {
+			if rk.kid == kidVal {
+				return rk.pubKey, nil
 			}
 		}
-
-		return publicKey, nil
+		return nil, fmt.Errorf("unknown key ID: %v", kidVal)
 	})
 
 	if err != nil {
