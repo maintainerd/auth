@@ -51,6 +51,7 @@ type svcs struct {
 	oauthCIBAService          service.OAuthCIBAService
 	oauthRegisterService      service.OAuthRegisterService
 	accountService            service.AccountService
+	sessionService            service.SessionService
 	smsLoginService           service.SMSLoginService
 	mfaService                service.MFAService
 	webAuthnService           service.WebAuthnService
@@ -62,6 +63,8 @@ func initServices(db *gorm.DB, r *repos, appCache *cache.Cache) (*svcs, error) {
 	// need structured audit logging.
 	authEventSvc := service.NewAuthEventService(r.authEventRepo)
 
+	sessionSvc := service.NewSessionService(r.userTokenRepo)
+
 	s := &svcs{
 		serviceService:           service.NewServiceService(db, r.serviceRepo, r.tenantServiceRepo, r.apiRepo, r.servicePolicyRepo, r.policyRepo),
 		apiService:               service.NewAPIService(db, r.apiRepo, r.serviceRepo, r.tenantServiceRepo),
@@ -71,9 +74,10 @@ func initServices(db *gorm.DB, r *repos, appCache *cache.Cache) (*svcs, error) {
 		idpService:               service.NewIdentityProviderService(db, r.idpRepo, r.tenantRepo, r.userRepo),
 		clientService:            service.NewClientService(db, r.clientRepo, r.clientURIRepo, r.idpRepo, r.permissionRepo, r.clientPermissionRepo, r.clientAPIRepo, r.apiRepo, r.userRepo, r.tenantRepo),
 		roleService:              service.NewRoleService(db, r.roleRepo, r.permissionRepo, r.rolePermissionRepo, r.userRepo, r.tenantRepo, appCache),
-		userService:              service.NewUserService(db, r.userRepo, r.userIdentityRepo, r.userRoleRepo, r.roleRepo, r.tenantRepo, r.idpRepo, r.clientRepo, r.userPoolRepo, appCache),
+		userService:              service.NewUserService(db, r.userRepo, r.userIdentityRepo, r.userRoleRepo, r.roleRepo, r.tenantRepo, r.idpRepo, r.clientRepo, r.userPoolRepo, appCache, r.userTokenRepo),
 		registerService:          service.NewRegistrationService(db, r.clientRepo, r.userRepo, r.userRoleRepo, r.userTokenRepo, r.userIdentityRepo, r.roleRepo, r.inviteRepo, r.idpRepo),
-		loginService:             service.NewLoginService(db, r.clientRepo, r.userRepo, r.userTokenRepo, r.userIdentityRepo, r.idpRepo, authEventSvc),
+		loginService:             service.NewLoginService(db, r.clientRepo, r.userRepo, r.userTokenRepo, r.userIdentityRepo, r.idpRepo, authEventSvc, sessionSvc),
+		sessionService:           sessionSvc,
 		profileService:           service.NewProfileService(db, r.profileRepo, r.userRepo),
 		userSettingService:       service.NewUserSettingService(db, r.userSettingRepo, r.userRepo),
 		inviteService:            service.NewInviteService(db, r.inviteRepo, r.clientRepo, r.roleRepo, r.emailTemplateRepo),

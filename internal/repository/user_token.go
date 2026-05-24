@@ -18,6 +18,14 @@ type UserTokenRepository interface {
 	RevokeAllByUserID(userID int64) error
 	DeleteByUserID(userID int64) error
 	DeleteExpiredTokens(before time.Time) error
+
+	// Session-specific methods
+	FindActiveSessions(userID int64) ([]model.UserToken, error)
+	FindActiveSessionByUUID(userID int64, sessionUUID uuid.UUID) (*model.UserToken, error)
+	CountActiveSessions(userID int64) (int64, error)
+	TouchSession(sessionUUID uuid.UUID, now time.Time) error
+	RevokeSessionByUUID(userID int64, sessionUUID uuid.UUID) error
+	RevokeAllSessionsByUserID(userID int64) error
 }
 
 type userTokenRepository struct {
@@ -78,4 +86,69 @@ func (r *userTokenRepository) DeleteExpiredTokens(before time.Time) error {
 	return r.DB().
 		Where("expires_at IS NOT NULL AND expires_at < ?", before).
 		Delete(&model.UserToken{}).Error
+}
+
+// FindActiveSessions returns all non-revoked, non-expired session tokens for
+// the given user (token_type = 'user:session'), ordered oldest-first.
+func (r *userTokenRepository) FindActiveSessions(userID int64) ([]model.UserToken, error) {
+	var tokens []model.UserToken
+	now := time.Now()
+	err := r.DB().
+		Where("user_id = ? AND token_type = ? AND is_revoked = false AND (absolute_expires_at IS NULL OR absolute_expires_at > ?)",
+			userID, model.TokenTypeSession, now).
+		Order("created_at ASC").
+		Find(&tokens).Error
+	return tokens, err
+}
+
+// FindActiveSessionByUUID looks up a single active session by UUID with
+// ownership check (must belong to userID).
+func (r *userTokenRepository) FindActiveSessionByUUID(userID int64, sessionUUID uuid.UUID) (*model.UserToken, error) {
+	var token model.UserToken
+	now := time.Now()
+	err := r.DB().
+		Where("user_id = ? AND user_token_uuid = ? AND token_type = ? AND is_revoked = false AND (absolute_expires_at IS NULL OR absolute_expires_at > ?)",
+			userID, sessionUUID, model.TokenTypeSession, now).
+		First(&token).Error
+	if err == gorm.ErrRecordNotFound {
+		return nil, nil
+	}
+	return &token, err
+}
+
+// CountActiveSessions returns the number of active (non-revoked, non-expired)
+// session tokens for the given user.
+func (r *userTokenRepository) CountActiveSessions(userID int64) (int64, error) {
+	var count int64
+	now := time.Now()
+	err := r.DB().Model(&model.UserToken{}).
+		Where("user_id = ? AND token_type = ? AND is_revoked = false AND (absolute_expires_at IS NULL OR absolute_expires_at > ?)",
+			userID, model.TokenTypeSession, now).
+		Count(&count).Error
+	return count, err
+}
+
+// TouchSession updates last_used_at for the session identified by sessionUUID.
+// This implements the sliding idle timeout: callers invoke this on every
+// authenticated request.
+func (r *userTokenRepository) TouchSession(sessionUUID uuid.UUID, now time.Time) error {
+	return r.DB().Model(&model.UserToken{}).
+		Where("user_token_uuid = ? AND token_type = ? AND is_revoked = false", sessionUUID, model.TokenTypeSession).
+		Update("last_used_at", now).Error
+}
+
+// RevokeSessionByUUID revokes a single session token with an ownership check.
+// Returns nil when the session is not found (idempotent).
+func (r *userTokenRepository) RevokeSessionByUUID(userID int64, sessionUUID uuid.UUID) error {
+	return r.DB().Model(&model.UserToken{}).
+		Where("user_id = ? AND user_token_uuid = ? AND token_type = ?", userID, sessionUUID, model.TokenTypeSession).
+		Update("is_revoked", true).Error
+}
+
+// RevokeAllSessionsByUserID revokes all session tokens for a user without
+// touching non-session token types (e.g. email verification, password reset).
+func (r *userTokenRepository) RevokeAllSessionsByUserID(userID int64) error {
+	return r.DB().Model(&model.UserToken{}).
+		Where("user_id = ? AND token_type = ?", userID, model.TokenTypeSession).
+		Update("is_revoked", true).Error
 }

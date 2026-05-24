@@ -505,10 +505,10 @@ func TestOAuthAuthorizeService_Authorize(t *testing.T) {
 		req := validAuthorizeRequest()
 		req.State = ""
 		req.Nonce = ""
-		result, oerr := svc.Authorize(ctx, req, 1)
-		require.Nil(t, oerr)
-		assert.Contains(t, result.RedirectURI, "code=")
-		assert.NotContains(t, result.RedirectURI, "state=")
+		_, oerr := svc.Authorize(ctx, req, 1)
+		require.NotNil(t, oerr)
+		assert.Equal(t, "invalid_request", oerr.Code)
+		assert.Contains(t, oerr.Description, "state")
 	})
 
 	t.Run("consent challenge with state and nonce", func(t *testing.T) {

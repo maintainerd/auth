@@ -115,7 +115,7 @@ func initHandlers(application *app.App) *handlers {
 		oauthSession:       handler.NewOAuthSessionHandler(application.OAuthSessionService),
 		oauthCIBA:          handler.NewOAuthCIBAHandler(application.OAuthCIBAService),
 		oauthRegister:      handler.NewOAuthRegisterHandler(application.OAuthRegisterService),
-		account:            handler.NewAccountHandler(application.AccountService),
+		account:            handler.NewAccountHandler(application.AccountService, application.SessionService),
 		smsLogin:           handler.NewSMSLoginHandler(application.SMSLoginService),
 		mfa:                handler.NewMFAHandler(application.MFAService, application.WebAuthnService),
 		federation:         handler.NewFederationHandler(application.FederationService),
