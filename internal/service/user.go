@@ -427,7 +427,7 @@ func (s *userService) Create(ctx context.Context, username string, fullname stri
 		// on the in-memory User struct (transient gorm:"-" field) so the
 		// immediate response carries it. To persist the name, the orchestration
 		// layer (handlers / register / setup) must explicitly create a Profile
-		// via the profile service. See ensureDefaultProfile() in user_compat.go.
+		// via the profile service.
 
 		// Fetch created user with relationships
 		createdUser, err = txUserRepo.FindByUUID(newUser.UserUUID, "UserIdentities.Client", "UserIdentities.Tenant", "Roles", "Profile")
