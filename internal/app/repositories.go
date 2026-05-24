@@ -59,6 +59,7 @@ type repos struct {
 	userBackupCodeRepo        repository.UserBackupCodeRepository
 	totpSecretRepo            repository.UserTOTPSecretRepository
 	webAuthnCredRepo          repository.UserWebAuthnCredentialRepository
+	userPasswordHistoryRepo   repository.UserPasswordHistoryRepository
 }
 
 func initRepos(db *gorm.DB) *repos {
@@ -114,5 +115,6 @@ func initRepos(db *gorm.DB) *repos {
 		userBackupCodeRepo:        repository.NewUserBackupCodeRepository(db),
 		totpSecretRepo:            repository.NewUserTOTPSecretRepository(db),
 		webAuthnCredRepo:          repository.NewUserWebAuthnCredentialRepository(db),
+		userPasswordHistoryRepo:   repository.NewUserPasswordHistoryRepository(db),
 	}
 }

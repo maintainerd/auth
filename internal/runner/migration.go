@@ -92,6 +92,9 @@ var migrations = []migrationEntry{
 	{"052_create_oauth_ciba_requests_table", migration.CreateOAuthCIBARequestsTable},
 	// Block 13: SMS OTP
 	{"053_create_sms_otps_table", migration.CreateSMSOtpsTable},
+	// Block 14: Password policy
+	{"054_create_user_password_history_table", migration.CreateUserPasswordHistoryTable},
+	{"055_add_password_changed_at_to_users", migration.AddPasswordChangedAtToUsers},
 }
 
 // RunMigrations bootstraps the schema_migrations tracking table, acquires a

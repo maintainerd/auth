@@ -22,6 +22,9 @@ type SecuritySettingRepository interface {
 	BaseRepositoryMethods[model.SecuritySetting]
 	WithTx(tx *gorm.DB) SecuritySettingRepository
 	FindByUserPoolID(tenantID int64) (*model.SecuritySetting, error)
+	// FindDefaultByTenantID returns the security setting for a tenant's default
+	// user pool, joining user_pools internally. Returns nil when not found.
+	FindDefaultByTenantID(tenantID int64) (*model.SecuritySetting, error)
 	FindPaginated(filter SecuritySettingRepositoryGetFilter) (*PaginationResult[model.SecuritySetting], error)
 	IncrementVersion(securitySettingID int64) error
 }
@@ -40,6 +43,21 @@ func (r *securitySettingRepository) WithTx(tx *gorm.DB) SecuritySettingRepositor
 	return &securitySettingRepository{
 		BaseRepository: r.BaseRepository.WithTx(tx),
 	}
+}
+
+func (r *securitySettingRepository) FindDefaultByTenantID(tenantID int64) (*model.SecuritySetting, error) {
+	var ss model.SecuritySetting
+	err := r.DB().
+		Joins("JOIN user_pools ON user_pools.user_pool_id = security_settings.user_pool_id").
+		Where("user_pools.tenant_id = ? AND user_pools.is_default = true AND user_pools.deleted_at IS NULL", tenantID).
+		First(&ss).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &ss, nil
 }
 
 func (r *securitySettingRepository) FindByUserPoolID(tenantID int64) (*model.SecuritySetting, error) {
