@@ -58,6 +58,7 @@ type App struct {
 	SMSLoginService            service.SMSLoginService
 	MFAService                 service.MFAService
 	WebAuthnService            service.WebAuthnService
+	FederationService          service.FederationService
 }
 
 // NewApp wires the full dependency graph in two focused steps:
@@ -124,5 +125,6 @@ func NewApp(db *gorm.DB, redisClient *redis.Client) *App {
 		SMSLoginService:           s.smsLoginService,
 		MFAService:                s.mfaService,
 		WebAuthnService:           s.webAuthnService,
+		FederationService:         s.federationService,
 	}
 }

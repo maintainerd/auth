@@ -67,6 +67,7 @@ type handlers struct {
 	account             *handler.AccountHandler
 	smsLogin            *handler.SMSLoginHandler
 	mfa                 *handler.MFAHandler
+	federation          *handler.FederationHandler
 }
 
 func initHandlers(application *app.App) *handlers {
@@ -117,6 +118,7 @@ func initHandlers(application *app.App) *handlers {
 		account:            handler.NewAccountHandler(application.AccountService),
 		smsLogin:           handler.NewSMSLoginHandler(application.SMSLoginService),
 		mfa:                handler.NewMFAHandler(application.MFAService, application.WebAuthnService),
+		federation:         handler.NewFederationHandler(application.FederationService),
 	}
 }
 
@@ -258,6 +260,9 @@ func buildInternalRouter(h *handlers, application *app.App) http.Handler {
 		route.AccountRoute(api, h.account, application.UserService, application.Cache)
 		// MFA self-service routes (authenticated)
 		route.MFARoute(api, h.mfa, application.UserService, application.Cache)
+		// Federation: token exchange + HRD (public) + identity link/unlink (authenticated)
+		route.FederationPublicRoute(api, h.federation)
+		route.FederationIdentityRoute(api, h.federation, application.UserService, application.Cache)
 		// SMS login (unauthenticated)
 		route.SMSLoginRoute(api, h.smsLogin)
 		// Account recovery via backup code (unauthenticated)
@@ -314,6 +319,9 @@ func buildPublicRouter(h *handlers, application *app.App) http.Handler {
 		route.AccountRoute(api, h.account, application.UserService, application.Cache)
 		// MFA self-service routes (authenticated)
 		route.MFARoute(api, h.mfa, application.UserService, application.Cache)
+		// Federation: token exchange + HRD (public) + identity link/unlink (authenticated)
+		route.FederationPublicRoute(api, h.federation)
+		route.FederationIdentityRoute(api, h.federation, application.UserService, application.Cache)
 		// SMS login (unauthenticated)
 		route.SMSLoginRoute(api, h.smsLogin)
 		// Account recovery via backup code (unauthenticated)

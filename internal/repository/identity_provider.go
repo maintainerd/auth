@@ -29,6 +29,11 @@ type IdentityProviderRepository interface {
 	FindByName(name string, tenantID int64) (*model.IdentityProvider, error)
 	FindByIdentifier(identifier string) (*model.IdentityProvider, error)
 	FindDefaultByTenantID(tenantID int64) (*model.IdentityProvider, error)
+	// FindByTenantAndProvider returns the active provider record matching the
+	// tenant and provider slug (e.g. "google", "cognito").
+	FindByTenantAndProvider(tenantID int64, provider string) (*model.IdentityProvider, error)
+	// FindAllByTenantID returns every provider configured for a tenant.
+	FindAllByTenantID(tenantID int64) ([]model.IdentityProvider, error)
 	FindPaginated(filter IdentityProviderRepositoryGetFilter) (*PaginationResult[model.IdentityProvider], error)
 }
 
@@ -153,4 +158,26 @@ func (r *identityProviderRepository) FindPaginated(filter IdentityProviderReposi
 		Limit:      filter.Limit,
 		TotalPages: totalPages,
 	}, nil
+}
+
+func (r *identityProviderRepository) FindByTenantAndProvider(tenantID int64, provider string) (*model.IdentityProvider, error) {
+	var idp model.IdentityProvider
+	err := r.DB().
+		Where("tenant_id = ? AND provider = ? AND deleted_at IS NULL", tenantID, provider).
+		First(&idp).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &idp, nil
+}
+
+func (r *identityProviderRepository) FindAllByTenantID(tenantID int64) ([]model.IdentityProvider, error) {
+	var idps []model.IdentityProvider
+	err := r.DB().
+		Where("tenant_id = ? AND deleted_at IS NULL", tenantID).
+		Find(&idps).Error
+	return idps, err
 }
