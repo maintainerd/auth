@@ -2,13 +2,16 @@ package service
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/apperror"
 	"github.com/maintainerd/auth/internal/crypto"
+	"github.com/maintainerd/auth/internal/middleware"
 	"github.com/maintainerd/auth/internal/model"
+	"github.com/maintainerd/auth/internal/ptr"
 	"github.com/maintainerd/auth/internal/repository"
 	"github.com/maintainerd/auth/internal/security"
 	"go.opentelemetry.io/otel"
@@ -126,6 +129,7 @@ type clientService struct {
 	apiRepo              repository.APIRepository
 	userRepo             repository.UserRepository
 	tenantRepo           repository.TenantRepository
+	authEventService     AuthEventService
 }
 
 func NewClientService(
@@ -139,6 +143,7 @@ func NewClientService(
 	apiRepo repository.APIRepository,
 	userRepo repository.UserRepository,
 	tenantRepo repository.TenantRepository,
+	authEventService AuthEventService,
 ) ClientService {
 	return &clientService{
 		db:                   db,
@@ -151,6 +156,7 @@ func NewClientService(
 		apiRepo:              apiRepo,
 		userRepo:             userRepo,
 		tenantRepo:           tenantRepo,
+		authEventService:     coalesceAuthEventService(authEventService),
 	}
 }
 
@@ -280,6 +286,7 @@ func (s *clientService) Create(ctx context.Context, tenantID int64, name string,
 
 	var createdClient *model.Client
 	var plaintextSecret string
+	var capturedActorID int64
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
 		txClientRepo := s.clientRepo.WithTx(tx)
@@ -304,6 +311,7 @@ func (s *clientService) Create(ctx context.Context, tenantID int64, name string,
 		if err := ValidateTenantAccess(actorUser, identityProvider.Tenant); err != nil {
 			return err
 		}
+		capturedActorID = actorUser.UserID
 
 		existingClient, err := txClientRepo.FindByNameAndIdentityProvider(name, identityProvider.IdentityProviderID, tenantID)
 		if err != nil {
@@ -363,6 +371,17 @@ func (s *clientService) Create(ctx context.Context, tenantID int64, name string,
 	}
 
 	span.SetStatus(codes.Ok, "")
+	s.authEventService.Log(ctx, AuthEventInput{
+		TenantID:    tenantID,
+		ActorUserID: &capturedActorID,
+		IPAddress:   middleware.ClientIPFromContext(ctx),
+		UserAgent:   ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),
+		Category:    model.AuthEventCategoryAuthz,
+		EventType:   model.AuthEventTypeAuthzAdmin,
+		Severity:    model.AuthEventSeverityInfo,
+		Result:      model.AuthEventResultSuccess,
+		Description: ptr.Ptr(fmt.Sprintf("Client created: %s", createdClient.Name)),
+	})
 	return &ClientCreateServiceResult{
 		Client:           ToClientServiceDataResult(createdClient),
 		ClientIdentifier: identifier,
@@ -439,6 +458,7 @@ func (s *clientService) Update(ctx context.Context, ClientUUID uuid.UUID, tenant
 	)
 
 	var updatedClient *model.Client
+	var capturedActorID int64
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
 		txClientRepo := s.clientRepo.WithTx(tx)
@@ -460,6 +480,7 @@ func (s *clientService) Update(ctx context.Context, ClientUUID uuid.UUID, tenant
 		if err := ValidateTenantAccess(actorUser, Client.IdentityProvider.Tenant); err != nil {
 			return err
 		}
+		capturedActorID = actorUser.UserID
 
 		// Check if default
 		if Client.IsDefault {
@@ -504,6 +525,17 @@ func (s *clientService) Update(ctx context.Context, ClientUUID uuid.UUID, tenant
 	}
 
 	span.SetStatus(codes.Ok, "")
+	s.authEventService.Log(ctx, AuthEventInput{
+		TenantID:    tenantID,
+		ActorUserID: &capturedActorID,
+		IPAddress:   middleware.ClientIPFromContext(ctx),
+		UserAgent:   ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),
+		Category:    model.AuthEventCategoryAuthz,
+		EventType:   model.AuthEventTypeAuthzAdmin,
+		Severity:    model.AuthEventSeverityInfo,
+		Result:      model.AuthEventResultSuccess,
+		Description: ptr.Ptr(fmt.Sprintf("Client updated: %s", updatedClient.Name)),
+	})
 	return ToClientServiceDataResult(updatedClient), nil
 }
 
@@ -517,6 +549,7 @@ func (s *clientService) SetStatusByUUID(ctx context.Context, ClientUUID uuid.UUI
 	)
 
 	var updatedClient *model.Client
+	var capturedActorID int64
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
 		txClientRepo := s.clientRepo.WithTx(tx)
@@ -538,6 +571,7 @@ func (s *clientService) SetStatusByUUID(ctx context.Context, ClientUUID uuid.UUI
 		if err := ValidateTenantAccess(actorUser, Client.IdentityProvider.Tenant); err != nil {
 			return err
 		}
+		capturedActorID = actorUser.UserID
 
 		// Check if default or system
 		if Client.IsDefault {
@@ -568,6 +602,17 @@ func (s *clientService) SetStatusByUUID(ctx context.Context, ClientUUID uuid.UUI
 	}
 
 	span.SetStatus(codes.Ok, "")
+	s.authEventService.Log(ctx, AuthEventInput{
+		TenantID:    tenantID,
+		ActorUserID: &capturedActorID,
+		IPAddress:   middleware.ClientIPFromContext(ctx),
+		UserAgent:   ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),
+		Category:    model.AuthEventCategoryAuthz,
+		EventType:   model.AuthEventTypeAuthzAdmin,
+		Severity:    model.AuthEventSeverityInfo,
+		Result:      model.AuthEventResultSuccess,
+		Description: ptr.Ptr(fmt.Sprintf("Client status set to %s: %s", status, updatedClient.Name)),
+	})
 	return ToClientServiceDataResult(updatedClient), nil
 }
 
@@ -580,6 +625,7 @@ func (s *clientService) DeleteByUUID(ctx context.Context, ClientUUID uuid.UUID, 
 	)
 
 	var deletedClient *model.Client
+	var capturedActorID int64
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
 		txClientRepo := s.clientRepo.WithTx(tx)
@@ -601,6 +647,7 @@ func (s *clientService) DeleteByUUID(ctx context.Context, ClientUUID uuid.UUID, 
 		if err := ValidateTenantAccess(actorUser, Client.IdentityProvider.Tenant); err != nil {
 			return err
 		}
+		capturedActorID = actorUser.UserID
 
 		// Check if default
 		if Client.IsDefault {
@@ -624,6 +671,17 @@ func (s *clientService) DeleteByUUID(ctx context.Context, ClientUUID uuid.UUID, 
 	}
 
 	span.SetStatus(codes.Ok, "")
+	s.authEventService.Log(ctx, AuthEventInput{
+		TenantID:    tenantID,
+		ActorUserID: &capturedActorID,
+		IPAddress:   middleware.ClientIPFromContext(ctx),
+		UserAgent:   ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),
+		Category:    model.AuthEventCategoryAuthz,
+		EventType:   model.AuthEventTypeAuthzAdmin,
+		Severity:    model.AuthEventSeverityWarn,
+		Result:      model.AuthEventResultSuccess,
+		Description: ptr.Ptr(fmt.Sprintf("Client deleted: %s", deletedClient.Name)),
+	})
 	return ToClientServiceDataResult(deletedClient), nil
 }
 
@@ -636,6 +694,7 @@ func (s *clientService) CreateURI(ctx context.Context, ClientUUID uuid.UUID, ten
 	)
 
 	var createdClient *model.Client
+	var capturedActorID int64
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
 		txClientRepo := s.clientRepo.WithTx(tx)
@@ -653,6 +712,7 @@ func (s *clientService) CreateURI(ctx context.Context, ClientUUID uuid.UUID, ten
 		if err != nil || actorUser == nil {
 			return apperror.NewNotFoundWithReason("actor user not found")
 		}
+		capturedActorID = actorUser.UserID
 
 		// Validate tenant ownership
 		if Client.TenantID != tenantID {
@@ -696,6 +756,17 @@ func (s *clientService) CreateURI(ctx context.Context, ClientUUID uuid.UUID, ten
 	}
 
 	span.SetStatus(codes.Ok, "")
+	s.authEventService.Log(ctx, AuthEventInput{
+		TenantID:    tenantID,
+		ActorUserID: &capturedActorID,
+		IPAddress:   middleware.ClientIPFromContext(ctx),
+		UserAgent:   ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),
+		Category:    model.AuthEventCategoryAuthz,
+		EventType:   model.AuthEventTypeAuthzAdmin,
+		Severity:    model.AuthEventSeverityInfo,
+		Result:      model.AuthEventResultSuccess,
+		Description: ptr.Ptr(fmt.Sprintf("URI added to client: %s (%s)", uri, uriType)),
+	})
 	return ToClientServiceDataResult(createdClient), nil
 }
 
@@ -708,6 +779,7 @@ func (s *clientService) UpdateURI(ctx context.Context, ClientUUID uuid.UUID, ten
 	)
 
 	var updatedClient *model.Client
+	var capturedActorID int64
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
 		txClientRepo := s.clientRepo.WithTx(tx)
@@ -725,6 +797,7 @@ func (s *clientService) UpdateURI(ctx context.Context, ClientUUID uuid.UUID, ten
 		if err != nil || actorUser == nil {
 			return apperror.NewNotFoundWithReason("actor user not found")
 		}
+		capturedActorID = actorUser.UserID
 
 		// Validate tenant ownership
 		if Client.TenantID != tenantID {
@@ -777,6 +850,17 @@ func (s *clientService) UpdateURI(ctx context.Context, ClientUUID uuid.UUID, ten
 	}
 
 	span.SetStatus(codes.Ok, "")
+	s.authEventService.Log(ctx, AuthEventInput{
+		TenantID:    tenantID,
+		ActorUserID: &capturedActorID,
+		IPAddress:   middleware.ClientIPFromContext(ctx),
+		UserAgent:   ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),
+		Category:    model.AuthEventCategoryAuthz,
+		EventType:   model.AuthEventTypeAuthzAdmin,
+		Severity:    model.AuthEventSeverityInfo,
+		Result:      model.AuthEventResultSuccess,
+		Description: ptr.Ptr(fmt.Sprintf("Client URI updated: %s (%s)", uri, uriType)),
+	})
 	return ToClientServiceDataResult(updatedClient), nil
 }
 
@@ -789,6 +873,7 @@ func (s *clientService) DeleteURI(ctx context.Context, ClientUUID uuid.UUID, ten
 	)
 
 	var deletedClient *model.Client
+	var capturedActorID int64
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
 		txClientRepo := s.clientRepo.WithTx(tx)
@@ -806,6 +891,7 @@ func (s *clientService) DeleteURI(ctx context.Context, ClientUUID uuid.UUID, ten
 		if err != nil || actorUser == nil {
 			return apperror.NewNotFoundWithReason("actor user not found")
 		}
+		capturedActorID = actorUser.UserID
 
 		// Validate tenant ownership
 		if Client.TenantID != tenantID {
@@ -840,6 +926,17 @@ func (s *clientService) DeleteURI(ctx context.Context, ClientUUID uuid.UUID, ten
 	}
 
 	span.SetStatus(codes.Ok, "")
+	s.authEventService.Log(ctx, AuthEventInput{
+		TenantID:    tenantID,
+		ActorUserID: &capturedActorID,
+		IPAddress:   middleware.ClientIPFromContext(ctx),
+		UserAgent:   ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),
+		Category:    model.AuthEventCategoryAuthz,
+		EventType:   model.AuthEventTypeAuthzAdmin,
+		Severity:    model.AuthEventSeverityWarn,
+		Result:      model.AuthEventResultSuccess,
+		Description: ptr.Ptr(fmt.Sprintf("Client URI deleted from client: %s", deletedClient.Name)),
+	})
 	return ToClientServiceDataResult(deletedClient), nil
 }
 

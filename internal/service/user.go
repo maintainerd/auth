@@ -2,12 +2,15 @@ package service
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/apperror"
 	"github.com/maintainerd/auth/internal/cache"
+	"github.com/maintainerd/auth/internal/middleware"
 	"github.com/maintainerd/auth/internal/model"
+	"github.com/maintainerd/auth/internal/ptr"
 	"github.com/maintainerd/auth/internal/repository"
 	"github.com/maintainerd/auth/internal/security"
 	"go.opentelemetry.io/otel"
@@ -104,6 +107,7 @@ type userService struct {
 	userTokenRepo        repository.UserTokenRepository
 	securitySettingRepo  repository.SecuritySettingRepository     // nil → use defaults
 	passwordHistoryRepo  repository.UserPasswordHistoryRepository // nil → skip history
+	authEventService     AuthEventService
 }
 
 func NewUserService(
@@ -120,6 +124,7 @@ func NewUserService(
 	userTokenRepo repository.UserTokenRepository,
 	securitySettingRepo repository.SecuritySettingRepository,
 	passwordHistoryRepo repository.UserPasswordHistoryRepository,
+	authEventService AuthEventService,
 ) UserService {
 	return &userService{
 		db:                   db,
@@ -135,6 +140,7 @@ func NewUserService(
 		userTokenRepo:        userTokenRepo,
 		securitySettingRepo:  securitySettingRepo,
 		passwordHistoryRepo:  passwordHistoryRepo,
+		authEventService:     coalesceAuthEventService(authEventService),
 	}
 }
 
@@ -306,6 +312,7 @@ func (s *userService) Create(ctx context.Context, username string, fullname stri
 	span.SetAttributes(attribute.String("user.username", username))
 
 	var createdUser *model.User
+	var capturedTenantID, capturedActorID int64
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
 		txUserRepo := s.userRepo.WithTx(tx)
@@ -337,6 +344,8 @@ func (s *userService) Create(ctx context.Context, username string, fullname stri
 		if err := ValidateTenantAccess(creatorUser, targetTenant); err != nil {
 			return err
 		}
+		capturedTenantID = targetTenant.TenantID
+		capturedActorID = creatorUser.UserID
 
 		// Check if user already exists by username
 		existingUser, err := txUserRepo.FindByUsername(username)
@@ -462,6 +471,18 @@ func (s *userService) Create(ctx context.Context, username string, fullname stri
 	}
 
 	span.SetStatus(codes.Ok, "")
+	s.authEventService.Log(ctx, AuthEventInput{
+		TenantID:     capturedTenantID,
+		ActorUserID:  &capturedActorID,
+		TargetUserID: &createdUser.UserID,
+		IPAddress:    middleware.ClientIPFromContext(ctx),
+		UserAgent:    ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),
+		Category:     model.AuthEventCategoryUser,
+		EventType:    model.AuthEventTypeUserCreated,
+		Severity:     model.AuthEventSeverityInfo,
+		Result:       model.AuthEventResultSuccess,
+		Description:  ptr.Ptr(fmt.Sprintf("User created: %s", createdUser.Username)),
+	})
 	return toUserServiceDataResult(createdUser), nil
 }
 
@@ -471,6 +492,7 @@ func (s *userService) Update(ctx context.Context, userUUID uuid.UUID, tenantID i
 	span.SetAttributes(attribute.String("user.uuid", userUUID.String()), attribute.Int64("tenant.id", tenantID))
 
 	var updatedUser *model.User
+	var capturedActorID int64
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
 		txUserRepo := s.userRepo.WithTx(tx)
@@ -503,6 +525,7 @@ func (s *userService) Update(ctx context.Context, userUUID uuid.UUID, tenantID i
 		if err := ValidateTenantAccess(updaterUser, user.UserIdentities[0].Tenant); err != nil {
 			return err
 		}
+		capturedActorID = updaterUser.UserID
 
 		// Check if username is taken by another user
 		if username != user.Username {
@@ -576,6 +599,18 @@ func (s *userService) Update(ctx context.Context, userUUID uuid.UUID, tenantID i
 
 	span.SetStatus(codes.Ok, "")
 	s.invalidateUserCache(ctx, updatedUser.UserIdentities)
+	s.authEventService.Log(ctx, AuthEventInput{
+		TenantID:     tenantID,
+		ActorUserID:  &capturedActorID,
+		TargetUserID: &updatedUser.UserID,
+		IPAddress:    middleware.ClientIPFromContext(ctx),
+		UserAgent:    ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),
+		Category:     model.AuthEventCategoryUser,
+		EventType:    model.AuthEventTypeUserUpdated,
+		Severity:     model.AuthEventSeverityInfo,
+		Result:       model.AuthEventResultSuccess,
+		Description:  ptr.Ptr(fmt.Sprintf("User updated: %s", updatedUser.Username)),
+	})
 	return toUserServiceDataResult(updatedUser), nil
 }
 
@@ -626,6 +661,18 @@ func (s *userService) SetStatus(ctx context.Context, userUUID uuid.UUID, tenantI
 
 	span.SetStatus(codes.Ok, "")
 	s.invalidateUserCache(ctx, updatedUser.UserIdentities)
+	s.authEventService.Log(ctx, AuthEventInput{
+		TenantID:     tenantID,
+		ActorUserID:  &updaterUser.UserID,
+		TargetUserID: &updatedUser.UserID,
+		IPAddress:    middleware.ClientIPFromContext(ctx),
+		UserAgent:    ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),
+		Category:     model.AuthEventCategoryUser,
+		EventType:    model.AuthEventTypeUserUpdated,
+		Severity:     model.AuthEventSeverityInfo,
+		Result:       model.AuthEventResultSuccess,
+		Description:  ptr.Ptr(fmt.Sprintf("User status set to %s: %s", status, user.Username)),
+	})
 	return toUserServiceDataResult(updatedUser), nil
 }
 
@@ -805,6 +852,18 @@ func (s *userService) DeleteByUUID(ctx context.Context, userUUID uuid.UUID, tena
 	}
 
 	span.SetStatus(codes.Ok, "")
+	s.authEventService.Log(ctx, AuthEventInput{
+		TenantID:     tenantID,
+		ActorUserID:  &deleterUser.UserID,
+		TargetUserID: &user.UserID,
+		IPAddress:    middleware.ClientIPFromContext(ctx),
+		UserAgent:    ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),
+		Category:     model.AuthEventCategoryUser,
+		EventType:    model.AuthEventTypeUserDeleted,
+		Severity:     model.AuthEventSeverityWarn,
+		Result:       model.AuthEventResultSuccess,
+		Description:  ptr.Ptr(fmt.Sprintf("User deleted: %s", user.Username)),
+	})
 	return toUserServiceDataResult(user), nil
 }
 
@@ -891,6 +950,17 @@ func (s *userService) AssignUserRoles(ctx context.Context, userUUID uuid.UUID, r
 	if s.userTokenRepo != nil {
 		_ = s.userTokenRepo.RevokeAllSessionsByUserID(userWithRoles.UserID)
 	}
+	s.authEventService.Log(ctx, AuthEventInput{
+		TenantID:     tenantID,
+		TargetUserID: &userWithRoles.UserID,
+		IPAddress:    middleware.ClientIPFromContext(ctx),
+		UserAgent:    ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),
+		Category:     model.AuthEventCategoryAuthz,
+		EventType:    model.AuthEventTypePrivilegePermissionsChanged,
+		Severity:     model.AuthEventSeverityInfo,
+		Result:       model.AuthEventResultSuccess,
+		Description:  ptr.Ptr(fmt.Sprintf("Roles assigned to user: %s", userWithRoles.Username)),
+	})
 
 	return toUserServiceDataResult(userWithRoles), nil
 }
@@ -961,6 +1031,17 @@ func (s *userService) RemoveUserRole(ctx context.Context, userUUID uuid.UUID, ro
 	if s.userTokenRepo != nil {
 		_ = s.userTokenRepo.RevokeAllSessionsByUserID(userWithRoles.UserID)
 	}
+	s.authEventService.Log(ctx, AuthEventInput{
+		TenantID:     tenantID,
+		TargetUserID: &userWithRoles.UserID,
+		IPAddress:    middleware.ClientIPFromContext(ctx),
+		UserAgent:    ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),
+		Category:     model.AuthEventCategoryAuthz,
+		EventType:    model.AuthEventTypePrivilegePermissionsChanged,
+		Severity:     model.AuthEventSeverityInfo,
+		Result:       model.AuthEventResultSuccess,
+		Description:  ptr.Ptr(fmt.Sprintf("Role removed from user: %s", userWithRoles.Username)),
+	})
 
 	return toUserServiceDataResult(userWithRoles), nil
 }

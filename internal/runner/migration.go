@@ -95,6 +95,8 @@ var migrations = []migrationEntry{
 	// Block 14: Password policy
 	{"054_create_user_password_history_table", migration.CreateUserPasswordHistoryTable},
 	{"055_add_password_changed_at_to_users", migration.AddPasswordChangedAtToUsers},
+	// Block 15: Audit hardening
+	{"056_auth_events_append_only", migration.CreateAuthEventsAppendOnlyRule},
 }
 
 // RunMigrations bootstraps the schema_migrations tracking table, acquires a

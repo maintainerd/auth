@@ -2,12 +2,15 @@ package service
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/apperror"
 	"github.com/maintainerd/auth/internal/cache"
+	"github.com/maintainerd/auth/internal/middleware"
 	"github.com/maintainerd/auth/internal/model"
+	"github.com/maintainerd/auth/internal/ptr"
 	"github.com/maintainerd/auth/internal/repository"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
@@ -86,6 +89,7 @@ type roleService struct {
 	userRepo           repository.UserRepository
 	tenantRepo         repository.TenantRepository
 	cacheInvalidator   cache.Invalidator
+	authEventService   AuthEventService
 }
 
 func NewRoleService(
@@ -96,6 +100,7 @@ func NewRoleService(
 	userRepo repository.UserRepository,
 	tenantRepo repository.TenantRepository,
 	cacheInvalidator cache.Invalidator,
+	authEventService AuthEventService,
 ) RoleService {
 	return &roleService{
 		db:                 db,
@@ -105,6 +110,7 @@ func NewRoleService(
 		userRepo:           userRepo,
 		tenantRepo:         tenantRepo,
 		cacheInvalidator:   cacheInvalidator,
+		authEventService:   coalesceAuthEventService(authEventService),
 	}
 }
 
@@ -235,6 +241,7 @@ func (s *roleService) Create(ctx context.Context, name string, description strin
 	span.SetAttributes(attribute.String("tenant.uuid", tenantUUID))
 
 	var createdRole *model.Role
+	var capturedTenantID, capturedActorID int64
 
 	// Transaction
 	err := s.db.Transaction(func(tx *gorm.DB) error {
@@ -264,6 +271,8 @@ func (s *roleService) Create(ctx context.Context, name string, description strin
 		if err := ValidateTenantAccess(actorUser, targetTenant); err != nil {
 			return err
 		}
+		capturedTenantID = targetTenant.TenantID
+		capturedActorID = actorUser.UserID
 
 		// Check if role already exist
 		existingRole, err := txRoleRepo.FindByNameAndTenantID(name, targetTenant.TenantID)
@@ -301,6 +310,17 @@ func (s *roleService) Create(ctx context.Context, name string, description strin
 	}
 
 	span.SetStatus(codes.Ok, "")
+	s.authEventService.Log(ctx, AuthEventInput{
+		TenantID:    capturedTenantID,
+		ActorUserID: &capturedActorID,
+		IPAddress:   middleware.ClientIPFromContext(ctx),
+		UserAgent:   ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),
+		Category:    model.AuthEventCategoryAuthz,
+		EventType:   model.AuthEventTypeAuthzAdmin,
+		Severity:    model.AuthEventSeverityInfo,
+		Result:      model.AuthEventResultSuccess,
+		Description: ptr.Ptr(fmt.Sprintf("Role created: %s", createdRole.Name)),
+	})
 	return toRoleServiceDataResult(createdRole), nil
 }
 
@@ -310,6 +330,7 @@ func (s *roleService) Update(ctx context.Context, roleUUID uuid.UUID, tenantID i
 	span.SetAttributes(attribute.String("role.uuid", roleUUID.String()), attribute.Int64("tenant.id", tenantID))
 
 	var updatedRole *model.Role
+	var capturedActorID int64
 
 	// Transaction
 	err := s.db.Transaction(func(tx *gorm.DB) error {
@@ -340,6 +361,7 @@ func (s *roleService) Update(ctx context.Context, roleUUID uuid.UUID, tenantID i
 		if err := ValidateTenantAccess(actorUser, role.Tenant); err != nil {
 			return err
 		}
+		capturedActorID = actorUser.UserID
 
 		// Check if role is a system record
 		if role.IsSystem {
@@ -383,6 +405,17 @@ func (s *roleService) Update(ctx context.Context, roleUUID uuid.UUID, tenantID i
 	s.cacheInvalidator.InvalidateAllUsers(ctx)
 
 	span.SetStatus(codes.Ok, "")
+	s.authEventService.Log(ctx, AuthEventInput{
+		TenantID:    tenantID,
+		ActorUserID: &capturedActorID,
+		IPAddress:   middleware.ClientIPFromContext(ctx),
+		UserAgent:   ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),
+		Category:    model.AuthEventCategoryAuthz,
+		EventType:   model.AuthEventTypeAuthzAdmin,
+		Severity:    model.AuthEventSeverityInfo,
+		Result:      model.AuthEventResultSuccess,
+		Description: ptr.Ptr(fmt.Sprintf("Role updated: %s", updatedRole.Name)),
+	})
 	return toRoleServiceDataResult(updatedRole), nil
 }
 
@@ -392,6 +425,7 @@ func (s *roleService) SetStatusByUUID(ctx context.Context, roleUUID uuid.UUID, t
 	span.SetAttributes(attribute.String("role.uuid", roleUUID.String()), attribute.Int64("tenant.id", tenantID))
 
 	var updatedRole *model.Role
+	var capturedActorID int64
 
 	// Transaction
 	err := s.db.Transaction(func(tx *gorm.DB) error {
@@ -422,6 +456,7 @@ func (s *roleService) SetStatusByUUID(ctx context.Context, roleUUID uuid.UUID, t
 		if err := ValidateTenantAccess(actorUser, role.Tenant); err != nil {
 			return err
 		}
+		capturedActorID = actorUser.UserID
 
 		// Check if role is a system record
 		if role.IsSystem {
@@ -450,6 +485,17 @@ func (s *roleService) SetStatusByUUID(ctx context.Context, roleUUID uuid.UUID, t
 	s.cacheInvalidator.InvalidateAllUsers(ctx)
 
 	span.SetStatus(codes.Ok, "")
+	s.authEventService.Log(ctx, AuthEventInput{
+		TenantID:    tenantID,
+		ActorUserID: &capturedActorID,
+		IPAddress:   middleware.ClientIPFromContext(ctx),
+		UserAgent:   ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),
+		Category:    model.AuthEventCategoryAuthz,
+		EventType:   model.AuthEventTypeAuthzAdmin,
+		Severity:    model.AuthEventSeverityInfo,
+		Result:      model.AuthEventResultSuccess,
+		Description: ptr.Ptr(fmt.Sprintf("Role status set to %s: %s", status, updatedRole.Name)),
+	})
 	return toRoleServiceDataResult(updatedRole), nil
 }
 
@@ -507,6 +553,17 @@ func (s *roleService) DeleteByUUID(ctx context.Context, roleUUID uuid.UUID, tena
 	s.cacheInvalidator.InvalidateAllUsers(ctx)
 
 	span.SetStatus(codes.Ok, "")
+	s.authEventService.Log(ctx, AuthEventInput{
+		TenantID:    tenantID,
+		ActorUserID: &actorUser.UserID,
+		IPAddress:   middleware.ClientIPFromContext(ctx),
+		UserAgent:   ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),
+		Category:    model.AuthEventCategoryAuthz,
+		EventType:   model.AuthEventTypeAuthzAdmin,
+		Severity:    model.AuthEventSeverityWarn,
+		Result:      model.AuthEventResultSuccess,
+		Description: ptr.Ptr(fmt.Sprintf("Role deleted: %s", role.Name)),
+	})
 	return toRoleServiceDataResult(role), nil
 }
 
@@ -516,6 +573,7 @@ func (s *roleService) AddRolePermissions(ctx context.Context, roleUUID uuid.UUID
 	span.SetAttributes(attribute.String("role.uuid", roleUUID.String()), attribute.Int64("tenant.id", tenantID))
 
 	var roleWithPermissions *model.Role
+	var capturedActorID int64
 
 	// Transaction
 	err := s.db.Transaction(func(tx *gorm.DB) error {
@@ -548,6 +606,7 @@ func (s *roleService) AddRolePermissions(ctx context.Context, roleUUID uuid.UUID
 		if err := ValidateTenantAccess(actorUser, role.Tenant); err != nil {
 			return err
 		}
+		capturedActorID = actorUser.UserID
 
 		// Check if role is a system record
 		if role.IsSystem {
@@ -614,6 +673,17 @@ func (s *roleService) AddRolePermissions(ctx context.Context, roleUUID uuid.UUID
 	s.cacheInvalidator.InvalidateAllUsers(ctx)
 
 	span.SetStatus(codes.Ok, "")
+	s.authEventService.Log(ctx, AuthEventInput{
+		TenantID:    tenantID,
+		ActorUserID: &capturedActorID,
+		IPAddress:   middleware.ClientIPFromContext(ctx),
+		UserAgent:   ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),
+		Category:    model.AuthEventCategoryAuthz,
+		EventType:   model.AuthEventTypeAuthzChange,
+		Severity:    model.AuthEventSeverityInfo,
+		Result:      model.AuthEventResultSuccess,
+		Description: ptr.Ptr(fmt.Sprintf("Permissions added to role: %s", roleWithPermissions.Name)),
+	})
 	return toRoleServiceDataResult(roleWithPermissions), nil
 }
 
@@ -623,6 +693,7 @@ func (s *roleService) RemoveRolePermissions(ctx context.Context, roleUUID uuid.U
 	span.SetAttributes(attribute.String("role.uuid", roleUUID.String()), attribute.Int64("tenant.id", tenantID))
 
 	var roleWithPermissions *model.Role
+	var capturedActorID int64
 
 	// Transaction
 	err := s.db.Transaction(func(tx *gorm.DB) error {
@@ -655,6 +726,7 @@ func (s *roleService) RemoveRolePermissions(ctx context.Context, roleUUID uuid.U
 		if err := ValidateTenantAccess(actorUser, role.Tenant); err != nil {
 			return err
 		}
+		capturedActorID = actorUser.UserID
 
 		// Check if role is a system record
 		if role.IsSystem {
@@ -710,6 +782,17 @@ func (s *roleService) RemoveRolePermissions(ctx context.Context, roleUUID uuid.U
 	s.cacheInvalidator.InvalidateAllUsers(ctx)
 
 	span.SetStatus(codes.Ok, "")
+	s.authEventService.Log(ctx, AuthEventInput{
+		TenantID:    tenantID,
+		ActorUserID: &capturedActorID,
+		IPAddress:   middleware.ClientIPFromContext(ctx),
+		UserAgent:   ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),
+		Category:    model.AuthEventCategoryAuthz,
+		EventType:   model.AuthEventTypeAuthzChange,
+		Severity:    model.AuthEventSeverityInfo,
+		Result:      model.AuthEventResultSuccess,
+		Description: ptr.Ptr(fmt.Sprintf("Permission removed from role: %s", roleWithPermissions.Name)),
+	})
 	return toRoleServiceDataResult(roleWithPermissions), nil
 }
 
