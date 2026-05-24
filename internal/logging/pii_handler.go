@@ -2,6 +2,7 @@ package logging
 
 import (
 	"context"
+	"encoding/json"
 	"log/slog"
 	"strings"
 )
@@ -88,4 +89,42 @@ func redactAttr(a slog.Attr) slog.Attr {
 
 func isPIIKey(key string) bool {
 	return piiFields[strings.ToLower(key)]
+}
+
+// RedactJSON walks a JSON object and replaces values whose keys match the PII
+// field set with [REDACTED]. Non-object JSON (arrays, primitives, malformed
+// input) is returned unchanged so callers never get an error path.
+func RedactJSON(raw []byte) []byte {
+	if len(raw) == 0 {
+		return raw
+	}
+	var obj map[string]any
+	if err := json.Unmarshal(raw, &obj); err != nil {
+		return raw
+	}
+	redactMap(obj)
+	out, err := json.Marshal(obj)
+	if err != nil {
+		return raw
+	}
+	return out
+}
+
+func redactMap(m map[string]any) {
+	for k, v := range m {
+		if isPIIKey(k) {
+			m[k] = redacted
+			continue
+		}
+		switch nested := v.(type) {
+		case map[string]any:
+			redactMap(nested)
+		case []any:
+			for _, elem := range nested {
+				if nestedMap, ok := elem.(map[string]any); ok {
+					redactMap(nestedMap)
+				}
+			}
+		}
+	}
 }
