@@ -300,11 +300,16 @@ func (m *mockUserIdentityRepo) FindByUserID(uID int64) ([]model.UserIdentity, er
 	}
 	return nil, nil
 }
-func (m *mockUserIdentityRepo) FindByProviderAndUserID(prov, pUID string) (*model.UserIdentity, error) {
+func (m *mockUserIdentityRepo) FindByProviderAndSub(_, _ string) (*model.UserIdentity, error) {
 	return nil, nil
 }
-func (m *mockUserIdentityRepo) FindByEmail(e string) ([]model.UserIdentity, error) { return nil, nil }
-func (m *mockUserIdentityRepo) DeleteByUserID(uID int64) error                     { return nil }
+func (m *mockUserIdentityRepo) FindByUserIDAndProvider(_ int64, _ string) (*model.UserIdentity, error) {
+	return nil, nil
+}
+func (m *mockUserIdentityRepo) FindByIdentityProviderID(_ int64) ([]model.UserIdentity, error) {
+	return nil, nil
+}
+func (m *mockUserIdentityRepo) DeleteByUserID(uID int64) error { return nil }
 
 // ---------------------------------------------------------------------------
 // Mock: IdentityProviderRepository
@@ -380,6 +385,12 @@ func (m *mockIdentityProviderRepo) FindPaginated(f repository.IdentityProviderRe
 		return m.findPaginatedFn(f)
 	}
 	return &repository.PaginationResult[model.IdentityProvider]{}, nil
+}
+func (m *mockIdentityProviderRepo) FindAllByTenantID(_ int64) ([]model.IdentityProvider, error) {
+	return nil, nil
+}
+func (m *mockIdentityProviderRepo) FindByTenantAndProvider(_ int64, _ string) (*model.IdentityProvider, error) {
+	return nil, nil
 }
 
 // ---------------------------------------------------------------------------
@@ -1193,7 +1204,7 @@ func TestLoginPublic_GenerateIDTokenError(t *testing.T) {
 
 	// Stub generateIDTokenFn to return an error
 	orig := generateIDTokenFn
-	generateIDTokenFn = func(string, string, string, string, *jwt.UserProfile, string) (string, error) {
+	generateIDTokenFn = func(string, string, string, string, *jwt.UserProfile, string, *jwt.IDTokenParams) (string, error) {
 		return "", errors.New("id token error")
 	}
 	defer func() { generateIDTokenFn = orig }()

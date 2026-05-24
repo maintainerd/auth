@@ -204,9 +204,14 @@ func TestTenantService_Get(t *testing.T) {
 func TestTenantService_DeleteByUUID(t *testing.T) {
 	tenantUUID := uuid.New()
 
+	// cascadeCount is the number of SQL statements the cascade loop executes
+	// (30 models, each generating one UPDATE or DELETE via GORM).
+	const cascadeCount = 30
+
 	cases := []struct {
 		name        string
 		setupRepo   func(r *mockTenantRepo)
+		setupSQL    func(mock sqlmock.Sqlmock)
 		expectError bool
 		errContains string
 	}{
@@ -214,6 +219,10 @@ func TestTenantService_DeleteByUUID(t *testing.T) {
 			name: "not found → error",
 			setupRepo: func(r *mockTenantRepo) {
 				r.findByUUIDFn = func(_ any, _ ...string) (*model.Tenant, error) { return nil, nil }
+			},
+			setupSQL: func(mock sqlmock.Sqlmock) {
+				mock.ExpectBegin()
+				mock.ExpectRollback()
 			},
 			expectError: true,
 			errContains: "not found",
@@ -227,6 +236,10 @@ func TestTenantService_DeleteByUUID(t *testing.T) {
 					return t, nil
 				}
 			},
+			setupSQL: func(mock sqlmock.Sqlmock) {
+				mock.ExpectBegin()
+				mock.ExpectRollback()
+			},
 			expectError: true,
 			errContains: "system tenant",
 		},
@@ -237,14 +250,23 @@ func TestTenantService_DeleteByUUID(t *testing.T) {
 					return newTenant(1, "acme"), nil
 				}
 			},
+			setupSQL: func(mock sqlmock.Sqlmock) {
+				mock.ExpectBegin()
+				for i := 0; i < cascadeCount; i++ {
+					mock.ExpectExec(".*").WillReturnResult(sqlmock.NewResult(0, 0))
+				}
+				mock.ExpectCommit()
+			},
 		},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
+			db, mock := newMockGormDB(t)
+			tc.setupSQL(mock)
 			repo := &mockTenantRepo{}
 			tc.setupRepo(repo)
-			svc := NewTenantService(nil, repo)
+			svc := NewTenantService(db, repo)
 			result, err := svc.DeleteByUUID(context.Background(), tenantUUID)
 			if tc.expectError {
 				require.Error(t, err)
@@ -253,6 +275,7 @@ func TestTenantService_DeleteByUUID(t *testing.T) {
 				require.NoError(t, err)
 				assert.NotNil(t, result)
 			}
+			assert.NoError(t, mock.ExpectationsWereMet())
 		})
 	}
 }
@@ -662,12 +685,20 @@ func TestTenantService_SetActivePublicByUUID(t *testing.T) {
 
 func TestTenantService_DeleteByUUID_DeleteError(t *testing.T) {
 	tenantUUID := uuid.New()
+	db, mock := newMockGormDB(t)
+	mock.ExpectBegin()
+	for i := 0; i < 30; i++ {
+		mock.ExpectExec(".*").WillReturnResult(sqlmock.NewResult(0, 0))
+	}
+	mock.ExpectRollback()
+
 	repo := &mockTenantRepo{
 		findByUUIDFn:   func(_ any, _ ...string) (*model.Tenant, error) { return newTenant(1, "acme"), nil },
 		deleteByUUIDFn: func(_ any) error { return errors.New("delete err") },
 	}
-	svc := NewTenantService(nil, repo)
+	svc := NewTenantService(db, repo)
 	_, err := svc.DeleteByUUID(context.Background(), tenantUUID)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "delete err")
+	assert.NoError(t, mock.ExpectationsWereMet())
 }
