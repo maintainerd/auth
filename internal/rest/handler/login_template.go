@@ -81,12 +81,7 @@ func (h *LoginTemplateHandler) GetAll(w http.ResponseWriter, r *http.Request) {
 		Template:  ptr.PtrOrNil(q.Get("template")),
 		IsDefault: isDefault,
 		IsSystem:  isSystem,
-		PaginationRequestDTO: dto.PaginationRequestDTO{
-			Page:      page,
-			Limit:     limit,
-			SortBy:    q.Get("sort_by"),
-			SortOrder: q.Get("sort_order"),
-		},
+		PaginationRequestDTO: parsePaginationQuery(r),
 	}
 
 	// Validate filter parameters

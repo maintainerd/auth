@@ -3,7 +3,6 @@ package handler
 import (
 	"encoding/json"
 	"net/http"
-	"strconv"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -177,8 +176,6 @@ func (h *ProfileHandler) GetAll(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
 
 	// Parse pagination
-	page, _ := strconv.Atoi(q.Get("page"))
-	limit, _ := strconv.Atoi(q.Get("limit"))
 
 	// Build filter DTO
 	var isDefault *bool
@@ -200,12 +197,7 @@ func (h *ProfileHandler) GetAll(w http.ResponseWriter, r *http.Request) {
 		City:      ptr.PtrOrNil(q.Get("city")),
 		Country:   ptr.PtrOrNil(q.Get("country")),
 		IsDefault: isDefault,
-		PaginationRequestDTO: dto.PaginationRequestDTO{
-			Page:      page,
-			Limit:     limit,
-			SortBy:    q.Get("sort_by"),
-			SortOrder: q.Get("sort_order"),
-		},
+		PaginationRequestDTO: parsePaginationQuery(r),
 	}
 
 	if err := reqParams.Validate(); err != nil {
@@ -327,8 +319,6 @@ func (h *ProfileHandler) AdminGetAllProfiles(w http.ResponseWriter, r *http.Requ
 	q := r.URL.Query()
 
 	// Parse pagination
-	page, _ := strconv.Atoi(q.Get("page"))
-	limit, _ := strconv.Atoi(q.Get("limit"))
 
 	// Build filter DTO
 	var isDefault *bool
@@ -350,12 +340,7 @@ func (h *ProfileHandler) AdminGetAllProfiles(w http.ResponseWriter, r *http.Requ
 		City:      ptr.PtrOrNil(q.Get("city")),
 		Country:   ptr.PtrOrNil(q.Get("country")),
 		IsDefault: isDefault,
-		PaginationRequestDTO: dto.PaginationRequestDTO{
-			Page:      page,
-			Limit:     limit,
-			SortBy:    q.Get("sort_by"),
-			SortOrder: q.Get("sort_order"),
-		},
+		PaginationRequestDTO: parsePaginationQuery(r),
 	}
 
 	if err := reqParams.Validate(); err != nil {

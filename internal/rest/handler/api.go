@@ -36,8 +36,6 @@ func (h *APIHandler) Get(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
 
 	// Parse pagination
-	page, _ := strconv.Atoi(q.Get("page"))
-	limit, _ := strconv.Atoi(q.Get("limit"))
 
 	// Parse bools safely
 	var isSystem *bool
@@ -66,12 +64,7 @@ func (h *APIHandler) Get(w http.ResponseWriter, r *http.Request) {
 		ServiceUUID: ptr.PtrOrNil(q.Get("service_id")),
 		Status:      status,
 		IsSystem:    isSystem,
-		PaginationRequestDTO: dto.PaginationRequestDTO{
-			Page:      page,
-			Limit:     limit,
-			SortBy:    q.Get("sort_by"),
-			SortOrder: q.Get("sort_order"),
-		},
+		PaginationRequestDTO: parsePaginationQuery(r),
 	}
 
 	if err := reqParams.Validate(); err != nil {

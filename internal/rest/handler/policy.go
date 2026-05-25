@@ -81,19 +81,11 @@ func (h *PolicyHandler) Get(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Parse pagination
-	page, _ := strconv.Atoi(query.Get("page"))
-	if page < 1 {
-		page = 1
-	}
-	limit, _ := strconv.Atoi(query.Get("limit"))
-	if limit < 1 || limit > 100 {
-		limit = 10
-	}
-
-	filter.Page = page
-	filter.Limit = limit
-	filter.SortBy = query.Get("sort_by")
-	filter.SortOrder = query.Get("sort_order")
+	pag := parsePaginationQuery(r)
+	filter.Page = pag.Page
+	filter.Limit = pag.Limit
+	filter.SortBy = pag.SortBy
+	filter.SortOrder = pag.SortOrder
 
 	// Validate filter parameters
 	if err := filter.Validate(); err != nil {
@@ -331,26 +323,9 @@ func (h *PolicyHandler) GetServicesByPolicyUUID(w http.ResponseWriter, r *http.R
 
 	q := r.URL.Query()
 
-	// Parse pagination
-	page, _ := strconv.Atoi(q.Get("page"))
-	limit, _ := strconv.Atoi(q.Get("limit"))
-
-	// Set defaults
-	if page <= 0 {
-		page = 1
-	}
-	if limit <= 0 {
-		limit = 10
-	}
-
 	// Build filter
 	filter := dto.PolicyServicesFilterDTO{
-		PaginationRequestDTO: dto.PaginationRequestDTO{
-			Page:      page,
-			Limit:     limit,
-			SortBy:    q.Get("sort_by"),
-			SortOrder: q.Get("sort_order"),
-		},
+		PaginationRequestDTO: parsePaginationQuery(r),
 	}
 
 	// Parse string filters

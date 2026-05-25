@@ -28,8 +28,8 @@ func TestAuthEventHandler_GetAll_NoTenant(t *testing.T) {
 
 func TestAuthEventHandler_GetAll_ValidationError(t *testing.T) {
 	h := NewAuthEventHandler(&mockAuthEventService{})
-	// page=0 violates Min(1)
-	r := withTenant(httptest.NewRequest(http.MethodGet, "/auth-events?page=0&limit=10", nil))
+	// invalid sort_order fails PaginationRequestDTO.Validate
+	r := withTenant(httptest.NewRequest(http.MethodGet, "/auth-events?sort_order=invalid", nil))
 	w := httptest.NewRecorder()
 	h.GetAll(w, r)
 	assert.Equal(t, http.StatusBadRequest, w.Code)

@@ -3,7 +3,6 @@ package handler
 import (
 	"encoding/json"
 	"net/http"
-	"strconv"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
@@ -38,10 +37,7 @@ func (h *APIKeyHandler) Get(w http.ResponseWriter, r *http.Request) {
 
 	// Parse query parameters
 	var reqParams dto.APIKeyGetRequestDTO
-	reqParams.Page, _ = strconv.Atoi(r.URL.Query().Get("page"))
-	reqParams.Limit, _ = strconv.Atoi(r.URL.Query().Get("limit"))
-	reqParams.SortBy = r.URL.Query().Get("sort_by")
-	reqParams.SortOrder = r.URL.Query().Get("sort_order")
+	reqParams.PaginationRequestDTO = parsePaginationQuery(r)
 
 	if name := r.URL.Query().Get("name"); name != "" {
 		reqParams.Name = &name
@@ -356,29 +352,9 @@ func (h *APIKeyHandler) GetAPIs(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Parse query parameters
-	q := r.URL.Query()
-
-	// Parse pagination
-	page, _ := strconv.Atoi(q.Get("page"))
-	limit, _ := strconv.Atoi(q.Get("limit"))
-
-	// Set defaults
-	if page <= 0 {
-		page = 1
-	}
-	if limit <= 0 {
-		limit = 10
-	}
-
 	// Build request DTO
 	reqParams := dto.APIKeyAPIsGetRequestDTO{
-		PaginationRequestDTO: dto.PaginationRequestDTO{
-			Page:      page,
-			Limit:     limit,
-			SortBy:    q.Get("sort_by"),
-			SortOrder: q.Get("sort_order"),
-		},
+		PaginationRequestDTO: parsePaginationQuery(r),
 	}
 
 	if err := reqParams.Validate(); err != nil {

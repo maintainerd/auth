@@ -36,8 +36,8 @@ func TestWebhookEndpointHandler_GetAll_NoTenant(t *testing.T) {
 
 func TestWebhookEndpointHandler_GetAll_ValidationError(t *testing.T) {
 	h := NewWebhookEndpointHandler(&mockWebhookEndpointService{})
-	// Missing page & limit
-	r := withTenant(httptest.NewRequest(http.MethodGet, "/webhook-endpoints", nil))
+	// Invalid sort_order triggers DTO validation error
+	r := withTenant(httptest.NewRequest(http.MethodGet, "/webhook-endpoints?sort_order=invalid", nil))
 	w := httptest.NewRecorder()
 	h.GetAll(w, r)
 	assert.Equal(t, http.StatusBadRequest, w.Code)

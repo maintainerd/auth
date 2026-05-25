@@ -221,6 +221,9 @@ func buildInternalRouter(h *handlers, application *app.App) http.Handler {
 	r.Get("/health", handleHealth)
 	r.Get("/ready", handleReady(application))
 
+	// OpenAPI 3.1 spec — internal port only
+	r.Get("/openapi.json", handler.ServeOpenAPISpec)
+
 	// Prometheus metrics — internal port only, never exposed publicly
 	r.Handle("/metrics", promhttp.Handler())
 
