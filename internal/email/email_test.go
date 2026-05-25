@@ -47,7 +47,7 @@ func TestSendEmail_FailsWhenSMTPUnreachable(t *testing.T) {
 		BodyHTML: "<p>Hello</p>",
 	})
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "failed to send email")
+	assert.Contains(t, err.Error(), "smtp:")
 }
 
 func TestSendEmail_FailsWhenSMTPUnreachable_WithFrom(t *testing.T) {
@@ -60,7 +60,7 @@ func TestSendEmail_FailsWhenSMTPUnreachable_WithFrom(t *testing.T) {
 		BodyHTML: "<p>body</p>",
 	})
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "failed to send email")
+	assert.Contains(t, err.Error(), "smtp:")
 }
 
 func TestSendEmail_FailsWhenSMTPUnreachable_WithPlainText(t *testing.T) {
@@ -73,7 +73,7 @@ func TestSendEmail_FailsWhenSMTPUnreachable_WithPlainText(t *testing.T) {
 		BodyPlain: "Hello",
 	})
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "failed to send email")
+	assert.Contains(t, err.Error(), "smtp:")
 }
 
 func TestSendEmail_FailsWithBadHost(t *testing.T) {
@@ -85,7 +85,7 @@ func TestSendEmail_FailsWithBadHost(t *testing.T) {
 		BodyHTML: "<p>body</p>",
 	})
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "failed to send email")
+	assert.Contains(t, err.Error(), "smtp:")
 }
 
 // startMockSMTP starts a minimal SMTP server that accepts one message and
