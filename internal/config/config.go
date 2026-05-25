@@ -58,6 +58,22 @@ var (
 	SMTPFromEmail string
 	SMTPFromName  string
 	EmailLogo     string
+
+	// Email Provider
+	EmailProvider string // EMAIL_PROVIDER; default "smtp"
+	EmailAPIKey   string // EMAIL_API_KEY
+	EmailDomain   string // EMAIL_DOMAIN (Mailgun)
+	EmailRegion   string // EMAIL_REGION (SES); default "us-east-1"
+
+	// SMS Config
+	SMSProvider      string // SMS_PROVIDER; "twilio", "sns", "vonage"
+	TwilioAccountSID string // TWILIO_ACCOUNT_SID
+	TwilioAuthToken  string // TWILIO_AUTH_TOKEN
+	TwilioFromNumber string // TWILIO_FROM_NUMBER
+	SNSRegion        string // SNS_REGION; default "us-east-1"
+	VonageAPIKey     string // VONAGE_API_KEY
+	VonageAPISecret  string // VONAGE_API_SECRET
+	VonageFrom       string // VONAGE_FROM
 )
 
 // Init loads all configuration from environment variables (and an optional .env file).
@@ -155,6 +171,20 @@ func Init() error {
 	SMTPFromEmail = GetEnvOrDefault("SMTP_FROM_EMAIL", "noreply@maintainerd.com")
 	SMTPFromName = GetEnvOrDefault("SMTP_FROM_NAME", "Maintainerd")
 	EmailLogo = GetEnvOrDefault("EMAIL_LOGO_URL", "https://avatars.githubusercontent.com/u/215448978?s=400&u=f6f4016d81d3ef54ea34cd9cf3028a8ca1183afc&v=4")
+	EmailProvider = GetEnvOrDefault("EMAIL_PROVIDER", "smtp")
+	EmailAPIKey = GetEnvOrDefault("EMAIL_API_KEY", "")
+	EmailDomain = GetEnvOrDefault("EMAIL_DOMAIN", "")
+	EmailRegion = GetEnvOrDefault("EMAIL_REGION", "us-east-1")
+
+	// SMS Config
+	SMSProvider = GetEnvOrDefault("SMS_PROVIDER", "")
+	TwilioAccountSID = GetEnvOrDefault("TWILIO_ACCOUNT_SID", "")
+	TwilioAuthToken = GetEnvOrDefault("TWILIO_AUTH_TOKEN", "")
+	TwilioFromNumber = GetEnvOrDefault("TWILIO_FROM_NUMBER", "")
+	SNSRegion = GetEnvOrDefault("SNS_REGION", "us-east-1")
+	VonageAPIKey = GetEnvOrDefault("VONAGE_API_KEY", "")
+	VonageAPISecret = GetEnvOrDefault("VONAGE_API_SECRET", "")
+	VonageFrom = GetEnvOrDefault("VONAGE_FROM", "")
 
 	// Cookie Config
 	CookieSecure = GetEnvOrDefault("COOKIE_SECURE", "true") != "false"
