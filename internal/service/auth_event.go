@@ -6,6 +6,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/apperror"
+	"github.com/maintainerd/auth/internal/logging"
 	"github.com/maintainerd/auth/internal/model"
 	"github.com/maintainerd/auth/internal/repository"
 	"go.opentelemetry.io/otel"
@@ -81,6 +82,32 @@ func NewAuthEventService(authEventRepo repository.AuthEventRepository) AuthEvent
 	return &authEventService{authEventRepo: authEventRepo}
 }
 
+// noopAuthEventService is a silent implementation used when no real service is
+// wired (e.g. in unit tests that pass nil to service constructors).
+type noopAuthEventService struct{}
+
+func (noopAuthEventService) Log(_ context.Context, _ AuthEventInput) {}
+func (noopAuthEventService) FindPaginated(_ context.Context, _ repository.AuthEventRepositoryGetFilter) (*repository.PaginationResult[AuthEventServiceDataResult], error) {
+	return &repository.PaginationResult[AuthEventServiceDataResult]{}, nil
+}
+func (noopAuthEventService) FindByUUID(_ context.Context, _ int64, _ uuid.UUID) (*AuthEventServiceDataResult, error) {
+	return nil, nil
+}
+func (noopAuthEventService) CountByEventType(_ context.Context, _ string, _ int64) (int64, error) {
+	return 0, nil
+}
+func (noopAuthEventService) DeleteOlderThan(_ context.Context, _ time.Time) (int64, error) {
+	return 0, nil
+}
+
+// coalesceAuthEventService returns svc if non-nil, otherwise a no-op.
+func coalesceAuthEventService(svc AuthEventService) AuthEventService {
+	if svc != nil {
+		return svc
+	}
+	return noopAuthEventService{}
+}
+
 // Log records a new auth event. The trace ID is extracted from the span
 // context automatically so it appears in both the DB and OTel.
 func (s *authEventService) Log(ctx context.Context, input AuthEventInput) {
@@ -111,7 +138,7 @@ func (s *authEventService) Log(ctx context.Context, input AuthEventInput) {
 		Description:  input.Description,
 		ErrorReason:  input.ErrorReason,
 		TraceID:      traceID,
-		Metadata:     input.Metadata,
+		Metadata:     datatypes.JSON(logging.RedactJSON(input.Metadata)),
 	}
 
 	if _, err := s.authEventRepo.Create(event); err != nil {
