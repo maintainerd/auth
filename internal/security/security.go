@@ -199,6 +199,22 @@ func SanitizeInput(input string) string {
 	return result.String()
 }
 
+// dangerousSchemes contains URI schemes that must never appear in redirect URIs
+// because they execute code in the browser (XSS via open redirect).
+var dangerousSchemes = []string{"javascript:", "data:", "vbscript:", "file:"}
+
+// ValidateRedirectURI rejects URIs that use dangerous schemes (javascript:, data:,
+// vbscript:, file:) which could turn an open-redirect into code execution.
+func ValidateRedirectURI(uri string) error {
+	lower := strings.ToLower(strings.TrimSpace(uri))
+	for _, scheme := range dangerousSchemes {
+		if strings.HasPrefix(lower, scheme) {
+			return fmt.Errorf("redirect_uri uses a forbidden scheme: %s", scheme)
+		}
+	}
+	return nil
+}
+
 // ValidateIPAddress validates if an IP address is valid and not from restricted ranges
 // Complies with SOC2 CC6.1 and ISO27001 A.13.1.1
 func ValidateIPAddress(ipStr string) error {
