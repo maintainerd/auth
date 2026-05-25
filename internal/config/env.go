@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"os"
+	"strconv"
 )
 
 // GetEnv returns the value of the environment variable identified by key.
@@ -22,4 +23,12 @@ func GetEnvOrDefault(key, defaultVal string) string {
 		return defaultVal
 	}
 	return val
+}
+
+// parseIntDefault parses s as an integer, returning fallback on any error.
+func parseIntDefault(s string, fallback int) int {
+	if n, err := strconv.Atoi(s); err == nil {
+		return n
+	}
+	return fallback
 }

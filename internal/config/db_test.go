@@ -13,6 +13,7 @@ func TestGetDBConnectionString(t *testing.T) {
 	origPass := DBPassword
 	origName := DBName
 	origSSL := DBSSLMode
+	origTimeout := DBStatementTimeoutMs
 	t.Cleanup(func() {
 		DBHost = origHost
 		DBPort = origPort
@@ -20,6 +21,7 @@ func TestGetDBConnectionString(t *testing.T) {
 		DBPassword = origPass
 		DBName = origName
 		DBSSLMode = origSSL
+		DBStatementTimeoutMs = origTimeout
 	})
 
 	DBHost = "db.example.com"
@@ -28,7 +30,8 @@ func TestGetDBConnectionString(t *testing.T) {
 	DBPassword = "s3cret"
 	DBName = "mydb"
 	DBSSLMode = "require"
+	DBStatementTimeoutMs = 30000
 
 	got := GetDBConnectionString()
-	assert.Equal(t, "host=db.example.com port=5432 user=admin password=s3cret dbname=mydb sslmode=require", got)
+	assert.Equal(t, "host=db.example.com port=5432 user=admin password=s3cret dbname=mydb sslmode=require options=-c statement_timeout=30000", got)
 }
