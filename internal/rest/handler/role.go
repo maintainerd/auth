@@ -42,8 +42,6 @@ func (h *RoleHandler) Get(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
 
 	// Parse pagination parameters
-	page, _ := strconv.Atoi(q.Get("page"))
-	limit, _ := strconv.Atoi(q.Get("limit"))
 
 	// Parse boolean filters for default and system roles
 	var isDefault, isSystem *bool
@@ -73,12 +71,7 @@ func (h *RoleHandler) Get(w http.ResponseWriter, r *http.Request) {
 		IsDefault:   isDefault,
 		IsSystem:    isSystem,
 		Status:      status,
-		PaginationRequestDTO: dto.PaginationRequestDTO{
-			Page:      page,
-			Limit:     limit,
-			SortBy:    q.Get("sort_by"),
-			SortOrder: q.Get("sort_order"),
-		},
+		PaginationRequestDTO: parsePaginationQuery(r),
 	}
 
 	// Validate filter parameters
@@ -350,8 +343,6 @@ func (h *RoleHandler) GetPermissions(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
 
 	// Parse pagination parameters
-	page, _ := strconv.Atoi(q.Get("page"))
-	limit, _ := strconv.Atoi(q.Get("limit"))
 
 	// Parse status filter
 	var status *string
@@ -360,12 +351,7 @@ func (h *RoleHandler) GetPermissions(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Build pagination DTO
-	reqParams := dto.PaginationRequestDTO{
-		Page:      page,
-		Limit:     limit,
-		SortBy:    q.Get("sort_by"),
-		SortOrder: q.Get("sort_order"),
-	}
+	reqParams := parsePaginationQuery(r)
 
 	// Validate pagination parameters
 	if err := reqParams.Validate(); err != nil {

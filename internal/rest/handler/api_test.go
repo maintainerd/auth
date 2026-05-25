@@ -23,9 +23,9 @@ func TestAPIHandler_Get_NoTenant(t *testing.T) {
 }
 
 func TestAPIHandler_Get_ValidationError(t *testing.T) {
-	// page=0 and limit=0 fail PaginationRequestDTO.Validate (min 1)
+	// invalid sort_order fails PaginationRequestDTO.Validate
 	h := NewAPIHandler(&mockAPIService{})
-	r := withTenant(httptest.NewRequest(http.MethodGet, "/apis?page=0&limit=0", nil))
+	r := withTenant(httptest.NewRequest(http.MethodGet, "/apis?sort_order=invalid", nil))
 	w := httptest.NewRecorder()
 	h.Get(w, r)
 	assert.Equal(t, http.StatusBadRequest, w.Code)

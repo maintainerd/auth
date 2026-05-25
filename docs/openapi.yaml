@@ -1,0 +1,3793 @@
+openapi: 3.1.0
+info:
+  title: maintainerd-auth
+  description: >
+    Multi-tenant Identity Provider and OAuth 2.0 authorization server.
+    Exposes two ports: the internal management API (8080) for tenant/user/role/client
+    administration and the public identity API (8081) for login, registration,
+    OAuth 2.0 flows, and OpenID Connect discovery.
+  version: 1.0.0
+  contact:
+    name: Lula Engineering
+    email: engineering@lula.life
+
+servers:
+  - url: http://localhost:8080/api/v1
+    description: Internal management API
+  - url: http://localhost:8081/api/v1
+    description: Public identity API
+
+security:
+  - bearerAuth: []
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Tags
+# ──────────────────────────────────────────────────────────────────────────────
+tags:
+  - name: Tenants
+    description: Tenant management
+  - name: Users
+    description: User management
+  - name: Roles
+    description: Role management
+  - name: Clients
+    description: OAuth client management
+  - name: Identity Providers
+    description: Identity provider management
+  - name: Auth
+    description: Authentication — login, registration, password reset, magic link, SMS OTP
+  - name: OAuth 2.0
+    description: OAuth 2.0 / OpenID Connect authorization server endpoints
+  - name: Webhook Endpoints
+    description: Webhook endpoint management
+  - name: Auth Events
+    description: Audit log of authentication and authorization events (read-only)
+  - name: API Keys
+    description: API key management
+  - name: Profile
+    description: Authenticated user profile (self-service)
+  - name: MFA
+    description: Multi-factor authentication — TOTP, WebAuthn, backup codes
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Paths
+# ──────────────────────────────────────────────────────────────────────────────
+paths:
+
+  # ============================================================
+  # Tenants
+  # ============================================================
+  /tenants:
+    get:
+      tags: [Tenants]
+      summary: List tenants
+      operationId: listTenants
+      parameters:
+        - $ref: '#/components/parameters/page'
+        - $ref: '#/components/parameters/limit'
+        - $ref: '#/components/parameters/sort_by'
+        - $ref: '#/components/parameters/sort_order'
+        - name: name
+          in: query
+          schema:
+            type: string
+          description: Filter by tenant name (partial match)
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [active, inactive, pending, suspended]
+          description: Filter by status
+      responses:
+        '200':
+          $ref: '#/components/responses/PaginatedSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    post:
+      tags: [Tenants]
+      summary: Create tenant
+      operationId: createTenant
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TenantCreateRequest'
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /tenants/{tenant_uuid}:
+    parameters:
+      - $ref: '#/components/parameters/tenant_uuid'
+
+    get:
+      tags: [Tenants]
+      summary: Get tenant by UUID
+      operationId: getTenant
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    put:
+      tags: [Tenants]
+      summary: Update tenant
+      operationId: updateTenant
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TenantUpdateRequest'
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    delete:
+      tags: [Tenants]
+      summary: Delete tenant
+      operationId: deleteTenant
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /tenants/{tenant_uuid}/status:
+    parameters:
+      - $ref: '#/components/parameters/tenant_uuid'
+    patch:
+      tags: [Tenants]
+      summary: Set tenant status
+      operationId: setTenantStatus
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StatusUpdateRequest'
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  # ============================================================
+  # Users
+  # ============================================================
+  /users:
+    get:
+      tags: [Users]
+      summary: List users
+      operationId: listUsers
+      parameters:
+        - $ref: '#/components/parameters/page'
+        - $ref: '#/components/parameters/limit'
+        - $ref: '#/components/parameters/sort_by'
+        - $ref: '#/components/parameters/sort_order'
+        - name: username
+          in: query
+          schema:
+            type: string
+        - name: email
+          in: query
+          schema:
+            type: string
+        - name: phone
+          in: query
+          schema:
+            type: string
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [active, inactive, pending, suspended]
+        - name: tenant_id
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: role_id
+          in: query
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          $ref: '#/components/responses/PaginatedSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    post:
+      tags: [Users]
+      summary: Create user
+      operationId: createUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserCreateRequest'
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /users/{user_uuid}:
+    parameters:
+      - $ref: '#/components/parameters/user_uuid'
+
+    get:
+      tags: [Users]
+      summary: Get user by UUID
+      operationId: getUser
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    put:
+      tags: [Users]
+      summary: Update user
+      operationId: updateUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserUpdateRequest'
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    delete:
+      tags: [Users]
+      summary: Delete user
+      operationId: deleteUser
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /users/{user_uuid}/status:
+    parameters:
+      - $ref: '#/components/parameters/user_uuid'
+    patch:
+      tags: [Users]
+      summary: Set user status
+      operationId: setUserStatus
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StatusUpdateRequest'
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /users/{user_uuid}/roles:
+    parameters:
+      - $ref: '#/components/parameters/user_uuid'
+
+    get:
+      tags: [Users]
+      summary: Get roles assigned to user
+      operationId: getUserRoles
+      parameters:
+        - $ref: '#/components/parameters/page'
+        - $ref: '#/components/parameters/limit'
+        - $ref: '#/components/parameters/sort_by'
+        - $ref: '#/components/parameters/sort_order'
+      responses:
+        '200':
+          $ref: '#/components/responses/PaginatedSuccess'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    post:
+      tags: [Users]
+      summary: Assign roles to user
+      operationId: assignUserRoles
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AssignRolesRequest'
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /users/{user_uuid}/roles/{role_uuid}:
+    parameters:
+      - $ref: '#/components/parameters/user_uuid'
+      - $ref: '#/components/parameters/role_uuid'
+    delete:
+      tags: [Users]
+      summary: Remove role from user
+      operationId: removeUserRole
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  # ============================================================
+  # Roles
+  # ============================================================
+  /roles:
+    get:
+      tags: [Roles]
+      summary: List roles
+      operationId: listRoles
+      parameters:
+        - $ref: '#/components/parameters/page'
+        - $ref: '#/components/parameters/limit'
+        - $ref: '#/components/parameters/sort_by'
+        - $ref: '#/components/parameters/sort_order'
+        - name: name
+          in: query
+          schema:
+            type: string
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [active, inactive]
+      responses:
+        '200':
+          $ref: '#/components/responses/PaginatedSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    post:
+      tags: [Roles]
+      summary: Create role
+      operationId: createRole
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RoleCreateOrUpdateRequest'
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /roles/{role_uuid}:
+    parameters:
+      - $ref: '#/components/parameters/role_uuid'
+
+    get:
+      tags: [Roles]
+      summary: Get role by UUID
+      operationId: getRole
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    put:
+      tags: [Roles]
+      summary: Update role
+      operationId: updateRole
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RoleCreateOrUpdateRequest'
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    delete:
+      tags: [Roles]
+      summary: Delete role
+      operationId: deleteRole
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /roles/{role_uuid}/status:
+    parameters:
+      - $ref: '#/components/parameters/role_uuid'
+    patch:
+      tags: [Roles]
+      summary: Set role status
+      operationId: setRoleStatus
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StatusUpdateRequest'
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /roles/{role_uuid}/permissions:
+    parameters:
+      - $ref: '#/components/parameters/role_uuid'
+
+    get:
+      tags: [Roles]
+      summary: Get permissions for role
+      operationId: getRolePermissions
+      parameters:
+        - $ref: '#/components/parameters/page'
+        - $ref: '#/components/parameters/limit'
+        - $ref: '#/components/parameters/sort_by'
+        - $ref: '#/components/parameters/sort_order'
+      responses:
+        '200':
+          $ref: '#/components/responses/PaginatedSuccess'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    post:
+      tags: [Roles]
+      summary: Add permissions to role
+      operationId: addRolePermissions
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AddPermissionsRequest'
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /roles/{role_uuid}/permissions/{permission_uuid}:
+    parameters:
+      - $ref: '#/components/parameters/role_uuid'
+      - $ref: '#/components/parameters/permission_uuid'
+    delete:
+      tags: [Roles]
+      summary: Remove permission from role
+      operationId: removeRolePermission
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  # ============================================================
+  # Clients
+  # ============================================================
+  /clients:
+    get:
+      tags: [Clients]
+      summary: List OAuth clients
+      operationId: listClients
+      parameters:
+        - $ref: '#/components/parameters/page'
+        - $ref: '#/components/parameters/limit'
+        - $ref: '#/components/parameters/sort_by'
+        - $ref: '#/components/parameters/sort_order'
+        - name: name
+          in: query
+          schema:
+            type: string
+        - name: client_type
+          in: query
+          schema:
+            type: string
+            enum: [traditional, spa, mobile, m2m]
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [active, inactive]
+        - name: identity_provider_id
+          in: query
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          $ref: '#/components/responses/PaginatedSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    post:
+      tags: [Clients]
+      summary: Create OAuth client
+      operationId: createClient
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ClientCreateRequest'
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /clients/{client_uuid}:
+    parameters:
+      - $ref: '#/components/parameters/client_uuid'
+
+    get:
+      tags: [Clients]
+      summary: Get OAuth client by UUID
+      operationId: getClient
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    put:
+      tags: [Clients]
+      summary: Update OAuth client
+      operationId: updateClient
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ClientUpdateRequest'
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    delete:
+      tags: [Clients]
+      summary: Delete OAuth client
+      operationId: deleteClient
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /clients/{client_uuid}/status:
+    parameters:
+      - $ref: '#/components/parameters/client_uuid'
+    patch:
+      tags: [Clients]
+      summary: Set OAuth client status
+      operationId: setClientStatus
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StatusUpdateRequest'
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /clients/{client_uuid}/uris:
+    parameters:
+      - $ref: '#/components/parameters/client_uuid'
+
+    get:
+      tags: [Clients]
+      summary: List client URIs
+      operationId: listClientURIs
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    post:
+      tags: [Clients]
+      summary: Add URI to client
+      operationId: createClientURI
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ClientURIRequest'
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /clients/{client_uuid}/uris/{uri_uuid}:
+    parameters:
+      - $ref: '#/components/parameters/client_uuid'
+      - name: uri_uuid
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+        description: Client URI UUID
+
+    put:
+      tags: [Clients]
+      summary: Update client URI
+      operationId: updateClientURI
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ClientURIRequest'
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    delete:
+      tags: [Clients]
+      summary: Delete client URI
+      operationId: deleteClientURI
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  # ============================================================
+  # Identity Providers
+  # ============================================================
+  /identity-providers:
+    get:
+      tags: [Identity Providers]
+      summary: List identity providers
+      operationId: listIdentityProviders
+      parameters:
+        - $ref: '#/components/parameters/page'
+        - $ref: '#/components/parameters/limit'
+        - $ref: '#/components/parameters/sort_by'
+        - $ref: '#/components/parameters/sort_order'
+        - name: name
+          in: query
+          schema:
+            type: string
+        - name: provider
+          in: query
+          schema:
+            type: string
+            enum: [internal, cognito, auth0, google, facebook, github, microsoft, apple, linkedin, twitter]
+        - name: provider_type
+          in: query
+          schema:
+            type: string
+            enum: [identity, social]
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [active, inactive]
+      responses:
+        '200':
+          $ref: '#/components/responses/PaginatedSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    post:
+      tags: [Identity Providers]
+      summary: Create identity provider
+      operationId: createIdentityProvider
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/IdentityProviderCreateRequest'
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /identity-providers/{idp_uuid}:
+    parameters:
+      - $ref: '#/components/parameters/idp_uuid'
+
+    get:
+      tags: [Identity Providers]
+      summary: Get identity provider by UUID
+      operationId: getIdentityProvider
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    put:
+      tags: [Identity Providers]
+      summary: Update identity provider
+      operationId: updateIdentityProvider
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/IdentityProviderUpdateRequest'
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    delete:
+      tags: [Identity Providers]
+      summary: Delete identity provider
+      operationId: deleteIdentityProvider
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  # ============================================================
+  # Auth (public — no bearer token required)
+  # ============================================================
+  /auth/login:
+    post:
+      tags: [Auth]
+      summary: Login with username and password
+      operationId: login
+      security: []
+      parameters:
+        - name: client_id
+          in: query
+          required: true
+          schema:
+            type: string
+          description: OAuth client identifier
+        - name: provider_id
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Identity provider identifier
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Successful login
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /auth/register:
+    post:
+      tags: [Auth]
+      summary: Register a new user account
+      operationId: register
+      security: []
+      parameters:
+        - name: client_id
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: provider_id
+          in: query
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        '200':
+          description: Successful registration
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RegisterResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          description: User already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /auth/forgot-password:
+    post:
+      tags: [Auth]
+      summary: Initiate forgot-password flow
+      operationId: forgotPassword
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties:
+                email:
+                  type: string
+                  format: email
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /auth/reset-password:
+    post:
+      tags: [Auth]
+      summary: Reset password using a reset token
+      operationId: resetPassword
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token, password]
+              properties:
+                token:
+                  type: string
+                  description: Password reset token received by email
+                password:
+                  type: string
+                  format: password
+                  minLength: 8
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /auth/verify-email:
+    post:
+      tags: [Auth]
+      summary: Verify email address with OTP
+      operationId: verifyEmail
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, otp]
+              properties:
+                email:
+                  type: string
+                  format: email
+                otp:
+                  type: string
+                  minLength: 4
+                  maxLength: 12
+                  description: Verification code sent to email
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /auth/magic-link/send:
+    post:
+      tags: [Auth]
+      summary: Send a magic-link login email
+      operationId: sendMagicLink
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties:
+                email:
+                  type: string
+                  format: email
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /auth/magic-link/verify:
+    post:
+      tags: [Auth]
+      summary: Consume a magic-link token and obtain session tokens
+      operationId: verifyMagicLink
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token]
+              properties:
+                token:
+                  type: string
+                  minLength: 16
+                  maxLength: 256
+      responses:
+        '200':
+          description: Magic link verified; session tokens issued
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /auth/sms/send:
+    post:
+      tags: [Auth]
+      summary: Send SMS OTP
+      operationId: sendSMSOTP
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SMSSendRequest'
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /auth/sms/verify:
+    post:
+      tags: [Auth]
+      summary: Verify SMS OTP and obtain session tokens
+      operationId: verifySMSOTP
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SMSVerifyRequest'
+      responses:
+        '200':
+          description: OTP verified; session tokens issued
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  # ============================================================
+  # OAuth 2.0 / OpenID Connect (public)
+  # ============================================================
+  /oauth/authorize:
+    get:
+      tags: [OAuth 2.0]
+      summary: OAuth 2.0 authorization endpoint
+      description: >
+        RFC 6749 §4.1.1 authorization endpoint. Requires an active user session
+        (Bearer JWT). Returns a redirect URI with the authorization code, or a
+        consent challenge if the user has not yet approved the requested scopes.
+      operationId: oauthAuthorize
+      parameters:
+        - name: response_type
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [code]
+        - name: client_id
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: redirect_uri
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uri
+        - name: scope
+          in: query
+          schema:
+            type: string
+        - name: state
+          in: query
+          schema:
+            type: string
+        - name: nonce
+          in: query
+          schema:
+            type: string
+        - name: code_challenge
+          in: query
+          required: true
+          schema:
+            type: string
+            minLength: 43
+            maxLength: 128
+        - name: code_challenge_method
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [S256]
+      responses:
+        '200':
+          description: Authorization code issued or consent challenge returned
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/OAuthAuthorizeResponse'
+                  - $ref: '#/components/schemas/OAuthConsentRequiredResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /oauth/token:
+    post:
+      tags: [OAuth 2.0]
+      summary: OAuth 2.0 token endpoint
+      description: >
+        RFC 6749 token endpoint. Accepts application/x-www-form-urlencoded.
+        Supports grant types: authorization_code, refresh_token,
+        client_credentials, urn:ietf:params:oauth:grant-type:device_code,
+        urn:ietf:params:oauth:grant-type:token-exchange,
+        urn:openid:params:grant-type:ciba.
+      operationId: oauthToken
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/OAuthTokenRequest'
+      responses:
+        '200':
+          description: Token response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OAuthTokenResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /oauth/revoke:
+    post:
+      tags: [OAuth 2.0]
+      summary: Revoke a token (RFC 7009)
+      operationId: oauthRevoke
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/OAuthRevokeRequest'
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /oauth/userinfo:
+    get:
+      tags: [OAuth 2.0]
+      summary: OpenID Connect UserInfo endpoint
+      description: Returns claims about the authenticated end-user (OIDC Core §5.3).
+      operationId: oauthUserInfo
+      responses:
+        '200':
+          description: UserInfo claims
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OAuthUserInfoResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /oauth/introspect:
+    post:
+      tags: [OAuth 2.0]
+      summary: Token introspection (RFC 7662) — management API only
+      operationId: oauthIntrospect
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/OAuthIntrospectRequest'
+      responses:
+        '200':
+          description: Introspection response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OAuthIntrospectResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /oauth/par:
+    post:
+      tags: [OAuth 2.0]
+      summary: Pushed Authorization Request (RFC 9126)
+      operationId: oauthPAR
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/OAuthPARRequest'
+      responses:
+        '201':
+          description: PAR accepted; request_uri returned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OAuthPARResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /oauth/device_authorization:
+    post:
+      tags: [OAuth 2.0]
+      summary: Device Authorization (RFC 8628 §3.1)
+      operationId: oauthDeviceAuthorization
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/OAuthDeviceAuthorizationRequest'
+      responses:
+        '200':
+          description: Device authorization response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OAuthDeviceAuthorizationResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /oauth/register:
+    post:
+      tags: [OAuth 2.0]
+      summary: Dynamic Client Registration (RFC 7591)
+      operationId: oauthDynamicClientRegister
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OAuthClientRegistrationRequest'
+      responses:
+        '201':
+          description: Client registered
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OAuthClientRegistrationResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /oauth/end_session:
+    get:
+      tags: [OAuth 2.0]
+      summary: RP-Initiated Logout (OIDC Session Management 1.0)
+      operationId: oauthEndSession
+      parameters:
+        - name: id_token_hint
+          in: query
+          schema:
+            type: string
+        - name: post_logout_redirect_uri
+          in: query
+          schema:
+            type: string
+            format: uri
+        - name: state
+          in: query
+          schema:
+            type: string
+        - name: client_id
+          in: query
+          schema:
+            type: string
+      responses:
+        '302':
+          description: Redirect to post_logout_redirect_uri
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /oauth/consent:
+    post:
+      tags: [OAuth 2.0]
+      summary: Submit user consent decision
+      operationId: oauthConsent
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OAuthConsentDecision'
+      responses:
+        '200':
+          description: Consent decision processed; redirect URI returned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OAuthConsentDecisionResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /oauth/consent/{challenge_id}:
+    get:
+      tags: [OAuth 2.0]
+      summary: Get consent challenge details
+      operationId: getConsentChallenge
+      parameters:
+        - name: challenge_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Consent challenge details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OAuthConsentChallengeResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /oauth/consent/grants:
+    get:
+      tags: [OAuth 2.0]
+      summary: List user consent grants
+      operationId: listConsentGrants
+      parameters:
+        - $ref: '#/components/parameters/page'
+        - $ref: '#/components/parameters/limit'
+      responses:
+        '200':
+          $ref: '#/components/responses/PaginatedSuccess'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /oauth/consent/grants/{grant_uuid}:
+    delete:
+      tags: [OAuth 2.0]
+      summary: Revoke a consent grant
+      operationId: revokeConsentGrant
+      parameters:
+        - name: grant_uuid
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /.well-known/openid-configuration:
+    get:
+      tags: [OAuth 2.0]
+      summary: OpenID Connect discovery document
+      operationId: oidcDiscovery
+      security: []
+      responses:
+        '200':
+          description: OIDC discovery metadata
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OAuthDiscoveryResponse'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /.well-known/oauth-authorization-server:
+    get:
+      tags: [OAuth 2.0]
+      summary: RFC 8414 authorization server metadata
+      operationId: oauthAuthorizationServerMetadata
+      security: []
+      responses:
+        '200':
+          description: Authorization server metadata
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OAuthAuthorizationServerMetadata'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /.well-known/jwks.json:
+    get:
+      tags: [OAuth 2.0]
+      summary: JSON Web Key Set (RFC 7517)
+      operationId: jwks
+      security: []
+      responses:
+        '200':
+          description: Public key set
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JWKSResponse'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  # ============================================================
+  # Webhook Endpoints
+  # ============================================================
+  /webhook-endpoints:
+    get:
+      tags: [Webhook Endpoints]
+      summary: List webhook endpoints
+      operationId: listWebhookEndpoints
+      parameters:
+        - $ref: '#/components/parameters/page'
+        - $ref: '#/components/parameters/limit'
+        - $ref: '#/components/parameters/sort_by'
+        - $ref: '#/components/parameters/sort_order'
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [active, inactive]
+      responses:
+        '200':
+          $ref: '#/components/responses/PaginatedSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    post:
+      tags: [Webhook Endpoints]
+      summary: Create webhook endpoint
+      operationId: createWebhookEndpoint
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WebhookEndpointCreateRequest'
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /webhook-endpoints/{webhook_endpoint_uuid}:
+    parameters:
+      - $ref: '#/components/parameters/webhook_endpoint_uuid'
+
+    get:
+      tags: [Webhook Endpoints]
+      summary: Get webhook endpoint by UUID
+      operationId: getWebhookEndpoint
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    put:
+      tags: [Webhook Endpoints]
+      summary: Update webhook endpoint
+      operationId: updateWebhookEndpoint
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WebhookEndpointUpdateRequest'
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    delete:
+      tags: [Webhook Endpoints]
+      summary: Delete webhook endpoint
+      operationId: deleteWebhookEndpoint
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /webhook-endpoints/{webhook_endpoint_uuid}/status:
+    parameters:
+      - $ref: '#/components/parameters/webhook_endpoint_uuid'
+    patch:
+      tags: [Webhook Endpoints]
+      summary: Set webhook endpoint status
+      operationId: setWebhookEndpointStatus
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StatusUpdateRequest'
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  # ============================================================
+  # Auth Events (read-only)
+  # ============================================================
+  /auth-events:
+    get:
+      tags: [Auth Events]
+      summary: List auth events
+      operationId: listAuthEvents
+      parameters:
+        - $ref: '#/components/parameters/page'
+        - $ref: '#/components/parameters/limit'
+        - $ref: '#/components/parameters/sort_by'
+        - $ref: '#/components/parameters/sort_order'
+        - name: category
+          in: query
+          schema:
+            type: string
+            enum: [AUTHN, AUTHZ, SESSION, USER, SYSTEM]
+          description: Event category
+        - name: event_type
+          in: query
+          schema:
+            type: string
+          description: Specific event type string (max 60 chars)
+        - name: severity
+          in: query
+          schema:
+            type: string
+            enum: [INFO, WARN, CRITICAL]
+        - name: result
+          in: query
+          schema:
+            type: string
+            enum: [success, failure]
+        - name: date_from
+          in: query
+          schema:
+            type: string
+            format: date-time
+          description: Filter events on or after this timestamp (ISO 8601)
+        - name: date_to
+          in: query
+          schema:
+            type: string
+            format: date-time
+          description: Filter events on or before this timestamp (ISO 8601)
+      responses:
+        '200':
+          $ref: '#/components/responses/PaginatedSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /auth-events/count:
+    get:
+      tags: [Auth Events]
+      summary: Count auth events by type
+      operationId: countAuthEvents
+      parameters:
+        - name: event_type
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Event count
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  event_type:
+                    type: string
+                  count:
+                    type: integer
+                    format: int64
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /auth-events/{auth_event_uuid}:
+    parameters:
+      - name: auth_event_uuid
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+        description: Auth event UUID
+    get:
+      tags: [Auth Events]
+      summary: Get auth event by UUID
+      operationId: getAuthEvent
+      responses:
+        '200':
+          description: Auth event detail
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthEventResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  # ============================================================
+  # API Keys
+  # ============================================================
+  /api-keys:
+    get:
+      tags: [API Keys]
+      summary: List API keys
+      operationId: listAPIKeys
+      parameters:
+        - $ref: '#/components/parameters/page'
+        - $ref: '#/components/parameters/limit'
+        - $ref: '#/components/parameters/sort_by'
+        - $ref: '#/components/parameters/sort_order'
+        - name: name
+          in: query
+          schema:
+            type: string
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [active, inactive]
+      responses:
+        '200':
+          $ref: '#/components/responses/PaginatedSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    post:
+      tags: [API Keys]
+      summary: Create API key
+      operationId: createAPIKey
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/APIKeyCreateRequest'
+      responses:
+        '200':
+          description: API key created; plaintext key returned once
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIKeyCreateResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api-keys/{api_key_uuid}:
+    parameters:
+      - $ref: '#/components/parameters/api_key_uuid'
+
+    get:
+      tags: [API Keys]
+      summary: Get API key by UUID
+      operationId: getAPIKey
+      responses:
+        '200':
+          description: API key details (plaintext key never returned after creation)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIKeyResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    delete:
+      tags: [API Keys]
+      summary: Delete API key
+      operationId: deleteAPIKey
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  # ============================================================
+  # Profile (self-service)
+  # ============================================================
+  /profile:
+    get:
+      tags: [Profile]
+      summary: Get authenticated user's default profile
+      operationId: getProfile
+      responses:
+        '200':
+          description: Default profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProfileResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    put:
+      tags: [Profile]
+      summary: Create or update authenticated user's default profile
+      operationId: upsertProfile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProfileRequest'
+      responses:
+        '200':
+          description: Profile saved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProfileResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  # ============================================================
+  # MFA
+  # ============================================================
+  /mfa/totp/setup:
+    post:
+      tags: [MFA]
+      summary: Begin TOTP enrollment — returns secret and QR code URI
+      operationId: totpSetup
+      responses:
+        '200':
+          description: TOTP enrollment initiated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TOTPEnrollResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /mfa/totp/verify:
+    post:
+      tags: [MFA]
+      summary: Verify TOTP code and complete enrollment
+      operationId: totpVerify
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TOTPVerifyRequest'
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /mfa/totp:
+    delete:
+      tags: [MFA]
+      summary: Disable TOTP for the authenticated user
+      operationId: totpDisable
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /mfa/webauthn/register/begin:
+    post:
+      tags: [MFA]
+      summary: Begin WebAuthn passkey registration
+      operationId: webAuthnRegisterBegin
+      responses:
+        '200':
+          description: WebAuthn credential creation options
+          content:
+            application/json:
+              schema:
+                type: object
+                description: >
+                  PublicKeyCredentialCreationOptions (W3C WebAuthn Level 2).
+                  Forward the entire object to navigator.credentials.create().
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /mfa/webauthn/register/complete:
+    post:
+      tags: [MFA]
+      summary: Complete WebAuthn passkey registration
+      operationId: webAuthnRegisterComplete
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              description: >
+                PublicKeyCredential response from navigator.credentials.create()
+                serialised as JSON (base64url-encoded ArrayBuffers).
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /mfa/webauthn/authenticate/begin:
+    post:
+      tags: [MFA]
+      summary: Begin WebAuthn authentication challenge
+      operationId: webAuthnAuthenticateBegin
+      responses:
+        '200':
+          description: WebAuthn credential request options
+          content:
+            application/json:
+              schema:
+                type: object
+                description: >
+                  PublicKeyCredentialRequestOptions (W3C WebAuthn Level 2).
+                  Forward the entire object to navigator.credentials.get().
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /mfa/webauthn/authenticate/complete:
+    post:
+      tags: [MFA]
+      summary: Complete WebAuthn authentication
+      operationId: webAuthnAuthenticateComplete
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              description: >
+                PublicKeyCredential response from navigator.credentials.get()
+                serialised as JSON (base64url-encoded ArrayBuffers).
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Components
+# ──────────────────────────────────────────────────────────────────────────────
+components:
+
+  # ────────────────────────────────────────────────────────────
+  # Security Schemes
+  # ────────────────────────────────────────────────────────────
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  # ────────────────────────────────────────────────────────────
+  # Reusable Parameters
+  # ────────────────────────────────────────────────────────────
+  parameters:
+    page:
+      name: page
+      in: query
+      schema:
+        type: integer
+        default: 1
+        minimum: 1
+      description: Page number (1-based)
+
+    limit:
+      name: limit
+      in: query
+      schema:
+        type: integer
+        default: 10
+        minimum: 1
+        maximum: 100
+      description: Number of results per page
+
+    sort_by:
+      name: sort_by
+      in: query
+      schema:
+        type: string
+      description: Field to sort by
+
+    sort_order:
+      name: sort_order
+      in: query
+      schema:
+        type: string
+        enum: [asc, desc]
+        default: asc
+      description: Sort direction
+
+    tenant_uuid:
+      name: tenant_uuid
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+      description: Tenant UUID
+
+    user_uuid:
+      name: user_uuid
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+      description: User UUID
+
+    role_uuid:
+      name: role_uuid
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+      description: Role UUID
+
+    permission_uuid:
+      name: permission_uuid
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+      description: Permission UUID
+
+    client_uuid:
+      name: client_uuid
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+      description: OAuth client UUID
+
+    idp_uuid:
+      name: idp_uuid
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+      description: Identity provider UUID
+
+    webhook_endpoint_uuid:
+      name: webhook_endpoint_uuid
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+      description: Webhook endpoint UUID
+
+    api_key_uuid:
+      name: api_key_uuid
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+      description: API key UUID
+
+  # ────────────────────────────────────────────────────────────
+  # Reusable Responses
+  # ────────────────────────────────────────────────────────────
+  responses:
+    Success:
+      description: Successful operation
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Success'
+
+    PaginatedSuccess:
+      description: Successful paginated list
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/PaginatedResponse'
+
+    BadRequest:
+      description: Validation error or malformed request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+    Unauthorized:
+      description: Missing or invalid authentication token
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+    InternalError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+  # ────────────────────────────────────────────────────────────
+  # Schemas
+  # ────────────────────────────────────────────────────────────
+  schemas:
+
+    # ── Generic envelopes ────────────────────────────────────
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Machine-readable error code
+        message:
+          type: string
+          description: Human-readable error description
+
+    Success:
+      type: object
+      properties:
+        data:
+          type: object
+          description: Response payload
+        message:
+          type: string
+          description: Human-readable status message
+
+    PaginatedResponse:
+      type: object
+      properties:
+        rows:
+          type: array
+          items: {}
+          description: Page of results
+        total:
+          type: integer
+          format: int64
+          description: Total number of matching records
+        page:
+          type: integer
+          description: Current page number
+        limit:
+          type: integer
+          description: Records per page
+        total_pages:
+          type: integer
+          description: Total number of pages
+
+    # ── Common ───────────────────────────────────────────────
+    StatusUpdateRequest:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [active, inactive, pending, suspended]
+
+    # ── Tenant ───────────────────────────────────────────────
+    TenantCreateRequest:
+      type: object
+      required: [name, description, status]
+      properties:
+        name:
+          type: string
+          minLength: 3
+          maxLength: 50
+          pattern: '^[a-z0-9-]+$'
+          description: Unique slug-style identifier (lowercase alphanumeric + hyphens)
+        display_name:
+          type: string
+          maxLength: 255
+        description:
+          type: string
+          minLength: 8
+          maxLength: 200
+        status:
+          type: string
+          enum: [active, inactive, pending, suspended]
+        is_public:
+          type: boolean
+          default: false
+
+    TenantUpdateRequest:
+      type: object
+      required: [name, description, status]
+      properties:
+        name:
+          type: string
+          minLength: 3
+          maxLength: 50
+          pattern: '^[a-z0-9-]+$'
+        display_name:
+          type: string
+          maxLength: 255
+        description:
+          type: string
+          minLength: 8
+          maxLength: 200
+        status:
+          type: string
+          enum: [active, inactive, pending, suspended]
+        is_public:
+          type: boolean
+
+    TenantResponse:
+      type: object
+      properties:
+        tenant_id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        display_name:
+          type: string
+        description:
+          type: string
+        identifier:
+          type: string
+        status:
+          type: string
+        is_public:
+          type: boolean
+        is_system:
+          type: boolean
+        metadata:
+          type: object
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    # ── User ─────────────────────────────────────────────────
+    UserCreateRequest:
+      type: object
+      required: [username, fullname, password, status, tenant_id]
+      properties:
+        username:
+          type: string
+          minLength: 3
+          maxLength: 50
+        fullname:
+          type: string
+          minLength: 1
+          maxLength: 255
+        email:
+          type: string
+          format: email
+        phone:
+          type: string
+          minLength: 10
+          maxLength: 20
+        password:
+          type: string
+          format: password
+          minLength: 8
+          maxLength: 100
+        status:
+          type: string
+          enum: [active, inactive, pending, suspended]
+        metadata:
+          type: object
+        tenant_id:
+          type: string
+          format: uuid
+
+    UserUpdateRequest:
+      type: object
+      required: [username, fullname, status]
+      properties:
+        username:
+          type: string
+          minLength: 3
+          maxLength: 50
+        fullname:
+          type: string
+          minLength: 1
+          maxLength: 255
+        email:
+          type: string
+          format: email
+        phone:
+          type: string
+          maxLength: 20
+        status:
+          type: string
+          enum: [active, inactive, pending, suspended]
+        metadata:
+          type: object
+
+    UserResponse:
+      type: object
+      properties:
+        user_id:
+          type: string
+          format: uuid
+        username:
+          type: string
+        fullname:
+          type: string
+        email:
+          type: string
+          format: email
+        phone:
+          type: string
+        is_email_verified:
+          type: boolean
+        is_phone_verified:
+          type: boolean
+        is_profile_completed:
+          type: boolean
+        is_account_completed:
+          type: boolean
+        status:
+          type: string
+        metadata:
+          type: object
+        tenant:
+          $ref: '#/components/schemas/TenantResponse'
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    AssignRolesRequest:
+      type: object
+      required: [role_ids]
+      properties:
+        role_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+          minItems: 1
+          maxItems: 10
+
+    # ── Role ─────────────────────────────────────────────────
+    RoleCreateOrUpdateRequest:
+      type: object
+      required: [name, description, status]
+      properties:
+        name:
+          type: string
+          minLength: 3
+          maxLength: 20
+        description:
+          type: string
+          minLength: 8
+          maxLength: 100
+        status:
+          type: string
+          enum: [active, inactive]
+
+    RoleResponse:
+      type: object
+      properties:
+        role_id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        description:
+          type: string
+        is_default:
+          type: boolean
+        is_system:
+          type: boolean
+        status:
+          type: string
+        permissions:
+          type: array
+          items:
+            $ref: '#/components/schemas/PermissionResponse'
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    AddPermissionsRequest:
+      type: object
+      required: [permissions]
+      properties:
+        permissions:
+          type: array
+          items:
+            type: string
+            format: uuid
+          minItems: 1
+
+    PermissionResponse:
+      type: object
+      properties:
+        permission_id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        description:
+          type: string
+        status:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+
+    # ── Client ───────────────────────────────────────────────
+    ClientCreateRequest:
+      type: object
+      required: [name, display_name, domain, config, status, identity_provider_id]
+      properties:
+        name:
+          type: string
+          minLength: 3
+          maxLength: 50
+        display_name:
+          type: string
+          minLength: 8
+          maxLength: 200
+        client_type:
+          type: string
+          enum: [traditional, spa, mobile, m2m]
+        domain:
+          type: string
+          minLength: 3
+          maxLength: 100
+        config:
+          type: object
+          description: Client-specific configuration (grant types, token TTLs, etc.)
+        status:
+          type: string
+          enum: [active, inactive]
+        identity_provider_id:
+          type: string
+          format: uuid
+
+    ClientUpdateRequest:
+      type: object
+      required: [name, display_name, domain, config, status]
+      properties:
+        name:
+          type: string
+          minLength: 3
+          maxLength: 50
+        display_name:
+          type: string
+          minLength: 8
+          maxLength: 200
+        client_type:
+          type: string
+          enum: [traditional, spa, mobile, m2m]
+        domain:
+          type: string
+          minLength: 3
+          maxLength: 100
+        config:
+          type: object
+        status:
+          type: string
+          enum: [active, inactive]
+
+    ClientResponse:
+      type: object
+      properties:
+        client_id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        display_name:
+          type: string
+        client_type:
+          type: string
+        domain:
+          type: string
+        status:
+          type: string
+        is_default:
+          type: boolean
+        is_system:
+          type: boolean
+        uris:
+          type: array
+          items:
+            $ref: '#/components/schemas/ClientURIResponse'
+        identity_provider:
+          $ref: '#/components/schemas/IdentityProviderResponse'
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    ClientURIRequest:
+      type: object
+      required: [uri, type]
+      properties:
+        uri:
+          type: string
+          minLength: 5
+          maxLength: 200
+        type:
+          type: string
+          enum: [redirect-uri, origin-uri, logout-uri, login-uri, cors-origin-uri]
+
+    ClientURIResponse:
+      type: object
+      properties:
+        uri_id:
+          type: string
+          format: uuid
+        uri:
+          type: string
+        type:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    # ── Identity Provider ─────────────────────────────────────
+    IdentityProviderCreateRequest:
+      type: object
+      required: [name, display_name, provider, provider_type, config, status, tenant_id]
+      properties:
+        name:
+          type: string
+          minLength: 3
+          maxLength: 50
+        display_name:
+          type: string
+          minLength: 8
+          maxLength: 200
+        provider:
+          type: string
+          enum: [internal, cognito, auth0, google, facebook, github, microsoft, apple, linkedin, twitter]
+        provider_type:
+          type: string
+          enum: [identity, social]
+        config:
+          type: object
+          description: Provider-specific configuration (client_id, client_secret, etc.)
+        status:
+          type: string
+          enum: [active, inactive]
+        tenant_id:
+          type: string
+          format: uuid
+
+    IdentityProviderUpdateRequest:
+      type: object
+      required: [name, display_name, provider, provider_type, config, status]
+      properties:
+        name:
+          type: string
+          minLength: 3
+          maxLength: 50
+        display_name:
+          type: string
+          minLength: 8
+          maxLength: 200
+        provider:
+          type: string
+          enum: [internal, cognito, auth0, google, facebook, github, microsoft, apple, linkedin, twitter]
+        provider_type:
+          type: string
+          enum: [identity, social]
+        config:
+          type: object
+        status:
+          type: string
+          enum: [active, inactive]
+
+    IdentityProviderResponse:
+      type: object
+      properties:
+        identity_provider_id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        display_name:
+          type: string
+        provider:
+          type: string
+        provider_type:
+          type: string
+        identifier:
+          type: string
+        status:
+          type: string
+        is_default:
+          type: boolean
+        is_system:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    # ── Auth ─────────────────────────────────────────────────
+    LoginRequest:
+      type: object
+      required: [username, password]
+      properties:
+        username:
+          type: string
+          maxLength: 255
+          description: Email address, phone number, or username
+        password:
+          type: string
+          format: password
+          maxLength: 128
+
+    LoginResponse:
+      type: object
+      properties:
+        access_token:
+          type: string
+        id_token:
+          type: string
+        refresh_token:
+          type: string
+        expires_in:
+          type: integer
+          format: int64
+          description: Token lifetime in seconds
+        token_type:
+          type: string
+          example: Bearer
+        issued_at:
+          type: integer
+          format: int64
+          description: Unix timestamp of token issuance
+        require_password_change:
+          type: boolean
+          description: Set to true when the user must change their password before proceeding
+        session_id:
+          type: string
+
+    RegisterRequest:
+      type: object
+      required: [username, fullname, password]
+      properties:
+        username:
+          type: string
+          maxLength: 255
+        fullname:
+          type: string
+          maxLength: 255
+        email:
+          type: string
+          format: email
+        phone:
+          type: string
+          maxLength: 20
+        password:
+          type: string
+          format: password
+          minLength: 8
+          maxLength: 128
+
+    RegisterResponse:
+      type: object
+      properties:
+        access_token:
+          type: string
+        id_token:
+          type: string
+        refresh_token:
+          type: string
+        expires_in:
+          type: integer
+          format: int64
+        token_type:
+          type: string
+        issued_at:
+          type: integer
+          format: int64
+
+    SMSSendRequest:
+      type: object
+      required: [phone, client_id, provider_id]
+      properties:
+        phone:
+          type: string
+          maxLength: 20
+        client_id:
+          type: string
+        provider_id:
+          type: string
+
+    SMSVerifyRequest:
+      type: object
+      required: [phone, otp, client_id, provider_id]
+      properties:
+        phone:
+          type: string
+          maxLength: 20
+        otp:
+          type: string
+          minLength: 6
+          maxLength: 6
+        client_id:
+          type: string
+        provider_id:
+          type: string
+
+    # ── OAuth 2.0 ─────────────────────────────────────────────
+    OAuthAuthorizeResponse:
+      type: object
+      properties:
+        redirect_uri:
+          type: string
+          format: uri
+          description: Full redirect URI including authorization code and state
+
+    OAuthConsentRequiredResponse:
+      type: object
+      properties:
+        consent_challenge:
+          type: string
+          format: uuid
+        redirect_uri:
+          type: string
+          format: uri
+
+    OAuthTokenRequest:
+      type: object
+      required: [grant_type]
+      properties:
+        grant_type:
+          type: string
+          enum:
+            - authorization_code
+            - refresh_token
+            - client_credentials
+            - urn:ietf:params:oauth:grant-type:device_code
+            - urn:ietf:params:oauth:grant-type:token-exchange
+            - urn:openid:params:grant-type:ciba
+        code:
+          type: string
+          description: Authorization code (authorization_code grant)
+        redirect_uri:
+          type: string
+          format: uri
+        code_verifier:
+          type: string
+          description: PKCE code verifier
+        refresh_token:
+          type: string
+        scope:
+          type: string
+        client_id:
+          type: string
+        client_secret:
+          type: string
+
+    OAuthTokenResponse:
+      type: object
+      properties:
+        access_token:
+          type: string
+        token_type:
+          type: string
+          example: Bearer
+        expires_in:
+          type: integer
+          format: int64
+        refresh_token:
+          type: string
+        id_token:
+          type: string
+        scope:
+          type: string
+
+    OAuthRevokeRequest:
+      type: object
+      required: [token]
+      properties:
+        token:
+          type: string
+        token_type_hint:
+          type: string
+          enum: [access_token, refresh_token]
+        client_id:
+          type: string
+        client_secret:
+          type: string
+
+    OAuthIntrospectRequest:
+      type: object
+      required: [token]
+      properties:
+        token:
+          type: string
+        token_type_hint:
+          type: string
+          enum: [access_token, refresh_token]
+
+    OAuthIntrospectResponse:
+      type: object
+      required: [active]
+      properties:
+        active:
+          type: boolean
+        scope:
+          type: string
+        client_id:
+          type: string
+        username:
+          type: string
+        token_type:
+          type: string
+        exp:
+          type: integer
+          format: int64
+        iat:
+          type: integer
+          format: int64
+        nbf:
+          type: integer
+          format: int64
+        sub:
+          type: string
+        aud:
+          type: string
+        iss:
+          type: string
+        jti:
+          type: string
+
+    OAuthUserInfoResponse:
+      type: object
+      properties:
+        sub:
+          type: string
+          description: Subject identifier (user UUID)
+        email:
+          type: string
+          format: email
+        email_verified:
+          type: boolean
+        phone_number:
+          type: string
+        phone_number_verified:
+          type: boolean
+        name:
+          type: string
+        picture:
+          type: string
+          format: uri
+        updated_at:
+          type: integer
+          format: int64
+
+    OAuthConsentChallengeResponse:
+      type: object
+      properties:
+        challenge_id:
+          type: string
+          format: uuid
+        client_name:
+          type: string
+        client_uuid:
+          type: string
+          format: uuid
+        scopes:
+          type: array
+          items:
+            type: string
+        redirect_uri:
+          type: string
+          format: uri
+        expires_at:
+          type: integer
+          format: int64
+
+    OAuthConsentDecision:
+      type: object
+      required: [challenge_id, approved]
+      properties:
+        challenge_id:
+          type: string
+          format: uuid
+        approved:
+          type: boolean
+
+    OAuthConsentDecisionResponse:
+      type: object
+      properties:
+        redirect_uri:
+          type: string
+          format: uri
+
+    OAuthDiscoveryResponse:
+      type: object
+      properties:
+        issuer:
+          type: string
+          format: uri
+        authorization_endpoint:
+          type: string
+          format: uri
+        token_endpoint:
+          type: string
+          format: uri
+        userinfo_endpoint:
+          type: string
+          format: uri
+        jwks_uri:
+          type: string
+          format: uri
+        revocation_endpoint:
+          type: string
+          format: uri
+        introspection_endpoint:
+          type: string
+          format: uri
+        scopes_supported:
+          type: array
+          items:
+            type: string
+        response_types_supported:
+          type: array
+          items:
+            type: string
+        grant_types_supported:
+          type: array
+          items:
+            type: string
+        subject_types_supported:
+          type: array
+          items:
+            type: string
+        id_token_signing_alg_values_supported:
+          type: array
+          items:
+            type: string
+        token_endpoint_auth_methods_supported:
+          type: array
+          items:
+            type: string
+        code_challenge_methods_supported:
+          type: array
+          items:
+            type: string
+
+    OAuthAuthorizationServerMetadata:
+      type: object
+      properties:
+        issuer:
+          type: string
+          format: uri
+        authorization_endpoint:
+          type: string
+          format: uri
+        token_endpoint:
+          type: string
+          format: uri
+        jwks_uri:
+          type: string
+          format: uri
+        revocation_endpoint:
+          type: string
+          format: uri
+        introspection_endpoint:
+          type: string
+          format: uri
+        pushed_authorization_request_endpoint:
+          type: string
+          format: uri
+        device_authorization_endpoint:
+          type: string
+          format: uri
+        registration_endpoint:
+          type: string
+          format: uri
+        backchannel_authentication_endpoint:
+          type: string
+          format: uri
+        end_session_endpoint:
+          type: string
+          format: uri
+        scopes_supported:
+          type: array
+          items:
+            type: string
+        response_types_supported:
+          type: array
+          items:
+            type: string
+        grant_types_supported:
+          type: array
+          items:
+            type: string
+        token_endpoint_auth_methods_supported:
+          type: array
+          items:
+            type: string
+        code_challenge_methods_supported:
+          type: array
+          items:
+            type: string
+        backchannel_token_delivery_modes_supported:
+          type: array
+          items:
+            type: string
+
+    JWKSResponse:
+      type: object
+      properties:
+        keys:
+          type: array
+          items:
+            $ref: '#/components/schemas/JWKKey'
+
+    JWKKey:
+      type: object
+      properties:
+        kty:
+          type: string
+          example: RSA
+        use:
+          type: string
+          example: sig
+        kid:
+          type: string
+        alg:
+          type: string
+          example: RS256
+        n:
+          type: string
+          description: RSA modulus (base64url)
+        e:
+          type: string
+          description: RSA exponent (base64url)
+
+    OAuthPARRequest:
+      type: object
+      required: [response_type, client_id, redirect_uri, code_challenge, code_challenge_method]
+      properties:
+        response_type:
+          type: string
+          enum: [code]
+        client_id:
+          type: string
+        client_secret:
+          type: string
+        redirect_uri:
+          type: string
+          format: uri
+        scope:
+          type: string
+        state:
+          type: string
+        nonce:
+          type: string
+        code_challenge:
+          type: string
+          minLength: 43
+          maxLength: 128
+        code_challenge_method:
+          type: string
+          enum: [S256]
+
+    OAuthPARResponse:
+      type: object
+      properties:
+        request_uri:
+          type: string
+          description: urn:ietf:params:oauth:request_uri value
+        expires_in:
+          type: integer
+          description: Seconds until the request_uri expires
+
+    OAuthDeviceAuthorizationRequest:
+      type: object
+      required: [client_id]
+      properties:
+        client_id:
+          type: string
+        client_secret:
+          type: string
+        scope:
+          type: string
+
+    OAuthDeviceAuthorizationResponse:
+      type: object
+      properties:
+        device_code:
+          type: string
+        user_code:
+          type: string
+        verification_uri:
+          type: string
+          format: uri
+        verification_uri_complete:
+          type: string
+          format: uri
+        expires_in:
+          type: integer
+        interval:
+          type: integer
+
+    OAuthClientRegistrationRequest:
+      type: object
+      required: [client_name, redirect_uris, identity_provider_id]
+      properties:
+        client_name:
+          type: string
+          maxLength: 255
+        redirect_uris:
+          type: array
+          items:
+            type: string
+            format: uri
+          minItems: 1
+          maxItems: 10
+        grant_types:
+          type: array
+          items:
+            type: string
+        response_types:
+          type: array
+          items:
+            type: string
+        scope:
+          type: string
+        token_endpoint_auth_method:
+          type: string
+          enum: [client_secret_basic, client_secret_post, none]
+        logo_uri:
+          type: string
+          format: uri
+        policy_uri:
+          type: string
+          format: uri
+        tos_uri:
+          type: string
+          format: uri
+        contacts:
+          type: array
+          items:
+            type: string
+        identity_provider_id:
+          type: integer
+          format: int64
+          description: Internal identity provider ID to associate the client with
+
+    OAuthClientRegistrationResponse:
+      type: object
+      properties:
+        client_id:
+          type: string
+        client_secret:
+          type: string
+        client_id_issued_at:
+          type: integer
+          format: int64
+        client_secret_expires_at:
+          type: integer
+          format: int64
+        client_name:
+          type: string
+        redirect_uris:
+          type: array
+          items:
+            type: string
+        grant_types:
+          type: array
+          items:
+            type: string
+        response_types:
+          type: array
+          items:
+            type: string
+        token_endpoint_auth_method:
+          type: string
+        scope:
+          type: string
+
+    # ── Webhook Endpoints ─────────────────────────────────────
+    WebhookEndpointCreateRequest:
+      type: object
+      required: [url, events]
+      properties:
+        url:
+          type: string
+          format: uri
+        secret:
+          type: string
+          description: HMAC signing secret for webhook payloads
+        events:
+          type: array
+          items:
+            type: string
+            maxLength: 100
+          description: List of event names to subscribe to
+        max_retries:
+          type: integer
+          minimum: 0
+          maximum: 10
+          default: 3
+        timeout_seconds:
+          type: integer
+          minimum: 1
+          maximum: 120
+          default: 30
+        description:
+          type: string
+          maxLength: 500
+        status:
+          type: string
+          enum: [active, inactive]
+          default: active
+
+    WebhookEndpointUpdateRequest:
+      type: object
+      required: [url, events]
+      properties:
+        url:
+          type: string
+          format: uri
+        secret:
+          type: string
+        events:
+          type: array
+          items:
+            type: string
+        max_retries:
+          type: integer
+          minimum: 0
+          maximum: 10
+        timeout_seconds:
+          type: integer
+          minimum: 1
+          maximum: 120
+        description:
+          type: string
+          maxLength: 500
+        status:
+          type: string
+          enum: [active, inactive]
+
+    WebhookEndpointResponse:
+      type: object
+      properties:
+        webhook_endpoint_id:
+          type: string
+          format: uuid
+        url:
+          type: string
+          format: uri
+        events:
+          type: array
+          items:
+            type: string
+        max_retries:
+          type: integer
+        timeout_seconds:
+          type: integer
+        status:
+          type: string
+        description:
+          type: string
+        last_triggered_at:
+          type: string
+          format: date-time
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    # ── Auth Events ───────────────────────────────────────────
+    AuthEventResponse:
+      type: object
+      properties:
+        auth_event_id:
+          type: string
+          format: uuid
+        tenant_id:
+          type: integer
+          format: int64
+        actor_user_id:
+          type: integer
+          format: int64
+        target_user_id:
+          type: integer
+          format: int64
+        ip_address:
+          type: string
+        user_agent:
+          type: string
+        category:
+          type: string
+          enum: [AUTHN, AUTHZ, SESSION, USER, SYSTEM]
+        event_type:
+          type: string
+        severity:
+          type: string
+          enum: [INFO, WARN, CRITICAL]
+        result:
+          type: string
+          enum: [success, failure]
+        description:
+          type: string
+        error_reason:
+          type: string
+        trace_id:
+          type: string
+        metadata:
+          type: object
+        created_at:
+          type: string
+          format: date-time
+
+    # ── API Keys ──────────────────────────────────────────────
+    APIKeyCreateRequest:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        description:
+          type: string
+          maxLength: 500
+        expires_at:
+          type: string
+          format: date-time
+        rate_limit:
+          type: integer
+          minimum: 1
+          description: Maximum requests per minute
+        status:
+          type: string
+          enum: [active, inactive]
+          default: active
+        config:
+          type: object
+
+    APIKeyCreateResponse:
+      type: object
+      properties:
+        api_key_id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        description:
+          type: string
+        key_prefix:
+          type: string
+          description: First few characters of the key for identification
+        key:
+          type: string
+          description: Full plaintext API key — shown once and never retrievable again
+        expires_at:
+          type: string
+          format: date-time
+        rate_limit:
+          type: integer
+        status:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    APIKeyResponse:
+      type: object
+      properties:
+        api_key_id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        description:
+          type: string
+        key_prefix:
+          type: string
+        expires_at:
+          type: string
+          format: date-time
+        rate_limit:
+          type: integer
+        status:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    # ── Profile ───────────────────────────────────────────────
+    ProfileRequest:
+      type: object
+      required: [first_name]
+      properties:
+        first_name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        middle_name:
+          type: string
+          maxLength: 100
+        last_name:
+          type: string
+          maxLength: 100
+        suffix:
+          type: string
+          maxLength: 50
+        display_name:
+          type: string
+          maxLength: 100
+        birthdate:
+          type: string
+          format: date
+          description: YYYY-MM-DD format
+        gender:
+          type: string
+          enum: [male, female, other, prefer_not_to_say]
+        bio:
+          type: string
+          maxLength: 1000
+        phone:
+          type: string
+          maxLength: 20
+        email:
+          type: string
+          format: email
+        address:
+          type: string
+          maxLength: 500
+        city:
+          type: string
+          maxLength: 100
+        country:
+          type: string
+          minLength: 2
+          maxLength: 2
+          description: ISO 3166-1 alpha-2 country code
+        timezone:
+          type: string
+          maxLength: 50
+        language:
+          type: string
+          maxLength: 10
+          description: ISO 639-1 language code
+        profile_url:
+          type: string
+          format: uri
+          maxLength: 1000
+        metadata:
+          type: object
+
+    ProfileResponse:
+      type: object
+      properties:
+        profile_id:
+          type: string
+          format: uuid
+        first_name:
+          type: string
+        middle_name:
+          type: string
+        last_name:
+          type: string
+        suffix:
+          type: string
+        display_name:
+          type: string
+        bio:
+          type: string
+        birthdate:
+          type: string
+          format: date-time
+        gender:
+          type: string
+        phone:
+          type: string
+        email:
+          type: string
+        address:
+          type: string
+        city:
+          type: string
+        country:
+          type: string
+        timezone:
+          type: string
+        language:
+          type: string
+        profile_url:
+          type: string
+          format: uri
+        is_default:
+          type: boolean
+        metadata:
+          type: object
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    # ── MFA ───────────────────────────────────────────────────
+    TOTPEnrollResponse:
+      type: object
+      properties:
+        secret:
+          type: string
+          description: Base32-encoded TOTP secret for manual entry
+        qr_code_url:
+          type: string
+          description: otpauth:// URI suitable for rendering as a QR code
+
+    TOTPVerifyRequest:
+      type: object
+      required: [code]
+      properties:
+        code:
+          type: string
+          minLength: 6
+          maxLength: 6
+          description: 6-digit TOTP code
+
+    MFAStatusResponse:
+      type: object
+      properties:
+        is_totp_enabled:
+          type: boolean
+        is_webauthn_enabled:
+          type: boolean
+        backup_codes_count:
+          type: integer
+        webauthn_keys:
+          type: array
+          items:
+            $ref: '#/components/schemas/WebAuthnCredentialSummary'
+        mfa_enabled_at:
+          type: string
+          format: date-time
+
+    WebAuthnCredentialSummary:
+      type: object
+      properties:
+        credential_uuid:
+          type: string
+          format: uuid
+        name:
+          type: string
+        transport:
+          type: string
+        last_used_at:
+          type: string
+          format: date-time
+        created_at:
+          type: string
+          format: date-time

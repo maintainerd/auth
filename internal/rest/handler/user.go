@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"net/http"
 	"sort"
-	"strconv"
 	"strings"
 
 	"github.com/go-chi/chi/v5"
@@ -52,8 +51,6 @@ func (h *UserHandler) GetUsers(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
 
 	// Parse pagination parameters
-	page, _ := strconv.Atoi(q.Get("page"))
-	limit, _ := strconv.Atoi(q.Get("limit"))
 
 	// Parse status filter
 	var status []string
@@ -88,12 +85,7 @@ func (h *UserHandler) GetUsers(w http.ResponseWriter, r *http.Request) {
 		RoleUUID:     roleUUID,
 		UserPoolUUID: userPoolUUID,
 		ClientUUID:   clientUUID,
-		PaginationRequestDTO: dto.PaginationRequestDTO{
-			Page:      page,
-			Limit:     limit,
-			SortBy:    q.Get("sort_by"),
-			SortOrder: q.Get("sort_order"),
-		},
+		PaginationRequestDTO: parsePaginationQuery(r),
 	}
 
 	// Validate filter parameters
@@ -626,20 +618,13 @@ func (h *UserHandler) GetUserRoles(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
 
 	// Parse pagination parameters
-	page, _ := strconv.Atoi(q.Get("page"))
-	limit, _ := strconv.Atoi(q.Get("limit"))
 
 	// Build filter DTO for validation
 	reqParams := dto.UserRoleFilterDTO{
 		Name:        ptr.PtrOrNil(q.Get("name")),
 		Description: ptr.PtrOrNil(q.Get("description")),
 		Status:      ptr.PtrOrNil(q.Get("status")),
-		PaginationRequestDTO: dto.PaginationRequestDTO{
-			Page:      page,
-			Limit:     limit,
-			SortBy:    q.Get("sort_by"),
-			SortOrder: q.Get("sort_order"),
-		},
+		PaginationRequestDTO: parsePaginationQuery(r),
 	}
 
 	// Validate filter parameters
@@ -749,18 +734,11 @@ func (h *UserHandler) GetUserIdentities(w http.ResponseWriter, r *http.Request) 
 	q := r.URL.Query()
 
 	// Parse pagination parameters
-	page, _ := strconv.Atoi(q.Get("page"))
-	limit, _ := strconv.Atoi(q.Get("limit"))
 
 	// Build filter DTO for validation
 	reqParams := dto.UserIdentityFilterDTO{
 		Provider: ptr.PtrOrNil(q.Get("provider")),
-		PaginationRequestDTO: dto.PaginationRequestDTO{
-			Page:      page,
-			Limit:     limit,
-			SortBy:    q.Get("sort_by"),
-			SortOrder: q.Get("sort_order"),
-		},
+		PaginationRequestDTO: parsePaginationQuery(r),
 	}
 
 	// Validate filter parameters
