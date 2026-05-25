@@ -52,6 +52,11 @@ type AuthEventServiceDataResult struct {
 	CreatedAt     time.Time
 }
 
+// WebhookDispatcher delivers a persisted auth event to subscribed webhook endpoints.
+type WebhookDispatcher interface {
+	Dispatch(ctx context.Context, event *model.AuthEvent)
+}
+
 // AuthEventService defines business operations on security auth events.
 type AuthEventService interface {
 	// Log records a new auth event. The trace ID is extracted from the context
@@ -75,11 +80,13 @@ type AuthEventService interface {
 
 type authEventService struct {
 	authEventRepo repository.AuthEventRepository
+	dispatcher    WebhookDispatcher
 }
 
 // NewAuthEventService creates a new AuthEventService.
-func NewAuthEventService(authEventRepo repository.AuthEventRepository) AuthEventService {
-	return &authEventService{authEventRepo: authEventRepo}
+// Pass nil for dispatcher to disable webhook delivery (e.g. in tests).
+func NewAuthEventService(authEventRepo repository.AuthEventRepository, dispatcher WebhookDispatcher) AuthEventService {
+	return &authEventService{authEventRepo: authEventRepo, dispatcher: dispatcher}
 }
 
 // noopAuthEventService is a silent implementation used when no real service is
@@ -141,9 +148,19 @@ func (s *authEventService) Log(ctx context.Context, input AuthEventInput) {
 		Metadata:     datatypes.JSON(logging.RedactJSON(input.Metadata)),
 	}
 
-	if _, err := s.authEventRepo.Create(event); err != nil {
+	created, err := s.authEventRepo.Create(event)
+	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "failed to persist auth event")
+		return
+	}
+
+	if s.dispatcher != nil {
+		go func() {
+			dCtx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+			defer cancel()
+			s.dispatcher.Dispatch(dCtx, created)
+		}()
 	}
 }
 
