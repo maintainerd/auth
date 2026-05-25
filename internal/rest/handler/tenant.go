@@ -33,8 +33,6 @@ func (h *TenantHandler) Get(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
 
 	// Parse pagination
-	page, _ := strconv.Atoi(q.Get("page"))
-	limit, _ := strconv.Atoi(q.Get("limit"))
 
 	// Parse bools safely
 	var isSystem, isPublic *bool
@@ -66,12 +64,7 @@ func (h *TenantHandler) Get(w http.ResponseWriter, r *http.Request) {
 		IsSystem:    isSystem,
 		IsPublic:    isPublic,
 		Status:      status,
-		PaginationRequestDTO: dto.PaginationRequestDTO{
-			Page:      page,
-			Limit:     limit,
-			SortBy:    q.Get("sort_by"),
-			SortOrder: q.Get("sort_order"),
-		},
+		PaginationRequestDTO: parsePaginationQuery(r),
 	}
 
 	if err := reqParams.Validate(); err != nil {
@@ -354,18 +347,11 @@ func (h *TenantHandler) GetMembers(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
 
 	// Parse pagination
-	page, _ := strconv.Atoi(q.Get("page"))
-	limit, _ := strconv.Atoi(q.Get("limit"))
 
 	// Build request DTO
 	reqParams := dto.TenantMemberFilterDTO{
 		Role: ptr.PtrOrNil(q.Get("role")),
-		PaginationRequestDTO: dto.PaginationRequestDTO{
-			Page:      page,
-			Limit:     limit,
-			SortBy:    q.Get("sort_by"),
-			SortOrder: q.Get("sort_order"),
-		},
+		PaginationRequestDTO: parsePaginationQuery(r),
 	}
 
 	if err := reqParams.Validate(); err != nil {

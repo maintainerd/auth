@@ -3,7 +3,6 @@ package handler
 import (
 	"encoding/json"
 	"net/http"
-	"strconv"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -37,8 +36,6 @@ func (h *AuthEventHandler) GetAll(w http.ResponseWriter, r *http.Request) {
 	}
 
 	q := r.URL.Query()
-	page, _ := strconv.Atoi(q.Get("page"))
-	limit, _ := strconv.Atoi(q.Get("limit"))
 
 	filter := dto.AuthEventFilterDTO{
 		Category:  ptr.PtrOrNil(q.Get("category")),
@@ -47,12 +44,7 @@ func (h *AuthEventHandler) GetAll(w http.ResponseWriter, r *http.Request) {
 		Result:    ptr.PtrOrNil(q.Get("result")),
 		DateFrom:  ptr.PtrOrNil(q.Get("date_from")),
 		DateTo:    ptr.PtrOrNil(q.Get("date_to")),
-		PaginationRequestDTO: dto.PaginationRequestDTO{
-			Page:      page,
-			Limit:     limit,
-			SortBy:    q.Get("sort_by"),
-			SortOrder: q.Get("sort_order"),
-		},
+		PaginationRequestDTO: parsePaginationQuery(r),
 	}
 
 	if err := filter.Validate(); err != nil {

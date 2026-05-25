@@ -3,7 +3,6 @@ package handler
 import (
 	"encoding/json"
 	"net/http"
-	"strconv"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
@@ -36,8 +35,6 @@ func (h *WebhookEndpointHandler) GetAll(w http.ResponseWriter, r *http.Request) 
 
 	q := r.URL.Query()
 
-	page, _ := strconv.Atoi(q.Get("page"))
-	limit, _ := strconv.Atoi(q.Get("limit"))
 
 	var status []string
 	if v := q.Get("status"); v != "" {
@@ -46,12 +43,7 @@ func (h *WebhookEndpointHandler) GetAll(w http.ResponseWriter, r *http.Request) 
 
 	filter := dto.WebhookEndpointFilterDTO{
 		Status: status,
-		PaginationRequestDTO: dto.PaginationRequestDTO{
-			Page:      page,
-			Limit:     limit,
-			SortBy:    q.Get("sort_by"),
-			SortOrder: q.Get("sort_order"),
-		},
+		PaginationRequestDTO: parsePaginationQuery(r),
 	}
 
 	if err := filter.Validate(); err != nil {

@@ -3,7 +3,6 @@ package handler
 import (
 	"encoding/json"
 	"net/http"
-	"strconv"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
@@ -50,8 +49,6 @@ func (h *SignupFlowHandler) GetAll(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
 
 	// Parse pagination parameters
-	page, _ := strconv.Atoi(q.Get("page"))
-	limit, _ := strconv.Atoi(q.Get("limit"))
 
 	// Parse status filter
 	var status []string
@@ -65,12 +62,7 @@ func (h *SignupFlowHandler) GetAll(w http.ResponseWriter, r *http.Request) {
 		Identifier: ptr.PtrOrNil(q.Get("identifier")),
 		Status:     status,
 		ClientUUID: ptr.PtrOrNil(q.Get("client_id")),
-		PaginationRequestDTO: dto.PaginationRequestDTO{
-			Page:      page,
-			Limit:     limit,
-			SortBy:    q.Get("sort_by"),
-			SortOrder: q.Get("sort_order"),
-		},
+		PaginationRequestDTO: parsePaginationQuery(r),
 	}
 
 	// Validate filter parameters
@@ -422,20 +414,8 @@ func (h *SignupFlowHandler) GetRoles(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Parse query parameters
-	q := r.URL.Query()
-
-	// Parse pagination parameters
-	page, _ := strconv.Atoi(q.Get("page"))
-	limit, _ := strconv.Atoi(q.Get("limit"))
-
 	// Build pagination DTO for validation
-	reqParams := dto.PaginationRequestDTO{
-		Page:      page,
-		Limit:     limit,
-		SortBy:    q.Get("sort_by"),
-		SortOrder: q.Get("sort_order"),
-	}
+	reqParams := parsePaginationQuery(r)
 
 	if err := reqParams.Validate(); err != nil {
 		resp.ValidationError(w, err)

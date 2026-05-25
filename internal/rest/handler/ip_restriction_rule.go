@@ -3,7 +3,6 @@ package handler
 import (
 	"encoding/json"
 	"net/http"
-	"strconv"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
@@ -44,8 +43,6 @@ func (h *IPRestrictionRuleHandler) GetAll(w http.ResponseWriter, r *http.Request
 	q := r.URL.Query()
 
 	// Parse pagination parameters
-	page, _ := strconv.Atoi(q.Get("page"))
-	limit, _ := strconv.Atoi(q.Get("limit"))
 
 	// Parse status filter (can be multiple)
 	var status []string
@@ -59,12 +56,7 @@ func (h *IPRestrictionRuleHandler) GetAll(w http.ResponseWriter, r *http.Request
 		Status:      status,
 		IPAddress:   ptr.PtrOrNil(q.Get("ip_address")),
 		Description: ptr.PtrOrNil(q.Get("description")),
-		PaginationRequestDTO: dto.PaginationRequestDTO{
-			Page:      page,
-			Limit:     limit,
-			SortBy:    q.Get("sort_by"),
-			SortOrder: q.Get("sort_order"),
-		},
+		PaginationRequestDTO: parsePaginationQuery(r),
 	}
 
 	// Validate filter parameters
