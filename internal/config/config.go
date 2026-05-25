@@ -10,6 +10,7 @@ import (
 
 var (
 	// APP
+	AppEnv             string // "development" or "production"; defaults "development"
 	AppVersion         string
 	AppPublicHostname  string
 	AppPrivateHostname string
@@ -36,6 +37,14 @@ var (
 	DBPassword string
 	DBName     string
 	DBSSLMode  string
+
+	// DB Pool Config
+	DBMaxOpenConns       int // DB_MAX_OPEN_CONNS; default 25
+	DBMaxIdleConns       int // DB_MAX_IDLE_CONNS; default 10
+	DBConnMaxLifetimeSec int // DB_CONN_MAX_LIFETIME_SEC; default 300
+
+	// DB Statement Timeout
+	DBStatementTimeoutMs int // DB_STATEMENT_TIMEOUT_MS; default 30000
 
 	// Cookie Config
 	CookieSecure   bool   // defaults true; set COOKIE_SECURE=false for local dev
@@ -73,6 +82,7 @@ func Init() error {
 	}
 
 	// App Config
+	AppEnv = GetEnvOrDefault("APP_ENV", "development")
 	var err error
 	if AppVersion, err = GetEnv("APP_VERSION"); err != nil {
 		return err
@@ -119,6 +129,10 @@ func Init() error {
 		return err
 	}
 	DBSSLMode = GetEnvOrDefault("DB_SSLMODE", "disable")
+	DBMaxOpenConns = parseIntDefault(GetEnvOrDefault("DB_MAX_OPEN_CONNS", "25"), 25)
+	DBMaxIdleConns = parseIntDefault(GetEnvOrDefault("DB_MAX_IDLE_CONNS", "10"), 10)
+	DBConnMaxLifetimeSec = parseIntDefault(GetEnvOrDefault("DB_CONN_MAX_LIFETIME_SEC", "300"), 300)
+	DBStatementTimeoutMs = parseIntDefault(GetEnvOrDefault("DB_STATEMENT_TIMEOUT_MS", "30000"), 30000)
 
 	// Email Config
 	if SMTPHost, err = GetEnv("SMTP_HOST"); err != nil {
