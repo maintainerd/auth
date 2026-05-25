@@ -8,8 +8,8 @@ info:
     OAuth 2.0 flows, and OpenID Connect discovery.
   version: 1.0.0
   contact:
-    name: Lula Engineering
-    email: engineering@lula.life
+    name: Reyco Seguma
+    url: https://github.com/maintainerd/maintainerd-auth
 
 servers:
   - url: http://localhost:8080/api/v1
