@@ -2,6 +2,7 @@ package repository
 
 import (
 	"errors"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/model"
@@ -25,8 +26,10 @@ type WebhookEndpointRepository interface {
 	BaseRepositoryMethods[model.WebhookEndpoint]
 	WithTx(tx *gorm.DB) WebhookEndpointRepository
 	FindByTenantID(tenantID int64) ([]model.WebhookEndpoint, error)
+	FindActiveByTenantID(tenantID int64) ([]model.WebhookEndpoint, error)
 	FindByUUIDAndTenantID(webhookEndpointUUID uuid.UUID, tenantID int64) (*model.WebhookEndpoint, error)
 	FindPaginated(filter WebhookEndpointRepositoryGetFilter) (*PaginationResult[model.WebhookEndpoint], error)
+	UpdateLastTriggeredAt(webhookEndpointID int64, t time.Time) error
 }
 
 type webhookEndpointRepository struct {
@@ -115,4 +118,21 @@ func (r *webhookEndpointRepository) FindPaginated(filter WebhookEndpointReposito
 		Limit:      filter.Limit,
 		TotalPages: totalPages,
 	}, nil
+}
+
+// FindActiveByTenantID retrieves all active (non-deleted) webhook endpoints for a tenant.
+func (r *webhookEndpointRepository) FindActiveByTenantID(tenantID int64) ([]model.WebhookEndpoint, error) {
+	var endpoints []model.WebhookEndpoint
+	err := r.DB().Where("tenant_id = ? AND status = ?", tenantID, "active").Find(&endpoints).Error
+	if err != nil {
+		return nil, err
+	}
+	return endpoints, nil
+}
+
+// UpdateLastTriggeredAt sets last_triggered_at for a webhook endpoint.
+func (r *webhookEndpointRepository) UpdateLastTriggeredAt(webhookEndpointID int64, t time.Time) error {
+	return r.DB().Model(&model.WebhookEndpoint{}).
+		Where("webhook_endpoint_id = ?", webhookEndpointID).
+		Update("last_triggered_at", t).Error
 }
