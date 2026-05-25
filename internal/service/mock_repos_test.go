@@ -2266,6 +2266,12 @@ func (m *mockWebhookEndpointRepo) DeleteByUUID(id any) error {
 	}
 	return nil
 }
+func (m *mockWebhookEndpointRepo) FindActiveByTenantID(tenantID int64) ([]model.WebhookEndpoint, error) {
+	return nil, nil
+}
+func (m *mockWebhookEndpointRepo) UpdateLastTriggeredAt(webhookEndpointID int64, t time.Time) error {
+	return nil
+}
 
 // ---------------------------------------------------------------------------
 // Mock: OAuthAuthorizationCodeRepository

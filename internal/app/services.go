@@ -3,6 +3,7 @@ package app
 import (
 	"github.com/maintainerd/auth/internal/cache"
 	"github.com/maintainerd/auth/internal/service"
+	"github.com/maintainerd/auth/internal/webhook"
 	"gorm.io/gorm"
 )
 
@@ -61,7 +62,7 @@ type svcs struct {
 func initServices(db *gorm.DB, r *repos, appCache *cache.Cache) (*svcs, error) {
 	// Create authEventService first — it is injected into other services that
 	// need structured audit logging.
-	authEventSvc := service.NewAuthEventService(r.authEventRepo)
+	authEventSvc := service.NewAuthEventService(r.authEventRepo, webhook.NewDispatcher(r.webhookEndpointRepo))
 
 	sessionSvc := service.NewSessionService(r.userTokenRepo)
 
