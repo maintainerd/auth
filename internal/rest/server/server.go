@@ -16,6 +16,7 @@ import (
 	securityMiddleware "github.com/maintainerd/auth/internal/middleware"
 	"github.com/maintainerd/auth/internal/rest/handler"
 	"github.com/maintainerd/auth/internal/rest/route"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
 
@@ -219,6 +220,9 @@ func buildInternalRouter(h *handlers, application *app.App) http.Handler {
 	// Health / readiness probes (no auth, no rate-limit)
 	r.Get("/health", handleHealth)
 	r.Get("/ready", handleReady(application))
+
+	// Prometheus metrics — internal port only, never exposed publicly
+	r.Handle("/metrics", promhttp.Handler())
 
 	r.Route("/api/v1", func(api chi.Router) {
 		// Setup Routes (no authentication required)

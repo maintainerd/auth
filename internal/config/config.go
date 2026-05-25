@@ -14,6 +14,9 @@ var (
 	AppPublicHostname  string
 	AppPrivateHostname string
 
+	// Logging
+	LogLevel string // "debug", "info", "warn", "error"; defaults "info"
+
 	// FRONTEND
 	AccountHostname string
 	AuthHostname    string
@@ -142,6 +145,9 @@ func Init() error {
 	// Cookie Config
 	CookieSecure = GetEnvOrDefault("COOKIE_SECURE", "true") != "false"
 	CookieSameSite = GetEnvOrDefault("COOKIE_SAMESITE", "strict")
+
+	// Logging
+	LogLevel = GetEnvOrDefault("LOG_LEVEL", "info")
 
 	return nil
 }

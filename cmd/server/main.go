@@ -4,12 +4,14 @@ import (
 	"context"
 	"log/slog"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/maintainerd/auth/internal/app"
 	"github.com/maintainerd/auth/internal/config"
 	grpcserver "github.com/maintainerd/auth/internal/grpc/server"
 	"github.com/maintainerd/auth/internal/jwt"
+	"github.com/maintainerd/auth/internal/logging"
 	restserver "github.com/maintainerd/auth/internal/rest/server"
 	"github.com/maintainerd/auth/internal/runner"
 	"github.com/maintainerd/auth/internal/security"
@@ -17,7 +19,9 @@ import (
 )
 
 func main() {
-	// Configure structured JSON logging for container environments
+	// Bootstrap structured JSON logging with a temporary INFO level until the
+	// config is loaded — then reinitialise with the configured level and PII
+	// redaction wrapper.
 	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stdout, nil)))
 
 	// ⚙️ Load configurations
@@ -25,6 +29,15 @@ func main() {
 		slog.Error("Configuration loading failed", "error", err)
 		os.Exit(1)
 	}
+
+	// Reinitialise the logger now that config.LogLevel is available.
+	slog.SetDefault(slog.New(
+		logging.NewPIIRedactHandler(
+			slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
+				Level: parseSlogLevel(config.LogLevel),
+			}),
+		),
+	))
 
 	// ⚙️ Initialise OpenTelemetry tracing (safe no-op when OTEL_ENABLED != true)
 	otelShutdown, err := telemetry.Init(context.Background())
@@ -37,6 +50,20 @@ func main() {
 		defer cancel()
 		if err := otelShutdown(ctx); err != nil {
 			slog.Error("OpenTelemetry shutdown error", "error", err)
+		}
+	}()
+
+	// ⚙️ Initialise OpenTelemetry metrics (Prometheus exporter always active)
+	metricsShutdown, err := telemetry.InitMetrics(context.Background())
+	if err != nil {
+		slog.Error("OpenTelemetry metrics initialization failed", "error", err)
+		os.Exit(1)
+	}
+	defer func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		if err := metricsShutdown(ctx); err != nil {
+			slog.Error("OpenTelemetry metrics shutdown error", "error", err)
 		}
 	}()
 
@@ -76,8 +103,6 @@ func main() {
 	jwt.JTIChecker = application.Cache.IsJTIDenied
 
 	// Create a cancellable context for background workers.
-	// It is cancelled after the REST servers have drained so that background
-	// goroutines also shut down gracefully when an OS signal is received.
 	bgCtx, cancelBG := context.WithCancel(context.Background())
 
 	// 🗑️ Auth event retention runner (background)
@@ -93,7 +118,19 @@ func main() {
 	// 🚀 REST servers — blocks until OS signal then drains.
 	restserver.StartRESTServer(application)
 
-	// Cancel the background context after REST has drained so gRPC and
-	// retention runner also shut down.
 	cancelBG()
+}
+
+// parseSlogLevel maps a LOG_LEVEL string to the corresponding slog.Level.
+func parseSlogLevel(level string) slog.Level {
+	switch strings.ToLower(strings.TrimSpace(level)) {
+	case "debug":
+		return slog.LevelDebug
+	case "warn", "warning":
+		return slog.LevelWarn
+	case "error":
+		return slog.LevelError
+	default:
+		return slog.LevelInfo
+	}
 }
