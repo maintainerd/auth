@@ -2,15 +2,18 @@ package service
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"time"
 
 	"github.com/maintainerd/auth/internal/apperror"
+	"github.com/maintainerd/auth/internal/config"
 	"github.com/maintainerd/auth/internal/crypto"
 	"github.com/maintainerd/auth/internal/dto"
 	"github.com/maintainerd/auth/internal/jwt"
 	"github.com/maintainerd/auth/internal/model"
 	"github.com/maintainerd/auth/internal/repository"
+	"github.com/maintainerd/auth/internal/sms"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/codes"
 	"gorm.io/gorm"
@@ -90,8 +93,16 @@ func (s *smsLoginService) SendOTP(ctx context.Context, req dto.SMSLoginSendDTO) 
 		return apperror.NewInternal("failed to store SMS OTP", err)
 	}
 
-	// TODO: replace with real SMS provider (Twilio/SNS/Vonage) when integrated.
-	slog.Info("SMS OTP", "phone", req.Phone, "otp", otp)
+	if config.SMSProvider != "" {
+		provider, smsErr := sms.NewSystemProvider(ctx)
+		if smsErr != nil {
+			slog.Error("SMS provider init failed", "err", smsErr)
+		} else if smsErr = provider.Send(ctx, req.Phone, fmt.Sprintf("Your verification code is: %s", otp)); smsErr != nil {
+			slog.Error("SMS send failed", "err", smsErr)
+		}
+	} else {
+		slog.Info("SMS OTP (no provider configured)", "phone", req.Phone, "otp", otp)
+	}
 
 	span.SetStatus(codes.Ok, "")
 	return nil
