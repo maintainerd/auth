@@ -10,8 +10,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/maintainerd/auth/internal/apperror"
 	"github.com/maintainerd/auth/internal/dto"
+	"github.com/maintainerd/auth/internal/platform/apperror"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

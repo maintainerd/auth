@@ -5,7 +5,7 @@ import (
 
 	validation "github.com/go-ozzo/ozzo-validation/v4"
 	"github.com/google/uuid"
-	"github.com/maintainerd/auth/internal/security"
+	"github.com/maintainerd/auth/internal/platform/security"
 )
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -548,16 +548,16 @@ func (r *OAuthDeviceTokenRequestDTO) Validate() error {
 // POST /oauth/token with grant_type=urn:ietf:params:oauth:grant-type:token-exchange
 // (RFC 8693 §2.1).
 type OAuthTokenExchangeRequestDTO struct {
-	SubjectToken         string `json:"subject_token"`
-	SubjectTokenType     string `json:"subject_token_type"`
-	ActorToken           string `json:"actor_token"`
-	ActorTokenType       string `json:"actor_token_type"`
-	RequestedTokenType   string `json:"requested_token_type"`
-	Resource             string `json:"resource"`
-	Audience             string `json:"audience"`
-	Scope                string `json:"scope"`
-	ClientID             string `json:"client_id"`
-	ClientSecret         string `json:"client_secret"`
+	SubjectToken       string `json:"subject_token"`
+	SubjectTokenType   string `json:"subject_token_type"`
+	ActorToken         string `json:"actor_token"`
+	ActorTokenType     string `json:"actor_token_type"`
+	RequestedTokenType string `json:"requested_token_type"`
+	Resource           string `json:"resource"`
+	Audience           string `json:"audience"`
+	Scope              string `json:"scope"`
+	ClientID           string `json:"client_id"`
+	ClientSecret       string `json:"client_secret"`
 }
 
 func (r *OAuthTokenExchangeRequestDTO) Validate() error {
@@ -716,10 +716,10 @@ func (r *OAuthBackchannelLogoutRequestDTO) Validate() error {
 // OAuthEndSessionRequestDTO captures the query parameters for
 // GET /oauth/end_session (OIDC Session Management 1.0).
 type OAuthEndSessionRequestDTO struct {
-	IDTokenHint            string `json:"id_token_hint"`
-	PostLogoutRedirectURI  string `json:"post_logout_redirect_uri"`
-	State                  string `json:"state"`
-	ClientID               string `json:"client_id"`
+	IDTokenHint           string `json:"id_token_hint"`
+	PostLogoutRedirectURI string `json:"post_logout_redirect_uri"`
+	State                 string `json:"state"`
+	ClientID              string `json:"client_id"`
 }
 
 func (r *OAuthEndSessionRequestDTO) Validate() error {
@@ -744,17 +744,17 @@ func (r *OAuthEndSessionRequestDTO) Validate() error {
 
 // OAuthCIBARequestDTO is the form-encoded body for POST /oauth/bc-authorize.
 type OAuthCIBARequestDTO struct {
-	Scope                     string `json:"scope"`
-	ClientNotificationToken   string `json:"client_notification_token"`
-	ACRValues                 string `json:"acr_values"`
-	LoginHint                 string `json:"login_hint"`
-	LoginHintToken            string `json:"login_hint_token"`
-	IDTokenHint               string `json:"id_token_hint"`
-	BindingMessage            string `json:"binding_message"`
-	UserCode                  string `json:"user_code"`
-	RequestedExpiry           int    `json:"requested_expiry"`
-	ClientID                  string `json:"client_id"`
-	ClientSecret              string `json:"client_secret"`
+	Scope                   string `json:"scope"`
+	ClientNotificationToken string `json:"client_notification_token"`
+	ACRValues               string `json:"acr_values"`
+	LoginHint               string `json:"login_hint"`
+	LoginHintToken          string `json:"login_hint_token"`
+	IDTokenHint             string `json:"id_token_hint"`
+	BindingMessage          string `json:"binding_message"`
+	UserCode                string `json:"user_code"`
+	RequestedExpiry         int    `json:"requested_expiry"`
+	ClientID                string `json:"client_id"`
+	ClientSecret            string `json:"client_secret"`
 }
 
 func (r *OAuthCIBARequestDTO) Validate() error {

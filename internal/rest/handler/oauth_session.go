@@ -4,7 +4,7 @@ import (
 	"net/http"
 
 	"github.com/maintainerd/auth/internal/dto"
-	resp "github.com/maintainerd/auth/internal/rest/response"
+	resp "github.com/maintainerd/auth/internal/platform/response"
 	"github.com/maintainerd/auth/internal/service"
 )
 

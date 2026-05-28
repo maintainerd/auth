@@ -7,8 +7,8 @@ import (
 	"net"
 
 	"github.com/maintainerd/auth/internal/app"
-	authv1 "github.com/maintainerd/auth/internal/gen/go/maintainerd/auth"
 	"github.com/maintainerd/auth/internal/grpc/handler"
+	authv1 "github.com/maintainerd/auth/internal/platform/gen/go/maintainerd/auth"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"google.golang.org/grpc"
 )

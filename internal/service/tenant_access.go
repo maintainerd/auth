@@ -1,8 +1,8 @@
 package service
 
 import (
-	"github.com/maintainerd/auth/internal/apperror"
 	"github.com/maintainerd/auth/internal/model"
+	"github.com/maintainerd/auth/internal/platform/apperror"
 )
 
 // ValidateTenantAccess validates if a user can access the target tenant

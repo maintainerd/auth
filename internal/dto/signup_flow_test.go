@@ -125,4 +125,3 @@ func TestSignupFlowAssignRolesRequestDto_Validate(t *testing.T) {
 		require.Error(t, d.Validate())
 	})
 }
-

@@ -76,8 +76,8 @@ func (r *userTOTPSecretRepository) Disable(userID int64) error {
 	return r.DB().Model(&model.UserTOTPSecret{}).
 		Where("user_id = ?", userID).
 		Updates(map[string]any{
-			"is_enabled":  false,
-			"updated_at":  time.Now(),
+			"is_enabled": false,
+			"updated_at": time.Now(),
 		}).Error
 }
 

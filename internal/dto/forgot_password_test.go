@@ -53,4 +53,3 @@ func TestForgotPasswordResponseDto_Fields(t *testing.T) {
 	assert.Equal(t, "Check your email", resp.Message)
 	assert.True(t, resp.Success)
 }
-

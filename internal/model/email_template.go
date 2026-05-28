@@ -8,9 +8,9 @@ import (
 )
 
 type EmailTemplate struct {
-	EmailTemplateID   int64     `gorm:"column:email_template_id;primaryKey"`
-	EmailTemplateUUID uuid.UUID `gorm:"column:email_template_uuid;unique"`
-	TenantID          int64     `gorm:"column:tenant_id;not null"`
+	EmailTemplateID   int64          `gorm:"column:email_template_id;primaryKey"`
+	EmailTemplateUUID uuid.UUID      `gorm:"column:email_template_uuid;unique"`
+	TenantID          int64          `gorm:"column:tenant_id;not null"`
 	Name              string         `gorm:"column:name"`
 	Subject           string         `gorm:"column:subject"`
 	BodyHTML          string         `gorm:"column:body_html"`

@@ -3,15 +3,15 @@ package service
 import (
 	"context"
 
-	"github.com/maintainerd/auth/internal/apperror"
-	"github.com/maintainerd/auth/internal/config"
 	"github.com/maintainerd/auth/internal/dto"
-	"github.com/maintainerd/auth/internal/jwt"
-	"github.com/maintainerd/auth/internal/middleware"
 	"github.com/maintainerd/auth/internal/model"
-	"github.com/maintainerd/auth/internal/ptr"
+	"github.com/maintainerd/auth/internal/platform/apperror"
+	"github.com/maintainerd/auth/internal/platform/config"
+	"github.com/maintainerd/auth/internal/platform/jwt"
+	"github.com/maintainerd/auth/internal/platform/middleware"
+	"github.com/maintainerd/auth/internal/platform/ptr"
+	"github.com/maintainerd/auth/internal/platform/security"
 	"github.com/maintainerd/auth/internal/repository"
-	"github.com/maintainerd/auth/internal/security"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -132,13 +132,13 @@ func (s *oauthTokenExchangeService) Exchange(ctx context.Context, req dto.OAuthT
 	}
 
 	s.authEventService.Log(ctx, AuthEventInput{
-		TenantID:  client.TenantID,
-		IPAddress: middleware.ClientIPFromContext(ctx),
-		UserAgent: ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),
-		Category:  model.AuthEventCategoryAuthn,
-		EventType: model.AuthEventTypeOAuthTokenExchange,
-		Severity:  model.AuthEventSeverityInfo,
-		Result:    model.AuthEventResultSuccess,
+		TenantID:    client.TenantID,
+		IPAddress:   middleware.ClientIPFromContext(ctx),
+		UserAgent:   ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),
+		Category:    model.AuthEventCategoryAuthn,
+		EventType:   model.AuthEventTypeOAuthTokenExchange,
+		Severity:    model.AuthEventSeverityInfo,
+		Result:      model.AuthEventResultSuccess,
 		Description: ptr.Ptr("Token exchange completed"),
 	})
 

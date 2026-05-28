@@ -9,12 +9,12 @@ import (
 
 	"github.com/go-webauthn/webauthn/protocol"
 	"github.com/go-webauthn/webauthn/webauthn"
-	"github.com/maintainerd/auth/internal/apperror"
-	"github.com/maintainerd/auth/internal/cache"
-	"github.com/maintainerd/auth/internal/config"
-	"github.com/maintainerd/auth/internal/middleware"
 	"github.com/maintainerd/auth/internal/model"
-	"github.com/maintainerd/auth/internal/ptr"
+	"github.com/maintainerd/auth/internal/platform/apperror"
+	"github.com/maintainerd/auth/internal/platform/cache"
+	"github.com/maintainerd/auth/internal/platform/config"
+	"github.com/maintainerd/auth/internal/platform/middleware"
+	"github.com/maintainerd/auth/internal/platform/ptr"
 	"github.com/maintainerd/auth/internal/repository"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
@@ -90,9 +90,9 @@ type webAuthnUser struct {
 	creds []webauthn.Credential
 }
 
-func (u *webAuthnUser) WebAuthnID() []byte         { return []byte(fmt.Sprintf("%d", u.user.UserID)) }
-func (u *webAuthnUser) WebAuthnName() string        { return u.user.Email }
-func (u *webAuthnUser) WebAuthnDisplayName() string { return u.user.Email }
+func (u *webAuthnUser) WebAuthnID() []byte                         { return []byte(fmt.Sprintf("%d", u.user.UserID)) }
+func (u *webAuthnUser) WebAuthnName() string                       { return u.user.Email }
+func (u *webAuthnUser) WebAuthnDisplayName() string                { return u.user.Email }
 func (u *webAuthnUser) WebAuthnCredentials() []webauthn.Credential { return u.creds }
 
 // ──────────────────────────────────────────────────────────────────────────────

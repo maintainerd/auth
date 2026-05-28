@@ -11,12 +11,12 @@ import (
 
 // TokenEndpointAuthMethod constants for the token_endpoint_auth_method column.
 const (
-	TokenAuthMethodSecretBasic           = "client_secret_basic"
-	TokenAuthMethodSecretPost            = "client_secret_post"
-	TokenAuthMethodNone                  = "none"
-	TokenAuthMethodPrivateKeyJWT         = "private_key_jwt"
-	TokenAuthMethodClientSecretJWT       = "client_secret_jwt"
-	TokenAuthMethodTLSClientAuth         = "tls_client_auth"
+	TokenAuthMethodSecretBasic             = "client_secret_basic"
+	TokenAuthMethodSecretPost              = "client_secret_post"
+	TokenAuthMethodNone                    = "none"
+	TokenAuthMethodPrivateKeyJWT           = "private_key_jwt"
+	TokenAuthMethodClientSecretJWT         = "client_secret_jwt"
+	TokenAuthMethodTLSClientAuth           = "tls_client_auth"
 	TokenAuthMethodSelfSignedTLSClientAuth = "self_signed_tls_client_auth"
 )
 
@@ -35,27 +35,27 @@ const (
 // Client represents an OAuth2/OIDC client application registered with an
 // identity provider under a tenant.
 type Client struct {
-	ClientID           int64          `gorm:"column:client_id;primaryKey"`
-	ClientUUID         uuid.UUID      `gorm:"column:client_uuid"`
-	TenantID           int64          `gorm:"column:tenant_id;not null"`
-	IdentityProviderID int64          `gorm:"column:identity_provider_id"`
-	Name               string         `gorm:"column:name"`
-	DisplayName        string         `gorm:"column:display_name"`
-	ClientType         string         `gorm:"column:client_type"`
-	Domain             *string        `gorm:"column:domain"`
-	Identifier         *string        `gorm:"column:identifier"`
-	SecretHash             *string        `gorm:"column:secret_hash"`
-	PreviousSecretHash     *string        `gorm:"column:previous_secret_hash"`
-	PreviousSecretExpiresAt *time.Time    `gorm:"column:previous_secret_expires_at"`
-	Config             datatypes.JSON `gorm:"column:config"`
-	Status             string         `gorm:"column:status;default:'inactive'"`
-	IsDefault          bool           `gorm:"column:is_default;default:false"`
-	IsSystem           bool           `gorm:"column:is_system;default:false"`
-	CreatedBy          *int64         `gorm:"column:created_by"`
-	UpdatedBy          *int64         `gorm:"column:updated_by"`
-	CreatedAt          time.Time      `gorm:"column:created_at;autoCreateTime"`
-	UpdatedAt          time.Time      `gorm:"column:updated_at;autoUpdateTime"`
-	DeletedAt          gorm.DeletedAt `gorm:"column:deleted_at;index"`
+	ClientID                int64          `gorm:"column:client_id;primaryKey"`
+	ClientUUID              uuid.UUID      `gorm:"column:client_uuid"`
+	TenantID                int64          `gorm:"column:tenant_id;not null"`
+	IdentityProviderID      int64          `gorm:"column:identity_provider_id"`
+	Name                    string         `gorm:"column:name"`
+	DisplayName             string         `gorm:"column:display_name"`
+	ClientType              string         `gorm:"column:client_type"`
+	Domain                  *string        `gorm:"column:domain"`
+	Identifier              *string        `gorm:"column:identifier"`
+	SecretHash              *string        `gorm:"column:secret_hash"`
+	PreviousSecretHash      *string        `gorm:"column:previous_secret_hash"`
+	PreviousSecretExpiresAt *time.Time     `gorm:"column:previous_secret_expires_at"`
+	Config                  datatypes.JSON `gorm:"column:config"`
+	Status                  string         `gorm:"column:status;default:'inactive'"`
+	IsDefault               bool           `gorm:"column:is_default;default:false"`
+	IsSystem                bool           `gorm:"column:is_system;default:false"`
+	CreatedBy               *int64         `gorm:"column:created_by"`
+	UpdatedBy               *int64         `gorm:"column:updated_by"`
+	CreatedAt               time.Time      `gorm:"column:created_at;autoCreateTime"`
+	UpdatedAt               time.Time      `gorm:"column:updated_at;autoUpdateTime"`
+	DeletedAt               gorm.DeletedAt `gorm:"column:deleted_at;index"`
 
 	// OAuth 2.0 fields
 	TokenEndpointAuthMethod string         `gorm:"column:token_endpoint_auth_method;default:'client_secret_basic'"`

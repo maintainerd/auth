@@ -15,9 +15,9 @@ type APIKeyAPI struct {
 	CreatedAt     time.Time `gorm:"column:created_at;default:now()"`
 
 	// Relationships
-	APIKey      APIKey               `gorm:"foreignKey:APIKeyID;references:APIKeyID"`
-	API         API                  `gorm:"foreignKey:APIID;references:APIID"`
-	Permissions []APIKeyPermission   `gorm:"foreignKey:APIKeyAPIID;references:APIKeyAPIID"`
+	APIKey      APIKey             `gorm:"foreignKey:APIKeyID;references:APIKeyID"`
+	API         API                `gorm:"foreignKey:APIID;references:APIID"`
+	Permissions []APIKeyPermission `gorm:"foreignKey:APIKeyAPIID;references:APIKeyAPIID"`
 }
 
 func (APIKeyAPI) TableName() string {

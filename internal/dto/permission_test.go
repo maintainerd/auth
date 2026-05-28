@@ -96,4 +96,3 @@ func TestPermissionFilterDto_Validate(t *testing.T) {
 		assert.NoError(t, f.Validate())
 	})
 }
-

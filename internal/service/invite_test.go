@@ -8,11 +8,11 @@ import (
 	"time"
 
 	"github.com/DATA-DOG/go-sqlmock"
-	"github.com/maintainerd/auth/internal/config"
-	"github.com/maintainerd/auth/internal/crypto"
-	"github.com/maintainerd/auth/internal/email"
 	"github.com/maintainerd/auth/internal/model"
-	"github.com/maintainerd/auth/internal/signedurl"
+	"github.com/maintainerd/auth/internal/platform/config"
+	"github.com/maintainerd/auth/internal/platform/crypto"
+	"github.com/maintainerd/auth/internal/platform/email"
+	"github.com/maintainerd/auth/internal/platform/signedurl"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

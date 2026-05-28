@@ -150,4 +150,3 @@ func TestUserIdentityFilterDto_Validate(t *testing.T) {
 	f := UserIdentityFilterDTO{PaginationRequestDTO: validPagination()}
 	assert.NoError(t, f.Validate())
 }
-

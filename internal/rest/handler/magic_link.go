@@ -6,8 +6,8 @@ import (
 	"time"
 
 	"github.com/maintainerd/auth/internal/dto"
-	resp "github.com/maintainerd/auth/internal/rest/response"
-	"github.com/maintainerd/auth/internal/security"
+	resp "github.com/maintainerd/auth/internal/platform/response"
+	"github.com/maintainerd/auth/internal/platform/security"
 	"github.com/maintainerd/auth/internal/service"
 )
 

@@ -5,13 +5,13 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/maintainerd/auth/internal/apperror"
 	"github.com/maintainerd/auth/internal/dto"
-	"github.com/maintainerd/auth/internal/jwt"
 	"github.com/maintainerd/auth/internal/model"
-	"github.com/maintainerd/auth/internal/ptr"
+	"github.com/maintainerd/auth/internal/platform/apperror"
+	"github.com/maintainerd/auth/internal/platform/jwt"
+	"github.com/maintainerd/auth/internal/platform/ptr"
+	"github.com/maintainerd/auth/internal/platform/security"
 	"github.com/maintainerd/auth/internal/repository"
-	"github.com/maintainerd/auth/internal/security"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -36,8 +36,8 @@ type registerService struct {
 	roleRepo             repository.RoleRepository
 	inviteRepo           repository.InviteRepository
 	identityProviderRepo repository.IdentityProviderRepository
-	securitySettingRepo  repository.SecuritySettingRepository        // nil → use defaults
-	passwordHistoryRepo  repository.UserPasswordHistoryRepository    // nil → skip history
+	securitySettingRepo  repository.SecuritySettingRepository     // nil → use defaults
+	passwordHistoryRepo  repository.UserPasswordHistoryRepository // nil → skip history
 }
 
 func NewRegistrationService(

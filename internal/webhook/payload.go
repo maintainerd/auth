@@ -9,10 +9,10 @@ import (
 )
 
 type eventPayload struct {
-	ID        uuid.UUID  `json:"id"`
-	Timestamp time.Time  `json:"timestamp"`
-	Type      string     `json:"type"`
-	Data      eventData  `json:"data"`
+	ID        uuid.UUID `json:"id"`
+	Timestamp time.Time `json:"timestamp"`
+	Type      string    `json:"type"`
+	Data      eventData `json:"data"`
 }
 
 type eventData struct {

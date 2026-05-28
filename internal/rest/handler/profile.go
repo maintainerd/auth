@@ -9,9 +9,9 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/maintainerd/auth/internal/dto"
-	"github.com/maintainerd/auth/internal/middleware"
-	"github.com/maintainerd/auth/internal/ptr"
-	resp "github.com/maintainerd/auth/internal/rest/response"
+	"github.com/maintainerd/auth/internal/platform/middleware"
+	"github.com/maintainerd/auth/internal/platform/ptr"
+	resp "github.com/maintainerd/auth/internal/platform/response"
 	"github.com/maintainerd/auth/internal/service"
 )
 
@@ -190,13 +190,13 @@ func (h *ProfileHandler) GetAll(w http.ResponseWriter, r *http.Request) {
 	}
 
 	reqParams := dto.ProfileFilterDTO{
-		FirstName: ptr.PtrOrNil(q.Get("first_name")),
-		LastName:  ptr.PtrOrNil(q.Get("last_name")),
-		Email:     ptr.PtrOrNil(q.Get("email")),
-		Phone:     ptr.PtrOrNil(q.Get("phone")),
-		City:      ptr.PtrOrNil(q.Get("city")),
-		Country:   ptr.PtrOrNil(q.Get("country")),
-		IsDefault: isDefault,
+		FirstName:            ptr.PtrOrNil(q.Get("first_name")),
+		LastName:             ptr.PtrOrNil(q.Get("last_name")),
+		Email:                ptr.PtrOrNil(q.Get("email")),
+		Phone:                ptr.PtrOrNil(q.Get("phone")),
+		City:                 ptr.PtrOrNil(q.Get("city")),
+		Country:              ptr.PtrOrNil(q.Get("country")),
+		IsDefault:            isDefault,
 		PaginationRequestDTO: parsePaginationQuery(r),
 	}
 
@@ -333,13 +333,13 @@ func (h *ProfileHandler) AdminGetAllProfiles(w http.ResponseWriter, r *http.Requ
 	}
 
 	reqParams := dto.ProfileFilterDTO{
-		FirstName: ptr.PtrOrNil(q.Get("first_name")),
-		LastName:  ptr.PtrOrNil(q.Get("last_name")),
-		Email:     ptr.PtrOrNil(q.Get("email")),
-		Phone:     ptr.PtrOrNil(q.Get("phone")),
-		City:      ptr.PtrOrNil(q.Get("city")),
-		Country:   ptr.PtrOrNil(q.Get("country")),
-		IsDefault: isDefault,
+		FirstName:            ptr.PtrOrNil(q.Get("first_name")),
+		LastName:             ptr.PtrOrNil(q.Get("last_name")),
+		Email:                ptr.PtrOrNil(q.Get("email")),
+		Phone:                ptr.PtrOrNil(q.Get("phone")),
+		City:                 ptr.PtrOrNil(q.Get("city")),
+		Country:              ptr.PtrOrNil(q.Get("country")),
+		IsDefault:            isDefault,
 		PaginationRequestDTO: parsePaginationQuery(r),
 	}
 

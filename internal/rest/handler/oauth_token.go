@@ -6,8 +6,8 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/maintainerd/auth/internal/apperror"
 	"github.com/maintainerd/auth/internal/dto"
+	"github.com/maintainerd/auth/internal/platform/apperror"
 	"github.com/maintainerd/auth/internal/service"
 )
 

@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/maintainerd/auth/internal/signedurl"
+	"github.com/maintainerd/auth/internal/platform/signedurl"
 )
 
 func TestResetPasswordRequestDto_Validate(t *testing.T) {

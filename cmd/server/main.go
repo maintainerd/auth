@@ -8,14 +8,14 @@ import (
 	"time"
 
 	"github.com/maintainerd/auth/internal/app"
-	"github.com/maintainerd/auth/internal/config"
 	grpcserver "github.com/maintainerd/auth/internal/grpc/server"
-	"github.com/maintainerd/auth/internal/jwt"
-	"github.com/maintainerd/auth/internal/logging"
+	"github.com/maintainerd/auth/internal/platform/config"
+	"github.com/maintainerd/auth/internal/platform/jwt"
+	"github.com/maintainerd/auth/internal/platform/logging"
+	"github.com/maintainerd/auth/internal/platform/runner"
+	"github.com/maintainerd/auth/internal/platform/security"
+	"github.com/maintainerd/auth/internal/platform/telemetry"
 	restserver "github.com/maintainerd/auth/internal/rest/server"
-	"github.com/maintainerd/auth/internal/runner"
-	"github.com/maintainerd/auth/internal/security"
-	"github.com/maintainerd/auth/internal/telemetry"
 )
 
 func main() {
