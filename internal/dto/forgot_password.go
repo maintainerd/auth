@@ -3,7 +3,7 @@ package dto
 import (
 	validation "github.com/go-ozzo/ozzo-validation/v4"
 	"github.com/go-ozzo/ozzo-validation/v4/is"
-		"github.com/maintainerd/auth/internal/security"
+	"github.com/maintainerd/auth/internal/platform/security"
 )
 
 // ForgotPasswordRequestDTO represents the request payload for forgot password

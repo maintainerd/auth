@@ -8,9 +8,9 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/dto"
-	"github.com/maintainerd/auth/internal/middleware"
-	"github.com/maintainerd/auth/internal/ptr"
-	resp "github.com/maintainerd/auth/internal/rest/response"
+	"github.com/maintainerd/auth/internal/platform/middleware"
+	"github.com/maintainerd/auth/internal/platform/ptr"
+	resp "github.com/maintainerd/auth/internal/platform/response"
 	"github.com/maintainerd/auth/internal/service"
 )
 
@@ -54,14 +54,14 @@ func (h *PermissionHandler) Get(w http.ResponseWriter, r *http.Request) {
 
 	// Build request DTO
 	reqParams := dto.PermissionFilterDTO{
-		Name:        ptr.PtrOrNil(q.Get("name")),
-		Description: ptr.PtrOrNil(q.Get("description")),
-		APIUUID:     ptr.PtrOrNil(q.Get("api_id")),
-		RoleUUID:    ptr.PtrOrNil(q.Get("role_id")),
-		ClientUUID:  ptr.PtrOrNil(q.Get("client_id")),
-		Status:      ptr.PtrOrNil(q.Get("status")),
-		IsDefault:   isDefault,
-		IsSystem:    isSystem,
+		Name:                 ptr.PtrOrNil(q.Get("name")),
+		Description:          ptr.PtrOrNil(q.Get("description")),
+		APIUUID:              ptr.PtrOrNil(q.Get("api_id")),
+		RoleUUID:             ptr.PtrOrNil(q.Get("role_id")),
+		ClientUUID:           ptr.PtrOrNil(q.Get("client_id")),
+		Status:               ptr.PtrOrNil(q.Get("status")),
+		IsDefault:            isDefault,
+		IsSystem:             isSystem,
 		PaginationRequestDTO: parsePaginationQuery(r),
 	}
 

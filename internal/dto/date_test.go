@@ -111,4 +111,3 @@ func TestDate_RoundTrip(t *testing.T) {
 	require.NoError(t, err)
 	assert.JSONEq(t, original, string(out))
 }
-

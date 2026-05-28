@@ -6,9 +6,9 @@ import (
 	"math/big"
 	"net/http"
 
-	"github.com/maintainerd/auth/internal/config"
 	"github.com/maintainerd/auth/internal/dto"
-	"github.com/maintainerd/auth/internal/jwt"
+	"github.com/maintainerd/auth/internal/platform/config"
+	"github.com/maintainerd/auth/internal/platform/jwt"
 )
 
 // OAuthDiscoveryHandler serves the OpenID Connect discovery document and
@@ -57,19 +57,19 @@ func (h *OAuthDiscoveryHandler) AuthorizationServerMetadata(w http.ResponseWrite
 	issuer := config.AppPublicHostname
 
 	doc := dto.OAuthAuthorizationServerMetadataDTO{
-		Issuer:                            issuer,
-		AuthorizationEndpoint:             issuer + "/api/v1/oauth/authorize",
-		TokenEndpoint:                     issuer + "/api/v1/oauth/token",
-		JwksURI:                           issuer + "/.well-known/jwks.json",
-		RevocationEndpoint:                issuer + "/api/v1/oauth/revoke",
-		IntrospectionEndpoint:             issuer + "/api/v1/oauth/introspect",
-		PAREndpoint:                       issuer + "/api/v1/oauth/par",
-		DeviceAuthorizationEndpoint:       issuer + "/api/v1/oauth/device_authorization",
-		RegistrationEndpoint:              issuer + "/api/v1/oauth/register",
-		EndSessionEndpoint:            issuer + "/api/v1/oauth/end_session",
-		BCAuthorizeEndpoint:           issuer + "/api/v1/oauth/ciba",
-		ScopesSupported:               []string{"openid", "profile", "email", "offline_access"},
-		ResponseTypesSupported:        []string{"code"},
+		Issuer:                      issuer,
+		AuthorizationEndpoint:       issuer + "/api/v1/oauth/authorize",
+		TokenEndpoint:               issuer + "/api/v1/oauth/token",
+		JwksURI:                     issuer + "/.well-known/jwks.json",
+		RevocationEndpoint:          issuer + "/api/v1/oauth/revoke",
+		IntrospectionEndpoint:       issuer + "/api/v1/oauth/introspect",
+		PAREndpoint:                 issuer + "/api/v1/oauth/par",
+		DeviceAuthorizationEndpoint: issuer + "/api/v1/oauth/device_authorization",
+		RegistrationEndpoint:        issuer + "/api/v1/oauth/register",
+		EndSessionEndpoint:          issuer + "/api/v1/oauth/end_session",
+		BCAuthorizeEndpoint:         issuer + "/api/v1/oauth/ciba",
+		ScopesSupported:             []string{"openid", "profile", "email", "offline_access"},
+		ResponseTypesSupported:      []string{"code"},
 		GrantTypesSupported: []string{
 			"authorization_code", "refresh_token", "client_credentials",
 			"urn:ietf:params:oauth:grant-type:device_code",

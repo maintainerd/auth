@@ -9,9 +9,9 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/dto"
-	"github.com/maintainerd/auth/internal/middleware"
-	"github.com/maintainerd/auth/internal/ptr"
-	resp "github.com/maintainerd/auth/internal/rest/response"
+	"github.com/maintainerd/auth/internal/platform/middleware"
+	"github.com/maintainerd/auth/internal/platform/ptr"
+	resp "github.com/maintainerd/auth/internal/platform/response"
 	"github.com/maintainerd/auth/internal/service"
 )
 
@@ -65,12 +65,12 @@ func (h *ServiceHandler) Get(w http.ResponseWriter, r *http.Request) {
 
 	// Build request DTO for validation
 	reqParams := dto.ServiceFilterDTO{
-		Name:        ptr.PtrOrNil(q.Get("name")),
-		DisplayName: ptr.PtrOrNil(q.Get("display_name")),
-		Description: ptr.PtrOrNil(q.Get("description")),
-		Version:     ptr.PtrOrNil(q.Get("version")),
-		Status:      status,
-		IsSystem:    isSystem,
+		Name:                 ptr.PtrOrNil(q.Get("name")),
+		DisplayName:          ptr.PtrOrNil(q.Get("display_name")),
+		Description:          ptr.PtrOrNil(q.Get("description")),
+		Version:              ptr.PtrOrNil(q.Get("version")),
+		Status:               status,
+		IsSystem:             isSystem,
 		PaginationRequestDTO: parsePaginationQuery(r),
 	}
 

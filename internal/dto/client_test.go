@@ -136,4 +136,3 @@ func TestAddClientAPIPermissionsRequestDto_Validate(t *testing.T) {
 	assert.NoError(t, AddClientAPIPermissionsRequestDTO{PermissionUUIDs: []uuid.UUID{uuid.New()}}.Validate())
 	require.Error(t, AddClientAPIPermissionsRequestDTO{}.Validate())
 }
-

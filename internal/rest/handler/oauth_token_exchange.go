@@ -5,7 +5,7 @@ import (
 	"net/http"
 
 	"github.com/maintainerd/auth/internal/dto"
-	resp "github.com/maintainerd/auth/internal/rest/response"
+	resp "github.com/maintainerd/auth/internal/platform/response"
 	"github.com/maintainerd/auth/internal/service"
 )
 
@@ -27,14 +27,14 @@ func (h *OAuthTokenExchangeHandler) Exchange(w http.ResponseWriter, r *http.Requ
 	}
 
 	req := dto.OAuthTokenExchangeRequestDTO{
-		SubjectToken:          r.FormValue("subject_token"),
-		SubjectTokenType:      r.FormValue("subject_token_type"),
-		RequestedTokenType:    r.FormValue("requested_token_type"),
-		Scope:                 r.FormValue("scope"),
-		Audience:              r.FormValue("audience"),
-		Resource:              r.FormValue("resource"),
-		ActorToken:            r.FormValue("actor_token"),
-		ActorTokenType:        r.FormValue("actor_token_type"),
+		SubjectToken:       r.FormValue("subject_token"),
+		SubjectTokenType:   r.FormValue("subject_token_type"),
+		RequestedTokenType: r.FormValue("requested_token_type"),
+		Scope:              r.FormValue("scope"),
+		Audience:           r.FormValue("audience"),
+		Resource:           r.FormValue("resource"),
+		ActorToken:         r.FormValue("actor_token"),
+		ActorTokenType:     r.FormValue("actor_token_type"),
 	}
 
 	if err := req.Validate(); err != nil {

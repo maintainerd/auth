@@ -8,12 +8,12 @@ import (
 )
 
 type Role struct {
-	RoleID      int64     `gorm:"column:role_id;primaryKey"`
-	RoleUUID    uuid.UUID `gorm:"column:role_uuid;unique"`
-	TenantID    int64     `gorm:"column:tenant_id;not null"`
-	Name        string    `gorm:"column:name"`
-	Description string    `gorm:"column:description"`
-	Status      string    `gorm:"column:status;type:varchar(16);default:'inactive'"`
+	RoleID      int64          `gorm:"column:role_id;primaryKey"`
+	RoleUUID    uuid.UUID      `gorm:"column:role_uuid;unique"`
+	TenantID    int64          `gorm:"column:tenant_id;not null"`
+	Name        string         `gorm:"column:name"`
+	Description string         `gorm:"column:description"`
+	Status      string         `gorm:"column:status;type:varchar(16);default:'inactive'"`
 	IsDefault   bool           `gorm:"column:is_default;default:false"`
 	IsSystem    bool           `gorm:"column:is_system;default:false"`
 	CreatedBy   *int64         `gorm:"column:created_by"`

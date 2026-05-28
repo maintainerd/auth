@@ -126,4 +126,3 @@ func TestIdentityProviderFilterDto_Validate(t *testing.T) {
 		require.Error(t, f.Validate())
 	})
 }
-

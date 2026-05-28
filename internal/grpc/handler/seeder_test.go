@@ -6,7 +6,7 @@ import (
 	"context"
 	"testing"
 
-	authv1 "github.com/maintainerd/auth/internal/gen/go/maintainerd/auth"
+	authv1 "github.com/maintainerd/auth/internal/platform/gen/go/maintainerd/auth"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

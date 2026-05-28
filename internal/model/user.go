@@ -9,9 +9,9 @@ import (
 )
 
 type User struct {
-	UserID             int64          `gorm:"column:user_id;primaryKey"`
-	UserUUID           uuid.UUID      `gorm:"column:user_uuid;unique"`
-	Username           string         `gorm:"column:username"`
+	UserID   int64     `gorm:"column:user_id;primaryKey"`
+	UserUUID uuid.UUID `gorm:"column:user_uuid;unique"`
+	Username string    `gorm:"column:username"`
 	// Fullname is not persisted on users — it lives in Profile (first_name + last_name + display_name).
 	// Kept as a transient field for API compatibility; populated by services when loading users
 	// with their Profile, and split into Profile fields when creating/updating.
@@ -29,18 +29,18 @@ type User struct {
 	ForcePasswordChange bool       `gorm:"column:force_password_change;default:false"`
 	PasswordChangedAt   *time.Time `gorm:"column:password_changed_at"`
 	// Feature: Email change with re-verification
-	PendingEmail            *string        `gorm:"column:pending_email"`
-	EmailChangeOTP          *string        `gorm:"column:email_change_otp"`
-	EmailChangeOTPExpiresAt *time.Time     `gorm:"column:email_change_otp_expires_at"`
+	PendingEmail            *string    `gorm:"column:pending_email"`
+	EmailChangeOTP          *string    `gorm:"column:email_change_otp"`
+	EmailChangeOTPExpiresAt *time.Time `gorm:"column:email_change_otp_expires_at"`
 
 	// MFA status
 	IsTOTPEnabled     bool       `gorm:"column:is_totp_enabled;default:false"`
 	IsWebAuthnEnabled bool       `gorm:"column:is_webauthn_enabled;default:false"`
 	MFAEnabledAt      *time.Time `gorm:"column:mfa_enabled_at"`
 
-	CreatedAt               time.Time      `gorm:"column:created_at;autoCreateTime"`
-	UpdatedAt               time.Time      `gorm:"column:updated_at;autoUpdateTime"`
-	DeletedAt               gorm.DeletedAt `gorm:"column:deleted_at;index"`
+	CreatedAt time.Time      `gorm:"column:created_at;autoCreateTime"`
+	UpdatedAt time.Time      `gorm:"column:updated_at;autoUpdateTime"`
+	DeletedAt gorm.DeletedAt `gorm:"column:deleted_at;index"`
 
 	// Relationships
 	UserIdentities []UserIdentity `gorm:"foreignKey:UserID;references:UserID;constraint:OnDelete:CASCADE"`

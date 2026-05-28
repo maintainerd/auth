@@ -1,11 +1,11 @@
 package route
 
 import (
-	"github.com/maintainerd/auth/internal/rest/handler"
 	"github.com/go-chi/chi/v5"
-	"github.com/maintainerd/auth/internal/middleware"
+	"github.com/maintainerd/auth/internal/platform/cache"
+	"github.com/maintainerd/auth/internal/platform/middleware"
+	"github.com/maintainerd/auth/internal/rest/handler"
 	"github.com/maintainerd/auth/internal/service"
-	"github.com/maintainerd/auth/internal/cache"
 )
 
 func RoleRoute(

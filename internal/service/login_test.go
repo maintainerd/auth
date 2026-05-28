@@ -13,11 +13,11 @@ import (
 	sqlmock "github.com/DATA-DOG/go-sqlmock"
 	"github.com/alicebob/miniredis/v2"
 	"github.com/google/uuid"
-	"github.com/maintainerd/auth/internal/config"
-	"github.com/maintainerd/auth/internal/jwt"
 	"github.com/maintainerd/auth/internal/model"
+	"github.com/maintainerd/auth/internal/platform/config"
+	"github.com/maintainerd/auth/internal/platform/jwt"
+	"github.com/maintainerd/auth/internal/platform/security"
 	"github.com/maintainerd/auth/internal/repository"
-	"github.com/maintainerd/auth/internal/security"
 	"github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -245,12 +245,12 @@ func (m *mockUserRepo) SetStatus(id uuid.UUID, s string) error {
 	}
 	return nil
 }
-func (m *mockUserRepo) SetForcePasswordChange(_ uuid.UUID, _ bool) error        { return nil }
+func (m *mockUserRepo) SetForcePasswordChange(_ uuid.UUID, _ bool) error            { return nil }
 func (m *mockUserRepo) SetPendingEmail(_ uuid.UUID, _, _ string, _ time.Time) error { return nil }
-func (m *mockUserRepo) ClearEmailChange(_ uuid.UUID) error                       { return nil }
-func (m *mockUserRepo) UpdateEmail(_ uuid.UUID, _ string) error                  { return nil }
-func (m *mockUserRepo) UpdateUsername(_ uuid.UUID, _ string) error               { return nil }
-func (m *mockUserRepo) FindByPendingEmail(_ string) (*model.User, error)         { return nil, nil }
+func (m *mockUserRepo) ClearEmailChange(_ uuid.UUID) error                          { return nil }
+func (m *mockUserRepo) UpdateEmail(_ uuid.UUID, _ string) error                     { return nil }
+func (m *mockUserRepo) UpdateUsername(_ uuid.UUID, _ string) error                  { return nil }
+func (m *mockUserRepo) FindByPendingEmail(_ string) (*model.User, error)            { return nil, nil }
 
 // ---------------------------------------------------------------------------
 // Mock: UserIdentityRepository
@@ -453,7 +453,7 @@ func (m *mockUserTokenRepo) FindActiveSessions(userID int64) ([]model.UserToken,
 func (m *mockUserTokenRepo) FindActiveSessionByUUID(userID int64, sessionUUID uuid.UUID) (*model.UserToken, error) {
 	return nil, nil
 }
-func (m *mockUserTokenRepo) CountActiveSessions(userID int64) (int64, error) { return 0, nil }
+func (m *mockUserTokenRepo) CountActiveSessions(userID int64) (int64, error)         { return 0, nil }
 func (m *mockUserTokenRepo) TouchSession(sessionUUID uuid.UUID, now time.Time) error { return nil }
 func (m *mockUserTokenRepo) RevokeSessionByUUID(userID int64, sessionUUID uuid.UUID) error {
 	return nil

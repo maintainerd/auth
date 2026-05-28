@@ -102,4 +102,3 @@ func TestEmailTemplateFilterDto_Validate(t *testing.T) {
 		assert.NoError(t, f.Validate())
 	})
 }
-

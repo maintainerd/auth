@@ -4,7 +4,7 @@ import (
 	"net/url"
 
 	validation "github.com/go-ozzo/ozzo-validation/v4"
-		"github.com/maintainerd/auth/internal/signedurl"
+	"github.com/maintainerd/auth/internal/platform/signedurl"
 )
 
 // ResetPasswordRequestDTO represents the request to reset a password

@@ -8,7 +8,7 @@ package dto
 // The frontend should render QR code from QRCodeURL and also show Secret
 // for manual entry.
 type TOTPEnrollResponseDTO struct {
-	Secret    string `json:"secret"`     // Base32 TOTP secret for manual entry
+	Secret    string `json:"secret"`      // Base32 TOTP secret for manual entry
 	QRCodeURL string `json:"qr_code_url"` // otpauth:// URI for QR code rendering
 }
 
@@ -19,9 +19,9 @@ type TOTPVerifyRequestDTO struct {
 
 // TOTPStatusResponseDTO reports the user's current TOTP state.
 type TOTPStatusResponseDTO struct {
-	IsEnabled   bool    `json:"is_enabled"`
-	EnrolledAt  *string `json:"enrolled_at,omitempty"`
-	LastUsedAt  *string `json:"last_used_at,omitempty"`
+	IsEnabled  bool    `json:"is_enabled"`
+	EnrolledAt *string `json:"enrolled_at,omitempty"`
+	LastUsedAt *string `json:"last_used_at,omitempty"`
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -44,11 +44,11 @@ type BackupCodeVerifyRequestDTO struct {
 
 // MFAStatusResponseDTO describes all enrolled MFA factors for a user.
 type MFAStatusResponseDTO struct {
-	IsTOTPEnabled      bool                          `json:"is_totp_enabled"`
-	IsWebAuthnEnabled  bool                          `json:"is_webauthn_enabled"`
-	BackupCodesCount   int                           `json:"backup_codes_count"`
-	WebAuthnKeys       []WebAuthnCredentialSummaryDTO `json:"webauthn_keys,omitempty"`
-	MFAEnabledAt       *string                       `json:"mfa_enabled_at,omitempty"`
+	IsTOTPEnabled     bool                           `json:"is_totp_enabled"`
+	IsWebAuthnEnabled bool                           `json:"is_webauthn_enabled"`
+	BackupCodesCount  int                            `json:"backup_codes_count"`
+	WebAuthnKeys      []WebAuthnCredentialSummaryDTO `json:"webauthn_keys,omitempty"`
+	MFAEnabledAt      *string                        `json:"mfa_enabled_at,omitempty"`
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -87,8 +87,8 @@ type MFAPolicyDTO struct {
 
 // StepUpChallengeResponseDTO is returned when step-up authentication is required.
 type StepUpChallengeResponseDTO struct {
-	ChallengeToken string   `json:"challenge_token"`  // Short-lived JWT referencing the original request
-	AllowedMethods []string `json:"allowed_methods"`  // Which factors the user may use
+	ChallengeToken string   `json:"challenge_token"` // Short-lived JWT referencing the original request
+	AllowedMethods []string `json:"allowed_methods"` // Which factors the user may use
 }
 
 // StepUpVerifyRequestDTO submits the completed second-factor proof.

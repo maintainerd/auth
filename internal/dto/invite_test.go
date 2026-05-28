@@ -70,4 +70,3 @@ func TestSendInviteRequest_Validate(t *testing.T) {
 		})
 	}
 }
-

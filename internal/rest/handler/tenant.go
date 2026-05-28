@@ -9,9 +9,9 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/dto"
-	"github.com/maintainerd/auth/internal/middleware"
-	"github.com/maintainerd/auth/internal/ptr"
-	resp "github.com/maintainerd/auth/internal/rest/response"
+	"github.com/maintainerd/auth/internal/platform/middleware"
+	"github.com/maintainerd/auth/internal/platform/ptr"
+	resp "github.com/maintainerd/auth/internal/platform/response"
 	"github.com/maintainerd/auth/internal/service"
 )
 
@@ -57,13 +57,13 @@ func (h *TenantHandler) Get(w http.ResponseWriter, r *http.Request) {
 
 	// Build request DTO
 	reqParams := dto.TenantFilterDTO{
-		Name:        ptr.PtrOrNil(q.Get("name")),
-		DisplayName: ptr.PtrOrNil(q.Get("display_name")),
-		Description: ptr.PtrOrNil(q.Get("description")),
-		Identifier:  ptr.PtrOrNil(q.Get("identifier")),
-		IsSystem:    isSystem,
-		IsPublic:    isPublic,
-		Status:      status,
+		Name:                 ptr.PtrOrNil(q.Get("name")),
+		DisplayName:          ptr.PtrOrNil(q.Get("display_name")),
+		Description:          ptr.PtrOrNil(q.Get("description")),
+		Identifier:           ptr.PtrOrNil(q.Get("identifier")),
+		IsSystem:             isSystem,
+		IsPublic:             isPublic,
+		Status:               status,
 		PaginationRequestDTO: parsePaginationQuery(r),
 	}
 
@@ -350,7 +350,7 @@ func (h *TenantHandler) GetMembers(w http.ResponseWriter, r *http.Request) {
 
 	// Build request DTO
 	reqParams := dto.TenantMemberFilterDTO{
-		Role: ptr.PtrOrNil(q.Get("role")),
+		Role:                 ptr.PtrOrNil(q.Get("role")),
 		PaginationRequestDTO: parsePaginationQuery(r),
 	}
 

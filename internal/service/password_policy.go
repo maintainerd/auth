@@ -3,8 +3,8 @@ package service
 import (
 	"errors"
 
+	"github.com/maintainerd/auth/internal/platform/security"
 	"github.com/maintainerd/auth/internal/repository"
-	"github.com/maintainerd/auth/internal/security"
 	"golang.org/x/crypto/bcrypt"
 )
 

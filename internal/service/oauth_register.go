@@ -4,14 +4,14 @@ import (
 	"context"
 	"time"
 
-	"github.com/maintainerd/auth/internal/apperror"
-	"github.com/maintainerd/auth/internal/crypto"
 	"github.com/maintainerd/auth/internal/dto"
-	"github.com/maintainerd/auth/internal/middleware"
 	"github.com/maintainerd/auth/internal/model"
-	"github.com/maintainerd/auth/internal/ptr"
+	"github.com/maintainerd/auth/internal/platform/apperror"
+	"github.com/maintainerd/auth/internal/platform/crypto"
+	"github.com/maintainerd/auth/internal/platform/middleware"
+	"github.com/maintainerd/auth/internal/platform/ptr"
+	"github.com/maintainerd/auth/internal/platform/security"
 	"github.com/maintainerd/auth/internal/repository"
-	"github.com/maintainerd/auth/internal/security"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -152,13 +152,13 @@ func (s *oauthRegisterService) Register(ctx context.Context, req dto.OAuthClient
 	}
 
 	s.authEventService.Log(ctx, AuthEventInput{
-		TenantID:  tenant.TenantID,
-		IPAddress: middleware.ClientIPFromContext(ctx),
-		UserAgent: ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),
-		Category:  model.AuthEventCategorySystem,
-		EventType: model.AuthEventTypeOAuthAuthorize,
-		Severity:  model.AuthEventSeverityInfo,
-		Result:    model.AuthEventResultSuccess,
+		TenantID:    tenant.TenantID,
+		IPAddress:   middleware.ClientIPFromContext(ctx),
+		UserAgent:   ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),
+		Category:    model.AuthEventCategorySystem,
+		EventType:   model.AuthEventTypeOAuthAuthorize,
+		Severity:    model.AuthEventSeverityInfo,
+		Result:      model.AuthEventResultSuccess,
 		Description: ptr.Ptr("Dynamic client registration"),
 	})
 
@@ -181,4 +181,3 @@ func (s *oauthRegisterService) Register(ctx context.Context, req dto.OAuthClient
 
 	return resp, nil
 }
-

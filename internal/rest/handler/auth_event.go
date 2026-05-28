@@ -8,10 +8,10 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/dto"
-	"github.com/maintainerd/auth/internal/middleware"
-	"github.com/maintainerd/auth/internal/ptr"
+	"github.com/maintainerd/auth/internal/platform/middleware"
+	"github.com/maintainerd/auth/internal/platform/ptr"
+	resp "github.com/maintainerd/auth/internal/platform/response"
 	"github.com/maintainerd/auth/internal/repository"
-	resp "github.com/maintainerd/auth/internal/rest/response"
 	"github.com/maintainerd/auth/internal/service"
 )
 
@@ -38,12 +38,12 @@ func (h *AuthEventHandler) GetAll(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
 
 	filter := dto.AuthEventFilterDTO{
-		Category:  ptr.PtrOrNil(q.Get("category")),
-		EventType: ptr.PtrOrNil(q.Get("event_type")),
-		Severity:  ptr.PtrOrNil(q.Get("severity")),
-		Result:    ptr.PtrOrNil(q.Get("result")),
-		DateFrom:  ptr.PtrOrNil(q.Get("date_from")),
-		DateTo:    ptr.PtrOrNil(q.Get("date_to")),
+		Category:             ptr.PtrOrNil(q.Get("category")),
+		EventType:            ptr.PtrOrNil(q.Get("event_type")),
+		Severity:             ptr.PtrOrNil(q.Get("severity")),
+		Result:               ptr.PtrOrNil(q.Get("result")),
+		DateFrom:             ptr.PtrOrNil(q.Get("date_from")),
+		DateTo:               ptr.PtrOrNil(q.Get("date_to")),
 		PaginationRequestDTO: parsePaginationQuery(r),
 	}
 

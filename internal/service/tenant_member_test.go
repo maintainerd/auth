@@ -1,8 +1,8 @@
 package service
 
 import (
-	"errors"
 	"context"
+	"errors"
 	"testing"
 
 	"github.com/google/uuid"
