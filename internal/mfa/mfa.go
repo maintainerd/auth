@@ -6,12 +6,14 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/maintainerd/auth/internal/authevent"
 	"github.com/maintainerd/auth/internal/platform/apperror"
 	"github.com/maintainerd/auth/internal/platform/config"
 	"github.com/maintainerd/auth/internal/platform/crypto"
 	"github.com/maintainerd/auth/internal/platform/jwt"
 	"github.com/maintainerd/auth/internal/platform/middleware"
 	"github.com/maintainerd/auth/internal/platform/ptr"
+	"github.com/maintainerd/auth/internal/secpolicy"
 	"github.com/pquerna/otp"
 	"github.com/pquerna/otp/totp"
 	"go.opentelemetry.io/otel"
@@ -34,7 +36,7 @@ const (
 // per-tenant MFA policy, admin resets, and step-up authentication.
 type MFAService interface {
 	// TOTP enrollment
-	BeginTOTPEnrollment(ctx context.Context, userID int64, userEmail string) (*TOTPEnrollResponseDTO, error)
+	BeginTOTPEnrollment(ctx context.Context, userID int64) (*TOTPEnrollResponseDTO, error)
 	FinishTOTPEnrollment(ctx context.Context, userID int64, code string) ([]string, error)
 	VerifyTOTP(ctx context.Context, userID int64, code string) (bool, error)
 	DisableTOTP(ctx context.Context, userID int64) error
@@ -65,8 +67,8 @@ type mfaService struct {
 	totpRepo         UserTOTPSecretRepository
 	webAuthnCredRepo UserWebAuthnCredentialRepository
 	backupCodeRepo   UserBackupCodeRepository
-	secSettingRepo   SecuritySettingRepository
-	authEventService AuthEventService
+	secSettingRepo   secpolicy.SecuritySettingRepository
+	authEventService authevent.AuthEventService
 }
 
 // NewMFAService constructs a MFAService.
@@ -76,8 +78,8 @@ func NewMFAService(
 	totpRepo UserTOTPSecretRepository,
 	webAuthnCredRepo UserWebAuthnCredentialRepository,
 	backupCodeRepo UserBackupCodeRepository,
-	secSettingRepo SecuritySettingRepository,
-	authEventService AuthEventService,
+	secSettingRepo secpolicy.SecuritySettingRepository,
+	authEventService authevent.AuthEventService,
 ) MFAService {
 	return &mfaService{
 		db:               db,
@@ -96,14 +98,19 @@ func NewMFAService(
 
 // BeginTOTPEnrollment generates a new TOTP secret and stores it as pending
 // (not yet enabled). The user must call FinishTOTPEnrollment with a valid code.
-func (s *mfaService) BeginTOTPEnrollment(ctx context.Context, userID int64, userEmail string) (*TOTPEnrollResponseDTO, error) {
+func (s *mfaService) BeginTOTPEnrollment(ctx context.Context, userID int64) (*TOTPEnrollResponseDTO, error) {
 	_, span := otel.Tracer("service").Start(ctx, "mfa.begin_totp_enrollment")
 	defer span.End()
 	span.SetAttributes(attribute.Int64("user.id", userID))
 
+	user, err := s.userRepo.FindByID(userID)
+	if err != nil || user == nil {
+		return nil, apperror.NewNotFound("user not found")
+	}
+
 	key, err := totp.Generate(totp.GenerateOpts{
 		Issuer:      totpIssuer,
-		AccountName: userEmail,
+		AccountName: user.Email,
 		Digits:      totpDigits,
 		Period:      totpPeriod,
 	})
@@ -177,14 +184,14 @@ func (s *mfaService) FinishTOTPEnrollment(ctx context.Context, userID int64, cod
 		return nil, err
 	}
 
-	s.authEventService.Log(ctx, AuthEventInput{
+	s.authEventService.Log(ctx, authevent.AuthEventInput{
 		ActorUserID: &userID,
 		IPAddress:   middleware.ClientIPFromContext(ctx),
 		UserAgent:   ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),
-		Category:    AuthEventCategoryAuthn,
-		EventType:   AuthEventTypeTokenCreated,
-		Severity:    AuthEventSeverityInfo,
-		Result:      AuthEventResultSuccess,
+		Category:    authevent.AuthEventCategoryAuthn,
+		EventType:   authevent.AuthEventTypeTokenCreated,
+		Severity:    authevent.AuthEventSeverityInfo,
+		Result:      authevent.AuthEventResultSuccess,
 		Description: ptr.Ptr("TOTP enrollment completed"),
 	})
 
@@ -229,14 +236,14 @@ func (s *mfaService) DisableTOTP(ctx context.Context, userID int64) error {
 	_ = s.db.Model(&User{}).Where("user_id = ?", userID).
 		Updates(map[string]any{"is_totp_enabled": false}).Error
 
-	s.authEventService.Log(ctx, AuthEventInput{
+	s.authEventService.Log(ctx, authevent.AuthEventInput{
 		ActorUserID: &userID,
 		IPAddress:   middleware.ClientIPFromContext(ctx),
 		UserAgent:   ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),
-		Category:    AuthEventCategoryAuthn,
-		EventType:   AuthEventTypeTokenCreated,
-		Severity:    AuthEventSeverityWarn,
-		Result:      AuthEventResultSuccess,
+		Category:    authevent.AuthEventCategoryAuthn,
+		EventType:   authevent.AuthEventTypeTokenCreated,
+		Severity:    authevent.AuthEventSeverityWarn,
+		Result:      authevent.AuthEventResultSuccess,
 		Description: ptr.Ptr("TOTP disabled by user"),
 	})
 
@@ -350,7 +357,7 @@ func (s *mfaService) GetMFAStatus(ctx context.Context, userID int64) (*MFAStatus
 // Policy
 // ──────────────────────────────────────────────────────────────────────────────
 
-// GetMFAPolicy reads the per-pool MFA policy from SecuritySetting.MFAConfig.
+// GetMFAPolicy reads the per-pool MFA policy from secpolicy.SecuritySetting.MFAConfig.
 func (s *mfaService) GetMFAPolicy(ctx context.Context, userPoolID int64) (*MFAPolicyDTO, error) {
 	setting, err := s.secSettingRepo.FindByUserPoolID(userPoolID)
 	if err != nil || setting == nil {
@@ -414,14 +421,14 @@ func (s *mfaService) AdminResetMFA(ctx context.Context, targetUserUUID string, a
 		return apperror.NewInternal("failed to reset user MFA status", err)
 	}
 
-	s.authEventService.Log(ctx, AuthEventInput{
+	s.authEventService.Log(ctx, authevent.AuthEventInput{
 		ActorUserID: &actorUserID,
 		IPAddress:   middleware.ClientIPFromContext(ctx),
 		UserAgent:   ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),
-		Category:    AuthEventCategoryAuthn,
-		EventType:   AuthEventTypeTokenCreated,
-		Severity:    AuthEventSeverityCritical,
-		Result:      AuthEventResultSuccess,
+		Category:    authevent.AuthEventCategoryAuthn,
+		EventType:   authevent.AuthEventTypeTokenCreated,
+		Severity:    authevent.AuthEventSeverityCritical,
+		Result:      authevent.AuthEventResultSuccess,
 		Description: ptr.Ptr(fmt.Sprintf("Admin reset MFA for user %s", targetUserUUID)),
 	})
 
@@ -523,14 +530,14 @@ func (s *mfaService) VerifyStepUp(ctx context.Context, req StepUpVerifyRequestDT
 
 	_ = amr // amr will be embedded in ID token via IDTokenParams in a full login flow
 
-	s.authEventService.Log(ctx, AuthEventInput{
+	s.authEventService.Log(ctx, authevent.AuthEventInput{
 		ActorUserID: &userID,
 		IPAddress:   middleware.ClientIPFromContext(ctx),
 		UserAgent:   ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),
-		Category:    AuthEventCategoryAuthn,
-		EventType:   AuthEventTypeTokenCreated,
-		Severity:    AuthEventSeverityInfo,
-		Result:      AuthEventResultSuccess,
+		Category:    authevent.AuthEventCategoryAuthn,
+		EventType:   authevent.AuthEventTypeTokenCreated,
+		Severity:    authevent.AuthEventSeverityInfo,
+		Result:      authevent.AuthEventResultSuccess,
 		Description: ptr.Ptr(fmt.Sprintf("Step-up authentication completed via %s", req.Method)),
 	})
 

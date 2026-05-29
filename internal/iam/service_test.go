@@ -86,7 +86,7 @@ func TestServiceService_GetByUUID(t *testing.T) {
 		assert.Contains(t, err.Error(), "service not found")
 	})
 
-	t.Run("FindByUUID error", func(t *testing.T) {
+	t.Run("authevent.FindByUUID error", func(t *testing.T) {
 		svc := newServiceSvc(t, &mockServiceRepo{
 			findByUUIDFn: func(_ any, _ ...string) (*Service, error) {
 				return nil, errors.New("db error")
@@ -229,7 +229,7 @@ func TestServiceService_Update(t *testing.T) {
 		assert.Contains(t, err.Error(), "service not found")
 	})
 
-	t.Run("FindByUUID error → rollback", func(t *testing.T) {
+	t.Run("authevent.FindByUUID error → rollback", func(t *testing.T) {
 		db, mock := newMockGormDB(t)
 		mock.ExpectBegin()
 		mock.ExpectRollback()
@@ -530,7 +530,7 @@ func TestServiceService_AssignPolicy(t *testing.T) {
 	polUUID := uuid.New()
 	tid := int64(1)
 
-	t.Run("FindByUUID service error → rollback", func(t *testing.T) {
+	t.Run("authevent.FindByUUID service error → rollback", func(t *testing.T) {
 		db, mock := newMockGormDB(t)
 		mock.ExpectBegin()
 		mock.ExpectRollback()
@@ -682,7 +682,7 @@ func TestServiceService_RemovePolicy(t *testing.T) {
 	polUUID := uuid.New()
 	tid := int64(1)
 
-	t.Run("FindByUUID service error → rollback", func(t *testing.T) {
+	t.Run("authevent.FindByUUID service error → rollback", func(t *testing.T) {
 		db, mock := newMockGormDB(t)
 		mock.ExpectBegin()
 		mock.ExpectRollback()

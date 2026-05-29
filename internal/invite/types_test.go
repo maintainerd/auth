@@ -61,7 +61,7 @@ func TestSendInviteRequest_Validate(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			err := tc.Validate()
+			err := tc.dto.Validate()
 			if tc.wantErr {
 				require.Error(t, err)
 			} else {

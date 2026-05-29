@@ -9,10 +9,12 @@ import (
 
 	oidclib "github.com/coreos/go-oidc/v3/oidc"
 	"github.com/google/uuid"
+	"github.com/maintainerd/auth/internal/authevent"
 	"github.com/maintainerd/auth/internal/platform/apperror"
 	jwtlib "github.com/maintainerd/auth/internal/platform/jwt"
 	"github.com/maintainerd/auth/internal/platform/middleware"
 	"github.com/maintainerd/auth/internal/platform/ptr"
+	"github.com/maintainerd/auth/internal/shared"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -55,7 +57,7 @@ type federationService struct {
 	clientRepo       ClientRepository
 	userRoleRepo     UserRoleRepository
 	roleRepo         RoleRepository
-	authEventService AuthEventService
+	authEventService authevent.AuthEventService
 }
 
 func NewFederationService(
@@ -66,7 +68,7 @@ func NewFederationService(
 	clientRepo ClientRepository,
 	userRoleRepo UserRoleRepository,
 	roleRepo RoleRepository,
-	authEventService AuthEventService,
+	authEventService authevent.AuthEventService,
 ) FederationService {
 	return &federationService{
 		db:               db,
@@ -80,9 +82,7 @@ func NewFederationService(
 	}
 }
 
-// ──────────────────────────────────────────────────────────────────────────────
 // Token exchange
-// ──────────────────────────────────────────────────────────────────────────────
 
 func (s *federationService) ExchangeExternalToken(ctx context.Context, req FederationTokenRequestDTO) (*LoginResponseDTO, error) {
 	_, span := otel.Tracer("service").Start(ctx, "federation.exchange_external_token")
@@ -159,7 +159,7 @@ func (s *federationService) ExchangeExternalToken(ctx context.Context, req Feder
 		}
 
 		// Retrieve the internal (default) identity sub for JWT generation.
-		defaultIdentity, err := txUserIdentityRepo.FindByUserIDAndProvider(user.UserID, ProviderDefault)
+		defaultIdentity, err := txUserIdentityRepo.FindByUserIDAndProvider(user.UserID, shared.ProviderDefault)
 		if err != nil {
 			return apperror.NewInternal("default identity lookup failed", err)
 		}
@@ -186,20 +186,20 @@ func (s *federationService) ExchangeExternalToken(ctx context.Context, req Feder
 		return nil, apperror.NewNotFound("client not found for this provider")
 	}
 
-	// 6. Log auth event.
+	// 6. authevent.Log auth event.
 	userID := user.UserID
 	desc := fmt.Sprintf("external login via %s", idp.Provider)
 	if isNew {
 		desc = fmt.Sprintf("JIT-provisioned via %s", idp.Provider)
 	}
-	s.authEventService.Log(ctx, AuthEventInput{
+	s.authEventService.Log(ctx, authevent.AuthEventInput{
 		ActorUserID: &userID,
 		IPAddress:   middleware.ClientIPFromContext(ctx),
 		UserAgent:   ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),
-		Category:    AuthEventCategoryAuthn,
-		EventType:   AuthEventTypeTokenCreated,
-		Severity:    AuthEventSeverityInfo,
-		Result:      AuthEventResultSuccess,
+		Category:    authevent.AuthEventCategoryAuthn,
+		EventType:   authevent.AuthEventTypeTokenCreated,
+		Severity:    authevent.AuthEventSeverityInfo,
+		Result:      authevent.AuthEventResultSuccess,
 		Description: ptr.Ptr(desc),
 	})
 
@@ -207,9 +207,7 @@ func (s *federationService) ExchangeExternalToken(ctx context.Context, req Feder
 	return s.generateTokens(internalSub, user, client)
 }
 
-// ──────────────────────────────────────────────────────────────────────────────
 // Identity linking / unlinking
-// ──────────────────────────────────────────────────────────────────────────────
 
 func (s *federationService) LinkIdentity(ctx context.Context, userID int64, req LinkIdentityRequestDTO) (*IdentityDTO, error) {
 	_, span := otel.Tracer("service").Start(ctx, "federation.link_identity")
@@ -269,14 +267,14 @@ func (s *federationService) LinkIdentity(ctx context.Context, userID int64, req 
 		return nil, apperror.NewInternal("failed to link identity", err)
 	}
 
-	s.authEventService.Log(ctx, AuthEventInput{
+	s.authEventService.Log(ctx, authevent.AuthEventInput{
 		ActorUserID: &userID,
 		IPAddress:   middleware.ClientIPFromContext(ctx),
 		UserAgent:   ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),
-		Category:    AuthEventCategoryAuthn,
-		EventType:   AuthEventTypeTokenCreated,
-		Severity:    AuthEventSeverityInfo,
-		Result:      AuthEventResultSuccess,
+		Category:    authevent.AuthEventCategoryAuthn,
+		EventType:   authevent.AuthEventTypeTokenCreated,
+		Severity:    authevent.AuthEventSeverityInfo,
+		Result:      authevent.AuthEventResultSuccess,
 		Description: ptr.Ptr(fmt.Sprintf("linked external identity: %s", idp.Provider)),
 	})
 
@@ -307,7 +305,7 @@ func (s *federationService) UnlinkIdentity(ctx context.Context, userID int64, id
 	if target == nil {
 		return apperror.NewNotFound("identity not found")
 	}
-	if target.Provider == ProviderDefault {
+	if target.Provider == shared.ProviderDefault {
 		return apperror.NewValidation("the built-in identity cannot be unlinked")
 	}
 
@@ -315,14 +313,14 @@ func (s *federationService) UnlinkIdentity(ctx context.Context, userID int64, id
 		return apperror.NewInternal("failed to unlink identity", err)
 	}
 
-	s.authEventService.Log(ctx, AuthEventInput{
+	s.authEventService.Log(ctx, authevent.AuthEventInput{
 		ActorUserID: &userID,
 		IPAddress:   middleware.ClientIPFromContext(ctx),
 		UserAgent:   ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),
-		Category:    AuthEventCategoryAuthn,
-		EventType:   AuthEventTypeTokenCreated,
-		Severity:    AuthEventSeverityInfo,
-		Result:      AuthEventResultSuccess,
+		Category:    authevent.AuthEventCategoryAuthn,
+		EventType:   authevent.AuthEventTypeTokenCreated,
+		Severity:    authevent.AuthEventSeverityInfo,
+		Result:      authevent.AuthEventResultSuccess,
 		Description: ptr.Ptr(fmt.Sprintf("unlinked external identity: %s", target.Provider)),
 	})
 
@@ -342,9 +340,7 @@ func (s *federationService) GetUserIdentities(ctx context.Context, userID int64)
 	return result, nil
 }
 
-// ──────────────────────────────────────────────────────────────────────────────
 // Home Realm Discovery
-// ──────────────────────────────────────────────────────────────────────────────
 
 func (s *federationService) HomeRealmDiscovery(ctx context.Context, tenantID int64, email string) (*HRDResponseDTO, error) {
 	_, span := otel.Tracer("service").Start(ctx, "federation.hrd")
@@ -361,7 +357,7 @@ func (s *federationService) HomeRealmDiscovery(ctx context.Context, tenantID int
 	}
 
 	for _, idp := range idps {
-		if idp.ProviderType != IDPTypeSocial {
+		if idp.ProviderType != shared.IDPTypeSocial {
 			continue
 		}
 		var cfg OIDCProviderConfig
@@ -386,9 +382,7 @@ func (s *federationService) HomeRealmDiscovery(ctx context.Context, tenantID int
 	return hrdResponseFrom(defaultIDP), nil
 }
 
-// ──────────────────────────────────────────────────────────────────────────────
 // Internal helpers
-// ──────────────────────────────────────────────────────────────────────────────
 
 // validateOIDCToken fetches the provider's OIDC discovery doc, verifies the
 // token's signature + standard claims, and returns the raw claims map.
@@ -462,7 +456,7 @@ func (s *federationService) provisionUser(
 
 	// Create the default (maintainerd) identity if it doesn't exist yet.
 	// This ensures our RBAC system always has a stable sub for the user.
-	defaultIdentity, _ := txUserIdentityRepo.FindByUserIDAndProvider(user.UserID, ProviderDefault)
+	defaultIdentity, _ := txUserIdentityRepo.FindByUserIDAndProvider(user.UserID, shared.ProviderDefault)
 	if defaultIdentity == nil {
 		defaultIDP, _ := s.idpRepo.FindDefaultByTenantID(idp.TenantID)
 		var defaultIDPID *int64
@@ -474,7 +468,7 @@ func (s *federationService) provisionUser(
 			UserID:             user.UserID,
 			ClientID:           0,
 			IdentityProviderID: defaultIDPID,
-			Provider:           ProviderDefault,
+			Provider:           shared.ProviderDefault,
 			Sub:                uuid.New().String(),
 			Metadata:           datatypes.JSON([]byte(`{}`)),
 		}
@@ -561,12 +555,10 @@ func (s *federationService) findDefaultRole(roleRepo RoleRepository, tenantID in
 	if err == nil && len(result.Data) > 0 {
 		return &result.Data[0], nil
 	}
-	return roleRepo.FindByNameAndTenantID(RoleRegistered, tenantID)
+	return roleRepo.FindByNameAndTenantID(shared.RoleRegistered, tenantID)
 }
 
-// ──────────────────────────────────────────────────────────────────────────────
 // Pure helpers
-// ──────────────────────────────────────────────────────────────────────────────
 
 func stringClaim(claims map[string]interface{}, key string) string {
 	v, ok := claims[key]
@@ -622,7 +614,7 @@ func identityToDTO(ui *UserIdentity) *IdentityDTO {
 		IdentityUUID: ui.UserIdentityUUID.String(),
 		Provider:     ui.Provider,
 		Sub:          ui.Sub,
-		IsDefault:    ui.Provider == ProviderDefault,
+		IsDefault:    ui.Provider == shared.ProviderDefault,
 		CreatedAt:    ui.CreatedAt.Format(time.RFC3339),
 	}
 
@@ -648,4 +640,53 @@ func hrdResponseFrom(idp *IdentityProvider) *HRDResponseDTO {
 		Provider:           idp.Provider,
 		DisplayName:        idp.DisplayName,
 	}
+}
+
+// OIDCProviderConfig is stored as JSONB in IdentityProvider.Config for
+// providers with provider_type = "social" (external OIDC/OAuth2 upstreams).
+type OIDCProviderConfig struct {
+	// Issuer is the OIDC discovery base URL (e.g. "https://accounts.google.com").
+	// The library will fetch /<issuer>/.well-known/openid-configuration automatically.
+	Issuer string `json:"issuer"`
+
+	// ClientID is the OAuth2 client ID registered with the upstream provider.
+	// Required for audience ("aud") validation of incoming ID tokens.
+	ClientID string `json:"client_id"`
+
+	// ClientSecret is the OAuth2 client secret. Only needed when our backend
+	// needs to exchange an authorization code (not required for token presentation).
+	// TODO: encrypt at rest before storing in production.
+	ClientSecret string `json:"client_secret,omitempty"`
+
+	// Scopes requested during the authorization flow (e.g. ["openid","email","profile"]).
+	Scopes []string `json:"scopes,omitempty"`
+
+	// AllowJITProvisioning enables just-in-time user creation when a valid
+	// external token belongs to an unknown user.
+	AllowJITProvisioning bool `json:"allow_jit_provisioning"`
+
+	// AttributeMapping maps upstream OIDC claim names to our local field names.
+	// Key = our field ("email", "name", "picture"), value = claim name ("email", "name").
+	// If empty, the default OIDC standard claim names are used.
+	AttributeMapping map[string]string `json:"attribute_mapping,omitempty"`
+
+	// EmailDomains lists the email domains that should be routed to this
+	// provider via Home Realm Discovery (e.g. ["company.com"]).
+	EmailDomains []string `json:"email_domains,omitempty"`
+
+	// UserinfoEndpoint overrides the userinfo URL discovered from the OIDC
+	// document. Useful for non-standard providers.
+	UserinfoEndpoint string `json:"userinfo_endpoint,omitempty"`
+}
+
+// IdentityMetadata is stored as JSONB in UserIdentity.Metadata for external
+// provider identities. It captures the profile attributes returned by the
+// upstream provider at link/login time.
+type IdentityMetadata struct {
+	Email      string `json:"email,omitempty"`
+	Name       string `json:"name,omitempty"`
+	GivenName  string `json:"given_name,omitempty"`
+	FamilyName string `json:"family_name,omitempty"`
+	Picture    string `json:"picture,omitempty"`
+	Locale     string `json:"locale,omitempty"`
 }

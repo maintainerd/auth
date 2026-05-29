@@ -6,11 +6,14 @@ import (
 	"log/slog"
 	"time"
 
+	"github.com/maintainerd/auth/internal/authevent"
+	"github.com/maintainerd/auth/internal/notifier"
 	"github.com/maintainerd/auth/internal/platform/apperror"
 	"github.com/maintainerd/auth/internal/platform/config"
 	"github.com/maintainerd/auth/internal/platform/crypto"
 	"github.com/maintainerd/auth/internal/platform/jwt"
 	"github.com/maintainerd/auth/internal/platform/sms"
+	"github.com/maintainerd/auth/internal/shared"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/codes"
 	"gorm.io/gorm"
@@ -28,21 +31,21 @@ type SMSLoginService interface {
 type smsLoginService struct {
 	db                   *gorm.DB
 	userRepo             UserRepository
-	smsOtpRepo           SMSOtpRepository
+	smsOtpRepo           notifier.SMSOtpRepository
 	clientRepo           ClientRepository
 	userIdentityRepo     UserIdentityRepository
 	identityProviderRepo IdentityProviderRepository
-	authEventService     AuthEventService
+	authEventService     authevent.AuthEventService
 }
 
 func NewSMSLoginService(
 	db *gorm.DB,
 	userRepo UserRepository,
-	smsOtpRepo SMSOtpRepository,
+	smsOtpRepo notifier.SMSOtpRepository,
 	clientRepo ClientRepository,
 	userIdentityRepo UserIdentityRepository,
 	identityProviderRepo IdentityProviderRepository,
-	authEventService AuthEventService,
+	authEventService authevent.AuthEventService,
 ) SMSLoginService {
 	return &smsLoginService{
 		db:                   db,
@@ -66,7 +69,7 @@ func (s *smsLoginService) SendOTP(ctx context.Context, req SMSLoginSendDTO) erro
 	if err != nil {
 		return apperror.NewInternal("failed to look up user", err)
 	}
-	if user == nil || user.Status != StatusActive {
+	if user == nil || user.Status != shared.StatusActive {
 		// Still return success to avoid phone enumeration.
 		span.SetStatus(codes.Ok, "")
 		return nil
@@ -80,7 +83,7 @@ func (s *smsLoginService) SendOTP(ctx context.Context, req SMSLoginSendDTO) erro
 	otpHash := crypto.HashAuthorizationCode(otp)
 
 	expiresAt := time.Now().Add(smsOTPTTL)
-	record := &SMSOtp{
+	record := &notifier.SMSOtp{
 		UserID:    user.UserID,
 		Phone:     req.Phone,
 		OTPHash:   otpHash,
@@ -129,7 +132,7 @@ func (s *smsLoginService) VerifyOTP(ctx context.Context, req SMSLoginVerifyDTO) 
 
 		client, txErr = txClientRepo.FindByClientIDAndIdentityProvider(req.ClientID, req.ProviderID)
 		if txErr != nil || client == nil ||
-			client.Status != StatusActive ||
+			client.Status != shared.StatusActive ||
 			client.Domain == nil || *client.Domain == "" {
 			return apperror.NewUnauthorized("authentication failed")
 		}
@@ -139,7 +142,7 @@ func (s *smsLoginService) VerifyOTP(ctx context.Context, req SMSLoginVerifyDTO) 
 		if txErr != nil {
 			return apperror.NewInternal("failed to look up user", txErr)
 		}
-		if user == nil || user.Status != StatusActive {
+		if user == nil || user.Status != shared.StatusActive {
 			return apperror.NewUnauthorized("invalid phone or OTP")
 		}
 

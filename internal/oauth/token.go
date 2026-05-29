@@ -6,12 +6,14 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/maintainerd/auth/internal/authevent"
 	"github.com/maintainerd/auth/internal/platform/apperror"
 	"github.com/maintainerd/auth/internal/platform/crypto"
 	"github.com/maintainerd/auth/internal/platform/jwt"
 	"github.com/maintainerd/auth/internal/platform/middleware"
 	"github.com/maintainerd/auth/internal/platform/ptr"
 	"github.com/maintainerd/auth/internal/platform/security"
+	"github.com/maintainerd/auth/internal/shared"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -46,7 +48,7 @@ type oauthTokenService struct {
 	refreshTokenRepo OAuthRefreshTokenRepository
 	userRepo         UserRepository
 	userIdentityRepo UserIdentityRepository
-	authEventService AuthEventService
+	authEventService authevent.AuthEventService
 }
 
 // NewOAuthTokenService creates a new OAuthTokenService.
@@ -57,7 +59,7 @@ func NewOAuthTokenService(
 	refreshTokenRepo OAuthRefreshTokenRepository,
 	userRepo UserRepository,
 	userIdentityRepo UserIdentityRepository,
-	authEventService AuthEventService,
+	authEventService authevent.AuthEventService,
 ) OAuthTokenService {
 	return &oauthTokenService{
 		db:               db,
@@ -129,15 +131,15 @@ func (s *oauthTokenService) exchangeAuthorizationCode(ctx context.Context, req O
 		// RFC 6749 §4.1.2: If an authorization code is used more than once,
 		// the authorization server MUST deny the request and SHOULD revoke all
 		// tokens previously issued based on that code.
-		s.authEventService.Log(ctx, AuthEventInput{
+		s.authEventService.Log(ctx, authevent.AuthEventInput{
 			TenantID:    authCode.TenantID,
 			ActorUserID: &authCode.UserID,
 			IPAddress:   middleware.ClientIPFromContext(ctx),
 			UserAgent:   ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),
-			Category:    AuthEventCategoryAuthn,
-			EventType:   AuthEventTypeTokenReuse,
-			Severity:    AuthEventSeverityCritical,
-			Result:      AuthEventResultFailure,
+			Category:    authevent.AuthEventCategoryAuthn,
+			EventType:   authevent.AuthEventTypeTokenReuse,
+			Severity:    authevent.AuthEventSeverityCritical,
+			Result:      authevent.AuthEventResultFailure,
 			Description: ptr.Ptr("Authorization code reuse detected"),
 		})
 		// Revoke all refresh tokens for this user-client pair.
@@ -200,15 +202,15 @@ func (s *oauthTokenService) exchangeAuthorizationCode(ctx context.Context, req O
 		return nil, oerr
 	}
 
-	s.authEventService.Log(ctx, AuthEventInput{
+	s.authEventService.Log(ctx, authevent.AuthEventInput{
 		TenantID:    client.TenantID,
 		ActorUserID: &authCode.UserID,
 		IPAddress:   middleware.ClientIPFromContext(ctx),
 		UserAgent:   ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),
-		Category:    AuthEventCategoryAuthn,
-		EventType:   AuthEventTypeOAuthTokenExchange,
-		Severity:    AuthEventSeverityInfo,
-		Result:      AuthEventResultSuccess,
+		Category:    authevent.AuthEventCategoryAuthn,
+		EventType:   authevent.AuthEventTypeOAuthTokenExchange,
+		Severity:    authevent.AuthEventSeverityInfo,
+		Result:      authevent.AuthEventResultSuccess,
 		Description: ptr.Ptr("Authorization code exchanged for tokens"),
 	})
 
@@ -248,15 +250,15 @@ func (s *oauthTokenService) exchangeRefreshToken(ctx context.Context, req OAuthT
 	// Reuse detection — if the token is already revoked, the entire family is
 	// compromised.
 	if storedToken.IsRevoked {
-		s.authEventService.Log(ctx, AuthEventInput{
+		s.authEventService.Log(ctx, authevent.AuthEventInput{
 			TenantID:    storedToken.TenantID,
 			ActorUserID: &storedToken.UserID,
 			IPAddress:   middleware.ClientIPFromContext(ctx),
 			UserAgent:   ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),
-			Category:    AuthEventCategoryAuthn,
-			EventType:   AuthEventTypeTokenReuse,
-			Severity:    AuthEventSeverityCritical,
-			Result:      AuthEventResultFailure,
+			Category:    authevent.AuthEventCategoryAuthn,
+			EventType:   authevent.AuthEventTypeTokenReuse,
+			Severity:    authevent.AuthEventSeverityCritical,
+			Result:      authevent.AuthEventResultFailure,
 			Description: ptr.Ptr(fmt.Sprintf("Refresh token reuse detected, revoking family %s", storedToken.FamilyID)),
 		})
 		_, _ = s.refreshTokenRepo.RevokeByFamily(storedToken.FamilyID)
@@ -345,15 +347,15 @@ func (s *oauthTokenService) exchangeRefreshToken(ctx context.Context, req OAuthT
 		return nil, apperror.NewOAuthServerError("an unexpected error occurred")
 	}
 
-	s.authEventService.Log(ctx, AuthEventInput{
+	s.authEventService.Log(ctx, authevent.AuthEventInput{
 		TenantID:    client.TenantID,
 		ActorUserID: &storedToken.UserID,
 		IPAddress:   middleware.ClientIPFromContext(ctx),
 		UserAgent:   ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),
-		Category:    AuthEventCategoryAuthn,
-		EventType:   AuthEventTypeOAuthTokenRefresh,
-		Severity:    AuthEventSeverityInfo,
-		Result:      AuthEventResultSuccess,
+		Category:    authevent.AuthEventCategoryAuthn,
+		EventType:   authevent.AuthEventTypeOAuthTokenRefresh,
+		Severity:    authevent.AuthEventSeverityInfo,
+		Result:      authevent.AuthEventResultSuccess,
 		Description: ptr.Ptr("Refresh token rotated"),
 	})
 
@@ -409,14 +411,14 @@ func (s *oauthTokenService) exchangeClientCredentials(ctx context.Context, _ OAu
 		return nil, apperror.NewOAuthServerError("an unexpected error occurred")
 	}
 
-	s.authEventService.Log(ctx, AuthEventInput{
+	s.authEventService.Log(ctx, authevent.AuthEventInput{
 		TenantID:  client.TenantID,
 		IPAddress: middleware.ClientIPFromContext(ctx),
 		UserAgent: ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),
-		Category:  AuthEventCategoryAuthn,
-		EventType: AuthEventTypeOAuthClientAuth,
-		Severity:  AuthEventSeverityInfo,
-		Result:    AuthEventResultSuccess,
+		Category:  authevent.AuthEventCategoryAuthn,
+		EventType: authevent.AuthEventTypeOAuthClientAuth,
+		Severity:  authevent.AuthEventSeverityInfo,
+		Result:    authevent.AuthEventResultSuccess,
 		Description: ptr.Ptr(fmt.Sprintf("Client credentials token issued for client %s",
 			identifier)),
 	})
@@ -457,15 +459,15 @@ func (s *oauthTokenService) Revoke(ctx context.Context, req OAuthRevokeRequestDT
 	if storedRT != nil && storedRT.ClientID == client.ClientID {
 		if !storedRT.IsRevoked {
 			_ = s.refreshTokenRepo.RevokeByID(storedRT.OAuthRefreshTokenID)
-			s.authEventService.Log(ctx, AuthEventInput{
+			s.authEventService.Log(ctx, authevent.AuthEventInput{
 				TenantID:    client.TenantID,
 				ActorUserID: &storedRT.UserID,
 				IPAddress:   middleware.ClientIPFromContext(ctx),
 				UserAgent:   ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),
-				Category:    AuthEventCategoryAuthn,
-				EventType:   AuthEventTypeOAuthTokenRevoke,
-				Severity:    AuthEventSeverityInfo,
-				Result:      AuthEventResultSuccess,
+				Category:    authevent.AuthEventCategoryAuthn,
+				EventType:   authevent.AuthEventTypeOAuthTokenRevoke,
+				Severity:    authevent.AuthEventSeverityInfo,
+				Result:      authevent.AuthEventResultSuccess,
 				Description: ptr.Ptr("Refresh token revoked"),
 			})
 		}
@@ -689,14 +691,14 @@ func (s *oauthTokenService) refreshTokenTTL(client *Client) time.Duration {
 
 // logClientAuthFail logs a failed client authentication attempt.
 func (s *oauthTokenService) logClientAuthFail(ctx context.Context, tenantID int64, reason string) {
-	s.authEventService.Log(ctx, AuthEventInput{
+	s.authEventService.Log(ctx, authevent.AuthEventInput{
 		TenantID:    tenantID,
 		IPAddress:   middleware.ClientIPFromContext(ctx),
 		UserAgent:   ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),
-		Category:    AuthEventCategoryAuthn,
-		EventType:   AuthEventTypeOAuthClientAuthFail,
-		Severity:    AuthEventSeverityWarn,
-		Result:      AuthEventResultFailure,
+		Category:    authevent.AuthEventCategoryAuthn,
+		EventType:   authevent.AuthEventTypeOAuthClientAuthFail,
+		Severity:    authevent.AuthEventSeverityWarn,
+		Result:      authevent.AuthEventResultFailure,
 		Description: ptr.Ptr(reason),
 	})
 }
@@ -718,7 +720,7 @@ func findActiveClientByIdentifier(db *gorm.DB, identifier string) (*Client, erro
 	err := db.
 		Preload("IdentityProvider").
 		Preload("IdentityProvider.Tenant").
-		Where("identifier = ? AND status = ?", identifier, StatusActive).
+		Where("identifier = ? AND status = ?", identifier, shared.StatusActive).
 		First(&client).Error
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {

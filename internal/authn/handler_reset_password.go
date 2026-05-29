@@ -159,7 +159,7 @@ func (h *ResetPasswordHandler) ResetPasswordPublic(w http.ResponseWriter, r *htt
 		return
 	}
 
-	// Log successful password reset
+	// authevent.Log successful password reset
 	security.LogSecurityEvent(security.SecurityEvent{
 		EventType: "reset_password_success",
 		UserID:    token,
@@ -318,7 +318,7 @@ func (h *ResetPasswordHandler) ResetPassword(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	// Log successful password reset
+	// authevent.Log successful password reset
 	security.LogSecurityEvent(security.SecurityEvent{
 		EventType: "reset_password_success",
 		UserID:    token,

@@ -17,7 +17,7 @@ type TenantMemberServiceDataResult struct {
 	TenantID         int64
 	UserID           int64
 	Role             string
-	User             *UserServiceDataResult
+	User             *MemberUser
 	CreatedAt        time.Time
 	UpdatedAt        time.Time
 }
@@ -37,11 +37,11 @@ type TenantMemberService interface {
 type tenantMemberService struct {
 	db               *gorm.DB
 	tenantMemberRepo TenantMemberRepository
-	userRepo         UserRepository
+	userRepo         UserReader
 	tenantRepo       TenantRepository
 }
 
-func NewTenantMemberService(db *gorm.DB, tenantMemberRepo TenantMemberRepository, userRepo UserRepository, tenantRepo TenantRepository) TenantMemberService {
+func NewTenantMemberService(db *gorm.DB, tenantMemberRepo TenantMemberRepository, userRepo UserReader, tenantRepo TenantRepository) TenantMemberService {
 	return &tenantMemberService{
 		db:               db,
 		tenantMemberRepo: tenantMemberRepo,
@@ -106,7 +106,7 @@ func (s *tenantMemberService) CreateByUserUUID(ctx context.Context, tenantID int
 	}
 
 	// Populate user information in the result
-	result.User = toUserServiceDataResult(user)
+	result.User = user
 
 	span.SetStatus(codes.Ok, "")
 	return result, nil
@@ -165,7 +165,7 @@ func (s *tenantMemberService) ListByTenant(ctx context.Context, tenantID int64) 
 		// Fetch user information
 		user, err := s.userRepo.FindByID(tu.UserID)
 		if err == nil && user != nil {
-			dr.User = toUserServiceDataResult(user)
+			dr.User = user
 		}
 
 		result[i] = *dr
@@ -224,7 +224,7 @@ func (s *tenantMemberService) UpdateRole(ctx context.Context, tenantMemberUUID u
 	// Fetch and populate user information
 	user, err := s.userRepo.FindByID(updated.UserID)
 	if err == nil && user != nil {
-		result.User = toUserServiceDataResult(user)
+		result.User = user
 	}
 
 	span.SetStatus(codes.Ok, "")

@@ -30,8 +30,6 @@ type OAuthAuthorizationCode struct {
 
 	// Relationships
 	Client *Client `gorm:"foreignKey:ClientID;references:ClientID"`
-	User   *User   `gorm:"foreignKey:UserID;references:UserID"`
-	Tenant *Tenant `gorm:"foreignKey:TenantID;references:TenantID"`
 }
 
 // TableName returns the database table name for GORM.

@@ -24,9 +24,7 @@ type SecuritySettingsAudit struct {
 	CreatedAt                 time.Time      `gorm:"column:created_at;autoCreateTime" json:"created_at"`
 
 	// Relationships
-	UserPool        *UserPool        `gorm:"foreignKey:UserPoolID;references:UserPoolID"`
 	SecuritySetting *SecuritySetting `gorm:"foreignKey:SecuritySettingID;references:SecuritySettingID"`
-	Creator         *User            `gorm:"foreignKey:CreatedBy;references:UserID"`
 }
 
 func (SecuritySettingsAudit) TableName() string {

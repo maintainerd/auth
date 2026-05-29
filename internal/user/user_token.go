@@ -11,7 +11,7 @@ import (
 // magic links) and persistent session records.
 //
 // Session-specific fields (LastUsedAt, IdleTimeoutSeconds, AbsoluteExpiresAt)
-// are populated only when TokenType == TokenTypeSession; they are NULL for
+// are populated only when TokenType == shared.TokenTypeSession; they are NULL for
 // all other token types.
 type UserToken struct {
 	UserTokenID   int64      `gorm:"column:user_token_id;primaryKey"`
@@ -24,7 +24,7 @@ type UserToken struct {
 	IsRevoked     bool       `gorm:"column:is_revoked;default:false"`
 	ExpiresAt     *time.Time `gorm:"column:expires_at"`
 
-	// Session-specific fields — only populated for TokenTypeSession records.
+	// Session-specific fields — only populated for shared.TokenTypeSession records.
 	LastUsedAt         *time.Time `gorm:"column:last_used_at"`
 	IdleTimeoutSeconds *int       `gorm:"column:idle_timeout_seconds"`
 	AbsoluteExpiresAt  *time.Time `gorm:"column:absolute_expires_at"`

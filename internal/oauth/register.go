@@ -4,11 +4,13 @@ import (
 	"context"
 	"time"
 
+	"github.com/maintainerd/auth/internal/authevent"
 	"github.com/maintainerd/auth/internal/platform/apperror"
 	"github.com/maintainerd/auth/internal/platform/crypto"
 	"github.com/maintainerd/auth/internal/platform/middleware"
 	"github.com/maintainerd/auth/internal/platform/ptr"
 	"github.com/maintainerd/auth/internal/platform/security"
+	"github.com/maintainerd/auth/internal/shared"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -32,7 +34,7 @@ type oauthRegisterService struct {
 	clientRepo       ClientRepository
 	clientURIRepo    ClientURIRepository
 	tenantRepo       TenantRepository
-	authEventService AuthEventService
+	authEventService authevent.AuthEventService
 }
 
 // NewOAuthRegisterService creates a new OAuthRegisterService.
@@ -41,7 +43,7 @@ func NewOAuthRegisterService(
 	clientRepo ClientRepository,
 	clientURIRepo ClientURIRepository,
 	tenantRepo TenantRepository,
-	authEventService AuthEventService,
+	authEventService authevent.AuthEventService,
 ) OAuthRegisterService {
 	return &oauthRegisterService{
 		db:               db,
@@ -96,7 +98,7 @@ func (s *oauthRegisterService) Register(ctx context.Context, req OAuthClientRegi
 		TenantID:      tenant.TenantID,
 		DisplayName:   clientName,
 		Identifier:    ptr.Ptr(rawClientID),
-		Status:        StatusActive,
+		Status:        shared.StatusActive,
 		GrantTypes:    grantTypes,
 		ResponseTypes: responseTypes,
 		ClientType:    "public",
@@ -141,21 +143,21 @@ func (s *oauthRegisterService) Register(ctx context.Context, req OAuthClientRegi
 			TenantID: tenant.TenantID,
 			ClientID: createdClient.ClientID,
 			URI:      safeURI,
-			Type:     ClientURITypeRedirect,
+			Type:     shared.ClientURITypeRedirect,
 		}
 		if _, uerr := s.clientURIRepo.Create(clientURI); uerr != nil {
 			span.RecordError(uerr)
 		}
 	}
 
-	s.authEventService.Log(ctx, AuthEventInput{
+	s.authEventService.Log(ctx, authevent.AuthEventInput{
 		TenantID:    tenant.TenantID,
 		IPAddress:   middleware.ClientIPFromContext(ctx),
 		UserAgent:   ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),
-		Category:    AuthEventCategorySystem,
-		EventType:   AuthEventTypeOAuthAuthorize,
-		Severity:    AuthEventSeverityInfo,
-		Result:      AuthEventResultSuccess,
+		Category:    authevent.AuthEventCategorySystem,
+		EventType:   authevent.AuthEventTypeOAuthAuthorize,
+		Severity:    authevent.AuthEventSeverityInfo,
+		Result:      authevent.AuthEventResultSuccess,
 		Description: ptr.Ptr("Dynamic client registration"),
 	})
 

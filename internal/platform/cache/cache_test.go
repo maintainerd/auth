@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/alicebob/miniredis/v2"
-	"github.com/maintainerd/auth/internal/model"
+	"github.com/google/uuid"
 	"github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -27,16 +27,24 @@ func TestSetAndGetUserContext(t *testing.T) {
 	ctx := context.Background()
 
 	uc := &UserContext{
-		User:   &model.User{Username: "alice"},
-		Tenant: &model.Tenant{Name: "acme"},
+		User: &AuthUser{
+			UserUUID: uuid.New(),
+			Email:    "alice@example.com",
+			Fullname: "Alice Example",
+		},
+		Tenant: &AuthTenant{
+			TenantID:   42,
+			TenantUUID: uuid.New(),
+		},
 	}
 
 	c.SetUserContext(ctx, "sub1", "client1", uc)
 
 	got := c.GetUserContext(ctx, "sub1", "client1")
 	require.NotNil(t, got)
-	assert.Equal(t, "alice", got.User.Username)
-	assert.Equal(t, "acme", got.Tenant.Name)
+	assert.Equal(t, "alice@example.com", got.User.Email)
+	assert.Equal(t, "Alice Example", got.User.Fullname)
+	assert.Equal(t, int64(42), got.Tenant.TenantID)
 }
 
 func TestGetUserContext_Miss(t *testing.T) {
@@ -63,7 +71,7 @@ func TestSetUserContext_TTL(t *testing.T) {
 	c, mr := newTestCache(t)
 	ctx := context.Background()
 
-	uc := &UserContext{User: &model.User{Username: "bob"}}
+	uc := &UserContext{User: &AuthUser{UserUUID: uuid.New(), Email: "bob@example.com"}}
 	c.SetUserContext(ctx, "sub1", "client1", uc)
 
 	ttl := mr.TTL(userContextKey("sub1", "client1"))
@@ -78,7 +86,7 @@ func TestInvalidateUser(t *testing.T) {
 	c, _ := newTestCache(t)
 	ctx := context.Background()
 
-	uc := &UserContext{User: &model.User{Username: "alice"}}
+	uc := &UserContext{User: &AuthUser{UserUUID: uuid.New(), Email: "alice@example.com"}}
 	c.SetUserContext(ctx, "sub1", "client1", uc)
 
 	// Also set another key for same sub but different client
@@ -98,7 +106,7 @@ func TestInvalidateUserAll(t *testing.T) {
 	c, _ := newTestCache(t)
 	ctx := context.Background()
 
-	uc := &UserContext{User: &model.User{Username: "alice"}}
+	uc := &UserContext{User: &AuthUser{UserUUID: uuid.New(), Email: "alice@example.com"}}
 	c.SetUserContext(ctx, "sub1", "client1", uc)
 	c.SetUserContext(ctx, "sub1", "client2", uc)
 	c.SetUserContext(ctx, "sub2", "client1", uc)
@@ -118,7 +126,7 @@ func TestInvalidateAllUsers(t *testing.T) {
 	c, _ := newTestCache(t)
 	ctx := context.Background()
 
-	uc := &UserContext{User: &model.User{Username: "alice"}}
+	uc := &UserContext{User: &AuthUser{UserUUID: uuid.New(), Email: "alice@example.com"}}
 	c.SetUserContext(ctx, "sub1", "client1", uc)
 	c.SetUserContext(ctx, "sub2", "client2", uc)
 

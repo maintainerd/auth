@@ -11,9 +11,10 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/maintainerd/auth/internal/authevent"
 )
 
-func (d *Dispatcher) deliver(ctx context.Context, ep WebhookEndpoint, event *AuthEvent) {
+func (d *Dispatcher) deliver(ctx context.Context, ep WebhookEndpoint, event *authevent.AuthEvent) {
 	payload := buildPayload(event)
 	body, err := json.Marshal(payload)
 	if err != nil {

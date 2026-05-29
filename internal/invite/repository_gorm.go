@@ -4,6 +4,7 @@ import (
 	"errors"
 
 	"github.com/google/uuid"
+	"github.com/maintainerd/auth/internal/shared"
 	"gorm.io/gorm"
 )
 
@@ -87,7 +88,7 @@ func (r *inviteRepository) MarkAsUsed(inviteUUID uuid.UUID) error {
 	return r.DB().Model(&Invite{}).
 		Where("invite_uuid = ?", inviteUUID).
 		Updates(map[string]any{
-			"status":  StatusAccepted,
+			"status":  shared.StatusAccepted,
 			"used_at": gorm.Expr("now()"),
 		}).Error
 }
@@ -95,5 +96,19 @@ func (r *inviteRepository) MarkAsUsed(inviteUUID uuid.UUID) error {
 func (r *inviteRepository) RevokeByUUID(inviteUUID uuid.UUID) error {
 	return r.DB().Model(&Invite{}).
 		Where("invite_uuid = ?", inviteUUID).
-		Update("status", StatusRevoked).Error
+		Update("status", shared.StatusRevoked).Error
+}
+
+type InviteRoleRepository interface {
+	BaseRepositoryMethods[InviteRole]
+}
+
+type inviteRoleRepository struct {
+	*BaseRepository[InviteRole]
+}
+
+func NewInviteRoleRepository(db *gorm.DB) InviteRoleRepository {
+	return &inviteRoleRepository{
+		BaseRepository: NewBaseRepository[InviteRole](db, "invite_role_uuid", "invite_role_id"),
+	}
 }

@@ -35,10 +35,25 @@ type UserContext struct {
 	Client   *AuthClient   `json:"client"`
 }
 
+// AuthProfile holds optional profile fields cached alongside the user context.
+type AuthProfile struct {
+	DisplayName *string `json:"display_name,omitempty"`
+	FirstName   string  `json:"first_name,omitempty"`
+	LastName    *string `json:"last_name,omitempty"`
+	ProfileURL  *string `json:"profile_url,omitempty"`
+}
+
 type AuthUser struct {
-	UserID   int64      `json:"user_id"`
-	UserUUID uuid.UUID  `json:"user_uuid"`
-	Roles    []AuthRole `json:"roles,omitempty"`
+	UserID          int64        `json:"user_id"`
+	UserUUID        uuid.UUID    `json:"user_uuid"`
+	Roles           []AuthRole   `json:"roles,omitempty"`
+	Email           string       `json:"email,omitempty"`
+	IsEmailVerified bool         `json:"is_email_verified,omitempty"`
+	Phone           string       `json:"phone,omitempty"`
+	IsPhoneVerified bool         `json:"is_phone_verified,omitempty"`
+	Fullname        string       `json:"fullname,omitempty"`
+	UpdatedAt       time.Time    `json:"updated_at,omitempty"`
+	Profile         *AuthProfile `json:"profile,omitempty"`
 }
 
 type AuthRole struct {

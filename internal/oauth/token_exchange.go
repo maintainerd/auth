@@ -3,12 +3,14 @@ package oauth
 import (
 	"context"
 
+	"github.com/maintainerd/auth/internal/authevent"
 	"github.com/maintainerd/auth/internal/platform/apperror"
 	"github.com/maintainerd/auth/internal/platform/config"
 	"github.com/maintainerd/auth/internal/platform/jwt"
 	"github.com/maintainerd/auth/internal/platform/middleware"
 	"github.com/maintainerd/auth/internal/platform/ptr"
 	"github.com/maintainerd/auth/internal/platform/security"
+	"github.com/maintainerd/auth/internal/shared"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -32,7 +34,7 @@ type oauthTokenExchangeService struct {
 	db               *gorm.DB
 	clientRepo       ClientRepository
 	userRepo         UserRepository
-	authEventService AuthEventService
+	authEventService authevent.AuthEventService
 }
 
 // NewOAuthTokenExchangeService creates a new OAuthTokenExchangeService.
@@ -40,7 +42,7 @@ func NewOAuthTokenExchangeService(
 	db *gorm.DB,
 	clientRepo ClientRepository,
 	userRepo UserRepository,
-	authEventService AuthEventService,
+	authEventService authevent.AuthEventService,
 ) OAuthTokenExchangeService {
 	return &oauthTokenExchangeService{
 		db:               db,
@@ -128,14 +130,14 @@ func (s *oauthTokenExchangeService) Exchange(ctx context.Context, req OAuthToken
 		return nil, apperror.NewOAuthServerError("an unexpected error occurred")
 	}
 
-	s.authEventService.Log(ctx, AuthEventInput{
+	s.authEventService.Log(ctx, authevent.AuthEventInput{
 		TenantID:    client.TenantID,
 		IPAddress:   middleware.ClientIPFromContext(ctx),
 		UserAgent:   ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),
-		Category:    AuthEventCategoryAuthn,
-		EventType:   AuthEventTypeOAuthTokenExchange,
-		Severity:    AuthEventSeverityInfo,
-		Result:      AuthEventResultSuccess,
+		Category:    authevent.AuthEventCategoryAuthn,
+		EventType:   authevent.AuthEventTypeOAuthTokenExchange,
+		Severity:    authevent.AuthEventSeverityInfo,
+		Result:      authevent.AuthEventResultSuccess,
 		Description: ptr.Ptr("Token exchange completed"),
 	})
 
@@ -153,7 +155,7 @@ func (s *oauthTokenExchangeService) authenticateClient(creds OAuthClientCredenti
 	var client Client
 	err := s.db.
 		Preload("IdentityProvider").
-		Where("identifier = ? AND status = ?", creds.ClientID, StatusActive).
+		Where("identifier = ? AND status = ?", creds.ClientID, shared.StatusActive).
 		First(&client).Error
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {

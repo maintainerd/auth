@@ -7,6 +7,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/platform/apperror"
 	"github.com/maintainerd/auth/internal/platform/cache"
+	"github.com/maintainerd/auth/internal/shared"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -326,10 +327,10 @@ func (s *permissionService) SetActiveStatusByUUID(ctx context.Context, permissio
 			return apperror.NewValidation("default permission cannot be updated")
 		}
 
-		if permission.Status == StatusActive {
-			permission.Status = StatusInactive
+		if permission.Status == shared.StatusActive {
+			permission.Status = shared.StatusInactive
 		} else {
-			permission.Status = StatusActive
+			permission.Status = shared.StatusActive
 		}
 
 		_, err = txPermissionRepo.CreateOrUpdate(permission)
@@ -459,4 +460,36 @@ func toPermissionServiceDataResult(permission *Permission) *PermissionServiceDat
 	}
 
 	return result
+}
+
+type Permission struct {
+	PermissionID   int64          `gorm:"column:permission_id;primaryKey"`
+	PermissionUUID uuid.UUID      `gorm:"column:permission_uuid"`
+	TenantID       int64          `gorm:"column:tenant_id;not null"`
+	APIID          int64          `gorm:"column:api_id"`
+	Name           string         `gorm:"column:name"`
+	Description    string         `gorm:"column:description"`
+	Status         string         `gorm:"column:status;default:'active'"`
+	IsDefault      bool           `gorm:"column:is_default;default:false"`
+	IsSystem       bool           `gorm:"column:is_system;default:false"`
+	CreatedBy      *int64         `gorm:"column:created_by"`
+	UpdatedBy      *int64         `gorm:"column:updated_by"`
+	CreatedAt      time.Time      `gorm:"column:created_at;autoCreateTime"`
+	UpdatedAt      time.Time      `gorm:"column:updated_at;autoUpdateTime"`
+	DeletedAt      gorm.DeletedAt `gorm:"column:deleted_at;index"`
+
+	// Relationships
+	API   *API   `gorm:"foreignKey:APIID;references:APIID"`
+	Roles []Role `gorm:"many2many:role_permissions;joinForeignKey:PermissionID;joinReferences:RoleID"`
+}
+
+func (Permission) TableName() string {
+	return "permissions"
+}
+
+func (p *Permission) BeforeCreate(tx *gorm.DB) (err error) {
+	if p.PermissionUUID == uuid.Nil {
+		p.PermissionUUID = uuid.New()
+	}
+	return
 }

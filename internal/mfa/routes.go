@@ -10,7 +10,7 @@ import (
 func MFARoute(
 	r chi.Router,
 	mfaHandler *MFAHandler,
-	userService UserService,
+	userService middleware.UserContextProvider,
 	appCache *cache.Cache,
 ) {
 	r.Route("/mfa", func(r chi.Router) {

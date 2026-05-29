@@ -28,3 +28,15 @@ func NewBaseRepository[T any](db any, uuidFieldName, idFieldName string) *databa
 func parsePaginationQuery(r *http.Request) pagination.PaginationRequestDTO {
 	return pagination.ParseQuery(r)
 }
+
+func sanitizeOrder(sortBy, sortOrder, defaultCol string) string {
+	return database.SanitizeOrder(sortBy, sortOrder, defaultCol)
+}
+
+func sanitizeOrderPrefixed(prefix, sortBy, sortOrder, defaultCol string) string {
+	return database.SanitizeOrderPrefixed(prefix, sortBy, sortOrder, defaultCol)
+}
+
+func normalizePagination(page, limit int) (int, int) {
+	return database.NormalizePagination(page, limit)
+}

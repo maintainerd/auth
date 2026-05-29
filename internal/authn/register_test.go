@@ -10,6 +10,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/platform/jwt"
 	"github.com/maintainerd/auth/internal/platform/security"
+	"github.com/maintainerd/auth/internal/shared"
 	"github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -36,7 +37,7 @@ func defaultRegPublicMocks() *regMocks {
 			findByClientIDAndIdentityProviderFn: func(_, _ string) (*Client, error) {
 				return &Client{
 					ClientID:   1,
-					Status:     StatusActive,
+					Status:     shared.StatusActive,
 					Domain:     &domain,
 					Identifier: &identifier,
 					IdentityProvider: &IdentityProvider{
@@ -82,7 +83,7 @@ func defaultRegInternalMocks() *regMocks {
 			findByClientIDAndIdentityProviderFn: func(_, _ string) (*Client, error) {
 				return &Client{
 					ClientID:   1,
-					Status:     StatusActive,
+					Status:     shared.StatusActive,
 					Domain:     &domain,
 					Identifier: &identifier,
 					IdentityProvider: &IdentityProvider{
@@ -95,7 +96,7 @@ func defaultRegInternalMocks() *regMocks {
 			findSystemFn: func() (*Client, error) {
 				return &Client{
 					ClientID:   1,
-					Status:     StatusActive,
+					Status:     shared.StatusActive,
 					Domain:     &domain,
 					Identifier: &identifier,
 					IdentityProvider: &IdentityProvider{
@@ -302,7 +303,7 @@ func TestRegisterService_RegisterPublic(t *testing.T) {
 		m := defaultRegPublicMocks()
 		domain := "example.com"
 		m.client.findByClientIDAndIdentityProviderFn = func(_, _ string) (*Client, error) {
-			return &Client{Status: StatusInactive, Domain: &domain}, nil
+			return &Client{Status: shared.StatusInactive, Domain: &domain}, nil
 		}
 		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
 			m.userIdentity, m.role, m.invite, m.idp, nil, nil)
@@ -833,7 +834,7 @@ func TestRegisterService_RegisterInvite(t *testing.T) {
 		return &Invite{
 			InviteUUID:   uuid.New(),
 			InvitedEmail: "invite@test.com",
-			Status:       StatusPending,
+			Status:       shared.StatusPending,
 			ExpiresAt:    &future,
 			Roles:        []Role{{RoleID: 10}},
 		}
@@ -945,7 +946,7 @@ func TestRegisterService_RegisterInvite(t *testing.T) {
 		m := defaultRegInternalMocks()
 		past := time.Now().Add(-time.Hour)
 		m.invite.findByTokenFn = func(_ string) (*Invite, error) {
-			return &Invite{Status: StatusPending, ExpiresAt: &past}, nil
+			return &Invite{Status: shared.StatusPending, ExpiresAt: &past}, nil
 		}
 		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
 			m.userIdentity, m.role, m.invite, m.idp, nil, nil)
@@ -1176,7 +1177,7 @@ func TestRegisterService_RegisterInvitePublic(t *testing.T) {
 		return &Invite{
 			InviteUUID:   uuid.New(),
 			InvitedEmail: "invite@test.com",
-			Status:       StatusPending,
+			Status:       shared.StatusPending,
 			ExpiresAt:    &future,
 			Roles:        []Role{{RoleID: 10}},
 		}
@@ -1307,7 +1308,7 @@ func TestRegisterService_RegisterInvitePublic(t *testing.T) {
 		m := defaultRegPublicMocks()
 		past := time.Now().Add(-time.Hour)
 		m.invite.findByTokenFn = func(_ string) (*Invite, error) {
-			return &Invite{Status: StatusPending, ExpiresAt: &past}, nil
+			return &Invite{Status: shared.StatusPending, ExpiresAt: &past}, nil
 		}
 		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
 			m.userIdentity, m.role, m.invite, m.idp, nil, nil)

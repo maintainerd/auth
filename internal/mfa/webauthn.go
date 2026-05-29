@@ -9,6 +9,8 @@ import (
 
 	"github.com/go-webauthn/webauthn/protocol"
 	"github.com/go-webauthn/webauthn/webauthn"
+	"github.com/google/uuid"
+	"github.com/maintainerd/auth/internal/authevent"
 	"github.com/maintainerd/auth/internal/platform/apperror"
 	"github.com/maintainerd/auth/internal/platform/cache"
 	"github.com/maintainerd/auth/internal/platform/config"
@@ -44,7 +46,7 @@ type webAuthnService struct {
 	userRepo         UserRepository
 	webAuthnCredRepo UserWebAuthnCredentialRepository
 	sessionStore     cache.WebAuthnSessionStore
-	authEventService AuthEventService
+	authEventService authevent.AuthEventService
 }
 
 // NewWebAuthnService constructs a WebAuthnService.
@@ -53,7 +55,7 @@ func NewWebAuthnService(
 	userRepo UserRepository,
 	webAuthnCredRepo UserWebAuthnCredentialRepository,
 	sessionStore cache.WebAuthnSessionStore,
-	authEventService AuthEventService,
+	authEventService authevent.AuthEventService,
 ) (WebAuthnService, error) {
 	rpID := rpIDFromHostname(config.AppPublicHostname)
 	rpOrigins := []string{config.AppPublicHostname}
@@ -185,14 +187,14 @@ func (s *webAuthnService) FinishRegistration(ctx context.Context, userID int64, 
 
 	_ = s.deleteSession(ctx, userID, "reg")
 
-	s.authEventService.Log(ctx, AuthEventInput{
+	s.authEventService.Log(ctx, authevent.AuthEventInput{
 		ActorUserID: &userID,
 		IPAddress:   middleware.ClientIPFromContext(ctx),
 		UserAgent:   ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),
-		Category:    AuthEventCategoryAuthn,
-		EventType:   AuthEventTypeTokenCreated,
-		Severity:    AuthEventSeverityInfo,
-		Result:      AuthEventResultSuccess,
+		Category:    authevent.AuthEventCategoryAuthn,
+		EventType:   authevent.AuthEventTypeTokenCreated,
+		Severity:    authevent.AuthEventSeverityInfo,
+		Result:      authevent.AuthEventResultSuccess,
 		Description: ptr.Ptr("WebAuthn credential registered"),
 	})
 
@@ -262,14 +264,14 @@ func (s *webAuthnService) FinishAuthentication(ctx context.Context, userID int64
 
 	_ = s.deleteSession(ctx, userID, "auth")
 
-	s.authEventService.Log(ctx, AuthEventInput{
+	s.authEventService.Log(ctx, authevent.AuthEventInput{
 		ActorUserID: &userID,
 		IPAddress:   middleware.ClientIPFromContext(ctx),
 		UserAgent:   ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),
-		Category:    AuthEventCategoryAuthn,
-		EventType:   AuthEventTypeTokenCreated,
-		Severity:    AuthEventSeverityInfo,
-		Result:      AuthEventResultSuccess,
+		Category:    authevent.AuthEventCategoryAuthn,
+		EventType:   authevent.AuthEventTypeTokenCreated,
+		Severity:    authevent.AuthEventSeverityInfo,
+		Result:      authevent.AuthEventResultSuccess,
 		Description: ptr.Ptr("WebAuthn authentication succeeded"),
 	})
 
@@ -388,4 +390,32 @@ func joinTransports(ts []protocol.AuthenticatorTransport) string {
 		parts[i] = string(t)
 	}
 	return strings.Join(parts, ",")
+}
+
+// UserWebAuthnCredential stores a registered WebAuthn / FIDO2 credential.
+// A user may have multiple credentials (e.g. phone passkey + hardware key).
+type UserWebAuthnCredential struct {
+	CredentialID     int64      `gorm:"column:credential_id;primaryKey"`
+	CredentialUUID   uuid.UUID  `gorm:"column:credential_uuid"`
+	UserID           int64      `gorm:"column:user_id;not null"`
+	CredentialKeyID  string     `gorm:"column:credential_key_id;not null;unique"`
+	PublicKey        []byte     `gorm:"column:public_key;not null"`
+	AAGUID           *uuid.UUID `gorm:"column:aaguid;type:uuid"`
+	SignCount        int64      `gorm:"column:sign_count;default:0"`
+	Transport        string     `gorm:"column:transport"`
+	IsBackupEligible bool       `gorm:"column:is_backup_eligible;default:false"`
+	IsBackupState    bool       `gorm:"column:is_backup_state;default:false"`
+	Name             string     `gorm:"column:name;default:'Security Key'"`
+	LastUsedAt       *time.Time `gorm:"column:last_used_at"`
+	CreatedAt        time.Time  `gorm:"column:created_at;autoCreateTime"`
+	UpdatedAt        time.Time  `gorm:"column:updated_at;autoUpdateTime"`
+}
+
+func (UserWebAuthnCredential) TableName() string { return "user_webauthn_credentials" }
+
+func (c *UserWebAuthnCredential) BeforeCreate(tx *gorm.DB) error {
+	if c.CredentialUUID == uuid.Nil {
+		c.CredentialUUID = uuid.New()
+	}
+	return nil
 }

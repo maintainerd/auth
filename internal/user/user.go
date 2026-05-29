@@ -6,11 +6,14 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/maintainerd/auth/internal/authevent"
 	"github.com/maintainerd/auth/internal/platform/apperror"
 	"github.com/maintainerd/auth/internal/platform/cache"
 	"github.com/maintainerd/auth/internal/platform/middleware"
 	"github.com/maintainerd/auth/internal/platform/ptr"
 	"github.com/maintainerd/auth/internal/platform/security"
+	"github.com/maintainerd/auth/internal/secpolicy"
+	"github.com/maintainerd/auth/internal/shared"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -103,9 +106,9 @@ type userService struct {
 	userPoolRepo         UserPoolRepository
 	cacheInvalidator     cache.Invalidator
 	userTokenRepo        UserTokenRepository
-	securitySettingRepo  SecuritySettingRepository     // nil → use defaults
-	passwordHistoryRepo  UserPasswordHistoryRepository // nil → skip history
-	authEventService     AuthEventService
+	securitySettingRepo  secpolicy.SecuritySettingRepository // nil → use defaults
+	passwordHistoryRepo  UserPasswordHistoryRepository       // nil → skip history
+	authEventService     authevent.AuthEventService
 }
 
 func NewUserService(
@@ -120,9 +123,9 @@ func NewUserService(
 	userPoolRepo UserPoolRepository,
 	cacheInvalidator cache.Invalidator,
 	userTokenRepo UserTokenRepository,
-	securitySettingRepo SecuritySettingRepository,
+	securitySettingRepo secpolicy.SecuritySettingRepository,
 	passwordHistoryRepo UserPasswordHistoryRepository,
-	authEventService AuthEventService,
+	authEventService authevent.AuthEventService,
 ) UserService {
 	return &userService{
 		db:                   db,
@@ -176,7 +179,7 @@ func (s *userService) findDefaultRole(roleRepo RoleRepository, tenantID int64) (
 	}
 
 	// Fallback: if no default role found, try to find "registered" role
-	role, err := roleRepo.FindByNameAndTenantID(RoleRegistered, tenantID)
+	role, err := roleRepo.FindByNameAndTenantID(shared.RoleRegistered, tenantID)
 	if err != nil {
 		return nil, err
 	}
@@ -421,7 +424,7 @@ func (s *userService) Create(ctx context.Context, username string, fullname stri
 			TenantID: targetTenant.TenantID,
 			UserID:   newUser.UserID,
 			ClientID: defaultClient.ClientID,
-			Provider: ProviderDefault,
+			Provider: shared.ProviderDefault,
 			Sub:      newUser.UserUUID.String(), // Use user UUID as sub for default provider
 			Metadata: datatypes.JSON([]byte(`{}`)),
 		}
@@ -469,16 +472,16 @@ func (s *userService) Create(ctx context.Context, username string, fullname stri
 	}
 
 	span.SetStatus(codes.Ok, "")
-	s.authEventService.Log(ctx, AuthEventInput{
+	s.authEventService.Log(ctx, authevent.AuthEventInput{
 		TenantID:     capturedTenantID,
 		ActorUserID:  &capturedActorID,
 		TargetUserID: &createdUser.UserID,
 		IPAddress:    middleware.ClientIPFromContext(ctx),
 		UserAgent:    ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),
-		Category:     AuthEventCategoryUser,
-		EventType:    AuthEventTypeUserCreated,
-		Severity:     AuthEventSeverityInfo,
-		Result:       AuthEventResultSuccess,
+		Category:     authevent.AuthEventCategoryUser,
+		EventType:    authevent.AuthEventTypeUserCreated,
+		Severity:     authevent.AuthEventSeverityInfo,
+		Result:       authevent.AuthEventResultSuccess,
 		Description:  ptr.Ptr(fmt.Sprintf("User created: %s", createdUser.Username)),
 	})
 	return toUserServiceDataResult(createdUser), nil
@@ -597,16 +600,16 @@ func (s *userService) Update(ctx context.Context, userUUID uuid.UUID, tenantID i
 
 	span.SetStatus(codes.Ok, "")
 	s.invalidateUserCache(ctx, updatedUser.UserIdentities)
-	s.authEventService.Log(ctx, AuthEventInput{
+	s.authEventService.Log(ctx, authevent.AuthEventInput{
 		TenantID:     tenantID,
 		ActorUserID:  &capturedActorID,
 		TargetUserID: &updatedUser.UserID,
 		IPAddress:    middleware.ClientIPFromContext(ctx),
 		UserAgent:    ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),
-		Category:     AuthEventCategoryUser,
-		EventType:    AuthEventTypeUserUpdated,
-		Severity:     AuthEventSeverityInfo,
-		Result:       AuthEventResultSuccess,
+		Category:     authevent.AuthEventCategoryUser,
+		EventType:    authevent.AuthEventTypeUserUpdated,
+		Severity:     authevent.AuthEventSeverityInfo,
+		Result:       authevent.AuthEventResultSuccess,
 		Description:  ptr.Ptr(fmt.Sprintf("User updated: %s", updatedUser.Username)),
 	})
 	return toUserServiceDataResult(updatedUser), nil
@@ -659,16 +662,16 @@ func (s *userService) SetStatus(ctx context.Context, userUUID uuid.UUID, tenantI
 
 	span.SetStatus(codes.Ok, "")
 	s.invalidateUserCache(ctx, updatedUser.UserIdentities)
-	s.authEventService.Log(ctx, AuthEventInput{
+	s.authEventService.Log(ctx, authevent.AuthEventInput{
 		TenantID:     tenantID,
 		ActorUserID:  &updaterUser.UserID,
 		TargetUserID: &updatedUser.UserID,
 		IPAddress:    middleware.ClientIPFromContext(ctx),
 		UserAgent:    ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),
-		Category:     AuthEventCategoryUser,
-		EventType:    AuthEventTypeUserUpdated,
-		Severity:     AuthEventSeverityInfo,
-		Result:       AuthEventResultSuccess,
+		Category:     authevent.AuthEventCategoryUser,
+		EventType:    authevent.AuthEventTypeUserUpdated,
+		Severity:     authevent.AuthEventSeverityInfo,
+		Result:       authevent.AuthEventResultSuccess,
 		Description:  ptr.Ptr(fmt.Sprintf("User status set to %s: %s", status, user.Username)),
 	})
 	return toUserServiceDataResult(updatedUser), nil
@@ -850,16 +853,16 @@ func (s *userService) DeleteByUUID(ctx context.Context, userUUID uuid.UUID, tena
 	}
 
 	span.SetStatus(codes.Ok, "")
-	s.authEventService.Log(ctx, AuthEventInput{
+	s.authEventService.Log(ctx, authevent.AuthEventInput{
 		TenantID:     tenantID,
 		ActorUserID:  &deleterUser.UserID,
 		TargetUserID: &user.UserID,
 		IPAddress:    middleware.ClientIPFromContext(ctx),
 		UserAgent:    ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),
-		Category:     AuthEventCategoryUser,
-		EventType:    AuthEventTypeUserDeleted,
-		Severity:     AuthEventSeverityWarn,
-		Result:       AuthEventResultSuccess,
+		Category:     authevent.AuthEventCategoryUser,
+		EventType:    authevent.AuthEventTypeUserDeleted,
+		Severity:     authevent.AuthEventSeverityWarn,
+		Result:       authevent.AuthEventResultSuccess,
 		Description:  ptr.Ptr(fmt.Sprintf("User deleted: %s", user.Username)),
 	})
 	return toUserServiceDataResult(user), nil
@@ -948,15 +951,15 @@ func (s *userService) AssignUserRoles(ctx context.Context, userUUID uuid.UUID, r
 	if s.userTokenRepo != nil {
 		_ = s.userTokenRepo.RevokeAllSessionsByUserID(userWithRoles.UserID)
 	}
-	s.authEventService.Log(ctx, AuthEventInput{
+	s.authEventService.Log(ctx, authevent.AuthEventInput{
 		TenantID:     tenantID,
 		TargetUserID: &userWithRoles.UserID,
 		IPAddress:    middleware.ClientIPFromContext(ctx),
 		UserAgent:    ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),
-		Category:     AuthEventCategoryAuthz,
-		EventType:    AuthEventTypePrivilegePermissionsChanged,
-		Severity:     AuthEventSeverityInfo,
-		Result:       AuthEventResultSuccess,
+		Category:     authevent.AuthEventCategoryAuthz,
+		EventType:    authevent.AuthEventTypePrivilegePermissionsChanged,
+		Severity:     authevent.AuthEventSeverityInfo,
+		Result:       authevent.AuthEventResultSuccess,
 		Description:  ptr.Ptr(fmt.Sprintf("Roles assigned to user: %s", userWithRoles.Username)),
 	})
 
@@ -1029,15 +1032,15 @@ func (s *userService) RemoveUserRole(ctx context.Context, userUUID uuid.UUID, ro
 	if s.userTokenRepo != nil {
 		_ = s.userTokenRepo.RevokeAllSessionsByUserID(userWithRoles.UserID)
 	}
-	s.authEventService.Log(ctx, AuthEventInput{
+	s.authEventService.Log(ctx, authevent.AuthEventInput{
 		TenantID:     tenantID,
 		TargetUserID: &userWithRoles.UserID,
 		IPAddress:    middleware.ClientIPFromContext(ctx),
 		UserAgent:    ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),
-		Category:     AuthEventCategoryAuthz,
-		EventType:    AuthEventTypePrivilegePermissionsChanged,
-		Severity:     AuthEventSeverityInfo,
-		Result:       AuthEventResultSuccess,
+		Category:     authevent.AuthEventCategoryAuthz,
+		EventType:    authevent.AuthEventTypePrivilegePermissionsChanged,
+		Severity:     authevent.AuthEventSeverityInfo,
+		Result:       authevent.AuthEventResultSuccess,
 		Description:  ptr.Ptr(fmt.Sprintf("Role removed from user: %s", userWithRoles.Username)),
 	})
 
@@ -1219,4 +1222,58 @@ func (s *userService) FindBySubAndClientID(ctx context.Context, sub string, clie
 	}
 	span.SetStatus(codes.Ok, "")
 	return user, nil
+}
+
+type User struct {
+	UserID   int64     `gorm:"column:user_id;primaryKey"`
+	UserUUID uuid.UUID `gorm:"column:user_uuid;unique"`
+	Username string    `gorm:"column:username"`
+	// Fullname is not persisted on users — it lives in Profile (first_name + last_name + display_name).
+	// Kept as a transient field for API compatibility; populated by services when loading users
+	// with their Profile, and split into Profile fields when creating/updating.
+	Fullname           string         `gorm:"-"`
+	Email              string         `gorm:"column:email"`
+	Phone              string         `gorm:"column:phone"`
+	Password           *string        `gorm:"column:password" json:"-"` // nullable for external users
+	IsEmailVerified    bool           `gorm:"column:is_email_verified;default:false"`
+	IsPhoneVerified    bool           `gorm:"column:is_phone_verified;default:false"`
+	IsProfileCompleted bool           `gorm:"column:is_profile_completed;default:false"`
+	IsAccountCompleted bool           `gorm:"column:is_account_completed;default:false"`
+	Status             string         `gorm:"column:status;default:'active'"`
+	Metadata           datatypes.JSON `gorm:"column:metadata;type:jsonb;default:'{}'"`
+	// Feature: Force password change on next login
+	ForcePasswordChange bool       `gorm:"column:force_password_change;default:false"`
+	PasswordChangedAt   *time.Time `gorm:"column:password_changed_at"`
+	// Feature: Email change with re-verification
+	PendingEmail            *string    `gorm:"column:pending_email"`
+	EmailChangeOTP          *string    `gorm:"column:email_change_otp"`
+	EmailChangeOTPExpiresAt *time.Time `gorm:"column:email_change_otp_expires_at"`
+
+	// MFA status
+	IsTOTPEnabled     bool       `gorm:"column:is_totp_enabled;default:false"`
+	IsWebAuthnEnabled bool       `gorm:"column:is_webauthn_enabled;default:false"`
+	MFAEnabledAt      *time.Time `gorm:"column:mfa_enabled_at"`
+
+	CreatedAt time.Time      `gorm:"column:created_at;autoCreateTime"`
+	UpdatedAt time.Time      `gorm:"column:updated_at;autoUpdateTime"`
+	DeletedAt gorm.DeletedAt `gorm:"column:deleted_at;index"`
+
+	// Relationships
+	UserIdentities []UserIdentity `gorm:"foreignKey:UserID;references:UserID;constraint:OnDelete:CASCADE"`
+	UserRoles      []UserRole     `gorm:"foreignKey:UserID;references:UserID"`
+	Roles          []Role         `gorm:"many2many:user_roles;joinForeignKey:UserID;joinReferences:RoleID"`
+	UserTokens     []UserToken    `gorm:"foreignKey:UserID;references:UserID;constraint:OnDelete:CASCADE"`
+	Profile        *Profile       `gorm:"foreignKey:UserID;references:UserID"`
+	UserSetting    *UserSetting   `gorm:"foreignKey:UserID;references:UserID"`
+}
+
+func (User) TableName() string {
+	return "users"
+}
+
+func (u *User) BeforeCreate(tx *gorm.DB) (err error) {
+	if u.UserUUID == uuid.Nil {
+		u.UserUUID = uuid.New()
+	}
+	return
 }

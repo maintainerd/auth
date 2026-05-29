@@ -9,6 +9,8 @@ import (
 	"github.com/maintainerd/auth/internal/platform/jwt"
 	"github.com/maintainerd/auth/internal/platform/ptr"
 	"github.com/maintainerd/auth/internal/platform/security"
+	"github.com/maintainerd/auth/internal/secpolicy"
+	"github.com/maintainerd/auth/internal/shared"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -33,8 +35,8 @@ type registerService struct {
 	roleRepo             RoleRepository
 	inviteRepo           InviteRepository
 	identityProviderRepo IdentityProviderRepository
-	securitySettingRepo  SecuritySettingRepository     // nil → use defaults
-	passwordHistoryRepo  UserPasswordHistoryRepository // nil → skip history
+	securitySettingRepo  secpolicy.SecuritySettingRepository // nil → use defaults
+	passwordHistoryRepo  UserPasswordHistoryRepository       // nil → skip history
 }
 
 func NewRegistrationService(
@@ -47,7 +49,7 @@ func NewRegistrationService(
 	roleRepo RoleRepository,
 	inviteRepo InviteRepository,
 	identityProviderRepo IdentityProviderRepository,
-	securitySettingRepo SecuritySettingRepository,
+	securitySettingRepo secpolicy.SecuritySettingRepository,
 	passwordHistoryRepo UserPasswordHistoryRepository,
 ) RegisterService {
 	return &registerService{
@@ -85,7 +87,7 @@ func (s *registerService) findDefaultRole(roleRepo RoleRepository, tenantID int6
 	}
 
 	// Fallback: if no default role found, try to find "registered" role
-	role, err := roleRepo.FindByNameAndTenantID(RoleRegistered, tenantID)
+	role, err := roleRepo.FindByNameAndTenantID(shared.RoleRegistered, tenantID)
 	if err != nil {
 		return nil, err
 	}
@@ -140,7 +142,7 @@ func (s *registerService) RegisterPublic(
 			return txErr
 		}
 		if Client == nil ||
-			Client.Status != StatusActive ||
+			Client.Status != shared.StatusActive ||
 			Client.Domain == nil || *Client.Domain == "" {
 			return apperror.NewValidation("invalid or inactive auth client")
 		}
@@ -206,7 +208,7 @@ func (s *registerService) RegisterPublic(
 			Username:          username,
 			Fullname:          fullname,
 			Password:          ptr.Ptr(string(hashed)),
-			Status:            StatusActive,
+			Status:            shared.StatusActive,
 			PasswordChangedAt: &now,
 		}
 
@@ -232,7 +234,7 @@ func (s *registerService) RegisterPublic(
 		userIdentity := &UserIdentity{
 			UserID:   createdUser.UserID,
 			ClientID: Client.ClientID,
-			Provider: ProviderDefault,
+			Provider: shared.ProviderDefault,
 			Sub:      uuid.New().String(),
 			Metadata: datatypes.JSON([]byte(`{}`)),
 		}
@@ -325,7 +327,7 @@ func (s *registerService) Register(
 		}
 
 		if Client == nil ||
-			Client.Status != StatusActive ||
+			Client.Status != shared.StatusActive ||
 			Client.Domain == nil || *Client.Domain == "" {
 			return apperror.NewNotFoundWithReason("auth client not found or inactive")
 		}
@@ -360,7 +362,7 @@ func (s *registerService) Register(
 			Username:          username,
 			Fullname:          fullname,
 			Password:          ptr.Ptr(string(hashed)),
-			Status:            StatusActive,
+			Status:            shared.StatusActive,
 			PasswordChangedAt: &now,
 		}
 
@@ -387,7 +389,7 @@ func (s *registerService) Register(
 			TenantID: tenantId,
 			UserID:   createdUser.UserID,
 			ClientID: Client.ClientID,
-			Provider: ProviderDefault,
+			Provider: shared.ProviderDefault,
 			Sub:      uuid.New().String(),
 			Metadata: datatypes.JSON([]byte(`{}`)),
 		}
@@ -472,7 +474,7 @@ func (s *registerService) RegisterInvite(
 		}
 
 		if Client == nil ||
-			Client.Status != StatusActive ||
+			Client.Status != shared.StatusActive ||
 			Client.Domain == nil || *Client.Domain == "" {
 			return apperror.NewNotFoundWithReason("auth client not found or inactive")
 		}
@@ -485,7 +487,7 @@ func (s *registerService) RegisterInvite(
 		if txErr != nil {
 			return apperror.NewUnauthorized("invalid invite token")
 		}
-		if invite == nil || invite.Status != StatusPending || (invite.ExpiresAt != nil && invite.ExpiresAt.Before(time.Now())) {
+		if invite == nil || invite.Status != shared.StatusPending || (invite.ExpiresAt != nil && invite.ExpiresAt.Before(time.Now())) {
 			return apperror.NewUnauthorized("invite token is invalid or expired")
 		}
 
@@ -517,7 +519,7 @@ func (s *registerService) RegisterInvite(
 			Fullname:          username, // Use username as fullname since invite doesn't have fullname
 			Password:          ptr.Ptr(string(hashed)),
 			Email:             invite.InvitedEmail,
-			Status:            StatusActive,
+			Status:            shared.StatusActive,
 			PasswordChangedAt: &now,
 		}
 
@@ -534,7 +536,7 @@ func (s *registerService) RegisterInvite(
 			TenantID: tenantId,
 			UserID:   createdUser.UserID,
 			ClientID: Client.ClientID,
-			Provider: ProviderDefault,
+			Provider: shared.ProviderDefault,
 			Sub:      uuid.New().String(),
 			Metadata: datatypes.JSON([]byte(`{}`)),
 		}
@@ -628,7 +630,7 @@ func (s *registerService) RegisterInvitePublic(
 			return txErr
 		}
 		if Client == nil ||
-			Client.Status != StatusActive ||
+			Client.Status != shared.StatusActive ||
 			Client.Domain == nil || *Client.Domain == "" {
 			return apperror.NewValidation("invalid or inactive auth client")
 		}
@@ -655,7 +657,7 @@ func (s *registerService) RegisterInvitePublic(
 		}
 
 		// Check invite status and expiration
-		if invite.Status != StatusPending {
+		if invite.Status != shared.StatusPending {
 			return apperror.NewUnauthorized("invite has already been used or is no longer valid")
 		}
 		if invite.ExpiresAt != nil && time.Now().After(*invite.ExpiresAt) {
@@ -698,7 +700,7 @@ func (s *registerService) RegisterInvitePublic(
 			Username:          username,
 			Email:             invite.InvitedEmail, // Always use the invited email
 			Password:          ptr.Ptr(string(hashed)),
-			Status:            StatusActive,
+			Status:            shared.StatusActive,
 			IsEmailVerified:   true, // Auto-verify email for invited users
 			PasswordChangedAt: &now,
 		}
@@ -716,7 +718,7 @@ func (s *registerService) RegisterInvitePublic(
 			TenantID: tenantId,
 			UserID:   createdUser.UserID,
 			ClientID: Client.ClientID,
-			Provider: ProviderDefault,
+			Provider: shared.ProviderDefault,
 			Sub:      uuid.New().String(),
 			Metadata: datatypes.JSON([]byte(`{}`)),
 		}

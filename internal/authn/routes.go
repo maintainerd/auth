@@ -31,3 +31,174 @@ func EmailVerificationPublicRoute(r chi.Router, emailVerificationHandler *EmailV
 		r.Post("/email-verification/verify", emailVerificationHandler.VerifyEmail)
 	})
 }
+
+// ForgotPasswordRoute handles internal forgot password routes (no client_id/provider_id required)
+func ForgotPasswordRoute(r chi.Router, forgotPasswordHandler *ForgotPasswordHandler) {
+	// Apply stricter limits for auth endpoints (inherits global security middleware)
+	r.Group(func(r chi.Router) {
+		// Stricter request size limit for auth endpoints (1MB vs 10MB global)
+		r.Use(middleware.RequestSizeLimitMiddleware(1024 * 1024))
+
+		// Stricter timeout for auth operations (30s vs 60s global)
+		r.Use(middleware.TimeoutMiddleware(30 * time.Second))
+
+		// Internal forgot password (no client_id/provider_id required)
+		r.Post("/forgot-password", forgotPasswordHandler.ForgotPassword)
+	})
+}
+
+// ForgotPasswordPublicRoute handles public forgot password routes (requires client_id and provider_id)
+func ForgotPasswordPublicRoute(r chi.Router, forgotPasswordHandler *ForgotPasswordHandler) {
+	// Apply stricter limits for auth endpoints (inherits global security middleware)
+	r.Group(func(r chi.Router) {
+		// Stricter request size limit for auth endpoints (1MB vs 10MB global)
+		r.Use(middleware.RequestSizeLimitMiddleware(1024 * 1024))
+
+		// Stricter timeout for auth operations (30s vs 60s global)
+		r.Use(middleware.TimeoutMiddleware(30 * time.Second))
+
+		// Public forgot password (with client_id and provider_id)
+		r.Post("/forgot-password", forgotPasswordHandler.ForgotPasswordPublic)
+	})
+}
+
+// LoginRoute handles internal login routes (no client_id/provider_id required)
+func LoginRoute(r chi.Router, loginHandler *LoginHandler) {
+	// Apply stricter limits for auth endpoints (inherits global security middleware)
+	r.Group(func(r chi.Router) {
+		// Stricter request size limit for auth endpoints (1MB vs 10MB global)
+		r.Use(middleware.RequestSizeLimitMiddleware(1024 * 1024))
+
+		// Stricter timeout for auth operations (30s vs 60s global)
+		r.Use(middleware.TimeoutMiddleware(30 * time.Second))
+
+		// Internal login (no client_id/provider_id required)
+		r.Post("/login", loginHandler.Login)
+
+		// Logout endpoint (clears cookies if they exist)
+		r.Post("/logout", loginHandler.Logout)
+	})
+}
+
+// LoginPublicRoute handles public login routes (requires client_id and provider_id)
+func LoginPublicRoute(r chi.Router, loginHandler *LoginHandler) {
+	// Apply stricter limits for auth endpoints (inherits global security middleware)
+	r.Group(func(r chi.Router) {
+		// Stricter request size limit for auth endpoints (1MB vs 10MB global)
+		r.Use(middleware.RequestSizeLimitMiddleware(1024 * 1024))
+
+		// Stricter timeout for auth operations (30s vs 60s global)
+		r.Use(middleware.TimeoutMiddleware(30 * time.Second))
+
+		// Public login (with client_id and provider_id)
+		r.Post("/login", loginHandler.LoginPublic)
+
+		// Logout endpoint (clears cookies if they exist)
+		r.Post("/logout", loginHandler.Logout)
+	})
+}
+
+// MagicLinkRoute mounts internal magic-link routes (no client_id/provider_id required).
+// Mounted on the management surface (port 8080).
+func MagicLinkRoute(r chi.Router, magicLinkHandler *MagicLinkHandler) {
+	r.Group(func(r chi.Router) {
+		r.Use(middleware.RequestSizeLimitMiddleware(1024 * 1024))
+		r.Use(middleware.TimeoutMiddleware(30 * time.Second))
+
+		r.Post("/magic-link/send", magicLinkHandler.SendMagicLink)
+		r.Post("/magic-link/verify", magicLinkHandler.VerifyMagicLink)
+	})
+}
+
+// MagicLinkPublicRoute mounts public magic-link routes.
+// `send` requires client_id + provider_id; `verify` requires the same parameters
+// (carried in the signed link).
+// Mounted on the public surface (port 8081).
+func MagicLinkPublicRoute(r chi.Router, magicLinkHandler *MagicLinkHandler) {
+	r.Group(func(r chi.Router) {
+		r.Use(middleware.RequestSizeLimitMiddleware(1024 * 1024))
+		r.Use(middleware.TimeoutMiddleware(30 * time.Second))
+
+		r.Post("/magic-link/send", magicLinkHandler.SendMagicLinkPublic)
+		r.Post("/magic-link/verify", magicLinkHandler.VerifyMagicLink)
+	})
+}
+
+// RegisterRoute handles internal register routes (no client_id/provider_id required)
+func RegisterRoute(r chi.Router, registerHandler *RegisterHandler) {
+	// Apply stricter limits for auth endpoints (inherits global security middleware)
+	r.Group(func(r chi.Router) {
+		// Stricter request size limit for auth endpoints (1MB vs 10MB global)
+		r.Use(middleware.RequestSizeLimitMiddleware(1024 * 1024))
+
+		// Stricter timeout for auth operations (30s vs 60s global)
+		r.Use(middleware.TimeoutMiddleware(30 * time.Second))
+
+		// Internal registration (no client_id/provider_id required)
+		r.Post("/register", registerHandler.Register)
+
+		// Internal registration with invite (no client_id/provider_id required)
+		r.Post("/register/invite", registerHandler.RegisterInvite)
+	})
+}
+
+// RegisterPublicRoute handles public register routes (requires client_id and provider_id)
+func RegisterPublicRoute(r chi.Router, registerHandler *RegisterHandler) {
+	// Apply stricter limits for auth endpoints (inherits global security middleware)
+	r.Group(func(r chi.Router) {
+		// Stricter request size limit for auth endpoints (1MB vs 10MB global)
+		r.Use(middleware.RequestSizeLimitMiddleware(1024 * 1024))
+
+		// Stricter timeout for auth operations (30s vs 60s global)
+		r.Use(middleware.TimeoutMiddleware(30 * time.Second))
+
+		// Public registration (with client_id and provider_id)
+		r.Post("/register", registerHandler.RegisterPublic)
+
+		// Public registration with invite
+		r.Post("/register/invite", registerHandler.RegisterInvitePublic)
+	})
+}
+
+// ResetPasswordRoute handles internal reset password routes (no client_id/provider_id required)
+func ResetPasswordRoute(r chi.Router, resetPasswordHandler *ResetPasswordHandler) {
+	// Apply stricter limits for auth endpoints (inherits global security middleware)
+	r.Group(func(r chi.Router) {
+		// Stricter request size limit for auth endpoints (1MB vs 10MB global)
+		r.Use(middleware.RequestSizeLimitMiddleware(1024 * 1024))
+
+		// Stricter timeout for auth operations (30s vs 60s global)
+		r.Use(middleware.TimeoutMiddleware(30 * time.Second))
+
+		// Internal reset password (no client_id/provider_id required)
+		r.Post("/reset-password", resetPasswordHandler.ResetPassword)
+	})
+}
+
+// ResetPasswordPublicRoute handles public reset password routes (requires client_id and provider_id)
+func ResetPasswordPublicRoute(r chi.Router, resetPasswordHandler *ResetPasswordHandler) {
+	// Apply stricter limits for auth endpoints (inherits global security middleware)
+	r.Group(func(r chi.Router) {
+		// Stricter request size limit for auth endpoints (1MB vs 10MB global)
+		r.Use(middleware.RequestSizeLimitMiddleware(1024 * 1024))
+
+		// Stricter timeout for auth operations (30s vs 60s global)
+		r.Use(middleware.TimeoutMiddleware(30 * time.Second))
+
+		// Public reset password (with client_id and provider_id)
+		r.Post("/reset-password", resetPasswordHandler.ResetPasswordPublic)
+	})
+}
+
+// SMSLoginRoute mounts unauthenticated SMS one-time-code login endpoints.
+func SMSLoginRoute(
+	r chi.Router,
+	smsLoginHandler *SMSLoginHandler,
+) {
+	r.Route("/sms-login", func(r chi.Router) {
+		// Send OTP to phone number (unauthenticated)
+		r.Post("/send", smsLoginHandler.SendOTP)
+		// Verify OTP and obtain tokens (unauthenticated)
+		r.Post("/verify", smsLoginHandler.VerifyOTP)
+	})
+}

@@ -11,14 +11,10 @@
             "id": "826903432839583c",
             "type": "leaf",
             "state": {
-              "type": "markdown",
-              "state": {
-                "file": "releases/v1.0.0.md",
-                "mode": "source",
-                "source": false
-              },
+              "type": "empty",
+              "state": {},
               "icon": "lucide-file",
-              "title": "v1.0.0"
+              "title": "New tab"
             }
           }
         ]
@@ -185,20 +181,22 @@
   },
   "active": "826903432839583c",
   "lastOpenFiles": [
-    "releases/v1.0.0.md.tmp.106651.801a6cfe4062",
-    "releases/v1.0.0.md.tmp.106651.fdedbc0b6078",
-    "releases/v1.0.0.md.tmp.106651.e91b8cc9eb2f",
-    "releases/v1.0.0.md.tmp.106651.e8a1103709bf",
-    "releases/v1.0.0.md.tmp.106651.0f411bf0955d",
-    "releases/v1.0.0.md.tmp.106651.35718714645b",
-    "releases/v2.0.0.md",
-    "releases/v1.0.0.md",
-    "releases/v1.0.0.md.tmp.106651.0f688e8f71b6",
-    "releases/v2.0.0.md.tmp.106651.7745fa261ab4",
-    "releases/v2.0.0.md.tmp.106651.738006d601b8",
-    "releases/v2.0.0.md.tmp.106651.9c32fa9ab37a",
-    "releases/v2.0.0.md.tmp.106651.7e5a305f5a28",
+    "planning/architecture.md",
+    "architecture-target.md",
+    "planning/architecture-target.md",
+    "planning",
+    "architecture-target.md.tmp.119434.e1ce71cd1c0b",
+    "architecture-target.md.tmp.119434.cac0fddab58f",
+    "architecture-target.md.tmp.119434.ad4418f3fcf6",
+    "architecture-target.md.tmp.119434.fad1d58cf977",
+    "architecture-target.md.tmp.119434.cba7fcab1e2a",
+    "architecture-target.md.tmp.119434.d1cf5c85b73f",
+    "architecture-target.md.tmp.119434.8f7e32749b20",
+    "architecture-target.md.tmp.119434.4d714452160c",
+    "architecture-target.md.tmp.119434.8560fad95215",
     "features.md",
+    "releases/v1.0.0.md",
+    "releases/v2.0.0.md",
     "feature-list.md",
     "apis/api-keys/api-key-apis.md",
     "apis/oauth/oauth2.md",
@@ -218,8 +216,6 @@
     "apis/templates/sms-template.md",
     "apis/client/client-uris.md",
     "apis/profile/user-settings.md",
-    "apis/auth/forgot-password.md",
-    "apis/client/client-secret.md",
-    "apis/auth/register-public.md"
+    "apis/auth/forgot-password.md"
   ]
 }

@@ -7,6 +7,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/platform/crypto"
+	"github.com/maintainerd/auth/internal/shared"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -18,7 +19,7 @@ func newAPI(id int64, name string, tenantID int64) *API {
 		APIUUID:  uuid.New(),
 		Name:     name,
 		TenantID: tenantID,
-		Status:   StatusActive,
+		Status:   shared.StatusActive,
 	}
 }
 
@@ -179,7 +180,7 @@ func TestAPIService_Create(t *testing.T) {
 			},
 		}
 		svc := NewAPIService(db, apiRepo, &mockServiceRepo{}, &mockTenantServiceRepo{})
-		_, err := svc.Create(context.Background(), tenantID, "users-api", "", "", "rest", StatusActive, false, serviceUUID)
+		_, err := svc.Create(context.Background(), tenantID, "users-api", "", "", "rest", shared.StatusActive, false, serviceUUID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "already exists")
 	})
@@ -192,7 +193,7 @@ func TestAPIService_Create(t *testing.T) {
 			findByUUIDFn: func(_ any, _ ...string) (*Service, error) { return nil, nil },
 		}
 		svc := NewAPIService(db, &mockAPIRepo{}, svcRepo, &mockTenantServiceRepo{})
-		_, err := svc.Create(context.Background(), tenantID, "users-api", "", "", "rest", StatusActive, false, serviceUUID)
+		_, err := svc.Create(context.Background(), tenantID, "users-api", "", "", "rest", shared.StatusActive, false, serviceUUID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "service not found")
 	})
@@ -211,7 +212,7 @@ func TestAPIService_Create(t *testing.T) {
 			},
 		}
 		svc := NewAPIService(db, &mockAPIRepo{}, svcRepo, &mockTenantServiceRepo{})
-		_, err := svc.Create(context.Background(), tenantID, "users-api", "", "", "rest", StatusActive, false, serviceUUID)
+		_, err := svc.Create(context.Background(), tenantID, "users-api", "", "", "rest", shared.StatusActive, false, serviceUUID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "rand failure")
 	})
@@ -230,7 +231,7 @@ func TestAPIService_Create(t *testing.T) {
 			findByUUIDFn: func(_ any, _ ...string) (*API, error) { return createdAPI, nil },
 		}
 		svc := NewAPIService(db, apiRepo, svcRepo, &mockTenantServiceRepo{})
-		result, err := svc.Create(context.Background(), tenantID, "users-api", "", "", "rest", StatusActive, false, serviceUUID)
+		result, err := svc.Create(context.Background(), tenantID, "users-api", "", "", "rest", shared.StatusActive, false, serviceUUID)
 		require.NoError(t, err)
 		assert.NotNil(t, result)
 	})
@@ -605,7 +606,7 @@ func TestAPIService_Update(t *testing.T) {
 		assert.Contains(t, err.Error(), "access denied")
 	})
 
-	t.Run("service repo FindByUUID error → service not found", func(t *testing.T) {
+	t.Run("service repo authevent.FindByUUID error → service not found", func(t *testing.T) {
 		db, mock := newMockGormDB(t)
 		mock.ExpectBegin()
 		mock.ExpectRollback()

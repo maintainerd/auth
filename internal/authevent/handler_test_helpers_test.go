@@ -8,6 +8,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/platform/apperror"
+	"github.com/maintainerd/auth/internal/platform/cache"
 	"github.com/maintainerd/auth/internal/platform/middleware"
 )
 
@@ -62,7 +63,7 @@ func (m *mockAuthEventService) DeleteOlderThan(ctx context.Context, cutoff time.
 }
 
 func withTenant(r *http.Request) *http.Request {
-	tenant := &Tenant{TenantID: testTenantID, TenantUUID: testTenantUUID}
+	tenant := &cache.AuthTenant{TenantID: testTenantID, TenantUUID: testTenantUUID}
 	return middleware.WithAuthContext(r, &middleware.AuthContext{Tenant: tenant})
 }
 

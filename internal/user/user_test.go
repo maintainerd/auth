@@ -1150,7 +1150,7 @@ func TestUserService_AssignUserRoles(t *testing.T) {
 		assert.Contains(t, err.Error(), "access denied")
 	})
 
-	t.Run("FindByUUID role error", func(t *testing.T) {
+	t.Run("authevent.FindByUUID role error", func(t *testing.T) {
 		ur, ui, urr, rr, tr, idp, cr, up := defaultMocks()
 		ur.findByUUIDFn = func(_ any, _ ...string) (*User, error) {
 			return &User{UserID: 1, UserIdentities: []UserIdentity{{TenantID: 1}}}, nil
@@ -1299,7 +1299,7 @@ func TestUserService_RemoveUserRole(t *testing.T) {
 		assert.Contains(t, err.Error(), "access denied")
 	})
 
-	t.Run("FindByUUID role error", func(t *testing.T) {
+	t.Run("authevent.FindByUUID role error", func(t *testing.T) {
 		ur, ui, urr, rr, tr, idp, cr, up := defaultMocks()
 		ur.findByUUIDFn = func(_ any, _ ...string) (*User, error) {
 			return &User{UserID: 1, UserIdentities: []UserIdentity{{TenantID: 1}}}, nil
