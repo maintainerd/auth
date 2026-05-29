@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/url"
 
+	"github.com/maintainerd/auth/internal/authevent"
 	"github.com/maintainerd/auth/internal/platform/apperror"
 	"github.com/maintainerd/auth/internal/platform/jwt"
 	"github.com/maintainerd/auth/internal/platform/middleware"
@@ -30,7 +31,7 @@ type oauthSessionService struct {
 	clientRepo       ClientRepository
 	userRepo         UserRepository
 	refreshTokenRepo OAuthRefreshTokenRepository
-	authEventService AuthEventService
+	authEventService authevent.AuthEventService
 }
 
 // NewOAuthSessionService creates a new OAuthSessionService.
@@ -38,7 +39,7 @@ func NewOAuthSessionService(
 	clientRepo ClientRepository,
 	userRepo UserRepository,
 	refreshTokenRepo OAuthRefreshTokenRepository,
-	authEventService AuthEventService,
+	authEventService authevent.AuthEventService,
 ) OAuthSessionService {
 	return &oauthSessionService{
 		clientRepo:       clientRepo,
@@ -72,14 +73,14 @@ func (s *oauthSessionService) EndSession(ctx context.Context, req OAuthEndSessio
 	}
 
 	if userID != nil {
-		s.authEventService.Log(ctx, AuthEventInput{
+		s.authEventService.Log(ctx, authevent.AuthEventInput{
 			ActorUserID: userID,
 			IPAddress:   middleware.ClientIPFromContext(ctx),
 			UserAgent:   ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),
-			Category:    AuthEventCategorySession,
-			EventType:   AuthEventTypeSessionExpired,
-			Severity:    AuthEventSeverityInfo,
-			Result:      AuthEventResultSuccess,
+			Category:    authevent.AuthEventCategorySession,
+			EventType:   authevent.AuthEventTypeSessionExpired,
+			Severity:    authevent.AuthEventSeverityInfo,
+			Result:      authevent.AuthEventResultSuccess,
 			Description: ptr.Ptr("RP-initiated logout"),
 		})
 		span.SetAttributes(attribute.Int64("user.id", *userID))
@@ -136,14 +137,14 @@ func (s *oauthSessionService) BackchannelLogout(ctx context.Context, req OAuthBa
 	if user != nil {
 		_, _ = s.refreshTokenRepo.RevokeByUserID(user.UserID)
 
-		s.authEventService.Log(ctx, AuthEventInput{
+		s.authEventService.Log(ctx, authevent.AuthEventInput{
 			ActorUserID: &user.UserID,
 			IPAddress:   middleware.ClientIPFromContext(ctx),
 			UserAgent:   ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),
-			Category:    AuthEventCategorySession,
-			EventType:   AuthEventTypeSessionExpired,
-			Severity:    AuthEventSeverityInfo,
-			Result:      AuthEventResultSuccess,
+			Category:    authevent.AuthEventCategorySession,
+			EventType:   authevent.AuthEventTypeSessionExpired,
+			Severity:    authevent.AuthEventSeverityInfo,
+			Result:      authevent.AuthEventResultSuccess,
 			Description: ptr.Ptr("Backchannel logout processed"),
 		})
 

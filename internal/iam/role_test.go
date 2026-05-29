@@ -7,6 +7,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/platform/cache"
+	"github.com/maintainerd/auth/internal/shared"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -18,7 +19,7 @@ func newRole(id int64, name string, tenantID int64) *Role {
 		RoleUUID: uuid.New(),
 		Name:     name,
 		TenantID: tenantID,
-		Status:   StatusActive,
+		Status:   shared.StatusActive,
 		Tenant:   &Tenant{TenantID: tenantID},
 	}
 }
@@ -152,7 +153,7 @@ func TestRoleService_GetRolePermissions(t *testing.T) {
 		assert.Contains(t, err.Error(), "role not found")
 	})
 
-	t.Run("FindByUUID error → propagated", func(t *testing.T) {
+	t.Run("authevent.FindByUUID error → propagated", func(t *testing.T) {
 		svc := newRoleService(&mockRoleRepo{
 			findByUUIDFn: func(_ any, _ ...string) (*Role, error) {
 				return nil, errors.New("db error")
@@ -235,7 +236,7 @@ func TestRoleService_Create(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		svc := NewRoleService(db, &mockRoleRepo{}, &mockPermissionRepo{}, &mockRolePermissionRepo{}, &mockUserRepo{}, &mockTenantRepo{}, cache.NopInvalidator{}, nil)
-		_, err := svc.Create(context.Background(), "admin", "desc", false, false, StatusActive, "not-a-uuid", actorUUID)
+		_, err := svc.Create(context.Background(), "admin", "desc", false, false, shared.StatusActive, "not-a-uuid", actorUUID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "invalid tenant UUID")
 	})
@@ -247,12 +248,12 @@ func TestRoleService_Create(t *testing.T) {
 		svc := NewRoleService(db, &mockRoleRepo{}, &mockPermissionRepo{}, &mockRolePermissionRepo{}, &mockUserRepo{}, &mockTenantRepo{
 			findByUUIDFn: func(_ any, _ ...string) (*Tenant, error) { return nil, nil },
 		}, cache.NopInvalidator{}, nil)
-		_, err := svc.Create(context.Background(), "admin", "desc", false, false, StatusActive, tenantUUID.String(), actorUUID)
+		_, err := svc.Create(context.Background(), "admin", "desc", false, false, shared.StatusActive, tenantUUID.String(), actorUUID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "tenant not found")
 	})
 
-	t.Run("tenant FindByUUID error → rollback", func(t *testing.T) {
+	t.Run("tenant authevent.FindByUUID error → rollback", func(t *testing.T) {
 		db, mock := newMockGormDB(t)
 		mock.ExpectBegin()
 		mock.ExpectRollback()
@@ -261,7 +262,7 @@ func TestRoleService_Create(t *testing.T) {
 				return nil, errors.New("db error")
 			},
 		}, cache.NopInvalidator{}, nil)
-		_, err := svc.Create(context.Background(), "admin", "desc", false, false, StatusActive, tenantUUID.String(), actorUUID)
+		_, err := svc.Create(context.Background(), "admin", "desc", false, false, shared.StatusActive, tenantUUID.String(), actorUUID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "tenant not found")
 	})
@@ -277,7 +278,7 @@ func TestRoleService_Create(t *testing.T) {
 				return &Tenant{TenantID: tenantID, TenantUUID: tenantUUID}, nil
 			},
 		}, cache.NopInvalidator{}, nil)
-		_, err := svc.Create(context.Background(), "admin", "desc", false, false, StatusActive, tenantUUID.String(), actorUUID)
+		_, err := svc.Create(context.Background(), "admin", "desc", false, false, shared.StatusActive, tenantUUID.String(), actorUUID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "actor user not found")
 	})
@@ -295,7 +296,7 @@ func TestRoleService_Create(t *testing.T) {
 				return &Tenant{TenantID: tenantID, TenantUUID: tenantUUID}, nil
 			},
 		}, cache.NopInvalidator{}, nil)
-		_, err := svc.Create(context.Background(), "admin", "desc", false, false, StatusActive, tenantUUID.String(), actorUUID)
+		_, err := svc.Create(context.Background(), "admin", "desc", false, false, shared.StatusActive, tenantUUID.String(), actorUUID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "no identities")
 	})
@@ -317,7 +318,7 @@ func TestRoleService_Create(t *testing.T) {
 				return &Tenant{TenantID: tenantID, TenantUUID: tenantUUID}, nil
 			},
 		}, cache.NopInvalidator{}, nil)
-		_, err := svc.Create(context.Background(), "admin", "desc", false, false, StatusActive, tenantUUID.String(), actorUUID)
+		_, err := svc.Create(context.Background(), "admin", "desc", false, false, shared.StatusActive, tenantUUID.String(), actorUUID)
 		require.Error(t, err)
 	})
 
@@ -338,7 +339,7 @@ func TestRoleService_Create(t *testing.T) {
 				return &Tenant{TenantID: tenantID, TenantUUID: tenantUUID}, nil
 			},
 		}, cache.NopInvalidator{}, nil)
-		_, err := svc.Create(context.Background(), "admin", "desc", false, false, StatusActive, tenantUUID.String(), actorUUID)
+		_, err := svc.Create(context.Background(), "admin", "desc", false, false, shared.StatusActive, tenantUUID.String(), actorUUID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "role already exist")
 	})
@@ -360,7 +361,7 @@ func TestRoleService_Create(t *testing.T) {
 				return &Tenant{TenantID: tenantID, TenantUUID: tenantUUID}, nil
 			},
 		}, cache.NopInvalidator{}, nil)
-		_, err := svc.Create(context.Background(), "admin", "desc", false, false, StatusActive, tenantUUID.String(), actorUUID)
+		_, err := svc.Create(context.Background(), "admin", "desc", false, false, shared.StatusActive, tenantUUID.String(), actorUUID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "create error")
 	})
@@ -378,7 +379,7 @@ func TestRoleService_Create(t *testing.T) {
 				return &Tenant{TenantID: tenantID, TenantUUID: tenantUUID}, nil
 			},
 		}, cache.NopInvalidator{}, nil)
-		result, err := svc.Create(context.Background(), "admin", "desc", true, false, StatusActive, tenantUUID.String(), actorUUID)
+		result, err := svc.Create(context.Background(), "admin", "desc", true, false, shared.StatusActive, tenantUUID.String(), actorUUID)
 		require.NoError(t, err)
 		assert.Equal(t, "admin", result.Name)
 	})
@@ -400,12 +401,12 @@ func TestRoleService_Update(t *testing.T) {
 		svc := NewRoleService(db, &mockRoleRepo{
 			findByUUIDFn: func(_ any, _ ...string) (*Role, error) { return nil, nil },
 		}, &mockPermissionRepo{}, &mockRolePermissionRepo{}, &mockUserRepo{}, &mockTenantRepo{}, cache.NopInvalidator{}, nil)
-		_, err := svc.Update(context.Background(), roleUUID, tenantID, "new", "desc", false, false, StatusActive, actorUUID)
+		_, err := svc.Update(context.Background(), roleUUID, tenantID, "new", "desc", false, false, shared.StatusActive, actorUUID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "role not found")
 	})
 
-	t.Run("FindByUUID error → rollback", func(t *testing.T) {
+	t.Run("authevent.FindByUUID error → rollback", func(t *testing.T) {
 		db, mock := newMockGormDB(t)
 		mock.ExpectBegin()
 		mock.ExpectRollback()
@@ -414,7 +415,7 @@ func TestRoleService_Update(t *testing.T) {
 				return nil, errors.New("db error")
 			},
 		}, &mockPermissionRepo{}, &mockRolePermissionRepo{}, &mockUserRepo{}, &mockTenantRepo{}, cache.NopInvalidator{}, nil)
-		_, err := svc.Update(context.Background(), roleUUID, tenantID, "new", "desc", false, false, StatusActive, actorUUID)
+		_, err := svc.Update(context.Background(), roleUUID, tenantID, "new", "desc", false, false, shared.StatusActive, actorUUID)
 		require.Error(t, err)
 	})
 
@@ -427,7 +428,7 @@ func TestRoleService_Update(t *testing.T) {
 				return newRole(1, "admin", 99), nil
 			},
 		}, &mockPermissionRepo{}, &mockRolePermissionRepo{}, &mockUserRepo{}, &mockTenantRepo{}, cache.NopInvalidator{}, nil)
-		_, err := svc.Update(context.Background(), roleUUID, tenantID, "new", "desc", false, false, StatusActive, actorUUID)
+		_, err := svc.Update(context.Background(), roleUUID, tenantID, "new", "desc", false, false, shared.StatusActive, actorUUID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "access denied")
 	})
@@ -443,7 +444,7 @@ func TestRoleService_Update(t *testing.T) {
 		}, &mockPermissionRepo{}, &mockRolePermissionRepo{}, &mockUserRepo{
 			findByUUIDFn: func(_ any, _ ...string) (*User, error) { return nil, nil },
 		}, &mockTenantRepo{}, cache.NopInvalidator{}, nil)
-		_, err := svc.Update(context.Background(), roleUUID, tenantID, "new", "desc", false, false, StatusActive, actorUUID)
+		_, err := svc.Update(context.Background(), roleUUID, tenantID, "new", "desc", false, false, shared.StatusActive, actorUUID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "actor user not found")
 	})
@@ -461,7 +462,7 @@ func TestRoleService_Update(t *testing.T) {
 				return roleActorNoIdentities(), nil
 			},
 		}, &mockTenantRepo{}, cache.NopInvalidator{}, nil)
-		_, err := svc.Update(context.Background(), roleUUID, tenantID, "new", "desc", false, false, StatusActive, actorUUID)
+		_, err := svc.Update(context.Background(), roleUUID, tenantID, "new", "desc", false, false, shared.StatusActive, actorUUID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "no identities")
 	})
@@ -479,7 +480,7 @@ func TestRoleService_Update(t *testing.T) {
 				return roleActorUser(tenantID), nil
 			},
 		}, &mockTenantRepo{}, cache.NopInvalidator{}, nil)
-		_, err := svc.Update(context.Background(), roleUUID, tenantID, "new", "desc", false, false, StatusActive, actorUUID)
+		_, err := svc.Update(context.Background(), roleUUID, tenantID, "new", "desc", false, false, shared.StatusActive, actorUUID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "system role")
 	})
@@ -500,7 +501,7 @@ func TestRoleService_Update(t *testing.T) {
 				return roleActorUser(tenantID), nil
 			},
 		}, &mockTenantRepo{}, cache.NopInvalidator{}, nil)
-		_, err := svc.Update(context.Background(), roleUUID, tenantID, "newname", "desc", false, false, StatusActive, actorUUID)
+		_, err := svc.Update(context.Background(), roleUUID, tenantID, "newname", "desc", false, false, shared.StatusActive, actorUUID)
 		require.Error(t, err)
 	})
 
@@ -521,7 +522,7 @@ func TestRoleService_Update(t *testing.T) {
 				return roleActorUser(tenantID), nil
 			},
 		}, &mockTenantRepo{}, cache.NopInvalidator{}, nil)
-		_, err := svc.Update(context.Background(), roleUUID, tenantID, "newname", "desc", false, false, StatusActive, actorUUID)
+		_, err := svc.Update(context.Background(), roleUUID, tenantID, "newname", "desc", false, false, shared.StatusActive, actorUUID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "role already exists")
 	})
@@ -539,7 +540,7 @@ func TestRoleService_Update(t *testing.T) {
 				return roleActorUser(tenantID), nil
 			},
 		}, &mockTenantRepo{}, cache.NopInvalidator{}, nil)
-		result, err := svc.Update(context.Background(), roleUUID, tenantID, "admin", "new desc", false, false, StatusActive, actorUUID)
+		result, err := svc.Update(context.Background(), roleUUID, tenantID, "admin", "new desc", false, false, shared.StatusActive, actorUUID)
 		require.NoError(t, err)
 		assert.Equal(t, "admin", result.Name)
 	})
@@ -557,7 +558,7 @@ func TestRoleService_Update(t *testing.T) {
 				return roleActorUser(tenantID), nil
 			},
 		}, &mockTenantRepo{}, cache.NopInvalidator{}, nil)
-		result, err := svc.Update(context.Background(), roleUUID, tenantID, "editor", "new desc", false, false, StatusActive, actorUUID)
+		result, err := svc.Update(context.Background(), roleUUID, tenantID, "editor", "new desc", false, false, shared.StatusActive, actorUUID)
 		require.NoError(t, err)
 		assert.Equal(t, "editor", result.Name)
 	})
@@ -578,7 +579,7 @@ func TestRoleService_Update(t *testing.T) {
 				return roleActorUser(tenantID), nil
 			},
 		}, &mockTenantRepo{}, cache.NopInvalidator{}, nil)
-		_, err := svc.Update(context.Background(), roleUUID, tenantID, "admin", "desc", false, false, StatusActive, actorUUID)
+		_, err := svc.Update(context.Background(), roleUUID, tenantID, "admin", "desc", false, false, shared.StatusActive, actorUUID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "save error")
 	})
@@ -599,7 +600,7 @@ func TestRoleService_Update(t *testing.T) {
 				return roleActorUser(tenantID), nil
 			},
 		}, &mockTenantRepo{}, cache.NopInvalidator{}, nil)
-		result, err := svc.Update(context.Background(), roleUUID, tenantID, "newname", "desc", false, false, StatusActive, actorUUID)
+		result, err := svc.Update(context.Background(), roleUUID, tenantID, "newname", "desc", false, false, shared.StatusActive, actorUUID)
 		require.NoError(t, err)
 		assert.Equal(t, "newname", result.Name)
 	})
@@ -621,12 +622,12 @@ func TestRoleService_SetStatusByUUID(t *testing.T) {
 		svc := NewRoleService(db, &mockRoleRepo{
 			findByUUIDFn: func(_ any, _ ...string) (*Role, error) { return nil, nil },
 		}, &mockPermissionRepo{}, &mockRolePermissionRepo{}, &mockUserRepo{}, &mockTenantRepo{}, cache.NopInvalidator{}, nil)
-		_, err := svc.SetStatusByUUID(context.Background(), roleUUID, tenantID, StatusInactive, actorUUID)
+		_, err := svc.SetStatusByUUID(context.Background(), roleUUID, tenantID, shared.StatusInactive, actorUUID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "role not found")
 	})
 
-	t.Run("FindByUUID error → rollback", func(t *testing.T) {
+	t.Run("authevent.FindByUUID error → rollback", func(t *testing.T) {
 		db, mock := newMockGormDB(t)
 		mock.ExpectBegin()
 		mock.ExpectRollback()
@@ -635,7 +636,7 @@ func TestRoleService_SetStatusByUUID(t *testing.T) {
 				return nil, errors.New("db error")
 			},
 		}, &mockPermissionRepo{}, &mockRolePermissionRepo{}, &mockUserRepo{}, &mockTenantRepo{}, cache.NopInvalidator{}, nil)
-		_, err := svc.SetStatusByUUID(context.Background(), roleUUID, tenantID, StatusInactive, actorUUID)
+		_, err := svc.SetStatusByUUID(context.Background(), roleUUID, tenantID, shared.StatusInactive, actorUUID)
 		require.Error(t, err)
 	})
 
@@ -648,7 +649,7 @@ func TestRoleService_SetStatusByUUID(t *testing.T) {
 				return newRole(1, "admin", 99), nil
 			},
 		}, &mockPermissionRepo{}, &mockRolePermissionRepo{}, &mockUserRepo{}, &mockTenantRepo{}, cache.NopInvalidator{}, nil)
-		_, err := svc.SetStatusByUUID(context.Background(), roleUUID, tenantID, StatusInactive, actorUUID)
+		_, err := svc.SetStatusByUUID(context.Background(), roleUUID, tenantID, shared.StatusInactive, actorUUID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "access denied")
 	})
@@ -664,7 +665,7 @@ func TestRoleService_SetStatusByUUID(t *testing.T) {
 		}, &mockPermissionRepo{}, &mockRolePermissionRepo{}, &mockUserRepo{
 			findByUUIDFn: func(_ any, _ ...string) (*User, error) { return nil, nil },
 		}, &mockTenantRepo{}, cache.NopInvalidator{}, nil)
-		_, err := svc.SetStatusByUUID(context.Background(), roleUUID, tenantID, StatusInactive, actorUUID)
+		_, err := svc.SetStatusByUUID(context.Background(), roleUUID, tenantID, shared.StatusInactive, actorUUID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "actor user not found")
 	})
@@ -682,7 +683,7 @@ func TestRoleService_SetStatusByUUID(t *testing.T) {
 				return roleActorNoIdentities(), nil
 			},
 		}, &mockTenantRepo{}, cache.NopInvalidator{}, nil)
-		_, err := svc.SetStatusByUUID(context.Background(), roleUUID, tenantID, StatusInactive, actorUUID)
+		_, err := svc.SetStatusByUUID(context.Background(), roleUUID, tenantID, shared.StatusInactive, actorUUID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "no identities")
 	})
@@ -700,7 +701,7 @@ func TestRoleService_SetStatusByUUID(t *testing.T) {
 				return roleActorUser(tenantID), nil
 			},
 		}, &mockTenantRepo{}, cache.NopInvalidator{}, nil)
-		_, err := svc.SetStatusByUUID(context.Background(), roleUUID, tenantID, StatusInactive, actorUUID)
+		_, err := svc.SetStatusByUUID(context.Background(), roleUUID, tenantID, shared.StatusInactive, actorUUID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "system role")
 	})
@@ -721,7 +722,7 @@ func TestRoleService_SetStatusByUUID(t *testing.T) {
 				return roleActorUser(tenantID), nil
 			},
 		}, &mockTenantRepo{}, cache.NopInvalidator{}, nil)
-		_, err := svc.SetStatusByUUID(context.Background(), roleUUID, tenantID, StatusInactive, actorUUID)
+		_, err := svc.SetStatusByUUID(context.Background(), roleUUID, tenantID, shared.StatusInactive, actorUUID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "save error")
 	})
@@ -739,10 +740,10 @@ func TestRoleService_SetStatusByUUID(t *testing.T) {
 				return roleActorUser(tenantID), nil
 			},
 		}, &mockTenantRepo{}, cache.NopInvalidator{}, nil)
-		result, err := svc.SetStatusByUUID(context.Background(), roleUUID, tenantID, StatusInactive, actorUUID)
+		result, err := svc.SetStatusByUUID(context.Background(), roleUUID, tenantID, shared.StatusInactive, actorUUID)
 		require.NoError(t, err)
 		assert.NotNil(t, result)
-		assert.Equal(t, StatusInactive, result.Status)
+		assert.Equal(t, shared.StatusInactive, result.Status)
 	})
 }
 
@@ -764,7 +765,7 @@ func TestRoleService_DeleteByUUID(t *testing.T) {
 		assert.Contains(t, err.Error(), "role not found")
 	})
 
-	t.Run("FindByUUID error → propagated", func(t *testing.T) {
+	t.Run("authevent.FindByUUID error → propagated", func(t *testing.T) {
 		svc := newRoleService(&mockRoleRepo{
 			findByUUIDFn: func(_ any, _ ...string) (*Role, error) {
 				return nil, errors.New("db error")
@@ -1141,7 +1142,7 @@ func TestRoleService_AddRolePermissions(t *testing.T) {
 		assert.Len(t, *result.Permissions, 1)
 	})
 
-	t.Run("FindByUUID role error → rollback", func(t *testing.T) {
+	t.Run("authevent.FindByUUID role error → rollback", func(t *testing.T) {
 		db, mock := newMockGormDB(t)
 		mock.ExpectBegin()
 		mock.ExpectRollback()
@@ -1243,7 +1244,7 @@ func TestRoleService_RemoveRolePermissions(t *testing.T) {
 		assert.Contains(t, err.Error(), "system role")
 	})
 
-	t.Run("FindByUUID permission error → rollback", func(t *testing.T) {
+	t.Run("authevent.FindByUUID permission error → rollback", func(t *testing.T) {
 		db, mock := newMockGormDB(t)
 		mock.ExpectBegin()
 		mock.ExpectRollback()
@@ -1338,7 +1339,7 @@ func TestRoleService_RemoveRolePermissions(t *testing.T) {
 		assert.NotNil(t, result)
 	})
 
-	t.Run("association not found → FindByUUID fetch error → rollback", func(t *testing.T) {
+	t.Run("association not found → authevent.FindByUUID fetch error → rollback", func(t *testing.T) {
 		db, mock := newMockGormDB(t)
 		mock.ExpectBegin()
 		mock.ExpectRollback()
@@ -1456,7 +1457,7 @@ func TestRoleService_RemoveRolePermissions(t *testing.T) {
 		assert.NotNil(t, result)
 	})
 
-	t.Run("FindByUUID role error → rollback", func(t *testing.T) {
+	t.Run("authevent.FindByUUID role error → rollback", func(t *testing.T) {
 		db, mock := newMockGormDB(t)
 		mock.ExpectBegin()
 		mock.ExpectRollback()
@@ -1480,7 +1481,7 @@ func TestToRoleServiceDataResult(t *testing.T) {
 	})
 
 	t.Run("role without permissions", func(t *testing.T) {
-		r := &Role{RoleUUID: uuid.New(), Name: "admin", Status: StatusActive}
+		r := &Role{RoleUUID: uuid.New(), Name: "admin", Status: shared.StatusActive}
 		result := toRoleServiceDataResult(r)
 		require.NotNil(t, result)
 		assert.Equal(t, "admin", result.Name)

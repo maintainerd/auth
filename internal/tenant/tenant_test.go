@@ -8,6 +8,7 @@ import (
 	sqlmock "github.com/DATA-DOG/go-sqlmock"
 	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/platform/crypto"
+	"github.com/maintainerd/auth/internal/shared"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -18,7 +19,7 @@ func newTenant(id int64, name string) *Tenant {
 		TenantID:   id,
 		TenantUUID: uuid.New(),
 		Name:       name,
-		Status:     StatusActive,
+		Status:     shared.StatusActive,
 	}
 }
 
@@ -64,7 +65,7 @@ func TestTenantService_GetByUUID(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			repo := &mockTenantRepo{}
 			tc.setupRepo(repo)
-			svc := NewTenantService(nil, repo)
+			svc := NewTenantService(nil, repo, nil)
 			result, err := svc.GetByUUID(context.Background(), uuid.New())
 			if tc.expectError {
 				require.Error(t, err)
@@ -110,7 +111,7 @@ func TestTenantService_GetSystem(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			repo := &mockTenantRepo{}
 			tc.setupRepo(repo)
-			svc := NewTenantService(nil, repo)
+			svc := NewTenantService(nil, repo, nil)
 			result, err := svc.GetSystem(context.Background())
 			if tc.expectError {
 				require.Error(t, err)
@@ -156,7 +157,7 @@ func TestTenantService_GetByIdentifier(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			repo := &mockTenantRepo{}
 			tc.setupRepo(repo)
-			svc := NewTenantService(nil, repo)
+			svc := NewTenantService(nil, repo, nil)
 			result, err := svc.GetByIdentifier(context.Background(), tc.identifier)
 			if tc.expectError {
 				require.Error(t, err)
@@ -175,7 +176,7 @@ func TestTenantService_GetByIdentifier(t *testing.T) {
 func TestTenantService_Get(t *testing.T) {
 	t.Run("success – empty result", func(t *testing.T) {
 		repo := &mockTenantRepo{}
-		svc := NewTenantService(nil, repo)
+		svc := NewTenantService(nil, repo, nil)
 		result, err := svc.Get(context.Background(), TenantServiceGetFilter{Page: 1, Limit: 10})
 		require.NoError(t, err)
 		assert.NotNil(t, result)
@@ -188,7 +189,7 @@ func TestTenantService_Get(t *testing.T) {
 				return nil, errors.New("db error")
 			},
 		}
-		svc := NewTenantService(nil, repo)
+		svc := NewTenantService(nil, repo, nil)
 		result, err := svc.Get(context.Background(), TenantServiceGetFilter{Page: 1, Limit: 10})
 		require.Error(t, err)
 		assert.Nil(t, result)
@@ -264,7 +265,7 @@ func TestTenantService_DeleteByUUID(t *testing.T) {
 			tc.setupSQL(mock)
 			repo := &mockTenantRepo{}
 			tc.setupRepo(repo)
-			svc := NewTenantService(db, repo)
+			svc := NewTenantService(db, repo, testCascadeModels())
 			result, err := svc.DeleteByUUID(context.Background(), tenantUUID)
 			if tc.expectError {
 				require.Error(t, err)
@@ -323,8 +324,8 @@ func TestTenantService_SetStatusByUUID(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			repo := &mockTenantRepo{}
 			tc.setupRepo(repo)
-			svc := NewTenantService(nil, repo)
-			result, err := svc.SetStatusByUUID(context.Background(), tenantUUID, StatusActive)
+			svc := NewTenantService(nil, repo, nil)
+			result, err := svc.SetStatusByUUID(context.Background(), tenantUUID, shared.StatusActive)
 			if tc.expectError {
 				require.Error(t, err)
 			} else {
@@ -351,7 +352,7 @@ func TestTenantService_SetStatusByUUID_Extra(t *testing.T) {
 				return errors.New("set status err")
 			},
 		}
-		svc := NewTenantService(nil, repo)
+		svc := NewTenantService(nil, repo, nil)
 		_, err := svc.SetStatusByUUID(context.Background(), tenantUUID, "inactive")
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "set status err")
@@ -368,7 +369,7 @@ func TestTenantService_SetStatusByUUID_Extra(t *testing.T) {
 				return nil, errors.New("fetch err")
 			},
 		}
-		svc := NewTenantService(nil, repo)
+		svc := NewTenantService(nil, repo, nil)
 		_, err := svc.SetStatusByUUID(context.Background(), tenantUUID, "inactive")
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "fetch err")
@@ -391,7 +392,7 @@ func TestTenantService_Get_WithData(t *testing.T) {
 			}, nil
 		},
 	}
-	svc := NewTenantService(nil, repo)
+	svc := NewTenantService(nil, repo, nil)
 	res, err := svc.Get(context.Background(), TenantServiceGetFilter{Page: 1, Limit: 10})
 	require.NoError(t, err)
 	assert.Len(t, res.Data, 2)
@@ -410,7 +411,7 @@ func TestTenantService_Create(t *testing.T) {
 		db, mock := newMockGormDB(t)
 		mock.ExpectBegin()
 		mock.ExpectRollback()
-		svc := NewTenantService(db, repo)
+		svc := NewTenantService(db, repo, testCascadeModels())
 		_, err := svc.Create(context.Background(), "acme", "Acme Corp", "desc", "active", true)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "name err")
@@ -423,7 +424,7 @@ func TestTenantService_Create(t *testing.T) {
 		db, mock := newMockGormDB(t)
 		mock.ExpectBegin()
 		mock.ExpectRollback()
-		svc := NewTenantService(db, repo)
+		svc := NewTenantService(db, repo, testCascadeModels())
 		_, err := svc.Create(context.Background(), "acme", "Acme Corp", "desc", "active", true)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "already exists")
@@ -438,7 +439,7 @@ func TestTenantService_Create(t *testing.T) {
 		db, mock := newMockGormDB(t)
 		mock.ExpectBegin()
 		mock.ExpectRollback()
-		svc := NewTenantService(db, repo)
+		svc := NewTenantService(db, repo, testCascadeModels())
 		_, err := svc.Create(context.Background(), "acme", "Acme Corp", "desc", "active", true)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "rand failure")
@@ -451,7 +452,7 @@ func TestTenantService_Create(t *testing.T) {
 		db, mock := newMockGormDB(t)
 		mock.ExpectBegin()
 		mock.ExpectRollback()
-		svc := NewTenantService(db, repo)
+		svc := NewTenantService(db, repo, testCascadeModels())
 		_, err := svc.Create(context.Background(), "acme", "Acme Corp", "desc", "active", true)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "create err")
@@ -464,7 +465,7 @@ func TestTenantService_Create(t *testing.T) {
 		db, mock := newMockGormDB(t)
 		mock.ExpectBegin()
 		mock.ExpectRollback()
-		svc := NewTenantService(db, repo)
+		svc := NewTenantService(db, repo, testCascadeModels())
 		_, err := svc.Create(context.Background(), "acme", "Acme Corp", "desc", "active", true)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "fetch err")
@@ -479,7 +480,7 @@ func TestTenantService_Create(t *testing.T) {
 		db, mock := newMockGormDB(t)
 		mock.ExpectBegin()
 		mock.ExpectCommit()
-		svc := NewTenantService(db, repo)
+		svc := NewTenantService(db, repo, testCascadeModels())
 		res, err := svc.Create(context.Background(), "acme", "Acme Corp", "desc", "active", true)
 		require.NoError(t, err)
 		assert.Equal(t, "acme", res.Name)
@@ -493,14 +494,14 @@ func TestTenantService_Create(t *testing.T) {
 func TestTenantService_Update(t *testing.T) {
 	tenantUUID := uuid.New()
 
-	t.Run("FindByUUID error", func(t *testing.T) {
+	t.Run("authevent.FindByUUID error", func(t *testing.T) {
 		repo := &mockTenantRepo{
 			findByUUIDFn: func(_ any, _ ...string) (*Tenant, error) { return nil, errors.New("find err") },
 		}
 		db, mock := newMockGormDB(t)
 		mock.ExpectBegin()
 		mock.ExpectRollback()
-		svc := NewTenantService(db, repo)
+		svc := NewTenantService(db, repo, testCascadeModels())
 		_, err := svc.Update(context.Background(), tenantUUID, "new", "New", "desc", "active", true)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "find err")
@@ -513,7 +514,7 @@ func TestTenantService_Update(t *testing.T) {
 		db, mock := newMockGormDB(t)
 		mock.ExpectBegin()
 		mock.ExpectRollback()
-		svc := NewTenantService(db, repo)
+		svc := NewTenantService(db, repo, testCascadeModels())
 		_, err := svc.Update(context.Background(), tenantUUID, "new", "New", "desc", "active", true)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "tenant not found")
@@ -529,7 +530,7 @@ func TestTenantService_Update(t *testing.T) {
 		db, mock := newMockGormDB(t)
 		mock.ExpectBegin()
 		mock.ExpectRollback()
-		svc := NewTenantService(db, repo)
+		svc := NewTenantService(db, repo, testCascadeModels())
 		_, err := svc.Update(context.Background(), tenantUUID, "new", "New", "desc", "active", true)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "name err")
@@ -545,7 +546,7 @@ func TestTenantService_Update(t *testing.T) {
 		db, mock := newMockGormDB(t)
 		mock.ExpectBegin()
 		mock.ExpectRollback()
-		svc := NewTenantService(db, repo)
+		svc := NewTenantService(db, repo, testCascadeModels())
 		_, err := svc.Update(context.Background(), tenantUUID, "new", "New", "desc", "active", true)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "already exists")
@@ -561,7 +562,7 @@ func TestTenantService_Update(t *testing.T) {
 		db, mock := newMockGormDB(t)
 		mock.ExpectBegin()
 		mock.ExpectRollback()
-		svc := NewTenantService(db, repo)
+		svc := NewTenantService(db, repo, testCascadeModels())
 		_, err := svc.Update(context.Background(), tenantUUID, "old", "New", "desc", "active", true) // same name → no conflict check
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "save err")
@@ -576,7 +577,7 @@ func TestTenantService_Update(t *testing.T) {
 		db, mock := newMockGormDB(t)
 		mock.ExpectBegin()
 		mock.ExpectCommit()
-		svc := NewTenantService(db, repo)
+		svc := NewTenantService(db, repo, testCascadeModels())
 		res, err := svc.Update(context.Background(), tenantUUID, "acme", "Acme Corp", "desc", "active", true)
 		require.NoError(t, err)
 		assert.Equal(t, "Acme Corp", res.DisplayName)
@@ -591,7 +592,7 @@ func TestTenantService_Update(t *testing.T) {
 		db, mock := newMockGormDB(t)
 		mock.ExpectBegin()
 		mock.ExpectCommit()
-		svc := NewTenantService(db, repo)
+		svc := NewTenantService(db, repo, testCascadeModels())
 		res, err := svc.Update(context.Background(), tenantUUID, "new-name", "New Name", "desc", "active", false)
 		require.NoError(t, err)
 		assert.Equal(t, "new-name", res.Name)
@@ -609,7 +610,7 @@ func TestTenantService_SetActivePublicByUUID(t *testing.T) {
 		repo := &mockTenantRepo{
 			findByUUIDFn: func(_ any, _ ...string) (*Tenant, error) { return nil, nil },
 		}
-		svc := NewTenantService(nil, repo)
+		svc := NewTenantService(nil, repo, nil)
 		_, err := svc.SetActivePublicByUUID(context.Background(), tenantUUID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "tenant not found")
@@ -626,7 +627,7 @@ func TestTenantService_SetActivePublicByUUID(t *testing.T) {
 		mock.ExpectExec(`UPDATE .tenants.`).
 			WillReturnError(errors.New("update err"))
 		mock.ExpectRollback()
-		svc := NewTenantService(db, repo)
+		svc := NewTenantService(db, repo, testCascadeModels())
 		_, err := svc.SetActivePublicByUUID(context.Background(), tenantUUID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "update err")
@@ -648,7 +649,7 @@ func TestTenantService_SetActivePublicByUUID(t *testing.T) {
 		mock.ExpectExec(`UPDATE .tenants.`).
 			WillReturnResult(sqlmock.NewResult(0, 1))
 		mock.ExpectCommit()
-		svc := NewTenantService(db, repo)
+		svc := NewTenantService(db, repo, testCascadeModels())
 		_, err := svc.SetActivePublicByUUID(context.Background(), tenantUUID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "fetch err")
@@ -670,7 +671,7 @@ func TestTenantService_SetActivePublicByUUID(t *testing.T) {
 		mock.ExpectExec(`UPDATE .tenants.`).
 			WillReturnResult(sqlmock.NewResult(0, 1))
 		mock.ExpectCommit()
-		svc := NewTenantService(db, repo)
+		svc := NewTenantService(db, repo, testCascadeModels())
 		res, err := svc.SetActivePublicByUUID(context.Background(), tenantUUID)
 		require.NoError(t, err)
 		assert.True(t, res.IsPublic)
@@ -694,7 +695,7 @@ func TestTenantService_DeleteByUUID_DeleteError(t *testing.T) {
 		findByUUIDFn:   func(_ any, _ ...string) (*Tenant, error) { return newTenant(1, "acme"), nil },
 		deleteByUUIDFn: func(_ any) error { return errors.New("delete err") },
 	}
-	svc := NewTenantService(db, repo)
+	svc := NewTenantService(db, repo, testCascadeModels())
 	_, err := svc.DeleteByUUID(context.Background(), tenantUUID)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "delete err")

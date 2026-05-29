@@ -149,7 +149,7 @@ func (h *LoginHandler) LoginPublic(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Log successful login
+	// authevent.Log successful login
 	security.LogSecurityEvent(security.SecurityEvent{
 		EventType: "login_success",
 		UserID:    req.Username,
@@ -173,7 +173,7 @@ func (h *LoginHandler) Logout(w http.ResponseWriter, r *http.Request) {
 	sc := extractSecurityContext(r)
 	clientIPStr, userAgentStr, requestIDStr := sc.clientIP, sc.userAgent, sc.requestID
 
-	// Log logout event
+	// authevent.Log logout event
 	security.LogSecurityEvent(security.SecurityEvent{
 		EventType: "logout",
 		ClientIP:  clientIPStr,
@@ -254,7 +254,7 @@ func (h *LoginHandler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Log successful login
+	// authevent.Log successful login
 	security.LogSecurityEvent(security.SecurityEvent{
 		EventType: "login_success",
 		UserID:    req.Username,

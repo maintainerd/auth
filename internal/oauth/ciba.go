@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/maintainerd/auth/internal/authevent"
 	"github.com/maintainerd/auth/internal/platform/apperror"
 	"github.com/maintainerd/auth/internal/platform/config"
 	"github.com/maintainerd/auth/internal/platform/crypto"
@@ -14,6 +15,7 @@ import (
 	"github.com/maintainerd/auth/internal/platform/middleware"
 	"github.com/maintainerd/auth/internal/platform/ptr"
 	"github.com/maintainerd/auth/internal/platform/security"
+	"github.com/maintainerd/auth/internal/shared"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -47,7 +49,7 @@ type oauthCIBAService struct {
 	clientRepo       ClientRepository
 	cibaRepo         OAuthCIBARequestRepository
 	userRepo         UserRepository
-	authEventService AuthEventService
+	authEventService authevent.AuthEventService
 }
 
 // NewOAuthCIBAService creates a new OAuthCIBAService.
@@ -56,7 +58,7 @@ func NewOAuthCIBAService(
 	clientRepo ClientRepository,
 	cibaRepo OAuthCIBARequestRepository,
 	userRepo UserRepository,
-	authEventService AuthEventService,
+	authEventService authevent.AuthEventService,
 ) OAuthCIBAService {
 	return &oauthCIBAService{
 		db:               db,
@@ -127,15 +129,15 @@ func (s *oauthCIBAService) Initiate(ctx context.Context, req OAuthCIBARequestDTO
 
 	_ = s.sendCIBANotificationEmail(ctx, user, client, req.BindingMessage)
 
-	s.authEventService.Log(ctx, AuthEventInput{
+	s.authEventService.Log(ctx, authevent.AuthEventInput{
 		TenantID:    client.TenantID,
 		ActorUserID: &user.UserID,
 		IPAddress:   middleware.ClientIPFromContext(ctx),
 		UserAgent:   ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),
-		Category:    AuthEventCategoryAuthn,
-		EventType:   AuthEventTypeOAuthAuthorize,
-		Severity:    AuthEventSeverityInfo,
-		Result:      AuthEventResultSuccess,
+		Category:    authevent.AuthEventCategoryAuthn,
+		EventType:   authevent.AuthEventTypeOAuthAuthorize,
+		Severity:    authevent.AuthEventSeverityInfo,
+		Result:      authevent.AuthEventResultSuccess,
 		Description: ptr.Ptr("CIBA authentication initiated"),
 	})
 
@@ -173,15 +175,15 @@ func (s *oauthCIBAService) ApproveRequest(ctx context.Context, authReqID string,
 		return apperror.NewOAuthServerError("an unexpected error occurred")
 	}
 
-	s.authEventService.Log(ctx, AuthEventInput{
+	s.authEventService.Log(ctx, authevent.AuthEventInput{
 		TenantID:    record.TenantID,
 		ActorUserID: &userID,
 		IPAddress:   middleware.ClientIPFromContext(ctx),
 		UserAgent:   ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),
-		Category:    AuthEventCategoryAuthn,
-		EventType:   AuthEventTypeOAuthConsent,
-		Severity:    AuthEventSeverityInfo,
-		Result:      AuthEventResultSuccess,
+		Category:    authevent.AuthEventCategoryAuthn,
+		EventType:   authevent.AuthEventTypeOAuthConsent,
+		Severity:    authevent.AuthEventSeverityInfo,
+		Result:      authevent.AuthEventResultSuccess,
 		Description: ptr.Ptr("CIBA request approved"),
 	})
 
@@ -209,15 +211,15 @@ func (s *oauthCIBAService) DenyRequest(ctx context.Context, authReqID string, us
 		return apperror.NewOAuthServerError("an unexpected error occurred")
 	}
 
-	s.authEventService.Log(ctx, AuthEventInput{
+	s.authEventService.Log(ctx, authevent.AuthEventInput{
 		TenantID:    record.TenantID,
 		ActorUserID: &userID,
 		IPAddress:   middleware.ClientIPFromContext(ctx),
 		UserAgent:   ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),
-		Category:    AuthEventCategoryAuthn,
-		EventType:   AuthEventTypeOAuthConsentDeny,
-		Severity:    AuthEventSeverityInfo,
-		Result:      AuthEventResultFailure,
+		Category:    authevent.AuthEventCategoryAuthn,
+		EventType:   authevent.AuthEventTypeOAuthConsentDeny,
+		Severity:    authevent.AuthEventSeverityInfo,
+		Result:      authevent.AuthEventResultFailure,
 		Description: ptr.Ptr("CIBA request denied by user"),
 	})
 
@@ -315,15 +317,15 @@ func (s *oauthCIBAService) ExchangeToken(ctx context.Context, req OAuthCIBAToken
 		return nil, apperror.NewOAuthServerError("an unexpected error occurred")
 	}
 
-	s.authEventService.Log(ctx, AuthEventInput{
+	s.authEventService.Log(ctx, authevent.AuthEventInput{
 		TenantID:    record.TenantID,
 		ActorUserID: record.UserID,
 		IPAddress:   middleware.ClientIPFromContext(ctx),
 		UserAgent:   ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),
-		Category:    AuthEventCategoryAuthn,
-		EventType:   AuthEventTypeTokenCreated,
-		Severity:    AuthEventSeverityInfo,
-		Result:      AuthEventResultSuccess,
+		Category:    authevent.AuthEventCategoryAuthn,
+		EventType:   authevent.AuthEventTypeTokenCreated,
+		Severity:    authevent.AuthEventSeverityInfo,
+		Result:      authevent.AuthEventResultSuccess,
 		Description: ptr.Ptr("CIBA token issued"),
 	})
 
@@ -345,7 +347,7 @@ func (s *oauthCIBAService) authenticateClient(creds OAuthClientCredentials) (*Cl
 	err := s.db.
 		Preload("IdentityProvider").
 		Preload("ClientURIs").
-		Where("identifier = ? AND status = ?", creds.ClientID, StatusActive).
+		Where("identifier = ? AND status = ?", creds.ClientID, shared.StatusActive).
 		First(&client).Error
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {

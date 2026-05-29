@@ -5,11 +5,13 @@ import (
 	"strings"
 	"time"
 
+	"github.com/maintainerd/auth/internal/authevent"
 	"github.com/maintainerd/auth/internal/platform/apperror"
 	"github.com/maintainerd/auth/internal/platform/crypto"
 	"github.com/maintainerd/auth/internal/platform/middleware"
 	"github.com/maintainerd/auth/internal/platform/ptr"
 	"github.com/maintainerd/auth/internal/platform/security"
+	"github.com/maintainerd/auth/internal/shared"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -39,7 +41,7 @@ type oauthPARService struct {
 	clientRepo       ClientRepository
 	clientURIRepo    ClientURIRepository
 	parRepo          OAuthPARRequestRepository
-	authEventService AuthEventService
+	authEventService authevent.AuthEventService
 }
 
 // NewOAuthPARService creates a new OAuthPARService.
@@ -48,7 +50,7 @@ func NewOAuthPARService(
 	clientRepo ClientRepository,
 	clientURIRepo ClientURIRepository,
 	parRepo OAuthPARRequestRepository,
-	authEventService AuthEventService,
+	authEventService authevent.AuthEventService,
 ) OAuthPARService {
 	return &oauthPARService{
 		db:               db,
@@ -119,14 +121,14 @@ func (s *oauthPARService) Push(ctx context.Context, req OAuthPARRequestDTO, cred
 		return nil, apperror.NewOAuthServerError("an unexpected error occurred")
 	}
 
-	s.authEventService.Log(ctx, AuthEventInput{
+	s.authEventService.Log(ctx, authevent.AuthEventInput{
 		TenantID:    client.TenantID,
 		IPAddress:   middleware.ClientIPFromContext(ctx),
 		UserAgent:   ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),
-		Category:    AuthEventCategoryAuthn,
-		EventType:   AuthEventTypeOAuthAuthorize,
-		Severity:    AuthEventSeverityInfo,
-		Result:      AuthEventResultSuccess,
+		Category:    authevent.AuthEventCategoryAuthn,
+		EventType:   authevent.AuthEventTypeOAuthAuthorize,
+		Severity:    authevent.AuthEventSeverityInfo,
+		Result:      authevent.AuthEventResultSuccess,
 		Description: ptr.Ptr("PAR request pushed"),
 	})
 
@@ -205,7 +207,7 @@ func (s *oauthPARService) resolveAndAuthenticateClient(creds OAuthClientCredenti
 	err := s.db.
 		Preload("IdentityProvider").
 		Preload("ClientURIs").
-		Where("identifier = ? AND status = ?", creds.ClientID, StatusActive).
+		Where("identifier = ? AND status = ?", creds.ClientID, shared.StatusActive).
 		First(&client).Error
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
@@ -238,7 +240,7 @@ func validateClientRedirectURI(client *Client, redirectURI string) *apperror.OAu
 		return apperror.NewOAuthInvalidRequest("no redirect URIs registered for this client")
 	}
 	for _, uri := range *client.ClientURIs {
-		if uri.Type == ClientURITypeRedirect && uri.URI == redirectURI {
+		if uri.Type == shared.ClientURITypeRedirect && uri.URI == redirectURI {
 			return nil
 		}
 	}

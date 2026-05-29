@@ -23,7 +23,7 @@ func TenantPublicRoute(r chi.Router, tenantHandler *TenantHandler) {
 func TenantRoute(
 	r chi.Router,
 	tenantHandler *TenantHandler,
-	userService UserService,
+	userService middleware.UserContextProvider,
 	appCache *cache.Cache,
 ) {
 	// Single tenant endpoints (public - no authentication required)
@@ -80,5 +80,42 @@ func TenantRoute(
 			r.With(middleware.PermissionMiddleware([]string{"tenant:update"})).
 				Delete("/{tenant_member_uuid}", tenantHandler.RemoveMember)
 		})
+	})
+}
+
+// TenantSettingRoute registers tenant settings configuration endpoints.
+func TenantSettingRoute(
+	r chi.Router,
+	tenantSettingHandler *TenantSettingHandler,
+	userService middleware.UserContextProvider,
+	appCache *cache.Cache,
+) {
+	r.Route("/tenant-settings", func(r chi.Router) {
+		r.Use(middleware.JWTAuthMiddleware)
+		r.Use(middleware.UserContextMiddleware(userService, appCache))
+
+		// Rate limit config
+		r.With(middleware.PermissionMiddleware([]string{"tenant-setting:read"})).
+			Get("/rate-limit", tenantSettingHandler.GetRateLimitConfig)
+		r.With(middleware.PermissionMiddleware([]string{"tenant-setting:update"})).
+			Put("/rate-limit", tenantSettingHandler.UpdateRateLimitConfig)
+
+		// Audit config
+		r.With(middleware.PermissionMiddleware([]string{"tenant-setting:read"})).
+			Get("/audit", tenantSettingHandler.GetAuditConfig)
+		r.With(middleware.PermissionMiddleware([]string{"tenant-setting:update"})).
+			Put("/audit", tenantSettingHandler.UpdateAuditConfig)
+
+		// Maintenance config
+		r.With(middleware.PermissionMiddleware([]string{"tenant-setting:read"})).
+			Get("/maintenance", tenantSettingHandler.GetMaintenanceConfig)
+		r.With(middleware.PermissionMiddleware([]string{"tenant-setting:update"})).
+			Put("/maintenance", tenantSettingHandler.UpdateMaintenanceConfig)
+
+		// Feature flags
+		r.With(middleware.PermissionMiddleware([]string{"tenant-setting:read"})).
+			Get("/feature-flags", tenantSettingHandler.GetFeatureFlags)
+		r.With(middleware.PermissionMiddleware([]string{"tenant-setting:update"})).
+			Put("/feature-flags", tenantSettingHandler.UpdateFeatureFlags)
 	})
 }

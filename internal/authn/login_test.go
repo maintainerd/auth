@@ -16,6 +16,7 @@ import (
 	"github.com/maintainerd/auth/internal/platform/config"
 	"github.com/maintainerd/auth/internal/platform/jwt"
 	"github.com/maintainerd/auth/internal/platform/security"
+	"github.com/maintainerd/auth/internal/shared"
 	"github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -497,10 +498,10 @@ func buildActiveIdentityProvider() *IdentityProvider {
 	return &IdentityProvider{
 		IdentityProviderID: 1,
 		Name:               "default",
-		Provider:           IDPProviderInternal,
-		ProviderType:       IDPTypeIdentity,
+		Provider:           shared.IDPProviderInternal,
+		ProviderType:       shared.IDPTypeIdentity,
 		Identifier:         "test-provider",
-		Status:             StatusActive,
+		Status:             shared.StatusActive,
 	}
 }
 
@@ -513,7 +514,7 @@ func buildActiveClient() *Client {
 		Name:             "test-client",
 		Domain:           strPtr("https://auth.example.com"),
 		Identifier:       strPtr("test-client"),
-		Status:           StatusActive,
+		Status:           shared.StatusActive,
 		IdentityProvider: idp,
 	}
 }
@@ -531,7 +532,7 @@ func buildActiveUser(t *testing.T, password string) *User {
 		Username: "testuser",
 		Email:    "testuser@example.com",
 		Password: &hashStr,
-		Status:   StatusActive,
+		Status:   shared.StatusActive,
 	}
 }
 
@@ -697,7 +698,7 @@ func TestLoginPublic(t *testing.T) {
 				}
 				r.clientRepo.findByClientIDAndIdentityProviderFn = func(_, _ string) (*Client, error) {
 					c := buildActiveClient()
-					c.Status = StatusInactive
+					c.Status = shared.StatusInactive
 					return c, nil
 				}
 			},
@@ -744,7 +745,7 @@ func TestLoginPublic(t *testing.T) {
 				}
 				r.userRepo.findByUsernameFn = func(_ string) (*User, error) {
 					u := buildActiveUser(t, correctPassword)
-					u.Status = StatusInactive
+					u.Status = shared.StatusInactive
 					return u, nil
 				}
 				r.userIdentity.findByUserIDAndClientIDFn = func(_, _ int64) (*UserIdentity, error) {
@@ -881,7 +882,7 @@ func TestLogin(t *testing.T) {
 			setup: func(t *testing.T, r repoSetup) {
 				r.clientRepo.findSystemFn = func() (*Client, error) {
 					c := buildActiveClient()
-					c.Status = StatusInactive
+					c.Status = shared.StatusInactive
 					return c, nil
 				}
 			},
@@ -918,7 +919,7 @@ func TestLogin(t *testing.T) {
 				r.clientRepo.findSystemFn = func() (*Client, error) { return buildActiveClient(), nil }
 				r.userRepo.findByUsernameFn = func(_ string) (*User, error) {
 					u := buildActiveUser(t, correctPassword)
-					u.Status = StatusInactive
+					u.Status = shared.StatusInactive
 					return u, nil
 				}
 				r.userIdentity.findByUserIDAndClientIDFn = func(_, _ int64) (*UserIdentity, error) {

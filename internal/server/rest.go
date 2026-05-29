@@ -25,7 +25,6 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
-	"github.com/maintainerd/auth/internal/app"
 	"github.com/maintainerd/auth/internal/authevent"
 	"github.com/maintainerd/auth/internal/invite"
 	securityMiddleware "github.com/maintainerd/auth/internal/platform/middleware"
@@ -85,7 +84,7 @@ type handlers struct {
 	federation         *idp.FederationHandler
 }
 
-func initHandlers(application *app.App) *handlers {
+func initHandlers(application *Application) *handlers {
 	return &handlers{
 		service:            iam.NewServiceHandler(application.ServiceService),
 		api:                iam.NewAPIHandler(application.APIService),
@@ -130,7 +129,7 @@ func initHandlers(application *app.App) *handlers {
 		oauthSession:       oauth.NewOAuthSessionHandler(application.OAuthSessionService),
 		oauthCIBA:          oauth.NewOAuthCIBAHandler(application.OAuthCIBAService),
 		oauthRegister:      oauth.NewOAuthRegisterHandler(application.OAuthRegisterService),
-		account:            user.NewAccountHandler(application.AccountService, application.SessionService),
+		account:            user.NewAccountHandler(application.AccountService, newUserSessionServiceAdapter(application.SessionService)),
 		smsLogin:           authn.NewSMSLoginHandler(application.SMSLoginService),
 		mfa:                mfa.NewMFAHandler(application.MFAService, application.WebAuthnService),
 		federation:         idp.NewFederationHandler(application.FederationService),
@@ -139,7 +138,7 @@ func initHandlers(application *app.App) *handlers {
 
 // StartRESTServer launches the internal and public HTTP servers, blocks until
 // a termination signal is received, then drains connections gracefully.
-func StartRESTServer(application *app.App) {
+func StartRESTServer(application *Application) {
 	h := initHandlers(application)
 
 	internalSrv := &http.Server{
@@ -209,8 +208,9 @@ func StartRESTServer(application *app.App) {
 }
 
 // buildInternalRouter constructs the chi router for the internal API (port 8080, VPN access only).
-func buildInternalRouter(h *handlers, application *app.App) http.Handler {
+func buildInternalRouter(h *handlers, application *Application) http.Handler {
 	r := chi.NewRouter()
+	userProvider := newMiddlewareUserContextProvider(application.UserService)
 
 	// Built-in Chi middlewares
 	r.Use(middleware.Recoverer)
@@ -252,42 +252,42 @@ func buildInternalRouter(h *handlers, application *app.App) http.Handler {
 		authn.ResetPasswordRoute(api, h.resetPassword)
 		authn.EmailVerificationRoute(api, h.emailVerification)
 		authn.MagicLinkRoute(api, h.magicLink)
-		user.ProfileRoute(api, h.profile, application.UserService, application.Cache)
-		user.UserSettingRoute(api, h.userSetting, application.UserService, application.Cache)
+		user.ProfileRoute(api, h.profile, userProvider, application.Cache)
+		user.UserSettingRoute(api, h.userSetting, userProvider, application.Cache)
 
 		// Management Routes (internal access only)
-		tenant.TenantRoute(api, h.tenant, application.UserService, application.Cache)
-		iam.ServiceRoute(api, h.service, application.UserService, application.Cache)
-		iam.APIRoute(api, h.api, application.UserService, application.Cache)
-		iam.PermissionRoute(api, h.permission, application.UserService, application.Cache)
-		iam.PolicyRoute(api, h.policy, application.UserService, application.Cache)
-		idp.IdentityProviderRoute(api, h.identityProvider, application.UserService, application.Cache)
-		client.ClientRoute(api, h.client, application.UserService, application.Cache)
-		iam.RoleRoute(api, h.role, application.UserService, application.Cache)
-		user.UserRoute(api, h.user, h.profile, application.UserService, application.Cache)
-		invite.InviteRoute(api, h.invite, application.UserService, application.Cache)
-		client.APIKeyRoute(api, h.apiKey, application.UserService, application.Cache)
-		idp.SignupFlowRoute(api, h.signupFlow, application.UserService, application.Cache)
-		secpolicy.SecuritySettingRoute(api, h.securitySetting, application.UserService, application.Cache)
-		secpolicy.IPRestrictionRuleRoute(api, h.ipRestrictionRule, application.UserService, application.Cache)
-		branding.EmailTemplateRoute(api, h.emailTemplate, application.UserService, application.Cache)
-		branding.SMSTemplateRoute(api, h.smsTemplate, application.UserService, application.Cache)
-		branding.LoginTemplateRoute(api, h.loginTemplate, application.UserService, application.Cache)
-		branding.BrandingRoute(api, h.branding, application.UserService, application.Cache)
-		tenant.TenantSettingRoute(api, h.tenantSetting, application.UserService, application.Cache)
-		notifier.EmailConfigRoute(api, h.emailConfig, application.UserService, application.Cache)
-		notifier.SMSConfigRoute(api, h.smsConfig, application.UserService, application.Cache)
-		webhook.WebhookEndpointRoute(api, h.webhookEndpoint, application.UserService, application.Cache)
-		authevent.AuthEventRoute(api, h.authEvent, application.UserService, application.Cache)
-		oauth.OAuthInternalRoute(api, h.oauthToken, application.UserService, application.Cache)
+		tenant.TenantRoute(api, h.tenant, userProvider, application.Cache)
+		iam.ServiceRoute(api, h.service, userProvider, application.Cache)
+		iam.APIRoute(api, h.api, userProvider, application.Cache)
+		iam.PermissionRoute(api, h.permission, userProvider, application.Cache)
+		iam.PolicyRoute(api, h.policy, userProvider, application.Cache)
+		idp.IdentityProviderRoute(api, h.identityProvider, userProvider, application.Cache)
+		client.ClientRoute(api, h.client, userProvider, application.Cache)
+		iam.RoleRoute(api, h.role, userProvider, application.Cache)
+		user.UserRoute(api, h.user, h.profile, userProvider, application.Cache)
+		invite.InviteRoute(api, h.invite, userProvider, application.Cache)
+		client.APIKeyRoute(api, h.apiKey, userProvider, application.Cache)
+		idp.SignupFlowRoute(api, h.signupFlow, userProvider, application.Cache)
+		secpolicy.SecuritySettingRoute(api, h.securitySetting, userProvider, application.Cache)
+		secpolicy.IPRestrictionRuleRoute(api, h.ipRestrictionRule, userProvider, application.Cache)
+		branding.EmailTemplateRoute(api, h.emailTemplate, userProvider, application.Cache)
+		branding.SMSTemplateRoute(api, h.smsTemplate, userProvider, application.Cache)
+		branding.LoginTemplateRoute(api, h.loginTemplate, userProvider, application.Cache)
+		branding.BrandingRoute(api, h.branding, userProvider, application.Cache)
+		tenant.TenantSettingRoute(api, h.tenantSetting, userProvider, application.Cache)
+		notifier.EmailConfigRoute(api, h.emailConfig, userProvider, application.Cache)
+		notifier.SMSConfigRoute(api, h.smsConfig, userProvider, application.Cache)
+		webhook.WebhookEndpointRoute(api, h.webhookEndpoint, userProvider, application.Cache)
+		authevent.AuthEventRoute(api, h.authEvent, userProvider, application.Cache)
+		oauth.OAuthInternalRoute(api, h.oauthToken, userProvider, application.Cache)
 
 		// Account self-service routes (authenticated)
-		user.AccountRoute(api, h.account, application.UserService, application.Cache)
+		user.AccountRoute(api, h.account, userProvider, application.Cache)
 		// MFA self-service routes (authenticated)
-		mfa.MFARoute(api, h.mfa, application.UserService, application.Cache)
+		mfa.MFARoute(api, h.mfa, userProvider, application.Cache)
 		// Federation: token exchange + HRD (public) + identity link/unlink (authenticated)
 		idp.FederationPublicRoute(api, h.federation)
-		idp.FederationIdentityRoute(api, h.federation, application.UserService, application.Cache)
+		idp.FederationIdentityRoute(api, h.federation, userProvider, application.Cache)
 		// SMS login (unauthenticated)
 		authn.SMSLoginRoute(api, h.smsLogin)
 		// Account recovery via backup code (unauthenticated)
@@ -298,8 +298,9 @@ func buildInternalRouter(h *handlers, application *app.App) http.Handler {
 }
 
 // buildPublicRouter constructs the chi router for the public API (port 8081, public internet).
-func buildPublicRouter(h *handlers, application *app.App) http.Handler {
+func buildPublicRouter(h *handlers, application *Application) http.Handler {
 	r := chi.NewRouter()
+	userProvider := newMiddlewareUserContextProvider(application.UserService)
 
 	// Built-in Chi middlewares
 	r.Use(middleware.Recoverer)
@@ -328,7 +329,7 @@ func buildPublicRouter(h *handlers, application *app.App) http.Handler {
 	r.Get("/ready", handleReady(application))
 
 	// OpenID Connect discovery endpoints (root-level, fully public)
-	route.OAuthDiscoveryRoute(r, h.oauthDiscovery)
+	oauth.OAuthDiscoveryRoute(r, h.oauthDiscovery)
 
 	// Tight rate limit for credential / credential-reset endpoints (10 req/min per IP)
 	authRateLimit := securityMiddleware.IPRateLimitMiddleware(application.RedisClient, 10, time.Minute)
@@ -337,32 +338,32 @@ func buildPublicRouter(h *handlers, application *app.App) http.Handler {
 		// Public Tenant Routes (no authentication required - for login page)
 		// Only exposes GET /tenant/ and GET /tenant/{identifier} — management endpoints
 		// are intentionally absent from the public surface.
-		route.TenantPublicRoute(api, h.tenant)
+		tenant.TenantPublicRoute(api, h.tenant)
 
 		// Rate-limited credential endpoints
 		api.Group(func(rl chi.Router) {
 			rl.Use(authRateLimit)
-			route.RegisterPublicRoute(rl, h.register)
-			route.LoginPublicRoute(rl, h.login)
-			route.ForgotPasswordPublicRoute(rl, h.forgotPassword)
-			route.ResetPasswordPublicRoute(rl, h.resetPassword)
+			authn.RegisterPublicRoute(rl, h.register)
+			authn.LoginPublicRoute(rl, h.login)
+			authn.ForgotPasswordPublicRoute(rl, h.forgotPassword)
+			authn.ResetPasswordPublicRoute(rl, h.resetPassword)
 		})
 
 		// Remaining public authentication routes
-		route.EmailVerificationPublicRoute(api, h.emailVerification)
-		route.MagicLinkPublicRoute(api, h.magicLink)
+		authn.EmailVerificationPublicRoute(api, h.emailVerification)
+		authn.MagicLinkPublicRoute(api, h.magicLink)
 
 		// Cookie-auth state-changing routes — apply CSRF protection
 		api.Group(func(cookieAuth chi.Router) {
 			cookieAuth.Use(securityMiddleware.CSRFMiddleware)
-			user.ProfileRoute(cookieAuth, h.profile, application.UserService, application.Cache)
-			user.UserSettingRoute(cookieAuth, h.userSetting, application.UserService, application.Cache)
-			user.AccountRoute(cookieAuth, h.account, application.UserService, application.Cache)
-			mfa.MFARoute(cookieAuth, h.mfa, application.UserService, application.Cache)
-			idp.FederationIdentityRoute(cookieAuth, h.federation, application.UserService, application.Cache)
+			user.ProfileRoute(cookieAuth, h.profile, userProvider, application.Cache)
+			user.UserSettingRoute(cookieAuth, h.userSetting, userProvider, application.Cache)
+			user.AccountRoute(cookieAuth, h.account, userProvider, application.Cache)
+			mfa.MFARoute(cookieAuth, h.mfa, userProvider, application.Cache)
+			idp.FederationIdentityRoute(cookieAuth, h.federation, userProvider, application.Cache)
 		})
 
-		oauth.OAuthPublicRoute(api, h.oauthAuthorize, h.oauthToken, h.oauthTokenExchange, h.oauthConsent, h.oauthUserInfo, h.oauthPAR, h.oauthDevice, h.oauthSession, h.oauthCIBA, h.oauthRegister, application.UserService, application.Cache)
+		oauth.OAuthPublicRoute(api, h.oauthAuthorize, h.oauthToken, h.oauthTokenExchange, h.oauthConsent, h.oauthUserInfo, h.oauthPAR, h.oauthDevice, h.oauthSession, h.oauthCIBA, h.oauthRegister, userProvider, application.Cache)
 
 		// Federation HRD (public, no cookie auth)
 		idp.FederationPublicRoute(api, h.federation)
@@ -386,7 +387,7 @@ func handleHealth(w http.ResponseWriter, _ *http.Request) {
 // handleReady returns an http.HandlerFunc that checks database and Redis
 // connectivity. It returns 200 OK when both dependencies are reachable, or
 // 503 Service Unavailable when either check fails.
-func handleReady(application *app.App) http.HandlerFunc {
+func handleReady(application *Application) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 

@@ -143,7 +143,7 @@ func (s *serviceService) GetByUUID(ctx context.Context, serviceUUID uuid.UUID, t
 	}
 
 	// Verify service belongs to tenant by checking tenant_services relationship
-	tenantService, err := s.tenantServiceRepo.FindByTenantAndService(tenantID, ServiceID)
+	tenantService, err := s.tenantServiceRepo.FindByTenantAndService(tenantID, service.ServiceID)
 	if err != nil || tenantService == nil {
 		span.SetStatus(codes.Error, "service not found or access denied")
 		return nil, apperror.NewNotFoundWithReason("service not found or access denied")
@@ -231,17 +231,17 @@ func (s *serviceService) Update(ctx context.Context, serviceUUID uuid.UUID, tena
 		}
 
 		// Verify service belongs to tenant
-		tenantService, err := txTenantServiceRepo.FindByTenantAndService(tenantID, ServiceID)
+		tenantService, err := txTenantServiceRepo.FindByTenantAndService(tenantID, service.ServiceID)
 		if err != nil || tenantService == nil {
 			return apperror.NewNotFoundWithReason("service not found or access denied")
 		}
 
 		// Check if service is a system record (critical for app functionality)
-		if IsSystem {
+		if service.IsSystem {
 			return apperror.NewValidation("system service cannot be updated")
 		}
 
-		if Name != name {
+		if service.Name != name {
 			existingService, err := txServiceRepo.FindByName(name)
 			if err != nil {
 				return err
@@ -251,12 +251,12 @@ func (s *serviceService) Update(ctx context.Context, serviceUUID uuid.UUID, tena
 			}
 		}
 
-		Name = name
-		DisplayName = displayName
-		Description = description
-		Version = version
-		IsSystem = isSystem
-		Status = status
+		service.Name = name
+		service.DisplayName = displayName
+		service.Description = description
+		service.Version = version
+		service.IsSystem = isSystem
+		service.Status = status
 
 		_, err = txServiceRepo.CreateOrUpdate(service)
 		if err != nil {
@@ -295,17 +295,17 @@ func (s *serviceService) SetStatusByUUID(ctx context.Context, serviceUUID uuid.U
 		}
 
 		// Verify service belongs to tenant
-		tenantService, err := txTenantServiceRepo.FindByTenantAndService(tenantID, ServiceID)
+		tenantService, err := txTenantServiceRepo.FindByTenantAndService(tenantID, service.ServiceID)
 		if err != nil || tenantService == nil {
 			return apperror.NewNotFoundWithReason("service not found or access denied")
 		}
 
 		// Check if service is a system record (critical for app functionality)
-		if IsSystem {
+		if service.IsSystem {
 			return apperror.NewValidation("system service status cannot be updated")
 		}
 
-		Status = status
+		service.Status = status
 
 		_, err = txServiceRepo.CreateOrUpdate(service)
 		if err != nil {
@@ -339,14 +339,14 @@ func (s *serviceService) DeleteByUUID(ctx context.Context, serviceUUID uuid.UUID
 	}
 
 	// Verify service belongs to tenant
-	tenantService, err := s.tenantServiceRepo.FindByTenantAndService(tenantID, ServiceID)
+	tenantService, err := s.tenantServiceRepo.FindByTenantAndService(tenantID, service.ServiceID)
 	if err != nil || tenantService == nil {
 		span.SetStatus(codes.Error, "service not found or access denied")
 		return nil, apperror.NewNotFoundWithReason("service not found or access denied")
 	}
 
 	// Check if service is a system record (critical for app functionality)
-	if IsSystem {
+	if service.IsSystem {
 		span.SetStatus(codes.Error, "system service cannot be deleted")
 		return nil, apperror.NewValidation("system service cannot be deleted")
 	}
@@ -365,23 +365,23 @@ func (s *serviceService) DeleteByUUID(ctx context.Context, serviceUUID uuid.UUID
 // Helper function to convert Service to ServiceServiceDataResult with counts
 func (s *serviceService) toServiceServiceDataResult(service *Service, tenantID int64) *ServiceServiceDataResult {
 	// Get API count for this service scoped to the caller's tenant
-	apiCount, _ := s.apiRepo.CountByServiceID(ServiceID, tenantID)
+	apiCount, _ := s.apiRepo.CountByServiceID(service.ServiceID, tenantID)
 
 	// Get policy count for this service
-	policyCount, _ := s.serviceRepo.CountPoliciesByServiceID(ServiceID)
+	policyCount, _ := s.serviceRepo.CountPoliciesByServiceID(service.ServiceID)
 
 	return &ServiceServiceDataResult{
-		ServiceUUID: ServiceUUID,
-		Name:        Name,
-		DisplayName: DisplayName,
-		Description: Description,
-		Version:     Version,
-		IsSystem:    IsSystem,
-		Status:      Status,
+		ServiceUUID: service.ServiceUUID,
+		Name:        service.Name,
+		DisplayName: service.DisplayName,
+		Description: service.Description,
+		Version:     service.Version,
+		IsSystem:    service.IsSystem,
+		Status:      service.Status,
 		APICount:    apiCount,
 		PolicyCount: policyCount,
-		CreatedAt:   CreatedAt,
-		UpdatedAt:   UpdatedAt,
+		CreatedAt:   service.CreatedAt,
+		UpdatedAt:   service.UpdatedAt,
 	}
 }
 
@@ -414,7 +414,7 @@ func (s *serviceService) AssignPolicy(ctx context.Context, serviceUUID uuid.UUID
 		}
 
 		// Check if assignment already exists
-		existing, err := txServicePolicyRepo.FindByServiceAndPolicy(ServiceID, policy.PolicyID)
+		existing, err := txServicePolicyRepo.FindByServiceAndPolicy(service.ServiceID, policy.PolicyID)
 		if err != nil {
 			return err
 		}
@@ -426,7 +426,7 @@ func (s *serviceService) AssignPolicy(ctx context.Context, serviceUUID uuid.UUID
 		// Create new service-policy assignment
 		servicePolicy := &ServicePolicy{
 			ServicePolicyUUID: uuid.New(),
-			ServiceID:         ServiceID,
+			ServiceID:         service.ServiceID,
 			PolicyID:          policy.PolicyID,
 		}
 
@@ -471,7 +471,7 @@ func (s *serviceService) RemovePolicy(ctx context.Context, serviceUUID uuid.UUID
 		}
 
 		// Check if assignment exists
-		existing, err := txServicePolicyRepo.FindByServiceAndPolicy(ServiceID, policy.PolicyID)
+		existing, err := txServicePolicyRepo.FindByServiceAndPolicy(service.ServiceID, policy.PolicyID)
 		if err != nil {
 			return err
 		}
@@ -481,7 +481,7 @@ func (s *serviceService) RemovePolicy(ctx context.Context, serviceUUID uuid.UUID
 		}
 
 		// Remove the service-policy assignment
-		return txServicePolicyRepo.DeleteByServiceAndPolicy(ServiceID, policy.PolicyID)
+		return txServicePolicyRepo.DeleteByServiceAndPolicy(service.ServiceID, policy.PolicyID)
 	})
 	if err != nil {
 		span.RecordError(err)
@@ -490,4 +490,33 @@ func (s *serviceService) RemovePolicy(ctx context.Context, serviceUUID uuid.UUID
 	}
 	span.SetStatus(codes.Ok, "")
 	return nil
+}
+
+type Service struct {
+	ServiceID   int64          `gorm:"column:service_id;primaryKey"`
+	ServiceUUID uuid.UUID      `gorm:"column:service_uuid;unique"`
+	Name        string         `gorm:"column:name"`
+	DisplayName string         `gorm:"column:display_name"`
+	Description string         `gorm:"column:description"`
+	Version     string         `gorm:"column:version"`
+	Status      string         `gorm:"column:status;default:'inactive'"`
+	IsSystem    bool           `gorm:"column:is_system;default:false"`
+	CreatedBy   *int64         `gorm:"column:created_by"`
+	UpdatedBy   *int64         `gorm:"column:updated_by"`
+	CreatedAt   time.Time      `gorm:"column:created_at;autoCreateTime"`
+	UpdatedAt   time.Time      `gorm:"column:updated_at;autoUpdateTime"`
+	DeletedAt   gorm.DeletedAt `gorm:"column:deleted_at;index"`
+
+	// Relationships
+}
+
+func (Service) TableName() string {
+	return "services"
+}
+
+func (s *Service) BeforeCreate(tx *gorm.DB) (err error) {
+	if s.ServiceUUID == uuid.Nil {
+		s.ServiceUUID = uuid.New()
+	}
+	return
 }

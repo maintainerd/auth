@@ -10,7 +10,7 @@ import (
 func WebhookEndpointRoute(
 	r chi.Router,
 	webhookEndpointHandler *WebhookEndpointHandler,
-	userService UserService,
+	userService middleware.UserContextProvider,
 	appCache *cache.Cache,
 ) {
 	r.Route("/webhook-endpoints", func(r chi.Router) {

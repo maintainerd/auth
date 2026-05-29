@@ -8,12 +8,14 @@ import (
 	"strings"
 	"time"
 
+	"github.com/maintainerd/auth/internal/branding"
 	"github.com/maintainerd/auth/internal/platform/apperror"
 	"github.com/maintainerd/auth/internal/platform/config"
 	"github.com/maintainerd/auth/internal/platform/email"
 	"github.com/maintainerd/auth/internal/platform/jwt"
 	"github.com/maintainerd/auth/internal/platform/security"
 	"github.com/maintainerd/auth/internal/platform/signedurl"
+	"github.com/maintainerd/auth/internal/shared"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/codes"
 	"gorm.io/gorm"
@@ -37,7 +39,7 @@ type magicLinkService struct {
 	clientRepo           ClientRepository
 	userIdentityRepo     UserIdentityRepository
 	identityProviderRepo IdentityProviderRepository
-	emailTemplateRepo    EmailTemplateRepository
+	emailTemplateRepo    branding.EmailTemplateRepository
 }
 
 func NewMagicLinkService(
@@ -47,7 +49,7 @@ func NewMagicLinkService(
 	clientRepo ClientRepository,
 	userIdentityRepo UserIdentityRepository,
 	identityProviderRepo IdentityProviderRepository,
-	emailTemplateRepo EmailTemplateRepository,
+	emailTemplateRepo branding.EmailTemplateRepository,
 ) MagicLinkService {
 	return &magicLinkService{
 		db:                   db,
@@ -96,13 +98,13 @@ func (s *magicLinkService) SendMagicLink(ctx context.Context, emailAddr string, 
 		}
 
 		// Skip if user is inactive — don't reveal status.
-		if user.Status != StatusActive {
+		if user.Status != shared.StatusActive {
 			user = nil
 			return nil
 		}
 
 		// Revoke any existing magic-link tokens for this user.
-		existingTokens, txErr := txUserTokenRepo.FindByUserIDAndTokenType(user.UserID, TokenTypeMagicLink)
+		existingTokens, txErr := txUserTokenRepo.FindByUserIDAndTokenType(user.UserID, shared.TokenTypeMagicLink)
 		if txErr != nil {
 			return apperror.NewInternal("failed to find existing tokens", txErr)
 		}
@@ -118,7 +120,7 @@ func (s *magicLinkService) SendMagicLink(ctx context.Context, emailAddr string, 
 		expiresAt := time.Now().Add(MagicLinkTokenTTL)
 		if _, txErr := txUserTokenRepo.Create(&UserToken{
 			UserID:    user.UserID,
-			TokenType: TokenTypeMagicLink,
+			TokenType: shared.TokenTypeMagicLink,
 			Token:     token,
 			ExpiresAt: &expiresAt,
 		}); txErr != nil {
@@ -181,7 +183,7 @@ func (s *magicLinkService) LoginWithMagicLink(ctx context.Context, token, client
 
 		Client, txErr = txClientRepo.FindByClientIDAndIdentityProvider(clientID, providerID)
 		if txErr != nil || Client == nil ||
-			Client.Status != StatusActive ||
+			Client.Status != shared.StatusActive ||
 			Client.Domain == nil || *Client.Domain == "" {
 			return apperror.NewUnauthorized("authentication failed")
 		}
@@ -190,7 +192,7 @@ func (s *magicLinkService) LoginWithMagicLink(ctx context.Context, token, client
 		var matches []UserToken
 		if txErr := tx.Where(
 			"token_type = ? AND token = ? AND is_revoked = false",
-			TokenTypeMagicLink, token,
+			shared.TokenTypeMagicLink, token,
 		).Find(&matches).Error; txErr != nil {
 			return apperror.NewInternal("failed to find magic link token", txErr)
 		}
@@ -208,7 +210,7 @@ func (s *magicLinkService) LoginWithMagicLink(ctx context.Context, token, client
 		if txErr != nil || user == nil {
 			return apperror.NewUnauthorized("authentication failed")
 		}
-		if user.Status != StatusActive {
+		if user.Status != shared.StatusActive {
 			return apperror.NewUnauthorized("account is not active")
 		}
 
@@ -220,7 +222,7 @@ func (s *magicLinkService) LoginWithMagicLink(ctx context.Context, token, client
 		userIdentitySub = userIdentity.Sub
 
 		// Single-use: revoke this token (and any other outstanding magic-link tokens).
-		existingTokens, txErr := txUserTokenRepo.FindByUserIDAndTokenType(user.UserID, TokenTypeMagicLink)
+		existingTokens, txErr := txUserTokenRepo.FindByUserIDAndTokenType(user.UserID, shared.TokenTypeMagicLink)
 		if txErr != nil {
 			return apperror.NewInternal("failed to find existing tokens", txErr)
 		}

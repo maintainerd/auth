@@ -5,11 +5,14 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/maintainerd/auth/internal/authevent"
 	"github.com/maintainerd/auth/internal/platform/apperror"
 	"github.com/maintainerd/auth/internal/platform/jwt"
 	"github.com/maintainerd/auth/internal/platform/middleware"
 	"github.com/maintainerd/auth/internal/platform/ptr"
 	"github.com/maintainerd/auth/internal/platform/security"
+	"github.com/maintainerd/auth/internal/secpolicy"
+	"github.com/maintainerd/auth/internal/shared"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/codes"
 	"golang.org/x/crypto/bcrypt"
@@ -29,9 +32,9 @@ type loginService struct {
 	userTokenRepo        UserTokenRepository
 	userIdentityRepo     UserIdentityRepository
 	identityProviderRepo IdentityProviderRepository
-	authEventService     AuthEventService
+	authEventService     authevent.AuthEventService
 	sessionService       SessionService
-	securitySettingRepo  SecuritySettingRepository // nil → skip expiry check
+	securitySettingRepo  secpolicy.SecuritySettingRepository // nil → skip expiry check
 }
 
 func NewLoginService(
@@ -41,9 +44,9 @@ func NewLoginService(
 	userTokenRepo UserTokenRepository,
 	userIdentityRepo UserIdentityRepository,
 	identityProviderRepo IdentityProviderRepository,
-	authEventService AuthEventService,
+	authEventService authevent.AuthEventService,
 	sessionService SessionService,
-	securitySettingRepo SecuritySettingRepository,
+	securitySettingRepo secpolicy.SecuritySettingRepository,
 ) LoginService {
 	return &loginService{
 		db:                   db,
@@ -142,7 +145,7 @@ func (s *loginService) LoginPublic(ctx context.Context, usernameOrEmail, passwor
 		}
 
 		if client == nil ||
-			client.Status != StatusActive ||
+			client.Status != shared.StatusActive ||
 			client.Domain == nil || *client.Domain == "" {
 			security.LogSecurityEvent(security.SecurityEvent{
 				EventType: "login_invalid_client",
@@ -197,16 +200,16 @@ func (s *loginService) LoginPublic(ctx context.Context, usernameOrEmail, passwor
 			Details:   "Invalid credentials provided",
 		})
 
-		// Log structured auth event
+		// authevent.Log structured auth event
 		if client != nil {
-			s.authEventService.Log(ctx, AuthEventInput{
+			s.authEventService.Log(ctx, authevent.AuthEventInput{
 				TenantID:    client.IdentityProvider.TenantID,
 				IPAddress:   middleware.ClientIPFromContext(ctx),
 				UserAgent:   ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),
-				Category:    AuthEventCategoryAuthn,
-				EventType:   AuthEventTypeLoginFail,
-				Severity:    AuthEventSeverityWarn,
-				Result:      AuthEventResultFailure,
+				Category:    authevent.AuthEventCategoryAuthn,
+				EventType:   authevent.AuthEventTypeLoginFail,
+				Severity:    authevent.AuthEventSeverityWarn,
+				Result:      authevent.AuthEventResultFailure,
 				Description: ptr.Ptr("Invalid credentials"),
 			})
 		}
@@ -215,7 +218,7 @@ func (s *loginService) LoginPublic(ctx context.Context, usernameOrEmail, passwor
 	}
 
 	// Check if user account is active
-	if user.Status != StatusActive {
+	if user.Status != shared.StatusActive {
 		security.LogSecurityEvent(security.SecurityEvent{
 			EventType: "login_inactive_user",
 			UserID:    user.UserUUID.String(),
@@ -224,15 +227,15 @@ func (s *loginService) LoginPublic(ctx context.Context, usernameOrEmail, passwor
 			Details:   "Attempt to login with inactive user account",
 		})
 
-		s.authEventService.Log(ctx, AuthEventInput{
+		s.authEventService.Log(ctx, authevent.AuthEventInput{
 			TenantID:    client.IdentityProvider.TenantID,
 			ActorUserID: &user.UserID,
 			IPAddress:   middleware.ClientIPFromContext(ctx),
 			UserAgent:   ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),
-			Category:    AuthEventCategoryAuthn,
-			EventType:   AuthEventTypeLoginFail,
-			Severity:    AuthEventSeverityWarn,
-			Result:      AuthEventResultFailure,
+			Category:    authevent.AuthEventCategoryAuthn,
+			EventType:   authevent.AuthEventTypeLoginFail,
+			Severity:    authevent.AuthEventSeverityWarn,
+			Result:      authevent.AuthEventResultFailure,
 			Description: ptr.Ptr("Attempt to login with inactive account"),
 		})
 
@@ -242,7 +245,7 @@ func (s *loginService) LoginPublic(ctx context.Context, usernameOrEmail, passwor
 	// Reset failed attempts on successful authentication
 	security.ResetFailedAttempts(usernameOrEmail)
 
-	// Log successful login
+	// authevent.Log successful login
 	security.LogSecurityEvent(security.SecurityEvent{
 		EventType: "login_success",
 		UserID:    user.UserUUID.String(),
@@ -251,15 +254,15 @@ func (s *loginService) LoginPublic(ctx context.Context, usernameOrEmail, passwor
 		Details:   fmt.Sprintf("Successful login for user %s", user.Username),
 	})
 
-	s.authEventService.Log(ctx, AuthEventInput{
+	s.authEventService.Log(ctx, authevent.AuthEventInput{
 		TenantID:    client.IdentityProvider.TenantID,
 		ActorUserID: &user.UserID,
 		IPAddress:   middleware.ClientIPFromContext(ctx),
 		UserAgent:   ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),
-		Category:    AuthEventCategoryAuthn,
-		EventType:   AuthEventTypeLoginSuccess,
-		Severity:    AuthEventSeverityInfo,
-		Result:      AuthEventResultSuccess,
+		Category:    authevent.AuthEventCategoryAuthn,
+		EventType:   authevent.AuthEventTypeLoginSuccess,
+		Severity:    authevent.AuthEventSeverityInfo,
+		Result:      authevent.AuthEventResultSuccess,
 		Description: ptr.Ptr(fmt.Sprintf("Successful login for user %s", user.Username)),
 	})
 
@@ -340,7 +343,7 @@ func (s *loginService) Login(ctx context.Context, usernameOrEmail, password stri
 		}
 
 		if client == nil ||
-			client.Status != StatusActive ||
+			client.Status != shared.StatusActive ||
 			client.Domain == nil || *client.Domain == "" {
 			security.LogSecurityEvent(security.SecurityEvent{
 				EventType: "login_invalid_client",
@@ -397,16 +400,16 @@ func (s *loginService) Login(ctx context.Context, usernameOrEmail, password stri
 			Details:   "Invalid credentials provided",
 		})
 
-		// Log structured auth event
+		// authevent.Log structured auth event
 		if client != nil {
-			s.authEventService.Log(ctx, AuthEventInput{
+			s.authEventService.Log(ctx, authevent.AuthEventInput{
 				TenantID:    client.IdentityProvider.TenantID,
 				IPAddress:   middleware.ClientIPFromContext(ctx),
 				UserAgent:   ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),
-				Category:    AuthEventCategoryAuthn,
-				EventType:   AuthEventTypeLoginFail,
-				Severity:    AuthEventSeverityWarn,
-				Result:      AuthEventResultFailure,
+				Category:    authevent.AuthEventCategoryAuthn,
+				EventType:   authevent.AuthEventTypeLoginFail,
+				Severity:    authevent.AuthEventSeverityWarn,
+				Result:      authevent.AuthEventResultFailure,
 				Description: ptr.Ptr("Invalid credentials"),
 			})
 		}
@@ -415,7 +418,7 @@ func (s *loginService) Login(ctx context.Context, usernameOrEmail, password stri
 	}
 
 	// Check if user account is active
-	if user.Status != StatusActive {
+	if user.Status != shared.StatusActive {
 		security.LogSecurityEvent(security.SecurityEvent{
 			EventType: "login_inactive_user",
 			UserID:    user.UserUUID.String(),
@@ -424,15 +427,15 @@ func (s *loginService) Login(ctx context.Context, usernameOrEmail, password stri
 			Details:   "Attempt to login with inactive user account",
 		})
 
-		s.authEventService.Log(ctx, AuthEventInput{
+		s.authEventService.Log(ctx, authevent.AuthEventInput{
 			TenantID:    client.IdentityProvider.TenantID,
 			ActorUserID: &user.UserID,
 			IPAddress:   middleware.ClientIPFromContext(ctx),
 			UserAgent:   ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),
-			Category:    AuthEventCategoryAuthn,
-			EventType:   AuthEventTypeLoginFail,
-			Severity:    AuthEventSeverityWarn,
-			Result:      AuthEventResultFailure,
+			Category:    authevent.AuthEventCategoryAuthn,
+			EventType:   authevent.AuthEventTypeLoginFail,
+			Severity:    authevent.AuthEventSeverityWarn,
+			Result:      authevent.AuthEventResultFailure,
 			Description: ptr.Ptr("Attempt to login with inactive account"),
 		})
 
@@ -442,7 +445,7 @@ func (s *loginService) Login(ctx context.Context, usernameOrEmail, password stri
 	// Reset failed attempts on successful authentication
 	security.ResetFailedAttempts(usernameOrEmail)
 
-	// Log successful login
+	// authevent.Log successful login
 	security.LogSecurityEvent(security.SecurityEvent{
 		EventType: "login_success",
 		UserID:    user.UserUUID.String(),
@@ -451,15 +454,15 @@ func (s *loginService) Login(ctx context.Context, usernameOrEmail, password stri
 		Details:   fmt.Sprintf("Successful internal login for user %s", user.Username),
 	})
 
-	s.authEventService.Log(ctx, AuthEventInput{
+	s.authEventService.Log(ctx, authevent.AuthEventInput{
 		TenantID:    client.IdentityProvider.TenantID,
 		ActorUserID: &user.UserID,
 		IPAddress:   middleware.ClientIPFromContext(ctx),
 		UserAgent:   ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),
-		Category:    AuthEventCategoryAuthn,
-		EventType:   AuthEventTypeLoginSuccess,
-		Severity:    AuthEventSeverityInfo,
-		Result:      AuthEventResultSuccess,
+		Category:    authevent.AuthEventCategoryAuthn,
+		EventType:   authevent.AuthEventTypeLoginSuccess,
+		Severity:    authevent.AuthEventSeverityInfo,
+		Result:      authevent.AuthEventResultSuccess,
 		Description: ptr.Ptr(fmt.Sprintf("Successful internal login for user %s", user.Username)),
 	})
 

@@ -9,6 +9,7 @@ import (
 	"github.com/maintainerd/auth/internal/platform/middleware"
 	"github.com/maintainerd/auth/internal/platform/ptr"
 	resp "github.com/maintainerd/auth/internal/platform/response"
+	"github.com/maintainerd/auth/internal/shared"
 )
 
 // EmailTemplateHandler handles HTTP requests for email template management.
@@ -150,7 +151,7 @@ func (h *EmailTemplateHandler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Set default status if not provided
-	status := StatusActive
+	status := shared.StatusActive
 	if req.Status != nil {
 		status = *req.Status
 	}
@@ -209,7 +210,7 @@ func (h *EmailTemplateHandler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Set default status if not provided
-	status := StatusActive
+	status := shared.StatusActive
 	if req.Status != nil {
 		status = *req.Status
 	}

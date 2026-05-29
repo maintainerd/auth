@@ -138,7 +138,7 @@ func (h *RegisterHandler) RegisterPublic(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	// Log successful registration
+	// authevent.Log successful registration
 	security.LogSecurityEvent(security.SecurityEvent{
 		EventType: "registration_success",
 		UserID:    req.Username,
@@ -253,7 +253,7 @@ func (h *RegisterHandler) Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Log successful registration
+	// authevent.Log successful registration
 	security.LogSecurityEvent(security.SecurityEvent{
 		EventType: "registration_success",
 		UserID:    req.Username,

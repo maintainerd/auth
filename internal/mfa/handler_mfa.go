@@ -57,7 +57,7 @@ func (h *MFAHandler) BeginTOTPEnrollment(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	result, err := h.mfaSvc.BeginTOTPEnrollment(r.Context(), user.UserID, user.Email)
+	result, err := h.mfaSvc.BeginTOTPEnrollment(r.Context(), user.UserID)
 	if err != nil {
 		resp.HandleServiceError(w, r, "Failed to begin TOTP enrollment", err)
 		return

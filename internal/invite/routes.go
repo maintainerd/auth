@@ -9,7 +9,7 @@ import (
 func InviteRoute(
 	r chi.Router,
 	inviteHandler *InviteHandler,
-	userService UserService,
+	userService middleware.UserContextProvider,
 	appCache *cache.Cache,
 ) {
 	r.Route("/invite", func(r chi.Router) {

@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"log/slog"
+
+	"github.com/maintainerd/auth/internal/authevent"
 )
 
 // Dispatcher delivers auth events to subscribed webhook endpoints.
@@ -19,7 +21,7 @@ func NewDispatcher(repo WebhookEndpointRepository) *Dispatcher {
 // Dispatch finds all active webhook endpoints for the event's tenant and
 // delivers the event to those that subscribe to the event type.
 // Each delivery runs in its own goroutine; errors are logged but never propagated.
-func (d *Dispatcher) Dispatch(ctx context.Context, event *AuthEvent) {
+func (d *Dispatcher) Dispatch(ctx context.Context, event *authevent.AuthEvent) {
 	endpoints, err := d.repo.FindActiveByTenantID(event.TenantID)
 	if err != nil {
 		slog.Error("webhook dispatch: find endpoints", "tenant_id", event.TenantID, "err", err)

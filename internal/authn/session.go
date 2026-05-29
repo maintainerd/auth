@@ -22,6 +22,7 @@ import (
 	"github.com/maintainerd/auth/internal/platform/apperror"
 	"github.com/maintainerd/auth/internal/platform/ptr"
 	"github.com/maintainerd/auth/internal/platform/security"
+	"github.com/maintainerd/auth/internal/shared"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -151,7 +152,7 @@ func (s *sessionService) RevokeAllSessions(ctx context.Context, userID int64) er
 	return nil
 }
 
-// CreateSession creates a new UserToken of type TokenTypeSession for userID.
+// CreateSession creates a new UserToken of type shared.TokenTypeSession for userID.
 func (s *sessionService) CreateSession(ctx context.Context, userID int64, ipAddress, userAgent string) (*UserToken, error) {
 	_, span := otel.Tracer("service").Start(ctx, "session.create")
 	defer span.End()
@@ -172,7 +173,7 @@ func (s *sessionService) CreateSession(ctx context.Context, userID int64, ipAddr
 
 	token := &UserToken{
 		UserID:             userID,
-		TokenType:          TokenTypeSession,
+		TokenType:          shared.TokenTypeSession,
 		Token:              rawToken, // stored as-is; rotate to hash if required
 		IPAddress:          ptr.PtrOrNil(ipAddress),
 		UserAgent:          ptr.PtrOrNil(userAgent),

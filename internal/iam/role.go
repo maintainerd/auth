@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/maintainerd/auth/internal/authevent"
 	"github.com/maintainerd/auth/internal/platform/apperror"
 	"github.com/maintainerd/auth/internal/platform/cache"
 	"github.com/maintainerd/auth/internal/platform/middleware"
@@ -87,7 +88,7 @@ type roleService struct {
 	userRepo           UserRepository
 	tenantRepo         TenantRepository
 	cacheInvalidator   cache.Invalidator
-	authEventService   AuthEventService
+	authEventService   authevent.AuthEventService
 }
 
 func NewRoleService(
@@ -98,7 +99,7 @@ func NewRoleService(
 	userRepo UserRepository,
 	tenantRepo TenantRepository,
 	cacheInvalidator cache.Invalidator,
-	authEventService AuthEventService,
+	authEventService authevent.AuthEventService,
 ) RoleService {
 	return &roleService{
 		db:                 db,
@@ -308,15 +309,15 @@ func (s *roleService) Create(ctx context.Context, name string, description strin
 	}
 
 	span.SetStatus(codes.Ok, "")
-	s.authEventService.Log(ctx, AuthEventInput{
+	s.authEventService.Log(ctx, authevent.AuthEventInput{
 		TenantID:    capturedTenantID,
 		ActorUserID: &capturedActorID,
 		IPAddress:   middleware.ClientIPFromContext(ctx),
 		UserAgent:   ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),
-		Category:    AuthEventCategoryAuthz,
-		EventType:   AuthEventTypeAuthzAdmin,
-		Severity:    AuthEventSeverityInfo,
-		Result:      AuthEventResultSuccess,
+		Category:    authevent.AuthEventCategoryAuthz,
+		EventType:   authevent.AuthEventTypeAuthzAdmin,
+		Severity:    authevent.AuthEventSeverityInfo,
+		Result:      authevent.AuthEventResultSuccess,
 		Description: ptr.Ptr(fmt.Sprintf("Role created: %s", createdRole.Name)),
 	})
 	return toRoleServiceDataResult(createdRole), nil
@@ -403,15 +404,15 @@ func (s *roleService) Update(ctx context.Context, roleUUID uuid.UUID, tenantID i
 	s.cacheInvalidator.InvalidateAllUsers(ctx)
 
 	span.SetStatus(codes.Ok, "")
-	s.authEventService.Log(ctx, AuthEventInput{
+	s.authEventService.Log(ctx, authevent.AuthEventInput{
 		TenantID:    tenantID,
 		ActorUserID: &capturedActorID,
 		IPAddress:   middleware.ClientIPFromContext(ctx),
 		UserAgent:   ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),
-		Category:    AuthEventCategoryAuthz,
-		EventType:   AuthEventTypeAuthzAdmin,
-		Severity:    AuthEventSeverityInfo,
-		Result:      AuthEventResultSuccess,
+		Category:    authevent.AuthEventCategoryAuthz,
+		EventType:   authevent.AuthEventTypeAuthzAdmin,
+		Severity:    authevent.AuthEventSeverityInfo,
+		Result:      authevent.AuthEventResultSuccess,
 		Description: ptr.Ptr(fmt.Sprintf("Role updated: %s", updatedRole.Name)),
 	})
 	return toRoleServiceDataResult(updatedRole), nil
@@ -483,15 +484,15 @@ func (s *roleService) SetStatusByUUID(ctx context.Context, roleUUID uuid.UUID, t
 	s.cacheInvalidator.InvalidateAllUsers(ctx)
 
 	span.SetStatus(codes.Ok, "")
-	s.authEventService.Log(ctx, AuthEventInput{
+	s.authEventService.Log(ctx, authevent.AuthEventInput{
 		TenantID:    tenantID,
 		ActorUserID: &capturedActorID,
 		IPAddress:   middleware.ClientIPFromContext(ctx),
 		UserAgent:   ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),
-		Category:    AuthEventCategoryAuthz,
-		EventType:   AuthEventTypeAuthzAdmin,
-		Severity:    AuthEventSeverityInfo,
-		Result:      AuthEventResultSuccess,
+		Category:    authevent.AuthEventCategoryAuthz,
+		EventType:   authevent.AuthEventTypeAuthzAdmin,
+		Severity:    authevent.AuthEventSeverityInfo,
+		Result:      authevent.AuthEventResultSuccess,
 		Description: ptr.Ptr(fmt.Sprintf("Role status set to %s: %s", status, updatedRole.Name)),
 	})
 	return toRoleServiceDataResult(updatedRole), nil
@@ -551,15 +552,15 @@ func (s *roleService) DeleteByUUID(ctx context.Context, roleUUID uuid.UUID, tena
 	s.cacheInvalidator.InvalidateAllUsers(ctx)
 
 	span.SetStatus(codes.Ok, "")
-	s.authEventService.Log(ctx, AuthEventInput{
+	s.authEventService.Log(ctx, authevent.AuthEventInput{
 		TenantID:    tenantID,
 		ActorUserID: &actorUser.UserID,
 		IPAddress:   middleware.ClientIPFromContext(ctx),
 		UserAgent:   ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),
-		Category:    AuthEventCategoryAuthz,
-		EventType:   AuthEventTypeAuthzAdmin,
-		Severity:    AuthEventSeverityWarn,
-		Result:      AuthEventResultSuccess,
+		Category:    authevent.AuthEventCategoryAuthz,
+		EventType:   authevent.AuthEventTypeAuthzAdmin,
+		Severity:    authevent.AuthEventSeverityWarn,
+		Result:      authevent.AuthEventResultSuccess,
 		Description: ptr.Ptr(fmt.Sprintf("Role deleted: %s", role.Name)),
 	})
 	return toRoleServiceDataResult(role), nil
@@ -671,15 +672,15 @@ func (s *roleService) AddRolePermissions(ctx context.Context, roleUUID uuid.UUID
 	s.cacheInvalidator.InvalidateAllUsers(ctx)
 
 	span.SetStatus(codes.Ok, "")
-	s.authEventService.Log(ctx, AuthEventInput{
+	s.authEventService.Log(ctx, authevent.AuthEventInput{
 		TenantID:    tenantID,
 		ActorUserID: &capturedActorID,
 		IPAddress:   middleware.ClientIPFromContext(ctx),
 		UserAgent:   ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),
-		Category:    AuthEventCategoryAuthz,
-		EventType:   AuthEventTypeAuthzChange,
-		Severity:    AuthEventSeverityInfo,
-		Result:      AuthEventResultSuccess,
+		Category:    authevent.AuthEventCategoryAuthz,
+		EventType:   authevent.AuthEventTypeAuthzChange,
+		Severity:    authevent.AuthEventSeverityInfo,
+		Result:      authevent.AuthEventResultSuccess,
 		Description: ptr.Ptr(fmt.Sprintf("Permissions added to role: %s", roleWithPermissions.Name)),
 	})
 	return toRoleServiceDataResult(roleWithPermissions), nil
@@ -780,15 +781,15 @@ func (s *roleService) RemoveRolePermissions(ctx context.Context, roleUUID uuid.U
 	s.cacheInvalidator.InvalidateAllUsers(ctx)
 
 	span.SetStatus(codes.Ok, "")
-	s.authEventService.Log(ctx, AuthEventInput{
+	s.authEventService.Log(ctx, authevent.AuthEventInput{
 		TenantID:    tenantID,
 		ActorUserID: &capturedActorID,
 		IPAddress:   middleware.ClientIPFromContext(ctx),
 		UserAgent:   ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),
-		Category:    AuthEventCategoryAuthz,
-		EventType:   AuthEventTypeAuthzChange,
-		Severity:    AuthEventSeverityInfo,
-		Result:      AuthEventResultSuccess,
+		Category:    authevent.AuthEventCategoryAuthz,
+		EventType:   authevent.AuthEventTypeAuthzChange,
+		Severity:    authevent.AuthEventSeverityInfo,
+		Result:      authevent.AuthEventResultSuccess,
 		Description: ptr.Ptr(fmt.Sprintf("Permission removed from role: %s", roleWithPermissions.Name)),
 	})
 	return toRoleServiceDataResult(roleWithPermissions), nil
@@ -820,4 +821,35 @@ func toRoleServiceDataResult(role *Role) *RoleServiceDataResult {
 	}
 
 	return result
+}
+
+type Role struct {
+	RoleID      int64          `gorm:"column:role_id;primaryKey"`
+	RoleUUID    uuid.UUID      `gorm:"column:role_uuid;unique"`
+	TenantID    int64          `gorm:"column:tenant_id;not null"`
+	Name        string         `gorm:"column:name"`
+	Description string         `gorm:"column:description"`
+	Status      string         `gorm:"column:status;type:varchar(16);default:'inactive'"`
+	IsDefault   bool           `gorm:"column:is_default;default:false"`
+	IsSystem    bool           `gorm:"column:is_system;default:false"`
+	CreatedBy   *int64         `gorm:"column:created_by"`
+	UpdatedBy   *int64         `gorm:"column:updated_by"`
+	CreatedAt   time.Time      `gorm:"column:created_at;autoCreateTime"`
+	UpdatedAt   time.Time      `gorm:"column:updated_at;autoUpdateTime"`
+	DeletedAt   gorm.DeletedAt `gorm:"column:deleted_at;index"`
+
+	// Relationships
+	Tenant      *Tenant      `gorm:"foreignKey:TenantID;references:TenantID"`
+	Permissions []Permission `gorm:"many2many:role_permissions;joinForeignKey:RoleID;joinReferences:PermissionID"`
+}
+
+func (Role) TableName() string {
+	return "roles"
+}
+
+func (r *Role) BeforeCreate(tx *gorm.DB) (err error) {
+	if r.RoleUUID == uuid.Nil {
+		r.RoleUUID = uuid.New()
+	}
+	return
 }

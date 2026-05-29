@@ -117,7 +117,7 @@ func (h *ForgotPasswordHandler) ForgotPasswordPublic(w http.ResponseWriter, r *h
 		return
 	}
 
-	// Log successful request (don't log whether email exists for security)
+	// authevent.Log successful request (don't log whether email exists for security)
 	security.LogSecurityEvent(security.SecurityEvent{
 		EventType: "forgot_password_request",
 		UserID:    req.Email,
@@ -221,7 +221,7 @@ func (h *ForgotPasswordHandler) ForgotPassword(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	// Log successful request (don't log whether email exists for security)
+	// authevent.Log successful request (don't log whether email exists for security)
 	security.LogSecurityEvent(security.SecurityEvent{
 		EventType: "forgot_password_request",
 		UserID:    req.Email,

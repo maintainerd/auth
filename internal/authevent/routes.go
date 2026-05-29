@@ -10,7 +10,7 @@ import (
 func AuthEventRoute(
 	r chi.Router,
 	authEventHandler *AuthEventHandler,
-	userService UserService,
+	userService middleware.UserContextProvider,
 	appCache *cache.Cache,
 ) {
 	r.Route("/auth-events", func(r chi.Router) {

@@ -5,19 +5,19 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/maintainerd/auth/internal/model"
+	"github.com/maintainerd/auth/internal/platform/cache"
 	"github.com/stretchr/testify/assert"
 )
 
-// userWithPermissions returns a minimal User fixture with the given permission names.
-func userWithPermissions(perms ...string) *model.User {
-	var permissions []model.Permission
+// userWithPermissions returns a minimal cached user fixture with the given permission names.
+func userWithPermissions(perms ...string) *cache.AuthUser {
+	var permissions []cache.AuthPermission
 	for _, p := range perms {
-		permissions = append(permissions, model.Permission{Name: p})
+		permissions = append(permissions, cache.AuthPermission{Name: p})
 	}
-	return &model.User{
+	return &cache.AuthUser{
 		UserID: 1,
-		Roles:  []model.Role{{Permissions: permissions}},
+		Roles:  []cache.AuthRole{{Permissions: permissions}},
 	}
 }
 
@@ -81,7 +81,7 @@ func TestPermissionMiddleware(t *testing.T) {
 
 func TestHasAnyPermission(t *testing.T) {
 	t.Run("no roles → false", func(t *testing.T) {
-		assert.False(t, hasAnyPermission(&model.User{}, []string{"read"}))
+		assert.False(t, hasAnyPermission(&cache.AuthUser{}, []string{"read"}))
 	})
 
 	t.Run("has matching permission → true", func(t *testing.T) {
@@ -97,10 +97,10 @@ func TestHasAnyPermission(t *testing.T) {
 	})
 
 	t.Run("multiple roles, permission in second role → true", func(t *testing.T) {
-		user := &model.User{
-			Roles: []model.Role{
-				{Permissions: []model.Permission{{Name: "read"}}},
-				{Permissions: []model.Permission{{Name: "admin"}}},
+		user := &cache.AuthUser{
+			Roles: []cache.AuthRole{
+				{Permissions: []cache.AuthPermission{{Name: "read"}}},
+				{Permissions: []cache.AuthPermission{{Name: "admin"}}},
 			},
 		}
 		assert.True(t, hasAnyPermission(user, []string{"admin"}))

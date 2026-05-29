@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/maintainerd/auth/internal/authevent"
 	"github.com/maintainerd/auth/internal/platform/apperror"
 	"github.com/maintainerd/auth/internal/platform/config"
 	"github.com/maintainerd/auth/internal/platform/crypto"
@@ -14,6 +15,7 @@ import (
 	"github.com/maintainerd/auth/internal/platform/middleware"
 	"github.com/maintainerd/auth/internal/platform/ptr"
 	"github.com/maintainerd/auth/internal/platform/security"
+	"github.com/maintainerd/auth/internal/shared"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -51,7 +53,7 @@ type oauthDeviceService struct {
 	deviceCodeRepo   OAuthDeviceCodeRepository
 	userRepo         UserRepository
 	userIdentityRepo UserIdentityRepository
-	authEventService AuthEventService
+	authEventService authevent.AuthEventService
 }
 
 // NewOAuthDeviceService creates a new OAuthDeviceService.
@@ -61,7 +63,7 @@ func NewOAuthDeviceService(
 	deviceCodeRepo OAuthDeviceCodeRepository,
 	userRepo UserRepository,
 	userIdentityRepo UserIdentityRepository,
-	authEventService AuthEventService,
+	authEventService authevent.AuthEventService,
 ) OAuthDeviceService {
 	return &oauthDeviceService{
 		db:               db,
@@ -154,15 +156,15 @@ func (s *oauthDeviceService) VerifyUserCode(ctx context.Context, req OAuthDevice
 		return apperror.NewOAuthServerError("an unexpected error occurred")
 	}
 
-	s.authEventService.Log(ctx, AuthEventInput{
+	s.authEventService.Log(ctx, authevent.AuthEventInput{
 		TenantID:    record.TenantID,
 		ActorUserID: &userID,
 		IPAddress:   middleware.ClientIPFromContext(ctx),
 		UserAgent:   ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),
-		Category:    AuthEventCategoryAuthn,
-		EventType:   AuthEventTypeOAuthConsent,
-		Severity:    AuthEventSeverityInfo,
-		Result:      AuthEventResultSuccess,
+		Category:    authevent.AuthEventCategoryAuthn,
+		EventType:   authevent.AuthEventTypeOAuthConsent,
+		Severity:    authevent.AuthEventSeverityInfo,
+		Result:      authevent.AuthEventResultSuccess,
 		Description: ptr.Ptr("Device authorization approved"),
 	})
 
@@ -189,15 +191,15 @@ func (s *oauthDeviceService) DenyUserCode(ctx context.Context, req OAuthDeviceVe
 		return apperror.NewOAuthServerError("an unexpected error occurred")
 	}
 
-	s.authEventService.Log(ctx, AuthEventInput{
+	s.authEventService.Log(ctx, authevent.AuthEventInput{
 		TenantID:    record.TenantID,
 		ActorUserID: &userID,
 		IPAddress:   middleware.ClientIPFromContext(ctx),
 		UserAgent:   ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),
-		Category:    AuthEventCategoryAuthn,
-		EventType:   AuthEventTypeOAuthConsentDeny,
-		Severity:    AuthEventSeverityInfo,
-		Result:      AuthEventResultFailure,
+		Category:    authevent.AuthEventCategoryAuthn,
+		EventType:   authevent.AuthEventTypeOAuthConsentDeny,
+		Severity:    authevent.AuthEventSeverityInfo,
+		Result:      authevent.AuthEventResultFailure,
 		Description: ptr.Ptr("Device authorization denied by user"),
 	})
 
@@ -299,15 +301,15 @@ func (s *oauthDeviceService) ExchangeToken(ctx context.Context, req OAuthDeviceT
 
 	_ = s.sendDeviceApprovalEmail(ctx, user, record.Client)
 
-	s.authEventService.Log(ctx, AuthEventInput{
+	s.authEventService.Log(ctx, authevent.AuthEventInput{
 		TenantID:    record.TenantID,
 		ActorUserID: record.UserID,
 		IPAddress:   middleware.ClientIPFromContext(ctx),
 		UserAgent:   ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),
-		Category:    AuthEventCategoryAuthn,
-		EventType:   AuthEventTypeTokenCreated,
-		Severity:    AuthEventSeverityInfo,
-		Result:      AuthEventResultSuccess,
+		Category:    authevent.AuthEventCategoryAuthn,
+		EventType:   authevent.AuthEventTypeTokenCreated,
+		Severity:    authevent.AuthEventSeverityInfo,
+		Result:      authevent.AuthEventResultSuccess,
 		Description: ptr.Ptr("Device code token issued"),
 	})
 
@@ -329,7 +331,7 @@ func (s *oauthDeviceService) authenticateClient(creds OAuthClientCredentials) (*
 	err := s.db.
 		Preload("IdentityProvider").
 		Preload("ClientURIs").
-		Where("identifier = ? AND status = ?", creds.ClientID, StatusActive).
+		Where("identifier = ? AND status = ?", creds.ClientID, shared.StatusActive).
 		First(&client).Error
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {

@@ -12,6 +12,7 @@ import (
 	"github.com/maintainerd/auth/internal/platform/middleware"
 	"github.com/maintainerd/auth/internal/platform/ptr"
 	resp "github.com/maintainerd/auth/internal/platform/response"
+	"github.com/maintainerd/auth/internal/shared"
 )
 
 type ClientHandler struct {
@@ -289,15 +290,15 @@ func (h *ClientHandler) SetStatus(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Toggle status between active and inactive
-	newStatus := StatusActive
+	newStatus := shared.StatusActive
 	// We need to get current status first to toggle it
 	currentClient, err := h.ClientService.GetByUUID(r.Context(), ClientUUID, tenant.TenantID)
 	if err != nil {
 		resp.HandleServiceError(w, r, "Auth client not found", err)
 		return
 	}
-	if currentClient.Status == StatusActive {
-		newStatus = StatusInactive
+	if currentClient.Status == shared.StatusActive {
+		newStatus = shared.StatusInactive
 	}
 
 	Client, err := h.ClientService.SetStatusByUUID(r.Context(), ClientUUID, tenant.TenantID, newStatus, user.UserUUID)

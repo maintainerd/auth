@@ -10,6 +10,7 @@ import (
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
+	"gorm.io/datatypes"
 	"gorm.io/gorm"
 )
 
@@ -65,12 +66,18 @@ type TenantService interface {
 type tenantService struct {
 	db         *gorm.DB
 	tenantRepo TenantRepository
+	// cascadeModels is the ordered list of (mostly cross-domain) GORM models
+	// whose tenant-scoped rows are deleted when a tenant is removed. It is
+	// injected by the composition root so this package does not import the
+	// domains it cascades into. Order matters: children before parents.
+	cascadeModels []any
 }
 
-func NewTenantService(db *gorm.DB, tenantRepo TenantRepository) TenantService {
+func NewTenantService(db *gorm.DB, tenantRepo TenantRepository, cascadeModels []any) TenantService {
 	return &tenantService{
-		db:         db,
-		tenantRepo: tenantRepo,
+		db:            db,
+		tenantRepo:    tenantRepo,
+		cascadeModels: cascadeModels,
 	}
 }
 
@@ -373,48 +380,12 @@ func (s *tenantService) DeleteByUUID(ctx context.Context, tenantUUID uuid.UUID) 
 		id := tenant.TenantID
 
 		// Cascade order: children before parents to respect FK constraints.
+		// The concrete model list (which spans many domains) is injected by the
+		// composition root via cascadeModels so this package stays decoupled.
 		// Soft-delete capable models (have gorm.DeletedAt) — GORM issues UPDATE SET deleted_at.
 		// Hard-delete models (no DeletedAt) — GORM issues DELETE FROM.
-		// AuthEvent is intentionally excluded: audit logs must be retained for compliance.
-		cascade := []interface{}{
-			// OAuth protocol state (hard-delete — no audit value after tenant gone)
-			&OAuthAuthorizationCode{},
-			&OAuthRefreshToken{},
-			&OAuthConsentGrant{},
-			&OAuthConsentChallenge{},
-			&OAuthPARRequest{},
-			&OAuthDeviceCode{},
-			&OAuthCIBARequest{},
-			// Tenant config (hard-delete)
-			&TenantSetting{},
-			&TenantService{},
-			// Identity linkage (hard-delete)
-			&UserIdentity{},
-			// Client sub-resources (hard-delete before Client soft-delete)
-			&ClientURI{},
-			// Soft-delete capable resources
-			&TenantMember{},
-			&Client{},
-			&Role{},
-			&Permission{},
-			&Policy{},
-			&IdentityProvider{},
-			&Invite{},
-			&SignupFlow{},
-			&APIKey{},
-			&WebhookEndpoint{},
-			&IPRestrictionRule{},
-			&EmailTemplate{},
-			&SMSTemplate{},
-			&LoginTemplate{},
-			&Branding{},
-			&EmailConfig{},
-			&SMSConfig{},
-			&UserPool{},
-			&API{},
-		}
-
-		for _, m := range cascade {
+		// authevent.AuthEvent is intentionally excluded: audit logs must be retained for compliance.
+		for _, m := range s.cascadeModels {
 			if err := tx.Where("tenant_id = ?", id).Delete(m).Error; err != nil {
 				return err
 			}
@@ -447,4 +418,35 @@ func toTenantServiceDataResult(tenant *Tenant) *TenantServiceDataResult {
 		CreatedAt:   tenant.CreatedAt,
 		UpdatedAt:   tenant.UpdatedAt,
 	}
+}
+
+type Tenant struct {
+	TenantID    int64          `gorm:"column:tenant_id;primaryKey"`
+	TenantUUID  uuid.UUID      `gorm:"column:tenant_uuid"`
+	Name        string         `gorm:"column:name"`
+	DisplayName string         `gorm:"column:display_name"`
+	Description string         `gorm:"column:description"`
+	Identifier  string         `gorm:"column:identifier"`
+	Status      string         `gorm:"column:status;default:'active'"`
+	IsPublic    bool           `gorm:"column:is_public;default:false"`
+	IsSystem    bool           `gorm:"column:is_system;default:false"`
+	Metadata    datatypes.JSON `gorm:"column:metadata;type:jsonb;default:'{}'"`
+	CreatedBy   *int64         `gorm:"column:created_by"`
+	UpdatedBy   *int64         `gorm:"column:updated_by"`
+	CreatedAt   time.Time      `gorm:"column:created_at;autoCreateTime"`
+	UpdatedAt   time.Time      `gorm:"column:updated_at;autoUpdateTime"`
+	DeletedAt   gorm.DeletedAt `gorm:"column:deleted_at;index"`
+
+	// Relationships
+}
+
+func (Tenant) TableName() string {
+	return "tenants"
+}
+
+func (t *Tenant) BeforeCreate(tx *gorm.DB) (err error) {
+	if t.TenantUUID == uuid.Nil {
+		t.TenantUUID = uuid.New()
+	}
+	return
 }

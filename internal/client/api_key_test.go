@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/maintainerd/auth/internal/shared"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gorm.io/datatypes"
@@ -21,7 +22,7 @@ func buildAPIKey() *APIKey {
 		Description: "desc",
 		KeyPrefix:   "ak_abcdefgh",
 		KeyHash:     "abc123hash",
-		Status:      StatusActive,
+		Status:      shared.StatusActive,
 	}
 }
 
@@ -131,7 +132,7 @@ func TestAPIKeyService_Create(t *testing.T) {
 				mock.ExpectCommit()
 			}
 			svc := NewAPIKeyService(gormDB, akRepo, &mockAPIKeyAPIRepo{}, &mockAPIKeyPermissionRepo{}, &mockAPIRepo{}, &mockUserRepo{}, &mockPermissionRepo{})
-			res, plainKey, err := svc.Create(context.Background(), 1, "test-key", "desc", nil, nil, nil, StatusActive)
+			res, plainKey, err := svc.Create(context.Background(), 1, "test-key", "desc", nil, nil, nil, shared.StatusActive)
 			if tc.wantErr != "" {
 				require.Error(t, err)
 				assert.Contains(t, err.Error(), tc.wantErr)
@@ -200,7 +201,7 @@ func TestAPIKeyService_SetStatusByUUID(t *testing.T) {
 				mock.ExpectCommit()
 			}
 			svc := NewAPIKeyService(gormDB, akRepo, &mockAPIKeyAPIRepo{}, &mockAPIKeyPermissionRepo{}, &mockAPIRepo{}, &mockUserRepo{}, &mockPermissionRepo{})
-			res, err := svc.SetStatusByUUID(context.Background(), ak.APIKeyUUID, 1, StatusActive)
+			res, err := svc.SetStatusByUUID(context.Background(), ak.APIKeyUUID, 1, shared.StatusActive)
 			if tc.wantErr != "" {
 				require.Error(t, err)
 				assert.Contains(t, err.Error(), tc.wantErr)

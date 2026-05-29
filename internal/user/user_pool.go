@@ -29,7 +29,6 @@ type UserPool struct {
 	DeletedAt    gorm.DeletedAt `gorm:"column:deleted_at;index"`
 
 	// Relationships
-	Tenant *Tenant `gorm:"foreignKey:TenantID;references:TenantID"`
 }
 
 // TableName returns the database table name for UserPool.

@@ -7,6 +7,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/platform/cache"
+	"github.com/maintainerd/auth/internal/shared"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -18,7 +19,7 @@ func newPermission(id int64, name string, tenantID int64) *Permission {
 		PermissionUUID: uuid.New(),
 		Name:           name,
 		TenantID:       tenantID,
-		Status:         StatusActive,
+		Status:         shared.StatusActive,
 	}
 }
 
@@ -205,7 +206,7 @@ func TestPermissionService_SetStatus(t *testing.T) {
 			},
 		}
 		svc := NewPermissionService(db, permRepo, &mockAPIRepo{}, &mockRoleRepo{}, &mockClientRepo{}, cache.NopInvalidator{})
-		result, err := svc.SetStatus(context.Background(), permUUID, tenantID, StatusInactive)
+		result, err := svc.SetStatus(context.Background(), permUUID, tenantID, shared.StatusInactive)
 		require.Error(t, err)
 		assert.Nil(t, result)
 		assert.Contains(t, err.Error(), "permission not found")
@@ -221,7 +222,7 @@ func TestPermissionService_SetStatus(t *testing.T) {
 			},
 		}
 		svc := NewPermissionService(db, permRepo, &mockAPIRepo{}, &mockRoleRepo{}, &mockClientRepo{}, cache.NopInvalidator{})
-		_, err := svc.SetStatus(context.Background(), permUUID, tenantID, StatusInactive)
+		_, err := svc.SetStatus(context.Background(), permUUID, tenantID, shared.StatusInactive)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "db err")
 	})
@@ -240,7 +241,7 @@ func TestPermissionService_SetStatus(t *testing.T) {
 			},
 		}
 		svc := NewPermissionService(db, permRepo, &mockAPIRepo{}, &mockRoleRepo{}, &mockClientRepo{}, cache.NopInvalidator{})
-		_, err := svc.SetStatus(context.Background(), permUUID, tenantID, StatusInactive)
+		_, err := svc.SetStatus(context.Background(), permUUID, tenantID, shared.StatusInactive)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "save err")
 	})
@@ -256,10 +257,10 @@ func TestPermissionService_SetStatus(t *testing.T) {
 			},
 		}
 		svc := NewPermissionService(db, permRepo, &mockAPIRepo{}, &mockRoleRepo{}, &mockClientRepo{}, cache.NopInvalidator{})
-		result, err := svc.SetStatus(context.Background(), permUUID, tenantID, StatusInactive)
+		result, err := svc.SetStatus(context.Background(), permUUID, tenantID, shared.StatusInactive)
 		require.NoError(t, err)
 		assert.NotNil(t, result)
-		assert.Equal(t, StatusInactive, result.Status)
+		assert.Equal(t, shared.StatusInactive, result.Status)
 	})
 }
 
@@ -338,7 +339,7 @@ func TestPermissionService_SetActiveStatusByUUID(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectCommit()
 		perm := newPermission(1, "read:users", tenantID)
-		perm.Status = StatusActive
+		perm.Status = shared.StatusActive
 		permRepo := &mockPermissionRepo{
 			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*Permission, error) {
 				return perm, nil
@@ -347,7 +348,7 @@ func TestPermissionService_SetActiveStatusByUUID(t *testing.T) {
 		svc := NewPermissionService(db, permRepo, &mockAPIRepo{}, &mockRoleRepo{}, &mockClientRepo{}, cache.NopInvalidator{})
 		result, err := svc.SetActiveStatusByUUID(context.Background(), permUUID, tenantID)
 		require.NoError(t, err)
-		assert.Equal(t, StatusInactive, result.Status)
+		assert.Equal(t, shared.StatusInactive, result.Status)
 	})
 
 	t.Run("inactive → active", func(t *testing.T) {
@@ -355,7 +356,7 @@ func TestPermissionService_SetActiveStatusByUUID(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectCommit()
 		perm := newPermission(1, "read:users", tenantID)
-		perm.Status = StatusInactive
+		perm.Status = shared.StatusInactive
 		permRepo := &mockPermissionRepo{
 			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*Permission, error) {
 				return perm, nil
@@ -364,7 +365,7 @@ func TestPermissionService_SetActiveStatusByUUID(t *testing.T) {
 		svc := NewPermissionService(db, permRepo, &mockAPIRepo{}, &mockRoleRepo{}, &mockClientRepo{}, cache.NopInvalidator{})
 		result, err := svc.SetActiveStatusByUUID(context.Background(), permUUID, tenantID)
 		require.NoError(t, err)
-		assert.Equal(t, StatusActive, result.Status)
+		assert.Equal(t, shared.StatusActive, result.Status)
 	})
 }
 
@@ -460,7 +461,7 @@ func TestPermissionService_Create(t *testing.T) {
 			},
 		}
 		svc := NewPermissionService(db, permRepo, &mockAPIRepo{}, &mockRoleRepo{}, &mockClientRepo{}, cache.NopInvalidator{})
-		_, err := svc.Create(context.Background(), tenantID, "read:users", "desc", StatusActive, false, apiUUID.String())
+		_, err := svc.Create(context.Background(), tenantID, "read:users", "desc", shared.StatusActive, false, apiUUID.String())
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "db err")
 	})
@@ -475,7 +476,7 @@ func TestPermissionService_Create(t *testing.T) {
 			},
 		}
 		svc := NewPermissionService(db, permRepo, &mockAPIRepo{}, &mockRoleRepo{}, &mockClientRepo{}, cache.NopInvalidator{})
-		_, err := svc.Create(context.Background(), tenantID, "read:users", "desc", StatusActive, false, apiUUID.String())
+		_, err := svc.Create(context.Background(), tenantID, "read:users", "desc", shared.StatusActive, false, apiUUID.String())
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "already exists")
 	})
@@ -486,7 +487,7 @@ func TestPermissionService_Create(t *testing.T) {
 		mock.ExpectRollback()
 		permRepo := &mockPermissionRepo{}
 		svc := NewPermissionService(db, permRepo, &mockAPIRepo{}, &mockRoleRepo{}, &mockClientRepo{}, cache.NopInvalidator{})
-		_, err := svc.Create(context.Background(), tenantID, "read:users", "desc", StatusActive, false, "not-a-uuid")
+		_, err := svc.Create(context.Background(), tenantID, "read:users", "desc", shared.StatusActive, false, "not-a-uuid")
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "invalid api uuid")
 	})
@@ -501,7 +502,7 @@ func TestPermissionService_Create(t *testing.T) {
 			},
 		}
 		svc := NewPermissionService(db, &mockPermissionRepo{}, apiRepo, &mockRoleRepo{}, &mockClientRepo{}, cache.NopInvalidator{})
-		_, err := svc.Create(context.Background(), tenantID, "read:users", "desc", StatusActive, false, apiUUID.String())
+		_, err := svc.Create(context.Background(), tenantID, "read:users", "desc", shared.StatusActive, false, apiUUID.String())
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "api db err")
 	})
@@ -516,7 +517,7 @@ func TestPermissionService_Create(t *testing.T) {
 			},
 		}
 		svc := NewPermissionService(db, &mockPermissionRepo{}, apiRepo, &mockRoleRepo{}, &mockClientRepo{}, cache.NopInvalidator{})
-		_, err := svc.Create(context.Background(), tenantID, "read:users", "desc", StatusActive, false, apiUUID.String())
+		_, err := svc.Create(context.Background(), tenantID, "read:users", "desc", shared.StatusActive, false, apiUUID.String())
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "api not found")
 	})
@@ -536,7 +537,7 @@ func TestPermissionService_Create(t *testing.T) {
 			},
 		}
 		svc := NewPermissionService(db, permRepo, apiRepo, &mockRoleRepo{}, &mockClientRepo{}, cache.NopInvalidator{})
-		_, err := svc.Create(context.Background(), tenantID, "read:users", "desc", StatusActive, false, apiUUID.String())
+		_, err := svc.Create(context.Background(), tenantID, "read:users", "desc", shared.StatusActive, false, apiUUID.String())
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "create err")
 	})
@@ -559,7 +560,7 @@ func TestPermissionService_Create(t *testing.T) {
 			},
 		}
 		svc := NewPermissionService(db, permRepo, apiRepo, &mockRoleRepo{}, &mockClientRepo{}, cache.NopInvalidator{})
-		_, err := svc.Create(context.Background(), tenantID, "read:users", "desc", StatusActive, false, apiUUID.String())
+		_, err := svc.Create(context.Background(), tenantID, "read:users", "desc", shared.StatusActive, false, apiUUID.String())
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "fetch err")
 	})
@@ -582,7 +583,7 @@ func TestPermissionService_Create(t *testing.T) {
 			},
 		}
 		svc := NewPermissionService(db, permRepo, apiRepo, &mockRoleRepo{}, &mockClientRepo{}, cache.NopInvalidator{})
-		result, err := svc.Create(context.Background(), tenantID, "read:users", "desc", StatusActive, false, apiUUID.String())
+		result, err := svc.Create(context.Background(), tenantID, "read:users", "desc", shared.StatusActive, false, apiUUID.String())
 		require.NoError(t, err)
 		assert.NotNil(t, result)
 		assert.Equal(t, "read:users", result.Name)
@@ -608,7 +609,7 @@ func TestPermissionService_Update(t *testing.T) {
 			},
 		}
 		svc := NewPermissionService(db, permRepo, &mockAPIRepo{}, &mockRoleRepo{}, &mockClientRepo{}, cache.NopInvalidator{})
-		_, err := svc.Update(context.Background(), permUUID, tenantID, "new-name", "desc", StatusActive)
+		_, err := svc.Update(context.Background(), permUUID, tenantID, "new-name", "desc", shared.StatusActive)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "db err")
 	})
@@ -623,7 +624,7 @@ func TestPermissionService_Update(t *testing.T) {
 			},
 		}
 		svc := NewPermissionService(db, permRepo, &mockAPIRepo{}, &mockRoleRepo{}, &mockClientRepo{}, cache.NopInvalidator{})
-		_, err := svc.Update(context.Background(), permUUID, tenantID, "new-name", "desc", StatusActive)
+		_, err := svc.Update(context.Background(), permUUID, tenantID, "new-name", "desc", shared.StatusActive)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "permission not found")
 	})
@@ -640,7 +641,7 @@ func TestPermissionService_Update(t *testing.T) {
 			},
 		}
 		svc := NewPermissionService(db, permRepo, &mockAPIRepo{}, &mockRoleRepo{}, &mockClientRepo{}, cache.NopInvalidator{})
-		_, err := svc.Update(context.Background(), permUUID, tenantID, "new-name", "desc", StatusActive)
+		_, err := svc.Update(context.Background(), permUUID, tenantID, "new-name", "desc", shared.StatusActive)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "default permission")
 	})
@@ -659,7 +660,7 @@ func TestPermissionService_Update(t *testing.T) {
 			},
 		}
 		svc := NewPermissionService(db, permRepo, &mockAPIRepo{}, &mockRoleRepo{}, &mockClientRepo{}, cache.NopInvalidator{})
-		_, err := svc.Update(context.Background(), permUUID, tenantID, "write:users", "desc", StatusActive)
+		_, err := svc.Update(context.Background(), permUUID, tenantID, "write:users", "desc", shared.StatusActive)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "name lookup err")
 	})
@@ -679,7 +680,7 @@ func TestPermissionService_Update(t *testing.T) {
 			},
 		}
 		svc := NewPermissionService(db, permRepo, &mockAPIRepo{}, &mockRoleRepo{}, &mockClientRepo{}, cache.NopInvalidator{})
-		_, err := svc.Update(context.Background(), permUUID, tenantID, "write:users", "desc", StatusActive)
+		_, err := svc.Update(context.Background(), permUUID, tenantID, "write:users", "desc", shared.StatusActive)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "already exists")
 	})
@@ -699,7 +700,7 @@ func TestPermissionService_Update(t *testing.T) {
 		}
 		svc := NewPermissionService(db, permRepo, &mockAPIRepo{}, &mockRoleRepo{}, &mockClientRepo{}, cache.NopInvalidator{})
 		// Same name so no findByName path
-		_, err := svc.Update(context.Background(), permUUID, tenantID, "read:users", "new desc", StatusActive)
+		_, err := svc.Update(context.Background(), permUUID, tenantID, "read:users", "new desc", shared.StatusActive)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "save err")
 	})
@@ -716,7 +717,7 @@ func TestPermissionService_Update(t *testing.T) {
 			},
 		}
 		svc := NewPermissionService(db, permRepo, &mockAPIRepo{}, &mockRoleRepo{}, &mockClientRepo{}, cache.NopInvalidator{})
-		result, err := svc.Update(context.Background(), permUUID, tenantID, "read:users", "updated desc", StatusActive)
+		result, err := svc.Update(context.Background(), permUUID, tenantID, "read:users", "updated desc", shared.StatusActive)
 		require.NoError(t, err)
 		assert.NotNil(t, result)
 		assert.Equal(t, "updated desc", result.Description)
@@ -736,7 +737,7 @@ func TestPermissionService_Update(t *testing.T) {
 			},
 		}
 		svc := NewPermissionService(db, permRepo, &mockAPIRepo{}, &mockRoleRepo{}, &mockClientRepo{}, cache.NopInvalidator{})
-		result, err := svc.Update(context.Background(), permUUID, tenantID, "write:users", "desc", StatusActive)
+		result, err := svc.Update(context.Background(), permUUID, tenantID, "write:users", "desc", shared.StatusActive)
 		require.NoError(t, err)
 		assert.NotNil(t, result)
 		assert.Equal(t, "write:users", result.Name)

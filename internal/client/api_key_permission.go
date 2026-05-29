@@ -16,7 +16,7 @@ type APIKeyPermission struct {
 
 	// Relationships
 	APIKeyAPI  *APIKeyAPI  `gorm:"foreignKey:APIKeyAPIID;references:APIKeyAPIID;constraint:OnDelete:CASCADE"`
-	Permission *Permission `gorm:"foreignKey:PermissionID;references:PermissionID;constraint:OnDelete:CASCADE"`
+	Permission *Permission `gorm:"foreignKey:PermissionID;references:PermissionID"`
 }
 
 func (APIKeyPermission) TableName() string {
