@@ -1,4 +1,4 @@
-package dto
+package webhook
 
 import (
 	"strings"
@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/maintainerd/auth/internal/dto"
 	"github.com/maintainerd/auth/internal/model"
 )
 
@@ -207,7 +208,7 @@ func TestWebhookEndpointUpdateStatusRequestDTO_Validate(t *testing.T) {
 func TestWebhookEndpointFilterDTO_Validate(t *testing.T) {
 	t.Run("valid", func(t *testing.T) {
 		d := WebhookEndpointFilterDTO{
-			PaginationRequestDTO: PaginationRequestDTO{Page: 1, Limit: 10},
+			PaginationRequestDTO: dto.PaginationRequestDTO{Page: 1, Limit: 10},
 		}
 		assert.NoError(t, d.Validate())
 	})
@@ -215,7 +216,7 @@ func TestWebhookEndpointFilterDTO_Validate(t *testing.T) {
 	t.Run("valid with status", func(t *testing.T) {
 		d := WebhookEndpointFilterDTO{
 			Status:               []string{model.StatusActive},
-			PaginationRequestDTO: PaginationRequestDTO{Page: 1, Limit: 10},
+			PaginationRequestDTO: dto.PaginationRequestDTO{Page: 1, Limit: 10},
 		}
 		assert.NoError(t, d.Validate())
 	})
