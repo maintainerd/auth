@@ -1,0 +1,318 @@
+package idp
+
+import (
+	"encoding/json"
+	"net/http"
+	"strconv"
+	"strings"
+
+	"github.com/go-chi/chi/v5"
+	"github.com/google/uuid"
+	"github.com/maintainerd/auth/internal/dto"
+	"github.com/maintainerd/auth/internal/platform/middleware"
+	"github.com/maintainerd/auth/internal/platform/ptr"
+	resp "github.com/maintainerd/auth/internal/platform/response"
+	"github.com/maintainerd/auth/internal/service"
+)
+
+type IdentityProviderHandler struct {
+	idpService service.IdentityProviderService
+}
+
+func NewIdentityProviderHandler(idpService service.IdentityProviderService) *IdentityProviderHandler {
+	return &IdentityProviderHandler{idpService}
+}
+
+// Get identity provider with pagination
+func (h *IdentityProviderHandler) Get(w http.ResponseWriter, r *http.Request) {
+	// Get tenant from context
+	tenant := middleware.AuthFromRequest(r).Tenant
+	if tenant == nil {
+		resp.Error(w, http.StatusUnauthorized, "Tenant not found in context")
+		return
+	}
+
+	// Parse query parameters
+	q := r.URL.Query()
+
+	// Parse pagination
+
+	// Parse bools safely
+	var isDefault, isSystem *bool
+	if v := q.Get("is_default"); v != "" {
+		parsed, err := strconv.ParseBool(v)
+		if err == nil {
+			isDefault = &parsed
+		}
+	}
+	if v := q.Get("is_system"); v != "" {
+		parsed, err := strconv.ParseBool(v)
+		if err == nil {
+			isSystem = &parsed
+		}
+	}
+
+	// Parse status (comma-separated values)
+	var status []string
+	if statusParam := q.Get("status"); statusParam != "" {
+		status = strings.Split(strings.ReplaceAll(statusParam, " ", ""), ",")
+	}
+
+	// Parse provider (comma-separated values)
+	var provider []string
+	if providerParam := q.Get("provider"); providerParam != "" {
+		provider = strings.Split(strings.ReplaceAll(providerParam, " ", ""), ",")
+	}
+
+	// Build request DTO
+	reqParams := dto.IdentityProviderFilterDTO{
+		Name:                 ptr.PtrOrNil(q.Get("name")),
+		DisplayName:          ptr.PtrOrNil(q.Get("display_name")),
+		Provider:             provider,
+		ProviderType:         ptr.PtrOrNil(q.Get("provider_type")),
+		Identifier:           ptr.PtrOrNil(q.Get("identifier")),
+		Status:               status,
+		IsDefault:            isDefault,
+		IsSystem:             isSystem,
+		PaginationRequestDTO: parsePaginationQuery(r),
+	}
+
+	if err := reqParams.Validate(); err != nil {
+		resp.ValidationError(w, err)
+		return
+	}
+
+	// Build permission filter
+	idpFilter := service.IdentityProviderServiceGetFilter{
+		Name:         reqParams.Name,
+		DisplayName:  reqParams.DisplayName,
+		Provider:     reqParams.Provider,
+		ProviderType: reqParams.ProviderType,
+		Identifier:   reqParams.Identifier,
+		TenantID:     tenant.TenantID,
+		Status:       reqParams.Status,
+		IsDefault:    reqParams.IsDefault,
+		IsSystem:     reqParams.IsSystem,
+		Page:         reqParams.Page,
+		Limit:        reqParams.Limit,
+		SortBy:       reqParams.SortBy,
+		SortOrder:    reqParams.SortOrder,
+	}
+
+	// Fetch permissions
+	result, err := h.idpService.Get(r.Context(), idpFilter)
+	if err != nil {
+		resp.HandleServiceError(w, r, "Failed to fetch identity providers", err)
+		return
+	}
+
+	// Map results to DTO (list response without config and tenant)
+	rows := make([]dto.IdentityProviderResponseDTO, len(result.Data))
+	for i, r := range result.Data {
+		rows[i] = toIdpListResponseDTO(r)
+	}
+
+	// Build response data
+	response := dto.PaginatedResponseDTO[dto.IdentityProviderResponseDTO]{
+		Rows:       rows,
+		Total:      result.Total,
+		Page:       result.Page,
+		Limit:      result.Limit,
+		TotalPages: result.TotalPages,
+	}
+
+	resp.Success(w, response, "Identity providers fetched successfully")
+}
+
+// Get identity provider by UUID
+func (h *IdentityProviderHandler) GetByUUID(w http.ResponseWriter, r *http.Request) {
+	// Get tenant context
+	tenant := middleware.AuthFromRequest(r).Tenant
+
+	idpUUID, err := uuid.Parse(chi.URLParam(r, "identity_provider_uuid"))
+	if err != nil {
+		resp.Error(w, http.StatusBadRequest, "Invalid identity provider UUID")
+		return
+	}
+
+	idp, err := h.idpService.GetByUUID(r.Context(), idpUUID, tenant.TenantID)
+	if err != nil {
+		resp.HandleServiceError(w, r, "Identity provider not found", err)
+		return
+	}
+
+	dtoRes := toIdpDetailResponseDTO(*idp)
+
+	resp.Success(w, dtoRes, "Identity provider fetched successfully")
+}
+
+// Create identity provider
+func (h *IdentityProviderHandler) Create(w http.ResponseWriter, r *http.Request) {
+	// Get authentication context
+	tenant := middleware.AuthFromRequest(r).Tenant
+	user := middleware.AuthFromRequest(r).User
+
+	var req dto.IdentityProviderCreateRequestDTO
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		resp.Error(w, http.StatusBadRequest, "Invalid request")
+		return
+	}
+
+	if err := req.Validate(); err != nil {
+		resp.ValidationError(w, err)
+		return
+	}
+
+	idp, err := h.idpService.Create(r.Context(), req.Name, req.DisplayName, req.Provider, req.ProviderType, req.Config, req.Status, req.TenantUUID, tenant.TenantID, user.UserUUID)
+	if err != nil {
+		resp.HandleServiceError(w, r, "Failed to create identity provider", err)
+		return
+	}
+
+	dtoRes := toIdpDetailResponseDTO(*idp)
+
+	resp.Created(w, dtoRes, "Identity provider created successfully")
+}
+
+// Update identity provider
+func (h *IdentityProviderHandler) Update(w http.ResponseWriter, r *http.Request) {
+	// Get authentication context
+	tenant := middleware.AuthFromRequest(r).Tenant
+	user := middleware.AuthFromRequest(r).User
+
+	idpUUID, err := uuid.Parse(chi.URLParam(r, "identity_provider_uuid"))
+	if err != nil {
+		resp.Error(w, http.StatusBadRequest, "Invalid identity provider UUID")
+		return
+	}
+
+	var req dto.IdentityProviderUpdateRequestDTO
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		resp.Error(w, http.StatusBadRequest, "Invalid request")
+		return
+	}
+
+	if err := req.Validate(); err != nil {
+		resp.ValidationError(w, err)
+		return
+	}
+
+	idp, err := h.idpService.Update(r.Context(), idpUUID, req.Name, req.DisplayName, req.Provider, req.ProviderType, req.Config, req.Status, tenant.TenantID, user.UserUUID)
+	if err != nil {
+		resp.HandleServiceError(w, r, "Failed to update identity provider", err)
+		return
+	}
+
+	dtoRes := toIdpDetailResponseDTO(*idp)
+
+	resp.Success(w, dtoRes, "Identity provider updated successfully")
+}
+
+// Set identity provider status
+func (h *IdentityProviderHandler) SetStatus(w http.ResponseWriter, r *http.Request) {
+	// Get authentication context
+	tenant := middleware.AuthFromRequest(r).Tenant
+	user := middleware.AuthFromRequest(r).User
+
+	idpUUID, err := uuid.Parse(chi.URLParam(r, "identity_provider_uuid"))
+	if err != nil {
+		resp.Error(w, http.StatusBadRequest, "Invalid identity provider UUID")
+		return
+	}
+
+	// Parse and validate request body
+	var req dto.IdentityProviderStatusUpdateDTO
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		resp.Error(w, http.StatusBadRequest, "Invalid request")
+		return
+	}
+
+	if err := req.Validate(); err != nil {
+		resp.ValidationError(w, err)
+		return
+	}
+
+	idp, err := h.idpService.SetStatusByUUID(r.Context(), idpUUID, req.Status, tenant.TenantID, user.UserUUID)
+	if err != nil {
+		resp.HandleServiceError(w, r, "Failed to update identity provider", err)
+		return
+	}
+
+	dtoRes := toIdpDetailResponseDTO(*idp)
+
+	resp.Success(w, dtoRes, "Identity provider status updated successfully")
+}
+
+// Delete identity provider
+func (h *IdentityProviderHandler) Delete(w http.ResponseWriter, r *http.Request) {
+	// Get authentication context
+	tenant := middleware.AuthFromRequest(r).Tenant
+	user := middleware.AuthFromRequest(r).User
+
+	idpUUID, err := uuid.Parse(chi.URLParam(r, "identity_provider_uuid"))
+	if err != nil {
+		resp.Error(w, http.StatusBadRequest, "Invalid identity provider UUID")
+		return
+	}
+
+	idp, err := h.idpService.DeleteByUUID(r.Context(), idpUUID, tenant.TenantID, user.UserUUID)
+	if err != nil {
+		resp.HandleServiceError(w, r, "Failed to delete identity provider", err)
+		return
+	}
+
+	dtoRes := toIdpDetailResponseDTO(*idp)
+
+	resp.Success(w, dtoRes, "Identity provider deleted successfully")
+}
+
+// Convert identity provider result to list DTO (without config and tenant)
+func toIdpListResponseDTO(r service.IdentityProviderServiceDataResult) dto.IdentityProviderResponseDTO {
+	return dto.IdentityProviderResponseDTO{
+		IdentityProviderUUID: r.IdentityProviderUUID,
+		Name:                 r.Name,
+		DisplayName:          r.DisplayName,
+		Provider:             r.Provider,
+		ProviderType:         r.ProviderType,
+		Identifier:           r.Identifier,
+		Status:               r.Status,
+		IsDefault:            r.IsDefault,
+		IsSystem:             r.IsSystem,
+		CreatedAt:            r.CreatedAt,
+		UpdatedAt:            r.UpdatedAt,
+	}
+}
+
+// Convert identity provider result to detail DTO (with config and tenant)
+func toIdpDetailResponseDTO(r service.IdentityProviderServiceDataResult) dto.IdentityProviderDetailResponseDTO {
+	result := dto.IdentityProviderDetailResponseDTO{
+		IdentityProviderUUID: r.IdentityProviderUUID,
+		Name:                 r.Name,
+		DisplayName:          r.DisplayName,
+		Provider:             r.Provider,
+		ProviderType:         r.ProviderType,
+		Identifier:           r.Identifier,
+		Config:               r.Config,
+		Status:               r.Status,
+		IsDefault:            r.IsDefault,
+		IsSystem:             r.IsSystem,
+		CreatedAt:            r.CreatedAt,
+		UpdatedAt:            r.UpdatedAt,
+	}
+
+	if r.Tenant != nil {
+		result.Tenant = &dto.TenantResponseDTO{
+			TenantUUID:  r.Tenant.TenantUUID,
+			Name:        r.Tenant.Name,
+			Description: r.Tenant.Description,
+			Identifier:  r.Tenant.Identifier,
+			Status:      r.Tenant.Status,
+			IsPublic:    r.Tenant.IsPublic,
+
+			CreatedAt: r.Tenant.CreatedAt,
+			UpdatedAt: r.Tenant.UpdatedAt,
+		}
+	}
+
+	return result
+}

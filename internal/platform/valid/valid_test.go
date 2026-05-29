@@ -1,4 +1,4 @@
-package valid_test
+package valid
 
 import (
 	"testing"
