@@ -4,6 +4,7 @@ import (
 	"errors"
 
 	"github.com/maintainerd/auth/internal/platform/security"
+	"github.com/maintainerd/auth/internal/secpolicy"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -11,7 +12,7 @@ var errPasswordReused = errors.New("password was used recently and cannot be reu
 
 // loadPolicy returns the effective PasswordPolicy for a tenant.
 // Falls back to DefaultPasswordPolicy when the repo is nil or no setting exists.
-func loadPolicy(repo SecuritySettingRepository, tenantID int64) security.PasswordPolicy {
+func loadPolicy(repo secpolicy.SecuritySettingRepository, tenantID int64) security.PasswordPolicy {
 	if repo == nil {
 		return security.DefaultPasswordPolicy()
 	}

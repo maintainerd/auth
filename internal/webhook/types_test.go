@@ -4,6 +4,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/maintainerd/auth/internal/shared"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -30,7 +31,7 @@ func TestWebhookEndpointCreateRequestDTO_Validate(t *testing.T) {
 		d := validWebhookCreate()
 		retries := 5
 		timeout := 60
-		status := StatusActive
+		status := shared.StatusActive
 		d.MaxRetries = &retries
 		d.TimeoutSeconds = &timeout
 		d.Status = &status
@@ -96,14 +97,14 @@ func TestWebhookEndpointCreateRequestDTO_Validate(t *testing.T) {
 
 	t.Run("valid status active", func(t *testing.T) {
 		d := validWebhookCreate()
-		active := StatusActive
+		active := shared.StatusActive
 		d.Status = &active
 		assert.NoError(t, d.Validate())
 	})
 
 	t.Run("valid status inactive", func(t *testing.T) {
 		d := validWebhookCreate()
-		inactive := StatusInactive
+		inactive := shared.StatusInactive
 		d.Status = &inactive
 		assert.NoError(t, d.Validate())
 	})
@@ -178,12 +179,12 @@ func TestWebhookEndpointUpdateRequestDTO_Validate(t *testing.T) {
 
 func TestWebhookEndpointUpdateStatusRequestDTO_Validate(t *testing.T) {
 	t.Run("valid active", func(t *testing.T) {
-		d := WebhookEndpointUpdateStatusRequestDTO{Status: StatusActive}
+		d := WebhookEndpointUpdateStatusRequestDTO{Status: shared.StatusActive}
 		assert.NoError(t, d.Validate())
 	})
 
 	t.Run("valid inactive", func(t *testing.T) {
-		d := WebhookEndpointUpdateStatusRequestDTO{Status: StatusInactive}
+		d := WebhookEndpointUpdateStatusRequestDTO{Status: shared.StatusInactive}
 		assert.NoError(t, d.Validate())
 	})
 
@@ -212,7 +213,7 @@ func TestWebhookEndpointFilterDTO_Validate(t *testing.T) {
 
 	t.Run("valid with status", func(t *testing.T) {
 		d := WebhookEndpointFilterDTO{
-			Status:               []string{StatusActive},
+			Status:               []string{shared.StatusActive},
 			PaginationRequestDTO: PaginationRequestDTO{Page: 1, Limit: 10},
 		}
 		assert.NoError(t, d.Validate())

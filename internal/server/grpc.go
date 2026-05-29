@@ -6,7 +6,6 @@ import (
 	"log/slog"
 	"net"
 
-	"github.com/maintainerd/auth/internal/app"
 	authv1 "github.com/maintainerd/auth/internal/platform/gen/go/maintainerd/auth"
 	"github.com/maintainerd/auth/internal/setup"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
@@ -17,7 +16,7 @@ import (
 // point it drains in-flight RPCs via GracefulStop. It returns an error for any
 // fatal startup failure so that main() can handle it appropriately instead of
 // calling os.Exit inside a library function.
-func StartGRPCServer(ctx context.Context, application *app.App) error {
+func StartGRPCServer(ctx context.Context, application *Application) error {
 	lis, err := net.Listen("tcp", ":50051")
 	if err != nil {
 		return fmt.Errorf("gRPC failed to listen on :50051: %w", err)

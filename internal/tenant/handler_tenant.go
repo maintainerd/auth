@@ -504,9 +504,28 @@ func toTenantMemberResponseDTO(r TenantMemberServiceDataResult) TenantMemberResp
 	}
 
 	if r.User != nil {
-		userDTO := toUserResponseDTO(*r.User)
+		userDTO := toMemberUserResponseDTO(*r.User)
 		resp.User = &userDTO
 	}
 
 	return resp
+}
+
+// toMemberUserResponseDTO maps tenant's MemberUser projection to its response DTO.
+func toMemberUserResponseDTO(u MemberUser) MemberUserResponseDTO {
+	return MemberUserResponseDTO{
+		UserUUID:           u.UserUUID,
+		Username:           u.Username,
+		Fullname:           u.Fullname,
+		Email:              u.Email,
+		Phone:              u.Phone,
+		IsEmailVerified:    u.IsEmailVerified,
+		IsPhoneVerified:    u.IsPhoneVerified,
+		IsProfileCompleted: u.IsProfileCompleted,
+		IsAccountCompleted: u.IsAccountCompleted,
+		Status:             u.Status,
+		Metadata:           u.Metadata,
+		CreatedAt:          u.CreatedAt,
+		UpdatedAt:          u.UpdatedAt,
+	}
 }

@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
+	"github.com/maintainerd/auth/internal/shared"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -29,7 +30,7 @@ func TestEmailConfigService_Get(t *testing.T) {
 			Username:        "user",
 			FromAddress:     "noreply@example.com",
 			Encryption:      "tls",
-			Status:          StatusActive,
+			Status:          shared.StatusActive,
 		}
 		svc := newEmailConfigSvc(&mockEmailConfigRepo{
 			findByTenantIDFn: func(_ int64) (*EmailConfig, error) { return ec, nil },
@@ -83,7 +84,7 @@ func TestEmailConfigService_Update(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, "ses", res.Provider)
 		assert.True(t, res.TestMode)
-		assert.Equal(t, StatusActive, res.Status)
+		assert.Equal(t, shared.StatusActive, res.Status)
 	})
 
 	t.Run("updates existing with password preserved on blank", func(t *testing.T) {
@@ -91,7 +92,7 @@ func TestEmailConfigService_Update(t *testing.T) {
 			EmailConfigUUID:   uuid.New(),
 			TenantID:          1,
 			PasswordEncrypted: "old-secret",
-			Status:            StatusActive,
+			Status:            shared.StatusActive,
 		}
 		svc := newEmailConfigSvc(&mockEmailConfigRepo{
 			findByTenantIDFn: func(_ int64) (*EmailConfig, error) { return existing, nil },
@@ -114,7 +115,7 @@ func TestEmailConfigService_Update(t *testing.T) {
 			EmailConfigUUID:   uuid.New(),
 			TenantID:          1,
 			PasswordEncrypted: "old-secret",
-			Status:            StatusActive,
+			Status:            shared.StatusActive,
 		}
 		svc := newEmailConfigSvc(&mockEmailConfigRepo{
 			findByTenantIDFn: func(_ int64) (*EmailConfig, error) { return existing, nil },

@@ -8,9 +8,11 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/maintainerd/auth/internal/branding"
 	"github.com/maintainerd/auth/internal/platform/config"
 	"github.com/maintainerd/auth/internal/platform/email"
 	"github.com/maintainerd/auth/internal/platform/signedurl"
+	"github.com/maintainerd/auth/internal/shared"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -114,7 +116,7 @@ func TestForgotPasswordService_SendPasswordResetEmail_FindByEmailError(t *testin
 func TestForgotPasswordService_SendPasswordResetEmail_UserInactive(t *testing.T) {
 	// Inactive user: transaction succeeds, but user var is set, so sendPasswordResetEmail is called
 	os.Setenv("HMAC_SECRET_KEY", "test-secret-key-for-hmac")
-	defer os.Unsetenv("HMAC_SECRET_KEY")
+	// cleanup handled by TestMain
 
 	origAppPublicHostname := config.AppPublicHostname
 	origAuthHostname := config.AuthHostname
@@ -141,12 +143,12 @@ func TestForgotPasswordService_SendPasswordResetEmail_UserInactive(t *testing.T)
 	}
 	userRepo := &mockUserRepo{
 		findByEmailFn: func(_ string) (*User, error) {
-			return &User{UserID: 1, UserUUID: uuid.New(), Email: "user@example.com", Status: StatusInactive}, nil
+			return &User{UserID: 1, UserUUID: uuid.New(), Email: "user@example.com", Status: shared.StatusInactive}, nil
 		},
 	}
 	emailTemplateRepo := &mockEmailTemplateRepo{
-		findByNameFn: func(_ string) (*EmailTemplate, error) {
-			return &EmailTemplate{Subject: "Reset", BodyHTML: `<a href="{{.ResetURL}}">R</a>`}, nil
+		findByNameFn: func(_ string) (*branding.EmailTemplate, error) {
+			return &branding.EmailTemplate{Subject: "Reset", BodyHTML: `<a href="{{.ResetURL}}">R</a>`}, nil
 		},
 	}
 
@@ -167,7 +169,7 @@ func TestForgotPasswordService_SendPasswordResetEmail_FindTokensError(t *testing
 	}
 	userRepo := &mockUserRepo{
 		findByEmailFn: func(_ string) (*User, error) {
-			return &User{UserID: 1, Email: "user@example.com", Status: StatusActive}, nil
+			return &User{UserID: 1, Email: "user@example.com", Status: shared.StatusActive}, nil
 		},
 	}
 	tokenRepo := &mockUserTokenRepo{
@@ -193,7 +195,7 @@ func TestForgotPasswordService_SendPasswordResetEmail_RevokeTokenError(t *testin
 	}
 	userRepo := &mockUserRepo{
 		findByEmailFn: func(_ string) (*User, error) {
-			return &User{UserID: 1, Email: "user@example.com", Status: StatusActive}, nil
+			return &User{UserID: 1, Email: "user@example.com", Status: shared.StatusActive}, nil
 		},
 	}
 	tokenRepo := &mockUserTokenRepo{
@@ -219,7 +221,7 @@ func TestForgotPasswordService_SendPasswordResetEmail_CreateTokenError(t *testin
 	}
 	userRepo := &mockUserRepo{
 		findByEmailFn: func(_ string) (*User, error) {
-			return &User{UserID: 1, Email: "user@example.com", Status: StatusActive}, nil
+			return &User{UserID: 1, Email: "user@example.com", Status: shared.StatusActive}, nil
 		},
 	}
 	tokenRepo := &mockUserTokenRepo{
@@ -238,7 +240,7 @@ func TestForgotPasswordService_SendPasswordResetEmail_CreateTokenError(t *testin
 func TestForgotPasswordService_SendPasswordResetEmail_FullPath(t *testing.T) {
 	// Full success path: user found, active, tokens revoked, new token created, email sent
 	os.Setenv("HMAC_SECRET_KEY", "test-secret-key-for-hmac")
-	defer os.Unsetenv("HMAC_SECRET_KEY")
+	// cleanup handled by TestMain
 
 	// Save original values and restore
 	origAppPublicHostname := config.AppPublicHostname
@@ -276,7 +278,7 @@ func TestForgotPasswordService_SendPasswordResetEmail_FullPath(t *testing.T) {
 	}
 	userRepo := &mockUserRepo{
 		findByEmailFn: func(_ string) (*User, error) {
-			return &User{UserID: 1, UserUUID: uuid.New(), Email: "user@example.com", Status: StatusActive}, nil
+			return &User{UserID: 1, UserUUID: uuid.New(), Email: "user@example.com", Status: shared.StatusActive}, nil
 		},
 	}
 	tokenRepo := &mockUserTokenRepo{
@@ -286,8 +288,8 @@ func TestForgotPasswordService_SendPasswordResetEmail_FullPath(t *testing.T) {
 	}
 	bodyPlain := "Reset: {{.ResetURL}}"
 	emailTemplateRepo := &mockEmailTemplateRepo{
-		findByNameFn: func(_ string) (*EmailTemplate, error) {
-			return &EmailTemplate{
+		findByNameFn: func(_ string) (*branding.EmailTemplate, error) {
+			return &branding.EmailTemplate{
 				Subject:   "Password Reset",
 				BodyHTML:  `<a href="{{.ResetURL}}">Reset</a> <img src="{{.LogoURL}}"/>`,
 				BodyPlain: &bodyPlain,
@@ -306,7 +308,7 @@ func TestForgotPasswordService_SendPasswordResetEmail_FullPath(t *testing.T) {
 func TestForgotPasswordService_SendPasswordResetEmail_ExternalURL(t *testing.T) {
 	// Test the isInternal=false path → uses AccountHostname
 	os.Setenv("HMAC_SECRET_KEY", "test-secret-key-for-hmac")
-	defer os.Unsetenv("HMAC_SECRET_KEY")
+	// cleanup handled by TestMain
 
 	origAppPublicHostname := config.AppPublicHostname
 	origAccountHostname := config.AccountHostname
@@ -336,15 +338,15 @@ func TestForgotPasswordService_SendPasswordResetEmail_ExternalURL(t *testing.T) 
 	}
 	userRepo := &mockUserRepo{
 		findByEmailFn: func(_ string) (*User, error) {
-			return &User{UserID: 1, UserUUID: uuid.New(), Email: "user@example.com", Status: StatusActive}, nil
+			return &User{UserID: 1, UserUUID: uuid.New(), Email: "user@example.com", Status: shared.StatusActive}, nil
 		},
 	}
 	tokenRepo := &mockUserTokenRepo{
 		findByUserIDAndTokenTypeFn: func(_ int64, _ string) ([]UserToken, error) { return nil, nil },
 	}
 	emailTemplateRepo := &mockEmailTemplateRepo{
-		findByNameFn: func(_ string) (*EmailTemplate, error) {
-			return &EmailTemplate{
+		findByNameFn: func(_ string) (*branding.EmailTemplate, error) {
+			return &branding.EmailTemplate{
 				Subject:  "Password Reset",
 				BodyHTML: `<a href="{{.ResetURL}}">Reset</a>`,
 			}, nil
@@ -361,7 +363,7 @@ func TestForgotPasswordService_SendPasswordResetEmail_ExternalURL(t *testing.T) 
 func TestForgotPasswordService_SendPasswordResetEmail_EmailSendError(t *testing.T) {
 	// Email send failure is logged but doesn't cause error response
 	os.Setenv("HMAC_SECRET_KEY", "test-secret-key-for-hmac")
-	defer os.Unsetenv("HMAC_SECRET_KEY")
+	// cleanup handled by TestMain
 
 	origAppPublicHostname := config.AppPublicHostname
 	origAuthHostname := config.AuthHostname
@@ -390,15 +392,15 @@ func TestForgotPasswordService_SendPasswordResetEmail_EmailSendError(t *testing.
 	}
 	userRepo := &mockUserRepo{
 		findByEmailFn: func(_ string) (*User, error) {
-			return &User{UserID: 1, UserUUID: uuid.New(), Email: "user@example.com", Status: StatusActive}, nil
+			return &User{UserID: 1, UserUUID: uuid.New(), Email: "user@example.com", Status: shared.StatusActive}, nil
 		},
 	}
 	tokenRepo := &mockUserTokenRepo{
 		findByUserIDAndTokenTypeFn: func(_ int64, _ string) ([]UserToken, error) { return nil, nil },
 	}
 	emailTemplateRepo := &mockEmailTemplateRepo{
-		findByNameFn: func(_ string) (*EmailTemplate, error) {
-			return &EmailTemplate{
+		findByNameFn: func(_ string) (*branding.EmailTemplate, error) {
+			return &branding.EmailTemplate{
 				Subject:  "Password Reset",
 				BodyHTML: `<a href="{{.ResetURL}}">Reset</a>`,
 			}, nil
@@ -415,7 +417,7 @@ func TestForgotPasswordService_SendPasswordResetEmail_EmailSendError(t *testing.
 func TestForgotPasswordService_SendPasswordResetEmail_TemplateError(t *testing.T) {
 	// Template fetch error from sendPasswordResetEmail is logged silently
 	os.Setenv("HMAC_SECRET_KEY", "test-secret-key-for-hmac")
-	defer os.Unsetenv("HMAC_SECRET_KEY")
+	// cleanup handled by TestMain
 
 	origAppPublicHostname := config.AppPublicHostname
 	origAuthHostname := config.AuthHostname
@@ -442,14 +444,14 @@ func TestForgotPasswordService_SendPasswordResetEmail_TemplateError(t *testing.T
 	}
 	userRepo := &mockUserRepo{
 		findByEmailFn: func(_ string) (*User, error) {
-			return &User{UserID: 1, UserUUID: uuid.New(), Email: "user@example.com", Status: StatusActive}, nil
+			return &User{UserID: 1, UserUUID: uuid.New(), Email: "user@example.com", Status: shared.StatusActive}, nil
 		},
 	}
 	tokenRepo := &mockUserTokenRepo{
 		findByUserIDAndTokenTypeFn: func(_ int64, _ string) ([]UserToken, error) { return nil, nil },
 	}
 	emailTemplateRepo := &mockEmailTemplateRepo{
-		findByNameFn: func(_ string) (*EmailTemplate, error) {
+		findByNameFn: func(_ string) (*branding.EmailTemplate, error) {
 			return nil, errors.New("template not found")
 		},
 	}
@@ -463,7 +465,7 @@ func TestForgotPasswordService_SendPasswordResetEmail_TemplateError(t *testing.T
 
 func TestForgotPasswordService_SendPasswordResetEmail_HTMLParseError(t *testing.T) {
 	os.Setenv("HMAC_SECRET_KEY", "test-secret-key-for-hmac")
-	defer os.Unsetenv("HMAC_SECRET_KEY")
+	// cleanup handled by TestMain
 
 	origAppPublicHostname := config.AppPublicHostname
 	origAuthHostname := config.AuthHostname
@@ -489,15 +491,15 @@ func TestForgotPasswordService_SendPasswordResetEmail_HTMLParseError(t *testing.
 	}
 	userRepo := &mockUserRepo{
 		findByEmailFn: func(_ string) (*User, error) {
-			return &User{UserID: 1, UserUUID: uuid.New(), Email: "user@example.com", Status: StatusActive}, nil
+			return &User{UserID: 1, UserUUID: uuid.New(), Email: "user@example.com", Status: shared.StatusActive}, nil
 		},
 	}
 	tokenRepo := &mockUserTokenRepo{
 		findByUserIDAndTokenTypeFn: func(_ int64, _ string) ([]UserToken, error) { return nil, nil },
 	}
 	emailTemplateRepo := &mockEmailTemplateRepo{
-		findByNameFn: func(_ string) (*EmailTemplate, error) {
-			return &EmailTemplate{
+		findByNameFn: func(_ string) (*branding.EmailTemplate, error) {
+			return &branding.EmailTemplate{
 				Subject:  "Reset",
 				BodyHTML: `{{.InvalidSyntax`, // bad template
 			}, nil
@@ -513,7 +515,7 @@ func TestForgotPasswordService_SendPasswordResetEmail_HTMLParseError(t *testing.
 
 func TestForgotPasswordService_SendPasswordResetEmail_PlainParseError(t *testing.T) {
 	os.Setenv("HMAC_SECRET_KEY", "test-secret-key-for-hmac")
-	defer os.Unsetenv("HMAC_SECRET_KEY")
+	// cleanup handled by TestMain
 
 	origAppPublicHostname := config.AppPublicHostname
 	origAuthHostname := config.AuthHostname
@@ -539,7 +541,7 @@ func TestForgotPasswordService_SendPasswordResetEmail_PlainParseError(t *testing
 	}
 	userRepo := &mockUserRepo{
 		findByEmailFn: func(_ string) (*User, error) {
-			return &User{UserID: 1, UserUUID: uuid.New(), Email: "user@example.com", Status: StatusActive}, nil
+			return &User{UserID: 1, UserUUID: uuid.New(), Email: "user@example.com", Status: shared.StatusActive}, nil
 		},
 	}
 	tokenRepo := &mockUserTokenRepo{
@@ -547,8 +549,8 @@ func TestForgotPasswordService_SendPasswordResetEmail_PlainParseError(t *testing
 	}
 	badPlain := `{{.InvalidSyntax`
 	emailTemplateRepo := &mockEmailTemplateRepo{
-		findByNameFn: func(_ string) (*EmailTemplate, error) {
-			return &EmailTemplate{
+		findByNameFn: func(_ string) (*branding.EmailTemplate, error) {
+			return &branding.EmailTemplate{
 				Subject:   "Reset",
 				BodyHTML:  `<a href="{{.ResetURL}}">Reset</a>`,
 				BodyPlain: &badPlain,
@@ -565,7 +567,7 @@ func TestForgotPasswordService_SendPasswordResetEmail_PlainParseError(t *testing
 
 func TestForgotPasswordService_SendPasswordResetEmail_HTMLExecuteError(t *testing.T) {
 	os.Setenv("HMAC_SECRET_KEY", "test-secret-key-for-hmac")
-	defer os.Unsetenv("HMAC_SECRET_KEY")
+	// cleanup handled by TestMain
 
 	origAppPublicHostname := config.AppPublicHostname
 	origAuthHostname := config.AuthHostname
@@ -591,15 +593,15 @@ func TestForgotPasswordService_SendPasswordResetEmail_HTMLExecuteError(t *testin
 	}
 	userRepo := &mockUserRepo{
 		findByEmailFn: func(_ string) (*User, error) {
-			return &User{UserID: 1, UserUUID: uuid.New(), Email: "user@example.com", Status: StatusActive}, nil
+			return &User{UserID: 1, UserUUID: uuid.New(), Email: "user@example.com", Status: shared.StatusActive}, nil
 		},
 	}
 	tokenRepo := &mockUserTokenRepo{
 		findByUserIDAndTokenTypeFn: func(_ int64, _ string) ([]UserToken, error) { return nil, nil },
 	}
 	emailTemplateRepo := &mockEmailTemplateRepo{
-		findByNameFn: func(_ string) (*EmailTemplate, error) {
-			return &EmailTemplate{
+		findByNameFn: func(_ string) (*branding.EmailTemplate, error) {
+			return &branding.EmailTemplate{
 				Subject:  "Reset",
 				BodyHTML: `{{call .ResetURL}}`, // parses ok, fails on Execute
 			}, nil
@@ -615,7 +617,7 @@ func TestForgotPasswordService_SendPasswordResetEmail_HTMLExecuteError(t *testin
 
 func TestForgotPasswordService_SendPasswordResetEmail_PlainExecuteError(t *testing.T) {
 	os.Setenv("HMAC_SECRET_KEY", "test-secret-key-for-hmac")
-	defer os.Unsetenv("HMAC_SECRET_KEY")
+	// cleanup handled by TestMain
 
 	origAppPublicHostname := config.AppPublicHostname
 	origAuthHostname := config.AuthHostname
@@ -641,7 +643,7 @@ func TestForgotPasswordService_SendPasswordResetEmail_PlainExecuteError(t *testi
 	}
 	userRepo := &mockUserRepo{
 		findByEmailFn: func(_ string) (*User, error) {
-			return &User{UserID: 1, UserUUID: uuid.New(), Email: "user@example.com", Status: StatusActive}, nil
+			return &User{UserID: 1, UserUUID: uuid.New(), Email: "user@example.com", Status: shared.StatusActive}, nil
 		},
 	}
 	tokenRepo := &mockUserTokenRepo{
@@ -649,8 +651,8 @@ func TestForgotPasswordService_SendPasswordResetEmail_PlainExecuteError(t *testi
 	}
 	badPlain := `{{call .ResetURL}}` // parses ok, fails on Execute
 	emailTemplateRepo := &mockEmailTemplateRepo{
-		findByNameFn: func(_ string) (*EmailTemplate, error) {
-			return &EmailTemplate{
+		findByNameFn: func(_ string) (*branding.EmailTemplate, error) {
+			return &branding.EmailTemplate{
 				Subject:   "Reset",
 				BodyHTML:  `<a href="{{.ResetURL}}">Reset</a>`,
 				BodyPlain: &badPlain,
@@ -675,7 +677,7 @@ func TestGenerateSecureToken(t *testing.T) {
 func TestForgotPasswordService_SendPasswordResetEmail_WithExistingTokens(t *testing.T) {
 	// Tests the path where existing tokens are found and revoked
 	os.Setenv("HMAC_SECRET_KEY", "test-secret-key-for-hmac")
-	defer os.Unsetenv("HMAC_SECRET_KEY")
+	// cleanup handled by TestMain
 
 	origAppPublicHostname := config.AppPublicHostname
 	origAuthHostname := config.AuthHostname
@@ -705,7 +707,7 @@ func TestForgotPasswordService_SendPasswordResetEmail_WithExistingTokens(t *test
 	}
 	userRepo := &mockUserRepo{
 		findByEmailFn: func(_ string) (*User, error) {
-			return &User{UserID: 1, UserUUID: uuid.New(), Email: "user@example.com", Status: StatusActive}, nil
+			return &User{UserID: 1, UserUUID: uuid.New(), Email: "user@example.com", Status: shared.StatusActive}, nil
 		},
 	}
 	tokenRepo := &mockUserTokenRepo{
@@ -721,8 +723,8 @@ func TestForgotPasswordService_SendPasswordResetEmail_WithExistingTokens(t *test
 		},
 	}
 	emailTemplateRepo := &mockEmailTemplateRepo{
-		findByNameFn: func(_ string) (*EmailTemplate, error) {
-			return &EmailTemplate{
+		findByNameFn: func(_ string) (*branding.EmailTemplate, error) {
+			return &branding.EmailTemplate{
 				Subject:  "Reset",
 				BodyHTML: `<a href="{{.ResetURL}}">Reset</a>`,
 			}, nil
@@ -741,7 +743,7 @@ func TestForgotPasswordService_SendPasswordResetEmail_WithExistingTokens(t *test
 
 func TestForgotPasswordService_SendPasswordResetEmail_GenerateSignedURLError(t *testing.T) {
 	os.Setenv("HMAC_SECRET_KEY", "test-secret-key-for-hmac")
-	defer os.Unsetenv("HMAC_SECRET_KEY")
+	// cleanup handled by TestMain
 
 	origAppPublicHostname := config.AppPublicHostname
 	origAuthHostname := config.AuthHostname
@@ -770,15 +772,15 @@ func TestForgotPasswordService_SendPasswordResetEmail_GenerateSignedURLError(t *
 	}
 	userRepo := &mockUserRepo{
 		findByEmailFn: func(_ string) (*User, error) {
-			return &User{UserID: 1, UserUUID: uuid.New(), Email: "user@example.com", Status: StatusActive}, nil
+			return &User{UserID: 1, UserUUID: uuid.New(), Email: "user@example.com", Status: shared.StatusActive}, nil
 		},
 	}
 	tokenRepo := &mockUserTokenRepo{
 		findByUserIDAndTokenTypeFn: func(_ int64, _ string) ([]UserToken, error) { return nil, nil },
 	}
 	emailTemplateRepo := &mockEmailTemplateRepo{
-		findByNameFn: func(_ string) (*EmailTemplate, error) {
-			return &EmailTemplate{
+		findByNameFn: func(_ string) (*branding.EmailTemplate, error) {
+			return &branding.EmailTemplate{
 				Subject:  "Password Reset",
 				BodyHTML: `<a href="{{.ResetURL}}">Reset</a>`,
 			}, nil
@@ -794,7 +796,7 @@ func TestForgotPasswordService_SendPasswordResetEmail_GenerateSignedURLError(t *
 
 func TestForgotPasswordService_SendPasswordResetEmail_ConvertToFrontendURLError(t *testing.T) {
 	os.Setenv("HMAC_SECRET_KEY", "test-secret-key-for-hmac")
-	defer os.Unsetenv("HMAC_SECRET_KEY")
+	// cleanup handled by TestMain
 
 	origAppPublicHostname := config.AppPublicHostname
 	origAuthHostname := config.AuthHostname
@@ -827,15 +829,15 @@ func TestForgotPasswordService_SendPasswordResetEmail_ConvertToFrontendURLError(
 	}
 	userRepo := &mockUserRepo{
 		findByEmailFn: func(_ string) (*User, error) {
-			return &User{UserID: 1, UserUUID: uuid.New(), Email: "user@example.com", Status: StatusActive}, nil
+			return &User{UserID: 1, UserUUID: uuid.New(), Email: "user@example.com", Status: shared.StatusActive}, nil
 		},
 	}
 	tokenRepo := &mockUserTokenRepo{
 		findByUserIDAndTokenTypeFn: func(_ int64, _ string) ([]UserToken, error) { return nil, nil },
 	}
 	emailTemplateRepo := &mockEmailTemplateRepo{
-		findByNameFn: func(_ string) (*EmailTemplate, error) {
-			return &EmailTemplate{
+		findByNameFn: func(_ string) (*branding.EmailTemplate, error) {
+			return &branding.EmailTemplate{
 				Subject:  "Password Reset",
 				BodyHTML: `<a href="{{.ResetURL}}">Reset</a>`,
 			}, nil

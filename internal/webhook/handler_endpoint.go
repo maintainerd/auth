@@ -8,6 +8,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/platform/middleware"
 	resp "github.com/maintainerd/auth/internal/platform/response"
+	"github.com/maintainerd/auth/internal/shared"
 )
 
 // WebhookEndpointHandler handles HTTP requests for webhook endpoint management.
@@ -116,7 +117,7 @@ func (h *WebhookEndpointHandler) Create(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	status := StatusActive
+	status := shared.StatusActive
 	if req.Status != nil {
 		status = *req.Status
 	}
@@ -163,7 +164,7 @@ func (h *WebhookEndpointHandler) Update(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	status := StatusActive
+	status := shared.StatusActive
 	if req.Status != nil {
 		status = *req.Status
 	}

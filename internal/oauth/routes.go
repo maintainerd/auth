@@ -41,7 +41,7 @@ func OAuthPublicRoute(
 	sessionHandler *OAuthSessionHandler,
 	cibaHandler *OAuthCIBAHandler,
 	registerHandler *OAuthRegisterHandler,
-	userService UserService,
+	userService middleware.UserContextProvider,
 	appCache *cache.Cache,
 ) {
 	r.Route("/oauth", func(r chi.Router) {
@@ -129,7 +129,7 @@ func OAuthDiscoveryRoute(r chi.Router, discoveryHandler *OAuthDiscoveryHandler) 
 func OAuthInternalRoute(
 	r chi.Router,
 	tokenHandler *OAuthTokenHandler,
-	userService UserService,
+	userService middleware.UserContextProvider,
 	appCache *cache.Cache,
 ) {
 	r.Route("/oauth", func(r chi.Router) {

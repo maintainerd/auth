@@ -8,11 +8,13 @@ import (
 	"strings"
 	"time"
 
+	"github.com/maintainerd/auth/internal/branding"
 	"github.com/maintainerd/auth/internal/platform/apperror"
 	"github.com/maintainerd/auth/internal/platform/config"
 	"github.com/maintainerd/auth/internal/platform/crypto"
 	"github.com/maintainerd/auth/internal/platform/email"
 	"github.com/maintainerd/auth/internal/platform/security"
+	"github.com/maintainerd/auth/internal/shared"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/codes"
 	"gorm.io/gorm"
@@ -37,7 +39,7 @@ type emailVerificationService struct {
 	userRepo          UserRepository
 	userTokenRepo     UserTokenRepository
 	clientRepo        ClientRepository
-	emailTemplateRepo EmailTemplateRepository
+	emailTemplateRepo branding.EmailTemplateRepository
 }
 
 func NewEmailVerificationService(
@@ -45,7 +47,7 @@ func NewEmailVerificationService(
 	userRepo UserRepository,
 	userTokenRepo UserTokenRepository,
 	clientRepo ClientRepository,
-	emailTemplateRepo EmailTemplateRepository,
+	emailTemplateRepo branding.EmailTemplateRepository,
 ) EmailVerificationService {
 	return &emailVerificationService{
 		db:                db,
@@ -91,7 +93,7 @@ func (s *emailVerificationService) SendVerificationEmail(ctx context.Context, em
 		}
 
 		// Skip if user is inactive — don't reveal status.
-		if user.Status != StatusActive {
+		if user.Status != shared.StatusActive {
 			user = nil
 			return nil
 		}
@@ -103,7 +105,7 @@ func (s *emailVerificationService) SendVerificationEmail(ctx context.Context, em
 		}
 
 		// Revoke any existing email-verification tokens for this user.
-		existingTokens, txErr := txUserTokenRepo.FindByUserIDAndTokenType(user.UserID, TokenTypeEmailVerification)
+		existingTokens, txErr := txUserTokenRepo.FindByUserIDAndTokenType(user.UserID, shared.TokenTypeEmailVerification)
 		if txErr != nil {
 			return apperror.NewInternal("failed to find existing tokens", txErr)
 		}
@@ -122,7 +124,7 @@ func (s *emailVerificationService) SendVerificationEmail(ctx context.Context, em
 		expiresAt := time.Now().Add(EmailVerificationOTPTTL)
 		if _, txErr := txUserTokenRepo.Create(&UserToken{
 			UserID:    user.UserID,
-			TokenType: TokenTypeEmailVerification,
+			TokenType: shared.TokenTypeEmailVerification,
 			Token:     otp,
 			ExpiresAt: &expiresAt,
 		}); txErr != nil {
@@ -182,7 +184,7 @@ func (s *emailVerificationService) VerifyEmail(ctx context.Context, emailAddr, o
 			return apperror.NewUnauthorized("invalid or expired verification code")
 		}
 
-		if user.Status != StatusActive {
+		if user.Status != shared.StatusActive {
 			return apperror.NewUnauthorized("user account is not active")
 		}
 
@@ -196,7 +198,7 @@ func (s *emailVerificationService) VerifyEmail(ctx context.Context, emailAddr, o
 		var matches []UserToken
 		if txErr := tx.Where(
 			"user_id = ? AND token_type = ? AND token = ? AND is_revoked = false",
-			user.UserID, TokenTypeEmailVerification, otp,
+			user.UserID, shared.TokenTypeEmailVerification, otp,
 		).Find(&matches).Error; txErr != nil {
 			return apperror.NewInternal("failed to find verification token", txErr)
 		}
@@ -219,7 +221,7 @@ func (s *emailVerificationService) VerifyEmail(ctx context.Context, emailAddr, o
 		}
 
 		// Revoke all email-verification tokens for the user (single-use).
-		existingTokens, txErr := txUserTokenRepo.FindByUserIDAndTokenType(user.UserID, TokenTypeEmailVerification)
+		existingTokens, txErr := txUserTokenRepo.FindByUserIDAndTokenType(user.UserID, shared.TokenTypeEmailVerification)
 		if txErr != nil {
 			return apperror.NewInternal("failed to find existing tokens", txErr)
 		}

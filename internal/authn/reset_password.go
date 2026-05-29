@@ -7,6 +7,8 @@ import (
 
 	"github.com/maintainerd/auth/internal/platform/apperror"
 	"github.com/maintainerd/auth/internal/platform/security"
+	"github.com/maintainerd/auth/internal/secpolicy"
+	"github.com/maintainerd/auth/internal/shared"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/codes"
 	"gorm.io/gorm"
@@ -21,8 +23,8 @@ type resetPasswordService struct {
 	userRepo            UserRepository
 	userTokenRepo       UserTokenRepository
 	clientRepo          ClientRepository
-	securitySettingRepo SecuritySettingRepository     // nil → use defaults
-	passwordHistoryRepo UserPasswordHistoryRepository // nil → skip history
+	securitySettingRepo secpolicy.SecuritySettingRepository // nil → use defaults
+	passwordHistoryRepo UserPasswordHistoryRepository       // nil → skip history
 }
 
 func NewResetPasswordService(
@@ -30,7 +32,7 @@ func NewResetPasswordService(
 	userRepo UserRepository,
 	userTokenRepo UserTokenRepository,
 	clientRepo ClientRepository,
-	securitySettingRepo SecuritySettingRepository,
+	securitySettingRepo secpolicy.SecuritySettingRepository,
 	passwordHistoryRepo UserPasswordHistoryRepository,
 ) ResetPasswordService {
 	return &resetPasswordService{
@@ -77,7 +79,7 @@ func (s *resetPasswordService) ResetPassword(ctx context.Context, token, newPass
 		// We need to find all password reset tokens and check which one matches our token
 		// This is a security consideration - we don't want to reveal if a token exists
 		allTokens := []UserToken{}
-		txErr = tx.Where("token_type = ? AND token = ? AND is_revoked = false", TokenTypePasswordReset, token).Find(&allTokens).Error
+		txErr = tx.Where("token_type = ? AND token = ? AND is_revoked = false", shared.TokenTypePasswordReset, token).Find(&allTokens).Error
 		if txErr != nil {
 			return apperror.NewInternal("failed to find reset token", txErr)
 		}
@@ -109,7 +111,7 @@ func (s *resetPasswordService) ResetPassword(ctx context.Context, token, newPass
 		}
 
 		// Check if user is active
-		if user.Status != StatusActive {
+		if user.Status != shared.StatusActive {
 			return apperror.NewUnauthorized("user account is not active")
 		}
 
@@ -160,7 +162,7 @@ func (s *resetPasswordService) ResetPassword(ctx context.Context, token, newPass
 		}
 
 		// Revoke all other password reset tokens for this user
-		existingTokens, txErr := txUserTokenRepo.FindByUserIDAndTokenType(user.UserID, TokenTypePasswordReset)
+		existingTokens, txErr := txUserTokenRepo.FindByUserIDAndTokenType(user.UserID, shared.TokenTypePasswordReset)
 		if txErr != nil {
 			return apperror.NewInternal("failed to find existing tokens", txErr)
 		}
@@ -178,7 +180,7 @@ func (s *resetPasswordService) ResetPassword(ctx context.Context, token, newPass
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "reset password failed")
-		// Log security event for failed password reset
+		// authevent.Log security event for failed password reset
 		security.LogSecurityEvent(security.SecurityEvent{
 			EventType: "password_reset_failure",
 			UserID:    token, // Use token as identifier since we might not have user
@@ -189,7 +191,7 @@ func (s *resetPasswordService) ResetPassword(ctx context.Context, token, newPass
 		return nil, err
 	}
 
-	// Log successful password reset
+	// authevent.Log successful password reset
 	security.LogSecurityEvent(security.SecurityEvent{
 		EventType: "password_reset_success",
 		UserID:    user.UserUUID.String(),

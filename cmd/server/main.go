@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/maintainerd/auth/internal/app"
+	"github.com/maintainerd/auth/internal/authevent"
 	"github.com/maintainerd/auth/internal/platform/config"
 	"github.com/maintainerd/auth/internal/platform/jwt"
 	"github.com/maintainerd/auth/internal/platform/logging"
@@ -97,6 +98,7 @@ func main() {
 
 	// ⚙️ App wiring (handlers, services, etc.)
 	application := app.NewApp(db, redisClient)
+	serverApplication := application.ServerApplication()
 
 	// Wire the JTI denylist checker so ValidateToken rejects revoked access tokens.
 	jwt.JTIChecker = application.Cache.IsJTIDenied
@@ -105,17 +107,17 @@ func main() {
 	bgCtx, cancelBG := context.WithCancel(context.Background())
 
 	// 🗑️ Auth event retention runner (background)
-	go runner.StartRetentionRunner(bgCtx, application.AuthEventService, runner.DefaultRetentionPeriod, runner.DefaultRetentionInterval)
+	go authevent.StartRetentionRunner(bgCtx, application.AuthEventService, authevent.DefaultRetentionPeriod, authevent.DefaultRetentionInterval)
 
 	// 🚀 gRPC server (background) — errors are logged; they don't affect REST.
 	go func() {
-		if err := appserver.StartGRPCServer(bgCtx, application); err != nil {
+		if err := appserver.StartGRPCServer(bgCtx, serverApplication); err != nil {
 			slog.Error("gRPC server error", "error", err)
 		}
 	}()
 
 	// 🚀 REST servers — blocks until OS signal then drains.
-	appserver.StartRESTServer(application)
+	appserver.StartRESTServer(serverApplication)
 
 	cancelBG()
 }

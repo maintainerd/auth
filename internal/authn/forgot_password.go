@@ -9,11 +9,13 @@ import (
 	"html/template"
 	"time"
 
+	"github.com/maintainerd/auth/internal/branding"
 	"github.com/maintainerd/auth/internal/platform/apperror"
 	"github.com/maintainerd/auth/internal/platform/config"
 	"github.com/maintainerd/auth/internal/platform/email"
 	"github.com/maintainerd/auth/internal/platform/security"
 	"github.com/maintainerd/auth/internal/platform/signedurl"
+	"github.com/maintainerd/auth/internal/shared"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/codes"
 	"gorm.io/gorm"
@@ -28,7 +30,7 @@ type forgotPasswordService struct {
 	userRepo          UserRepository
 	userTokenRepo     UserTokenRepository
 	clientRepo        ClientRepository
-	emailTemplateRepo EmailTemplateRepository
+	emailTemplateRepo branding.EmailTemplateRepository
 }
 
 func NewForgotPasswordService(
@@ -36,7 +38,7 @@ func NewForgotPasswordService(
 	userRepo UserRepository,
 	userTokenRepo UserTokenRepository,
 	clientRepo ClientRepository,
-	emailTemplateRepo EmailTemplateRepository,
+	emailTemplateRepo branding.EmailTemplateRepository,
 ) ForgotPasswordService {
 	return &forgotPasswordService{
 		db:                db,
@@ -83,13 +85,13 @@ func (s *forgotPasswordService) SendPasswordResetEmail(ctx context.Context, emai
 		}
 
 		// Check if user is active
-		if user.Status != StatusActive {
+		if user.Status != shared.StatusActive {
 			// Don't reveal if user is inactive for security
 			return nil
 		}
 
 		// Revoke any existing password reset tokens for this user
-		existingTokens, txErr := txUserTokenRepo.FindByUserIDAndTokenType(user.UserID, TokenTypePasswordReset)
+		existingTokens, txErr := txUserTokenRepo.FindByUserIDAndTokenType(user.UserID, shared.TokenTypePasswordReset)
 		if txErr != nil {
 			return apperror.NewInternal("failed to find existing tokens", txErr)
 		}
@@ -106,7 +108,7 @@ func (s *forgotPasswordService) SendPasswordResetEmail(ctx context.Context, emai
 		expiresAt := time.Now().Add(1 * time.Hour)
 		userToken := &UserToken{
 			UserID:    user.UserID,
-			TokenType: TokenTypePasswordReset,
+			TokenType: shared.TokenTypePasswordReset,
 			Token:     resetToken,
 			ExpiresAt: &expiresAt,
 		}
@@ -134,7 +136,7 @@ func (s *forgotPasswordService) SendPasswordResetEmail(ctx context.Context, emai
 	if user != nil {
 		// Generate reset URL and send email
 		if err := s.sendPasswordResetEmail(ctx, user.Email, resetToken, Client, isInternal); err != nil {
-			// Log error but don't reveal it to user for security
+			// authevent.Log error but don't reveal it to user for security
 			security.LogSecurityEvent(security.SecurityEvent{
 				EventType: "password_reset_email_failure",
 				UserID:    user.UserUUID.String(),

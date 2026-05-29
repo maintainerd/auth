@@ -21,9 +21,7 @@ type OAuthConsentGrant struct {
 	UpdatedAt             time.Time `gorm:"column:updated_at;autoUpdateTime;not null"`
 
 	// Relationships
-	User   *User   `gorm:"foreignKey:UserID;references:UserID"`
 	Client *Client `gorm:"foreignKey:ClientID;references:ClientID"`
-	Tenant *Tenant `gorm:"foreignKey:TenantID;references:TenantID"`
 }
 
 // TableName returns the database table name for GORM.

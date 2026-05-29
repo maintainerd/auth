@@ -8,10 +8,12 @@ import (
 	"log/slog"
 	"time"
 
+	"github.com/maintainerd/auth/internal/authevent"
 	"github.com/maintainerd/auth/internal/platform/apperror"
 	"github.com/maintainerd/auth/internal/platform/crypto"
 	"github.com/maintainerd/auth/internal/platform/email"
 	"github.com/maintainerd/auth/internal/platform/jwt"
+	"github.com/maintainerd/auth/internal/shared"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/codes"
 	"golang.org/x/crypto/bcrypt"
@@ -45,7 +47,7 @@ type accountService struct {
 	backupCodeRepo       UserBackupCodeRepository
 	userIdentityRepo     UserIdentityRepository
 	identityProviderRepo IdentityProviderRepository
-	authEventService     AuthEventService
+	authEventService     authevent.AuthEventService
 }
 
 func NewAccountService(
@@ -59,7 +61,7 @@ func NewAccountService(
 	backupCodeRepo UserBackupCodeRepository,
 	userIdentityRepo UserIdentityRepository,
 	identityProviderRepo IdentityProviderRepository,
-	authEventService AuthEventService,
+	authEventService authevent.AuthEventService,
 ) AccountService {
 	return &accountService{
 		db:                   db,
@@ -348,7 +350,7 @@ func (s *accountService) VerifyBackupCode(ctx context.Context, req VerifyBackupC
 
 		client, txErr = txClientRepo.FindByClientIDAndIdentityProvider(req.ClientID, req.ProviderID)
 		if txErr != nil || client == nil ||
-			client.Status != StatusActive ||
+			client.Status != shared.StatusActive ||
 			client.Domain == nil || *client.Domain == "" {
 			return apperror.NewUnauthorized("authentication failed")
 		}
@@ -361,7 +363,7 @@ func (s *accountService) VerifyBackupCode(ctx context.Context, req VerifyBackupC
 		if user == nil {
 			return apperror.NewUnauthorized("invalid email or backup code")
 		}
-		if user.Status != StatusActive {
+		if user.Status != shared.StatusActive {
 			return apperror.NewUnauthorized("account is not active")
 		}
 

@@ -10,6 +10,7 @@ import (
 	"github.com/maintainerd/auth/internal/platform/middleware"
 	"github.com/maintainerd/auth/internal/platform/ptr"
 	resp "github.com/maintainerd/auth/internal/platform/response"
+	"github.com/maintainerd/auth/internal/shared"
 )
 
 // RoleHandler handles HTTP requests for role management.
@@ -92,7 +93,7 @@ func (h *RoleHandler) Get(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Fetch roles from service - service filters by tenant_id
-	result, err := h.Get(r.Context(), roleFilter)
+	result, err := h.service.Get(r.Context(), roleFilter)
 	if err != nil {
 		resp.HandleServiceError(w, r, "Failed to fetch roles", err)
 		return
@@ -135,7 +136,7 @@ func (h *RoleHandler) GetByUUID(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Fetch role - service validates it belongs to tenant
-	role, err := h.GetByUUID(r.Context(), roleUUID, tenant.TenantID)
+	role, err := h.service.GetByUUID(r.Context(), roleUUID, tenant.TenantID)
 	if err != nil {
 		resp.HandleServiceError(w, r, "Role not found", err)
 		return
@@ -176,7 +177,7 @@ func (h *RoleHandler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Create role associated with tenant
-	role, err := h.Create(r.Context(), req.Name, req.Description, false, false, req.Status, tenant.TenantUUID.String(), user.UserUUID)
+	role, err := h.service.Create(r.Context(), req.Name, req.Description, false, false, req.Status, tenant.TenantUUID.String(), user.UserUUID)
 	if err != nil {
 		resp.HandleServiceError(w, r, "Failed to create role", err)
 		return
@@ -224,7 +225,7 @@ func (h *RoleHandler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Update role - service validates it belongs to tenant
-	role, err := h.Update(r.Context(), roleUUID, tenant.TenantID, req.Name, req.Description, false, false, req.Status, user.UserUUID)
+	role, err := h.service.Update(r.Context(), roleUUID, tenant.TenantID, req.Name, req.Description, false, false, req.Status, user.UserUUID)
 	if err != nil {
 		resp.HandleServiceError(w, r, "Failed to update role", err)
 		return
@@ -268,13 +269,13 @@ func (h *RoleHandler) SetStatus(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Validate status value
-	if req.Status != StatusActive && req.Status != StatusInactive {
+	if req.Status != shared.StatusActive && req.Status != shared.StatusInactive {
 		resp.Error(w, http.StatusBadRequest, "Status must be 'active' or 'inactive'")
 		return
 	}
 
 	// Update role status - service validates it belongs to tenant
-	role, err := h.SetStatusByUUID(r.Context(), roleUUID, tenant.TenantID, req.Status, user.UserUUID)
+	role, err := h.service.SetStatusByUUID(r.Context(), roleUUID, tenant.TenantID, req.Status, user.UserUUID)
 	if err != nil {
 		resp.HandleServiceError(w, r, "Failed to update role", err)
 		return
@@ -309,7 +310,7 @@ func (h *RoleHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Delete role - service validates it belongs to tenant
-	role, err := h.DeleteByUUID(r.Context(), roleUUID, tenant.TenantID, user.UserUUID)
+	role, err := h.service.DeleteByUUID(r.Context(), roleUUID, tenant.TenantID, user.UserUUID)
 	if err != nil {
 		resp.HandleServiceError(w, r, "Failed to delete role", err)
 		return
@@ -368,7 +369,7 @@ func (h *RoleHandler) GetPermissions(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Fetch permissions from service - service validates role belongs to tenant
-	result, err := h.GetRolePermissions(r.Context(), filter)
+	result, err := h.service.GetRolePermissions(r.Context(), filter)
 	if err != nil {
 		resp.HandleServiceError(w, r, "Failed to fetch role permissions", err)
 		return
@@ -455,7 +456,7 @@ func (h *RoleHandler) AddPermissions(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Add permissions to role - service validates role belongs to tenant
-	role, err := h.AddRolePermissions(r.Context(), roleUUID, tenant.TenantID, req.Permissions, user.UserUUID)
+	role, err := h.service.AddRolePermissions(r.Context(), roleUUID, tenant.TenantID, req.Permissions, user.UserUUID)
 	if err != nil {
 		resp.HandleServiceError(w, r, "Failed to add permissions to role", err)
 		return
@@ -497,7 +498,7 @@ func (h *RoleHandler) RemovePermission(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Remove permission from role - service validates role belongs to tenant
-	role, err := h.RemoveRolePermissions(r.Context(), roleUUID, tenant.TenantID, permissionUUID, user.UserUUID)
+	role, err := h.service.RemoveRolePermissions(r.Context(), roleUUID, tenant.TenantID, permissionUUID, user.UserUUID)
 	if err != nil {
 		resp.HandleServiceError(w, r, "Failed to remove permission from role", err)
 		return

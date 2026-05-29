@@ -8,6 +8,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/platform/middleware"
 	resp "github.com/maintainerd/auth/internal/platform/response"
+	"github.com/maintainerd/auth/internal/shared"
 )
 
 type APIKeyHandler struct {
@@ -182,7 +183,7 @@ func (h *APIKeyHandler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Set default status if not provided
-	status := StatusActive
+	status := shared.StatusActive
 	if req.Status != "" {
 		status = req.Status
 	}

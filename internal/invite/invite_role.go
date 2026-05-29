@@ -16,7 +16,6 @@ type InviteRole struct {
 
 	// Relationships
 	Invite Invite `gorm:"foreignKey:InviteID"`
-	Role   Role   `gorm:"foreignKey:RoleID"`
 }
 
 func (InviteRole) TableName() string {

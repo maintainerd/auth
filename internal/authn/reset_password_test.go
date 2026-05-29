@@ -9,6 +9,7 @@ import (
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/platform/security"
+	"github.com/maintainerd/auth/internal/shared"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -27,7 +28,7 @@ var tokenColumns = []string{
 func validTokenRow(tok string, userID int64, tuuid uuid.UUID) *sqlmock.Rows {
 	future := time.Now().Add(time.Hour)
 	return sqlmock.NewRows(tokenColumns).AddRow(
-		int64(1), tuuid, userID, TokenTypePasswordReset,
+		int64(1), tuuid, userID, shared.TokenTypePasswordReset,
 		tok, nil, nil, false,
 		&future, time.Now(), nil,
 	)
@@ -36,7 +37,7 @@ func validTokenRow(tok string, userID int64, tuuid uuid.UUID) *sqlmock.Rows {
 func expiredTokenRow(tok string, userID int64, tuuid uuid.UUID) *sqlmock.Rows {
 	past := time.Now().Add(-time.Hour)
 	return sqlmock.NewRows(tokenColumns).AddRow(
-		int64(1), tuuid, userID, TokenTypePasswordReset,
+		int64(1), tuuid, userID, shared.TokenTypePasswordReset,
 		tok, nil, nil, false,
 		&past, time.Now(), nil,
 	)
@@ -45,7 +46,7 @@ func expiredTokenRow(tok string, userID int64, tuuid uuid.UUID) *sqlmock.Rows {
 func revokedTokenRow(tok string, userID int64, tuuid uuid.UUID) *sqlmock.Rows {
 	future := time.Now().Add(time.Hour)
 	return sqlmock.NewRows(tokenColumns).AddRow(
-		int64(1), tuuid, userID, TokenTypePasswordReset,
+		int64(1), tuuid, userID, shared.TokenTypePasswordReset,
 		tok, nil, nil, true,
 		&future, time.Now(), nil,
 	)
@@ -260,7 +261,7 @@ func TestResetPasswordService_ResetPassword(t *testing.T) {
 		mock.ExpectRollback()
 		svc := NewResetPasswordService(db, &mockUserRepo{
 			findByIDFn: func(_ any, _ ...string) (*User, error) {
-				return &User{UserID: userID, UserUUID: userUUID, Status: StatusInactive}, nil
+				return &User{UserID: userID, UserUUID: userUUID, Status: shared.StatusInactive}, nil
 			},
 		}, &mockUserTokenRepo{}, &mockClientRepo{
 			findSystemFn: func() (*Client, error) {
@@ -284,7 +285,7 @@ func TestResetPasswordService_ResetPassword(t *testing.T) {
 		mock.ExpectRollback()
 		svc := NewResetPasswordService(db, &mockUserRepo{
 			findByIDFn: func(_ any, _ ...string) (*User, error) {
-				return &User{UserID: userID, UserUUID: userUUID, Status: StatusActive}, nil
+				return &User{UserID: userID, UserUUID: userUUID, Status: shared.StatusActive}, nil
 			},
 		}, &mockUserTokenRepo{}, &mockClientRepo{
 			findSystemFn: func() (*Client, error) {
@@ -308,7 +309,7 @@ func TestResetPasswordService_ResetPassword(t *testing.T) {
 		mock.ExpectRollback()
 		svc := NewResetPasswordService(db, &mockUserRepo{
 			findByIDFn: func(_ any, _ ...string) (*User, error) {
-				return &User{UserID: userID, UserUUID: userUUID, Status: StatusActive}, nil
+				return &User{UserID: userID, UserUUID: userUUID, Status: shared.StatusActive}, nil
 			},
 			updateByIDFn: func(_, _ any) (*User, error) {
 				return nil, errors.New("update failed")
@@ -335,7 +336,7 @@ func TestResetPasswordService_ResetPassword(t *testing.T) {
 		mock.ExpectRollback()
 		svc := NewResetPasswordService(db, &mockUserRepo{
 			findByIDFn: func(_ any, _ ...string) (*User, error) {
-				return &User{UserID: userID, UserUUID: userUUID, Status: StatusActive}, nil
+				return &User{UserID: userID, UserUUID: userUUID, Status: shared.StatusActive}, nil
 			},
 		}, &mockUserTokenRepo{
 			revokeByUUIDFn: func(_ uuid.UUID) error {
@@ -363,7 +364,7 @@ func TestResetPasswordService_ResetPassword(t *testing.T) {
 		mock.ExpectRollback()
 		svc := NewResetPasswordService(db, &mockUserRepo{
 			findByIDFn: func(_ any, _ ...string) (*User, error) {
-				return &User{UserID: userID, UserUUID: userUUID, Status: StatusActive}, nil
+				return &User{UserID: userID, UserUUID: userUUID, Status: shared.StatusActive}, nil
 			},
 		}, &mockUserTokenRepo{
 			findByUserIDAndTokenTypeFn: func(_ int64, _ string) ([]UserToken, error) {
@@ -393,7 +394,7 @@ func TestResetPasswordService_ResetPassword(t *testing.T) {
 		mock.ExpectRollback()
 		svc := NewResetPasswordService(db, &mockUserRepo{
 			findByIDFn: func(_ any, _ ...string) (*User, error) {
-				return &User{UserID: userID, UserUUID: userUUID, Status: StatusActive}, nil
+				return &User{UserID: userID, UserUUID: userUUID, Status: shared.StatusActive}, nil
 			},
 		}, &mockUserTokenRepo{
 			revokeByUUIDFn: func(id uuid.UUID) error {
@@ -433,7 +434,7 @@ func TestResetPasswordService_ResetPassword(t *testing.T) {
 		mock.ExpectCommit()
 		svc := NewResetPasswordService(db, &mockUserRepo{
 			findByIDFn: func(_ any, _ ...string) (*User, error) {
-				return &User{UserID: userID, UserUUID: userUUID, Status: StatusActive, Email: "test@test.com"}, nil
+				return &User{UserID: userID, UserUUID: userUUID, Status: shared.StatusActive, Email: "test@test.com"}, nil
 			},
 		}, &mockUserTokenRepo{
 			findByUserIDAndTokenTypeFn: func(_ int64, _ string) ([]UserToken, error) {
@@ -460,7 +461,7 @@ func TestResetPasswordService_ResetPassword(t *testing.T) {
 		mock.ExpectCommit()
 		svc := NewResetPasswordService(db, &mockUserRepo{
 			findByIDFn: func(_ any, _ ...string) (*User, error) {
-				return &User{UserID: userID, UserUUID: userUUID, Status: StatusActive, Email: "test@test.com"}, nil
+				return &User{UserID: userID, UserUUID: userUUID, Status: shared.StatusActive, Email: "test@test.com"}, nil
 			},
 		}, &mockUserTokenRepo{
 			findByUserIDAndTokenTypeFn: func(_ int64, _ string) ([]UserToken, error) {
@@ -487,7 +488,7 @@ func TestResetPasswordService_ResetPassword(t *testing.T) {
 		mock.ExpectCommit()
 		svc := NewResetPasswordService(db, &mockUserRepo{
 			findByIDFn: func(_ any, _ ...string) (*User, error) {
-				return &User{UserID: userID, UserUUID: userUUID, Status: StatusActive, Email: "test@test.com"}, nil
+				return &User{UserID: userID, UserUUID: userUUID, Status: shared.StatusActive, Email: "test@test.com"}, nil
 			},
 		}, &mockUserTokenRepo{
 			findByUserIDAndTokenTypeFn: func(_ int64, _ string) ([]UserToken, error) {
@@ -513,7 +514,7 @@ func TestResetPasswordService_ResetPassword(t *testing.T) {
 		db, mock := newMockGormDB(t)
 		mock.ExpectBegin()
 		rows := sqlmock.NewRows(tokenColumns).AddRow(
-			int64(1), tokenUUID, userID, TokenTypePasswordReset,
+			int64(1), tokenUUID, userID, shared.TokenTypePasswordReset,
 			tok, nil, nil, false,
 			nil, time.Now(), nil, // ExpiresAt is nil
 		)
@@ -521,7 +522,7 @@ func TestResetPasswordService_ResetPassword(t *testing.T) {
 		mock.ExpectCommit()
 		svc := NewResetPasswordService(db, &mockUserRepo{
 			findByIDFn: func(_ any, _ ...string) (*User, error) {
-				return &User{UserID: userID, UserUUID: userUUID, Status: StatusActive, Email: "test@test.com"}, nil
+				return &User{UserID: userID, UserUUID: userUUID, Status: shared.StatusActive, Email: "test@test.com"}, nil
 			},
 		}, &mockUserTokenRepo{
 			findByUserIDAndTokenTypeFn: func(_ int64, _ string) ([]UserToken, error) {
@@ -551,7 +552,7 @@ func TestResetPasswordService_ResetPassword(t *testing.T) {
 		mock.ExpectRollback()
 		svc := NewResetPasswordService(db, &mockUserRepo{
 			findByIDFn: func(_ any, _ ...string) (*User, error) {
-				return &User{UserID: userID, UserUUID: userUUID, Status: StatusActive, Email: "test@test.com"}, nil
+				return &User{UserID: userID, UserUUID: userUUID, Status: shared.StatusActive, Email: "test@test.com"}, nil
 			},
 		}, &mockUserTokenRepo{}, &mockClientRepo{
 			findSystemFn: func() (*Client, error) {

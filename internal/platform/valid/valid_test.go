@@ -3,7 +3,6 @@ package valid
 import (
 	"testing"
 
-	"github.com/maintainerd/auth/internal/platform/valid"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -24,7 +23,7 @@ func TestIsValidEmail(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			assert.Equal(t, tc.want, valid.IsValidEmail(tc.email))
+			assert.Equal(t, tc.want, IsValidEmail(tc.email))
 		})
 	}
 }
@@ -42,7 +41,7 @@ func TestIsValidPhoneNumber(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			assert.Equal(t, tc.want, valid.IsValidPhoneNumber(tc.phone))
+			assert.Equal(t, tc.want, IsValidPhoneNumber(tc.phone))
 		})
 	}
 }

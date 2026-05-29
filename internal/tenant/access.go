@@ -4,84 +4,51 @@ import (
 	"github.com/maintainerd/auth/internal/platform/apperror"
 )
 
-// ValidateTenantAccess validates if a user can access the target tenant
+// ValidateTenantAccess validates if an actor can access the target tenant.
 // Rules:
-// - Users from default tenant can access any tenant
-// - Users from non-default tenant can only access their own tenant
-// - User must have at least one identity to validate access
-func ValidateTenantAccess(actorUser *User, targetTenant *Tenant) error {
-	if actorUser == nil {
+//   - Actors with an identity in a system/default tenant can access any tenant
+//   - Otherwise the actor may only access tenants they have an identity in
+//   - The actor must have at least one identity
+//
+// The actor is supplied as a consumer-defined interface so this package does
+// not depend on the user domain (see deps.go).
+func ValidateTenantAccess(actor AccessActor, targetTenant *Tenant) error {
+	if actor == nil {
 		return apperror.NewValidation("actor user is nil")
 	}
-	// User must have at least one identity
-	if len(actorUser.UserIdentities) == 0 {
-		return apperror.NewValidation("actor user has no identities")
+	if targetTenant == nil {
+		return apperror.NewValidation("target tenant is nil")
 	}
-
-	// Check if user has access to the target tenant through any of their identities
-	hasAccessToTargetTenant := false
-	hasDefaultTenantAccess := false
-
-	for _, identity := range actorUser.UserIdentities {
-		// If user has identity in a default tenant, they can access any tenant
-		if identity.Tenant.IsSystem {
-			hasDefaultTenantAccess = true
-			break
-		}
-
-		// Check if user has identity in the target tenant
-		if identity.TenantID == targetTenant.TenantID {
-			hasAccessToTargetTenant = true
-		}
-	}
-
-	// If user has default tenant access, allow
-	if hasDefaultTenantAccess {
-		return nil
-	}
-
-	// If user has access to target tenant, allow
-	if hasAccessToTargetTenant {
-		return nil
-	}
-
-	return apperror.NewForbidden("access denied: user does not have access to this tenant")
+	return validateTenantAccessByID(actor, targetTenant.TenantID)
 }
 
-// ValidateTenantAccessByID validates tenant access using tenant ID
-// Rules:
-// - Users from default tenant can access any tenant
-// - Users from non-default tenant can only access their own tenant
-// - User must have at least one identity to validate access
-func ValidateTenantAccessByID(actorUser *User, targetTenantID int64) error {
-	// User must have at least one identity
-	if len(actorUser.UserIdentities) == 0 {
+// ValidateTenantAccessByID validates tenant access using a tenant ID.
+func ValidateTenantAccessByID(actor AccessActor, targetTenantID int64) error {
+	if actor == nil {
+		return apperror.NewValidation("actor user is nil")
+	}
+	return validateTenantAccessByID(actor, targetTenantID)
+}
+
+func validateTenantAccessByID(actor AccessActor, targetTenantID int64) error {
+	identities := actor.AccessIdentities()
+
+	// Actor must have at least one identity.
+	if len(identities) == 0 {
 		return apperror.NewValidation("actor user has no identities")
 	}
 
-	// Check if user has access to the target tenant through any of their identities
 	hasAccessToTargetTenant := false
-	hasDefaultTenantAccess := false
-
-	for _, identity := range actorUser.UserIdentities {
-		// If user has identity in a default tenant, they can access any tenant
-		if identity.Tenant.IsSystem {
-			hasDefaultTenantAccess = true
-			break
+	for _, identity := range identities {
+		// An identity in a system/default tenant grants access to any tenant.
+		if identity.TenantIsSystem {
+			return nil
 		}
-
-		// Check if user has identity in the target tenant
 		if identity.TenantID == targetTenantID {
 			hasAccessToTargetTenant = true
 		}
 	}
 
-	// If user has default tenant access, allow
-	if hasDefaultTenantAccess {
-		return nil
-	}
-
-	// If user has access to target tenant, allow
 	if hasAccessToTargetTenant {
 		return nil
 	}

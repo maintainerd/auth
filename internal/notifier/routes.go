@@ -10,7 +10,7 @@ import (
 func EmailConfigRoute(
 	r chi.Router,
 	emailConfigHandler *EmailConfigHandler,
-	userService UserService,
+	userService middleware.UserContextProvider,
 	appCache *cache.Cache,
 ) {
 	r.Route("/email-config", func(r chi.Router) {
@@ -21,5 +21,23 @@ func EmailConfigRoute(
 			Get("/", emailConfigHandler.Get)
 		r.With(middleware.PermissionMiddleware([]string{"email-config:update"})).
 			Put("/", emailConfigHandler.Update)
+	})
+}
+
+// SMSConfigRoute registers SMS delivery configuration endpoints.
+func SMSConfigRoute(
+	r chi.Router,
+	smsConfigHandler *SMSConfigHandler,
+	userService middleware.UserContextProvider,
+	appCache *cache.Cache,
+) {
+	r.Route("/sms-config", func(r chi.Router) {
+		r.Use(middleware.JWTAuthMiddleware)
+		r.Use(middleware.UserContextMiddleware(userService, appCache))
+
+		r.With(middleware.PermissionMiddleware([]string{"sms-config:read"})).
+			Get("/", smsConfigHandler.Get)
+		r.With(middleware.PermissionMiddleware([]string{"sms-config:update"})).
+			Put("/", smsConfigHandler.Update)
 	})
 }

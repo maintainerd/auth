@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
+	"github.com/maintainerd/auth/internal/shared"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -26,7 +27,7 @@ func TestSMSConfigService_Get(t *testing.T) {
 			Provider:      "twilio",
 			AccountSID:    "AC123",
 			FromNumber:    "+15551234567",
-			Status:        StatusActive,
+			Status:        shared.StatusActive,
 		}
 		svc := newSMSConfigSvc(&mockSMSConfigRepo{
 			findByTenantIDFn: func(_ int64) (*SMSConfig, error) { return sc, nil },
@@ -75,7 +76,7 @@ func TestSMSConfigService_Update(t *testing.T) {
 		)
 		require.NoError(t, err)
 		assert.Equal(t, "twilio", res.Provider)
-		assert.Equal(t, StatusActive, res.Status)
+		assert.Equal(t, shared.StatusActive, res.Status)
 	})
 
 	t.Run("updates existing with auth_token preserved on blank", func(t *testing.T) {
@@ -83,7 +84,7 @@ func TestSMSConfigService_Update(t *testing.T) {
 			SMSConfigUUID:      uuid.New(),
 			TenantID:           1,
 			AuthTokenEncrypted: "old-token",
-			Status:             StatusActive,
+			Status:             shared.StatusActive,
 		}
 		svc := newSMSConfigSvc(&mockSMSConfigRepo{
 			findByTenantIDFn: func(_ int64) (*SMSConfig, error) { return existing, nil },
@@ -101,7 +102,7 @@ func TestSMSConfigService_Update(t *testing.T) {
 			SMSConfigUUID:      uuid.New(),
 			TenantID:           1,
 			AuthTokenEncrypted: "old-token",
-			Status:             StatusActive,
+			Status:             shared.StatusActive,
 		}
 		svc := newSMSConfigSvc(&mockSMSConfigRepo{
 			findByTenantIDFn: func(_ int64) (*SMSConfig, error) { return existing, nil },

@@ -4,7 +4,7 @@ import (
 	"time"
 )
 
-type TenantService struct {
+type TenantServiceLink struct {
 	TenantServiceID int64     `gorm:"column:tenant_service_id;primaryKey"`
 	TenantID        int64     `gorm:"column:tenant_id"`
 	ServiceID       int64     `gorm:"column:service_id"`
@@ -12,10 +12,9 @@ type TenantService struct {
 	UpdatedAt       time.Time `gorm:"column:updated_at;autoUpdateTime"`
 
 	// Relationships
-	Tenant  *Tenant  `gorm:"foreignKey:TenantID;references:TenantID;constraint:OnDelete:CASCADE"`
-	Service *Service `gorm:"foreignKey:ServiceID;references:ServiceID;constraint:OnDelete:CASCADE"`
+	Tenant *Tenant `gorm:"foreignKey:TenantID;references:TenantID;constraint:OnDelete:CASCADE"`
 }
 
-func (TenantService) TableName() string {
+func (TenantServiceLink) TableName() string {
 	return "tenant_services"
 }

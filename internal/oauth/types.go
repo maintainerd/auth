@@ -6,11 +6,10 @@ import (
 	validation "github.com/go-ozzo/ozzo-validation/v4"
 	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/platform/security"
+	"gorm.io/gorm"
 )
 
-// ──────────────────────────────────────────────────────────────────────────────
 // Authorization Endpoint
-// ──────────────────────────────────────────────────────────────────────────────
 
 // OAuthAuthorizeRequestDTO captures the query parameters for the
 // GET /oauth/authorize endpoint (RFC 6749 §4.1.1).
@@ -82,9 +81,7 @@ type OAuthConsentRequiredResponseDTO struct {
 	RedirectURI      string `json:"redirect_uri"`
 }
 
-// ──────────────────────────────────────────────────────────────────────────────
 // Consent Endpoint
-// ──────────────────────────────────────────────────────────────────────────────
 
 // OAuthConsentChallengeResponseDTO describes a pending consent challenge for
 // the frontend to display.
@@ -127,9 +124,7 @@ type OAuthConsentDecisionResponseDTO struct {
 	RedirectURI string `json:"redirect_uri"`
 }
 
-// ──────────────────────────────────────────────────────────────────────────────
 // Token Endpoint
-// ──────────────────────────────────────────────────────────────────────────────
 
 // OAuthTokenRequestDTO captures the form-encoded body of the
 // POST /oauth/token endpoint (RFC 6749 §4.1.3, §6).
@@ -176,9 +171,7 @@ type OAuthTokenResponseDTO struct {
 	Scope        string `json:"scope,omitempty"`
 }
 
-// ──────────────────────────────────────────────────────────────────────────────
 // Revocation Endpoint (RFC 7009)
-// ──────────────────────────────────────────────────────────────────────────────
 
 // OAuthRevokeRequestDTO captures the form-encoded body of the
 // POST /oauth/revoke endpoint.
@@ -208,9 +201,7 @@ func (r *OAuthRevokeRequestDTO) Validate() error {
 	)
 }
 
-// ──────────────────────────────────────────────────────────────────────────────
 // Introspection Endpoint (RFC 7662)
-// ──────────────────────────────────────────────────────────────────────────────
 
 // OAuthIntrospectRequestDTO captures the form-encoded body of the
 // POST /oauth/introspect endpoint.
@@ -252,9 +243,7 @@ type OAuthIntrospectResponseDTO struct {
 	Jti       string `json:"jti,omitempty"`
 }
 
-// ──────────────────────────────────────────────────────────────────────────────
 // Discovery / Well-Known (RFC 8414)
-// ──────────────────────────────────────────────────────────────────────────────
 
 // OAuthDiscoveryResponseDTO is the JSON body for the
 // GET /.well-known/openid-configuration endpoint.
@@ -275,9 +264,7 @@ type OAuthDiscoveryResponseDTO struct {
 	CodeChallengeMethods  []string `json:"code_challenge_methods_supported"`
 }
 
-// ──────────────────────────────────────────────────────────────────────────────
 // JWKS (RFC 7517)
-// ──────────────────────────────────────────────────────────────────────────────
 
 // JWKSResponseDTO is the JSON Web Key Set.
 type JWKSResponseDTO struct {
@@ -294,9 +281,7 @@ type JWKKeyDTO struct {
 	E   string `json:"e"`
 }
 
-// ──────────────────────────────────────────────────────────────────────────────
 // UserInfo (OpenID Connect Core §5.3)
-// ──────────────────────────────────────────────────────────────────────────────
 
 // OAuthUserInfoResponseDTO is the JSON body for GET /oauth/userinfo.
 type OAuthUserInfoResponseDTO struct {
@@ -310,9 +295,7 @@ type OAuthUserInfoResponseDTO struct {
 	UpdatedAt     int64  `json:"updated_at,omitempty"`
 }
 
-// ──────────────────────────────────────────────────────────────────────────────
 // Consent Grant Management (admin)
-// ──────────────────────────────────────────────────────────────────────────────
 
 // OAuthConsentGrantResponseDTO represents a persisted consent grant.
 type OAuthConsentGrantResponseDTO struct {
@@ -324,9 +307,7 @@ type OAuthConsentGrantResponseDTO struct {
 	UpdatedAt        string   `json:"updated_at"`
 }
 
-// ──────────────────────────────────────────────────────────────────────────────
 // Internal types used by services
-// ──────────────────────────────────────────────────────────────────────────────
 
 // OAuthClientCredentials holds the resolved client_id and client_secret from
 // either the Authorization header (Basic auth) or the POST body.
@@ -366,9 +347,7 @@ type OAuthTokenIssuedAt struct {
 	Time time.Time
 }
 
-// ──────────────────────────────────────────────────────────────────────────────
 // OAuth Authorization Server Metadata (RFC 8414)
-// ──────────────────────────────────────────────────────────────────────────────
 
 // OAuthAuthorizationServerMetadataDTO is the JSON body for
 // GET /.well-known/oauth-authorization-server (RFC 8414). Unlike the OIDC
@@ -393,9 +372,7 @@ type OAuthAuthorizationServerMetadataDTO struct {
 	BackchannelTokenDeliveryModes []string `json:"backchannel_token_delivery_modes_supported,omitempty"`
 }
 
-// ──────────────────────────────────────────────────────────────────────────────
 // Pushed Authorization Requests (RFC 9126)
-// ──────────────────────────────────────────────────────────────────────────────
 
 // OAuthPARRequestDTO is the form-encoded body of POST /oauth/par.
 type OAuthPARRequestDTO struct {
@@ -461,9 +438,7 @@ type OAuthPARResponseDTO struct {
 	ExpiresIn  int    `json:"expires_in"`
 }
 
-// ──────────────────────────────────────────────────────────────────────────────
 // Device Authorization Grant (RFC 8628)
-// ──────────────────────────────────────────────────────────────────────────────
 
 // OAuthDeviceAuthorizationRequestDTO is the form-encoded body of
 // POST /oauth/device_authorization (RFC 8628 §3.1).
@@ -540,9 +515,7 @@ func (r *OAuthDeviceTokenRequestDTO) Validate() error {
 	)
 }
 
-// ──────────────────────────────────────────────────────────────────────────────
 // Token Exchange (RFC 8693)
-// ──────────────────────────────────────────────────────────────────────────────
 
 // OAuthTokenExchangeRequestDTO captures the fields for
 // POST /oauth/token with grant_type=urn:ietf:params:oauth:grant-type:token-exchange
@@ -612,9 +585,7 @@ type OAuthTokenExchangeResponseDTO struct {
 	RefreshToken    string `json:"refresh_token,omitempty"`
 }
 
-// ──────────────────────────────────────────────────────────────────────────────
 // Dynamic Client Registration (RFC 7591)
-// ──────────────────────────────────────────────────────────────────────────────
 
 // OAuthClientRegistrationRequestDTO is the JSON body for
 // POST /oauth/register (RFC 7591 §2).
@@ -689,9 +660,7 @@ type OAuthClientRegistrationResponseDTO struct {
 	Scope                   string   `json:"scope,omitempty"`
 }
 
-// ──────────────────────────────────────────────────────────────────────────────
 // Backchannel Logout (OIDC Back-Channel Logout 1.0)
-// ──────────────────────────────────────────────────────────────────────────────
 
 // OAuthBackchannelLogoutRequestDTO is the form-encoded body for
 // POST /oauth/logout/backchannel.
@@ -709,9 +678,7 @@ func (r *OAuthBackchannelLogoutRequestDTO) Validate() error {
 	)
 }
 
-// ──────────────────────────────────────────────────────────────────────────────
 // RP-Initiated Logout (OIDC Session Management 1.0)
-// ──────────────────────────────────────────────────────────────────────────────
 
 // OAuthEndSessionRequestDTO captures the query parameters for
 // GET /oauth/end_session (OIDC Session Management 1.0).
@@ -738,9 +705,7 @@ func (r *OAuthEndSessionRequestDTO) Validate() error {
 	)
 }
 
-// ──────────────────────────────────────────────────────────────────────────────
 // CIBA — Client-Initiated Backchannel Authentication (RFC 9126)
-// ──────────────────────────────────────────────────────────────────────────────
 
 // OAuthCIBARequestDTO is the form-encoded body for POST /oauth/bc-authorize.
 type OAuthCIBARequestDTO struct {
@@ -817,4 +782,147 @@ func (r *OAuthCIBATokenRequestDTO) Validate() error {
 			validation.Required.Error("client_id is required"),
 		),
 	)
+}
+
+// CIBA request status constants.
+const (
+	CIBAStatusPending  = "pending"
+	CIBAStatusApproved = "approved"
+	CIBAStatusDenied   = "denied"
+	CIBAStatusExpired  = "expired"
+)
+
+// OAuthCIBARequest represents a Client-Initiated Backchannel Authentication
+// request. The client initiates auth for a user identified by a hint; the
+// server notifies the user out-of-band (email); the client polls /oauth/token
+// until the user approves or the request expires (poll mode).
+type OAuthCIBARequest struct {
+	OAuthCIBARRequestID  int64      `gorm:"column:oauth_ciba_request_id;primaryKey;autoIncrement"`
+	OAuthCIBARequestUUID uuid.UUID  `gorm:"column:oauth_ciba_request_uuid;type:uuid;uniqueIndex;not null"`
+	AuthReqIDHash        string     `gorm:"column:auth_req_id_hash;uniqueIndex;not null"`
+	ClientID             int64      `gorm:"column:client_id;not null"`
+	TenantID             int64      `gorm:"column:tenant_id;not null"`
+	UserID               *int64     `gorm:"column:user_id"`
+	Scope                string     `gorm:"column:scope;not null;default:''"`
+	BindingMessage       *string    `gorm:"column:binding_message"`
+	Status               string     `gorm:"column:status;not null;default:'pending'"`
+	Interval             int        `gorm:"column:interval;not null;default:5"`
+	LastPollAt           *time.Time `gorm:"column:last_poll_at"`
+	NotificationSentAt   *time.Time `gorm:"column:notification_sent_at"`
+	ExpiresAt            time.Time  `gorm:"column:expires_at;not null"`
+	CreatedAt            time.Time  `gorm:"column:created_at;autoCreateTime;not null"`
+
+	// Relationships
+	Client *Client `gorm:"foreignKey:ClientID;references:ClientID"`
+}
+
+func (OAuthCIBARequest) TableName() string {
+	return "oauth_ciba_requests"
+}
+
+func (o *OAuthCIBARequest) BeforeCreate(_ *gorm.DB) error {
+	if o.OAuthCIBARequestUUID == uuid.Nil {
+		o.OAuthCIBARequestUUID = uuid.New()
+	}
+	return nil
+}
+
+func (o *OAuthCIBARequest) IsExpired() bool {
+	return time.Now().After(o.ExpiresAt)
+}
+
+// Device code status constants.
+const (
+	DeviceCodeStatusPending  = "pending"
+	DeviceCodeStatusApproved = "approved"
+	DeviceCodeStatusDenied   = "denied"
+	DeviceCodeStatusExpired  = "expired"
+)
+
+// Grant type constants for new RFC grants.
+const (
+	GrantTypeDeviceCode    = "urn:ietf:params:oauth:grant-type:device_code"
+	GrantTypeTokenExchange = "urn:ietf:params:oauth:grant-type:token-exchange"
+	GrantTypeCIBA          = "urn:ietf:params:oauth:grant-type:ciba"
+)
+
+// OAuthDeviceCode represents a pending device authorization request (RFC 8628).
+// The device_code is returned to the client (device) and is used to poll the
+// token endpoint. The user_code is displayed to the user who then visits the
+// verification URI to approve or deny access.
+type OAuthDeviceCode struct {
+	OAuthDeviceCodeID   int64     `gorm:"column:oauth_device_code_id;primaryKey;autoIncrement"`
+	OAuthDeviceCodeUUID uuid.UUID `gorm:"column:oauth_device_code_uuid;type:uuid;uniqueIndex;not null"`
+	DeviceCodeHash      string    `gorm:"column:device_code_hash;uniqueIndex;not null"`
+	UserCode            string    `gorm:"column:user_code;uniqueIndex;not null"`
+	ClientID            int64     `gorm:"column:client_id;not null"`
+	TenantID            int64     `gorm:"column:tenant_id;not null"`
+	Scope               string    `gorm:"column:scope;not null;default:''"`
+	// UserID is set once the user approves the request at the verification URI.
+	UserID   *int64 `gorm:"column:user_id"`
+	Status   string `gorm:"column:status;not null;default:'pending'"`
+	Interval int    `gorm:"column:interval;not null;default:5"`
+	// LastPollAt tracks the most recent polling attempt for slow-down enforcement.
+	LastPollAt *time.Time `gorm:"column:last_poll_at"`
+	ExpiresAt  time.Time  `gorm:"column:expires_at;not null"`
+	CreatedAt  time.Time  `gorm:"column:created_at;autoCreateTime;not null"`
+
+	// Relationships
+	Client *Client `gorm:"foreignKey:ClientID;references:ClientID"`
+}
+
+func (OAuthDeviceCode) TableName() string {
+	return "oauth_device_codes"
+}
+
+func (o *OAuthDeviceCode) BeforeCreate(_ *gorm.DB) error {
+	if o.OAuthDeviceCodeUUID == uuid.Nil {
+		o.OAuthDeviceCodeUUID = uuid.New()
+	}
+	return nil
+}
+
+func (o *OAuthDeviceCode) IsExpired() bool {
+	return time.Now().After(o.ExpiresAt)
+}
+
+// OAuthPARRequest stores a Pushed Authorization Request (RFC 9126). The client
+// POSTs its full authorization request here first and receives back a
+// request_uri. That URI is then passed to the /oauth/authorize endpoint instead
+// of the individual parameters, reducing URI length and enabling confidential
+// transmission of request details.
+type OAuthPARRequest struct {
+	OAuthPARRequestID   int64     `gorm:"column:oauth_par_request_id;primaryKey;autoIncrement"`
+	OAuthPARRequestUUID uuid.UUID `gorm:"column:oauth_par_request_uuid;type:uuid;uniqueIndex;not null"`
+	RequestURIHash      string    `gorm:"column:request_uri_hash;uniqueIndex;not null"`
+	ClientID            int64     `gorm:"column:client_id;not null"`
+	TenantID            int64     `gorm:"column:tenant_id;not null"`
+	ResponseType        string    `gorm:"column:response_type;not null;default:'code'"`
+	RedirectURI         string    `gorm:"column:redirect_uri;not null"`
+	Scope               string    `gorm:"column:scope;not null;default:''"`
+	State               *string   `gorm:"column:state"`
+	Nonce               *string   `gorm:"column:nonce"`
+	CodeChallenge       string    `gorm:"column:code_challenge;not null"`
+	CodeChallengeMethod string    `gorm:"column:code_challenge_method;not null;default:'S256'"`
+	IsUsed              bool      `gorm:"column:is_used;not null;default:false"`
+	ExpiresAt           time.Time `gorm:"column:expires_at;not null"`
+	CreatedAt           time.Time `gorm:"column:created_at;autoCreateTime;not null"`
+
+	// Relationships
+	Client *Client `gorm:"foreignKey:ClientID;references:ClientID"`
+}
+
+func (OAuthPARRequest) TableName() string {
+	return "oauth_par_requests"
+}
+
+func (o *OAuthPARRequest) BeforeCreate(_ *gorm.DB) error {
+	if o.OAuthPARRequestUUID == uuid.Nil {
+		o.OAuthPARRequestUUID = uuid.New()
+	}
+	return nil
+}
+
+func (o *OAuthPARRequest) IsExpired() bool {
+	return time.Now().After(o.ExpiresAt)
 }

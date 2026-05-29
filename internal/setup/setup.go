@@ -12,6 +12,7 @@ import (
 	"github.com/maintainerd/auth/internal/platform/ptr"
 	"github.com/maintainerd/auth/internal/platform/runner"
 	"github.com/maintainerd/auth/internal/platform/security"
+	"github.com/maintainerd/auth/internal/shared"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/codes"
 	"gorm.io/datatypes"
@@ -153,7 +154,7 @@ func (s *setupService) CreateTenant(ctx context.Context, req CreateTenantRequest
 			Description: description,
 			Identifier:  identifier,
 			Metadata:    metadataJSON,
-			Status:      StatusActive,
+			Status:      shared.StatusActive,
 			IsSystem:    true, // This is a system tenant that cannot be deleted
 		}
 
@@ -293,7 +294,7 @@ func (s *setupService) CreateAdmin(ctx context.Context, req CreateAdminRequestDT
 			Email:             req.Email,
 			Password:          ptr.Ptr(string(hashedPassword)),
 			IsEmailVerified:   true,
-			Status:            StatusActive,
+			Status:            shared.StatusActive,
 			PasswordChangedAt: &now,
 		}
 
@@ -307,7 +308,7 @@ func (s *setupService) CreateAdmin(ctx context.Context, req CreateAdminRequestDT
 			TenantID: defaultTenant.TenantID,
 			UserID:   createdUser.UserID,
 			ClientID: defaultClient.ClientID,
-			Provider: ProviderDefault,
+			Provider: shared.ProviderDefault,
 			Sub:      uuid.New().String(),
 		}
 		_, err = txUserIdentityRepo.Create(userIdentity)

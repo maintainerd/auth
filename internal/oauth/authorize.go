@@ -6,11 +6,13 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/maintainerd/auth/internal/authevent"
 	"github.com/maintainerd/auth/internal/platform/apperror"
 	"github.com/maintainerd/auth/internal/platform/crypto"
 	"github.com/maintainerd/auth/internal/platform/middleware"
 	"github.com/maintainerd/auth/internal/platform/ptr"
 	"github.com/maintainerd/auth/internal/platform/security"
+	"github.com/maintainerd/auth/internal/shared"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -50,7 +52,7 @@ type oauthAuthorizeService struct {
 	authCodeRepo     OAuthAuthorizationCodeRepository
 	consentGrantRepo OAuthConsentGrantRepository
 	consentChallRepo OAuthConsentChallengeRepository
-	authEventService AuthEventService
+	authEventService authevent.AuthEventService
 }
 
 // NewOAuthAuthorizeService creates a new OAuthAuthorizeService.
@@ -61,7 +63,7 @@ func NewOAuthAuthorizeService(
 	authCodeRepo OAuthAuthorizationCodeRepository,
 	consentGrantRepo OAuthConsentGrantRepository,
 	consentChallRepo OAuthConsentChallengeRepository,
-	authEventService AuthEventService,
+	authEventService authevent.AuthEventService,
 ) OAuthAuthorizeService {
 	return &oauthAuthorizeService{
 		db:               db,
@@ -103,7 +105,7 @@ func (s *oauthAuthorizeService) Authorize(ctx context.Context, req OAuthAuthoriz
 		}
 	}
 
-	if client == nil || client.Status != StatusActive {
+	if client == nil || client.Status != shared.StatusActive {
 		span.SetStatus(codes.Error, "client not found or inactive")
 		return nil, apperror.NewOAuthInvalidRequest("unknown or inactive client_id")
 	}
@@ -166,15 +168,15 @@ func (s *oauthAuthorizeService) Authorize(ctx context.Context, req OAuthAuthoriz
 		return nil, oerr
 	}
 
-	s.authEventService.Log(ctx, AuthEventInput{
+	s.authEventService.Log(ctx, authevent.AuthEventInput{
 		TenantID:    client.TenantID,
 		ActorUserID: &userID,
 		IPAddress:   middleware.ClientIPFromContext(ctx),
 		UserAgent:   ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),
-		Category:    AuthEventCategoryAuthn,
-		EventType:   AuthEventTypeOAuthAuthorize,
-		Severity:    AuthEventSeverityInfo,
-		Result:      AuthEventResultSuccess,
+		Category:    authevent.AuthEventCategoryAuthn,
+		EventType:   authevent.AuthEventTypeOAuthAuthorize,
+		Severity:    authevent.AuthEventSeverityInfo,
+		Result:      authevent.AuthEventResultSuccess,
 		Description: ptr.Ptr("Authorization code issued"),
 	})
 
@@ -272,15 +274,15 @@ func (s *oauthAuthorizeService) HandleConsent(ctx context.Context, decision OAut
 			span.RecordError(err)
 		}
 
-		s.authEventService.Log(ctx, AuthEventInput{
+		s.authEventService.Log(ctx, authevent.AuthEventInput{
 			TenantID:    challenge.TenantID,
 			ActorUserID: &userID,
 			IPAddress:   middleware.ClientIPFromContext(ctx),
 			UserAgent:   ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),
-			Category:    AuthEventCategoryAuthn,
-			EventType:   AuthEventTypeOAuthConsentDeny,
-			Severity:    AuthEventSeverityInfo,
-			Result:      AuthEventResultFailure,
+			Category:    authevent.AuthEventCategoryAuthn,
+			EventType:   authevent.AuthEventTypeOAuthConsentDeny,
+			Severity:    authevent.AuthEventSeverityInfo,
+			Result:      authevent.AuthEventResultFailure,
 			Description: ptr.Ptr("User denied consent"),
 		})
 
@@ -345,15 +347,15 @@ func (s *oauthAuthorizeService) HandleConsent(ctx context.Context, decision OAut
 		return nil, apperror.NewOAuthServerError("an unexpected error occurred")
 	}
 
-	s.authEventService.Log(ctx, AuthEventInput{
+	s.authEventService.Log(ctx, authevent.AuthEventInput{
 		TenantID:    challenge.TenantID,
 		ActorUserID: &userID,
 		IPAddress:   middleware.ClientIPFromContext(ctx),
 		UserAgent:   ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),
-		Category:    AuthEventCategoryAuthn,
-		EventType:   AuthEventTypeOAuthConsent,
-		Severity:    AuthEventSeverityInfo,
-		Result:      AuthEventResultSuccess,
+		Category:    authevent.AuthEventCategoryAuthn,
+		EventType:   authevent.AuthEventTypeOAuthConsent,
+		Severity:    authevent.AuthEventSeverityInfo,
+		Result:      authevent.AuthEventResultSuccess,
 		Description: ptr.Ptr("User approved consent and authorization code issued"),
 	})
 
@@ -375,7 +377,7 @@ func (s *oauthAuthorizeService) findClientByIdentifier(identifier string) (*Clie
 		Preload("IdentityProvider").
 		Preload("IdentityProvider.Tenant").
 		Preload("ClientURIs").
-		Where("identifier = ? AND status = ?", identifier, StatusActive).
+		Where("identifier = ? AND status = ?", identifier, shared.StatusActive).
 		First(&client).Error
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
@@ -422,7 +424,7 @@ func (s *oauthAuthorizeService) validateRedirectURI(client *Client, redirectURI 
 	}
 
 	for _, uri := range *client.ClientURIs {
-		if uri.Type == ClientURITypeRedirect && uri.URI == redirectURI {
+		if uri.Type == shared.ClientURITypeRedirect && uri.URI == redirectURI {
 			return nil
 		}
 	}

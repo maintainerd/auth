@@ -268,3 +268,16 @@ func (r *BaseRepository[T]) Paginate(conditions map[string]any, page int, limit 
 		TotalPages: totalPages,
 	}, nil
 }
+
+// Exported wrappers so domain packages can reuse these query helpers.
+func SanitizeOrder(sortBy, sortOrder, defaultCol string) string {
+	return sanitizeOrder(sortBy, sortOrder, defaultCol)
+}
+
+func SanitizeOrderPrefixed(prefix, sortBy, sortOrder, defaultCol string) string {
+	return sanitizeOrderPrefixed(prefix, sortBy, sortOrder, defaultCol)
+}
+
+func NormalizePagination(page, limit int) (int, int) {
+	return normalizePagination(page, limit)
+}

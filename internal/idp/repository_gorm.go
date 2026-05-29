@@ -2,7 +2,9 @@ package idp
 
 import (
 	"errors"
+	"strings"
 
+	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
 
@@ -179,4 +181,209 @@ func (r *identityProviderRepository) FindAllByTenantID(tenantID int64) ([]Identi
 		Where("tenant_id = ? AND deleted_at IS NULL", tenantID).
 		Find(&idps).Error
 	return idps, err
+}
+
+type SignupFlowRepositoryGetFilter struct {
+	Name       *string
+	Identifier *string
+	Status     []string
+	TenantID   *int64
+	ClientID   *int64
+	Page       int
+	Limit      int
+	SortBy     string
+	SortOrder  string
+}
+
+type SignupFlowRepository interface {
+	BaseRepositoryMethods[SignupFlow]
+	WithTx(tx *gorm.DB) SignupFlowRepository
+	FindPaginated(filter SignupFlowRepositoryGetFilter) (*PaginationResult[SignupFlow], error)
+	FindByUUIDAndTenantID(signupFlowUUID uuid.UUID, tenantID int64, preloads ...string) (*SignupFlow, error)
+	FindByIdentifierAndClientID(identifier string, clientID int64) (*SignupFlow, error)
+	FindByName(name string) (*SignupFlow, error)
+}
+
+type signupFlowRepository struct {
+	*BaseRepository[SignupFlow]
+}
+
+func NewSignupFlowRepository(db *gorm.DB) SignupFlowRepository {
+	return &signupFlowRepository{
+		BaseRepository: NewBaseRepository[SignupFlow](db, "signup_flow_uuid", "signup_flow_id"),
+	}
+}
+
+func (r *signupFlowRepository) WithTx(tx *gorm.DB) SignupFlowRepository {
+	return &signupFlowRepository{
+		BaseRepository: r.BaseRepository.WithTx(tx),
+	}
+}
+
+func (r *signupFlowRepository) FindPaginated(filter SignupFlowRepositoryGetFilter) (*PaginationResult[SignupFlow], error) {
+	var signupFlows []SignupFlow
+	var total int64
+
+	query := r.DB().Model(&SignupFlow{})
+
+	// Apply filters
+	if filter.Name != nil && *filter.Name != "" {
+		query = query.Where("LOWER(name) LIKE ?", "%"+strings.ToLower(*filter.Name)+"%")
+	}
+	if filter.Identifier != nil && *filter.Identifier != "" {
+		query = query.Where("LOWER(identifier) LIKE ?", "%"+strings.ToLower(*filter.Identifier)+"%")
+	}
+	if len(filter.Status) > 0 {
+		query = query.Where("status IN ?", filter.Status)
+	}
+	if filter.TenantID != nil {
+		query = query.Where("tenant_id = ?", *filter.TenantID)
+	}
+	if filter.ClientID != nil {
+		query = query.Where("client_id = ?", *filter.ClientID)
+	}
+
+	// Count total before pagination
+	if err := query.Count(&total).Error; err != nil {
+		return nil, err
+	}
+
+	// Apply sorting — protected against SQL injection via allowlist
+	query = query.Order(sanitizeOrder(filter.SortBy, filter.SortOrder, "created_at DESC"))
+
+	// Apply pagination
+	offset := (filter.Page - 1) * filter.Limit
+	query = query.Offset(offset).Limit(filter.Limit)
+
+	// Execute query with preloads
+	if err := query.Preload("Client").Find(&signupFlows).Error; err != nil {
+		return nil, err
+	}
+
+	// Calculate total pages
+	totalPages := int(total) / filter.Limit
+	if int(total)%filter.Limit > 0 {
+		totalPages++
+	}
+
+	return &PaginationResult[SignupFlow]{
+		Data:       signupFlows,
+		Total:      total,
+		Page:       filter.Page,
+		Limit:      filter.Limit,
+		TotalPages: totalPages,
+	}, nil
+}
+
+func (r *signupFlowRepository) FindByIdentifierAndClientID(identifier string, clientID int64) (*SignupFlow, error) {
+	var signupFlow SignupFlow
+	err := r.DB().Where("identifier = ? AND client_id = ?", identifier, clientID).First(&signupFlow).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &signupFlow, nil
+}
+
+func (r *signupFlowRepository) FindByUUIDAndTenantID(signupFlowUUID uuid.UUID, tenantID int64, preloads ...string) (*SignupFlow, error) {
+	var signupFlow SignupFlow
+	query := r.DB().Where("signup_flow_uuid = ? AND tenant_id = ?", signupFlowUUID, tenantID)
+
+	for _, preload := range preloads {
+		query = query.Preload(preload)
+	}
+
+	err := query.First(&signupFlow).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &signupFlow, nil
+}
+
+func (r *signupFlowRepository) FindByName(name string) (*SignupFlow, error) {
+	var signupFlow SignupFlow
+	err := r.DB().Where("name = ?", name).First(&signupFlow).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &signupFlow, nil
+}
+
+type SignupFlowRoleRepository interface {
+	BaseRepositoryMethods[SignupFlowRole]
+	WithTx(tx *gorm.DB) SignupFlowRoleRepository
+	FindBySignupFlowID(signupFlowID int64) ([]SignupFlowRole, error)
+	FindBySignupFlowIDPaginated(signupFlowID int64, page, limit int) ([]SignupFlowRole, int64, error)
+	DeleteBySignupFlowIDAndRoleID(signupFlowID, roleID int64) error
+	FindBySignupFlowIDAndRoleID(signupFlowID, roleID int64) (*SignupFlowRole, error)
+}
+
+type signupFlowRoleRepository struct {
+	*BaseRepository[SignupFlowRole]
+}
+
+func NewSignupFlowRoleRepository(db *gorm.DB) SignupFlowRoleRepository {
+	return &signupFlowRoleRepository{
+		BaseRepository: NewBaseRepository[SignupFlowRole](db, "signup_flow_role_uuid", "signup_flow_role_id"),
+	}
+}
+
+func (r *signupFlowRoleRepository) WithTx(tx *gorm.DB) SignupFlowRoleRepository {
+	return &signupFlowRoleRepository{
+		BaseRepository: r.BaseRepository.WithTx(tx),
+	}
+}
+
+func (r *signupFlowRoleRepository) FindBySignupFlowID(signupFlowID int64) ([]SignupFlowRole, error) {
+	var signupFlowRoles []SignupFlowRole
+	err := r.DB().Where("signup_flow_id = ?", signupFlowID).Preload("Role").Find(&signupFlowRoles).Error
+	if err != nil {
+		return nil, err
+	}
+	return signupFlowRoles, nil
+}
+
+func (r *signupFlowRoleRepository) FindBySignupFlowIDPaginated(signupFlowID int64, page, limit int) ([]SignupFlowRole, int64, error) {
+	var signupFlowRoles []SignupFlowRole
+	var total int64
+
+	query := r.DB().Where("signup_flow_id = ?", signupFlowID)
+
+	// Get total count
+	if err := query.Model(&SignupFlowRole{}).Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+
+	// Get paginated data
+	offset := (page - 1) * limit
+	err := query.Preload("Role").Offset(offset).Limit(limit).Find(&signupFlowRoles).Error
+	if err != nil {
+		return nil, 0, err
+	}
+
+	return signupFlowRoles, total, nil
+}
+
+func (r *signupFlowRoleRepository) DeleteBySignupFlowIDAndRoleID(signupFlowID, roleID int64) error {
+	return r.DB().Where("signup_flow_id = ? AND role_id = ?", signupFlowID, roleID).Delete(&SignupFlowRole{}).Error
+}
+
+func (r *signupFlowRoleRepository) FindBySignupFlowIDAndRoleID(signupFlowID, roleID int64) (*SignupFlowRole, error) {
+	var signupFlowRole SignupFlowRole
+	err := r.DB().Where("signup_flow_id = ? AND role_id = ?", signupFlowID, roleID).First(&signupFlowRole).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &signupFlowRole, nil
 }

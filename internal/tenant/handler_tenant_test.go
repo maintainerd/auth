@@ -436,7 +436,7 @@ func TestTenantHandler_GetMembers(t *testing.T) {
 	})
 
 	t.Run("success with user member covers toTenantMemberResponseDTO User branch", func(t *testing.T) {
-		userResult := &UserServiceDataResult{Username: "alice"}
+		userResult := &MemberUser{Username: "alice"}
 		ts := &mockTenantService{getByUUIDFn: func(uuid.UUID) (*TenantServiceDataResult, error) {
 			return &TenantServiceDataResult{}, nil
 		}}

@@ -6,12 +6,15 @@ import (
 	"html/template"
 	"time"
 
+	"github.com/google/uuid"
+	"github.com/maintainerd/auth/internal/branding"
 	"github.com/maintainerd/auth/internal/platform/apperror"
 	"github.com/maintainerd/auth/internal/platform/config"
 	"github.com/maintainerd/auth/internal/platform/crypto"
 	"github.com/maintainerd/auth/internal/platform/email"
 	"github.com/maintainerd/auth/internal/platform/ptr"
 	"github.com/maintainerd/auth/internal/platform/signedurl"
+	"github.com/maintainerd/auth/internal/shared"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/codes"
 	"gorm.io/gorm"
@@ -26,7 +29,7 @@ type inviteService struct {
 	inviteRepo        InviteRepository
 	clientRepo        ClientRepository
 	roleRepo          RoleRepository
-	emailTemplateRepo EmailTemplateRepository
+	emailTemplateRepo branding.EmailTemplateRepository
 }
 
 func NewInviteService(
@@ -34,7 +37,7 @@ func NewInviteService(
 	inviteRepo InviteRepository,
 	clientRepo ClientRepository,
 	roleRepo RoleRepository,
-	emailTemplateRepo EmailTemplateRepository,
+	emailTemplateRepo branding.EmailTemplateRepository,
 ) InviteService {
 	return &inviteService{
 		db:                db,
@@ -67,7 +70,7 @@ func (s *inviteService) SendInvite(
 			return err
 		}
 		if Client == nil ||
-			Client.Status != StatusActive ||
+			Client.Status != shared.StatusActive ||
 			Client.Domain == nil || *Client.Domain == "" ||
 			Client.IdentityProvider == nil ||
 			Client.IdentityProvider.Tenant == nil ||
@@ -106,7 +109,7 @@ func (s *inviteService) SendInvite(
 			InvitedEmail:    email,
 			InvitedByUserID: &userID,
 			InviteToken:     inviteToken,
-			Status:          StatusPending,
+			Status:          shared.StatusPending,
 			ExpiresAt:       expiresAt,
 		}
 
@@ -209,4 +212,35 @@ func (s *inviteService) sendInviteEmail(ctx context.Context, to, inviteURL strin
 		BodyHTML:  bodyHTML.String(),
 		BodyPlain: bodyPlainStr,
 	})
+}
+
+type Invite struct {
+	InviteID        int64          `gorm:"column:invite_id;primaryKey"`
+	InviteUUID      uuid.UUID      `gorm:"column:invite_uuid;unique"`
+	TenantID        int64          `gorm:"column:tenant_id;not null"`
+	ClientID        int64          `gorm:"column:client_id"`
+	InvitedEmail    string         `gorm:"column:invited_email"`
+	InvitedByUserID *int64         `gorm:"column:invited_by_user_id"`
+	InviteToken     string         `gorm:"column:invite_token;unique"`
+	Status          string         `gorm:"column:status;default:pending"` // pending, accepted, expired, revoked
+	ExpiresAt       *time.Time     `gorm:"column:expires_at"`
+	UsedAt          *time.Time     `gorm:"column:used_at"`
+	CreatedBy       *int64         `gorm:"column:created_by"`
+	UpdatedBy       *int64         `gorm:"column:updated_by"`
+	CreatedAt       time.Time      `gorm:"column:created_at;autoCreateTime"`
+	UpdatedAt       time.Time      `gorm:"column:updated_at;autoUpdateTime"`
+	DeletedAt       gorm.DeletedAt `gorm:"column:deleted_at;index"`
+
+	// Relationships
+}
+
+func (Invite) TableName() string {
+	return "invites"
+}
+
+func (i *Invite) BeforeCreate(tx *gorm.DB) (err error) {
+	if i.InviteUUID == uuid.Nil {
+		i.InviteUUID = uuid.New()
+	}
+	return
 }

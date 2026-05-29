@@ -8,6 +8,7 @@ import (
 	"github.com/google/uuid"
 	model "github.com/maintainerd/auth/internal/client"
 	"github.com/maintainerd/auth/internal/platform/config"
+	"github.com/maintainerd/auth/internal/shared"
 	"gorm.io/gorm"
 )
 
@@ -22,10 +23,10 @@ func SeedClientURIs(db *gorm.DB, tenantID int64, identityProviderID int64) error
 		Type string
 	}{
 		SystemClientNameAuthConsole: {
-			{URI: "https://" + appHostName + "/callback", Type: model.ClientURITypeRedirect},
-			{URI: "https://" + appHostName, Type: model.ClientURITypeOrigin},
-			{URI: "https://" + appHostName, Type: model.ClientURITypeCORSOrigin},
-			{URI: "https://" + appHostName + "/logout", Type: model.ClientURITypeLogout},
+			{URI: "https://" + appHostName + "/callback", Type: shared.ClientURITypeRedirect},
+			{URI: "https://" + appHostName, Type: shared.ClientURITypeOrigin},
+			{URI: "https://" + appHostName, Type: shared.ClientURITypeCORSOrigin},
+			{URI: "https://" + appHostName + "/logout", Type: shared.ClientURITypeLogout},
 		},
 	}
 

@@ -6,7 +6,9 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
+	"github.com/maintainerd/auth/internal/authevent"
 	"github.com/maintainerd/auth/internal/platform/crypto"
+	"github.com/maintainerd/auth/internal/shared"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -31,7 +33,7 @@ func buildFullClientService(
 	apiRepo *mockAPIRepo,
 	userRepo *mockUserRepo,
 	tenantRepo *mockTenantRepo,
-	authEventSvc AuthEventService,
+	authEventSvc authevent.AuthEventService,
 ) ClientService {
 	t.Helper()
 	db, _ := newMockGormDB(t)
@@ -44,7 +46,7 @@ func clientWithIDP(tenantID int64) *Client {
 		ClientUUID: uuid.New(),
 		Name:       "test",
 		TenantID:   tenantID,
-		Status:     StatusActive,
+		Status:     shared.StatusActive,
 		IdentityProvider: &IdentityProvider{
 			TenantID: tenantID,
 			Tenant:   &Tenant{TenantID: tenantID, IsSystem: true},

@@ -200,7 +200,7 @@ func TestProfileService_CreateOrUpdateSpecificProfile(t *testing.T) {
 		assert.Contains(t, err.Error(), "user not found")
 	})
 
-	t.Run("FindByUUID error → rollback", func(t *testing.T) {
+	t.Run("authevent.FindByUUID error → rollback", func(t *testing.T) {
 		db, mock := newMockGormDB(t)
 		mock.ExpectBegin()
 		mock.ExpectRollback()
@@ -657,7 +657,7 @@ func TestProfileService_SetDefaultProfile(t *testing.T) {
 		assert.Contains(t, err.Error(), "profile not found")
 	})
 
-	t.Run("FindByUUID error → rollback", func(t *testing.T) {
+	t.Run("authevent.FindByUUID error → rollback", func(t *testing.T) {
 		db, mock := newMockGormDB(t)
 		mock.ExpectBegin()
 		mock.ExpectRollback()

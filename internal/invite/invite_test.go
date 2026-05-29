@@ -8,10 +8,12 @@ import (
 	"time"
 
 	"github.com/DATA-DOG/go-sqlmock"
+	"github.com/maintainerd/auth/internal/branding"
 	"github.com/maintainerd/auth/internal/platform/config"
 	"github.com/maintainerd/auth/internal/platform/crypto"
 	"github.com/maintainerd/auth/internal/platform/email"
 	"github.com/maintainerd/auth/internal/platform/signedurl"
+	"github.com/maintainerd/auth/internal/shared"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -21,7 +23,7 @@ func defaultInviteClient() *Client {
 	domain := "example.com"
 	return &Client{
 		ClientID: 1,
-		Status:   StatusActive,
+		Status:   shared.StatusActive,
 		Domain:   &domain,
 		IdentityProvider: &IdentityProvider{
 			Identifier: "test-idp",
@@ -60,7 +62,7 @@ func TestInviteService_SendInvite(t *testing.T) {
 			setupRepos: func(c *mockClientRepo, r *mockRoleRepo, i *mockInviteRepo) {
 				// Client has no IdentityProvider set
 				c.findSystemFn = func() (*Client, error) {
-					return &Client{Status: StatusActive}, nil
+					return &Client{Status: shared.StatusActive}, nil
 				}
 			},
 			expectCommit: false,
@@ -253,8 +255,8 @@ func TestInviteService_SendInvite_FullSuccess(t *testing.T) {
 	}
 	bodyPlain := "Join: {{.InviteURL}}"
 	emailTemplateRepo := &mockEmailTemplateRepo{
-		findByNameFn: func(_ string) (*EmailTemplate, error) {
-			return &EmailTemplate{
+		findByNameFn: func(_ string) (*branding.EmailTemplate, error) {
+			return &branding.EmailTemplate{
 				Subject:   "You're Invited",
 				BodyHTML:  `<a href="{{.InviteURL}}">Accept</a>`,
 				BodyPlain: &bodyPlain,
@@ -300,8 +302,8 @@ func TestInviteService_SendInvite_EmailSendError(t *testing.T) {
 		},
 	}
 	emailTemplateRepo := &mockEmailTemplateRepo{
-		findByNameFn: func(_ string) (*EmailTemplate, error) {
-			return &EmailTemplate{
+		findByNameFn: func(_ string) (*branding.EmailTemplate, error) {
+			return &branding.EmailTemplate{
 				Subject:  "Invite",
 				BodyHTML: `<a href="{{.InviteURL}}">Accept</a>`,
 			}, nil
@@ -344,7 +346,7 @@ func TestInviteService_SendInvite_TemplateFetchError(t *testing.T) {
 		},
 	}
 	emailTemplateRepo := &mockEmailTemplateRepo{
-		findByNameFn: func(_ string) (*EmailTemplate, error) {
+		findByNameFn: func(_ string) (*branding.EmailTemplate, error) {
 			return nil, errors.New("template not found")
 		},
 	}
@@ -385,8 +387,8 @@ func TestInviteService_SendInvite_HTMLParseError(t *testing.T) {
 		},
 	}
 	emailTemplateRepo := &mockEmailTemplateRepo{
-		findByNameFn: func(_ string) (*EmailTemplate, error) {
-			return &EmailTemplate{
+		findByNameFn: func(_ string) (*branding.EmailTemplate, error) {
+			return &branding.EmailTemplate{
 				Subject:  "Invite",
 				BodyHTML: `{{.InvalidSyntax`, // bad template
 			}, nil
@@ -429,8 +431,8 @@ func TestInviteService_SendInvite_HTMLExecuteError(t *testing.T) {
 		},
 	}
 	emailTemplateRepo := &mockEmailTemplateRepo{
-		findByNameFn: func(_ string) (*EmailTemplate, error) {
-			return &EmailTemplate{
+		findByNameFn: func(_ string) (*branding.EmailTemplate, error) {
+			return &branding.EmailTemplate{
 				Subject:  "Invite",
 				BodyHTML: `{{call .InviteURL}}`, // parses ok, fails on Execute
 			}, nil
@@ -474,8 +476,8 @@ func TestInviteService_SendInvite_PlainParseError(t *testing.T) {
 	}
 	badPlain := `{{.InvalidSyntax`
 	emailTemplateRepo := &mockEmailTemplateRepo{
-		findByNameFn: func(_ string) (*EmailTemplate, error) {
-			return &EmailTemplate{
+		findByNameFn: func(_ string) (*branding.EmailTemplate, error) {
+			return &branding.EmailTemplate{
 				Subject:   "Invite",
 				BodyHTML:  `<a href="{{.InviteURL}}">Accept</a>`,
 				BodyPlain: &badPlain,
@@ -520,8 +522,8 @@ func TestInviteService_SendInvite_PlainExecuteError(t *testing.T) {
 	}
 	badPlain := `{{call .InviteURL}}`
 	emailTemplateRepo := &mockEmailTemplateRepo{
-		findByNameFn: func(_ string) (*EmailTemplate, error) {
-			return &EmailTemplate{
+		findByNameFn: func(_ string) (*branding.EmailTemplate, error) {
+			return &branding.EmailTemplate{
 				Subject:   "Invite",
 				BodyHTML:  `<a href="{{.InviteURL}}">Accept</a>`,
 				BodyPlain: &badPlain,
@@ -545,7 +547,7 @@ func TestInviteService_SendInvite_ClientInactive(t *testing.T) {
 		findSystemFn: func() (*Client, error) {
 			return &Client{
 				ClientID: 1,
-				Status:   StatusInactive,
+				Status:   shared.StatusInactive,
 				Domain:   &domain,
 				IdentityProvider: &IdentityProvider{
 					Tenant: &Tenant{TenantID: 10},
@@ -569,7 +571,7 @@ func TestInviteService_SendInvite_ClientNoDomain(t *testing.T) {
 		findSystemFn: func() (*Client, error) {
 			return &Client{
 				ClientID: 1,
-				Status:   StatusActive,
+				Status:   shared.StatusActive,
 				// Domain is nil
 				IdentityProvider: &IdentityProvider{
 					Tenant: &Tenant{TenantID: 10},
@@ -594,7 +596,7 @@ func TestInviteService_SendInvite_ClientEmptyDomain(t *testing.T) {
 		findSystemFn: func() (*Client, error) {
 			return &Client{
 				ClientID: 1,
-				Status:   StatusActive,
+				Status:   shared.StatusActive,
 				Domain:   &empty,
 				IdentityProvider: &IdentityProvider{
 					Tenant: &Tenant{TenantID: 10},
@@ -619,7 +621,7 @@ func TestInviteService_SendInvite_NoTenant(t *testing.T) {
 		findSystemFn: func() (*Client, error) {
 			return &Client{
 				ClientID: 1,
-				Status:   StatusActive,
+				Status:   shared.StatusActive,
 				Domain:   &domain,
 				IdentityProvider: &IdentityProvider{
 					Tenant: nil,
@@ -644,7 +646,7 @@ func TestInviteService_SendInvite_TenantIDZero(t *testing.T) {
 		findSystemFn: func() (*Client, error) {
 			return &Client{
 				ClientID: 1,
-				Status:   StatusActive,
+				Status:   shared.StatusActive,
 				Domain:   &domain,
 				IdentityProvider: &IdentityProvider{
 					Tenant: &Tenant{TenantID: 0},

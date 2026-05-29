@@ -7,8 +7,8 @@ import (
 	"gorm.io/gorm"
 )
 
-func SeedTenantService(db *gorm.DB, tenantID, serviceID int64) (model.TenantService, error) {
-	var tenantService model.TenantService
+func SeedTenantService(db *gorm.DB, tenantID, serviceID int64) (model.TenantServiceLink, error) {
+	var tenantService model.TenantServiceLink
 
 	// Ensure valid IDs
 	if tenantID == 0 || serviceID == 0 {
@@ -26,17 +26,17 @@ func SeedTenantService(db *gorm.DB, tenantID, serviceID int64) (model.TenantServ
 	}
 	if err != gorm.ErrRecordNotFound {
 		slog.Error("Error checking TenantService", "error", err)
-		return model.TenantService{}, err
+		return model.TenantServiceLink{}, err
 	}
 
-	tenantService = model.TenantService{
+	tenantService = model.TenantServiceLink{
 		TenantID:  tenantID,
 		ServiceID: serviceID,
 	}
 
 	if err := db.Create(&tenantService).Error; err != nil {
 		slog.Error("Failed to seed TenantService", "error", err)
-		return model.TenantService{}, err
+		return model.TenantServiceLink{}, err
 	}
 
 	slog.Info("TenantService seeded", "id", tenantService.TenantServiceID)
