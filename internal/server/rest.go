@@ -13,6 +13,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/maintainerd/auth/internal/app"
+	"github.com/maintainerd/auth/internal/authevent"
 	"github.com/maintainerd/auth/internal/invite"
 	securityMiddleware "github.com/maintainerd/auth/internal/platform/middleware"
 	"github.com/maintainerd/auth/internal/rest/handler"
@@ -55,7 +56,7 @@ type handlers struct {
 	emailConfig        *handler.EmailConfigHandler
 	smsConfig          *handler.SMSConfigHandler
 	webhookEndpoint    *webhook.WebhookEndpointHandler
-	authEvent          *handler.AuthEventHandler
+	authEvent          *authevent.AuthEventHandler
 	oauthAuthorize     *handler.OAuthAuthorizeHandler
 	oauthToken         *handler.OAuthTokenHandler
 	oauthTokenExchange *handler.OAuthTokenExchangeHandler
@@ -106,7 +107,7 @@ func initHandlers(application *app.App) *handlers {
 		emailConfig:        handler.NewEmailConfigHandler(application.EmailConfigService),
 		smsConfig:          handler.NewSMSConfigHandler(application.SMSConfigService),
 		webhookEndpoint:    webhook.NewWebhookEndpointHandler(application.WebhookEndpointService),
-		authEvent:          handler.NewAuthEventHandler(application.AuthEventService),
+		authEvent:          authevent.NewAuthEventHandler(application.AuthEventService),
 		oauthAuthorize:     handler.NewOAuthAuthorizeHandler(application.OAuthAuthorizeService),
 		oauthToken:         handler.NewOAuthTokenHandler(application.OAuthTokenService),
 		oauthTokenExchange: handler.NewOAuthTokenExchangeHandler(application.OAuthTokenExchangeService),
@@ -266,7 +267,7 @@ func buildInternalRouter(h *handlers, application *app.App) http.Handler {
 		route.EmailConfigRoute(api, h.emailConfig, application.UserService, application.Cache)
 		route.SMSConfigRoute(api, h.smsConfig, application.UserService, application.Cache)
 		webhook.WebhookEndpointRoute(api, h.webhookEndpoint, application.UserService, application.Cache)
-		route.AuthEventRoute(api, h.authEvent, application.UserService, application.Cache)
+		authevent.AuthEventRoute(api, h.authEvent, application.UserService, application.Cache)
 		route.OAuthInternalRoute(api, h.oauthToken, application.UserService, application.Cache)
 
 		// Account self-service routes (authenticated)
