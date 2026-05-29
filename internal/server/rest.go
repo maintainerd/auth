@@ -17,6 +17,7 @@ import (
 	securityMiddleware "github.com/maintainerd/auth/internal/platform/middleware"
 	"github.com/maintainerd/auth/internal/rest/handler"
 	"github.com/maintainerd/auth/internal/rest/route"
+	"github.com/maintainerd/auth/internal/webhook"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
@@ -53,7 +54,7 @@ type handlers struct {
 	tenantSetting      *handler.TenantSettingHandler
 	emailConfig        *handler.EmailConfigHandler
 	smsConfig          *handler.SMSConfigHandler
-	webhookEndpoint    *handler.WebhookEndpointHandler
+	webhookEndpoint    *webhook.WebhookEndpointHandler
 	authEvent          *handler.AuthEventHandler
 	oauthAuthorize     *handler.OAuthAuthorizeHandler
 	oauthToken         *handler.OAuthTokenHandler
@@ -104,7 +105,7 @@ func initHandlers(application *app.App) *handlers {
 		tenantSetting:      handler.NewTenantSettingHandler(application.TenantSettingService),
 		emailConfig:        handler.NewEmailConfigHandler(application.EmailConfigService),
 		smsConfig:          handler.NewSMSConfigHandler(application.SMSConfigService),
-		webhookEndpoint:    handler.NewWebhookEndpointHandler(application.WebhookEndpointService),
+		webhookEndpoint:    webhook.NewWebhookEndpointHandler(application.WebhookEndpointService),
 		authEvent:          handler.NewAuthEventHandler(application.AuthEventService),
 		oauthAuthorize:     handler.NewOAuthAuthorizeHandler(application.OAuthAuthorizeService),
 		oauthToken:         handler.NewOAuthTokenHandler(application.OAuthTokenService),
@@ -264,7 +265,7 @@ func buildInternalRouter(h *handlers, application *app.App) http.Handler {
 		route.TenantSettingRoute(api, h.tenantSetting, application.UserService, application.Cache)
 		route.EmailConfigRoute(api, h.emailConfig, application.UserService, application.Cache)
 		route.SMSConfigRoute(api, h.smsConfig, application.UserService, application.Cache)
-		route.WebhookEndpointRoute(api, h.webhookEndpoint, application.UserService, application.Cache)
+		webhook.WebhookEndpointRoute(api, h.webhookEndpoint, application.UserService, application.Cache)
 		route.AuthEventRoute(api, h.authEvent, application.UserService, application.Cache)
 		route.OAuthInternalRoute(api, h.oauthToken, application.UserService, application.Cache)
 

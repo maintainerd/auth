@@ -1,4 +1,4 @@
-package handler
+package webhook
 
 import (
 	"net/http"
@@ -14,7 +14,7 @@ import (
 func webhookResult() *service.WebhookEndpointServiceDataResult {
 	return &service.WebhookEndpointServiceDataResult{
 		WebhookEndpointUUID: uuid.New(),
-		TenantID:            tenantID,
+		TenantID:            testTenantID,
 		URL:                 "https://example.com/hook",
 		Events:              []string{"user.created"},
 		MaxRetries:          3,

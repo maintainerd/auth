@@ -1,4 +1,4 @@
-package dto
+package webhook
 
 import (
 	"time"
@@ -6,6 +6,7 @@ import (
 	validation "github.com/go-ozzo/ozzo-validation/v4"
 	"github.com/go-ozzo/ozzo-validation/v4/is"
 
+	"github.com/maintainerd/auth/internal/dto"
 	"github.com/maintainerd/auth/internal/model"
 )
 
@@ -119,7 +120,7 @@ func (r WebhookEndpointUpdateStatusRequestDTO) Validate() error {
 // endpoints.
 type WebhookEndpointFilterDTO struct {
 	Status []string `json:"status"`
-	PaginationRequestDTO
+	dto.PaginationRequestDTO
 }
 
 // Validate validates the webhook endpoint filter.

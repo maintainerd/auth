@@ -1,17 +1,16 @@
-package route
+package webhook
 
 import (
 	"github.com/go-chi/chi/v5"
 	"github.com/maintainerd/auth/internal/platform/cache"
 	"github.com/maintainerd/auth/internal/platform/middleware"
-	"github.com/maintainerd/auth/internal/rest/handler"
 	"github.com/maintainerd/auth/internal/service"
 )
 
 // WebhookEndpointRoute registers webhook endpoint management routes.
 func WebhookEndpointRoute(
 	r chi.Router,
-	webhookEndpointHandler *handler.WebhookEndpointHandler,
+	webhookEndpointHandler *WebhookEndpointHandler,
 	userService service.UserService,
 	appCache *cache.Cache,
 ) {
