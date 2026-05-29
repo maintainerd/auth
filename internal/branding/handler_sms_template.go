@@ -6,12 +6,9 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
-	"github.com/maintainerd/auth/internal/dto"
-	"github.com/maintainerd/auth/internal/model"
 	"github.com/maintainerd/auth/internal/platform/middleware"
 	"github.com/maintainerd/auth/internal/platform/ptr"
 	resp "github.com/maintainerd/auth/internal/platform/response"
-	"github.com/maintainerd/auth/internal/service"
 )
 
 // SMSTemplateHandler handles SMS template management operations.
@@ -21,11 +18,11 @@ import (
 // message content, sender ID, and formatting. All operations are tenant-isolated -
 // middleware validates tenant access and stores it in the request context.
 type SMSTemplateHandler struct {
-	smsTemplateService service.SMSTemplateService
+	smsTemplateService SMSTemplateService
 }
 
 // NewSMSTemplateHandler creates a new SMS template handler instance.
-func NewSMSTemplateHandler(smsTemplateService service.SMSTemplateService) *SMSTemplateHandler {
+func NewSMSTemplateHandler(smsTemplateService SMSTemplateService) *SMSTemplateHandler {
 	return &SMSTemplateHandler{
 		smsTemplateService: smsTemplateService,
 	}
@@ -70,7 +67,7 @@ func (h *SMSTemplateHandler) GetAll(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Build filter DTO for validation
-	filter := dto.SMSTemplateFilterDTO{
+	filter := SMSTemplateFilterDTO{
 		Name:                 ptr.PtrOrNil(q.Get("name")),
 		Status:               status,
 		IsDefault:            isDefault,
@@ -92,7 +89,7 @@ func (h *SMSTemplateHandler) GetAll(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Build paginated response
-	response := dto.PaginatedResponseDTO[dto.SMSTemplateListResponseDTO]{
+	response := PaginatedResponseDTO[SMSTemplateListResponseDTO]{
 		Rows:       toSMSTemplateListResponseDtoList(result.Data),
 		Total:      result.Total,
 		Page:       result.Page,
@@ -150,7 +147,7 @@ func (h *SMSTemplateHandler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Decode and validate request body
-	var req dto.SMSTemplateCreateRequestDTO
+	var req SMSTemplateCreateRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		resp.Error(w, http.StatusBadRequest, "Invalid request")
 		return
@@ -162,7 +159,7 @@ func (h *SMSTemplateHandler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Set default status if not provided
-	status := model.StatusActive
+	status := StatusActive
 	if req.Status != nil {
 		status = *req.Status
 	}
@@ -208,7 +205,7 @@ func (h *SMSTemplateHandler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Decode and validate request body
-	var req dto.SMSTemplateUpdateRequestDTO
+	var req SMSTemplateUpdateRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		resp.Error(w, http.StatusBadRequest, "Invalid request")
 		return
@@ -220,7 +217,7 @@ func (h *SMSTemplateHandler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Set default status if not provided
-	status := model.StatusActive
+	status := StatusActive
 	if req.Status != nil {
 		status = *req.Status
 	}
@@ -299,7 +296,7 @@ func (h *SMSTemplateHandler) UpdateStatus(w http.ResponseWriter, r *http.Request
 	}
 
 	// Decode and validate request body
-	var req dto.SMSTemplateUpdateStatusRequestDTO
+	var req SMSTemplateUpdateStatusRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		resp.Error(w, http.StatusBadRequest, "Invalid request body")
 		return
@@ -323,8 +320,8 @@ func (h *SMSTemplateHandler) UpdateStatus(w http.ResponseWriter, r *http.Request
 // Helper functions for converting service data to response DTOs
 
 // toSMSTemplateListResponseDTO converts a service result to a list response DTO (without full message).
-func toSMSTemplateListResponseDTO(template service.SMSTemplateServiceDataResult) dto.SMSTemplateListResponseDTO {
-	return dto.SMSTemplateListResponseDTO{
+func toSMSTemplateListResponseDTO(template SMSTemplateServiceDataResult) SMSTemplateListResponseDTO {
+	return SMSTemplateListResponseDTO{
 		SMSTemplateID: template.SMSTemplateUUID.String(),
 		Name:          template.Name,
 		Description:   template.Description,
@@ -338,8 +335,8 @@ func toSMSTemplateListResponseDTO(template service.SMSTemplateServiceDataResult)
 }
 
 // toSMSTemplateListResponseDtoList converts a list of service results to list response DTOs.
-func toSMSTemplateListResponseDtoList(templates []service.SMSTemplateServiceDataResult) []dto.SMSTemplateListResponseDTO {
-	result := make([]dto.SMSTemplateListResponseDTO, len(templates))
+func toSMSTemplateListResponseDtoList(templates []SMSTemplateServiceDataResult) []SMSTemplateListResponseDTO {
+	result := make([]SMSTemplateListResponseDTO, len(templates))
 	for i, template := range templates {
 		result[i] = toSMSTemplateListResponseDTO(template)
 	}
@@ -347,8 +344,8 @@ func toSMSTemplateListResponseDtoList(templates []service.SMSTemplateServiceData
 }
 
 // toSMSTemplateResponseDTO converts a service result to a full response DTO (includes message content).
-func toSMSTemplateResponseDTO(template service.SMSTemplateServiceDataResult) dto.SMSTemplateResponseDTO {
-	return dto.SMSTemplateResponseDTO{
+func toSMSTemplateResponseDTO(template SMSTemplateServiceDataResult) SMSTemplateResponseDTO {
+	return SMSTemplateResponseDTO{
 		SMSTemplateID: template.SMSTemplateUUID.String(),
 		Name:          template.Name,
 		Description:   template.Description,

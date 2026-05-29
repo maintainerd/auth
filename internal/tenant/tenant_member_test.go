@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
-	"github.com/maintainerd/auth/internal/model"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -17,7 +16,7 @@ func TestTenantMemberService_GetByUUID(t *testing.T) {
 	t.Run("not found", func(t *testing.T) {
 		db, _ := newMockGormDB(t)
 		svc := NewTenantMemberService(db, &mockTenantMemberRepo{
-			findByTenantMemberUUIDFn: func(_ uuid.UUID) (*model.TenantMember, error) { return nil, nil },
+			findByTenantMemberUUIDFn: func(_ uuid.UUID) (*TenantMember, error) { return nil, nil },
 		}, &mockUserRepo{}, &mockTenantRepo{})
 		_, err := svc.GetByUUID(context.Background(), id)
 		require.Error(t, err)
@@ -27,8 +26,8 @@ func TestTenantMemberService_GetByUUID(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		db, _ := newMockGormDB(t)
 		svc := NewTenantMemberService(db, &mockTenantMemberRepo{
-			findByTenantMemberUUIDFn: func(i uuid.UUID) (*model.TenantMember, error) {
-				return &model.TenantMember{TenantMemberUUID: i, Role: "member"}, nil
+			findByTenantMemberUUIDFn: func(i uuid.UUID) (*TenantMember, error) {
+				return &TenantMember{TenantMemberUUID: i, Role: "member"}, nil
 			},
 		}, &mockUserRepo{}, &mockTenantRepo{})
 		res, err := svc.GetByUUID(context.Background(), id)
@@ -42,7 +41,7 @@ func TestTenantMemberService_GetByTenantAndUser(t *testing.T) {
 	t.Run("not found", func(t *testing.T) {
 		db, _ := newMockGormDB(t)
 		svc := NewTenantMemberService(db, &mockTenantMemberRepo{
-			findByTenantAndUserFn: func(_ int64, _ int64) (*model.TenantMember, error) { return nil, nil },
+			findByTenantAndUserFn: func(_ int64, _ int64) (*TenantMember, error) { return nil, nil },
 		}, &mockUserRepo{}, &mockTenantRepo{})
 		_, err := svc.GetByTenantAndUser(context.Background(), 1, 2)
 		require.Error(t, err)
@@ -52,8 +51,8 @@ func TestTenantMemberService_GetByTenantAndUser(t *testing.T) {
 		db, _ := newMockGormDB(t)
 		mid := uuid.New()
 		svc := NewTenantMemberService(db, &mockTenantMemberRepo{
-			findByTenantAndUserFn: func(_ int64, _ int64) (*model.TenantMember, error) {
-				return &model.TenantMember{TenantMemberUUID: mid, TenantID: 1, UserID: 2, Role: "admin"}, nil
+			findByTenantAndUserFn: func(_ int64, _ int64) (*TenantMember, error) {
+				return &TenantMember{TenantMemberUUID: mid, TenantID: 1, UserID: 2, Role: "admin"}, nil
 			},
 		}, &mockUserRepo{}, &mockTenantRepo{})
 		res, err := svc.GetByTenantAndUser(context.Background(), 1, 2)
@@ -68,7 +67,7 @@ func TestTenantMemberService_CreateByUserUUID(t *testing.T) {
 	t.Run("user not found", func(t *testing.T) {
 		db, _ := newMockGormDB(t)
 		svc := NewTenantMemberService(db, &mockTenantMemberRepo{}, &mockUserRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.User, error) { return nil, nil },
+			findByUUIDFn: func(_ any, _ ...string) (*User, error) { return nil, nil },
 		}, &mockTenantRepo{})
 		_, err := svc.CreateByUserUUID(context.Background(), 1, userUUID, "member")
 		require.Error(t, err)
@@ -78,12 +77,12 @@ func TestTenantMemberService_CreateByUserUUID(t *testing.T) {
 	t.Run("already a member", func(t *testing.T) {
 		db, _ := newMockGormDB(t)
 		svc := NewTenantMemberService(db, &mockTenantMemberRepo{
-			findByTenantAndUserFn: func(_ int64, _ int64) (*model.TenantMember, error) {
-				return &model.TenantMember{}, nil
+			findByTenantAndUserFn: func(_ int64, _ int64) (*TenantMember, error) {
+				return &TenantMember{}, nil
 			},
 		}, &mockUserRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.User, error) {
-				return &model.User{UserID: 5}, nil
+			findByUUIDFn: func(_ any, _ ...string) (*User, error) {
+				return &User{UserID: 5}, nil
 			},
 		}, &mockTenantRepo{})
 		_, err := svc.CreateByUserUUID(context.Background(), 1, userUUID, "member")
@@ -96,14 +95,14 @@ func TestTenantMemberService_CreateByUserUUID(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectCommit()
 		svc := NewTenantMemberService(db, &mockTenantMemberRepo{
-			findByTenantAndUserFn: func(_ int64, _ int64) (*model.TenantMember, error) { return nil, nil },
-			createFn: func(e *model.TenantMember) (*model.TenantMember, error) {
+			findByTenantAndUserFn: func(_ int64, _ int64) (*TenantMember, error) { return nil, nil },
+			createFn: func(e *TenantMember) (*TenantMember, error) {
 				e.TenantMemberUUID = uuid.New()
 				return e, nil
 			},
 		}, &mockUserRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.User, error) {
-				return &model.User{UserID: 5}, nil
+			findByUUIDFn: func(_ any, _ ...string) (*User, error) {
+				return &User{UserID: 5}, nil
 			},
 		}, &mockTenantRepo{})
 		res, err := svc.CreateByUserUUID(context.Background(), 1, userUUID, "member")
@@ -120,7 +119,7 @@ func TestTenantMemberService_DeleteByUUID(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		svc := NewTenantMemberService(db, &mockTenantMemberRepo{
-			findByTenantMemberUUIDFn: func(_ uuid.UUID) (*model.TenantMember, error) { return nil, nil },
+			findByTenantMemberUUIDFn: func(_ uuid.UUID) (*TenantMember, error) { return nil, nil },
 		}, &mockUserRepo{}, &mockTenantRepo{})
 		err := svc.DeleteByUUID(context.Background(), id)
 		require.Error(t, err)
@@ -131,8 +130,8 @@ func TestTenantMemberService_DeleteByUUID(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectCommit()
 		svc := NewTenantMemberService(db, &mockTenantMemberRepo{
-			findByTenantMemberUUIDFn: func(i uuid.UUID) (*model.TenantMember, error) {
-				return &model.TenantMember{TenantMemberUUID: i}, nil
+			findByTenantMemberUUIDFn: func(i uuid.UUID) (*TenantMember, error) {
+				return &TenantMember{TenantMemberUUID: i}, nil
 			},
 		}, &mockUserRepo{}, &mockTenantRepo{})
 		err := svc.DeleteByUUID(context.Background(), id)
@@ -146,7 +145,7 @@ func TestTenantMemberService_IsUserInTenant(t *testing.T) {
 	t.Run("tenant not found", func(t *testing.T) {
 		db, _ := newMockGormDB(t)
 		svc := NewTenantMemberService(db, &mockTenantMemberRepo{}, &mockUserRepo{}, &mockTenantRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.Tenant, error) { return nil, errors.New("not found") },
+			findByUUIDFn: func(_ any, _ ...string) (*Tenant, error) { return nil, errors.New("not found") },
 		})
 		ok, err := svc.IsUserInTenant(context.Background(), 1, tenantUUID)
 		require.Error(t, err)
@@ -156,12 +155,12 @@ func TestTenantMemberService_IsUserInTenant(t *testing.T) {
 	t.Run("user is member", func(t *testing.T) {
 		db, _ := newMockGormDB(t)
 		svc := NewTenantMemberService(db, &mockTenantMemberRepo{
-			findByTenantAndUserFn: func(_ int64, _ int64) (*model.TenantMember, error) {
-				return &model.TenantMember{}, nil
+			findByTenantAndUserFn: func(_ int64, _ int64) (*TenantMember, error) {
+				return &TenantMember{}, nil
 			},
 		}, &mockUserRepo{}, &mockTenantRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.Tenant, error) {
-				return &model.Tenant{TenantID: 10}, nil
+			findByUUIDFn: func(_ any, _ ...string) (*Tenant, error) {
+				return &Tenant{TenantID: 10}, nil
 			},
 		})
 		ok, err := svc.IsUserInTenant(context.Background(), 1, tenantUUID)
@@ -172,10 +171,10 @@ func TestTenantMemberService_IsUserInTenant(t *testing.T) {
 	t.Run("user is not member", func(t *testing.T) {
 		db, _ := newMockGormDB(t)
 		svc := NewTenantMemberService(db, &mockTenantMemberRepo{
-			findByTenantAndUserFn: func(_ int64, _ int64) (*model.TenantMember, error) { return nil, nil },
+			findByTenantAndUserFn: func(_ int64, _ int64) (*TenantMember, error) { return nil, nil },
 		}, &mockUserRepo{}, &mockTenantRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.Tenant, error) {
-				return &model.Tenant{TenantID: 10}, nil
+			findByUUIDFn: func(_ any, _ ...string) (*Tenant, error) {
+				return &Tenant{TenantID: 10}, nil
 			},
 		})
 		ok, err := svc.IsUserInTenant(context.Background(), 1, tenantUUID)
@@ -186,12 +185,12 @@ func TestTenantMemberService_IsUserInTenant(t *testing.T) {
 	t.Run("FindByTenantAndUser error", func(t *testing.T) {
 		db, _ := newMockGormDB(t)
 		svc := NewTenantMemberService(db, &mockTenantMemberRepo{
-			findByTenantAndUserFn: func(_ int64, _ int64) (*model.TenantMember, error) {
+			findByTenantAndUserFn: func(_ int64, _ int64) (*TenantMember, error) {
 				return nil, errors.New("db error")
 			},
 		}, &mockUserRepo{}, &mockTenantRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.Tenant, error) {
-				return &model.Tenant{TenantID: 10}, nil
+			findByUUIDFn: func(_ any, _ ...string) (*Tenant, error) {
+				return &Tenant{TenantID: 10}, nil
 			},
 		})
 		ok, err := svc.IsUserInTenant(context.Background(), 1, tenantUUID)
@@ -210,7 +209,7 @@ func TestTenantMemberService_Create(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		svc := NewTenantMemberService(db, &mockTenantMemberRepo{
-			createFn: func(_ *model.TenantMember) (*model.TenantMember, error) {
+			createFn: func(_ *TenantMember) (*TenantMember, error) {
 				return nil, errors.New("create failed")
 			},
 		}, &mockUserRepo{}, &mockTenantRepo{})
@@ -225,7 +224,7 @@ func TestTenantMemberService_Create(t *testing.T) {
 		mock.ExpectCommit()
 		mid := uuid.New()
 		svc := NewTenantMemberService(db, &mockTenantMemberRepo{
-			createFn: func(e *model.TenantMember) (*model.TenantMember, error) {
+			createFn: func(e *TenantMember) (*TenantMember, error) {
 				e.TenantMemberUUID = mid
 				return e, nil
 			},
@@ -249,13 +248,13 @@ func TestTenantMemberService_CreateByUserUUID_Extra(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		svc := NewTenantMemberService(db, &mockTenantMemberRepo{
-			findByTenantAndUserFn: func(_ int64, _ int64) (*model.TenantMember, error) { return nil, nil },
-			createFn: func(_ *model.TenantMember) (*model.TenantMember, error) {
+			findByTenantAndUserFn: func(_ int64, _ int64) (*TenantMember, error) { return nil, nil },
+			createFn: func(_ *TenantMember) (*TenantMember, error) {
 				return nil, errors.New("create failed")
 			},
 		}, &mockUserRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.User, error) {
-				return &model.User{UserID: 5, UserUUID: userUUID}, nil
+			findByUUIDFn: func(_ any, _ ...string) (*User, error) {
+				return &User{UserID: 5, UserUUID: userUUID}, nil
 			},
 		}, &mockTenantRepo{})
 		_, err := svc.CreateByUserUUID(context.Background(), 1, userUUID, "member")
@@ -266,7 +265,7 @@ func TestTenantMemberService_CreateByUserUUID_Extra(t *testing.T) {
 	t.Run("FindByUUID error", func(t *testing.T) {
 		db, _ := newMockGormDB(t)
 		svc := NewTenantMemberService(db, &mockTenantMemberRepo{}, &mockUserRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.User, error) {
+			findByUUIDFn: func(_ any, _ ...string) (*User, error) {
 				return nil, errors.New("db error")
 			},
 		}, &mockTenantRepo{})
@@ -284,7 +283,7 @@ func TestTenantMemberService_ListByTenant(t *testing.T) {
 	t.Run("repo error", func(t *testing.T) {
 		db, _ := newMockGormDB(t)
 		svc := NewTenantMemberService(db, &mockTenantMemberRepo{
-			findAllByTenantFn: func(_ int64) ([]model.TenantMember, error) {
+			findAllByTenantFn: func(_ int64) ([]TenantMember, error) {
 				return nil, errors.New("db error")
 			},
 		}, &mockUserRepo{}, &mockTenantRepo{})
@@ -297,14 +296,14 @@ func TestTenantMemberService_ListByTenant(t *testing.T) {
 		db, _ := newMockGormDB(t)
 		mid := uuid.New()
 		svc := NewTenantMemberService(db, &mockTenantMemberRepo{
-			findAllByTenantFn: func(_ int64) ([]model.TenantMember, error) {
-				return []model.TenantMember{
+			findAllByTenantFn: func(_ int64) ([]TenantMember, error) {
+				return []TenantMember{
 					{TenantMemberUUID: mid, TenantID: 1, UserID: 42, Role: "admin"},
 				}, nil
 			},
 		}, &mockUserRepo{
-			findByIDFn: func(_ any, _ ...string) (*model.User, error) {
-				return &model.User{UserID: 42, UserUUID: uuid.New(), Email: "a@b.com"}, nil
+			findByIDFn: func(_ any, _ ...string) (*User, error) {
+				return &User{UserID: 42, UserUUID: uuid.New(), Email: "a@b.com"}, nil
 			},
 		}, &mockTenantRepo{})
 		res, err := svc.ListByTenant(context.Background(), 1)
@@ -318,13 +317,13 @@ func TestTenantMemberService_ListByTenant(t *testing.T) {
 	t.Run("success user lookup fails gracefully", func(t *testing.T) {
 		db, _ := newMockGormDB(t)
 		svc := NewTenantMemberService(db, &mockTenantMemberRepo{
-			findAllByTenantFn: func(_ int64) ([]model.TenantMember, error) {
-				return []model.TenantMember{
+			findAllByTenantFn: func(_ int64) ([]TenantMember, error) {
+				return []TenantMember{
 					{TenantMemberUUID: uuid.New(), TenantID: 1, UserID: 42, Role: "member"},
 				}, nil
 			},
 		}, &mockUserRepo{
-			findByIDFn: func(_ any, _ ...string) (*model.User, error) {
+			findByIDFn: func(_ any, _ ...string) (*User, error) {
 				return nil, errors.New("user not found")
 			},
 		}, &mockTenantRepo{})
@@ -337,8 +336,8 @@ func TestTenantMemberService_ListByTenant(t *testing.T) {
 	t.Run("empty list", func(t *testing.T) {
 		db, _ := newMockGormDB(t)
 		svc := NewTenantMemberService(db, &mockTenantMemberRepo{
-			findAllByTenantFn: func(_ int64) ([]model.TenantMember, error) {
-				return []model.TenantMember{}, nil
+			findAllByTenantFn: func(_ int64) ([]TenantMember, error) {
+				return []TenantMember{}, nil
 			},
 		}, &mockUserRepo{}, &mockTenantRepo{})
 		res, err := svc.ListByTenant(context.Background(), 1)
@@ -355,7 +354,7 @@ func TestTenantMemberService_ListByUser(t *testing.T) {
 	t.Run("repo error", func(t *testing.T) {
 		db, _ := newMockGormDB(t)
 		svc := NewTenantMemberService(db, &mockTenantMemberRepo{
-			findAllByUserFn: func(_ int64) ([]model.TenantMember, error) {
+			findAllByUserFn: func(_ int64) ([]TenantMember, error) {
 				return nil, errors.New("db error")
 			},
 		}, &mockUserRepo{}, &mockTenantRepo{})
@@ -368,8 +367,8 @@ func TestTenantMemberService_ListByUser(t *testing.T) {
 		db, _ := newMockGormDB(t)
 		mid := uuid.New()
 		svc := NewTenantMemberService(db, &mockTenantMemberRepo{
-			findAllByUserFn: func(_ int64) ([]model.TenantMember, error) {
-				return []model.TenantMember{
+			findAllByUserFn: func(_ int64) ([]TenantMember, error) {
+				return []TenantMember{
 					{TenantMemberUUID: mid, TenantID: 1, UserID: 5, Role: "member"},
 					{TenantMemberUUID: uuid.New(), TenantID: 2, UserID: 5, Role: "admin"},
 				}, nil
@@ -385,8 +384,8 @@ func TestTenantMemberService_ListByUser(t *testing.T) {
 	t.Run("empty list", func(t *testing.T) {
 		db, _ := newMockGormDB(t)
 		svc := NewTenantMemberService(db, &mockTenantMemberRepo{
-			findAllByUserFn: func(_ int64) ([]model.TenantMember, error) {
-				return []model.TenantMember{}, nil
+			findAllByUserFn: func(_ int64) ([]TenantMember, error) {
+				return []TenantMember{}, nil
 			},
 		}, &mockUserRepo{}, &mockTenantRepo{})
 		res, err := svc.ListByUser(context.Background(), 1)
@@ -407,7 +406,7 @@ func TestTenantMemberService_UpdateRole(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		svc := NewTenantMemberService(db, &mockTenantMemberRepo{
-			findByTenantMemberUUIDFn: func(_ uuid.UUID) (*model.TenantMember, error) { return nil, nil },
+			findByTenantMemberUUIDFn: func(_ uuid.UUID) (*TenantMember, error) { return nil, nil },
 		}, &mockUserRepo{}, &mockTenantRepo{})
 		_, err := svc.UpdateRole(context.Background(), tmUUID, "admin")
 		require.Error(t, err)
@@ -419,7 +418,7 @@ func TestTenantMemberService_UpdateRole(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		svc := NewTenantMemberService(db, &mockTenantMemberRepo{
-			findByTenantMemberUUIDFn: func(_ uuid.UUID) (*model.TenantMember, error) {
+			findByTenantMemberUUIDFn: func(_ uuid.UUID) (*TenantMember, error) {
 				return nil, errors.New("find error")
 			},
 		}, &mockUserRepo{}, &mockTenantRepo{})
@@ -433,10 +432,10 @@ func TestTenantMemberService_UpdateRole(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		svc := NewTenantMemberService(db, &mockTenantMemberRepo{
-			findByTenantMemberUUIDFn: func(id uuid.UUID) (*model.TenantMember, error) {
-				return &model.TenantMember{TenantMemberUUID: id, UserID: 5, Role: "member"}, nil
+			findByTenantMemberUUIDFn: func(id uuid.UUID) (*TenantMember, error) {
+				return &TenantMember{TenantMemberUUID: id, UserID: 5, Role: "member"}, nil
 			},
-			createOrUpdateFn: func(_ *model.TenantMember) (*model.TenantMember, error) {
+			createOrUpdateFn: func(_ *TenantMember) (*TenantMember, error) {
 				return nil, errors.New("update error")
 			},
 		}, &mockUserRepo{}, &mockTenantRepo{})
@@ -450,12 +449,12 @@ func TestTenantMemberService_UpdateRole(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectCommit()
 		svc := NewTenantMemberService(db, &mockTenantMemberRepo{
-			findByTenantMemberUUIDFn: func(id uuid.UUID) (*model.TenantMember, error) {
-				return &model.TenantMember{TenantMemberUUID: id, UserID: 5, Role: "member"}, nil
+			findByTenantMemberUUIDFn: func(id uuid.UUID) (*TenantMember, error) {
+				return &TenantMember{TenantMemberUUID: id, UserID: 5, Role: "member"}, nil
 			},
 		}, &mockUserRepo{
-			findByIDFn: func(_ any, _ ...string) (*model.User, error) {
-				return &model.User{UserID: 5, Email: "test@test.com"}, nil
+			findByIDFn: func(_ any, _ ...string) (*User, error) {
+				return &User{UserID: 5, Email: "test@test.com"}, nil
 			},
 		}, &mockTenantRepo{})
 		res, err := svc.UpdateRole(context.Background(), tmUUID, "admin")
@@ -470,11 +469,11 @@ func TestTenantMemberService_UpdateRole(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectCommit()
 		svc := NewTenantMemberService(db, &mockTenantMemberRepo{
-			findByTenantMemberUUIDFn: func(id uuid.UUID) (*model.TenantMember, error) {
-				return &model.TenantMember{TenantMemberUUID: id, UserID: 5, Role: "member"}, nil
+			findByTenantMemberUUIDFn: func(id uuid.UUID) (*TenantMember, error) {
+				return &TenantMember{TenantMemberUUID: id, UserID: 5, Role: "member"}, nil
 			},
 		}, &mockUserRepo{
-			findByIDFn: func(_ any, _ ...string) (*model.User, error) {
+			findByIDFn: func(_ any, _ ...string) (*User, error) {
 				return nil, errors.New("user gone")
 			},
 		}, &mockTenantRepo{})
@@ -497,7 +496,7 @@ func TestTenantMemberService_DeleteByUUID_Extra(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		svc := NewTenantMemberService(db, &mockTenantMemberRepo{
-			findByTenantMemberUUIDFn: func(_ uuid.UUID) (*model.TenantMember, error) {
+			findByTenantMemberUUIDFn: func(_ uuid.UUID) (*TenantMember, error) {
 				return nil, errors.New("find error")
 			},
 		}, &mockUserRepo{}, &mockTenantRepo{})
@@ -511,8 +510,8 @@ func TestTenantMemberService_DeleteByUUID_Extra(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		svc := NewTenantMemberService(db, &mockTenantMemberRepo{
-			findByTenantMemberUUIDFn: func(i uuid.UUID) (*model.TenantMember, error) {
-				return &model.TenantMember{TenantMemberUUID: i}, nil
+			findByTenantMemberUUIDFn: func(i uuid.UUID) (*TenantMember, error) {
+				return &TenantMember{TenantMemberUUID: i}, nil
 			},
 			deleteByUUIDFn: func(_ any) error { return errors.New("delete failed") },
 		}, &mockUserRepo{}, &mockTenantRepo{})

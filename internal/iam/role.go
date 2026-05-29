@@ -6,12 +6,10 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/maintainerd/auth/internal/model"
 	"github.com/maintainerd/auth/internal/platform/apperror"
 	"github.com/maintainerd/auth/internal/platform/cache"
 	"github.com/maintainerd/auth/internal/platform/middleware"
 	"github.com/maintainerd/auth/internal/platform/ptr"
-	"github.com/maintainerd/auth/internal/repository"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -83,22 +81,22 @@ type RoleService interface {
 
 type roleService struct {
 	db                 *gorm.DB
-	roleRepo           repository.RoleRepository
-	permissionRepo     repository.PermissionRepository
-	rolePermissionRepo repository.RolePermissionRepository
-	userRepo           repository.UserRepository
-	tenantRepo         repository.TenantRepository
+	roleRepo           RoleRepository
+	permissionRepo     PermissionRepository
+	rolePermissionRepo RolePermissionRepository
+	userRepo           UserRepository
+	tenantRepo         TenantRepository
 	cacheInvalidator   cache.Invalidator
 	authEventService   AuthEventService
 }
 
 func NewRoleService(
 	db *gorm.DB,
-	roleRepo repository.RoleRepository,
-	permissionRepo repository.PermissionRepository,
-	rolePermissionRepo repository.RolePermissionRepository,
-	userRepo repository.UserRepository,
-	tenantRepo repository.TenantRepository,
+	roleRepo RoleRepository,
+	permissionRepo PermissionRepository,
+	rolePermissionRepo RolePermissionRepository,
+	userRepo UserRepository,
+	tenantRepo TenantRepository,
 	cacheInvalidator cache.Invalidator,
 	authEventService AuthEventService,
 ) RoleService {
@@ -118,7 +116,7 @@ func (s *roleService) Get(ctx context.Context, filter RoleServiceGetFilter) (*Ro
 	_, span := otel.Tracer("service").Start(ctx, "role.list")
 	defer span.End()
 
-	roleFilter := repository.RoleRepositoryGetFilter{
+	roleFilter := RoleRepositoryGetFilter{
 		Name:        filter.Name,
 		Description: filter.Description,
 		IsDefault:   filter.IsDefault,
@@ -202,7 +200,7 @@ func (s *roleService) GetRolePermissions(ctx context.Context, filter RoleService
 	}
 
 	// Build repository filter
-	repoFilter := repository.RoleRepositoryGetPermissionsFilter{
+	repoFilter := RoleRepositoryGetPermissionsFilter{
 		RoleUUID:  filter.RoleUUID,
 		Status:    filter.Status,
 		Page:      filter.Page,
@@ -240,7 +238,7 @@ func (s *roleService) Create(ctx context.Context, name string, description strin
 	defer span.End()
 	span.SetAttributes(attribute.String("tenant.uuid", tenantUUID))
 
-	var createdRole *model.Role
+	var createdRole *Role
 	var capturedTenantID, capturedActorID int64
 
 	// Transaction
@@ -284,7 +282,7 @@ func (s *roleService) Create(ctx context.Context, name string, description strin
 		}
 
 		// Create role
-		newRole := &model.Role{
+		newRole := &Role{
 			Name:        name,
 			Description: description,
 			IsDefault:   isDefault,
@@ -315,10 +313,10 @@ func (s *roleService) Create(ctx context.Context, name string, description strin
 		ActorUserID: &capturedActorID,
 		IPAddress:   middleware.ClientIPFromContext(ctx),
 		UserAgent:   ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),
-		Category:    model.AuthEventCategoryAuthz,
-		EventType:   model.AuthEventTypeAuthzAdmin,
-		Severity:    model.AuthEventSeverityInfo,
-		Result:      model.AuthEventResultSuccess,
+		Category:    AuthEventCategoryAuthz,
+		EventType:   AuthEventTypeAuthzAdmin,
+		Severity:    AuthEventSeverityInfo,
+		Result:      AuthEventResultSuccess,
 		Description: ptr.Ptr(fmt.Sprintf("Role created: %s", createdRole.Name)),
 	})
 	return toRoleServiceDataResult(createdRole), nil
@@ -329,7 +327,7 @@ func (s *roleService) Update(ctx context.Context, roleUUID uuid.UUID, tenantID i
 	defer span.End()
 	span.SetAttributes(attribute.String("role.uuid", roleUUID.String()), attribute.Int64("tenant.id", tenantID))
 
-	var updatedRole *model.Role
+	var updatedRole *Role
 	var capturedActorID int64
 
 	// Transaction
@@ -410,10 +408,10 @@ func (s *roleService) Update(ctx context.Context, roleUUID uuid.UUID, tenantID i
 		ActorUserID: &capturedActorID,
 		IPAddress:   middleware.ClientIPFromContext(ctx),
 		UserAgent:   ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),
-		Category:    model.AuthEventCategoryAuthz,
-		EventType:   model.AuthEventTypeAuthzAdmin,
-		Severity:    model.AuthEventSeverityInfo,
-		Result:      model.AuthEventResultSuccess,
+		Category:    AuthEventCategoryAuthz,
+		EventType:   AuthEventTypeAuthzAdmin,
+		Severity:    AuthEventSeverityInfo,
+		Result:      AuthEventResultSuccess,
 		Description: ptr.Ptr(fmt.Sprintf("Role updated: %s", updatedRole.Name)),
 	})
 	return toRoleServiceDataResult(updatedRole), nil
@@ -424,7 +422,7 @@ func (s *roleService) SetStatusByUUID(ctx context.Context, roleUUID uuid.UUID, t
 	defer span.End()
 	span.SetAttributes(attribute.String("role.uuid", roleUUID.String()), attribute.Int64("tenant.id", tenantID))
 
-	var updatedRole *model.Role
+	var updatedRole *Role
 	var capturedActorID int64
 
 	// Transaction
@@ -490,10 +488,10 @@ func (s *roleService) SetStatusByUUID(ctx context.Context, roleUUID uuid.UUID, t
 		ActorUserID: &capturedActorID,
 		IPAddress:   middleware.ClientIPFromContext(ctx),
 		UserAgent:   ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),
-		Category:    model.AuthEventCategoryAuthz,
-		EventType:   model.AuthEventTypeAuthzAdmin,
-		Severity:    model.AuthEventSeverityInfo,
-		Result:      model.AuthEventResultSuccess,
+		Category:    AuthEventCategoryAuthz,
+		EventType:   AuthEventTypeAuthzAdmin,
+		Severity:    AuthEventSeverityInfo,
+		Result:      AuthEventResultSuccess,
 		Description: ptr.Ptr(fmt.Sprintf("Role status set to %s: %s", status, updatedRole.Name)),
 	})
 	return toRoleServiceDataResult(updatedRole), nil
@@ -558,10 +556,10 @@ func (s *roleService) DeleteByUUID(ctx context.Context, roleUUID uuid.UUID, tena
 		ActorUserID: &actorUser.UserID,
 		IPAddress:   middleware.ClientIPFromContext(ctx),
 		UserAgent:   ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),
-		Category:    model.AuthEventCategoryAuthz,
-		EventType:   model.AuthEventTypeAuthzAdmin,
-		Severity:    model.AuthEventSeverityWarn,
-		Result:      model.AuthEventResultSuccess,
+		Category:    AuthEventCategoryAuthz,
+		EventType:   AuthEventTypeAuthzAdmin,
+		Severity:    AuthEventSeverityWarn,
+		Result:      AuthEventResultSuccess,
 		Description: ptr.Ptr(fmt.Sprintf("Role deleted: %s", role.Name)),
 	})
 	return toRoleServiceDataResult(role), nil
@@ -572,7 +570,7 @@ func (s *roleService) AddRolePermissions(ctx context.Context, roleUUID uuid.UUID
 	defer span.End()
 	span.SetAttributes(attribute.String("role.uuid", roleUUID.String()), attribute.Int64("tenant.id", tenantID))
 
-	var roleWithPermissions *model.Role
+	var roleWithPermissions *Role
 	var capturedActorID int64
 
 	// Transaction
@@ -644,7 +642,7 @@ func (s *roleService) AddRolePermissions(ctx context.Context, roleUUID uuid.UUID
 			}
 
 			// Create new role-permission association
-			rolePermission := &model.RolePermission{
+			rolePermission := &RolePermission{
 				RoleID:       role.RoleID,
 				PermissionID: permission.PermissionID,
 			}
@@ -678,10 +676,10 @@ func (s *roleService) AddRolePermissions(ctx context.Context, roleUUID uuid.UUID
 		ActorUserID: &capturedActorID,
 		IPAddress:   middleware.ClientIPFromContext(ctx),
 		UserAgent:   ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),
-		Category:    model.AuthEventCategoryAuthz,
-		EventType:   model.AuthEventTypeAuthzChange,
-		Severity:    model.AuthEventSeverityInfo,
-		Result:      model.AuthEventResultSuccess,
+		Category:    AuthEventCategoryAuthz,
+		EventType:   AuthEventTypeAuthzChange,
+		Severity:    AuthEventSeverityInfo,
+		Result:      AuthEventResultSuccess,
 		Description: ptr.Ptr(fmt.Sprintf("Permissions added to role: %s", roleWithPermissions.Name)),
 	})
 	return toRoleServiceDataResult(roleWithPermissions), nil
@@ -692,7 +690,7 @@ func (s *roleService) RemoveRolePermissions(ctx context.Context, roleUUID uuid.U
 	defer span.End()
 	span.SetAttributes(attribute.String("role.uuid", roleUUID.String()), attribute.Int64("tenant.id", tenantID))
 
-	var roleWithPermissions *model.Role
+	var roleWithPermissions *Role
 	var capturedActorID int64
 
 	// Transaction
@@ -787,17 +785,17 @@ func (s *roleService) RemoveRolePermissions(ctx context.Context, roleUUID uuid.U
 		ActorUserID: &capturedActorID,
 		IPAddress:   middleware.ClientIPFromContext(ctx),
 		UserAgent:   ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),
-		Category:    model.AuthEventCategoryAuthz,
-		EventType:   model.AuthEventTypeAuthzChange,
-		Severity:    model.AuthEventSeverityInfo,
-		Result:      model.AuthEventResultSuccess,
+		Category:    AuthEventCategoryAuthz,
+		EventType:   AuthEventTypeAuthzChange,
+		Severity:    AuthEventSeverityInfo,
+		Result:      AuthEventResultSuccess,
 		Description: ptr.Ptr(fmt.Sprintf("Permission removed from role: %s", roleWithPermissions.Name)),
 	})
 	return toRoleServiceDataResult(roleWithPermissions), nil
 }
 
 // Reponse builder
-func toRoleServiceDataResult(role *model.Role) *RoleServiceDataResult {
+func toRoleServiceDataResult(role *Role) *RoleServiceDataResult {
 	if role == nil {
 		return nil
 	}

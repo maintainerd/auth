@@ -5,9 +5,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/maintainerd/auth/internal/model"
 	"github.com/maintainerd/auth/internal/platform/apperror"
-	"github.com/maintainerd/auth/internal/repository"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -35,15 +33,15 @@ type SMSConfigService interface {
 }
 
 type smsConfigService struct {
-	smsConfigRepo repository.SMSConfigRepository
+	smsConfigRepo SMSConfigRepository
 }
 
 // NewSMSConfigService creates a new SMSConfigService.
-func NewSMSConfigService(smsConfigRepo repository.SMSConfigRepository) SMSConfigService {
+func NewSMSConfigService(smsConfigRepo SMSConfigRepository) SMSConfigService {
 	return &smsConfigService{smsConfigRepo: smsConfigRepo}
 }
 
-func toSMSConfigServiceDataResult(sc *model.SMSConfig) *SMSConfigServiceDataResult {
+func toSMSConfigServiceDataResult(sc *SMSConfig) *SMSConfigServiceDataResult {
 	return &SMSConfigServiceDataResult{
 		SMSConfigUUID: sc.SMSConfigUUID,
 		Provider:      sc.Provider,
@@ -93,7 +91,7 @@ func (s *smsConfigService) Update(ctx context.Context, tenantID int64, provider,
 	}
 
 	if config == nil {
-		config = &model.SMSConfig{TenantID: tenantID, Status: model.StatusActive}
+		config = &SMSConfig{TenantID: tenantID, Status: StatusActive}
 	}
 
 	config.Provider = provider

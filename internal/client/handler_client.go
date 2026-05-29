@@ -9,19 +9,16 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
-	"github.com/maintainerd/auth/internal/dto"
-	"github.com/maintainerd/auth/internal/model"
 	"github.com/maintainerd/auth/internal/platform/middleware"
 	"github.com/maintainerd/auth/internal/platform/ptr"
 	resp "github.com/maintainerd/auth/internal/platform/response"
-	"github.com/maintainerd/auth/internal/service"
 )
 
 type ClientHandler struct {
-	ClientService service.ClientService
+	ClientService ClientService
 }
 
-func NewClientHandler(ClientService service.ClientService) *ClientHandler {
+func NewClientHandler(ClientService ClientService) *ClientHandler {
 	return &ClientHandler{ClientService}
 }
 
@@ -75,7 +72,7 @@ func (h *ClientHandler) Get(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Build request DTO
-	reqParams := dto.ClientFilterDTO{
+	reqParams := ClientFilterDTO{
 		Name:                 ptr.PtrOrNil(q.Get("name")),
 		DisplayName:          ptr.PtrOrNil(q.Get("display_name")),
 		ClientType:           clientType,
@@ -92,7 +89,7 @@ func (h *ClientHandler) Get(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Build service filter
-	ClientFilter := service.ClientServiceGetFilter{
+	ClientFilter := ClientServiceGetFilter{
 		TenantID:             tenant.TenantID,
 		Name:                 reqParams.Name,
 		DisplayName:          reqParams.DisplayName,
@@ -115,13 +112,13 @@ func (h *ClientHandler) Get(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Map auth client result to DTO
-	rows := make([]dto.ClientResponseDTO, len(result.Data))
+	rows := make([]ClientResponseDTO, len(result.Data))
 	for i, r := range result.Data {
 		rows[i] = toClientResponseDTO(r)
 	}
 
 	// Build response data
-	response := dto.PaginatedResponseDTO[dto.ClientResponseDTO]{
+	response := PaginatedResponseDTO[ClientResponseDTO]{
 		Rows:       rows,
 		Total:      result.Total,
 		Page:       result.Page,
@@ -201,7 +198,7 @@ func (h *ClientHandler) Create(w http.ResponseWriter, r *http.Request) {
 	// Get authentication context
 	user := middleware.AuthFromRequest(r).User
 
-	var req dto.ClientCreateRequestDTO
+	var req ClientCreateRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		resp.Error(w, http.StatusBadRequest, "Invalid request")
 		return
@@ -219,11 +216,11 @@ func (h *ClientHandler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	dtoRes := struct {
-		Client      interface{}                       `json:"client"`
-		Credentials dto.ClientCreateSecretResponseDTO `json:"credentials"`
+		Client      interface{}                   `json:"client"`
+		Credentials ClientCreateSecretResponseDTO `json:"credentials"`
 	}{
 		Client: toClientResponseDTO(*result.Client),
-		Credentials: dto.ClientCreateSecretResponseDTO{
+		Credentials: ClientCreateSecretResponseDTO{
 			ClientUUID:   result.Client.ClientUUID.String(),
 			ClientID:     result.ClientIdentifier,
 			ClientSecret: result.PlaintextSecret,
@@ -251,7 +248,7 @@ func (h *ClientHandler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var req dto.ClientUpdateRequestDTO
+	var req ClientUpdateRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		resp.Error(w, http.StatusBadRequest, "Invalid request")
 		return
@@ -292,15 +289,15 @@ func (h *ClientHandler) SetStatus(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Toggle status between active and inactive
-	newStatus := model.StatusActive
+	newStatus := StatusActive
 	// We need to get current status first to toggle it
 	currentClient, err := h.ClientService.GetByUUID(r.Context(), ClientUUID, tenant.TenantID)
 	if err != nil {
 		resp.HandleServiceError(w, r, "Auth client not found", err)
 		return
 	}
-	if currentClient.Status == model.StatusActive {
-		newStatus = model.StatusInactive
+	if currentClient.Status == StatusActive {
+		newStatus = StatusInactive
 	}
 
 	Client, err := h.ClientService.SetStatusByUUID(r.Context(), ClientUUID, tenant.TenantID, newStatus, user.UserUUID)
@@ -330,9 +327,9 @@ func (h *ClientHandler) RotateSecret(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var req dto.RotateSecretRequestDTO
+	var req RotateSecretRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		req = dto.RotateSecretRequestDTO{GracePeriodHours: 24}
+		req = RotateSecretRequestDTO{GracePeriodHours: 24}
 	}
 
 	newSecret, err := h.ClientService.RotateSecret(r.Context(), clientUUID, tenant.TenantID, user.UserUUID, req.GracePeriodHours)
@@ -347,7 +344,7 @@ func (h *ClientHandler) RotateSecret(w http.ResponseWriter, r *http.Request) {
 		expiresAt = &t
 	}
 
-	dtoRes := dto.RotateSecretResponseDTO{
+	dtoRes := RotateSecretResponseDTO{
 		ClientSecret:            newSecret,
 		PreviousSecretExpiresAt: expiresAt,
 	}
@@ -405,11 +402,11 @@ func (h *ClientHandler) GetURIs(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Convert URIs to response format
-	var uris []dto.ClientURIResponseDTO
+	var uris []ClientURIResponseDTO
 	if Client.ClientURIs != nil {
-		uris = make([]dto.ClientURIResponseDTO, len(*Client.ClientURIs))
+		uris = make([]ClientURIResponseDTO, len(*Client.ClientURIs))
 		for i, uri := range *Client.ClientURIs {
-			uris[i] = dto.ClientURIResponseDTO{
+			uris[i] = ClientURIResponseDTO{
 				ClientURIUUID: uri.ClientURIUUID,
 				URI:           uri.URI,
 				Type:          uri.Type,
@@ -419,7 +416,7 @@ func (h *ClientHandler) GetURIs(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	response := dto.ClientURIsResponseDTO{
+	response := ClientURIsResponseDTO{
 		URIs: uris,
 	}
 
@@ -443,7 +440,7 @@ func (h *ClientHandler) CreateURI(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var req dto.ClientURICreateOrUpdateRequestDTO
+	var req ClientURICreateOrUpdateRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		resp.Error(w, http.StatusBadRequest, "Invalid request")
 		return
@@ -460,7 +457,7 @@ func (h *ClientHandler) CreateURI(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	dtoRes := dto.ClientURIResponseDTO{
+	dtoRes := ClientURIResponseDTO{
 		ClientURIUUID: (*uri.ClientURIs)[0].ClientURIUUID,
 		URI:           (*uri.ClientURIs)[0].URI,
 		Type:          (*uri.ClientURIs)[0].Type,
@@ -494,7 +491,7 @@ func (h *ClientHandler) UpdateURI(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var req dto.ClientURICreateOrUpdateRequestDTO
+	var req ClientURICreateOrUpdateRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		resp.Error(w, http.StatusBadRequest, "Invalid request")
 		return
@@ -512,7 +509,7 @@ func (h *ClientHandler) UpdateURI(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Find the updated URI in the response
-	var updatedURI *service.ClientURIServiceDataResult
+	var updatedURI *ClientURIServiceDataResult
 	if uri.ClientURIs != nil {
 		for _, u := range *uri.ClientURIs {
 			if u.ClientURIUUID == ClientURIUUID {
@@ -527,7 +524,7 @@ func (h *ClientHandler) UpdateURI(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	dtoRes := dto.ClientURIResponseDTO{
+	dtoRes := ClientURIResponseDTO{
 		ClientURIUUID: updatedURI.ClientURIUUID,
 		URI:           updatedURI.URI,
 		Type:          updatedURI.Type,
@@ -596,10 +593,10 @@ func (h *ClientHandler) GetAPIs(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Convert to DTO
-	apis := make([]dto.ClientAPIResponseDTO, len(ClientAPIs))
+	apis := make([]ClientAPIResponseDTO, len(ClientAPIs))
 	for i, api := range ClientAPIs {
 		// Convert API service data to DTO
-		apiDTO := dto.APIResponseDTO{
+		apiDTO := APIResponseDTO{
 			APIUUID:     api.Api.APIUUID,
 			Name:        api.Api.Name,
 			DisplayName: api.Api.DisplayName,
@@ -611,9 +608,9 @@ func (h *ClientHandler) GetAPIs(w http.ResponseWriter, r *http.Request) {
 		}
 
 		// Convert permissions service data to DTO
-		permissions := make([]dto.PermissionResponseDTO, len(api.Permissions))
+		permissions := make([]PermissionResponseDTO, len(api.Permissions))
 		for j, perm := range api.Permissions {
-			permissions[j] = dto.PermissionResponseDTO{
+			permissions[j] = PermissionResponseDTO{
 				PermissionUUID: perm.PermissionUUID,
 				Name:           perm.Name,
 				Description:    perm.Description,
@@ -625,7 +622,7 @@ func (h *ClientHandler) GetAPIs(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 
-		apis[i] = dto.ClientAPIResponseDTO{
+		apis[i] = ClientAPIResponseDTO{
 			ClientAPIUUID: api.ClientAPIUUID,
 			API:           apiDTO,
 			Permissions:   permissions,
@@ -633,7 +630,7 @@ func (h *ClientHandler) GetAPIs(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	response := dto.ClientAPIsResponseDTO{
+	response := ClientAPIsResponseDTO{
 		APIs: apis,
 	}
 
@@ -649,7 +646,7 @@ func (h *ClientHandler) AddAPIs(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var req dto.AddClientAPIsRequestDTO
+	var req AddClientAPIsRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		resp.Error(w, http.StatusBadRequest, "Invalid request body")
 		return
@@ -669,7 +666,7 @@ func (h *ClientHandler) AddAPIs(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	response := dto.SuccessResponseDTO{
+	response := SuccessResponseDTO{
 		Message: "APIs added to auth client successfully",
 	}
 
@@ -704,7 +701,7 @@ func (h *ClientHandler) RemoveAPI(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	response := dto.SuccessResponseDTO{
+	response := SuccessResponseDTO{
 		Message: "API removed from auth client successfully",
 	}
 
@@ -740,9 +737,9 @@ func (h *ClientHandler) GetAPIPermissions(w http.ResponseWriter, r *http.Request
 	}
 
 	// Convert to DTO
-	permissionDtos := make([]dto.PermissionResponseDTO, len(permissions))
+	permissionDtos := make([]PermissionResponseDTO, len(permissions))
 	for i, perm := range permissions {
-		permissionDtos[i] = dto.PermissionResponseDTO{
+		permissionDtos[i] = PermissionResponseDTO{
 			PermissionUUID: perm.PermissionUUID,
 			Name:           perm.Name,
 			Description:    perm.Description,
@@ -754,7 +751,7 @@ func (h *ClientHandler) GetAPIPermissions(w http.ResponseWriter, r *http.Request
 		}
 	}
 
-	response := dto.ClientAPIPermissionsResponseDTO{
+	response := ClientAPIPermissionsResponseDTO{
 		Permissions: permissionDtos,
 	}
 
@@ -776,7 +773,7 @@ func (h *ClientHandler) AddAPIPermissions(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	var req dto.AddClientAPIPermissionsRequestDTO
+	var req AddClientAPIPermissionsRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		resp.Error(w, http.StatusBadRequest, "Invalid request body")
 		return
@@ -796,7 +793,7 @@ func (h *ClientHandler) AddAPIPermissions(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	response := dto.SuccessResponseDTO{
+	response := SuccessResponseDTO{
 		Message: "Permissions added to auth client API successfully",
 	}
 
@@ -838,7 +835,7 @@ func (h *ClientHandler) RemoveAPIPermission(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	response := dto.SuccessResponseDTO{
+	response := SuccessResponseDTO{
 		Message: "Permission removed from auth client API successfully",
 	}
 
@@ -846,8 +843,8 @@ func (h *ClientHandler) RemoveAPIPermission(w http.ResponseWriter, r *http.Reque
 }
 
 // Convert result to DTO
-func toClientResponseDTO(r service.ClientServiceDataResult) dto.ClientResponseDTO {
-	result := dto.ClientResponseDTO{
+func toClientResponseDTO(r ClientServiceDataResult) ClientResponseDTO {
+	result := ClientResponseDTO{
 		ClientUUID:  r.ClientUUID,
 		Name:        r.Name,
 		DisplayName: r.DisplayName,
@@ -861,7 +858,7 @@ func toClientResponseDTO(r service.ClientServiceDataResult) dto.ClientResponseDT
 	}
 
 	if r.IdentityProvider != nil {
-		result.IdentityProvider = &dto.IdentityProviderResponseDTO{
+		result.IdentityProvider = &IdentityProviderResponseDTO{
 			IdentityProviderUUID: r.IdentityProvider.IdentityProviderUUID,
 			Name:                 r.IdentityProvider.Name,
 			DisplayName:          r.IdentityProvider.DisplayName,
@@ -877,9 +874,9 @@ func toClientResponseDTO(r service.ClientServiceDataResult) dto.ClientResponseDT
 	}
 
 	if r.ClientURIs != nil && len(*r.ClientURIs) > 0 {
-		result.URIs = make([]dto.ClientURIResponseDTO, len(*r.ClientURIs))
+		result.URIs = make([]ClientURIResponseDTO, len(*r.ClientURIs))
 		for i, uri := range *r.ClientURIs {
-			result.URIs[i] = dto.ClientURIResponseDTO{
+			result.URIs[i] = ClientURIResponseDTO{
 				ClientURIUUID: uri.ClientURIUUID,
 				URI:           uri.URI,
 				Type:          uri.Type,
@@ -891,9 +888,9 @@ func toClientResponseDTO(r service.ClientServiceDataResult) dto.ClientResponseDT
 
 	// Map Permissions if present
 	if r.Permissions != nil {
-		permissions := make([]dto.PermissionResponseDTO, len(*r.Permissions))
+		permissions := make([]PermissionResponseDTO, len(*r.Permissions))
 		for i, permission := range *r.Permissions {
-			permissions[i] = dto.PermissionResponseDTO{
+			permissions[i] = PermissionResponseDTO{
 				PermissionUUID: permission.PermissionUUID,
 				Name:           permission.Name,
 				Description:    permission.Description,

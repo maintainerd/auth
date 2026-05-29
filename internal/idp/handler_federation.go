@@ -6,19 +6,17 @@ import (
 	"strconv"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/maintainerd/auth/internal/dto"
 	"github.com/maintainerd/auth/internal/platform/middleware"
 	resp "github.com/maintainerd/auth/internal/platform/response"
-	"github.com/maintainerd/auth/internal/service"
 )
 
 // FederationHandler handles external-identity-provider flows: token exchange,
 // identity link/unlink, and home-realm discovery.
 type FederationHandler struct {
-	federationSvc service.FederationService
+	federationSvc FederationService
 }
 
-func NewFederationHandler(federationSvc service.FederationService) *FederationHandler {
+func NewFederationHandler(federationSvc FederationService) *FederationHandler {
 	return &FederationHandler{federationSvc: federationSvc}
 }
 
@@ -26,7 +24,7 @@ func NewFederationHandler(federationSvc service.FederationService) *FederationHa
 //
 // POST /federation/token
 func (h *FederationHandler) ExchangeExternalToken(w http.ResponseWriter, r *http.Request) {
-	var req dto.FederationTokenRequestDTO
+	var req FederationTokenRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		resp.Error(w, http.StatusBadRequest, "Invalid JSON format")
 		return
@@ -101,7 +99,7 @@ func (h *FederationHandler) LinkIdentity(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	var req dto.LinkIdentityRequestDTO
+	var req LinkIdentityRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		resp.Error(w, http.StatusBadRequest, "Invalid JSON format")
 		return

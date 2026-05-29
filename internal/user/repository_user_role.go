@@ -3,27 +3,26 @@ package user
 import (
 	"errors"
 
-	"github.com/maintainerd/auth/internal/model"
 	"gorm.io/gorm"
 )
 
 type UserRoleRepository interface {
-	BaseRepositoryMethods[model.UserRole]
+	BaseRepositoryMethods[UserRole]
 	WithTx(tx *gorm.DB) UserRoleRepository
-	FindByUserID(userID int64) ([]model.UserRole, error)
-	FindByUserIDAndRoleID(userID int64, roleID int64) (*model.UserRole, error)
-	FindDefaultRolesByUserID(userID int64) ([]model.UserRole, error)
+	FindByUserID(userID int64) ([]UserRole, error)
+	FindByUserIDAndRoleID(userID int64, roleID int64) (*UserRole, error)
+	FindDefaultRolesByUserID(userID int64) ([]UserRole, error)
 	DeleteByUserID(userID int64) error
 	DeleteByUserIDAndRoleID(userID int64, roleID int64) error
 }
 
 type userRoleRepository struct {
-	*BaseRepository[model.UserRole]
+	*BaseRepository[UserRole]
 }
 
 func NewUserRoleRepository(db *gorm.DB) UserRoleRepository {
 	return &userRoleRepository{
-		BaseRepository: NewBaseRepository[model.UserRole](db, "user_role_uuid", "user_role_id"),
+		BaseRepository: NewBaseRepository[UserRole](db, "user_role_uuid", "user_role_id"),
 	}
 }
 
@@ -33,14 +32,14 @@ func (r *userRoleRepository) WithTx(tx *gorm.DB) UserRoleRepository {
 	}
 }
 
-func (r *userRoleRepository) FindByUserID(userID int64) ([]model.UserRole, error) {
-	var userRoles []model.UserRole
+func (r *userRoleRepository) FindByUserID(userID int64) ([]UserRole, error) {
+	var userRoles []UserRole
 	err := r.DB().Where("user_id = ?", userID).Find(&userRoles).Error
 	return userRoles, err
 }
 
-func (r *userRoleRepository) FindByUserIDAndRoleID(userID int64, roleID int64) (*model.UserRole, error) {
-	var ur model.UserRole
+func (r *userRoleRepository) FindByUserIDAndRoleID(userID int64, roleID int64) (*UserRole, error) {
+	var ur UserRole
 	err := r.DB().
 		Where("user_id = ? AND role_id = ?", userID, roleID).
 		First(&ur).Error
@@ -53,8 +52,8 @@ func (r *userRoleRepository) FindByUserIDAndRoleID(userID int64, roleID int64) (
 	return &ur, nil
 }
 
-func (r *userRoleRepository) FindDefaultRolesByUserID(userID int64) ([]model.UserRole, error) {
-	var userRoles []model.UserRole
+func (r *userRoleRepository) FindDefaultRolesByUserID(userID int64) ([]UserRole, error) {
+	var userRoles []UserRole
 	err := r.DB().
 		Where("user_id = ? AND is_default = true", userID).
 		Find(&userRoles).Error
@@ -62,11 +61,11 @@ func (r *userRoleRepository) FindDefaultRolesByUserID(userID int64) ([]model.Use
 }
 
 func (r *userRoleRepository) DeleteByUserID(userID int64) error {
-	return r.DB().Where("user_id = ?", userID).Delete(&model.UserRole{}).Error
+	return r.DB().Where("user_id = ?", userID).Delete(&UserRole{}).Error
 }
 
 func (r *userRoleRepository) DeleteByUserIDAndRoleID(userID int64, roleID int64) error {
 	return r.DB().
 		Where("user_id = ? AND role_id = ?", userID, roleID).
-		Delete(&model.UserRole{}).Error
+		Delete(&UserRole{}).Error
 }

@@ -9,13 +9,10 @@ import (
 
 	oidclib "github.com/coreos/go-oidc/v3/oidc"
 	"github.com/google/uuid"
-	"github.com/maintainerd/auth/internal/dto"
-	"github.com/maintainerd/auth/internal/model"
 	"github.com/maintainerd/auth/internal/platform/apperror"
 	jwtlib "github.com/maintainerd/auth/internal/platform/jwt"
 	"github.com/maintainerd/auth/internal/platform/middleware"
 	"github.com/maintainerd/auth/internal/platform/ptr"
-	"github.com/maintainerd/auth/internal/repository"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -31,44 +28,44 @@ type FederationService interface {
 	// provisions the user, and returns our own JWT. This is the entry point
 	// for frontends that authenticate entirely with an upstream provider
 	// (Google, Cognito, Auth0, …) and want to check permissions via our system.
-	ExchangeExternalToken(ctx context.Context, req dto.FederationTokenRequestDTO) (*dto.LoginResponseDTO, error)
+	ExchangeExternalToken(ctx context.Context, req FederationTokenRequestDTO) (*LoginResponseDTO, error)
 
 	// LinkIdentity attaches an external provider identity to an already
 	// authenticated user. If the identity is already linked to a different user,
 	// the call fails.
-	LinkIdentity(ctx context.Context, userID int64, req dto.LinkIdentityRequestDTO) (*dto.IdentityDTO, error)
+	LinkIdentity(ctx context.Context, userID int64, req LinkIdentityRequestDTO) (*IdentityDTO, error)
 
 	// UnlinkIdentity removes an external provider identity from a user.
 	// The built-in "default" identity cannot be removed.
 	UnlinkIdentity(ctx context.Context, userID int64, identityUUIDStr string) error
 
 	// GetUserIdentities returns all identities (builtin + external) linked to a user.
-	GetUserIdentities(ctx context.Context, userID int64) ([]dto.IdentityDTO, error)
+	GetUserIdentities(ctx context.Context, userID int64) ([]IdentityDTO, error)
 
 	// HomeRealmDiscovery returns the identity provider to use for the given
 	// email address, based on the email-domain list stored in each provider's config.
-	HomeRealmDiscovery(ctx context.Context, tenantID int64, email string) (*dto.HRDResponseDTO, error)
+	HomeRealmDiscovery(ctx context.Context, tenantID int64, email string) (*HRDResponseDTO, error)
 }
 
 type federationService struct {
 	db               *gorm.DB
-	userRepo         repository.UserRepository
-	userIdentityRepo repository.UserIdentityRepository
-	idpRepo          repository.IdentityProviderRepository
-	clientRepo       repository.ClientRepository
-	userRoleRepo     repository.UserRoleRepository
-	roleRepo         repository.RoleRepository
+	userRepo         UserRepository
+	userIdentityRepo UserIdentityRepository
+	idpRepo          IdentityProviderRepository
+	clientRepo       ClientRepository
+	userRoleRepo     UserRoleRepository
+	roleRepo         RoleRepository
 	authEventService AuthEventService
 }
 
 func NewFederationService(
 	db *gorm.DB,
-	userRepo repository.UserRepository,
-	userIdentityRepo repository.UserIdentityRepository,
-	idpRepo repository.IdentityProviderRepository,
-	clientRepo repository.ClientRepository,
-	userRoleRepo repository.UserRoleRepository,
-	roleRepo repository.RoleRepository,
+	userRepo UserRepository,
+	userIdentityRepo UserIdentityRepository,
+	idpRepo IdentityProviderRepository,
+	clientRepo ClientRepository,
+	userRoleRepo UserRoleRepository,
+	roleRepo RoleRepository,
 	authEventService AuthEventService,
 ) FederationService {
 	return &federationService{
@@ -87,7 +84,7 @@ func NewFederationService(
 // Token exchange
 // ──────────────────────────────────────────────────────────────────────────────
 
-func (s *federationService) ExchangeExternalToken(ctx context.Context, req dto.FederationTokenRequestDTO) (*dto.LoginResponseDTO, error) {
+func (s *federationService) ExchangeExternalToken(ctx context.Context, req FederationTokenRequestDTO) (*LoginResponseDTO, error) {
 	_, span := otel.Tracer("service").Start(ctx, "federation.exchange_external_token")
 	defer span.End()
 	span.SetAttributes(attribute.String("provider_identifier", req.ProviderIdentifier))
@@ -101,7 +98,7 @@ func (s *federationService) ExchangeExternalToken(ctx context.Context, req dto.F
 		return nil, apperror.NewValidation("identity provider is not active")
 	}
 
-	var cfg model.OIDCProviderConfig
+	var cfg OIDCProviderConfig
 	if err := json.Unmarshal(idp.Config, &cfg); err != nil || cfg.Issuer == "" {
 		return nil, apperror.NewValidation("identity provider is not configured for OIDC")
 	}
@@ -128,7 +125,7 @@ func (s *federationService) ExchangeExternalToken(ctx context.Context, req dto.F
 	}
 
 	// 4. Find or provision the user.
-	var user *model.User
+	var user *User
 	var internalSub string
 	var isNew bool
 
@@ -162,7 +159,7 @@ func (s *federationService) ExchangeExternalToken(ctx context.Context, req dto.F
 		}
 
 		// Retrieve the internal (default) identity sub for JWT generation.
-		defaultIdentity, err := txUserIdentityRepo.FindByUserIDAndProvider(user.UserID, model.ProviderDefault)
+		defaultIdentity, err := txUserIdentityRepo.FindByUserIDAndProvider(user.UserID, ProviderDefault)
 		if err != nil {
 			return apperror.NewInternal("default identity lookup failed", err)
 		}
@@ -199,10 +196,10 @@ func (s *federationService) ExchangeExternalToken(ctx context.Context, req dto.F
 		ActorUserID: &userID,
 		IPAddress:   middleware.ClientIPFromContext(ctx),
 		UserAgent:   ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),
-		Category:    model.AuthEventCategoryAuthn,
-		EventType:   model.AuthEventTypeTokenCreated,
-		Severity:    model.AuthEventSeverityInfo,
-		Result:      model.AuthEventResultSuccess,
+		Category:    AuthEventCategoryAuthn,
+		EventType:   AuthEventTypeTokenCreated,
+		Severity:    AuthEventSeverityInfo,
+		Result:      AuthEventResultSuccess,
 		Description: ptr.Ptr(desc),
 	})
 
@@ -214,7 +211,7 @@ func (s *federationService) ExchangeExternalToken(ctx context.Context, req dto.F
 // Identity linking / unlinking
 // ──────────────────────────────────────────────────────────────────────────────
 
-func (s *federationService) LinkIdentity(ctx context.Context, userID int64, req dto.LinkIdentityRequestDTO) (*dto.IdentityDTO, error) {
+func (s *federationService) LinkIdentity(ctx context.Context, userID int64, req LinkIdentityRequestDTO) (*IdentityDTO, error) {
 	_, span := otel.Tracer("service").Start(ctx, "federation.link_identity")
 	defer span.End()
 	span.SetAttributes(
@@ -227,7 +224,7 @@ func (s *federationService) LinkIdentity(ctx context.Context, userID int64, req 
 		return nil, apperror.NewNotFound("identity provider not found")
 	}
 
-	var cfg model.OIDCProviderConfig
+	var cfg OIDCProviderConfig
 	if err := json.Unmarshal(idp.Config, &cfg); err != nil || cfg.Issuer == "" {
 		return nil, apperror.NewValidation("identity provider is not configured for OIDC")
 	}
@@ -256,7 +253,7 @@ func (s *federationService) LinkIdentity(ctx context.Context, userID int64, req 
 	metaJSON, _ := json.Marshal(meta)
 	idpID := idp.IdentityProviderID
 
-	identity := &model.UserIdentity{
+	identity := &UserIdentity{
 		UserID:             userID,
 		TenantID:           idp.TenantID,
 		ClientID:           0, // no specific client context for linked identities
@@ -276,10 +273,10 @@ func (s *federationService) LinkIdentity(ctx context.Context, userID int64, req 
 		ActorUserID: &userID,
 		IPAddress:   middleware.ClientIPFromContext(ctx),
 		UserAgent:   ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),
-		Category:    model.AuthEventCategoryAuthn,
-		EventType:   model.AuthEventTypeTokenCreated,
-		Severity:    model.AuthEventSeverityInfo,
-		Result:      model.AuthEventResultSuccess,
+		Category:    AuthEventCategoryAuthn,
+		EventType:   AuthEventTypeTokenCreated,
+		Severity:    AuthEventSeverityInfo,
+		Result:      AuthEventResultSuccess,
 		Description: ptr.Ptr(fmt.Sprintf("linked external identity: %s", idp.Provider)),
 	})
 
@@ -300,7 +297,7 @@ func (s *federationService) UnlinkIdentity(ctx context.Context, userID int64, id
 		return apperror.NewInternal("identity lookup failed", err)
 	}
 
-	var target *model.UserIdentity
+	var target *UserIdentity
 	for i := range identities {
 		if identities[i].UserIdentityUUID.String() == identityUUIDStr {
 			target = &identities[i]
@@ -310,7 +307,7 @@ func (s *federationService) UnlinkIdentity(ctx context.Context, userID int64, id
 	if target == nil {
 		return apperror.NewNotFound("identity not found")
 	}
-	if target.Provider == model.ProviderDefault {
+	if target.Provider == ProviderDefault {
 		return apperror.NewValidation("the built-in identity cannot be unlinked")
 	}
 
@@ -322,10 +319,10 @@ func (s *federationService) UnlinkIdentity(ctx context.Context, userID int64, id
 		ActorUserID: &userID,
 		IPAddress:   middleware.ClientIPFromContext(ctx),
 		UserAgent:   ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),
-		Category:    model.AuthEventCategoryAuthn,
-		EventType:   model.AuthEventTypeTokenCreated,
-		Severity:    model.AuthEventSeverityInfo,
-		Result:      model.AuthEventResultSuccess,
+		Category:    AuthEventCategoryAuthn,
+		EventType:   AuthEventTypeTokenCreated,
+		Severity:    AuthEventSeverityInfo,
+		Result:      AuthEventResultSuccess,
 		Description: ptr.Ptr(fmt.Sprintf("unlinked external identity: %s", target.Provider)),
 	})
 
@@ -333,12 +330,12 @@ func (s *federationService) UnlinkIdentity(ctx context.Context, userID int64, id
 	return nil
 }
 
-func (s *federationService) GetUserIdentities(ctx context.Context, userID int64) ([]dto.IdentityDTO, error) {
+func (s *federationService) GetUserIdentities(ctx context.Context, userID int64) ([]IdentityDTO, error) {
 	identities, err := s.userIdentityRepo.FindByUserID(userID)
 	if err != nil {
 		return nil, apperror.NewInternal("identity lookup failed", err)
 	}
-	result := make([]dto.IdentityDTO, len(identities))
+	result := make([]IdentityDTO, len(identities))
 	for i := range identities {
 		result[i] = *identityToDTO(&identities[i])
 	}
@@ -349,7 +346,7 @@ func (s *federationService) GetUserIdentities(ctx context.Context, userID int64)
 // Home Realm Discovery
 // ──────────────────────────────────────────────────────────────────────────────
 
-func (s *federationService) HomeRealmDiscovery(ctx context.Context, tenantID int64, email string) (*dto.HRDResponseDTO, error) {
+func (s *federationService) HomeRealmDiscovery(ctx context.Context, tenantID int64, email string) (*HRDResponseDTO, error) {
 	_, span := otel.Tracer("service").Start(ctx, "federation.hrd")
 	defer span.End()
 
@@ -364,10 +361,10 @@ func (s *federationService) HomeRealmDiscovery(ctx context.Context, tenantID int
 	}
 
 	for _, idp := range idps {
-		if idp.ProviderType != model.IDPTypeSocial {
+		if idp.ProviderType != IDPTypeSocial {
 			continue
 		}
-		var cfg model.OIDCProviderConfig
+		var cfg OIDCProviderConfig
 		if err := json.Unmarshal(idp.Config, &cfg); err != nil {
 			continue
 		}
@@ -395,7 +392,7 @@ func (s *federationService) HomeRealmDiscovery(ctx context.Context, tenantID int
 
 // validateOIDCToken fetches the provider's OIDC discovery doc, verifies the
 // token's signature + standard claims, and returns the raw claims map.
-func (s *federationService) validateOIDCToken(ctx context.Context, cfg model.OIDCProviderConfig, rawToken string) (map[string]interface{}, error) {
+func (s *federationService) validateOIDCToken(ctx context.Context, cfg OIDCProviderConfig, rawToken string) (map[string]interface{}, error) {
 	provider, err := oidclib.NewProvider(ctx, cfg.Issuer)
 	if err != nil {
 		return nil, fmt.Errorf("OIDC discovery failed for %s: %w", cfg.Issuer, err)
@@ -424,16 +421,16 @@ func (s *federationService) validateOIDCToken(ctx context.Context, cfg model.OID
 func (s *federationService) provisionUser(
 	ctx context.Context,
 	tx *gorm.DB,
-	idp *model.IdentityProvider,
+	idp *IdentityProvider,
 	externalSub string,
 	email string,
-	meta model.IdentityMetadata,
-) (*model.User, bool, error) {
+	meta IdentityMetadata,
+) (*User, bool, error) {
 	txUserRepo := s.userRepo.WithTx(tx)
 	txUserIdentityRepo := s.userIdentityRepo.WithTx(tx)
 
 	// Try to match an existing user by email to merge identities rather than duplicate.
-	var user *model.User
+	var user *User
 	var isNew bool
 	if email != "" {
 		existing, _ := txUserRepo.FindByEmail(email)
@@ -445,7 +442,7 @@ func (s *federationService) provisionUser(
 	if user == nil {
 		// Create a new user from the external profile.
 		username := deriveUsername(meta, email)
-		newUser := &model.User{
+		newUser := &User{
 			Email:           email,
 			Username:        username,
 			IsEmailVerified: stringClaim2(meta.Email) != "",
@@ -459,25 +456,25 @@ func (s *federationService) provisionUser(
 
 		// Assign default role if available.
 		if defaultRole, _ := s.findDefaultRole(s.roleRepo.WithTx(tx), idp.TenantID); defaultRole != nil {
-			_ = tx.Create(&model.UserRole{UserID: user.UserID, RoleID: defaultRole.RoleID}).Error
+			_ = tx.Create(&UserRole{UserID: user.UserID, RoleID: defaultRole.RoleID}).Error
 		}
 	}
 
 	// Create the default (maintainerd) identity if it doesn't exist yet.
 	// This ensures our RBAC system always has a stable sub for the user.
-	defaultIdentity, _ := txUserIdentityRepo.FindByUserIDAndProvider(user.UserID, model.ProviderDefault)
+	defaultIdentity, _ := txUserIdentityRepo.FindByUserIDAndProvider(user.UserID, ProviderDefault)
 	if defaultIdentity == nil {
 		defaultIDP, _ := s.idpRepo.FindDefaultByTenantID(idp.TenantID)
 		var defaultIDPID *int64
 		if defaultIDP != nil {
 			defaultIDPID = &defaultIDP.IdentityProviderID
 		}
-		defIdentity := &model.UserIdentity{
+		defIdentity := &UserIdentity{
 			TenantID:           idp.TenantID,
 			UserID:             user.UserID,
 			ClientID:           0,
 			IdentityProviderID: defaultIDPID,
-			Provider:           model.ProviderDefault,
+			Provider:           ProviderDefault,
 			Sub:                uuid.New().String(),
 			Metadata:           datatypes.JSON([]byte(`{}`)),
 		}
@@ -487,7 +484,7 @@ func (s *federationService) provisionUser(
 	// Create the external identity.
 	idpID := idp.IdentityProviderID
 	metaJSON, _ := json.Marshal(meta)
-	extIdentity := &model.UserIdentity{
+	extIdentity := &UserIdentity{
 		TenantID:           idp.TenantID,
 		UserID:             user.UserID,
 		ClientID:           0,
@@ -504,7 +501,7 @@ func (s *federationService) provisionUser(
 	return user, isNew, nil
 }
 
-func (s *federationService) refreshMetadata(tx *gorm.DB, identity *model.UserIdentity, meta model.IdentityMetadata) error {
+func (s *federationService) refreshMetadata(tx *gorm.DB, identity *UserIdentity, meta IdentityMetadata) error {
 	metaJSON, err := json.Marshal(meta)
 	if err != nil {
 		return err
@@ -512,7 +509,7 @@ func (s *federationService) refreshMetadata(tx *gorm.DB, identity *model.UserIde
 	return tx.Model(identity).Update("metadata", datatypes.JSON(metaJSON)).Error
 }
 
-func (s *federationService) generateTokens(sub string, user *model.User, client *model.Client) (*dto.LoginResponseDTO, error) {
+func (s *federationService) generateTokens(sub string, user *User, client *Client) (*LoginResponseDTO, error) {
 	accessToken, err := jwtlib.GenerateAccessToken(
 		sub,
 		"openid profile email",
@@ -541,7 +538,7 @@ func (s *federationService) generateTokens(sub string, user *model.User, client 
 		return nil, apperror.NewInternal("refresh token generation failed", err)
 	}
 
-	return &dto.LoginResponseDTO{
+	return &LoginResponseDTO{
 		AccessToken:  accessToken,
 		IDToken:      idToken,
 		RefreshToken: refreshToken,
@@ -553,9 +550,9 @@ func (s *federationService) generateTokens(sub string, user *model.User, client 
 
 // findDefaultRole mirrors the logic in registerService to locate the tenant's
 // default role without requiring a separate repository method.
-func (s *federationService) findDefaultRole(roleRepo repository.RoleRepository, tenantID int64) (*model.Role, error) {
+func (s *federationService) findDefaultRole(roleRepo RoleRepository, tenantID int64) (*Role, error) {
 	isDefault := true
-	result, err := roleRepo.FindPaginated(repository.RoleRepositoryGetFilter{
+	result, err := roleRepo.FindPaginated(RoleRepositoryGetFilter{
 		IsDefault: &isDefault,
 		TenantID:  tenantID,
 		Page:      1,
@@ -564,7 +561,7 @@ func (s *federationService) findDefaultRole(roleRepo repository.RoleRepository, 
 	if err == nil && len(result.Data) > 0 {
 		return &result.Data[0], nil
 	}
-	return roleRepo.FindByNameAndTenantID(model.RoleRegistered, tenantID)
+	return roleRepo.FindByNameAndTenantID(RoleRegistered, tenantID)
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -582,7 +579,7 @@ func stringClaim(claims map[string]interface{}, key string) string {
 
 func stringClaim2(s string) string { return s }
 
-func extractMetadata(claims map[string]interface{}, mapping map[string]string) model.IdentityMetadata {
+func extractMetadata(claims map[string]interface{}, mapping map[string]string) IdentityMetadata {
 	claimName := func(field string) string {
 		if mapping != nil {
 			if v, ok := mapping[field]; ok {
@@ -591,7 +588,7 @@ func extractMetadata(claims map[string]interface{}, mapping map[string]string) m
 		}
 		return field
 	}
-	return model.IdentityMetadata{
+	return IdentityMetadata{
 		Email:      stringClaim(claims, claimName("email")),
 		Name:       stringClaim(claims, claimName("name")),
 		GivenName:  stringClaim(claims, claimName("given_name")),
@@ -601,7 +598,7 @@ func extractMetadata(claims map[string]interface{}, mapping map[string]string) m
 	}
 }
 
-func deriveUsername(meta model.IdentityMetadata, email string) string {
+func deriveUsername(meta IdentityMetadata, email string) string {
 	if meta.Name != "" {
 		return strings.ReplaceAll(strings.ToLower(meta.Name), " ", "_")
 	}
@@ -620,16 +617,16 @@ func emailDomain(email string) string {
 	return strings.ToLower(parts[1])
 }
 
-func identityToDTO(ui *model.UserIdentity) *dto.IdentityDTO {
-	d := &dto.IdentityDTO{
+func identityToDTO(ui *UserIdentity) *IdentityDTO {
+	d := &IdentityDTO{
 		IdentityUUID: ui.UserIdentityUUID.String(),
 		Provider:     ui.Provider,
 		Sub:          ui.Sub,
-		IsDefault:    ui.Provider == model.ProviderDefault,
+		IsDefault:    ui.Provider == ProviderDefault,
 		CreatedAt:    ui.CreatedAt.Format(time.RFC3339),
 	}
 
-	var meta model.IdentityMetadata
+	var meta IdentityMetadata
 	if len(ui.Metadata) > 0 {
 		_ = json.Unmarshal(ui.Metadata, &meta)
 	}
@@ -645,8 +642,8 @@ func identityToDTO(ui *model.UserIdentity) *dto.IdentityDTO {
 	return d
 }
 
-func hrdResponseFrom(idp *model.IdentityProvider) *dto.HRDResponseDTO {
-	return &dto.HRDResponseDTO{
+func hrdResponseFrom(idp *IdentityProvider) *HRDResponseDTO {
+	return &HRDResponseDTO{
 		ProviderIdentifier: idp.Identifier,
 		Provider:           idp.Provider,
 		DisplayName:        idp.DisplayName,

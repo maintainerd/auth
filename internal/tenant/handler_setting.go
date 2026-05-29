@@ -4,20 +4,18 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/maintainerd/auth/internal/dto"
 	"github.com/maintainerd/auth/internal/platform/middleware"
 	resp "github.com/maintainerd/auth/internal/platform/response"
-	"github.com/maintainerd/auth/internal/service"
 )
 
 // TenantSettingHandler handles tenant-level settings endpoints with JSONB
 // sub-configs (rate_limit, audit, maintenance, feature_flags).
 type TenantSettingHandler struct {
-	tenantSettingService service.TenantSettingService
+	tenantSettingService TenantSettingService
 }
 
 // NewTenantSettingHandler creates a new TenantSettingHandler.
-func NewTenantSettingHandler(tenantSettingService service.TenantSettingService) *TenantSettingHandler {
+func NewTenantSettingHandler(tenantSettingService TenantSettingService) *TenantSettingHandler {
 	return &TenantSettingHandler{tenantSettingService: tenantSettingService}
 }
 
@@ -37,7 +35,7 @@ func (h *TenantSettingHandler) GetRateLimitConfig(w http.ResponseWriter, r *http
 		return
 	}
 
-	resp.Success(w, dto.TenantSettingConfigResponseDTO(config), "Rate limit config retrieved successfully")
+	resp.Success(w, TenantSettingConfigResponseDTO(config), "Rate limit config retrieved successfully")
 }
 
 // UpdateRateLimitConfig updates the rate limit configuration for the tenant.
@@ -50,7 +48,7 @@ func (h *TenantSettingHandler) UpdateRateLimitConfig(w http.ResponseWriter, r *h
 		return
 	}
 
-	var req dto.TenantSettingUpdateConfigRequestDTO
+	var req TenantSettingUpdateConfigRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		resp.Error(w, http.StatusBadRequest, "Invalid request")
 		return
@@ -67,7 +65,7 @@ func (h *TenantSettingHandler) UpdateRateLimitConfig(w http.ResponseWriter, r *h
 		return
 	}
 
-	resp.Success(w, dto.TenantSettingConfigResponseDTO(result.RateLimitConfig), "Rate limit config updated successfully")
+	resp.Success(w, TenantSettingConfigResponseDTO(result.RateLimitConfig), "Rate limit config updated successfully")
 }
 
 // GetAuditConfig retrieves the audit configuration for the tenant.
@@ -86,7 +84,7 @@ func (h *TenantSettingHandler) GetAuditConfig(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	resp.Success(w, dto.TenantSettingConfigResponseDTO(config), "Audit config retrieved successfully")
+	resp.Success(w, TenantSettingConfigResponseDTO(config), "Audit config retrieved successfully")
 }
 
 // UpdateAuditConfig updates the audit configuration for the tenant.
@@ -99,7 +97,7 @@ func (h *TenantSettingHandler) UpdateAuditConfig(w http.ResponseWriter, r *http.
 		return
 	}
 
-	var req dto.TenantSettingUpdateConfigRequestDTO
+	var req TenantSettingUpdateConfigRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		resp.Error(w, http.StatusBadRequest, "Invalid request")
 		return
@@ -116,7 +114,7 @@ func (h *TenantSettingHandler) UpdateAuditConfig(w http.ResponseWriter, r *http.
 		return
 	}
 
-	resp.Success(w, dto.TenantSettingConfigResponseDTO(result.AuditConfig), "Audit config updated successfully")
+	resp.Success(w, TenantSettingConfigResponseDTO(result.AuditConfig), "Audit config updated successfully")
 }
 
 // GetMaintenanceConfig retrieves the maintenance configuration for the tenant.
@@ -135,7 +133,7 @@ func (h *TenantSettingHandler) GetMaintenanceConfig(w http.ResponseWriter, r *ht
 		return
 	}
 
-	resp.Success(w, dto.TenantSettingConfigResponseDTO(config), "Maintenance config retrieved successfully")
+	resp.Success(w, TenantSettingConfigResponseDTO(config), "Maintenance config retrieved successfully")
 }
 
 // UpdateMaintenanceConfig updates the maintenance configuration for the tenant.
@@ -148,7 +146,7 @@ func (h *TenantSettingHandler) UpdateMaintenanceConfig(w http.ResponseWriter, r 
 		return
 	}
 
-	var req dto.TenantSettingUpdateConfigRequestDTO
+	var req TenantSettingUpdateConfigRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		resp.Error(w, http.StatusBadRequest, "Invalid request")
 		return
@@ -165,7 +163,7 @@ func (h *TenantSettingHandler) UpdateMaintenanceConfig(w http.ResponseWriter, r 
 		return
 	}
 
-	resp.Success(w, dto.TenantSettingConfigResponseDTO(result.MaintenanceConfig), "Maintenance config updated successfully")
+	resp.Success(w, TenantSettingConfigResponseDTO(result.MaintenanceConfig), "Maintenance config updated successfully")
 }
 
 // GetFeatureFlags retrieves the feature flags for the tenant.
@@ -184,7 +182,7 @@ func (h *TenantSettingHandler) GetFeatureFlags(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	resp.Success(w, dto.TenantSettingConfigResponseDTO(config), "Feature flags retrieved successfully")
+	resp.Success(w, TenantSettingConfigResponseDTO(config), "Feature flags retrieved successfully")
 }
 
 // UpdateFeatureFlags updates the feature flags for the tenant.
@@ -197,7 +195,7 @@ func (h *TenantSettingHandler) UpdateFeatureFlags(w http.ResponseWriter, r *http
 		return
 	}
 
-	var req dto.TenantSettingUpdateConfigRequestDTO
+	var req TenantSettingUpdateConfigRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		resp.Error(w, http.StatusBadRequest, "Invalid request")
 		return
@@ -214,5 +212,5 @@ func (h *TenantSettingHandler) UpdateFeatureFlags(w http.ResponseWriter, r *http
 		return
 	}
 
-	resp.Success(w, dto.TenantSettingConfigResponseDTO(result.FeatureFlags), "Feature flags updated successfully")
+	resp.Success(w, TenantSettingConfigResponseDTO(result.FeatureFlags), "Feature flags updated successfully")
 }

@@ -8,7 +8,6 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
-	"github.com/maintainerd/auth/internal/dto"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -38,7 +37,7 @@ func TestOAuthConsentHandler_ListGrants_NoUser(t *testing.T) {
 
 func TestOAuthConsentHandler_ListGrants_ServiceError(t *testing.T) {
 	svc := &mockOAuthConsentService{
-		listGrantsFn: func(_ context.Context, _ int64) ([]dto.OAuthConsentGrantResponseDTO, error) {
+		listGrantsFn: func(_ context.Context, _ int64) ([]OAuthConsentGrantResponseDTO, error) {
 			return nil, errNotFound
 		},
 	}
@@ -53,7 +52,7 @@ func TestOAuthConsentHandler_ListGrants_ServiceError(t *testing.T) {
 }
 
 func TestOAuthConsentHandler_ListGrants_Success(t *testing.T) {
-	grants := []dto.OAuthConsentGrantResponseDTO{
+	grants := []OAuthConsentGrantResponseDTO{
 		{
 			ConsentGrantUUID: uuid.New().String(),
 			ClientName:       "App A",
@@ -64,7 +63,7 @@ func TestOAuthConsentHandler_ListGrants_Success(t *testing.T) {
 		},
 	}
 	svc := &mockOAuthConsentService{
-		listGrantsFn: func(_ context.Context, _ int64) ([]dto.OAuthConsentGrantResponseDTO, error) {
+		listGrantsFn: func(_ context.Context, _ int64) ([]OAuthConsentGrantResponseDTO, error) {
 			return grants, nil
 		},
 	}
@@ -84,8 +83,8 @@ func TestOAuthConsentHandler_ListGrants_Success(t *testing.T) {
 
 func TestOAuthConsentHandler_ListGrants_Empty(t *testing.T) {
 	svc := &mockOAuthConsentService{
-		listGrantsFn: func(_ context.Context, _ int64) ([]dto.OAuthConsentGrantResponseDTO, error) {
-			return []dto.OAuthConsentGrantResponseDTO{}, nil
+		listGrantsFn: func(_ context.Context, _ int64) ([]OAuthConsentGrantResponseDTO, error) {
+			return []OAuthConsentGrantResponseDTO{}, nil
 		},
 	}
 	h := NewOAuthConsentHandler(svc)

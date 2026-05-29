@@ -4,8 +4,6 @@ import (
 	"time"
 
 	validation "github.com/go-ozzo/ozzo-validation/v4"
-
-	"github.com/maintainerd/auth/internal/model"
 )
 
 // Email template list response DTO (without body content)
@@ -57,7 +55,7 @@ func (r EmailTemplateCreateRequestDTO) Validate() error {
 			validation.Required.Error("Body HTML is required"),
 		),
 		validation.Field(&r.Status,
-			validation.In(model.StatusActive, model.StatusInactive).Error("Status must be 'active' or 'inactive'"),
+			validation.In(StatusActive, StatusInactive).Error("Status must be 'active' or 'inactive'"),
 		),
 	)
 }
@@ -85,7 +83,7 @@ func (r EmailTemplateUpdateRequestDTO) Validate() error {
 			validation.Required.Error("Body HTML is required"),
 		),
 		validation.Field(&r.Status,
-			validation.In(model.StatusActive, model.StatusInactive).Error("Status must be 'active' or 'inactive'"),
+			validation.In(StatusActive, StatusInactive).Error("Status must be 'active' or 'inactive'"),
 		),
 	)
 }
@@ -99,7 +97,7 @@ func (r EmailTemplateUpdateStatusRequestDTO) Validate() error {
 	return validation.ValidateStruct(&r,
 		validation.Field(&r.Status,
 			validation.Required.Error("Status is required"),
-			validation.In(model.StatusActive, model.StatusInactive).Error("Status must be 'active' or 'inactive'"),
+			validation.In(StatusActive, StatusInactive).Error("Status must be 'active' or 'inactive'"),
 		),
 	)
 }
@@ -120,7 +118,7 @@ func (f EmailTemplateFilterDTO) Validate() error {
 	return validation.ValidateStruct(&f,
 		validation.Field(&f.Status,
 			validation.When(len(f.Status) > 0,
-				validation.Each(validation.In(model.StatusActive, model.StatusInactive).Error("Status must be 'active' or 'inactive'")),
+				validation.Each(validation.In(StatusActive, StatusInactive).Error("Status must be 'active' or 'inactive'")),
 			),
 		),
 		validation.Field(&f.PaginationRequestDTO),

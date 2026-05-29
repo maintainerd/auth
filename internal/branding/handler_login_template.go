@@ -8,23 +8,20 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
-	"github.com/maintainerd/auth/internal/dto"
-	"github.com/maintainerd/auth/internal/model"
 	"github.com/maintainerd/auth/internal/platform/middleware"
 	"github.com/maintainerd/auth/internal/platform/ptr"
 	resp "github.com/maintainerd/auth/internal/platform/response"
-	"github.com/maintainerd/auth/internal/service"
 )
 
 // LoginTemplateHandler handles HTTP requests for login template management.
 // All endpoints are tenant-scoped - the middleware validates user access to the tenant
 // and sets it in the request context. The service layer ensures templates belong to the tenant.
 type LoginTemplateHandler struct {
-	loginTemplateService service.LoginTemplateService
+	loginTemplateService LoginTemplateService
 }
 
 // NewLoginTemplateHandler creates a new instance of LoginTemplateHandler.
-func NewLoginTemplateHandler(loginTemplateService service.LoginTemplateService) *LoginTemplateHandler {
+func NewLoginTemplateHandler(loginTemplateService LoginTemplateService) *LoginTemplateHandler {
 	return &LoginTemplateHandler{
 		loginTemplateService: loginTemplateService,
 	}
@@ -75,7 +72,7 @@ func (h *LoginTemplateHandler) GetAll(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Build filter DTO with all query parameters
-	filter := dto.LoginTemplateFilterDTO{
+	filter := LoginTemplateFilterDTO{
 		Name:                 ptr.PtrOrNil(q.Get("name")),
 		Status:               status,
 		Template:             ptr.PtrOrNil(q.Get("template")),
@@ -98,7 +95,7 @@ func (h *LoginTemplateHandler) GetAll(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Build paginated response
-	response := dto.PaginatedResponseDTO[dto.LoginTemplateListResponseDTO]{
+	response := PaginatedResponseDTO[LoginTemplateListResponseDTO]{
 		Rows:       toLoginTemplateListResponseDtoList(result.Data),
 		Total:      result.Total,
 		Page:       result.Page,
@@ -152,7 +149,7 @@ func (h *LoginTemplateHandler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Decode request body
-	var req dto.LoginTemplateCreateRequestDTO
+	var req LoginTemplateCreateRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		resp.Error(w, http.StatusBadRequest, "Invalid request")
 		return
@@ -165,7 +162,7 @@ func (h *LoginTemplateHandler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Set default status if not provided
-	status := model.StatusActive
+	status := StatusActive
 	if req.Status != nil {
 		status = *req.Status
 	}
@@ -216,7 +213,7 @@ func (h *LoginTemplateHandler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Decode request body
-	var req dto.LoginTemplateUpdateRequestDTO
+	var req LoginTemplateUpdateRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		resp.Error(w, http.StatusBadRequest, "Invalid request")
 		return
@@ -229,7 +226,7 @@ func (h *LoginTemplateHandler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Set default status if not provided
-	status := model.StatusActive
+	status := StatusActive
 	if req.Status != nil {
 		status = *req.Status
 	}
@@ -312,7 +309,7 @@ func (h *LoginTemplateHandler) UpdateStatus(w http.ResponseWriter, r *http.Reque
 	}
 
 	// Decode request body
-	var req dto.LoginTemplateUpdateStatusRequestDTO
+	var req LoginTemplateUpdateStatusRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		resp.Error(w, http.StatusBadRequest, "Invalid request")
 		return
@@ -337,8 +334,8 @@ func (h *LoginTemplateHandler) UpdateStatus(w http.ResponseWriter, r *http.Reque
 // Helper functions for converting service data to response DTOs
 
 // toLoginTemplateListResponseDTO converts a service result to a list response DTO.
-func toLoginTemplateListResponseDTO(template service.LoginTemplateServiceDataResult) dto.LoginTemplateListResponseDTO {
-	return dto.LoginTemplateListResponseDTO{
+func toLoginTemplateListResponseDTO(template LoginTemplateServiceDataResult) LoginTemplateListResponseDTO {
+	return LoginTemplateListResponseDTO{
 		LoginTemplateID: template.LoginTemplateUUID.String(),
 		Name:            template.Name,
 		Description:     template.Description,
@@ -352,8 +349,8 @@ func toLoginTemplateListResponseDTO(template service.LoginTemplateServiceDataRes
 }
 
 // toLoginTemplateListResponseDtoList converts a slice of service results to list response DTOs.
-func toLoginTemplateListResponseDtoList(templates []service.LoginTemplateServiceDataResult) []dto.LoginTemplateListResponseDTO {
-	result := make([]dto.LoginTemplateListResponseDTO, len(templates))
+func toLoginTemplateListResponseDtoList(templates []LoginTemplateServiceDataResult) []LoginTemplateListResponseDTO {
+	result := make([]LoginTemplateListResponseDTO, len(templates))
 	for i, template := range templates {
 		result[i] = toLoginTemplateListResponseDTO(template)
 	}
@@ -361,8 +358,8 @@ func toLoginTemplateListResponseDtoList(templates []service.LoginTemplateService
 }
 
 // toLoginTemplateResponseDTO converts a service result to a detailed response DTO.
-func toLoginTemplateResponseDTO(template service.LoginTemplateServiceDataResult) dto.LoginTemplateResponseDTO {
-	return dto.LoginTemplateResponseDTO{
+func toLoginTemplateResponseDTO(template LoginTemplateServiceDataResult) LoginTemplateResponseDTO {
+	return LoginTemplateResponseDTO{
 		LoginTemplateID: template.LoginTemplateUUID.String(),
 		Name:            template.Name,
 		Description:     template.Description,

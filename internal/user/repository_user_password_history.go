@@ -1,7 +1,6 @@
 package user
 
 import (
-	"github.com/maintainerd/auth/internal/model"
 	"gorm.io/gorm"
 )
 
@@ -31,7 +30,7 @@ func (r *userPasswordHistoryRepository) WithTx(tx *gorm.DB) UserPasswordHistoryR
 }
 
 func (r *userPasswordHistoryRepository) AddEntry(userID int64, hash string) error {
-	entry := model.UserPasswordHistory{
+	entry := UserPasswordHistory{
 		UserID:       userID,
 		PasswordHash: hash,
 	}
@@ -39,7 +38,7 @@ func (r *userPasswordHistoryRepository) AddEntry(userID int64, hash string) erro
 }
 
 func (r *userPasswordHistoryRepository) FindRecentHashes(userID int64, count int) ([]string, error) {
-	var entries []model.UserPasswordHistory
+	var entries []UserPasswordHistory
 	err := r.db.
 		Where("user_id = ?", userID).
 		Order("created_at DESC").

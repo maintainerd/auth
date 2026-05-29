@@ -7,11 +7,8 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
-	"github.com/maintainerd/auth/internal/model"
 	"github.com/maintainerd/auth/internal/platform/apperror"
 	"github.com/maintainerd/auth/internal/platform/middleware"
-	"github.com/maintainerd/auth/internal/repository"
-	"github.com/maintainerd/auth/internal/service"
 )
 
 const testTenantID int64 = 1
@@ -23,27 +20,27 @@ var (
 )
 
 type mockAuthEventService struct {
-	logFn              func(ctx context.Context, input service.AuthEventInput)
-	findPaginatedFn    func(ctx context.Context, filter repository.AuthEventRepositoryGetFilter) (*repository.PaginationResult[service.AuthEventServiceDataResult], error)
-	findByUUIDFn       func(ctx context.Context, tenantID int64, eventUUID uuid.UUID) (*service.AuthEventServiceDataResult, error)
+	logFn              func(ctx context.Context, input AuthEventInput)
+	findPaginatedFn    func(ctx context.Context, filter AuthEventRepositoryGetFilter) (*PaginationResult[AuthEventServiceDataResult], error)
+	findByUUIDFn       func(ctx context.Context, tenantID int64, eventUUID uuid.UUID) (*AuthEventServiceDataResult, error)
 	countByEventTypeFn func(ctx context.Context, eventType string, tenantID int64) (int64, error)
 	deleteOlderThanFn  func(ctx context.Context, cutoff time.Time) (int64, error)
 }
 
-func (m *mockAuthEventService) Log(ctx context.Context, input service.AuthEventInput) {
+func (m *mockAuthEventService) Log(ctx context.Context, input AuthEventInput) {
 	if m.logFn != nil {
 		m.logFn(ctx, input)
 	}
 }
 
-func (m *mockAuthEventService) FindPaginated(ctx context.Context, filter repository.AuthEventRepositoryGetFilter) (*repository.PaginationResult[service.AuthEventServiceDataResult], error) {
+func (m *mockAuthEventService) FindPaginated(ctx context.Context, filter AuthEventRepositoryGetFilter) (*PaginationResult[AuthEventServiceDataResult], error) {
 	if m.findPaginatedFn != nil {
 		return m.findPaginatedFn(ctx, filter)
 	}
-	return &repository.PaginationResult[service.AuthEventServiceDataResult]{}, nil
+	return &PaginationResult[AuthEventServiceDataResult]{}, nil
 }
 
-func (m *mockAuthEventService) FindByUUID(ctx context.Context, tenantID int64, eventUUID uuid.UUID) (*service.AuthEventServiceDataResult, error) {
+func (m *mockAuthEventService) FindByUUID(ctx context.Context, tenantID int64, eventUUID uuid.UUID) (*AuthEventServiceDataResult, error) {
 	if m.findByUUIDFn != nil {
 		return m.findByUUIDFn(ctx, tenantID, eventUUID)
 	}
@@ -65,7 +62,7 @@ func (m *mockAuthEventService) DeleteOlderThan(ctx context.Context, cutoff time.
 }
 
 func withTenant(r *http.Request) *http.Request {
-	tenant := &model.Tenant{TenantID: testTenantID, TenantUUID: testTenantUUID}
+	tenant := &Tenant{TenantID: testTenantID, TenantUUID: testTenantUUID}
 	return middleware.WithAuthContext(r, &middleware.AuthContext{Tenant: tenant})
 }
 

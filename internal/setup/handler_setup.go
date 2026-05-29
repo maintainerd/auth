@@ -4,16 +4,14 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/maintainerd/auth/internal/dto"
 	resp "github.com/maintainerd/auth/internal/platform/response"
-	"github.com/maintainerd/auth/internal/service"
 )
 
 type SetupHandler struct {
-	setupService service.SetupService
+	setupService SetupService
 }
 
-func NewSetupHandler(setupService service.SetupService) *SetupHandler {
+func NewSetupHandler(setupService SetupService) *SetupHandler {
 	return &SetupHandler{
 		setupService: setupService,
 	}
@@ -32,7 +30,7 @@ func (h *SetupHandler) GetSetupStatus(w http.ResponseWriter, r *http.Request) {
 
 // CreateTenant creates the initial tenant and runs all seeders
 func (h *SetupHandler) CreateTenant(w http.ResponseWriter, r *http.Request) {
-	var req dto.CreateTenantRequestDTO
+	var req CreateTenantRequestDTO
 
 	// Validate body payload
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -57,7 +55,7 @@ func (h *SetupHandler) CreateTenant(w http.ResponseWriter, r *http.Request) {
 
 // CreateAdmin creates the initial admin user
 func (h *SetupHandler) CreateAdmin(w http.ResponseWriter, r *http.Request) {
-	var req dto.CreateAdminRequestDTO
+	var req CreateAdminRequestDTO
 
 	// Validate body payload
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -82,7 +80,7 @@ func (h *SetupHandler) CreateAdmin(w http.ResponseWriter, r *http.Request) {
 
 // CreateProfile creates the initial profile for the admin user
 func (h *SetupHandler) CreateProfile(w http.ResponseWriter, r *http.Request) {
-	var req dto.CreateProfileRequestDTO
+	var req CreateProfileRequestDTO
 
 	// Validate body payload
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {

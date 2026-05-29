@@ -6,9 +6,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/maintainerd/auth/internal/model"
 	"github.com/maintainerd/auth/internal/platform/apperror"
-	"github.com/maintainerd/auth/internal/repository"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -58,14 +56,14 @@ type UserSettingService interface {
 
 type userSettingService struct {
 	db              *gorm.DB
-	userSettingRepo repository.UserSettingRepository
-	userRepo        repository.UserRepository
+	userSettingRepo UserSettingRepository
+	userRepo        UserRepository
 }
 
 func NewUserSettingService(
 	db *gorm.DB,
-	userSettingRepo repository.UserSettingRepository,
-	userRepo repository.UserRepository,
+	userSettingRepo UserSettingRepository,
+	userRepo UserRepository,
 ) UserSettingService {
 	return &userSettingService{
 		db:              db,
@@ -90,7 +88,7 @@ func (s *userSettingService) CreateOrUpdateUserSetting(
 	defer span.End()
 	span.SetAttributes(attribute.String("user_uuid", userUUID.String()))
 
-	var updatedUserSetting *model.UserSetting
+	var updatedUserSetting *UserSetting
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
 		// Step 1: Create transaction-aware repositories
@@ -105,13 +103,13 @@ func (s *userSettingService) CreateOrUpdateUserSetting(
 
 		// Step 3: Try to find existing user setting using repository
 		existingUserSetting, err := txUserSettingRepo.FindByUserID(user.UserID)
-		var userSetting model.UserSetting
+		var userSetting UserSetting
 
 		if err != nil {
 			return err
 		} else if existingUserSetting == nil {
 			// Create new user setting if not found
-			userSetting = model.UserSetting{
+			userSetting = UserSetting{
 				UserSettingUUID: uuid.New(),
 				UserID:          user.UserID,
 			}
@@ -265,7 +263,7 @@ func (s *userSettingService) DeleteByUUID(ctx context.Context, userSettingUUID u
 }
 
 // Helper functions
-func toUserSettingServiceDataResult(userSetting *model.UserSetting) *UserSettingServiceDataResult {
+func toUserSettingServiceDataResult(userSetting *UserSetting) *UserSettingServiceDataResult {
 	if userSetting == nil {
 		return nil
 	}

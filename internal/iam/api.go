@@ -6,10 +6,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/maintainerd/auth/internal/model"
 	"github.com/maintainerd/auth/internal/platform/apperror"
 	"github.com/maintainerd/auth/internal/platform/crypto"
-	"github.com/maintainerd/auth/internal/repository"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -65,16 +63,16 @@ type APIService interface {
 
 type apiService struct {
 	db                *gorm.DB
-	apiRepo           repository.APIRepository
-	serviceRepo       repository.ServiceRepository
-	tenantServiceRepo repository.TenantServiceRepository
+	apiRepo           APIRepository
+	serviceRepo       ServiceRepository
+	tenantServiceRepo TenantServiceRepository
 }
 
 func NewAPIService(
 	db *gorm.DB,
-	apiRepo repository.APIRepository,
-	serviceRepo repository.ServiceRepository,
-	tenantServiceRepo repository.TenantServiceRepository,
+	apiRepo APIRepository,
+	serviceRepo ServiceRepository,
+	tenantServiceRepo TenantServiceRepository,
 ) APIService {
 	return &apiService{
 		db:                db,
@@ -89,7 +87,7 @@ func (s *apiService) Get(ctx context.Context, filter APIServiceGetFilter) (*APIS
 	defer span.End()
 	span.SetAttributes(attribute.Int64("tenant.id", filter.TenantID))
 
-	apiFilter := repository.APIRepositoryGetFilter{
+	apiFilter := APIRepositoryGetFilter{
 		TenantID:    filter.TenantID,
 		Name:        filter.Name,
 		DisplayName: filter.DisplayName,
@@ -152,7 +150,7 @@ func (s *apiService) GetByUUID(ctx context.Context, apiUUID uuid.UUID, tenantID 
 func (s *apiService) GetServiceIDByUUID(ctx context.Context, serviceUUID uuid.UUID) (int64, error) {
 	_, span := otel.Tracer("service").Start(ctx, "api.getServiceID")
 	defer span.End()
-	span.SetAttributes(attribute.String("service.uuid", serviceUUID.String()))
+	span.SetAttributes(attribute.String("uuid", serviceUUID.String()))
 
 	service, err := s.serviceRepo.FindByUUID(serviceUUID)
 	if err != nil {
@@ -166,7 +164,7 @@ func (s *apiService) GetServiceIDByUUID(ctx context.Context, serviceUUID uuid.UU
 	}
 
 	span.SetStatus(codes.Ok, "")
-	return service.ServiceID, nil
+	return ServiceID, nil
 }
 
 func (s *apiService) Create(ctx context.Context, tenantID int64, name string, displayName string, description string, apiType string, status string, isSystem bool, serviceUUID string) (*APIServiceDataResult, error) {
@@ -177,7 +175,7 @@ func (s *apiService) Create(ctx context.Context, tenantID int64, name string, di
 		attribute.String("api.name", name),
 	)
 
-	var createdAPI *model.API
+	var createdAPI *API
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
 		txAPIRepo := s.apiRepo.WithTx(tx)
@@ -206,13 +204,13 @@ func (s *apiService) Create(ctx context.Context, tenantID int64, name string, di
 		identifier := fmt.Sprintf("api-%s", idSuffix)
 
 		// Create api
-		newAPI := &model.API{
+		newAPI := &API{
 			Name:        name,
 			DisplayName: displayName,
 			Description: description,
 			APIType:     apiType,
 			Identifier:  identifier,
-			ServiceID:   service.ServiceID,
+			ServiceID:   ServiceID,
 			TenantID:    tenantID,
 			Status:      status,
 			IsSystem:    isSystem,
@@ -250,7 +248,7 @@ func (s *apiService) Update(ctx context.Context, apiUUID uuid.UUID, tenantID int
 		attribute.Int64("tenant.id", tenantID),
 	)
 
-	var updatedAPI *model.API
+	var updatedAPI *API
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
 		txAPIRepo := s.apiRepo.WithTx(tx)
@@ -291,7 +289,7 @@ func (s *apiService) Update(ctx context.Context, apiUUID uuid.UUID, tenantID int
 		}
 
 		// Verify new service belongs to tenant
-		tenantService, err := txTenantServiceRepo.FindByTenantAndService(tenantID, service.ServiceID)
+		tenantService, err := txTenantServiceRepo.FindByTenantAndService(tenantID, ServiceID)
 		if err != nil || tenantService == nil {
 			return apperror.NewNotFoundWithReason("service not found or access denied")
 		}
@@ -313,7 +311,7 @@ func (s *apiService) Update(ctx context.Context, apiUUID uuid.UUID, tenantID int
 		api.Description = description
 		api.APIType = apiType
 		api.Status = status
-		api.ServiceID = service.ServiceID // Update the service assignment
+		api.ServiceID = ServiceID // Update the service assignment
 
 		// Update
 		_, err = txAPIRepo.CreateOrUpdate(api)
@@ -345,7 +343,7 @@ func (s *apiService) SetStatusByUUID(ctx context.Context, apiUUID uuid.UUID, ten
 		attribute.String("api.status", status),
 	)
 
-	var updatedAPI *model.API
+	var updatedAPI *API
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
 		txAPIRepo := s.apiRepo.WithTx(tx)
@@ -442,7 +440,7 @@ func (s *apiService) DeleteByUUID(ctx context.Context, apiUUID uuid.UUID, tenant
 }
 
 // Reponse builder
-func toAPIServiceDataResult(api *model.API) *APIServiceDataResult {
+func toAPIServiceDataResult(api *API) *APIServiceDataResult {
 	if api == nil {
 		return nil
 	}

@@ -8,14 +8,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/maintainerd/auth/internal/dto"
-	"github.com/maintainerd/auth/internal/model"
 	"github.com/maintainerd/auth/internal/platform/apperror"
 	"github.com/maintainerd/auth/internal/platform/config"
 	"github.com/maintainerd/auth/internal/platform/crypto"
 	"github.com/maintainerd/auth/internal/platform/email"
 	"github.com/maintainerd/auth/internal/platform/security"
-	"github.com/maintainerd/auth/internal/repository"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/codes"
 	"gorm.io/gorm"
@@ -31,24 +28,24 @@ const EmailVerificationOTPTTL = 1 * time.Hour
 const EmailVerificationTemplateName = "internal:user:email:verification"
 
 type EmailVerificationService interface {
-	SendVerificationEmail(ctx context.Context, email string, clientID, providerID *string) (*dto.SendEmailVerificationResponseDTO, error)
-	VerifyEmail(ctx context.Context, email, otp string) (*dto.VerifyEmailResponseDTO, error)
+	SendVerificationEmail(ctx context.Context, email string, clientID, providerID *string) (*SendEmailVerificationResponseDTO, error)
+	VerifyEmail(ctx context.Context, email, otp string) (*VerifyEmailResponseDTO, error)
 }
 
 type emailVerificationService struct {
 	db                *gorm.DB
-	userRepo          repository.UserRepository
-	userTokenRepo     repository.UserTokenRepository
-	clientRepo        repository.ClientRepository
-	emailTemplateRepo repository.EmailTemplateRepository
+	userRepo          UserRepository
+	userTokenRepo     UserTokenRepository
+	clientRepo        ClientRepository
+	emailTemplateRepo EmailTemplateRepository
 }
 
 func NewEmailVerificationService(
 	db *gorm.DB,
-	userRepo repository.UserRepository,
-	userTokenRepo repository.UserTokenRepository,
-	clientRepo repository.ClientRepository,
-	emailTemplateRepo repository.EmailTemplateRepository,
+	userRepo UserRepository,
+	userTokenRepo UserTokenRepository,
+	clientRepo ClientRepository,
+	emailTemplateRepo EmailTemplateRepository,
 ) EmailVerificationService {
 	return &emailVerificationService{
 		db:                db,
@@ -59,11 +56,11 @@ func NewEmailVerificationService(
 	}
 }
 
-func (s *emailVerificationService) SendVerificationEmail(ctx context.Context, emailAddr string, clientID, providerID *string) (*dto.SendEmailVerificationResponseDTO, error) {
+func (s *emailVerificationService) SendVerificationEmail(ctx context.Context, emailAddr string, clientID, providerID *string) (*SendEmailVerificationResponseDTO, error) {
 	_, span := otel.Tracer("service").Start(ctx, "emailVerification.send")
 	defer span.End()
 
-	var user *model.User
+	var user *User
 	var otp string
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
@@ -94,7 +91,7 @@ func (s *emailVerificationService) SendVerificationEmail(ctx context.Context, em
 		}
 
 		// Skip if user is inactive — don't reveal status.
-		if user.Status != model.StatusActive {
+		if user.Status != StatusActive {
 			user = nil
 			return nil
 		}
@@ -106,7 +103,7 @@ func (s *emailVerificationService) SendVerificationEmail(ctx context.Context, em
 		}
 
 		// Revoke any existing email-verification tokens for this user.
-		existingTokens, txErr := txUserTokenRepo.FindByUserIDAndTokenType(user.UserID, model.TokenTypeEmailVerification)
+		existingTokens, txErr := txUserTokenRepo.FindByUserIDAndTokenType(user.UserID, TokenTypeEmailVerification)
 		if txErr != nil {
 			return apperror.NewInternal("failed to find existing tokens", txErr)
 		}
@@ -123,9 +120,9 @@ func (s *emailVerificationService) SendVerificationEmail(ctx context.Context, em
 		}
 
 		expiresAt := time.Now().Add(EmailVerificationOTPTTL)
-		if _, txErr := txUserTokenRepo.Create(&model.UserToken{
+		if _, txErr := txUserTokenRepo.Create(&UserToken{
 			UserID:    user.UserID,
-			TokenType: model.TokenTypeEmailVerification,
+			TokenType: TokenTypeEmailVerification,
 			Token:     otp,
 			ExpiresAt: &expiresAt,
 		}); txErr != nil {
@@ -141,7 +138,7 @@ func (s *emailVerificationService) SendVerificationEmail(ctx context.Context, em
 		return nil, err
 	}
 
-	response := &dto.SendEmailVerificationResponseDTO{
+	response := &SendEmailVerificationResponseDTO{
 		Message: "If an account with that email exists and is not yet verified, we've sent a verification code to it.",
 		Success: true,
 	}
@@ -162,14 +159,14 @@ func (s *emailVerificationService) SendVerificationEmail(ctx context.Context, em
 	return response, nil
 }
 
-func (s *emailVerificationService) VerifyEmail(ctx context.Context, emailAddr, otp string) (*dto.VerifyEmailResponseDTO, error) {
+func (s *emailVerificationService) VerifyEmail(ctx context.Context, emailAddr, otp string) (*VerifyEmailResponseDTO, error) {
 	_, span := otel.Tracer("service").Start(ctx, "emailVerification.verify")
 	defer span.End()
 
 	emailAddr = strings.TrimSpace(strings.ToLower(emailAddr))
 	otp = strings.TrimSpace(otp)
 
-	var user *model.User
+	var user *User
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
 		txUserRepo := s.userRepo.WithTx(tx)
@@ -185,7 +182,7 @@ func (s *emailVerificationService) VerifyEmail(ctx context.Context, emailAddr, o
 			return apperror.NewUnauthorized("invalid or expired verification code")
 		}
 
-		if user.Status != model.StatusActive {
+		if user.Status != StatusActive {
 			return apperror.NewUnauthorized("user account is not active")
 		}
 
@@ -195,11 +192,11 @@ func (s *emailVerificationService) VerifyEmail(ctx context.Context, emailAddr, o
 		}
 
 		// Find an active, non-revoked verification token matching the OTP.
-		var match *model.UserToken
-		var matches []model.UserToken
+		var match *UserToken
+		var matches []UserToken
 		if txErr := tx.Where(
 			"user_id = ? AND token_type = ? AND token = ? AND is_revoked = false",
-			user.UserID, model.TokenTypeEmailVerification, otp,
+			user.UserID, TokenTypeEmailVerification, otp,
 		).Find(&matches).Error; txErr != nil {
 			return apperror.NewInternal("failed to find verification token", txErr)
 		}
@@ -222,7 +219,7 @@ func (s *emailVerificationService) VerifyEmail(ctx context.Context, emailAddr, o
 		}
 
 		// Revoke all email-verification tokens for the user (single-use).
-		existingTokens, txErr := txUserTokenRepo.FindByUserIDAndTokenType(user.UserID, model.TokenTypeEmailVerification)
+		existingTokens, txErr := txUserTokenRepo.FindByUserIDAndTokenType(user.UserID, TokenTypeEmailVerification)
 		if txErr != nil {
 			return apperror.NewInternal("failed to find existing tokens", txErr)
 		}
@@ -259,7 +256,7 @@ func (s *emailVerificationService) VerifyEmail(ctx context.Context, emailAddr, o
 	}
 
 	span.SetStatus(codes.Ok, "")
-	return &dto.VerifyEmailResponseDTO{
+	return &VerifyEmailResponseDTO{
 		Message: "Your email has been verified successfully.",
 		Success: true,
 	}, nil

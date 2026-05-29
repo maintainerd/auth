@@ -4,10 +4,8 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/maintainerd/auth/internal/dto"
 	"github.com/maintainerd/auth/internal/platform/middleware"
 	resp "github.com/maintainerd/auth/internal/platform/response"
-	"github.com/maintainerd/auth/internal/service"
 )
 
 // SecuritySettingHandler handles security configuration operations.
@@ -18,11 +16,11 @@ import (
 // context. The handler retrieves the tenant from context and delegates to the service
 // layer for business logic and data persistence.
 type SecuritySettingHandler struct {
-	securitySettingService service.SecuritySettingService
+	securitySettingService SecuritySettingService
 }
 
 // NewSecuritySettingHandler creates a new security setting handler instance.
-func NewSecuritySettingHandler(securitySettingService service.SecuritySettingService) *SecuritySettingHandler {
+func NewSecuritySettingHandler(securitySettingService SecuritySettingService) *SecuritySettingHandler {
 	return &SecuritySettingHandler{
 		securitySettingService: securitySettingService,
 	}
@@ -50,7 +48,7 @@ func (h *SecuritySettingHandler) GetMFAConfig(w http.ResponseWriter, r *http.Req
 	}
 
 	// Build response
-	response := dto.SecuritySettingConfigResponseDTO(config)
+	response := SecuritySettingConfigResponseDTO(config)
 
 	resp.Success(w, response, "General config retrieved successfully")
 }
@@ -77,7 +75,7 @@ func (h *SecuritySettingHandler) GetPasswordConfig(w http.ResponseWriter, r *htt
 	}
 
 	// Build response
-	response := dto.SecuritySettingConfigResponseDTO(config)
+	response := SecuritySettingConfigResponseDTO(config)
 
 	resp.Success(w, response, "Password config retrieved successfully")
 }
@@ -104,7 +102,7 @@ func (h *SecuritySettingHandler) GetSessionConfig(w http.ResponseWriter, r *http
 	}
 
 	// Build response
-	response := dto.SecuritySettingConfigResponseDTO(config)
+	response := SecuritySettingConfigResponseDTO(config)
 
 	resp.Success(w, response, "Session config retrieved successfully")
 }
@@ -131,7 +129,7 @@ func (h *SecuritySettingHandler) GetThreatConfig(w http.ResponseWriter, r *http.
 	}
 
 	// Build response
-	response := dto.SecuritySettingConfigResponseDTO(config)
+	response := SecuritySettingConfigResponseDTO(config)
 
 	resp.Success(w, response, "Threat config retrieved successfully")
 }
@@ -158,7 +156,7 @@ func (h *SecuritySettingHandler) GetLockoutConfig(w http.ResponseWriter, r *http
 	}
 
 	// Build response
-	response := dto.SecuritySettingConfigResponseDTO(config)
+	response := SecuritySettingConfigResponseDTO(config)
 
 	resp.Success(w, response, "IP config retrieved successfully")
 }
@@ -182,7 +180,7 @@ func (h *SecuritySettingHandler) UpdateMFAConfig(w http.ResponseWriter, r *http.
 	}
 
 	// Decode and validate request body
-	var req dto.SecuritySettingUpdateConfigRequestDTO
+	var req SecuritySettingUpdateConfigRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		resp.Error(w, http.StatusBadRequest, "Invalid request")
 		return
@@ -221,7 +219,7 @@ func (h *SecuritySettingHandler) UpdateMFAConfig(w http.ResponseWriter, r *http.
 	}
 
 	// Build response
-	response := dto.SecuritySettingConfigResponseDTO(config)
+	response := SecuritySettingConfigResponseDTO(config)
 
 	resp.Success(w, response, "General config updated successfully")
 }
@@ -244,7 +242,7 @@ func (h *SecuritySettingHandler) UpdatePasswordConfig(w http.ResponseWriter, r *
 	}
 
 	// Decode and validate request body
-	var req dto.SecuritySettingUpdateConfigRequestDTO
+	var req SecuritySettingUpdateConfigRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		resp.Error(w, http.StatusBadRequest, "Invalid request")
 		return
@@ -283,7 +281,7 @@ func (h *SecuritySettingHandler) UpdatePasswordConfig(w http.ResponseWriter, r *
 	}
 
 	// Build response
-	response := dto.SecuritySettingConfigResponseDTO(config)
+	response := SecuritySettingConfigResponseDTO(config)
 
 	resp.Success(w, response, "Password config updated successfully")
 }
@@ -306,7 +304,7 @@ func (h *SecuritySettingHandler) UpdateSessionConfig(w http.ResponseWriter, r *h
 	}
 
 	// Decode and validate request body
-	var req dto.SecuritySettingUpdateConfigRequestDTO
+	var req SecuritySettingUpdateConfigRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		resp.Error(w, http.StatusBadRequest, "Invalid request")
 		return
@@ -345,7 +343,7 @@ func (h *SecuritySettingHandler) UpdateSessionConfig(w http.ResponseWriter, r *h
 	}
 
 	// Build response
-	response := dto.SecuritySettingConfigResponseDTO(config)
+	response := SecuritySettingConfigResponseDTO(config)
 
 	resp.Success(w, response, "Session config updated successfully")
 }
@@ -368,7 +366,7 @@ func (h *SecuritySettingHandler) UpdateThreatConfig(w http.ResponseWriter, r *ht
 	}
 
 	// Decode and validate request body
-	var req dto.SecuritySettingUpdateConfigRequestDTO
+	var req SecuritySettingUpdateConfigRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		resp.Error(w, http.StatusBadRequest, "Invalid request")
 		return
@@ -407,7 +405,7 @@ func (h *SecuritySettingHandler) UpdateThreatConfig(w http.ResponseWriter, r *ht
 	}
 
 	// Build response
-	response := dto.SecuritySettingConfigResponseDTO(config)
+	response := SecuritySettingConfigResponseDTO(config)
 
 	resp.Success(w, response, "Threat config updated successfully")
 }
@@ -430,7 +428,7 @@ func (h *SecuritySettingHandler) UpdateLockoutConfig(w http.ResponseWriter, r *h
 	}
 
 	// Decode and validate request body
-	var req dto.SecuritySettingUpdateConfigRequestDTO
+	var req SecuritySettingUpdateConfigRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		resp.Error(w, http.StatusBadRequest, "Invalid request")
 		return
@@ -469,7 +467,7 @@ func (h *SecuritySettingHandler) UpdateLockoutConfig(w http.ResponseWriter, r *h
 	}
 
 	// Build response
-	response := dto.SecuritySettingConfigResponseDTO(config)
+	response := SecuritySettingConfigResponseDTO(config)
 
 	resp.Success(w, response, "IP config updated successfully")
 }
@@ -490,7 +488,7 @@ func (h *SecuritySettingHandler) GetRegistrationConfig(w http.ResponseWriter, r 
 		return
 	}
 
-	response := dto.SecuritySettingConfigResponseDTO(config)
+	response := SecuritySettingConfigResponseDTO(config)
 	resp.Success(w, response, "Registration config retrieved successfully")
 }
 
@@ -510,7 +508,7 @@ func (h *SecuritySettingHandler) GetTokenConfig(w http.ResponseWriter, r *http.R
 		return
 	}
 
-	response := dto.SecuritySettingConfigResponseDTO(config)
+	response := SecuritySettingConfigResponseDTO(config)
 	resp.Success(w, response, "Token config retrieved successfully")
 }
 
@@ -525,7 +523,7 @@ func (h *SecuritySettingHandler) UpdateRegistrationConfig(w http.ResponseWriter,
 		return
 	}
 
-	var req dto.SecuritySettingUpdateConfigRequestDTO
+	var req SecuritySettingUpdateConfigRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		resp.Error(w, http.StatusBadRequest, "Invalid request")
 		return
@@ -558,7 +556,7 @@ func (h *SecuritySettingHandler) UpdateRegistrationConfig(w http.ResponseWriter,
 		return
 	}
 
-	response := dto.SecuritySettingConfigResponseDTO(config)
+	response := SecuritySettingConfigResponseDTO(config)
 	resp.Success(w, response, "Registration config updated successfully")
 }
 
@@ -573,7 +571,7 @@ func (h *SecuritySettingHandler) UpdateTokenConfig(w http.ResponseWriter, r *htt
 		return
 	}
 
-	var req dto.SecuritySettingUpdateConfigRequestDTO
+	var req SecuritySettingUpdateConfigRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		resp.Error(w, http.StatusBadRequest, "Invalid request")
 		return
@@ -606,6 +604,6 @@ func (h *SecuritySettingHandler) UpdateTokenConfig(w http.ResponseWriter, r *htt
 		return
 	}
 
-	response := dto.SecuritySettingConfigResponseDTO(config)
+	response := SecuritySettingConfigResponseDTO(config)
 	resp.Success(w, response, "Token config updated successfully")
 }

@@ -5,14 +5,11 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/maintainerd/auth/internal/dto"
-	"github.com/maintainerd/auth/internal/model"
 	"github.com/maintainerd/auth/internal/platform/apperror"
 	"github.com/maintainerd/auth/internal/platform/jwt"
 	"github.com/maintainerd/auth/internal/platform/middleware"
 	"github.com/maintainerd/auth/internal/platform/ptr"
 	"github.com/maintainerd/auth/internal/platform/security"
-	"github.com/maintainerd/auth/internal/repository"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/codes"
 	"golang.org/x/crypto/bcrypt"
@@ -20,33 +17,33 @@ import (
 )
 
 type LoginService interface {
-	LoginPublic(ctx context.Context, usernameOrEmail, password, clientID, providerID string) (*dto.LoginResponseDTO, error)
-	Login(ctx context.Context, usernameOrEmail, password string, clientID, providerID *string) (*dto.LoginResponseDTO, error)
-	GetUserByEmail(ctx context.Context, email string, tenantID int64) (*model.User, error)
+	LoginPublic(ctx context.Context, usernameOrEmail, password, clientID, providerID string) (*LoginResponseDTO, error)
+	Login(ctx context.Context, usernameOrEmail, password string, clientID, providerID *string) (*LoginResponseDTO, error)
+	GetUserByEmail(ctx context.Context, email string, tenantID int64) (*User, error)
 }
 
 type loginService struct {
 	db                   *gorm.DB
-	clientRepo           repository.ClientRepository
-	userRepo             repository.UserRepository
-	userTokenRepo        repository.UserTokenRepository
-	userIdentityRepo     repository.UserIdentityRepository
-	identityProviderRepo repository.IdentityProviderRepository
+	clientRepo           ClientRepository
+	userRepo             UserRepository
+	userTokenRepo        UserTokenRepository
+	userIdentityRepo     UserIdentityRepository
+	identityProviderRepo IdentityProviderRepository
 	authEventService     AuthEventService
 	sessionService       SessionService
-	securitySettingRepo  repository.SecuritySettingRepository // nil → skip expiry check
+	securitySettingRepo  SecuritySettingRepository // nil → skip expiry check
 }
 
 func NewLoginService(
 	db *gorm.DB,
-	clientRepo repository.ClientRepository,
-	userRepo repository.UserRepository,
-	userTokenRepo repository.UserTokenRepository,
-	userIdentityRepo repository.UserIdentityRepository,
-	identityProviderRepo repository.IdentityProviderRepository,
+	clientRepo ClientRepository,
+	userRepo UserRepository,
+	userTokenRepo UserTokenRepository,
+	userIdentityRepo UserIdentityRepository,
+	identityProviderRepo IdentityProviderRepository,
 	authEventService AuthEventService,
 	sessionService SessionService,
-	securitySettingRepo repository.SecuritySettingRepository,
+	securitySettingRepo SecuritySettingRepository,
 ) LoginService {
 	return &loginService{
 		db:                   db,
@@ -68,7 +65,7 @@ var generateRefreshTokenFn = jwt.GenerateRefreshToken
 // LoginPublic authenticates users for public-facing applications.
 // Requires clientID and providerID to identify the auth client.
 // Used by external applications on port 8081.
-func (s *loginService) LoginPublic(ctx context.Context, usernameOrEmail, password, clientID, providerID string) (result *dto.LoginResponseDTO, err error) {
+func (s *loginService) LoginPublic(ctx context.Context, usernameOrEmail, password, clientID, providerID string) (result *LoginResponseDTO, err error) {
 	_, span := otel.Tracer("service").Start(ctx, "login.public")
 	defer func() {
 		if err != nil {
@@ -95,8 +92,8 @@ func (s *loginService) LoginPublic(ctx context.Context, usernameOrEmail, passwor
 		return nil, err
 	}
 
-	var user *model.User
-	var client *model.Client
+	var user *User
+	var client *Client
 	var userLookupErr error
 	var userIdentitySub string
 
@@ -145,7 +142,7 @@ func (s *loginService) LoginPublic(ctx context.Context, usernameOrEmail, passwor
 		}
 
 		if client == nil ||
-			client.Status != model.StatusActive ||
+			client.Status != StatusActive ||
 			client.Domain == nil || *client.Domain == "" {
 			security.LogSecurityEvent(security.SecurityEvent{
 				EventType: "login_invalid_client",
@@ -206,10 +203,10 @@ func (s *loginService) LoginPublic(ctx context.Context, usernameOrEmail, passwor
 				TenantID:    client.IdentityProvider.TenantID,
 				IPAddress:   middleware.ClientIPFromContext(ctx),
 				UserAgent:   ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),
-				Category:    model.AuthEventCategoryAuthn,
-				EventType:   model.AuthEventTypeLoginFail,
-				Severity:    model.AuthEventSeverityWarn,
-				Result:      model.AuthEventResultFailure,
+				Category:    AuthEventCategoryAuthn,
+				EventType:   AuthEventTypeLoginFail,
+				Severity:    AuthEventSeverityWarn,
+				Result:      AuthEventResultFailure,
 				Description: ptr.Ptr("Invalid credentials"),
 			})
 		}
@@ -218,7 +215,7 @@ func (s *loginService) LoginPublic(ctx context.Context, usernameOrEmail, passwor
 	}
 
 	// Check if user account is active
-	if user.Status != model.StatusActive {
+	if user.Status != StatusActive {
 		security.LogSecurityEvent(security.SecurityEvent{
 			EventType: "login_inactive_user",
 			UserID:    user.UserUUID.String(),
@@ -232,10 +229,10 @@ func (s *loginService) LoginPublic(ctx context.Context, usernameOrEmail, passwor
 			ActorUserID: &user.UserID,
 			IPAddress:   middleware.ClientIPFromContext(ctx),
 			UserAgent:   ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),
-			Category:    model.AuthEventCategoryAuthn,
-			EventType:   model.AuthEventTypeLoginFail,
-			Severity:    model.AuthEventSeverityWarn,
-			Result:      model.AuthEventResultFailure,
+			Category:    AuthEventCategoryAuthn,
+			EventType:   AuthEventTypeLoginFail,
+			Severity:    AuthEventSeverityWarn,
+			Result:      AuthEventResultFailure,
 			Description: ptr.Ptr("Attempt to login with inactive account"),
 		})
 
@@ -259,10 +256,10 @@ func (s *loginService) LoginPublic(ctx context.Context, usernameOrEmail, passwor
 		ActorUserID: &user.UserID,
 		IPAddress:   middleware.ClientIPFromContext(ctx),
 		UserAgent:   ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),
-		Category:    model.AuthEventCategoryAuthn,
-		EventType:   model.AuthEventTypeLoginSuccess,
-		Severity:    model.AuthEventSeverityInfo,
-		Result:      model.AuthEventResultSuccess,
+		Category:    AuthEventCategoryAuthn,
+		EventType:   AuthEventTypeLoginSuccess,
+		Severity:    AuthEventSeverityInfo,
+		Result:      AuthEventResultSuccess,
 		Description: ptr.Ptr(fmt.Sprintf("Successful login for user %s", user.Username)),
 	})
 
@@ -277,7 +274,7 @@ func (s *loginService) LoginPublic(ctx context.Context, usernameOrEmail, passwor
 // If clientID and providerID are provided, uses the specified auth client.
 // If not provided, uses the default auth client.
 // Used by internal applications on port 8080.
-func (s *loginService) Login(ctx context.Context, usernameOrEmail, password string, clientID, providerID *string) (result *dto.LoginResponseDTO, err error) {
+func (s *loginService) Login(ctx context.Context, usernameOrEmail, password string, clientID, providerID *string) (result *LoginResponseDTO, err error) {
 	_, span := otel.Tracer("service").Start(ctx, "login.internal")
 	defer func() {
 		if err != nil {
@@ -302,8 +299,8 @@ func (s *loginService) Login(ctx context.Context, usernameOrEmail, password stri
 		return nil, err
 	}
 
-	var user *model.User
-	var client *model.Client
+	var user *User
+	var client *Client
 	var userIdentitySub string
 
 	// All database operations in transaction for consistency
@@ -343,7 +340,7 @@ func (s *loginService) Login(ctx context.Context, usernameOrEmail, password stri
 		}
 
 		if client == nil ||
-			client.Status != model.StatusActive ||
+			client.Status != StatusActive ||
 			client.Domain == nil || *client.Domain == "" {
 			security.LogSecurityEvent(security.SecurityEvent{
 				EventType: "login_invalid_client",
@@ -406,10 +403,10 @@ func (s *loginService) Login(ctx context.Context, usernameOrEmail, password stri
 				TenantID:    client.IdentityProvider.TenantID,
 				IPAddress:   middleware.ClientIPFromContext(ctx),
 				UserAgent:   ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),
-				Category:    model.AuthEventCategoryAuthn,
-				EventType:   model.AuthEventTypeLoginFail,
-				Severity:    model.AuthEventSeverityWarn,
-				Result:      model.AuthEventResultFailure,
+				Category:    AuthEventCategoryAuthn,
+				EventType:   AuthEventTypeLoginFail,
+				Severity:    AuthEventSeverityWarn,
+				Result:      AuthEventResultFailure,
 				Description: ptr.Ptr("Invalid credentials"),
 			})
 		}
@@ -418,7 +415,7 @@ func (s *loginService) Login(ctx context.Context, usernameOrEmail, password stri
 	}
 
 	// Check if user account is active
-	if user.Status != model.StatusActive {
+	if user.Status != StatusActive {
 		security.LogSecurityEvent(security.SecurityEvent{
 			EventType: "login_inactive_user",
 			UserID:    user.UserUUID.String(),
@@ -432,10 +429,10 @@ func (s *loginService) Login(ctx context.Context, usernameOrEmail, password stri
 			ActorUserID: &user.UserID,
 			IPAddress:   middleware.ClientIPFromContext(ctx),
 			UserAgent:   ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),
-			Category:    model.AuthEventCategoryAuthn,
-			EventType:   model.AuthEventTypeLoginFail,
-			Severity:    model.AuthEventSeverityWarn,
-			Result:      model.AuthEventResultFailure,
+			Category:    AuthEventCategoryAuthn,
+			EventType:   AuthEventTypeLoginFail,
+			Severity:    AuthEventSeverityWarn,
+			Result:      AuthEventResultFailure,
 			Description: ptr.Ptr("Attempt to login with inactive account"),
 		})
 
@@ -459,10 +456,10 @@ func (s *loginService) Login(ctx context.Context, usernameOrEmail, password stri
 		ActorUserID: &user.UserID,
 		IPAddress:   middleware.ClientIPFromContext(ctx),
 		UserAgent:   ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),
-		Category:    model.AuthEventCategoryAuthn,
-		EventType:   model.AuthEventTypeLoginSuccess,
-		Severity:    model.AuthEventSeverityInfo,
-		Result:      model.AuthEventResultSuccess,
+		Category:    AuthEventCategoryAuthn,
+		EventType:   AuthEventTypeLoginSuccess,
+		Severity:    AuthEventSeverityInfo,
+		Result:      AuthEventResultSuccess,
 		Description: ptr.Ptr(fmt.Sprintf("Successful internal login for user %s", user.Username)),
 	})
 
@@ -475,10 +472,10 @@ func (s *loginService) Login(ctx context.Context, usernameOrEmail, password stri
 
 // GetUserByEmail looks up a user by email, scoped to the given tenant when
 // tenantID > 0. Falls back to a global lookup only when no tenant is specified.
-func (s *loginService) GetUserByEmail(ctx context.Context, email string, tenantID int64) (*model.User, error) {
+func (s *loginService) GetUserByEmail(ctx context.Context, email string, tenantID int64) (*User, error) {
 	_, span := otel.Tracer("service").Start(ctx, "login.getUserByEmail")
 	defer span.End()
-	var user *model.User
+	var user *User
 	var err error
 	if tenantID > 0 {
 		user, err = s.userRepo.FindByEmailAndTenantID(email, tenantID)
@@ -497,7 +494,7 @@ func (s *loginService) GetUserByEmail(ctx context.Context, email string, tenantI
 // checkPasswordExpiry marks ForcePasswordChange on the user if the policy has an
 // ExpiryDays > 0 and the password was last changed more than ExpiryDays ago.
 // A nil securitySettingRepo or a user with no PasswordChangedAt is a no-op.
-func (s *loginService) checkPasswordExpiry(ctx context.Context, user *model.User, tenantID int64) {
+func (s *loginService) checkPasswordExpiry(ctx context.Context, user *User, tenantID int64) {
 	if s.securitySettingRepo == nil || user.PasswordChangedAt == nil {
 		return
 	}
@@ -512,7 +509,7 @@ func (s *loginService) checkPasswordExpiry(ctx context.Context, user *model.User
 	}
 }
 
-func (s *loginService) generateTokenResponse(ctx context.Context, sub string, user *model.User, Client *model.Client) (*dto.LoginResponseDTO, error) {
+func (s *loginService) generateTokenResponse(ctx context.Context, sub string, user *User, Client *Client) (*LoginResponseDTO, error) {
 	accessToken, err := jwt.GenerateAccessToken(
 		sub,
 		"openid profile email",
@@ -544,7 +541,7 @@ func (s *loginService) generateTokenResponse(ctx context.Context, sub string, us
 		return nil, err
 	}
 
-	resp := &dto.LoginResponseDTO{
+	resp := &LoginResponseDTO{
 		AccessToken:           accessToken,
 		IDToken:               idToken,
 		RefreshToken:          refreshToken,

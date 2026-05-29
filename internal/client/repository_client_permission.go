@@ -3,25 +3,24 @@ package client
 import (
 	"errors"
 
-	"github.com/maintainerd/auth/internal/model"
 	"gorm.io/gorm"
 )
 
 type ClientPermissionRepository interface {
-	BaseRepositoryMethods[model.ClientPermission]
+	BaseRepositoryMethods[ClientPermission]
 	WithTx(tx *gorm.DB) ClientPermissionRepository
-	FindByClientAPIAndPermission(clientAPIID int64, permissionID int64) (*model.ClientPermission, error)
+	FindByClientAPIAndPermission(clientAPIID int64, permissionID int64) (*ClientPermission, error)
 	RemoveByClientAPIAndPermission(clientAPIID int64, permissionID int64) error
-	FindByClientAPIID(clientAPIID int64) ([]model.ClientPermission, error)
+	FindByClientAPIID(clientAPIID int64) ([]ClientPermission, error)
 }
 
 type clientPermissionRepository struct {
-	*BaseRepository[model.ClientPermission]
+	*BaseRepository[ClientPermission]
 }
 
 func NewClientPermissionRepository(db *gorm.DB) ClientPermissionRepository {
 	return &clientPermissionRepository{
-		BaseRepository: NewBaseRepository[model.ClientPermission](db, "client_permission_uuid", "client_permission_id"),
+		BaseRepository: NewBaseRepository[ClientPermission](db, "client_permission_uuid", "client_permission_id"),
 	}
 }
 
@@ -31,8 +30,8 @@ func (r *clientPermissionRepository) WithTx(tx *gorm.DB) ClientPermissionReposit
 	}
 }
 
-func (r *clientPermissionRepository) FindByClientAPIAndPermission(clientAPIID int64, permissionID int64) (*model.ClientPermission, error) {
-	var clientPermission model.ClientPermission
+func (r *clientPermissionRepository) FindByClientAPIAndPermission(clientAPIID int64, permissionID int64) (*ClientPermission, error) {
+	var clientPermission ClientPermission
 	err := r.DB().Where("client_api_id = ? AND permission_id = ?", clientAPIID, permissionID).First(&clientPermission).Error
 
 	if err != nil {
@@ -48,11 +47,11 @@ func (r *clientPermissionRepository) FindByClientAPIAndPermission(clientAPIID in
 func (r *clientPermissionRepository) RemoveByClientAPIAndPermission(clientAPIID int64, permissionID int64) error {
 	return r.DB().
 		Where("client_api_id = ? AND permission_id = ?", clientAPIID, permissionID).
-		Unscoped().Delete(&model.ClientPermission{}).Error
+		Unscoped().Delete(&ClientPermission{}).Error
 }
 
-func (r *clientPermissionRepository) FindByClientAPIID(clientAPIID int64) ([]model.ClientPermission, error) {
-	var permissions []model.ClientPermission
+func (r *clientPermissionRepository) FindByClientAPIID(clientAPIID int64) ([]ClientPermission, error) {
+	var permissions []ClientPermission
 	err := r.DB().Where("client_api_id = ?", clientAPIID).
 		Preload("Permission").
 		Find(&permissions).Error

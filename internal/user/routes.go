@@ -4,15 +4,13 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/maintainerd/auth/internal/platform/cache"
 	"github.com/maintainerd/auth/internal/platform/middleware"
-	"github.com/maintainerd/auth/internal/rest/handler"
-	"github.com/maintainerd/auth/internal/service"
 )
 
 // AccountRoute mounts authenticated self-service account management endpoints.
 func AccountRoute(
 	r chi.Router,
-	accountHandler *handler.AccountHandler,
-	userService service.UserService,
+	accountHandler *AccountHandler,
+	userService UserService,
 	appCache *cache.Cache,
 ) {
 	r.Route("/account", func(r chi.Router) {
@@ -45,7 +43,7 @@ func AccountRoute(
 // RecoveryRoute mounts unauthenticated account recovery endpoints.
 func RecoveryRoute(
 	r chi.Router,
-	accountHandler *handler.AccountHandler,
+	accountHandler *AccountHandler,
 ) {
 	r.Route("/recovery", func(r chi.Router) {
 		// Backup-code based account recovery (issues tokens)

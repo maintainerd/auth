@@ -7,7 +7,6 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
-	"github.com/maintainerd/auth/internal/service"
 	"github.com/stretchr/testify/assert"
 	"gorm.io/datatypes"
 )
@@ -32,9 +31,9 @@ func TestIdentityProviderHandler_Get(t *testing.T) {
 		// Covers is_default/is_system bool parse, status/provider array branches,
 		// loop body (rows[i] = toIdpListResponseDTO), and toIdpListResponseDTO itself.
 		svc := &mockIdentityProviderService{
-			getFn: func(f service.IdentityProviderServiceGetFilter) (*service.IdentityProviderServiceGetResult, error) {
-				return &service.IdentityProviderServiceGetResult{
-					Data: []service.IdentityProviderServiceDataResult{{Name: "idp1"}},
+			getFn: func(f IdentityProviderServiceGetFilter) (*IdentityProviderServiceGetResult, error) {
+				return &IdentityProviderServiceGetResult{
+					Data: []IdentityProviderServiceDataResult{{Name: "idp1"}},
 				}, nil
 			},
 		}
@@ -55,7 +54,7 @@ func TestIdentityProviderHandler_Get(t *testing.T) {
 
 	t.Run("service error returns 500", func(t *testing.T) {
 		svc := &mockIdentityProviderService{
-			getFn: func(f service.IdentityProviderServiceGetFilter) (*service.IdentityProviderServiceGetResult, error) {
+			getFn: func(f IdentityProviderServiceGetFilter) (*IdentityProviderServiceGetResult, error) {
 				return nil, errors.New("db error")
 			},
 		}
@@ -81,7 +80,7 @@ func TestIdentityProviderHandler_GetByUUID(t *testing.T) {
 
 	t.Run("service error returns 404", func(t *testing.T) {
 		svc := &mockIdentityProviderService{
-			getByUUIDFn: func(id uuid.UUID, tid int64) (*service.IdentityProviderServiceDataResult, error) {
+			getByUUIDFn: func(id uuid.UUID, tid int64) (*IdentityProviderServiceDataResult, error) {
 				return nil, errNotFound
 			},
 		}
@@ -95,8 +94,8 @@ func TestIdentityProviderHandler_GetByUUID(t *testing.T) {
 
 	t.Run("success", func(t *testing.T) {
 		svc := &mockIdentityProviderService{
-			getByUUIDFn: func(id uuid.UUID, tid int64) (*service.IdentityProviderServiceDataResult, error) {
-				return &service.IdentityProviderServiceDataResult{IdentityProviderUUID: id}, nil
+			getByUUIDFn: func(id uuid.UUID, tid int64) (*IdentityProviderServiceDataResult, error) {
+				return &IdentityProviderServiceDataResult{IdentityProviderUUID: id}, nil
 			},
 		}
 		r := jsonReq(t, http.MethodGet, "/", nil)
@@ -110,10 +109,10 @@ func TestIdentityProviderHandler_GetByUUID(t *testing.T) {
 	t.Run("success with tenant covers toIdpDetailResponseDTO tenant branch", func(t *testing.T) {
 		// Covers the r.Tenant != nil branch in toIdpDetailResponseDTO (lines 310-322).
 		svc := &mockIdentityProviderService{
-			getByUUIDFn: func(id uuid.UUID, tid int64) (*service.IdentityProviderServiceDataResult, error) {
-				return &service.IdentityProviderServiceDataResult{
+			getByUUIDFn: func(id uuid.UUID, tid int64) (*IdentityProviderServiceDataResult, error) {
+				return &IdentityProviderServiceDataResult{
 					IdentityProviderUUID: id,
-					Tenant: &service.TenantServiceDataResult{
+					Tenant: &TenantServiceDataResult{
 						TenantUUID: testTenantUUID,
 						Name:       "main",
 					},
@@ -155,7 +154,7 @@ func TestIdentityProviderHandler_Create(t *testing.T) {
 
 	t.Run("service error returns 500", func(t *testing.T) {
 		svc := &mockIdentityProviderService{
-			createFn: func(name, display, provider, providerType string, config datatypes.JSON, status, tUUID string, tid int64, actor uuid.UUID) (*service.IdentityProviderServiceDataResult, error) {
+			createFn: func(name, display, provider, providerType string, config datatypes.JSON, status, tUUID string, tid int64, actor uuid.UUID) (*IdentityProviderServiceDataResult, error) {
 				return nil, errors.New("db error")
 			},
 		}
@@ -168,8 +167,8 @@ func TestIdentityProviderHandler_Create(t *testing.T) {
 
 	t.Run("success", func(t *testing.T) {
 		svc := &mockIdentityProviderService{
-			createFn: func(name, display, provider, providerType string, config datatypes.JSON, status, tUUID string, tid int64, actor uuid.UUID) (*service.IdentityProviderServiceDataResult, error) {
-				return &service.IdentityProviderServiceDataResult{Name: name}, nil
+			createFn: func(name, display, provider, providerType string, config datatypes.JSON, status, tUUID string, tid int64, actor uuid.UUID) (*IdentityProviderServiceDataResult, error) {
+				return &IdentityProviderServiceDataResult{Name: name}, nil
 			},
 		}
 		r := jsonReq(t, http.MethodPost, "/idps", validBody)
@@ -217,7 +216,7 @@ func TestIdentityProviderHandler_Update(t *testing.T) {
 
 	t.Run("service error returns 500", func(t *testing.T) {
 		svc := &mockIdentityProviderService{
-			updateFn: func(id uuid.UUID, name, display, provider, providerType string, config datatypes.JSON, status string, tid int64, actor uuid.UUID) (*service.IdentityProviderServiceDataResult, error) {
+			updateFn: func(id uuid.UUID, name, display, provider, providerType string, config datatypes.JSON, status string, tid int64, actor uuid.UUID) (*IdentityProviderServiceDataResult, error) {
 				return nil, errors.New("db error")
 			},
 		}
@@ -231,8 +230,8 @@ func TestIdentityProviderHandler_Update(t *testing.T) {
 
 	t.Run("success", func(t *testing.T) {
 		svc := &mockIdentityProviderService{
-			updateFn: func(id uuid.UUID, name, display, provider, providerType string, config datatypes.JSON, status string, tid int64, actor uuid.UUID) (*service.IdentityProviderServiceDataResult, error) {
-				return &service.IdentityProviderServiceDataResult{IdentityProviderUUID: id}, nil
+			updateFn: func(id uuid.UUID, name, display, provider, providerType string, config datatypes.JSON, status string, tid int64, actor uuid.UUID) (*IdentityProviderServiceDataResult, error) {
+				return &IdentityProviderServiceDataResult{IdentityProviderUUID: id}, nil
 			},
 		}
 		r := jsonReq(t, http.MethodPut, "/", validBody)
@@ -270,7 +269,7 @@ func TestIdentityProviderHandler_SetStatus(t *testing.T) {
 
 	t.Run("service error returns 500", func(t *testing.T) {
 		svc := &mockIdentityProviderService{
-			setStatusByUUIDFn: func(id uuid.UUID, status string, tid int64, actor uuid.UUID) (*service.IdentityProviderServiceDataResult, error) {
+			setStatusByUUIDFn: func(id uuid.UUID, status string, tid int64, actor uuid.UUID) (*IdentityProviderServiceDataResult, error) {
 				return nil, errors.New("db error")
 			},
 		}
@@ -282,8 +281,8 @@ func TestIdentityProviderHandler_SetStatus(t *testing.T) {
 
 	t.Run("success", func(t *testing.T) {
 		svc := &mockIdentityProviderService{
-			setStatusByUUIDFn: func(id uuid.UUID, status string, tid int64, actor uuid.UUID) (*service.IdentityProviderServiceDataResult, error) {
-				return &service.IdentityProviderServiceDataResult{IdentityProviderUUID: id}, nil
+			setStatusByUUIDFn: func(id uuid.UUID, status string, tid int64, actor uuid.UUID) (*IdentityProviderServiceDataResult, error) {
+				return &IdentityProviderServiceDataResult{IdentityProviderUUID: id}, nil
 			},
 		}
 		r := withTenantAndUser(withChiParam(jsonReq(t, http.MethodPatch, "/", map[string]any{"status": "active"}), "identity_provider_uuid", idpUUID.String()))
@@ -307,7 +306,7 @@ func TestIdentityProviderHandler_Delete(t *testing.T) {
 
 	t.Run("service error returns 500", func(t *testing.T) {
 		svc := &mockIdentityProviderService{
-			deleteByUUIDFn: func(id uuid.UUID, tid int64, actor uuid.UUID) (*service.IdentityProviderServiceDataResult, error) {
+			deleteByUUIDFn: func(id uuid.UUID, tid int64, actor uuid.UUID) (*IdentityProviderServiceDataResult, error) {
 				return nil, errors.New("db error")
 			},
 		}
@@ -319,8 +318,8 @@ func TestIdentityProviderHandler_Delete(t *testing.T) {
 
 	t.Run("success", func(t *testing.T) {
 		svc := &mockIdentityProviderService{
-			deleteByUUIDFn: func(id uuid.UUID, tid int64, actor uuid.UUID) (*service.IdentityProviderServiceDataResult, error) {
-				return &service.IdentityProviderServiceDataResult{IdentityProviderUUID: id}, nil
+			deleteByUUIDFn: func(id uuid.UUID, tid int64, actor uuid.UUID) (*IdentityProviderServiceDataResult, error) {
+				return &IdentityProviderServiceDataResult{IdentityProviderUUID: id}, nil
 			},
 		}
 		r := jsonReq(t, http.MethodDelete, "/", nil)

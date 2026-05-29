@@ -6,20 +6,17 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
-	"github.com/maintainerd/auth/internal/dto"
-	"github.com/maintainerd/auth/internal/model"
 	"github.com/maintainerd/auth/internal/platform/middleware"
 	resp "github.com/maintainerd/auth/internal/platform/response"
-	"github.com/maintainerd/auth/internal/service"
 )
 
 // WebhookEndpointHandler handles HTTP requests for webhook endpoint management.
 type WebhookEndpointHandler struct {
-	webhookEndpointService service.WebhookEndpointService
+	webhookEndpointService WebhookEndpointService
 }
 
 // NewWebhookEndpointHandler creates a new WebhookEndpointHandler.
-func NewWebhookEndpointHandler(webhookEndpointService service.WebhookEndpointService) *WebhookEndpointHandler {
+func NewWebhookEndpointHandler(webhookEndpointService WebhookEndpointService) *WebhookEndpointHandler {
 	return &WebhookEndpointHandler{webhookEndpointService: webhookEndpointService}
 }
 
@@ -61,7 +58,7 @@ func (h *WebhookEndpointHandler) GetAll(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	response := dto.PaginatedResponseDTO[WebhookEndpointResponseDTO]{
+	response := PaginatedResponseDTO[WebhookEndpointResponseDTO]{
 		Rows:       toWebhookEndpointResponseDTOList(result.Data),
 		Total:      result.Total,
 		Page:       result.Page,
@@ -119,7 +116,7 @@ func (h *WebhookEndpointHandler) Create(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	status := model.StatusActive
+	status := StatusActive
 	if req.Status != nil {
 		status = *req.Status
 	}
@@ -166,7 +163,7 @@ func (h *WebhookEndpointHandler) Update(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	status := model.StatusActive
+	status := StatusActive
 	if req.Status != nil {
 		status = *req.Status
 	}
@@ -248,7 +245,7 @@ func (h *WebhookEndpointHandler) UpdateStatus(w http.ResponseWriter, r *http.Req
 	resp.Success(w, toWebhookEndpointResponseDTO(*result), "Webhook endpoint status updated successfully")
 }
 
-func toWebhookEndpointResponseDTO(we service.WebhookEndpointServiceDataResult) WebhookEndpointResponseDTO {
+func toWebhookEndpointResponseDTO(we WebhookEndpointServiceDataResult) WebhookEndpointResponseDTO {
 	var lastTriggered *string
 	if we.LastTriggeredAt != nil {
 		formatted := we.LastTriggeredAt.Format("2006-01-02T15:04:05Z07:00")
@@ -269,7 +266,7 @@ func toWebhookEndpointResponseDTO(we service.WebhookEndpointServiceDataResult) W
 	}
 }
 
-func toWebhookEndpointResponseDTOList(endpoints []service.WebhookEndpointServiceDataResult) []WebhookEndpointResponseDTO {
+func toWebhookEndpointResponseDTOList(endpoints []WebhookEndpointServiceDataResult) []WebhookEndpointResponseDTO {
 	result := make([]WebhookEndpointResponseDTO, len(endpoints))
 	for i, ep := range endpoints {
 		result[i] = toWebhookEndpointResponseDTO(ep)

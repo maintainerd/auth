@@ -3,26 +3,25 @@ package idp
 import (
 	"errors"
 
-	"github.com/maintainerd/auth/internal/model"
 	"gorm.io/gorm"
 )
 
 type SignupFlowRoleRepository interface {
-	BaseRepositoryMethods[model.SignupFlowRole]
+	BaseRepositoryMethods[SignupFlowRole]
 	WithTx(tx *gorm.DB) SignupFlowRoleRepository
-	FindBySignupFlowID(signupFlowID int64) ([]model.SignupFlowRole, error)
-	FindBySignupFlowIDPaginated(signupFlowID int64, page, limit int) ([]model.SignupFlowRole, int64, error)
+	FindBySignupFlowID(signupFlowID int64) ([]SignupFlowRole, error)
+	FindBySignupFlowIDPaginated(signupFlowID int64, page, limit int) ([]SignupFlowRole, int64, error)
 	DeleteBySignupFlowIDAndRoleID(signupFlowID, roleID int64) error
-	FindBySignupFlowIDAndRoleID(signupFlowID, roleID int64) (*model.SignupFlowRole, error)
+	FindBySignupFlowIDAndRoleID(signupFlowID, roleID int64) (*SignupFlowRole, error)
 }
 
 type signupFlowRoleRepository struct {
-	*BaseRepository[model.SignupFlowRole]
+	*BaseRepository[SignupFlowRole]
 }
 
 func NewSignupFlowRoleRepository(db *gorm.DB) SignupFlowRoleRepository {
 	return &signupFlowRoleRepository{
-		BaseRepository: NewBaseRepository[model.SignupFlowRole](db, "signup_flow_role_uuid", "signup_flow_role_id"),
+		BaseRepository: NewBaseRepository[SignupFlowRole](db, "signup_flow_role_uuid", "signup_flow_role_id"),
 	}
 }
 
@@ -32,8 +31,8 @@ func (r *signupFlowRoleRepository) WithTx(tx *gorm.DB) SignupFlowRoleRepository 
 	}
 }
 
-func (r *signupFlowRoleRepository) FindBySignupFlowID(signupFlowID int64) ([]model.SignupFlowRole, error) {
-	var signupFlowRoles []model.SignupFlowRole
+func (r *signupFlowRoleRepository) FindBySignupFlowID(signupFlowID int64) ([]SignupFlowRole, error) {
+	var signupFlowRoles []SignupFlowRole
 	err := r.DB().Where("signup_flow_id = ?", signupFlowID).Preload("Role").Find(&signupFlowRoles).Error
 	if err != nil {
 		return nil, err
@@ -41,14 +40,14 @@ func (r *signupFlowRoleRepository) FindBySignupFlowID(signupFlowID int64) ([]mod
 	return signupFlowRoles, nil
 }
 
-func (r *signupFlowRoleRepository) FindBySignupFlowIDPaginated(signupFlowID int64, page, limit int) ([]model.SignupFlowRole, int64, error) {
-	var signupFlowRoles []model.SignupFlowRole
+func (r *signupFlowRoleRepository) FindBySignupFlowIDPaginated(signupFlowID int64, page, limit int) ([]SignupFlowRole, int64, error) {
+	var signupFlowRoles []SignupFlowRole
 	var total int64
 
 	query := r.DB().Where("signup_flow_id = ?", signupFlowID)
 
 	// Get total count
-	if err := query.Model(&model.SignupFlowRole{}).Count(&total).Error; err != nil {
+	if err := query.Model(&SignupFlowRole{}).Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
 
@@ -63,11 +62,11 @@ func (r *signupFlowRoleRepository) FindBySignupFlowIDPaginated(signupFlowID int6
 }
 
 func (r *signupFlowRoleRepository) DeleteBySignupFlowIDAndRoleID(signupFlowID, roleID int64) error {
-	return r.DB().Where("signup_flow_id = ? AND role_id = ?", signupFlowID, roleID).Delete(&model.SignupFlowRole{}).Error
+	return r.DB().Where("signup_flow_id = ? AND role_id = ?", signupFlowID, roleID).Delete(&SignupFlowRole{}).Error
 }
 
-func (r *signupFlowRoleRepository) FindBySignupFlowIDAndRoleID(signupFlowID, roleID int64) (*model.SignupFlowRole, error) {
-	var signupFlowRole model.SignupFlowRole
+func (r *signupFlowRoleRepository) FindBySignupFlowIDAndRoleID(signupFlowID, roleID int64) (*SignupFlowRole, error) {
+	var signupFlowRole SignupFlowRole
 	err := r.DB().Where("signup_flow_id = ? AND role_id = ?", signupFlowID, roleID).First(&signupFlowRole).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {

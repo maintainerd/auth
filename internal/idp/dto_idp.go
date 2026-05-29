@@ -7,8 +7,6 @@ import (
 	"github.com/go-ozzo/ozzo-validation/v4/is"
 	"github.com/google/uuid"
 	"gorm.io/datatypes"
-
-	"github.com/maintainerd/auth/internal/model"
 )
 
 // Identity provider list response structure (without config and tenant)
@@ -67,18 +65,18 @@ func (r IdentityProviderCreateRequestDTO) Validate() error {
 		),
 		validation.Field(&r.Provider,
 			validation.Required.Error("Provider is required"),
-			validation.In(model.IDPProviderInternal, model.IDPProviderCognito, model.IDPProviderAuth0, model.IDPProviderGoogle, model.IDPProviderFacebook, model.IDPProviderGitHub, model.IDPProviderMicrosoft, model.IDPProviderApple, model.IDPProviderLinkedIn, model.IDPProviderTwitter).Error("Provider must be one of: internal, cognito, auth0, google, facebook, github, microsoft, apple, linkedin, twitter"),
+			validation.In(IDPProviderInternal, IDPProviderCognito, IDPProviderAuth0, IDPProviderGoogle, IDPProviderFacebook, IDPProviderGitHub, IDPProviderMicrosoft, IDPProviderApple, IDPProviderLinkedIn, IDPProviderTwitter).Error("Provider must be one of: internal, cognito, auth0, google, facebook, github, microsoft, apple, linkedin, twitter"),
 		),
 		validation.Field(&r.ProviderType,
 			validation.Required.Error("Provider type is required"),
-			validation.In(model.IDPTypeIdentity, model.IDPTypeSocial).Error("Provider type must be either 'identity' or 'social'"),
+			validation.In(IDPTypeIdentity, IDPTypeSocial).Error("Provider type must be either 'identity' or 'social'"),
 		),
 		validation.Field(&r.Config,
 			validation.Required.Error("Config is required"),
 		),
 		validation.Field(&r.Status,
 			validation.Required.Error("Status is required"),
-			validation.In(model.StatusActive, model.StatusInactive).Error("Status must be either 'active' or 'inactive'"),
+			validation.In(StatusActive, StatusInactive).Error("Status must be either 'active' or 'inactive'"),
 		),
 		validation.Field(&r.TenantUUID,
 			validation.Required.Error("Tenant UUID is required"),
@@ -110,18 +108,18 @@ func (r IdentityProviderUpdateRequestDTO) Validate() error {
 		),
 		validation.Field(&r.Provider,
 			validation.Required.Error("Provider is required"),
-			validation.In(model.IDPProviderInternal, model.IDPProviderCognito, model.IDPProviderAuth0, model.IDPProviderGoogle, model.IDPProviderFacebook, model.IDPProviderGitHub, model.IDPProviderMicrosoft, model.IDPProviderApple, model.IDPProviderLinkedIn, model.IDPProviderTwitter).Error("Provider must be one of: internal, cognito, auth0, google, facebook, github, microsoft, apple, linkedin, twitter"),
+			validation.In(IDPProviderInternal, IDPProviderCognito, IDPProviderAuth0, IDPProviderGoogle, IDPProviderFacebook, IDPProviderGitHub, IDPProviderMicrosoft, IDPProviderApple, IDPProviderLinkedIn, IDPProviderTwitter).Error("Provider must be one of: internal, cognito, auth0, google, facebook, github, microsoft, apple, linkedin, twitter"),
 		),
 		validation.Field(&r.ProviderType,
 			validation.Required.Error("Provider type is required"),
-			validation.In(model.IDPTypeIdentity, model.IDPTypeSocial).Error("Provider type must be either 'identity' or 'social'"),
+			validation.In(IDPTypeIdentity, IDPTypeSocial).Error("Provider type must be either 'identity' or 'social'"),
 		),
 		validation.Field(&r.Config,
 			validation.Required.Error("Config is required"),
 		),
 		validation.Field(&r.Status,
 			validation.Required.Error("Status is required"),
-			validation.In(model.StatusActive, model.StatusInactive).Error("Status must be either 'active' or 'inactive'"),
+			validation.In(StatusActive, StatusInactive).Error("Status must be either 'active' or 'inactive'"),
 		),
 	)
 }
@@ -135,7 +133,7 @@ func (r IdentityProviderStatusUpdateDTO) Validate() error {
 	return validation.ValidateStruct(&r,
 		validation.Field(&r.Status,
 			validation.Required.Error("Status is required"),
-			validation.In(model.StatusActive, model.StatusInactive).Error("Status must be either 'active' or 'inactive'"),
+			validation.In(StatusActive, StatusInactive).Error("Status must be either 'active' or 'inactive'"),
 		),
 	)
 }
@@ -160,17 +158,17 @@ func (f IdentityProviderFilterDTO) Validate() error {
 	return validation.ValidateStruct(&f,
 		validation.Field(&f.Provider,
 			validation.When(len(f.Provider) > 0,
-				validation.Each(validation.In(model.IDPProviderInternal, model.IDPProviderCognito, model.IDPProviderAuth0, model.IDPProviderGoogle, model.IDPProviderFacebook, model.IDPProviderGitHub, model.IDPProviderMicrosoft, model.IDPProviderApple, model.IDPProviderLinkedIn, model.IDPProviderTwitter).Error("Invalid identity provider")),
+				validation.Each(validation.In(IDPProviderInternal, IDPProviderCognito, IDPProviderAuth0, IDPProviderGoogle, IDPProviderFacebook, IDPProviderGitHub, IDPProviderMicrosoft, IDPProviderApple, IDPProviderLinkedIn, IDPProviderTwitter).Error("Invalid identity provider")),
 			),
 		),
 		validation.Field(&f.ProviderType,
 			validation.When(f.ProviderType != nil,
-				validation.In(model.IDPTypeIdentity, model.IDPTypeSocial).Error("Provider type must be one of: identity, social"),
+				validation.In(IDPTypeIdentity, IDPTypeSocial).Error("Provider type must be one of: identity, social"),
 			),
 		),
 		validation.Field(&f.Status,
 			validation.When(len(f.Status) > 0,
-				validation.Each(validation.In(model.StatusActive, model.StatusInactive).Error("Status must be 'active' or 'inactive'")),
+				validation.Each(validation.In(StatusActive, StatusInactive).Error("Status must be 'active' or 'inactive'")),
 			),
 		),
 		validation.Field(&f.PaginationRequestDTO),

@@ -6,15 +6,12 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/maintainerd/auth/internal/dto"
-	"github.com/maintainerd/auth/internal/model"
 	"github.com/maintainerd/auth/internal/platform/apperror"
 	"github.com/maintainerd/auth/internal/platform/crypto"
 	"github.com/maintainerd/auth/internal/platform/database/seeder"
 	"github.com/maintainerd/auth/internal/platform/ptr"
 	"github.com/maintainerd/auth/internal/platform/runner"
 	"github.com/maintainerd/auth/internal/platform/security"
-	"github.com/maintainerd/auth/internal/repository"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/codes"
 	"gorm.io/datatypes"
@@ -22,38 +19,38 @@ import (
 )
 
 type SetupService interface {
-	GetSetupStatus(ctx context.Context) (*dto.SetupStatusResponseDTO, error)
-	CreateTenant(ctx context.Context, req dto.CreateTenantRequestDTO) (*dto.CreateTenantResponseDTO, error)
-	CreateAdmin(ctx context.Context, req dto.CreateAdminRequestDTO) (*dto.CreateAdminResponseDTO, error)
-	CreateProfile(ctx context.Context, req dto.CreateProfileRequestDTO) (*dto.CreateProfileResponseDTO, error)
+	GetSetupStatus(ctx context.Context) (*SetupStatusResponseDTO, error)
+	CreateTenant(ctx context.Context, req CreateTenantRequestDTO) (*CreateTenantResponseDTO, error)
+	CreateAdmin(ctx context.Context, req CreateAdminRequestDTO) (*CreateAdminResponseDTO, error)
+	CreateProfile(ctx context.Context, req CreateProfileRequestDTO) (*CreateProfileResponseDTO, error)
 }
 
 type setupService struct {
 	db                   *gorm.DB
-	userRepo             repository.UserRepository
-	tenantRepo           repository.TenantRepository
-	tenantMemberRepo     repository.TenantMemberRepository
-	clientRepo           repository.ClientRepository
-	identityProviderRepo repository.IdentityProviderRepository
-	roleRepo             repository.RoleRepository
-	userRoleRepo         repository.UserRoleRepository
-	userTokenRepo        repository.UserTokenRepository
-	userIdentityRepo     repository.UserIdentityRepository
-	profileRepo          repository.ProfileRepository
+	userRepo             UserRepository
+	tenantRepo           TenantRepository
+	tenantMemberRepo     TenantMemberRepository
+	clientRepo           ClientRepository
+	identityProviderRepo IdentityProviderRepository
+	roleRepo             RoleRepository
+	userRoleRepo         UserRoleRepository
+	userTokenRepo        UserTokenRepository
+	userIdentityRepo     UserIdentityRepository
+	profileRepo          ProfileRepository
 }
 
 func NewSetupService(
 	db *gorm.DB,
-	userRepo repository.UserRepository,
-	tenantRepo repository.TenantRepository,
-	tenantMemberRepo repository.TenantMemberRepository,
-	clientRepo repository.ClientRepository,
-	identityProviderRepo repository.IdentityProviderRepository,
-	roleRepo repository.RoleRepository,
-	userRoleRepo repository.UserRoleRepository,
-	userTokenRepo repository.UserTokenRepository,
-	userIdentityRepo repository.UserIdentityRepository,
-	profileRepo repository.ProfileRepository,
+	userRepo UserRepository,
+	tenantRepo TenantRepository,
+	tenantMemberRepo TenantMemberRepository,
+	clientRepo ClientRepository,
+	identityProviderRepo IdentityProviderRepository,
+	roleRepo RoleRepository,
+	userRoleRepo UserRoleRepository,
+	userTokenRepo UserTokenRepository,
+	userIdentityRepo UserIdentityRepository,
+	profileRepo ProfileRepository,
 ) SetupService {
 	return &setupService{
 		db:                   db,
@@ -70,7 +67,7 @@ func NewSetupService(
 	}
 }
 
-func (s *setupService) GetSetupStatus(ctx context.Context) (*dto.SetupStatusResponseDTO, error) {
+func (s *setupService) GetSetupStatus(ctx context.Context) (*SetupStatusResponseDTO, error) {
 	_, span := otel.Tracer("service").Start(ctx, "setup.getStatus")
 	defer span.End()
 
@@ -104,7 +101,7 @@ func (s *setupService) GetSetupStatus(ctx context.Context) (*dto.SetupStatusResp
 	}
 
 	span.SetStatus(codes.Ok, "")
-	return &dto.SetupStatusResponseDTO{
+	return &SetupStatusResponseDTO{
 		IsTenantSetup:   isTenantSetup,
 		IsAdminSetup:    isAdminSetup,
 		IsProfileSetup:  isProfileSetup,
@@ -112,7 +109,7 @@ func (s *setupService) GetSetupStatus(ctx context.Context) (*dto.SetupStatusResp
 	}, nil
 }
 
-func (s *setupService) CreateTenant(ctx context.Context, req dto.CreateTenantRequestDTO) (*dto.CreateTenantResponseDTO, error) {
+func (s *setupService) CreateTenant(ctx context.Context, req CreateTenantRequestDTO) (*CreateTenantResponseDTO, error) {
 	_, span := otel.Tracer("service").Start(ctx, "setup.createTenant")
 	defer span.End()
 
@@ -125,7 +122,7 @@ func (s *setupService) CreateTenant(ctx context.Context, req dto.CreateTenantReq
 		return nil, apperror.NewConflict("tenant already exists: setup can only be run once")
 	}
 
-	var createdTenant *model.Tenant
+	var createdTenant *Tenant
 	err = s.db.Transaction(func(tx *gorm.DB) error {
 		txTenantRepo := s.tenantRepo.WithTx(tx)
 
@@ -150,13 +147,13 @@ func (s *setupService) CreateTenant(ctx context.Context, req dto.CreateTenantReq
 		}
 
 		// Create tenant directly (no longer using seeder)
-		newTenant := &model.Tenant{
+		newTenant := &Tenant{
 			Name:        req.Name,
 			DisplayName: req.DisplayName,
 			Description: description,
 			Identifier:  identifier,
 			Metadata:    metadataJSON,
-			Status:      model.StatusActive,
+			Status:      StatusActive,
 			IsSystem:    true, // This is a system tenant that cannot be deleted
 		}
 
@@ -189,7 +186,7 @@ func (s *setupService) CreateTenant(ctx context.Context, req dto.CreateTenantReq
 		}
 	}
 
-	tenantResponse := dto.TenantResponseDTO{
+	tenantResponse := TenantResponseDTO{
 		TenantUUID:  createdTenant.TenantUUID,
 		Name:        createdTenant.Name,
 		Description: createdTenant.Description,
@@ -217,14 +214,14 @@ func (s *setupService) CreateTenant(ctx context.Context, req dto.CreateTenantReq
 	}
 
 	span.SetStatus(codes.Ok, "")
-	return &dto.CreateTenantResponseDTO{
+	return &CreateTenantResponseDTO{
 		Tenant:            tenantResponse,
 		DefaultClientID:   defaultClientID,
 		DefaultProviderID: defaultProviderID,
 	}, nil
 }
 
-func (s *setupService) CreateAdmin(ctx context.Context, req dto.CreateAdminRequestDTO) (*dto.CreateAdminResponseDTO, error) {
+func (s *setupService) CreateAdmin(ctx context.Context, req CreateAdminRequestDTO) (*CreateAdminResponseDTO, error) {
 	_, span := otel.Tracer("service").Start(ctx, "setup.createAdmin")
 	defer span.End()
 
@@ -265,7 +262,7 @@ func (s *setupService) CreateAdmin(ctx context.Context, req dto.CreateAdminReque
 		return nil, apperror.NewNotFoundWithReason("auth-console system client not found")
 	}
 
-	var createdUser *model.User
+	var createdUser *User
 	err = s.db.Transaction(func(tx *gorm.DB) error {
 		txUserRepo := s.userRepo.WithTx(tx)
 		txUserRoleRepo := s.userRoleRepo.WithTx(tx)
@@ -290,13 +287,13 @@ func (s *setupService) CreateAdmin(ctx context.Context, req dto.CreateAdminReque
 
 		// Create admin user
 		now := time.Now()
-		newUser := &model.User{
+		newUser := &User{
 			Username:          req.Username,
 			Fullname:          req.Fullname,
 			Email:             req.Email,
 			Password:          ptr.Ptr(string(hashedPassword)),
 			IsEmailVerified:   true,
-			Status:            model.StatusActive,
+			Status:            StatusActive,
 			PasswordChangedAt: &now,
 		}
 
@@ -306,11 +303,11 @@ func (s *setupService) CreateAdmin(ctx context.Context, req dto.CreateAdminReque
 		}
 
 		// Create user identity
-		userIdentity := &model.UserIdentity{
+		userIdentity := &UserIdentity{
 			TenantID: defaultTenant.TenantID,
 			UserID:   createdUser.UserID,
 			ClientID: defaultClient.ClientID,
-			Provider: model.ProviderDefault,
+			Provider: ProviderDefault,
 			Sub:      uuid.New().String(),
 		}
 		_, err = txUserIdentityRepo.Create(userIdentity)
@@ -328,7 +325,7 @@ func (s *setupService) CreateAdmin(ctx context.Context, req dto.CreateAdminReque
 		}
 
 		// Assign registered role
-		registeredUserRole := &model.UserRole{
+		registeredUserRole := &UserRole{
 			UserID: createdUser.UserID,
 			RoleID: registeredRole.RoleID,
 		}
@@ -347,7 +344,7 @@ func (s *setupService) CreateAdmin(ctx context.Context, req dto.CreateAdminReque
 		}
 
 		// Assign super-admin role
-		superAdminUserRole := &model.UserRole{
+		superAdminUserRole := &UserRole{
 			UserID: createdUser.UserID,
 			RoleID: superAdminRole.RoleID,
 		}
@@ -357,7 +354,7 @@ func (s *setupService) CreateAdmin(ctx context.Context, req dto.CreateAdminReque
 		}
 
 		// Add user to tenant_members as owner
-		tenantMember := &model.TenantMember{
+		tenantMember := &TenantMember{
 			TenantID: defaultTenant.TenantID,
 			UserID:   createdUser.UserID,
 			Role:     "owner",
@@ -377,7 +374,7 @@ func (s *setupService) CreateAdmin(ctx context.Context, req dto.CreateAdminReque
 	}
 
 	// Convert to response DTO
-	userResponse := dto.UserResponseDTO{
+	userResponse := UserResponseDTO{
 		UserUUID:        createdUser.UserUUID,
 		Username:        createdUser.Username,
 		Fullname:        createdUser.Fullname,
@@ -389,13 +386,13 @@ func (s *setupService) CreateAdmin(ctx context.Context, req dto.CreateAdminReque
 	}
 
 	span.SetStatus(codes.Ok, "")
-	return &dto.CreateAdminResponseDTO{
+	return &CreateAdminResponseDTO{
 		User: userResponse,
 	}, nil
 }
 
 // Helper function to get string value from pointer
-func (s *setupService) CreateProfile(ctx context.Context, req dto.CreateProfileRequestDTO) (*dto.CreateProfileResponseDTO, error) {
+func (s *setupService) CreateProfile(ctx context.Context, req CreateProfileRequestDTO) (*CreateProfileResponseDTO, error) {
 	_, span := otel.Tracer("service").Start(ctx, "setup.createProfile")
 	defer span.End()
 
@@ -429,7 +426,7 @@ func (s *setupService) CreateProfile(ctx context.Context, req dto.CreateProfileR
 		birthdate = &parsed
 	}
 
-	var createdProfile *model.Profile
+	var createdProfile *Profile
 	err = s.db.Transaction(func(tx *gorm.DB) error {
 		txProfileRepo := s.profileRepo.WithTx(tx)
 		txUserRepo := s.userRepo.WithTx(tx)
@@ -447,7 +444,7 @@ func (s *setupService) CreateProfile(ctx context.Context, req dto.CreateProfileR
 		}
 
 		// Create new profile
-		newProfile := &model.Profile{
+		newProfile := &Profile{
 			UserID:      user.UserID,
 			FirstName:   req.FirstName,
 			MiddleName:  req.MiddleName,
@@ -493,10 +490,10 @@ func (s *setupService) CreateProfile(ctx context.Context, req dto.CreateProfileR
 	}
 
 	// Convert to response DTO using the existing helper function
-	profileResponse := dto.NewProfileResponseDTO(createdProfile)
+	profileResponse := NewProfileResponseDTO(createdProfile)
 
 	span.SetStatus(codes.Ok, "")
-	return &dto.CreateProfileResponseDTO{
+	return &CreateProfileResponseDTO{
 		Profile: *profileResponse,
 	}, nil
 }

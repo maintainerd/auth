@@ -4,7 +4,6 @@ import (
 	"errors"
 	"time"
 
-	"github.com/maintainerd/auth/internal/model"
 	"gorm.io/gorm"
 )
 
@@ -28,23 +27,23 @@ type AuthEventRepositoryGetFilter struct {
 
 // AuthEventRepository defines persistence operations for auth events.
 type AuthEventRepository interface {
-	BaseRepositoryMethods[model.AuthEvent]
+	BaseRepositoryMethods[AuthEvent]
 	WithTx(tx *gorm.DB) AuthEventRepository
-	FindPaginated(filter AuthEventRepositoryGetFilter) (*PaginationResult[model.AuthEvent], error)
-	FindByUUIDAndTenantID(uuid string, tenantID int64) (*model.AuthEvent, error)
-	FindByDateRange(tenantID int64, from, to time.Time) ([]model.AuthEvent, error)
+	FindPaginated(filter AuthEventRepositoryGetFilter) (*PaginationResult[AuthEvent], error)
+	FindByUUIDAndTenantID(uuid string, tenantID int64) (*AuthEvent, error)
+	FindByDateRange(tenantID int64, from, to time.Time) ([]AuthEvent, error)
 	DeleteOlderThan(cutoff time.Time) (int64, error)
 	CountByEventType(eventType string, tenantID int64) (int64, error)
 }
 
 type authEventRepository struct {
-	*BaseRepository[model.AuthEvent]
+	*BaseRepository[AuthEvent]
 }
 
 // NewAuthEventRepository creates a new AuthEventRepository backed by the supplied DB.
 func NewAuthEventRepository(db *gorm.DB) AuthEventRepository {
 	return &authEventRepository{
-		BaseRepository: NewBaseRepository[model.AuthEvent](db, "auth_event_uuid", "auth_event_id"),
+		BaseRepository: NewBaseRepository[AuthEvent](db, "auth_event_uuid", "auth_event_id"),
 	}
 }
 
@@ -56,8 +55,8 @@ func (r *authEventRepository) WithTx(tx *gorm.DB) AuthEventRepository {
 }
 
 // FindPaginated returns a page of auth events filtered by the supplied criteria.
-func (r *authEventRepository) FindPaginated(filter AuthEventRepositoryGetFilter) (*PaginationResult[model.AuthEvent], error) {
-	query := r.DB().Model(&model.AuthEvent{})
+func (r *authEventRepository) FindPaginated(filter AuthEventRepositoryGetFilter) (*PaginationResult[AuthEvent], error) {
+	query := r.DB().Model(&AuthEvent{})
 
 	if filter.TenantID != nil {
 		query = query.Where("tenant_id = ?", *filter.TenantID)
@@ -97,13 +96,13 @@ func (r *authEventRepository) FindPaginated(filter AuthEventRepositoryGetFilter)
 	filter.Page, filter.Limit = normalizePagination(filter.Page, filter.Limit)
 	offset := (filter.Page - 1) * filter.Limit
 
-	var events []model.AuthEvent
+	var events []AuthEvent
 	if err := query.Offset(offset).Limit(filter.Limit).Find(&events).Error; err != nil {
 		return nil, err
 	}
 
 	totalPages := int((total + int64(filter.Limit) - 1) / int64(filter.Limit))
-	return &PaginationResult[model.AuthEvent]{
+	return &PaginationResult[AuthEvent]{
 		Data:       events,
 		Total:      total,
 		Page:       filter.Page,
@@ -113,8 +112,8 @@ func (r *authEventRepository) FindPaginated(filter AuthEventRepositoryGetFilter)
 }
 
 // FindByUUIDAndTenantID retrieves a single auth event by UUID scoped to a tenant.
-func (r *authEventRepository) FindByUUIDAndTenantID(uuid string, tenantID int64) (*model.AuthEvent, error) {
-	var event model.AuthEvent
+func (r *authEventRepository) FindByUUIDAndTenantID(uuid string, tenantID int64) (*AuthEvent, error) {
+	var event AuthEvent
 	err := r.DB().
 		Where("auth_event_uuid = ? AND tenant_id = ?", uuid, tenantID).
 		First(&event).Error
@@ -128,8 +127,8 @@ func (r *authEventRepository) FindByUUIDAndTenantID(uuid string, tenantID int64)
 }
 
 // FindByDateRange returns all auth events within the given time range for a tenant.
-func (r *authEventRepository) FindByDateRange(tenantID int64, from, to time.Time) ([]model.AuthEvent, error) {
-	var events []model.AuthEvent
+func (r *authEventRepository) FindByDateRange(tenantID int64, from, to time.Time) ([]AuthEvent, error) {
+	var events []AuthEvent
 	err := r.DB().
 		Where("tenant_id = ? AND created_at BETWEEN ? AND ?", tenantID, from, to).
 		Order("created_at DESC").
@@ -141,7 +140,7 @@ func (r *authEventRepository) FindByDateRange(tenantID int64, from, to time.Time
 func (r *authEventRepository) DeleteOlderThan(cutoff time.Time) (int64, error) {
 	result := r.DB().
 		Where("created_at < ?", cutoff).
-		Delete(&model.AuthEvent{})
+		Delete(&AuthEvent{})
 	return result.RowsAffected, result.Error
 }
 
@@ -149,7 +148,7 @@ func (r *authEventRepository) DeleteOlderThan(cutoff time.Time) (int64, error) {
 func (r *authEventRepository) CountByEventType(eventType string, tenantID int64) (int64, error) {
 	var count int64
 	err := r.DB().
-		Model(&model.AuthEvent{}).
+		Model(&AuthEvent{}).
 		Where("event_type = ? AND tenant_id = ?", eventType, tenantID).
 		Count(&count).Error
 	return count, err

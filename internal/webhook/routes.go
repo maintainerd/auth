@@ -4,14 +4,13 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/maintainerd/auth/internal/platform/cache"
 	"github.com/maintainerd/auth/internal/platform/middleware"
-	"github.com/maintainerd/auth/internal/service"
 )
 
 // WebhookEndpointRoute registers webhook endpoint management routes.
 func WebhookEndpointRoute(
 	r chi.Router,
 	webhookEndpointHandler *WebhookEndpointHandler,
-	userService service.UserService,
+	userService UserService,
 	appCache *cache.Cache,
 ) {
 	r.Route("/webhook-endpoints", func(r chi.Router) {

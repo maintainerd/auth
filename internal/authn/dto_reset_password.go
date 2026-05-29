@@ -16,7 +16,7 @@ type ResetPasswordRequestDTO struct {
 // Validate validates the reset password request
 func (dto ResetPasswordRequestDTO) Validate() error {
 	return validation.ValidateStruct(&dto,
-		validation.Field(&dto.NewPassword, validation.Required.Error("New password is required")),
+		validation.Field(&NewPassword, validation.Required.Error("New password is required")),
 		// Token is optional in request body - can come from signed URL instead
 	)
 }

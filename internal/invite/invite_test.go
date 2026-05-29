@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/DATA-DOG/go-sqlmock"
-	"github.com/maintainerd/auth/internal/model"
 	"github.com/maintainerd/auth/internal/platform/config"
 	"github.com/maintainerd/auth/internal/platform/crypto"
 	"github.com/maintainerd/auth/internal/platform/email"
@@ -18,15 +17,15 @@ import (
 )
 
 // defaultInviteClient returns a full client with domain, IDP and tenant set.
-func defaultInviteClient() *model.Client {
+func defaultInviteClient() *Client {
 	domain := "example.com"
-	return &model.Client{
+	return &Client{
 		ClientID: 1,
-		Status:   model.StatusActive,
+		Status:   StatusActive,
 		Domain:   &domain,
-		IdentityProvider: &model.IdentityProvider{
+		IdentityProvider: &IdentityProvider{
 			Identifier: "test-idp",
-			Tenant:     &model.Tenant{TenantID: 10},
+			Tenant:     &Tenant{TenantID: 10},
 		},
 	}
 }
@@ -42,7 +41,7 @@ func TestInviteService_SendInvite(t *testing.T) {
 		{
 			name: "client findDefault error",
 			setupRepos: func(c *mockClientRepo, r *mockRoleRepo, i *mockInviteRepo) {
-				c.findSystemFn = func() (*model.Client, error) { return nil, errors.New("db error") }
+				c.findSystemFn = func() (*Client, error) { return nil, errors.New("db error") }
 			},
 			expectCommit: false,
 			wantErr:      true,
@@ -50,7 +49,7 @@ func TestInviteService_SendInvite(t *testing.T) {
 		{
 			name: "client is nil - invalid client",
 			setupRepos: func(c *mockClientRepo, r *mockRoleRepo, i *mockInviteRepo) {
-				c.findSystemFn = func() (*model.Client, error) { return nil, nil }
+				c.findSystemFn = func() (*Client, error) { return nil, nil }
 			},
 			expectCommit: false,
 			wantErr:      true,
@@ -60,8 +59,8 @@ func TestInviteService_SendInvite(t *testing.T) {
 			name: "active client with no identity provider - invalid",
 			setupRepos: func(c *mockClientRepo, r *mockRoleRepo, i *mockInviteRepo) {
 				// Client has no IdentityProvider set
-				c.findSystemFn = func() (*model.Client, error) {
-					return &model.Client{Status: model.StatusActive}, nil
+				c.findSystemFn = func() (*Client, error) {
+					return &Client{Status: StatusActive}, nil
 				}
 			},
 			expectCommit: false,
@@ -71,8 +70,8 @@ func TestInviteService_SendInvite(t *testing.T) {
 		{
 			name: "role findByUUIDs error",
 			setupRepos: func(c *mockClientRepo, r *mockRoleRepo, i *mockInviteRepo) {
-				c.findSystemFn = func() (*model.Client, error) { return defaultInviteClient(), nil }
-				r.findByUUIDsFn = func(_ []string, _ ...string) ([]model.Role, error) {
+				c.findSystemFn = func() (*Client, error) { return defaultInviteClient(), nil }
+				r.findByUUIDsFn = func(_ []string, _ ...string) ([]Role, error) {
 					return nil, errors.New("db error")
 				}
 			},
@@ -82,10 +81,10 @@ func TestInviteService_SendInvite(t *testing.T) {
 		{
 			name: "role count mismatch - one or more roles not found",
 			setupRepos: func(c *mockClientRepo, r *mockRoleRepo, i *mockInviteRepo) {
-				c.findSystemFn = func() (*model.Client, error) { return defaultInviteClient(), nil }
+				c.findSystemFn = func() (*Client, error) { return defaultInviteClient(), nil }
 				// Return fewer roles than requested
-				r.findByUUIDsFn = func(_ []string, _ ...string) ([]model.Role, error) {
-					return []model.Role{}, nil
+				r.findByUUIDsFn = func(_ []string, _ ...string) ([]Role, error) {
+					return []Role{}, nil
 				}
 			},
 			expectCommit: false,
@@ -133,11 +132,11 @@ func TestInviteService_SendInvite_RoleTenantMismatch(t *testing.T) {
 	mock.ExpectRollback()
 
 	clientRepo := &mockClientRepo{
-		findSystemFn: func() (*model.Client, error) { return defaultInviteClient(), nil },
+		findSystemFn: func() (*Client, error) { return defaultInviteClient(), nil },
 	}
 	roleRepo := &mockRoleRepo{
-		findByUUIDsFn: func(_ []string, _ ...string) ([]model.Role, error) {
-			return []model.Role{{RoleID: 1, TenantID: 999}}, nil // wrong tenant
+		findByUUIDsFn: func(_ []string, _ ...string) ([]Role, error) {
+			return []Role{{RoleID: 1, TenantID: 999}}, nil // wrong tenant
 		},
 	}
 
@@ -157,11 +156,11 @@ func TestInviteService_SendInvite_GenerateIdentifierFailure(t *testing.T) {
 	mock.ExpectRollback()
 
 	clientRepo := &mockClientRepo{
-		findSystemFn: func() (*model.Client, error) { return defaultInviteClient(), nil },
+		findSystemFn: func() (*Client, error) { return defaultInviteClient(), nil },
 	}
 	roleRepo := &mockRoleRepo{
-		findByUUIDsFn: func(_ []string, _ ...string) ([]model.Role, error) {
-			return []model.Role{{RoleID: 1, TenantID: 10}}, nil
+		findByUUIDsFn: func(_ []string, _ ...string) ([]Role, error) {
+			return []Role{{RoleID: 1, TenantID: 10}}, nil
 		},
 	}
 
@@ -177,15 +176,15 @@ func TestInviteService_SendInvite_InviteCreateError(t *testing.T) {
 	mock.ExpectRollback()
 
 	clientRepo := &mockClientRepo{
-		findSystemFn: func() (*model.Client, error) { return defaultInviteClient(), nil },
+		findSystemFn: func() (*Client, error) { return defaultInviteClient(), nil },
 	}
 	roleRepo := &mockRoleRepo{
-		findByUUIDsFn: func(_ []string, _ ...string) ([]model.Role, error) {
-			return []model.Role{{RoleID: 1, TenantID: 10}}, nil
+		findByUUIDsFn: func(_ []string, _ ...string) ([]Role, error) {
+			return []Role{{RoleID: 1, TenantID: 10}}, nil
 		},
 	}
 	inviteRepo := &mockInviteRepo{
-		createFn: func(_ *model.Invite) (*model.Invite, error) { return nil, errors.New("create err") },
+		createFn: func(_ *Invite) (*Invite, error) { return nil, errors.New("create err") },
 	}
 
 	svc := NewInviteService(gormDB, inviteRepo, clientRepo, roleRepo, &mockEmailTemplateRepo{})
@@ -202,11 +201,11 @@ func TestInviteService_SendInvite_BulkRoleCreateError(t *testing.T) {
 	mock.ExpectRollback()
 
 	clientRepo := &mockClientRepo{
-		findSystemFn: func() (*model.Client, error) { return defaultInviteClient(), nil },
+		findSystemFn: func() (*Client, error) { return defaultInviteClient(), nil },
 	}
 	roleRepo := &mockRoleRepo{
-		findByUUIDsFn: func(_ []string, _ ...string) ([]model.Role, error) {
-			return []model.Role{{RoleID: 1, TenantID: 10}}, nil
+		findByUUIDsFn: func(_ []string, _ ...string) ([]Role, error) {
+			return []Role{{RoleID: 1, TenantID: 10}}, nil
 		},
 	}
 
@@ -245,17 +244,17 @@ func TestInviteService_SendInvite_FullSuccess(t *testing.T) {
 	mock.ExpectCommit()
 
 	clientRepo := &mockClientRepo{
-		findSystemFn: func() (*model.Client, error) { return defaultInviteClient(), nil },
+		findSystemFn: func() (*Client, error) { return defaultInviteClient(), nil },
 	}
 	roleRepo := &mockRoleRepo{
-		findByUUIDsFn: func(_ []string, _ ...string) ([]model.Role, error) {
-			return []model.Role{{RoleID: 1, TenantID: 10}}, nil
+		findByUUIDsFn: func(_ []string, _ ...string) ([]Role, error) {
+			return []Role{{RoleID: 1, TenantID: 10}}, nil
 		},
 	}
 	bodyPlain := "Join: {{.InviteURL}}"
 	emailTemplateRepo := &mockEmailTemplateRepo{
-		findByNameFn: func(_ string) (*model.EmailTemplate, error) {
-			return &model.EmailTemplate{
+		findByNameFn: func(_ string) (*EmailTemplate, error) {
+			return &EmailTemplate{
 				Subject:   "You're Invited",
 				BodyHTML:  `<a href="{{.InviteURL}}">Accept</a>`,
 				BodyPlain: &bodyPlain,
@@ -293,16 +292,16 @@ func TestInviteService_SendInvite_EmailSendError(t *testing.T) {
 	mock.ExpectCommit()
 
 	clientRepo := &mockClientRepo{
-		findSystemFn: func() (*model.Client, error) { return defaultInviteClient(), nil },
+		findSystemFn: func() (*Client, error) { return defaultInviteClient(), nil },
 	}
 	roleRepo := &mockRoleRepo{
-		findByUUIDsFn: func(_ []string, _ ...string) ([]model.Role, error) {
-			return []model.Role{{RoleID: 1, TenantID: 10}}, nil
+		findByUUIDsFn: func(_ []string, _ ...string) ([]Role, error) {
+			return []Role{{RoleID: 1, TenantID: 10}}, nil
 		},
 	}
 	emailTemplateRepo := &mockEmailTemplateRepo{
-		findByNameFn: func(_ string) (*model.EmailTemplate, error) {
-			return &model.EmailTemplate{
+		findByNameFn: func(_ string) (*EmailTemplate, error) {
+			return &EmailTemplate{
 				Subject:  "Invite",
 				BodyHTML: `<a href="{{.InviteURL}}">Accept</a>`,
 			}, nil
@@ -337,15 +336,15 @@ func TestInviteService_SendInvite_TemplateFetchError(t *testing.T) {
 	mock.ExpectCommit()
 
 	clientRepo := &mockClientRepo{
-		findSystemFn: func() (*model.Client, error) { return defaultInviteClient(), nil },
+		findSystemFn: func() (*Client, error) { return defaultInviteClient(), nil },
 	}
 	roleRepo := &mockRoleRepo{
-		findByUUIDsFn: func(_ []string, _ ...string) ([]model.Role, error) {
-			return []model.Role{{RoleID: 1, TenantID: 10}}, nil
+		findByUUIDsFn: func(_ []string, _ ...string) ([]Role, error) {
+			return []Role{{RoleID: 1, TenantID: 10}}, nil
 		},
 	}
 	emailTemplateRepo := &mockEmailTemplateRepo{
-		findByNameFn: func(_ string) (*model.EmailTemplate, error) {
+		findByNameFn: func(_ string) (*EmailTemplate, error) {
 			return nil, errors.New("template not found")
 		},
 	}
@@ -378,16 +377,16 @@ func TestInviteService_SendInvite_HTMLParseError(t *testing.T) {
 	mock.ExpectCommit()
 
 	clientRepo := &mockClientRepo{
-		findSystemFn: func() (*model.Client, error) { return defaultInviteClient(), nil },
+		findSystemFn: func() (*Client, error) { return defaultInviteClient(), nil },
 	}
 	roleRepo := &mockRoleRepo{
-		findByUUIDsFn: func(_ []string, _ ...string) ([]model.Role, error) {
-			return []model.Role{{RoleID: 1, TenantID: 10}}, nil
+		findByUUIDsFn: func(_ []string, _ ...string) ([]Role, error) {
+			return []Role{{RoleID: 1, TenantID: 10}}, nil
 		},
 	}
 	emailTemplateRepo := &mockEmailTemplateRepo{
-		findByNameFn: func(_ string) (*model.EmailTemplate, error) {
-			return &model.EmailTemplate{
+		findByNameFn: func(_ string) (*EmailTemplate, error) {
+			return &EmailTemplate{
 				Subject:  "Invite",
 				BodyHTML: `{{.InvalidSyntax`, // bad template
 			}, nil
@@ -422,16 +421,16 @@ func TestInviteService_SendInvite_HTMLExecuteError(t *testing.T) {
 	mock.ExpectCommit()
 
 	clientRepo := &mockClientRepo{
-		findSystemFn: func() (*model.Client, error) { return defaultInviteClient(), nil },
+		findSystemFn: func() (*Client, error) { return defaultInviteClient(), nil },
 	}
 	roleRepo := &mockRoleRepo{
-		findByUUIDsFn: func(_ []string, _ ...string) ([]model.Role, error) {
-			return []model.Role{{RoleID: 1, TenantID: 10}}, nil
+		findByUUIDsFn: func(_ []string, _ ...string) ([]Role, error) {
+			return []Role{{RoleID: 1, TenantID: 10}}, nil
 		},
 	}
 	emailTemplateRepo := &mockEmailTemplateRepo{
-		findByNameFn: func(_ string) (*model.EmailTemplate, error) {
-			return &model.EmailTemplate{
+		findByNameFn: func(_ string) (*EmailTemplate, error) {
+			return &EmailTemplate{
 				Subject:  "Invite",
 				BodyHTML: `{{call .InviteURL}}`, // parses ok, fails on Execute
 			}, nil
@@ -466,17 +465,17 @@ func TestInviteService_SendInvite_PlainParseError(t *testing.T) {
 	mock.ExpectCommit()
 
 	clientRepo := &mockClientRepo{
-		findSystemFn: func() (*model.Client, error) { return defaultInviteClient(), nil },
+		findSystemFn: func() (*Client, error) { return defaultInviteClient(), nil },
 	}
 	roleRepo := &mockRoleRepo{
-		findByUUIDsFn: func(_ []string, _ ...string) ([]model.Role, error) {
-			return []model.Role{{RoleID: 1, TenantID: 10}}, nil
+		findByUUIDsFn: func(_ []string, _ ...string) ([]Role, error) {
+			return []Role{{RoleID: 1, TenantID: 10}}, nil
 		},
 	}
 	badPlain := `{{.InvalidSyntax`
 	emailTemplateRepo := &mockEmailTemplateRepo{
-		findByNameFn: func(_ string) (*model.EmailTemplate, error) {
-			return &model.EmailTemplate{
+		findByNameFn: func(_ string) (*EmailTemplate, error) {
+			return &EmailTemplate{
 				Subject:   "Invite",
 				BodyHTML:  `<a href="{{.InviteURL}}">Accept</a>`,
 				BodyPlain: &badPlain,
@@ -512,17 +511,17 @@ func TestInviteService_SendInvite_PlainExecuteError(t *testing.T) {
 	mock.ExpectCommit()
 
 	clientRepo := &mockClientRepo{
-		findSystemFn: func() (*model.Client, error) { return defaultInviteClient(), nil },
+		findSystemFn: func() (*Client, error) { return defaultInviteClient(), nil },
 	}
 	roleRepo := &mockRoleRepo{
-		findByUUIDsFn: func(_ []string, _ ...string) ([]model.Role, error) {
-			return []model.Role{{RoleID: 1, TenantID: 10}}, nil
+		findByUUIDsFn: func(_ []string, _ ...string) ([]Role, error) {
+			return []Role{{RoleID: 1, TenantID: 10}}, nil
 		},
 	}
 	badPlain := `{{call .InviteURL}}`
 	emailTemplateRepo := &mockEmailTemplateRepo{
-		findByNameFn: func(_ string) (*model.EmailTemplate, error) {
-			return &model.EmailTemplate{
+		findByNameFn: func(_ string) (*EmailTemplate, error) {
+			return &EmailTemplate{
 				Subject:   "Invite",
 				BodyHTML:  `<a href="{{.InviteURL}}">Accept</a>`,
 				BodyPlain: &badPlain,
@@ -543,13 +542,13 @@ func TestInviteService_SendInvite_ClientInactive(t *testing.T) {
 
 	domain := "example.com"
 	clientRepo := &mockClientRepo{
-		findSystemFn: func() (*model.Client, error) {
-			return &model.Client{
+		findSystemFn: func() (*Client, error) {
+			return &Client{
 				ClientID: 1,
-				Status:   model.StatusInactive,
+				Status:   StatusInactive,
 				Domain:   &domain,
-				IdentityProvider: &model.IdentityProvider{
-					Tenant: &model.Tenant{TenantID: 10},
+				IdentityProvider: &IdentityProvider{
+					Tenant: &Tenant{TenantID: 10},
 				},
 			}, nil
 		},
@@ -567,13 +566,13 @@ func TestInviteService_SendInvite_ClientNoDomain(t *testing.T) {
 	mock.ExpectRollback()
 
 	clientRepo := &mockClientRepo{
-		findSystemFn: func() (*model.Client, error) {
-			return &model.Client{
+		findSystemFn: func() (*Client, error) {
+			return &Client{
 				ClientID: 1,
-				Status:   model.StatusActive,
+				Status:   StatusActive,
 				// Domain is nil
-				IdentityProvider: &model.IdentityProvider{
-					Tenant: &model.Tenant{TenantID: 10},
+				IdentityProvider: &IdentityProvider{
+					Tenant: &Tenant{TenantID: 10},
 				},
 			}, nil
 		},
@@ -592,13 +591,13 @@ func TestInviteService_SendInvite_ClientEmptyDomain(t *testing.T) {
 
 	empty := ""
 	clientRepo := &mockClientRepo{
-		findSystemFn: func() (*model.Client, error) {
-			return &model.Client{
+		findSystemFn: func() (*Client, error) {
+			return &Client{
 				ClientID: 1,
-				Status:   model.StatusActive,
+				Status:   StatusActive,
 				Domain:   &empty,
-				IdentityProvider: &model.IdentityProvider{
-					Tenant: &model.Tenant{TenantID: 10},
+				IdentityProvider: &IdentityProvider{
+					Tenant: &Tenant{TenantID: 10},
 				},
 			}, nil
 		},
@@ -617,12 +616,12 @@ func TestInviteService_SendInvite_NoTenant(t *testing.T) {
 
 	domain := "example.com"
 	clientRepo := &mockClientRepo{
-		findSystemFn: func() (*model.Client, error) {
-			return &model.Client{
+		findSystemFn: func() (*Client, error) {
+			return &Client{
 				ClientID: 1,
-				Status:   model.StatusActive,
+				Status:   StatusActive,
 				Domain:   &domain,
-				IdentityProvider: &model.IdentityProvider{
+				IdentityProvider: &IdentityProvider{
 					Tenant: nil,
 				},
 			}, nil
@@ -642,13 +641,13 @@ func TestInviteService_SendInvite_TenantIDZero(t *testing.T) {
 
 	domain := "example.com"
 	clientRepo := &mockClientRepo{
-		findSystemFn: func() (*model.Client, error) {
-			return &model.Client{
+		findSystemFn: func() (*Client, error) {
+			return &Client{
 				ClientID: 1,
-				Status:   model.StatusActive,
+				Status:   StatusActive,
 				Domain:   &domain,
-				IdentityProvider: &model.IdentityProvider{
-					Tenant: &model.Tenant{TenantID: 0},
+				IdentityProvider: &IdentityProvider{
+					Tenant: &Tenant{TenantID: 0},
 				},
 			}, nil
 		},
@@ -685,11 +684,11 @@ func TestInviteService_SendInvite_GenerateSignedURLError(t *testing.T) {
 	mock.ExpectCommit()
 
 	clientRepo := &mockClientRepo{
-		findSystemFn: func() (*model.Client, error) { return defaultInviteClient(), nil },
+		findSystemFn: func() (*Client, error) { return defaultInviteClient(), nil },
 	}
 	roleRepo := &mockRoleRepo{
-		findByUUIDsFn: func(_ []string, _ ...string) ([]model.Role, error) {
-			return []model.Role{{RoleID: 1, TenantID: 10}}, nil
+		findByUUIDsFn: func(_ []string, _ ...string) ([]Role, error) {
+			return []Role{{RoleID: 1, TenantID: 10}}, nil
 		},
 	}
 
@@ -724,11 +723,11 @@ func TestInviteService_SendInvite_ConvertToFrontendURLError(t *testing.T) {
 	mock.ExpectCommit()
 
 	clientRepo := &mockClientRepo{
-		findSystemFn: func() (*model.Client, error) { return defaultInviteClient(), nil },
+		findSystemFn: func() (*Client, error) { return defaultInviteClient(), nil },
 	}
 	roleRepo := &mockRoleRepo{
-		findByUUIDsFn: func(_ []string, _ ...string) ([]model.Role, error) {
-			return []model.Role{{RoleID: 1, TenantID: 10}}, nil
+		findByUUIDsFn: func(_ []string, _ ...string) ([]Role, error) {
+			return []Role{{RoleID: 1, TenantID: 10}}, nil
 		},
 	}
 

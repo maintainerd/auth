@@ -4,15 +4,13 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/maintainerd/auth/internal/platform/cache"
 	"github.com/maintainerd/auth/internal/platform/middleware"
-	"github.com/maintainerd/auth/internal/rest/handler"
-	"github.com/maintainerd/auth/internal/service"
 )
 
 // MFARoute mounts all MFA-related endpoints under /mfa.
 func MFARoute(
 	r chi.Router,
-	mfaHandler *handler.MFAHandler,
-	userService service.UserService,
+	mfaHandler *MFAHandler,
+	userService UserService,
 	appCache *cache.Cache,
 ) {
 	r.Route("/mfa", func(r chi.Router) {

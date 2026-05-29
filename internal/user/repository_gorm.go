@@ -4,7 +4,6 @@ import (
 	"errors"
 	"strings"
 
-	"github.com/maintainerd/auth/internal/model"
 	"gorm.io/gorm"
 )
 
@@ -24,23 +23,23 @@ type ProfileRepositoryGetFilter struct {
 }
 
 type ProfileRepository interface {
-	BaseRepositoryMethods[model.Profile]
+	BaseRepositoryMethods[Profile]
 	WithTx(tx *gorm.DB) ProfileRepository
-	FindByUserID(userID int64) (*model.Profile, error)
-	FindDefaultByUserID(userID int64) (*model.Profile, error)
-	FindAllByUserID(filter ProfileRepositoryGetFilter) (*PaginationResult[model.Profile], error)
-	UpdateByUserID(userID int64, updatedProfile *model.Profile) error
+	FindByUserID(userID int64) (*Profile, error)
+	FindDefaultByUserID(userID int64) (*Profile, error)
+	FindAllByUserID(filter ProfileRepositoryGetFilter) (*PaginationResult[Profile], error)
+	UpdateByUserID(userID int64, updatedProfile *Profile) error
 	DeleteByUserID(userID int64) error
 	UnsetDefaultProfiles(userID int64) error
 }
 
 type profileRepository struct {
-	*BaseRepository[model.Profile]
+	*BaseRepository[Profile]
 }
 
 func NewProfileRepository(db *gorm.DB) ProfileRepository {
 	return &profileRepository{
-		BaseRepository: NewBaseRepository[model.Profile](db, "profile_uuid", "profile_id"),
+		BaseRepository: NewBaseRepository[Profile](db, "profile_uuid", "profile_id"),
 	}
 }
 
@@ -50,8 +49,8 @@ func (r *profileRepository) WithTx(tx *gorm.DB) ProfileRepository {
 	}
 }
 
-func (r *profileRepository) FindByUserID(userID int64) (*model.Profile, error) {
-	var profile model.Profile
+func (r *profileRepository) FindByUserID(userID int64) (*Profile, error) {
+	var profile Profile
 	err := r.DB().Where("user_id = ?", userID).First(&profile).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -62,8 +61,8 @@ func (r *profileRepository) FindByUserID(userID int64) (*model.Profile, error) {
 	return &profile, nil
 }
 
-func (r *profileRepository) FindDefaultByUserID(userID int64) (*model.Profile, error) {
-	var profile model.Profile
+func (r *profileRepository) FindDefaultByUserID(userID int64) (*Profile, error) {
+	var profile Profile
 	err := r.DB().Where("user_id = ? AND is_default = ?", userID, true).First(&profile).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -74,11 +73,11 @@ func (r *profileRepository) FindDefaultByUserID(userID int64) (*model.Profile, e
 	return &profile, nil
 }
 
-func (r *profileRepository) FindAllByUserID(filter ProfileRepositoryGetFilter) (*PaginationResult[model.Profile], error) {
-	var profiles []model.Profile
+func (r *profileRepository) FindAllByUserID(filter ProfileRepositoryGetFilter) (*PaginationResult[Profile], error) {
+	var profiles []Profile
 	var total int64
 
-	query := r.DB().Model(&model.Profile{}).Where("user_id = ?", filter.UserID)
+	query := r.DB().Model(&Profile{}).Where("user_id = ?", filter.UserID)
 
 	// Apply filters
 	if filter.FirstName != nil && *filter.FirstName != "" {
@@ -127,7 +126,7 @@ func (r *profileRepository) FindAllByUserID(filter ProfileRepositoryGetFilter) (
 	}
 
 	totalPages := int((total + int64(filter.Limit) - 1) / int64(filter.Limit))
-	return &PaginationResult[model.Profile]{
+	return &PaginationResult[Profile]{
 		Data:       profiles,
 		Total:      total,
 		Page:       filter.Page,
@@ -136,17 +135,17 @@ func (r *profileRepository) FindAllByUserID(filter ProfileRepositoryGetFilter) (
 	}, nil
 }
 
-func (r *profileRepository) UpdateByUserID(userID int64, updatedProfile *model.Profile) error {
-	return r.DB().Model(&model.Profile{}).
+func (r *profileRepository) UpdateByUserID(userID int64, updatedProfile *Profile) error {
+	return r.DB().Model(&Profile{}).
 		Where("user_id = ?", userID).
 		Updates(updatedProfile).Error
 }
 
 func (r *profileRepository) DeleteByUserID(userID int64) error {
-	return r.DB().Where("user_id = ?", userID).Delete(&model.Profile{}).Error
+	return r.DB().Where("user_id = ?", userID).Delete(&Profile{}).Error
 }
 func (r *profileRepository) UnsetDefaultProfiles(userID int64) error {
-	return r.DB().Model(&model.Profile{}).
+	return r.DB().Model(&Profile{}).
 		Where("user_id = ? AND is_default = ?", userID, true).
 		Update("is_default", false).Error
 }

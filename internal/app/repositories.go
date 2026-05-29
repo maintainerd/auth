@@ -1,120 +1,132 @@
 package app
 
 import (
-	"github.com/maintainerd/auth/internal/repository"
+	"github.com/maintainerd/auth/internal/authevent"
+	"github.com/maintainerd/auth/internal/branding"
+	"github.com/maintainerd/auth/internal/client"
+	"github.com/maintainerd/auth/internal/iam"
+	"github.com/maintainerd/auth/internal/idp"
+	"github.com/maintainerd/auth/internal/invite"
+	"github.com/maintainerd/auth/internal/mfa"
+	"github.com/maintainerd/auth/internal/notifier"
+	"github.com/maintainerd/auth/internal/oauth"
+	"github.com/maintainerd/auth/internal/secpolicy"
+	"github.com/maintainerd/auth/internal/tenant"
+	"github.com/maintainerd/auth/internal/user"
+	"github.com/maintainerd/auth/internal/webhook"
 	"gorm.io/gorm"
 )
 
 // repos holds every repository instance. It is private to the app package and
 // is only passed between the three init functions below.
 type repos struct {
-	serviceRepo               repository.ServiceRepository
-	tenantServiceRepo         repository.TenantServiceRepository
-	apiRepo                   repository.APIRepository
-	permissionRepo            repository.PermissionRepository
-	tenantRepo                repository.TenantRepository
-	tenantMemberRepo          repository.TenantMemberRepository
-	userPoolRepo              repository.UserPoolRepository
-	idpRepo                   repository.IdentityProviderRepository
-	roleRepo                  repository.RoleRepository
-	rolePermissionRepo        repository.RolePermissionRepository
-	clientRepo                repository.ClientRepository
-	clientPermissionRepo      repository.ClientPermissionRepository
-	clientAPIRepo             repository.ClientAPIRepository
-	clientURIRepo             repository.ClientURIRepository
-	userRepo                  repository.UserRepository
-	userIdentityRepo          repository.UserIdentityRepository
-	userRoleRepo              repository.UserRoleRepository
-	userTokenRepo             repository.UserTokenRepository
-	profileRepo               repository.ProfileRepository
-	userSettingRepo           repository.UserSettingRepository
-	inviteRepo                repository.InviteRepository
-	emailTemplateRepo         repository.EmailTemplateRepository
-	smsTemplateRepo           repository.SMSTemplateRepository
-	loginTemplateRepo         repository.LoginTemplateRepository
-	policyRepo                repository.PolicyRepository
-	servicePolicyRepo         repository.ServicePolicyRepository
-	apiKeyRepo                repository.APIKeyRepository
-	apiKeyAPIRepo             repository.APIKeyAPIRepository
-	apiKeyPermissionRepo      repository.APIKeyPermissionRepository
-	signupFlowRepo            repository.SignupFlowRepository
-	signupFlowRoleRepo        repository.SignupFlowRoleRepository
-	securitySettingRepo       repository.SecuritySettingRepository
-	securitySettingsAuditRepo repository.SecuritySettingsAuditRepository
-	ipRestrictionRuleRepo     repository.IPRestrictionRuleRepository
-	brandingRepo              repository.BrandingRepository
-	tenantSettingRepo         repository.TenantSettingRepository
-	emailConfigRepo           repository.EmailConfigRepository
-	smsConfigRepo             repository.SMSConfigRepository
-	webhookEndpointRepo       repository.WebhookEndpointRepository
-	authEventRepo             repository.AuthEventRepository
-	oauthAuthCodeRepo         repository.OAuthAuthorizationCodeRepository
-	oauthRefreshTokenRepo     repository.OAuthRefreshTokenRepository
-	oauthConsentGrantRepo     repository.OAuthConsentGrantRepository
-	oauthConsentChallengeRepo repository.OAuthConsentChallengeRepository
-	oauthPARRequestRepo       repository.OAuthPARRequestRepository
-	oauthDeviceCodeRepo       repository.OAuthDeviceCodeRepository
-	oauthCIBARequestRepo      repository.OAuthCIBARequestRepository
-	smsOtpRepo                repository.SMSOtpRepository
-	userBackupCodeRepo        repository.UserBackupCodeRepository
-	totpSecretRepo            repository.UserTOTPSecretRepository
-	webAuthnCredRepo          repository.UserWebAuthnCredentialRepository
-	userPasswordHistoryRepo   repository.UserPasswordHistoryRepository
+	serviceRepo               iam.ServiceRepository
+	tenantServiceRepo         tenant.TenantServiceRepository
+	apiRepo                   iam.APIRepository
+	permissionRepo            iam.PermissionRepository
+	tenantRepo                tenant.TenantRepository
+	tenantMemberRepo          tenant.TenantMemberRepository
+	userPoolRepo              user.UserPoolRepository
+	idpRepo                   idp.IdentityProviderRepository
+	roleRepo                  iam.RoleRepository
+	rolePermissionRepo        iam.RolePermissionRepository
+	clientRepo                client.ClientRepository
+	clientPermissionRepo      client.ClientPermissionRepository
+	clientAPIRepo             client.ClientAPIRepository
+	clientURIRepo             client.ClientURIRepository
+	userRepo                  user.UserRepository
+	userIdentityRepo          user.UserIdentityRepository
+	userRoleRepo              user.UserRoleRepository
+	userTokenRepo             user.UserTokenRepository
+	profileRepo               user.ProfileRepository
+	userSettingRepo           user.UserSettingRepository
+	inviteRepo                invite.InviteRepository
+	emailTemplateRepo         branding.EmailTemplateRepository
+	smsTemplateRepo           branding.SMSTemplateRepository
+	loginTemplateRepo         branding.LoginTemplateRepository
+	policyRepo                iam.PolicyRepository
+	servicePolicyRepo         iam.ServicePolicyRepository
+	apiKeyRepo                client.APIKeyRepository
+	apiKeyAPIRepo             client.APIKeyAPIRepository
+	apiKeyPermissionRepo      client.APIKeyPermissionRepository
+	signupFlowRepo            idp.SignupFlowRepository
+	signupFlowRoleRepo        idp.SignupFlowRoleRepository
+	securitySettingRepo       secpolicy.SecuritySettingRepository
+	securitySettingsAuditRepo secpolicy.SecuritySettingsAuditRepository
+	ipRestrictionRuleRepo     secpolicy.IPRestrictionRuleRepository
+	brandingRepo              branding.BrandingRepository
+	tenantSettingRepo         tenant.TenantSettingRepository
+	emailConfigRepo           notifier.EmailConfigRepository
+	smsConfigRepo             notifier.SMSConfigRepository
+	webhookEndpointRepo       webhook.WebhookEndpointRepository
+	authEventRepo             authevent.AuthEventRepository
+	oauthAuthCodeRepo         oauth.OAuthAuthorizationCodeRepository
+	oauthRefreshTokenRepo     oauth.OAuthRefreshTokenRepository
+	oauthConsentGrantRepo     oauth.OAuthConsentGrantRepository
+	oauthConsentChallengeRepo oauth.OAuthConsentChallengeRepository
+	oauthPARRequestRepo       oauth.OAuthPARRequestRepository
+	oauthDeviceCodeRepo       oauth.OAuthDeviceCodeRepository
+	oauthCIBARequestRepo      oauth.OAuthCIBARequestRepository
+	smsOtpRepo                notifier.SMSOtpRepository
+	userBackupCodeRepo        mfa.UserBackupCodeRepository
+	totpSecretRepo            mfa.UserTOTPSecretRepository
+	webAuthnCredRepo          mfa.UserWebAuthnCredentialRepository
+	userPasswordHistoryRepo   user.UserPasswordHistoryRepository
 }
 
 func initRepos(db *gorm.DB) *repos {
 	return &repos{
-		serviceRepo:               repository.NewServiceRepository(db),
-		tenantServiceRepo:         repository.NewTenantServiceRepository(db),
-		apiRepo:                   repository.NewAPIRepository(db),
-		permissionRepo:            repository.NewPermissionRepository(db),
-		tenantRepo:                repository.NewTenantRepository(db),
-		tenantMemberRepo:          repository.NewTenantMemberRepository(db),
-		userPoolRepo:              repository.NewUserPoolRepository(db),
-		idpRepo:                   repository.NewIdentityProviderRepository(db),
-		roleRepo:                  repository.NewRoleRepository(db),
-		rolePermissionRepo:        repository.NewRolePermissionRepository(db),
-		clientRepo:                repository.NewClientRepository(db),
-		clientPermissionRepo:      repository.NewClientPermissionRepository(db),
-		clientAPIRepo:             repository.NewClientAPIRepository(db),
-		clientURIRepo:             repository.NewClientURIRepository(db),
-		userRepo:                  repository.NewUserRepository(db),
-		userIdentityRepo:          repository.NewUserIdentityRepository(db),
-		userRoleRepo:              repository.NewUserRoleRepository(db),
-		userTokenRepo:             repository.NewUserTokenRepository(db),
-		profileRepo:               repository.NewProfileRepository(db),
-		userSettingRepo:           repository.NewUserSettingRepository(db),
-		inviteRepo:                repository.NewInviteRepository(db),
-		emailTemplateRepo:         repository.NewEmailTemplateRepository(db),
-		smsTemplateRepo:           repository.NewSMSTemplateRepository(db),
-		loginTemplateRepo:         repository.NewLoginTemplateRepository(db),
-		policyRepo:                repository.NewPolicyRepository(db),
-		servicePolicyRepo:         repository.NewServicePolicyRepository(db),
-		apiKeyRepo:                repository.NewAPIKeyRepository(db),
-		apiKeyAPIRepo:             repository.NewAPIKeyAPIRepository(db),
-		apiKeyPermissionRepo:      repository.NewAPIKeyPermissionRepository(db),
-		signupFlowRepo:            repository.NewSignupFlowRepository(db),
-		signupFlowRoleRepo:        repository.NewSignupFlowRoleRepository(db),
-		securitySettingRepo:       repository.NewSecuritySettingRepository(db),
-		securitySettingsAuditRepo: repository.NewSecuritySettingsAuditRepository(db),
-		ipRestrictionRuleRepo:     repository.NewIPRestrictionRuleRepository(db),
-		brandingRepo:              repository.NewBrandingRepository(db),
-		tenantSettingRepo:         repository.NewTenantSettingRepository(db),
-		emailConfigRepo:           repository.NewEmailConfigRepository(db),
-		smsConfigRepo:             repository.NewSMSConfigRepository(db),
-		webhookEndpointRepo:       repository.NewWebhookEndpointRepository(db),
-		authEventRepo:             repository.NewAuthEventRepository(db),
-		oauthAuthCodeRepo:         repository.NewOAuthAuthorizationCodeRepository(db),
-		oauthRefreshTokenRepo:     repository.NewOAuthRefreshTokenRepository(db),
-		oauthConsentGrantRepo:     repository.NewOAuthConsentGrantRepository(db),
-		oauthConsentChallengeRepo: repository.NewOAuthConsentChallengeRepository(db),
-		oauthPARRequestRepo:       repository.NewOAuthPARRequestRepository(db),
-		oauthDeviceCodeRepo:       repository.NewOAuthDeviceCodeRepository(db),
-		oauthCIBARequestRepo:      repository.NewOAuthCIBARequestRepository(db),
-		smsOtpRepo:                repository.NewSMSOtpRepository(db),
-		userBackupCodeRepo:        repository.NewUserBackupCodeRepository(db),
-		totpSecretRepo:            repository.NewUserTOTPSecretRepository(db),
-		webAuthnCredRepo:          repository.NewUserWebAuthnCredentialRepository(db),
-		userPasswordHistoryRepo:   repository.NewUserPasswordHistoryRepository(db),
+		serviceRepo:               iam.NewServiceRepository(db),
+		tenantServiceRepo:         tenant.NewTenantServiceRepository(db),
+		apiRepo:                   iam.NewAPIRepository(db),
+		permissionRepo:            iam.NewPermissionRepository(db),
+		tenantRepo:                tenant.NewTenantRepository(db),
+		tenantMemberRepo:          tenant.NewTenantMemberRepository(db),
+		userPoolRepo:              user.NewUserPoolRepository(db),
+		idpRepo:                   idp.NewIdentityProviderRepository(db),
+		roleRepo:                  iam.NewRoleRepository(db),
+		rolePermissionRepo:        iam.NewRolePermissionRepository(db),
+		clientRepo:                client.NewClientRepository(db),
+		clientPermissionRepo:      client.NewClientPermissionRepository(db),
+		clientAPIRepo:             client.NewClientAPIRepository(db),
+		clientURIRepo:             client.NewClientURIRepository(db),
+		userRepo:                  user.NewUserRepository(db),
+		userIdentityRepo:          user.NewUserIdentityRepository(db),
+		userRoleRepo:              user.NewUserRoleRepository(db),
+		userTokenRepo:             user.NewUserTokenRepository(db),
+		profileRepo:               user.NewProfileRepository(db),
+		userSettingRepo:           user.NewUserSettingRepository(db),
+		inviteRepo:                invite.NewInviteRepository(db),
+		emailTemplateRepo:         branding.NewEmailTemplateRepository(db),
+		smsTemplateRepo:           branding.NewSMSTemplateRepository(db),
+		loginTemplateRepo:         branding.NewLoginTemplateRepository(db),
+		policyRepo:                iam.NewPolicyRepository(db),
+		servicePolicyRepo:         iam.NewServicePolicyRepository(db),
+		apiKeyRepo:                client.NewAPIKeyRepository(db),
+		apiKeyAPIRepo:             client.NewAPIKeyAPIRepository(db),
+		apiKeyPermissionRepo:      client.NewAPIKeyPermissionRepository(db),
+		signupFlowRepo:            idp.NewSignupFlowRepository(db),
+		signupFlowRoleRepo:        idp.NewSignupFlowRoleRepository(db),
+		securitySettingRepo:       secpolicy.NewSecuritySettingRepository(db),
+		securitySettingsAuditRepo: secpolicy.NewSecuritySettingsAuditRepository(db),
+		ipRestrictionRuleRepo:     secpolicy.NewIPRestrictionRuleRepository(db),
+		brandingRepo:              branding.NewBrandingRepository(db),
+		tenantSettingRepo:         tenant.NewTenantSettingRepository(db),
+		emailConfigRepo:           notifier.NewEmailConfigRepository(db),
+		smsConfigRepo:             notifier.NewSMSConfigRepository(db),
+		webhookEndpointRepo:       webhook.NewWebhookEndpointRepository(db),
+		authEventRepo:             authevent.NewAuthEventRepository(db),
+		oauthAuthCodeRepo:         oauth.NewOAuthAuthorizationCodeRepository(db),
+		oauthRefreshTokenRepo:     oauth.NewOAuthRefreshTokenRepository(db),
+		oauthConsentGrantRepo:     oauth.NewOAuthConsentGrantRepository(db),
+		oauthConsentChallengeRepo: oauth.NewOAuthConsentChallengeRepository(db),
+		oauthPARRequestRepo:       oauth.NewOAuthPARRequestRepository(db),
+		oauthDeviceCodeRepo:       oauth.NewOAuthDeviceCodeRepository(db),
+		oauthCIBARequestRepo:      oauth.NewOAuthCIBARequestRepository(db),
+		smsOtpRepo:                notifier.NewSMSOtpRepository(db),
+		userBackupCodeRepo:        mfa.NewUserBackupCodeRepository(db),
+		totpSecretRepo:            mfa.NewUserTOTPSecretRepository(db),
+		webAuthnCredRepo:          mfa.NewUserWebAuthnCredentialRepository(db),
+		userPasswordHistoryRepo:   user.NewUserPasswordHistoryRepository(db),
 	}
 }

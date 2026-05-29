@@ -7,7 +7,6 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
-	"github.com/maintainerd/auth/internal/model"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gorm.io/datatypes"
@@ -18,8 +17,8 @@ func newSecuritySettingSvc(repo *mockSecuritySettingRepo, auditRepo *mockSecurit
 }
 
 // helper: minimal SecuritySetting fixture
-func newSecSetting(userPoolID int64) *model.SecuritySetting {
-	return &model.SecuritySetting{
+func newSecSetting(userPoolID int64) *SecuritySetting {
+	return &SecuritySetting{
 		SecuritySettingID:   1,
 		SecuritySettingUUID: uuid.New(),
 		UserPoolID:          userPoolID,
@@ -41,7 +40,7 @@ func newSecSetting(userPoolID int64) *model.SecuritySetting {
 func TestSecuritySettingService_GetByUserPoolID(t *testing.T) {
 	t.Run("not found", func(t *testing.T) {
 		svc := newSecuritySettingSvc(&mockSecuritySettingRepo{
-			findByUserPoolIDFn: func(_ int64) (*model.SecuritySetting, error) { return nil, nil },
+			findByUserPoolIDFn: func(_ int64) (*SecuritySetting, error) { return nil, nil },
 		}, &mockSecuritySettingsAuditRepo{})
 		_, err := svc.GetByUserPoolID(context.Background(), 1)
 		require.Error(t, err)
@@ -50,7 +49,7 @@ func TestSecuritySettingService_GetByUserPoolID(t *testing.T) {
 
 	t.Run("repo error", func(t *testing.T) {
 		svc := newSecuritySettingSvc(&mockSecuritySettingRepo{
-			findByUserPoolIDFn: func(_ int64) (*model.SecuritySetting, error) { return nil, errors.New("db") },
+			findByUserPoolIDFn: func(_ int64) (*SecuritySetting, error) { return nil, errors.New("db") },
 		}, &mockSecuritySettingsAuditRepo{})
 		_, err := svc.GetByUserPoolID(context.Background(), 1)
 		require.Error(t, err)
@@ -59,7 +58,7 @@ func TestSecuritySettingService_GetByUserPoolID(t *testing.T) {
 
 	t.Run("success", func(t *testing.T) {
 		svc := newSecuritySettingSvc(&mockSecuritySettingRepo{
-			findByUserPoolIDFn: func(tid int64) (*model.SecuritySetting, error) {
+			findByUserPoolIDFn: func(tid int64) (*SecuritySetting, error) {
 				return newSecSetting(tid), nil
 			},
 		}, &mockSecuritySettingsAuditRepo{})
@@ -76,7 +75,7 @@ func TestSecuritySettingService_GetByUserPoolID(t *testing.T) {
 func TestSecuritySettingService_GetMFAConfig(t *testing.T) {
 	t.Run("repo error", func(t *testing.T) {
 		svc := newSecuritySettingSvc(&mockSecuritySettingRepo{
-			findByUserPoolIDFn: func(_ int64) (*model.SecuritySetting, error) { return nil, errors.New("fail") },
+			findByUserPoolIDFn: func(_ int64) (*SecuritySetting, error) { return nil, errors.New("fail") },
 		}, &mockSecuritySettingsAuditRepo{})
 		_, err := svc.GetMFAConfig(context.Background(), 1)
 		require.Error(t, err)
@@ -84,7 +83,7 @@ func TestSecuritySettingService_GetMFAConfig(t *testing.T) {
 
 	t.Run("creates default when not found", func(t *testing.T) {
 		svc := newSecuritySettingSvc(&mockSecuritySettingRepo{
-			findByUserPoolIDFn: func(_ int64) (*model.SecuritySetting, error) { return nil, nil },
+			findByUserPoolIDFn: func(_ int64) (*SecuritySetting, error) { return nil, nil },
 		}, &mockSecuritySettingsAuditRepo{})
 		cfg, err := svc.GetMFAConfig(context.Background(), 1)
 		require.NoError(t, err)
@@ -93,8 +92,8 @@ func TestSecuritySettingService_GetMFAConfig(t *testing.T) {
 
 	t.Run("create default error", func(t *testing.T) {
 		svc := newSecuritySettingSvc(&mockSecuritySettingRepo{
-			findByUserPoolIDFn: func(_ int64) (*model.SecuritySetting, error) { return nil, nil },
-			createFn: func(_ *model.SecuritySetting) (*model.SecuritySetting, error) {
+			findByUserPoolIDFn: func(_ int64) (*SecuritySetting, error) { return nil, nil },
+			createFn: func(_ *SecuritySetting) (*SecuritySetting, error) {
 				return nil, errors.New("create error")
 			},
 		}, &mockSecuritySettingsAuditRepo{})
@@ -105,8 +104,8 @@ func TestSecuritySettingService_GetMFAConfig(t *testing.T) {
 
 	t.Run("success with existing", func(t *testing.T) {
 		svc := newSecuritySettingSvc(&mockSecuritySettingRepo{
-			findByUserPoolIDFn: func(_ int64) (*model.SecuritySetting, error) {
-				return &model.SecuritySetting{
+			findByUserPoolIDFn: func(_ int64) (*SecuritySetting, error) {
+				return &SecuritySetting{
 					MFAConfig: datatypes.JSON([]byte(`{"key":"val"}`)),
 				}, nil
 			},
@@ -124,8 +123,8 @@ func TestSecuritySettingService_GetMFAConfig(t *testing.T) {
 func TestSecuritySettingService_GetPasswordConfig(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		svc := newSecuritySettingSvc(&mockSecuritySettingRepo{
-			findByUserPoolIDFn: func(_ int64) (*model.SecuritySetting, error) {
-				return &model.SecuritySetting{
+			findByUserPoolIDFn: func(_ int64) (*SecuritySetting, error) {
+				return &SecuritySetting{
 					PasswordConfig: datatypes.JSON([]byte(`{"min_length":8}`)),
 				}, nil
 			},
@@ -137,7 +136,7 @@ func TestSecuritySettingService_GetPasswordConfig(t *testing.T) {
 
 	t.Run("error", func(t *testing.T) {
 		svc := newSecuritySettingSvc(&mockSecuritySettingRepo{
-			findByUserPoolIDFn: func(_ int64) (*model.SecuritySetting, error) { return nil, errors.New("fail") },
+			findByUserPoolIDFn: func(_ int64) (*SecuritySetting, error) { return nil, errors.New("fail") },
 		}, &mockSecuritySettingsAuditRepo{})
 		_, err := svc.GetPasswordConfig(context.Background(), 1)
 		require.Error(t, err)
@@ -151,8 +150,8 @@ func TestSecuritySettingService_GetPasswordConfig(t *testing.T) {
 func TestSecuritySettingService_GetSessionConfig(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		svc := newSecuritySettingSvc(&mockSecuritySettingRepo{
-			findByUserPoolIDFn: func(_ int64) (*model.SecuritySetting, error) {
-				return &model.SecuritySetting{
+			findByUserPoolIDFn: func(_ int64) (*SecuritySetting, error) {
+				return &SecuritySetting{
 					SessionConfig: datatypes.JSON([]byte(`{"timeout":3600}`)),
 				}, nil
 			},
@@ -164,7 +163,7 @@ func TestSecuritySettingService_GetSessionConfig(t *testing.T) {
 
 	t.Run("error", func(t *testing.T) {
 		svc := newSecuritySettingSvc(&mockSecuritySettingRepo{
-			findByUserPoolIDFn: func(_ int64) (*model.SecuritySetting, error) { return nil, errors.New("fail") },
+			findByUserPoolIDFn: func(_ int64) (*SecuritySetting, error) { return nil, errors.New("fail") },
 		}, &mockSecuritySettingsAuditRepo{})
 		_, err := svc.GetSessionConfig(context.Background(), 1)
 		require.Error(t, err)
@@ -178,8 +177,8 @@ func TestSecuritySettingService_GetSessionConfig(t *testing.T) {
 func TestSecuritySettingService_GetThreatConfig(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		svc := newSecuritySettingSvc(&mockSecuritySettingRepo{
-			findByUserPoolIDFn: func(_ int64) (*model.SecuritySetting, error) {
-				return &model.SecuritySetting{
+			findByUserPoolIDFn: func(_ int64) (*SecuritySetting, error) {
+				return &SecuritySetting{
 					ThreatConfig: datatypes.JSON([]byte(`{"max_attempts":5}`)),
 				}, nil
 			},
@@ -191,7 +190,7 @@ func TestSecuritySettingService_GetThreatConfig(t *testing.T) {
 
 	t.Run("error", func(t *testing.T) {
 		svc := newSecuritySettingSvc(&mockSecuritySettingRepo{
-			findByUserPoolIDFn: func(_ int64) (*model.SecuritySetting, error) { return nil, errors.New("fail") },
+			findByUserPoolIDFn: func(_ int64) (*SecuritySetting, error) { return nil, errors.New("fail") },
 		}, &mockSecuritySettingsAuditRepo{})
 		_, err := svc.GetThreatConfig(context.Background(), 1)
 		require.Error(t, err)
@@ -205,8 +204,8 @@ func TestSecuritySettingService_GetThreatConfig(t *testing.T) {
 func TestSecuritySettingService_GetLockoutConfig(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		svc := newSecuritySettingSvc(&mockSecuritySettingRepo{
-			findByUserPoolIDFn: func(_ int64) (*model.SecuritySetting, error) {
-				return &model.SecuritySetting{
+			findByUserPoolIDFn: func(_ int64) (*SecuritySetting, error) {
+				return &SecuritySetting{
 					LockoutConfig: datatypes.JSON([]byte(`{"enabled":true}`)),
 				}, nil
 			},
@@ -218,7 +217,7 @@ func TestSecuritySettingService_GetLockoutConfig(t *testing.T) {
 
 	t.Run("error", func(t *testing.T) {
 		svc := newSecuritySettingSvc(&mockSecuritySettingRepo{
-			findByUserPoolIDFn: func(_ int64) (*model.SecuritySetting, error) { return nil, errors.New("fail") },
+			findByUserPoolIDFn: func(_ int64) (*SecuritySetting, error) { return nil, errors.New("fail") },
 		}, &mockSecuritySettingsAuditRepo{})
 		_, err := svc.GetLockoutConfig(context.Background(), 1)
 		require.Error(t, err)
@@ -262,7 +261,7 @@ func TestSecuritySettingService_UpdateMFAConfig(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		svc := NewSecuritySettingService(db, &mockSecuritySettingRepo{
-			findByUserPoolIDFn: func(_ int64) (*model.SecuritySetting, error) { return nil, errors.New("db") },
+			findByUserPoolIDFn: func(_ int64) (*SecuritySetting, error) { return nil, errors.New("db") },
 		}, &mockSecuritySettingsAuditRepo{})
 		_, err := svc.UpdateMFAConfig(context.Background(), userPoolID, cfg, updatedBy, "1.2.3.4", "agent")
 		require.Error(t, err)
@@ -274,13 +273,13 @@ func TestSecuritySettingService_UpdateMFAConfig(t *testing.T) {
 		mock.ExpectCommit()
 		settingUUID := uuid.New()
 		svc := NewSecuritySettingService(db, &mockSecuritySettingRepo{
-			findByUserPoolIDFn: func(_ int64) (*model.SecuritySetting, error) { return nil, nil },
-			createFn: func(e *model.SecuritySetting) (*model.SecuritySetting, error) {
+			findByUserPoolIDFn: func(_ int64) (*SecuritySetting, error) { return nil, nil },
+			createFn: func(e *SecuritySetting) (*SecuritySetting, error) {
 				e.SecuritySettingUUID = settingUUID
 				e.SecuritySettingID = 1
 				return e, nil
 			},
-			findByUUIDFn: func(_ any, _ ...string) (*model.SecuritySetting, error) {
+			findByUUIDFn: func(_ any, _ ...string) (*SecuritySetting, error) {
 				ss := newSecSetting(userPoolID)
 				ss.SecuritySettingUUID = settingUUID
 				ss.MFAConfig = datatypes.JSON([]byte(`{"enforce_mfa":true}`))
@@ -299,9 +298,9 @@ func TestSecuritySettingService_UpdateMFAConfig(t *testing.T) {
 		mock.ExpectCommit()
 		existing := newSecSetting(userPoolID)
 		svc := NewSecuritySettingService(db, &mockSecuritySettingRepo{
-			findByUserPoolIDFn: func(_ int64) (*model.SecuritySetting, error) { return existing, nil },
-			createOrUpdateFn:   func(e *model.SecuritySetting) (*model.SecuritySetting, error) { return e, nil },
-			findByUUIDFn: func(_ any, _ ...string) (*model.SecuritySetting, error) {
+			findByUserPoolIDFn: func(_ int64) (*SecuritySetting, error) { return existing, nil },
+			createOrUpdateFn:   func(e *SecuritySetting) (*SecuritySetting, error) { return e, nil },
+			findByUUIDFn: func(_ any, _ ...string) (*SecuritySetting, error) {
 				return existing, nil
 			},
 		}, &mockSecuritySettingsAuditRepo{})
@@ -316,7 +315,7 @@ func TestSecuritySettingService_UpdateMFAConfig(t *testing.T) {
 		mock.ExpectRollback()
 		existing := newSecSetting(userPoolID)
 		svc := NewSecuritySettingService(db, &mockSecuritySettingRepo{
-			findByUserPoolIDFn: func(_ int64) (*model.SecuritySetting, error) { return existing, nil },
+			findByUserPoolIDFn: func(_ int64) (*SecuritySetting, error) { return existing, nil },
 		}, &mockSecuritySettingsAuditRepo{})
 		badCfg := map[string]any{"bad": math.Inf(1)}
 		_, err := svc.UpdateMFAConfig(context.Background(), userPoolID, badCfg, updatedBy, "1.2.3.4", "agent")
@@ -329,8 +328,8 @@ func TestSecuritySettingService_UpdateMFAConfig(t *testing.T) {
 		mock.ExpectRollback()
 		existing := newSecSetting(userPoolID)
 		svc := NewSecuritySettingService(db, &mockSecuritySettingRepo{
-			findByUserPoolIDFn: func(_ int64) (*model.SecuritySetting, error) { return existing, nil },
-			createOrUpdateFn: func(_ *model.SecuritySetting) (*model.SecuritySetting, error) {
+			findByUserPoolIDFn: func(_ int64) (*SecuritySetting, error) { return existing, nil },
+			createOrUpdateFn: func(_ *SecuritySetting) (*SecuritySetting, error) {
 				return nil, errors.New("save error")
 			},
 		}, &mockSecuritySettingsAuditRepo{})
@@ -345,8 +344,8 @@ func TestSecuritySettingService_UpdateMFAConfig(t *testing.T) {
 		mock.ExpectRollback()
 		existing := newSecSetting(userPoolID)
 		svc := NewSecuritySettingService(db, &mockSecuritySettingRepo{
-			findByUserPoolIDFn: func(_ int64) (*model.SecuritySetting, error) { return existing, nil },
-			createOrUpdateFn:   func(e *model.SecuritySetting) (*model.SecuritySetting, error) { return e, nil },
+			findByUserPoolIDFn: func(_ int64) (*SecuritySetting, error) { return existing, nil },
+			createOrUpdateFn:   func(e *SecuritySetting) (*SecuritySetting, error) { return e, nil },
 			incrementVersionFn: func(_ int64) error { return errors.New("version error") },
 		}, &mockSecuritySettingsAuditRepo{})
 		_, err := svc.UpdateMFAConfig(context.Background(), userPoolID, cfg, updatedBy, "1.2.3.4", "agent")
@@ -360,10 +359,10 @@ func TestSecuritySettingService_UpdateMFAConfig(t *testing.T) {
 		mock.ExpectRollback()
 		existing := newSecSetting(userPoolID)
 		svc := NewSecuritySettingService(db, &mockSecuritySettingRepo{
-			findByUserPoolIDFn: func(_ int64) (*model.SecuritySetting, error) { return existing, nil },
-			createOrUpdateFn:   func(e *model.SecuritySetting) (*model.SecuritySetting, error) { return e, nil },
+			findByUserPoolIDFn: func(_ int64) (*SecuritySetting, error) { return existing, nil },
+			createOrUpdateFn:   func(e *SecuritySetting) (*SecuritySetting, error) { return e, nil },
 		}, &mockSecuritySettingsAuditRepo{
-			createFn: func(_ *model.SecuritySettingsAudit) (*model.SecuritySettingsAudit, error) {
+			createFn: func(_ *SecuritySettingsAudit) (*SecuritySettingsAudit, error) {
 				return nil, errors.New("audit error")
 			},
 		})
@@ -378,9 +377,9 @@ func TestSecuritySettingService_UpdateMFAConfig(t *testing.T) {
 		mock.ExpectCommit()
 		existing := newSecSetting(userPoolID)
 		svc := NewSecuritySettingService(db, &mockSecuritySettingRepo{
-			findByUserPoolIDFn: func(_ int64) (*model.SecuritySetting, error) { return existing, nil },
-			createOrUpdateFn:   func(e *model.SecuritySetting) (*model.SecuritySetting, error) { return e, nil },
-			findByUUIDFn: func(_ any, _ ...string) (*model.SecuritySetting, error) {
+			findByUserPoolIDFn: func(_ int64) (*SecuritySetting, error) { return existing, nil },
+			createOrUpdateFn:   func(e *SecuritySetting) (*SecuritySetting, error) { return e, nil },
+			findByUUIDFn: func(_ any, _ ...string) (*SecuritySetting, error) {
 				return nil, errors.New("refresh error")
 			},
 		}, &mockSecuritySettingsAuditRepo{})
@@ -394,8 +393,8 @@ func TestSecuritySettingService_UpdateMFAConfig(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		svc := NewSecuritySettingService(db, &mockSecuritySettingRepo{
-			findByUserPoolIDFn: func(_ int64) (*model.SecuritySetting, error) { return nil, nil },
-			createFn: func(_ *model.SecuritySetting) (*model.SecuritySetting, error) {
+			findByUserPoolIDFn: func(_ int64) (*SecuritySetting, error) { return nil, nil },
+			createFn: func(_ *SecuritySetting) (*SecuritySetting, error) {
 				return nil, errors.New("create error")
 			},
 		}, &mockSecuritySettingsAuditRepo{})
@@ -419,9 +418,9 @@ func TestSecuritySettingService_UpdatePasswordConfig(t *testing.T) {
 		mock.ExpectCommit()
 		existing := newSecSetting(userPoolID)
 		svc := NewSecuritySettingService(db, &mockSecuritySettingRepo{
-			findByUserPoolIDFn: func(_ int64) (*model.SecuritySetting, error) { return existing, nil },
-			createOrUpdateFn:   func(e *model.SecuritySetting) (*model.SecuritySetting, error) { return e, nil },
-			findByUUIDFn:       func(_ any, _ ...string) (*model.SecuritySetting, error) { return existing, nil },
+			findByUserPoolIDFn: func(_ int64) (*SecuritySetting, error) { return existing, nil },
+			createOrUpdateFn:   func(e *SecuritySetting) (*SecuritySetting, error) { return e, nil },
+			findByUUIDFn:       func(_ any, _ ...string) (*SecuritySetting, error) { return existing, nil },
 		}, &mockSecuritySettingsAuditRepo{})
 		res, err := svc.UpdatePasswordConfig(context.Background(), userPoolID, cfg, 10, "1.2.3.4", "agent")
 		require.NoError(t, err)
@@ -433,7 +432,7 @@ func TestSecuritySettingService_UpdatePasswordConfig(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		svc := NewSecuritySettingService(db, &mockSecuritySettingRepo{
-			findByUserPoolIDFn: func(_ int64) (*model.SecuritySetting, error) { return nil, errors.New("db") },
+			findByUserPoolIDFn: func(_ int64) (*SecuritySetting, error) { return nil, errors.New("db") },
 		}, &mockSecuritySettingsAuditRepo{})
 		_, err := svc.UpdatePasswordConfig(context.Background(), userPoolID, cfg, 10, "1.2.3.4", "agent")
 		require.Error(t, err)
@@ -454,9 +453,9 @@ func TestSecuritySettingService_UpdateSessionConfig(t *testing.T) {
 		mock.ExpectCommit()
 		existing := newSecSetting(userPoolID)
 		svc := NewSecuritySettingService(db, &mockSecuritySettingRepo{
-			findByUserPoolIDFn: func(_ int64) (*model.SecuritySetting, error) { return existing, nil },
-			createOrUpdateFn:   func(e *model.SecuritySetting) (*model.SecuritySetting, error) { return e, nil },
-			findByUUIDFn:       func(_ any, _ ...string) (*model.SecuritySetting, error) { return existing, nil },
+			findByUserPoolIDFn: func(_ int64) (*SecuritySetting, error) { return existing, nil },
+			createOrUpdateFn:   func(e *SecuritySetting) (*SecuritySetting, error) { return e, nil },
+			findByUUIDFn:       func(_ any, _ ...string) (*SecuritySetting, error) { return existing, nil },
 		}, &mockSecuritySettingsAuditRepo{})
 		res, err := svc.UpdateSessionConfig(context.Background(), userPoolID, cfg, 10, "1.2.3.4", "agent")
 		require.NoError(t, err)
@@ -468,7 +467,7 @@ func TestSecuritySettingService_UpdateSessionConfig(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		svc := NewSecuritySettingService(db, &mockSecuritySettingRepo{
-			findByUserPoolIDFn: func(_ int64) (*model.SecuritySetting, error) { return nil, errors.New("db") },
+			findByUserPoolIDFn: func(_ int64) (*SecuritySetting, error) { return nil, errors.New("db") },
 		}, &mockSecuritySettingsAuditRepo{})
 		_, err := svc.UpdateSessionConfig(context.Background(), userPoolID, cfg, 10, "1.2.3.4", "agent")
 		require.Error(t, err)
@@ -489,9 +488,9 @@ func TestSecuritySettingService_UpdateThreatConfig(t *testing.T) {
 		mock.ExpectCommit()
 		existing := newSecSetting(userPoolID)
 		svc := NewSecuritySettingService(db, &mockSecuritySettingRepo{
-			findByUserPoolIDFn: func(_ int64) (*model.SecuritySetting, error) { return existing, nil },
-			createOrUpdateFn:   func(e *model.SecuritySetting) (*model.SecuritySetting, error) { return e, nil },
-			findByUUIDFn:       func(_ any, _ ...string) (*model.SecuritySetting, error) { return existing, nil },
+			findByUserPoolIDFn: func(_ int64) (*SecuritySetting, error) { return existing, nil },
+			createOrUpdateFn:   func(e *SecuritySetting) (*SecuritySetting, error) { return e, nil },
+			findByUUIDFn:       func(_ any, _ ...string) (*SecuritySetting, error) { return existing, nil },
 		}, &mockSecuritySettingsAuditRepo{})
 		res, err := svc.UpdateThreatConfig(context.Background(), userPoolID, cfg, 10, "1.2.3.4", "agent")
 		require.NoError(t, err)
@@ -503,7 +502,7 @@ func TestSecuritySettingService_UpdateThreatConfig(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		svc := NewSecuritySettingService(db, &mockSecuritySettingRepo{
-			findByUserPoolIDFn: func(_ int64) (*model.SecuritySetting, error) { return nil, errors.New("db") },
+			findByUserPoolIDFn: func(_ int64) (*SecuritySetting, error) { return nil, errors.New("db") },
 		}, &mockSecuritySettingsAuditRepo{})
 		_, err := svc.UpdateThreatConfig(context.Background(), userPoolID, cfg, 10, "1.2.3.4", "agent")
 		require.Error(t, err)
@@ -524,9 +523,9 @@ func TestSecuritySettingService_UpdateLockoutConfig(t *testing.T) {
 		mock.ExpectCommit()
 		existing := newSecSetting(userPoolID)
 		svc := NewSecuritySettingService(db, &mockSecuritySettingRepo{
-			findByUserPoolIDFn: func(_ int64) (*model.SecuritySetting, error) { return existing, nil },
-			createOrUpdateFn:   func(e *model.SecuritySetting) (*model.SecuritySetting, error) { return e, nil },
-			findByUUIDFn:       func(_ any, _ ...string) (*model.SecuritySetting, error) { return existing, nil },
+			findByUserPoolIDFn: func(_ int64) (*SecuritySetting, error) { return existing, nil },
+			createOrUpdateFn:   func(e *SecuritySetting) (*SecuritySetting, error) { return e, nil },
+			findByUUIDFn:       func(_ any, _ ...string) (*SecuritySetting, error) { return existing, nil },
 		}, &mockSecuritySettingsAuditRepo{})
 		res, err := svc.UpdateLockoutConfig(context.Background(), userPoolID, cfg, 10, "1.2.3.4", "agent")
 		require.NoError(t, err)
@@ -538,7 +537,7 @@ func TestSecuritySettingService_UpdateLockoutConfig(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		svc := NewSecuritySettingService(db, &mockSecuritySettingRepo{
-			findByUserPoolIDFn: func(_ int64) (*model.SecuritySetting, error) { return nil, errors.New("db") },
+			findByUserPoolIDFn: func(_ int64) (*SecuritySetting, error) { return nil, errors.New("db") },
 		}, &mockSecuritySettingsAuditRepo{})
 		_, err := svc.UpdateLockoutConfig(context.Background(), userPoolID, cfg, 10, "1.2.3.4", "agent")
 		require.Error(t, err)
@@ -556,7 +555,7 @@ func TestSecuritySettingService_UpdateConfig_InvalidConfigType(t *testing.T) {
 	svc := &securitySettingService{
 		db: db,
 		securitySettingRepo: &mockSecuritySettingRepo{
-			findByUserPoolIDFn: func(_ int64) (*model.SecuritySetting, error) {
+			findByUserPoolIDFn: func(_ int64) (*SecuritySetting, error) {
 				return newSecSetting(1), nil
 			},
 		},

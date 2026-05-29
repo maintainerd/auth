@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
-	"github.com/maintainerd/auth/internal/service"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -19,7 +18,7 @@ func TestEmailConfigHandler_Get_NoTenant(t *testing.T) {
 
 func TestEmailConfigHandler_Get_ServiceError(t *testing.T) {
 	svc := &mockEmailConfigService{
-		getFn: func(_ int64) (*service.EmailConfigServiceDataResult, error) { return nil, assert.AnError },
+		getFn: func(_ int64) (*EmailConfigServiceDataResult, error) { return nil, assert.AnError },
 	}
 	h := NewEmailConfigHandler(svc)
 	w := httptest.NewRecorder()
@@ -29,7 +28,7 @@ func TestEmailConfigHandler_Get_ServiceError(t *testing.T) {
 
 func TestEmailConfigHandler_Get_NotFound(t *testing.T) {
 	svc := &mockEmailConfigService{
-		getFn: func(_ int64) (*service.EmailConfigServiceDataResult, error) { return nil, errNotFound },
+		getFn: func(_ int64) (*EmailConfigServiceDataResult, error) { return nil, errNotFound },
 	}
 	h := NewEmailConfigHandler(svc)
 	w := httptest.NewRecorder()
@@ -39,8 +38,8 @@ func TestEmailConfigHandler_Get_NotFound(t *testing.T) {
 
 func TestEmailConfigHandler_Get_Success(t *testing.T) {
 	svc := &mockEmailConfigService{
-		getFn: func(_ int64) (*service.EmailConfigServiceDataResult, error) {
-			return &service.EmailConfigServiceDataResult{EmailConfigUUID: uuid.New(), Provider: "smtp"}, nil
+		getFn: func(_ int64) (*EmailConfigServiceDataResult, error) {
+			return &EmailConfigServiceDataResult{EmailConfigUUID: uuid.New(), Provider: "smtp"}, nil
 		},
 	}
 	h := NewEmailConfigHandler(svc)
@@ -74,7 +73,7 @@ func TestEmailConfigHandler_Update_ValidationError(t *testing.T) {
 
 func TestEmailConfigHandler_Update_ServiceError(t *testing.T) {
 	svc := &mockEmailConfigService{
-		updateFn: func(_ int64, _, _ string, _ int, _, _, _, _, _, _ string, _ *bool) (*service.EmailConfigServiceDataResult, error) {
+		updateFn: func(_ int64, _, _ string, _ int, _, _, _, _, _, _ string, _ *bool) (*EmailConfigServiceDataResult, error) {
 			return nil, assert.AnError
 		},
 	}
@@ -90,8 +89,8 @@ func TestEmailConfigHandler_Update_ServiceError(t *testing.T) {
 
 func TestEmailConfigHandler_Update_Success(t *testing.T) {
 	svc := &mockEmailConfigService{
-		updateFn: func(_ int64, _, _ string, _ int, _, _, _, _, _, _ string, _ *bool) (*service.EmailConfigServiceDataResult, error) {
-			return &service.EmailConfigServiceDataResult{EmailConfigUUID: uuid.New(), Provider: "smtp"}, nil
+		updateFn: func(_ int64, _, _ string, _ int, _, _, _, _, _, _ string, _ *bool) (*EmailConfigServiceDataResult, error) {
+			return &EmailConfigServiceDataResult{EmailConfigUUID: uuid.New(), Provider: "smtp"}, nil
 		},
 	}
 	h := NewEmailConfigHandler(svc)

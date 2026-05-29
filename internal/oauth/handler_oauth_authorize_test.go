@@ -8,7 +8,6 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
-	"github.com/maintainerd/auth/internal/dto"
 	"github.com/maintainerd/auth/internal/platform/apperror"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -60,7 +59,7 @@ func validAuthorizeQuery() string {
 
 func TestOAuthAuthorizeHandler_Authorize_ServiceOAuthError(t *testing.T) {
 	svc := &mockOAuthAuthorizeService{
-		authorizeFn: func(_ context.Context, _ dto.OAuthAuthorizeRequestDTO, _ int64) (*dto.OAuthAuthorizeResult, *apperror.OAuthError) {
+		authorizeFn: func(_ context.Context, _ OAuthAuthorizeRequestDTO, _ int64) (*OAuthAuthorizeResult, *apperror.OAuthError) {
 			return nil, apperror.NewOAuthInvalidRequest("bad client")
 		},
 	}
@@ -83,8 +82,8 @@ func TestOAuthAuthorizeHandler_Authorize_ServiceOAuthError(t *testing.T) {
 func TestOAuthAuthorizeHandler_Authorize_ConsentRequired(t *testing.T) {
 	challengeID := uuid.New().String()
 	svc := &mockOAuthAuthorizeService{
-		authorizeFn: func(_ context.Context, _ dto.OAuthAuthorizeRequestDTO, _ int64) (*dto.OAuthAuthorizeResult, *apperror.OAuthError) {
-			return &dto.OAuthAuthorizeResult{ConsentChallenge: challengeID}, nil
+		authorizeFn: func(_ context.Context, _ OAuthAuthorizeRequestDTO, _ int64) (*OAuthAuthorizeResult, *apperror.OAuthError) {
+			return &OAuthAuthorizeResult{ConsentChallenge: challengeID}, nil
 		},
 	}
 	h := NewOAuthAuthorizeHandler(svc)
@@ -101,15 +100,15 @@ func TestOAuthAuthorizeHandler_Authorize_ConsentRequired(t *testing.T) {
 	require.NoError(t, json.NewDecoder(w.Body).Decode(&body))
 	assert.Contains(t, string(body["message"]), "Consent required")
 
-	var data dto.OAuthConsentRequiredResponseDTO
+	var data OAuthConsentRequiredResponseDTO
 	require.NoError(t, json.Unmarshal(body["data"], &data))
 	assert.Equal(t, challengeID, data.ConsentChallenge)
 }
 
 func TestOAuthAuthorizeHandler_Authorize_Success(t *testing.T) {
 	svc := &mockOAuthAuthorizeService{
-		authorizeFn: func(_ context.Context, _ dto.OAuthAuthorizeRequestDTO, _ int64) (*dto.OAuthAuthorizeResult, *apperror.OAuthError) {
-			return &dto.OAuthAuthorizeResult{RedirectURI: "https://app.example.com/cb?code=xyz&state=abc"}, nil
+		authorizeFn: func(_ context.Context, _ OAuthAuthorizeRequestDTO, _ int64) (*OAuthAuthorizeResult, *apperror.OAuthError) {
+			return &OAuthAuthorizeResult{RedirectURI: "https://app.example.com/cb?code=xyz&state=abc"}, nil
 		},
 	}
 	h := NewOAuthAuthorizeHandler(svc)
@@ -126,17 +125,17 @@ func TestOAuthAuthorizeHandler_Authorize_Success(t *testing.T) {
 	require.NoError(t, json.NewDecoder(w.Body).Decode(&body))
 	assert.Contains(t, string(body["message"]), "Authorization successful")
 
-	var data dto.OAuthAuthorizeResponseDTO
+	var data OAuthAuthorizeResponseDTO
 	require.NoError(t, json.Unmarshal(body["data"], &data))
 	assert.Equal(t, "https://app.example.com/cb?code=xyz&state=abc", data.RedirectURI)
 }
 
 func TestOAuthAuthorizeHandler_Authorize_PassesQueryParams(t *testing.T) {
-	var captured dto.OAuthAuthorizeRequestDTO
+	var captured OAuthAuthorizeRequestDTO
 	svc := &mockOAuthAuthorizeService{
-		authorizeFn: func(_ context.Context, req dto.OAuthAuthorizeRequestDTO, _ int64) (*dto.OAuthAuthorizeResult, *apperror.OAuthError) {
+		authorizeFn: func(_ context.Context, req OAuthAuthorizeRequestDTO, _ int64) (*OAuthAuthorizeResult, *apperror.OAuthError) {
 			captured = req
-			return &dto.OAuthAuthorizeResult{RedirectURI: "https://app.example.com/cb?code=x"}, nil
+			return &OAuthAuthorizeResult{RedirectURI: "https://app.example.com/cb?code=x"}, nil
 		},
 	}
 	h := NewOAuthAuthorizeHandler(svc)
@@ -190,7 +189,7 @@ func TestOAuthAuthorizeHandler_GetConsentChallenge_InvalidUUID(t *testing.T) {
 
 func TestOAuthAuthorizeHandler_GetConsentChallenge_ServiceError(t *testing.T) {
 	svc := &mockOAuthAuthorizeService{
-		getConsentChallengeFn: func(_ context.Context, _ uuid.UUID, _ int64) (*dto.OAuthConsentChallengeResponseDTO, error) {
+		getConsentChallengeFn: func(_ context.Context, _ uuid.UUID, _ int64) (*OAuthConsentChallengeResponseDTO, error) {
 			return nil, errNotFound
 		},
 	}
@@ -207,7 +206,7 @@ func TestOAuthAuthorizeHandler_GetConsentChallenge_ServiceError(t *testing.T) {
 
 func TestOAuthAuthorizeHandler_GetConsentChallenge_Forbidden(t *testing.T) {
 	svc := &mockOAuthAuthorizeService{
-		getConsentChallengeFn: func(_ context.Context, _ uuid.UUID, _ int64) (*dto.OAuthConsentChallengeResponseDTO, error) {
+		getConsentChallengeFn: func(_ context.Context, _ uuid.UUID, _ int64) (*OAuthConsentChallengeResponseDTO, error) {
 			return nil, errForbidden
 		},
 	}
@@ -224,7 +223,7 @@ func TestOAuthAuthorizeHandler_GetConsentChallenge_Forbidden(t *testing.T) {
 
 func TestOAuthAuthorizeHandler_GetConsentChallenge_Success(t *testing.T) {
 	challengeUUID := testResourceUUID
-	resp := &dto.OAuthConsentChallengeResponseDTO{
+	resp := &OAuthConsentChallengeResponseDTO{
 		ChallengeID: challengeUUID.String(),
 		ClientName:  "My App",
 		ClientUUID:  uuid.New().String(),
@@ -233,7 +232,7 @@ func TestOAuthAuthorizeHandler_GetConsentChallenge_Success(t *testing.T) {
 		ExpiresAt:   1700000000,
 	}
 	svc := &mockOAuthAuthorizeService{
-		getConsentChallengeFn: func(_ context.Context, _ uuid.UUID, _ int64) (*dto.OAuthConsentChallengeResponseDTO, error) {
+		getConsentChallengeFn: func(_ context.Context, _ uuid.UUID, _ int64) (*OAuthConsentChallengeResponseDTO, error) {
 			return resp, nil
 		},
 	}
@@ -258,7 +257,7 @@ func TestOAuthAuthorizeHandler_GetConsentChallenge_Success(t *testing.T) {
 
 func TestOAuthAuthorizeHandler_HandleConsent_NoUser(t *testing.T) {
 	h := NewOAuthAuthorizeHandler(&mockOAuthAuthorizeService{})
-	r := jsonReq(t, http.MethodPost, "/oauth/consent", dto.OAuthConsentDecisionDTO{
+	r := jsonReq(t, http.MethodPost, "/oauth/consent", OAuthConsentDecisionDTO{
 		ChallengeID: testResourceUUID.String(),
 		Approved:    true,
 	})
@@ -283,7 +282,7 @@ func TestOAuthAuthorizeHandler_HandleConsent_InvalidJSON(t *testing.T) {
 func TestOAuthAuthorizeHandler_HandleConsent_ValidationError(t *testing.T) {
 	h := NewOAuthAuthorizeHandler(&mockOAuthAuthorizeService{})
 	// Empty challenge_id should fail validation.
-	r := jsonReq(t, http.MethodPost, "/oauth/consent", dto.OAuthConsentDecisionDTO{
+	r := jsonReq(t, http.MethodPost, "/oauth/consent", OAuthConsentDecisionDTO{
 		ChallengeID: "",
 		Approved:    true,
 	})
@@ -297,7 +296,7 @@ func TestOAuthAuthorizeHandler_HandleConsent_ValidationError(t *testing.T) {
 
 func TestOAuthAuthorizeHandler_HandleConsent_InvalidChallengeUUID(t *testing.T) {
 	h := NewOAuthAuthorizeHandler(&mockOAuthAuthorizeService{})
-	r := jsonReq(t, http.MethodPost, "/oauth/consent", dto.OAuthConsentDecisionDTO{
+	r := jsonReq(t, http.MethodPost, "/oauth/consent", OAuthConsentDecisionDTO{
 		ChallengeID: "not-a-uuid",
 		Approved:    true,
 	})
@@ -311,12 +310,12 @@ func TestOAuthAuthorizeHandler_HandleConsent_InvalidChallengeUUID(t *testing.T) 
 
 func TestOAuthAuthorizeHandler_HandleConsent_ServiceOAuthError(t *testing.T) {
 	svc := &mockOAuthAuthorizeService{
-		handleConsentFn: func(_ context.Context, _ dto.OAuthConsentDecisionDTO, _ int64) (*dto.OAuthConsentDecisionResult, *apperror.OAuthError) {
+		handleConsentFn: func(_ context.Context, _ OAuthConsentDecisionDTO, _ int64) (*OAuthConsentDecisionResult, *apperror.OAuthError) {
 			return nil, apperror.NewOAuthAccessDenied("user denied")
 		},
 	}
 	h := NewOAuthAuthorizeHandler(svc)
-	r := jsonReq(t, http.MethodPost, "/oauth/consent", dto.OAuthConsentDecisionDTO{
+	r := jsonReq(t, http.MethodPost, "/oauth/consent", OAuthConsentDecisionDTO{
 		ChallengeID: testResourceUUID.String(),
 		Approved:    false,
 	})
@@ -334,14 +333,14 @@ func TestOAuthAuthorizeHandler_HandleConsent_ServiceOAuthError(t *testing.T) {
 
 func TestOAuthAuthorizeHandler_HandleConsent_Success(t *testing.T) {
 	svc := &mockOAuthAuthorizeService{
-		handleConsentFn: func(_ context.Context, _ dto.OAuthConsentDecisionDTO, _ int64) (*dto.OAuthConsentDecisionResult, *apperror.OAuthError) {
-			return &dto.OAuthConsentDecisionResult{
+		handleConsentFn: func(_ context.Context, _ OAuthConsentDecisionDTO, _ int64) (*OAuthConsentDecisionResult, *apperror.OAuthError) {
+			return &OAuthConsentDecisionResult{
 				RedirectURI: "https://app.example.com/cb?code=xyz&state=abc",
 			}, nil
 		},
 	}
 	h := NewOAuthAuthorizeHandler(svc)
-	r := jsonReq(t, http.MethodPost, "/oauth/consent", dto.OAuthConsentDecisionDTO{
+	r := jsonReq(t, http.MethodPost, "/oauth/consent", OAuthConsentDecisionDTO{
 		ChallengeID: testResourceUUID.String(),
 		Approved:    true,
 	})
@@ -356,7 +355,7 @@ func TestOAuthAuthorizeHandler_HandleConsent_Success(t *testing.T) {
 	require.NoError(t, json.NewDecoder(w.Body).Decode(&body))
 	assert.Contains(t, string(body["message"]), "Consent processed")
 
-	var data dto.OAuthConsentDecisionResponseDTO
+	var data OAuthConsentDecisionResponseDTO
 	require.NoError(t, json.Unmarshal(body["data"], &data))
 	assert.Equal(t, "https://app.example.com/cb?code=xyz&state=abc", data.RedirectURI)
 }

@@ -8,7 +8,6 @@ import (
 	"testing"
 
 	"github.com/alicebob/miniredis/v2"
-	"github.com/maintainerd/auth/internal/dto"
 	"github.com/maintainerd/auth/internal/platform/security"
 	"github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/assert"
@@ -60,7 +59,7 @@ func TestForgotPasswordHandler_ForgotPasswordPublic_ValidationError(t *testing.T
 
 func TestForgotPasswordHandler_ForgotPasswordPublic_ServiceError(t *testing.T) {
 	svc := &mockForgotPasswordService{
-		sendPasswordResetEmailFn: func(email string, c, p *string, internal bool) (*dto.ForgotPasswordResponseDTO, error) {
+		sendPasswordResetEmailFn: func(email string, c, p *string, internal bool) (*ForgotPasswordResponseDTO, error) {
 			return nil, assert.AnError
 		},
 	}
@@ -74,8 +73,8 @@ func TestForgotPasswordHandler_ForgotPasswordPublic_ServiceError(t *testing.T) {
 
 func TestForgotPasswordHandler_ForgotPasswordPublic_Success(t *testing.T) {
 	svc := &mockForgotPasswordService{
-		sendPasswordResetEmailFn: func(email string, c, p *string, internal bool) (*dto.ForgotPasswordResponseDTO, error) {
-			return &dto.ForgotPasswordResponseDTO{}, nil
+		sendPasswordResetEmailFn: func(email string, c, p *string, internal bool) (*ForgotPasswordResponseDTO, error) {
+			return &ForgotPasswordResponseDTO{}, nil
 		},
 	}
 	h := NewForgotPasswordHandler(svc)
@@ -111,7 +110,7 @@ func TestForgotPasswordHandler_ForgotPassword_ValidationError(t *testing.T) {
 
 func TestForgotPasswordHandler_ForgotPassword_ServiceError(t *testing.T) {
 	svc := &mockForgotPasswordService{
-		sendPasswordResetEmailFn: func(email string, c, p *string, internal bool) (*dto.ForgotPasswordResponseDTO, error) {
+		sendPasswordResetEmailFn: func(email string, c, p *string, internal bool) (*ForgotPasswordResponseDTO, error) {
 			return nil, assert.AnError
 		},
 	}
@@ -124,8 +123,8 @@ func TestForgotPasswordHandler_ForgotPassword_ServiceError(t *testing.T) {
 
 func TestForgotPasswordHandler_ForgotPassword_Success(t *testing.T) {
 	svc := &mockForgotPasswordService{
-		sendPasswordResetEmailFn: func(email string, c, p *string, internal bool) (*dto.ForgotPasswordResponseDTO, error) {
-			return &dto.ForgotPasswordResponseDTO{}, nil
+		sendPasswordResetEmailFn: func(email string, c, p *string, internal bool) (*ForgotPasswordResponseDTO, error) {
+			return &ForgotPasswordResponseDTO{}, nil
 		},
 	}
 	h := NewForgotPasswordHandler(svc)
@@ -184,8 +183,8 @@ func TestForgotPasswordHandler_ForgotPassword_RateLimited(t *testing.T) {
 func TestForgotPasswordHandler_ForgotPassword_WithOptionalParams(t *testing.T) {
 	// Covers the client_id != "" and provider_id != "" optional query-param branches (lines 145-150).
 	svc := &mockForgotPasswordService{
-		sendPasswordResetEmailFn: func(email string, c, p *string, internal bool) (*dto.ForgotPasswordResponseDTO, error) {
-			return &dto.ForgotPasswordResponseDTO{}, nil
+		sendPasswordResetEmailFn: func(email string, c, p *string, internal bool) (*ForgotPasswordResponseDTO, error) {
+			return &ForgotPasswordResponseDTO{}, nil
 		},
 	}
 	h := NewForgotPasswordHandler(svc)

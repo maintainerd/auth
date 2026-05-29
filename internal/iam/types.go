@@ -6,8 +6,6 @@ import (
 	validation "github.com/go-ozzo/ozzo-validation/v4"
 	"github.com/go-ozzo/ozzo-validation/v4/is"
 	"github.com/google/uuid"
-
-	"github.com/maintainerd/auth/internal/model"
 )
 
 // API output structure
@@ -52,11 +50,11 @@ func (r APICreateRequestDTO) Validate() error {
 		),
 		validation.Field(&r.APIType,
 			validation.Required.Error("API type is required"),
-			validation.In(model.APITypeRest, model.APITypeGRPC, model.APITypeGraphQL, model.APITypeSOAP, model.APITypeWebhook, model.APITypeWebSocket, model.APITypeRPC).Error("API type must be one of: rest, grpc, graphql, soap, webhook, websocket, rpc"),
+			validation.In(APITypeRest, APITypeGRPC, APITypeGraphQL, APITypeSOAP, APITypeWebhook, APITypeWebSocket, APITypeRPC).Error("API type must be one of: rest, grpc, graphql, soap, webhook, websocket, rpc"),
 		),
 		validation.Field(&r.Status,
 			validation.Required.Error("Status is required"),
-			validation.In(model.StatusActive, model.StatusInactive).Error("Status must be one of: active, inactive"),
+			validation.In(StatusActive, StatusInactive).Error("Status must be one of: active, inactive"),
 		),
 
 		validation.Field(&r.ServiceUUID,
@@ -93,11 +91,11 @@ func (r APIUpdateRequestDTO) Validate() error {
 		),
 		validation.Field(&r.APIType,
 			validation.Required.Error("API type is required"),
-			validation.In(model.APITypeRest, model.APITypeGRPC, model.APITypeGraphQL, model.APITypeSOAP, model.APITypeWebhook, model.APITypeWebSocket, model.APITypeRPC).Error("API type must be one of: rest, grpc, graphql, soap, webhook, websocket, rpc"),
+			validation.In(APITypeRest, APITypeGRPC, APITypeGraphQL, APITypeSOAP, APITypeWebhook, APITypeWebSocket, APITypeRPC).Error("API type must be one of: rest, grpc, graphql, soap, webhook, websocket, rpc"),
 		),
 		validation.Field(&r.Status,
 			validation.Required.Error("Status is required"),
-			validation.In(model.StatusActive, model.StatusInactive).Error("Status must be one of: active, inactive"),
+			validation.In(StatusActive, StatusInactive).Error("Status must be one of: active, inactive"),
 		),
 		validation.Field(&r.ServiceUUID,
 			validation.Required.Error("Service ID is required"),
@@ -126,12 +124,12 @@ func (f APIFilterDTO) Validate() error {
 	return validation.ValidateStruct(&f,
 		validation.Field(&f.APIType,
 			validation.When(f.APIType != nil,
-				validation.In(model.APITypeRest, model.APITypeGRPC, model.APITypeGraphQL, model.APITypeSOAP, model.APITypeWebhook, model.APITypeWebSocket, model.APITypeRPC).Error("API type must be one of: rest, grpc, graphql, soap, webhook, websocket, rpc"),
+				validation.In(APITypeRest, APITypeGRPC, APITypeGraphQL, APITypeSOAP, APITypeWebhook, APITypeWebSocket, APITypeRPC).Error("API type must be one of: rest, grpc, graphql, soap, webhook, websocket, rpc"),
 			),
 		),
 		validation.Field(&f.Status,
 			validation.When(len(f.Status) > 0,
-				validation.Each(validation.In(model.StatusActive, model.StatusInactive).Error("Status must be 'active' or 'inactive'")),
+				validation.Each(validation.In(StatusActive, StatusInactive).Error("Status must be 'active' or 'inactive'")),
 			),
 		),
 		validation.Field(&f.PaginationRequestDTO),
@@ -147,7 +145,7 @@ func (r APIStatusUpdateDTO) Validate() error {
 	return validation.ValidateStruct(&r,
 		validation.Field(&r.Status,
 			validation.Required.Error("Status is required"),
-			validation.In(model.StatusActive, model.StatusInactive).Error("Status must be one of: active, inactive"),
+			validation.In(StatusActive, StatusInactive).Error("Status must be one of: active, inactive"),
 		),
 	)
 }

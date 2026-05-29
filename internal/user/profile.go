@@ -6,9 +6,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/maintainerd/auth/internal/model"
 	"github.com/maintainerd/auth/internal/platform/apperror"
-	"github.com/maintainerd/auth/internal/repository"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -94,14 +92,14 @@ type ProfileService interface {
 
 type profileService struct {
 	db          *gorm.DB
-	profileRepo repository.ProfileRepository
-	userRepo    repository.UserRepository
+	profileRepo ProfileRepository
+	userRepo    UserRepository
 }
 
 func NewProfileService(
 	db *gorm.DB,
-	profileRepo repository.ProfileRepository,
-	userRepo repository.UserRepository,
+	profileRepo ProfileRepository,
+	userRepo UserRepository,
 ) ProfileService {
 	return &profileService{
 		db:          db,
@@ -126,7 +124,7 @@ func (s *profileService) CreateOrUpdateProfile(
 	_, span := otel.Tracer("service").Start(ctx, "profile.createOrUpdate")
 	defer span.End()
 	span.SetAttributes(attribute.String("user.uuid", userUUID.String()))
-	var updatedProfile *model.Profile
+	var updatedProfile *Profile
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
 		// Step 1: Create transaction-aware repositories
@@ -141,13 +139,13 @@ func (s *profileService) CreateOrUpdateProfile(
 
 		// Step 3: Try to find existing default profile
 		existingProfile, err := txProfileRepo.FindDefaultByUserID(user.UserID)
-		var profile model.Profile
+		var profile Profile
 
 		if err != nil {
 			return err
 		} else if existingProfile == nil {
 			// Create new profile if not found
-			profile = model.Profile{
+			profile = Profile{
 				ProfileUUID: uuid.New(),
 				UserID:      user.UserID,
 				IsDefault:   true, // First profile is always default
@@ -252,7 +250,7 @@ func (s *profileService) CreateOrUpdateSpecificProfile(
 	_, span := otel.Tracer("service").Start(ctx, "profile.createOrUpdateSpecific")
 	defer span.End()
 	span.SetAttributes(attribute.String("profile.uuid", profileUUID.String()), attribute.String("user.uuid", userUUID.String()))
-	var updatedProfile *model.Profile
+	var updatedProfile *Profile
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
 		// Step 1: Create transaction-aware repositories
@@ -267,7 +265,7 @@ func (s *profileService) CreateOrUpdateSpecificProfile(
 
 		// Step 3: Try to find existing profile by UUID
 		existingProfile, err := txProfileRepo.FindByUUID(profileUUID)
-		var profile model.Profile
+		var profile Profile
 
 		if err != nil {
 			return err
@@ -279,7 +277,7 @@ func (s *profileService) CreateOrUpdateSpecificProfile(
 			}
 
 			// Create new profile with provided UUID
-			profile = model.Profile{
+			profile = Profile{
 				ProfileUUID: profileUUID,
 				UserID:      user.UserID,
 				IsDefault:   existingUserProfile == nil, // First profile is default
@@ -449,7 +447,7 @@ func (s *profileService) GetAll(
 	}
 
 	// Build filter
-	filter := repository.ProfileRepositoryGetFilter{
+	filter := ProfileRepositoryGetFilter{
 		UserID:    user.UserID,
 		FirstName: firstName,
 		LastName:  lastName,
@@ -496,7 +494,7 @@ func (s *profileService) SetDefaultProfile(ctx context.Context, profileUUID uuid
 	_, span := otel.Tracer("service").Start(ctx, "profile.setDefault")
 	defer span.End()
 	span.SetAttributes(attribute.String("profile.uuid", profileUUID.String()), attribute.String("user.uuid", userUUID.String()))
-	var updatedProfile *model.Profile
+	var updatedProfile *Profile
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
 		// Step 1: Create transaction-aware repositories
@@ -593,7 +591,7 @@ func (s *profileService) DeleteByUUID(ctx context.Context, profileUUID uuid.UUID
 }
 
 // Helper functions
-func toProfileServiceDataResult(profile *model.Profile) *ProfileServiceDataResult {
+func toProfileServiceDataResult(profile *Profile) *ProfileServiceDataResult {
 	if profile == nil {
 		return nil
 	}

@@ -7,18 +7,16 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gorm.io/datatypes"
-
-	"github.com/maintainerd/auth/internal/model"
 )
 
 func validIDPCreate() IdentityProviderCreateRequestDTO {
 	return IdentityProviderCreateRequestDTO{
 		Name:         "my-idp",
 		DisplayName:  "My Identity Provider",
-		Provider:     model.IDPProviderGoogle,
-		ProviderType: model.IDPTypeIdentity,
+		Provider:     IDPProviderGoogle,
+		ProviderType: IDPTypeIdentity,
 		Config:       datatypes.JSON(`{}`),
-		Status:       model.StatusActive,
+		Status:       StatusActive,
 		TenantUUID:   uuid.New().String(),
 	}
 }
@@ -81,10 +79,10 @@ func TestIdentityProviderUpdateRequestDto_Validate(t *testing.T) {
 	d := IdentityProviderUpdateRequestDTO{
 		Name:         "my-idp",
 		DisplayName:  "My Identity Provider",
-		Provider:     model.IDPProviderInternal,
-		ProviderType: model.IDPTypeSocial,
+		Provider:     IDPProviderInternal,
+		ProviderType: IDPTypeSocial,
 		Config:       datatypes.JSON(`{}`),
-		Status:       model.StatusInactive,
+		Status:       StatusInactive,
 	}
 	assert.NoError(t, d.Validate())
 
@@ -93,7 +91,7 @@ func TestIdentityProviderUpdateRequestDto_Validate(t *testing.T) {
 }
 
 func TestIdentityProviderStatusUpdateDto_Validate(t *testing.T) {
-	assert.NoError(t, IdentityProviderStatusUpdateDTO{Status: model.StatusActive}.Validate())
+	assert.NoError(t, IdentityProviderStatusUpdateDTO{Status: StatusActive}.Validate())
 	require.Error(t, IdentityProviderStatusUpdateDTO{Status: "bad"}.Validate())
 	require.Error(t, IdentityProviderStatusUpdateDTO{Status: ""}.Validate())
 }

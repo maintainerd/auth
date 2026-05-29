@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
-	"github.com/maintainerd/auth/internal/service"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -14,8 +13,8 @@ import (
 // Helpers — one pair (Get/Update) per JSONB section; same pattern throughout
 // ---------------------------------------------------------------------------
 
-func tenantSettingResult() *service.TenantSettingServiceDataResult {
-	return &service.TenantSettingServiceDataResult{
+func tenantSettingResult() *TenantSettingServiceDataResult {
+	return &TenantSettingServiceDataResult{
 		TenantSettingUUID: uuid.New(),
 		RateLimitConfig:   map[string]any{"max": 200},
 		AuditConfig:       map[string]any{"enabled": true},
@@ -85,7 +84,7 @@ func TestTenantSettingHandler_UpdateRateLimitConfig_ValidationError(t *testing.T
 
 func TestTenantSettingHandler_UpdateRateLimitConfig_UpdateError(t *testing.T) {
 	svc := &mockTenantSettingService{
-		updateRateLimitConfigFn: func(_ int64, _ map[string]any) (*service.TenantSettingServiceDataResult, error) {
+		updateRateLimitConfigFn: func(_ int64, _ map[string]any) (*TenantSettingServiceDataResult, error) {
 			return nil, assert.AnError
 		},
 	}
@@ -98,7 +97,7 @@ func TestTenantSettingHandler_UpdateRateLimitConfig_UpdateError(t *testing.T) {
 
 func TestTenantSettingHandler_UpdateRateLimitConfig_Success(t *testing.T) {
 	svc := &mockTenantSettingService{
-		updateRateLimitConfigFn: func(_ int64, _ map[string]any) (*service.TenantSettingServiceDataResult, error) {
+		updateRateLimitConfigFn: func(_ int64, _ map[string]any) (*TenantSettingServiceDataResult, error) {
 			return tenantSettingResult(), nil
 		},
 	}
@@ -163,7 +162,7 @@ func TestTenantSettingHandler_UpdateAuditConfig_ValidationError(t *testing.T) {
 
 func TestTenantSettingHandler_UpdateAuditConfig_UpdateError(t *testing.T) {
 	svc := &mockTenantSettingService{
-		updateAuditConfigFn: func(_ int64, _ map[string]any) (*service.TenantSettingServiceDataResult, error) {
+		updateAuditConfigFn: func(_ int64, _ map[string]any) (*TenantSettingServiceDataResult, error) {
 			return nil, assert.AnError
 		},
 	}
@@ -175,7 +174,7 @@ func TestTenantSettingHandler_UpdateAuditConfig_UpdateError(t *testing.T) {
 
 func TestTenantSettingHandler_UpdateAuditConfig_Success(t *testing.T) {
 	svc := &mockTenantSettingService{
-		updateAuditConfigFn: func(_ int64, _ map[string]any) (*service.TenantSettingServiceDataResult, error) {
+		updateAuditConfigFn: func(_ int64, _ map[string]any) (*TenantSettingServiceDataResult, error) {
 			return tenantSettingResult(), nil
 		},
 	}
@@ -239,7 +238,7 @@ func TestTenantSettingHandler_UpdateMaintenanceConfig_ValidationError(t *testing
 
 func TestTenantSettingHandler_UpdateMaintenanceConfig_UpdateError(t *testing.T) {
 	svc := &mockTenantSettingService{
-		updateMaintenanceConfigFn: func(_ int64, _ map[string]any) (*service.TenantSettingServiceDataResult, error) {
+		updateMaintenanceConfigFn: func(_ int64, _ map[string]any) (*TenantSettingServiceDataResult, error) {
 			return nil, assert.AnError
 		},
 	}
@@ -251,7 +250,7 @@ func TestTenantSettingHandler_UpdateMaintenanceConfig_UpdateError(t *testing.T) 
 
 func TestTenantSettingHandler_UpdateMaintenanceConfig_Success(t *testing.T) {
 	svc := &mockTenantSettingService{
-		updateMaintenanceConfigFn: func(_ int64, _ map[string]any) (*service.TenantSettingServiceDataResult, error) {
+		updateMaintenanceConfigFn: func(_ int64, _ map[string]any) (*TenantSettingServiceDataResult, error) {
 			return tenantSettingResult(), nil
 		},
 	}
@@ -315,7 +314,7 @@ func TestTenantSettingHandler_UpdateFeatureFlags_ValidationError(t *testing.T) {
 
 func TestTenantSettingHandler_UpdateFeatureFlags_UpdateError(t *testing.T) {
 	svc := &mockTenantSettingService{
-		updateFeatureFlagsFn: func(_ int64, _ map[string]any) (*service.TenantSettingServiceDataResult, error) {
+		updateFeatureFlagsFn: func(_ int64, _ map[string]any) (*TenantSettingServiceDataResult, error) {
 			return nil, assert.AnError
 		},
 	}
@@ -327,7 +326,7 @@ func TestTenantSettingHandler_UpdateFeatureFlags_UpdateError(t *testing.T) {
 
 func TestTenantSettingHandler_UpdateFeatureFlags_Success(t *testing.T) {
 	svc := &mockTenantSettingService{
-		updateFeatureFlagsFn: func(_ int64, _ map[string]any) (*service.TenantSettingServiceDataResult, error) {
+		updateFeatureFlagsFn: func(_ int64, _ map[string]any) (*TenantSettingServiceDataResult, error) {
 			return tenantSettingResult(), nil
 		},
 	}

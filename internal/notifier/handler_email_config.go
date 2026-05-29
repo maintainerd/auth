@@ -4,19 +4,17 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/maintainerd/auth/internal/dto"
 	"github.com/maintainerd/auth/internal/platform/middleware"
 	resp "github.com/maintainerd/auth/internal/platform/response"
-	"github.com/maintainerd/auth/internal/service"
 )
 
 // EmailConfigHandler handles tenant email delivery configuration endpoints.
 type EmailConfigHandler struct {
-	emailConfigService service.EmailConfigService
+	emailConfigService EmailConfigService
 }
 
 // NewEmailConfigHandler creates a new EmailConfigHandler.
-func NewEmailConfigHandler(emailConfigService service.EmailConfigService) *EmailConfigHandler {
+func NewEmailConfigHandler(emailConfigService EmailConfigService) *EmailConfigHandler {
 	return &EmailConfigHandler{emailConfigService: emailConfigService}
 }
 
@@ -49,7 +47,7 @@ func (h *EmailConfigHandler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var req dto.EmailConfigUpdateRequestDTO
+	var req EmailConfigUpdateRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		resp.Error(w, http.StatusBadRequest, "Invalid request")
 		return
@@ -75,8 +73,8 @@ func (h *EmailConfigHandler) Update(w http.ResponseWriter, r *http.Request) {
 	resp.Success(w, toEmailConfigResponseDTO(result), "Email config updated successfully")
 }
 
-func toEmailConfigResponseDTO(ec *service.EmailConfigServiceDataResult) dto.EmailConfigResponseDTO {
-	return dto.EmailConfigResponseDTO{
+func toEmailConfigResponseDTO(ec *EmailConfigServiceDataResult) EmailConfigResponseDTO {
+	return EmailConfigResponseDTO{
 		EmailConfigID: ec.EmailConfigUUID.String(),
 		Provider:      ec.Provider,
 		Host:          ec.Host,

@@ -4,24 +4,22 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/maintainerd/auth/internal/dto"
 	resp "github.com/maintainerd/auth/internal/platform/response"
-	"github.com/maintainerd/auth/internal/service"
 )
 
 // OAuthRegisterHandler handles Dynamic Client Registration (RFC 7591).
 type OAuthRegisterHandler struct {
-	registerService service.OAuthRegisterService
+	registerService OAuthRegisterService
 }
 
 // NewOAuthRegisterHandler creates a new OAuthRegisterHandler.
-func NewOAuthRegisterHandler(registerService service.OAuthRegisterService) *OAuthRegisterHandler {
+func NewOAuthRegisterHandler(registerService OAuthRegisterService) *OAuthRegisterHandler {
 	return &OAuthRegisterHandler{registerService: registerService}
 }
 
 // Register handles POST /oauth/register.
 func (h *OAuthRegisterHandler) Register(w http.ResponseWriter, r *http.Request) {
-	var req dto.OAuthClientRegistrationRequestDTO
+	var req OAuthClientRegistrationRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		resp.Error(w, http.StatusBadRequest, "invalid JSON body")
 		return

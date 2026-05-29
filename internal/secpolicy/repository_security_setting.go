@@ -3,7 +3,6 @@ package secpolicy
 import (
 	"errors"
 
-	"github.com/maintainerd/auth/internal/model"
 	"gorm.io/gorm"
 )
 
@@ -19,23 +18,23 @@ type SecuritySettingRepositoryGetFilter struct {
 }
 
 type SecuritySettingRepository interface {
-	BaseRepositoryMethods[model.SecuritySetting]
+	BaseRepositoryMethods[SecuritySetting]
 	WithTx(tx *gorm.DB) SecuritySettingRepository
-	FindByUserPoolID(tenantID int64) (*model.SecuritySetting, error)
+	FindByUserPoolID(tenantID int64) (*SecuritySetting, error)
 	// FindDefaultByTenantID returns the security setting for a tenant's default
 	// user pool, joining user_pools internally. Returns nil when not found.
-	FindDefaultByTenantID(tenantID int64) (*model.SecuritySetting, error)
-	FindPaginated(filter SecuritySettingRepositoryGetFilter) (*PaginationResult[model.SecuritySetting], error)
+	FindDefaultByTenantID(tenantID int64) (*SecuritySetting, error)
+	FindPaginated(filter SecuritySettingRepositoryGetFilter) (*PaginationResult[SecuritySetting], error)
 	IncrementVersion(securitySettingID int64) error
 }
 
 type securitySettingRepository struct {
-	*BaseRepository[model.SecuritySetting]
+	*BaseRepository[SecuritySetting]
 }
 
 func NewSecuritySettingRepository(db *gorm.DB) SecuritySettingRepository {
 	return &securitySettingRepository{
-		BaseRepository: NewBaseRepository[model.SecuritySetting](db, "security_setting_uuid", "security_setting_id"),
+		BaseRepository: NewBaseRepository[SecuritySetting](db, "security_setting_uuid", "security_setting_id"),
 	}
 }
 
@@ -45,8 +44,8 @@ func (r *securitySettingRepository) WithTx(tx *gorm.DB) SecuritySettingRepositor
 	}
 }
 
-func (r *securitySettingRepository) FindDefaultByTenantID(tenantID int64) (*model.SecuritySetting, error) {
-	var ss model.SecuritySetting
+func (r *securitySettingRepository) FindDefaultByTenantID(tenantID int64) (*SecuritySetting, error) {
+	var ss SecuritySetting
 	err := r.DB().
 		Joins("JOIN user_pools ON user_pools.user_pool_id = security_settings.user_pool_id").
 		Where("user_pools.tenant_id = ? AND user_pools.is_default = true AND user_pools.deleted_at IS NULL", tenantID).
@@ -60,8 +59,8 @@ func (r *securitySettingRepository) FindDefaultByTenantID(tenantID int64) (*mode
 	return &ss, nil
 }
 
-func (r *securitySettingRepository) FindByUserPoolID(tenantID int64) (*model.SecuritySetting, error) {
-	var securitySetting model.SecuritySetting
+func (r *securitySettingRepository) FindByUserPoolID(tenantID int64) (*SecuritySetting, error) {
+	var securitySetting SecuritySetting
 	err := r.DB().Where("user_pool_id = ?", tenantID).First(&securitySetting).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -72,8 +71,8 @@ func (r *securitySettingRepository) FindByUserPoolID(tenantID int64) (*model.Sec
 	return &securitySetting, nil
 }
 
-func (r *securitySettingRepository) FindPaginated(filter SecuritySettingRepositoryGetFilter) (*PaginationResult[model.SecuritySetting], error) {
-	query := r.DB().Model(&model.SecuritySetting{})
+func (r *securitySettingRepository) FindPaginated(filter SecuritySettingRepositoryGetFilter) (*PaginationResult[SecuritySetting], error) {
+	query := r.DB().Model(&SecuritySetting{})
 
 	// Apply filters
 	if filter.UserPoolID != nil {
@@ -106,7 +105,7 @@ func (r *securitySettingRepository) FindPaginated(filter SecuritySettingReposito
 		filter.Limit = 10
 	}
 	offset := (filter.Page - 1) * filter.Limit
-	var securitySettings []model.SecuritySetting
+	var securitySettings []SecuritySetting
 	if err := query.Offset(offset).Limit(filter.Limit).Find(&securitySettings).Error; err != nil {
 		return nil, err
 	}
@@ -117,7 +116,7 @@ func (r *securitySettingRepository) FindPaginated(filter SecuritySettingReposito
 		totalPages++
 	}
 
-	return &PaginationResult[model.SecuritySetting]{
+	return &PaginationResult[SecuritySetting]{
 		Data:       securitySettings,
 		Total:      total,
 		Page:       filter.Page,
@@ -127,7 +126,7 @@ func (r *securitySettingRepository) FindPaginated(filter SecuritySettingReposito
 }
 
 func (r *securitySettingRepository) IncrementVersion(securitySettingID int64) error {
-	return r.DB().Model(&model.SecuritySetting{}).
+	return r.DB().Model(&SecuritySetting{}).
 		Where("security_setting_id = ?", securitySettingID).
 		UpdateColumn("version", gorm.Expr("version + ?", 1)).Error
 }

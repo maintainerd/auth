@@ -4,18 +4,16 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/maintainerd/auth/internal/dto"
 	resp "github.com/maintainerd/auth/internal/platform/response"
-	"github.com/maintainerd/auth/internal/service"
 )
 
 // OAuthTokenExchangeHandler handles the Token Exchange grant (RFC 8693).
 type OAuthTokenExchangeHandler struct {
-	tokenExchangeService service.OAuthTokenExchangeService
+	tokenExchangeService OAuthTokenExchangeService
 }
 
 // NewOAuthTokenExchangeHandler creates a new OAuthTokenExchangeHandler.
-func NewOAuthTokenExchangeHandler(tokenExchangeService service.OAuthTokenExchangeService) *OAuthTokenExchangeHandler {
+func NewOAuthTokenExchangeHandler(tokenExchangeService OAuthTokenExchangeService) *OAuthTokenExchangeHandler {
 	return &OAuthTokenExchangeHandler{tokenExchangeService: tokenExchangeService}
 }
 
@@ -26,7 +24,7 @@ func (h *OAuthTokenExchangeHandler) Exchange(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	req := dto.OAuthTokenExchangeRequestDTO{
+	req := OAuthTokenExchangeRequestDTO{
 		SubjectToken:       r.FormValue("subject_token"),
 		SubjectTokenType:   r.FormValue("subject_token_type"),
 		RequestedTokenType: r.FormValue("requested_token_type"),

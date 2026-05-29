@@ -8,18 +8,16 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
-	"github.com/maintainerd/auth/internal/dto"
 	"github.com/maintainerd/auth/internal/platform/middleware"
 	"github.com/maintainerd/auth/internal/platform/ptr"
 	resp "github.com/maintainerd/auth/internal/platform/response"
-	"github.com/maintainerd/auth/internal/service"
 )
 
 type APIHandler struct {
-	apiService service.APIService
+	apiService APIService
 }
 
-func NewAPIHandler(apiService service.APIService) *APIHandler {
+func NewAPIHandler(apiService APIService) *APIHandler {
 	return &APIHandler{apiService}
 }
 
@@ -56,7 +54,7 @@ func (h *APIHandler) Get(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Build request DTO
-	reqParams := dto.APIFilterDTO{
+	reqParams := APIFilterDTO{
 		Name:                 ptr.PtrOrNil(q.Get("name")),
 		DisplayName:          ptr.PtrOrNil(q.Get("display_name")),
 		APIType:              ptr.PtrOrNil(q.Get("api_type")),
@@ -91,7 +89,7 @@ func (h *APIHandler) Get(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Build service filter
-	apiFilter := service.APIServiceGetFilter{
+	apiFilter := APIServiceGetFilter{
 		Name:        reqParams.Name,
 		DisplayName: reqParams.DisplayName,
 		APIType:     reqParams.APIType,
@@ -114,13 +112,13 @@ func (h *APIHandler) Get(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Map service result to DTO
-	rows := make([]dto.APIResponseDTO, len(result.Data))
+	rows := make([]APIResponseDTO, len(result.Data))
 	for i, r := range result.Data {
 		rows[i] = toAPIResponseDTO(r)
 	}
 
 	// Build response data
-	response := dto.PaginatedResponseDTO[dto.APIResponseDTO]{
+	response := PaginatedResponseDTO[APIResponseDTO]{
 		Rows:       rows,
 		Total:      result.Total,
 		Page:       result.Page,
@@ -166,7 +164,7 @@ func (h *APIHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var req dto.APICreateRequestDTO
+	var req APICreateRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		resp.Error(w, http.StatusBadRequest, "Invalid request")
 		return
@@ -203,7 +201,7 @@ func (h *APIHandler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var req dto.APIUpdateRequestDTO
+	var req APIUpdateRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		resp.Error(w, http.StatusBadRequest, "Invalid request")
 		return
@@ -241,7 +239,7 @@ func (h *APIHandler) SetStatus(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Parse request body
-	var req dto.APIStatusUpdateDTO
+	var req APIStatusUpdateDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		resp.Error(w, http.StatusBadRequest, "Invalid request body")
 		return
@@ -291,8 +289,8 @@ func (h *APIHandler) Delete(w http.ResponseWriter, r *http.Request) {
 }
 
 // Convert service result to DTO
-func toAPIResponseDTO(r service.APIServiceDataResult) dto.APIResponseDTO {
-	result := dto.APIResponseDTO{
+func toAPIResponseDTO(r APIServiceDataResult) APIResponseDTO {
+	result := APIResponseDTO{
 		APIUUID:     r.APIUUID,
 		Name:        r.Name,
 		DisplayName: r.DisplayName,
@@ -306,7 +304,7 @@ func toAPIResponseDTO(r service.APIServiceDataResult) dto.APIResponseDTO {
 	}
 
 	if r.Service != nil {
-		result.Service = &dto.ServiceResponseDTO{
+		result.Service = &ServiceResponseDTO{
 			ServiceUUID: r.Service.ServiceUUID,
 			Name:        r.Service.Name,
 			DisplayName: r.Service.DisplayName,

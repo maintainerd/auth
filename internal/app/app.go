@@ -1,8 +1,22 @@
 package app
 
 import (
+	"github.com/maintainerd/auth/internal/authevent"
+	"github.com/maintainerd/auth/internal/authn"
+	"github.com/maintainerd/auth/internal/branding"
+	"github.com/maintainerd/auth/internal/client"
+	"github.com/maintainerd/auth/internal/iam"
+	"github.com/maintainerd/auth/internal/idp"
+	"github.com/maintainerd/auth/internal/invite"
+	"github.com/maintainerd/auth/internal/mfa"
+	"github.com/maintainerd/auth/internal/notifier"
+	"github.com/maintainerd/auth/internal/oauth"
 	"github.com/maintainerd/auth/internal/platform/cache"
-	"github.com/maintainerd/auth/internal/service"
+	"github.com/maintainerd/auth/internal/secpolicy"
+	"github.com/maintainerd/auth/internal/setup"
+	"github.com/maintainerd/auth/internal/tenant"
+	"github.com/maintainerd/auth/internal/user"
+	"github.com/maintainerd/auth/internal/webhook"
 	"github.com/redis/go-redis/v9"
 	"gorm.io/gorm"
 )
@@ -12,54 +26,54 @@ type App struct {
 	RedisClient *redis.Client
 	Cache       *cache.Cache
 	// Services
-	ServiceService            service.ServiceService
-	APIService                service.APIService
-	PermissionService         service.PermissionService
-	PolicyService             service.PolicyService
-	TenantService             service.TenantService
-	TenantMemberService       service.TenantMemberService
-	IdentityProviderService   service.IdentityProviderService
-	ClientService             service.ClientService
-	RoleService               service.RoleService
-	UserService               service.UserService
-	RegisterService           service.RegisterService
-	LoginService              service.LoginService
-	ProfileService            service.ProfileService
-	UserSettingService        service.UserSettingService
-	InviteService             service.InviteService
-	ForgotPasswordService     service.ForgotPasswordService
-	ResetPasswordService      service.ResetPasswordService
-	EmailVerificationService  service.EmailVerificationService
-	MagicLinkService          service.MagicLinkService
-	SetupService              service.SetupService
-	SignupFlowService         service.SignupFlowService
-	APIKeyService             service.APIKeyService
-	SecuritySettingService    service.SecuritySettingService
-	IPRestrictionRuleService  service.IPRestrictionRuleService
-	EmailTemplateService      service.EmailTemplateService
-	SMSTemplateService        service.SMSTemplateService
-	LoginTemplateService      service.LoginTemplateService
-	BrandingService           service.BrandingService
-	TenantSettingService      service.TenantSettingService
-	EmailConfigService        service.EmailConfigService
-	SMSConfigService          service.SMSConfigService
-	WebhookEndpointService    service.WebhookEndpointService
-	AuthEventService          service.AuthEventService
-	OAuthAuthorizeService     service.OAuthAuthorizeService
-	OAuthTokenService         service.OAuthTokenService
-	OAuthConsentService       service.OAuthConsentService
-	OAuthPARService           service.OAuthPARService
-	OAuthDeviceService        service.OAuthDeviceService
-	OAuthTokenExchangeService service.OAuthTokenExchangeService
-	OAuthSessionService       service.OAuthSessionService
-	OAuthCIBAService          service.OAuthCIBAService
-	OAuthRegisterService      service.OAuthRegisterService
-	AccountService            service.AccountService
-	SessionService            service.SessionService
-	SMSLoginService           service.SMSLoginService
-	MFAService                service.MFAService
-	WebAuthnService           service.WebAuthnService
-	FederationService         service.FederationService
+	ServiceService            iam.ServiceService
+	APIService                iam.APIService
+	PermissionService         iam.PermissionService
+	PolicyService             iam.PolicyService
+	TenantService             tenant.TenantService
+	TenantMemberService       tenant.TenantMemberService
+	IdentityProviderService   idp.IdentityProviderService
+	ClientService             client.ClientService
+	RoleService               iam.RoleService
+	UserService               user.UserService
+	RegisterService           authn.RegisterService
+	LoginService              authn.LoginService
+	ProfileService            user.ProfileService
+	UserSettingService        user.UserSettingService
+	InviteService             invite.InviteService
+	ForgotPasswordService     authn.ForgotPasswordService
+	ResetPasswordService      authn.ResetPasswordService
+	EmailVerificationService  authn.EmailVerificationService
+	MagicLinkService          authn.MagicLinkService
+	SetupService              setup.SetupService
+	SignupFlowService         idp.SignupFlowService
+	APIKeyService             client.APIKeyService
+	SecuritySettingService    secpolicy.SecuritySettingService
+	IPRestrictionRuleService  secpolicy.IPRestrictionRuleService
+	EmailTemplateService      branding.EmailTemplateService
+	SMSTemplateService        branding.SMSTemplateService
+	LoginTemplateService      branding.LoginTemplateService
+	BrandingService           branding.BrandingService
+	TenantSettingService      tenant.TenantSettingService
+	EmailConfigService        notifier.EmailConfigService
+	SMSConfigService          notifier.SMSConfigService
+	WebhookEndpointService    webhook.WebhookEndpointService
+	AuthEventService          authevent.AuthEventService
+	OAuthAuthorizeService     oauth.OAuthAuthorizeService
+	OAuthTokenService         oauth.OAuthTokenService
+	OAuthConsentService       oauth.OAuthConsentService
+	OAuthPARService           oauth.OAuthPARService
+	OAuthDeviceService        oauth.OAuthDeviceService
+	OAuthTokenExchangeService oauth.OAuthTokenExchangeService
+	OAuthSessionService       oauth.OAuthSessionService
+	OAuthCIBAService          oauth.OAuthCIBAService
+	OAuthRegisterService      oauth.OAuthRegisterService
+	AccountService            user.AccountService
+	SessionService            authn.SessionService
+	SMSLoginService           authn.SMSLoginService
+	MFAService                mfa.MFAService
+	WebAuthnService           mfa.WebAuthnService
+	FederationService         idp.FederationService
 }
 
 // NewApp wires the full dependency graph in two focused steps:

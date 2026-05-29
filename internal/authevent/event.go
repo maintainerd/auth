@@ -5,10 +5,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/maintainerd/auth/internal/model"
 	"github.com/maintainerd/auth/internal/platform/apperror"
 	"github.com/maintainerd/auth/internal/platform/logging"
-	"github.com/maintainerd/auth/internal/repository"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -33,7 +31,7 @@ type AuthEventInput struct {
 }
 
 // AuthEventServiceDataResult is the service-layer representation of an auth
-// event, decoupled from the persistence model.
+// event, decoupled from the persistence
 type AuthEventServiceDataResult struct {
 	AuthEventUUID uuid.UUID
 	TenantID      int64
@@ -54,7 +52,7 @@ type AuthEventServiceDataResult struct {
 
 // WebhookDispatcher delivers a persisted auth event to subscribed webhook endpoints.
 type WebhookDispatcher interface {
-	Dispatch(ctx context.Context, event *model.AuthEvent)
+	Dispatch(ctx context.Context, event *AuthEvent)
 }
 
 // AuthEventService defines business operations on security auth events.
@@ -65,7 +63,7 @@ type AuthEventService interface {
 	Log(ctx context.Context, input AuthEventInput)
 
 	// FindPaginated returns a page of events filtered by the supplied criteria.
-	FindPaginated(ctx context.Context, filter repository.AuthEventRepositoryGetFilter) (*repository.PaginationResult[AuthEventServiceDataResult], error)
+	FindPaginated(ctx context.Context, filter AuthEventRepositoryGetFilter) (*PaginationResult[AuthEventServiceDataResult], error)
 
 	// FindByUUID returns a single event by UUID scoped to a tenant.
 	FindByUUID(ctx context.Context, tenantID int64, eventUUID uuid.UUID) (*AuthEventServiceDataResult, error)
@@ -79,13 +77,13 @@ type AuthEventService interface {
 }
 
 type authEventService struct {
-	authEventRepo repository.AuthEventRepository
+	authEventRepo AuthEventRepository
 	dispatcher    WebhookDispatcher
 }
 
 // NewAuthEventService creates a new AuthEventService.
 // Pass nil for dispatcher to disable webhook delivery (e.g. in tests).
-func NewAuthEventService(authEventRepo repository.AuthEventRepository, dispatcher WebhookDispatcher) AuthEventService {
+func NewAuthEventService(authEventRepo AuthEventRepository, dispatcher WebhookDispatcher) AuthEventService {
 	return &authEventService{authEventRepo: authEventRepo, dispatcher: dispatcher}
 }
 
@@ -94,8 +92,8 @@ func NewAuthEventService(authEventRepo repository.AuthEventRepository, dispatche
 type noopAuthEventService struct{}
 
 func (noopAuthEventService) Log(_ context.Context, _ AuthEventInput) {}
-func (noopAuthEventService) FindPaginated(_ context.Context, _ repository.AuthEventRepositoryGetFilter) (*repository.PaginationResult[AuthEventServiceDataResult], error) {
-	return &repository.PaginationResult[AuthEventServiceDataResult]{}, nil
+func (noopAuthEventService) FindPaginated(_ context.Context, _ AuthEventRepositoryGetFilter) (*PaginationResult[AuthEventServiceDataResult], error) {
+	return &PaginationResult[AuthEventServiceDataResult]{}, nil
 }
 func (noopAuthEventService) FindByUUID(_ context.Context, _ int64, _ uuid.UUID) (*AuthEventServiceDataResult, error) {
 	return nil, nil
@@ -132,7 +130,7 @@ func (s *authEventService) Log(ctx context.Context, input AuthEventInput) {
 		traceID = &tid
 	}
 
-	event := &model.AuthEvent{
+	event := &AuthEvent{
 		TenantID:     input.TenantID,
 		ActorUserID:  input.ActorUserID,
 		TargetUserID: input.TargetUserID,
@@ -165,7 +163,7 @@ func (s *authEventService) Log(ctx context.Context, input AuthEventInput) {
 }
 
 // FindPaginated returns a page of auth events filtered by the supplied criteria.
-func (s *authEventService) FindPaginated(ctx context.Context, filter repository.AuthEventRepositoryGetFilter) (*repository.PaginationResult[AuthEventServiceDataResult], error) {
+func (s *authEventService) FindPaginated(ctx context.Context, filter AuthEventRepositoryGetFilter) (*PaginationResult[AuthEventServiceDataResult], error) {
 	_, span := otel.Tracer("service").Start(ctx, "auth_event.find_paginated")
 	defer span.End()
 
@@ -182,7 +180,7 @@ func (s *authEventService) FindPaginated(ctx context.Context, filter repository.
 	}
 
 	span.SetStatus(codes.Ok, "")
-	return &repository.PaginationResult[AuthEventServiceDataResult]{
+	return &PaginationResult[AuthEventServiceDataResult]{
 		Data:       mapped,
 		Total:      result.Total,
 		Page:       result.Page,
@@ -250,7 +248,7 @@ func (s *authEventService) DeleteOlderThan(ctx context.Context, cutoff time.Time
 	return count, nil
 }
 
-func toAuthEventServiceDataResult(e *model.AuthEvent) AuthEventServiceDataResult {
+func toAuthEventServiceDataResult(e *AuthEvent) AuthEventServiceDataResult {
 	return AuthEventServiceDataResult{
 		AuthEventUUID: e.AuthEventUUID,
 		TenantID:      e.TenantID,

@@ -6,8 +6,6 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
-	"github.com/maintainerd/auth/internal/model"
-	"github.com/maintainerd/auth/internal/repository"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -24,7 +22,7 @@ func newServiceSvc(t *testing.T, serviceRepo *mockServiceRepo, tsRepo *mockTenan
 func TestServiceService_Get(t *testing.T) {
 	t.Run("FindPaginated error", func(t *testing.T) {
 		svc := newServiceSvc(t, &mockServiceRepo{
-			findPaginatedFn: func(_ repository.ServiceRepositoryGetFilter) (*repository.PaginationResult[model.Service], error) {
+			findPaginatedFn: func(_ ServiceRepositoryGetFilter) (*PaginationResult[Service], error) {
 				return nil, errors.New("db error")
 			},
 		}, &mockTenantServiceRepo{}, &mockAPIRepo{}, &mockServicePolicyRepo{}, &mockPolicyRepo{})
@@ -35,9 +33,9 @@ func TestServiceService_Get(t *testing.T) {
 
 	t.Run("success without tenantID", func(t *testing.T) {
 		svc := newServiceSvc(t, &mockServiceRepo{
-			findPaginatedFn: func(_ repository.ServiceRepositoryGetFilter) (*repository.PaginationResult[model.Service], error) {
-				return &repository.PaginationResult[model.Service]{
-					Data:  []model.Service{{ServiceUUID: uuid.New(), Name: "svc1"}},
+			findPaginatedFn: func(_ ServiceRepositoryGetFilter) (*PaginationResult[Service], error) {
+				return &PaginationResult[Service]{
+					Data:  []Service{{ServiceUUID: uuid.New(), Name: "svc1"}},
 					Total: 1, Page: 1, Limit: 10, TotalPages: 1,
 				}, nil
 			},
@@ -51,9 +49,9 @@ func TestServiceService_Get(t *testing.T) {
 	t.Run("success with tenantID", func(t *testing.T) {
 		tid := int64(5)
 		svc := newServiceSvc(t, &mockServiceRepo{
-			findPaginatedFn: func(_ repository.ServiceRepositoryGetFilter) (*repository.PaginationResult[model.Service], error) {
-				return &repository.PaginationResult[model.Service]{
-					Data:  []model.Service{{ServiceUUID: uuid.New(), Name: "svc2"}},
+			findPaginatedFn: func(_ ServiceRepositoryGetFilter) (*PaginationResult[Service], error) {
+				return &PaginationResult[Service]{
+					Data:  []Service{{ServiceUUID: uuid.New(), Name: "svc2"}},
 					Total: 1, Page: 1, Limit: 10, TotalPages: 1,
 				}, nil
 			},
@@ -81,7 +79,7 @@ func TestServiceService_GetByUUID(t *testing.T) {
 
 	t.Run("service not found", func(t *testing.T) {
 		svc := newServiceSvc(t, &mockServiceRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.Service, error) { return nil, nil },
+			findByUUIDFn: func(_ any, _ ...string) (*Service, error) { return nil, nil },
 		}, &mockTenantServiceRepo{}, &mockAPIRepo{}, &mockServicePolicyRepo{}, &mockPolicyRepo{})
 		_, err := svc.GetByUUID(context.Background(), id, tid)
 		require.Error(t, err)
@@ -90,7 +88,7 @@ func TestServiceService_GetByUUID(t *testing.T) {
 
 	t.Run("FindByUUID error", func(t *testing.T) {
 		svc := newServiceSvc(t, &mockServiceRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.Service, error) {
+			findByUUIDFn: func(_ any, _ ...string) (*Service, error) {
 				return nil, errors.New("db error")
 			},
 		}, &mockTenantServiceRepo{}, &mockAPIRepo{}, &mockServicePolicyRepo{}, &mockPolicyRepo{})
@@ -101,11 +99,11 @@ func TestServiceService_GetByUUID(t *testing.T) {
 
 	t.Run("access denied - not in tenant", func(t *testing.T) {
 		svc := newServiceSvc(t, &mockServiceRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.Service, error) {
-				return &model.Service{ServiceUUID: id}, nil
+			findByUUIDFn: func(_ any, _ ...string) (*Service, error) {
+				return &Service{ServiceUUID: id}, nil
 			},
 		}, &mockTenantServiceRepo{
-			findByTenantAndServiceFn: func(_ int64, _ int64) (*model.TenantService, error) { return nil, nil },
+			findByTenantAndServiceFn: func(_ int64, _ int64) (*TenantService, error) { return nil, nil },
 		}, &mockAPIRepo{}, &mockServicePolicyRepo{}, &mockPolicyRepo{})
 		_, err := svc.GetByUUID(context.Background(), id, tid)
 		require.Error(t, err)
@@ -114,11 +112,11 @@ func TestServiceService_GetByUUID(t *testing.T) {
 
 	t.Run("FindByTenantAndService error", func(t *testing.T) {
 		svc := newServiceSvc(t, &mockServiceRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.Service, error) {
-				return &model.Service{ServiceUUID: id}, nil
+			findByUUIDFn: func(_ any, _ ...string) (*Service, error) {
+				return &Service{ServiceUUID: id}, nil
 			},
 		}, &mockTenantServiceRepo{
-			findByTenantAndServiceFn: func(_ int64, _ int64) (*model.TenantService, error) {
+			findByTenantAndServiceFn: func(_ int64, _ int64) (*TenantService, error) {
 				return nil, errors.New("db error")
 			},
 		}, &mockAPIRepo{}, &mockServicePolicyRepo{}, &mockPolicyRepo{})
@@ -129,8 +127,8 @@ func TestServiceService_GetByUUID(t *testing.T) {
 
 	t.Run("success", func(t *testing.T) {
 		svc := newServiceSvc(t, &mockServiceRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.Service, error) {
-				return &model.Service{ServiceUUID: id, Name: "auth"}, nil
+			findByUUIDFn: func(_ any, _ ...string) (*Service, error) {
+				return &Service{ServiceUUID: id, Name: "auth"}, nil
 			},
 		}, &mockTenantServiceRepo{}, &mockAPIRepo{}, &mockServicePolicyRepo{}, &mockPolicyRepo{})
 		res, err := svc.GetByUUID(context.Background(), id, tid)
@@ -149,7 +147,7 @@ func TestServiceService_Create(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		svc := NewServiceService(db, &mockServiceRepo{
-			findByNameAndTenantIDFn: func(_ string, _ int64) (*model.Service, error) {
+			findByNameAndTenantIDFn: func(_ string, _ int64) (*Service, error) {
 				return nil, errors.New("db error")
 			},
 		}, &mockTenantServiceRepo{}, &mockAPIRepo{}, &mockServicePolicyRepo{}, &mockPolicyRepo{})
@@ -163,8 +161,8 @@ func TestServiceService_Create(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		svc := NewServiceService(db, &mockServiceRepo{
-			findByNameAndTenantIDFn: func(_ string, _ int64) (*model.Service, error) {
-				return &model.Service{Name: "auth"}, nil
+			findByNameAndTenantIDFn: func(_ string, _ int64) (*Service, error) {
+				return &Service{Name: "auth"}, nil
 			},
 		}, &mockTenantServiceRepo{}, &mockAPIRepo{}, &mockServicePolicyRepo{}, &mockPolicyRepo{})
 		_, err := svc.Create(context.Background(), "auth", "Auth", "desc", "v1", false, "active", 1)
@@ -177,7 +175,7 @@ func TestServiceService_Create(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		svc := NewServiceService(db, &mockServiceRepo{
-			createOrUpdateFn: func(_ *model.Service) (*model.Service, error) {
+			createOrUpdateFn: func(_ *Service) (*Service, error) {
 				return nil, errors.New("create failed")
 			},
 		}, &mockTenantServiceRepo{}, &mockAPIRepo{}, &mockServicePolicyRepo{}, &mockPolicyRepo{})
@@ -191,7 +189,7 @@ func TestServiceService_Create(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		svc := NewServiceService(db, &mockServiceRepo{}, &mockTenantServiceRepo{
-			createOrUpdateFn: func(_ *model.TenantService) (*model.TenantService, error) {
+			createOrUpdateFn: func(_ *TenantService) (*TenantService, error) {
 				return nil, errors.New("tenant link failed")
 			},
 		}, &mockAPIRepo{}, &mockServicePolicyRepo{}, &mockPolicyRepo{})
@@ -224,7 +222,7 @@ func TestServiceService_Update(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		svc := NewServiceService(db, &mockServiceRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.Service, error) { return nil, nil },
+			findByUUIDFn: func(_ any, _ ...string) (*Service, error) { return nil, nil },
 		}, &mockTenantServiceRepo{}, &mockAPIRepo{}, &mockServicePolicyRepo{}, &mockPolicyRepo{})
 		_, err := svc.Update(context.Background(), id, tid, "new", "New", "d", "v1", false, "active")
 		require.Error(t, err)
@@ -236,7 +234,7 @@ func TestServiceService_Update(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		svc := NewServiceService(db, &mockServiceRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.Service, error) {
+			findByUUIDFn: func(_ any, _ ...string) (*Service, error) {
 				return nil, errors.New("db error")
 			},
 		}, &mockTenantServiceRepo{}, &mockAPIRepo{}, &mockServicePolicyRepo{}, &mockPolicyRepo{})
@@ -250,11 +248,11 @@ func TestServiceService_Update(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		svc := NewServiceService(db, &mockServiceRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.Service, error) {
-				return &model.Service{ServiceID: 1, ServiceUUID: id}, nil
+			findByUUIDFn: func(_ any, _ ...string) (*Service, error) {
+				return &Service{ServiceID: 1, ServiceUUID: id}, nil
 			},
 		}, &mockTenantServiceRepo{
-			findByTenantAndServiceFn: func(_ int64, _ int64) (*model.TenantService, error) { return nil, nil },
+			findByTenantAndServiceFn: func(_ int64, _ int64) (*TenantService, error) { return nil, nil },
 		}, &mockAPIRepo{}, &mockServicePolicyRepo{}, &mockPolicyRepo{})
 		_, err := svc.Update(context.Background(), id, tid, "new", "New", "d", "v1", false, "active")
 		require.Error(t, err)
@@ -266,8 +264,8 @@ func TestServiceService_Update(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		svc := NewServiceService(db, &mockServiceRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.Service, error) {
-				return &model.Service{ServiceID: 1, ServiceUUID: id, IsSystem: true, Name: "core"}, nil
+			findByUUIDFn: func(_ any, _ ...string) (*Service, error) {
+				return &Service{ServiceID: 1, ServiceUUID: id, IsSystem: true, Name: "core"}, nil
 			},
 		}, &mockTenantServiceRepo{}, &mockAPIRepo{}, &mockServicePolicyRepo{}, &mockPolicyRepo{})
 		_, err := svc.Update(context.Background(), id, tid, "new", "New", "d", "v1", false, "active")
@@ -280,10 +278,10 @@ func TestServiceService_Update(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		svc := NewServiceService(db, &mockServiceRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.Service, error) {
-				return &model.Service{ServiceID: 1, ServiceUUID: id, Name: "old"}, nil
+			findByUUIDFn: func(_ any, _ ...string) (*Service, error) {
+				return &Service{ServiceID: 1, ServiceUUID: id, Name: "old"}, nil
 			},
-			findByNameFn: func(_ string) (*model.Service, error) {
+			findByNameFn: func(_ string) (*Service, error) {
 				return nil, errors.New("db error")
 			},
 		}, &mockTenantServiceRepo{}, &mockAPIRepo{}, &mockServicePolicyRepo{}, &mockPolicyRepo{})
@@ -298,11 +296,11 @@ func TestServiceService_Update(t *testing.T) {
 		mock.ExpectRollback()
 		otherUUID := uuid.New()
 		svc := NewServiceService(db, &mockServiceRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.Service, error) {
-				return &model.Service{ServiceID: 1, ServiceUUID: id, Name: "old"}, nil
+			findByUUIDFn: func(_ any, _ ...string) (*Service, error) {
+				return &Service{ServiceID: 1, ServiceUUID: id, Name: "old"}, nil
 			},
-			findByNameFn: func(_ string) (*model.Service, error) {
-				return &model.Service{ServiceUUID: otherUUID, Name: "new"}, nil
+			findByNameFn: func(_ string) (*Service, error) {
+				return &Service{ServiceUUID: otherUUID, Name: "new"}, nil
 			},
 		}, &mockTenantServiceRepo{}, &mockAPIRepo{}, &mockServicePolicyRepo{}, &mockPolicyRepo{})
 		_, err := svc.Update(context.Background(), id, tid, "new", "New", "d", "v1", false, "active")
@@ -315,11 +313,11 @@ func TestServiceService_Update(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectCommit()
 		svc := NewServiceService(db, &mockServiceRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.Service, error) {
-				return &model.Service{ServiceID: 1, ServiceUUID: id, Name: "old"}, nil
+			findByUUIDFn: func(_ any, _ ...string) (*Service, error) {
+				return &Service{ServiceID: 1, ServiceUUID: id, Name: "old"}, nil
 			},
-			findByNameFn: func(_ string) (*model.Service, error) {
-				return &model.Service{ServiceUUID: id, Name: "new"}, nil
+			findByNameFn: func(_ string) (*Service, error) {
+				return &Service{ServiceUUID: id, Name: "new"}, nil
 			},
 		}, &mockTenantServiceRepo{}, &mockAPIRepo{}, &mockServicePolicyRepo{}, &mockPolicyRepo{})
 		res, err := svc.Update(context.Background(), id, tid, "new", "New", "d", "v1", false, "active")
@@ -332,10 +330,10 @@ func TestServiceService_Update(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectCommit()
 		svc := NewServiceService(db, &mockServiceRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.Service, error) {
-				return &model.Service{ServiceID: 1, ServiceUUID: id, Name: "old"}, nil
+			findByUUIDFn: func(_ any, _ ...string) (*Service, error) {
+				return &Service{ServiceID: 1, ServiceUUID: id, Name: "old"}, nil
 			},
-			findByNameFn: func(_ string) (*model.Service, error) {
+			findByNameFn: func(_ string) (*Service, error) {
 				return nil, nil
 			},
 		}, &mockTenantServiceRepo{}, &mockAPIRepo{}, &mockServicePolicyRepo{}, &mockPolicyRepo{})
@@ -349,10 +347,10 @@ func TestServiceService_Update(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		svc := NewServiceService(db, &mockServiceRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.Service, error) {
-				return &model.Service{ServiceID: 1, ServiceUUID: id, Name: "svc"}, nil
+			findByUUIDFn: func(_ any, _ ...string) (*Service, error) {
+				return &Service{ServiceID: 1, ServiceUUID: id, Name: "svc"}, nil
 			},
-			createOrUpdateFn: func(_ *model.Service) (*model.Service, error) {
+			createOrUpdateFn: func(_ *Service) (*Service, error) {
 				return nil, errors.New("save failed")
 			},
 		}, &mockTenantServiceRepo{}, &mockAPIRepo{}, &mockServicePolicyRepo{}, &mockPolicyRepo{})
@@ -366,8 +364,8 @@ func TestServiceService_Update(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectCommit()
 		svc := NewServiceService(db, &mockServiceRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.Service, error) {
-				return &model.Service{ServiceID: 1, ServiceUUID: id, Name: "svc"}, nil
+			findByUUIDFn: func(_ any, _ ...string) (*Service, error) {
+				return &Service{ServiceID: 1, ServiceUUID: id, Name: "svc"}, nil
 			},
 		}, &mockTenantServiceRepo{}, &mockAPIRepo{}, &mockServicePolicyRepo{}, &mockPolicyRepo{})
 		res, err := svc.Update(context.Background(), id, tid, "svc", "Service", "updated desc", "v2", false, "active")
@@ -390,7 +388,7 @@ func TestServiceService_SetStatusByUUID(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		svc := NewServiceService(db, &mockServiceRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.Service, error) { return nil, nil },
+			findByUUIDFn: func(_ any, _ ...string) (*Service, error) { return nil, nil },
 		}, &mockTenantServiceRepo{}, &mockAPIRepo{}, &mockServicePolicyRepo{}, &mockPolicyRepo{})
 		_, err := svc.SetStatusByUUID(context.Background(), id, tid, "inactive")
 		require.Error(t, err)
@@ -401,11 +399,11 @@ func TestServiceService_SetStatusByUUID(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		svc := NewServiceService(db, &mockServiceRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.Service, error) {
-				return &model.Service{ServiceID: 1, ServiceUUID: id}, nil
+			findByUUIDFn: func(_ any, _ ...string) (*Service, error) {
+				return &Service{ServiceID: 1, ServiceUUID: id}, nil
 			},
 		}, &mockTenantServiceRepo{
-			findByTenantAndServiceFn: func(_ int64, _ int64) (*model.TenantService, error) { return nil, nil },
+			findByTenantAndServiceFn: func(_ int64, _ int64) (*TenantService, error) { return nil, nil },
 		}, &mockAPIRepo{}, &mockServicePolicyRepo{}, &mockPolicyRepo{})
 		_, err := svc.SetStatusByUUID(context.Background(), id, tid, "inactive")
 		require.Error(t, err)
@@ -417,8 +415,8 @@ func TestServiceService_SetStatusByUUID(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		svc := NewServiceService(db, &mockServiceRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.Service, error) {
-				return &model.Service{ServiceUUID: id, IsSystem: true}, nil
+			findByUUIDFn: func(_ any, _ ...string) (*Service, error) {
+				return &Service{ServiceUUID: id, IsSystem: true}, nil
 			},
 		}, &mockTenantServiceRepo{}, &mockAPIRepo{}, &mockServicePolicyRepo{}, &mockPolicyRepo{})
 		_, err := svc.SetStatusByUUID(context.Background(), id, tid, "inactive")
@@ -431,10 +429,10 @@ func TestServiceService_SetStatusByUUID(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		svc := NewServiceService(db, &mockServiceRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.Service, error) {
-				return &model.Service{ServiceUUID: id, Status: "active"}, nil
+			findByUUIDFn: func(_ any, _ ...string) (*Service, error) {
+				return &Service{ServiceUUID: id, Status: "active"}, nil
 			},
-			createOrUpdateFn: func(_ *model.Service) (*model.Service, error) {
+			createOrUpdateFn: func(_ *Service) (*Service, error) {
 				return nil, errors.New("save failed")
 			},
 		}, &mockTenantServiceRepo{}, &mockAPIRepo{}, &mockServicePolicyRepo{}, &mockPolicyRepo{})
@@ -448,8 +446,8 @@ func TestServiceService_SetStatusByUUID(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectCommit()
 		svc := NewServiceService(db, &mockServiceRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.Service, error) {
-				return &model.Service{ServiceUUID: id, Status: "active"}, nil
+			findByUUIDFn: func(_ any, _ ...string) (*Service, error) {
+				return &Service{ServiceUUID: id, Status: "active"}, nil
 			},
 		}, &mockTenantServiceRepo{}, &mockAPIRepo{}, &mockServicePolicyRepo{}, &mockPolicyRepo{})
 		res, err := svc.SetStatusByUUID(context.Background(), id, tid, "inactive")
@@ -468,7 +466,7 @@ func TestServiceService_DeleteByUUID(t *testing.T) {
 
 	t.Run("not found", func(t *testing.T) {
 		svc := newServiceSvc(t, &mockServiceRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.Service, error) { return nil, nil },
+			findByUUIDFn: func(_ any, _ ...string) (*Service, error) { return nil, nil },
 		}, &mockTenantServiceRepo{}, &mockAPIRepo{}, &mockServicePolicyRepo{}, &mockPolicyRepo{})
 		_, err := svc.DeleteByUUID(context.Background(), id, tid)
 		require.Error(t, err)
@@ -477,11 +475,11 @@ func TestServiceService_DeleteByUUID(t *testing.T) {
 
 	t.Run("access denied", func(t *testing.T) {
 		svc := newServiceSvc(t, &mockServiceRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.Service, error) {
-				return &model.Service{ServiceID: 1, ServiceUUID: id}, nil
+			findByUUIDFn: func(_ any, _ ...string) (*Service, error) {
+				return &Service{ServiceID: 1, ServiceUUID: id}, nil
 			},
 		}, &mockTenantServiceRepo{
-			findByTenantAndServiceFn: func(_ int64, _ int64) (*model.TenantService, error) { return nil, nil },
+			findByTenantAndServiceFn: func(_ int64, _ int64) (*TenantService, error) { return nil, nil },
 		}, &mockAPIRepo{}, &mockServicePolicyRepo{}, &mockPolicyRepo{})
 		_, err := svc.DeleteByUUID(context.Background(), id, tid)
 		require.Error(t, err)
@@ -490,8 +488,8 @@ func TestServiceService_DeleteByUUID(t *testing.T) {
 
 	t.Run("system service blocked", func(t *testing.T) {
 		svc := newServiceSvc(t, &mockServiceRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.Service, error) {
-				return &model.Service{ServiceUUID: id, IsSystem: true}, nil
+			findByUUIDFn: func(_ any, _ ...string) (*Service, error) {
+				return &Service{ServiceUUID: id, IsSystem: true}, nil
 			},
 		}, &mockTenantServiceRepo{}, &mockAPIRepo{}, &mockServicePolicyRepo{}, &mockPolicyRepo{})
 		_, err := svc.DeleteByUUID(context.Background(), id, tid)
@@ -501,8 +499,8 @@ func TestServiceService_DeleteByUUID(t *testing.T) {
 
 	t.Run("DeleteByUUID repo error", func(t *testing.T) {
 		svc := newServiceSvc(t, &mockServiceRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.Service, error) {
-				return &model.Service{ServiceUUID: id, Name: "svc"}, nil
+			findByUUIDFn: func(_ any, _ ...string) (*Service, error) {
+				return &Service{ServiceUUID: id, Name: "svc"}, nil
 			},
 			deleteByUUIDFn: func(_ any) error { return errors.New("delete failed") },
 		}, &mockTenantServiceRepo{}, &mockAPIRepo{}, &mockServicePolicyRepo{}, &mockPolicyRepo{})
@@ -513,8 +511,8 @@ func TestServiceService_DeleteByUUID(t *testing.T) {
 
 	t.Run("success", func(t *testing.T) {
 		svc := newServiceSvc(t, &mockServiceRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.Service, error) {
-				return &model.Service{ServiceUUID: id, Name: "svc"}, nil
+			findByUUIDFn: func(_ any, _ ...string) (*Service, error) {
+				return &Service{ServiceUUID: id, Name: "svc"}, nil
 			},
 		}, &mockTenantServiceRepo{}, &mockAPIRepo{}, &mockServicePolicyRepo{}, &mockPolicyRepo{})
 		res, err := svc.DeleteByUUID(context.Background(), id, tid)
@@ -537,7 +535,7 @@ func TestServiceService_AssignPolicy(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		svc := NewServiceService(db, &mockServiceRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.Service, error) {
+			findByUUIDFn: func(_ any, _ ...string) (*Service, error) {
 				return nil, errors.New("db error")
 			},
 		}, &mockTenantServiceRepo{}, &mockAPIRepo{}, &mockServicePolicyRepo{}, &mockPolicyRepo{})
@@ -551,7 +549,7 @@ func TestServiceService_AssignPolicy(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		svc := NewServiceService(db, &mockServiceRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.Service, error) { return nil, nil },
+			findByUUIDFn: func(_ any, _ ...string) (*Service, error) { return nil, nil },
 		}, &mockTenantServiceRepo{}, &mockAPIRepo{}, &mockServicePolicyRepo{}, &mockPolicyRepo{})
 		err := svc.AssignPolicy(context.Background(), svcUUID, polUUID, tid)
 		require.Error(t, err)
@@ -563,11 +561,11 @@ func TestServiceService_AssignPolicy(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		svc := NewServiceService(db, &mockServiceRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.Service, error) {
-				return &model.Service{ServiceID: 1, ServiceUUID: svcUUID}, nil
+			findByUUIDFn: func(_ any, _ ...string) (*Service, error) {
+				return &Service{ServiceID: 1, ServiceUUID: svcUUID}, nil
 			},
 		}, &mockTenantServiceRepo{}, &mockAPIRepo{}, &mockServicePolicyRepo{}, &mockPolicyRepo{
-			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*model.Policy, error) {
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*Policy, error) {
 				return nil, errors.New("db error")
 			},
 		})
@@ -581,11 +579,11 @@ func TestServiceService_AssignPolicy(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		svc := NewServiceService(db, &mockServiceRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.Service, error) {
-				return &model.Service{ServiceID: 1, ServiceUUID: svcUUID}, nil
+			findByUUIDFn: func(_ any, _ ...string) (*Service, error) {
+				return &Service{ServiceID: 1, ServiceUUID: svcUUID}, nil
 			},
 		}, &mockTenantServiceRepo{}, &mockAPIRepo{}, &mockServicePolicyRepo{}, &mockPolicyRepo{
-			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*model.Policy, error) { return nil, nil },
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*Policy, error) { return nil, nil },
 		})
 		err := svc.AssignPolicy(context.Background(), svcUUID, polUUID, tid)
 		require.Error(t, err)
@@ -597,16 +595,16 @@ func TestServiceService_AssignPolicy(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		svc := NewServiceService(db, &mockServiceRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.Service, error) {
-				return &model.Service{ServiceID: 1, ServiceUUID: svcUUID}, nil
+			findByUUIDFn: func(_ any, _ ...string) (*Service, error) {
+				return &Service{ServiceID: 1, ServiceUUID: svcUUID}, nil
 			},
 		}, &mockTenantServiceRepo{}, &mockAPIRepo{}, &mockServicePolicyRepo{
-			findByServiceAndPolicyFn: func(_ int64, _ int64) (*model.ServicePolicy, error) {
+			findByServiceAndPolicyFn: func(_ int64, _ int64) (*ServicePolicy, error) {
 				return nil, errors.New("db error")
 			},
 		}, &mockPolicyRepo{
-			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*model.Policy, error) {
-				return &model.Policy{PolicyID: 2, PolicyUUID: polUUID}, nil
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*Policy, error) {
+				return &Policy{PolicyID: 2, PolicyUUID: polUUID}, nil
 			},
 		})
 		err := svc.AssignPolicy(context.Background(), svcUUID, polUUID, tid)
@@ -619,16 +617,16 @@ func TestServiceService_AssignPolicy(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectCommit()
 		svc := NewServiceService(db, &mockServiceRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.Service, error) {
-				return &model.Service{ServiceID: 1, ServiceUUID: svcUUID}, nil
+			findByUUIDFn: func(_ any, _ ...string) (*Service, error) {
+				return &Service{ServiceID: 1, ServiceUUID: svcUUID}, nil
 			},
 		}, &mockTenantServiceRepo{}, &mockAPIRepo{}, &mockServicePolicyRepo{
-			findByServiceAndPolicyFn: func(_ int64, _ int64) (*model.ServicePolicy, error) {
-				return &model.ServicePolicy{ServicePolicyUUID: uuid.New()}, nil
+			findByServiceAndPolicyFn: func(_ int64, _ int64) (*ServicePolicy, error) {
+				return &ServicePolicy{ServicePolicyUUID: uuid.New()}, nil
 			},
 		}, &mockPolicyRepo{
-			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*model.Policy, error) {
-				return &model.Policy{PolicyID: 2, PolicyUUID: polUUID}, nil
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*Policy, error) {
+				return &Policy{PolicyID: 2, PolicyUUID: polUUID}, nil
 			},
 		})
 		err := svc.AssignPolicy(context.Background(), svcUUID, polUUID, tid)
@@ -640,16 +638,16 @@ func TestServiceService_AssignPolicy(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		svc := NewServiceService(db, &mockServiceRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.Service, error) {
-				return &model.Service{ServiceID: 1, ServiceUUID: svcUUID}, nil
+			findByUUIDFn: func(_ any, _ ...string) (*Service, error) {
+				return &Service{ServiceID: 1, ServiceUUID: svcUUID}, nil
 			},
 		}, &mockTenantServiceRepo{}, &mockAPIRepo{}, &mockServicePolicyRepo{
-			createFn: func(_ *model.ServicePolicy) (*model.ServicePolicy, error) {
+			createFn: func(_ *ServicePolicy) (*ServicePolicy, error) {
 				return nil, errors.New("create failed")
 			},
 		}, &mockPolicyRepo{
-			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*model.Policy, error) {
-				return &model.Policy{PolicyID: 2, PolicyUUID: polUUID}, nil
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*Policy, error) {
+				return &Policy{PolicyID: 2, PolicyUUID: polUUID}, nil
 			},
 		})
 		err := svc.AssignPolicy(context.Background(), svcUUID, polUUID, tid)
@@ -662,12 +660,12 @@ func TestServiceService_AssignPolicy(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectCommit()
 		svc := NewServiceService(db, &mockServiceRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.Service, error) {
-				return &model.Service{ServiceID: 1, ServiceUUID: svcUUID}, nil
+			findByUUIDFn: func(_ any, _ ...string) (*Service, error) {
+				return &Service{ServiceID: 1, ServiceUUID: svcUUID}, nil
 			},
 		}, &mockTenantServiceRepo{}, &mockAPIRepo{}, &mockServicePolicyRepo{}, &mockPolicyRepo{
-			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*model.Policy, error) {
-				return &model.Policy{PolicyID: 2, PolicyUUID: polUUID}, nil
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*Policy, error) {
+				return &Policy{PolicyID: 2, PolicyUUID: polUUID}, nil
 			},
 		})
 		err := svc.AssignPolicy(context.Background(), svcUUID, polUUID, tid)
@@ -689,7 +687,7 @@ func TestServiceService_RemovePolicy(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		svc := NewServiceService(db, &mockServiceRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.Service, error) {
+			findByUUIDFn: func(_ any, _ ...string) (*Service, error) {
 				return nil, errors.New("db error")
 			},
 		}, &mockTenantServiceRepo{}, &mockAPIRepo{}, &mockServicePolicyRepo{}, &mockPolicyRepo{})
@@ -703,7 +701,7 @@ func TestServiceService_RemovePolicy(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		svc := NewServiceService(db, &mockServiceRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.Service, error) { return nil, nil },
+			findByUUIDFn: func(_ any, _ ...string) (*Service, error) { return nil, nil },
 		}, &mockTenantServiceRepo{}, &mockAPIRepo{}, &mockServicePolicyRepo{}, &mockPolicyRepo{})
 		err := svc.RemovePolicy(context.Background(), svcUUID, polUUID, tid)
 		require.Error(t, err)
@@ -715,11 +713,11 @@ func TestServiceService_RemovePolicy(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		svc := NewServiceService(db, &mockServiceRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.Service, error) {
-				return &model.Service{ServiceID: 1, ServiceUUID: svcUUID}, nil
+			findByUUIDFn: func(_ any, _ ...string) (*Service, error) {
+				return &Service{ServiceID: 1, ServiceUUID: svcUUID}, nil
 			},
 		}, &mockTenantServiceRepo{}, &mockAPIRepo{}, &mockServicePolicyRepo{}, &mockPolicyRepo{
-			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*model.Policy, error) {
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*Policy, error) {
 				return nil, errors.New("db error")
 			},
 		})
@@ -733,11 +731,11 @@ func TestServiceService_RemovePolicy(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		svc := NewServiceService(db, &mockServiceRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.Service, error) {
-				return &model.Service{ServiceID: 1, ServiceUUID: svcUUID}, nil
+			findByUUIDFn: func(_ any, _ ...string) (*Service, error) {
+				return &Service{ServiceID: 1, ServiceUUID: svcUUID}, nil
 			},
 		}, &mockTenantServiceRepo{}, &mockAPIRepo{}, &mockServicePolicyRepo{}, &mockPolicyRepo{
-			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*model.Policy, error) { return nil, nil },
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*Policy, error) { return nil, nil },
 		})
 		err := svc.RemovePolicy(context.Background(), svcUUID, polUUID, tid)
 		require.Error(t, err)
@@ -749,16 +747,16 @@ func TestServiceService_RemovePolicy(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		svc := NewServiceService(db, &mockServiceRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.Service, error) {
-				return &model.Service{ServiceID: 1, ServiceUUID: svcUUID}, nil
+			findByUUIDFn: func(_ any, _ ...string) (*Service, error) {
+				return &Service{ServiceID: 1, ServiceUUID: svcUUID}, nil
 			},
 		}, &mockTenantServiceRepo{}, &mockAPIRepo{}, &mockServicePolicyRepo{
-			findByServiceAndPolicyFn: func(_ int64, _ int64) (*model.ServicePolicy, error) {
+			findByServiceAndPolicyFn: func(_ int64, _ int64) (*ServicePolicy, error) {
 				return nil, errors.New("db error")
 			},
 		}, &mockPolicyRepo{
-			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*model.Policy, error) {
-				return &model.Policy{PolicyID: 2, PolicyUUID: polUUID}, nil
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*Policy, error) {
+				return &Policy{PolicyID: 2, PolicyUUID: polUUID}, nil
 			},
 		})
 		err := svc.RemovePolicy(context.Background(), svcUUID, polUUID, tid)
@@ -771,12 +769,12 @@ func TestServiceService_RemovePolicy(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectCommit()
 		svc := NewServiceService(db, &mockServiceRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.Service, error) {
-				return &model.Service{ServiceID: 1, ServiceUUID: svcUUID}, nil
+			findByUUIDFn: func(_ any, _ ...string) (*Service, error) {
+				return &Service{ServiceID: 1, ServiceUUID: svcUUID}, nil
 			},
 		}, &mockTenantServiceRepo{}, &mockAPIRepo{}, &mockServicePolicyRepo{}, &mockPolicyRepo{
-			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*model.Policy, error) {
-				return &model.Policy{PolicyID: 2, PolicyUUID: polUUID}, nil
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*Policy, error) {
+				return &Policy{PolicyID: 2, PolicyUUID: polUUID}, nil
 			},
 		})
 		err := svc.RemovePolicy(context.Background(), svcUUID, polUUID, tid)
@@ -788,19 +786,19 @@ func TestServiceService_RemovePolicy(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		svc := NewServiceService(db, &mockServiceRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.Service, error) {
-				return &model.Service{ServiceID: 1, ServiceUUID: svcUUID}, nil
+			findByUUIDFn: func(_ any, _ ...string) (*Service, error) {
+				return &Service{ServiceID: 1, ServiceUUID: svcUUID}, nil
 			},
 		}, &mockTenantServiceRepo{}, &mockAPIRepo{}, &mockServicePolicyRepo{
-			findByServiceAndPolicyFn: func(_ int64, _ int64) (*model.ServicePolicy, error) {
-				return &model.ServicePolicy{ServicePolicyUUID: uuid.New()}, nil
+			findByServiceAndPolicyFn: func(_ int64, _ int64) (*ServicePolicy, error) {
+				return &ServicePolicy{ServicePolicyUUID: uuid.New()}, nil
 			},
 			deleteByServiceAndPolicy: func(_ int64, _ int64) error {
 				return errors.New("delete failed")
 			},
 		}, &mockPolicyRepo{
-			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*model.Policy, error) {
-				return &model.Policy{PolicyID: 2, PolicyUUID: polUUID}, nil
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*Policy, error) {
+				return &Policy{PolicyID: 2, PolicyUUID: polUUID}, nil
 			},
 		})
 		err := svc.RemovePolicy(context.Background(), svcUUID, polUUID, tid)
@@ -813,16 +811,16 @@ func TestServiceService_RemovePolicy(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectCommit()
 		svc := NewServiceService(db, &mockServiceRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.Service, error) {
-				return &model.Service{ServiceID: 1, ServiceUUID: svcUUID}, nil
+			findByUUIDFn: func(_ any, _ ...string) (*Service, error) {
+				return &Service{ServiceID: 1, ServiceUUID: svcUUID}, nil
 			},
 		}, &mockTenantServiceRepo{}, &mockAPIRepo{}, &mockServicePolicyRepo{
-			findByServiceAndPolicyFn: func(_ int64, _ int64) (*model.ServicePolicy, error) {
-				return &model.ServicePolicy{ServicePolicyUUID: uuid.New()}, nil
+			findByServiceAndPolicyFn: func(_ int64, _ int64) (*ServicePolicy, error) {
+				return &ServicePolicy{ServicePolicyUUID: uuid.New()}, nil
 			},
 		}, &mockPolicyRepo{
-			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*model.Policy, error) {
-				return &model.Policy{PolicyID: 2, PolicyUUID: polUUID}, nil
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*Policy, error) {
+				return &Policy{PolicyID: 2, PolicyUUID: polUUID}, nil
 			},
 		})
 		err := svc.RemovePolicy(context.Background(), svcUUID, polUUID, tid)
@@ -840,7 +838,7 @@ func TestServiceService_toServiceServiceDataResult(t *testing.T) {
 	ss := svc.(*serviceService)
 
 	t.Run("maps all fields", func(t *testing.T) {
-		s := &model.Service{
+		s := &Service{
 			ServiceUUID: uuid.New(),
 			Name:        "auth",
 			DisplayName: "Auth Service",

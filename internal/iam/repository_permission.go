@@ -4,7 +4,6 @@ import (
 	"errors"
 
 	"github.com/google/uuid"
-	"github.com/maintainerd/auth/internal/model"
 	"gorm.io/gorm"
 )
 
@@ -24,21 +23,21 @@ type PermissionRepositoryGetFilter struct {
 }
 
 type PermissionRepository interface {
-	BaseRepositoryMethods[model.Permission]
+	BaseRepositoryMethods[Permission]
 	WithTx(tx *gorm.DB) PermissionRepository
-	FindByUUIDAndTenantID(permissionUUID uuid.UUID, tenantID int64) (*model.Permission, error)
-	FindByName(name string, tenantID int64) (*model.Permission, error)
-	FindPaginated(filter PermissionRepositoryGetFilter) (*PaginationResult[model.Permission], error)
+	FindByUUIDAndTenantID(permissionUUID uuid.UUID, tenantID int64) (*Permission, error)
+	FindByName(name string, tenantID int64) (*Permission, error)
+	FindPaginated(filter PermissionRepositoryGetFilter) (*PaginationResult[Permission], error)
 	DeleteByUUIDAndTenantID(permissionUUID uuid.UUID, tenantID int64) error
 }
 
 type permissionRepository struct {
-	*BaseRepository[model.Permission]
+	*BaseRepository[Permission]
 }
 
 func NewPermissionRepository(db *gorm.DB) PermissionRepository {
 	return &permissionRepository{
-		BaseRepository: NewBaseRepository[model.Permission](db, "permission_uuid", "permission_id"),
+		BaseRepository: NewBaseRepository[Permission](db, "permission_uuid", "permission_id"),
 	}
 }
 
@@ -48,8 +47,8 @@ func (r *permissionRepository) WithTx(tx *gorm.DB) PermissionRepository {
 	}
 }
 
-func (r *permissionRepository) FindByUUIDAndTenantID(permissionUUID uuid.UUID, tenantID int64) (*model.Permission, error) {
-	var permission model.Permission
+func (r *permissionRepository) FindByUUIDAndTenantID(permissionUUID uuid.UUID, tenantID int64) (*Permission, error) {
+	var permission Permission
 	err := r.DB().
 		Preload("API").
 		Where("permission_uuid = ? AND tenant_id = ?", permissionUUID, tenantID).
@@ -65,8 +64,8 @@ func (r *permissionRepository) FindByUUIDAndTenantID(permissionUUID uuid.UUID, t
 	return &permission, nil
 }
 
-func (r *permissionRepository) FindByName(name string, tenantID int64) (*model.Permission, error) {
-	var permission model.Permission
+func (r *permissionRepository) FindByName(name string, tenantID int64) (*Permission, error) {
+	var permission Permission
 	err := r.DB().Where("name = ? AND tenant_id = ?", name, tenantID).First(&permission).Error
 
 	// If no record is found, return nil record and nil error
@@ -80,8 +79,8 @@ func (r *permissionRepository) FindByName(name string, tenantID int64) (*model.P
 	return &permission, err
 }
 
-func (r *permissionRepository) FindPaginated(filter PermissionRepositoryGetFilter) (*PaginationResult[model.Permission], error) {
-	query := r.DB().Model(&model.Permission{}).Where("tenant_id = ?", filter.TenantID)
+func (r *permissionRepository) FindPaginated(filter PermissionRepositoryGetFilter) (*PaginationResult[Permission], error) {
+	query := r.DB().Model(&Permission{}).Where("tenant_id = ?", filter.TenantID)
 
 	// Filters with LIKE
 	if filter.Name != nil {
@@ -129,14 +128,14 @@ func (r *permissionRepository) FindPaginated(filter PermissionRepositoryGetFilte
 		filter.Limit = 10
 	}
 	offset := (filter.Page - 1) * filter.Limit
-	var permissions []model.Permission
+	var permissions []Permission
 	if err := query.Preload("API").Limit(filter.Limit).Offset(offset).Find(&permissions).Error; err != nil {
 		return nil, err
 	}
 
 	totalPages := int((total + int64(filter.Limit) - 1) / int64(filter.Limit))
 
-	return &PaginationResult[model.Permission]{
+	return &PaginationResult[Permission]{
 		Data:       permissions,
 		Total:      total,
 		Page:       filter.Page,
@@ -146,7 +145,7 @@ func (r *permissionRepository) FindPaginated(filter PermissionRepositoryGetFilte
 }
 
 func (r *permissionRepository) DeleteByUUIDAndTenantID(permissionUUID uuid.UUID, tenantID int64) error {
-	result := r.DB().Where("permission_uuid = ? AND tenant_id = ?", permissionUUID, tenantID).Delete(&model.Permission{})
+	result := r.DB().Where("permission_uuid = ? AND tenant_id = ?", permissionUUID, tenantID).Delete(&Permission{})
 	if result.Error != nil {
 		return result.Error
 	}

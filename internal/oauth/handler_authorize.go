@@ -6,20 +6,18 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
-	"github.com/maintainerd/auth/internal/dto"
 	"github.com/maintainerd/auth/internal/platform/middleware"
 	resp "github.com/maintainerd/auth/internal/platform/response"
-	"github.com/maintainerd/auth/internal/service"
 )
 
 // OAuthAuthorizeHandler handles the OAuth 2.0 authorization and consent
 // endpoints.
 type OAuthAuthorizeHandler struct {
-	authorizeService service.OAuthAuthorizeService
+	authorizeService OAuthAuthorizeService
 }
 
 // NewOAuthAuthorizeHandler creates a new OAuthAuthorizeHandler.
-func NewOAuthAuthorizeHandler(authorizeService service.OAuthAuthorizeService) *OAuthAuthorizeHandler {
+func NewOAuthAuthorizeHandler(authorizeService OAuthAuthorizeService) *OAuthAuthorizeHandler {
 	return &OAuthAuthorizeHandler{authorizeService: authorizeService}
 }
 
@@ -34,7 +32,7 @@ func (h *OAuthAuthorizeHandler) Authorize(w http.ResponseWriter, r *http.Request
 	}
 
 	q := r.URL.Query()
-	req := dto.OAuthAuthorizeRequestDTO{
+	req := OAuthAuthorizeRequestDTO{
 		ResponseType:        q.Get("response_type"),
 		ClientID:            q.Get("client_id"),
 		RedirectURI:         q.Get("redirect_uri"),
@@ -57,13 +55,13 @@ func (h *OAuthAuthorizeHandler) Authorize(w http.ResponseWriter, r *http.Request
 	}
 
 	if result.ConsentChallenge != "" {
-		resp.Success(w, dto.OAuthConsentRequiredResponseDTO{
+		resp.Success(w, OAuthConsentRequiredResponseDTO{
 			ConsentChallenge: result.ConsentChallenge,
 		}, "Consent required")
 		return
 	}
 
-	resp.Success(w, dto.OAuthAuthorizeResponseDTO{
+	resp.Success(w, OAuthAuthorizeResponseDTO{
 		RedirectURI: result.RedirectURI,
 	}, "Authorization successful")
 }
@@ -102,7 +100,7 @@ func (h *OAuthAuthorizeHandler) HandleConsent(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	var req dto.OAuthConsentDecisionDTO
+	var req OAuthConsentDecisionDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		resp.Error(w, http.StatusBadRequest, "Invalid request body")
 		return
@@ -119,7 +117,7 @@ func (h *OAuthAuthorizeHandler) HandleConsent(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	resp.Success(w, dto.OAuthConsentDecisionResponseDTO{
+	resp.Success(w, OAuthConsentDecisionResponseDTO{
 		RedirectURI: result.RedirectURI,
 	}, "Consent processed")
 }

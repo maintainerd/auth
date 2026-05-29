@@ -3,8 +3,9 @@ package runner
 import (
 	"log/slog"
 
-	"github.com/maintainerd/auth/internal/model"
 	"github.com/maintainerd/auth/internal/platform/database/seeder"
+	"github.com/maintainerd/auth/internal/tenant"
+	"github.com/maintainerd/auth/internal/user"
 	"gorm.io/gorm"
 )
 
@@ -21,7 +22,7 @@ func runSeeders(db *gorm.DB, appVersion string) error {
 	}
 
 	// 002: Get existing tenant (created by setup service)
-	var tenant model.Tenant
+	var tenant tenant.Tenant
 	err = db.Where("is_system = ?", true).First(&tenant).Error
 	if err != nil {
 		slog.Error("Failed to find system tenant", "error", err)
@@ -88,7 +89,7 @@ func runSeeders(db *gorm.DB, appVersion string) error {
 	}
 
 	// 011: Seed security settings (scoped to the system user pool)
-	var systemPool model.UserPool
+	var systemPool user.UserPool
 	if err := db.Where("tenant_id = ? AND is_system = ?", tenant.TenantID, true).First(&systemPool).Error; err != nil {
 		slog.Error("Failed to find system user pool", "error", err)
 		return err

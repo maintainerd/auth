@@ -5,8 +5,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"github.com/maintainerd/auth/internal/model"
 )
 
 func validServiceCreate() ServiceCreateOrUpdateRequestDTO {
@@ -15,7 +13,7 @@ func validServiceCreate() ServiceCreateOrUpdateRequestDTO {
 		DisplayName: "Auth Service",
 		Description: "Handles authentication",
 		Version:     "v1.0.0",
-		Status:      model.StatusActive,
+		Status:      StatusActive,
 	}
 }
 
@@ -68,13 +66,13 @@ func TestServiceCreateOrUpdateRequestDto_Validate(t *testing.T) {
 
 	t.Run("maintenance status valid", func(t *testing.T) {
 		d := validServiceCreate()
-		d.Status = model.StatusMaintenance
+		d.Status = StatusMaintenance
 		assert.NoError(t, d.Validate())
 	})
 
 	t.Run("deprecated status valid", func(t *testing.T) {
 		d := validServiceCreate()
-		d.Status = model.StatusDeprecated
+		d.Status = StatusDeprecated
 		assert.NoError(t, d.Validate())
 	})
 }
@@ -96,15 +94,15 @@ func TestServiceFilterDto_Validate(t *testing.T) {
 	t.Run("valid status list", func(t *testing.T) {
 		f := ServiceFilterDTO{
 			PaginationRequestDTO: validPagination(),
-			Status:               []string{model.StatusActive, model.StatusMaintenance},
+			Status:               []string{StatusActive, StatusMaintenance},
 		}
 		assert.NoError(t, f.Validate())
 	})
 }
 
 func TestServiceStatusUpdateRequestDto_Validate(t *testing.T) {
-	assert.NoError(t, ServiceStatusUpdateRequestDTO{Status: model.StatusActive}.Validate())
-	assert.NoError(t, ServiceStatusUpdateRequestDTO{Status: model.StatusDeprecated}.Validate())
+	assert.NoError(t, ServiceStatusUpdateRequestDTO{Status: StatusActive}.Validate())
+	assert.NoError(t, ServiceStatusUpdateRequestDTO{Status: StatusDeprecated}.Validate())
 	require.Error(t, ServiceStatusUpdateRequestDTO{Status: ""}.Validate())
 	require.Error(t, ServiceStatusUpdateRequestDTO{Status: "bad"}.Validate())
 }

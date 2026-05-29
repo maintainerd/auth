@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
-	"github.com/maintainerd/auth/internal/service"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -20,7 +19,7 @@ func TestEmailTemplateHandler_GetAll_NoTenant(t *testing.T) {
 
 func TestEmailTemplateHandler_GetAll_ServiceError(t *testing.T) {
 	svc := &mockEmailTemplateService{
-		getAllFn: func(tid int64, name *string, status []string, isDefault, isSystem *bool, page, limit int, sortBy, sortOrder string) (*service.EmailTemplateServiceListResult, error) {
+		getAllFn: func(tid int64, name *string, status []string, isDefault, isSystem *bool, page, limit int, sortBy, sortOrder string) (*EmailTemplateServiceListResult, error) {
 			return nil, assert.AnError
 		},
 	}
@@ -33,8 +32,8 @@ func TestEmailTemplateHandler_GetAll_ServiceError(t *testing.T) {
 
 func TestEmailTemplateHandler_GetAll_Success(t *testing.T) {
 	svc := &mockEmailTemplateService{
-		getAllFn: func(tid int64, name *string, status []string, isDefault, isSystem *bool, page, limit int, sortBy, sortOrder string) (*service.EmailTemplateServiceListResult, error) {
-			return &service.EmailTemplateServiceListResult{}, nil
+		getAllFn: func(tid int64, name *string, status []string, isDefault, isSystem *bool, page, limit int, sortBy, sortOrder string) (*EmailTemplateServiceListResult, error) {
+			return &EmailTemplateServiceListResult{}, nil
 		},
 	}
 	h := NewEmailTemplateHandler(svc)
@@ -62,7 +61,7 @@ func TestEmailTemplateHandler_GetByUUID_InvalidUUID(t *testing.T) {
 
 func TestEmailTemplateHandler_GetByUUID_NotFound(t *testing.T) {
 	svc := &mockEmailTemplateService{
-		getByUUIDFn: func(id uuid.UUID, tid int64) (*service.EmailTemplateServiceDataResult, error) {
+		getByUUIDFn: func(id uuid.UUID, tid int64) (*EmailTemplateServiceDataResult, error) {
 			return nil, errNotFound
 		},
 	}
@@ -83,7 +82,7 @@ func TestEmailTemplateHandler_Create_NoTenant(t *testing.T) {
 
 func TestEmailTemplateHandler_Create_ServiceError(t *testing.T) {
 	svc := &mockEmailTemplateService{
-		createFn: func(tid int64, name, subject, bodyHTML string, bodyPlain *string, status string, isDefault bool) (*service.EmailTemplateServiceDataResult, error) {
+		createFn: func(tid int64, name, subject, bodyHTML string, bodyPlain *string, status string, isDefault bool) (*EmailTemplateServiceDataResult, error) {
 			return nil, errValidation
 		},
 	}
@@ -106,8 +105,8 @@ func TestEmailTemplateHandler_Delete_InvalidUUID(t *testing.T) {
 
 func TestEmailTemplateHandler_Delete_Success(t *testing.T) {
 	svc := &mockEmailTemplateService{
-		deleteFn: func(id uuid.UUID, tid int64) (*service.EmailTemplateServiceDataResult, error) {
-			return &service.EmailTemplateServiceDataResult{Name: "tmpl1"}, nil
+		deleteFn: func(id uuid.UUID, tid int64) (*EmailTemplateServiceDataResult, error) {
+			return &EmailTemplateServiceDataResult{Name: "tmpl1"}, nil
 		},
 	}
 	h := NewEmailTemplateHandler(svc)
@@ -132,9 +131,9 @@ func TestEmailTemplateHandler_GetAll_ValidationError(t *testing.T) {
 func TestEmailTemplateHandler_GetAll_WithFiltersAndRows(t *testing.T) {
 	// Covers status/is_default/is_system query param branches and toEmailTemplateListResponseDTO loop body
 	svc := &mockEmailTemplateService{
-		getAllFn: func(tid int64, name *string, status []string, isDefault, isSystem *bool, page, limit int, sortBy, sortOrder string) (*service.EmailTemplateServiceListResult, error) {
-			return &service.EmailTemplateServiceListResult{
-				Data: []service.EmailTemplateServiceDataResult{{Name: "t1"}},
+		getAllFn: func(tid int64, name *string, status []string, isDefault, isSystem *bool, page, limit int, sortBy, sortOrder string) (*EmailTemplateServiceListResult, error) {
+			return &EmailTemplateServiceListResult{
+				Data: []EmailTemplateServiceDataResult{{Name: "t1"}},
 			}, nil
 		},
 	}
@@ -151,8 +150,8 @@ func TestEmailTemplateHandler_GetAll_WithFiltersAndRows(t *testing.T) {
 
 func TestEmailTemplateHandler_Get_Success(t *testing.T) {
 	svc := &mockEmailTemplateService{
-		getByUUIDFn: func(id uuid.UUID, tid int64) (*service.EmailTemplateServiceDataResult, error) {
-			return &service.EmailTemplateServiceDataResult{Name: "tmpl1"}, nil
+		getByUUIDFn: func(id uuid.UUID, tid int64) (*EmailTemplateServiceDataResult, error) {
+			return &EmailTemplateServiceDataResult{Name: "tmpl1"}, nil
 		},
 	}
 	h := NewEmailTemplateHandler(svc)
@@ -185,8 +184,8 @@ func TestEmailTemplateHandler_Create_ValidationError(t *testing.T) {
 func TestEmailTemplateHandler_Create_WithCustomStatus(t *testing.T) {
 	// Covers the req.Status != nil branch (custom status path)
 	svc := &mockEmailTemplateService{
-		createFn: func(tid int64, name, subject, bodyHTML string, bodyPlain *string, status string, isDefault bool) (*service.EmailTemplateServiceDataResult, error) {
-			return &service.EmailTemplateServiceDataResult{Name: name, Status: status}, nil
+		createFn: func(tid int64, name, subject, bodyHTML string, bodyPlain *string, status string, isDefault bool) (*EmailTemplateServiceDataResult, error) {
+			return &EmailTemplateServiceDataResult{Name: name, Status: status}, nil
 		},
 	}
 	h := NewEmailTemplateHandler(svc)
@@ -200,8 +199,8 @@ func TestEmailTemplateHandler_Create_WithCustomStatus(t *testing.T) {
 
 func TestEmailTemplateHandler_Create_Success(t *testing.T) {
 	svc := &mockEmailTemplateService{
-		createFn: func(tid int64, name, subject, bodyHTML string, bodyPlain *string, status string, isDefault bool) (*service.EmailTemplateServiceDataResult, error) {
-			return &service.EmailTemplateServiceDataResult{Name: name}, nil
+		createFn: func(tid int64, name, subject, bodyHTML string, bodyPlain *string, status string, isDefault bool) (*EmailTemplateServiceDataResult, error) {
+			return &EmailTemplateServiceDataResult{Name: name}, nil
 		},
 	}
 	h := NewEmailTemplateHandler(svc)
@@ -251,7 +250,7 @@ func TestEmailTemplateHandler_Update_ValidationError(t *testing.T) {
 
 func TestEmailTemplateHandler_Update_ServiceError(t *testing.T) {
 	svc := &mockEmailTemplateService{
-		updateFn: func(id uuid.UUID, tid int64, name, subject, bodyHTML string, bodyPlain *string, status string) (*service.EmailTemplateServiceDataResult, error) {
+		updateFn: func(id uuid.UUID, tid int64, name, subject, bodyHTML string, bodyPlain *string, status string) (*EmailTemplateServiceDataResult, error) {
 			return nil, errValidation
 		},
 	}
@@ -267,8 +266,8 @@ func TestEmailTemplateHandler_Update_ServiceError(t *testing.T) {
 func TestEmailTemplateHandler_Update_WithCustomStatus(t *testing.T) {
 	// Covers the req.Status != nil branch
 	svc := &mockEmailTemplateService{
-		updateFn: func(id uuid.UUID, tid int64, name, subject, bodyHTML string, bodyPlain *string, status string) (*service.EmailTemplateServiceDataResult, error) {
-			return &service.EmailTemplateServiceDataResult{Name: name, Status: status}, nil
+		updateFn: func(id uuid.UUID, tid int64, name, subject, bodyHTML string, bodyPlain *string, status string) (*EmailTemplateServiceDataResult, error) {
+			return &EmailTemplateServiceDataResult{Name: name, Status: status}, nil
 		},
 	}
 	h := NewEmailTemplateHandler(svc)
@@ -282,8 +281,8 @@ func TestEmailTemplateHandler_Update_WithCustomStatus(t *testing.T) {
 
 func TestEmailTemplateHandler_Update_Success(t *testing.T) {
 	svc := &mockEmailTemplateService{
-		updateFn: func(id uuid.UUID, tid int64, name, subject, bodyHTML string, bodyPlain *string, status string) (*service.EmailTemplateServiceDataResult, error) {
-			return &service.EmailTemplateServiceDataResult{Name: name}, nil
+		updateFn: func(id uuid.UUID, tid int64, name, subject, bodyHTML string, bodyPlain *string, status string) (*EmailTemplateServiceDataResult, error) {
+			return &EmailTemplateServiceDataResult{Name: name}, nil
 		},
 	}
 	h := NewEmailTemplateHandler(svc)
@@ -309,7 +308,7 @@ func TestEmailTemplateHandler_Delete_NoTenant(t *testing.T) {
 
 func TestEmailTemplateHandler_Delete_ServiceError(t *testing.T) {
 	svc := &mockEmailTemplateService{
-		deleteFn: func(id uuid.UUID, tid int64) (*service.EmailTemplateServiceDataResult, error) {
+		deleteFn: func(id uuid.UUID, tid int64) (*EmailTemplateServiceDataResult, error) {
 			return nil, errValidation
 		},
 	}
@@ -358,7 +357,7 @@ func TestEmailTemplateHandler_UpdateStatus_ValidationError(t *testing.T) {
 
 func TestEmailTemplateHandler_UpdateStatus_ServiceError(t *testing.T) {
 	svc := &mockEmailTemplateService{
-		updateStatusFn: func(id uuid.UUID, tid int64, status string) (*service.EmailTemplateServiceDataResult, error) {
+		updateStatusFn: func(id uuid.UUID, tid int64, status string) (*EmailTemplateServiceDataResult, error) {
 			return nil, errValidation
 		},
 	}
@@ -371,8 +370,8 @@ func TestEmailTemplateHandler_UpdateStatus_ServiceError(t *testing.T) {
 
 func TestEmailTemplateHandler_UpdateStatus_Success(t *testing.T) {
 	svc := &mockEmailTemplateService{
-		updateStatusFn: func(id uuid.UUID, tid int64, status string) (*service.EmailTemplateServiceDataResult, error) {
-			return &service.EmailTemplateServiceDataResult{Status: status}, nil
+		updateStatusFn: func(id uuid.UUID, tid int64, status string) (*EmailTemplateServiceDataResult, error) {
+			return &EmailTemplateServiceDataResult{Status: status}, nil
 		},
 	}
 	h := NewEmailTemplateHandler(svc)

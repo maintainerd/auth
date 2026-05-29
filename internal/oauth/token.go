@@ -6,15 +6,12 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/maintainerd/auth/internal/dto"
-	"github.com/maintainerd/auth/internal/model"
 	"github.com/maintainerd/auth/internal/platform/apperror"
 	"github.com/maintainerd/auth/internal/platform/crypto"
 	"github.com/maintainerd/auth/internal/platform/jwt"
 	"github.com/maintainerd/auth/internal/platform/middleware"
 	"github.com/maintainerd/auth/internal/platform/ptr"
 	"github.com/maintainerd/auth/internal/platform/security"
-	"github.com/maintainerd/auth/internal/repository"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -30,36 +27,36 @@ const (
 type OAuthTokenService interface {
 	// Exchange processes a token request. It routes to the appropriate grant
 	// handler (authorization_code, refresh_token, client_credentials).
-	Exchange(ctx context.Context, req dto.OAuthTokenRequestDTO, creds dto.OAuthClientCredentials) (*dto.OAuthTokenResult, *apperror.OAuthError)
+	Exchange(ctx context.Context, req OAuthTokenRequestDTO, creds OAuthClientCredentials) (*OAuthTokenResult, *apperror.OAuthError)
 
 	// Revoke revokes a token (access or refresh) per RFC 7009. The server
 	// always responds 200 OK regardless of whether the token was found, to
 	// prevent information leakage.
-	Revoke(ctx context.Context, req dto.OAuthRevokeRequestDTO, creds dto.OAuthClientCredentials) *apperror.OAuthError
+	Revoke(ctx context.Context, req OAuthRevokeRequestDTO, creds OAuthClientCredentials) *apperror.OAuthError
 
 	// Introspect inspects a token per RFC 7662. Returns active=false for
 	// invalid, expired, or revoked tokens without revealing the reason.
-	Introspect(ctx context.Context, req dto.OAuthIntrospectRequestDTO) (*dto.OAuthIntrospectResponseDTO, *apperror.OAuthError)
+	Introspect(ctx context.Context, req OAuthIntrospectRequestDTO) (*OAuthIntrospectResponseDTO, *apperror.OAuthError)
 }
 
 type oauthTokenService struct {
 	db               *gorm.DB
-	clientRepo       repository.ClientRepository
-	authCodeRepo     repository.OAuthAuthorizationCodeRepository
-	refreshTokenRepo repository.OAuthRefreshTokenRepository
-	userRepo         repository.UserRepository
-	userIdentityRepo repository.UserIdentityRepository
+	clientRepo       ClientRepository
+	authCodeRepo     OAuthAuthorizationCodeRepository
+	refreshTokenRepo OAuthRefreshTokenRepository
+	userRepo         UserRepository
+	userIdentityRepo UserIdentityRepository
 	authEventService AuthEventService
 }
 
 // NewOAuthTokenService creates a new OAuthTokenService.
 func NewOAuthTokenService(
 	db *gorm.DB,
-	clientRepo repository.ClientRepository,
-	authCodeRepo repository.OAuthAuthorizationCodeRepository,
-	refreshTokenRepo repository.OAuthRefreshTokenRepository,
-	userRepo repository.UserRepository,
-	userIdentityRepo repository.UserIdentityRepository,
+	clientRepo ClientRepository,
+	authCodeRepo OAuthAuthorizationCodeRepository,
+	refreshTokenRepo OAuthRefreshTokenRepository,
+	userRepo UserRepository,
+	userIdentityRepo UserIdentityRepository,
 	authEventService AuthEventService,
 ) OAuthTokenService {
 	return &oauthTokenService{
@@ -74,17 +71,17 @@ func NewOAuthTokenService(
 }
 
 // Exchange implements OAuthTokenService.
-func (s *oauthTokenService) Exchange(ctx context.Context, req dto.OAuthTokenRequestDTO, creds dto.OAuthClientCredentials) (*dto.OAuthTokenResult, *apperror.OAuthError) {
+func (s *oauthTokenService) Exchange(ctx context.Context, req OAuthTokenRequestDTO, creds OAuthClientCredentials) (*OAuthTokenResult, *apperror.OAuthError) {
 	_, span := otel.Tracer("service").Start(ctx, "oauth_token.exchange")
 	defer span.End()
 	span.SetAttributes(attribute.String("oauth.grant_type", req.GrantType))
 
 	switch req.GrantType {
-	case model.GrantTypeAuthorizationCode:
+	case GrantTypeAuthorizationCode:
 		return s.exchangeAuthorizationCode(ctx, req, creds)
-	case model.GrantTypeRefreshToken:
+	case GrantTypeRefreshToken:
 		return s.exchangeRefreshToken(ctx, req, creds)
-	case model.GrantTypeClientCredentials:
+	case GrantTypeClientCredentials:
 		return s.exchangeClientCredentials(ctx, req, creds)
 	default:
 		span.SetStatus(codes.Error, "unsupported grant type")
@@ -93,7 +90,7 @@ func (s *oauthTokenService) Exchange(ctx context.Context, req dto.OAuthTokenRequ
 }
 
 // exchangeAuthorizationCode handles the authorization_code grant (RFC 6749 §4.1.3).
-func (s *oauthTokenService) exchangeAuthorizationCode(ctx context.Context, req dto.OAuthTokenRequestDTO, creds dto.OAuthClientCredentials) (*dto.OAuthTokenResult, *apperror.OAuthError) {
+func (s *oauthTokenService) exchangeAuthorizationCode(ctx context.Context, req OAuthTokenRequestDTO, creds OAuthClientCredentials) (*OAuthTokenResult, *apperror.OAuthError) {
 	_, span := otel.Tracer("service").Start(ctx, "oauth_token.exchange_authorization_code")
 	defer span.End()
 
@@ -137,10 +134,10 @@ func (s *oauthTokenService) exchangeAuthorizationCode(ctx context.Context, req d
 			ActorUserID: &authCode.UserID,
 			IPAddress:   middleware.ClientIPFromContext(ctx),
 			UserAgent:   ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),
-			Category:    model.AuthEventCategoryAuthn,
-			EventType:   model.AuthEventTypeTokenReuse,
-			Severity:    model.AuthEventSeverityCritical,
-			Result:      model.AuthEventResultFailure,
+			Category:    AuthEventCategoryAuthn,
+			EventType:   AuthEventTypeTokenReuse,
+			Severity:    AuthEventSeverityCritical,
+			Result:      AuthEventResultFailure,
 			Description: ptr.Ptr("Authorization code reuse detected"),
 		})
 		// Revoke all refresh tokens for this user-client pair.
@@ -208,10 +205,10 @@ func (s *oauthTokenService) exchangeAuthorizationCode(ctx context.Context, req d
 		ActorUserID: &authCode.UserID,
 		IPAddress:   middleware.ClientIPFromContext(ctx),
 		UserAgent:   ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),
-		Category:    model.AuthEventCategoryAuthn,
-		EventType:   model.AuthEventTypeOAuthTokenExchange,
-		Severity:    model.AuthEventSeverityInfo,
-		Result:      model.AuthEventResultSuccess,
+		Category:    AuthEventCategoryAuthn,
+		EventType:   AuthEventTypeOAuthTokenExchange,
+		Severity:    AuthEventSeverityInfo,
+		Result:      AuthEventResultSuccess,
 		Description: ptr.Ptr("Authorization code exchanged for tokens"),
 	})
 
@@ -220,7 +217,7 @@ func (s *oauthTokenService) exchangeAuthorizationCode(ctx context.Context, req d
 }
 
 // exchangeRefreshToken handles the refresh_token grant (RFC 6749 §6).
-func (s *oauthTokenService) exchangeRefreshToken(ctx context.Context, req dto.OAuthTokenRequestDTO, creds dto.OAuthClientCredentials) (*dto.OAuthTokenResult, *apperror.OAuthError) {
+func (s *oauthTokenService) exchangeRefreshToken(ctx context.Context, req OAuthTokenRequestDTO, creds OAuthClientCredentials) (*OAuthTokenResult, *apperror.OAuthError) {
 	_, span := otel.Tracer("service").Start(ctx, "oauth_token.exchange_refresh_token")
 	defer span.End()
 
@@ -256,10 +253,10 @@ func (s *oauthTokenService) exchangeRefreshToken(ctx context.Context, req dto.OA
 			ActorUserID: &storedToken.UserID,
 			IPAddress:   middleware.ClientIPFromContext(ctx),
 			UserAgent:   ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),
-			Category:    model.AuthEventCategoryAuthn,
-			EventType:   model.AuthEventTypeTokenReuse,
-			Severity:    model.AuthEventSeverityCritical,
-			Result:      model.AuthEventResultFailure,
+			Category:    AuthEventCategoryAuthn,
+			EventType:   AuthEventTypeTokenReuse,
+			Severity:    AuthEventSeverityCritical,
+			Result:      AuthEventResultFailure,
 			Description: ptr.Ptr(fmt.Sprintf("Refresh token reuse detected, revoking family %s", storedToken.FamilyID)),
 		})
 		_, _ = s.refreshTokenRepo.RevokeByFamily(storedToken.FamilyID)
@@ -280,7 +277,7 @@ func (s *oauthTokenService) exchangeRefreshToken(ctx context.Context, req dto.OA
 	}
 
 	// Rotate: revoke the old token and issue a new one in the same family.
-	var result *dto.OAuthTokenResult
+	var result *OAuthTokenResult
 	txErr := s.db.Transaction(func(tx *gorm.DB) error {
 		txRefreshRepo := s.refreshTokenRepo.WithTx(tx)
 
@@ -321,7 +318,7 @@ func (s *oauthTokenService) exchangeRefreshToken(ctx context.Context, req dto.OA
 		rtHash := crypto.HashRefreshToken(rawRT)
 
 		rtTTL := s.refreshTokenTTL(client)
-		newToken := &model.OAuthRefreshToken{
+		newToken := &OAuthRefreshToken{
 			TokenHash: rtHash,
 			FamilyID:  storedToken.FamilyID,
 			ClientID:  client.ClientID,
@@ -353,10 +350,10 @@ func (s *oauthTokenService) exchangeRefreshToken(ctx context.Context, req dto.OA
 		ActorUserID: &storedToken.UserID,
 		IPAddress:   middleware.ClientIPFromContext(ctx),
 		UserAgent:   ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),
-		Category:    model.AuthEventCategoryAuthn,
-		EventType:   model.AuthEventTypeOAuthTokenRefresh,
-		Severity:    model.AuthEventSeverityInfo,
-		Result:      model.AuthEventResultSuccess,
+		Category:    AuthEventCategoryAuthn,
+		EventType:   AuthEventTypeOAuthTokenRefresh,
+		Severity:    AuthEventSeverityInfo,
+		Result:      AuthEventResultSuccess,
 		Description: ptr.Ptr("Refresh token rotated"),
 	})
 
@@ -365,7 +362,7 @@ func (s *oauthTokenService) exchangeRefreshToken(ctx context.Context, req dto.OA
 }
 
 // exchangeClientCredentials handles the client_credentials grant (RFC 6749 §4.4).
-func (s *oauthTokenService) exchangeClientCredentials(ctx context.Context, _ dto.OAuthTokenRequestDTO, creds dto.OAuthClientCredentials) (*dto.OAuthTokenResult, *apperror.OAuthError) {
+func (s *oauthTokenService) exchangeClientCredentials(ctx context.Context, _ OAuthTokenRequestDTO, creds OAuthClientCredentials) (*OAuthTokenResult, *apperror.OAuthError) {
 	_, span := otel.Tracer("service").Start(ctx, "oauth_token.exchange_client_credentials")
 	defer span.End()
 
@@ -376,7 +373,7 @@ func (s *oauthTokenService) exchangeClientCredentials(ctx context.Context, _ dto
 	}
 
 	// The client must have the client_credentials grant enabled.
-	if !hasGrant(client, model.GrantTypeClientCredentials) {
+	if !hasGrant(client, GrantTypeClientCredentials) {
 		span.SetStatus(codes.Error, "client_credentials grant not allowed")
 		return nil, apperror.NewOAuthUnauthorizedClient("client is not authorized for client_credentials grant")
 	}
@@ -416,10 +413,10 @@ func (s *oauthTokenService) exchangeClientCredentials(ctx context.Context, _ dto
 		TenantID:  client.TenantID,
 		IPAddress: middleware.ClientIPFromContext(ctx),
 		UserAgent: ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),
-		Category:  model.AuthEventCategoryAuthn,
-		EventType: model.AuthEventTypeOAuthClientAuth,
-		Severity:  model.AuthEventSeverityInfo,
-		Result:    model.AuthEventResultSuccess,
+		Category:  AuthEventCategoryAuthn,
+		EventType: AuthEventTypeOAuthClientAuth,
+		Severity:  AuthEventSeverityInfo,
+		Result:    AuthEventResultSuccess,
 		Description: ptr.Ptr(fmt.Sprintf("Client credentials token issued for client %s",
 			identifier)),
 	})
@@ -430,7 +427,7 @@ func (s *oauthTokenService) exchangeClientCredentials(ctx context.Context, _ dto
 	}
 
 	span.SetStatus(codes.Ok, "")
-	return &dto.OAuthTokenResult{
+	return &OAuthTokenResult{
 		AccessToken: accessToken,
 		TokenType:   "Bearer",
 		ExpiresIn:   expiresIn,
@@ -438,7 +435,7 @@ func (s *oauthTokenService) exchangeClientCredentials(ctx context.Context, _ dto
 }
 
 // Revoke implements OAuthTokenService.
-func (s *oauthTokenService) Revoke(ctx context.Context, req dto.OAuthRevokeRequestDTO, creds dto.OAuthClientCredentials) *apperror.OAuthError {
+func (s *oauthTokenService) Revoke(ctx context.Context, req OAuthRevokeRequestDTO, creds OAuthClientCredentials) *apperror.OAuthError {
 	_, span := otel.Tracer("service").Start(ctx, "oauth_token.revoke")
 	defer span.End()
 
@@ -465,10 +462,10 @@ func (s *oauthTokenService) Revoke(ctx context.Context, req dto.OAuthRevokeReque
 				ActorUserID: &storedRT.UserID,
 				IPAddress:   middleware.ClientIPFromContext(ctx),
 				UserAgent:   ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),
-				Category:    model.AuthEventCategoryAuthn,
-				EventType:   model.AuthEventTypeOAuthTokenRevoke,
-				Severity:    model.AuthEventSeverityInfo,
-				Result:      model.AuthEventResultSuccess,
+				Category:    AuthEventCategoryAuthn,
+				EventType:   AuthEventTypeOAuthTokenRevoke,
+				Severity:    AuthEventSeverityInfo,
+				Result:      AuthEventResultSuccess,
 				Description: ptr.Ptr("Refresh token revoked"),
 			})
 		}
@@ -483,14 +480,14 @@ func (s *oauthTokenService) Revoke(ctx context.Context, req dto.OAuthRevokeReque
 }
 
 // Introspect implements OAuthTokenService.
-func (s *oauthTokenService) Introspect(ctx context.Context, req dto.OAuthIntrospectRequestDTO) (*dto.OAuthIntrospectResponseDTO, *apperror.OAuthError) {
+func (s *oauthTokenService) Introspect(ctx context.Context, req OAuthIntrospectRequestDTO) (*OAuthIntrospectResponseDTO, *apperror.OAuthError) {
 	_, span := otel.Tracer("service").Start(ctx, "oauth_token.introspect")
 	defer span.End()
 
 	// Try to validate as a JWT (access token or ID token).
 	claims, err := jwt.ValidateToken(req.Token)
 	if err == nil && claims != nil {
-		resp := &dto.OAuthIntrospectResponseDTO{
+		resp := &OAuthIntrospectResponseDTO{
 			Active:    true,
 			TokenType: "Bearer",
 		}
@@ -530,7 +527,7 @@ func (s *oauthTokenService) Introspect(ctx context.Context, req dto.OAuthIntrosp
 	tokenHash := crypto.HashRefreshToken(req.Token)
 	storedRT, lookupErr := s.refreshTokenRepo.FindByTokenHash(tokenHash)
 	if lookupErr == nil && storedRT != nil && storedRT.IsActive() {
-		resp := &dto.OAuthIntrospectResponseDTO{
+		resp := &OAuthIntrospectResponseDTO{
 			Active:    true,
 			TokenType: "refresh_token",
 			Scope:     storedRT.Scope,
@@ -550,7 +547,7 @@ func (s *oauthTokenService) Introspect(ctx context.Context, req dto.OAuthIntrosp
 
 	// Token is invalid, expired, revoked, or unknown — return active=false.
 	span.SetStatus(codes.Ok, "token inactive")
-	return &dto.OAuthIntrospectResponseDTO{Active: false}, nil
+	return &OAuthIntrospectResponseDTO{Active: false}, nil
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -559,7 +556,7 @@ func (s *oauthTokenService) Introspect(ctx context.Context, req dto.OAuthIntrosp
 
 // authenticateClient resolves and validates client credentials from either
 // HTTP Basic auth or the request body.
-func (s *oauthTokenService) authenticateClient(ctx context.Context, creds dto.OAuthClientCredentials) (*model.Client, *apperror.OAuthError) {
+func (s *oauthTokenService) authenticateClient(ctx context.Context, creds OAuthClientCredentials) (*Client, *apperror.OAuthError) {
 	if creds.ClientID == "" {
 		return nil, apperror.NewOAuthInvalidClient("client_id is required")
 	}
@@ -576,9 +573,9 @@ func (s *oauthTokenService) authenticateClient(ctx context.Context, creds dto.OA
 
 	// Authenticate based on the client's configured method.
 	switch client.TokenEndpointAuthMethod {
-	case model.TokenAuthMethodNone:
+	case TokenAuthMethodNone:
 		// Public clients (SPA/mobile) do not have a secret.
-	case model.TokenAuthMethodSecretBasic, model.TokenAuthMethodSecretPost:
+	case TokenAuthMethodSecretBasic, TokenAuthMethodSecretPost:
 		if client.SecretHash == nil || !security.CompareClientSecret(creds.ClientSecret, *client.SecretHash) {
 			s.logClientAuthFail(ctx, client.TenantID, "invalid client_secret")
 			return nil, apperror.NewOAuthInvalidClient("client authentication failed")
@@ -591,7 +588,7 @@ func (s *oauthTokenService) authenticateClient(ctx context.Context, creds dto.OA
 }
 
 // generateTokens creates an access token, ID token, and a new refresh token.
-func (s *oauthTokenService) generateTokens(ctx context.Context, sub string, user *model.User, client *model.Client, scope string, nonce *string) (*dto.OAuthTokenResult, *apperror.OAuthError) {
+func (s *oauthTokenService) generateTokens(ctx context.Context, sub string, user *User, client *Client, scope string, nonce *string) (*OAuthTokenResult, *apperror.OAuthError) {
 	issuer := ""
 	audience := ""
 	identifier := ""
@@ -637,7 +634,7 @@ func (s *oauthTokenService) generateTokens(ctx context.Context, sub string, user
 	rtHash := crypto.HashRefreshToken(rawRT)
 
 	rtTTL := s.refreshTokenTTL(client)
-	newRT := &model.OAuthRefreshToken{
+	newRT := &OAuthRefreshToken{
 		TokenHash: rtHash,
 		FamilyID:  uuid.New(),
 		ClientID:  client.ClientID,
@@ -656,7 +653,7 @@ func (s *oauthTokenService) generateTokens(ctx context.Context, sub string, user
 	}
 
 	_ = ctx // used by callers for auth event logging
-	return &dto.OAuthTokenResult{
+	return &OAuthTokenResult{
 		AccessToken:  accessToken,
 		TokenType:    "Bearer",
 		ExpiresIn:    expiresIn,
@@ -683,7 +680,7 @@ func (s *oauthTokenService) resolveUserSub(userID, clientID int64) (string, erro
 
 // refreshTokenTTL returns the refresh token TTL for the client, falling back
 // to the global default from the jwt package.
-func (s *oauthTokenService) refreshTokenTTL(client *model.Client) time.Duration {
+func (s *oauthTokenService) refreshTokenTTL(client *Client) time.Duration {
 	if client.RefreshTokenTTL != nil {
 		return time.Duration(*client.RefreshTokenTTL) * time.Second
 	}
@@ -696,16 +693,16 @@ func (s *oauthTokenService) logClientAuthFail(ctx context.Context, tenantID int6
 		TenantID:    tenantID,
 		IPAddress:   middleware.ClientIPFromContext(ctx),
 		UserAgent:   ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),
-		Category:    model.AuthEventCategoryAuthn,
-		EventType:   model.AuthEventTypeOAuthClientAuthFail,
-		Severity:    model.AuthEventSeverityWarn,
-		Result:      model.AuthEventResultFailure,
+		Category:    AuthEventCategoryAuthn,
+		EventType:   AuthEventTypeOAuthClientAuthFail,
+		Severity:    AuthEventSeverityWarn,
+		Result:      AuthEventResultFailure,
 		Description: ptr.Ptr(reason),
 	})
 }
 
 // hasGrant checks whether the client has the given grant type.
-func hasGrant(client *model.Client, grantType string) bool {
+func hasGrant(client *Client, grantType string) bool {
 	for _, g := range client.GrantTypes {
 		if g == grantType {
 			return true
@@ -716,12 +713,12 @@ func hasGrant(client *model.Client, grantType string) bool {
 
 // findActiveClientByIdentifier is a shared helper used by the token and
 // revocation flows to look up an active client by its OAuth identifier.
-func findActiveClientByIdentifier(db *gorm.DB, identifier string) (*model.Client, error) {
-	var client model.Client
+func findActiveClientByIdentifier(db *gorm.DB, identifier string) (*Client, error) {
+	var client Client
 	err := db.
 		Preload("IdentityProvider").
 		Preload("IdentityProvider.Tenant").
-		Where("identifier = ? AND status = ?", identifier, model.StatusActive).
+		Where("identifier = ? AND status = ?", identifier, StatusActive).
 		First(&client).Error
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {

@@ -5,14 +5,12 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"github.com/maintainerd/auth/internal/model"
 )
 
 func validLoginTemplateCreate() LoginTemplateCreateRequestDTO {
 	return LoginTemplateCreateRequestDTO{
 		Name:     "Default Login",
-		Template: model.LoginTemplateModern,
+		Template: LoginTemplateModern,
 	}
 }
 
@@ -23,12 +21,12 @@ func TestLoginTemplateCreateRequestDto_Validate(t *testing.T) {
 
 	t.Run("valid all template types", func(t *testing.T) {
 		templates := []string{
-			model.LoginTemplateModern,
-			model.LoginTemplateClassic,
-			model.LoginTemplateMinimal,
-			model.LoginTemplateCorporate,
-			model.LoginTemplateCreative,
-			model.LoginTemplateCustom,
+			LoginTemplateModern,
+			LoginTemplateClassic,
+			LoginTemplateMinimal,
+			LoginTemplateCorporate,
+			LoginTemplateCreative,
+			LoginTemplateCustom,
 		}
 		for _, tmpl := range templates {
 			d := validLoginTemplateCreate()
@@ -70,7 +68,7 @@ func TestLoginTemplateCreateRequestDto_Validate(t *testing.T) {
 
 	t.Run("valid active status", func(t *testing.T) {
 		d := validLoginTemplateCreate()
-		s := model.StatusActive
+		s := StatusActive
 		d.Status = &s
 		assert.NoError(t, d.Validate())
 	})
@@ -79,7 +77,7 @@ func TestLoginTemplateCreateRequestDto_Validate(t *testing.T) {
 func TestLoginTemplateUpdateRequestDto_Validate(t *testing.T) {
 	d := LoginTemplateUpdateRequestDTO{
 		Name:     "Updated Login",
-		Template: model.LoginTemplateClassic,
+		Template: LoginTemplateClassic,
 	}
 	assert.NoError(t, d.Validate())
 
@@ -88,8 +86,8 @@ func TestLoginTemplateUpdateRequestDto_Validate(t *testing.T) {
 }
 
 func TestLoginTemplateUpdateStatusRequestDto_Validate(t *testing.T) {
-	assert.NoError(t, LoginTemplateUpdateStatusRequestDTO{Status: model.StatusActive}.Validate())
-	assert.NoError(t, LoginTemplateUpdateStatusRequestDTO{Status: model.StatusInactive}.Validate())
+	assert.NoError(t, LoginTemplateUpdateStatusRequestDTO{Status: StatusActive}.Validate())
+	assert.NoError(t, LoginTemplateUpdateStatusRequestDTO{Status: StatusInactive}.Validate())
 	require.Error(t, LoginTemplateUpdateStatusRequestDTO{Status: ""}.Validate())
 	require.Error(t, LoginTemplateUpdateStatusRequestDTO{Status: "bad"}.Validate())
 }
@@ -107,7 +105,7 @@ func TestLoginTemplateFilterDto_Validate(t *testing.T) {
 	})
 
 	t.Run("valid template filter", func(t *testing.T) {
-		tmpl := model.LoginTemplateMinimal
+		tmpl := LoginTemplateMinimal
 		f := LoginTemplateFilterDTO{PaginationRequestDTO: validPagination(), Template: &tmpl}
 		assert.NoError(t, f.Validate())
 	})

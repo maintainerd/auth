@@ -6,8 +6,6 @@ import (
 
 	validation "github.com/go-ozzo/ozzo-validation/v4"
 	"github.com/go-ozzo/ozzo-validation/v4/is"
-
-	"github.com/maintainerd/auth/internal/model"
 )
 
 type UserSettingRequestDTO struct {
@@ -55,13 +53,13 @@ func (r UserSettingRequestDTO) Validate() error {
 		// Communication Preferences
 		validation.Field(&r.PreferredContactMethod,
 			validation.NilOrNotEmpty,
-			validation.In(model.ContactMethodEmail, model.ContactMethodPhone, model.ContactMethodSMS).Error("Preferred contact method must be email, phone, or sms"),
+			validation.In(ContactMethodEmail, ContactMethodPhone, ContactMethodSMS).Error("Preferred contact method must be email, phone, or sms"),
 		),
 
 		// Privacy & Compliance
 		validation.Field(&r.ProfileVisibility,
 			validation.NilOrNotEmpty,
-			validation.In(model.VisibilityPublic, model.VisibilityPrivate, model.VisibilityFriends).Error("Profile visibility must be public, private, or friends"),
+			validation.In(VisibilityPublic, VisibilityPrivate, VisibilityFriends).Error("Profile visibility must be public, private, or friends"),
 		),
 
 		// Emergency Contact
@@ -119,7 +117,7 @@ type UserSettingResponseDTO struct {
 	UpdatedAt time.Time `json:"updated_at"`
 }
 
-func NewUserSettingResponseDTO(us *model.UserSetting) *UserSettingResponseDTO {
+func NewUserSettingResponseDTO(us *UserSetting) *UserSettingResponseDTO {
 	// Convert GORM JSON to map for social links
 	var socialLinks map[string]any
 	if len(us.SocialLinks) > 0 {

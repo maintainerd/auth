@@ -5,19 +5,17 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/maintainerd/auth/internal/dto"
 	"github.com/maintainerd/auth/internal/platform/middleware"
 	resp "github.com/maintainerd/auth/internal/platform/response"
 	"github.com/maintainerd/auth/internal/platform/security"
 	"github.com/maintainerd/auth/internal/platform/signedurl"
-	"github.com/maintainerd/auth/internal/service"
 )
 
 type ResetPasswordHandler struct {
-	resetPasswordService service.ResetPasswordService
+	resetPasswordService ResetPasswordService
 }
 
-func NewResetPasswordHandler(resetPasswordService service.ResetPasswordService) *ResetPasswordHandler {
+func NewResetPasswordHandler(resetPasswordService ResetPasswordService) *ResetPasswordHandler {
 	return &ResetPasswordHandler{
 		resetPasswordService: resetPasswordService,
 	}
@@ -86,7 +84,7 @@ func (h *ResetPasswordHandler) ResetPasswordPublic(w http.ResponseWriter, r *htt
 	}
 
 	// Parse request body
-	var req dto.ResetPasswordRequestDTO
+	var req ResetPasswordRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		security.LogSecurityEvent(security.SecurityEvent{
 			EventType: "reset_password_invalid_json",
@@ -246,7 +244,7 @@ func (h *ResetPasswordHandler) ResetPassword(w http.ResponseWriter, r *http.Requ
 	}
 
 	// Parse request body
-	var req dto.ResetPasswordRequestDTO
+	var req ResetPasswordRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		security.LogSecurityEvent(security.SecurityEvent{
 			EventType: "reset_password_invalid_json",

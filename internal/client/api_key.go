@@ -8,9 +8,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/maintainerd/auth/internal/model"
 	"github.com/maintainerd/auth/internal/platform/apperror"
-	"github.com/maintainerd/auth/internal/repository"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -91,22 +89,22 @@ type APIKeyService interface {
 
 type apiKeyService struct {
 	db                   *gorm.DB
-	apiKeyRepo           repository.APIKeyRepository
-	apiKeyAPIRepo        repository.APIKeyAPIRepository
-	apiKeyPermissionRepo repository.APIKeyPermissionRepository
-	apiRepo              repository.APIRepository
-	userRepo             repository.UserRepository
-	permissionRepo       repository.PermissionRepository
+	apiKeyRepo           APIKeyRepository
+	apiKeyAPIRepo        APIKeyAPIRepository
+	apiKeyPermissionRepo APIKeyPermissionRepository
+	apiRepo              APIRepository
+	userRepo             UserRepository
+	permissionRepo       PermissionRepository
 }
 
 func NewAPIKeyService(
 	db *gorm.DB,
-	apiKeyRepo repository.APIKeyRepository,
-	apiKeyAPIRepo repository.APIKeyAPIRepository,
-	apiKeyPermissionRepo repository.APIKeyPermissionRepository,
-	apiRepo repository.APIRepository,
-	userRepo repository.UserRepository,
-	permissionRepo repository.PermissionRepository,
+	apiKeyRepo APIKeyRepository,
+	apiKeyAPIRepo APIKeyAPIRepository,
+	apiKeyPermissionRepo APIKeyPermissionRepository,
+	apiRepo APIRepository,
+	userRepo UserRepository,
+	permissionRepo PermissionRepository,
 ) APIKeyService {
 	return &apiKeyService{
 		db:                   db,
@@ -156,7 +154,7 @@ func (s *apiKeyService) Get(ctx context.Context, filter APIKeyServiceGetFilter, 
 	}
 
 	// Build repository filter
-	repoFilter := repository.APIKeyRepositoryGetFilter{
+	repoFilter := APIKeyRepositoryGetFilter{
 		TenantID:    filter.TenantID,
 		Name:        filter.Name,
 		Description: filter.Description,
@@ -192,7 +190,7 @@ func (s *apiKeyService) Get(ctx context.Context, filter APIKeyServiceGetFilter, 
 }
 
 // toServiceDataResult converts model to service data result
-func (s *apiKeyService) toServiceDataResult(apiKey model.APIKey) APIKeyServiceDataResult {
+func (s *apiKeyService) toServiceDataResult(apiKey APIKey) APIKeyServiceDataResult {
 	result := APIKeyServiceDataResult{
 		APIKeyUUID:  apiKey.APIKeyUUID,
 		Name:        apiKey.Name,
@@ -285,7 +283,7 @@ func (s *apiKeyService) Create(ctx context.Context, tenantID int64, name, descri
 		attribute.String("api_key.name", name),
 	)
 
-	var createdAPIKey *model.APIKey
+	var createdAPIKey *APIKey
 	var plainKey string
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
@@ -296,7 +294,7 @@ func (s *apiKeyService) Create(ctx context.Context, tenantID int64, name, descri
 		plainKey, keyHash, keyPrefix = s.generateAPIKey()
 
 		// Create API key model
-		apiKey := &model.APIKey{
+		apiKey := &APIKey{
 			TenantID:    tenantID,
 			Name:        name,
 			Description: description,
@@ -643,7 +641,7 @@ func (s *apiKeyService) AddAPIKeyAPIs(ctx context.Context, apiKeyUUID uuid.UUID,
 			}
 
 			// Create API key API relationship
-			apiKeyAPI := &model.APIKeyAPI{
+			apiKeyAPI := &APIKeyAPI{
 				APIKeyID: apiKey.APIKeyID,
 				APIID:    api.APIID,
 			}
@@ -805,7 +803,7 @@ func (s *apiKeyService) AddAPIKeyAPIPermissions(ctx context.Context, apiKeyUUID 
 			}
 
 			// Create API key permission relationship
-			apiKeyPermission := &model.APIKeyPermission{
+			apiKeyPermission := &APIKeyPermission{
 				APIKeyAPIID:  apiKeyAPI.APIKeyAPIID,
 				PermissionID: permission.PermissionID,
 			}

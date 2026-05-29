@@ -7,12 +7,11 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/maintainerd/auth/internal/service"
 	"github.com/stretchr/testify/assert"
 )
 
-func webhookResult() *service.WebhookEndpointServiceDataResult {
-	return &service.WebhookEndpointServiceDataResult{
+func webhookResult() *WebhookEndpointServiceDataResult {
+	return &WebhookEndpointServiceDataResult{
 		WebhookEndpointUUID: uuid.New(),
 		TenantID:            testTenantID,
 		URL:                 "https://example.com/hook",
@@ -45,7 +44,7 @@ func TestWebhookEndpointHandler_GetAll_ValidationError(t *testing.T) {
 
 func TestWebhookEndpointHandler_GetAll_ServiceError(t *testing.T) {
 	svc := &mockWebhookEndpointService{
-		getAllFn: func(_ int64, _ []string, _, _ int, _, _ string) (*service.WebhookEndpointServiceListResult, error) {
+		getAllFn: func(_ int64, _ []string, _, _ int, _, _ string) (*WebhookEndpointServiceListResult, error) {
 			return nil, assert.AnError
 		},
 	}
@@ -58,9 +57,9 @@ func TestWebhookEndpointHandler_GetAll_ServiceError(t *testing.T) {
 
 func TestWebhookEndpointHandler_GetAll_Success(t *testing.T) {
 	svc := &mockWebhookEndpointService{
-		getAllFn: func(_ int64, _ []string, _, _ int, _, _ string) (*service.WebhookEndpointServiceListResult, error) {
-			return &service.WebhookEndpointServiceListResult{
-				Data:       []service.WebhookEndpointServiceDataResult{*webhookResult()},
+		getAllFn: func(_ int64, _ []string, _, _ int, _, _ string) (*WebhookEndpointServiceListResult, error) {
+			return &WebhookEndpointServiceListResult{
+				Data:       []WebhookEndpointServiceDataResult{*webhookResult()},
 				Total:      1,
 				Page:       1,
 				Limit:      10,
@@ -77,9 +76,9 @@ func TestWebhookEndpointHandler_GetAll_Success(t *testing.T) {
 
 func TestWebhookEndpointHandler_GetAll_WithStatusFilter(t *testing.T) {
 	svc := &mockWebhookEndpointService{
-		getAllFn: func(_ int64, status []string, _, _ int, _, _ string) (*service.WebhookEndpointServiceListResult, error) {
+		getAllFn: func(_ int64, status []string, _, _ int, _, _ string) (*WebhookEndpointServiceListResult, error) {
 			assert.Equal(t, []string{"active"}, status)
-			return &service.WebhookEndpointServiceListResult{}, nil
+			return &WebhookEndpointServiceListResult{}, nil
 		},
 	}
 	h := NewWebhookEndpointHandler(svc)
@@ -111,7 +110,7 @@ func TestWebhookEndpointHandler_Get_InvalidUUID(t *testing.T) {
 
 func TestWebhookEndpointHandler_Get_ServiceError(t *testing.T) {
 	svc := &mockWebhookEndpointService{
-		getByUUIDFn: func(_ int64, _ uuid.UUID) (*service.WebhookEndpointServiceDataResult, error) {
+		getByUUIDFn: func(_ int64, _ uuid.UUID) (*WebhookEndpointServiceDataResult, error) {
 			return nil, errNotFound
 		},
 	}
@@ -125,7 +124,7 @@ func TestWebhookEndpointHandler_Get_ServiceError(t *testing.T) {
 
 func TestWebhookEndpointHandler_Get_Success(t *testing.T) {
 	svc := &mockWebhookEndpointService{
-		getByUUIDFn: func(_ int64, _ uuid.UUID) (*service.WebhookEndpointServiceDataResult, error) {
+		getByUUIDFn: func(_ int64, _ uuid.UUID) (*WebhookEndpointServiceDataResult, error) {
 			return webhookResult(), nil
 		},
 	}
@@ -142,7 +141,7 @@ func TestWebhookEndpointHandler_Get_SuccessWithLastTriggered(t *testing.T) {
 	result := webhookResult()
 	result.LastTriggeredAt = &now
 	svc := &mockWebhookEndpointService{
-		getByUUIDFn: func(_ int64, _ uuid.UUID) (*service.WebhookEndpointServiceDataResult, error) {
+		getByUUIDFn: func(_ int64, _ uuid.UUID) (*WebhookEndpointServiceDataResult, error) {
 			return result, nil
 		},
 	}
@@ -183,7 +182,7 @@ func TestWebhookEndpointHandler_Create_ValidationError(t *testing.T) {
 
 func TestWebhookEndpointHandler_Create_ServiceError(t *testing.T) {
 	svc := &mockWebhookEndpointService{
-		createFn: func(_ int64, _, _ string, _ []string, _, _ *int, _, _ string) (*service.WebhookEndpointServiceDataResult, error) {
+		createFn: func(_ int64, _, _ string, _ []string, _, _ *int, _, _ string) (*WebhookEndpointServiceDataResult, error) {
 			return nil, assert.AnError
 		},
 	}
@@ -196,7 +195,7 @@ func TestWebhookEndpointHandler_Create_ServiceError(t *testing.T) {
 
 func TestWebhookEndpointHandler_Create_Success(t *testing.T) {
 	svc := &mockWebhookEndpointService{
-		createFn: func(_ int64, _, _ string, _ []string, _, _ *int, _, _ string) (*service.WebhookEndpointServiceDataResult, error) {
+		createFn: func(_ int64, _, _ string, _ []string, _, _ *int, _, _ string) (*WebhookEndpointServiceDataResult, error) {
 			return webhookResult(), nil
 		},
 	}
@@ -209,7 +208,7 @@ func TestWebhookEndpointHandler_Create_Success(t *testing.T) {
 
 func TestWebhookEndpointHandler_Create_WithExplicitStatus(t *testing.T) {
 	svc := &mockWebhookEndpointService{
-		createFn: func(_ int64, _, _ string, _ []string, _, _ *int, _, status string) (*service.WebhookEndpointServiceDataResult, error) {
+		createFn: func(_ int64, _, _ string, _ []string, _, _ *int, _, status string) (*WebhookEndpointServiceDataResult, error) {
 			assert.Equal(t, "inactive", status)
 			return webhookResult(), nil
 		},
@@ -262,7 +261,7 @@ func TestWebhookEndpointHandler_Update_ValidationError(t *testing.T) {
 
 func TestWebhookEndpointHandler_Update_ServiceError(t *testing.T) {
 	svc := &mockWebhookEndpointService{
-		updateFn: func(_ int64, _ uuid.UUID, _, _ string, _ []string, _, _ *int, _, _ string) (*service.WebhookEndpointServiceDataResult, error) {
+		updateFn: func(_ int64, _ uuid.UUID, _, _ string, _ []string, _, _ *int, _, _ string) (*WebhookEndpointServiceDataResult, error) {
 			return nil, assert.AnError
 		},
 	}
@@ -277,7 +276,7 @@ func TestWebhookEndpointHandler_Update_ServiceError(t *testing.T) {
 
 func TestWebhookEndpointHandler_Update_Success(t *testing.T) {
 	svc := &mockWebhookEndpointService{
-		updateFn: func(_ int64, _ uuid.UUID, _, _ string, _ []string, _, _ *int, _, _ string) (*service.WebhookEndpointServiceDataResult, error) {
+		updateFn: func(_ int64, _ uuid.UUID, _, _ string, _ []string, _, _ *int, _, _ string) (*WebhookEndpointServiceDataResult, error) {
 			return webhookResult(), nil
 		},
 	}
@@ -292,7 +291,7 @@ func TestWebhookEndpointHandler_Update_Success(t *testing.T) {
 
 func TestWebhookEndpointHandler_Update_WithExplicitStatus(t *testing.T) {
 	svc := &mockWebhookEndpointService{
-		updateFn: func(_ int64, _ uuid.UUID, _, _ string, _ []string, _, _ *int, _, status string) (*service.WebhookEndpointServiceDataResult, error) {
+		updateFn: func(_ int64, _ uuid.UUID, _, _ string, _ []string, _, _ *int, _, status string) (*WebhookEndpointServiceDataResult, error) {
 			assert.Equal(t, "inactive", status)
 			return webhookResult(), nil
 		},
@@ -328,7 +327,7 @@ func TestWebhookEndpointHandler_Delete_InvalidUUID(t *testing.T) {
 
 func TestWebhookEndpointHandler_Delete_ServiceError(t *testing.T) {
 	svc := &mockWebhookEndpointService{
-		deleteFn: func(_ int64, _ uuid.UUID) (*service.WebhookEndpointServiceDataResult, error) {
+		deleteFn: func(_ int64, _ uuid.UUID) (*WebhookEndpointServiceDataResult, error) {
 			return nil, errNotFound
 		},
 	}
@@ -342,7 +341,7 @@ func TestWebhookEndpointHandler_Delete_ServiceError(t *testing.T) {
 
 func TestWebhookEndpointHandler_Delete_Success(t *testing.T) {
 	svc := &mockWebhookEndpointService{
-		deleteFn: func(_ int64, _ uuid.UUID) (*service.WebhookEndpointServiceDataResult, error) {
+		deleteFn: func(_ int64, _ uuid.UUID) (*WebhookEndpointServiceDataResult, error) {
 			return webhookResult(), nil
 		},
 	}
@@ -395,7 +394,7 @@ func TestWebhookEndpointHandler_UpdateStatus_ValidationError(t *testing.T) {
 
 func TestWebhookEndpointHandler_UpdateStatus_ServiceError(t *testing.T) {
 	svc := &mockWebhookEndpointService{
-		updateStatusFn: func(_ int64, _ uuid.UUID, _ string) (*service.WebhookEndpointServiceDataResult, error) {
+		updateStatusFn: func(_ int64, _ uuid.UUID, _ string) (*WebhookEndpointServiceDataResult, error) {
 			return nil, assert.AnError
 		},
 	}
@@ -410,7 +409,7 @@ func TestWebhookEndpointHandler_UpdateStatus_ServiceError(t *testing.T) {
 
 func TestWebhookEndpointHandler_UpdateStatus_Success(t *testing.T) {
 	svc := &mockWebhookEndpointService{
-		updateStatusFn: func(_ int64, _ uuid.UUID, _ string) (*service.WebhookEndpointServiceDataResult, error) {
+		updateStatusFn: func(_ int64, _ uuid.UUID, _ string) (*WebhookEndpointServiceDataResult, error) {
 			return webhookResult(), nil
 		},
 	}

@@ -5,10 +5,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/maintainerd/auth/internal/model"
 	"github.com/maintainerd/auth/internal/platform/apperror"
 	"github.com/maintainerd/auth/internal/platform/cache"
-	"github.com/maintainerd/auth/internal/repository"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -63,19 +61,19 @@ type PermissionService interface {
 
 type permissionService struct {
 	db               *gorm.DB
-	permissionRepo   repository.PermissionRepository
-	apiRepo          repository.APIRepository
-	roleRepo         repository.RoleRepository
-	clientRepo       repository.ClientRepository
+	permissionRepo   PermissionRepository
+	apiRepo          APIRepository
+	roleRepo         RoleRepository
+	clientRepo       ClientRepository
 	cacheInvalidator cache.Invalidator
 }
 
 func NewPermissionService(
 	db *gorm.DB,
-	permissionRepo repository.PermissionRepository,
-	apiRepo repository.APIRepository,
-	roleRepo repository.RoleRepository,
-	clientRepo repository.ClientRepository,
+	permissionRepo PermissionRepository,
+	apiRepo APIRepository,
+	roleRepo RoleRepository,
+	clientRepo ClientRepository,
 	cacheInvalidator cache.Invalidator,
 ) PermissionService {
 	return &permissionService{
@@ -121,7 +119,7 @@ func (s *permissionService) Get(ctx context.Context, filter PermissionServiceGet
 	}
 
 	// Build query filter
-	queryFilter := repository.PermissionRepositoryGetFilter{
+	queryFilter := PermissionRepositoryGetFilter{
 		TenantID:    filter.TenantID,
 		Name:        filter.Name,
 		Description: filter.Description,
@@ -179,7 +177,7 @@ func (s *permissionService) Create(ctx context.Context, tenantID int64, name str
 	_, span := otel.Tracer("service").Start(ctx, "permission.create")
 	defer span.End()
 	span.SetAttributes(attribute.Int64("tenant.id", tenantID))
-	var createdPermission *model.Permission
+	var createdPermission *Permission
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
 		txPermissionRepo := s.permissionRepo.WithTx(tx)
@@ -210,7 +208,7 @@ func (s *permissionService) Create(ctx context.Context, tenantID int64, name str
 		}
 
 		// Create permission
-		newPermission := &model.Permission{
+		newPermission := &Permission{
 			Name:        name,
 			Description: description,
 			TenantID:    tenantID,
@@ -248,7 +246,7 @@ func (s *permissionService) Update(ctx context.Context, permissionUUID uuid.UUID
 	_, span := otel.Tracer("service").Start(ctx, "permission.update")
 	defer span.End()
 	span.SetAttributes(attribute.String("permission.uuid", permissionUUID.String()), attribute.Int64("tenant.id", tenantID))
-	var updatedPermission *model.Permission
+	var updatedPermission *Permission
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
 		txPermissionRepo := s.permissionRepo.WithTx(tx)
@@ -309,7 +307,7 @@ func (s *permissionService) SetActiveStatusByUUID(ctx context.Context, permissio
 	_, span := otel.Tracer("service").Start(ctx, "permission.setActiveStatus")
 	defer span.End()
 	span.SetAttributes(attribute.String("permission.uuid", permissionUUID.String()), attribute.Int64("tenant.id", tenantID))
-	var updatedPermission *model.Permission
+	var updatedPermission *Permission
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
 		txPermissionRepo := s.permissionRepo.WithTx(tx)
@@ -328,10 +326,10 @@ func (s *permissionService) SetActiveStatusByUUID(ctx context.Context, permissio
 			return apperror.NewValidation("default permission cannot be updated")
 		}
 
-		if permission.Status == model.StatusActive {
-			permission.Status = model.StatusInactive
+		if permission.Status == StatusActive {
+			permission.Status = StatusInactive
 		} else {
-			permission.Status = model.StatusActive
+			permission.Status = StatusActive
 		}
 
 		_, err = txPermissionRepo.CreateOrUpdate(permission)
@@ -359,7 +357,7 @@ func (s *permissionService) SetStatus(ctx context.Context, permissionUUID uuid.U
 	_, span := otel.Tracer("service").Start(ctx, "permission.setStatus")
 	defer span.End()
 	span.SetAttributes(attribute.String("permission.uuid", permissionUUID.String()), attribute.Int64("tenant.id", tenantID))
-	var updatedPermission *model.Permission
+	var updatedPermission *Permission
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
 		txPermissionRepo := s.permissionRepo.WithTx(tx)
@@ -430,7 +428,7 @@ func (s *permissionService) DeleteByUUID(ctx context.Context, permissionUUID uui
 }
 
 // Reponse builder
-func toPermissionServiceDataResult(permission *model.Permission) *PermissionServiceDataResult {
+func toPermissionServiceDataResult(permission *Permission) *PermissionServiceDataResult {
 	if permission == nil {
 		return nil
 	}

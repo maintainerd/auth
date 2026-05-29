@@ -5,8 +5,6 @@ import (
 
 	validation "github.com/go-ozzo/ozzo-validation/v4"
 	"github.com/go-ozzo/ozzo-validation/v4/is"
-
-	"github.com/maintainerd/auth/internal/model"
 )
 
 // IPRestrictionRuleResponseDTO is the JSON representation of an IP restriction
@@ -38,7 +36,7 @@ func (r IPRestrictionRuleCreateRequestDTO) Validate() error {
 		),
 		validation.Field(&r.Type,
 			validation.Required.Error("Type is required"),
-			validation.In(model.IPRuleTypeAllow, model.IPRuleTypeDeny, model.IPRuleTypeWhitelist, model.IPRuleTypeBlacklist).Error("Type must be 'allow', 'deny', 'whitelist', or 'blacklist'"),
+			validation.In(IPRuleTypeAllow, IPRuleTypeDeny, IPRuleTypeWhitelist, IPRuleTypeBlacklist).Error("Type must be 'allow', 'deny', 'whitelist', or 'blacklist'"),
 		),
 		validation.Field(&r.IPAddress,
 			validation.Required.Error("IP address is required"),
@@ -46,7 +44,7 @@ func (r IPRestrictionRuleCreateRequestDTO) Validate() error {
 			validation.Length(1, 50).Error("IP address must be between 1 and 50 characters"),
 		),
 		validation.Field(&r.Status,
-			validation.In(model.StatusActive, model.StatusInactive).Error("Status must be 'active' or 'inactive'"),
+			validation.In(StatusActive, StatusInactive).Error("Status must be 'active' or 'inactive'"),
 		),
 	)
 }
@@ -68,7 +66,7 @@ func (r IPRestrictionRuleUpdateRequestDTO) Validate() error {
 		),
 		validation.Field(&r.Type,
 			validation.Required.Error("Type is required"),
-			validation.In(model.IPRuleTypeAllow, model.IPRuleTypeDeny, model.IPRuleTypeWhitelist, model.IPRuleTypeBlacklist).Error("Type must be 'allow', 'deny', 'whitelist', or 'blacklist'"),
+			validation.In(IPRuleTypeAllow, IPRuleTypeDeny, IPRuleTypeWhitelist, IPRuleTypeBlacklist).Error("Type must be 'allow', 'deny', 'whitelist', or 'blacklist'"),
 		),
 		validation.Field(&r.IPAddress,
 			validation.Required.Error("IP address is required"),
@@ -76,7 +74,7 @@ func (r IPRestrictionRuleUpdateRequestDTO) Validate() error {
 			validation.Length(1, 50).Error("IP address must be between 1 and 50 characters"),
 		),
 		validation.Field(&r.Status,
-			validation.In(model.StatusActive, model.StatusInactive).Error("Status must be 'active' or 'inactive'"),
+			validation.In(StatusActive, StatusInactive).Error("Status must be 'active' or 'inactive'"),
 		),
 	)
 }
@@ -92,7 +90,7 @@ func (r IPRestrictionRuleUpdateStatusRequestDTO) Validate() error {
 	return validation.ValidateStruct(&r,
 		validation.Field(&r.Status,
 			validation.Required.Error("Status is required"),
-			validation.In(model.StatusActive, model.StatusInactive).Error("Status must be 'active' or 'inactive'"),
+			validation.In(StatusActive, StatusInactive).Error("Status must be 'active' or 'inactive'"),
 		),
 	)
 }
@@ -113,7 +111,7 @@ type IPRestrictionRuleFilterDTO struct {
 func (f IPRestrictionRuleFilterDTO) Validate() error {
 	return validation.ValidateStruct(&f,
 		validation.Field(&f.Type,
-			validation.When(f.Type != nil, validation.In(model.IPRuleTypeAllow, model.IPRuleTypeDeny, model.IPRuleTypeWhitelist, model.IPRuleTypeBlacklist).Error("Type must be 'allow', 'deny', 'whitelist', or 'blacklist'")),
+			validation.When(f.Type != nil, validation.In(IPRuleTypeAllow, IPRuleTypeDeny, IPRuleTypeWhitelist, IPRuleTypeBlacklist).Error("Type must be 'allow', 'deny', 'whitelist', or 'blacklist'")),
 		),
 		validation.Field(&f.PaginationRequestDTO),
 	)

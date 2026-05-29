@@ -8,10 +8,8 @@ import (
 
 	"github.com/alicebob/miniredis/v2"
 	"github.com/google/uuid"
-	"github.com/maintainerd/auth/internal/model"
 	"github.com/maintainerd/auth/internal/platform/jwt"
 	"github.com/maintainerd/auth/internal/platform/security"
-	"github.com/maintainerd/auth/internal/repository"
 	"github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -35,37 +33,37 @@ func defaultRegPublicMocks() *regMocks {
 	identifier := "test-client"
 	return &regMocks{
 		client: &mockClientRepo{
-			findByClientIDAndIdentityProviderFn: func(_, _ string) (*model.Client, error) {
-				return &model.Client{
+			findByClientIDAndIdentityProviderFn: func(_, _ string) (*Client, error) {
+				return &Client{
 					ClientID:   1,
-					Status:     model.StatusActive,
+					Status:     StatusActive,
 					Domain:     &domain,
 					Identifier: &identifier,
-					IdentityProvider: &model.IdentityProvider{
+					IdentityProvider: &IdentityProvider{
 						Identifier: "test-provider",
 						TenantID:   1,
-						Tenant:     &model.Tenant{TenantID: 1},
+						Tenant:     &Tenant{TenantID: 1},
 					},
 				}, nil
 			},
 		},
 		idp: &mockIdentityProviderRepo{
-			findByIdentifierFn: func(_ string) (*model.IdentityProvider, error) {
-				return &model.IdentityProvider{TenantID: 1}, nil
+			findByIdentifierFn: func(_ string) (*IdentityProvider, error) {
+				return &IdentityProvider{TenantID: 1}, nil
 			},
 		},
 		user: &mockUserRepo{
-			findByUsernameFn: func(_ string) (*model.User, error) { return nil, nil },
-			findByEmailFn:    func(_ string) (*model.User, error) { return nil, nil },
-			findByPhoneFn:    func(_ string) (*model.User, error) { return nil, nil },
-			createFn:         func(u *model.User) (*model.User, error) { u.UserID = 1; return u, nil },
+			findByUsernameFn: func(_ string) (*User, error) { return nil, nil },
+			findByEmailFn:    func(_ string) (*User, error) { return nil, nil },
+			findByPhoneFn:    func(_ string) (*User, error) { return nil, nil },
+			createFn:         func(u *User) (*User, error) { u.UserID = 1; return u, nil },
 		},
 		userIdentity: &mockUserIdentityRepo{
-			createFn: func(ui *model.UserIdentity) (*model.UserIdentity, error) { return ui, nil },
+			createFn: func(ui *UserIdentity) (*UserIdentity, error) { return ui, nil },
 		},
 		role: &mockRoleRepo{
-			findPaginatedFn: func(_ repository.RoleRepositoryGetFilter) (*repository.PaginationResult[model.Role], error) {
-				return &repository.PaginationResult[model.Role]{Data: []model.Role{{RoleID: 1}}}, nil
+			findPaginatedFn: func(_ RoleRepositoryGetFilter) (*PaginationResult[Role], error) {
+				return &PaginationResult[Role]{Data: []Role{{RoleID: 1}}}, nil
 			},
 		},
 		userRole:  &mockUserRoleRepo{},
@@ -81,44 +79,44 @@ func defaultRegInternalMocks() *regMocks {
 	identifier := "test-client"
 	return &regMocks{
 		client: &mockClientRepo{
-			findByClientIDAndIdentityProviderFn: func(_, _ string) (*model.Client, error) {
-				return &model.Client{
+			findByClientIDAndIdentityProviderFn: func(_, _ string) (*Client, error) {
+				return &Client{
 					ClientID:   1,
-					Status:     model.StatusActive,
+					Status:     StatusActive,
 					Domain:     &domain,
 					Identifier: &identifier,
-					IdentityProvider: &model.IdentityProvider{
+					IdentityProvider: &IdentityProvider{
 						Identifier: "test-provider",
 						TenantID:   1,
-						Tenant:     &model.Tenant{TenantID: 1},
+						Tenant:     &Tenant{TenantID: 1},
 					},
 				}, nil
 			},
-			findSystemFn: func() (*model.Client, error) {
-				return &model.Client{
+			findSystemFn: func() (*Client, error) {
+				return &Client{
 					ClientID:   1,
-					Status:     model.StatusActive,
+					Status:     StatusActive,
 					Domain:     &domain,
 					Identifier: &identifier,
-					IdentityProvider: &model.IdentityProvider{
+					IdentityProvider: &IdentityProvider{
 						Identifier: "test-provider",
 						TenantID:   1,
-						Tenant:     &model.Tenant{TenantID: 1},
+						Tenant:     &Tenant{TenantID: 1},
 					},
 				}, nil
 			},
 		},
 		idp: &mockIdentityProviderRepo{},
 		user: &mockUserRepo{
-			findByUsernameFn: func(_ string) (*model.User, error) { return nil, nil },
-			createFn:         func(u *model.User) (*model.User, error) { u.UserID = 1; return u, nil },
+			findByUsernameFn: func(_ string) (*User, error) { return nil, nil },
+			createFn:         func(u *User) (*User, error) { u.UserID = 1; return u, nil },
 		},
 		userIdentity: &mockUserIdentityRepo{
-			createFn: func(ui *model.UserIdentity) (*model.UserIdentity, error) { return ui, nil },
+			createFn: func(ui *UserIdentity) (*UserIdentity, error) { return ui, nil },
 		},
 		role: &mockRoleRepo{
-			findPaginatedFn: func(_ repository.RoleRepositoryGetFilter) (*repository.PaginationResult[model.Role], error) {
-				return &repository.PaginationResult[model.Role]{Data: []model.Role{{RoleID: 1}}}, nil
+			findPaginatedFn: func(_ RoleRepositoryGetFilter) (*PaginationResult[Role], error) {
+				return &PaginationResult[Role]{Data: []Role{{RoleID: 1}}}, nil
 			},
 		},
 		userRole:  &mockUserRoleRepo{},
@@ -135,7 +133,7 @@ func TestRegisterService_FindDefaultRole(t *testing.T) {
 	t.Run("FindPaginated error", func(t *testing.T) {
 		svc := &registerService{}
 		roleRepo := &mockRoleRepo{
-			findPaginatedFn: func(_ repository.RoleRepositoryGetFilter) (*repository.PaginationResult[model.Role], error) {
+			findPaginatedFn: func(_ RoleRepositoryGetFilter) (*PaginationResult[Role], error) {
 				return nil, errors.New("db error")
 			},
 		}
@@ -147,9 +145,9 @@ func TestRegisterService_FindDefaultRole(t *testing.T) {
 	t.Run("default role found via FindPaginated", func(t *testing.T) {
 		svc := &registerService{}
 		roleRepo := &mockRoleRepo{
-			findPaginatedFn: func(_ repository.RoleRepositoryGetFilter) (*repository.PaginationResult[model.Role], error) {
-				return &repository.PaginationResult[model.Role]{
-					Data: []model.Role{{RoleID: 42}},
+			findPaginatedFn: func(_ RoleRepositoryGetFilter) (*PaginationResult[Role], error) {
+				return &PaginationResult[Role]{
+					Data: []Role{{RoleID: 42}},
 				}, nil
 			},
 		}
@@ -161,10 +159,10 @@ func TestRegisterService_FindDefaultRole(t *testing.T) {
 	t.Run("fallback FindByNameAndTenantID error", func(t *testing.T) {
 		svc := &registerService{}
 		roleRepo := &mockRoleRepo{
-			findPaginatedFn: func(_ repository.RoleRepositoryGetFilter) (*repository.PaginationResult[model.Role], error) {
-				return &repository.PaginationResult[model.Role]{Data: []model.Role{}}, nil
+			findPaginatedFn: func(_ RoleRepositoryGetFilter) (*PaginationResult[Role], error) {
+				return &PaginationResult[Role]{Data: []Role{}}, nil
 			},
-			findByNameAndTenantIDFn: func(_ string, _ int64) (*model.Role, error) {
+			findByNameAndTenantIDFn: func(_ string, _ int64) (*Role, error) {
 				return nil, errors.New("fallback error")
 			},
 		}
@@ -176,10 +174,10 @@ func TestRegisterService_FindDefaultRole(t *testing.T) {
 	t.Run("fallback returns nil - no default role", func(t *testing.T) {
 		svc := &registerService{}
 		roleRepo := &mockRoleRepo{
-			findPaginatedFn: func(_ repository.RoleRepositoryGetFilter) (*repository.PaginationResult[model.Role], error) {
-				return &repository.PaginationResult[model.Role]{Data: []model.Role{}}, nil
+			findPaginatedFn: func(_ RoleRepositoryGetFilter) (*PaginationResult[Role], error) {
+				return &PaginationResult[Role]{Data: []Role{}}, nil
 			},
-			findByNameAndTenantIDFn: func(_ string, _ int64) (*model.Role, error) {
+			findByNameAndTenantIDFn: func(_ string, _ int64) (*Role, error) {
 				return nil, nil
 			},
 		}
@@ -192,11 +190,11 @@ func TestRegisterService_FindDefaultRole(t *testing.T) {
 	t.Run("fallback success", func(t *testing.T) {
 		svc := &registerService{}
 		roleRepo := &mockRoleRepo{
-			findPaginatedFn: func(_ repository.RoleRepositoryGetFilter) (*repository.PaginationResult[model.Role], error) {
-				return &repository.PaginationResult[model.Role]{Data: []model.Role{}}, nil
+			findPaginatedFn: func(_ RoleRepositoryGetFilter) (*PaginationResult[Role], error) {
+				return &PaginationResult[Role]{Data: []Role{}}, nil
 			},
-			findByNameAndTenantIDFn: func(_ string, _ int64) (*model.Role, error) {
-				return &model.Role{RoleID: 99}, nil
+			findByNameAndTenantIDFn: func(_ string, _ int64) (*Role, error) {
+				return &Role{RoleID: 99}, nil
 			},
 		}
 		role, err := svc.findDefaultRole(roleRepo, 1)
@@ -269,7 +267,7 @@ func TestRegisterService_RegisterPublic(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		m := defaultRegPublicMocks()
-		m.client.findByClientIDAndIdentityProviderFn = func(_, _ string) (*model.Client, error) {
+		m.client.findByClientIDAndIdentityProviderFn = func(_, _ string) (*Client, error) {
 			return nil, nil
 		}
 		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
@@ -286,7 +284,7 @@ func TestRegisterService_RegisterPublic(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		m := defaultRegPublicMocks()
-		m.client.findByClientIDAndIdentityProviderFn = func(_, _ string) (*model.Client, error) {
+		m.client.findByClientIDAndIdentityProviderFn = func(_, _ string) (*Client, error) {
 			return nil, errors.New("db error")
 		}
 		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
@@ -303,8 +301,8 @@ func TestRegisterService_RegisterPublic(t *testing.T) {
 		mock.ExpectRollback()
 		m := defaultRegPublicMocks()
 		domain := "example.com"
-		m.client.findByClientIDAndIdentityProviderFn = func(_, _ string) (*model.Client, error) {
-			return &model.Client{Status: model.StatusInactive, Domain: &domain}, nil
+		m.client.findByClientIDAndIdentityProviderFn = func(_, _ string) (*Client, error) {
+			return &Client{Status: StatusInactive, Domain: &domain}, nil
 		}
 		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
 			m.userIdentity, m.role, m.invite, m.idp, nil, nil)
@@ -320,7 +318,7 @@ func TestRegisterService_RegisterPublic(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		m := defaultRegPublicMocks()
-		m.idp.findByIdentifierFn = func(_ string) (*model.IdentityProvider, error) {
+		m.idp.findByIdentifierFn = func(_ string) (*IdentityProvider, error) {
 			return nil, errors.New("db error")
 		}
 		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
@@ -337,7 +335,7 @@ func TestRegisterService_RegisterPublic(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		m := defaultRegPublicMocks()
-		m.idp.findByIdentifierFn = func(_ string) (*model.IdentityProvider, error) {
+		m.idp.findByIdentifierFn = func(_ string) (*IdentityProvider, error) {
 			return nil, nil
 		}
 		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
@@ -354,7 +352,7 @@ func TestRegisterService_RegisterPublic(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		m := defaultRegPublicMocks()
-		m.user.findByUsernameFn = func(_ string) (*model.User, error) {
+		m.user.findByUsernameFn = func(_ string) (*User, error) {
 			return nil, errors.New("db error")
 		}
 		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
@@ -370,8 +368,8 @@ func TestRegisterService_RegisterPublic(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		m := defaultRegPublicMocks()
-		m.user.findByUsernameFn = func(_ string) (*model.User, error) {
-			return &model.User{UserID: 99}, nil
+		m.user.findByUsernameFn = func(_ string) (*User, error) {
+			return &User{UserID: 99}, nil
 		}
 		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
 			m.userIdentity, m.role, m.invite, m.idp, nil, nil)
@@ -387,7 +385,7 @@ func TestRegisterService_RegisterPublic(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		m := defaultRegPublicMocks()
-		m.user.findByEmailFn = func(_ string) (*model.User, error) {
+		m.user.findByEmailFn = func(_ string) (*User, error) {
 			return nil, errors.New("db error")
 		}
 		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
@@ -404,8 +402,8 @@ func TestRegisterService_RegisterPublic(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		m := defaultRegPublicMocks()
-		m.user.findByEmailFn = func(_ string) (*model.User, error) {
-			return &model.User{UserID: 99}, nil
+		m.user.findByEmailFn = func(_ string) (*User, error) {
+			return &User{UserID: 99}, nil
 		}
 		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
 			m.userIdentity, m.role, m.invite, m.idp, nil, nil)
@@ -422,7 +420,7 @@ func TestRegisterService_RegisterPublic(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		m := defaultRegPublicMocks()
-		m.user.findByPhoneFn = func(_ string) (*model.User, error) {
+		m.user.findByPhoneFn = func(_ string) (*User, error) {
 			return nil, errors.New("db error")
 		}
 		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
@@ -439,8 +437,8 @@ func TestRegisterService_RegisterPublic(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		m := defaultRegPublicMocks()
-		m.user.findByPhoneFn = func(_ string) (*model.User, error) {
-			return &model.User{UserID: 99}, nil
+		m.user.findByPhoneFn = func(_ string) (*User, error) {
+			return &User{UserID: 99}, nil
 		}
 		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
 			m.userIdentity, m.role, m.invite, m.idp, nil, nil)
@@ -457,7 +455,7 @@ func TestRegisterService_RegisterPublic(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		m := defaultRegPublicMocks()
-		m.user.createFn = func(_ *model.User) (*model.User, error) {
+		m.user.createFn = func(_ *User) (*User, error) {
 			return nil, errors.New("create error")
 		}
 		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
@@ -473,7 +471,7 @@ func TestRegisterService_RegisterPublic(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		m := defaultRegPublicMocks()
-		m.userIdentity.createFn = func(_ *model.UserIdentity) (*model.UserIdentity, error) {
+		m.userIdentity.createFn = func(_ *UserIdentity) (*UserIdentity, error) {
 			return nil, errors.New("identity error")
 		}
 		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
@@ -489,7 +487,7 @@ func TestRegisterService_RegisterPublic(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		m := defaultRegPublicMocks()
-		m.role.findPaginatedFn = func(_ repository.RoleRepositoryGetFilter) (*repository.PaginationResult[model.Role], error) {
+		m.role.findPaginatedFn = func(_ RoleRepositoryGetFilter) (*PaginationResult[Role], error) {
 			return nil, errors.New("role error")
 		}
 		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
@@ -505,7 +503,7 @@ func TestRegisterService_RegisterPublic(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		m := defaultRegPublicMocks()
-		m.userRole.createFn = func(_ *model.UserRole) (*model.UserRole, error) {
+		m.userRole.createFn = func(_ *UserRole) (*UserRole, error) {
 			return nil, errors.New("role assign error")
 		}
 		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
@@ -597,7 +595,7 @@ func TestRegisterService_Register(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		m := defaultRegInternalMocks()
-		m.client.findByClientIDAndIdentityProviderFn = func(_, _ string) (*model.Client, error) {
+		m.client.findByClientIDAndIdentityProviderFn = func(_, _ string) (*Client, error) {
 			return nil, errors.New("db error")
 		}
 		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
@@ -614,7 +612,7 @@ func TestRegisterService_Register(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		m := defaultRegInternalMocks()
-		m.client.findSystemFn = func() (*model.Client, error) {
+		m.client.findSystemFn = func() (*Client, error) {
 			return nil, errors.New("db error")
 		}
 		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
@@ -630,7 +628,7 @@ func TestRegisterService_Register(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		m := defaultRegInternalMocks()
-		m.client.findSystemFn = func() (*model.Client, error) { return nil, nil }
+		m.client.findSystemFn = func() (*Client, error) { return nil, nil }
 		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
 			m.userIdentity, m.role, m.invite, m.idp, nil, nil)
 		resp, err := svc.Register(context.Background(), "u", "F", "P@ssW0rd!", nil, nil, nil, nil)
@@ -645,7 +643,7 @@ func TestRegisterService_Register(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		m := defaultRegInternalMocks()
-		m.user.findByUsernameFn = func(_ string) (*model.User, error) {
+		m.user.findByUsernameFn = func(_ string) (*User, error) {
 			return nil, errors.New("db error")
 		}
 		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
@@ -662,7 +660,7 @@ func TestRegisterService_Register(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectCommit()
 		m := defaultRegInternalMocks()
-		m.user.findByUsernameFn = func(_ string) (*model.User, error) {
+		m.user.findByUsernameFn = func(_ string) (*User, error) {
 			return nil, errors.New("record not found")
 		}
 		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
@@ -679,8 +677,8 @@ func TestRegisterService_Register(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		m := defaultRegInternalMocks()
-		m.user.findByUsernameFn = func(_ string) (*model.User, error) {
-			return &model.User{UserID: 99}, nil
+		m.user.findByUsernameFn = func(_ string) (*User, error) {
+			return &User{UserID: 99}, nil
 		}
 		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
 			m.userIdentity, m.role, m.invite, m.idp, nil, nil)
@@ -696,7 +694,7 @@ func TestRegisterService_Register(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		m := defaultRegInternalMocks()
-		m.user.createFn = func(_ *model.User) (*model.User, error) {
+		m.user.createFn = func(_ *User) (*User, error) {
 			return nil, errors.New("create error")
 		}
 		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
@@ -712,7 +710,7 @@ func TestRegisterService_Register(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		m := defaultRegInternalMocks()
-		m.userIdentity.createFn = func(_ *model.UserIdentity) (*model.UserIdentity, error) {
+		m.userIdentity.createFn = func(_ *UserIdentity) (*UserIdentity, error) {
 			return nil, errors.New("identity error")
 		}
 		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
@@ -727,7 +725,7 @@ func TestRegisterService_Register(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		m := defaultRegInternalMocks()
-		m.role.findPaginatedFn = func(_ repository.RoleRepositoryGetFilter) (*repository.PaginationResult[model.Role], error) {
+		m.role.findPaginatedFn = func(_ RoleRepositoryGetFilter) (*PaginationResult[Role], error) {
 			return nil, errors.New("role error")
 		}
 		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
@@ -743,7 +741,7 @@ func TestRegisterService_Register(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		m := defaultRegInternalMocks()
-		m.userRole.createFn = func(_ *model.UserRole) (*model.UserRole, error) {
+		m.userRole.createFn = func(_ *UserRole) (*UserRole, error) {
 			return nil, errors.New("role assign error")
 		}
 		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
@@ -830,14 +828,14 @@ func TestRegisterService_RegisterInvite(t *testing.T) {
 	cid := "client-id"
 	pid := "provider-id"
 
-	validInvite := func() *model.Invite {
+	validInvite := func() *Invite {
 		future := time.Now().Add(time.Hour)
-		return &model.Invite{
+		return &Invite{
 			InviteUUID:   uuid.New(),
 			InvitedEmail: "invite@test.com",
-			Status:       model.StatusPending,
+			Status:       StatusPending,
 			ExpiresAt:    &future,
-			Roles:        []model.Role{{RoleID: 10}},
+			Roles:        []Role{{RoleID: 10}},
 		}
 	}
 
@@ -846,7 +844,7 @@ func TestRegisterService_RegisterInvite(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		m := defaultRegInternalMocks()
-		m.client.findByClientIDAndIdentityProviderFn = func(_, _ string) (*model.Client, error) {
+		m.client.findByClientIDAndIdentityProviderFn = func(_, _ string) (*Client, error) {
 			return nil, errors.New("db error")
 		}
 		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
@@ -863,7 +861,7 @@ func TestRegisterService_RegisterInvite(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		m := defaultRegInternalMocks()
-		m.client.findSystemFn = func() (*model.Client, error) {
+		m.client.findSystemFn = func() (*Client, error) {
 			return nil, errors.New("db error")
 		}
 		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
@@ -879,7 +877,7 @@ func TestRegisterService_RegisterInvite(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		m := defaultRegInternalMocks()
-		m.client.findSystemFn = func() (*model.Client, error) { return nil, nil }
+		m.client.findSystemFn = func() (*Client, error) { return nil, nil }
 		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
 			m.userIdentity, m.role, m.invite, m.idp, nil, nil)
 		resp, err := svc.RegisterInvite(context.Background(), "u", "P@ssW0rd!", "token", nil, nil)
@@ -894,7 +892,7 @@ func TestRegisterService_RegisterInvite(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		m := defaultRegInternalMocks()
-		m.invite.findByTokenFn = func(_ string) (*model.Invite, error) {
+		m.invite.findByTokenFn = func(_ string) (*Invite, error) {
 			return nil, errors.New("db error")
 		}
 		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
@@ -911,7 +909,7 @@ func TestRegisterService_RegisterInvite(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		m := defaultRegInternalMocks()
-		m.invite.findByTokenFn = func(_ string) (*model.Invite, error) {
+		m.invite.findByTokenFn = func(_ string) (*Invite, error) {
 			return nil, nil
 		}
 		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
@@ -928,8 +926,8 @@ func TestRegisterService_RegisterInvite(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		m := defaultRegInternalMocks()
-		m.invite.findByTokenFn = func(_ string) (*model.Invite, error) {
-			return &model.Invite{Status: "accepted"}, nil
+		m.invite.findByTokenFn = func(_ string) (*Invite, error) {
+			return &Invite{Status: "accepted"}, nil
 		}
 		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
 			m.userIdentity, m.role, m.invite, m.idp, nil, nil)
@@ -946,8 +944,8 @@ func TestRegisterService_RegisterInvite(t *testing.T) {
 		mock.ExpectRollback()
 		m := defaultRegInternalMocks()
 		past := time.Now().Add(-time.Hour)
-		m.invite.findByTokenFn = func(_ string) (*model.Invite, error) {
-			return &model.Invite{Status: model.StatusPending, ExpiresAt: &past}, nil
+		m.invite.findByTokenFn = func(_ string) (*Invite, error) {
+			return &Invite{Status: StatusPending, ExpiresAt: &past}, nil
 		}
 		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
 			m.userIdentity, m.role, m.invite, m.idp, nil, nil)
@@ -963,8 +961,8 @@ func TestRegisterService_RegisterInvite(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		m := defaultRegInternalMocks()
-		m.invite.findByTokenFn = func(_ string) (*model.Invite, error) { return validInvite(), nil }
-		m.user.findByUsernameFn = func(_ string) (*model.User, error) {
+		m.invite.findByTokenFn = func(_ string) (*Invite, error) { return validInvite(), nil }
+		m.user.findByUsernameFn = func(_ string) (*User, error) {
 			return nil, errors.New("db error")
 		}
 		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
@@ -980,9 +978,9 @@ func TestRegisterService_RegisterInvite(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		m := defaultRegInternalMocks()
-		m.invite.findByTokenFn = func(_ string) (*model.Invite, error) { return validInvite(), nil }
-		m.user.findByUsernameFn = func(_ string) (*model.User, error) {
-			return &model.User{UserID: 99}, nil
+		m.invite.findByTokenFn = func(_ string) (*Invite, error) { return validInvite(), nil }
+		m.user.findByUsernameFn = func(_ string) (*User, error) {
+			return &User{UserID: 99}, nil
 		}
 		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
 			m.userIdentity, m.role, m.invite, m.idp, nil, nil)
@@ -998,8 +996,8 @@ func TestRegisterService_RegisterInvite(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		m := defaultRegInternalMocks()
-		m.invite.findByTokenFn = func(_ string) (*model.Invite, error) { return validInvite(), nil }
-		m.user.createFn = func(_ *model.User) (*model.User, error) {
+		m.invite.findByTokenFn = func(_ string) (*Invite, error) { return validInvite(), nil }
+		m.user.createFn = func(_ *User) (*User, error) {
 			return nil, errors.New("create error")
 		}
 		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
@@ -1015,8 +1013,8 @@ func TestRegisterService_RegisterInvite(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		m := defaultRegInternalMocks()
-		m.invite.findByTokenFn = func(_ string) (*model.Invite, error) { return validInvite(), nil }
-		m.userIdentity.createFn = func(_ *model.UserIdentity) (*model.UserIdentity, error) {
+		m.invite.findByTokenFn = func(_ string) (*Invite, error) { return validInvite(), nil }
+		m.userIdentity.createFn = func(_ *UserIdentity) (*UserIdentity, error) {
 			return nil, errors.New("identity error")
 		}
 		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
@@ -1031,8 +1029,8 @@ func TestRegisterService_RegisterInvite(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		m := defaultRegInternalMocks()
-		m.invite.findByTokenFn = func(_ string) (*model.Invite, error) { return validInvite(), nil }
-		m.role.findPaginatedFn = func(_ repository.RoleRepositoryGetFilter) (*repository.PaginationResult[model.Role], error) {
+		m.invite.findByTokenFn = func(_ string) (*Invite, error) { return validInvite(), nil }
+		m.role.findPaginatedFn = func(_ RoleRepositoryGetFilter) (*PaginationResult[Role], error) {
 			return nil, errors.New("role error")
 		}
 		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
@@ -1048,8 +1046,8 @@ func TestRegisterService_RegisterInvite(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		m := defaultRegInternalMocks()
-		m.invite.findByTokenFn = func(_ string) (*model.Invite, error) { return validInvite(), nil }
-		m.userRole.createFn = func(_ *model.UserRole) (*model.UserRole, error) {
+		m.invite.findByTokenFn = func(_ string) (*Invite, error) { return validInvite(), nil }
+		m.userRole.createFn = func(_ *UserRole) (*UserRole, error) {
 			return nil, errors.New("role assign error")
 		}
 		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
@@ -1065,14 +1063,14 @@ func TestRegisterService_RegisterInvite(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		m := defaultRegInternalMocks()
-		m.invite.findByTokenFn = func(_ string) (*model.Invite, error) { return validInvite(), nil }
+		m.invite.findByTokenFn = func(_ string) (*Invite, error) { return validInvite(), nil }
 		callCount := 0
-		m.userRole.createFn = func(_ *model.UserRole) (*model.UserRole, error) {
+		m.userRole.createFn = func(_ *UserRole) (*UserRole, error) {
 			callCount++
 			if callCount > 1 { // first call is default role, second is invite role
 				return nil, errors.New("invite role error")
 			}
-			return &model.UserRole{}, nil
+			return &UserRole{}, nil
 		}
 		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
 			m.userIdentity, m.role, m.invite, m.idp, nil, nil)
@@ -1087,7 +1085,7 @@ func TestRegisterService_RegisterInvite(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		m := defaultRegInternalMocks()
-		m.invite.findByTokenFn = func(_ string) (*model.Invite, error) { return validInvite(), nil }
+		m.invite.findByTokenFn = func(_ string) (*Invite, error) { return validInvite(), nil }
 		m.invite.markAsUsedFn = func(_ uuid.UUID) error {
 			return errors.New("mark error")
 		}
@@ -1107,7 +1105,7 @@ func TestRegisterService_RegisterInvite(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectCommit()
 		m := defaultRegInternalMocks()
-		m.invite.findByTokenFn = func(_ string) (*model.Invite, error) { return validInvite(), nil }
+		m.invite.findByTokenFn = func(_ string) (*Invite, error) { return validInvite(), nil }
 		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
 			m.userIdentity, m.role, m.invite, m.idp, nil, nil)
 		resp, err := svc.RegisterInvite(context.Background(), "u", "P@ssW0rd!", "token", &cid, &pid)
@@ -1122,7 +1120,7 @@ func TestRegisterService_RegisterInvite(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectCommit()
 		m := defaultRegInternalMocks()
-		m.invite.findByTokenFn = func(_ string) (*model.Invite, error) { return validInvite(), nil }
+		m.invite.findByTokenFn = func(_ string) (*Invite, error) { return validInvite(), nil }
 		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
 			m.userIdentity, m.role, m.invite, m.idp, nil, nil)
 		resp, err := svc.RegisterInvite(context.Background(), "u", "P@ssW0rd!", "token", &cid, &pid)
@@ -1138,7 +1136,7 @@ func TestRegisterService_RegisterInvite(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectCommit()
 		m := defaultRegInternalMocks()
-		m.invite.findByTokenFn = func(_ string) (*model.Invite, error) { return validInvite(), nil }
+		m.invite.findByTokenFn = func(_ string) (*Invite, error) { return validInvite(), nil }
 		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
 			m.userIdentity, m.role, m.invite, m.idp, nil, nil)
 		resp, err := svc.RegisterInvite(context.Background(), "u", "P@ssW0rd!", "token", nil, nil)
@@ -1157,7 +1155,7 @@ func TestRegisterService_RegisterInvite(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		m := defaultRegInternalMocks()
-		m.invite.findByTokenFn = func(_ string) (*model.Invite, error) { return validInvite(), nil }
+		m.invite.findByTokenFn = func(_ string) (*Invite, error) { return validInvite(), nil }
 		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
 			m.userIdentity, m.role, m.invite, m.idp, nil, nil)
 		resp, err := svc.RegisterInvite(context.Background(), "u", "P@ssW0rd!", "token", &cid, &pid)
@@ -1173,14 +1171,14 @@ func TestRegisterService_RegisterInvite(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestRegisterService_RegisterInvitePublic(t *testing.T) {
-	validInvite := func() *model.Invite {
+	validInvite := func() *Invite {
 		future := time.Now().Add(time.Hour)
-		return &model.Invite{
+		return &Invite{
 			InviteUUID:   uuid.New(),
 			InvitedEmail: "invite@test.com",
-			Status:       model.StatusPending,
+			Status:       StatusPending,
 			ExpiresAt:    &future,
-			Roles:        []model.Role{{RoleID: 10}},
+			Roles:        []Role{{RoleID: 10}},
 		}
 	}
 
@@ -1189,7 +1187,7 @@ func TestRegisterService_RegisterInvitePublic(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		m := defaultRegPublicMocks()
-		m.client.findByClientIDAndIdentityProviderFn = func(_, _ string) (*model.Client, error) {
+		m.client.findByClientIDAndIdentityProviderFn = func(_, _ string) (*Client, error) {
 			return nil, errors.New("db error")
 		}
 		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
@@ -1205,7 +1203,7 @@ func TestRegisterService_RegisterInvitePublic(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		m := defaultRegPublicMocks()
-		m.client.findByClientIDAndIdentityProviderFn = func(_, _ string) (*model.Client, error) {
+		m.client.findByClientIDAndIdentityProviderFn = func(_, _ string) (*Client, error) {
 			return nil, nil
 		}
 		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
@@ -1222,7 +1220,7 @@ func TestRegisterService_RegisterInvitePublic(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		m := defaultRegPublicMocks()
-		m.idp.findByIdentifierFn = func(_ string) (*model.IdentityProvider, error) {
+		m.idp.findByIdentifierFn = func(_ string) (*IdentityProvider, error) {
 			return nil, errors.New("db error")
 		}
 		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
@@ -1239,7 +1237,7 @@ func TestRegisterService_RegisterInvitePublic(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		m := defaultRegPublicMocks()
-		m.idp.findByIdentifierFn = func(_ string) (*model.IdentityProvider, error) {
+		m.idp.findByIdentifierFn = func(_ string) (*IdentityProvider, error) {
 			return nil, nil
 		}
 		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
@@ -1256,7 +1254,7 @@ func TestRegisterService_RegisterInvitePublic(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		m := defaultRegPublicMocks()
-		m.invite.findByTokenFn = func(_ string) (*model.Invite, error) {
+		m.invite.findByTokenFn = func(_ string) (*Invite, error) {
 			return nil, errors.New("db error")
 		}
 		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
@@ -1273,7 +1271,7 @@ func TestRegisterService_RegisterInvitePublic(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		m := defaultRegPublicMocks()
-		m.invite.findByTokenFn = func(_ string) (*model.Invite, error) {
+		m.invite.findByTokenFn = func(_ string) (*Invite, error) {
 			return nil, nil
 		}
 		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
@@ -1290,8 +1288,8 @@ func TestRegisterService_RegisterInvitePublic(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		m := defaultRegPublicMocks()
-		m.invite.findByTokenFn = func(_ string) (*model.Invite, error) {
-			return &model.Invite{Status: "accepted"}, nil
+		m.invite.findByTokenFn = func(_ string) (*Invite, error) {
+			return &Invite{Status: "accepted"}, nil
 		}
 		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
 			m.userIdentity, m.role, m.invite, m.idp, nil, nil)
@@ -1308,8 +1306,8 @@ func TestRegisterService_RegisterInvitePublic(t *testing.T) {
 		mock.ExpectRollback()
 		m := defaultRegPublicMocks()
 		past := time.Now().Add(-time.Hour)
-		m.invite.findByTokenFn = func(_ string) (*model.Invite, error) {
-			return &model.Invite{Status: model.StatusPending, ExpiresAt: &past}, nil
+		m.invite.findByTokenFn = func(_ string) (*Invite, error) {
+			return &Invite{Status: StatusPending, ExpiresAt: &past}, nil
 		}
 		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
 			m.userIdentity, m.role, m.invite, m.idp, nil, nil)
@@ -1325,8 +1323,8 @@ func TestRegisterService_RegisterInvitePublic(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		m := defaultRegPublicMocks()
-		m.invite.findByTokenFn = func(_ string) (*model.Invite, error) { return validInvite(), nil }
-		m.user.findByUsernameFn = func(_ string) (*model.User, error) {
+		m.invite.findByTokenFn = func(_ string) (*Invite, error) { return validInvite(), nil }
+		m.user.findByUsernameFn = func(_ string) (*User, error) {
 			return nil, errors.New("db error")
 		}
 		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
@@ -1342,9 +1340,9 @@ func TestRegisterService_RegisterInvitePublic(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		m := defaultRegPublicMocks()
-		m.invite.findByTokenFn = func(_ string) (*model.Invite, error) { return validInvite(), nil }
-		m.user.findByUsernameFn = func(_ string) (*model.User, error) {
-			return &model.User{UserID: 99}, nil
+		m.invite.findByTokenFn = func(_ string) (*Invite, error) { return validInvite(), nil }
+		m.user.findByUsernameFn = func(_ string) (*User, error) {
+			return &User{UserID: 99}, nil
 		}
 		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
 			m.userIdentity, m.role, m.invite, m.idp, nil, nil)
@@ -1360,8 +1358,8 @@ func TestRegisterService_RegisterInvitePublic(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		m := defaultRegPublicMocks()
-		m.invite.findByTokenFn = func(_ string) (*model.Invite, error) { return validInvite(), nil }
-		m.user.findByEmailFn = func(_ string) (*model.User, error) {
+		m.invite.findByTokenFn = func(_ string) (*Invite, error) { return validInvite(), nil }
+		m.user.findByEmailFn = func(_ string) (*User, error) {
 			return nil, errors.New("db error")
 		}
 		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
@@ -1377,9 +1375,9 @@ func TestRegisterService_RegisterInvitePublic(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		m := defaultRegPublicMocks()
-		m.invite.findByTokenFn = func(_ string) (*model.Invite, error) { return validInvite(), nil }
-		m.user.findByEmailFn = func(_ string) (*model.User, error) {
-			return &model.User{UserID: 99}, nil
+		m.invite.findByTokenFn = func(_ string) (*Invite, error) { return validInvite(), nil }
+		m.user.findByEmailFn = func(_ string) (*User, error) {
+			return &User{UserID: 99}, nil
 		}
 		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
 			m.userIdentity, m.role, m.invite, m.idp, nil, nil)
@@ -1395,8 +1393,8 @@ func TestRegisterService_RegisterInvitePublic(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		m := defaultRegPublicMocks()
-		m.invite.findByTokenFn = func(_ string) (*model.Invite, error) { return validInvite(), nil }
-		m.user.createFn = func(_ *model.User) (*model.User, error) {
+		m.invite.findByTokenFn = func(_ string) (*Invite, error) { return validInvite(), nil }
+		m.user.createFn = func(_ *User) (*User, error) {
 			return nil, errors.New("create error")
 		}
 		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
@@ -1412,8 +1410,8 @@ func TestRegisterService_RegisterInvitePublic(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		m := defaultRegPublicMocks()
-		m.invite.findByTokenFn = func(_ string) (*model.Invite, error) { return validInvite(), nil }
-		m.userIdentity.createFn = func(_ *model.UserIdentity) (*model.UserIdentity, error) {
+		m.invite.findByTokenFn = func(_ string) (*Invite, error) { return validInvite(), nil }
+		m.userIdentity.createFn = func(_ *UserIdentity) (*UserIdentity, error) {
 			return nil, errors.New("identity error")
 		}
 		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
@@ -1428,8 +1426,8 @@ func TestRegisterService_RegisterInvitePublic(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		m := defaultRegPublicMocks()
-		m.invite.findByTokenFn = func(_ string) (*model.Invite, error) { return validInvite(), nil }
-		m.role.findPaginatedFn = func(_ repository.RoleRepositoryGetFilter) (*repository.PaginationResult[model.Role], error) {
+		m.invite.findByTokenFn = func(_ string) (*Invite, error) { return validInvite(), nil }
+		m.role.findPaginatedFn = func(_ RoleRepositoryGetFilter) (*PaginationResult[Role], error) {
 			return nil, errors.New("role error")
 		}
 		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
@@ -1445,8 +1443,8 @@ func TestRegisterService_RegisterInvitePublic(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		m := defaultRegPublicMocks()
-		m.invite.findByTokenFn = func(_ string) (*model.Invite, error) { return validInvite(), nil }
-		m.userRole.createFn = func(_ *model.UserRole) (*model.UserRole, error) {
+		m.invite.findByTokenFn = func(_ string) (*Invite, error) { return validInvite(), nil }
+		m.userRole.createFn = func(_ *UserRole) (*UserRole, error) {
 			return nil, errors.New("role assign error")
 		}
 		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
@@ -1462,8 +1460,8 @@ func TestRegisterService_RegisterInvitePublic(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		m := defaultRegPublicMocks()
-		m.invite.findByTokenFn = func(_ string) (*model.Invite, error) { return validInvite(), nil }
-		m.userRole.findByUserIDAndRoleIDFn = func(_, _ int64) (*model.UserRole, error) {
+		m.invite.findByTokenFn = func(_ string) (*Invite, error) { return validInvite(), nil }
+		m.userRole.findByUserIDAndRoleIDFn = func(_, _ int64) (*UserRole, error) {
 			return nil, errors.New("lookup error")
 		}
 		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
@@ -1480,9 +1478,9 @@ func TestRegisterService_RegisterInvitePublic(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectCommit()
 		m := defaultRegPublicMocks()
-		m.invite.findByTokenFn = func(_ string) (*model.Invite, error) { return validInvite(), nil }
-		m.userRole.findByUserIDAndRoleIDFn = func(_, _ int64) (*model.UserRole, error) {
-			return &model.UserRole{UserID: 1, RoleID: 10}, nil // already exists
+		m.invite.findByTokenFn = func(_ string) (*Invite, error) { return validInvite(), nil }
+		m.userRole.findByUserIDAndRoleIDFn = func(_, _ int64) (*UserRole, error) {
+			return &UserRole{UserID: 1, RoleID: 10}, nil // already exists
 		}
 		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
 			m.userIdentity, m.role, m.invite, m.idp, nil, nil)
@@ -1498,14 +1496,14 @@ func TestRegisterService_RegisterInvitePublic(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		m := defaultRegPublicMocks()
-		m.invite.findByTokenFn = func(_ string) (*model.Invite, error) { return validInvite(), nil }
+		m.invite.findByTokenFn = func(_ string) (*Invite, error) { return validInvite(), nil }
 		createCount := 0
-		m.userRole.createFn = func(_ *model.UserRole) (*model.UserRole, error) {
+		m.userRole.createFn = func(_ *UserRole) (*UserRole, error) {
 			createCount++
 			if createCount > 1 { // first = default role, second = invite role
 				return nil, errors.New("invite role error")
 			}
-			return &model.UserRole{}, nil
+			return &UserRole{}, nil
 		}
 		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
 			m.userIdentity, m.role, m.invite, m.idp, nil, nil)
@@ -1520,7 +1518,7 @@ func TestRegisterService_RegisterInvitePublic(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		m := defaultRegPublicMocks()
-		m.invite.findByTokenFn = func(_ string) (*model.Invite, error) { return validInvite(), nil }
+		m.invite.findByTokenFn = func(_ string) (*Invite, error) { return validInvite(), nil }
 		m.invite.markAsUsedFn = func(_ uuid.UUID) error {
 			return errors.New("mark error")
 		}
@@ -1540,7 +1538,7 @@ func TestRegisterService_RegisterInvitePublic(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectCommit()
 		m := defaultRegPublicMocks()
-		m.invite.findByTokenFn = func(_ string) (*model.Invite, error) { return validInvite(), nil }
+		m.invite.findByTokenFn = func(_ string) (*Invite, error) { return validInvite(), nil }
 		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
 			m.userIdentity, m.role, m.invite, m.idp, nil, nil)
 		resp, err := svc.RegisterInvitePublic(context.Background(), "u", "P@ssW0rd!", "c", "p", "token")
@@ -1555,7 +1553,7 @@ func TestRegisterService_RegisterInvitePublic(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectCommit()
 		m := defaultRegPublicMocks()
-		m.invite.findByTokenFn = func(_ string) (*model.Invite, error) { return validInvite(), nil }
+		m.invite.findByTokenFn = func(_ string) (*Invite, error) { return validInvite(), nil }
 		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
 			m.userIdentity, m.role, m.invite, m.idp, nil, nil)
 		resp, err := svc.RegisterInvitePublic(context.Background(), "u", "P@ssW0rd!", "c", "p", "token")
@@ -1574,7 +1572,7 @@ func TestRegisterService_RegisterInvitePublic(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		m := defaultRegPublicMocks()
-		m.invite.findByTokenFn = func(_ string) (*model.Invite, error) { return validInvite(), nil }
+		m.invite.findByTokenFn = func(_ string) (*Invite, error) { return validInvite(), nil }
 		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
 			m.userIdentity, m.role, m.invite, m.idp, nil, nil)
 		resp, err := svc.RegisterInvitePublic(context.Background(), "u", "P@ssW0rd!", "c", "p", "token")
@@ -1592,10 +1590,10 @@ func TestRegisterService_RegisterInvitePublic(t *testing.T) {
 func TestRegisterService_GenerateTokenResponse(t *testing.T) {
 	domain := "example.com"
 	identifier := "test-client"
-	client := &model.Client{
+	client := &Client{
 		Domain:     &domain,
 		Identifier: &identifier,
-		IdentityProvider: &model.IdentityProvider{
+		IdentityProvider: &IdentityProvider{
 			Identifier: "test-provider",
 		},
 	}
@@ -1605,7 +1603,7 @@ func TestRegisterService_GenerateTokenResponse(t *testing.T) {
 		defer initTestJWTKeysService(t)
 
 		svc := &registerService{}
-		resp, err := svc.generateTokenResponse("sub", &model.User{}, client)
+		resp, err := svc.generateTokenResponse("sub", &User{}, client)
 		require.Error(t, err)
 		assert.Nil(t, resp)
 	})
@@ -1614,7 +1612,7 @@ func TestRegisterService_GenerateTokenResponse(t *testing.T) {
 		initTestJWTKeysService(t)
 
 		svc := &registerService{}
-		resp, err := svc.generateTokenResponse("sub", &model.User{
+		resp, err := svc.generateTokenResponse("sub", &User{
 			Email:           "test@example.com",
 			IsEmailVerified: true,
 			Phone:           "+1234567890",
@@ -1638,7 +1636,7 @@ func TestRegisterService_GenerateTokenResponse(t *testing.T) {
 		}
 
 		svc := &registerService{}
-		resp, err := svc.generateTokenResponse("sub", &model.User{}, client)
+		resp, err := svc.generateTokenResponse("sub", &User{}, client)
 		require.Error(t, err)
 		assert.Nil(t, resp)
 		assert.Contains(t, err.Error(), "id token error")
@@ -1653,7 +1651,7 @@ func TestRegisterService_GenerateTokenResponse(t *testing.T) {
 		}
 
 		svc := &registerService{}
-		resp, err := svc.generateTokenResponse("sub", &model.User{}, client)
+		resp, err := svc.generateTokenResponse("sub", &User{}, client)
 		require.Error(t, err)
 		assert.Nil(t, resp)
 		assert.Contains(t, err.Error(), "refresh error")

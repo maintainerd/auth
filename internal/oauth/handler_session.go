@@ -3,18 +3,16 @@ package oauth
 import (
 	"net/http"
 
-	"github.com/maintainerd/auth/internal/dto"
 	resp "github.com/maintainerd/auth/internal/platform/response"
-	"github.com/maintainerd/auth/internal/service"
 )
 
 // OAuthSessionHandler handles RP-Initiated Logout and Back-Channel Logout.
 type OAuthSessionHandler struct {
-	sessionService service.OAuthSessionService
+	sessionService OAuthSessionService
 }
 
 // NewOAuthSessionHandler creates a new OAuthSessionHandler.
-func NewOAuthSessionHandler(sessionService service.OAuthSessionService) *OAuthSessionHandler {
+func NewOAuthSessionHandler(sessionService OAuthSessionService) *OAuthSessionHandler {
 	return &OAuthSessionHandler{sessionService: sessionService}
 }
 
@@ -40,7 +38,7 @@ func (h *OAuthSessionHandler) EndSession(w http.ResponseWriter, r *http.Request)
 		state = q.Get("state")
 	}
 
-	req := dto.OAuthEndSessionRequestDTO{
+	req := OAuthEndSessionRequestDTO{
 		IDTokenHint:           idTokenHint,
 		ClientID:              clientID,
 		PostLogoutRedirectURI: postLogoutRedirectURI,
@@ -69,7 +67,7 @@ func (h *OAuthSessionHandler) BackchannelLogout(w http.ResponseWriter, r *http.R
 		return
 	}
 
-	req := dto.OAuthBackchannelLogoutRequestDTO{
+	req := OAuthBackchannelLogoutRequestDTO{
 		LogoutToken: r.FormValue("logout_token"),
 	}
 

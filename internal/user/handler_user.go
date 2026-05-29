@@ -8,11 +8,9 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
-	"github.com/maintainerd/auth/internal/dto"
 	"github.com/maintainerd/auth/internal/platform/middleware"
 	"github.com/maintainerd/auth/internal/platform/ptr"
 	resp "github.com/maintainerd/auth/internal/platform/response"
-	"github.com/maintainerd/auth/internal/service"
 )
 
 // UserHandler handles user management operations.
@@ -23,11 +21,11 @@ import (
 // context. The handler supports CRUD operations, role management, identity management,
 // and account verification workflows.
 type UserHandler struct {
-	userService service.UserService
+	userService UserService
 }
 
 // NewUserHandler creates a new user handler instance.
-func NewUserHandler(userService service.UserService) *UserHandler {
+func NewUserHandler(userService UserService) *UserHandler {
 	return &UserHandler{
 		userService: userService,
 	}
@@ -77,7 +75,7 @@ func (h *UserHandler) GetUsers(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Build filter DTO for validation
-	reqParams := dto.UserFilterDTO{
+	reqParams := UserFilterDTO{
 		Username:             ptr.PtrOrNil(q.Get("username")),
 		Email:                ptr.PtrOrNil(q.Get("email")),
 		Phone:                ptr.PtrOrNil(q.Get("phone")),
@@ -95,7 +93,7 @@ func (h *UserHandler) GetUsers(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Build service filter with tenant context
-	filter := service.UserServiceGetFilter{
+	filter := UserServiceGetFilter{
 		Username:     reqParams.Username,
 		Email:        reqParams.Email,
 		Phone:        reqParams.Phone,
@@ -118,13 +116,13 @@ func (h *UserHandler) GetUsers(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Map service results to DTOs
-	rows := make([]dto.UserResponseDTO, len(result.Data))
+	rows := make([]UserResponseDTO, len(result.Data))
 	for i, r := range result.Data {
 		rows[i] = toUserResponseDTO(r)
 	}
 
 	// Build paginated response
-	response := dto.PaginatedResponseDTO[dto.UserResponseDTO]{
+	response := PaginatedResponseDTO[UserResponseDTO]{
 		Rows:       rows,
 		Total:      result.Total,
 		Page:       result.Page,
@@ -188,7 +186,7 @@ func (h *UserHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
 	creatorUser := middleware.AuthFromRequest(r).User
 
 	// Decode and validate request body
-	var req dto.UserCreateRequestDTO
+	var req UserCreateRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		resp.Error(w, http.StatusBadRequest, "Invalid JSON format")
 		return
@@ -238,7 +236,7 @@ func (h *UserHandler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Decode and validate request body
-	var req dto.UserUpdateRequestDTO
+	var req UserUpdateRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		resp.Error(w, http.StatusBadRequest, "Invalid JSON format")
 		return
@@ -288,7 +286,7 @@ func (h *UserHandler) SetUserStatus(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Decode and validate request body
-	var req dto.UserSetStatusRequestDTO
+	var req UserSetStatusRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		resp.Error(w, http.StatusBadRequest, "Invalid JSON format")
 		return
@@ -472,7 +470,7 @@ func (h *UserHandler) AssignRoles(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Decode and validate request body
-	var req dto.UserAssignRolesRequestDTO
+	var req UserAssignRolesRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		resp.Error(w, http.StatusBadRequest, "Invalid JSON format")
 		return
@@ -563,8 +561,8 @@ func (h *UserHandler) ForcePasswordChange(w http.ResponseWriter, r *http.Request
 // Helper functions for converting service data to response DTOs
 
 // toUserResponseDTO converts a service result to a user response DTO.
-func toUserResponseDTO(u service.UserServiceDataResult) dto.UserResponseDTO {
-	result := dto.UserResponseDTO{
+func toUserResponseDTO(u UserServiceDataResult) UserResponseDTO {
+	result := UserResponseDTO{
 		UserUUID:           u.UserUUID,
 		Username:           u.Username,
 		Fullname:           u.Fullname,
@@ -582,7 +580,7 @@ func toUserResponseDTO(u service.UserServiceDataResult) dto.UserResponseDTO {
 
 	// Map Tenant if present
 	if u.Tenant != nil {
-		result.Tenant = &dto.TenantResponseDTO{
+		result.Tenant = &TenantResponseDTO{
 			TenantUUID:  u.Tenant.TenantUUID,
 			Name:        u.Tenant.Name,
 			Description: u.Tenant.Description,
@@ -620,7 +618,7 @@ func (h *UserHandler) GetUserRoles(w http.ResponseWriter, r *http.Request) {
 	// Parse pagination parameters
 
 	// Build filter DTO for validation
-	reqParams := dto.UserRoleFilterDTO{
+	reqParams := UserRoleFilterDTO{
 		Name:                 ptr.PtrOrNil(q.Get("name")),
 		Description:          ptr.PtrOrNil(q.Get("description")),
 		Status:               ptr.PtrOrNil(q.Get("status")),
@@ -655,7 +653,7 @@ func (h *UserHandler) GetUserRoles(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Apply filters
-	filteredRoles := []service.RoleServiceDataResult{}
+	filteredRoles := []RoleServiceDataResult{}
 	for _, role := range roles {
 		// Filter by name
 		if reqParams.Name != nil && !containsIgnoreCase(role.Name, *reqParams.Name) {
@@ -690,9 +688,9 @@ func (h *UserHandler) GetUserRoles(w http.ResponseWriter, r *http.Request) {
 	paginatedRoles := filteredRoles[offset:end]
 
 	// Map to DTOs
-	rows := make([]dto.RoleResponseDTO, len(paginatedRoles))
+	rows := make([]RoleResponseDTO, len(paginatedRoles))
 	for i, role := range paginatedRoles {
-		rows[i] = dto.RoleResponseDTO{
+		rows[i] = RoleResponseDTO{
 			RoleUUID:    role.RoleUUID,
 			Name:        role.Name,
 			Description: role.Description,
@@ -704,7 +702,7 @@ func (h *UserHandler) GetUserRoles(w http.ResponseWriter, r *http.Request) {
 	}
 
 	totalPages := int((total + int64(reqParams.Limit) - 1) / int64(reqParams.Limit))
-	response := dto.PaginatedResponseDTO[dto.RoleResponseDTO]{
+	response := PaginatedResponseDTO[RoleResponseDTO]{
 		Rows:       rows,
 		Total:      total,
 		Page:       reqParams.Page,
@@ -736,7 +734,7 @@ func (h *UserHandler) GetUserIdentities(w http.ResponseWriter, r *http.Request) 
 	// Parse pagination parameters
 
 	// Build filter DTO for validation
-	reqParams := dto.UserIdentityFilterDTO{
+	reqParams := UserIdentityFilterDTO{
 		Provider:             ptr.PtrOrNil(q.Get("provider")),
 		PaginationRequestDTO: parsePaginationQuery(r),
 	}
@@ -769,7 +767,7 @@ func (h *UserHandler) GetUserIdentities(w http.ResponseWriter, r *http.Request) 
 	}
 
 	// Apply filters
-	filteredIdentities := []service.UserIdentityServiceDataResult{}
+	filteredIdentities := []UserIdentityServiceDataResult{}
 	for _, identity := range identities {
 		// Filter by provider
 		if reqParams.Provider != nil && !containsIgnoreCase(identity.Provider, *reqParams.Provider) {
@@ -796,9 +794,9 @@ func (h *UserHandler) GetUserIdentities(w http.ResponseWriter, r *http.Request) 
 	paginatedIdentities := filteredIdentities[offset:end]
 
 	// Map to DTOs
-	rows := make([]dto.UserIdentityResponseDTO, len(paginatedIdentities))
+	rows := make([]UserIdentityResponseDTO, len(paginatedIdentities))
 	for i, identity := range paginatedIdentities {
-		rows[i] = dto.UserIdentityResponseDTO{
+		rows[i] = UserIdentityResponseDTO{
 			UserIdentityUUID: identity.UserIdentityUUID,
 			Provider:         identity.Provider,
 			Sub:              identity.Sub,
@@ -807,7 +805,7 @@ func (h *UserHandler) GetUserIdentities(w http.ResponseWriter, r *http.Request) 
 			UpdatedAt:        identity.UpdatedAt,
 		}
 		if identity.Client != nil {
-			rows[i].Client = &dto.ClientResponseDTO{
+			rows[i].Client = &ClientResponseDTO{
 				ClientUUID:  identity.Client.ClientUUID,
 				Name:        identity.Client.Name,
 				DisplayName: identity.Client.DisplayName,
@@ -823,7 +821,7 @@ func (h *UserHandler) GetUserIdentities(w http.ResponseWriter, r *http.Request) 
 	}
 
 	totalPages := int((total + int64(reqParams.Limit) - 1) / int64(reqParams.Limit))
-	response := dto.PaginatedResponseDTO[dto.UserIdentityResponseDTO]{
+	response := PaginatedResponseDTO[UserIdentityResponseDTO]{
 		Rows:       rows,
 		Total:      total,
 		Page:       reqParams.Page,
@@ -840,7 +838,7 @@ func containsIgnoreCase(str, substr string) bool {
 }
 
 // Helper function to sort roles
-func sortRoles(roles []service.RoleServiceDataResult, sortBy, sortOrder string) {
+func sortRoles(roles []RoleServiceDataResult, sortBy, sortOrder string) {
 	sort.Slice(roles, func(i, j int) bool {
 		var result bool
 		switch sortBy {
@@ -865,7 +863,7 @@ func sortRoles(roles []service.RoleServiceDataResult, sortBy, sortOrder string) 
 }
 
 // Helper function to sort identities
-func sortIdentities(identities []service.UserIdentityServiceDataResult, sortBy, sortOrder string) {
+func sortIdentities(identities []UserIdentityServiceDataResult, sortBy, sortOrder string) {
 	sort.Slice(identities, func(i, j int) bool {
 		var result bool
 		switch sortBy {

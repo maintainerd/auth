@@ -7,8 +7,6 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/maintainerd/auth/internal/platform/cache"
 	"github.com/maintainerd/auth/internal/platform/middleware"
-	"github.com/maintainerd/auth/internal/rest/handler"
-	"github.com/maintainerd/auth/internal/service"
 )
 
 // OAuthPublicRoute mounts the public-facing OAuth 2.0 endpoints on the
@@ -33,17 +31,17 @@ import (
 //   - POST /oauth/logout/backchannel            — Back-Channel Logout (OIDC Back-Channel Logout)
 func OAuthPublicRoute(
 	r chi.Router,
-	authorizeHandler *handler.OAuthAuthorizeHandler,
-	tokenHandler *handler.OAuthTokenHandler,
-	tokenExchangeHandler *handler.OAuthTokenExchangeHandler,
-	consentHandler *handler.OAuthConsentHandler,
-	userInfoHandler *handler.OAuthUserInfoHandler,
-	parHandler *handler.OAuthPARHandler,
-	deviceHandler *handler.OAuthDeviceHandler,
-	sessionHandler *handler.OAuthSessionHandler,
-	cibaHandler *handler.OAuthCIBAHandler,
-	registerHandler *handler.OAuthRegisterHandler,
-	userService service.UserService,
+	authorizeHandler *OAuthAuthorizeHandler,
+	tokenHandler *OAuthTokenHandler,
+	tokenExchangeHandler *OAuthTokenExchangeHandler,
+	consentHandler *OAuthConsentHandler,
+	userInfoHandler *OAuthUserInfoHandler,
+	parHandler *OAuthPARHandler,
+	deviceHandler *OAuthDeviceHandler,
+	sessionHandler *OAuthSessionHandler,
+	cibaHandler *OAuthCIBAHandler,
+	registerHandler *OAuthRegisterHandler,
+	userService UserService,
 	appCache *cache.Cache,
 ) {
 	r.Route("/oauth", func(r chi.Router) {
@@ -119,7 +117,7 @@ func OAuthPublicRoute(
 
 // OAuthDiscoveryRoute mounts the OpenID Connect discovery, RFC 8414 authorization
 // server metadata, and JWKS endpoints at the root level of the public router.
-func OAuthDiscoveryRoute(r chi.Router, discoveryHandler *handler.OAuthDiscoveryHandler) {
+func OAuthDiscoveryRoute(r chi.Router, discoveryHandler *OAuthDiscoveryHandler) {
 	r.Get("/.well-known/openid-configuration", discoveryHandler.Discovery)
 	r.Get("/.well-known/oauth-authorization-server", discoveryHandler.AuthorizationServerMetadata)
 	r.Get("/.well-known/jwks.json", discoveryHandler.JWKS)
@@ -130,8 +128,8 @@ func OAuthDiscoveryRoute(r chi.Router, discoveryHandler *handler.OAuthDiscoveryH
 //   - POST /oauth/introspect — Token introspection (RFC 7662)
 func OAuthInternalRoute(
 	r chi.Router,
-	tokenHandler *handler.OAuthTokenHandler,
-	userService service.UserService,
+	tokenHandler *OAuthTokenHandler,
+	userService UserService,
 	appCache *cache.Cache,
 ) {
 	r.Route("/oauth", func(r chi.Router) {

@@ -5,7 +5,6 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/maintainerd/auth/internal/service"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -129,7 +128,7 @@ func TestSecuritySettingHandler_UpdateMFAConfig_ValidationError(t *testing.T) {
 
 func TestSecuritySettingHandler_UpdateMFAConfig_ServiceError(t *testing.T) {
 	svc := &mockSecuritySettingService{
-		updateMFAConfigFn: func(tid int64, cfg map[string]any, by int64, ip, ua string) (*service.SecuritySettingServiceDataResult, error) {
+		updateMFAConfigFn: func(tid int64, cfg map[string]any, by int64, ip, ua string) (*SecuritySettingServiceDataResult, error) {
 			return nil, errValidation
 		},
 	}
@@ -142,8 +141,8 @@ func TestSecuritySettingHandler_UpdateMFAConfig_ServiceError(t *testing.T) {
 
 func TestSecuritySettingHandler_UpdateMFAConfig_GetConfigError(t *testing.T) {
 	svc := &mockSecuritySettingService{
-		updateMFAConfigFn: func(tid int64, cfg map[string]any, by int64, ip, ua string) (*service.SecuritySettingServiceDataResult, error) {
-			return &service.SecuritySettingServiceDataResult{}, nil
+		updateMFAConfigFn: func(tid int64, cfg map[string]any, by int64, ip, ua string) (*SecuritySettingServiceDataResult, error) {
+			return &SecuritySettingServiceDataResult{}, nil
 		},
 		getMFAConfigFn: func(tid int64) (map[string]any, error) {
 			return nil, assert.AnError
@@ -158,8 +157,8 @@ func TestSecuritySettingHandler_UpdateMFAConfig_GetConfigError(t *testing.T) {
 
 func TestSecuritySettingHandler_UpdateMFAConfig_Success(t *testing.T) {
 	svc := &mockSecuritySettingService{
-		updateMFAConfigFn: func(tid int64, cfg map[string]any, by int64, ip, ua string) (*service.SecuritySettingServiceDataResult, error) {
-			return &service.SecuritySettingServiceDataResult{}, nil
+		updateMFAConfigFn: func(tid int64, cfg map[string]any, by int64, ip, ua string) (*SecuritySettingServiceDataResult, error) {
+			return &SecuritySettingServiceDataResult{}, nil
 		},
 	}
 	h := NewSecuritySettingHandler(svc)
@@ -285,7 +284,7 @@ func TestSecuritySettingHandler_UpdatePasswordConfig_ValidationError(t *testing.
 
 func TestSecuritySettingHandler_UpdatePasswordConfig_ServiceError(t *testing.T) {
 	svc := &mockSecuritySettingService{
-		updatePasswordConfigFn: func(tid int64, cfg map[string]any, by int64, ip, ua string) (*service.SecuritySettingServiceDataResult, error) {
+		updatePasswordConfigFn: func(tid int64, cfg map[string]any, by int64, ip, ua string) (*SecuritySettingServiceDataResult, error) {
 			return nil, errValidation
 		},
 	}
@@ -298,8 +297,8 @@ func TestSecuritySettingHandler_UpdatePasswordConfig_ServiceError(t *testing.T) 
 
 func TestSecuritySettingHandler_UpdatePasswordConfig_GetConfigError(t *testing.T) {
 	svc := &mockSecuritySettingService{
-		updatePasswordConfigFn: func(tid int64, cfg map[string]any, by int64, ip, ua string) (*service.SecuritySettingServiceDataResult, error) {
-			return &service.SecuritySettingServiceDataResult{}, nil
+		updatePasswordConfigFn: func(tid int64, cfg map[string]any, by int64, ip, ua string) (*SecuritySettingServiceDataResult, error) {
+			return &SecuritySettingServiceDataResult{}, nil
 		},
 		getPasswordConfigFn: func(tid int64) (map[string]any, error) {
 			return nil, assert.AnError
@@ -314,8 +313,8 @@ func TestSecuritySettingHandler_UpdatePasswordConfig_GetConfigError(t *testing.T
 
 func TestSecuritySettingHandler_UpdatePasswordConfig_Success(t *testing.T) {
 	svc := &mockSecuritySettingService{
-		updatePasswordConfigFn: func(tid int64, cfg map[string]any, by int64, ip, ua string) (*service.SecuritySettingServiceDataResult, error) {
-			return &service.SecuritySettingServiceDataResult{}, nil
+		updatePasswordConfigFn: func(tid int64, cfg map[string]any, by int64, ip, ua string) (*SecuritySettingServiceDataResult, error) {
+			return &SecuritySettingServiceDataResult{}, nil
 		},
 	}
 	h := NewSecuritySettingHandler(svc)
@@ -353,7 +352,7 @@ func TestSecuritySettingHandler_UpdateSessionConfig_ValidationError(t *testing.T
 
 func TestSecuritySettingHandler_UpdateSessionConfig_ServiceError(t *testing.T) {
 	svc := &mockSecuritySettingService{
-		updateSessionConfigFn: func(tid int64, cfg map[string]any, by int64, ip, ua string) (*service.SecuritySettingServiceDataResult, error) {
+		updateSessionConfigFn: func(tid int64, cfg map[string]any, by int64, ip, ua string) (*SecuritySettingServiceDataResult, error) {
 			return nil, errValidation
 		},
 	}
@@ -366,8 +365,8 @@ func TestSecuritySettingHandler_UpdateSessionConfig_ServiceError(t *testing.T) {
 
 func TestSecuritySettingHandler_UpdateSessionConfig_GetConfigError(t *testing.T) {
 	svc := &mockSecuritySettingService{
-		updateSessionConfigFn: func(tid int64, cfg map[string]any, by int64, ip, ua string) (*service.SecuritySettingServiceDataResult, error) {
-			return &service.SecuritySettingServiceDataResult{}, nil
+		updateSessionConfigFn: func(tid int64, cfg map[string]any, by int64, ip, ua string) (*SecuritySettingServiceDataResult, error) {
+			return &SecuritySettingServiceDataResult{}, nil
 		},
 		getSessionConfigFn: func(tid int64) (map[string]any, error) {
 			return nil, assert.AnError
@@ -382,8 +381,8 @@ func TestSecuritySettingHandler_UpdateSessionConfig_GetConfigError(t *testing.T)
 
 func TestSecuritySettingHandler_UpdateSessionConfig_Success(t *testing.T) {
 	svc := &mockSecuritySettingService{
-		updateSessionConfigFn: func(tid int64, cfg map[string]any, by int64, ip, ua string) (*service.SecuritySettingServiceDataResult, error) {
-			return &service.SecuritySettingServiceDataResult{}, nil
+		updateSessionConfigFn: func(tid int64, cfg map[string]any, by int64, ip, ua string) (*SecuritySettingServiceDataResult, error) {
+			return &SecuritySettingServiceDataResult{}, nil
 		},
 	}
 	h := NewSecuritySettingHandler(svc)
@@ -421,7 +420,7 @@ func TestSecuritySettingHandler_UpdateThreatConfig_ValidationError(t *testing.T)
 
 func TestSecuritySettingHandler_UpdateThreatConfig_ServiceError(t *testing.T) {
 	svc := &mockSecuritySettingService{
-		updateThreatConfigFn: func(tid int64, cfg map[string]any, by int64, ip, ua string) (*service.SecuritySettingServiceDataResult, error) {
+		updateThreatConfigFn: func(tid int64, cfg map[string]any, by int64, ip, ua string) (*SecuritySettingServiceDataResult, error) {
 			return nil, errValidation
 		},
 	}
@@ -434,8 +433,8 @@ func TestSecuritySettingHandler_UpdateThreatConfig_ServiceError(t *testing.T) {
 
 func TestSecuritySettingHandler_UpdateThreatConfig_GetConfigError(t *testing.T) {
 	svc := &mockSecuritySettingService{
-		updateThreatConfigFn: func(tid int64, cfg map[string]any, by int64, ip, ua string) (*service.SecuritySettingServiceDataResult, error) {
-			return &service.SecuritySettingServiceDataResult{}, nil
+		updateThreatConfigFn: func(tid int64, cfg map[string]any, by int64, ip, ua string) (*SecuritySettingServiceDataResult, error) {
+			return &SecuritySettingServiceDataResult{}, nil
 		},
 		getThreatConfigFn: func(tid int64) (map[string]any, error) {
 			return nil, assert.AnError
@@ -450,8 +449,8 @@ func TestSecuritySettingHandler_UpdateThreatConfig_GetConfigError(t *testing.T) 
 
 func TestSecuritySettingHandler_UpdateThreatConfig_Success(t *testing.T) {
 	svc := &mockSecuritySettingService{
-		updateThreatConfigFn: func(tid int64, cfg map[string]any, by int64, ip, ua string) (*service.SecuritySettingServiceDataResult, error) {
-			return &service.SecuritySettingServiceDataResult{}, nil
+		updateThreatConfigFn: func(tid int64, cfg map[string]any, by int64, ip, ua string) (*SecuritySettingServiceDataResult, error) {
+			return &SecuritySettingServiceDataResult{}, nil
 		},
 	}
 	h := NewSecuritySettingHandler(svc)
@@ -489,7 +488,7 @@ func TestSecuritySettingHandler_UpdateLockoutConfig_ValidationError(t *testing.T
 
 func TestSecuritySettingHandler_UpdateLockoutConfig_ServiceError(t *testing.T) {
 	svc := &mockSecuritySettingService{
-		updateLockoutConfigFn: func(tid int64, cfg map[string]any, by int64, ip, ua string) (*service.SecuritySettingServiceDataResult, error) {
+		updateLockoutConfigFn: func(tid int64, cfg map[string]any, by int64, ip, ua string) (*SecuritySettingServiceDataResult, error) {
 			return nil, errValidation
 		},
 	}
@@ -502,8 +501,8 @@ func TestSecuritySettingHandler_UpdateLockoutConfig_ServiceError(t *testing.T) {
 
 func TestSecuritySettingHandler_UpdateLockoutConfig_GetConfigError(t *testing.T) {
 	svc := &mockSecuritySettingService{
-		updateLockoutConfigFn: func(tid int64, cfg map[string]any, by int64, ip, ua string) (*service.SecuritySettingServiceDataResult, error) {
-			return &service.SecuritySettingServiceDataResult{}, nil
+		updateLockoutConfigFn: func(tid int64, cfg map[string]any, by int64, ip, ua string) (*SecuritySettingServiceDataResult, error) {
+			return &SecuritySettingServiceDataResult{}, nil
 		},
 		getLockoutConfigFn: func(tid int64) (map[string]any, error) {
 			return nil, assert.AnError
@@ -518,8 +517,8 @@ func TestSecuritySettingHandler_UpdateLockoutConfig_GetConfigError(t *testing.T)
 
 func TestSecuritySettingHandler_UpdateLockoutConfig_Success(t *testing.T) {
 	svc := &mockSecuritySettingService{
-		updateLockoutConfigFn: func(tid int64, cfg map[string]any, by int64, ip, ua string) (*service.SecuritySettingServiceDataResult, error) {
-			return &service.SecuritySettingServiceDataResult{}, nil
+		updateLockoutConfigFn: func(tid int64, cfg map[string]any, by int64, ip, ua string) (*SecuritySettingServiceDataResult, error) {
+			return &SecuritySettingServiceDataResult{}, nil
 		},
 	}
 	h := NewSecuritySettingHandler(svc)

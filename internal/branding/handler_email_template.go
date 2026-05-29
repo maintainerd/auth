@@ -6,23 +6,20 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
-	"github.com/maintainerd/auth/internal/dto"
-	"github.com/maintainerd/auth/internal/model"
 	"github.com/maintainerd/auth/internal/platform/middleware"
 	"github.com/maintainerd/auth/internal/platform/ptr"
 	resp "github.com/maintainerd/auth/internal/platform/response"
-	"github.com/maintainerd/auth/internal/service"
 )
 
 // EmailTemplateHandler handles HTTP requests for email template management.
 // All endpoints are tenant-scoped - the middleware validates user access to the tenant
 // and sets it in the request context. The service layer ensures templates belong to the tenant.
 type EmailTemplateHandler struct {
-	emailTemplateService service.EmailTemplateService
+	emailTemplateService EmailTemplateService
 }
 
 // NewEmailTemplateHandler creates a new instance of EmailTemplateHandler.
-func NewEmailTemplateHandler(emailTemplateService service.EmailTemplateService) *EmailTemplateHandler {
+func NewEmailTemplateHandler(emailTemplateService EmailTemplateService) *EmailTemplateHandler {
 	return &EmailTemplateHandler{
 		emailTemplateService: emailTemplateService,
 	}
@@ -64,7 +61,7 @@ func (h *EmailTemplateHandler) GetAll(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Build filter DTO with all query parameters
-	filter := dto.EmailTemplateFilterDTO{
+	filter := EmailTemplateFilterDTO{
 		Name:                 ptr.PtrOrNil(q.Get("name")),
 		Status:               status,
 		IsDefault:            isDefault,
@@ -86,7 +83,7 @@ func (h *EmailTemplateHandler) GetAll(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Build paginated response
-	response := dto.PaginatedResponseDTO[dto.EmailTemplateListResponseDTO]{
+	response := PaginatedResponseDTO[EmailTemplateListResponseDTO]{
 		Rows:       toEmailTemplateListResponseDtoList(result.Data),
 		Total:      result.Total,
 		Page:       result.Page,
@@ -140,7 +137,7 @@ func (h *EmailTemplateHandler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Decode request body
-	var req dto.EmailTemplateCreateRequestDTO
+	var req EmailTemplateCreateRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		resp.Error(w, http.StatusBadRequest, "Invalid request")
 		return
@@ -153,7 +150,7 @@ func (h *EmailTemplateHandler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Set default status if not provided
-	status := model.StatusActive
+	status := StatusActive
 	if req.Status != nil {
 		status = *req.Status
 	}
@@ -199,7 +196,7 @@ func (h *EmailTemplateHandler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Decode request body
-	var req dto.EmailTemplateUpdateRequestDTO
+	var req EmailTemplateUpdateRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		resp.Error(w, http.StatusBadRequest, "Invalid request")
 		return
@@ -212,7 +209,7 @@ func (h *EmailTemplateHandler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Set default status if not provided
-	status := model.StatusActive
+	status := StatusActive
 	if req.Status != nil {
 		status = *req.Status
 	}
@@ -289,7 +286,7 @@ func (h *EmailTemplateHandler) UpdateStatus(w http.ResponseWriter, r *http.Reque
 	}
 
 	// Decode request body
-	var req dto.EmailTemplateUpdateStatusRequestDTO
+	var req EmailTemplateUpdateStatusRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		resp.Error(w, http.StatusBadRequest, "Invalid request body")
 		return
@@ -314,8 +311,8 @@ func (h *EmailTemplateHandler) UpdateStatus(w http.ResponseWriter, r *http.Reque
 // Helper functions for converting service data to response DTOs
 
 // toEmailTemplateListResponseDTO converts a service result to a list response DTO.
-func toEmailTemplateListResponseDTO(template service.EmailTemplateServiceDataResult) dto.EmailTemplateListResponseDTO {
-	return dto.EmailTemplateListResponseDTO{
+func toEmailTemplateListResponseDTO(template EmailTemplateServiceDataResult) EmailTemplateListResponseDTO {
+	return EmailTemplateListResponseDTO{
 		EmailTemplateID: template.EmailTemplateUUID.String(),
 		Name:            template.Name,
 		Subject:         template.Subject,
@@ -328,8 +325,8 @@ func toEmailTemplateListResponseDTO(template service.EmailTemplateServiceDataRes
 }
 
 // toEmailTemplateListResponseDtoList converts a slice of service results to list response DTOs.
-func toEmailTemplateListResponseDtoList(templates []service.EmailTemplateServiceDataResult) []dto.EmailTemplateListResponseDTO {
-	result := make([]dto.EmailTemplateListResponseDTO, len(templates))
+func toEmailTemplateListResponseDtoList(templates []EmailTemplateServiceDataResult) []EmailTemplateListResponseDTO {
+	result := make([]EmailTemplateListResponseDTO, len(templates))
 	for i, template := range templates {
 		result[i] = toEmailTemplateListResponseDTO(template)
 	}
@@ -337,8 +334,8 @@ func toEmailTemplateListResponseDtoList(templates []service.EmailTemplateService
 }
 
 // toEmailTemplateResponseDTO converts a service result to a detailed response DTO.
-func toEmailTemplateResponseDTO(template service.EmailTemplateServiceDataResult) dto.EmailTemplateResponseDTO {
-	return dto.EmailTemplateResponseDTO{
+func toEmailTemplateResponseDTO(template EmailTemplateServiceDataResult) EmailTemplateResponseDTO {
+	return EmailTemplateResponseDTO{
 		EmailTemplateID: template.EmailTemplateUUID.String(),
 		Name:            template.Name,
 		Subject:         template.Subject,

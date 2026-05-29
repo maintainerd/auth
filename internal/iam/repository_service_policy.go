@@ -3,7 +3,6 @@ package iam
 import (
 	"errors"
 
-	"github.com/maintainerd/auth/internal/model"
 	"gorm.io/gorm"
 )
 
@@ -17,22 +16,22 @@ type ServicePolicyRepositoryGetFilter struct {
 }
 
 type ServicePolicyRepository interface {
-	BaseRepositoryMethods[model.ServicePolicy]
+	BaseRepositoryMethods[ServicePolicy]
 	WithTx(tx *gorm.DB) ServicePolicyRepository
-	FindPaginated(filter ServicePolicyRepositoryGetFilter) (*PaginationResult[model.ServicePolicy], error)
-	FindByServiceAndPolicy(serviceID int64, policyID int64) (*model.ServicePolicy, error)
+	FindPaginated(filter ServicePolicyRepositoryGetFilter) (*PaginationResult[ServicePolicy], error)
+	FindByServiceAndPolicy(serviceID int64, policyID int64) (*ServicePolicy, error)
 	DeleteByServiceAndPolicy(serviceID int64, policyID int64) error
-	FindPoliciesByServiceID(serviceID int64) ([]model.Policy, error)
-	FindServicesByPolicyID(policyID int64) ([]model.Service, error)
+	FindPoliciesByServiceID(serviceID int64) ([]Policy, error)
+	FindServicesByPolicyID(policyID int64) ([]Service, error)
 }
 
 type servicePolicyRepository struct {
-	*BaseRepository[model.ServicePolicy]
+	*BaseRepository[ServicePolicy]
 }
 
 func NewServicePolicyRepository(db *gorm.DB) ServicePolicyRepository {
 	return &servicePolicyRepository{
-		BaseRepository: NewBaseRepository[model.ServicePolicy](db, "service_policy_uuid", "service_policy_id"),
+		BaseRepository: NewBaseRepository[ServicePolicy](db, "service_policy_uuid", "service_policy_id"),
 	}
 }
 
@@ -42,8 +41,8 @@ func (r *servicePolicyRepository) WithTx(tx *gorm.DB) ServicePolicyRepository {
 	}
 }
 
-func (r *servicePolicyRepository) FindByServiceAndPolicy(serviceID int64, policyID int64) (*model.ServicePolicy, error) {
-	var servicePolicy model.ServicePolicy
+func (r *servicePolicyRepository) FindByServiceAndPolicy(serviceID int64, policyID int64) (*ServicePolicy, error) {
+	var servicePolicy ServicePolicy
 	err := r.DB().Where("service_id = ? AND policy_id = ?", serviceID, policyID).First(&servicePolicy).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -55,11 +54,11 @@ func (r *servicePolicyRepository) FindByServiceAndPolicy(serviceID int64, policy
 }
 
 func (r *servicePolicyRepository) DeleteByServiceAndPolicy(serviceID int64, policyID int64) error {
-	return r.DB().Where("service_id = ? AND policy_id = ?", serviceID, policyID).Delete(&model.ServicePolicy{}).Error
+	return r.DB().Where("service_id = ? AND policy_id = ?", serviceID, policyID).Delete(&ServicePolicy{}).Error
 }
 
-func (r *servicePolicyRepository) FindPoliciesByServiceID(serviceID int64) ([]model.Policy, error) {
-	var policies []model.Policy
+func (r *servicePolicyRepository) FindPoliciesByServiceID(serviceID int64) ([]Policy, error) {
+	var policies []Policy
 	err := r.DB().Table("policies").
 		Joins("INNER JOIN service_policies ON policies.policy_id = service_policies.policy_id").
 		Where("service_policies.service_id = ?", serviceID).
@@ -67,8 +66,8 @@ func (r *servicePolicyRepository) FindPoliciesByServiceID(serviceID int64) ([]mo
 	return policies, err
 }
 
-func (r *servicePolicyRepository) FindServicesByPolicyID(policyID int64) ([]model.Service, error) {
-	var services []model.Service
+func (r *servicePolicyRepository) FindServicesByPolicyID(policyID int64) ([]Service, error) {
+	var services []Service
 	err := r.DB().Table("services").
 		Joins("INNER JOIN service_policies ON services.service_id = service_policies.service_id").
 		Where("service_policies.policy_id = ?", policyID).
@@ -76,8 +75,8 @@ func (r *servicePolicyRepository) FindServicesByPolicyID(policyID int64) ([]mode
 	return services, err
 }
 
-func (r *servicePolicyRepository) FindPaginated(filter ServicePolicyRepositoryGetFilter) (*PaginationResult[model.ServicePolicy], error) {
-	query := r.DB().Model(&model.ServicePolicy{})
+func (r *servicePolicyRepository) FindPaginated(filter ServicePolicyRepositoryGetFilter) (*PaginationResult[ServicePolicy], error) {
+	query := r.DB().Model(&ServicePolicy{})
 
 	// Apply filters
 	if filter.ServiceID != nil {
@@ -104,14 +103,14 @@ func (r *servicePolicyRepository) FindPaginated(filter ServicePolicyRepositoryGe
 		filter.Limit = 10
 	}
 	offset := (filter.Page - 1) * filter.Limit
-	var servicePolicies []model.ServicePolicy
+	var servicePolicies []ServicePolicy
 	if err := query.Limit(filter.Limit).Offset(offset).Find(&servicePolicies).Error; err != nil {
 		return nil, err
 	}
 
 	totalPages := int((total + int64(filter.Limit) - 1) / int64(filter.Limit))
 
-	return &PaginationResult[model.ServicePolicy]{
+	return &PaginationResult[ServicePolicy]{
 		Data:       servicePolicies,
 		Total:      total,
 		Page:       filter.Page,

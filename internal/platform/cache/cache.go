@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/maintainerd/auth/internal/model"
+	"github.com/google/uuid"
 	"github.com/redis/go-redis/v9"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
@@ -29,10 +29,45 @@ const (
 
 // UserContext is the data stored in the user-context cache.
 type UserContext struct {
-	User     *model.User             `json:"user"`
-	Tenant   *model.Tenant           `json:"tenant"`
-	Provider *model.IdentityProvider `json:"provider"`
-	Client   *model.Client           `json:"client"`
+	User     *AuthUser     `json:"user"`
+	Tenant   *AuthTenant   `json:"tenant"`
+	Provider *AuthProvider `json:"provider"`
+	Client   *AuthClient   `json:"client"`
+}
+
+type AuthUser struct {
+	UserID   int64      `json:"user_id"`
+	UserUUID uuid.UUID  `json:"user_uuid"`
+	Roles    []AuthRole `json:"roles,omitempty"`
+}
+
+type AuthRole struct {
+	RoleID      int64            `json:"role_id"`
+	RoleUUID    uuid.UUID        `json:"role_uuid"`
+	Name        string           `json:"name"`
+	Permissions []AuthPermission `json:"permissions,omitempty"`
+}
+
+type AuthPermission struct {
+	PermissionID   int64     `json:"permission_id"`
+	PermissionUUID uuid.UUID `json:"permission_uuid"`
+	Name           string    `json:"name"`
+}
+
+type AuthTenant struct {
+	TenantID   int64     `json:"tenant_id"`
+	TenantUUID uuid.UUID `json:"tenant_uuid"`
+}
+
+type AuthProvider struct {
+	IdentityProviderID   int64     `json:"identity_provider_id"`
+	IdentityProviderUUID uuid.UUID `json:"identity_provider_uuid"`
+}
+
+type AuthClient struct {
+	ClientID   int64     `json:"client_id"`
+	ClientUUID uuid.UUID `json:"client_uuid"`
+	Identifier *string   `json:"identifier,omitempty"`
 }
 
 // Cache provides typed helpers around a Redis client for user-context

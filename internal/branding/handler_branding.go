@@ -4,19 +4,17 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/maintainerd/auth/internal/dto"
 	"github.com/maintainerd/auth/internal/platform/middleware"
 	resp "github.com/maintainerd/auth/internal/platform/response"
-	"github.com/maintainerd/auth/internal/service"
 )
 
 // BrandingHandler handles tenant branding configuration endpoints.
 type BrandingHandler struct {
-	brandingService service.BrandingService
+	brandingService BrandingService
 }
 
 // NewBrandingHandler creates a new BrandingHandler.
-func NewBrandingHandler(brandingService service.BrandingService) *BrandingHandler {
+func NewBrandingHandler(brandingService BrandingService) *BrandingHandler {
 	return &BrandingHandler{brandingService: brandingService}
 }
 
@@ -49,7 +47,7 @@ func (h *BrandingHandler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var req dto.BrandingUpdateRequestDTO
+	var req BrandingUpdateRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		resp.Error(w, http.StatusBadRequest, "Invalid request")
 		return
@@ -75,8 +73,8 @@ func (h *BrandingHandler) Update(w http.ResponseWriter, r *http.Request) {
 	resp.Success(w, toBrandingResponseDTO(result), "Branding updated successfully")
 }
 
-func toBrandingResponseDTO(b *service.BrandingServiceDataResult) dto.BrandingResponseDTO {
-	return dto.BrandingResponseDTO{
+func toBrandingResponseDTO(b *BrandingServiceDataResult) BrandingResponseDTO {
+	return BrandingResponseDTO{
 		BrandingID:        b.BrandingUUID.String(),
 		CompanyName:       b.CompanyName,
 		LogoURL:           b.LogoURL,

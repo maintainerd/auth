@@ -4,22 +4,20 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/maintainerd/auth/internal/dto"
 	"github.com/maintainerd/auth/internal/platform/middleware"
 	resp "github.com/maintainerd/auth/internal/platform/response"
-	"github.com/maintainerd/auth/internal/service"
 )
 
 type UserSettingHandler struct {
-	userSettingService service.UserSettingService
+	userSettingService UserSettingService
 }
 
-func NewUserSettingHandler(userSettingService service.UserSettingService) *UserSettingHandler {
+func NewUserSettingHandler(userSettingService UserSettingService) *UserSettingHandler {
 	return &UserSettingHandler{userSettingService}
 }
 
 func (h *UserSettingHandler) CreateOrUpdate(w http.ResponseWriter, r *http.Request) {
-	var req dto.UserSettingRequestDTO
+	var req UserSettingRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		resp.Error(w, http.StatusBadRequest, "Invalid request")
 		return
@@ -92,7 +90,7 @@ func (h *UserSettingHandler) Delete(w http.ResponseWriter, r *http.Request) {
 }
 
 // Convert service result to DTO
-func toUserSettingResponseDTO(us service.UserSettingServiceDataResult) dto.UserSettingResponseDTO {
+func toUserSettingResponseDTO(us UserSettingServiceDataResult) UserSettingResponseDTO {
 	// Convert GORM JSON to map for social links
 	var socialLinks map[string]any
 	if len(us.SocialLinks) > 0 {
@@ -101,7 +99,7 @@ func toUserSettingResponseDTO(us service.UserSettingServiceDataResult) dto.UserS
 		}
 	}
 
-	return dto.UserSettingResponseDTO{
+	return UserSettingResponseDTO{
 		UserSettingUUID: us.UserSettingUUID.String(),
 
 		// Internationalization

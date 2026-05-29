@@ -4,14 +4,12 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/maintainerd/auth/internal/platform/cache"
 	"github.com/maintainerd/auth/internal/platform/middleware"
-	"github.com/maintainerd/auth/internal/rest/handler"
-	"github.com/maintainerd/auth/internal/service"
 )
 
 func PolicyRoute(
 	r chi.Router,
-	policyHandler *handler.PolicyHandler,
-	userService service.UserService,
+	policyHandler *PolicyHandler,
+	userService UserService,
 	appCache *cache.Cache,
 ) {
 	r.Route("/policies", func(r chi.Router) {

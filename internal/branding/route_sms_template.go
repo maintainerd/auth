@@ -4,14 +4,12 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/maintainerd/auth/internal/platform/cache"
 	"github.com/maintainerd/auth/internal/platform/middleware"
-	"github.com/maintainerd/auth/internal/rest/handler"
-	"github.com/maintainerd/auth/internal/service"
 )
 
 func SMSTemplateRoute(
 	r chi.Router,
-	smsTemplateHandler *handler.SMSTemplateHandler,
-	userService service.UserService,
+	smsTemplateHandler *SMSTemplateHandler,
+	userService UserService,
 	appCache *cache.Cache,
 ) {
 	r.Route("/sms_templates", func(r chi.Router) {

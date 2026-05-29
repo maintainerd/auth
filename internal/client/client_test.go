@@ -6,9 +6,7 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
-	"github.com/maintainerd/auth/internal/model"
 	"github.com/maintainerd/auth/internal/platform/crypto"
-	"github.com/maintainerd/auth/internal/repository"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -40,25 +38,25 @@ func buildFullClientService(
 	return NewClientService(db, clientRepo, clientURIRepo, idpRepo, permRepo, cpRepo, caRepo, apiRepo, userRepo, tenantRepo, authEventSvc)
 }
 
-func clientWithIDP(tenantID int64) *model.Client {
-	return &model.Client{
+func clientWithIDP(tenantID int64) *Client {
+	return &Client{
 		ClientID:   1,
 		ClientUUID: uuid.New(),
 		Name:       "test",
 		TenantID:   tenantID,
-		Status:     model.StatusActive,
-		IdentityProvider: &model.IdentityProvider{
+		Status:     StatusActive,
+		IdentityProvider: &IdentityProvider{
 			TenantID: tenantID,
-			Tenant:   &model.Tenant{TenantID: tenantID, IsSystem: true},
+			Tenant:   &Tenant{TenantID: tenantID, IsSystem: true},
 		},
 	}
 }
 
-func actorUser(tenantID int64) *model.User {
-	return &model.User{
+func actorUser(tenantID int64) *User {
+	return &User{
 		UserID: 1,
-		UserIdentities: []model.UserIdentity{
-			{TenantID: tenantID, Tenant: &model.Tenant{TenantID: tenantID, IsSystem: true}},
+		UserIdentities: []UserIdentity{
+			{TenantID: tenantID, Tenant: &Tenant{TenantID: tenantID, IsSystem: true}},
 		},
 	}
 }
@@ -72,7 +70,7 @@ func TestClientService_Get(t *testing.T) {
 
 	t.Run("idp not found - returns empty result", func(t *testing.T) {
 		idpRepo := &mockIdentityProviderRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.IdentityProvider, error) { return nil, nil },
+			findByUUIDFn: func(_ any, _ ...string) (*IdentityProvider, error) { return nil, nil },
 		}
 		svc := buildClientService(t, &mockClientRepo{}, idpRepo, &mockUserRepo{})
 		res, err := svc.Get(context.Background(), ClientServiceGetFilter{IdentityProviderUUID: &idpUUID, TenantID: 1})
@@ -83,7 +81,7 @@ func TestClientService_Get(t *testing.T) {
 
 	t.Run("paginate error", func(t *testing.T) {
 		clientRepo := &mockClientRepo{
-			findPaginatedFn: func(_ repository.ClientRepositoryGetFilter) (*repository.PaginationResult[model.Client], error) {
+			findPaginatedFn: func(_ ClientRepositoryGetFilter) (*PaginationResult[Client], error) {
 				return nil, errors.New("db error")
 			},
 		}
@@ -101,18 +99,18 @@ func TestClientService_Get(t *testing.T) {
 
 	t.Run("success with data and IDP preloaded", func(t *testing.T) {
 		c := clientWithIDP(1)
-		uris := []model.ClientURI{{ClientURIUUID: uuid.New(), URI: "https://cb.example.com", Type: "redirect"}}
+		uris := []ClientURI{{ClientURIUUID: uuid.New(), URI: "https://cb.example.com", Type: "redirect"}}
 		c.ClientURIs = &uris
 		clientRepo := &mockClientRepo{
-			findPaginatedFn: func(_ repository.ClientRepositoryGetFilter) (*repository.PaginationResult[model.Client], error) {
-				return &repository.PaginationResult[model.Client]{
-					Data: []model.Client{*c}, Total: 1, Page: 1, Limit: 10, TotalPages: 1,
+			findPaginatedFn: func(_ ClientRepositoryGetFilter) (*PaginationResult[Client], error) {
+				return &PaginationResult[Client]{
+					Data: []Client{*c}, Total: 1, Page: 1, Limit: 10, TotalPages: 1,
 				}, nil
 			},
 		}
 		idpRepo := &mockIdentityProviderRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.IdentityProvider, error) {
-				return &model.IdentityProvider{IdentityProviderID: 1}, nil
+			findByUUIDFn: func(_ any, _ ...string) (*IdentityProvider, error) {
+				return &IdentityProvider{IdentityProviderID: 1}, nil
 			},
 		}
 		svc := buildClientService(t, clientRepo, idpRepo, &mockUserRepo{})
@@ -140,7 +138,7 @@ func TestClientService_GetByUUID(t *testing.T) {
 
 	t.Run("repo error returns error", func(t *testing.T) {
 		clientRepo := &mockClientRepo{
-			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*model.Client, error) {
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*Client, error) {
 				return nil, errors.New("db error")
 			},
 		}
@@ -151,8 +149,8 @@ func TestClientService_GetByUUID(t *testing.T) {
 
 	t.Run("success", func(t *testing.T) {
 		clientRepo := &mockClientRepo{
-			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*model.Client, error) {
-				return &model.Client{ClientUUID: cUUID}, nil
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*Client, error) {
+				return &Client{ClientUUID: cUUID}, nil
 			},
 		}
 		svc := buildClientService(t, clientRepo, &mockIdentityProviderRepo{}, &mockUserRepo{})
@@ -177,7 +175,7 @@ func TestClientService_GetSecretByUUID(t *testing.T) {
 
 	t.Run("repo error → propagated", func(t *testing.T) {
 		clientRepo := &mockClientRepo{
-			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*model.Client, error) {
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*Client, error) {
 				return nil, errors.New("db err")
 			},
 		}
@@ -190,8 +188,8 @@ func TestClientService_GetSecretByUUID(t *testing.T) {
 		id := "client-id"
 		secret := "client-secret"
 		clientRepo := &mockClientRepo{
-			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*model.Client, error) {
-				return &model.Client{Identifier: &id, SecretHash: &secret}, nil
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*Client, error) {
+				return &Client{Identifier: &id, SecretHash: &secret}, nil
 			},
 		}
 		svc := buildClientService(t, clientRepo, &mockIdentityProviderRepo{}, &mockUserRepo{})
@@ -216,7 +214,7 @@ func TestClientService_GetConfigByUUID(t *testing.T) {
 
 	t.Run("repo error → propagated", func(t *testing.T) {
 		clientRepo := &mockClientRepo{
-			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*model.Client, error) {
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*Client, error) {
 				return nil, errors.New("db err")
 			},
 		}
@@ -227,8 +225,8 @@ func TestClientService_GetConfigByUUID(t *testing.T) {
 
 	t.Run("success", func(t *testing.T) {
 		clientRepo := &mockClientRepo{
-			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*model.Client, error) {
-				return &model.Client{Config: []byte(`{"key":"value"}`)}, nil
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*Client, error) {
+				return &Client{Config: []byte(`{"key":"value"}`)}, nil
 			},
 		}
 		svc := buildClientService(t, clientRepo, &mockIdentityProviderRepo{}, &mockUserRepo{})
@@ -263,7 +261,7 @@ func TestClientService_Create(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		idpRepo := &mockIdentityProviderRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.IdentityProvider, error) { return nil, nil },
+			findByUUIDFn: func(_ any, _ ...string) (*IdentityProvider, error) { return nil, nil },
 		}
 		svc := NewClientService(gormDB, &mockClientRepo{}, &mockClientURIRepo{}, idpRepo,
 			&mockPermissionRepo{}, &mockClientPermissionRepo{}, &mockClientAPIRepo{},
@@ -278,12 +276,12 @@ func TestClientService_Create(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		idpRepo := &mockIdentityProviderRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.IdentityProvider, error) {
-				return &model.IdentityProvider{IdentityProviderID: 1, Tenant: &model.Tenant{TenantID: tenantID, IsSystem: true}}, nil
+			findByUUIDFn: func(_ any, _ ...string) (*IdentityProvider, error) {
+				return &IdentityProvider{IdentityProviderID: 1, Tenant: &Tenant{TenantID: tenantID, IsSystem: true}}, nil
 			},
 		}
 		userRepo := &mockUserRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.User, error) { return nil, nil },
+			findByUUIDFn: func(_ any, _ ...string) (*User, error) { return nil, nil },
 		}
 		svc := NewClientService(gormDB, &mockClientRepo{}, &mockClientURIRepo{}, idpRepo,
 			&mockPermissionRepo{}, &mockClientPermissionRepo{}, &mockClientAPIRepo{},
@@ -298,14 +296,14 @@ func TestClientService_Create(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		idpRepo := &mockIdentityProviderRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.IdentityProvider, error) {
-				return &model.IdentityProvider{IdentityProviderID: 1, Tenant: &model.Tenant{TenantID: tenantID, IsSystem: false}}, nil
+			findByUUIDFn: func(_ any, _ ...string) (*IdentityProvider, error) {
+				return &IdentityProvider{IdentityProviderID: 1, Tenant: &Tenant{TenantID: tenantID, IsSystem: false}}, nil
 			},
 		}
 		userRepo := &mockUserRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.User, error) {
-				return &model.User{UserID: 1, UserIdentities: []model.UserIdentity{
-					{TenantID: 999, Tenant: &model.Tenant{TenantID: 999, IsSystem: false}},
+			findByUUIDFn: func(_ any, _ ...string) (*User, error) {
+				return &User{UserID: 1, UserIdentities: []UserIdentity{
+					{TenantID: 999, Tenant: &Tenant{TenantID: 999, IsSystem: false}},
 				}}, nil
 			},
 		}
@@ -322,16 +320,16 @@ func TestClientService_Create(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		idpRepo := &mockIdentityProviderRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.IdentityProvider, error) {
-				return &model.IdentityProvider{IdentityProviderID: 1, Tenant: &model.Tenant{TenantID: tenantID, IsSystem: true}}, nil
+			findByUUIDFn: func(_ any, _ ...string) (*IdentityProvider, error) {
+				return &IdentityProvider{IdentityProviderID: 1, Tenant: &Tenant{TenantID: tenantID, IsSystem: true}}, nil
 			},
 		}
 		userRepo := &mockUserRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.User, error) { return actorUser(tenantID), nil },
+			findByUUIDFn: func(_ any, _ ...string) (*User, error) { return actorUser(tenantID), nil },
 		}
 		clientRepo := &mockClientRepo{
-			findByNameAndIdentityProviderFn: func(_ string, _ int64, _ int64) (*model.Client, error) {
-				return &model.Client{}, nil
+			findByNameAndIdentityProviderFn: func(_ string, _ int64, _ int64) (*Client, error) {
+				return &Client{}, nil
 			},
 		}
 		svc := NewClientService(gormDB, clientRepo, &mockClientURIRepo{}, idpRepo,
@@ -347,15 +345,15 @@ func TestClientService_Create(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		idpRepo := &mockIdentityProviderRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.IdentityProvider, error) {
-				return &model.IdentityProvider{IdentityProviderID: 1, Tenant: &model.Tenant{TenantID: tenantID, IsSystem: true}}, nil
+			findByUUIDFn: func(_ any, _ ...string) (*IdentityProvider, error) {
+				return &IdentityProvider{IdentityProviderID: 1, Tenant: &Tenant{TenantID: tenantID, IsSystem: true}}, nil
 			},
 		}
 		userRepo := &mockUserRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.User, error) { return actorUser(tenantID), nil },
+			findByUUIDFn: func(_ any, _ ...string) (*User, error) { return actorUser(tenantID), nil },
 		}
 		clientRepo := &mockClientRepo{
-			findByNameAndIdentityProviderFn: func(_ string, _ int64, _ int64) (*model.Client, error) {
+			findByNameAndIdentityProviderFn: func(_ string, _ int64, _ int64) (*Client, error) {
 				return nil, errors.New("db err")
 			},
 		}
@@ -375,12 +373,12 @@ func TestClientService_Create(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		idpRepo := &mockIdentityProviderRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.IdentityProvider, error) {
-				return &model.IdentityProvider{IdentityProviderID: 1, Tenant: &model.Tenant{TenantID: tenantID, IsSystem: true}}, nil
+			findByUUIDFn: func(_ any, _ ...string) (*IdentityProvider, error) {
+				return &IdentityProvider{IdentityProviderID: 1, Tenant: &Tenant{TenantID: tenantID, IsSystem: true}}, nil
 			},
 		}
 		userRepo := &mockUserRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.User, error) { return actorUser(tenantID), nil },
+			findByUUIDFn: func(_ any, _ ...string) (*User, error) { return actorUser(tenantID), nil },
 		}
 		svc := NewClientService(gormDB, &mockClientRepo{}, &mockClientURIRepo{}, idpRepo,
 			&mockPermissionRepo{}, &mockClientPermissionRepo{}, &mockClientAPIRepo{},
@@ -406,12 +404,12 @@ func TestClientService_Create(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		idpRepo := &mockIdentityProviderRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.IdentityProvider, error) {
-				return &model.IdentityProvider{IdentityProviderID: 1, Tenant: &model.Tenant{TenantID: tenantID, IsSystem: true}}, nil
+			findByUUIDFn: func(_ any, _ ...string) (*IdentityProvider, error) {
+				return &IdentityProvider{IdentityProviderID: 1, Tenant: &Tenant{TenantID: tenantID, IsSystem: true}}, nil
 			},
 		}
 		userRepo := &mockUserRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.User, error) { return actorUser(tenantID), nil },
+			findByUUIDFn: func(_ any, _ ...string) (*User, error) { return actorUser(tenantID), nil },
 		}
 		svc := NewClientService(gormDB, &mockClientRepo{}, &mockClientURIRepo{}, idpRepo,
 			&mockPermissionRepo{}, &mockClientPermissionRepo{}, &mockClientAPIRepo{},
@@ -426,15 +424,15 @@ func TestClientService_Create(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		idpRepo := &mockIdentityProviderRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.IdentityProvider, error) {
-				return &model.IdentityProvider{IdentityProviderID: 1, Tenant: &model.Tenant{TenantID: tenantID, IsSystem: true}}, nil
+			findByUUIDFn: func(_ any, _ ...string) (*IdentityProvider, error) {
+				return &IdentityProvider{IdentityProviderID: 1, Tenant: &Tenant{TenantID: tenantID, IsSystem: true}}, nil
 			},
 		}
 		userRepo := &mockUserRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.User, error) { return actorUser(tenantID), nil },
+			findByUUIDFn: func(_ any, _ ...string) (*User, error) { return actorUser(tenantID), nil },
 		}
 		clientRepo := &mockClientRepo{
-			createOrUpdateFn: func(_ *model.Client) (*model.Client, error) { return nil, errors.New("save err") },
+			createOrUpdateFn: func(_ *Client) (*Client, error) { return nil, errors.New("save err") },
 		}
 		svc := NewClientService(gormDB, clientRepo, &mockClientURIRepo{}, idpRepo,
 			&mockPermissionRepo{}, &mockClientPermissionRepo{}, &mockClientAPIRepo{},
@@ -448,15 +446,15 @@ func TestClientService_Create(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		idpRepo := &mockIdentityProviderRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.IdentityProvider, error) {
-				return &model.IdentityProvider{IdentityProviderID: 1, Tenant: &model.Tenant{TenantID: tenantID, IsSystem: true}}, nil
+			findByUUIDFn: func(_ any, _ ...string) (*IdentityProvider, error) {
+				return &IdentityProvider{IdentityProviderID: 1, Tenant: &Tenant{TenantID: tenantID, IsSystem: true}}, nil
 			},
 		}
 		userRepo := &mockUserRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.User, error) { return actorUser(tenantID), nil },
+			findByUUIDFn: func(_ any, _ ...string) (*User, error) { return actorUser(tenantID), nil },
 		}
 		clientRepo := &mockClientRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.Client, error) { return nil, errors.New("fetch err") },
+			findByUUIDFn: func(_ any, _ ...string) (*Client, error) { return nil, errors.New("fetch err") },
 		}
 		svc := NewClientService(gormDB, clientRepo, &mockClientURIRepo{}, idpRepo,
 			&mockPermissionRepo{}, &mockClientPermissionRepo{}, &mockClientAPIRepo{},
@@ -470,16 +468,16 @@ func TestClientService_Create(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectCommit()
 		idpRepo := &mockIdentityProviderRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.IdentityProvider, error) {
-				return &model.IdentityProvider{IdentityProviderID: 1, Tenant: &model.Tenant{TenantID: tenantID, IsSystem: true}}, nil
+			findByUUIDFn: func(_ any, _ ...string) (*IdentityProvider, error) {
+				return &IdentityProvider{IdentityProviderID: 1, Tenant: &Tenant{TenantID: tenantID, IsSystem: true}}, nil
 			},
 		}
 		userRepo := &mockUserRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.User, error) { return actorUser(tenantID), nil },
+			findByUUIDFn: func(_ any, _ ...string) (*User, error) { return actorUser(tenantID), nil },
 		}
 		created := clientWithIDP(tenantID)
 		clientRepo := &mockClientRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.Client, error) { return created, nil },
+			findByUUIDFn: func(_ any, _ ...string) (*Client, error) { return created, nil },
 		}
 		svc := NewClientService(gormDB, clientRepo, &mockClientURIRepo{}, idpRepo,
 			&mockPermissionRepo{}, &mockClientPermissionRepo{}, &mockClientAPIRepo{},
@@ -504,7 +502,7 @@ func TestClientService_Update(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		clientRepo := &mockClientRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.Client, error) { return nil, nil },
+			findByUUIDFn: func(_ any, _ ...string) (*Client, error) { return nil, nil },
 		}
 		svc := NewClientService(gormDB, clientRepo, &mockClientURIRepo{}, &mockIdentityProviderRepo{},
 			&mockPermissionRepo{}, &mockClientPermissionRepo{}, &mockClientAPIRepo{},
@@ -519,10 +517,10 @@ func TestClientService_Update(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		clientRepo := &mockClientRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.Client, error) { return clientWithIDP(tenantID), nil },
+			findByUUIDFn: func(_ any, _ ...string) (*Client, error) { return clientWithIDP(tenantID), nil },
 		}
 		userRepo := &mockUserRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.User, error) { return nil, nil },
+			findByUUIDFn: func(_ any, _ ...string) (*User, error) { return nil, nil },
 		}
 		svc := NewClientService(gormDB, clientRepo, &mockClientURIRepo{}, &mockIdentityProviderRepo{},
 			&mockPermissionRepo{}, &mockClientPermissionRepo{}, &mockClientAPIRepo{},
@@ -539,10 +537,10 @@ func TestClientService_Update(t *testing.T) {
 		c := clientWithIDP(tenantID)
 		c.IsDefault = true
 		clientRepo := &mockClientRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.Client, error) { return c, nil },
+			findByUUIDFn: func(_ any, _ ...string) (*Client, error) { return c, nil },
 		}
 		userRepo := &mockUserRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.User, error) { return actorUser(tenantID), nil },
+			findByUUIDFn: func(_ any, _ ...string) (*User, error) { return actorUser(tenantID), nil },
 		}
 		svc := NewClientService(gormDB, clientRepo, &mockClientURIRepo{}, &mockIdentityProviderRepo{},
 			&mockPermissionRepo{}, &mockClientPermissionRepo{}, &mockClientAPIRepo{},
@@ -559,15 +557,15 @@ func TestClientService_Update(t *testing.T) {
 		c := clientWithIDP(tenantID)
 		c.Name = "old-name"
 		clientRepo := &mockClientRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.Client, error) { return c, nil },
-			findByNameAndIdentityProviderFn: func(_ string, _ int64, _ int64) (*model.Client, error) {
+			findByUUIDFn: func(_ any, _ ...string) (*Client, error) { return c, nil },
+			findByNameAndIdentityProviderFn: func(_ string, _ int64, _ int64) (*Client, error) {
 				other := clientWithIDP(tenantID)
 				other.ClientUUID = uuid.New()
 				return other, nil
 			},
 		}
 		userRepo := &mockUserRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.User, error) { return actorUser(tenantID), nil },
+			findByUUIDFn: func(_ any, _ ...string) (*User, error) { return actorUser(tenantID), nil },
 		}
 		svc := NewClientService(gormDB, clientRepo, &mockClientURIRepo{}, &mockIdentityProviderRepo{},
 			&mockPermissionRepo{}, &mockClientPermissionRepo{}, &mockClientAPIRepo{},
@@ -583,11 +581,11 @@ func TestClientService_Update(t *testing.T) {
 		mock.ExpectRollback()
 		c := clientWithIDP(tenantID)
 		clientRepo := &mockClientRepo{
-			findByUUIDFn:     func(_ any, _ ...string) (*model.Client, error) { return c, nil },
-			createOrUpdateFn: func(_ *model.Client) (*model.Client, error) { return nil, errors.New("save err") },
+			findByUUIDFn:     func(_ any, _ ...string) (*Client, error) { return c, nil },
+			createOrUpdateFn: func(_ *Client) (*Client, error) { return nil, errors.New("save err") },
 		}
 		userRepo := &mockUserRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.User, error) { return actorUser(tenantID), nil },
+			findByUUIDFn: func(_ any, _ ...string) (*User, error) { return actorUser(tenantID), nil },
 		}
 		svc := NewClientService(gormDB, clientRepo, &mockClientURIRepo{}, &mockIdentityProviderRepo{},
 			&mockPermissionRepo{}, &mockClientPermissionRepo{}, &mockClientAPIRepo{},
@@ -602,10 +600,10 @@ func TestClientService_Update(t *testing.T) {
 		mock.ExpectCommit()
 		c := clientWithIDP(tenantID)
 		clientRepo := &mockClientRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.Client, error) { return c, nil },
+			findByUUIDFn: func(_ any, _ ...string) (*Client, error) { return c, nil },
 		}
 		userRepo := &mockUserRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.User, error) { return actorUser(tenantID), nil },
+			findByUUIDFn: func(_ any, _ ...string) (*User, error) { return actorUser(tenantID), nil },
 		}
 		svc := NewClientService(gormDB, clientRepo, &mockClientURIRepo{}, &mockIdentityProviderRepo{},
 			&mockPermissionRepo{}, &mockClientPermissionRepo{}, &mockClientAPIRepo{},
@@ -630,7 +628,7 @@ func TestClientService_SetStatusByUUID(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		clientRepo := &mockClientRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.Client, error) { return nil, nil },
+			findByUUIDFn: func(_ any, _ ...string) (*Client, error) { return nil, nil },
 		}
 		svc := NewClientService(gormDB, clientRepo, &mockClientURIRepo{}, &mockIdentityProviderRepo{},
 			&mockPermissionRepo{}, &mockClientPermissionRepo{}, &mockClientAPIRepo{},
@@ -644,10 +642,10 @@ func TestClientService_SetStatusByUUID(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		clientRepo := &mockClientRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.Client, error) { return clientWithIDP(tenantID), nil },
+			findByUUIDFn: func(_ any, _ ...string) (*Client, error) { return clientWithIDP(tenantID), nil },
 		}
 		userRepo := &mockUserRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.User, error) { return nil, nil },
+			findByUUIDFn: func(_ any, _ ...string) (*User, error) { return nil, nil },
 		}
 		svc := NewClientService(gormDB, clientRepo, &mockClientURIRepo{}, &mockIdentityProviderRepo{},
 			&mockPermissionRepo{}, &mockClientPermissionRepo{}, &mockClientAPIRepo{},
@@ -663,10 +661,10 @@ func TestClientService_SetStatusByUUID(t *testing.T) {
 		c := clientWithIDP(tenantID)
 		c.IsDefault = true
 		clientRepo := &mockClientRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.Client, error) { return c, nil },
+			findByUUIDFn: func(_ any, _ ...string) (*Client, error) { return c, nil },
 		}
 		userRepo := &mockUserRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.User, error) { return actorUser(tenantID), nil },
+			findByUUIDFn: func(_ any, _ ...string) (*User, error) { return actorUser(tenantID), nil },
 		}
 		svc := NewClientService(gormDB, clientRepo, &mockClientURIRepo{}, &mockIdentityProviderRepo{},
 			&mockPermissionRepo{}, &mockClientPermissionRepo{}, &mockClientAPIRepo{},
@@ -683,10 +681,10 @@ func TestClientService_SetStatusByUUID(t *testing.T) {
 		c := clientWithIDP(tenantID)
 		c.IsSystem = true
 		clientRepo := &mockClientRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.Client, error) { return c, nil },
+			findByUUIDFn: func(_ any, _ ...string) (*Client, error) { return c, nil },
 		}
 		userRepo := &mockUserRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.User, error) { return actorUser(tenantID), nil },
+			findByUUIDFn: func(_ any, _ ...string) (*User, error) { return actorUser(tenantID), nil },
 		}
 		svc := NewClientService(gormDB, clientRepo, &mockClientURIRepo{}, &mockIdentityProviderRepo{},
 			&mockPermissionRepo{}, &mockClientPermissionRepo{}, &mockClientAPIRepo{},
@@ -701,11 +699,11 @@ func TestClientService_SetStatusByUUID(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		clientRepo := &mockClientRepo{
-			findByUUIDFn:     func(_ any, _ ...string) (*model.Client, error) { return clientWithIDP(tenantID), nil },
-			createOrUpdateFn: func(_ *model.Client) (*model.Client, error) { return nil, errors.New("save err") },
+			findByUUIDFn:     func(_ any, _ ...string) (*Client, error) { return clientWithIDP(tenantID), nil },
+			createOrUpdateFn: func(_ *Client) (*Client, error) { return nil, errors.New("save err") },
 		}
 		userRepo := &mockUserRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.User, error) { return actorUser(tenantID), nil },
+			findByUUIDFn: func(_ any, _ ...string) (*User, error) { return actorUser(tenantID), nil },
 		}
 		svc := NewClientService(gormDB, clientRepo, &mockClientURIRepo{}, &mockIdentityProviderRepo{},
 			&mockPermissionRepo{}, &mockClientPermissionRepo{}, &mockClientAPIRepo{},
@@ -719,10 +717,10 @@ func TestClientService_SetStatusByUUID(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectCommit()
 		clientRepo := &mockClientRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.Client, error) { return clientWithIDP(tenantID), nil },
+			findByUUIDFn: func(_ any, _ ...string) (*Client, error) { return clientWithIDP(tenantID), nil },
 		}
 		userRepo := &mockUserRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.User, error) { return actorUser(tenantID), nil },
+			findByUUIDFn: func(_ any, _ ...string) (*User, error) { return actorUser(tenantID), nil },
 		}
 		svc := NewClientService(gormDB, clientRepo, &mockClientURIRepo{}, &mockIdentityProviderRepo{},
 			&mockPermissionRepo{}, &mockClientPermissionRepo{}, &mockClientAPIRepo{},
@@ -747,7 +745,7 @@ func TestClientService_DeleteByUUID(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		clientRepo := &mockClientRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.Client, error) { return nil, nil },
+			findByUUIDFn: func(_ any, _ ...string) (*Client, error) { return nil, nil },
 		}
 		svc := NewClientService(gormDB, clientRepo, &mockClientURIRepo{}, &mockIdentityProviderRepo{},
 			&mockPermissionRepo{}, &mockClientPermissionRepo{}, &mockClientAPIRepo{},
@@ -761,10 +759,10 @@ func TestClientService_DeleteByUUID(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		clientRepo := &mockClientRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.Client, error) { return clientWithIDP(tenantID), nil },
+			findByUUIDFn: func(_ any, _ ...string) (*Client, error) { return clientWithIDP(tenantID), nil },
 		}
 		userRepo := &mockUserRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.User, error) { return nil, nil },
+			findByUUIDFn: func(_ any, _ ...string) (*User, error) { return nil, nil },
 		}
 		svc := NewClientService(gormDB, clientRepo, &mockClientURIRepo{}, &mockIdentityProviderRepo{},
 			&mockPermissionRepo{}, &mockClientPermissionRepo{}, &mockClientAPIRepo{},
@@ -780,10 +778,10 @@ func TestClientService_DeleteByUUID(t *testing.T) {
 		c := clientWithIDP(tenantID)
 		c.IsDefault = true
 		clientRepo := &mockClientRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.Client, error) { return c, nil },
+			findByUUIDFn: func(_ any, _ ...string) (*Client, error) { return c, nil },
 		}
 		userRepo := &mockUserRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.User, error) { return actorUser(tenantID), nil },
+			findByUUIDFn: func(_ any, _ ...string) (*User, error) { return actorUser(tenantID), nil },
 		}
 		svc := NewClientService(gormDB, clientRepo, &mockClientURIRepo{}, &mockIdentityProviderRepo{},
 			&mockPermissionRepo{}, &mockClientPermissionRepo{}, &mockClientAPIRepo{},
@@ -798,11 +796,11 @@ func TestClientService_DeleteByUUID(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		clientRepo := &mockClientRepo{
-			findByUUIDFn:   func(_ any, _ ...string) (*model.Client, error) { return clientWithIDP(tenantID), nil },
+			findByUUIDFn:   func(_ any, _ ...string) (*Client, error) { return clientWithIDP(tenantID), nil },
 			deleteByUUIDFn: func(_ any) error { return errors.New("del err") },
 		}
 		userRepo := &mockUserRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.User, error) { return actorUser(tenantID), nil },
+			findByUUIDFn: func(_ any, _ ...string) (*User, error) { return actorUser(tenantID), nil },
 		}
 		svc := NewClientService(gormDB, clientRepo, &mockClientURIRepo{}, &mockIdentityProviderRepo{},
 			&mockPermissionRepo{}, &mockClientPermissionRepo{}, &mockClientAPIRepo{},
@@ -816,10 +814,10 @@ func TestClientService_DeleteByUUID(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectCommit()
 		clientRepo := &mockClientRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.Client, error) { return clientWithIDP(tenantID), nil },
+			findByUUIDFn: func(_ any, _ ...string) (*Client, error) { return clientWithIDP(tenantID), nil },
 		}
 		userRepo := &mockUserRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.User, error) { return actorUser(tenantID), nil },
+			findByUUIDFn: func(_ any, _ ...string) (*User, error) { return actorUser(tenantID), nil },
 		}
 		svc := NewClientService(gormDB, clientRepo, &mockClientURIRepo{}, &mockIdentityProviderRepo{},
 			&mockPermissionRepo{}, &mockClientPermissionRepo{}, &mockClientAPIRepo{},
@@ -855,12 +853,12 @@ func TestClientService_CreateURI(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		clientRepo := &mockClientRepo{
-			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*model.Client, error) {
-				return &model.Client{ClientID: 1, TenantID: tenantID}, nil
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*Client, error) {
+				return &Client{ClientID: 1, TenantID: tenantID}, nil
 			},
 		}
 		userRepo := &mockUserRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.User, error) { return nil, nil },
+			findByUUIDFn: func(_ any, _ ...string) (*User, error) { return nil, nil },
 		}
 		svc := NewClientService(gormDB, clientRepo, &mockClientURIRepo{}, &mockIdentityProviderRepo{},
 			&mockPermissionRepo{}, &mockClientPermissionRepo{}, &mockClientAPIRepo{},
@@ -874,12 +872,12 @@ func TestClientService_CreateURI(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		clientRepo := &mockClientRepo{
-			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*model.Client, error) {
-				return &model.Client{ClientID: 1, TenantID: 999}, nil
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*Client, error) {
+				return &Client{ClientID: 1, TenantID: 999}, nil
 			},
 		}
 		userRepo := &mockUserRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.User, error) { return actorUser(tenantID), nil },
+			findByUUIDFn: func(_ any, _ ...string) (*User, error) { return actorUser(tenantID), nil },
 		}
 		svc := NewClientService(gormDB, clientRepo, &mockClientURIRepo{}, &mockIdentityProviderRepo{},
 			&mockPermissionRepo{}, &mockClientPermissionRepo{}, &mockClientAPIRepo{},
@@ -894,12 +892,12 @@ func TestClientService_CreateURI(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectCommit()
 		clientRepo := &mockClientRepo{
-			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*model.Client, error) {
-				return &model.Client{ClientID: 1, TenantID: tenantID}, nil
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*Client, error) {
+				return &Client{ClientID: 1, TenantID: tenantID}, nil
 			},
 		}
 		userRepo := &mockUserRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.User, error) { return actorUser(tenantID), nil },
+			findByUUIDFn: func(_ any, _ ...string) (*User, error) { return actorUser(tenantID), nil },
 		}
 		svc := NewClientService(gormDB, clientRepo, &mockClientURIRepo{}, &mockIdentityProviderRepo{},
 			&mockPermissionRepo{}, &mockClientPermissionRepo{}, &mockClientAPIRepo{},
@@ -932,12 +930,12 @@ func TestClientService_UpdateURI(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		clientRepo := &mockClientRepo{
-			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*model.Client, error) {
-				return &model.Client{ClientID: 1, TenantID: tenantID}, nil
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*Client, error) {
+				return &Client{ClientID: 1, TenantID: tenantID}, nil
 			},
 		}
 		userRepo := &mockUserRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.User, error) { return nil, nil },
+			findByUUIDFn: func(_ any, _ ...string) (*User, error) { return nil, nil },
 		}
 		svc := NewClientService(gormDB, clientRepo, &mockClientURIRepo{}, &mockIdentityProviderRepo{},
 			&mockPermissionRepo{}, &mockClientPermissionRepo{}, &mockClientAPIRepo{},
@@ -951,15 +949,15 @@ func TestClientService_UpdateURI(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		clientRepo := &mockClientRepo{
-			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*model.Client, error) {
-				return &model.Client{ClientID: 1, TenantID: tenantID}, nil
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*Client, error) {
+				return &Client{ClientID: 1, TenantID: tenantID}, nil
 			},
 		}
 		userRepo := &mockUserRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.User, error) { return actorUser(tenantID), nil },
+			findByUUIDFn: func(_ any, _ ...string) (*User, error) { return actorUser(tenantID), nil },
 		}
 		uriRepo := &mockClientURIRepo{
-			findByUUIDAndTenantIDFn: func(_ string, _ int64) (*model.ClientURI, error) { return nil, nil },
+			findByUUIDAndTenantIDFn: func(_ string, _ int64) (*ClientURI, error) { return nil, nil },
 		}
 		svc := NewClientService(gormDB, clientRepo, uriRepo, &mockIdentityProviderRepo{},
 			&mockPermissionRepo{}, &mockClientPermissionRepo{}, &mockClientAPIRepo{},
@@ -974,16 +972,16 @@ func TestClientService_UpdateURI(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		clientRepo := &mockClientRepo{
-			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*model.Client, error) {
-				return &model.Client{ClientID: 1, TenantID: tenantID}, nil
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*Client, error) {
+				return &Client{ClientID: 1, TenantID: tenantID}, nil
 			},
 		}
 		userRepo := &mockUserRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.User, error) { return actorUser(tenantID), nil },
+			findByUUIDFn: func(_ any, _ ...string) (*User, error) { return actorUser(tenantID), nil },
 		}
 		uriRepo := &mockClientURIRepo{
-			findByUUIDAndTenantIDFn: func(_ string, _ int64) (*model.ClientURI, error) {
-				return &model.ClientURI{ClientID: 999}, nil // different client
+			findByUUIDAndTenantIDFn: func(_ string, _ int64) (*ClientURI, error) {
+				return &ClientURI{ClientID: 999}, nil // different client
 			},
 		}
 		svc := NewClientService(gormDB, clientRepo, uriRepo, &mockIdentityProviderRepo{},
@@ -999,16 +997,16 @@ func TestClientService_UpdateURI(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectCommit()
 		clientRepo := &mockClientRepo{
-			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*model.Client, error) {
-				return &model.Client{ClientID: 1, TenantID: tenantID}, nil
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*Client, error) {
+				return &Client{ClientID: 1, TenantID: tenantID}, nil
 			},
 		}
 		userRepo := &mockUserRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.User, error) { return actorUser(tenantID), nil },
+			findByUUIDFn: func(_ any, _ ...string) (*User, error) { return actorUser(tenantID), nil },
 		}
 		uriRepo := &mockClientURIRepo{
-			findByUUIDAndTenantIDFn: func(_ string, _ int64) (*model.ClientURI, error) {
-				return &model.ClientURI{ClientID: 1}, nil
+			findByUUIDAndTenantIDFn: func(_ string, _ int64) (*ClientURI, error) {
+				return &ClientURI{ClientID: 1}, nil
 			},
 		}
 		svc := NewClientService(gormDB, clientRepo, uriRepo, &mockIdentityProviderRepo{},
@@ -1042,12 +1040,12 @@ func TestClientService_DeleteURI(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		clientRepo := &mockClientRepo{
-			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*model.Client, error) {
-				return &model.Client{ClientID: 1, TenantID: tenantID}, nil
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*Client, error) {
+				return &Client{ClientID: 1, TenantID: tenantID}, nil
 			},
 		}
 		userRepo := &mockUserRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.User, error) { return nil, nil },
+			findByUUIDFn: func(_ any, _ ...string) (*User, error) { return nil, nil },
 		}
 		svc := NewClientService(gormDB, clientRepo, &mockClientURIRepo{}, &mockIdentityProviderRepo{},
 			&mockPermissionRepo{}, &mockClientPermissionRepo{}, &mockClientAPIRepo{},
@@ -1061,12 +1059,12 @@ func TestClientService_DeleteURI(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		clientRepo := &mockClientRepo{
-			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*model.Client, error) {
-				return &model.Client{ClientID: 1, TenantID: tenantID}, nil
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*Client, error) {
+				return &Client{ClientID: 1, TenantID: tenantID}, nil
 			},
 		}
 		userRepo := &mockUserRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.User, error) { return actorUser(tenantID), nil },
+			findByUUIDFn: func(_ any, _ ...string) (*User, error) { return actorUser(tenantID), nil },
 		}
 		svc := NewClientService(gormDB, clientRepo, &mockClientURIRepo{}, &mockIdentityProviderRepo{},
 			&mockPermissionRepo{}, &mockClientPermissionRepo{}, &mockClientAPIRepo{},
@@ -1080,16 +1078,16 @@ func TestClientService_DeleteURI(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		clientRepo := &mockClientRepo{
-			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*model.Client, error) {
-				return &model.Client{ClientID: 1, TenantID: tenantID}, nil
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*Client, error) {
+				return &Client{ClientID: 1, TenantID: tenantID}, nil
 			},
 		}
 		userRepo := &mockUserRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.User, error) { return actorUser(tenantID), nil },
+			findByUUIDFn: func(_ any, _ ...string) (*User, error) { return actorUser(tenantID), nil },
 		}
 		uriRepo := &mockClientURIRepo{
-			findByUUIDAndTenantIDFn: func(_ string, _ int64) (*model.ClientURI, error) {
-				return &model.ClientURI{ClientID: 999}, nil
+			findByUUIDAndTenantIDFn: func(_ string, _ int64) (*ClientURI, error) {
+				return &ClientURI{ClientID: 999}, nil
 			},
 		}
 		svc := NewClientService(gormDB, clientRepo, uriRepo, &mockIdentityProviderRepo{},
@@ -1104,16 +1102,16 @@ func TestClientService_DeleteURI(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectCommit()
 		clientRepo := &mockClientRepo{
-			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*model.Client, error) {
-				return &model.Client{ClientID: 1, TenantID: tenantID}, nil
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*Client, error) {
+				return &Client{ClientID: 1, TenantID: tenantID}, nil
 			},
 		}
 		userRepo := &mockUserRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.User, error) { return actorUser(tenantID), nil },
+			findByUUIDFn: func(_ any, _ ...string) (*User, error) { return actorUser(tenantID), nil },
 		}
 		uriRepo := &mockClientURIRepo{
-			findByUUIDAndTenantIDFn: func(_ string, _ int64) (*model.ClientURI, error) {
-				return &model.ClientURI{ClientID: 1}, nil
+			findByUUIDAndTenantIDFn: func(_ string, _ int64) (*ClientURI, error) {
+				return &ClientURI{ClientID: 1}, nil
 			},
 		}
 		svc := NewClientService(gormDB, clientRepo, uriRepo, &mockIdentityProviderRepo{},
@@ -1134,7 +1132,7 @@ func TestClientService_GetClientAPIs(t *testing.T) {
 
 	t.Run("repo error", func(t *testing.T) {
 		caRepo := &mockClientAPIRepo{
-			findByClientUUIDFn: func(_ uuid.UUID) ([]model.ClientAPI, error) { return nil, errors.New("err") },
+			findByClientUUIDFn: func(_ uuid.UUID) ([]ClientAPI, error) { return nil, errors.New("err") },
 		}
 		svc := buildFullClientService(t, &mockClientRepo{}, &mockClientURIRepo{}, &mockIdentityProviderRepo{},
 			&mockPermissionRepo{}, &mockClientPermissionRepo{}, caRepo, &mockAPIRepo{}, &mockUserRepo{}, &mockTenantRepo{}, nil)
@@ -1143,14 +1141,14 @@ func TestClientService_GetClientAPIs(t *testing.T) {
 	})
 
 	t.Run("success with permissions", func(t *testing.T) {
-		perm := &model.Permission{PermissionUUID: uuid.New(), Name: "read"}
-		cas := []model.ClientAPI{{
+		perm := &Permission{PermissionUUID: uuid.New(), Name: "read"}
+		cas := []ClientAPI{{
 			ClientAPIUUID: uuid.New(),
-			API:           model.API{APIUUID: uuid.New(), Name: "api1"},
-			Permissions:   []model.ClientPermission{{Permission: perm}},
+			API:           API{APIUUID: uuid.New(), Name: "api1"},
+			Permissions:   []ClientPermission{{Permission: perm}},
 		}}
 		caRepo := &mockClientAPIRepo{
-			findByClientUUIDFn: func(_ uuid.UUID) ([]model.ClientAPI, error) { return cas, nil },
+			findByClientUUIDFn: func(_ uuid.UUID) ([]ClientAPI, error) { return cas, nil },
 		}
 		svc := buildFullClientService(t, &mockClientRepo{}, &mockClientURIRepo{}, &mockIdentityProviderRepo{},
 			&mockPermissionRepo{}, &mockClientPermissionRepo{}, caRepo, &mockAPIRepo{}, &mockUserRepo{}, &mockTenantRepo{}, nil)
@@ -1161,13 +1159,13 @@ func TestClientService_GetClientAPIs(t *testing.T) {
 	})
 
 	t.Run("permission with nil Permission pointer", func(t *testing.T) {
-		cas := []model.ClientAPI{{
+		cas := []ClientAPI{{
 			ClientAPIUUID: uuid.New(),
-			API:           model.API{APIUUID: uuid.New(), Name: "api1"},
-			Permissions:   []model.ClientPermission{{Permission: nil}},
+			API:           API{APIUUID: uuid.New(), Name: "api1"},
+			Permissions:   []ClientPermission{{Permission: nil}},
 		}}
 		caRepo := &mockClientAPIRepo{
-			findByClientUUIDFn: func(_ uuid.UUID) ([]model.ClientAPI, error) { return cas, nil },
+			findByClientUUIDFn: func(_ uuid.UUID) ([]ClientAPI, error) { return cas, nil },
 		}
 		svc := buildFullClientService(t, &mockClientRepo{}, &mockClientURIRepo{}, &mockIdentityProviderRepo{},
 			&mockPermissionRepo{}, &mockClientPermissionRepo{}, caRepo, &mockAPIRepo{}, &mockUserRepo{}, &mockTenantRepo{}, nil)
@@ -1187,7 +1185,7 @@ func TestClientService_AddClientAPIs(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		clientRepo := &mockClientRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.Client, error) { return nil, nil },
+			findByUUIDFn: func(_ any, _ ...string) (*Client, error) { return nil, nil },
 		}
 		svc := NewClientService(gormDB, clientRepo, &mockClientURIRepo{}, &mockIdentityProviderRepo{},
 			&mockPermissionRepo{}, &mockClientPermissionRepo{}, &mockClientAPIRepo{},
@@ -1201,8 +1199,8 @@ func TestClientService_AddClientAPIs(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		clientRepo := &mockClientRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.Client, error) {
-				return &model.Client{ClientID: 1, IdentityProvider: &model.IdentityProvider{TenantID: 999}}, nil
+			findByUUIDFn: func(_ any, _ ...string) (*Client, error) {
+				return &Client{ClientID: 1, IdentityProvider: &IdentityProvider{TenantID: 999}}, nil
 			},
 		}
 		svc := NewClientService(gormDB, clientRepo, &mockClientURIRepo{}, &mockIdentityProviderRepo{},
@@ -1218,12 +1216,12 @@ func TestClientService_AddClientAPIs(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		clientRepo := &mockClientRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.Client, error) {
-				return &model.Client{ClientID: 1, IdentityProvider: &model.IdentityProvider{TenantID: tenantID}}, nil
+			findByUUIDFn: func(_ any, _ ...string) (*Client, error) {
+				return &Client{ClientID: 1, IdentityProvider: &IdentityProvider{TenantID: tenantID}}, nil
 			},
 		}
 		apiRepo := &mockAPIRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.API, error) { return nil, nil },
+			findByUUIDFn: func(_ any, _ ...string) (*API, error) { return nil, nil },
 		}
 		svc := NewClientService(gormDB, clientRepo, &mockClientURIRepo{}, &mockIdentityProviderRepo{},
 			&mockPermissionRepo{}, &mockClientPermissionRepo{}, &mockClientAPIRepo{},
@@ -1238,15 +1236,15 @@ func TestClientService_AddClientAPIs(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		clientRepo := &mockClientRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.Client, error) {
-				return &model.Client{ClientID: 1, IdentityProvider: &model.IdentityProvider{TenantID: tenantID}}, nil
+			findByUUIDFn: func(_ any, _ ...string) (*Client, error) {
+				return &Client{ClientID: 1, IdentityProvider: &IdentityProvider{TenantID: tenantID}}, nil
 			},
 		}
 		apiRepo := &mockAPIRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.API, error) { return &model.API{APIID: 1}, nil },
+			findByUUIDFn: func(_ any, _ ...string) (*API, error) { return &API{APIID: 1}, nil },
 		}
 		caRepo := &mockClientAPIRepo{
-			findByClientAndAPIFn: func(_, _ int64) (*model.ClientAPI, error) { return &model.ClientAPI{}, nil },
+			findByClientAndAPIFn: func(_, _ int64) (*ClientAPI, error) { return &ClientAPI{}, nil },
 		}
 		svc := NewClientService(gormDB, clientRepo, &mockClientURIRepo{}, &mockIdentityProviderRepo{},
 			&mockPermissionRepo{}, &mockClientPermissionRepo{}, caRepo,
@@ -1261,12 +1259,12 @@ func TestClientService_AddClientAPIs(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectCommit()
 		clientRepo := &mockClientRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.Client, error) {
-				return &model.Client{ClientID: 1, IdentityProvider: &model.IdentityProvider{TenantID: tenantID}}, nil
+			findByUUIDFn: func(_ any, _ ...string) (*Client, error) {
+				return &Client{ClientID: 1, IdentityProvider: &IdentityProvider{TenantID: tenantID}}, nil
 			},
 		}
 		apiRepo := &mockAPIRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.API, error) { return &model.API{APIID: 1}, nil },
+			findByUUIDFn: func(_ any, _ ...string) (*API, error) { return &API{APIID: 1}, nil },
 		}
 		svc := NewClientService(gormDB, clientRepo, &mockClientURIRepo{}, &mockIdentityProviderRepo{},
 			&mockPermissionRepo{}, &mockClientPermissionRepo{}, &mockClientAPIRepo{},
@@ -1286,7 +1284,7 @@ func TestClientService_RemoveClientAPI(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		clientRepo := &mockClientRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.Client, error) { return nil, nil },
+			findByUUIDFn: func(_ any, _ ...string) (*Client, error) { return nil, nil },
 		}
 		svc := NewClientService(gormDB, clientRepo, &mockClientURIRepo{}, &mockIdentityProviderRepo{},
 			&mockPermissionRepo{}, &mockClientPermissionRepo{}, &mockClientAPIRepo{},
@@ -1300,8 +1298,8 @@ func TestClientService_RemoveClientAPI(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		clientRepo := &mockClientRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.Client, error) {
-				return &model.Client{ClientID: 1, IdentityProvider: &model.IdentityProvider{TenantID: 999}}, nil
+			findByUUIDFn: func(_ any, _ ...string) (*Client, error) {
+				return &Client{ClientID: 1, IdentityProvider: &IdentityProvider{TenantID: 999}}, nil
 			},
 		}
 		svc := NewClientService(gormDB, clientRepo, &mockClientURIRepo{}, &mockIdentityProviderRepo{},
@@ -1316,8 +1314,8 @@ func TestClientService_RemoveClientAPI(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		clientRepo := &mockClientRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.Client, error) {
-				return &model.Client{ClientID: 1, IdentityProvider: &model.IdentityProvider{TenantID: tenantID}}, nil
+			findByUUIDFn: func(_ any, _ ...string) (*Client, error) {
+				return &Client{ClientID: 1, IdentityProvider: &IdentityProvider{TenantID: tenantID}}, nil
 			},
 		}
 		caRepo := &mockClientAPIRepo{
@@ -1335,8 +1333,8 @@ func TestClientService_RemoveClientAPI(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectCommit()
 		clientRepo := &mockClientRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.Client, error) {
-				return &model.Client{ClientID: 1, IdentityProvider: &model.IdentityProvider{TenantID: tenantID}}, nil
+			findByUUIDFn: func(_ any, _ ...string) (*Client, error) {
+				return &Client{ClientID: 1, IdentityProvider: &IdentityProvider{TenantID: tenantID}}, nil
 			},
 		}
 		svc := NewClientService(gormDB, clientRepo, &mockClientURIRepo{}, &mockIdentityProviderRepo{},
@@ -1365,12 +1363,12 @@ func TestClientService_GetClientAPIPermissions(t *testing.T) {
 
 	t.Run("client not found", func(t *testing.T) {
 		caRepo := &mockClientAPIRepo{
-			findByClientUUIDAndAPIUUIDFn: func(_, _ uuid.UUID) (*model.ClientAPI, error) {
-				return &model.ClientAPI{ClientAPIID: 1}, nil
+			findByClientUUIDAndAPIUUIDFn: func(_, _ uuid.UUID) (*ClientAPI, error) {
+				return &ClientAPI{ClientAPIID: 1}, nil
 			},
 		}
 		clientRepo := &mockClientRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.Client, error) { return nil, nil },
+			findByUUIDFn: func(_ any, _ ...string) (*Client, error) { return nil, nil },
 		}
 		svc := buildFullClientService(t, clientRepo, &mockClientURIRepo{}, &mockIdentityProviderRepo{},
 			&mockPermissionRepo{}, &mockClientPermissionRepo{}, caRepo, &mockAPIRepo{}, &mockUserRepo{}, &mockTenantRepo{}, nil)
@@ -1380,13 +1378,13 @@ func TestClientService_GetClientAPIPermissions(t *testing.T) {
 
 	t.Run("unauthorized tenant", func(t *testing.T) {
 		caRepo := &mockClientAPIRepo{
-			findByClientUUIDAndAPIUUIDFn: func(_, _ uuid.UUID) (*model.ClientAPI, error) {
-				return &model.ClientAPI{ClientAPIID: 1}, nil
+			findByClientUUIDAndAPIUUIDFn: func(_, _ uuid.UUID) (*ClientAPI, error) {
+				return &ClientAPI{ClientAPIID: 1}, nil
 			},
 		}
 		clientRepo := &mockClientRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.Client, error) {
-				return &model.Client{ClientID: 1, IdentityProvider: &model.IdentityProvider{TenantID: 999}}, nil
+			findByUUIDFn: func(_ any, _ ...string) (*Client, error) {
+				return &Client{ClientID: 1, IdentityProvider: &IdentityProvider{TenantID: 999}}, nil
 			},
 		}
 		svc := buildFullClientService(t, clientRepo, &mockClientURIRepo{}, &mockIdentityProviderRepo{},
@@ -1397,18 +1395,18 @@ func TestClientService_GetClientAPIPermissions(t *testing.T) {
 
 	t.Run("success", func(t *testing.T) {
 		caRepo := &mockClientAPIRepo{
-			findByClientUUIDAndAPIUUIDFn: func(_, _ uuid.UUID) (*model.ClientAPI, error) {
-				return &model.ClientAPI{ClientAPIID: 1}, nil
+			findByClientUUIDAndAPIUUIDFn: func(_, _ uuid.UUID) (*ClientAPI, error) {
+				return &ClientAPI{ClientAPIID: 1}, nil
 			},
 		}
 		clientRepo := &mockClientRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.Client, error) {
-				return &model.Client{ClientID: 1, IdentityProvider: &model.IdentityProvider{TenantID: tenantID}}, nil
+			findByUUIDFn: func(_ any, _ ...string) (*Client, error) {
+				return &Client{ClientID: 1, IdentityProvider: &IdentityProvider{TenantID: tenantID}}, nil
 			},
 		}
 		cpRepo := &mockClientPermissionRepo{
-			findByClientAPIIDFn: func(_ int64) ([]model.ClientPermission, error) {
-				return []model.ClientPermission{{Permission: &model.Permission{PermissionUUID: uuid.New(), Name: "read"}}}, nil
+			findByClientAPIIDFn: func(_ int64) ([]ClientPermission, error) {
+				return []ClientPermission{{Permission: &Permission{PermissionUUID: uuid.New(), Name: "read"}}}, nil
 			},
 		}
 		svc := buildFullClientService(t, clientRepo, &mockClientURIRepo{}, &mockIdentityProviderRepo{},
@@ -1430,7 +1428,7 @@ func TestClientService_AddClientAPIPermissions(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		clientRepo := &mockClientRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.Client, error) { return nil, nil },
+			findByUUIDFn: func(_ any, _ ...string) (*Client, error) { return nil, nil },
 		}
 		svc := NewClientService(gormDB, clientRepo, &mockClientURIRepo{}, &mockIdentityProviderRepo{},
 			&mockPermissionRepo{}, &mockClientPermissionRepo{}, &mockClientAPIRepo{},
@@ -1444,8 +1442,8 @@ func TestClientService_AddClientAPIPermissions(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		clientRepo := &mockClientRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.Client, error) {
-				return &model.Client{ClientID: 1, IdentityProvider: &model.IdentityProvider{TenantID: 999}}, nil
+			findByUUIDFn: func(_ any, _ ...string) (*Client, error) {
+				return &Client{ClientID: 1, IdentityProvider: &IdentityProvider{TenantID: 999}}, nil
 			},
 		}
 		svc := NewClientService(gormDB, clientRepo, &mockClientURIRepo{}, &mockIdentityProviderRepo{},
@@ -1460,8 +1458,8 @@ func TestClientService_AddClientAPIPermissions(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		clientRepo := &mockClientRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.Client, error) {
-				return &model.Client{ClientID: 1, IdentityProvider: &model.IdentityProvider{TenantID: tenantID}}, nil
+			findByUUIDFn: func(_ any, _ ...string) (*Client, error) {
+				return &Client{ClientID: 1, IdentityProvider: &IdentityProvider{TenantID: tenantID}}, nil
 			},
 		}
 		svc := NewClientService(gormDB, clientRepo, &mockClientURIRepo{}, &mockIdentityProviderRepo{},
@@ -1476,17 +1474,17 @@ func TestClientService_AddClientAPIPermissions(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		clientRepo := &mockClientRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.Client, error) {
-				return &model.Client{ClientID: 1, IdentityProvider: &model.IdentityProvider{TenantID: tenantID}}, nil
+			findByUUIDFn: func(_ any, _ ...string) (*Client, error) {
+				return &Client{ClientID: 1, IdentityProvider: &IdentityProvider{TenantID: tenantID}}, nil
 			},
 		}
 		caRepo := &mockClientAPIRepo{
-			findByClientUUIDAndAPIUUIDFn: func(_, _ uuid.UUID) (*model.ClientAPI, error) {
-				return &model.ClientAPI{ClientAPIID: 1}, nil
+			findByClientUUIDAndAPIUUIDFn: func(_, _ uuid.UUID) (*ClientAPI, error) {
+				return &ClientAPI{ClientAPIID: 1}, nil
 			},
 		}
 		permRepo := &mockPermissionRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.Permission, error) { return nil, nil },
+			findByUUIDFn: func(_ any, _ ...string) (*Permission, error) { return nil, nil },
 		}
 		svc := NewClientService(gormDB, clientRepo, &mockClientURIRepo{}, &mockIdentityProviderRepo{},
 			permRepo, &mockClientPermissionRepo{}, caRepo,
@@ -1501,23 +1499,23 @@ func TestClientService_AddClientAPIPermissions(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		clientRepo := &mockClientRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.Client, error) {
-				return &model.Client{ClientID: 1, IdentityProvider: &model.IdentityProvider{TenantID: tenantID}}, nil
+			findByUUIDFn: func(_ any, _ ...string) (*Client, error) {
+				return &Client{ClientID: 1, IdentityProvider: &IdentityProvider{TenantID: tenantID}}, nil
 			},
 		}
 		caRepo := &mockClientAPIRepo{
-			findByClientUUIDAndAPIUUIDFn: func(_, _ uuid.UUID) (*model.ClientAPI, error) {
-				return &model.ClientAPI{ClientAPIID: 1}, nil
+			findByClientUUIDAndAPIUUIDFn: func(_, _ uuid.UUID) (*ClientAPI, error) {
+				return &ClientAPI{ClientAPIID: 1}, nil
 			},
 		}
 		permRepo := &mockPermissionRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.Permission, error) {
-				return &model.Permission{PermissionID: 1}, nil
+			findByUUIDFn: func(_ any, _ ...string) (*Permission, error) {
+				return &Permission{PermissionID: 1}, nil
 			},
 		}
 		cpRepo := &mockClientPermissionRepo{
-			findByClientAPIAndPermissionFn: func(_, _ int64) (*model.ClientPermission, error) {
-				return &model.ClientPermission{}, nil
+			findByClientAPIAndPermissionFn: func(_, _ int64) (*ClientPermission, error) {
+				return &ClientPermission{}, nil
 			},
 		}
 		svc := NewClientService(gormDB, clientRepo, &mockClientURIRepo{}, &mockIdentityProviderRepo{},
@@ -1533,18 +1531,18 @@ func TestClientService_AddClientAPIPermissions(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectCommit()
 		clientRepo := &mockClientRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.Client, error) {
-				return &model.Client{ClientID: 1, IdentityProvider: &model.IdentityProvider{TenantID: tenantID}}, nil
+			findByUUIDFn: func(_ any, _ ...string) (*Client, error) {
+				return &Client{ClientID: 1, IdentityProvider: &IdentityProvider{TenantID: tenantID}}, nil
 			},
 		}
 		caRepo := &mockClientAPIRepo{
-			findByClientUUIDAndAPIUUIDFn: func(_, _ uuid.UUID) (*model.ClientAPI, error) {
-				return &model.ClientAPI{ClientAPIID: 1}, nil
+			findByClientUUIDAndAPIUUIDFn: func(_, _ uuid.UUID) (*ClientAPI, error) {
+				return &ClientAPI{ClientAPIID: 1}, nil
 			},
 		}
 		permRepo := &mockPermissionRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.Permission, error) {
-				return &model.Permission{PermissionID: 1}, nil
+			findByUUIDFn: func(_ any, _ ...string) (*Permission, error) {
+				return &Permission{PermissionID: 1}, nil
 			},
 		}
 		svc := NewClientService(gormDB, clientRepo, &mockClientURIRepo{}, &mockIdentityProviderRepo{},
@@ -1566,7 +1564,7 @@ func TestClientService_RemoveClientAPIPermission(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		clientRepo := &mockClientRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.Client, error) { return nil, nil },
+			findByUUIDFn: func(_ any, _ ...string) (*Client, error) { return nil, nil },
 		}
 		svc := NewClientService(gormDB, clientRepo, &mockClientURIRepo{}, &mockIdentityProviderRepo{},
 			&mockPermissionRepo{}, &mockClientPermissionRepo{}, &mockClientAPIRepo{},
@@ -1580,8 +1578,8 @@ func TestClientService_RemoveClientAPIPermission(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		clientRepo := &mockClientRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.Client, error) {
-				return &model.Client{ClientID: 1, IdentityProvider: &model.IdentityProvider{TenantID: 999}}, nil
+			findByUUIDFn: func(_ any, _ ...string) (*Client, error) {
+				return &Client{ClientID: 1, IdentityProvider: &IdentityProvider{TenantID: 999}}, nil
 			},
 		}
 		svc := NewClientService(gormDB, clientRepo, &mockClientURIRepo{}, &mockIdentityProviderRepo{},
@@ -1596,8 +1594,8 @@ func TestClientService_RemoveClientAPIPermission(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		clientRepo := &mockClientRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.Client, error) {
-				return &model.Client{ClientID: 1, IdentityProvider: &model.IdentityProvider{TenantID: tenantID}}, nil
+			findByUUIDFn: func(_ any, _ ...string) (*Client, error) {
+				return &Client{ClientID: 1, IdentityProvider: &IdentityProvider{TenantID: tenantID}}, nil
 			},
 		}
 		svc := NewClientService(gormDB, clientRepo, &mockClientURIRepo{}, &mockIdentityProviderRepo{},
@@ -1612,17 +1610,17 @@ func TestClientService_RemoveClientAPIPermission(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		clientRepo := &mockClientRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.Client, error) {
-				return &model.Client{ClientID: 1, IdentityProvider: &model.IdentityProvider{TenantID: tenantID}}, nil
+			findByUUIDFn: func(_ any, _ ...string) (*Client, error) {
+				return &Client{ClientID: 1, IdentityProvider: &IdentityProvider{TenantID: tenantID}}, nil
 			},
 		}
 		caRepo := &mockClientAPIRepo{
-			findByClientUUIDAndAPIUUIDFn: func(_, _ uuid.UUID) (*model.ClientAPI, error) {
-				return &model.ClientAPI{ClientAPIID: 1}, nil
+			findByClientUUIDAndAPIUUIDFn: func(_, _ uuid.UUID) (*ClientAPI, error) {
+				return &ClientAPI{ClientAPIID: 1}, nil
 			},
 		}
 		permRepo := &mockPermissionRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.Permission, error) { return nil, nil },
+			findByUUIDFn: func(_ any, _ ...string) (*Permission, error) { return nil, nil },
 		}
 		svc := NewClientService(gormDB, clientRepo, &mockClientURIRepo{}, &mockIdentityProviderRepo{},
 			permRepo, &mockClientPermissionRepo{}, caRepo,
@@ -1636,18 +1634,18 @@ func TestClientService_RemoveClientAPIPermission(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectCommit()
 		clientRepo := &mockClientRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.Client, error) {
-				return &model.Client{ClientID: 1, IdentityProvider: &model.IdentityProvider{TenantID: tenantID}}, nil
+			findByUUIDFn: func(_ any, _ ...string) (*Client, error) {
+				return &Client{ClientID: 1, IdentityProvider: &IdentityProvider{TenantID: tenantID}}, nil
 			},
 		}
 		caRepo := &mockClientAPIRepo{
-			findByClientUUIDAndAPIUUIDFn: func(_, _ uuid.UUID) (*model.ClientAPI, error) {
-				return &model.ClientAPI{ClientAPIID: 1}, nil
+			findByClientUUIDAndAPIUUIDFn: func(_, _ uuid.UUID) (*ClientAPI, error) {
+				return &ClientAPI{ClientAPIID: 1}, nil
 			},
 		}
 		permRepo := &mockPermissionRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.Permission, error) {
-				return &model.Permission{PermissionID: 1}, nil
+			findByUUIDFn: func(_ any, _ ...string) (*Permission, error) {
+				return &Permission{PermissionID: 1}, nil
 			},
 		}
 		svc := NewClientService(gormDB, clientRepo, &mockClientURIRepo{}, &mockIdentityProviderRepo{},
@@ -1680,14 +1678,14 @@ func TestClientService_Update_ValidateTenantAccess(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		c := clientWithIDP(tenantID)
-		c.IdentityProvider.Tenant = &model.Tenant{TenantID: tenantID, IsSystem: false}
+		c.IdentityProvider.Tenant = &Tenant{TenantID: tenantID, IsSystem: false}
 		clientRepo := &mockClientRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.Client, error) { return c, nil },
+			findByUUIDFn: func(_ any, _ ...string) (*Client, error) { return c, nil },
 		}
 		userRepo := &mockUserRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.User, error) {
-				return &model.User{UserID: 1, UserIdentities: []model.UserIdentity{
-					{TenantID: 999, Tenant: &model.Tenant{TenantID: 999, IsSystem: false}},
+			findByUUIDFn: func(_ any, _ ...string) (*User, error) {
+				return &User{UserID: 1, UserIdentities: []UserIdentity{
+					{TenantID: 999, Tenant: &Tenant{TenantID: 999, IsSystem: false}},
 				}}, nil
 			},
 		}
@@ -1706,13 +1704,13 @@ func TestClientService_Update_ValidateTenantAccess(t *testing.T) {
 		c := clientWithIDP(tenantID)
 		c.Name = "old-name"
 		clientRepo := &mockClientRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.Client, error) { return c, nil },
-			findByNameAndIdentityProviderFn: func(_ string, _ int64, _ int64) (*model.Client, error) {
+			findByUUIDFn: func(_ any, _ ...string) (*Client, error) { return c, nil },
+			findByNameAndIdentityProviderFn: func(_ string, _ int64, _ int64) (*Client, error) {
 				return nil, errors.New("db err")
 			},
 		}
 		userRepo := &mockUserRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.User, error) { return actorUser(tenantID), nil },
+			findByUUIDFn: func(_ any, _ ...string) (*User, error) { return actorUser(tenantID), nil },
 		}
 		svc := NewClientService(gormDB, clientRepo, &mockClientURIRepo{}, &mockIdentityProviderRepo{},
 			&mockPermissionRepo{}, &mockClientPermissionRepo{}, &mockClientAPIRepo{},
@@ -1731,14 +1729,14 @@ func TestClientService_SetStatusByUUID_ValidateTenantAccess(t *testing.T) {
 	mock.ExpectBegin()
 	mock.ExpectRollback()
 	c := clientWithIDP(tenantID)
-	c.IdentityProvider.Tenant = &model.Tenant{TenantID: tenantID, IsSystem: false}
+	c.IdentityProvider.Tenant = &Tenant{TenantID: tenantID, IsSystem: false}
 	clientRepo := &mockClientRepo{
-		findByUUIDFn: func(_ any, _ ...string) (*model.Client, error) { return c, nil },
+		findByUUIDFn: func(_ any, _ ...string) (*Client, error) { return c, nil },
 	}
 	userRepo := &mockUserRepo{
-		findByUUIDFn: func(_ any, _ ...string) (*model.User, error) {
-			return &model.User{UserID: 1, UserIdentities: []model.UserIdentity{
-				{TenantID: 999, Tenant: &model.Tenant{TenantID: 999, IsSystem: false}},
+		findByUUIDFn: func(_ any, _ ...string) (*User, error) {
+			return &User{UserID: 1, UserIdentities: []UserIdentity{
+				{TenantID: 999, Tenant: &Tenant{TenantID: 999, IsSystem: false}},
 			}}, nil
 		},
 	}
@@ -1759,14 +1757,14 @@ func TestClientService_DeleteByUUID_ValidateTenantAccess(t *testing.T) {
 	mock.ExpectBegin()
 	mock.ExpectRollback()
 	c := clientWithIDP(tenantID)
-	c.IdentityProvider.Tenant = &model.Tenant{TenantID: tenantID, IsSystem: false}
+	c.IdentityProvider.Tenant = &Tenant{TenantID: tenantID, IsSystem: false}
 	clientRepo := &mockClientRepo{
-		findByUUIDFn: func(_ any, _ ...string) (*model.Client, error) { return c, nil },
+		findByUUIDFn: func(_ any, _ ...string) (*Client, error) { return c, nil },
 	}
 	userRepo := &mockUserRepo{
-		findByUUIDFn: func(_ any, _ ...string) (*model.User, error) {
-			return &model.User{UserID: 1, UserIdentities: []model.UserIdentity{
-				{TenantID: 999, Tenant: &model.Tenant{TenantID: 999, IsSystem: false}},
+		findByUUIDFn: func(_ any, _ ...string) (*User, error) {
+			return &User{UserID: 1, UserIdentities: []UserIdentity{
+				{TenantID: 999, Tenant: &Tenant{TenantID: 999, IsSystem: false}},
 			}}, nil
 		},
 	}
@@ -1788,15 +1786,15 @@ func TestClientService_CreateURI_EdgeCases(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		clientRepo := &mockClientRepo{
-			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*model.Client, error) {
-				return &model.Client{ClientID: 1, TenantID: tenantID}, nil
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*Client, error) {
+				return &Client{ClientID: 1, TenantID: tenantID}, nil
 			},
 		}
 		userRepo := &mockUserRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.User, error) { return actorUser(tenantID), nil },
+			findByUUIDFn: func(_ any, _ ...string) (*User, error) { return actorUser(tenantID), nil },
 		}
 		uriRepo := &mockClientURIRepo{
-			createOrUpdateFn: func(_ *model.ClientURI) (*model.ClientURI, error) {
+			createOrUpdateFn: func(_ *ClientURI) (*ClientURI, error) {
 				return nil, errors.New("create err")
 			},
 		}
@@ -1813,16 +1811,16 @@ func TestClientService_CreateURI_EdgeCases(t *testing.T) {
 		mock.ExpectRollback()
 		fetchCount := 0
 		clientRepo := &mockClientRepo{
-			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*model.Client, error) {
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*Client, error) {
 				fetchCount++
 				if fetchCount == 1 {
-					return &model.Client{ClientID: 1, TenantID: tenantID}, nil
+					return &Client{ClientID: 1, TenantID: tenantID}, nil
 				}
 				return nil, errors.New("fetch err")
 			},
 		}
 		userRepo := &mockUserRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.User, error) { return actorUser(tenantID), nil },
+			findByUUIDFn: func(_ any, _ ...string) (*User, error) { return actorUser(tenantID), nil },
 		}
 		svc := NewClientService(gormDB, clientRepo, &mockClientURIRepo{}, &mockIdentityProviderRepo{},
 			&mockPermissionRepo{}, &mockClientPermissionRepo{}, &mockClientAPIRepo{},
@@ -1836,12 +1834,12 @@ func TestClientService_CreateURI_EdgeCases(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		clientRepo := &mockClientRepo{
-			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*model.Client, error) {
-				return &model.Client{ClientID: 1, TenantID: 999}, nil
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*Client, error) {
+				return &Client{ClientID: 1, TenantID: 999}, nil
 			},
 		}
 		userRepo := &mockUserRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.User, error) { return actorUser(tenantID), nil },
+			findByUUIDFn: func(_ any, _ ...string) (*User, error) { return actorUser(tenantID), nil },
 		}
 		svc := NewClientService(gormDB, clientRepo, &mockClientURIRepo{}, &mockIdentityProviderRepo{},
 			&mockPermissionRepo{}, &mockClientPermissionRepo{}, &mockClientAPIRepo{},
@@ -1863,12 +1861,12 @@ func TestClientService_UpdateURI_EdgeCases(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		clientRepo := &mockClientRepo{
-			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*model.Client, error) {
-				return &model.Client{ClientID: 1, TenantID: 999}, nil
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*Client, error) {
+				return &Client{ClientID: 1, TenantID: 999}, nil
 			},
 		}
 		userRepo := &mockUserRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.User, error) { return actorUser(tenantID), nil },
+			findByUUIDFn: func(_ any, _ ...string) (*User, error) { return actorUser(tenantID), nil },
 		}
 		svc := NewClientService(gormDB, clientRepo, &mockClientURIRepo{}, &mockIdentityProviderRepo{},
 			&mockPermissionRepo{}, &mockClientPermissionRepo{}, &mockClientAPIRepo{},
@@ -1883,18 +1881,18 @@ func TestClientService_UpdateURI_EdgeCases(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		clientRepo := &mockClientRepo{
-			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*model.Client, error) {
-				return &model.Client{ClientID: 1, TenantID: tenantID}, nil
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*Client, error) {
+				return &Client{ClientID: 1, TenantID: tenantID}, nil
 			},
 		}
 		userRepo := &mockUserRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.User, error) { return actorUser(tenantID), nil },
+			findByUUIDFn: func(_ any, _ ...string) (*User, error) { return actorUser(tenantID), nil },
 		}
 		uriRepo := &mockClientURIRepo{
-			findByUUIDAndTenantIDFn: func(_ string, _ int64) (*model.ClientURI, error) {
-				return &model.ClientURI{ClientID: 1}, nil
+			findByUUIDAndTenantIDFn: func(_ string, _ int64) (*ClientURI, error) {
+				return &ClientURI{ClientID: 1}, nil
 			},
-			createOrUpdateFn: func(_ *model.ClientURI) (*model.ClientURI, error) {
+			createOrUpdateFn: func(_ *ClientURI) (*ClientURI, error) {
 				return nil, errors.New("save err")
 			},
 		}
@@ -1911,20 +1909,20 @@ func TestClientService_UpdateURI_EdgeCases(t *testing.T) {
 		mock.ExpectRollback()
 		fetchCount := 0
 		clientRepo := &mockClientRepo{
-			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*model.Client, error) {
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*Client, error) {
 				fetchCount++
 				if fetchCount == 1 {
-					return &model.Client{ClientID: 1, TenantID: tenantID}, nil
+					return &Client{ClientID: 1, TenantID: tenantID}, nil
 				}
 				return nil, errors.New("fetch err")
 			},
 		}
 		userRepo := &mockUserRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.User, error) { return actorUser(tenantID), nil },
+			findByUUIDFn: func(_ any, _ ...string) (*User, error) { return actorUser(tenantID), nil },
 		}
 		uriRepo := &mockClientURIRepo{
-			findByUUIDAndTenantIDFn: func(_ string, _ int64) (*model.ClientURI, error) {
-				return &model.ClientURI{ClientID: 1}, nil
+			findByUUIDAndTenantIDFn: func(_ string, _ int64) (*ClientURI, error) {
+				return &ClientURI{ClientID: 1}, nil
 			},
 		}
 		svc := NewClientService(gormDB, clientRepo, uriRepo, &mockIdentityProviderRepo{},
@@ -1946,12 +1944,12 @@ func TestClientService_DeleteURI_EdgeCases(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		clientRepo := &mockClientRepo{
-			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*model.Client, error) {
-				return &model.Client{ClientID: 1, TenantID: 999}, nil
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*Client, error) {
+				return &Client{ClientID: 1, TenantID: 999}, nil
 			},
 		}
 		userRepo := &mockUserRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.User, error) { return actorUser(tenantID), nil },
+			findByUUIDFn: func(_ any, _ ...string) (*User, error) { return actorUser(tenantID), nil },
 		}
 		svc := NewClientService(gormDB, clientRepo, &mockClientURIRepo{}, &mockIdentityProviderRepo{},
 			&mockPermissionRepo{}, &mockClientPermissionRepo{}, &mockClientAPIRepo{},
@@ -1966,16 +1964,16 @@ func TestClientService_DeleteURI_EdgeCases(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		clientRepo := &mockClientRepo{
-			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*model.Client, error) {
-				return &model.Client{ClientID: 1, TenantID: tenantID}, nil
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*Client, error) {
+				return &Client{ClientID: 1, TenantID: tenantID}, nil
 			},
 		}
 		userRepo := &mockUserRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.User, error) { return actorUser(tenantID), nil },
+			findByUUIDFn: func(_ any, _ ...string) (*User, error) { return actorUser(tenantID), nil },
 		}
 		uriRepo := &mockClientURIRepo{
-			findByUUIDAndTenantIDFn: func(_ string, _ int64) (*model.ClientURI, error) {
-				return &model.ClientURI{ClientID: 1}, nil
+			findByUUIDAndTenantIDFn: func(_ string, _ int64) (*ClientURI, error) {
+				return &ClientURI{ClientID: 1}, nil
 			},
 			deleteByUUIDAndTenantIDFn: func(_ string, _ int64) error { return errors.New("del err") },
 		}
@@ -1997,15 +1995,15 @@ func TestClientService_AddClientAPIs_EdgeCases(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		clientRepo := &mockClientRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.Client, error) {
-				return &model.Client{ClientID: 1, IdentityProvider: &model.IdentityProvider{TenantID: tenantID}}, nil
+			findByUUIDFn: func(_ any, _ ...string) (*Client, error) {
+				return &Client{ClientID: 1, IdentityProvider: &IdentityProvider{TenantID: tenantID}}, nil
 			},
 		}
 		apiRepo := &mockAPIRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.API, error) { return &model.API{APIID: 1}, nil },
+			findByUUIDFn: func(_ any, _ ...string) (*API, error) { return &API{APIID: 1}, nil },
 		}
 		caRepo := &mockClientAPIRepo{
-			findByClientAndAPIFn: func(_, _ int64) (*model.ClientAPI, error) { return nil, errors.New("db err") },
+			findByClientAndAPIFn: func(_, _ int64) (*ClientAPI, error) { return nil, errors.New("db err") },
 		}
 		svc := NewClientService(gormDB, clientRepo, &mockClientURIRepo{}, &mockIdentityProviderRepo{},
 			&mockPermissionRepo{}, &mockClientPermissionRepo{}, caRepo,
@@ -2019,12 +2017,12 @@ func TestClientService_AddClientAPIs_EdgeCases(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		clientRepo := &mockClientRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.Client, error) {
-				return &model.Client{ClientID: 1, IdentityProvider: &model.IdentityProvider{TenantID: tenantID}}, nil
+			findByUUIDFn: func(_ any, _ ...string) (*Client, error) {
+				return &Client{ClientID: 1, IdentityProvider: &IdentityProvider{TenantID: tenantID}}, nil
 			},
 		}
 		apiRepo := &mockAPIRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.API, error) { return nil, errors.New("api err") },
+			findByUUIDFn: func(_ any, _ ...string) (*API, error) { return nil, errors.New("api err") },
 		}
 		svc := NewClientService(gormDB, clientRepo, &mockClientURIRepo{}, &mockIdentityProviderRepo{},
 			&mockPermissionRepo{}, &mockClientPermissionRepo{}, &mockClientAPIRepo{},
@@ -2038,7 +2036,7 @@ func TestClientService_AddClientAPIs_EdgeCases(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		clientRepo := &mockClientRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.Client, error) { return nil, errors.New("db err") },
+			findByUUIDFn: func(_ any, _ ...string) (*Client, error) { return nil, errors.New("db err") },
 		}
 		svc := NewClientService(gormDB, clientRepo, &mockClientURIRepo{}, &mockIdentityProviderRepo{},
 			&mockPermissionRepo{}, &mockClientPermissionRepo{}, &mockClientAPIRepo{},
@@ -2052,15 +2050,15 @@ func TestClientService_AddClientAPIs_EdgeCases(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		clientRepo := &mockClientRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.Client, error) {
-				return &model.Client{ClientID: 1, IdentityProvider: &model.IdentityProvider{TenantID: tenantID}}, nil
+			findByUUIDFn: func(_ any, _ ...string) (*Client, error) {
+				return &Client{ClientID: 1, IdentityProvider: &IdentityProvider{TenantID: tenantID}}, nil
 			},
 		}
 		apiRepo := &mockAPIRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.API, error) { return &model.API{APIID: 1}, nil },
+			findByUUIDFn: func(_ any, _ ...string) (*API, error) { return &API{APIID: 1}, nil },
 		}
 		caRepo := &mockClientAPIRepo{
-			createFn: func(_ *model.ClientAPI) (*model.ClientAPI, error) {
+			createFn: func(_ *ClientAPI) (*ClientAPI, error) {
 				return nil, errors.New("uq_client_apis_client_api violation")
 			},
 		}
@@ -2077,15 +2075,15 @@ func TestClientService_AddClientAPIs_EdgeCases(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		clientRepo := &mockClientRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.Client, error) {
-				return &model.Client{ClientID: 1, IdentityProvider: &model.IdentityProvider{TenantID: tenantID}}, nil
+			findByUUIDFn: func(_ any, _ ...string) (*Client, error) {
+				return &Client{ClientID: 1, IdentityProvider: &IdentityProvider{TenantID: tenantID}}, nil
 			},
 		}
 		apiRepo := &mockAPIRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.API, error) { return &model.API{APIID: 1}, nil },
+			findByUUIDFn: func(_ any, _ ...string) (*API, error) { return &API{APIID: 1}, nil },
 		}
 		caRepo := &mockClientAPIRepo{
-			createFn: func(_ *model.ClientAPI) (*model.ClientAPI, error) {
+			createFn: func(_ *ClientAPI) (*ClientAPI, error) {
 				return nil, errors.New("generic db error")
 			},
 		}
@@ -2108,7 +2106,7 @@ func TestClientService_RemoveClientAPI_EdgeCases(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		clientRepo := &mockClientRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.Client, error) { return nil, errors.New("db err") },
+			findByUUIDFn: func(_ any, _ ...string) (*Client, error) { return nil, errors.New("db err") },
 		}
 		svc := NewClientService(gormDB, clientRepo, &mockClientURIRepo{}, &mockIdentityProviderRepo{},
 			&mockPermissionRepo{}, &mockClientPermissionRepo{}, &mockClientAPIRepo{},
@@ -2125,7 +2123,7 @@ func TestClientService_GetClientAPIPermissions_EdgeCases(t *testing.T) {
 
 	t.Run("findByClientUUIDAndAPIUUID error", func(t *testing.T) {
 		caRepo := &mockClientAPIRepo{
-			findByClientUUIDAndAPIUUIDFn: func(_, _ uuid.UUID) (*model.ClientAPI, error) {
+			findByClientUUIDAndAPIUUIDFn: func(_, _ uuid.UUID) (*ClientAPI, error) {
 				return nil, errors.New("db err")
 			},
 		}
@@ -2137,12 +2135,12 @@ func TestClientService_GetClientAPIPermissions_EdgeCases(t *testing.T) {
 
 	t.Run("client findByUUID error", func(t *testing.T) {
 		caRepo := &mockClientAPIRepo{
-			findByClientUUIDAndAPIUUIDFn: func(_, _ uuid.UUID) (*model.ClientAPI, error) {
-				return &model.ClientAPI{ClientAPIID: 1}, nil
+			findByClientUUIDAndAPIUUIDFn: func(_, _ uuid.UUID) (*ClientAPI, error) {
+				return &ClientAPI{ClientAPIID: 1}, nil
 			},
 		}
 		clientRepo := &mockClientRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.Client, error) { return nil, errors.New("db err") },
+			findByUUIDFn: func(_ any, _ ...string) (*Client, error) { return nil, errors.New("db err") },
 		}
 		svc := buildFullClientService(t, clientRepo, &mockClientURIRepo{}, &mockIdentityProviderRepo{},
 			&mockPermissionRepo{}, &mockClientPermissionRepo{}, caRepo, &mockAPIRepo{}, &mockUserRepo{}, &mockTenantRepo{}, nil)
@@ -2152,17 +2150,17 @@ func TestClientService_GetClientAPIPermissions_EdgeCases(t *testing.T) {
 
 	t.Run("FindByClientAPIID error", func(t *testing.T) {
 		caRepo := &mockClientAPIRepo{
-			findByClientUUIDAndAPIUUIDFn: func(_, _ uuid.UUID) (*model.ClientAPI, error) {
-				return &model.ClientAPI{ClientAPIID: 1}, nil
+			findByClientUUIDAndAPIUUIDFn: func(_, _ uuid.UUID) (*ClientAPI, error) {
+				return &ClientAPI{ClientAPIID: 1}, nil
 			},
 		}
 		clientRepo := &mockClientRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.Client, error) {
-				return &model.Client{ClientID: 1, IdentityProvider: &model.IdentityProvider{TenantID: tenantID}}, nil
+			findByUUIDFn: func(_ any, _ ...string) (*Client, error) {
+				return &Client{ClientID: 1, IdentityProvider: &IdentityProvider{TenantID: tenantID}}, nil
 			},
 		}
 		cpRepo := &mockClientPermissionRepo{
-			findByClientAPIIDFn: func(_ int64) ([]model.ClientPermission, error) { return nil, errors.New("db err") },
+			findByClientAPIIDFn: func(_ int64) ([]ClientPermission, error) { return nil, errors.New("db err") },
 		}
 		svc := buildFullClientService(t, clientRepo, &mockClientURIRepo{}, &mockIdentityProviderRepo{},
 			&mockPermissionRepo{}, cpRepo, caRepo, &mockAPIRepo{}, &mockUserRepo{}, &mockTenantRepo{}, nil)
@@ -2182,7 +2180,7 @@ func TestClientService_AddClientAPIPermissions_EdgeCases(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		clientRepo := &mockClientRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.Client, error) { return nil, errors.New("db err") },
+			findByUUIDFn: func(_ any, _ ...string) (*Client, error) { return nil, errors.New("db err") },
 		}
 		svc := NewClientService(gormDB, clientRepo, &mockClientURIRepo{}, &mockIdentityProviderRepo{},
 			&mockPermissionRepo{}, &mockClientPermissionRepo{}, &mockClientAPIRepo{},
@@ -2196,12 +2194,12 @@ func TestClientService_AddClientAPIPermissions_EdgeCases(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		clientRepo := &mockClientRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.Client, error) {
-				return &model.Client{ClientID: 1, IdentityProvider: &model.IdentityProvider{TenantID: tenantID}}, nil
+			findByUUIDFn: func(_ any, _ ...string) (*Client, error) {
+				return &Client{ClientID: 1, IdentityProvider: &IdentityProvider{TenantID: tenantID}}, nil
 			},
 		}
 		caRepo := &mockClientAPIRepo{
-			findByClientUUIDAndAPIUUIDFn: func(_, _ uuid.UUID) (*model.ClientAPI, error) {
+			findByClientUUIDAndAPIUUIDFn: func(_, _ uuid.UUID) (*ClientAPI, error) {
 				return nil, errors.New("db err")
 			},
 		}
@@ -2217,17 +2215,17 @@ func TestClientService_AddClientAPIPermissions_EdgeCases(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		clientRepo := &mockClientRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.Client, error) {
-				return &model.Client{ClientID: 1, IdentityProvider: &model.IdentityProvider{TenantID: tenantID}}, nil
+			findByUUIDFn: func(_ any, _ ...string) (*Client, error) {
+				return &Client{ClientID: 1, IdentityProvider: &IdentityProvider{TenantID: tenantID}}, nil
 			},
 		}
 		caRepo := &mockClientAPIRepo{
-			findByClientUUIDAndAPIUUIDFn: func(_, _ uuid.UUID) (*model.ClientAPI, error) {
-				return &model.ClientAPI{ClientAPIID: 1}, nil
+			findByClientUUIDAndAPIUUIDFn: func(_, _ uuid.UUID) (*ClientAPI, error) {
+				return &ClientAPI{ClientAPIID: 1}, nil
 			},
 		}
 		permRepo := &mockPermissionRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.Permission, error) { return nil, errors.New("perm err") },
+			findByUUIDFn: func(_ any, _ ...string) (*Permission, error) { return nil, errors.New("perm err") },
 		}
 		svc := NewClientService(gormDB, clientRepo, &mockClientURIRepo{}, &mockIdentityProviderRepo{},
 			permRepo, &mockClientPermissionRepo{}, caRepo,
@@ -2241,22 +2239,22 @@ func TestClientService_AddClientAPIPermissions_EdgeCases(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		clientRepo := &mockClientRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.Client, error) {
-				return &model.Client{ClientID: 1, IdentityProvider: &model.IdentityProvider{TenantID: tenantID}}, nil
+			findByUUIDFn: func(_ any, _ ...string) (*Client, error) {
+				return &Client{ClientID: 1, IdentityProvider: &IdentityProvider{TenantID: tenantID}}, nil
 			},
 		}
 		caRepo := &mockClientAPIRepo{
-			findByClientUUIDAndAPIUUIDFn: func(_, _ uuid.UUID) (*model.ClientAPI, error) {
-				return &model.ClientAPI{ClientAPIID: 1}, nil
+			findByClientUUIDAndAPIUUIDFn: func(_, _ uuid.UUID) (*ClientAPI, error) {
+				return &ClientAPI{ClientAPIID: 1}, nil
 			},
 		}
 		permRepo := &mockPermissionRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.Permission, error) {
-				return &model.Permission{PermissionID: 1}, nil
+			findByUUIDFn: func(_ any, _ ...string) (*Permission, error) {
+				return &Permission{PermissionID: 1}, nil
 			},
 		}
 		cpRepo := &mockClientPermissionRepo{
-			findByClientAPIAndPermissionFn: func(_, _ int64) (*model.ClientPermission, error) {
+			findByClientAPIAndPermissionFn: func(_, _ int64) (*ClientPermission, error) {
 				return nil, errors.New("db err")
 			},
 		}
@@ -2272,25 +2270,25 @@ func TestClientService_AddClientAPIPermissions_EdgeCases(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		clientRepo := &mockClientRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.Client, error) {
-				return &model.Client{ClientID: 1, IdentityProvider: &model.IdentityProvider{TenantID: tenantID}}, nil
+			findByUUIDFn: func(_ any, _ ...string) (*Client, error) {
+				return &Client{ClientID: 1, IdentityProvider: &IdentityProvider{TenantID: tenantID}}, nil
 			},
 		}
 		caRepo := &mockClientAPIRepo{
-			findByClientUUIDAndAPIUUIDFn: func(_, _ uuid.UUID) (*model.ClientAPI, error) {
-				return &model.ClientAPI{ClientAPIID: 1}, nil
+			findByClientUUIDAndAPIUUIDFn: func(_, _ uuid.UUID) (*ClientAPI, error) {
+				return &ClientAPI{ClientAPIID: 1}, nil
 			},
 		}
 		permRepo := &mockPermissionRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.Permission, error) {
-				return &model.Permission{PermissionID: 1}, nil
+			findByUUIDFn: func(_ any, _ ...string) (*Permission, error) {
+				return &Permission{PermissionID: 1}, nil
 			},
 		}
 		cpRepo := &mockClientPermissionRepo{
-			findByClientAPIAndPermissionFn: func(_, _ int64) (*model.ClientPermission, error) {
+			findByClientAPIAndPermissionFn: func(_, _ int64) (*ClientPermission, error) {
 				return nil, nil
 			},
-			createFn: func(_ *model.ClientPermission) (*model.ClientPermission, error) {
+			createFn: func(_ *ClientPermission) (*ClientPermission, error) {
 				return nil, errors.New("uq_client_permissions_client_permission violation")
 			},
 		}
@@ -2307,25 +2305,25 @@ func TestClientService_AddClientAPIPermissions_EdgeCases(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		clientRepo := &mockClientRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.Client, error) {
-				return &model.Client{ClientID: 1, IdentityProvider: &model.IdentityProvider{TenantID: tenantID}}, nil
+			findByUUIDFn: func(_ any, _ ...string) (*Client, error) {
+				return &Client{ClientID: 1, IdentityProvider: &IdentityProvider{TenantID: tenantID}}, nil
 			},
 		}
 		caRepo := &mockClientAPIRepo{
-			findByClientUUIDAndAPIUUIDFn: func(_, _ uuid.UUID) (*model.ClientAPI, error) {
-				return &model.ClientAPI{ClientAPIID: 1}, nil
+			findByClientUUIDAndAPIUUIDFn: func(_, _ uuid.UUID) (*ClientAPI, error) {
+				return &ClientAPI{ClientAPIID: 1}, nil
 			},
 		}
 		permRepo := &mockPermissionRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.Permission, error) {
-				return &model.Permission{PermissionID: 1}, nil
+			findByUUIDFn: func(_ any, _ ...string) (*Permission, error) {
+				return &Permission{PermissionID: 1}, nil
 			},
 		}
 		cpRepo := &mockClientPermissionRepo{
-			findByClientAPIAndPermissionFn: func(_, _ int64) (*model.ClientPermission, error) {
+			findByClientAPIAndPermissionFn: func(_, _ int64) (*ClientPermission, error) {
 				return nil, nil
 			},
-			createFn: func(_ *model.ClientPermission) (*model.ClientPermission, error) {
+			createFn: func(_ *ClientPermission) (*ClientPermission, error) {
 				return nil, errors.New("generic db error")
 			},
 		}
@@ -2349,7 +2347,7 @@ func TestClientService_RemoveClientAPIPermission_EdgeCases(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		clientRepo := &mockClientRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.Client, error) { return nil, errors.New("db err") },
+			findByUUIDFn: func(_ any, _ ...string) (*Client, error) { return nil, errors.New("db err") },
 		}
 		svc := NewClientService(gormDB, clientRepo, &mockClientURIRepo{}, &mockIdentityProviderRepo{},
 			&mockPermissionRepo{}, &mockClientPermissionRepo{}, &mockClientAPIRepo{},
@@ -2363,12 +2361,12 @@ func TestClientService_RemoveClientAPIPermission_EdgeCases(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		clientRepo := &mockClientRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.Client, error) {
-				return &model.Client{ClientID: 1, IdentityProvider: &model.IdentityProvider{TenantID: tenantID}}, nil
+			findByUUIDFn: func(_ any, _ ...string) (*Client, error) {
+				return &Client{ClientID: 1, IdentityProvider: &IdentityProvider{TenantID: tenantID}}, nil
 			},
 		}
 		caRepo := &mockClientAPIRepo{
-			findByClientUUIDAndAPIUUIDFn: func(_, _ uuid.UUID) (*model.ClientAPI, error) {
+			findByClientUUIDAndAPIUUIDFn: func(_, _ uuid.UUID) (*ClientAPI, error) {
 				return nil, errors.New("db err")
 			},
 		}
@@ -2384,17 +2382,17 @@ func TestClientService_RemoveClientAPIPermission_EdgeCases(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		clientRepo := &mockClientRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.Client, error) {
-				return &model.Client{ClientID: 1, IdentityProvider: &model.IdentityProvider{TenantID: tenantID}}, nil
+			findByUUIDFn: func(_ any, _ ...string) (*Client, error) {
+				return &Client{ClientID: 1, IdentityProvider: &IdentityProvider{TenantID: tenantID}}, nil
 			},
 		}
 		caRepo := &mockClientAPIRepo{
-			findByClientUUIDAndAPIUUIDFn: func(_, _ uuid.UUID) (*model.ClientAPI, error) {
-				return &model.ClientAPI{ClientAPIID: 1}, nil
+			findByClientUUIDAndAPIUUIDFn: func(_, _ uuid.UUID) (*ClientAPI, error) {
+				return &ClientAPI{ClientAPIID: 1}, nil
 			},
 		}
 		permRepo := &mockPermissionRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.Permission, error) { return nil, errors.New("db err") },
+			findByUUIDFn: func(_ any, _ ...string) (*Permission, error) { return nil, errors.New("db err") },
 		}
 		svc := NewClientService(gormDB, clientRepo, &mockClientURIRepo{}, &mockIdentityProviderRepo{},
 			permRepo, &mockClientPermissionRepo{}, caRepo,
@@ -2408,18 +2406,18 @@ func TestClientService_RemoveClientAPIPermission_EdgeCases(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		clientRepo := &mockClientRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.Client, error) {
-				return &model.Client{ClientID: 1, IdentityProvider: &model.IdentityProvider{TenantID: tenantID}}, nil
+			findByUUIDFn: func(_ any, _ ...string) (*Client, error) {
+				return &Client{ClientID: 1, IdentityProvider: &IdentityProvider{TenantID: tenantID}}, nil
 			},
 		}
 		caRepo := &mockClientAPIRepo{
-			findByClientUUIDAndAPIUUIDFn: func(_, _ uuid.UUID) (*model.ClientAPI, error) {
-				return &model.ClientAPI{ClientAPIID: 1}, nil
+			findByClientUUIDAndAPIUUIDFn: func(_, _ uuid.UUID) (*ClientAPI, error) {
+				return &ClientAPI{ClientAPIID: 1}, nil
 			},
 		}
 		permRepo := &mockPermissionRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.Permission, error) {
-				return &model.Permission{PermissionID: 1}, nil
+			findByUUIDFn: func(_ any, _ ...string) (*Permission, error) {
+				return &Permission{PermissionID: 1}, nil
 			},
 		}
 		cpRepo := &mockClientPermissionRepo{

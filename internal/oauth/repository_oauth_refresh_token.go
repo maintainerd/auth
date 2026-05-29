@@ -5,17 +5,16 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/maintainerd/auth/internal/model"
 	"gorm.io/gorm"
 )
 
 // OAuthRefreshTokenRepository defines data access operations for OAuth refresh
 // tokens with family-based rotation tracking.
 type OAuthRefreshTokenRepository interface {
-	BaseRepositoryMethods[model.OAuthRefreshToken]
+	BaseRepositoryMethods[OAuthRefreshToken]
 	WithTx(tx *gorm.DB) OAuthRefreshTokenRepository
-	FindByTokenHash(tokenHash string) (*model.OAuthRefreshToken, error)
-	FindActiveByUserAndClient(userID, clientID int64) ([]model.OAuthRefreshToken, error)
+	FindByTokenHash(tokenHash string) (*OAuthRefreshToken, error)
+	FindActiveByUserAndClient(userID, clientID int64) ([]OAuthRefreshToken, error)
 	RevokeByID(tokenID int64) error
 	RevokeByFamily(familyID uuid.UUID) (int64, error)
 	RevokeByUserAndClient(userID, clientID int64) (int64, error)
@@ -26,13 +25,13 @@ type OAuthRefreshTokenRepository interface {
 }
 
 type oauthRefreshTokenRepository struct {
-	*BaseRepository[model.OAuthRefreshToken]
+	*BaseRepository[OAuthRefreshToken]
 }
 
 // NewOAuthRefreshTokenRepository creates a new OAuthRefreshTokenRepository.
 func NewOAuthRefreshTokenRepository(db *gorm.DB) OAuthRefreshTokenRepository {
 	return &oauthRefreshTokenRepository{
-		BaseRepository: NewBaseRepository[model.OAuthRefreshToken](db, "oauth_refresh_token_uuid", "oauth_refresh_token_id"),
+		BaseRepository: NewBaseRepository[OAuthRefreshToken](db, "oauth_refresh_token_uuid", "oauth_refresh_token_id"),
 	}
 }
 
@@ -44,8 +43,8 @@ func (r *oauthRefreshTokenRepository) WithTx(tx *gorm.DB) OAuthRefreshTokenRepos
 
 // FindByTokenHash looks up a refresh token by its SHA-256 hash.
 // Returns nil, nil when no matching token exists.
-func (r *oauthRefreshTokenRepository) FindByTokenHash(tokenHash string) (*model.OAuthRefreshToken, error) {
-	var token model.OAuthRefreshToken
+func (r *oauthRefreshTokenRepository) FindByTokenHash(tokenHash string) (*OAuthRefreshToken, error) {
+	var token OAuthRefreshToken
 	err := r.DB().
 		Preload("Client").
 		Preload("Client.IdentityProvider").
@@ -62,8 +61,8 @@ func (r *oauthRefreshTokenRepository) FindByTokenHash(tokenHash string) (*model.
 
 // FindActiveByUserAndClient returns all non-revoked, non-expired refresh tokens
 // for a user-client pair.
-func (r *oauthRefreshTokenRepository) FindActiveByUserAndClient(userID, clientID int64) ([]model.OAuthRefreshToken, error) {
-	var tokens []model.OAuthRefreshToken
+func (r *oauthRefreshTokenRepository) FindActiveByUserAndClient(userID, clientID int64) ([]OAuthRefreshToken, error) {
+	var tokens []OAuthRefreshToken
 	err := r.DB().
 		Where("user_id = ? AND client_id = ? AND is_revoked = false AND expires_at > ?", userID, clientID, time.Now()).
 		Find(&tokens).Error
@@ -73,7 +72,7 @@ func (r *oauthRefreshTokenRepository) FindActiveByUserAndClient(userID, clientID
 // RevokeByID revokes a single refresh token.
 func (r *oauthRefreshTokenRepository) RevokeByID(tokenID int64) error {
 	now := time.Now()
-	return r.DB().Model(&model.OAuthRefreshToken{}).
+	return r.DB().Model(&OAuthRefreshToken{}).
 		Where("oauth_refresh_token_id = ? AND is_revoked = false", tokenID).
 		Updates(map[string]any{
 			"is_revoked": true,
@@ -86,7 +85,7 @@ func (r *oauthRefreshTokenRepository) RevokeByID(tokenID int64) error {
 // is considered compromised. Returns the number of tokens revoked.
 func (r *oauthRefreshTokenRepository) RevokeByFamily(familyID uuid.UUID) (int64, error) {
 	now := time.Now()
-	result := r.DB().Model(&model.OAuthRefreshToken{}).
+	result := r.DB().Model(&OAuthRefreshToken{}).
 		Where("family_id = ? AND is_revoked = false", familyID).
 		Updates(map[string]any{
 			"is_revoked": true,
@@ -99,7 +98,7 @@ func (r *oauthRefreshTokenRepository) RevokeByFamily(familyID uuid.UUID) (int64,
 // Returns the number of tokens revoked.
 func (r *oauthRefreshTokenRepository) RevokeByUserAndClient(userID, clientID int64) (int64, error) {
 	now := time.Now()
-	result := r.DB().Model(&model.OAuthRefreshToken{}).
+	result := r.DB().Model(&OAuthRefreshToken{}).
 		Where("user_id = ? AND client_id = ? AND is_revoked = false", userID, clientID).
 		Updates(map[string]any{
 			"is_revoked": true,
@@ -112,7 +111,7 @@ func (r *oauthRefreshTokenRepository) RevokeByUserAndClient(userID, clientID int
 // Returns the number of tokens revoked.
 func (r *oauthRefreshTokenRepository) RevokeByUserID(userID int64) (int64, error) {
 	now := time.Now()
-	result := r.DB().Model(&model.OAuthRefreshToken{}).
+	result := r.DB().Model(&OAuthRefreshToken{}).
 		Where("user_id = ? AND is_revoked = false", userID).
 		Updates(map[string]any{
 			"is_revoked": true,
@@ -123,7 +122,7 @@ func (r *oauthRefreshTokenRepository) RevokeByUserID(userID int64) (int64, error
 
 // UpdateLastUsed records when a refresh token was last used at token exchange.
 func (r *oauthRefreshTokenRepository) UpdateLastUsed(tokenID int64) error {
-	return r.DB().Model(&model.OAuthRefreshToken{}).
+	return r.DB().Model(&OAuthRefreshToken{}).
 		Where("oauth_refresh_token_id = ?", tokenID).
 		Update("last_used_at", time.Now()).Error
 }
@@ -133,7 +132,7 @@ func (r *oauthRefreshTokenRepository) UpdateLastUsed(tokenID int64) error {
 func (r *oauthRefreshTokenRepository) DeleteExpired(before time.Time) (int64, error) {
 	result := r.DB().
 		Where("expires_at < ?", before).
-		Delete(&model.OAuthRefreshToken{})
+		Delete(&OAuthRefreshToken{})
 	return result.RowsAffected, result.Error
 }
 
@@ -141,7 +140,7 @@ func (r *oauthRefreshTokenRepository) DeleteExpired(before time.Time) (int64, er
 // a given user-client pair. Used to enforce token count limits.
 func (r *oauthRefreshTokenRepository) CountByUserAndClient(userID, clientID int64) (int64, error) {
 	var count int64
-	err := r.DB().Model(&model.OAuthRefreshToken{}).
+	err := r.DB().Model(&OAuthRefreshToken{}).
 		Where("user_id = ? AND client_id = ? AND is_revoked = false AND expires_at > ?", userID, clientID, time.Now()).
 		Count(&count).Error
 	return count, err

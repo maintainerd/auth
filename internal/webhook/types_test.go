@@ -6,9 +6,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"github.com/maintainerd/auth/internal/dto"
-	"github.com/maintainerd/auth/internal/model"
 )
 
 // ---------------------------------------------------------------------------
@@ -33,7 +30,7 @@ func TestWebhookEndpointCreateRequestDTO_Validate(t *testing.T) {
 		d := validWebhookCreate()
 		retries := 5
 		timeout := 60
-		status := model.StatusActive
+		status := StatusActive
 		d.MaxRetries = &retries
 		d.TimeoutSeconds = &timeout
 		d.Status = &status
@@ -99,14 +96,14 @@ func TestWebhookEndpointCreateRequestDTO_Validate(t *testing.T) {
 
 	t.Run("valid status active", func(t *testing.T) {
 		d := validWebhookCreate()
-		active := model.StatusActive
+		active := StatusActive
 		d.Status = &active
 		assert.NoError(t, d.Validate())
 	})
 
 	t.Run("valid status inactive", func(t *testing.T) {
 		d := validWebhookCreate()
-		inactive := model.StatusInactive
+		inactive := StatusInactive
 		d.Status = &inactive
 		assert.NoError(t, d.Validate())
 	})
@@ -181,12 +178,12 @@ func TestWebhookEndpointUpdateRequestDTO_Validate(t *testing.T) {
 
 func TestWebhookEndpointUpdateStatusRequestDTO_Validate(t *testing.T) {
 	t.Run("valid active", func(t *testing.T) {
-		d := WebhookEndpointUpdateStatusRequestDTO{Status: model.StatusActive}
+		d := WebhookEndpointUpdateStatusRequestDTO{Status: StatusActive}
 		assert.NoError(t, d.Validate())
 	})
 
 	t.Run("valid inactive", func(t *testing.T) {
-		d := WebhookEndpointUpdateStatusRequestDTO{Status: model.StatusInactive}
+		d := WebhookEndpointUpdateStatusRequestDTO{Status: StatusInactive}
 		assert.NoError(t, d.Validate())
 	})
 
@@ -208,15 +205,15 @@ func TestWebhookEndpointUpdateStatusRequestDTO_Validate(t *testing.T) {
 func TestWebhookEndpointFilterDTO_Validate(t *testing.T) {
 	t.Run("valid", func(t *testing.T) {
 		d := WebhookEndpointFilterDTO{
-			PaginationRequestDTO: dto.PaginationRequestDTO{Page: 1, Limit: 10},
+			PaginationRequestDTO: PaginationRequestDTO{Page: 1, Limit: 10},
 		}
 		assert.NoError(t, d.Validate())
 	})
 
 	t.Run("valid with status", func(t *testing.T) {
 		d := WebhookEndpointFilterDTO{
-			Status:               []string{model.StatusActive},
-			PaginationRequestDTO: dto.PaginationRequestDTO{Page: 1, Limit: 10},
+			Status:               []string{StatusActive},
+			PaginationRequestDTO: PaginationRequestDTO{Page: 1, Limit: 10},
 		}
 		assert.NoError(t, d.Validate())
 	})

@@ -7,8 +7,6 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
-	"github.com/maintainerd/auth/internal/model"
-	"github.com/maintainerd/auth/internal/repository"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -30,7 +28,7 @@ func TestProfileService_CreateOrUpdateProfile(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		svc := NewProfileService(db, &mockProfileRepo{}, &mockUserRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.User, error) { return nil, nil },
+			findByUUIDFn: func(_ any, _ ...string) (*User, error) { return nil, nil },
 		})
 		_, err := svc.CreateOrUpdateProfile(context.Background(), userUUID, "John", nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
 		require.Error(t, err)
@@ -42,12 +40,12 @@ func TestProfileService_CreateOrUpdateProfile(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		svc := NewProfileService(db, &mockProfileRepo{
-			findDefaultByUserIDFn: func(_ int64) (*model.Profile, error) {
+			findDefaultByUserIDFn: func(_ int64) (*Profile, error) {
 				return nil, errors.New("db error")
 			},
 		}, &mockUserRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.User, error) {
-				return &model.User{UserID: userID, UserUUID: userUUID}, nil
+			findByUUIDFn: func(_ any, _ ...string) (*User, error) {
+				return &User{UserID: userID, UserUUID: userUUID}, nil
 			},
 		})
 		_, err := svc.CreateOrUpdateProfile(context.Background(), userUUID, "John", nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
@@ -60,13 +58,13 @@ func TestProfileService_CreateOrUpdateProfile(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		svc := NewProfileService(db, &mockProfileRepo{
-			findDefaultByUserIDFn: func(_ int64) (*model.Profile, error) { return nil, nil },
-			createFn: func(_ *model.Profile) (*model.Profile, error) {
+			findDefaultByUserIDFn: func(_ int64) (*Profile, error) { return nil, nil },
+			createFn: func(_ *Profile) (*Profile, error) {
 				return nil, errors.New("create failed")
 			},
 		}, &mockUserRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.User, error) {
-				return &model.User{UserID: userID, UserUUID: userUUID}, nil
+			findByUUIDFn: func(_ any, _ ...string) (*User, error) {
+				return &User{UserID: userID, UserUUID: userUUID}, nil
 			},
 		})
 		_, err := svc.CreateOrUpdateProfile(context.Background(), userUUID, "John", nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
@@ -79,12 +77,12 @@ func TestProfileService_CreateOrUpdateProfile(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		svc := NewProfileService(db, &mockProfileRepo{
-			findDefaultByUserIDFn: func(_ int64) (*model.Profile, error) { return nil, nil },
+			findDefaultByUserIDFn: func(_ int64) (*Profile, error) { return nil, nil },
 		}, &mockUserRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.User, error) {
-				return &model.User{UserID: userID, UserUUID: userUUID}, nil
+			findByUUIDFn: func(_ any, _ ...string) (*User, error) {
+				return &User{UserID: userID, UserUUID: userUUID}, nil
 			},
-			updateByUUIDFn: func(_, _ any) (*model.User, error) {
+			updateByUUIDFn: func(_, _ any) (*User, error) {
 				return nil, errors.New("user update failed")
 			},
 		})
@@ -98,10 +96,10 @@ func TestProfileService_CreateOrUpdateProfile(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectCommit()
 		svc := NewProfileService(db, &mockProfileRepo{
-			findDefaultByUserIDFn: func(_ int64) (*model.Profile, error) { return nil, nil },
+			findDefaultByUserIDFn: func(_ int64) (*Profile, error) { return nil, nil },
 		}, &mockUserRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.User, error) {
-				return &model.User{UserID: userID, UserUUID: userUUID}, nil
+			findByUUIDFn: func(_ any, _ ...string) (*User, error) {
+				return &User{UserID: userID, UserUUID: userUUID}, nil
 			},
 		})
 		res, err := svc.CreateOrUpdateProfile(context.Background(), userUUID, "John", nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
@@ -116,10 +114,10 @@ func TestProfileService_CreateOrUpdateProfile(t *testing.T) {
 		mock.ExpectCommit()
 		meta := map[string]any{"key": "value"}
 		svc := NewProfileService(db, &mockProfileRepo{
-			findDefaultByUserIDFn: func(_ int64) (*model.Profile, error) { return nil, nil },
+			findDefaultByUserIDFn: func(_ int64) (*Profile, error) { return nil, nil },
 		}, &mockUserRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.User, error) {
-				return &model.User{UserID: userID, UserUUID: userUUID}, nil
+			findByUUIDFn: func(_ any, _ ...string) (*User, error) {
+				return &User{UserID: userID, UserUUID: userUUID}, nil
 			},
 		})
 		res, err := svc.CreateOrUpdateProfile(context.Background(), userUUID, "John", nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, meta)
@@ -133,10 +131,10 @@ func TestProfileService_CreateOrUpdateProfile(t *testing.T) {
 		mock.ExpectRollback()
 		badMeta := map[string]any{"bad": math.Inf(1)}
 		svc := NewProfileService(db, &mockProfileRepo{
-			findDefaultByUserIDFn: func(_ int64) (*model.Profile, error) { return nil, nil },
+			findDefaultByUserIDFn: func(_ int64) (*Profile, error) { return nil, nil },
 		}, &mockUserRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.User, error) {
-				return &model.User{UserID: userID, UserUUID: userUUID}, nil
+			findByUUIDFn: func(_ any, _ ...string) (*User, error) {
+				return &User{UserID: userID, UserUUID: userUUID}, nil
 			},
 		})
 		_, err := svc.CreateOrUpdateProfile(context.Background(), userUUID, "John", nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, badMeta)
@@ -147,15 +145,15 @@ func TestProfileService_CreateOrUpdateProfile(t *testing.T) {
 		db, mock := newMockGormDB(t)
 		mock.ExpectBegin()
 		mock.ExpectRollback()
-		existing := &model.Profile{ProfileID: 10, ProfileUUID: uuid.New(), UserID: userID, IsDefault: true}
+		existing := &Profile{ProfileID: 10, ProfileUUID: uuid.New(), UserID: userID, IsDefault: true}
 		svc := NewProfileService(db, &mockProfileRepo{
-			findDefaultByUserIDFn: func(_ int64) (*model.Profile, error) { return existing, nil },
-			updateByUserIDFn: func(_ int64, _ *model.Profile) error {
+			findDefaultByUserIDFn: func(_ int64) (*Profile, error) { return existing, nil },
+			updateByUserIDFn: func(_ int64, _ *Profile) error {
 				return errors.New("update failed")
 			},
 		}, &mockUserRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.User, error) {
-				return &model.User{UserID: userID, UserUUID: userUUID}, nil
+			findByUUIDFn: func(_ any, _ ...string) (*User, error) {
+				return &User{UserID: userID, UserUUID: userUUID}, nil
 			},
 		})
 		_, err := svc.CreateOrUpdateProfile(context.Background(), userUUID, "Jane", nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
@@ -167,12 +165,12 @@ func TestProfileService_CreateOrUpdateProfile(t *testing.T) {
 		db, mock := newMockGormDB(t)
 		mock.ExpectBegin()
 		mock.ExpectCommit()
-		existing := &model.Profile{ProfileID: 10, ProfileUUID: uuid.New(), UserID: userID, IsDefault: true}
+		existing := &Profile{ProfileID: 10, ProfileUUID: uuid.New(), UserID: userID, IsDefault: true}
 		svc := NewProfileService(db, &mockProfileRepo{
-			findDefaultByUserIDFn: func(_ int64) (*model.Profile, error) { return existing, nil },
+			findDefaultByUserIDFn: func(_ int64) (*Profile, error) { return existing, nil },
 		}, &mockUserRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.User, error) {
-				return &model.User{UserID: userID, UserUUID: userUUID}, nil
+			findByUUIDFn: func(_ any, _ ...string) (*User, error) {
+				return &User{UserID: userID, UserUUID: userUUID}, nil
 			},
 		})
 		res, err := svc.CreateOrUpdateProfile(context.Background(), userUUID, "Jane", nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
@@ -195,7 +193,7 @@ func TestProfileService_CreateOrUpdateSpecificProfile(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		svc := NewProfileService(db, &mockProfileRepo{}, &mockUserRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.User, error) { return nil, nil },
+			findByUUIDFn: func(_ any, _ ...string) (*User, error) { return nil, nil },
 		})
 		_, err := svc.CreateOrUpdateSpecificProfile(context.Background(), profileUUID, userUUID, "John", nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
 		require.Error(t, err)
@@ -207,12 +205,12 @@ func TestProfileService_CreateOrUpdateSpecificProfile(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		svc := NewProfileService(db, &mockProfileRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.Profile, error) {
+			findByUUIDFn: func(_ any, _ ...string) (*Profile, error) {
 				return nil, errors.New("db error")
 			},
 		}, &mockUserRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.User, error) {
-				return &model.User{UserID: userID, UserUUID: userUUID}, nil
+			findByUUIDFn: func(_ any, _ ...string) (*User, error) {
+				return &User{UserID: userID, UserUUID: userUUID}, nil
 			},
 		})
 		_, err := svc.CreateOrUpdateSpecificProfile(context.Background(), profileUUID, userUUID, "John", nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
@@ -225,12 +223,12 @@ func TestProfileService_CreateOrUpdateSpecificProfile(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		svc := NewProfileService(db, &mockProfileRepo{
-			findByUserIDFn: func(_ int64) (*model.Profile, error) {
+			findByUserIDFn: func(_ int64) (*Profile, error) {
 				return nil, errors.New("find user prof err")
 			},
 		}, &mockUserRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.User, error) {
-				return &model.User{UserID: userID, UserUUID: userUUID}, nil
+			findByUUIDFn: func(_ any, _ ...string) (*User, error) {
+				return &User{UserID: userID, UserUUID: userUUID}, nil
 			},
 		})
 		_, err := svc.CreateOrUpdateSpecificProfile(context.Background(), profileUUID, userUUID, "John", nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
@@ -243,12 +241,12 @@ func TestProfileService_CreateOrUpdateSpecificProfile(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		svc := NewProfileService(db, &mockProfileRepo{
-			createFn: func(_ *model.Profile) (*model.Profile, error) {
+			createFn: func(_ *Profile) (*Profile, error) {
 				return nil, errors.New("create failed")
 			},
 		}, &mockUserRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.User, error) {
-				return &model.User{UserID: userID, UserUUID: userUUID}, nil
+			findByUUIDFn: func(_ any, _ ...string) (*User, error) {
+				return &User{UserID: userID, UserUUID: userUUID}, nil
 			},
 		})
 		_, err := svc.CreateOrUpdateSpecificProfile(context.Background(), profileUUID, userUUID, "John", nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
@@ -261,10 +259,10 @@ func TestProfileService_CreateOrUpdateSpecificProfile(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		svc := NewProfileService(db, &mockProfileRepo{}, &mockUserRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.User, error) {
-				return &model.User{UserID: userID, UserUUID: userUUID}, nil
+			findByUUIDFn: func(_ any, _ ...string) (*User, error) {
+				return &User{UserID: userID, UserUUID: userUUID}, nil
 			},
-			updateByUUIDFn: func(_, _ any) (*model.User, error) {
+			updateByUUIDFn: func(_, _ any) (*User, error) {
 				return nil, errors.New("user update failed")
 			},
 		})
@@ -278,8 +276,8 @@ func TestProfileService_CreateOrUpdateSpecificProfile(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectCommit()
 		svc := NewProfileService(db, &mockProfileRepo{}, &mockUserRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.User, error) {
-				return &model.User{UserID: userID, UserUUID: userUUID}, nil
+			findByUUIDFn: func(_ any, _ ...string) (*User, error) {
+				return &User{UserID: userID, UserUUID: userUUID}, nil
 			},
 		})
 		res, err := svc.CreateOrUpdateSpecificProfile(context.Background(), profileUUID, userUUID, "John", nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
@@ -293,12 +291,12 @@ func TestProfileService_CreateOrUpdateSpecificProfile(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectCommit()
 		svc := NewProfileService(db, &mockProfileRepo{
-			findByUserIDFn: func(_ int64) (*model.Profile, error) {
-				return &model.Profile{ProfileID: 99}, nil // existing profile exists
+			findByUserIDFn: func(_ int64) (*Profile, error) {
+				return &Profile{ProfileID: 99}, nil // existing profile exists
 			},
 		}, &mockUserRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.User, error) {
-				return &model.User{UserID: userID, UserUUID: userUUID}, nil
+			findByUUIDFn: func(_ any, _ ...string) (*User, error) {
+				return &User{UserID: userID, UserUUID: userUUID}, nil
 			},
 		})
 		res, err := svc.CreateOrUpdateSpecificProfile(context.Background(), profileUUID, userUUID, "John", nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
@@ -312,8 +310,8 @@ func TestProfileService_CreateOrUpdateSpecificProfile(t *testing.T) {
 		mock.ExpectCommit()
 		meta := map[string]any{"role": "admin"}
 		svc := NewProfileService(db, &mockProfileRepo{}, &mockUserRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.User, error) {
-				return &model.User{UserID: userID, UserUUID: userUUID}, nil
+			findByUUIDFn: func(_ any, _ ...string) (*User, error) {
+				return &User{UserID: userID, UserUUID: userUUID}, nil
 			},
 		})
 		res, err := svc.CreateOrUpdateSpecificProfile(context.Background(), profileUUID, userUUID, "John", nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, meta)
@@ -327,8 +325,8 @@ func TestProfileService_CreateOrUpdateSpecificProfile(t *testing.T) {
 		mock.ExpectRollback()
 		badMeta := map[string]any{"bad": math.Inf(1)}
 		svc := NewProfileService(db, &mockProfileRepo{}, &mockUserRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.User, error) {
-				return &model.User{UserID: userID, UserUUID: userUUID}, nil
+			findByUUIDFn: func(_ any, _ ...string) (*User, error) {
+				return &User{UserID: userID, UserUUID: userUUID}, nil
 			},
 		})
 		_, err := svc.CreateOrUpdateSpecificProfile(context.Background(), profileUUID, userUUID, "John", nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, badMeta)
@@ -340,12 +338,12 @@ func TestProfileService_CreateOrUpdateSpecificProfile(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		svc := NewProfileService(db, &mockProfileRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.Profile, error) {
-				return &model.Profile{ProfileID: 10, ProfileUUID: profileUUID, UserID: 999}, nil
+			findByUUIDFn: func(_ any, _ ...string) (*Profile, error) {
+				return &Profile{ProfileID: 10, ProfileUUID: profileUUID, UserID: 999}, nil
 			},
 		}, &mockUserRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.User, error) {
-				return &model.User{UserID: userID, UserUUID: userUUID}, nil
+			findByUUIDFn: func(_ any, _ ...string) (*User, error) {
+				return &User{UserID: userID, UserUUID: userUUID}, nil
 			},
 		})
 		_, err := svc.CreateOrUpdateSpecificProfile(context.Background(), profileUUID, userUUID, "John", nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
@@ -357,15 +355,15 @@ func TestProfileService_CreateOrUpdateSpecificProfile(t *testing.T) {
 		db, mock := newMockGormDB(t)
 		mock.ExpectBegin()
 		mock.ExpectRollback()
-		existing := &model.Profile{ProfileID: 10, ProfileUUID: profileUUID, UserID: userID}
+		existing := &Profile{ProfileID: 10, ProfileUUID: profileUUID, UserID: userID}
 		svc := NewProfileService(db, &mockProfileRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.Profile, error) { return existing, nil },
-			createOrUpdateFn: func(_ *model.Profile) (*model.Profile, error) {
+			findByUUIDFn: func(_ any, _ ...string) (*Profile, error) { return existing, nil },
+			createOrUpdateFn: func(_ *Profile) (*Profile, error) {
 				return nil, errors.New("update failed")
 			},
 		}, &mockUserRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.User, error) {
-				return &model.User{UserID: userID, UserUUID: userUUID}, nil
+			findByUUIDFn: func(_ any, _ ...string) (*User, error) {
+				return &User{UserID: userID, UserUUID: userUUID}, nil
 			},
 		})
 		_, err := svc.CreateOrUpdateSpecificProfile(context.Background(), profileUUID, userUUID, "Jane", nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
@@ -377,12 +375,12 @@ func TestProfileService_CreateOrUpdateSpecificProfile(t *testing.T) {
 		db, mock := newMockGormDB(t)
 		mock.ExpectBegin()
 		mock.ExpectCommit()
-		existing := &model.Profile{ProfileID: 10, ProfileUUID: profileUUID, UserID: userID}
+		existing := &Profile{ProfileID: 10, ProfileUUID: profileUUID, UserID: userID}
 		svc := NewProfileService(db, &mockProfileRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.Profile, error) { return existing, nil },
+			findByUUIDFn: func(_ any, _ ...string) (*Profile, error) { return existing, nil },
 		}, &mockUserRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.User, error) {
-				return &model.User{UserID: userID, UserUUID: userUUID}, nil
+			findByUUIDFn: func(_ any, _ ...string) (*User, error) {
+				return &User{UserID: userID, UserUUID: userUUID}, nil
 			},
 		})
 		res, err := svc.CreateOrUpdateSpecificProfile(context.Background(), profileUUID, userUUID, "Jane", nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
@@ -398,7 +396,7 @@ func TestProfileService_GetByUUID(t *testing.T) {
 
 	t.Run("user not found", func(t *testing.T) {
 		svc := newProfileSvc(&mockProfileRepo{}, &mockUserRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.User, error) { return nil, nil },
+			findByUUIDFn: func(_ any, _ ...string) (*User, error) { return nil, nil },
 		})
 		_, err := svc.GetByUUID(context.Background(), profileUUID, userUUID)
 		require.Error(t, err)
@@ -407,10 +405,10 @@ func TestProfileService_GetByUUID(t *testing.T) {
 
 	t.Run("profile not found", func(t *testing.T) {
 		svc := newProfileSvc(&mockProfileRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.Profile, error) { return nil, nil },
+			findByUUIDFn: func(_ any, _ ...string) (*Profile, error) { return nil, nil },
 		}, &mockUserRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.User, error) {
-				return &model.User{UserID: userID}, nil
+			findByUUIDFn: func(_ any, _ ...string) (*User, error) {
+				return &User{UserID: userID}, nil
 			},
 		})
 		_, err := svc.GetByUUID(context.Background(), profileUUID, userUUID)
@@ -420,12 +418,12 @@ func TestProfileService_GetByUUID(t *testing.T) {
 
 	t.Run("profile belongs to different user", func(t *testing.T) {
 		svc := newProfileSvc(&mockProfileRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.Profile, error) {
-				return &model.Profile{ProfileUUID: profileUUID, UserID: 999}, nil
+			findByUUIDFn: func(_ any, _ ...string) (*Profile, error) {
+				return &Profile{ProfileUUID: profileUUID, UserID: 999}, nil
 			},
 		}, &mockUserRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.User, error) {
-				return &model.User{UserID: userID}, nil
+			findByUUIDFn: func(_ any, _ ...string) (*User, error) {
+				return &User{UserID: userID}, nil
 			},
 		})
 		_, err := svc.GetByUUID(context.Background(), profileUUID, userUUID)
@@ -435,12 +433,12 @@ func TestProfileService_GetByUUID(t *testing.T) {
 
 	t.Run("success", func(t *testing.T) {
 		svc := newProfileSvc(&mockProfileRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.Profile, error) {
-				return &model.Profile{ProfileUUID: profileUUID, UserID: userID}, nil
+			findByUUIDFn: func(_ any, _ ...string) (*Profile, error) {
+				return &Profile{ProfileUUID: profileUUID, UserID: userID}, nil
 			},
 		}, &mockUserRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.User, error) {
-				return &model.User{UserID: userID}, nil
+			findByUUIDFn: func(_ any, _ ...string) (*User, error) {
+				return &User{UserID: userID}, nil
 			},
 		})
 		res, err := svc.GetByUUID(context.Background(), profileUUID, userUUID)
@@ -454,7 +452,7 @@ func TestProfileService_GetByUserUUID(t *testing.T) {
 
 	t.Run("user not found", func(t *testing.T) {
 		svc := newProfileSvc(&mockProfileRepo{}, &mockUserRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.User, error) { return nil, nil },
+			findByUUIDFn: func(_ any, _ ...string) (*User, error) { return nil, nil },
 		})
 		_, err := svc.GetByUserUUID(context.Background(), userUUID)
 		require.Error(t, err)
@@ -463,10 +461,10 @@ func TestProfileService_GetByUserUUID(t *testing.T) {
 
 	t.Run("profile not found", func(t *testing.T) {
 		svc := newProfileSvc(&mockProfileRepo{
-			findDefaultByUserIDFn: func(_ int64) (*model.Profile, error) { return nil, nil },
+			findDefaultByUserIDFn: func(_ int64) (*Profile, error) { return nil, nil },
 		}, &mockUserRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.User, error) {
-				return &model.User{UserID: 1}, nil
+			findByUUIDFn: func(_ any, _ ...string) (*User, error) {
+				return &User{UserID: 1}, nil
 			},
 		})
 		_, err := svc.GetByUserUUID(context.Background(), userUUID)
@@ -477,12 +475,12 @@ func TestProfileService_GetByUserUUID(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		pid := uuid.New()
 		svc := newProfileSvc(&mockProfileRepo{
-			findDefaultByUserIDFn: func(_ int64) (*model.Profile, error) {
-				return &model.Profile{ProfileUUID: pid, IsDefault: true}, nil
+			findDefaultByUserIDFn: func(_ int64) (*Profile, error) {
+				return &Profile{ProfileUUID: pid, IsDefault: true}, nil
 			},
 		}, &mockUserRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.User, error) {
-				return &model.User{UserID: 1}, nil
+			findByUUIDFn: func(_ any, _ ...string) (*User, error) {
+				return &User{UserID: 1}, nil
 			},
 		})
 		res, err := svc.GetByUserUUID(context.Background(), userUUID)
@@ -496,7 +494,7 @@ func TestProfileService_GetAll(t *testing.T) {
 
 	t.Run("user not found", func(t *testing.T) {
 		svc := newProfileSvc(&mockProfileRepo{}, &mockUserRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.User, error) { return nil, errors.New("db") },
+			findByUUIDFn: func(_ any, _ ...string) (*User, error) { return nil, errors.New("db") },
 		})
 		_, err := svc.GetAll(context.Background(), userUUID, nil, nil, nil, nil, nil, nil, nil, 1, 10, "created_at", "asc")
 		require.Error(t, err)
@@ -504,12 +502,12 @@ func TestProfileService_GetAll(t *testing.T) {
 
 	t.Run("FindAllByUserID error", func(t *testing.T) {
 		svc := newProfileSvc(&mockProfileRepo{
-			findAllByUserIDFn: func(_ repository.ProfileRepositoryGetFilter) (*repository.PaginationResult[model.Profile], error) {
+			findAllByUserIDFn: func(_ ProfileRepositoryGetFilter) (*PaginationResult[Profile], error) {
 				return nil, errors.New("repo error")
 			},
 		}, &mockUserRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.User, error) {
-				return &model.User{UserID: 1}, nil
+			findByUUIDFn: func(_ any, _ ...string) (*User, error) {
+				return &User{UserID: 1}, nil
 			},
 		})
 		_, err := svc.GetAll(context.Background(), userUUID, nil, nil, nil, nil, nil, nil, nil, 1, 10, "created_at", "asc")
@@ -519,15 +517,15 @@ func TestProfileService_GetAll(t *testing.T) {
 
 	t.Run("success with results", func(t *testing.T) {
 		svc := newProfileSvc(&mockProfileRepo{
-			findAllByUserIDFn: func(_ repository.ProfileRepositoryGetFilter) (*repository.PaginationResult[model.Profile], error) {
-				return &repository.PaginationResult[model.Profile]{
-					Data:  []model.Profile{{ProfileUUID: uuid.New()}},
+			findAllByUserIDFn: func(_ ProfileRepositoryGetFilter) (*PaginationResult[Profile], error) {
+				return &PaginationResult[Profile]{
+					Data:  []Profile{{ProfileUUID: uuid.New()}},
 					Total: 1, Page: 1, Limit: 10, TotalPages: 1,
 				}, nil
 			},
 		}, &mockUserRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.User, error) {
-				return &model.User{UserID: 1}, nil
+			findByUUIDFn: func(_ any, _ ...string) (*User, error) {
+				return &User{UserID: 1}, nil
 			},
 		})
 		res, err := svc.GetAll(context.Background(), userUUID, nil, nil, nil, nil, nil, nil, nil, 1, 10, "created_at", "asc")
@@ -543,7 +541,7 @@ func TestProfileService_DeleteByUUID(t *testing.T) {
 
 	t.Run("user not found", func(t *testing.T) {
 		svc := newProfileSvc(&mockProfileRepo{}, &mockUserRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.User, error) { return nil, nil },
+			findByUUIDFn: func(_ any, _ ...string) (*User, error) { return nil, nil },
 		})
 		_, err := svc.DeleteByUUID(context.Background(), profileUUID, userUUID)
 		require.Error(t, err)
@@ -552,10 +550,10 @@ func TestProfileService_DeleteByUUID(t *testing.T) {
 
 	t.Run("profile not found", func(t *testing.T) {
 		svc := newProfileSvc(&mockProfileRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.Profile, error) { return nil, nil },
+			findByUUIDFn: func(_ any, _ ...string) (*Profile, error) { return nil, nil },
 		}, &mockUserRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.User, error) {
-				return &model.User{UserID: userID}, nil
+			findByUUIDFn: func(_ any, _ ...string) (*User, error) {
+				return &User{UserID: userID}, nil
 			},
 		})
 		_, err := svc.DeleteByUUID(context.Background(), profileUUID, userUUID)
@@ -565,12 +563,12 @@ func TestProfileService_DeleteByUUID(t *testing.T) {
 
 	t.Run("profile belongs to different user", func(t *testing.T) {
 		svc := newProfileSvc(&mockProfileRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.Profile, error) {
-				return &model.Profile{UserID: 999}, nil
+			findByUUIDFn: func(_ any, _ ...string) (*Profile, error) {
+				return &Profile{UserID: 999}, nil
 			},
 		}, &mockUserRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.User, error) {
-				return &model.User{UserID: userID}, nil
+			findByUUIDFn: func(_ any, _ ...string) (*User, error) {
+				return &User{UserID: userID}, nil
 			},
 		})
 		_, err := svc.DeleteByUUID(context.Background(), profileUUID, userUUID)
@@ -580,12 +578,12 @@ func TestProfileService_DeleteByUUID(t *testing.T) {
 
 	t.Run("cannot delete default profile", func(t *testing.T) {
 		svc := newProfileSvc(&mockProfileRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.Profile, error) {
-				return &model.Profile{UserID: userID, IsDefault: true}, nil
+			findByUUIDFn: func(_ any, _ ...string) (*Profile, error) {
+				return &Profile{UserID: userID, IsDefault: true}, nil
 			},
 		}, &mockUserRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.User, error) {
-				return &model.User{UserID: userID}, nil
+			findByUUIDFn: func(_ any, _ ...string) (*User, error) {
+				return &User{UserID: userID}, nil
 			},
 		})
 		_, err := svc.DeleteByUUID(context.Background(), profileUUID, userUUID)
@@ -595,13 +593,13 @@ func TestProfileService_DeleteByUUID(t *testing.T) {
 
 	t.Run("DeleteByUUID repo error", func(t *testing.T) {
 		svc := newProfileSvc(&mockProfileRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.Profile, error) {
-				return &model.Profile{ProfileUUID: profileUUID, UserID: userID, IsDefault: false}, nil
+			findByUUIDFn: func(_ any, _ ...string) (*Profile, error) {
+				return &Profile{ProfileUUID: profileUUID, UserID: userID, IsDefault: false}, nil
 			},
 			deleteByUUIDFn: func(_ any) error { return errors.New("delete failed") },
 		}, &mockUserRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.User, error) {
-				return &model.User{UserID: userID}, nil
+			findByUUIDFn: func(_ any, _ ...string) (*User, error) {
+				return &User{UserID: userID}, nil
 			},
 		})
 		_, err := svc.DeleteByUUID(context.Background(), profileUUID, userUUID)
@@ -611,13 +609,13 @@ func TestProfileService_DeleteByUUID(t *testing.T) {
 
 	t.Run("success", func(t *testing.T) {
 		svc := newProfileSvc(&mockProfileRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.Profile, error) {
-				return &model.Profile{ProfileUUID: profileUUID, UserID: userID, IsDefault: false}, nil
+			findByUUIDFn: func(_ any, _ ...string) (*Profile, error) {
+				return &Profile{ProfileUUID: profileUUID, UserID: userID, IsDefault: false}, nil
 			},
 			deleteByUUIDFn: func(_ any) error { return nil },
 		}, &mockUserRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.User, error) {
-				return &model.User{UserID: userID}, nil
+			findByUUIDFn: func(_ any, _ ...string) (*User, error) {
+				return &User{UserID: userID}, nil
 			},
 		})
 		res, err := svc.DeleteByUUID(context.Background(), profileUUID, userUUID)
@@ -636,7 +634,7 @@ func TestProfileService_SetDefaultProfile(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		svc := NewProfileService(db, &mockProfileRepo{}, &mockUserRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.User, error) { return nil, nil },
+			findByUUIDFn: func(_ any, _ ...string) (*User, error) { return nil, nil },
 		})
 		_, err := svc.SetDefaultProfile(context.Background(), profileUUID, userUUID)
 		require.Error(t, err)
@@ -648,10 +646,10 @@ func TestProfileService_SetDefaultProfile(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		svc := NewProfileService(db, &mockProfileRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.Profile, error) { return nil, nil },
+			findByUUIDFn: func(_ any, _ ...string) (*Profile, error) { return nil, nil },
 		}, &mockUserRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.User, error) {
-				return &model.User{UserID: userID}, nil
+			findByUUIDFn: func(_ any, _ ...string) (*User, error) {
+				return &User{UserID: userID}, nil
 			},
 		})
 		_, err := svc.SetDefaultProfile(context.Background(), profileUUID, userUUID)
@@ -664,12 +662,12 @@ func TestProfileService_SetDefaultProfile(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		svc := NewProfileService(db, &mockProfileRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.Profile, error) {
+			findByUUIDFn: func(_ any, _ ...string) (*Profile, error) {
 				return nil, errors.New("find error")
 			},
 		}, &mockUserRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.User, error) {
-				return &model.User{UserID: userID}, nil
+			findByUUIDFn: func(_ any, _ ...string) (*User, error) {
+				return &User{UserID: userID}, nil
 			},
 		})
 		_, err := svc.SetDefaultProfile(context.Background(), profileUUID, userUUID)
@@ -682,12 +680,12 @@ func TestProfileService_SetDefaultProfile(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		svc := NewProfileService(db, &mockProfileRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.Profile, error) {
-				return &model.Profile{ProfileUUID: profileUUID, UserID: 999}, nil
+			findByUUIDFn: func(_ any, _ ...string) (*Profile, error) {
+				return &Profile{ProfileUUID: profileUUID, UserID: 999}, nil
 			},
 		}, &mockUserRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.User, error) {
-				return &model.User{UserID: userID}, nil
+			findByUUIDFn: func(_ any, _ ...string) (*User, error) {
+				return &User{UserID: userID}, nil
 			},
 		})
 		_, err := svc.SetDefaultProfile(context.Background(), profileUUID, userUUID)
@@ -700,13 +698,13 @@ func TestProfileService_SetDefaultProfile(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		svc := NewProfileService(db, &mockProfileRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.Profile, error) {
-				return &model.Profile{ProfileUUID: profileUUID, UserID: userID}, nil
+			findByUUIDFn: func(_ any, _ ...string) (*Profile, error) {
+				return &Profile{ProfileUUID: profileUUID, UserID: userID}, nil
 			},
 			unsetDefaultFn: func(_ int64) error { return errors.New("unset error") },
 		}, &mockUserRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.User, error) {
-				return &model.User{UserID: userID}, nil
+			findByUUIDFn: func(_ any, _ ...string) (*User, error) {
+				return &User{UserID: userID}, nil
 			},
 		})
 		_, err := svc.SetDefaultProfile(context.Background(), profileUUID, userUUID)
@@ -719,15 +717,15 @@ func TestProfileService_SetDefaultProfile(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		svc := NewProfileService(db, &mockProfileRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.Profile, error) {
-				return &model.Profile{ProfileUUID: profileUUID, UserID: userID}, nil
+			findByUUIDFn: func(_ any, _ ...string) (*Profile, error) {
+				return &Profile{ProfileUUID: profileUUID, UserID: userID}, nil
 			},
-			createOrUpdateFn: func(_ *model.Profile) (*model.Profile, error) {
+			createOrUpdateFn: func(_ *Profile) (*Profile, error) {
 				return nil, errors.New("save error")
 			},
 		}, &mockUserRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.User, error) {
-				return &model.User{UserID: userID}, nil
+			findByUUIDFn: func(_ any, _ ...string) (*User, error) {
+				return &User{UserID: userID}, nil
 			},
 		})
 		_, err := svc.SetDefaultProfile(context.Background(), profileUUID, userUUID)
@@ -740,12 +738,12 @@ func TestProfileService_SetDefaultProfile(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectCommit()
 		svc := NewProfileService(db, &mockProfileRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.Profile, error) {
-				return &model.Profile{ProfileUUID: profileUUID, UserID: userID}, nil
+			findByUUIDFn: func(_ any, _ ...string) (*Profile, error) {
+				return &Profile{ProfileUUID: profileUUID, UserID: userID}, nil
 			},
 		}, &mockUserRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.User, error) {
-				return &model.User{UserID: userID}, nil
+			findByUUIDFn: func(_ any, _ ...string) (*User, error) {
+				return &User{UserID: userID}, nil
 			},
 		})
 		res, err := svc.SetDefaultProfile(context.Background(), profileUUID, userUUID)
@@ -764,7 +762,7 @@ func TestToProfileServiceDataResult(t *testing.T) {
 	})
 
 	t.Run("invalid metadata JSON → metadata is nil", func(t *testing.T) {
-		p := &model.Profile{
+		p := &Profile{
 			ProfileUUID: uuid.New(),
 			FirstName:   "John",
 			Metadata:    []byte("not-json"),
@@ -776,7 +774,7 @@ func TestToProfileServiceDataResult(t *testing.T) {
 	})
 
 	t.Run("valid metadata JSON", func(t *testing.T) {
-		p := &model.Profile{
+		p := &Profile{
 			ProfileUUID: uuid.New(),
 			FirstName:   "Jane",
 			Metadata:    []byte(`{"key":"val"}`),

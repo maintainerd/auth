@@ -6,8 +6,6 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
-	"github.com/maintainerd/auth/internal/model"
-	"github.com/maintainerd/auth/internal/repository"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -22,24 +20,24 @@ func TestSMSTemplateService_GetByUUID(t *testing.T) {
 
 	cases := []struct {
 		name    string
-		repoFn  func(string, int64) (*model.SMSTemplate, error)
+		repoFn  func(string, int64) (*SMSTemplate, error)
 		wantErr string
 	}{
 		{
 			name:    "not found",
-			repoFn:  func(_ string, _ int64) (*model.SMSTemplate, error) { return nil, nil },
+			repoFn:  func(_ string, _ int64) (*SMSTemplate, error) { return nil, nil },
 			wantErr: "not found",
 		},
 		{
 			name:    "repo error",
-			repoFn:  func(_ string, _ int64) (*model.SMSTemplate, error) { return nil, errors.New("db err") },
+			repoFn:  func(_ string, _ int64) (*SMSTemplate, error) { return nil, errors.New("db err") },
 			wantErr: "db err",
 		},
 		{
 			name: "success",
-			repoFn: func(s string, _ int64) (*model.SMSTemplate, error) {
+			repoFn: func(s string, _ int64) (*SMSTemplate, error) {
 				uid, _ := uuid.Parse(s)
-				return &model.SMSTemplate{SMSTemplateUUID: uid, Name: "OTP"}, nil
+				return &SMSTemplate{SMSTemplateUUID: uid, Name: "OTP"}, nil
 			},
 		},
 	}
@@ -62,9 +60,9 @@ func TestSMSTemplateService_GetByUUID(t *testing.T) {
 func TestSMSTemplateService_GetAll(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		svc := newSMSTemplateSvc(&mockSMSTemplateRepo{
-			findPaginatedFn: func(_ repository.SMSTemplateRepositoryGetFilter) (*repository.PaginationResult[model.SMSTemplate], error) {
-				return &repository.PaginationResult[model.SMSTemplate]{
-					Data:  []model.SMSTemplate{{Name: "OTP"}},
+			findPaginatedFn: func(_ SMSTemplateRepositoryGetFilter) (*PaginationResult[SMSTemplate], error) {
+				return &PaginationResult[SMSTemplate]{
+					Data:  []SMSTemplate{{Name: "OTP"}},
 					Total: 1, Page: 1, Limit: 10, TotalPages: 1,
 				}, nil
 			},
@@ -77,7 +75,7 @@ func TestSMSTemplateService_GetAll(t *testing.T) {
 
 	t.Run("repo error", func(t *testing.T) {
 		svc := newSMSTemplateSvc(&mockSMSTemplateRepo{
-			findPaginatedFn: func(_ repository.SMSTemplateRepositoryGetFilter) (*repository.PaginationResult[model.SMSTemplate], error) {
+			findPaginatedFn: func(_ SMSTemplateRepositoryGetFilter) (*PaginationResult[SMSTemplate], error) {
 				return nil, errors.New("db error")
 			},
 		})
@@ -90,7 +88,7 @@ func TestSMSTemplateService_GetAll(t *testing.T) {
 func TestSMSTemplateService_Create(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		svc := newSMSTemplateSvc(&mockSMSTemplateRepo{
-			createFn: func(e *model.SMSTemplate) (*model.SMSTemplate, error) { return e, nil },
+			createFn: func(e *SMSTemplate) (*SMSTemplate, error) { return e, nil },
 		})
 		res, err := svc.Create(context.Background(), 1, "OTP", nil, "Your code: {{code}}", nil, "active")
 		require.NoError(t, err)
@@ -99,7 +97,7 @@ func TestSMSTemplateService_Create(t *testing.T) {
 
 	t.Run("repo error", func(t *testing.T) {
 		svc := newSMSTemplateSvc(&mockSMSTemplateRepo{
-			createFn: func(_ *model.SMSTemplate) (*model.SMSTemplate, error) { return nil, errors.New("fail") },
+			createFn: func(_ *SMSTemplate) (*SMSTemplate, error) { return nil, errors.New("fail") },
 		})
 		_, err := svc.Create(context.Background(), 1, "OTP", nil, "code", nil, "active")
 		require.Error(t, err)
@@ -111,7 +109,7 @@ func TestSMSTemplateService_Update(t *testing.T) {
 
 	t.Run("not found", func(t *testing.T) {
 		svc := newSMSTemplateSvc(&mockSMSTemplateRepo{
-			findByUUIDAndTenantIDFn: func(_ string, _ int64) (*model.SMSTemplate, error) { return nil, nil },
+			findByUUIDAndTenantIDFn: func(_ string, _ int64) (*SMSTemplate, error) { return nil, nil },
 		})
 		_, err := svc.Update(context.Background(), id, 1, "N", nil, "M", nil, "active")
 		require.Error(t, err)
@@ -120,7 +118,7 @@ func TestSMSTemplateService_Update(t *testing.T) {
 
 	t.Run("find error", func(t *testing.T) {
 		svc := newSMSTemplateSvc(&mockSMSTemplateRepo{
-			findByUUIDAndTenantIDFn: func(_ string, _ int64) (*model.SMSTemplate, error) {
+			findByUUIDAndTenantIDFn: func(_ string, _ int64) (*SMSTemplate, error) {
 				return nil, errors.New("db error")
 			},
 		})
@@ -131,9 +129,9 @@ func TestSMSTemplateService_Update(t *testing.T) {
 
 	t.Run("system template blocked", func(t *testing.T) {
 		svc := newSMSTemplateSvc(&mockSMSTemplateRepo{
-			findByUUIDAndTenantIDFn: func(s string, _ int64) (*model.SMSTemplate, error) {
+			findByUUIDAndTenantIDFn: func(s string, _ int64) (*SMSTemplate, error) {
 				uid, _ := uuid.Parse(s)
-				return &model.SMSTemplate{SMSTemplateUUID: uid, IsSystem: true}, nil
+				return &SMSTemplate{SMSTemplateUUID: uid, IsSystem: true}, nil
 			},
 		})
 		_, err := svc.Update(context.Background(), id, 1, "N", nil, "M", nil, "active")
@@ -143,11 +141,11 @@ func TestSMSTemplateService_Update(t *testing.T) {
 
 	t.Run("UpdateByUUID error", func(t *testing.T) {
 		svc := newSMSTemplateSvc(&mockSMSTemplateRepo{
-			findByUUIDAndTenantIDFn: func(s string, _ int64) (*model.SMSTemplate, error) {
+			findByUUIDAndTenantIDFn: func(s string, _ int64) (*SMSTemplate, error) {
 				uid, _ := uuid.Parse(s)
-				return &model.SMSTemplate{SMSTemplateUUID: uid, IsSystem: false}, nil
+				return &SMSTemplate{SMSTemplateUUID: uid, IsSystem: false}, nil
 			},
-			updateByUUIDFn: func(_, _ any) (*model.SMSTemplate, error) {
+			updateByUUIDFn: func(_, _ any) (*SMSTemplate, error) {
 				return nil, errors.New("update failed")
 			},
 		})
@@ -158,12 +156,12 @@ func TestSMSTemplateService_Update(t *testing.T) {
 
 	t.Run("success", func(t *testing.T) {
 		svc := newSMSTemplateSvc(&mockSMSTemplateRepo{
-			findByUUIDAndTenantIDFn: func(s string, _ int64) (*model.SMSTemplate, error) {
+			findByUUIDAndTenantIDFn: func(s string, _ int64) (*SMSTemplate, error) {
 				uid, _ := uuid.Parse(s)
-				return &model.SMSTemplate{SMSTemplateUUID: uid, IsSystem: false}, nil
+				return &SMSTemplate{SMSTemplateUUID: uid, IsSystem: false}, nil
 			},
-			updateByUUIDFn: func(_, _ any) (*model.SMSTemplate, error) {
-				return &model.SMSTemplate{Name: "Updated"}, nil
+			updateByUUIDFn: func(_, _ any) (*SMSTemplate, error) {
+				return &SMSTemplate{Name: "Updated"}, nil
 			},
 		})
 		res, err := svc.Update(context.Background(), id, 1, "Updated", nil, "M", nil, "active")
@@ -177,7 +175,7 @@ func TestSMSTemplateService_Delete(t *testing.T) {
 
 	t.Run("not found", func(t *testing.T) {
 		svc := newSMSTemplateSvc(&mockSMSTemplateRepo{
-			findByUUIDAndTenantIDFn: func(_ string, _ int64) (*model.SMSTemplate, error) { return nil, nil },
+			findByUUIDAndTenantIDFn: func(_ string, _ int64) (*SMSTemplate, error) { return nil, nil },
 		})
 		_, err := svc.Delete(context.Background(), id, 1)
 		require.Error(t, err)
@@ -185,7 +183,7 @@ func TestSMSTemplateService_Delete(t *testing.T) {
 
 	t.Run("find error", func(t *testing.T) {
 		svc := newSMSTemplateSvc(&mockSMSTemplateRepo{
-			findByUUIDAndTenantIDFn: func(_ string, _ int64) (*model.SMSTemplate, error) {
+			findByUUIDAndTenantIDFn: func(_ string, _ int64) (*SMSTemplate, error) {
 				return nil, errors.New("db error")
 			},
 		})
@@ -196,9 +194,9 @@ func TestSMSTemplateService_Delete(t *testing.T) {
 
 	t.Run("system template blocked", func(t *testing.T) {
 		svc := newSMSTemplateSvc(&mockSMSTemplateRepo{
-			findByUUIDAndTenantIDFn: func(s string, _ int64) (*model.SMSTemplate, error) {
+			findByUUIDAndTenantIDFn: func(s string, _ int64) (*SMSTemplate, error) {
 				uid, _ := uuid.Parse(s)
-				return &model.SMSTemplate{SMSTemplateUUID: uid, IsSystem: true}, nil
+				return &SMSTemplate{SMSTemplateUUID: uid, IsSystem: true}, nil
 			},
 		})
 		_, err := svc.Delete(context.Background(), id, 1)
@@ -208,9 +206,9 @@ func TestSMSTemplateService_Delete(t *testing.T) {
 
 	t.Run("delete error", func(t *testing.T) {
 		svc := newSMSTemplateSvc(&mockSMSTemplateRepo{
-			findByUUIDAndTenantIDFn: func(s string, _ int64) (*model.SMSTemplate, error) {
+			findByUUIDAndTenantIDFn: func(s string, _ int64) (*SMSTemplate, error) {
 				uid, _ := uuid.Parse(s)
-				return &model.SMSTemplate{SMSTemplateUUID: uid, Name: "OTP"}, nil
+				return &SMSTemplate{SMSTemplateUUID: uid, Name: "OTP"}, nil
 			},
 			deleteByUUIDFn: func(_ any) error { return errors.New("delete failed") },
 		})
@@ -221,9 +219,9 @@ func TestSMSTemplateService_Delete(t *testing.T) {
 
 	t.Run("success", func(t *testing.T) {
 		svc := newSMSTemplateSvc(&mockSMSTemplateRepo{
-			findByUUIDAndTenantIDFn: func(s string, _ int64) (*model.SMSTemplate, error) {
+			findByUUIDAndTenantIDFn: func(s string, _ int64) (*SMSTemplate, error) {
 				uid, _ := uuid.Parse(s)
-				return &model.SMSTemplate{SMSTemplateUUID: uid, Name: "OTP"}, nil
+				return &SMSTemplate{SMSTemplateUUID: uid, Name: "OTP"}, nil
 			},
 			deleteByUUIDFn: func(_ any) error { return nil },
 		})
@@ -242,7 +240,7 @@ func TestSMSTemplateService_UpdateStatus(t *testing.T) {
 
 	t.Run("find error", func(t *testing.T) {
 		svc := newSMSTemplateSvc(&mockSMSTemplateRepo{
-			findByUUIDAndTenantIDFn: func(_ string, _ int64) (*model.SMSTemplate, error) {
+			findByUUIDAndTenantIDFn: func(_ string, _ int64) (*SMSTemplate, error) {
 				return nil, errors.New("db error")
 			},
 		})
@@ -253,7 +251,7 @@ func TestSMSTemplateService_UpdateStatus(t *testing.T) {
 
 	t.Run("not found", func(t *testing.T) {
 		svc := newSMSTemplateSvc(&mockSMSTemplateRepo{
-			findByUUIDAndTenantIDFn: func(_ string, _ int64) (*model.SMSTemplate, error) { return nil, nil },
+			findByUUIDAndTenantIDFn: func(_ string, _ int64) (*SMSTemplate, error) { return nil, nil },
 		})
 		_, err := svc.UpdateStatus(context.Background(), id, 1, "active")
 		require.Error(t, err)
@@ -262,9 +260,9 @@ func TestSMSTemplateService_UpdateStatus(t *testing.T) {
 
 	t.Run("system template blocked", func(t *testing.T) {
 		svc := newSMSTemplateSvc(&mockSMSTemplateRepo{
-			findByUUIDAndTenantIDFn: func(s string, _ int64) (*model.SMSTemplate, error) {
+			findByUUIDAndTenantIDFn: func(s string, _ int64) (*SMSTemplate, error) {
 				uid, _ := uuid.Parse(s)
-				return &model.SMSTemplate{SMSTemplateUUID: uid, IsSystem: true}, nil
+				return &SMSTemplate{SMSTemplateUUID: uid, IsSystem: true}, nil
 			},
 		})
 		_, err := svc.UpdateStatus(context.Background(), id, 1, "active")
@@ -274,11 +272,11 @@ func TestSMSTemplateService_UpdateStatus(t *testing.T) {
 
 	t.Run("UpdateByUUID error", func(t *testing.T) {
 		svc := newSMSTemplateSvc(&mockSMSTemplateRepo{
-			findByUUIDAndTenantIDFn: func(s string, _ int64) (*model.SMSTemplate, error) {
+			findByUUIDAndTenantIDFn: func(s string, _ int64) (*SMSTemplate, error) {
 				uid, _ := uuid.Parse(s)
-				return &model.SMSTemplate{SMSTemplateUUID: uid, IsSystem: false, Status: "draft"}, nil
+				return &SMSTemplate{SMSTemplateUUID: uid, IsSystem: false, Status: "draft"}, nil
 			},
-			updateByUUIDFn: func(_, _ any) (*model.SMSTemplate, error) {
+			updateByUUIDFn: func(_, _ any) (*SMSTemplate, error) {
 				return nil, errors.New("update failed")
 			},
 		})
@@ -289,12 +287,12 @@ func TestSMSTemplateService_UpdateStatus(t *testing.T) {
 
 	t.Run("success", func(t *testing.T) {
 		svc := newSMSTemplateSvc(&mockSMSTemplateRepo{
-			findByUUIDAndTenantIDFn: func(s string, _ int64) (*model.SMSTemplate, error) {
+			findByUUIDAndTenantIDFn: func(s string, _ int64) (*SMSTemplate, error) {
 				uid, _ := uuid.Parse(s)
-				return &model.SMSTemplate{SMSTemplateUUID: uid, IsSystem: false, Status: "draft"}, nil
+				return &SMSTemplate{SMSTemplateUUID: uid, IsSystem: false, Status: "draft"}, nil
 			},
-			updateByUUIDFn: func(_, _ any) (*model.SMSTemplate, error) {
-				return &model.SMSTemplate{SMSTemplateUUID: id, Status: "active"}, nil
+			updateByUUIDFn: func(_, _ any) (*SMSTemplate, error) {
+				return &SMSTemplate{SMSTemplateUUID: id, Status: "active"}, nil
 			},
 		})
 		res, err := svc.UpdateStatus(context.Background(), id, 1, "active")

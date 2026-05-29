@@ -3,7 +3,7 @@ package middleware
 import (
 	"net/http"
 
-	"github.com/maintainerd/auth/internal/model"
+	"github.com/maintainerd/auth/internal/platform/cache"
 	resp "github.com/maintainerd/auth/internal/platform/response"
 )
 
@@ -29,7 +29,7 @@ func PermissionMiddleware(requiredPermissions []string) func(http.Handler) http.
 }
 
 // hasAnyPermission checks if the user has at least one of the required permissions
-func hasAnyPermission(user *model.User, required []string) bool {
+func hasAnyPermission(user *cache.AuthUser, required []string) bool {
 	userPerms := make(map[string]bool)
 
 	// Collect user permissions

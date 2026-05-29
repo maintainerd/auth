@@ -6,9 +6,7 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
-	"github.com/maintainerd/auth/internal/model"
 	"github.com/maintainerd/auth/internal/platform/crypto"
-	"github.com/maintainerd/auth/internal/repository"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gorm.io/datatypes"
@@ -18,8 +16,8 @@ import (
 // Helpers
 // ---------------------------------------------------------------------------
 
-func newIDP(tenantID int64, name string) *model.IdentityProvider {
-	return &model.IdentityProvider{
+func newIDP(tenantID int64, name string) *IdentityProvider {
+	return &IdentityProvider{
 		IdentityProviderID:   1,
 		IdentityProviderUUID: uuid.New(),
 		TenantID:             tenantID,
@@ -27,16 +25,16 @@ func newIDP(tenantID int64, name string) *model.IdentityProvider {
 		DisplayName:          name,
 		Provider:             "local",
 		ProviderType:         "password",
-		Status:               model.StatusActive,
-		Tenant:               &model.Tenant{TenantID: tenantID},
+		Status:               StatusActive,
+		Tenant:               &Tenant{TenantID: tenantID},
 	}
 }
 
-func actorUserWithDefaultTenant(tenantID int64) *model.User {
-	return &model.User{
+func actorUserWithDefaultTenant(tenantID int64) *User {
+	return &User{
 		UserID: 1,
-		UserIdentities: []model.UserIdentity{
-			{TenantID: tenantID, Tenant: &model.Tenant{TenantID: tenantID, IsSystem: true}},
+		UserIdentities: []UserIdentity{
+			{TenantID: tenantID, Tenant: &Tenant{TenantID: tenantID, IsSystem: true}},
 		},
 	}
 }
@@ -50,7 +48,7 @@ func TestIdentityProviderService_Get(t *testing.T) {
 
 	t.Run("repo error → propagated", func(t *testing.T) {
 		idpRepo := &mockIdentityProviderRepo{
-			findPaginatedFn: func(_ repository.IdentityProviderRepositoryGetFilter) (*repository.PaginationResult[model.IdentityProvider], error) {
+			findPaginatedFn: func(_ IdentityProviderRepositoryGetFilter) (*PaginationResult[IdentityProvider], error) {
 				return nil, errors.New("db error")
 			},
 		}
@@ -62,9 +60,9 @@ func TestIdentityProviderService_Get(t *testing.T) {
 	t.Run("success → returns mapped results", func(t *testing.T) {
 		idp := newIDP(tenantID, "local")
 		idpRepo := &mockIdentityProviderRepo{
-			findPaginatedFn: func(_ repository.IdentityProviderRepositoryGetFilter) (*repository.PaginationResult[model.IdentityProvider], error) {
-				return &repository.PaginationResult[model.IdentityProvider]{
-					Data: []model.IdentityProvider{*idp}, Total: 1, Page: 1, Limit: 10, TotalPages: 1,
+			findPaginatedFn: func(_ IdentityProviderRepositoryGetFilter) (*PaginationResult[IdentityProvider], error) {
+				return &PaginationResult[IdentityProvider]{
+					Data: []IdentityProvider{*idp}, Total: 1, Page: 1, Limit: 10, TotalPages: 1,
 				}, nil
 			},
 		}
@@ -86,7 +84,7 @@ func TestIdentityProviderService_GetByUUID(t *testing.T) {
 
 	t.Run("idp not found → error", func(t *testing.T) {
 		idpRepo := &mockIdentityProviderRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.IdentityProvider, error) { return nil, nil },
+			findByUUIDFn: func(_ any, _ ...string) (*IdentityProvider, error) { return nil, nil },
 		}
 		svc := NewIdentityProviderService(nil, idpRepo, &mockTenantRepo{}, &mockUserRepo{})
 		_, err := svc.GetByUUID(context.Background(), idpUUID, tenantID)
@@ -96,7 +94,7 @@ func TestIdentityProviderService_GetByUUID(t *testing.T) {
 
 	t.Run("wrong tenant → access denied", func(t *testing.T) {
 		idpRepo := &mockIdentityProviderRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.IdentityProvider, error) {
+			findByUUIDFn: func(_ any, _ ...string) (*IdentityProvider, error) {
 				return newIDP(999, "other"), nil // different tenant
 			},
 		}
@@ -109,7 +107,7 @@ func TestIdentityProviderService_GetByUUID(t *testing.T) {
 	t.Run("found, same tenant → success", func(t *testing.T) {
 		idp := newIDP(tenantID, "local")
 		idpRepo := &mockIdentityProviderRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.IdentityProvider, error) { return idp, nil },
+			findByUUIDFn: func(_ any, _ ...string) (*IdentityProvider, error) { return idp, nil },
 		}
 		svc := NewIdentityProviderService(nil, idpRepo, &mockTenantRepo{}, &mockUserRepo{})
 		result, err := svc.GetByUUID(context.Background(), idpUUID, tenantID)
@@ -129,7 +127,7 @@ func TestIdentityProviderService_DeleteByUUID(t *testing.T) {
 
 	t.Run("idp not found → error", func(t *testing.T) {
 		idpRepo := &mockIdentityProviderRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.IdentityProvider, error) { return nil, nil },
+			findByUUIDFn: func(_ any, _ ...string) (*IdentityProvider, error) { return nil, nil },
 		}
 		svc := NewIdentityProviderService(nil, idpRepo, &mockTenantRepo{}, &mockUserRepo{})
 		_, err := svc.DeleteByUUID(context.Background(), idpUUID, tenantID, actorUUID)
@@ -139,7 +137,7 @@ func TestIdentityProviderService_DeleteByUUID(t *testing.T) {
 
 	t.Run("wrong tenant → access denied", func(t *testing.T) {
 		idpRepo := &mockIdentityProviderRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.IdentityProvider, error) {
+			findByUUIDFn: func(_ any, _ ...string) (*IdentityProvider, error) {
 				return newIDP(999, "other"), nil
 			},
 		}
@@ -151,12 +149,12 @@ func TestIdentityProviderService_DeleteByUUID(t *testing.T) {
 
 	t.Run("actor user not found → error", func(t *testing.T) {
 		idpRepo := &mockIdentityProviderRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.IdentityProvider, error) {
+			findByUUIDFn: func(_ any, _ ...string) (*IdentityProvider, error) {
 				return newIDP(tenantID, "local"), nil
 			},
 		}
 		userRepo := &mockUserRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.User, error) { return nil, nil },
+			findByUUIDFn: func(_ any, _ ...string) (*User, error) { return nil, nil },
 		}
 		svc := NewIdentityProviderService(nil, idpRepo, &mockTenantRepo{}, userRepo)
 		_, err := svc.DeleteByUUID(context.Background(), idpUUID, tenantID, actorUUID)
@@ -168,10 +166,10 @@ func TestIdentityProviderService_DeleteByUUID(t *testing.T) {
 		idp := newIDP(tenantID, "sys")
 		idp.IsSystem = true
 		idpRepo := &mockIdentityProviderRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.IdentityProvider, error) { return idp, nil },
+			findByUUIDFn: func(_ any, _ ...string) (*IdentityProvider, error) { return idp, nil },
 		}
 		userRepo := &mockUserRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.User, error) {
+			findByUUIDFn: func(_ any, _ ...string) (*User, error) {
 				return actorUserWithDefaultTenant(tenantID), nil
 			},
 		}
@@ -184,10 +182,10 @@ func TestIdentityProviderService_DeleteByUUID(t *testing.T) {
 	t.Run("success → deleted", func(t *testing.T) {
 		idp := newIDP(tenantID, "local")
 		idpRepo := &mockIdentityProviderRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.IdentityProvider, error) { return idp, nil },
+			findByUUIDFn: func(_ any, _ ...string) (*IdentityProvider, error) { return idp, nil },
 		}
 		userRepo := &mockUserRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.User, error) {
+			findByUUIDFn: func(_ any, _ ...string) (*User, error) {
 				return actorUserWithDefaultTenant(tenantID), nil
 			},
 		}
@@ -201,10 +199,10 @@ func TestIdentityProviderService_DeleteByUUID(t *testing.T) {
 		idp := newIDP(tenantID, "default-idp")
 		idp.IsDefault = true
 		idpRepo := &mockIdentityProviderRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.IdentityProvider, error) { return idp, nil },
+			findByUUIDFn: func(_ any, _ ...string) (*IdentityProvider, error) { return idp, nil },
 		}
 		userRepo := &mockUserRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.User, error) {
+			findByUUIDFn: func(_ any, _ ...string) (*User, error) {
 				return actorUserWithDefaultTenant(tenantID), nil
 			},
 		}
@@ -217,11 +215,11 @@ func TestIdentityProviderService_DeleteByUUID(t *testing.T) {
 	t.Run("delete repo error", func(t *testing.T) {
 		idp := newIDP(tenantID, "local")
 		idpRepo := &mockIdentityProviderRepo{
-			findByUUIDFn:   func(_ any, _ ...string) (*model.IdentityProvider, error) { return idp, nil },
+			findByUUIDFn:   func(_ any, _ ...string) (*IdentityProvider, error) { return idp, nil },
 			deleteByUUIDFn: func(_ any) error { return errors.New("del err") },
 		}
 		userRepo := &mockUserRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.User, error) {
+			findByUUIDFn: func(_ any, _ ...string) (*User, error) {
 				return actorUserWithDefaultTenant(tenantID), nil
 			},
 		}
@@ -234,15 +232,15 @@ func TestIdentityProviderService_DeleteByUUID(t *testing.T) {
 	t.Run("ValidateTenantAccess error", func(t *testing.T) {
 		idp := newIDP(tenantID, "local")
 		idpRepo := &mockIdentityProviderRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.IdentityProvider, error) { return idp, nil },
+			findByUUIDFn: func(_ any, _ ...string) (*IdentityProvider, error) { return idp, nil },
 		}
 		// Non-default tenant user trying to access a different tenant
 		userRepo := &mockUserRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.User, error) {
-				return &model.User{
+			findByUUIDFn: func(_ any, _ ...string) (*User, error) {
+				return &User{
 					UserID: 1,
-					UserIdentities: []model.UserIdentity{
-						{TenantID: 999, Tenant: &model.Tenant{TenantID: 999, IsSystem: false}},
+					UserIdentities: []UserIdentity{
+						{TenantID: 999, Tenant: &Tenant{TenantID: 999, IsSystem: false}},
 					},
 				}, nil
 			},
@@ -278,7 +276,7 @@ func TestIdentityProviderService_Create(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		tenantRepo := &mockTenantRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.Tenant, error) { return nil, nil },
+			findByUUIDFn: func(_ any, _ ...string) (*Tenant, error) { return nil, nil },
 		}
 		svc := NewIdentityProviderService(gormDB, &mockIdentityProviderRepo{}, tenantRepo, &mockUserRepo{})
 		_, err := svc.Create(context.Background(), "idp", "IDP", "local", "password", cfg, "active", tenantUUID.String(), tenantID, actorUUID)
@@ -291,7 +289,7 @@ func TestIdentityProviderService_Create(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		tenantRepo := &mockTenantRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.Tenant, error) { return nil, errors.New("db err") },
+			findByUUIDFn: func(_ any, _ ...string) (*Tenant, error) { return nil, errors.New("db err") },
 		}
 		svc := NewIdentityProviderService(gormDB, &mockIdentityProviderRepo{}, tenantRepo, &mockUserRepo{})
 		_, err := svc.Create(context.Background(), "idp", "IDP", "local", "password", cfg, "active", tenantUUID.String(), tenantID, actorUUID)
@@ -304,8 +302,8 @@ func TestIdentityProviderService_Create(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		tenantRepo := &mockTenantRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.Tenant, error) {
-				return &model.Tenant{TenantID: 999}, nil // different from tenantID=1
+			findByUUIDFn: func(_ any, _ ...string) (*Tenant, error) {
+				return &Tenant{TenantID: 999}, nil // different from tenantID=1
 			},
 		}
 		svc := NewIdentityProviderService(gormDB, &mockIdentityProviderRepo{}, tenantRepo, &mockUserRepo{})
@@ -319,12 +317,12 @@ func TestIdentityProviderService_Create(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		tenantRepo := &mockTenantRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.Tenant, error) {
-				return &model.Tenant{TenantID: tenantID, IsSystem: true}, nil
+			findByUUIDFn: func(_ any, _ ...string) (*Tenant, error) {
+				return &Tenant{TenantID: tenantID, IsSystem: true}, nil
 			},
 		}
 		userRepo := &mockUserRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.User, error) { return nil, nil },
+			findByUUIDFn: func(_ any, _ ...string) (*User, error) { return nil, nil },
 		}
 		svc := NewIdentityProviderService(gormDB, &mockIdentityProviderRepo{}, tenantRepo, userRepo)
 		_, err := svc.Create(context.Background(), "idp", "IDP", "local", "password", cfg, "active", tenantUUID.String(), tenantID, actorUUID)
@@ -337,16 +335,16 @@ func TestIdentityProviderService_Create(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		tenantRepo := &mockTenantRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.Tenant, error) {
-				return &model.Tenant{TenantID: tenantID, IsSystem: false}, nil
+			findByUUIDFn: func(_ any, _ ...string) (*Tenant, error) {
+				return &Tenant{TenantID: tenantID, IsSystem: false}, nil
 			},
 		}
 		userRepo := &mockUserRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.User, error) {
-				return &model.User{
+			findByUUIDFn: func(_ any, _ ...string) (*User, error) {
+				return &User{
 					UserID: 1,
-					UserIdentities: []model.UserIdentity{
-						{TenantID: 999, Tenant: &model.Tenant{TenantID: 999, IsSystem: false}},
+					UserIdentities: []UserIdentity{
+						{TenantID: 999, Tenant: &Tenant{TenantID: 999, IsSystem: false}},
 					},
 				}, nil
 			},
@@ -361,17 +359,17 @@ func TestIdentityProviderService_Create(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		tenantRepo := &mockTenantRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.Tenant, error) {
-				return &model.Tenant{TenantID: tenantID, IsSystem: true}, nil
+			findByUUIDFn: func(_ any, _ ...string) (*Tenant, error) {
+				return &Tenant{TenantID: tenantID, IsSystem: true}, nil
 			},
 		}
 		userRepo := &mockUserRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.User, error) {
+			findByUUIDFn: func(_ any, _ ...string) (*User, error) {
 				return actorUserWithDefaultTenant(tenantID), nil
 			},
 		}
 		idpRepo := &mockIdentityProviderRepo{
-			findByNameFn: func(_ string, _ int64) (*model.IdentityProvider, error) {
+			findByNameFn: func(_ string, _ int64) (*IdentityProvider, error) {
 				return nil, errors.New("db err")
 			},
 		}
@@ -385,18 +383,18 @@ func TestIdentityProviderService_Create(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		tenantRepo := &mockTenantRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.Tenant, error) {
-				return &model.Tenant{TenantID: tenantID, IsSystem: true}, nil
+			findByUUIDFn: func(_ any, _ ...string) (*Tenant, error) {
+				return &Tenant{TenantID: tenantID, IsSystem: true}, nil
 			},
 		}
 		userRepo := &mockUserRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.User, error) {
+			findByUUIDFn: func(_ any, _ ...string) (*User, error) {
 				return actorUserWithDefaultTenant(tenantID), nil
 			},
 		}
 		idpRepo := &mockIdentityProviderRepo{
-			findByNameFn: func(_ string, _ int64) (*model.IdentityProvider, error) {
-				return &model.IdentityProvider{Name: "idp"}, nil
+			findByNameFn: func(_ string, _ int64) (*IdentityProvider, error) {
+				return &IdentityProvider{Name: "idp"}, nil
 			},
 		}
 		svc := NewIdentityProviderService(gormDB, idpRepo, tenantRepo, userRepo)
@@ -414,12 +412,12 @@ func TestIdentityProviderService_Create(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		tenantRepo := &mockTenantRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.Tenant, error) {
-				return &model.Tenant{TenantID: tenantID, IsSystem: true}, nil
+			findByUUIDFn: func(_ any, _ ...string) (*Tenant, error) {
+				return &Tenant{TenantID: tenantID, IsSystem: true}, nil
 			},
 		}
 		userRepo := &mockUserRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.User, error) {
+			findByUUIDFn: func(_ any, _ ...string) (*User, error) {
 				return actorUserWithDefaultTenant(tenantID), nil
 			},
 		}
@@ -435,17 +433,17 @@ func TestIdentityProviderService_Create(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		tenantRepo := &mockTenantRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.Tenant, error) {
-				return &model.Tenant{TenantID: tenantID, IsSystem: true}, nil
+			findByUUIDFn: func(_ any, _ ...string) (*Tenant, error) {
+				return &Tenant{TenantID: tenantID, IsSystem: true}, nil
 			},
 		}
 		userRepo := &mockUserRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.User, error) {
+			findByUUIDFn: func(_ any, _ ...string) (*User, error) {
 				return actorUserWithDefaultTenant(tenantID), nil
 			},
 		}
 		idpRepo := &mockIdentityProviderRepo{
-			createOrUpdateFn: func(_ *model.IdentityProvider) (*model.IdentityProvider, error) {
+			createOrUpdateFn: func(_ *IdentityProvider) (*IdentityProvider, error) {
 				return nil, errors.New("create err")
 			},
 		}
@@ -460,17 +458,17 @@ func TestIdentityProviderService_Create(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		tenantRepo := &mockTenantRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.Tenant, error) {
-				return &model.Tenant{TenantID: tenantID, IsSystem: true}, nil
+			findByUUIDFn: func(_ any, _ ...string) (*Tenant, error) {
+				return &Tenant{TenantID: tenantID, IsSystem: true}, nil
 			},
 		}
 		userRepo := &mockUserRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.User, error) {
+			findByUUIDFn: func(_ any, _ ...string) (*User, error) {
 				return actorUserWithDefaultTenant(tenantID), nil
 			},
 		}
 		idpRepo := &mockIdentityProviderRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.IdentityProvider, error) {
+			findByUUIDFn: func(_ any, _ ...string) (*IdentityProvider, error) {
 				return nil, errors.New("fetch err")
 			},
 		}
@@ -484,18 +482,18 @@ func TestIdentityProviderService_Create(t *testing.T) {
 		gormDB, mock := newMockGormDB(t)
 		mock.ExpectBegin()
 		mock.ExpectCommit()
-		tenant := &model.Tenant{TenantID: tenantID, TenantUUID: tenantUUID, IsSystem: true}
+		tenant := &Tenant{TenantID: tenantID, TenantUUID: tenantUUID, IsSystem: true}
 		tenantRepo := &mockTenantRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.Tenant, error) { return tenant, nil },
+			findByUUIDFn: func(_ any, _ ...string) (*Tenant, error) { return tenant, nil },
 		}
 		userRepo := &mockUserRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.User, error) {
+			findByUUIDFn: func(_ any, _ ...string) (*User, error) {
 				return actorUserWithDefaultTenant(tenantID), nil
 			},
 		}
 		idpRepo := &mockIdentityProviderRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.IdentityProvider, error) {
-				return &model.IdentityProvider{
+			findByUUIDFn: func(_ any, _ ...string) (*IdentityProvider, error) {
+				return &IdentityProvider{
 					Name: "idp", DisplayName: "IDP", TenantID: tenantID,
 					Tenant: tenant,
 				}, nil
@@ -524,7 +522,7 @@ func TestIdentityProviderService_Update(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		idpRepo := &mockIdentityProviderRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.IdentityProvider, error) { return nil, nil },
+			findByUUIDFn: func(_ any, _ ...string) (*IdentityProvider, error) { return nil, nil },
 		}
 		svc := NewIdentityProviderService(gormDB, idpRepo, &mockTenantRepo{}, &mockUserRepo{})
 		_, err := svc.Update(context.Background(), idpUUID, "n", "d", "local", "password", cfg, "active", tenantID, actorUUID)
@@ -537,7 +535,7 @@ func TestIdentityProviderService_Update(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		idpRepo := &mockIdentityProviderRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.IdentityProvider, error) {
+			findByUUIDFn: func(_ any, _ ...string) (*IdentityProvider, error) {
 				return newIDP(999, "other"), nil
 			},
 		}
@@ -552,12 +550,12 @@ func TestIdentityProviderService_Update(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		idpRepo := &mockIdentityProviderRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.IdentityProvider, error) {
+			findByUUIDFn: func(_ any, _ ...string) (*IdentityProvider, error) {
 				return newIDP(tenantID, "local"), nil
 			},
 		}
 		userRepo := &mockUserRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.User, error) { return nil, nil },
+			findByUUIDFn: func(_ any, _ ...string) (*User, error) { return nil, nil },
 		}
 		svc := NewIdentityProviderService(gormDB, idpRepo, &mockTenantRepo{}, userRepo)
 		_, err := svc.Update(context.Background(), idpUUID, "n", "d", "local", "password", cfg, "active", tenantID, actorUUID)
@@ -570,16 +568,16 @@ func TestIdentityProviderService_Update(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		idpRepo := &mockIdentityProviderRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.IdentityProvider, error) {
+			findByUUIDFn: func(_ any, _ ...string) (*IdentityProvider, error) {
 				return newIDP(tenantID, "local"), nil
 			},
 		}
 		userRepo := &mockUserRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.User, error) {
-				return &model.User{
+			findByUUIDFn: func(_ any, _ ...string) (*User, error) {
+				return &User{
 					UserID: 1,
-					UserIdentities: []model.UserIdentity{
-						{TenantID: 999, Tenant: &model.Tenant{TenantID: 999, IsSystem: false}},
+					UserIdentities: []UserIdentity{
+						{TenantID: 999, Tenant: &Tenant{TenantID: 999, IsSystem: false}},
 					},
 				}, nil
 			},
@@ -596,10 +594,10 @@ func TestIdentityProviderService_Update(t *testing.T) {
 		idp := newIDP(tenantID, "sys")
 		idp.IsSystem = true
 		idpRepo := &mockIdentityProviderRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.IdentityProvider, error) { return idp, nil },
+			findByUUIDFn: func(_ any, _ ...string) (*IdentityProvider, error) { return idp, nil },
 		}
 		userRepo := &mockUserRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.User, error) {
+			findByUUIDFn: func(_ any, _ ...string) (*User, error) {
 				return actorUserWithDefaultTenant(tenantID), nil
 			},
 		}
@@ -616,10 +614,10 @@ func TestIdentityProviderService_Update(t *testing.T) {
 		idp := newIDP(tenantID, "def")
 		idp.IsDefault = true
 		idpRepo := &mockIdentityProviderRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.IdentityProvider, error) { return idp, nil },
+			findByUUIDFn: func(_ any, _ ...string) (*IdentityProvider, error) { return idp, nil },
 		}
 		userRepo := &mockUserRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.User, error) {
+			findByUUIDFn: func(_ any, _ ...string) (*User, error) {
 				return actorUserWithDefaultTenant(tenantID), nil
 			},
 		}
@@ -635,13 +633,13 @@ func TestIdentityProviderService_Update(t *testing.T) {
 		mock.ExpectRollback()
 		idp := newIDP(tenantID, "old-name")
 		idpRepo := &mockIdentityProviderRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.IdentityProvider, error) { return idp, nil },
-			findByNameFn: func(_ string, _ int64) (*model.IdentityProvider, error) {
+			findByUUIDFn: func(_ any, _ ...string) (*IdentityProvider, error) { return idp, nil },
+			findByNameFn: func(_ string, _ int64) (*IdentityProvider, error) {
 				return nil, errors.New("db err")
 			},
 		}
 		userRepo := &mockUserRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.User, error) {
+			findByUUIDFn: func(_ any, _ ...string) (*User, error) {
 				return actorUserWithDefaultTenant(tenantID), nil
 			},
 		}
@@ -657,13 +655,13 @@ func TestIdentityProviderService_Update(t *testing.T) {
 		idp := newIDP(tenantID, "old-name")
 		otherUUID := uuid.New()
 		idpRepo := &mockIdentityProviderRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.IdentityProvider, error) { return idp, nil },
-			findByNameFn: func(_ string, _ int64) (*model.IdentityProvider, error) {
-				return &model.IdentityProvider{IdentityProviderUUID: otherUUID}, nil
+			findByUUIDFn: func(_ any, _ ...string) (*IdentityProvider, error) { return idp, nil },
+			findByNameFn: func(_ string, _ int64) (*IdentityProvider, error) {
+				return &IdentityProvider{IdentityProviderUUID: otherUUID}, nil
 			},
 		}
 		userRepo := &mockUserRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.User, error) {
+			findByUUIDFn: func(_ any, _ ...string) (*User, error) {
 				return actorUserWithDefaultTenant(tenantID), nil
 			},
 		}
@@ -679,13 +677,13 @@ func TestIdentityProviderService_Update(t *testing.T) {
 		mock.ExpectRollback()
 		idp := newIDP(tenantID, "local")
 		idpRepo := &mockIdentityProviderRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.IdentityProvider, error) { return idp, nil },
-			createOrUpdateFn: func(_ *model.IdentityProvider) (*model.IdentityProvider, error) {
+			findByUUIDFn: func(_ any, _ ...string) (*IdentityProvider, error) { return idp, nil },
+			createOrUpdateFn: func(_ *IdentityProvider) (*IdentityProvider, error) {
 				return nil, errors.New("save err")
 			},
 		}
 		userRepo := &mockUserRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.User, error) {
+			findByUUIDFn: func(_ any, _ ...string) (*User, error) {
 				return actorUserWithDefaultTenant(tenantID), nil
 			},
 		}
@@ -701,10 +699,10 @@ func TestIdentityProviderService_Update(t *testing.T) {
 		mock.ExpectCommit()
 		idp := newIDP(tenantID, "local")
 		idpRepo := &mockIdentityProviderRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.IdentityProvider, error) { return idp, nil },
+			findByUUIDFn: func(_ any, _ ...string) (*IdentityProvider, error) { return idp, nil },
 		}
 		userRepo := &mockUserRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.User, error) {
+			findByUUIDFn: func(_ any, _ ...string) (*User, error) {
 				return actorUserWithDefaultTenant(tenantID), nil
 			},
 		}
@@ -720,11 +718,11 @@ func TestIdentityProviderService_Update(t *testing.T) {
 		mock.ExpectCommit()
 		idp := newIDP(tenantID, "old-name")
 		idpRepo := &mockIdentityProviderRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.IdentityProvider, error) { return idp, nil },
-			findByNameFn: func(_ string, _ int64) (*model.IdentityProvider, error) { return nil, nil },
+			findByUUIDFn: func(_ any, _ ...string) (*IdentityProvider, error) { return idp, nil },
+			findByNameFn: func(_ string, _ int64) (*IdentityProvider, error) { return nil, nil },
 		}
 		userRepo := &mockUserRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.User, error) {
+			findByUUIDFn: func(_ any, _ ...string) (*User, error) {
 				return actorUserWithDefaultTenant(tenantID), nil
 			},
 		}
@@ -749,7 +747,7 @@ func TestIdentityProviderService_SetStatusByUUID(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		idpRepo := &mockIdentityProviderRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.IdentityProvider, error) { return nil, nil },
+			findByUUIDFn: func(_ any, _ ...string) (*IdentityProvider, error) { return nil, nil },
 		}
 		svc := NewIdentityProviderService(gormDB, idpRepo, &mockTenantRepo{}, &mockUserRepo{})
 		_, err := svc.SetStatusByUUID(context.Background(), idpUUID, "active", tenantID, actorUUID)
@@ -762,7 +760,7 @@ func TestIdentityProviderService_SetStatusByUUID(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		idpRepo := &mockIdentityProviderRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.IdentityProvider, error) {
+			findByUUIDFn: func(_ any, _ ...string) (*IdentityProvider, error) {
 				return newIDP(999, "other"), nil
 			},
 		}
@@ -777,12 +775,12 @@ func TestIdentityProviderService_SetStatusByUUID(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		idpRepo := &mockIdentityProviderRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.IdentityProvider, error) {
+			findByUUIDFn: func(_ any, _ ...string) (*IdentityProvider, error) {
 				return newIDP(tenantID, "local"), nil
 			},
 		}
 		userRepo := &mockUserRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.User, error) { return nil, nil },
+			findByUUIDFn: func(_ any, _ ...string) (*User, error) { return nil, nil },
 		}
 		svc := NewIdentityProviderService(gormDB, idpRepo, &mockTenantRepo{}, userRepo)
 		_, err := svc.SetStatusByUUID(context.Background(), idpUUID, "active", tenantID, actorUUID)
@@ -795,16 +793,16 @@ func TestIdentityProviderService_SetStatusByUUID(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		idpRepo := &mockIdentityProviderRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.IdentityProvider, error) {
+			findByUUIDFn: func(_ any, _ ...string) (*IdentityProvider, error) {
 				return newIDP(tenantID, "local"), nil
 			},
 		}
 		userRepo := &mockUserRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.User, error) {
-				return &model.User{
+			findByUUIDFn: func(_ any, _ ...string) (*User, error) {
+				return &User{
 					UserID: 1,
-					UserIdentities: []model.UserIdentity{
-						{TenantID: 999, Tenant: &model.Tenant{TenantID: 999, IsSystem: false}},
+					UserIdentities: []UserIdentity{
+						{TenantID: 999, Tenant: &Tenant{TenantID: 999, IsSystem: false}},
 					},
 				}, nil
 			},
@@ -821,10 +819,10 @@ func TestIdentityProviderService_SetStatusByUUID(t *testing.T) {
 		idp := newIDP(tenantID, "sys")
 		idp.IsSystem = true
 		idpRepo := &mockIdentityProviderRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.IdentityProvider, error) { return idp, nil },
+			findByUUIDFn: func(_ any, _ ...string) (*IdentityProvider, error) { return idp, nil },
 		}
 		userRepo := &mockUserRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.User, error) {
+			findByUUIDFn: func(_ any, _ ...string) (*User, error) {
 				return actorUserWithDefaultTenant(tenantID), nil
 			},
 		}
@@ -841,10 +839,10 @@ func TestIdentityProviderService_SetStatusByUUID(t *testing.T) {
 		idp := newIDP(tenantID, "def")
 		idp.IsDefault = true
 		idpRepo := &mockIdentityProviderRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.IdentityProvider, error) { return idp, nil },
+			findByUUIDFn: func(_ any, _ ...string) (*IdentityProvider, error) { return idp, nil },
 		}
 		userRepo := &mockUserRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.User, error) {
+			findByUUIDFn: func(_ any, _ ...string) (*User, error) {
 				return actorUserWithDefaultTenant(tenantID), nil
 			},
 		}
@@ -860,13 +858,13 @@ func TestIdentityProviderService_SetStatusByUUID(t *testing.T) {
 		mock.ExpectRollback()
 		idp := newIDP(tenantID, "local")
 		idpRepo := &mockIdentityProviderRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.IdentityProvider, error) { return idp, nil },
-			createOrUpdateFn: func(_ *model.IdentityProvider) (*model.IdentityProvider, error) {
+			findByUUIDFn: func(_ any, _ ...string) (*IdentityProvider, error) { return idp, nil },
+			createOrUpdateFn: func(_ *IdentityProvider) (*IdentityProvider, error) {
 				return nil, errors.New("save err")
 			},
 		}
 		userRepo := &mockUserRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.User, error) {
+			findByUUIDFn: func(_ any, _ ...string) (*User, error) {
 				return actorUserWithDefaultTenant(tenantID), nil
 			},
 		}
@@ -882,10 +880,10 @@ func TestIdentityProviderService_SetStatusByUUID(t *testing.T) {
 		mock.ExpectCommit()
 		idp := newIDP(tenantID, "local")
 		idpRepo := &mockIdentityProviderRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.IdentityProvider, error) { return idp, nil },
+			findByUUIDFn: func(_ any, _ ...string) (*IdentityProvider, error) { return idp, nil },
 		}
 		userRepo := &mockUserRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.User, error) {
+			findByUUIDFn: func(_ any, _ ...string) (*User, error) {
 				return actorUserWithDefaultTenant(tenantID), nil
 			},
 		}
@@ -906,9 +904,9 @@ func TestToIdpServiceDataResult(t *testing.T) {
 	})
 
 	t.Run("with tenant", func(t *testing.T) {
-		idp := &model.IdentityProvider{
+		idp := &IdentityProvider{
 			Name:   "idp",
-			Tenant: &model.Tenant{TenantID: 1, Name: "t"},
+			Tenant: &Tenant{TenantID: 1, Name: "t"},
 		}
 		res := toIdpServiceDataResult(idp)
 		require.NotNil(t, res.Tenant)
@@ -916,7 +914,7 @@ func TestToIdpServiceDataResult(t *testing.T) {
 	})
 
 	t.Run("without tenant", func(t *testing.T) {
-		idp := &model.IdentityProvider{Name: "idp"}
+		idp := &IdentityProvider{Name: "idp"}
 		res := toIdpServiceDataResult(idp)
 		assert.Nil(t, res.Tenant)
 	})

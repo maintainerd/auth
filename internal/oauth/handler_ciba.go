@@ -4,19 +4,17 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/maintainerd/auth/internal/dto"
 	"github.com/maintainerd/auth/internal/platform/middleware"
 	resp "github.com/maintainerd/auth/internal/platform/response"
-	"github.com/maintainerd/auth/internal/service"
 )
 
 // OAuthCIBAHandler handles Client-Initiated Backchannel Authentication.
 type OAuthCIBAHandler struct {
-	cibaService service.OAuthCIBAService
+	cibaService OAuthCIBAService
 }
 
 // NewOAuthCIBAHandler creates a new OAuthCIBAHandler.
-func NewOAuthCIBAHandler(cibaService service.OAuthCIBAService) *OAuthCIBAHandler {
+func NewOAuthCIBAHandler(cibaService OAuthCIBAService) *OAuthCIBAHandler {
 	return &OAuthCIBAHandler{cibaService: cibaService}
 }
 
@@ -27,7 +25,7 @@ func (h *OAuthCIBAHandler) Initiate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	req := dto.OAuthCIBARequestDTO{
+	req := OAuthCIBARequestDTO{
 		Scope:          r.FormValue("scope"),
 		LoginHint:      r.FormValue("login_hint"),
 		BindingMessage: r.FormValue("binding_message"),
@@ -53,7 +51,7 @@ func (h *OAuthCIBAHandler) Initiate(w http.ResponseWriter, r *http.Request) {
 
 // ExchangeToken handles POST /oauth/token with grant_type=urn:openid:params:grant-type:ciba.
 func (h *OAuthCIBAHandler) ExchangeToken(w http.ResponseWriter, r *http.Request) {
-	req := dto.OAuthCIBATokenRequestDTO{
+	req := OAuthCIBATokenRequestDTO{
 		AuthReqID: r.FormValue("auth_req_id"),
 	}
 

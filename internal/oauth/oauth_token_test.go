@@ -10,8 +10,6 @@ import (
 	sqlmock "github.com/DATA-DOG/go-sqlmock"
 	"github.com/google/uuid"
 	"github.com/lib/pq"
-	"github.com/maintainerd/auth/internal/dto"
-	"github.com/maintainerd/auth/internal/model"
 	"github.com/maintainerd/auth/internal/platform/crypto"
 	"github.com/maintainerd/auth/internal/platform/jwt"
 	"github.com/maintainerd/auth/internal/platform/security"
@@ -86,22 +84,22 @@ func TestOAuthTokenService_Exchange(t *testing.T) {
 
 	t.Run("unsupported grant type", func(t *testing.T) {
 		db, _ := newMockDB(t)
-		svc := newOAuthTokenSvc(db, &mockClientRepo{}, &mockOAuthAuthCodeRepo{}, &mockOAuthRefreshTokenRepo{}, &mockUserRepo{}, &mockUserIdentityRepo{findByUserIDAndClientIDFn: func(_, _ int64) (*model.UserIdentity, error) { return nil, nil }}, &mockAuthEventService{})
+		svc := newOAuthTokenSvc(db, &mockClientRepo{}, &mockOAuthAuthCodeRepo{}, &mockOAuthRefreshTokenRepo{}, &mockUserRepo{}, &mockUserIdentityRepo{findByUserIDAndClientIDFn: func(_, _ int64) (*UserIdentity, error) { return nil, nil }}, &mockAuthEventService{})
 
-		_, oerr := svc.Exchange(ctx, dto.OAuthTokenRequestDTO{GrantType: "implicit"}, dto.OAuthClientCredentials{})
+		_, oerr := svc.Exchange(ctx, OAuthTokenRequestDTO{GrantType: "implicit"}, OAuthClientCredentials{})
 		require.NotNil(t, oerr)
 		assert.Equal(t, "unsupported_grant_type", oerr.Code)
 	})
 
 	t.Run("authorization_code — missing code", func(t *testing.T) {
 		db, _ := newMockDB(t)
-		svc := newOAuthTokenSvc(db, &mockClientRepo{}, &mockOAuthAuthCodeRepo{}, &mockOAuthRefreshTokenRepo{}, &mockUserRepo{}, &mockUserIdentityRepo{findByUserIDAndClientIDFn: func(_, _ int64) (*model.UserIdentity, error) { return nil, nil }}, &mockAuthEventService{})
+		svc := newOAuthTokenSvc(db, &mockClientRepo{}, &mockOAuthAuthCodeRepo{}, &mockOAuthRefreshTokenRepo{}, &mockUserRepo{}, &mockUserIdentityRepo{findByUserIDAndClientIDFn: func(_, _ int64) (*UserIdentity, error) { return nil, nil }}, &mockAuthEventService{})
 
-		_, oerr := svc.Exchange(ctx, dto.OAuthTokenRequestDTO{
+		_, oerr := svc.Exchange(ctx, OAuthTokenRequestDTO{
 			GrantType:    "authorization_code",
 			RedirectURI:  "https://example.com/callback",
 			CodeVerifier: "abc",
-		}, dto.OAuthClientCredentials{ClientID: "my-client"})
+		}, OAuthClientCredentials{ClientID: "my-client"})
 		require.NotNil(t, oerr)
 		assert.Equal(t, "invalid_request", oerr.Code)
 		assert.Contains(t, oerr.Description, "code is required")
@@ -109,40 +107,40 @@ func TestOAuthTokenService_Exchange(t *testing.T) {
 
 	t.Run("authorization_code — missing redirect_uri", func(t *testing.T) {
 		db, _ := newMockDB(t)
-		svc := newOAuthTokenSvc(db, &mockClientRepo{}, &mockOAuthAuthCodeRepo{}, &mockOAuthRefreshTokenRepo{}, &mockUserRepo{}, &mockUserIdentityRepo{findByUserIDAndClientIDFn: func(_, _ int64) (*model.UserIdentity, error) { return nil, nil }}, &mockAuthEventService{})
+		svc := newOAuthTokenSvc(db, &mockClientRepo{}, &mockOAuthAuthCodeRepo{}, &mockOAuthRefreshTokenRepo{}, &mockUserRepo{}, &mockUserIdentityRepo{findByUserIDAndClientIDFn: func(_, _ int64) (*UserIdentity, error) { return nil, nil }}, &mockAuthEventService{})
 
-		_, oerr := svc.Exchange(ctx, dto.OAuthTokenRequestDTO{
+		_, oerr := svc.Exchange(ctx, OAuthTokenRequestDTO{
 			GrantType:    "authorization_code",
 			Code:         "code123",
 			CodeVerifier: "abc",
-		}, dto.OAuthClientCredentials{ClientID: "my-client"})
+		}, OAuthClientCredentials{ClientID: "my-client"})
 		require.NotNil(t, oerr)
 		assert.Contains(t, oerr.Description, "redirect_uri is required")
 	})
 
 	t.Run("authorization_code — missing code_verifier", func(t *testing.T) {
 		db, _ := newMockDB(t)
-		svc := newOAuthTokenSvc(db, &mockClientRepo{}, &mockOAuthAuthCodeRepo{}, &mockOAuthRefreshTokenRepo{}, &mockUserRepo{}, &mockUserIdentityRepo{findByUserIDAndClientIDFn: func(_, _ int64) (*model.UserIdentity, error) { return nil, nil }}, &mockAuthEventService{})
+		svc := newOAuthTokenSvc(db, &mockClientRepo{}, &mockOAuthAuthCodeRepo{}, &mockOAuthRefreshTokenRepo{}, &mockUserRepo{}, &mockUserIdentityRepo{findByUserIDAndClientIDFn: func(_, _ int64) (*UserIdentity, error) { return nil, nil }}, &mockAuthEventService{})
 
-		_, oerr := svc.Exchange(ctx, dto.OAuthTokenRequestDTO{
+		_, oerr := svc.Exchange(ctx, OAuthTokenRequestDTO{
 			GrantType:   "authorization_code",
 			Code:        "code123",
 			RedirectURI: "https://example.com/callback",
-		}, dto.OAuthClientCredentials{ClientID: "my-client"})
+		}, OAuthClientCredentials{ClientID: "my-client"})
 		require.NotNil(t, oerr)
 		assert.Contains(t, oerr.Description, "code_verifier is required")
 	})
 
 	t.Run("authorization_code — client auth missing client_id", func(t *testing.T) {
 		db, _ := newMockDB(t)
-		svc := newOAuthTokenSvc(db, &mockClientRepo{}, &mockOAuthAuthCodeRepo{}, &mockOAuthRefreshTokenRepo{}, &mockUserRepo{}, &mockUserIdentityRepo{findByUserIDAndClientIDFn: func(_, _ int64) (*model.UserIdentity, error) { return nil, nil }}, &mockAuthEventService{})
+		svc := newOAuthTokenSvc(db, &mockClientRepo{}, &mockOAuthAuthCodeRepo{}, &mockOAuthRefreshTokenRepo{}, &mockUserRepo{}, &mockUserIdentityRepo{findByUserIDAndClientIDFn: func(_, _ int64) (*UserIdentity, error) { return nil, nil }}, &mockAuthEventService{})
 
-		_, oerr := svc.Exchange(ctx, dto.OAuthTokenRequestDTO{
+		_, oerr := svc.Exchange(ctx, OAuthTokenRequestDTO{
 			GrantType:    "authorization_code",
 			Code:         "code123",
 			RedirectURI:  "https://example.com/callback",
 			CodeVerifier: "abc",
-		}, dto.OAuthClientCredentials{})
+		}, OAuthClientCredentials{})
 		require.NotNil(t, oerr)
 		assert.Equal(t, "invalid_client", oerr.Code)
 	})
@@ -151,14 +149,14 @@ func TestOAuthTokenService_Exchange(t *testing.T) {
 		db, mock := newMockDB(t)
 		expectClientNotFound(mock)
 
-		svc := newOAuthTokenSvc(db, &mockClientRepo{}, &mockOAuthAuthCodeRepo{}, &mockOAuthRefreshTokenRepo{}, &mockUserRepo{}, &mockUserIdentityRepo{findByUserIDAndClientIDFn: func(_, _ int64) (*model.UserIdentity, error) { return nil, nil }}, &mockAuthEventService{})
+		svc := newOAuthTokenSvc(db, &mockClientRepo{}, &mockOAuthAuthCodeRepo{}, &mockOAuthRefreshTokenRepo{}, &mockUserRepo{}, &mockUserIdentityRepo{findByUserIDAndClientIDFn: func(_, _ int64) (*UserIdentity, error) { return nil, nil }}, &mockAuthEventService{})
 
-		_, oerr := svc.Exchange(ctx, dto.OAuthTokenRequestDTO{
+		_, oerr := svc.Exchange(ctx, OAuthTokenRequestDTO{
 			GrantType:    "authorization_code",
 			Code:         "code123",
 			RedirectURI:  "https://example.com/callback",
 			CodeVerifier: "abc",
-		}, dto.OAuthClientCredentials{ClientID: "unknown"})
+		}, OAuthClientCredentials{ClientID: "unknown"})
 		require.NotNil(t, oerr)
 		assert.Equal(t, "invalid_client", oerr.Code)
 	})
@@ -169,20 +167,20 @@ func TestOAuthTokenService_Exchange(t *testing.T) {
 
 		svc := newOAuthTokenSvc(db, &mockClientRepo{},
 			&mockOAuthAuthCodeRepo{
-				findByCodeHashFn: func(_ string) (*model.OAuthAuthorizationCode, error) {
+				findByCodeHashFn: func(_ string) (*OAuthAuthorizationCode, error) {
 					return nil, nil
 				},
 			},
 			&mockOAuthRefreshTokenRepo{}, &mockUserRepo{},
-			&mockUserIdentityRepo{findByUserIDAndClientIDFn: func(_, _ int64) (*model.UserIdentity, error) { return nil, nil }},
+			&mockUserIdentityRepo{findByUserIDAndClientIDFn: func(_, _ int64) (*UserIdentity, error) { return nil, nil }},
 			&mockAuthEventService{})
 
-		_, oerr := svc.Exchange(ctx, dto.OAuthTokenRequestDTO{
+		_, oerr := svc.Exchange(ctx, OAuthTokenRequestDTO{
 			GrantType:    "authorization_code",
 			Code:         "code123",
 			RedirectURI:  "https://example.com/callback",
 			CodeVerifier: "abc",
-		}, dto.OAuthClientCredentials{ClientID: "my-client"})
+		}, OAuthClientCredentials{ClientID: "my-client"})
 		require.NotNil(t, oerr)
 		assert.Equal(t, "invalid_grant", oerr.Code)
 	})
@@ -193,8 +191,8 @@ func TestOAuthTokenService_Exchange(t *testing.T) {
 
 		svc := newOAuthTokenSvc(db, &mockClientRepo{},
 			&mockOAuthAuthCodeRepo{
-				findByCodeHashFn: func(_ string) (*model.OAuthAuthorizationCode, error) {
-					return &model.OAuthAuthorizationCode{
+				findByCodeHashFn: func(_ string) (*OAuthAuthorizationCode, error) {
+					return &OAuthAuthorizationCode{
 						IsUsed:   true,
 						ClientID: 10,
 						UserID:   1,
@@ -203,15 +201,15 @@ func TestOAuthTokenService_Exchange(t *testing.T) {
 				},
 			},
 			&mockOAuthRefreshTokenRepo{}, &mockUserRepo{},
-			&mockUserIdentityRepo{findByUserIDAndClientIDFn: func(_, _ int64) (*model.UserIdentity, error) { return nil, nil }},
+			&mockUserIdentityRepo{findByUserIDAndClientIDFn: func(_, _ int64) (*UserIdentity, error) { return nil, nil }},
 			&mockAuthEventService{})
 
-		_, oerr := svc.Exchange(ctx, dto.OAuthTokenRequestDTO{
+		_, oerr := svc.Exchange(ctx, OAuthTokenRequestDTO{
 			GrantType:    "authorization_code",
 			Code:         "code123",
 			RedirectURI:  "https://example.com/callback",
 			CodeVerifier: "abc",
-		}, dto.OAuthClientCredentials{ClientID: "my-client"})
+		}, OAuthClientCredentials{ClientID: "my-client"})
 		require.NotNil(t, oerr)
 		assert.Contains(t, oerr.Description, "already been used")
 	})
@@ -222,23 +220,23 @@ func TestOAuthTokenService_Exchange(t *testing.T) {
 
 		svc := newOAuthTokenSvc(db, &mockClientRepo{},
 			&mockOAuthAuthCodeRepo{
-				findByCodeHashFn: func(_ string) (*model.OAuthAuthorizationCode, error) {
-					return &model.OAuthAuthorizationCode{
+				findByCodeHashFn: func(_ string) (*OAuthAuthorizationCode, error) {
+					return &OAuthAuthorizationCode{
 						ClientID:  10,
 						ExpiresAt: time.Now().Add(-1 * time.Minute),
 					}, nil
 				},
 			},
 			&mockOAuthRefreshTokenRepo{}, &mockUserRepo{},
-			&mockUserIdentityRepo{findByUserIDAndClientIDFn: func(_, _ int64) (*model.UserIdentity, error) { return nil, nil }},
+			&mockUserIdentityRepo{findByUserIDAndClientIDFn: func(_, _ int64) (*UserIdentity, error) { return nil, nil }},
 			&mockAuthEventService{})
 
-		_, oerr := svc.Exchange(ctx, dto.OAuthTokenRequestDTO{
+		_, oerr := svc.Exchange(ctx, OAuthTokenRequestDTO{
 			GrantType:    "authorization_code",
 			Code:         "code123",
 			RedirectURI:  "https://example.com/callback",
 			CodeVerifier: "abc",
-		}, dto.OAuthClientCredentials{ClientID: "my-client"})
+		}, OAuthClientCredentials{ClientID: "my-client"})
 		require.NotNil(t, oerr)
 		assert.Contains(t, oerr.Description, "expired")
 	})
@@ -249,23 +247,23 @@ func TestOAuthTokenService_Exchange(t *testing.T) {
 
 		svc := newOAuthTokenSvc(db, &mockClientRepo{},
 			&mockOAuthAuthCodeRepo{
-				findByCodeHashFn: func(_ string) (*model.OAuthAuthorizationCode, error) {
-					return &model.OAuthAuthorizationCode{
+				findByCodeHashFn: func(_ string) (*OAuthAuthorizationCode, error) {
+					return &OAuthAuthorizationCode{
 						ClientID:  999, // different client
 						ExpiresAt: time.Now().Add(10 * time.Minute),
 					}, nil
 				},
 			},
 			&mockOAuthRefreshTokenRepo{}, &mockUserRepo{},
-			&mockUserIdentityRepo{findByUserIDAndClientIDFn: func(_, _ int64) (*model.UserIdentity, error) { return nil, nil }},
+			&mockUserIdentityRepo{findByUserIDAndClientIDFn: func(_, _ int64) (*UserIdentity, error) { return nil, nil }},
 			&mockAuthEventService{})
 
-		_, oerr := svc.Exchange(ctx, dto.OAuthTokenRequestDTO{
+		_, oerr := svc.Exchange(ctx, OAuthTokenRequestDTO{
 			GrantType:    "authorization_code",
 			Code:         "code123",
 			RedirectURI:  "https://example.com/callback",
 			CodeVerifier: "abc",
-		}, dto.OAuthClientCredentials{ClientID: "my-client"})
+		}, OAuthClientCredentials{ClientID: "my-client"})
 		require.NotNil(t, oerr)
 		assert.Contains(t, oerr.Description, "not issued to this client")
 	})
@@ -276,8 +274,8 @@ func TestOAuthTokenService_Exchange(t *testing.T) {
 
 		svc := newOAuthTokenSvc(db, &mockClientRepo{},
 			&mockOAuthAuthCodeRepo{
-				findByCodeHashFn: func(_ string) (*model.OAuthAuthorizationCode, error) {
-					return &model.OAuthAuthorizationCode{
+				findByCodeHashFn: func(_ string) (*OAuthAuthorizationCode, error) {
+					return &OAuthAuthorizationCode{
 						ClientID:    10,
 						RedirectURI: "https://other.com/callback",
 						ExpiresAt:   time.Now().Add(10 * time.Minute),
@@ -285,15 +283,15 @@ func TestOAuthTokenService_Exchange(t *testing.T) {
 				},
 			},
 			&mockOAuthRefreshTokenRepo{}, &mockUserRepo{},
-			&mockUserIdentityRepo{findByUserIDAndClientIDFn: func(_, _ int64) (*model.UserIdentity, error) { return nil, nil }},
+			&mockUserIdentityRepo{findByUserIDAndClientIDFn: func(_, _ int64) (*UserIdentity, error) { return nil, nil }},
 			&mockAuthEventService{})
 
-		_, oerr := svc.Exchange(ctx, dto.OAuthTokenRequestDTO{
+		_, oerr := svc.Exchange(ctx, OAuthTokenRequestDTO{
 			GrantType:    "authorization_code",
 			Code:         "code123",
 			RedirectURI:  "https://example.com/callback",
 			CodeVerifier: "abc",
-		}, dto.OAuthClientCredentials{ClientID: "my-client"})
+		}, OAuthClientCredentials{ClientID: "my-client"})
 		require.NotNil(t, oerr)
 		assert.Contains(t, oerr.Description, "redirect_uri does not match")
 	})
@@ -304,8 +302,8 @@ func TestOAuthTokenService_Exchange(t *testing.T) {
 
 		svc := newOAuthTokenSvc(db, &mockClientRepo{},
 			&mockOAuthAuthCodeRepo{
-				findByCodeHashFn: func(_ string) (*model.OAuthAuthorizationCode, error) {
-					return &model.OAuthAuthorizationCode{
+				findByCodeHashFn: func(_ string) (*OAuthAuthorizationCode, error) {
+					return &OAuthAuthorizationCode{
 						ClientID:            10,
 						RedirectURI:         "https://example.com/callback",
 						CodeChallenge:       "invalidchallenge",
@@ -315,15 +313,15 @@ func TestOAuthTokenService_Exchange(t *testing.T) {
 				},
 			},
 			&mockOAuthRefreshTokenRepo{}, &mockUserRepo{},
-			&mockUserIdentityRepo{findByUserIDAndClientIDFn: func(_, _ int64) (*model.UserIdentity, error) { return nil, nil }},
+			&mockUserIdentityRepo{findByUserIDAndClientIDFn: func(_, _ int64) (*UserIdentity, error) { return nil, nil }},
 			&mockAuthEventService{})
 
-		_, oerr := svc.Exchange(ctx, dto.OAuthTokenRequestDTO{
+		_, oerr := svc.Exchange(ctx, OAuthTokenRequestDTO{
 			GrantType:    "authorization_code",
 			Code:         "code123",
 			RedirectURI:  "https://example.com/callback",
 			CodeVerifier: "wrong-verifier",
-		}, dto.OAuthClientCredentials{ClientID: "my-client"})
+		}, OAuthClientCredentials{ClientID: "my-client"})
 		require.NotNil(t, oerr)
 		assert.Contains(t, oerr.Description, "PKCE validation failed")
 	})
@@ -337,8 +335,8 @@ func TestOAuthTokenService_Exchange(t *testing.T) {
 
 		svc := newOAuthTokenSvc(db, &mockClientRepo{},
 			&mockOAuthAuthCodeRepo{
-				findByCodeHashFn: func(_ string) (*model.OAuthAuthorizationCode, error) {
-					return &model.OAuthAuthorizationCode{
+				findByCodeHashFn: func(_ string) (*OAuthAuthorizationCode, error) {
+					return &OAuthAuthorizationCode{
 						ClientID:            10,
 						UserID:              1,
 						RedirectURI:         "https://example.com/callback",
@@ -352,15 +350,15 @@ func TestOAuthTokenService_Exchange(t *testing.T) {
 				},
 			},
 			&mockOAuthRefreshTokenRepo{}, &mockUserRepo{},
-			&mockUserIdentityRepo{findByUserIDAndClientIDFn: func(_, _ int64) (*model.UserIdentity, error) { return nil, nil }},
+			&mockUserIdentityRepo{findByUserIDAndClientIDFn: func(_, _ int64) (*UserIdentity, error) { return nil, nil }},
 			&mockAuthEventService{})
 
-		_, oerr := svc.Exchange(ctx, dto.OAuthTokenRequestDTO{
+		_, oerr := svc.Exchange(ctx, OAuthTokenRequestDTO{
 			GrantType:    "authorization_code",
 			Code:         "code123",
 			RedirectURI:  "https://example.com/callback",
 			CodeVerifier: verifier,
-		}, dto.OAuthClientCredentials{ClientID: "my-client"})
+		}, OAuthClientCredentials{ClientID: "my-client"})
 		require.NotNil(t, oerr)
 		assert.Equal(t, "server_error", oerr.Code)
 	})
@@ -374,8 +372,8 @@ func TestOAuthTokenService_Exchange(t *testing.T) {
 
 		svc := newOAuthTokenSvc(db, &mockClientRepo{},
 			&mockOAuthAuthCodeRepo{
-				findByCodeHashFn: func(_ string) (*model.OAuthAuthorizationCode, error) {
-					return &model.OAuthAuthorizationCode{
+				findByCodeHashFn: func(_ string) (*OAuthAuthorizationCode, error) {
+					return &OAuthAuthorizationCode{
 						ClientID:            10,
 						UserID:              1,
 						RedirectURI:         "https://example.com/callback",
@@ -387,18 +385,18 @@ func TestOAuthTokenService_Exchange(t *testing.T) {
 			},
 			&mockOAuthRefreshTokenRepo{}, &mockUserRepo{},
 			&mockUserIdentityRepo{
-				findByUserIDAndClientIDFn: func(_, _ int64) (*model.UserIdentity, error) {
+				findByUserIDAndClientIDFn: func(_, _ int64) (*UserIdentity, error) {
 					return nil, errors.New("identity lookup error")
 				},
 			},
 			&mockAuthEventService{})
 
-		_, oerr := svc.Exchange(ctx, dto.OAuthTokenRequestDTO{
+		_, oerr := svc.Exchange(ctx, OAuthTokenRequestDTO{
 			GrantType:    "authorization_code",
 			Code:         "code123",
 			RedirectURI:  "https://example.com/callback",
 			CodeVerifier: verifier,
-		}, dto.OAuthClientCredentials{ClientID: "my-client"})
+		}, OAuthClientCredentials{ClientID: "my-client"})
 		require.NotNil(t, oerr)
 		assert.Equal(t, "server_error", oerr.Code)
 	})
@@ -412,8 +410,8 @@ func TestOAuthTokenService_Exchange(t *testing.T) {
 
 		svc := newOAuthTokenSvc(db, &mockClientRepo{},
 			&mockOAuthAuthCodeRepo{
-				findByCodeHashFn: func(_ string) (*model.OAuthAuthorizationCode, error) {
-					return &model.OAuthAuthorizationCode{
+				findByCodeHashFn: func(_ string) (*OAuthAuthorizationCode, error) {
+					return &OAuthAuthorizationCode{
 						ClientID:            10,
 						UserID:              1,
 						RedirectURI:         "https://example.com/callback",
@@ -425,23 +423,23 @@ func TestOAuthTokenService_Exchange(t *testing.T) {
 			},
 			&mockOAuthRefreshTokenRepo{},
 			&mockUserRepo{
-				findByIDFn: func(_ any, _ ...string) (*model.User, error) {
+				findByIDFn: func(_ any, _ ...string) (*User, error) {
 					return nil, nil // user not found
 				},
 			},
 			&mockUserIdentityRepo{
-				findByUserIDAndClientIDFn: func(_, _ int64) (*model.UserIdentity, error) {
-					return &model.UserIdentity{Sub: "user-sub"}, nil
+				findByUserIDAndClientIDFn: func(_, _ int64) (*UserIdentity, error) {
+					return &UserIdentity{Sub: "user-sub"}, nil
 				},
 			},
 			&mockAuthEventService{})
 
-		_, oerr := svc.Exchange(ctx, dto.OAuthTokenRequestDTO{
+		_, oerr := svc.Exchange(ctx, OAuthTokenRequestDTO{
 			GrantType:    "authorization_code",
 			Code:         "code123",
 			RedirectURI:  "https://example.com/callback",
 			CodeVerifier: verifier,
-		}, dto.OAuthClientCredentials{ClientID: "my-client"})
+		}, OAuthClientCredentials{ClientID: "my-client"})
 		require.NotNil(t, oerr)
 		assert.Equal(t, "server_error", oerr.Code)
 	})
@@ -456,8 +454,8 @@ func TestOAuthTokenService_Exchange(t *testing.T) {
 
 		svc := newOAuthTokenSvc(db, &mockClientRepo{},
 			&mockOAuthAuthCodeRepo{
-				findByCodeHashFn: func(_ string) (*model.OAuthAuthorizationCode, error) {
-					return &model.OAuthAuthorizationCode{
+				findByCodeHashFn: func(_ string) (*OAuthAuthorizationCode, error) {
+					return &OAuthAuthorizationCode{
 						OAuthAuthorizationCodeID: 1,
 						ClientID:                 10,
 						UserID:                   1,
@@ -472,23 +470,23 @@ func TestOAuthTokenService_Exchange(t *testing.T) {
 			},
 			&mockOAuthRefreshTokenRepo{},
 			&mockUserRepo{
-				findByIDFn: func(_ any, _ ...string) (*model.User, error) {
-					return &model.User{UserID: 1, UserUUID: uuid.New(), Email: "test@example.com"}, nil
+				findByIDFn: func(_ any, _ ...string) (*User, error) {
+					return &User{UserID: 1, UserUUID: uuid.New(), Email: "test@example.com"}, nil
 				},
 			},
 			&mockUserIdentityRepo{
-				findByUserIDAndClientIDFn: func(_, _ int64) (*model.UserIdentity, error) {
-					return &model.UserIdentity{Sub: "user-sub-123"}, nil
+				findByUserIDAndClientIDFn: func(_, _ int64) (*UserIdentity, error) {
+					return &UserIdentity{Sub: "user-sub-123"}, nil
 				},
 			},
 			&mockAuthEventService{})
 
-		result, oerr := svc.Exchange(ctx, dto.OAuthTokenRequestDTO{
+		result, oerr := svc.Exchange(ctx, OAuthTokenRequestDTO{
 			GrantType:    "authorization_code",
 			Code:         "code123",
 			RedirectURI:  "https://example.com/callback",
 			CodeVerifier: verifier,
-		}, dto.OAuthClientCredentials{ClientID: "my-client"})
+		}, OAuthClientCredentials{ClientID: "my-client"})
 		require.Nil(t, oerr)
 		require.NotNil(t, result)
 		assert.NotEmpty(t, result.AccessToken)
@@ -504,20 +502,20 @@ func TestOAuthTokenService_Exchange(t *testing.T) {
 
 		svc := newOAuthTokenSvc(db, &mockClientRepo{},
 			&mockOAuthAuthCodeRepo{
-				findByCodeHashFn: func(_ string) (*model.OAuthAuthorizationCode, error) {
+				findByCodeHashFn: func(_ string) (*OAuthAuthorizationCode, error) {
 					return nil, errors.New("db error")
 				},
 			},
 			&mockOAuthRefreshTokenRepo{}, &mockUserRepo{},
-			&mockUserIdentityRepo{findByUserIDAndClientIDFn: func(_, _ int64) (*model.UserIdentity, error) { return nil, nil }},
+			&mockUserIdentityRepo{findByUserIDAndClientIDFn: func(_, _ int64) (*UserIdentity, error) { return nil, nil }},
 			&mockAuthEventService{})
 
-		_, oerr := svc.Exchange(ctx, dto.OAuthTokenRequestDTO{
+		_, oerr := svc.Exchange(ctx, OAuthTokenRequestDTO{
 			GrantType:    "authorization_code",
 			Code:         "code123",
 			RedirectURI:  "https://example.com/callback",
 			CodeVerifier: "abc",
-		}, dto.OAuthClientCredentials{ClientID: "my-client"})
+		}, OAuthClientCredentials{ClientID: "my-client"})
 		require.NotNil(t, oerr)
 		assert.Equal(t, "server_error", oerr.Code)
 	})
@@ -530,11 +528,11 @@ func TestOAuthTokenService_Exchange_RefreshToken(t *testing.T) {
 
 	t.Run("missing refresh_token", func(t *testing.T) {
 		db, _ := newMockDB(t)
-		svc := newOAuthTokenSvc(db, &mockClientRepo{}, &mockOAuthAuthCodeRepo{}, &mockOAuthRefreshTokenRepo{}, &mockUserRepo{}, &mockUserIdentityRepo{findByUserIDAndClientIDFn: func(_, _ int64) (*model.UserIdentity, error) { return nil, nil }}, &mockAuthEventService{})
+		svc := newOAuthTokenSvc(db, &mockClientRepo{}, &mockOAuthAuthCodeRepo{}, &mockOAuthRefreshTokenRepo{}, &mockUserRepo{}, &mockUserIdentityRepo{findByUserIDAndClientIDFn: func(_, _ int64) (*UserIdentity, error) { return nil, nil }}, &mockAuthEventService{})
 
-		_, oerr := svc.Exchange(ctx, dto.OAuthTokenRequestDTO{
+		_, oerr := svc.Exchange(ctx, OAuthTokenRequestDTO{
 			GrantType: "refresh_token",
-		}, dto.OAuthClientCredentials{ClientID: "my-client"})
+		}, OAuthClientCredentials{ClientID: "my-client"})
 		require.NotNil(t, oerr)
 		assert.Contains(t, oerr.Description, "refresh_token is required")
 	})
@@ -545,18 +543,18 @@ func TestOAuthTokenService_Exchange_RefreshToken(t *testing.T) {
 
 		svc := newOAuthTokenSvc(db, &mockClientRepo{}, &mockOAuthAuthCodeRepo{},
 			&mockOAuthRefreshTokenRepo{
-				findByTokenHashFn: func(_ string) (*model.OAuthRefreshToken, error) {
+				findByTokenHashFn: func(_ string) (*OAuthRefreshToken, error) {
 					return nil, nil
 				},
 			},
 			&mockUserRepo{},
-			&mockUserIdentityRepo{findByUserIDAndClientIDFn: func(_, _ int64) (*model.UserIdentity, error) { return nil, nil }},
+			&mockUserIdentityRepo{findByUserIDAndClientIDFn: func(_, _ int64) (*UserIdentity, error) { return nil, nil }},
 			&mockAuthEventService{})
 
-		_, oerr := svc.Exchange(ctx, dto.OAuthTokenRequestDTO{
+		_, oerr := svc.Exchange(ctx, OAuthTokenRequestDTO{
 			GrantType:    "refresh_token",
 			RefreshToken: "some-token",
-		}, dto.OAuthClientCredentials{ClientID: "my-client"})
+		}, OAuthClientCredentials{ClientID: "my-client"})
 		require.NotNil(t, oerr)
 		assert.Contains(t, oerr.Description, "invalid")
 	})
@@ -568,8 +566,8 @@ func TestOAuthTokenService_Exchange_RefreshToken(t *testing.T) {
 
 		svc := newOAuthTokenSvc(db, &mockClientRepo{}, &mockOAuthAuthCodeRepo{},
 			&mockOAuthRefreshTokenRepo{
-				findByTokenHashFn: func(_ string) (*model.OAuthRefreshToken, error) {
-					return &model.OAuthRefreshToken{
+				findByTokenHashFn: func(_ string) (*OAuthRefreshToken, error) {
+					return &OAuthRefreshToken{
 						IsRevoked: true,
 						FamilyID:  familyID,
 						UserID:    1,
@@ -578,13 +576,13 @@ func TestOAuthTokenService_Exchange_RefreshToken(t *testing.T) {
 				},
 			},
 			&mockUserRepo{},
-			&mockUserIdentityRepo{findByUserIDAndClientIDFn: func(_, _ int64) (*model.UserIdentity, error) { return nil, nil }},
+			&mockUserIdentityRepo{findByUserIDAndClientIDFn: func(_, _ int64) (*UserIdentity, error) { return nil, nil }},
 			&mockAuthEventService{})
 
-		_, oerr := svc.Exchange(ctx, dto.OAuthTokenRequestDTO{
+		_, oerr := svc.Exchange(ctx, OAuthTokenRequestDTO{
 			GrantType:    "refresh_token",
 			RefreshToken: "some-token",
-		}, dto.OAuthClientCredentials{ClientID: "my-client"})
+		}, OAuthClientCredentials{ClientID: "my-client"})
 		require.NotNil(t, oerr)
 		assert.Contains(t, oerr.Description, "revoked")
 	})
@@ -595,21 +593,21 @@ func TestOAuthTokenService_Exchange_RefreshToken(t *testing.T) {
 
 		svc := newOAuthTokenSvc(db, &mockClientRepo{}, &mockOAuthAuthCodeRepo{},
 			&mockOAuthRefreshTokenRepo{
-				findByTokenHashFn: func(_ string) (*model.OAuthRefreshToken, error) {
-					return &model.OAuthRefreshToken{
+				findByTokenHashFn: func(_ string) (*OAuthRefreshToken, error) {
+					return &OAuthRefreshToken{
 						ClientID:  10,
 						ExpiresAt: time.Now().Add(-1 * time.Minute),
 					}, nil
 				},
 			},
 			&mockUserRepo{},
-			&mockUserIdentityRepo{findByUserIDAndClientIDFn: func(_, _ int64) (*model.UserIdentity, error) { return nil, nil }},
+			&mockUserIdentityRepo{findByUserIDAndClientIDFn: func(_, _ int64) (*UserIdentity, error) { return nil, nil }},
 			&mockAuthEventService{})
 
-		_, oerr := svc.Exchange(ctx, dto.OAuthTokenRequestDTO{
+		_, oerr := svc.Exchange(ctx, OAuthTokenRequestDTO{
 			GrantType:    "refresh_token",
 			RefreshToken: "some-token",
-		}, dto.OAuthClientCredentials{ClientID: "my-client"})
+		}, OAuthClientCredentials{ClientID: "my-client"})
 		require.NotNil(t, oerr)
 		assert.Contains(t, oerr.Description, "expired")
 	})
@@ -620,21 +618,21 @@ func TestOAuthTokenService_Exchange_RefreshToken(t *testing.T) {
 
 		svc := newOAuthTokenSvc(db, &mockClientRepo{}, &mockOAuthAuthCodeRepo{},
 			&mockOAuthRefreshTokenRepo{
-				findByTokenHashFn: func(_ string) (*model.OAuthRefreshToken, error) {
-					return &model.OAuthRefreshToken{
+				findByTokenHashFn: func(_ string) (*OAuthRefreshToken, error) {
+					return &OAuthRefreshToken{
 						ClientID:  999,
 						ExpiresAt: time.Now().Add(10 * time.Minute),
 					}, nil
 				},
 			},
 			&mockUserRepo{},
-			&mockUserIdentityRepo{findByUserIDAndClientIDFn: func(_, _ int64) (*model.UserIdentity, error) { return nil, nil }},
+			&mockUserIdentityRepo{findByUserIDAndClientIDFn: func(_, _ int64) (*UserIdentity, error) { return nil, nil }},
 			&mockAuthEventService{})
 
-		_, oerr := svc.Exchange(ctx, dto.OAuthTokenRequestDTO{
+		_, oerr := svc.Exchange(ctx, OAuthTokenRequestDTO{
 			GrantType:    "refresh_token",
 			RefreshToken: "some-token",
-		}, dto.OAuthClientCredentials{ClientID: "my-client"})
+		}, OAuthClientCredentials{ClientID: "my-client"})
 		require.NotNil(t, oerr)
 		assert.Contains(t, oerr.Description, "not issued to this client")
 	})
@@ -646,8 +644,8 @@ func TestOAuthTokenService_Exchange_RefreshToken(t *testing.T) {
 
 		svc := newOAuthTokenSvc(db, &mockClientRepo{}, &mockOAuthAuthCodeRepo{},
 			&mockOAuthRefreshTokenRepo{
-				findByTokenHashFn: func(_ string) (*model.OAuthRefreshToken, error) {
-					return &model.OAuthRefreshToken{
+				findByTokenHashFn: func(_ string) (*OAuthRefreshToken, error) {
+					return &OAuthRefreshToken{
 						ClientID:  10,
 						UserID:    1,
 						ExpiresAt: time.Now().Add(10 * time.Minute),
@@ -655,13 +653,13 @@ func TestOAuthTokenService_Exchange_RefreshToken(t *testing.T) {
 				},
 			},
 			&mockUserRepo{},
-			&mockUserIdentityRepo{findByUserIDAndClientIDFn: func(_, _ int64) (*model.UserIdentity, error) { return nil, nil }},
+			&mockUserIdentityRepo{findByUserIDAndClientIDFn: func(_, _ int64) (*UserIdentity, error) { return nil, nil }},
 			&mockAuthEventService{})
 
-		_, oerr := svc.Exchange(ctx, dto.OAuthTokenRequestDTO{
+		_, oerr := svc.Exchange(ctx, OAuthTokenRequestDTO{
 			GrantType:    "refresh_token",
 			RefreshToken: "some-token",
-		}, dto.OAuthClientCredentials{ClientID: "my-client"})
+		}, OAuthClientCredentials{ClientID: "my-client"})
 		require.NotNil(t, oerr)
 		assert.Equal(t, "server_error", oerr.Code)
 	})
@@ -678,8 +676,8 @@ func TestOAuthTokenService_Exchange_RefreshToken(t *testing.T) {
 
 		svc := newOAuthTokenSvc(db, &mockClientRepo{}, &mockOAuthAuthCodeRepo{},
 			&mockOAuthRefreshTokenRepo{
-				findByTokenHashFn: func(_ string) (*model.OAuthRefreshToken, error) {
-					return &model.OAuthRefreshToken{
+				findByTokenHashFn: func(_ string) (*OAuthRefreshToken, error) {
+					return &OAuthRefreshToken{
 						OAuthRefreshTokenID: 1,
 						ClientID:            10,
 						UserID:              1,
@@ -692,21 +690,21 @@ func TestOAuthTokenService_Exchange_RefreshToken(t *testing.T) {
 				revokeByIDFn: func(_ int64) error { return nil },
 			},
 			&mockUserRepo{
-				findByIDFn: func(_ any, _ ...string) (*model.User, error) {
-					return &model.User{UserID: 1, UserUUID: uuid.New(), Email: "test@example.com"}, nil
+				findByIDFn: func(_ any, _ ...string) (*User, error) {
+					return &User{UserID: 1, UserUUID: uuid.New(), Email: "test@example.com"}, nil
 				},
 			},
 			&mockUserIdentityRepo{
-				findByUserIDAndClientIDFn: func(_, _ int64) (*model.UserIdentity, error) {
-					return &model.UserIdentity{Sub: "user-sub-rt"}, nil
+				findByUserIDAndClientIDFn: func(_, _ int64) (*UserIdentity, error) {
+					return &UserIdentity{Sub: "user-sub-rt"}, nil
 				},
 			},
 			&mockAuthEventService{})
 
-		result, oerr := svc.Exchange(ctx, dto.OAuthTokenRequestDTO{
+		result, oerr := svc.Exchange(ctx, OAuthTokenRequestDTO{
 			GrantType:    "refresh_token",
 			RefreshToken: "some-token",
-		}, dto.OAuthClientCredentials{ClientID: "my-client"})
+		}, OAuthClientCredentials{ClientID: "my-client"})
 		require.Nil(t, oerr)
 		require.NotNil(t, result)
 		assert.NotEmpty(t, result.AccessToken)
@@ -727,8 +725,8 @@ func TestOAuthTokenService_Exchange_RefreshToken(t *testing.T) {
 
 		svc := newOAuthTokenSvc(db, &mockClientRepo{}, &mockOAuthAuthCodeRepo{},
 			&mockOAuthRefreshTokenRepo{
-				findByTokenHashFn: func(_ string) (*model.OAuthRefreshToken, error) {
-					return &model.OAuthRefreshToken{
+				findByTokenHashFn: func(_ string) (*OAuthRefreshToken, error) {
+					return &OAuthRefreshToken{
 						OAuthRefreshTokenID: 1,
 						ClientID:            10,
 						UserID:              1,
@@ -741,22 +739,22 @@ func TestOAuthTokenService_Exchange_RefreshToken(t *testing.T) {
 				revokeByIDFn: func(_ int64) error { return nil },
 			},
 			&mockUserRepo{
-				findByIDFn: func(_ any, _ ...string) (*model.User, error) {
-					return &model.User{UserID: 1, UserUUID: uuid.New(), Email: "test@example.com"}, nil
+				findByIDFn: func(_ any, _ ...string) (*User, error) {
+					return &User{UserID: 1, UserUUID: uuid.New(), Email: "test@example.com"}, nil
 				},
 			},
 			&mockUserIdentityRepo{
-				findByUserIDAndClientIDFn: func(_, _ int64) (*model.UserIdentity, error) {
-					return &model.UserIdentity{Sub: "user-sub-rt"}, nil
+				findByUserIDAndClientIDFn: func(_, _ int64) (*UserIdentity, error) {
+					return &UserIdentity{Sub: "user-sub-rt"}, nil
 				},
 			},
 			&mockAuthEventService{})
 
-		result, oerr := svc.Exchange(ctx, dto.OAuthTokenRequestDTO{
+		result, oerr := svc.Exchange(ctx, OAuthTokenRequestDTO{
 			GrantType:    "refresh_token",
 			RefreshToken: "some-token",
 			Scope:        "openid email", // narrower scope
-		}, dto.OAuthClientCredentials{ClientID: "my-client"})
+		}, OAuthClientCredentials{ClientID: "my-client"})
 		require.Nil(t, oerr)
 		require.NotNil(t, result)
 		assert.Equal(t, "openid email", result.Scope)
@@ -770,8 +768,8 @@ func TestOAuthTokenService_Exchange_RefreshToken(t *testing.T) {
 
 		svc := newOAuthTokenSvc(db, &mockClientRepo{}, &mockOAuthAuthCodeRepo{},
 			&mockOAuthRefreshTokenRepo{
-				findByTokenHashFn: func(_ string) (*model.OAuthRefreshToken, error) {
-					return &model.OAuthRefreshToken{
+				findByTokenHashFn: func(_ string) (*OAuthRefreshToken, error) {
+					return &OAuthRefreshToken{
 						OAuthRefreshTokenID: 1,
 						ClientID:            10,
 						UserID:              1,
@@ -781,13 +779,13 @@ func TestOAuthTokenService_Exchange_RefreshToken(t *testing.T) {
 				revokeByIDFn: func(_ int64) error { return errors.New("revoke error") },
 			},
 			&mockUserRepo{},
-			&mockUserIdentityRepo{findByUserIDAndClientIDFn: func(_, _ int64) (*model.UserIdentity, error) { return nil, nil }},
+			&mockUserIdentityRepo{findByUserIDAndClientIDFn: func(_, _ int64) (*UserIdentity, error) { return nil, nil }},
 			&mockAuthEventService{})
 
-		_, oerr := svc.Exchange(ctx, dto.OAuthTokenRequestDTO{
+		_, oerr := svc.Exchange(ctx, OAuthTokenRequestDTO{
 			GrantType:    "refresh_token",
 			RefreshToken: "some-token",
-		}, dto.OAuthClientCredentials{ClientID: "my-client"})
+		}, OAuthClientCredentials{ClientID: "my-client"})
 		require.NotNil(t, oerr)
 		assert.Equal(t, "server_error", oerr.Code)
 	})
@@ -800,8 +798,8 @@ func TestOAuthTokenService_Exchange_RefreshToken(t *testing.T) {
 
 		svc := newOAuthTokenSvc(db, &mockClientRepo{}, &mockOAuthAuthCodeRepo{},
 			&mockOAuthRefreshTokenRepo{
-				findByTokenHashFn: func(_ string) (*model.OAuthRefreshToken, error) {
-					return &model.OAuthRefreshToken{
+				findByTokenHashFn: func(_ string) (*OAuthRefreshToken, error) {
+					return &OAuthRefreshToken{
 						OAuthRefreshTokenID: 1,
 						ClientID:            10,
 						UserID:              1,
@@ -811,21 +809,21 @@ func TestOAuthTokenService_Exchange_RefreshToken(t *testing.T) {
 				revokeByIDFn: func(_ int64) error { return nil },
 			},
 			&mockUserRepo{
-				findByIDFn: func(_ any, _ ...string) (*model.User, error) {
+				findByIDFn: func(_ any, _ ...string) (*User, error) {
 					return nil, nil // user not found
 				},
 			},
 			&mockUserIdentityRepo{
-				findByUserIDAndClientIDFn: func(_, _ int64) (*model.UserIdentity, error) {
-					return &model.UserIdentity{Sub: "sub"}, nil
+				findByUserIDAndClientIDFn: func(_, _ int64) (*UserIdentity, error) {
+					return &UserIdentity{Sub: "sub"}, nil
 				},
 			},
 			&mockAuthEventService{})
 
-		_, oerr := svc.Exchange(ctx, dto.OAuthTokenRequestDTO{
+		_, oerr := svc.Exchange(ctx, OAuthTokenRequestDTO{
 			GrantType:    "refresh_token",
 			RefreshToken: "some-token",
-		}, dto.OAuthClientCredentials{ClientID: "my-client"})
+		}, OAuthClientCredentials{ClientID: "my-client"})
 		require.NotNil(t, oerr)
 		assert.Equal(t, "server_error", oerr.Code)
 	})
@@ -836,18 +834,18 @@ func TestOAuthTokenService_Exchange_RefreshToken(t *testing.T) {
 
 		svc := newOAuthTokenSvc(db, &mockClientRepo{}, &mockOAuthAuthCodeRepo{},
 			&mockOAuthRefreshTokenRepo{
-				findByTokenHashFn: func(_ string) (*model.OAuthRefreshToken, error) {
+				findByTokenHashFn: func(_ string) (*OAuthRefreshToken, error) {
 					return nil, errors.New("db error")
 				},
 			},
 			&mockUserRepo{},
-			&mockUserIdentityRepo{findByUserIDAndClientIDFn: func(_, _ int64) (*model.UserIdentity, error) { return nil, nil }},
+			&mockUserIdentityRepo{findByUserIDAndClientIDFn: func(_, _ int64) (*UserIdentity, error) { return nil, nil }},
 			&mockAuthEventService{})
 
-		_, oerr := svc.Exchange(ctx, dto.OAuthTokenRequestDTO{
+		_, oerr := svc.Exchange(ctx, OAuthTokenRequestDTO{
 			GrantType:    "refresh_token",
 			RefreshToken: "some-token",
-		}, dto.OAuthClientCredentials{ClientID: "my-client"})
+		}, OAuthClientCredentials{ClientID: "my-client"})
 		require.NotNil(t, oerr)
 		assert.Equal(t, "server_error", oerr.Code)
 	})
@@ -877,12 +875,12 @@ func TestOAuthTokenService_Exchange_ClientCredentials(t *testing.T) {
 		expectClientLookup(mock, rows)
 
 		svc := newOAuthTokenSvc(db, &mockClientRepo{}, &mockOAuthAuthCodeRepo{}, &mockOAuthRefreshTokenRepo{}, &mockUserRepo{},
-			&mockUserIdentityRepo{findByUserIDAndClientIDFn: func(_, _ int64) (*model.UserIdentity, error) { return nil, nil }},
+			&mockUserIdentityRepo{findByUserIDAndClientIDFn: func(_, _ int64) (*UserIdentity, error) { return nil, nil }},
 			&mockAuthEventService{})
 
-		_, oerr := svc.Exchange(ctx, dto.OAuthTokenRequestDTO{
+		_, oerr := svc.Exchange(ctx, OAuthTokenRequestDTO{
 			GrantType: "client_credentials",
-		}, dto.OAuthClientCredentials{ClientID: "m2m-client"})
+		}, OAuthClientCredentials{ClientID: "m2m-client"})
 		require.NotNil(t, oerr)
 		assert.Equal(t, "unauthorized_client", oerr.Code)
 	})
@@ -906,12 +904,12 @@ func TestOAuthTokenService_Exchange_ClientCredentials(t *testing.T) {
 		expectClientLookup(mock, rows)
 
 		svc := newOAuthTokenSvc(db, &mockClientRepo{}, &mockOAuthAuthCodeRepo{}, &mockOAuthRefreshTokenRepo{}, &mockUserRepo{},
-			&mockUserIdentityRepo{findByUserIDAndClientIDFn: func(_, _ int64) (*model.UserIdentity, error) { return nil, nil }},
+			&mockUserIdentityRepo{findByUserIDAndClientIDFn: func(_, _ int64) (*UserIdentity, error) { return nil, nil }},
 			&mockAuthEventService{})
 
-		result, oerr := svc.Exchange(ctx, dto.OAuthTokenRequestDTO{
+		result, oerr := svc.Exchange(ctx, OAuthTokenRequestDTO{
 			GrantType: "client_credentials",
-		}, dto.OAuthClientCredentials{ClientID: "m2m-client"})
+		}, OAuthClientCredentials{ClientID: "m2m-client"})
 		require.Nil(t, oerr)
 		assert.NotEmpty(t, result.AccessToken)
 		assert.Equal(t, "Bearer", result.TokenType)
@@ -938,12 +936,12 @@ func TestOAuthTokenService_Exchange_ClientCredentials(t *testing.T) {
 		expectClientLookup(mock, rows)
 
 		svc := newOAuthTokenSvc(db, &mockClientRepo{}, &mockOAuthAuthCodeRepo{}, &mockOAuthRefreshTokenRepo{}, &mockUserRepo{},
-			&mockUserIdentityRepo{findByUserIDAndClientIDFn: func(_, _ int64) (*model.UserIdentity, error) { return nil, nil }},
+			&mockUserIdentityRepo{findByUserIDAndClientIDFn: func(_, _ int64) (*UserIdentity, error) { return nil, nil }},
 			&mockAuthEventService{})
 
-		result, oerr := svc.Exchange(ctx, dto.OAuthTokenRequestDTO{
+		result, oerr := svc.Exchange(ctx, OAuthTokenRequestDTO{
 			GrantType: "client_credentials",
-		}, dto.OAuthClientCredentials{ClientID: "m2m-client"})
+		}, OAuthClientCredentials{ClientID: "m2m-client"})
 		require.Nil(t, oerr)
 		assert.Equal(t, int64(3600), result.ExpiresIn)
 	})
@@ -957,10 +955,10 @@ func TestOAuthTokenService_Revoke(t *testing.T) {
 	t.Run("client auth failure", func(t *testing.T) {
 		db, _ := newMockDB(t)
 		svc := newOAuthTokenSvc(db, &mockClientRepo{}, &mockOAuthAuthCodeRepo{}, &mockOAuthRefreshTokenRepo{}, &mockUserRepo{},
-			&mockUserIdentityRepo{findByUserIDAndClientIDFn: func(_, _ int64) (*model.UserIdentity, error) { return nil, nil }},
+			&mockUserIdentityRepo{findByUserIDAndClientIDFn: func(_, _ int64) (*UserIdentity, error) { return nil, nil }},
 			&mockAuthEventService{})
 
-		oerr := svc.Revoke(ctx, dto.OAuthRevokeRequestDTO{Token: "t"}, dto.OAuthClientCredentials{})
+		oerr := svc.Revoke(ctx, OAuthRevokeRequestDTO{Token: "t"}, OAuthClientCredentials{})
 		require.NotNil(t, oerr)
 		assert.Equal(t, "invalid_client", oerr.Code)
 	})
@@ -972,8 +970,8 @@ func TestOAuthTokenService_Revoke(t *testing.T) {
 
 		svc := newOAuthTokenSvc(db, &mockClientRepo{}, &mockOAuthAuthCodeRepo{},
 			&mockOAuthRefreshTokenRepo{
-				findByTokenHashFn: func(_ string) (*model.OAuthRefreshToken, error) {
-					return &model.OAuthRefreshToken{
+				findByTokenHashFn: func(_ string) (*OAuthRefreshToken, error) {
+					return &OAuthRefreshToken{
 						OAuthRefreshTokenID: 42,
 						ClientID:            10,
 						UserID:              1,
@@ -985,10 +983,10 @@ func TestOAuthTokenService_Revoke(t *testing.T) {
 				},
 			},
 			&mockUserRepo{},
-			&mockUserIdentityRepo{findByUserIDAndClientIDFn: func(_, _ int64) (*model.UserIdentity, error) { return nil, nil }},
+			&mockUserIdentityRepo{findByUserIDAndClientIDFn: func(_, _ int64) (*UserIdentity, error) { return nil, nil }},
 			&mockAuthEventService{})
 
-		oerr := svc.Revoke(ctx, dto.OAuthRevokeRequestDTO{Token: "t"}, dto.OAuthClientCredentials{ClientID: "my-client"})
+		oerr := svc.Revoke(ctx, OAuthRevokeRequestDTO{Token: "t"}, OAuthClientCredentials{ClientID: "my-client"})
 		require.Nil(t, oerr)
 		assert.Equal(t, int64(42), revokedID)
 	})
@@ -999,18 +997,18 @@ func TestOAuthTokenService_Revoke(t *testing.T) {
 
 		svc := newOAuthTokenSvc(db, &mockClientRepo{}, &mockOAuthAuthCodeRepo{},
 			&mockOAuthRefreshTokenRepo{
-				findByTokenHashFn: func(_ string) (*model.OAuthRefreshToken, error) {
-					return &model.OAuthRefreshToken{
+				findByTokenHashFn: func(_ string) (*OAuthRefreshToken, error) {
+					return &OAuthRefreshToken{
 						ClientID:  10,
 						IsRevoked: true,
 					}, nil
 				},
 			},
 			&mockUserRepo{},
-			&mockUserIdentityRepo{findByUserIDAndClientIDFn: func(_, _ int64) (*model.UserIdentity, error) { return nil, nil }},
+			&mockUserIdentityRepo{findByUserIDAndClientIDFn: func(_, _ int64) (*UserIdentity, error) { return nil, nil }},
 			&mockAuthEventService{})
 
-		oerr := svc.Revoke(ctx, dto.OAuthRevokeRequestDTO{Token: "t"}, dto.OAuthClientCredentials{ClientID: "my-client"})
+		oerr := svc.Revoke(ctx, OAuthRevokeRequestDTO{Token: "t"}, OAuthClientCredentials{ClientID: "my-client"})
 		require.Nil(t, oerr)
 	})
 
@@ -1020,15 +1018,15 @@ func TestOAuthTokenService_Revoke(t *testing.T) {
 
 		svc := newOAuthTokenSvc(db, &mockClientRepo{}, &mockOAuthAuthCodeRepo{},
 			&mockOAuthRefreshTokenRepo{
-				findByTokenHashFn: func(_ string) (*model.OAuthRefreshToken, error) {
+				findByTokenHashFn: func(_ string) (*OAuthRefreshToken, error) {
 					return nil, nil
 				},
 			},
 			&mockUserRepo{},
-			&mockUserIdentityRepo{findByUserIDAndClientIDFn: func(_, _ int64) (*model.UserIdentity, error) { return nil, nil }},
+			&mockUserIdentityRepo{findByUserIDAndClientIDFn: func(_, _ int64) (*UserIdentity, error) { return nil, nil }},
 			&mockAuthEventService{})
 
-		oerr := svc.Revoke(ctx, dto.OAuthRevokeRequestDTO{Token: "t"}, dto.OAuthClientCredentials{ClientID: "my-client"})
+		oerr := svc.Revoke(ctx, OAuthRevokeRequestDTO{Token: "t"}, OAuthClientCredentials{ClientID: "my-client"})
 		require.Nil(t, oerr)
 	})
 
@@ -1038,17 +1036,17 @@ func TestOAuthTokenService_Revoke(t *testing.T) {
 
 		svc := newOAuthTokenSvc(db, &mockClientRepo{}, &mockOAuthAuthCodeRepo{},
 			&mockOAuthRefreshTokenRepo{
-				findByTokenHashFn: func(_ string) (*model.OAuthRefreshToken, error) {
-					return &model.OAuthRefreshToken{
+				findByTokenHashFn: func(_ string) (*OAuthRefreshToken, error) {
+					return &OAuthRefreshToken{
 						ClientID: 999, // different client
 					}, nil
 				},
 			},
 			&mockUserRepo{},
-			&mockUserIdentityRepo{findByUserIDAndClientIDFn: func(_, _ int64) (*model.UserIdentity, error) { return nil, nil }},
+			&mockUserIdentityRepo{findByUserIDAndClientIDFn: func(_, _ int64) (*UserIdentity, error) { return nil, nil }},
 			&mockAuthEventService{})
 
-		oerr := svc.Revoke(ctx, dto.OAuthRevokeRequestDTO{Token: "t"}, dto.OAuthClientCredentials{ClientID: "my-client"})
+		oerr := svc.Revoke(ctx, OAuthRevokeRequestDTO{Token: "t"}, OAuthClientCredentials{ClientID: "my-client"})
 		require.Nil(t, oerr)
 	})
 
@@ -1058,15 +1056,15 @@ func TestOAuthTokenService_Revoke(t *testing.T) {
 
 		svc := newOAuthTokenSvc(db, &mockClientRepo{}, &mockOAuthAuthCodeRepo{},
 			&mockOAuthRefreshTokenRepo{
-				findByTokenHashFn: func(_ string) (*model.OAuthRefreshToken, error) {
+				findByTokenHashFn: func(_ string) (*OAuthRefreshToken, error) {
 					return nil, errors.New("db error")
 				},
 			},
 			&mockUserRepo{},
-			&mockUserIdentityRepo{findByUserIDAndClientIDFn: func(_, _ int64) (*model.UserIdentity, error) { return nil, nil }},
+			&mockUserIdentityRepo{findByUserIDAndClientIDFn: func(_, _ int64) (*UserIdentity, error) { return nil, nil }},
 			&mockAuthEventService{})
 
-		oerr := svc.Revoke(ctx, dto.OAuthRevokeRequestDTO{Token: "t"}, dto.OAuthClientCredentials{ClientID: "my-client"})
+		oerr := svc.Revoke(ctx, OAuthRevokeRequestDTO{Token: "t"}, OAuthClientCredentials{ClientID: "my-client"})
 		require.Nil(t, oerr) // always 200 OK
 	})
 }
@@ -1080,15 +1078,15 @@ func TestOAuthTokenService_Introspect(t *testing.T) {
 		db, _ := newMockDB(t)
 		svc := newOAuthTokenSvc(db, &mockClientRepo{}, &mockOAuthAuthCodeRepo{},
 			&mockOAuthRefreshTokenRepo{
-				findByTokenHashFn: func(_ string) (*model.OAuthRefreshToken, error) {
+				findByTokenHashFn: func(_ string) (*OAuthRefreshToken, error) {
 					return nil, nil
 				},
 			},
 			&mockUserRepo{},
-			&mockUserIdentityRepo{findByUserIDAndClientIDFn: func(_, _ int64) (*model.UserIdentity, error) { return nil, nil }},
+			&mockUserIdentityRepo{findByUserIDAndClientIDFn: func(_, _ int64) (*UserIdentity, error) { return nil, nil }},
 			&mockAuthEventService{})
 
-		result, oerr := svc.Introspect(ctx, dto.OAuthIntrospectRequestDTO{Token: "garbage"})
+		result, oerr := svc.Introspect(ctx, OAuthIntrospectRequestDTO{Token: "garbage"})
 		require.Nil(t, oerr)
 		assert.False(t, result.Active)
 	})
@@ -1098,8 +1096,8 @@ func TestOAuthTokenService_Introspect(t *testing.T) {
 		now := time.Now()
 		svc := newOAuthTokenSvc(db, &mockClientRepo{}, &mockOAuthAuthCodeRepo{},
 			&mockOAuthRefreshTokenRepo{
-				findByTokenHashFn: func(_ string) (*model.OAuthRefreshToken, error) {
-					return &model.OAuthRefreshToken{
+				findByTokenHashFn: func(_ string) (*OAuthRefreshToken, error) {
+					return &OAuthRefreshToken{
 						UserID:    1,
 						ClientID:  10,
 						Scope:     "openid",
@@ -1110,13 +1108,13 @@ func TestOAuthTokenService_Introspect(t *testing.T) {
 			},
 			&mockUserRepo{},
 			&mockUserIdentityRepo{
-				findByUserIDAndClientIDFn: func(_, _ int64) (*model.UserIdentity, error) {
-					return &model.UserIdentity{Sub: "user-sub"}, nil
+				findByUserIDAndClientIDFn: func(_, _ int64) (*UserIdentity, error) {
+					return &UserIdentity{Sub: "user-sub"}, nil
 				},
 			},
 			&mockAuthEventService{})
 
-		result, oerr := svc.Introspect(ctx, dto.OAuthIntrospectRequestDTO{Token: "rt-token"})
+		result, oerr := svc.Introspect(ctx, OAuthIntrospectRequestDTO{Token: "rt-token"})
 		require.Nil(t, oerr)
 		assert.True(t, result.Active)
 		assert.Equal(t, "refresh_token", result.TokenType)
@@ -1128,18 +1126,18 @@ func TestOAuthTokenService_Introspect(t *testing.T) {
 		db, _ := newMockDB(t)
 		svc := newOAuthTokenSvc(db, &mockClientRepo{}, &mockOAuthAuthCodeRepo{},
 			&mockOAuthRefreshTokenRepo{
-				findByTokenHashFn: func(_ string) (*model.OAuthRefreshToken, error) {
-					return &model.OAuthRefreshToken{
+				findByTokenHashFn: func(_ string) (*OAuthRefreshToken, error) {
+					return &OAuthRefreshToken{
 						IsRevoked: true,
 						ExpiresAt: time.Now().Add(7 * 24 * time.Hour),
 					}, nil
 				},
 			},
 			&mockUserRepo{},
-			&mockUserIdentityRepo{findByUserIDAndClientIDFn: func(_, _ int64) (*model.UserIdentity, error) { return nil, nil }},
+			&mockUserIdentityRepo{findByUserIDAndClientIDFn: func(_, _ int64) (*UserIdentity, error) { return nil, nil }},
 			&mockAuthEventService{})
 
-		result, oerr := svc.Introspect(ctx, dto.OAuthIntrospectRequestDTO{Token: "rt-token"})
+		result, oerr := svc.Introspect(ctx, OAuthIntrospectRequestDTO{Token: "rt-token"})
 		require.Nil(t, oerr)
 		assert.False(t, result.Active)
 	})
@@ -1148,8 +1146,8 @@ func TestOAuthTokenService_Introspect(t *testing.T) {
 		db, _ := newMockDB(t)
 		svc := newOAuthTokenSvc(db, &mockClientRepo{}, &mockOAuthAuthCodeRepo{},
 			&mockOAuthRefreshTokenRepo{
-				findByTokenHashFn: func(_ string) (*model.OAuthRefreshToken, error) {
-					return &model.OAuthRefreshToken{
+				findByTokenHashFn: func(_ string) (*OAuthRefreshToken, error) {
+					return &OAuthRefreshToken{
 						UserID:    1,
 						ClientID:  10,
 						Scope:     "openid",
@@ -1160,13 +1158,13 @@ func TestOAuthTokenService_Introspect(t *testing.T) {
 			},
 			&mockUserRepo{},
 			&mockUserIdentityRepo{
-				findByUserIDAndClientIDFn: func(_, _ int64) (*model.UserIdentity, error) {
+				findByUserIDAndClientIDFn: func(_, _ int64) (*UserIdentity, error) {
 					return nil, errors.New("sub error")
 				},
 			},
 			&mockAuthEventService{})
 
-		result, oerr := svc.Introspect(ctx, dto.OAuthIntrospectRequestDTO{Token: "rt-token"})
+		result, oerr := svc.Introspect(ctx, OAuthIntrospectRequestDTO{Token: "rt-token"})
 		require.Nil(t, oerr)
 		assert.True(t, result.Active)
 		assert.Empty(t, result.Sub) // sub couldn't be resolved
@@ -1182,10 +1180,10 @@ func TestOAuthTokenService_Introspect(t *testing.T) {
 		svc := newOAuthTokenSvc(db, &mockClientRepo{}, &mockOAuthAuthCodeRepo{},
 			&mockOAuthRefreshTokenRepo{},
 			&mockUserRepo{},
-			&mockUserIdentityRepo{findByUserIDAndClientIDFn: func(_, _ int64) (*model.UserIdentity, error) { return nil, nil }},
+			&mockUserIdentityRepo{findByUserIDAndClientIDFn: func(_, _ int64) (*UserIdentity, error) { return nil, nil }},
 			&mockAuthEventService{})
 
-		result, oerr := svc.Introspect(ctx, dto.OAuthIntrospectRequestDTO{Token: token})
+		result, oerr := svc.Introspect(ctx, OAuthIntrospectRequestDTO{Token: token})
 		require.Nil(t, oerr)
 		assert.True(t, result.Active)
 		assert.Equal(t, "Bearer", result.TokenType)
@@ -1204,17 +1202,17 @@ func TestOAuthTokenService_Introspect(t *testing.T) {
 		db, _ := newMockDB(t)
 		svc := newOAuthTokenSvc(db, &mockClientRepo{}, &mockOAuthAuthCodeRepo{},
 			&mockOAuthRefreshTokenRepo{
-				findByTokenHashFn: func(_ string) (*model.OAuthRefreshToken, error) {
-					return &model.OAuthRefreshToken{
+				findByTokenHashFn: func(_ string) (*OAuthRefreshToken, error) {
+					return &OAuthRefreshToken{
 						ExpiresAt: time.Now().Add(-1 * time.Hour),
 					}, nil
 				},
 			},
 			&mockUserRepo{},
-			&mockUserIdentityRepo{findByUserIDAndClientIDFn: func(_, _ int64) (*model.UserIdentity, error) { return nil, nil }},
+			&mockUserIdentityRepo{findByUserIDAndClientIDFn: func(_, _ int64) (*UserIdentity, error) { return nil, nil }},
 			&mockAuthEventService{})
 
-		result, oerr := svc.Introspect(ctx, dto.OAuthIntrospectRequestDTO{Token: "rt-token"})
+		result, oerr := svc.Introspect(ctx, OAuthIntrospectRequestDTO{Token: "rt-token"})
 		require.Nil(t, oerr)
 		assert.False(t, result.Active)
 	})
@@ -1223,15 +1221,15 @@ func TestOAuthTokenService_Introspect(t *testing.T) {
 		db, _ := newMockDB(t)
 		svc := newOAuthTokenSvc(db, &mockClientRepo{}, &mockOAuthAuthCodeRepo{},
 			&mockOAuthRefreshTokenRepo{
-				findByTokenHashFn: func(_ string) (*model.OAuthRefreshToken, error) {
+				findByTokenHashFn: func(_ string) (*OAuthRefreshToken, error) {
 					return nil, errors.New("db error")
 				},
 			},
 			&mockUserRepo{},
-			&mockUserIdentityRepo{findByUserIDAndClientIDFn: func(_, _ int64) (*model.UserIdentity, error) { return nil, nil }},
+			&mockUserIdentityRepo{findByUserIDAndClientIDFn: func(_, _ int64) (*UserIdentity, error) { return nil, nil }},
 			&mockAuthEventService{})
 
-		result, oerr := svc.Introspect(ctx, dto.OAuthIntrospectRequestDTO{Token: "rt-token"})
+		result, oerr := svc.Introspect(ctx, OAuthIntrospectRequestDTO{Token: "rt-token"})
 		require.Nil(t, oerr)
 		assert.False(t, result.Active)
 	})
@@ -1246,8 +1244,8 @@ func TestResolveUserSub(t *testing.T) {
 			db:       db,
 			userRepo: &mockUserRepo{},
 			userIdentityRepo: &mockUserIdentityRepo{
-				findByUserIDAndClientIDFn: func(_, _ int64) (*model.UserIdentity, error) {
-					return &model.UserIdentity{Sub: "id-sub"}, nil
+				findByUserIDAndClientIDFn: func(_, _ int64) (*UserIdentity, error) {
+					return &UserIdentity{Sub: "id-sub"}, nil
 				},
 			},
 		}
@@ -1261,7 +1259,7 @@ func TestResolveUserSub(t *testing.T) {
 		svc := &oauthTokenService{
 			db: db,
 			userIdentityRepo: &mockUserIdentityRepo{
-				findByUserIDAndClientIDFn: func(_, _ int64) (*model.UserIdentity, error) {
+				findByUserIDAndClientIDFn: func(_, _ int64) (*UserIdentity, error) {
 					return nil, nil // no identity found
 				},
 			},
@@ -1277,7 +1275,7 @@ func TestResolveUserSub(t *testing.T) {
 			db:       db,
 			userRepo: &mockUserRepo{},
 			userIdentityRepo: &mockUserIdentityRepo{
-				findByUserIDAndClientIDFn: func(_, _ int64) (*model.UserIdentity, error) {
+				findByUserIDAndClientIDFn: func(_, _ int64) (*UserIdentity, error) {
 					return nil, errors.New("db error")
 				},
 			},
@@ -1294,12 +1292,12 @@ func TestRefreshTokenTTL(t *testing.T) {
 
 	t.Run("uses client override", func(t *testing.T) {
 		ttl := 3600
-		client := &model.Client{RefreshTokenTTL: &ttl}
+		client := &Client{RefreshTokenTTL: &ttl}
 		assert.Equal(t, time.Duration(3600)*time.Second, svc.refreshTokenTTL(client))
 	})
 
 	t.Run("falls back to default", func(t *testing.T) {
-		client := &model.Client{}
+		client := &Client{}
 		assert.Equal(t, 7*24*time.Hour, svc.refreshTokenTTL(client))
 	})
 }
@@ -1308,17 +1306,17 @@ func TestRefreshTokenTTL(t *testing.T) {
 
 func TestHasGrant(t *testing.T) {
 	t.Run("found", func(t *testing.T) {
-		c := &model.Client{GrantTypes: pq.StringArray{"authorization_code", "refresh_token"}}
+		c := &Client{GrantTypes: pq.StringArray{"authorization_code", "refresh_token"}}
 		assert.True(t, hasGrant(c, "refresh_token"))
 	})
 
 	t.Run("not found", func(t *testing.T) {
-		c := &model.Client{GrantTypes: pq.StringArray{"authorization_code"}}
+		c := &Client{GrantTypes: pq.StringArray{"authorization_code"}}
 		assert.False(t, hasGrant(c, "client_credentials"))
 	})
 
 	t.Run("empty", func(t *testing.T) {
-		c := &model.Client{}
+		c := &Client{}
 		assert.False(t, hasGrant(c, "authorization_code"))
 	})
 }
@@ -1331,7 +1329,7 @@ func TestAuthenticateClient(t *testing.T) {
 	t.Run("empty client_id", func(t *testing.T) {
 		db, _ := newMockDB(t)
 		svc := &oauthTokenService{db: db, authEventService: &mockAuthEventService{}}
-		_, oerr := svc.authenticateClient(ctx, dto.OAuthClientCredentials{})
+		_, oerr := svc.authenticateClient(ctx, OAuthClientCredentials{})
 		require.NotNil(t, oerr)
 		assert.Equal(t, "invalid_client", oerr.Code)
 	})
@@ -1340,7 +1338,7 @@ func TestAuthenticateClient(t *testing.T) {
 		db, mock := newMockDB(t)
 		expectClientNotFound(mock)
 		svc := &oauthTokenService{db: db, authEventService: &mockAuthEventService{}}
-		_, oerr := svc.authenticateClient(ctx, dto.OAuthClientCredentials{ClientID: "unknown"})
+		_, oerr := svc.authenticateClient(ctx, OAuthClientCredentials{ClientID: "unknown"})
 		require.NotNil(t, oerr)
 		assert.Equal(t, "invalid_client", oerr.Code)
 	})
@@ -1349,7 +1347,7 @@ func TestAuthenticateClient(t *testing.T) {
 		db, mock := newMockDB(t)
 		mock.ExpectQuery(regexp.QuoteMeta(`SELECT`)).WillReturnError(errors.New("connection error"))
 		svc := &oauthTokenService{db: db, authEventService: &mockAuthEventService{}}
-		_, oerr := svc.authenticateClient(ctx, dto.OAuthClientCredentials{ClientID: "x"})
+		_, oerr := svc.authenticateClient(ctx, OAuthClientCredentials{ClientID: "x"})
 		require.NotNil(t, oerr)
 		assert.Equal(t, "server_error", oerr.Code)
 	})
@@ -1358,7 +1356,7 @@ func TestAuthenticateClient(t *testing.T) {
 		db, mock := newMockDB(t)
 		expectClientLookup(mock, mockClientRows()) // token_endpoint_auth_method = "none"
 		svc := &oauthTokenService{db: db, authEventService: &mockAuthEventService{}}
-		client, oerr := svc.authenticateClient(ctx, dto.OAuthClientCredentials{ClientID: "my-client"})
+		client, oerr := svc.authenticateClient(ctx, OAuthClientCredentials{ClientID: "my-client"})
 		require.Nil(t, oerr)
 		require.NotNil(t, client)
 	})
@@ -1383,7 +1381,7 @@ func TestAuthenticateClient(t *testing.T) {
 		)
 		expectClientLookup(mock, rows)
 		svc := &oauthTokenService{db: db, authEventService: &mockAuthEventService{}}
-		client, oerr := svc.authenticateClient(ctx, dto.OAuthClientCredentials{ClientID: "my-client", ClientSecret: secret})
+		client, oerr := svc.authenticateClient(ctx, OAuthClientCredentials{ClientID: "my-client", ClientSecret: secret})
 		require.Nil(t, oerr)
 		require.NotNil(t, client)
 	})
@@ -1408,7 +1406,7 @@ func TestAuthenticateClient(t *testing.T) {
 		)
 		expectClientLookup(mock, rows)
 		svc := &oauthTokenService{db: db, authEventService: &mockAuthEventService{}}
-		_, oerr := svc.authenticateClient(ctx, dto.OAuthClientCredentials{ClientID: "my-client", ClientSecret: "wrong"})
+		_, oerr := svc.authenticateClient(ctx, OAuthClientCredentials{ClientID: "my-client", ClientSecret: "wrong"})
 		require.NotNil(t, oerr)
 		assert.Equal(t, "invalid_client", oerr.Code)
 	})
@@ -1433,7 +1431,7 @@ func TestAuthenticateClient(t *testing.T) {
 		)
 		expectClientLookup(mock, rows)
 		svc := &oauthTokenService{db: db, authEventService: &mockAuthEventService{}}
-		client, oerr := svc.authenticateClient(ctx, dto.OAuthClientCredentials{ClientID: "my-client", ClientSecret: secret})
+		client, oerr := svc.authenticateClient(ctx, OAuthClientCredentials{ClientID: "my-client", ClientSecret: secret})
 		require.Nil(t, oerr)
 		require.NotNil(t, client)
 	})
@@ -1455,7 +1453,7 @@ func TestAuthenticateClient(t *testing.T) {
 		)
 		expectClientLookup(mock, rows)
 		svc := &oauthTokenService{db: db, authEventService: &mockAuthEventService{}}
-		_, oerr := svc.authenticateClient(ctx, dto.OAuthClientCredentials{ClientID: "my-client"})
+		_, oerr := svc.authenticateClient(ctx, OAuthClientCredentials{ClientID: "my-client"})
 		require.NotNil(t, oerr)
 		assert.Equal(t, "invalid_client", oerr.Code)
 	})

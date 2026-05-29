@@ -4,28 +4,27 @@ import (
 	"errors"
 
 	"github.com/google/uuid"
-	"github.com/maintainerd/auth/internal/model"
 	"gorm.io/gorm"
 )
 
 type APIKeyAPIRepository interface {
-	BaseRepositoryMethods[model.APIKeyAPI]
+	BaseRepositoryMethods[APIKeyAPI]
 	WithTx(tx *gorm.DB) APIKeyAPIRepository
-	FindByAPIKeyAndAPI(apiKeyID int64, apiID int64) (*model.APIKeyAPI, error)
-	FindByAPIKeyUUID(apiKeyUUID uuid.UUID) ([]model.APIKeyAPI, error)
-	FindByAPIKeyUUIDPaginated(apiKeyUUID uuid.UUID, page, limit int, sortBy, sortOrder string) (*PaginationResult[model.APIKeyAPI], error)
-	FindByAPIKeyUUIDAndAPIUUID(apiKeyUUID uuid.UUID, apiUUID uuid.UUID) (*model.APIKeyAPI, error)
+	FindByAPIKeyAndAPI(apiKeyID int64, apiID int64) (*APIKeyAPI, error)
+	FindByAPIKeyUUID(apiKeyUUID uuid.UUID) ([]APIKeyAPI, error)
+	FindByAPIKeyUUIDPaginated(apiKeyUUID uuid.UUID, page, limit int, sortBy, sortOrder string) (*PaginationResult[APIKeyAPI], error)
+	FindByAPIKeyUUIDAndAPIUUID(apiKeyUUID uuid.UUID, apiUUID uuid.UUID) (*APIKeyAPI, error)
 	RemoveByAPIKeyAndAPI(apiKeyID int64, apiID int64) error
 	RemoveByAPIKeyUUIDAndAPIUUID(apiKeyUUID uuid.UUID, apiUUID uuid.UUID) error
 }
 
 type apiKeyAPIRepository struct {
-	*BaseRepository[model.APIKeyAPI]
+	*BaseRepository[APIKeyAPI]
 }
 
 func NewAPIKeyAPIRepository(db *gorm.DB) APIKeyAPIRepository {
 	return &apiKeyAPIRepository{
-		BaseRepository: NewBaseRepository[model.APIKeyAPI](db, "api_key_api_uuid", "api_key_api_id"),
+		BaseRepository: NewBaseRepository[APIKeyAPI](db, "api_key_api_uuid", "api_key_api_id"),
 	}
 }
 
@@ -35,8 +34,8 @@ func (r *apiKeyAPIRepository) WithTx(tx *gorm.DB) APIKeyAPIRepository {
 	}
 }
 
-func (r *apiKeyAPIRepository) FindByAPIKeyAndAPI(apiKeyID int64, apiID int64) (*model.APIKeyAPI, error) {
-	var apiKeyAPI model.APIKeyAPI
+func (r *apiKeyAPIRepository) FindByAPIKeyAndAPI(apiKeyID int64, apiID int64) (*APIKeyAPI, error) {
+	var apiKeyAPI APIKeyAPI
 	if err := r.DB().Where("api_key_id = ? AND api_id = ?", apiKeyID, apiID).First(&apiKeyAPI).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, nil
@@ -46,8 +45,8 @@ func (r *apiKeyAPIRepository) FindByAPIKeyAndAPI(apiKeyID int64, apiID int64) (*
 	return &apiKeyAPI, nil
 }
 
-func (r *apiKeyAPIRepository) FindByAPIKeyUUID(apiKeyUUID uuid.UUID) ([]model.APIKeyAPI, error) {
-	var apiKeyAPIs []model.APIKeyAPI
+func (r *apiKeyAPIRepository) FindByAPIKeyUUID(apiKeyUUID uuid.UUID) ([]APIKeyAPI, error) {
+	var apiKeyAPIs []APIKeyAPI
 	err := r.DB().Joins("JOIN api_keys ON api_keys.api_key_id = api_key_apis.api_key_id").
 		Where("api_keys.api_key_uuid = ?", apiKeyUUID).
 		Preload("API").
@@ -61,8 +60,8 @@ func (r *apiKeyAPIRepository) FindByAPIKeyUUID(apiKeyUUID uuid.UUID) ([]model.AP
 	return apiKeyAPIs, nil
 }
 
-func (r *apiKeyAPIRepository) FindByAPIKeyUUIDPaginated(apiKeyUUID uuid.UUID, page, limit int, sortBy, sortOrder string) (*PaginationResult[model.APIKeyAPI], error) {
-	var apiKeyAPIs []model.APIKeyAPI
+func (r *apiKeyAPIRepository) FindByAPIKeyUUIDPaginated(apiKeyUUID uuid.UUID, page, limit int, sortBy, sortOrder string) (*PaginationResult[APIKeyAPI], error) {
+	var apiKeyAPIs []APIKeyAPI
 	var total int64
 
 	// Base query
@@ -72,7 +71,7 @@ func (r *apiKeyAPIRepository) FindByAPIKeyUUIDPaginated(apiKeyUUID uuid.UUID, pa
 		Preload("Permissions.Permission")
 
 	// Count total records
-	if err := query.Model(&model.APIKeyAPI{}).Count(&total).Error; err != nil {
+	if err := query.Model(&APIKeyAPI{}).Count(&total).Error; err != nil {
 		return nil, err
 	}
 
@@ -104,7 +103,7 @@ func (r *apiKeyAPIRepository) FindByAPIKeyUUIDPaginated(apiKeyUUID uuid.UUID, pa
 	// Calculate total pages
 	totalPages := int((total + int64(limit) - 1) / int64(limit))
 
-	return &PaginationResult[model.APIKeyAPI]{
+	return &PaginationResult[APIKeyAPI]{
 		Data:       apiKeyAPIs,
 		Total:      total,
 		Page:       page,
@@ -113,8 +112,8 @@ func (r *apiKeyAPIRepository) FindByAPIKeyUUIDPaginated(apiKeyUUID uuid.UUID, pa
 	}, nil
 }
 
-func (r *apiKeyAPIRepository) FindByAPIKeyUUIDAndAPIUUID(apiKeyUUID uuid.UUID, apiUUID uuid.UUID) (*model.APIKeyAPI, error) {
-	var apiKeyAPI model.APIKeyAPI
+func (r *apiKeyAPIRepository) FindByAPIKeyUUIDAndAPIUUID(apiKeyUUID uuid.UUID, apiUUID uuid.UUID) (*APIKeyAPI, error) {
+	var apiKeyAPI APIKeyAPI
 	err := r.DB().Joins("JOIN api_keys ON api_keys.api_key_id = api_key_apis.api_key_id").
 		Joins("JOIN apis ON apis.api_id = api_key_apis.api_id").
 		Where("api_keys.api_key_uuid = ? AND apis.api_uuid = ?", apiKeyUUID, apiUUID).
@@ -133,7 +132,7 @@ func (r *apiKeyAPIRepository) FindByAPIKeyUUIDAndAPIUUID(apiKeyUUID uuid.UUID, a
 }
 
 func (r *apiKeyAPIRepository) RemoveByAPIKeyAndAPI(apiKeyID int64, apiID int64) error {
-	return r.DB().Where("api_key_id = ? AND api_id = ?", apiKeyID, apiID).Delete(&model.APIKeyAPI{}).Error
+	return r.DB().Where("api_key_id = ? AND api_id = ?", apiKeyID, apiID).Delete(&APIKeyAPI{}).Error
 }
 
 func (r *apiKeyAPIRepository) RemoveByAPIKeyUUIDAndAPIUUID(apiKeyUUID uuid.UUID, apiUUID uuid.UUID) error {
@@ -147,5 +146,5 @@ func (r *apiKeyAPIRepository) RemoveByAPIKeyUUIDAndAPIUUID(apiKeyUUID uuid.UUID,
 	}
 
 	// Delete by ID (more reliable than complex JOINs in DELETE)
-	return r.DB().Delete(&model.APIKeyAPI{}, apiKeyAPI.APIKeyAPIID).Error
+	return r.DB().Delete(&APIKeyAPI{}, apiKeyAPI.APIKeyAPIID).Error
 }

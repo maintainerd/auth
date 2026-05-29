@@ -6,9 +6,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/maintainerd/auth/internal/model"
 	"github.com/maintainerd/auth/internal/platform/apperror"
-	"github.com/maintainerd/auth/internal/repository"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -46,10 +44,10 @@ type LoginTemplateService interface {
 }
 
 type loginTemplateService struct {
-	loginTemplateRepo repository.LoginTemplateRepository
+	loginTemplateRepo LoginTemplateRepository
 }
 
-func NewLoginTemplateService(loginTemplateRepo repository.LoginTemplateRepository) LoginTemplateService {
+func NewLoginTemplateService(loginTemplateRepo LoginTemplateRepository) LoginTemplateService {
 	return &loginTemplateService{
 		loginTemplateRepo: loginTemplateRepo,
 	}
@@ -59,7 +57,7 @@ func (s *loginTemplateService) GetAll(ctx context.Context, tenantID int64, name 
 	_, span := otel.Tracer("service").Start(ctx, "loginTemplate.list")
 	defer span.End()
 	span.SetAttributes(attribute.Int64("tenant.id", tenantID))
-	filter := repository.LoginTemplateRepositoryGetFilter{
+	filter := LoginTemplateRepositoryGetFilter{
 		Name:      name,
 		Status:    status,
 		Template:  template,
@@ -128,7 +126,7 @@ func (s *loginTemplateService) Create(ctx context.Context, tenantID int64, name 
 		metadataJSON = datatypes.JSON([]byte("{}"))
 	}
 
-	loginTemplate := &model.LoginTemplate{
+	loginTemplate := &LoginTemplate{
 		TenantID:    tenantID,
 		Name:        name,
 		Description: description,
@@ -266,7 +264,7 @@ func (s *loginTemplateService) Delete(ctx context.Context, loginTemplateUUID uui
 	return &result, nil
 }
 
-func toLoginTemplateServiceDataResult(template *model.LoginTemplate) LoginTemplateServiceDataResult {
+func toLoginTemplateServiceDataResult(template *LoginTemplate) LoginTemplateServiceDataResult {
 	var metadata map[string]any
 	if len(template.Metadata) > 0 {
 		if err := json.Unmarshal(template.Metadata, &metadata); err != nil {

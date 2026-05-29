@@ -8,8 +8,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/maintainerd/auth/internal/repository"
-	"github.com/maintainerd/auth/internal/service"
 	"github.com/stretchr/testify/assert"
 	"gorm.io/datatypes"
 )
@@ -53,7 +51,7 @@ func TestAuthEventHandler_GetAll_InvalidSortOrder(t *testing.T) {
 
 func TestAuthEventHandler_GetAll_ServiceError(t *testing.T) {
 	svc := &mockAuthEventService{
-		findPaginatedFn: func(_ context.Context, _ repository.AuthEventRepositoryGetFilter) (*repository.PaginationResult[service.AuthEventServiceDataResult], error) {
+		findPaginatedFn: func(_ context.Context, _ AuthEventRepositoryGetFilter) (*PaginationResult[AuthEventServiceDataResult], error) {
 			return nil, assert.AnError
 		},
 	}
@@ -68,9 +66,9 @@ func TestAuthEventHandler_GetAll_Success(t *testing.T) {
 	now := time.Now()
 	eventUUID := uuid.New()
 	svc := &mockAuthEventService{
-		findPaginatedFn: func(_ context.Context, _ repository.AuthEventRepositoryGetFilter) (*repository.PaginationResult[service.AuthEventServiceDataResult], error) {
-			return &repository.PaginationResult[service.AuthEventServiceDataResult]{
-				Data: []service.AuthEventServiceDataResult{
+		findPaginatedFn: func(_ context.Context, _ AuthEventRepositoryGetFilter) (*PaginationResult[AuthEventServiceDataResult], error) {
+			return &PaginationResult[AuthEventServiceDataResult]{
+				Data: []AuthEventServiceDataResult{
 					{
 						AuthEventUUID: eventUUID,
 						TenantID:      testTenantID,
@@ -99,10 +97,10 @@ func TestAuthEventHandler_GetAll_Success(t *testing.T) {
 
 func TestAuthEventHandler_GetAll_WithDateFilters(t *testing.T) {
 	svc := &mockAuthEventService{
-		findPaginatedFn: func(_ context.Context, filter repository.AuthEventRepositoryGetFilter) (*repository.PaginationResult[service.AuthEventServiceDataResult], error) {
+		findPaginatedFn: func(_ context.Context, filter AuthEventRepositoryGetFilter) (*PaginationResult[AuthEventServiceDataResult], error) {
 			assert.NotNil(t, filter.DateFrom)
 			assert.NotNil(t, filter.DateTo)
-			return &repository.PaginationResult[service.AuthEventServiceDataResult]{
+			return &PaginationResult[AuthEventServiceDataResult]{
 				Data:       nil,
 				Total:      0,
 				Page:       1,
@@ -121,7 +119,7 @@ func TestAuthEventHandler_GetAll_WithDateFilters(t *testing.T) {
 
 func TestAuthEventHandler_GetAll_WithAllFilters(t *testing.T) {
 	svc := &mockAuthEventService{
-		findPaginatedFn: func(_ context.Context, filter repository.AuthEventRepositoryGetFilter) (*repository.PaginationResult[service.AuthEventServiceDataResult], error) {
+		findPaginatedFn: func(_ context.Context, filter AuthEventRepositoryGetFilter) (*PaginationResult[AuthEventServiceDataResult], error) {
 			assert.NotNil(t, filter.Category)
 			assert.Equal(t, "AUTHN", *filter.Category)
 			assert.NotNil(t, filter.Severity)
@@ -130,7 +128,7 @@ func TestAuthEventHandler_GetAll_WithAllFilters(t *testing.T) {
 			assert.Equal(t, "success", *filter.Result)
 			assert.NotNil(t, filter.EventType)
 			assert.Equal(t, "authn_login_success", *filter.EventType)
-			return &repository.PaginationResult[service.AuthEventServiceDataResult]{
+			return &PaginationResult[AuthEventServiceDataResult]{
 				Data:       nil,
 				Total:      0,
 				Page:       1,
@@ -149,9 +147,9 @@ func TestAuthEventHandler_GetAll_WithAllFilters(t *testing.T) {
 
 func TestAuthEventHandler_GetAll_NilMetadata(t *testing.T) {
 	svc := &mockAuthEventService{
-		findPaginatedFn: func(_ context.Context, _ repository.AuthEventRepositoryGetFilter) (*repository.PaginationResult[service.AuthEventServiceDataResult], error) {
-			return &repository.PaginationResult[service.AuthEventServiceDataResult]{
-				Data: []service.AuthEventServiceDataResult{
+		findPaginatedFn: func(_ context.Context, _ AuthEventRepositoryGetFilter) (*PaginationResult[AuthEventServiceDataResult], error) {
+			return &PaginationResult[AuthEventServiceDataResult]{
+				Data: []AuthEventServiceDataResult{
 					{
 						AuthEventUUID: uuid.New(),
 						TenantID:      testTenantID,
@@ -180,9 +178,9 @@ func TestAuthEventHandler_GetAll_NilMetadata(t *testing.T) {
 
 func TestAuthEventHandler_GetAll_EmptyMetadata(t *testing.T) {
 	svc := &mockAuthEventService{
-		findPaginatedFn: func(_ context.Context, _ repository.AuthEventRepositoryGetFilter) (*repository.PaginationResult[service.AuthEventServiceDataResult], error) {
-			return &repository.PaginationResult[service.AuthEventServiceDataResult]{
-				Data: []service.AuthEventServiceDataResult{
+		findPaginatedFn: func(_ context.Context, _ AuthEventRepositoryGetFilter) (*PaginationResult[AuthEventServiceDataResult], error) {
+			return &PaginationResult[AuthEventServiceDataResult]{
+				Data: []AuthEventServiceDataResult{
 					{
 						AuthEventUUID: uuid.New(),
 						TenantID:      testTenantID,
@@ -211,9 +209,9 @@ func TestAuthEventHandler_GetAll_EmptyMetadata(t *testing.T) {
 
 func TestAuthEventHandler_GetAll_InvalidMetadataJSON(t *testing.T) {
 	svc := &mockAuthEventService{
-		findPaginatedFn: func(_ context.Context, _ repository.AuthEventRepositoryGetFilter) (*repository.PaginationResult[service.AuthEventServiceDataResult], error) {
-			return &repository.PaginationResult[service.AuthEventServiceDataResult]{
-				Data: []service.AuthEventServiceDataResult{
+		findPaginatedFn: func(_ context.Context, _ AuthEventRepositoryGetFilter) (*PaginationResult[AuthEventServiceDataResult], error) {
+			return &PaginationResult[AuthEventServiceDataResult]{
+				Data: []AuthEventServiceDataResult{
 					{
 						AuthEventUUID: uuid.New(),
 						TenantID:      testTenantID,
@@ -264,7 +262,7 @@ func TestAuthEventHandler_Get_InvalidUUID(t *testing.T) {
 
 func TestAuthEventHandler_Get_NotFound(t *testing.T) {
 	svc := &mockAuthEventService{
-		findByUUIDFn: func(_ context.Context, _ int64, _ uuid.UUID) (*service.AuthEventServiceDataResult, error) {
+		findByUUIDFn: func(_ context.Context, _ int64, _ uuid.UUID) (*AuthEventServiceDataResult, error) {
 			return nil, errNotFound
 		},
 	}
@@ -278,7 +276,7 @@ func TestAuthEventHandler_Get_NotFound(t *testing.T) {
 
 func TestAuthEventHandler_Get_ServiceError(t *testing.T) {
 	svc := &mockAuthEventService{
-		findByUUIDFn: func(_ context.Context, _ int64, _ uuid.UUID) (*service.AuthEventServiceDataResult, error) {
+		findByUUIDFn: func(_ context.Context, _ int64, _ uuid.UUID) (*AuthEventServiceDataResult, error) {
 			return nil, assert.AnError
 		},
 	}
@@ -296,8 +294,8 @@ func TestAuthEventHandler_Get_Success(t *testing.T) {
 	desc := "user logged in"
 	traceID := "abc123"
 	svc := &mockAuthEventService{
-		findByUUIDFn: func(_ context.Context, _ int64, _ uuid.UUID) (*service.AuthEventServiceDataResult, error) {
-			return &service.AuthEventServiceDataResult{
+		findByUUIDFn: func(_ context.Context, _ int64, _ uuid.UUID) (*AuthEventServiceDataResult, error) {
+			return &AuthEventServiceDataResult{
 				AuthEventUUID: eventUUID,
 				TenantID:      testTenantID,
 				IPAddress:     "127.0.0.1",

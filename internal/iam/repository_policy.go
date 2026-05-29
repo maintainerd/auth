@@ -4,7 +4,6 @@ import (
 	"errors"
 
 	"github.com/google/uuid"
-	"github.com/maintainerd/auth/internal/model"
 	"gorm.io/gorm"
 )
 
@@ -23,25 +22,25 @@ type PolicyRepositoryGetFilter struct {
 }
 
 type PolicyRepository interface {
-	BaseRepositoryMethods[model.Policy]
+	BaseRepositoryMethods[Policy]
 	WithTx(tx *gorm.DB) PolicyRepository
-	FindByUUIDAndTenantID(policyUUID uuid.UUID, tenantID int64) (*model.Policy, error)
-	FindByName(policyName string, tenantID int64) (*model.Policy, error)
-	FindByNameAndVersion(policyName string, version string, tenantID int64) (*model.Policy, error)
-	FindSystemPolicies(tenantID int64) ([]model.Policy, error)
-	FindPaginated(filter PolicyRepositoryGetFilter) (*PaginationResult[model.Policy], error)
+	FindByUUIDAndTenantID(policyUUID uuid.UUID, tenantID int64) (*Policy, error)
+	FindByName(policyName string, tenantID int64) (*Policy, error)
+	FindByNameAndVersion(policyName string, version string, tenantID int64) (*Policy, error)
+	FindSystemPolicies(tenantID int64) ([]Policy, error)
+	FindPaginated(filter PolicyRepositoryGetFilter) (*PaginationResult[Policy], error)
 	SetStatusByUUID(policyUUID uuid.UUID, tenantID int64, status string) error
 	SetSystemStatusByUUID(policyUUID uuid.UUID, tenantID int64, isSystem bool) error
 	DeleteByUUIDAndTenantID(policyUUID uuid.UUID, tenantID int64) error
 }
 
 type policyRepository struct {
-	*BaseRepository[model.Policy]
+	*BaseRepository[Policy]
 }
 
 func NewPolicyRepository(db *gorm.DB) PolicyRepository {
 	return &policyRepository{
-		BaseRepository: NewBaseRepository[model.Policy](db, "policy_uuid", "policy_id"),
+		BaseRepository: NewBaseRepository[Policy](db, "policy_uuid", "policy_id"),
 	}
 }
 
@@ -51,8 +50,8 @@ func (r *policyRepository) WithTx(tx *gorm.DB) PolicyRepository {
 	}
 }
 
-func (r *policyRepository) FindByUUIDAndTenantID(policyUUID uuid.UUID, tenantID int64) (*model.Policy, error) {
-	var policy model.Policy
+func (r *policyRepository) FindByUUIDAndTenantID(policyUUID uuid.UUID, tenantID int64) (*Policy, error) {
+	var policy Policy
 	err := r.DB().Where("policy_uuid = ? AND tenant_id = ?", policyUUID, tenantID).First(&policy).Error
 
 	if err != nil {
@@ -65,8 +64,8 @@ func (r *policyRepository) FindByUUIDAndTenantID(policyUUID uuid.UUID, tenantID 
 	return &policy, nil
 }
 
-func (r *policyRepository) FindByName(policyName string, tenantID int64) (*model.Policy, error) {
-	var policy model.Policy
+func (r *policyRepository) FindByName(policyName string, tenantID int64) (*Policy, error) {
+	var policy Policy
 	err := r.DB().Where("name = ? AND tenant_id = ?", policyName, tenantID).First(&policy).Error
 
 	if err != nil {
@@ -79,8 +78,8 @@ func (r *policyRepository) FindByName(policyName string, tenantID int64) (*model
 	return &policy, nil
 }
 
-func (r *policyRepository) FindByNameAndVersion(policyName string, version string, tenantID int64) (*model.Policy, error) {
-	var policy model.Policy
+func (r *policyRepository) FindByNameAndVersion(policyName string, version string, tenantID int64) (*Policy, error) {
+	var policy Policy
 	err := r.DB().Where("name = ? AND version = ? AND tenant_id = ?", policyName, version, tenantID).First(&policy).Error
 
 	if err != nil {
@@ -93,26 +92,26 @@ func (r *policyRepository) FindByNameAndVersion(policyName string, version strin
 	return &policy, nil
 }
 
-func (r *policyRepository) FindSystemPolicies(tenantID int64) ([]model.Policy, error) {
-	var policies []model.Policy
+func (r *policyRepository) FindSystemPolicies(tenantID int64) ([]Policy, error) {
+	var policies []Policy
 	err := r.DB().Where("is_system = ? AND tenant_id = ?", true, tenantID).Find(&policies).Error
 	return policies, err
 }
 
 func (r *policyRepository) SetStatusByUUID(policyUUID uuid.UUID, tenantID int64, status string) error {
-	return r.DB().Model(&model.Policy{}).
+	return r.DB().Model(&Policy{}).
 		Where("policy_uuid = ? AND tenant_id = ?", policyUUID, tenantID).
 		Update("status", status).Error
 }
 
 func (r *policyRepository) SetSystemStatusByUUID(policyUUID uuid.UUID, tenantID int64, isSystem bool) error {
-	return r.DB().Model(&model.Policy{}).
+	return r.DB().Model(&Policy{}).
 		Where("policy_uuid = ? AND tenant_id = ?", policyUUID, tenantID).
 		Update("is_system", isSystem).Error
 }
 
-func (r *policyRepository) FindPaginated(filter PolicyRepositoryGetFilter) (*PaginationResult[model.Policy], error) {
-	query := r.DB().Model(&model.Policy{})
+func (r *policyRepository) FindPaginated(filter PolicyRepositoryGetFilter) (*PaginationResult[Policy], error) {
+	query := r.DB().Model(&Policy{})
 
 	// Filter by tenant_id
 	query = query.Where("tenant_id = ?", filter.TenantID)
@@ -152,14 +151,14 @@ func (r *policyRepository) FindPaginated(filter PolicyRepositoryGetFilter) (*Pag
 	// Pagination
 	filter.Page, filter.Limit = normalizePagination(filter.Page, filter.Limit)
 	offset := (filter.Page - 1) * filter.Limit
-	var policies []model.Policy
+	var policies []Policy
 	if err := query.Limit(filter.Limit).Offset(offset).Find(&policies).Error; err != nil {
 		return nil, err
 	}
 
 	totalPages := int((total + int64(filter.Limit) - 1) / int64(filter.Limit))
 
-	return &PaginationResult[model.Policy]{
+	return &PaginationResult[Policy]{
 		Data:       policies,
 		Total:      total,
 		Page:       filter.Page,
@@ -169,5 +168,5 @@ func (r *policyRepository) FindPaginated(filter PolicyRepositoryGetFilter) (*Pag
 }
 
 func (r *policyRepository) DeleteByUUIDAndTenantID(policyUUID uuid.UUID, tenantID int64) error {
-	return r.DB().Where("policy_uuid = ? AND tenant_id = ?", policyUUID, tenantID).Delete(&model.Policy{}).Error
+	return r.DB().Where("policy_uuid = ? AND tenant_id = ?", policyUUID, tenantID).Delete(&Policy{}).Error
 }

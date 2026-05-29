@@ -4,7 +4,6 @@ import (
 	"errors"
 
 	"github.com/google/uuid"
-	"github.com/maintainerd/auth/internal/model"
 	"gorm.io/gorm"
 )
 
@@ -21,25 +20,25 @@ type EmailTemplateRepositoryGetFilter struct {
 }
 
 type EmailTemplateRepository interface {
-	BaseRepositoryMethods[model.EmailTemplate]
-	FindByUUIDAndTenantID(emailTemplateUUID uuid.UUID, tenantID int64, preloads ...string) (*model.EmailTemplate, error)
-	FindByName(name string) (*model.EmailTemplate, error)
-	FindPaginated(filter EmailTemplateRepositoryGetFilter) (*PaginationResult[model.EmailTemplate], error)
+	BaseRepositoryMethods[EmailTemplate]
+	FindByUUIDAndTenantID(emailTemplateUUID uuid.UUID, tenantID int64, preloads ...string) (*EmailTemplate, error)
+	FindByName(name string) (*EmailTemplate, error)
+	FindPaginated(filter EmailTemplateRepositoryGetFilter) (*PaginationResult[EmailTemplate], error)
 }
 
 type emailTemplateRepository struct {
-	*BaseRepository[model.EmailTemplate]
+	*BaseRepository[EmailTemplate]
 }
 
 func NewEmailTemplateRepository(db *gorm.DB) EmailTemplateRepository {
 	return &emailTemplateRepository{
-		BaseRepository: NewBaseRepository[model.EmailTemplate](db, "email_template_uuid", "email_template_id"),
+		BaseRepository: NewBaseRepository[EmailTemplate](db, "email_template_uuid", "email_template_id"),
 	}
 }
 
 // FindByUUIDAndTenantID retrieves an email template by UUID and tenant ID
-func (r *emailTemplateRepository) FindByUUIDAndTenantID(emailTemplateUUID uuid.UUID, tenantID int64, preloads ...string) (*model.EmailTemplate, error) {
-	var template model.EmailTemplate
+func (r *emailTemplateRepository) FindByUUIDAndTenantID(emailTemplateUUID uuid.UUID, tenantID int64, preloads ...string) (*EmailTemplate, error) {
+	var template EmailTemplate
 	query := r.DB().Where("email_template_uuid = ? AND tenant_id = ?", emailTemplateUUID, tenantID)
 
 	for _, preload := range preloads {
@@ -57,10 +56,10 @@ func (r *emailTemplateRepository) FindByUUIDAndTenantID(emailTemplateUUID uuid.U
 }
 
 // FindByName retrieves an active email template by its name
-func (r *emailTemplateRepository) FindByName(name string) (*model.EmailTemplate, error) {
-	var template model.EmailTemplate
+func (r *emailTemplateRepository) FindByName(name string) (*EmailTemplate, error) {
+	var template EmailTemplate
 	err := r.DB().
-		Where("name = ? AND status = ?", name, model.StatusActive).
+		Where("name = ? AND status = ?", name, StatusActive).
 		First(&template).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -72,8 +71,8 @@ func (r *emailTemplateRepository) FindByName(name string) (*model.EmailTemplate,
 }
 
 // FindPaginated retrieves paginated email templates with filtering
-func (r *emailTemplateRepository) FindPaginated(filter EmailTemplateRepositoryGetFilter) (*PaginationResult[model.EmailTemplate], error) {
-	query := r.DB().Model(&model.EmailTemplate{})
+func (r *emailTemplateRepository) FindPaginated(filter EmailTemplateRepositoryGetFilter) (*PaginationResult[EmailTemplate], error) {
+	query := r.DB().Model(&EmailTemplate{})
 
 	// Apply filters
 	if filter.Name != nil && *filter.Name != "" {
@@ -114,7 +113,7 @@ func (r *emailTemplateRepository) FindPaginated(filter EmailTemplateRepositoryGe
 	query = query.Offset(offset).Limit(limit)
 
 	// Execute query
-	var templates []model.EmailTemplate
+	var templates []EmailTemplate
 	if err := query.Find(&templates).Error; err != nil {
 		return nil, err
 	}
@@ -124,7 +123,7 @@ func (r *emailTemplateRepository) FindPaginated(filter EmailTemplateRepositoryGe
 		totalPages++
 	}
 
-	return &PaginationResult[model.EmailTemplate]{
+	return &PaginationResult[EmailTemplate]{
 		Data:       templates,
 		Total:      total,
 		Page:       page,

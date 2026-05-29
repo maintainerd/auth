@@ -7,7 +7,6 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
-	"github.com/maintainerd/auth/internal/service"
 	"github.com/stretchr/testify/assert"
 	"gorm.io/datatypes"
 )
@@ -22,7 +21,7 @@ func TestUserHandler_GetUsers_NoTenant(t *testing.T) {
 
 func TestUserHandler_GetUsers_ServiceError(t *testing.T) {
 	svc := &mockUserService{
-		getFn: func(service.UserServiceGetFilter) (*service.UserServiceGetResult, error) {
+		getFn: func(UserServiceGetFilter) (*UserServiceGetResult, error) {
 			return nil, assert.AnError
 		},
 	}
@@ -35,8 +34,8 @@ func TestUserHandler_GetUsers_ServiceError(t *testing.T) {
 
 func TestUserHandler_GetUsers_Success(t *testing.T) {
 	svc := &mockUserService{
-		getFn: func(service.UserServiceGetFilter) (*service.UserServiceGetResult, error) {
-			return &service.UserServiceGetResult{}, nil
+		getFn: func(UserServiceGetFilter) (*UserServiceGetResult, error) {
+			return &UserServiceGetResult{}, nil
 		},
 	}
 	h := NewUserHandler(svc)
@@ -64,7 +63,7 @@ func TestUserHandler_GetUserByUUID_InvalidUUID(t *testing.T) {
 
 func TestUserHandler_GetUserByUUID_NotFound(t *testing.T) {
 	svc := &mockUserService{
-		getByUUIDFn: func(id uuid.UUID, tid int64) (*service.UserServiceDataResult, error) {
+		getByUUIDFn: func(id uuid.UUID, tid int64) (*UserServiceDataResult, error) {
 			return nil, errNotFound
 		},
 	}
@@ -85,7 +84,7 @@ func TestUserHandler_CreateUser_NoTenant(t *testing.T) {
 
 func TestUserHandler_CreateUser_ServiceError(t *testing.T) {
 	svc := &mockUserService{
-		createFn: func(u, fn string, e, ph *string, pw, s string, meta datatypes.JSON, tUUID string, creator uuid.UUID) (*service.UserServiceDataResult, error) {
+		createFn: func(u, fn string, e, ph *string, pw, s string, meta datatypes.JSON, tUUID string, creator uuid.UUID) (*UserServiceDataResult, error) {
 			return nil, assert.AnError
 		},
 	}
@@ -116,7 +115,7 @@ func TestUserHandler_DeleteUser_InvalidUUID(t *testing.T) {
 
 func TestUserHandler_DeleteUser_ServiceError(t *testing.T) {
 	svc := &mockUserService{
-		deleteByUUIDFn: func(id uuid.UUID, tid int64, deleter uuid.UUID) (*service.UserServiceDataResult, error) {
+		deleteByUUIDFn: func(id uuid.UUID, tid int64, deleter uuid.UUID) (*UserServiceDataResult, error) {
 			return nil, assert.AnError
 		},
 	}
@@ -129,8 +128,8 @@ func TestUserHandler_DeleteUser_ServiceError(t *testing.T) {
 
 func TestUserHandler_DeleteUser_Success(t *testing.T) {
 	svc := &mockUserService{
-		deleteByUUIDFn: func(id uuid.UUID, tid int64, deleter uuid.UUID) (*service.UserServiceDataResult, error) {
-			return &service.UserServiceDataResult{}, nil
+		deleteByUUIDFn: func(id uuid.UUID, tid int64, deleter uuid.UUID) (*UserServiceDataResult, error) {
+			return &UserServiceDataResult{}, nil
 		},
 	}
 	h := NewUserHandler(svc)
@@ -154,10 +153,10 @@ func TestUserHandler_GetUsers_ValidationError(t *testing.T) {
 func TestUserHandler_GetUsers_WithFiltersAndRows(t *testing.T) {
 	roleID := uuid.New()
 	svc := &mockUserService{
-		getFn: func(service.UserServiceGetFilter) (*service.UserServiceGetResult, error) {
-			ten := &service.TenantServiceDataResult{Name: "t1"}
-			return &service.UserServiceGetResult{
-				Data:  []service.UserServiceDataResult{{Username: "u1", Tenant: ten}},
+		getFn: func(UserServiceGetFilter) (*UserServiceGetResult, error) {
+			ten := &TenantServiceDataResult{Name: "t1"}
+			return &UserServiceGetResult{
+				Data:  []UserServiceDataResult{{Username: "u1", Tenant: ten}},
 				Total: 1, Page: 1, Limit: 10, TotalPages: 1,
 			}, nil
 		},
@@ -174,10 +173,10 @@ func TestUserHandler_GetUsers_WithFiltersAndRows(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestUserHandler_GetUser_Success(t *testing.T) {
-	ten := &service.TenantServiceDataResult{Name: "t1"}
+	ten := &TenantServiceDataResult{Name: "t1"}
 	svc := &mockUserService{
-		getByUUIDFn: func(uuid.UUID, int64) (*service.UserServiceDataResult, error) {
-			return &service.UserServiceDataResult{Username: "u1", Tenant: ten}, nil
+		getByUUIDFn: func(uuid.UUID, int64) (*UserServiceDataResult, error) {
+			return &UserServiceDataResult{Username: "u1", Tenant: ten}, nil
 		},
 	}
 	r := withTenant(withChiParam(httptest.NewRequest(http.MethodGet, "/", nil), "user_uuid", testResourceUUID.String()))
@@ -206,8 +205,8 @@ func TestUserHandler_CreateUser_ValidationError(t *testing.T) {
 
 func TestUserHandler_CreateUser_Success(t *testing.T) {
 	svc := &mockUserService{
-		createFn: func(u, fn string, e, ph *string, pw, s string, meta datatypes.JSON, tUUID string, creator uuid.UUID) (*service.UserServiceDataResult, error) {
-			return &service.UserServiceDataResult{Username: u}, nil
+		createFn: func(u, fn string, e, ph *string, pw, s string, meta datatypes.JSON, tUUID string, creator uuid.UUID) (*UserServiceDataResult, error) {
+			return &UserServiceDataResult{Username: u}, nil
 		},
 	}
 	body := map[string]any{"username": "user1", "fullname": "User One", "password": "P@ssw0rd1!", "status": "active", "tenant_id": testTenantUUID.String()}
@@ -253,7 +252,7 @@ func TestUserHandler_UpdateUser(t *testing.T) {
 	})
 
 	t.Run("service error returns 500", func(t *testing.T) {
-		svc := &mockUserService{updateFn: func(uuid.UUID, int64, string, string, *string, *string, string, datatypes.JSON, uuid.UUID) (*service.UserServiceDataResult, error) {
+		svc := &mockUserService{updateFn: func(uuid.UUID, int64, string, string, *string, *string, string, datatypes.JSON, uuid.UUID) (*UserServiceDataResult, error) {
 			return nil, errors.New("update error")
 		}}
 		r := withTenantAndUser(withChiParam(jsonReq(t, http.MethodPut, "/", validBody), "user_uuid", testResourceUUID.String()))
@@ -263,8 +262,8 @@ func TestUserHandler_UpdateUser(t *testing.T) {
 	})
 
 	t.Run("success returns 200", func(t *testing.T) {
-		svc := &mockUserService{updateFn: func(id uuid.UUID, tid int64, u, fn string, e, ph *string, s string, meta datatypes.JSON, updater uuid.UUID) (*service.UserServiceDataResult, error) {
-			return &service.UserServiceDataResult{Username: u}, nil
+		svc := &mockUserService{updateFn: func(id uuid.UUID, tid int64, u, fn string, e, ph *string, s string, meta datatypes.JSON, updater uuid.UUID) (*UserServiceDataResult, error) {
+			return &UserServiceDataResult{Username: u}, nil
 		}}
 		r := withTenantAndUser(withChiParam(jsonReq(t, http.MethodPut, "/", validBody), "user_uuid", testResourceUUID.String()))
 		w := httptest.NewRecorder()
@@ -307,7 +306,7 @@ func TestUserHandler_SetUserStatus(t *testing.T) {
 	})
 
 	t.Run("service error returns 500", func(t *testing.T) {
-		svc := &mockUserService{setStatusFn: func(uuid.UUID, int64, string, uuid.UUID) (*service.UserServiceDataResult, error) {
+		svc := &mockUserService{setStatusFn: func(uuid.UUID, int64, string, uuid.UUID) (*UserServiceDataResult, error) {
 			return nil, errors.New("status error")
 		}}
 		r := withTenantAndUser(withChiParam(jsonReq(t, http.MethodPatch, "/", map[string]any{"status": "active"}), "user_uuid", testResourceUUID.String()))
@@ -317,8 +316,8 @@ func TestUserHandler_SetUserStatus(t *testing.T) {
 	})
 
 	t.Run("success returns 200", func(t *testing.T) {
-		svc := &mockUserService{setStatusFn: func(id uuid.UUID, tid int64, s string, updater uuid.UUID) (*service.UserServiceDataResult, error) {
-			return &service.UserServiceDataResult{Status: s}, nil
+		svc := &mockUserService{setStatusFn: func(id uuid.UUID, tid int64, s string, updater uuid.UUID) (*UserServiceDataResult, error) {
+			return &UserServiceDataResult{Status: s}, nil
 		}}
 		r := withTenantAndUser(withChiParam(jsonReq(t, http.MethodPatch, "/", map[string]any{"status": "active"}), "user_uuid", testResourceUUID.String()))
 		w := httptest.NewRecorder()
@@ -344,7 +343,7 @@ func TestUserHandler_VerifyEmail(t *testing.T) {
 		assert.Equal(t, http.StatusBadRequest, w.Code)
 	})
 	t.Run("service error returns 500", func(t *testing.T) {
-		svc := &mockUserService{verifyEmailFn: func(uuid.UUID, int64) (*service.UserServiceDataResult, error) {
+		svc := &mockUserService{verifyEmailFn: func(uuid.UUID, int64) (*UserServiceDataResult, error) {
 			return nil, errors.New("verify error")
 		}}
 		r := withTenant(withChiParam(httptest.NewRequest(http.MethodPost, "/", nil), "user_uuid", testResourceUUID.String()))
@@ -353,8 +352,8 @@ func TestUserHandler_VerifyEmail(t *testing.T) {
 		assert.Equal(t, http.StatusInternalServerError, w.Code)
 	})
 	t.Run("success returns 200", func(t *testing.T) {
-		svc := &mockUserService{verifyEmailFn: func(uuid.UUID, int64) (*service.UserServiceDataResult, error) {
-			return &service.UserServiceDataResult{}, nil
+		svc := &mockUserService{verifyEmailFn: func(uuid.UUID, int64) (*UserServiceDataResult, error) {
+			return &UserServiceDataResult{}, nil
 		}}
 		r := withTenant(withChiParam(httptest.NewRequest(http.MethodPost, "/", nil), "user_uuid", testResourceUUID.String()))
 		w := httptest.NewRecorder()
@@ -376,7 +375,7 @@ func TestUserHandler_VerifyPhone(t *testing.T) {
 		assert.Equal(t, http.StatusBadRequest, w.Code)
 	})
 	t.Run("service error returns 500", func(t *testing.T) {
-		svc := &mockUserService{verifyPhoneFn: func(uuid.UUID, int64) (*service.UserServiceDataResult, error) {
+		svc := &mockUserService{verifyPhoneFn: func(uuid.UUID, int64) (*UserServiceDataResult, error) {
 			return nil, errors.New("verify error")
 		}}
 		r := withTenant(withChiParam(httptest.NewRequest(http.MethodPost, "/", nil), "user_uuid", testResourceUUID.String()))
@@ -385,8 +384,8 @@ func TestUserHandler_VerifyPhone(t *testing.T) {
 		assert.Equal(t, http.StatusInternalServerError, w.Code)
 	})
 	t.Run("success returns 200", func(t *testing.T) {
-		svc := &mockUserService{verifyPhoneFn: func(uuid.UUID, int64) (*service.UserServiceDataResult, error) {
-			return &service.UserServiceDataResult{}, nil
+		svc := &mockUserService{verifyPhoneFn: func(uuid.UUID, int64) (*UserServiceDataResult, error) {
+			return &UserServiceDataResult{}, nil
 		}}
 		r := withTenant(withChiParam(httptest.NewRequest(http.MethodPost, "/", nil), "user_uuid", testResourceUUID.String()))
 		w := httptest.NewRecorder()
@@ -408,7 +407,7 @@ func TestUserHandler_CompleteAccount(t *testing.T) {
 		assert.Equal(t, http.StatusBadRequest, w.Code)
 	})
 	t.Run("service error returns 500", func(t *testing.T) {
-		svc := &mockUserService{completeAccountFn: func(uuid.UUID, int64) (*service.UserServiceDataResult, error) {
+		svc := &mockUserService{completeAccountFn: func(uuid.UUID, int64) (*UserServiceDataResult, error) {
 			return nil, errors.New("complete error")
 		}}
 		r := withTenant(withChiParam(httptest.NewRequest(http.MethodPost, "/", nil), "user_uuid", testResourceUUID.String()))
@@ -417,8 +416,8 @@ func TestUserHandler_CompleteAccount(t *testing.T) {
 		assert.Equal(t, http.StatusInternalServerError, w.Code)
 	})
 	t.Run("success returns 200", func(t *testing.T) {
-		svc := &mockUserService{completeAccountFn: func(uuid.UUID, int64) (*service.UserServiceDataResult, error) {
-			return &service.UserServiceDataResult{}, nil
+		svc := &mockUserService{completeAccountFn: func(uuid.UUID, int64) (*UserServiceDataResult, error) {
+			return &UserServiceDataResult{}, nil
 		}}
 		r := withTenant(withChiParam(httptest.NewRequest(http.MethodPost, "/", nil), "user_uuid", testResourceUUID.String()))
 		w := httptest.NewRecorder()
@@ -460,7 +459,7 @@ func TestUserHandler_AssignRoles(t *testing.T) {
 		assert.Equal(t, http.StatusBadRequest, w.Code)
 	})
 	t.Run("service error returns 500", func(t *testing.T) {
-		svc := &mockUserService{assignUserRolesFn: func(uuid.UUID, []uuid.UUID, int64) (*service.UserServiceDataResult, error) {
+		svc := &mockUserService{assignUserRolesFn: func(uuid.UUID, []uuid.UUID, int64) (*UserServiceDataResult, error) {
 			return nil, errors.New("assign error")
 		}}
 		r := withTenant(withChiParam(jsonReq(t, http.MethodPost, "/", validBody), "user_uuid", testResourceUUID.String()))
@@ -469,8 +468,8 @@ func TestUserHandler_AssignRoles(t *testing.T) {
 		assert.Equal(t, http.StatusInternalServerError, w.Code)
 	})
 	t.Run("success returns 200", func(t *testing.T) {
-		svc := &mockUserService{assignUserRolesFn: func(uuid.UUID, []uuid.UUID, int64) (*service.UserServiceDataResult, error) {
-			return &service.UserServiceDataResult{}, nil
+		svc := &mockUserService{assignUserRolesFn: func(uuid.UUID, []uuid.UUID, int64) (*UserServiceDataResult, error) {
+			return &UserServiceDataResult{}, nil
 		}}
 		r := withTenant(withChiParam(jsonReq(t, http.MethodPost, "/", validBody), "user_uuid", testResourceUUID.String()))
 		w := httptest.NewRecorder()
@@ -501,7 +500,7 @@ func TestUserHandler_RemoveRole(t *testing.T) {
 		assert.Equal(t, http.StatusBadRequest, w.Code)
 	})
 	t.Run("service error returns 500", func(t *testing.T) {
-		svc := &mockUserService{removeUserRoleFn: func(uuid.UUID, uuid.UUID, int64) (*service.UserServiceDataResult, error) {
+		svc := &mockUserService{removeUserRoleFn: func(uuid.UUID, uuid.UUID, int64) (*UserServiceDataResult, error) {
 			return nil, errors.New("remove error")
 		}}
 		r := withTenant(withChiParam(withChiParam(httptest.NewRequest(http.MethodDelete, "/", nil), "user_uuid", testResourceUUID.String()), "role_uuid", roleID.String()))
@@ -510,8 +509,8 @@ func TestUserHandler_RemoveRole(t *testing.T) {
 		assert.Equal(t, http.StatusInternalServerError, w.Code)
 	})
 	t.Run("success returns 200", func(t *testing.T) {
-		svc := &mockUserService{removeUserRoleFn: func(uuid.UUID, uuid.UUID, int64) (*service.UserServiceDataResult, error) {
-			return &service.UserServiceDataResult{}, nil
+		svc := &mockUserService{removeUserRoleFn: func(uuid.UUID, uuid.UUID, int64) (*UserServiceDataResult, error) {
+			return &UserServiceDataResult{}, nil
 		}}
 		r := withTenant(withChiParam(withChiParam(httptest.NewRequest(http.MethodDelete, "/", nil), "user_uuid", testResourceUUID.String()), "role_uuid", roleID.String()))
 		w := httptest.NewRecorder()
@@ -525,8 +524,8 @@ func TestUserHandler_RemoveRole(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 // twoRoles returns two roles for sort comparator coverage (need ≥ 2 elements).
-func twoRoles() []service.RoleServiceDataResult {
-	return []service.RoleServiceDataResult{
+func twoRoles() []RoleServiceDataResult {
+	return []RoleServiceDataResult{
 		{Name: "admin-role", Description: "Admin description", Status: "active"},
 		{Name: "member-role", Description: "Member description", Status: "inactive"},
 	}
@@ -539,12 +538,12 @@ func userRolesReq(t *testing.T, extraQuery string, userUUID uuid.UUID) *http.Req
 	return r
 }
 
-func userRolesSvc(roles []service.RoleServiceDataResult) *mockUserService {
+func userRolesSvc(roles []RoleServiceDataResult) *mockUserService {
 	return &mockUserService{
-		getByUUIDFn: func(uuid.UUID, int64) (*service.UserServiceDataResult, error) {
-			return &service.UserServiceDataResult{}, nil
+		getByUUIDFn: func(uuid.UUID, int64) (*UserServiceDataResult, error) {
+			return &UserServiceDataResult{}, nil
 		},
-		getUserRolesFn: func(uuid.UUID) ([]service.RoleServiceDataResult, error) {
+		getUserRolesFn: func(uuid.UUID) ([]RoleServiceDataResult, error) {
 			return roles, nil
 		},
 	}
@@ -573,7 +572,7 @@ func TestUserHandler_GetUserRoles(t *testing.T) {
 	})
 
 	t.Run("user not found returns 404", func(t *testing.T) {
-		svc := &mockUserService{getByUUIDFn: func(uuid.UUID, int64) (*service.UserServiceDataResult, error) {
+		svc := &mockUserService{getByUUIDFn: func(uuid.UUID, int64) (*UserServiceDataResult, error) {
 			return nil, errNotFound
 		}}
 		w := httptest.NewRecorder()
@@ -583,10 +582,10 @@ func TestUserHandler_GetUserRoles(t *testing.T) {
 
 	t.Run("GetUserRoles error returns 500", func(t *testing.T) {
 		svc := &mockUserService{
-			getByUUIDFn: func(uuid.UUID, int64) (*service.UserServiceDataResult, error) {
-				return &service.UserServiceDataResult{}, nil
+			getByUUIDFn: func(uuid.UUID, int64) (*UserServiceDataResult, error) {
+				return &UserServiceDataResult{}, nil
 			},
-			getUserRolesFn: func(uuid.UUID) ([]service.RoleServiceDataResult, error) {
+			getUserRolesFn: func(uuid.UUID) ([]RoleServiceDataResult, error) {
 				return nil, errors.New("db error")
 			},
 		}
@@ -671,12 +670,12 @@ func TestUserHandler_GetUserRoles(t *testing.T) {
 // GetUserIdentities – covers sortIdentities, Client != nil branch, pagination
 // ---------------------------------------------------------------------------
 
-func twoIdentities(withClient bool) []service.UserIdentityServiceDataResult {
-	var client *service.ClientServiceDataResult
+func twoIdentities(withClient bool) []UserIdentityServiceDataResult {
+	var client *ClientServiceDataResult
 	if withClient {
-		client = &service.ClientServiceDataResult{Name: "web-app"}
+		client = &ClientServiceDataResult{Name: "web-app"}
 	}
-	return []service.UserIdentityServiceDataResult{
+	return []UserIdentityServiceDataResult{
 		{Provider: "google", Sub: "sub-1", Client: client},
 		{Provider: "github", Sub: "sub-2"},
 	}
@@ -689,12 +688,12 @@ func userIdentitiesReq(t *testing.T, extraQuery string, userUUID uuid.UUID) *htt
 	return r
 }
 
-func userIdentitiesSvc(identities []service.UserIdentityServiceDataResult) *mockUserService {
+func userIdentitiesSvc(identities []UserIdentityServiceDataResult) *mockUserService {
 	return &mockUserService{
-		getByUUIDFn: func(uuid.UUID, int64) (*service.UserServiceDataResult, error) {
-			return &service.UserServiceDataResult{}, nil
+		getByUUIDFn: func(uuid.UUID, int64) (*UserServiceDataResult, error) {
+			return &UserServiceDataResult{}, nil
 		},
-		getUserIdentsFn: func(uuid.UUID) ([]service.UserIdentityServiceDataResult, error) {
+		getUserIdentsFn: func(uuid.UUID) ([]UserIdentityServiceDataResult, error) {
 			return identities, nil
 		},
 	}
@@ -723,7 +722,7 @@ func TestUserHandler_GetUserIdentities(t *testing.T) {
 	})
 
 	t.Run("user not found returns 404", func(t *testing.T) {
-		svc := &mockUserService{getByUUIDFn: func(uuid.UUID, int64) (*service.UserServiceDataResult, error) {
+		svc := &mockUserService{getByUUIDFn: func(uuid.UUID, int64) (*UserServiceDataResult, error) {
 			return nil, errNotFound
 		}}
 		w := httptest.NewRecorder()
@@ -733,10 +732,10 @@ func TestUserHandler_GetUserIdentities(t *testing.T) {
 
 	t.Run("GetUserIdentities error returns 500", func(t *testing.T) {
 		svc := &mockUserService{
-			getByUUIDFn: func(uuid.UUID, int64) (*service.UserServiceDataResult, error) {
-				return &service.UserServiceDataResult{}, nil
+			getByUUIDFn: func(uuid.UUID, int64) (*UserServiceDataResult, error) {
+				return &UserServiceDataResult{}, nil
 			},
-			getUserIdentsFn: func(uuid.UUID) ([]service.UserIdentityServiceDataResult, error) {
+			getUserIdentsFn: func(uuid.UUID) ([]UserIdentityServiceDataResult, error) {
 				return nil, errors.New("db error")
 			},
 		}
