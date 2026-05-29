@@ -1,0 +1,42 @@
+package iam
+
+import (
+	"github.com/go-chi/chi/v5"
+	"github.com/maintainerd/auth/internal/platform/cache"
+	"github.com/maintainerd/auth/internal/platform/middleware"
+	"github.com/maintainerd/auth/internal/rest/handler"
+	"github.com/maintainerd/auth/internal/service"
+)
+
+func PolicyRoute(
+	r chi.Router,
+	policyHandler *handler.PolicyHandler,
+	userService service.UserService,
+	appCache *cache.Cache,
+) {
+	r.Route("/policies", func(r chi.Router) {
+		r.Use(middleware.JWTAuthMiddleware)
+		r.Use(middleware.UserContextMiddleware(userService, appCache))
+
+		r.With(middleware.PermissionMiddleware([]string{"policy:read"})).
+			Get("/", policyHandler.Get)
+
+		r.With(middleware.PermissionMiddleware([]string{"policy:read"})).
+			Get("/{policy_uuid}", policyHandler.GetByUUID)
+
+		r.With(middleware.PermissionMiddleware([]string{"policy:read"})).
+			Get("/{policy_uuid}/services", policyHandler.GetServicesByPolicyUUID)
+
+		r.With(middleware.PermissionMiddleware([]string{"policy:create"})).
+			Post("/", policyHandler.Create)
+
+		r.With(middleware.PermissionMiddleware([]string{"policy:update"})).
+			Put("/{policy_uuid}", policyHandler.Update)
+
+		r.With(middleware.PermissionMiddleware([]string{"policy:update"})).
+			Put("/{policy_uuid}/status", policyHandler.UpdateStatus)
+
+		r.With(middleware.PermissionMiddleware([]string{"policy:delete"})).
+			Delete("/{policy_uuid}", policyHandler.Delete)
+	})
+}

@@ -1,0 +1,170 @@
+package authn
+
+import (
+	"errors"
+	"net/url"
+
+	validation "github.com/go-ozzo/ozzo-validation/v4"
+	"github.com/maintainerd/auth/internal/platform/security"
+	"github.com/maintainerd/auth/internal/platform/signedurl"
+	"github.com/maintainerd/auth/internal/platform/valid"
+)
+
+// Register request payload structure
+type RegisterRequestDTO struct {
+	Username string  `json:"username"`
+	Fullname string  `json:"fullname"`
+	Email    *string `json:"email,omitempty"`
+	Phone    *string `json:"phone,omitempty"`
+	Password string  `json:"password"`
+}
+
+func (r *RegisterRequestDTO) Validate() error {
+	// Sanitize inputs first
+	r.Username = security.SanitizeInput(r.Username)
+	r.Fullname = security.SanitizeInput(r.Fullname)
+	r.Password = security.SanitizeInput(r.Password)
+	if r.Email != nil {
+		*r.Email = security.SanitizeInput(*r.Email)
+	}
+	if r.Phone != nil {
+		*r.Phone = security.SanitizeInput(*r.Phone)
+	}
+
+	return validation.ValidateStruct(r,
+		validation.Field(&r.Username,
+			validation.Required.Error("Username is required"),
+			validation.Length(1, 255).Error("Username must not exceed 255 characters"),
+		),
+		validation.Field(&r.Fullname,
+			validation.Required.Error("Fullname is required"),
+			validation.Length(1, 255).Error("Fullname must not exceed 255 characters"),
+		),
+		validation.Field(&r.Email,
+			validation.When(r.Email != nil,
+				validation.By(func(value interface{}) error {
+					if email := value.(*string); email != nil && *email != "" {
+						if !valid.IsValidEmail(*email) {
+							return errors.New("email must be a valid email address")
+						}
+					}
+					return nil
+				}),
+			),
+		),
+		validation.Field(&r.Phone,
+			validation.When(r.Phone != nil,
+				validation.By(func(value interface{}) error {
+					if phone := value.(*string); phone != nil && *phone != "" {
+						if !valid.IsValidPhoneNumber(*phone) {
+							return errors.New("phone must be a valid phone number")
+						}
+					}
+					return nil
+				}),
+			),
+		),
+		validation.Field(&r.Password,
+			validation.Required.Error("Password is required"),
+			validation.Length(8, 128).Error("Password must be between 8 and 128 characters"),
+		),
+	)
+}
+
+// ValidateForRegistration validates with additional password strength requirements
+func (r *RegisterRequestDTO) ValidateForRegistration() error {
+	// First do standard validation (includes sanitization)
+	if err := r.Validate(); err != nil {
+		return err
+	}
+
+	// Additional password strength validation for registration
+	if err := security.ValidatePasswordStrength(r.Password); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// Register query parameters structure
+type RegisterQueryDTO struct {
+	ClientID   string `json:"client_id"`
+	ProviderID string `json:"provider_id"`
+}
+
+func (q *RegisterQueryDTO) Validate() error {
+	// Sanitize inputs first
+	q.ClientID = security.SanitizeInput(q.ClientID)
+	q.ProviderID = security.SanitizeInput(q.ProviderID)
+
+	return validation.ValidateStruct(q,
+		validation.Field(&q.ClientID,
+			validation.Required.Error("Client ID is required"),
+			validation.Length(1, 255).Error("Client ID must not exceed 255 characters"),
+		),
+		validation.Field(&q.ProviderID,
+			validation.Required.Error("Provider ID is required"),
+			validation.Length(1, 255).Error("Provider ID must not exceed 255 characters"),
+		),
+	)
+}
+
+// Register invite query parameters structure
+type RegisterInviteQueryDTO struct {
+	ClientID    string `json:"client_id"`
+	ProviderID  string `json:"provider_id"`
+	InviteToken string `json:"invite_token"`
+	Expires     string `json:"expires"`
+	Sig         string `json:"sig"`
+}
+
+func (q *RegisterInviteQueryDTO) Validate() error {
+	// Sanitize inputs first
+	q.ClientID = security.SanitizeInput(q.ClientID)
+	q.ProviderID = security.SanitizeInput(q.ProviderID)
+	q.InviteToken = security.SanitizeInput(q.InviteToken)
+	q.Expires = security.SanitizeInput(q.Expires)
+	q.Sig = security.SanitizeInput(q.Sig)
+
+	return validation.ValidateStruct(q,
+		validation.Field(&q.ClientID,
+			validation.Required.Error("Client ID is required"),
+			validation.Length(1, 255).Error("Client ID must not exceed 255 characters"),
+		),
+		validation.Field(&q.ProviderID,
+			validation.Required.Error("Provider ID is required"),
+			validation.Length(1, 255).Error("Provider ID must not exceed 255 characters"),
+		),
+		validation.Field(&q.InviteToken,
+			validation.Required.Error("Invite token is required"),
+			validation.Length(1, 500).Error("Invite token must not exceed 500 characters"),
+		),
+		validation.Field(&q.Expires,
+			validation.Required.Error("Expires parameter is required"),
+			validation.Length(1, 50).Error("Expires parameter must not exceed 50 characters"),
+		),
+		validation.Field(&q.Sig,
+			validation.Required.Error("Signature is required"),
+			validation.Length(1, 500).Error("Signature must not exceed 500 characters"),
+		),
+	)
+}
+
+// ValidateSignedURL validates signed URL parameters for register invite
+func (q *RegisterInviteQueryDTO) ValidateSignedURL(values url.Values) error {
+	// Extract and validate signed URL parameters
+	if _, err := signedurl.ValidateSignedURL(values); err != nil {
+		return err
+	}
+	return nil
+}
+
+// RegisterResponseDTO is the response structure for registration operations
+type RegisterResponseDTO struct {
+	AccessToken  string `json:"access_token"`
+	IDToken      string `json:"id_token"`
+	RefreshToken string `json:"refresh_token,omitempty"`
+	ExpiresIn    int64  `json:"expires_in"`
+	TokenType    string `json:"token_type"`
+	IssuedAt     int64  `json:"issued_at"`
+}
