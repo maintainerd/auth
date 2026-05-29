@@ -8,14 +8,13 @@ import (
 	"time"
 
 	"github.com/maintainerd/auth/internal/app"
-	grpcserver "github.com/maintainerd/auth/internal/grpc/server"
 	"github.com/maintainerd/auth/internal/platform/config"
 	"github.com/maintainerd/auth/internal/platform/jwt"
 	"github.com/maintainerd/auth/internal/platform/logging"
 	"github.com/maintainerd/auth/internal/platform/runner"
 	"github.com/maintainerd/auth/internal/platform/security"
 	"github.com/maintainerd/auth/internal/platform/telemetry"
-	restserver "github.com/maintainerd/auth/internal/rest/server"
+	appserver "github.com/maintainerd/auth/internal/server"
 )
 
 func main() {
@@ -110,13 +109,13 @@ func main() {
 
 	// 🚀 gRPC server (background) — errors are logged; they don't affect REST.
 	go func() {
-		if err := grpcserver.StartGRPCServer(bgCtx, application); err != nil {
+		if err := appserver.StartGRPCServer(bgCtx, application); err != nil {
 			slog.Error("gRPC server error", "error", err)
 		}
 	}()
 
 	// 🚀 REST servers — blocks until OS signal then drains.
-	restserver.StartRESTServer(application)
+	appserver.StartRESTServer(application)
 
 	cancelBG()
 }
