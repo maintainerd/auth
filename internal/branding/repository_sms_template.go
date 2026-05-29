@@ -3,7 +3,6 @@ package branding
 import (
 	"errors"
 
-	"github.com/maintainerd/auth/internal/model"
 	"gorm.io/gorm"
 )
 
@@ -21,27 +20,27 @@ type SMSTemplateRepositoryGetFilter struct {
 }
 
 type SMSTemplateRepository interface {
-	BaseRepositoryMethods[model.SMSTemplate]
-	FindByName(name string) (*model.SMSTemplate, error)
-	FindByUUIDAndTenantID(uuid string, tenantID int64) (*model.SMSTemplate, error)
-	FindPaginated(filter SMSTemplateRepositoryGetFilter) (*PaginationResult[model.SMSTemplate], error)
+	BaseRepositoryMethods[SMSTemplate]
+	FindByName(name string) (*SMSTemplate, error)
+	FindByUUIDAndTenantID(uuid string, tenantID int64) (*SMSTemplate, error)
+	FindPaginated(filter SMSTemplateRepositoryGetFilter) (*PaginationResult[SMSTemplate], error)
 }
 
 type smsTemplateRepository struct {
-	*BaseRepository[model.SMSTemplate]
+	*BaseRepository[SMSTemplate]
 }
 
 func NewSMSTemplateRepository(db *gorm.DB) SMSTemplateRepository {
 	return &smsTemplateRepository{
-		BaseRepository: NewBaseRepository[model.SMSTemplate](db, "sms_template_uuid", "sms_template_id"),
+		BaseRepository: NewBaseRepository[SMSTemplate](db, "sms_template_uuid", "sms_template_id"),
 	}
 }
 
 // FindByName retrieves an active SMS template by its name
-func (r *smsTemplateRepository) FindByName(name string) (*model.SMSTemplate, error) {
-	var template model.SMSTemplate
+func (r *smsTemplateRepository) FindByName(name string) (*SMSTemplate, error) {
+	var template SMSTemplate
 	err := r.DB().
-		Where("name = ? AND status = ?", name, model.StatusActive).
+		Where("name = ? AND status = ?", name, StatusActive).
 		First(&template).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -53,8 +52,8 @@ func (r *smsTemplateRepository) FindByName(name string) (*model.SMSTemplate, err
 }
 
 // FindByUUIDAndTenantID retrieves an SMS template by UUID and tenant ID
-func (r *smsTemplateRepository) FindByUUIDAndTenantID(uuid string, tenantID int64) (*model.SMSTemplate, error) {
-	var template model.SMSTemplate
+func (r *smsTemplateRepository) FindByUUIDAndTenantID(uuid string, tenantID int64) (*SMSTemplate, error) {
+	var template SMSTemplate
 	err := r.DB().
 		Where("sms_template_uuid = ? AND tenant_id = ?", uuid, tenantID).
 		First(&template).Error
@@ -68,8 +67,8 @@ func (r *smsTemplateRepository) FindByUUIDAndTenantID(uuid string, tenantID int6
 }
 
 // FindPaginated retrieves paginated SMS templates with filtering
-func (r *smsTemplateRepository) FindPaginated(filter SMSTemplateRepositoryGetFilter) (*PaginationResult[model.SMSTemplate], error) {
-	query := r.DB().Model(&model.SMSTemplate{})
+func (r *smsTemplateRepository) FindPaginated(filter SMSTemplateRepositoryGetFilter) (*PaginationResult[SMSTemplate], error) {
+	query := r.DB().Model(&SMSTemplate{})
 
 	// Apply filters
 	if filter.TenantID != nil {
@@ -110,7 +109,7 @@ func (r *smsTemplateRepository) FindPaginated(filter SMSTemplateRepositoryGetFil
 	query = query.Offset(offset).Limit(limit)
 
 	// Execute query
-	var templates []model.SMSTemplate
+	var templates []SMSTemplate
 	if err := query.Find(&templates).Error; err != nil {
 		return nil, err
 	}
@@ -120,7 +119,7 @@ func (r *smsTemplateRepository) FindPaginated(filter SMSTemplateRepositoryGetFil
 		totalPages++
 	}
 
-	return &PaginationResult[model.SMSTemplate]{
+	return &PaginationResult[SMSTemplate]{
 		Data:       templates,
 		Total:      total,
 		Page:       page,

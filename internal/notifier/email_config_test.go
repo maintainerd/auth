@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
-	"github.com/maintainerd/auth/internal/model"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -21,7 +20,7 @@ func newEmailConfigSvc(repo *mockEmailConfigRepo) EmailConfigService {
 
 func TestEmailConfigService_Get(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
-		ec := &model.EmailConfig{
+		ec := &EmailConfig{
 			EmailConfigUUID: uuid.New(),
 			TenantID:        1,
 			Provider:        "smtp",
@@ -30,10 +29,10 @@ func TestEmailConfigService_Get(t *testing.T) {
 			Username:        "user",
 			FromAddress:     "noreply@example.com",
 			Encryption:      "tls",
-			Status:          model.StatusActive,
+			Status:          StatusActive,
 		}
 		svc := newEmailConfigSvc(&mockEmailConfigRepo{
-			findByTenantIDFn: func(_ int64) (*model.EmailConfig, error) { return ec, nil },
+			findByTenantIDFn: func(_ int64) (*EmailConfig, error) { return ec, nil },
 		})
 		res, err := svc.Get(context.Background(), 1)
 		require.NoError(t, err)
@@ -43,7 +42,7 @@ func TestEmailConfigService_Get(t *testing.T) {
 
 	t.Run("not found when nil", func(t *testing.T) {
 		svc := newEmailConfigSvc(&mockEmailConfigRepo{
-			findByTenantIDFn: func(_ int64) (*model.EmailConfig, error) { return nil, nil },
+			findByTenantIDFn: func(_ int64) (*EmailConfig, error) { return nil, nil },
 		})
 		_, err := svc.Get(context.Background(), 1)
 		require.Error(t, err)
@@ -52,7 +51,7 @@ func TestEmailConfigService_Get(t *testing.T) {
 
 	t.Run("repo error", func(t *testing.T) {
 		svc := newEmailConfigSvc(&mockEmailConfigRepo{
-			findByTenantIDFn: func(_ int64) (*model.EmailConfig, error) { return nil, errors.New("db") },
+			findByTenantIDFn: func(_ int64) (*EmailConfig, error) { return nil, errors.New("db") },
 		})
 		_, err := svc.Get(context.Background(), 1)
 		require.Error(t, err)
@@ -69,8 +68,8 @@ func TestEmailConfigService_Update(t *testing.T) {
 
 	t.Run("creates new when not found", func(t *testing.T) {
 		svc := newEmailConfigSvc(&mockEmailConfigRepo{
-			findByTenantIDFn: func(_ int64) (*model.EmailConfig, error) { return nil, nil },
-			createOrUpdateFn: func(e *model.EmailConfig) (*model.EmailConfig, error) {
+			findByTenantIDFn: func(_ int64) (*EmailConfig, error) { return nil, nil },
+			createOrUpdateFn: func(e *EmailConfig) (*EmailConfig, error) {
 				e.EmailConfigUUID = uuid.New()
 				return e, nil
 			},
@@ -84,19 +83,19 @@ func TestEmailConfigService_Update(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, "ses", res.Provider)
 		assert.True(t, res.TestMode)
-		assert.Equal(t, model.StatusActive, res.Status)
+		assert.Equal(t, StatusActive, res.Status)
 	})
 
 	t.Run("updates existing with password preserved on blank", func(t *testing.T) {
-		existing := &model.EmailConfig{
+		existing := &EmailConfig{
 			EmailConfigUUID:   uuid.New(),
 			TenantID:          1,
 			PasswordEncrypted: "old-secret",
-			Status:            model.StatusActive,
+			Status:            StatusActive,
 		}
 		svc := newEmailConfigSvc(&mockEmailConfigRepo{
-			findByTenantIDFn: func(_ int64) (*model.EmailConfig, error) { return existing, nil },
-			createOrUpdateFn: func(e *model.EmailConfig) (*model.EmailConfig, error) { return e, nil },
+			findByTenantIDFn: func(_ int64) (*EmailConfig, error) { return existing, nil },
+			createOrUpdateFn: func(e *EmailConfig) (*EmailConfig, error) { return e, nil },
 		})
 		res, err := svc.Update(context.Background(), 1,
 			"smtp", "mail.example.com", 465,
@@ -111,15 +110,15 @@ func TestEmailConfigService_Update(t *testing.T) {
 	})
 
 	t.Run("updates existing with new password", func(t *testing.T) {
-		existing := &model.EmailConfig{
+		existing := &EmailConfig{
 			EmailConfigUUID:   uuid.New(),
 			TenantID:          1,
 			PasswordEncrypted: "old-secret",
-			Status:            model.StatusActive,
+			Status:            StatusActive,
 		}
 		svc := newEmailConfigSvc(&mockEmailConfigRepo{
-			findByTenantIDFn: func(_ int64) (*model.EmailConfig, error) { return existing, nil },
-			createOrUpdateFn: func(e *model.EmailConfig) (*model.EmailConfig, error) { return e, nil },
+			findByTenantIDFn: func(_ int64) (*EmailConfig, error) { return existing, nil },
+			createOrUpdateFn: func(e *EmailConfig) (*EmailConfig, error) { return e, nil },
 		})
 		_, err := svc.Update(context.Background(), 1,
 			"smtp", "mail.example.com", 465,
@@ -133,7 +132,7 @@ func TestEmailConfigService_Update(t *testing.T) {
 
 	t.Run("FindByTenantID error", func(t *testing.T) {
 		svc := newEmailConfigSvc(&mockEmailConfigRepo{
-			findByTenantIDFn: func(_ int64) (*model.EmailConfig, error) { return nil, errors.New("db") },
+			findByTenantIDFn: func(_ int64) (*EmailConfig, error) { return nil, errors.New("db") },
 		})
 		_, err := svc.Update(context.Background(), 1, "", "", 0, "", "", "", "", "", "", nil)
 		require.Error(t, err)
@@ -141,8 +140,8 @@ func TestEmailConfigService_Update(t *testing.T) {
 
 	t.Run("CreateOrUpdate error", func(t *testing.T) {
 		svc := newEmailConfigSvc(&mockEmailConfigRepo{
-			findByTenantIDFn: func(_ int64) (*model.EmailConfig, error) { return nil, nil },
-			createOrUpdateFn: func(_ *model.EmailConfig) (*model.EmailConfig, error) {
+			findByTenantIDFn: func(_ int64) (*EmailConfig, error) { return nil, nil },
+			createOrUpdateFn: func(_ *EmailConfig) (*EmailConfig, error) {
 				return nil, errors.New("save err")
 			},
 		})

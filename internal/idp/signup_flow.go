@@ -6,10 +6,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/maintainerd/auth/internal/model"
 	"github.com/maintainerd/auth/internal/platform/apperror"
 	"github.com/maintainerd/auth/internal/platform/crypto"
-	"github.com/maintainerd/auth/internal/repository"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -72,18 +70,18 @@ type SignupFlowService interface {
 
 type signupFlowService struct {
 	db                 *gorm.DB
-	signupFlowRepo     repository.SignupFlowRepository
-	signupFlowRoleRepo repository.SignupFlowRoleRepository
-	roleRepo           repository.RoleRepository
-	clientRepo         repository.ClientRepository
+	signupFlowRepo     SignupFlowRepository
+	signupFlowRoleRepo SignupFlowRoleRepository
+	roleRepo           RoleRepository
+	clientRepo         ClientRepository
 }
 
 func NewSignupFlowService(
 	db *gorm.DB,
-	signupFlowRepo repository.SignupFlowRepository,
-	signupFlowRoleRepo repository.SignupFlowRoleRepository,
-	roleRepo repository.RoleRepository,
-	clientRepo repository.ClientRepository,
+	signupFlowRepo SignupFlowRepository,
+	signupFlowRoleRepo SignupFlowRoleRepository,
+	roleRepo RoleRepository,
+	clientRepo ClientRepository,
 ) SignupFlowService {
 	return &signupFlowService{
 		db:                 db,
@@ -108,7 +106,7 @@ func (s *signupFlowService) GetAll(ctx context.Context, tenantID int64, name, id
 		ClientID = &Client.ClientID
 	}
 
-	filter := repository.SignupFlowRepositoryGetFilter{
+	filter := SignupFlowRepositoryGetFilter{
 		Name:       name,
 		Identifier: identifier,
 		Status:     status,
@@ -162,7 +160,7 @@ func (s *signupFlowService) Create(ctx context.Context, tenantID int64, name, de
 	defer span.End()
 	span.SetAttributes(attribute.Int64("tenant.id", tenantID))
 
-	var createdSignupFlow *model.SignupFlow
+	var createdSignupFlow *SignupFlow
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
 		txSignupFlowRepo := s.signupFlowRepo.WithTx(tx)
@@ -212,7 +210,7 @@ func (s *signupFlowService) Create(ctx context.Context, tenantID int64, name, de
 		}
 
 		// Create signup flow
-		signupFlow := &model.SignupFlow{
+		signupFlow := &SignupFlow{
 			TenantID:    tenantID,
 			Name:        name,
 			Description: description,
@@ -246,7 +244,7 @@ func (s *signupFlowService) Update(ctx context.Context, signupFlowUUID uuid.UUID
 	defer span.End()
 	span.SetAttributes(attribute.String("signupFlow.uuid", signupFlowUUID.String()), attribute.Int64("tenant.id", tenantID))
 
-	var updatedSignupFlow *model.SignupFlow
+	var updatedSignupFlow *SignupFlow
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
 		txSignupFlowRepo := s.signupFlowRepo.WithTx(tx)
@@ -310,7 +308,7 @@ func (s *signupFlowService) UpdateStatus(ctx context.Context, signupFlowUUID uui
 	defer span.End()
 	span.SetAttributes(attribute.String("signupFlow.uuid", signupFlowUUID.String()), attribute.Int64("tenant.id", tenantID))
 
-	var updatedSignupFlow *model.SignupFlow
+	var updatedSignupFlow *SignupFlow
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
 		txSignupFlowRepo := s.signupFlowRepo.WithTx(tx)
@@ -365,7 +363,7 @@ func (s *signupFlowService) Delete(ctx context.Context, signupFlowUUID uuid.UUID
 	return result, nil
 }
 
-func toSignupFlowServiceDataResult(sf *model.SignupFlow) *SignupFlowServiceDataResult {
+func toSignupFlowServiceDataResult(sf *SignupFlow) *SignupFlowServiceDataResult {
 	if sf == nil {
 		return nil
 	}
@@ -430,7 +428,7 @@ func (s *signupFlowService) AssignRoles(ctx context.Context, signupFlowUUID uuid
 			}
 
 			// Create signup flow role
-			signupFlowRole := &model.SignupFlowRole{
+			signupFlowRole := &SignupFlowRole{
 				SignupFlowID: signupFlow.SignupFlowID,
 				RoleID:       role.RoleID,
 			}

@@ -7,17 +7,16 @@ import (
 	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/platform/middleware"
 	resp "github.com/maintainerd/auth/internal/platform/response"
-	"github.com/maintainerd/auth/internal/service"
 )
 
 // OAuthConsentHandler handles consent grant management endpoints (list and
 // revoke existing grants).
 type OAuthConsentHandler struct {
-	consentService service.OAuthConsentService
+	consentService OAuthConsentService
 }
 
 // NewOAuthConsentHandler creates a new OAuthConsentHandler.
-func NewOAuthConsentHandler(consentService service.OAuthConsentService) *OAuthConsentHandler {
+func NewOAuthConsentHandler(consentService OAuthConsentService) *OAuthConsentHandler {
 	return &OAuthConsentHandler{consentService: consentService}
 }
 

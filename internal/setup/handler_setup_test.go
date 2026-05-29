@@ -7,7 +7,6 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/maintainerd/auth/internal/dto"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -29,7 +28,7 @@ func setupRequest(t *testing.T, body any) *http.Request {
 
 func TestSetupHandler_GetSetupStatus_ServiceError(t *testing.T) {
 	svc := &mockSetupService{
-		getSetupStatusFn: func() (*dto.SetupStatusResponseDTO, error) { return nil, assert.AnError },
+		getSetupStatusFn: func() (*SetupStatusResponseDTO, error) { return nil, assert.AnError },
 	}
 	h := NewSetupHandler(svc)
 	r := httptest.NewRequest(http.MethodGet, "/setup/status", nil)
@@ -40,8 +39,8 @@ func TestSetupHandler_GetSetupStatus_ServiceError(t *testing.T) {
 
 func TestSetupHandler_GetSetupStatus_Success(t *testing.T) {
 	svc := &mockSetupService{
-		getSetupStatusFn: func() (*dto.SetupStatusResponseDTO, error) {
-			return &dto.SetupStatusResponseDTO{}, nil
+		getSetupStatusFn: func() (*SetupStatusResponseDTO, error) {
+			return &SetupStatusResponseDTO{}, nil
 		},
 	}
 	h := NewSetupHandler(svc)
@@ -75,7 +74,7 @@ func TestSetupHandler_CreateTenant_ValidationError(t *testing.T) {
 
 func TestSetupHandler_CreateTenant_ServiceError(t *testing.T) {
 	svc := &mockSetupService{
-		createTenantFn: func(req dto.CreateTenantRequestDTO) (*dto.CreateTenantResponseDTO, error) {
+		createTenantFn: func(req CreateTenantRequestDTO) (*CreateTenantResponseDTO, error) {
 			return nil, errValidation
 		},
 	}
@@ -113,7 +112,7 @@ func TestSetupHandler_CreateAdmin_ValidationError(t *testing.T) {
 
 func TestSetupHandler_CreateAdmin_ServiceError(t *testing.T) {
 	svc := &mockSetupService{
-		createAdminFn: func(req dto.CreateAdminRequestDTO) (*dto.CreateAdminResponseDTO, error) {
+		createAdminFn: func(req CreateAdminRequestDTO) (*CreateAdminResponseDTO, error) {
 			return nil, errValidation
 		},
 	}
@@ -132,7 +131,7 @@ func TestSetupHandler_CreateAdmin_ServiceError(t *testing.T) {
 
 func TestSetupHandler_CreateProfile_ServiceError(t *testing.T) {
 	svc := &mockSetupService{
-		createProfileFn: func(req dto.CreateProfileRequestDTO) (*dto.CreateProfileResponseDTO, error) {
+		createProfileFn: func(req CreateProfileRequestDTO) (*CreateProfileResponseDTO, error) {
 			return nil, errValidation
 		},
 	}
@@ -151,7 +150,7 @@ func TestSetupHandler_CreateProfile_ServiceError(t *testing.T) {
 
 func TestSetupHandler_CreateTenant_ServiceError_Valid(t *testing.T) {
 	svc := &mockSetupService{
-		createTenantFn: func(req dto.CreateTenantRequestDTO) (*dto.CreateTenantResponseDTO, error) {
+		createTenantFn: func(req CreateTenantRequestDTO) (*CreateTenantResponseDTO, error) {
 			return nil, errValidation
 		},
 	}
@@ -166,8 +165,8 @@ func TestSetupHandler_CreateTenant_ServiceError_Valid(t *testing.T) {
 
 func TestSetupHandler_CreateTenant_Success(t *testing.T) {
 	svc := &mockSetupService{
-		createTenantFn: func(req dto.CreateTenantRequestDTO) (*dto.CreateTenantResponseDTO, error) {
-			return &dto.CreateTenantResponseDTO{}, nil
+		createTenantFn: func(req CreateTenantRequestDTO) (*CreateTenantResponseDTO, error) {
+			return &CreateTenantResponseDTO{}, nil
 		},
 	}
 	h := NewSetupHandler(svc)
@@ -186,7 +185,7 @@ func TestSetupHandler_CreateTenant_Success(t *testing.T) {
 
 func TestSetupHandler_CreateAdmin_ServiceError_Valid(t *testing.T) {
 	svc := &mockSetupService{
-		createAdminFn: func(req dto.CreateAdminRequestDTO) (*dto.CreateAdminResponseDTO, error) {
+		createAdminFn: func(req CreateAdminRequestDTO) (*CreateAdminResponseDTO, error) {
 			return nil, errValidation
 		},
 	}
@@ -202,8 +201,8 @@ func TestSetupHandler_CreateAdmin_ServiceError_Valid(t *testing.T) {
 
 func TestSetupHandler_CreateAdmin_Success(t *testing.T) {
 	svc := &mockSetupService{
-		createAdminFn: func(req dto.CreateAdminRequestDTO) (*dto.CreateAdminResponseDTO, error) {
-			return &dto.CreateAdminResponseDTO{}, nil
+		createAdminFn: func(req CreateAdminRequestDTO) (*CreateAdminResponseDTO, error) {
+			return &CreateAdminResponseDTO{}, nil
 		},
 	}
 	h := NewSetupHandler(svc)
@@ -241,7 +240,7 @@ func TestSetupHandler_CreateProfile_ValidationError(t *testing.T) {
 // → covers the strings.Contains branch (lines 103-106).
 func TestSetupHandler_CreateProfile_AlreadyExists(t *testing.T) {
 	svc := &mockSetupService{
-		createProfileFn: func(req dto.CreateProfileRequestDTO) (*dto.CreateProfileResponseDTO, error) {
+		createProfileFn: func(req CreateProfileRequestDTO) (*CreateProfileResponseDTO, error) {
 			return nil, errValidation
 		},
 	}
@@ -254,8 +253,8 @@ func TestSetupHandler_CreateProfile_AlreadyExists(t *testing.T) {
 
 func TestSetupHandler_CreateProfile_Success(t *testing.T) {
 	svc := &mockSetupService{
-		createProfileFn: func(req dto.CreateProfileRequestDTO) (*dto.CreateProfileResponseDTO, error) {
-			return &dto.CreateProfileResponseDTO{}, nil
+		createProfileFn: func(req CreateProfileRequestDTO) (*CreateProfileResponseDTO, error) {
+			return &CreateProfileResponseDTO{}, nil
 		},
 	}
 	h := NewSetupHandler(svc)

@@ -8,11 +8,9 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
-	"github.com/maintainerd/auth/internal/dto"
 	"github.com/maintainerd/auth/internal/platform/middleware"
 	"github.com/maintainerd/auth/internal/platform/ptr"
 	resp "github.com/maintainerd/auth/internal/platform/response"
-	"github.com/maintainerd/auth/internal/service"
 )
 
 // ServiceHandler handles service management operations.
@@ -22,11 +20,11 @@ import (
 // tenant-specific. The handler supports CRUD operations, status management, and
 // policy assignment for access control.
 type ServiceHandler struct {
-	service service.ServiceService
+	service ServiceService
 }
 
 // NewServiceHandler creates a new service handler instance.
-func NewServiceHandler(service service.ServiceService) *ServiceHandler {
+func NewServiceHandler(service ServiceService) *ServiceHandler {
 	return &ServiceHandler{service}
 }
 
@@ -64,7 +62,7 @@ func (h *ServiceHandler) Get(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Build request DTO for validation
-	reqParams := dto.ServiceFilterDTO{
+	reqParams := ServiceFilterDTO{
 		Name:                 ptr.PtrOrNil(q.Get("name")),
 		DisplayName:          ptr.PtrOrNil(q.Get("display_name")),
 		Description:          ptr.PtrOrNil(q.Get("description")),
@@ -81,7 +79,7 @@ func (h *ServiceHandler) Get(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Build service filter for query
-	filter := service.ServiceServiceGetFilter{
+	filter := ServiceServiceGetFilter{
 		Name:        reqParams.Name,
 		DisplayName: reqParams.DisplayName,
 		Description: reqParams.Description,
@@ -96,20 +94,20 @@ func (h *ServiceHandler) Get(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Fetch services from service layer
-	result, err := h.service.Get(r.Context(), filter)
+	result, err := h.Get(r.Context(), filter)
 	if err != nil {
 		resp.HandleServiceError(w, r, "Failed to fetch services", err)
 		return
 	}
 
 	// Map service results to DTOs
-	rows := make([]dto.ServiceResponseDTO, len(result.Data))
+	rows := make([]ServiceResponseDTO, len(result.Data))
 	for i, s := range result.Data {
 		rows[i] = toServiceResponseDTO(s)
 	}
 
 	// Build paginated response
-	response := dto.PaginatedResponseDTO[dto.ServiceResponseDTO]{
+	response := PaginatedResponseDTO[ServiceResponseDTO]{
 		Rows:       rows,
 		Total:      result.Total,
 		Page:       result.Page,
@@ -124,7 +122,7 @@ func (h *ServiceHandler) Get(w http.ResponseWriter, r *http.Request) {
 //
 // GET /services/{service_uuid}
 //
-// Returns detailed information about a single service. Services can be public
+// Returns detailed information about a single  Services can be public
 // (available to all tenants) or tenant-specific.
 func (h *ServiceHandler) GetByUUID(w http.ResponseWriter, r *http.Request) {
 	// Get tenant from context (middleware already validated access)
@@ -142,7 +140,7 @@ func (h *ServiceHandler) GetByUUID(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Fetch service by UUID
-	svc, err := h.service.GetByUUID(r.Context(), serviceUUID, tenant.TenantID)
+	svc, err := h.GetByUUID(r.Context(), serviceUUID, tenant.TenantID)
 	if err != nil {
 		resp.HandleServiceError(w, r, "Service not found", err)
 		return
@@ -154,7 +152,7 @@ func (h *ServiceHandler) GetByUUID(w http.ResponseWriter, r *http.Request) {
 	resp.Success(w, dtoRes, "Service fetched successfully")
 }
 
-// Create creates a new service.
+// Create creates a new
 //
 // POST /services
 //
@@ -170,7 +168,7 @@ func (h *ServiceHandler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Decode and validate request body
-	var req dto.ServiceCreateOrUpdateRequestDTO
+	var req ServiceCreateOrUpdateRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		resp.Error(w, http.StatusBadRequest, "Invalid request")
 		return
@@ -182,7 +180,7 @@ func (h *ServiceHandler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Create service
-	svc, err := h.service.Create(
+	svc, err := h.Create(
 		r.Context(),
 		req.Name,
 		req.DisplayName,
@@ -202,7 +200,7 @@ func (h *ServiceHandler) Create(w http.ResponseWriter, r *http.Request) {
 	resp.Created(w, dtoRes, "Service created successfully")
 }
 
-// Update updates an existing service.
+// Update updates an existing
 //
 // PUT /services/{service_uuid}
 //
@@ -225,7 +223,7 @@ func (h *ServiceHandler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Decode and validate request body
-	var req dto.ServiceCreateOrUpdateRequestDTO
+	var req ServiceCreateOrUpdateRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		resp.Error(w, http.StatusBadRequest, "Invalid request")
 		return
@@ -237,7 +235,7 @@ func (h *ServiceHandler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Update service
-	svc, err := h.service.Update(
+	svc, err := h.Update(
 		r.Context(),
 		serviceUUID,
 		tenant.TenantID,
@@ -258,7 +256,7 @@ func (h *ServiceHandler) Update(w http.ResponseWriter, r *http.Request) {
 	resp.Success(w, dtoRes, "Service updated successfully")
 }
 
-// SetStatus updates the status of a service.
+// SetStatus updates the status of a
 //
 // PATCH /services/{service_uuid}/status
 //
@@ -280,7 +278,7 @@ func (h *ServiceHandler) SetStatus(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Decode and validate request body
-	var req dto.ServiceStatusUpdateRequestDTO
+	var req ServiceStatusUpdateRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		resp.Error(w, http.StatusBadRequest, "Invalid request")
 		return
@@ -292,7 +290,7 @@ func (h *ServiceHandler) SetStatus(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Update service status
-	service, err := h.service.SetStatusByUUID(r.Context(), serviceUUID, tenant.TenantID, req.Status)
+	service, err := h.SetStatusByUUID(r.Context(), serviceUUID, tenant.TenantID, req.Status)
 	if err != nil {
 		resp.HandleServiceError(w, r, "Failed to update service", err)
 		return
@@ -304,7 +302,7 @@ func (h *ServiceHandler) SetStatus(w http.ResponseWriter, r *http.Request) {
 	resp.Success(w, dtoRes, "Service updated successfully")
 }
 
-// Delete deletes a service.
+// Delete deletes a
 //
 // DELETE /services/{service_uuid}
 //
@@ -326,7 +324,7 @@ func (h *ServiceHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Delete service
-	svc, err := h.service.DeleteByUUID(r.Context(), serviceUUID, tenant.TenantID)
+	svc, err := h.DeleteByUUID(r.Context(), serviceUUID, tenant.TenantID)
 	if err != nil {
 		resp.HandleServiceError(w, r, "Failed to delete service", err)
 		return
@@ -340,8 +338,8 @@ func (h *ServiceHandler) Delete(w http.ResponseWriter, r *http.Request) {
 // Helper function for converting service data to response DTO
 
 // toServiceResponseDTO converts a service result to a service response DTO.
-func toServiceResponseDTO(s service.ServiceServiceDataResult) dto.ServiceResponseDTO {
-	return dto.ServiceResponseDTO{
+func toServiceResponseDTO(s ServiceServiceDataResult) ServiceResponseDTO {
+	return ServiceResponseDTO{
 		ServiceUUID: s.ServiceUUID,
 		Name:        s.Name,
 		DisplayName: s.DisplayName,
@@ -386,7 +384,7 @@ func (h *ServiceHandler) AssignPolicy(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Assign policy to service (service validates tenant ownership)
-	err = h.service.AssignPolicy(r.Context(), serviceUUID, policyUUID, tenant.TenantID)
+	err = h.AssignPolicy(r.Context(), serviceUUID, policyUUID, tenant.TenantID)
 	if err != nil {
 		resp.HandleServiceError(w, r, "Failed to assign policy to service", err)
 		return
@@ -399,8 +397,8 @@ func (h *ServiceHandler) AssignPolicy(w http.ResponseWriter, r *http.Request) {
 //
 // DELETE /services/{service_uuid}/policies/{policy_uuid}
 //
-// Removes the association between a policy and a service. This revokes the
-// access control rules defined by that policy for the service. The policy
+// Removes the association between a policy and a  This revokes the
+// access control rules defined by that policy for the  The policy
 // and service must belong to the tenant.
 func (h *ServiceHandler) RemovePolicy(w http.ResponseWriter, r *http.Request) {
 	// Get tenant from context (middleware already validated access)
@@ -425,7 +423,7 @@ func (h *ServiceHandler) RemovePolicy(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Remove policy from service (service validates tenant ownership)
-	err = h.service.RemovePolicy(r.Context(), serviceUUID, policyUUID, tenant.TenantID)
+	err = h.RemovePolicy(r.Context(), serviceUUID, policyUUID, tenant.TenantID)
 	if err != nil {
 		resp.HandleServiceError(w, r, "Failed to remove policy from service", err)
 		return

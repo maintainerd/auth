@@ -4,15 +4,13 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/maintainerd/auth/internal/platform/cache"
 	"github.com/maintainerd/auth/internal/platform/middleware"
-	"github.com/maintainerd/auth/internal/rest/handler"
-	"github.com/maintainerd/auth/internal/service"
 )
 
 // SMSConfigRoute registers SMS delivery configuration endpoints.
 func SMSConfigRoute(
 	r chi.Router,
-	smsConfigHandler *handler.SMSConfigHandler,
-	userService service.UserService,
+	smsConfigHandler *SMSConfigHandler,
+	userService UserService,
 	appCache *cache.Cache,
 ) {
 	r.Route("/sms-config", func(r chi.Router) {

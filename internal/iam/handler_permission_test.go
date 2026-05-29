@@ -8,7 +8,6 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
-	"github.com/maintainerd/auth/internal/service"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -36,11 +35,11 @@ func TestPermissionHandler_Get_WithFiltersAndRows(t *testing.T) {
 	// Covers is_default/is_system bool parse branches, row loop, and toPermissionResponseDTO API branch.
 	apiUUID := uuid.New()
 	svc := &mockPermissionService{
-		getFn: func(service.PermissionServiceGetFilter) (*service.PermissionServiceGetResult, error) {
-			return &service.PermissionServiceGetResult{
-				Data: []service.PermissionServiceDataResult{{
+		getFn: func(PermissionServiceGetFilter) (*PermissionServiceGetResult, error) {
+			return &PermissionServiceGetResult{
+				Data: []PermissionServiceDataResult{{
 					Name: "perm1",
-					API:  &service.APIServiceDataResult{APIUUID: apiUUID, Name: "api1"},
+					API:  &APIServiceDataResult{APIUUID: apiUUID, Name: "api1"},
 				}},
 			}, nil
 		},
@@ -53,7 +52,7 @@ func TestPermissionHandler_Get_WithFiltersAndRows(t *testing.T) {
 
 func TestPermissionHandler_Get_ServiceError(t *testing.T) {
 	svc := &mockPermissionService{
-		getFn: func(service.PermissionServiceGetFilter) (*service.PermissionServiceGetResult, error) {
+		getFn: func(PermissionServiceGetFilter) (*PermissionServiceGetResult, error) {
 			return nil, assert.AnError
 		},
 	}
@@ -66,8 +65,8 @@ func TestPermissionHandler_Get_ServiceError(t *testing.T) {
 
 func TestPermissionHandler_Get_Success(t *testing.T) {
 	svc := &mockPermissionService{
-		getFn: func(service.PermissionServiceGetFilter) (*service.PermissionServiceGetResult, error) {
-			return &service.PermissionServiceGetResult{}, nil
+		getFn: func(PermissionServiceGetFilter) (*PermissionServiceGetResult, error) {
+			return &PermissionServiceGetResult{}, nil
 		},
 	}
 	h := NewPermissionHandler(svc)
@@ -103,10 +102,10 @@ func TestPermissionHandler_GetByUUID_Success(t *testing.T) {
 	// Also covers toPermissionResponseDTO with API != nil branch (lines 291-303).
 	apiUUID := uuid.New()
 	svc := &mockPermissionService{
-		getByUUIDFn: func(id uuid.UUID, tid int64) (*service.PermissionServiceDataResult, error) {
-			return &service.PermissionServiceDataResult{
+		getByUUIDFn: func(id uuid.UUID, tid int64) (*PermissionServiceDataResult, error) {
+			return &PermissionServiceDataResult{
 				Name: "perm1",
-				API:  &service.APIServiceDataResult{APIUUID: apiUUID, Name: "api1"},
+				API:  &APIServiceDataResult{APIUUID: apiUUID, Name: "api1"},
 			}, nil
 		},
 	}
@@ -118,7 +117,7 @@ func TestPermissionHandler_GetByUUID_Success(t *testing.T) {
 
 func TestPermissionHandler_GetByUUID_NotFound(t *testing.T) {
 	svc := &mockPermissionService{
-		getByUUIDFn: func(id uuid.UUID, tid int64) (*service.PermissionServiceDataResult, error) {
+		getByUUIDFn: func(id uuid.UUID, tid int64) (*PermissionServiceDataResult, error) {
 			return nil, errNotFound
 		},
 	}
@@ -161,7 +160,7 @@ func TestPermissionHandler_Create_ValidationError(t *testing.T) {
 
 func TestPermissionHandler_Create_ServiceError(t *testing.T) {
 	svc := &mockPermissionService{
-		createFn: func(tid int64, n, desc, status string, isSystem bool, apiUUID string) (*service.PermissionServiceDataResult, error) {
+		createFn: func(tid int64, n, desc, status string, isSystem bool, apiUUID string) (*PermissionServiceDataResult, error) {
 			return nil, assert.AnError
 		},
 	}
@@ -176,8 +175,8 @@ func TestPermissionHandler_Create_ServiceError(t *testing.T) {
 
 func TestPermissionHandler_Create_Success(t *testing.T) {
 	svc := &mockPermissionService{
-		createFn: func(tid int64, n, desc, status string, isSystem bool, apiUUID string) (*service.PermissionServiceDataResult, error) {
-			return &service.PermissionServiceDataResult{Name: n}, nil
+		createFn: func(tid int64, n, desc, status string, isSystem bool, apiUUID string) (*PermissionServiceDataResult, error) {
+			return &PermissionServiceDataResult{Name: n}, nil
 		},
 	}
 	h := NewPermissionHandler(svc)
@@ -223,7 +222,7 @@ func TestPermissionHandler_Update_ValidationError(t *testing.T) {
 
 func TestPermissionHandler_Update_ServiceError(t *testing.T) {
 	svc := &mockPermissionService{
-		updateFn: func(id uuid.UUID, tid int64, n, desc, status string) (*service.PermissionServiceDataResult, error) {
+		updateFn: func(id uuid.UUID, tid int64, n, desc, status string) (*PermissionServiceDataResult, error) {
 			return nil, errors.New("db error")
 		},
 	}
@@ -236,8 +235,8 @@ func TestPermissionHandler_Update_ServiceError(t *testing.T) {
 
 func TestPermissionHandler_Update_Success(t *testing.T) {
 	svc := &mockPermissionService{
-		updateFn: func(id uuid.UUID, tid int64, n, desc, status string) (*service.PermissionServiceDataResult, error) {
-			return &service.PermissionServiceDataResult{Name: n}, nil
+		updateFn: func(id uuid.UUID, tid int64, n, desc, status string) (*PermissionServiceDataResult, error) {
+			return &PermissionServiceDataResult{Name: n}, nil
 		},
 	}
 	body := map[string]any{"name": "perm1", "description": "A valid description", "status": "active"}
@@ -281,7 +280,7 @@ func TestPermissionHandler_SetStatus_ValidationError(t *testing.T) {
 
 func TestPermissionHandler_SetStatus_ServiceError(t *testing.T) {
 	svc := &mockPermissionService{
-		setStatusFn: func(id uuid.UUID, tid int64, s string) (*service.PermissionServiceDataResult, error) {
+		setStatusFn: func(id uuid.UUID, tid int64, s string) (*PermissionServiceDataResult, error) {
 			return nil, errors.New("db error")
 		},
 	}
@@ -293,8 +292,8 @@ func TestPermissionHandler_SetStatus_ServiceError(t *testing.T) {
 
 func TestPermissionHandler_SetStatus_Success(t *testing.T) {
 	svc := &mockPermissionService{
-		setStatusFn: func(id uuid.UUID, tid int64, s string) (*service.PermissionServiceDataResult, error) {
-			return &service.PermissionServiceDataResult{Name: "perm1"}, nil
+		setStatusFn: func(id uuid.UUID, tid int64, s string) (*PermissionServiceDataResult, error) {
+			return &PermissionServiceDataResult{Name: "perm1"}, nil
 		},
 	}
 	r := withTenant(withChiParam(jsonReq(t, http.MethodPatch, "/", map[string]any{"status": "active"}), "permission_uuid", testResourceUUID.String()))
@@ -323,7 +322,7 @@ func TestPermissionHandler_Delete_InvalidUUID(t *testing.T) {
 
 func TestPermissionHandler_Delete_ServiceError(t *testing.T) {
 	svc := &mockPermissionService{
-		deleteByUUIDFn: func(id uuid.UUID, tid int64) (*service.PermissionServiceDataResult, error) {
+		deleteByUUIDFn: func(id uuid.UUID, tid int64) (*PermissionServiceDataResult, error) {
 			return nil, errors.New("db error")
 		},
 	}
@@ -335,8 +334,8 @@ func TestPermissionHandler_Delete_ServiceError(t *testing.T) {
 
 func TestPermissionHandler_Delete_Success(t *testing.T) {
 	svc := &mockPermissionService{
-		deleteByUUIDFn: func(id uuid.UUID, tid int64) (*service.PermissionServiceDataResult, error) {
-			return &service.PermissionServiceDataResult{Name: "perm1"}, nil
+		deleteByUUIDFn: func(id uuid.UUID, tid int64) (*PermissionServiceDataResult, error) {
+			return &PermissionServiceDataResult{Name: "perm1"}, nil
 		},
 	}
 	r := withTenant(withChiParam(httptest.NewRequest(http.MethodDelete, "/", nil), "permission_uuid", testResourceUUID.String()))

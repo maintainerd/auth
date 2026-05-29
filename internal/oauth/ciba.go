@@ -6,8 +6,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/maintainerd/auth/internal/dto"
-	"github.com/maintainerd/auth/internal/model"
 	"github.com/maintainerd/auth/internal/platform/apperror"
 	"github.com/maintainerd/auth/internal/platform/config"
 	"github.com/maintainerd/auth/internal/platform/crypto"
@@ -16,7 +14,6 @@ import (
 	"github.com/maintainerd/auth/internal/platform/middleware"
 	"github.com/maintainerd/auth/internal/platform/ptr"
 	"github.com/maintainerd/auth/internal/platform/security"
-	"github.com/maintainerd/auth/internal/repository"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -33,7 +30,7 @@ const (
 type OAuthCIBAService interface {
 	// Initiate processes a backchannel authentication request, issues an auth_req_id,
 	// and triggers an out-of-band push/notification to the user.
-	Initiate(ctx context.Context, req dto.OAuthCIBARequestDTO, creds dto.OAuthClientCredentials) (*dto.OAuthCIBAResponseDTO, *apperror.OAuthError)
+	Initiate(ctx context.Context, req OAuthCIBARequestDTO, creds OAuthClientCredentials) (*OAuthCIBAResponseDTO, *apperror.OAuthError)
 
 	// ApproveRequest marks a CIBA request as approved by the user.
 	ApproveRequest(ctx context.Context, authReqID string, userID int64) *apperror.OAuthError
@@ -42,23 +39,23 @@ type OAuthCIBAService interface {
 	DenyRequest(ctx context.Context, authReqID string, userID int64) *apperror.OAuthError
 
 	// ExchangeToken polls for a token using an auth_req_id.
-	ExchangeToken(ctx context.Context, req dto.OAuthCIBATokenRequestDTO, creds dto.OAuthClientCredentials) (*dto.OAuthTokenResponseDTO, *apperror.OAuthError)
+	ExchangeToken(ctx context.Context, req OAuthCIBATokenRequestDTO, creds OAuthClientCredentials) (*OAuthTokenResponseDTO, *apperror.OAuthError)
 }
 
 type oauthCIBAService struct {
 	db               *gorm.DB
-	clientRepo       repository.ClientRepository
-	cibaRepo         repository.OAuthCIBARequestRepository
-	userRepo         repository.UserRepository
+	clientRepo       ClientRepository
+	cibaRepo         OAuthCIBARequestRepository
+	userRepo         UserRepository
 	authEventService AuthEventService
 }
 
 // NewOAuthCIBAService creates a new OAuthCIBAService.
 func NewOAuthCIBAService(
 	db *gorm.DB,
-	clientRepo repository.ClientRepository,
-	cibaRepo repository.OAuthCIBARequestRepository,
-	userRepo repository.UserRepository,
+	clientRepo ClientRepository,
+	cibaRepo OAuthCIBARequestRepository,
+	userRepo UserRepository,
 	authEventService AuthEventService,
 ) OAuthCIBAService {
 	return &oauthCIBAService{
@@ -71,7 +68,7 @@ func NewOAuthCIBAService(
 }
 
 // Initiate implements OAuthCIBAService.
-func (s *oauthCIBAService) Initiate(ctx context.Context, req dto.OAuthCIBARequestDTO, creds dto.OAuthClientCredentials) (*dto.OAuthCIBAResponseDTO, *apperror.OAuthError) {
+func (s *oauthCIBAService) Initiate(ctx context.Context, req OAuthCIBARequestDTO, creds OAuthClientCredentials) (*OAuthCIBAResponseDTO, *apperror.OAuthError) {
 	_, span := otel.Tracer("service").Start(ctx, "oauth_ciba.initiate")
 	defer span.End()
 	span.SetAttributes(attribute.String("oauth.client_id", creds.ClientID))
@@ -82,7 +79,7 @@ func (s *oauthCIBAService) Initiate(ctx context.Context, req dto.OAuthCIBAReques
 		return nil, oerr
 	}
 
-	if !clientHasGrant(client, model.GrantTypeCIBA) {
+	if !clientHasGrant(client, GrantTypeCIBA) {
 		span.SetStatus(codes.Error, "grant not allowed")
 		return nil, apperror.NewOAuthUnauthorizedClient("client is not authorized for urn:openid:params:grant-type:ciba")
 	}
@@ -108,13 +105,13 @@ func (s *oauthCIBAService) Initiate(ctx context.Context, req dto.OAuthCIBAReques
 	}
 	authReqIDHash := crypto.HashAuthorizationCode(rawAuthReqID)
 
-	cibaReq := &model.OAuthCIBARequest{
+	cibaReq := &OAuthCIBARequest{
 		AuthReqIDHash: authReqIDHash,
 		ClientID:      client.ClientID,
 		TenantID:      client.TenantID,
 		UserID:        &user.UserID,
 		Scope:         req.Scope,
-		Status:        model.CIBAStatusPending,
+		Status:        CIBAStatusPending,
 		Interval:      cibaInterval,
 		ExpiresAt:     time.Now().Add(cibaRequestTTL),
 	}
@@ -135,16 +132,16 @@ func (s *oauthCIBAService) Initiate(ctx context.Context, req dto.OAuthCIBAReques
 		ActorUserID: &user.UserID,
 		IPAddress:   middleware.ClientIPFromContext(ctx),
 		UserAgent:   ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),
-		Category:    model.AuthEventCategoryAuthn,
-		EventType:   model.AuthEventTypeOAuthAuthorize,
-		Severity:    model.AuthEventSeverityInfo,
-		Result:      model.AuthEventResultSuccess,
+		Category:    AuthEventCategoryAuthn,
+		EventType:   AuthEventTypeOAuthAuthorize,
+		Severity:    AuthEventSeverityInfo,
+		Result:      AuthEventResultSuccess,
 		Description: ptr.Ptr("CIBA authentication initiated"),
 	})
 
 	span.SetAttributes(attribute.Int64("user.id", user.UserID))
 	span.SetStatus(codes.Ok, "")
-	return &dto.OAuthCIBAResponseDTO{
+	return &OAuthCIBAResponseDTO{
 		AuthReqID: rawAuthReqID,
 		ExpiresIn: int(cibaRequestTTL.Seconds()),
 		Interval:  cibaInterval,
@@ -167,7 +164,7 @@ func (s *oauthCIBAService) ApproveRequest(ctx context.Context, authReqID string,
 		return apperror.NewOAuthInvalidGrant("auth_req_id not found")
 	}
 	if record.IsExpired() {
-		_ = s.cibaRepo.UpdateStatus(record.OAuthCIBARRequestID, model.CIBAStatusExpired)
+		_ = s.cibaRepo.UpdateStatus(record.OAuthCIBARRequestID, CIBAStatusExpired)
 		return apperror.NewOAuthInvalidGrant("auth_req_id has expired")
 	}
 
@@ -181,10 +178,10 @@ func (s *oauthCIBAService) ApproveRequest(ctx context.Context, authReqID string,
 		ActorUserID: &userID,
 		IPAddress:   middleware.ClientIPFromContext(ctx),
 		UserAgent:   ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),
-		Category:    model.AuthEventCategoryAuthn,
-		EventType:   model.AuthEventTypeOAuthConsent,
-		Severity:    model.AuthEventSeverityInfo,
-		Result:      model.AuthEventResultSuccess,
+		Category:    AuthEventCategoryAuthn,
+		EventType:   AuthEventTypeOAuthConsent,
+		Severity:    AuthEventSeverityInfo,
+		Result:      AuthEventResultSuccess,
 		Description: ptr.Ptr("CIBA request approved"),
 	})
 
@@ -207,7 +204,7 @@ func (s *oauthCIBAService) DenyRequest(ctx context.Context, authReqID string, us
 		return apperror.NewOAuthInvalidGrant("auth_req_id not found")
 	}
 
-	if err := s.cibaRepo.UpdateStatus(record.OAuthCIBARRequestID, model.CIBAStatusDenied); err != nil {
+	if err := s.cibaRepo.UpdateStatus(record.OAuthCIBARRequestID, CIBAStatusDenied); err != nil {
 		span.RecordError(err)
 		return apperror.NewOAuthServerError("an unexpected error occurred")
 	}
@@ -217,10 +214,10 @@ func (s *oauthCIBAService) DenyRequest(ctx context.Context, authReqID string, us
 		ActorUserID: &userID,
 		IPAddress:   middleware.ClientIPFromContext(ctx),
 		UserAgent:   ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),
-		Category:    model.AuthEventCategoryAuthn,
-		EventType:   model.AuthEventTypeOAuthConsentDeny,
-		Severity:    model.AuthEventSeverityInfo,
-		Result:      model.AuthEventResultFailure,
+		Category:    AuthEventCategoryAuthn,
+		EventType:   AuthEventTypeOAuthConsentDeny,
+		Severity:    AuthEventSeverityInfo,
+		Result:      AuthEventResultFailure,
 		Description: ptr.Ptr("CIBA request denied by user"),
 	})
 
@@ -229,7 +226,7 @@ func (s *oauthCIBAService) DenyRequest(ctx context.Context, authReqID string, us
 }
 
 // ExchangeToken implements OAuthCIBAService (poll mode).
-func (s *oauthCIBAService) ExchangeToken(ctx context.Context, req dto.OAuthCIBATokenRequestDTO, creds dto.OAuthClientCredentials) (*dto.OAuthTokenResponseDTO, *apperror.OAuthError) {
+func (s *oauthCIBAService) ExchangeToken(ctx context.Context, req OAuthCIBATokenRequestDTO, creds OAuthClientCredentials) (*OAuthTokenResponseDTO, *apperror.OAuthError) {
 	_, span := otel.Tracer("service").Start(ctx, "oauth_ciba.exchange_token")
 	defer span.End()
 	span.SetAttributes(attribute.String("oauth.client_id", creds.ClientID))
@@ -254,7 +251,7 @@ func (s *oauthCIBAService) ExchangeToken(ctx context.Context, req dto.OAuthCIBAT
 		return nil, apperror.NewOAuthInvalidGrant("auth_req_id does not belong to this client")
 	}
 
-	if record.IsExpired() || record.Status == model.CIBAStatusExpired {
+	if record.IsExpired() || record.Status == CIBAStatusExpired {
 		return nil, &apperror.OAuthError{
 			Code:        "expired_token",
 			Description: "the auth_req_id has expired; restart the CIBA flow",
@@ -274,15 +271,15 @@ func (s *oauthCIBAService) ExchangeToken(ctx context.Context, req dto.OAuthCIBAT
 	_ = s.cibaRepo.UpdateLastPollAt(record.OAuthCIBARRequestID)
 
 	switch record.Status {
-	case model.CIBAStatusPending:
+	case CIBAStatusPending:
 		return nil, &apperror.OAuthError{
 			Code:        "authorization_pending",
 			Description: "the user has not yet approved the request",
 			StatusCode:  400,
 		}
-	case model.CIBAStatusDenied:
+	case CIBAStatusDenied:
 		return nil, apperror.NewOAuthAccessDenied("the user denied the CIBA request")
-	case model.CIBAStatusApproved:
+	case CIBAStatusApproved:
 		// Fall through to token issuance.
 	default:
 		return nil, apperror.NewOAuthInvalidGrant("unexpected CIBA status")
@@ -323,15 +320,15 @@ func (s *oauthCIBAService) ExchangeToken(ctx context.Context, req dto.OAuthCIBAT
 		ActorUserID: record.UserID,
 		IPAddress:   middleware.ClientIPFromContext(ctx),
 		UserAgent:   ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),
-		Category:    model.AuthEventCategoryAuthn,
-		EventType:   model.AuthEventTypeTokenCreated,
-		Severity:    model.AuthEventSeverityInfo,
-		Result:      model.AuthEventResultSuccess,
+		Category:    AuthEventCategoryAuthn,
+		EventType:   AuthEventTypeTokenCreated,
+		Severity:    AuthEventSeverityInfo,
+		Result:      AuthEventResultSuccess,
 		Description: ptr.Ptr("CIBA token issued"),
 	})
 
 	span.SetStatus(codes.Ok, "")
-	return &dto.OAuthTokenResponseDTO{
+	return &OAuthTokenResponseDTO{
 		AccessToken: accessToken,
 		TokenType:   "Bearer",
 		ExpiresIn:   int64(jwt.AccessTokenTTL.Seconds()),
@@ -343,12 +340,12 @@ func (s *oauthCIBAService) ExchangeToken(ctx context.Context, req dto.OAuthCIBAT
 // Helpers
 // ──────────────────────────────────────────────────────────────────────────────
 
-func (s *oauthCIBAService) authenticateClient(creds dto.OAuthClientCredentials) (*model.Client, *apperror.OAuthError) {
-	var client model.Client
+func (s *oauthCIBAService) authenticateClient(creds OAuthClientCredentials) (*Client, *apperror.OAuthError) {
+	var client Client
 	err := s.db.
 		Preload("IdentityProvider").
 		Preload("ClientURIs").
-		Where("identifier = ? AND status = ?", creds.ClientID, model.StatusActive).
+		Where("identifier = ? AND status = ?", creds.ClientID, StatusActive).
 		First(&client).Error
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
@@ -364,7 +361,7 @@ func (s *oauthCIBAService) authenticateClient(creds dto.OAuthClientCredentials) 
 	return &client, nil
 }
 
-func (s *oauthCIBAService) sendCIBANotificationEmail(ctx context.Context, user *model.User, client *model.Client, bindingMessage string) error {
+func (s *oauthCIBAService) sendCIBANotificationEmail(ctx context.Context, user *User, client *Client, bindingMessage string) error {
 	if user.Email == "" {
 		return nil
 	}

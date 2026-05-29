@@ -7,8 +7,6 @@ import (
 	validation "github.com/go-ozzo/ozzo-validation/v4"
 	"github.com/go-ozzo/ozzo-validation/v4/is"
 	"gorm.io/datatypes"
-
-	"github.com/maintainerd/auth/internal/model"
 )
 
 type ProfileRequestDTO struct {
@@ -75,7 +73,7 @@ func (r ProfileRequestDTO) Validate() error {
 		),
 		validation.Field(&r.Gender,
 			validation.NilOrNotEmpty,
-			validation.In(model.GenderMale, model.GenderFemale, model.GenderOther, model.GenderPreferNotToSay).Error("Gender must be male, female, other, or prefer_not_to_say"),
+			validation.In(GenderMale, GenderFemale, GenderOther, GenderPreferNotToSay).Error("Gender must be male, female, other, or prefer_not_to_say"),
 		),
 		validation.Field(&r.Bio,
 			validation.NilOrNotEmpty,
@@ -178,7 +176,7 @@ type ProfileResponseDTO struct {
 	UpdatedAt time.Time `json:"updated_at"`
 }
 
-func NewProfileResponseDTO(p *model.Profile) *ProfileResponseDTO {
+func NewProfileResponseDTO(p *Profile) *ProfileResponseDTO {
 	return &ProfileResponseDTO{
 		ProfileUUID: p.ProfileUUID.String(),
 

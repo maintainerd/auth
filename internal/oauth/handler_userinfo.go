@@ -5,8 +5,6 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/maintainerd/auth/internal/dto"
-	"github.com/maintainerd/auth/internal/model"
 	"github.com/maintainerd/auth/internal/platform/middleware"
 )
 
@@ -32,7 +30,7 @@ func (h *OAuthUserInfoHandler) UserInfo(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	resp := dto.OAuthUserInfoResponseDTO{
+	resp := OAuthUserInfoResponseDTO{
 		Sub:           user.UserUUID.String(),
 		Email:         user.Email,
 		EmailVerified: user.IsEmailVerified,
@@ -56,7 +54,7 @@ func (h *OAuthUserInfoHandler) UserInfo(w http.ResponseWriter, r *http.Request) 
 // users.fullname column was removed; the name lives in profiles now.
 // Order of preference: Profile.DisplayName → FirstName + LastName → user.Fullname
 // (the latter is a transient field still populated by some legacy code paths).
-func composeUserDisplayName(user *model.User) string {
+func composeUserDisplayName(user *User) string {
 	if user == nil {
 		return ""
 	}

@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/maintainerd/auth/internal/model"
 	"gorm.io/gorm"
 )
 
@@ -25,19 +24,19 @@ type UserRepositoryGetFilter struct {
 }
 
 type UserRepository interface {
-	BaseRepositoryMethods[model.User]
+	BaseRepositoryMethods[User]
 	WithTx(tx *gorm.DB) UserRepository
-	FindByUsername(username string) (*model.User, error)
-	FindByEmail(email string) (*model.User, error)
+	FindByUsername(username string) (*User, error)
+	FindByEmail(email string) (*User, error)
 	// FindByEmailAndTenantID finds a user by email scoped to a specific tenant
 	// via user_identities. Use this in preference to FindByEmail whenever a
 	// tenantID is available to avoid cross-tenant data leakage.
-	FindByEmailAndTenantID(email string, tenantID int64) (*model.User, error)
-	FindByPhone(phone string) (*model.User, error)
-	FindSuperAdmin() (*model.User, error)
-	FindRoles(userID int64) ([]model.Role, error)
-	FindBySubAndClientID(sub string, clientID string) (*model.User, error)
-	FindPaginated(filter UserRepositoryGetFilter) (*PaginationResult[model.User], error)
+	FindByEmailAndTenantID(email string, tenantID int64) (*User, error)
+	FindByPhone(phone string) (*User, error)
+	FindSuperAdmin() (*User, error)
+	FindRoles(userID int64) ([]Role, error)
+	FindBySubAndClientID(sub string, clientID string) (*User, error)
+	FindPaginated(filter UserRepositoryGetFilter) (*PaginationResult[User], error)
 	SetEmailVerified(userUUID uuid.UUID, verified bool) error
 	SetStatus(userUUID uuid.UUID, status string) error
 	// Feature: Force password change
@@ -47,16 +46,16 @@ type UserRepository interface {
 	ClearEmailChange(userUUID uuid.UUID) error
 	UpdateEmail(userUUID uuid.UUID, email string) error
 	UpdateUsername(userUUID uuid.UUID, username string) error
-	FindByPendingEmail(email string) (*model.User, error)
+	FindByPendingEmail(email string) (*User, error)
 }
 
 type userRepository struct {
-	*BaseRepository[model.User]
+	*BaseRepository[User]
 }
 
 func NewUserRepository(db *gorm.DB) UserRepository {
 	return &userRepository{
-		BaseRepository: NewBaseRepository[model.User](db, "user_uuid", "user_id"),
+		BaseRepository: NewBaseRepository[User](db, "user_uuid", "user_id"),
 	}
 }
 
@@ -66,8 +65,8 @@ func (r *userRepository) WithTx(tx *gorm.DB) UserRepository {
 	}
 }
 
-func (r *userRepository) FindByUsername(username string) (*model.User, error) {
-	var user model.User
+func (r *userRepository) FindByUsername(username string) (*User, error) {
+	var user User
 	err := r.DB().
 		Where("username = ?", username).
 		First(&user).Error
@@ -82,8 +81,8 @@ func (r *userRepository) FindByUsername(username string) (*model.User, error) {
 	return &user, nil
 }
 
-func (r *userRepository) FindByEmail(email string) (*model.User, error) {
-	var user model.User
+func (r *userRepository) FindByEmail(email string) (*User, error) {
+	var user User
 	err := r.DB().
 		Where("email = ?", email).
 		First(&user).Error
@@ -98,8 +97,8 @@ func (r *userRepository) FindByEmail(email string) (*model.User, error) {
 	return &user, nil
 }
 
-func (r *userRepository) FindByEmailAndTenantID(email string, tenantID int64) (*model.User, error) {
-	var user model.User
+func (r *userRepository) FindByEmailAndTenantID(email string, tenantID int64) (*User, error) {
+	var user User
 	err := r.DB().
 		Joins("JOIN user_identities ON users.user_id = user_identities.user_id").
 		Where("users.email = ? AND user_identities.tenant_id = ?", email, tenantID).
@@ -115,8 +114,8 @@ func (r *userRepository) FindByEmailAndTenantID(email string, tenantID int64) (*
 	return &user, nil
 }
 
-func (r *userRepository) FindByPhone(phone string) (*model.User, error) {
-	var user model.User
+func (r *userRepository) FindByPhone(phone string) (*User, error) {
+	var user User
 	err := r.DB().
 		Where("phone = ?", phone).
 		First(&user).Error
@@ -131,15 +130,15 @@ func (r *userRepository) FindByPhone(phone string) (*model.User, error) {
 	return &user, nil
 }
 
-func (r *userRepository) FindSuperAdmin() (*model.User, error) {
-	var user model.User
+func (r *userRepository) FindSuperAdmin() (*User, error) {
+	var user User
 	err := r.DB().
 		Joins("JOIN user_identities ON users.user_id = user_identities.user_id").
 		Joins("JOIN tenants ON user_identities.tenant_id = tenants.tenant_id").
 		Joins("JOIN user_roles ON users.user_id = user_roles.user_id").
 		Joins("JOIN roles ON user_roles.role_id = roles.role_id").
-		Where("tenants.status = ? AND tenants.is_default = ?", model.StatusActive, true).
-		Where("roles.name = ?", model.RoleSuperAdmin).
+		Where("tenants.status = ? AND tenants.is_default = ?", StatusActive, true).
+		Where("roles.name = ?", RoleSuperAdmin).
 		First(&user).Error
 
 	if err != nil {
@@ -152,10 +151,10 @@ func (r *userRepository) FindSuperAdmin() (*model.User, error) {
 	return &user, nil
 }
 
-func (r *userRepository) FindRoles(userID int64) ([]model.Role, error) {
-	var roles []model.Role
+func (r *userRepository) FindRoles(userID int64) ([]Role, error) {
+	var roles []Role
 	err := r.DB().
-		Model(&model.Role{}).
+		Model(&Role{}).
 		Select("roles.*").
 		Joins("JOIN user_roles ur ON ur.role_id = roles.role_id").
 		Where("ur.user_id = ?", userID).
@@ -163,8 +162,8 @@ func (r *userRepository) FindRoles(userID int64) ([]model.Role, error) {
 	return roles, err
 }
 
-func (r *userRepository) FindBySubAndClientID(sub string, clientID string) (*model.User, error) {
-	var user model.User
+func (r *userRepository) FindBySubAndClientID(sub string, clientID string) (*User, error) {
+	var user User
 	err := r.DB().
 		Preload("UserIdentities.Tenant").
 		Preload("UserIdentities.Client.IdentityProvider.Tenant").
@@ -190,25 +189,25 @@ func (r *userRepository) FindBySubAndClientID(sub string, clientID string) (*mod
 }
 
 func (r *userRepository) SetEmailVerified(userUUID uuid.UUID, verified bool) error {
-	return r.DB().Model(&model.User{}).
+	return r.DB().Model(&User{}).
 		Where("user_uuid = ?", userUUID).
 		Update("is_email_verified", verified).Error
 }
 
 func (r *userRepository) SetStatus(userUUID uuid.UUID, status string) error {
-	return r.DB().Model(&model.User{}).
+	return r.DB().Model(&User{}).
 		Where("user_uuid = ?", userUUID).
 		Update("status", status).Error
 }
 
 func (r *userRepository) SetForcePasswordChange(userUUID uuid.UUID, force bool) error {
-	return r.DB().Model(&model.User{}).
+	return r.DB().Model(&User{}).
 		Where("user_uuid = ?", userUUID).
 		Update("force_password_change", force).Error
 }
 
 func (r *userRepository) SetPendingEmail(userUUID uuid.UUID, pendingEmail, otp string, expiresAt time.Time) error {
-	return r.DB().Model(&model.User{}).
+	return r.DB().Model(&User{}).
 		Where("user_uuid = ?", userUUID).
 		Updates(map[string]interface{}{
 			"pending_email":               pendingEmail,
@@ -218,7 +217,7 @@ func (r *userRepository) SetPendingEmail(userUUID uuid.UUID, pendingEmail, otp s
 }
 
 func (r *userRepository) ClearEmailChange(userUUID uuid.UUID) error {
-	return r.DB().Model(&model.User{}).
+	return r.DB().Model(&User{}).
 		Where("user_uuid = ?", userUUID).
 		Updates(map[string]interface{}{
 			"pending_email":               nil,
@@ -228,19 +227,19 @@ func (r *userRepository) ClearEmailChange(userUUID uuid.UUID) error {
 }
 
 func (r *userRepository) UpdateEmail(userUUID uuid.UUID, email string) error {
-	return r.DB().Model(&model.User{}).
+	return r.DB().Model(&User{}).
 		Where("user_uuid = ?", userUUID).
 		Update("email", email).Error
 }
 
 func (r *userRepository) UpdateUsername(userUUID uuid.UUID, username string) error {
-	return r.DB().Model(&model.User{}).
+	return r.DB().Model(&User{}).
 		Where("user_uuid = ?", userUUID).
 		Update("username", username).Error
 }
 
-func (r *userRepository) FindByPendingEmail(email string) (*model.User, error) {
-	var user model.User
+func (r *userRepository) FindByPendingEmail(email string) (*User, error) {
+	var user User
 	err := r.DB().
 		Where("pending_email = ?", email).
 		First(&user).Error
@@ -253,11 +252,11 @@ func (r *userRepository) FindByPendingEmail(email string) (*model.User, error) {
 	return &user, nil
 }
 
-func (r *userRepository) FindPaginated(filter UserRepositoryGetFilter) (*PaginationResult[model.User], error) {
-	var users []model.User
+func (r *userRepository) FindPaginated(filter UserRepositoryGetFilter) (*PaginationResult[User], error) {
+	var users []User
 	var total int64
 
-	query := r.DB().Model(&model.User{})
+	query := r.DB().Model(&User{})
 
 	// Filter by user_identities fields (tenant, client) — join once to avoid duplicates.
 	if filter.TenantID != nil || filter.ClientID != nil {
@@ -305,7 +304,7 @@ func (r *userRepository) FindPaginated(filter UserRepositoryGetFilter) (*Paginat
 
 	totalPages := int((total + int64(filter.Limit) - 1) / int64(filter.Limit))
 
-	return &PaginationResult[model.User]{
+	return &PaginationResult[User]{
 		Data:       users,
 		Total:      total,
 		Page:       filter.Page,

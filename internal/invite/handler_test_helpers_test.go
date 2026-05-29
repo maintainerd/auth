@@ -9,7 +9,6 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
-	"github.com/maintainerd/auth/internal/model"
 	"github.com/maintainerd/auth/internal/platform/middleware"
 	"github.com/stretchr/testify/require"
 )
@@ -23,10 +22,10 @@ var (
 )
 
 type mockInviteService struct {
-	sendInviteFn func(int64, string, int64, []string) (*model.Invite, error)
+	sendInviteFn func(int64, string, int64, []string) (*Invite, error)
 }
 
-func (m *mockInviteService) SendInvite(_ context.Context, tenantID int64, email string, userID int64, roleUUIDs []string) (*model.Invite, error) {
+func (m *mockInviteService) SendInvite(_ context.Context, tenantID int64, email string, userID int64, roleUUIDs []string) (*Invite, error) {
 	if m.sendInviteFn != nil {
 		return m.sendInviteFn(tenantID, email, userID, roleUUIDs)
 	}
@@ -34,13 +33,13 @@ func (m *mockInviteService) SendInvite(_ context.Context, tenantID int64, email 
 }
 
 func withTenant(r *http.Request) *http.Request {
-	tenant := &model.Tenant{TenantID: testTenantID, TenantUUID: testTenantUUID}
+	tenant := &Tenant{TenantID: testTenantID, TenantUUID: testTenantUUID}
 	return middleware.WithAuthContext(r, &middleware.AuthContext{Tenant: tenant})
 }
 
 func withTenantAndUser(r *http.Request) *http.Request {
-	tenant := &model.Tenant{TenantID: testTenantID, TenantUUID: testTenantUUID}
-	user := &model.User{UserID: 2, UserUUID: testUserUUID}
+	tenant := &Tenant{TenantID: testTenantID, TenantUUID: testTenantUUID}
+	user := &User{UserID: 2, UserUUID: testUserUUID}
 	return middleware.WithAuthContext(r, &middleware.AuthContext{Tenant: tenant, User: user})
 }
 

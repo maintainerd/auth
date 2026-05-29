@@ -5,9 +5,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/maintainerd/auth/internal/model"
 	"github.com/maintainerd/auth/internal/platform/apperror"
-	"github.com/maintainerd/auth/internal/repository"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -63,20 +61,20 @@ type ServiceService interface {
 
 type serviceService struct {
 	db                *gorm.DB
-	serviceRepo       repository.ServiceRepository
-	tenantServiceRepo repository.TenantServiceRepository
-	apiRepo           repository.APIRepository
-	servicePolicyRepo repository.ServicePolicyRepository
-	policyRepo        repository.PolicyRepository
+	serviceRepo       ServiceRepository
+	tenantServiceRepo TenantServiceRepository
+	apiRepo           APIRepository
+	servicePolicyRepo ServicePolicyRepository
+	policyRepo        PolicyRepository
 }
 
 func NewServiceService(
 	db *gorm.DB,
-	serviceRepo repository.ServiceRepository,
-	tenantServiceRepo repository.TenantServiceRepository,
-	apiRepo repository.APIRepository,
-	servicePolicyRepo repository.ServicePolicyRepository,
-	policyRepo repository.PolicyRepository,
+	serviceRepo ServiceRepository,
+	tenantServiceRepo TenantServiceRepository,
+	apiRepo APIRepository,
+	servicePolicyRepo ServicePolicyRepository,
+	policyRepo PolicyRepository,
 ) ServiceService {
 	return &serviceService{
 		db:                db,
@@ -89,10 +87,10 @@ func NewServiceService(
 }
 
 func (s *serviceService) Get(ctx context.Context, filter ServiceServiceGetFilter) (*ServiceServiceGetResult, error) {
-	_, span := otel.Tracer("service").Start(ctx, "service.list")
+	_, span := otel.Tracer("service").Start(ctx, "list")
 	defer span.End()
 
-	serviceFilter := repository.ServiceRepositoryGetFilter{
+	serviceFilter := ServiceRepositoryGetFilter{
 		Name:        filter.Name,
 		DisplayName: filter.DisplayName,
 		Description: filter.Description,
@@ -134,9 +132,9 @@ func (s *serviceService) Get(ctx context.Context, filter ServiceServiceGetFilter
 }
 
 func (s *serviceService) GetByUUID(ctx context.Context, serviceUUID uuid.UUID, tenantID int64) (*ServiceServiceDataResult, error) {
-	_, span := otel.Tracer("service").Start(ctx, "service.getByUUID")
+	_, span := otel.Tracer("service").Start(ctx, "getByUUID")
 	defer span.End()
-	span.SetAttributes(attribute.String("service.uuid", serviceUUID.String()), attribute.Int64("tenant.id", tenantID))
+	span.SetAttributes(attribute.String("uuid", serviceUUID.String()), attribute.Int64("tenant.id", tenantID))
 
 	service, err := s.serviceRepo.FindByUUID(serviceUUID)
 	if err != nil || service == nil {
@@ -145,7 +143,7 @@ func (s *serviceService) GetByUUID(ctx context.Context, serviceUUID uuid.UUID, t
 	}
 
 	// Verify service belongs to tenant by checking tenant_services relationship
-	tenantService, err := s.tenantServiceRepo.FindByTenantAndService(tenantID, service.ServiceID)
+	tenantService, err := s.tenantServiceRepo.FindByTenantAndService(tenantID, ServiceID)
 	if err != nil || tenantService == nil {
 		span.SetStatus(codes.Error, "service not found or access denied")
 		return nil, apperror.NewNotFoundWithReason("service not found or access denied")
@@ -156,11 +154,11 @@ func (s *serviceService) GetByUUID(ctx context.Context, serviceUUID uuid.UUID, t
 }
 
 func (s *serviceService) Create(ctx context.Context, name string, displayName string, description string, version string, isSystem bool, status string, tenantID int64) (*ServiceServiceDataResult, error) {
-	_, span := otel.Tracer("service").Start(ctx, "service.create")
+	_, span := otel.Tracer("service").Start(ctx, "create")
 	defer span.End()
 	span.SetAttributes(attribute.Int64("tenant.id", tenantID))
 
-	var createdService *model.Service
+	var createdService *Service
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
 		txServiceRepo := s.serviceRepo.WithTx(tx)
@@ -175,7 +173,7 @@ func (s *serviceService) Create(ctx context.Context, name string, displayName st
 		}
 
 		// Create service
-		newService := &model.Service{
+		newService := &Service{
 			Name:        name,
 			DisplayName: displayName,
 			Description: description,
@@ -191,7 +189,7 @@ func (s *serviceService) Create(ctx context.Context, name string, displayName st
 
 		// Create tenant-service relationship
 		txTenantServiceRepo := s.tenantServiceRepo.WithTx(tx)
-		tenantService := &model.TenantService{
+		tenantService := &TenantService{
 			TenantID:  tenantID,
 			ServiceID: newService.ServiceID,
 		}
@@ -217,11 +215,11 @@ func (s *serviceService) Create(ctx context.Context, name string, displayName st
 }
 
 func (s *serviceService) Update(ctx context.Context, serviceUUID uuid.UUID, tenantID int64, name string, displayName string, description string, version string, isSystem bool, status string) (*ServiceServiceDataResult, error) {
-	_, span := otel.Tracer("service").Start(ctx, "service.update")
+	_, span := otel.Tracer("service").Start(ctx, "update")
 	defer span.End()
-	span.SetAttributes(attribute.String("service.uuid", serviceUUID.String()), attribute.Int64("tenant.id", tenantID))
+	span.SetAttributes(attribute.String("uuid", serviceUUID.String()), attribute.Int64("tenant.id", tenantID))
 
-	var updatedService *model.Service
+	var updatedService *Service
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
 		txServiceRepo := s.serviceRepo.WithTx(tx)
@@ -233,17 +231,17 @@ func (s *serviceService) Update(ctx context.Context, serviceUUID uuid.UUID, tena
 		}
 
 		// Verify service belongs to tenant
-		tenantService, err := txTenantServiceRepo.FindByTenantAndService(tenantID, service.ServiceID)
+		tenantService, err := txTenantServiceRepo.FindByTenantAndService(tenantID, ServiceID)
 		if err != nil || tenantService == nil {
 			return apperror.NewNotFoundWithReason("service not found or access denied")
 		}
 
 		// Check if service is a system record (critical for app functionality)
-		if service.IsSystem {
+		if IsSystem {
 			return apperror.NewValidation("system service cannot be updated")
 		}
 
-		if service.Name != name {
+		if Name != name {
 			existingService, err := txServiceRepo.FindByName(name)
 			if err != nil {
 				return err
@@ -253,12 +251,12 @@ func (s *serviceService) Update(ctx context.Context, serviceUUID uuid.UUID, tena
 			}
 		}
 
-		service.Name = name
-		service.DisplayName = displayName
-		service.Description = description
-		service.Version = version
-		service.IsSystem = isSystem
-		service.Status = status
+		Name = name
+		DisplayName = displayName
+		Description = description
+		Version = version
+		IsSystem = isSystem
+		Status = status
 
 		_, err = txServiceRepo.CreateOrUpdate(service)
 		if err != nil {
@@ -281,11 +279,11 @@ func (s *serviceService) Update(ctx context.Context, serviceUUID uuid.UUID, tena
 }
 
 func (s *serviceService) SetStatusByUUID(ctx context.Context, serviceUUID uuid.UUID, tenantID int64, status string) (*ServiceServiceDataResult, error) {
-	_, span := otel.Tracer("service").Start(ctx, "service.setStatus")
+	_, span := otel.Tracer("service").Start(ctx, "setStatus")
 	defer span.End()
-	span.SetAttributes(attribute.String("service.uuid", serviceUUID.String()), attribute.Int64("tenant.id", tenantID))
+	span.SetAttributes(attribute.String("uuid", serviceUUID.String()), attribute.Int64("tenant.id", tenantID))
 
-	var updatedService *model.Service
+	var updatedService *Service
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
 		txServiceRepo := s.serviceRepo.WithTx(tx)
@@ -297,17 +295,17 @@ func (s *serviceService) SetStatusByUUID(ctx context.Context, serviceUUID uuid.U
 		}
 
 		// Verify service belongs to tenant
-		tenantService, err := txTenantServiceRepo.FindByTenantAndService(tenantID, service.ServiceID)
+		tenantService, err := txTenantServiceRepo.FindByTenantAndService(tenantID, ServiceID)
 		if err != nil || tenantService == nil {
 			return apperror.NewNotFoundWithReason("service not found or access denied")
 		}
 
 		// Check if service is a system record (critical for app functionality)
-		if service.IsSystem {
+		if IsSystem {
 			return apperror.NewValidation("system service status cannot be updated")
 		}
 
-		service.Status = status
+		Status = status
 
 		_, err = txServiceRepo.CreateOrUpdate(service)
 		if err != nil {
@@ -330,9 +328,9 @@ func (s *serviceService) SetStatusByUUID(ctx context.Context, serviceUUID uuid.U
 }
 
 func (s *serviceService) DeleteByUUID(ctx context.Context, serviceUUID uuid.UUID, tenantID int64) (*ServiceServiceDataResult, error) {
-	_, span := otel.Tracer("service").Start(ctx, "service.delete")
+	_, span := otel.Tracer("service").Start(ctx, "delete")
 	defer span.End()
-	span.SetAttributes(attribute.String("service.uuid", serviceUUID.String()), attribute.Int64("tenant.id", tenantID))
+	span.SetAttributes(attribute.String("uuid", serviceUUID.String()), attribute.Int64("tenant.id", tenantID))
 
 	service, err := s.serviceRepo.FindByUUID(serviceUUID)
 	if err != nil || service == nil {
@@ -341,14 +339,14 @@ func (s *serviceService) DeleteByUUID(ctx context.Context, serviceUUID uuid.UUID
 	}
 
 	// Verify service belongs to tenant
-	tenantService, err := s.tenantServiceRepo.FindByTenantAndService(tenantID, service.ServiceID)
+	tenantService, err := s.tenantServiceRepo.FindByTenantAndService(tenantID, ServiceID)
 	if err != nil || tenantService == nil {
 		span.SetStatus(codes.Error, "service not found or access denied")
 		return nil, apperror.NewNotFoundWithReason("service not found or access denied")
 	}
 
 	// Check if service is a system record (critical for app functionality)
-	if service.IsSystem {
+	if IsSystem {
 		span.SetStatus(codes.Error, "system service cannot be deleted")
 		return nil, apperror.NewValidation("system service cannot be deleted")
 	}
@@ -364,33 +362,33 @@ func (s *serviceService) DeleteByUUID(ctx context.Context, serviceUUID uuid.UUID
 	return s.toServiceServiceDataResult(service, tenantID), nil
 }
 
-// Helper function to convert model.Service to ServiceServiceDataResult with counts
-func (s *serviceService) toServiceServiceDataResult(service *model.Service, tenantID int64) *ServiceServiceDataResult {
+// Helper function to convert Service to ServiceServiceDataResult with counts
+func (s *serviceService) toServiceServiceDataResult(service *Service, tenantID int64) *ServiceServiceDataResult {
 	// Get API count for this service scoped to the caller's tenant
-	apiCount, _ := s.apiRepo.CountByServiceID(service.ServiceID, tenantID)
+	apiCount, _ := s.apiRepo.CountByServiceID(ServiceID, tenantID)
 
 	// Get policy count for this service
-	policyCount, _ := s.serviceRepo.CountPoliciesByServiceID(service.ServiceID)
+	policyCount, _ := s.serviceRepo.CountPoliciesByServiceID(ServiceID)
 
 	return &ServiceServiceDataResult{
-		ServiceUUID: service.ServiceUUID,
-		Name:        service.Name,
-		DisplayName: service.DisplayName,
-		Description: service.Description,
-		Version:     service.Version,
-		IsSystem:    service.IsSystem,
-		Status:      service.Status,
+		ServiceUUID: ServiceUUID,
+		Name:        Name,
+		DisplayName: DisplayName,
+		Description: Description,
+		Version:     Version,
+		IsSystem:    IsSystem,
+		Status:      Status,
 		APICount:    apiCount,
 		PolicyCount: policyCount,
-		CreatedAt:   service.CreatedAt,
-		UpdatedAt:   service.UpdatedAt,
+		CreatedAt:   CreatedAt,
+		UpdatedAt:   UpdatedAt,
 	}
 }
 
 func (s *serviceService) AssignPolicy(ctx context.Context, serviceUUID uuid.UUID, policyUUID uuid.UUID, tenantID int64) error {
-	_, span := otel.Tracer("service").Start(ctx, "service.assignPolicy")
+	_, span := otel.Tracer("service").Start(ctx, "assignPolicy")
 	defer span.End()
-	span.SetAttributes(attribute.String("service.uuid", serviceUUID.String()), attribute.String("policy.uuid", policyUUID.String()), attribute.Int64("tenant.id", tenantID))
+	span.SetAttributes(attribute.String("uuid", serviceUUID.String()), attribute.String("policy.uuid", policyUUID.String()), attribute.Int64("tenant.id", tenantID))
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
 		txServiceRepo := s.serviceRepo.WithTx(tx)
@@ -416,7 +414,7 @@ func (s *serviceService) AssignPolicy(ctx context.Context, serviceUUID uuid.UUID
 		}
 
 		// Check if assignment already exists
-		existing, err := txServicePolicyRepo.FindByServiceAndPolicy(service.ServiceID, policy.PolicyID)
+		existing, err := txServicePolicyRepo.FindByServiceAndPolicy(ServiceID, policy.PolicyID)
 		if err != nil {
 			return err
 		}
@@ -426,9 +424,9 @@ func (s *serviceService) AssignPolicy(ctx context.Context, serviceUUID uuid.UUID
 		}
 
 		// Create new service-policy assignment
-		servicePolicy := &model.ServicePolicy{
+		servicePolicy := &ServicePolicy{
 			ServicePolicyUUID: uuid.New(),
-			ServiceID:         service.ServiceID,
+			ServiceID:         ServiceID,
 			PolicyID:          policy.PolicyID,
 		}
 
@@ -445,9 +443,9 @@ func (s *serviceService) AssignPolicy(ctx context.Context, serviceUUID uuid.UUID
 }
 
 func (s *serviceService) RemovePolicy(ctx context.Context, serviceUUID uuid.UUID, policyUUID uuid.UUID, tenantID int64) error {
-	_, span := otel.Tracer("service").Start(ctx, "service.removePolicy")
+	_, span := otel.Tracer("service").Start(ctx, "removePolicy")
 	defer span.End()
-	span.SetAttributes(attribute.String("service.uuid", serviceUUID.String()), attribute.String("policy.uuid", policyUUID.String()), attribute.Int64("tenant.id", tenantID))
+	span.SetAttributes(attribute.String("uuid", serviceUUID.String()), attribute.String("policy.uuid", policyUUID.String()), attribute.Int64("tenant.id", tenantID))
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
 		txServiceRepo := s.serviceRepo.WithTx(tx)
@@ -473,7 +471,7 @@ func (s *serviceService) RemovePolicy(ctx context.Context, serviceUUID uuid.UUID
 		}
 
 		// Check if assignment exists
-		existing, err := txServicePolicyRepo.FindByServiceAndPolicy(service.ServiceID, policy.PolicyID)
+		existing, err := txServicePolicyRepo.FindByServiceAndPolicy(ServiceID, policy.PolicyID)
 		if err != nil {
 			return err
 		}
@@ -483,7 +481,7 @@ func (s *serviceService) RemovePolicy(ctx context.Context, serviceUUID uuid.UUID
 		}
 
 		// Remove the service-policy assignment
-		return txServicePolicyRepo.DeleteByServiceAndPolicy(service.ServiceID, policy.PolicyID)
+		return txServicePolicyRepo.DeleteByServiceAndPolicy(ServiceID, policy.PolicyID)
 	})
 	if err != nil {
 		span.RecordError(err)

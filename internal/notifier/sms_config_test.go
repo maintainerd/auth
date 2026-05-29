@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
-	"github.com/maintainerd/auth/internal/model"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -21,16 +20,16 @@ func newSMSConfigSvc(repo *mockSMSConfigRepo) SMSConfigService {
 
 func TestSMSConfigService_Get(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
-		sc := &model.SMSConfig{
+		sc := &SMSConfig{
 			SMSConfigUUID: uuid.New(),
 			TenantID:      1,
 			Provider:      "twilio",
 			AccountSID:    "AC123",
 			FromNumber:    "+15551234567",
-			Status:        model.StatusActive,
+			Status:        StatusActive,
 		}
 		svc := newSMSConfigSvc(&mockSMSConfigRepo{
-			findByTenantIDFn: func(_ int64) (*model.SMSConfig, error) { return sc, nil },
+			findByTenantIDFn: func(_ int64) (*SMSConfig, error) { return sc, nil },
 		})
 		res, err := svc.Get(context.Background(), 1)
 		require.NoError(t, err)
@@ -40,7 +39,7 @@ func TestSMSConfigService_Get(t *testing.T) {
 
 	t.Run("not found when nil", func(t *testing.T) {
 		svc := newSMSConfigSvc(&mockSMSConfigRepo{
-			findByTenantIDFn: func(_ int64) (*model.SMSConfig, error) { return nil, nil },
+			findByTenantIDFn: func(_ int64) (*SMSConfig, error) { return nil, nil },
 		})
 		_, err := svc.Get(context.Background(), 1)
 		require.Error(t, err)
@@ -49,7 +48,7 @@ func TestSMSConfigService_Get(t *testing.T) {
 
 	t.Run("repo error", func(t *testing.T) {
 		svc := newSMSConfigSvc(&mockSMSConfigRepo{
-			findByTenantIDFn: func(_ int64) (*model.SMSConfig, error) { return nil, errors.New("db") },
+			findByTenantIDFn: func(_ int64) (*SMSConfig, error) { return nil, errors.New("db") },
 		})
 		_, err := svc.Get(context.Background(), 1)
 		require.Error(t, err)
@@ -65,8 +64,8 @@ func TestSMSConfigService_Update(t *testing.T) {
 
 	t.Run("creates new when not found", func(t *testing.T) {
 		svc := newSMSConfigSvc(&mockSMSConfigRepo{
-			findByTenantIDFn: func(_ int64) (*model.SMSConfig, error) { return nil, nil },
-			createOrUpdateFn: func(e *model.SMSConfig) (*model.SMSConfig, error) {
+			findByTenantIDFn: func(_ int64) (*SMSConfig, error) { return nil, nil },
+			createOrUpdateFn: func(e *SMSConfig) (*SMSConfig, error) {
 				e.SMSConfigUUID = uuid.New()
 				return e, nil
 			},
@@ -76,19 +75,19 @@ func TestSMSConfigService_Update(t *testing.T) {
 		)
 		require.NoError(t, err)
 		assert.Equal(t, "twilio", res.Provider)
-		assert.Equal(t, model.StatusActive, res.Status)
+		assert.Equal(t, StatusActive, res.Status)
 	})
 
 	t.Run("updates existing with auth_token preserved on blank", func(t *testing.T) {
-		existing := &model.SMSConfig{
+		existing := &SMSConfig{
 			SMSConfigUUID:      uuid.New(),
 			TenantID:           1,
 			AuthTokenEncrypted: "old-token",
-			Status:             model.StatusActive,
+			Status:             StatusActive,
 		}
 		svc := newSMSConfigSvc(&mockSMSConfigRepo{
-			findByTenantIDFn: func(_ int64) (*model.SMSConfig, error) { return existing, nil },
-			createOrUpdateFn: func(e *model.SMSConfig) (*model.SMSConfig, error) { return e, nil },
+			findByTenantIDFn: func(_ int64) (*SMSConfig, error) { return existing, nil },
+			createOrUpdateFn: func(e *SMSConfig) (*SMSConfig, error) { return e, nil },
 		})
 		_, err := svc.Update(context.Background(), 1,
 			"vonage", "AC456", "", "+15559876543", "MySender", nil,
@@ -98,15 +97,15 @@ func TestSMSConfigService_Update(t *testing.T) {
 	})
 
 	t.Run("updates existing with new auth_token", func(t *testing.T) {
-		existing := &model.SMSConfig{
+		existing := &SMSConfig{
 			SMSConfigUUID:      uuid.New(),
 			TenantID:           1,
 			AuthTokenEncrypted: "old-token",
-			Status:             model.StatusActive,
+			Status:             StatusActive,
 		}
 		svc := newSMSConfigSvc(&mockSMSConfigRepo{
-			findByTenantIDFn: func(_ int64) (*model.SMSConfig, error) { return existing, nil },
-			createOrUpdateFn: func(e *model.SMSConfig) (*model.SMSConfig, error) { return e, nil },
+			findByTenantIDFn: func(_ int64) (*SMSConfig, error) { return existing, nil },
+			createOrUpdateFn: func(e *SMSConfig) (*SMSConfig, error) { return e, nil },
 		})
 		_, err := svc.Update(context.Background(), 1,
 			"twilio", "AC123", "new-token", "+15551234567", "", boolPtr(true),
@@ -118,7 +117,7 @@ func TestSMSConfigService_Update(t *testing.T) {
 
 	t.Run("FindByTenantID error", func(t *testing.T) {
 		svc := newSMSConfigSvc(&mockSMSConfigRepo{
-			findByTenantIDFn: func(_ int64) (*model.SMSConfig, error) { return nil, errors.New("db") },
+			findByTenantIDFn: func(_ int64) (*SMSConfig, error) { return nil, errors.New("db") },
 		})
 		_, err := svc.Update(context.Background(), 1, "", "", "", "", "", nil)
 		require.Error(t, err)
@@ -126,8 +125,8 @@ func TestSMSConfigService_Update(t *testing.T) {
 
 	t.Run("CreateOrUpdate error", func(t *testing.T) {
 		svc := newSMSConfigSvc(&mockSMSConfigRepo{
-			findByTenantIDFn: func(_ int64) (*model.SMSConfig, error) { return nil, nil },
-			createOrUpdateFn: func(_ *model.SMSConfig) (*model.SMSConfig, error) {
+			findByTenantIDFn: func(_ int64) (*SMSConfig, error) { return nil, nil },
+			createOrUpdateFn: func(_ *SMSConfig) (*SMSConfig, error) {
 				return nil, errors.New("save err")
 			},
 		})

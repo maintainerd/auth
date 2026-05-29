@@ -4,19 +4,17 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/maintainerd/auth/internal/dto"
 	"github.com/maintainerd/auth/internal/platform/middleware"
 	resp "github.com/maintainerd/auth/internal/platform/response"
-	"github.com/maintainerd/auth/internal/service"
 )
 
 // SMSConfigHandler handles tenant SMS delivery configuration endpoints.
 type SMSConfigHandler struct {
-	smsConfigService service.SMSConfigService
+	smsConfigService SMSConfigService
 }
 
 // NewSMSConfigHandler creates a new SMSConfigHandler.
-func NewSMSConfigHandler(smsConfigService service.SMSConfigService) *SMSConfigHandler {
+func NewSMSConfigHandler(smsConfigService SMSConfigService) *SMSConfigHandler {
 	return &SMSConfigHandler{smsConfigService: smsConfigService}
 }
 
@@ -49,7 +47,7 @@ func (h *SMSConfigHandler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var req dto.SMSConfigUpdateRequestDTO
+	var req SMSConfigUpdateRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		resp.Error(w, http.StatusBadRequest, "Invalid request")
 		return
@@ -73,8 +71,8 @@ func (h *SMSConfigHandler) Update(w http.ResponseWriter, r *http.Request) {
 	resp.Success(w, toSMSConfigResponseDTO(result), "SMS config updated successfully")
 }
 
-func toSMSConfigResponseDTO(sc *service.SMSConfigServiceDataResult) dto.SMSConfigResponseDTO {
-	return dto.SMSConfigResponseDTO{
+func toSMSConfigResponseDTO(sc *SMSConfigServiceDataResult) SMSConfigResponseDTO {
+	return SMSConfigResponseDTO{
 		SMSConfigID: sc.SMSConfigUUID.String(),
 		Provider:    sc.Provider,
 		AccountSID:  sc.AccountSID,

@@ -3,7 +3,6 @@ package client
 import (
 	"errors"
 
-	"github.com/maintainerd/auth/internal/model"
 	"gorm.io/gorm"
 )
 
@@ -19,22 +18,22 @@ type APIKeyRepositoryGetFilter struct {
 }
 
 type APIKeyRepository interface {
-	BaseRepositoryMethods[model.APIKey]
+	BaseRepositoryMethods[APIKey]
 	WithTx(tx *gorm.DB) APIKeyRepository
-	FindByUUIDAndTenantID(uuid string, tenantID int64) (*model.APIKey, error)
-	FindByKeyHash(keyHash string) (*model.APIKey, error)
-	FindByKeyPrefix(keyPrefix string) (*model.APIKey, error)
+	FindByUUIDAndTenantID(uuid string, tenantID int64) (*APIKey, error)
+	FindByKeyHash(keyHash string) (*APIKey, error)
+	FindByKeyPrefix(keyPrefix string) (*APIKey, error)
 	DeleteByUUIDAndTenantID(uuid string, tenantID int64) error
-	FindPaginated(filter APIKeyRepositoryGetFilter) (*PaginationResult[model.APIKey], error)
+	FindPaginated(filter APIKeyRepositoryGetFilter) (*PaginationResult[APIKey], error)
 }
 
 type apiKeyRepository struct {
-	*BaseRepository[model.APIKey]
+	*BaseRepository[APIKey]
 }
 
 func NewAPIKeyRepository(db *gorm.DB) APIKeyRepository {
 	return &apiKeyRepository{
-		BaseRepository: NewBaseRepository[model.APIKey](db, "api_key_uuid", "api_key_id"),
+		BaseRepository: NewBaseRepository[APIKey](db, "api_key_uuid", "api_key_id"),
 	}
 }
 
@@ -44,8 +43,8 @@ func (r *apiKeyRepository) WithTx(tx *gorm.DB) APIKeyRepository {
 	}
 }
 
-func (r *apiKeyRepository) FindByUUIDAndTenantID(uuid string, tenantID int64) (*model.APIKey, error) {
-	var apiKey model.APIKey
+func (r *apiKeyRepository) FindByUUIDAndTenantID(uuid string, tenantID int64) (*APIKey, error) {
+	var apiKey APIKey
 	err := r.DB().Where("api_key_uuid = ? AND tenant_id = ?", uuid, tenantID).First(&apiKey).Error
 
 	if err != nil {
@@ -58,8 +57,8 @@ func (r *apiKeyRepository) FindByUUIDAndTenantID(uuid string, tenantID int64) (*
 	return &apiKey, nil
 }
 
-func (r *apiKeyRepository) FindByKeyHash(keyHash string) (*model.APIKey, error) {
-	var apiKey model.APIKey
+func (r *apiKeyRepository) FindByKeyHash(keyHash string) (*APIKey, error) {
+	var apiKey APIKey
 	if err := r.DB().Where("key_hash = ?", keyHash).First(&apiKey).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, nil
@@ -70,7 +69,7 @@ func (r *apiKeyRepository) FindByKeyHash(keyHash string) (*model.APIKey, error) 
 }
 
 func (r *apiKeyRepository) DeleteByUUIDAndTenantID(uuid string, tenantID int64) error {
-	result := r.DB().Where("api_key_uuid = ? AND tenant_id = ?", uuid, tenantID).Delete(&model.APIKey{})
+	result := r.DB().Where("api_key_uuid = ? AND tenant_id = ?", uuid, tenantID).Delete(&APIKey{})
 	if result.Error != nil {
 		return result.Error
 	}
@@ -80,8 +79,8 @@ func (r *apiKeyRepository) DeleteByUUIDAndTenantID(uuid string, tenantID int64) 
 	return nil
 }
 
-func (r *apiKeyRepository) FindByKeyPrefix(keyPrefix string) (*model.APIKey, error) {
-	var apiKey model.APIKey
+func (r *apiKeyRepository) FindByKeyPrefix(keyPrefix string) (*APIKey, error) {
+	var apiKey APIKey
 	if err := r.DB().Where("key_prefix = ?", keyPrefix).First(&apiKey).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, nil
@@ -91,8 +90,8 @@ func (r *apiKeyRepository) FindByKeyPrefix(keyPrefix string) (*model.APIKey, err
 	return &apiKey, nil
 }
 
-func (r *apiKeyRepository) FindPaginated(filter APIKeyRepositoryGetFilter) (*PaginationResult[model.APIKey], error) {
-	query := r.DB().Model(&model.APIKey{})
+func (r *apiKeyRepository) FindPaginated(filter APIKeyRepositoryGetFilter) (*PaginationResult[APIKey], error) {
+	query := r.DB().Model(&APIKey{})
 
 	// Always filter by tenant
 	query = query.Where("tenant_id = ?", filter.TenantID)
@@ -125,14 +124,14 @@ func (r *apiKeyRepository) FindPaginated(filter APIKeyRepositoryGetFilter) (*Pag
 		filter.Limit = 10
 	}
 	offset := (filter.Page - 1) * filter.Limit
-	var apiKeys []model.APIKey
+	var apiKeys []APIKey
 	if err := query.Limit(filter.Limit).Offset(offset).Find(&apiKeys).Error; err != nil {
 		return nil, err
 	}
 
 	totalPages := int((total + int64(filter.Limit) - 1) / int64(filter.Limit))
 
-	return &PaginationResult[model.APIKey]{
+	return &PaginationResult[APIKey]{
 		Data:       apiKeys,
 		Total:      total,
 		Page:       filter.Page,

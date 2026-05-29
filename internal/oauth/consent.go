@@ -5,9 +5,7 @@ import (
 	"strings"
 
 	"github.com/google/uuid"
-	"github.com/maintainerd/auth/internal/dto"
 	"github.com/maintainerd/auth/internal/platform/apperror"
-	"github.com/maintainerd/auth/internal/repository"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -17,7 +15,7 @@ import (
 // which scopes a user has approved for a client).
 type OAuthConsentService interface {
 	// ListGrants returns all consent grants for the authenticated user.
-	ListGrants(ctx context.Context, userID int64) ([]dto.OAuthConsentGrantResponseDTO, error)
+	ListGrants(ctx context.Context, userID int64) ([]OAuthConsentGrantResponseDTO, error)
 
 	// RevokeGrant removes a consent grant, forcing the user to re-consent on
 	// the next authorization request.
@@ -25,12 +23,12 @@ type OAuthConsentService interface {
 }
 
 type oauthConsentService struct {
-	consentGrantRepo repository.OAuthConsentGrantRepository
+	consentGrantRepo OAuthConsentGrantRepository
 }
 
 // NewOAuthConsentService creates a new OAuthConsentService.
 func NewOAuthConsentService(
-	consentGrantRepo repository.OAuthConsentGrantRepository,
+	consentGrantRepo OAuthConsentGrantRepository,
 ) OAuthConsentService {
 	return &oauthConsentService{
 		consentGrantRepo: consentGrantRepo,
@@ -38,7 +36,7 @@ func NewOAuthConsentService(
 }
 
 // ListGrants implements OAuthConsentService.
-func (s *oauthConsentService) ListGrants(ctx context.Context, userID int64) ([]dto.OAuthConsentGrantResponseDTO, error) {
+func (s *oauthConsentService) ListGrants(ctx context.Context, userID int64) ([]OAuthConsentGrantResponseDTO, error) {
 	_, span := otel.Tracer("service").Start(ctx, "oauth_consent.list_grants")
 	defer span.End()
 	span.SetAttributes(attribute.Int64("user.id", userID))
@@ -50,7 +48,7 @@ func (s *oauthConsentService) ListGrants(ctx context.Context, userID int64) ([]d
 		return nil, apperror.NewInternal("failed to retrieve consent grants", err)
 	}
 
-	result := make([]dto.OAuthConsentGrantResponseDTO, len(grants))
+	result := make([]OAuthConsentGrantResponseDTO, len(grants))
 	for i, g := range grants {
 		scopes := strings.Fields(g.Scopes)
 		clientName := ""
@@ -59,7 +57,7 @@ func (s *oauthConsentService) ListGrants(ctx context.Context, userID int64) ([]d
 			clientName = g.Client.DisplayName
 			clientUUID = g.Client.ClientUUID.String()
 		}
-		result[i] = dto.OAuthConsentGrantResponseDTO{
+		result[i] = OAuthConsentGrantResponseDTO{
 			ConsentGrantUUID: g.OAuthConsentGrantUUID.String(),
 			ClientName:       clientName,
 			ClientUUID:       clientUUID,

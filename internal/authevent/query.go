@@ -3,11 +3,9 @@ package authevent
 import (
 	"net/http"
 	"strconv"
-
-	"github.com/maintainerd/auth/internal/dto"
 )
 
-func parsePaginationQuery(r *http.Request) dto.PaginationRequestDTO {
+func parsePaginationQuery(r *http.Request) PaginationRequestDTO {
 	q := r.URL.Query()
 	page, _ := strconv.Atoi(q.Get("page"))
 	if page < 1 {
@@ -17,7 +15,7 @@ func parsePaginationQuery(r *http.Request) dto.PaginationRequestDTO {
 	if limit < 1 {
 		limit = 10
 	}
-	return dto.PaginationRequestDTO{
+	return PaginationRequestDTO{
 		Page:      page,
 		Limit:     limit,
 		SortBy:    q.Get("sort_by"),

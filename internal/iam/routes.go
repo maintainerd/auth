@@ -4,14 +4,12 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/maintainerd/auth/internal/platform/cache"
 	"github.com/maintainerd/auth/internal/platform/middleware"
-	"github.com/maintainerd/auth/internal/rest/handler"
-	"github.com/maintainerd/auth/internal/service"
 )
 
 func APIRoute(
 	r chi.Router,
-	apiHandler *handler.APIHandler,
-	userService service.UserService,
+	apiHandler *APIHandler,
+	userService UserService,
 	appCache *cache.Cache,
 ) {
 	r.Route("/apis", func(r chi.Router) {

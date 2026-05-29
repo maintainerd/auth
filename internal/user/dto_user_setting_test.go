@@ -7,8 +7,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gorm.io/datatypes"
-
-	"github.com/maintainerd/auth/internal/model"
 )
 
 func TestUserSettingRequestDto_Validate(t *testing.T) {
@@ -22,8 +20,8 @@ func TestUserSettingRequestDto_Validate(t *testing.T) {
 			Timezone:               strPtr("America/New_York"),
 			PreferredLanguage:      strPtr("en"),
 			Locale:                 strPtr("en-US"),
-			PreferredContactMethod: strPtr(model.ContactMethodEmail),
-			ProfileVisibility:      strPtr(model.VisibilityPublic),
+			PreferredContactMethod: strPtr(ContactMethodEmail),
+			ProfileVisibility:      strPtr(VisibilityPublic),
 			EmergencyContactName:   strPtr("Jane Doe"),
 			EmergencyContactPhone:  strPtr("+1234567890"),
 			EmergencyContactEmail:  strPtr("jane@example.com"),
@@ -52,12 +50,12 @@ func TestUserSettingRequestDto_Validate(t *testing.T) {
 	})
 
 	t.Run("valid sms contact method", func(t *testing.T) {
-		d := UserSettingRequestDTO{PreferredContactMethod: strPtr(model.ContactMethodSMS)}
+		d := UserSettingRequestDTO{PreferredContactMethod: strPtr(ContactMethodSMS)}
 		assert.NoError(t, d.Validate())
 	})
 
 	t.Run("valid phone contact method", func(t *testing.T) {
-		d := UserSettingRequestDTO{PreferredContactMethod: strPtr(model.ContactMethodPhone)}
+		d := UserSettingRequestDTO{PreferredContactMethod: strPtr(ContactMethodPhone)}
 		assert.NoError(t, d.Validate())
 	})
 
@@ -67,12 +65,12 @@ func TestUserSettingRequestDto_Validate(t *testing.T) {
 	})
 
 	t.Run("valid private visibility", func(t *testing.T) {
-		d := UserSettingRequestDTO{ProfileVisibility: strPtr(model.VisibilityPrivate)}
+		d := UserSettingRequestDTO{ProfileVisibility: strPtr(VisibilityPrivate)}
 		assert.NoError(t, d.Validate())
 	})
 
 	t.Run("valid friends visibility", func(t *testing.T) {
-		d := UserSettingRequestDTO{ProfileVisibility: strPtr(model.VisibilityFriends)}
+		d := UserSettingRequestDTO{ProfileVisibility: strPtr(VisibilityFriends)}
 		assert.NoError(t, d.Validate())
 	})
 
@@ -89,21 +87,21 @@ func TestUserSettingRequestDto_Validate(t *testing.T) {
 
 func TestNewUserSettingResponseDTO(t *testing.T) {
 	t.Run("empty social links", func(t *testing.T) {
-		us := &model.UserSetting{UserSettingUUID: uuid.New()}
+		us := &UserSetting{UserSettingUUID: uuid.New()}
 		dto := NewUserSettingResponseDTO(us)
 		assert.NotNil(t, dto)
-		assert.Nil(t, dto.SocialLinks)
+		assert.Nil(t, SocialLinks)
 	})
 
 	t.Run("valid social links JSON", func(t *testing.T) {
-		us := &model.UserSetting{UserSettingUUID: uuid.New(), SocialLinks: datatypes.JSON(`{"twitter":"@user"}`)}
+		us := &UserSetting{UserSettingUUID: uuid.New(), SocialLinks: datatypes.JSON(`{"twitter":"@user"}`)}
 		dto := NewUserSettingResponseDTO(us)
-		assert.Equal(t, "@user", dto.SocialLinks["twitter"])
+		assert.Equal(t, "@user", SocialLinks["twitter"])
 	})
 
 	t.Run("invalid social links JSON sets nil", func(t *testing.T) {
-		us := &model.UserSetting{UserSettingUUID: uuid.New(), SocialLinks: datatypes.JSON([]byte("not-json"))}
+		us := &UserSetting{UserSettingUUID: uuid.New(), SocialLinks: datatypes.JSON([]byte("not-json"))}
 		dto := NewUserSettingResponseDTO(us)
-		assert.Nil(t, dto.SocialLinks)
+		assert.Nil(t, SocialLinks)
 	})
 }

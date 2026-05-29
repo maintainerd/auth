@@ -6,15 +6,13 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"github.com/maintainerd/auth/internal/model"
 )
 
 func validTenantCreate() TenantCreateRequestDTO {
 	return TenantCreateRequestDTO{
 		Name:        "my-tenant",
 		Description: "A test tenant description",
-		Status:      model.StatusActive,
+		Status:      StatusActive,
 	}
 }
 
@@ -67,7 +65,7 @@ func TestTenantCreateRequestDto_Validate(t *testing.T) {
 
 	t.Run("suspended status valid", func(t *testing.T) {
 		d := validTenantCreate()
-		d.Status = model.StatusSuspended
+		d.Status = StatusSuspended
 		assert.NoError(t, d.Validate())
 	})
 }
@@ -76,7 +74,7 @@ func TestTenantUpdateRequestDto_Validate(t *testing.T) {
 	d := TenantUpdateRequestDTO{
 		Name:        "updated-tenant",
 		Description: "An updated tenant description",
-		Status:      model.StatusInactive,
+		Status:      StatusInactive,
 	}
 	assert.NoError(t, d.Validate())
 

@@ -351,7 +351,7 @@ type OAuthConsentDecisionResult struct {
 	RedirectURI string
 }
 
-// OAuthTokenResult is the internal result from the token service.
+// OAuthTokenResult is the internal result from the token
 type OAuthTokenResult struct {
 	AccessToken  string
 	TokenType    string

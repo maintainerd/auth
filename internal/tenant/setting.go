@@ -6,9 +6,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/maintainerd/auth/internal/model"
 	"github.com/maintainerd/auth/internal/platform/apperror"
-	"github.com/maintainerd/auth/internal/repository"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -41,17 +39,17 @@ type TenantSettingService interface {
 }
 
 type tenantSettingService struct {
-	tenantSettingRepo repository.TenantSettingRepository
+	tenantSettingRepo TenantSettingRepository
 }
 
 // NewTenantSettingService creates a new TenantSettingService.
-func NewTenantSettingService(tenantSettingRepo repository.TenantSettingRepository) TenantSettingService {
+func NewTenantSettingService(tenantSettingRepo TenantSettingRepository) TenantSettingService {
 	return &tenantSettingService{tenantSettingRepo: tenantSettingRepo}
 }
 
-// toTenantSettingServiceDataResult converts a model.TenantSetting into its
+// toTenantSettingServiceDataResult converts a TenantSetting into its
 // service-layer representation by unmarshalling each JSONB column.
-func toTenantSettingServiceDataResult(ts *model.TenantSetting) *TenantSettingServiceDataResult {
+func toTenantSettingServiceDataResult(ts *TenantSetting) *TenantSettingServiceDataResult {
 	return &TenantSettingServiceDataResult{
 		TenantSettingUUID: ts.TenantSettingUUID,
 		RateLimitConfig:   unmarshalJSON(ts.RateLimitConfig),
@@ -210,7 +208,7 @@ func (s *tenantSettingService) updateConfig(ctx context.Context, tenantID int64,
 
 // getOrCreate retrieves the tenant setting record for the given tenant,
 // automatically creating a default empty-config record if none exists.
-func (s *tenantSettingService) getOrCreate(tenantID int64) (*model.TenantSetting, error) {
+func (s *tenantSettingService) getOrCreate(tenantID int64) (*TenantSetting, error) {
 	setting, err := s.tenantSettingRepo.FindByTenantID(tenantID)
 	if err != nil {
 		return nil, err
@@ -219,7 +217,7 @@ func (s *tenantSettingService) getOrCreate(tenantID int64) (*model.TenantSetting
 		return setting, nil
 	}
 
-	setting = &model.TenantSetting{
+	setting = &TenantSetting{
 		TenantID:          tenantID,
 		RateLimitConfig:   datatypes.JSON([]byte("{}")),
 		AuditConfig:       datatypes.JSON([]byte("{}")),

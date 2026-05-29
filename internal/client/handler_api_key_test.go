@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/maintainerd/auth/internal/service"
 	"github.com/stretchr/testify/assert"
 	"gorm.io/datatypes"
 )
@@ -33,8 +32,8 @@ func TestAPIKeyHandler_Get(t *testing.T) {
 
 	t.Run("with optional filters", func(t *testing.T) {
 		svc := &mockAPIKeyService{
-			getFn: func(f service.APIKeyServiceGetFilter, u uuid.UUID) (*service.APIKeyServiceGetResult, error) {
-				return &service.APIKeyServiceGetResult{Data: []service.APIKeyServiceDataResult{{Name: "k1"}}, Total: 1, Page: 1, Limit: 10, TotalPages: 1}, nil
+			getFn: func(f APIKeyServiceGetFilter, u uuid.UUID) (*APIKeyServiceGetResult, error) {
+				return &APIKeyServiceGetResult{Data: []APIKeyServiceDataResult{{Name: "k1"}}, Total: 1, Page: 1, Limit: 10, TotalPages: 1}, nil
 			},
 		}
 		r := jsonReq(t, http.MethodGet, "/api-keys?name=foo&description=bar&status=active", nil)
@@ -46,8 +45,8 @@ func TestAPIKeyHandler_Get(t *testing.T) {
 
 	t.Run("success", func(t *testing.T) {
 		svc := &mockAPIKeyService{
-			getFn: func(f service.APIKeyServiceGetFilter, u uuid.UUID) (*service.APIKeyServiceGetResult, error) {
-				return &service.APIKeyServiceGetResult{Data: []service.APIKeyServiceDataResult{{Name: "k1"}}, Total: 1, Page: 1, Limit: 10, TotalPages: 1}, nil
+			getFn: func(f APIKeyServiceGetFilter, u uuid.UUID) (*APIKeyServiceGetResult, error) {
+				return &APIKeyServiceGetResult{Data: []APIKeyServiceDataResult{{Name: "k1"}}, Total: 1, Page: 1, Limit: 10, TotalPages: 1}, nil
 			},
 		}
 		r := jsonReq(t, http.MethodGet, "/api-keys", nil)
@@ -59,7 +58,7 @@ func TestAPIKeyHandler_Get(t *testing.T) {
 
 	t.Run("service error returns 500", func(t *testing.T) {
 		svc := &mockAPIKeyService{
-			getFn: func(f service.APIKeyServiceGetFilter, u uuid.UUID) (*service.APIKeyServiceGetResult, error) {
+			getFn: func(f APIKeyServiceGetFilter, u uuid.UUID) (*APIKeyServiceGetResult, error) {
 				return nil, errors.New("db error")
 			},
 		}
@@ -85,8 +84,8 @@ func TestAPIKeyHandler_GetByUUID(t *testing.T) {
 
 	t.Run("success", func(t *testing.T) {
 		svc := &mockAPIKeyService{
-			getByUUIDFn: func(id uuid.UUID, tid int64, u uuid.UUID) (*service.APIKeyServiceDataResult, error) {
-				return &service.APIKeyServiceDataResult{APIKeyUUID: id, Name: "key1"}, nil
+			getByUUIDFn: func(id uuid.UUID, tid int64, u uuid.UUID) (*APIKeyServiceDataResult, error) {
+				return &APIKeyServiceDataResult{APIKeyUUID: id, Name: "key1"}, nil
 			},
 		}
 		r := jsonReq(t, http.MethodGet, "/", nil)
@@ -108,7 +107,7 @@ func TestAPIKeyHandler_GetByUUID(t *testing.T) {
 
 	t.Run("service error returns 404", func(t *testing.T) {
 		svc := &mockAPIKeyService{
-			getByUUIDFn: func(id uuid.UUID, tid int64, u uuid.UUID) (*service.APIKeyServiceDataResult, error) {
+			getByUUIDFn: func(id uuid.UUID, tid int64, u uuid.UUID) (*APIKeyServiceDataResult, error) {
 				return nil, errNotFound
 			},
 		}
@@ -197,8 +196,8 @@ func TestAPIKeyHandler_Create(t *testing.T) {
 
 	t.Run("custom status is passed to service", func(t *testing.T) {
 		svc := &mockAPIKeyService{
-			createFn: func(tid int64, n, desc string, cfg datatypes.JSON, exp *time.Time, rl *int, s string) (*service.APIKeyServiceDataResult, string, error) {
-				return &service.APIKeyServiceDataResult{APIKeyUUID: uuid.New(), Name: n, Status: s}, "plainkey", nil
+			createFn: func(tid int64, n, desc string, cfg datatypes.JSON, exp *time.Time, rl *int, s string) (*APIKeyServiceDataResult, string, error) {
+				return &APIKeyServiceDataResult{APIKeyUUID: uuid.New(), Name: n, Status: s}, "plainkey", nil
 			},
 		}
 		r := jsonReq(t, http.MethodPost, "/api-keys", map[string]any{"name": "mykey", "status": "inactive"})
@@ -210,7 +209,7 @@ func TestAPIKeyHandler_Create(t *testing.T) {
 
 	t.Run("service error returns 500", func(t *testing.T) {
 		svc := &mockAPIKeyService{
-			createFn: func(tid int64, n, desc string, cfg datatypes.JSON, exp *time.Time, rl *int, s string) (*service.APIKeyServiceDataResult, string, error) {
+			createFn: func(tid int64, n, desc string, cfg datatypes.JSON, exp *time.Time, rl *int, s string) (*APIKeyServiceDataResult, string, error) {
 				return nil, "", errors.New("db error")
 			},
 		}
@@ -223,8 +222,8 @@ func TestAPIKeyHandler_Create(t *testing.T) {
 
 	t.Run("success", func(t *testing.T) {
 		svc := &mockAPIKeyService{
-			createFn: func(tid int64, n, desc string, cfg datatypes.JSON, exp *time.Time, rl *int, s string) (*service.APIKeyServiceDataResult, string, error) {
-				return &service.APIKeyServiceDataResult{APIKeyUUID: uuid.New(), Name: n}, "plainkey", nil
+			createFn: func(tid int64, n, desc string, cfg datatypes.JSON, exp *time.Time, rl *int, s string) (*APIKeyServiceDataResult, string, error) {
+				return &APIKeyServiceDataResult{APIKeyUUID: uuid.New(), Name: n}, "plainkey", nil
 			},
 		}
 		r := jsonReq(t, http.MethodPost, "/api-keys", map[string]any{"name": "mykey"})
@@ -278,7 +277,7 @@ func TestAPIKeyHandler_Update(t *testing.T) {
 
 	t.Run("service error returns 500", func(t *testing.T) {
 		svc := &mockAPIKeyService{
-			updateFn: func(id uuid.UUID, tid int64, n, desc *string, cfg datatypes.JSON, exp *time.Time, rl *int, s *string, u uuid.UUID) (*service.APIKeyServiceDataResult, error) {
+			updateFn: func(id uuid.UUID, tid int64, n, desc *string, cfg datatypes.JSON, exp *time.Time, rl *int, s *string, u uuid.UUID) (*APIKeyServiceDataResult, error) {
 				return nil, errors.New("db error")
 			},
 		}
@@ -292,8 +291,8 @@ func TestAPIKeyHandler_Update(t *testing.T) {
 
 	t.Run("success", func(t *testing.T) {
 		svc := &mockAPIKeyService{
-			updateFn: func(id uuid.UUID, tid int64, n, desc *string, cfg datatypes.JSON, exp *time.Time, rl *int, s *string, u uuid.UUID) (*service.APIKeyServiceDataResult, error) {
-				return &service.APIKeyServiceDataResult{APIKeyUUID: id}, nil
+			updateFn: func(id uuid.UUID, tid int64, n, desc *string, cfg datatypes.JSON, exp *time.Time, rl *int, s *string, u uuid.UUID) (*APIKeyServiceDataResult, error) {
+				return &APIKeyServiceDataResult{APIKeyUUID: id}, nil
 			},
 		}
 		r := jsonReq(t, http.MethodPut, "/", map[string]any{"name": "n"})
@@ -344,7 +343,7 @@ func TestAPIKeyHandler_SetStatus(t *testing.T) {
 
 	t.Run("service error returns 500", func(t *testing.T) {
 		svc := &mockAPIKeyService{
-			setStatusByUUIDFn: func(id uuid.UUID, tid int64, s string) (*service.APIKeyServiceDataResult, error) {
+			setStatusByUUIDFn: func(id uuid.UUID, tid int64, s string) (*APIKeyServiceDataResult, error) {
 				return nil, errors.New("db error")
 			},
 		}
@@ -358,8 +357,8 @@ func TestAPIKeyHandler_SetStatus(t *testing.T) {
 
 	t.Run("success", func(t *testing.T) {
 		svc := &mockAPIKeyService{
-			setStatusByUUIDFn: func(id uuid.UUID, tid int64, s string) (*service.APIKeyServiceDataResult, error) {
-				return &service.APIKeyServiceDataResult{APIKeyUUID: id, Status: s}, nil
+			setStatusByUUIDFn: func(id uuid.UUID, tid int64, s string) (*APIKeyServiceDataResult, error) {
+				return &APIKeyServiceDataResult{APIKeyUUID: id, Status: s}, nil
 			},
 		}
 		r := jsonReq(t, http.MethodPatch, "/", map[string]any{"status": "active"})
@@ -394,7 +393,7 @@ func TestAPIKeyHandler_Delete(t *testing.T) {
 
 	t.Run("service error returns 500", func(t *testing.T) {
 		svc := &mockAPIKeyService{
-			deleteFn: func(id uuid.UUID, tid int64, u uuid.UUID) (*service.APIKeyServiceDataResult, error) {
+			deleteFn: func(id uuid.UUID, tid int64, u uuid.UUID) (*APIKeyServiceDataResult, error) {
 				return nil, errors.New("db error")
 			},
 		}
@@ -408,8 +407,8 @@ func TestAPIKeyHandler_Delete(t *testing.T) {
 
 	t.Run("success", func(t *testing.T) {
 		svc := &mockAPIKeyService{
-			deleteFn: func(id uuid.UUID, tid int64, u uuid.UUID) (*service.APIKeyServiceDataResult, error) {
-				return &service.APIKeyServiceDataResult{APIKeyUUID: id}, nil
+			deleteFn: func(id uuid.UUID, tid int64, u uuid.UUID) (*APIKeyServiceDataResult, error) {
+				return &APIKeyServiceDataResult{APIKeyUUID: id}, nil
 			},
 		}
 		r := jsonReq(t, http.MethodDelete, "/", nil)
@@ -444,7 +443,7 @@ func TestAPIKeyHandler_GetAPIs(t *testing.T) {
 
 	t.Run("service error returns 500", func(t *testing.T) {
 		svc := &mockAPIKeyService{
-			getAPIKeyAPIsFn: func(id uuid.UUID, pg, lim int, sb, so string) (*service.APIKeyAPIServicePaginatedResult, error) {
+			getAPIKeyAPIsFn: func(id uuid.UUID, pg, lim int, sb, so string) (*APIKeyAPIServicePaginatedResult, error) {
 				return nil, errors.New("db error")
 			},
 		}
@@ -458,10 +457,10 @@ func TestAPIKeyHandler_GetAPIs(t *testing.T) {
 	t.Run("success with rows", func(t *testing.T) {
 		// Covers the loop body in GetAPIs that maps rows to APIResponseDTO
 		svc := &mockAPIKeyService{
-			getAPIKeyAPIsFn: func(id uuid.UUID, pg, lim int, sb, so string) (*service.APIKeyAPIServicePaginatedResult, error) {
-				return &service.APIKeyAPIServicePaginatedResult{
-					Data: []service.APIKeyAPIServiceDataResult{
-						{Api: service.APIServiceDataResult{APIUUID: apiUUID, Name: "api1"}},
+			getAPIKeyAPIsFn: func(id uuid.UUID, pg, lim int, sb, so string) (*APIKeyAPIServicePaginatedResult, error) {
+				return &APIKeyAPIServicePaginatedResult{
+					Data: []APIKeyAPIServiceDataResult{
+						{Api: APIServiceDataResult{APIUUID: apiUUID, Name: "api1"}},
 					},
 					Total: 1, Page: 1, Limit: 10, TotalPages: 1,
 				}, nil
@@ -604,7 +603,7 @@ func TestAPIKeyHandler_GetAPIPermissions(t *testing.T) {
 
 	t.Run("service error returns 500", func(t *testing.T) {
 		svc := &mockAPIKeyService{
-			getAPIKeyAPIPermsFn: func(id, api uuid.UUID) ([]service.PermissionServiceDataResult, error) {
+			getAPIKeyAPIPermsFn: func(id, api uuid.UUID) ([]PermissionServiceDataResult, error) {
 				return nil, errors.New("db error")
 			},
 		}
@@ -618,8 +617,8 @@ func TestAPIKeyHandler_GetAPIPermissions(t *testing.T) {
 
 	t.Run("success", func(t *testing.T) {
 		svc := &mockAPIKeyService{
-			getAPIKeyAPIPermsFn: func(id, api uuid.UUID) ([]service.PermissionServiceDataResult, error) {
-				return []service.PermissionServiceDataResult{{Name: "read"}}, nil
+			getAPIKeyAPIPermsFn: func(id, api uuid.UUID) ([]PermissionServiceDataResult, error) {
+				return []PermissionServiceDataResult{{Name: "read"}}, nil
 			},
 		}
 		r := jsonReq(t, http.MethodGet, "/", nil)

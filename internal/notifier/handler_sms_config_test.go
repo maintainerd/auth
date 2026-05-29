@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
-	"github.com/maintainerd/auth/internal/service"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -19,7 +18,7 @@ func TestSMSConfigHandler_Get_NoTenant(t *testing.T) {
 
 func TestSMSConfigHandler_Get_ServiceError(t *testing.T) {
 	svc := &mockSMSConfigService{
-		getFn: func(_ int64) (*service.SMSConfigServiceDataResult, error) { return nil, assert.AnError },
+		getFn: func(_ int64) (*SMSConfigServiceDataResult, error) { return nil, assert.AnError },
 	}
 	h := NewSMSConfigHandler(svc)
 	w := httptest.NewRecorder()
@@ -29,7 +28,7 @@ func TestSMSConfigHandler_Get_ServiceError(t *testing.T) {
 
 func TestSMSConfigHandler_Get_NotFound(t *testing.T) {
 	svc := &mockSMSConfigService{
-		getFn: func(_ int64) (*service.SMSConfigServiceDataResult, error) { return nil, errNotFound },
+		getFn: func(_ int64) (*SMSConfigServiceDataResult, error) { return nil, errNotFound },
 	}
 	h := NewSMSConfigHandler(svc)
 	w := httptest.NewRecorder()
@@ -39,8 +38,8 @@ func TestSMSConfigHandler_Get_NotFound(t *testing.T) {
 
 func TestSMSConfigHandler_Get_Success(t *testing.T) {
 	svc := &mockSMSConfigService{
-		getFn: func(_ int64) (*service.SMSConfigServiceDataResult, error) {
-			return &service.SMSConfigServiceDataResult{SMSConfigUUID: uuid.New(), Provider: "twilio"}, nil
+		getFn: func(_ int64) (*SMSConfigServiceDataResult, error) {
+			return &SMSConfigServiceDataResult{SMSConfigUUID: uuid.New(), Provider: "twilio"}, nil
 		},
 	}
 	h := NewSMSConfigHandler(svc)
@@ -73,7 +72,7 @@ func TestSMSConfigHandler_Update_ValidationError(t *testing.T) {
 
 func TestSMSConfigHandler_Update_ServiceError(t *testing.T) {
 	svc := &mockSMSConfigService{
-		updateFn: func(_ int64, _, _, _, _, _ string, _ *bool) (*service.SMSConfigServiceDataResult, error) {
+		updateFn: func(_ int64, _, _, _, _, _ string, _ *bool) (*SMSConfigServiceDataResult, error) {
 			return nil, assert.AnError
 		},
 	}
@@ -86,8 +85,8 @@ func TestSMSConfigHandler_Update_ServiceError(t *testing.T) {
 
 func TestSMSConfigHandler_Update_Success(t *testing.T) {
 	svc := &mockSMSConfigService{
-		updateFn: func(_ int64, _, _, _, _, _ string, _ *bool) (*service.SMSConfigServiceDataResult, error) {
-			return &service.SMSConfigServiceDataResult{SMSConfigUUID: uuid.New(), Provider: "twilio"}, nil
+		updateFn: func(_ int64, _, _, _, _, _ string, _ *bool) (*SMSConfigServiceDataResult, error) {
+			return &SMSConfigServiceDataResult{SMSConfigUUID: uuid.New(), Provider: "twilio"}, nil
 		},
 	}
 	h := NewSMSConfigHandler(svc)

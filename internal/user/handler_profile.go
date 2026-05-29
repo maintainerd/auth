@@ -8,23 +8,21 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 
-	"github.com/maintainerd/auth/internal/dto"
 	"github.com/maintainerd/auth/internal/platform/middleware"
 	"github.com/maintainerd/auth/internal/platform/ptr"
 	resp "github.com/maintainerd/auth/internal/platform/response"
-	"github.com/maintainerd/auth/internal/service"
 )
 
 type ProfileHandler struct {
-	profileService service.ProfileService
+	profileService ProfileService
 }
 
-func NewProfileHandler(profileService service.ProfileService) *ProfileHandler {
+func NewProfileHandler(profileService ProfileService) *ProfileHandler {
 	return &ProfileHandler{profileService}
 }
 
 func (h *ProfileHandler) CreateOrUpdate(w http.ResponseWriter, r *http.Request) {
-	var req dto.ProfileRequestDTO
+	var req ProfileRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		resp.Error(w, http.StatusBadRequest, "Invalid request")
 		return
@@ -65,7 +63,7 @@ func (h *ProfileHandler) CreateOrUpdate(w http.ResponseWriter, r *http.Request) 
 }
 
 func (h *ProfileHandler) CreateProfile(w http.ResponseWriter, r *http.Request) {
-	var req dto.ProfileRequestDTO
+	var req ProfileRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		resp.Error(w, http.StatusBadRequest, "Invalid request")
 		return
@@ -119,7 +117,7 @@ func (h *ProfileHandler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var req dto.ProfileRequestDTO
+	var req ProfileRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		resp.Error(w, http.StatusBadRequest, "Invalid request")
 		return
@@ -189,7 +187,7 @@ func (h *ProfileHandler) GetAll(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	reqParams := dto.ProfileFilterDTO{
+	reqParams := ProfileFilterDTO{
 		FirstName:            ptr.PtrOrNil(q.Get("first_name")),
 		LastName:             ptr.PtrOrNil(q.Get("last_name")),
 		Email:                ptr.PtrOrNil(q.Get("email")),
@@ -227,13 +225,13 @@ func (h *ProfileHandler) GetAll(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Map service result to dto
-	rows := make([]dto.ProfileResponseDTO, len(result.Data))
+	rows := make([]ProfileResponseDTO, len(result.Data))
 	for i, r := range result.Data {
 		rows[i] = toProfileResponseDTO(r)
 	}
 
 	// Build response data
-	response := dto.PaginatedResponseDTO[dto.ProfileResponseDTO]{
+	response := PaginatedResponseDTO[ProfileResponseDTO]{
 		Rows:       rows,
 		Total:      result.Total,
 		Page:       result.Page,
@@ -332,7 +330,7 @@ func (h *ProfileHandler) AdminGetAllProfiles(w http.ResponseWriter, r *http.Requ
 		}
 	}
 
-	reqParams := dto.ProfileFilterDTO{
+	reqParams := ProfileFilterDTO{
 		FirstName:            ptr.PtrOrNil(q.Get("first_name")),
 		LastName:             ptr.PtrOrNil(q.Get("last_name")),
 		Email:                ptr.PtrOrNil(q.Get("email")),
@@ -370,13 +368,13 @@ func (h *ProfileHandler) AdminGetAllProfiles(w http.ResponseWriter, r *http.Requ
 	}
 
 	// Map service result to dto
-	rows := make([]dto.ProfileResponseDTO, len(result.Data))
+	rows := make([]ProfileResponseDTO, len(result.Data))
 	for i, r := range result.Data {
 		rows[i] = toProfileResponseDTO(r)
 	}
 
 	// Build response data
-	response := dto.PaginatedResponseDTO[dto.ProfileResponseDTO]{
+	response := PaginatedResponseDTO[ProfileResponseDTO]{
 		Rows:       rows,
 		Total:      result.Total,
 		Page:       result.Page,
@@ -423,7 +421,7 @@ func (h *ProfileHandler) AdminCreateProfile(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	var req dto.ProfileRequestDTO
+	var req ProfileRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		resp.Error(w, http.StatusBadRequest, "Invalid request")
 		return
@@ -483,7 +481,7 @@ func (h *ProfileHandler) AdminUpdateProfile(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	var req dto.ProfileRequestDTO
+	var req ProfileRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		resp.Error(w, http.StatusBadRequest, "Invalid request")
 		return
@@ -599,8 +597,8 @@ func (h *ProfileHandler) AdminSetDefaultProfile(w http.ResponseWriter, r *http.R
 }
 
 // Convert service result to DTO
-func toProfileResponseDTO(p service.ProfileServiceDataResult) dto.ProfileResponseDTO {
-	return dto.ProfileResponseDTO{
+func toProfileResponseDTO(p ProfileServiceDataResult) ProfileResponseDTO {
+	return ProfileResponseDTO{
 		ProfileUUID: p.ProfileUUID.String(),
 
 		// Basic Identity Information

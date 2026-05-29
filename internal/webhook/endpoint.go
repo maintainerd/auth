@@ -6,9 +6,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/maintainerd/auth/internal/model"
 	"github.com/maintainerd/auth/internal/platform/apperror"
-	"github.com/maintainerd/auth/internal/repository"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -51,15 +49,15 @@ type WebhookEndpointService interface {
 }
 
 type webhookEndpointService struct {
-	webhookEndpointRepo repository.WebhookEndpointRepository
+	webhookEndpointRepo WebhookEndpointRepository
 }
 
 // NewWebhookEndpointService creates a new WebhookEndpointService.
-func NewWebhookEndpointService(webhookEndpointRepo repository.WebhookEndpointRepository) WebhookEndpointService {
+func NewWebhookEndpointService(webhookEndpointRepo WebhookEndpointRepository) WebhookEndpointService {
 	return &webhookEndpointService{webhookEndpointRepo: webhookEndpointRepo}
 }
 
-func toWebhookEndpointServiceDataResult(we *model.WebhookEndpoint) WebhookEndpointServiceDataResult {
+func toWebhookEndpointServiceDataResult(we *WebhookEndpoint) WebhookEndpointServiceDataResult {
 	var events any
 	if len(we.Events) > 0 {
 		_ = json.Unmarshal(we.Events, &events)
@@ -89,7 +87,7 @@ func (s *webhookEndpointService) GetAll(ctx context.Context, tenantID int64, sta
 	defer span.End()
 	span.SetAttributes(attribute.Int64("tenant.id", tenantID))
 
-	result, err := s.webhookEndpointRepo.FindPaginated(repository.WebhookEndpointRepositoryGetFilter{
+	result, err := s.webhookEndpointRepo.FindPaginated(WebhookEndpointRepositoryGetFilter{
 		TenantID:  &tenantID,
 		Status:    status,
 		Page:      page,
@@ -157,7 +155,7 @@ func (s *webhookEndpointService) Create(ctx context.Context, tenantID int64, url
 		return nil, apperror.NewValidation("invalid events payload")
 	}
 
-	ep := &model.WebhookEndpoint{
+	ep := &WebhookEndpoint{
 		TenantID:        tenantID,
 		URL:             url,
 		SecretEncrypted: secret,

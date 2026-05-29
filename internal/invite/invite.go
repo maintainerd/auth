@@ -6,37 +6,35 @@ import (
 	"html/template"
 	"time"
 
-	"github.com/maintainerd/auth/internal/model"
 	"github.com/maintainerd/auth/internal/platform/apperror"
 	"github.com/maintainerd/auth/internal/platform/config"
 	"github.com/maintainerd/auth/internal/platform/crypto"
 	"github.com/maintainerd/auth/internal/platform/email"
 	"github.com/maintainerd/auth/internal/platform/ptr"
 	"github.com/maintainerd/auth/internal/platform/signedurl"
-	"github.com/maintainerd/auth/internal/repository"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/codes"
 	"gorm.io/gorm"
 )
 
 type InviteService interface {
-	SendInvite(ctx context.Context, tenantID int64, email string, userID int64, roleUUIDs []string) (*model.Invite, error)
+	SendInvite(ctx context.Context, tenantID int64, email string, userID int64, roleUUIDs []string) (*Invite, error)
 }
 
 type inviteService struct {
 	db                *gorm.DB
-	inviteRepo        repository.InviteRepository
-	clientRepo        repository.ClientRepository
-	roleRepo          repository.RoleRepository
-	emailTemplateRepo repository.EmailTemplateRepository
+	inviteRepo        InviteRepository
+	clientRepo        ClientRepository
+	roleRepo          RoleRepository
+	emailTemplateRepo EmailTemplateRepository
 }
 
 func NewInviteService(
 	db *gorm.DB,
-	inviteRepo repository.InviteRepository,
-	clientRepo repository.ClientRepository,
-	roleRepo repository.RoleRepository,
-	emailTemplateRepo repository.EmailTemplateRepository,
+	inviteRepo InviteRepository,
+	clientRepo ClientRepository,
+	roleRepo RoleRepository,
+	emailTemplateRepo EmailTemplateRepository,
 ) InviteService {
 	return &inviteService{
 		db:                db,
@@ -53,11 +51,11 @@ func (s *inviteService) SendInvite(
 	email string,
 	userID int64,
 	roleUUIDs []string,
-) (*model.Invite, error) {
+) (*Invite, error) {
 	_, span := otel.Tracer("service").Start(ctx, "invite.send")
 	defer span.End()
 
-	var invite *model.Invite
+	var invite *Invite
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
 		clientRepo := s.clientRepo.WithTx(tx)
@@ -69,7 +67,7 @@ func (s *inviteService) SendInvite(
 			return err
 		}
 		if Client == nil ||
-			Client.Status != model.StatusActive ||
+			Client.Status != StatusActive ||
 			Client.Domain == nil || *Client.Domain == "" ||
 			Client.IdentityProvider == nil ||
 			Client.IdentityProvider.Tenant == nil ||
@@ -102,13 +100,13 @@ func (s *inviteService) SendInvite(
 		}
 		expiresAt := ptr.TimePtr(time.Now().Add(72 * time.Hour))
 
-		invite = &model.Invite{
+		invite = &Invite{
 			TenantID:        tenantID,
 			ClientID:        Client.ClientID,
 			InvitedEmail:    email,
 			InvitedByUserID: &userID,
 			InviteToken:     inviteToken,
-			Status:          model.StatusPending,
+			Status:          StatusPending,
 			ExpiresAt:       expiresAt,
 		}
 
@@ -117,9 +115,9 @@ func (s *inviteService) SendInvite(
 		}
 
 		// Create invite roles request
-		var inviteRoles []model.InviteRole
+		var inviteRoles []InviteRole
 		for _, role := range foundRoles {
-			inviteRoles = append(inviteRoles, model.InviteRole{
+			inviteRoles = append(inviteRoles, InviteRole{
 				InviteID: invite.InviteID,
 				RoleID:   role.RoleID,
 			})

@@ -3,40 +3,39 @@ package tenant
 import (
 	"testing"
 
-	"github.com/maintainerd/auth/internal/model"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 // buildUserWithIdentities creates a user with the provided identities.
-func buildUserWithIdentities(identities []model.UserIdentity) *model.User {
-	return &model.User{
+func buildUserWithIdentities(identities []UserIdentity) *User {
+	return &User{
 		UserID:         1,
 		UserIdentities: identities,
 	}
 }
 
 // buildTenant creates a minimal tenant for tests.
-func buildTenant(id int64, isSystem bool) *model.Tenant {
-	return &model.Tenant{
+func buildTenant(id int64, isSystem bool) *Tenant {
+	return &Tenant{
 		TenantID: id,
 		IsSystem: isSystem,
 	}
 }
 
 // buildIdentity creates a UserIdentity linked to the given tenant.
-func buildIdentity(tenantID int64, isSystem bool) model.UserIdentity {
-	return model.UserIdentity{
+func buildIdentity(tenantID int64, isSystem bool) UserIdentity {
+	return UserIdentity{
 		TenantID: tenantID,
-		Tenant:   &model.Tenant{TenantID: tenantID, IsSystem: isSystem},
+		Tenant:   &Tenant{TenantID: tenantID, IsSystem: isSystem},
 	}
 }
 
 func TestValidateTenantAccess(t *testing.T) {
 	cases := []struct {
 		name        string
-		user        *model.User
-		target      *model.Tenant
+		user        *User
+		target      *Tenant
 		expectError bool
 		errContains string
 	}{
@@ -49,7 +48,7 @@ func TestValidateTenantAccess(t *testing.T) {
 		},
 		{
 			name: "user from default tenant → allowed on any tenant",
-			user: buildUserWithIdentities([]model.UserIdentity{
+			user: buildUserWithIdentities([]UserIdentity{
 				buildIdentity(1, true),
 			}),
 			target:      buildTenant(99, false),
@@ -57,7 +56,7 @@ func TestValidateTenantAccess(t *testing.T) {
 		},
 		{
 			name: "user from same tenant → allowed",
-			user: buildUserWithIdentities([]model.UserIdentity{
+			user: buildUserWithIdentities([]UserIdentity{
 				buildIdentity(10, false),
 			}),
 			target:      buildTenant(10, false),
@@ -65,7 +64,7 @@ func TestValidateTenantAccess(t *testing.T) {
 		},
 		{
 			name: "user from different non-default tenant → denied",
-			user: buildUserWithIdentities([]model.UserIdentity{
+			user: buildUserWithIdentities([]UserIdentity{
 				buildIdentity(20, false),
 			}),
 			target:      buildTenant(10, false),
@@ -74,7 +73,7 @@ func TestValidateTenantAccess(t *testing.T) {
 		},
 		{
 			name: "multiple identities; one matches target → allowed",
-			user: buildUserWithIdentities([]model.UserIdentity{
+			user: buildUserWithIdentities([]UserIdentity{
 				buildIdentity(20, false),
 				buildIdentity(10, false),
 			}),
@@ -99,7 +98,7 @@ func TestValidateTenantAccess(t *testing.T) {
 func TestValidateTenantAccessByID(t *testing.T) {
 	cases := []struct {
 		name           string
-		user           *model.User
+		user           *User
 		targetTenantID int64
 		expectError    bool
 		errContains    string
@@ -113,7 +112,7 @@ func TestValidateTenantAccessByID(t *testing.T) {
 		},
 		{
 			name: "default tenant user → allowed on any tenant",
-			user: buildUserWithIdentities([]model.UserIdentity{
+			user: buildUserWithIdentities([]UserIdentity{
 				buildIdentity(1, true),
 			}),
 			targetTenantID: 99,
@@ -121,7 +120,7 @@ func TestValidateTenantAccessByID(t *testing.T) {
 		},
 		{
 			name: "matching tenant ID → allowed",
-			user: buildUserWithIdentities([]model.UserIdentity{
+			user: buildUserWithIdentities([]UserIdentity{
 				buildIdentity(10, false),
 			}),
 			targetTenantID: 10,
@@ -129,7 +128,7 @@ func TestValidateTenantAccessByID(t *testing.T) {
 		},
 		{
 			name: "non-matching non-default → denied",
-			user: buildUserWithIdentities([]model.UserIdentity{
+			user: buildUserWithIdentities([]UserIdentity{
 				buildIdentity(20, false),
 			}),
 			targetTenantID: 10,

@@ -4,24 +4,23 @@ import (
 	"errors"
 	"time"
 
-	"github.com/maintainerd/auth/internal/model"
 	"gorm.io/gorm"
 )
 
 type SMSOtpRepository interface {
-	BaseRepositoryMethods[model.SMSOtp]
+	BaseRepositoryMethods[SMSOtp]
 	WithTx(tx *gorm.DB) SMSOtpRepository
-	FindValidByPhone(phone string) (*model.SMSOtp, error)
+	FindValidByPhone(phone string) (*SMSOtp, error)
 	MarkUsed(id int64) error
 }
 
 type smsOtpRepository struct {
-	*BaseRepository[model.SMSOtp]
+	*BaseRepository[SMSOtp]
 }
 
 func NewSMSOtpRepository(db *gorm.DB) SMSOtpRepository {
 	return &smsOtpRepository{
-		BaseRepository: NewBaseRepository[model.SMSOtp](db, "sms_otp_uuid", "sms_otp_id"),
+		BaseRepository: NewBaseRepository[SMSOtp](db, "sms_otp_uuid", "sms_otp_id"),
 	}
 }
 
@@ -31,8 +30,8 @@ func (r *smsOtpRepository) WithTx(tx *gorm.DB) SMSOtpRepository {
 	}
 }
 
-func (r *smsOtpRepository) FindValidByPhone(phone string) (*model.SMSOtp, error) {
-	var otp model.SMSOtp
+func (r *smsOtpRepository) FindValidByPhone(phone string) (*SMSOtp, error) {
+	var otp SMSOtp
 	err := r.DB().
 		Where("phone = ? AND used = false AND expires_at > ?", phone, time.Now()).
 		Order("created_at DESC").
@@ -47,7 +46,7 @@ func (r *smsOtpRepository) FindValidByPhone(phone string) (*model.SMSOtp, error)
 }
 
 func (r *smsOtpRepository) MarkUsed(id int64) error {
-	return r.DB().Model(&model.SMSOtp{}).
+	return r.DB().Model(&SMSOtp{}).
 		Where("sms_otp_id = ?", id).
 		Update("used", true).Error
 }

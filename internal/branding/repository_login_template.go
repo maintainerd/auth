@@ -4,7 +4,6 @@ import (
 	"errors"
 
 	"github.com/google/uuid"
-	"github.com/maintainerd/auth/internal/model"
 	"gorm.io/gorm"
 )
 
@@ -22,25 +21,25 @@ type LoginTemplateRepositoryGetFilter struct {
 }
 
 type LoginTemplateRepository interface {
-	BaseRepositoryMethods[model.LoginTemplate]
-	FindByUUIDAndTenantID(loginTemplateUUID uuid.UUID, tenantID int64, preloads ...string) (*model.LoginTemplate, error)
-	FindByName(name string) (*model.LoginTemplate, error)
-	FindPaginated(filter LoginTemplateRepositoryGetFilter) (*PaginationResult[model.LoginTemplate], error)
+	BaseRepositoryMethods[LoginTemplate]
+	FindByUUIDAndTenantID(loginTemplateUUID uuid.UUID, tenantID int64, preloads ...string) (*LoginTemplate, error)
+	FindByName(name string) (*LoginTemplate, error)
+	FindPaginated(filter LoginTemplateRepositoryGetFilter) (*PaginationResult[LoginTemplate], error)
 }
 
 type loginTemplateRepository struct {
-	*BaseRepository[model.LoginTemplate]
+	*BaseRepository[LoginTemplate]
 }
 
 func NewLoginTemplateRepository(db *gorm.DB) LoginTemplateRepository {
 	return &loginTemplateRepository{
-		BaseRepository: NewBaseRepository[model.LoginTemplate](db, "login_template_uuid", "login_template_id"),
+		BaseRepository: NewBaseRepository[LoginTemplate](db, "login_template_uuid", "login_template_id"),
 	}
 }
 
 // FindByUUIDAndTenantID retrieves a login template by UUID and tenant ID
-func (r *loginTemplateRepository) FindByUUIDAndTenantID(loginTemplateUUID uuid.UUID, tenantID int64, preloads ...string) (*model.LoginTemplate, error) {
-	var template model.LoginTemplate
+func (r *loginTemplateRepository) FindByUUIDAndTenantID(loginTemplateUUID uuid.UUID, tenantID int64, preloads ...string) (*LoginTemplate, error) {
+	var template LoginTemplate
 	query := r.DB().Where("login_template_uuid = ? AND tenant_id = ?", loginTemplateUUID, tenantID)
 
 	for _, preload := range preloads {
@@ -58,10 +57,10 @@ func (r *loginTemplateRepository) FindByUUIDAndTenantID(loginTemplateUUID uuid.U
 }
 
 // FindByName retrieves an active login template by its name
-func (r *loginTemplateRepository) FindByName(name string) (*model.LoginTemplate, error) {
-	var template model.LoginTemplate
+func (r *loginTemplateRepository) FindByName(name string) (*LoginTemplate, error) {
+	var template LoginTemplate
 	err := r.DB().
-		Where("name = ? AND status = ?", name, model.StatusActive).
+		Where("name = ? AND status = ?", name, StatusActive).
 		First(&template).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -73,8 +72,8 @@ func (r *loginTemplateRepository) FindByName(name string) (*model.LoginTemplate,
 }
 
 // FindPaginated retrieves paginated login templates with filtering
-func (r *loginTemplateRepository) FindPaginated(filter LoginTemplateRepositoryGetFilter) (*PaginationResult[model.LoginTemplate], error) {
-	query := r.DB().Model(&model.LoginTemplate{})
+func (r *loginTemplateRepository) FindPaginated(filter LoginTemplateRepositoryGetFilter) (*PaginationResult[LoginTemplate], error) {
+	query := r.DB().Model(&LoginTemplate{})
 
 	// Apply filters
 	if filter.Name != nil && *filter.Name != "" {
@@ -118,7 +117,7 @@ func (r *loginTemplateRepository) FindPaginated(filter LoginTemplateRepositoryGe
 	query = query.Offset(offset).Limit(limit)
 
 	// Execute query
-	var templates []model.LoginTemplate
+	var templates []LoginTemplate
 	if err := query.Find(&templates).Error; err != nil {
 		return nil, err
 	}
@@ -128,7 +127,7 @@ func (r *loginTemplateRepository) FindPaginated(filter LoginTemplateRepositoryGe
 		totalPages++
 	}
 
-	return &PaginationResult[model.LoginTemplate]{
+	return &PaginationResult[LoginTemplate]{
 		Data:       templates,
 		Total:      total,
 		Page:       page,

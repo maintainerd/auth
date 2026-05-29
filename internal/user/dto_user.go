@@ -7,8 +7,6 @@ import (
 	"github.com/go-ozzo/ozzo-validation/v4/is"
 	"github.com/google/uuid"
 	"gorm.io/datatypes"
-
-	"github.com/maintainerd/auth/internal/model"
 )
 
 // User output structure
@@ -53,13 +51,13 @@ type UserCreateRequestDTO struct {
 
 func (dto UserCreateRequestDTO) Validate() error {
 	return validation.ValidateStruct(&dto,
-		validation.Field(&dto.Username, validation.Required, validation.Length(3, 50)),
-		validation.Field(&dto.Fullname, validation.Required, validation.Length(1, 255)),
-		validation.Field(&dto.Email, validation.When(dto.Email != nil, is.Email)),
-		validation.Field(&dto.Phone, validation.When(dto.Phone != nil, validation.Length(10, 20))),
-		validation.Field(&dto.Password, validation.Required, validation.Length(8, 100)),
-		validation.Field(&dto.Status, validation.Required, validation.In(model.StatusActive, model.StatusInactive, model.StatusPending, model.StatusSuspended)),
-		validation.Field(&dto.TenantUUID, validation.Required, is.UUID),
+		validation.Field(&Username, validation.Required, validation.Length(3, 50)),
+		validation.Field(&Fullname, validation.Required, validation.Length(1, 255)),
+		validation.Field(&Email, validation.When(Email != nil, is.Email)),
+		validation.Field(&Phone, validation.When(Phone != nil, validation.Length(10, 20))),
+		validation.Field(&Password, validation.Required, validation.Length(8, 100)),
+		validation.Field(&Status, validation.Required, validation.In(StatusActive, StatusInactive, StatusPending, StatusSuspended)),
+		validation.Field(&TenantUUID, validation.Required, is.UUID),
 	)
 }
 
@@ -74,11 +72,11 @@ type UserUpdateRequestDTO struct {
 
 func (dto UserUpdateRequestDTO) Validate() error {
 	return validation.ValidateStruct(&dto,
-		validation.Field(&dto.Username, validation.Required, validation.Length(3, 50)),
-		validation.Field(&dto.Fullname, validation.Required, validation.Length(1, 255)),
-		validation.Field(&dto.Email, validation.When(dto.Email != nil, is.Email)),
-		validation.Field(&dto.Phone, validation.When(dto.Phone != nil, validation.Length(10, 20))),
-		validation.Field(&dto.Status, validation.Required, validation.In(model.StatusActive, model.StatusInactive, model.StatusPending, model.StatusSuspended)),
+		validation.Field(&Username, validation.Required, validation.Length(3, 50)),
+		validation.Field(&Fullname, validation.Required, validation.Length(1, 255)),
+		validation.Field(&Email, validation.When(Email != nil, is.Email)),
+		validation.Field(&Phone, validation.When(Phone != nil, validation.Length(10, 20))),
+		validation.Field(&Status, validation.Required, validation.In(StatusActive, StatusInactive, StatusPending, StatusSuspended)),
 	)
 }
 
@@ -88,7 +86,7 @@ type UserSetStatusRequestDTO struct {
 
 func (dto UserSetStatusRequestDTO) Validate() error {
 	return validation.ValidateStruct(&dto,
-		validation.Field(&dto.Status, validation.Required, validation.In(model.StatusActive, model.StatusInactive, model.StatusPending, model.StatusSuspended)),
+		validation.Field(&Status, validation.Required, validation.In(StatusActive, StatusInactive, StatusPending, StatusSuspended)),
 	)
 }
 
@@ -98,7 +96,7 @@ type UserAssignRolesRequestDTO struct {
 
 func (dto UserAssignRolesRequestDTO) Validate() error {
 	return validation.ValidateStruct(&dto,
-		validation.Field(&dto.RoleUUIDs, validation.Required, validation.Length(1, 10)),
+		validation.Field(&RoleUUIDs, validation.Required, validation.Length(1, 10)),
 	)
 }
 
@@ -122,7 +120,7 @@ func (f UserFilterDTO) Validate() error {
 	return validation.ValidateStruct(&f,
 		validation.Field(&f.Status,
 			validation.When(len(f.Status) > 0,
-				validation.Each(validation.In(model.StatusActive, model.StatusInactive).Error("Status must be 'active' or 'inactive'")),
+				validation.Each(validation.In(StatusActive, StatusInactive).Error("Status must be 'active' or 'inactive'")),
 			),
 		),
 		validation.Field(&f.TenantUUID,

@@ -6,21 +6,19 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
-	"github.com/maintainerd/auth/internal/model"
 	"github.com/maintainerd/auth/internal/platform/crypto"
-	"github.com/maintainerd/auth/internal/repository"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 // newAPI returns a minimal API fixture.
-func newAPI(id int64, name string, tenantID int64) *model.API {
-	return &model.API{
+func newAPI(id int64, name string, tenantID int64) *API {
+	return &API{
 		APIID:    id,
 		APIUUID:  uuid.New(),
 		Name:     name,
 		TenantID: tenantID,
-		Status:   model.StatusActive,
+		Status:   StatusActive,
 	}
 }
 
@@ -45,7 +43,7 @@ func TestAPIService_GetByUUID(t *testing.T) {
 		{
 			name: "found → success",
 			setupRepo: func(r *mockAPIRepo) {
-				r.findByUUIDAndTenantIDFn = func(_ uuid.UUID, _ int64) (*model.API, error) {
+				r.findByUUIDAndTenantIDFn = func(_ uuid.UUID, _ int64) (*API, error) {
 					return newAPI(1, "users-api", tenantID), nil
 				}
 			},
@@ -53,7 +51,7 @@ func TestAPIService_GetByUUID(t *testing.T) {
 		{
 			name: "not found → error",
 			setupRepo: func(r *mockAPIRepo) {
-				r.findByUUIDAndTenantIDFn = func(_ uuid.UUID, _ int64) (*model.API, error) {
+				r.findByUUIDAndTenantIDFn = func(_ uuid.UUID, _ int64) (*API, error) {
 					return nil, nil
 				}
 			},
@@ -63,7 +61,7 @@ func TestAPIService_GetByUUID(t *testing.T) {
 		{
 			name: "repo error → propagated",
 			setupRepo: func(r *mockAPIRepo) {
-				r.findByUUIDAndTenantIDFn = func(_ uuid.UUID, _ int64) (*model.API, error) {
+				r.findByUUIDAndTenantIDFn = func(_ uuid.UUID, _ int64) (*API, error) {
 					return nil, errors.New("db error")
 				}
 			},
@@ -105,7 +103,7 @@ func TestAPIService_Get(t *testing.T) {
 
 	t.Run("repo error → propagated", func(t *testing.T) {
 		apiRepo := &mockAPIRepo{
-			findPaginatedFn: func(_ repository.APIRepositoryGetFilter) (*repository.PaginationResult[model.API], error) {
+			findPaginatedFn: func(_ APIRepositoryGetFilter) (*PaginationResult[API], error) {
 				return nil, errors.New("db error")
 			},
 		}
@@ -116,11 +114,11 @@ func TestAPIService_Get(t *testing.T) {
 
 	t.Run("success with service preloaded", func(t *testing.T) {
 		api := newAPI(1, "users-api", 1)
-		api.Service = &model.Service{ServiceUUID: uuid.New(), Name: "users-svc"}
+		api.Service = &Service{ServiceUUID: uuid.New(), Name: "users-svc"}
 		apiRepo := &mockAPIRepo{
-			findPaginatedFn: func(_ repository.APIRepositoryGetFilter) (*repository.PaginationResult[model.API], error) {
-				return &repository.PaginationResult[model.API]{
-					Data: []model.API{*api}, Total: 1, Page: 1, Limit: 10, TotalPages: 1,
+			findPaginatedFn: func(_ APIRepositoryGetFilter) (*PaginationResult[API], error) {
+				return &PaginationResult[API]{
+					Data: []API{*api}, Total: 1, Page: 1, Limit: 10, TotalPages: 1,
 				}, nil
 			},
 		}
@@ -142,8 +140,8 @@ func TestAPIService_GetServiceIDByUUID(t *testing.T) {
 
 	t.Run("service found → returns ID", func(t *testing.T) {
 		svcRepo := &mockServiceRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.Service, error) {
-				return &model.Service{ServiceID: 42}, nil
+			findByUUIDFn: func(_ any, _ ...string) (*Service, error) {
+				return &Service{ServiceID: 42}, nil
 			},
 		}
 		svc := newAPIService(&mockAPIRepo{}, svcRepo, &mockTenantServiceRepo{})
@@ -154,7 +152,7 @@ func TestAPIService_GetServiceIDByUUID(t *testing.T) {
 
 	t.Run("service not found → error", func(t *testing.T) {
 		svcRepo := &mockServiceRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.Service, error) { return nil, nil },
+			findByUUIDFn: func(_ any, _ ...string) (*Service, error) { return nil, nil },
 		}
 		svc := newAPIService(&mockAPIRepo{}, svcRepo, &mockTenantServiceRepo{})
 		_, err := svc.GetServiceIDByUUID(context.Background(), serviceUUID)
@@ -176,12 +174,12 @@ func TestAPIService_Create(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		apiRepo := &mockAPIRepo{
-			findByNameFn: func(_ string, _ int64) (*model.API, error) {
+			findByNameFn: func(_ string, _ int64) (*API, error) {
 				return newAPI(1, "users-api", tenantID), nil // already exists
 			},
 		}
 		svc := NewAPIService(db, apiRepo, &mockServiceRepo{}, &mockTenantServiceRepo{})
-		_, err := svc.Create(context.Background(), tenantID, "users-api", "", "", "rest", model.StatusActive, false, serviceUUID)
+		_, err := svc.Create(context.Background(), tenantID, "users-api", "", "", "rest", StatusActive, false, serviceUUID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "already exists")
 	})
@@ -191,10 +189,10 @@ func TestAPIService_Create(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		svcRepo := &mockServiceRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.Service, error) { return nil, nil },
+			findByUUIDFn: func(_ any, _ ...string) (*Service, error) { return nil, nil },
 		}
 		svc := NewAPIService(db, &mockAPIRepo{}, svcRepo, &mockTenantServiceRepo{})
-		_, err := svc.Create(context.Background(), tenantID, "users-api", "", "", "rest", model.StatusActive, false, serviceUUID)
+		_, err := svc.Create(context.Background(), tenantID, "users-api", "", "", "rest", StatusActive, false, serviceUUID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "service not found")
 	})
@@ -208,12 +206,12 @@ func TestAPIService_Create(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		svcRepo := &mockServiceRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.Service, error) {
-				return &model.Service{ServiceID: 1}, nil
+			findByUUIDFn: func(_ any, _ ...string) (*Service, error) {
+				return &Service{ServiceID: 1}, nil
 			},
 		}
 		svc := NewAPIService(db, &mockAPIRepo{}, svcRepo, &mockTenantServiceRepo{})
-		_, err := svc.Create(context.Background(), tenantID, "users-api", "", "", "rest", model.StatusActive, false, serviceUUID)
+		_, err := svc.Create(context.Background(), tenantID, "users-api", "", "", "rest", StatusActive, false, serviceUUID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "rand failure")
 	})
@@ -223,16 +221,16 @@ func TestAPIService_Create(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectCommit()
 		svcRepo := &mockServiceRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.Service, error) {
-				return &model.Service{ServiceID: 1}, nil
+			findByUUIDFn: func(_ any, _ ...string) (*Service, error) {
+				return &Service{ServiceID: 1}, nil
 			},
 		}
 		createdAPI := newAPI(1, "users-api", tenantID)
 		apiRepo := &mockAPIRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.API, error) { return createdAPI, nil },
+			findByUUIDFn: func(_ any, _ ...string) (*API, error) { return createdAPI, nil },
 		}
 		svc := NewAPIService(db, apiRepo, svcRepo, &mockTenantServiceRepo{})
-		result, err := svc.Create(context.Background(), tenantID, "users-api", "", "", "rest", model.StatusActive, false, serviceUUID)
+		result, err := svc.Create(context.Background(), tenantID, "users-api", "", "", "rest", StatusActive, false, serviceUUID)
 		require.NoError(t, err)
 		assert.NotNil(t, result)
 	})
@@ -256,7 +254,7 @@ func TestAPIService_DeleteByUUID(t *testing.T) {
 		{
 			name: "repo error → propagated",
 			apiRepo: &mockAPIRepo{
-				findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*model.API, error) {
+				findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*API, error) {
 					return nil, errors.New("db error")
 				},
 			},
@@ -267,7 +265,7 @@ func TestAPIService_DeleteByUUID(t *testing.T) {
 		{
 			name: "not found → error",
 			apiRepo: &mockAPIRepo{
-				findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*model.API, error) { return nil, nil },
+				findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*API, error) { return nil, nil },
 			},
 			tsRepo:      &mockTenantServiceRepo{},
 			expectError: true,
@@ -276,7 +274,7 @@ func TestAPIService_DeleteByUUID(t *testing.T) {
 		{
 			name: "system api → cannot delete",
 			apiRepo: &mockAPIRepo{
-				findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*model.API, error) {
+				findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*API, error) {
 					a := newAPI(1, "system-api", tenantID)
 					a.IsSystem = true
 					return a, nil
@@ -289,7 +287,7 @@ func TestAPIService_DeleteByUUID(t *testing.T) {
 		{
 			name: "success",
 			apiRepo: &mockAPIRepo{
-				findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*model.API, error) {
+				findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*API, error) {
 					return newAPI(1, "users-api", tenantID), nil
 				},
 			},
@@ -324,15 +322,15 @@ func TestAPIService_DeleteByUUID_ServiceTenantValidation(t *testing.T) {
 
 	t.Run("service belongs to tenant → success", func(t *testing.T) {
 		apiRepo := &mockAPIRepo{
-			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*model.API, error) {
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*API, error) {
 				a := newAPI(1, "my-api", tenantID)
 				a.ServiceID = 10
 				return a, nil
 			},
 		}
 		tsRepo := &mockTenantServiceRepo{
-			findByTenantAndServiceFn: func(_, _ int64) (*model.TenantService, error) {
-				return &model.TenantService{}, nil
+			findByTenantAndServiceFn: func(_, _ int64) (*TenantService, error) {
+				return &TenantService{}, nil
 			},
 		}
 		svc := newAPIService(apiRepo, &mockServiceRepo{}, tsRepo)
@@ -343,14 +341,14 @@ func TestAPIService_DeleteByUUID_ServiceTenantValidation(t *testing.T) {
 
 	t.Run("service NOT linked to tenant → access denied", func(t *testing.T) {
 		apiRepo := &mockAPIRepo{
-			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*model.API, error) {
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*API, error) {
 				a := newAPI(1, "my-api", tenantID)
 				a.ServiceID = 10
 				return a, nil
 			},
 		}
 		tsRepo := &mockTenantServiceRepo{
-			findByTenantAndServiceFn: func(_, _ int64) (*model.TenantService, error) {
+			findByTenantAndServiceFn: func(_, _ int64) (*TenantService, error) {
 				return nil, nil
 			},
 		}
@@ -362,7 +360,7 @@ func TestAPIService_DeleteByUUID_ServiceTenantValidation(t *testing.T) {
 
 	t.Run("delete error → propagated", func(t *testing.T) {
 		apiRepo := &mockAPIRepo{
-			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*model.API, error) {
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*API, error) {
 				return newAPI(1, "my-api", tenantID), nil
 			},
 			deleteByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) error {
@@ -377,14 +375,14 @@ func TestAPIService_DeleteByUUID_ServiceTenantValidation(t *testing.T) {
 
 	t.Run("service ID > 0 tenant-service repo error → access denied", func(t *testing.T) {
 		apiRepo := &mockAPIRepo{
-			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*model.API, error) {
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*API, error) {
 				a := newAPI(1, "my-api", tenantID)
 				a.ServiceID = 10
 				return a, nil
 			},
 		}
 		tsRepo := &mockTenantServiceRepo{
-			findByTenantAndServiceFn: func(_, _ int64) (*model.TenantService, error) {
+			findByTenantAndServiceFn: func(_, _ int64) (*TenantService, error) {
 				return nil, errors.New("ts lookup err")
 			},
 		}
@@ -409,7 +407,7 @@ func TestAPIService_Update(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		apiRepo := &mockAPIRepo{
-			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*model.API, error) { return nil, nil },
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*API, error) { return nil, nil },
 		}
 		svc := NewAPIService(db, apiRepo, &mockServiceRepo{}, &mockTenantServiceRepo{})
 		_, err := svc.Update(context.Background(), apiUUID, tenantID, "n", "d", "desc", "rest", "active", serviceUUID)
@@ -422,7 +420,7 @@ func TestAPIService_Update(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		apiRepo := &mockAPIRepo{
-			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*model.API, error) {
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*API, error) {
 				return nil, errors.New("db error")
 			},
 		}
@@ -438,10 +436,10 @@ func TestAPIService_Update(t *testing.T) {
 		api := newAPI(1, "old", tenantID)
 		api.ServiceID = 10
 		apiRepo := &mockAPIRepo{
-			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*model.API, error) { return api, nil },
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*API, error) { return api, nil },
 		}
 		tsRepo := &mockTenantServiceRepo{
-			findByTenantAndServiceFn: func(_, _ int64) (*model.TenantService, error) { return nil, nil },
+			findByTenantAndServiceFn: func(_, _ int64) (*TenantService, error) { return nil, nil },
 		}
 		svc := NewAPIService(db, apiRepo, &mockServiceRepo{}, tsRepo)
 		_, err := svc.Update(context.Background(), apiUUID, tenantID, "n", "d", "desc", "rest", "active", serviceUUID)
@@ -456,7 +454,7 @@ func TestAPIService_Update(t *testing.T) {
 		api := newAPI(1, "sys", tenantID)
 		api.IsSystem = true
 		apiRepo := &mockAPIRepo{
-			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*model.API, error) { return api, nil },
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*API, error) { return api, nil },
 		}
 		svc := NewAPIService(db, apiRepo, &mockServiceRepo{}, &mockTenantServiceRepo{})
 		_, err := svc.Update(context.Background(), apiUUID, tenantID, "n", "d", "desc", "rest", "active", serviceUUID)
@@ -469,7 +467,7 @@ func TestAPIService_Update(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		apiRepo := &mockAPIRepo{
-			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*model.API, error) {
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*API, error) {
 				return newAPI(1, "old", tenantID), nil
 			},
 		}
@@ -484,12 +482,12 @@ func TestAPIService_Update(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		apiRepo := &mockAPIRepo{
-			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*model.API, error) {
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*API, error) {
 				return newAPI(1, "old", tenantID), nil
 			},
 		}
 		svcRepo := &mockServiceRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.Service, error) { return nil, nil },
+			findByUUIDFn: func(_ any, _ ...string) (*Service, error) { return nil, nil },
 		}
 		svc := NewAPIService(db, apiRepo, svcRepo, &mockTenantServiceRepo{})
 		_, err := svc.Update(context.Background(), apiUUID, tenantID, "n", "d", "desc", "rest", "active", serviceUUID)
@@ -502,17 +500,17 @@ func TestAPIService_Update(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		apiRepo := &mockAPIRepo{
-			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*model.API, error) {
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*API, error) {
 				return newAPI(1, "old", tenantID), nil
 			},
 		}
 		svcRepo := &mockServiceRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.Service, error) {
-				return &model.Service{ServiceID: 5}, nil
+			findByUUIDFn: func(_ any, _ ...string) (*Service, error) {
+				return &Service{ServiceID: 5}, nil
 			},
 		}
 		tsRepo := &mockTenantServiceRepo{
-			findByTenantAndServiceFn: func(_, _ int64) (*model.TenantService, error) { return nil, nil },
+			findByTenantAndServiceFn: func(_, _ int64) (*TenantService, error) { return nil, nil },
 		}
 		svc := NewAPIService(db, apiRepo, svcRepo, tsRepo)
 		_, err := svc.Update(context.Background(), apiUUID, tenantID, "n", "d", "desc", "rest", "active", serviceUUID)
@@ -525,17 +523,17 @@ func TestAPIService_Update(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		apiRepo := &mockAPIRepo{
-			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*model.API, error) {
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*API, error) {
 				return newAPI(1, "old-name", tenantID), nil
 			},
-			findByNameFn: func(_ string, _ int64) (*model.API, error) {
+			findByNameFn: func(_ string, _ int64) (*API, error) {
 				other := newAPI(2, "new-name", tenantID)
 				return other, nil
 			},
 		}
 		svcRepo := &mockServiceRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.Service, error) {
-				return &model.Service{ServiceID: 5}, nil
+			findByUUIDFn: func(_ any, _ ...string) (*Service, error) {
+				return &Service{ServiceID: 5}, nil
 			},
 		}
 		svc := NewAPIService(db, apiRepo, svcRepo, &mockTenantServiceRepo{})
@@ -549,16 +547,16 @@ func TestAPIService_Update(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		apiRepo := &mockAPIRepo{
-			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*model.API, error) {
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*API, error) {
 				return newAPI(1, "old", tenantID), nil
 			},
-			createOrUpdateFn: func(_ *model.API) (*model.API, error) {
+			createOrUpdateFn: func(_ *API) (*API, error) {
 				return nil, errors.New("save failed")
 			},
 		}
 		svcRepo := &mockServiceRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.Service, error) {
-				return &model.Service{ServiceID: 5}, nil
+			findByUUIDFn: func(_ any, _ ...string) (*Service, error) {
+				return &Service{ServiceID: 5}, nil
 			},
 		}
 		svc := NewAPIService(db, apiRepo, svcRepo, &mockTenantServiceRepo{})
@@ -573,11 +571,11 @@ func TestAPIService_Update(t *testing.T) {
 		mock.ExpectCommit()
 		api := newAPI(1, "old", tenantID)
 		apiRepo := &mockAPIRepo{
-			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*model.API, error) { return api, nil },
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*API, error) { return api, nil },
 		}
 		svcRepo := &mockServiceRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.Service, error) {
-				return &model.Service{ServiceID: 5}, nil
+			findByUUIDFn: func(_ any, _ ...string) (*Service, error) {
+				return &Service{ServiceID: 5}, nil
 			},
 		}
 		svc := NewAPIService(db, apiRepo, svcRepo, &mockTenantServiceRepo{})
@@ -594,10 +592,10 @@ func TestAPIService_Update(t *testing.T) {
 		api := newAPI(1, "old", tenantID)
 		api.ServiceID = 10
 		apiRepo := &mockAPIRepo{
-			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*model.API, error) { return api, nil },
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*API, error) { return api, nil },
 		}
 		tsRepo := &mockTenantServiceRepo{
-			findByTenantAndServiceFn: func(_, _ int64) (*model.TenantService, error) {
+			findByTenantAndServiceFn: func(_, _ int64) (*TenantService, error) {
 				return nil, errors.New("ts lookup err")
 			},
 		}
@@ -612,12 +610,12 @@ func TestAPIService_Update(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		apiRepo := &mockAPIRepo{
-			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*model.API, error) {
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*API, error) {
 				return newAPI(1, "old", tenantID), nil
 			},
 		}
 		svcRepo := &mockServiceRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.Service, error) {
+			findByUUIDFn: func(_ any, _ ...string) (*Service, error) {
 				return nil, errors.New("svc lookup err")
 			},
 		}
@@ -632,17 +630,17 @@ func TestAPIService_Update(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		apiRepo := &mockAPIRepo{
-			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*model.API, error) {
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*API, error) {
 				return newAPI(1, "old", tenantID), nil
 			},
 		}
 		svcRepo := &mockServiceRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.Service, error) {
-				return &model.Service{ServiceID: 5}, nil
+			findByUUIDFn: func(_ any, _ ...string) (*Service, error) {
+				return &Service{ServiceID: 5}, nil
 			},
 		}
 		tsRepo := &mockTenantServiceRepo{
-			findByTenantAndServiceFn: func(_, _ int64) (*model.TenantService, error) {
+			findByTenantAndServiceFn: func(_, _ int64) (*TenantService, error) {
 				return nil, errors.New("ts lookup err")
 			},
 		}
@@ -657,16 +655,16 @@ func TestAPIService_Update(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		apiRepo := &mockAPIRepo{
-			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*model.API, error) {
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*API, error) {
 				return newAPI(1, "old-name", tenantID), nil
 			},
-			findByNameFn: func(_ string, _ int64) (*model.API, error) {
+			findByNameFn: func(_ string, _ int64) (*API, error) {
 				return nil, errors.New("name lookup err")
 			},
 		}
 		svcRepo := &mockServiceRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.Service, error) {
-				return &model.Service{ServiceID: 5}, nil
+			findByUUIDFn: func(_ any, _ ...string) (*Service, error) {
+				return &Service{ServiceID: 5}, nil
 			},
 		}
 		svc := NewAPIService(db, apiRepo, svcRepo, &mockTenantServiceRepo{})
@@ -689,7 +687,7 @@ func TestAPIService_SetStatusByUUID(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		apiRepo := &mockAPIRepo{
-			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*model.API, error) {
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*API, error) {
 				return nil, errors.New("db error")
 			},
 		}
@@ -704,7 +702,7 @@ func TestAPIService_SetStatusByUUID(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		apiRepo := &mockAPIRepo{
-			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*model.API, error) { return nil, nil },
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*API, error) { return nil, nil },
 		}
 		svc := NewAPIService(db, apiRepo, &mockServiceRepo{}, &mockTenantServiceRepo{})
 		_, err := svc.SetStatusByUUID(context.Background(), apiUUID, tenantID, "inactive")
@@ -719,10 +717,10 @@ func TestAPIService_SetStatusByUUID(t *testing.T) {
 		api := newAPI(1, "a", tenantID)
 		api.ServiceID = 10
 		apiRepo := &mockAPIRepo{
-			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*model.API, error) { return api, nil },
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*API, error) { return api, nil },
 		}
 		tsRepo := &mockTenantServiceRepo{
-			findByTenantAndServiceFn: func(_, _ int64) (*model.TenantService, error) { return nil, nil },
+			findByTenantAndServiceFn: func(_, _ int64) (*TenantService, error) { return nil, nil },
 		}
 		svc := NewAPIService(db, apiRepo, &mockServiceRepo{}, tsRepo)
 		_, err := svc.SetStatusByUUID(context.Background(), apiUUID, tenantID, "inactive")
@@ -737,7 +735,7 @@ func TestAPIService_SetStatusByUUID(t *testing.T) {
 		api := newAPI(1, "sys", tenantID)
 		api.IsSystem = true
 		apiRepo := &mockAPIRepo{
-			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*model.API, error) { return api, nil },
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*API, error) { return api, nil },
 		}
 		svc := NewAPIService(db, apiRepo, &mockServiceRepo{}, &mockTenantServiceRepo{})
 		_, err := svc.SetStatusByUUID(context.Background(), apiUUID, tenantID, "inactive")
@@ -750,10 +748,10 @@ func TestAPIService_SetStatusByUUID(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		apiRepo := &mockAPIRepo{
-			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*model.API, error) {
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*API, error) {
 				return newAPI(1, "a", tenantID), nil
 			},
-			createOrUpdateFn: func(_ *model.API) (*model.API, error) { return nil, errors.New("save err") },
+			createOrUpdateFn: func(_ *API) (*API, error) { return nil, errors.New("save err") },
 		}
 		svc := NewAPIService(db, apiRepo, &mockServiceRepo{}, &mockTenantServiceRepo{})
 		_, err := svc.SetStatusByUUID(context.Background(), apiUUID, tenantID, "inactive")
@@ -767,10 +765,10 @@ func TestAPIService_SetStatusByUUID(t *testing.T) {
 		api := newAPI(1, "a", tenantID)
 		api.ServiceID = 10
 		apiRepo := &mockAPIRepo{
-			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*model.API, error) { return api, nil },
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*API, error) { return api, nil },
 		}
 		tsRepo := &mockTenantServiceRepo{
-			findByTenantAndServiceFn: func(_, _ int64) (*model.TenantService, error) {
+			findByTenantAndServiceFn: func(_, _ int64) (*TenantService, error) {
 				return nil, errors.New("ts lookup err")
 			},
 		}
@@ -785,7 +783,7 @@ func TestAPIService_SetStatusByUUID(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectCommit()
 		apiRepo := &mockAPIRepo{
-			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*model.API, error) {
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*API, error) {
 				return newAPI(1, "a", tenantID), nil
 			},
 		}
@@ -806,7 +804,7 @@ func TestAPIService_Create_FindByNameError(t *testing.T) {
 	mock.ExpectBegin()
 	mock.ExpectRollback()
 	apiRepo := &mockAPIRepo{
-		findByNameFn: func(_ string, _ int64) (*model.API, error) { return nil, errors.New("name lookup err") },
+		findByNameFn: func(_ string, _ int64) (*API, error) { return nil, errors.New("name lookup err") },
 	}
 	svc := NewAPIService(db, apiRepo, &mockServiceRepo{}, &mockTenantServiceRepo{})
 	_, err := svc.Create(context.Background(), 1, "api", "", "", "rest", "active", false, uuid.New().String())
@@ -818,10 +816,10 @@ func TestAPIService_Create_SaveError(t *testing.T) {
 	mock.ExpectBegin()
 	mock.ExpectRollback()
 	apiRepo := &mockAPIRepo{
-		createOrUpdateFn: func(_ *model.API) (*model.API, error) { return nil, errors.New("save err") },
+		createOrUpdateFn: func(_ *API) (*API, error) { return nil, errors.New("save err") },
 	}
 	svcRepo := &mockServiceRepo{
-		findByUUIDFn: func(_ any, _ ...string) (*model.Service, error) { return &model.Service{ServiceID: 1}, nil },
+		findByUUIDFn: func(_ any, _ ...string) (*Service, error) { return &Service{ServiceID: 1}, nil },
 	}
 	svc := NewAPIService(db, apiRepo, svcRepo, &mockTenantServiceRepo{})
 	_, err := svc.Create(context.Background(), 1, "api", "", "", "rest", "active", false, uuid.New().String())
@@ -833,10 +831,10 @@ func TestAPIService_Create_FetchAfterSaveError(t *testing.T) {
 	mock.ExpectBegin()
 	mock.ExpectRollback()
 	apiRepo := &mockAPIRepo{
-		findByUUIDFn: func(_ any, _ ...string) (*model.API, error) { return nil, errors.New("fetch err") },
+		findByUUIDFn: func(_ any, _ ...string) (*API, error) { return nil, errors.New("fetch err") },
 	}
 	svcRepo := &mockServiceRepo{
-		findByUUIDFn: func(_ any, _ ...string) (*model.Service, error) { return &model.Service{ServiceID: 1}, nil },
+		findByUUIDFn: func(_ any, _ ...string) (*Service, error) { return &Service{ServiceID: 1}, nil },
 	}
 	svc := NewAPIService(db, apiRepo, svcRepo, &mockTenantServiceRepo{})
 	_, err := svc.Create(context.Background(), 1, "api", "", "", "rest", "active", false, uuid.New().String())

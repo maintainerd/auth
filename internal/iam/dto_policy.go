@@ -9,8 +9,6 @@ import (
 	"github.com/go-ozzo/ozzo-validation/v4/is"
 	"github.com/google/uuid"
 	"gorm.io/datatypes"
-
-	"github.com/maintainerd/auth/internal/model"
 )
 
 // policyNamePattern matches valid policy name characters (compiled once for performance).
@@ -73,7 +71,7 @@ func (s PolicyStatement) Validate() error {
 	return validation.ValidateStruct(&s,
 		validation.Field(&s.Effect,
 			validation.Required.Error("Statement effect is required"),
-			validation.In(model.PolicyEffectAllow, model.PolicyEffectDeny).Error("Statement effect must be 'allow' or 'deny'"),
+			validation.In(PolicyEffectAllow, PolicyEffectDeny).Error("Statement effect must be 'allow' or 'deny'"),
 		),
 		validation.Field(&s.Action,
 			validation.Required.Error("Statement must contain at least one action"),
@@ -141,7 +139,7 @@ func (r PolicyCreateRequestDTO) Validate() error {
 		),
 		validation.Field(&r.Status,
 			validation.Required.Error("Status is required"),
-			validation.In(model.StatusActive, model.StatusInactive).Error("Status must be one of: active, inactive"),
+			validation.In(StatusActive, StatusInactive).Error("Status must be one of: active, inactive"),
 		),
 	)
 }
@@ -176,7 +174,7 @@ func (r PolicyUpdateRequestDTO) Validate() error {
 		),
 		validation.Field(&r.Status,
 			validation.Required.Error("Status is required"),
-			validation.In(model.StatusActive, model.StatusInactive).Error("Status must be one of: active, inactive"),
+			validation.In(StatusActive, StatusInactive).Error("Status must be one of: active, inactive"),
 		),
 	)
 }
@@ -214,7 +212,7 @@ func (r PolicyFilterDTO) Validate() error {
 		),
 		validation.Field(&r.Status,
 			validation.When(len(r.Status) > 0,
-				validation.Each(validation.In(model.StatusActive, model.StatusInactive).Error("Status must be 'active' or 'inactive'")),
+				validation.Each(validation.In(StatusActive, StatusInactive).Error("Status must be 'active' or 'inactive'")),
 				validation.Length(1, 2).Error("Status filter can have at most 2 values"),
 			),
 		),
@@ -236,7 +234,7 @@ func (r PolicyStatusUpdateDTO) Validate() error {
 	return validation.ValidateStruct(&r,
 		validation.Field(&r.Status,
 			validation.Required.Error("Status is required"),
-			validation.In(model.StatusActive, model.StatusInactive).Error("Status must be one of: active, inactive"),
+			validation.In(StatusActive, StatusInactive).Error("Status must be one of: active, inactive"),
 		),
 	)
 }

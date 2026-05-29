@@ -8,7 +8,6 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/maintainerd/auth/internal/dto"
 	"github.com/maintainerd/auth/internal/platform/middleware"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -74,7 +73,7 @@ func TestRegisterHandler_RegisterPublic_InvalidBody(t *testing.T) {
 
 func TestRegisterHandler_RegisterPublic_ServiceError(t *testing.T) {
 	svc := &mockRegisterService{
-		registerPublicFn: func(u, f, p string, e, ph *string, c, pr string) (*dto.RegisterResponseDTO, error) {
+		registerPublicFn: func(u, f, p string, e, ph *string, c, pr string) (*RegisterResponseDTO, error) {
 			return nil, assert.AnError
 		},
 	}
@@ -89,8 +88,8 @@ func TestRegisterHandler_RegisterPublic_ServiceError(t *testing.T) {
 
 func TestRegisterHandler_RegisterPublic_Success(t *testing.T) {
 	svc := &mockRegisterService{
-		registerPublicFn: func(u, f, p string, e, ph *string, c, pr string) (*dto.RegisterResponseDTO, error) {
-			return &dto.RegisterResponseDTO{}, nil
+		registerPublicFn: func(u, f, p string, e, ph *string, c, pr string) (*RegisterResponseDTO, error) {
+			return &RegisterResponseDTO{}, nil
 		},
 	}
 	h := NewRegisterHandler(svc, &mockEmailVerificationService{})
@@ -118,7 +117,7 @@ func TestRegisterHandler_Register_InvalidBody(t *testing.T) {
 
 func TestRegisterHandler_Register_ServiceError(t *testing.T) {
 	svc := &mockRegisterService{
-		registerFn: func(u, f, p string, e, ph, c, pr *string) (*dto.RegisterResponseDTO, error) {
+		registerFn: func(u, f, p string, e, ph, c, pr *string) (*RegisterResponseDTO, error) {
 			return nil, assert.AnError
 		},
 	}
@@ -133,8 +132,8 @@ func TestRegisterHandler_Register_ServiceError(t *testing.T) {
 
 func TestRegisterHandler_Register_Success(t *testing.T) {
 	svc := &mockRegisterService{
-		registerFn: func(u, f, p string, e, ph, c, pr *string) (*dto.RegisterResponseDTO, error) {
-			return &dto.RegisterResponseDTO{}, nil
+		registerFn: func(u, f, p string, e, ph, c, pr *string) (*RegisterResponseDTO, error) {
+			return &RegisterResponseDTO{}, nil
 		},
 	}
 	h := NewRegisterHandler(svc, &mockEmailVerificationService{})
@@ -160,7 +159,7 @@ func TestRegisterHandler_RegisterInvite_MissingToken(t *testing.T) {
 
 func TestRegisterHandler_RegisterInvite_ServiceError(t *testing.T) {
 	svc := &mockRegisterService{
-		registerInviteFn: func(u, p, t string, c, pr *string) (*dto.RegisterResponseDTO, error) {
+		registerInviteFn: func(u, p, t string, c, pr *string) (*RegisterResponseDTO, error) {
 			return nil, assert.AnError
 		},
 	}
@@ -175,8 +174,8 @@ func TestRegisterHandler_RegisterInvite_ServiceError(t *testing.T) {
 
 func TestRegisterHandler_RegisterInvite_Success(t *testing.T) {
 	svc := &mockRegisterService{
-		registerInviteFn: func(u, p, t string, c, pr *string) (*dto.RegisterResponseDTO, error) {
-			return &dto.RegisterResponseDTO{}, nil
+		registerInviteFn: func(u, p, t string, c, pr *string) (*RegisterResponseDTO, error) {
+			return &RegisterResponseDTO{}, nil
 		},
 	}
 	h := NewRegisterHandler(svc, &mockEmailVerificationService{})
@@ -203,7 +202,7 @@ func TestRegisterHandler_RegisterInvitePublic_MissingParams(t *testing.T) {
 
 func TestRegisterHandler_RegisterInvitePublic_ServiceError(t *testing.T) {
 	svc := &mockRegisterService{
-		registerInvitePublicFn: func(u, p, c, pr, t string) (*dto.RegisterResponseDTO, error) {
+		registerInvitePublicFn: func(u, p, c, pr, t string) (*RegisterResponseDTO, error) {
 			return nil, assert.AnError
 		},
 	}
@@ -251,8 +250,8 @@ func TestRegisterHandler_Register_ValidationError(t *testing.T) {
 // pointer-assign branches (lines 163-165, 166-168).
 func TestRegisterHandler_Register_WithOptionalParams(t *testing.T) {
 	svc := &mockRegisterService{
-		registerFn: func(u, f, p string, e, ph, c, pr *string) (*dto.RegisterResponseDTO, error) {
-			return &dto.RegisterResponseDTO{}, nil
+		registerFn: func(u, f, p string, e, ph, c, pr *string) (*RegisterResponseDTO, error) {
+			return &RegisterResponseDTO{}, nil
 		},
 	}
 	h := NewRegisterHandler(svc, &mockEmailVerificationService{})
@@ -289,8 +288,8 @@ func TestRegisterHandler_RegisterInvite_ValidationError(t *testing.T) {
 // WithOptionalParams: ?client_id and ?provider_id present → covers pointer-assign branches.
 func TestRegisterHandler_RegisterInvite_WithOptionalParams(t *testing.T) {
 	svc := &mockRegisterService{
-		registerInviteFn: func(u, p, tok string, c, pr *string) (*dto.RegisterResponseDTO, error) {
-			return &dto.RegisterResponseDTO{}, nil
+		registerInviteFn: func(u, p, tok string, c, pr *string) (*RegisterResponseDTO, error) {
+			return &RegisterResponseDTO{}, nil
 		},
 	}
 	h := NewRegisterHandler(svc, &mockEmailVerificationService{})
@@ -328,8 +327,8 @@ func TestRegisterHandler_RegisterInvitePublic_ValidationError(t *testing.T) {
 // Success: covers util.CreatedWithCookies response path (line 332).
 func TestRegisterHandler_RegisterInvitePublic_Success(t *testing.T) {
 	svc := &mockRegisterService{
-		registerInvitePublicFn: func(u, p, c, pr, tok string) (*dto.RegisterResponseDTO, error) {
-			return &dto.RegisterResponseDTO{}, nil
+		registerInvitePublicFn: func(u, p, c, pr, tok string) (*RegisterResponseDTO, error) {
+			return &RegisterResponseDTO{}, nil
 		},
 	}
 	h := NewRegisterHandler(svc, &mockEmailVerificationService{})

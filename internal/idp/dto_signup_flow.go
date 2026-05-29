@@ -5,8 +5,6 @@ import (
 
 	validation "github.com/go-ozzo/ozzo-validation/v4"
 	"github.com/go-ozzo/ozzo-validation/v4/is"
-
-	"github.com/maintainerd/auth/internal/model"
 )
 
 // Signup flow output structure
@@ -41,7 +39,7 @@ func (r SignupFlowCreateRequestDTO) Validate() error {
 			validation.Required.Error("Description is required"),
 		),
 		validation.Field(&r.Status,
-			validation.In(model.StatusActive, model.StatusInactive).Error("Status must be 'active' or 'inactive'"),
+			validation.In(StatusActive, StatusInactive).Error("Status must be 'active' or 'inactive'"),
 		),
 		validation.Field(&r.ClientUUID,
 			validation.Required.Error("Auth client UUID is required"),
@@ -68,7 +66,7 @@ func (r SignupFlowUpdateRequestDTO) Validate() error {
 			validation.Required.Error("Description is required"),
 		),
 		validation.Field(&r.Status,
-			validation.In(model.StatusActive, model.StatusInactive).Error("Status must be 'active' or 'inactive'"),
+			validation.In(StatusActive, StatusInactive).Error("Status must be 'active' or 'inactive'"),
 		),
 	)
 }
@@ -82,7 +80,7 @@ func (r SignupFlowUpdateStatusRequestDTO) Validate() error {
 	return validation.ValidateStruct(&r,
 		validation.Field(&r.Status,
 			validation.Required.Error("Status is required"),
-			validation.In(model.StatusActive, model.StatusInactive).Error("Status must be 'active' or 'inactive'"),
+			validation.In(StatusActive, StatusInactive).Error("Status must be 'active' or 'inactive'"),
 		),
 	)
 }
@@ -103,7 +101,7 @@ func (f SignupFlowFilterDTO) Validate() error {
 	return validation.ValidateStruct(&f,
 		validation.Field(&f.Status,
 			validation.When(len(f.Status) > 0,
-				validation.Each(validation.In(model.StatusActive, model.StatusInactive).Error("Status must be 'active' or 'inactive'")),
+				validation.Each(validation.In(StatusActive, StatusInactive).Error("Status must be 'active' or 'inactive'")),
 			),
 		),
 		validation.Field(&f.ClientUUID,

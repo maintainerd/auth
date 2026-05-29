@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
-	"github.com/maintainerd/auth/internal/model"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -23,8 +22,8 @@ func TestBrandingService_Get(t *testing.T) {
 	t.Run("existing record", func(t *testing.T) {
 		id := uuid.New()
 		svc := newBrandingSvc(&mockBrandingRepo{
-			findByTenantIDFn: func(tid int64) (*model.Branding, error) {
-				return &model.Branding{BrandingUUID: id, TenantID: tid, CompanyName: "Acme"}, nil
+			findByTenantIDFn: func(tid int64) (*Branding, error) {
+				return &Branding{BrandingUUID: id, TenantID: tid, CompanyName: "Acme"}, nil
 			},
 		})
 		res, err := svc.Get(context.Background(), 1)
@@ -35,8 +34,8 @@ func TestBrandingService_Get(t *testing.T) {
 
 	t.Run("auto-creates default when not found", func(t *testing.T) {
 		svc := newBrandingSvc(&mockBrandingRepo{
-			findByTenantIDFn: func(_ int64) (*model.Branding, error) { return nil, nil },
-			createFn: func(e *model.Branding) (*model.Branding, error) {
+			findByTenantIDFn: func(_ int64) (*Branding, error) { return nil, nil },
+			createFn: func(e *Branding) (*Branding, error) {
 				e.BrandingUUID = uuid.New()
 				return e, nil
 			},
@@ -48,7 +47,7 @@ func TestBrandingService_Get(t *testing.T) {
 
 	t.Run("FindByTenantID error", func(t *testing.T) {
 		svc := newBrandingSvc(&mockBrandingRepo{
-			findByTenantIDFn: func(_ int64) (*model.Branding, error) { return nil, errors.New("db err") },
+			findByTenantIDFn: func(_ int64) (*Branding, error) { return nil, errors.New("db err") },
 		})
 		_, err := svc.Get(context.Background(), 1)
 		require.Error(t, err)
@@ -57,8 +56,8 @@ func TestBrandingService_Get(t *testing.T) {
 
 	t.Run("create default error", func(t *testing.T) {
 		svc := newBrandingSvc(&mockBrandingRepo{
-			findByTenantIDFn: func(_ int64) (*model.Branding, error) { return nil, nil },
-			createFn: func(_ *model.Branding) (*model.Branding, error) {
+			findByTenantIDFn: func(_ int64) (*Branding, error) { return nil, nil },
+			createFn: func(_ *Branding) (*Branding, error) {
 				return nil, errors.New("create fail")
 			},
 		})
@@ -73,10 +72,10 @@ func TestBrandingService_Get(t *testing.T) {
 
 func TestBrandingService_Update(t *testing.T) {
 	t.Run("success with existing record", func(t *testing.T) {
-		existing := &model.Branding{BrandingUUID: uuid.New(), TenantID: 1}
+		existing := &Branding{BrandingUUID: uuid.New(), TenantID: 1}
 		svc := newBrandingSvc(&mockBrandingRepo{
-			findByTenantIDFn: func(_ int64) (*model.Branding, error) { return existing, nil },
-			createOrUpdateFn: func(e *model.Branding) (*model.Branding, error) { return e, nil },
+			findByTenantIDFn: func(_ int64) (*Branding, error) { return existing, nil },
+			createOrUpdateFn: func(e *Branding) (*Branding, error) { return e, nil },
 		})
 		res, err := svc.Update(context.Background(), 1,
 			"Acme", "https://logo.png", "https://favicon.ico",
@@ -92,12 +91,12 @@ func TestBrandingService_Update(t *testing.T) {
 
 	t.Run("auto-creates then updates", func(t *testing.T) {
 		svc := newBrandingSvc(&mockBrandingRepo{
-			findByTenantIDFn: func(_ int64) (*model.Branding, error) { return nil, nil },
-			createFn: func(e *model.Branding) (*model.Branding, error) {
+			findByTenantIDFn: func(_ int64) (*Branding, error) { return nil, nil },
+			createFn: func(e *Branding) (*Branding, error) {
 				e.BrandingUUID = uuid.New()
 				return e, nil
 			},
-			createOrUpdateFn: func(e *model.Branding) (*model.Branding, error) { return e, nil },
+			createOrUpdateFn: func(e *Branding) (*Branding, error) { return e, nil },
 		})
 		res, err := svc.Update(context.Background(), 1, "X", "", "", "", "", "", "", "", "", "", "")
 		require.NoError(t, err)
@@ -106,7 +105,7 @@ func TestBrandingService_Update(t *testing.T) {
 
 	t.Run("getOrCreate error", func(t *testing.T) {
 		svc := newBrandingSvc(&mockBrandingRepo{
-			findByTenantIDFn: func(_ int64) (*model.Branding, error) { return nil, errors.New("db") },
+			findByTenantIDFn: func(_ int64) (*Branding, error) { return nil, errors.New("db") },
 		})
 		_, err := svc.Update(context.Background(), 1, "", "", "", "", "", "", "", "", "", "", "")
 		require.Error(t, err)
@@ -114,10 +113,10 @@ func TestBrandingService_Update(t *testing.T) {
 
 	t.Run("CreateOrUpdate error", func(t *testing.T) {
 		svc := newBrandingSvc(&mockBrandingRepo{
-			findByTenantIDFn: func(_ int64) (*model.Branding, error) {
-				return &model.Branding{BrandingUUID: uuid.New(), TenantID: 1}, nil
+			findByTenantIDFn: func(_ int64) (*Branding, error) {
+				return &Branding{BrandingUUID: uuid.New(), TenantID: 1}, nil
 			},
-			createOrUpdateFn: func(_ *model.Branding) (*model.Branding, error) {
+			createOrUpdateFn: func(_ *Branding) (*Branding, error) {
 				return nil, errors.New("save err")
 			},
 		})

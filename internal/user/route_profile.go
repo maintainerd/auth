@@ -4,14 +4,12 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/maintainerd/auth/internal/platform/cache"
 	"github.com/maintainerd/auth/internal/platform/middleware"
-	"github.com/maintainerd/auth/internal/rest/handler"
-	"github.com/maintainerd/auth/internal/service"
 )
 
 func ProfileRoute(
 	r chi.Router,
-	profileHandler *handler.ProfileHandler,
-	userService service.UserService,
+	profileHandler *ProfileHandler,
+	userService UserService,
 	appCache *cache.Cache,
 ) {
 	// /profile - Default profile operations (shortcut for convenience)

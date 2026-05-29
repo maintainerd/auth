@@ -8,7 +8,6 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/maintainerd/auth/internal/dto"
 	"github.com/maintainerd/auth/internal/platform/config"
 	"github.com/maintainerd/auth/internal/platform/jwt"
 	"github.com/stretchr/testify/assert"
@@ -43,7 +42,7 @@ func TestOAuthDiscoveryHandler_Discovery(t *testing.T) {
 	assert.Equal(t, "application/json", w.Header().Get("Content-Type"))
 	assert.Equal(t, "public, max-age=3600", w.Header().Get("Cache-Control"))
 
-	var doc dto.OAuthDiscoveryResponseDTO
+	var doc OAuthDiscoveryResponseDTO
 	require.NoError(t, json.NewDecoder(w.Body).Decode(&doc))
 
 	assert.Equal(t, "https://auth.example.com", doc.Issuer)
@@ -106,7 +105,7 @@ func TestOAuthDiscoveryHandler_JWKS_Success(t *testing.T) {
 	assert.Equal(t, "application/json", w.Header().Get("Content-Type"))
 	assert.Equal(t, "public, max-age=3600", w.Header().Get("Cache-Control"))
 
-	var jwks dto.JWKSResponseDTO
+	var jwks JWKSResponseDTO
 	require.NoError(t, json.NewDecoder(w.Body).Decode(&jwks))
 	require.Len(t, jwks.Keys, 1)
 
@@ -131,7 +130,7 @@ func TestOAuthDiscoveryHandler_JWKS_DefaultKeyID(t *testing.T) {
 
 	assert.Equal(t, http.StatusOK, w.Code)
 
-	var jwks dto.JWKSResponseDTO
+	var jwks JWKSResponseDTO
 	require.NoError(t, json.NewDecoder(w.Body).Decode(&jwks))
 	require.Len(t, jwks.Keys, 1)
 	assert.Equal(t, "maintainerd-auth-key-1", jwks.Keys[0].Kid)

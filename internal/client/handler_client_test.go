@@ -7,7 +7,6 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
-	"github.com/maintainerd/auth/internal/service"
 	"github.com/stretchr/testify/assert"
 	"gorm.io/datatypes"
 )
@@ -22,7 +21,7 @@ func TestClientHandler_Get_NoTenant(t *testing.T) {
 
 func TestClientHandler_Get_ServiceError(t *testing.T) {
 	svc := &mockClientService{
-		getFn: func(service.ClientServiceGetFilter) (*service.ClientServiceGetResult, error) {
+		getFn: func(ClientServiceGetFilter) (*ClientServiceGetResult, error) {
 			return nil, assert.AnError
 		},
 	}
@@ -35,8 +34,8 @@ func TestClientHandler_Get_ServiceError(t *testing.T) {
 
 func TestClientHandler_Get_Success(t *testing.T) {
 	svc := &mockClientService{
-		getFn: func(service.ClientServiceGetFilter) (*service.ClientServiceGetResult, error) {
-			return &service.ClientServiceGetResult{}, nil
+		getFn: func(ClientServiceGetFilter) (*ClientServiceGetResult, error) {
+			return &ClientServiceGetResult{}, nil
 		},
 	}
 	h := NewClientHandler(svc)
@@ -58,9 +57,9 @@ func TestClientHandler_Get_ValidationError(t *testing.T) {
 func TestClientHandler_Get_WithFilters(t *testing.T) {
 	// Covers is_default, is_system, status array trim, client_type array trim, and result rows loop
 	svc := &mockClientService{
-		getFn: func(service.ClientServiceGetFilter) (*service.ClientServiceGetResult, error) {
-			return &service.ClientServiceGetResult{
-				Data: []service.ClientServiceDataResult{{Name: "c1"}},
+		getFn: func(ClientServiceGetFilter) (*ClientServiceGetResult, error) {
+			return &ClientServiceGetResult{
+				Data: []ClientServiceDataResult{{Name: "c1"}},
 			}, nil
 		},
 	}
@@ -75,13 +74,13 @@ func TestClientHandler_Get_WithFilters(t *testing.T) {
 func TestClientHandler_GetByUUID_WithRelations(t *testing.T) {
 	// Covers the IdentityProvider, ClientURIs, and Permissions branches in toClientResponseDTO
 	uriUUID := uuid.New()
-	uris := []service.ClientURIServiceDataResult{{ClientURIUUID: uriUUID, URI: "https://example.com", Type: "redirect-uri"}}
-	perms := []service.PermissionServiceDataResult{{Name: "read"}}
+	uris := []ClientURIServiceDataResult{{ClientURIUUID: uriUUID, URI: "https://example.com", Type: "redirect-uri"}}
+	perms := []PermissionServiceDataResult{{Name: "read"}}
 	svc := &mockClientService{
-		getByUUIDFn: func(id uuid.UUID, tid int64) (*service.ClientServiceDataResult, error) {
-			return &service.ClientServiceDataResult{
+		getByUUIDFn: func(id uuid.UUID, tid int64) (*ClientServiceDataResult, error) {
+			return &ClientServiceDataResult{
 				Name:             "c1",
-				IdentityProvider: &service.IdentityProviderServiceDataResult{Name: "idp1"},
+				IdentityProvider: &IdentityProviderServiceDataResult{Name: "idp1"},
 				ClientURIs:       &uris,
 				Permissions:      &perms,
 			}, nil
@@ -112,7 +111,7 @@ func TestClientHandler_GetByUUID_InvalidUUID(t *testing.T) {
 
 func TestClientHandler_GetByUUID_NotFound(t *testing.T) {
 	svc := &mockClientService{
-		getByUUIDFn: func(id uuid.UUID, tid int64) (*service.ClientServiceDataResult, error) {
+		getByUUIDFn: func(id uuid.UUID, tid int64) (*ClientServiceDataResult, error) {
 			return nil, errNotFound
 		},
 	}
@@ -125,8 +124,8 @@ func TestClientHandler_GetByUUID_NotFound(t *testing.T) {
 
 func TestClientHandler_GetByUUID_Success(t *testing.T) {
 	svc := &mockClientService{
-		getByUUIDFn: func(id uuid.UUID, tid int64) (*service.ClientServiceDataResult, error) {
-			return &service.ClientServiceDataResult{Name: "client1"}, nil
+		getByUUIDFn: func(id uuid.UUID, tid int64) (*ClientServiceDataResult, error) {
+			return &ClientServiceDataResult{Name: "client1"}, nil
 		},
 	}
 	h := NewClientHandler(svc)
@@ -211,7 +210,7 @@ func TestClientHandler_Create(t *testing.T) {
 		assert.Equal(t, http.StatusBadRequest, w.Code)
 	})
 	t.Run("service error returns 500", func(t *testing.T) {
-		svc := &mockClientService{createFn: func(tid int64, n, dn, ct, d string, cfg datatypes.JSON, s string, isDefault bool, idpUUID string, actor uuid.UUID) (*service.ClientCreateServiceResult, error) {
+		svc := &mockClientService{createFn: func(tid int64, n, dn, ct, d string, cfg datatypes.JSON, s string, isDefault bool, idpUUID string, actor uuid.UUID) (*ClientCreateServiceResult, error) {
 			return nil, errors.New("db error")
 		}}
 		r := withTenantAndUser(jsonReq(t, http.MethodPost, "/clients", validClientBody()))
@@ -220,8 +219,8 @@ func TestClientHandler_Create(t *testing.T) {
 		assert.Equal(t, http.StatusInternalServerError, w.Code)
 	})
 	t.Run("success", func(t *testing.T) {
-		svc := &mockClientService{createFn: func(tid int64, n, dn, ct, d string, cfg datatypes.JSON, s string, isDefault bool, idpUUID string, actor uuid.UUID) (*service.ClientCreateServiceResult, error) {
-			return &service.ClientCreateServiceResult{Client: &service.ClientServiceDataResult{Name: n}}, nil
+		svc := &mockClientService{createFn: func(tid int64, n, dn, ct, d string, cfg datatypes.JSON, s string, isDefault bool, idpUUID string, actor uuid.UUID) (*ClientCreateServiceResult, error) {
+			return &ClientCreateServiceResult{Client: &ClientServiceDataResult{Name: n}}, nil
 		}}
 		r := withTenantAndUser(jsonReq(t, http.MethodPost, "/clients", validClientBody()))
 		w := httptest.NewRecorder()
@@ -256,7 +255,7 @@ func TestClientHandler_Update(t *testing.T) {
 		assert.Equal(t, http.StatusBadRequest, w.Code)
 	})
 	t.Run("service error returns 500", func(t *testing.T) {
-		svc := &mockClientService{updateFn: func(id uuid.UUID, tid int64, n, dn, ct, d string, cfg datatypes.JSON, s string, isDefault bool, actor uuid.UUID) (*service.ClientServiceDataResult, error) {
+		svc := &mockClientService{updateFn: func(id uuid.UUID, tid int64, n, dn, ct, d string, cfg datatypes.JSON, s string, isDefault bool, actor uuid.UUID) (*ClientServiceDataResult, error) {
 			return nil, errors.New("db error")
 		}}
 		r := withTenantAndUser(withChiParam(jsonReq(t, http.MethodPut, "/clients/"+testResourceUUID.String(), validClientBody()), "client_uuid", testResourceUUID.String()))
@@ -265,8 +264,8 @@ func TestClientHandler_Update(t *testing.T) {
 		assert.Equal(t, http.StatusInternalServerError, w.Code)
 	})
 	t.Run("success", func(t *testing.T) {
-		svc := &mockClientService{updateFn: func(id uuid.UUID, tid int64, n, dn, ct, d string, cfg datatypes.JSON, s string, isDefault bool, actor uuid.UUID) (*service.ClientServiceDataResult, error) {
-			return &service.ClientServiceDataResult{Name: n}, nil
+		svc := &mockClientService{updateFn: func(id uuid.UUID, tid int64, n, dn, ct, d string, cfg datatypes.JSON, s string, isDefault bool, actor uuid.UUID) (*ClientServiceDataResult, error) {
+			return &ClientServiceDataResult{Name: n}, nil
 		}}
 		r := withTenantAndUser(withChiParam(jsonReq(t, http.MethodPut, "/clients/"+testResourceUUID.String(), validClientBody()), "client_uuid", testResourceUUID.String()))
 		w := httptest.NewRecorder()
@@ -289,7 +288,7 @@ func TestClientHandler_SetStatus(t *testing.T) {
 		assert.Equal(t, http.StatusBadRequest, w.Code)
 	})
 	t.Run("get by uuid error returns 404", func(t *testing.T) {
-		svc := &mockClientService{getByUUIDFn: func(id uuid.UUID, tid int64) (*service.ClientServiceDataResult, error) {
+		svc := &mockClientService{getByUUIDFn: func(id uuid.UUID, tid int64) (*ClientServiceDataResult, error) {
 			return nil, errNotFound
 		}}
 		r := withTenantAndUser(withChiParam(httptest.NewRequest(http.MethodPatch, "/", nil), "client_uuid", testResourceUUID.String()))
@@ -299,11 +298,11 @@ func TestClientHandler_SetStatus(t *testing.T) {
 	})
 	t.Run("active client toggled to inactive", func(t *testing.T) {
 		svc := &mockClientService{
-			getByUUIDFn: func(id uuid.UUID, tid int64) (*service.ClientServiceDataResult, error) {
-				return &service.ClientServiceDataResult{Status: "active"}, nil
+			getByUUIDFn: func(id uuid.UUID, tid int64) (*ClientServiceDataResult, error) {
+				return &ClientServiceDataResult{Status: "active"}, nil
 			},
-			setStatusByUUIDFn: func(id uuid.UUID, tid int64, s string, actor uuid.UUID) (*service.ClientServiceDataResult, error) {
-				return &service.ClientServiceDataResult{Status: s}, nil
+			setStatusByUUIDFn: func(id uuid.UUID, tid int64, s string, actor uuid.UUID) (*ClientServiceDataResult, error) {
+				return &ClientServiceDataResult{Status: s}, nil
 			},
 		}
 		r := withTenantAndUser(withChiParam(httptest.NewRequest(http.MethodPatch, "/", nil), "client_uuid", testResourceUUID.String()))
@@ -313,10 +312,10 @@ func TestClientHandler_SetStatus(t *testing.T) {
 	})
 	t.Run("set status service error returns 500", func(t *testing.T) {
 		svc := &mockClientService{
-			getByUUIDFn: func(id uuid.UUID, tid int64) (*service.ClientServiceDataResult, error) {
-				return &service.ClientServiceDataResult{Status: "inactive"}, nil
+			getByUUIDFn: func(id uuid.UUID, tid int64) (*ClientServiceDataResult, error) {
+				return &ClientServiceDataResult{Status: "inactive"}, nil
 			},
-			setStatusByUUIDFn: func(id uuid.UUID, tid int64, s string, actor uuid.UUID) (*service.ClientServiceDataResult, error) {
+			setStatusByUUIDFn: func(id uuid.UUID, tid int64, s string, actor uuid.UUID) (*ClientServiceDataResult, error) {
 				return nil, errors.New("db error")
 			},
 		}
@@ -357,7 +356,7 @@ func TestClientHandler_GetURIs(t *testing.T) {
 		assert.Equal(t, http.StatusBadRequest, w.Code)
 	})
 	t.Run("service error returns 404", func(t *testing.T) {
-		svc := &mockClientService{getByUUIDFn: func(id uuid.UUID, tid int64) (*service.ClientServiceDataResult, error) {
+		svc := &mockClientService{getByUUIDFn: func(id uuid.UUID, tid int64) (*ClientServiceDataResult, error) {
 			return nil, errNotFound
 		}}
 		r := withTenant(withChiParam(httptest.NewRequest(http.MethodGet, "/", nil), "client_uuid", testResourceUUID.String()))
@@ -366,9 +365,9 @@ func TestClientHandler_GetURIs(t *testing.T) {
 		assert.Equal(t, http.StatusNotFound, w.Code)
 	})
 	t.Run("success with uris", func(t *testing.T) {
-		uris := []service.ClientURIServiceDataResult{{ClientURIUUID: uuid.New(), URI: "https://example.com", Type: "redirect-uri"}}
-		svc := &mockClientService{getByUUIDFn: func(id uuid.UUID, tid int64) (*service.ClientServiceDataResult, error) {
-			return &service.ClientServiceDataResult{ClientURIs: &uris}, nil
+		uris := []ClientURIServiceDataResult{{ClientURIUUID: uuid.New(), URI: "https://example.com", Type: "redirect-uri"}}
+		svc := &mockClientService{getByUUIDFn: func(id uuid.UUID, tid int64) (*ClientServiceDataResult, error) {
+			return &ClientServiceDataResult{ClientURIs: &uris}, nil
 		}}
 		r := withTenant(withChiParam(httptest.NewRequest(http.MethodGet, "/", nil), "client_uuid", testResourceUUID.String()))
 		w := httptest.NewRecorder()
@@ -376,8 +375,8 @@ func TestClientHandler_GetURIs(t *testing.T) {
 		assert.Equal(t, http.StatusOK, w.Code)
 	})
 	t.Run("success with nil uris", func(t *testing.T) {
-		svc := &mockClientService{getByUUIDFn: func(id uuid.UUID, tid int64) (*service.ClientServiceDataResult, error) {
-			return &service.ClientServiceDataResult{}, nil
+		svc := &mockClientService{getByUUIDFn: func(id uuid.UUID, tid int64) (*ClientServiceDataResult, error) {
+			return &ClientServiceDataResult{}, nil
 		}}
 		r := withTenant(withChiParam(httptest.NewRequest(http.MethodGet, "/", nil), "client_uuid", testResourceUUID.String()))
 		w := httptest.NewRecorder()
@@ -391,8 +390,8 @@ func validURIBody() map[string]any {
 }
 
 func TestClientHandler_CreateURI(t *testing.T) {
-	clientURI := service.ClientURIServiceDataResult{ClientURIUUID: uuid.New(), URI: "https://example.com/cb", Type: "redirect-uri"}
-	uris := []service.ClientURIServiceDataResult{clientURI}
+	clientURI := ClientURIServiceDataResult{ClientURIUUID: uuid.New(), URI: "https://example.com/cb", Type: "redirect-uri"}
+	uris := []ClientURIServiceDataResult{clientURI}
 
 	t.Run("no tenant returns 401", func(t *testing.T) {
 		r := withUser(withChiParam(jsonReq(t, http.MethodPost, "/", validURIBody()), "client_uuid", testResourceUUID.String()))
@@ -419,7 +418,7 @@ func TestClientHandler_CreateURI(t *testing.T) {
 		assert.Equal(t, http.StatusBadRequest, w.Code)
 	})
 	t.Run("service error returns 500", func(t *testing.T) {
-		svc := &mockClientService{createURIFn: func(id uuid.UUID, tid int64, uri, uriType string, actor uuid.UUID) (*service.ClientServiceDataResult, error) {
+		svc := &mockClientService{createURIFn: func(id uuid.UUID, tid int64, uri, uriType string, actor uuid.UUID) (*ClientServiceDataResult, error) {
 			return nil, errors.New("db error")
 		}}
 		r := withTenantAndUser(withChiParam(jsonReq(t, http.MethodPost, "/", validURIBody()), "client_uuid", testResourceUUID.String()))
@@ -428,8 +427,8 @@ func TestClientHandler_CreateURI(t *testing.T) {
 		assert.Equal(t, http.StatusInternalServerError, w.Code)
 	})
 	t.Run("success", func(t *testing.T) {
-		svc := &mockClientService{createURIFn: func(id uuid.UUID, tid int64, uri, uriType string, actor uuid.UUID) (*service.ClientServiceDataResult, error) {
-			return &service.ClientServiceDataResult{ClientURIs: &uris}, nil
+		svc := &mockClientService{createURIFn: func(id uuid.UUID, tid int64, uri, uriType string, actor uuid.UUID) (*ClientServiceDataResult, error) {
+			return &ClientServiceDataResult{ClientURIs: &uris}, nil
 		}}
 		r := withTenantAndUser(withChiParam(jsonReq(t, http.MethodPost, "/", validURIBody()), "client_uuid", testResourceUUID.String()))
 		w := httptest.NewRecorder()
@@ -440,7 +439,7 @@ func TestClientHandler_CreateURI(t *testing.T) {
 
 func TestClientHandler_Delete_ServiceError(t *testing.T) {
 	svc := &mockClientService{
-		deleteByUUIDFn: func(id uuid.UUID, tid int64, actor uuid.UUID) (*service.ClientServiceDataResult, error) {
+		deleteByUUIDFn: func(id uuid.UUID, tid int64, actor uuid.UUID) (*ClientServiceDataResult, error) {
 			return nil, assert.AnError
 		},
 	}
@@ -453,8 +452,8 @@ func TestClientHandler_Delete_ServiceError(t *testing.T) {
 
 func TestClientHandler_Delete_Success(t *testing.T) {
 	svc := &mockClientService{
-		deleteByUUIDFn: func(id uuid.UUID, tid int64, actor uuid.UUID) (*service.ClientServiceDataResult, error) {
-			return &service.ClientServiceDataResult{Name: "c1"}, nil
+		deleteByUUIDFn: func(id uuid.UUID, tid int64, actor uuid.UUID) (*ClientServiceDataResult, error) {
+			return &ClientServiceDataResult{Name: "c1"}, nil
 		},
 	}
 	h := NewClientHandler(svc)
@@ -466,8 +465,8 @@ func TestClientHandler_Delete_Success(t *testing.T) {
 
 func TestClientHandler_UpdateURI(t *testing.T) {
 	uriUUID := uuid.New()
-	matchingURI := service.ClientURIServiceDataResult{ClientURIUUID: uriUUID, URI: "https://example.com/cb", Type: "redirect-uri"}
-	uris := []service.ClientURIServiceDataResult{matchingURI}
+	matchingURI := ClientURIServiceDataResult{ClientURIUUID: uriUUID, URI: "https://example.com/cb", Type: "redirect-uri"}
+	uris := []ClientURIServiceDataResult{matchingURI}
 
 	t.Run("no tenant returns 401", func(t *testing.T) {
 		r := withUser(withChiParam(withChiParam(jsonReq(t, http.MethodPut, "/", validURIBody()), "client_uuid", testResourceUUID.String()), "client_uri_uuid", uriUUID.String()))
@@ -500,7 +499,7 @@ func TestClientHandler_UpdateURI(t *testing.T) {
 		assert.Equal(t, http.StatusBadRequest, w.Code)
 	})
 	t.Run("service error returns 500", func(t *testing.T) {
-		svc := &mockClientService{updateURIFn: func(id uuid.UUID, tid int64, uriID uuid.UUID, uri, uriType string, actor uuid.UUID) (*service.ClientServiceDataResult, error) {
+		svc := &mockClientService{updateURIFn: func(id uuid.UUID, tid int64, uriID uuid.UUID, uri, uriType string, actor uuid.UUID) (*ClientServiceDataResult, error) {
 			return nil, errors.New("db error")
 		}}
 		r := withTenantAndUser(withChiParam(withChiParam(jsonReq(t, http.MethodPut, "/", validURIBody()), "client_uuid", testResourceUUID.String()), "client_uri_uuid", uriUUID.String()))
@@ -510,8 +509,8 @@ func TestClientHandler_UpdateURI(t *testing.T) {
 	})
 	t.Run("updated uri not found returns 500", func(t *testing.T) {
 		// service returns result with nil ClientURIs → updatedURI stays nil
-		svc := &mockClientService{updateURIFn: func(id uuid.UUID, tid int64, uriID uuid.UUID, uri, uriType string, actor uuid.UUID) (*service.ClientServiceDataResult, error) {
-			return &service.ClientServiceDataResult{}, nil
+		svc := &mockClientService{updateURIFn: func(id uuid.UUID, tid int64, uriID uuid.UUID, uri, uriType string, actor uuid.UUID) (*ClientServiceDataResult, error) {
+			return &ClientServiceDataResult{}, nil
 		}}
 		r := withTenantAndUser(withChiParam(withChiParam(jsonReq(t, http.MethodPut, "/", validURIBody()), "client_uuid", testResourceUUID.String()), "client_uri_uuid", uriUUID.String()))
 		w := httptest.NewRecorder()
@@ -519,8 +518,8 @@ func TestClientHandler_UpdateURI(t *testing.T) {
 		assert.Equal(t, http.StatusInternalServerError, w.Code)
 	})
 	t.Run("success", func(t *testing.T) {
-		svc := &mockClientService{updateURIFn: func(id uuid.UUID, tid int64, uriID uuid.UUID, uri, uriType string, actor uuid.UUID) (*service.ClientServiceDataResult, error) {
-			return &service.ClientServiceDataResult{ClientURIs: &uris}, nil
+		svc := &mockClientService{updateURIFn: func(id uuid.UUID, tid int64, uriID uuid.UUID, uri, uriType string, actor uuid.UUID) (*ClientServiceDataResult, error) {
+			return &ClientServiceDataResult{ClientURIs: &uris}, nil
 		}}
 		r := withTenantAndUser(withChiParam(withChiParam(jsonReq(t, http.MethodPut, "/", validURIBody()), "client_uuid", testResourceUUID.String()), "client_uri_uuid", uriUUID.String()))
 		w := httptest.NewRecorder()
@@ -551,7 +550,7 @@ func TestClientHandler_DeleteURI(t *testing.T) {
 		assert.Equal(t, http.StatusBadRequest, w.Code)
 	})
 	t.Run("service error returns 500", func(t *testing.T) {
-		svc := &mockClientService{deleteURIFn: func(id uuid.UUID, tid int64, uriID uuid.UUID, actor uuid.UUID) (*service.ClientServiceDataResult, error) {
+		svc := &mockClientService{deleteURIFn: func(id uuid.UUID, tid int64, uriID uuid.UUID, actor uuid.UUID) (*ClientServiceDataResult, error) {
 			return nil, errors.New("db error")
 		}}
 		r := withTenantAndUser(withChiParam(withChiParam(httptest.NewRequest(http.MethodDelete, "/", nil), "client_uuid", testResourceUUID.String()), "client_uri_uuid", uriUUID.String()))
@@ -560,8 +559,8 @@ func TestClientHandler_DeleteURI(t *testing.T) {
 		assert.Equal(t, http.StatusInternalServerError, w.Code)
 	})
 	t.Run("success", func(t *testing.T) {
-		svc := &mockClientService{deleteURIFn: func(id uuid.UUID, tid int64, uriID uuid.UUID, actor uuid.UUID) (*service.ClientServiceDataResult, error) {
-			return &service.ClientServiceDataResult{Name: "c1"}, nil
+		svc := &mockClientService{deleteURIFn: func(id uuid.UUID, tid int64, uriID uuid.UUID, actor uuid.UUID) (*ClientServiceDataResult, error) {
+			return &ClientServiceDataResult{Name: "c1"}, nil
 		}}
 		r := withTenantAndUser(withChiParam(withChiParam(httptest.NewRequest(http.MethodDelete, "/", nil), "client_uuid", testResourceUUID.String()), "client_uri_uuid", uriUUID.String()))
 		w := httptest.NewRecorder()
@@ -586,7 +585,7 @@ func TestClientHandler_GetAPIs(t *testing.T) {
 		assert.Equal(t, http.StatusBadRequest, w.Code)
 	})
 	t.Run("service error returns 500", func(t *testing.T) {
-		svc := &mockClientService{getClientAPIsFn: func(tid int64, id uuid.UUID) ([]service.ClientAPIServiceDataResult, error) {
+		svc := &mockClientService{getClientAPIsFn: func(tid int64, id uuid.UUID) ([]ClientAPIServiceDataResult, error) {
 			return nil, errors.New("db error")
 		}}
 		r := withTenant(withChiParam(httptest.NewRequest(http.MethodGet, "/", nil), "client_uuid", testResourceUUID.String()))
@@ -595,11 +594,11 @@ func TestClientHandler_GetAPIs(t *testing.T) {
 		assert.Equal(t, http.StatusInternalServerError, w.Code)
 	})
 	t.Run("success with permissions", func(t *testing.T) {
-		svc := &mockClientService{getClientAPIsFn: func(tid int64, id uuid.UUID) ([]service.ClientAPIServiceDataResult, error) {
-			return []service.ClientAPIServiceDataResult{{
+		svc := &mockClientService{getClientAPIsFn: func(tid int64, id uuid.UUID) ([]ClientAPIServiceDataResult, error) {
+			return []ClientAPIServiceDataResult{{
 				ClientAPIUUID: uuid.New(),
-				Api:           service.APIServiceDataResult{APIUUID: apiUUID, Name: "api1"},
-				Permissions:   []service.PermissionServiceDataResult{{Name: "read"}},
+				Api:           APIServiceDataResult{APIUUID: apiUUID, Name: "api1"},
+				Permissions:   []PermissionServiceDataResult{{Name: "read"}},
 			}}, nil
 		}}
 		r := withTenant(withChiParam(httptest.NewRequest(http.MethodGet, "/", nil), "client_uuid", testResourceUUID.String()))
@@ -707,7 +706,7 @@ func TestClientHandler_GetAPIPermissions(t *testing.T) {
 		assert.Equal(t, http.StatusUnauthorized, w.Code)
 	})
 	t.Run("service error returns 500", func(t *testing.T) {
-		svc := &mockClientService{getClientAPIPermsFn: func(tid int64, id, api uuid.UUID) ([]service.PermissionServiceDataResult, error) {
+		svc := &mockClientService{getClientAPIPermsFn: func(tid int64, id, api uuid.UUID) ([]PermissionServiceDataResult, error) {
 			return nil, errors.New("db error")
 		}}
 		r := withTenant(withChiParam(withChiParam(httptest.NewRequest(http.MethodGet, "/", nil), "client_uuid", testResourceUUID.String()), "api_uuid", apiUUID.String()))
@@ -716,8 +715,8 @@ func TestClientHandler_GetAPIPermissions(t *testing.T) {
 		assert.Equal(t, http.StatusInternalServerError, w.Code)
 	})
 	t.Run("success", func(t *testing.T) {
-		svc := &mockClientService{getClientAPIPermsFn: func(tid int64, id, api uuid.UUID) ([]service.PermissionServiceDataResult, error) {
-			return []service.PermissionServiceDataResult{{Name: "read"}}, nil
+		svc := &mockClientService{getClientAPIPermsFn: func(tid int64, id, api uuid.UUID) ([]PermissionServiceDataResult, error) {
+			return []PermissionServiceDataResult{{Name: "read"}}, nil
 		}}
 		r := withTenant(withChiParam(withChiParam(httptest.NewRequest(http.MethodGet, "/", nil), "client_uuid", testResourceUUID.String()), "api_uuid", apiUUID.String()))
 		w := httptest.NewRecorder()

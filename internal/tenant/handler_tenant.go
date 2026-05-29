@@ -8,19 +8,17 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
-	"github.com/maintainerd/auth/internal/dto"
 	"github.com/maintainerd/auth/internal/platform/middleware"
 	"github.com/maintainerd/auth/internal/platform/ptr"
 	resp "github.com/maintainerd/auth/internal/platform/response"
-	"github.com/maintainerd/auth/internal/service"
 )
 
 type TenantHandler struct {
-	tenantService       service.TenantService
-	tenantMemberService service.TenantMemberService
+	tenantService       TenantService
+	tenantMemberService TenantMemberService
 }
 
-func NewTenantHandler(tenantService service.TenantService, tenantMemberService service.TenantMemberService) *TenantHandler {
+func NewTenantHandler(tenantService TenantService, tenantMemberService TenantMemberService) *TenantHandler {
 	return &TenantHandler{
 		tenantService:       tenantService,
 		tenantMemberService: tenantMemberService,
@@ -56,7 +54,7 @@ func (h *TenantHandler) Get(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Build request DTO
-	reqParams := dto.TenantFilterDTO{
+	reqParams := TenantFilterDTO{
 		Name:                 ptr.PtrOrNil(q.Get("name")),
 		DisplayName:          ptr.PtrOrNil(q.Get("display_name")),
 		Description:          ptr.PtrOrNil(q.Get("description")),
@@ -73,7 +71,7 @@ func (h *TenantHandler) Get(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Build service filter
-	tenantFilter := service.TenantServiceGetFilter{
+	tenantFilter := TenantServiceGetFilter{
 		Name:        reqParams.Name,
 		DisplayName: reqParams.DisplayName,
 		Description: reqParams.Description,
@@ -95,13 +93,13 @@ func (h *TenantHandler) Get(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Map tenant result to DTO
-	rows := make([]dto.TenantResponseDTO, len(result.Data))
+	rows := make([]TenantResponseDTO, len(result.Data))
 	for i, r := range result.Data {
 		rows[i] = toTenantResponseDTO(r)
 	}
 
 	// Build response data
-	response := dto.PaginatedResponseDTO[dto.TenantResponseDTO]{
+	response := PaginatedResponseDTO[TenantResponseDTO]{
 		Rows:       rows,
 		Total:      result.Total,
 		Page:       result.Page,
@@ -165,7 +163,7 @@ func (h *TenantHandler) GetByIdentifier(w http.ResponseWriter, r *http.Request) 
 
 // Create Tenant
 func (h *TenantHandler) Create(w http.ResponseWriter, r *http.Request) {
-	var req dto.TenantCreateRequestDTO
+	var req TenantCreateRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		resp.Error(w, http.StatusBadRequest, "Invalid request")
 		return
@@ -212,7 +210,7 @@ func (h *TenantHandler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var req dto.TenantUpdateRequestDTO
+	var req TenantUpdateRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		resp.Error(w, http.StatusBadRequest, "Invalid request")
 		return
@@ -349,7 +347,7 @@ func (h *TenantHandler) GetMembers(w http.ResponseWriter, r *http.Request) {
 	// Parse pagination
 
 	// Build request DTO
-	reqParams := dto.TenantMemberFilterDTO{
+	reqParams := TenantMemberFilterDTO{
 		Role:                 ptr.PtrOrNil(q.Get("role")),
 		PaginationRequestDTO: parsePaginationQuery(r),
 	}
@@ -372,7 +370,7 @@ func (h *TenantHandler) GetMembers(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	response := make([]dto.TenantMemberResponseDTO, len(members))
+	response := make([]TenantMemberResponseDTO, len(members))
 	for i, member := range members {
 		response[i] = toTenantMemberResponseDTO(member)
 	}
@@ -394,7 +392,7 @@ func (h *TenantHandler) AddMember(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var req dto.TenantMemberAddMemberRequestDTO
+	var req TenantMemberAddMemberRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		resp.Error(w, http.StatusBadRequest, "Invalid request body")
 		return
@@ -436,7 +434,7 @@ func (h *TenantHandler) UpdateMemberRole(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	var req dto.TenantMemberUpdateRoleRequestDTO
+	var req TenantMemberUpdateRoleRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		resp.Error(w, http.StatusBadRequest, "Invalid request body")
 		return
@@ -480,8 +478,8 @@ func (h *TenantHandler) RemoveMember(w http.ResponseWriter, r *http.Request) {
 }
 
 // Convert service result to DTO
-func toTenantResponseDTO(r service.TenantServiceDataResult) dto.TenantResponseDTO {
-	result := dto.TenantResponseDTO{
+func toTenantResponseDTO(r TenantServiceDataResult) TenantResponseDTO {
+	result := TenantResponseDTO{
 		TenantUUID:  r.TenantUUID,
 		Name:        r.Name,
 		DisplayName: r.DisplayName,
@@ -497,8 +495,8 @@ func toTenantResponseDTO(r service.TenantServiceDataResult) dto.TenantResponseDT
 	return result
 }
 
-func toTenantMemberResponseDTO(r service.TenantMemberServiceDataResult) dto.TenantMemberResponseDTO {
-	resp := dto.TenantMemberResponseDTO{
+func toTenantMemberResponseDTO(r TenantMemberServiceDataResult) TenantMemberResponseDTO {
+	resp := TenantMemberResponseDTO{
 		TenantMemberUUID: r.TenantMemberUUID,
 		Role:             r.Role,
 		CreatedAt:        r.CreatedAt,

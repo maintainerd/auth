@@ -4,16 +4,15 @@ import (
 	"errors"
 	"time"
 
-	"github.com/maintainerd/auth/internal/model"
 	"gorm.io/gorm"
 )
 
 // OAuthCIBARequestRepository defines data access operations for
 // Client-Initiated Backchannel Authentication requests.
 type OAuthCIBARequestRepository interface {
-	BaseRepositoryMethods[model.OAuthCIBARequest]
+	BaseRepositoryMethods[OAuthCIBARequest]
 	WithTx(tx *gorm.DB) OAuthCIBARequestRepository
-	FindByAuthReqIDHash(hash string) (*model.OAuthCIBARequest, error)
+	FindByAuthReqIDHash(hash string) (*OAuthCIBARequest, error)
 	UpdateStatus(id int64, status string) error
 	UpdateApproval(id int64, userID int64) error
 	UpdateLastPollAt(id int64) error
@@ -22,13 +21,13 @@ type OAuthCIBARequestRepository interface {
 }
 
 type oauthCIBARequestRepository struct {
-	*BaseRepository[model.OAuthCIBARequest]
+	*BaseRepository[OAuthCIBARequest]
 }
 
 // NewOAuthCIBARequestRepository creates a new OAuthCIBARequestRepository.
 func NewOAuthCIBARequestRepository(db *gorm.DB) OAuthCIBARequestRepository {
 	return &oauthCIBARequestRepository{
-		BaseRepository: NewBaseRepository[model.OAuthCIBARequest](db, "oauth_ciba_request_uuid", "oauth_ciba_request_id"),
+		BaseRepository: NewBaseRepository[OAuthCIBARequest](db, "oauth_ciba_request_uuid", "oauth_ciba_request_id"),
 	}
 }
 
@@ -40,8 +39,8 @@ func (r *oauthCIBARequestRepository) WithTx(tx *gorm.DB) OAuthCIBARequestReposit
 
 // FindByAuthReqIDHash looks up a CIBA request by the SHA-256 hash of the
 // auth_req_id. Returns nil, nil when not found.
-func (r *oauthCIBARequestRepository) FindByAuthReqIDHash(hash string) (*model.OAuthCIBARequest, error) {
-	var req model.OAuthCIBARequest
+func (r *oauthCIBARequestRepository) FindByAuthReqIDHash(hash string) (*OAuthCIBARequest, error) {
+	var req OAuthCIBARequest
 	err := r.DB().
 		Preload("Client").
 		Preload("Client.IdentityProvider").
@@ -59,17 +58,17 @@ func (r *oauthCIBARequestRepository) FindByAuthReqIDHash(hash string) (*model.OA
 
 // UpdateStatus sets the status on a CIBA request.
 func (r *oauthCIBARequestRepository) UpdateStatus(id int64, status string) error {
-	return r.DB().Model(&model.OAuthCIBARequest{}).
+	return r.DB().Model(&OAuthCIBARequest{}).
 		Where("oauth_ciba_request_id = ?", id).
 		Update("status", status).Error
 }
 
 // UpdateApproval sets status=approved and records the approving user.
 func (r *oauthCIBARequestRepository) UpdateApproval(id int64, userID int64) error {
-	return r.DB().Model(&model.OAuthCIBARequest{}).
+	return r.DB().Model(&OAuthCIBARequest{}).
 		Where("oauth_ciba_request_id = ?", id).
 		Updates(map[string]any{
-			"status":  model.CIBAStatusApproved,
+			"status":  CIBAStatusApproved,
 			"user_id": userID,
 		}).Error
 }
@@ -77,7 +76,7 @@ func (r *oauthCIBARequestRepository) UpdateApproval(id int64, userID int64) erro
 // UpdateLastPollAt records when the client last polled.
 func (r *oauthCIBARequestRepository) UpdateLastPollAt(id int64) error {
 	now := time.Now()
-	return r.DB().Model(&model.OAuthCIBARequest{}).
+	return r.DB().Model(&OAuthCIBARequest{}).
 		Where("oauth_ciba_request_id = ?", id).
 		Update("last_poll_at", now).Error
 }
@@ -85,7 +84,7 @@ func (r *oauthCIBARequestRepository) UpdateLastPollAt(id int64) error {
 // MarkNotificationSent sets the notification_sent_at timestamp.
 func (r *oauthCIBARequestRepository) MarkNotificationSent(id int64) error {
 	now := time.Now()
-	return r.DB().Model(&model.OAuthCIBARequest{}).
+	return r.DB().Model(&OAuthCIBARequest{}).
 		Where("oauth_ciba_request_id = ?", id).
 		Update("notification_sent_at", now).Error
 }
@@ -94,6 +93,6 @@ func (r *oauthCIBARequestRepository) MarkNotificationSent(id int64) error {
 func (r *oauthCIBARequestRepository) DeleteExpired(before time.Time) (int64, error) {
 	result := r.DB().
 		Where("expires_at < ?", before).
-		Delete(&model.OAuthCIBARequest{})
+		Delete(&OAuthCIBARequest{})
 	return result.RowsAffected, result.Error
 }

@@ -6,7 +6,6 @@ import (
 	"math/big"
 	"net/http"
 
-	"github.com/maintainerd/auth/internal/dto"
 	"github.com/maintainerd/auth/internal/platform/config"
 	"github.com/maintainerd/auth/internal/platform/jwt"
 )
@@ -24,7 +23,7 @@ func NewOAuthDiscoveryHandler() *OAuthDiscoveryHandler {
 func (h *OAuthDiscoveryHandler) Discovery(w http.ResponseWriter, r *http.Request) {
 	issuer := config.AppPublicHostname
 
-	doc := dto.OAuthDiscoveryResponseDTO{
+	doc := OAuthDiscoveryResponseDTO{
 		Issuer:                issuer,
 		AuthorizationEndpoint: issuer + "/api/v1/oauth/authorize",
 		TokenEndpoint:         issuer + "/api/v1/oauth/token",
@@ -56,7 +55,7 @@ func (h *OAuthDiscoveryHandler) Discovery(w http.ResponseWriter, r *http.Request
 func (h *OAuthDiscoveryHandler) AuthorizationServerMetadata(w http.ResponseWriter, r *http.Request) {
 	issuer := config.AppPublicHostname
 
-	doc := dto.OAuthAuthorizationServerMetadataDTO{
+	doc := OAuthAuthorizationServerMetadataDTO{
 		Issuer:                      issuer,
 		AuthorizationEndpoint:       issuer + "/api/v1/oauth/authorize",
 		TokenEndpoint:               issuer + "/api/v1/oauth/token",
@@ -99,9 +98,9 @@ func (h *OAuthDiscoveryHandler) JWKS(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	keys := make([]dto.JWKKeyDTO, 0, len(entries))
+	keys := make([]JWKKeyDTO, 0, len(entries))
 	for _, e := range entries {
-		keys = append(keys, dto.JWKKeyDTO{
+		keys = append(keys, JWKKeyDTO{
 			Kty: "RSA",
 			Use: "sig",
 			Kid: e.KID,
@@ -114,7 +113,7 @@ func (h *OAuthDiscoveryHandler) JWKS(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Cache-Control", "public, max-age=3600")
 	w.WriteHeader(http.StatusOK)
-	_ = json.NewEncoder(w).Encode(dto.JWKSResponseDTO{Keys: keys})
+	_ = json.NewEncoder(w).Encode(JWKSResponseDTO{Keys: keys})
 }
 
 // base64URLEncodeUint encodes a big.Int as a base64url string without padding

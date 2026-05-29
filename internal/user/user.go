@@ -6,13 +6,11 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/maintainerd/auth/internal/model"
 	"github.com/maintainerd/auth/internal/platform/apperror"
 	"github.com/maintainerd/auth/internal/platform/cache"
 	"github.com/maintainerd/auth/internal/platform/middleware"
 	"github.com/maintainerd/auth/internal/platform/ptr"
 	"github.com/maintainerd/auth/internal/platform/security"
-	"github.com/maintainerd/auth/internal/repository"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -88,42 +86,42 @@ type UserService interface {
 	GetUserIdentities(ctx context.Context, userUUID uuid.UUID) ([]UserIdentityServiceDataResult, error)
 	// FindBySubAndClientID resolves a user from a JWT sub claim and client ID.
 	// Used by UserContextMiddleware to populate the request context.
-	FindBySubAndClientID(ctx context.Context, sub string, clientID string) (*model.User, error)
+	FindBySubAndClientID(ctx context.Context, sub string, clientID string) (*User, error)
 	// ForcePasswordChange sets or clears the force_password_change flag for a user.
 	ForcePasswordChange(ctx context.Context, userUUID uuid.UUID, force bool) error
 }
 
 type userService struct {
 	db                   *gorm.DB
-	userRepo             repository.UserRepository
-	userIdentityRepo     repository.UserIdentityRepository
-	userRoleRepo         repository.UserRoleRepository
-	roleRepo             repository.RoleRepository
-	tenantRepo           repository.TenantRepository
-	identityProviderRepo repository.IdentityProviderRepository
-	clientRepo           repository.ClientRepository
-	userPoolRepo         repository.UserPoolRepository
+	userRepo             UserRepository
+	userIdentityRepo     UserIdentityRepository
+	userRoleRepo         UserRoleRepository
+	roleRepo             RoleRepository
+	tenantRepo           TenantRepository
+	identityProviderRepo IdentityProviderRepository
+	clientRepo           ClientRepository
+	userPoolRepo         UserPoolRepository
 	cacheInvalidator     cache.Invalidator
-	userTokenRepo        repository.UserTokenRepository
-	securitySettingRepo  repository.SecuritySettingRepository     // nil → use defaults
-	passwordHistoryRepo  repository.UserPasswordHistoryRepository // nil → skip history
+	userTokenRepo        UserTokenRepository
+	securitySettingRepo  SecuritySettingRepository     // nil → use defaults
+	passwordHistoryRepo  UserPasswordHistoryRepository // nil → skip history
 	authEventService     AuthEventService
 }
 
 func NewUserService(
 	db *gorm.DB,
-	userRepo repository.UserRepository,
-	userIdentityRepo repository.UserIdentityRepository,
-	userRoleRepo repository.UserRoleRepository,
-	roleRepo repository.RoleRepository,
-	tenantRepo repository.TenantRepository,
-	identityProviderRepo repository.IdentityProviderRepository,
-	clientRepo repository.ClientRepository,
-	userPoolRepo repository.UserPoolRepository,
+	userRepo UserRepository,
+	userIdentityRepo UserIdentityRepository,
+	userRoleRepo UserRoleRepository,
+	roleRepo RoleRepository,
+	tenantRepo TenantRepository,
+	identityProviderRepo IdentityProviderRepository,
+	clientRepo ClientRepository,
+	userPoolRepo UserPoolRepository,
 	cacheInvalidator cache.Invalidator,
-	userTokenRepo repository.UserTokenRepository,
-	securitySettingRepo repository.SecuritySettingRepository,
-	passwordHistoryRepo repository.UserPasswordHistoryRepository,
+	userTokenRepo UserTokenRepository,
+	securitySettingRepo SecuritySettingRepository,
+	passwordHistoryRepo UserPasswordHistoryRepository,
 	authEventService AuthEventService,
 ) UserService {
 	return &userService{
@@ -147,7 +145,7 @@ func NewUserService(
 // invalidateUserCache clears all cached user-context entries for the given
 // user's identities. Call this after any mutation that changes data visible
 // in the user-context cache (user fields, roles, status, etc.).
-func (s *userService) invalidateUserCache(ctx context.Context, identities []model.UserIdentity) {
+func (s *userService) invalidateUserCache(ctx context.Context, identities []UserIdentity) {
 	seen := make(map[string]struct{})
 	for _, id := range identities {
 		if _, ok := seen[id.Sub]; ok {
@@ -159,9 +157,9 @@ func (s *userService) invalidateUserCache(ctx context.Context, identities []mode
 }
 
 // Helper function to find the default role for a tenant
-func (s *userService) findDefaultRole(roleRepo repository.RoleRepository, tenantID int64) (*model.Role, error) {
+func (s *userService) findDefaultRole(roleRepo RoleRepository, tenantID int64) (*Role, error) {
 	// First try to find a role marked as default
-	filter := repository.RoleRepositoryGetFilter{
+	filter := RoleRepositoryGetFilter{
 		IsDefault: &[]bool{true}[0],
 		TenantID:  tenantID,
 		Page:      1,
@@ -178,7 +176,7 @@ func (s *userService) findDefaultRole(roleRepo repository.RoleRepository, tenant
 	}
 
 	// Fallback: if no default role found, try to find "registered" role
-	role, err := roleRepo.FindByNameAndTenantID(model.RoleRegistered, tenantID)
+	role, err := roleRepo.FindByNameAndTenantID(RoleRegistered, tenantID)
 	if err != nil {
 		return nil, err
 	}
@@ -237,7 +235,7 @@ func (s *userService) Get(ctx context.Context, filter UserServiceGetFilter) (*Us
 	}
 
 	// Build query filter
-	queryFilter := repository.UserRepositoryGetFilter{
+	queryFilter := UserRepositoryGetFilter{
 		Username:   filter.Username,
 		Email:      filter.Email,
 		Phone:      filter.Phone,
@@ -311,7 +309,7 @@ func (s *userService) Create(ctx context.Context, username string, fullname stri
 	defer span.End()
 	span.SetAttributes(attribute.String("user.username", username))
 
-	var createdUser *model.User
+	var createdUser *User
 	var capturedTenantID, capturedActorID int64
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
@@ -393,7 +391,7 @@ func (s *userService) Create(ctx context.Context, username string, fullname stri
 			phoneStr = *phone
 		}
 
-		newUser := &model.User{
+		newUser := &User{
 			Username:          username,
 			Fullname:          fullname,
 			Email:             emailStr,
@@ -419,11 +417,11 @@ func (s *userService) Create(ctx context.Context, username string, fullname stri
 		}
 
 		// Create default user identity
-		userIdentity := &model.UserIdentity{
+		userIdentity := &UserIdentity{
 			TenantID: targetTenant.TenantID,
 			UserID:   newUser.UserID,
 			ClientID: defaultClient.ClientID,
-			Provider: model.ProviderDefault,
+			Provider: ProviderDefault,
 			Sub:      newUser.UserUUID.String(), // Use user UUID as sub for default provider
 			Metadata: datatypes.JSON([]byte(`{}`)),
 		}
@@ -439,7 +437,7 @@ func (s *userService) Create(ctx context.Context, username string, fullname stri
 			return err
 		}
 
-		userRole := &model.UserRole{
+		userRole := &UserRole{
 			UserID: newUser.UserID,
 			RoleID: defaultRole.RoleID,
 		}
@@ -453,7 +451,7 @@ func (s *userService) Create(ctx context.Context, username string, fullname stri
 		// on the in-memory User struct (transient gorm:"-" field) so the
 		// immediate response carries it. To persist the name, the orchestration
 		// layer (handlers / register / setup) must explicitly create a Profile
-		// via the profile service.
+		// via the profile
 
 		// Fetch created user with relationships
 		createdUser, err = txUserRepo.FindByUUID(newUser.UserUUID, "UserIdentities.Client", "UserIdentities.Tenant", "Roles", "Profile")
@@ -477,10 +475,10 @@ func (s *userService) Create(ctx context.Context, username string, fullname stri
 		TargetUserID: &createdUser.UserID,
 		IPAddress:    middleware.ClientIPFromContext(ctx),
 		UserAgent:    ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),
-		Category:     model.AuthEventCategoryUser,
-		EventType:    model.AuthEventTypeUserCreated,
-		Severity:     model.AuthEventSeverityInfo,
-		Result:       model.AuthEventResultSuccess,
+		Category:     AuthEventCategoryUser,
+		EventType:    AuthEventTypeUserCreated,
+		Severity:     AuthEventSeverityInfo,
+		Result:       AuthEventResultSuccess,
 		Description:  ptr.Ptr(fmt.Sprintf("User created: %s", createdUser.Username)),
 	})
 	return toUserServiceDataResult(createdUser), nil
@@ -491,7 +489,7 @@ func (s *userService) Update(ctx context.Context, userUUID uuid.UUID, tenantID i
 	defer span.End()
 	span.SetAttributes(attribute.String("user.uuid", userUUID.String()), attribute.Int64("tenant.id", tenantID))
 
-	var updatedUser *model.User
+	var updatedUser *User
 	var capturedActorID int64
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
@@ -605,10 +603,10 @@ func (s *userService) Update(ctx context.Context, userUUID uuid.UUID, tenantID i
 		TargetUserID: &updatedUser.UserID,
 		IPAddress:    middleware.ClientIPFromContext(ctx),
 		UserAgent:    ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),
-		Category:     model.AuthEventCategoryUser,
-		EventType:    model.AuthEventTypeUserUpdated,
-		Severity:     model.AuthEventSeverityInfo,
-		Result:       model.AuthEventResultSuccess,
+		Category:     AuthEventCategoryUser,
+		EventType:    AuthEventTypeUserUpdated,
+		Severity:     AuthEventSeverityInfo,
+		Result:       AuthEventResultSuccess,
 		Description:  ptr.Ptr(fmt.Sprintf("User updated: %s", updatedUser.Username)),
 	})
 	return toUserServiceDataResult(updatedUser), nil
@@ -667,10 +665,10 @@ func (s *userService) SetStatus(ctx context.Context, userUUID uuid.UUID, tenantI
 		TargetUserID: &updatedUser.UserID,
 		IPAddress:    middleware.ClientIPFromContext(ctx),
 		UserAgent:    ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),
-		Category:     model.AuthEventCategoryUser,
-		EventType:    model.AuthEventTypeUserUpdated,
-		Severity:     model.AuthEventSeverityInfo,
-		Result:       model.AuthEventResultSuccess,
+		Category:     AuthEventCategoryUser,
+		EventType:    AuthEventTypeUserUpdated,
+		Severity:     AuthEventSeverityInfo,
+		Result:       AuthEventResultSuccess,
 		Description:  ptr.Ptr(fmt.Sprintf("User status set to %s: %s", status, user.Username)),
 	})
 	return toUserServiceDataResult(updatedUser), nil
@@ -858,10 +856,10 @@ func (s *userService) DeleteByUUID(ctx context.Context, userUUID uuid.UUID, tena
 		TargetUserID: &user.UserID,
 		IPAddress:    middleware.ClientIPFromContext(ctx),
 		UserAgent:    ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),
-		Category:     model.AuthEventCategoryUser,
-		EventType:    model.AuthEventTypeUserDeleted,
-		Severity:     model.AuthEventSeverityWarn,
-		Result:       model.AuthEventResultSuccess,
+		Category:     AuthEventCategoryUser,
+		EventType:    AuthEventTypeUserDeleted,
+		Severity:     AuthEventSeverityWarn,
+		Result:       AuthEventResultSuccess,
 		Description:  ptr.Ptr(fmt.Sprintf("User deleted: %s", user.Username)),
 	})
 	return toUserServiceDataResult(user), nil
@@ -872,7 +870,7 @@ func (s *userService) AssignUserRoles(ctx context.Context, userUUID uuid.UUID, r
 	defer span.End()
 	span.SetAttributes(attribute.String("user.uuid", userUUID.String()), attribute.Int64("tenant.id", tenantID))
 
-	var userWithRoles *model.User
+	var userWithRoles *User
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
 		txUserRepo := s.userRepo.WithTx(tx)
@@ -918,7 +916,7 @@ func (s *userService) AssignUserRoles(ctx context.Context, userUUID uuid.UUID, r
 			}
 
 			// Create user-role association
-			userRole := &model.UserRole{
+			userRole := &UserRole{
 				UserID: user.UserID,
 				RoleID: role.RoleID,
 			}
@@ -955,10 +953,10 @@ func (s *userService) AssignUserRoles(ctx context.Context, userUUID uuid.UUID, r
 		TargetUserID: &userWithRoles.UserID,
 		IPAddress:    middleware.ClientIPFromContext(ctx),
 		UserAgent:    ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),
-		Category:     model.AuthEventCategoryAuthz,
-		EventType:    model.AuthEventTypePrivilegePermissionsChanged,
-		Severity:     model.AuthEventSeverityInfo,
-		Result:       model.AuthEventResultSuccess,
+		Category:     AuthEventCategoryAuthz,
+		EventType:    AuthEventTypePrivilegePermissionsChanged,
+		Severity:     AuthEventSeverityInfo,
+		Result:       AuthEventResultSuccess,
 		Description:  ptr.Ptr(fmt.Sprintf("Roles assigned to user: %s", userWithRoles.Username)),
 	})
 
@@ -970,7 +968,7 @@ func (s *userService) RemoveUserRole(ctx context.Context, userUUID uuid.UUID, ro
 	defer span.End()
 	span.SetAttributes(attribute.String("user.uuid", userUUID.String()), attribute.Int64("tenant.id", tenantID))
 
-	var userWithRoles *model.User
+	var userWithRoles *User
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
 		txUserRepo := s.userRepo.WithTx(tx)
@@ -1036,10 +1034,10 @@ func (s *userService) RemoveUserRole(ctx context.Context, userUUID uuid.UUID, ro
 		TargetUserID: &userWithRoles.UserID,
 		IPAddress:    middleware.ClientIPFromContext(ctx),
 		UserAgent:    ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),
-		Category:     model.AuthEventCategoryAuthz,
-		EventType:    model.AuthEventTypePrivilegePermissionsChanged,
-		Severity:     model.AuthEventSeverityInfo,
-		Result:       model.AuthEventResultSuccess,
+		Category:     AuthEventCategoryAuthz,
+		EventType:    AuthEventTypePrivilegePermissionsChanged,
+		Severity:     AuthEventSeverityInfo,
+		Result:       AuthEventResultSuccess,
 		Description:  ptr.Ptr(fmt.Sprintf("Role removed from user: %s", userWithRoles.Username)),
 	})
 
@@ -1047,7 +1045,7 @@ func (s *userService) RemoveUserRole(ctx context.Context, userUUID uuid.UUID, ro
 }
 
 // Helper functions
-func toUserServiceDataResult(user *model.User) *UserServiceDataResult {
+func toUserServiceDataResult(user *User) *UserServiceDataResult {
 	if user == nil {
 		return nil
 	}
@@ -1205,10 +1203,10 @@ func (s *userService) ForcePasswordChange(ctx context.Context, userUUID uuid.UUI
 	return nil
 }
 
-// FindBySubAndClientID resolves a *model.User from a JWT sub claim and client
+// FindBySubAndClientID resolves a *User from a JWT sub claim and client
 // identifier. This satisfies the middleware.UserContextProvider interface so
 // the middleware can be wired without a direct repository dependency.
-func (s *userService) FindBySubAndClientID(ctx context.Context, sub string, clientID string) (*model.User, error) {
+func (s *userService) FindBySubAndClientID(ctx context.Context, sub string, clientID string) (*User, error) {
 	_, span := otel.Tracer("service").Start(ctx, "user.findBySubAndClientID")
 	defer span.End()
 	span.SetAttributes(attribute.String("user.sub", sub), attribute.String("client.id", clientID))

@@ -6,14 +6,11 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/maintainerd/auth/internal/dto"
-	"github.com/maintainerd/auth/internal/model"
 	"github.com/maintainerd/auth/internal/platform/apperror"
 	"github.com/maintainerd/auth/internal/platform/crypto"
 	"github.com/maintainerd/auth/internal/platform/middleware"
 	"github.com/maintainerd/auth/internal/platform/ptr"
 	"github.com/maintainerd/auth/internal/platform/security"
-	"github.com/maintainerd/auth/internal/repository"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -35,35 +32,35 @@ type OAuthAuthorizeService interface {
 	// redirect URI, and PKCE parameters. Depending on whether consent is needed,
 	// it either issues an authorization code immediately or creates a consent
 	// challenge for the frontend to resolve.
-	Authorize(ctx context.Context, req dto.OAuthAuthorizeRequestDTO, userID int64) (*dto.OAuthAuthorizeResult, *apperror.OAuthError)
+	Authorize(ctx context.Context, req OAuthAuthorizeRequestDTO, userID int64) (*OAuthAuthorizeResult, *apperror.OAuthError)
 
 	// GetConsentChallenge retrieves a pending consent challenge by its UUID.
-	GetConsentChallenge(ctx context.Context, challengeUUID uuid.UUID, userID int64) (*dto.OAuthConsentChallengeResponseDTO, error)
+	GetConsentChallenge(ctx context.Context, challengeUUID uuid.UUID, userID int64) (*OAuthConsentChallengeResponseDTO, error)
 
 	// HandleConsent processes the user's consent decision. On approval, it
 	// persists the consent grant and issues an authorization code. On denial,
 	// it returns a redirect with an error.
-	HandleConsent(ctx context.Context, decision dto.OAuthConsentDecisionDTO, userID int64) (*dto.OAuthConsentDecisionResult, *apperror.OAuthError)
+	HandleConsent(ctx context.Context, decision OAuthConsentDecisionDTO, userID int64) (*OAuthConsentDecisionResult, *apperror.OAuthError)
 }
 
 type oauthAuthorizeService struct {
 	db               *gorm.DB
-	clientRepo       repository.ClientRepository
-	clientURIRepo    repository.ClientURIRepository
-	authCodeRepo     repository.OAuthAuthorizationCodeRepository
-	consentGrantRepo repository.OAuthConsentGrantRepository
-	consentChallRepo repository.OAuthConsentChallengeRepository
+	clientRepo       ClientRepository
+	clientURIRepo    ClientURIRepository
+	authCodeRepo     OAuthAuthorizationCodeRepository
+	consentGrantRepo OAuthConsentGrantRepository
+	consentChallRepo OAuthConsentChallengeRepository
 	authEventService AuthEventService
 }
 
 // NewOAuthAuthorizeService creates a new OAuthAuthorizeService.
 func NewOAuthAuthorizeService(
 	db *gorm.DB,
-	clientRepo repository.ClientRepository,
-	clientURIRepo repository.ClientURIRepository,
-	authCodeRepo repository.OAuthAuthorizationCodeRepository,
-	consentGrantRepo repository.OAuthConsentGrantRepository,
-	consentChallRepo repository.OAuthConsentChallengeRepository,
+	clientRepo ClientRepository,
+	clientURIRepo ClientURIRepository,
+	authCodeRepo OAuthAuthorizationCodeRepository,
+	consentGrantRepo OAuthConsentGrantRepository,
+	consentChallRepo OAuthConsentChallengeRepository,
 	authEventService AuthEventService,
 ) OAuthAuthorizeService {
 	return &oauthAuthorizeService{
@@ -78,7 +75,7 @@ func NewOAuthAuthorizeService(
 }
 
 // Authorize implements OAuthAuthorizeService.
-func (s *oauthAuthorizeService) Authorize(ctx context.Context, req dto.OAuthAuthorizeRequestDTO, userID int64) (*dto.OAuthAuthorizeResult, *apperror.OAuthError) {
+func (s *oauthAuthorizeService) Authorize(ctx context.Context, req OAuthAuthorizeRequestDTO, userID int64) (*OAuthAuthorizeResult, *apperror.OAuthError) {
 	_, span := otel.Tracer("service").Start(ctx, "oauth_authorize.authorize")
 	defer span.End()
 	span.SetAttributes(
@@ -106,13 +103,13 @@ func (s *oauthAuthorizeService) Authorize(ctx context.Context, req dto.OAuthAuth
 		}
 	}
 
-	if client == nil || client.Status != model.StatusActive {
+	if client == nil || client.Status != StatusActive {
 		span.SetStatus(codes.Error, "client not found or inactive")
 		return nil, apperror.NewOAuthInvalidRequest("unknown or inactive client_id")
 	}
 
 	// Validate that the client supports the authorization_code grant.
-	if !s.clientSupportsGrant(client, model.GrantTypeAuthorizationCode) {
+	if !s.clientSupportsGrant(client, GrantTypeAuthorizationCode) {
 		span.SetStatus(codes.Error, "grant type not allowed")
 		return nil, apperror.NewOAuthUnauthorizedClient("client is not authorized for authorization_code grant")
 	}
@@ -157,7 +154,7 @@ func (s *oauthAuthorizeService) Authorize(ctx context.Context, req dto.OAuthAuth
 			return nil, oerr
 		}
 		span.SetStatus(codes.Ok, "consent required")
-		return &dto.OAuthAuthorizeResult{
+		return &OAuthAuthorizeResult{
 			ConsentChallenge: challenge.OAuthConsentChallengeUUID.String(),
 		}, nil
 	}
@@ -174,21 +171,21 @@ func (s *oauthAuthorizeService) Authorize(ctx context.Context, req dto.OAuthAuth
 		ActorUserID: &userID,
 		IPAddress:   middleware.ClientIPFromContext(ctx),
 		UserAgent:   ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),
-		Category:    model.AuthEventCategoryAuthn,
-		EventType:   model.AuthEventTypeOAuthAuthorize,
-		Severity:    model.AuthEventSeverityInfo,
-		Result:      model.AuthEventResultSuccess,
+		Category:    AuthEventCategoryAuthn,
+		EventType:   AuthEventTypeOAuthAuthorize,
+		Severity:    AuthEventSeverityInfo,
+		Result:      AuthEventResultSuccess,
 		Description: ptr.Ptr("Authorization code issued"),
 	})
 
 	span.SetStatus(codes.Ok, "")
-	return &dto.OAuthAuthorizeResult{
+	return &OAuthAuthorizeResult{
 		RedirectURI: redirectURI,
 	}, nil
 }
 
 // GetConsentChallenge implements OAuthAuthorizeService.
-func (s *oauthAuthorizeService) GetConsentChallenge(ctx context.Context, challengeUUID uuid.UUID, userID int64) (*dto.OAuthConsentChallengeResponseDTO, error) {
+func (s *oauthAuthorizeService) GetConsentChallenge(ctx context.Context, challengeUUID uuid.UUID, userID int64) (*OAuthConsentChallengeResponseDTO, error) {
 	_, span := otel.Tracer("service").Start(ctx, "oauth_authorize.get_consent_challenge")
 	defer span.End()
 	span.SetAttributes(attribute.String("consent.challenge_uuid", challengeUUID.String()))
@@ -225,7 +222,7 @@ func (s *oauthAuthorizeService) GetConsentChallenge(ctx context.Context, challen
 	}
 
 	span.SetStatus(codes.Ok, "")
-	return &dto.OAuthConsentChallengeResponseDTO{
+	return &OAuthConsentChallengeResponseDTO{
 		ChallengeID: challenge.OAuthConsentChallengeUUID.String(),
 		ClientName:  clientName,
 		ClientUUID:  clientUUID,
@@ -236,7 +233,7 @@ func (s *oauthAuthorizeService) GetConsentChallenge(ctx context.Context, challen
 }
 
 // HandleConsent implements OAuthAuthorizeService.
-func (s *oauthAuthorizeService) HandleConsent(ctx context.Context, decision dto.OAuthConsentDecisionDTO, userID int64) (*dto.OAuthConsentDecisionResult, *apperror.OAuthError) {
+func (s *oauthAuthorizeService) HandleConsent(ctx context.Context, decision OAuthConsentDecisionDTO, userID int64) (*OAuthConsentDecisionResult, *apperror.OAuthError) {
 	_, span := otel.Tracer("service").Start(ctx, "oauth_authorize.handle_consent")
 	defer span.End()
 	span.SetAttributes(
@@ -280,16 +277,16 @@ func (s *oauthAuthorizeService) HandleConsent(ctx context.Context, decision dto.
 			ActorUserID: &userID,
 			IPAddress:   middleware.ClientIPFromContext(ctx),
 			UserAgent:   ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),
-			Category:    model.AuthEventCategoryAuthn,
-			EventType:   model.AuthEventTypeOAuthConsentDeny,
-			Severity:    model.AuthEventSeverityInfo,
-			Result:      model.AuthEventResultFailure,
+			Category:    AuthEventCategoryAuthn,
+			EventType:   AuthEventTypeOAuthConsentDeny,
+			Severity:    AuthEventSeverityInfo,
+			Result:      AuthEventResultFailure,
 			Description: ptr.Ptr("User denied consent"),
 		})
 
 		oauthErr := apperror.NewOAuthAccessDenied("the resource owner denied the request")
 		span.SetStatus(codes.Ok, "consent denied")
-		return &dto.OAuthConsentDecisionResult{
+		return &OAuthConsentDecisionResult{
 			RedirectURI: oauthErr.RedirectURI(challenge.RedirectURI, state),
 		}, nil
 	}
@@ -302,7 +299,7 @@ func (s *oauthAuthorizeService) HandleConsent(ctx context.Context, decision dto.
 		txConsentChallRepo := s.consentChallRepo.WithTx(tx)
 
 		// Persist the consent grant (upsert to handle scope expansion).
-		if _, err := txConsentGrantRepo.Upsert(&model.OAuthConsentGrant{
+		if _, err := txConsentGrantRepo.Upsert(&OAuthConsentGrant{
 			UserID:   userID,
 			ClientID: challenge.ClientID,
 			TenantID: challenge.TenantID,
@@ -318,7 +315,7 @@ func (s *oauthAuthorizeService) HandleConsent(ctx context.Context, decision dto.
 		}
 		codeHash := crypto.HashAuthorizationCode(rawCode)
 
-		authCode := &model.OAuthAuthorizationCode{
+		authCode := &OAuthAuthorizationCode{
 			CodeHash:            codeHash,
 			ClientID:            challenge.ClientID,
 			UserID:              userID,
@@ -353,15 +350,15 @@ func (s *oauthAuthorizeService) HandleConsent(ctx context.Context, decision dto.
 		ActorUserID: &userID,
 		IPAddress:   middleware.ClientIPFromContext(ctx),
 		UserAgent:   ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),
-		Category:    model.AuthEventCategoryAuthn,
-		EventType:   model.AuthEventTypeOAuthConsent,
-		Severity:    model.AuthEventSeverityInfo,
-		Result:      model.AuthEventResultSuccess,
+		Category:    AuthEventCategoryAuthn,
+		EventType:   AuthEventTypeOAuthConsent,
+		Severity:    AuthEventSeverityInfo,
+		Result:      AuthEventResultSuccess,
 		Description: ptr.Ptr("User approved consent and authorization code issued"),
 	})
 
 	span.SetStatus(codes.Ok, "")
-	return &dto.OAuthConsentDecisionResult{
+	return &OAuthConsentDecisionResult{
 		RedirectURI: redirectURI,
 	}, nil
 }
@@ -372,13 +369,13 @@ func (s *oauthAuthorizeService) HandleConsent(ctx context.Context, decision dto.
 
 // findClientByIdentifier looks up a client by its OAuth identifier (the string
 // stored in the clients.identifier column).
-func (s *oauthAuthorizeService) findClientByIdentifier(identifier string) (*model.Client, error) {
-	var client model.Client
+func (s *oauthAuthorizeService) findClientByIdentifier(identifier string) (*Client, error) {
+	var client Client
 	err := s.db.
 		Preload("IdentityProvider").
 		Preload("IdentityProvider.Tenant").
 		Preload("ClientURIs").
-		Where("identifier = ? AND status = ?", identifier, model.StatusActive).
+		Where("identifier = ? AND status = ?", identifier, StatusActive).
 		First(&client).Error
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
@@ -391,7 +388,7 @@ func (s *oauthAuthorizeService) findClientByIdentifier(identifier string) (*mode
 
 // clientSupportsGrant checks whether the client has the given grant_type in
 // its configuration.
-func (s *oauthAuthorizeService) clientSupportsGrant(client *model.Client, grantType string) bool {
+func (s *oauthAuthorizeService) clientSupportsGrant(client *Client, grantType string) bool {
 	for _, g := range client.GrantTypes {
 		if g == grantType {
 			return true
@@ -402,7 +399,7 @@ func (s *oauthAuthorizeService) clientSupportsGrant(client *model.Client, grantT
 
 // clientSupportsResponseType checks whether the client has the given
 // response_type in its configuration.
-func (s *oauthAuthorizeService) clientSupportsResponseType(client *model.Client, responseType string) bool {
+func (s *oauthAuthorizeService) clientSupportsResponseType(client *Client, responseType string) bool {
 	for _, rt := range client.ResponseTypes {
 		if rt == responseType {
 			return true
@@ -415,7 +412,7 @@ func (s *oauthAuthorizeService) clientSupportsResponseType(client *model.Client,
 // redirect URIs. Exact match is required per RFC 6749 §3.1.2.3.
 // Dangerous schemes (javascript:, data:, vbscript:) are rejected before the
 // registered-URI check to prevent open-redirect → code-execution attacks.
-func (s *oauthAuthorizeService) validateRedirectURI(client *model.Client, redirectURI string) *apperror.OAuthError {
+func (s *oauthAuthorizeService) validateRedirectURI(client *Client, redirectURI string) *apperror.OAuthError {
 	if err := security.ValidateRedirectURI(redirectURI); err != nil {
 		return apperror.NewOAuthInvalidRequest(err.Error())
 	}
@@ -425,7 +422,7 @@ func (s *oauthAuthorizeService) validateRedirectURI(client *model.Client, redire
 	}
 
 	for _, uri := range *client.ClientURIs {
-		if uri.Type == model.ClientURITypeRedirect && uri.URI == redirectURI {
+		if uri.Type == ClientURITypeRedirect && uri.URI == redirectURI {
 			return nil
 		}
 	}
@@ -436,7 +433,7 @@ func (s *oauthAuthorizeService) validateRedirectURI(client *model.Client, redire
 // needsConsent determines whether the user needs to provide consent for the
 // requested scopes. Consent is not required if the client has require_consent
 // set to false or if the user has already consented to all requested scopes.
-func (s *oauthAuthorizeService) needsConsent(client *model.Client, userID int64, requestedScope string) (bool, error) {
+func (s *oauthAuthorizeService) needsConsent(client *Client, userID int64, requestedScope string) (bool, error) {
 	if !client.RequireConsent {
 		return false, nil
 	}
@@ -468,8 +465,8 @@ func (s *oauthAuthorizeService) needsConsent(client *model.Client, userID int64,
 
 // createConsentChallenge persists a new consent challenge so the frontend can
 // display the consent screen.
-func (s *oauthAuthorizeService) createConsentChallenge(ctx context.Context, client *model.Client, userID int64, req dto.OAuthAuthorizeRequestDTO) (*model.OAuthConsentChallenge, *apperror.OAuthError) {
-	challenge := &model.OAuthConsentChallenge{
+func (s *oauthAuthorizeService) createConsentChallenge(ctx context.Context, client *Client, userID int64, req OAuthAuthorizeRequestDTO) (*OAuthConsentChallenge, *apperror.OAuthError) {
+	challenge := &OAuthConsentChallenge{
 		ClientID:            client.ClientID,
 		UserID:              userID,
 		TenantID:            client.TenantID,
@@ -498,14 +495,14 @@ func (s *oauthAuthorizeService) createConsentChallenge(ctx context.Context, clie
 
 // issueAuthorizationCode creates an authorization code and returns the full
 // redirect URI with the code and state appended.
-func (s *oauthAuthorizeService) issueAuthorizationCode(ctx context.Context, client *model.Client, userID int64, req dto.OAuthAuthorizeRequestDTO) (string, *apperror.OAuthError) {
+func (s *oauthAuthorizeService) issueAuthorizationCode(ctx context.Context, client *Client, userID int64, req OAuthAuthorizeRequestDTO) (string, *apperror.OAuthError) {
 	rawCode, err := crypto.GenerateRandomString(authorizationCodeLength)
 	if err != nil {
 		return "", apperror.NewOAuthServerError("an unexpected error occurred")
 	}
 	codeHash := crypto.HashAuthorizationCode(rawCode)
 
-	authCode := &model.OAuthAuthorizationCode{
+	authCode := &OAuthAuthorizationCode{
 		CodeHash:            codeHash,
 		ClientID:            client.ClientID,
 		UserID:              userID,

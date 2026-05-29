@@ -5,17 +5,15 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/maintainerd/auth/internal/dto"
 	resp "github.com/maintainerd/auth/internal/platform/response"
 	"github.com/maintainerd/auth/internal/platform/security"
-	"github.com/maintainerd/auth/internal/service"
 )
 
 type ForgotPasswordHandler struct {
-	forgotPasswordService service.ForgotPasswordService
+	forgotPasswordService ForgotPasswordService
 }
 
-func NewForgotPasswordHandler(forgotPasswordService service.ForgotPasswordService) *ForgotPasswordHandler {
+func NewForgotPasswordHandler(forgotPasswordService ForgotPasswordService) *ForgotPasswordHandler {
 	return &ForgotPasswordHandler{
 		forgotPasswordService: forgotPasswordService,
 	}
@@ -47,7 +45,7 @@ func (h *ForgotPasswordHandler) ForgotPasswordPublic(w http.ResponseWriter, r *h
 	}
 
 	// Parse request body
-	var req dto.ForgotPasswordRequestDTO
+	var req ForgotPasswordRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		security.LogSecurityEvent(security.SecurityEvent{
 			EventType: "forgot_password_invalid_json",
@@ -151,7 +149,7 @@ func (h *ForgotPasswordHandler) ForgotPassword(w http.ResponseWriter, r *http.Re
 	}
 
 	// Parse request body
-	var req dto.ForgotPasswordRequestDTO
+	var req ForgotPasswordRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		security.LogSecurityEvent(security.SecurityEvent{
 			EventType: "forgot_password_invalid_json",

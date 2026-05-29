@@ -1,7 +1,6 @@
 package authn
 
 import (
-	"github.com/maintainerd/auth/internal/rest/handler"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -9,7 +8,7 @@ import (
 )
 
 // LoginRoute handles internal login routes (no client_id/provider_id required)
-func LoginRoute(r chi.Router, loginHandler *handler.LoginHandler) {
+func LoginRoute(r chi.Router, loginHandler *LoginHandler) {
 	// Apply stricter limits for auth endpoints (inherits global security middleware)
 	r.Group(func(r chi.Router) {
 		// Stricter request size limit for auth endpoints (1MB vs 10MB global)
@@ -27,7 +26,7 @@ func LoginRoute(r chi.Router, loginHandler *handler.LoginHandler) {
 }
 
 // LoginPublicRoute handles public login routes (requires client_id and provider_id)
-func LoginPublicRoute(r chi.Router, loginHandler *handler.LoginHandler) {
+func LoginPublicRoute(r chi.Router, loginHandler *LoginHandler) {
 	// Apply stricter limits for auth endpoints (inherits global security middleware)
 	r.Group(func(r chi.Router) {
 		// Stricter request size limit for auth endpoints (1MB vs 10MB global)

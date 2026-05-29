@@ -7,9 +7,10 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/lib/pq"
-	"github.com/maintainerd/auth/internal/model"
+	model "github.com/maintainerd/auth/internal/client"
 	"github.com/maintainerd/auth/internal/platform/config"
 	"github.com/maintainerd/auth/internal/platform/crypto"
+	"github.com/maintainerd/auth/internal/shared"
 	"gorm.io/datatypes"
 	"gorm.io/gorm"
 )
@@ -43,7 +44,7 @@ func SeedClients(db *gorm.DB, tenantID int64, identityProviderID int64) error {
 				"response_type": "code",
 				"pkce": true
 			}`)),
-			Status:                  model.StatusActive,
+			Status:                  shared.StatusActive,
 			IsDefault:               true,
 			IsSystem:                true,
 			IdentityProviderID:      identityProviderID,

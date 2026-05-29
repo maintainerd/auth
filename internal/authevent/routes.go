@@ -4,14 +4,13 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/maintainerd/auth/internal/platform/cache"
 	"github.com/maintainerd/auth/internal/platform/middleware"
-	"github.com/maintainerd/auth/internal/service"
 )
 
 // AuthEventRoute registers admin endpoints for querying auth events.
 func AuthEventRoute(
 	r chi.Router,
 	authEventHandler *AuthEventHandler,
-	userService service.UserService,
+	userService UserService,
 	appCache *cache.Cache,
 ) {
 	r.Route("/auth-events", func(r chi.Router) {

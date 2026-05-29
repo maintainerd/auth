@@ -3,27 +3,26 @@ package tenant
 import (
 	"errors"
 
-	"github.com/maintainerd/auth/internal/model"
 	"gorm.io/gorm"
 )
 
 // TenantSettingRepository defines persistence operations for the
 // tenant_settings entity.
 type TenantSettingRepository interface {
-	BaseRepositoryMethods[model.TenantSetting]
+	BaseRepositoryMethods[TenantSetting]
 	WithTx(tx *gorm.DB) TenantSettingRepository
-	FindByTenantID(tenantID int64) (*model.TenantSetting, error)
+	FindByTenantID(tenantID int64) (*TenantSetting, error)
 }
 
 type tenantSettingRepository struct {
-	*BaseRepository[model.TenantSetting]
+	*BaseRepository[TenantSetting]
 }
 
 // NewTenantSettingRepository creates a new TenantSettingRepository backed by
 // the given database connection.
 func NewTenantSettingRepository(db *gorm.DB) TenantSettingRepository {
 	return &tenantSettingRepository{
-		BaseRepository: NewBaseRepository[model.TenantSetting](db, "tenant_setting_uuid", "tenant_setting_id"),
+		BaseRepository: NewBaseRepository[TenantSetting](db, "tenant_setting_uuid", "tenant_setting_id"),
 	}
 }
 
@@ -36,8 +35,8 @@ func (r *tenantSettingRepository) WithTx(tx *gorm.DB) TenantSettingRepository {
 
 // FindByTenantID retrieves the single tenant_settings record for a tenant.
 // Returns nil, nil when no record exists.
-func (r *tenantSettingRepository) FindByTenantID(tenantID int64) (*model.TenantSetting, error) {
-	var setting model.TenantSetting
+func (r *tenantSettingRepository) FindByTenantID(tenantID int64) (*TenantSetting, error) {
+	var setting TenantSetting
 	err := r.DB().Where("tenant_id = ?", tenantID).First(&setting).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {

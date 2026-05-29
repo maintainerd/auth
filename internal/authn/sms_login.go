@@ -6,14 +6,11 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/maintainerd/auth/internal/dto"
-	"github.com/maintainerd/auth/internal/model"
 	"github.com/maintainerd/auth/internal/platform/apperror"
 	"github.com/maintainerd/auth/internal/platform/config"
 	"github.com/maintainerd/auth/internal/platform/crypto"
 	"github.com/maintainerd/auth/internal/platform/jwt"
 	"github.com/maintainerd/auth/internal/platform/sms"
-	"github.com/maintainerd/auth/internal/repository"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/codes"
 	"gorm.io/gorm"
@@ -24,27 +21,27 @@ const smsOTPTTL = 10 * time.Minute
 
 // SMSLoginService handles SMS one-time-code login flows.
 type SMSLoginService interface {
-	SendOTP(ctx context.Context, req dto.SMSLoginSendDTO) error
-	VerifyOTP(ctx context.Context, req dto.SMSLoginVerifyDTO) (*dto.LoginResponseDTO, error)
+	SendOTP(ctx context.Context, req SMSLoginSendDTO) error
+	VerifyOTP(ctx context.Context, req SMSLoginVerifyDTO) (*LoginResponseDTO, error)
 }
 
 type smsLoginService struct {
 	db                   *gorm.DB
-	userRepo             repository.UserRepository
-	smsOtpRepo           repository.SMSOtpRepository
-	clientRepo           repository.ClientRepository
-	userIdentityRepo     repository.UserIdentityRepository
-	identityProviderRepo repository.IdentityProviderRepository
+	userRepo             UserRepository
+	smsOtpRepo           SMSOtpRepository
+	clientRepo           ClientRepository
+	userIdentityRepo     UserIdentityRepository
+	identityProviderRepo IdentityProviderRepository
 	authEventService     AuthEventService
 }
 
 func NewSMSLoginService(
 	db *gorm.DB,
-	userRepo repository.UserRepository,
-	smsOtpRepo repository.SMSOtpRepository,
-	clientRepo repository.ClientRepository,
-	userIdentityRepo repository.UserIdentityRepository,
-	identityProviderRepo repository.IdentityProviderRepository,
+	userRepo UserRepository,
+	smsOtpRepo SMSOtpRepository,
+	clientRepo ClientRepository,
+	userIdentityRepo UserIdentityRepository,
+	identityProviderRepo IdentityProviderRepository,
 	authEventService AuthEventService,
 ) SMSLoginService {
 	return &smsLoginService{
@@ -60,7 +57,7 @@ func NewSMSLoginService(
 
 // SendOTP looks up the user by phone, generates a 6-digit OTP, stores its hash,
 // and logs it (real SMS provider integration is a future TODO).
-func (s *smsLoginService) SendOTP(ctx context.Context, req dto.SMSLoginSendDTO) error {
+func (s *smsLoginService) SendOTP(ctx context.Context, req SMSLoginSendDTO) error {
 	_, span := otel.Tracer("service").Start(ctx, "smsLogin.sendOTP")
 	defer span.End()
 
@@ -69,7 +66,7 @@ func (s *smsLoginService) SendOTP(ctx context.Context, req dto.SMSLoginSendDTO) 
 	if err != nil {
 		return apperror.NewInternal("failed to look up user", err)
 	}
-	if user == nil || user.Status != model.StatusActive {
+	if user == nil || user.Status != StatusActive {
 		// Still return success to avoid phone enumeration.
 		span.SetStatus(codes.Ok, "")
 		return nil
@@ -83,7 +80,7 @@ func (s *smsLoginService) SendOTP(ctx context.Context, req dto.SMSLoginSendDTO) 
 	otpHash := crypto.HashAuthorizationCode(otp)
 
 	expiresAt := time.Now().Add(smsOTPTTL)
-	record := &model.SMSOtp{
+	record := &SMSOtp{
 		UserID:    user.UserID,
 		Phone:     req.Phone,
 		OTPHash:   otpHash,
@@ -109,12 +106,12 @@ func (s *smsLoginService) SendOTP(ctx context.Context, req dto.SMSLoginSendDTO) 
 }
 
 // VerifyOTP validates the submitted OTP and issues tokens on success.
-func (s *smsLoginService) VerifyOTP(ctx context.Context, req dto.SMSLoginVerifyDTO) (*dto.LoginResponseDTO, error) {
+func (s *smsLoginService) VerifyOTP(ctx context.Context, req SMSLoginVerifyDTO) (*LoginResponseDTO, error) {
 	_, span := otel.Tracer("service").Start(ctx, "smsLogin.verifyOTP")
 	defer span.End()
 
-	var user *model.User
-	var client *model.Client
+	var user *User
+	var client *Client
 	var userIdentitySub string
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
@@ -132,7 +129,7 @@ func (s *smsLoginService) VerifyOTP(ctx context.Context, req dto.SMSLoginVerifyD
 
 		client, txErr = txClientRepo.FindByClientIDAndIdentityProvider(req.ClientID, req.ProviderID)
 		if txErr != nil || client == nil ||
-			client.Status != model.StatusActive ||
+			client.Status != StatusActive ||
 			client.Domain == nil || *client.Domain == "" {
 			return apperror.NewUnauthorized("authentication failed")
 		}
@@ -142,7 +139,7 @@ func (s *smsLoginService) VerifyOTP(ctx context.Context, req dto.SMSLoginVerifyD
 		if txErr != nil {
 			return apperror.NewInternal("failed to look up user", txErr)
 		}
-		if user == nil || user.Status != model.StatusActive {
+		if user == nil || user.Status != StatusActive {
 			return apperror.NewUnauthorized("invalid phone or OTP")
 		}
 
@@ -186,7 +183,7 @@ func (s *smsLoginService) VerifyOTP(ctx context.Context, req dto.SMSLoginVerifyD
 	return s.generateSMSTokenResponse(userIdentitySub, user, client)
 }
 
-func (s *smsLoginService) generateSMSTokenResponse(sub string, user *model.User, client *model.Client) (*dto.LoginResponseDTO, error) {
+func (s *smsLoginService) generateSMSTokenResponse(sub string, user *User, client *Client) (*LoginResponseDTO, error) {
 	accessToken, err := jwt.GenerateAccessToken(
 		sub,
 		"openid profile email",
@@ -216,7 +213,7 @@ func (s *smsLoginService) generateSMSTokenResponse(sub string, user *model.User,
 		return nil, err
 	}
 
-	return &dto.LoginResponseDTO{
+	return &LoginResponseDTO{
 		AccessToken:  accessToken,
 		IDToken:      idToken,
 		RefreshToken: refreshToken,

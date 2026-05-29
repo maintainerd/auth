@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
-	"github.com/maintainerd/auth/internal/service"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -20,7 +19,7 @@ func TestServiceHandler_Get_NoTenant(t *testing.T) {
 
 func TestServiceHandler_Get_ServiceError(t *testing.T) {
 	svc := &mockServiceService{
-		getFn: func(service.ServiceServiceGetFilter) (*service.ServiceServiceGetResult, error) {
+		getFn: func(ServiceServiceGetFilter) (*ServiceServiceGetResult, error) {
 			return nil, assert.AnError
 		},
 	}
@@ -33,8 +32,8 @@ func TestServiceHandler_Get_ServiceError(t *testing.T) {
 
 func TestServiceHandler_Get_Success(t *testing.T) {
 	svc := &mockServiceService{
-		getFn: func(service.ServiceServiceGetFilter) (*service.ServiceServiceGetResult, error) {
-			return &service.ServiceServiceGetResult{}, nil
+		getFn: func(ServiceServiceGetFilter) (*ServiceServiceGetResult, error) {
+			return &ServiceServiceGetResult{}, nil
 		},
 	}
 	h := NewServiceHandler(svc)
@@ -62,7 +61,7 @@ func TestServiceHandler_GetByUUID_InvalidUUID(t *testing.T) {
 
 func TestServiceHandler_GetByUUID_NotFound(t *testing.T) {
 	svc := &mockServiceService{
-		getByUUIDFn: func(id uuid.UUID, tid int64) (*service.ServiceServiceDataResult, error) {
+		getByUUIDFn: func(id uuid.UUID, tid int64) (*ServiceServiceDataResult, error) {
 			return nil, errNotFound
 		},
 	}
@@ -75,8 +74,8 @@ func TestServiceHandler_GetByUUID_NotFound(t *testing.T) {
 
 func TestServiceHandler_GetByUUID_Success(t *testing.T) {
 	svc := &mockServiceService{
-		getByUUIDFn: func(id uuid.UUID, tid int64) (*service.ServiceServiceDataResult, error) {
-			return &service.ServiceServiceDataResult{Name: "svc"}, nil
+		getByUUIDFn: func(id uuid.UUID, tid int64) (*ServiceServiceDataResult, error) {
+			return &ServiceServiceDataResult{Name: "svc"}, nil
 		},
 	}
 	h := NewServiceHandler(svc)
@@ -96,7 +95,7 @@ func TestServiceHandler_Create_NoTenant(t *testing.T) {
 
 func TestServiceHandler_Create_ServiceError(t *testing.T) {
 	svc := &mockServiceService{
-		createFn: func(n, dn, desc, v string, isSys bool, s string, tid int64) (*service.ServiceServiceDataResult, error) {
+		createFn: func(n, dn, desc, v string, isSys bool, s string, tid int64) (*ServiceServiceDataResult, error) {
 			return nil, assert.AnError
 		},
 	}
@@ -119,7 +118,7 @@ func TestServiceHandler_Delete_InvalidUUID(t *testing.T) {
 
 func TestServiceHandler_Delete_ServiceError(t *testing.T) {
 	svc := &mockServiceService{
-		deleteByUUIDFn: func(id uuid.UUID, tid int64) (*service.ServiceServiceDataResult, error) {
+		deleteByUUIDFn: func(id uuid.UUID, tid int64) (*ServiceServiceDataResult, error) {
 			return nil, assert.AnError
 		},
 	}
@@ -132,8 +131,8 @@ func TestServiceHandler_Delete_ServiceError(t *testing.T) {
 
 func TestServiceHandler_Delete_Success(t *testing.T) {
 	svc := &mockServiceService{
-		deleteByUUIDFn: func(id uuid.UUID, tid int64) (*service.ServiceServiceDataResult, error) {
-			return &service.ServiceServiceDataResult{Name: "svc1"}, nil
+		deleteByUUIDFn: func(id uuid.UUID, tid int64) (*ServiceServiceDataResult, error) {
+			return &ServiceServiceDataResult{Name: "svc1"}, nil
 		},
 	}
 	h := NewServiceHandler(svc)
@@ -155,9 +154,9 @@ func TestServiceHandler_Get_ValidationError(t *testing.T) {
 
 func TestServiceHandler_Get_WithFiltersAndRows(t *testing.T) {
 	svc := &mockServiceService{
-		getFn: func(service.ServiceServiceGetFilter) (*service.ServiceServiceGetResult, error) {
-			return &service.ServiceServiceGetResult{
-				Data: []service.ServiceServiceDataResult{{Name: "svc1"}},
+		getFn: func(ServiceServiceGetFilter) (*ServiceServiceGetResult, error) {
+			return &ServiceServiceGetResult{
+				Data: []ServiceServiceDataResult{{Name: "svc1"}},
 			}, nil
 		},
 	}
@@ -190,8 +189,8 @@ func TestServiceHandler_Create_ValidationError(t *testing.T) {
 
 func TestServiceHandler_Create_Success(t *testing.T) {
 	svc := &mockServiceService{
-		createFn: func(n, dn, desc, v string, isSys bool, s string, tid int64) (*service.ServiceServiceDataResult, error) {
-			return &service.ServiceServiceDataResult{Name: n}, nil
+		createFn: func(n, dn, desc, v string, isSys bool, s string, tid int64) (*ServiceServiceDataResult, error) {
+			return &ServiceServiceDataResult{Name: n}, nil
 		},
 	}
 	h := NewServiceHandler(svc)
@@ -250,7 +249,7 @@ func TestServiceHandler_Update_ValidationError(t *testing.T) {
 
 func TestServiceHandler_Update_ServiceError(t *testing.T) {
 	svc := &mockServiceService{
-		updateFn: func(id uuid.UUID, tid int64, n, dn, desc, v string, isSys bool, s string) (*service.ServiceServiceDataResult, error) {
+		updateFn: func(id uuid.UUID, tid int64, n, dn, desc, v string, isSys bool, s string) (*ServiceServiceDataResult, error) {
 			return nil, assert.AnError
 		},
 	}
@@ -266,8 +265,8 @@ func TestServiceHandler_Update_ServiceError(t *testing.T) {
 
 func TestServiceHandler_Update_Success(t *testing.T) {
 	svc := &mockServiceService{
-		updateFn: func(id uuid.UUID, tid int64, n, dn, desc, v string, isSys bool, s string) (*service.ServiceServiceDataResult, error) {
-			return &service.ServiceServiceDataResult{Name: n}, nil
+		updateFn: func(id uuid.UUID, tid int64, n, dn, desc, v string, isSys bool, s string) (*ServiceServiceDataResult, error) {
+			return &ServiceServiceDataResult{Name: n}, nil
 		},
 	}
 	h := NewServiceHandler(svc)
@@ -316,7 +315,7 @@ func TestServiceHandler_SetStatus_ValidationError(t *testing.T) {
 
 func TestServiceHandler_SetStatus_ServiceError(t *testing.T) {
 	svc := &mockServiceService{
-		setStatusByUUIDFn: func(id uuid.UUID, tid int64, s string) (*service.ServiceServiceDataResult, error) {
+		setStatusByUUIDFn: func(id uuid.UUID, tid int64, s string) (*ServiceServiceDataResult, error) {
 			return nil, assert.AnError
 		},
 	}
@@ -329,8 +328,8 @@ func TestServiceHandler_SetStatus_ServiceError(t *testing.T) {
 
 func TestServiceHandler_SetStatus_Success(t *testing.T) {
 	svc := &mockServiceService{
-		setStatusByUUIDFn: func(id uuid.UUID, tid int64, s string) (*service.ServiceServiceDataResult, error) {
-			return &service.ServiceServiceDataResult{}, nil
+		setStatusByUUIDFn: func(id uuid.UUID, tid int64, s string) (*ServiceServiceDataResult, error) {
+			return &ServiceServiceDataResult{}, nil
 		},
 	}
 	h := NewServiceHandler(svc)

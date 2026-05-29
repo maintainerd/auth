@@ -5,8 +5,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"github.com/maintainerd/auth/internal/model"
 )
 
 func validEmailCreate() EmailTemplateCreateRequestDTO {
@@ -55,7 +53,7 @@ func TestEmailTemplateCreateRequestDto_Validate(t *testing.T) {
 
 	t.Run("valid active status", func(t *testing.T) {
 		d := validEmailCreate()
-		s := model.StatusActive
+		s := StatusActive
 		d.Status = &s
 		assert.NoError(t, d.Validate())
 	})
@@ -74,8 +72,8 @@ func TestEmailTemplateUpdateRequestDto_Validate(t *testing.T) {
 }
 
 func TestEmailTemplateUpdateStatusRequestDto_Validate(t *testing.T) {
-	assert.NoError(t, EmailTemplateUpdateStatusRequestDTO{Status: model.StatusActive}.Validate())
-	assert.NoError(t, EmailTemplateUpdateStatusRequestDTO{Status: model.StatusInactive}.Validate())
+	assert.NoError(t, EmailTemplateUpdateStatusRequestDTO{Status: StatusActive}.Validate())
+	assert.NoError(t, EmailTemplateUpdateStatusRequestDTO{Status: StatusInactive}.Validate())
 	require.Error(t, EmailTemplateUpdateStatusRequestDTO{Status: ""}.Validate())
 	require.Error(t, EmailTemplateUpdateStatusRequestDTO{Status: "bad"}.Validate())
 }
@@ -97,7 +95,7 @@ func TestEmailTemplateFilterDto_Validate(t *testing.T) {
 	t.Run("valid status list", func(t *testing.T) {
 		f := EmailTemplateFilterDTO{
 			PaginationRequestDTO: validPagination(),
-			Status:               []string{model.StatusActive, model.StatusInactive},
+			Status:               []string{StatusActive, StatusInactive},
 		}
 		assert.NoError(t, f.Validate())
 	})

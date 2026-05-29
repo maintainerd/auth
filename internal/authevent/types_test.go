@@ -6,8 +6,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"github.com/maintainerd/auth/internal/dto"
 )
 
 func validAuthEventFilter() AuthEventFilterDTO {
@@ -18,7 +16,7 @@ func validAuthEventFilter() AuthEventFilterDTO {
 		Category: &cat,
 		Severity: &sev,
 		Result:   &res,
-		PaginationRequestDTO: dto.PaginationRequestDTO{
+		PaginationRequestDTO: PaginationRequestDTO{
 			Page:  1,
 			Limit: 10,
 		},
@@ -28,7 +26,7 @@ func validAuthEventFilter() AuthEventFilterDTO {
 func TestAuthEventFilterDTO_Validate(t *testing.T) {
 	t.Run("valid minimal", func(t *testing.T) {
 		f := AuthEventFilterDTO{
-			PaginationRequestDTO: dto.PaginationRequestDTO{Page: 1, Limit: 10},
+			PaginationRequestDTO: PaginationRequestDTO{Page: 1, Limit: 10},
 		}
 		assert.NoError(t, f.Validate())
 	})

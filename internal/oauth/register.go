@@ -4,14 +4,11 @@ import (
 	"context"
 	"time"
 
-	"github.com/maintainerd/auth/internal/dto"
-	"github.com/maintainerd/auth/internal/model"
 	"github.com/maintainerd/auth/internal/platform/apperror"
 	"github.com/maintainerd/auth/internal/platform/crypto"
 	"github.com/maintainerd/auth/internal/platform/middleware"
 	"github.com/maintainerd/auth/internal/platform/ptr"
 	"github.com/maintainerd/auth/internal/platform/security"
-	"github.com/maintainerd/auth/internal/repository"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -27,23 +24,23 @@ const (
 type OAuthRegisterService interface {
 	// Register creates a new OAuth client from the supplied metadata and returns
 	// the client_id (and client_secret for confidential clients).
-	Register(ctx context.Context, req dto.OAuthClientRegistrationRequestDTO) (*dto.OAuthClientRegistrationResponseDTO, *apperror.OAuthError)
+	Register(ctx context.Context, req OAuthClientRegistrationRequestDTO) (*OAuthClientRegistrationResponseDTO, *apperror.OAuthError)
 }
 
 type oauthRegisterService struct {
 	db               *gorm.DB
-	clientRepo       repository.ClientRepository
-	clientURIRepo    repository.ClientURIRepository
-	tenantRepo       repository.TenantRepository
+	clientRepo       ClientRepository
+	clientURIRepo    ClientURIRepository
+	tenantRepo       TenantRepository
 	authEventService AuthEventService
 }
 
 // NewOAuthRegisterService creates a new OAuthRegisterService.
 func NewOAuthRegisterService(
 	db *gorm.DB,
-	clientRepo repository.ClientRepository,
-	clientURIRepo repository.ClientURIRepository,
-	tenantRepo repository.TenantRepository,
+	clientRepo ClientRepository,
+	clientURIRepo ClientURIRepository,
+	tenantRepo TenantRepository,
 	authEventService AuthEventService,
 ) OAuthRegisterService {
 	return &oauthRegisterService{
@@ -56,7 +53,7 @@ func NewOAuthRegisterService(
 }
 
 // Register implements OAuthRegisterService.
-func (s *oauthRegisterService) Register(ctx context.Context, req dto.OAuthClientRegistrationRequestDTO) (*dto.OAuthClientRegistrationResponseDTO, *apperror.OAuthError) {
+func (s *oauthRegisterService) Register(ctx context.Context, req OAuthClientRegistrationRequestDTO) (*OAuthClientRegistrationResponseDTO, *apperror.OAuthError) {
 	_, span := otel.Tracer("service").Start(ctx, "oauth_register.register")
 	defer span.End()
 
@@ -68,7 +65,7 @@ func (s *oauthRegisterService) Register(ctx context.Context, req dto.OAuthClient
 	// Default grant type is authorization_code when not specified.
 	grantTypes := req.GrantTypes
 	if len(grantTypes) == 0 {
-		grantTypes = []string{model.GrantTypeAuthorizationCode}
+		grantTypes = []string{GrantTypeAuthorizationCode}
 	}
 
 	// Default response type mirrors the grant type.
@@ -95,11 +92,11 @@ func (s *oauthRegisterService) Register(ctx context.Context, req dto.OAuthClient
 		clientName = "Registered Client"
 	}
 
-	client := &model.Client{
+	client := &Client{
 		TenantID:      tenant.TenantID,
 		DisplayName:   clientName,
 		Identifier:    ptr.Ptr(rawClientID),
-		Status:        model.StatusActive,
+		Status:        StatusActive,
 		GrantTypes:    grantTypes,
 		ResponseTypes: responseTypes,
 		ClientType:    "public",
@@ -109,7 +106,7 @@ func (s *oauthRegisterService) Register(ctx context.Context, req dto.OAuthClient
 	clientSecret := ""
 	tokenEndpointAuthMethod := req.TokenEndpointAuthMethod
 	if tokenEndpointAuthMethod == "" {
-		tokenEndpointAuthMethod = model.TokenAuthMethodSecretBasic
+		tokenEndpointAuthMethod = TokenAuthMethodSecretBasic
 	}
 	if tokenEndpointAuthMethod != "none" {
 		rawSecret, serr := crypto.GenerateRandomString(clientSecretLength)
@@ -140,11 +137,11 @@ func (s *oauthRegisterService) Register(ctx context.Context, req dto.OAuthClient
 		if safeURI == "" {
 			continue
 		}
-		clientURI := &model.ClientURI{
+		clientURI := &ClientURI{
 			TenantID: tenant.TenantID,
 			ClientID: createdClient.ClientID,
 			URI:      safeURI,
-			Type:     model.ClientURITypeRedirect,
+			Type:     ClientURITypeRedirect,
 		}
 		if _, uerr := s.clientURIRepo.Create(clientURI); uerr != nil {
 			span.RecordError(uerr)
@@ -155,17 +152,17 @@ func (s *oauthRegisterService) Register(ctx context.Context, req dto.OAuthClient
 		TenantID:    tenant.TenantID,
 		IPAddress:   middleware.ClientIPFromContext(ctx),
 		UserAgent:   ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),
-		Category:    model.AuthEventCategorySystem,
-		EventType:   model.AuthEventTypeOAuthAuthorize,
-		Severity:    model.AuthEventSeverityInfo,
-		Result:      model.AuthEventResultSuccess,
+		Category:    AuthEventCategorySystem,
+		EventType:   AuthEventTypeOAuthAuthorize,
+		Severity:    AuthEventSeverityInfo,
+		Result:      AuthEventResultSuccess,
 		Description: ptr.Ptr("Dynamic client registration"),
 	})
 
 	span.SetAttributes(attribute.Int64("client.id", createdClient.ClientID))
 	span.SetStatus(codes.Ok, "")
 
-	resp := &dto.OAuthClientRegistrationResponseDTO{
+	resp := &OAuthClientRegistrationResponseDTO{
 		ClientID:                rawClientID,
 		ClientIDIssuedAt:        time.Now().Unix(),
 		ClientSecretExpiresAt:   0, // 0 = does not expire per RFC 7591

@@ -7,7 +7,6 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
-	"github.com/maintainerd/auth/internal/service"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -37,9 +36,9 @@ func TestSignupFlowHandler_GetAll(t *testing.T) {
 
 	t.Run("success with rows covers toSignupFlowResponseDtoList", func(t *testing.T) {
 		svc := &mockSignupFlowService{
-			getAllFn: func(tid int64, name, id *string, status []string, clientUUID *uuid.UUID, pg, lim int, sb, so string) (*service.SignupFlowServiceListResult, error) {
-				return &service.SignupFlowServiceListResult{
-					Data: []service.SignupFlowServiceDataResult{
+			getAllFn: func(tid int64, name, id *string, status []string, clientUUID *uuid.UUID, pg, lim int, sb, so string) (*SignupFlowServiceListResult, error) {
+				return &SignupFlowServiceListResult{
+					Data: []SignupFlowServiceDataResult{
 						{Name: "flow1"},
 					},
 					Total: 1, Page: 1, Limit: 10, TotalPages: 1,
@@ -65,7 +64,7 @@ func TestSignupFlowHandler_GetAll(t *testing.T) {
 
 	t.Run("service error returns 500", func(t *testing.T) {
 		svc := &mockSignupFlowService{
-			getAllFn: func(tid int64, name, id *string, status []string, clientUUID *uuid.UUID, pg, lim int, sb, so string) (*service.SignupFlowServiceListResult, error) {
+			getAllFn: func(tid int64, name, id *string, status []string, clientUUID *uuid.UUID, pg, lim int, sb, so string) (*SignupFlowServiceListResult, error) {
 				return nil, errors.New("db error")
 			},
 		}
@@ -98,7 +97,7 @@ func TestSignupFlowHandler_Get(t *testing.T) {
 
 	t.Run("not found returns 404", func(t *testing.T) {
 		svc := &mockSignupFlowService{
-			getByUUIDFn: func(id uuid.UUID, tid int64) (*service.SignupFlowServiceDataResult, error) {
+			getByUUIDFn: func(id uuid.UUID, tid int64) (*SignupFlowServiceDataResult, error) {
 				return nil, errNotFound
 			},
 		}
@@ -112,8 +111,8 @@ func TestSignupFlowHandler_Get(t *testing.T) {
 
 	t.Run("success", func(t *testing.T) {
 		svc := &mockSignupFlowService{
-			getByUUIDFn: func(id uuid.UUID, tid int64) (*service.SignupFlowServiceDataResult, error) {
-				return &service.SignupFlowServiceDataResult{SignupFlowUUID: id}, nil
+			getByUUIDFn: func(id uuid.UUID, tid int64) (*SignupFlowServiceDataResult, error) {
+				return &SignupFlowServiceDataResult{SignupFlowUUID: id}, nil
 			},
 		}
 		r := jsonReq(t, http.MethodGet, "/", nil)
@@ -158,7 +157,7 @@ func TestSignupFlowHandler_Create(t *testing.T) {
 
 	t.Run("service error returns 400", func(t *testing.T) {
 		svc := &mockSignupFlowService{
-			createFn: func(tid int64, name, desc string, cfg map[string]any, status string, clientUUID uuid.UUID) (*service.SignupFlowServiceDataResult, error) {
+			createFn: func(tid int64, name, desc string, cfg map[string]any, status string, clientUUID uuid.UUID) (*SignupFlowServiceDataResult, error) {
 				return nil, errValidation
 			},
 		}
@@ -171,8 +170,8 @@ func TestSignupFlowHandler_Create(t *testing.T) {
 
 	t.Run("success with explicit status covers status != nil branch", func(t *testing.T) {
 		svc := &mockSignupFlowService{
-			createFn: func(tid int64, name, desc string, cfg map[string]any, status string, cUUID uuid.UUID) (*service.SignupFlowServiceDataResult, error) {
-				return &service.SignupFlowServiceDataResult{Name: name, ClientUUID: cUUID, Status: status}, nil
+			createFn: func(tid int64, name, desc string, cfg map[string]any, status string, cUUID uuid.UUID) (*SignupFlowServiceDataResult, error) {
+				return &SignupFlowServiceDataResult{Name: name, ClientUUID: cUUID, Status: status}, nil
 			},
 		}
 		bodyWithStatus := map[string]any{
@@ -190,8 +189,8 @@ func TestSignupFlowHandler_Create(t *testing.T) {
 
 	t.Run("success", func(t *testing.T) {
 		svc := &mockSignupFlowService{
-			createFn: func(tid int64, name, desc string, cfg map[string]any, status string, cUUID uuid.UUID) (*service.SignupFlowServiceDataResult, error) {
-				return &service.SignupFlowServiceDataResult{Name: name, ClientUUID: cUUID}, nil
+			createFn: func(tid int64, name, desc string, cfg map[string]any, status string, cUUID uuid.UUID) (*SignupFlowServiceDataResult, error) {
+				return &SignupFlowServiceDataResult{Name: name, ClientUUID: cUUID}, nil
 			},
 		}
 		r := jsonReq(t, http.MethodPost, "/signup-flows", validBody)
@@ -242,7 +241,7 @@ func TestSignupFlowHandler_Update(t *testing.T) {
 
 	t.Run("service error returns 400", func(t *testing.T) {
 		svc := &mockSignupFlowService{
-			updateFn: func(id uuid.UUID, tid int64, name, desc string, cfg map[string]any, status string) (*service.SignupFlowServiceDataResult, error) {
+			updateFn: func(id uuid.UUID, tid int64, name, desc string, cfg map[string]any, status string) (*SignupFlowServiceDataResult, error) {
 				return nil, errValidation
 			},
 		}
@@ -256,8 +255,8 @@ func TestSignupFlowHandler_Update(t *testing.T) {
 
 	t.Run("success with explicit status covers status != nil branch", func(t *testing.T) {
 		svc := &mockSignupFlowService{
-			updateFn: func(id uuid.UUID, tid int64, name, desc string, cfg map[string]any, status string) (*service.SignupFlowServiceDataResult, error) {
-				return &service.SignupFlowServiceDataResult{SignupFlowUUID: id, Name: name, Status: status}, nil
+			updateFn: func(id uuid.UUID, tid int64, name, desc string, cfg map[string]any, status string) (*SignupFlowServiceDataResult, error) {
+				return &SignupFlowServiceDataResult{SignupFlowUUID: id, Name: name, Status: status}, nil
 			},
 		}
 		bodyWithStatus := map[string]any{"name": "updated", "description": "desc", "status": "inactive"}
@@ -271,8 +270,8 @@ func TestSignupFlowHandler_Update(t *testing.T) {
 
 	t.Run("success", func(t *testing.T) {
 		svc := &mockSignupFlowService{
-			updateFn: func(id uuid.UUID, tid int64, name, desc string, cfg map[string]any, status string) (*service.SignupFlowServiceDataResult, error) {
-				return &service.SignupFlowServiceDataResult{SignupFlowUUID: id, Name: name}, nil
+			updateFn: func(id uuid.UUID, tid int64, name, desc string, cfg map[string]any, status string) (*SignupFlowServiceDataResult, error) {
+				return &SignupFlowServiceDataResult{SignupFlowUUID: id, Name: name}, nil
 			},
 		}
 		r := jsonReq(t, http.MethodPut, "/", validBody)
@@ -305,7 +304,7 @@ func TestSignupFlowHandler_Delete(t *testing.T) {
 
 	t.Run("service error returns 400", func(t *testing.T) {
 		svc := &mockSignupFlowService{
-			deleteFn: func(id uuid.UUID, tid int64) (*service.SignupFlowServiceDataResult, error) {
+			deleteFn: func(id uuid.UUID, tid int64) (*SignupFlowServiceDataResult, error) {
 				return nil, errValidation
 			},
 		}
@@ -319,8 +318,8 @@ func TestSignupFlowHandler_Delete(t *testing.T) {
 
 	t.Run("success", func(t *testing.T) {
 		svc := &mockSignupFlowService{
-			deleteFn: func(id uuid.UUID, tid int64) (*service.SignupFlowServiceDataResult, error) {
-				return &service.SignupFlowServiceDataResult{SignupFlowUUID: id}, nil
+			deleteFn: func(id uuid.UUID, tid int64) (*SignupFlowServiceDataResult, error) {
+				return &SignupFlowServiceDataResult{SignupFlowUUID: id}, nil
 			},
 		}
 		r := jsonReq(t, http.MethodDelete, "/", nil)
@@ -371,7 +370,7 @@ func TestSignupFlowHandler_UpdateStatus(t *testing.T) {
 
 	t.Run("service error returns 400", func(t *testing.T) {
 		svc := &mockSignupFlowService{
-			updateStatusFn: func(id uuid.UUID, tid int64, status string) (*service.SignupFlowServiceDataResult, error) {
+			updateStatusFn: func(id uuid.UUID, tid int64, status string) (*SignupFlowServiceDataResult, error) {
 				return nil, errValidation
 			},
 		}
@@ -385,8 +384,8 @@ func TestSignupFlowHandler_UpdateStatus(t *testing.T) {
 
 	t.Run("success", func(t *testing.T) {
 		svc := &mockSignupFlowService{
-			updateStatusFn: func(id uuid.UUID, tid int64, status string) (*service.SignupFlowServiceDataResult, error) {
-				return &service.SignupFlowServiceDataResult{SignupFlowUUID: id, Status: status}, nil
+			updateStatusFn: func(id uuid.UUID, tid int64, status string) (*SignupFlowServiceDataResult, error) {
+				return &SignupFlowServiceDataResult{SignupFlowUUID: id, Status: status}, nil
 			},
 		}
 		r := jsonReq(t, http.MethodPatch, "/", map[string]any{"status": "active"})
@@ -447,7 +446,7 @@ func TestSignupFlowHandler_AssignRoles(t *testing.T) {
 
 	t.Run("service error returns 400", func(t *testing.T) {
 		svc := &mockSignupFlowService{
-			assignRolesFn: func(id uuid.UUID, tid int64, roles []uuid.UUID) ([]service.SignupFlowRoleServiceDataResult, error) {
+			assignRolesFn: func(id uuid.UUID, tid int64, roles []uuid.UUID) ([]SignupFlowRoleServiceDataResult, error) {
 				return nil, errValidation
 			},
 		}
@@ -461,8 +460,8 @@ func TestSignupFlowHandler_AssignRoles(t *testing.T) {
 
 	t.Run("success with roles covers response mapping loop", func(t *testing.T) {
 		svc := &mockSignupFlowService{
-			assignRolesFn: func(id uuid.UUID, tid int64, roles []uuid.UUID) ([]service.SignupFlowRoleServiceDataResult, error) {
-				return []service.SignupFlowRoleServiceDataResult{
+			assignRolesFn: func(id uuid.UUID, tid int64, roles []uuid.UUID) ([]SignupFlowRoleServiceDataResult, error) {
+				return []SignupFlowRoleServiceDataResult{
 					{RoleUUID: roleUUID, RoleName: "admin"},
 				}, nil
 			},
@@ -523,7 +522,7 @@ func TestSignupFlowHandler_GetRoles(t *testing.T) {
 
 	t.Run("service error returns 400", func(t *testing.T) {
 		svc := &mockSignupFlowService{
-			getRolesFn: func(id uuid.UUID, tid int64, pg, lim int) (*service.SignupFlowRoleServiceListResult, error) {
+			getRolesFn: func(id uuid.UUID, tid int64, pg, lim int) (*SignupFlowRoleServiceListResult, error) {
 				return nil, errValidation
 			},
 		}
@@ -537,9 +536,9 @@ func TestSignupFlowHandler_GetRoles(t *testing.T) {
 
 	t.Run("success with rows covers row mapping loop", func(t *testing.T) {
 		svc := &mockSignupFlowService{
-			getRolesFn: func(id uuid.UUID, tid int64, pg, lim int) (*service.SignupFlowRoleServiceListResult, error) {
-				return &service.SignupFlowRoleServiceListResult{
-					Data: []service.SignupFlowRoleServiceDataResult{
+			getRolesFn: func(id uuid.UUID, tid int64, pg, lim int) (*SignupFlowRoleServiceListResult, error) {
+				return &SignupFlowRoleServiceListResult{
+					Data: []SignupFlowRoleServiceDataResult{
 						{RoleName: "admin"},
 					},
 					Total: 1, Page: 1, Limit: 10, TotalPages: 1,

@@ -4,15 +4,13 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/maintainerd/auth/internal/platform/cache"
 	"github.com/maintainerd/auth/internal/platform/middleware"
-	"github.com/maintainerd/auth/internal/rest/handler"
-	"github.com/maintainerd/auth/internal/service"
 )
 
 // EmailConfigRoute registers email delivery configuration endpoints.
 func EmailConfigRoute(
 	r chi.Router,
-	emailConfigHandler *handler.EmailConfigHandler,
-	userService service.UserService,
+	emailConfigHandler *EmailConfigHandler,
+	userService UserService,
 	appCache *cache.Cache,
 ) {
 	r.Route("/email-config", func(r chi.Router) {

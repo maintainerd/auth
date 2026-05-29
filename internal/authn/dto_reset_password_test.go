@@ -31,7 +31,7 @@ func TestResetPasswordRequestDto_Validate(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			err := tc.dto.Validate()
+			err := tc.Validate()
 			if tc.wantErr {
 				require.Error(t, err)
 			} else {

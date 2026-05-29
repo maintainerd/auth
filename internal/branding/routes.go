@@ -4,15 +4,13 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/maintainerd/auth/internal/platform/cache"
 	"github.com/maintainerd/auth/internal/platform/middleware"
-	"github.com/maintainerd/auth/internal/rest/handler"
-	"github.com/maintainerd/auth/internal/service"
 )
 
 // BrandingRoute registers branding configuration endpoints.
 func BrandingRoute(
 	r chi.Router,
-	brandingHandler *handler.BrandingHandler,
-	userService service.UserService,
+	brandingHandler *BrandingHandler,
+	userService UserService,
 	appCache *cache.Cache,
 ) {
 	r.Route("/branding", func(r chi.Router) {

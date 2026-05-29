@@ -6,8 +6,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gorm.io/datatypes"
-
-	"github.com/maintainerd/auth/internal/model"
 )
 
 func validPolicyDoc() datatypes.JSON {
@@ -18,13 +16,13 @@ func TestPolicyDocument_Validate(t *testing.T) {
 	t.Run("valid", func(t *testing.T) {
 		d := PolicyDocument{
 			Version:   "v1",
-			Statement: []PolicyStatement{{Effect: model.PolicyEffectAllow, Action: []string{"user:*"}, Resource: []string{"auth:*"}}},
+			Statement: []PolicyStatement{{Effect: PolicyEffectAllow, Action: []string{"user:*"}, Resource: []string{"auth:*"}}},
 		}
 		assert.NoError(t, d.Validate())
 	})
 
 	t.Run("missing version", func(t *testing.T) {
-		d := PolicyDocument{Statement: []PolicyStatement{{Effect: model.PolicyEffectAllow, Action: []string{"x"}, Resource: []string{"y"}}}}
+		d := PolicyDocument{Statement: []PolicyStatement{{Effect: PolicyEffectAllow, Action: []string{"x"}, Resource: []string{"y"}}}}
 		require.Error(t, d.Validate())
 	})
 
@@ -36,12 +34,12 @@ func TestPolicyDocument_Validate(t *testing.T) {
 
 func TestPolicyStatement_Validate(t *testing.T) {
 	t.Run("valid allow", func(t *testing.T) {
-		s := PolicyStatement{Effect: model.PolicyEffectAllow, Action: []string{"user:*"}, Resource: []string{"auth:*"}}
+		s := PolicyStatement{Effect: PolicyEffectAllow, Action: []string{"user:*"}, Resource: []string{"auth:*"}}
 		assert.NoError(t, s.Validate())
 	})
 
 	t.Run("valid deny", func(t *testing.T) {
-		s := PolicyStatement{Effect: model.PolicyEffectDeny, Action: []string{"role:delete"}, Resource: []string{"auth:roles"}}
+		s := PolicyStatement{Effect: PolicyEffectDeny, Action: []string{"role:delete"}, Resource: []string{"auth:roles"}}
 		assert.NoError(t, s.Validate())
 	})
 
@@ -51,12 +49,12 @@ func TestPolicyStatement_Validate(t *testing.T) {
 	})
 
 	t.Run("missing action", func(t *testing.T) {
-		s := PolicyStatement{Effect: model.PolicyEffectAllow, Resource: []string{"auth:*"}}
+		s := PolicyStatement{Effect: PolicyEffectAllow, Resource: []string{"auth:*"}}
 		require.Error(t, s.Validate())
 	})
 
 	t.Run("missing resource", func(t *testing.T) {
-		s := PolicyStatement{Effect: model.PolicyEffectAllow, Action: []string{"user:*"}}
+		s := PolicyStatement{Effect: PolicyEffectAllow, Action: []string{"user:*"}}
 		require.Error(t, s.Validate())
 	})
 }
@@ -66,7 +64,7 @@ func TestPolicyCreateRequestDto_Validate(t *testing.T) {
 		Name:     "auth:user:read",
 		Document: validPolicyDoc(),
 		Version:  "v1",
-		Status:   model.StatusActive,
+		Status:   StatusActive,
 	}
 
 	t.Run("valid", func(t *testing.T) {
@@ -123,7 +121,7 @@ func TestPolicyFilterDto_Validate(t *testing.T) {
 }
 
 func TestPolicyStatusUpdateDto_Validate(t *testing.T) {
-	assert.NoError(t, PolicyStatusUpdateDTO{Status: model.StatusActive}.Validate())
+	assert.NoError(t, PolicyStatusUpdateDTO{Status: StatusActive}.Validate())
 	require.Error(t, PolicyStatusUpdateDTO{Status: ""}.Validate())
 	require.Error(t, PolicyStatusUpdateDTO{Status: "unknown"}.Validate())
 }
@@ -133,7 +131,7 @@ func TestPolicyUpdateRequestDto_Validate(t *testing.T) {
 		Name:     "auth:user:read",
 		Document: validPolicyDoc(),
 		Version:  "v1",
-		Status:   model.StatusActive,
+		Status:   StatusActive,
 	}
 
 	t.Run("valid", func(t *testing.T) {

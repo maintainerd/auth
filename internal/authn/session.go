@@ -19,11 +19,9 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/maintainerd/auth/internal/model"
 	"github.com/maintainerd/auth/internal/platform/apperror"
 	"github.com/maintainerd/auth/internal/platform/ptr"
 	"github.com/maintainerd/auth/internal/platform/security"
-	"github.com/maintainerd/auth/internal/repository"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -63,7 +61,7 @@ type SessionService interface {
 
 	// CreateSession creates a new session token for the user, recording the
 	// IP address and user agent.
-	CreateSession(ctx context.Context, userID int64, ipAddress, userAgent string) (*model.UserToken, error)
+	CreateSession(ctx context.Context, userID int64, ipAddress, userAgent string) (*UserToken, error)
 
 	// EnforceConcurrentLimit ensures the user does not exceed
 	// security.MaxConcurrentSessions. When the limit is reached the oldest
@@ -77,11 +75,11 @@ type SessionService interface {
 }
 
 type sessionService struct {
-	userTokenRepo repository.UserTokenRepository
+	userTokenRepo UserTokenRepository
 }
 
 // NewSessionService constructs a SessionService backed by userTokenRepo.
-func NewSessionService(userTokenRepo repository.UserTokenRepository) SessionService {
+func NewSessionService(userTokenRepo UserTokenRepository) SessionService {
 	return &sessionService{userTokenRepo: userTokenRepo}
 }
 
@@ -154,7 +152,7 @@ func (s *sessionService) RevokeAllSessions(ctx context.Context, userID int64) er
 }
 
 // CreateSession creates a new UserToken of type TokenTypeSession for userID.
-func (s *sessionService) CreateSession(ctx context.Context, userID int64, ipAddress, userAgent string) (*model.UserToken, error) {
+func (s *sessionService) CreateSession(ctx context.Context, userID int64, ipAddress, userAgent string) (*UserToken, error) {
 	_, span := otel.Tracer("service").Start(ctx, "session.create")
 	defer span.End()
 	span.SetAttributes(attribute.Int64("user.id", userID))
@@ -172,9 +170,9 @@ func (s *sessionService) CreateSession(ctx context.Context, userID int64, ipAddr
 	absoluteExpiry := now.Add(defaultAbsoluteLifetimeHours * time.Hour)
 	idleTimeout := defaultIdleTimeoutSeconds
 
-	token := &model.UserToken{
+	token := &UserToken{
 		UserID:             userID,
-		TokenType:          model.TokenTypeSession,
+		TokenType:          TokenTypeSession,
 		Token:              rawToken, // stored as-is; rotate to hash if required
 		IPAddress:          ptr.PtrOrNil(ipAddress),
 		UserAgent:          ptr.PtrOrNil(userAgent),
@@ -294,7 +292,7 @@ func (s *sessionService) ValidateAndTouch(ctx context.Context, sessionUUID uuid.
 }
 
 // toSessionDataResult converts a UserToken model to the public DTO.
-func toSessionDataResult(t *model.UserToken) *SessionDataResult {
+func toSessionDataResult(t *UserToken) *SessionDataResult {
 	return &SessionDataResult{
 		SessionID:         t.UserTokenUUID.String(),
 		IPAddress:         t.IPAddress,

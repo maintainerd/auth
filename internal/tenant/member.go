@@ -5,9 +5,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/maintainerd/auth/internal/model"
 	"github.com/maintainerd/auth/internal/platform/apperror"
-	"github.com/maintainerd/auth/internal/repository"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -38,12 +36,12 @@ type TenantMemberService interface {
 
 type tenantMemberService struct {
 	db               *gorm.DB
-	tenantMemberRepo repository.TenantMemberRepository
-	userRepo         repository.UserRepository
-	tenantRepo       repository.TenantRepository
+	tenantMemberRepo TenantMemberRepository
+	userRepo         UserRepository
+	tenantRepo       TenantRepository
 }
 
-func NewTenantMemberService(db *gorm.DB, tenantMemberRepo repository.TenantMemberRepository, userRepo repository.UserRepository, tenantRepo repository.TenantRepository) TenantMemberService {
+func NewTenantMemberService(db *gorm.DB, tenantMemberRepo TenantMemberRepository, userRepo UserRepository, tenantRepo TenantRepository) TenantMemberService {
 	return &tenantMemberService{
 		db:               db,
 		tenantMemberRepo: tenantMemberRepo,
@@ -57,10 +55,10 @@ func (s *tenantMemberService) Create(ctx context.Context, tenantID int64, userID
 	defer span.End()
 	span.SetAttributes(attribute.Int64("tenant.id", tenantID), attribute.Int64("user.id", userID))
 
-	var created *model.TenantMember
+	var created *TenantMember
 	err := s.db.Transaction(func(tx *gorm.DB) error {
 		repo := s.tenantMemberRepo.WithTx(tx)
-		tu := &model.TenantMember{
+		tu := &TenantMember{
 			TenantID: tenantID,
 			UserID:   userID,
 			Role:     role,
@@ -201,7 +199,7 @@ func (s *tenantMemberService) UpdateRole(ctx context.Context, tenantMemberUUID u
 	defer span.End()
 	span.SetAttributes(attribute.String("tenantMember.uuid", tenantMemberUUID.String()))
 
-	var updated *model.TenantMember
+	var updated *TenantMember
 	err := s.db.Transaction(func(tx *gorm.DB) error {
 		repo := s.tenantMemberRepo.WithTx(tx)
 		tu, err := repo.FindByTenantMemberUUID(tenantMemberUUID)
@@ -286,7 +284,7 @@ func (s *tenantMemberService) IsUserInTenant(ctx context.Context, userID int64, 
 	return tenantMember != nil, nil
 }
 
-func toTenantMemberServiceDataResult(tu *model.TenantMember) *TenantMemberServiceDataResult {
+func toTenantMemberServiceDataResult(tu *TenantMember) *TenantMemberServiceDataResult {
 	return &TenantMemberServiceDataResult{
 		TenantMemberUUID: tu.TenantMemberUUID,
 		TenantID:         tu.TenantID,

@@ -5,12 +5,11 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/maintainerd/auth/internal/platform/middleware"
-	"github.com/maintainerd/auth/internal/rest/handler"
 )
 
 // MagicLinkRoute mounts internal magic-link routes (no client_id/provider_id required).
 // Mounted on the management surface (port 8080).
-func MagicLinkRoute(r chi.Router, magicLinkHandler *handler.MagicLinkHandler) {
+func MagicLinkRoute(r chi.Router, magicLinkHandler *MagicLinkHandler) {
 	r.Group(func(r chi.Router) {
 		r.Use(middleware.RequestSizeLimitMiddleware(1024 * 1024))
 		r.Use(middleware.TimeoutMiddleware(30 * time.Second))
@@ -24,7 +23,7 @@ func MagicLinkRoute(r chi.Router, magicLinkHandler *handler.MagicLinkHandler) {
 // `send` requires client_id + provider_id; `verify` requires the same parameters
 // (carried in the signed link).
 // Mounted on the public surface (port 8081).
-func MagicLinkPublicRoute(r chi.Router, magicLinkHandler *handler.MagicLinkHandler) {
+func MagicLinkPublicRoute(r chi.Router, magicLinkHandler *MagicLinkHandler) {
 	r.Group(func(r chi.Router) {
 		r.Use(middleware.RequestSizeLimitMiddleware(1024 * 1024))
 		r.Use(middleware.TimeoutMiddleware(30 * time.Second))

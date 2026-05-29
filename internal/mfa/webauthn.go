@@ -9,13 +9,11 @@ import (
 
 	"github.com/go-webauthn/webauthn/protocol"
 	"github.com/go-webauthn/webauthn/webauthn"
-	"github.com/maintainerd/auth/internal/model"
 	"github.com/maintainerd/auth/internal/platform/apperror"
 	"github.com/maintainerd/auth/internal/platform/cache"
 	"github.com/maintainerd/auth/internal/platform/config"
 	"github.com/maintainerd/auth/internal/platform/middleware"
 	"github.com/maintainerd/auth/internal/platform/ptr"
-	"github.com/maintainerd/auth/internal/repository"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -31,11 +29,11 @@ type WebAuthnService interface {
 	BeginRegistration(ctx context.Context, userID int64) (*protocol.CredentialCreation, error)
 	// FinishRegistration completes registration, persists the credential, and
 	// enables WebAuthn on the user.
-	FinishRegistration(ctx context.Context, userID int64, credName string, response *protocol.ParsedCredentialCreationData) (*model.UserWebAuthnCredential, error)
+	FinishRegistration(ctx context.Context, userID int64, credName string, response *protocol.ParsedCredentialCreationData) (*UserWebAuthnCredential, error)
 	// BeginAuthentication initiates a credential assertion ceremony.
 	BeginAuthentication(ctx context.Context, userID int64) (*protocol.CredentialAssertion, error)
 	// FinishAuthentication verifies the assertion and updates the sign counter.
-	FinishAuthentication(ctx context.Context, userID int64, response *protocol.ParsedCredentialAssertionData) (*model.UserWebAuthnCredential, error)
+	FinishAuthentication(ctx context.Context, userID int64, response *protocol.ParsedCredentialAssertionData) (*UserWebAuthnCredential, error)
 	// DeleteCredential removes a single registered credential.
 	DeleteCredential(ctx context.Context, credentialUUIDStr string, userID int64) error
 }
@@ -43,8 +41,8 @@ type WebAuthnService interface {
 type webAuthnService struct {
 	db               *gorm.DB
 	wa               *webauthn.WebAuthn
-	userRepo         repository.UserRepository
-	webAuthnCredRepo repository.UserWebAuthnCredentialRepository
+	userRepo         UserRepository
+	webAuthnCredRepo UserWebAuthnCredentialRepository
 	sessionStore     cache.WebAuthnSessionStore
 	authEventService AuthEventService
 }
@@ -52,8 +50,8 @@ type webAuthnService struct {
 // NewWebAuthnService constructs a WebAuthnService.
 func NewWebAuthnService(
 	db *gorm.DB,
-	userRepo repository.UserRepository,
-	webAuthnCredRepo repository.UserWebAuthnCredentialRepository,
+	userRepo UserRepository,
+	webAuthnCredRepo UserWebAuthnCredentialRepository,
 	sessionStore cache.WebAuthnSessionStore,
 	authEventService AuthEventService,
 ) (WebAuthnService, error) {
@@ -83,10 +81,10 @@ func NewWebAuthnService(
 // webauthn.User adapter
 // ──────────────────────────────────────────────────────────────────────────────
 
-// webAuthnUser wraps model.User + its stored credentials to satisfy the
+// webAuthnUser wraps User + its stored credentials to satisfy the
 // webauthn.User interface.
 type webAuthnUser struct {
-	user  *model.User
+	user  *User
 	creds []webauthn.Credential
 }
 
@@ -125,7 +123,7 @@ func (s *webAuthnService) BeginRegistration(ctx context.Context, userID int64) (
 	return creation, nil
 }
 
-func (s *webAuthnService) FinishRegistration(ctx context.Context, userID int64, credName string, response *protocol.ParsedCredentialCreationData) (*model.UserWebAuthnCredential, error) {
+func (s *webAuthnService) FinishRegistration(ctx context.Context, userID int64, credName string, response *protocol.ParsedCredentialCreationData) (*UserWebAuthnCredential, error) {
 	_, span := otel.Tracer("service").Start(ctx, "webauthn.finish_registration")
 	defer span.End()
 	span.SetAttributes(attribute.Int64("user.id", userID))
@@ -153,7 +151,7 @@ func (s *webAuthnService) FinishRegistration(ctx context.Context, userID int64, 
 	}
 
 	transport := joinTransports(cred.Transport)
-	storedCred := &model.UserWebAuthnCredential{
+	storedCred := &UserWebAuthnCredential{
 		UserID:           userID,
 		CredentialKeyID:  base64.RawURLEncoding.EncodeToString(cred.ID),
 		PublicKey:        cred.PublicKey,
@@ -179,7 +177,7 @@ func (s *webAuthnService) FinishRegistration(ctx context.Context, userID int64, 
 	}
 
 	now := time.Now()
-	_ = s.db.Model(&model.User{}).Where("user_id = ?", userID).
+	_ = s.db.Model(&User{}).Where("user_id = ?", userID).
 		Updates(map[string]any{
 			"is_webauthn_enabled": true,
 			"mfa_enabled_at":      now,
@@ -191,10 +189,10 @@ func (s *webAuthnService) FinishRegistration(ctx context.Context, userID int64, 
 		ActorUserID: &userID,
 		IPAddress:   middleware.ClientIPFromContext(ctx),
 		UserAgent:   ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),
-		Category:    model.AuthEventCategoryAuthn,
-		EventType:   model.AuthEventTypeTokenCreated,
-		Severity:    model.AuthEventSeverityInfo,
-		Result:      model.AuthEventResultSuccess,
+		Category:    AuthEventCategoryAuthn,
+		EventType:   AuthEventTypeTokenCreated,
+		Severity:    AuthEventSeverityInfo,
+		Result:      AuthEventResultSuccess,
 		Description: ptr.Ptr("WebAuthn credential registered"),
 	})
 
@@ -231,7 +229,7 @@ func (s *webAuthnService) BeginAuthentication(ctx context.Context, userID int64)
 	return assertion, nil
 }
 
-func (s *webAuthnService) FinishAuthentication(ctx context.Context, userID int64, response *protocol.ParsedCredentialAssertionData) (*model.UserWebAuthnCredential, error) {
+func (s *webAuthnService) FinishAuthentication(ctx context.Context, userID int64, response *protocol.ParsedCredentialAssertionData) (*UserWebAuthnCredential, error) {
 	_, span := otel.Tracer("service").Start(ctx, "webauthn.finish_authentication")
 	defer span.End()
 	span.SetAttributes(attribute.Int64("user.id", userID))
@@ -268,10 +266,10 @@ func (s *webAuthnService) FinishAuthentication(ctx context.Context, userID int64
 		ActorUserID: &userID,
 		IPAddress:   middleware.ClientIPFromContext(ctx),
 		UserAgent:   ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),
-		Category:    model.AuthEventCategoryAuthn,
-		EventType:   model.AuthEventTypeTokenCreated,
-		Severity:    model.AuthEventSeverityInfo,
-		Result:      model.AuthEventResultSuccess,
+		Category:    AuthEventCategoryAuthn,
+		EventType:   AuthEventTypeTokenCreated,
+		Severity:    AuthEventSeverityInfo,
+		Result:      AuthEventResultSuccess,
 		Description: ptr.Ptr("WebAuthn authentication succeeded"),
 	})
 
@@ -288,7 +286,7 @@ func (s *webAuthnService) DeleteCredential(ctx context.Context, credentialUUIDSt
 		return apperror.NewInternal("credential lookup failed", err)
 	}
 
-	var target *model.UserWebAuthnCredential
+	var target *UserWebAuthnCredential
 	for i := range creds {
 		if creds[i].CredentialUUID.String() == credentialUUIDStr {
 			target = &creds[i]
@@ -306,7 +304,7 @@ func (s *webAuthnService) DeleteCredential(ctx context.Context, credentialUUIDSt
 	// Disable WebAuthn on user if no credentials remain.
 	remaining, _ := s.webAuthnCredRepo.FindByUserID(userID)
 	if len(remaining) == 0 {
-		_ = s.db.Model(&model.User{}).Where("user_id = ?", userID).
+		_ = s.db.Model(&User{}).Where("user_id = ?", userID).
 			Updates(map[string]any{"is_webauthn_enabled": false})
 	}
 

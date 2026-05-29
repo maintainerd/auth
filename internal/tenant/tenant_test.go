@@ -7,20 +7,18 @@ import (
 
 	sqlmock "github.com/DATA-DOG/go-sqlmock"
 	"github.com/google/uuid"
-	"github.com/maintainerd/auth/internal/model"
 	"github.com/maintainerd/auth/internal/platform/crypto"
-	"github.com/maintainerd/auth/internal/repository"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 // newTenant returns a minimal Tenant fixture for tests.
-func newTenant(id int64, name string) *model.Tenant {
-	return &model.Tenant{
+func newTenant(id int64, name string) *Tenant {
+	return &Tenant{
 		TenantID:   id,
 		TenantUUID: uuid.New(),
 		Name:       name,
-		Status:     model.StatusActive,
+		Status:     StatusActive,
 	}
 }
 
@@ -37,7 +35,7 @@ func TestTenantService_GetByUUID(t *testing.T) {
 		{
 			name: "found → success",
 			setupRepo: func(r *mockTenantRepo) {
-				r.findByUUIDFn = func(_ any, _ ...string) (*model.Tenant, error) {
+				r.findByUUIDFn = func(_ any, _ ...string) (*Tenant, error) {
 					return newTenant(1, "acme"), nil
 				}
 			},
@@ -45,7 +43,7 @@ func TestTenantService_GetByUUID(t *testing.T) {
 		{
 			name: "not found → error",
 			setupRepo: func(r *mockTenantRepo) {
-				r.findByUUIDFn = func(_ any, _ ...string) (*model.Tenant, error) {
+				r.findByUUIDFn = func(_ any, _ ...string) (*Tenant, error) {
 					return nil, nil
 				}
 			},
@@ -54,7 +52,7 @@ func TestTenantService_GetByUUID(t *testing.T) {
 		{
 			name: "repo error → error",
 			setupRepo: func(r *mockTenantRepo) {
-				r.findByUUIDFn = func(_ any, _ ...string) (*model.Tenant, error) {
+				r.findByUUIDFn = func(_ any, _ ...string) (*Tenant, error) {
 					return nil, errors.New("db error")
 				}
 			},
@@ -92,7 +90,7 @@ func TestTenantService_GetSystem(t *testing.T) {
 		{
 			name: "found → success",
 			setupRepo: func(r *mockTenantRepo) {
-				r.findSystemFn = func() (*model.Tenant, error) {
+				r.findSystemFn = func() (*Tenant, error) {
 					t := newTenant(1, "system")
 					t.IsSystem = true
 					return t, nil
@@ -102,7 +100,7 @@ func TestTenantService_GetSystem(t *testing.T) {
 		{
 			name: "not found → error",
 			setupRepo: func(r *mockTenantRepo) {
-				r.findSystemFn = func() (*model.Tenant, error) { return nil, nil }
+				r.findSystemFn = func() (*Tenant, error) { return nil, nil }
 			},
 			expectError: true,
 		},
@@ -139,7 +137,7 @@ func TestTenantService_GetByIdentifier(t *testing.T) {
 			name:       "found → success",
 			identifier: "acme-corp",
 			setupRepo: func(r *mockTenantRepo) {
-				r.findByIdentifierFn = func(id string) (*model.Tenant, error) {
+				r.findByIdentifierFn = func(id string) (*Tenant, error) {
 					return newTenant(1, "Acme"), nil
 				}
 			},
@@ -148,7 +146,7 @@ func TestTenantService_GetByIdentifier(t *testing.T) {
 			name:       "not found → error",
 			identifier: "unknown",
 			setupRepo: func(r *mockTenantRepo) {
-				r.findByIdentifierFn = func(id string) (*model.Tenant, error) { return nil, nil }
+				r.findByIdentifierFn = func(id string) (*Tenant, error) { return nil, nil }
 			},
 			expectError: true,
 		},
@@ -186,7 +184,7 @@ func TestTenantService_Get(t *testing.T) {
 
 	t.Run("repo error – propagated", func(t *testing.T) {
 		repo := &mockTenantRepo{
-			findPaginatedFn: func(_ repository.TenantRepositoryGetFilter) (*repository.PaginationResult[model.Tenant], error) {
+			findPaginatedFn: func(_ TenantRepositoryGetFilter) (*PaginationResult[Tenant], error) {
 				return nil, errors.New("db error")
 			},
 		}
@@ -218,7 +216,7 @@ func TestTenantService_DeleteByUUID(t *testing.T) {
 		{
 			name: "not found → error",
 			setupRepo: func(r *mockTenantRepo) {
-				r.findByUUIDFn = func(_ any, _ ...string) (*model.Tenant, error) { return nil, nil }
+				r.findByUUIDFn = func(_ any, _ ...string) (*Tenant, error) { return nil, nil }
 			},
 			setupSQL: func(mock sqlmock.Sqlmock) {
 				mock.ExpectBegin()
@@ -230,7 +228,7 @@ func TestTenantService_DeleteByUUID(t *testing.T) {
 		{
 			name: "system tenant → error",
 			setupRepo: func(r *mockTenantRepo) {
-				r.findByUUIDFn = func(_ any, _ ...string) (*model.Tenant, error) {
+				r.findByUUIDFn = func(_ any, _ ...string) (*Tenant, error) {
 					t := newTenant(1, "system")
 					t.IsSystem = true
 					return t, nil
@@ -246,7 +244,7 @@ func TestTenantService_DeleteByUUID(t *testing.T) {
 		{
 			name: "success",
 			setupRepo: func(r *mockTenantRepo) {
-				r.findByUUIDFn = func(_ any, _ ...string) (*model.Tenant, error) {
+				r.findByUUIDFn = func(_ any, _ ...string) (*Tenant, error) {
 					return newTenant(1, "acme"), nil
 				}
 			},
@@ -295,14 +293,14 @@ func TestTenantService_SetStatusByUUID(t *testing.T) {
 		{
 			name: "tenant not found → error",
 			setupRepo: func(r *mockTenantRepo) {
-				r.findByUUIDFn = func(_ any, _ ...string) (*model.Tenant, error) { return nil, nil }
+				r.findByUUIDFn = func(_ any, _ ...string) (*Tenant, error) { return nil, nil }
 			},
 			expectError: true,
 		},
 		{
 			name: "repo error → error",
 			setupRepo: func(r *mockTenantRepo) {
-				r.findByUUIDFn = func(_ any, _ ...string) (*model.Tenant, error) {
+				r.findByUUIDFn = func(_ any, _ ...string) (*Tenant, error) {
 					return nil, errors.New("db error")
 				}
 			},
@@ -313,7 +311,7 @@ func TestTenantService_SetStatusByUUID(t *testing.T) {
 			setupRepo: func(r *mockTenantRepo) {
 				tenant := newTenant(1, "acme")
 				calls := 0
-				r.findByUUIDFn = func(_ any, _ ...string) (*model.Tenant, error) {
+				r.findByUUIDFn = func(_ any, _ ...string) (*Tenant, error) {
 					calls++
 					return tenant, nil
 				}
@@ -326,7 +324,7 @@ func TestTenantService_SetStatusByUUID(t *testing.T) {
 			repo := &mockTenantRepo{}
 			tc.setupRepo(repo)
 			svc := NewTenantService(nil, repo)
-			result, err := svc.SetStatusByUUID(context.Background(), tenantUUID, model.StatusActive)
+			result, err := svc.SetStatusByUUID(context.Background(), tenantUUID, StatusActive)
 			if tc.expectError {
 				require.Error(t, err)
 			} else {
@@ -346,7 +344,7 @@ func TestTenantService_SetStatusByUUID_Extra(t *testing.T) {
 
 	t.Run("SetStatusByUUID error", func(t *testing.T) {
 		repo := &mockTenantRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.Tenant, error) {
+			findByUUIDFn: func(_ any, _ ...string) (*Tenant, error) {
 				return newTenant(1, "acme"), nil
 			},
 			setStatusByUUIDFn: func(_ uuid.UUID, _ string) error {
@@ -362,7 +360,7 @@ func TestTenantService_SetStatusByUUID_Extra(t *testing.T) {
 	t.Run("final fetch error", func(t *testing.T) {
 		calls := 0
 		repo := &mockTenantRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.Tenant, error) {
+			findByUUIDFn: func(_ any, _ ...string) (*Tenant, error) {
 				calls++
 				if calls == 1 {
 					return newTenant(1, "acme"), nil
@@ -383,9 +381,9 @@ func TestTenantService_SetStatusByUUID_Extra(t *testing.T) {
 
 func TestTenantService_Get_WithData(t *testing.T) {
 	repo := &mockTenantRepo{
-		findPaginatedFn: func(_ repository.TenantRepositoryGetFilter) (*repository.PaginationResult[model.Tenant], error) {
-			return &repository.PaginationResult[model.Tenant]{
-				Data:       []model.Tenant{*newTenant(1, "acme"), *newTenant(2, "beta")},
+		findPaginatedFn: func(_ TenantRepositoryGetFilter) (*PaginationResult[Tenant], error) {
+			return &PaginationResult[Tenant]{
+				Data:       []Tenant{*newTenant(1, "acme"), *newTenant(2, "beta")},
 				Total:      2,
 				Page:       1,
 				Limit:      10,
@@ -407,7 +405,7 @@ func TestTenantService_Get_WithData(t *testing.T) {
 func TestTenantService_Create(t *testing.T) {
 	t.Run("FindByName error", func(t *testing.T) {
 		repo := &mockTenantRepo{
-			findByNameFn: func(_ string) (*model.Tenant, error) { return nil, errors.New("name err") },
+			findByNameFn: func(_ string) (*Tenant, error) { return nil, errors.New("name err") },
 		}
 		db, mock := newMockGormDB(t)
 		mock.ExpectBegin()
@@ -420,7 +418,7 @@ func TestTenantService_Create(t *testing.T) {
 
 	t.Run("tenant already exists", func(t *testing.T) {
 		repo := &mockTenantRepo{
-			findByNameFn: func(_ string) (*model.Tenant, error) { return newTenant(1, "acme"), nil },
+			findByNameFn: func(_ string) (*Tenant, error) { return newTenant(1, "acme"), nil },
 		}
 		db, mock := newMockGormDB(t)
 		mock.ExpectBegin()
@@ -448,7 +446,7 @@ func TestTenantService_Create(t *testing.T) {
 
 	t.Run("CreateOrUpdate error", func(t *testing.T) {
 		repo := &mockTenantRepo{
-			createOrUpdateFn: func(_ *model.Tenant) (*model.Tenant, error) { return nil, errors.New("create err") },
+			createOrUpdateFn: func(_ *Tenant) (*Tenant, error) { return nil, errors.New("create err") },
 		}
 		db, mock := newMockGormDB(t)
 		mock.ExpectBegin()
@@ -461,7 +459,7 @@ func TestTenantService_Create(t *testing.T) {
 
 	t.Run("final fetch error", func(t *testing.T) {
 		repo := &mockTenantRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.Tenant, error) { return nil, errors.New("fetch err") },
+			findByUUIDFn: func(_ any, _ ...string) (*Tenant, error) { return nil, errors.New("fetch err") },
 		}
 		db, mock := newMockGormDB(t)
 		mock.ExpectBegin()
@@ -474,7 +472,7 @@ func TestTenantService_Create(t *testing.T) {
 
 	t.Run("success", func(t *testing.T) {
 		repo := &mockTenantRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.Tenant, error) {
+			findByUUIDFn: func(_ any, _ ...string) (*Tenant, error) {
 				return newTenant(1, "acme"), nil
 			},
 		}
@@ -497,7 +495,7 @@ func TestTenantService_Update(t *testing.T) {
 
 	t.Run("FindByUUID error", func(t *testing.T) {
 		repo := &mockTenantRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.Tenant, error) { return nil, errors.New("find err") },
+			findByUUIDFn: func(_ any, _ ...string) (*Tenant, error) { return nil, errors.New("find err") },
 		}
 		db, mock := newMockGormDB(t)
 		mock.ExpectBegin()
@@ -510,7 +508,7 @@ func TestTenantService_Update(t *testing.T) {
 
 	t.Run("tenant not found", func(t *testing.T) {
 		repo := &mockTenantRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.Tenant, error) { return nil, nil },
+			findByUUIDFn: func(_ any, _ ...string) (*Tenant, error) { return nil, nil },
 		}
 		db, mock := newMockGormDB(t)
 		mock.ExpectBegin()
@@ -523,10 +521,10 @@ func TestTenantService_Update(t *testing.T) {
 
 	t.Run("name conflict FindByName error", func(t *testing.T) {
 		repo := &mockTenantRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.Tenant, error) {
-				return &model.Tenant{TenantID: 1, TenantUUID: tenantUUID, Name: "old"}, nil
+			findByUUIDFn: func(_ any, _ ...string) (*Tenant, error) {
+				return &Tenant{TenantID: 1, TenantUUID: tenantUUID, Name: "old"}, nil
 			},
-			findByNameFn: func(_ string) (*model.Tenant, error) { return nil, errors.New("name err") },
+			findByNameFn: func(_ string) (*Tenant, error) { return nil, errors.New("name err") },
 		}
 		db, mock := newMockGormDB(t)
 		mock.ExpectBegin()
@@ -539,10 +537,10 @@ func TestTenantService_Update(t *testing.T) {
 
 	t.Run("name already exists", func(t *testing.T) {
 		repo := &mockTenantRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.Tenant, error) {
-				return &model.Tenant{TenantID: 1, TenantUUID: tenantUUID, Name: "old"}, nil
+			findByUUIDFn: func(_ any, _ ...string) (*Tenant, error) {
+				return &Tenant{TenantID: 1, TenantUUID: tenantUUID, Name: "old"}, nil
 			},
-			findByNameFn: func(_ string) (*model.Tenant, error) { return newTenant(999, "new"), nil },
+			findByNameFn: func(_ string) (*Tenant, error) { return newTenant(999, "new"), nil },
 		}
 		db, mock := newMockGormDB(t)
 		mock.ExpectBegin()
@@ -555,10 +553,10 @@ func TestTenantService_Update(t *testing.T) {
 
 	t.Run("CreateOrUpdate error", func(t *testing.T) {
 		repo := &mockTenantRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.Tenant, error) {
-				return &model.Tenant{TenantID: 1, TenantUUID: tenantUUID, Name: "old"}, nil
+			findByUUIDFn: func(_ any, _ ...string) (*Tenant, error) {
+				return &Tenant{TenantID: 1, TenantUUID: tenantUUID, Name: "old"}, nil
 			},
-			createOrUpdateFn: func(_ *model.Tenant) (*model.Tenant, error) { return nil, errors.New("save err") },
+			createOrUpdateFn: func(_ *Tenant) (*Tenant, error) { return nil, errors.New("save err") },
 		}
 		db, mock := newMockGormDB(t)
 		mock.ExpectBegin()
@@ -571,8 +569,8 @@ func TestTenantService_Update(t *testing.T) {
 
 	t.Run("success — same name", func(t *testing.T) {
 		repo := &mockTenantRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.Tenant, error) {
-				return &model.Tenant{TenantID: 1, TenantUUID: tenantUUID, Name: "acme"}, nil
+			findByUUIDFn: func(_ any, _ ...string) (*Tenant, error) {
+				return &Tenant{TenantID: 1, TenantUUID: tenantUUID, Name: "acme"}, nil
 			},
 		}
 		db, mock := newMockGormDB(t)
@@ -586,8 +584,8 @@ func TestTenantService_Update(t *testing.T) {
 
 	t.Run("success — different name, no conflict", func(t *testing.T) {
 		repo := &mockTenantRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.Tenant, error) {
-				return &model.Tenant{TenantID: 1, TenantUUID: tenantUUID, Name: "old"}, nil
+			findByUUIDFn: func(_ any, _ ...string) (*Tenant, error) {
+				return &Tenant{TenantID: 1, TenantUUID: tenantUUID, Name: "old"}, nil
 			},
 		}
 		db, mock := newMockGormDB(t)
@@ -609,7 +607,7 @@ func TestTenantService_SetActivePublicByUUID(t *testing.T) {
 
 	t.Run("tenant not found", func(t *testing.T) {
 		repo := &mockTenantRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.Tenant, error) { return nil, nil },
+			findByUUIDFn: func(_ any, _ ...string) (*Tenant, error) { return nil, nil },
 		}
 		svc := NewTenantService(nil, repo)
 		_, err := svc.SetActivePublicByUUID(context.Background(), tenantUUID)
@@ -619,7 +617,7 @@ func TestTenantService_SetActivePublicByUUID(t *testing.T) {
 
 	t.Run("db update error", func(t *testing.T) {
 		repo := &mockTenantRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.Tenant, error) {
+			findByUUIDFn: func(_ any, _ ...string) (*Tenant, error) {
 				return newTenant(1, "acme"), nil
 			},
 		}
@@ -637,7 +635,7 @@ func TestTenantService_SetActivePublicByUUID(t *testing.T) {
 	t.Run("final fetch error", func(t *testing.T) {
 		calls := 0
 		repo := &mockTenantRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.Tenant, error) {
+			findByUUIDFn: func(_ any, _ ...string) (*Tenant, error) {
 				calls++
 				if calls == 1 {
 					return newTenant(1, "acme"), nil
@@ -659,12 +657,12 @@ func TestTenantService_SetActivePublicByUUID(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		calls := 0
 		repo := &mockTenantRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.Tenant, error) {
+			findByUUIDFn: func(_ any, _ ...string) (*Tenant, error) {
 				calls++
 				if calls == 1 {
-					return &model.Tenant{TenantID: 1, TenantUUID: tenantUUID, Name: "acme", IsPublic: false}, nil
+					return &Tenant{TenantID: 1, TenantUUID: tenantUUID, Name: "acme", IsPublic: false}, nil
 				}
-				return &model.Tenant{TenantID: 1, TenantUUID: tenantUUID, Name: "acme", IsPublic: true}, nil
+				return &Tenant{TenantID: 1, TenantUUID: tenantUUID, Name: "acme", IsPublic: true}, nil
 			},
 		}
 		db, mock := newMockGormDB(t)
@@ -693,7 +691,7 @@ func TestTenantService_DeleteByUUID_DeleteError(t *testing.T) {
 	mock.ExpectRollback()
 
 	repo := &mockTenantRepo{
-		findByUUIDFn:   func(_ any, _ ...string) (*model.Tenant, error) { return newTenant(1, "acme"), nil },
+		findByUUIDFn:   func(_ any, _ ...string) (*Tenant, error) { return newTenant(1, "acme"), nil },
 		deleteByUUIDFn: func(_ any) error { return errors.New("delete err") },
 	}
 	svc := NewTenantService(db, repo)

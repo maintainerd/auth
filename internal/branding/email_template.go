@@ -5,9 +5,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/maintainerd/auth/internal/model"
 	"github.com/maintainerd/auth/internal/platform/apperror"
-	"github.com/maintainerd/auth/internal/repository"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -46,12 +44,12 @@ type EmailTemplateService interface {
 
 type emailTemplateService struct {
 	db                *gorm.DB
-	emailTemplateRepo repository.EmailTemplateRepository
+	emailTemplateRepo EmailTemplateRepository
 }
 
 func NewEmailTemplateService(
 	db *gorm.DB,
-	emailTemplateRepo repository.EmailTemplateRepository,
+	emailTemplateRepo EmailTemplateRepository,
 ) EmailTemplateService {
 	return &emailTemplateService{
 		db:                db,
@@ -64,7 +62,7 @@ func (s *emailTemplateService) GetAll(ctx context.Context, tenantID int64, name 
 	defer span.End()
 	span.SetAttributes(attribute.Int64("tenant.id", tenantID))
 
-	filter := repository.EmailTemplateRepositoryGetFilter{
+	filter := EmailTemplateRepositoryGetFilter{
 		Name:      name,
 		Status:    status,
 		TenantID:  &tenantID,
@@ -131,7 +129,7 @@ func (s *emailTemplateService) Create(ctx context.Context, tenantID int64, name,
 		attribute.String("email_template.name", name),
 	)
 
-	template := &model.EmailTemplate{
+	template := &EmailTemplate{
 		TenantID:  tenantID,
 		Name:      name,
 		Subject:   subject,
@@ -278,7 +276,7 @@ func (s *emailTemplateService) Delete(ctx context.Context, emailTemplateUUID uui
 }
 
 // Helper function to convert model to service data result
-func toEmailTemplateServiceDataResult(template *model.EmailTemplate) EmailTemplateServiceDataResult {
+func toEmailTemplateServiceDataResult(template *EmailTemplate) EmailTemplateServiceDataResult {
 	return EmailTemplateServiceDataResult{
 		EmailTemplateUUID: template.EmailTemplateUUID,
 		Name:              template.Name,

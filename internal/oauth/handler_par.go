@@ -4,18 +4,16 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/maintainerd/auth/internal/dto"
 	resp "github.com/maintainerd/auth/internal/platform/response"
-	"github.com/maintainerd/auth/internal/service"
 )
 
 // OAuthPARHandler handles Pushed Authorization Requests (RFC 9126).
 type OAuthPARHandler struct {
-	parService service.OAuthPARService
+	parService OAuthPARService
 }
 
 // NewOAuthPARHandler creates a new OAuthPARHandler.
-func NewOAuthPARHandler(parService service.OAuthPARService) *OAuthPARHandler {
+func NewOAuthPARHandler(parService OAuthPARService) *OAuthPARHandler {
 	return &OAuthPARHandler{parService: parService}
 }
 
@@ -26,7 +24,7 @@ func (h *OAuthPARHandler) Push(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	req := dto.OAuthPARRequestDTO{
+	req := OAuthPARRequestDTO{
 		ResponseType:        r.FormValue("response_type"),
 		ClientID:            r.FormValue("client_id"),
 		RedirectURI:         r.FormValue("redirect_uri"),

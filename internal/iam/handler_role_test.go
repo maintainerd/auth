@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
-	"github.com/maintainerd/auth/internal/service"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -20,7 +19,7 @@ func TestRoleHandler_Get_NoTenant(t *testing.T) {
 
 func TestRoleHandler_Get_ServiceError(t *testing.T) {
 	svc := &mockRoleService{
-		getFn: func(service.RoleServiceGetFilter) (*service.RoleServiceGetResult, error) {
+		getFn: func(RoleServiceGetFilter) (*RoleServiceGetResult, error) {
 			return nil, assert.AnError
 		},
 	}
@@ -33,8 +32,8 @@ func TestRoleHandler_Get_ServiceError(t *testing.T) {
 
 func TestRoleHandler_Get_Success(t *testing.T) {
 	svc := &mockRoleService{
-		getFn: func(service.RoleServiceGetFilter) (*service.RoleServiceGetResult, error) {
-			return &service.RoleServiceGetResult{}, nil
+		getFn: func(RoleServiceGetFilter) (*RoleServiceGetResult, error) {
+			return &RoleServiceGetResult{}, nil
 		},
 	}
 	h := NewRoleHandler(svc)
@@ -62,7 +61,7 @@ func TestRoleHandler_GetByUUID_InvalidUUID(t *testing.T) {
 
 func TestRoleHandler_GetByUUID_NotFound(t *testing.T) {
 	svc := &mockRoleService{
-		getByUUIDFn: func(id uuid.UUID, tid int64) (*service.RoleServiceDataResult, error) {
+		getByUUIDFn: func(id uuid.UUID, tid int64) (*RoleServiceDataResult, error) {
 			return nil, errNotFound
 		},
 	}
@@ -75,8 +74,8 @@ func TestRoleHandler_GetByUUID_NotFound(t *testing.T) {
 
 func TestRoleHandler_GetByUUID_Success(t *testing.T) {
 	svc := &mockRoleService{
-		getByUUIDFn: func(id uuid.UUID, tid int64) (*service.RoleServiceDataResult, error) {
-			return &service.RoleServiceDataResult{Name: "admin"}, nil
+		getByUUIDFn: func(id uuid.UUID, tid int64) (*RoleServiceDataResult, error) {
+			return &RoleServiceDataResult{Name: "admin"}, nil
 		},
 	}
 	h := NewRoleHandler(svc)
@@ -96,7 +95,7 @@ func TestRoleHandler_Create_NoTenant(t *testing.T) {
 
 func TestRoleHandler_Create_ServiceError(t *testing.T) {
 	svc := &mockRoleService{
-		createFn: func(n, desc string, isDef, isSys bool, s, tUUID string, actor uuid.UUID) (*service.RoleServiceDataResult, error) {
+		createFn: func(n, desc string, isDef, isSys bool, s, tUUID string, actor uuid.UUID) (*RoleServiceDataResult, error) {
 			return nil, assert.AnError
 		},
 	}
@@ -119,7 +118,7 @@ func TestRoleHandler_Delete_InvalidUUID(t *testing.T) {
 
 func TestRoleHandler_Delete_ServiceError(t *testing.T) {
 	svc := &mockRoleService{
-		deleteByUUIDFn: func(id uuid.UUID, tid int64, actor uuid.UUID) (*service.RoleServiceDataResult, error) {
+		deleteByUUIDFn: func(id uuid.UUID, tid int64, actor uuid.UUID) (*RoleServiceDataResult, error) {
 			return nil, assert.AnError
 		},
 	}
@@ -132,8 +131,8 @@ func TestRoleHandler_Delete_ServiceError(t *testing.T) {
 
 func TestRoleHandler_Delete_Success(t *testing.T) {
 	svc := &mockRoleService{
-		deleteByUUIDFn: func(id uuid.UUID, tid int64, actor uuid.UUID) (*service.RoleServiceDataResult, error) {
-			return &service.RoleServiceDataResult{Name: "role1"}, nil
+		deleteByUUIDFn: func(id uuid.UUID, tid int64, actor uuid.UUID) (*RoleServiceDataResult, error) {
+			return &RoleServiceDataResult{Name: "role1"}, nil
 		},
 	}
 	h := NewRoleHandler(svc)
@@ -154,11 +153,11 @@ func TestRoleHandler_Get_ValidationError(t *testing.T) {
 }
 
 func TestRoleHandler_Get_WithFiltersAndRows(t *testing.T) {
-	perms := []service.PermissionServiceDataResult{{Name: "read"}}
+	perms := []PermissionServiceDataResult{{Name: "read"}}
 	svc := &mockRoleService{
-		getFn: func(service.RoleServiceGetFilter) (*service.RoleServiceGetResult, error) {
-			return &service.RoleServiceGetResult{
-				Data: []service.RoleServiceDataResult{{Name: "admin", Permissions: &perms}},
+		getFn: func(RoleServiceGetFilter) (*RoleServiceGetResult, error) {
+			return &RoleServiceGetResult{
+				Data: []RoleServiceDataResult{{Name: "admin", Permissions: &perms}},
 			}, nil
 		},
 	}
@@ -200,8 +199,8 @@ func TestRoleHandler_Create_ValidationError(t *testing.T) {
 
 func TestRoleHandler_Create_Success(t *testing.T) {
 	svc := &mockRoleService{
-		createFn: func(n, desc string, isDef, isSys bool, s, tUUID string, actor uuid.UUID) (*service.RoleServiceDataResult, error) {
-			return &service.RoleServiceDataResult{Name: n}, nil
+		createFn: func(n, desc string, isDef, isSys bool, s, tUUID string, actor uuid.UUID) (*RoleServiceDataResult, error) {
+			return &RoleServiceDataResult{Name: n}, nil
 		},
 	}
 	h := NewRoleHandler(svc)
@@ -275,7 +274,7 @@ func TestRoleHandler_Update_ValidationError(t *testing.T) {
 
 func TestRoleHandler_Update_ServiceError(t *testing.T) {
 	svc := &mockRoleService{
-		updateFn: func(id uuid.UUID, tid int64, n, desc string, isDef, isSys bool, s string, actor uuid.UUID) (*service.RoleServiceDataResult, error) {
+		updateFn: func(id uuid.UUID, tid int64, n, desc string, isDef, isSys bool, s string, actor uuid.UUID) (*RoleServiceDataResult, error) {
 			return nil, assert.AnError
 		},
 	}
@@ -290,8 +289,8 @@ func TestRoleHandler_Update_ServiceError(t *testing.T) {
 
 func TestRoleHandler_Update_Success(t *testing.T) {
 	svc := &mockRoleService{
-		updateFn: func(id uuid.UUID, tid int64, n, desc string, isDef, isSys bool, s string, actor uuid.UUID) (*service.RoleServiceDataResult, error) {
-			return &service.RoleServiceDataResult{Name: n}, nil
+		updateFn: func(id uuid.UUID, tid int64, n, desc string, isDef, isSys bool, s string, actor uuid.UUID) (*RoleServiceDataResult, error) {
+			return &RoleServiceDataResult{Name: n}, nil
 		},
 	}
 	h := NewRoleHandler(svc)
@@ -347,7 +346,7 @@ func TestRoleHandler_SetStatus_InvalidStatus(t *testing.T) {
 
 func TestRoleHandler_SetStatus_ServiceError(t *testing.T) {
 	svc := &mockRoleService{
-		setStatusByUUIDFn: func(id uuid.UUID, tid int64, s string, actor uuid.UUID) (*service.RoleServiceDataResult, error) {
+		setStatusByUUIDFn: func(id uuid.UUID, tid int64, s string, actor uuid.UUID) (*RoleServiceDataResult, error) {
 			return nil, assert.AnError
 		},
 	}
@@ -360,8 +359,8 @@ func TestRoleHandler_SetStatus_ServiceError(t *testing.T) {
 
 func TestRoleHandler_SetStatus_Success(t *testing.T) {
 	svc := &mockRoleService{
-		setStatusByUUIDFn: func(id uuid.UUID, tid int64, s string, actor uuid.UUID) (*service.RoleServiceDataResult, error) {
-			return &service.RoleServiceDataResult{}, nil
+		setStatusByUUIDFn: func(id uuid.UUID, tid int64, s string, actor uuid.UUID) (*RoleServiceDataResult, error) {
+			return &RoleServiceDataResult{}, nil
 		},
 	}
 	h := NewRoleHandler(svc)
@@ -399,7 +398,7 @@ func TestRoleHandler_GetPermissions_ValidationError(t *testing.T) {
 
 func TestRoleHandler_GetPermissions_ServiceError(t *testing.T) {
 	svc := &mockRoleService{
-		getRolePermissionsFn: func(service.RoleServiceGetPermissionsFilter) (*service.RoleServiceGetPermissionsResult, error) {
+		getRolePermissionsFn: func(RoleServiceGetPermissionsFilter) (*RoleServiceGetPermissionsResult, error) {
 			return nil, assert.AnError
 		},
 	}
@@ -411,11 +410,11 @@ func TestRoleHandler_GetPermissions_ServiceError(t *testing.T) {
 }
 
 func TestRoleHandler_GetPermissions_Success(t *testing.T) {
-	apiResult := &service.APIServiceDataResult{Name: "users-api"}
+	apiResult := &APIServiceDataResult{Name: "users-api"}
 	svc := &mockRoleService{
-		getRolePermissionsFn: func(service.RoleServiceGetPermissionsFilter) (*service.RoleServiceGetPermissionsResult, error) {
-			return &service.RoleServiceGetPermissionsResult{
-				Data: []service.PermissionServiceDataResult{
+		getRolePermissionsFn: func(RoleServiceGetPermissionsFilter) (*RoleServiceGetPermissionsResult, error) {
+			return &RoleServiceGetPermissionsResult{
+				Data: []PermissionServiceDataResult{
 					{Name: "read", API: apiResult}, // API != nil covers line 407-419
 					{Name: "write"},                // API == nil covers status filter + row loop
 				},
@@ -475,7 +474,7 @@ func TestRoleHandler_AddPermissions_ValidationError(t *testing.T) {
 
 func TestRoleHandler_AddPermissions_ServiceError(t *testing.T) {
 	svc := &mockRoleService{
-		addRolePermsFn: func(id uuid.UUID, tid int64, perms []uuid.UUID, actor uuid.UUID) (*service.RoleServiceDataResult, error) {
+		addRolePermsFn: func(id uuid.UUID, tid int64, perms []uuid.UUID, actor uuid.UUID) (*RoleServiceDataResult, error) {
 			return nil, assert.AnError
 		},
 	}
@@ -488,8 +487,8 @@ func TestRoleHandler_AddPermissions_ServiceError(t *testing.T) {
 
 func TestRoleHandler_AddPermissions_Success(t *testing.T) {
 	svc := &mockRoleService{
-		addRolePermsFn: func(id uuid.UUID, tid int64, perms []uuid.UUID, actor uuid.UUID) (*service.RoleServiceDataResult, error) {
-			return &service.RoleServiceDataResult{}, nil
+		addRolePermsFn: func(id uuid.UUID, tid int64, perms []uuid.UUID, actor uuid.UUID) (*RoleServiceDataResult, error) {
+			return &RoleServiceDataResult{}, nil
 		},
 	}
 	h := NewRoleHandler(svc)
@@ -535,7 +534,7 @@ func TestRoleHandler_RemovePermission_InvalidPermissionUUID(t *testing.T) {
 
 func TestRoleHandler_RemovePermission_ServiceError(t *testing.T) {
 	svc := &mockRoleService{
-		removeRolePermsFn: func(id uuid.UUID, tid int64, perm uuid.UUID, actor uuid.UUID) (*service.RoleServiceDataResult, error) {
+		removeRolePermsFn: func(id uuid.UUID, tid int64, perm uuid.UUID, actor uuid.UUID) (*RoleServiceDataResult, error) {
 			return nil, assert.AnError
 		},
 	}
@@ -548,8 +547,8 @@ func TestRoleHandler_RemovePermission_ServiceError(t *testing.T) {
 
 func TestRoleHandler_RemovePermission_Success(t *testing.T) {
 	svc := &mockRoleService{
-		removeRolePermsFn: func(id uuid.UUID, tid int64, perm uuid.UUID, actor uuid.UUID) (*service.RoleServiceDataResult, error) {
-			return &service.RoleServiceDataResult{}, nil
+		removeRolePermsFn: func(id uuid.UUID, tid int64, perm uuid.UUID, actor uuid.UUID) (*RoleServiceDataResult, error) {
+			return &RoleServiceDataResult{}, nil
 		},
 	}
 	h := NewRoleHandler(svc)

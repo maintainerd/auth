@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
-	"github.com/maintainerd/auth/internal/service"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -20,7 +19,7 @@ func TestBrandingHandler_Get_NoTenant(t *testing.T) {
 
 func TestBrandingHandler_Get_ServiceError(t *testing.T) {
 	svc := &mockBrandingService{
-		getFn: func(_ int64) (*service.BrandingServiceDataResult, error) {
+		getFn: func(_ int64) (*BrandingServiceDataResult, error) {
 			return nil, assert.AnError
 		},
 	}
@@ -33,8 +32,8 @@ func TestBrandingHandler_Get_ServiceError(t *testing.T) {
 
 func TestBrandingHandler_Get_Success(t *testing.T) {
 	svc := &mockBrandingService{
-		getFn: func(_ int64) (*service.BrandingServiceDataResult, error) {
-			return &service.BrandingServiceDataResult{BrandingUUID: uuid.New(), CompanyName: "Acme"}, nil
+		getFn: func(_ int64) (*BrandingServiceDataResult, error) {
+			return &BrandingServiceDataResult{BrandingUUID: uuid.New(), CompanyName: "Acme"}, nil
 		},
 	}
 	h := NewBrandingHandler(svc)
@@ -71,7 +70,7 @@ func TestBrandingHandler_Update_ValidationError(t *testing.T) {
 
 func TestBrandingHandler_Update_ServiceError(t *testing.T) {
 	svc := &mockBrandingService{
-		updateFn: func(_ int64, _, _, _, _, _, _, _, _, _, _, _ string) (*service.BrandingServiceDataResult, error) {
+		updateFn: func(_ int64, _, _, _, _, _, _, _, _, _, _, _ string) (*BrandingServiceDataResult, error) {
 			return nil, assert.AnError
 		},
 	}
@@ -85,8 +84,8 @@ func TestBrandingHandler_Update_ServiceError(t *testing.T) {
 
 func TestBrandingHandler_Update_Success(t *testing.T) {
 	svc := &mockBrandingService{
-		updateFn: func(_ int64, _, _, _, _, _, _, _, _, _, _, _ string) (*service.BrandingServiceDataResult, error) {
-			return &service.BrandingServiceDataResult{BrandingUUID: uuid.New(), CompanyName: "Acme"}, nil
+		updateFn: func(_ int64, _, _, _, _, _, _, _, _, _, _, _ string) (*BrandingServiceDataResult, error) {
+			return &BrandingServiceDataResult{BrandingUUID: uuid.New(), CompanyName: "Acme"}, nil
 		},
 	}
 	h := NewBrandingHandler(svc)

@@ -8,15 +8,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/maintainerd/auth/internal/dto"
-	"github.com/maintainerd/auth/internal/model"
 	"github.com/maintainerd/auth/internal/platform/apperror"
 	"github.com/maintainerd/auth/internal/platform/config"
 	"github.com/maintainerd/auth/internal/platform/email"
 	"github.com/maintainerd/auth/internal/platform/jwt"
 	"github.com/maintainerd/auth/internal/platform/security"
 	"github.com/maintainerd/auth/internal/platform/signedurl"
-	"github.com/maintainerd/auth/internal/repository"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/codes"
 	"gorm.io/gorm"
@@ -29,28 +26,28 @@ const MagicLinkTokenTTL = 15 * time.Minute
 const MagicLinkTemplateName = "internal:user:magic_link"
 
 type MagicLinkService interface {
-	SendMagicLink(ctx context.Context, email string, clientID, providerID *string, isInternal bool) (*dto.SendMagicLinkResponseDTO, error)
-	LoginWithMagicLink(ctx context.Context, token, clientID, providerID string) (*dto.LoginResponseDTO, error)
+	SendMagicLink(ctx context.Context, email string, clientID, providerID *string, isInternal bool) (*SendMagicLinkResponseDTO, error)
+	LoginWithMagicLink(ctx context.Context, token, clientID, providerID string) (*LoginResponseDTO, error)
 }
 
 type magicLinkService struct {
 	db                   *gorm.DB
-	userRepo             repository.UserRepository
-	userTokenRepo        repository.UserTokenRepository
-	clientRepo           repository.ClientRepository
-	userIdentityRepo     repository.UserIdentityRepository
-	identityProviderRepo repository.IdentityProviderRepository
-	emailTemplateRepo    repository.EmailTemplateRepository
+	userRepo             UserRepository
+	userTokenRepo        UserTokenRepository
+	clientRepo           ClientRepository
+	userIdentityRepo     UserIdentityRepository
+	identityProviderRepo IdentityProviderRepository
+	emailTemplateRepo    EmailTemplateRepository
 }
 
 func NewMagicLinkService(
 	db *gorm.DB,
-	userRepo repository.UserRepository,
-	userTokenRepo repository.UserTokenRepository,
-	clientRepo repository.ClientRepository,
-	userIdentityRepo repository.UserIdentityRepository,
-	identityProviderRepo repository.IdentityProviderRepository,
-	emailTemplateRepo repository.EmailTemplateRepository,
+	userRepo UserRepository,
+	userTokenRepo UserTokenRepository,
+	clientRepo ClientRepository,
+	userIdentityRepo UserIdentityRepository,
+	identityProviderRepo IdentityProviderRepository,
+	emailTemplateRepo EmailTemplateRepository,
 ) MagicLinkService {
 	return &magicLinkService{
 		db:                   db,
@@ -63,12 +60,12 @@ func NewMagicLinkService(
 	}
 }
 
-func (s *magicLinkService) SendMagicLink(ctx context.Context, emailAddr string, clientID, providerID *string, isInternal bool) (*dto.SendMagicLinkResponseDTO, error) {
+func (s *magicLinkService) SendMagicLink(ctx context.Context, emailAddr string, clientID, providerID *string, isInternal bool) (*SendMagicLinkResponseDTO, error) {
 	_, span := otel.Tracer("service").Start(ctx, "magicLink.send")
 	defer span.End()
 
-	var user *model.User
-	var Client *model.Client
+	var user *User
+	var Client *Client
 	var token string
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
@@ -99,13 +96,13 @@ func (s *magicLinkService) SendMagicLink(ctx context.Context, emailAddr string, 
 		}
 
 		// Skip if user is inactive — don't reveal status.
-		if user.Status != model.StatusActive {
+		if user.Status != StatusActive {
 			user = nil
 			return nil
 		}
 
 		// Revoke any existing magic-link tokens for this user.
-		existingTokens, txErr := txUserTokenRepo.FindByUserIDAndTokenType(user.UserID, model.TokenTypeMagicLink)
+		existingTokens, txErr := txUserTokenRepo.FindByUserIDAndTokenType(user.UserID, TokenTypeMagicLink)
 		if txErr != nil {
 			return apperror.NewInternal("failed to find existing tokens", txErr)
 		}
@@ -119,9 +116,9 @@ func (s *magicLinkService) SendMagicLink(ctx context.Context, emailAddr string, 
 		token = generateSecureToken(32)
 
 		expiresAt := time.Now().Add(MagicLinkTokenTTL)
-		if _, txErr := txUserTokenRepo.Create(&model.UserToken{
+		if _, txErr := txUserTokenRepo.Create(&UserToken{
 			UserID:    user.UserID,
-			TokenType: model.TokenTypeMagicLink,
+			TokenType: TokenTypeMagicLink,
 			Token:     token,
 			ExpiresAt: &expiresAt,
 		}); txErr != nil {
@@ -137,7 +134,7 @@ func (s *magicLinkService) SendMagicLink(ctx context.Context, emailAddr string, 
 		return nil, err
 	}
 
-	response := &dto.SendMagicLinkResponseDTO{
+	response := &SendMagicLinkResponseDTO{
 		Message: "If an account with that email exists, we've sent a sign-in link to it.",
 		Success: true,
 	}
@@ -158,15 +155,15 @@ func (s *magicLinkService) SendMagicLink(ctx context.Context, emailAddr string, 
 	return response, nil
 }
 
-func (s *magicLinkService) LoginWithMagicLink(ctx context.Context, token, clientID, providerID string) (*dto.LoginResponseDTO, error) {
+func (s *magicLinkService) LoginWithMagicLink(ctx context.Context, token, clientID, providerID string) (*LoginResponseDTO, error) {
 	_, span := otel.Tracer("service").Start(ctx, "magicLink.login")
 	defer func() { span.End() }()
 	startTime := time.Now()
 
 	token = strings.TrimSpace(token)
 
-	var user *model.User
-	var Client *model.Client
+	var user *User
+	var Client *Client
 	var userIdentitySub string
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
@@ -184,16 +181,16 @@ func (s *magicLinkService) LoginWithMagicLink(ctx context.Context, token, client
 
 		Client, txErr = txClientRepo.FindByClientIDAndIdentityProvider(clientID, providerID)
 		if txErr != nil || Client == nil ||
-			Client.Status != model.StatusActive ||
+			Client.Status != StatusActive ||
 			Client.Domain == nil || *Client.Domain == "" {
 			return apperror.NewUnauthorized("authentication failed")
 		}
 
 		// Find an active, non-revoked magic-link token matching the supplied value.
-		var matches []model.UserToken
+		var matches []UserToken
 		if txErr := tx.Where(
 			"token_type = ? AND token = ? AND is_revoked = false",
-			model.TokenTypeMagicLink, token,
+			TokenTypeMagicLink, token,
 		).Find(&matches).Error; txErr != nil {
 			return apperror.NewInternal("failed to find magic link token", txErr)
 		}
@@ -211,7 +208,7 @@ func (s *magicLinkService) LoginWithMagicLink(ctx context.Context, token, client
 		if txErr != nil || user == nil {
 			return apperror.NewUnauthorized("authentication failed")
 		}
-		if user.Status != model.StatusActive {
+		if user.Status != StatusActive {
 			return apperror.NewUnauthorized("account is not active")
 		}
 
@@ -223,7 +220,7 @@ func (s *magicLinkService) LoginWithMagicLink(ctx context.Context, token, client
 		userIdentitySub = userIdentity.Sub
 
 		// Single-use: revoke this token (and any other outstanding magic-link tokens).
-		existingTokens, txErr := txUserTokenRepo.FindByUserIDAndTokenType(user.UserID, model.TokenTypeMagicLink)
+		existingTokens, txErr := txUserTokenRepo.FindByUserIDAndTokenType(user.UserID, TokenTypeMagicLink)
 		if txErr != nil {
 			return apperror.NewInternal("failed to find existing tokens", txErr)
 		}
@@ -271,7 +268,7 @@ func (s *magicLinkService) LoginWithMagicLink(ctx context.Context, token, client
 	return s.generateTokenResponse(userIdentitySub, user, Client)
 }
 
-func (s *magicLinkService) sendMagicLinkEmail(ctx context.Context, to, token string, Client *model.Client, isInternal bool) error {
+func (s *magicLinkService) sendMagicLinkEmail(ctx context.Context, to, token string, Client *Client, isInternal bool) error {
 	templateEntity, err := s.emailTemplateRepo.FindByName(MagicLinkTemplateName)
 	if err != nil {
 		return apperror.NewInternal("failed to fetch magic link email template", err)
@@ -337,7 +334,7 @@ func (s *magicLinkService) sendMagicLinkEmail(ctx context.Context, to, token str
 	})
 }
 
-func (s *magicLinkService) generateTokenResponse(sub string, user *model.User, Client *model.Client) (*dto.LoginResponseDTO, error) {
+func (s *magicLinkService) generateTokenResponse(sub string, user *User, Client *Client) (*LoginResponseDTO, error) {
 	accessToken, err := jwt.GenerateAccessToken(
 		sub,
 		"openid profile email",
@@ -367,7 +364,7 @@ func (s *magicLinkService) generateTokenResponse(sub string, user *model.User, C
 		return nil, err
 	}
 
-	return &dto.LoginResponseDTO{
+	return &LoginResponseDTO{
 		AccessToken:  accessToken,
 		IDToken:      idToken,
 		RefreshToken: refreshToken,

@@ -4,7 +4,6 @@ import (
 	"context"
 	"net/http"
 
-	"github.com/maintainerd/auth/internal/model"
 	"github.com/maintainerd/auth/internal/platform/cache"
 	resp "github.com/maintainerd/auth/internal/platform/response"
 )
@@ -14,7 +13,7 @@ import (
 // narrow so the middleware does not depend on a raw repository or the full
 // UserService interface.
 type UserContextProvider interface {
-	FindBySubAndClientID(ctx context.Context, sub string, clientID string) (*model.User, error)
+	FindBySubAndClientID(ctx context.Context, sub string, clientID string) (*cache.AuthUser, error)
 }
 
 // authKey is the unexported context key type for AuthContext, preventing key
@@ -25,10 +24,10 @@ type authKey struct{}
 // identity provider, and client. It is set once by UserContextMiddleware and
 // retrieved by downstream middleware and handlers via AuthFromRequest.
 type AuthContext struct {
-	User     *model.User
-	Tenant   *model.Tenant
-	Provider *model.IdentityProvider
-	Client   *model.Client
+	User     *cache.AuthUser
+	Tenant   *cache.AuthTenant
+	Provider *cache.AuthProvider
+	Client   *cache.AuthClient
 }
 
 // AuthFromRequest returns the AuthContext stored in the request context by
@@ -87,17 +86,9 @@ func UserContextMiddleware(
 			}
 
 			// Extract tenant from user identities matching the current client.
-			var tenant *model.Tenant
-			var provider *model.IdentityProvider
-			var client *model.Client
-
-			for _, identity := range user.UserIdentities {
-				if identity.Client != nil && identity.Client.Identifier != nil && *identity.Client.Identifier == clientID {
-					if identity.Tenant != nil {
-						tenant = identity.Tenant
-					}
-				}
-			}
+			var tenant *cache.AuthTenant
+			var provider *cache.AuthProvider
+			var client *cache.AuthClient
 
 			// Write through to cache
 			appCache.SetUserContext(ctx, sub, clientID, &cache.UserContext{

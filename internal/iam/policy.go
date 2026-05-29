@@ -5,9 +5,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/maintainerd/auth/internal/model"
 	"github.com/maintainerd/auth/internal/platform/apperror"
-	"github.com/maintainerd/auth/internal/repository"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -93,16 +91,16 @@ type PolicyService interface {
 
 type policyService struct {
 	db          *gorm.DB
-	policyRepo  repository.PolicyRepository
-	serviceRepo repository.ServiceRepository
-	apiRepo     repository.APIRepository
+	policyRepo  PolicyRepository
+	serviceRepo ServiceRepository
+	apiRepo     APIRepository
 }
 
 func NewPolicyService(
 	db *gorm.DB,
-	policyRepo repository.PolicyRepository,
-	serviceRepo repository.ServiceRepository,
-	apiRepo repository.APIRepository,
+	policyRepo PolicyRepository,
+	serviceRepo ServiceRepository,
+	apiRepo APIRepository,
 ) PolicyService {
 	return &policyService{
 		db:          db,
@@ -116,7 +114,7 @@ func (s *policyService) Get(ctx context.Context, filter PolicyServiceGetFilter) 
 	_, span := otel.Tracer("service").Start(ctx, "policy.list")
 	defer span.End()
 	span.SetAttributes(attribute.Int64("tenant.id", filter.TenantID))
-	repoFilter := repository.PolicyRepositoryGetFilter{
+	repoFilter := PolicyRepositoryGetFilter{
 		TenantID:    filter.TenantID,
 		Name:        filter.Name,
 		Description: filter.Description,
@@ -201,7 +199,7 @@ func (s *policyService) GetServicesByPolicyUUID(ctx context.Context, policyUUID 
 	}
 
 	// Convert filter to repository filter
-	repoFilter := repository.ServiceRepositoryGetFilter{
+	repoFilter := ServiceRepositoryGetFilter{
 		Name:        filter.Name,
 		DisplayName: filter.DisplayName,
 		Description: filter.Description,
@@ -223,21 +221,21 @@ func (s *policyService) GetServicesByPolicyUUID(ctx context.Context, policyUUID 
 	var data []PolicyServiceServiceDataResult
 	for _, service := range result.Data {
 		// Get API count and policy count for each service, scoped to the caller's tenant
-		apiCount, _ := s.apiRepo.CountByServiceID(service.ServiceID, tenantID)
-		policyCount, _ := s.serviceRepo.CountPoliciesByServiceID(service.ServiceID)
+		apiCount, _ := s.apiRepo.CountByServiceID(ServiceID, tenantID)
+		policyCount, _ := s.serviceRepo.CountPoliciesByServiceID(ServiceID)
 
 		data = append(data, PolicyServiceServiceDataResult{
-			ServiceUUID: service.ServiceUUID,
-			Name:        service.Name,
-			DisplayName: service.DisplayName,
-			Description: service.Description,
-			Version:     service.Version,
-			Status:      service.Status,
-			IsSystem:    service.IsSystem,
+			ServiceUUID: ServiceUUID,
+			Name:        Name,
+			DisplayName: DisplayName,
+			Description: Description,
+			Version:     Version,
+			Status:      Status,
+			IsSystem:    IsSystem,
 			APICount:    apiCount,
 			PolicyCount: policyCount,
-			CreatedAt:   service.CreatedAt,
-			UpdatedAt:   service.UpdatedAt,
+			CreatedAt:   CreatedAt,
+			UpdatedAt:   UpdatedAt,
 		})
 	}
 
@@ -254,7 +252,7 @@ func (s *policyService) Create(ctx context.Context, tenantID int64, name string,
 	_, span := otel.Tracer("service").Start(ctx, "policy.create")
 	defer span.End()
 	span.SetAttributes(attribute.Int64("tenant.id", tenantID))
-	var createdPolicy *model.Policy
+	var createdPolicy *Policy
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
 		txPolicyRepo := s.policyRepo.WithTx(tx)
@@ -269,7 +267,7 @@ func (s *policyService) Create(ctx context.Context, tenantID int64, name string,
 		}
 
 		// Create new policy
-		policy := &model.Policy{
+		policy := &Policy{
 			PolicyUUID:  uuid.New(),
 			TenantID:    tenantID,
 			Name:        name,
@@ -313,7 +311,7 @@ func (s *policyService) Update(ctx context.Context, policyUUID uuid.UUID, tenant
 	_, span := otel.Tracer("service").Start(ctx, "policy.update")
 	defer span.End()
 	span.SetAttributes(attribute.String("policy.uuid", policyUUID.String()), attribute.Int64("tenant.id", tenantID))
-	var updatedPolicy *model.Policy
+	var updatedPolicy *Policy
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
 		txPolicyRepo := s.policyRepo.WithTx(tx)
@@ -382,7 +380,7 @@ func (s *policyService) SetStatusByUUID(ctx context.Context, policyUUID uuid.UUI
 	_, span := otel.Tracer("service").Start(ctx, "policy.setStatus")
 	defer span.End()
 	span.SetAttributes(attribute.String("policy.uuid", policyUUID.String()), attribute.Int64("tenant.id", tenantID))
-	var updatedPolicy *model.Policy
+	var updatedPolicy *Policy
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
 		txPolicyRepo := s.policyRepo.WithTx(tx)
@@ -439,7 +437,7 @@ func (s *policyService) DeleteByUUID(ctx context.Context, policyUUID uuid.UUID, 
 	_, span := otel.Tracer("service").Start(ctx, "policy.delete")
 	defer span.End()
 	span.SetAttributes(attribute.String("policy.uuid", policyUUID.String()), attribute.Int64("tenant.id", tenantID))
-	var deletedPolicy *model.Policy
+	var deletedPolicy *Policy
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
 		txPolicyRepo := s.policyRepo.WithTx(tx)

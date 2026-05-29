@@ -5,13 +5,10 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/maintainerd/auth/internal/dto"
-	"github.com/maintainerd/auth/internal/model"
 	"github.com/maintainerd/auth/internal/platform/apperror"
 	"github.com/maintainerd/auth/internal/platform/jwt"
 	"github.com/maintainerd/auth/internal/platform/ptr"
 	"github.com/maintainerd/auth/internal/platform/security"
-	"github.com/maintainerd/auth/internal/repository"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -20,38 +17,38 @@ import (
 )
 
 type RegisterService interface {
-	RegisterPublic(ctx context.Context, username, fullname, password string, email, phone *string, clientID, providerID string) (*dto.RegisterResponseDTO, error)
-	RegisterInvitePublic(ctx context.Context, username, password, clientID, providerID, inviteToken string) (*dto.RegisterResponseDTO, error)
-	Register(ctx context.Context, username, fullname, password string, email, phone *string, clientID, providerID *string) (*dto.RegisterResponseDTO, error)
-	RegisterInvite(ctx context.Context, username, password, inviteToken string, clientID, providerID *string) (*dto.RegisterResponseDTO, error)
+	RegisterPublic(ctx context.Context, username, fullname, password string, email, phone *string, clientID, providerID string) (*RegisterResponseDTO, error)
+	RegisterInvitePublic(ctx context.Context, username, password, clientID, providerID, inviteToken string) (*RegisterResponseDTO, error)
+	Register(ctx context.Context, username, fullname, password string, email, phone *string, clientID, providerID *string) (*RegisterResponseDTO, error)
+	RegisterInvite(ctx context.Context, username, password, inviteToken string, clientID, providerID *string) (*RegisterResponseDTO, error)
 }
 
 type registerService struct {
 	db                   *gorm.DB
-	clientRepo           repository.ClientRepository
-	userRepo             repository.UserRepository
-	userRoleRepo         repository.UserRoleRepository
-	userTokenRepo        repository.UserTokenRepository
-	userIdentityRepo     repository.UserIdentityRepository
-	roleRepo             repository.RoleRepository
-	inviteRepo           repository.InviteRepository
-	identityProviderRepo repository.IdentityProviderRepository
-	securitySettingRepo  repository.SecuritySettingRepository     // nil → use defaults
-	passwordHistoryRepo  repository.UserPasswordHistoryRepository // nil → skip history
+	clientRepo           ClientRepository
+	userRepo             UserRepository
+	userRoleRepo         UserRoleRepository
+	userTokenRepo        UserTokenRepository
+	userIdentityRepo     UserIdentityRepository
+	roleRepo             RoleRepository
+	inviteRepo           InviteRepository
+	identityProviderRepo IdentityProviderRepository
+	securitySettingRepo  SecuritySettingRepository     // nil → use defaults
+	passwordHistoryRepo  UserPasswordHistoryRepository // nil → skip history
 }
 
 func NewRegistrationService(
 	db *gorm.DB,
-	clientRepo repository.ClientRepository,
-	userRepo repository.UserRepository,
-	userRoleRepo repository.UserRoleRepository,
-	userTokenRepo repository.UserTokenRepository,
-	userIdentityRepo repository.UserIdentityRepository,
-	roleRepo repository.RoleRepository,
-	inviteRepo repository.InviteRepository,
-	identityProviderRepo repository.IdentityProviderRepository,
-	securitySettingRepo repository.SecuritySettingRepository,
-	passwordHistoryRepo repository.UserPasswordHistoryRepository,
+	clientRepo ClientRepository,
+	userRepo UserRepository,
+	userRoleRepo UserRoleRepository,
+	userTokenRepo UserTokenRepository,
+	userIdentityRepo UserIdentityRepository,
+	roleRepo RoleRepository,
+	inviteRepo InviteRepository,
+	identityProviderRepo IdentityProviderRepository,
+	securitySettingRepo SecuritySettingRepository,
+	passwordHistoryRepo UserPasswordHistoryRepository,
 ) RegisterService {
 	return &registerService{
 		db:                   db,
@@ -69,9 +66,9 @@ func NewRegistrationService(
 }
 
 // Helper function to find the default role for a tenant
-func (s *registerService) findDefaultRole(roleRepo repository.RoleRepository, tenantID int64) (*model.Role, error) {
+func (s *registerService) findDefaultRole(roleRepo RoleRepository, tenantID int64) (*Role, error) {
 	// First try to find a role marked as default
-	filter := repository.RoleRepositoryGetFilter{
+	filter := RoleRepositoryGetFilter{
 		IsDefault: &[]bool{true}[0],
 		TenantID:  tenantID,
 		Page:      1,
@@ -88,7 +85,7 @@ func (s *registerService) findDefaultRole(roleRepo repository.RoleRepository, te
 	}
 
 	// Fallback: if no default role found, try to find "registered" role
-	role, err := roleRepo.FindByNameAndTenantID(model.RoleRegistered, tenantID)
+	role, err := roleRepo.FindByNameAndTenantID(RoleRegistered, tenantID)
 	if err != nil {
 		return nil, err
 	}
@@ -111,7 +108,7 @@ func (s *registerService) RegisterPublic(
 	phone *string,
 	clientID,
 	providerID string,
-) (*dto.RegisterResponseDTO, error) {
+) (*RegisterResponseDTO, error) {
 	_, span := otel.Tracer("service").Start(ctx, "register.public")
 	defer span.End()
 	span.SetAttributes(attribute.String("client.id", clientID), attribute.String("provider.id", providerID))
@@ -123,8 +120,8 @@ func (s *registerService) RegisterPublic(
 		return nil, err
 	}
 
-	var createdUser *model.User
-	var Client *model.Client
+	var createdUser *User
+	var Client *Client
 	var userIdentitySub string
 
 	// All database operations in transaction
@@ -143,7 +140,7 @@ func (s *registerService) RegisterPublic(
 			return txErr
 		}
 		if Client == nil ||
-			Client.Status != model.StatusActive ||
+			Client.Status != StatusActive ||
 			Client.Domain == nil || *Client.Domain == "" {
 			return apperror.NewValidation("invalid or inactive auth client")
 		}
@@ -205,11 +202,11 @@ func (s *registerService) RegisterPublic(
 
 		now := time.Now()
 		// Create user
-		newUser := &model.User{
+		newUser := &User{
 			Username:          username,
 			Fullname:          fullname,
 			Password:          ptr.Ptr(string(hashed)),
-			Status:            model.StatusActive,
+			Status:            StatusActive,
 			PasswordChangedAt: &now,
 		}
 
@@ -232,10 +229,10 @@ func (s *registerService) RegisterPublic(
 		recordPasswordHistory(s.passwordHistoryRepo, createdUser.UserID, policy.HistoryCount, string(hashed))
 
 		// Create user identity
-		userIdentity := &model.UserIdentity{
+		userIdentity := &UserIdentity{
 			UserID:   createdUser.UserID,
 			ClientID: Client.ClientID,
-			Provider: model.ProviderDefault,
+			Provider: ProviderDefault,
 			Sub:      uuid.New().String(),
 			Metadata: datatypes.JSON([]byte(`{}`)),
 		}
@@ -252,7 +249,7 @@ func (s *registerService) RegisterPublic(
 		}
 
 		// Assign default role to user
-		userRole := &model.UserRole{
+		userRole := &UserRole{
 			UserID: createdUser.UserID,
 			RoleID: defaultRole.RoleID,
 		}
@@ -288,7 +285,7 @@ func (s *registerService) Register(
 	phone *string,
 	clientID,
 	providerID *string,
-) (*dto.RegisterResponseDTO, error) {
+) (*RegisterResponseDTO, error) {
 	_, span := otel.Tracer("service").Start(ctx, "register.internal")
 	defer span.End()
 
@@ -299,8 +296,8 @@ func (s *registerService) Register(
 		return nil, err
 	}
 
-	var createdUser *model.User
-	var Client *model.Client
+	var createdUser *User
+	var Client *Client
 	var userIdentitySub string
 
 	// All database operations in transaction
@@ -328,7 +325,7 @@ func (s *registerService) Register(
 		}
 
 		if Client == nil ||
-			Client.Status != model.StatusActive ||
+			Client.Status != StatusActive ||
 			Client.Domain == nil || *Client.Domain == "" {
 			return apperror.NewNotFoundWithReason("auth client not found or inactive")
 		}
@@ -359,11 +356,11 @@ func (s *registerService) Register(
 
 		now := time.Now()
 		// Create user
-		newUser := &model.User{
+		newUser := &User{
 			Username:          username,
 			Fullname:          fullname,
 			Password:          ptr.Ptr(string(hashed)),
-			Status:            model.StatusActive,
+			Status:            StatusActive,
 			PasswordChangedAt: &now,
 		}
 
@@ -386,11 +383,11 @@ func (s *registerService) Register(
 		recordPasswordHistory(s.passwordHistoryRepo, createdUser.UserID, policy.HistoryCount, string(hashed))
 
 		// Create user identity
-		userIdentity := &model.UserIdentity{
+		userIdentity := &UserIdentity{
 			TenantID: tenantId,
 			UserID:   createdUser.UserID,
 			ClientID: Client.ClientID,
-			Provider: model.ProviderDefault,
+			Provider: ProviderDefault,
 			Sub:      uuid.New().String(),
 			Metadata: datatypes.JSON([]byte(`{}`)),
 		}
@@ -407,7 +404,7 @@ func (s *registerService) Register(
 		}
 
 		// Assign default role to user
-		userRole := &model.UserRole{
+		userRole := &UserRole{
 			UserID: createdUser.UserID,
 			RoleID: defaultRole.RoleID,
 		}
@@ -441,12 +438,12 @@ func (s *registerService) RegisterInvite(
 	inviteToken string,
 	clientID,
 	providerID *string,
-) (*dto.RegisterResponseDTO, error) {
+) (*RegisterResponseDTO, error) {
 	_, span := otel.Tracer("service").Start(ctx, "register.invite")
 	defer span.End()
 
-	var createdUser *model.User
-	var Client *model.Client
+	var createdUser *User
+	var Client *Client
 	var userIdentitySub string
 
 	// All database operations in transaction
@@ -475,7 +472,7 @@ func (s *registerService) RegisterInvite(
 		}
 
 		if Client == nil ||
-			Client.Status != model.StatusActive ||
+			Client.Status != StatusActive ||
 			Client.Domain == nil || *Client.Domain == "" {
 			return apperror.NewNotFoundWithReason("auth client not found or inactive")
 		}
@@ -488,7 +485,7 @@ func (s *registerService) RegisterInvite(
 		if txErr != nil {
 			return apperror.NewUnauthorized("invalid invite token")
 		}
-		if invite == nil || invite.Status != model.StatusPending || (invite.ExpiresAt != nil && invite.ExpiresAt.Before(time.Now())) {
+		if invite == nil || invite.Status != StatusPending || (invite.ExpiresAt != nil && invite.ExpiresAt.Before(time.Now())) {
 			return apperror.NewUnauthorized("invite token is invalid or expired")
 		}
 
@@ -515,12 +512,12 @@ func (s *registerService) RegisterInvite(
 
 		now := time.Now()
 		// Create user
-		newUser := &model.User{
+		newUser := &User{
 			Username:          username,
 			Fullname:          username, // Use username as fullname since invite doesn't have fullname
 			Password:          ptr.Ptr(string(hashed)),
 			Email:             invite.InvitedEmail,
-			Status:            model.StatusActive,
+			Status:            StatusActive,
 			PasswordChangedAt: &now,
 		}
 
@@ -533,11 +530,11 @@ func (s *registerService) RegisterInvite(
 		recordPasswordHistory(s.passwordHistoryRepo, createdUser.UserID, policy.HistoryCount, string(hashed))
 
 		// Create user identity
-		userIdentity := &model.UserIdentity{
+		userIdentity := &UserIdentity{
 			TenantID: tenantId,
 			UserID:   createdUser.UserID,
 			ClientID: Client.ClientID,
-			Provider: model.ProviderDefault,
+			Provider: ProviderDefault,
 			Sub:      uuid.New().String(),
 			Metadata: datatypes.JSON([]byte(`{}`)),
 		}
@@ -554,7 +551,7 @@ func (s *registerService) RegisterInvite(
 		}
 
 		// Assign default role to user
-		defaultUserRole := &model.UserRole{
+		defaultUserRole := &UserRole{
 			UserID: createdUser.UserID,
 			RoleID: defaultRole.RoleID,
 		}
@@ -565,7 +562,7 @@ func (s *registerService) RegisterInvite(
 
 		// Assign additional roles from invite
 		for _, role := range invite.Roles {
-			userRole := &model.UserRole{
+			userRole := &UserRole{
 				UserID: createdUser.UserID,
 				RoleID: role.RoleID,
 			}
@@ -605,13 +602,13 @@ func (s *registerService) RegisterInvitePublic(
 	clientID,
 	providerID,
 	inviteToken string,
-) (*dto.RegisterResponseDTO, error) {
+) (*RegisterResponseDTO, error) {
 	_, span := otel.Tracer("service").Start(ctx, "register.invitePublic")
 	defer span.End()
 	span.SetAttributes(attribute.String("client.id", clientID), attribute.String("provider.id", providerID))
 
-	var createdUser *model.User
-	var Client *model.Client
+	var createdUser *User
+	var Client *Client
 	var userIdentitySub string
 
 	// All database operations in transaction
@@ -631,7 +628,7 @@ func (s *registerService) RegisterInvitePublic(
 			return txErr
 		}
 		if Client == nil ||
-			Client.Status != model.StatusActive ||
+			Client.Status != StatusActive ||
 			Client.Domain == nil || *Client.Domain == "" {
 			return apperror.NewValidation("invalid or inactive auth client")
 		}
@@ -658,7 +655,7 @@ func (s *registerService) RegisterInvitePublic(
 		}
 
 		// Check invite status and expiration
-		if invite.Status != model.StatusPending {
+		if invite.Status != StatusPending {
 			return apperror.NewUnauthorized("invite has already been used or is no longer valid")
 		}
 		if invite.ExpiresAt != nil && time.Now().After(*invite.ExpiresAt) {
@@ -697,11 +694,11 @@ func (s *registerService) RegisterInvitePublic(
 
 		now := time.Now()
 		// Create user
-		newUser := &model.User{
+		newUser := &User{
 			Username:          username,
 			Email:             invite.InvitedEmail, // Always use the invited email
 			Password:          ptr.Ptr(string(hashed)),
-			Status:            model.StatusActive,
+			Status:            StatusActive,
 			IsEmailVerified:   true, // Auto-verify email for invited users
 			PasswordChangedAt: &now,
 		}
@@ -715,11 +712,11 @@ func (s *registerService) RegisterInvitePublic(
 		recordPasswordHistory(s.passwordHistoryRepo, createdUser.UserID, policy.HistoryCount, string(hashed))
 
 		// Create user identity
-		userIdentity := &model.UserIdentity{
+		userIdentity := &UserIdentity{
 			TenantID: tenantId,
 			UserID:   createdUser.UserID,
 			ClientID: Client.ClientID,
-			Provider: model.ProviderDefault,
+			Provider: ProviderDefault,
 			Sub:      uuid.New().String(),
 			Metadata: datatypes.JSON([]byte(`{}`)),
 		}
@@ -736,7 +733,7 @@ func (s *registerService) RegisterInvitePublic(
 		}
 
 		// Assign default role to user
-		defaultUserRole := &model.UserRole{
+		defaultUserRole := &UserRole{
 			UserID: createdUser.UserID,
 			RoleID: defaultRole.RoleID,
 		}
@@ -757,7 +754,7 @@ func (s *registerService) RegisterInvitePublic(
 			}
 
 			// Create user-role association
-			userRole := &model.UserRole{
+			userRole := &UserRole{
 				UserID: createdUser.UserID,
 				RoleID: role.RoleID,
 			}
@@ -788,7 +785,7 @@ func (s *registerService) RegisterInvitePublic(
 	return s.generateTokenResponse(userIdentitySub, createdUser, Client)
 }
 
-func (s *registerService) generateTokenResponse(sub string, user *model.User, Client *model.Client) (*dto.RegisterResponseDTO, error) {
+func (s *registerService) generateTokenResponse(sub string, user *User, Client *Client) (*RegisterResponseDTO, error) {
 	accessToken, err := jwt.GenerateAccessToken(
 		sub,
 		"openid profile email",
@@ -820,7 +817,7 @@ func (s *registerService) generateTokenResponse(sub string, user *model.User, Cl
 		return nil, err
 	}
 
-	return &dto.RegisterResponseDTO{
+	return &RegisterResponseDTO{
 		AccessToken:  accessToken,
 		IDToken:      idToken,
 		RefreshToken: refreshToken,

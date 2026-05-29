@@ -5,9 +5,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/maintainerd/auth/internal/model"
 	"github.com/maintainerd/auth/internal/platform/apperror"
-	"github.com/maintainerd/auth/internal/repository"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -46,12 +44,12 @@ type SMSTemplateService interface {
 
 type smsTemplateService struct {
 	db              *gorm.DB
-	smsTemplateRepo repository.SMSTemplateRepository
+	smsTemplateRepo SMSTemplateRepository
 }
 
 func NewSMSTemplateService(
 	db *gorm.DB,
-	smsTemplateRepo repository.SMSTemplateRepository,
+	smsTemplateRepo SMSTemplateRepository,
 ) SMSTemplateService {
 	return &smsTemplateService{
 		db:              db,
@@ -64,7 +62,7 @@ func (s *smsTemplateService) GetAll(ctx context.Context, tenantID int64, name *s
 	defer span.End()
 	span.SetAttributes(attribute.Int64("tenant.id", tenantID))
 
-	filter := repository.SMSTemplateRepositoryGetFilter{
+	filter := SMSTemplateRepositoryGetFilter{
 		TenantID:  &tenantID,
 		Name:      name,
 		Status:    status,
@@ -125,7 +123,7 @@ func (s *smsTemplateService) Create(ctx context.Context, tenantID int64, name st
 	defer span.End()
 	span.SetAttributes(attribute.Int64("tenant.id", tenantID))
 
-	template := &model.SMSTemplate{
+	template := &SMSTemplate{
 		TenantID:    tenantID,
 		Name:        name,
 		Description: description,
@@ -263,7 +261,7 @@ func (s *smsTemplateService) Delete(ctx context.Context, smsTemplateUUID uuid.UU
 }
 
 // Helper function to convert model to service data result
-func toSMSTemplateServiceDataResult(template *model.SMSTemplate) SMSTemplateServiceDataResult {
+func toSMSTemplateServiceDataResult(template *SMSTemplate) SMSTemplateServiceDataResult {
 	return SMSTemplateServiceDataResult{
 		SMSTemplateUUID: template.SMSTemplateUUID,
 		Name:            template.Name,

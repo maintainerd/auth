@@ -11,8 +11,6 @@ import (
 	sqlmock "github.com/DATA-DOG/go-sqlmock"
 	"github.com/google/uuid"
 	"github.com/lib/pq"
-	"github.com/maintainerd/auth/internal/dto"
-	"github.com/maintainerd/auth/internal/model"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gorm.io/driver/postgres"
@@ -34,8 +32,8 @@ func newOAuthAuthorizeSvc(
 	return NewOAuthAuthorizeService(db, clientRepo, clientURIRepo, authCodeRepo, consentGrantRepo, consentChallRepo, authEventSvc)
 }
 
-func validAuthorizeRequest() dto.OAuthAuthorizeRequestDTO {
-	return dto.OAuthAuthorizeRequestDTO{
+func validAuthorizeRequest() OAuthAuthorizeRequestDTO {
+	return OAuthAuthorizeRequestDTO{
 		ResponseType:        "code",
 		ClientID:            "my-client",
 		RedirectURI:         "https://example.com/callback",
@@ -47,22 +45,22 @@ func validAuthorizeRequest() dto.OAuthAuthorizeRequestDTO {
 	}
 }
 
-func activeClient() *model.Client {
-	return &model.Client{
+func activeClient() *Client {
+	return &Client{
 		ClientID:       10,
 		ClientUUID:     uuid.New(),
 		TenantID:       1,
-		Status:         model.StatusActive,
-		GrantTypes:     pq.StringArray{model.GrantTypeAuthorizationCode},
-		ResponseTypes:  pq.StringArray{model.ResponseTypeCode},
+		Status:         StatusActive,
+		GrantTypes:     pq.StringArray{GrantTypeAuthorizationCode},
+		ResponseTypes:  pq.StringArray{ResponseTypeCode},
 		RequireConsent: false,
-		ClientURIs: &[]model.ClientURI{
-			{URI: "https://example.com/callback", Type: model.ClientURITypeRedirect},
+		ClientURIs: &[]ClientURI{
+			{URI: "https://example.com/callback", Type: ClientURITypeRedirect},
 		},
 	}
 }
 
-func activeClientWithConsent() *model.Client {
+func activeClientWithConsent() *Client {
 	c := activeClient()
 	c.RequireConsent = true
 	return c
@@ -91,7 +89,7 @@ func TestOAuthAuthorizeService_Authorize(t *testing.T) {
 
 		svc := newOAuthAuthorizeSvc(db,
 			&mockClientRepo{
-				findByClientIDAndIdentityProviderFn: func(_, _ string) (*model.Client, error) {
+				findByClientIDAndIdentityProviderFn: func(_, _ string) (*Client, error) {
 					return client, nil
 				},
 			},
@@ -117,19 +115,19 @@ func TestOAuthAuthorizeService_Authorize(t *testing.T) {
 
 		svc := newOAuthAuthorizeSvc(db,
 			&mockClientRepo{
-				findByClientIDAndIdentityProviderFn: func(_, _ string) (*model.Client, error) {
+				findByClientIDAndIdentityProviderFn: func(_, _ string) (*Client, error) {
 					return client, nil
 				},
 			},
 			&mockClientURIRepo{},
 			&mockOAuthAuthCodeRepo{},
 			&mockOAuthConsentGrantRepo{
-				findByUserAndClientFn: func(_, _ int64) (*model.OAuthConsentGrant, error) {
+				findByUserAndClientFn: func(_, _ int64) (*OAuthConsentGrant, error) {
 					return nil, nil // no existing grant
 				},
 			},
 			&mockOAuthConsentChallRepo{
-				createFn: func(c *model.OAuthConsentChallenge) (*model.OAuthConsentChallenge, error) {
+				createFn: func(c *OAuthConsentChallenge) (*OAuthConsentChallenge, error) {
 					c.OAuthConsentChallengeUUID = challengeUUID
 					return c, nil
 				},
@@ -150,15 +148,15 @@ func TestOAuthAuthorizeService_Authorize(t *testing.T) {
 
 		svc := newOAuthAuthorizeSvc(db,
 			&mockClientRepo{
-				findByClientIDAndIdentityProviderFn: func(_, _ string) (*model.Client, error) {
+				findByClientIDAndIdentityProviderFn: func(_, _ string) (*Client, error) {
 					return client, nil
 				},
 			},
 			&mockClientURIRepo{},
 			&mockOAuthAuthCodeRepo{},
 			&mockOAuthConsentGrantRepo{
-				findByUserAndClientFn: func(_, _ int64) (*model.OAuthConsentGrant, error) {
-					return &model.OAuthConsentGrant{Scopes: "openid profile email"}, nil
+				findByUserAndClientFn: func(_, _ int64) (*OAuthConsentGrant, error) {
+					return &OAuthConsentGrant{Scopes: "openid profile email"}, nil
 				},
 			},
 			&mockOAuthConsentChallRepo{},
@@ -176,15 +174,15 @@ func TestOAuthAuthorizeService_Authorize(t *testing.T) {
 
 		svc := newOAuthAuthorizeSvc(db,
 			&mockClientRepo{
-				findByClientIDAndIdentityProviderFn: func(_, _ string) (*model.Client, error) {
+				findByClientIDAndIdentityProviderFn: func(_, _ string) (*Client, error) {
 					return client, nil
 				},
 			},
 			&mockClientURIRepo{},
 			&mockOAuthAuthCodeRepo{},
 			&mockOAuthConsentGrantRepo{
-				findByUserAndClientFn: func(_, _ int64) (*model.OAuthConsentGrant, error) {
-					return &model.OAuthConsentGrant{Scopes: "openid"}, nil // missing "profile"
+				findByUserAndClientFn: func(_, _ int64) (*OAuthConsentGrant, error) {
+					return &OAuthConsentGrant{Scopes: "openid"}, nil // missing "profile"
 				},
 			},
 			&mockOAuthConsentChallRepo{},
@@ -202,7 +200,7 @@ func TestOAuthAuthorizeService_Authorize(t *testing.T) {
 
 		svc := newOAuthAuthorizeSvc(db,
 			&mockClientRepo{
-				findByClientIDAndIdentityProviderFn: func(_, _ string) (*model.Client, error) {
+				findByClientIDAndIdentityProviderFn: func(_, _ string) (*Client, error) {
 					return nil, nil
 				},
 			},
@@ -223,7 +221,7 @@ func TestOAuthAuthorizeService_Authorize(t *testing.T) {
 
 		svc := newOAuthAuthorizeSvc(db,
 			&mockClientRepo{
-				findByClientIDAndIdentityProviderFn: func(_, _ string) (*model.Client, error) {
+				findByClientIDAndIdentityProviderFn: func(_, _ string) (*Client, error) {
 					return nil, errors.New("db error")
 				},
 			},
@@ -246,7 +244,7 @@ func TestOAuthAuthorizeService_Authorize(t *testing.T) {
 
 		svc := newOAuthAuthorizeSvc(db,
 			&mockClientRepo{
-				findByClientIDAndIdentityProviderFn: func(_, _ string) (*model.Client, error) {
+				findByClientIDAndIdentityProviderFn: func(_, _ string) (*Client, error) {
 					return client, nil
 				},
 			},
@@ -265,11 +263,11 @@ func TestOAuthAuthorizeService_Authorize(t *testing.T) {
 	t.Run("grant type not allowed", func(t *testing.T) {
 		db, _ := newMockDB(t)
 		client := activeClient()
-		client.GrantTypes = pq.StringArray{model.GrantTypeClientCredentials}
+		client.GrantTypes = pq.StringArray{GrantTypeClientCredentials}
 
 		svc := newOAuthAuthorizeSvc(db,
 			&mockClientRepo{
-				findByClientIDAndIdentityProviderFn: func(_, _ string) (*model.Client, error) {
+				findByClientIDAndIdentityProviderFn: func(_, _ string) (*Client, error) {
 					return client, nil
 				},
 			},
@@ -292,7 +290,7 @@ func TestOAuthAuthorizeService_Authorize(t *testing.T) {
 
 		svc := newOAuthAuthorizeSvc(db,
 			&mockClientRepo{
-				findByClientIDAndIdentityProviderFn: func(_, _ string) (*model.Client, error) {
+				findByClientIDAndIdentityProviderFn: func(_, _ string) (*Client, error) {
 					return client, nil
 				},
 			},
@@ -311,13 +309,13 @@ func TestOAuthAuthorizeService_Authorize(t *testing.T) {
 	t.Run("redirect URI not registered", func(t *testing.T) {
 		db, _ := newMockDB(t)
 		client := activeClient()
-		client.ClientURIs = &[]model.ClientURI{
-			{URI: "https://other.com/callback", Type: model.ClientURITypeRedirect},
+		client.ClientURIs = &[]ClientURI{
+			{URI: "https://other.com/callback", Type: ClientURITypeRedirect},
 		}
 
 		svc := newOAuthAuthorizeSvc(db,
 			&mockClientRepo{
-				findByClientIDAndIdentityProviderFn: func(_, _ string) (*model.Client, error) {
+				findByClientIDAndIdentityProviderFn: func(_, _ string) (*Client, error) {
 					return client, nil
 				},
 			},
@@ -341,7 +339,7 @@ func TestOAuthAuthorizeService_Authorize(t *testing.T) {
 
 		svc := newOAuthAuthorizeSvc(db,
 			&mockClientRepo{
-				findByClientIDAndIdentityProviderFn: func(_, _ string) (*model.Client, error) {
+				findByClientIDAndIdentityProviderFn: func(_, _ string) (*Client, error) {
 					return client, nil
 				},
 			},
@@ -363,14 +361,14 @@ func TestOAuthAuthorizeService_Authorize(t *testing.T) {
 
 		svc := newOAuthAuthorizeSvc(db,
 			&mockClientRepo{
-				findByClientIDAndIdentityProviderFn: func(_, _ string) (*model.Client, error) {
+				findByClientIDAndIdentityProviderFn: func(_, _ string) (*Client, error) {
 					return client, nil
 				},
 			},
 			&mockClientURIRepo{},
 			&mockOAuthAuthCodeRepo{},
 			&mockOAuthConsentGrantRepo{
-				findByUserAndClientFn: func(_, _ int64) (*model.OAuthConsentGrant, error) {
+				findByUserAndClientFn: func(_, _ int64) (*OAuthConsentGrant, error) {
 					return nil, errors.New("db error")
 				},
 			},
@@ -389,19 +387,19 @@ func TestOAuthAuthorizeService_Authorize(t *testing.T) {
 
 		svc := newOAuthAuthorizeSvc(db,
 			&mockClientRepo{
-				findByClientIDAndIdentityProviderFn: func(_, _ string) (*model.Client, error) {
+				findByClientIDAndIdentityProviderFn: func(_, _ string) (*Client, error) {
 					return client, nil
 				},
 			},
 			&mockClientURIRepo{},
 			&mockOAuthAuthCodeRepo{},
 			&mockOAuthConsentGrantRepo{
-				findByUserAndClientFn: func(_, _ int64) (*model.OAuthConsentGrant, error) {
+				findByUserAndClientFn: func(_, _ int64) (*OAuthConsentGrant, error) {
 					return nil, nil
 				},
 			},
 			&mockOAuthConsentChallRepo{
-				createFn: func(_ *model.OAuthConsentChallenge) (*model.OAuthConsentChallenge, error) {
+				createFn: func(_ *OAuthConsentChallenge) (*OAuthConsentChallenge, error) {
 					return nil, errors.New("create error")
 				},
 			},
@@ -419,13 +417,13 @@ func TestOAuthAuthorizeService_Authorize(t *testing.T) {
 
 		svc := newOAuthAuthorizeSvc(db,
 			&mockClientRepo{
-				findByClientIDAndIdentityProviderFn: func(_, _ string) (*model.Client, error) {
+				findByClientIDAndIdentityProviderFn: func(_, _ string) (*Client, error) {
 					return client, nil
 				},
 			},
 			&mockClientURIRepo{},
 			&mockOAuthAuthCodeRepo{
-				createFn: func(_ *model.OAuthAuthorizationCode) (*model.OAuthAuthorizationCode, error) {
+				createFn: func(_ *OAuthAuthorizationCode) (*OAuthAuthorizationCode, error) {
 					return nil, errors.New("create error")
 				},
 			},
@@ -447,7 +445,7 @@ func TestOAuthAuthorizeService_Authorize(t *testing.T) {
 
 		svc := newOAuthAuthorizeSvc(db,
 			&mockClientRepo{
-				findByClientIDAndIdentityProviderFn: func(_, _ string) (*model.Client, error) {
+				findByClientIDAndIdentityProviderFn: func(_, _ string) (*Client, error) {
 					return nil, nil
 				},
 			},
@@ -469,7 +467,7 @@ func TestOAuthAuthorizeService_Authorize(t *testing.T) {
 
 		svc := newOAuthAuthorizeSvc(db,
 			&mockClientRepo{
-				findByClientIDAndIdentityProviderFn: func(_, _ string) (*model.Client, error) {
+				findByClientIDAndIdentityProviderFn: func(_, _ string) (*Client, error) {
 					return nil, nil
 				},
 			},
@@ -491,7 +489,7 @@ func TestOAuthAuthorizeService_Authorize(t *testing.T) {
 
 		svc := newOAuthAuthorizeSvc(db,
 			&mockClientRepo{
-				findByClientIDAndIdentityProviderFn: func(_, _ string) (*model.Client, error) {
+				findByClientIDAndIdentityProviderFn: func(_, _ string) (*Client, error) {
 					return client, nil
 				},
 			},
@@ -515,22 +513,22 @@ func TestOAuthAuthorizeService_Authorize(t *testing.T) {
 		client := activeClientWithConsent()
 		db, _ := newMockDB(t)
 
-		var capturedChallenge *model.OAuthConsentChallenge
+		var capturedChallenge *OAuthConsentChallenge
 		svc := newOAuthAuthorizeSvc(db,
 			&mockClientRepo{
-				findByClientIDAndIdentityProviderFn: func(_, _ string) (*model.Client, error) {
+				findByClientIDAndIdentityProviderFn: func(_, _ string) (*Client, error) {
 					return client, nil
 				},
 			},
 			&mockClientURIRepo{},
 			&mockOAuthAuthCodeRepo{},
 			&mockOAuthConsentGrantRepo{
-				findByUserAndClientFn: func(_, _ int64) (*model.OAuthConsentGrant, error) {
+				findByUserAndClientFn: func(_, _ int64) (*OAuthConsentGrant, error) {
 					return nil, nil
 				},
 			},
 			&mockOAuthConsentChallRepo{
-				createFn: func(c *model.OAuthConsentChallenge) (*model.OAuthConsentChallenge, error) {
+				createFn: func(c *OAuthConsentChallenge) (*OAuthConsentChallenge, error) {
 					capturedChallenge = c
 					c.OAuthConsentChallengeUUID = uuid.New()
 					return c, nil
@@ -565,14 +563,14 @@ func TestOAuthAuthorizeService_GetConsentChallenge(t *testing.T) {
 			&mockClientRepo{}, &mockClientURIRepo{}, &mockOAuthAuthCodeRepo{},
 			&mockOAuthConsentGrantRepo{},
 			&mockOAuthConsentChallRepo{
-				findChallengeByUUIDFn: func(_ uuid.UUID) (*model.OAuthConsentChallenge, error) {
-					return &model.OAuthConsentChallenge{
+				findChallengeByUUIDFn: func(_ uuid.UUID) (*OAuthConsentChallenge, error) {
+					return &OAuthConsentChallenge{
 						OAuthConsentChallengeUUID: challengeUUID,
 						UserID:                    1,
 						Scope:                     "openid profile",
 						RedirectURI:               "https://example.com/callback",
 						ExpiresAt:                 time.Now().Add(5 * time.Minute),
-						Client: &model.Client{
+						Client: &Client{
 							ClientUUID:  clientUUID,
 							DisplayName: "Test App",
 						},
@@ -596,8 +594,8 @@ func TestOAuthAuthorizeService_GetConsentChallenge(t *testing.T) {
 			&mockClientRepo{}, &mockClientURIRepo{}, &mockOAuthAuthCodeRepo{},
 			&mockOAuthConsentGrantRepo{},
 			&mockOAuthConsentChallRepo{
-				findChallengeByUUIDFn: func(_ uuid.UUID) (*model.OAuthConsentChallenge, error) {
-					return &model.OAuthConsentChallenge{
+				findChallengeByUUIDFn: func(_ uuid.UUID) (*OAuthConsentChallenge, error) {
+					return &OAuthConsentChallenge{
 						OAuthConsentChallengeUUID: challengeUUID,
 						UserID:                    1,
 						Scope:                     "openid",
@@ -621,7 +619,7 @@ func TestOAuthAuthorizeService_GetConsentChallenge(t *testing.T) {
 			&mockClientRepo{}, &mockClientURIRepo{}, &mockOAuthAuthCodeRepo{},
 			&mockOAuthConsentGrantRepo{},
 			&mockOAuthConsentChallRepo{
-				findChallengeByUUIDFn: func(_ uuid.UUID) (*model.OAuthConsentChallenge, error) {
+				findChallengeByUUIDFn: func(_ uuid.UUID) (*OAuthConsentChallenge, error) {
 					return nil, nil
 				},
 			},
@@ -639,8 +637,8 @@ func TestOAuthAuthorizeService_GetConsentChallenge(t *testing.T) {
 			&mockClientRepo{}, &mockClientURIRepo{}, &mockOAuthAuthCodeRepo{},
 			&mockOAuthConsentGrantRepo{},
 			&mockOAuthConsentChallRepo{
-				findChallengeByUUIDFn: func(_ uuid.UUID) (*model.OAuthConsentChallenge, error) {
-					return &model.OAuthConsentChallenge{
+				findChallengeByUUIDFn: func(_ uuid.UUID) (*OAuthConsentChallenge, error) {
+					return &OAuthConsentChallenge{
 						UserID:    999,
 						ExpiresAt: time.Now().Add(5 * time.Minute),
 					}, nil
@@ -660,8 +658,8 @@ func TestOAuthAuthorizeService_GetConsentChallenge(t *testing.T) {
 			&mockClientRepo{}, &mockClientURIRepo{}, &mockOAuthAuthCodeRepo{},
 			&mockOAuthConsentGrantRepo{},
 			&mockOAuthConsentChallRepo{
-				findChallengeByUUIDFn: func(_ uuid.UUID) (*model.OAuthConsentChallenge, error) {
-					return &model.OAuthConsentChallenge{
+				findChallengeByUUIDFn: func(_ uuid.UUID) (*OAuthConsentChallenge, error) {
+					return &OAuthConsentChallenge{
 						UserID:    1,
 						ExpiresAt: time.Now().Add(-1 * time.Minute),
 					}, nil
@@ -681,7 +679,7 @@ func TestOAuthAuthorizeService_GetConsentChallenge(t *testing.T) {
 			&mockClientRepo{}, &mockClientURIRepo{}, &mockOAuthAuthCodeRepo{},
 			&mockOAuthConsentGrantRepo{},
 			&mockOAuthConsentChallRepo{
-				findChallengeByUUIDFn: func(_ uuid.UUID) (*model.OAuthConsentChallenge, error) {
+				findChallengeByUUIDFn: func(_ uuid.UUID) (*OAuthConsentChallenge, error) {
 					return nil, errors.New("db error")
 				},
 			},
@@ -700,8 +698,8 @@ func TestOAuthAuthorizeService_HandleConsent(t *testing.T) {
 	ctx := context.Background()
 	challengeUUID := uuid.New()
 
-	validDecision := func(approved bool) dto.OAuthConsentDecisionDTO {
-		return dto.OAuthConsentDecisionDTO{
+	validDecision := func(approved bool) OAuthConsentDecisionDTO {
+		return OAuthConsentDecisionDTO{
 			ChallengeID: challengeUUID.String(),
 			Approved:    approved,
 		}
@@ -718,8 +716,8 @@ func TestOAuthAuthorizeService_HandleConsent(t *testing.T) {
 			&mockOAuthAuthCodeRepo{},
 			&mockOAuthConsentGrantRepo{},
 			&mockOAuthConsentChallRepo{
-				findChallengeByUUIDFn: func(_ uuid.UUID) (*model.OAuthConsentChallenge, error) {
-					return &model.OAuthConsentChallenge{
+				findChallengeByUUIDFn: func(_ uuid.UUID) (*OAuthConsentChallenge, error) {
+					return &OAuthConsentChallenge{
 						OAuthConsentChallengeUUID: challengeUUID,
 						ClientID:                  10,
 						UserID:                    1,
@@ -752,8 +750,8 @@ func TestOAuthAuthorizeService_HandleConsent(t *testing.T) {
 			&mockOAuthAuthCodeRepo{},
 			&mockOAuthConsentGrantRepo{},
 			&mockOAuthConsentChallRepo{
-				findChallengeByUUIDFn: func(_ uuid.UUID) (*model.OAuthConsentChallenge, error) {
-					return &model.OAuthConsentChallenge{
+				findChallengeByUUIDFn: func(_ uuid.UUID) (*OAuthConsentChallenge, error) {
+					return &OAuthConsentChallenge{
 						OAuthConsentChallengeUUID: challengeUUID,
 						ClientID:                  10,
 						UserID:                    1,
@@ -783,7 +781,7 @@ func TestOAuthAuthorizeService_HandleConsent(t *testing.T) {
 			&mockOAuthAuthCodeRepo{},
 			&mockOAuthConsentGrantRepo{},
 			&mockOAuthConsentChallRepo{
-				findChallengeByUUIDFn: func(_ uuid.UUID) (*model.OAuthConsentChallenge, error) {
+				findChallengeByUUIDFn: func(_ uuid.UUID) (*OAuthConsentChallenge, error) {
 					return nil, nil
 				},
 			},
@@ -803,8 +801,8 @@ func TestOAuthAuthorizeService_HandleConsent(t *testing.T) {
 			&mockOAuthAuthCodeRepo{},
 			&mockOAuthConsentGrantRepo{},
 			&mockOAuthConsentChallRepo{
-				findChallengeByUUIDFn: func(_ uuid.UUID) (*model.OAuthConsentChallenge, error) {
-					return &model.OAuthConsentChallenge{
+				findChallengeByUUIDFn: func(_ uuid.UUID) (*OAuthConsentChallenge, error) {
+					return &OAuthConsentChallenge{
 						OAuthConsentChallengeUUID: challengeUUID,
 						UserID:                    1,
 						ExpiresAt:                 time.Now().Add(-1 * time.Minute),
@@ -827,8 +825,8 @@ func TestOAuthAuthorizeService_HandleConsent(t *testing.T) {
 			&mockOAuthAuthCodeRepo{},
 			&mockOAuthConsentGrantRepo{},
 			&mockOAuthConsentChallRepo{
-				findChallengeByUUIDFn: func(_ uuid.UUID) (*model.OAuthConsentChallenge, error) {
-					return &model.OAuthConsentChallenge{
+				findChallengeByUUIDFn: func(_ uuid.UUID) (*OAuthConsentChallenge, error) {
+					return &OAuthConsentChallenge{
 						OAuthConsentChallengeUUID: challengeUUID,
 						UserID:                    999,
 						ExpiresAt:                 time.Now().Add(5 * time.Minute),
@@ -851,7 +849,7 @@ func TestOAuthAuthorizeService_HandleConsent(t *testing.T) {
 			&mockOAuthAuthCodeRepo{},
 			&mockOAuthConsentGrantRepo{},
 			&mockOAuthConsentChallRepo{
-				findChallengeByUUIDFn: func(_ uuid.UUID) (*model.OAuthConsentChallenge, error) {
+				findChallengeByUUIDFn: func(_ uuid.UUID) (*OAuthConsentChallenge, error) {
 					return nil, errors.New("db error")
 				},
 			},
@@ -872,8 +870,8 @@ func TestOAuthAuthorizeService_HandleConsent(t *testing.T) {
 			&mockOAuthAuthCodeRepo{},
 			&mockOAuthConsentGrantRepo{},
 			&mockOAuthConsentChallRepo{
-				findChallengeByUUIDFn: func(_ uuid.UUID) (*model.OAuthConsentChallenge, error) {
-					return &model.OAuthConsentChallenge{
+				findChallengeByUUIDFn: func(_ uuid.UUID) (*OAuthConsentChallenge, error) {
+					return &OAuthConsentChallenge{
 						OAuthConsentChallengeUUID: challengeUUID,
 						ClientID:                  10,
 						UserID:                    1,
@@ -899,8 +897,8 @@ func TestOAuthAuthorizeService_HandleConsent(t *testing.T) {
 			&mockOAuthAuthCodeRepo{},
 			&mockOAuthConsentGrantRepo{},
 			&mockOAuthConsentChallRepo{
-				findChallengeByUUIDFn: func(_ uuid.UUID) (*model.OAuthConsentChallenge, error) {
-					return &model.OAuthConsentChallenge{
+				findChallengeByUUIDFn: func(_ uuid.UUID) (*OAuthConsentChallenge, error) {
+					return &OAuthConsentChallenge{
 						OAuthConsentChallengeUUID: challengeUUID,
 						ClientID:                  10,
 						UserID:                    1,
@@ -927,8 +925,8 @@ func TestOAuthAuthorizeService_HandleConsent(t *testing.T) {
 			&mockOAuthAuthCodeRepo{},
 			&mockOAuthConsentGrantRepo{},
 			&mockOAuthConsentChallRepo{
-				findChallengeByUUIDFn: func(_ uuid.UUID) (*model.OAuthConsentChallenge, error) {
-					return &model.OAuthConsentChallenge{
+				findChallengeByUUIDFn: func(_ uuid.UUID) (*OAuthConsentChallenge, error) {
+					return &OAuthConsentChallenge{
 						OAuthConsentChallengeUUID: challengeUUID,
 						ClientID:                  10,
 						UserID:                    1,
@@ -958,13 +956,13 @@ func TestOAuthAuthorizeService_HandleConsent(t *testing.T) {
 			&mockClientRepo{}, &mockClientURIRepo{},
 			&mockOAuthAuthCodeRepo{},
 			&mockOAuthConsentGrantRepo{
-				upsertFn: func(_ *model.OAuthConsentGrant) (*model.OAuthConsentGrant, error) {
+				upsertFn: func(_ *OAuthConsentGrant) (*OAuthConsentGrant, error) {
 					return nil, errors.New("upsert error")
 				},
 			},
 			&mockOAuthConsentChallRepo{
-				findChallengeByUUIDFn: func(_ uuid.UUID) (*model.OAuthConsentChallenge, error) {
-					return &model.OAuthConsentChallenge{
+				findChallengeByUUIDFn: func(_ uuid.UUID) (*OAuthConsentChallenge, error) {
+					return &OAuthConsentChallenge{
 						OAuthConsentChallengeUUID: challengeUUID,
 						ClientID:                  10,
 						UserID:                    1,
@@ -990,14 +988,14 @@ func TestOAuthAuthorizeService_HandleConsent(t *testing.T) {
 		svc := newOAuthAuthorizeSvc(db,
 			&mockClientRepo{}, &mockClientURIRepo{},
 			&mockOAuthAuthCodeRepo{
-				createFn: func(_ *model.OAuthAuthorizationCode) (*model.OAuthAuthorizationCode, error) {
+				createFn: func(_ *OAuthAuthorizationCode) (*OAuthAuthorizationCode, error) {
 					return nil, errors.New("create error")
 				},
 			},
 			&mockOAuthConsentGrantRepo{},
 			&mockOAuthConsentChallRepo{
-				findChallengeByUUIDFn: func(_ uuid.UUID) (*model.OAuthConsentChallenge, error) {
-					return &model.OAuthConsentChallenge{
+				findChallengeByUUIDFn: func(_ uuid.UUID) (*OAuthConsentChallenge, error) {
+					return &OAuthConsentChallenge{
 						OAuthConsentChallengeUUID: challengeUUID,
 						ClientID:                  10,
 						UserID:                    1,

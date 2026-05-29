@@ -3,15 +3,12 @@ package oauth
 import (
 	"context"
 
-	"github.com/maintainerd/auth/internal/dto"
-	"github.com/maintainerd/auth/internal/model"
 	"github.com/maintainerd/auth/internal/platform/apperror"
 	"github.com/maintainerd/auth/internal/platform/config"
 	"github.com/maintainerd/auth/internal/platform/jwt"
 	"github.com/maintainerd/auth/internal/platform/middleware"
 	"github.com/maintainerd/auth/internal/platform/ptr"
 	"github.com/maintainerd/auth/internal/platform/security"
-	"github.com/maintainerd/auth/internal/repository"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -28,21 +25,21 @@ type OAuthTokenExchangeService interface {
 	// Exchange validates the subject_token and issues a new token of the
 	// requested type. Supports access-token-for-access-token exchanges within
 	// the same authorization server.
-	Exchange(ctx context.Context, req dto.OAuthTokenExchangeRequestDTO, creds dto.OAuthClientCredentials) (*dto.OAuthTokenExchangeResponseDTO, *apperror.OAuthError)
+	Exchange(ctx context.Context, req OAuthTokenExchangeRequestDTO, creds OAuthClientCredentials) (*OAuthTokenExchangeResponseDTO, *apperror.OAuthError)
 }
 
 type oauthTokenExchangeService struct {
 	db               *gorm.DB
-	clientRepo       repository.ClientRepository
-	userRepo         repository.UserRepository
+	clientRepo       ClientRepository
+	userRepo         UserRepository
 	authEventService AuthEventService
 }
 
 // NewOAuthTokenExchangeService creates a new OAuthTokenExchangeService.
 func NewOAuthTokenExchangeService(
 	db *gorm.DB,
-	clientRepo repository.ClientRepository,
-	userRepo repository.UserRepository,
+	clientRepo ClientRepository,
+	userRepo UserRepository,
 	authEventService AuthEventService,
 ) OAuthTokenExchangeService {
 	return &oauthTokenExchangeService{
@@ -54,7 +51,7 @@ func NewOAuthTokenExchangeService(
 }
 
 // Exchange implements OAuthTokenExchangeService.
-func (s *oauthTokenExchangeService) Exchange(ctx context.Context, req dto.OAuthTokenExchangeRequestDTO, creds dto.OAuthClientCredentials) (*dto.OAuthTokenExchangeResponseDTO, *apperror.OAuthError) {
+func (s *oauthTokenExchangeService) Exchange(ctx context.Context, req OAuthTokenExchangeRequestDTO, creds OAuthClientCredentials) (*OAuthTokenExchangeResponseDTO, *apperror.OAuthError) {
 	_, span := otel.Tracer("service").Start(ctx, "oauth_token_exchange.exchange")
 	defer span.End()
 	span.SetAttributes(
@@ -69,7 +66,7 @@ func (s *oauthTokenExchangeService) Exchange(ctx context.Context, req dto.OAuthT
 		return nil, oerr
 	}
 
-	if !clientHasGrant(client, model.GrantTypeTokenExchange) {
+	if !clientHasGrant(client, GrantTypeTokenExchange) {
 		span.SetStatus(codes.Error, "grant not allowed")
 		return nil, apperror.NewOAuthUnauthorizedClient("client is not authorized for token-exchange grant")
 	}
@@ -135,15 +132,15 @@ func (s *oauthTokenExchangeService) Exchange(ctx context.Context, req dto.OAuthT
 		TenantID:    client.TenantID,
 		IPAddress:   middleware.ClientIPFromContext(ctx),
 		UserAgent:   ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),
-		Category:    model.AuthEventCategoryAuthn,
-		EventType:   model.AuthEventTypeOAuthTokenExchange,
-		Severity:    model.AuthEventSeverityInfo,
-		Result:      model.AuthEventResultSuccess,
+		Category:    AuthEventCategoryAuthn,
+		EventType:   AuthEventTypeOAuthTokenExchange,
+		Severity:    AuthEventSeverityInfo,
+		Result:      AuthEventResultSuccess,
 		Description: ptr.Ptr("Token exchange completed"),
 	})
 
 	span.SetStatus(codes.Ok, "")
-	return &dto.OAuthTokenExchangeResponseDTO{
+	return &OAuthTokenExchangeResponseDTO{
 		AccessToken:     newToken,
 		IssuedTokenType: issuedTokenType,
 		TokenType:       "Bearer",
@@ -152,11 +149,11 @@ func (s *oauthTokenExchangeService) Exchange(ctx context.Context, req dto.OAuthT
 	}, nil
 }
 
-func (s *oauthTokenExchangeService) authenticateClient(creds dto.OAuthClientCredentials) (*model.Client, *apperror.OAuthError) {
-	var client model.Client
+func (s *oauthTokenExchangeService) authenticateClient(creds OAuthClientCredentials) (*Client, *apperror.OAuthError) {
+	var client Client
 	err := s.db.
 		Preload("IdentityProvider").
-		Where("identifier = ? AND status = ?", creds.ClientID, model.StatusActive).
+		Where("identifier = ? AND status = ?", creds.ClientID, StatusActive).
 		First(&client).Error
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {

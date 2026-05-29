@@ -5,9 +5,6 @@ import (
 
 	validation "github.com/go-ozzo/ozzo-validation/v4"
 	"github.com/go-ozzo/ozzo-validation/v4/is"
-
-	"github.com/maintainerd/auth/internal/dto"
-	"github.com/maintainerd/auth/internal/model"
 )
 
 // WebhookEndpointResponseDTO is the JSON representation of a webhook endpoint.
@@ -57,7 +54,7 @@ func (r WebhookEndpointCreateRequestDTO) Validate() error {
 			validation.Length(0, 500).Error("Description must not exceed 500 characters"),
 		),
 		validation.Field(&r.Status,
-			validation.When(r.Status != nil, validation.In(model.StatusActive, model.StatusInactive).Error("Status must be 'active' or 'inactive'")),
+			validation.When(r.Status != nil, validation.In(StatusActive, StatusInactive).Error("Status must be 'active' or 'inactive'")),
 		),
 	)
 }
@@ -95,7 +92,7 @@ func (r WebhookEndpointUpdateRequestDTO) Validate() error {
 			validation.Length(0, 500).Error("Description must not exceed 500 characters"),
 		),
 		validation.Field(&r.Status,
-			validation.When(r.Status != nil, validation.In(model.StatusActive, model.StatusInactive).Error("Status must be 'active' or 'inactive'")),
+			validation.When(r.Status != nil, validation.In(StatusActive, StatusInactive).Error("Status must be 'active' or 'inactive'")),
 		),
 	)
 }
@@ -111,7 +108,7 @@ func (r WebhookEndpointUpdateStatusRequestDTO) Validate() error {
 	return validation.ValidateStruct(&r,
 		validation.Field(&r.Status,
 			validation.Required.Error("Status is required"),
-			validation.In(model.StatusActive, model.StatusInactive).Error("Status must be 'active' or 'inactive'"),
+			validation.In(StatusActive, StatusInactive).Error("Status must be 'active' or 'inactive'"),
 		),
 	)
 }
@@ -120,7 +117,7 @@ func (r WebhookEndpointUpdateStatusRequestDTO) Validate() error {
 // endpoints.
 type WebhookEndpointFilterDTO struct {
 	Status []string `json:"status"`
-	dto.PaginationRequestDTO
+	PaginationRequestDTO
 }
 
 // Validate validates the webhook endpoint filter.

@@ -8,8 +8,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/maintainerd/auth/internal/model"
-	"github.com/maintainerd/auth/internal/repository"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gorm.io/datatypes"
@@ -19,10 +17,10 @@ func newWebhookEndpointSvc(repo *mockWebhookEndpointRepo) WebhookEndpointService
 	return NewWebhookEndpointService(repo)
 }
 
-func newWebhookEndpoint(tenantID int64) *model.WebhookEndpoint {
+func newWebhookEndpoint(tenantID int64) *WebhookEndpoint {
 	evts, _ := json.Marshal([]string{"user.created", "user.deleted"})
 	now := time.Now()
-	return &model.WebhookEndpoint{
+	return &WebhookEndpoint{
 		WebhookEndpointID:   1,
 		WebhookEndpointUUID: uuid.New(),
 		TenantID:            tenantID,
@@ -31,7 +29,7 @@ func newWebhookEndpoint(tenantID int64) *model.WebhookEndpoint {
 		Events:              datatypes.JSON(evts),
 		MaxRetries:          3,
 		TimeoutSeconds:      30,
-		Status:              model.StatusActive,
+		Status:              StatusActive,
 		Description:         "test",
 		LastTriggeredAt:     &now,
 	}
@@ -45,9 +43,9 @@ func TestWebhookEndpointService_GetAll(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		ep := newWebhookEndpoint(1)
 		svc := newWebhookEndpointSvc(&mockWebhookEndpointRepo{
-			findPaginatedFn: func(f repository.WebhookEndpointRepositoryGetFilter) (*repository.PaginationResult[model.WebhookEndpoint], error) {
-				return &repository.PaginationResult[model.WebhookEndpoint]{
-					Data:       []model.WebhookEndpoint{*ep},
+			findPaginatedFn: func(f WebhookEndpointRepositoryGetFilter) (*PaginationResult[WebhookEndpoint], error) {
+				return &PaginationResult[WebhookEndpoint]{
+					Data:       []WebhookEndpoint{*ep},
 					Total:      1,
 					Page:       f.Page,
 					Limit:      f.Limit,
@@ -63,9 +61,9 @@ func TestWebhookEndpointService_GetAll(t *testing.T) {
 
 	t.Run("empty result", func(t *testing.T) {
 		svc := newWebhookEndpointSvc(&mockWebhookEndpointRepo{
-			findPaginatedFn: func(_ repository.WebhookEndpointRepositoryGetFilter) (*repository.PaginationResult[model.WebhookEndpoint], error) {
-				return &repository.PaginationResult[model.WebhookEndpoint]{
-					Data:       []model.WebhookEndpoint{},
+			findPaginatedFn: func(_ WebhookEndpointRepositoryGetFilter) (*PaginationResult[WebhookEndpoint], error) {
+				return &PaginationResult[WebhookEndpoint]{
+					Data:       []WebhookEndpoint{},
 					Total:      0,
 					Page:       1,
 					Limit:      10,
@@ -80,7 +78,7 @@ func TestWebhookEndpointService_GetAll(t *testing.T) {
 
 	t.Run("repo error", func(t *testing.T) {
 		svc := newWebhookEndpointSvc(&mockWebhookEndpointRepo{
-			findPaginatedFn: func(_ repository.WebhookEndpointRepositoryGetFilter) (*repository.PaginationResult[model.WebhookEndpoint], error) {
+			findPaginatedFn: func(_ WebhookEndpointRepositoryGetFilter) (*PaginationResult[WebhookEndpoint], error) {
 				return nil, errors.New("db")
 			},
 		})
@@ -97,7 +95,7 @@ func TestWebhookEndpointService_GetByUUID(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		ep := newWebhookEndpoint(1)
 		svc := newWebhookEndpointSvc(&mockWebhookEndpointRepo{
-			findByUUIDAndTenantFn: func(_ uuid.UUID, _ int64) (*model.WebhookEndpoint, error) { return ep, nil },
+			findByUUIDAndTenantFn: func(_ uuid.UUID, _ int64) (*WebhookEndpoint, error) { return ep, nil },
 		})
 		res, err := svc.GetByUUID(context.Background(), 1, ep.WebhookEndpointUUID)
 		require.NoError(t, err)
@@ -106,7 +104,7 @@ func TestWebhookEndpointService_GetByUUID(t *testing.T) {
 
 	t.Run("not found", func(t *testing.T) {
 		svc := newWebhookEndpointSvc(&mockWebhookEndpointRepo{
-			findByUUIDAndTenantFn: func(_ uuid.UUID, _ int64) (*model.WebhookEndpoint, error) { return nil, nil },
+			findByUUIDAndTenantFn: func(_ uuid.UUID, _ int64) (*WebhookEndpoint, error) { return nil, nil },
 		})
 		_, err := svc.GetByUUID(context.Background(), 1, uuid.New())
 		require.Error(t, err)
@@ -115,7 +113,7 @@ func TestWebhookEndpointService_GetByUUID(t *testing.T) {
 
 	t.Run("repo error", func(t *testing.T) {
 		svc := newWebhookEndpointSvc(&mockWebhookEndpointRepo{
-			findByUUIDAndTenantFn: func(_ uuid.UUID, _ int64) (*model.WebhookEndpoint, error) {
+			findByUUIDAndTenantFn: func(_ uuid.UUID, _ int64) (*WebhookEndpoint, error) {
 				return nil, errors.New("db")
 			},
 		})
@@ -133,14 +131,14 @@ func TestWebhookEndpointService_Create(t *testing.T) {
 
 	t.Run("success with defaults", func(t *testing.T) {
 		svc := newWebhookEndpointSvc(&mockWebhookEndpointRepo{
-			createFn: func(e *model.WebhookEndpoint) (*model.WebhookEndpoint, error) {
+			createFn: func(e *WebhookEndpoint) (*WebhookEndpoint, error) {
 				e.WebhookEndpointUUID = uuid.New()
 				return e, nil
 			},
 		})
 		res, err := svc.Create(context.Background(), 1,
 			"https://example.com/hook", "secret",
-			[]string{"user.created"}, nil, nil, "desc", model.StatusActive,
+			[]string{"user.created"}, nil, nil, "desc", StatusActive,
 		)
 		require.NoError(t, err)
 		assert.Equal(t, "https://example.com/hook", res.URL)
@@ -150,14 +148,14 @@ func TestWebhookEndpointService_Create(t *testing.T) {
 
 	t.Run("success with custom retries and timeout", func(t *testing.T) {
 		svc := newWebhookEndpointSvc(&mockWebhookEndpointRepo{
-			createFn: func(e *model.WebhookEndpoint) (*model.WebhookEndpoint, error) {
+			createFn: func(e *WebhookEndpoint) (*WebhookEndpoint, error) {
 				e.WebhookEndpointUUID = uuid.New()
 				return e, nil
 			},
 		})
 		res, err := svc.Create(context.Background(), 1,
 			"https://example.com/hook", "secret",
-			[]string{"user.created"}, intPtr(5), intPtr(60), "desc", model.StatusActive,
+			[]string{"user.created"}, intPtr(5), intPtr(60), "desc", StatusActive,
 		)
 		require.NoError(t, err)
 		assert.Equal(t, 5, res.MaxRetries)
@@ -166,13 +164,13 @@ func TestWebhookEndpointService_Create(t *testing.T) {
 
 	t.Run("repo error", func(t *testing.T) {
 		svc := newWebhookEndpointSvc(&mockWebhookEndpointRepo{
-			createFn: func(_ *model.WebhookEndpoint) (*model.WebhookEndpoint, error) {
+			createFn: func(_ *WebhookEndpoint) (*WebhookEndpoint, error) {
 				return nil, errors.New("db")
 			},
 		})
 		_, err := svc.Create(context.Background(), 1,
 			"https://example.com/hook", "",
-			[]string{"user.created"}, nil, nil, "", model.StatusActive,
+			[]string{"user.created"}, nil, nil, "", StatusActive,
 		)
 		require.Error(t, err)
 	})
@@ -188,14 +186,14 @@ func TestWebhookEndpointService_Update(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		ep := newWebhookEndpoint(1)
 		svc := newWebhookEndpointSvc(&mockWebhookEndpointRepo{
-			findByUUIDAndTenantFn: func(_ uuid.UUID, _ int64) (*model.WebhookEndpoint, error) { return ep, nil },
-			updateByUUIDFn: func(_ any, data any) (*model.WebhookEndpoint, error) {
-				return data.(*model.WebhookEndpoint), nil
+			findByUUIDAndTenantFn: func(_ uuid.UUID, _ int64) (*WebhookEndpoint, error) { return ep, nil },
+			updateByUUIDFn: func(_ any, data any) (*WebhookEndpoint, error) {
+				return data.(*WebhookEndpoint), nil
 			},
 		})
 		res, err := svc.Update(context.Background(), 1, ep.WebhookEndpointUUID,
 			"https://new.example.com/hook", "new-secret",
-			[]string{"user.updated"}, intPtr(5), intPtr(60), "updated", model.StatusActive,
+			[]string{"user.updated"}, intPtr(5), intPtr(60), "updated", StatusActive,
 		)
 		require.NoError(t, err)
 		assert.Equal(t, "https://new.example.com/hook", res.URL)
@@ -205,14 +203,14 @@ func TestWebhookEndpointService_Update(t *testing.T) {
 		ep := newWebhookEndpoint(1)
 		original := ep.SecretEncrypted
 		svc := newWebhookEndpointSvc(&mockWebhookEndpointRepo{
-			findByUUIDAndTenantFn: func(_ uuid.UUID, _ int64) (*model.WebhookEndpoint, error) { return ep, nil },
-			updateByUUIDFn: func(_ any, data any) (*model.WebhookEndpoint, error) {
-				return data.(*model.WebhookEndpoint), nil
+			findByUUIDAndTenantFn: func(_ uuid.UUID, _ int64) (*WebhookEndpoint, error) { return ep, nil },
+			updateByUUIDFn: func(_ any, data any) (*WebhookEndpoint, error) {
+				return data.(*WebhookEndpoint), nil
 			},
 		})
 		_, err := svc.Update(context.Background(), 1, ep.WebhookEndpointUUID,
 			"https://example.com/hook", "",
-			[]string{"user.created"}, nil, nil, "", model.StatusActive,
+			[]string{"user.created"}, nil, nil, "", StatusActive,
 		)
 		require.NoError(t, err)
 		assert.Equal(t, original, ep.SecretEncrypted)
@@ -220,11 +218,11 @@ func TestWebhookEndpointService_Update(t *testing.T) {
 
 	t.Run("not found", func(t *testing.T) {
 		svc := newWebhookEndpointSvc(&mockWebhookEndpointRepo{
-			findByUUIDAndTenantFn: func(_ uuid.UUID, _ int64) (*model.WebhookEndpoint, error) { return nil, nil },
+			findByUUIDAndTenantFn: func(_ uuid.UUID, _ int64) (*WebhookEndpoint, error) { return nil, nil },
 		})
 		_, err := svc.Update(context.Background(), 1, uuid.New(),
 			"https://example.com", "",
-			[]string{"user.created"}, nil, nil, "", model.StatusActive,
+			[]string{"user.created"}, nil, nil, "", StatusActive,
 		)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "not found")
@@ -232,13 +230,13 @@ func TestWebhookEndpointService_Update(t *testing.T) {
 
 	t.Run("find repo error", func(t *testing.T) {
 		svc := newWebhookEndpointSvc(&mockWebhookEndpointRepo{
-			findByUUIDAndTenantFn: func(_ uuid.UUID, _ int64) (*model.WebhookEndpoint, error) {
+			findByUUIDAndTenantFn: func(_ uuid.UUID, _ int64) (*WebhookEndpoint, error) {
 				return nil, errors.New("db")
 			},
 		})
 		_, err := svc.Update(context.Background(), 1, uuid.New(),
 			"https://example.com", "",
-			[]string{"user.created"}, nil, nil, "", model.StatusActive,
+			[]string{"user.created"}, nil, nil, "", StatusActive,
 		)
 		require.Error(t, err)
 	})
@@ -246,14 +244,14 @@ func TestWebhookEndpointService_Update(t *testing.T) {
 	t.Run("UpdateByUUID error", func(t *testing.T) {
 		ep := newWebhookEndpoint(1)
 		svc := newWebhookEndpointSvc(&mockWebhookEndpointRepo{
-			findByUUIDAndTenantFn: func(_ uuid.UUID, _ int64) (*model.WebhookEndpoint, error) { return ep, nil },
-			updateByUUIDFn: func(_ any, _ any) (*model.WebhookEndpoint, error) {
+			findByUUIDAndTenantFn: func(_ uuid.UUID, _ int64) (*WebhookEndpoint, error) { return ep, nil },
+			updateByUUIDFn: func(_ any, _ any) (*WebhookEndpoint, error) {
 				return nil, errors.New("save err")
 			},
 		})
 		_, err := svc.Update(context.Background(), 1, ep.WebhookEndpointUUID,
 			"https://example.com", "",
-			[]string{}, nil, nil, "", model.StatusActive,
+			[]string{}, nil, nil, "", StatusActive,
 		)
 		require.Error(t, err)
 	})
@@ -267,9 +265,9 @@ func TestWebhookEndpointService_UpdateStatus(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		ep := newWebhookEndpoint(1)
 		svc := newWebhookEndpointSvc(&mockWebhookEndpointRepo{
-			findByUUIDAndTenantFn: func(_ uuid.UUID, _ int64) (*model.WebhookEndpoint, error) { return ep, nil },
-			updateByUUIDFn: func(_ any, data any) (*model.WebhookEndpoint, error) {
-				return data.(*model.WebhookEndpoint), nil
+			findByUUIDAndTenantFn: func(_ uuid.UUID, _ int64) (*WebhookEndpoint, error) { return ep, nil },
+			updateByUUIDFn: func(_ any, data any) (*WebhookEndpoint, error) {
+				return data.(*WebhookEndpoint), nil
 			},
 		})
 		res, err := svc.UpdateStatus(context.Background(), 1, ep.WebhookEndpointUUID, "inactive")
@@ -279,7 +277,7 @@ func TestWebhookEndpointService_UpdateStatus(t *testing.T) {
 
 	t.Run("not found", func(t *testing.T) {
 		svc := newWebhookEndpointSvc(&mockWebhookEndpointRepo{
-			findByUUIDAndTenantFn: func(_ uuid.UUID, _ int64) (*model.WebhookEndpoint, error) { return nil, nil },
+			findByUUIDAndTenantFn: func(_ uuid.UUID, _ int64) (*WebhookEndpoint, error) { return nil, nil },
 		})
 		_, err := svc.UpdateStatus(context.Background(), 1, uuid.New(), "inactive")
 		require.Error(t, err)
@@ -288,7 +286,7 @@ func TestWebhookEndpointService_UpdateStatus(t *testing.T) {
 
 	t.Run("find repo error", func(t *testing.T) {
 		svc := newWebhookEndpointSvc(&mockWebhookEndpointRepo{
-			findByUUIDAndTenantFn: func(_ uuid.UUID, _ int64) (*model.WebhookEndpoint, error) {
+			findByUUIDAndTenantFn: func(_ uuid.UUID, _ int64) (*WebhookEndpoint, error) {
 				return nil, errors.New("db")
 			},
 		})
@@ -299,8 +297,8 @@ func TestWebhookEndpointService_UpdateStatus(t *testing.T) {
 	t.Run("UpdateByUUID error", func(t *testing.T) {
 		ep := newWebhookEndpoint(1)
 		svc := newWebhookEndpointSvc(&mockWebhookEndpointRepo{
-			findByUUIDAndTenantFn: func(_ uuid.UUID, _ int64) (*model.WebhookEndpoint, error) { return ep, nil },
-			updateByUUIDFn: func(_ any, _ any) (*model.WebhookEndpoint, error) {
+			findByUUIDAndTenantFn: func(_ uuid.UUID, _ int64) (*WebhookEndpoint, error) { return ep, nil },
+			updateByUUIDFn: func(_ any, _ any) (*WebhookEndpoint, error) {
 				return nil, errors.New("save err")
 			},
 		})
@@ -317,7 +315,7 @@ func TestWebhookEndpointService_Delete(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		ep := newWebhookEndpoint(1)
 		svc := newWebhookEndpointSvc(&mockWebhookEndpointRepo{
-			findByUUIDAndTenantFn: func(_ uuid.UUID, _ int64) (*model.WebhookEndpoint, error) { return ep, nil },
+			findByUUIDAndTenantFn: func(_ uuid.UUID, _ int64) (*WebhookEndpoint, error) { return ep, nil },
 			deleteByUUIDFn:        func(_ any) error { return nil },
 		})
 		res, err := svc.Delete(context.Background(), 1, ep.WebhookEndpointUUID)
@@ -327,7 +325,7 @@ func TestWebhookEndpointService_Delete(t *testing.T) {
 
 	t.Run("not found", func(t *testing.T) {
 		svc := newWebhookEndpointSvc(&mockWebhookEndpointRepo{
-			findByUUIDAndTenantFn: func(_ uuid.UUID, _ int64) (*model.WebhookEndpoint, error) { return nil, nil },
+			findByUUIDAndTenantFn: func(_ uuid.UUID, _ int64) (*WebhookEndpoint, error) { return nil, nil },
 		})
 		_, err := svc.Delete(context.Background(), 1, uuid.New())
 		require.Error(t, err)
@@ -336,7 +334,7 @@ func TestWebhookEndpointService_Delete(t *testing.T) {
 
 	t.Run("find repo error", func(t *testing.T) {
 		svc := newWebhookEndpointSvc(&mockWebhookEndpointRepo{
-			findByUUIDAndTenantFn: func(_ uuid.UUID, _ int64) (*model.WebhookEndpoint, error) {
+			findByUUIDAndTenantFn: func(_ uuid.UUID, _ int64) (*WebhookEndpoint, error) {
 				return nil, errors.New("db")
 			},
 		})
@@ -347,7 +345,7 @@ func TestWebhookEndpointService_Delete(t *testing.T) {
 	t.Run("DeleteByUUID error", func(t *testing.T) {
 		ep := newWebhookEndpoint(1)
 		svc := newWebhookEndpointSvc(&mockWebhookEndpointRepo{
-			findByUUIDAndTenantFn: func(_ uuid.UUID, _ int64) (*model.WebhookEndpoint, error) { return ep, nil },
+			findByUUIDAndTenantFn: func(_ uuid.UUID, _ int64) (*WebhookEndpoint, error) { return ep, nil },
 			deleteByUUIDFn:        func(_ any) error { return errors.New("delete err") },
 		})
 		_, err := svc.Delete(context.Background(), 1, ep.WebhookEndpointUUID)
@@ -361,14 +359,14 @@ func TestWebhookEndpointService_Delete(t *testing.T) {
 
 func TestToWebhookEndpointServiceDataResult(t *testing.T) {
 	t.Run("nil events produces empty array", func(t *testing.T) {
-		ep := &model.WebhookEndpoint{WebhookEndpointUUID: uuid.New(), TenantID: 1}
+		ep := &WebhookEndpoint{WebhookEndpointUUID: uuid.New(), TenantID: 1}
 		result := toWebhookEndpointServiceDataResult(ep)
 		assert.Equal(t, []any{}, result.Events)
 	})
 
 	t.Run("valid events are unmarshalled", func(t *testing.T) {
 		evts, _ := json.Marshal([]string{"user.created"})
-		ep := &model.WebhookEndpoint{
+		ep := &WebhookEndpoint{
 			WebhookEndpointUUID: uuid.New(),
 			TenantID:            1,
 			Events:              datatypes.JSON(evts),
@@ -380,7 +378,7 @@ func TestToWebhookEndpointServiceDataResult(t *testing.T) {
 	})
 
 	t.Run("invalid JSON events falls back to empty array", func(t *testing.T) {
-		ep := &model.WebhookEndpoint{
+		ep := &WebhookEndpoint{
 			WebhookEndpointUUID: uuid.New(),
 			TenantID:            1,
 			Events:              datatypes.JSON([]byte(`not json`)),

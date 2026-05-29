@@ -4,15 +4,13 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/maintainerd/auth/internal/platform/cache"
 	"github.com/maintainerd/auth/internal/platform/middleware"
-	"github.com/maintainerd/auth/internal/rest/handler"
-	"github.com/maintainerd/auth/internal/service"
 )
 
 // TenantSettingRoute registers tenant settings configuration endpoints.
 func TenantSettingRoute(
 	r chi.Router,
-	tenantSettingHandler *handler.TenantSettingHandler,
-	userService service.UserService,
+	tenantSettingHandler *TenantSettingHandler,
+	userService UserService,
 	appCache *cache.Cache,
 ) {
 	r.Route("/tenant-settings", func(r chi.Router) {

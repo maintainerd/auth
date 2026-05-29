@@ -8,13 +8,10 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/maintainerd/auth/internal/dto"
-	"github.com/maintainerd/auth/internal/model"
 	"github.com/maintainerd/auth/internal/platform/apperror"
 	"github.com/maintainerd/auth/internal/platform/crypto"
 	"github.com/maintainerd/auth/internal/platform/email"
 	"github.com/maintainerd/auth/internal/platform/jwt"
-	"github.com/maintainerd/auth/internal/repository"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/codes"
 	"golang.org/x/crypto/bcrypt"
@@ -32,36 +29,36 @@ type AccountService interface {
 	VerifyEmailChange(ctx context.Context, userID int64, otp string) error
 	ChangeUsername(ctx context.Context, userID int64, newUsername, currentPassword string) error
 	DeleteAccount(ctx context.Context, userID int64, currentPassword string) error
-	ExportAccountData(ctx context.Context, userID int64) (*dto.AccountExportDTO, error)
-	GenerateBackupCodes(ctx context.Context, userID int64) (*dto.GenerateBackupCodesResponseDTO, error)
-	VerifyBackupCode(ctx context.Context, req dto.VerifyBackupCodeDTO) (*dto.LoginResponseDTO, error)
+	ExportAccountData(ctx context.Context, userID int64) (*AccountExportDTO, error)
+	GenerateBackupCodes(ctx context.Context, userID int64) (*GenerateBackupCodesResponseDTO, error)
+	VerifyBackupCode(ctx context.Context, req VerifyBackupCodeDTO) (*LoginResponseDTO, error)
 }
 
 type accountService struct {
 	db                   *gorm.DB
-	userRepo             repository.UserRepository
-	userTokenRepo        repository.UserTokenRepository
-	profileRepo          repository.ProfileRepository
-	userSettingRepo      repository.UserSettingRepository
-	roleRepo             repository.RoleRepository
-	clientRepo           repository.ClientRepository
-	backupCodeRepo       repository.UserBackupCodeRepository
-	userIdentityRepo     repository.UserIdentityRepository
-	identityProviderRepo repository.IdentityProviderRepository
+	userRepo             UserRepository
+	userTokenRepo        UserTokenRepository
+	profileRepo          ProfileRepository
+	userSettingRepo      UserSettingRepository
+	roleRepo             RoleRepository
+	clientRepo           ClientRepository
+	backupCodeRepo       UserBackupCodeRepository
+	userIdentityRepo     UserIdentityRepository
+	identityProviderRepo IdentityProviderRepository
 	authEventService     AuthEventService
 }
 
 func NewAccountService(
 	db *gorm.DB,
-	userRepo repository.UserRepository,
-	userTokenRepo repository.UserTokenRepository,
-	profileRepo repository.ProfileRepository,
-	userSettingRepo repository.UserSettingRepository,
-	roleRepo repository.RoleRepository,
-	clientRepo repository.ClientRepository,
-	backupCodeRepo repository.UserBackupCodeRepository,
-	userIdentityRepo repository.UserIdentityRepository,
-	identityProviderRepo repository.IdentityProviderRepository,
+	userRepo UserRepository,
+	userTokenRepo UserTokenRepository,
+	profileRepo ProfileRepository,
+	userSettingRepo UserSettingRepository,
+	roleRepo RoleRepository,
+	clientRepo ClientRepository,
+	backupCodeRepo UserBackupCodeRepository,
+	userIdentityRepo UserIdentityRepository,
+	identityProviderRepo IdentityProviderRepository,
 	authEventService AuthEventService,
 ) AccountService {
 	return &accountService{
@@ -251,7 +248,7 @@ func (s *accountService) DeleteAccount(ctx context.Context, userID int64, curren
 }
 
 // ExportAccountData collects and returns all personal data for a user.
-func (s *accountService) ExportAccountData(ctx context.Context, userID int64) (*dto.AccountExportDTO, error) {
+func (s *accountService) ExportAccountData(ctx context.Context, userID int64) (*AccountExportDTO, error) {
 	_, span := otel.Tracer("service").Start(ctx, "account.exportData")
 	defer span.End()
 
@@ -265,7 +262,7 @@ func (s *accountService) ExportAccountData(ctx context.Context, userID int64) (*
 		roleNames[i] = role.Name
 	}
 
-	export := &dto.AccountExportDTO{
+	export := &AccountExportDTO{
 		UserUUID:  user.UserUUID.String(),
 		Username:  user.Username,
 		Email:     user.Email,
@@ -286,7 +283,7 @@ func (s *accountService) ExportAccountData(ctx context.Context, userID int64) (*
 }
 
 // GenerateBackupCodes deletes existing backup codes and generates 10 fresh ones.
-func (s *accountService) GenerateBackupCodes(ctx context.Context, userID int64) (*dto.GenerateBackupCodesResponseDTO, error) {
+func (s *accountService) GenerateBackupCodes(ctx context.Context, userID int64) (*GenerateBackupCodesResponseDTO, error) {
 	_, span := otel.Tracer("service").Start(ctx, "account.generateBackupCodes")
 	defer span.End()
 
@@ -301,7 +298,7 @@ func (s *accountService) GenerateBackupCodes(ctx context.Context, userID int64) 
 	}
 
 	plaintextCodes := make([]string, backupCodeCount)
-	records := make([]*model.UserBackupCode, backupCodeCount)
+	records := make([]*UserBackupCode, backupCodeCount)
 
 	for i := 0; i < backupCodeCount; i++ {
 		code, err := crypto.GenerateRandomString(backupCodeLength)
@@ -313,7 +310,7 @@ func (s *accountService) GenerateBackupCodes(ctx context.Context, userID int64) 
 			code = code[:backupCodeLength]
 		}
 		plaintextCodes[i] = code
-		records[i] = &model.UserBackupCode{
+		records[i] = &UserBackupCode{
 			UserID:   userID,
 			CodeHash: crypto.HashAuthorizationCode(code),
 		}
@@ -324,16 +321,16 @@ func (s *accountService) GenerateBackupCodes(ctx context.Context, userID int64) 
 	}
 
 	span.SetStatus(codes.Ok, "")
-	return &dto.GenerateBackupCodesResponseDTO{Codes: plaintextCodes}, nil
+	return &GenerateBackupCodesResponseDTO{Codes: plaintextCodes}, nil
 }
 
 // VerifyBackupCode looks up a user by email, verifies a backup code, and issues tokens.
-func (s *accountService) VerifyBackupCode(ctx context.Context, req dto.VerifyBackupCodeDTO) (*dto.LoginResponseDTO, error) {
+func (s *accountService) VerifyBackupCode(ctx context.Context, req VerifyBackupCodeDTO) (*LoginResponseDTO, error) {
 	_, span := otel.Tracer("service").Start(ctx, "account.verifyBackupCode")
 	defer span.End()
 
-	var user *model.User
-	var client *model.Client
+	var user *User
+	var client *Client
 	var userIdentitySub string
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
@@ -351,7 +348,7 @@ func (s *accountService) VerifyBackupCode(ctx context.Context, req dto.VerifyBac
 
 		client, txErr = txClientRepo.FindByClientIDAndIdentityProvider(req.ClientID, req.ProviderID)
 		if txErr != nil || client == nil ||
-			client.Status != model.StatusActive ||
+			client.Status != StatusActive ||
 			client.Domain == nil || *client.Domain == "" {
 			return apperror.NewUnauthorized("authentication failed")
 		}
@@ -364,7 +361,7 @@ func (s *accountService) VerifyBackupCode(ctx context.Context, req dto.VerifyBac
 		if user == nil {
 			return apperror.NewUnauthorized("invalid email or backup code")
 		}
-		if user.Status != model.StatusActive {
+		if user.Status != StatusActive {
 			return apperror.NewUnauthorized("account is not active")
 		}
 
@@ -404,7 +401,7 @@ func (s *accountService) VerifyBackupCode(ctx context.Context, req dto.VerifyBac
 }
 
 // generateTokenResponse issues access, ID, and refresh tokens for the given user and client.
-func (s *accountService) generateTokenResponse(sub string, user *model.User, client *model.Client) (*dto.LoginResponseDTO, error) {
+func (s *accountService) generateTokenResponse(sub string, user *User, client *Client) (*LoginResponseDTO, error) {
 	accessToken, err := jwt.GenerateAccessToken(
 		sub,
 		"openid profile email",
@@ -434,7 +431,7 @@ func (s *accountService) generateTokenResponse(sub string, user *model.User, cli
 		return nil, err
 	}
 
-	return &dto.LoginResponseDTO{
+	return &LoginResponseDTO{
 		AccessToken:  accessToken,
 		IDToken:      idToken,
 		RefreshToken: refreshToken,

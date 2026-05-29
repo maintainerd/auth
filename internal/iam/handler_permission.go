@@ -7,18 +7,16 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
-	"github.com/maintainerd/auth/internal/dto"
 	"github.com/maintainerd/auth/internal/platform/middleware"
 	"github.com/maintainerd/auth/internal/platform/ptr"
 	resp "github.com/maintainerd/auth/internal/platform/response"
-	"github.com/maintainerd/auth/internal/service"
 )
 
 type PermissionHandler struct {
-	permissionService service.PermissionService
+	permissionService PermissionService
 }
 
-func NewPermissionHandler(permissionService service.PermissionService) *PermissionHandler {
+func NewPermissionHandler(permissionService PermissionService) *PermissionHandler {
 	return &PermissionHandler{permissionService}
 }
 
@@ -53,7 +51,7 @@ func (h *PermissionHandler) Get(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Build request DTO
-	reqParams := dto.PermissionFilterDTO{
+	reqParams := PermissionFilterDTO{
 		Name:                 ptr.PtrOrNil(q.Get("name")),
 		Description:          ptr.PtrOrNil(q.Get("description")),
 		APIUUID:              ptr.PtrOrNil(q.Get("api_id")),
@@ -71,7 +69,7 @@ func (h *PermissionHandler) Get(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Build permission filter
-	permissionFilter := service.PermissionServiceGetFilter{
+	permissionFilter := PermissionServiceGetFilter{
 		TenantID:    tenant.TenantID,
 		Name:        reqParams.Name,
 		Description: reqParams.Description,
@@ -95,13 +93,13 @@ func (h *PermissionHandler) Get(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Map permissions result to DTO
-	rows := make([]dto.PermissionResponseDTO, len(result.Data))
+	rows := make([]PermissionResponseDTO, len(result.Data))
 	for i, r := range result.Data {
 		rows[i] = toPermissionResponseDTO(r)
 	}
 
 	// Build response data
-	response := dto.PaginatedResponseDTO[dto.PermissionResponseDTO]{
+	response := PaginatedResponseDTO[PermissionResponseDTO]{
 		Rows:       rows,
 		Total:      result.Total,
 		Page:       result.Page,
@@ -147,7 +145,7 @@ func (h *PermissionHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var req dto.PermissionCreateRequestDTO
+	var req PermissionCreateRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		resp.Error(w, http.StatusBadRequest, "Invalid request")
 		return
@@ -184,7 +182,7 @@ func (h *PermissionHandler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var req dto.PermissionUpdateRequestDTO
+	var req PermissionUpdateRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		resp.Error(w, http.StatusBadRequest, "Invalid request")
 		return
@@ -221,7 +219,7 @@ func (h *PermissionHandler) SetStatus(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var req dto.PermissionStatusUpdateDTO
+	var req PermissionStatusUpdateDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		resp.Error(w, http.StatusBadRequest, "Invalid request body")
 		return
@@ -269,8 +267,8 @@ func (h *PermissionHandler) Delete(w http.ResponseWriter, r *http.Request) {
 }
 
 // Convert permission result to DTO
-func toPermissionResponseDTO(r service.PermissionServiceDataResult) dto.PermissionResponseDTO {
-	result := dto.PermissionResponseDTO{
+func toPermissionResponseDTO(r PermissionServiceDataResult) PermissionResponseDTO {
+	result := PermissionResponseDTO{
 		PermissionUUID: r.PermissionUUID,
 		Name:           r.Name,
 		Description:    r.Description,
@@ -282,7 +280,7 @@ func toPermissionResponseDTO(r service.PermissionServiceDataResult) dto.Permissi
 	}
 
 	if r.API != nil {
-		result.API = &dto.APIResponseDTO{
+		result.API = &APIResponseDTO{
 			APIUUID:     r.API.APIUUID,
 			Name:        r.API.Name,
 			DisplayName: r.API.DisplayName,

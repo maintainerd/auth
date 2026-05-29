@@ -6,8 +6,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/maintainerd/auth/internal/dto"
-	"github.com/maintainerd/auth/internal/model"
 	"github.com/maintainerd/auth/internal/platform/apperror"
 	"github.com/maintainerd/auth/internal/platform/config"
 	"github.com/maintainerd/auth/internal/platform/crypto"
@@ -16,7 +14,6 @@ import (
 	"github.com/maintainerd/auth/internal/platform/middleware"
 	"github.com/maintainerd/auth/internal/platform/ptr"
 	"github.com/maintainerd/auth/internal/platform/security"
-	"github.com/maintainerd/auth/internal/repository"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -34,36 +31,36 @@ const (
 type OAuthDeviceService interface {
 	// Authorize processes a device authorization request and returns the
 	// device_code, user_code, and verification_uri.
-	Authorize(ctx context.Context, req dto.OAuthDeviceAuthorizationRequestDTO, creds dto.OAuthClientCredentials) (*dto.OAuthDeviceAuthorizationResponseDTO, *apperror.OAuthError)
+	Authorize(ctx context.Context, req OAuthDeviceAuthorizationRequestDTO, creds OAuthClientCredentials) (*OAuthDeviceAuthorizationResponseDTO, *apperror.OAuthError)
 
 	// VerifyUserCode is called when the authenticated user submits the user_code
 	// at the verification URI. Marks the device code as approved.
-	VerifyUserCode(ctx context.Context, req dto.OAuthDeviceVerifyRequestDTO, userID int64) *apperror.OAuthError
+	VerifyUserCode(ctx context.Context, req OAuthDeviceVerifyRequestDTO, userID int64) *apperror.OAuthError
 
 	// DenyUserCode is called when the user explicitly rejects the request.
-	DenyUserCode(ctx context.Context, req dto.OAuthDeviceVerifyRequestDTO, userID int64) *apperror.OAuthError
+	DenyUserCode(ctx context.Context, req OAuthDeviceVerifyRequestDTO, userID int64) *apperror.OAuthError
 
 	// ExchangeToken polls for an access token using a device_code. Returns
 	// authorization_pending, slow_down, or a full token set.
-	ExchangeToken(ctx context.Context, req dto.OAuthDeviceTokenRequestDTO, creds dto.OAuthClientCredentials) (*dto.OAuthTokenResponseDTO, *apperror.OAuthError)
+	ExchangeToken(ctx context.Context, req OAuthDeviceTokenRequestDTO, creds OAuthClientCredentials) (*OAuthTokenResponseDTO, *apperror.OAuthError)
 }
 
 type oauthDeviceService struct {
 	db               *gorm.DB
-	clientRepo       repository.ClientRepository
-	deviceCodeRepo   repository.OAuthDeviceCodeRepository
-	userRepo         repository.UserRepository
-	userIdentityRepo repository.UserIdentityRepository
+	clientRepo       ClientRepository
+	deviceCodeRepo   OAuthDeviceCodeRepository
+	userRepo         UserRepository
+	userIdentityRepo UserIdentityRepository
 	authEventService AuthEventService
 }
 
 // NewOAuthDeviceService creates a new OAuthDeviceService.
 func NewOAuthDeviceService(
 	db *gorm.DB,
-	clientRepo repository.ClientRepository,
-	deviceCodeRepo repository.OAuthDeviceCodeRepository,
-	userRepo repository.UserRepository,
-	userIdentityRepo repository.UserIdentityRepository,
+	clientRepo ClientRepository,
+	deviceCodeRepo OAuthDeviceCodeRepository,
+	userRepo UserRepository,
+	userIdentityRepo UserIdentityRepository,
 	authEventService AuthEventService,
 ) OAuthDeviceService {
 	return &oauthDeviceService{
@@ -77,7 +74,7 @@ func NewOAuthDeviceService(
 }
 
 // Authorize implements OAuthDeviceService.
-func (s *oauthDeviceService) Authorize(ctx context.Context, req dto.OAuthDeviceAuthorizationRequestDTO, creds dto.OAuthClientCredentials) (*dto.OAuthDeviceAuthorizationResponseDTO, *apperror.OAuthError) {
+func (s *oauthDeviceService) Authorize(ctx context.Context, req OAuthDeviceAuthorizationRequestDTO, creds OAuthClientCredentials) (*OAuthDeviceAuthorizationResponseDTO, *apperror.OAuthError) {
 	_, span := otel.Tracer("service").Start(ctx, "oauth_device.authorize")
 	defer span.End()
 	span.SetAttributes(attribute.String("oauth.client_id", creds.ClientID))
@@ -88,7 +85,7 @@ func (s *oauthDeviceService) Authorize(ctx context.Context, req dto.OAuthDeviceA
 		return nil, oerr
 	}
 
-	if !clientHasGrant(client, model.GrantTypeDeviceCode) {
+	if !clientHasGrant(client, GrantTypeDeviceCode) {
 		span.SetStatus(codes.Error, "grant not allowed")
 		return nil, apperror.NewOAuthUnauthorizedClient("client is not authorized for device_code grant")
 	}
@@ -102,13 +99,13 @@ func (s *oauthDeviceService) Authorize(ctx context.Context, req dto.OAuthDeviceA
 
 	userCode := generateUserCode()
 
-	deviceCode := &model.OAuthDeviceCode{
+	deviceCode := &OAuthDeviceCode{
 		DeviceCodeHash: deviceCodeHash,
 		UserCode:       userCode,
 		ClientID:       client.ClientID,
 		TenantID:       client.TenantID,
 		Scope:          req.Scope,
-		Status:         model.DeviceCodeStatusPending,
+		Status:         DeviceCodeStatusPending,
 		Interval:       devicePollInterval,
 		ExpiresAt:      time.Now().Add(deviceCodeTTL),
 	}
@@ -123,7 +120,7 @@ func (s *oauthDeviceService) Authorize(ctx context.Context, req dto.OAuthDeviceA
 	verificationURIComplete := fmt.Sprintf("%s?user_code=%s", verificationURI, userCode)
 
 	span.SetStatus(codes.Ok, "")
-	return &dto.OAuthDeviceAuthorizationResponseDTO{
+	return &OAuthDeviceAuthorizationResponseDTO{
 		DeviceCode:              rawDeviceCode,
 		UserCode:                userCode,
 		VerificationURI:         verificationURI,
@@ -134,7 +131,7 @@ func (s *oauthDeviceService) Authorize(ctx context.Context, req dto.OAuthDeviceA
 }
 
 // VerifyUserCode implements OAuthDeviceService.
-func (s *oauthDeviceService) VerifyUserCode(ctx context.Context, req dto.OAuthDeviceVerifyRequestDTO, userID int64) *apperror.OAuthError {
+func (s *oauthDeviceService) VerifyUserCode(ctx context.Context, req OAuthDeviceVerifyRequestDTO, userID int64) *apperror.OAuthError {
 	_, span := otel.Tracer("service").Start(ctx, "oauth_device.verify_user_code")
 	defer span.End()
 	span.SetAttributes(attribute.Int64("user.id", userID))
@@ -148,11 +145,11 @@ func (s *oauthDeviceService) VerifyUserCode(ctx context.Context, req dto.OAuthDe
 		return apperror.NewOAuthInvalidGrant("invalid or expired user_code")
 	}
 	if record.IsExpired() {
-		_ = s.deviceCodeRepo.UpdateStatus(record.OAuthDeviceCodeID, model.DeviceCodeStatusExpired, nil)
+		_ = s.deviceCodeRepo.UpdateStatus(record.OAuthDeviceCodeID, DeviceCodeStatusExpired, nil)
 		return apperror.NewOAuthInvalidGrant("user_code has expired")
 	}
 
-	if err := s.deviceCodeRepo.UpdateStatus(record.OAuthDeviceCodeID, model.DeviceCodeStatusApproved, &userID); err != nil {
+	if err := s.deviceCodeRepo.UpdateStatus(record.OAuthDeviceCodeID, DeviceCodeStatusApproved, &userID); err != nil {
 		span.RecordError(err)
 		return apperror.NewOAuthServerError("an unexpected error occurred")
 	}
@@ -162,10 +159,10 @@ func (s *oauthDeviceService) VerifyUserCode(ctx context.Context, req dto.OAuthDe
 		ActorUserID: &userID,
 		IPAddress:   middleware.ClientIPFromContext(ctx),
 		UserAgent:   ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),
-		Category:    model.AuthEventCategoryAuthn,
-		EventType:   model.AuthEventTypeOAuthConsent,
-		Severity:    model.AuthEventSeverityInfo,
-		Result:      model.AuthEventResultSuccess,
+		Category:    AuthEventCategoryAuthn,
+		EventType:   AuthEventTypeOAuthConsent,
+		Severity:    AuthEventSeverityInfo,
+		Result:      AuthEventResultSuccess,
 		Description: ptr.Ptr("Device authorization approved"),
 	})
 
@@ -174,7 +171,7 @@ func (s *oauthDeviceService) VerifyUserCode(ctx context.Context, req dto.OAuthDe
 }
 
 // DenyUserCode implements OAuthDeviceService.
-func (s *oauthDeviceService) DenyUserCode(ctx context.Context, req dto.OAuthDeviceVerifyRequestDTO, userID int64) *apperror.OAuthError {
+func (s *oauthDeviceService) DenyUserCode(ctx context.Context, req OAuthDeviceVerifyRequestDTO, userID int64) *apperror.OAuthError {
 	_, span := otel.Tracer("service").Start(ctx, "oauth_device.deny_user_code")
 	defer span.End()
 
@@ -187,7 +184,7 @@ func (s *oauthDeviceService) DenyUserCode(ctx context.Context, req dto.OAuthDevi
 		return apperror.NewOAuthInvalidGrant("invalid or expired user_code")
 	}
 
-	if err := s.deviceCodeRepo.UpdateStatus(record.OAuthDeviceCodeID, model.DeviceCodeStatusDenied, nil); err != nil {
+	if err := s.deviceCodeRepo.UpdateStatus(record.OAuthDeviceCodeID, DeviceCodeStatusDenied, nil); err != nil {
 		span.RecordError(err)
 		return apperror.NewOAuthServerError("an unexpected error occurred")
 	}
@@ -197,10 +194,10 @@ func (s *oauthDeviceService) DenyUserCode(ctx context.Context, req dto.OAuthDevi
 		ActorUserID: &userID,
 		IPAddress:   middleware.ClientIPFromContext(ctx),
 		UserAgent:   ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),
-		Category:    model.AuthEventCategoryAuthn,
-		EventType:   model.AuthEventTypeOAuthConsentDeny,
-		Severity:    model.AuthEventSeverityInfo,
-		Result:      model.AuthEventResultFailure,
+		Category:    AuthEventCategoryAuthn,
+		EventType:   AuthEventTypeOAuthConsentDeny,
+		Severity:    AuthEventSeverityInfo,
+		Result:      AuthEventResultFailure,
 		Description: ptr.Ptr("Device authorization denied by user"),
 	})
 
@@ -209,7 +206,7 @@ func (s *oauthDeviceService) DenyUserCode(ctx context.Context, req dto.OAuthDevi
 }
 
 // ExchangeToken implements OAuthDeviceService (device polling flow).
-func (s *oauthDeviceService) ExchangeToken(ctx context.Context, req dto.OAuthDeviceTokenRequestDTO, creds dto.OAuthClientCredentials) (*dto.OAuthTokenResponseDTO, *apperror.OAuthError) {
+func (s *oauthDeviceService) ExchangeToken(ctx context.Context, req OAuthDeviceTokenRequestDTO, creds OAuthClientCredentials) (*OAuthTokenResponseDTO, *apperror.OAuthError) {
 	_, span := otel.Tracer("service").Start(ctx, "oauth_device.exchange_token")
 	defer span.End()
 	span.SetAttributes(attribute.String("oauth.client_id", creds.ClientID))
@@ -235,7 +232,7 @@ func (s *oauthDeviceService) ExchangeToken(ctx context.Context, req dto.OAuthDev
 		return nil, apperror.NewOAuthInvalidGrant("device_code does not belong to this client")
 	}
 
-	if record.IsExpired() || record.Status == model.DeviceCodeStatusExpired {
+	if record.IsExpired() || record.Status == DeviceCodeStatusExpired {
 		return nil, &apperror.OAuthError{
 			Code:        "expired_token",
 			Description: "the device_code has expired; restart the device authorization flow",
@@ -255,15 +252,15 @@ func (s *oauthDeviceService) ExchangeToken(ctx context.Context, req dto.OAuthDev
 	_ = s.deviceCodeRepo.UpdateLastPollAt(record.OAuthDeviceCodeID)
 
 	switch record.Status {
-	case model.DeviceCodeStatusPending:
+	case DeviceCodeStatusPending:
 		return nil, &apperror.OAuthError{
 			Code:        "authorization_pending",
 			Description: "the user has not yet approved the request",
 			StatusCode:  400,
 		}
-	case model.DeviceCodeStatusDenied:
+	case DeviceCodeStatusDenied:
 		return nil, apperror.NewOAuthAccessDenied("the user denied the device authorization request")
-	case model.DeviceCodeStatusApproved:
+	case DeviceCodeStatusApproved:
 		// Fall through to token issuance.
 	default:
 		return nil, apperror.NewOAuthInvalidGrant("unexpected device code status")
@@ -307,15 +304,15 @@ func (s *oauthDeviceService) ExchangeToken(ctx context.Context, req dto.OAuthDev
 		ActorUserID: record.UserID,
 		IPAddress:   middleware.ClientIPFromContext(ctx),
 		UserAgent:   ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),
-		Category:    model.AuthEventCategoryAuthn,
-		EventType:   model.AuthEventTypeTokenCreated,
-		Severity:    model.AuthEventSeverityInfo,
-		Result:      model.AuthEventResultSuccess,
+		Category:    AuthEventCategoryAuthn,
+		EventType:   AuthEventTypeTokenCreated,
+		Severity:    AuthEventSeverityInfo,
+		Result:      AuthEventResultSuccess,
 		Description: ptr.Ptr("Device code token issued"),
 	})
 
 	span.SetStatus(codes.Ok, "")
-	return &dto.OAuthTokenResponseDTO{
+	return &OAuthTokenResponseDTO{
 		AccessToken: accessToken,
 		TokenType:   "Bearer",
 		ExpiresIn:   int64(jwt.AccessTokenTTL.Seconds()),
@@ -327,12 +324,12 @@ func (s *oauthDeviceService) ExchangeToken(ctx context.Context, req dto.OAuthDev
 // Helpers
 // ──────────────────────────────────────────────────────────────────────────────
 
-func (s *oauthDeviceService) authenticateClient(creds dto.OAuthClientCredentials) (*model.Client, *apperror.OAuthError) {
-	var client model.Client
+func (s *oauthDeviceService) authenticateClient(creds OAuthClientCredentials) (*Client, *apperror.OAuthError) {
+	var client Client
 	err := s.db.
 		Preload("IdentityProvider").
 		Preload("ClientURIs").
-		Where("identifier = ? AND status = ?", creds.ClientID, model.StatusActive).
+		Where("identifier = ? AND status = ?", creds.ClientID, StatusActive).
 		First(&client).Error
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
@@ -368,7 +365,7 @@ func generateUserCode() string {
 	return string(result)
 }
 
-func (s *oauthDeviceService) sendDeviceApprovalEmail(ctx context.Context, user *model.User, client *model.Client) error {
+func (s *oauthDeviceService) sendDeviceApprovalEmail(ctx context.Context, user *User, client *Client) error {
 	if user.Email == "" {
 		return nil
 	}

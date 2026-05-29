@@ -4,15 +4,14 @@ import (
 	"errors"
 	"time"
 
-	"github.com/maintainerd/auth/internal/model"
 	"gorm.io/gorm"
 )
 
 type UserTOTPSecretRepository interface {
-	BaseRepositoryMethods[model.UserTOTPSecret]
+	BaseRepositoryMethods[UserTOTPSecret]
 	WithTx(tx *gorm.DB) UserTOTPSecretRepository
-	FindByUserID(userID int64) (*model.UserTOTPSecret, error)
-	Upsert(secret *model.UserTOTPSecret) error
+	FindByUserID(userID int64) (*UserTOTPSecret, error)
+	Upsert(secret *UserTOTPSecret) error
 	Enable(userID int64) error
 	Disable(userID int64) error
 	UpdateLastUsed(userID int64) error
@@ -20,12 +19,12 @@ type UserTOTPSecretRepository interface {
 }
 
 type userTOTPSecretRepository struct {
-	*BaseRepository[model.UserTOTPSecret]
+	*BaseRepository[UserTOTPSecret]
 }
 
 func NewUserTOTPSecretRepository(db *gorm.DB) UserTOTPSecretRepository {
 	return &userTOTPSecretRepository{
-		BaseRepository: NewBaseRepository[model.UserTOTPSecret](db, "totp_secret_uuid", "totp_secret_id"),
+		BaseRepository: NewBaseRepository[UserTOTPSecret](db, "totp_secret_uuid", "totp_secret_id"),
 	}
 }
 
@@ -33,8 +32,8 @@ func (r *userTOTPSecretRepository) WithTx(tx *gorm.DB) UserTOTPSecretRepository 
 	return &userTOTPSecretRepository{BaseRepository: r.BaseRepository.WithTx(tx)}
 }
 
-func (r *userTOTPSecretRepository) FindByUserID(userID int64) (*model.UserTOTPSecret, error) {
-	var s model.UserTOTPSecret
+func (r *userTOTPSecretRepository) FindByUserID(userID int64) (*UserTOTPSecret, error) {
+	var s UserTOTPSecret
 	err := r.DB().Where("user_id = ?", userID).First(&s).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -45,8 +44,8 @@ func (r *userTOTPSecretRepository) FindByUserID(userID int64) (*model.UserTOTPSe
 	return &s, nil
 }
 
-func (r *userTOTPSecretRepository) Upsert(secret *model.UserTOTPSecret) error {
-	var existing model.UserTOTPSecret
+func (r *userTOTPSecretRepository) Upsert(secret *UserTOTPSecret) error {
+	var existing UserTOTPSecret
 	err := r.DB().Where("user_id = ?", secret.UserID).First(&existing).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -63,7 +62,7 @@ func (r *userTOTPSecretRepository) Upsert(secret *model.UserTOTPSecret) error {
 
 func (r *userTOTPSecretRepository) Enable(userID int64) error {
 	now := time.Now()
-	return r.DB().Model(&model.UserTOTPSecret{}).
+	return r.DB().Model(&UserTOTPSecret{}).
 		Where("user_id = ?", userID).
 		Updates(map[string]any{
 			"is_enabled":  true,
@@ -73,7 +72,7 @@ func (r *userTOTPSecretRepository) Enable(userID int64) error {
 }
 
 func (r *userTOTPSecretRepository) Disable(userID int64) error {
-	return r.DB().Model(&model.UserTOTPSecret{}).
+	return r.DB().Model(&UserTOTPSecret{}).
 		Where("user_id = ?", userID).
 		Updates(map[string]any{
 			"is_enabled": false,
@@ -83,7 +82,7 @@ func (r *userTOTPSecretRepository) Disable(userID int64) error {
 
 func (r *userTOTPSecretRepository) UpdateLastUsed(userID int64) error {
 	now := time.Now()
-	return r.DB().Model(&model.UserTOTPSecret{}).
+	return r.DB().Model(&UserTOTPSecret{}).
 		Where("user_id = ?", userID).
 		Updates(map[string]any{
 			"last_used_at": now,
@@ -92,5 +91,5 @@ func (r *userTOTPSecretRepository) UpdateLastUsed(userID int64) error {
 }
 
 func (r *userTOTPSecretRepository) DeleteByUserID(userID int64) error {
-	return r.DB().Where("user_id = ?", userID).Delete(&model.UserTOTPSecret{}).Error
+	return r.DB().Where("user_id = ?", userID).Delete(&UserTOTPSecret{}).Error
 }

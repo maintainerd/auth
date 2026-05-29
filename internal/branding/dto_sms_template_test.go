@@ -5,8 +5,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"github.com/maintainerd/auth/internal/model"
 )
 
 func validSMSCreate() SMSTemplateCreateRequestDTO {
@@ -62,7 +60,7 @@ func TestSMSTemplateCreateRequestDto_Validate(t *testing.T) {
 
 	t.Run("valid inactive status", func(t *testing.T) {
 		d := validSMSCreate()
-		s := model.StatusInactive
+		s := StatusInactive
 		d.Status = &s
 		assert.NoError(t, d.Validate())
 	})
@@ -80,8 +78,8 @@ func TestSMSTemplateUpdateRequestDto_Validate(t *testing.T) {
 }
 
 func TestSMSTemplateUpdateStatusRequestDto_Validate(t *testing.T) {
-	assert.NoError(t, SMSTemplateUpdateStatusRequestDTO{Status: model.StatusActive}.Validate())
-	assert.NoError(t, SMSTemplateUpdateStatusRequestDTO{Status: model.StatusInactive}.Validate())
+	assert.NoError(t, SMSTemplateUpdateStatusRequestDTO{Status: StatusActive}.Validate())
+	assert.NoError(t, SMSTemplateUpdateStatusRequestDTO{Status: StatusInactive}.Validate())
 	require.Error(t, SMSTemplateUpdateStatusRequestDTO{Status: ""}.Validate())
 	require.Error(t, SMSTemplateUpdateStatusRequestDTO{Status: "bad"}.Validate())
 }
@@ -103,7 +101,7 @@ func TestSMSTemplateFilterDto_Validate(t *testing.T) {
 	t.Run("valid status list", func(t *testing.T) {
 		f := SMSTemplateFilterDTO{
 			PaginationRequestDTO: validPagination(),
-			Status:               []string{model.StatusActive},
+			Status:               []string{StatusActive},
 		}
 		assert.NoError(t, f.Validate())
 	})

@@ -8,7 +8,6 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/maintainerd/auth/internal/dto"
 	"github.com/maintainerd/auth/internal/platform/middleware"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -115,7 +114,7 @@ func TestLoginHandler_LoginPublic_InvalidBody(t *testing.T) {
 
 func TestLoginHandler_LoginPublic_ServiceError(t *testing.T) {
 	svc := &mockLoginService{
-		loginPublicFn: func(u, p, c, pr string) (*dto.LoginResponseDTO, error) {
+		loginPublicFn: func(u, p, c, pr string) (*LoginResponseDTO, error) {
 			return nil, errUnauthorized
 		},
 	}
@@ -129,8 +128,8 @@ func TestLoginHandler_LoginPublic_ServiceError(t *testing.T) {
 
 func TestLoginHandler_LoginPublic_Success(t *testing.T) {
 	svc := &mockLoginService{
-		loginPublicFn: func(u, p, c, pr string) (*dto.LoginResponseDTO, error) {
-			return &dto.LoginResponseDTO{AccessToken: "tok"}, nil
+		loginPublicFn: func(u, p, c, pr string) (*LoginResponseDTO, error) {
+			return &LoginResponseDTO{AccessToken: "tok"}, nil
 		},
 	}
 	h := NewLoginHandler(svc)
@@ -161,8 +160,8 @@ func TestLoginHandler_Login_WithOptionalParams(t *testing.T) {
 	// Passes client_id and provider_id query params → covers the two optional
 	// pointer branches (lines 203-205 and 206-208).
 	svc := &mockLoginService{
-		loginFn: func(u, p string, c, pr *string) (*dto.LoginResponseDTO, error) {
-			return &dto.LoginResponseDTO{AccessToken: "tok"}, nil
+		loginFn: func(u, p string, c, pr *string) (*LoginResponseDTO, error) {
+			return &LoginResponseDTO{AccessToken: "tok"}, nil
 		},
 	}
 	h := NewLoginHandler(svc)
@@ -195,7 +194,7 @@ func TestLoginHandler_Login_InvalidBody(t *testing.T) {
 
 func TestLoginHandler_Login_ServiceError(t *testing.T) {
 	svc := &mockLoginService{
-		loginFn: func(u, p string, c, pr *string) (*dto.LoginResponseDTO, error) {
+		loginFn: func(u, p string, c, pr *string) (*LoginResponseDTO, error) {
 			return nil, errUnauthorized
 		},
 	}
@@ -209,8 +208,8 @@ func TestLoginHandler_Login_ServiceError(t *testing.T) {
 
 func TestLoginHandler_Login_Success(t *testing.T) {
 	svc := &mockLoginService{
-		loginFn: func(u, p string, c, pr *string) (*dto.LoginResponseDTO, error) {
-			return &dto.LoginResponseDTO{AccessToken: "tok"}, nil
+		loginFn: func(u, p string, c, pr *string) (*LoginResponseDTO, error) {
+			return &LoginResponseDTO{AccessToken: "tok"}, nil
 		},
 	}
 	h := NewLoginHandler(svc)

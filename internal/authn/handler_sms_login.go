@@ -4,17 +4,15 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/maintainerd/auth/internal/dto"
 	resp "github.com/maintainerd/auth/internal/platform/response"
-	"github.com/maintainerd/auth/internal/service"
 )
 
 // SMSLoginHandler handles SMS one-time-code login flows.
 type SMSLoginHandler struct {
-	smsLoginService service.SMSLoginService
+	smsLoginService SMSLoginService
 }
 
-func NewSMSLoginHandler(smsLoginService service.SMSLoginService) *SMSLoginHandler {
+func NewSMSLoginHandler(smsLoginService SMSLoginService) *SMSLoginHandler {
 	return &SMSLoginHandler{smsLoginService: smsLoginService}
 }
 
@@ -22,7 +20,7 @@ func NewSMSLoginHandler(smsLoginService service.SMSLoginService) *SMSLoginHandle
 //
 // POST /sms-login/send
 func (h *SMSLoginHandler) SendOTP(w http.ResponseWriter, r *http.Request) {
-	var req dto.SMSLoginSendDTO
+	var req SMSLoginSendDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		resp.Error(w, http.StatusBadRequest, "Invalid JSON format")
 		return
@@ -44,7 +42,7 @@ func (h *SMSLoginHandler) SendOTP(w http.ResponseWriter, r *http.Request) {
 //
 // POST /sms-login/verify
 func (h *SMSLoginHandler) VerifyOTP(w http.ResponseWriter, r *http.Request) {
-	var req dto.SMSLoginVerifyDTO
+	var req SMSLoginVerifyDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		resp.Error(w, http.StatusBadRequest, "Invalid JSON format")
 		return

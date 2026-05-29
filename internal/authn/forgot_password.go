@@ -9,37 +9,34 @@ import (
 	"html/template"
 	"time"
 
-	"github.com/maintainerd/auth/internal/dto"
-	"github.com/maintainerd/auth/internal/model"
 	"github.com/maintainerd/auth/internal/platform/apperror"
 	"github.com/maintainerd/auth/internal/platform/config"
 	"github.com/maintainerd/auth/internal/platform/email"
 	"github.com/maintainerd/auth/internal/platform/security"
 	"github.com/maintainerd/auth/internal/platform/signedurl"
-	"github.com/maintainerd/auth/internal/repository"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/codes"
 	"gorm.io/gorm"
 )
 
 type ForgotPasswordService interface {
-	SendPasswordResetEmail(ctx context.Context, email string, clientID, providerID *string, isInternal bool) (*dto.ForgotPasswordResponseDTO, error)
+	SendPasswordResetEmail(ctx context.Context, email string, clientID, providerID *string, isInternal bool) (*ForgotPasswordResponseDTO, error)
 }
 
 type forgotPasswordService struct {
 	db                *gorm.DB
-	userRepo          repository.UserRepository
-	userTokenRepo     repository.UserTokenRepository
-	clientRepo        repository.ClientRepository
-	emailTemplateRepo repository.EmailTemplateRepository
+	userRepo          UserRepository
+	userTokenRepo     UserTokenRepository
+	clientRepo        ClientRepository
+	emailTemplateRepo EmailTemplateRepository
 }
 
 func NewForgotPasswordService(
 	db *gorm.DB,
-	userRepo repository.UserRepository,
-	userTokenRepo repository.UserTokenRepository,
-	clientRepo repository.ClientRepository,
-	emailTemplateRepo repository.EmailTemplateRepository,
+	userRepo UserRepository,
+	userTokenRepo UserTokenRepository,
+	clientRepo ClientRepository,
+	emailTemplateRepo EmailTemplateRepository,
 ) ForgotPasswordService {
 	return &forgotPasswordService{
 		db:                db,
@@ -50,12 +47,12 @@ func NewForgotPasswordService(
 	}
 }
 
-func (s *forgotPasswordService) SendPasswordResetEmail(ctx context.Context, email string, clientID, providerID *string, isInternal bool) (*dto.ForgotPasswordResponseDTO, error) {
+func (s *forgotPasswordService) SendPasswordResetEmail(ctx context.Context, email string, clientID, providerID *string, isInternal bool) (*ForgotPasswordResponseDTO, error) {
 	_, span := otel.Tracer("service").Start(ctx, "forgotPassword.sendResetEmail")
 	defer span.End()
 
-	var user *model.User
-	var Client *model.Client
+	var user *User
+	var Client *Client
 	var resetToken string
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
@@ -86,13 +83,13 @@ func (s *forgotPasswordService) SendPasswordResetEmail(ctx context.Context, emai
 		}
 
 		// Check if user is active
-		if user.Status != model.StatusActive {
+		if user.Status != StatusActive {
 			// Don't reveal if user is inactive for security
 			return nil
 		}
 
 		// Revoke any existing password reset tokens for this user
-		existingTokens, txErr := txUserTokenRepo.FindByUserIDAndTokenType(user.UserID, model.TokenTypePasswordReset)
+		existingTokens, txErr := txUserTokenRepo.FindByUserIDAndTokenType(user.UserID, TokenTypePasswordReset)
 		if txErr != nil {
 			return apperror.NewInternal("failed to find existing tokens", txErr)
 		}
@@ -107,9 +104,9 @@ func (s *forgotPasswordService) SendPasswordResetEmail(ctx context.Context, emai
 
 		// Create password reset token (expires in 1 hour)
 		expiresAt := time.Now().Add(1 * time.Hour)
-		userToken := &model.UserToken{
+		userToken := &UserToken{
 			UserID:    user.UserID,
-			TokenType: model.TokenTypePasswordReset,
+			TokenType: TokenTypePasswordReset,
 			Token:     resetToken,
 			ExpiresAt: &expiresAt,
 		}
@@ -128,7 +125,7 @@ func (s *forgotPasswordService) SendPasswordResetEmail(ctx context.Context, emai
 	}
 
 	// Always send success response for security (don't reveal if email exists)
-	response := &dto.ForgotPasswordResponseDTO{
+	response := &ForgotPasswordResponseDTO{
 		Message: "If an account with that email exists, we've sent a password reset link to it.",
 		Success: true,
 	}
@@ -160,7 +157,7 @@ func generateSecureToken(length int) string {
 	return hex.EncodeToString(bytes)
 }
 
-func (s *forgotPasswordService) sendPasswordResetEmail(ctx context.Context, to, resetToken string, Client *model.Client, isInternal bool) error {
+func (s *forgotPasswordService) sendPasswordResetEmail(ctx context.Context, to, resetToken string, Client *Client, isInternal bool) error {
 	// Get email template from DB
 	templateEntity, err := s.emailTemplateRepo.FindByName("internal:user:password:reset")
 	if err != nil {

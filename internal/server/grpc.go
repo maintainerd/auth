@@ -7,8 +7,8 @@ import (
 	"net"
 
 	"github.com/maintainerd/auth/internal/app"
-	"github.com/maintainerd/auth/internal/grpc/handler"
 	authv1 "github.com/maintainerd/auth/internal/platform/gen/go/maintainerd/auth"
+	"github.com/maintainerd/auth/internal/setup"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"google.golang.org/grpc"
 )
@@ -23,7 +23,7 @@ func StartGRPCServer(ctx context.Context, application *app.App) error {
 		return fmt.Errorf("gRPC failed to listen on :50051: %w", err)
 	}
 
-	seederHandler := handler.NewSeederHandler(application.RegisterService)
+	seederHandler := setup.NewSeederHandler(application.RegisterService)
 
 	s := grpc.NewServer(
 		grpc.StatsHandler(otelgrpc.NewServerHandler()),
