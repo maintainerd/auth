@@ -1,4 +1,4 @@
-package handler
+package webhook
 
 import (
 	"encoding/json"
@@ -40,7 +40,7 @@ func (h *WebhookEndpointHandler) GetAll(w http.ResponseWriter, r *http.Request) 
 		status = append(status, v)
 	}
 
-	filter := dto.WebhookEndpointFilterDTO{
+	filter := WebhookEndpointFilterDTO{
 		Status:               status,
 		PaginationRequestDTO: parsePaginationQuery(r),
 	}
@@ -61,7 +61,7 @@ func (h *WebhookEndpointHandler) GetAll(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	response := dto.PaginatedResponseDTO[dto.WebhookEndpointResponseDTO]{
+	response := dto.PaginatedResponseDTO[WebhookEndpointResponseDTO]{
 		Rows:       toWebhookEndpointResponseDTOList(result.Data),
 		Total:      result.Total,
 		Page:       result.Page,
@@ -108,7 +108,7 @@ func (h *WebhookEndpointHandler) Create(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	var req dto.WebhookEndpointCreateRequestDTO
+	var req WebhookEndpointCreateRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		resp.Error(w, http.StatusBadRequest, "Invalid request")
 		return
@@ -155,7 +155,7 @@ func (h *WebhookEndpointHandler) Update(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	var req dto.WebhookEndpointUpdateRequestDTO
+	var req WebhookEndpointUpdateRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		resp.Error(w, http.StatusBadRequest, "Invalid request")
 		return
@@ -228,7 +228,7 @@ func (h *WebhookEndpointHandler) UpdateStatus(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	var req dto.WebhookEndpointUpdateStatusRequestDTO
+	var req WebhookEndpointUpdateStatusRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		resp.Error(w, http.StatusBadRequest, "Invalid request body")
 		return
@@ -248,14 +248,14 @@ func (h *WebhookEndpointHandler) UpdateStatus(w http.ResponseWriter, r *http.Req
 	resp.Success(w, toWebhookEndpointResponseDTO(*result), "Webhook endpoint status updated successfully")
 }
 
-func toWebhookEndpointResponseDTO(we service.WebhookEndpointServiceDataResult) dto.WebhookEndpointResponseDTO {
+func toWebhookEndpointResponseDTO(we service.WebhookEndpointServiceDataResult) WebhookEndpointResponseDTO {
 	var lastTriggered *string
 	if we.LastTriggeredAt != nil {
 		formatted := we.LastTriggeredAt.Format("2006-01-02T15:04:05Z07:00")
 		lastTriggered = &formatted
 	}
 
-	return dto.WebhookEndpointResponseDTO{
+	return WebhookEndpointResponseDTO{
 		WebhookEndpointID: we.WebhookEndpointUUID.String(),
 		URL:               we.URL,
 		Events:            we.Events,
@@ -269,8 +269,8 @@ func toWebhookEndpointResponseDTO(we service.WebhookEndpointServiceDataResult) d
 	}
 }
 
-func toWebhookEndpointResponseDTOList(endpoints []service.WebhookEndpointServiceDataResult) []dto.WebhookEndpointResponseDTO {
-	result := make([]dto.WebhookEndpointResponseDTO, len(endpoints))
+func toWebhookEndpointResponseDTOList(endpoints []service.WebhookEndpointServiceDataResult) []WebhookEndpointResponseDTO {
+	result := make([]WebhookEndpointResponseDTO, len(endpoints))
 	for i, ep := range endpoints {
 		result[i] = toWebhookEndpointResponseDTO(ep)
 	}
