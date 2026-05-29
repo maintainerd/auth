@@ -42,14 +42,14 @@ type Tenant = cache.AuthTenant
 type User = cache.AuthUser
 
 type TenantRecord struct {
-	TenantID    int64
-	TenantUUID  uuid.UUID
-	Name        string
-	Identifier  string
-	Status      string
-	IsSystem    bool
-	CreatedAt   time.Time
-	UpdatedAt   time.Time
+	TenantID   int64
+	TenantUUID uuid.UUID
+	Name       string
+	Identifier string
+	Status     string
+	IsSystem   bool
+	CreatedAt  time.Time
+	UpdatedAt  time.Time
 }
 
 func (TenantRecord) TableName() string { return "tenants" }

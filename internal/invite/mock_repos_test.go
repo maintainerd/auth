@@ -39,18 +39,18 @@ func (m *mockClientRepo) FindSystem() (*Client, error) {
 	}
 	return nil, nil
 }
-func (m *mockClientRepo) Create(e *Client) (*Client, error)              { return e, nil }
-func (m *mockClientRepo) CreateOrUpdate(e *Client) (*Client, error)      { return e, nil }
+func (m *mockClientRepo) Create(e *Client) (*Client, error)               { return e, nil }
+func (m *mockClientRepo) CreateOrUpdate(e *Client) (*Client, error)       { return e, nil }
 func (m *mockClientRepo) FindAll(p ...string) ([]Client, error)           { return nil, nil }
 func (m *mockClientRepo) FindByUUID(id any, p ...string) (*Client, error) { return nil, nil }
 func (m *mockClientRepo) FindByUUIDs(ids []string, p ...string) ([]Client, error) {
 	return nil, nil
 }
-func (m *mockClientRepo) FindByID(id any, p ...string) (*Client, error)   { return nil, nil }
-func (m *mockClientRepo) UpdateByUUID(id, data any) (*Client, error)      { return nil, nil }
-func (m *mockClientRepo) UpdateByID(id, data any) (*Client, error)        { return nil, nil }
-func (m *mockClientRepo) DeleteByUUID(id any) error                       { return nil }
-func (m *mockClientRepo) DeleteByID(id any) error                         { return nil }
+func (m *mockClientRepo) FindByID(id any, p ...string) (*Client, error) { return nil, nil }
+func (m *mockClientRepo) UpdateByUUID(id, data any) (*Client, error)    { return nil, nil }
+func (m *mockClientRepo) UpdateByID(id, data any) (*Client, error)      { return nil, nil }
+func (m *mockClientRepo) DeleteByUUID(id any) error                     { return nil }
+func (m *mockClientRepo) DeleteByID(id any) error                       { return nil }
 func (m *mockClientRepo) Paginate(c map[string]any, pg, lim int, p ...string) (*PaginationResult[Client], error) {
 	return nil, nil
 }
@@ -70,15 +70,15 @@ func (m *mockRoleRepo) FindByUUIDs(ids []string, p ...string) ([]Role, error) {
 	}
 	return nil, nil
 }
-func (m *mockRoleRepo) Create(e *Role) (*Role, error)              { return e, nil }
-func (m *mockRoleRepo) CreateOrUpdate(e *Role) (*Role, error)      { return e, nil }
-func (m *mockRoleRepo) FindAll(p ...string) ([]Role, error)         { return nil, nil }
+func (m *mockRoleRepo) Create(e *Role) (*Role, error)                 { return e, nil }
+func (m *mockRoleRepo) CreateOrUpdate(e *Role) (*Role, error)         { return e, nil }
+func (m *mockRoleRepo) FindAll(p ...string) ([]Role, error)           { return nil, nil }
 func (m *mockRoleRepo) FindByUUID(id any, p ...string) (*Role, error) { return nil, nil }
-func (m *mockRoleRepo) FindByID(id any, p ...string) (*Role, error)  { return nil, nil }
-func (m *mockRoleRepo) UpdateByUUID(id, data any) (*Role, error)     { return nil, nil }
-func (m *mockRoleRepo) UpdateByID(id, data any) (*Role, error)       { return nil, nil }
-func (m *mockRoleRepo) DeleteByUUID(id any) error                    { return nil }
-func (m *mockRoleRepo) DeleteByID(id any) error                      { return nil }
+func (m *mockRoleRepo) FindByID(id any, p ...string) (*Role, error)   { return nil, nil }
+func (m *mockRoleRepo) UpdateByUUID(id, data any) (*Role, error)      { return nil, nil }
+func (m *mockRoleRepo) UpdateByID(id, data any) (*Role, error)        { return nil, nil }
+func (m *mockRoleRepo) DeleteByUUID(id any) error                     { return nil }
+func (m *mockRoleRepo) DeleteByID(id any) error                       { return nil }
 func (m *mockRoleRepo) Paginate(c map[string]any, pg, lim int, p ...string) (*PaginationResult[Role], error) {
 	return nil, nil
 }
@@ -98,7 +98,7 @@ func (m *mockInviteRepo) Create(e *Invite) (*Invite, error) {
 	}
 	return e, nil
 }
-func (m *mockInviteRepo) CreateOrUpdate(e *Invite) (*Invite, error)      { return e, nil }
+func (m *mockInviteRepo) CreateOrUpdate(e *Invite) (*Invite, error)       { return e, nil }
 func (m *mockInviteRepo) FindAll(p ...string) ([]Invite, error)           { return nil, nil }
 func (m *mockInviteRepo) FindByUUID(id any, p ...string) (*Invite, error) { return nil, nil }
 func (m *mockInviteRepo) FindByUUIDs(ids []string, p ...string) ([]Invite, error) {
@@ -116,10 +116,10 @@ func (m *mockInviteRepo) FindByUUIDAndTenantID(id uuid.UUID, tenantID int64, p .
 	return nil, nil
 }
 func (m *mockInviteRepo) FindByToken(token string) (*Invite, error)          { return nil, nil }
-func (m *mockInviteRepo) FindAllByClientID(clientID int64) ([]Invite, error)  { return nil, nil }
-func (m *mockInviteRepo) FindAllByTenantID(tenantID int64) ([]Invite, error)  { return nil, nil }
-func (m *mockInviteRepo) MarkAsUsed(id uuid.UUID) error                       { return nil }
-func (m *mockInviteRepo) RevokeByUUID(id uuid.UUID) error                     { return nil }
+func (m *mockInviteRepo) FindAllByClientID(clientID int64) ([]Invite, error) { return nil, nil }
+func (m *mockInviteRepo) FindAllByTenantID(tenantID int64) ([]Invite, error) { return nil, nil }
+func (m *mockInviteRepo) MarkAsUsed(id uuid.UUID) error                      { return nil }
+func (m *mockInviteRepo) RevokeByUUID(id uuid.UUID) error                    { return nil }
 
 // ---------------------------------------------------------------------------
 // Mock: branding.EmailTemplateRepository
