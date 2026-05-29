@@ -13,6 +13,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/maintainerd/auth/internal/app"
+	"github.com/maintainerd/auth/internal/invite"
 	securityMiddleware "github.com/maintainerd/auth/internal/platform/middleware"
 	"github.com/maintainerd/auth/internal/rest/handler"
 	"github.com/maintainerd/auth/internal/rest/route"
@@ -35,7 +36,7 @@ type handlers struct {
 	login              *handler.LoginHandler
 	profile            *handler.ProfileHandler
 	userSetting        *handler.UserSettingHandler
-	invite             *handler.InviteHandler
+	invite             *invite.InviteHandler
 	forgotPassword     *handler.ForgotPasswordHandler
 	resetPassword      *handler.ResetPasswordHandler
 	emailVerification  *handler.EmailVerificationHandler
@@ -86,7 +87,7 @@ func initHandlers(application *app.App) *handlers {
 		login:              handler.NewLoginHandler(application.LoginService),
 		profile:            handler.NewProfileHandler(application.ProfileService),
 		userSetting:        handler.NewUserSettingHandler(application.UserSettingService),
-		invite:             handler.NewInviteHandler(application.InviteService),
+		invite:             invite.NewInviteHandler(application.InviteService),
 		forgotPassword:     handler.NewForgotPasswordHandler(application.ForgotPasswordService),
 		resetPassword:      handler.NewResetPasswordHandler(application.ResetPasswordService),
 		emailVerification:  handler.NewEmailVerificationHandler(application.EmailVerificationService),
@@ -251,7 +252,7 @@ func buildInternalRouter(h *handlers, application *app.App) http.Handler {
 		route.ClientRoute(api, h.client, application.UserService, application.Cache)
 		route.RoleRoute(api, h.role, application.UserService, application.Cache)
 		route.UserRoute(api, h.user, h.profile, application.UserService, application.Cache)
-		route.InviteRoute(api, h.invite, application.UserService, application.Cache)
+		invite.InviteRoute(api, h.invite, application.UserService, application.Cache)
 		route.APIKeyRoute(api, h.apiKey, application.UserService, application.Cache)
 		route.SignupFlowRoute(api, h.signupFlow, application.UserService, application.Cache)
 		route.SecuritySettingRoute(api, h.securitySetting, application.UserService, application.Cache)

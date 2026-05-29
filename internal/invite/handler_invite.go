@@ -1,10 +1,9 @@
-package handler
+package invite
 
 import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/maintainerd/auth/internal/dto"
 	"github.com/maintainerd/auth/internal/platform/middleware"
 	resp "github.com/maintainerd/auth/internal/platform/response"
 	"github.com/maintainerd/auth/internal/service"
@@ -41,7 +40,7 @@ func (h *InviteHandler) Send(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Decode request body
-	var req dto.SendInviteRequest
+	var req SendInviteRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		resp.Error(w, http.StatusBadRequest, "Invalid request payload")
 		return
