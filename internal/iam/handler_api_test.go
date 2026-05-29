@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
-	"github.com/maintainerd/auth/internal/service"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -33,7 +32,7 @@ func TestAPIHandler_Get_ValidationError(t *testing.T) {
 
 func TestAPIHandler_Get_ServiceError(t *testing.T) {
 	svc := &mockAPIService{
-		getFn: func(service.APIServiceGetFilter) (*service.APIServiceGetResult, error) {
+		getFn: func(APIServiceGetFilter) (*APIServiceGetResult, error) {
 			return nil, assert.AnError
 		},
 	}
@@ -46,8 +45,8 @@ func TestAPIHandler_Get_ServiceError(t *testing.T) {
 
 func TestAPIHandler_Get_Success(t *testing.T) {
 	svc := &mockAPIService{
-		getFn: func(service.APIServiceGetFilter) (*service.APIServiceGetResult, error) {
-			return &service.APIServiceGetResult{}, nil
+		getFn: func(APIServiceGetFilter) (*APIServiceGetResult, error) {
+			return &APIServiceGetResult{}, nil
 		},
 	}
 	h := NewAPIHandler(svc)
@@ -59,9 +58,9 @@ func TestAPIHandler_Get_Success(t *testing.T) {
 
 func TestAPIHandler_Get_WithFilters(t *testing.T) {
 	svc := &mockAPIService{
-		getFn: func(f service.APIServiceGetFilter) (*service.APIServiceGetResult, error) {
-			return &service.APIServiceGetResult{
-				Data: []service.APIServiceDataResult{{Name: "api1"}},
+		getFn: func(f APIServiceGetFilter) (*APIServiceGetResult, error) {
+			return &APIServiceGetResult{
+				Data: []APIServiceDataResult{{Name: "api1"}},
 			}, nil
 		},
 	}
@@ -98,8 +97,8 @@ func TestAPIHandler_Get_WithServiceIDFilter(t *testing.T) {
 	// Covers the successful GetServiceIDByUUID path where serviceID is resolved and passed to Get.
 	svc := &mockAPIService{
 		getServiceIDByUUIDFn: func(id uuid.UUID) (int64, error) { return 42, nil },
-		getFn: func(f service.APIServiceGetFilter) (*service.APIServiceGetResult, error) {
-			return &service.APIServiceGetResult{}, nil
+		getFn: func(f APIServiceGetFilter) (*APIServiceGetResult, error) {
+			return &APIServiceGetResult{}, nil
 		},
 	}
 	h := NewAPIHandler(svc)
@@ -131,7 +130,7 @@ func TestAPIHandler_GetByUUID_InvalidUUID(t *testing.T) {
 
 func TestAPIHandler_GetByUUID_NotFound(t *testing.T) {
 	svc := &mockAPIService{
-		getByUUIDFn: func(id uuid.UUID, tid int64) (*service.APIServiceDataResult, error) {
+		getByUUIDFn: func(id uuid.UUID, tid int64) (*APIServiceDataResult, error) {
 			return nil, errNotFound
 		},
 	}
@@ -144,8 +143,8 @@ func TestAPIHandler_GetByUUID_NotFound(t *testing.T) {
 
 func TestAPIHandler_GetByUUID_Success(t *testing.T) {
 	svc := &mockAPIService{
-		getByUUIDFn: func(id uuid.UUID, tid int64) (*service.APIServiceDataResult, error) {
-			return &service.APIServiceDataResult{Name: "test-api"}, nil
+		getByUUIDFn: func(id uuid.UUID, tid int64) (*APIServiceDataResult, error) {
+			return &APIServiceDataResult{Name: "test-api"}, nil
 		},
 	}
 	h := NewAPIHandler(svc)
@@ -160,12 +159,12 @@ func TestAPIHandler_GetByUUID_Success(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestAPIHandler_GetByUUID_WithService(t *testing.T) {
-	svcData := &service.APIServiceDataResult{
+	svcData := &APIServiceDataResult{
 		Name:    "api1",
-		Service: &service.ServiceServiceDataResult{Name: "svc1"},
+		Service: &ServiceServiceDataResult{Name: "svc1"},
 	}
 	svc := &mockAPIService{
-		getByUUIDFn: func(id uuid.UUID, tid int64) (*service.APIServiceDataResult, error) {
+		getByUUIDFn: func(id uuid.UUID, tid int64) (*APIServiceDataResult, error) {
 			return svcData, nil
 		},
 	}
@@ -207,7 +206,7 @@ func TestAPIHandler_Create_ValidationError(t *testing.T) {
 
 func TestAPIHandler_Create_ServiceError(t *testing.T) {
 	svc := &mockAPIService{
-		createFn: func(tid int64, n, dn, desc, tp, s string, isSys bool, svcUUID string) (*service.APIServiceDataResult, error) {
+		createFn: func(tid int64, n, dn, desc, tp, s string, isSys bool, svcUUID string) (*APIServiceDataResult, error) {
 			return nil, assert.AnError
 		},
 	}
@@ -223,8 +222,8 @@ func TestAPIHandler_Create_ServiceError(t *testing.T) {
 
 func TestAPIHandler_Create_Success(t *testing.T) {
 	svc := &mockAPIService{
-		createFn: func(tid int64, n, dn, desc, tp, s string, isSys bool, svcUUID string) (*service.APIServiceDataResult, error) {
-			return &service.APIServiceDataResult{Name: n}, nil
+		createFn: func(tid int64, n, dn, desc, tp, s string, isSys bool, svcUUID string) (*APIServiceDataResult, error) {
+			return &APIServiceDataResult{Name: n}, nil
 		},
 	}
 	h := NewAPIHandler(svc)
@@ -275,7 +274,7 @@ func TestAPIHandler_Update_ValidationError(t *testing.T) {
 
 func TestAPIHandler_Update_ServiceError(t *testing.T) {
 	svc := &mockAPIService{
-		updateFn: func(id uuid.UUID, tid int64, n, dn, desc, tp, s, svcUUID string) (*service.APIServiceDataResult, error) {
+		updateFn: func(id uuid.UUID, tid int64, n, dn, desc, tp, s, svcUUID string) (*APIServiceDataResult, error) {
 			return nil, assert.AnError
 		},
 	}
@@ -291,8 +290,8 @@ func TestAPIHandler_Update_ServiceError(t *testing.T) {
 
 func TestAPIHandler_Update_Success(t *testing.T) {
 	svc := &mockAPIService{
-		updateFn: func(id uuid.UUID, tid int64, n, dn, desc, tp, s, svcUUID string) (*service.APIServiceDataResult, error) {
-			return &service.APIServiceDataResult{Name: n}, nil
+		updateFn: func(id uuid.UUID, tid int64, n, dn, desc, tp, s, svcUUID string) (*APIServiceDataResult, error) {
+			return &APIServiceDataResult{Name: n}, nil
 		},
 	}
 	h := NewAPIHandler(svc)
@@ -343,7 +342,7 @@ func TestAPIHandler_SetStatus_ValidationError(t *testing.T) {
 
 func TestAPIHandler_SetStatus_ServiceError(t *testing.T) {
 	svc := &mockAPIService{
-		setStatusByUUIDFn: func(id uuid.UUID, tid int64, status string) (*service.APIServiceDataResult, error) {
+		setStatusByUUIDFn: func(id uuid.UUID, tid int64, status string) (*APIServiceDataResult, error) {
 			return nil, assert.AnError
 		},
 	}
@@ -356,8 +355,8 @@ func TestAPIHandler_SetStatus_ServiceError(t *testing.T) {
 
 func TestAPIHandler_SetStatus_Success(t *testing.T) {
 	svc := &mockAPIService{
-		setStatusByUUIDFn: func(id uuid.UUID, tid int64, status string) (*service.APIServiceDataResult, error) {
-			return &service.APIServiceDataResult{Name: "api1", Status: status}, nil
+		setStatusByUUIDFn: func(id uuid.UUID, tid int64, status string) (*APIServiceDataResult, error) {
+			return &APIServiceDataResult{Name: "api1", Status: status}, nil
 		},
 	}
 	h := NewAPIHandler(svc)
@@ -389,7 +388,7 @@ func TestAPIHandler_Delete_InvalidUUID(t *testing.T) {
 
 func TestAPIHandler_Delete_ServiceError(t *testing.T) {
 	svc := &mockAPIService{
-		deleteByUUIDFn: func(id uuid.UUID, tid int64) (*service.APIServiceDataResult, error) {
+		deleteByUUIDFn: func(id uuid.UUID, tid int64) (*APIServiceDataResult, error) {
 			return nil, assert.AnError
 		},
 	}
@@ -402,8 +401,8 @@ func TestAPIHandler_Delete_ServiceError(t *testing.T) {
 
 func TestAPIHandler_Delete_Success(t *testing.T) {
 	svc := &mockAPIService{
-		deleteByUUIDFn: func(id uuid.UUID, tid int64) (*service.APIServiceDataResult, error) {
-			return &service.APIServiceDataResult{Name: "api1"}, nil
+		deleteByUUIDFn: func(id uuid.UUID, tid int64) (*APIServiceDataResult, error) {
+			return &APIServiceDataResult{Name: "api1"}, nil
 		},
 	}
 	h := NewAPIHandler(svc)

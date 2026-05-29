@@ -5,16 +5,14 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/maintainerd/auth/internal/model"
 	"github.com/maintainerd/auth/internal/platform/apperror"
-	"github.com/maintainerd/auth/internal/repository"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 )
 
 // BrandingServiceDataResult is the service-layer representation of a branding
-// record, decoupled from the persistence model.
+// record, decoupled from the persistence
 type BrandingServiceDataResult struct {
 	BrandingUUID      uuid.UUID
 	CompanyName       string
@@ -39,17 +37,17 @@ type BrandingService interface {
 }
 
 type brandingService struct {
-	brandingRepo repository.BrandingRepository
+	brandingRepo BrandingRepository
 }
 
 // NewBrandingService creates a new BrandingService.
-func NewBrandingService(brandingRepo repository.BrandingRepository) BrandingService {
+func NewBrandingService(brandingRepo BrandingRepository) BrandingService {
 	return &brandingService{brandingRepo: brandingRepo}
 }
 
-// toBrandingServiceDataResult converts a model.Branding into its service-layer
+// toBrandingServiceDataResult converts a Branding into its service-layer
 // representation.
-func toBrandingServiceDataResult(b *model.Branding) *BrandingServiceDataResult {
+func toBrandingServiceDataResult(b *Branding) *BrandingServiceDataResult {
 	return &BrandingServiceDataResult{
 		BrandingUUID:      b.BrandingUUID,
 		CompanyName:       b.CompanyName,
@@ -124,7 +122,7 @@ func (s *brandingService) Update(ctx context.Context, tenantID int64, companyNam
 
 // getOrCreate retrieves the branding record for the given tenant,
 // automatically creating a default empty record if none exists.
-func (s *brandingService) getOrCreate(tenantID int64) (*model.Branding, error) {
+func (s *brandingService) getOrCreate(tenantID int64) (*Branding, error) {
 	branding, err := s.brandingRepo.FindByTenantID(tenantID)
 	if err != nil {
 		return nil, err
@@ -133,7 +131,7 @@ func (s *brandingService) getOrCreate(tenantID int64) (*model.Branding, error) {
 		return branding, nil
 	}
 
-	branding = &model.Branding{TenantID: tenantID}
+	branding = &Branding{TenantID: tenantID}
 	created, err := s.brandingRepo.Create(branding)
 	if err != nil {
 		return nil, apperror.NewInternal("failed to create default branding", err)

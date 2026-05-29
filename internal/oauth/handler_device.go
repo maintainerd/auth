@@ -4,19 +4,17 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/maintainerd/auth/internal/dto"
 	"github.com/maintainerd/auth/internal/platform/middleware"
 	resp "github.com/maintainerd/auth/internal/platform/response"
-	"github.com/maintainerd/auth/internal/service"
 )
 
 // OAuthDeviceHandler handles the Device Authorization Grant (RFC 8628).
 type OAuthDeviceHandler struct {
-	deviceService service.OAuthDeviceService
+	deviceService OAuthDeviceService
 }
 
 // NewOAuthDeviceHandler creates a new OAuthDeviceHandler.
-func NewOAuthDeviceHandler(deviceService service.OAuthDeviceService) *OAuthDeviceHandler {
+func NewOAuthDeviceHandler(deviceService OAuthDeviceService) *OAuthDeviceHandler {
 	return &OAuthDeviceHandler{deviceService: deviceService}
 }
 
@@ -27,7 +25,7 @@ func (h *OAuthDeviceHandler) Authorize(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	req := dto.OAuthDeviceAuthorizationRequestDTO{
+	req := OAuthDeviceAuthorizationRequestDTO{
 		ClientID: r.FormValue("client_id"),
 		Scope:    r.FormValue("scope"),
 	}
@@ -63,7 +61,7 @@ func (h *OAuthDeviceHandler) VerifyUserCode(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	req := dto.OAuthDeviceVerifyRequestDTO{
+	req := OAuthDeviceVerifyRequestDTO{
 		UserCode: r.FormValue("user_code"),
 	}
 
@@ -82,7 +80,7 @@ func (h *OAuthDeviceHandler) VerifyUserCode(w http.ResponseWriter, r *http.Reque
 
 // ExchangeDeviceToken handles POST /oauth/token with grant_type=urn:ietf:params:oauth:grant-type:device_code.
 func (h *OAuthDeviceHandler) ExchangeDeviceToken(w http.ResponseWriter, r *http.Request) {
-	req := dto.OAuthDeviceTokenRequestDTO{
+	req := OAuthDeviceTokenRequestDTO{
 		DeviceCode: r.FormValue("device_code"),
 	}
 
@@ -117,7 +115,7 @@ func (h *OAuthDeviceHandler) DenyUserCode(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	req := dto.OAuthDeviceVerifyRequestDTO{
+	req := OAuthDeviceVerifyRequestDTO{
 		UserCode: r.FormValue("user_code"),
 	}
 

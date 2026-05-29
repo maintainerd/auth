@@ -5,7 +5,7 @@ import (
 	"log/slog"
 
 	"github.com/google/uuid"
-	"github.com/maintainerd/auth/internal/model"
+	model "github.com/maintainerd/auth/internal/idp"
 	"github.com/maintainerd/auth/internal/platform/crypto"
 	"gorm.io/datatypes"
 	"gorm.io/gorm"

@@ -5,7 +5,6 @@ import (
 	"strings"
 
 	"github.com/google/uuid"
-	"github.com/maintainerd/auth/internal/model"
 	"gorm.io/gorm"
 )
 
@@ -22,21 +21,21 @@ type SignupFlowRepositoryGetFilter struct {
 }
 
 type SignupFlowRepository interface {
-	BaseRepositoryMethods[model.SignupFlow]
+	BaseRepositoryMethods[SignupFlow]
 	WithTx(tx *gorm.DB) SignupFlowRepository
-	FindPaginated(filter SignupFlowRepositoryGetFilter) (*PaginationResult[model.SignupFlow], error)
-	FindByUUIDAndTenantID(signupFlowUUID uuid.UUID, tenantID int64, preloads ...string) (*model.SignupFlow, error)
-	FindByIdentifierAndClientID(identifier string, clientID int64) (*model.SignupFlow, error)
-	FindByName(name string) (*model.SignupFlow, error)
+	FindPaginated(filter SignupFlowRepositoryGetFilter) (*PaginationResult[SignupFlow], error)
+	FindByUUIDAndTenantID(signupFlowUUID uuid.UUID, tenantID int64, preloads ...string) (*SignupFlow, error)
+	FindByIdentifierAndClientID(identifier string, clientID int64) (*SignupFlow, error)
+	FindByName(name string) (*SignupFlow, error)
 }
 
 type signupFlowRepository struct {
-	*BaseRepository[model.SignupFlow]
+	*BaseRepository[SignupFlow]
 }
 
 func NewSignupFlowRepository(db *gorm.DB) SignupFlowRepository {
 	return &signupFlowRepository{
-		BaseRepository: NewBaseRepository[model.SignupFlow](db, "signup_flow_uuid", "signup_flow_id"),
+		BaseRepository: NewBaseRepository[SignupFlow](db, "signup_flow_uuid", "signup_flow_id"),
 	}
 }
 
@@ -46,11 +45,11 @@ func (r *signupFlowRepository) WithTx(tx *gorm.DB) SignupFlowRepository {
 	}
 }
 
-func (r *signupFlowRepository) FindPaginated(filter SignupFlowRepositoryGetFilter) (*PaginationResult[model.SignupFlow], error) {
-	var signupFlows []model.SignupFlow
+func (r *signupFlowRepository) FindPaginated(filter SignupFlowRepositoryGetFilter) (*PaginationResult[SignupFlow], error) {
+	var signupFlows []SignupFlow
 	var total int64
 
-	query := r.DB().Model(&model.SignupFlow{})
+	query := r.DB().Model(&SignupFlow{})
 
 	// Apply filters
 	if filter.Name != nil && *filter.Name != "" {
@@ -92,7 +91,7 @@ func (r *signupFlowRepository) FindPaginated(filter SignupFlowRepositoryGetFilte
 		totalPages++
 	}
 
-	return &PaginationResult[model.SignupFlow]{
+	return &PaginationResult[SignupFlow]{
 		Data:       signupFlows,
 		Total:      total,
 		Page:       filter.Page,
@@ -101,8 +100,8 @@ func (r *signupFlowRepository) FindPaginated(filter SignupFlowRepositoryGetFilte
 	}, nil
 }
 
-func (r *signupFlowRepository) FindByIdentifierAndClientID(identifier string, clientID int64) (*model.SignupFlow, error) {
-	var signupFlow model.SignupFlow
+func (r *signupFlowRepository) FindByIdentifierAndClientID(identifier string, clientID int64) (*SignupFlow, error) {
+	var signupFlow SignupFlow
 	err := r.DB().Where("identifier = ? AND client_id = ?", identifier, clientID).First(&signupFlow).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -113,8 +112,8 @@ func (r *signupFlowRepository) FindByIdentifierAndClientID(identifier string, cl
 	return &signupFlow, nil
 }
 
-func (r *signupFlowRepository) FindByUUIDAndTenantID(signupFlowUUID uuid.UUID, tenantID int64, preloads ...string) (*model.SignupFlow, error) {
-	var signupFlow model.SignupFlow
+func (r *signupFlowRepository) FindByUUIDAndTenantID(signupFlowUUID uuid.UUID, tenantID int64, preloads ...string) (*SignupFlow, error) {
+	var signupFlow SignupFlow
 	query := r.DB().Where("signup_flow_uuid = ? AND tenant_id = ?", signupFlowUUID, tenantID)
 
 	for _, preload := range preloads {
@@ -131,8 +130,8 @@ func (r *signupFlowRepository) FindByUUIDAndTenantID(signupFlowUUID uuid.UUID, t
 	return &signupFlow, nil
 }
 
-func (r *signupFlowRepository) FindByName(name string) (*model.SignupFlow, error) {
-	var signupFlow model.SignupFlow
+func (r *signupFlowRepository) FindByName(name string) (*SignupFlow, error) {
+	var signupFlow SignupFlow
 	err := r.DB().Where("name = ?", name).First(&signupFlow).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {

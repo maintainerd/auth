@@ -1,7 +1,6 @@
 package tenant
 
 import (
-	"github.com/maintainerd/auth/internal/model"
 	"gorm.io/gorm"
 )
 
@@ -15,20 +14,20 @@ type TenantServiceRepositoryGetFilter struct {
 }
 
 type TenantServiceRepository interface {
-	BaseRepositoryMethods[model.TenantService]
+	BaseRepositoryMethods[TenantService]
 	WithTx(tx *gorm.DB) TenantServiceRepository
-	FindPaginated(filter TenantServiceRepositoryGetFilter) (*PaginationResult[model.TenantService], error)
-	FindByTenantAndService(tenantID int64, serviceID int64) (*model.TenantService, error)
+	FindPaginated(filter TenantServiceRepositoryGetFilter) (*PaginationResult[TenantService], error)
+	FindByTenantAndService(tenantID int64, serviceID int64) (*TenantService, error)
 	DeleteByTenantAndService(tenantID int64, serviceID int64) error
 }
 
 type tenantServiceRepository struct {
-	*BaseRepository[model.TenantService]
+	*BaseRepository[TenantService]
 }
 
 func NewTenantServiceRepository(db *gorm.DB) TenantServiceRepository {
 	return &tenantServiceRepository{
-		BaseRepository: NewBaseRepository[model.TenantService](db, "", "tenant_service_id"),
+		BaseRepository: NewBaseRepository[TenantService](db, "", "tenant_service_id"),
 	}
 }
 
@@ -38,8 +37,8 @@ func (r *tenantServiceRepository) WithTx(tx *gorm.DB) TenantServiceRepository {
 	}
 }
 
-func (r *tenantServiceRepository) FindByTenantAndService(tenantID int64, serviceID int64) (*model.TenantService, error) {
-	var tenantService model.TenantService
+func (r *tenantServiceRepository) FindByTenantAndService(tenantID int64, serviceID int64) (*TenantService, error) {
+	var tenantService TenantService
 	err := r.DB().Where("tenant_id = ? AND service_id = ?", tenantID, serviceID).First(&tenantService).Error
 	if err != nil {
 		return nil, err
@@ -48,11 +47,11 @@ func (r *tenantServiceRepository) FindByTenantAndService(tenantID int64, service
 }
 
 func (r *tenantServiceRepository) DeleteByTenantAndService(tenantID int64, serviceID int64) error {
-	return r.DB().Where("tenant_id = ? AND service_id = ?", tenantID, serviceID).Delete(&model.TenantService{}).Error
+	return r.DB().Where("tenant_id = ? AND service_id = ?", tenantID, serviceID).Delete(&TenantService{}).Error
 }
 
-func (r *tenantServiceRepository) FindPaginated(filter TenantServiceRepositoryGetFilter) (*PaginationResult[model.TenantService], error) {
-	query := r.DB().Model(&model.TenantService{})
+func (r *tenantServiceRepository) FindPaginated(filter TenantServiceRepositoryGetFilter) (*PaginationResult[TenantService], error) {
+	query := r.DB().Model(&TenantService{})
 
 	// Filters
 	if filter.TenantID != nil {
@@ -72,11 +71,11 @@ func (r *tenantServiceRepository) FindPaginated(filter TenantServiceRepositoryGe
 		query = query.Offset(offset).Limit(filter.Limit)
 	}
 
-	var tenantServices []model.TenantService
+	var tenantServices []TenantService
 	var total int64
 
 	// Count total records
-	countQuery := r.DB().Model(&model.TenantService{})
+	countQuery := r.DB().Model(&TenantService{})
 	if filter.TenantID != nil {
 		countQuery = countQuery.Where("tenant_id = ?", *filter.TenantID)
 	}
@@ -91,7 +90,7 @@ func (r *tenantServiceRepository) FindPaginated(filter TenantServiceRepositoryGe
 		return nil, err
 	}
 
-	return &PaginationResult[model.TenantService]{
+	return &PaginationResult[TenantService]{
 		Data:  tenantServices,
 		Total: total,
 		Page:  filter.Page,

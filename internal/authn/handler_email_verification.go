@@ -5,17 +5,15 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/maintainerd/auth/internal/dto"
 	resp "github.com/maintainerd/auth/internal/platform/response"
 	"github.com/maintainerd/auth/internal/platform/security"
-	"github.com/maintainerd/auth/internal/service"
 )
 
 type EmailVerificationHandler struct {
-	emailVerificationService service.EmailVerificationService
+	emailVerificationService EmailVerificationService
 }
 
-func NewEmailVerificationHandler(emailVerificationService service.EmailVerificationService) *EmailVerificationHandler {
+func NewEmailVerificationHandler(emailVerificationService EmailVerificationService) *EmailVerificationHandler {
 	return &EmailVerificationHandler{
 		emailVerificationService: emailVerificationService,
 	}
@@ -73,7 +71,7 @@ func (h *EmailVerificationHandler) handleSendVerification(
 ) {
 	clientIPStr, userAgentStr, requestIDStr := sc.clientIP, sc.userAgent, sc.requestID
 
-	var req dto.SendEmailVerificationRequestDTO
+	var req SendEmailVerificationRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		security.LogSecurityEvent(security.SecurityEvent{
 			EventType: "email_verification_invalid_json",
@@ -165,7 +163,7 @@ func (h *EmailVerificationHandler) VerifyEmail(w http.ResponseWriter, r *http.Re
 	sc := extractSecurityContext(r)
 	clientIPStr, userAgentStr, requestIDStr := sc.clientIP, sc.userAgent, sc.requestID
 
-	var req dto.VerifyEmailRequestDTO
+	var req VerifyEmailRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		security.LogSecurityEvent(security.SecurityEvent{
 			EventType: "email_verification_invalid_json",

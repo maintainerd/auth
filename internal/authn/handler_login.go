@@ -5,19 +5,17 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/maintainerd/auth/internal/dto"
 	"github.com/maintainerd/auth/internal/platform/cookie"
 	"github.com/maintainerd/auth/internal/platform/middleware"
 	resp "github.com/maintainerd/auth/internal/platform/response"
 	"github.com/maintainerd/auth/internal/platform/security"
-	"github.com/maintainerd/auth/internal/service"
 )
 
 type LoginHandler struct {
-	loginService service.LoginService
+	loginService LoginService
 }
 
-func NewLoginHandler(loginService service.LoginService) *LoginHandler {
+func NewLoginHandler(loginService LoginService) *LoginHandler {
 	return &LoginHandler{
 		loginService: loginService,
 	}
@@ -55,7 +53,7 @@ func (h *LoginHandler) LoginPublic(w http.ResponseWriter, r *http.Request) {
 	clientIPStr, userAgentStr, requestIDStr := sc.clientIP, sc.userAgent, sc.requestID
 
 	// Validate query parameters
-	q := dto.LoginQueryDTO{
+	q := LoginQueryDTO{
 		ClientID:   r.URL.Query().Get("client_id"),
 		ProviderID: r.URL.Query().Get("provider_id"),
 	}
@@ -94,7 +92,7 @@ func (h *LoginHandler) LoginPublic(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Validate body payload
-	var req dto.LoginRequestDTO
+	var req LoginRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		security.LogSecurityEvent(security.SecurityEvent{
 			EventType: "login_malformed_request",
@@ -210,7 +208,7 @@ func (h *LoginHandler) Login(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Validate body payload
-	var req dto.LoginRequestDTO
+	var req LoginRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		resp.Error(w, http.StatusBadRequest, "Invalid request")
 		return

@@ -5,10 +5,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/maintainerd/auth/internal/model"
 	"github.com/maintainerd/auth/internal/platform/apperror"
 	"github.com/maintainerd/auth/internal/platform/crypto"
-	"github.com/maintainerd/auth/internal/repository"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -66,10 +64,10 @@ type TenantService interface {
 
 type tenantService struct {
 	db         *gorm.DB
-	tenantRepo repository.TenantRepository
+	tenantRepo TenantRepository
 }
 
-func NewTenantService(db *gorm.DB, tenantRepo repository.TenantRepository) TenantService {
+func NewTenantService(db *gorm.DB, tenantRepo TenantRepository) TenantService {
 	return &tenantService{
 		db:         db,
 		tenantRepo: tenantRepo,
@@ -80,7 +78,7 @@ func (s *tenantService) Get(ctx context.Context, filter TenantServiceGetFilter) 
 	_, span := otel.Tracer("service").Start(ctx, "tenant.list")
 	defer span.End()
 
-	tenantFilter := repository.TenantRepositoryGetFilter{
+	tenantFilter := TenantRepositoryGetFilter{
 		Name:        filter.Name,
 		DisplayName: filter.DisplayName,
 		Description: filter.Description,
@@ -176,7 +174,7 @@ func (s *tenantService) Create(ctx context.Context, name string, displayName str
 	defer span.End()
 	span.SetAttributes(attribute.String("tenant.name", name))
 
-	var createdTenant *model.Tenant
+	var createdTenant *Tenant
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
 		txTenantRepo := s.tenantRepo.WithTx(tx)
@@ -197,7 +195,7 @@ func (s *tenantService) Create(ctx context.Context, name string, displayName str
 		}
 
 		// Create tenant
-		newTenant := &model.Tenant{
+		newTenant := &Tenant{
 			Name:        name,
 			DisplayName: displayName,
 			Description: description,
@@ -235,7 +233,7 @@ func (s *tenantService) Update(ctx context.Context, tenantUUID uuid.UUID, name s
 	defer span.End()
 	span.SetAttributes(attribute.String("tenant.uuid", tenantUUID.String()))
 
-	var updatedTenant *model.Tenant
+	var updatedTenant *Tenant
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
 		txTenantRepo := s.tenantRepo.WithTx(tx)
@@ -333,7 +331,7 @@ func (s *tenantService) SetActivePublicByUUID(ctx context.Context, tenantUUID uu
 	}
 
 	// Toggle public status
-	err = s.db.Model(&model.Tenant{}).Where("tenant_uuid = ?", tenantUUID).Update("is_public", !tenant.IsPublic).Error
+	err = s.db.Model(&Tenant{}).Where("tenant_uuid = ?", tenantUUID).Update("is_public", !tenant.IsPublic).Error
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "set active public failed")
@@ -380,40 +378,40 @@ func (s *tenantService) DeleteByUUID(ctx context.Context, tenantUUID uuid.UUID) 
 		// AuthEvent is intentionally excluded: audit logs must be retained for compliance.
 		cascade := []interface{}{
 			// OAuth protocol state (hard-delete — no audit value after tenant gone)
-			&model.OAuthAuthorizationCode{},
-			&model.OAuthRefreshToken{},
-			&model.OAuthConsentGrant{},
-			&model.OAuthConsentChallenge{},
-			&model.OAuthPARRequest{},
-			&model.OAuthDeviceCode{},
-			&model.OAuthCIBARequest{},
+			&OAuthAuthorizationCode{},
+			&OAuthRefreshToken{},
+			&OAuthConsentGrant{},
+			&OAuthConsentChallenge{},
+			&OAuthPARRequest{},
+			&OAuthDeviceCode{},
+			&OAuthCIBARequest{},
 			// Tenant config (hard-delete)
-			&model.TenantSetting{},
-			&model.TenantService{},
+			&TenantSetting{},
+			&TenantService{},
 			// Identity linkage (hard-delete)
-			&model.UserIdentity{},
+			&UserIdentity{},
 			// Client sub-resources (hard-delete before Client soft-delete)
-			&model.ClientURI{},
+			&ClientURI{},
 			// Soft-delete capable resources
-			&model.TenantMember{},
-			&model.Client{},
-			&model.Role{},
-			&model.Permission{},
-			&model.Policy{},
-			&model.IdentityProvider{},
-			&model.Invite{},
-			&model.SignupFlow{},
-			&model.APIKey{},
-			&model.WebhookEndpoint{},
-			&model.IPRestrictionRule{},
-			&model.EmailTemplate{},
-			&model.SMSTemplate{},
-			&model.LoginTemplate{},
-			&model.Branding{},
-			&model.EmailConfig{},
-			&model.SMSConfig{},
-			&model.UserPool{},
-			&model.API{},
+			&TenantMember{},
+			&Client{},
+			&Role{},
+			&Permission{},
+			&Policy{},
+			&IdentityProvider{},
+			&Invite{},
+			&SignupFlow{},
+			&APIKey{},
+			&WebhookEndpoint{},
+			&IPRestrictionRule{},
+			&EmailTemplate{},
+			&SMSTemplate{},
+			&LoginTemplate{},
+			&Branding{},
+			&EmailConfig{},
+			&SMSConfig{},
+			&UserPool{},
+			&API{},
 		}
 
 		for _, m := range cascade {
@@ -435,7 +433,7 @@ func (s *tenantService) DeleteByUUID(ctx context.Context, tenantUUID uuid.UUID) 
 	return result, nil
 }
 
-func toTenantServiceDataResult(tenant *model.Tenant) *TenantServiceDataResult {
+func toTenantServiceDataResult(tenant *Tenant) *TenantServiceDataResult {
 	return &TenantServiceDataResult{
 		TenantID:    tenant.TenantID,
 		TenantUUID:  tenant.TenantUUID,

@@ -4,7 +4,7 @@ import (
 	"log/slog"
 
 	"github.com/google/uuid"
-	"github.com/maintainerd/auth/internal/model"
+	model "github.com/maintainerd/auth/internal/iam"
 	"gorm.io/gorm"
 )
 

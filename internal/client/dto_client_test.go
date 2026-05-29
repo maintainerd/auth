@@ -7,18 +7,16 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gorm.io/datatypes"
-
-	"github.com/maintainerd/auth/internal/model"
 )
 
 func validClientCreate() ClientCreateRequestDTO {
 	return ClientCreateRequestDTO{
 		Name:                 "my-client",
 		DisplayName:          "My Auth Client",
-		ClientType:           model.ClientTypeSPA,
+		ClientType:           ClientTypeSPA,
 		Domain:               "example.com",
 		Config:               datatypes.JSON(`{}`),
-		Status:               model.StatusActive,
+		Status:               StatusActive,
 		IdentityProviderUUID: uuid.New().String(),
 	}
 }
@@ -81,10 +79,10 @@ func TestClientUpdateRequestDto_Validate(t *testing.T) {
 	d := ClientUpdateRequestDTO{
 		Name:        "my-client",
 		DisplayName: "My Auth Client",
-		ClientType:  model.ClientTypeMobile,
+		ClientType:  ClientTypeMobile,
 		Domain:      "example.com",
 		Config:      datatypes.JSON(`{}`),
-		Status:      model.StatusInactive,
+		Status:      StatusInactive,
 	}
 	assert.NoError(t, d.Validate())
 
@@ -93,7 +91,7 @@ func TestClientUpdateRequestDto_Validate(t *testing.T) {
 }
 
 func TestClientURICreateOrUpdateRequestDto_Validate(t *testing.T) {
-	d := ClientURICreateOrUpdateRequestDTO{URI: "https://app.example.com/callback", Type: model.ClientURITypeRedirect}
+	d := ClientURICreateOrUpdateRequestDTO{URI: "https://app.example.com/callback", Type: ClientURITypeRedirect}
 	assert.NoError(t, d.Validate())
 
 	d.URI = ""

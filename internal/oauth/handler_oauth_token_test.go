@@ -10,7 +10,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/maintainerd/auth/internal/dto"
 	"github.com/maintainerd/auth/internal/platform/apperror"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -92,7 +91,7 @@ func TestOAuthTokenHandler_Token_InvalidGrantType(t *testing.T) {
 
 func TestOAuthTokenHandler_Token_ServiceOAuthError(t *testing.T) {
 	svc := &mockOAuthTokenService{
-		exchangeFn: func(_ context.Context, _ dto.OAuthTokenRequestDTO, _ dto.OAuthClientCredentials) (*dto.OAuthTokenResult, *apperror.OAuthError) {
+		exchangeFn: func(_ context.Context, _ OAuthTokenRequestDTO, _ OAuthClientCredentials) (*OAuthTokenResult, *apperror.OAuthError) {
 			return nil, apperror.NewOAuthInvalidGrant("expired code")
 		},
 	}
@@ -114,8 +113,8 @@ func TestOAuthTokenHandler_Token_ServiceOAuthError(t *testing.T) {
 
 func TestOAuthTokenHandler_Token_Success_AuthorizationCode(t *testing.T) {
 	svc := &mockOAuthTokenService{
-		exchangeFn: func(_ context.Context, _ dto.OAuthTokenRequestDTO, _ dto.OAuthClientCredentials) (*dto.OAuthTokenResult, *apperror.OAuthError) {
-			return &dto.OAuthTokenResult{
+		exchangeFn: func(_ context.Context, _ OAuthTokenRequestDTO, _ OAuthClientCredentials) (*OAuthTokenResult, *apperror.OAuthError) {
+			return &OAuthTokenResult{
 				AccessToken:  "at-123",
 				TokenType:    "Bearer",
 				ExpiresIn:    900,
@@ -142,7 +141,7 @@ func TestOAuthTokenHandler_Token_Success_AuthorizationCode(t *testing.T) {
 	assert.Equal(t, "no-store", w.Header().Get("Cache-Control"))
 	assert.Equal(t, "no-cache", w.Header().Get("Pragma"))
 
-	var resp dto.OAuthTokenResponseDTO
+	var resp OAuthTokenResponseDTO
 	require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
 	assert.Equal(t, "at-123", resp.AccessToken)
 	assert.Equal(t, "Bearer", resp.TokenType)
@@ -154,8 +153,8 @@ func TestOAuthTokenHandler_Token_Success_AuthorizationCode(t *testing.T) {
 
 func TestOAuthTokenHandler_Token_Success_RefreshToken(t *testing.T) {
 	svc := &mockOAuthTokenService{
-		exchangeFn: func(_ context.Context, _ dto.OAuthTokenRequestDTO, _ dto.OAuthClientCredentials) (*dto.OAuthTokenResult, *apperror.OAuthError) {
-			return &dto.OAuthTokenResult{
+		exchangeFn: func(_ context.Context, _ OAuthTokenRequestDTO, _ OAuthClientCredentials) (*OAuthTokenResult, *apperror.OAuthError) {
+			return &OAuthTokenResult{
 				AccessToken: "at-new",
 				TokenType:   "Bearer",
 				ExpiresIn:   900,
@@ -176,8 +175,8 @@ func TestOAuthTokenHandler_Token_Success_RefreshToken(t *testing.T) {
 
 func TestOAuthTokenHandler_Token_Success_ClientCredentials(t *testing.T) {
 	svc := &mockOAuthTokenService{
-		exchangeFn: func(_ context.Context, _ dto.OAuthTokenRequestDTO, _ dto.OAuthClientCredentials) (*dto.OAuthTokenResult, *apperror.OAuthError) {
-			return &dto.OAuthTokenResult{
+		exchangeFn: func(_ context.Context, _ OAuthTokenRequestDTO, _ OAuthClientCredentials) (*OAuthTokenResult, *apperror.OAuthError) {
+			return &OAuthTokenResult{
 				AccessToken: "at-cc",
 				TokenType:   "Bearer",
 				ExpiresIn:   3600,
@@ -199,11 +198,11 @@ func TestOAuthTokenHandler_Token_Success_ClientCredentials(t *testing.T) {
 }
 
 func TestOAuthTokenHandler_Token_BasicAuthCredentials(t *testing.T) {
-	var capturedCreds dto.OAuthClientCredentials
+	var capturedCreds OAuthClientCredentials
 	svc := &mockOAuthTokenService{
-		exchangeFn: func(_ context.Context, _ dto.OAuthTokenRequestDTO, creds dto.OAuthClientCredentials) (*dto.OAuthTokenResult, *apperror.OAuthError) {
+		exchangeFn: func(_ context.Context, _ OAuthTokenRequestDTO, creds OAuthClientCredentials) (*OAuthTokenResult, *apperror.OAuthError) {
 			capturedCreds = creds
-			return &dto.OAuthTokenResult{
+			return &OAuthTokenResult{
 				AccessToken: "at",
 				TokenType:   "Bearer",
 				ExpiresIn:   900,
@@ -229,11 +228,11 @@ func TestOAuthTokenHandler_Token_BasicAuthCredentials(t *testing.T) {
 }
 
 func TestOAuthTokenHandler_Token_FormBodyCredentials(t *testing.T) {
-	var capturedCreds dto.OAuthClientCredentials
+	var capturedCreds OAuthClientCredentials
 	svc := &mockOAuthTokenService{
-		exchangeFn: func(_ context.Context, _ dto.OAuthTokenRequestDTO, creds dto.OAuthClientCredentials) (*dto.OAuthTokenResult, *apperror.OAuthError) {
+		exchangeFn: func(_ context.Context, _ OAuthTokenRequestDTO, creds OAuthClientCredentials) (*OAuthTokenResult, *apperror.OAuthError) {
 			capturedCreds = creds
-			return &dto.OAuthTokenResult{
+			return &OAuthTokenResult{
 				AccessToken: "at",
 				TokenType:   "Bearer",
 				ExpiresIn:   900,
@@ -298,7 +297,7 @@ func TestOAuthTokenHandler_Revoke_InvalidTokenTypeHint(t *testing.T) {
 
 func TestOAuthTokenHandler_Revoke_ServiceOAuthError(t *testing.T) {
 	svc := &mockOAuthTokenService{
-		revokeFn: func(_ context.Context, _ dto.OAuthRevokeRequestDTO, _ dto.OAuthClientCredentials) *apperror.OAuthError {
+		revokeFn: func(_ context.Context, _ OAuthRevokeRequestDTO, _ OAuthClientCredentials) *apperror.OAuthError {
 			return apperror.NewOAuthInvalidClient("unknown client")
 		},
 	}
@@ -320,7 +319,7 @@ func TestOAuthTokenHandler_Revoke_ServiceOAuthError(t *testing.T) {
 
 func TestOAuthTokenHandler_Revoke_Success(t *testing.T) {
 	svc := &mockOAuthTokenService{
-		revokeFn: func(_ context.Context, _ dto.OAuthRevokeRequestDTO, _ dto.OAuthClientCredentials) *apperror.OAuthError {
+		revokeFn: func(_ context.Context, _ OAuthRevokeRequestDTO, _ OAuthClientCredentials) *apperror.OAuthError {
 			return nil
 		},
 	}
@@ -337,9 +336,9 @@ func TestOAuthTokenHandler_Revoke_Success(t *testing.T) {
 }
 
 func TestOAuthTokenHandler_Revoke_BasicAuthCredentials(t *testing.T) {
-	var capturedCreds dto.OAuthClientCredentials
+	var capturedCreds OAuthClientCredentials
 	svc := &mockOAuthTokenService{
-		revokeFn: func(_ context.Context, _ dto.OAuthRevokeRequestDTO, creds dto.OAuthClientCredentials) *apperror.OAuthError {
+		revokeFn: func(_ context.Context, _ OAuthRevokeRequestDTO, creds OAuthClientCredentials) *apperror.OAuthError {
 			capturedCreds = creds
 			return nil
 		},
@@ -400,7 +399,7 @@ func TestOAuthTokenHandler_Introspect_InvalidTokenTypeHint(t *testing.T) {
 
 func TestOAuthTokenHandler_Introspect_ServiceOAuthError(t *testing.T) {
 	svc := &mockOAuthTokenService{
-		introspectFn: func(_ context.Context, _ dto.OAuthIntrospectRequestDTO) (*dto.OAuthIntrospectResponseDTO, *apperror.OAuthError) {
+		introspectFn: func(_ context.Context, _ OAuthIntrospectRequestDTO) (*OAuthIntrospectResponseDTO, *apperror.OAuthError) {
 			return nil, apperror.NewOAuthInvalidRequest("missing token")
 		},
 	}
@@ -417,8 +416,8 @@ func TestOAuthTokenHandler_Introspect_ServiceOAuthError(t *testing.T) {
 
 func TestOAuthTokenHandler_Introspect_ActiveToken(t *testing.T) {
 	svc := &mockOAuthTokenService{
-		introspectFn: func(_ context.Context, _ dto.OAuthIntrospectRequestDTO) (*dto.OAuthIntrospectResponseDTO, *apperror.OAuthError) {
-			return &dto.OAuthIntrospectResponseDTO{
+		introspectFn: func(_ context.Context, _ OAuthIntrospectRequestDTO) (*OAuthIntrospectResponseDTO, *apperror.OAuthError) {
+			return &OAuthIntrospectResponseDTO{
 				Active:    true,
 				Scope:     "openid profile",
 				ClientID:  "myapp",
@@ -442,7 +441,7 @@ func TestOAuthTokenHandler_Introspect_ActiveToken(t *testing.T) {
 	assert.Equal(t, "no-store", w.Header().Get("Cache-Control"))
 	assert.Equal(t, "no-cache", w.Header().Get("Pragma"))
 
-	var resp dto.OAuthIntrospectResponseDTO
+	var resp OAuthIntrospectResponseDTO
 	require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
 	assert.True(t, resp.Active)
 	assert.Equal(t, "openid profile", resp.Scope)
@@ -453,8 +452,8 @@ func TestOAuthTokenHandler_Introspect_ActiveToken(t *testing.T) {
 
 func TestOAuthTokenHandler_Introspect_InactiveToken(t *testing.T) {
 	svc := &mockOAuthTokenService{
-		introspectFn: func(_ context.Context, _ dto.OAuthIntrospectRequestDTO) (*dto.OAuthIntrospectResponseDTO, *apperror.OAuthError) {
-			return &dto.OAuthIntrospectResponseDTO{Active: false}, nil
+		introspectFn: func(_ context.Context, _ OAuthIntrospectRequestDTO) (*OAuthIntrospectResponseDTO, *apperror.OAuthError) {
+			return &OAuthIntrospectResponseDTO{Active: false}, nil
 		},
 	}
 	h := NewOAuthTokenHandler(svc)
@@ -467,7 +466,7 @@ func TestOAuthTokenHandler_Introspect_InactiveToken(t *testing.T) {
 
 	assert.Equal(t, http.StatusOK, w.Code)
 
-	var resp dto.OAuthIntrospectResponseDTO
+	var resp OAuthIntrospectResponseDTO
 	require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
 	assert.False(t, resp.Active)
 }
@@ -477,11 +476,11 @@ func TestOAuthTokenHandler_Introspect_InactiveToken(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestOAuthTokenHandler_Token_InvalidBasicAuth_NotBase64(t *testing.T) {
-	var capturedCreds dto.OAuthClientCredentials
+	var capturedCreds OAuthClientCredentials
 	svc := &mockOAuthTokenService{
-		exchangeFn: func(_ context.Context, _ dto.OAuthTokenRequestDTO, creds dto.OAuthClientCredentials) (*dto.OAuthTokenResult, *apperror.OAuthError) {
+		exchangeFn: func(_ context.Context, _ OAuthTokenRequestDTO, creds OAuthClientCredentials) (*OAuthTokenResult, *apperror.OAuthError) {
 			capturedCreds = creds
-			return &dto.OAuthTokenResult{AccessToken: "at", TokenType: "Bearer", ExpiresIn: 900}, nil
+			return &OAuthTokenResult{AccessToken: "at", TokenType: "Bearer", ExpiresIn: 900}, nil
 		},
 	}
 	h := NewOAuthTokenHandler(svc)
@@ -501,11 +500,11 @@ func TestOAuthTokenHandler_Token_InvalidBasicAuth_NotBase64(t *testing.T) {
 }
 
 func TestOAuthTokenHandler_Token_InvalidBasicAuth_NoColon(t *testing.T) {
-	var capturedCreds dto.OAuthClientCredentials
+	var capturedCreds OAuthClientCredentials
 	svc := &mockOAuthTokenService{
-		exchangeFn: func(_ context.Context, _ dto.OAuthTokenRequestDTO, creds dto.OAuthClientCredentials) (*dto.OAuthTokenResult, *apperror.OAuthError) {
+		exchangeFn: func(_ context.Context, _ OAuthTokenRequestDTO, creds OAuthClientCredentials) (*OAuthTokenResult, *apperror.OAuthError) {
 			capturedCreds = creds
-			return &dto.OAuthTokenResult{AccessToken: "at", TokenType: "Bearer", ExpiresIn: 900}, nil
+			return &OAuthTokenResult{AccessToken: "at", TokenType: "Bearer", ExpiresIn: 900}, nil
 		},
 	}
 	h := NewOAuthTokenHandler(svc)
@@ -525,11 +524,11 @@ func TestOAuthTokenHandler_Token_InvalidBasicAuth_NoColon(t *testing.T) {
 }
 
 func TestOAuthTokenHandler_Token_BearerAuth_FallsBackToForm(t *testing.T) {
-	var capturedCreds dto.OAuthClientCredentials
+	var capturedCreds OAuthClientCredentials
 	svc := &mockOAuthTokenService{
-		exchangeFn: func(_ context.Context, _ dto.OAuthTokenRequestDTO, creds dto.OAuthClientCredentials) (*dto.OAuthTokenResult, *apperror.OAuthError) {
+		exchangeFn: func(_ context.Context, _ OAuthTokenRequestDTO, creds OAuthClientCredentials) (*OAuthTokenResult, *apperror.OAuthError) {
 			capturedCreds = creds
-			return &dto.OAuthTokenResult{AccessToken: "at", TokenType: "Bearer", ExpiresIn: 900}, nil
+			return &OAuthTokenResult{AccessToken: "at", TokenType: "Bearer", ExpiresIn: 900}, nil
 		},
 	}
 	h := NewOAuthTokenHandler(svc)
@@ -549,11 +548,11 @@ func TestOAuthTokenHandler_Token_BearerAuth_FallsBackToForm(t *testing.T) {
 }
 
 func TestOAuthTokenHandler_Token_NoAuthHeader_FallsBackToForm(t *testing.T) {
-	var capturedCreds dto.OAuthClientCredentials
+	var capturedCreds OAuthClientCredentials
 	svc := &mockOAuthTokenService{
-		exchangeFn: func(_ context.Context, _ dto.OAuthTokenRequestDTO, creds dto.OAuthClientCredentials) (*dto.OAuthTokenResult, *apperror.OAuthError) {
+		exchangeFn: func(_ context.Context, _ OAuthTokenRequestDTO, creds OAuthClientCredentials) (*OAuthTokenResult, *apperror.OAuthError) {
 			capturedCreds = creds
-			return &dto.OAuthTokenResult{AccessToken: "at", TokenType: "Bearer", ExpiresIn: 900}, nil
+			return &OAuthTokenResult{AccessToken: "at", TokenType: "Bearer", ExpiresIn: 900}, nil
 		},
 	}
 	h := NewOAuthTokenHandler(svc)

@@ -2,14 +2,12 @@ package user
 
 import (
 	"strings"
-
-	"github.com/maintainerd/auth/internal/model"
 )
 
 // computeFullname derives a display string for a user from their Profile.
 // Order of preference: Profile.DisplayName → FirstName + LastName → FirstName.
 // Returns empty string when Profile is nil or has no usable name fields.
-func computeFullname(user *model.User) string {
+func computeFullname(user *User) string {
 	if user == nil || user.Profile == nil {
 		return ""
 	}
@@ -31,7 +29,7 @@ func computeFullname(user *model.User) string {
 // non-persisted (transient) fields so existing API/handler code paths keep
 // returning the data they used to. Should be called after loading a Profile
 // with its User and (optionally) UserSetting preloaded.
-func hydrateProfileTransients(p *model.Profile, user *model.User, settings *model.UserSetting) {
+func hydrateProfileTransients(p *Profile, user *User, settings *UserSetting) {
 	if p == nil {
 		return
 	}
@@ -48,7 +46,7 @@ func hydrateProfileTransients(p *model.Profile, user *model.User, settings *mode
 // hydrateUserSettingTransients mirrors Locale → PreferredLanguage on a UserSetting
 // for API compatibility. PreferredLanguage was removed from the schema; Locale
 // (BCP-47) is the single source of truth.
-func hydrateUserSettingTransients(s *model.UserSetting) {
+func hydrateUserSettingTransients(s *UserSetting) {
 	if s == nil {
 		return
 	}

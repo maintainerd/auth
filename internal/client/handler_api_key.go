@@ -6,18 +6,15 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
-	"github.com/maintainerd/auth/internal/dto"
-	"github.com/maintainerd/auth/internal/model"
 	"github.com/maintainerd/auth/internal/platform/middleware"
 	resp "github.com/maintainerd/auth/internal/platform/response"
-	"github.com/maintainerd/auth/internal/service"
 )
 
 type APIKeyHandler struct {
-	apiKeyService service.APIKeyService
+	apiKeyService APIKeyService
 }
 
-func NewAPIKeyHandler(apiKeyService service.APIKeyService) *APIKeyHandler {
+func NewAPIKeyHandler(apiKeyService APIKeyService) *APIKeyHandler {
 	return &APIKeyHandler{
 		apiKeyService: apiKeyService,
 	}
@@ -36,7 +33,7 @@ func (h *APIKeyHandler) Get(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Parse query parameters
-	var reqParams dto.APIKeyGetRequestDTO
+	var reqParams APIKeyGetRequestDTO
 	reqParams.PaginationRequestDTO = parsePaginationQuery(r)
 
 	if name := r.URL.Query().Get("name"); name != "" {
@@ -71,7 +68,7 @@ func (h *APIKeyHandler) Get(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Build service filter
-	serviceFilter := service.APIKeyServiceGetFilter{
+	serviceFilter := APIKeyServiceGetFilter{
 		TenantID:    tenant.TenantID,
 		Name:        reqParams.Name,
 		Description: reqParams.Description,
@@ -90,14 +87,14 @@ func (h *APIKeyHandler) Get(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Convert to DTOs
-	var dtoResults []dto.APIKeyResponseDTO
+	var dtoResults []APIKeyResponseDTO
 	for _, apiKey := range result.Data {
 		dtoResult := toAPIKeyResponseDTO(apiKey)
 		dtoResults = append(dtoResults, dtoResult)
 	}
 
 	// Build paginated response
-	response := dto.PaginatedResponseDTO[dto.APIKeyResponseDTO]{
+	response := PaginatedResponseDTO[APIKeyResponseDTO]{
 		Rows:       dtoResults,
 		Total:      result.Total,
 		Page:       result.Page,
@@ -173,7 +170,7 @@ func (h *APIKeyHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var req dto.APIKeyCreateRequestDTO
+	var req APIKeyCreateRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		resp.Error(w, http.StatusBadRequest, "Invalid request")
 		return
@@ -185,7 +182,7 @@ func (h *APIKeyHandler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Set default status if not provided
-	status := model.StatusActive
+	status := StatusActive
 	if req.Status != "" {
 		status = req.Status
 	}
@@ -197,7 +194,7 @@ func (h *APIKeyHandler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Build response data using flat DTO structure
-	response := dto.APIKeyCreateResponseDTO{
+	response := APIKeyCreateResponseDTO{
 		APIKeyID:    apiKey.APIKeyUUID,
 		Name:        apiKey.Name,
 		Description: apiKey.Description,
@@ -232,7 +229,7 @@ func (h *APIKeyHandler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var req dto.APIKeyUpdateRequestDTO
+	var req APIKeyUpdateRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		resp.Error(w, http.StatusBadRequest, "Invalid request")
 		return
@@ -271,7 +268,7 @@ func (h *APIKeyHandler) SetStatus(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Parse request body
-	var req dto.APIKeyStatusUpdateDTO
+	var req APIKeyStatusUpdateDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		resp.Error(w, http.StatusBadRequest, "Invalid request body")
 		return
@@ -326,8 +323,8 @@ func (h *APIKeyHandler) Delete(w http.ResponseWriter, r *http.Request) {
 }
 
 // Convert service result to DTO
-func toAPIKeyResponseDTO(r service.APIKeyServiceDataResult) dto.APIKeyResponseDTO {
-	result := dto.APIKeyResponseDTO{
+func toAPIKeyResponseDTO(r APIKeyServiceDataResult) APIKeyResponseDTO {
+	result := APIKeyResponseDTO{
 		APIKeyID:    r.APIKeyUUID,
 		Name:        r.Name,
 		Description: r.Description,
@@ -353,7 +350,7 @@ func (h *APIKeyHandler) GetAPIs(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Build request DTO
-	reqParams := dto.APIKeyAPIsGetRequestDTO{
+	reqParams := APIKeyAPIsGetRequestDTO{
 		PaginationRequestDTO: parsePaginationQuery(r),
 	}
 
@@ -370,10 +367,10 @@ func (h *APIKeyHandler) GetAPIs(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Convert to DTO - return just the API objects
-	apiDtos := make([]dto.APIResponseDTO, len(result.Data))
+	apiDtos := make([]APIResponseDTO, len(result.Data))
 	for i, api := range result.Data {
 		// Convert API directly
-		apiDtos[i] = dto.APIResponseDTO{
+		apiDtos[i] = APIResponseDTO{
 			APIUUID:     api.Api.APIUUID,
 			Name:        api.Api.Name,
 			DisplayName: api.Api.DisplayName,
@@ -388,7 +385,7 @@ func (h *APIKeyHandler) GetAPIs(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Build paginated response
-	response := dto.PaginatedResponseDTO[dto.APIResponseDTO]{
+	response := PaginatedResponseDTO[APIResponseDTO]{
 		Rows:       apiDtos,
 		Total:      result.Total,
 		Page:       result.Page,
@@ -407,7 +404,7 @@ func (h *APIKeyHandler) AddAPIs(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var req dto.AddAPIKeyAPIsRequestDTO
+	var req AddAPIKeyAPIsRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		resp.Error(w, http.StatusBadRequest, "Invalid request body")
 		return
@@ -474,9 +471,9 @@ func (h *APIKeyHandler) GetAPIPermissions(w http.ResponseWriter, r *http.Request
 	}
 
 	// Convert to DTO
-	permissionDtos := make([]dto.PermissionResponseDTO, len(permissions))
+	permissionDtos := make([]PermissionResponseDTO, len(permissions))
 	for i, perm := range permissions {
-		permissionDtos[i] = dto.PermissionResponseDTO{
+		permissionDtos[i] = PermissionResponseDTO{
 			PermissionUUID: perm.PermissionUUID,
 			Name:           perm.Name,
 			Description:    perm.Description,
@@ -489,7 +486,7 @@ func (h *APIKeyHandler) GetAPIPermissions(w http.ResponseWriter, r *http.Request
 	}
 
 	// Wrap in structured response DTO
-	response := dto.APIKeyAPIPermissionsResponseDTO{
+	response := APIKeyAPIPermissionsResponseDTO{
 		Permissions: permissionDtos,
 	}
 
@@ -510,7 +507,7 @@ func (h *APIKeyHandler) AddAPIPermissions(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	var req dto.AddAPIKeyPermissionsRequestDTO
+	var req AddAPIKeyPermissionsRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		resp.Error(w, http.StatusBadRequest, "Invalid request body")
 		return

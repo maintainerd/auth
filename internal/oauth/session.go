@@ -4,13 +4,10 @@ import (
 	"context"
 	"net/url"
 
-	"github.com/maintainerd/auth/internal/dto"
-	"github.com/maintainerd/auth/internal/model"
 	"github.com/maintainerd/auth/internal/platform/apperror"
 	"github.com/maintainerd/auth/internal/platform/jwt"
 	"github.com/maintainerd/auth/internal/platform/middleware"
 	"github.com/maintainerd/auth/internal/platform/ptr"
-	"github.com/maintainerd/auth/internal/repository"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -21,26 +18,26 @@ import (
 type OAuthSessionService interface {
 	// EndSession processes a GET /oauth/end_session request. Revokes the user's
 	// refresh tokens and returns the post-logout redirect URI (if registered).
-	EndSession(ctx context.Context, req dto.OAuthEndSessionRequestDTO) (string, *apperror.OAuthError)
+	EndSession(ctx context.Context, req OAuthEndSessionRequestDTO) (string, *apperror.OAuthError)
 
 	// BackchannelLogout processes a POST /oauth/logout/backchannel request.
 	// Validates the logout_token JWT and revokes all sessions for the identified
 	// user/client combination.
-	BackchannelLogout(ctx context.Context, req dto.OAuthBackchannelLogoutRequestDTO) *apperror.OAuthError
+	BackchannelLogout(ctx context.Context, req OAuthBackchannelLogoutRequestDTO) *apperror.OAuthError
 }
 
 type oauthSessionService struct {
-	clientRepo       repository.ClientRepository
-	userRepo         repository.UserRepository
-	refreshTokenRepo repository.OAuthRefreshTokenRepository
+	clientRepo       ClientRepository
+	userRepo         UserRepository
+	refreshTokenRepo OAuthRefreshTokenRepository
 	authEventService AuthEventService
 }
 
 // NewOAuthSessionService creates a new OAuthSessionService.
 func NewOAuthSessionService(
-	clientRepo repository.ClientRepository,
-	userRepo repository.UserRepository,
-	refreshTokenRepo repository.OAuthRefreshTokenRepository,
+	clientRepo ClientRepository,
+	userRepo UserRepository,
+	refreshTokenRepo OAuthRefreshTokenRepository,
 	authEventService AuthEventService,
 ) OAuthSessionService {
 	return &oauthSessionService{
@@ -52,7 +49,7 @@ func NewOAuthSessionService(
 }
 
 // EndSession implements OAuthSessionService.
-func (s *oauthSessionService) EndSession(ctx context.Context, req dto.OAuthEndSessionRequestDTO) (string, *apperror.OAuthError) {
+func (s *oauthSessionService) EndSession(ctx context.Context, req OAuthEndSessionRequestDTO) (string, *apperror.OAuthError) {
 	_, span := otel.Tracer("service").Start(ctx, "oauth_session.end_session")
 	defer span.End()
 
@@ -79,10 +76,10 @@ func (s *oauthSessionService) EndSession(ctx context.Context, req dto.OAuthEndSe
 			ActorUserID: userID,
 			IPAddress:   middleware.ClientIPFromContext(ctx),
 			UserAgent:   ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),
-			Category:    model.AuthEventCategorySession,
-			EventType:   model.AuthEventTypeSessionExpired,
-			Severity:    model.AuthEventSeverityInfo,
-			Result:      model.AuthEventResultSuccess,
+			Category:    AuthEventCategorySession,
+			EventType:   AuthEventTypeSessionExpired,
+			Severity:    AuthEventSeverityInfo,
+			Result:      AuthEventResultSuccess,
 			Description: ptr.Ptr("RP-initiated logout"),
 		})
 		span.SetAttributes(attribute.Int64("user.id", *userID))
@@ -104,7 +101,7 @@ func (s *oauthSessionService) EndSession(ctx context.Context, req dto.OAuthEndSe
 }
 
 // BackchannelLogout implements OAuthSessionService.
-func (s *oauthSessionService) BackchannelLogout(ctx context.Context, req dto.OAuthBackchannelLogoutRequestDTO) *apperror.OAuthError {
+func (s *oauthSessionService) BackchannelLogout(ctx context.Context, req OAuthBackchannelLogoutRequestDTO) *apperror.OAuthError {
 	_, span := otel.Tracer("service").Start(ctx, "oauth_session.backchannel_logout")
 	defer span.End()
 
@@ -143,10 +140,10 @@ func (s *oauthSessionService) BackchannelLogout(ctx context.Context, req dto.OAu
 			ActorUserID: &user.UserID,
 			IPAddress:   middleware.ClientIPFromContext(ctx),
 			UserAgent:   ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),
-			Category:    model.AuthEventCategorySession,
-			EventType:   model.AuthEventTypeSessionExpired,
-			Severity:    model.AuthEventSeverityInfo,
-			Result:      model.AuthEventResultSuccess,
+			Category:    AuthEventCategorySession,
+			EventType:   AuthEventTypeSessionExpired,
+			Severity:    AuthEventSeverityInfo,
+			Result:      AuthEventResultSuccess,
 			Description: ptr.Ptr("Backchannel logout processed"),
 		})
 

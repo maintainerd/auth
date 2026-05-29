@@ -7,15 +7,13 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/maintainerd/auth/internal/model"
-	"github.com/maintainerd/auth/internal/repository"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gorm.io/datatypes"
 )
 
-func buildAPIKey() *model.APIKey {
-	return &model.APIKey{
+func buildAPIKey() *APIKey {
+	return &APIKey{
 		APIKeyID:    1,
 		APIKeyUUID:  uuid.New(),
 		TenantID:    1,
@@ -23,7 +21,7 @@ func buildAPIKey() *model.APIKey {
 		Description: "desc",
 		KeyPrefix:   "ak_abcdefgh",
 		KeyHash:     "abc123hash",
-		Status:      model.StatusActive,
+		Status:      StatusActive,
 	}
 }
 
@@ -49,21 +47,21 @@ func TestAPIKeyService_GetByUUID(t *testing.T) {
 		{
 			name: "not found",
 			setup: func(r *mockAPIKeyRepo) {
-				r.findByUUIDAndTenantIDFn = func(_ string, _ int64) (*model.APIKey, error) { return nil, nil }
+				r.findByUUIDAndTenantIDFn = func(_ string, _ int64) (*APIKey, error) { return nil, nil }
 			},
 			wantErr: "API key not found",
 		},
 		{
 			name: "repo error",
 			setup: func(r *mockAPIKeyRepo) {
-				r.findByUUIDAndTenantIDFn = func(_ string, _ int64) (*model.APIKey, error) { return nil, errors.New("db error") }
+				r.findByUUIDAndTenantIDFn = func(_ string, _ int64) (*APIKey, error) { return nil, errors.New("db error") }
 			},
 			wantErr: "db error",
 		},
 		{
 			name: "success",
 			setup: func(r *mockAPIKeyRepo) {
-				r.findByUUIDAndTenantIDFn = func(_ string, _ int64) (*model.APIKey, error) { return ak, nil }
+				r.findByUUIDAndTenantIDFn = func(_ string, _ int64) (*APIKey, error) { return ak, nil }
 			},
 		},
 	}
@@ -108,14 +106,14 @@ func TestAPIKeyService_Create(t *testing.T) {
 		{
 			name: "repo error",
 			setup: func(r *mockAPIKeyRepo) {
-				r.createFn = func(_ *model.APIKey) (*model.APIKey, error) { return nil, errors.New("db error") }
+				r.createFn = func(_ *APIKey) (*APIKey, error) { return nil, errors.New("db error") }
 			},
 			wantErr: "db error",
 		},
 		{
 			name: "success",
 			setup: func(r *mockAPIKeyRepo) {
-				r.createFn = func(e *model.APIKey) (*model.APIKey, error) { return ak, nil }
+				r.createFn = func(e *APIKey) (*APIKey, error) { return ak, nil }
 			},
 		},
 	}
@@ -133,7 +131,7 @@ func TestAPIKeyService_Create(t *testing.T) {
 				mock.ExpectCommit()
 			}
 			svc := NewAPIKeyService(gormDB, akRepo, &mockAPIKeyAPIRepo{}, &mockAPIKeyPermissionRepo{}, &mockAPIRepo{}, &mockUserRepo{}, &mockPermissionRepo{})
-			res, plainKey, err := svc.Create(context.Background(), 1, "test-key", "desc", nil, nil, nil, model.StatusActive)
+			res, plainKey, err := svc.Create(context.Background(), 1, "test-key", "desc", nil, nil, nil, StatusActive)
 			if tc.wantErr != "" {
 				require.Error(t, err)
 				assert.Contains(t, err.Error(), tc.wantErr)
@@ -161,30 +159,30 @@ func TestAPIKeyService_SetStatusByUUID(t *testing.T) {
 		{
 			name: "not found",
 			setup: func(r *mockAPIKeyRepo) {
-				r.findByUUIDAndTenantIDFn = func(_ string, _ int64) (*model.APIKey, error) { return nil, nil }
+				r.findByUUIDAndTenantIDFn = func(_ string, _ int64) (*APIKey, error) { return nil, nil }
 			},
 			wantErr: "API key not found",
 		},
 		{
 			name: "find error",
 			setup: func(r *mockAPIKeyRepo) {
-				r.findByUUIDAndTenantIDFn = func(_ string, _ int64) (*model.APIKey, error) { return nil, errors.New("find err") }
+				r.findByUUIDAndTenantIDFn = func(_ string, _ int64) (*APIKey, error) { return nil, errors.New("find err") }
 			},
 			wantErr: "find err",
 		},
 		{
 			name: "update error",
 			setup: func(r *mockAPIKeyRepo) {
-				r.findByUUIDAndTenantIDFn = func(_ string, _ int64) (*model.APIKey, error) { return ak, nil }
-				r.updateByUUIDFn = func(_, _ any) (*model.APIKey, error) { return nil, errors.New("update err") }
+				r.findByUUIDAndTenantIDFn = func(_ string, _ int64) (*APIKey, error) { return ak, nil }
+				r.updateByUUIDFn = func(_, _ any) (*APIKey, error) { return nil, errors.New("update err") }
 			},
 			wantErr: "update err",
 		},
 		{
 			name: "success",
 			setup: func(r *mockAPIKeyRepo) {
-				r.findByUUIDAndTenantIDFn = func(_ string, _ int64) (*model.APIKey, error) { return ak, nil }
-				r.updateByUUIDFn = func(_, _ any) (*model.APIKey, error) { return ak, nil }
+				r.findByUUIDAndTenantIDFn = func(_ string, _ int64) (*APIKey, error) { return ak, nil }
+				r.updateByUUIDFn = func(_, _ any) (*APIKey, error) { return ak, nil }
 			},
 		},
 	}
@@ -202,7 +200,7 @@ func TestAPIKeyService_SetStatusByUUID(t *testing.T) {
 				mock.ExpectCommit()
 			}
 			svc := NewAPIKeyService(gormDB, akRepo, &mockAPIKeyAPIRepo{}, &mockAPIKeyPermissionRepo{}, &mockAPIRepo{}, &mockUserRepo{}, &mockPermissionRepo{})
-			res, err := svc.SetStatusByUUID(context.Background(), ak.APIKeyUUID, 1, model.StatusActive)
+			res, err := svc.SetStatusByUUID(context.Background(), ak.APIKeyUUID, 1, StatusActive)
 			if tc.wantErr != "" {
 				require.Error(t, err)
 				assert.Contains(t, err.Error(), tc.wantErr)
@@ -230,21 +228,21 @@ func TestAPIKeyService_Delete(t *testing.T) {
 		{
 			name: "not found",
 			setup: func(r *mockAPIKeyRepo) {
-				r.findByUUIDAndTenantIDFn = func(_ string, _ int64) (*model.APIKey, error) { return nil, nil }
+				r.findByUUIDAndTenantIDFn = func(_ string, _ int64) (*APIKey, error) { return nil, nil }
 			},
 			wantErr: "API key not found",
 		},
 		{
 			name: "find error",
 			setup: func(r *mockAPIKeyRepo) {
-				r.findByUUIDAndTenantIDFn = func(_ string, _ int64) (*model.APIKey, error) { return nil, errors.New("find err") }
+				r.findByUUIDAndTenantIDFn = func(_ string, _ int64) (*APIKey, error) { return nil, errors.New("find err") }
 			},
 			wantErr: "find err",
 		},
 		{
 			name: "delete error",
 			setup: func(r *mockAPIKeyRepo) {
-				r.findByUUIDAndTenantIDFn = func(_ string, _ int64) (*model.APIKey, error) { return ak, nil }
+				r.findByUUIDAndTenantIDFn = func(_ string, _ int64) (*APIKey, error) { return ak, nil }
 				r.deleteByUUIDFn = func(_ any) error { return errors.New("delete err") }
 			},
 			wantErr: "delete err",
@@ -252,7 +250,7 @@ func TestAPIKeyService_Delete(t *testing.T) {
 		{
 			name: "success",
 			setup: func(r *mockAPIKeyRepo) {
-				r.findByUUIDAndTenantIDFn = func(_ string, _ int64) (*model.APIKey, error) { return ak, nil }
+				r.findByUUIDAndTenantIDFn = func(_ string, _ int64) (*APIKey, error) { return ak, nil }
 			},
 		},
 	}
@@ -292,7 +290,7 @@ func TestAPIKeyService_Get(t *testing.T) {
 
 	t.Run("user repo error", func(t *testing.T) {
 		akRepo := &mockAPIKeyRepo{}
-		userRepo := &mockUserRepo{findByUUIDFn: func(_ any, _ ...string) (*model.User, error) { return nil, errors.New("user err") }}
+		userRepo := &mockUserRepo{findByUUIDFn: func(_ any, _ ...string) (*User, error) { return nil, errors.New("user err") }}
 		svc := newAPIKeySvc(t, akRepo, userRepo)
 		res, err := svc.Get(context.Background(), APIKeyServiceGetFilter{TenantID: 1, Page: 1, Limit: 10}, requesterUUID)
 		require.Error(t, err)
@@ -302,7 +300,7 @@ func TestAPIKeyService_Get(t *testing.T) {
 
 	t.Run("user not found", func(t *testing.T) {
 		akRepo := &mockAPIKeyRepo{}
-		userRepo := &mockUserRepo{findByUUIDFn: func(_ any, _ ...string) (*model.User, error) { return nil, nil }}
+		userRepo := &mockUserRepo{findByUUIDFn: func(_ any, _ ...string) (*User, error) { return nil, nil }}
 		svc := newAPIKeySvc(t, akRepo, userRepo)
 		res, err := svc.Get(context.Background(), APIKeyServiceGetFilter{TenantID: 1, Page: 1, Limit: 10}, requesterUUID)
 		require.Error(t, err)
@@ -312,12 +310,12 @@ func TestAPIKeyService_Get(t *testing.T) {
 
 	t.Run("find paginated error", func(t *testing.T) {
 		akRepo := &mockAPIKeyRepo{
-			findPaginatedFn: func(_ repository.APIKeyRepositoryGetFilter) (*repository.PaginationResult[model.APIKey], error) {
+			findPaginatedFn: func(_ APIKeyRepositoryGetFilter) (*PaginationResult[APIKey], error) {
 				return nil, errors.New("paginate err")
 			},
 		}
-		userRepo := &mockUserRepo{findByUUIDFn: func(_ any, _ ...string) (*model.User, error) {
-			return &model.User{UserUUID: requesterUUID}, nil
+		userRepo := &mockUserRepo{findByUUIDFn: func(_ any, _ ...string) (*User, error) {
+			return &User{UserUUID: requesterUUID}, nil
 		}}
 		svc := newAPIKeySvc(t, akRepo, userRepo)
 		res, err := svc.Get(context.Background(), APIKeyServiceGetFilter{TenantID: 1, Page: 1, Limit: 10}, requesterUUID)
@@ -328,12 +326,12 @@ func TestAPIKeyService_Get(t *testing.T) {
 
 	t.Run("success", func(t *testing.T) {
 		akRepo := &mockAPIKeyRepo{
-			findPaginatedFn: func(_ repository.APIKeyRepositoryGetFilter) (*repository.PaginationResult[model.APIKey], error) {
-				return &repository.PaginationResult[model.APIKey]{Data: []model.APIKey{*ak}, Total: 1, Page: 1, Limit: 10, TotalPages: 1}, nil
+			findPaginatedFn: func(_ APIKeyRepositoryGetFilter) (*PaginationResult[APIKey], error) {
+				return &PaginationResult[APIKey]{Data: []APIKey{*ak}, Total: 1, Page: 1, Limit: 10, TotalPages: 1}, nil
 			},
 		}
-		userRepo := &mockUserRepo{findByUUIDFn: func(_ any, _ ...string) (*model.User, error) {
-			return &model.User{UserUUID: requesterUUID}, nil
+		userRepo := &mockUserRepo{findByUUIDFn: func(_ any, _ ...string) (*User, error) {
+			return &User{UserUUID: requesterUUID}, nil
 		}}
 		svc := newAPIKeySvc(t, akRepo, userRepo)
 		res, err := svc.Get(context.Background(), APIKeyServiceGetFilter{TenantID: 1, Page: 1, Limit: 10}, requesterUUID)
@@ -367,7 +365,7 @@ func TestAPIKeyService_GetConfigByUUID(t *testing.T) {
 
 	t.Run("repo error", func(t *testing.T) {
 		akRepo := &mockAPIKeyRepo{
-			findByUUIDAndTenantIDFn: func(_ string, _ int64) (*model.APIKey, error) { return nil, errors.New("db err") },
+			findByUUIDAndTenantIDFn: func(_ string, _ int64) (*APIKey, error) { return nil, errors.New("db err") },
 		}
 		svc := newAPIKeySvc(t, akRepo, &mockUserRepo{})
 		cfg, err := svc.GetConfigByUUID(context.Background(), ak.APIKeyUUID, 1)
@@ -378,7 +376,7 @@ func TestAPIKeyService_GetConfigByUUID(t *testing.T) {
 
 	t.Run("not found", func(t *testing.T) {
 		akRepo := &mockAPIKeyRepo{
-			findByUUIDAndTenantIDFn: func(_ string, _ int64) (*model.APIKey, error) { return nil, nil },
+			findByUUIDAndTenantIDFn: func(_ string, _ int64) (*APIKey, error) { return nil, nil },
 		}
 		svc := newAPIKeySvc(t, akRepo, &mockUserRepo{})
 		cfg, err := svc.GetConfigByUUID(context.Background(), ak.APIKeyUUID, 1)
@@ -389,7 +387,7 @@ func TestAPIKeyService_GetConfigByUUID(t *testing.T) {
 
 	t.Run("success", func(t *testing.T) {
 		akRepo := &mockAPIKeyRepo{
-			findByUUIDAndTenantIDFn: func(_ string, _ int64) (*model.APIKey, error) { return ak, nil },
+			findByUUIDAndTenantIDFn: func(_ string, _ int64) (*APIKey, error) { return ak, nil },
 		}
 		svc := newAPIKeySvc(t, akRepo, &mockUserRepo{})
 		cfg, err := svc.GetConfigByUUID(context.Background(), ak.APIKeyUUID, 1)
@@ -426,22 +424,22 @@ func TestAPIKeyService_Update(t *testing.T) {
 		{
 			name: "find error",
 			setup: func(r *mockAPIKeyRepo) {
-				r.findByUUIDAndTenantIDFn = func(_ string, _ int64) (*model.APIKey, error) { return nil, errors.New("find err") }
+				r.findByUUIDAndTenantIDFn = func(_ string, _ int64) (*APIKey, error) { return nil, errors.New("find err") }
 			},
 			wantErr: "find err",
 		},
 		{
 			name: "not found",
 			setup: func(r *mockAPIKeyRepo) {
-				r.findByUUIDAndTenantIDFn = func(_ string, _ int64) (*model.APIKey, error) { return nil, nil }
+				r.findByUUIDAndTenantIDFn = func(_ string, _ int64) (*APIKey, error) { return nil, nil }
 			},
 			wantErr: "API key not found",
 		},
 		{
 			name: "update error",
 			setup: func(r *mockAPIKeyRepo) {
-				r.findByUUIDAndTenantIDFn = func(_ string, _ int64) (*model.APIKey, error) { return ak, nil }
-				r.updateByUUIDFn = func(_, _ any) (*model.APIKey, error) { return nil, errors.New("update err") }
+				r.findByUUIDAndTenantIDFn = func(_ string, _ int64) (*APIKey, error) { return ak, nil }
+				r.updateByUUIDFn = func(_, _ any) (*APIKey, error) { return nil, errors.New("update err") }
 			},
 			nameArg: &nameStr,
 			wantErr: "update err",
@@ -449,8 +447,8 @@ func TestAPIKeyService_Update(t *testing.T) {
 		{
 			name: "success with all fields",
 			setup: func(r *mockAPIKeyRepo) {
-				r.findByUUIDAndTenantIDFn = func(_ string, _ int64) (*model.APIKey, error) { return ak, nil }
-				r.updateByUUIDFn = func(_, _ any) (*model.APIKey, error) { return ak, nil }
+				r.findByUUIDAndTenantIDFn = func(_ string, _ int64) (*APIKey, error) { return ak, nil }
+				r.updateByUUIDFn = func(_, _ any) (*APIKey, error) { return ak, nil }
 			},
 			nameArg:      &nameStr,
 			descArg:      &descStr,
@@ -463,8 +461,8 @@ func TestAPIKeyService_Update(t *testing.T) {
 		{
 			name: "success with no optional fields",
 			setup: func(r *mockAPIKeyRepo) {
-				r.findByUUIDAndTenantIDFn = func(_ string, _ int64) (*model.APIKey, error) { return ak, nil }
-				r.updateByUUIDFn = func(_, _ any) (*model.APIKey, error) { return ak, nil }
+				r.findByUUIDAndTenantIDFn = func(_ string, _ int64) (*APIKey, error) { return ak, nil }
+				r.updateByUUIDFn = func(_, _ any) (*APIKey, error) { return ak, nil }
 			},
 			expectCommit: true,
 		},
@@ -506,14 +504,14 @@ func TestAPIKeyService_GetAPIKeyAPIs(t *testing.T) {
 
 	t.Run("defaults and success with permissions", func(t *testing.T) {
 		akaRepo := &mockAPIKeyAPIRepo{
-			findByAPIKeyUUIDPaginatedFn: func(_ uuid.UUID, page, limit int, _, _ string) (*repository.PaginationResult[model.APIKeyAPI], error) {
+			findByAPIKeyUUIDPaginatedFn: func(_ uuid.UUID, page, limit int, _, _ string) (*PaginationResult[APIKeyAPI], error) {
 				assert.Equal(t, 1, page)
 				assert.Equal(t, 10, limit)
-				return &repository.PaginationResult[model.APIKeyAPI]{
-					Data: []model.APIKeyAPI{
+				return &PaginationResult[APIKeyAPI]{
+					Data: []APIKeyAPI{
 						{
 							APIKeyAPIUUID: uuid.New(),
-							API: model.API{
+							API: API{
 								APIUUID:     apiUUID,
 								Name:        "test-api",
 								DisplayName: "Test API",
@@ -523,9 +521,9 @@ func TestAPIKeyService_GetAPIKeyAPIs(t *testing.T) {
 								Status:      "active",
 								IsSystem:    false,
 							},
-							Permissions: []model.APIKeyPermission{
+							Permissions: []APIKeyPermission{
 								{
-									Permission: &model.Permission{
+									Permission: &Permission{
 										PermissionUUID: permUUID,
 										Name:           "read",
 										Description:    "Read access",
@@ -555,7 +553,7 @@ func TestAPIKeyService_GetAPIKeyAPIs(t *testing.T) {
 
 	t.Run("repo error", func(t *testing.T) {
 		akaRepo := &mockAPIKeyAPIRepo{
-			findByAPIKeyUUIDPaginatedFn: func(_ uuid.UUID, _, _ int, _, _ string) (*repository.PaginationResult[model.APIKeyAPI], error) {
+			findByAPIKeyUUIDPaginatedFn: func(_ uuid.UUID, _, _ int, _, _ string) (*PaginationResult[APIKeyAPI], error) {
 				return nil, errors.New("paginate err")
 			},
 		}
@@ -577,11 +575,11 @@ func TestAPIKeyService_AddAPIKeyAPIs(t *testing.T) {
 	apiUUID1 := uuid.New()
 	apiUUID2 := uuid.New()
 
-	buildAK := func() *model.APIKey {
-		return &model.APIKey{APIKeyID: 1, APIKeyUUID: akUUID}
+	buildAK := func() *APIKey {
+		return &APIKey{APIKeyID: 1, APIKeyUUID: akUUID}
 	}
-	buildAPI := func(id int64, u uuid.UUID) *model.API {
-		return &model.API{APIID: id, APIUUID: u}
+	buildAPI := func(id int64, u uuid.UUID) *API {
+		return &API{APIID: id, APIUUID: u}
 	}
 
 	cases := []struct {
@@ -597,7 +595,7 @@ func TestAPIKeyService_AddAPIKeyAPIs(t *testing.T) {
 			name:     "api key find error",
 			apiUUIDs: []uuid.UUID{apiUUID1},
 			setupAK: func(r *mockAPIKeyRepo) {
-				r.findByUUIDFn = func(_ any, _ ...string) (*model.APIKey, error) { return nil, errors.New("ak find err") }
+				r.findByUUIDFn = func(_ any, _ ...string) (*APIKey, error) { return nil, errors.New("ak find err") }
 			},
 			setupAKA: func(_ *mockAPIKeyAPIRepo) {},
 			setupAPI: func(_ *mockAPIRepo) {},
@@ -607,7 +605,7 @@ func TestAPIKeyService_AddAPIKeyAPIs(t *testing.T) {
 			name:     "api key not found",
 			apiUUIDs: []uuid.UUID{apiUUID1},
 			setupAK: func(r *mockAPIKeyRepo) {
-				r.findByUUIDFn = func(_ any, _ ...string) (*model.APIKey, error) { return nil, nil }
+				r.findByUUIDFn = func(_ any, _ ...string) (*APIKey, error) { return nil, nil }
 			},
 			setupAKA: func(_ *mockAPIKeyAPIRepo) {},
 			setupAPI: func(_ *mockAPIRepo) {},
@@ -617,11 +615,11 @@ func TestAPIKeyService_AddAPIKeyAPIs(t *testing.T) {
 			name:     "api find error",
 			apiUUIDs: []uuid.UUID{apiUUID1},
 			setupAK: func(r *mockAPIKeyRepo) {
-				r.findByUUIDFn = func(_ any, _ ...string) (*model.APIKey, error) { return buildAK(), nil }
+				r.findByUUIDFn = func(_ any, _ ...string) (*APIKey, error) { return buildAK(), nil }
 			},
 			setupAKA: func(_ *mockAPIKeyAPIRepo) {},
 			setupAPI: func(r *mockAPIRepo) {
-				r.findByUUIDFn = func(_ any, _ ...string) (*model.API, error) { return nil, errors.New("api find err") }
+				r.findByUUIDFn = func(_ any, _ ...string) (*API, error) { return nil, errors.New("api find err") }
 			},
 			wantErr: "api find err",
 		},
@@ -629,11 +627,11 @@ func TestAPIKeyService_AddAPIKeyAPIs(t *testing.T) {
 			name:     "api not found",
 			apiUUIDs: []uuid.UUID{apiUUID1},
 			setupAK: func(r *mockAPIKeyRepo) {
-				r.findByUUIDFn = func(_ any, _ ...string) (*model.APIKey, error) { return buildAK(), nil }
+				r.findByUUIDFn = func(_ any, _ ...string) (*APIKey, error) { return buildAK(), nil }
 			},
 			setupAKA: func(_ *mockAPIKeyAPIRepo) {},
 			setupAPI: func(r *mockAPIRepo) {
-				r.findByUUIDFn = func(_ any, _ ...string) (*model.API, error) { return nil, nil }
+				r.findByUUIDFn = func(_ any, _ ...string) (*API, error) { return nil, nil }
 			},
 			wantErr: "API not found",
 		},
@@ -641,13 +639,13 @@ func TestAPIKeyService_AddAPIKeyAPIs(t *testing.T) {
 			name:     "find existing relationship error",
 			apiUUIDs: []uuid.UUID{apiUUID1},
 			setupAK: func(r *mockAPIKeyRepo) {
-				r.findByUUIDFn = func(_ any, _ ...string) (*model.APIKey, error) { return buildAK(), nil }
+				r.findByUUIDFn = func(_ any, _ ...string) (*APIKey, error) { return buildAK(), nil }
 			},
 			setupAKA: func(r *mockAPIKeyAPIRepo) {
-				r.findByAPIKeyAndAPIFn = func(_, _ int64) (*model.APIKeyAPI, error) { return nil, errors.New("find rel err") }
+				r.findByAPIKeyAndAPIFn = func(_, _ int64) (*APIKeyAPI, error) { return nil, errors.New("find rel err") }
 			},
 			setupAPI: func(r *mockAPIRepo) {
-				r.findByUUIDFn = func(_ any, _ ...string) (*model.API, error) { return buildAPI(10, apiUUID1), nil }
+				r.findByUUIDFn = func(_ any, _ ...string) (*API, error) { return buildAPI(10, apiUUID1), nil }
 			},
 			wantErr: "find rel err",
 		},
@@ -655,13 +653,13 @@ func TestAPIKeyService_AddAPIKeyAPIs(t *testing.T) {
 			name:     "skip existing relationship",
 			apiUUIDs: []uuid.UUID{apiUUID1},
 			setupAK: func(r *mockAPIKeyRepo) {
-				r.findByUUIDFn = func(_ any, _ ...string) (*model.APIKey, error) { return buildAK(), nil }
+				r.findByUUIDFn = func(_ any, _ ...string) (*APIKey, error) { return buildAK(), nil }
 			},
 			setupAKA: func(r *mockAPIKeyAPIRepo) {
-				r.findByAPIKeyAndAPIFn = func(_, _ int64) (*model.APIKeyAPI, error) { return &model.APIKeyAPI{}, nil }
+				r.findByAPIKeyAndAPIFn = func(_, _ int64) (*APIKeyAPI, error) { return &APIKeyAPI{}, nil }
 			},
 			setupAPI: func(r *mockAPIRepo) {
-				r.findByUUIDFn = func(_ any, _ ...string) (*model.API, error) { return buildAPI(10, apiUUID1), nil }
+				r.findByUUIDFn = func(_ any, _ ...string) (*API, error) { return buildAPI(10, apiUUID1), nil }
 			},
 			expectCommit: true,
 		},
@@ -669,13 +667,13 @@ func TestAPIKeyService_AddAPIKeyAPIs(t *testing.T) {
 			name:     "create error",
 			apiUUIDs: []uuid.UUID{apiUUID1},
 			setupAK: func(r *mockAPIKeyRepo) {
-				r.findByUUIDFn = func(_ any, _ ...string) (*model.APIKey, error) { return buildAK(), nil }
+				r.findByUUIDFn = func(_ any, _ ...string) (*APIKey, error) { return buildAK(), nil }
 			},
 			setupAKA: func(r *mockAPIKeyAPIRepo) {
-				r.createFn = func(_ *model.APIKeyAPI) (*model.APIKeyAPI, error) { return nil, errors.New("create err") }
+				r.createFn = func(_ *APIKeyAPI) (*APIKeyAPI, error) { return nil, errors.New("create err") }
 			},
 			setupAPI: func(r *mockAPIRepo) {
-				r.findByUUIDFn = func(_ any, _ ...string) (*model.API, error) { return buildAPI(10, apiUUID1), nil }
+				r.findByUUIDFn = func(_ any, _ ...string) (*API, error) { return buildAPI(10, apiUUID1), nil }
 			},
 			wantErr: "create err",
 		},
@@ -683,11 +681,11 @@ func TestAPIKeyService_AddAPIKeyAPIs(t *testing.T) {
 			name:     "success with multiple apis",
 			apiUUIDs: []uuid.UUID{apiUUID1, apiUUID2},
 			setupAK: func(r *mockAPIKeyRepo) {
-				r.findByUUIDFn = func(_ any, _ ...string) (*model.APIKey, error) { return buildAK(), nil }
+				r.findByUUIDFn = func(_ any, _ ...string) (*APIKey, error) { return buildAK(), nil }
 			},
 			setupAKA: func(_ *mockAPIKeyAPIRepo) {},
 			setupAPI: func(r *mockAPIRepo) {
-				r.findByUUIDFn = func(id any, _ ...string) (*model.API, error) {
+				r.findByUUIDFn = func(id any, _ ...string) (*API, error) {
 					u := id.(uuid.UUID)
 					if u == apiUUID1 {
 						return buildAPI(10, apiUUID1), nil
@@ -744,21 +742,21 @@ func TestAPIKeyService_RemoveAPIKeyAPI(t *testing.T) {
 		{
 			name: "find error",
 			setup: func(r *mockAPIKeyAPIRepo) {
-				r.findByAPIKeyUUIDAndAPIUUIDFn = func(_, _ uuid.UUID) (*model.APIKeyAPI, error) { return nil, errors.New("find err") }
+				r.findByAPIKeyUUIDAndAPIUUIDFn = func(_, _ uuid.UUID) (*APIKeyAPI, error) { return nil, errors.New("find err") }
 			},
 			wantErr: "find err",
 		},
 		{
 			name: "not found",
 			setup: func(r *mockAPIKeyAPIRepo) {
-				r.findByAPIKeyUUIDAndAPIUUIDFn = func(_, _ uuid.UUID) (*model.APIKeyAPI, error) { return nil, nil }
+				r.findByAPIKeyUUIDAndAPIUUIDFn = func(_, _ uuid.UUID) (*APIKeyAPI, error) { return nil, nil }
 			},
 			wantErr: "API key API relationship not found",
 		},
 		{
 			name: "remove error",
 			setup: func(r *mockAPIKeyAPIRepo) {
-				r.findByAPIKeyUUIDAndAPIUUIDFn = func(_, _ uuid.UUID) (*model.APIKeyAPI, error) { return &model.APIKeyAPI{}, nil }
+				r.findByAPIKeyUUIDAndAPIUUIDFn = func(_, _ uuid.UUID) (*APIKeyAPI, error) { return &APIKeyAPI{}, nil }
 				r.removeByAPIKeyUUIDAndAPIUUIDFn = func(_, _ uuid.UUID) error { return errors.New("remove err") }
 			},
 			wantErr: "remove err",
@@ -766,7 +764,7 @@ func TestAPIKeyService_RemoveAPIKeyAPI(t *testing.T) {
 		{
 			name: "success",
 			setup: func(r *mockAPIKeyAPIRepo) {
-				r.findByAPIKeyUUIDAndAPIUUIDFn = func(_, _ uuid.UUID) (*model.APIKeyAPI, error) { return &model.APIKeyAPI{}, nil }
+				r.findByAPIKeyUUIDAndAPIUUIDFn = func(_, _ uuid.UUID) (*APIKeyAPI, error) { return &APIKeyAPI{}, nil }
 			},
 			expectCommit: true,
 		},
@@ -807,7 +805,7 @@ func TestAPIKeyService_GetAPIKeyAPIPermissions(t *testing.T) {
 
 	t.Run("find relationship error", func(t *testing.T) {
 		akaRepo := &mockAPIKeyAPIRepo{
-			findByAPIKeyUUIDAndAPIUUIDFn: func(_, _ uuid.UUID) (*model.APIKeyAPI, error) { return nil, errors.New("find err") },
+			findByAPIKeyUUIDAndAPIUUIDFn: func(_, _ uuid.UUID) (*APIKeyAPI, error) { return nil, errors.New("find err") },
 		}
 		gormDB, _ := newMockGormDB(t)
 		svc := NewAPIKeyService(gormDB, &mockAPIKeyRepo{}, akaRepo, &mockAPIKeyPermissionRepo{}, &mockAPIRepo{}, &mockUserRepo{}, &mockPermissionRepo{})
@@ -819,7 +817,7 @@ func TestAPIKeyService_GetAPIKeyAPIPermissions(t *testing.T) {
 
 	t.Run("relationship not found", func(t *testing.T) {
 		akaRepo := &mockAPIKeyAPIRepo{
-			findByAPIKeyUUIDAndAPIUUIDFn: func(_, _ uuid.UUID) (*model.APIKeyAPI, error) { return nil, nil },
+			findByAPIKeyUUIDAndAPIUUIDFn: func(_, _ uuid.UUID) (*APIKeyAPI, error) { return nil, nil },
 		}
 		gormDB, _ := newMockGormDB(t)
 		svc := NewAPIKeyService(gormDB, &mockAPIKeyRepo{}, akaRepo, &mockAPIKeyPermissionRepo{}, &mockAPIRepo{}, &mockUserRepo{}, &mockPermissionRepo{})
@@ -831,12 +829,12 @@ func TestAPIKeyService_GetAPIKeyAPIPermissions(t *testing.T) {
 
 	t.Run("find permissions error", func(t *testing.T) {
 		akaRepo := &mockAPIKeyAPIRepo{
-			findByAPIKeyUUIDAndAPIUUIDFn: func(_, _ uuid.UUID) (*model.APIKeyAPI, error) {
-				return &model.APIKeyAPI{APIKeyAPIID: 1}, nil
+			findByAPIKeyUUIDAndAPIUUIDFn: func(_, _ uuid.UUID) (*APIKeyAPI, error) {
+				return &APIKeyAPI{APIKeyAPIID: 1}, nil
 			},
 		}
 		akpRepo := &mockAPIKeyPermissionRepo{
-			findByAPIKeyAPIIDFn: func(_ int64) ([]model.APIKeyPermission, error) { return nil, errors.New("perm err") },
+			findByAPIKeyAPIIDFn: func(_ int64) ([]APIKeyPermission, error) { return nil, errors.New("perm err") },
 		}
 		gormDB, _ := newMockGormDB(t)
 		svc := NewAPIKeyService(gormDB, &mockAPIKeyRepo{}, akaRepo, akpRepo, &mockAPIRepo{}, &mockUserRepo{}, &mockPermissionRepo{})
@@ -848,14 +846,14 @@ func TestAPIKeyService_GetAPIKeyAPIPermissions(t *testing.T) {
 
 	t.Run("success", func(t *testing.T) {
 		akaRepo := &mockAPIKeyAPIRepo{
-			findByAPIKeyUUIDAndAPIUUIDFn: func(_, _ uuid.UUID) (*model.APIKeyAPI, error) {
-				return &model.APIKeyAPI{APIKeyAPIID: 1}, nil
+			findByAPIKeyUUIDAndAPIUUIDFn: func(_, _ uuid.UUID) (*APIKeyAPI, error) {
+				return &APIKeyAPI{APIKeyAPIID: 1}, nil
 			},
 		}
 		akpRepo := &mockAPIKeyPermissionRepo{
-			findByAPIKeyAPIIDFn: func(_ int64) ([]model.APIKeyPermission, error) {
-				return []model.APIKeyPermission{
-					{Permission: &model.Permission{PermissionUUID: permUUID, Name: "read", Description: "Read", Status: "active", IsDefault: true}},
+			findByAPIKeyAPIIDFn: func(_ int64) ([]APIKeyPermission, error) {
+				return []APIKeyPermission{
+					{Permission: &Permission{PermissionUUID: permUUID, Name: "read", Description: "Read", Status: "active", IsDefault: true}},
 				}, nil
 			},
 		}
@@ -891,7 +889,7 @@ func TestAPIKeyService_AddAPIKeyAPIPermissions(t *testing.T) {
 			name:      "find relationship error",
 			permUUIDs: []uuid.UUID{permUUID1},
 			setupAKA: func(r *mockAPIKeyAPIRepo) {
-				r.findByAPIKeyUUIDAndAPIUUIDFn = func(_, _ uuid.UUID) (*model.APIKeyAPI, error) { return nil, errors.New("aka err") }
+				r.findByAPIKeyUUIDAndAPIUUIDFn = func(_, _ uuid.UUID) (*APIKeyAPI, error) { return nil, errors.New("aka err") }
 			},
 			setupAPI:  func(_ *mockAPIRepo) {},
 			setupPerm: func(_ *mockPermissionRepo) {},
@@ -902,7 +900,7 @@ func TestAPIKeyService_AddAPIKeyAPIPermissions(t *testing.T) {
 			name:      "relationship not found",
 			permUUIDs: []uuid.UUID{permUUID1},
 			setupAKA: func(r *mockAPIKeyAPIRepo) {
-				r.findByAPIKeyUUIDAndAPIUUIDFn = func(_, _ uuid.UUID) (*model.APIKeyAPI, error) { return nil, nil }
+				r.findByAPIKeyUUIDAndAPIUUIDFn = func(_, _ uuid.UUID) (*APIKeyAPI, error) { return nil, nil }
 			},
 			setupAPI:  func(_ *mockAPIRepo) {},
 			setupPerm: func(_ *mockPermissionRepo) {},
@@ -913,10 +911,10 @@ func TestAPIKeyService_AddAPIKeyAPIPermissions(t *testing.T) {
 			name:      "api find error",
 			permUUIDs: []uuid.UUID{permUUID1},
 			setupAKA: func(r *mockAPIKeyAPIRepo) {
-				r.findByAPIKeyUUIDAndAPIUUIDFn = func(_, _ uuid.UUID) (*model.APIKeyAPI, error) { return &model.APIKeyAPI{APIKeyAPIID: 1}, nil }
+				r.findByAPIKeyUUIDAndAPIUUIDFn = func(_, _ uuid.UUID) (*APIKeyAPI, error) { return &APIKeyAPI{APIKeyAPIID: 1}, nil }
 			},
 			setupAPI: func(r *mockAPIRepo) {
-				r.findByUUIDFn = func(_ any, _ ...string) (*model.API, error) { return nil, errors.New("api err") }
+				r.findByUUIDFn = func(_ any, _ ...string) (*API, error) { return nil, errors.New("api err") }
 			},
 			setupPerm: func(_ *mockPermissionRepo) {},
 			setupAKP:  func(_ *mockAPIKeyPermissionRepo) {},
@@ -926,10 +924,10 @@ func TestAPIKeyService_AddAPIKeyAPIPermissions(t *testing.T) {
 			name:      "api not found",
 			permUUIDs: []uuid.UUID{permUUID1},
 			setupAKA: func(r *mockAPIKeyAPIRepo) {
-				r.findByAPIKeyUUIDAndAPIUUIDFn = func(_, _ uuid.UUID) (*model.APIKeyAPI, error) { return &model.APIKeyAPI{APIKeyAPIID: 1}, nil }
+				r.findByAPIKeyUUIDAndAPIUUIDFn = func(_, _ uuid.UUID) (*APIKeyAPI, error) { return &APIKeyAPI{APIKeyAPIID: 1}, nil }
 			},
 			setupAPI: func(r *mockAPIRepo) {
-				r.findByUUIDFn = func(_ any, _ ...string) (*model.API, error) { return nil, nil }
+				r.findByUUIDFn = func(_ any, _ ...string) (*API, error) { return nil, nil }
 			},
 			setupPerm: func(_ *mockPermissionRepo) {},
 			setupAKP:  func(_ *mockAPIKeyPermissionRepo) {},
@@ -939,13 +937,13 @@ func TestAPIKeyService_AddAPIKeyAPIPermissions(t *testing.T) {
 			name:      "permission find error",
 			permUUIDs: []uuid.UUID{permUUID1},
 			setupAKA: func(r *mockAPIKeyAPIRepo) {
-				r.findByAPIKeyUUIDAndAPIUUIDFn = func(_, _ uuid.UUID) (*model.APIKeyAPI, error) { return &model.APIKeyAPI{APIKeyAPIID: 1}, nil }
+				r.findByAPIKeyUUIDAndAPIUUIDFn = func(_, _ uuid.UUID) (*APIKeyAPI, error) { return &APIKeyAPI{APIKeyAPIID: 1}, nil }
 			},
 			setupAPI: func(r *mockAPIRepo) {
-				r.findByUUIDFn = func(_ any, _ ...string) (*model.API, error) { return &model.API{APIID: 10}, nil }
+				r.findByUUIDFn = func(_ any, _ ...string) (*API, error) { return &API{APIID: 10}, nil }
 			},
 			setupPerm: func(r *mockPermissionRepo) {
-				r.findByUUIDFn = func(_ any, _ ...string) (*model.Permission, error) { return nil, errors.New("perm err") }
+				r.findByUUIDFn = func(_ any, _ ...string) (*Permission, error) { return nil, errors.New("perm err") }
 			},
 			setupAKP: func(_ *mockAPIKeyPermissionRepo) {},
 			wantErr:  "perm err",
@@ -954,13 +952,13 @@ func TestAPIKeyService_AddAPIKeyAPIPermissions(t *testing.T) {
 			name:      "permission not found",
 			permUUIDs: []uuid.UUID{permUUID1},
 			setupAKA: func(r *mockAPIKeyAPIRepo) {
-				r.findByAPIKeyUUIDAndAPIUUIDFn = func(_, _ uuid.UUID) (*model.APIKeyAPI, error) { return &model.APIKeyAPI{APIKeyAPIID: 1}, nil }
+				r.findByAPIKeyUUIDAndAPIUUIDFn = func(_, _ uuid.UUID) (*APIKeyAPI, error) { return &APIKeyAPI{APIKeyAPIID: 1}, nil }
 			},
 			setupAPI: func(r *mockAPIRepo) {
-				r.findByUUIDFn = func(_ any, _ ...string) (*model.API, error) { return &model.API{APIID: 10}, nil }
+				r.findByUUIDFn = func(_ any, _ ...string) (*API, error) { return &API{APIID: 10}, nil }
 			},
 			setupPerm: func(r *mockPermissionRepo) {
-				r.findByUUIDFn = func(_ any, _ ...string) (*model.Permission, error) { return nil, nil }
+				r.findByUUIDFn = func(_ any, _ ...string) (*Permission, error) { return nil, nil }
 			},
 			setupAKP: func(_ *mockAPIKeyPermissionRepo) {},
 			wantErr:  "permission not found",
@@ -969,14 +967,14 @@ func TestAPIKeyService_AddAPIKeyAPIPermissions(t *testing.T) {
 			name:      "permission wrong api",
 			permUUIDs: []uuid.UUID{permUUID1},
 			setupAKA: func(r *mockAPIKeyAPIRepo) {
-				r.findByAPIKeyUUIDAndAPIUUIDFn = func(_, _ uuid.UUID) (*model.APIKeyAPI, error) { return &model.APIKeyAPI{APIKeyAPIID: 1}, nil }
+				r.findByAPIKeyUUIDAndAPIUUIDFn = func(_, _ uuid.UUID) (*APIKeyAPI, error) { return &APIKeyAPI{APIKeyAPIID: 1}, nil }
 			},
 			setupAPI: func(r *mockAPIRepo) {
-				r.findByUUIDFn = func(_ any, _ ...string) (*model.API, error) { return &model.API{APIID: 10}, nil }
+				r.findByUUIDFn = func(_ any, _ ...string) (*API, error) { return &API{APIID: 10}, nil }
 			},
 			setupPerm: func(r *mockPermissionRepo) {
-				r.findByUUIDFn = func(_ any, _ ...string) (*model.Permission, error) {
-					return &model.Permission{PermissionID: 1, APIID: 999}, nil // Wrong API
+				r.findByUUIDFn = func(_ any, _ ...string) (*Permission, error) {
+					return &Permission{PermissionID: 1, APIID: 999}, nil // Wrong API
 				}
 			},
 			setupAKP: func(_ *mockAPIKeyPermissionRepo) {},
@@ -986,18 +984,18 @@ func TestAPIKeyService_AddAPIKeyAPIPermissions(t *testing.T) {
 			name:      "find existing permission error",
 			permUUIDs: []uuid.UUID{permUUID1},
 			setupAKA: func(r *mockAPIKeyAPIRepo) {
-				r.findByAPIKeyUUIDAndAPIUUIDFn = func(_, _ uuid.UUID) (*model.APIKeyAPI, error) { return &model.APIKeyAPI{APIKeyAPIID: 1}, nil }
+				r.findByAPIKeyUUIDAndAPIUUIDFn = func(_, _ uuid.UUID) (*APIKeyAPI, error) { return &APIKeyAPI{APIKeyAPIID: 1}, nil }
 			},
 			setupAPI: func(r *mockAPIRepo) {
-				r.findByUUIDFn = func(_ any, _ ...string) (*model.API, error) { return &model.API{APIID: 10}, nil }
+				r.findByUUIDFn = func(_ any, _ ...string) (*API, error) { return &API{APIID: 10}, nil }
 			},
 			setupPerm: func(r *mockPermissionRepo) {
-				r.findByUUIDFn = func(_ any, _ ...string) (*model.Permission, error) {
-					return &model.Permission{PermissionID: 1, APIID: 10}, nil
+				r.findByUUIDFn = func(_ any, _ ...string) (*Permission, error) {
+					return &Permission{PermissionID: 1, APIID: 10}, nil
 				}
 			},
 			setupAKP: func(r *mockAPIKeyPermissionRepo) {
-				r.findByAPIKeyAPIAndPermissionFn = func(_, _ int64) (*model.APIKeyPermission, error) { return nil, errors.New("find akp err") }
+				r.findByAPIKeyAPIAndPermissionFn = func(_, _ int64) (*APIKeyPermission, error) { return nil, errors.New("find akp err") }
 			},
 			wantErr: "find akp err",
 		},
@@ -1005,18 +1003,18 @@ func TestAPIKeyService_AddAPIKeyAPIPermissions(t *testing.T) {
 			name:      "skip existing permission",
 			permUUIDs: []uuid.UUID{permUUID1},
 			setupAKA: func(r *mockAPIKeyAPIRepo) {
-				r.findByAPIKeyUUIDAndAPIUUIDFn = func(_, _ uuid.UUID) (*model.APIKeyAPI, error) { return &model.APIKeyAPI{APIKeyAPIID: 1}, nil }
+				r.findByAPIKeyUUIDAndAPIUUIDFn = func(_, _ uuid.UUID) (*APIKeyAPI, error) { return &APIKeyAPI{APIKeyAPIID: 1}, nil }
 			},
 			setupAPI: func(r *mockAPIRepo) {
-				r.findByUUIDFn = func(_ any, _ ...string) (*model.API, error) { return &model.API{APIID: 10}, nil }
+				r.findByUUIDFn = func(_ any, _ ...string) (*API, error) { return &API{APIID: 10}, nil }
 			},
 			setupPerm: func(r *mockPermissionRepo) {
-				r.findByUUIDFn = func(_ any, _ ...string) (*model.Permission, error) {
-					return &model.Permission{PermissionID: 1, APIID: 10}, nil
+				r.findByUUIDFn = func(_ any, _ ...string) (*Permission, error) {
+					return &Permission{PermissionID: 1, APIID: 10}, nil
 				}
 			},
 			setupAKP: func(r *mockAPIKeyPermissionRepo) {
-				r.findByAPIKeyAPIAndPermissionFn = func(_, _ int64) (*model.APIKeyPermission, error) { return &model.APIKeyPermission{}, nil }
+				r.findByAPIKeyAPIAndPermissionFn = func(_, _ int64) (*APIKeyPermission, error) { return &APIKeyPermission{}, nil }
 			},
 			expectCommit: true,
 		},
@@ -1024,18 +1022,18 @@ func TestAPIKeyService_AddAPIKeyAPIPermissions(t *testing.T) {
 			name:      "create permission error",
 			permUUIDs: []uuid.UUID{permUUID1},
 			setupAKA: func(r *mockAPIKeyAPIRepo) {
-				r.findByAPIKeyUUIDAndAPIUUIDFn = func(_, _ uuid.UUID) (*model.APIKeyAPI, error) { return &model.APIKeyAPI{APIKeyAPIID: 1}, nil }
+				r.findByAPIKeyUUIDAndAPIUUIDFn = func(_, _ uuid.UUID) (*APIKeyAPI, error) { return &APIKeyAPI{APIKeyAPIID: 1}, nil }
 			},
 			setupAPI: func(r *mockAPIRepo) {
-				r.findByUUIDFn = func(_ any, _ ...string) (*model.API, error) { return &model.API{APIID: 10}, nil }
+				r.findByUUIDFn = func(_ any, _ ...string) (*API, error) { return &API{APIID: 10}, nil }
 			},
 			setupPerm: func(r *mockPermissionRepo) {
-				r.findByUUIDFn = func(_ any, _ ...string) (*model.Permission, error) {
-					return &model.Permission{PermissionID: 1, APIID: 10}, nil
+				r.findByUUIDFn = func(_ any, _ ...string) (*Permission, error) {
+					return &Permission{PermissionID: 1, APIID: 10}, nil
 				}
 			},
 			setupAKP: func(r *mockAPIKeyPermissionRepo) {
-				r.createFn = func(_ *model.APIKeyPermission) (*model.APIKeyPermission, error) {
+				r.createFn = func(_ *APIKeyPermission) (*APIKeyPermission, error) {
 					return nil, errors.New("create perm err")
 				}
 			},
@@ -1045,14 +1043,14 @@ func TestAPIKeyService_AddAPIKeyAPIPermissions(t *testing.T) {
 			name:      "success",
 			permUUIDs: []uuid.UUID{permUUID1},
 			setupAKA: func(r *mockAPIKeyAPIRepo) {
-				r.findByAPIKeyUUIDAndAPIUUIDFn = func(_, _ uuid.UUID) (*model.APIKeyAPI, error) { return &model.APIKeyAPI{APIKeyAPIID: 1}, nil }
+				r.findByAPIKeyUUIDAndAPIUUIDFn = func(_, _ uuid.UUID) (*APIKeyAPI, error) { return &APIKeyAPI{APIKeyAPIID: 1}, nil }
 			},
 			setupAPI: func(r *mockAPIRepo) {
-				r.findByUUIDFn = func(_ any, _ ...string) (*model.API, error) { return &model.API{APIID: 10}, nil }
+				r.findByUUIDFn = func(_ any, _ ...string) (*API, error) { return &API{APIID: 10}, nil }
 			},
 			setupPerm: func(r *mockPermissionRepo) {
-				r.findByUUIDFn = func(_ any, _ ...string) (*model.Permission, error) {
-					return &model.Permission{PermissionID: 1, APIID: 10}, nil
+				r.findByUUIDFn = func(_ any, _ ...string) (*Permission, error) {
+					return &Permission{PermissionID: 1, APIID: 10}, nil
 				}
 			},
 			setupAKP:     func(_ *mockAPIKeyPermissionRepo) {},
@@ -1111,7 +1109,7 @@ func TestAPIKeyService_RemoveAPIKeyAPIPermission(t *testing.T) {
 		{
 			name: "find relationship error",
 			setupAKA: func(r *mockAPIKeyAPIRepo) {
-				r.findByAPIKeyUUIDAndAPIUUIDFn = func(_, _ uuid.UUID) (*model.APIKeyAPI, error) { return nil, errors.New("aka err") }
+				r.findByAPIKeyUUIDAndAPIUUIDFn = func(_, _ uuid.UUID) (*APIKeyAPI, error) { return nil, errors.New("aka err") }
 			},
 			setupAPI:  func(_ *mockAPIRepo) {},
 			setupPerm: func(_ *mockPermissionRepo) {},
@@ -1121,7 +1119,7 @@ func TestAPIKeyService_RemoveAPIKeyAPIPermission(t *testing.T) {
 		{
 			name: "relationship not found",
 			setupAKA: func(r *mockAPIKeyAPIRepo) {
-				r.findByAPIKeyUUIDAndAPIUUIDFn = func(_, _ uuid.UUID) (*model.APIKeyAPI, error) { return nil, nil }
+				r.findByAPIKeyUUIDAndAPIUUIDFn = func(_, _ uuid.UUID) (*APIKeyAPI, error) { return nil, nil }
 			},
 			setupAPI:  func(_ *mockAPIRepo) {},
 			setupPerm: func(_ *mockPermissionRepo) {},
@@ -1131,10 +1129,10 @@ func TestAPIKeyService_RemoveAPIKeyAPIPermission(t *testing.T) {
 		{
 			name: "api find error",
 			setupAKA: func(r *mockAPIKeyAPIRepo) {
-				r.findByAPIKeyUUIDAndAPIUUIDFn = func(_, _ uuid.UUID) (*model.APIKeyAPI, error) { return &model.APIKeyAPI{APIKeyAPIID: 1}, nil }
+				r.findByAPIKeyUUIDAndAPIUUIDFn = func(_, _ uuid.UUID) (*APIKeyAPI, error) { return &APIKeyAPI{APIKeyAPIID: 1}, nil }
 			},
 			setupAPI: func(r *mockAPIRepo) {
-				r.findByUUIDFn = func(_ any, _ ...string) (*model.API, error) { return nil, errors.New("api err") }
+				r.findByUUIDFn = func(_ any, _ ...string) (*API, error) { return nil, errors.New("api err") }
 			},
 			setupPerm: func(_ *mockPermissionRepo) {},
 			setupAKP:  func(_ *mockAPIKeyPermissionRepo) {},
@@ -1143,10 +1141,10 @@ func TestAPIKeyService_RemoveAPIKeyAPIPermission(t *testing.T) {
 		{
 			name: "api not found",
 			setupAKA: func(r *mockAPIKeyAPIRepo) {
-				r.findByAPIKeyUUIDAndAPIUUIDFn = func(_, _ uuid.UUID) (*model.APIKeyAPI, error) { return &model.APIKeyAPI{APIKeyAPIID: 1}, nil }
+				r.findByAPIKeyUUIDAndAPIUUIDFn = func(_, _ uuid.UUID) (*APIKeyAPI, error) { return &APIKeyAPI{APIKeyAPIID: 1}, nil }
 			},
 			setupAPI: func(r *mockAPIRepo) {
-				r.findByUUIDFn = func(_ any, _ ...string) (*model.API, error) { return nil, nil }
+				r.findByUUIDFn = func(_ any, _ ...string) (*API, error) { return nil, nil }
 			},
 			setupPerm: func(_ *mockPermissionRepo) {},
 			setupAKP:  func(_ *mockAPIKeyPermissionRepo) {},
@@ -1155,13 +1153,13 @@ func TestAPIKeyService_RemoveAPIKeyAPIPermission(t *testing.T) {
 		{
 			name: "permission find error",
 			setupAKA: func(r *mockAPIKeyAPIRepo) {
-				r.findByAPIKeyUUIDAndAPIUUIDFn = func(_, _ uuid.UUID) (*model.APIKeyAPI, error) { return &model.APIKeyAPI{APIKeyAPIID: 1}, nil }
+				r.findByAPIKeyUUIDAndAPIUUIDFn = func(_, _ uuid.UUID) (*APIKeyAPI, error) { return &APIKeyAPI{APIKeyAPIID: 1}, nil }
 			},
 			setupAPI: func(r *mockAPIRepo) {
-				r.findByUUIDFn = func(_ any, _ ...string) (*model.API, error) { return &model.API{APIID: 10}, nil }
+				r.findByUUIDFn = func(_ any, _ ...string) (*API, error) { return &API{APIID: 10}, nil }
 			},
 			setupPerm: func(r *mockPermissionRepo) {
-				r.findByUUIDFn = func(_ any, _ ...string) (*model.Permission, error) { return nil, errors.New("perm err") }
+				r.findByUUIDFn = func(_ any, _ ...string) (*Permission, error) { return nil, errors.New("perm err") }
 			},
 			setupAKP: func(_ *mockAPIKeyPermissionRepo) {},
 			wantErr:  "perm err",
@@ -1169,13 +1167,13 @@ func TestAPIKeyService_RemoveAPIKeyAPIPermission(t *testing.T) {
 		{
 			name: "permission not found",
 			setupAKA: func(r *mockAPIKeyAPIRepo) {
-				r.findByAPIKeyUUIDAndAPIUUIDFn = func(_, _ uuid.UUID) (*model.APIKeyAPI, error) { return &model.APIKeyAPI{APIKeyAPIID: 1}, nil }
+				r.findByAPIKeyUUIDAndAPIUUIDFn = func(_, _ uuid.UUID) (*APIKeyAPI, error) { return &APIKeyAPI{APIKeyAPIID: 1}, nil }
 			},
 			setupAPI: func(r *mockAPIRepo) {
-				r.findByUUIDFn = func(_ any, _ ...string) (*model.API, error) { return &model.API{APIID: 10}, nil }
+				r.findByUUIDFn = func(_ any, _ ...string) (*API, error) { return &API{APIID: 10}, nil }
 			},
 			setupPerm: func(r *mockPermissionRepo) {
-				r.findByUUIDFn = func(_ any, _ ...string) (*model.Permission, error) { return nil, nil }
+				r.findByUUIDFn = func(_ any, _ ...string) (*Permission, error) { return nil, nil }
 			},
 			setupAKP: func(_ *mockAPIKeyPermissionRepo) {},
 			wantErr:  "permission not found",
@@ -1183,14 +1181,14 @@ func TestAPIKeyService_RemoveAPIKeyAPIPermission(t *testing.T) {
 		{
 			name: "permission wrong api",
 			setupAKA: func(r *mockAPIKeyAPIRepo) {
-				r.findByAPIKeyUUIDAndAPIUUIDFn = func(_, _ uuid.UUID) (*model.APIKeyAPI, error) { return &model.APIKeyAPI{APIKeyAPIID: 1}, nil }
+				r.findByAPIKeyUUIDAndAPIUUIDFn = func(_, _ uuid.UUID) (*APIKeyAPI, error) { return &APIKeyAPI{APIKeyAPIID: 1}, nil }
 			},
 			setupAPI: func(r *mockAPIRepo) {
-				r.findByUUIDFn = func(_ any, _ ...string) (*model.API, error) { return &model.API{APIID: 10}, nil }
+				r.findByUUIDFn = func(_ any, _ ...string) (*API, error) { return &API{APIID: 10}, nil }
 			},
 			setupPerm: func(r *mockPermissionRepo) {
-				r.findByUUIDFn = func(_ any, _ ...string) (*model.Permission, error) {
-					return &model.Permission{PermissionID: 1, APIID: 999}, nil
+				r.findByUUIDFn = func(_ any, _ ...string) (*Permission, error) {
+					return &Permission{PermissionID: 1, APIID: 999}, nil
 				}
 			},
 			setupAKP: func(_ *mockAPIKeyPermissionRepo) {},
@@ -1199,14 +1197,14 @@ func TestAPIKeyService_RemoveAPIKeyAPIPermission(t *testing.T) {
 		{
 			name: "remove error",
 			setupAKA: func(r *mockAPIKeyAPIRepo) {
-				r.findByAPIKeyUUIDAndAPIUUIDFn = func(_, _ uuid.UUID) (*model.APIKeyAPI, error) { return &model.APIKeyAPI{APIKeyAPIID: 1}, nil }
+				r.findByAPIKeyUUIDAndAPIUUIDFn = func(_, _ uuid.UUID) (*APIKeyAPI, error) { return &APIKeyAPI{APIKeyAPIID: 1}, nil }
 			},
 			setupAPI: func(r *mockAPIRepo) {
-				r.findByUUIDFn = func(_ any, _ ...string) (*model.API, error) { return &model.API{APIID: 10}, nil }
+				r.findByUUIDFn = func(_ any, _ ...string) (*API, error) { return &API{APIID: 10}, nil }
 			},
 			setupPerm: func(r *mockPermissionRepo) {
-				r.findByUUIDFn = func(_ any, _ ...string) (*model.Permission, error) {
-					return &model.Permission{PermissionID: 1, APIID: 10}, nil
+				r.findByUUIDFn = func(_ any, _ ...string) (*Permission, error) {
+					return &Permission{PermissionID: 1, APIID: 10}, nil
 				}
 			},
 			setupAKP: func(r *mockAPIKeyPermissionRepo) {
@@ -1217,14 +1215,14 @@ func TestAPIKeyService_RemoveAPIKeyAPIPermission(t *testing.T) {
 		{
 			name: "success",
 			setupAKA: func(r *mockAPIKeyAPIRepo) {
-				r.findByAPIKeyUUIDAndAPIUUIDFn = func(_, _ uuid.UUID) (*model.APIKeyAPI, error) { return &model.APIKeyAPI{APIKeyAPIID: 1}, nil }
+				r.findByAPIKeyUUIDAndAPIUUIDFn = func(_, _ uuid.UUID) (*APIKeyAPI, error) { return &APIKeyAPI{APIKeyAPIID: 1}, nil }
 			},
 			setupAPI: func(r *mockAPIRepo) {
-				r.findByUUIDFn = func(_ any, _ ...string) (*model.API, error) { return &model.API{APIID: 10}, nil }
+				r.findByUUIDFn = func(_ any, _ ...string) (*API, error) { return &API{APIID: 10}, nil }
 			},
 			setupPerm: func(r *mockPermissionRepo) {
-				r.findByUUIDFn = func(_ any, _ ...string) (*model.Permission, error) {
-					return &model.Permission{PermissionID: 1, APIID: 10}, nil
+				r.findByUUIDFn = func(_ any, _ ...string) (*Permission, error) {
+					return &Permission{PermissionID: 1, APIID: 10}, nil
 				}
 			},
 			setupAKP:     func(_ *mockAPIKeyPermissionRepo) {},

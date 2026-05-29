@@ -6,8 +6,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"github.com/maintainerd/auth/internal/model"
 )
 
 func TestAPIKeyCreateRequestDto_Validate(t *testing.T) {
@@ -52,7 +50,7 @@ func TestAPIKeyUpdateRequestDto_Validate(t *testing.T) {
 	})
 
 	t.Run("valid active status", func(t *testing.T) {
-		s := model.StatusActive
+		s := StatusActive
 		d := APIKeyUpdateRequestDTO{Status: &s}
 		assert.NoError(t, d.Validate())
 	})
@@ -77,8 +75,8 @@ func TestAPIKeyGetRequestDto_Validate(t *testing.T) {
 }
 
 func TestAPIKeyStatusUpdateDto_Validate(t *testing.T) {
-	assert.NoError(t, APIKeyStatusUpdateDTO{Status: model.StatusActive}.Validate())
-	assert.NoError(t, APIKeyStatusUpdateDTO{Status: model.StatusInactive}.Validate())
+	assert.NoError(t, APIKeyStatusUpdateDTO{Status: StatusActive}.Validate())
+	assert.NoError(t, APIKeyStatusUpdateDTO{Status: StatusInactive}.Validate())
 	require.Error(t, APIKeyStatusUpdateDTO{Status: ""}.Validate())
 	require.Error(t, APIKeyStatusUpdateDTO{Status: "bad"}.Validate())
 }

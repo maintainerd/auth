@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/maintainerd/auth/internal/model"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -25,8 +24,8 @@ func TestOAuthConsentService_ListGrants(t *testing.T) {
 		now := time.Now()
 
 		svc := newOAuthConsentSvc(&mockOAuthConsentGrantRepo{
-			findByUserIDFn: func(_ int64) ([]model.OAuthConsentGrant, error) {
-				return []model.OAuthConsentGrant{
+			findByUserIDFn: func(_ int64) ([]OAuthConsentGrant, error) {
+				return []OAuthConsentGrant{
 					{
 						OAuthConsentGrantUUID: grantUUID,
 						UserID:                1,
@@ -35,7 +34,7 @@ func TestOAuthConsentService_ListGrants(t *testing.T) {
 						Scopes:                "openid profile email",
 						CreatedAt:             now,
 						UpdatedAt:             now,
-						Client: &model.Client{
+						Client: &Client{
 							ClientUUID:  clientUUID,
 							DisplayName: "Test App",
 						},
@@ -55,7 +54,7 @@ func TestOAuthConsentService_ListGrants(t *testing.T) {
 
 	t.Run("returns empty list when no grants", func(t *testing.T) {
 		svc := newOAuthConsentSvc(&mockOAuthConsentGrantRepo{
-			findByUserIDFn: func(_ int64) ([]model.OAuthConsentGrant, error) {
+			findByUserIDFn: func(_ int64) ([]OAuthConsentGrant, error) {
 				return nil, nil
 			},
 		})
@@ -70,8 +69,8 @@ func TestOAuthConsentService_ListGrants(t *testing.T) {
 		now := time.Now()
 
 		svc := newOAuthConsentSvc(&mockOAuthConsentGrantRepo{
-			findByUserIDFn: func(_ int64) ([]model.OAuthConsentGrant, error) {
-				return []model.OAuthConsentGrant{
+			findByUserIDFn: func(_ int64) ([]OAuthConsentGrant, error) {
+				return []OAuthConsentGrant{
 					{
 						OAuthConsentGrantUUID: grantUUID,
 						Scopes:                "openid",
@@ -91,7 +90,7 @@ func TestOAuthConsentService_ListGrants(t *testing.T) {
 
 	t.Run("repo error", func(t *testing.T) {
 		svc := newOAuthConsentSvc(&mockOAuthConsentGrantRepo{
-			findByUserIDFn: func(_ int64) ([]model.OAuthConsentGrant, error) {
+			findByUserIDFn: func(_ int64) ([]OAuthConsentGrant, error) {
 				return nil, errors.New("db error")
 			},
 		})
@@ -110,8 +109,8 @@ func TestOAuthConsentService_RevokeGrant(t *testing.T) {
 		var deletedUserID, deletedClientID int64
 
 		svc := newOAuthConsentSvc(&mockOAuthConsentGrantRepo{
-			findByUserIDFn: func(uid int64) ([]model.OAuthConsentGrant, error) {
-				return []model.OAuthConsentGrant{
+			findByUserIDFn: func(uid int64) ([]OAuthConsentGrant, error) {
+				return []OAuthConsentGrant{
 					{
 						OAuthConsentGrantUUID: grantUUID,
 						UserID:                uid,
@@ -134,8 +133,8 @@ func TestOAuthConsentService_RevokeGrant(t *testing.T) {
 
 	t.Run("grant not found", func(t *testing.T) {
 		svc := newOAuthConsentSvc(&mockOAuthConsentGrantRepo{
-			findByUserIDFn: func(_ int64) ([]model.OAuthConsentGrant, error) {
-				return []model.OAuthConsentGrant{}, nil
+			findByUserIDFn: func(_ int64) ([]OAuthConsentGrant, error) {
+				return []OAuthConsentGrant{}, nil
 			},
 		})
 
@@ -149,8 +148,8 @@ func TestOAuthConsentService_RevokeGrant(t *testing.T) {
 		otherUUID := uuid.New()
 
 		svc := newOAuthConsentSvc(&mockOAuthConsentGrantRepo{
-			findByUserIDFn: func(_ int64) ([]model.OAuthConsentGrant, error) {
-				return []model.OAuthConsentGrant{
+			findByUserIDFn: func(_ int64) ([]OAuthConsentGrant, error) {
+				return []OAuthConsentGrant{
 					{OAuthConsentGrantUUID: otherUUID, ClientID: 10},
 				}, nil
 			},
@@ -163,7 +162,7 @@ func TestOAuthConsentService_RevokeGrant(t *testing.T) {
 
 	t.Run("FindByUserID error", func(t *testing.T) {
 		svc := newOAuthConsentSvc(&mockOAuthConsentGrantRepo{
-			findByUserIDFn: func(_ int64) ([]model.OAuthConsentGrant, error) {
+			findByUserIDFn: func(_ int64) ([]OAuthConsentGrant, error) {
 				return nil, errors.New("db error")
 			},
 		})
@@ -177,8 +176,8 @@ func TestOAuthConsentService_RevokeGrant(t *testing.T) {
 		grantUUID := uuid.New()
 
 		svc := newOAuthConsentSvc(&mockOAuthConsentGrantRepo{
-			findByUserIDFn: func(uid int64) ([]model.OAuthConsentGrant, error) {
-				return []model.OAuthConsentGrant{
+			findByUserIDFn: func(uid int64) ([]OAuthConsentGrant, error) {
+				return []OAuthConsentGrant{
 					{OAuthConsentGrantUUID: grantUUID, UserID: uid, ClientID: 10},
 				}, nil
 			},

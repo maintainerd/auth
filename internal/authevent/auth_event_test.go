@@ -7,8 +7,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/maintainerd/auth/internal/model"
-	"github.com/maintainerd/auth/internal/repository"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.opentelemetry.io/otel/trace"
@@ -21,54 +19,54 @@ import (
 // ---------------------------------------------------------------------------
 
 type mockAuthEventRepo struct {
-	createFn           func(e *model.AuthEvent) (*model.AuthEvent, error)
-	findPaginatedFn    func(filter repository.AuthEventRepositoryGetFilter) (*repository.PaginationResult[model.AuthEvent], error)
-	findByUUIDAndTIDFn func(uuid string, tenantID int64) (*model.AuthEvent, error)
-	findByDateRangeFn  func(tenantID int64, from, to time.Time) ([]model.AuthEvent, error)
+	createFn           func(e *AuthEvent) (*AuthEvent, error)
+	findPaginatedFn    func(filter AuthEventRepositoryGetFilter) (*PaginationResult[AuthEvent], error)
+	findByUUIDAndTIDFn func(uuid string, tenantID int64) (*AuthEvent, error)
+	findByDateRangeFn  func(tenantID int64, from, to time.Time) ([]AuthEvent, error)
 	deleteOlderThanFn  func(cutoff time.Time) (int64, error)
 	countByEventTypeFn func(eventType string, tenantID int64) (int64, error)
 }
 
-func (m *mockAuthEventRepo) WithTx(_ *gorm.DB) repository.AuthEventRepository { return m }
-func (m *mockAuthEventRepo) Create(e *model.AuthEvent) (*model.AuthEvent, error) {
+func (m *mockAuthEventRepo) WithTx(_ *gorm.DB) AuthEventRepository { return m }
+func (m *mockAuthEventRepo) Create(e *AuthEvent) (*AuthEvent, error) {
 	if m.createFn != nil {
 		return m.createFn(e)
 	}
 	return e, nil
 }
-func (m *mockAuthEventRepo) CreateOrUpdate(e *model.AuthEvent) (*model.AuthEvent, error) {
+func (m *mockAuthEventRepo) CreateOrUpdate(e *AuthEvent) (*AuthEvent, error) {
 	return e, nil
 }
-func (m *mockAuthEventRepo) FindAll(_ ...string) ([]model.AuthEvent, error) { return nil, nil }
-func (m *mockAuthEventRepo) FindByUUID(_ any, _ ...string) (*model.AuthEvent, error) {
+func (m *mockAuthEventRepo) FindAll(_ ...string) ([]AuthEvent, error) { return nil, nil }
+func (m *mockAuthEventRepo) FindByUUID(_ any, _ ...string) (*AuthEvent, error) {
 	return nil, nil
 }
-func (m *mockAuthEventRepo) FindByUUIDs(_ []string, _ ...string) ([]model.AuthEvent, error) {
+func (m *mockAuthEventRepo) FindByUUIDs(_ []string, _ ...string) ([]AuthEvent, error) {
 	return nil, nil
 }
-func (m *mockAuthEventRepo) FindByID(_ any, _ ...string) (*model.AuthEvent, error) {
+func (m *mockAuthEventRepo) FindByID(_ any, _ ...string) (*AuthEvent, error) {
 	return nil, nil
 }
-func (m *mockAuthEventRepo) UpdateByUUID(_ any, _ any) (*model.AuthEvent, error) { return nil, nil }
-func (m *mockAuthEventRepo) UpdateByID(_ any, _ any) (*model.AuthEvent, error)   { return nil, nil }
-func (m *mockAuthEventRepo) DeleteByUUID(_ any) error                            { return nil }
-func (m *mockAuthEventRepo) DeleteByID(_ any) error                              { return nil }
-func (m *mockAuthEventRepo) Paginate(_ map[string]any, _ int, _ int, _ ...string) (*repository.PaginationResult[model.AuthEvent], error) {
+func (m *mockAuthEventRepo) UpdateByUUID(_ any, _ any) (*AuthEvent, error) { return nil, nil }
+func (m *mockAuthEventRepo) UpdateByID(_ any, _ any) (*AuthEvent, error)   { return nil, nil }
+func (m *mockAuthEventRepo) DeleteByUUID(_ any) error                      { return nil }
+func (m *mockAuthEventRepo) DeleteByID(_ any) error                        { return nil }
+func (m *mockAuthEventRepo) Paginate(_ map[string]any, _ int, _ int, _ ...string) (*PaginationResult[AuthEvent], error) {
 	return nil, nil
 }
-func (m *mockAuthEventRepo) FindPaginated(filter repository.AuthEventRepositoryGetFilter) (*repository.PaginationResult[model.AuthEvent], error) {
+func (m *mockAuthEventRepo) FindPaginated(filter AuthEventRepositoryGetFilter) (*PaginationResult[AuthEvent], error) {
 	if m.findPaginatedFn != nil {
 		return m.findPaginatedFn(filter)
 	}
-	return &repository.PaginationResult[model.AuthEvent]{}, nil
+	return &PaginationResult[AuthEvent]{}, nil
 }
-func (m *mockAuthEventRepo) FindByUUIDAndTenantID(uid string, tid int64) (*model.AuthEvent, error) {
+func (m *mockAuthEventRepo) FindByUUIDAndTenantID(uid string, tid int64) (*AuthEvent, error) {
 	if m.findByUUIDAndTIDFn != nil {
 		return m.findByUUIDAndTIDFn(uid, tid)
 	}
 	return nil, nil
 }
-func (m *mockAuthEventRepo) FindByDateRange(tid int64, from, to time.Time) ([]model.AuthEvent, error) {
+func (m *mockAuthEventRepo) FindByDateRange(tid int64, from, to time.Time) ([]AuthEvent, error) {
 	if m.findByDateRangeFn != nil {
 		return m.findByDateRangeFn(tid, from, to)
 	}
@@ -93,9 +91,9 @@ func (m *mockAuthEventRepo) CountByEventType(eventType string, tenantID int64) (
 
 func TestAuthEventService_Log(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
-		var created *model.AuthEvent
+		var created *AuthEvent
 		repo := &mockAuthEventRepo{
-			createFn: func(e *model.AuthEvent) (*model.AuthEvent, error) {
+			createFn: func(e *AuthEvent) (*AuthEvent, error) {
 				created = e
 				return e, nil
 			},
@@ -104,21 +102,21 @@ func TestAuthEventService_Log(t *testing.T) {
 		svc.Log(context.Background(), AuthEventInput{
 			TenantID:  1,
 			IPAddress: "10.0.0.1",
-			Category:  model.AuthEventCategoryAuthn,
-			EventType: model.AuthEventTypeLoginSuccess,
-			Severity:  model.AuthEventSeverityInfo,
-			Result:    model.AuthEventResultSuccess,
+			Category:  AuthEventCategoryAuthn,
+			EventType: AuthEventTypeLoginSuccess,
+			Severity:  AuthEventSeverityInfo,
+			Result:    AuthEventResultSuccess,
 		})
 		require.NotNil(t, created)
 		assert.Equal(t, int64(1), created.TenantID)
 		assert.Equal(t, "10.0.0.1", created.IPAddress)
-		assert.Equal(t, model.AuthEventCategoryAuthn, created.Category)
-		assert.Equal(t, model.AuthEventTypeLoginSuccess, created.EventType)
+		assert.Equal(t, AuthEventCategoryAuthn, created.Category)
+		assert.Equal(t, AuthEventTypeLoginSuccess, created.EventType)
 	})
 
 	t.Run("repo error logged but not propagated", func(t *testing.T) {
 		repo := &mockAuthEventRepo{
-			createFn: func(_ *model.AuthEvent) (*model.AuthEvent, error) {
+			createFn: func(_ *AuthEvent) (*AuthEvent, error) {
 				return nil, errors.New("db error")
 			},
 		}
@@ -127,22 +125,22 @@ func TestAuthEventService_Log(t *testing.T) {
 		svc.Log(context.Background(), AuthEventInput{
 			TenantID:  1,
 			IPAddress: "10.0.0.1",
-			Category:  model.AuthEventCategoryAuthn,
-			EventType: model.AuthEventTypeLoginFail,
-			Severity:  model.AuthEventSeverityWarn,
-			Result:    model.AuthEventResultFailure,
+			Category:  AuthEventCategoryAuthn,
+			EventType: AuthEventTypeLoginFail,
+			Severity:  AuthEventSeverityWarn,
+			Result:    AuthEventResultFailure,
 		})
 	})
 
 	t.Run("optional fields passed through", func(t *testing.T) {
-		var created *model.AuthEvent
+		var created *AuthEvent
 		actorID := int64(42)
 		targetID := int64(99)
 		desc := "test description"
 		reason := "bad credentials"
 		ua := "TestAgent/1.0"
 		repo := &mockAuthEventRepo{
-			createFn: func(e *model.AuthEvent) (*model.AuthEvent, error) {
+			createFn: func(e *AuthEvent) (*AuthEvent, error) {
 				created = e
 				return e, nil
 			},
@@ -154,10 +152,10 @@ func TestAuthEventService_Log(t *testing.T) {
 			TargetUserID: &targetID,
 			IPAddress:    "10.0.0.1",
 			UserAgent:    &ua,
-			Category:     model.AuthEventCategoryUser,
-			EventType:    model.AuthEventTypeUserDeleted,
-			Severity:     model.AuthEventSeverityCritical,
-			Result:       model.AuthEventResultSuccess,
+			Category:     AuthEventCategoryUser,
+			EventType:    AuthEventTypeUserDeleted,
+			Severity:     AuthEventSeverityCritical,
+			Result:       AuthEventResultSuccess,
 			Description:  &desc,
 			ErrorReason:  &reason,
 			Metadata:     datatypes.JSON([]byte(`{"key":"val"}`)),
@@ -172,9 +170,9 @@ func TestAuthEventService_Log(t *testing.T) {
 	})
 
 	t.Run("trace ID extracted from context", func(t *testing.T) {
-		var created *model.AuthEvent
+		var created *AuthEvent
 		repo := &mockAuthEventRepo{
-			createFn: func(e *model.AuthEvent) (*model.AuthEvent, error) {
+			createFn: func(e *AuthEvent) (*AuthEvent, error) {
 				created = e
 				return e, nil
 			},
@@ -193,10 +191,10 @@ func TestAuthEventService_Log(t *testing.T) {
 		svc.Log(ctx, AuthEventInput{
 			TenantID:  1,
 			IPAddress: "10.0.0.1",
-			Category:  model.AuthEventCategoryAuthn,
-			EventType: model.AuthEventTypeLoginSuccess,
-			Severity:  model.AuthEventSeverityInfo,
-			Result:    model.AuthEventResultSuccess,
+			Category:  AuthEventCategoryAuthn,
+			EventType: AuthEventTypeLoginSuccess,
+			Severity:  AuthEventSeverityInfo,
+			Result:    AuthEventResultSuccess,
 		})
 		require.NotNil(t, created)
 		require.NotNil(t, created.TraceID)
@@ -212,10 +210,10 @@ func TestAuthEventService_FindPaginated(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		eventUUID := uuid.New()
 		repo := &mockAuthEventRepo{
-			findPaginatedFn: func(_ repository.AuthEventRepositoryGetFilter) (*repository.PaginationResult[model.AuthEvent], error) {
-				return &repository.PaginationResult[model.AuthEvent]{
-					Data: []model.AuthEvent{
-						{AuthEventUUID: eventUUID, TenantID: 1, IPAddress: "10.0.0.1", Category: model.AuthEventCategoryAuthn, EventType: model.AuthEventTypeLoginSuccess, Severity: model.AuthEventSeverityInfo, Result: model.AuthEventResultSuccess, CreatedAt: time.Now()},
+			findPaginatedFn: func(_ AuthEventRepositoryGetFilter) (*PaginationResult[AuthEvent], error) {
+				return &PaginationResult[AuthEvent]{
+					Data: []AuthEvent{
+						{AuthEventUUID: eventUUID, TenantID: 1, IPAddress: "10.0.0.1", Category: AuthEventCategoryAuthn, EventType: AuthEventTypeLoginSuccess, Severity: AuthEventSeverityInfo, Result: AuthEventResultSuccess, CreatedAt: time.Now()},
 					},
 					Total: 1, Page: 1, Limit: 10, TotalPages: 1,
 				}, nil
@@ -223,7 +221,7 @@ func TestAuthEventService_FindPaginated(t *testing.T) {
 		}
 		svc := NewAuthEventService(repo, nil)
 		tid := int64(1)
-		result, err := svc.FindPaginated(context.Background(), repository.AuthEventRepositoryGetFilter{TenantID: &tid})
+		result, err := svc.FindPaginated(context.Background(), AuthEventRepositoryGetFilter{TenantID: &tid})
 		require.NoError(t, err)
 		require.Len(t, result.Data, 1)
 		assert.Equal(t, eventUUID, result.Data[0].AuthEventUUID)
@@ -232,12 +230,12 @@ func TestAuthEventService_FindPaginated(t *testing.T) {
 
 	t.Run("repo error", func(t *testing.T) {
 		repo := &mockAuthEventRepo{
-			findPaginatedFn: func(_ repository.AuthEventRepositoryGetFilter) (*repository.PaginationResult[model.AuthEvent], error) {
+			findPaginatedFn: func(_ AuthEventRepositoryGetFilter) (*PaginationResult[AuthEvent], error) {
 				return nil, errors.New("query failed")
 			},
 		}
 		svc := NewAuthEventService(repo, nil)
-		_, err := svc.FindPaginated(context.Background(), repository.AuthEventRepositoryGetFilter{})
+		_, err := svc.FindPaginated(context.Background(), AuthEventRepositoryGetFilter{})
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "failed to query auth events")
 	})
@@ -251,15 +249,15 @@ func TestAuthEventService_FindByUUID(t *testing.T) {
 	t.Run("found", func(t *testing.T) {
 		eventUUID := uuid.New()
 		repo := &mockAuthEventRepo{
-			findByUUIDAndTIDFn: func(uid string, tid int64) (*model.AuthEvent, error) {
-				return &model.AuthEvent{
+			findByUUIDAndTIDFn: func(uid string, tid int64) (*AuthEvent, error) {
+				return &AuthEvent{
 					AuthEventUUID: uuid.MustParse(uid),
 					TenantID:      tid,
 					IPAddress:     "10.0.0.1",
-					Category:      model.AuthEventCategoryAuthn,
-					EventType:     model.AuthEventTypeLoginSuccess,
-					Severity:      model.AuthEventSeverityInfo,
-					Result:        model.AuthEventResultSuccess,
+					Category:      AuthEventCategoryAuthn,
+					EventType:     AuthEventTypeLoginSuccess,
+					Severity:      AuthEventSeverityInfo,
+					Result:        AuthEventResultSuccess,
 				}, nil
 			},
 		}
@@ -272,7 +270,7 @@ func TestAuthEventService_FindByUUID(t *testing.T) {
 
 	t.Run("not found", func(t *testing.T) {
 		repo := &mockAuthEventRepo{
-			findByUUIDAndTIDFn: func(_ string, _ int64) (*model.AuthEvent, error) {
+			findByUUIDAndTIDFn: func(_ string, _ int64) (*AuthEvent, error) {
 				return nil, nil
 			},
 		}
@@ -284,7 +282,7 @@ func TestAuthEventService_FindByUUID(t *testing.T) {
 
 	t.Run("repo error", func(t *testing.T) {
 		repo := &mockAuthEventRepo{
-			findByUUIDAndTIDFn: func(_ string, _ int64) (*model.AuthEvent, error) {
+			findByUUIDAndTIDFn: func(_ string, _ int64) (*AuthEvent, error) {
 				return nil, errors.New("db error")
 			},
 		}
@@ -307,7 +305,7 @@ func TestAuthEventService_CountByEventType(t *testing.T) {
 			},
 		}
 		svc := NewAuthEventService(repo, nil)
-		count, err := svc.CountByEventType(context.Background(), model.AuthEventTypeLoginFail, 1)
+		count, err := svc.CountByEventType(context.Background(), AuthEventTypeLoginFail, 1)
 		require.NoError(t, err)
 		assert.Equal(t, int64(42), count)
 	})
@@ -319,7 +317,7 @@ func TestAuthEventService_CountByEventType(t *testing.T) {
 			},
 		}
 		svc := NewAuthEventService(repo, nil)
-		_, err := svc.CountByEventType(context.Background(), model.AuthEventTypeLoginFail, 1)
+		_, err := svc.CountByEventType(context.Background(), AuthEventTypeLoginFail, 1)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "failed to count auth events by type")
 	})

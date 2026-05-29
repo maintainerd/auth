@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/maintainerd/auth/internal/service"
 	"github.com/stretchr/testify/assert"
 	"gorm.io/datatypes"
 )
@@ -33,8 +32,8 @@ func TestUserSettingHandler_CreateOrUpdate_Success(t *testing.T) {
 			dataProcessingConsent *bool,
 			termsAcceptedAt, privacyPolicyAcceptedAt *time.Time,
 			emergencyName, emergencyPhone, emergencyEmail, emergencyRelation *string,
-		) (*service.UserSettingServiceDataResult, error) {
-			return &service.UserSettingServiceDataResult{}, nil
+		) (*UserSettingServiceDataResult, error) {
+			return &UserSettingServiceDataResult{}, nil
 		},
 	}
 	h := NewUserSettingHandler(svc)
@@ -48,7 +47,7 @@ func TestUserSettingHandler_CreateOrUpdate_Success(t *testing.T) {
 
 func TestUserSettingHandler_Get_NotFound(t *testing.T) {
 	svc := &mockUserSettingService{
-		getByUserUUIDFn: func(id uuid.UUID) (*service.UserSettingServiceDataResult, error) {
+		getByUserUUIDFn: func(id uuid.UUID) (*UserSettingServiceDataResult, error) {
 			return nil, errNotFound
 		},
 	}
@@ -61,8 +60,8 @@ func TestUserSettingHandler_Get_NotFound(t *testing.T) {
 
 func TestUserSettingHandler_Get_Success(t *testing.T) {
 	svc := &mockUserSettingService{
-		getByUserUUIDFn: func(id uuid.UUID) (*service.UserSettingServiceDataResult, error) {
-			return &service.UserSettingServiceDataResult{}, nil
+		getByUserUUIDFn: func(id uuid.UUID) (*UserSettingServiceDataResult, error) {
+			return &UserSettingServiceDataResult{}, nil
 		},
 	}
 	h := NewUserSettingHandler(svc)
@@ -86,8 +85,8 @@ func TestUserSettingHandler_CreateOrUpdate_ValidationError(t *testing.T) {
 func TestUserSettingHandler_CreateOrUpdate_WithSocialLinks(t *testing.T) {
 	// covers the SocialLinks map conversion loop (lines 36-41)
 	svc := &mockUserSettingService{
-		createOrUpdateFn: func(userUUID uuid.UUID, tz, lang, locale *string, sl map[string]any, pcm *string, mec, sms, push *bool, pv *string, dpc *bool, ta, ppa *time.Time, ecn, ecp, ece, ecr *string) (*service.UserSettingServiceDataResult, error) {
-			return &service.UserSettingServiceDataResult{}, nil
+		createOrUpdateFn: func(userUUID uuid.UUID, tz, lang, locale *string, sl map[string]any, pcm *string, mec, sms, push *bool, pv *string, dpc *bool, ta, ppa *time.Time, ecn, ecp, ece, ecr *string) (*UserSettingServiceDataResult, error) {
+			return &UserSettingServiceDataResult{}, nil
 		},
 	}
 	h := NewUserSettingHandler(svc)
@@ -101,7 +100,7 @@ func TestUserSettingHandler_CreateOrUpdate_WithSocialLinks(t *testing.T) {
 
 func TestUserSettingHandler_CreateOrUpdate_ServiceError(t *testing.T) {
 	svc := &mockUserSettingService{
-		createOrUpdateFn: func(userUUID uuid.UUID, tz, lang, locale *string, sl map[string]any, pcm *string, mec, sms, push *bool, pv *string, dpc *bool, ta, ppa *time.Time, ecn, ecp, ece, ecr *string) (*service.UserSettingServiceDataResult, error) {
+		createOrUpdateFn: func(userUUID uuid.UUID, tz, lang, locale *string, sl map[string]any, pcm *string, mec, sms, push *bool, pv *string, dpc *bool, ta, ppa *time.Time, ecn, ecp, ece, ecr *string) (*UserSettingServiceDataResult, error) {
 			return nil, errValidation
 		},
 	}
@@ -123,10 +122,10 @@ func TestUserSettingHandler_Delete_NotFound(t *testing.T) {
 func TestUserSettingHandler_Delete_ServiceError(t *testing.T) {
 	settingUUID := uuid.New()
 	svc := &mockUserSettingService{
-		getByUserUUIDFn: func(uuid.UUID) (*service.UserSettingServiceDataResult, error) {
-			return &service.UserSettingServiceDataResult{UserSettingUUID: settingUUID}, nil
+		getByUserUUIDFn: func(uuid.UUID) (*UserSettingServiceDataResult, error) {
+			return &UserSettingServiceDataResult{UserSettingUUID: settingUUID}, nil
 		},
-		deleteByUUIDFn: func(uuid.UUID) (*service.UserSettingServiceDataResult, error) {
+		deleteByUUIDFn: func(uuid.UUID) (*UserSettingServiceDataResult, error) {
 			return nil, errValidation
 		},
 	}
@@ -140,11 +139,11 @@ func TestUserSettingHandler_Delete_ServiceError(t *testing.T) {
 func TestUserSettingHandler_Delete_Success(t *testing.T) {
 	settingUUID := uuid.New()
 	svc := &mockUserSettingService{
-		getByUserUUIDFn: func(uuid.UUID) (*service.UserSettingServiceDataResult, error) {
-			return &service.UserSettingServiceDataResult{UserSettingUUID: settingUUID}, nil
+		getByUserUUIDFn: func(uuid.UUID) (*UserSettingServiceDataResult, error) {
+			return &UserSettingServiceDataResult{UserSettingUUID: settingUUID}, nil
 		},
-		deleteByUUIDFn: func(uuid.UUID) (*service.UserSettingServiceDataResult, error) {
-			return &service.UserSettingServiceDataResult{UserSettingUUID: settingUUID}, nil
+		deleteByUUIDFn: func(uuid.UUID) (*UserSettingServiceDataResult, error) {
+			return &UserSettingServiceDataResult{UserSettingUUID: settingUUID}, nil
 		},
 	}
 	h := NewUserSettingHandler(svc)
@@ -157,8 +156,8 @@ func TestUserSettingHandler_Delete_Success(t *testing.T) {
 func TestUserSettingHandler_toUserSettingResponseDto_InvalidSocialLinksJSON(t *testing.T) {
 	// SocialLinks with invalid JSON bytes covers the unmarshal-error else branch (line 103)
 	svc := &mockUserSettingService{
-		getByUserUUIDFn: func(uuid.UUID) (*service.UserSettingServiceDataResult, error) {
-			return &service.UserSettingServiceDataResult{
+		getByUserUUIDFn: func(uuid.UUID) (*UserSettingServiceDataResult, error) {
+			return &UserSettingServiceDataResult{
 				SocialLinks: datatypes.JSON([]byte("not-valid-json")),
 			}, nil
 		},

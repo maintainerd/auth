@@ -6,8 +6,6 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
-	"github.com/maintainerd/auth/internal/model"
-	"github.com/maintainerd/auth/internal/repository"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -22,25 +20,25 @@ func TestEmailTemplateService_GetByUUID(t *testing.T) {
 
 	cases := []struct {
 		name    string
-		repoFn  func(uuid.UUID, int64, ...string) (*model.EmailTemplate, error)
+		repoFn  func(uuid.UUID, int64, ...string) (*EmailTemplate, error)
 		wantErr string
 	}{
 		{
 			name:    "not found (nil)",
-			repoFn:  func(_ uuid.UUID, _ int64, _ ...string) (*model.EmailTemplate, error) { return nil, nil },
+			repoFn:  func(_ uuid.UUID, _ int64, _ ...string) (*EmailTemplate, error) { return nil, nil },
 			wantErr: "email template not found",
 		},
 		{
 			name: "repo error",
-			repoFn: func(_ uuid.UUID, _ int64, _ ...string) (*model.EmailTemplate, error) {
+			repoFn: func(_ uuid.UUID, _ int64, _ ...string) (*EmailTemplate, error) {
 				return nil, errors.New("db err")
 			},
 			wantErr: "db err",
 		},
 		{
 			name: "success",
-			repoFn: func(id uuid.UUID, _ int64, _ ...string) (*model.EmailTemplate, error) {
-				return &model.EmailTemplate{EmailTemplateUUID: id, Name: "Welcome"}, nil
+			repoFn: func(id uuid.UUID, _ int64, _ ...string) (*EmailTemplate, error) {
+				return &EmailTemplate{EmailTemplateUUID: id, Name: "Welcome"}, nil
 			},
 		},
 	}
@@ -63,9 +61,9 @@ func TestEmailTemplateService_GetByUUID(t *testing.T) {
 func TestEmailTemplateService_GetAll(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		svc := newEmailTemplateSvc(&mockEmailTemplateRepo{
-			findPaginatedFn: func(f repository.EmailTemplateRepositoryGetFilter) (*repository.PaginationResult[model.EmailTemplate], error) {
-				return &repository.PaginationResult[model.EmailTemplate]{
-					Data:  []model.EmailTemplate{{Name: "T1"}},
+			findPaginatedFn: func(f EmailTemplateRepositoryGetFilter) (*PaginationResult[EmailTemplate], error) {
+				return &PaginationResult[EmailTemplate]{
+					Data:  []EmailTemplate{{Name: "T1"}},
 					Total: 1, Page: 1, Limit: 10, TotalPages: 1,
 				}, nil
 			},
@@ -79,7 +77,7 @@ func TestEmailTemplateService_GetAll(t *testing.T) {
 
 	t.Run("repo error", func(t *testing.T) {
 		svc := newEmailTemplateSvc(&mockEmailTemplateRepo{
-			findPaginatedFn: func(f repository.EmailTemplateRepositoryGetFilter) (*repository.PaginationResult[model.EmailTemplate], error) {
+			findPaginatedFn: func(f EmailTemplateRepositoryGetFilter) (*PaginationResult[EmailTemplate], error) {
 				return nil, errors.New("db err")
 			},
 		})
@@ -93,7 +91,7 @@ func TestEmailTemplateService_GetAll(t *testing.T) {
 func TestEmailTemplateService_Create(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		svc := newEmailTemplateSvc(&mockEmailTemplateRepo{
-			createFn: func(e *model.EmailTemplate) (*model.EmailTemplate, error) { return e, nil },
+			createFn: func(e *EmailTemplate) (*EmailTemplate, error) { return e, nil },
 		})
 		res, err := svc.Create(context.Background(), 1, "Welcome", "Hi there", "<b>hi</b>", nil, "active", false)
 		require.NoError(t, err)
@@ -102,7 +100,7 @@ func TestEmailTemplateService_Create(t *testing.T) {
 
 	t.Run("repo error", func(t *testing.T) {
 		svc := newEmailTemplateSvc(&mockEmailTemplateRepo{
-			createFn: func(_ *model.EmailTemplate) (*model.EmailTemplate, error) { return nil, errors.New("db fail") },
+			createFn: func(_ *EmailTemplate) (*EmailTemplate, error) { return nil, errors.New("db fail") },
 		})
 		_, err := svc.Create(context.Background(), 1, "Welcome", "Hi there", "<b>hi</b>", nil, "active", false)
 		require.Error(t, err)
@@ -115,7 +113,7 @@ func TestEmailTemplateService_Update(t *testing.T) {
 
 	t.Run("not found", func(t *testing.T) {
 		svc := newEmailTemplateSvc(&mockEmailTemplateRepo{
-			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64, _ ...string) (*model.EmailTemplate, error) { return nil, nil },
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64, _ ...string) (*EmailTemplate, error) { return nil, nil },
 		})
 		_, err := svc.Update(context.Background(), id, tid, "N", "S", "<b>b</b>", nil, "active")
 		require.Error(t, err)
@@ -123,8 +121,8 @@ func TestEmailTemplateService_Update(t *testing.T) {
 
 	t.Run("system template blocked", func(t *testing.T) {
 		svc := newEmailTemplateSvc(&mockEmailTemplateRepo{
-			findByUUIDAndTenantIDFn: func(i uuid.UUID, _ int64, _ ...string) (*model.EmailTemplate, error) {
-				return &model.EmailTemplate{EmailTemplateUUID: i, IsSystem: true}, nil
+			findByUUIDAndTenantIDFn: func(i uuid.UUID, _ int64, _ ...string) (*EmailTemplate, error) {
+				return &EmailTemplate{EmailTemplateUUID: i, IsSystem: true}, nil
 			},
 		})
 		_, err := svc.Update(context.Background(), id, tid, "N", "S", "<b>b</b>", nil, "active")
@@ -134,11 +132,11 @@ func TestEmailTemplateService_Update(t *testing.T) {
 
 	t.Run("success", func(t *testing.T) {
 		svc := newEmailTemplateSvc(&mockEmailTemplateRepo{
-			findByUUIDAndTenantIDFn: func(i uuid.UUID, _ int64, _ ...string) (*model.EmailTemplate, error) {
-				return &model.EmailTemplate{EmailTemplateUUID: i, IsSystem: false, Name: "Old"}, nil
+			findByUUIDAndTenantIDFn: func(i uuid.UUID, _ int64, _ ...string) (*EmailTemplate, error) {
+				return &EmailTemplate{EmailTemplateUUID: i, IsSystem: false, Name: "Old"}, nil
 			},
-			updateByUUIDFn: func(i, data any) (*model.EmailTemplate, error) {
-				return &model.EmailTemplate{Name: "New"}, nil
+			updateByUUIDFn: func(i, data any) (*EmailTemplate, error) {
+				return &EmailTemplate{Name: "New"}, nil
 			},
 		})
 		res, err := svc.Update(context.Background(), id, tid, "New", "S", "<b>b</b>", nil, "active")
@@ -148,7 +146,7 @@ func TestEmailTemplateService_Update(t *testing.T) {
 
 	t.Run("find error", func(t *testing.T) {
 		svc := newEmailTemplateSvc(&mockEmailTemplateRepo{
-			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64, _ ...string) (*model.EmailTemplate, error) {
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64, _ ...string) (*EmailTemplate, error) {
 				return nil, errors.New("db err")
 			},
 		})
@@ -158,10 +156,10 @@ func TestEmailTemplateService_Update(t *testing.T) {
 
 	t.Run("update repo error", func(t *testing.T) {
 		svc := newEmailTemplateSvc(&mockEmailTemplateRepo{
-			findByUUIDAndTenantIDFn: func(i uuid.UUID, _ int64, _ ...string) (*model.EmailTemplate, error) {
-				return &model.EmailTemplate{EmailTemplateUUID: i, IsSystem: false}, nil
+			findByUUIDAndTenantIDFn: func(i uuid.UUID, _ int64, _ ...string) (*EmailTemplate, error) {
+				return &EmailTemplate{EmailTemplateUUID: i, IsSystem: false}, nil
 			},
-			updateByUUIDFn: func(_, _ any) (*model.EmailTemplate, error) {
+			updateByUUIDFn: func(_, _ any) (*EmailTemplate, error) {
 				return nil, errors.New("update err")
 			},
 		})
@@ -176,7 +174,7 @@ func TestEmailTemplateService_Delete(t *testing.T) {
 
 	t.Run("not found", func(t *testing.T) {
 		svc := newEmailTemplateSvc(&mockEmailTemplateRepo{
-			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64, _ ...string) (*model.EmailTemplate, error) { return nil, nil },
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64, _ ...string) (*EmailTemplate, error) { return nil, nil },
 		})
 		_, err := svc.Delete(context.Background(), id, 1)
 		require.Error(t, err)
@@ -184,7 +182,7 @@ func TestEmailTemplateService_Delete(t *testing.T) {
 
 	t.Run("find error", func(t *testing.T) {
 		svc := newEmailTemplateSvc(&mockEmailTemplateRepo{
-			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64, _ ...string) (*model.EmailTemplate, error) {
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64, _ ...string) (*EmailTemplate, error) {
 				return nil, errors.New("db err")
 			},
 		})
@@ -194,8 +192,8 @@ func TestEmailTemplateService_Delete(t *testing.T) {
 
 	t.Run("system template blocked", func(t *testing.T) {
 		svc := newEmailTemplateSvc(&mockEmailTemplateRepo{
-			findByUUIDAndTenantIDFn: func(i uuid.UUID, _ int64, _ ...string) (*model.EmailTemplate, error) {
-				return &model.EmailTemplate{EmailTemplateUUID: i, IsSystem: true}, nil
+			findByUUIDAndTenantIDFn: func(i uuid.UUID, _ int64, _ ...string) (*EmailTemplate, error) {
+				return &EmailTemplate{EmailTemplateUUID: i, IsSystem: true}, nil
 			},
 		})
 		_, err := svc.Delete(context.Background(), id, 1)
@@ -205,8 +203,8 @@ func TestEmailTemplateService_Delete(t *testing.T) {
 
 	t.Run("delete repo error", func(t *testing.T) {
 		svc := newEmailTemplateSvc(&mockEmailTemplateRepo{
-			findByUUIDAndTenantIDFn: func(i uuid.UUID, _ int64, _ ...string) (*model.EmailTemplate, error) {
-				return &model.EmailTemplate{EmailTemplateUUID: i, Name: "T"}, nil
+			findByUUIDAndTenantIDFn: func(i uuid.UUID, _ int64, _ ...string) (*EmailTemplate, error) {
+				return &EmailTemplate{EmailTemplateUUID: i, Name: "T"}, nil
 			},
 			deleteByUUIDFn: func(_ any) error { return errors.New("del err") },
 		})
@@ -217,8 +215,8 @@ func TestEmailTemplateService_Delete(t *testing.T) {
 
 	t.Run("success", func(t *testing.T) {
 		svc := newEmailTemplateSvc(&mockEmailTemplateRepo{
-			findByUUIDAndTenantIDFn: func(i uuid.UUID, _ int64, _ ...string) (*model.EmailTemplate, error) {
-				return &model.EmailTemplate{EmailTemplateUUID: i, Name: "T"}, nil
+			findByUUIDAndTenantIDFn: func(i uuid.UUID, _ int64, _ ...string) (*EmailTemplate, error) {
+				return &EmailTemplate{EmailTemplateUUID: i, Name: "T"}, nil
 			},
 			deleteByUUIDFn: func(_ any) error { return nil },
 		})
@@ -234,7 +232,7 @@ func TestEmailTemplateService_UpdateStatus(t *testing.T) {
 
 	t.Run("find error", func(t *testing.T) {
 		svc := newEmailTemplateSvc(&mockEmailTemplateRepo{
-			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64, _ ...string) (*model.EmailTemplate, error) {
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64, _ ...string) (*EmailTemplate, error) {
 				return nil, errors.New("db err")
 			},
 		})
@@ -244,7 +242,7 @@ func TestEmailTemplateService_UpdateStatus(t *testing.T) {
 
 	t.Run("not found", func(t *testing.T) {
 		svc := newEmailTemplateSvc(&mockEmailTemplateRepo{
-			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64, _ ...string) (*model.EmailTemplate, error) { return nil, nil },
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64, _ ...string) (*EmailTemplate, error) { return nil, nil },
 		})
 		_, err := svc.UpdateStatus(context.Background(), id, tid, "active")
 		require.Error(t, err)
@@ -253,8 +251,8 @@ func TestEmailTemplateService_UpdateStatus(t *testing.T) {
 
 	t.Run("system template blocked", func(t *testing.T) {
 		svc := newEmailTemplateSvc(&mockEmailTemplateRepo{
-			findByUUIDAndTenantIDFn: func(i uuid.UUID, _ int64, _ ...string) (*model.EmailTemplate, error) {
-				return &model.EmailTemplate{EmailTemplateUUID: i, IsSystem: true}, nil
+			findByUUIDAndTenantIDFn: func(i uuid.UUID, _ int64, _ ...string) (*EmailTemplate, error) {
+				return &EmailTemplate{EmailTemplateUUID: i, IsSystem: true}, nil
 			},
 		})
 		_, err := svc.UpdateStatus(context.Background(), id, tid, "active")
@@ -264,10 +262,10 @@ func TestEmailTemplateService_UpdateStatus(t *testing.T) {
 
 	t.Run("update repo error", func(t *testing.T) {
 		svc := newEmailTemplateSvc(&mockEmailTemplateRepo{
-			findByUUIDAndTenantIDFn: func(i uuid.UUID, _ int64, _ ...string) (*model.EmailTemplate, error) {
-				return &model.EmailTemplate{EmailTemplateUUID: i, IsSystem: false}, nil
+			findByUUIDAndTenantIDFn: func(i uuid.UUID, _ int64, _ ...string) (*EmailTemplate, error) {
+				return &EmailTemplate{EmailTemplateUUID: i, IsSystem: false}, nil
 			},
-			updateByUUIDFn: func(_, _ any) (*model.EmailTemplate, error) {
+			updateByUUIDFn: func(_, _ any) (*EmailTemplate, error) {
 				return nil, errors.New("update err")
 			},
 		})
@@ -278,11 +276,11 @@ func TestEmailTemplateService_UpdateStatus(t *testing.T) {
 
 	t.Run("success", func(t *testing.T) {
 		svc := newEmailTemplateSvc(&mockEmailTemplateRepo{
-			findByUUIDAndTenantIDFn: func(i uuid.UUID, _ int64, _ ...string) (*model.EmailTemplate, error) {
-				return &model.EmailTemplate{EmailTemplateUUID: i, IsSystem: false, Status: "inactive"}, nil
+			findByUUIDAndTenantIDFn: func(i uuid.UUID, _ int64, _ ...string) (*EmailTemplate, error) {
+				return &EmailTemplate{EmailTemplateUUID: i, IsSystem: false, Status: "inactive"}, nil
 			},
-			updateByUUIDFn: func(_, _ any) (*model.EmailTemplate, error) {
-				return &model.EmailTemplate{Status: "active"}, nil
+			updateByUUIDFn: func(_, _ any) (*EmailTemplate, error) {
+				return &EmailTemplate{Status: "active"}, nil
 			},
 		})
 		res, err := svc.UpdateStatus(context.Background(), id, tid, "active")

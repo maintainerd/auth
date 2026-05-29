@@ -7,7 +7,6 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
-	"github.com/maintainerd/auth/internal/service"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -30,7 +29,7 @@ func TestTenantHandler_Get(t *testing.T) {
 	})
 
 	t.Run("service error returns 500", func(t *testing.T) {
-		svc := &mockTenantService{getFn: func(service.TenantServiceGetFilter) (*service.TenantServiceGetResult, error) {
+		svc := &mockTenantService{getFn: func(TenantServiceGetFilter) (*TenantServiceGetResult, error) {
 			return nil, errors.New("db error")
 		}}
 		r := httptest.NewRequest(http.MethodGet, "/tenants?page=1&limit=10", nil)
@@ -40,8 +39,8 @@ func TestTenantHandler_Get(t *testing.T) {
 	})
 
 	t.Run("success with all filters and rows covers filter+loop branches", func(t *testing.T) {
-		svc := &mockTenantService{getFn: func(service.TenantServiceGetFilter) (*service.TenantServiceGetResult, error) {
-			return &service.TenantServiceGetResult{Data: []service.TenantServiceDataResult{{Name: "t1"}}}, nil
+		svc := &mockTenantService{getFn: func(TenantServiceGetFilter) (*TenantServiceGetResult, error) {
+			return &TenantServiceGetResult{Data: []TenantServiceDataResult{{Name: "t1"}}}, nil
 		}}
 		r := httptest.NewRequest(http.MethodGet, "/tenants?page=1&limit=10&status=active&is_default=true&is_system=false&is_public=true", nil)
 		w := httptest.NewRecorder()
@@ -59,7 +58,7 @@ func TestTenantHandler_GetByUUID(t *testing.T) {
 	})
 
 	t.Run("not found returns 404", func(t *testing.T) {
-		svc := &mockTenantService{getByUUIDFn: func(uuid.UUID) (*service.TenantServiceDataResult, error) {
+		svc := &mockTenantService{getByUUIDFn: func(uuid.UUID) (*TenantServiceDataResult, error) {
 			return nil, errNotFound
 		}}
 		r := withChiParam(httptest.NewRequest(http.MethodGet, "/", nil), "tenant_uuid", testResourceUUID.String())
@@ -69,8 +68,8 @@ func TestTenantHandler_GetByUUID(t *testing.T) {
 	})
 
 	t.Run("success returns 200", func(t *testing.T) {
-		svc := &mockTenantService{getByUUIDFn: func(uuid.UUID) (*service.TenantServiceDataResult, error) {
-			return &service.TenantServiceDataResult{Name: "tenant1"}, nil
+		svc := &mockTenantService{getByUUIDFn: func(uuid.UUID) (*TenantServiceDataResult, error) {
+			return &TenantServiceDataResult{Name: "tenant1"}, nil
 		}}
 		r := withChiParam(httptest.NewRequest(http.MethodGet, "/", nil), "tenant_uuid", testResourceUUID.String())
 		w := httptest.NewRecorder()
@@ -81,7 +80,7 @@ func TestTenantHandler_GetByUUID(t *testing.T) {
 
 func TestTenantHandler_GetDefault(t *testing.T) {
 	t.Run("service error returns 404", func(t *testing.T) {
-		svc := &mockTenantService{getSystemFn: func() (*service.TenantServiceDataResult, error) {
+		svc := &mockTenantService{getSystemFn: func() (*TenantServiceDataResult, error) {
 			return nil, errNotFound
 		}}
 		w := httptest.NewRecorder()
@@ -90,8 +89,8 @@ func TestTenantHandler_GetDefault(t *testing.T) {
 	})
 
 	t.Run("success returns 200", func(t *testing.T) {
-		svc := &mockTenantService{getSystemFn: func() (*service.TenantServiceDataResult, error) {
-			return &service.TenantServiceDataResult{Name: "system"}, nil
+		svc := &mockTenantService{getSystemFn: func() (*TenantServiceDataResult, error) {
+			return &TenantServiceDataResult{Name: "system"}, nil
 		}}
 		w := httptest.NewRecorder()
 		newTenantHandler(svc, nil).GetDefault(w, httptest.NewRequest(http.MethodGet, "/", nil))
@@ -108,7 +107,7 @@ func TestTenantHandler_GetByIdentifier(t *testing.T) {
 	})
 
 	t.Run("service error returns 404", func(t *testing.T) {
-		svc := &mockTenantService{getByIdentifierFn: func(string) (*service.TenantServiceDataResult, error) {
+		svc := &mockTenantService{getByIdentifierFn: func(string) (*TenantServiceDataResult, error) {
 			return nil, errNotFound
 		}}
 		r := withChiParam(httptest.NewRequest(http.MethodGet, "/", nil), "identifier", "my-tenant")
@@ -118,8 +117,8 @@ func TestTenantHandler_GetByIdentifier(t *testing.T) {
 	})
 
 	t.Run("success returns 200", func(t *testing.T) {
-		svc := &mockTenantService{getByIdentifierFn: func(string) (*service.TenantServiceDataResult, error) {
-			return &service.TenantServiceDataResult{Name: "t"}, nil
+		svc := &mockTenantService{getByIdentifierFn: func(string) (*TenantServiceDataResult, error) {
+			return &TenantServiceDataResult{Name: "t"}, nil
 		}}
 		r := withChiParam(httptest.NewRequest(http.MethodGet, "/", nil), "identifier", "my-tenant")
 		w := httptest.NewRecorder()
@@ -146,7 +145,7 @@ func TestTenantHandler_Create(t *testing.T) {
 	})
 
 	t.Run("service error returns 500", func(t *testing.T) {
-		svc := &mockTenantService{createFn: func(n, dn, desc, s string, isPublic bool) (*service.TenantServiceDataResult, error) {
+		svc := &mockTenantService{createFn: func(n, dn, desc, s string, isPublic bool) (*TenantServiceDataResult, error) {
 			return nil, errors.New("db error")
 		}}
 		r := jsonReq(t, http.MethodPost, "/tenants", validBody)
@@ -156,8 +155,8 @@ func TestTenantHandler_Create(t *testing.T) {
 	})
 
 	t.Run("success returns 201", func(t *testing.T) {
-		svc := &mockTenantService{createFn: func(n, dn, desc, s string, isPublic bool) (*service.TenantServiceDataResult, error) {
-			return &service.TenantServiceDataResult{Name: n}, nil
+		svc := &mockTenantService{createFn: func(n, dn, desc, s string, isPublic bool) (*TenantServiceDataResult, error) {
+			return &TenantServiceDataResult{Name: n}, nil
 		}}
 		r := jsonReq(t, http.MethodPost, "/tenants", validBody)
 		w := httptest.NewRecorder()
@@ -218,7 +217,7 @@ func TestTenantHandler_Update(t *testing.T) {
 	})
 
 	t.Run("service error returns 500", func(t *testing.T) {
-		ts := &mockTenantService{updateFn: func(uuid.UUID, string, string, string, string, bool) (*service.TenantServiceDataResult, error) {
+		ts := &mockTenantService{updateFn: func(uuid.UUID, string, string, string, string, bool) (*TenantServiceDataResult, error) {
 			return nil, errors.New("update error")
 		}}
 		ms := &mockTenantMemberService{isUserInTenantFn: func(int64, uuid.UUID) (bool, error) { return true, nil }}
@@ -229,8 +228,8 @@ func TestTenantHandler_Update(t *testing.T) {
 	})
 
 	t.Run("success returns 200", func(t *testing.T) {
-		ts := &mockTenantService{updateFn: func(id uuid.UUID, n, dn, desc, s string, isPublic bool) (*service.TenantServiceDataResult, error) {
-			return &service.TenantServiceDataResult{Name: n}, nil
+		ts := &mockTenantService{updateFn: func(id uuid.UUID, n, dn, desc, s string, isPublic bool) (*TenantServiceDataResult, error) {
+			return &TenantServiceDataResult{Name: n}, nil
 		}}
 		ms := &mockTenantMemberService{isUserInTenantFn: func(int64, uuid.UUID) (bool, error) { return true, nil }}
 		r := withUser(withChiParam(jsonReq(t, http.MethodPut, "/", validBody), "tenant_uuid", testResourceUUID.String()))
@@ -256,7 +255,7 @@ func TestTenantHandler_SetStatus(t *testing.T) {
 	})
 
 	t.Run("service error returns 500", func(t *testing.T) {
-		ts := &mockTenantService{setStatusByUUIDFn: func(uuid.UUID, string) (*service.TenantServiceDataResult, error) {
+		ts := &mockTenantService{setStatusByUUIDFn: func(uuid.UUID, string) (*TenantServiceDataResult, error) {
 			return nil, errors.New("status error")
 		}}
 		r := withChiParam(jsonReq(t, http.MethodPatch, "/", map[string]any{"status": "active"}), "tenant_uuid", testResourceUUID.String())
@@ -266,8 +265,8 @@ func TestTenantHandler_SetStatus(t *testing.T) {
 	})
 
 	t.Run("success returns 200", func(t *testing.T) {
-		ts := &mockTenantService{setStatusByUUIDFn: func(id uuid.UUID, s string) (*service.TenantServiceDataResult, error) {
-			return &service.TenantServiceDataResult{Status: s}, nil
+		ts := &mockTenantService{setStatusByUUIDFn: func(id uuid.UUID, s string) (*TenantServiceDataResult, error) {
+			return &TenantServiceDataResult{Status: s}, nil
 		}}
 		r := withChiParam(jsonReq(t, http.MethodPatch, "/", map[string]any{"status": "active"}), "tenant_uuid", testResourceUUID.String())
 		w := httptest.NewRecorder()
@@ -285,7 +284,7 @@ func TestTenantHandler_SetPublic(t *testing.T) {
 	})
 
 	t.Run("service error returns 500", func(t *testing.T) {
-		ts := &mockTenantService{setActivePublicByUUIDFn: func(uuid.UUID) (*service.TenantServiceDataResult, error) {
+		ts := &mockTenantService{setActivePublicByUUIDFn: func(uuid.UUID) (*TenantServiceDataResult, error) {
 			return nil, errors.New("error")
 		}}
 		r := withChiParam(httptest.NewRequest(http.MethodPatch, "/", nil), "tenant_uuid", testResourceUUID.String())
@@ -295,8 +294,8 @@ func TestTenantHandler_SetPublic(t *testing.T) {
 	})
 
 	t.Run("success returns 200", func(t *testing.T) {
-		ts := &mockTenantService{setActivePublicByUUIDFn: func(uuid.UUID) (*service.TenantServiceDataResult, error) {
-			return &service.TenantServiceDataResult{IsPublic: true}, nil
+		ts := &mockTenantService{setActivePublicByUUIDFn: func(uuid.UUID) (*TenantServiceDataResult, error) {
+			return &TenantServiceDataResult{IsPublic: true}, nil
 		}}
 		r := withChiParam(httptest.NewRequest(http.MethodPatch, "/", nil), "tenant_uuid", testResourceUUID.String())
 		w := httptest.NewRecorder()
@@ -339,7 +338,7 @@ func TestTenantHandler_Delete(t *testing.T) {
 	})
 
 	t.Run("GetByUUID error returns 404", func(t *testing.T) {
-		ts := &mockTenantService{getByUUIDFn: func(uuid.UUID) (*service.TenantServiceDataResult, error) {
+		ts := &mockTenantService{getByUUIDFn: func(uuid.UUID) (*TenantServiceDataResult, error) {
 			return nil, errNotFound
 		}}
 		ms := &mockTenantMemberService{isUserInTenantFn: func(int64, uuid.UUID) (bool, error) { return true, nil }}
@@ -350,8 +349,8 @@ func TestTenantHandler_Delete(t *testing.T) {
 	})
 
 	t.Run("system tenant returns 403", func(t *testing.T) {
-		ts := &mockTenantService{getByUUIDFn: func(uuid.UUID) (*service.TenantServiceDataResult, error) {
-			return &service.TenantServiceDataResult{IsSystem: true}, nil
+		ts := &mockTenantService{getByUUIDFn: func(uuid.UUID) (*TenantServiceDataResult, error) {
+			return &TenantServiceDataResult{IsSystem: true}, nil
 		}}
 		ms := &mockTenantMemberService{isUserInTenantFn: func(int64, uuid.UUID) (bool, error) { return true, nil }}
 		r := withUser(withChiParam(httptest.NewRequest(http.MethodDelete, "/", nil), "tenant_uuid", testResourceUUID.String()))
@@ -362,10 +361,10 @@ func TestTenantHandler_Delete(t *testing.T) {
 
 	t.Run("DeleteByUUID error returns 500", func(t *testing.T) {
 		ts := &mockTenantService{
-			getByUUIDFn: func(uuid.UUID) (*service.TenantServiceDataResult, error) {
-				return &service.TenantServiceDataResult{}, nil
+			getByUUIDFn: func(uuid.UUID) (*TenantServiceDataResult, error) {
+				return &TenantServiceDataResult{}, nil
 			},
-			deleteByUUIDFn: func(uuid.UUID) (*service.TenantServiceDataResult, error) { return nil, errors.New("delete error") },
+			deleteByUUIDFn: func(uuid.UUID) (*TenantServiceDataResult, error) { return nil, errors.New("delete error") },
 		}
 		ms := &mockTenantMemberService{isUserInTenantFn: func(int64, uuid.UUID) (bool, error) { return true, nil }}
 		r := withUser(withChiParam(httptest.NewRequest(http.MethodDelete, "/", nil), "tenant_uuid", testResourceUUID.String()))
@@ -376,11 +375,11 @@ func TestTenantHandler_Delete(t *testing.T) {
 
 	t.Run("success returns 200", func(t *testing.T) {
 		ts := &mockTenantService{
-			getByUUIDFn: func(uuid.UUID) (*service.TenantServiceDataResult, error) {
-				return &service.TenantServiceDataResult{IsSystem: false}, nil
+			getByUUIDFn: func(uuid.UUID) (*TenantServiceDataResult, error) {
+				return &TenantServiceDataResult{IsSystem: false}, nil
 			},
-			deleteByUUIDFn: func(uuid.UUID) (*service.TenantServiceDataResult, error) {
-				return &service.TenantServiceDataResult{Name: "t1"}, nil
+			deleteByUUIDFn: func(uuid.UUID) (*TenantServiceDataResult, error) {
+				return &TenantServiceDataResult{Name: "t1"}, nil
 			},
 		}
 		ms := &mockTenantMemberService{isUserInTenantFn: func(int64, uuid.UUID) (bool, error) { return true, nil }}
@@ -414,7 +413,7 @@ func TestTenantHandler_GetMembers(t *testing.T) {
 	})
 
 	t.Run("GetByUUID error returns 404", func(t *testing.T) {
-		ts := &mockTenantService{getByUUIDFn: func(uuid.UUID) (*service.TenantServiceDataResult, error) {
+		ts := &mockTenantService{getByUUIDFn: func(uuid.UUID) (*TenantServiceDataResult, error) {
 			return nil, errNotFound
 		}}
 		r := withChiParam(jsonReq(t, http.MethodGet, "/?page=1&limit=10", nil), "tenant_uuid", testResourceUUID.String())
@@ -424,10 +423,10 @@ func TestTenantHandler_GetMembers(t *testing.T) {
 	})
 
 	t.Run("ListByTenant error returns 500", func(t *testing.T) {
-		ts := &mockTenantService{getByUUIDFn: func(uuid.UUID) (*service.TenantServiceDataResult, error) {
-			return &service.TenantServiceDataResult{}, nil
+		ts := &mockTenantService{getByUUIDFn: func(uuid.UUID) (*TenantServiceDataResult, error) {
+			return &TenantServiceDataResult{}, nil
 		}}
-		ms := &mockTenantMemberService{listByTenantFn: func(int64) ([]service.TenantMemberServiceDataResult, error) {
+		ms := &mockTenantMemberService{listByTenantFn: func(int64) ([]TenantMemberServiceDataResult, error) {
 			return nil, errors.New("db error")
 		}}
 		r := withChiParam(jsonReq(t, http.MethodGet, "/?page=1&limit=10", nil), "tenant_uuid", testResourceUUID.String())
@@ -437,12 +436,12 @@ func TestTenantHandler_GetMembers(t *testing.T) {
 	})
 
 	t.Run("success with user member covers toTenantMemberResponseDTO User branch", func(t *testing.T) {
-		userResult := &service.UserServiceDataResult{Username: "alice"}
-		ts := &mockTenantService{getByUUIDFn: func(uuid.UUID) (*service.TenantServiceDataResult, error) {
-			return &service.TenantServiceDataResult{}, nil
+		userResult := &UserServiceDataResult{Username: "alice"}
+		ts := &mockTenantService{getByUUIDFn: func(uuid.UUID) (*TenantServiceDataResult, error) {
+			return &TenantServiceDataResult{}, nil
 		}}
-		ms := &mockTenantMemberService{listByTenantFn: func(int64) ([]service.TenantMemberServiceDataResult, error) {
-			return []service.TenantMemberServiceDataResult{{Role: "admin", User: userResult}}, nil
+		ms := &mockTenantMemberService{listByTenantFn: func(int64) ([]TenantMemberServiceDataResult, error) {
+			return []TenantMemberServiceDataResult{{Role: "admin", User: userResult}}, nil
 		}}
 		r := withChiParam(jsonReq(t, http.MethodGet, "/?page=1&limit=10", nil), "tenant_uuid", testResourceUUID.String())
 		w := httptest.NewRecorder()
@@ -484,7 +483,7 @@ func TestTenantHandler_AddMember(t *testing.T) {
 	})
 
 	t.Run("GetByUUID error returns 404", func(t *testing.T) {
-		ts := &mockTenantService{getByUUIDFn: func(uuid.UUID) (*service.TenantServiceDataResult, error) {
+		ts := &mockTenantService{getByUUIDFn: func(uuid.UUID) (*TenantServiceDataResult, error) {
 			return nil, errNotFound
 		}}
 		r := withChiParam(jsonReq(t, http.MethodPost, "/", validBody), "tenant_uuid", testResourceUUID.String())
@@ -494,10 +493,10 @@ func TestTenantHandler_AddMember(t *testing.T) {
 	})
 
 	t.Run("CreateByUserUUID error returns 400", func(t *testing.T) {
-		ts := &mockTenantService{getByUUIDFn: func(uuid.UUID) (*service.TenantServiceDataResult, error) {
-			return &service.TenantServiceDataResult{}, nil
+		ts := &mockTenantService{getByUUIDFn: func(uuid.UUID) (*TenantServiceDataResult, error) {
+			return &TenantServiceDataResult{}, nil
 		}}
-		ms := &mockTenantMemberService{createByUserUUIDFn: func(int64, uuid.UUID, string) (*service.TenantMemberServiceDataResult, error) {
+		ms := &mockTenantMemberService{createByUserUUIDFn: func(int64, uuid.UUID, string) (*TenantMemberServiceDataResult, error) {
 			return nil, errValidation
 		}}
 		r := withChiParam(jsonReq(t, http.MethodPost, "/", validBody), "tenant_uuid", testResourceUUID.String())
@@ -507,11 +506,11 @@ func TestTenantHandler_AddMember(t *testing.T) {
 	})
 
 	t.Run("success returns 201", func(t *testing.T) {
-		ts := &mockTenantService{getByUUIDFn: func(uuid.UUID) (*service.TenantServiceDataResult, error) {
-			return &service.TenantServiceDataResult{}, nil
+		ts := &mockTenantService{getByUUIDFn: func(uuid.UUID) (*TenantServiceDataResult, error) {
+			return &TenantServiceDataResult{}, nil
 		}}
-		ms := &mockTenantMemberService{createByUserUUIDFn: func(int64, uuid.UUID, string) (*service.TenantMemberServiceDataResult, error) {
-			return &service.TenantMemberServiceDataResult{Role: "member"}, nil
+		ms := &mockTenantMemberService{createByUserUUIDFn: func(int64, uuid.UUID, string) (*TenantMemberServiceDataResult, error) {
+			return &TenantMemberServiceDataResult{Role: "member"}, nil
 		}}
 		r := withChiParam(jsonReq(t, http.MethodPost, "/", validBody), "tenant_uuid", testResourceUUID.String())
 		w := httptest.NewRecorder()
@@ -552,7 +551,7 @@ func TestTenantHandler_UpdateMemberRole(t *testing.T) {
 	})
 
 	t.Run("service error returns 400", func(t *testing.T) {
-		ms := &mockTenantMemberService{updateRoleFn: func(uuid.UUID, string) (*service.TenantMemberServiceDataResult, error) {
+		ms := &mockTenantMemberService{updateRoleFn: func(uuid.UUID, string) (*TenantMemberServiceDataResult, error) {
 			return nil, errValidation
 		}}
 		r := withChiParam(jsonReq(t, http.MethodPut, "/", map[string]any{"role": "owner"}), "tenant_member_uuid", memberUUID.String())
@@ -562,8 +561,8 @@ func TestTenantHandler_UpdateMemberRole(t *testing.T) {
 	})
 
 	t.Run("success returns 200", func(t *testing.T) {
-		ms := &mockTenantMemberService{updateRoleFn: func(id uuid.UUID, role string) (*service.TenantMemberServiceDataResult, error) {
-			return &service.TenantMemberServiceDataResult{Role: role}, nil
+		ms := &mockTenantMemberService{updateRoleFn: func(id uuid.UUID, role string) (*TenantMemberServiceDataResult, error) {
+			return &TenantMemberServiceDataResult{Role: role}, nil
 		}}
 		r := withChiParam(jsonReq(t, http.MethodPut, "/", map[string]any{"role": "member"}), "tenant_member_uuid", memberUUID.String())
 		w := httptest.NewRecorder()

@@ -3,7 +3,6 @@ package idp
 import (
 	"errors"
 
-	"github.com/maintainerd/auth/internal/model"
 	"gorm.io/gorm"
 )
 
@@ -24,26 +23,26 @@ type IdentityProviderRepositoryGetFilter struct {
 }
 
 type IdentityProviderRepository interface {
-	BaseRepositoryMethods[model.IdentityProvider]
+	BaseRepositoryMethods[IdentityProvider]
 	WithTx(tx *gorm.DB) IdentityProviderRepository
-	FindByName(name string, tenantID int64) (*model.IdentityProvider, error)
-	FindByIdentifier(identifier string) (*model.IdentityProvider, error)
-	FindDefaultByTenantID(tenantID int64) (*model.IdentityProvider, error)
+	FindByName(name string, tenantID int64) (*IdentityProvider, error)
+	FindByIdentifier(identifier string) (*IdentityProvider, error)
+	FindDefaultByTenantID(tenantID int64) (*IdentityProvider, error)
 	// FindByTenantAndProvider returns the active provider record matching the
 	// tenant and provider slug (e.g. "google", "cognito").
-	FindByTenantAndProvider(tenantID int64, provider string) (*model.IdentityProvider, error)
+	FindByTenantAndProvider(tenantID int64, provider string) (*IdentityProvider, error)
 	// FindAllByTenantID returns every provider configured for a tenant.
-	FindAllByTenantID(tenantID int64) ([]model.IdentityProvider, error)
-	FindPaginated(filter IdentityProviderRepositoryGetFilter) (*PaginationResult[model.IdentityProvider], error)
+	FindAllByTenantID(tenantID int64) ([]IdentityProvider, error)
+	FindPaginated(filter IdentityProviderRepositoryGetFilter) (*PaginationResult[IdentityProvider], error)
 }
 
 type identityProviderRepository struct {
-	*BaseRepository[model.IdentityProvider]
+	*BaseRepository[IdentityProvider]
 }
 
 func NewIdentityProviderRepository(db *gorm.DB) IdentityProviderRepository {
 	return &identityProviderRepository{
-		BaseRepository: NewBaseRepository[model.IdentityProvider](db, "identity_provider_uuid", "identity_provider_id"),
+		BaseRepository: NewBaseRepository[IdentityProvider](db, "identity_provider_uuid", "identity_provider_id"),
 	}
 }
 
@@ -53,8 +52,8 @@ func (r *identityProviderRepository) WithTx(tx *gorm.DB) IdentityProviderReposit
 	}
 }
 
-func (r *identityProviderRepository) FindByName(name string, tenantID int64) (*model.IdentityProvider, error) {
-	var provider model.IdentityProvider
+func (r *identityProviderRepository) FindByName(name string, tenantID int64) (*IdentityProvider, error) {
+	var provider IdentityProvider
 	err := r.DB().
 		Where("name = ? AND tenant_id = ?", name, tenantID).
 		First(&provider).Error
@@ -69,8 +68,8 @@ func (r *identityProviderRepository) FindByName(name string, tenantID int64) (*m
 	return &provider, err
 }
 
-func (r *identityProviderRepository) FindByIdentifier(identifier string) (*model.IdentityProvider, error) {
-	var provider model.IdentityProvider
+func (r *identityProviderRepository) FindByIdentifier(identifier string) (*IdentityProvider, error) {
+	var provider IdentityProvider
 	err := r.DB().
 		Where("identifier = ?", identifier).
 		First(&provider).Error
@@ -85,16 +84,16 @@ func (r *identityProviderRepository) FindByIdentifier(identifier string) (*model
 	return &provider, nil
 }
 
-func (r *identityProviderRepository) FindDefaultByTenantID(tenantID int64) (*model.IdentityProvider, error) {
-	var provider model.IdentityProvider
+func (r *identityProviderRepository) FindDefaultByTenantID(tenantID int64) (*IdentityProvider, error) {
+	var provider IdentityProvider
 	err := r.DB().
 		Where("tenant_id = ? AND is_default = true", tenantID).
 		First(&provider).Error
 	return &provider, err
 }
 
-func (r *identityProviderRepository) FindPaginated(filter IdentityProviderRepositoryGetFilter) (*PaginationResult[model.IdentityProvider], error) {
-	query := r.DB().Model(&model.IdentityProvider{})
+func (r *identityProviderRepository) FindPaginated(filter IdentityProviderRepositoryGetFilter) (*PaginationResult[IdentityProvider], error) {
+	query := r.DB().Model(&IdentityProvider{})
 
 	// Filters with LIKE
 	if filter.Name != nil {
@@ -144,14 +143,14 @@ func (r *identityProviderRepository) FindPaginated(filter IdentityProviderReposi
 		filter.Limit = 10
 	}
 	offset := (filter.Page - 1) * filter.Limit
-	var apis []model.IdentityProvider
+	var apis []IdentityProvider
 	if err := query.Preload("Tenant").Limit(filter.Limit).Offset(offset).Find(&apis).Error; err != nil {
 		return nil, err
 	}
 
 	totalPages := int((total + int64(filter.Limit) - 1) / int64(filter.Limit))
 
-	return &PaginationResult[model.IdentityProvider]{
+	return &PaginationResult[IdentityProvider]{
 		Data:       apis,
 		Total:      total,
 		Page:       filter.Page,
@@ -160,8 +159,8 @@ func (r *identityProviderRepository) FindPaginated(filter IdentityProviderReposi
 	}, nil
 }
 
-func (r *identityProviderRepository) FindByTenantAndProvider(tenantID int64, provider string) (*model.IdentityProvider, error) {
-	var idp model.IdentityProvider
+func (r *identityProviderRepository) FindByTenantAndProvider(tenantID int64, provider string) (*IdentityProvider, error) {
+	var idp IdentityProvider
 	err := r.DB().
 		Where("tenant_id = ? AND provider = ? AND deleted_at IS NULL", tenantID, provider).
 		First(&idp).Error
@@ -174,8 +173,8 @@ func (r *identityProviderRepository) FindByTenantAndProvider(tenantID int64, pro
 	return &idp, nil
 }
 
-func (r *identityProviderRepository) FindAllByTenantID(tenantID int64) ([]model.IdentityProvider, error) {
-	var idps []model.IdentityProvider
+func (r *identityProviderRepository) FindAllByTenantID(tenantID int64) ([]IdentityProvider, error) {
+	var idps []IdentityProvider
 	err := r.DB().
 		Where("tenant_id = ? AND deleted_at IS NULL", tenantID).
 		Find(&idps).Error

@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/maintainerd/auth/internal/model"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -22,7 +21,7 @@ func TestUserSettingService_GetByUUID(t *testing.T) {
 
 	t.Run("not found", func(t *testing.T) {
 		svc := newUserSettingSvc(&mockUserSettingRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.UserSetting, error) { return nil, nil },
+			findByUUIDFn: func(_ any, _ ...string) (*UserSetting, error) { return nil, nil },
 		}, &mockUserRepo{})
 		_, err := svc.GetByUUID(context.Background(), id)
 		require.Error(t, err)
@@ -31,8 +30,8 @@ func TestUserSettingService_GetByUUID(t *testing.T) {
 
 	t.Run("success", func(t *testing.T) {
 		svc := newUserSettingSvc(&mockUserSettingRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.UserSetting, error) {
-				return &model.UserSetting{UserSettingUUID: id}, nil
+			findByUUIDFn: func(_ any, _ ...string) (*UserSetting, error) {
+				return &UserSetting{UserSettingUUID: id}, nil
 			},
 		}, &mockUserRepo{})
 		res, err := svc.GetByUUID(context.Background(), id)
@@ -46,7 +45,7 @@ func TestUserSettingService_GetByUserUUID(t *testing.T) {
 
 	t.Run("user not found", func(t *testing.T) {
 		svc := newUserSettingSvc(&mockUserSettingRepo{}, &mockUserRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.User, error) { return nil, nil },
+			findByUUIDFn: func(_ any, _ ...string) (*User, error) { return nil, nil },
 		})
 		_, err := svc.GetByUserUUID(context.Background(), userUUID)
 		require.Error(t, err)
@@ -55,10 +54,10 @@ func TestUserSettingService_GetByUserUUID(t *testing.T) {
 
 	t.Run("setting not found", func(t *testing.T) {
 		svc := newUserSettingSvc(&mockUserSettingRepo{
-			findByUserIDFn: func(_ int64) (*model.UserSetting, error) { return nil, nil },
+			findByUserIDFn: func(_ int64) (*UserSetting, error) { return nil, nil },
 		}, &mockUserRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.User, error) {
-				return &model.User{UserID: 1}, nil
+			findByUUIDFn: func(_ any, _ ...string) (*User, error) {
+				return &User{UserID: 1}, nil
 			},
 		})
 		_, err := svc.GetByUserUUID(context.Background(), userUUID)
@@ -69,12 +68,12 @@ func TestUserSettingService_GetByUserUUID(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		sid := uuid.New()
 		svc := newUserSettingSvc(&mockUserSettingRepo{
-			findByUserIDFn: func(_ int64) (*model.UserSetting, error) {
-				return &model.UserSetting{UserSettingUUID: sid}, nil
+			findByUserIDFn: func(_ int64) (*UserSetting, error) {
+				return &UserSetting{UserSettingUUID: sid}, nil
 			},
 		}, &mockUserRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.User, error) {
-				return &model.User{UserID: 1}, nil
+			findByUUIDFn: func(_ any, _ ...string) (*User, error) {
+				return &User{UserID: 1}, nil
 			},
 		})
 		res, err := svc.GetByUserUUID(context.Background(), userUUID)
@@ -88,7 +87,7 @@ func TestUserSettingService_DeleteByUUID(t *testing.T) {
 
 	t.Run("not found", func(t *testing.T) {
 		svc := newUserSettingSvc(&mockUserSettingRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.UserSetting, error) { return nil, nil },
+			findByUUIDFn: func(_ any, _ ...string) (*UserSetting, error) { return nil, nil },
 		}, &mockUserRepo{})
 		_, err := svc.DeleteByUUID(context.Background(), id)
 		require.Error(t, err)
@@ -97,8 +96,8 @@ func TestUserSettingService_DeleteByUUID(t *testing.T) {
 
 	t.Run("delete error", func(t *testing.T) {
 		svc := newUserSettingSvc(&mockUserSettingRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.UserSetting, error) {
-				return &model.UserSetting{UserSettingUUID: id}, nil
+			findByUUIDFn: func(_ any, _ ...string) (*UserSetting, error) {
+				return &UserSetting{UserSettingUUID: id}, nil
 			},
 			deleteByUUIDFn: func(_ any) error { return errors.New("delete failed") },
 		}, &mockUserRepo{})
@@ -109,8 +108,8 @@ func TestUserSettingService_DeleteByUUID(t *testing.T) {
 
 	t.Run("success", func(t *testing.T) {
 		svc := newUserSettingSvc(&mockUserSettingRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.UserSetting, error) {
-				return &model.UserSetting{UserSettingUUID: id}, nil
+			findByUUIDFn: func(_ any, _ ...string) (*UserSetting, error) {
+				return &UserSetting{UserSettingUUID: id}, nil
 			},
 			deleteByUUIDFn: func(_ any) error { return nil },
 		}, &mockUserRepo{})
@@ -128,7 +127,7 @@ func TestUserSettingService_CreateOrUpdateUserSetting(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		svc := NewUserSettingService(db, &mockUserSettingRepo{}, &mockUserRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.User, error) { return nil, nil },
+			findByUUIDFn: func(_ any, _ ...string) (*User, error) { return nil, nil },
 		})
 		_, err := svc.CreateOrUpdateUserSetting(context.Background(), userUUID, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
 		require.Error(t, err)
@@ -141,14 +140,14 @@ func TestUserSettingService_CreateOrUpdateUserSetting(t *testing.T) {
 		mock.ExpectCommit()
 		sid := uuid.New()
 		svc := NewUserSettingService(db, &mockUserSettingRepo{
-			findByUserIDFn: func(_ int64) (*model.UserSetting, error) { return nil, nil },
-			createFn: func(e *model.UserSetting) (*model.UserSetting, error) {
+			findByUserIDFn: func(_ int64) (*UserSetting, error) { return nil, nil },
+			createFn: func(e *UserSetting) (*UserSetting, error) {
 				e.UserSettingUUID = sid
 				return e, nil
 			},
 		}, &mockUserRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.User, error) {
-				return &model.User{UserID: 1}, nil
+			findByUUIDFn: func(_ any, _ ...string) (*User, error) {
+				return &User{UserID: 1}, nil
 			},
 		})
 		res, err := svc.CreateOrUpdateUserSetting(context.Background(), userUUID, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
@@ -161,12 +160,12 @@ func TestUserSettingService_CreateOrUpdateUserSetting(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		svc := NewUserSettingService(db, &mockUserSettingRepo{
-			findByUserIDFn: func(_ int64) (*model.UserSetting, error) {
+			findByUserIDFn: func(_ int64) (*UserSetting, error) {
 				return nil, errors.New("db error")
 			},
 		}, &mockUserRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.User, error) {
-				return &model.User{UserID: 1}, nil
+			findByUUIDFn: func(_ any, _ ...string) (*User, error) {
+				return &User{UserID: 1}, nil
 			},
 		})
 		_, err := svc.CreateOrUpdateUserSetting(context.Background(), userUUID, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
@@ -180,10 +179,10 @@ func TestUserSettingService_CreateOrUpdateUserSetting(t *testing.T) {
 		mock.ExpectRollback()
 		badLinks := map[string]any{"bad": math.Inf(1)}
 		svc := NewUserSettingService(db, &mockUserSettingRepo{
-			findByUserIDFn: func(_ int64) (*model.UserSetting, error) { return nil, nil },
+			findByUserIDFn: func(_ int64) (*UserSetting, error) { return nil, nil },
 		}, &mockUserRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.User, error) {
-				return &model.User{UserID: 1}, nil
+			findByUUIDFn: func(_ any, _ ...string) (*User, error) {
+				return &User{UserID: 1}, nil
 			},
 		})
 		_, err := svc.CreateOrUpdateUserSetting(context.Background(), userUUID, nil, nil, nil, badLinks, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
@@ -196,13 +195,13 @@ func TestUserSettingService_CreateOrUpdateUserSetting(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		svc := NewUserSettingService(db, &mockUserSettingRepo{
-			findByUserIDFn: func(_ int64) (*model.UserSetting, error) { return nil, nil },
-			createFn: func(_ *model.UserSetting) (*model.UserSetting, error) {
+			findByUserIDFn: func(_ int64) (*UserSetting, error) { return nil, nil },
+			createFn: func(_ *UserSetting) (*UserSetting, error) {
 				return nil, errors.New("create failed")
 			},
 		}, &mockUserRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.User, error) {
-				return &model.User{UserID: 1}, nil
+			findByUUIDFn: func(_ any, _ ...string) (*User, error) {
+				return &User{UserID: 1}, nil
 			},
 		})
 		_, err := svc.CreateOrUpdateUserSetting(context.Background(), userUUID, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
@@ -217,12 +216,12 @@ func TestUserSettingService_CreateOrUpdateUserSetting(t *testing.T) {
 		sid := uuid.New()
 		tz := "America/New_York"
 		svc := NewUserSettingService(db, &mockUserSettingRepo{
-			findByUserIDFn: func(_ int64) (*model.UserSetting, error) {
-				return &model.UserSetting{UserSettingID: 10, UserSettingUUID: sid, UserID: 1}, nil
+			findByUserIDFn: func(_ int64) (*UserSetting, error) {
+				return &UserSetting{UserSettingID: 10, UserSettingUUID: sid, UserID: 1}, nil
 			},
 		}, &mockUserRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.User, error) {
-				return &model.User{UserID: 1}, nil
+			findByUUIDFn: func(_ any, _ ...string) (*User, error) {
+				return &User{UserID: 1}, nil
 			},
 		})
 		res, err := svc.CreateOrUpdateUserSetting(context.Background(), userUUID, &tz, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
@@ -236,15 +235,15 @@ func TestUserSettingService_CreateOrUpdateUserSetting(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		svc := NewUserSettingService(db, &mockUserSettingRepo{
-			findByUserIDFn: func(_ int64) (*model.UserSetting, error) {
-				return &model.UserSetting{UserSettingID: 10, UserSettingUUID: uuid.New(), UserID: 1}, nil
+			findByUserIDFn: func(_ int64) (*UserSetting, error) {
+				return &UserSetting{UserSettingID: 10, UserSettingUUID: uuid.New(), UserID: 1}, nil
 			},
-			updateByUserIDFn: func(_ int64, _ *model.UserSetting) error {
+			updateByUserIDFn: func(_ int64, _ *UserSetting) error {
 				return errors.New("update failed")
 			},
 		}, &mockUserRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.User, error) {
-				return &model.User{UserID: 1}, nil
+			findByUUIDFn: func(_ any, _ ...string) (*User, error) {
+				return &User{UserID: 1}, nil
 			},
 		})
 		_, err := svc.CreateOrUpdateUserSetting(context.Background(), userUUID, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
@@ -272,10 +271,10 @@ func TestUserSettingService_CreateOrUpdateUserSetting(t *testing.T) {
 		ecRel := "spouse"
 		links := map[string]any{"twitter": "@user"}
 		svc := NewUserSettingService(db, &mockUserSettingRepo{
-			findByUserIDFn: func(_ int64) (*model.UserSetting, error) { return nil, nil },
+			findByUserIDFn: func(_ int64) (*UserSetting, error) { return nil, nil },
 		}, &mockUserRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.User, error) {
-				return &model.User{UserID: 1}, nil
+			findByUUIDFn: func(_ any, _ ...string) (*User, error) {
+				return &User{UserID: 1}, nil
 			},
 		})
 		res, err := svc.CreateOrUpdateUserSetting(context.Background(), userUUID, &tz, &lang, &locale, links, &contact, &mktg, &sms, &push, &vis, &consent, &now, &now, &ecName, &ecPhone, &ecEmail, &ecRel)
@@ -307,7 +306,7 @@ func TestToUserSettingServiceDataResult(t *testing.T) {
 	t.Run("full fields", func(t *testing.T) {
 		sid := uuid.New()
 		tz := "UTC"
-		us := &model.UserSetting{
+		us := &UserSetting{
 			UserSettingUUID: sid,
 			Timezone:        &tz,
 		}

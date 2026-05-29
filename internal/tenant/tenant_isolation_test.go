@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/maintainerd/auth/internal/model"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -48,7 +47,7 @@ func TestTenantIsolationInvariant(t *testing.T) {
 	for _, r := range rows {
 		r := r
 		t.Run(r.label, func(t *testing.T) {
-			identities := make([]model.UserIdentity, len(r.userTenantIDs))
+			identities := make([]UserIdentity, len(r.userTenantIDs))
 			for i, tid := range r.userTenantIDs {
 				isSystem := r.systemTenantID != 0 && tid == r.systemTenantID
 				identities[i] = buildIdentity(tid, isSystem)
@@ -77,7 +76,7 @@ func TestTenantIsolation_CrossTenantNeverLeaks(t *testing.T) {
 			}
 			name := fmt.Sprintf("user_in_%d_cannot_access_%d", userTenant, targetTenant)
 			t.Run(name, func(t *testing.T) {
-				user := buildUserWithIdentities([]model.UserIdentity{
+				user := buildUserWithIdentities([]UserIdentity{
 					buildIdentity(userTenant, false),
 				})
 				err := ValidateTenantAccessByID(user, targetTenant)
@@ -93,14 +92,14 @@ func TestTenantIsolation_CrossTenantNeverLeaks(t *testing.T) {
 // arbitrary tenant with a low ID.
 func TestTenantIsolation_SystemBypassIsScoped(t *testing.T) {
 	// Tenant ID 2 with IsSystem=false should NOT grant bypass.
-	user := buildUserWithIdentities([]model.UserIdentity{
+	user := buildUserWithIdentities([]UserIdentity{
 		buildIdentity(2, false), // non-system despite low ID
 	})
 	err := ValidateTenantAccessByID(user, 99)
 	require.Error(t, err, "non-system tenant must not bypass access control")
 
 	// Same tenant ID 2 with IsSystem=true should grant bypass.
-	userSystem := buildUserWithIdentities([]model.UserIdentity{
+	userSystem := buildUserWithIdentities([]UserIdentity{
 		buildIdentity(2, true),
 	})
 	err = ValidateTenantAccessByID(userSystem, 99)
@@ -131,7 +130,7 @@ func TestTenantIsolation_ValidateTenantAccess_MirrorsByID(t *testing.T) {
 	for _, c := range cases {
 		c := c
 		t.Run(c.label, func(t *testing.T) {
-			user := buildUserWithIdentities([]model.UserIdentity{
+			user := buildUserWithIdentities([]UserIdentity{
 				buildIdentity(c.userTenID, c.isSystem),
 			})
 			target := buildTenant(c.targetID, false)

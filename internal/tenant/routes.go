@@ -4,13 +4,11 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/maintainerd/auth/internal/platform/cache"
 	"github.com/maintainerd/auth/internal/platform/middleware"
-	"github.com/maintainerd/auth/internal/rest/handler"
-	"github.com/maintainerd/auth/internal/service"
 )
 
 // TenantPublicRoute registers the unauthenticated tenant discovery endpoints used
 // by the public identity app (port 8081) to look up tenant info before login.
-func TenantPublicRoute(r chi.Router, tenantHandler *handler.TenantHandler) {
+func TenantPublicRoute(r chi.Router, tenantHandler *TenantHandler) {
 	r.Route("/tenant", func(r chi.Router) {
 		// Get default tenant (public endpoint)
 		r.Get("/", tenantHandler.GetDefault)
@@ -24,8 +22,8 @@ func TenantPublicRoute(r chi.Router, tenantHandler *handler.TenantHandler) {
 // It also includes the public read endpoints so the admin console can use them.
 func TenantRoute(
 	r chi.Router,
-	tenantHandler *handler.TenantHandler,
-	userService service.UserService,
+	tenantHandler *TenantHandler,
+	userService UserService,
 	appCache *cache.Cache,
 ) {
 	// Single tenant endpoints (public - no authentication required)

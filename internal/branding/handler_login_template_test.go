@@ -7,12 +7,11 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
-	"github.com/maintainerd/auth/internal/service"
 	"github.com/stretchr/testify/assert"
 )
 
-func loginTmplResult() service.LoginTemplateServiceDataResult {
-	return service.LoginTemplateServiceDataResult{LoginTemplateUUID: testResourceUUID, Name: "tmpl", Template: "<html/>", Status: "active"}
+func loginTmplResult() LoginTemplateServiceDataResult {
+	return LoginTemplateServiceDataResult{LoginTemplateUUID: testResourceUUID, Name: "tmpl", Template: "<html/>", Status: "active"}
 }
 
 func validLoginTemplateBody() map[string]any {
@@ -20,8 +19,8 @@ func validLoginTemplateBody() map[string]any {
 }
 
 func TestLoginTemplateHandler_GetAll(t *testing.T) {
-	svc := &mockLoginTemplateService{getAllFn: func(_ int64, _ *string, _ []string, _ *string, _, _ *bool, _, _ int, _, _ string) (*service.LoginTemplateServiceListResult, error) {
-		return &service.LoginTemplateServiceListResult{Data: []service.LoginTemplateServiceDataResult{loginTmplResult()}}, nil
+	svc := &mockLoginTemplateService{getAllFn: func(_ int64, _ *string, _ []string, _ *string, _, _ *bool, _, _ int, _, _ string) (*LoginTemplateServiceListResult, error) {
+		return &LoginTemplateServiceListResult{Data: []LoginTemplateServiceDataResult{loginTmplResult()}}, nil
 	}}
 	h := NewLoginTemplateHandler(svc)
 	w := httptest.NewRecorder()
@@ -43,8 +42,8 @@ func TestLoginTemplateHandler_GetAll_ValidationError(t *testing.T) {
 
 func TestLoginTemplateHandler_GetAll_WithFilters(t *testing.T) {
 	// Covers status != "" (line 59-61), is_default != "" (65-68), is_system != "" (71-74) branches.
-	svc := &mockLoginTemplateService{getAllFn: func(_ int64, _ *string, _ []string, _ *string, _, _ *bool, _, _ int, _, _ string) (*service.LoginTemplateServiceListResult, error) {
-		return &service.LoginTemplateServiceListResult{}, nil
+	svc := &mockLoginTemplateService{getAllFn: func(_ int64, _ *string, _ []string, _ *string, _, _ *bool, _, _ int, _, _ string) (*LoginTemplateServiceListResult, error) {
+		return &LoginTemplateServiceListResult{}, nil
 	}}
 	w := httptest.NewRecorder()
 	NewLoginTemplateHandler(svc).GetAll(w, withTenant(jsonReq(t, http.MethodGet,
@@ -53,7 +52,7 @@ func TestLoginTemplateHandler_GetAll_WithFilters(t *testing.T) {
 }
 
 func TestLoginTemplateHandler_GetAll_Error(t *testing.T) {
-	svc := &mockLoginTemplateService{getAllFn: func(_ int64, _ *string, _ []string, _ *string, _, _ *bool, _, _ int, _, _ string) (*service.LoginTemplateServiceListResult, error) {
+	svc := &mockLoginTemplateService{getAllFn: func(_ int64, _ *string, _ []string, _ *string, _, _ *bool, _, _ int, _, _ string) (*LoginTemplateServiceListResult, error) {
 		return nil, errors.New("db")
 	}}
 	h := NewLoginTemplateHandler(svc)
@@ -70,7 +69,7 @@ func TestLoginTemplateHandler_Get_NoTenant(t *testing.T) {
 
 func TestLoginTemplateHandler_Get(t *testing.T) {
 	res := loginTmplResult()
-	svc := &mockLoginTemplateService{getByUUIDFn: func(_ uuid.UUID, _ int64) (*service.LoginTemplateServiceDataResult, error) { return &res, nil }}
+	svc := &mockLoginTemplateService{getByUUIDFn: func(_ uuid.UUID, _ int64) (*LoginTemplateServiceDataResult, error) { return &res, nil }}
 	h := NewLoginTemplateHandler(svc)
 	r := withChiParam(withTenant(jsonReq(t, http.MethodGet, "/login-templates/id", nil)), "login_template_uuid", testResourceUUID.String())
 	w := httptest.NewRecorder()
@@ -87,7 +86,7 @@ func TestLoginTemplateHandler_Get_BadUUID(t *testing.T) {
 }
 
 func TestLoginTemplateHandler_Get_NotFound(t *testing.T) {
-	svc := &mockLoginTemplateService{getByUUIDFn: func(_ uuid.UUID, _ int64) (*service.LoginTemplateServiceDataResult, error) {
+	svc := &mockLoginTemplateService{getByUUIDFn: func(_ uuid.UUID, _ int64) (*LoginTemplateServiceDataResult, error) {
 		return nil, errNotFound
 	}}
 	h := NewLoginTemplateHandler(svc)
@@ -117,8 +116,8 @@ func TestLoginTemplateHandler_Create_ValidationError(t *testing.T) {
 
 func TestLoginTemplateHandler_Create_CustomStatus(t *testing.T) {
 	// Covers req.Status != nil branch (lines 173-175).
-	svc := &mockLoginTemplateService{createFn: func(_ int64, _ string, _ *string, _ string, _ map[string]any, _ string) (*service.LoginTemplateServiceDataResult, error) {
-		return &service.LoginTemplateServiceDataResult{Name: "tmpl1"}, nil
+	svc := &mockLoginTemplateService{createFn: func(_ int64, _ string, _ *string, _ string, _ map[string]any, _ string) (*LoginTemplateServiceDataResult, error) {
+		return &LoginTemplateServiceDataResult{Name: "tmpl1"}, nil
 	}}
 	body := map[string]any{"name": "tmpl1", "template": "modern", "status": "inactive"}
 	w := httptest.NewRecorder()
@@ -128,7 +127,7 @@ func TestLoginTemplateHandler_Create_CustomStatus(t *testing.T) {
 
 func TestLoginTemplateHandler_Create(t *testing.T) {
 	res := loginTmplResult()
-	svc := &mockLoginTemplateService{createFn: func(_ int64, _ string, _ *string, _ string, _ map[string]any, _ string) (*service.LoginTemplateServiceDataResult, error) {
+	svc := &mockLoginTemplateService{createFn: func(_ int64, _ string, _ *string, _ string, _ map[string]any, _ string) (*LoginTemplateServiceDataResult, error) {
 		return &res, nil
 	}}
 	h := NewLoginTemplateHandler(svc)
@@ -139,7 +138,7 @@ func TestLoginTemplateHandler_Create(t *testing.T) {
 }
 
 func TestLoginTemplateHandler_Create_Error(t *testing.T) {
-	svc := &mockLoginTemplateService{createFn: func(_ int64, _ string, _ *string, _ string, _ map[string]any, _ string) (*service.LoginTemplateServiceDataResult, error) {
+	svc := &mockLoginTemplateService{createFn: func(_ int64, _ string, _ *string, _ string, _ map[string]any, _ string) (*LoginTemplateServiceDataResult, error) {
 		return nil, errValidation
 	}}
 	h := NewLoginTemplateHandler(svc)
@@ -178,7 +177,7 @@ func TestLoginTemplateHandler_Update_ValidationError(t *testing.T) {
 }
 
 func TestLoginTemplateHandler_Update_ServiceError(t *testing.T) {
-	svc := &mockLoginTemplateService{updateFn: func(_ uuid.UUID, _ int64, _ string, _ *string, _ string, _ map[string]any, _ string) (*service.LoginTemplateServiceDataResult, error) {
+	svc := &mockLoginTemplateService{updateFn: func(_ uuid.UUID, _ int64, _ string, _ *string, _ string, _ map[string]any, _ string) (*LoginTemplateServiceDataResult, error) {
 		return nil, errValidation
 	}}
 	w := httptest.NewRecorder()
@@ -189,8 +188,8 @@ func TestLoginTemplateHandler_Update_ServiceError(t *testing.T) {
 
 func TestLoginTemplateHandler_Update_CustomStatus(t *testing.T) {
 	// Covers req.Status != nil branch (lines 236-238).
-	svc := &mockLoginTemplateService{updateFn: func(_ uuid.UUID, _ int64, _ string, _ *string, _ string, _ map[string]any, _ string) (*service.LoginTemplateServiceDataResult, error) {
-		return &service.LoginTemplateServiceDataResult{Name: "tmpl1"}, nil
+	svc := &mockLoginTemplateService{updateFn: func(_ uuid.UUID, _ int64, _ string, _ *string, _ string, _ map[string]any, _ string) (*LoginTemplateServiceDataResult, error) {
+		return &LoginTemplateServiceDataResult{Name: "tmpl1"}, nil
 	}}
 	body := map[string]any{"name": "tmpl1", "template": "modern", "status": "inactive"}
 	w := httptest.NewRecorder()
@@ -201,7 +200,7 @@ func TestLoginTemplateHandler_Update_CustomStatus(t *testing.T) {
 
 func TestLoginTemplateHandler_Update(t *testing.T) {
 	res := loginTmplResult()
-	svc := &mockLoginTemplateService{updateFn: func(_ uuid.UUID, _ int64, _ string, _ *string, _ string, _ map[string]any, _ string) (*service.LoginTemplateServiceDataResult, error) {
+	svc := &mockLoginTemplateService{updateFn: func(_ uuid.UUID, _ int64, _ string, _ *string, _ string, _ map[string]any, _ string) (*LoginTemplateServiceDataResult, error) {
 		return &res, nil
 	}}
 	h := NewLoginTemplateHandler(svc)
@@ -227,7 +226,7 @@ func TestLoginTemplateHandler_Delete_InvalidUUID(t *testing.T) {
 }
 
 func TestLoginTemplateHandler_Delete_ServiceError(t *testing.T) {
-	svc := &mockLoginTemplateService{deleteFn: func(_ uuid.UUID, _ int64) (*service.LoginTemplateServiceDataResult, error) {
+	svc := &mockLoginTemplateService{deleteFn: func(_ uuid.UUID, _ int64) (*LoginTemplateServiceDataResult, error) {
 		return nil, errValidation
 	}}
 	w := httptest.NewRecorder()
@@ -238,7 +237,7 @@ func TestLoginTemplateHandler_Delete_ServiceError(t *testing.T) {
 
 func TestLoginTemplateHandler_Delete(t *testing.T) {
 	res := loginTmplResult()
-	svc := &mockLoginTemplateService{deleteFn: func(_ uuid.UUID, _ int64) (*service.LoginTemplateServiceDataResult, error) { return &res, nil }}
+	svc := &mockLoginTemplateService{deleteFn: func(_ uuid.UUID, _ int64) (*LoginTemplateServiceDataResult, error) { return &res, nil }}
 	h := NewLoginTemplateHandler(svc)
 	r := withChiParam(withTenant(jsonReq(t, http.MethodDelete, "/login-templates/id", nil)), "login_template_uuid", testResourceUUID.String())
 	w := httptest.NewRecorder()
@@ -275,7 +274,7 @@ func TestLoginTemplateHandler_UpdateStatus_ValidationError(t *testing.T) {
 }
 
 func TestLoginTemplateHandler_UpdateStatus_ServiceError(t *testing.T) {
-	svc := &mockLoginTemplateService{updateStatusFn: func(_ uuid.UUID, _ int64, _ string) (*service.LoginTemplateServiceDataResult, error) {
+	svc := &mockLoginTemplateService{updateStatusFn: func(_ uuid.UUID, _ int64, _ string) (*LoginTemplateServiceDataResult, error) {
 		return nil, errValidation
 	}}
 	w := httptest.NewRecorder()
@@ -286,7 +285,7 @@ func TestLoginTemplateHandler_UpdateStatus_ServiceError(t *testing.T) {
 
 func TestLoginTemplateHandler_UpdateStatus(t *testing.T) {
 	res := loginTmplResult()
-	svc := &mockLoginTemplateService{updateStatusFn: func(_ uuid.UUID, _ int64, _ string) (*service.LoginTemplateServiceDataResult, error) {
+	svc := &mockLoginTemplateService{updateStatusFn: func(_ uuid.UUID, _ int64, _ string) (*LoginTemplateServiceDataResult, error) {
 		return &res, nil
 	}}
 	h := NewLoginTemplateHandler(svc)

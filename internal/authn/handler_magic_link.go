@@ -5,17 +5,15 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/maintainerd/auth/internal/dto"
 	resp "github.com/maintainerd/auth/internal/platform/response"
 	"github.com/maintainerd/auth/internal/platform/security"
-	"github.com/maintainerd/auth/internal/service"
 )
 
 type MagicLinkHandler struct {
-	magicLinkService service.MagicLinkService
+	magicLinkService MagicLinkService
 }
 
-func NewMagicLinkHandler(magicLinkService service.MagicLinkService) *MagicLinkHandler {
+func NewMagicLinkHandler(magicLinkService MagicLinkService) *MagicLinkHandler {
 	return &MagicLinkHandler{
 		magicLinkService: magicLinkService,
 	}
@@ -76,7 +74,7 @@ func (h *MagicLinkHandler) handleSendMagicLink(
 ) {
 	clientIPStr, userAgentStr, requestIDStr := sc.clientIP, sc.userAgent, sc.requestID
 
-	var req dto.SendMagicLinkRequestDTO
+	var req SendMagicLinkRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		security.LogSecurityEvent(security.SecurityEvent{
 			EventType: "magic_link_invalid_json",
@@ -175,7 +173,7 @@ func (h *MagicLinkHandler) VerifyMagicLink(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	var req dto.VerifyMagicLinkRequestDTO
+	var req VerifyMagicLinkRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		security.LogSecurityEvent(security.SecurityEvent{
 			EventType: "magic_link_invalid_json",

@@ -8,8 +8,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/maintainerd/auth/internal/dto"
-	"github.com/maintainerd/auth/internal/model"
 	"github.com/maintainerd/auth/internal/platform/middleware"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -63,7 +61,7 @@ func TestOAuthUserInfoHandler_UserInfo_Success(t *testing.T) {
 	h := NewOAuthUserInfoHandler()
 	r := httptest.NewRequest(http.MethodGet, "/oauth/userinfo", nil)
 	r = middleware.WithAuthContext(r, &middleware.AuthContext{
-		User: &model.User{
+		User: &User{
 			UserUUID:        userUUID,
 			Email:           "user@example.com",
 			IsEmailVerified: true,
@@ -81,7 +79,7 @@ func TestOAuthUserInfoHandler_UserInfo_Success(t *testing.T) {
 	assert.Equal(t, "application/json", w.Header().Get("Content-Type"))
 	assert.Equal(t, "no-store", w.Header().Get("Cache-Control"))
 
-	var resp dto.OAuthUserInfoResponseDTO
+	var resp OAuthUserInfoResponseDTO
 	require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
 
 	assert.Equal(t, userUUID.String(), resp.Sub)
@@ -100,13 +98,13 @@ func TestOAuthUserInfoHandler_UserInfo_WithProfilePicture(t *testing.T) {
 	h := NewOAuthUserInfoHandler()
 	r := httptest.NewRequest(http.MethodGet, "/oauth/userinfo", nil)
 	r = middleware.WithAuthContext(r, &middleware.AuthContext{
-		User: &model.User{
+		User: &User{
 			UserUUID:        testUserUUID,
 			Email:           "pic@example.com",
 			IsEmailVerified: false,
 			Fullname:        "Pic User",
 			UpdatedAt:       time.Now(),
-			Profile: &model.Profile{
+			Profile: &Profile{
 				ProfileURL: &profileURL,
 			},
 		},
@@ -117,7 +115,7 @@ func TestOAuthUserInfoHandler_UserInfo_WithProfilePicture(t *testing.T) {
 
 	assert.Equal(t, http.StatusOK, w.Code)
 
-	var resp dto.OAuthUserInfoResponseDTO
+	var resp OAuthUserInfoResponseDTO
 	require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
 	assert.Equal(t, "https://cdn.example.com/avatar.jpg", resp.Picture)
 }
@@ -126,11 +124,11 @@ func TestOAuthUserInfoHandler_UserInfo_NilProfileURL(t *testing.T) {
 	h := NewOAuthUserInfoHandler()
 	r := httptest.NewRequest(http.MethodGet, "/oauth/userinfo", nil)
 	r = middleware.WithAuthContext(r, &middleware.AuthContext{
-		User: &model.User{
+		User: &User{
 			UserUUID:  testUserUUID,
 			Fullname:  "No Pic",
 			UpdatedAt: time.Now(),
-			Profile: &model.Profile{
+			Profile: &Profile{
 				ProfileURL: nil,
 			},
 		},
@@ -141,7 +139,7 @@ func TestOAuthUserInfoHandler_UserInfo_NilProfileURL(t *testing.T) {
 
 	assert.Equal(t, http.StatusOK, w.Code)
 
-	var resp dto.OAuthUserInfoResponseDTO
+	var resp OAuthUserInfoResponseDTO
 	require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
 	assert.Empty(t, resp.Picture)
 }
@@ -150,7 +148,7 @@ func TestOAuthUserInfoHandler_UserInfo_NoProfile(t *testing.T) {
 	h := NewOAuthUserInfoHandler()
 	r := httptest.NewRequest(http.MethodGet, "/oauth/userinfo", nil)
 	r = middleware.WithAuthContext(r, &middleware.AuthContext{
-		User: &model.User{
+		User: &User{
 			UserUUID:  testUserUUID,
 			Fullname:  "No Profile",
 			UpdatedAt: time.Now(),
@@ -163,7 +161,7 @@ func TestOAuthUserInfoHandler_UserInfo_NoProfile(t *testing.T) {
 
 	assert.Equal(t, http.StatusOK, w.Code)
 
-	var resp dto.OAuthUserInfoResponseDTO
+	var resp OAuthUserInfoResponseDTO
 	require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
 	assert.Empty(t, resp.Picture)
 }

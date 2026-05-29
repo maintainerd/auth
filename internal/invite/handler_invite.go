@@ -6,18 +6,17 @@ import (
 
 	"github.com/maintainerd/auth/internal/platform/middleware"
 	resp "github.com/maintainerd/auth/internal/platform/response"
-	"github.com/maintainerd/auth/internal/service"
 )
 
 // InviteHandler handles HTTP requests for user invitation management.
 // All endpoints are tenant-scoped - the middleware validates user access to the tenant
 // and sets it in the request context. The service layer ensures invites belong to the tenant.
 type InviteHandler struct {
-	service service.InviteService
+	service InviteService
 }
 
 // NewInviteHandler creates a new instance of InviteHandler.
-func NewInviteHandler(service service.InviteService) *InviteHandler {
+func NewInviteHandler(service InviteService) *InviteHandler {
 	return &InviteHandler{service}
 }
 
@@ -59,7 +58,7 @@ func (h *InviteHandler) Send(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Send invite associated with tenant
-	_, err := h.service.SendInvite(r.Context(), tenant.TenantID, req.Email, user.UserID, roleUUIDs)
+	_, err := h.SendInvite(r.Context(), tenant.TenantID, req.Email, user.UserID, roleUUIDs)
 	if err != nil {
 		resp.HandleServiceError(w, r, "Failed to send invite", err)
 		return

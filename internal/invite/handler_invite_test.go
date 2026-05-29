@@ -5,7 +5,6 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/maintainerd/auth/internal/model"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -36,7 +35,7 @@ func TestInviteHandler_Send_BadJSON(t *testing.T) {
 
 func TestInviteHandler_Send_ServiceError(t *testing.T) {
 	svc := &mockInviteService{
-		sendInviteFn: func(tid int64, email string, uid int64, roles []string) (*model.Invite, error) {
+		sendInviteFn: func(tid int64, email string, uid int64, roles []string) (*Invite, error) {
 			return nil, assert.AnError
 		},
 	}
@@ -63,8 +62,8 @@ func TestInviteHandler_Send_ValidationError(t *testing.T) {
 
 func TestInviteHandler_Send_Success(t *testing.T) {
 	svc := &mockInviteService{
-		sendInviteFn: func(tid int64, email string, uid int64, roles []string) (*model.Invite, error) {
-			return &model.Invite{}, nil
+		sendInviteFn: func(tid int64, email string, uid int64, roles []string) (*Invite, error) {
+			return &Invite{}, nil
 		},
 	}
 	h := NewInviteHandler(svc)

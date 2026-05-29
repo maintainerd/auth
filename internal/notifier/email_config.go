@@ -5,9 +5,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/maintainerd/auth/internal/model"
 	"github.com/maintainerd/auth/internal/platform/apperror"
-	"github.com/maintainerd/auth/internal/repository"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -39,15 +37,15 @@ type EmailConfigService interface {
 }
 
 type emailConfigService struct {
-	emailConfigRepo repository.EmailConfigRepository
+	emailConfigRepo EmailConfigRepository
 }
 
 // NewEmailConfigService creates a new EmailConfigService.
-func NewEmailConfigService(emailConfigRepo repository.EmailConfigRepository) EmailConfigService {
+func NewEmailConfigService(emailConfigRepo EmailConfigRepository) EmailConfigService {
 	return &emailConfigService{emailConfigRepo: emailConfigRepo}
 }
 
-func toEmailConfigServiceDataResult(ec *model.EmailConfig) *EmailConfigServiceDataResult {
+func toEmailConfigServiceDataResult(ec *EmailConfig) *EmailConfigServiceDataResult {
 	return &EmailConfigServiceDataResult{
 		EmailConfigUUID: ec.EmailConfigUUID,
 		Provider:        ec.Provider,
@@ -101,7 +99,7 @@ func (s *emailConfigService) Update(ctx context.Context, tenantID int64, provide
 	}
 
 	if config == nil {
-		config = &model.EmailConfig{TenantID: tenantID, Status: model.StatusActive}
+		config = &EmailConfig{TenantID: tenantID, Status: StatusActive}
 	}
 
 	config.Provider = provider

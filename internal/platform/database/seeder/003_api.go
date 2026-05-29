@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"log/slog"
 
-	"github.com/maintainerd/auth/internal/model"
+	model "github.com/maintainerd/auth/internal/iam"
 	"github.com/maintainerd/auth/internal/platform/crypto"
 	"gorm.io/gorm"
 )

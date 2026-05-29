@@ -6,19 +6,17 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-webauthn/webauthn/protocol"
-	"github.com/maintainerd/auth/internal/dto"
 	"github.com/maintainerd/auth/internal/platform/middleware"
 	resp "github.com/maintainerd/auth/internal/platform/response"
-	"github.com/maintainerd/auth/internal/service"
 )
 
 // MFAHandler handles all MFA self-service endpoints (TOTP, backup codes, WebAuthn, step-up).
 type MFAHandler struct {
-	mfaSvc      service.MFAService
-	webAuthnSvc service.WebAuthnService
+	mfaSvc      MFAService
+	webAuthnSvc WebAuthnService
 }
 
-func NewMFAHandler(mfaSvc service.MFAService, webAuthnSvc service.WebAuthnService) *MFAHandler {
+func NewMFAHandler(mfaSvc MFAService, webAuthnSvc WebAuthnService) *MFAHandler {
 	return &MFAHandler{mfaSvc: mfaSvc, webAuthnSvc: webAuthnSvc}
 }
 
@@ -78,7 +76,7 @@ func (h *MFAHandler) FinishTOTPEnrollment(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	var req dto.TOTPVerifyRequestDTO
+	var req TOTPVerifyRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		resp.Error(w, http.StatusBadRequest, "Invalid JSON format")
 		return
@@ -90,7 +88,7 @@ func (h *MFAHandler) FinishTOTPEnrollment(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	resp.Success(w, dto.BackupCodesResponseDTO{Codes: codes}, "TOTP enrolled successfully — save your backup codes")
+	resp.Success(w, BackupCodesResponseDTO{Codes: codes}, "TOTP enrolled successfully — save your backup codes")
 }
 
 // DisableTOTP removes TOTP enrollment for the authenticated user.
@@ -150,7 +148,7 @@ func (h *MFAHandler) RegenerateBackupCodes(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	resp.Success(w, dto.BackupCodesResponseDTO{Codes: codes}, "New backup codes generated — save them now")
+	resp.Success(w, BackupCodesResponseDTO{Codes: codes}, "New backup codes generated — save them now")
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -200,7 +198,7 @@ func (h *MFAHandler) WebAuthnFinishRegistration(w http.ResponseWriter, r *http.R
 		return
 	}
 
-	resp.Success(w, dto.WebAuthnCredentialSummaryDTO{
+	resp.Success(w, WebAuthnCredentialSummaryDTO{
 		CredentialUUID: cred.CredentialUUID.String(),
 		Name:           cred.Name,
 		Transport:      cred.Transport,
@@ -253,7 +251,7 @@ func (h *MFAHandler) WebAuthnFinishAuthentication(w http.ResponseWriter, r *http
 		return
 	}
 
-	resp.Success(w, dto.WebAuthnCredentialSummaryDTO{
+	resp.Success(w, WebAuthnCredentialSummaryDTO{
 		CredentialUUID: cred.CredentialUUID.String(),
 		Name:           cred.Name,
 	}, "WebAuthn authentication succeeded")
@@ -312,7 +310,7 @@ func (h *MFAHandler) VerifyStepUp(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var req dto.StepUpVerifyRequestDTO
+	var req StepUpVerifyRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		resp.Error(w, http.StatusBadRequest, "Invalid JSON format")
 		return

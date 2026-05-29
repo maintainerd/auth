@@ -10,7 +10,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/maintainerd/auth/internal/dto"
 	"github.com/maintainerd/auth/internal/platform/signedurl"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -77,7 +76,7 @@ func TestResetPasswordHandler_ResetPasswordPublic_ServiceError(t *testing.T) {
 		"new_password": "NewPass@1234", "confirm_password": "NewPass@1234",
 	})
 	svc := &mockResetPasswordService{
-		resetPasswordFn: func(token, pw string, c, p *string) (*dto.ResetPasswordResponseDTO, error) {
+		resetPasswordFn: func(token, pw string, c, p *string) (*ResetPasswordResponseDTO, error) {
 			return nil, errValidation
 		},
 	}
@@ -98,8 +97,8 @@ func TestResetPasswordHandler_ResetPasswordPublic_Success(t *testing.T) {
 		"new_password": "NewPass@1234", "confirm_password": "NewPass@1234",
 	})
 	svc := &mockResetPasswordService{
-		resetPasswordFn: func(token, pw string, c, p *string) (*dto.ResetPasswordResponseDTO, error) {
-			return &dto.ResetPasswordResponseDTO{}, nil
+		resetPasswordFn: func(token, pw string, c, p *string) (*ResetPasswordResponseDTO, error) {
+			return &ResetPasswordResponseDTO{}, nil
 		},
 	}
 	h := NewResetPasswordHandler(svc)
@@ -139,7 +138,7 @@ func TestResetPasswordHandler_ResetPassword_InvalidBody(t *testing.T) {
 func TestResetPasswordHandler_ResetPassword_ServiceError(t *testing.T) {
 	q := validSignedQuery(t, map[string]string{"token": "tok123"})
 	svc := &mockResetPasswordService{
-		resetPasswordFn: func(token, pw string, c, p *string) (*dto.ResetPasswordResponseDTO, error) {
+		resetPasswordFn: func(token, pw string, c, p *string) (*ResetPasswordResponseDTO, error) {
 			return nil, errValidation
 		},
 	}
@@ -158,8 +157,8 @@ func TestResetPasswordHandler_ResetPassword_ServiceError(t *testing.T) {
 func TestResetPasswordHandler_ResetPassword_Success(t *testing.T) {
 	q := validSignedQuery(t, map[string]string{"token": "tok123"})
 	svc := &mockResetPasswordService{
-		resetPasswordFn: func(token, pw string, c, p *string) (*dto.ResetPasswordResponseDTO, error) {
-			return &dto.ResetPasswordResponseDTO{}, nil
+		resetPasswordFn: func(token, pw string, c, p *string) (*ResetPasswordResponseDTO, error) {
+			return &ResetPasswordResponseDTO{}, nil
 		},
 	}
 	h := NewResetPasswordHandler(svc)
@@ -231,8 +230,8 @@ func TestResetPasswordHandler_ResetPassword_WithClientAndProvider(t *testing.T) 
 		"token": "tok-with-cp", "client_id": "c1", "provider_id": "p1",
 	})
 	svc := &mockResetPasswordService{
-		resetPasswordFn: func(token, pw string, c, p *string) (*dto.ResetPasswordResponseDTO, error) {
-			return &dto.ResetPasswordResponseDTO{}, nil
+		resetPasswordFn: func(token, pw string, c, p *string) (*ResetPasswordResponseDTO, error) {
+			return &ResetPasswordResponseDTO{}, nil
 		},
 	}
 	body, _ := json.Marshal(map[string]string{"new_password": "NewPass@1234"})

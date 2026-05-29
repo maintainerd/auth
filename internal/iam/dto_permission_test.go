@@ -6,15 +6,13 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"github.com/maintainerd/auth/internal/model"
 )
 
 func TestPermissionCreateRequestDto_Validate(t *testing.T) {
 	valid := PermissionCreateRequestDTO{
 		Name:        "perm:read",
 		Description: "Read permission for all users",
-		Status:      model.StatusActive,
+		Status:      StatusActive,
 		APIUUID:     uuid.New().String(),
 	}
 
@@ -63,7 +61,7 @@ func TestPermissionUpdateRequestDto_Validate(t *testing.T) {
 	d := PermissionUpdateRequestDTO{
 		Name:        "perm:write",
 		Description: "Write permission for all resources",
-		Status:      model.StatusInactive,
+		Status:      StatusInactive,
 	}
 	assert.NoError(t, d.Validate())
 
@@ -72,8 +70,8 @@ func TestPermissionUpdateRequestDto_Validate(t *testing.T) {
 }
 
 func TestPermissionStatusUpdateDto_Validate(t *testing.T) {
-	assert.NoError(t, PermissionStatusUpdateDTO{Status: model.StatusActive}.Validate())
-	assert.NoError(t, PermissionStatusUpdateDTO{Status: model.StatusInactive}.Validate())
+	assert.NoError(t, PermissionStatusUpdateDTO{Status: StatusActive}.Validate())
+	assert.NoError(t, PermissionStatusUpdateDTO{Status: StatusInactive}.Validate())
 	require.Error(t, PermissionStatusUpdateDTO{Status: ""}.Validate())
 	require.Error(t, PermissionStatusUpdateDTO{Status: "bad"}.Validate())
 }
@@ -91,7 +89,7 @@ func TestPermissionFilterDto_Validate(t *testing.T) {
 	})
 
 	t.Run("valid status filter", func(t *testing.T) {
-		s := model.StatusActive
+		s := StatusActive
 		f := PermissionFilterDTO{PaginationRequestDTO: validPagination(), Status: &s}
 		assert.NoError(t, f.Validate())
 	})

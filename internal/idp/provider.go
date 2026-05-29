@@ -6,10 +6,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/maintainerd/auth/internal/model"
 	"github.com/maintainerd/auth/internal/platform/apperror"
 	"github.com/maintainerd/auth/internal/platform/crypto"
-	"github.com/maintainerd/auth/internal/repository"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -68,16 +66,16 @@ type IdentityProviderService interface {
 
 type identityProviderService struct {
 	db         *gorm.DB
-	idpRepo    repository.IdentityProviderRepository
-	tenantRepo repository.TenantRepository
-	userRepo   repository.UserRepository
+	idpRepo    IdentityProviderRepository
+	tenantRepo TenantRepository
+	userRepo   UserRepository
 }
 
 func NewIdentityProviderService(
 	db *gorm.DB,
-	idpRepo repository.IdentityProviderRepository,
-	tenantRepo repository.TenantRepository,
-	userRepo repository.UserRepository,
+	idpRepo IdentityProviderRepository,
+	tenantRepo TenantRepository,
+	userRepo UserRepository,
 ) IdentityProviderService {
 	return &identityProviderService{
 		db:         db,
@@ -93,7 +91,7 @@ func (s *identityProviderService) Get(ctx context.Context, filter IdentityProvid
 	span.SetAttributes(attribute.Int64("tenant.id", filter.TenantID))
 
 	// Build query filter
-	queryFilter := repository.IdentityProviderRepositoryGetFilter{
+	queryFilter := IdentityProviderRepositoryGetFilter{
 		Name:         filter.Name,
 		DisplayName:  filter.DisplayName,
 		Provider:     filter.Provider,
@@ -163,7 +161,7 @@ func (s *identityProviderService) Create(ctx context.Context, name string, displ
 		attribute.String("idp.name", name),
 	)
 
-	var createdIdp *model.IdentityProvider
+	var createdIdp *IdentityProvider
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
 		txIdpRepo := s.idpRepo.WithTx(tx)
@@ -215,7 +213,7 @@ func (s *identityProviderService) Create(ctx context.Context, name string, displ
 		identifier := fmt.Sprintf("idp-%s", idSuffix)
 
 		// Create idp
-		newIdp := &model.IdentityProvider{
+		newIdp := &IdentityProvider{
 			Name:         name,
 			DisplayName:  displayName,
 			Provider:     provider,
@@ -260,7 +258,7 @@ func (s *identityProviderService) Update(ctx context.Context, idpUUID uuid.UUID,
 		attribute.Int64("tenant.id", tenantID),
 	)
 
-	var updatedIdp *model.IdentityProvider
+	var updatedIdp *IdentityProvider
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
 		txIdpRepo := s.idpRepo.WithTx(tx)
@@ -346,7 +344,7 @@ func (s *identityProviderService) SetStatusByUUID(ctx context.Context, idpUUID u
 		attribute.String("idp.status", status),
 	)
 
-	var updatedIdp *model.IdentityProvider
+	var updatedIdp *IdentityProvider
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
 		txIdpRepo := s.idpRepo.WithTx(tx)
@@ -462,7 +460,7 @@ func (s *identityProviderService) DeleteByUUID(ctx context.Context, idpUUID uuid
 }
 
 // Reponse builder
-func toIdpServiceDataResult(idp *model.IdentityProvider) *IdentityProviderServiceDataResult {
+func toIdpServiceDataResult(idp *IdentityProvider) *IdentityProviderServiceDataResult {
 	if idp == nil {
 		return nil
 	}

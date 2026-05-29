@@ -6,21 +6,19 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
-	"github.com/maintainerd/auth/internal/model"
 	"github.com/maintainerd/auth/internal/platform/cache"
-	"github.com/maintainerd/auth/internal/repository"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 // newPermission returns a minimal Permission fixture.
-func newPermission(id int64, name string, tenantID int64) *model.Permission {
-	return &model.Permission{
+func newPermission(id int64, name string, tenantID int64) *Permission {
+	return &Permission{
 		PermissionID:   id,
 		PermissionUUID: uuid.New(),
 		Name:           name,
 		TenantID:       tenantID,
-		Status:         model.StatusActive,
+		Status:         StatusActive,
 	}
 }
 
@@ -45,7 +43,7 @@ func TestPermissionService_GetByUUID(t *testing.T) {
 		{
 			name: "found → success",
 			setupRepo: func(r *mockPermissionRepo) {
-				r.findByUUIDAndTenantIDFn = func(_ uuid.UUID, _ int64) (*model.Permission, error) {
+				r.findByUUIDAndTenantIDFn = func(_ uuid.UUID, _ int64) (*Permission, error) {
 					return newPermission(1, "read:users", tenantID), nil
 				}
 			},
@@ -53,7 +51,7 @@ func TestPermissionService_GetByUUID(t *testing.T) {
 		{
 			name: "not found → error",
 			setupRepo: func(r *mockPermissionRepo) {
-				r.findByUUIDAndTenantIDFn = func(_ uuid.UUID, _ int64) (*model.Permission, error) {
+				r.findByUUIDAndTenantIDFn = func(_ uuid.UUID, _ int64) (*Permission, error) {
 					return nil, nil
 				}
 			},
@@ -63,7 +61,7 @@ func TestPermissionService_GetByUUID(t *testing.T) {
 		{
 			name: "repo error → propagated",
 			setupRepo: func(r *mockPermissionRepo) {
-				r.findByUUIDAndTenantIDFn = func(_ uuid.UUID, _ int64) (*model.Permission, error) {
+				r.findByUUIDAndTenantIDFn = func(_ uuid.UUID, _ int64) (*Permission, error) {
 					return nil, errors.New("db error")
 				}
 			},
@@ -106,7 +104,7 @@ func TestPermissionService_Get(t *testing.T) {
 	t.Run("api uuid not found → error", func(t *testing.T) {
 		apiUUID := uuid.New().String()
 		apiRepo := &mockAPIRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.API, error) { return nil, nil },
+			findByUUIDFn: func(_ any, _ ...string) (*API, error) { return nil, nil },
 		}
 		svc := newPermissionService(&mockPermissionRepo{}, apiRepo, &mockRoleRepo{}, &mockClientRepo{})
 		_, err := svc.Get(context.Background(), PermissionServiceGetFilter{APIUUID: &apiUUID})
@@ -117,8 +115,8 @@ func TestPermissionService_Get(t *testing.T) {
 	t.Run("api uuid found → apiID set", func(t *testing.T) {
 		apiUUID := uuid.New().String()
 		apiRepo := &mockAPIRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.API, error) {
-				return &model.API{APIID: 42}, nil
+			findByUUIDFn: func(_ any, _ ...string) (*API, error) {
+				return &API{APIID: 42}, nil
 			},
 		}
 		svc := newPermissionService(&mockPermissionRepo{}, apiRepo, &mockRoleRepo{}, &mockClientRepo{})
@@ -130,7 +128,7 @@ func TestPermissionService_Get(t *testing.T) {
 	t.Run("role uuid not found → error", func(t *testing.T) {
 		roleUUID := uuid.New().String()
 		roleRepo := &mockRoleRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.Role, error) { return nil, nil },
+			findByUUIDFn: func(_ any, _ ...string) (*Role, error) { return nil, nil },
 		}
 		svc := newPermissionService(&mockPermissionRepo{}, &mockAPIRepo{}, roleRepo, &mockClientRepo{})
 		_, err := svc.Get(context.Background(), PermissionServiceGetFilter{RoleUUID: &roleUUID})
@@ -141,8 +139,8 @@ func TestPermissionService_Get(t *testing.T) {
 	t.Run("role uuid found → roleID set", func(t *testing.T) {
 		roleUUID := uuid.New().String()
 		roleRepo := &mockRoleRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.Role, error) {
-				return &model.Role{RoleID: 7}, nil
+			findByUUIDFn: func(_ any, _ ...string) (*Role, error) {
+				return &Role{RoleID: 7}, nil
 			},
 		}
 		svc := newPermissionService(&mockPermissionRepo{}, &mockAPIRepo{}, roleRepo, &mockClientRepo{})
@@ -153,7 +151,7 @@ func TestPermissionService_Get(t *testing.T) {
 
 	t.Run("paginated repo error → propagated", func(t *testing.T) {
 		permRepo := &mockPermissionRepo{
-			findPaginatedFn: func(_ repository.PermissionRepositoryGetFilter) (*repository.PaginationResult[model.Permission], error) {
+			findPaginatedFn: func(_ PermissionRepositoryGetFilter) (*PaginationResult[Permission], error) {
 				return nil, errors.New("db error")
 			},
 		}
@@ -165,11 +163,11 @@ func TestPermissionService_Get(t *testing.T) {
 
 	t.Run("success with data and API preloaded", func(t *testing.T) {
 		perm := newPermission(1, "read:users", 1)
-		perm.API = &model.API{APIUUID: uuid.New(), Name: "Users API"}
+		perm.API = &API{APIUUID: uuid.New(), Name: "Users API"}
 		permRepo := &mockPermissionRepo{
-			findPaginatedFn: func(_ repository.PermissionRepositoryGetFilter) (*repository.PaginationResult[model.Permission], error) {
-				return &repository.PaginationResult[model.Permission]{
-					Data: []model.Permission{*perm}, Total: 1, Page: 1, Limit: 10, TotalPages: 1,
+			findPaginatedFn: func(_ PermissionRepositoryGetFilter) (*PaginationResult[Permission], error) {
+				return &PaginationResult[Permission]{
+					Data: []Permission{*perm}, Total: 1, Page: 1, Limit: 10, TotalPages: 1,
 				}, nil
 			},
 		}
@@ -202,12 +200,12 @@ func TestPermissionService_SetStatus(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		permRepo := &mockPermissionRepo{
-			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*model.Permission, error) {
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*Permission, error) {
 				return nil, nil
 			},
 		}
 		svc := NewPermissionService(db, permRepo, &mockAPIRepo{}, &mockRoleRepo{}, &mockClientRepo{}, cache.NopInvalidator{})
-		result, err := svc.SetStatus(context.Background(), permUUID, tenantID, model.StatusInactive)
+		result, err := svc.SetStatus(context.Background(), permUUID, tenantID, StatusInactive)
 		require.Error(t, err)
 		assert.Nil(t, result)
 		assert.Contains(t, err.Error(), "permission not found")
@@ -218,12 +216,12 @@ func TestPermissionService_SetStatus(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		permRepo := &mockPermissionRepo{
-			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*model.Permission, error) {
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*Permission, error) {
 				return nil, errors.New("db err")
 			},
 		}
 		svc := NewPermissionService(db, permRepo, &mockAPIRepo{}, &mockRoleRepo{}, &mockClientRepo{}, cache.NopInvalidator{})
-		_, err := svc.SetStatus(context.Background(), permUUID, tenantID, model.StatusInactive)
+		_, err := svc.SetStatus(context.Background(), permUUID, tenantID, StatusInactive)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "db err")
 	})
@@ -234,15 +232,15 @@ func TestPermissionService_SetStatus(t *testing.T) {
 		mock.ExpectRollback()
 		perm := newPermission(1, "read:users", tenantID)
 		permRepo := &mockPermissionRepo{
-			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*model.Permission, error) {
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*Permission, error) {
 				return perm, nil
 			},
-			createOrUpdateFn: func(_ *model.Permission) (*model.Permission, error) {
+			createOrUpdateFn: func(_ *Permission) (*Permission, error) {
 				return nil, errors.New("save err")
 			},
 		}
 		svc := NewPermissionService(db, permRepo, &mockAPIRepo{}, &mockRoleRepo{}, &mockClientRepo{}, cache.NopInvalidator{})
-		_, err := svc.SetStatus(context.Background(), permUUID, tenantID, model.StatusInactive)
+		_, err := svc.SetStatus(context.Background(), permUUID, tenantID, StatusInactive)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "save err")
 	})
@@ -253,15 +251,15 @@ func TestPermissionService_SetStatus(t *testing.T) {
 		mock.ExpectCommit()
 		perm := newPermission(1, "read:users", tenantID)
 		permRepo := &mockPermissionRepo{
-			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*model.Permission, error) {
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*Permission, error) {
 				return perm, nil
 			},
 		}
 		svc := NewPermissionService(db, permRepo, &mockAPIRepo{}, &mockRoleRepo{}, &mockClientRepo{}, cache.NopInvalidator{})
-		result, err := svc.SetStatus(context.Background(), permUUID, tenantID, model.StatusInactive)
+		result, err := svc.SetStatus(context.Background(), permUUID, tenantID, StatusInactive)
 		require.NoError(t, err)
 		assert.NotNil(t, result)
-		assert.Equal(t, model.StatusInactive, result.Status)
+		assert.Equal(t, StatusInactive, result.Status)
 	})
 }
 
@@ -274,7 +272,7 @@ func TestPermissionService_SetActiveStatusByUUID(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		permRepo := &mockPermissionRepo{
-			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*model.Permission, error) {
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*Permission, error) {
 				return nil, errors.New("db err")
 			},
 		}
@@ -289,7 +287,7 @@ func TestPermissionService_SetActiveStatusByUUID(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		permRepo := &mockPermissionRepo{
-			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*model.Permission, error) {
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*Permission, error) {
 				return nil, nil
 			},
 		}
@@ -306,7 +304,7 @@ func TestPermissionService_SetActiveStatusByUUID(t *testing.T) {
 		perm := newPermission(1, "read:users", tenantID)
 		perm.IsDefault = true
 		permRepo := &mockPermissionRepo{
-			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*model.Permission, error) {
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*Permission, error) {
 				return perm, nil
 			},
 		}
@@ -322,10 +320,10 @@ func TestPermissionService_SetActiveStatusByUUID(t *testing.T) {
 		mock.ExpectRollback()
 		perm := newPermission(1, "read:users", tenantID)
 		permRepo := &mockPermissionRepo{
-			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*model.Permission, error) {
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*Permission, error) {
 				return perm, nil
 			},
-			createOrUpdateFn: func(_ *model.Permission) (*model.Permission, error) {
+			createOrUpdateFn: func(_ *Permission) (*Permission, error) {
 				return nil, errors.New("save err")
 			},
 		}
@@ -340,16 +338,16 @@ func TestPermissionService_SetActiveStatusByUUID(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectCommit()
 		perm := newPermission(1, "read:users", tenantID)
-		perm.Status = model.StatusActive
+		perm.Status = StatusActive
 		permRepo := &mockPermissionRepo{
-			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*model.Permission, error) {
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*Permission, error) {
 				return perm, nil
 			},
 		}
 		svc := NewPermissionService(db, permRepo, &mockAPIRepo{}, &mockRoleRepo{}, &mockClientRepo{}, cache.NopInvalidator{})
 		result, err := svc.SetActiveStatusByUUID(context.Background(), permUUID, tenantID)
 		require.NoError(t, err)
-		assert.Equal(t, model.StatusInactive, result.Status)
+		assert.Equal(t, StatusInactive, result.Status)
 	})
 
 	t.Run("inactive → active", func(t *testing.T) {
@@ -357,16 +355,16 @@ func TestPermissionService_SetActiveStatusByUUID(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectCommit()
 		perm := newPermission(1, "read:users", tenantID)
-		perm.Status = model.StatusInactive
+		perm.Status = StatusInactive
 		permRepo := &mockPermissionRepo{
-			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*model.Permission, error) {
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*Permission, error) {
 				return perm, nil
 			},
 		}
 		svc := NewPermissionService(db, permRepo, &mockAPIRepo{}, &mockRoleRepo{}, &mockClientRepo{}, cache.NopInvalidator{})
 		result, err := svc.SetActiveStatusByUUID(context.Background(), permUUID, tenantID)
 		require.NoError(t, err)
-		assert.Equal(t, model.StatusActive, result.Status)
+		assert.Equal(t, StatusActive, result.Status)
 	})
 }
 
@@ -380,7 +378,7 @@ func TestPermissionService_DeleteByUUID(t *testing.T) {
 
 	t.Run("find error → propagated", func(t *testing.T) {
 		permRepo := &mockPermissionRepo{
-			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*model.Permission, error) {
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*Permission, error) {
 				return nil, errors.New("db err")
 			},
 		}
@@ -392,7 +390,7 @@ func TestPermissionService_DeleteByUUID(t *testing.T) {
 
 	t.Run("not found → error", func(t *testing.T) {
 		permRepo := &mockPermissionRepo{
-			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*model.Permission, error) {
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*Permission, error) {
 				return nil, nil
 			},
 		}
@@ -404,7 +402,7 @@ func TestPermissionService_DeleteByUUID(t *testing.T) {
 
 	t.Run("default permission → cannot delete", func(t *testing.T) {
 		permRepo := &mockPermissionRepo{
-			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*model.Permission, error) {
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*Permission, error) {
 				p := newPermission(1, "read:users", tenantID)
 				p.IsDefault = true
 				return p, nil
@@ -418,7 +416,7 @@ func TestPermissionService_DeleteByUUID(t *testing.T) {
 
 	t.Run("delete repo error → propagated", func(t *testing.T) {
 		permRepo := &mockPermissionRepo{
-			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*model.Permission, error) {
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*Permission, error) {
 				return newPermission(1, "read:users", tenantID), nil
 			},
 			deleteByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) error {
@@ -433,7 +431,7 @@ func TestPermissionService_DeleteByUUID(t *testing.T) {
 
 	t.Run("success", func(t *testing.T) {
 		permRepo := &mockPermissionRepo{
-			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*model.Permission, error) {
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*Permission, error) {
 				return newPermission(1, "read:users", tenantID), nil
 			},
 		}
@@ -457,12 +455,12 @@ func TestPermissionService_Create(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		permRepo := &mockPermissionRepo{
-			findByNameFn: func(_ string, _ int64) (*model.Permission, error) {
+			findByNameFn: func(_ string, _ int64) (*Permission, error) {
 				return nil, errors.New("db err")
 			},
 		}
 		svc := NewPermissionService(db, permRepo, &mockAPIRepo{}, &mockRoleRepo{}, &mockClientRepo{}, cache.NopInvalidator{})
-		_, err := svc.Create(context.Background(), tenantID, "read:users", "desc", model.StatusActive, false, apiUUID.String())
+		_, err := svc.Create(context.Background(), tenantID, "read:users", "desc", StatusActive, false, apiUUID.String())
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "db err")
 	})
@@ -472,12 +470,12 @@ func TestPermissionService_Create(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		permRepo := &mockPermissionRepo{
-			findByNameFn: func(_ string, _ int64) (*model.Permission, error) {
+			findByNameFn: func(_ string, _ int64) (*Permission, error) {
 				return newPermission(1, "read:users", tenantID), nil
 			},
 		}
 		svc := NewPermissionService(db, permRepo, &mockAPIRepo{}, &mockRoleRepo{}, &mockClientRepo{}, cache.NopInvalidator{})
-		_, err := svc.Create(context.Background(), tenantID, "read:users", "desc", model.StatusActive, false, apiUUID.String())
+		_, err := svc.Create(context.Background(), tenantID, "read:users", "desc", StatusActive, false, apiUUID.String())
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "already exists")
 	})
@@ -488,7 +486,7 @@ func TestPermissionService_Create(t *testing.T) {
 		mock.ExpectRollback()
 		permRepo := &mockPermissionRepo{}
 		svc := NewPermissionService(db, permRepo, &mockAPIRepo{}, &mockRoleRepo{}, &mockClientRepo{}, cache.NopInvalidator{})
-		_, err := svc.Create(context.Background(), tenantID, "read:users", "desc", model.StatusActive, false, "not-a-uuid")
+		_, err := svc.Create(context.Background(), tenantID, "read:users", "desc", StatusActive, false, "not-a-uuid")
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "invalid api uuid")
 	})
@@ -498,12 +496,12 @@ func TestPermissionService_Create(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		apiRepo := &mockAPIRepo{
-			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*model.API, error) {
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*API, error) {
 				return nil, errors.New("api db err")
 			},
 		}
 		svc := NewPermissionService(db, &mockPermissionRepo{}, apiRepo, &mockRoleRepo{}, &mockClientRepo{}, cache.NopInvalidator{})
-		_, err := svc.Create(context.Background(), tenantID, "read:users", "desc", model.StatusActive, false, apiUUID.String())
+		_, err := svc.Create(context.Background(), tenantID, "read:users", "desc", StatusActive, false, apiUUID.String())
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "api db err")
 	})
@@ -513,12 +511,12 @@ func TestPermissionService_Create(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		apiRepo := &mockAPIRepo{
-			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*model.API, error) {
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*API, error) {
 				return nil, nil
 			},
 		}
 		svc := NewPermissionService(db, &mockPermissionRepo{}, apiRepo, &mockRoleRepo{}, &mockClientRepo{}, cache.NopInvalidator{})
-		_, err := svc.Create(context.Background(), tenantID, "read:users", "desc", model.StatusActive, false, apiUUID.String())
+		_, err := svc.Create(context.Background(), tenantID, "read:users", "desc", StatusActive, false, apiUUID.String())
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "api not found")
 	})
@@ -528,17 +526,17 @@ func TestPermissionService_Create(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		apiRepo := &mockAPIRepo{
-			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*model.API, error) {
-				return &model.API{APIID: 42}, nil
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*API, error) {
+				return &API{APIID: 42}, nil
 			},
 		}
 		permRepo := &mockPermissionRepo{
-			createOrUpdateFn: func(_ *model.Permission) (*model.Permission, error) {
+			createOrUpdateFn: func(_ *Permission) (*Permission, error) {
 				return nil, errors.New("create err")
 			},
 		}
 		svc := NewPermissionService(db, permRepo, apiRepo, &mockRoleRepo{}, &mockClientRepo{}, cache.NopInvalidator{})
-		_, err := svc.Create(context.Background(), tenantID, "read:users", "desc", model.StatusActive, false, apiUUID.String())
+		_, err := svc.Create(context.Background(), tenantID, "read:users", "desc", StatusActive, false, apiUUID.String())
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "create err")
 	})
@@ -548,20 +546,20 @@ func TestPermissionService_Create(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		apiRepo := &mockAPIRepo{
-			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*model.API, error) {
-				return &model.API{APIID: 42}, nil
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*API, error) {
+				return &API{APIID: 42}, nil
 			},
 		}
 		callCount := 0
 		permRepo := &mockPermissionRepo{
-			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*model.Permission, error) {
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*Permission, error) {
 				callCount++
 				// The second call (after create) fails
 				return nil, errors.New("fetch err")
 			},
 		}
 		svc := NewPermissionService(db, permRepo, apiRepo, &mockRoleRepo{}, &mockClientRepo{}, cache.NopInvalidator{})
-		_, err := svc.Create(context.Background(), tenantID, "read:users", "desc", model.StatusActive, false, apiUUID.String())
+		_, err := svc.Create(context.Background(), tenantID, "read:users", "desc", StatusActive, false, apiUUID.String())
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "fetch err")
 	})
@@ -570,21 +568,21 @@ func TestPermissionService_Create(t *testing.T) {
 		db, mock := newMockGormDB(t)
 		mock.ExpectBegin()
 		mock.ExpectCommit()
-		api := &model.API{APIID: 42, APIUUID: apiUUID, Name: "Users API"}
+		api := &API{APIID: 42, APIUUID: apiUUID, Name: "Users API"}
 		apiRepo := &mockAPIRepo{
-			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*model.API, error) {
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*API, error) {
 				return api, nil
 			},
 		}
 		permRepo := &mockPermissionRepo{
-			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*model.Permission, error) {
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*Permission, error) {
 				p := newPermission(1, "read:users", tenantID)
 				p.API = api
 				return p, nil
 			},
 		}
 		svc := NewPermissionService(db, permRepo, apiRepo, &mockRoleRepo{}, &mockClientRepo{}, cache.NopInvalidator{})
-		result, err := svc.Create(context.Background(), tenantID, "read:users", "desc", model.StatusActive, false, apiUUID.String())
+		result, err := svc.Create(context.Background(), tenantID, "read:users", "desc", StatusActive, false, apiUUID.String())
 		require.NoError(t, err)
 		assert.NotNil(t, result)
 		assert.Equal(t, "read:users", result.Name)
@@ -605,12 +603,12 @@ func TestPermissionService_Update(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		permRepo := &mockPermissionRepo{
-			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*model.Permission, error) {
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*Permission, error) {
 				return nil, errors.New("db err")
 			},
 		}
 		svc := NewPermissionService(db, permRepo, &mockAPIRepo{}, &mockRoleRepo{}, &mockClientRepo{}, cache.NopInvalidator{})
-		_, err := svc.Update(context.Background(), permUUID, tenantID, "new-name", "desc", model.StatusActive)
+		_, err := svc.Update(context.Background(), permUUID, tenantID, "new-name", "desc", StatusActive)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "db err")
 	})
@@ -620,12 +618,12 @@ func TestPermissionService_Update(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		permRepo := &mockPermissionRepo{
-			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*model.Permission, error) {
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*Permission, error) {
 				return nil, nil
 			},
 		}
 		svc := NewPermissionService(db, permRepo, &mockAPIRepo{}, &mockRoleRepo{}, &mockClientRepo{}, cache.NopInvalidator{})
-		_, err := svc.Update(context.Background(), permUUID, tenantID, "new-name", "desc", model.StatusActive)
+		_, err := svc.Update(context.Background(), permUUID, tenantID, "new-name", "desc", StatusActive)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "permission not found")
 	})
@@ -637,12 +635,12 @@ func TestPermissionService_Update(t *testing.T) {
 		perm := newPermission(1, "read:users", tenantID)
 		perm.IsDefault = true
 		permRepo := &mockPermissionRepo{
-			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*model.Permission, error) {
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*Permission, error) {
 				return perm, nil
 			},
 		}
 		svc := NewPermissionService(db, permRepo, &mockAPIRepo{}, &mockRoleRepo{}, &mockClientRepo{}, cache.NopInvalidator{})
-		_, err := svc.Update(context.Background(), permUUID, tenantID, "new-name", "desc", model.StatusActive)
+		_, err := svc.Update(context.Background(), permUUID, tenantID, "new-name", "desc", StatusActive)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "default permission")
 	})
@@ -653,15 +651,15 @@ func TestPermissionService_Update(t *testing.T) {
 		mock.ExpectRollback()
 		perm := newPermission(1, "read:users", tenantID)
 		permRepo := &mockPermissionRepo{
-			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*model.Permission, error) {
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*Permission, error) {
 				return perm, nil
 			},
-			findByNameFn: func(_ string, _ int64) (*model.Permission, error) {
+			findByNameFn: func(_ string, _ int64) (*Permission, error) {
 				return nil, errors.New("name lookup err")
 			},
 		}
 		svc := NewPermissionService(db, permRepo, &mockAPIRepo{}, &mockRoleRepo{}, &mockClientRepo{}, cache.NopInvalidator{})
-		_, err := svc.Update(context.Background(), permUUID, tenantID, "write:users", "desc", model.StatusActive)
+		_, err := svc.Update(context.Background(), permUUID, tenantID, "write:users", "desc", StatusActive)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "name lookup err")
 	})
@@ -673,15 +671,15 @@ func TestPermissionService_Update(t *testing.T) {
 		perm := newPermission(1, "read:users", tenantID)
 		otherPerm := newPermission(2, "write:users", tenantID)
 		permRepo := &mockPermissionRepo{
-			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*model.Permission, error) {
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*Permission, error) {
 				return perm, nil
 			},
-			findByNameFn: func(_ string, _ int64) (*model.Permission, error) {
+			findByNameFn: func(_ string, _ int64) (*Permission, error) {
 				return otherPerm, nil
 			},
 		}
 		svc := NewPermissionService(db, permRepo, &mockAPIRepo{}, &mockRoleRepo{}, &mockClientRepo{}, cache.NopInvalidator{})
-		_, err := svc.Update(context.Background(), permUUID, tenantID, "write:users", "desc", model.StatusActive)
+		_, err := svc.Update(context.Background(), permUUID, tenantID, "write:users", "desc", StatusActive)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "already exists")
 	})
@@ -692,16 +690,16 @@ func TestPermissionService_Update(t *testing.T) {
 		mock.ExpectRollback()
 		perm := newPermission(1, "read:users", tenantID)
 		permRepo := &mockPermissionRepo{
-			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*model.Permission, error) {
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*Permission, error) {
 				return perm, nil
 			},
-			createOrUpdateFn: func(_ *model.Permission) (*model.Permission, error) {
+			createOrUpdateFn: func(_ *Permission) (*Permission, error) {
 				return nil, errors.New("save err")
 			},
 		}
 		svc := NewPermissionService(db, permRepo, &mockAPIRepo{}, &mockRoleRepo{}, &mockClientRepo{}, cache.NopInvalidator{})
 		// Same name so no findByName path
-		_, err := svc.Update(context.Background(), permUUID, tenantID, "read:users", "new desc", model.StatusActive)
+		_, err := svc.Update(context.Background(), permUUID, tenantID, "read:users", "new desc", StatusActive)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "save err")
 	})
@@ -711,14 +709,14 @@ func TestPermissionService_Update(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectCommit()
 		perm := newPermission(1, "read:users", tenantID)
-		perm.API = &model.API{APIUUID: uuid.New(), Name: "Users API"}
+		perm.API = &API{APIUUID: uuid.New(), Name: "Users API"}
 		permRepo := &mockPermissionRepo{
-			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*model.Permission, error) {
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*Permission, error) {
 				return perm, nil
 			},
 		}
 		svc := NewPermissionService(db, permRepo, &mockAPIRepo{}, &mockRoleRepo{}, &mockClientRepo{}, cache.NopInvalidator{})
-		result, err := svc.Update(context.Background(), permUUID, tenantID, "read:users", "updated desc", model.StatusActive)
+		result, err := svc.Update(context.Background(), permUUID, tenantID, "read:users", "updated desc", StatusActive)
 		require.NoError(t, err)
 		assert.NotNil(t, result)
 		assert.Equal(t, "updated desc", result.Description)
@@ -730,15 +728,15 @@ func TestPermissionService_Update(t *testing.T) {
 		mock.ExpectCommit()
 		perm := newPermission(1, "read:users", tenantID)
 		permRepo := &mockPermissionRepo{
-			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*model.Permission, error) {
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*Permission, error) {
 				return perm, nil
 			},
-			findByNameFn: func(_ string, _ int64) (*model.Permission, error) {
+			findByNameFn: func(_ string, _ int64) (*Permission, error) {
 				return nil, nil // no conflict
 			},
 		}
 		svc := NewPermissionService(db, permRepo, &mockAPIRepo{}, &mockRoleRepo{}, &mockClientRepo{}, cache.NopInvalidator{})
-		result, err := svc.Update(context.Background(), permUUID, tenantID, "write:users", "desc", model.StatusActive)
+		result, err := svc.Update(context.Background(), permUUID, tenantID, "write:users", "desc", StatusActive)
 		require.NoError(t, err)
 		assert.NotNil(t, result)
 		assert.Equal(t, "write:users", result.Name)

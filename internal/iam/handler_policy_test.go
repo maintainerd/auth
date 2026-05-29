@@ -7,7 +7,6 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
-	"github.com/maintainerd/auth/internal/service"
 	"github.com/stretchr/testify/assert"
 	"gorm.io/datatypes"
 )
@@ -36,7 +35,7 @@ func TestPolicyHandler_Get_NoTenant(t *testing.T) {
 
 func TestPolicyHandler_Get_ServiceError(t *testing.T) {
 	svc := &mockPolicyService{
-		getFn: func(service.PolicyServiceGetFilter) (*service.PolicyServiceGetResult, error) {
+		getFn: func(PolicyServiceGetFilter) (*PolicyServiceGetResult, error) {
 			return nil, assert.AnError
 		},
 	}
@@ -49,8 +48,8 @@ func TestPolicyHandler_Get_ServiceError(t *testing.T) {
 
 func TestPolicyHandler_Get_Success(t *testing.T) {
 	svc := &mockPolicyService{
-		getFn: func(service.PolicyServiceGetFilter) (*service.PolicyServiceGetResult, error) {
-			return &service.PolicyServiceGetResult{}, nil
+		getFn: func(PolicyServiceGetFilter) (*PolicyServiceGetResult, error) {
+			return &PolicyServiceGetResult{}, nil
 		},
 	}
 	h := NewPolicyHandler(svc)
@@ -78,7 +77,7 @@ func TestPolicyHandler_GetByUUID_InvalidUUID(t *testing.T) {
 
 func TestPolicyHandler_GetByUUID_NotFound(t *testing.T) {
 	svc := &mockPolicyService{
-		getByUUIDFn: func(id uuid.UUID, tid int64) (*service.PolicyServiceDataResult, error) {
+		getByUUIDFn: func(id uuid.UUID, tid int64) (*PolicyServiceDataResult, error) {
 			return nil, errNotFound
 		},
 	}
@@ -91,8 +90,8 @@ func TestPolicyHandler_GetByUUID_NotFound(t *testing.T) {
 
 func TestPolicyHandler_GetByUUID_Success(t *testing.T) {
 	svc := &mockPolicyService{
-		getByUUIDFn: func(id uuid.UUID, tid int64) (*service.PolicyServiceDataResult, error) {
-			return &service.PolicyServiceDataResult{Name: "pol"}, nil
+		getByUUIDFn: func(id uuid.UUID, tid int64) (*PolicyServiceDataResult, error) {
+			return &PolicyServiceDataResult{Name: "pol"}, nil
 		},
 	}
 	h := NewPolicyHandler(svc)
@@ -112,7 +111,7 @@ func TestPolicyHandler_Create_NoTenant(t *testing.T) {
 
 func TestPolicyHandler_Create_ServiceError(t *testing.T) {
 	svc := &mockPolicyService{
-		createFn: func(tid int64, name string, desc *string, doc datatypes.JSON, ver, status string, isSys bool) (*service.PolicyServiceDataResult, error) {
+		createFn: func(tid int64, name string, desc *string, doc datatypes.JSON, ver, status string, isSys bool) (*PolicyServiceDataResult, error) {
 			return nil, assert.AnError
 		},
 	}
@@ -143,7 +142,7 @@ func TestPolicyHandler_Delete_InvalidUUID(t *testing.T) {
 
 func TestPolicyHandler_Delete_ServiceError(t *testing.T) {
 	svc := &mockPolicyService{
-		deleteByUUIDFn: func(id uuid.UUID, tid int64) (*service.PolicyServiceDataResult, error) {
+		deleteByUUIDFn: func(id uuid.UUID, tid int64) (*PolicyServiceDataResult, error) {
 			return nil, assert.AnError
 		},
 	}
@@ -174,9 +173,9 @@ func TestPolicyHandler_Get_ValidationError(t *testing.T) {
 
 func TestPolicyHandler_Get_WithFilters(t *testing.T) {
 	svc := &mockPolicyService{
-		getFn: func(f service.PolicyServiceGetFilter) (*service.PolicyServiceGetResult, error) {
-			return &service.PolicyServiceGetResult{
-				Data: []service.PolicyServiceDataResult{{Name: "pol1"}},
+		getFn: func(f PolicyServiceGetFilter) (*PolicyServiceGetResult, error) {
+			return &PolicyServiceGetResult{
+				Data: []PolicyServiceDataResult{{Name: "pol1"}},
 			}, nil
 		},
 	}
@@ -190,8 +189,8 @@ func TestPolicyHandler_Get_WithFilters(t *testing.T) {
 
 func TestPolicyHandler_Get_MultiStatus(t *testing.T) {
 	svc := &mockPolicyService{
-		getFn: func(f service.PolicyServiceGetFilter) (*service.PolicyServiceGetResult, error) {
-			return &service.PolicyServiceGetResult{}, nil
+		getFn: func(f PolicyServiceGetFilter) (*PolicyServiceGetResult, error) {
+			return &PolicyServiceGetResult{}, nil
 		},
 	}
 	h := NewPolicyHandler(svc)
@@ -222,8 +221,8 @@ func TestPolicyHandler_Create_ValidationError(t *testing.T) {
 
 func TestPolicyHandler_Create_Success(t *testing.T) {
 	svc := &mockPolicyService{
-		createFn: func(tid int64, name string, desc *string, doc datatypes.JSON, ver, status string, isSys bool) (*service.PolicyServiceDataResult, error) {
-			return &service.PolicyServiceDataResult{Name: name}, nil
+		createFn: func(tid int64, name string, desc *string, doc datatypes.JSON, ver, status string, isSys bool) (*PolicyServiceDataResult, error) {
+			return &PolicyServiceDataResult{Name: name}, nil
 		},
 	}
 	h := NewPolicyHandler(svc)
@@ -269,7 +268,7 @@ func TestPolicyHandler_Update_ValidationError(t *testing.T) {
 
 func TestPolicyHandler_Update_ServiceError(t *testing.T) {
 	svc := &mockPolicyService{
-		updateFn: func(id uuid.UUID, tid int64, name string, desc *string, doc datatypes.JSON, ver, status string) (*service.PolicyServiceDataResult, error) {
+		updateFn: func(id uuid.UUID, tid int64, name string, desc *string, doc datatypes.JSON, ver, status string) (*PolicyServiceDataResult, error) {
 			return nil, assert.AnError
 		},
 	}
@@ -282,8 +281,8 @@ func TestPolicyHandler_Update_ServiceError(t *testing.T) {
 
 func TestPolicyHandler_Update_Success(t *testing.T) {
 	svc := &mockPolicyService{
-		updateFn: func(id uuid.UUID, tid int64, name string, desc *string, doc datatypes.JSON, ver, status string) (*service.PolicyServiceDataResult, error) {
-			return &service.PolicyServiceDataResult{Name: name}, nil
+		updateFn: func(id uuid.UUID, tid int64, name string, desc *string, doc datatypes.JSON, ver, status string) (*PolicyServiceDataResult, error) {
+			return &PolicyServiceDataResult{Name: name}, nil
 		},
 	}
 	h := NewPolicyHandler(svc)
@@ -329,7 +328,7 @@ func TestPolicyHandler_UpdateStatus_ValidationError(t *testing.T) {
 
 func TestPolicyHandler_UpdateStatus_ServiceError(t *testing.T) {
 	svc := &mockPolicyService{
-		setStatusByUUIDFn: func(id uuid.UUID, tid int64, status string) (*service.PolicyServiceDataResult, error) {
+		setStatusByUUIDFn: func(id uuid.UUID, tid int64, status string) (*PolicyServiceDataResult, error) {
 			return nil, assert.AnError
 		},
 	}
@@ -342,8 +341,8 @@ func TestPolicyHandler_UpdateStatus_ServiceError(t *testing.T) {
 
 func TestPolicyHandler_UpdateStatus_Success(t *testing.T) {
 	svc := &mockPolicyService{
-		setStatusByUUIDFn: func(id uuid.UUID, tid int64, status string) (*service.PolicyServiceDataResult, error) {
-			return &service.PolicyServiceDataResult{}, nil
+		setStatusByUUIDFn: func(id uuid.UUID, tid int64, status string) (*PolicyServiceDataResult, error) {
+			return &PolicyServiceDataResult{}, nil
 		},
 	}
 	h := NewPolicyHandler(svc)
@@ -365,8 +364,8 @@ func TestPolicyHandler_Delete_NoTenant(t *testing.T) {
 
 func TestPolicyHandler_Delete_Success(t *testing.T) {
 	svc := &mockPolicyService{
-		deleteByUUIDFn: func(id uuid.UUID, tid int64) (*service.PolicyServiceDataResult, error) {
-			return &service.PolicyServiceDataResult{}, nil
+		deleteByUUIDFn: func(id uuid.UUID, tid int64) (*PolicyServiceDataResult, error) {
+			return &PolicyServiceDataResult{}, nil
 		},
 	}
 	h := NewPolicyHandler(svc)
@@ -396,7 +395,7 @@ func TestPolicyHandler_GetServicesByPolicyUUID_ValidationError(t *testing.T) {
 
 func TestPolicyHandler_GetServicesByPolicyUUID_ServiceError(t *testing.T) {
 	svc := &mockPolicyService{
-		getServicesByPolicyUUIDFn: func(id uuid.UUID, tid int64, f service.PolicyServiceServicesFilter) (*service.PolicyServiceServicesResult, error) {
+		getServicesByPolicyUUIDFn: func(id uuid.UUID, tid int64, f PolicyServiceServicesFilter) (*PolicyServiceServicesResult, error) {
 			return nil, errors.New("db error")
 		},
 	}
@@ -409,9 +408,9 @@ func TestPolicyHandler_GetServicesByPolicyUUID_ServiceError(t *testing.T) {
 
 func TestPolicyHandler_GetServicesByPolicyUUID_Success(t *testing.T) {
 	svc := &mockPolicyService{
-		getServicesByPolicyUUIDFn: func(id uuid.UUID, tid int64, f service.PolicyServiceServicesFilter) (*service.PolicyServiceServicesResult, error) {
-			return &service.PolicyServiceServicesResult{
-				Data: []service.PolicyServiceServiceDataResult{{ServiceUUID: testResourceUUID, Name: "svc1"}},
+		getServicesByPolicyUUIDFn: func(id uuid.UUID, tid int64, f PolicyServiceServicesFilter) (*PolicyServiceServicesResult, error) {
+			return &PolicyServiceServicesResult{
+				Data: []PolicyServiceServiceDataResult{{ServiceUUID: testResourceUUID, Name: "svc1"}},
 			}, nil
 		},
 	}

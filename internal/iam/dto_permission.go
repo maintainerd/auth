@@ -6,8 +6,6 @@ import (
 	validation "github.com/go-ozzo/ozzo-validation/v4"
 	"github.com/go-ozzo/ozzo-validation/v4/is"
 	"github.com/google/uuid"
-
-	"github.com/maintainerd/auth/internal/model"
 )
 
 // Permission output structure
@@ -44,7 +42,7 @@ func (r PermissionCreateRequestDTO) Validate() error {
 		),
 		validation.Field(&r.Status,
 			validation.Required.Error("Status is required"),
-			validation.In(model.StatusActive, model.StatusInactive).Error("Status must be one of: active, inactive"),
+			validation.In(StatusActive, StatusInactive).Error("Status must be one of: active, inactive"),
 		),
 		validation.Field(&r.APIUUID,
 			validation.Required.Error("API ID is required"),
@@ -73,7 +71,7 @@ func (r PermissionUpdateRequestDTO) Validate() error {
 		),
 		validation.Field(&r.Status,
 			validation.Required.Error("Status is required"),
-			validation.In(model.StatusActive, model.StatusInactive).Error("Status must be one of: active, inactive"),
+			validation.In(StatusActive, StatusInactive).Error("Status must be one of: active, inactive"),
 		),
 	)
 }
@@ -98,7 +96,7 @@ func (f PermissionFilterDTO) Validate() error {
 	return validation.ValidateStruct(&f,
 		validation.Field(&f.Status,
 			validation.When(f.Status != nil,
-				validation.In(model.StatusActive, model.StatusInactive).Error("Status must be 'active' or 'inactive'"),
+				validation.In(StatusActive, StatusInactive).Error("Status must be 'active' or 'inactive'"),
 			),
 		),
 		validation.Field(&f.PaginationRequestDTO),
@@ -114,7 +112,7 @@ func (r PermissionStatusUpdateDTO) Validate() error {
 	return validation.ValidateStruct(&r,
 		validation.Field(&r.Status,
 			validation.Required.Error("Status is required"),
-			validation.In(model.StatusActive, model.StatusInactive).Error("Status must be one of: active, inactive"),
+			validation.In(StatusActive, StatusInactive).Error("Status must be one of: active, inactive"),
 		),
 	)
 }

@@ -6,8 +6,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"github.com/maintainerd/auth/internal/model"
 )
 
 func validUserCreate() UserCreateRequestDTO {
@@ -15,7 +13,7 @@ func validUserCreate() UserCreateRequestDTO {
 		Username:   "testuser",
 		Fullname:   "Test User",
 		Password:   "SecurePass1!",
-		Status:     model.StatusActive,
+		Status:     StatusActive,
 		TenantUUID: uuid.New().String(),
 	}
 }
@@ -69,7 +67,7 @@ func TestUserCreateRequestDto_Validate(t *testing.T) {
 
 	t.Run("pending status valid", func(t *testing.T) {
 		d := validUserCreate()
-		d.Status = model.StatusPending
+		d.Status = StatusPending
 		assert.NoError(t, d.Validate())
 	})
 
@@ -90,7 +88,7 @@ func TestUserUpdateRequestDto_Validate(t *testing.T) {
 	d := UserUpdateRequestDTO{
 		Username: "testuser",
 		Fullname: "Test User",
-		Status:   model.StatusActive,
+		Status:   StatusActive,
 	}
 	assert.NoError(t, d.Validate())
 
@@ -99,8 +97,8 @@ func TestUserUpdateRequestDto_Validate(t *testing.T) {
 }
 
 func TestUserSetStatusRequestDto_Validate(t *testing.T) {
-	assert.NoError(t, UserSetStatusRequestDTO{Status: model.StatusActive}.Validate())
-	assert.NoError(t, UserSetStatusRequestDTO{Status: model.StatusSuspended}.Validate())
+	assert.NoError(t, UserSetStatusRequestDTO{Status: StatusActive}.Validate())
+	assert.NoError(t, UserSetStatusRequestDTO{Status: StatusSuspended}.Validate())
 	require.Error(t, UserSetStatusRequestDTO{Status: ""}.Validate())
 	require.Error(t, UserSetStatusRequestDTO{Status: "unknown"}.Validate())
 }

@@ -5,13 +5,11 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"github.com/maintainerd/auth/internal/model"
 )
 
 func validIPRuleCreate() IPRestrictionRuleCreateRequestDTO {
 	return IPRestrictionRuleCreateRequestDTO{
-		Type:      model.IPRuleTypeAllow,
+		Type:      IPRuleTypeAllow,
 		IPAddress: "192.168.1.1",
 	}
 }
@@ -23,10 +21,10 @@ func TestIPRestrictionRuleCreateRequestDto_Validate(t *testing.T) {
 
 	t.Run("valid all types", func(t *testing.T) {
 		types := []string{
-			model.IPRuleTypeAllow,
-			model.IPRuleTypeDeny,
-			model.IPRuleTypeWhitelist,
-			model.IPRuleTypeBlacklist,
+			IPRuleTypeAllow,
+			IPRuleTypeDeny,
+			IPRuleTypeWhitelist,
+			IPRuleTypeBlacklist,
 		}
 		for _, ruleType := range types {
 			d := validIPRuleCreate()
@@ -80,7 +78,7 @@ func TestIPRestrictionRuleCreateRequestDto_Validate(t *testing.T) {
 
 	t.Run("valid inactive status", func(t *testing.T) {
 		d := validIPRuleCreate()
-		s := model.StatusInactive
+		s := StatusInactive
 		d.Status = &s
 		assert.NoError(t, d.Validate())
 	})
@@ -88,7 +86,7 @@ func TestIPRestrictionRuleCreateRequestDto_Validate(t *testing.T) {
 
 func TestIPRestrictionRuleUpdateRequestDto_Validate(t *testing.T) {
 	d := IPRestrictionRuleUpdateRequestDTO{
-		Type:      model.IPRuleTypeDeny,
+		Type:      IPRuleTypeDeny,
 		IPAddress: "10.0.0.1",
 	}
 	assert.NoError(t, d.Validate())
@@ -98,8 +96,8 @@ func TestIPRestrictionRuleUpdateRequestDto_Validate(t *testing.T) {
 }
 
 func TestIPRestrictionRuleUpdateStatusRequestDto_Validate(t *testing.T) {
-	assert.NoError(t, IPRestrictionRuleUpdateStatusRequestDTO{Status: model.StatusActive}.Validate())
-	assert.NoError(t, IPRestrictionRuleUpdateStatusRequestDTO{Status: model.StatusInactive}.Validate())
+	assert.NoError(t, IPRestrictionRuleUpdateStatusRequestDTO{Status: StatusActive}.Validate())
+	assert.NoError(t, IPRestrictionRuleUpdateStatusRequestDTO{Status: StatusInactive}.Validate())
 	require.Error(t, IPRestrictionRuleUpdateStatusRequestDTO{Status: ""}.Validate())
 	require.Error(t, IPRestrictionRuleUpdateStatusRequestDTO{Status: "bad"}.Validate())
 }
@@ -111,7 +109,7 @@ func TestIPRestrictionRuleFilterDto_Validate(t *testing.T) {
 	})
 
 	t.Run("valid type filter", func(t *testing.T) {
-		tp := model.IPRuleTypeAllow
+		tp := IPRuleTypeAllow
 		f := IPRestrictionRuleFilterDTO{
 			Type:                 &tp,
 			PaginationRequestDTO: validPagination(),

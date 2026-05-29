@@ -6,15 +6,13 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"github.com/maintainerd/auth/internal/model"
 )
 
 func TestRoleCreateOrUpdateRequestDto_Validate(t *testing.T) {
 	valid := RoleCreateOrUpdateRequestDTO{
 		Name:        "admin",
 		Description: "Administrator role",
-		Status:      model.StatusActive,
+		Status:      StatusActive,
 	}
 
 	t.Run("valid", func(t *testing.T) {
@@ -65,7 +63,7 @@ func TestRoleCreateOrUpdateRequestDto_Validate(t *testing.T) {
 
 	t.Run("inactive status valid", func(t *testing.T) {
 		d := valid
-		d.Status = model.StatusInactive
+		d.Status = StatusInactive
 		assert.NoError(t, d.Validate())
 	})
 }
@@ -100,7 +98,7 @@ func TestRoleFilterDto_Validate(t *testing.T) {
 	})
 
 	t.Run("valid status filter", func(t *testing.T) {
-		s := model.StatusActive
+		s := StatusActive
 		f := RoleFilterDTO{PaginationRequestDTO: validPagination(), Status: &s}
 		assert.NoError(t, f.Validate())
 	})

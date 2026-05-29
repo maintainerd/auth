@@ -4,7 +4,6 @@ import (
 	"errors"
 
 	"github.com/google/uuid"
-	"github.com/maintainerd/auth/internal/model"
 	"gorm.io/gorm"
 )
 
@@ -24,28 +23,28 @@ type ClientRepositoryGetFilter struct {
 }
 
 type ClientRepository interface {
-	BaseRepositoryMethods[model.Client]
+	BaseRepositoryMethods[Client]
 	WithTx(tx *gorm.DB) ClientRepository
-	FindByUUIDAndTenantID(clientUUID uuid.UUID, tenantID int64) (*model.Client, error)
-	FindByNameAndIdentityProvider(name string, identityProviderID int64, tenantID int64) (*model.Client, error)
-	FindByNameAndTenantID(name string, tenantID int64) (*model.Client, error)
-	FindByClientID(clientID string, tenantID int64) (*model.Client, error)
-	FindAllByTenantID(tenantID int64) ([]model.Client, error)
-	FindSystem() (*model.Client, error)
-	FindDefaultByTenantID(tenantID int64) (*model.Client, error)
-	FindPaginated(filter ClientRepositoryGetFilter) (*PaginationResult[model.Client], error)
+	FindByUUIDAndTenantID(clientUUID uuid.UUID, tenantID int64) (*Client, error)
+	FindByNameAndIdentityProvider(name string, identityProviderID int64, tenantID int64) (*Client, error)
+	FindByNameAndTenantID(name string, tenantID int64) (*Client, error)
+	FindByClientID(clientID string, tenantID int64) (*Client, error)
+	FindAllByTenantID(tenantID int64) ([]Client, error)
+	FindSystem() (*Client, error)
+	FindDefaultByTenantID(tenantID int64) (*Client, error)
+	FindPaginated(filter ClientRepositoryGetFilter) (*PaginationResult[Client], error)
 	SetStatusByUUID(clientUUID uuid.UUID, tenantID int64, status string) error
-	FindByClientIDAndIdentityProvider(clientID, identityProviderIdentifier string) (*model.Client, error)
+	FindByClientIDAndIdentityProvider(clientID, identityProviderIdentifier string) (*Client, error)
 	DeleteByUUIDAndTenantID(clientUUID uuid.UUID, tenantID int64) error
 }
 
 type clientRepository struct {
-	*BaseRepository[model.Client]
+	*BaseRepository[Client]
 }
 
 func NewClientRepository(db *gorm.DB) ClientRepository {
 	return &clientRepository{
-		BaseRepository: NewBaseRepository[model.Client](db, "client_uuid", "client_id"),
+		BaseRepository: NewBaseRepository[Client](db, "client_uuid", "client_id"),
 	}
 }
 
@@ -55,8 +54,8 @@ func (r *clientRepository) WithTx(tx *gorm.DB) ClientRepository {
 	}
 }
 
-func (r *clientRepository) FindByUUIDAndTenantID(clientUUID uuid.UUID, tenantID int64) (*model.Client, error) {
-	var client model.Client
+func (r *clientRepository) FindByUUIDAndTenantID(clientUUID uuid.UUID, tenantID int64) (*Client, error) {
+	var client Client
 	err := r.DB().
 		Preload("IdentityProvider").
 		Preload("ClientURIs").
@@ -73,8 +72,8 @@ func (r *clientRepository) FindByUUIDAndTenantID(clientUUID uuid.UUID, tenantID 
 	return &client, nil
 }
 
-func (r *clientRepository) FindByNameAndIdentityProvider(name string, identityProviderID int64, tenantID int64) (*model.Client, error) {
-	var client model.Client
+func (r *clientRepository) FindByNameAndIdentityProvider(name string, identityProviderID int64, tenantID int64) (*Client, error) {
+	var client Client
 	err := r.DB().Where("name = ? AND identity_provider_id = ? AND tenant_id = ?", name, identityProviderID, tenantID).First(&client).Error
 
 	if err != nil {
@@ -87,8 +86,8 @@ func (r *clientRepository) FindByNameAndIdentityProvider(name string, identityPr
 	return &client, nil
 }
 
-func (r *clientRepository) FindByClientID(clientID string, tenantID int64) (*model.Client, error) {
-	var client model.Client
+func (r *clientRepository) FindByClientID(clientID string, tenantID int64) (*Client, error) {
+	var client Client
 	err := r.DB().Where("client_id = ? AND tenant_id = ?", clientID, tenantID).First(&client).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -99,8 +98,8 @@ func (r *clientRepository) FindByClientID(clientID string, tenantID int64) (*mod
 	return &client, nil
 }
 
-func (r *clientRepository) FindAllByTenantID(tenantID int64) ([]model.Client, error) {
-	var clients []model.Client
+func (r *clientRepository) FindAllByTenantID(tenantID int64) ([]Client, error) {
+	var clients []Client
 	err := r.DB().
 		Joins("JOIN identity_providers ON identity_providers.identity_provider_id = clients.identity_provider_id").
 		Where("identity_providers.tenant_id = ?", tenantID).
@@ -111,13 +110,13 @@ func (r *clientRepository) FindAllByTenantID(tenantID int64) ([]model.Client, er
 // FindSystem returns the active system client belonging to the system tenant
 // (is_system = true on both tenant and client). The seeded system client is the
 // auth-console SPA used to bootstrap the management surface on port 8080.
-func (r *clientRepository) FindSystem() (*model.Client, error) {
-	var client model.Client
+func (r *clientRepository) FindSystem() (*Client, error) {
+	var client Client
 	err := r.DB().
 		Joins("JOIN identity_providers ON identity_providers.identity_provider_id = clients.identity_provider_id").
 		Joins("JOIN tenants ON tenants.tenant_id = identity_providers.tenant_id").
-		Where("clients.is_system = ? AND clients.status = ?", true, model.StatusActive).
-		Where("identity_providers.status = ?", model.StatusActive).
+		Where("clients.is_system = ? AND clients.status = ?", true, StatusActive).
+		Where("identity_providers.status = ?", StatusActive).
 		Where("tenants.is_system = ?", true).
 		Preload("IdentityProvider").
 		Preload("IdentityProvider.Tenant").
@@ -134,8 +133,8 @@ func (r *clientRepository) FindSystem() (*model.Client, error) {
 
 // FindByNameAndTenantID returns the client with the given name within the
 // tenant, regardless of which identity provider it is attached to.
-func (r *clientRepository) FindByNameAndTenantID(name string, tenantID int64) (*model.Client, error) {
-	var client model.Client
+func (r *clientRepository) FindByNameAndTenantID(name string, tenantID int64) (*Client, error) {
+	var client Client
 	err := r.DB().
 		Where("name = ? AND tenant_id = ?", name, tenantID).
 		Preload("IdentityProvider").
@@ -150,11 +149,11 @@ func (r *clientRepository) FindByNameAndTenantID(name string, tenantID int64) (*
 	return &client, nil
 }
 
-func (r *clientRepository) FindDefaultByTenantID(tenantID int64) (*model.Client, error) {
-	var client model.Client
+func (r *clientRepository) FindDefaultByTenantID(tenantID int64) (*Client, error) {
+	var client Client
 	err := r.DB().
 		Joins("JOIN identity_providers ON identity_providers.identity_provider_id = clients.identity_provider_id").
-		Where("identity_providers.tenant_id = ? AND clients.is_default = true AND clients.status = ?", tenantID, model.StatusActive).
+		Where("identity_providers.tenant_id = ? AND clients.is_default = true AND clients.status = ?", tenantID, StatusActive).
 		First(&client).Error
 
 	if err != nil {
@@ -167,8 +166,8 @@ func (r *clientRepository) FindDefaultByTenantID(tenantID int64) (*model.Client,
 	return &client, nil
 }
 
-func (r *clientRepository) FindPaginated(filter ClientRepositoryGetFilter) (*PaginationResult[model.Client], error) {
-	query := r.DB().Model(&model.Client{}).Where("tenant_id = ?", filter.TenantID)
+func (r *clientRepository) FindPaginated(filter ClientRepositoryGetFilter) (*PaginationResult[Client], error) {
+	query := r.DB().Model(&Client{}).Where("tenant_id = ?", filter.TenantID)
 
 	// Filters with LIKE
 	if filter.Name != nil {
@@ -207,7 +206,7 @@ func (r *clientRepository) FindPaginated(filter ClientRepositoryGetFilter) (*Pag
 	// Pagination
 	filter.Page, filter.Limit = normalizePagination(filter.Page, filter.Limit)
 	offset := (filter.Page - 1) * filter.Limit
-	var clients []model.Client
+	var clients []Client
 	if err := query.
 		Preload("IdentityProvider").
 		Preload("ClientURIs").
@@ -219,7 +218,7 @@ func (r *clientRepository) FindPaginated(filter ClientRepositoryGetFilter) (*Pag
 
 	totalPages := int((total + int64(filter.Limit) - 1) / int64(filter.Limit))
 
-	return &PaginationResult[model.Client]{
+	return &PaginationResult[Client]{
 		Data:       clients,
 		Total:      total,
 		Page:       filter.Page,
@@ -229,18 +228,18 @@ func (r *clientRepository) FindPaginated(filter ClientRepositoryGetFilter) (*Pag
 }
 
 func (r *clientRepository) SetStatusByUUID(clientUUID uuid.UUID, tenantID int64, status string) error {
-	return r.DB().Model(&model.Client{}).
+	return r.DB().Model(&Client{}).
 		Where("client_uuid = ? AND tenant_id = ?", clientUUID, tenantID).
 		Update("status", status).Error
 }
 
-func (r *clientRepository) FindByClientIDAndIdentityProvider(clientID, identityProviderIdentifier string) (*model.Client, error) {
-	var client model.Client
+func (r *clientRepository) FindByClientIDAndIdentityProvider(clientID, identityProviderIdentifier string) (*Client, error) {
+	var client Client
 
 	err := r.DB().
 		Joins("JOIN identity_providers ON identity_providers.identity_provider_id = clients.identity_provider_id").
 		Where("clients.client_id = ? AND identity_providers.identifier = ?", clientID, identityProviderIdentifier).
-		Where("clients.status = ? AND identity_providers.status = ?", model.StatusActive, model.StatusActive).
+		Where("clients.status = ? AND identity_providers.status = ?", StatusActive, StatusActive).
 		Preload("IdentityProvider.Tenant").
 		Preload("IdentityProvider").
 		First(&client).Error
@@ -255,7 +254,7 @@ func (r *clientRepository) FindByClientIDAndIdentityProvider(clientID, identityP
 }
 
 func (r *clientRepository) DeleteByUUIDAndTenantID(clientUUID uuid.UUID, tenantID int64) error {
-	result := r.DB().Where("client_uuid = ? AND tenant_id = ?", clientUUID, tenantID).Delete(&model.Client{})
+	result := r.DB().Where("client_uuid = ? AND tenant_id = ?", clientUUID, tenantID).Delete(&Client{})
 	if result.Error != nil {
 		return result.Error
 	}

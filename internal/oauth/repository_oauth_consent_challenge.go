@@ -5,28 +5,27 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/maintainerd/auth/internal/model"
 	"gorm.io/gorm"
 )
 
 // OAuthConsentChallengeRepository defines data access operations for pending
 // consent challenges.
 type OAuthConsentChallengeRepository interface {
-	BaseRepositoryMethods[model.OAuthConsentChallenge]
+	BaseRepositoryMethods[OAuthConsentChallenge]
 	WithTx(tx *gorm.DB) OAuthConsentChallengeRepository
-	FindChallengeByUUID(challengeUUID uuid.UUID) (*model.OAuthConsentChallenge, error)
+	FindChallengeByUUID(challengeUUID uuid.UUID) (*OAuthConsentChallenge, error)
 	DeleteChallengeByUUID(challengeUUID uuid.UUID) error
 	DeleteExpired(before time.Time) (int64, error)
 }
 
 type oauthConsentChallengeRepository struct {
-	*BaseRepository[model.OAuthConsentChallenge]
+	*BaseRepository[OAuthConsentChallenge]
 }
 
 // NewOAuthConsentChallengeRepository creates a new OAuthConsentChallengeRepository.
 func NewOAuthConsentChallengeRepository(db *gorm.DB) OAuthConsentChallengeRepository {
 	return &oauthConsentChallengeRepository{
-		BaseRepository: NewBaseRepository[model.OAuthConsentChallenge](db, "oauth_consent_challenge_uuid", "oauth_consent_challenge_id"),
+		BaseRepository: NewBaseRepository[OAuthConsentChallenge](db, "oauth_consent_challenge_uuid", "oauth_consent_challenge_id"),
 	}
 }
 
@@ -38,8 +37,8 @@ func (r *oauthConsentChallengeRepository) WithTx(tx *gorm.DB) OAuthConsentChalle
 
 // FindChallengeByUUID looks up a consent challenge by its UUID. Returns nil, nil when
 // no matching challenge exists.
-func (r *oauthConsentChallengeRepository) FindChallengeByUUID(challengeUUID uuid.UUID) (*model.OAuthConsentChallenge, error) {
-	var challenge model.OAuthConsentChallenge
+func (r *oauthConsentChallengeRepository) FindChallengeByUUID(challengeUUID uuid.UUID) (*OAuthConsentChallenge, error) {
+	var challenge OAuthConsentChallenge
 	err := r.DB().
 		Preload("Client").
 		Preload("Client.IdentityProvider").
@@ -58,7 +57,7 @@ func (r *oauthConsentChallengeRepository) FindChallengeByUUID(challengeUUID uuid
 func (r *oauthConsentChallengeRepository) DeleteChallengeByUUID(challengeUUID uuid.UUID) error {
 	return r.DB().
 		Where("oauth_consent_challenge_uuid = ?", challengeUUID).
-		Delete(&model.OAuthConsentChallenge{}).Error
+		Delete(&OAuthConsentChallenge{}).Error
 }
 
 // DeleteExpired removes consent challenges that expired before the given
@@ -66,6 +65,6 @@ func (r *oauthConsentChallengeRepository) DeleteChallengeByUUID(challengeUUID uu
 func (r *oauthConsentChallengeRepository) DeleteExpired(before time.Time) (int64, error) {
 	result := r.DB().
 		Where("expires_at < ?", before).
-		Delete(&model.OAuthConsentChallenge{})
+		Delete(&OAuthConsentChallenge{})
 	return result.RowsAffected, result.Error
 }

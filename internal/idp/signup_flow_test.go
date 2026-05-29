@@ -7,9 +7,7 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
-	"github.com/maintainerd/auth/internal/model"
 	"github.com/maintainerd/auth/internal/platform/crypto"
-	"github.com/maintainerd/auth/internal/repository"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -18,24 +16,24 @@ import (
 // helpers
 // ---------------------------------------------------------------------------
 
-func buildSignupFlow() *model.SignupFlow {
-	return &model.SignupFlow{
+func buildSignupFlow() *SignupFlow {
+	return &SignupFlow{
 		SignupFlowID:   1,
 		SignupFlowUUID: uuid.New(),
 		TenantID:       1,
 		Name:           "test-flow",
 		Description:    "desc",
 		Identifier:     "abc123",
-		Status:         model.StatusActive,
+		Status:         StatusActive,
 		ClientID:       1,
-		Client:         &model.Client{ClientUUID: uuid.New()},
+		Client:         &Client{ClientUUID: uuid.New()},
 	}
 }
 
 func defaultCR() *mockClientRepo {
 	return &mockClientRepo{
-		findSystemFn:                        func() (*model.Client, error) { return nil, nil },
-		findByClientIDAndIdentityProviderFn: func(_, _ string) (*model.Client, error) { return nil, nil },
+		findSystemFn:                        func() (*Client, error) { return nil, nil },
+		findByClientIDAndIdentityProviderFn: func(_, _ string) (*Client, error) { return nil, nil },
 	}
 }
 
@@ -49,7 +47,7 @@ func TestSignupFlowService_GetByUUID(t *testing.T) {
 	t.Run("not found (nil)", func(t *testing.T) {
 		db, _ := newMockGormDB(t)
 		svc := NewSignupFlowService(db, &mockSignupFlowRepo{
-			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64, _ ...string) (*model.SignupFlow, error) { return nil, nil },
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64, _ ...string) (*SignupFlow, error) { return nil, nil },
 		}, &mockSignupFlowRoleRepo{}, &mockRoleRepo{}, defaultCR())
 		_, err := svc.GetByUUID(context.Background(), sf.SignupFlowUUID, 1)
 		require.Error(t, err)
@@ -59,7 +57,7 @@ func TestSignupFlowService_GetByUUID(t *testing.T) {
 	t.Run("repo error", func(t *testing.T) {
 		db, _ := newMockGormDB(t)
 		svc := NewSignupFlowService(db, &mockSignupFlowRepo{
-			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64, _ ...string) (*model.SignupFlow, error) {
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64, _ ...string) (*SignupFlow, error) {
 				return nil, errors.New("db error")
 			},
 		}, &mockSignupFlowRoleRepo{}, &mockRoleRepo{}, defaultCR())
@@ -71,7 +69,7 @@ func TestSignupFlowService_GetByUUID(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		db, _ := newMockGormDB(t)
 		svc := NewSignupFlowService(db, &mockSignupFlowRepo{
-			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64, _ ...string) (*model.SignupFlow, error) { return sf, nil },
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64, _ ...string) (*SignupFlow, error) { return sf, nil },
 		}, &mockSignupFlowRoleRepo{}, &mockRoleRepo{}, defaultCR())
 		res, err := svc.GetByUUID(context.Background(), sf.SignupFlowUUID, 1)
 		require.NoError(t, err)
@@ -89,8 +87,8 @@ func TestSignupFlowService_GetAll(t *testing.T) {
 	t.Run("success without ClientUUID", func(t *testing.T) {
 		db, _ := newMockGormDB(t)
 		svc := NewSignupFlowService(db, &mockSignupFlowRepo{
-			findPaginatedFn: func(_ repository.SignupFlowRepositoryGetFilter) (*repository.PaginationResult[model.SignupFlow], error) {
-				return &repository.PaginationResult[model.SignupFlow]{Data: []model.SignupFlow{*sf}, Total: 1, Page: 1, Limit: 10, TotalPages: 1}, nil
+			findPaginatedFn: func(_ SignupFlowRepositoryGetFilter) (*PaginationResult[SignupFlow], error) {
+				return &PaginationResult[SignupFlow]{Data: []SignupFlow{*sf}, Total: 1, Page: 1, Limit: 10, TotalPages: 1}, nil
 			},
 		}, &mockSignupFlowRoleRepo{}, &mockRoleRepo{}, defaultCR())
 		res, err := svc.GetAll(context.Background(), 1, nil, nil, nil, nil, 1, 10, "created_at", "asc")
@@ -103,7 +101,7 @@ func TestSignupFlowService_GetAll(t *testing.T) {
 		db, _ := newMockGormDB(t)
 		cUUID := uuid.New()
 		cr := defaultCR()
-		cr.findByUUIDFn = func(_ any, _ ...string) (*model.Client, error) { return nil, nil }
+		cr.findByUUIDFn = func(_ any, _ ...string) (*Client, error) { return nil, nil }
 		svc := NewSignupFlowService(db, &mockSignupFlowRepo{}, &mockSignupFlowRoleRepo{}, &mockRoleRepo{}, cr)
 		_, err := svc.GetAll(context.Background(), 1, nil, nil, nil, &cUUID, 1, 10, "created_at", "asc")
 		require.Error(t, err)
@@ -114,7 +112,7 @@ func TestSignupFlowService_GetAll(t *testing.T) {
 		db, _ := newMockGormDB(t)
 		cUUID := uuid.New()
 		cr := defaultCR()
-		cr.findByUUIDFn = func(_ any, _ ...string) (*model.Client, error) { return nil, errors.New("db") }
+		cr.findByUUIDFn = func(_ any, _ ...string) (*Client, error) { return nil, errors.New("db") }
 		svc := NewSignupFlowService(db, &mockSignupFlowRepo{}, &mockSignupFlowRoleRepo{}, &mockRoleRepo{}, cr)
 		_, err := svc.GetAll(context.Background(), 1, nil, nil, nil, &cUUID, 1, 10, "created_at", "asc")
 		require.Error(t, err)
@@ -126,14 +124,14 @@ func TestSignupFlowService_GetAll(t *testing.T) {
 		cUUID := uuid.New()
 		clientID := int64(5)
 		cr := defaultCR()
-		cr.findByUUIDFn = func(_ any, _ ...string) (*model.Client, error) {
-			return &model.Client{ClientID: clientID}, nil
+		cr.findByUUIDFn = func(_ any, _ ...string) (*Client, error) {
+			return &Client{ClientID: clientID}, nil
 		}
 		svc := NewSignupFlowService(db, &mockSignupFlowRepo{
-			findPaginatedFn: func(f repository.SignupFlowRepositoryGetFilter) (*repository.PaginationResult[model.SignupFlow], error) {
+			findPaginatedFn: func(f SignupFlowRepositoryGetFilter) (*PaginationResult[SignupFlow], error) {
 				assert.NotNil(t, f.ClientID)
 				assert.Equal(t, clientID, *f.ClientID)
-				return &repository.PaginationResult[model.SignupFlow]{Data: []model.SignupFlow{*sf}, Total: 1, Page: 1, Limit: 10, TotalPages: 1}, nil
+				return &PaginationResult[SignupFlow]{Data: []SignupFlow{*sf}, Total: 1, Page: 1, Limit: 10, TotalPages: 1}, nil
 			},
 		}, &mockSignupFlowRoleRepo{}, &mockRoleRepo{}, cr)
 		res, err := svc.GetAll(context.Background(), 1, nil, nil, nil, &cUUID, 1, 10, "created_at", "asc")
@@ -144,7 +142,7 @@ func TestSignupFlowService_GetAll(t *testing.T) {
 	t.Run("FindPaginated error", func(t *testing.T) {
 		db, _ := newMockGormDB(t)
 		svc := NewSignupFlowService(db, &mockSignupFlowRepo{
-			findPaginatedFn: func(_ repository.SignupFlowRepositoryGetFilter) (*repository.PaginationResult[model.SignupFlow], error) {
+			findPaginatedFn: func(_ SignupFlowRepositoryGetFilter) (*PaginationResult[SignupFlow], error) {
 				return nil, errors.New("paginate error")
 			},
 		}, &mockSignupFlowRoleRepo{}, &mockRoleRepo{}, defaultCR())
@@ -167,9 +165,9 @@ func TestSignupFlowService_Create(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		cr := defaultCR()
-		cr.findByUUIDFn = func(_ any, _ ...string) (*model.Client, error) { return nil, nil }
+		cr.findByUUIDFn = func(_ any, _ ...string) (*Client, error) { return nil, nil }
 		svc := NewSignupFlowService(db, &mockSignupFlowRepo{}, &mockSignupFlowRoleRepo{}, &mockRoleRepo{}, cr)
-		_, err := svc.Create(context.Background(), 1, "test-flow", "desc", nil, model.StatusActive, clientUUID)
+		_, err := svc.Create(context.Background(), 1, "test-flow", "desc", nil, StatusActive, clientUUID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "auth client not found")
 	})
@@ -179,11 +177,11 @@ func TestSignupFlowService_Create(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		cr := defaultCR()
-		cr.findByUUIDFn = func(_ any, _ ...string) (*model.Client, error) { return &model.Client{ClientID: 1}, nil }
+		cr.findByUUIDFn = func(_ any, _ ...string) (*Client, error) { return &Client{ClientID: 1}, nil }
 		svc := NewSignupFlowService(db, &mockSignupFlowRepo{
-			findByNameFn: func(_ string) (*model.SignupFlow, error) { return nil, errors.New("name err") },
+			findByNameFn: func(_ string) (*SignupFlow, error) { return nil, errors.New("name err") },
 		}, &mockSignupFlowRoleRepo{}, &mockRoleRepo{}, cr)
-		_, err := svc.Create(context.Background(), 1, "test-flow", "desc", nil, model.StatusActive, clientUUID)
+		_, err := svc.Create(context.Background(), 1, "test-flow", "desc", nil, StatusActive, clientUUID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "name err")
 	})
@@ -193,11 +191,11 @@ func TestSignupFlowService_Create(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		cr := defaultCR()
-		cr.findByUUIDFn = func(_ any, _ ...string) (*model.Client, error) { return &model.Client{ClientID: 1}, nil }
+		cr.findByUUIDFn = func(_ any, _ ...string) (*Client, error) { return &Client{ClientID: 1}, nil }
 		svc := NewSignupFlowService(db, &mockSignupFlowRepo{
-			findByNameFn: func(_ string) (*model.SignupFlow, error) { return &model.SignupFlow{Name: "test-flow"}, nil },
+			findByNameFn: func(_ string) (*SignupFlow, error) { return &SignupFlow{Name: "test-flow"}, nil },
 		}, &mockSignupFlowRoleRepo{}, &mockRoleRepo{}, cr)
-		_, err := svc.Create(context.Background(), 1, "test-flow", "desc", nil, model.StatusActive, clientUUID)
+		_, err := svc.Create(context.Background(), 1, "test-flow", "desc", nil, StatusActive, clientUUID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "name already exists")
 	})
@@ -211,9 +209,9 @@ func TestSignupFlowService_Create(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		cr := defaultCR()
-		cr.findByUUIDFn = func(_ any, _ ...string) (*model.Client, error) { return &model.Client{ClientID: 1}, nil }
+		cr.findByUUIDFn = func(_ any, _ ...string) (*Client, error) { return &Client{ClientID: 1}, nil }
 		svc := NewSignupFlowService(db, &mockSignupFlowRepo{}, &mockSignupFlowRoleRepo{}, &mockRoleRepo{}, cr)
-		_, err := svc.Create(context.Background(), 1, "test-flow", "desc", nil, model.StatusActive, clientUUID)
+		_, err := svc.Create(context.Background(), 1, "test-flow", "desc", nil, StatusActive, clientUUID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "rand failure")
 	})
@@ -223,14 +221,14 @@ func TestSignupFlowService_Create(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		cr := defaultCR()
-		cr.findByUUIDFn = func(_ any, _ ...string) (*model.Client, error) { return &model.Client{ClientID: 1}, nil }
+		cr.findByUUIDFn = func(_ any, _ ...string) (*Client, error) { return &Client{ClientID: 1}, nil }
 		svc := NewSignupFlowService(db, &mockSignupFlowRepo{
-			findByNameFn: func(_ string) (*model.SignupFlow, error) { return nil, nil },
-			findByIdentifierAndClientIDFn: func(_ string, _ int64) (*model.SignupFlow, error) {
+			findByNameFn: func(_ string) (*SignupFlow, error) { return nil, nil },
+			findByIdentifierAndClientIDFn: func(_ string, _ int64) (*SignupFlow, error) {
 				return nil, errors.New("ident err")
 			},
 		}, &mockSignupFlowRoleRepo{}, &mockRoleRepo{}, cr)
-		_, err := svc.Create(context.Background(), 1, "test-flow", "desc", nil, model.StatusActive, clientUUID)
+		_, err := svc.Create(context.Background(), 1, "test-flow", "desc", nil, StatusActive, clientUUID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "ident err")
 	})
@@ -240,11 +238,11 @@ func TestSignupFlowService_Create(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		cr := defaultCR()
-		cr.findByUUIDFn = func(_ any, _ ...string) (*model.Client, error) { return &model.Client{ClientID: 1}, nil }
+		cr.findByUUIDFn = func(_ any, _ ...string) (*Client, error) { return &Client{ClientID: 1}, nil }
 		svc := NewSignupFlowService(db, &mockSignupFlowRepo{
-			findByNameFn: func(_ string) (*model.SignupFlow, error) { return nil, nil },
+			findByNameFn: func(_ string) (*SignupFlow, error) { return nil, nil },
 		}, &mockSignupFlowRoleRepo{}, &mockRoleRepo{}, cr)
-		_, err := svc.Create(context.Background(), 1, "test-flow", "desc", map[string]any{"bad": math.Inf(1)}, model.StatusActive, clientUUID)
+		_, err := svc.Create(context.Background(), 1, "test-flow", "desc", map[string]any{"bad": math.Inf(1)}, StatusActive, clientUUID)
 		require.Error(t, err)
 	})
 
@@ -253,12 +251,12 @@ func TestSignupFlowService_Create(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		cr := defaultCR()
-		cr.findByUUIDFn = func(_ any, _ ...string) (*model.Client, error) { return &model.Client{ClientID: 1}, nil }
+		cr.findByUUIDFn = func(_ any, _ ...string) (*Client, error) { return &Client{ClientID: 1}, nil }
 		svc := NewSignupFlowService(db, &mockSignupFlowRepo{
-			findByNameFn: func(_ string) (*model.SignupFlow, error) { return nil, nil },
-			createFn:     func(_ *model.SignupFlow) (*model.SignupFlow, error) { return nil, errors.New("create err") },
+			findByNameFn: func(_ string) (*SignupFlow, error) { return nil, nil },
+			createFn:     func(_ *SignupFlow) (*SignupFlow, error) { return nil, errors.New("create err") },
 		}, &mockSignupFlowRoleRepo{}, &mockRoleRepo{}, cr)
-		_, err := svc.Create(context.Background(), 1, "test-flow", "desc", nil, model.StatusActive, clientUUID)
+		_, err := svc.Create(context.Background(), 1, "test-flow", "desc", nil, StatusActive, clientUUID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "create err")
 	})
@@ -268,15 +266,15 @@ func TestSignupFlowService_Create(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectCommit()
 		cr := defaultCR()
-		cr.findByUUIDFn = func(_ any, _ ...string) (*model.Client, error) { return &model.Client{ClientID: 1}, nil }
+		cr.findByUUIDFn = func(_ any, _ ...string) (*Client, error) { return &Client{ClientID: 1}, nil }
 		svc := NewSignupFlowService(db, &mockSignupFlowRepo{
-			findByNameFn: func(_ string) (*model.SignupFlow, error) { return nil, nil },
-			createFn:     func(e *model.SignupFlow) (*model.SignupFlow, error) { return sf, nil },
-			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64, _ ...string) (*model.SignupFlow, error) {
+			findByNameFn: func(_ string) (*SignupFlow, error) { return nil, nil },
+			createFn:     func(e *SignupFlow) (*SignupFlow, error) { return sf, nil },
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64, _ ...string) (*SignupFlow, error) {
 				return sf, nil
 			},
 		}, &mockSignupFlowRoleRepo{}, &mockRoleRepo{}, cr)
-		res, err := svc.Create(context.Background(), 1, "test-flow", "desc", nil, model.StatusActive, clientUUID)
+		res, err := svc.Create(context.Background(), 1, "test-flow", "desc", nil, StatusActive, clientUUID)
 		require.NoError(t, err)
 		assert.NotNil(t, res)
 	})
@@ -286,15 +284,15 @@ func TestSignupFlowService_Create(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectCommit()
 		cr := defaultCR()
-		cr.findByUUIDFn = func(_ any, _ ...string) (*model.Client, error) { return &model.Client{ClientID: 1}, nil }
+		cr.findByUUIDFn = func(_ any, _ ...string) (*Client, error) { return &Client{ClientID: 1}, nil }
 		svc := NewSignupFlowService(db, &mockSignupFlowRepo{
-			findByNameFn: func(_ string) (*model.SignupFlow, error) { return nil, nil },
-			createFn:     func(e *model.SignupFlow) (*model.SignupFlow, error) { return sf, nil },
-			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64, _ ...string) (*model.SignupFlow, error) {
+			findByNameFn: func(_ string) (*SignupFlow, error) { return nil, nil },
+			createFn:     func(e *SignupFlow) (*SignupFlow, error) { return sf, nil },
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64, _ ...string) (*SignupFlow, error) {
 				return sf, nil
 			},
 		}, &mockSignupFlowRoleRepo{}, &mockRoleRepo{}, cr)
-		res, err := svc.Create(context.Background(), 1, "test-flow", "desc", map[string]any{"key": "val"}, model.StatusActive, clientUUID)
+		res, err := svc.Create(context.Background(), 1, "test-flow", "desc", map[string]any{"key": "val"}, StatusActive, clientUUID)
 		require.NoError(t, err)
 		assert.NotNil(t, res)
 	})
@@ -312,9 +310,9 @@ func TestSignupFlowService_Update(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		svc := NewSignupFlowService(db, &mockSignupFlowRepo{
-			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64, _ ...string) (*model.SignupFlow, error) { return nil, nil },
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64, _ ...string) (*SignupFlow, error) { return nil, nil },
 		}, &mockSignupFlowRoleRepo{}, &mockRoleRepo{}, defaultCR())
-		_, err := svc.Update(context.Background(), sf.SignupFlowUUID, 1, "new", "desc", nil, model.StatusActive)
+		_, err := svc.Update(context.Background(), sf.SignupFlowUUID, 1, "new", "desc", nil, StatusActive)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "signup flow not found")
 	})
@@ -324,10 +322,10 @@ func TestSignupFlowService_Update(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		svc := NewSignupFlowService(db, &mockSignupFlowRepo{
-			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64, _ ...string) (*model.SignupFlow, error) { return sf, nil },
-			findByNameFn:            func(_ string) (*model.SignupFlow, error) { return nil, errors.New("name err") },
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64, _ ...string) (*SignupFlow, error) { return sf, nil },
+			findByNameFn:            func(_ string) (*SignupFlow, error) { return nil, errors.New("name err") },
 		}, &mockSignupFlowRoleRepo{}, &mockRoleRepo{}, defaultCR())
-		_, err := svc.Update(context.Background(), sf.SignupFlowUUID, 1, "different-name", "desc", nil, model.StatusActive)
+		_, err := svc.Update(context.Background(), sf.SignupFlowUUID, 1, "different-name", "desc", nil, StatusActive)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "name err")
 	})
@@ -337,12 +335,12 @@ func TestSignupFlowService_Update(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		svc := NewSignupFlowService(db, &mockSignupFlowRepo{
-			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64, _ ...string) (*model.SignupFlow, error) { return sf, nil },
-			findByNameFn: func(_ string) (*model.SignupFlow, error) {
-				return &model.SignupFlow{SignupFlowID: 999, Name: "different-name"}, nil
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64, _ ...string) (*SignupFlow, error) { return sf, nil },
+			findByNameFn: func(_ string) (*SignupFlow, error) {
+				return &SignupFlow{SignupFlowID: 999, Name: "different-name"}, nil
 			},
 		}, &mockSignupFlowRoleRepo{}, &mockRoleRepo{}, defaultCR())
-		_, err := svc.Update(context.Background(), sf.SignupFlowUUID, 1, "different-name", "desc", nil, model.StatusActive)
+		_, err := svc.Update(context.Background(), sf.SignupFlowUUID, 1, "different-name", "desc", nil, StatusActive)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "name already exists")
 	})
@@ -352,12 +350,12 @@ func TestSignupFlowService_Update(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectCommit()
 		svc := NewSignupFlowService(db, &mockSignupFlowRepo{
-			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64, _ ...string) (*model.SignupFlow, error) { return sf, nil },
-			findByNameFn: func(_ string) (*model.SignupFlow, error) {
-				return &model.SignupFlow{SignupFlowID: sf.SignupFlowID}, nil // same ID → no conflict
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64, _ ...string) (*SignupFlow, error) { return sf, nil },
+			findByNameFn: func(_ string) (*SignupFlow, error) {
+				return &SignupFlow{SignupFlowID: sf.SignupFlowID}, nil // same ID → no conflict
 			},
 		}, &mockSignupFlowRoleRepo{}, &mockRoleRepo{}, defaultCR())
-		res, err := svc.Update(context.Background(), sf.SignupFlowUUID, 1, "different-name", "desc", nil, model.StatusActive)
+		res, err := svc.Update(context.Background(), sf.SignupFlowUUID, 1, "different-name", "desc", nil, StatusActive)
 		require.NoError(t, err)
 		assert.NotNil(t, res)
 	})
@@ -367,9 +365,9 @@ func TestSignupFlowService_Update(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectCommit()
 		svc := NewSignupFlowService(db, &mockSignupFlowRepo{
-			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64, _ ...string) (*model.SignupFlow, error) { return sf, nil },
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64, _ ...string) (*SignupFlow, error) { return sf, nil },
 		}, &mockSignupFlowRoleRepo{}, &mockRoleRepo{}, defaultCR())
-		res, err := svc.Update(context.Background(), sf.SignupFlowUUID, 1, sf.Name, "desc", nil, model.StatusActive)
+		res, err := svc.Update(context.Background(), sf.SignupFlowUUID, 1, sf.Name, "desc", nil, StatusActive)
 		require.NoError(t, err)
 		assert.NotNil(t, res)
 	})
@@ -379,9 +377,9 @@ func TestSignupFlowService_Update(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		svc := NewSignupFlowService(db, &mockSignupFlowRepo{
-			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64, _ ...string) (*model.SignupFlow, error) { return sf, nil },
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64, _ ...string) (*SignupFlow, error) { return sf, nil },
 		}, &mockSignupFlowRoleRepo{}, &mockRoleRepo{}, defaultCR())
-		_, err := svc.Update(context.Background(), sf.SignupFlowUUID, 1, sf.Name, "desc", map[string]any{"bad": math.Inf(1)}, model.StatusActive)
+		_, err := svc.Update(context.Background(), sf.SignupFlowUUID, 1, sf.Name, "desc", map[string]any{"bad": math.Inf(1)}, StatusActive)
 		require.Error(t, err)
 	})
 
@@ -390,12 +388,12 @@ func TestSignupFlowService_Update(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		svc := NewSignupFlowService(db, &mockSignupFlowRepo{
-			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64, _ ...string) (*model.SignupFlow, error) { return sf, nil },
-			createOrUpdateFn: func(_ *model.SignupFlow) (*model.SignupFlow, error) {
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64, _ ...string) (*SignupFlow, error) { return sf, nil },
+			createOrUpdateFn: func(_ *SignupFlow) (*SignupFlow, error) {
 				return nil, errors.New("update err")
 			},
 		}, &mockSignupFlowRoleRepo{}, &mockRoleRepo{}, defaultCR())
-		_, err := svc.Update(context.Background(), sf.SignupFlowUUID, 1, sf.Name, "desc", nil, model.StatusActive)
+		_, err := svc.Update(context.Background(), sf.SignupFlowUUID, 1, sf.Name, "desc", nil, StatusActive)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "update err")
 	})
@@ -405,9 +403,9 @@ func TestSignupFlowService_Update(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectCommit()
 		svc := NewSignupFlowService(db, &mockSignupFlowRepo{
-			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64, _ ...string) (*model.SignupFlow, error) { return sf, nil },
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64, _ ...string) (*SignupFlow, error) { return sf, nil },
 		}, &mockSignupFlowRoleRepo{}, &mockRoleRepo{}, defaultCR())
-		res, err := svc.Update(context.Background(), sf.SignupFlowUUID, 1, sf.Name, "desc", map[string]any{"k": "v"}, model.StatusActive)
+		res, err := svc.Update(context.Background(), sf.SignupFlowUUID, 1, sf.Name, "desc", map[string]any{"k": "v"}, StatusActive)
 		require.NoError(t, err)
 		assert.NotNil(t, res)
 	})
@@ -425,9 +423,9 @@ func TestSignupFlowService_UpdateStatus(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		svc := NewSignupFlowService(db, &mockSignupFlowRepo{
-			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64, _ ...string) (*model.SignupFlow, error) { return nil, nil },
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64, _ ...string) (*SignupFlow, error) { return nil, nil },
 		}, &mockSignupFlowRoleRepo{}, &mockRoleRepo{}, defaultCR())
-		_, err := svc.UpdateStatus(context.Background(), sf.SignupFlowUUID, 1, model.StatusInactive)
+		_, err := svc.UpdateStatus(context.Background(), sf.SignupFlowUUID, 1, StatusInactive)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "signup flow not found")
 	})
@@ -437,12 +435,12 @@ func TestSignupFlowService_UpdateStatus(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		svc := NewSignupFlowService(db, &mockSignupFlowRepo{
-			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64, _ ...string) (*model.SignupFlow, error) { return sf, nil },
-			createOrUpdateFn: func(_ *model.SignupFlow) (*model.SignupFlow, error) {
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64, _ ...string) (*SignupFlow, error) { return sf, nil },
+			createOrUpdateFn: func(_ *SignupFlow) (*SignupFlow, error) {
 				return nil, errors.New("save err")
 			},
 		}, &mockSignupFlowRoleRepo{}, &mockRoleRepo{}, defaultCR())
-		_, err := svc.UpdateStatus(context.Background(), sf.SignupFlowUUID, 1, model.StatusInactive)
+		_, err := svc.UpdateStatus(context.Background(), sf.SignupFlowUUID, 1, StatusInactive)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "save err")
 	})
@@ -452,9 +450,9 @@ func TestSignupFlowService_UpdateStatus(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectCommit()
 		svc := NewSignupFlowService(db, &mockSignupFlowRepo{
-			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64, _ ...string) (*model.SignupFlow, error) { return sf, nil },
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64, _ ...string) (*SignupFlow, error) { return sf, nil },
 		}, &mockSignupFlowRoleRepo{}, &mockRoleRepo{}, defaultCR())
-		res, err := svc.UpdateStatus(context.Background(), sf.SignupFlowUUID, 1, model.StatusInactive)
+		res, err := svc.UpdateStatus(context.Background(), sf.SignupFlowUUID, 1, StatusInactive)
 		require.NoError(t, err)
 		assert.NotNil(t, res)
 	})
@@ -470,7 +468,7 @@ func TestSignupFlowService_Delete(t *testing.T) {
 	t.Run("not found", func(t *testing.T) {
 		db, _ := newMockGormDB(t)
 		svc := NewSignupFlowService(db, &mockSignupFlowRepo{
-			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64, _ ...string) (*model.SignupFlow, error) { return nil, nil },
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64, _ ...string) (*SignupFlow, error) { return nil, nil },
 		}, &mockSignupFlowRoleRepo{}, &mockRoleRepo{}, defaultCR())
 		_, err := svc.Delete(context.Background(), sf.SignupFlowUUID, 1)
 		require.Error(t, err)
@@ -480,7 +478,7 @@ func TestSignupFlowService_Delete(t *testing.T) {
 	t.Run("DeleteByUUID error", func(t *testing.T) {
 		db, _ := newMockGormDB(t)
 		svc := NewSignupFlowService(db, &mockSignupFlowRepo{
-			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64, _ ...string) (*model.SignupFlow, error) { return sf, nil },
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64, _ ...string) (*SignupFlow, error) { return sf, nil },
 			deleteByUUIDFn:          func(_ any) error { return errors.New("delete err") },
 		}, &mockSignupFlowRoleRepo{}, &mockRoleRepo{}, defaultCR())
 		_, err := svc.Delete(context.Background(), sf.SignupFlowUUID, 1)
@@ -491,7 +489,7 @@ func TestSignupFlowService_Delete(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		db, _ := newMockGormDB(t)
 		svc := NewSignupFlowService(db, &mockSignupFlowRepo{
-			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64, _ ...string) (*model.SignupFlow, error) { return sf, nil },
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64, _ ...string) (*SignupFlow, error) { return sf, nil },
 		}, &mockSignupFlowRoleRepo{}, &mockRoleRepo{}, defaultCR())
 		res, err := svc.Delete(context.Background(), sf.SignupFlowUUID, 1)
 		require.NoError(t, err)
@@ -509,7 +507,7 @@ func TestToSignupFlowServiceDataResult(t *testing.T) {
 	})
 
 	t.Run("invalid config JSON", func(t *testing.T) {
-		sf := &model.SignupFlow{
+		sf := &SignupFlow{
 			SignupFlowUUID: uuid.New(),
 			Name:           "bad-config",
 			Config:         []byte("not-json"),
@@ -520,7 +518,7 @@ func TestToSignupFlowServiceDataResult(t *testing.T) {
 	})
 
 	t.Run("valid config JSON", func(t *testing.T) {
-		sf := &model.SignupFlow{
+		sf := &SignupFlow{
 			SignupFlowUUID: uuid.New(),
 			Name:           "good-config",
 			Config:         []byte(`{"key":"val"}`),
@@ -531,7 +529,7 @@ func TestToSignupFlowServiceDataResult(t *testing.T) {
 	})
 
 	t.Run("empty config", func(t *testing.T) {
-		sf := &model.SignupFlow{
+		sf := &SignupFlow{
 			SignupFlowUUID: uuid.New(),
 			Name:           "empty-config",
 			Config:         []byte{},
@@ -543,9 +541,9 @@ func TestToSignupFlowServiceDataResult(t *testing.T) {
 
 	t.Run("with client", func(t *testing.T) {
 		cUUID := uuid.New()
-		sf := &model.SignupFlow{
+		sf := &SignupFlow{
 			SignupFlowUUID: uuid.New(),
-			Client:         &model.Client{ClientUUID: cUUID},
+			Client:         &Client{ClientUUID: cUUID},
 			Config:         []byte(`{}`),
 		}
 		res := toSignupFlowServiceDataResult(sf)
@@ -553,7 +551,7 @@ func TestToSignupFlowServiceDataResult(t *testing.T) {
 	})
 
 	t.Run("without client", func(t *testing.T) {
-		sf := &model.SignupFlow{
+		sf := &SignupFlow{
 			SignupFlowUUID: uuid.New(),
 			Client:         nil,
 			Config:         []byte(`{}`),
@@ -569,14 +567,14 @@ func TestToSignupFlowServiceDataResult(t *testing.T) {
 
 func TestSignupFlowService_AssignRoles(t *testing.T) {
 	sf := buildSignupFlow()
-	role := &model.Role{RoleID: 10, RoleUUID: uuid.New(), Name: "editor", Status: model.StatusActive}
+	role := &Role{RoleID: 10, RoleUUID: uuid.New(), Name: "editor", Status: StatusActive}
 
 	t.Run("flow not found", func(t *testing.T) {
 		db, mock := newMockGormDB(t)
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		svc := NewSignupFlowService(db, &mockSignupFlowRepo{
-			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64, _ ...string) (*model.SignupFlow, error) { return nil, nil },
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64, _ ...string) (*SignupFlow, error) { return nil, nil },
 		}, &mockSignupFlowRoleRepo{}, &mockRoleRepo{}, defaultCR())
 		_, err := svc.AssignRoles(context.Background(), sf.SignupFlowUUID, 1, []uuid.UUID{role.RoleUUID})
 		require.Error(t, err)
@@ -588,9 +586,9 @@ func TestSignupFlowService_AssignRoles(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		svc := NewSignupFlowService(db, &mockSignupFlowRepo{
-			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64, _ ...string) (*model.SignupFlow, error) { return sf, nil },
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64, _ ...string) (*SignupFlow, error) { return sf, nil },
 		}, &mockSignupFlowRoleRepo{}, &mockRoleRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.Role, error) { return nil, nil },
+			findByUUIDFn: func(_ any, _ ...string) (*Role, error) { return nil, nil },
 		}, defaultCR())
 		_, err := svc.AssignRoles(context.Background(), sf.SignupFlowUUID, 1, []uuid.UUID{role.RoleUUID})
 		require.Error(t, err)
@@ -602,13 +600,13 @@ func TestSignupFlowService_AssignRoles(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		svc := NewSignupFlowService(db, &mockSignupFlowRepo{
-			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64, _ ...string) (*model.SignupFlow, error) { return sf, nil },
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64, _ ...string) (*SignupFlow, error) { return sf, nil },
 		}, &mockSignupFlowRoleRepo{
-			findBySignupFlowIDAndRoleIDFn: func(_, _ int64) (*model.SignupFlowRole, error) {
+			findBySignupFlowIDAndRoleIDFn: func(_, _ int64) (*SignupFlowRole, error) {
 				return nil, errors.New("lookup err")
 			},
 		}, &mockRoleRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.Role, error) { return role, nil },
+			findByUUIDFn: func(_ any, _ ...string) (*Role, error) { return role, nil },
 		}, defaultCR())
 		_, err := svc.AssignRoles(context.Background(), sf.SignupFlowUUID, 1, []uuid.UUID{role.RoleUUID})
 		require.Error(t, err)
@@ -620,13 +618,13 @@ func TestSignupFlowService_AssignRoles(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectCommit()
 		svc := NewSignupFlowService(db, &mockSignupFlowRepo{
-			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64, _ ...string) (*model.SignupFlow, error) { return sf, nil },
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64, _ ...string) (*SignupFlow, error) { return sf, nil },
 		}, &mockSignupFlowRoleRepo{
-			findBySignupFlowIDAndRoleIDFn: func(_, _ int64) (*model.SignupFlowRole, error) {
-				return &model.SignupFlowRole{SignupFlowRoleID: 99}, nil // already exists
+			findBySignupFlowIDAndRoleIDFn: func(_, _ int64) (*SignupFlowRole, error) {
+				return &SignupFlowRole{SignupFlowRoleID: 99}, nil // already exists
 			},
 		}, &mockRoleRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.Role, error) { return role, nil },
+			findByUUIDFn: func(_ any, _ ...string) (*Role, error) { return role, nil },
 		}, defaultCR())
 		res, err := svc.AssignRoles(context.Background(), sf.SignupFlowUUID, 1, []uuid.UUID{role.RoleUUID})
 		require.NoError(t, err)
@@ -638,13 +636,13 @@ func TestSignupFlowService_AssignRoles(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		svc := NewSignupFlowService(db, &mockSignupFlowRepo{
-			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64, _ ...string) (*model.SignupFlow, error) { return sf, nil },
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64, _ ...string) (*SignupFlow, error) { return sf, nil },
 		}, &mockSignupFlowRoleRepo{
-			createFn: func(_ *model.SignupFlowRole) (*model.SignupFlowRole, error) {
+			createFn: func(_ *SignupFlowRole) (*SignupFlowRole, error) {
 				return nil, errors.New("create sfr err")
 			},
 		}, &mockRoleRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.Role, error) { return role, nil },
+			findByUUIDFn: func(_ any, _ ...string) (*Role, error) { return role, nil },
 		}, defaultCR())
 		_, err := svc.AssignRoles(context.Background(), sf.SignupFlowUUID, 1, []uuid.UUID{role.RoleUUID})
 		require.Error(t, err)
@@ -656,9 +654,9 @@ func TestSignupFlowService_AssignRoles(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectCommit()
 		svc := NewSignupFlowService(db, &mockSignupFlowRepo{
-			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64, _ ...string) (*model.SignupFlow, error) { return sf, nil },
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64, _ ...string) (*SignupFlow, error) { return sf, nil },
 		}, &mockSignupFlowRoleRepo{}, &mockRoleRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.Role, error) { return role, nil },
+			findByUUIDFn: func(_ any, _ ...string) (*Role, error) { return role, nil },
 		}, defaultCR())
 		res, err := svc.AssignRoles(context.Background(), sf.SignupFlowUUID, 1, []uuid.UUID{role.RoleUUID})
 		require.NoError(t, err)
@@ -677,7 +675,7 @@ func TestSignupFlowService_GetRoles(t *testing.T) {
 	t.Run("flow not found", func(t *testing.T) {
 		db, _ := newMockGormDB(t)
 		svc := NewSignupFlowService(db, &mockSignupFlowRepo{
-			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64, _ ...string) (*model.SignupFlow, error) { return nil, nil },
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64, _ ...string) (*SignupFlow, error) { return nil, nil },
 		}, &mockSignupFlowRoleRepo{}, &mockRoleRepo{}, defaultCR())
 		_, err := svc.GetRoles(context.Background(), sf.SignupFlowUUID, 1, 1, 10)
 		require.Error(t, err)
@@ -687,9 +685,9 @@ func TestSignupFlowService_GetRoles(t *testing.T) {
 	t.Run("FindBySignupFlowIDPaginated error", func(t *testing.T) {
 		db, _ := newMockGormDB(t)
 		svc := NewSignupFlowService(db, &mockSignupFlowRepo{
-			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64, _ ...string) (*model.SignupFlow, error) { return sf, nil },
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64, _ ...string) (*SignupFlow, error) { return sf, nil },
 		}, &mockSignupFlowRoleRepo{
-			findBySignupFlowIDPaginatedFn: func(_ int64, _, _ int) ([]model.SignupFlowRole, int64, error) {
+			findBySignupFlowIDPaginatedFn: func(_ int64, _, _ int) ([]SignupFlowRole, int64, error) {
 				return nil, 0, errors.New("paginate err")
 			},
 		}, &mockRoleRepo{}, defaultCR())
@@ -701,10 +699,10 @@ func TestSignupFlowService_GetRoles(t *testing.T) {
 	t.Run("success with nil Role in result", func(t *testing.T) {
 		db, _ := newMockGormDB(t)
 		svc := NewSignupFlowService(db, &mockSignupFlowRepo{
-			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64, _ ...string) (*model.SignupFlow, error) { return sf, nil },
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64, _ ...string) (*SignupFlow, error) { return sf, nil },
 		}, &mockSignupFlowRoleRepo{
-			findBySignupFlowIDPaginatedFn: func(_ int64, _, _ int) ([]model.SignupFlowRole, int64, error) {
-				return []model.SignupFlowRole{{SignupFlowRoleUUID: uuid.New(), Role: nil}}, 1, nil
+			findBySignupFlowIDPaginatedFn: func(_ int64, _, _ int) ([]SignupFlowRole, int64, error) {
+				return []SignupFlowRole{{SignupFlowRoleUUID: uuid.New(), Role: nil}}, 1, nil
 			},
 		}, &mockRoleRepo{}, defaultCR())
 		res, err := svc.GetRoles(context.Background(), sf.SignupFlowUUID, 1, 1, 10)
@@ -719,12 +717,12 @@ func TestSignupFlowService_GetRoles(t *testing.T) {
 		db, _ := newMockGormDB(t)
 		roleUUID := uuid.New()
 		svc := NewSignupFlowService(db, &mockSignupFlowRepo{
-			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64, _ ...string) (*model.SignupFlow, error) { return sf, nil },
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64, _ ...string) (*SignupFlow, error) { return sf, nil },
 		}, &mockSignupFlowRoleRepo{
-			findBySignupFlowIDPaginatedFn: func(_ int64, _, _ int) ([]model.SignupFlowRole, int64, error) {
-				return []model.SignupFlowRole{{
+			findBySignupFlowIDPaginatedFn: func(_ int64, _, _ int) ([]SignupFlowRole, int64, error) {
+				return []SignupFlowRole{{
 					SignupFlowRoleUUID: uuid.New(),
-					Role:               &model.Role{RoleUUID: roleUUID, Name: "viewer"},
+					Role:               &Role{RoleUUID: roleUUID, Name: "viewer"},
 				}}, 1, nil
 			},
 		}, &mockRoleRepo{}, defaultCR())
@@ -737,9 +735,9 @@ func TestSignupFlowService_GetRoles(t *testing.T) {
 	t.Run("totalPages rounds up", func(t *testing.T) {
 		db, _ := newMockGormDB(t)
 		svc := NewSignupFlowService(db, &mockSignupFlowRepo{
-			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64, _ ...string) (*model.SignupFlow, error) { return sf, nil },
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64, _ ...string) (*SignupFlow, error) { return sf, nil },
 		}, &mockSignupFlowRoleRepo{
-			findBySignupFlowIDPaginatedFn: func(_ int64, _, _ int) ([]model.SignupFlowRole, int64, error) {
+			findBySignupFlowIDPaginatedFn: func(_ int64, _, _ int) ([]SignupFlowRole, int64, error) {
 				return nil, 11, nil // 11 items / 10 per page = 2 pages
 			},
 		}, &mockRoleRepo{}, defaultCR())
@@ -751,9 +749,9 @@ func TestSignupFlowService_GetRoles(t *testing.T) {
 	t.Run("exact page boundary", func(t *testing.T) {
 		db, _ := newMockGormDB(t)
 		svc := NewSignupFlowService(db, &mockSignupFlowRepo{
-			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64, _ ...string) (*model.SignupFlow, error) { return sf, nil },
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64, _ ...string) (*SignupFlow, error) { return sf, nil },
 		}, &mockSignupFlowRoleRepo{
-			findBySignupFlowIDPaginatedFn: func(_ int64, _, _ int) ([]model.SignupFlowRole, int64, error) {
+			findBySignupFlowIDPaginatedFn: func(_ int64, _, _ int) ([]SignupFlowRole, int64, error) {
 				return nil, 10, nil // 10 items / 10 per page = 1 page (no rounding)
 			},
 		}, &mockRoleRepo{}, defaultCR())
@@ -776,7 +774,7 @@ func TestSignupFlowService_RemoveRole(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		svc := NewSignupFlowService(db, &mockSignupFlowRepo{
-			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64, _ ...string) (*model.SignupFlow, error) { return nil, nil },
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64, _ ...string) (*SignupFlow, error) { return nil, nil },
 		}, &mockSignupFlowRoleRepo{}, &mockRoleRepo{}, defaultCR())
 		err := svc.RemoveRole(context.Background(), sf.SignupFlowUUID, 1, roleUUID)
 		require.Error(t, err)
@@ -788,9 +786,9 @@ func TestSignupFlowService_RemoveRole(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		svc := NewSignupFlowService(db, &mockSignupFlowRepo{
-			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64, _ ...string) (*model.SignupFlow, error) { return sf, nil },
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64, _ ...string) (*SignupFlow, error) { return sf, nil },
 		}, &mockSignupFlowRoleRepo{}, &mockRoleRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.Role, error) { return nil, nil },
+			findByUUIDFn: func(_ any, _ ...string) (*Role, error) { return nil, nil },
 		}, defaultCR())
 		err := svc.RemoveRole(context.Background(), sf.SignupFlowUUID, 1, roleUUID)
 		require.Error(t, err)
@@ -802,12 +800,12 @@ func TestSignupFlowService_RemoveRole(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		svc := NewSignupFlowService(db, &mockSignupFlowRepo{
-			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64, _ ...string) (*model.SignupFlow, error) { return sf, nil },
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64, _ ...string) (*SignupFlow, error) { return sf, nil },
 		}, &mockSignupFlowRoleRepo{
 			deleteBySignupFlowIDAndRoleIDFn: func(_, _ int64) error { return errors.New("del err") },
 		}, &mockRoleRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.Role, error) {
-				return &model.Role{RoleID: 10, RoleUUID: roleUUID}, nil
+			findByUUIDFn: func(_ any, _ ...string) (*Role, error) {
+				return &Role{RoleID: 10, RoleUUID: roleUUID}, nil
 			},
 		}, defaultCR())
 		err := svc.RemoveRole(context.Background(), sf.SignupFlowUUID, 1, roleUUID)
@@ -820,10 +818,10 @@ func TestSignupFlowService_RemoveRole(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectCommit()
 		svc := NewSignupFlowService(db, &mockSignupFlowRepo{
-			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64, _ ...string) (*model.SignupFlow, error) { return sf, nil },
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64, _ ...string) (*SignupFlow, error) { return sf, nil },
 		}, &mockSignupFlowRoleRepo{}, &mockRoleRepo{
-			findByUUIDFn: func(_ any, _ ...string) (*model.Role, error) {
-				return &model.Role{RoleID: 10, RoleUUID: roleUUID}, nil
+			findByUUIDFn: func(_ any, _ ...string) (*Role, error) {
+				return &Role{RoleID: 10, RoleUUID: roleUUID}, nil
 			},
 		}, defaultCR())
 		err := svc.RemoveRole(context.Background(), sf.SignupFlowUUID, 1, roleUUID)

@@ -5,14 +5,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/maintainerd/auth/internal/dto"
-	"github.com/maintainerd/auth/internal/model"
 	"github.com/maintainerd/auth/internal/platform/apperror"
 	"github.com/maintainerd/auth/internal/platform/crypto"
 	"github.com/maintainerd/auth/internal/platform/middleware"
 	"github.com/maintainerd/auth/internal/platform/ptr"
 	"github.com/maintainerd/auth/internal/platform/security"
-	"github.com/maintainerd/auth/internal/repository"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -30,27 +27,27 @@ const (
 type OAuthPARService interface {
 	// Push validates the client and stores the authorization request parameters.
 	// Returns a request_uri and its TTL in seconds.
-	Push(ctx context.Context, req dto.OAuthPARRequestDTO, creds dto.OAuthClientCredentials) (*dto.OAuthPARResponseDTO, *apperror.OAuthError)
+	Push(ctx context.Context, req OAuthPARRequestDTO, creds OAuthClientCredentials) (*OAuthPARResponseDTO, *apperror.OAuthError)
 
 	// ConsumeRequestURI looks up and marks-as-used a PAR request_uri. Returns
 	// the stored authorization parameters so the authorize endpoint can proceed.
-	ConsumeRequestURI(ctx context.Context, requestURI string) (*dto.OAuthAuthorizeRequestDTO, *apperror.OAuthError)
+	ConsumeRequestURI(ctx context.Context, requestURI string) (*OAuthAuthorizeRequestDTO, *apperror.OAuthError)
 }
 
 type oauthPARService struct {
 	db               *gorm.DB
-	clientRepo       repository.ClientRepository
-	clientURIRepo    repository.ClientURIRepository
-	parRepo          repository.OAuthPARRequestRepository
+	clientRepo       ClientRepository
+	clientURIRepo    ClientURIRepository
+	parRepo          OAuthPARRequestRepository
 	authEventService AuthEventService
 }
 
 // NewOAuthPARService creates a new OAuthPARService.
 func NewOAuthPARService(
 	db *gorm.DB,
-	clientRepo repository.ClientRepository,
-	clientURIRepo repository.ClientURIRepository,
-	parRepo repository.OAuthPARRequestRepository,
+	clientRepo ClientRepository,
+	clientURIRepo ClientURIRepository,
+	parRepo OAuthPARRequestRepository,
 	authEventService AuthEventService,
 ) OAuthPARService {
 	return &oauthPARService{
@@ -63,7 +60,7 @@ func NewOAuthPARService(
 }
 
 // Push implements OAuthPARService.
-func (s *oauthPARService) Push(ctx context.Context, req dto.OAuthPARRequestDTO, creds dto.OAuthClientCredentials) (*dto.OAuthPARResponseDTO, *apperror.OAuthError) {
+func (s *oauthPARService) Push(ctx context.Context, req OAuthPARRequestDTO, creds OAuthClientCredentials) (*OAuthPARResponseDTO, *apperror.OAuthError) {
 	_, span := otel.Tracer("service").Start(ctx, "oauth_par.push")
 	defer span.End()
 	span.SetAttributes(
@@ -78,7 +75,7 @@ func (s *oauthPARService) Push(ctx context.Context, req dto.OAuthPARRequestDTO, 
 	}
 
 	// Validate that the client supports authorization_code.
-	if !clientHasGrant(client, model.GrantTypeAuthorizationCode) {
+	if !clientHasGrant(client, GrantTypeAuthorizationCode) {
 		span.SetStatus(codes.Error, "grant not allowed")
 		return nil, apperror.NewOAuthUnauthorizedClient("client is not authorized for authorization_code grant")
 	}
@@ -98,7 +95,7 @@ func (s *oauthPARService) Push(ctx context.Context, req dto.OAuthPARRequestDTO, 
 	}
 	tokenHash := crypto.HashAuthorizationCode(rawToken)
 
-	parReq := &model.OAuthPARRequest{
+	parReq := &OAuthPARRequest{
 		RequestURIHash:      tokenHash,
 		ClientID:            client.ClientID,
 		TenantID:            client.TenantID,
@@ -126,22 +123,22 @@ func (s *oauthPARService) Push(ctx context.Context, req dto.OAuthPARRequestDTO, 
 		TenantID:    client.TenantID,
 		IPAddress:   middleware.ClientIPFromContext(ctx),
 		UserAgent:   ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),
-		Category:    model.AuthEventCategoryAuthn,
-		EventType:   model.AuthEventTypeOAuthAuthorize,
-		Severity:    model.AuthEventSeverityInfo,
-		Result:      model.AuthEventResultSuccess,
+		Category:    AuthEventCategoryAuthn,
+		EventType:   AuthEventTypeOAuthAuthorize,
+		Severity:    AuthEventSeverityInfo,
+		Result:      AuthEventResultSuccess,
 		Description: ptr.Ptr("PAR request pushed"),
 	})
 
 	span.SetStatus(codes.Ok, "")
-	return &dto.OAuthPARResponseDTO{
+	return &OAuthPARResponseDTO{
 		RequestURI: parURIPrefix + rawToken,
 		ExpiresIn:  int(parRequestTTL.Seconds()),
 	}, nil
 }
 
 // ConsumeRequestURI implements OAuthPARService.
-func (s *oauthPARService) ConsumeRequestURI(ctx context.Context, requestURI string) (*dto.OAuthAuthorizeRequestDTO, *apperror.OAuthError) {
+func (s *oauthPARService) ConsumeRequestURI(ctx context.Context, requestURI string) (*OAuthAuthorizeRequestDTO, *apperror.OAuthError) {
 	_, span := otel.Tracer("service").Start(ctx, "oauth_par.consume_request_uri")
 	defer span.End()
 
@@ -187,7 +184,7 @@ func (s *oauthPARService) ConsumeRequestURI(ctx context.Context, requestURI stri
 	}
 
 	span.SetStatus(codes.Ok, "")
-	return &dto.OAuthAuthorizeRequestDTO{
+	return &OAuthAuthorizeRequestDTO{
 		ResponseType:        parReq.ResponseType,
 		ClientID:            resolveClientIdentifier(parReq.Client),
 		RedirectURI:         parReq.RedirectURI,
@@ -203,12 +200,12 @@ func (s *oauthPARService) ConsumeRequestURI(ctx context.Context, requestURI stri
 // Helpers shared across PAR and other OAuth services
 // ──────────────────────────────────────────────────────────────────────────────
 
-func (s *oauthPARService) resolveAndAuthenticateClient(creds dto.OAuthClientCredentials) (*model.Client, *apperror.OAuthError) {
-	var client model.Client
+func (s *oauthPARService) resolveAndAuthenticateClient(creds OAuthClientCredentials) (*Client, *apperror.OAuthError) {
+	var client Client
 	err := s.db.
 		Preload("IdentityProvider").
 		Preload("ClientURIs").
-		Where("identifier = ? AND status = ?", creds.ClientID, model.StatusActive).
+		Where("identifier = ? AND status = ?", creds.ClientID, StatusActive).
 		First(&client).Error
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
@@ -227,7 +224,7 @@ func (s *oauthPARService) resolveAndAuthenticateClient(creds dto.OAuthClientCred
 	return &client, nil
 }
 
-func clientHasGrant(client *model.Client, grantType string) bool {
+func clientHasGrant(client *Client, grantType string) bool {
 	for _, g := range client.GrantTypes {
 		if g == grantType {
 			return true
@@ -236,19 +233,19 @@ func clientHasGrant(client *model.Client, grantType string) bool {
 	return false
 }
 
-func validateClientRedirectURI(client *model.Client, redirectURI string) *apperror.OAuthError {
+func validateClientRedirectURI(client *Client, redirectURI string) *apperror.OAuthError {
 	if client.ClientURIs == nil {
 		return apperror.NewOAuthInvalidRequest("no redirect URIs registered for this client")
 	}
 	for _, uri := range *client.ClientURIs {
-		if uri.Type == model.ClientURITypeRedirect && uri.URI == redirectURI {
+		if uri.Type == ClientURITypeRedirect && uri.URI == redirectURI {
 			return nil
 		}
 	}
 	return apperror.NewOAuthInvalidRequest("redirect_uri does not match any registered redirect URIs")
 }
 
-func resolveClientIdentifier(client *model.Client) string {
+func resolveClientIdentifier(client *Client) string {
 	if client == nil {
 		return ""
 	}

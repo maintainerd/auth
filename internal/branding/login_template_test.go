@@ -6,8 +6,6 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
-	"github.com/maintainerd/auth/internal/model"
-	"github.com/maintainerd/auth/internal/repository"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gorm.io/datatypes"
@@ -23,23 +21,23 @@ func TestLoginTemplateService_GetByUUID(t *testing.T) {
 
 	cases := []struct {
 		name    string
-		repoFn  func(uuid.UUID, int64, ...string) (*model.LoginTemplate, error)
+		repoFn  func(uuid.UUID, int64, ...string) (*LoginTemplate, error)
 		wantErr string
 	}{
 		{
 			name:    "not found",
-			repoFn:  func(_ uuid.UUID, _ int64, _ ...string) (*model.LoginTemplate, error) { return nil, nil },
+			repoFn:  func(_ uuid.UUID, _ int64, _ ...string) (*LoginTemplate, error) { return nil, nil },
 			wantErr: "not found",
 		},
 		{
 			name:    "repo error",
-			repoFn:  func(_ uuid.UUID, _ int64, _ ...string) (*model.LoginTemplate, error) { return nil, errors.New("db") },
+			repoFn:  func(_ uuid.UUID, _ int64, _ ...string) (*LoginTemplate, error) { return nil, errors.New("db") },
 			wantErr: "db",
 		},
 		{
 			name: "success",
-			repoFn: func(i uuid.UUID, _ int64, _ ...string) (*model.LoginTemplate, error) {
-				return &model.LoginTemplate{LoginTemplateUUID: i, Name: "Default"}, nil
+			repoFn: func(i uuid.UUID, _ int64, _ ...string) (*LoginTemplate, error) {
+				return &LoginTemplate{LoginTemplateUUID: i, Name: "Default"}, nil
 			},
 		},
 	}
@@ -62,9 +60,9 @@ func TestLoginTemplateService_GetByUUID(t *testing.T) {
 func TestLoginTemplateService_GetAll(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		svc := newLoginTemplateSvc(&mockLoginTemplateRepo{
-			findPaginatedFn: func(_ repository.LoginTemplateRepositoryGetFilter) (*repository.PaginationResult[model.LoginTemplate], error) {
-				return &repository.PaginationResult[model.LoginTemplate]{
-					Data:  []model.LoginTemplate{{Name: "T1"}},
+			findPaginatedFn: func(_ LoginTemplateRepositoryGetFilter) (*PaginationResult[LoginTemplate], error) {
+				return &PaginationResult[LoginTemplate]{
+					Data:  []LoginTemplate{{Name: "T1"}},
 					Total: 1, Page: 1, Limit: 10, TotalPages: 1,
 				}, nil
 			},
@@ -77,7 +75,7 @@ func TestLoginTemplateService_GetAll(t *testing.T) {
 
 	t.Run("repo error", func(t *testing.T) {
 		svc := newLoginTemplateSvc(&mockLoginTemplateRepo{
-			findPaginatedFn: func(_ repository.LoginTemplateRepositoryGetFilter) (*repository.PaginationResult[model.LoginTemplate], error) {
+			findPaginatedFn: func(_ LoginTemplateRepositoryGetFilter) (*PaginationResult[LoginTemplate], error) {
 				return nil, errors.New("db error")
 			},
 		})
@@ -91,7 +89,7 @@ func TestLoginTemplateService_GetAll(t *testing.T) {
 func TestLoginTemplateService_Create(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		svc := newLoginTemplateSvc(&mockLoginTemplateRepo{
-			createFn: func(e *model.LoginTemplate) (*model.LoginTemplate, error) { return e, nil },
+			createFn: func(e *LoginTemplate) (*LoginTemplate, error) { return e, nil },
 		})
 		res, err := svc.Create(context.Background(), 1, "Login", nil, "<html></html>", nil, "active")
 		require.NoError(t, err)
@@ -100,7 +98,7 @@ func TestLoginTemplateService_Create(t *testing.T) {
 
 	t.Run("success with metadata", func(t *testing.T) {
 		svc := newLoginTemplateSvc(&mockLoginTemplateRepo{
-			createFn: func(e *model.LoginTemplate) (*model.LoginTemplate, error) { return e, nil },
+			createFn: func(e *LoginTemplate) (*LoginTemplate, error) { return e, nil },
 		})
 		meta := map[string]any{"theme": "dark"}
 		res, err := svc.Create(context.Background(), 1, "Login", nil, "<html></html>", meta, "active")
@@ -117,7 +115,7 @@ func TestLoginTemplateService_Create(t *testing.T) {
 
 	t.Run("repo error", func(t *testing.T) {
 		svc := newLoginTemplateSvc(&mockLoginTemplateRepo{
-			createFn: func(_ *model.LoginTemplate) (*model.LoginTemplate, error) { return nil, errors.New("db fail") },
+			createFn: func(_ *LoginTemplate) (*LoginTemplate, error) { return nil, errors.New("db fail") },
 		})
 		_, err := svc.Create(context.Background(), 1, "Login", nil, "<html></html>", nil, "active")
 		require.Error(t, err)
@@ -129,7 +127,7 @@ func TestLoginTemplateService_Update(t *testing.T) {
 
 	t.Run("find error", func(t *testing.T) {
 		svc := newLoginTemplateSvc(&mockLoginTemplateRepo{
-			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64, _ ...string) (*model.LoginTemplate, error) {
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64, _ ...string) (*LoginTemplate, error) {
 				return nil, errors.New("db err")
 			},
 		})
@@ -140,7 +138,7 @@ func TestLoginTemplateService_Update(t *testing.T) {
 
 	t.Run("not found", func(t *testing.T) {
 		svc := newLoginTemplateSvc(&mockLoginTemplateRepo{
-			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64, _ ...string) (*model.LoginTemplate, error) { return nil, nil },
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64, _ ...string) (*LoginTemplate, error) { return nil, nil },
 		})
 		_, err := svc.Update(context.Background(), id, 1, "N", nil, "<html></html>", nil, "active")
 		require.Error(t, err)
@@ -149,8 +147,8 @@ func TestLoginTemplateService_Update(t *testing.T) {
 
 	t.Run("system template blocked", func(t *testing.T) {
 		svc := newLoginTemplateSvc(&mockLoginTemplateRepo{
-			findByUUIDAndTenantIDFn: func(i uuid.UUID, _ int64, _ ...string) (*model.LoginTemplate, error) {
-				return &model.LoginTemplate{LoginTemplateUUID: i, IsSystem: true}, nil
+			findByUUIDAndTenantIDFn: func(i uuid.UUID, _ int64, _ ...string) (*LoginTemplate, error) {
+				return &LoginTemplate{LoginTemplateUUID: i, IsSystem: true}, nil
 			},
 		})
 		_, err := svc.Update(context.Background(), id, 1, "N", nil, "<html></html>", nil, "active")
@@ -160,8 +158,8 @@ func TestLoginTemplateService_Update(t *testing.T) {
 
 	t.Run("metadata marshal error", func(t *testing.T) {
 		svc := newLoginTemplateSvc(&mockLoginTemplateRepo{
-			findByUUIDAndTenantIDFn: func(i uuid.UUID, _ int64, _ ...string) (*model.LoginTemplate, error) {
-				return &model.LoginTemplate{LoginTemplateUUID: i}, nil
+			findByUUIDAndTenantIDFn: func(i uuid.UUID, _ int64, _ ...string) (*LoginTemplate, error) {
+				return &LoginTemplate{LoginTemplateUUID: i}, nil
 			},
 		})
 		badMeta := map[string]any{"bad": make(chan int)}
@@ -171,10 +169,10 @@ func TestLoginTemplateService_Update(t *testing.T) {
 
 	t.Run("update repo error", func(t *testing.T) {
 		svc := newLoginTemplateSvc(&mockLoginTemplateRepo{
-			findByUUIDAndTenantIDFn: func(i uuid.UUID, _ int64, _ ...string) (*model.LoginTemplate, error) {
-				return &model.LoginTemplate{LoginTemplateUUID: i}, nil
+			findByUUIDAndTenantIDFn: func(i uuid.UUID, _ int64, _ ...string) (*LoginTemplate, error) {
+				return &LoginTemplate{LoginTemplateUUID: i}, nil
 			},
-			updateByUUIDFn: func(_, _ any) (*model.LoginTemplate, error) {
+			updateByUUIDFn: func(_, _ any) (*LoginTemplate, error) {
 				return nil, errors.New("update fail")
 			},
 		})
@@ -185,11 +183,11 @@ func TestLoginTemplateService_Update(t *testing.T) {
 
 	t.Run("success with metadata", func(t *testing.T) {
 		svc := newLoginTemplateSvc(&mockLoginTemplateRepo{
-			findByUUIDAndTenantIDFn: func(i uuid.UUID, _ int64, _ ...string) (*model.LoginTemplate, error) {
-				return &model.LoginTemplate{LoginTemplateUUID: i}, nil
+			findByUUIDAndTenantIDFn: func(i uuid.UUID, _ int64, _ ...string) (*LoginTemplate, error) {
+				return &LoginTemplate{LoginTemplateUUID: i}, nil
 			},
-			updateByUUIDFn: func(_, _ any) (*model.LoginTemplate, error) {
-				return &model.LoginTemplate{Name: "Updated"}, nil
+			updateByUUIDFn: func(_, _ any) (*LoginTemplate, error) {
+				return &LoginTemplate{Name: "Updated"}, nil
 			},
 		})
 		meta := map[string]any{"theme": "dark"}
@@ -200,11 +198,11 @@ func TestLoginTemplateService_Update(t *testing.T) {
 
 	t.Run("success", func(t *testing.T) {
 		svc := newLoginTemplateSvc(&mockLoginTemplateRepo{
-			findByUUIDAndTenantIDFn: func(i uuid.UUID, _ int64, _ ...string) (*model.LoginTemplate, error) {
-				return &model.LoginTemplate{LoginTemplateUUID: i}, nil
+			findByUUIDAndTenantIDFn: func(i uuid.UUID, _ int64, _ ...string) (*LoginTemplate, error) {
+				return &LoginTemplate{LoginTemplateUUID: i}, nil
 			},
-			updateByUUIDFn: func(_, _ any) (*model.LoginTemplate, error) {
-				return &model.LoginTemplate{Name: "Updated"}, nil
+			updateByUUIDFn: func(_, _ any) (*LoginTemplate, error) {
+				return &LoginTemplate{Name: "Updated"}, nil
 			},
 		})
 		res, err := svc.Update(context.Background(), id, 1, "Updated", nil, "<html></html>", nil, "active")
@@ -218,7 +216,7 @@ func TestLoginTemplateService_Delete(t *testing.T) {
 
 	t.Run("find error", func(t *testing.T) {
 		svc := newLoginTemplateSvc(&mockLoginTemplateRepo{
-			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64, _ ...string) (*model.LoginTemplate, error) {
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64, _ ...string) (*LoginTemplate, error) {
 				return nil, errors.New("db err")
 			},
 		})
@@ -229,7 +227,7 @@ func TestLoginTemplateService_Delete(t *testing.T) {
 
 	t.Run("not found", func(t *testing.T) {
 		svc := newLoginTemplateSvc(&mockLoginTemplateRepo{
-			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64, _ ...string) (*model.LoginTemplate, error) { return nil, nil },
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64, _ ...string) (*LoginTemplate, error) { return nil, nil },
 		})
 		_, err := svc.Delete(context.Background(), id, 1)
 		require.Error(t, err)
@@ -238,8 +236,8 @@ func TestLoginTemplateService_Delete(t *testing.T) {
 
 	t.Run("system template blocked", func(t *testing.T) {
 		svc := newLoginTemplateSvc(&mockLoginTemplateRepo{
-			findByUUIDAndTenantIDFn: func(i uuid.UUID, _ int64, _ ...string) (*model.LoginTemplate, error) {
-				return &model.LoginTemplate{LoginTemplateUUID: i, IsSystem: true}, nil
+			findByUUIDAndTenantIDFn: func(i uuid.UUID, _ int64, _ ...string) (*LoginTemplate, error) {
+				return &LoginTemplate{LoginTemplateUUID: i, IsSystem: true}, nil
 			},
 		})
 		_, err := svc.Delete(context.Background(), id, 1)
@@ -249,8 +247,8 @@ func TestLoginTemplateService_Delete(t *testing.T) {
 
 	t.Run("delete repo error", func(t *testing.T) {
 		svc := newLoginTemplateSvc(&mockLoginTemplateRepo{
-			findByUUIDAndTenantIDFn: func(i uuid.UUID, _ int64, _ ...string) (*model.LoginTemplate, error) {
-				return &model.LoginTemplate{LoginTemplateUUID: i, Name: "L"}, nil
+			findByUUIDAndTenantIDFn: func(i uuid.UUID, _ int64, _ ...string) (*LoginTemplate, error) {
+				return &LoginTemplate{LoginTemplateUUID: i, Name: "L"}, nil
 			},
 			deleteByUUIDFn: func(_ any) error { return errors.New("delete fail") },
 		})
@@ -261,8 +259,8 @@ func TestLoginTemplateService_Delete(t *testing.T) {
 
 	t.Run("success", func(t *testing.T) {
 		svc := newLoginTemplateSvc(&mockLoginTemplateRepo{
-			findByUUIDAndTenantIDFn: func(i uuid.UUID, _ int64, _ ...string) (*model.LoginTemplate, error) {
-				return &model.LoginTemplate{LoginTemplateUUID: i, Name: "L"}, nil
+			findByUUIDAndTenantIDFn: func(i uuid.UUID, _ int64, _ ...string) (*LoginTemplate, error) {
+				return &LoginTemplate{LoginTemplateUUID: i, Name: "L"}, nil
 			},
 			deleteByUUIDFn: func(_ any) error { return nil },
 		})
@@ -277,7 +275,7 @@ func TestLoginTemplateService_UpdateStatus(t *testing.T) {
 
 	t.Run("find error", func(t *testing.T) {
 		svc := newLoginTemplateSvc(&mockLoginTemplateRepo{
-			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64, _ ...string) (*model.LoginTemplate, error) {
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64, _ ...string) (*LoginTemplate, error) {
 				return nil, errors.New("db err")
 			},
 		})
@@ -288,7 +286,7 @@ func TestLoginTemplateService_UpdateStatus(t *testing.T) {
 
 	t.Run("not found", func(t *testing.T) {
 		svc := newLoginTemplateSvc(&mockLoginTemplateRepo{
-			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64, _ ...string) (*model.LoginTemplate, error) { return nil, nil },
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64, _ ...string) (*LoginTemplate, error) { return nil, nil },
 		})
 		_, err := svc.UpdateStatus(context.Background(), id, 1, "inactive")
 		require.Error(t, err)
@@ -297,8 +295,8 @@ func TestLoginTemplateService_UpdateStatus(t *testing.T) {
 
 	t.Run("system template blocked", func(t *testing.T) {
 		svc := newLoginTemplateSvc(&mockLoginTemplateRepo{
-			findByUUIDAndTenantIDFn: func(i uuid.UUID, _ int64, _ ...string) (*model.LoginTemplate, error) {
-				return &model.LoginTemplate{LoginTemplateUUID: i, IsSystem: true}, nil
+			findByUUIDAndTenantIDFn: func(i uuid.UUID, _ int64, _ ...string) (*LoginTemplate, error) {
+				return &LoginTemplate{LoginTemplateUUID: i, IsSystem: true}, nil
 			},
 		})
 		_, err := svc.UpdateStatus(context.Background(), id, 1, "inactive")
@@ -308,10 +306,10 @@ func TestLoginTemplateService_UpdateStatus(t *testing.T) {
 
 	t.Run("update repo error", func(t *testing.T) {
 		svc := newLoginTemplateSvc(&mockLoginTemplateRepo{
-			findByUUIDAndTenantIDFn: func(i uuid.UUID, _ int64, _ ...string) (*model.LoginTemplate, error) {
-				return &model.LoginTemplate{LoginTemplateUUID: i}, nil
+			findByUUIDAndTenantIDFn: func(i uuid.UUID, _ int64, _ ...string) (*LoginTemplate, error) {
+				return &LoginTemplate{LoginTemplateUUID: i}, nil
 			},
-			updateByUUIDFn: func(_, _ any) (*model.LoginTemplate, error) {
+			updateByUUIDFn: func(_, _ any) (*LoginTemplate, error) {
 				return nil, errors.New("update fail")
 			},
 		})
@@ -322,11 +320,11 @@ func TestLoginTemplateService_UpdateStatus(t *testing.T) {
 
 	t.Run("success", func(t *testing.T) {
 		svc := newLoginTemplateSvc(&mockLoginTemplateRepo{
-			findByUUIDAndTenantIDFn: func(i uuid.UUID, _ int64, _ ...string) (*model.LoginTemplate, error) {
-				return &model.LoginTemplate{LoginTemplateUUID: i, Status: "active"}, nil
+			findByUUIDAndTenantIDFn: func(i uuid.UUID, _ int64, _ ...string) (*LoginTemplate, error) {
+				return &LoginTemplate{LoginTemplateUUID: i, Status: "active"}, nil
 			},
-			updateByUUIDFn: func(_, _ any) (*model.LoginTemplate, error) {
-				return &model.LoginTemplate{LoginTemplateUUID: id, Status: "inactive"}, nil
+			updateByUUIDFn: func(_, _ any) (*LoginTemplate, error) {
+				return &LoginTemplate{LoginTemplateUUID: id, Status: "inactive"}, nil
 			},
 		})
 		res, err := svc.UpdateStatus(context.Background(), id, 1, "inactive")
@@ -336,7 +334,7 @@ func TestLoginTemplateService_UpdateStatus(t *testing.T) {
 }
 
 func TestToLoginTemplateServiceDataResult_InvalidMetadata(t *testing.T) {
-	tmpl := &model.LoginTemplate{
+	tmpl := &LoginTemplate{
 		LoginTemplateUUID: uuid.New(),
 		Name:              "Test",
 		Metadata:          datatypes.JSON([]byte("not-json")),

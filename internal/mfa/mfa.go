@@ -6,15 +6,12 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/maintainerd/auth/internal/dto"
-	"github.com/maintainerd/auth/internal/model"
 	"github.com/maintainerd/auth/internal/platform/apperror"
 	"github.com/maintainerd/auth/internal/platform/config"
 	"github.com/maintainerd/auth/internal/platform/crypto"
 	"github.com/maintainerd/auth/internal/platform/jwt"
 	"github.com/maintainerd/auth/internal/platform/middleware"
 	"github.com/maintainerd/auth/internal/platform/ptr"
-	"github.com/maintainerd/auth/internal/repository"
 	"github.com/pquerna/otp"
 	"github.com/pquerna/otp/totp"
 	"go.opentelemetry.io/otel"
@@ -37,7 +34,7 @@ const (
 // per-tenant MFA policy, admin resets, and step-up authentication.
 type MFAService interface {
 	// TOTP enrollment
-	BeginTOTPEnrollment(ctx context.Context, userID int64, userEmail string) (*dto.TOTPEnrollResponseDTO, error)
+	BeginTOTPEnrollment(ctx context.Context, userID int64, userEmail string) (*TOTPEnrollResponseDTO, error)
 	FinishTOTPEnrollment(ctx context.Context, userID int64, code string) ([]string, error)
 	VerifyTOTP(ctx context.Context, userID int64, code string) (bool, error)
 	DisableTOTP(ctx context.Context, userID int64) error
@@ -47,10 +44,10 @@ type MFAService interface {
 	RegenerateBackupCodes(ctx context.Context, userID int64) ([]string, error)
 
 	// Status
-	GetMFAStatus(ctx context.Context, userID int64) (*dto.MFAStatusResponseDTO, error)
+	GetMFAStatus(ctx context.Context, userID int64) (*MFAStatusResponseDTO, error)
 
 	// Policy
-	GetMFAPolicy(ctx context.Context, userPoolID int64) (*dto.MFAPolicyDTO, error)
+	GetMFAPolicy(ctx context.Context, userPoolID int64) (*MFAPolicyDTO, error)
 	IsMFARequired(ctx context.Context, userPoolID int64) (bool, error)
 	UserHasMFA(ctx context.Context, userID int64) (bool, error)
 
@@ -58,28 +55,28 @@ type MFAService interface {
 	AdminResetMFA(ctx context.Context, targetUserUUID string, actorUserID int64) error
 
 	// Step-up
-	IssueStepUpChallenge(ctx context.Context, userUUID string, allowedMethods []string) (*dto.StepUpChallengeResponseDTO, error)
-	VerifyStepUp(ctx context.Context, req dto.StepUpVerifyRequestDTO, userID int64) (*dto.StepUpVerifyResponseDTO, error)
+	IssueStepUpChallenge(ctx context.Context, userUUID string, allowedMethods []string) (*StepUpChallengeResponseDTO, error)
+	VerifyStepUp(ctx context.Context, req StepUpVerifyRequestDTO, userID int64) (*StepUpVerifyResponseDTO, error)
 }
 
 type mfaService struct {
 	db               *gorm.DB
-	userRepo         repository.UserRepository
-	totpRepo         repository.UserTOTPSecretRepository
-	webAuthnCredRepo repository.UserWebAuthnCredentialRepository
-	backupCodeRepo   repository.UserBackupCodeRepository
-	secSettingRepo   repository.SecuritySettingRepository
+	userRepo         UserRepository
+	totpRepo         UserTOTPSecretRepository
+	webAuthnCredRepo UserWebAuthnCredentialRepository
+	backupCodeRepo   UserBackupCodeRepository
+	secSettingRepo   SecuritySettingRepository
 	authEventService AuthEventService
 }
 
 // NewMFAService constructs a MFAService.
 func NewMFAService(
 	db *gorm.DB,
-	userRepo repository.UserRepository,
-	totpRepo repository.UserTOTPSecretRepository,
-	webAuthnCredRepo repository.UserWebAuthnCredentialRepository,
-	backupCodeRepo repository.UserBackupCodeRepository,
-	secSettingRepo repository.SecuritySettingRepository,
+	userRepo UserRepository,
+	totpRepo UserTOTPSecretRepository,
+	webAuthnCredRepo UserWebAuthnCredentialRepository,
+	backupCodeRepo UserBackupCodeRepository,
+	secSettingRepo SecuritySettingRepository,
 	authEventService AuthEventService,
 ) MFAService {
 	return &mfaService{
@@ -99,7 +96,7 @@ func NewMFAService(
 
 // BeginTOTPEnrollment generates a new TOTP secret and stores it as pending
 // (not yet enabled). The user must call FinishTOTPEnrollment with a valid code.
-func (s *mfaService) BeginTOTPEnrollment(ctx context.Context, userID int64, userEmail string) (*dto.TOTPEnrollResponseDTO, error) {
+func (s *mfaService) BeginTOTPEnrollment(ctx context.Context, userID int64, userEmail string) (*TOTPEnrollResponseDTO, error) {
 	_, span := otel.Tracer("service").Start(ctx, "mfa.begin_totp_enrollment")
 	defer span.End()
 	span.SetAttributes(attribute.Int64("user.id", userID))
@@ -116,7 +113,7 @@ func (s *mfaService) BeginTOTPEnrollment(ctx context.Context, userID int64, user
 		return nil, apperror.NewInternal("TOTP key generation failed", err)
 	}
 
-	secret := &model.UserTOTPSecret{
+	secret := &UserTOTPSecret{
 		UserID:    userID,
 		Secret:    key.Secret(),
 		IsEnabled: false,
@@ -128,7 +125,7 @@ func (s *mfaService) BeginTOTPEnrollment(ctx context.Context, userID int64, user
 	}
 
 	span.SetStatus(codes.Ok, "")
-	return &dto.TOTPEnrollResponseDTO{
+	return &TOTPEnrollResponseDTO{
 		Secret:    key.Secret(),
 		QRCodeURL: key.URL(),
 	}, nil
@@ -164,7 +161,7 @@ func (s *mfaService) FinishTOTPEnrollment(ctx context.Context, userID int64, cod
 
 	// Mark the user as having TOTP enabled.
 	now := time.Now()
-	if err := s.db.Model(&model.User{}).Where("user_id = ?", userID).
+	if err := s.db.Model(&User{}).Where("user_id = ?", userID).
 		Updates(map[string]any{
 			"is_totp_enabled": true,
 			"mfa_enabled_at":  now,
@@ -184,10 +181,10 @@ func (s *mfaService) FinishTOTPEnrollment(ctx context.Context, userID int64, cod
 		ActorUserID: &userID,
 		IPAddress:   middleware.ClientIPFromContext(ctx),
 		UserAgent:   ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),
-		Category:    model.AuthEventCategoryAuthn,
-		EventType:   model.AuthEventTypeTokenCreated,
-		Severity:    model.AuthEventSeverityInfo,
-		Result:      model.AuthEventResultSuccess,
+		Category:    AuthEventCategoryAuthn,
+		EventType:   AuthEventTypeTokenCreated,
+		Severity:    AuthEventSeverityInfo,
+		Result:      AuthEventResultSuccess,
 		Description: ptr.Ptr("TOTP enrollment completed"),
 	})
 
@@ -229,17 +226,17 @@ func (s *mfaService) DisableTOTP(ctx context.Context, userID int64) error {
 	}
 	_ = s.backupCodeRepo.DeleteAllByUserID(userID)
 
-	_ = s.db.Model(&model.User{}).Where("user_id = ?", userID).
+	_ = s.db.Model(&User{}).Where("user_id = ?", userID).
 		Updates(map[string]any{"is_totp_enabled": false}).Error
 
 	s.authEventService.Log(ctx, AuthEventInput{
 		ActorUserID: &userID,
 		IPAddress:   middleware.ClientIPFromContext(ctx),
 		UserAgent:   ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),
-		Category:    model.AuthEventCategoryAuthn,
-		EventType:   model.AuthEventTypeTokenCreated,
-		Severity:    model.AuthEventSeverityWarn,
-		Result:      model.AuthEventResultSuccess,
+		Category:    AuthEventCategoryAuthn,
+		EventType:   AuthEventTypeTokenCreated,
+		Severity:    AuthEventSeverityWarn,
+		Result:      AuthEventResultSuccess,
 		Description: ptr.Ptr("TOTP disabled by user"),
 	})
 
@@ -282,7 +279,7 @@ func (s *mfaService) generateAndStoreBackupCodes(userID int64) ([]string, error)
 	_ = s.backupCodeRepo.DeleteAllByUserID(userID)
 
 	plainCodes := make([]string, mfaBackupCodeCount)
-	models := make([]*model.UserBackupCode, mfaBackupCodeCount)
+	models := make([]*UserBackupCode, mfaBackupCodeCount)
 	for i := range mfaBackupCodeCount {
 		code, err := crypto.GenerateRandomString(mfaBackupCodeLength)
 		if err != nil {
@@ -293,7 +290,7 @@ func (s *mfaService) generateAndStoreBackupCodes(userID int64) ([]string, error)
 			return nil, apperror.NewInternal("backup code hashing failed", err)
 		}
 		plainCodes[i] = code
-		models[i] = &model.UserBackupCode{
+		models[i] = &UserBackupCode{
 			UserID:   userID,
 			CodeHash: string(hash),
 		}
@@ -309,7 +306,7 @@ func (s *mfaService) generateAndStoreBackupCodes(userID int64) ([]string, error)
 // ──────────────────────────────────────────────────────────────────────────────
 
 // GetMFAStatus returns a summary of all MFA factors enabled for a user.
-func (s *mfaService) GetMFAStatus(ctx context.Context, userID int64) (*dto.MFAStatusResponseDTO, error) {
+func (s *mfaService) GetMFAStatus(ctx context.Context, userID int64) (*MFAStatusResponseDTO, error) {
 	user, err := s.userRepo.FindByID(userID)
 	if err != nil || user == nil {
 		return nil, apperror.NewNotFound("user not found")
@@ -321,9 +318,9 @@ func (s *mfaService) GetMFAStatus(ctx context.Context, userID int64) (*dto.MFASt
 	if err != nil {
 		return nil, apperror.NewInternal("credential lookup failed", err)
 	}
-	credSummaries := make([]dto.WebAuthnCredentialSummaryDTO, 0, len(webAuthnCreds))
+	credSummaries := make([]WebAuthnCredentialSummaryDTO, 0, len(webAuthnCreds))
 	for _, c := range webAuthnCreds {
-		summary := dto.WebAuthnCredentialSummaryDTO{
+		summary := WebAuthnCredentialSummaryDTO{
 			CredentialUUID: c.CredentialUUID.String(),
 			Name:           c.Name,
 			Transport:      c.Transport,
@@ -336,7 +333,7 @@ func (s *mfaService) GetMFAStatus(ctx context.Context, userID int64) (*dto.MFASt
 		credSummaries = append(credSummaries, summary)
 	}
 
-	resp := &dto.MFAStatusResponseDTO{
+	resp := &MFAStatusResponseDTO{
 		IsTOTPEnabled:     user.IsTOTPEnabled,
 		IsWebAuthnEnabled: user.IsWebAuthnEnabled,
 		BackupCodesCount:  backupCount,
@@ -354,14 +351,14 @@ func (s *mfaService) GetMFAStatus(ctx context.Context, userID int64) (*dto.MFASt
 // ──────────────────────────────────────────────────────────────────────────────
 
 // GetMFAPolicy reads the per-pool MFA policy from SecuritySetting.MFAConfig.
-func (s *mfaService) GetMFAPolicy(ctx context.Context, userPoolID int64) (*dto.MFAPolicyDTO, error) {
+func (s *mfaService) GetMFAPolicy(ctx context.Context, userPoolID int64) (*MFAPolicyDTO, error) {
 	setting, err := s.secSettingRepo.FindByUserPoolID(userPoolID)
 	if err != nil || setting == nil {
-		return &dto.MFAPolicyDTO{Required: false, AllowedMethods: []string{"totp", "sms", "webauthn", "backup_code"}}, nil
+		return &MFAPolicyDTO{Required: false, AllowedMethods: []string{"totp", "sms", "webauthn", "backup_code"}}, nil
 	}
-	var policy dto.MFAPolicyDTO
+	var policy MFAPolicyDTO
 	if err := json.Unmarshal(setting.MFAConfig, &policy); err != nil || policy.AllowedMethods == nil {
-		return &dto.MFAPolicyDTO{Required: false, AllowedMethods: []string{"totp", "sms", "webauthn", "backup_code"}}, nil
+		return &MFAPolicyDTO{Required: false, AllowedMethods: []string{"totp", "sms", "webauthn", "backup_code"}}, nil
 	}
 	return &policy, nil
 }
@@ -407,7 +404,7 @@ func (s *mfaService) AdminResetMFA(ctx context.Context, targetUserUUID string, a
 	_ = s.backupCodeRepo.DeleteAllByUserID(targetUserID)
 	_ = s.webAuthnCredRepo.DeleteAllByUserID(targetUserID)
 
-	if err := s.db.Model(&model.User{}).Where("user_id = ?", targetUserID).
+	if err := s.db.Model(&User{}).Where("user_id = ?", targetUserID).
 		Updates(map[string]any{
 			"is_totp_enabled":     false,
 			"is_webauthn_enabled": false,
@@ -421,10 +418,10 @@ func (s *mfaService) AdminResetMFA(ctx context.Context, targetUserUUID string, a
 		ActorUserID: &actorUserID,
 		IPAddress:   middleware.ClientIPFromContext(ctx),
 		UserAgent:   ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),
-		Category:    model.AuthEventCategoryAuthn,
-		EventType:   model.AuthEventTypeTokenCreated,
-		Severity:    model.AuthEventSeverityCritical,
-		Result:      model.AuthEventResultSuccess,
+		Category:    AuthEventCategoryAuthn,
+		EventType:   AuthEventTypeTokenCreated,
+		Severity:    AuthEventSeverityCritical,
+		Result:      AuthEventResultSuccess,
 		Description: ptr.Ptr(fmt.Sprintf("Admin reset MFA for user %s", targetUserUUID)),
 	})
 
@@ -439,7 +436,7 @@ func (s *mfaService) AdminResetMFA(ctx context.Context, targetUserUUID string, a
 // IssueStepUpChallenge issues a short-lived challenge token that authorizes
 // a step-up authentication flow. The client must complete one of the
 // allowedMethods then call VerifyStepUp.
-func (s *mfaService) IssueStepUpChallenge(ctx context.Context, userUUID string, allowedMethods []string) (*dto.StepUpChallengeResponseDTO, error) {
+func (s *mfaService) IssueStepUpChallenge(ctx context.Context, userUUID string, allowedMethods []string) (*StepUpChallengeResponseDTO, error) {
 	_, span := otel.Tracer("service").Start(ctx, "mfa.issue_step_up_challenge")
 	defer span.End()
 
@@ -450,7 +447,7 @@ func (s *mfaService) IssueStepUpChallenge(ctx context.Context, userUUID string, 
 	}
 
 	span.SetStatus(codes.Ok, "")
-	return &dto.StepUpChallengeResponseDTO{
+	return &StepUpChallengeResponseDTO{
 		ChallengeToken: token,
 		AllowedMethods: allowedMethods,
 	}, nil
@@ -459,7 +456,7 @@ func (s *mfaService) IssueStepUpChallenge(ctx context.Context, userUUID string, 
 // VerifyStepUp validates the step-up challenge token, verifies the provided
 // MFA factor, then issues a new access token with acr=2 and the appropriate
 // amr claims.
-func (s *mfaService) VerifyStepUp(ctx context.Context, req dto.StepUpVerifyRequestDTO, userID int64) (*dto.StepUpVerifyResponseDTO, error) {
+func (s *mfaService) VerifyStepUp(ctx context.Context, req StepUpVerifyRequestDTO, userID int64) (*StepUpVerifyResponseDTO, error) {
 	_, span := otel.Tracer("service").Start(ctx, "mfa.verify_step_up")
 	defer span.End()
 
@@ -530,15 +527,15 @@ func (s *mfaService) VerifyStepUp(ctx context.Context, req dto.StepUpVerifyReque
 		ActorUserID: &userID,
 		IPAddress:   middleware.ClientIPFromContext(ctx),
 		UserAgent:   ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),
-		Category:    model.AuthEventCategoryAuthn,
-		EventType:   model.AuthEventTypeTokenCreated,
-		Severity:    model.AuthEventSeverityInfo,
-		Result:      model.AuthEventResultSuccess,
+		Category:    AuthEventCategoryAuthn,
+		EventType:   AuthEventTypeTokenCreated,
+		Severity:    AuthEventSeverityInfo,
+		Result:      AuthEventResultSuccess,
 		Description: ptr.Ptr(fmt.Sprintf("Step-up authentication completed via %s", req.Method)),
 	})
 
 	span.SetStatus(codes.Ok, "")
-	return &dto.StepUpVerifyResponseDTO{
+	return &StepUpVerifyResponseDTO{
 		AccessToken: accessToken,
 		ExpiresIn:   int64(jwt.AccessTokenTTL.Seconds()),
 	}, nil

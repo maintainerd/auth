@@ -4,7 +4,6 @@ import (
 	"errors"
 
 	"github.com/google/uuid"
-	"github.com/maintainerd/auth/internal/model"
 	"gorm.io/gorm"
 )
 
@@ -23,23 +22,23 @@ type TenantRepositoryGetFilter struct {
 }
 
 type TenantRepository interface {
-	BaseRepositoryMethods[model.Tenant]
+	BaseRepositoryMethods[Tenant]
 	WithTx(tx *gorm.DB) TenantRepository
-	FindByName(name string) (*model.Tenant, error)
-	FindByIdentifier(identifier string) (*model.Tenant, error)
-	FindSystem() (*model.Tenant, error)
-	FindPaginated(filter TenantRepositoryGetFilter) (*PaginationResult[model.Tenant], error)
+	FindByName(name string) (*Tenant, error)
+	FindByIdentifier(identifier string) (*Tenant, error)
+	FindSystem() (*Tenant, error)
+	FindPaginated(filter TenantRepositoryGetFilter) (*PaginationResult[Tenant], error)
 	SetStatusByUUID(tenantUUID uuid.UUID, status string) error
 	SetSystemStatusByUUID(tenantUUID uuid.UUID, isSystem bool) error
 }
 
 type tenantRepository struct {
-	*BaseRepository[model.Tenant]
+	*BaseRepository[Tenant]
 }
 
 func NewTenantRepository(db *gorm.DB) TenantRepository {
 	return &tenantRepository{
-		BaseRepository: NewBaseRepository[model.Tenant](db, "tenant_uuid", "tenant_id"),
+		BaseRepository: NewBaseRepository[Tenant](db, "tenant_uuid", "tenant_id"),
 	}
 }
 
@@ -49,8 +48,8 @@ func (r *tenantRepository) WithTx(tx *gorm.DB) TenantRepository {
 	}
 }
 
-func (r *tenantRepository) FindByName(name string) (*model.Tenant, error) {
-	var tenant model.Tenant
+func (r *tenantRepository) FindByName(name string) (*Tenant, error) {
+	var tenant Tenant
 	err := r.DB().Where("name = ?", name).First(&tenant).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -61,8 +60,8 @@ func (r *tenantRepository) FindByName(name string) (*model.Tenant, error) {
 	return &tenant, nil
 }
 
-func (r *tenantRepository) FindByIdentifier(identifier string) (*model.Tenant, error) {
-	var tenant model.Tenant
+func (r *tenantRepository) FindByIdentifier(identifier string) (*Tenant, error) {
+	var tenant Tenant
 	err := r.DB().Where("identifier = ?", identifier).First(&tenant).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -75,8 +74,8 @@ func (r *tenantRepository) FindByIdentifier(identifier string) (*model.Tenant, e
 
 // FindSystem returns the unique system tenant (is_system = true).
 // There is always exactly one system tenant; it cannot be deleted.
-func (r *tenantRepository) FindSystem() (*model.Tenant, error) {
-	var tenant model.Tenant
+func (r *tenantRepository) FindSystem() (*Tenant, error) {
+	var tenant Tenant
 	err := r.DB().Where("is_system = ?", true).First(&tenant).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -87,8 +86,8 @@ func (r *tenantRepository) FindSystem() (*model.Tenant, error) {
 	return &tenant, nil
 }
 
-func (r *tenantRepository) FindPaginated(filter TenantRepositoryGetFilter) (*PaginationResult[model.Tenant], error) {
-	query := r.DB().Model(&model.Tenant{})
+func (r *tenantRepository) FindPaginated(filter TenantRepositoryGetFilter) (*PaginationResult[Tenant], error) {
+	query := r.DB().Model(&Tenant{})
 
 	// Filters with LIKE
 	if filter.Name != nil {
@@ -132,14 +131,14 @@ func (r *tenantRepository) FindPaginated(filter TenantRepositoryGetFilter) (*Pag
 		filter.Limit = 10
 	}
 	offset := (filter.Page - 1) * filter.Limit
-	var tenants []model.Tenant
+	var tenants []Tenant
 	if err := query.Limit(filter.Limit).Offset(offset).Find(&tenants).Error; err != nil {
 		return nil, err
 	}
 
 	totalPages := int((total + int64(filter.Limit) - 1) / int64(filter.Limit))
 
-	return &PaginationResult[model.Tenant]{
+	return &PaginationResult[Tenant]{
 		Data:       tenants,
 		Total:      total,
 		Page:       filter.Page,
@@ -149,9 +148,9 @@ func (r *tenantRepository) FindPaginated(filter TenantRepositoryGetFilter) (*Pag
 }
 
 func (r *tenantRepository) SetStatusByUUID(tenantUUID uuid.UUID, status string) error {
-	return r.DB().Model(&model.Tenant{}).Where("tenant_uuid = ?", tenantUUID).Update("status", status).Error
+	return r.DB().Model(&Tenant{}).Where("tenant_uuid = ?", tenantUUID).Update("status", status).Error
 }
 
 func (r *tenantRepository) SetSystemStatusByUUID(tenantUUID uuid.UUID, isSystem bool) error {
-	return r.DB().Model(&model.Tenant{}).Where("tenant_uuid = ?", tenantUUID).Update("is_system", isSystem).Error
+	return r.DB().Model(&Tenant{}).Where("tenant_uuid = ?", tenantUUID).Update("is_system", isSystem).Error
 }

@@ -3,29 +3,28 @@ package oauth
 import (
 	"errors"
 
-	"github.com/maintainerd/auth/internal/model"
 	"gorm.io/gorm"
 )
 
 // OAuthConsentGrantRepository defines data access operations for user consent
 // grants per client.
 type OAuthConsentGrantRepository interface {
-	BaseRepositoryMethods[model.OAuthConsentGrant]
+	BaseRepositoryMethods[OAuthConsentGrant]
 	WithTx(tx *gorm.DB) OAuthConsentGrantRepository
-	FindByUserAndClient(userID, clientID int64) (*model.OAuthConsentGrant, error)
-	Upsert(grant *model.OAuthConsentGrant) (*model.OAuthConsentGrant, error)
+	FindByUserAndClient(userID, clientID int64) (*OAuthConsentGrant, error)
+	Upsert(grant *OAuthConsentGrant) (*OAuthConsentGrant, error)
 	DeleteByUserAndClient(userID, clientID int64) error
-	FindByUserID(userID int64) ([]model.OAuthConsentGrant, error)
+	FindByUserID(userID int64) ([]OAuthConsentGrant, error)
 }
 
 type oauthConsentGrantRepository struct {
-	*BaseRepository[model.OAuthConsentGrant]
+	*BaseRepository[OAuthConsentGrant]
 }
 
 // NewOAuthConsentGrantRepository creates a new OAuthConsentGrantRepository.
 func NewOAuthConsentGrantRepository(db *gorm.DB) OAuthConsentGrantRepository {
 	return &oauthConsentGrantRepository{
-		BaseRepository: NewBaseRepository[model.OAuthConsentGrant](db, "oauth_consent_grant_uuid", "oauth_consent_grant_id"),
+		BaseRepository: NewBaseRepository[OAuthConsentGrant](db, "oauth_consent_grant_uuid", "oauth_consent_grant_id"),
 	}
 }
 
@@ -37,8 +36,8 @@ func (r *oauthConsentGrantRepository) WithTx(tx *gorm.DB) OAuthConsentGrantRepos
 
 // FindByUserAndClient looks up the consent grant for a user-client pair.
 // Returns nil, nil when no consent exists.
-func (r *oauthConsentGrantRepository) FindByUserAndClient(userID, clientID int64) (*model.OAuthConsentGrant, error) {
-	var grant model.OAuthConsentGrant
+func (r *oauthConsentGrantRepository) FindByUserAndClient(userID, clientID int64) (*OAuthConsentGrant, error) {
+	var grant OAuthConsentGrant
 	err := r.DB().
 		Where("user_id = ? AND client_id = ?", userID, clientID).
 		First(&grant).Error
@@ -53,7 +52,7 @@ func (r *oauthConsentGrantRepository) FindByUserAndClient(userID, clientID int64
 
 // Upsert creates a new consent grant or updates the scopes if one already
 // exists for the user-client pair.
-func (r *oauthConsentGrantRepository) Upsert(grant *model.OAuthConsentGrant) (*model.OAuthConsentGrant, error) {
+func (r *oauthConsentGrantRepository) Upsert(grant *OAuthConsentGrant) (*OAuthConsentGrant, error) {
 	existing, err := r.FindByUserAndClient(grant.UserID, grant.ClientID)
 	if err != nil {
 		return nil, err
@@ -72,12 +71,12 @@ func (r *oauthConsentGrantRepository) Upsert(grant *model.OAuthConsentGrant) (*m
 func (r *oauthConsentGrantRepository) DeleteByUserAndClient(userID, clientID int64) error {
 	return r.DB().
 		Where("user_id = ? AND client_id = ?", userID, clientID).
-		Delete(&model.OAuthConsentGrant{}).Error
+		Delete(&OAuthConsentGrant{}).Error
 }
 
 // FindByUserID returns all consent grants for a user.
-func (r *oauthConsentGrantRepository) FindByUserID(userID int64) ([]model.OAuthConsentGrant, error) {
-	var grants []model.OAuthConsentGrant
+func (r *oauthConsentGrantRepository) FindByUserID(userID int64) ([]OAuthConsentGrant, error) {
+	var grants []OAuthConsentGrant
 	err := r.DB().
 		Preload("Client").
 		Where("user_id = ?", userID).

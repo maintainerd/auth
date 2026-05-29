@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/maintainerd/auth/internal/model"
 	"gorm.io/gorm"
 )
 
@@ -23,24 +22,24 @@ type WebhookEndpointRepositoryGetFilter struct {
 // WebhookEndpointRepository defines persistence operations for the
 // webhook_endpoints entity.
 type WebhookEndpointRepository interface {
-	BaseRepositoryMethods[model.WebhookEndpoint]
+	BaseRepositoryMethods[WebhookEndpoint]
 	WithTx(tx *gorm.DB) WebhookEndpointRepository
-	FindByTenantID(tenantID int64) ([]model.WebhookEndpoint, error)
-	FindActiveByTenantID(tenantID int64) ([]model.WebhookEndpoint, error)
-	FindByUUIDAndTenantID(webhookEndpointUUID uuid.UUID, tenantID int64) (*model.WebhookEndpoint, error)
-	FindPaginated(filter WebhookEndpointRepositoryGetFilter) (*PaginationResult[model.WebhookEndpoint], error)
+	FindByTenantID(tenantID int64) ([]WebhookEndpoint, error)
+	FindActiveByTenantID(tenantID int64) ([]WebhookEndpoint, error)
+	FindByUUIDAndTenantID(webhookEndpointUUID uuid.UUID, tenantID int64) (*WebhookEndpoint, error)
+	FindPaginated(filter WebhookEndpointRepositoryGetFilter) (*PaginationResult[WebhookEndpoint], error)
 	UpdateLastTriggeredAt(webhookEndpointID int64, t time.Time) error
 }
 
 type webhookEndpointRepository struct {
-	*BaseRepository[model.WebhookEndpoint]
+	*BaseRepository[WebhookEndpoint]
 }
 
 // NewWebhookEndpointRepository creates a new WebhookEndpointRepository backed
 // by the given database connection.
 func NewWebhookEndpointRepository(db *gorm.DB) WebhookEndpointRepository {
 	return &webhookEndpointRepository{
-		BaseRepository: NewBaseRepository[model.WebhookEndpoint](db, "webhook_endpoint_uuid", "webhook_endpoint_id"),
+		BaseRepository: NewBaseRepository[WebhookEndpoint](db, "webhook_endpoint_uuid", "webhook_endpoint_id"),
 	}
 }
 
@@ -52,8 +51,8 @@ func (r *webhookEndpointRepository) WithTx(tx *gorm.DB) WebhookEndpointRepositor
 }
 
 // FindByTenantID retrieves all webhook endpoints belonging to a tenant.
-func (r *webhookEndpointRepository) FindByTenantID(tenantID int64) ([]model.WebhookEndpoint, error) {
-	var endpoints []model.WebhookEndpoint
+func (r *webhookEndpointRepository) FindByTenantID(tenantID int64) ([]WebhookEndpoint, error) {
+	var endpoints []WebhookEndpoint
 	err := r.DB().Where("tenant_id = ?", tenantID).Find(&endpoints).Error
 	if err != nil {
 		return nil, err
@@ -63,8 +62,8 @@ func (r *webhookEndpointRepository) FindByTenantID(tenantID int64) ([]model.Webh
 
 // FindByUUIDAndTenantID retrieves a single webhook endpoint by UUID scoped to
 // a tenant. Returns nil, nil when no record exists.
-func (r *webhookEndpointRepository) FindByUUIDAndTenantID(webhookEndpointUUID uuid.UUID, tenantID int64) (*model.WebhookEndpoint, error) {
-	var endpoint model.WebhookEndpoint
+func (r *webhookEndpointRepository) FindByUUIDAndTenantID(webhookEndpointUUID uuid.UUID, tenantID int64) (*WebhookEndpoint, error) {
+	var endpoint WebhookEndpoint
 	err := r.DB().Where("webhook_endpoint_uuid = ? AND tenant_id = ?", webhookEndpointUUID, tenantID).First(&endpoint).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -76,8 +75,8 @@ func (r *webhookEndpointRepository) FindByUUIDAndTenantID(webhookEndpointUUID uu
 }
 
 // FindPaginated retrieves paginated webhook endpoints with filtering.
-func (r *webhookEndpointRepository) FindPaginated(filter WebhookEndpointRepositoryGetFilter) (*PaginationResult[model.WebhookEndpoint], error) {
-	query := r.DB().Model(&model.WebhookEndpoint{})
+func (r *webhookEndpointRepository) FindPaginated(filter WebhookEndpointRepositoryGetFilter) (*PaginationResult[WebhookEndpoint], error) {
+	query := r.DB().Model(&WebhookEndpoint{})
 
 	if filter.TenantID != nil {
 		query = query.Where("tenant_id = ?", *filter.TenantID)
@@ -101,7 +100,7 @@ func (r *webhookEndpointRepository) FindPaginated(filter WebhookEndpointReposito
 	}
 	offset := (filter.Page - 1) * filter.Limit
 
-	var endpoints []model.WebhookEndpoint
+	var endpoints []WebhookEndpoint
 	if err := query.Offset(offset).Limit(filter.Limit).Find(&endpoints).Error; err != nil {
 		return nil, err
 	}
@@ -111,7 +110,7 @@ func (r *webhookEndpointRepository) FindPaginated(filter WebhookEndpointReposito
 		totalPages++
 	}
 
-	return &PaginationResult[model.WebhookEndpoint]{
+	return &PaginationResult[WebhookEndpoint]{
 		Data:       endpoints,
 		Total:      total,
 		Page:       filter.Page,
@@ -121,8 +120,8 @@ func (r *webhookEndpointRepository) FindPaginated(filter WebhookEndpointReposito
 }
 
 // FindActiveByTenantID retrieves all active (non-deleted) webhook endpoints for a tenant.
-func (r *webhookEndpointRepository) FindActiveByTenantID(tenantID int64) ([]model.WebhookEndpoint, error) {
-	var endpoints []model.WebhookEndpoint
+func (r *webhookEndpointRepository) FindActiveByTenantID(tenantID int64) ([]WebhookEndpoint, error) {
+	var endpoints []WebhookEndpoint
 	err := r.DB().Where("tenant_id = ? AND status = ?", tenantID, "active").Find(&endpoints).Error
 	if err != nil {
 		return nil, err
@@ -132,7 +131,7 @@ func (r *webhookEndpointRepository) FindActiveByTenantID(tenantID int64) ([]mode
 
 // UpdateLastTriggeredAt sets last_triggered_at for a webhook endpoint.
 func (r *webhookEndpointRepository) UpdateLastTriggeredAt(webhookEndpointID int64, t time.Time) error {
-	return r.DB().Model(&model.WebhookEndpoint{}).
+	return r.DB().Model(&WebhookEndpoint{}).
 		Where("webhook_endpoint_id = ?", webhookEndpointID).
 		Update("last_triggered_at", t).Error
 }

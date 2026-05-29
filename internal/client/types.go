@@ -7,8 +7,6 @@ import (
 	"github.com/go-ozzo/ozzo-validation/v4/is"
 	"github.com/google/uuid"
 	"gorm.io/datatypes"
-
-	"github.com/maintainerd/auth/internal/model"
 )
 
 // Response DTOs
@@ -79,7 +77,7 @@ func (r APIKeyStatusUpdateDTO) Validate() error {
 	return validation.ValidateStruct(&r,
 		validation.Field(&r.Status,
 			validation.Required.Error("Status is required"),
-			validation.In(model.StatusActive, model.StatusInactive).Error("Status must be either 'active' or 'inactive'"),
+			validation.In(StatusActive, StatusInactive).Error("Status must be either 'active' or 'inactive'"),
 		),
 	)
 }
@@ -123,10 +121,10 @@ type APIKeyCreateRequestDTO struct {
 
 func (dto APIKeyCreateRequestDTO) Validate() error {
 	return validation.ValidateStruct(&dto,
-		validation.Field(&dto.Name, validation.Required, validation.Length(1, 100)),
-		validation.Field(&dto.Description, validation.Length(0, 500)),
-		validation.Field(&dto.Status, validation.In(model.StatusActive, model.StatusInactive)),
-		validation.Field(&dto.RateLimit, validation.Min(1)),
+		validation.Field(&Name, validation.Required, validation.Length(1, 100)),
+		validation.Field(&Description, validation.Length(0, 500)),
+		validation.Field(&Status, validation.In(StatusActive, StatusInactive)),
+		validation.Field(&RateLimit, validation.Min(1)),
 	)
 }
 
@@ -141,10 +139,10 @@ type APIKeyUpdateRequestDTO struct {
 
 func (dto APIKeyUpdateRequestDTO) Validate() error {
 	return validation.ValidateStruct(&dto,
-		validation.Field(&dto.Name, validation.Length(1, 100)),
-		validation.Field(&dto.Description, validation.Length(0, 500)),
-		validation.Field(&dto.Status, validation.In(model.StatusActive, model.StatusInactive)),
-		validation.Field(&dto.RateLimit, validation.Min(1)),
+		validation.Field(&Name, validation.Length(1, 100)),
+		validation.Field(&Description, validation.Length(0, 500)),
+		validation.Field(&Status, validation.In(StatusActive, StatusInactive)),
+		validation.Field(&RateLimit, validation.Min(1)),
 	)
 }
 
@@ -157,10 +155,10 @@ type APIKeyGetRequestDTO struct {
 }
 
 func (dto APIKeyGetRequestDTO) Validate() error {
-	if err := dto.PaginationRequestDTO.Validate(); err != nil {
+	if err := PaginationRequestDTO.Validate(); err != nil {
 		return err
 	}
 	return validation.ValidateStruct(&dto,
-		validation.Field(&dto.Status, validation.In(model.StatusActive, model.StatusInactive)),
+		validation.Field(&Status, validation.In(StatusActive, StatusInactive)),
 	)
 }

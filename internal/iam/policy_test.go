@@ -6,8 +6,6 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
-	"github.com/maintainerd/auth/internal/model"
-	"github.com/maintainerd/auth/internal/repository"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -16,14 +14,14 @@ func newPolicyService(policyRepo *mockPolicyRepo, serviceRepo *mockServiceRepo, 
 	return NewPolicyService(nil, policyRepo, serviceRepo, apiRepo)
 }
 
-func newPolicy(tenantID int64, name, version string) *model.Policy {
-	return &model.Policy{
+func newPolicy(tenantID int64, name, version string) *Policy {
+	return &Policy{
 		PolicyID:   1,
 		PolicyUUID: uuid.New(),
 		TenantID:   tenantID,
 		Name:       name,
 		Version:    version,
-		Status:     model.StatusActive,
+		Status:     StatusActive,
 	}
 }
 
@@ -36,7 +34,7 @@ func TestPolicyService_Get(t *testing.T) {
 
 	t.Run("repo error → propagated", func(t *testing.T) {
 		policyRepo := &mockPolicyRepo{
-			findPaginatedFn: func(_ repository.PolicyRepositoryGetFilter) (*repository.PaginationResult[model.Policy], error) {
+			findPaginatedFn: func(_ PolicyRepositoryGetFilter) (*PaginationResult[Policy], error) {
 				return nil, errors.New("db error")
 			},
 		}
@@ -49,9 +47,9 @@ func TestPolicyService_Get(t *testing.T) {
 	t.Run("success → returns mapped results", func(t *testing.T) {
 		p := newPolicy(tenantID, "read-only", "v1")
 		policyRepo := &mockPolicyRepo{
-			findPaginatedFn: func(_ repository.PolicyRepositoryGetFilter) (*repository.PaginationResult[model.Policy], error) {
-				return &repository.PaginationResult[model.Policy]{
-					Data: []model.Policy{*p}, Total: 1, Page: 1, Limit: 10, TotalPages: 1,
+			findPaginatedFn: func(_ PolicyRepositoryGetFilter) (*PaginationResult[Policy], error) {
+				return &PaginationResult[Policy]{
+					Data: []Policy{*p}, Total: 1, Page: 1, Limit: 10, TotalPages: 1,
 				}, nil
 			},
 		}
@@ -73,7 +71,7 @@ func TestPolicyService_GetServicesByPolicyUUID(t *testing.T) {
 
 	t.Run("policy lookup error → propagated", func(t *testing.T) {
 		policyRepo := &mockPolicyRepo{
-			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*model.Policy, error) {
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*Policy, error) {
 				return nil, errors.New("db error")
 			},
 		}
@@ -84,12 +82,12 @@ func TestPolicyService_GetServicesByPolicyUUID(t *testing.T) {
 
 	t.Run("FindServicesByPolicyUUID error → propagated", func(t *testing.T) {
 		policyRepo := &mockPolicyRepo{
-			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*model.Policy, error) {
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*Policy, error) {
 				return newPolicy(tenantID, "read-only", "v1"), nil
 			},
 		}
 		serviceRepo := &mockServiceRepo{
-			findServicesByPolicyUUIDFn: func(_ uuid.UUID, _ repository.ServiceRepositoryGetFilter) (*repository.PaginationResult[model.Service], error) {
+			findServicesByPolicyUUIDFn: func(_ uuid.UUID, _ ServiceRepositoryGetFilter) (*PaginationResult[Service], error) {
 				return nil, errors.New("svc repo error")
 			},
 		}
@@ -101,15 +99,15 @@ func TestPolicyService_GetServicesByPolicyUUID(t *testing.T) {
 
 	t.Run("success → returns services with counts", func(t *testing.T) {
 		policyRepo := &mockPolicyRepo{
-			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*model.Policy, error) {
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*Policy, error) {
 				return newPolicy(tenantID, "read-only", "v1"), nil
 			},
 		}
-		svc1 := model.Service{ServiceID: 10, ServiceUUID: uuid.New(), Name: "svc-1", DisplayName: "Svc 1", Status: model.StatusActive}
+		svc1 := Service{ServiceID: 10, ServiceUUID: uuid.New(), Name: "svc-1", DisplayName: "Svc 1", Status: StatusActive}
 		serviceRepo := &mockServiceRepo{
-			findServicesByPolicyUUIDFn: func(_ uuid.UUID, _ repository.ServiceRepositoryGetFilter) (*repository.PaginationResult[model.Service], error) {
-				return &repository.PaginationResult[model.Service]{
-					Data: []model.Service{svc1}, Total: 1, Page: 1, Limit: 10, TotalPages: 1,
+			findServicesByPolicyUUIDFn: func(_ uuid.UUID, _ ServiceRepositoryGetFilter) (*PaginationResult[Service], error) {
+				return &PaginationResult[Service]{
+					Data: []Service{svc1}, Total: 1, Page: 1, Limit: 10, TotalPages: 1,
 				}, nil
 			},
 			countPoliciesByServiceIDFn: func(_ int64) (int64, error) { return 3, nil },
@@ -144,7 +142,7 @@ func TestPolicyService_GetByUUID(t *testing.T) {
 		{
 			name: "repo error → propagated",
 			setupRepo: func(r *mockPolicyRepo) {
-				r.findByUUIDAndTenantIDFn = func(_ uuid.UUID, _ int64) (*model.Policy, error) {
+				r.findByUUIDAndTenantIDFn = func(_ uuid.UUID, _ int64) (*Policy, error) {
 					return nil, errors.New("db error")
 				}
 			},
@@ -154,7 +152,7 @@ func TestPolicyService_GetByUUID(t *testing.T) {
 		{
 			name: "not found → error",
 			setupRepo: func(r *mockPolicyRepo) {
-				r.findByUUIDAndTenantIDFn = func(_ uuid.UUID, _ int64) (*model.Policy, error) { return nil, nil }
+				r.findByUUIDAndTenantIDFn = func(_ uuid.UUID, _ int64) (*Policy, error) { return nil, nil }
 			},
 			expectError: true,
 			errContains: "policy not found",
@@ -162,7 +160,7 @@ func TestPolicyService_GetByUUID(t *testing.T) {
 		{
 			name: "found → success",
 			setupRepo: func(r *mockPolicyRepo) {
-				r.findByUUIDAndTenantIDFn = func(_ uuid.UUID, _ int64) (*model.Policy, error) {
+				r.findByUUIDAndTenantIDFn = func(_ uuid.UUID, _ int64) (*Policy, error) {
 					return newPolicy(tenantID, "read-only", "v1"), nil
 				}
 			},
@@ -199,12 +197,12 @@ func TestPolicyService_Create(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		policyRepo := &mockPolicyRepo{
-			findByNameAndVersionFn: func(_, _ string, _ int64) (*model.Policy, error) {
+			findByNameAndVersionFn: func(_, _ string, _ int64) (*Policy, error) {
 				return nil, errors.New("lookup failed")
 			},
 		}
 		svc := NewPolicyService(db, policyRepo, &mockServiceRepo{}, &mockAPIRepo{})
-		_, err := svc.Create(context.Background(), tenantID, "p", nil, nil, "v1", model.StatusActive, false)
+		_, err := svc.Create(context.Background(), tenantID, "p", nil, nil, "v1", StatusActive, false)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "lookup failed")
 	})
@@ -214,12 +212,12 @@ func TestPolicyService_Create(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		policyRepo := &mockPolicyRepo{
-			findByNameAndVersionFn: func(_, _ string, _ int64) (*model.Policy, error) {
+			findByNameAndVersionFn: func(_, _ string, _ int64) (*Policy, error) {
 				return newPolicy(tenantID, "read-only", "v1"), nil
 			},
 		}
 		svc := NewPolicyService(db, policyRepo, &mockServiceRepo{}, &mockAPIRepo{})
-		_, err := svc.Create(context.Background(), tenantID, "read-only", nil, nil, "v1", model.StatusActive, false)
+		_, err := svc.Create(context.Background(), tenantID, "read-only", nil, nil, "v1", StatusActive, false)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "already exists")
 	})
@@ -229,12 +227,12 @@ func TestPolicyService_Create(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		policyRepo := &mockPolicyRepo{
-			createFn: func(_ *model.Policy) (*model.Policy, error) {
+			createFn: func(_ *Policy) (*Policy, error) {
 				return nil, errors.New("insert failed")
 			},
 		}
 		svc := NewPolicyService(db, policyRepo, &mockServiceRepo{}, &mockAPIRepo{})
-		_, err := svc.Create(context.Background(), tenantID, "new-policy", nil, nil, "v1", model.StatusActive, false)
+		_, err := svc.Create(context.Background(), tenantID, "new-policy", nil, nil, "v1", StatusActive, false)
 		require.Error(t, err)
 	})
 
@@ -243,7 +241,7 @@ func TestPolicyService_Create(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectCommit()
 		svc := NewPolicyService(db, &mockPolicyRepo{}, &mockServiceRepo{}, &mockAPIRepo{})
-		result, err := svc.Create(context.Background(), tenantID, "new-policy", nil, nil, "v1", model.StatusActive, false)
+		result, err := svc.Create(context.Background(), tenantID, "new-policy", nil, nil, "v1", StatusActive, false)
 		require.NoError(t, err)
 		assert.Equal(t, "new-policy", result.Name)
 	})
@@ -262,12 +260,12 @@ func TestPolicyService_Update(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		policyRepo := &mockPolicyRepo{
-			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*model.Policy, error) {
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*Policy, error) {
 				return nil, errors.New("db error")
 			},
 		}
 		svc := NewPolicyService(db, policyRepo, &mockServiceRepo{}, &mockAPIRepo{})
-		_, err := svc.Update(context.Background(), policyUUID, tenantID, "n", nil, nil, "v1", model.StatusActive)
+		_, err := svc.Update(context.Background(), policyUUID, tenantID, "n", nil, nil, "v1", StatusActive)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "db error")
 	})
@@ -277,10 +275,10 @@ func TestPolicyService_Update(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		policyRepo := &mockPolicyRepo{
-			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*model.Policy, error) { return nil, nil },
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*Policy, error) { return nil, nil },
 		}
 		svc := NewPolicyService(db, policyRepo, &mockServiceRepo{}, &mockAPIRepo{})
-		_, err := svc.Update(context.Background(), policyUUID, tenantID, "n", nil, nil, "v1", model.StatusActive)
+		_, err := svc.Update(context.Background(), policyUUID, tenantID, "n", nil, nil, "v1", StatusActive)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "not found")
 	})
@@ -292,10 +290,10 @@ func TestPolicyService_Update(t *testing.T) {
 		p := newPolicy(tenantID, "sys", "v1")
 		p.IsSystem = true
 		policyRepo := &mockPolicyRepo{
-			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*model.Policy, error) { return p, nil },
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*Policy, error) { return p, nil },
 		}
 		svc := NewPolicyService(db, policyRepo, &mockServiceRepo{}, &mockAPIRepo{})
-		_, err := svc.Update(context.Background(), policyUUID, tenantID, "n", nil, nil, "v1", model.StatusActive)
+		_, err := svc.Update(context.Background(), policyUUID, tenantID, "n", nil, nil, "v1", StatusActive)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "system policy")
 	})
@@ -307,13 +305,13 @@ func TestPolicyService_Update(t *testing.T) {
 		p := newPolicy(tenantID, "old-name", "v1")
 		p.PolicyUUID = policyUUID
 		policyRepo := &mockPolicyRepo{
-			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*model.Policy, error) { return p, nil },
-			findByNameAndVersionFn: func(_, _ string, _ int64) (*model.Policy, error) {
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*Policy, error) { return p, nil },
+			findByNameAndVersionFn: func(_, _ string, _ int64) (*Policy, error) {
 				return nil, errors.New("lookup error")
 			},
 		}
 		svc := NewPolicyService(db, policyRepo, &mockServiceRepo{}, &mockAPIRepo{})
-		_, err := svc.Update(context.Background(), policyUUID, tenantID, "new-name", nil, nil, "v1", model.StatusActive)
+		_, err := svc.Update(context.Background(), policyUUID, tenantID, "new-name", nil, nil, "v1", StatusActive)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "lookup error")
 	})
@@ -326,15 +324,15 @@ func TestPolicyService_Update(t *testing.T) {
 		p.PolicyUUID = policyUUID
 		otherUUID := uuid.New()
 		policyRepo := &mockPolicyRepo{
-			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*model.Policy, error) { return p, nil },
-			findByNameAndVersionFn: func(_, _ string, _ int64) (*model.Policy, error) {
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*Policy, error) { return p, nil },
+			findByNameAndVersionFn: func(_, _ string, _ int64) (*Policy, error) {
 				dup := newPolicy(tenantID, "new-name", "v1")
 				dup.PolicyUUID = otherUUID
 				return dup, nil
 			},
 		}
 		svc := NewPolicyService(db, policyRepo, &mockServiceRepo{}, &mockAPIRepo{})
-		_, err := svc.Update(context.Background(), policyUUID, tenantID, "new-name", nil, nil, "v1", model.StatusActive)
+		_, err := svc.Update(context.Background(), policyUUID, tenantID, "new-name", nil, nil, "v1", StatusActive)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "already exists")
 	})
@@ -346,13 +344,13 @@ func TestPolicyService_Update(t *testing.T) {
 		p := newPolicy(tenantID, "read-only", "v1")
 		p.PolicyUUID = policyUUID
 		policyRepo := &mockPolicyRepo{
-			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*model.Policy, error) { return p, nil },
-			updateByUUIDFn: func(_, _ any) (*model.Policy, error) {
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*Policy, error) { return p, nil },
+			updateByUUIDFn: func(_, _ any) (*Policy, error) {
 				return nil, errors.New("update failed")
 			},
 		}
 		svc := NewPolicyService(db, policyRepo, &mockServiceRepo{}, &mockAPIRepo{})
-		_, err := svc.Update(context.Background(), policyUUID, tenantID, "read-only", nil, nil, "v1", model.StatusActive)
+		_, err := svc.Update(context.Background(), policyUUID, tenantID, "read-only", nil, nil, "v1", StatusActive)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "update failed")
 	})
@@ -364,10 +362,10 @@ func TestPolicyService_Update(t *testing.T) {
 		p := newPolicy(tenantID, "read-only", "v1")
 		p.PolicyUUID = policyUUID
 		policyRepo := &mockPolicyRepo{
-			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*model.Policy, error) { return p, nil },
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*Policy, error) { return p, nil },
 		}
 		svc := NewPolicyService(db, policyRepo, &mockServiceRepo{}, &mockAPIRepo{})
-		result, err := svc.Update(context.Background(), policyUUID, tenantID, "read-only", nil, nil, "v1", model.StatusActive)
+		result, err := svc.Update(context.Background(), policyUUID, tenantID, "read-only", nil, nil, "v1", StatusActive)
 		require.NoError(t, err)
 		assert.Equal(t, "read-only", result.Name)
 	})
@@ -379,10 +377,10 @@ func TestPolicyService_Update(t *testing.T) {
 		p := newPolicy(tenantID, "old-name", "v1")
 		p.PolicyUUID = policyUUID
 		policyRepo := &mockPolicyRepo{
-			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*model.Policy, error) { return p, nil },
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*Policy, error) { return p, nil },
 		}
 		svc := NewPolicyService(db, policyRepo, &mockServiceRepo{}, &mockAPIRepo{})
-		result, err := svc.Update(context.Background(), policyUUID, tenantID, "new-name", nil, nil, "v2", model.StatusActive)
+		result, err := svc.Update(context.Background(), policyUUID, tenantID, "new-name", nil, nil, "v2", StatusActive)
 		require.NoError(t, err)
 		assert.Equal(t, "new-name", result.Name)
 	})
@@ -401,12 +399,12 @@ func TestPolicyService_SetStatusByUUID(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		policyRepo := &mockPolicyRepo{
-			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*model.Policy, error) {
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*Policy, error) {
 				return nil, errors.New("db error")
 			},
 		}
 		svc := NewPolicyService(db, policyRepo, &mockServiceRepo{}, &mockAPIRepo{})
-		_, err := svc.SetStatusByUUID(context.Background(), policyUUID, tenantID, model.StatusInactive)
+		_, err := svc.SetStatusByUUID(context.Background(), policyUUID, tenantID, StatusInactive)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "db error")
 	})
@@ -416,10 +414,10 @@ func TestPolicyService_SetStatusByUUID(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		policyRepo := &mockPolicyRepo{
-			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*model.Policy, error) { return nil, nil },
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*Policy, error) { return nil, nil },
 		}
 		svc := NewPolicyService(db, policyRepo, &mockServiceRepo{}, &mockAPIRepo{})
-		_, err := svc.SetStatusByUUID(context.Background(), policyUUID, tenantID, model.StatusInactive)
+		_, err := svc.SetStatusByUUID(context.Background(), policyUUID, tenantID, StatusInactive)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "not found")
 	})
@@ -431,10 +429,10 @@ func TestPolicyService_SetStatusByUUID(t *testing.T) {
 		p := newPolicy(tenantID, "sys", "v1")
 		p.IsSystem = true
 		policyRepo := &mockPolicyRepo{
-			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*model.Policy, error) { return p, nil },
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*Policy, error) { return p, nil },
 		}
 		svc := NewPolicyService(db, policyRepo, &mockServiceRepo{}, &mockAPIRepo{})
-		_, err := svc.SetStatusByUUID(context.Background(), policyUUID, tenantID, model.StatusInactive)
+		_, err := svc.SetStatusByUUID(context.Background(), policyUUID, tenantID, StatusInactive)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "system policy")
 	})
@@ -445,13 +443,13 @@ func TestPolicyService_SetStatusByUUID(t *testing.T) {
 		mock.ExpectRollback()
 		p := newPolicy(tenantID, "read-only", "v1")
 		policyRepo := &mockPolicyRepo{
-			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*model.Policy, error) { return p, nil },
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*Policy, error) { return p, nil },
 			setStatusByUUIDFn: func(_ uuid.UUID, _ int64, _ string) error {
 				return errors.New("status update failed")
 			},
 		}
 		svc := NewPolicyService(db, policyRepo, &mockServiceRepo{}, &mockAPIRepo{})
-		_, err := svc.SetStatusByUUID(context.Background(), policyUUID, tenantID, model.StatusInactive)
+		_, err := svc.SetStatusByUUID(context.Background(), policyUUID, tenantID, StatusInactive)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "status update failed")
 	})
@@ -463,7 +461,7 @@ func TestPolicyService_SetStatusByUUID(t *testing.T) {
 		p := newPolicy(tenantID, "read-only", "v1")
 		callCount := 0
 		policyRepo := &mockPolicyRepo{
-			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*model.Policy, error) {
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*Policy, error) {
 				callCount++
 				if callCount == 1 {
 					return p, nil
@@ -472,7 +470,7 @@ func TestPolicyService_SetStatusByUUID(t *testing.T) {
 			},
 		}
 		svc := NewPolicyService(db, policyRepo, &mockServiceRepo{}, &mockAPIRepo{})
-		_, err := svc.SetStatusByUUID(context.Background(), policyUUID, tenantID, model.StatusInactive)
+		_, err := svc.SetStatusByUUID(context.Background(), policyUUID, tenantID, StatusInactive)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "re-fetch failed")
 	})
@@ -484,17 +482,17 @@ func TestPolicyService_SetStatusByUUID(t *testing.T) {
 		p := newPolicy(tenantID, "read-only", "v1")
 		callCount := 0
 		policyRepo := &mockPolicyRepo{
-			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*model.Policy, error) {
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*Policy, error) {
 				callCount++
 				updated := *p
-				updated.Status = model.StatusInactive
+				updated.Status = StatusInactive
 				return &updated, nil
 			},
 		}
 		svc := NewPolicyService(db, policyRepo, &mockServiceRepo{}, &mockAPIRepo{})
-		result, err := svc.SetStatusByUUID(context.Background(), policyUUID, tenantID, model.StatusInactive)
+		result, err := svc.SetStatusByUUID(context.Background(), policyUUID, tenantID, StatusInactive)
 		require.NoError(t, err)
-		assert.Equal(t, model.StatusInactive, result.Status)
+		assert.Equal(t, StatusInactive, result.Status)
 	})
 }
 
@@ -511,7 +509,7 @@ func TestPolicyService_DeleteByUUID(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		policyRepo := &mockPolicyRepo{
-			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*model.Policy, error) {
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*Policy, error) {
 				return nil, errors.New("db error")
 			},
 		}
@@ -526,7 +524,7 @@ func TestPolicyService_DeleteByUUID(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		policyRepo := &mockPolicyRepo{
-			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*model.Policy, error) { return nil, nil },
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*Policy, error) { return nil, nil },
 		}
 		svc := NewPolicyService(db, policyRepo, &mockServiceRepo{}, &mockAPIRepo{})
 		_, err := svc.DeleteByUUID(context.Background(), policyUUID, tenantID)
@@ -541,7 +539,7 @@ func TestPolicyService_DeleteByUUID(t *testing.T) {
 		p := newPolicy(tenantID, "sys", "v1")
 		p.IsSystem = true
 		policyRepo := &mockPolicyRepo{
-			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*model.Policy, error) { return p, nil },
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*Policy, error) { return p, nil },
 		}
 		svc := NewPolicyService(db, policyRepo, &mockServiceRepo{}, &mockAPIRepo{})
 		_, err := svc.DeleteByUUID(context.Background(), policyUUID, tenantID)
@@ -555,7 +553,7 @@ func TestPolicyService_DeleteByUUID(t *testing.T) {
 		mock.ExpectRollback()
 		p := newPolicy(tenantID, "read-only", "v1")
 		policyRepo := &mockPolicyRepo{
-			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*model.Policy, error) { return p, nil },
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*Policy, error) { return p, nil },
 			deleteByUUIDAndTenantFn: func(_ uuid.UUID, _ int64) error {
 				return errors.New("delete failed")
 			},
@@ -572,7 +570,7 @@ func TestPolicyService_DeleteByUUID(t *testing.T) {
 		mock.ExpectCommit()
 		p := newPolicy(tenantID, "read-only", "v1")
 		policyRepo := &mockPolicyRepo{
-			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*model.Policy, error) { return p, nil },
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*Policy, error) { return p, nil },
 		}
 		svc := NewPolicyService(db, policyRepo, &mockServiceRepo{}, &mockAPIRepo{})
 		result, err := svc.DeleteByUUID(context.Background(), policyUUID, tenantID)

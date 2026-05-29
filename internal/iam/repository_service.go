@@ -4,7 +4,6 @@ import (
 	"errors"
 
 	"github.com/google/uuid"
-	"github.com/maintainerd/auth/internal/model"
 	"gorm.io/gorm"
 )
 
@@ -23,24 +22,24 @@ type ServiceRepositoryGetFilter struct {
 }
 
 type ServiceRepository interface {
-	BaseRepositoryMethods[model.Service]
+	BaseRepositoryMethods[Service]
 	WithTx(tx *gorm.DB) ServiceRepository
-	FindByName(serviceName string) (*model.Service, error)
-	FindByNameAndTenantID(serviceName string, tenantID int64) (*model.Service, error)
-	FindByTenantID(tenantID int64) ([]model.Service, error)
-	FindPaginated(filter ServiceRepositoryGetFilter) (*PaginationResult[model.Service], error)
-	FindServicesByPolicyUUID(policyUUID uuid.UUID, filter ServiceRepositoryGetFilter) (*PaginationResult[model.Service], error)
+	FindByName(serviceName string) (*Service, error)
+	FindByNameAndTenantID(serviceName string, tenantID int64) (*Service, error)
+	FindByTenantID(tenantID int64) ([]Service, error)
+	FindPaginated(filter ServiceRepositoryGetFilter) (*PaginationResult[Service], error)
+	FindServicesByPolicyUUID(policyUUID uuid.UUID, filter ServiceRepositoryGetFilter) (*PaginationResult[Service], error)
 	SetStatusByUUID(serviceUUID uuid.UUID, status string) error
 	CountPoliciesByServiceID(serviceID int64) (int64, error)
 }
 
 type serviceRepository struct {
-	*BaseRepository[model.Service]
+	*BaseRepository[Service]
 }
 
 func NewServiceRepository(db *gorm.DB) ServiceRepository {
 	return &serviceRepository{
-		BaseRepository: NewBaseRepository[model.Service](db, "service_uuid", "service_id"),
+		BaseRepository: NewBaseRepository[Service](db, "service_uuid", "service_id"),
 	}
 }
 
@@ -50,8 +49,8 @@ func (r *serviceRepository) WithTx(tx *gorm.DB) ServiceRepository {
 	}
 }
 
-func (r *serviceRepository) FindByName(serviceName string) (*model.Service, error) {
-	var service model.Service
+func (r *serviceRepository) FindByName(serviceName string) (*Service, error) {
+	var service Service
 	err := r.DB().Where("name = ?", serviceName).First(&service).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -62,8 +61,8 @@ func (r *serviceRepository) FindByName(serviceName string) (*model.Service, erro
 	return &service, nil
 }
 
-func (r *serviceRepository) FindByNameAndTenantID(serviceName string, tenantID int64) (*model.Service, error) {
-	var service model.Service
+func (r *serviceRepository) FindByNameAndTenantID(serviceName string, tenantID int64) (*Service, error) {
+	var service Service
 	err := r.DB().
 		Joins("JOIN tenant_services ON services.service_id = tenant_services.service_id").
 		Where("services.name = ? AND tenant_services.tenant_id = ?", serviceName, tenantID).
@@ -77,8 +76,8 @@ func (r *serviceRepository) FindByNameAndTenantID(serviceName string, tenantID i
 	return &service, nil
 }
 
-func (r *serviceRepository) FindByTenantID(tenantID int64) ([]model.Service, error) {
-	var services []model.Service
+func (r *serviceRepository) FindByTenantID(tenantID int64) ([]Service, error) {
+	var services []Service
 	err := r.DB().
 		Joins("JOIN tenant_services ON services.service_id = tenant_services.service_id").
 		Where("tenant_services.tenant_id = ?", tenantID).
@@ -86,8 +85,8 @@ func (r *serviceRepository) FindByTenantID(tenantID int64) ([]model.Service, err
 	return services, err
 }
 
-func (r *serviceRepository) FindPaginated(filter ServiceRepositoryGetFilter) (*PaginationResult[model.Service], error) {
-	query := r.DB().Model(&model.Service{})
+func (r *serviceRepository) FindPaginated(filter ServiceRepositoryGetFilter) (*PaginationResult[Service], error) {
+	query := r.DB().Model(&Service{})
 
 	// Filters with LIKE
 	if filter.Name != nil {
@@ -132,14 +131,14 @@ func (r *serviceRepository) FindPaginated(filter ServiceRepositoryGetFilter) (*P
 		filter.Limit = 10
 	}
 	offset := (filter.Page - 1) * filter.Limit
-	var services []model.Service
+	var services []Service
 	if err := query.Limit(filter.Limit).Offset(offset).Find(&services).Error; err != nil {
 		return nil, err
 	}
 
 	totalPages := int((total + int64(filter.Limit) - 1) / int64(filter.Limit))
 
-	return &PaginationResult[model.Service]{
+	return &PaginationResult[Service]{
 		Data:       services,
 		Total:      total,
 		Page:       filter.Page,
@@ -148,8 +147,8 @@ func (r *serviceRepository) FindPaginated(filter ServiceRepositoryGetFilter) (*P
 	}, nil
 }
 
-func (r *serviceRepository) FindServicesByPolicyUUID(policyUUID uuid.UUID, filter ServiceRepositoryGetFilter) (*PaginationResult[model.Service], error) {
-	query := r.DB().Model(&model.Service{}).
+func (r *serviceRepository) FindServicesByPolicyUUID(policyUUID uuid.UUID, filter ServiceRepositoryGetFilter) (*PaginationResult[Service], error) {
+	query := r.DB().Model(&Service{}).
 		Joins("INNER JOIN service_policies ON services.service_id = service_policies.service_id").
 		Joins("INNER JOIN policies ON service_policies.policy_id = policies.policy_id").
 		Where("policies.policy_uuid = ?", policyUUID)
@@ -195,14 +194,14 @@ func (r *serviceRepository) FindServicesByPolicyUUID(policyUUID uuid.UUID, filte
 		filter.Limit = 10
 	}
 	offset := (filter.Page - 1) * filter.Limit
-	var services []model.Service
+	var services []Service
 	if err := query.Limit(filter.Limit).Offset(offset).Find(&services).Error; err != nil {
 		return nil, err
 	}
 
 	totalPages := int((total + int64(filter.Limit) - 1) / int64(filter.Limit))
 
-	return &PaginationResult[model.Service]{
+	return &PaginationResult[Service]{
 		Data:       services,
 		Total:      total,
 		Page:       filter.Page,
@@ -212,14 +211,14 @@ func (r *serviceRepository) FindServicesByPolicyUUID(policyUUID uuid.UUID, filte
 }
 
 func (r *serviceRepository) SetStatusByUUID(serviceUUID uuid.UUID, status string) error {
-	return r.DB().Model(&model.Service{}).
+	return r.DB().Model(&Service{}).
 		Where("service_uuid = ?", serviceUUID).
 		Update("status", status).Error
 }
 
 func (r *serviceRepository) CountPoliciesByServiceID(serviceID int64) (int64, error) {
 	var count int64
-	err := r.DB().Model(&model.ServicePolicy{}).
+	err := r.DB().Model(&ServicePolicy{}).
 		Where("service_id = ?", serviceID).
 		Count(&count).Error
 	return count, err

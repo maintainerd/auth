@@ -7,23 +7,20 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
-	"github.com/maintainerd/auth/internal/dto"
-	"github.com/maintainerd/auth/internal/model"
 	"github.com/maintainerd/auth/internal/platform/middleware"
 	"github.com/maintainerd/auth/internal/platform/ptr"
 	resp "github.com/maintainerd/auth/internal/platform/response"
-	"github.com/maintainerd/auth/internal/service"
 )
 
 // RoleHandler handles HTTP requests for role management.
 // All endpoints are tenant-scoped - the middleware validates user access to the tenant
 // and sets it in the request context. The service layer ensures roles belong to the tenant.
 type RoleHandler struct {
-	service service.RoleService
+	service RoleService
 }
 
 // NewRoleHandler creates a new instance of RoleHandler.
-func NewRoleHandler(service service.RoleService) *RoleHandler {
+func NewRoleHandler(service RoleService) *RoleHandler {
 	return &RoleHandler{service}
 }
 
@@ -65,7 +62,7 @@ func (h *RoleHandler) Get(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Build filter DTO with all query parameters
-	reqParams := dto.RoleFilterDTO{
+	reqParams := RoleFilterDTO{
 		Name:                 ptr.PtrOrNil(q.Get("name")),
 		Description:          ptr.PtrOrNil(q.Get("description")),
 		IsDefault:            isDefault,
@@ -81,7 +78,7 @@ func (h *RoleHandler) Get(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Build service filter
-	roleFilter := service.RoleServiceGetFilter{
+	roleFilter := RoleServiceGetFilter{
 		Name:        reqParams.Name,
 		Description: reqParams.Description,
 		IsDefault:   reqParams.IsDefault,
@@ -95,20 +92,20 @@ func (h *RoleHandler) Get(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Fetch roles from service - service filters by tenant_id
-	result, err := h.service.Get(r.Context(), roleFilter)
+	result, err := h.Get(r.Context(), roleFilter)
 	if err != nil {
 		resp.HandleServiceError(w, r, "Failed to fetch roles", err)
 		return
 	}
 
 	// Convert service results to DTOs
-	rows := make([]dto.RoleResponseDTO, len(result.Data))
+	rows := make([]RoleResponseDTO, len(result.Data))
 	for i, r := range result.Data {
 		rows[i] = toRoleResponseDTO(r)
 	}
 
 	// Build paginated response
-	response := dto.PaginatedResponseDTO[dto.RoleResponseDTO]{
+	response := PaginatedResponseDTO[RoleResponseDTO]{
 		Rows:       rows,
 		Total:      result.Total,
 		Page:       result.Page,
@@ -138,7 +135,7 @@ func (h *RoleHandler) GetByUUID(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Fetch role - service validates it belongs to tenant
-	role, err := h.service.GetByUUID(r.Context(), roleUUID, tenant.TenantID)
+	role, err := h.GetByUUID(r.Context(), roleUUID, tenant.TenantID)
 	if err != nil {
 		resp.HandleServiceError(w, r, "Role not found", err)
 		return
@@ -166,7 +163,7 @@ func (h *RoleHandler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Decode request body
-	var req dto.RoleCreateOrUpdateRequestDTO
+	var req RoleCreateOrUpdateRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		resp.Error(w, http.StatusBadRequest, "Invalid request")
 		return
@@ -179,7 +176,7 @@ func (h *RoleHandler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Create role associated with tenant
-	role, err := h.service.Create(r.Context(), req.Name, req.Description, false, false, req.Status, tenant.TenantUUID.String(), user.UserUUID)
+	role, err := h.Create(r.Context(), req.Name, req.Description, false, false, req.Status, tenant.TenantUUID.String(), user.UserUUID)
 	if err != nil {
 		resp.HandleServiceError(w, r, "Failed to create role", err)
 		return
@@ -214,7 +211,7 @@ func (h *RoleHandler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Decode request body
-	var req dto.RoleCreateOrUpdateRequestDTO
+	var req RoleCreateOrUpdateRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		resp.Error(w, http.StatusBadRequest, "Invalid request")
 		return
@@ -227,7 +224,7 @@ func (h *RoleHandler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Update role - service validates it belongs to tenant
-	role, err := h.service.Update(r.Context(), roleUUID, tenant.TenantID, req.Name, req.Description, false, false, req.Status, user.UserUUID)
+	role, err := h.Update(r.Context(), roleUUID, tenant.TenantID, req.Name, req.Description, false, false, req.Status, user.UserUUID)
 	if err != nil {
 		resp.HandleServiceError(w, r, "Failed to update role", err)
 		return
@@ -271,13 +268,13 @@ func (h *RoleHandler) SetStatus(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Validate status value
-	if req.Status != model.StatusActive && req.Status != model.StatusInactive {
+	if req.Status != StatusActive && req.Status != StatusInactive {
 		resp.Error(w, http.StatusBadRequest, "Status must be 'active' or 'inactive'")
 		return
 	}
 
 	// Update role status - service validates it belongs to tenant
-	role, err := h.service.SetStatusByUUID(r.Context(), roleUUID, tenant.TenantID, req.Status, user.UserUUID)
+	role, err := h.SetStatusByUUID(r.Context(), roleUUID, tenant.TenantID, req.Status, user.UserUUID)
 	if err != nil {
 		resp.HandleServiceError(w, r, "Failed to update role", err)
 		return
@@ -312,7 +309,7 @@ func (h *RoleHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Delete role - service validates it belongs to tenant
-	role, err := h.service.DeleteByUUID(r.Context(), roleUUID, tenant.TenantID, user.UserUUID)
+	role, err := h.DeleteByUUID(r.Context(), roleUUID, tenant.TenantID, user.UserUUID)
 	if err != nil {
 		resp.HandleServiceError(w, r, "Failed to delete role", err)
 		return
@@ -360,7 +357,7 @@ func (h *RoleHandler) GetPermissions(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Build service filter
-	filter := service.RoleServiceGetPermissionsFilter{
+	filter := RoleServiceGetPermissionsFilter{
 		RoleUUID:  roleUUID,
 		Status:    status,
 		TenantID:  tenant.TenantID,
@@ -371,16 +368,16 @@ func (h *RoleHandler) GetPermissions(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Fetch permissions from service - service validates role belongs to tenant
-	result, err := h.service.GetRolePermissions(r.Context(), filter)
+	result, err := h.GetRolePermissions(r.Context(), filter)
 	if err != nil {
 		resp.HandleServiceError(w, r, "Failed to fetch role permissions", err)
 		return
 	}
 
 	// Convert service results to DTOs
-	rows := make([]dto.PermissionResponseDTO, len(result.Data))
+	rows := make([]PermissionResponseDTO, len(result.Data))
 	for i, p := range result.Data {
-		permDTO := dto.PermissionResponseDTO{
+		permDTO := PermissionResponseDTO{
 			PermissionUUID: p.PermissionUUID,
 			Name:           p.Name,
 			Description:    p.Description,
@@ -392,7 +389,7 @@ func (h *RoleHandler) GetPermissions(w http.ResponseWriter, r *http.Request) {
 		}
 		// Include API details if available
 		if p.API != nil {
-			permDTO.API = &dto.APIResponseDTO{
+			permDTO.API = &APIResponseDTO{
 				APIUUID:     p.API.APIUUID,
 				Name:        p.API.Name,
 				DisplayName: p.API.DisplayName,
@@ -408,7 +405,7 @@ func (h *RoleHandler) GetPermissions(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Build paginated response
-	response := dto.PaginatedResponseDTO[dto.PermissionResponseDTO]{
+	response := PaginatedResponseDTO[PermissionResponseDTO]{
 		Rows:       rows,
 		Total:      result.Total,
 		Page:       result.Page,
@@ -445,7 +442,7 @@ func (h *RoleHandler) AddPermissions(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Decode request body
-	var req dto.RoleAddPermissionsRequestDTO
+	var req RoleAddPermissionsRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		resp.Error(w, http.StatusBadRequest, "Invalid request")
 		return
@@ -458,7 +455,7 @@ func (h *RoleHandler) AddPermissions(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Add permissions to role - service validates role belongs to tenant
-	role, err := h.service.AddRolePermissions(r.Context(), roleUUID, tenant.TenantID, req.Permissions, user.UserUUID)
+	role, err := h.AddRolePermissions(r.Context(), roleUUID, tenant.TenantID, req.Permissions, user.UserUUID)
 	if err != nil {
 		resp.HandleServiceError(w, r, "Failed to add permissions to role", err)
 		return
@@ -500,7 +497,7 @@ func (h *RoleHandler) RemovePermission(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Remove permission from role - service validates role belongs to tenant
-	role, err := h.service.RemoveRolePermissions(r.Context(), roleUUID, tenant.TenantID, permissionUUID, user.UserUUID)
+	role, err := h.RemoveRolePermissions(r.Context(), roleUUID, tenant.TenantID, permissionUUID, user.UserUUID)
 	if err != nil {
 		resp.HandleServiceError(w, r, "Failed to remove permission from role", err)
 		return
@@ -512,8 +509,8 @@ func (h *RoleHandler) RemovePermission(w http.ResponseWriter, r *http.Request) {
 // Helper function for converting service data to response DTO
 
 // toRoleResponseDTO converts a service result to a role response DTO.
-func toRoleResponseDTO(r service.RoleServiceDataResult) dto.RoleResponseDTO {
-	result := dto.RoleResponseDTO{
+func toRoleResponseDTO(r RoleServiceDataResult) RoleResponseDTO {
+	result := RoleResponseDTO{
 		RoleUUID:    r.RoleUUID,
 		Name:        r.Name,
 		Description: r.Description,
@@ -525,9 +522,9 @@ func toRoleResponseDTO(r service.RoleServiceDataResult) dto.RoleResponseDTO {
 	}
 	// Map permissions if present
 	if r.Permissions != nil {
-		permissions := make([]dto.PermissionResponseDTO, len(*r.Permissions))
+		permissions := make([]PermissionResponseDTO, len(*r.Permissions))
 		for i, permission := range *r.Permissions {
-			permissions[i] = dto.PermissionResponseDTO{
+			permissions[i] = PermissionResponseDTO{
 				PermissionUUID: permission.PermissionUUID,
 				Name:           permission.Name,
 				Description:    permission.Description,

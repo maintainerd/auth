@@ -5,9 +5,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/maintainerd/auth/internal/model"
 	"github.com/maintainerd/auth/internal/platform/apperror"
-	"github.com/maintainerd/auth/internal/repository"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -49,13 +47,13 @@ type IPRestrictionRuleService interface {
 
 type ipRestrictionRuleService struct {
 	db                    *gorm.DB
-	ipRestrictionRuleRepo repository.IPRestrictionRuleRepository
+	ipRestrictionRuleRepo IPRestrictionRuleRepository
 }
 
 // NewIPRestrictionRuleService creates a new IPRestrictionRuleService.
 func NewIPRestrictionRuleService(
 	db *gorm.DB,
-	ipRestrictionRuleRepo repository.IPRestrictionRuleRepository,
+	ipRestrictionRuleRepo IPRestrictionRuleRepository,
 ) IPRestrictionRuleService {
 	return &ipRestrictionRuleService{
 		db:                    db,
@@ -68,7 +66,7 @@ func (s *ipRestrictionRuleService) GetAll(ctx context.Context, tenantID int64, r
 	defer span.End()
 	span.SetAttributes(attribute.Int64("tenant.id", tenantID))
 
-	filter := repository.IPRestrictionRuleRepositoryGetFilter{
+	filter := IPRestrictionRuleRepositoryGetFilter{
 		TenantID:    &tenantID,
 		Type:        ruleType,
 		Status:      status,
@@ -141,7 +139,7 @@ func (s *ipRestrictionRuleService) Create(ctx context.Context, tenantID int64, d
 		attribute.String("ip_rule.type", ruleType),
 	)
 
-	rule := &model.IPRestrictionRule{
+	rule := &IPRestrictionRule{
 		TenantID:    tenantID,
 		Description: description,
 		Type:        ruleType,
@@ -285,9 +283,9 @@ func (s *ipRestrictionRuleService) Delete(ctx context.Context, tenantID int64, i
 	return &result, nil
 }
 
-// toIPRestrictionRuleServiceDataResult converts a model.IPRestrictionRule into
+// toIPRestrictionRuleServiceDataResult converts a IPRestrictionRule into
 // its service-layer representation.
-func toIPRestrictionRuleServiceDataResult(rule *model.IPRestrictionRule) IPRestrictionRuleServiceDataResult {
+func toIPRestrictionRuleServiceDataResult(rule *IPRestrictionRule) IPRestrictionRuleServiceDataResult {
 	return IPRestrictionRuleServiceDataResult{
 		IPRestrictionRuleUUID: rule.IPRestrictionRuleUUID,
 		TenantID:              rule.TenantID,

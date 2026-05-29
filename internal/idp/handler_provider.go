@@ -8,18 +8,16 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
-	"github.com/maintainerd/auth/internal/dto"
 	"github.com/maintainerd/auth/internal/platform/middleware"
 	"github.com/maintainerd/auth/internal/platform/ptr"
 	resp "github.com/maintainerd/auth/internal/platform/response"
-	"github.com/maintainerd/auth/internal/service"
 )
 
 type IdentityProviderHandler struct {
-	idpService service.IdentityProviderService
+	idpService IdentityProviderService
 }
 
-func NewIdentityProviderHandler(idpService service.IdentityProviderService) *IdentityProviderHandler {
+func NewIdentityProviderHandler(idpService IdentityProviderService) *IdentityProviderHandler {
 	return &IdentityProviderHandler{idpService}
 }
 
@@ -65,7 +63,7 @@ func (h *IdentityProviderHandler) Get(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Build request DTO
-	reqParams := dto.IdentityProviderFilterDTO{
+	reqParams := IdentityProviderFilterDTO{
 		Name:                 ptr.PtrOrNil(q.Get("name")),
 		DisplayName:          ptr.PtrOrNil(q.Get("display_name")),
 		Provider:             provider,
@@ -83,7 +81,7 @@ func (h *IdentityProviderHandler) Get(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Build permission filter
-	idpFilter := service.IdentityProviderServiceGetFilter{
+	idpFilter := IdentityProviderServiceGetFilter{
 		Name:         reqParams.Name,
 		DisplayName:  reqParams.DisplayName,
 		Provider:     reqParams.Provider,
@@ -107,13 +105,13 @@ func (h *IdentityProviderHandler) Get(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Map results to DTO (list response without config and tenant)
-	rows := make([]dto.IdentityProviderResponseDTO, len(result.Data))
+	rows := make([]IdentityProviderResponseDTO, len(result.Data))
 	for i, r := range result.Data {
 		rows[i] = toIdpListResponseDTO(r)
 	}
 
 	// Build response data
-	response := dto.PaginatedResponseDTO[dto.IdentityProviderResponseDTO]{
+	response := PaginatedResponseDTO[IdentityProviderResponseDTO]{
 		Rows:       rows,
 		Total:      result.Total,
 		Page:       result.Page,
@@ -152,7 +150,7 @@ func (h *IdentityProviderHandler) Create(w http.ResponseWriter, r *http.Request)
 	tenant := middleware.AuthFromRequest(r).Tenant
 	user := middleware.AuthFromRequest(r).User
 
-	var req dto.IdentityProviderCreateRequestDTO
+	var req IdentityProviderCreateRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		resp.Error(w, http.StatusBadRequest, "Invalid request")
 		return
@@ -186,7 +184,7 @@ func (h *IdentityProviderHandler) Update(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	var req dto.IdentityProviderUpdateRequestDTO
+	var req IdentityProviderUpdateRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		resp.Error(w, http.StatusBadRequest, "Invalid request")
 		return
@@ -221,7 +219,7 @@ func (h *IdentityProviderHandler) SetStatus(w http.ResponseWriter, r *http.Reque
 	}
 
 	// Parse and validate request body
-	var req dto.IdentityProviderStatusUpdateDTO
+	var req IdentityProviderStatusUpdateDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		resp.Error(w, http.StatusBadRequest, "Invalid request")
 		return
@@ -267,8 +265,8 @@ func (h *IdentityProviderHandler) Delete(w http.ResponseWriter, r *http.Request)
 }
 
 // Convert identity provider result to list DTO (without config and tenant)
-func toIdpListResponseDTO(r service.IdentityProviderServiceDataResult) dto.IdentityProviderResponseDTO {
-	return dto.IdentityProviderResponseDTO{
+func toIdpListResponseDTO(r IdentityProviderServiceDataResult) IdentityProviderResponseDTO {
+	return IdentityProviderResponseDTO{
 		IdentityProviderUUID: r.IdentityProviderUUID,
 		Name:                 r.Name,
 		DisplayName:          r.DisplayName,
@@ -284,8 +282,8 @@ func toIdpListResponseDTO(r service.IdentityProviderServiceDataResult) dto.Ident
 }
 
 // Convert identity provider result to detail DTO (with config and tenant)
-func toIdpDetailResponseDTO(r service.IdentityProviderServiceDataResult) dto.IdentityProviderDetailResponseDTO {
-	result := dto.IdentityProviderDetailResponseDTO{
+func toIdpDetailResponseDTO(r IdentityProviderServiceDataResult) IdentityProviderDetailResponseDTO {
+	result := IdentityProviderDetailResponseDTO{
 		IdentityProviderUUID: r.IdentityProviderUUID,
 		Name:                 r.Name,
 		DisplayName:          r.DisplayName,
@@ -301,7 +299,7 @@ func toIdpDetailResponseDTO(r service.IdentityProviderServiceDataResult) dto.Ide
 	}
 
 	if r.Tenant != nil {
-		result.Tenant = &dto.TenantResponseDTO{
+		result.Tenant = &TenantResponseDTO{
 			TenantUUID:  r.Tenant.TenantUUID,
 			Name:        r.Tenant.Name,
 			Description: r.Tenant.Description,

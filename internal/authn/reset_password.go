@@ -5,36 +5,33 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/maintainerd/auth/internal/dto"
-	"github.com/maintainerd/auth/internal/model"
 	"github.com/maintainerd/auth/internal/platform/apperror"
 	"github.com/maintainerd/auth/internal/platform/security"
-	"github.com/maintainerd/auth/internal/repository"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/codes"
 	"gorm.io/gorm"
 )
 
 type ResetPasswordService interface {
-	ResetPassword(ctx context.Context, token, newPassword string, clientID, providerID *string) (*dto.ResetPasswordResponseDTO, error)
+	ResetPassword(ctx context.Context, token, newPassword string, clientID, providerID *string) (*ResetPasswordResponseDTO, error)
 }
 
 type resetPasswordService struct {
 	db                  *gorm.DB
-	userRepo            repository.UserRepository
-	userTokenRepo       repository.UserTokenRepository
-	clientRepo          repository.ClientRepository
-	securitySettingRepo repository.SecuritySettingRepository     // nil → use defaults
-	passwordHistoryRepo repository.UserPasswordHistoryRepository // nil → skip history
+	userRepo            UserRepository
+	userTokenRepo       UserTokenRepository
+	clientRepo          ClientRepository
+	securitySettingRepo SecuritySettingRepository     // nil → use defaults
+	passwordHistoryRepo UserPasswordHistoryRepository // nil → skip history
 }
 
 func NewResetPasswordService(
 	db *gorm.DB,
-	userRepo repository.UserRepository,
-	userTokenRepo repository.UserTokenRepository,
-	clientRepo repository.ClientRepository,
-	securitySettingRepo repository.SecuritySettingRepository,
-	passwordHistoryRepo repository.UserPasswordHistoryRepository,
+	userRepo UserRepository,
+	userTokenRepo UserTokenRepository,
+	clientRepo ClientRepository,
+	securitySettingRepo SecuritySettingRepository,
+	passwordHistoryRepo UserPasswordHistoryRepository,
 ) ResetPasswordService {
 	return &resetPasswordService{
 		db:                  db,
@@ -46,12 +43,12 @@ func NewResetPasswordService(
 	}
 }
 
-func (s *resetPasswordService) ResetPassword(ctx context.Context, token, newPassword string, clientID, providerID *string) (*dto.ResetPasswordResponseDTO, error) {
+func (s *resetPasswordService) ResetPassword(ctx context.Context, token, newPassword string, clientID, providerID *string) (*ResetPasswordResponseDTO, error) {
 	_, span := otel.Tracer("service").Start(ctx, "password.reset")
 	defer span.End()
 
-	var user *model.User
-	var userToken *model.UserToken
+	var user *User
+	var userToken *UserToken
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
 		txUserRepo := s.userRepo.WithTx(tx)
@@ -59,7 +56,7 @@ func (s *resetPasswordService) ResetPassword(ctx context.Context, token, newPass
 		txClientRepo := s.clientRepo.WithTx(tx)
 
 		// Validate auth client first
-		var Client *model.Client
+		var Client *Client
 		var txErr error
 		if clientID != nil && providerID != nil {
 			Client, txErr = txClientRepo.FindByClientIDAndIdentityProvider(*clientID, *providerID)
@@ -75,12 +72,12 @@ func (s *resetPasswordService) ResetPassword(ctx context.Context, token, newPass
 
 		// Find the reset token by searching all password reset tokens
 		// Note: This is not the most efficient approach, but works with current repository methods
-		var foundToken *model.UserToken
+		var foundToken *UserToken
 
 		// We need to find all password reset tokens and check which one matches our token
 		// This is a security consideration - we don't want to reveal if a token exists
-		allTokens := []model.UserToken{}
-		txErr = tx.Where("token_type = ? AND token = ? AND is_revoked = false", model.TokenTypePasswordReset, token).Find(&allTokens).Error
+		allTokens := []UserToken{}
+		txErr = tx.Where("token_type = ? AND token = ? AND is_revoked = false", TokenTypePasswordReset, token).Find(&allTokens).Error
 		if txErr != nil {
 			return apperror.NewInternal("failed to find reset token", txErr)
 		}
@@ -112,7 +109,7 @@ func (s *resetPasswordService) ResetPassword(ctx context.Context, token, newPass
 		}
 
 		// Check if user is active
-		if user.Status != model.StatusActive {
+		if user.Status != StatusActive {
 			return apperror.NewUnauthorized("user account is not active")
 		}
 
@@ -163,7 +160,7 @@ func (s *resetPasswordService) ResetPassword(ctx context.Context, token, newPass
 		}
 
 		// Revoke all other password reset tokens for this user
-		existingTokens, txErr := txUserTokenRepo.FindByUserIDAndTokenType(user.UserID, model.TokenTypePasswordReset)
+		existingTokens, txErr := txUserTokenRepo.FindByUserIDAndTokenType(user.UserID, TokenTypePasswordReset)
 		if txErr != nil {
 			return apperror.NewInternal("failed to find existing tokens", txErr)
 		}
@@ -205,7 +202,7 @@ func (s *resetPasswordService) ResetPassword(ctx context.Context, token, newPass
 	security.ResetFailedAttempts(user.Email)
 
 	span.SetStatus(codes.Ok, "")
-	return &dto.ResetPasswordResponseDTO{
+	return &ResetPasswordResponseDTO{
 		Message: "Password has been reset successfully. You can now log in with your new password.",
 		Success: true,
 	}, nil

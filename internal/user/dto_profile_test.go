@@ -7,8 +7,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gorm.io/datatypes"
-
-	"github.com/maintainerd/auth/internal/model"
 )
 
 func TestProfileRequestDto_Validate(t *testing.T) {
@@ -22,7 +20,7 @@ func TestProfileRequestDto_Validate(t *testing.T) {
 			FirstName:  "John",
 			LastName:   strPtr("Doe"),
 			Birthdate:  strPtr("1990-01-25"),
-			Gender:     strPtr(model.GenderMale),
+			Gender:     strPtr(GenderMale),
 			Email:      strPtr("john@example.com"),
 			Country:    strPtr("US"),
 			ProfileURL: strPtr("https://cdn.example.com/avatar.png"),
@@ -61,12 +59,12 @@ func TestProfileRequestDto_Validate(t *testing.T) {
 	})
 
 	t.Run("valid female gender", func(t *testing.T) {
-		d := ProfileRequestDTO{FirstName: "Jane", Gender: strPtr(model.GenderFemale)}
+		d := ProfileRequestDTO{FirstName: "Jane", Gender: strPtr(GenderFemale)}
 		assert.NoError(t, d.Validate())
 	})
 
 	t.Run("valid prefer_not_to_say gender", func(t *testing.T) {
-		d := ProfileRequestDTO{FirstName: "Alex", Gender: strPtr(model.GenderPreferNotToSay)}
+		d := ProfileRequestDTO{FirstName: "Alex", Gender: strPtr(GenderPreferNotToSay)}
 		assert.NoError(t, d.Validate())
 	})
 }
@@ -85,21 +83,21 @@ func TestProfileFilterDto_Validate(t *testing.T) {
 
 func TestNewProfileResponseDTO(t *testing.T) {
 	t.Run("empty metadata returns empty map", func(t *testing.T) {
-		p := &model.Profile{ProfileUUID: uuid.New(), Metadata: datatypes.JSON(nil)}
+		p := &Profile{ProfileUUID: uuid.New(), Metadata: datatypes.JSON(nil)}
 		dto := NewProfileResponseDTO(p)
 		assert.NotNil(t, dto)
-		assert.Empty(t, dto.Metadata)
+		assert.Empty(t, Metadata)
 	})
 
 	t.Run("valid metadata is converted", func(t *testing.T) {
-		p := &model.Profile{ProfileUUID: uuid.New(), Metadata: datatypes.JSON(`{"key":"value"}`)}
+		p := &Profile{ProfileUUID: uuid.New(), Metadata: datatypes.JSON(`{"key":"value"}`)}
 		dto := NewProfileResponseDTO(p)
-		assert.Equal(t, "value", dto.Metadata["key"])
+		assert.Equal(t, "value", Metadata["key"])
 	})
 
 	t.Run("invalid metadata JSON returns empty map", func(t *testing.T) {
-		p := &model.Profile{ProfileUUID: uuid.New(), Metadata: datatypes.JSON([]byte("not-json"))}
+		p := &Profile{ProfileUUID: uuid.New(), Metadata: datatypes.JSON([]byte("not-json"))}
 		dto := NewProfileResponseDTO(p)
-		assert.Empty(t, dto.Metadata)
+		assert.Empty(t, Metadata)
 	})
 }

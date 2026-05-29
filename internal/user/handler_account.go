@@ -6,19 +6,17 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
-	"github.com/maintainerd/auth/internal/dto"
 	"github.com/maintainerd/auth/internal/platform/middleware"
 	resp "github.com/maintainerd/auth/internal/platform/response"
-	"github.com/maintainerd/auth/internal/service"
 )
 
 // AccountHandler handles self-service account management operations.
 type AccountHandler struct {
-	accountService service.AccountService
-	sessionService service.SessionService
+	accountService AccountService
+	sessionService SessionService
 }
 
-func NewAccountHandler(accountService service.AccountService, sessionService service.SessionService) *AccountHandler {
+func NewAccountHandler(accountService AccountService, sessionService SessionService) *AccountHandler {
 	return &AccountHandler{accountService: accountService, sessionService: sessionService}
 }
 
@@ -32,7 +30,7 @@ func (h *AccountHandler) InitiateEmailChange(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	var req dto.ChangeEmailRequestDTO
+	var req ChangeEmailRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		resp.Error(w, http.StatusBadRequest, "Invalid JSON format")
 		return
@@ -60,7 +58,7 @@ func (h *AccountHandler) VerifyEmailChange(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	var req dto.VerifyEmailChangeDTO
+	var req VerifyEmailChangeDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		resp.Error(w, http.StatusBadRequest, "Invalid JSON format")
 		return
@@ -88,7 +86,7 @@ func (h *AccountHandler) ChangeUsername(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	var req dto.ChangeUsernameDTO
+	var req ChangeUsernameDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		resp.Error(w, http.StatusBadRequest, "Invalid JSON format")
 		return
@@ -116,7 +114,7 @@ func (h *AccountHandler) DeleteAccount(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var req dto.AccountDeleteDTO
+	var req AccountDeleteDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		resp.Error(w, http.StatusBadRequest, "Invalid JSON format")
 		return
@@ -176,7 +174,7 @@ func (h *AccountHandler) GenerateBackupCodes(w http.ResponseWriter, r *http.Requ
 //
 // POST /recovery/backup-code
 func (h *AccountHandler) VerifyBackupCode(w http.ResponseWriter, r *http.Request) {
-	var req dto.VerifyBackupCodeDTO
+	var req VerifyBackupCodeDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		resp.Error(w, http.StatusBadRequest, "Invalid JSON format")
 		return

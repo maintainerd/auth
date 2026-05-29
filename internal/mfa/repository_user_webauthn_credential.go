@@ -4,17 +4,16 @@ import (
 	"errors"
 	"time"
 
-	"github.com/maintainerd/auth/internal/model"
 	"gorm.io/gorm"
 )
 
 type UserWebAuthnCredentialRepository interface {
-	BaseRepositoryMethods[model.UserWebAuthnCredential]
+	BaseRepositoryMethods[UserWebAuthnCredential]
 	WithTx(tx *gorm.DB) UserWebAuthnCredentialRepository
-	FindByUserID(userID int64) ([]model.UserWebAuthnCredential, error)
-	FindByCredentialKeyID(credentialKeyID string) (*model.UserWebAuthnCredential, error)
+	FindByUserID(userID int64) ([]UserWebAuthnCredential, error)
+	FindByCredentialKeyID(credentialKeyID string) (*UserWebAuthnCredential, error)
 	// CreateCredential persists a new credential without shadowing the base Create method.
-	CreateCredential(cred *model.UserWebAuthnCredential) error
+	CreateCredential(cred *UserWebAuthnCredential) error
 	UpdateSignCount(credentialID int64, signCount int64) error
 	UpdateLastUsed(credentialID int64) error
 	// DeleteCredentialByID removes the credential matching both IDs for ownership safety.
@@ -23,12 +22,12 @@ type UserWebAuthnCredentialRepository interface {
 }
 
 type userWebAuthnCredentialRepository struct {
-	*BaseRepository[model.UserWebAuthnCredential]
+	*BaseRepository[UserWebAuthnCredential]
 }
 
 func NewUserWebAuthnCredentialRepository(db *gorm.DB) UserWebAuthnCredentialRepository {
 	return &userWebAuthnCredentialRepository{
-		BaseRepository: NewBaseRepository[model.UserWebAuthnCredential](db, "credential_uuid", "credential_id"),
+		BaseRepository: NewBaseRepository[UserWebAuthnCredential](db, "credential_uuid", "credential_id"),
 	}
 }
 
@@ -36,14 +35,14 @@ func (r *userWebAuthnCredentialRepository) WithTx(tx *gorm.DB) UserWebAuthnCrede
 	return &userWebAuthnCredentialRepository{BaseRepository: r.BaseRepository.WithTx(tx)}
 }
 
-func (r *userWebAuthnCredentialRepository) FindByUserID(userID int64) ([]model.UserWebAuthnCredential, error) {
-	var creds []model.UserWebAuthnCredential
+func (r *userWebAuthnCredentialRepository) FindByUserID(userID int64) ([]UserWebAuthnCredential, error) {
+	var creds []UserWebAuthnCredential
 	err := r.DB().Where("user_id = ?", userID).Find(&creds).Error
 	return creds, err
 }
 
-func (r *userWebAuthnCredentialRepository) FindByCredentialKeyID(credentialKeyID string) (*model.UserWebAuthnCredential, error) {
-	var c model.UserWebAuthnCredential
+func (r *userWebAuthnCredentialRepository) FindByCredentialKeyID(credentialKeyID string) (*UserWebAuthnCredential, error) {
+	var c UserWebAuthnCredential
 	err := r.DB().Where("credential_key_id = ?", credentialKeyID).First(&c).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -54,12 +53,12 @@ func (r *userWebAuthnCredentialRepository) FindByCredentialKeyID(credentialKeyID
 	return &c, nil
 }
 
-func (r *userWebAuthnCredentialRepository) CreateCredential(cred *model.UserWebAuthnCredential) error {
+func (r *userWebAuthnCredentialRepository) CreateCredential(cred *UserWebAuthnCredential) error {
 	return r.DB().Create(cred).Error
 }
 
 func (r *userWebAuthnCredentialRepository) UpdateSignCount(credentialID int64, signCount int64) error {
-	return r.DB().Model(&model.UserWebAuthnCredential{}).
+	return r.DB().Model(&UserWebAuthnCredential{}).
 		Where("credential_id = ?", credentialID).
 		Updates(map[string]any{
 			"sign_count": signCount,
@@ -69,7 +68,7 @@ func (r *userWebAuthnCredentialRepository) UpdateSignCount(credentialID int64, s
 
 func (r *userWebAuthnCredentialRepository) UpdateLastUsed(credentialID int64) error {
 	now := time.Now()
-	return r.DB().Model(&model.UserWebAuthnCredential{}).
+	return r.DB().Model(&UserWebAuthnCredential{}).
 		Where("credential_id = ?", credentialID).
 		Updates(map[string]any{
 			"last_used_at": now,
@@ -80,9 +79,9 @@ func (r *userWebAuthnCredentialRepository) UpdateLastUsed(credentialID int64) er
 func (r *userWebAuthnCredentialRepository) DeleteCredentialByID(credentialID int64, userID int64) error {
 	return r.DB().
 		Where("credential_id = ? AND user_id = ?", credentialID, userID).
-		Delete(&model.UserWebAuthnCredential{}).Error
+		Delete(&UserWebAuthnCredential{}).Error
 }
 
 func (r *userWebAuthnCredentialRepository) DeleteAllByUserID(userID int64) error {
-	return r.DB().Where("user_id = ?", userID).Delete(&model.UserWebAuthnCredential{}).Error
+	return r.DB().Where("user_id = ?", userID).Delete(&UserWebAuthnCredential{}).Error
 }

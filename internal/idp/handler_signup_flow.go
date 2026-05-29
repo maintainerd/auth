@@ -6,12 +6,9 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
-	"github.com/maintainerd/auth/internal/dto"
-	"github.com/maintainerd/auth/internal/model"
 	"github.com/maintainerd/auth/internal/platform/middleware"
 	"github.com/maintainerd/auth/internal/platform/ptr"
 	resp "github.com/maintainerd/auth/internal/platform/response"
-	"github.com/maintainerd/auth/internal/service"
 )
 
 // SignupFlowHandler handles signup flow management operations.
@@ -21,11 +18,11 @@ import (
 // are automatically assigned upon signup. All operations are tenant-isolated -
 // middleware validates tenant access and stores it in the request context.
 type SignupFlowHandler struct {
-	signupFlowService service.SignupFlowService
+	signupFlowService SignupFlowService
 }
 
 // NewSignupFlowHandler creates a new signup flow handler instance.
-func NewSignupFlowHandler(signupFlowService service.SignupFlowService) *SignupFlowHandler {
+func NewSignupFlowHandler(signupFlowService SignupFlowService) *SignupFlowHandler {
 	return &SignupFlowHandler{
 		signupFlowService: signupFlowService,
 	}
@@ -57,7 +54,7 @@ func (h *SignupFlowHandler) GetAll(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Build filter DTO for validation
-	filter := dto.SignupFlowFilterDTO{
+	filter := SignupFlowFilterDTO{
 		Name:                 ptr.PtrOrNil(q.Get("name")),
 		Identifier:           ptr.PtrOrNil(q.Get("identifier")),
 		Status:               status,
@@ -87,7 +84,7 @@ func (h *SignupFlowHandler) GetAll(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Build paginated response
-	response := dto.PaginatedResponseDTO[dto.SignupFlowResponseDTO]{
+	response := PaginatedResponseDTO[SignupFlowResponseDTO]{
 		Rows:       toSignupFlowResponseDtoList(result.Data),
 		Total:      result.Total,
 		Page:       result.Page,
@@ -145,7 +142,7 @@ func (h *SignupFlowHandler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Decode and validate request body
-	var req dto.SignupFlowCreateRequestDTO
+	var req SignupFlowCreateRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		resp.Error(w, http.StatusBadRequest, "Invalid request")
 		return
@@ -160,7 +157,7 @@ func (h *SignupFlowHandler) Create(w http.ResponseWriter, r *http.Request) {
 	ClientUUID, _ := uuid.Parse(req.ClientUUID)
 
 	// Set default status if not provided
-	status := model.StatusActive
+	status := StatusActive
 	if req.Status != nil {
 		status = *req.Status
 	}
@@ -206,7 +203,7 @@ func (h *SignupFlowHandler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Decode and validate request body
-	var req dto.SignupFlowUpdateRequestDTO
+	var req SignupFlowUpdateRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		resp.Error(w, http.StatusBadRequest, "Invalid request")
 		return
@@ -218,7 +215,7 @@ func (h *SignupFlowHandler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Set default status if not provided
-	status := model.StatusActive
+	status := StatusActive
 	if req.Status != nil {
 		status = *req.Status
 	}
@@ -296,7 +293,7 @@ func (h *SignupFlowHandler) UpdateStatus(w http.ResponseWriter, r *http.Request)
 	}
 
 	// Decode and validate request body
-	var req dto.SignupFlowUpdateStatusRequestDTO
+	var req SignupFlowUpdateStatusRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		resp.Error(w, http.StatusBadRequest, "Invalid request body")
 		return
@@ -345,7 +342,7 @@ func (h *SignupFlowHandler) AssignRoles(w http.ResponseWriter, r *http.Request) 
 	}
 
 	// Decode and validate request body
-	var req dto.SignupFlowAssignRolesRequestDTO
+	var req SignupFlowAssignRolesRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		resp.Error(w, http.StatusBadRequest, "Invalid request body")
 		return
@@ -370,9 +367,9 @@ func (h *SignupFlowHandler) AssignRoles(w http.ResponseWriter, r *http.Request) 
 	}
 
 	// Map service results to DTOs
-	response := make([]dto.RoleResponseDTO, len(roles))
+	response := make([]RoleResponseDTO, len(roles))
 	for i, role := range roles {
-		response[i] = dto.RoleResponseDTO{
+		response[i] = RoleResponseDTO{
 			RoleUUID:    role.RoleUUID,
 			Name:        role.RoleName,
 			Description: role.RoleDescription,
@@ -430,9 +427,9 @@ func (h *SignupFlowHandler) GetRoles(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Map service results to DTOs
-	rows := make([]dto.RoleResponseDTO, len(result.Data))
+	rows := make([]RoleResponseDTO, len(result.Data))
 	for i, role := range result.Data {
-		rows[i] = dto.RoleResponseDTO{
+		rows[i] = RoleResponseDTO{
 			RoleUUID:    role.RoleUUID,
 			Name:        role.RoleName,
 			Description: role.RoleDescription,
@@ -445,7 +442,7 @@ func (h *SignupFlowHandler) GetRoles(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Build paginated response
-	response := dto.PaginatedResponseDTO[dto.RoleResponseDTO]{
+	response := PaginatedResponseDTO[RoleResponseDTO]{
 		Rows:       rows,
 		Total:      result.Total,
 		Page:       result.Page,
@@ -503,8 +500,8 @@ func (h *SignupFlowHandler) RemoveRole(w http.ResponseWriter, r *http.Request) {
 // Helper functions for converting service data to response DTOs
 
 // toSignupFlowResponseDTO converts a service result to a signup flow response DTO.
-func toSignupFlowResponseDTO(sf service.SignupFlowServiceDataResult) dto.SignupFlowResponseDTO {
-	return dto.SignupFlowResponseDTO{
+func toSignupFlowResponseDTO(sf SignupFlowServiceDataResult) SignupFlowResponseDTO {
+	return SignupFlowResponseDTO{
 		SignupFlowUUID: sf.SignupFlowUUID.String(),
 		Name:           sf.Name,
 		Description:    sf.Description,
@@ -518,8 +515,8 @@ func toSignupFlowResponseDTO(sf service.SignupFlowServiceDataResult) dto.SignupF
 }
 
 // toSignupFlowResponseDtoList converts a list of service results to signup flow response DTOs.
-func toSignupFlowResponseDtoList(sfList []service.SignupFlowServiceDataResult) []dto.SignupFlowResponseDTO {
-	result := make([]dto.SignupFlowResponseDTO, len(sfList))
+func toSignupFlowResponseDtoList(sfList []SignupFlowServiceDataResult) []SignupFlowResponseDTO {
+	result := make([]SignupFlowResponseDTO, len(sfList))
 	for i, sf := range sfList {
 		result[i] = toSignupFlowResponseDTO(sf)
 	}

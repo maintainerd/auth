@@ -7,8 +7,6 @@ import (
 	"github.com/go-ozzo/ozzo-validation/v4/is"
 	"github.com/google/uuid"
 	"gorm.io/datatypes"
-
-	"github.com/maintainerd/auth/internal/model"
 )
 
 type ClientSecretResponseDTO struct {
@@ -97,7 +95,7 @@ func (r ClientCreateRequestDTO) Validate() error {
 			validation.Length(8, 200).Error("Display Name must be between 8 and 200 characters"),
 		),
 		validation.Field(&r.ClientType,
-			validation.In(model.ClientTypeTraditional, model.ClientTypeSPA, model.ClientTypeMobile, model.ClientTypeM2M).Error("Invalid client Type"),
+			validation.In(ClientTypeTraditional, ClientTypeSPA, ClientTypeMobile, ClientTypeM2M).Error("Invalid client Type"),
 		),
 		validation.Field(&r.Domain,
 			validation.Required.Error("Domain is required"),
@@ -108,7 +106,7 @@ func (r ClientCreateRequestDTO) Validate() error {
 		),
 		validation.Field(&r.Status,
 			validation.Required.Error("Status is required"),
-			validation.In(model.StatusActive, model.StatusInactive).Error("Status must be one of: active, inactive"),
+			validation.In(StatusActive, StatusInactive).Error("Status must be one of: active, inactive"),
 		),
 		validation.Field(&r.IdentityProviderUUID,
 			validation.Required.Error("Identity Provider UUID is required"),
@@ -139,7 +137,7 @@ func (r ClientUpdateRequestDTO) Validate() error {
 			validation.Length(8, 200).Error("Display Name must be between 8 and 200 characters"),
 		),
 		validation.Field(&r.ClientType,
-			validation.In(model.ClientTypeTraditional, model.ClientTypeSPA, model.ClientTypeMobile, model.ClientTypeM2M).Error("Client Type is required"),
+			validation.In(ClientTypeTraditional, ClientTypeSPA, ClientTypeMobile, ClientTypeM2M).Error("Client Type is required"),
 		),
 		validation.Field(&r.Domain,
 			validation.Required.Error("Domain is required"),
@@ -150,7 +148,7 @@ func (r ClientUpdateRequestDTO) Validate() error {
 		),
 		validation.Field(&r.Status,
 			validation.Required.Error("Status is required"),
-			validation.In(model.StatusActive, model.StatusInactive).Error("Status must be one of: active, inactive"),
+			validation.In(StatusActive, StatusInactive).Error("Status must be one of: active, inactive"),
 		),
 	)
 }
@@ -170,7 +168,7 @@ func (r ClientURICreateOrUpdateRequestDTO) Validate() error {
 		),
 		validation.Field(&r.Type,
 			validation.Required.Error("Type is required"),
-			validation.In(model.ClientURITypeRedirect, model.ClientURITypeOrigin, model.ClientURITypeLogout, model.ClientURITypeLogin, model.ClientURITypeCORSOrigin).Error("Type must be one of: redirect-uri, origin-uri, logout-uri, login-uri, cors-origin-uri"),
+			validation.In(ClientURITypeRedirect, ClientURITypeOrigin, ClientURITypeLogout, ClientURITypeLogin, ClientURITypeCORSOrigin).Error("Type must be one of: redirect-uri, origin-uri, logout-uri, login-uri, cors-origin-uri"),
 		),
 	)
 }
@@ -194,12 +192,12 @@ func (f ClientFilterDTO) Validate() error {
 	return validation.ValidateStruct(&f,
 		validation.Field(&f.ClientType,
 			validation.When(len(f.ClientType) > 0,
-				validation.Each(validation.In(model.ClientTypeTraditional, model.ClientTypeSPA, model.ClientTypeMobile, model.ClientTypeM2M).Error("Client type must be one of: traditional, spa, mobile, m2m")),
+				validation.Each(validation.In(ClientTypeTraditional, ClientTypeSPA, ClientTypeMobile, ClientTypeM2M).Error("Client type must be one of: traditional, spa, mobile, m2m")),
 			),
 		),
 		validation.Field(&f.Status,
 			validation.When(len(f.Status) > 0,
-				validation.Each(validation.In(model.StatusActive, model.StatusInactive).Error("Status must be 'active' or 'inactive'")),
+				validation.Each(validation.In(StatusActive, StatusInactive).Error("Status must be 'active' or 'inactive'")),
 			),
 		),
 		validation.Field(&f.IdentityProviderUUID,

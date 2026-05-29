@@ -7,21 +7,18 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
-	"github.com/maintainerd/auth/internal/dto"
 	"github.com/maintainerd/auth/internal/platform/middleware"
 	"github.com/maintainerd/auth/internal/platform/ptr"
 	resp "github.com/maintainerd/auth/internal/platform/response"
-	"github.com/maintainerd/auth/internal/repository"
-	"github.com/maintainerd/auth/internal/service"
 )
 
 // AuthEventHandler handles admin endpoints for querying auth events.
 type AuthEventHandler struct {
-	authEventService service.AuthEventService
+	authEventService AuthEventService
 }
 
 // NewAuthEventHandler creates a new AuthEventHandler.
-func NewAuthEventHandler(authEventService service.AuthEventService) *AuthEventHandler {
+func NewAuthEventHandler(authEventService AuthEventService) *AuthEventHandler {
 	return &AuthEventHandler{authEventService: authEventService}
 }
 
@@ -52,7 +49,7 @@ func (h *AuthEventHandler) GetAll(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	repoFilter := repository.AuthEventRepositoryGetFilter{
+	repoFilter := AuthEventRepositoryGetFilter{
 		TenantID:  &tenant.TenantID,
 		Category:  filter.Category,
 		EventType: filter.EventType,
@@ -81,7 +78,7 @@ func (h *AuthEventHandler) GetAll(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	response := dto.PaginatedResponseDTO[AuthEventResponseDTO]{
+	response := PaginatedResponseDTO[AuthEventResponseDTO]{
 		Rows:       toAuthEventResponseDTOList(result.Data),
 		Total:      result.Total,
 		Page:       result.Page,
@@ -143,7 +140,7 @@ func (h *AuthEventHandler) CountByType(w http.ResponseWriter, r *http.Request) {
 	resp.Success(w, map[string]int64{"count": count}, "Auth event count retrieved successfully")
 }
 
-func toAuthEventResponseDTO(e service.AuthEventServiceDataResult) AuthEventResponseDTO {
+func toAuthEventResponseDTO(e AuthEventServiceDataResult) AuthEventResponseDTO {
 	var metadata *map[string]any
 	if e.Metadata != nil {
 		var m map[string]any
@@ -171,7 +168,7 @@ func toAuthEventResponseDTO(e service.AuthEventServiceDataResult) AuthEventRespo
 	}
 }
 
-func toAuthEventResponseDTOList(events []service.AuthEventServiceDataResult) []AuthEventResponseDTO {
+func toAuthEventResponseDTOList(events []AuthEventServiceDataResult) []AuthEventResponseDTO {
 	result := make([]AuthEventResponseDTO, len(events))
 	for i, e := range events {
 		result[i] = toAuthEventResponseDTO(e)

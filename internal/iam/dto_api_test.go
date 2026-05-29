@@ -6,8 +6,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"github.com/maintainerd/auth/internal/model"
 )
 
 func validAPICreate() APICreateRequestDTO {
@@ -15,8 +13,8 @@ func validAPICreate() APICreateRequestDTO {
 		Name:        "my-api",
 		DisplayName: "My API",
 		Description: "A test API description",
-		APIType:     model.APITypeRest,
-		Status:      model.StatusActive,
+		APIType:     APITypeRest,
+		Status:      StatusActive,
 		ServiceUUID: uuid.New().String(),
 	}
 }
@@ -74,8 +72,8 @@ func TestAPIUpdateRequestDto_Validate(t *testing.T) {
 		Name:        "my-api",
 		DisplayName: "My API",
 		Description: "A valid description",
-		APIType:     model.APITypeGRPC,
-		Status:      model.StatusInactive,
+		APIType:     APITypeGRPC,
+		Status:      StatusInactive,
 		ServiceUUID: uuid.New().String(),
 	}
 	assert.NoError(t, d.Validate())
@@ -106,8 +104,8 @@ func TestAPIFilterDto_Validate(t *testing.T) {
 }
 
 func TestAPIStatusUpdateDto_Validate(t *testing.T) {
-	assert.NoError(t, APIStatusUpdateDTO{Status: model.StatusActive}.Validate())
-	assert.NoError(t, APIStatusUpdateDTO{Status: model.StatusInactive}.Validate())
+	assert.NoError(t, APIStatusUpdateDTO{Status: StatusActive}.Validate())
+	assert.NoError(t, APIStatusUpdateDTO{Status: StatusInactive}.Validate())
 	require.Error(t, APIStatusUpdateDTO{Status: "unknown"}.Validate())
 	require.Error(t, APIStatusUpdateDTO{Status: ""}.Validate())
 }

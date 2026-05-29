@@ -4,7 +4,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/maintainerd/auth/internal/model"
 	"gorm.io/datatypes"
 )
 
@@ -30,7 +29,7 @@ type eventData struct {
 	CreatedAt    time.Time      `json:"created_at"`
 }
 
-func buildPayload(event *model.AuthEvent) eventPayload {
+func buildPayload(event *AuthEvent) eventPayload {
 	return eventPayload{
 		ID:        uuid.New(),
 		Timestamp: time.Now().UTC(),

@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/maintainerd/auth/internal/model"
+	model "github.com/maintainerd/auth/internal/client"
 	"github.com/maintainerd/auth/internal/platform/config"
 	"gorm.io/gorm"
 )

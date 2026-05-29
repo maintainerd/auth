@@ -10,14 +10,25 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/maintainerd/auth/internal/authn"
+	"github.com/maintainerd/auth/internal/branding"
+	"github.com/maintainerd/auth/internal/client"
+	"github.com/maintainerd/auth/internal/iam"
+	"github.com/maintainerd/auth/internal/idp"
+	"github.com/maintainerd/auth/internal/mfa"
+	"github.com/maintainerd/auth/internal/notifier"
+	"github.com/maintainerd/auth/internal/oauth"
+	"github.com/maintainerd/auth/internal/secpolicy"
+	"github.com/maintainerd/auth/internal/setup"
+	"github.com/maintainerd/auth/internal/tenant"
+	"github.com/maintainerd/auth/internal/user"
+
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/maintainerd/auth/internal/app"
 	"github.com/maintainerd/auth/internal/authevent"
 	"github.com/maintainerd/auth/internal/invite"
 	securityMiddleware "github.com/maintainerd/auth/internal/platform/middleware"
-	"github.com/maintainerd/auth/internal/rest/handler"
-	"github.com/maintainerd/auth/internal/rest/route"
 	"github.com/maintainerd/auth/internal/webhook"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
@@ -25,104 +36,104 @@ import (
 
 // handlers holds every REST handler instance. Created once per server start.
 type handlers struct {
-	service            *handler.ServiceHandler
-	api                *handler.APIHandler
-	permission         *handler.PermissionHandler
-	policy             *handler.PolicyHandler
-	tenant             *handler.TenantHandler
-	identityProvider   *handler.IdentityProviderHandler
-	client             *handler.ClientHandler
-	role               *handler.RoleHandler
-	user               *handler.UserHandler
-	register           *handler.RegisterHandler
-	login              *handler.LoginHandler
-	profile            *handler.ProfileHandler
-	userSetting        *handler.UserSettingHandler
+	service            *iam.ServiceHandler
+	api                *iam.APIHandler
+	permission         *iam.PermissionHandler
+	policy             *iam.PolicyHandler
+	tenant             *tenant.TenantHandler
+	identityProvider   *idp.IdentityProviderHandler
+	client             *client.ClientHandler
+	role               *iam.RoleHandler
+	user               *user.UserHandler
+	register           *authn.RegisterHandler
+	login              *authn.LoginHandler
+	profile            *user.ProfileHandler
+	userSetting        *user.UserSettingHandler
 	invite             *invite.InviteHandler
-	forgotPassword     *handler.ForgotPasswordHandler
-	resetPassword      *handler.ResetPasswordHandler
-	emailVerification  *handler.EmailVerificationHandler
-	magicLink          *handler.MagicLinkHandler
-	setup              *handler.SetupHandler
-	apiKey             *handler.APIKeyHandler
-	signupFlow         *handler.SignupFlowHandler
-	securitySetting    *handler.SecuritySettingHandler
-	ipRestrictionRule  *handler.IPRestrictionRuleHandler
-	emailTemplate      *handler.EmailTemplateHandler
-	smsTemplate        *handler.SMSTemplateHandler
-	loginTemplate      *handler.LoginTemplateHandler
-	branding           *handler.BrandingHandler
-	tenantSetting      *handler.TenantSettingHandler
-	emailConfig        *handler.EmailConfigHandler
-	smsConfig          *handler.SMSConfigHandler
+	forgotPassword     *authn.ForgotPasswordHandler
+	resetPassword      *authn.ResetPasswordHandler
+	emailVerification  *authn.EmailVerificationHandler
+	magicLink          *authn.MagicLinkHandler
+	setup              *setup.SetupHandler
+	apiKey             *client.APIKeyHandler
+	signupFlow         *idp.SignupFlowHandler
+	securitySetting    *secpolicy.SecuritySettingHandler
+	ipRestrictionRule  *secpolicy.IPRestrictionRuleHandler
+	emailTemplate      *branding.EmailTemplateHandler
+	smsTemplate        *branding.SMSTemplateHandler
+	loginTemplate      *branding.LoginTemplateHandler
+	branding           *branding.BrandingHandler
+	tenantSetting      *tenant.TenantSettingHandler
+	emailConfig        *notifier.EmailConfigHandler
+	smsConfig          *notifier.SMSConfigHandler
 	webhookEndpoint    *webhook.WebhookEndpointHandler
 	authEvent          *authevent.AuthEventHandler
-	oauthAuthorize     *handler.OAuthAuthorizeHandler
-	oauthToken         *handler.OAuthTokenHandler
-	oauthTokenExchange *handler.OAuthTokenExchangeHandler
-	oauthConsent       *handler.OAuthConsentHandler
-	oauthDiscovery     *handler.OAuthDiscoveryHandler
-	oauthUserInfo      *handler.OAuthUserInfoHandler
-	oauthPAR           *handler.OAuthPARHandler
-	oauthDevice        *handler.OAuthDeviceHandler
-	oauthSession       *handler.OAuthSessionHandler
-	oauthCIBA          *handler.OAuthCIBAHandler
-	oauthRegister      *handler.OAuthRegisterHandler
-	account            *handler.AccountHandler
-	smsLogin           *handler.SMSLoginHandler
-	mfa                *handler.MFAHandler
-	federation         *handler.FederationHandler
+	oauthAuthorize     *oauth.OAuthAuthorizeHandler
+	oauthToken         *oauth.OAuthTokenHandler
+	oauthTokenExchange *oauth.OAuthTokenExchangeHandler
+	oauthConsent       *oauth.OAuthConsentHandler
+	oauthDiscovery     *oauth.OAuthDiscoveryHandler
+	oauthUserInfo      *oauth.OAuthUserInfoHandler
+	oauthPAR           *oauth.OAuthPARHandler
+	oauthDevice        *oauth.OAuthDeviceHandler
+	oauthSession       *oauth.OAuthSessionHandler
+	oauthCIBA          *oauth.OAuthCIBAHandler
+	oauthRegister      *oauth.OAuthRegisterHandler
+	account            *user.AccountHandler
+	smsLogin           *authn.SMSLoginHandler
+	mfa                *mfa.MFAHandler
+	federation         *idp.FederationHandler
 }
 
 func initHandlers(application *app.App) *handlers {
 	return &handlers{
-		service:            handler.NewServiceHandler(application.ServiceService),
-		api:                handler.NewAPIHandler(application.APIService),
-		permission:         handler.NewPermissionHandler(application.PermissionService),
-		policy:             handler.NewPolicyHandler(application.PolicyService),
-		tenant:             handler.NewTenantHandler(application.TenantService, application.TenantMemberService),
-		identityProvider:   handler.NewIdentityProviderHandler(application.IdentityProviderService),
-		client:             handler.NewClientHandler(application.ClientService),
-		role:               handler.NewRoleHandler(application.RoleService),
-		user:               handler.NewUserHandler(application.UserService),
-		register:           handler.NewRegisterHandler(application.RegisterService, application.EmailVerificationService),
-		login:              handler.NewLoginHandler(application.LoginService),
-		profile:            handler.NewProfileHandler(application.ProfileService),
-		userSetting:        handler.NewUserSettingHandler(application.UserSettingService),
+		service:            iam.NewServiceHandler(application.ServiceService),
+		api:                iam.NewAPIHandler(application.APIService),
+		permission:         iam.NewPermissionHandler(application.PermissionService),
+		policy:             iam.NewPolicyHandler(application.PolicyService),
+		tenant:             tenant.NewTenantHandler(application.TenantService, application.TenantMemberService),
+		identityProvider:   idp.NewIdentityProviderHandler(application.IdentityProviderService),
+		client:             client.NewClientHandler(application.ClientService),
+		role:               iam.NewRoleHandler(application.RoleService),
+		user:               user.NewUserHandler(application.UserService),
+		register:           authn.NewRegisterHandler(application.RegisterService, application.EmailVerificationService),
+		login:              authn.NewLoginHandler(application.LoginService),
+		profile:            user.NewProfileHandler(application.ProfileService),
+		userSetting:        user.NewUserSettingHandler(application.UserSettingService),
 		invite:             invite.NewInviteHandler(application.InviteService),
-		forgotPassword:     handler.NewForgotPasswordHandler(application.ForgotPasswordService),
-		resetPassword:      handler.NewResetPasswordHandler(application.ResetPasswordService),
-		emailVerification:  handler.NewEmailVerificationHandler(application.EmailVerificationService),
-		magicLink:          handler.NewMagicLinkHandler(application.MagicLinkService),
-		setup:              handler.NewSetupHandler(application.SetupService),
-		apiKey:             handler.NewAPIKeyHandler(application.APIKeyService),
-		signupFlow:         handler.NewSignupFlowHandler(application.SignupFlowService),
-		securitySetting:    handler.NewSecuritySettingHandler(application.SecuritySettingService),
-		ipRestrictionRule:  handler.NewIPRestrictionRuleHandler(application.IPRestrictionRuleService),
-		emailTemplate:      handler.NewEmailTemplateHandler(application.EmailTemplateService),
-		smsTemplate:        handler.NewSMSTemplateHandler(application.SMSTemplateService),
-		loginTemplate:      handler.NewLoginTemplateHandler(application.LoginTemplateService),
-		branding:           handler.NewBrandingHandler(application.BrandingService),
-		tenantSetting:      handler.NewTenantSettingHandler(application.TenantSettingService),
-		emailConfig:        handler.NewEmailConfigHandler(application.EmailConfigService),
-		smsConfig:          handler.NewSMSConfigHandler(application.SMSConfigService),
+		forgotPassword:     authn.NewForgotPasswordHandler(application.ForgotPasswordService),
+		resetPassword:      authn.NewResetPasswordHandler(application.ResetPasswordService),
+		emailVerification:  authn.NewEmailVerificationHandler(application.EmailVerificationService),
+		magicLink:          authn.NewMagicLinkHandler(application.MagicLinkService),
+		setup:              setup.NewSetupHandler(application.SetupService),
+		apiKey:             client.NewAPIKeyHandler(application.APIKeyService),
+		signupFlow:         idp.NewSignupFlowHandler(application.SignupFlowService),
+		securitySetting:    secpolicy.NewSecuritySettingHandler(application.SecuritySettingService),
+		ipRestrictionRule:  secpolicy.NewIPRestrictionRuleHandler(application.IPRestrictionRuleService),
+		emailTemplate:      branding.NewEmailTemplateHandler(application.EmailTemplateService),
+		smsTemplate:        branding.NewSMSTemplateHandler(application.SMSTemplateService),
+		loginTemplate:      branding.NewLoginTemplateHandler(application.LoginTemplateService),
+		branding:           branding.NewBrandingHandler(application.BrandingService),
+		tenantSetting:      tenant.NewTenantSettingHandler(application.TenantSettingService),
+		emailConfig:        notifier.NewEmailConfigHandler(application.EmailConfigService),
+		smsConfig:          notifier.NewSMSConfigHandler(application.SMSConfigService),
 		webhookEndpoint:    webhook.NewWebhookEndpointHandler(application.WebhookEndpointService),
 		authEvent:          authevent.NewAuthEventHandler(application.AuthEventService),
-		oauthAuthorize:     handler.NewOAuthAuthorizeHandler(application.OAuthAuthorizeService),
-		oauthToken:         handler.NewOAuthTokenHandler(application.OAuthTokenService),
-		oauthTokenExchange: handler.NewOAuthTokenExchangeHandler(application.OAuthTokenExchangeService),
-		oauthConsent:       handler.NewOAuthConsentHandler(application.OAuthConsentService),
-		oauthDiscovery:     handler.NewOAuthDiscoveryHandler(),
-		oauthUserInfo:      handler.NewOAuthUserInfoHandler(),
-		oauthPAR:           handler.NewOAuthPARHandler(application.OAuthPARService),
-		oauthDevice:        handler.NewOAuthDeviceHandler(application.OAuthDeviceService),
-		oauthSession:       handler.NewOAuthSessionHandler(application.OAuthSessionService),
-		oauthCIBA:          handler.NewOAuthCIBAHandler(application.OAuthCIBAService),
-		oauthRegister:      handler.NewOAuthRegisterHandler(application.OAuthRegisterService),
-		account:            handler.NewAccountHandler(application.AccountService, application.SessionService),
-		smsLogin:           handler.NewSMSLoginHandler(application.SMSLoginService),
-		mfa:                handler.NewMFAHandler(application.MFAService, application.WebAuthnService),
-		federation:         handler.NewFederationHandler(application.FederationService),
+		oauthAuthorize:     oauth.NewOAuthAuthorizeHandler(application.OAuthAuthorizeService),
+		oauthToken:         oauth.NewOAuthTokenHandler(application.OAuthTokenService),
+		oauthTokenExchange: oauth.NewOAuthTokenExchangeHandler(application.OAuthTokenExchangeService),
+		oauthConsent:       oauth.NewOAuthConsentHandler(application.OAuthConsentService),
+		oauthDiscovery:     oauth.NewOAuthDiscoveryHandler(),
+		oauthUserInfo:      oauth.NewOAuthUserInfoHandler(),
+		oauthPAR:           oauth.NewOAuthPARHandler(application.OAuthPARService),
+		oauthDevice:        oauth.NewOAuthDeviceHandler(application.OAuthDeviceService),
+		oauthSession:       oauth.NewOAuthSessionHandler(application.OAuthSessionService),
+		oauthCIBA:          oauth.NewOAuthCIBAHandler(application.OAuthCIBAService),
+		oauthRegister:      oauth.NewOAuthRegisterHandler(application.OAuthRegisterService),
+		account:            user.NewAccountHandler(application.AccountService, application.SessionService),
+		smsLogin:           authn.NewSMSLoginHandler(application.SMSLoginService),
+		mfa:                mfa.NewMFAHandler(application.MFAService, application.WebAuthnService),
+		federation:         idp.NewFederationHandler(application.FederationService),
 	}
 }
 
@@ -232,55 +243,55 @@ func buildInternalRouter(h *handlers, application *app.App) http.Handler {
 
 	r.Route("/api/v1", func(api chi.Router) {
 		// Setup Routes (no authentication required)
-		route.SetupRoute(api, h.setup)
+		setup.SetupRoute(api, h.setup)
 
 		// Internal Authentication Routes (no client_id/provider_id required)
-		route.RegisterRoute(api, h.register)
-		route.LoginRoute(api, h.login)
-		route.ForgotPasswordRoute(api, h.forgotPassword)
-		route.ResetPasswordRoute(api, h.resetPassword)
-		route.EmailVerificationRoute(api, h.emailVerification)
-		route.MagicLinkRoute(api, h.magicLink)
-		route.ProfileRoute(api, h.profile, application.UserService, application.Cache)
-		route.UserSettingRoute(api, h.userSetting, application.UserService, application.Cache)
+		authn.RegisterRoute(api, h.register)
+		authn.LoginRoute(api, h.login)
+		authn.ForgotPasswordRoute(api, h.forgotPassword)
+		authn.ResetPasswordRoute(api, h.resetPassword)
+		authn.EmailVerificationRoute(api, h.emailVerification)
+		authn.MagicLinkRoute(api, h.magicLink)
+		user.ProfileRoute(api, h.profile, application.UserService, application.Cache)
+		user.UserSettingRoute(api, h.userSetting, application.UserService, application.Cache)
 
 		// Management Routes (internal access only)
-		route.TenantRoute(api, h.tenant, application.UserService, application.Cache)
-		route.ServiceRoute(api, h.service, application.UserService, application.Cache)
-		route.APIRoute(api, h.api, application.UserService, application.Cache)
-		route.PermissionRoute(api, h.permission, application.UserService, application.Cache)
-		route.PolicyRoute(api, h.policy, application.UserService, application.Cache)
-		route.IdentityProviderRoute(api, h.identityProvider, application.UserService, application.Cache)
-		route.ClientRoute(api, h.client, application.UserService, application.Cache)
-		route.RoleRoute(api, h.role, application.UserService, application.Cache)
-		route.UserRoute(api, h.user, h.profile, application.UserService, application.Cache)
+		tenant.TenantRoute(api, h.tenant, application.UserService, application.Cache)
+		iam.ServiceRoute(api, h.service, application.UserService, application.Cache)
+		iam.APIRoute(api, h.api, application.UserService, application.Cache)
+		iam.PermissionRoute(api, h.permission, application.UserService, application.Cache)
+		iam.PolicyRoute(api, h.policy, application.UserService, application.Cache)
+		idp.IdentityProviderRoute(api, h.identityProvider, application.UserService, application.Cache)
+		client.ClientRoute(api, h.client, application.UserService, application.Cache)
+		iam.RoleRoute(api, h.role, application.UserService, application.Cache)
+		user.UserRoute(api, h.user, h.profile, application.UserService, application.Cache)
 		invite.InviteRoute(api, h.invite, application.UserService, application.Cache)
-		route.APIKeyRoute(api, h.apiKey, application.UserService, application.Cache)
-		route.SignupFlowRoute(api, h.signupFlow, application.UserService, application.Cache)
-		route.SecuritySettingRoute(api, h.securitySetting, application.UserService, application.Cache)
-		route.IPRestrictionRuleRoute(api, h.ipRestrictionRule, application.UserService, application.Cache)
-		route.EmailTemplateRoute(api, h.emailTemplate, application.UserService, application.Cache)
-		route.SMSTemplateRoute(api, h.smsTemplate, application.UserService, application.Cache)
-		route.LoginTemplateRoute(api, h.loginTemplate, application.UserService, application.Cache)
-		route.BrandingRoute(api, h.branding, application.UserService, application.Cache)
-		route.TenantSettingRoute(api, h.tenantSetting, application.UserService, application.Cache)
-		route.EmailConfigRoute(api, h.emailConfig, application.UserService, application.Cache)
-		route.SMSConfigRoute(api, h.smsConfig, application.UserService, application.Cache)
+		client.APIKeyRoute(api, h.apiKey, application.UserService, application.Cache)
+		idp.SignupFlowRoute(api, h.signupFlow, application.UserService, application.Cache)
+		secpolicy.SecuritySettingRoute(api, h.securitySetting, application.UserService, application.Cache)
+		secpolicy.IPRestrictionRuleRoute(api, h.ipRestrictionRule, application.UserService, application.Cache)
+		branding.EmailTemplateRoute(api, h.emailTemplate, application.UserService, application.Cache)
+		branding.SMSTemplateRoute(api, h.smsTemplate, application.UserService, application.Cache)
+		branding.LoginTemplateRoute(api, h.loginTemplate, application.UserService, application.Cache)
+		branding.BrandingRoute(api, h.branding, application.UserService, application.Cache)
+		tenant.TenantSettingRoute(api, h.tenantSetting, application.UserService, application.Cache)
+		notifier.EmailConfigRoute(api, h.emailConfig, application.UserService, application.Cache)
+		notifier.SMSConfigRoute(api, h.smsConfig, application.UserService, application.Cache)
 		webhook.WebhookEndpointRoute(api, h.webhookEndpoint, application.UserService, application.Cache)
 		authevent.AuthEventRoute(api, h.authEvent, application.UserService, application.Cache)
-		route.OAuthInternalRoute(api, h.oauthToken, application.UserService, application.Cache)
+		oauth.OAuthInternalRoute(api, h.oauthToken, application.UserService, application.Cache)
 
 		// Account self-service routes (authenticated)
-		route.AccountRoute(api, h.account, application.UserService, application.Cache)
+		user.AccountRoute(api, h.account, application.UserService, application.Cache)
 		// MFA self-service routes (authenticated)
-		route.MFARoute(api, h.mfa, application.UserService, application.Cache)
+		mfa.MFARoute(api, h.mfa, application.UserService, application.Cache)
 		// Federation: token exchange + HRD (public) + identity link/unlink (authenticated)
-		route.FederationPublicRoute(api, h.federation)
-		route.FederationIdentityRoute(api, h.federation, application.UserService, application.Cache)
+		idp.FederationPublicRoute(api, h.federation)
+		idp.FederationIdentityRoute(api, h.federation, application.UserService, application.Cache)
 		// SMS login (unauthenticated)
-		route.SMSLoginRoute(api, h.smsLogin)
+		authn.SMSLoginRoute(api, h.smsLogin)
 		// Account recovery via backup code (unauthenticated)
-		route.RecoveryRoute(api, h.account)
+		user.RecoveryRoute(api, h.account)
 	})
 
 	return r
@@ -344,21 +355,21 @@ func buildPublicRouter(h *handlers, application *app.App) http.Handler {
 		// Cookie-auth state-changing routes — apply CSRF protection
 		api.Group(func(cookieAuth chi.Router) {
 			cookieAuth.Use(securityMiddleware.CSRFMiddleware)
-			route.ProfileRoute(cookieAuth, h.profile, application.UserService, application.Cache)
-			route.UserSettingRoute(cookieAuth, h.userSetting, application.UserService, application.Cache)
-			route.AccountRoute(cookieAuth, h.account, application.UserService, application.Cache)
-			route.MFARoute(cookieAuth, h.mfa, application.UserService, application.Cache)
-			route.FederationIdentityRoute(cookieAuth, h.federation, application.UserService, application.Cache)
+			user.ProfileRoute(cookieAuth, h.profile, application.UserService, application.Cache)
+			user.UserSettingRoute(cookieAuth, h.userSetting, application.UserService, application.Cache)
+			user.AccountRoute(cookieAuth, h.account, application.UserService, application.Cache)
+			mfa.MFARoute(cookieAuth, h.mfa, application.UserService, application.Cache)
+			idp.FederationIdentityRoute(cookieAuth, h.federation, application.UserService, application.Cache)
 		})
 
-		route.OAuthPublicRoute(api, h.oauthAuthorize, h.oauthToken, h.oauthTokenExchange, h.oauthConsent, h.oauthUserInfo, h.oauthPAR, h.oauthDevice, h.oauthSession, h.oauthCIBA, h.oauthRegister, application.UserService, application.Cache)
+		oauth.OAuthPublicRoute(api, h.oauthAuthorize, h.oauthToken, h.oauthTokenExchange, h.oauthConsent, h.oauthUserInfo, h.oauthPAR, h.oauthDevice, h.oauthSession, h.oauthCIBA, h.oauthRegister, application.UserService, application.Cache)
 
 		// Federation HRD (public, no cookie auth)
-		route.FederationPublicRoute(api, h.federation)
+		idp.FederationPublicRoute(api, h.federation)
 		// SMS login (unauthenticated)
-		route.SMSLoginRoute(api, h.smsLogin)
+		authn.SMSLoginRoute(api, h.smsLogin)
 		// Account recovery via backup code (unauthenticated)
-		route.RecoveryRoute(api, h.account)
+		user.RecoveryRoute(api, h.account)
 	})
 
 	return r

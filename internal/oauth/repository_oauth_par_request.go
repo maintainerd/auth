@@ -4,28 +4,27 @@ import (
 	"errors"
 	"time"
 
-	"github.com/maintainerd/auth/internal/model"
 	"gorm.io/gorm"
 )
 
 // OAuthPARRequestRepository defines data access operations for Pushed
 // Authorization Requests (RFC 9126).
 type OAuthPARRequestRepository interface {
-	BaseRepositoryMethods[model.OAuthPARRequest]
+	BaseRepositoryMethods[OAuthPARRequest]
 	WithTx(tx *gorm.DB) OAuthPARRequestRepository
-	FindByRequestURIHash(hash string) (*model.OAuthPARRequest, error)
+	FindByRequestURIHash(hash string) (*OAuthPARRequest, error)
 	MarkUsed(id int64) error
 	DeleteExpired(before time.Time) (int64, error)
 }
 
 type oauthPARRequestRepository struct {
-	*BaseRepository[model.OAuthPARRequest]
+	*BaseRepository[OAuthPARRequest]
 }
 
 // NewOAuthPARRequestRepository creates a new OAuthPARRequestRepository.
 func NewOAuthPARRequestRepository(db *gorm.DB) OAuthPARRequestRepository {
 	return &oauthPARRequestRepository{
-		BaseRepository: NewBaseRepository[model.OAuthPARRequest](db, "oauth_par_request_uuid", "oauth_par_request_id"),
+		BaseRepository: NewBaseRepository[OAuthPARRequest](db, "oauth_par_request_uuid", "oauth_par_request_id"),
 	}
 }
 
@@ -37,8 +36,8 @@ func (r *oauthPARRequestRepository) WithTx(tx *gorm.DB) OAuthPARRequestRepositor
 
 // FindByRequestURIHash looks up a PAR request by the SHA-256 hash of its
 // request_uri token. Returns nil, nil when no matching record exists.
-func (r *oauthPARRequestRepository) FindByRequestURIHash(hash string) (*model.OAuthPARRequest, error) {
-	var req model.OAuthPARRequest
+func (r *oauthPARRequestRepository) FindByRequestURIHash(hash string) (*OAuthPARRequest, error) {
+	var req OAuthPARRequest
 	err := r.DB().
 		Preload("Client").
 		Preload("Client.ClientURIs").
@@ -55,7 +54,7 @@ func (r *oauthPARRequestRepository) FindByRequestURIHash(hash string) (*model.OA
 
 // MarkUsed marks a PAR request as consumed so it cannot be replayed.
 func (r *oauthPARRequestRepository) MarkUsed(id int64) error {
-	return r.DB().Model(&model.OAuthPARRequest{}).
+	return r.DB().Model(&OAuthPARRequest{}).
 		Where("oauth_par_request_id = ?", id).
 		Update("is_used", true).Error
 }
@@ -64,6 +63,6 @@ func (r *oauthPARRequestRepository) MarkUsed(id int64) error {
 func (r *oauthPARRequestRepository) DeleteExpired(before time.Time) (int64, error) {
 	result := r.DB().
 		Where("expires_at < ?", before).
-		Delete(&model.OAuthPARRequest{})
+		Delete(&OAuthPARRequest{})
 	return result.RowsAffected, result.Error
 }

@@ -7,13 +7,11 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/maintainerd/auth/internal/model"
 	"github.com/maintainerd/auth/internal/platform/apperror"
 	"github.com/maintainerd/auth/internal/platform/crypto"
 	"github.com/maintainerd/auth/internal/platform/middleware"
 	"github.com/maintainerd/auth/internal/platform/ptr"
 	"github.com/maintainerd/auth/internal/platform/security"
-	"github.com/maintainerd/auth/internal/repository"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -120,29 +118,29 @@ type ClientService interface {
 
 type clientService struct {
 	db                   *gorm.DB
-	clientRepo           repository.ClientRepository
-	clientURIRepo        repository.ClientURIRepository
-	idpRepo              repository.IdentityProviderRepository
-	permissionRepo       repository.PermissionRepository
-	clientPermissionRepo repository.ClientPermissionRepository
-	clientAPIRepo        repository.ClientAPIRepository
-	apiRepo              repository.APIRepository
-	userRepo             repository.UserRepository
-	tenantRepo           repository.TenantRepository
+	clientRepo           ClientRepository
+	clientURIRepo        ClientURIRepository
+	idpRepo              IdentityProviderRepository
+	permissionRepo       PermissionRepository
+	clientPermissionRepo ClientPermissionRepository
+	clientAPIRepo        ClientAPIRepository
+	apiRepo              APIRepository
+	userRepo             UserRepository
+	tenantRepo           TenantRepository
 	authEventService     AuthEventService
 }
 
 func NewClientService(
 	db *gorm.DB,
-	clientRepo repository.ClientRepository,
-	clientURIRepo repository.ClientURIRepository,
-	idpRepo repository.IdentityProviderRepository,
-	permissionRepo repository.PermissionRepository,
-	clientPermissionRepo repository.ClientPermissionRepository,
-	clientAPIRepo repository.ClientAPIRepository,
-	apiRepo repository.APIRepository,
-	userRepo repository.UserRepository,
-	tenantRepo repository.TenantRepository,
+	clientRepo ClientRepository,
+	clientURIRepo ClientURIRepository,
+	idpRepo IdentityProviderRepository,
+	permissionRepo PermissionRepository,
+	clientPermissionRepo ClientPermissionRepository,
+	clientAPIRepo ClientAPIRepository,
+	apiRepo APIRepository,
+	userRepo UserRepository,
+	tenantRepo TenantRepository,
 	authEventService AuthEventService,
 ) ClientService {
 	return &clientService{
@@ -184,7 +182,7 @@ func (s *clientService) Get(ctx context.Context, filter ClientServiceGetFilter) 
 	}
 
 	// Build query filter
-	queryFilter := repository.ClientRepositoryGetFilter{
+	queryFilter := ClientRepositoryGetFilter{
 		TenantID:           filter.TenantID,
 		Name:               filter.Name,
 		DisplayName:        filter.DisplayName,
@@ -284,7 +282,7 @@ func (s *clientService) Create(ctx context.Context, tenantID int64, name string,
 		attribute.String("client.name", name),
 	)
 
-	var createdClient *model.Client
+	var createdClient *Client
 	var plaintextSecret string
 	var capturedActorID int64
 
@@ -335,7 +333,7 @@ func (s *clientService) Create(ctx context.Context, tenantID int64, name string,
 		}
 		plaintextSecret = rawSecret
 
-		newClient := &model.Client{
+		newClient := &Client{
 			Name:               name,
 			DisplayName:        displayName,
 			ClientType:         clientType,
@@ -376,10 +374,10 @@ func (s *clientService) Create(ctx context.Context, tenantID int64, name string,
 		ActorUserID: &capturedActorID,
 		IPAddress:   middleware.ClientIPFromContext(ctx),
 		UserAgent:   ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),
-		Category:    model.AuthEventCategoryAuthz,
-		EventType:   model.AuthEventTypeAuthzAdmin,
-		Severity:    model.AuthEventSeverityInfo,
-		Result:      model.AuthEventResultSuccess,
+		Category:    AuthEventCategoryAuthz,
+		EventType:   AuthEventTypeAuthzAdmin,
+		Severity:    AuthEventSeverityInfo,
+		Result:      AuthEventResultSuccess,
 		Description: ptr.Ptr(fmt.Sprintf("Client created: %s", createdClient.Name)),
 	})
 	return &ClientCreateServiceResult{
@@ -457,7 +455,7 @@ func (s *clientService) Update(ctx context.Context, ClientUUID uuid.UUID, tenant
 		attribute.Int64("tenant.id", tenantID),
 	)
 
-	var updatedClient *model.Client
+	var updatedClient *Client
 	var capturedActorID int64
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
@@ -530,10 +528,10 @@ func (s *clientService) Update(ctx context.Context, ClientUUID uuid.UUID, tenant
 		ActorUserID: &capturedActorID,
 		IPAddress:   middleware.ClientIPFromContext(ctx),
 		UserAgent:   ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),
-		Category:    model.AuthEventCategoryAuthz,
-		EventType:   model.AuthEventTypeAuthzAdmin,
-		Severity:    model.AuthEventSeverityInfo,
-		Result:      model.AuthEventResultSuccess,
+		Category:    AuthEventCategoryAuthz,
+		EventType:   AuthEventTypeAuthzAdmin,
+		Severity:    AuthEventSeverityInfo,
+		Result:      AuthEventResultSuccess,
 		Description: ptr.Ptr(fmt.Sprintf("Client updated: %s", updatedClient.Name)),
 	})
 	return ToClientServiceDataResult(updatedClient), nil
@@ -548,7 +546,7 @@ func (s *clientService) SetStatusByUUID(ctx context.Context, ClientUUID uuid.UUI
 		attribute.String("client.status", status),
 	)
 
-	var updatedClient *model.Client
+	var updatedClient *Client
 	var capturedActorID int64
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
@@ -607,10 +605,10 @@ func (s *clientService) SetStatusByUUID(ctx context.Context, ClientUUID uuid.UUI
 		ActorUserID: &capturedActorID,
 		IPAddress:   middleware.ClientIPFromContext(ctx),
 		UserAgent:   ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),
-		Category:    model.AuthEventCategoryAuthz,
-		EventType:   model.AuthEventTypeAuthzAdmin,
-		Severity:    model.AuthEventSeverityInfo,
-		Result:      model.AuthEventResultSuccess,
+		Category:    AuthEventCategoryAuthz,
+		EventType:   AuthEventTypeAuthzAdmin,
+		Severity:    AuthEventSeverityInfo,
+		Result:      AuthEventResultSuccess,
 		Description: ptr.Ptr(fmt.Sprintf("Client status set to %s: %s", status, updatedClient.Name)),
 	})
 	return ToClientServiceDataResult(updatedClient), nil
@@ -624,7 +622,7 @@ func (s *clientService) DeleteByUUID(ctx context.Context, ClientUUID uuid.UUID, 
 		attribute.Int64("tenant.id", tenantID),
 	)
 
-	var deletedClient *model.Client
+	var deletedClient *Client
 	var capturedActorID int64
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
@@ -676,10 +674,10 @@ func (s *clientService) DeleteByUUID(ctx context.Context, ClientUUID uuid.UUID, 
 		ActorUserID: &capturedActorID,
 		IPAddress:   middleware.ClientIPFromContext(ctx),
 		UserAgent:   ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),
-		Category:    model.AuthEventCategoryAuthz,
-		EventType:   model.AuthEventTypeAuthzAdmin,
-		Severity:    model.AuthEventSeverityWarn,
-		Result:      model.AuthEventResultSuccess,
+		Category:    AuthEventCategoryAuthz,
+		EventType:   AuthEventTypeAuthzAdmin,
+		Severity:    AuthEventSeverityWarn,
+		Result:      AuthEventResultSuccess,
 		Description: ptr.Ptr(fmt.Sprintf("Client deleted: %s", deletedClient.Name)),
 	})
 	return ToClientServiceDataResult(deletedClient), nil
@@ -693,7 +691,7 @@ func (s *clientService) CreateURI(ctx context.Context, ClientUUID uuid.UUID, ten
 		attribute.Int64("tenant.id", tenantID),
 	)
 
-	var createdClient *model.Client
+	var createdClient *Client
 	var capturedActorID int64
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
@@ -719,14 +717,14 @@ func (s *clientService) CreateURI(ctx context.Context, ClientUUID uuid.UUID, ten
 			return apperror.NewNotFoundWithReason("auth client not found or access denied")
 		}
 
-		if uriType == model.ClientURITypeRedirect || uriType == model.ClientURITypeLogout || uriType == model.ClientURITypeLogin {
+		if uriType == ClientURITypeRedirect || uriType == ClientURITypeLogout || uriType == ClientURITypeLogin {
 			if err := security.ValidateRedirectURI(uri); err != nil {
 				return apperror.NewValidation(err.Error())
 			}
 		}
 
 		// Create the URI entry
-		newURI := &model.ClientURI{
+		newURI := &ClientURI{
 			TenantID: tenantID,
 			ClientID: Client.ClientID,
 			URI:      uri,
@@ -761,10 +759,10 @@ func (s *clientService) CreateURI(ctx context.Context, ClientUUID uuid.UUID, ten
 		ActorUserID: &capturedActorID,
 		IPAddress:   middleware.ClientIPFromContext(ctx),
 		UserAgent:   ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),
-		Category:    model.AuthEventCategoryAuthz,
-		EventType:   model.AuthEventTypeAuthzAdmin,
-		Severity:    model.AuthEventSeverityInfo,
-		Result:      model.AuthEventResultSuccess,
+		Category:    AuthEventCategoryAuthz,
+		EventType:   AuthEventTypeAuthzAdmin,
+		Severity:    AuthEventSeverityInfo,
+		Result:      AuthEventResultSuccess,
 		Description: ptr.Ptr(fmt.Sprintf("URI added to client: %s (%s)", uri, uriType)),
 	})
 	return ToClientServiceDataResult(createdClient), nil
@@ -778,7 +776,7 @@ func (s *clientService) UpdateURI(ctx context.Context, ClientUUID uuid.UUID, ten
 		attribute.Int64("tenant.id", tenantID),
 	)
 
-	var updatedClient *model.Client
+	var updatedClient *Client
 	var capturedActorID int64
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
@@ -816,7 +814,7 @@ func (s *clientService) UpdateURI(ctx context.Context, ClientUUID uuid.UUID, ten
 		}
 
 		// Reject dangerous schemes on redirect/logout/login URIs
-		if uriType == model.ClientURITypeRedirect || uriType == model.ClientURITypeLogout || uriType == model.ClientURITypeLogin {
+		if uriType == ClientURITypeRedirect || uriType == ClientURITypeLogout || uriType == ClientURITypeLogin {
 			if err := security.ValidateRedirectURI(uri); err != nil {
 				return apperror.NewValidation(err.Error())
 			}
@@ -855,10 +853,10 @@ func (s *clientService) UpdateURI(ctx context.Context, ClientUUID uuid.UUID, ten
 		ActorUserID: &capturedActorID,
 		IPAddress:   middleware.ClientIPFromContext(ctx),
 		UserAgent:   ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),
-		Category:    model.AuthEventCategoryAuthz,
-		EventType:   model.AuthEventTypeAuthzAdmin,
-		Severity:    model.AuthEventSeverityInfo,
-		Result:      model.AuthEventResultSuccess,
+		Category:    AuthEventCategoryAuthz,
+		EventType:   AuthEventTypeAuthzAdmin,
+		Severity:    AuthEventSeverityInfo,
+		Result:      AuthEventResultSuccess,
 		Description: ptr.Ptr(fmt.Sprintf("Client URI updated: %s (%s)", uri, uriType)),
 	})
 	return ToClientServiceDataResult(updatedClient), nil
@@ -872,7 +870,7 @@ func (s *clientService) DeleteURI(ctx context.Context, ClientUUID uuid.UUID, ten
 		attribute.Int64("tenant.id", tenantID),
 	)
 
-	var deletedClient *model.Client
+	var deletedClient *Client
 	var capturedActorID int64
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
@@ -931,17 +929,17 @@ func (s *clientService) DeleteURI(ctx context.Context, ClientUUID uuid.UUID, ten
 		ActorUserID: &capturedActorID,
 		IPAddress:   middleware.ClientIPFromContext(ctx),
 		UserAgent:   ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),
-		Category:    model.AuthEventCategoryAuthz,
-		EventType:   model.AuthEventTypeAuthzAdmin,
-		Severity:    model.AuthEventSeverityWarn,
-		Result:      model.AuthEventResultSuccess,
+		Category:    AuthEventCategoryAuthz,
+		EventType:   AuthEventTypeAuthzAdmin,
+		Severity:    AuthEventSeverityWarn,
+		Result:      AuthEventResultSuccess,
 		Description: ptr.Ptr(fmt.Sprintf("Client URI deleted from client: %s", deletedClient.Name)),
 	})
 	return ToClientServiceDataResult(deletedClient), nil
 }
 
 // Response builder - made public for use in other services
-func ToClientServiceDataResult(Client *model.Client) *ClientServiceDataResult {
+func ToClientServiceDataResult(Client *Client) *ClientServiceDataResult {
 	if Client == nil {
 		return nil
 	}
@@ -1103,7 +1101,7 @@ func (s *clientService) AddClientAPIs(ctx context.Context, tenantID int64, Clien
 			}
 
 			// Create new auth client API relationship
-			ClientAPI := &model.ClientAPI{
+			ClientAPI := &ClientAPI{
 				ClientAPIUUID: uuid.New(),
 				ClientID:      Client.ClientID,
 				APIID:         api.APIID,
@@ -1300,7 +1298,7 @@ func (s *clientService) AddClientAPIPermissions(ctx context.Context, tenantID in
 			}
 
 			// Create new auth client permission relationship
-			ClientPermission := &model.ClientPermission{
+			ClientPermission := &ClientPermission{
 				ClientPermissionUUID: uuid.New(),
 				ClientAPIID:          ClientAPI.ClientAPIID,
 				PermissionID:         permission.PermissionID,

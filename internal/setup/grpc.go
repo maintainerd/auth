@@ -4,15 +4,14 @@ import (
 	"context"
 
 	authv1 "github.com/maintainerd/auth/internal/platform/gen/go/maintainerd/auth"
-	"github.com/maintainerd/auth/internal/service"
 )
 
 type SeederHandler struct {
 	authv1.UnimplementedSeederServiceServer
-	registerService service.RegisterService
+	registerService RegisterService
 }
 
-func NewSeederHandler(registerService service.RegisterService) *SeederHandler {
+func NewSeederHandler(registerService RegisterService) *SeederHandler {
 	return &SeederHandler{
 		registerService: registerService,
 	}

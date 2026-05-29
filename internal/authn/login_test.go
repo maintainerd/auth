@@ -13,11 +13,9 @@ import (
 	sqlmock "github.com/DATA-DOG/go-sqlmock"
 	"github.com/alicebob/miniredis/v2"
 	"github.com/google/uuid"
-	"github.com/maintainerd/auth/internal/model"
 	"github.com/maintainerd/auth/internal/platform/config"
 	"github.com/maintainerd/auth/internal/platform/jwt"
 	"github.com/maintainerd/auth/internal/platform/security"
-	"github.com/maintainerd/auth/internal/repository"
 	"github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -32,57 +30,57 @@ import (
 // ---------------------------------------------------------------------------
 
 type mockClientRepo struct {
-	findByClientIDAndIdentityProviderFn func(clientID, providerID string) (*model.Client, error)
-	findSystemFn                        func() (*model.Client, error)
-	findByUUIDFn                        func(any, ...string) (*model.Client, error)
-	findByUUIDAndTenantIDFn             func(uuid.UUID, int64) (*model.Client, error)
-	findPaginatedFn                     func(repository.ClientRepositoryGetFilter) (*repository.PaginationResult[model.Client], error)
-	findByNameAndIdentityProviderFn     func(string, int64, int64) (*model.Client, error)
-	findByNameAndTenantIDFn             func(string, int64) (*model.Client, error)
-	findDefaultByTenantIDFn             func(tID int64) (*model.Client, error)
-	createOrUpdateFn                    func(*model.Client) (*model.Client, error)
+	findByClientIDAndIdentityProviderFn func(clientID, providerID string) (*Client, error)
+	findSystemFn                        func() (*Client, error)
+	findByUUIDFn                        func(any, ...string) (*Client, error)
+	findByUUIDAndTenantIDFn             func(uuid.UUID, int64) (*Client, error)
+	findPaginatedFn                     func(ClientRepositoryGetFilter) (*PaginationResult[Client], error)
+	findByNameAndIdentityProviderFn     func(string, int64, int64) (*Client, error)
+	findByNameAndTenantIDFn             func(string, int64) (*Client, error)
+	findDefaultByTenantIDFn             func(tID int64) (*Client, error)
+	createOrUpdateFn                    func(*Client) (*Client, error)
 	deleteByUUIDFn                      func(any) error
-	findByIDFn                          func(any, ...string) (*model.Client, error)
+	findByIDFn                          func(any, ...string) (*Client, error)
 }
 
-func (m *mockClientRepo) WithTx(_ *gorm.DB) repository.ClientRepository { return m }
-func (m *mockClientRepo) FindByClientIDAndIdentityProvider(a, b string) (*model.Client, error) {
+func (m *mockClientRepo) WithTx(_ *gorm.DB) ClientRepository { return m }
+func (m *mockClientRepo) FindByClientIDAndIdentityProvider(a, b string) (*Client, error) {
 	if m.findByClientIDAndIdentityProviderFn != nil {
 		return m.findByClientIDAndIdentityProviderFn(a, b)
 	}
 	return nil, nil
 }
-func (m *mockClientRepo) FindSystem() (*model.Client, error) {
+func (m *mockClientRepo) FindSystem() (*Client, error) {
 	if m.findSystemFn != nil {
 		return m.findSystemFn()
 	}
 	return nil, nil
 }
-func (m *mockClientRepo) Create(e *model.Client) (*model.Client, error) { return e, nil }
-func (m *mockClientRepo) CreateOrUpdate(e *model.Client) (*model.Client, error) {
+func (m *mockClientRepo) Create(e *Client) (*Client, error) { return e, nil }
+func (m *mockClientRepo) CreateOrUpdate(e *Client) (*Client, error) {
 	if m.createOrUpdateFn != nil {
 		return m.createOrUpdateFn(e)
 	}
 	return e, nil
 }
-func (m *mockClientRepo) FindAll(p ...string) ([]model.Client, error) { return nil, nil }
-func (m *mockClientRepo) FindByUUID(id any, p ...string) (*model.Client, error) {
+func (m *mockClientRepo) FindAll(p ...string) ([]Client, error) { return nil, nil }
+func (m *mockClientRepo) FindByUUID(id any, p ...string) (*Client, error) {
 	if m.findByUUIDFn != nil {
 		return m.findByUUIDFn(id, p...)
 	}
 	return nil, nil
 }
-func (m *mockClientRepo) FindByUUIDs(ids []string, p ...string) ([]model.Client, error) {
+func (m *mockClientRepo) FindByUUIDs(ids []string, p ...string) ([]Client, error) {
 	return nil, nil
 }
-func (m *mockClientRepo) FindByID(id any, p ...string) (*model.Client, error) {
+func (m *mockClientRepo) FindByID(id any, p ...string) (*Client, error) {
 	if m.findByIDFn != nil {
 		return m.findByIDFn(id, p...)
 	}
 	return nil, nil
 }
-func (m *mockClientRepo) UpdateByUUID(id, data any) (*model.Client, error) { return nil, nil }
-func (m *mockClientRepo) UpdateByID(id, data any) (*model.Client, error)   { return nil, nil }
+func (m *mockClientRepo) UpdateByUUID(id, data any) (*Client, error) { return nil, nil }
+func (m *mockClientRepo) UpdateByID(id, data any) (*Client, error)   { return nil, nil }
 func (m *mockClientRepo) DeleteByUUID(id any) error {
 	if m.deleteByUUIDFn != nil {
 		return m.deleteByUUIDFn(id)
@@ -90,42 +88,42 @@ func (m *mockClientRepo) DeleteByUUID(id any) error {
 	return nil
 }
 func (m *mockClientRepo) DeleteByID(id any) error { return nil }
-func (m *mockClientRepo) Paginate(c map[string]any, pg, lim int, p ...string) (*repository.PaginationResult[model.Client], error) {
+func (m *mockClientRepo) Paginate(c map[string]any, pg, lim int, p ...string) (*PaginationResult[Client], error) {
 	return nil, nil
 }
-func (m *mockClientRepo) FindByUUIDAndTenantID(id uuid.UUID, tID int64) (*model.Client, error) {
+func (m *mockClientRepo) FindByUUIDAndTenantID(id uuid.UUID, tID int64) (*Client, error) {
 	if m.findByUUIDAndTenantIDFn != nil {
 		return m.findByUUIDAndTenantIDFn(id, tID)
 	}
 	return nil, nil
 }
-func (m *mockClientRepo) FindByNameAndIdentityProvider(n string, ipID, tID int64) (*model.Client, error) {
+func (m *mockClientRepo) FindByNameAndIdentityProvider(n string, ipID, tID int64) (*Client, error) {
 	if m.findByNameAndIdentityProviderFn != nil {
 		return m.findByNameAndIdentityProviderFn(n, ipID, tID)
 	}
 	return nil, nil
 }
-func (m *mockClientRepo) FindByNameAndTenantID(n string, tID int64) (*model.Client, error) {
+func (m *mockClientRepo) FindByNameAndTenantID(n string, tID int64) (*Client, error) {
 	if m.findByNameAndTenantIDFn != nil {
 		return m.findByNameAndTenantIDFn(n, tID)
 	}
 	return nil, nil
 }
-func (m *mockClientRepo) FindByClientID(cID string, tID int64) (*model.Client, error) {
+func (m *mockClientRepo) FindByClientID(cID string, tID int64) (*Client, error) {
 	return nil, nil
 }
-func (m *mockClientRepo) FindAllByTenantID(tID int64) ([]model.Client, error) { return nil, nil }
-func (m *mockClientRepo) FindDefaultByTenantID(tID int64) (*model.Client, error) {
+func (m *mockClientRepo) FindAllByTenantID(tID int64) ([]Client, error) { return nil, nil }
+func (m *mockClientRepo) FindDefaultByTenantID(tID int64) (*Client, error) {
 	if m.findDefaultByTenantIDFn != nil {
 		return m.findDefaultByTenantIDFn(tID)
 	}
 	return nil, nil
 }
-func (m *mockClientRepo) FindPaginated(f repository.ClientRepositoryGetFilter) (*repository.PaginationResult[model.Client], error) {
+func (m *mockClientRepo) FindPaginated(f ClientRepositoryGetFilter) (*PaginationResult[Client], error) {
 	if m.findPaginatedFn != nil {
 		return m.findPaginatedFn(f)
 	}
-	return &repository.PaginationResult[model.Client]{}, nil
+	return &PaginationResult[Client]{}, nil
 }
 func (m *mockClientRepo) SetStatusByUUID(id uuid.UUID, tID int64, s string) error { return nil }
 func (m *mockClientRepo) DeleteByUUIDAndTenantID(id uuid.UUID, tID int64) error   { return nil }
@@ -135,69 +133,69 @@ func (m *mockClientRepo) DeleteByUUIDAndTenantID(id uuid.UUID, tID int64) error 
 // ---------------------------------------------------------------------------
 
 type mockUserRepo struct {
-	findByUsernameFn         func(username string) (*model.User, error)
-	findByEmailFn            func(email string) (*model.User, error)
-	findByEmailAndTenantIDFn func(email string, tenantID int64) (*model.User, error)
-	findByUUIDFn             func(id any, preloads ...string) (*model.User, error)
-	findByIDFn               func(id any, preloads ...string) (*model.User, error)
-	findSuperAdminFn         func() (*model.User, error)
-	findPaginatedFn          func(repository.UserRepositoryGetFilter) (*repository.PaginationResult[model.User], error)
-	createFn                 func(*model.User) (*model.User, error)
-	updateByUUIDFn           func(id, data any) (*model.User, error)
-	updateByIDFn             func(id, data any) (*model.User, error)
-	findRolesFn              func(userID int64) ([]model.Role, error)
-	findByPhoneFn            func(phone string) (*model.User, error)
+	findByUsernameFn         func(username string) (*User, error)
+	findByEmailFn            func(email string) (*User, error)
+	findByEmailAndTenantIDFn func(email string, tenantID int64) (*User, error)
+	findByUUIDFn             func(id any, preloads ...string) (*User, error)
+	findByIDFn               func(id any, preloads ...string) (*User, error)
+	findSuperAdminFn         func() (*User, error)
+	findPaginatedFn          func(UserRepositoryGetFilter) (*PaginationResult[User], error)
+	createFn                 func(*User) (*User, error)
+	updateByUUIDFn           func(id, data any) (*User, error)
+	updateByIDFn             func(id, data any) (*User, error)
+	findRolesFn              func(userID int64) ([]Role, error)
+	findByPhoneFn            func(phone string) (*User, error)
 	setStatusFn              func(id uuid.UUID, s string) error
 	deleteByUUIDFn           func(id any) error
 }
 
-func (m *mockUserRepo) WithTx(_ *gorm.DB) repository.UserRepository { return m }
-func (m *mockUserRepo) FindByUsername(u string) (*model.User, error) {
+func (m *mockUserRepo) WithTx(_ *gorm.DB) UserRepository { return m }
+func (m *mockUserRepo) FindByUsername(u string) (*User, error) {
 	if m.findByUsernameFn != nil {
 		return m.findByUsernameFn(u)
 	}
 	return nil, nil
 }
-func (m *mockUserRepo) FindByEmail(e string) (*model.User, error) {
+func (m *mockUserRepo) FindByEmail(e string) (*User, error) {
 	if m.findByEmailFn != nil {
 		return m.findByEmailFn(e)
 	}
 	return nil, nil
 }
-func (m *mockUserRepo) FindByEmailAndTenantID(e string, tID int64) (*model.User, error) {
+func (m *mockUserRepo) FindByEmailAndTenantID(e string, tID int64) (*User, error) {
 	if m.findByEmailAndTenantIDFn != nil {
 		return m.findByEmailAndTenantIDFn(e, tID)
 	}
 	return nil, nil
 }
-func (m *mockUserRepo) Create(e *model.User) (*model.User, error) {
+func (m *mockUserRepo) Create(e *User) (*User, error) {
 	if m.createFn != nil {
 		return m.createFn(e)
 	}
 	return e, nil
 }
-func (m *mockUserRepo) CreateOrUpdate(e *model.User) (*model.User, error) { return nil, nil }
-func (m *mockUserRepo) FindAll(p ...string) ([]model.User, error)         { return nil, nil }
-func (m *mockUserRepo) FindByUUID(id any, p ...string) (*model.User, error) {
+func (m *mockUserRepo) CreateOrUpdate(e *User) (*User, error) { return nil, nil }
+func (m *mockUserRepo) FindAll(p ...string) ([]User, error)   { return nil, nil }
+func (m *mockUserRepo) FindByUUID(id any, p ...string) (*User, error) {
 	if m.findByUUIDFn != nil {
 		return m.findByUUIDFn(id, p...)
 	}
 	return nil, nil
 }
-func (m *mockUserRepo) FindByUUIDs(ids []string, p ...string) ([]model.User, error) { return nil, nil }
-func (m *mockUserRepo) FindByID(id any, p ...string) (*model.User, error) {
+func (m *mockUserRepo) FindByUUIDs(ids []string, p ...string) ([]User, error) { return nil, nil }
+func (m *mockUserRepo) FindByID(id any, p ...string) (*User, error) {
 	if m.findByIDFn != nil {
 		return m.findByIDFn(id, p...)
 	}
 	return nil, nil
 }
-func (m *mockUserRepo) UpdateByUUID(id, data any) (*model.User, error) {
+func (m *mockUserRepo) UpdateByUUID(id, data any) (*User, error) {
 	if m.updateByUUIDFn != nil {
 		return m.updateByUUIDFn(id, data)
 	}
 	return nil, nil
 }
-func (m *mockUserRepo) UpdateByID(id, data any) (*model.User, error) {
+func (m *mockUserRepo) UpdateByID(id, data any) (*User, error) {
 	if m.updateByIDFn != nil {
 		return m.updateByIDFn(id, data)
 	}
@@ -210,33 +208,33 @@ func (m *mockUserRepo) DeleteByUUID(id any) error {
 	return nil
 }
 func (m *mockUserRepo) DeleteByID(id any) error { return nil }
-func (m *mockUserRepo) Paginate(c map[string]any, pg, lim int, p ...string) (*repository.PaginationResult[model.User], error) {
+func (m *mockUserRepo) Paginate(c map[string]any, pg, lim int, p ...string) (*PaginationResult[User], error) {
 	return nil, nil
 }
-func (m *mockUserRepo) FindByPhone(phone string) (*model.User, error) {
+func (m *mockUserRepo) FindByPhone(phone string) (*User, error) {
 	if m.findByPhoneFn != nil {
 		return m.findByPhoneFn(phone)
 	}
 	return nil, nil
 }
-func (m *mockUserRepo) FindSuperAdmin() (*model.User, error) {
+func (m *mockUserRepo) FindSuperAdmin() (*User, error) {
 	if m.findSuperAdminFn != nil {
 		return m.findSuperAdminFn()
 	}
 	return nil, nil
 }
-func (m *mockUserRepo) FindRoles(userID int64) ([]model.Role, error) {
+func (m *mockUserRepo) FindRoles(userID int64) ([]Role, error) {
 	if m.findRolesFn != nil {
 		return m.findRolesFn(userID)
 	}
 	return nil, nil
 }
-func (m *mockUserRepo) FindBySubAndClientID(sub, cID string) (*model.User, error) { return nil, nil }
-func (m *mockUserRepo) FindPaginated(f repository.UserRepositoryGetFilter) (*repository.PaginationResult[model.User], error) {
+func (m *mockUserRepo) FindBySubAndClientID(sub, cID string) (*User, error) { return nil, nil }
+func (m *mockUserRepo) FindPaginated(f UserRepositoryGetFilter) (*PaginationResult[User], error) {
 	if m.findPaginatedFn != nil {
 		return m.findPaginatedFn(f)
 	}
-	return &repository.PaginationResult[model.User]{}, nil
+	return &PaginationResult[User]{}, nil
 }
 func (m *mockUserRepo) SetEmailVerified(id uuid.UUID, v bool) error { return nil }
 func (m *mockUserRepo) SetStatus(id uuid.UUID, s string) error {
@@ -250,63 +248,63 @@ func (m *mockUserRepo) SetPendingEmail(_ uuid.UUID, _, _ string, _ time.Time) er
 func (m *mockUserRepo) ClearEmailChange(_ uuid.UUID) error                          { return nil }
 func (m *mockUserRepo) UpdateEmail(_ uuid.UUID, _ string) error                     { return nil }
 func (m *mockUserRepo) UpdateUsername(_ uuid.UUID, _ string) error                  { return nil }
-func (m *mockUserRepo) FindByPendingEmail(_ string) (*model.User, error)            { return nil, nil }
+func (m *mockUserRepo) FindByPendingEmail(_ string) (*User, error)                  { return nil, nil }
 
 // ---------------------------------------------------------------------------
 // Mock: UserIdentityRepository
 // ---------------------------------------------------------------------------
 
 type mockUserIdentityRepo struct {
-	findByUserIDAndClientIDFn func(userID, clientID int64) (*model.UserIdentity, error)
-	createFn                  func(*model.UserIdentity) (*model.UserIdentity, error)
-	findByUserIDFn            func(int64) ([]model.UserIdentity, error)
+	findByUserIDAndClientIDFn func(userID, clientID int64) (*UserIdentity, error)
+	createFn                  func(*UserIdentity) (*UserIdentity, error)
+	findByUserIDFn            func(int64) ([]UserIdentity, error)
 }
 
-func (m *mockUserIdentityRepo) WithTx(_ *gorm.DB) repository.UserIdentityRepository { return m }
-func (m *mockUserIdentityRepo) FindByUserIDAndClientID(uID, cID int64) (*model.UserIdentity, error) {
+func (m *mockUserIdentityRepo) WithTx(_ *gorm.DB) UserIdentityRepository { return m }
+func (m *mockUserIdentityRepo) FindByUserIDAndClientID(uID, cID int64) (*UserIdentity, error) {
 	return m.findByUserIDAndClientIDFn(uID, cID)
 }
-func (m *mockUserIdentityRepo) Create(e *model.UserIdentity) (*model.UserIdentity, error) {
+func (m *mockUserIdentityRepo) Create(e *UserIdentity) (*UserIdentity, error) {
 	if m.createFn != nil {
 		return m.createFn(e)
 	}
 	return e, nil
 }
-func (m *mockUserIdentityRepo) CreateOrUpdate(e *model.UserIdentity) (*model.UserIdentity, error) {
+func (m *mockUserIdentityRepo) CreateOrUpdate(e *UserIdentity) (*UserIdentity, error) {
 	return nil, nil
 }
-func (m *mockUserIdentityRepo) FindAll(p ...string) ([]model.UserIdentity, error) { return nil, nil }
-func (m *mockUserIdentityRepo) FindByUUID(id any, p ...string) (*model.UserIdentity, error) {
+func (m *mockUserIdentityRepo) FindAll(p ...string) ([]UserIdentity, error) { return nil, nil }
+func (m *mockUserIdentityRepo) FindByUUID(id any, p ...string) (*UserIdentity, error) {
 	return nil, nil
 }
-func (m *mockUserIdentityRepo) FindByUUIDs(ids []string, p ...string) ([]model.UserIdentity, error) {
+func (m *mockUserIdentityRepo) FindByUUIDs(ids []string, p ...string) ([]UserIdentity, error) {
 	return nil, nil
 }
-func (m *mockUserIdentityRepo) FindByID(id any, p ...string) (*model.UserIdentity, error) {
+func (m *mockUserIdentityRepo) FindByID(id any, p ...string) (*UserIdentity, error) {
 	return nil, nil
 }
-func (m *mockUserIdentityRepo) UpdateByUUID(id, data any) (*model.UserIdentity, error) {
+func (m *mockUserIdentityRepo) UpdateByUUID(id, data any) (*UserIdentity, error) {
 	return nil, nil
 }
-func (m *mockUserIdentityRepo) UpdateByID(id, data any) (*model.UserIdentity, error) { return nil, nil }
-func (m *mockUserIdentityRepo) DeleteByUUID(id any) error                            { return nil }
-func (m *mockUserIdentityRepo) DeleteByID(id any) error                              { return nil }
-func (m *mockUserIdentityRepo) Paginate(c map[string]any, pg, lim int, p ...string) (*repository.PaginationResult[model.UserIdentity], error) {
+func (m *mockUserIdentityRepo) UpdateByID(id, data any) (*UserIdentity, error) { return nil, nil }
+func (m *mockUserIdentityRepo) DeleteByUUID(id any) error                      { return nil }
+func (m *mockUserIdentityRepo) DeleteByID(id any) error                        { return nil }
+func (m *mockUserIdentityRepo) Paginate(c map[string]any, pg, lim int, p ...string) (*PaginationResult[UserIdentity], error) {
 	return nil, nil
 }
-func (m *mockUserIdentityRepo) FindByUserID(uID int64) ([]model.UserIdentity, error) {
+func (m *mockUserIdentityRepo) FindByUserID(uID int64) ([]UserIdentity, error) {
 	if m.findByUserIDFn != nil {
 		return m.findByUserIDFn(uID)
 	}
 	return nil, nil
 }
-func (m *mockUserIdentityRepo) FindByProviderAndSub(_, _ string) (*model.UserIdentity, error) {
+func (m *mockUserIdentityRepo) FindByProviderAndSub(_, _ string) (*UserIdentity, error) {
 	return nil, nil
 }
-func (m *mockUserIdentityRepo) FindByUserIDAndProvider(_ int64, _ string) (*model.UserIdentity, error) {
+func (m *mockUserIdentityRepo) FindByUserIDAndProvider(_ int64, _ string) (*UserIdentity, error) {
 	return nil, nil
 }
-func (m *mockUserIdentityRepo) FindByIdentityProviderID(_ int64) ([]model.UserIdentity, error) {
+func (m *mockUserIdentityRepo) FindByIdentityProviderID(_ int64) ([]UserIdentity, error) {
 	return nil, nil
 }
 func (m *mockUserIdentityRepo) DeleteByUserID(uID int64) error { return nil }
@@ -316,49 +314,49 @@ func (m *mockUserIdentityRepo) DeleteByUserID(uID int64) error { return nil }
 // ---------------------------------------------------------------------------
 
 type mockIdentityProviderRepo struct {
-	findByIdentifierFn func(identifier string) (*model.IdentityProvider, error)
-	findByUUIDFn       func(id any, preloads ...string) (*model.IdentityProvider, error)
-	findByNameFn       func(name string, tenantID int64) (*model.IdentityProvider, error)
-	findPaginatedFn    func(repository.IdentityProviderRepositoryGetFilter) (*repository.PaginationResult[model.IdentityProvider], error)
-	createOrUpdateFn   func(*model.IdentityProvider) (*model.IdentityProvider, error)
+	findByIdentifierFn func(identifier string) (*IdentityProvider, error)
+	findByUUIDFn       func(id any, preloads ...string) (*IdentityProvider, error)
+	findByNameFn       func(name string, tenantID int64) (*IdentityProvider, error)
+	findPaginatedFn    func(IdentityProviderRepositoryGetFilter) (*PaginationResult[IdentityProvider], error)
+	createOrUpdateFn   func(*IdentityProvider) (*IdentityProvider, error)
 	deleteByUUIDFn     func(id any) error
 }
 
-func (m *mockIdentityProviderRepo) WithTx(_ *gorm.DB) repository.IdentityProviderRepository { return m }
-func (m *mockIdentityProviderRepo) FindByIdentifier(id string) (*model.IdentityProvider, error) {
+func (m *mockIdentityProviderRepo) WithTx(_ *gorm.DB) IdentityProviderRepository { return m }
+func (m *mockIdentityProviderRepo) FindByIdentifier(id string) (*IdentityProvider, error) {
 	if m.findByIdentifierFn != nil {
 		return m.findByIdentifierFn(id)
 	}
 	return nil, nil
 }
-func (m *mockIdentityProviderRepo) Create(e *model.IdentityProvider) (*model.IdentityProvider, error) {
+func (m *mockIdentityProviderRepo) Create(e *IdentityProvider) (*IdentityProvider, error) {
 	return nil, nil
 }
-func (m *mockIdentityProviderRepo) CreateOrUpdate(e *model.IdentityProvider) (*model.IdentityProvider, error) {
+func (m *mockIdentityProviderRepo) CreateOrUpdate(e *IdentityProvider) (*IdentityProvider, error) {
 	if m.createOrUpdateFn != nil {
 		return m.createOrUpdateFn(e)
 	}
 	return e, nil
 }
-func (m *mockIdentityProviderRepo) FindAll(p ...string) ([]model.IdentityProvider, error) {
+func (m *mockIdentityProviderRepo) FindAll(p ...string) ([]IdentityProvider, error) {
 	return nil, nil
 }
-func (m *mockIdentityProviderRepo) FindByUUID(id any, p ...string) (*model.IdentityProvider, error) {
+func (m *mockIdentityProviderRepo) FindByUUID(id any, p ...string) (*IdentityProvider, error) {
 	if m.findByUUIDFn != nil {
 		return m.findByUUIDFn(id, p...)
 	}
 	return nil, nil
 }
-func (m *mockIdentityProviderRepo) FindByUUIDs(ids []string, p ...string) ([]model.IdentityProvider, error) {
+func (m *mockIdentityProviderRepo) FindByUUIDs(ids []string, p ...string) ([]IdentityProvider, error) {
 	return nil, nil
 }
-func (m *mockIdentityProviderRepo) FindByID(id any, p ...string) (*model.IdentityProvider, error) {
+func (m *mockIdentityProviderRepo) FindByID(id any, p ...string) (*IdentityProvider, error) {
 	return nil, nil
 }
-func (m *mockIdentityProviderRepo) UpdateByUUID(id, data any) (*model.IdentityProvider, error) {
+func (m *mockIdentityProviderRepo) UpdateByUUID(id, data any) (*IdentityProvider, error) {
 	return nil, nil
 }
-func (m *mockIdentityProviderRepo) UpdateByID(id, data any) (*model.IdentityProvider, error) {
+func (m *mockIdentityProviderRepo) UpdateByID(id, data any) (*IdentityProvider, error) {
 	return nil, nil
 }
 func (m *mockIdentityProviderRepo) DeleteByUUID(id any) error {
@@ -368,28 +366,28 @@ func (m *mockIdentityProviderRepo) DeleteByUUID(id any) error {
 	return nil
 }
 func (m *mockIdentityProviderRepo) DeleteByID(id any) error { return nil }
-func (m *mockIdentityProviderRepo) Paginate(c map[string]any, pg, lim int, p ...string) (*repository.PaginationResult[model.IdentityProvider], error) {
+func (m *mockIdentityProviderRepo) Paginate(c map[string]any, pg, lim int, p ...string) (*PaginationResult[IdentityProvider], error) {
 	return nil, nil
 }
-func (m *mockIdentityProviderRepo) FindByName(n string, tID int64) (*model.IdentityProvider, error) {
+func (m *mockIdentityProviderRepo) FindByName(n string, tID int64) (*IdentityProvider, error) {
 	if m.findByNameFn != nil {
 		return m.findByNameFn(n, tID)
 	}
 	return nil, nil
 }
-func (m *mockIdentityProviderRepo) FindDefaultByTenantID(tID int64) (*model.IdentityProvider, error) {
+func (m *mockIdentityProviderRepo) FindDefaultByTenantID(tID int64) (*IdentityProvider, error) {
 	return nil, nil
 }
-func (m *mockIdentityProviderRepo) FindPaginated(f repository.IdentityProviderRepositoryGetFilter) (*repository.PaginationResult[model.IdentityProvider], error) {
+func (m *mockIdentityProviderRepo) FindPaginated(f IdentityProviderRepositoryGetFilter) (*PaginationResult[IdentityProvider], error) {
 	if m.findPaginatedFn != nil {
 		return m.findPaginatedFn(f)
 	}
-	return &repository.PaginationResult[model.IdentityProvider]{}, nil
+	return &PaginationResult[IdentityProvider]{}, nil
 }
-func (m *mockIdentityProviderRepo) FindAllByTenantID(_ int64) ([]model.IdentityProvider, error) {
+func (m *mockIdentityProviderRepo) FindAllByTenantID(_ int64) ([]IdentityProvider, error) {
 	return nil, nil
 }
-func (m *mockIdentityProviderRepo) FindByTenantAndProvider(_ int64, _ string) (*model.IdentityProvider, error) {
+func (m *mockIdentityProviderRepo) FindByTenantAndProvider(_ int64, _ string) (*IdentityProvider, error) {
 	return nil, nil
 }
 
@@ -398,41 +396,41 @@ func (m *mockIdentityProviderRepo) FindByTenantAndProvider(_ int64, _ string) (*
 // ---------------------------------------------------------------------------
 
 type mockUserTokenRepo struct {
-	createFn                   func(*model.UserToken) (*model.UserToken, error)
-	findByUserIDAndTokenTypeFn func(userID int64, tokenType string) ([]model.UserToken, error)
+	createFn                   func(*UserToken) (*UserToken, error)
+	findByUserIDAndTokenTypeFn func(userID int64, tokenType string) ([]UserToken, error)
 	revokeByUUIDFn             func(id uuid.UUID) error
 }
 
-func (m *mockUserTokenRepo) WithTx(_ *gorm.DB) repository.UserTokenRepository { return m }
-func (m *mockUserTokenRepo) Create(e *model.UserToken) (*model.UserToken, error) {
+func (m *mockUserTokenRepo) WithTx(_ *gorm.DB) UserTokenRepository { return m }
+func (m *mockUserTokenRepo) Create(e *UserToken) (*UserToken, error) {
 	if m.createFn != nil {
 		return m.createFn(e)
 	}
 	return e, nil
 }
-func (m *mockUserTokenRepo) CreateOrUpdate(e *model.UserToken) (*model.UserToken, error) {
+func (m *mockUserTokenRepo) CreateOrUpdate(e *UserToken) (*UserToken, error) {
 	return nil, nil
 }
-func (m *mockUserTokenRepo) FindAll(p ...string) ([]model.UserToken, error) { return nil, nil }
-func (m *mockUserTokenRepo) FindByUUID(id any, p ...string) (*model.UserToken, error) {
+func (m *mockUserTokenRepo) FindAll(p ...string) ([]UserToken, error) { return nil, nil }
+func (m *mockUserTokenRepo) FindByUUID(id any, p ...string) (*UserToken, error) {
 	return nil, nil
 }
-func (m *mockUserTokenRepo) FindByUUIDs(ids []string, p ...string) ([]model.UserToken, error) {
+func (m *mockUserTokenRepo) FindByUUIDs(ids []string, p ...string) ([]UserToken, error) {
 	return nil, nil
 }
-func (m *mockUserTokenRepo) FindByID(id any, p ...string) (*model.UserToken, error) { return nil, nil }
-func (m *mockUserTokenRepo) UpdateByUUID(id, data any) (*model.UserToken, error)    { return nil, nil }
-func (m *mockUserTokenRepo) UpdateByID(id, data any) (*model.UserToken, error)      { return nil, nil }
-func (m *mockUserTokenRepo) DeleteByUUID(id any) error                              { return nil }
-func (m *mockUserTokenRepo) DeleteByID(id any) error                                { return nil }
-func (m *mockUserTokenRepo) Paginate(c map[string]any, pg, lim int, p ...string) (*repository.PaginationResult[model.UserToken], error) {
+func (m *mockUserTokenRepo) FindByID(id any, p ...string) (*UserToken, error) { return nil, nil }
+func (m *mockUserTokenRepo) UpdateByUUID(id, data any) (*UserToken, error)    { return nil, nil }
+func (m *mockUserTokenRepo) UpdateByID(id, data any) (*UserToken, error)      { return nil, nil }
+func (m *mockUserTokenRepo) DeleteByUUID(id any) error                        { return nil }
+func (m *mockUserTokenRepo) DeleteByID(id any) error                          { return nil }
+func (m *mockUserTokenRepo) Paginate(c map[string]any, pg, lim int, p ...string) (*PaginationResult[UserToken], error) {
 	return nil, nil
 }
-func (m *mockUserTokenRepo) FindByUserID(uID int64) ([]model.UserToken, error) { return nil, nil }
-func (m *mockUserTokenRepo) FindActiveTokensByUserID(uID int64) ([]model.UserToken, error) {
+func (m *mockUserTokenRepo) FindByUserID(uID int64) ([]UserToken, error) { return nil, nil }
+func (m *mockUserTokenRepo) FindActiveTokensByUserID(uID int64) ([]UserToken, error) {
 	return nil, nil
 }
-func (m *mockUserTokenRepo) FindByUserIDAndTokenType(uID int64, tt string) ([]model.UserToken, error) {
+func (m *mockUserTokenRepo) FindByUserIDAndTokenType(uID int64, tt string) ([]UserToken, error) {
 	if m.findByUserIDAndTokenTypeFn != nil {
 		return m.findByUserIDAndTokenTypeFn(uID, tt)
 	}
@@ -447,10 +445,10 @@ func (m *mockUserTokenRepo) RevokeByUUID(id uuid.UUID) error {
 func (m *mockUserTokenRepo) RevokeAllByUserID(uID int64) error          { return nil }
 func (m *mockUserTokenRepo) DeleteByUserID(uID int64) error             { return nil }
 func (m *mockUserTokenRepo) DeleteExpiredTokens(before time.Time) error { return nil }
-func (m *mockUserTokenRepo) FindActiveSessions(userID int64) ([]model.UserToken, error) {
+func (m *mockUserTokenRepo) FindActiveSessions(userID int64) ([]UserToken, error) {
 	return nil, nil
 }
-func (m *mockUserTokenRepo) FindActiveSessionByUUID(userID int64, sessionUUID uuid.UUID) (*model.UserToken, error) {
+func (m *mockUserTokenRepo) FindActiveSessionByUUID(userID int64, sessionUUID uuid.UUID) (*UserToken, error) {
 	return nil, nil
 }
 func (m *mockUserTokenRepo) CountActiveSessions(userID int64) (int64, error)         { return 0, nil }
@@ -495,45 +493,45 @@ func newMockGormDB(t *testing.T) (*gorm.DB, sqlmock.Sqlmock) {
 }
 
 // buildActiveIdentityProvider returns a minimal active identity provider for tests.
-func buildActiveIdentityProvider() *model.IdentityProvider {
-	return &model.IdentityProvider{
+func buildActiveIdentityProvider() *IdentityProvider {
+	return &IdentityProvider{
 		IdentityProviderID: 1,
 		Name:               "default",
-		Provider:           model.IDPProviderInternal,
-		ProviderType:       model.IDPTypeIdentity,
+		Provider:           IDPProviderInternal,
+		ProviderType:       IDPTypeIdentity,
 		Identifier:         "test-provider",
-		Status:             model.StatusActive,
+		Status:             StatusActive,
 	}
 }
 
 // buildActiveClient returns a minimal active client whose Domain and Identifier
 // are both populated (required by generateTokenResponse).
-func buildActiveClient() *model.Client {
+func buildActiveClient() *Client {
 	idp := buildActiveIdentityProvider()
-	return &model.Client{
+	return &Client{
 		ClientID:         1,
 		Name:             "test-client",
 		Domain:           strPtr("https://auth.example.com"),
 		Identifier:       strPtr("test-client"),
-		Status:           model.StatusActive,
+		Status:           StatusActive,
 		IdentityProvider: idp,
 	}
 }
 
 // buildActiveUser bcrypt-hashes the given plaintext password and returns an
 // active user that the service can authenticate successfully.
-func buildActiveUser(t *testing.T, password string) *model.User {
+func buildActiveUser(t *testing.T, password string) *User {
 	t.Helper()
 	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.MinCost)
 	require.NoError(t, err)
 	hashStr := string(hash)
-	return &model.User{
+	return &User{
 		UserID:   1,
 		UserUUID: uuid.New(),
 		Username: "testuser",
 		Email:    "testuser@example.com",
 		Password: &hashStr,
-		Status:   model.StatusActive,
+		Status:   StatusActive,
 	}
 }
 
@@ -554,7 +552,7 @@ func TestGetUserByEmail(t *testing.T) {
 			email:    "a@b.com",
 			tenantID: 0,
 			setupRepo: func(m *mockUserRepo) {
-				m.findByEmailFn = func(e string) (*model.User, error) { return &model.User{Email: e}, nil }
+				m.findByEmailFn = func(e string) (*User, error) { return &User{Email: e}, nil }
 			},
 		},
 		{
@@ -562,8 +560,8 @@ func TestGetUserByEmail(t *testing.T) {
 			email:    "a@b.com",
 			tenantID: 42,
 			setupRepo: func(m *mockUserRepo) {
-				m.findByEmailAndTenantIDFn = func(e string, _ int64) (*model.User, error) {
-					return &model.User{Email: e}, nil
+				m.findByEmailAndTenantIDFn = func(e string, _ int64) (*User, error) {
+					return &User{Email: e}, nil
 				}
 			},
 		},
@@ -572,7 +570,7 @@ func TestGetUserByEmail(t *testing.T) {
 			email:    "nope@x.com",
 			tenantID: 0,
 			setupRepo: func(m *mockUserRepo) {
-				m.findByEmailFn = func(_ string) (*model.User, error) { return nil, errors.New("not found") }
+				m.findByEmailFn = func(_ string) (*User, error) { return nil, errors.New("not found") }
 			},
 			wantErr: true,
 		},
@@ -581,7 +579,7 @@ func TestGetUserByEmail(t *testing.T) {
 			email:    "nope@x.com",
 			tenantID: 5,
 			setupRepo: func(m *mockUserRepo) {
-				m.findByEmailAndTenantIDFn = func(_ string, _ int64) (*model.User, error) {
+				m.findByEmailAndTenantIDFn = func(_ string, _ int64) (*User, error) {
 					return nil, errors.New("not found")
 				}
 			},
@@ -640,17 +638,17 @@ func TestLoginPublic(t *testing.T) {
 			providerID:   "provider-1",
 			expectCommit: true,
 			setup: func(t *testing.T, r repoSetup) {
-				r.idpRepo.findByIdentifierFn = func(_ string) (*model.IdentityProvider, error) {
+				r.idpRepo.findByIdentifierFn = func(_ string) (*IdentityProvider, error) {
 					return buildActiveIdentityProvider(), nil
 				}
-				r.clientRepo.findByClientIDAndIdentityProviderFn = func(_, _ string) (*model.Client, error) {
+				r.clientRepo.findByClientIDAndIdentityProviderFn = func(_, _ string) (*Client, error) {
 					return buildActiveClient(), nil
 				}
-				r.userRepo.findByUsernameFn = func(_ string) (*model.User, error) {
+				r.userRepo.findByUsernameFn = func(_ string) (*User, error) {
 					return buildActiveUser(t, correctPassword), nil
 				}
-				r.userIdentity.findByUserIDAndClientIDFn = func(_, _ int64) (*model.UserIdentity, error) {
-					return &model.UserIdentity{Sub: "sub-123"}, nil
+				r.userIdentity.findByUserIDAndClientIDFn = func(_, _ int64) (*UserIdentity, error) {
+					return &UserIdentity{Sub: "sub-123"}, nil
 				}
 			},
 		},
@@ -664,7 +662,7 @@ func TestLoginPublic(t *testing.T) {
 			wantErr:        true,
 			wantErrContain: "authentication failed",
 			setup: func(t *testing.T, r repoSetup) {
-				r.idpRepo.findByIdentifierFn = func(_ string) (*model.IdentityProvider, error) {
+				r.idpRepo.findByIdentifierFn = func(_ string) (*IdentityProvider, error) {
 					return nil, errors.New("db error")
 				}
 			},
@@ -679,7 +677,7 @@ func TestLoginPublic(t *testing.T) {
 			wantErr:        true,
 			wantErrContain: "authentication failed",
 			setup: func(t *testing.T, r repoSetup) {
-				r.idpRepo.findByIdentifierFn = func(_ string) (*model.IdentityProvider, error) {
+				r.idpRepo.findByIdentifierFn = func(_ string) (*IdentityProvider, error) {
 					return nil, nil
 				}
 			},
@@ -694,12 +692,12 @@ func TestLoginPublic(t *testing.T) {
 			wantErr:        true,
 			wantErrContain: "authentication failed",
 			setup: func(t *testing.T, r repoSetup) {
-				r.idpRepo.findByIdentifierFn = func(_ string) (*model.IdentityProvider, error) {
+				r.idpRepo.findByIdentifierFn = func(_ string) (*IdentityProvider, error) {
 					return buildActiveIdentityProvider(), nil
 				}
-				r.clientRepo.findByClientIDAndIdentityProviderFn = func(_, _ string) (*model.Client, error) {
+				r.clientRepo.findByClientIDAndIdentityProviderFn = func(_, _ string) (*Client, error) {
 					c := buildActiveClient()
-					c.Status = model.StatusInactive
+					c.Status = StatusInactive
 					return c, nil
 				}
 			},
@@ -714,16 +712,16 @@ func TestLoginPublic(t *testing.T) {
 			wantErr:        true,
 			wantErrContain: "invalid credentials",
 			setup: func(t *testing.T, r repoSetup) {
-				r.idpRepo.findByIdentifierFn = func(_ string) (*model.IdentityProvider, error) {
+				r.idpRepo.findByIdentifierFn = func(_ string) (*IdentityProvider, error) {
 					return buildActiveIdentityProvider(), nil
 				}
-				r.clientRepo.findByClientIDAndIdentityProviderFn = func(_, _ string) (*model.Client, error) {
+				r.clientRepo.findByClientIDAndIdentityProviderFn = func(_, _ string) (*Client, error) {
 					return buildActiveClient(), nil
 				}
-				r.userRepo.findByUsernameFn = func(_ string) (*model.User, error) {
+				r.userRepo.findByUsernameFn = func(_ string) (*User, error) {
 					return buildActiveUser(t, correctPassword), nil
 				}
-				r.userIdentity.findByUserIDAndClientIDFn = func(_, _ int64) (*model.UserIdentity, error) {
+				r.userIdentity.findByUserIDAndClientIDFn = func(_, _ int64) (*UserIdentity, error) {
 					return nil, errors.New("not found")
 				}
 			},
@@ -738,19 +736,19 @@ func TestLoginPublic(t *testing.T) {
 			wantErr:        true,
 			wantErrContain: "account is not active",
 			setup: func(t *testing.T, r repoSetup) {
-				r.idpRepo.findByIdentifierFn = func(_ string) (*model.IdentityProvider, error) {
+				r.idpRepo.findByIdentifierFn = func(_ string) (*IdentityProvider, error) {
 					return buildActiveIdentityProvider(), nil
 				}
-				r.clientRepo.findByClientIDAndIdentityProviderFn = func(_, _ string) (*model.Client, error) {
+				r.clientRepo.findByClientIDAndIdentityProviderFn = func(_, _ string) (*Client, error) {
 					return buildActiveClient(), nil
 				}
-				r.userRepo.findByUsernameFn = func(_ string) (*model.User, error) {
+				r.userRepo.findByUsernameFn = func(_ string) (*User, error) {
 					u := buildActiveUser(t, correctPassword)
-					u.Status = model.StatusInactive
+					u.Status = StatusInactive
 					return u, nil
 				}
-				r.userIdentity.findByUserIDAndClientIDFn = func(_, _ int64) (*model.UserIdentity, error) {
-					return &model.UserIdentity{Sub: "sub-123"}, nil
+				r.userIdentity.findByUserIDAndClientIDFn = func(_, _ int64) (*UserIdentity, error) {
+					return &UserIdentity{Sub: "sub-123"}, nil
 				}
 			},
 		},
@@ -830,12 +828,12 @@ func TestLogin(t *testing.T) {
 			providerID:   nil,
 			expectCommit: true,
 			setup: func(t *testing.T, r repoSetup) {
-				r.clientRepo.findSystemFn = func() (*model.Client, error) { return buildActiveClient(), nil }
-				r.userRepo.findByUsernameFn = func(_ string) (*model.User, error) {
+				r.clientRepo.findSystemFn = func() (*Client, error) { return buildActiveClient(), nil }
+				r.userRepo.findByUsernameFn = func(_ string) (*User, error) {
 					return buildActiveUser(t, correctPassword), nil
 				}
-				r.userIdentity.findByUserIDAndClientIDFn = func(_, _ int64) (*model.UserIdentity, error) {
-					return &model.UserIdentity{Sub: "sub-456"}, nil
+				r.userIdentity.findByUserIDAndClientIDFn = func(_, _ int64) (*UserIdentity, error) {
+					return &UserIdentity{Sub: "sub-456"}, nil
 				}
 			},
 		},
@@ -847,14 +845,14 @@ func TestLogin(t *testing.T) {
 			providerID:   strPtr("provider-2"),
 			expectCommit: true,
 			setup: func(t *testing.T, r repoSetup) {
-				r.clientRepo.findByClientIDAndIdentityProviderFn = func(_, _ string) (*model.Client, error) {
+				r.clientRepo.findByClientIDAndIdentityProviderFn = func(_, _ string) (*Client, error) {
 					return buildActiveClient(), nil
 				}
-				r.userRepo.findByUsernameFn = func(_ string) (*model.User, error) {
+				r.userRepo.findByUsernameFn = func(_ string) (*User, error) {
 					return buildActiveUser(t, correctPassword), nil
 				}
-				r.userIdentity.findByUserIDAndClientIDFn = func(_, _ int64) (*model.UserIdentity, error) {
-					return &model.UserIdentity{Sub: "sub-789"}, nil
+				r.userIdentity.findByUserIDAndClientIDFn = func(_, _ int64) (*UserIdentity, error) {
+					return &UserIdentity{Sub: "sub-789"}, nil
 				}
 			},
 		},
@@ -868,7 +866,7 @@ func TestLogin(t *testing.T) {
 			wantErr:        true,
 			wantErrContain: "authentication failed",
 			setup: func(t *testing.T, r repoSetup) {
-				r.clientRepo.findSystemFn = func() (*model.Client, error) { return nil, errors.New("db error") }
+				r.clientRepo.findSystemFn = func() (*Client, error) { return nil, errors.New("db error") }
 			},
 		},
 		{
@@ -881,9 +879,9 @@ func TestLogin(t *testing.T) {
 			wantErr:        true,
 			wantErrContain: "authentication failed",
 			setup: func(t *testing.T, r repoSetup) {
-				r.clientRepo.findSystemFn = func() (*model.Client, error) {
+				r.clientRepo.findSystemFn = func() (*Client, error) {
 					c := buildActiveClient()
-					c.Status = model.StatusInactive
+					c.Status = StatusInactive
 					return c, nil
 				}
 			},
@@ -898,11 +896,11 @@ func TestLogin(t *testing.T) {
 			wantErr:        true,
 			wantErrContain: "invalid credentials",
 			setup: func(t *testing.T, r repoSetup) {
-				r.clientRepo.findSystemFn = func() (*model.Client, error) { return buildActiveClient(), nil }
-				r.userRepo.findByUsernameFn = func(_ string) (*model.User, error) {
+				r.clientRepo.findSystemFn = func() (*Client, error) { return buildActiveClient(), nil }
+				r.userRepo.findByUsernameFn = func(_ string) (*User, error) {
 					return buildActiveUser(t, correctPassword), nil
 				}
-				r.userIdentity.findByUserIDAndClientIDFn = func(_, _ int64) (*model.UserIdentity, error) {
+				r.userIdentity.findByUserIDAndClientIDFn = func(_, _ int64) (*UserIdentity, error) {
 					return nil, errors.New("not found")
 				}
 			},
@@ -917,14 +915,14 @@ func TestLogin(t *testing.T) {
 			wantErr:        true,
 			wantErrContain: "account is not active",
 			setup: func(t *testing.T, r repoSetup) {
-				r.clientRepo.findSystemFn = func() (*model.Client, error) { return buildActiveClient(), nil }
-				r.userRepo.findByUsernameFn = func(_ string) (*model.User, error) {
+				r.clientRepo.findSystemFn = func() (*Client, error) { return buildActiveClient(), nil }
+				r.userRepo.findByUsernameFn = func(_ string) (*User, error) {
 					u := buildActiveUser(t, correctPassword)
-					u.Status = model.StatusInactive
+					u.Status = StatusInactive
 					return u, nil
 				}
-				r.userIdentity.findByUserIDAndClientIDFn = func(_, _ int64) (*model.UserIdentity, error) {
-					return &model.UserIdentity{Sub: "sub-456"}, nil
+				r.userIdentity.findByUserIDAndClientIDFn = func(_, _ int64) (*UserIdentity, error) {
+					return &UserIdentity{Sub: "sub-456"}, nil
 				}
 			},
 		},
@@ -1008,7 +1006,7 @@ func TestLoginPublic_RateLimited(t *testing.T) {
 	_ = mock
 
 	svc := NewLoginService(gormDB, &mockClientRepo{}, &mockUserRepo{}, &mockUserTokenRepo{},
-		&mockUserIdentityRepo{findByUserIDAndClientIDFn: func(_, _ int64) (*model.UserIdentity, error) { return nil, nil }},
+		&mockUserIdentityRepo{findByUserIDAndClientIDFn: func(_, _ int64) (*UserIdentity, error) { return nil, nil }},
 		&mockIdentityProviderRepo{}, &mockAuthEventService{}, nil, nil)
 	_, err := svc.LoginPublic(context.Background(), username, "pass", "c1", "p1")
 	require.Error(t, err)
@@ -1022,18 +1020,18 @@ func TestLoginPublic_ClientLookupError(t *testing.T) {
 	mock.ExpectRollback()
 
 	idpRepo := &mockIdentityProviderRepo{
-		findByIdentifierFn: func(_ string) (*model.IdentityProvider, error) {
+		findByIdentifierFn: func(_ string) (*IdentityProvider, error) {
 			return buildActiveIdentityProvider(), nil
 		},
 	}
 	clientRepo := &mockClientRepo{
-		findByClientIDAndIdentityProviderFn: func(_, _ string) (*model.Client, error) {
+		findByClientIDAndIdentityProviderFn: func(_, _ string) (*Client, error) {
 			return nil, errors.New("client db err")
 		},
 	}
 
 	svc := NewLoginService(gormDB, clientRepo, &mockUserRepo{}, &mockUserTokenRepo{},
-		&mockUserIdentityRepo{findByUserIDAndClientIDFn: func(_, _ int64) (*model.UserIdentity, error) { return nil, nil }},
+		&mockUserIdentityRepo{findByUserIDAndClientIDFn: func(_, _ int64) (*UserIdentity, error) { return nil, nil }},
 		idpRepo, &mockAuthEventService{}, nil, nil)
 	_, err := svc.LoginPublic(context.Background(), "pub-client-err", "pass", "c1", "p1")
 	require.Error(t, err)
@@ -1047,23 +1045,23 @@ func TestLoginPublic_UserNotFound(t *testing.T) {
 	mock.ExpectCommit()
 
 	idpRepo := &mockIdentityProviderRepo{
-		findByIdentifierFn: func(_ string) (*model.IdentityProvider, error) {
+		findByIdentifierFn: func(_ string) (*IdentityProvider, error) {
 			return buildActiveIdentityProvider(), nil
 		},
 	}
 	clientRepo := &mockClientRepo{
-		findByClientIDAndIdentityProviderFn: func(_, _ string) (*model.Client, error) {
+		findByClientIDAndIdentityProviderFn: func(_, _ string) (*Client, error) {
 			return buildActiveClient(), nil
 		},
 	}
 	userRepo := &mockUserRepo{
-		findByUsernameFn: func(_ string) (*model.User, error) {
+		findByUsernameFn: func(_ string) (*User, error) {
 			return nil, errors.New("not found")
 		},
 	}
 
 	svc := NewLoginService(gormDB, clientRepo, userRepo, &mockUserTokenRepo{},
-		&mockUserIdentityRepo{findByUserIDAndClientIDFn: func(_, _ int64) (*model.UserIdentity, error) { return nil, nil }},
+		&mockUserIdentityRepo{findByUserIDAndClientIDFn: func(_, _ int64) (*UserIdentity, error) { return nil, nil }},
 		idpRepo, &mockAuthEventService{}, nil, nil)
 	_, err := svc.LoginPublic(context.Background(), "pub-user-missing", "pass", "c1", "p1")
 	require.Error(t, err)
@@ -1083,7 +1081,7 @@ func TestLogin_RateLimited(t *testing.T) {
 	_ = mock
 
 	svc := NewLoginService(gormDB, &mockClientRepo{}, &mockUserRepo{}, &mockUserTokenRepo{},
-		&mockUserIdentityRepo{findByUserIDAndClientIDFn: func(_, _ int64) (*model.UserIdentity, error) { return nil, nil }},
+		&mockUserIdentityRepo{findByUserIDAndClientIDFn: func(_, _ int64) (*UserIdentity, error) { return nil, nil }},
 		&mockIdentityProviderRepo{}, &mockAuthEventService{}, nil, nil)
 	_, err := svc.Login(context.Background(), username, "pass", nil, nil)
 	require.Error(t, err)
@@ -1097,7 +1095,7 @@ func TestLogin_ExplicitClientLookupError(t *testing.T) {
 	mock.ExpectRollback()
 
 	clientRepo := &mockClientRepo{
-		findByClientIDAndIdentityProviderFn: func(_, _ string) (*model.Client, error) {
+		findByClientIDAndIdentityProviderFn: func(_, _ string) (*Client, error) {
 			return nil, errors.New("client db err")
 		},
 	}
@@ -1105,7 +1103,7 @@ func TestLogin_ExplicitClientLookupError(t *testing.T) {
 	cID := "client-x"
 	pID := "provider-x"
 	svc := NewLoginService(gormDB, clientRepo, &mockUserRepo{}, &mockUserTokenRepo{},
-		&mockUserIdentityRepo{findByUserIDAndClientIDFn: func(_, _ int64) (*model.UserIdentity, error) { return nil, nil }},
+		&mockUserIdentityRepo{findByUserIDAndClientIDFn: func(_, _ int64) (*UserIdentity, error) { return nil, nil }},
 		&mockIdentityProviderRepo{}, &mockAuthEventService{}, nil, nil)
 	_, err := svc.Login(context.Background(), "int-explicit-err", "pass", &cID, &pID)
 	require.Error(t, err)
@@ -1119,14 +1117,14 @@ func TestLogin_UserNotFound(t *testing.T) {
 	mock.ExpectCommit()
 
 	clientRepo := &mockClientRepo{
-		findSystemFn: func() (*model.Client, error) { return buildActiveClient(), nil },
+		findSystemFn: func() (*Client, error) { return buildActiveClient(), nil },
 	}
 	userRepo := &mockUserRepo{
-		findByUsernameFn: func(_ string) (*model.User, error) { return nil, nil },
+		findByUsernameFn: func(_ string) (*User, error) { return nil, nil },
 	}
 
 	svc := NewLoginService(gormDB, clientRepo, userRepo, &mockUserTokenRepo{},
-		&mockUserIdentityRepo{findByUserIDAndClientIDFn: func(_, _ int64) (*model.UserIdentity, error) { return nil, nil }},
+		&mockUserIdentityRepo{findByUserIDAndClientIDFn: func(_, _ int64) (*UserIdentity, error) { return nil, nil }},
 		&mockIdentityProviderRepo{}, &mockAuthEventService{}, nil, nil)
 	_, err := svc.Login(context.Background(), "int-user-missing", "pass", nil, nil)
 	require.Error(t, err)
@@ -1149,23 +1147,23 @@ func TestLoginPublic_GenerateAccessTokenError(t *testing.T) {
 	const correctPassword = "S3cur3P@ss!"
 
 	idpRepo := &mockIdentityProviderRepo{
-		findByIdentifierFn: func(_ string) (*model.IdentityProvider, error) {
+		findByIdentifierFn: func(_ string) (*IdentityProvider, error) {
 			return buildActiveIdentityProvider(), nil
 		},
 	}
 	clientRepo := &mockClientRepo{
-		findByClientIDAndIdentityProviderFn: func(_, _ string) (*model.Client, error) {
+		findByClientIDAndIdentityProviderFn: func(_, _ string) (*Client, error) {
 			return buildActiveClient(), nil
 		},
 	}
 	userRepo := &mockUserRepo{
-		findByUsernameFn: func(_ string) (*model.User, error) {
+		findByUsernameFn: func(_ string) (*User, error) {
 			return buildActiveUser(t, correctPassword), nil
 		},
 	}
 	userIdentityRepo := &mockUserIdentityRepo{
-		findByUserIDAndClientIDFn: func(_, _ int64) (*model.UserIdentity, error) {
-			return &model.UserIdentity{Sub: "sub-token-err"}, nil
+		findByUserIDAndClientIDFn: func(_, _ int64) (*UserIdentity, error) {
+			return &UserIdentity{Sub: "sub-token-err"}, nil
 		},
 	}
 
@@ -1187,16 +1185,16 @@ func TestLogin_GenerateAccessTokenError(t *testing.T) {
 	const correctPassword = "S3cur3P@ss!"
 
 	clientRepo := &mockClientRepo{
-		findSystemFn: func() (*model.Client, error) { return buildActiveClient(), nil },
+		findSystemFn: func() (*Client, error) { return buildActiveClient(), nil },
 	}
 	userRepo := &mockUserRepo{
-		findByUsernameFn: func(_ string) (*model.User, error) {
+		findByUsernameFn: func(_ string) (*User, error) {
 			return buildActiveUser(t, correctPassword), nil
 		},
 	}
 	userIdentityRepo := &mockUserIdentityRepo{
-		findByUserIDAndClientIDFn: func(_, _ int64) (*model.UserIdentity, error) {
-			return &model.UserIdentity{Sub: "sub-token-err"}, nil
+		findByUserIDAndClientIDFn: func(_, _ int64) (*UserIdentity, error) {
+			return &UserIdentity{Sub: "sub-token-err"}, nil
 		},
 	}
 
@@ -1222,23 +1220,23 @@ func TestLoginPublic_GenerateIDTokenError(t *testing.T) {
 	defer func() { generateIDTokenFn = orig }()
 
 	idpRepo := &mockIdentityProviderRepo{
-		findByIdentifierFn: func(_ string) (*model.IdentityProvider, error) {
+		findByIdentifierFn: func(_ string) (*IdentityProvider, error) {
 			return buildActiveIdentityProvider(), nil
 		},
 	}
 	clientRepo := &mockClientRepo{
-		findByClientIDAndIdentityProviderFn: func(_, _ string) (*model.Client, error) {
+		findByClientIDAndIdentityProviderFn: func(_, _ string) (*Client, error) {
 			return buildActiveClient(), nil
 		},
 	}
 	userRepo := &mockUserRepo{
-		findByUsernameFn: func(_ string) (*model.User, error) {
+		findByUsernameFn: func(_ string) (*User, error) {
 			return buildActiveUser(t, correctPassword), nil
 		},
 	}
 	userIdentityRepo := &mockUserIdentityRepo{
-		findByUserIDAndClientIDFn: func(_, _ int64) (*model.UserIdentity, error) {
-			return &model.UserIdentity{Sub: "sub-idtoken-err"}, nil
+		findByUserIDAndClientIDFn: func(_, _ int64) (*UserIdentity, error) {
+			return &UserIdentity{Sub: "sub-idtoken-err"}, nil
 		},
 	}
 
@@ -1264,23 +1262,23 @@ func TestLoginPublic_GenerateRefreshTokenError(t *testing.T) {
 	defer func() { generateRefreshTokenFn = orig }()
 
 	idpRepo := &mockIdentityProviderRepo{
-		findByIdentifierFn: func(_ string) (*model.IdentityProvider, error) {
+		findByIdentifierFn: func(_ string) (*IdentityProvider, error) {
 			return buildActiveIdentityProvider(), nil
 		},
 	}
 	clientRepo := &mockClientRepo{
-		findByClientIDAndIdentityProviderFn: func(_, _ string) (*model.Client, error) {
+		findByClientIDAndIdentityProviderFn: func(_, _ string) (*Client, error) {
 			return buildActiveClient(), nil
 		},
 	}
 	userRepo := &mockUserRepo{
-		findByUsernameFn: func(_ string) (*model.User, error) {
+		findByUsernameFn: func(_ string) (*User, error) {
 			return buildActiveUser(t, correctPassword), nil
 		},
 	}
 	userIdentityRepo := &mockUserIdentityRepo{
-		findByUserIDAndClientIDFn: func(_, _ int64) (*model.UserIdentity, error) {
-			return &model.UserIdentity{Sub: "sub-refresh-err"}, nil
+		findByUserIDAndClientIDFn: func(_, _ int64) (*UserIdentity, error) {
+			return &UserIdentity{Sub: "sub-refresh-err"}, nil
 		},
 	}
 

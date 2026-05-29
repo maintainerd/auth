@@ -5,20 +5,18 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/maintainerd/auth/internal/dto"
 	resp "github.com/maintainerd/auth/internal/platform/response"
 	"github.com/maintainerd/auth/internal/platform/security"
-	"github.com/maintainerd/auth/internal/service"
 )
 
 type RegisterHandler struct {
-	registerService          service.RegisterService
-	emailVerificationService service.EmailVerificationService
+	registerService          RegisterService
+	emailVerificationService EmailVerificationService
 }
 
 func NewRegisterHandler(
-	registerService service.RegisterService,
-	emailVerificationService service.EmailVerificationService,
+	registerService RegisterService,
+	emailVerificationService EmailVerificationService,
 ) *RegisterHandler {
 	return &RegisterHandler{
 		registerService:          registerService,
@@ -32,7 +30,7 @@ func (h *RegisterHandler) RegisterPublic(w http.ResponseWriter, r *http.Request)
 	clientIPStr, userAgentStr, requestIDStr := sc.clientIP, sc.userAgent, sc.requestID
 
 	// Validate query parameters
-	q := dto.RegisterQueryDTO{
+	q := RegisterQueryDTO{
 		ClientID:   r.URL.Query().Get("client_id"),
 		ProviderID: r.URL.Query().Get("provider_id"),
 	}
@@ -71,7 +69,7 @@ func (h *RegisterHandler) RegisterPublic(w http.ResponseWriter, r *http.Request)
 	}
 
 	// Validate body payload
-	var req dto.RegisterRequestDTO
+	var req RegisterRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		security.LogSecurityEvent(security.SecurityEvent{
 			EventType: "registration_malformed_request",
@@ -198,7 +196,7 @@ func (h *RegisterHandler) Register(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Validate body payload
-	var req dto.RegisterRequestDTO
+	var req RegisterRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		resp.Error(w, http.StatusBadRequest, "Invalid request")
 		return
@@ -291,7 +289,7 @@ func (h *RegisterHandler) RegisterInvite(w http.ResponseWriter, r *http.Request)
 	}
 
 	// Validate body payload
-	var req dto.LoginRequestDTO
+	var req LoginRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		resp.Error(w, http.StatusBadRequest, "Invalid request")
 		return
@@ -321,7 +319,7 @@ func (h *RegisterHandler) RegisterInvite(w http.ResponseWriter, r *http.Request)
 
 func (h *RegisterHandler) RegisterInvitePublic(w http.ResponseWriter, r *http.Request) {
 	// Validate query parameters
-	q := dto.RegisterInviteQueryDTO{
+	q := RegisterInviteQueryDTO{
 		ClientID:    r.URL.Query().Get("client_id"),
 		ProviderID:  r.URL.Query().Get("provider_id"),
 		InviteToken: r.URL.Query().Get("invite_token"),
@@ -335,7 +333,7 @@ func (h *RegisterHandler) RegisterInvitePublic(w http.ResponseWriter, r *http.Re
 	}
 
 	// Validate body payload
-	var req dto.LoginRequestDTO
+	var req LoginRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		resp.Error(w, http.StatusBadRequest, "Invalid request")
 		return

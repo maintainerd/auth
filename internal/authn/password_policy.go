@@ -4,7 +4,6 @@ import (
 	"errors"
 
 	"github.com/maintainerd/auth/internal/platform/security"
-	"github.com/maintainerd/auth/internal/repository"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -12,7 +11,7 @@ var errPasswordReused = errors.New("password was used recently and cannot be reu
 
 // loadPolicy returns the effective PasswordPolicy for a tenant.
 // Falls back to DefaultPasswordPolicy when the repo is nil or no setting exists.
-func loadPolicy(repo repository.SecuritySettingRepository, tenantID int64) security.PasswordPolicy {
+func loadPolicy(repo SecuritySettingRepository, tenantID int64) security.PasswordPolicy {
 	if repo == nil {
 		return security.DefaultPasswordPolicy()
 	}
@@ -26,7 +25,7 @@ func loadPolicy(repo repository.SecuritySettingRepository, tenantID int64) secur
 // checkPasswordHistory verifies the new plain-text password does not match any
 // of the user's recent hashes. Returns an error if it does.
 // A nil repo or a policy HistoryCount of 0 skips the check.
-func checkPasswordHistory(repo repository.UserPasswordHistoryRepository, userID int64, historyCount int, newPassword string) error {
+func checkPasswordHistory(repo UserPasswordHistoryRepository, userID int64, historyCount int, newPassword string) error {
 	if repo == nil || historyCount <= 0 {
 		return nil
 	}
@@ -44,7 +43,7 @@ func checkPasswordHistory(repo repository.UserPasswordHistoryRepository, userID 
 
 // recordPasswordHistory adds the new hash to history and prunes excess entries.
 // A nil repo or HistoryCount of 0 skips the operation (no-op).
-func recordPasswordHistory(repo repository.UserPasswordHistoryRepository, userID int64, historyCount int, newHash string) {
+func recordPasswordHistory(repo UserPasswordHistoryRepository, userID int64, historyCount int, newHash string) {
 	if repo == nil || historyCount <= 0 {
 		return
 	}

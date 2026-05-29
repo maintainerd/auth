@@ -6,9 +6,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/maintainerd/auth/internal/model"
 	"github.com/maintainerd/auth/internal/platform/apperror"
-	"github.com/maintainerd/auth/internal/repository"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -53,14 +51,14 @@ type SecuritySettingService interface {
 
 type securitySettingService struct {
 	db                        *gorm.DB
-	securitySettingRepo       repository.SecuritySettingRepository
-	securitySettingsAuditRepo repository.SecuritySettingsAuditRepository
+	securitySettingRepo       SecuritySettingRepository
+	securitySettingsAuditRepo SecuritySettingsAuditRepository
 }
 
 func NewSecuritySettingService(
 	db *gorm.DB,
-	securitySettingRepo repository.SecuritySettingRepository,
-	securitySettingsAuditRepo repository.SecuritySettingsAuditRepository,
+	securitySettingRepo SecuritySettingRepository,
+	securitySettingsAuditRepo SecuritySettingsAuditRepository,
 ) SecuritySettingService {
 	return &securitySettingService{
 		db:                        db,
@@ -69,7 +67,7 @@ func NewSecuritySettingService(
 	}
 }
 
-func toSecuritySettingServiceDataResult(ss *model.SecuritySetting) *SecuritySettingServiceDataResult {
+func toSecuritySettingServiceDataResult(ss *SecuritySetting) *SecuritySettingServiceDataResult {
 	return &SecuritySettingServiceDataResult{
 		SecuritySettingUUID: ss.SecuritySettingUUID,
 		UserPoolID:          ss.UserPoolID,
@@ -330,7 +328,7 @@ func (s *securitySettingService) UpdateTokenConfig(ctx context.Context, userPool
 	return result, nil
 }
 
-func (s *securitySettingService) getOrCreateSecuritySetting(userPoolID int64) (*model.SecuritySetting, error) {
+func (s *securitySettingService) getOrCreateSecuritySetting(userPoolID int64) (*SecuritySetting, error) {
 	setting, err := s.securitySettingRepo.FindByUserPoolID(userPoolID)
 	if err != nil {
 		return nil, err
@@ -338,7 +336,7 @@ func (s *securitySettingService) getOrCreateSecuritySetting(userPoolID int64) (*
 
 	if setting == nil {
 		// Create default security setting
-		setting = &model.SecuritySetting{
+		setting = &SecuritySetting{
 			UserPoolID:         userPoolID,
 			MFAConfig:          datatypes.JSON([]byte("{}")),
 			PasswordConfig:     datatypes.JSON([]byte("{}")),
@@ -360,7 +358,7 @@ func (s *securitySettingService) getOrCreateSecuritySetting(userPoolID int64) (*
 }
 
 func (s *securitySettingService) updateConfig(userPoolID int64, configType string, config map[string]any, updatedBy int64, ipAddress, userAgent string) (*SecuritySettingServiceDataResult, error) {
-	var updatedSetting *model.SecuritySetting
+	var updatedSetting *SecuritySetting
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
 		txSecuritySettingRepo := s.securitySettingRepo.WithTx(tx)
@@ -378,7 +376,7 @@ func (s *securitySettingService) updateConfig(userPoolID int64, configType strin
 		if setting == nil {
 			// Create new security setting
 			isNew = true
-			setting = &model.SecuritySetting{
+			setting = &SecuritySetting{
 				UserPoolID:         userPoolID,
 				MFAConfig:          datatypes.JSON([]byte("{}")),
 				PasswordConfig:     datatypes.JSON([]byte("{}")),
@@ -429,7 +427,7 @@ func (s *securitySettingService) updateConfig(userPoolID int64, configType strin
 		setting.UpdatedBy = &updatedBy
 
 		// Save setting
-		var saved *model.SecuritySetting
+		var saved *SecuritySetting
 		if isNew {
 			saved, err = txSecuritySettingRepo.Create(setting)
 		} else {
@@ -445,7 +443,7 @@ func (s *securitySettingService) updateConfig(userPoolID int64, configType strin
 		}
 
 		// Create audit record
-		audit := &model.SecuritySettingsAudit{
+		audit := &SecuritySettingsAudit{
 			UserPoolID:        userPoolID,
 			SecuritySettingID: saved.SecuritySettingID,
 			ChangeType:        "update_" + configType + "_config",

@@ -4,8 +4,6 @@ import (
 	"time"
 
 	validation "github.com/go-ozzo/ozzo-validation/v4"
-	"github.com/maintainerd/auth/internal/dto"
-	"github.com/maintainerd/auth/internal/model"
 )
 
 // AuthEventFilterDTO holds query parameters for listing auth events.
@@ -16,7 +14,7 @@ type AuthEventFilterDTO struct {
 	Result    *string `json:"result"`
 	DateFrom  *string `json:"date_from"`
 	DateTo    *string `json:"date_to"`
-	dto.PaginationRequestDTO
+	PaginationRequestDTO
 }
 
 // Validate validates the filter parameters.
@@ -25,26 +23,26 @@ func (f AuthEventFilterDTO) Validate() error {
 		validation.Field(&f.Category,
 			validation.NilOrNotEmpty,
 			validation.In(
-				model.AuthEventCategoryAuthn,
-				model.AuthEventCategoryAuthz,
-				model.AuthEventCategorySession,
-				model.AuthEventCategoryUser,
-				model.AuthEventCategorySystem,
+				AuthEventCategoryAuthn,
+				AuthEventCategoryAuthz,
+				AuthEventCategorySession,
+				AuthEventCategoryUser,
+				AuthEventCategorySystem,
 			).Error("Category must be one of: AUTHN, AUTHZ, SESSION, USER, SYSTEM"),
 		),
 		validation.Field(&f.Severity,
 			validation.NilOrNotEmpty,
 			validation.In(
-				model.AuthEventSeverityInfo,
-				model.AuthEventSeverityWarn,
-				model.AuthEventSeverityCritical,
+				AuthEventSeverityInfo,
+				AuthEventSeverityWarn,
+				AuthEventSeverityCritical,
 			).Error("Severity must be one of: INFO, WARN, CRITICAL"),
 		),
 		validation.Field(&f.Result,
 			validation.NilOrNotEmpty,
 			validation.In(
-				model.AuthEventResultSuccess,
-				model.AuthEventResultFailure,
+				AuthEventResultSuccess,
+				AuthEventResultFailure,
 			).Error("Result must be one of: success, failure"),
 		),
 		validation.Field(&f.EventType,
@@ -64,7 +62,7 @@ func (f AuthEventFilterDTO) Validate() error {
 			validation.Length(0, 50).Error("SortBy cannot exceed 50 characters"),
 		),
 		validation.Field(&f.SortOrder,
-			validation.In(dto.SortOrderAsc, dto.SortOrderDesc).Error("Order must be either 'asc' or 'desc'"),
+			validation.In(SortOrderAsc, SortOrderDesc).Error("Order must be either 'asc' or 'desc'"),
 		),
 	)
 }

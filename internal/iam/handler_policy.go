@@ -8,17 +8,15 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
-	"github.com/maintainerd/auth/internal/dto"
 	"github.com/maintainerd/auth/internal/platform/middleware"
 	resp "github.com/maintainerd/auth/internal/platform/response"
-	"github.com/maintainerd/auth/internal/service"
 )
 
 type PolicyHandler struct {
-	policyService service.PolicyService
+	policyService PolicyService
 }
 
-func NewPolicyHandler(policyService service.PolicyService) *PolicyHandler {
+func NewPolicyHandler(policyService PolicyService) *PolicyHandler {
 	return &PolicyHandler{
 		policyService: policyService,
 	}
@@ -37,7 +35,7 @@ func (h *PolicyHandler) Get(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query()
 
 	// Parse filters
-	var filter dto.PolicyFilterDTO
+	var filter PolicyFilterDTO
 	if name := query.Get("name"); name != "" {
 		filter.Name = &name
 	}
@@ -94,7 +92,7 @@ func (h *PolicyHandler) Get(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Convert to service filter
-	serviceFilter := service.PolicyServiceGetFilter{
+	serviceFilter := PolicyServiceGetFilter{
 		TenantID:    tenant.TenantID,
 		Name:        filter.Name,
 		Description: filter.Description,
@@ -115,12 +113,12 @@ func (h *PolicyHandler) Get(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Convert to response DTOs
-	rows := make([]dto.PolicyResponseDTO, len(result.Data))
+	rows := make([]PolicyResponseDTO, len(result.Data))
 	for i, policy := range result.Data {
 		rows[i] = toPolicyResponseDTO(policy)
 	}
 
-	response := dto.PaginatedResponseDTO[dto.PolicyResponseDTO]{
+	response := PaginatedResponseDTO[PolicyResponseDTO]{
 		Rows:       rows,
 		Total:      result.Total,
 		Page:       result.Page,
@@ -166,7 +164,7 @@ func (h *PolicyHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var req dto.PolicyCreateRequestDTO
+	var req PolicyCreateRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		resp.Error(w, http.StatusBadRequest, "Invalid request")
 		return
@@ -212,7 +210,7 @@ func (h *PolicyHandler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var req dto.PolicyUpdateRequestDTO
+	var req PolicyUpdateRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		resp.Error(w, http.StatusBadRequest, "Invalid request")
 		return
@@ -258,7 +256,7 @@ func (h *PolicyHandler) UpdateStatus(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var req dto.PolicyStatusUpdateDTO
+	var req PolicyStatusUpdateDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		resp.Error(w, http.StatusBadRequest, "Invalid request")
 		return
@@ -324,7 +322,7 @@ func (h *PolicyHandler) GetServicesByPolicyUUID(w http.ResponseWriter, r *http.R
 	q := r.URL.Query()
 
 	// Build filter
-	filter := dto.PolicyServicesFilterDTO{
+	filter := PolicyServicesFilterDTO{
 		PaginationRequestDTO: parsePaginationQuery(r),
 	}
 
@@ -346,7 +344,7 @@ func (h *PolicyHandler) GetServicesByPolicyUUID(w http.ResponseWriter, r *http.R
 	}
 
 	// Convert to service filter
-	serviceFilter := service.PolicyServiceServicesFilter{
+	serviceFilter := PolicyServiceServicesFilter{
 		Name:        filter.Name,
 		DisplayName: filter.DisplayName,
 		Description: filter.Description,
@@ -364,9 +362,9 @@ func (h *PolicyHandler) GetServicesByPolicyUUID(w http.ResponseWriter, r *http.R
 	}
 
 	// Convert to response DTOs
-	var services []dto.ServiceResponseDTO
+	var services []ServiceResponseDTO
 	for _, svc := range result.Data {
-		services = append(services, dto.ServiceResponseDTO{
+		services = append(services, ServiceResponseDTO{
 			ServiceUUID: svc.ServiceUUID,
 			Name:        svc.Name,
 			DisplayName: svc.DisplayName,
@@ -382,7 +380,7 @@ func (h *PolicyHandler) GetServicesByPolicyUUID(w http.ResponseWriter, r *http.R
 	}
 
 	// Build paginated response
-	response := dto.PaginatedResponseDTO[dto.ServiceResponseDTO]{
+	response := PaginatedResponseDTO[ServiceResponseDTO]{
 		Rows:       services,
 		Total:      result.Total,
 		Page:       result.Page,
@@ -394,8 +392,8 @@ func (h *PolicyHandler) GetServicesByPolicyUUID(w http.ResponseWriter, r *http.R
 }
 
 // Helper function to convert service result to DTO (for listing - without document)
-func toPolicyResponseDTO(policy service.PolicyServiceDataResult) dto.PolicyResponseDTO {
-	return dto.PolicyResponseDTO{
+func toPolicyResponseDTO(policy PolicyServiceDataResult) PolicyResponseDTO {
+	return PolicyResponseDTO{
 		PolicyUUID:  policy.PolicyUUID,
 		Name:        policy.Name,
 		Description: policy.Description,
@@ -408,8 +406,8 @@ func toPolicyResponseDTO(policy service.PolicyServiceDataResult) dto.PolicyRespo
 }
 
 // Helper function to convert service result to detail DTO (for individual retrieval - with document)
-func toPolicyDetailResponseDTO(policy service.PolicyServiceDataResult) dto.PolicyDetailResponseDTO {
-	return dto.PolicyDetailResponseDTO{
+func toPolicyDetailResponseDTO(policy PolicyServiceDataResult) PolicyDetailResponseDTO {
+	return PolicyDetailResponseDTO{
 		PolicyUUID:  policy.PolicyUUID,
 		Name:        policy.Name,
 		Description: policy.Description,

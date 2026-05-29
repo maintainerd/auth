@@ -4,14 +4,12 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/maintainerd/auth/internal/platform/cache"
 	"github.com/maintainerd/auth/internal/platform/middleware"
-	"github.com/maintainerd/auth/internal/rest/handler"
-	"github.com/maintainerd/auth/internal/service"
 )
 
 func IdentityProviderRoute(
 	r chi.Router,
-	idpHandler *handler.IdentityProviderHandler,
-	userService service.UserService,
+	idpHandler *IdentityProviderHandler,
+	userService UserService,
 	appCache *cache.Cache,
 ) {
 	r.Route("/identity_providers", func(r chi.Router) {
