@@ -27,7 +27,7 @@ func (m *mockRoleRepo) Create(e *Role) (*Role, error)    { return e, nil }
 func (m *mockRoleRepo) CreateOrUpdate(e *Role) (*Role, error) {
 	return e, nil
 }
-func (m *mockRoleRepo) FindAll(p ...string) ([]Role, error)  { return nil, nil }
+func (m *mockRoleRepo) FindAll(p ...string) ([]Role, error) { return nil, nil }
 func (m *mockRoleRepo) FindByUUID(id any, p ...string) (*Role, error) {
 	return nil, nil
 }
@@ -77,11 +77,11 @@ func (m *mockUserRoleRepo) FindByUUID(id any, p ...string) (*UserRole, error) {
 func (m *mockUserRoleRepo) FindByUUIDs(ids []string, p ...string) ([]UserRole, error) {
 	return nil, nil
 }
-func (m *mockUserRoleRepo) FindByID(id any, p ...string) (*UserRole, error)  { return nil, nil }
-func (m *mockUserRoleRepo) UpdateByUUID(id, data any) (*UserRole, error)     { return nil, nil }
-func (m *mockUserRoleRepo) UpdateByID(id, data any) (*UserRole, error)       { return nil, nil }
-func (m *mockUserRoleRepo) DeleteByUUID(id any) error                        { return nil }
-func (m *mockUserRoleRepo) DeleteByID(id any) error                          { return nil }
+func (m *mockUserRoleRepo) FindByID(id any, p ...string) (*UserRole, error) { return nil, nil }
+func (m *mockUserRoleRepo) UpdateByUUID(id, data any) (*UserRole, error)    { return nil, nil }
+func (m *mockUserRoleRepo) UpdateByID(id, data any) (*UserRole, error)      { return nil, nil }
+func (m *mockUserRoleRepo) DeleteByUUID(id any) error                       { return nil }
+func (m *mockUserRoleRepo) DeleteByID(id any) error                         { return nil }
 func (m *mockUserRoleRepo) Paginate(c map[string]any, pg, lim int, p ...string) (*PaginationResult[UserRole], error) {
 	return nil, nil
 }
@@ -111,11 +111,11 @@ func (m *mockInviteRepo) FindByUUID(id any, p ...string) (*Invite, error) {
 	return nil, nil
 }
 func (m *mockInviteRepo) FindByUUIDs(ids []string, p ...string) ([]Invite, error) { return nil, nil }
-func (m *mockInviteRepo) FindByID(id any, p ...string) (*Invite, error)            { return nil, nil }
-func (m *mockInviteRepo) UpdateByUUID(id, data any) (*Invite, error)               { return nil, nil }
-func (m *mockInviteRepo) UpdateByID(id, data any) (*Invite, error)                 { return nil, nil }
-func (m *mockInviteRepo) DeleteByUUID(id any) error                                { return nil }
-func (m *mockInviteRepo) DeleteByID(id any) error                                  { return nil }
+func (m *mockInviteRepo) FindByID(id any, p ...string) (*Invite, error)           { return nil, nil }
+func (m *mockInviteRepo) UpdateByUUID(id, data any) (*Invite, error)              { return nil, nil }
+func (m *mockInviteRepo) UpdateByID(id, data any) (*Invite, error)                { return nil, nil }
+func (m *mockInviteRepo) DeleteByUUID(id any) error                               { return nil }
+func (m *mockInviteRepo) DeleteByID(id any) error                                 { return nil }
 func (m *mockInviteRepo) Paginate(c map[string]any, pg, lim int, p ...string) (*PaginationResult[Invite], error) {
 	return nil, nil
 }
@@ -239,9 +239,9 @@ func (m *mockLoginService) GetUserByEmail(ctx context.Context, email string, ten
 // ---------------------------------------------------------------------------
 
 type mockRegisterService struct {
-	registerPublicFn      func(username, fullname, password string, email, phone *string, clientID, providerID string) (*RegisterResponseDTO, error)
-	registerFn            func(username, fullname, password string, email, phone, clientID, providerID *string) (*RegisterResponseDTO, error)
-	registerInviteFn      func(username, password, inviteToken string, clientID, providerID *string) (*RegisterResponseDTO, error)
+	registerPublicFn       func(username, fullname, password string, email, phone *string, clientID, providerID string) (*RegisterResponseDTO, error)
+	registerFn             func(username, fullname, password string, email, phone, clientID, providerID *string) (*RegisterResponseDTO, error)
+	registerInviteFn       func(username, password, inviteToken string, clientID, providerID *string) (*RegisterResponseDTO, error)
 	registerInvitePublicFn func(username, password, clientID, providerID, inviteToken string) (*RegisterResponseDTO, error)
 }
 

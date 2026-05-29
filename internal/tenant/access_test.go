@@ -100,7 +100,7 @@ func TestValidateTenantAccess(t *testing.T) {
 func TestValidateTenantAccessByID(t *testing.T) {
 	cases := []struct {
 		name           string
-		user        AccessActor
+		user           AccessActor
 		targetTenantID int64
 		expectError    bool
 		errContains    string
