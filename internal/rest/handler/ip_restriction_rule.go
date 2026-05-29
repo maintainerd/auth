@@ -7,10 +7,10 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/dto"
-	"github.com/maintainerd/auth/internal/middleware"
 	"github.com/maintainerd/auth/internal/model"
-	"github.com/maintainerd/auth/internal/ptr"
-	resp "github.com/maintainerd/auth/internal/rest/response"
+	"github.com/maintainerd/auth/internal/platform/middleware"
+	"github.com/maintainerd/auth/internal/platform/ptr"
+	resp "github.com/maintainerd/auth/internal/platform/response"
 	"github.com/maintainerd/auth/internal/service"
 )
 
@@ -52,10 +52,10 @@ func (h *IPRestrictionRuleHandler) GetAll(w http.ResponseWriter, r *http.Request
 
 	// Build filter DTO with all query parameters
 	filter := dto.IPRestrictionRuleFilterDTO{
-		Type:        ptr.PtrOrNil(q.Get("type")),
-		Status:      status,
-		IPAddress:   ptr.PtrOrNil(q.Get("ip_address")),
-		Description: ptr.PtrOrNil(q.Get("description")),
+		Type:                 ptr.PtrOrNil(q.Get("type")),
+		Status:               status,
+		IPAddress:            ptr.PtrOrNil(q.Get("ip_address")),
+		Description:          ptr.PtrOrNil(q.Get("description")),
 		PaginationRequestDTO: parsePaginationQuery(r),
 	}
 

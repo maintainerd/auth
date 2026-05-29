@@ -8,10 +8,10 @@ import (
 )
 
 type TenantMember struct {
-	TenantMemberID   int64     `gorm:"column:tenant_member_id;primaryKey"`
-	TenantMemberUUID uuid.UUID `gorm:"column:tenant_member_uuid;unique;not null"`
-	TenantID         int64     `gorm:"column:tenant_id;not null"`
-	UserID           int64     `gorm:"column:user_id;not null"`
+	TenantMemberID   int64          `gorm:"column:tenant_member_id;primaryKey"`
+	TenantMemberUUID uuid.UUID      `gorm:"column:tenant_member_uuid;unique;not null"`
+	TenantID         int64          `gorm:"column:tenant_id;not null"`
+	UserID           int64          `gorm:"column:user_id;not null"`
 	Role             string         `gorm:"column:role;not null;default:'member'"`
 	CreatedBy        *int64         `gorm:"column:created_by"`
 	UpdatedBy        *int64         `gorm:"column:updated_by"`

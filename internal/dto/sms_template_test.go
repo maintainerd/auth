@@ -108,4 +108,3 @@ func TestSMSTemplateFilterDto_Validate(t *testing.T) {
 		assert.NoError(t, f.Validate())
 	})
 }
-

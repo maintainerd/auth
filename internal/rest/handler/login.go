@@ -5,11 +5,11 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/maintainerd/auth/internal/cookie"
 	"github.com/maintainerd/auth/internal/dto"
-	"github.com/maintainerd/auth/internal/middleware"
-	resp "github.com/maintainerd/auth/internal/rest/response"
-	"github.com/maintainerd/auth/internal/security"
+	"github.com/maintainerd/auth/internal/platform/cookie"
+	"github.com/maintainerd/auth/internal/platform/middleware"
+	resp "github.com/maintainerd/auth/internal/platform/response"
+	"github.com/maintainerd/auth/internal/platform/security"
 	"github.com/maintainerd/auth/internal/service"
 )
 

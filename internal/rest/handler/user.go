@@ -9,9 +9,9 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/dto"
-	"github.com/maintainerd/auth/internal/middleware"
-	"github.com/maintainerd/auth/internal/ptr"
-	resp "github.com/maintainerd/auth/internal/rest/response"
+	"github.com/maintainerd/auth/internal/platform/middleware"
+	"github.com/maintainerd/auth/internal/platform/ptr"
+	resp "github.com/maintainerd/auth/internal/platform/response"
 	"github.com/maintainerd/auth/internal/service"
 )
 
@@ -78,13 +78,13 @@ func (h *UserHandler) GetUsers(w http.ResponseWriter, r *http.Request) {
 
 	// Build filter DTO for validation
 	reqParams := dto.UserFilterDTO{
-		Username:     ptr.PtrOrNil(q.Get("username")),
-		Email:        ptr.PtrOrNil(q.Get("email")),
-		Phone:        ptr.PtrOrNil(q.Get("phone")),
-		Status:       status,
-		RoleUUID:     roleUUID,
-		UserPoolUUID: userPoolUUID,
-		ClientUUID:   clientUUID,
+		Username:             ptr.PtrOrNil(q.Get("username")),
+		Email:                ptr.PtrOrNil(q.Get("email")),
+		Phone:                ptr.PtrOrNil(q.Get("phone")),
+		Status:               status,
+		RoleUUID:             roleUUID,
+		UserPoolUUID:         userPoolUUID,
+		ClientUUID:           clientUUID,
 		PaginationRequestDTO: parsePaginationQuery(r),
 	}
 
@@ -621,9 +621,9 @@ func (h *UserHandler) GetUserRoles(w http.ResponseWriter, r *http.Request) {
 
 	// Build filter DTO for validation
 	reqParams := dto.UserRoleFilterDTO{
-		Name:        ptr.PtrOrNil(q.Get("name")),
-		Description: ptr.PtrOrNil(q.Get("description")),
-		Status:      ptr.PtrOrNil(q.Get("status")),
+		Name:                 ptr.PtrOrNil(q.Get("name")),
+		Description:          ptr.PtrOrNil(q.Get("description")),
+		Status:               ptr.PtrOrNil(q.Get("status")),
 		PaginationRequestDTO: parsePaginationQuery(r),
 	}
 
@@ -737,7 +737,7 @@ func (h *UserHandler) GetUserIdentities(w http.ResponseWriter, r *http.Request) 
 
 	// Build filter DTO for validation
 	reqParams := dto.UserIdentityFilterDTO{
-		Provider: ptr.PtrOrNil(q.Get("provider")),
+		Provider:             ptr.PtrOrNil(q.Get("provider")),
 		PaginationRequestDTO: parsePaginationQuery(r),
 	}
 

@@ -3,7 +3,7 @@ package handler
 import (
 	"context"
 
-	authv1 "github.com/maintainerd/auth/internal/gen/go/maintainerd/auth"
+	authv1 "github.com/maintainerd/auth/internal/platform/gen/go/maintainerd/auth"
 	"github.com/maintainerd/auth/internal/service"
 )
 

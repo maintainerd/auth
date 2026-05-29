@@ -211,8 +211,8 @@ func (r *userRepository) SetPendingEmail(userUUID uuid.UUID, pendingEmail, otp s
 	return r.DB().Model(&model.User{}).
 		Where("user_uuid = ?", userUUID).
 		Updates(map[string]interface{}{
-			"pending_email":              pendingEmail,
-			"email_change_otp":           otp,
+			"pending_email":               pendingEmail,
+			"email_change_otp":            otp,
 			"email_change_otp_expires_at": expiresAt,
 		}).Error
 }
@@ -221,8 +221,8 @@ func (r *userRepository) ClearEmailChange(userUUID uuid.UUID) error {
 	return r.DB().Model(&model.User{}).
 		Where("user_uuid = ?", userUUID).
 		Updates(map[string]interface{}{
-			"pending_email":              nil,
-			"email_change_otp":           nil,
+			"pending_email":               nil,
+			"email_change_otp":            nil,
 			"email_change_otp_expires_at": nil,
 		}).Error
 }

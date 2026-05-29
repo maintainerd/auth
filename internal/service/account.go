@@ -8,12 +8,12 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/maintainerd/auth/internal/apperror"
-	"github.com/maintainerd/auth/internal/crypto"
 	"github.com/maintainerd/auth/internal/dto"
-	"github.com/maintainerd/auth/internal/email"
-	"github.com/maintainerd/auth/internal/jwt"
 	"github.com/maintainerd/auth/internal/model"
+	"github.com/maintainerd/auth/internal/platform/apperror"
+	"github.com/maintainerd/auth/internal/platform/crypto"
+	"github.com/maintainerd/auth/internal/platform/email"
+	"github.com/maintainerd/auth/internal/platform/jwt"
 	"github.com/maintainerd/auth/internal/repository"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/codes"
@@ -38,17 +38,17 @@ type AccountService interface {
 }
 
 type accountService struct {
-	db                 *gorm.DB
-	userRepo           repository.UserRepository
-	userTokenRepo      repository.UserTokenRepository
-	profileRepo        repository.ProfileRepository
-	userSettingRepo    repository.UserSettingRepository
-	roleRepo           repository.RoleRepository
-	clientRepo         repository.ClientRepository
-	backupCodeRepo     repository.UserBackupCodeRepository
-	userIdentityRepo   repository.UserIdentityRepository
+	db                   *gorm.DB
+	userRepo             repository.UserRepository
+	userTokenRepo        repository.UserTokenRepository
+	profileRepo          repository.ProfileRepository
+	userSettingRepo      repository.UserSettingRepository
+	roleRepo             repository.RoleRepository
+	clientRepo           repository.ClientRepository
+	backupCodeRepo       repository.UserBackupCodeRepository
+	userIdentityRepo     repository.UserIdentityRepository
 	identityProviderRepo repository.IdentityProviderRepository
-	authEventService   AuthEventService
+	authEventService     AuthEventService
 }
 
 func NewAccountService(

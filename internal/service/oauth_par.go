@@ -5,14 +5,14 @@ import (
 	"strings"
 	"time"
 
-	"github.com/maintainerd/auth/internal/apperror"
-	"github.com/maintainerd/auth/internal/crypto"
 	"github.com/maintainerd/auth/internal/dto"
-	"github.com/maintainerd/auth/internal/middleware"
 	"github.com/maintainerd/auth/internal/model"
-	"github.com/maintainerd/auth/internal/ptr"
+	"github.com/maintainerd/auth/internal/platform/apperror"
+	"github.com/maintainerd/auth/internal/platform/crypto"
+	"github.com/maintainerd/auth/internal/platform/middleware"
+	"github.com/maintainerd/auth/internal/platform/ptr"
+	"github.com/maintainerd/auth/internal/platform/security"
 	"github.com/maintainerd/auth/internal/repository"
-	"github.com/maintainerd/auth/internal/security"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -123,13 +123,13 @@ func (s *oauthPARService) Push(ctx context.Context, req dto.OAuthPARRequestDTO, 
 	}
 
 	s.authEventService.Log(ctx, AuthEventInput{
-		TenantID:  client.TenantID,
-		IPAddress: middleware.ClientIPFromContext(ctx),
-		UserAgent: ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),
-		Category:  model.AuthEventCategoryAuthn,
-		EventType: model.AuthEventTypeOAuthAuthorize,
-		Severity:  model.AuthEventSeverityInfo,
-		Result:    model.AuthEventResultSuccess,
+		TenantID:    client.TenantID,
+		IPAddress:   middleware.ClientIPFromContext(ctx),
+		UserAgent:   ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),
+		Category:    model.AuthEventCategoryAuthn,
+		EventType:   model.AuthEventTypeOAuthAuthorize,
+		Severity:    model.AuthEventSeverityInfo,
+		Result:      model.AuthEventResultSuccess,
 		Description: ptr.Ptr("PAR request pushed"),
 	})
 

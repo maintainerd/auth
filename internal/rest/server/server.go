@@ -13,7 +13,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/maintainerd/auth/internal/app"
-	securityMiddleware "github.com/maintainerd/auth/internal/middleware"
+	securityMiddleware "github.com/maintainerd/auth/internal/platform/middleware"
 	"github.com/maintainerd/auth/internal/rest/handler"
 	"github.com/maintainerd/auth/internal/rest/route"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -22,89 +22,89 @@ import (
 
 // handlers holds every REST handler instance. Created once per server start.
 type handlers struct {
-	service           *handler.ServiceHandler
-	api               *handler.APIHandler
-	permission        *handler.PermissionHandler
-	policy            *handler.PolicyHandler
-	tenant            *handler.TenantHandler
-	identityProvider  *handler.IdentityProviderHandler
-	client            *handler.ClientHandler
-	role              *handler.RoleHandler
-	user              *handler.UserHandler
-	register          *handler.RegisterHandler
-	login             *handler.LoginHandler
-	profile           *handler.ProfileHandler
-	userSetting       *handler.UserSettingHandler
-	invite            *handler.InviteHandler
-	forgotPassword    *handler.ForgotPasswordHandler
-	resetPassword     *handler.ResetPasswordHandler
-	emailVerification *handler.EmailVerificationHandler
-	magicLink         *handler.MagicLinkHandler
-	setup             *handler.SetupHandler
-	apiKey            *handler.APIKeyHandler
-	signupFlow        *handler.SignupFlowHandler
-	securitySetting   *handler.SecuritySettingHandler
-	ipRestrictionRule *handler.IPRestrictionRuleHandler
-	emailTemplate     *handler.EmailTemplateHandler
-	smsTemplate       *handler.SMSTemplateHandler
-	loginTemplate     *handler.LoginTemplateHandler
-	branding          *handler.BrandingHandler
-	tenantSetting     *handler.TenantSettingHandler
-	emailConfig       *handler.EmailConfigHandler
-	smsConfig         *handler.SMSConfigHandler
-	webhookEndpoint   *handler.WebhookEndpointHandler
-	authEvent         *handler.AuthEventHandler
-	oauthAuthorize      *handler.OAuthAuthorizeHandler
-	oauthToken          *handler.OAuthTokenHandler
-	oauthTokenExchange  *handler.OAuthTokenExchangeHandler
-	oauthConsent        *handler.OAuthConsentHandler
-	oauthDiscovery      *handler.OAuthDiscoveryHandler
-	oauthUserInfo       *handler.OAuthUserInfoHandler
-	oauthPAR            *handler.OAuthPARHandler
-	oauthDevice         *handler.OAuthDeviceHandler
-	oauthSession        *handler.OAuthSessionHandler
-	oauthCIBA           *handler.OAuthCIBAHandler
-	oauthRegister       *handler.OAuthRegisterHandler
-	account             *handler.AccountHandler
-	smsLogin            *handler.SMSLoginHandler
-	mfa                 *handler.MFAHandler
-	federation          *handler.FederationHandler
+	service            *handler.ServiceHandler
+	api                *handler.APIHandler
+	permission         *handler.PermissionHandler
+	policy             *handler.PolicyHandler
+	tenant             *handler.TenantHandler
+	identityProvider   *handler.IdentityProviderHandler
+	client             *handler.ClientHandler
+	role               *handler.RoleHandler
+	user               *handler.UserHandler
+	register           *handler.RegisterHandler
+	login              *handler.LoginHandler
+	profile            *handler.ProfileHandler
+	userSetting        *handler.UserSettingHandler
+	invite             *handler.InviteHandler
+	forgotPassword     *handler.ForgotPasswordHandler
+	resetPassword      *handler.ResetPasswordHandler
+	emailVerification  *handler.EmailVerificationHandler
+	magicLink          *handler.MagicLinkHandler
+	setup              *handler.SetupHandler
+	apiKey             *handler.APIKeyHandler
+	signupFlow         *handler.SignupFlowHandler
+	securitySetting    *handler.SecuritySettingHandler
+	ipRestrictionRule  *handler.IPRestrictionRuleHandler
+	emailTemplate      *handler.EmailTemplateHandler
+	smsTemplate        *handler.SMSTemplateHandler
+	loginTemplate      *handler.LoginTemplateHandler
+	branding           *handler.BrandingHandler
+	tenantSetting      *handler.TenantSettingHandler
+	emailConfig        *handler.EmailConfigHandler
+	smsConfig          *handler.SMSConfigHandler
+	webhookEndpoint    *handler.WebhookEndpointHandler
+	authEvent          *handler.AuthEventHandler
+	oauthAuthorize     *handler.OAuthAuthorizeHandler
+	oauthToken         *handler.OAuthTokenHandler
+	oauthTokenExchange *handler.OAuthTokenExchangeHandler
+	oauthConsent       *handler.OAuthConsentHandler
+	oauthDiscovery     *handler.OAuthDiscoveryHandler
+	oauthUserInfo      *handler.OAuthUserInfoHandler
+	oauthPAR           *handler.OAuthPARHandler
+	oauthDevice        *handler.OAuthDeviceHandler
+	oauthSession       *handler.OAuthSessionHandler
+	oauthCIBA          *handler.OAuthCIBAHandler
+	oauthRegister      *handler.OAuthRegisterHandler
+	account            *handler.AccountHandler
+	smsLogin           *handler.SMSLoginHandler
+	mfa                *handler.MFAHandler
+	federation         *handler.FederationHandler
 }
 
 func initHandlers(application *app.App) *handlers {
 	return &handlers{
-		service:           handler.NewServiceHandler(application.ServiceService),
-		api:               handler.NewAPIHandler(application.APIService),
-		permission:        handler.NewPermissionHandler(application.PermissionService),
-		policy:            handler.NewPolicyHandler(application.PolicyService),
-		tenant:            handler.NewTenantHandler(application.TenantService, application.TenantMemberService),
-		identityProvider:  handler.NewIdentityProviderHandler(application.IdentityProviderService),
-		client:            handler.NewClientHandler(application.ClientService),
-		role:              handler.NewRoleHandler(application.RoleService),
-		user:              handler.NewUserHandler(application.UserService),
-		register:          handler.NewRegisterHandler(application.RegisterService, application.EmailVerificationService),
-		login:             handler.NewLoginHandler(application.LoginService),
-		profile:           handler.NewProfileHandler(application.ProfileService),
-		userSetting:       handler.NewUserSettingHandler(application.UserSettingService),
-		invite:            handler.NewInviteHandler(application.InviteService),
-		forgotPassword:    handler.NewForgotPasswordHandler(application.ForgotPasswordService),
-		resetPassword:     handler.NewResetPasswordHandler(application.ResetPasswordService),
-		emailVerification: handler.NewEmailVerificationHandler(application.EmailVerificationService),
-		magicLink:         handler.NewMagicLinkHandler(application.MagicLinkService),
-		setup:             handler.NewSetupHandler(application.SetupService),
-		apiKey:            handler.NewAPIKeyHandler(application.APIKeyService),
-		signupFlow:        handler.NewSignupFlowHandler(application.SignupFlowService),
-		securitySetting:   handler.NewSecuritySettingHandler(application.SecuritySettingService),
-		ipRestrictionRule: handler.NewIPRestrictionRuleHandler(application.IPRestrictionRuleService),
-		emailTemplate:     handler.NewEmailTemplateHandler(application.EmailTemplateService),
-		smsTemplate:       handler.NewSMSTemplateHandler(application.SMSTemplateService),
-		loginTemplate:     handler.NewLoginTemplateHandler(application.LoginTemplateService),
-		branding:          handler.NewBrandingHandler(application.BrandingService),
-		tenantSetting:     handler.NewTenantSettingHandler(application.TenantSettingService),
-		emailConfig:       handler.NewEmailConfigHandler(application.EmailConfigService),
-		smsConfig:         handler.NewSMSConfigHandler(application.SMSConfigService),
-		webhookEndpoint:   handler.NewWebhookEndpointHandler(application.WebhookEndpointService),
-		authEvent:         handler.NewAuthEventHandler(application.AuthEventService),
+		service:            handler.NewServiceHandler(application.ServiceService),
+		api:                handler.NewAPIHandler(application.APIService),
+		permission:         handler.NewPermissionHandler(application.PermissionService),
+		policy:             handler.NewPolicyHandler(application.PolicyService),
+		tenant:             handler.NewTenantHandler(application.TenantService, application.TenantMemberService),
+		identityProvider:   handler.NewIdentityProviderHandler(application.IdentityProviderService),
+		client:             handler.NewClientHandler(application.ClientService),
+		role:               handler.NewRoleHandler(application.RoleService),
+		user:               handler.NewUserHandler(application.UserService),
+		register:           handler.NewRegisterHandler(application.RegisterService, application.EmailVerificationService),
+		login:              handler.NewLoginHandler(application.LoginService),
+		profile:            handler.NewProfileHandler(application.ProfileService),
+		userSetting:        handler.NewUserSettingHandler(application.UserSettingService),
+		invite:             handler.NewInviteHandler(application.InviteService),
+		forgotPassword:     handler.NewForgotPasswordHandler(application.ForgotPasswordService),
+		resetPassword:      handler.NewResetPasswordHandler(application.ResetPasswordService),
+		emailVerification:  handler.NewEmailVerificationHandler(application.EmailVerificationService),
+		magicLink:          handler.NewMagicLinkHandler(application.MagicLinkService),
+		setup:              handler.NewSetupHandler(application.SetupService),
+		apiKey:             handler.NewAPIKeyHandler(application.APIKeyService),
+		signupFlow:         handler.NewSignupFlowHandler(application.SignupFlowService),
+		securitySetting:    handler.NewSecuritySettingHandler(application.SecuritySettingService),
+		ipRestrictionRule:  handler.NewIPRestrictionRuleHandler(application.IPRestrictionRuleService),
+		emailTemplate:      handler.NewEmailTemplateHandler(application.EmailTemplateService),
+		smsTemplate:        handler.NewSMSTemplateHandler(application.SMSTemplateService),
+		loginTemplate:      handler.NewLoginTemplateHandler(application.LoginTemplateService),
+		branding:           handler.NewBrandingHandler(application.BrandingService),
+		tenantSetting:      handler.NewTenantSettingHandler(application.TenantSettingService),
+		emailConfig:        handler.NewEmailConfigHandler(application.EmailConfigService),
+		smsConfig:          handler.NewSMSConfigHandler(application.SMSConfigService),
+		webhookEndpoint:    handler.NewWebhookEndpointHandler(application.WebhookEndpointService),
+		authEvent:          handler.NewAuthEventHandler(application.AuthEventService),
 		oauthAuthorize:     handler.NewOAuthAuthorizeHandler(application.OAuthAuthorizeService),
 		oauthToken:         handler.NewOAuthTokenHandler(application.OAuthTokenService),
 		oauthTokenExchange: handler.NewOAuthTokenExchangeHandler(application.OAuthTokenExchangeService),

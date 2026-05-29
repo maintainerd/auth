@@ -7,9 +7,9 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/dto"
-	"github.com/maintainerd/auth/internal/middleware"
 	"github.com/maintainerd/auth/internal/model"
-	resp "github.com/maintainerd/auth/internal/rest/response"
+	"github.com/maintainerd/auth/internal/platform/middleware"
+	resp "github.com/maintainerd/auth/internal/platform/response"
 	"github.com/maintainerd/auth/internal/service"
 )
 
@@ -35,14 +35,13 @@ func (h *WebhookEndpointHandler) GetAll(w http.ResponseWriter, r *http.Request) 
 
 	q := r.URL.Query()
 
-
 	var status []string
 	if v := q.Get("status"); v != "" {
 		status = append(status, v)
 	}
 
 	filter := dto.WebhookEndpointFilterDTO{
-		Status: status,
+		Status:               status,
 		PaginationRequestDTO: parsePaginationQuery(r),
 	}
 

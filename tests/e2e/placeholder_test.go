@@ -34,4 +34,3 @@ import "testing"
 func TestPlaceholder(t *testing.T) {
 	t.Skip("placeholder — add real e2e tests in this package")
 }
-

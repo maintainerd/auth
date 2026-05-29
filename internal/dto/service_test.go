@@ -108,4 +108,3 @@ func TestServiceStatusUpdateRequestDto_Validate(t *testing.T) {
 	require.Error(t, ServiceStatusUpdateRequestDTO{Status: ""}.Validate())
 	require.Error(t, ServiceStatusUpdateRequestDTO{Status: "bad"}.Validate())
 }
-

@@ -4,12 +4,12 @@ import (
 	"context"
 	"net/url"
 
-	"github.com/maintainerd/auth/internal/apperror"
 	"github.com/maintainerd/auth/internal/dto"
-	"github.com/maintainerd/auth/internal/jwt"
-	"github.com/maintainerd/auth/internal/middleware"
 	"github.com/maintainerd/auth/internal/model"
-	"github.com/maintainerd/auth/internal/ptr"
+	"github.com/maintainerd/auth/internal/platform/apperror"
+	"github.com/maintainerd/auth/internal/platform/jwt"
+	"github.com/maintainerd/auth/internal/platform/middleware"
+	"github.com/maintainerd/auth/internal/platform/ptr"
 	"github.com/maintainerd/auth/internal/repository"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
@@ -30,10 +30,10 @@ type OAuthSessionService interface {
 }
 
 type oauthSessionService struct {
-	clientRepo        repository.ClientRepository
-	userRepo          repository.UserRepository
-	refreshTokenRepo  repository.OAuthRefreshTokenRepository
-	authEventService  AuthEventService
+	clientRepo       repository.ClientRepository
+	userRepo         repository.UserRepository
+	refreshTokenRepo repository.OAuthRefreshTokenRepository
+	authEventService AuthEventService
 }
 
 // NewOAuthSessionService creates a new OAuthSessionService.

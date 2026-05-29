@@ -7,14 +7,14 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-webauthn/webauthn/protocol"
 	"github.com/maintainerd/auth/internal/dto"
-	"github.com/maintainerd/auth/internal/middleware"
-	resp "github.com/maintainerd/auth/internal/rest/response"
+	"github.com/maintainerd/auth/internal/platform/middleware"
+	resp "github.com/maintainerd/auth/internal/platform/response"
 	"github.com/maintainerd/auth/internal/service"
 )
 
 // MFAHandler handles all MFA self-service endpoints (TOTP, backup codes, WebAuthn, step-up).
 type MFAHandler struct {
-	mfaSvc    service.MFAService
+	mfaSvc      service.MFAService
 	webAuthnSvc service.WebAuthnService
 }
 

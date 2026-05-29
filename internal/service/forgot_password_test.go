@@ -8,10 +8,10 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/maintainerd/auth/internal/config"
-	"github.com/maintainerd/auth/internal/email"
 	"github.com/maintainerd/auth/internal/model"
-	"github.com/maintainerd/auth/internal/signedurl"
+	"github.com/maintainerd/auth/internal/platform/config"
+	"github.com/maintainerd/auth/internal/platform/email"
+	"github.com/maintainerd/auth/internal/platform/signedurl"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

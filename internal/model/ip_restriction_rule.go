@@ -10,10 +10,10 @@ import (
 // IPRestrictionRule represents a tenant-scoped IP allow/deny rule that
 // controls access to authentication endpoints.
 type IPRestrictionRule struct {
-	IPRestrictionRuleID   int64     `gorm:"column:ip_restriction_rule_id;primaryKey;autoIncrement" json:"ip_restriction_rule_id"`
-	IPRestrictionRuleUUID uuid.UUID `gorm:"column:ip_restriction_rule_uuid;type:uuid;uniqueIndex;not null" json:"ip_restriction_rule_uuid"`
-	TenantID              int64     `gorm:"column:tenant_id;not null" json:"tenant_id"`
-	Description           string    `gorm:"column:description;type:text" json:"description"`
+	IPRestrictionRuleID   int64          `gorm:"column:ip_restriction_rule_id;primaryKey;autoIncrement" json:"ip_restriction_rule_id"`
+	IPRestrictionRuleUUID uuid.UUID      `gorm:"column:ip_restriction_rule_uuid;type:uuid;uniqueIndex;not null" json:"ip_restriction_rule_uuid"`
+	TenantID              int64          `gorm:"column:tenant_id;not null" json:"tenant_id"`
+	Description           string         `gorm:"column:description;type:text" json:"description"`
 	Type                  string         `gorm:"column:type;type:varchar(20);not null" json:"type"`
 	IPAddress             string         `gorm:"column:ip_address;type:inet;not null" json:"ip_address"`
 	Status                string         `gorm:"column:status;type:varchar(20);not null;default:'active'" json:"status"`

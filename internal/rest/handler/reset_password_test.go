@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/maintainerd/auth/internal/dto"
-	"github.com/maintainerd/auth/internal/signedurl"
+	"github.com/maintainerd/auth/internal/platform/signedurl"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

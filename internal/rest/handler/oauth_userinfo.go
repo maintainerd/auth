@@ -6,8 +6,8 @@ import (
 	"strings"
 
 	"github.com/maintainerd/auth/internal/dto"
-	"github.com/maintainerd/auth/internal/middleware"
 	"github.com/maintainerd/auth/internal/model"
+	"github.com/maintainerd/auth/internal/platform/middleware"
 )
 
 // OAuthUserInfoHandler handles the OpenID Connect UserInfo endpoint.

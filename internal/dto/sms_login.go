@@ -2,7 +2,7 @@ package dto
 
 import (
 	validation "github.com/go-ozzo/ozzo-validation/v4"
-	"github.com/maintainerd/auth/internal/security"
+	"github.com/maintainerd/auth/internal/platform/security"
 )
 
 // SMSLoginSendDTO is the request to send a one-time SMS code.

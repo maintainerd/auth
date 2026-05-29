@@ -4,8 +4,8 @@ import (
 	"net/url"
 
 	validation "github.com/go-ozzo/ozzo-validation/v4"
-		"github.com/maintainerd/auth/internal/signedurl"
-	"github.com/maintainerd/auth/internal/security"
+	"github.com/maintainerd/auth/internal/platform/security"
+	"github.com/maintainerd/auth/internal/platform/signedurl"
 )
 
 // Login request payload structure

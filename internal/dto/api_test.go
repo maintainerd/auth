@@ -111,4 +111,3 @@ func TestAPIStatusUpdateDto_Validate(t *testing.T) {
 	require.Error(t, APIStatusUpdateDTO{Status: "unknown"}.Validate())
 	require.Error(t, APIStatusUpdateDTO{Status: ""}.Validate())
 }
-

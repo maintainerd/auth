@@ -32,9 +32,9 @@ type RotateSecretRequestDTO struct {
 
 // RotateSecretResponseDTO is returned exactly once after rotation.
 type RotateSecretResponseDTO struct {
-	ClientID                  string  `json:"client_id"`
-	ClientSecret              string  `json:"client_secret"`
-	PreviousSecretExpiresAt   *string `json:"previous_secret_expires_at,omitempty"`
+	ClientID                string  `json:"client_id"`
+	ClientSecret            string  `json:"client_secret"`
+	PreviousSecretExpiresAt *string `json:"previous_secret_expires_at,omitempty"`
 }
 
 type ClientURIResponseDTO struct {

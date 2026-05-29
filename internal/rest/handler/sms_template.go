@@ -7,10 +7,10 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/dto"
-	"github.com/maintainerd/auth/internal/middleware"
 	"github.com/maintainerd/auth/internal/model"
-	"github.com/maintainerd/auth/internal/ptr"
-	resp "github.com/maintainerd/auth/internal/rest/response"
+	"github.com/maintainerd/auth/internal/platform/middleware"
+	"github.com/maintainerd/auth/internal/platform/ptr"
+	resp "github.com/maintainerd/auth/internal/platform/response"
 	"github.com/maintainerd/auth/internal/service"
 )
 
@@ -71,10 +71,10 @@ func (h *SMSTemplateHandler) GetAll(w http.ResponseWriter, r *http.Request) {
 
 	// Build filter DTO for validation
 	filter := dto.SMSTemplateFilterDTO{
-		Name:      ptr.PtrOrNil(q.Get("name")),
-		Status:    status,
-		IsDefault: isDefault,
-		IsSystem:  isSystem,
+		Name:                 ptr.PtrOrNil(q.Get("name")),
+		Status:               status,
+		IsDefault:            isDefault,
+		IsSystem:             isSystem,
 		PaginationRequestDTO: parsePaginationQuery(r),
 	}
 

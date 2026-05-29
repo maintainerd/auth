@@ -31,4 +31,3 @@ func TestSecuritySettingUpdateConfigRequestDto_Validate(t *testing.T) {
 		require.Error(t, d.Validate())
 	})
 }
-

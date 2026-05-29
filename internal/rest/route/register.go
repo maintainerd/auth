@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/maintainerd/auth/internal/middleware"
+	"github.com/maintainerd/auth/internal/platform/middleware"
 )
 
 // RegisterRoute handles internal register routes (no client_id/provider_id required)
