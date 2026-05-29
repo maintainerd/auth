@@ -1,16 +1,15 @@
-package route
+package invite
 
 import (
 	"github.com/go-chi/chi/v5"
 	"github.com/maintainerd/auth/internal/platform/cache"
 	"github.com/maintainerd/auth/internal/platform/middleware"
-	"github.com/maintainerd/auth/internal/rest/handler"
 	"github.com/maintainerd/auth/internal/service"
 )
 
 func InviteRoute(
 	r chi.Router,
-	inviteHandler *handler.InviteHandler,
+	inviteHandler *InviteHandler,
 	userService service.UserService,
 	appCache *cache.Cache,
 ) {
