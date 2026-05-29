@@ -1,0 +1,44 @@
+package tenant
+
+import (
+	"time"
+
+	"github.com/google/uuid"
+	"gorm.io/datatypes"
+	"gorm.io/gorm"
+)
+
+type Tenant struct {
+	TenantID    int64          `gorm:"column:tenant_id;primaryKey"`
+	TenantUUID  uuid.UUID      `gorm:"column:tenant_uuid"`
+	Name        string         `gorm:"column:name"`
+	DisplayName string         `gorm:"column:display_name"`
+	Description string         `gorm:"column:description"`
+	Identifier  string         `gorm:"column:identifier"`
+	Status      string         `gorm:"column:status;default:'active'"`
+	IsPublic    bool           `gorm:"column:is_public;default:false"`
+	IsSystem    bool           `gorm:"column:is_system;default:false"`
+	Metadata    datatypes.JSON `gorm:"column:metadata;type:jsonb;default:'{}'"`
+	CreatedBy   *int64         `gorm:"column:created_by"`
+	UpdatedBy   *int64         `gorm:"column:updated_by"`
+	CreatedAt   time.Time      `gorm:"column:created_at;autoCreateTime"`
+	UpdatedAt   time.Time      `gorm:"column:updated_at;autoUpdateTime"`
+	DeletedAt   gorm.DeletedAt `gorm:"column:deleted_at;index"`
+
+	// Relationships
+	Services          []Service           `gorm:"many2many:tenant_services;joinForeignKey:TenantID;joinReferences:ServiceID"`
+	IdentityProviders []*IdentityProvider `gorm:"foreignKey:TenantID;references:TenantID"`
+	Roles             []*Role             `gorm:"foreignKey:TenantID;references:TenantID"`
+	UserIdentities    []*UserIdentity     `gorm:"foreignKey:TenantID;references:TenantID"`
+}
+
+func (Tenant) TableName() string {
+	return "tenants"
+}
+
+func (t *Tenant) BeforeCreate(tx *gorm.DB) (err error) {
+	if t.TenantUUID == uuid.Nil {
+		t.TenantUUID = uuid.New()
+	}
+	return
+}
