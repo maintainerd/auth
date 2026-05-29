@@ -1,4 +1,4 @@
-package handler
+package authevent
 
 import (
 	"context"
@@ -73,7 +73,7 @@ func TestAuthEventHandler_GetAll_Success(t *testing.T) {
 				Data: []service.AuthEventServiceDataResult{
 					{
 						AuthEventUUID: eventUUID,
-						TenantID:      tenantID,
+						TenantID:      testTenantID,
 						IPAddress:     "127.0.0.1",
 						Category:      "AUTHN",
 						EventType:     "authn_login_success",
@@ -154,7 +154,7 @@ func TestAuthEventHandler_GetAll_NilMetadata(t *testing.T) {
 				Data: []service.AuthEventServiceDataResult{
 					{
 						AuthEventUUID: uuid.New(),
-						TenantID:      tenantID,
+						TenantID:      testTenantID,
 						IPAddress:     "10.0.0.1",
 						Category:      "AUTHN",
 						EventType:     "authn_login_fail",
@@ -185,7 +185,7 @@ func TestAuthEventHandler_GetAll_EmptyMetadata(t *testing.T) {
 				Data: []service.AuthEventServiceDataResult{
 					{
 						AuthEventUUID: uuid.New(),
-						TenantID:      tenantID,
+						TenantID:      testTenantID,
 						IPAddress:     "10.0.0.1",
 						Category:      "AUTHN",
 						EventType:     "authn_login_fail",
@@ -216,7 +216,7 @@ func TestAuthEventHandler_GetAll_InvalidMetadataJSON(t *testing.T) {
 				Data: []service.AuthEventServiceDataResult{
 					{
 						AuthEventUUID: uuid.New(),
-						TenantID:      tenantID,
+						TenantID:      testTenantID,
 						IPAddress:     "10.0.0.1",
 						Category:      "AUTHN",
 						EventType:     "authn_login_fail",
@@ -299,7 +299,7 @@ func TestAuthEventHandler_Get_Success(t *testing.T) {
 		findByUUIDFn: func(_ context.Context, _ int64, _ uuid.UUID) (*service.AuthEventServiceDataResult, error) {
 			return &service.AuthEventServiceDataResult{
 				AuthEventUUID: eventUUID,
-				TenantID:      tenantID,
+				TenantID:      testTenantID,
 				IPAddress:     "127.0.0.1",
 				Category:      "AUTHN",
 				EventType:     "authn_login_success",
