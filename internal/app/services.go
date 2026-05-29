@@ -78,34 +78,87 @@ func initServices(db *gorm.DB, r *repos, appCache *cache.Cache) (*svcs, error) {
 	authEventSvc := authevent.NewAuthEventService(r.authEventRepo, webhook.NewDispatcher(r.webhookEndpointRepo))
 
 	sessionSvc := authn.NewSessionService(newAuthnUserTokenRepoAdapter(r.userTokenRepo))
+	iamTenantServiceRepo := newIAMTenantServiceRepo(db)
+	iamClientRepo := newIAMClientRepo(db)
+	iamTenantRepo := newIAMTenantRepo(db)
+	iamUserRepo := newIAMUserRepo(db)
+	clientAPIRepo := newClientAPIRepo(db)
+	clientPermissionRepo := newClientPermissionRepo(db)
+	clientIDPRepo := newClientIDPRepo(db)
+	clientTenantRepo := newClientTenantRepo(db)
+	clientUserRepo := newClientUserRepo(db)
+	userTenantRepo := newUserTenantRepo(db)
+	userRoleRepo := newUserRoleRepo(db)
+	userClientRepo := newUserClientRepo(db)
+	userIDPRepo := newUserIDPRepo(db)
+	userBackupCodeRepo := newUserBackupCodeRepo(db)
+	idpTenantRepo := newIDPTenantRepo(db)
+	idpUserRepo := newIDPUserRepo(db)
+	idpUserIdentityRepo := newIDPUserIdentityRepo(db)
+	idpClientRepo := newIDPClientRepo(db)
+	idpUserRoleRepo := newIDPUserRoleRepo(db)
+	idpRoleRepo := newIDPRoleRepo(db)
+	mfaUserRepo := newMFAUserRepo(db)
+	oauthClientRepo := newOAuthClientRepo(db)
+	oauthClientURIRepo := newOAuthClientURIRepo(db)
+	oauthTenantRepo := newOAuthTenantRepo(db)
+	oauthUserRepo := newOAuthUserRepo(db)
+	oauthUserIdentityRepo := newOAuthUserIdentityRepo(db)
+
+	webAuthnSvc, err := mfa.NewWebAuthnService(db, mfaUserRepo, r.webAuthnCredRepo, appCache, authEventSvc)
+	if err != nil {
+		return nil, err
+	}
 
 	s := &svcs{
-		tenantService:            tenant.NewTenantService(db, r.tenantRepo, nil),
-		registerService:          authn.NewRegistrationService(db, newAuthnClientRepoAdapter(r.clientRepo), newAuthnUserRepoAdapter(r.userRepo), newAuthnUserRoleRepoAdapter(r.userRoleRepo), newAuthnUserTokenRepoAdapter(r.userTokenRepo), newAuthnUserIdentityRepoAdapter(r.userIdentityRepo), newAuthnRoleRepoAdapter(r.roleRepo), newAuthnInviteRepoAdapter(r.inviteRepo), newAuthnIDPRepoAdapter(r.idpRepo), r.securitySettingRepo, newAuthnPasswordHistoryRepoAdapter(r.userPasswordHistoryRepo)),
-		loginService:             authn.NewLoginService(db, newAuthnClientRepoAdapter(r.clientRepo), newAuthnUserRepoAdapter(r.userRepo), newAuthnUserTokenRepoAdapter(r.userTokenRepo), newAuthnUserIdentityRepoAdapter(r.userIdentityRepo), newAuthnIDPRepoAdapter(r.idpRepo), authEventSvc, sessionSvc, r.securitySettingRepo),
-		sessionService:           sessionSvc,
-		profileService:           user.NewProfileService(db, r.profileRepo, r.userRepo),
-		userSettingService:       user.NewUserSettingService(db, r.userSettingRepo, r.userRepo),
-		forgotPasswordService:    authn.NewForgotPasswordService(db, newAuthnUserRepoAdapter(r.userRepo), newAuthnUserTokenRepoAdapter(r.userTokenRepo), newAuthnClientRepoAdapter(r.clientRepo), r.emailTemplateRepo),
-		resetPasswordService:     authn.NewResetPasswordService(db, newAuthnUserRepoAdapter(r.userRepo), newAuthnUserTokenRepoAdapter(r.userTokenRepo), newAuthnClientRepoAdapter(r.clientRepo), r.securitySettingRepo, newAuthnPasswordHistoryRepoAdapter(r.userPasswordHistoryRepo)),
-		emailVerificationService: authn.NewEmailVerificationService(db, newAuthnUserRepoAdapter(r.userRepo), newAuthnUserTokenRepoAdapter(r.userTokenRepo), newAuthnClientRepoAdapter(r.clientRepo), r.emailTemplateRepo),
-		magicLinkService:         authn.NewMagicLinkService(db, newAuthnUserRepoAdapter(r.userRepo), newAuthnUserTokenRepoAdapter(r.userTokenRepo), newAuthnClientRepoAdapter(r.clientRepo), newAuthnUserIdentityRepoAdapter(r.userIdentityRepo), newAuthnIDPRepoAdapter(r.idpRepo), r.emailTemplateRepo),
-		setupService:             setup.NewSetupService(db, r.userRepo, r.tenantRepo, r.tenantMemberRepo, r.clientRepo, r.idpRepo, r.roleRepo, r.userRoleRepo, r.userTokenRepo, r.userIdentityRepo, r.profileRepo),
-		policyService:            iam.NewPolicyService(db, r.policyRepo, r.serviceRepo, r.apiRepo),
-		securitySettingService:   secpolicy.NewSecuritySettingService(db, r.securitySettingRepo, r.securitySettingsAuditRepo),
-		ipRestrictionRuleService: secpolicy.NewIPRestrictionRuleService(db, r.ipRestrictionRuleRepo),
-		emailTemplateService:     branding.NewEmailTemplateService(db, r.emailTemplateRepo),
-		smsTemplateService:       branding.NewSMSTemplateService(db, r.smsTemplateRepo),
-		loginTemplateService:     branding.NewLoginTemplateService(r.loginTemplateRepo),
-		brandingService:          branding.NewBrandingService(r.brandingRepo),
-		tenantSettingService:     tenant.NewTenantSettingService(r.tenantSettingRepo),
-		emailConfigService:       notifier.NewEmailConfigService(r.emailConfigRepo),
-		smsConfigService:         notifier.NewSMSConfigService(r.smsConfigRepo),
-		webhookEndpointService:   webhook.NewWebhookEndpointService(r.webhookEndpointRepo),
-		authEventService:         authEventSvc,
-		oauthConsentService:      oauth.NewOAuthConsentService(r.oauthConsentGrantRepo),
-		smsLoginService:          authn.NewSMSLoginService(db, newAuthnUserRepoAdapter(r.userRepo), r.smsOtpRepo, newAuthnClientRepoAdapter(r.clientRepo), newAuthnUserIdentityRepoAdapter(r.userIdentityRepo), newAuthnIDPRepoAdapter(r.idpRepo), authEventSvc),
+		serviceService:            iam.NewServiceService(db, r.serviceRepo, iamTenantServiceRepo, r.apiRepo, r.servicePolicyRepo, r.policyRepo),
+		apiService:                iam.NewAPIService(db, r.apiRepo, r.serviceRepo, iamTenantServiceRepo),
+		permissionService:         iam.NewPermissionService(db, r.permissionRepo, r.apiRepo, r.roleRepo, iamClientRepo, appCache),
+		tenantService:             tenant.NewTenantService(db, r.tenantRepo, nil),
+		tenantMemberService:       tenant.NewTenantMemberService(db, r.tenantMemberRepo, newTenantUserReader(r.userRepo), r.tenantRepo),
+		idpService:                idp.NewIdentityProviderService(db, r.idpRepo, idpTenantRepo, idpUserRepo),
+		clientService:             client.NewClientService(db, r.clientRepo, r.clientURIRepo, clientIDPRepo, clientPermissionRepo, r.clientPermissionRepo, r.clientAPIRepo, clientAPIRepo, clientUserRepo, clientTenantRepo, authEventSvc),
+		roleService:               iam.NewRoleService(db, r.roleRepo, r.permissionRepo, r.rolePermissionRepo, iamUserRepo, iamTenantRepo, appCache, authEventSvc),
+		userService:               user.NewUserService(db, r.userRepo, r.userIdentityRepo, r.userRoleRepo, userRoleRepo, userTenantRepo, userIDPRepo, userClientRepo, r.userPoolRepo, appCache, r.userTokenRepo, r.securitySettingRepo, r.userPasswordHistoryRepo, authEventSvc),
+		registerService:           authn.NewRegistrationService(db, newAuthnClientRepoAdapter(r.clientRepo), newAuthnUserRepoAdapter(r.userRepo), newAuthnUserRoleRepoAdapter(r.userRoleRepo), newAuthnUserTokenRepoAdapter(r.userTokenRepo), newAuthnUserIdentityRepoAdapter(r.userIdentityRepo), newAuthnRoleRepoAdapter(r.roleRepo), newAuthnInviteRepoAdapter(r.inviteRepo), newAuthnIDPRepoAdapter(r.idpRepo), r.securitySettingRepo, newAuthnPasswordHistoryRepoAdapter(r.userPasswordHistoryRepo)),
+		loginService:              authn.NewLoginService(db, newAuthnClientRepoAdapter(r.clientRepo), newAuthnUserRepoAdapter(r.userRepo), newAuthnUserTokenRepoAdapter(r.userTokenRepo), newAuthnUserIdentityRepoAdapter(r.userIdentityRepo), newAuthnIDPRepoAdapter(r.idpRepo), authEventSvc, sessionSvc, r.securitySettingRepo),
+		sessionService:            sessionSvc,
+		profileService:            user.NewProfileService(db, r.profileRepo, r.userRepo),
+		userSettingService:        user.NewUserSettingService(db, r.userSettingRepo, r.userRepo),
+		inviteService:             invite.NewInviteService(db, r.inviteRepo, newInviteClientRepo(db), newInviteRoleRepo(db), r.emailTemplateRepo),
+		forgotPasswordService:     authn.NewForgotPasswordService(db, newAuthnUserRepoAdapter(r.userRepo), newAuthnUserTokenRepoAdapter(r.userTokenRepo), newAuthnClientRepoAdapter(r.clientRepo), r.emailTemplateRepo),
+		resetPasswordService:      authn.NewResetPasswordService(db, newAuthnUserRepoAdapter(r.userRepo), newAuthnUserTokenRepoAdapter(r.userTokenRepo), newAuthnClientRepoAdapter(r.clientRepo), r.securitySettingRepo, newAuthnPasswordHistoryRepoAdapter(r.userPasswordHistoryRepo)),
+		emailVerificationService:  authn.NewEmailVerificationService(db, newAuthnUserRepoAdapter(r.userRepo), newAuthnUserTokenRepoAdapter(r.userTokenRepo), newAuthnClientRepoAdapter(r.clientRepo), r.emailTemplateRepo),
+		magicLinkService:          authn.NewMagicLinkService(db, newAuthnUserRepoAdapter(r.userRepo), newAuthnUserTokenRepoAdapter(r.userTokenRepo), newAuthnClientRepoAdapter(r.clientRepo), newAuthnUserIdentityRepoAdapter(r.userIdentityRepo), newAuthnIDPRepoAdapter(r.idpRepo), r.emailTemplateRepo),
+		setupService:              setup.NewSetupService(db, r.userRepo, r.tenantRepo, r.tenantMemberRepo, r.clientRepo, r.idpRepo, r.roleRepo, r.userRoleRepo, r.userTokenRepo, r.userIdentityRepo, r.profileRepo),
+		signupFlowService:         idp.NewSignupFlowService(db, r.signupFlowRepo, r.signupFlowRoleRepo, idpRoleRepo, idpClientRepo),
+		policyService:             iam.NewPolicyService(db, r.policyRepo, r.serviceRepo, r.apiRepo),
+		apiKeyService:             client.NewAPIKeyService(db, r.apiKeyRepo, r.apiKeyAPIRepo, r.apiKeyPermissionRepo, clientAPIRepo, clientUserRepo, clientPermissionRepo),
+		securitySettingService:    secpolicy.NewSecuritySettingService(db, r.securitySettingRepo, r.securitySettingsAuditRepo),
+		ipRestrictionRuleService:  secpolicy.NewIPRestrictionRuleService(db, r.ipRestrictionRuleRepo),
+		emailTemplateService:      branding.NewEmailTemplateService(db, r.emailTemplateRepo),
+		smsTemplateService:        branding.NewSMSTemplateService(db, r.smsTemplateRepo),
+		loginTemplateService:      branding.NewLoginTemplateService(r.loginTemplateRepo),
+		brandingService:           branding.NewBrandingService(r.brandingRepo),
+		tenantSettingService:      tenant.NewTenantSettingService(r.tenantSettingRepo),
+		emailConfigService:        notifier.NewEmailConfigService(r.emailConfigRepo),
+		smsConfigService:          notifier.NewSMSConfigService(r.smsConfigRepo),
+		webhookEndpointService:    webhook.NewWebhookEndpointService(r.webhookEndpointRepo),
+		authEventService:          authEventSvc,
+		oauthAuthorizeService:     oauth.NewOAuthAuthorizeService(db, oauthClientRepo, oauthClientURIRepo, r.oauthAuthCodeRepo, r.oauthConsentGrantRepo, r.oauthConsentChallengeRepo, authEventSvc),
+		oauthTokenService:         oauth.NewOAuthTokenService(db, oauthClientRepo, r.oauthAuthCodeRepo, r.oauthRefreshTokenRepo, oauthUserRepo, oauthUserIdentityRepo, authEventSvc),
+		oauthConsentService:       oauth.NewOAuthConsentService(r.oauthConsentGrantRepo),
+		oauthPARService:           oauth.NewOAuthPARService(db, oauthClientRepo, oauthClientURIRepo, r.oauthPARRequestRepo, authEventSvc),
+		oauthDeviceService:        oauth.NewOAuthDeviceService(db, oauthClientRepo, r.oauthDeviceCodeRepo, oauthUserRepo, oauthUserIdentityRepo, authEventSvc),
+		oauthTokenExchangeService: oauth.NewOAuthTokenExchangeService(db, oauthClientRepo, oauthUserRepo, authEventSvc),
+		oauthSessionService:       oauth.NewOAuthSessionService(oauthClientRepo, oauthUserRepo, r.oauthRefreshTokenRepo, authEventSvc),
+		oauthCIBAService:          oauth.NewOAuthCIBAService(db, oauthClientRepo, r.oauthCIBARequestRepo, oauthUserRepo, authEventSvc),
+		oauthRegisterService:      oauth.NewOAuthRegisterService(db, oauthClientRepo, oauthClientURIRepo, oauthTenantRepo, authEventSvc),
+		accountService:            user.NewAccountService(db, r.userRepo, r.userTokenRepo, r.profileRepo, r.userSettingRepo, userRoleRepo, userClientRepo, userBackupCodeRepo, r.userIdentityRepo, userIDPRepo, authEventSvc),
+		smsLoginService:           authn.NewSMSLoginService(db, newAuthnUserRepoAdapter(r.userRepo), r.smsOtpRepo, newAuthnClientRepoAdapter(r.clientRepo), newAuthnUserIdentityRepoAdapter(r.userIdentityRepo), newAuthnIDPRepoAdapter(r.idpRepo), authEventSvc),
+		mfaService:                mfa.NewMFAService(db, mfaUserRepo, r.totpSecretRepo, r.webAuthnCredRepo, r.userBackupCodeRepo, r.securitySettingRepo, authEventSvc),
+		webAuthnService:           webAuthnSvc,
+		federationService:         idp.NewFederationService(db, idpUserRepo, idpUserIdentityRepo, r.idpRepo, idpClientRepo, idpUserRoleRepo, idpRoleRepo, authEventSvc),
 	}
-	_ = appCache
 	return s, nil
 }

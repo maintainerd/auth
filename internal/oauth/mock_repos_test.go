@@ -39,9 +39,9 @@ func (m *mockClientRepo) Create(e *Client) (*Client, error) {
 	}
 	return e, nil
 }
-func (m *mockClientRepo) CreateOrUpdate(e *Client) (*Client, error)          { return e, nil }
-func (m *mockClientRepo) FindAll(p ...string) ([]Client, error)              { return nil, nil }
-func (m *mockClientRepo) FindByUUID(id any, p ...string) (*Client, error)    { return nil, nil }
+func (m *mockClientRepo) CreateOrUpdate(e *Client) (*Client, error)       { return e, nil }
+func (m *mockClientRepo) FindAll(p ...string) ([]Client, error)           { return nil, nil }
+func (m *mockClientRepo) FindByUUID(id any, p ...string) (*Client, error) { return nil, nil }
 func (m *mockClientRepo) FindByUUIDs(ids []string, p ...string) ([]Client, error) {
 	return nil, nil
 }
@@ -69,9 +69,9 @@ func (m *mockClientURIRepo) Create(e *ClientURI) (*ClientURI, error) {
 	}
 	return e, nil
 }
-func (m *mockClientURIRepo) CreateOrUpdate(e *ClientURI) (*ClientURI, error)       { return e, nil }
-func (m *mockClientURIRepo) FindAll(p ...string) ([]ClientURI, error)              { return nil, nil }
-func (m *mockClientURIRepo) FindByUUID(id any, p ...string) (*ClientURI, error)    { return nil, nil }
+func (m *mockClientURIRepo) CreateOrUpdate(e *ClientURI) (*ClientURI, error)    { return e, nil }
+func (m *mockClientURIRepo) FindAll(p ...string) ([]ClientURI, error)           { return nil, nil }
+func (m *mockClientURIRepo) FindByUUID(id any, p ...string) (*ClientURI, error) { return nil, nil }
 func (m *mockClientURIRepo) FindByUUIDs(ids []string, p ...string) ([]ClientURI, error) {
 	return nil, nil
 }
@@ -89,9 +89,9 @@ func (m *mockClientURIRepo) Paginate(c map[string]any, pg, lim int, p ...string)
 // ---------------------------------------------------------------------------
 
 type mockOAuthAuthCodeRepo struct {
-	createFn        func(*OAuthAuthorizationCode) (*OAuthAuthorizationCode, error)
+	createFn         func(*OAuthAuthorizationCode) (*OAuthAuthorizationCode, error)
 	findByCodeHashFn func(string) (*OAuthAuthorizationCode, error)
-	markUsedFn      func(int64) error
+	markUsedFn       func(int64) error
 }
 
 func (m *mockOAuthAuthCodeRepo) WithTx(_ *gorm.DB) OAuthAuthorizationCodeRepository { return m }
@@ -338,8 +338,8 @@ func (m *mockOAuthRefreshTokenRepo) Paginate(c map[string]any, pg, lim int, p ..
 // ---------------------------------------------------------------------------
 
 type mockUserRepo struct {
-	findByIDFn           func(any, ...string) (*User, error)
-	findByEmailFn        func(string) (*User, error)
+	findByIDFn             func(any, ...string) (*User, error)
+	findByEmailFn          func(string) (*User, error)
 	findBySubAndClientIDFn func(string, string) (*User, error)
 }
 
@@ -362,9 +362,9 @@ func (m *mockUserRepo) FindByID(id any, p ...string) (*User, error) {
 	}
 	return nil, nil
 }
-func (m *mockUserRepo) Create(e *User) (*User, error)         { return e, nil }
-func (m *mockUserRepo) CreateOrUpdate(e *User) (*User, error) { return e, nil }
-func (m *mockUserRepo) FindAll(p ...string) ([]User, error)   { return nil, nil }
+func (m *mockUserRepo) Create(e *User) (*User, error)                 { return e, nil }
+func (m *mockUserRepo) CreateOrUpdate(e *User) (*User, error)         { return e, nil }
+func (m *mockUserRepo) FindAll(p ...string) ([]User, error)           { return nil, nil }
 func (m *mockUserRepo) FindByUUID(id any, p ...string) (*User, error) { return nil, nil }
 func (m *mockUserRepo) FindByUUIDs(ids []string, p ...string) ([]User, error) {
 	return nil, nil

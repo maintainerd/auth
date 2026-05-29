@@ -36,11 +36,11 @@ func (m *mockTenantRepo) FindAll(p ...string) ([]Tenant, error) {
 func (m *mockTenantRepo) FindByUUIDs(ids []string, p ...string) ([]Tenant, error) {
 	return nil, nil
 }
-func (m *mockTenantRepo) FindByID(id any, p ...string) (*Tenant, error) { return nil, nil }
-func (m *mockTenantRepo) UpdateByUUID(id, data any) (*Tenant, error)    { return nil, nil }
-func (m *mockTenantRepo) UpdateByID(id, data any) (*Tenant, error)      { return nil, nil }
-func (m *mockTenantRepo) DeleteByID(id any) error                             { return nil }
-func (m *mockTenantRepo) SetSystemStatusByUUID(_ uuid.UUID, _ bool) error     { return nil }
+func (m *mockTenantRepo) FindByID(id any, p ...string) (*Tenant, error)   { return nil, nil }
+func (m *mockTenantRepo) UpdateByUUID(id, data any) (*Tenant, error)      { return nil, nil }
+func (m *mockTenantRepo) UpdateByID(id, data any) (*Tenant, error)        { return nil, nil }
+func (m *mockTenantRepo) DeleteByID(id any) error                         { return nil }
+func (m *mockTenantRepo) SetSystemStatusByUUID(_ uuid.UUID, _ bool) error { return nil }
 func (m *mockTenantRepo) Paginate(_ map[string]any, _, _ int, _ ...string) (*PaginationResult[Tenant], error) {
 	return nil, nil
 }
@@ -123,7 +123,7 @@ func (m *mockTenantMemberRepo) FindByID(_ any, _ ...string) (*TenantMember, erro
 }
 func (m *mockTenantMemberRepo) UpdateByUUID(_, _ any) (*TenantMember, error) { return nil, nil }
 func (m *mockTenantMemberRepo) UpdateByID(_, _ any) (*TenantMember, error)   { return nil, nil }
-func (m *mockTenantMemberRepo) DeleteByID(_ any) error                             { return nil }
+func (m *mockTenantMemberRepo) DeleteByID(_ any) error                       { return nil }
 func (m *mockTenantMemberRepo) Paginate(_ map[string]any, _, _ int, _ ...string) (*PaginationResult[TenantMember], error) {
 	return nil, nil
 }
@@ -171,8 +171,8 @@ type mockTenantSettingRepo struct {
 	createOrUpdateFn func(*TenantSetting) (*TenantSetting, error)
 }
 
-func (m *mockTenantSettingRepo) WithTx(_ *gorm.DB) TenantSettingRepository { return m }
-func (m *mockTenantSettingRepo) FindAll(_ ...string) ([]TenantSetting, error)   { return nil, nil }
+func (m *mockTenantSettingRepo) WithTx(_ *gorm.DB) TenantSettingRepository    { return m }
+func (m *mockTenantSettingRepo) FindAll(_ ...string) ([]TenantSetting, error) { return nil, nil }
 func (m *mockTenantSettingRepo) FindByUUID(_ any, _ ...string) (*TenantSetting, error) {
 	return nil, nil
 }
@@ -184,8 +184,8 @@ func (m *mockTenantSettingRepo) FindByID(_ any, _ ...string) (*TenantSetting, er
 }
 func (m *mockTenantSettingRepo) UpdateByUUID(_, _ any) (*TenantSetting, error) { return nil, nil }
 func (m *mockTenantSettingRepo) UpdateByID(_, _ any) (*TenantSetting, error)   { return nil, nil }
-func (m *mockTenantSettingRepo) DeleteByUUID(_ any) error                            { return nil }
-func (m *mockTenantSettingRepo) DeleteByID(_ any) error                              { return nil }
+func (m *mockTenantSettingRepo) DeleteByUUID(_ any) error                      { return nil }
+func (m *mockTenantSettingRepo) DeleteByID(_ any) error                        { return nil }
 func (m *mockTenantSettingRepo) Paginate(_ map[string]any, _, _ int, _ ...string) (*PaginationResult[TenantSetting], error) {
 	return nil, nil
 }

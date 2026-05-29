@@ -74,16 +74,16 @@ func (m *mockEmailConfigRepo) CreateOrUpdate(e *EmailConfig) (*EmailConfig, erro
 	}
 	return e, nil
 }
-func (m *mockEmailConfigRepo) FindAll(p ...string) ([]EmailConfig, error)               { return nil, nil }
-func (m *mockEmailConfigRepo) FindByUUID(id any, p ...string) (*EmailConfig, error)     { return nil, nil }
+func (m *mockEmailConfigRepo) FindAll(p ...string) ([]EmailConfig, error)           { return nil, nil }
+func (m *mockEmailConfigRepo) FindByUUID(id any, p ...string) (*EmailConfig, error) { return nil, nil }
 func (m *mockEmailConfigRepo) FindByUUIDs(ids []string, p ...string) ([]EmailConfig, error) {
 	return nil, nil
 }
-func (m *mockEmailConfigRepo) FindByID(id any, p ...string) (*EmailConfig, error)   { return nil, nil }
-func (m *mockEmailConfigRepo) UpdateByUUID(id, data any) (*EmailConfig, error)      { return nil, nil }
-func (m *mockEmailConfigRepo) UpdateByID(id, data any) (*EmailConfig, error)        { return nil, nil }
-func (m *mockEmailConfigRepo) DeleteByUUID(id any) error                            { return nil }
-func (m *mockEmailConfigRepo) DeleteByID(id any) error                              { return nil }
+func (m *mockEmailConfigRepo) FindByID(id any, p ...string) (*EmailConfig, error) { return nil, nil }
+func (m *mockEmailConfigRepo) UpdateByUUID(id, data any) (*EmailConfig, error)    { return nil, nil }
+func (m *mockEmailConfigRepo) UpdateByID(id, data any) (*EmailConfig, error)      { return nil, nil }
+func (m *mockEmailConfigRepo) DeleteByUUID(id any) error                          { return nil }
+func (m *mockEmailConfigRepo) DeleteByID(id any) error                            { return nil }
 func (m *mockEmailConfigRepo) Paginate(c map[string]any, pg, lim int, p ...string) (*PaginationResult[EmailConfig], error) {
 	return nil, nil
 }
@@ -111,8 +111,8 @@ func (m *mockSMSConfigRepo) CreateOrUpdate(e *SMSConfig) (*SMSConfig, error) {
 	}
 	return e, nil
 }
-func (m *mockSMSConfigRepo) FindAll(p ...string) ([]SMSConfig, error)               { return nil, nil }
-func (m *mockSMSConfigRepo) FindByUUID(id any, p ...string) (*SMSConfig, error)     { return nil, nil }
+func (m *mockSMSConfigRepo) FindAll(p ...string) ([]SMSConfig, error)           { return nil, nil }
+func (m *mockSMSConfigRepo) FindByUUID(id any, p ...string) (*SMSConfig, error) { return nil, nil }
 func (m *mockSMSConfigRepo) FindByUUIDs(ids []string, p ...string) ([]SMSConfig, error) {
 	return nil, nil
 }
