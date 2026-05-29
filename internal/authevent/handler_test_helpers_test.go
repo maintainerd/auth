@@ -1,0 +1,79 @@
+package authevent
+
+import (
+	"context"
+	"net/http"
+	"time"
+
+	"github.com/go-chi/chi/v5"
+	"github.com/google/uuid"
+	"github.com/maintainerd/auth/internal/model"
+	"github.com/maintainerd/auth/internal/platform/apperror"
+	"github.com/maintainerd/auth/internal/platform/middleware"
+	"github.com/maintainerd/auth/internal/repository"
+	"github.com/maintainerd/auth/internal/service"
+)
+
+const testTenantID int64 = 1
+
+var (
+	errNotFound      = apperror.NewNotFoundWithReason("not found")
+	testTenantUUID   = uuid.MustParse("00000000-0000-0000-0000-000000000001")
+	testResourceUUID = uuid.MustParse("00000000-0000-0000-0000-000000000099")
+)
+
+type mockAuthEventService struct {
+	logFn              func(ctx context.Context, input service.AuthEventInput)
+	findPaginatedFn    func(ctx context.Context, filter repository.AuthEventRepositoryGetFilter) (*repository.PaginationResult[service.AuthEventServiceDataResult], error)
+	findByUUIDFn       func(ctx context.Context, tenantID int64, eventUUID uuid.UUID) (*service.AuthEventServiceDataResult, error)
+	countByEventTypeFn func(ctx context.Context, eventType string, tenantID int64) (int64, error)
+	deleteOlderThanFn  func(ctx context.Context, cutoff time.Time) (int64, error)
+}
+
+func (m *mockAuthEventService) Log(ctx context.Context, input service.AuthEventInput) {
+	if m.logFn != nil {
+		m.logFn(ctx, input)
+	}
+}
+
+func (m *mockAuthEventService) FindPaginated(ctx context.Context, filter repository.AuthEventRepositoryGetFilter) (*repository.PaginationResult[service.AuthEventServiceDataResult], error) {
+	if m.findPaginatedFn != nil {
+		return m.findPaginatedFn(ctx, filter)
+	}
+	return &repository.PaginationResult[service.AuthEventServiceDataResult]{}, nil
+}
+
+func (m *mockAuthEventService) FindByUUID(ctx context.Context, tenantID int64, eventUUID uuid.UUID) (*service.AuthEventServiceDataResult, error) {
+	if m.findByUUIDFn != nil {
+		return m.findByUUIDFn(ctx, tenantID, eventUUID)
+	}
+	return nil, nil
+}
+
+func (m *mockAuthEventService) CountByEventType(ctx context.Context, eventType string, tenantID int64) (int64, error) {
+	if m.countByEventTypeFn != nil {
+		return m.countByEventTypeFn(ctx, eventType, tenantID)
+	}
+	return 0, nil
+}
+
+func (m *mockAuthEventService) DeleteOlderThan(ctx context.Context, cutoff time.Time) (int64, error) {
+	if m.deleteOlderThanFn != nil {
+		return m.deleteOlderThanFn(ctx, cutoff)
+	}
+	return 0, nil
+}
+
+func withTenant(r *http.Request) *http.Request {
+	tenant := &model.Tenant{TenantID: testTenantID, TenantUUID: testTenantUUID}
+	return middleware.WithAuthContext(r, &middleware.AuthContext{Tenant: tenant})
+}
+
+func withChiParam(r *http.Request, key, val string) *http.Request {
+	rctx := chi.RouteContext(r.Context())
+	if rctx == nil {
+		rctx = chi.NewRouteContext()
+	}
+	rctx.URLParams.Add(key, val)
+	return r.WithContext(context.WithValue(r.Context(), chi.RouteCtxKey, rctx))
+}

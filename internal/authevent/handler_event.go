@@ -1,4 +1,4 @@
-package handler
+package authevent
 
 import (
 	"encoding/json"
@@ -37,7 +37,7 @@ func (h *AuthEventHandler) GetAll(w http.ResponseWriter, r *http.Request) {
 
 	q := r.URL.Query()
 
-	filter := dto.AuthEventFilterDTO{
+	filter := AuthEventFilterDTO{
 		Category:             ptr.PtrOrNil(q.Get("category")),
 		EventType:            ptr.PtrOrNil(q.Get("event_type")),
 		Severity:             ptr.PtrOrNil(q.Get("severity")),
@@ -81,7 +81,7 @@ func (h *AuthEventHandler) GetAll(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	response := dto.PaginatedResponseDTO[dto.AuthEventResponseDTO]{
+	response := dto.PaginatedResponseDTO[AuthEventResponseDTO]{
 		Rows:       toAuthEventResponseDTOList(result.Data),
 		Total:      result.Total,
 		Page:       result.Page,
@@ -143,7 +143,7 @@ func (h *AuthEventHandler) CountByType(w http.ResponseWriter, r *http.Request) {
 	resp.Success(w, map[string]int64{"count": count}, "Auth event count retrieved successfully")
 }
 
-func toAuthEventResponseDTO(e service.AuthEventServiceDataResult) dto.AuthEventResponseDTO {
+func toAuthEventResponseDTO(e service.AuthEventServiceDataResult) AuthEventResponseDTO {
 	var metadata *map[string]any
 	if e.Metadata != nil {
 		var m map[string]any
@@ -152,7 +152,7 @@ func toAuthEventResponseDTO(e service.AuthEventServiceDataResult) dto.AuthEventR
 		}
 	}
 
-	return dto.AuthEventResponseDTO{
+	return AuthEventResponseDTO{
 		AuthEventID:  e.AuthEventUUID.String(),
 		TenantID:     e.TenantID,
 		ActorUserID:  e.ActorUserID,
@@ -171,8 +171,8 @@ func toAuthEventResponseDTO(e service.AuthEventServiceDataResult) dto.AuthEventR
 	}
 }
 
-func toAuthEventResponseDTOList(events []service.AuthEventServiceDataResult) []dto.AuthEventResponseDTO {
-	result := make([]dto.AuthEventResponseDTO, len(events))
+func toAuthEventResponseDTOList(events []service.AuthEventServiceDataResult) []AuthEventResponseDTO {
+	result := make([]AuthEventResponseDTO, len(events))
 	for i, e := range events {
 		result[i] = toAuthEventResponseDTO(e)
 	}

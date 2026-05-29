@@ -1,9 +1,10 @@
-package dto
+package authevent
 
 import (
 	"time"
 
 	validation "github.com/go-ozzo/ozzo-validation/v4"
+	"github.com/maintainerd/auth/internal/dto"
 	"github.com/maintainerd/auth/internal/model"
 )
 
@@ -15,7 +16,7 @@ type AuthEventFilterDTO struct {
 	Result    *string `json:"result"`
 	DateFrom  *string `json:"date_from"`
 	DateTo    *string `json:"date_to"`
-	PaginationRequestDTO
+	dto.PaginationRequestDTO
 }
 
 // Validate validates the filter parameters.
@@ -63,7 +64,7 @@ func (f AuthEventFilterDTO) Validate() error {
 			validation.Length(0, 50).Error("SortBy cannot exceed 50 characters"),
 		),
 		validation.Field(&f.SortOrder,
-			validation.In(SortOrderAsc, SortOrderDesc).Error("Order must be either 'asc' or 'desc'"),
+			validation.In(dto.SortOrderAsc, dto.SortOrderDesc).Error("Order must be either 'asc' or 'desc'"),
 		),
 	)
 }
