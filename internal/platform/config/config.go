@@ -15,6 +15,9 @@ var (
 	AppPublicHostname  string
 	AppPrivateHostname string
 
+	// Application Encryption Key (AES-256)
+	AppEncryptionKey []byte
+
 	// Logging
 	LogLevel string // "debug", "info", "warn", "error"; defaults "info"
 
@@ -127,6 +130,18 @@ func Init() error {
 		return fmt.Errorf("failed to load JWT public key: %w", err)
 	}
 	slog.Info("JWT keys loaded successfully")
+
+	// Application encryption key — loaded via the configured secret provider.
+	slog.Info("Loading application encryption key from secret provider")
+	var encErr error
+	AppEncryptionKey, encErr = loadSecret("APP_ENCRYPTION_KEY")
+	if encErr != nil {
+		return fmt.Errorf("failed to load APP_ENCRYPTION_KEY: %w", encErr)
+	}
+	if len(AppEncryptionKey) != 32 {
+		return fmt.Errorf("APP_ENCRYPTION_KEY must be 32 bytes (AES-256), got %d", len(AppEncryptionKey))
+	}
+	slog.Info("Application encryption key loaded successfully")
 
 	// DB Config
 	if DBHost, err = GetEnv("DB_HOST"); err != nil {

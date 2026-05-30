@@ -7,6 +7,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/platform/apperror"
+	"github.com/maintainerd/auth/internal/platform/crypto"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -165,6 +166,15 @@ func (s *webhookEndpointService) Create(ctx context.Context, tenantID int64, url
 		MaxRetries:      3,
 		TimeoutSeconds:  30,
 	}
+	if secret != "" {
+		enc, encErr := crypto.EncryptAtRest(secret)
+		if encErr != nil {
+			span.RecordError(encErr)
+			span.SetStatus(codes.Error, "encrypt webhook secret failed")
+			return nil, encErr
+		}
+		ep.SecretEncrypted = enc
+	}
 	if maxRetries != nil {
 		ep.MaxRetries = *maxRetries
 	}
@@ -216,7 +226,13 @@ func (s *webhookEndpointService) Update(ctx context.Context, tenantID int64, web
 	ep.Description = description
 	ep.Status = status
 	if secret != "" {
-		ep.SecretEncrypted = secret
+		enc, encErr := crypto.EncryptAtRest(secret)
+		if encErr != nil {
+			span.RecordError(encErr)
+			span.SetStatus(codes.Error, "encrypt webhook secret failed")
+			return nil, encErr
+		}
+		ep.SecretEncrypted = enc
 	}
 	if maxRetries != nil {
 		ep.MaxRetries = *maxRetries

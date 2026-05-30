@@ -98,8 +98,9 @@ func (s *federationService) ExchangeExternalToken(ctx context.Context, req Feder
 		return nil, apperror.NewValidation("identity provider is not active")
 	}
 
+	decCfg := decryptIdpConfig(idp.Config)
 	var cfg OIDCProviderConfig
-	if err := json.Unmarshal(idp.Config, &cfg); err != nil || cfg.Issuer == "" {
+	if err := json.Unmarshal(decCfg, &cfg); err != nil || cfg.Issuer == "" {
 		return nil, apperror.NewValidation("identity provider is not configured for OIDC")
 	}
 
@@ -222,8 +223,9 @@ func (s *federationService) LinkIdentity(ctx context.Context, userID int64, req 
 		return nil, apperror.NewNotFound("identity provider not found")
 	}
 
+	decCfg := decryptIdpConfig(idp.Config)
 	var cfg OIDCProviderConfig
-	if err := json.Unmarshal(idp.Config, &cfg); err != nil || cfg.Issuer == "" {
+	if err := json.Unmarshal(decCfg, &cfg); err != nil || cfg.Issuer == "" {
 		return nil, apperror.NewValidation("identity provider is not configured for OIDC")
 	}
 
@@ -363,8 +365,9 @@ func (s *federationService) HomeRealmDiscovery(ctx context.Context, tenantID int
 		if idp.ProviderType != shared.IDPTypeSocial {
 			continue
 		}
+		decCfg := decryptIdpConfig(idp.Config)
 		var cfg OIDCProviderConfig
-		if err := json.Unmarshal(idp.Config, &cfg); err != nil {
+		if err := json.Unmarshal(decCfg, &cfg); err != nil {
 			continue
 		}
 		for _, d := range cfg.EmailDomains {

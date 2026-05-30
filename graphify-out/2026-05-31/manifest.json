@@ -2850,8 +2850,8 @@
     "semantic_hash": ""
   },
   "/home/reyco/Desktop/xreyc/maintainerd/maintainerd-auth/internal/idp/service_federation.go": {
-    "mtime": 1780059282.636067,
-    "ast_hash": "ae289b55b70f2146d7f6cbbf353b13df",
+    "mtime": 1780203471.3404975,
+    "ast_hash": "aca54041706e62f6d885143e1c733925",
     "semantic_hash": ""
   },
   "/home/reyco/Desktop/xreyc/maintainerd/maintainerd-auth/internal/idp/validation_signup_flow_test.go": {
@@ -3515,8 +3515,8 @@
     "semantic_hash": ""
   },
   "/home/reyco/Desktop/xreyc/maintainerd/maintainerd-auth/docs/planning/bugs-and-enhancements.md": {
-    "mtime": 1780203360.7855537,
-    "ast_hash": "f4655c15e42bdd1573f688c5d79b2bba",
+    "mtime": 1780203495.0964375,
+    "ast_hash": "b16fabbd95aa4ecae51dc20f7408a2bb",
     "semantic_hash": ""
   }
 }

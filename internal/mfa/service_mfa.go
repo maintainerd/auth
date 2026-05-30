@@ -125,6 +125,13 @@ func (s *mfaService) BeginTOTPEnrollment(ctx context.Context, userID int64) (*TO
 		Secret:    key.Secret(),
 		IsEnabled: false,
 	}
+	enc, encErr := crypto.EncryptAtRest(secret.Secret)
+	if encErr != nil {
+		span.RecordError(encErr)
+		span.SetStatus(codes.Error, "totp secret encryption failed")
+		return nil, apperror.NewInternal("failed to encrypt TOTP secret", encErr)
+	}
+	secret.Secret = enc
 	if err := s.totpRepo.Upsert(secret); err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "totp secret store failed")
@@ -155,7 +162,8 @@ func (s *mfaService) FinishTOTPEnrollment(ctx context.Context, userID int64, cod
 		return nil, apperror.NewValidation("no pending TOTP enrollment found")
 	}
 
-	valid := totp.Validate(code, record.Secret)
+	dec := crypto.SafeDecryptAtRest(record.Secret)
+	valid := totp.Validate(code, dec)
 	if !valid {
 		span.SetStatus(codes.Error, "invalid totp code")
 		return nil, apperror.NewValidation("invalid TOTP code")
@@ -214,7 +222,8 @@ func (s *mfaService) VerifyTOTP(ctx context.Context, userID int64, code string) 
 		return false, apperror.NewValidation("TOTP is not enabled for this user")
 	}
 
-	valid := totp.Validate(code, record.Secret)
+	dec := crypto.SafeDecryptAtRest(record.Secret)
+	valid := totp.Validate(code, dec)
 	if valid {
 		_ = s.totpRepo.UpdateLastUsed(userID)
 	}

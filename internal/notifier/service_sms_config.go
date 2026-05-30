@@ -6,6 +6,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/platform/apperror"
+	"github.com/maintainerd/auth/internal/platform/crypto"
 	"github.com/maintainerd/auth/internal/shared"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
@@ -101,7 +102,13 @@ func (s *smsConfigService) Update(ctx context.Context, tenantID int64, provider,
 	config.SenderID = senderID
 
 	if authToken != "" {
-		config.AuthTokenEncrypted = authToken
+		enc, encErr := crypto.EncryptAtRest(authToken)
+		if encErr != nil {
+			span.RecordError(encErr)
+			span.SetStatus(codes.Error, "encrypt sms auth token failed")
+			return nil, encErr
+		}
+		config.AuthTokenEncrypted = enc
 	}
 	if testMode != nil {
 		config.TestMode = *testMode

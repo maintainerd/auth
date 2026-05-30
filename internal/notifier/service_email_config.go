@@ -6,6 +6,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/platform/apperror"
+	"github.com/maintainerd/auth/internal/platform/crypto"
 	"github.com/maintainerd/auth/internal/shared"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
@@ -113,7 +114,13 @@ func (s *emailConfigService) Update(ctx context.Context, tenantID int64, provide
 	config.Encryption = encryption
 
 	if password != "" {
-		config.PasswordEncrypted = password
+		enc, encErr := crypto.EncryptAtRest(password)
+		if encErr != nil {
+			span.RecordError(encErr)
+			span.SetStatus(codes.Error, "encrypt email password failed")
+			return nil, encErr
+		}
+		config.PasswordEncrypted = enc
 	}
 	if testMode != nil {
 		config.TestMode = *testMode

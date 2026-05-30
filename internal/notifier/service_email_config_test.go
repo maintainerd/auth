@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
+	"github.com/maintainerd/auth/internal/platform/crypto"
 	"github.com/maintainerd/auth/internal/shared"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -128,7 +129,11 @@ func TestEmailConfigService_Update(t *testing.T) {
 			"ssl", boolPtr(false),
 		)
 		require.NoError(t, err)
-		assert.Equal(t, "new-secret", existing.PasswordEncrypted)
+		assert.NotEmpty(t, existing.PasswordEncrypted)
+		assert.NotEqual(t, "new-secret", existing.PasswordEncrypted)
+		pw, decErr := crypto.DecryptAtRest(existing.PasswordEncrypted)
+		require.NoError(t, decErr)
+		assert.Equal(t, "new-secret", pw)
 	})
 
 	t.Run("FindByTenantID error", func(t *testing.T) {
