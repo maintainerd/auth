@@ -114,7 +114,7 @@ func initServices(db *gorm.DB, r *repos, appCache *cache.Cache) (*svcs, error) {
 		serviceService:            iam.NewServiceService(db, r.serviceRepo, iamTenantServiceRepo, r.apiRepo, r.servicePolicyRepo, r.policyRepo),
 		apiService:                iam.NewAPIService(db, r.apiRepo, r.serviceRepo, iamTenantServiceRepo),
 		permissionService:         iam.NewPermissionService(db, r.permissionRepo, r.apiRepo, r.roleRepo, iamClientRepo, appCache),
-		tenantService:             tenant.NewTenantService(db, r.tenantRepo, nil),
+		tenantService:             tenant.NewTenantService(db, r.tenantRepo, tenantCascadeModels()),
 		tenantMemberService:       tenant.NewTenantMemberService(db, r.tenantMemberRepo, newTenantUserReader(r.userRepo), r.tenantRepo),
 		idpService:                idp.NewIdentityProviderService(db, r.idpRepo, idpTenantRepo, idpUserRepo),
 		clientService:             client.NewClientService(db, r.clientRepo, r.clientURIRepo, clientIDPRepo, clientPermissionRepo, r.clientPermissionRepo, r.clientAPIRepo, clientAPIRepo, clientUserRepo, clientTenantRepo, authEventSvc),
@@ -161,4 +161,50 @@ func initServices(db *gorm.DB, r *repos, appCache *cache.Cache) (*svcs, error) {
 		federationService:         idp.NewFederationService(db, idpUserRepo, idpUserIdentityRepo, r.idpRepo, idpClientRepo, idpUserRoleRepo, idpRoleRepo, authEventSvc),
 	}
 	return s, nil
+}
+
+func tenantCascadeModels() []any {
+	return []any{
+		&oauth.OAuthCIBARequest{},
+		&oauth.OAuthDeviceCode{},
+		&oauth.OAuthPARRequest{},
+		&oauth.OAuthConsentChallenge{},
+		&oauth.OAuthConsentGrant{},
+		&oauth.OAuthRefreshToken{},
+		&oauth.OAuthAuthorizationCode{},
+
+		&webhook.WebhookEndpoint{},
+		&notifier.SMSConfig{},
+		&notifier.EmailConfig{},
+		&branding.SMSTemplate{},
+		&branding.LoginTemplate{},
+		&branding.EmailTemplate{},
+		&branding.Branding{},
+
+		&secpolicy.SecuritySettingsAudit{},
+		&secpolicy.IPRestrictionRule{},
+		&secpolicy.SecuritySetting{},
+
+		&invite.Invite{},
+		&idp.SignupFlow{},
+		&idp.IdentityProvider{},
+
+		&client.ClientURI{},
+		&client.APIKey{},
+		&client.Client{},
+
+		&iam.Permission{},
+		&iam.API{},
+		&iam.Policy{},
+		&iam.Role{},
+		&iam.Service{},
+		&iam.TenantService{},
+
+		&user.UserIdentity{},
+		&user.UserPool{},
+
+		&tenant.TenantServiceLink{},
+		&tenant.TenantSetting{},
+		&tenant.TenantMember{},
+	}
 }

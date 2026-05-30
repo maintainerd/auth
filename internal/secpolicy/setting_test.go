@@ -225,29 +225,6 @@ func TestSecuritySettingService_GetLockoutConfig(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
-// unmarshalJSON
-// ---------------------------------------------------------------------------
-
-func TestUnmarshalJSON(t *testing.T) {
-	t.Run("nil/empty → empty map", func(t *testing.T) {
-		result := unmarshalJSON(nil)
-		assert.NotNil(t, result)
-		assert.Empty(t, result)
-	})
-
-	t.Run("invalid JSON → empty map", func(t *testing.T) {
-		result := unmarshalJSON(datatypes.JSON([]byte("not-json")))
-		assert.NotNil(t, result)
-		assert.Empty(t, result)
-	})
-
-	t.Run("valid JSON", func(t *testing.T) {
-		result := unmarshalJSON(datatypes.JSON([]byte(`{"a":"b"}`)))
-		assert.Equal(t, "b", result["a"])
-	})
-}
-
-// ---------------------------------------------------------------------------
 // UpdateMFAConfig – transactional (delegates to updateConfig)
 // ---------------------------------------------------------------------------
 

@@ -12,6 +12,23 @@ import (
 	"gorm.io/gorm"
 )
 
+type TenantMemberServiceListFilter struct {
+	TenantID  int64
+	Role      *string
+	Page      int
+	Limit     int
+	SortBy    string
+	SortOrder string
+}
+
+type TenantMemberServiceListResult struct {
+	Data       []TenantMemberServiceDataResult
+	Total      int64
+	Page       int
+	Limit      int
+	TotalPages int
+}
+
 type TenantMemberServiceDataResult struct {
 	TenantMemberUUID uuid.UUID
 	TenantID         int64
@@ -27,10 +44,10 @@ type TenantMemberService interface {
 	CreateByUserUUID(ctx context.Context, tenantID int64, userUUID uuid.UUID, role string) (*TenantMemberServiceDataResult, error)
 	GetByUUID(ctx context.Context, tenantMemberUUID uuid.UUID) (*TenantMemberServiceDataResult, error)
 	GetByTenantAndUser(ctx context.Context, tenantID int64, userID int64) (*TenantMemberServiceDataResult, error)
-	ListByTenant(ctx context.Context, tenantID int64) ([]TenantMemberServiceDataResult, error)
+	ListByTenant(ctx context.Context, filter TenantMemberServiceListFilter) (*TenantMemberServiceListResult, error)
 	ListByUser(ctx context.Context, userID int64) ([]TenantMemberServiceDataResult, error)
-	UpdateRole(ctx context.Context, tenantMemberUUID uuid.UUID, role string) (*TenantMemberServiceDataResult, error)
-	DeleteByUUID(ctx context.Context, tenantMemberUUID uuid.UUID) error
+	UpdateRole(ctx context.Context, tenantID int64, tenantMemberUUID uuid.UUID, role string) (*TenantMemberServiceDataResult, error)
+	DeleteByUUID(ctx context.Context, tenantID int64, tenantMemberUUID uuid.UUID) error
 	IsUserInTenant(ctx context.Context, userID int64, tenantUUID uuid.UUID) (bool, error)
 }
 
@@ -146,20 +163,27 @@ func (s *tenantMemberService) GetByTenantAndUser(ctx context.Context, tenantID i
 	return toTenantMemberServiceDataResult(tu), nil
 }
 
-func (s *tenantMemberService) ListByTenant(ctx context.Context, tenantID int64) ([]TenantMemberServiceDataResult, error) {
+func (s *tenantMemberService) ListByTenant(ctx context.Context, filter TenantMemberServiceListFilter) (*TenantMemberServiceListResult, error) {
 	_, span := otel.Tracer("service").Start(ctx, "tenantMember.listByTenant")
 	defer span.End()
-	span.SetAttributes(attribute.Int64("tenant.id", tenantID))
+	span.SetAttributes(attribute.Int64("tenant.id", filter.TenantID))
 
-	tus, err := s.tenantMemberRepo.FindAllByTenant(tenantID)
+	tus, err := s.tenantMemberRepo.FindByTenant(TenantMemberRepositoryListFilter{
+		TenantID:  filter.TenantID,
+		Role:      filter.Role,
+		Page:      filter.Page,
+		Limit:     filter.Limit,
+		SortBy:    filter.SortBy,
+		SortOrder: filter.SortOrder,
+	})
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "list tenant members failed")
 		return nil, err
 	}
 
-	result := make([]TenantMemberServiceDataResult, len(tus))
-	for i, tu := range tus {
+	result := make([]TenantMemberServiceDataResult, len(tus.Data))
+	for i, tu := range tus.Data {
 		dr := toTenantMemberServiceDataResult(&tu)
 
 		// Fetch user information
@@ -171,7 +195,13 @@ func (s *tenantMemberService) ListByTenant(ctx context.Context, tenantID int64) 
 		result[i] = *dr
 	}
 	span.SetStatus(codes.Ok, "")
-	return result, nil
+	return &TenantMemberServiceListResult{
+		Data:       result,
+		Total:      tus.Total,
+		Page:       tus.Page,
+		Limit:      tus.Limit,
+		TotalPages: tus.TotalPages,
+	}, nil
 }
 
 func (s *tenantMemberService) ListByUser(ctx context.Context, userID int64) ([]TenantMemberServiceDataResult, error) {
@@ -194,10 +224,10 @@ func (s *tenantMemberService) ListByUser(ctx context.Context, userID int64) ([]T
 	return result, nil
 }
 
-func (s *tenantMemberService) UpdateRole(ctx context.Context, tenantMemberUUID uuid.UUID, role string) (*TenantMemberServiceDataResult, error) {
+func (s *tenantMemberService) UpdateRole(ctx context.Context, tenantID int64, tenantMemberUUID uuid.UUID, role string) (*TenantMemberServiceDataResult, error) {
 	_, span := otel.Tracer("service").Start(ctx, "tenantMember.updateRole")
 	defer span.End()
-	span.SetAttributes(attribute.String("tenantMember.uuid", tenantMemberUUID.String()))
+	span.SetAttributes(attribute.Int64("tenant.id", tenantID), attribute.String("tenantMember.uuid", tenantMemberUUID.String()))
 
 	var updated *TenantMember
 	err := s.db.Transaction(func(tx *gorm.DB) error {
@@ -207,6 +237,9 @@ func (s *tenantMemberService) UpdateRole(ctx context.Context, tenantMemberUUID u
 			return err
 		}
 		if tu == nil {
+			return apperror.NewNotFoundWithReason("tenant member not found")
+		}
+		if tu.TenantID != tenantID {
 			return apperror.NewNotFoundWithReason("tenant member not found")
 		}
 		tu.Role = role
@@ -231,10 +264,10 @@ func (s *tenantMemberService) UpdateRole(ctx context.Context, tenantMemberUUID u
 	return result, nil
 }
 
-func (s *tenantMemberService) DeleteByUUID(ctx context.Context, tenantMemberUUID uuid.UUID) error {
+func (s *tenantMemberService) DeleteByUUID(ctx context.Context, tenantID int64, tenantMemberUUID uuid.UUID) error {
 	_, span := otel.Tracer("service").Start(ctx, "tenantMember.delete")
 	defer span.End()
-	span.SetAttributes(attribute.String("tenantMember.uuid", tenantMemberUUID.String()))
+	span.SetAttributes(attribute.Int64("tenant.id", tenantID), attribute.String("tenantMember.uuid", tenantMemberUUID.String()))
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
 		repo := s.tenantMemberRepo.WithTx(tx)
@@ -243,6 +276,9 @@ func (s *tenantMemberService) DeleteByUUID(ctx context.Context, tenantMemberUUID
 			return err
 		}
 		if tu == nil {
+			return apperror.NewNotFoundWithReason("tenant member not found")
+		}
+		if tu.TenantID != tenantID {
 			return apperror.NewNotFoundWithReason("tenant member not found")
 		}
 		return repo.DeleteByUUID(tenantMemberUUID)
