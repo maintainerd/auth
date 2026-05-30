@@ -7,6 +7,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/platform/middleware"
+	"github.com/maintainerd/auth/internal/platform/pagination"
 	resp "github.com/maintainerd/auth/internal/platform/response"
 	"github.com/maintainerd/auth/internal/shared"
 )
@@ -35,7 +36,7 @@ func (h *APIKeyHandler) Get(w http.ResponseWriter, r *http.Request) {
 
 	// Parse query parameters
 	var reqParams APIKeyGetRequestDTO
-	reqParams.PaginationRequestDTO = parsePaginationQuery(r)
+	reqParams.PaginationRequestDTO = pagination.ParseQuery(r)
 
 	if name := r.URL.Query().Get("name"); name != "" {
 		reqParams.Name = &name
@@ -358,7 +359,7 @@ func (h *APIKeyHandler) GetAPIs(w http.ResponseWriter, r *http.Request) {
 
 	// Build request DTO
 	reqParams := APIKeyAPIsGetRequestDTO{
-		PaginationRequestDTO: parsePaginationQuery(r),
+		PaginationRequestDTO: pagination.ParseQuery(r),
 	}
 
 	if err := reqParams.Validate(); err != nil {

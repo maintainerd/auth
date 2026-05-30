@@ -6,6 +6,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
+	"github.com/maintainerd/auth/internal/platform/pagination"
 	"github.com/maintainerd/auth/internal/platform/ptr"
 	resp "github.com/maintainerd/auth/internal/platform/response"
 )
@@ -20,7 +21,7 @@ func (h *TenantHandler) GetMembers(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
 	reqParams := TenantMemberFilterDTO{
 		Role:                 ptr.PtrOrNil(q.Get("role")),
-		PaginationRequestDTO: parsePaginationQuery(r),
+		PaginationRequestDTO: pagination.ParseQuery(r),
 	}
 	if err := reqParams.Validate(); err != nil {
 		resp.ValidationError(w, err)

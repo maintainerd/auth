@@ -4,6 +4,7 @@ import (
 	"errors"
 	"time"
 
+	"github.com/maintainerd/auth/internal/platform/database"
 	"gorm.io/gorm"
 )
 
@@ -27,7 +28,7 @@ type userWebAuthnCredentialRepository struct {
 
 func NewUserWebAuthnCredentialRepository(db *gorm.DB) UserWebAuthnCredentialRepository {
 	return &userWebAuthnCredentialRepository{
-		BaseRepository: NewBaseRepository[UserWebAuthnCredential](db, "credential_uuid", "credential_id"),
+		BaseRepository: database.NewBaseRepository[UserWebAuthnCredential](db, "credential_uuid", "credential_id"),
 	}
 }
 

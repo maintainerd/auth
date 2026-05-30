@@ -7,6 +7,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/platform/middleware"
+	"github.com/maintainerd/auth/internal/platform/pagination"
 	"github.com/maintainerd/auth/internal/platform/ptr"
 	resp "github.com/maintainerd/auth/internal/platform/response"
 	"github.com/maintainerd/auth/internal/shared"
@@ -73,7 +74,7 @@ func (h *SMSTemplateHandler) GetAll(w http.ResponseWriter, r *http.Request) {
 		Status:               status,
 		IsDefault:            isDefault,
 		IsSystem:             isSystem,
-		PaginationRequestDTO: parsePaginationQuery(r),
+		PaginationRequestDTO: pagination.ParseQuery(r),
 	}
 
 	// Validate filter parameters

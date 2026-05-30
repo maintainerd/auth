@@ -2,7 +2,9 @@ package iam
 
 import (
 	"errors"
+
 	"github.com/google/uuid"
+	"github.com/maintainerd/auth/internal/platform/database"
 	"gorm.io/gorm"
 )
 
@@ -39,7 +41,7 @@ type policyRepository struct {
 
 func NewPolicyRepository(db *gorm.DB) PolicyRepository {
 	return &policyRepository{
-		BaseRepository: NewBaseRepository[Policy](db, "policy_uuid", "policy_id"),
+		BaseRepository: database.NewBaseRepository[Policy](db, "policy_uuid", "policy_id"),
 	}
 }
 
@@ -138,32 +140,8 @@ func (r *policyRepository) FindPaginated(filter PolicyRepositoryGetFilter) (*Pag
 			Where("services.service_uuid = ?", *filter.ServiceID)
 	}
 
-	// Count total records
-	var total int64
-	if err := query.Count(&total).Error; err != nil {
-		return nil, err
-	}
-
-	// Apply sorting — protected against SQL injection via allowlist
-	query = query.Order(sanitizeOrder(filter.SortBy, filter.SortOrder, "created_at DESC"))
-
-	// Pagination
-	filter.Page, filter.Limit = normalizePagination(filter.Page, filter.Limit)
-	offset := (filter.Page - 1) * filter.Limit
-	var policies []Policy
-	if err := query.Limit(filter.Limit).Offset(offset).Find(&policies).Error; err != nil {
-		return nil, err
-	}
-
-	totalPages := int((total + int64(filter.Limit) - 1) / int64(filter.Limit))
-
-	return &PaginationResult[Policy]{
-		Data:       policies,
-		Total:      total,
-		Page:       filter.Page,
-		Limit:      filter.Limit,
-		TotalPages: totalPages,
-	}, nil
+	query = query.Order(database.SanitizeOrder(filter.SortBy, filter.SortOrder, "created_at DESC"))
+	return database.PaginateQuery[Policy](query, filter.Page, filter.Limit)
 }
 
 func (r *policyRepository) DeleteByUUIDAndTenantID(policyUUID uuid.UUID, tenantID int64) error {

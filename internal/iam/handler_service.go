@@ -9,6 +9,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/platform/middleware"
+	"github.com/maintainerd/auth/internal/platform/pagination"
 	"github.com/maintainerd/auth/internal/platform/ptr"
 	resp "github.com/maintainerd/auth/internal/platform/response"
 )
@@ -69,7 +70,7 @@ func (h *ServiceHandler) Get(w http.ResponseWriter, r *http.Request) {
 		Version:              ptr.PtrOrNil(q.Get("version")),
 		Status:               status,
 		IsSystem:             isSystem,
-		PaginationRequestDTO: parsePaginationQuery(r),
+		PaginationRequestDTO: pagination.ParseQuery(r),
 	}
 
 	// Validate request parameters

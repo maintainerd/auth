@@ -4,6 +4,7 @@ import (
 	"errors"
 	"time"
 
+	"github.com/maintainerd/auth/internal/platform/database"
 	"gorm.io/gorm"
 )
 
@@ -24,7 +25,7 @@ type oauthAuthorizationCodeRepository struct {
 // NewOAuthAuthorizationCodeRepository creates a new OAuthAuthorizationCodeRepository.
 func NewOAuthAuthorizationCodeRepository(db *gorm.DB) OAuthAuthorizationCodeRepository {
 	return &oauthAuthorizationCodeRepository{
-		BaseRepository: NewBaseRepository[OAuthAuthorizationCode](db, "oauth_authorization_code_uuid", "oauth_authorization_code_id"),
+		BaseRepository: database.NewBaseRepository[OAuthAuthorizationCode](db, "oauth_authorization_code_uuid", "oauth_authorization_code_id"),
 	}
 }
 

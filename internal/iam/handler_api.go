@@ -9,6 +9,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/platform/middleware"
+	"github.com/maintainerd/auth/internal/platform/pagination"
 	"github.com/maintainerd/auth/internal/platform/ptr"
 	resp "github.com/maintainerd/auth/internal/platform/response"
 )
@@ -62,7 +63,7 @@ func (h *APIHandler) Get(w http.ResponseWriter, r *http.Request) {
 		ServiceUUID:          ptr.PtrOrNil(q.Get("service_id")),
 		Status:               status,
 		IsSystem:             isSystem,
-		PaginationRequestDTO: parsePaginationQuery(r),
+		PaginationRequestDTO: pagination.ParseQuery(r),
 	}
 
 	if err := reqParams.Validate(); err != nil {

@@ -1,6 +1,9 @@
 package invite
 
-import "gorm.io/gorm"
+import (
+	"github.com/maintainerd/auth/internal/platform/database"
+	"gorm.io/gorm"
+)
 
 type InviteRoleRepository interface {
 	BaseRepositoryMethods[InviteRole]
@@ -12,6 +15,6 @@ type inviteRoleRepository struct {
 
 func NewInviteRoleRepository(db *gorm.DB) InviteRoleRepository {
 	return &inviteRoleRepository{
-		BaseRepository: NewBaseRepository[InviteRole](db, "invite_role_uuid", "invite_role_id"),
+		BaseRepository: database.NewBaseRepository[InviteRole](db, "invite_role_uuid", "invite_role_id"),
 	}
 }

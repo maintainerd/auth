@@ -8,6 +8,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/platform/middleware"
+	"github.com/maintainerd/auth/internal/platform/pagination"
 	"github.com/maintainerd/auth/internal/platform/ptr"
 	resp "github.com/maintainerd/auth/internal/platform/response"
 )
@@ -60,7 +61,7 @@ func (h *PermissionHandler) Get(w http.ResponseWriter, r *http.Request) {
 		Status:               ptr.PtrOrNil(q.Get("status")),
 		IsDefault:            isDefault,
 		IsSystem:             isSystem,
-		PaginationRequestDTO: parsePaginationQuery(r),
+		PaginationRequestDTO: pagination.ParseQuery(r),
 	}
 
 	if err := reqParams.Validate(); err != nil {

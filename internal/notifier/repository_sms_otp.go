@@ -4,6 +4,7 @@ import (
 	"errors"
 	"time"
 
+	"github.com/maintainerd/auth/internal/platform/database"
 	"gorm.io/gorm"
 )
 
@@ -20,7 +21,7 @@ type smsOtpRepository struct {
 
 func NewSMSOtpRepository(db *gorm.DB) SMSOtpRepository {
 	return &smsOtpRepository{
-		BaseRepository: NewBaseRepository[SMSOtp](db, "sms_otp_uuid", "sms_otp_id"),
+		BaseRepository: database.NewBaseRepository[SMSOtp](db, "sms_otp_uuid", "sms_otp_id"),
 	}
 }
 

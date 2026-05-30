@@ -11,7 +11,6 @@ import (
 	"github.com/maintainerd/auth/internal/platform/apperror"
 	"github.com/maintainerd/auth/internal/platform/config"
 	"github.com/maintainerd/auth/internal/platform/crypto"
-	"github.com/maintainerd/auth/internal/platform/jwt"
 	"github.com/maintainerd/auth/internal/platform/sms"
 	"github.com/maintainerd/auth/internal/shared"
 	"go.opentelemetry.io/otel"
@@ -187,35 +186,10 @@ func (s *smsLoginService) VerifyOTP(ctx context.Context, req SMSLoginVerifyDTO) 
 }
 
 func (s *smsLoginService) generateSMSTokenResponse(sub string, user *User, client *Client) (*LoginResponseDTO, error) {
-	accessToken, err := jwt.GenerateAccessToken(
-		sub,
-		"openid profile email",
-		*client.Domain,
-		*client.Identifier,
-		*client.Identifier,
-		client.IdentityProvider.Identifier,
-	)
+	accessToken, idToken, refreshToken, err := generateTokenSet(sub, user, client)
 	if err != nil {
 		return nil, err
 	}
-
-	profile := &jwt.UserProfile{
-		Email:         user.Email,
-		EmailVerified: user.IsEmailVerified,
-		Phone:         user.Phone,
-		PhoneVerified: user.IsPhoneVerified,
-	}
-
-	idToken, err := generateIDTokenFn(sub, *client.Domain, *client.Identifier, client.IdentityProvider.Identifier, profile, "", nil)
-	if err != nil {
-		return nil, err
-	}
-
-	refreshToken, err := generateRefreshTokenFn(sub, *client.Domain, *client.Identifier, client.IdentityProvider.Identifier)
-	if err != nil {
-		return nil, err
-	}
-
 	return &LoginResponseDTO{
 		AccessToken:  accessToken,
 		IDToken:      idToken,

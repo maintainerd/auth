@@ -2,6 +2,8 @@ package client
 
 import (
 	"errors"
+
+	"github.com/maintainerd/auth/internal/platform/database"
 	"gorm.io/gorm"
 )
 
@@ -19,7 +21,7 @@ type apiKeyPermissionRepository struct {
 
 func NewAPIKeyPermissionRepository(db *gorm.DB) APIKeyPermissionRepository {
 	return &apiKeyPermissionRepository{
-		BaseRepository: NewBaseRepository[APIKeyPermission](db, "api_key_permission_uuid", "api_key_permission_id"),
+		BaseRepository: database.NewBaseRepository[APIKeyPermission](db, "api_key_permission_uuid", "api_key_permission_id"),
 	}
 }
 

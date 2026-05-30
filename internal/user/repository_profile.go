@@ -4,6 +4,7 @@ import (
 	"errors"
 	"strings"
 
+	"github.com/maintainerd/auth/internal/platform/database"
 	"gorm.io/gorm"
 )
 
@@ -39,7 +40,7 @@ type profileRepository struct {
 
 func NewProfileRepository(db *gorm.DB) ProfileRepository {
 	return &profileRepository{
-		BaseRepository: NewBaseRepository[Profile](db, "profile_uuid", "profile_id"),
+		BaseRepository: database.NewBaseRepository[Profile](db, "profile_uuid", "profile_id"),
 	}
 }
 
@@ -74,9 +75,6 @@ func (r *profileRepository) FindDefaultByUserID(userID int64) (*Profile, error) 
 }
 
 func (r *profileRepository) FindAllByUserID(filter ProfileRepositoryGetFilter) (*PaginationResult[Profile], error) {
-	var profiles []Profile
-	var total int64
-
 	query := r.DB().Model(&Profile{}).Where("user_id = ?", filter.UserID)
 
 	// Apply filters
@@ -105,34 +103,10 @@ func (r *profileRepository) FindAllByUserID(filter ProfileRepositoryGetFilter) (
 		query = query.Where("is_default = ?", *filter.IsDefault)
 	}
 
-	// Count total
-	if err := query.Count(&total).Error; err != nil {
-		return nil, err
-	}
-
 	// Apply sorting — protected against SQL injection via allowlist
-	query = query.Order(sanitizeOrder(filter.SortBy, filter.SortOrder, "is_default DESC, created_at DESC"))
+	query = query.Order(database.SanitizeOrder(filter.SortBy, filter.SortOrder, "is_default DESC, created_at DESC"))
 
-	// Apply pagination
-	if filter.Page < 1 {
-		filter.Page = 1
-	}
-	if filter.Limit < 1 {
-		filter.Limit = 20
-	}
-	offset := (filter.Page - 1) * filter.Limit
-	if err := query.Offset(offset).Limit(filter.Limit).Find(&profiles).Error; err != nil {
-		return nil, err
-	}
-
-	totalPages := int((total + int64(filter.Limit) - 1) / int64(filter.Limit))
-	return &PaginationResult[Profile]{
-		Data:       profiles,
-		Total:      total,
-		Page:       filter.Page,
-		Limit:      filter.Limit,
-		TotalPages: totalPages,
-	}, nil
+	return database.PaginateQuery[Profile](query, filter.Page, filter.Limit)
 }
 
 func (r *profileRepository) UpdateByUserID(userID int64, updatedProfile *Profile) error {

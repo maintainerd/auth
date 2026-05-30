@@ -1331,12 +1331,10 @@ func TestHasGrant(t *testing.T) {
 // ── TestAuthenticateClient ──────────────────────────────────────────────────
 
 func TestAuthenticateClient(t *testing.T) {
-	ctx := context.Background()
-
 	t.Run("empty client_id", func(t *testing.T) {
 		db, _ := newMockDB(t)
 		svc := &oauthTokenService{db: db, authEventService: &mockAuthEventService{}}
-		_, oerr := svc.authenticateClient(ctx, OAuthClientCredentials{})
+		_, oerr := authenticateOAuthClient(svc.db, OAuthClientCredentials{})
 		require.NotNil(t, oerr)
 		assert.Equal(t, "invalid_client", oerr.Code)
 	})
@@ -1345,7 +1343,7 @@ func TestAuthenticateClient(t *testing.T) {
 		db, mock := newMockDB(t)
 		expectClientNotFound(mock)
 		svc := &oauthTokenService{db: db, authEventService: &mockAuthEventService{}}
-		_, oerr := svc.authenticateClient(ctx, OAuthClientCredentials{ClientID: "unknown"})
+		_, oerr := authenticateOAuthClient(svc.db, OAuthClientCredentials{ClientID: "unknown"})
 		require.NotNil(t, oerr)
 		assert.Equal(t, "invalid_client", oerr.Code)
 	})
@@ -1354,7 +1352,7 @@ func TestAuthenticateClient(t *testing.T) {
 		db, mock := newMockDB(t)
 		mock.ExpectQuery(regexp.QuoteMeta(`SELECT`)).WillReturnError(errors.New("connection error"))
 		svc := &oauthTokenService{db: db, authEventService: &mockAuthEventService{}}
-		_, oerr := svc.authenticateClient(ctx, OAuthClientCredentials{ClientID: "x"})
+		_, oerr := authenticateOAuthClient(svc.db, OAuthClientCredentials{ClientID: "x"})
 		require.NotNil(t, oerr)
 		assert.Equal(t, "server_error", oerr.Code)
 	})
@@ -1363,7 +1361,7 @@ func TestAuthenticateClient(t *testing.T) {
 		db, mock := newMockDB(t)
 		expectClientLookup(mock, mockClientRows()) // token_endpoint_auth_method = "none"
 		svc := &oauthTokenService{db: db, authEventService: &mockAuthEventService{}}
-		client, oerr := svc.authenticateClient(ctx, OAuthClientCredentials{ClientID: "my-client"})
+		client, oerr := authenticateOAuthClient(svc.db, OAuthClientCredentials{ClientID: "my-client"})
 		require.Nil(t, oerr)
 		require.NotNil(t, client)
 	})
@@ -1388,7 +1386,7 @@ func TestAuthenticateClient(t *testing.T) {
 		)
 		expectClientLookup(mock, rows)
 		svc := &oauthTokenService{db: db, authEventService: &mockAuthEventService{}}
-		client, oerr := svc.authenticateClient(ctx, OAuthClientCredentials{ClientID: "my-client", ClientSecret: secret})
+		client, oerr := authenticateOAuthClient(svc.db, OAuthClientCredentials{ClientID: "my-client", ClientSecret: secret})
 		require.Nil(t, oerr)
 		require.NotNil(t, client)
 	})
@@ -1413,7 +1411,7 @@ func TestAuthenticateClient(t *testing.T) {
 		)
 		expectClientLookup(mock, rows)
 		svc := &oauthTokenService{db: db, authEventService: &mockAuthEventService{}}
-		_, oerr := svc.authenticateClient(ctx, OAuthClientCredentials{ClientID: "my-client", ClientSecret: "wrong"})
+		_, oerr := authenticateOAuthClient(svc.db, OAuthClientCredentials{ClientID: "my-client", ClientSecret: "wrong"})
 		require.NotNil(t, oerr)
 		assert.Equal(t, "invalid_client", oerr.Code)
 	})
@@ -1438,7 +1436,7 @@ func TestAuthenticateClient(t *testing.T) {
 		)
 		expectClientLookup(mock, rows)
 		svc := &oauthTokenService{db: db, authEventService: &mockAuthEventService{}}
-		client, oerr := svc.authenticateClient(ctx, OAuthClientCredentials{ClientID: "my-client", ClientSecret: secret})
+		client, oerr := authenticateOAuthClient(svc.db, OAuthClientCredentials{ClientID: "my-client", ClientSecret: secret})
 		require.Nil(t, oerr)
 		require.NotNil(t, client)
 	})
@@ -1460,7 +1458,7 @@ func TestAuthenticateClient(t *testing.T) {
 		)
 		expectClientLookup(mock, rows)
 		svc := &oauthTokenService{db: db, authEventService: &mockAuthEventService{}}
-		_, oerr := svc.authenticateClient(ctx, OAuthClientCredentials{ClientID: "my-client"})
+		_, oerr := authenticateOAuthClient(svc.db, OAuthClientCredentials{ClientID: "my-client"})
 		require.NotNil(t, oerr)
 		assert.Equal(t, "invalid_client", oerr.Code)
 	})

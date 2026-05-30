@@ -7,6 +7,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/platform/middleware"
+	"github.com/maintainerd/auth/internal/platform/pagination"
 	"github.com/maintainerd/auth/internal/platform/ptr"
 	resp "github.com/maintainerd/auth/internal/platform/response"
 	"github.com/maintainerd/auth/internal/shared"
@@ -60,7 +61,7 @@ func (h *SignupFlowHandler) GetAll(w http.ResponseWriter, r *http.Request) {
 		Identifier:           ptr.PtrOrNil(q.Get("identifier")),
 		Status:               status,
 		ClientUUID:           ptr.PtrOrNil(q.Get("client_id")),
-		PaginationRequestDTO: parsePaginationQuery(r),
+		PaginationRequestDTO: pagination.ParseQuery(r),
 	}
 
 	// Validate filter parameters
@@ -413,7 +414,7 @@ func (h *SignupFlowHandler) GetRoles(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Build pagination DTO for validation
-	reqParams := parsePaginationQuery(r)
+	reqParams := pagination.ParseQuery(r)
 
 	if err := reqParams.Validate(); err != nil {
 		resp.ValidationError(w, err)

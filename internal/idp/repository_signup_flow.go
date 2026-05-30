@@ -2,9 +2,12 @@ package idp
 
 import (
 	"errors"
-	"github.com/google/uuid"
-	"gorm.io/gorm"
+
 	"strings"
+
+	"github.com/google/uuid"
+	"github.com/maintainerd/auth/internal/platform/database"
+	"gorm.io/gorm"
 )
 
 type SignupFlowRepositoryGetFilter struct {
@@ -34,7 +37,7 @@ type signupFlowRepository struct {
 
 func NewSignupFlowRepository(db *gorm.DB) SignupFlowRepository {
 	return &signupFlowRepository{
-		BaseRepository: NewBaseRepository[SignupFlow](db, "signup_flow_uuid", "signup_flow_id"),
+		BaseRepository: database.NewBaseRepository[SignupFlow](db, "signup_flow_uuid", "signup_flow_id"),
 	}
 }
 
@@ -45,9 +48,6 @@ func (r *signupFlowRepository) WithTx(tx *gorm.DB) SignupFlowRepository {
 }
 
 func (r *signupFlowRepository) FindPaginated(filter SignupFlowRepositoryGetFilter) (*PaginationResult[SignupFlow], error) {
-	var signupFlows []SignupFlow
-	var total int64
-
 	query := r.DB().Model(&SignupFlow{})
 
 	// Apply filters
@@ -67,36 +67,10 @@ func (r *signupFlowRepository) FindPaginated(filter SignupFlowRepositoryGetFilte
 		query = query.Where("client_id = ?", *filter.ClientID)
 	}
 
-	// Count total before pagination
-	if err := query.Count(&total).Error; err != nil {
-		return nil, err
-	}
-
 	// Apply sorting — protected against SQL injection via allowlist
-	query = query.Order(sanitizeOrder(filter.SortBy, filter.SortOrder, "created_at DESC"))
+	query = query.Order(database.SanitizeOrder(filter.SortBy, filter.SortOrder, "created_at DESC")).Preload("Client")
 
-	// Apply pagination
-	offset := (filter.Page - 1) * filter.Limit
-	query = query.Offset(offset).Limit(filter.Limit)
-
-	// Execute query with preloads
-	if err := query.Preload("Client").Find(&signupFlows).Error; err != nil {
-		return nil, err
-	}
-
-	// Calculate total pages
-	totalPages := int(total) / filter.Limit
-	if int(total)%filter.Limit > 0 {
-		totalPages++
-	}
-
-	return &PaginationResult[SignupFlow]{
-		Data:       signupFlows,
-		Total:      total,
-		Page:       filter.Page,
-		Limit:      filter.Limit,
-		TotalPages: totalPages,
-	}, nil
+	return database.PaginateQuery[SignupFlow](query, filter.Page, filter.Limit)
 }
 
 func (r *signupFlowRepository) FindByIdentifierAndClientID(identifier string, clientID int64) (*SignupFlow, error) {

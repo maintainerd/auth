@@ -3,6 +3,7 @@ package notifier
 import (
 	"errors"
 
+	"github.com/maintainerd/auth/internal/platform/database"
 	"gorm.io/gorm"
 )
 
@@ -22,7 +23,7 @@ type emailConfigRepository struct {
 // given database connection.
 func NewEmailConfigRepository(db *gorm.DB) EmailConfigRepository {
 	return &emailConfigRepository{
-		BaseRepository: NewBaseRepository[EmailConfig](db, "email_config_uuid", "email_config_id"),
+		BaseRepository: database.NewBaseRepository[EmailConfig](db, "email_config_uuid", "email_config_id"),
 	}
 }
 

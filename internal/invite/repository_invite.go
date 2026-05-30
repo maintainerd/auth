@@ -4,6 +4,7 @@ import (
 	"errors"
 
 	"github.com/google/uuid"
+	"github.com/maintainerd/auth/internal/platform/database"
 	"github.com/maintainerd/auth/internal/shared"
 	"gorm.io/gorm"
 )
@@ -25,7 +26,7 @@ type inviteRepository struct {
 
 func NewInviteRepository(db *gorm.DB) InviteRepository {
 	return &inviteRepository{
-		BaseRepository: NewBaseRepository[Invite](db, "invite_uuid", "invite_id"),
+		BaseRepository: database.NewBaseRepository[Invite](db, "invite_uuid", "invite_id"),
 	}
 }
 

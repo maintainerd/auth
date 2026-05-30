@@ -1040,16 +1040,7 @@ func (s *clientService) GetClientAPIs(ctx context.Context, tenantID int64, Clien
 		permissions := make([]PermissionServiceDataResult, len(ClientAPI.Permissions))
 		for j, ClientPermission := range ClientAPI.Permissions {
 			if ClientPermission.Permission != nil {
-				permissions[j] = PermissionServiceDataResult{
-					PermissionUUID: ClientPermission.Permission.PermissionUUID,
-					Name:           ClientPermission.Permission.Name,
-					Description:    ClientPermission.Permission.Description,
-					Status:         ClientPermission.Permission.Status,
-					IsDefault:      ClientPermission.Permission.IsDefault,
-					IsSystem:       ClientPermission.Permission.IsSystem,
-					CreatedAt:      ClientPermission.Permission.CreatedAt,
-					UpdatedAt:      ClientPermission.Permission.UpdatedAt,
-				}
+				permissions[j] = toPermissionServiceDataResult(ClientPermission.Permission)
 			}
 		}
 
@@ -1235,16 +1226,7 @@ func (s *clientService) GetClientAPIPermissions(ctx context.Context, tenantID in
 	// Convert to service data results
 	results := make([]PermissionServiceDataResult, len(ClientPermissions))
 	for i, ClientPermission := range ClientPermissions {
-		results[i] = PermissionServiceDataResult{
-			PermissionUUID: ClientPermission.Permission.PermissionUUID,
-			Name:           ClientPermission.Permission.Name,
-			Description:    ClientPermission.Permission.Description,
-			Status:         ClientPermission.Permission.Status,
-			IsDefault:      ClientPermission.Permission.IsDefault,
-			IsSystem:       ClientPermission.Permission.IsSystem,
-			CreatedAt:      ClientPermission.Permission.CreatedAt,
-			UpdatedAt:      ClientPermission.Permission.UpdatedAt,
-		}
+		results[i] = toPermissionServiceDataResult(ClientPermission.Permission)
 	}
 
 	span.SetStatus(codes.Ok, "")

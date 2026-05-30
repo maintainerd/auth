@@ -2,7 +2,9 @@ package client
 
 import (
 	"errors"
+
 	"github.com/google/uuid"
+	"github.com/maintainerd/auth/internal/platform/database"
 	"gorm.io/gorm"
 )
 
@@ -23,7 +25,7 @@ type apiKeyAPIRepository struct {
 
 func NewAPIKeyAPIRepository(db *gorm.DB) APIKeyAPIRepository {
 	return &apiKeyAPIRepository{
-		BaseRepository: NewBaseRepository[APIKeyAPI](db, "api_key_api_uuid", "api_key_api_id"),
+		BaseRepository: database.NewBaseRepository[APIKeyAPI](db, "api_key_api_uuid", "api_key_api_id"),
 	}
 }
 
@@ -60,44 +62,14 @@ func (r *apiKeyAPIRepository) FindByAPIKeyUUID(apiKeyUUID uuid.UUID) ([]APIKeyAP
 }
 
 func (r *apiKeyAPIRepository) FindByAPIKeyUUIDPaginated(apiKeyUUID uuid.UUID, page, limit int, sortBy, sortOrder string) (*PaginationResult[APIKeyAPI], error) {
-	var apiKeyAPIs []APIKeyAPI
-	var total int64
-
-	// Base query
 	query := r.DB().Joins("JOIN api_keys ON api_keys.api_key_id = api_key_apis.api_key_id").
 		Where("api_keys.api_key_uuid = ?", apiKeyUUID).
 		Preload("API").
-		Preload("Permissions.Permission")
+		Preload("Permissions.Permission").
+		Model(&APIKeyAPI{}).
+		Order(database.SanitizeOrderPrefixed("api_key_apis", sortBy, sortOrder, "created_at"))
 
-	// Count total records
-	if err := query.Model(&APIKeyAPI{}).Count(&total).Error; err != nil {
-		return nil, err
-	}
-
-	query = query.Order(sanitizeOrderPrefixed("api_key_apis", sortBy, sortOrder, "created_at"))
-
-	// Pagination guards prevent division-by-zero and negative offsets
-	if page < 1 {
-		page = 1
-	}
-	if limit < 1 {
-		limit = 10
-	}
-	offset := (page - 1) * limit
-	if err := query.Limit(limit).Offset(offset).Find(&apiKeyAPIs).Error; err != nil {
-		return nil, err
-	}
-
-	// Calculate total pages
-	totalPages := int((total + int64(limit) - 1) / int64(limit))
-
-	return &PaginationResult[APIKeyAPI]{
-		Data:       apiKeyAPIs,
-		Total:      total,
-		Page:       page,
-		Limit:      limit,
-		TotalPages: totalPages,
-	}, nil
+	return database.PaginateQuery[APIKeyAPI](query, page, limit)
 }
 
 func (r *apiKeyAPIRepository) FindByAPIKeyUUIDAndAPIUUID(apiKeyUUID uuid.UUID, apiUUID uuid.UUID) (*APIKeyAPI, error) {

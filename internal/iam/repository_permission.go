@@ -2,7 +2,9 @@ package iam
 
 import (
 	"errors"
+
 	"github.com/google/uuid"
+	"github.com/maintainerd/auth/internal/platform/database"
 	"gorm.io/gorm"
 )
 
@@ -36,7 +38,7 @@ type permissionRepository struct {
 
 func NewPermissionRepository(db *gorm.DB) PermissionRepository {
 	return &permissionRepository{
-		BaseRepository: NewBaseRepository[Permission](db, "permission_uuid", "permission_id"),
+		BaseRepository: database.NewBaseRepository[Permission](db, "permission_uuid", "permission_id"),
 	}
 }
 
@@ -111,36 +113,9 @@ func (r *permissionRepository) FindPaginated(filter PermissionRepositoryGetFilte
 	}
 
 	// Sorting — protected against SQL injection via allowlist
-	query = query.Order(sanitizeOrder(filter.SortBy, filter.SortOrder, "created_at DESC"))
+	query = query.Order(database.SanitizeOrder(filter.SortBy, filter.SortOrder, "created_at DESC")).Preload("API")
 
-	// Count
-	var total int64
-	if err := query.Count(&total).Error; err != nil {
-		return nil, err
-	}
-
-	// Pagination guards prevent division-by-zero and negative offsets
-	if filter.Page < 1 {
-		filter.Page = 1
-	}
-	if filter.Limit < 1 {
-		filter.Limit = 10
-	}
-	offset := (filter.Page - 1) * filter.Limit
-	var permissions []Permission
-	if err := query.Preload("API").Limit(filter.Limit).Offset(offset).Find(&permissions).Error; err != nil {
-		return nil, err
-	}
-
-	totalPages := int((total + int64(filter.Limit) - 1) / int64(filter.Limit))
-
-	return &PaginationResult[Permission]{
-		Data:       permissions,
-		Total:      total,
-		Page:       filter.Page,
-		Limit:      filter.Limit,
-		TotalPages: totalPages,
-	}, nil
+	return database.PaginateQuery[Permission](query, filter.Page, filter.Limit)
 }
 
 func (r *permissionRepository) DeleteByUUIDAndTenantID(permissionUUID uuid.UUID, tenantID int64) error {

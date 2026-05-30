@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/maintainerd/auth/internal/platform/database"
 	"gorm.io/gorm"
 )
 
@@ -25,7 +26,7 @@ type oauthConsentChallengeRepository struct {
 // NewOAuthConsentChallengeRepository creates a new OAuthConsentChallengeRepository.
 func NewOAuthConsentChallengeRepository(db *gorm.DB) OAuthConsentChallengeRepository {
 	return &oauthConsentChallengeRepository{
-		BaseRepository: NewBaseRepository[OAuthConsentChallenge](db, "oauth_consent_challenge_uuid", "oauth_consent_challenge_id"),
+		BaseRepository: database.NewBaseRepository[OAuthConsentChallenge](db, "oauth_consent_challenge_uuid", "oauth_consent_challenge_id"),
 	}
 }
 

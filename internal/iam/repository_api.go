@@ -4,6 +4,7 @@ import (
 	"errors"
 
 	"github.com/google/uuid"
+	"github.com/maintainerd/auth/internal/platform/database"
 	"gorm.io/gorm"
 )
 
@@ -40,7 +41,7 @@ type apiRepository struct {
 
 func NewAPIRepository(db *gorm.DB) APIRepository {
 	return &apiRepository{
-		BaseRepository: NewBaseRepository[API](db, "api_uuid", "api_id"),
+		BaseRepository: database.NewBaseRepository[API](db, "api_uuid", "api_id"),
 	}
 }
 
@@ -124,36 +125,9 @@ func (r *apiRepository) FindPaginated(filter APIRepositoryGetFilter) (*Paginatio
 	}
 
 	// Sorting — protected against SQL injection via allowlist
-	query = query.Order(sanitizeOrder(filter.SortBy, filter.SortOrder, "created_at DESC"))
+	query = query.Order(database.SanitizeOrder(filter.SortBy, filter.SortOrder, "created_at DESC")).Preload("Service")
 
-	// Count
-	var total int64
-	if err := query.Count(&total).Error; err != nil {
-		return nil, err
-	}
-
-	// Pagination guards prevent division-by-zero and negative offsets
-	if filter.Page < 1 {
-		filter.Page = 1
-	}
-	if filter.Limit < 1 {
-		filter.Limit = 10
-	}
-	offset := (filter.Page - 1) * filter.Limit
-	var apis []API
-	if err := query.Preload("Service").Limit(filter.Limit).Offset(offset).Find(&apis).Error; err != nil {
-		return nil, err
-	}
-
-	totalPages := int((total + int64(filter.Limit) - 1) / int64(filter.Limit))
-
-	return &PaginationResult[API]{
-		Data:       apis,
-		Total:      total,
-		Page:       filter.Page,
-		Limit:      filter.Limit,
-		TotalPages: totalPages,
-	}, nil
+	return database.PaginateQuery[API](query, filter.Page, filter.Limit)
 }
 
 func (r *apiRepository) SetStatusByUUID(apiUUID uuid.UUID, tenantID int64, status string) error {

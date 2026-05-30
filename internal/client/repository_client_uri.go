@@ -2,6 +2,8 @@ package client
 
 import (
 	"errors"
+
+	"github.com/maintainerd/auth/internal/platform/database"
 	"gorm.io/gorm"
 )
 
@@ -20,7 +22,7 @@ type clientURIRepository struct {
 
 func NewClientURIRepository(db *gorm.DB) ClientURIRepository {
 	return &clientURIRepository{
-		BaseRepository: NewBaseRepository[ClientURI](db, "client_uri_uuid", "client_uri_id"),
+		BaseRepository: database.NewBaseRepository[ClientURI](db, "client_uri_uuid", "client_uri_id"),
 	}
 }
 

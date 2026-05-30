@@ -8,6 +8,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/platform/middleware"
+	"github.com/maintainerd/auth/internal/platform/pagination"
 	"github.com/maintainerd/auth/internal/platform/ptr"
 	resp "github.com/maintainerd/auth/internal/platform/response"
 	"github.com/maintainerd/auth/internal/shared"
@@ -69,7 +70,7 @@ func (h *RoleHandler) Get(w http.ResponseWriter, r *http.Request) {
 		IsDefault:            isDefault,
 		IsSystem:             isSystem,
 		Status:               status,
-		PaginationRequestDTO: parsePaginationQuery(r),
+		PaginationRequestDTO: pagination.ParseQuery(r),
 	}
 
 	// Validate filter parameters
@@ -349,7 +350,7 @@ func (h *RoleHandler) GetPermissions(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Build pagination DTO
-	reqParams := parsePaginationQuery(r)
+	reqParams := pagination.ParseQuery(r)
 
 	// Validate pagination parameters
 	if err := reqParams.Validate(); err != nil {

@@ -2,7 +2,9 @@ package iam
 
 import (
 	"errors"
+
 	"github.com/google/uuid"
+	"github.com/maintainerd/auth/internal/platform/database"
 	"github.com/maintainerd/auth/internal/shared"
 	"gorm.io/gorm"
 )
@@ -49,7 +51,7 @@ type roleRepository struct {
 
 func NewRoleRepository(db *gorm.DB) RoleRepository {
 	return &roleRepository{
-		BaseRepository: NewBaseRepository[Role](db, "role_uuid", "role_id"),
+		BaseRepository: database.NewBaseRepository[Role](db, "role_uuid", "role_id"),
 	}
 }
 
@@ -111,31 +113,9 @@ func (r *roleRepository) FindPaginated(filter RoleRepositoryGetFilter) (*Paginat
 	}
 
 	// Sorting — protected against SQL injection via allowlist
-	query = query.Order(sanitizeOrder(filter.SortBy, filter.SortOrder, "created_at DESC"))
+	query = query.Order(database.SanitizeOrder(filter.SortBy, filter.SortOrder, "created_at DESC"))
 
-	// Count
-	var total int64
-	if err := query.Count(&total).Error; err != nil {
-		return nil, err
-	}
-
-	// Pagination
-	filter.Page, filter.Limit = normalizePagination(filter.Page, filter.Limit)
-	offset := (filter.Page - 1) * filter.Limit
-	var roles []Role
-	if err := query.Limit(filter.Limit).Offset(offset).Find(&roles).Error; err != nil {
-		return nil, err
-	}
-
-	totalPages := int((total + int64(filter.Limit) - 1) / int64(filter.Limit))
-
-	return &PaginationResult[Role]{
-		Data:       roles,
-		Total:      total,
-		Page:       filter.Page,
-		Limit:      filter.Limit,
-		TotalPages: totalPages,
-	}, nil
+	return database.PaginateQuery[Role](query, filter.Page, filter.Limit)
 }
 
 func (r *roleRepository) SetStatusByUUID(roleUUID uuid.UUID, status string) error {
@@ -195,29 +175,7 @@ func (r *roleRepository) GetPermissionsByRoleUUID(filter RoleRepositoryGetPermis
 	}
 
 	// Sorting — protected against SQL injection via allowlist
-	query = query.Order(sanitizeOrderPrefixed("permissions.", filter.SortBy, filter.SortOrder, "permissions.created_at DESC"))
+	query = query.Order(database.SanitizeOrderPrefixed("permissions.", filter.SortBy, filter.SortOrder, "permissions.created_at DESC")).Preload("API")
 
-	// Count
-	var total int64
-	if err := query.Count(&total).Error; err != nil {
-		return nil, err
-	}
-
-	// Pagination
-	filter.Page, filter.Limit = normalizePagination(filter.Page, filter.Limit)
-	offset := (filter.Page - 1) * filter.Limit
-	var permissions []Permission
-	if err := query.Preload("API").Limit(filter.Limit).Offset(offset).Find(&permissions).Error; err != nil {
-		return nil, err
-	}
-
-	totalPages := int((total + int64(filter.Limit) - 1) / int64(filter.Limit))
-
-	return &PaginationResult[Permission]{
-		Data:       permissions,
-		Total:      total,
-		Page:       filter.Page,
-		Limit:      filter.Limit,
-		TotalPages: totalPages,
-	}, nil
+	return database.PaginateQuery[Permission](query, filter.Page, filter.Limit)
 }
