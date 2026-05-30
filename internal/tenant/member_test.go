@@ -121,7 +121,7 @@ func TestTenantMemberService_DeleteByUUID(t *testing.T) {
 		svc := NewTenantMemberService(db, &mockTenantMemberRepo{
 			findByTenantMemberUUIDFn: func(_ uuid.UUID) (*TenantMember, error) { return nil, nil },
 		}, &mockUserRepo{}, &mockTenantRepo{})
-		err := svc.DeleteByUUID(context.Background(), id)
+		err := svc.DeleteByUUID(context.Background(), 1, id)
 		require.Error(t, err)
 	})
 
@@ -131,10 +131,10 @@ func TestTenantMemberService_DeleteByUUID(t *testing.T) {
 		mock.ExpectCommit()
 		svc := NewTenantMemberService(db, &mockTenantMemberRepo{
 			findByTenantMemberUUIDFn: func(i uuid.UUID) (*TenantMember, error) {
-				return &TenantMember{TenantMemberUUID: i}, nil
+				return &TenantMember{TenantMemberUUID: i, TenantID: 1}, nil
 			},
 		}, &mockUserRepo{}, &mockTenantRepo{})
-		err := svc.DeleteByUUID(context.Background(), id)
+		err := svc.DeleteByUUID(context.Background(), 1, id)
 		require.NoError(t, err)
 	})
 }
@@ -283,11 +283,11 @@ func TestTenantMemberService_ListByTenant(t *testing.T) {
 	t.Run("repo error", func(t *testing.T) {
 		db, _ := newMockGormDB(t)
 		svc := NewTenantMemberService(db, &mockTenantMemberRepo{
-			findAllByTenantFn: func(_ int64) ([]TenantMember, error) {
+			findByTenantFn: func(_ TenantMemberRepositoryListFilter) (*PaginationResult[TenantMember], error) {
 				return nil, errors.New("db error")
 			},
 		}, &mockUserRepo{}, &mockTenantRepo{})
-		_, err := svc.ListByTenant(context.Background(), 1)
+		_, err := svc.ListByTenant(context.Background(), TenantMemberServiceListFilter{TenantID: 1, Page: 1, Limit: 10})
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "db error")
 	})
@@ -296,9 +296,12 @@ func TestTenantMemberService_ListByTenant(t *testing.T) {
 		db, _ := newMockGormDB(t)
 		mid := uuid.New()
 		svc := NewTenantMemberService(db, &mockTenantMemberRepo{
-			findAllByTenantFn: func(_ int64) ([]TenantMember, error) {
-				return []TenantMember{
-					{TenantMemberUUID: mid, TenantID: 1, UserID: 42, Role: "admin"},
+			findByTenantFn: func(_ TenantMemberRepositoryListFilter) (*PaginationResult[TenantMember], error) {
+				return &PaginationResult[TenantMember]{
+					Data:  []TenantMember{{TenantMemberUUID: mid, TenantID: 1, UserID: 42, Role: "owner"}},
+					Total: 1,
+					Page:  1,
+					Limit: 10,
 				}, nil
 			},
 		}, &mockUserRepo{
@@ -306,20 +309,23 @@ func TestTenantMemberService_ListByTenant(t *testing.T) {
 				return &MemberUser{UserID: 42, UserUUID: uuid.New(), Email: "a@b.com"}, nil
 			},
 		}, &mockTenantRepo{})
-		res, err := svc.ListByTenant(context.Background(), 1)
+		res, err := svc.ListByTenant(context.Background(), TenantMemberServiceListFilter{TenantID: 1, Page: 1, Limit: 10})
 		require.NoError(t, err)
-		require.Len(t, res, 1)
-		assert.Equal(t, "admin", res[0].Role)
-		require.NotNil(t, res[0].User)
-		assert.Equal(t, "a@b.com", res[0].User.Email)
+		require.Len(t, res.Data, 1)
+		assert.Equal(t, "owner", res.Data[0].Role)
+		require.NotNil(t, res.Data[0].User)
+		assert.Equal(t, "a@b.com", res.Data[0].User.Email)
 	})
 
 	t.Run("success user lookup fails gracefully", func(t *testing.T) {
 		db, _ := newMockGormDB(t)
 		svc := NewTenantMemberService(db, &mockTenantMemberRepo{
-			findAllByTenantFn: func(_ int64) ([]TenantMember, error) {
-				return []TenantMember{
-					{TenantMemberUUID: uuid.New(), TenantID: 1, UserID: 42, Role: "member"},
+			findByTenantFn: func(_ TenantMemberRepositoryListFilter) (*PaginationResult[TenantMember], error) {
+				return &PaginationResult[TenantMember]{
+					Data:  []TenantMember{{TenantMemberUUID: uuid.New(), TenantID: 1, UserID: 42, Role: "member"}},
+					Total: 1,
+					Page:  1,
+					Limit: 10,
 				}, nil
 			},
 		}, &mockUserRepo{
@@ -327,22 +333,22 @@ func TestTenantMemberService_ListByTenant(t *testing.T) {
 				return nil, errors.New("user not found")
 			},
 		}, &mockTenantRepo{})
-		res, err := svc.ListByTenant(context.Background(), 1)
+		res, err := svc.ListByTenant(context.Background(), TenantMemberServiceListFilter{TenantID: 1, Page: 1, Limit: 10})
 		require.NoError(t, err)
-		require.Len(t, res, 1)
-		assert.Nil(t, res[0].User)
+		require.Len(t, res.Data, 1)
+		assert.Nil(t, res.Data[0].User)
 	})
 
 	t.Run("empty list", func(t *testing.T) {
 		db, _ := newMockGormDB(t)
 		svc := NewTenantMemberService(db, &mockTenantMemberRepo{
-			findAllByTenantFn: func(_ int64) ([]TenantMember, error) {
-				return []TenantMember{}, nil
+			findByTenantFn: func(_ TenantMemberRepositoryListFilter) (*PaginationResult[TenantMember], error) {
+				return &PaginationResult[TenantMember]{Data: []TenantMember{}, Page: 1, Limit: 10}, nil
 			},
 		}, &mockUserRepo{}, &mockTenantRepo{})
-		res, err := svc.ListByTenant(context.Background(), 1)
+		res, err := svc.ListByTenant(context.Background(), TenantMemberServiceListFilter{TenantID: 1, Page: 1, Limit: 10})
 		require.NoError(t, err)
-		assert.Empty(t, res)
+		assert.Empty(t, res.Data)
 	})
 }
 
@@ -408,7 +414,7 @@ func TestTenantMemberService_UpdateRole(t *testing.T) {
 		svc := NewTenantMemberService(db, &mockTenantMemberRepo{
 			findByTenantMemberUUIDFn: func(_ uuid.UUID) (*TenantMember, error) { return nil, nil },
 		}, &mockUserRepo{}, &mockTenantRepo{})
-		_, err := svc.UpdateRole(context.Background(), tmUUID, "admin")
+		_, err := svc.UpdateRole(context.Background(), 1, tmUUID, "owner")
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "not found")
 	})
@@ -422,7 +428,7 @@ func TestTenantMemberService_UpdateRole(t *testing.T) {
 				return nil, errors.New("find error")
 			},
 		}, &mockUserRepo{}, &mockTenantRepo{})
-		_, err := svc.UpdateRole(context.Background(), tmUUID, "admin")
+		_, err := svc.UpdateRole(context.Background(), 1, tmUUID, "owner")
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "find error")
 	})
@@ -433,13 +439,13 @@ func TestTenantMemberService_UpdateRole(t *testing.T) {
 		mock.ExpectRollback()
 		svc := NewTenantMemberService(db, &mockTenantMemberRepo{
 			findByTenantMemberUUIDFn: func(id uuid.UUID) (*TenantMember, error) {
-				return &TenantMember{TenantMemberUUID: id, UserID: 5, Role: "member"}, nil
+				return &TenantMember{TenantMemberUUID: id, TenantID: 1, UserID: 5, Role: "member"}, nil
 			},
 			createOrUpdateFn: func(_ *TenantMember) (*TenantMember, error) {
 				return nil, errors.New("update error")
 			},
 		}, &mockUserRepo{}, &mockTenantRepo{})
-		_, err := svc.UpdateRole(context.Background(), tmUUID, "admin")
+		_, err := svc.UpdateRole(context.Background(), 1, tmUUID, "owner")
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "update error")
 	})
@@ -450,16 +456,16 @@ func TestTenantMemberService_UpdateRole(t *testing.T) {
 		mock.ExpectCommit()
 		svc := NewTenantMemberService(db, &mockTenantMemberRepo{
 			findByTenantMemberUUIDFn: func(id uuid.UUID) (*TenantMember, error) {
-				return &TenantMember{TenantMemberUUID: id, UserID: 5, Role: "member"}, nil
+				return &TenantMember{TenantMemberUUID: id, TenantID: 1, UserID: 5, Role: "member"}, nil
 			},
 		}, &mockUserRepo{
 			findByIDFn: func(_ int64) (*MemberUser, error) {
 				return &MemberUser{UserID: 5, Email: "test@test.com"}, nil
 			},
 		}, &mockTenantRepo{})
-		res, err := svc.UpdateRole(context.Background(), tmUUID, "admin")
+		res, err := svc.UpdateRole(context.Background(), 1, tmUUID, "owner")
 		require.NoError(t, err)
-		assert.Equal(t, "admin", res.Role)
+		assert.Equal(t, "owner", res.Role)
 		require.NotNil(t, res.User)
 		assert.Equal(t, "test@test.com", res.User.Email)
 	})
@@ -470,16 +476,16 @@ func TestTenantMemberService_UpdateRole(t *testing.T) {
 		mock.ExpectCommit()
 		svc := NewTenantMemberService(db, &mockTenantMemberRepo{
 			findByTenantMemberUUIDFn: func(id uuid.UUID) (*TenantMember, error) {
-				return &TenantMember{TenantMemberUUID: id, UserID: 5, Role: "member"}, nil
+				return &TenantMember{TenantMemberUUID: id, TenantID: 1, UserID: 5, Role: "member"}, nil
 			},
 		}, &mockUserRepo{
 			findByIDFn: func(_ int64) (*MemberUser, error) {
 				return nil, errors.New("user gone")
 			},
 		}, &mockTenantRepo{})
-		res, err := svc.UpdateRole(context.Background(), tmUUID, "admin")
+		res, err := svc.UpdateRole(context.Background(), 1, tmUUID, "owner")
 		require.NoError(t, err)
-		assert.Equal(t, "admin", res.Role)
+		assert.Equal(t, "owner", res.Role)
 		assert.Nil(t, res.User)
 	})
 }
@@ -500,7 +506,7 @@ func TestTenantMemberService_DeleteByUUID_Extra(t *testing.T) {
 				return nil, errors.New("find error")
 			},
 		}, &mockUserRepo{}, &mockTenantRepo{})
-		err := svc.DeleteByUUID(context.Background(), id)
+		err := svc.DeleteByUUID(context.Background(), 1, id)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "find error")
 	})
@@ -511,11 +517,11 @@ func TestTenantMemberService_DeleteByUUID_Extra(t *testing.T) {
 		mock.ExpectRollback()
 		svc := NewTenantMemberService(db, &mockTenantMemberRepo{
 			findByTenantMemberUUIDFn: func(i uuid.UUID) (*TenantMember, error) {
-				return &TenantMember{TenantMemberUUID: i}, nil
+				return &TenantMember{TenantMemberUUID: i, TenantID: 1}, nil
 			},
 			deleteByUUIDFn: func(_ any) error { return errors.New("delete failed") },
 		}, &mockUserRepo{}, &mockTenantRepo{})
-		err := svc.DeleteByUUID(context.Background(), id)
+		err := svc.DeleteByUUID(context.Background(), 1, id)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "delete failed")
 	})

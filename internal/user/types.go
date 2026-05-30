@@ -7,6 +7,7 @@ import (
 	validation "github.com/go-ozzo/ozzo-validation/v4"
 	"github.com/go-ozzo/ozzo-validation/v4/is"
 	"github.com/google/uuid"
+	"github.com/maintainerd/auth/internal/platform/jsonutil"
 	"github.com/maintainerd/auth/internal/platform/security"
 	"github.com/maintainerd/auth/internal/shared"
 	"gorm.io/datatypes"
@@ -301,25 +302,12 @@ func NewProfileResponseDTO(p *Profile) *ProfileResponseDTO {
 		IsDefault: p.IsDefault,
 
 		// Extended data
-		Metadata: convertJSONBToMap(p.Metadata),
+		Metadata: jsonutil.JSONToMap(p.Metadata),
 
 		// System Fields
 		CreatedAt: p.CreatedAt,
 		UpdatedAt: p.UpdatedAt,
 	}
-}
-
-// Helper function to convert JSONB to map
-func convertJSONBToMap(jsonb datatypes.JSON) map[string]any {
-	if len(jsonb) == 0 {
-		return make(map[string]any)
-	}
-
-	var result map[string]any
-	if err := json.Unmarshal(jsonb, &result); err != nil {
-		return make(map[string]any)
-	}
-	return result
 }
 
 // ProfileFilterDTO for filtering and paginating profiles

@@ -21,7 +21,6 @@ import (
 // is only passed between the three init functions below.
 type repos struct {
 	serviceRepo               iam.ServiceRepository
-	tenantServiceRepo         tenant.TenantServiceRepository
 	apiRepo                   iam.APIRepository
 	permissionRepo            iam.PermissionRepository
 	tenantRepo                tenant.TenantRepository
@@ -77,7 +76,6 @@ type repos struct {
 func initRepos(db *gorm.DB) *repos {
 	return &repos{
 		serviceRepo:               iam.NewServiceRepository(db),
-		tenantServiceRepo:         tenant.NewTenantServiceRepository(db),
 		apiRepo:                   iam.NewAPIRepository(db),
 		permissionRepo:            iam.NewPermissionRepository(db),
 		tenantRepo:                tenant.NewTenantRepository(db),

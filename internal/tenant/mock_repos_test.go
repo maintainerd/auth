@@ -97,7 +97,7 @@ func (m *mockTenantRepo) DeleteByUUID(id any) error {
 type mockTenantMemberRepo struct {
 	findByTenantMemberUUIDFn func(uuid.UUID) (*TenantMember, error)
 	findByTenantAndUserFn    func(tenantID int64, userID int64) (*TenantMember, error)
-	findAllByTenantFn        func(tenantID int64) ([]TenantMember, error)
+	findByTenantFn           func(TenantMemberRepositoryListFilter) (*PaginationResult[TenantMember], error)
 	findAllByUserFn          func(userID int64) ([]TenantMember, error)
 	createFn                 func(*TenantMember) (*TenantMember, error)
 	createOrUpdateFn         func(*TenantMember) (*TenantMember, error)
@@ -146,11 +146,11 @@ func (m *mockTenantMemberRepo) FindByTenantAndUser(tID, uID int64) (*TenantMembe
 	}
 	return nil, nil
 }
-func (m *mockTenantMemberRepo) FindAllByTenant(tID int64) ([]TenantMember, error) {
-	if m.findAllByTenantFn != nil {
-		return m.findAllByTenantFn(tID)
+func (m *mockTenantMemberRepo) FindByTenant(filter TenantMemberRepositoryListFilter) (*PaginationResult[TenantMember], error) {
+	if m.findByTenantFn != nil {
+		return m.findByTenantFn(filter)
 	}
-	return nil, nil
+	return &PaginationResult[TenantMember]{}, nil
 }
 func (m *mockTenantMemberRepo) Create(e *TenantMember) (*TenantMember, error) {
 	if m.createFn != nil {
