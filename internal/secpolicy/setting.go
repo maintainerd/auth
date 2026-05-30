@@ -7,6 +7,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/platform/apperror"
+	"github.com/maintainerd/auth/internal/platform/jsonutil"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -71,32 +72,19 @@ func toSecuritySettingServiceDataResult(ss *SecuritySetting) *SecuritySettingSer
 	return &SecuritySettingServiceDataResult{
 		SecuritySettingUUID: ss.SecuritySettingUUID,
 		UserPoolID:          ss.UserPoolID,
-		MFAConfig:           unmarshalJSON(ss.MFAConfig),
-		PasswordConfig:      unmarshalJSON(ss.PasswordConfig),
-		SessionConfig:       unmarshalJSON(ss.SessionConfig),
-		ThreatConfig:        unmarshalJSON(ss.ThreatConfig),
-		LockoutConfig:       unmarshalJSON(ss.LockoutConfig),
-		RegistrationConfig:  unmarshalJSON(ss.RegistrationConfig),
-		TokenConfig:         unmarshalJSON(ss.TokenConfig),
+		MFAConfig:           jsonutil.JSONToMap(ss.MFAConfig),
+		PasswordConfig:      jsonutil.JSONToMap(ss.PasswordConfig),
+		SessionConfig:       jsonutil.JSONToMap(ss.SessionConfig),
+		ThreatConfig:        jsonutil.JSONToMap(ss.ThreatConfig),
+		LockoutConfig:       jsonutil.JSONToMap(ss.LockoutConfig),
+		RegistrationConfig:  jsonutil.JSONToMap(ss.RegistrationConfig),
+		TokenConfig:         jsonutil.JSONToMap(ss.TokenConfig),
 		Version:             ss.Version,
 		CreatedBy:           ss.CreatedBy,
 		UpdatedBy:           ss.UpdatedBy,
 		CreatedAt:           ss.CreatedAt,
 		UpdatedAt:           ss.UpdatedAt,
 	}
-}
-
-func unmarshalJSON(data datatypes.JSON) map[string]any {
-	var result map[string]any
-	if len(data) > 0 {
-		if err := json.Unmarshal(data, &result); err != nil {
-			result = nil // fall through to empty-map default below
-		}
-	}
-	if result == nil {
-		result = make(map[string]any)
-	}
-	return result
 }
 
 func (s *securitySettingService) GetByUserPoolID(ctx context.Context, userPoolID int64) (*SecuritySettingServiceDataResult, error) {
@@ -130,7 +118,7 @@ func (s *securitySettingService) GetMFAConfig(ctx context.Context, userPoolID in
 		return nil, err
 	}
 	span.SetStatus(codes.Ok, "")
-	return unmarshalJSON(setting.MFAConfig), nil
+	return jsonutil.JSONToMap(setting.MFAConfig), nil
 }
 
 func (s *securitySettingService) GetPasswordConfig(ctx context.Context, userPoolID int64) (map[string]any, error) {
@@ -145,7 +133,7 @@ func (s *securitySettingService) GetPasswordConfig(ctx context.Context, userPool
 		return nil, err
 	}
 	span.SetStatus(codes.Ok, "")
-	return unmarshalJSON(setting.PasswordConfig), nil
+	return jsonutil.JSONToMap(setting.PasswordConfig), nil
 }
 
 func (s *securitySettingService) GetSessionConfig(ctx context.Context, userPoolID int64) (map[string]any, error) {
@@ -160,7 +148,7 @@ func (s *securitySettingService) GetSessionConfig(ctx context.Context, userPoolI
 		return nil, err
 	}
 	span.SetStatus(codes.Ok, "")
-	return unmarshalJSON(setting.SessionConfig), nil
+	return jsonutil.JSONToMap(setting.SessionConfig), nil
 }
 
 func (s *securitySettingService) GetThreatConfig(ctx context.Context, userPoolID int64) (map[string]any, error) {
@@ -175,7 +163,7 @@ func (s *securitySettingService) GetThreatConfig(ctx context.Context, userPoolID
 		return nil, err
 	}
 	span.SetStatus(codes.Ok, "")
-	return unmarshalJSON(setting.ThreatConfig), nil
+	return jsonutil.JSONToMap(setting.ThreatConfig), nil
 }
 
 func (s *securitySettingService) GetLockoutConfig(ctx context.Context, userPoolID int64) (map[string]any, error) {
@@ -190,7 +178,7 @@ func (s *securitySettingService) GetLockoutConfig(ctx context.Context, userPoolI
 		return nil, err
 	}
 	span.SetStatus(codes.Ok, "")
-	return unmarshalJSON(setting.LockoutConfig), nil
+	return jsonutil.JSONToMap(setting.LockoutConfig), nil
 }
 
 func (s *securitySettingService) GetRegistrationConfig(ctx context.Context, userPoolID int64) (map[string]any, error) {
@@ -205,7 +193,7 @@ func (s *securitySettingService) GetRegistrationConfig(ctx context.Context, user
 		return nil, err
 	}
 	span.SetStatus(codes.Ok, "")
-	return unmarshalJSON(setting.RegistrationConfig), nil
+	return jsonutil.JSONToMap(setting.RegistrationConfig), nil
 }
 
 func (s *securitySettingService) GetTokenConfig(ctx context.Context, userPoolID int64) (map[string]any, error) {
@@ -220,7 +208,7 @@ func (s *securitySettingService) GetTokenConfig(ctx context.Context, userPoolID 
 		return nil, err
 	}
 	span.SetStatus(codes.Ok, "")
-	return unmarshalJSON(setting.TokenConfig), nil
+	return jsonutil.JSONToMap(setting.TokenConfig), nil
 }
 
 func (s *securitySettingService) UpdateMFAConfig(ctx context.Context, userPoolID int64, config map[string]any, updatedBy int64, ipAddress, userAgent string) (*SecuritySettingServiceDataResult, error) {

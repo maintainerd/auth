@@ -7,6 +7,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/platform/apperror"
+	"github.com/maintainerd/auth/internal/platform/jsonutil"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -52,10 +53,10 @@ func NewTenantSettingService(tenantSettingRepo TenantSettingRepository) TenantSe
 func toTenantSettingServiceDataResult(ts *TenantSetting) *TenantSettingServiceDataResult {
 	return &TenantSettingServiceDataResult{
 		TenantSettingUUID: ts.TenantSettingUUID,
-		RateLimitConfig:   unmarshalJSON(ts.RateLimitConfig),
-		AuditConfig:       unmarshalJSON(ts.AuditConfig),
-		MaintenanceConfig: unmarshalJSON(ts.MaintenanceConfig),
-		FeatureFlags:      unmarshalJSON(ts.FeatureFlags),
+		RateLimitConfig:   jsonutil.JSONToMap(ts.RateLimitConfig),
+		AuditConfig:       jsonutil.JSONToMap(ts.AuditConfig),
+		MaintenanceConfig: jsonutil.JSONToMap(ts.MaintenanceConfig),
+		FeatureFlags:      jsonutil.JSONToMap(ts.FeatureFlags),
 		CreatedAt:         ts.CreatedAt,
 		UpdatedAt:         ts.UpdatedAt,
 	}
@@ -91,7 +92,7 @@ func (s *tenantSettingService) GetRateLimitConfig(ctx context.Context, tenantID 
 		return nil, err
 	}
 	span.SetStatus(codes.Ok, "")
-	return unmarshalJSON(setting.RateLimitConfig), nil
+	return jsonutil.JSONToMap(setting.RateLimitConfig), nil
 }
 
 // GetAuditConfig retrieves the audit_config JSONB section.
@@ -107,7 +108,7 @@ func (s *tenantSettingService) GetAuditConfig(ctx context.Context, tenantID int6
 		return nil, err
 	}
 	span.SetStatus(codes.Ok, "")
-	return unmarshalJSON(setting.AuditConfig), nil
+	return jsonutil.JSONToMap(setting.AuditConfig), nil
 }
 
 // GetMaintenanceConfig retrieves the maintenance_config JSONB section.
@@ -123,7 +124,7 @@ func (s *tenantSettingService) GetMaintenanceConfig(ctx context.Context, tenantI
 		return nil, err
 	}
 	span.SetStatus(codes.Ok, "")
-	return unmarshalJSON(setting.MaintenanceConfig), nil
+	return jsonutil.JSONToMap(setting.MaintenanceConfig), nil
 }
 
 // GetFeatureFlags retrieves the feature_flags JSONB section.
@@ -139,7 +140,7 @@ func (s *tenantSettingService) GetFeatureFlags(ctx context.Context, tenantID int
 		return nil, err
 	}
 	span.SetStatus(codes.Ok, "")
-	return unmarshalJSON(setting.FeatureFlags), nil
+	return jsonutil.JSONToMap(setting.FeatureFlags), nil
 }
 
 // UpdateRateLimitConfig updates the rate_limit_config JSONB section.

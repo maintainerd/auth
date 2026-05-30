@@ -86,10 +86,10 @@ type mockTenantMemberService struct {
 	createByUserUUIDFn   func(int64, uuid.UUID, string) (*TenantMemberServiceDataResult, error)
 	getByUUIDFn          func(uuid.UUID) (*TenantMemberServiceDataResult, error)
 	getByTenantAndUserFn func(int64, int64) (*TenantMemberServiceDataResult, error)
-	listByTenantFn       func(int64) ([]TenantMemberServiceDataResult, error)
+	listByTenantFn       func(TenantMemberServiceListFilter) (*TenantMemberServiceListResult, error)
 	listByUserFn         func(int64) ([]TenantMemberServiceDataResult, error)
-	updateRoleFn         func(uuid.UUID, string) (*TenantMemberServiceDataResult, error)
-	deleteByUUIDFn       func(uuid.UUID) error
+	updateRoleFn         func(int64, uuid.UUID, string) (*TenantMemberServiceDataResult, error)
+	deleteByUUIDFn       func(int64, uuid.UUID) error
 	isUserInTenantFn     func(int64, uuid.UUID) (bool, error)
 }
 
@@ -117,9 +117,9 @@ func (m *mockTenantMemberService) GetByTenantAndUser(_ context.Context, tenantID
 	}
 	return nil, nil
 }
-func (m *mockTenantMemberService) ListByTenant(_ context.Context, tenantID int64) ([]TenantMemberServiceDataResult, error) {
+func (m *mockTenantMemberService) ListByTenant(_ context.Context, filter TenantMemberServiceListFilter) (*TenantMemberServiceListResult, error) {
 	if m.listByTenantFn != nil {
-		return m.listByTenantFn(tenantID)
+		return m.listByTenantFn(filter)
 	}
 	return nil, nil
 }
@@ -129,15 +129,15 @@ func (m *mockTenantMemberService) ListByUser(_ context.Context, userID int64) ([
 	}
 	return nil, nil
 }
-func (m *mockTenantMemberService) UpdateRole(_ context.Context, id uuid.UUID, role string) (*TenantMemberServiceDataResult, error) {
+func (m *mockTenantMemberService) UpdateRole(_ context.Context, tenantID int64, id uuid.UUID, role string) (*TenantMemberServiceDataResult, error) {
 	if m.updateRoleFn != nil {
-		return m.updateRoleFn(id, role)
+		return m.updateRoleFn(tenantID, id, role)
 	}
 	return nil, nil
 }
-func (m *mockTenantMemberService) DeleteByUUID(_ context.Context, id uuid.UUID) error {
+func (m *mockTenantMemberService) DeleteByUUID(_ context.Context, tenantID int64, id uuid.UUID) error {
 	if m.deleteByUUIDFn != nil {
-		return m.deleteByUUIDFn(id)
+		return m.deleteByUUIDFn(tenantID, id)
 	}
 	return nil
 }

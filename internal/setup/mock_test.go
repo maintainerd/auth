@@ -729,7 +729,7 @@ type mockTenantMemberRepo struct {
 	mockBaseRepo[TenantMember]
 	findByTenantMemberUUIDFn func(uuid.UUID) (*TenantMember, error)
 	findByTenantAndUserFn    func(int64, int64) (*TenantMember, error)
-	findAllByTenantFn        func(int64) ([]TenantMember, error)
+	findByTenantFn           func(tenant.TenantMemberRepositoryListFilter) (*PaginationResult[TenantMember], error)
 	findAllByUserFn          func(int64) ([]TenantMember, error)
 	createFn                 func(*TenantMember) (*TenantMember, error)
 }
@@ -753,11 +753,11 @@ func (m *mockTenantMemberRepo) FindByTenantAndUser(tenantID int64, userID int64)
 	}
 	return nil, nil
 }
-func (m *mockTenantMemberRepo) FindAllByTenant(tenantID int64) ([]TenantMember, error) {
-	if m.findAllByTenantFn != nil {
-		return m.findAllByTenantFn(tenantID)
+func (m *mockTenantMemberRepo) FindByTenant(filter tenant.TenantMemberRepositoryListFilter) (*PaginationResult[TenantMember], error) {
+	if m.findByTenantFn != nil {
+		return m.findByTenantFn(filter)
 	}
-	return nil, nil
+	return &PaginationResult[TenantMember]{}, nil
 }
 func (m *mockTenantMemberRepo) FindAllByUser(userID int64) ([]TenantMember, error) {
 	if m.findAllByUserFn != nil {
