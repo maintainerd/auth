@@ -21,8 +21,59 @@ Use these prefixes consistently:
 - `repository_<name>.go` for repository interfaces and persistence implementations for a specific aggregate or subresource. Keep the backend out of the filename when the package has only one persistence backend.
 - `routes.go` for route registration.
 - `types.go` for API DTOs and request/response shapes only.
-- `<concern>_test.go` for focused tests matching the code under test.
-- `mock_test.go`, `mock_repos_test.go`, and `http_testhelpers_test.go` for test-only helpers.
+- `<source>_test.go` mirrors the source file under test: `service_<name>_test.go`
+  tests `service_<name>.go`, `handler_<name>_test.go` tests `handler_<name>.go`,
+  `validation_<name>_test.go` tests `validation_<name>.go`. Name the test after
+  the file the code lives in, not after the type it exercises.
+- `<concern>_test.go` only for cross-cutting tests that do not map to a single
+  source file (for example `isolation_test.go` for a tenant-isolation invariant).
+- `mock_test.go`, `mock_repos_test.go`, `http_testhelpers_test.go`, and
+  `testhelpers_test.go` for test-only mocks and shared helpers. Put helpers used
+  by more than one test file here rather than in one test's file.
+
+## Test File Naming
+
+A test file is named after the **source file** it covers, not the type or
+function it exercises. This keeps the source/test pairing obvious and survives
+refactors: when code moves to a different file, its test moves with it under the
+matching name.
+
+| Source file              | Test file                     |
+| ------------------------ | ----------------------------- |
+| `service_<name>.go`      | `service_<name>_test.go`      |
+| `handler_<name>.go`      | `handler_<name>_test.go`      |
+| `validation_<name>.go`   | `validation_<name>_test.go`   |
+| `repository_<name>.go`   | `repository_<name>_test.go`   |
+
+Rules:
+
+- Mirror the source file name. Tests for `TenantService` (in `service_tenant.go`)
+  go in `service_tenant_test.go`, not `tenant_test.go`. Tests for DTO `Validate()`
+  methods go in `validation_<name>_test.go`, not `<name>_types_test.go` — they
+  exercise validation, not the `types.go` structs.
+- Use `<concern>_test.go` only for a cross-cutting test that has no single source
+  file (for example `isolation_test.go` for a tenant-isolation invariant that
+  spans several types).
+- When you move code between files, move its tests too so the pairing holds (for
+  example access-control logic folded into `service_tenant.go` has its tests in
+  `service_tenant_test.go`).
+- A helper used by more than one test file goes in `testhelpers_test.go` (or the
+  matching `*_testhelpers_test.go` / `mock_test.go`), never in a single test file
+  that another test happens to depend on.
+
+```text
+internal/tenant/
+  service_tenant.go          → service_tenant_test.go
+  service_member.go          → service_member_test.go
+  service_setting.go         → service_setting_test.go
+  handler_tenant.go          → handler_tenant_test.go
+  handler_setting.go         → handler_setting_test.go
+  validation_tenant.go       → validation_tenant_test.go
+  validation_setting.go      → validation_setting_test.go
+  (cross-cutting invariant)  → isolation_test.go
+  (shared mocks/helpers)     → mock_test.go, mock_repos_test.go,
+                               http_testhelpers_test.go, testhelpers_test.go
+```
 
 ## Supporting Files
 
