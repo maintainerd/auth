@@ -28,6 +28,22 @@ const (
 	authorizationCodeLength = 32
 )
 
+// OAuthAuthorizeResult is the internal result returned by the authorize service
+// method. One of RedirectURI or ConsentChallenge will be set.
+type OAuthAuthorizeResult struct {
+	// RedirectURI is the full redirect (including ?code=...&state=...) when
+	// the authorization code was issued immediately.
+	RedirectURI string
+	// ConsentChallenge is set when user consent is required. The frontend
+	// must redirect the user to the consent page.
+	ConsentChallenge string
+}
+
+// OAuthConsentDecisionResult is the internal result from processing consent.
+type OAuthConsentDecisionResult struct {
+	RedirectURI string
+}
+
 // OAuthAuthorizeService handles the OAuth 2.0 authorization endpoint logic.
 type OAuthAuthorizeService interface {
 	// Authorize processes an authorization request. It validates the client,

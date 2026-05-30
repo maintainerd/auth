@@ -1,14 +1,5 @@
 package oauth
 
-import (
-	"time"
-
-	validation "github.com/go-ozzo/ozzo-validation/v4"
-	"github.com/google/uuid"
-	"github.com/maintainerd/auth/internal/platform/security"
-	"gorm.io/gorm"
-)
-
 // Authorization Endpoint
 
 // OAuthAuthorizeRequestDTO captures the query parameters for the
@@ -22,50 +13,6 @@ type OAuthAuthorizeRequestDTO struct {
 	Nonce               string `json:"nonce"`
 	CodeChallenge       string `json:"code_challenge"`
 	CodeChallengeMethod string `json:"code_challenge_method"`
-}
-
-// Validate sanitises inputs and checks required OAuth parameters.
-func (r *OAuthAuthorizeRequestDTO) Validate() error {
-	r.ResponseType = security.SanitizeInput(r.ResponseType)
-	r.ClientID = security.SanitizeInput(r.ClientID)
-	r.RedirectURI = security.SanitizeInput(r.RedirectURI)
-	r.Scope = security.SanitizeInput(r.Scope)
-	r.State = security.SanitizeInput(r.State)
-	r.Nonce = security.SanitizeInput(r.Nonce)
-	r.CodeChallenge = security.SanitizeInput(r.CodeChallenge)
-	r.CodeChallengeMethod = security.SanitizeInput(r.CodeChallengeMethod)
-
-	return validation.ValidateStruct(r,
-		validation.Field(&r.ResponseType,
-			validation.Required.Error("response_type is required"),
-			validation.In("code").Error("response_type must be 'code'"),
-		),
-		validation.Field(&r.ClientID,
-			validation.Required.Error("client_id is required"),
-			validation.Length(1, 255).Error("client_id must not exceed 255 characters"),
-		),
-		validation.Field(&r.RedirectURI,
-			validation.Required.Error("redirect_uri is required"),
-			validation.Length(1, 2048).Error("redirect_uri must not exceed 2048 characters"),
-		),
-		validation.Field(&r.CodeChallenge,
-			validation.Required.Error("code_challenge is required"),
-			validation.Length(43, 128).Error("code_challenge must be between 43 and 128 characters"),
-		),
-		validation.Field(&r.CodeChallengeMethod,
-			validation.Required.Error("code_challenge_method is required"),
-			validation.In("S256").Error("code_challenge_method must be 'S256'"),
-		),
-		validation.Field(&r.State,
-			validation.Length(0, 512).Error("state must not exceed 512 characters"),
-		),
-		validation.Field(&r.Scope,
-			validation.Length(0, 1024).Error("scope must not exceed 1024 characters"),
-		),
-		validation.Field(&r.Nonce,
-			validation.Length(0, 512).Error("nonce must not exceed 512 characters"),
-		),
-	)
 }
 
 // OAuthAuthorizeResponseDTO is returned on a successful authorization request
@@ -100,24 +47,6 @@ type OAuthConsentDecisionDTO struct {
 	Approved    bool   `json:"approved"`
 }
 
-// Validate sanitises inputs and checks that the challenge ID is a valid UUID.
-func (r *OAuthConsentDecisionDTO) Validate() error {
-	r.ChallengeID = security.SanitizeInput(r.ChallengeID)
-
-	return validation.ValidateStruct(r,
-		validation.Field(&r.ChallengeID,
-			validation.Required.Error("challenge_id is required"),
-			validation.By(func(value any) error {
-				s, _ := value.(string)
-				if _, err := uuid.Parse(s); err != nil {
-					return validation.NewError("validation_uuid", "challenge_id must be a valid UUID")
-				}
-				return nil
-			}),
-		),
-	)
-}
-
 // OAuthConsentDecisionResponseDTO is the redirect returned after the user
 // approves or denies consent.
 type OAuthConsentDecisionResponseDTO struct {
@@ -138,26 +67,6 @@ type OAuthTokenRequestDTO struct {
 	// Client credentials (from body when token_endpoint_auth_method=client_secret_post)
 	ClientID     string `json:"client_id"`
 	ClientSecret string `json:"client_secret"`
-}
-
-// Validate sanitises inputs and checks grant-type-specific required fields.
-func (r *OAuthTokenRequestDTO) Validate() error {
-	r.GrantType = security.SanitizeInput(r.GrantType)
-	r.Code = security.SanitizeInput(r.Code)
-	r.RedirectURI = security.SanitizeInput(r.RedirectURI)
-	r.CodeVerifier = security.SanitizeInput(r.CodeVerifier)
-	r.RefreshToken = security.SanitizeInput(r.RefreshToken)
-	r.Scope = security.SanitizeInput(r.Scope)
-	r.ClientID = security.SanitizeInput(r.ClientID)
-	r.ClientSecret = security.SanitizeInput(r.ClientSecret)
-
-	return validation.ValidateStruct(r,
-		validation.Field(&r.GrantType,
-			validation.Required.Error("grant_type is required"),
-			validation.In("authorization_code", "refresh_token", "client_credentials").
-				Error("grant_type must be one of: authorization_code, refresh_token, client_credentials"),
-		),
-	)
 }
 
 // OAuthTokenResponseDTO is the JSON body returned by the token endpoint on
@@ -183,24 +92,6 @@ type OAuthRevokeRequestDTO struct {
 	ClientSecret string `json:"client_secret"`
 }
 
-// Validate sanitises inputs and checks the required token field.
-func (r *OAuthRevokeRequestDTO) Validate() error {
-	r.Token = security.SanitizeInput(r.Token)
-	r.TokenTypeHint = security.SanitizeInput(r.TokenTypeHint)
-	r.ClientID = security.SanitizeInput(r.ClientID)
-	r.ClientSecret = security.SanitizeInput(r.ClientSecret)
-
-	return validation.ValidateStruct(r,
-		validation.Field(&r.Token,
-			validation.Required.Error("token is required"),
-		),
-		validation.Field(&r.TokenTypeHint,
-			validation.In("access_token", "refresh_token", "").
-				Error("token_type_hint must be 'access_token' or 'refresh_token'"),
-		),
-	)
-}
-
 // Introspection Endpoint (RFC 7662)
 
 // OAuthIntrospectRequestDTO captures the form-encoded body of the
@@ -208,22 +99,6 @@ func (r *OAuthRevokeRequestDTO) Validate() error {
 type OAuthIntrospectRequestDTO struct {
 	Token         string `json:"token"`
 	TokenTypeHint string `json:"token_type_hint"`
-}
-
-// Validate sanitises inputs and checks the required token field.
-func (r *OAuthIntrospectRequestDTO) Validate() error {
-	r.Token = security.SanitizeInput(r.Token)
-	r.TokenTypeHint = security.SanitizeInput(r.TokenTypeHint)
-
-	return validation.ValidateStruct(r,
-		validation.Field(&r.Token,
-			validation.Required.Error("token is required"),
-		),
-		validation.Field(&r.TokenTypeHint,
-			validation.In("access_token", "refresh_token", "").
-				Error("token_type_hint must be 'access_token' or 'refresh_token'"),
-		),
-	)
 }
 
 // OAuthIntrospectResponseDTO is the JSON body returned by the introspection
@@ -307,46 +182,6 @@ type OAuthConsentGrantResponseDTO struct {
 	UpdatedAt        string   `json:"updated_at"`
 }
 
-// Internal types used by services
-
-// OAuthClientCredentials holds the resolved client_id and client_secret from
-// either the Authorization header (Basic auth) or the POST body.
-type OAuthClientCredentials struct {
-	ClientID     string
-	ClientSecret string
-}
-
-// OAuthAuthorizeResult is the internal result returned by the authorize service
-// method. One of RedirectURI or ConsentChallenge will be set.
-type OAuthAuthorizeResult struct {
-	// RedirectURI is the full redirect (including ?code=...&state=...) when
-	// the authorization code was issued immediately.
-	RedirectURI string
-	// ConsentChallenge is set when user consent is required. The frontend
-	// must redirect the user to the consent page.
-	ConsentChallenge string
-}
-
-// OAuthConsentDecisionResult is the internal result from processing consent.
-type OAuthConsentDecisionResult struct {
-	RedirectURI string
-}
-
-// OAuthTokenResult is the internal result from the token
-type OAuthTokenResult struct {
-	AccessToken  string
-	TokenType    string
-	ExpiresIn    int64
-	RefreshToken string
-	IDToken      string
-	Scope        string
-}
-
-// OAuthTokenIssuedAt is used internally to track when a token was issued.
-type OAuthTokenIssuedAt struct {
-	Time time.Time
-}
-
 // OAuth Authorization Server Metadata (RFC 8414)
 
 // OAuthAuthorizationServerMetadataDTO is the JSON body for
@@ -388,50 +223,6 @@ type OAuthPARRequestDTO struct {
 	ClientSecret string `json:"client_secret"`
 }
 
-func (r *OAuthPARRequestDTO) Validate() error {
-	r.ResponseType = security.SanitizeInput(r.ResponseType)
-	r.ClientID = security.SanitizeInput(r.ClientID)
-	r.RedirectURI = security.SanitizeInput(r.RedirectURI)
-	r.Scope = security.SanitizeInput(r.Scope)
-	r.State = security.SanitizeInput(r.State)
-	r.Nonce = security.SanitizeInput(r.Nonce)
-	r.CodeChallenge = security.SanitizeInput(r.CodeChallenge)
-	r.CodeChallengeMethod = security.SanitizeInput(r.CodeChallengeMethod)
-	r.ClientSecret = security.SanitizeInput(r.ClientSecret)
-
-	return validation.ValidateStruct(r,
-		validation.Field(&r.ResponseType,
-			validation.Required.Error("response_type is required"),
-			validation.In("code").Error("response_type must be 'code'"),
-		),
-		validation.Field(&r.ClientID,
-			validation.Required.Error("client_id is required"),
-			validation.Length(1, 255).Error("client_id must not exceed 255 characters"),
-		),
-		validation.Field(&r.RedirectURI,
-			validation.Required.Error("redirect_uri is required"),
-			validation.Length(1, 2048).Error("redirect_uri must not exceed 2048 characters"),
-		),
-		validation.Field(&r.CodeChallenge,
-			validation.Required.Error("code_challenge is required"),
-			validation.Length(43, 128).Error("code_challenge must be between 43 and 128 characters"),
-		),
-		validation.Field(&r.CodeChallengeMethod,
-			validation.Required.Error("code_challenge_method is required"),
-			validation.In("S256").Error("code_challenge_method must be 'S256'"),
-		),
-		validation.Field(&r.State,
-			validation.Length(0, 512).Error("state must not exceed 512 characters"),
-		),
-		validation.Field(&r.Scope,
-			validation.Length(0, 1024).Error("scope must not exceed 1024 characters"),
-		),
-		validation.Field(&r.Nonce,
-			validation.Length(0, 512).Error("nonce must not exceed 512 characters"),
-		),
-	)
-}
-
 // OAuthPARResponseDTO is returned by POST /oauth/par on success (RFC 9126 §2.2).
 type OAuthPARResponseDTO struct {
 	RequestURI string `json:"request_uri"`
@@ -446,22 +237,6 @@ type OAuthDeviceAuthorizationRequestDTO struct {
 	ClientID     string `json:"client_id"`
 	ClientSecret string `json:"client_secret"`
 	Scope        string `json:"scope"`
-}
-
-func (r *OAuthDeviceAuthorizationRequestDTO) Validate() error {
-	r.ClientID = security.SanitizeInput(r.ClientID)
-	r.ClientSecret = security.SanitizeInput(r.ClientSecret)
-	r.Scope = security.SanitizeInput(r.Scope)
-
-	return validation.ValidateStruct(r,
-		validation.Field(&r.ClientID,
-			validation.Required.Error("client_id is required"),
-			validation.Length(1, 255).Error("client_id must not exceed 255 characters"),
-		),
-		validation.Field(&r.Scope,
-			validation.Length(0, 1024).Error("scope must not exceed 1024 characters"),
-		),
-	)
 }
 
 // OAuthDeviceAuthorizationResponseDTO is returned on a successful device
@@ -481,38 +256,12 @@ type OAuthDeviceVerifyRequestDTO struct {
 	UserCode string `json:"user_code"`
 }
 
-func (r *OAuthDeviceVerifyRequestDTO) Validate() error {
-	r.UserCode = security.SanitizeInput(r.UserCode)
-
-	return validation.ValidateStruct(r,
-		validation.Field(&r.UserCode,
-			validation.Required.Error("user_code is required"),
-			validation.Length(8, 9).Error("user_code must be 8 characters (XXXX-XXXX format)"),
-		),
-	)
-}
-
 // OAuthDeviceTokenRequestDTO captures the fields for polling POST /oauth/token
 // with grant_type=urn:ietf:params:oauth:grant-type:device_code (RFC 8628 §3.4).
 type OAuthDeviceTokenRequestDTO struct {
 	DeviceCode   string `json:"device_code"`
 	ClientID     string `json:"client_id"`
 	ClientSecret string `json:"client_secret"`
-}
-
-func (r *OAuthDeviceTokenRequestDTO) Validate() error {
-	r.DeviceCode = security.SanitizeInput(r.DeviceCode)
-	r.ClientID = security.SanitizeInput(r.ClientID)
-	r.ClientSecret = security.SanitizeInput(r.ClientSecret)
-
-	return validation.ValidateStruct(r,
-		validation.Field(&r.DeviceCode,
-			validation.Required.Error("device_code is required"),
-		),
-		validation.Field(&r.ClientID,
-			validation.Required.Error("client_id is required"),
-		),
-	)
 }
 
 // Token Exchange (RFC 8693)
@@ -531,47 +280,6 @@ type OAuthTokenExchangeRequestDTO struct {
 	Scope              string `json:"scope"`
 	ClientID           string `json:"client_id"`
 	ClientSecret       string `json:"client_secret"`
-}
-
-func (r *OAuthTokenExchangeRequestDTO) Validate() error {
-	r.SubjectToken = security.SanitizeInput(r.SubjectToken)
-	r.SubjectTokenType = security.SanitizeInput(r.SubjectTokenType)
-	r.ActorToken = security.SanitizeInput(r.ActorToken)
-	r.ActorTokenType = security.SanitizeInput(r.ActorTokenType)
-	r.RequestedTokenType = security.SanitizeInput(r.RequestedTokenType)
-	r.Resource = security.SanitizeInput(r.Resource)
-	r.Audience = security.SanitizeInput(r.Audience)
-	r.Scope = security.SanitizeInput(r.Scope)
-	r.ClientID = security.SanitizeInput(r.ClientID)
-	r.ClientSecret = security.SanitizeInput(r.ClientSecret)
-
-	const (
-		tokenTypeAccessToken  = "urn:ietf:params:oauth:token-type:access_token"
-		tokenTypeRefreshToken = "urn:ietf:params:oauth:token-type:refresh_token"
-		tokenTypeIDToken      = "urn:ietf:params:oauth:token-type:id_token"
-		tokenTypeJWT          = "urn:ietf:params:oauth:token-type:jwt"
-	)
-
-	return validation.ValidateStruct(r,
-		validation.Field(&r.SubjectToken,
-			validation.Required.Error("subject_token is required"),
-		),
-		validation.Field(&r.SubjectTokenType,
-			validation.Required.Error("subject_token_type is required"),
-			validation.In(tokenTypeAccessToken, tokenTypeRefreshToken, tokenTypeIDToken, tokenTypeJWT).
-				Error("subject_token_type must be a valid token type URI"),
-		),
-		validation.Field(&r.RequestedTokenType,
-			validation.In(tokenTypeAccessToken, tokenTypeRefreshToken, tokenTypeIDToken, tokenTypeJWT, "").
-				Error("requested_token_type must be a valid token type URI"),
-		),
-		validation.Field(&r.ClientID,
-			validation.Required.Error("client_id is required"),
-		),
-		validation.Field(&r.Scope,
-			validation.Length(0, 1024).Error("scope must not exceed 1024 characters"),
-		),
-	)
 }
 
 // OAuthTokenExchangeResponseDTO is the response from a successful token exchange
@@ -604,47 +312,6 @@ type OAuthClientRegistrationRequestDTO struct {
 	IdentityProviderID int64 `json:"identity_provider_id"`
 }
 
-func (r *OAuthClientRegistrationRequestDTO) Validate() error {
-	r.ClientName = security.SanitizeInput(r.ClientName)
-	r.Scope = security.SanitizeInput(r.Scope)
-	r.TokenEndpointAuthMethod = security.SanitizeInput(r.TokenEndpointAuthMethod)
-	r.LogoURI = security.SanitizeInput(r.LogoURI)
-	r.PolicyURI = security.SanitizeInput(r.PolicyURI)
-	r.TOSURI = security.SanitizeInput(r.TOSURI)
-
-	for i, u := range r.RedirectURIs {
-		r.RedirectURIs[i] = security.SanitizeInput(u)
-	}
-	for i, g := range r.GrantTypes {
-		r.GrantTypes[i] = security.SanitizeInput(g)
-	}
-	for i, rt := range r.ResponseTypes {
-		r.ResponseTypes[i] = security.SanitizeInput(rt)
-	}
-
-	return validation.ValidateStruct(r,
-		validation.Field(&r.ClientName,
-			validation.Required.Error("client_name is required"),
-			validation.Length(1, 255).Error("client_name must not exceed 255 characters"),
-		),
-		validation.Field(&r.RedirectURIs,
-			validation.Required.Error("redirect_uris is required"),
-			validation.Length(1, 10).Error("between 1 and 10 redirect_uris are allowed"),
-		),
-		validation.Field(&r.TokenEndpointAuthMethod,
-			validation.In("client_secret_basic", "client_secret_post", "none", "").
-				Error("token_endpoint_auth_method must be client_secret_basic, client_secret_post, or none"),
-		),
-		validation.Field(&r.Scope,
-			validation.Length(0, 1024).Error("scope must not exceed 1024 characters"),
-		),
-		validation.Field(&r.IdentityProviderID,
-			validation.Required.Error("identity_provider_id is required"),
-			validation.Min(int64(1)).Error("identity_provider_id must be a positive integer"),
-		),
-	)
-}
-
 // OAuthClientRegistrationResponseDTO is the JSON body returned by
 // POST /oauth/register on success (RFC 7591 §3.2).
 type OAuthClientRegistrationResponseDTO struct {
@@ -668,16 +335,6 @@ type OAuthBackchannelLogoutRequestDTO struct {
 	LogoutToken string `json:"logout_token"`
 }
 
-func (r *OAuthBackchannelLogoutRequestDTO) Validate() error {
-	r.LogoutToken = security.SanitizeInput(r.LogoutToken)
-
-	return validation.ValidateStruct(r,
-		validation.Field(&r.LogoutToken,
-			validation.Required.Error("logout_token is required"),
-		),
-	)
-}
-
 // RP-Initiated Logout (OIDC Session Management 1.0)
 
 // OAuthEndSessionRequestDTO captures the query parameters for
@@ -687,22 +344,6 @@ type OAuthEndSessionRequestDTO struct {
 	PostLogoutRedirectURI string `json:"post_logout_redirect_uri"`
 	State                 string `json:"state"`
 	ClientID              string `json:"client_id"`
-}
-
-func (r *OAuthEndSessionRequestDTO) Validate() error {
-	r.IDTokenHint = security.SanitizeInput(r.IDTokenHint)
-	r.PostLogoutRedirectURI = security.SanitizeInput(r.PostLogoutRedirectURI)
-	r.State = security.SanitizeInput(r.State)
-	r.ClientID = security.SanitizeInput(r.ClientID)
-
-	return validation.ValidateStruct(r,
-		validation.Field(&r.PostLogoutRedirectURI,
-			validation.Length(0, 2048).Error("post_logout_redirect_uri must not exceed 2048 characters"),
-		),
-		validation.Field(&r.State,
-			validation.Length(0, 512).Error("state must not exceed 512 characters"),
-		),
-	)
 }
 
 // CIBA — Client-Initiated Backchannel Authentication (RFC 9126)
@@ -722,38 +363,6 @@ type OAuthCIBARequestDTO struct {
 	ClientSecret            string `json:"client_secret"`
 }
 
-func (r *OAuthCIBARequestDTO) Validate() error {
-	r.Scope = security.SanitizeInput(r.Scope)
-	r.ClientNotificationToken = security.SanitizeInput(r.ClientNotificationToken)
-	r.ACRValues = security.SanitizeInput(r.ACRValues)
-	r.LoginHint = security.SanitizeInput(r.LoginHint)
-	r.LoginHintToken = security.SanitizeInput(r.LoginHintToken)
-	r.IDTokenHint = security.SanitizeInput(r.IDTokenHint)
-	r.BindingMessage = security.SanitizeInput(r.BindingMessage)
-	r.UserCode = security.SanitizeInput(r.UserCode)
-	r.ClientID = security.SanitizeInput(r.ClientID)
-	r.ClientSecret = security.SanitizeInput(r.ClientSecret)
-
-	return validation.ValidateStruct(r,
-		validation.Field(&r.ClientID,
-			validation.Required.Error("client_id is required"),
-		),
-		validation.Field(&r.Scope,
-			validation.Required.Error("scope is required"),
-			validation.Length(1, 1024).Error("scope must not exceed 1024 characters"),
-		),
-		validation.Field(&r.LoginHint,
-			validation.When(
-				r.LoginHintToken == "" && r.IDTokenHint == "",
-				validation.Required.Error("one of login_hint, login_hint_token, or id_token_hint is required"),
-			),
-		),
-		validation.Field(&r.BindingMessage,
-			validation.Length(0, 128).Error("binding_message must not exceed 128 characters"),
-		),
-	)
-}
-
 // OAuthCIBAResponseDTO is returned on a successful bc-authorize request.
 type OAuthCIBAResponseDTO struct {
 	AuthReqID string `json:"auth_req_id"`
@@ -767,162 +376,4 @@ type OAuthCIBATokenRequestDTO struct {
 	AuthReqID    string `json:"auth_req_id"`
 	ClientID     string `json:"client_id"`
 	ClientSecret string `json:"client_secret"`
-}
-
-func (r *OAuthCIBATokenRequestDTO) Validate() error {
-	r.AuthReqID = security.SanitizeInput(r.AuthReqID)
-	r.ClientID = security.SanitizeInput(r.ClientID)
-	r.ClientSecret = security.SanitizeInput(r.ClientSecret)
-
-	return validation.ValidateStruct(r,
-		validation.Field(&r.AuthReqID,
-			validation.Required.Error("auth_req_id is required"),
-		),
-		validation.Field(&r.ClientID,
-			validation.Required.Error("client_id is required"),
-		),
-	)
-}
-
-// CIBA request status constants.
-const (
-	CIBAStatusPending  = "pending"
-	CIBAStatusApproved = "approved"
-	CIBAStatusDenied   = "denied"
-	CIBAStatusExpired  = "expired"
-)
-
-// OAuthCIBARequest represents a Client-Initiated Backchannel Authentication
-// request. The client initiates auth for a user identified by a hint; the
-// server notifies the user out-of-band (email); the client polls /oauth/token
-// until the user approves or the request expires (poll mode).
-type OAuthCIBARequest struct {
-	OAuthCIBARRequestID  int64      `gorm:"column:oauth_ciba_request_id;primaryKey;autoIncrement"`
-	OAuthCIBARequestUUID uuid.UUID  `gorm:"column:oauth_ciba_request_uuid;type:uuid;uniqueIndex;not null"`
-	AuthReqIDHash        string     `gorm:"column:auth_req_id_hash;uniqueIndex;not null"`
-	ClientID             int64      `gorm:"column:client_id;not null"`
-	TenantID             int64      `gorm:"column:tenant_id;not null"`
-	UserID               *int64     `gorm:"column:user_id"`
-	Scope                string     `gorm:"column:scope;not null;default:''"`
-	BindingMessage       *string    `gorm:"column:binding_message"`
-	Status               string     `gorm:"column:status;not null;default:'pending'"`
-	Interval             int        `gorm:"column:interval;not null;default:5"`
-	LastPollAt           *time.Time `gorm:"column:last_poll_at"`
-	NotificationSentAt   *time.Time `gorm:"column:notification_sent_at"`
-	ExpiresAt            time.Time  `gorm:"column:expires_at;not null"`
-	CreatedAt            time.Time  `gorm:"column:created_at;autoCreateTime;not null"`
-
-	// Relationships
-	Client *Client `gorm:"foreignKey:ClientID;references:ClientID"`
-}
-
-func (OAuthCIBARequest) TableName() string {
-	return "oauth_ciba_requests"
-}
-
-func (o *OAuthCIBARequest) BeforeCreate(_ *gorm.DB) error {
-	if o.OAuthCIBARequestUUID == uuid.Nil {
-		o.OAuthCIBARequestUUID = uuid.New()
-	}
-	return nil
-}
-
-func (o *OAuthCIBARequest) IsExpired() bool {
-	return time.Now().After(o.ExpiresAt)
-}
-
-// Device code status constants.
-const (
-	DeviceCodeStatusPending  = "pending"
-	DeviceCodeStatusApproved = "approved"
-	DeviceCodeStatusDenied   = "denied"
-	DeviceCodeStatusExpired  = "expired"
-)
-
-// Grant type constants for new RFC grants.
-const (
-	GrantTypeDeviceCode    = "urn:ietf:params:oauth:grant-type:device_code"
-	GrantTypeTokenExchange = "urn:ietf:params:oauth:grant-type:token-exchange"
-	GrantTypeCIBA          = "urn:ietf:params:oauth:grant-type:ciba"
-)
-
-// OAuthDeviceCode represents a pending device authorization request (RFC 8628).
-// The device_code is returned to the client (device) and is used to poll the
-// token endpoint. The user_code is displayed to the user who then visits the
-// verification URI to approve or deny access.
-type OAuthDeviceCode struct {
-	OAuthDeviceCodeID   int64     `gorm:"column:oauth_device_code_id;primaryKey;autoIncrement"`
-	OAuthDeviceCodeUUID uuid.UUID `gorm:"column:oauth_device_code_uuid;type:uuid;uniqueIndex;not null"`
-	DeviceCodeHash      string    `gorm:"column:device_code_hash;uniqueIndex;not null"`
-	UserCode            string    `gorm:"column:user_code;uniqueIndex;not null"`
-	ClientID            int64     `gorm:"column:client_id;not null"`
-	TenantID            int64     `gorm:"column:tenant_id;not null"`
-	Scope               string    `gorm:"column:scope;not null;default:''"`
-	// UserID is set once the user approves the request at the verification URI.
-	UserID   *int64 `gorm:"column:user_id"`
-	Status   string `gorm:"column:status;not null;default:'pending'"`
-	Interval int    `gorm:"column:interval;not null;default:5"`
-	// LastPollAt tracks the most recent polling attempt for slow-down enforcement.
-	LastPollAt *time.Time `gorm:"column:last_poll_at"`
-	ExpiresAt  time.Time  `gorm:"column:expires_at;not null"`
-	CreatedAt  time.Time  `gorm:"column:created_at;autoCreateTime;not null"`
-
-	// Relationships
-	Client *Client `gorm:"foreignKey:ClientID;references:ClientID"`
-}
-
-func (OAuthDeviceCode) TableName() string {
-	return "oauth_device_codes"
-}
-
-func (o *OAuthDeviceCode) BeforeCreate(_ *gorm.DB) error {
-	if o.OAuthDeviceCodeUUID == uuid.Nil {
-		o.OAuthDeviceCodeUUID = uuid.New()
-	}
-	return nil
-}
-
-func (o *OAuthDeviceCode) IsExpired() bool {
-	return time.Now().After(o.ExpiresAt)
-}
-
-// OAuthPARRequest stores a Pushed Authorization Request (RFC 9126). The client
-// POSTs its full authorization request here first and receives back a
-// request_uri. That URI is then passed to the /oauth/authorize endpoint instead
-// of the individual parameters, reducing URI length and enabling confidential
-// transmission of request details.
-type OAuthPARRequest struct {
-	OAuthPARRequestID   int64     `gorm:"column:oauth_par_request_id;primaryKey;autoIncrement"`
-	OAuthPARRequestUUID uuid.UUID `gorm:"column:oauth_par_request_uuid;type:uuid;uniqueIndex;not null"`
-	RequestURIHash      string    `gorm:"column:request_uri_hash;uniqueIndex;not null"`
-	ClientID            int64     `gorm:"column:client_id;not null"`
-	TenantID            int64     `gorm:"column:tenant_id;not null"`
-	ResponseType        string    `gorm:"column:response_type;not null;default:'code'"`
-	RedirectURI         string    `gorm:"column:redirect_uri;not null"`
-	Scope               string    `gorm:"column:scope;not null;default:''"`
-	State               *string   `gorm:"column:state"`
-	Nonce               *string   `gorm:"column:nonce"`
-	CodeChallenge       string    `gorm:"column:code_challenge;not null"`
-	CodeChallengeMethod string    `gorm:"column:code_challenge_method;not null;default:'S256'"`
-	IsUsed              bool      `gorm:"column:is_used;not null;default:false"`
-	ExpiresAt           time.Time `gorm:"column:expires_at;not null"`
-	CreatedAt           time.Time `gorm:"column:created_at;autoCreateTime;not null"`
-
-	// Relationships
-	Client *Client `gorm:"foreignKey:ClientID;references:ClientID"`
-}
-
-func (OAuthPARRequest) TableName() string {
-	return "oauth_par_requests"
-}
-
-func (o *OAuthPARRequest) BeforeCreate(_ *gorm.DB) error {
-	if o.OAuthPARRequestUUID == uuid.Nil {
-		o.OAuthPARRequestUUID = uuid.New()
-	}
-	return nil
-}
-
-func (o *OAuthPARRequest) IsExpired() bool {
-	return time.Now().After(o.ExpiresAt)
 }
