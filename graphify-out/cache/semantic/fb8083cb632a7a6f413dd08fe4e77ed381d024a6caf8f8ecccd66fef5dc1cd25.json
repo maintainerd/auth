@@ -1,1 +1,1 @@
-{"nodes": [{"id": "email_template", "label": "Email Templates", "file_type": "document", "source_file": "docs/apis/templates/email-template.md", "source_location": null, "source_url": null, "captured_at": null, "author": null, "contributor": null}], "edges": [], "hyperedges": []}
+{"nodes": [{"id": "email_templates", "label": "Email Templates", "file_type": "document", "source_file": "docs/apis/templates/email-template.md", "source_location": null, "source_url": null, "captured_at": null, "author": null, "contributor": null}], "edges": [], "hyperedges": []}
