@@ -1,0 +1,1 @@
+{"nodes": [], "edges": [{"source": "user_user", "target": "role_role", "relation": "references", "confidence": "EXTRACTED", "confidence_score": 1.0, "source_file": "docs/apis/rbac/user-roles.md", "source_location": null, "weight": 1.0}], "hyperedges": []}
