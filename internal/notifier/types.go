@@ -1,11 +1,6 @@
 package notifier
 
-import (
-	"time"
-
-	validation "github.com/go-ozzo/ozzo-validation/v4"
-	"github.com/go-ozzo/ozzo-validation/v4/is"
-)
+import "time"
 
 // EmailConfigResponseDTO is the JSON representation of an email config record.
 type EmailConfigResponseDTO struct {
@@ -38,40 +33,6 @@ type EmailConfigUpdateRequestDTO struct {
 	TestMode    *bool  `json:"test_mode"`
 }
 
-// Validate validates the email config update request.
-func (r EmailConfigUpdateRequestDTO) Validate() error {
-	return validation.ValidateStruct(&r,
-		validation.Field(&r.Provider,
-			validation.Required.Error("Provider is required"),
-			validation.In("smtp", "ses", "sendgrid", "mailgun", "postmark", "resend").Error("Provider must be one of: smtp, ses, sendgrid, mailgun, postmark, resend"),
-		),
-		validation.Field(&r.FromAddress,
-			validation.Required.Error("From address is required"),
-			is.EmailFormat.Error("From address must be a valid email"),
-			validation.Length(1, 255).Error("From address must not exceed 255 characters"),
-		),
-		validation.Field(&r.FromName,
-			validation.Length(0, 255).Error("From name must not exceed 255 characters"),
-		),
-		validation.Field(&r.ReplyTo,
-			validation.When(r.ReplyTo != "", is.EmailFormat.Error("Reply-to must be a valid email")),
-			validation.Length(0, 255).Error("Reply-to must not exceed 255 characters"),
-		),
-		validation.Field(&r.Encryption,
-			validation.When(r.Encryption != "", validation.In("tls", "ssl", "none").Error("Encryption must be one of: tls, ssl, none")),
-		),
-		validation.Field(&r.Host,
-			validation.Length(0, 255).Error("Host must not exceed 255 characters"),
-		),
-		validation.Field(&r.Port,
-			validation.When(r.Port != 0, validation.Min(1), validation.Max(65535).Error("Port must be between 1 and 65535")),
-		),
-		validation.Field(&r.Username,
-			validation.Length(0, 255).Error("Username must not exceed 255 characters"),
-		),
-	)
-}
-
 // SMSConfigResponseDTO is the JSON representation of an SMS config record.
 type SMSConfigResponseDTO struct {
 	SMSConfigID string    `json:"sms_config_id"`
@@ -93,23 +54,4 @@ type SMSConfigUpdateRequestDTO struct {
 	FromNumber string `json:"from_number"`
 	SenderID   string `json:"sender_id"`
 	TestMode   *bool  `json:"test_mode"`
-}
-
-// Validate validates the SMS config update request.
-func (r SMSConfigUpdateRequestDTO) Validate() error {
-	return validation.ValidateStruct(&r,
-		validation.Field(&r.Provider,
-			validation.Required.Error("Provider is required"),
-			validation.In("twilio", "sns", "vonage", "messagebird").Error("Provider must be one of: twilio, sns, vonage, messagebird"),
-		),
-		validation.Field(&r.AccountSID,
-			validation.Length(0, 255).Error("Account SID must not exceed 255 characters"),
-		),
-		validation.Field(&r.FromNumber,
-			validation.Length(0, 50).Error("From number must not exceed 50 characters"),
-		),
-		validation.Field(&r.SenderID,
-			validation.Length(0, 50).Error("Sender ID must not exceed 50 characters"),
-		),
-	)
 }

@@ -2,10 +2,6 @@ package branding
 
 import (
 	"time"
-
-	validation "github.com/go-ozzo/ozzo-validation/v4"
-	"github.com/go-ozzo/ozzo-validation/v4/is"
-	"github.com/maintainerd/auth/internal/shared"
 )
 
 // BrandingResponseDTO is the JSON representation of a branding record.
@@ -39,50 +35,6 @@ type BrandingUpdateRequestDTO struct {
 	SupportURL        string `json:"support_url"`
 	PrivacyPolicyURL  string `json:"privacy_policy_url"`
 	TermsOfServiceURL string `json:"terms_of_service_url"`
-}
-
-// Validate validates the branding update request.
-func (r BrandingUpdateRequestDTO) Validate() error {
-	return validation.ValidateStruct(&r,
-		validation.Field(&r.CompanyName,
-			validation.Length(0, 255).Error("Company name must not exceed 255 characters"),
-		),
-		validation.Field(&r.LogoURL,
-			validation.Length(0, 2048).Error("Logo URL must not exceed 2048 characters"),
-			validation.When(r.LogoURL != "", is.URL.Error("Logo URL must be a valid URL")),
-		),
-		validation.Field(&r.FaviconURL,
-			validation.Length(0, 2048).Error("Favicon URL must not exceed 2048 characters"),
-			validation.When(r.FaviconURL != "", is.URL.Error("Favicon URL must be a valid URL")),
-		),
-		validation.Field(&r.PrimaryColor,
-			validation.Length(0, 20).Error("Primary color must not exceed 20 characters"),
-		),
-		validation.Field(&r.SecondaryColor,
-			validation.Length(0, 20).Error("Secondary color must not exceed 20 characters"),
-		),
-		validation.Field(&r.AccentColor,
-			validation.Length(0, 20).Error("Accent color must not exceed 20 characters"),
-		),
-		validation.Field(&r.FontFamily,
-			validation.Length(0, 100).Error("Font family must not exceed 100 characters"),
-		),
-		validation.Field(&r.CustomCSS,
-			validation.Length(0, 50000).Error("Custom CSS must not exceed 50000 characters"),
-		),
-		validation.Field(&r.SupportURL,
-			validation.Length(0, 2048).Error("Support URL must not exceed 2048 characters"),
-			validation.When(r.SupportURL != "", is.URL.Error("Support URL must be a valid URL")),
-		),
-		validation.Field(&r.PrivacyPolicyURL,
-			validation.Length(0, 2048).Error("Privacy policy URL must not exceed 2048 characters"),
-			validation.When(r.PrivacyPolicyURL != "", is.URL.Error("Privacy policy URL must be a valid URL")),
-		),
-		validation.Field(&r.TermsOfServiceURL,
-			validation.Length(0, 2048).Error("Terms of service URL must not exceed 2048 characters"),
-			validation.When(r.TermsOfServiceURL != "", is.URL.Error("Terms of service URL must be a valid URL")),
-		),
-	)
 }
 
 // Email template list response DTO (without body content)
@@ -120,25 +72,6 @@ type EmailTemplateCreateRequestDTO struct {
 	Status    *string `json:"status,omitempty"`
 }
 
-func (r EmailTemplateCreateRequestDTO) Validate() error {
-	return validation.ValidateStruct(&r,
-		validation.Field(&r.Name,
-			validation.Required.Error("Name is required"),
-			validation.Length(1, 100).Error("Name must be between 1 and 100 characters"),
-		),
-		validation.Field(&r.Subject,
-			validation.Required.Error("Subject is required"),
-			validation.Length(1, 255).Error("Subject must be between 1 and 255 characters"),
-		),
-		validation.Field(&r.BodyHTML,
-			validation.Required.Error("Body HTML is required"),
-		),
-		validation.Field(&r.Status,
-			validation.In(shared.StatusActive, shared.StatusInactive).Error("Status must be 'active' or 'inactive'"),
-		),
-	)
-}
-
 // Update email template request DTO
 type EmailTemplateUpdateRequestDTO struct {
 	Name      string  `json:"name"`
@@ -148,37 +81,9 @@ type EmailTemplateUpdateRequestDTO struct {
 	Status    *string `json:"status,omitempty"`
 }
 
-func (r EmailTemplateUpdateRequestDTO) Validate() error {
-	return validation.ValidateStruct(&r,
-		validation.Field(&r.Name,
-			validation.Required.Error("Name is required"),
-			validation.Length(1, 100).Error("Name must be between 1 and 100 characters"),
-		),
-		validation.Field(&r.Subject,
-			validation.Required.Error("Subject is required"),
-			validation.Length(1, 255).Error("Subject must be between 1 and 255 characters"),
-		),
-		validation.Field(&r.BodyHTML,
-			validation.Required.Error("Body HTML is required"),
-		),
-		validation.Field(&r.Status,
-			validation.In(shared.StatusActive, shared.StatusInactive).Error("Status must be 'active' or 'inactive'"),
-		),
-	)
-}
-
 // Update email template status request DTO
 type EmailTemplateUpdateStatusRequestDTO struct {
 	Status string `json:"status"`
-}
-
-func (r EmailTemplateUpdateStatusRequestDTO) Validate() error {
-	return validation.ValidateStruct(&r,
-		validation.Field(&r.Status,
-			validation.Required.Error("Status is required"),
-			validation.In(shared.StatusActive, shared.StatusInactive).Error("Status must be 'active' or 'inactive'"),
-		),
-	)
 }
 
 // Email template filter DTO
@@ -193,16 +98,6 @@ type EmailTemplateFilterDTO struct {
 }
 
 // Validate validates the email template filter DTO.
-func (f EmailTemplateFilterDTO) Validate() error {
-	return validation.ValidateStruct(&f,
-		validation.Field(&f.Status,
-			validation.When(len(f.Status) > 0,
-				validation.Each(validation.In(shared.StatusActive, shared.StatusInactive).Error("Status must be 'active' or 'inactive'")),
-			),
-		),
-		validation.Field(&f.PaginationRequestDTO),
-	)
-}
 
 // Login template list response DTO (without metadata)
 type LoginTemplateListResponseDTO struct {
@@ -240,22 +135,6 @@ type LoginTemplateCreateRequestDTO struct {
 	Status      *string        `json:"status,omitempty"`
 }
 
-func (r LoginTemplateCreateRequestDTO) Validate() error {
-	return validation.ValidateStruct(&r,
-		validation.Field(&r.Name,
-			validation.Required.Error("Name is required"),
-			validation.Length(1, 100).Error("Name must be between 1 and 100 characters"),
-		),
-		validation.Field(&r.Template,
-			validation.Required.Error("Template is required"),
-			validation.In(shared.LoginTemplateModern, shared.LoginTemplateClassic, shared.LoginTemplateMinimal, shared.LoginTemplateCorporate, shared.LoginTemplateCreative, shared.LoginTemplateCustom).Error("Template must be one of: modern, classic, minimal, corporate, creative, custom"),
-		),
-		validation.Field(&r.Status,
-			validation.In(shared.StatusActive, shared.StatusInactive).Error("Status must be 'active' or 'inactive'"),
-		),
-	)
-}
-
 // Update login template request DTO
 type LoginTemplateUpdateRequestDTO struct {
 	Name        string         `json:"name"`
@@ -265,34 +144,9 @@ type LoginTemplateUpdateRequestDTO struct {
 	Status      *string        `json:"status,omitempty"`
 }
 
-func (r LoginTemplateUpdateRequestDTO) Validate() error {
-	return validation.ValidateStruct(&r,
-		validation.Field(&r.Name,
-			validation.Required.Error("Name is required"),
-			validation.Length(1, 100).Error("Name must be between 1 and 100 characters"),
-		),
-		validation.Field(&r.Template,
-			validation.Required.Error("Template is required"),
-			validation.In(shared.LoginTemplateModern, shared.LoginTemplateClassic, shared.LoginTemplateMinimal, shared.LoginTemplateCorporate, shared.LoginTemplateCreative, shared.LoginTemplateCustom).Error("Template must be one of: modern, classic, minimal, corporate, creative, custom"),
-		),
-		validation.Field(&r.Status,
-			validation.In(shared.StatusActive, shared.StatusInactive).Error("Status must be 'active' or 'inactive'"),
-		),
-	)
-}
-
 // Update login template status request DTO
 type LoginTemplateUpdateStatusRequestDTO struct {
 	Status string `json:"status"`
-}
-
-func (r LoginTemplateUpdateStatusRequestDTO) Validate() error {
-	return validation.ValidateStruct(&r,
-		validation.Field(&r.Status,
-			validation.Required.Error("Status is required"),
-			validation.In(shared.StatusActive, shared.StatusInactive).Error("Status must be 'active' or 'inactive'"),
-		),
-	)
 }
 
 // Login template filter DTO
@@ -308,21 +162,6 @@ type LoginTemplateFilterDTO struct {
 }
 
 // Validate validates the login template filter DTO.
-func (f LoginTemplateFilterDTO) Validate() error {
-	return validation.ValidateStruct(&f,
-		validation.Field(&f.Template,
-			validation.When(f.Template != nil,
-				validation.In(shared.LoginTemplateModern, shared.LoginTemplateClassic, shared.LoginTemplateMinimal, shared.LoginTemplateCorporate, shared.LoginTemplateCreative, shared.LoginTemplateCustom).Error("Template must be one of: modern, classic, minimal, corporate, creative, custom"),
-			),
-		),
-		validation.Field(&f.Status,
-			validation.When(len(f.Status) > 0,
-				validation.Each(validation.In(shared.StatusActive, shared.StatusInactive).Error("Status must be 'active' or 'inactive'")),
-			),
-		),
-		validation.Field(&f.PaginationRequestDTO),
-	)
-}
 
 // SMS template list response DTO (without message content)
 type SMSTemplateListResponseDTO struct {
@@ -360,24 +199,6 @@ type SMSTemplateCreateRequestDTO struct {
 	Status      *string `json:"status,omitempty"`
 }
 
-func (r SMSTemplateCreateRequestDTO) Validate() error {
-	return validation.ValidateStruct(&r,
-		validation.Field(&r.Name,
-			validation.Required.Error("Name is required"),
-			validation.Length(1, 100).Error("Name must be between 1 and 100 characters"),
-		),
-		validation.Field(&r.Message,
-			validation.Required.Error("Message is required"),
-		),
-		validation.Field(&r.SenderID,
-			validation.Length(0, 20).Error("Sender ID must not exceed 20 characters"),
-		),
-		validation.Field(&r.Status,
-			validation.In(shared.StatusActive, shared.StatusInactive).Error("Status must be 'active' or 'inactive'"),
-		),
-	)
-}
-
 // Update SMS template request DTO
 type SMSTemplateUpdateRequestDTO struct {
 	Name        string  `json:"name"`
@@ -387,36 +208,9 @@ type SMSTemplateUpdateRequestDTO struct {
 	Status      *string `json:"status,omitempty"`
 }
 
-func (r SMSTemplateUpdateRequestDTO) Validate() error {
-	return validation.ValidateStruct(&r,
-		validation.Field(&r.Name,
-			validation.Required.Error("Name is required"),
-			validation.Length(1, 100).Error("Name must be between 1 and 100 characters"),
-		),
-		validation.Field(&r.Message,
-			validation.Required.Error("Message is required"),
-		),
-		validation.Field(&r.SenderID,
-			validation.Length(0, 20).Error("Sender ID must not exceed 20 characters"),
-		),
-		validation.Field(&r.Status,
-			validation.In(shared.StatusActive, shared.StatusInactive).Error("Status must be 'active' or 'inactive'"),
-		),
-	)
-}
-
 // Update SMS template status request DTO
 type SMSTemplateUpdateStatusRequestDTO struct {
 	Status string `json:"status"`
-}
-
-func (r SMSTemplateUpdateStatusRequestDTO) Validate() error {
-	return validation.ValidateStruct(&r,
-		validation.Field(&r.Status,
-			validation.Required.Error("Status is required"),
-			validation.In(shared.StatusActive, shared.StatusInactive).Error("Status must be 'active' or 'inactive'"),
-		),
-	)
 }
 
 // SMS template filter DTO
@@ -431,13 +225,3 @@ type SMSTemplateFilterDTO struct {
 }
 
 // Validate validates the SMS template filter DTO.
-func (f SMSTemplateFilterDTO) Validate() error {
-	return validation.ValidateStruct(&f,
-		validation.Field(&f.Status,
-			validation.When(len(f.Status) > 0,
-				validation.Each(validation.In(shared.StatusActive, shared.StatusInactive).Error("Status must be 'active' or 'inactive'")),
-			),
-		),
-		validation.Field(&f.PaginationRequestDTO),
-	)
-}
