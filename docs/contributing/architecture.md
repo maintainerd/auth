@@ -9,7 +9,8 @@ If you are new to the codebase, read this first to understand how the pieces fit
 
 - [High-Level Overview](#high-level-overview)
 - [Architecture Diagram](#architecture-diagram)
-- [Architecture Flowchart](architecture-flowchart.md)
+- [End-to-End Flow](#end-to-end-flow)
+- [Startup Flow](#startup-flow)
 - [Request Lifecycle](#request-lifecycle)
 - [Entry Point & Bootstrap](#entry-point--bootstrap)
 - [Dependency Injection](#dependency-injection)
@@ -27,6 +28,7 @@ If you are new to the codebase, read this first to understand how the pieces fit
 - [Multi-Tenancy](#multi-tenancy)
 - [Database & Migrations](#database--migrations)
 - [Caching](#caching)
+- [Platform Boundary](#platform-boundary)
 - [Key Design Patterns](#key-design-patterns)
 - [Technology Stack](#technology-stack)
 
@@ -106,6 +108,141 @@ All cross-layer communication happens through **interfaces**, making every layer
 
 ---
 
+## End-to-End Flow
+
+This diagram shows how the application connects from the executable entrypoint
+down into transport runtime, domain packages, and reusable platform
+infrastructure. It shows ownership boundaries, not every function call.
+
+```text
+┌──────────────────────────────────────────────────────────────┐
+│                       cmd/server/                            │
+│                                                              │
+│  main.go                                                     │
+│    │                                                         │
+│    ▼                                                         │
+│  bootstrap.go: run(ctx)                                      │
+│    ├─ logging.go       → bootstrap logger → configured logger│
+│    ├─ platform/config  → env + secrets                       │
+│    ├─ telemetry.go     → traces + metrics                    │
+│    ├─ platform/jwt     → RSA keys + token config             │
+│    ├─ platform/config  → PostgreSQL + Redis                  │
+│    ├─ platform/security→ Redis-backed rate limiter           │
+│    ├─ platform/runner  → database migrations                 │
+│    ├─ internal/app     → dependency graph                    │
+│    ├─ workers.go       → retention + gRPC background workers │
+│    └─ internal/server  → foreground REST lifecycle           │
+└───────────────────────────────┬──────────────────────────────┘
+                                │
+                                ▼
+┌──────────────────────────────────────────────────────────────┐
+│                       internal/app                           │
+│                                                              │
+│  repositories.go                                             │
+│    └─ construct domain repositories bound to DB              │
+│                                                              │
+│  services.go                                                 │
+│    ├─ construct domain services                              │
+│    ├─ inject repositories and platform helpers               │
+│    └─ connect cross-domain adapters                          │
+│                                                              │
+│  app.go                                                      │
+│    └─ expose App: services + DB + Redis + cache              │
+│                                                              │
+│  application.go                                              │
+│    └─ adapt App into server.Application                      │
+└───────────────────────────────┬──────────────────────────────┘
+                                │
+                                ▼
+┌──────────────────────────────────────────────────────────────┐
+│                      internal/server                         │
+│                                                              │
+│  handlers.go → construct REST handlers from services         │
+│  router.go   → mount internal/public routes + middleware     │
+│  rest.go     → serve :8080 internal and :8081 public         │
+│  grpc.go     → serve SeederService on :50051                 │
+│  health.go   → /health and /ready                            │
+│  openapi.go  → /openapi.json                                 │
+└───────────────────────────────┬──────────────────────────────┘
+                                │
+                                ▼
+┌──────────────────────────────────────────────────────────────┐
+│                 internal/<domain> packages                   │
+│                                                              │
+│  routes.go                                                   │
+│    ↓                                                         │
+│  handler_<name>.go                                           │
+│    ├─ types.go                     request/response DTOs     │
+│    ├─ validation_<name>.go         DTO validation            │
+│    └─ service_<name>.go            business logic            │
+│          ├─ deps.go                upstream contracts        │
+│          └─ repository_<name>.go   persistence boundary      │
+│                └─ model_<name>.go  GORM model + hooks        │
+└───────────────────────────────┬──────────────────────────────┘
+                                │
+                                ▼
+┌──────────────────────────────────────────────────────────────┐
+│                      internal/platform                       │
+│                                                              │
+│  database / cache / jwt / dpop / signedurl / crypto          │
+│  security / middleware / logging / telemetry                 │
+│  email / sms / templates                                     │
+│  apperror / response / pagination / ptr / valid / jsonutil   │
+│                                                              │
+│  Platform is reusable infrastructure. It does not import      │
+│  domain packages.                                            │
+└──────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## Startup Flow
+
+```text
+cmd/server/main.go
+  │
+  ▼
+run(context.Background())
+  │
+  ├─ initBootstrapLogger()
+  │    Temporary JSON logger for early startup failures.
+  │
+  ├─ config.Init()
+  │    Load environment variables and secrets.
+  │
+  ├─ initConfiguredLogger()
+  │    Apply LOG_LEVEL and PII redaction.
+  │
+  ├─ initTelemetry(ctx)
+  │    Start tracing and metrics; return one deferred shutdown hook.
+  │
+  ├─ jwt.InitJWTKeys()
+  │    Validate RSA keys before accepting traffic.
+  │
+  ├─ config.InitDB() + config.NewRedisClient()
+  │    Create shared PostgreSQL and Redis clients.
+  │
+  ├─ security.InitRateLimiter(redis)
+  │    Wire Redis-backed rate limiting.
+  │
+  ├─ runner.RunMigrations(db)
+  │    Bring schema current before repositories/services start.
+  │
+  ├─ app.NewApp(db, redis)
+  │    Build repositories, services, adapters, and cache.
+  │
+  ├─ application.ServerApplication()
+  │    Convert app bundle into transport dependencies.
+  │
+  ├─ startBackgroundWorkers(ctx, app, serverApp)
+  │    Start auth-event retention and gRPC SeederService.
+  │
+  └─ server.StartRESTServer(serverApp)
+       Start internal/public REST servers and block until shutdown.
+```
+
+---
+
 ## Request Lifecycle
 
 A typical authenticated API request flows through these steps:
@@ -121,6 +258,66 @@ A typical authenticated API request flows through these steps:
 9. **Handler** parses the request body/query, validates the DTO, calls the service, maps the result, and writes the response.
 10. **Service** runs business logic inside a database transaction.
 11. **Repository** executes tenant-scoped queries via GORM.
+
+```text
+HTTP Client
+  │
+  ▼
+REST Port
+  ├─ :8080 internal API
+  └─ :8081 public API
+        │
+        └─ public IP rate limit
+
+Both ports
+  │
+  ▼
+Common Middleware
+  ├─ recoverer
+  ├─ security headers
+  ├─ security context + request ID
+  ├─ structured request logging
+  ├─ request size limit
+  ├─ timeout
+  ├─ CORS
+  └─ JSON content-type enforcement
+  │
+  ▼
+Route Middleware
+  ├─ JWT or cookie validation
+  ├─ user context lookup
+  └─ permission checks
+  │
+  ▼
+Domain Route
+  │
+  ▼
+handler_<name>.go
+  ├─ parse request
+  ├─ validate types.go DTO with validation_<name>.go
+  └─ call service
+  │
+  ▼
+service_<name>.go
+  ├─ business rules
+  ├─ transaction boundaries
+  ├─ cache/session/event integrations
+  └─ repository calls
+  │
+  ▼
+repository_<name>.go
+  │
+  ▼
+model_<name>.go
+  │
+  ▼
+PostgreSQL
+
+Side paths:
+  Route middleware ───────→ Redis auth/session/rate-limit cache
+  Service layer ──────────→ Redis cache and token state
+  Service layer ──────────→ authevent service → webhook dispatcher
+```
 
 ---
 
@@ -182,6 +379,42 @@ All fields are **interfaces**, never concrete types. This makes every component 
 ---
 
 ## Layer-by-Layer Breakdown
+
+Most feature packages use the role-first structure below. A package should only
+include files for roles it actually owns.
+
+```text
+internal/<domain>/
+  model_<name>.go          database model, table names, hooks
+  repository_<name>.go     persistence contract and implementation
+  service_<name>.go        business behavior and transactions
+  handler_<name>.go        HTTP handler logic
+  validation_<name>.go     DTO validation
+  types.go                 API request/response DTOs
+  deps.go                  consumer-side upstream contracts
+  foundation.go            local platform aliases/wrappers
+  routes.go                route mounting
+```
+
+Current top-level domain packages:
+
+```text
+authevent
+authn
+branding
+client
+iam
+idp
+invite
+mfa
+notifier
+oauth
+secpolicy
+setup
+tenant
+user
+webhook
+```
 
 ### Configuration
 
@@ -533,6 +766,47 @@ Seeds default data required for the service to function (default tenant, roles, 
 | Rate limiting | Identifier-based counters | 15 minutes |
 
 > **Note:** If a user's roles or permissions change, the cached context may be stale for up to 5 minutes.
+
+---
+
+## Platform Boundary
+
+`internal/platform` is for reusable infrastructure that does not import domain
+packages. Domain packages may import platform helpers; platform must not import
+domains.
+
+```text
+Allowed dependencies:
+
+  cmd/server
+      ├──────────────→ internal/app
+      └──────────────→ internal/server
+
+  internal/app
+      └──────────────→ internal/<domain>
+
+  internal/server
+      └──────────────→ internal/<domain>
+
+  internal/<domain>
+      └──────────────→ internal/platform/*
+
+Forbidden dependency:
+
+  internal/platform/* ─────X────→ internal/<domain>
+
+Platform must stay domain-agnostic. If a helper needs a domain type,
+it belongs in that domain package, not in internal/platform.
+```
+
+Common platform responsibilities:
+
+- `config`, `database`, `runner`: environment, storage, migrations.
+- `cache`, `security`, `middleware`: Redis-backed cache, rate limits, HTTP middleware.
+- `jwt`, `dpop`, `signedurl`, `crypto`: token, proof, and cryptographic helpers.
+- `logging`, `telemetry`: structured logs, traces, metrics.
+- `email`, `sms`, `templates`: notification infrastructure.
+- `apperror`, `response`, `pagination`, `ptr`, `valid`, `jsonutil`: generic helpers.
 
 ---
 

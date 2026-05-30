@@ -1795,8 +1795,8 @@
     "semantic_hash": ""
   },
   "/home/reyco/Desktop/xreyc/maintainerd/maintainerd-auth/docs/contributing/architecture.md": {
-    "mtime": 1780185485.5858521,
-    "ast_hash": "cd43eb6e66971e1165d388b081676108",
+    "mtime": 1780186499.0638847,
+    "ast_hash": "c6fc3b896b2968c12cca3fd15adcfd4d",
     "semantic_hash": ""
   },
   "/home/reyco/Desktop/xreyc/maintainerd/maintainerd-auth/docs/contributing/testing.md": {
@@ -3502,11 +3502,6 @@
   "/home/reyco/Desktop/xreyc/maintainerd/maintainerd-auth/cmd/server/workers.go": {
     "mtime": 1780185137.9168296,
     "ast_hash": "201266fe6248ef2c27d436b5d11f961a",
-    "semantic_hash": ""
-  },
-  "/home/reyco/Desktop/xreyc/maintainerd/maintainerd-auth/docs/contributing/architecture-flowchart.md": {
-    "mtime": 1780185485.5839014,
-    "ast_hash": "354b4cd35c2e68936cd9b37261d2f42a",
     "semantic_hash": ""
   }
 }
