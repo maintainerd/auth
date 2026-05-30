@@ -50,21 +50,21 @@ These are exploitable or data-exposing today. Tackle this section first.
 
 ### Secrets stored in plaintext (columns named `*Encrypted` but no encryption)
 
-- [ ] **SEC-04** 🔴 ✅ — **Webhook signing secret stored raw.**
+- [x] **SEC-04** 🔴 ✅ — **Webhook signing secret stored raw.**
   [`internal/webhook/service_endpoint.go:161`](../../internal/webhook/service_endpoint.go#L161)
   / [`:219`](../../internal/webhook/service_endpoint.go#L219) assign the raw secret to
   `SecretEncrypted`; [`deliver.go:26`](../../internal/webhook/deliver.go#L26) HMACs it directly.
   **Fix:** encrypt on write / decrypt before signing via `platform/crypto` (or KMS),
   or rename the column and document the threat model.
 
-- [ ] **SEC-05** 🔴 ✅ — **SMTP password & SMS auth token stored raw.**
+- [x] **SEC-05** 🔴 ✅ — **SMTP password & SMS auth token stored raw.**
   [`internal/notifier/service_email_config.go:116`](../../internal/notifier/service_email_config.go#L116)
   (`config.PasswordEncrypted = password`) and
   [`internal/notifier/service_sms_config.go:104`](../../internal/notifier/service_sms_config.go#L104).
   Tests assert the plaintext round-trips.
   **Fix:** encrypt at rest, or rename + document.
 
-- [ ] **SEC-06** 🔴 ⚠️ — **MFA TOTP secret and IdP `client_secret` likely plaintext.**
+- [x] **SEC-06** 🔴 ⚠️ — **MFA TOTP secret and IdP `client_secret` likely plaintext.**
   IdP has an explicit "encrypt at rest" TODO at
   [`internal/idp/service_federation.go:658`](../../internal/idp/service_federation.go#L658);
   `UserTOTPSecret.Secret` appears stored as base32 plaintext.

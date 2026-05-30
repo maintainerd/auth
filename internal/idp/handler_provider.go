@@ -11,6 +11,7 @@ import (
 	"github.com/maintainerd/auth/internal/platform/middleware"
 	"github.com/maintainerd/auth/internal/platform/ptr"
 	resp "github.com/maintainerd/auth/internal/platform/response"
+	"gorm.io/datatypes"
 )
 
 type IdentityProviderHandler struct {
@@ -283,6 +284,10 @@ func toIdpListResponseDTO(r IdentityProviderServiceDataResult) IdentityProviderR
 
 // Convert identity provider result to detail DTO (with config and tenant)
 func toIdpDetailResponseDTO(r IdentityProviderServiceDataResult) IdentityProviderDetailResponseDTO {
+	var cfg *datatypes.JSON
+	if r.Config != nil {
+		cfg = redactIdpConfig(*r.Config)
+	}
 	result := IdentityProviderDetailResponseDTO{
 		IdentityProviderUUID: r.IdentityProviderUUID,
 		Name:                 r.Name,
@@ -290,7 +295,7 @@ func toIdpDetailResponseDTO(r IdentityProviderServiceDataResult) IdentityProvide
 		Provider:             r.Provider,
 		ProviderType:         r.ProviderType,
 		Identifier:           r.Identifier,
-		Config:               r.Config,
+		Config:               cfg,
 		Status:               r.Status,
 		IsDefault:            r.IsDefault,
 		IsSystem:             r.IsSystem,

@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
+	"github.com/maintainerd/auth/internal/platform/crypto"
 	"github.com/maintainerd/auth/internal/shared"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -112,7 +113,11 @@ func TestSMSConfigService_Update(t *testing.T) {
 			"twilio", "AC123", "new-token", "+15551234567", "", boolPtr(true),
 		)
 		require.NoError(t, err)
-		assert.Equal(t, "new-token", existing.AuthTokenEncrypted)
+		assert.NotEmpty(t, existing.AuthTokenEncrypted)
+		assert.NotEqual(t, "new-token", existing.AuthTokenEncrypted)
+		dec, decErr := crypto.DecryptAtRest(existing.AuthTokenEncrypted)
+		require.NoError(t, decErr)
+		assert.Equal(t, "new-token", dec)
 		assert.True(t, existing.TestMode)
 	})
 
