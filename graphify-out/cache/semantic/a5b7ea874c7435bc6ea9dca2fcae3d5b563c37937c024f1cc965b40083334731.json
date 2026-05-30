@@ -1,1 +1,1 @@
-{"nodes": [{"id": "tenant_settings_audit", "label": "Audit Logging Configuration", "file_type": "document", "source_file": "docs/apis/settings/tenant-settings.md", "source_location": null, "source_url": null, "captured_at": null, "author": null, "contributor": null}], "edges": [], "hyperedges": []}
+{"nodes": [{"id": "tenant_settings", "label": "Tenant Settings", "file_type": "document", "source_file": "docs/apis/settings/tenant-settings.md", "source_location": null, "source_url": null, "captured_at": null, "author": null, "contributor": null}], "edges": [], "hyperedges": []}
