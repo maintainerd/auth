@@ -1,0 +1,1 @@
+{"nodes": [{"id": "logging_and_audit_md", "label": "Logging & Audit Architecture", "file_type": "document", "source_file": "docs/settings/logging-and-audit.md"}, {"id": "auth_events_table", "label": "PostgreSQL auth_events table", "file_type": "rationale", "source_file": "docs/settings/logging-and-audit.md"}], "edges": [], "hyperedges": []}
