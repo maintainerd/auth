@@ -57,3 +57,30 @@ func testCascadeModels() []any {
 	}
 	return m
 }
+
+// stubActor is a test AccessActor backed by a fixed identity list. Shared by the
+// tenant-access tests in service_tenant_test.go and the isolation tests.
+type stubActor struct{ identities []AccessIdentity }
+
+func (s stubActor) AccessIdentities() []AccessIdentity { return s.identities }
+
+// buildUserWithIdentities creates an AccessActor with the provided identities.
+func buildUserWithIdentities(identities []AccessIdentity) AccessActor {
+	return stubActor{identities: identities}
+}
+
+// buildTenant creates a minimal tenant for access/isolation tests.
+func buildTenant(id int64, isSystem bool) *Tenant {
+	return &Tenant{
+		TenantID: id,
+		IsSystem: isSystem,
+	}
+}
+
+// buildIdentity creates an AccessIdentity linked to the given tenant.
+func buildIdentity(tenantID int64, isSystem bool) AccessIdentity {
+	return AccessIdentity{
+		TenantID:       tenantID,
+		TenantIsSystem: isSystem,
+	}
+}
