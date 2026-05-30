@@ -3,6 +3,7 @@ package user
 import (
 	"errors"
 
+	"github.com/maintainerd/auth/internal/platform/database"
 	"gorm.io/gorm"
 )
 
@@ -22,7 +23,7 @@ type userRoleRepository struct {
 
 func NewUserRoleRepository(db *gorm.DB) UserRoleRepository {
 	return &userRoleRepository{
-		BaseRepository: NewBaseRepository[UserRole](db, "user_role_uuid", "user_role_id"),
+		BaseRepository: database.NewBaseRepository[UserRole](db, "user_role_uuid", "user_role_id"),
 	}
 }
 

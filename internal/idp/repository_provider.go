@@ -2,6 +2,8 @@ package idp
 
 import (
 	"errors"
+
+	"github.com/maintainerd/auth/internal/platform/database"
 	"gorm.io/gorm"
 )
 
@@ -41,7 +43,7 @@ type identityProviderRepository struct {
 
 func NewIdentityProviderRepository(db *gorm.DB) IdentityProviderRepository {
 	return &identityProviderRepository{
-		BaseRepository: NewBaseRepository[IdentityProvider](db, "identity_provider_uuid", "identity_provider_id"),
+		BaseRepository: database.NewBaseRepository[IdentityProvider](db, "identity_provider_uuid", "identity_provider_id"),
 	}
 }
 
@@ -126,36 +128,9 @@ func (r *identityProviderRepository) FindPaginated(filter IdentityProviderReposi
 	}
 
 	// Sorting — protected against SQL injection via allowlist
-	query = query.Order(sanitizeOrder(filter.SortBy, filter.SortOrder, "created_at DESC"))
+	query = query.Order(database.SanitizeOrder(filter.SortBy, filter.SortOrder, "created_at DESC")).Preload("Tenant")
 
-	// Count
-	var total int64
-	if err := query.Count(&total).Error; err != nil {
-		return nil, err
-	}
-
-	// Pagination guards prevent division-by-zero and negative offsets
-	if filter.Page < 1 {
-		filter.Page = 1
-	}
-	if filter.Limit < 1 {
-		filter.Limit = 10
-	}
-	offset := (filter.Page - 1) * filter.Limit
-	var apis []IdentityProvider
-	if err := query.Preload("Tenant").Limit(filter.Limit).Offset(offset).Find(&apis).Error; err != nil {
-		return nil, err
-	}
-
-	totalPages := int((total + int64(filter.Limit) - 1) / int64(filter.Limit))
-
-	return &PaginationResult[IdentityProvider]{
-		Data:       apis,
-		Total:      total,
-		Page:       filter.Page,
-		Limit:      filter.Limit,
-		TotalPages: totalPages,
-	}, nil
+	return database.PaginateQuery[IdentityProvider](query, filter.Page, filter.Limit)
 }
 
 func (r *identityProviderRepository) FindByTenantAndProvider(tenantID int64, provider string) (*IdentityProvider, error) {

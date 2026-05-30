@@ -6,7 +6,6 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/platform/apperror"
-	"github.com/maintainerd/auth/internal/platform/jwt"
 	"github.com/maintainerd/auth/internal/platform/ptr"
 	"github.com/maintainerd/auth/internal/platform/security"
 	"github.com/maintainerd/auth/internal/secpolicy"
@@ -787,38 +786,11 @@ func (s *registerService) RegisterInvitePublic(
 	return s.generateTokenResponse(userIdentitySub, createdUser, Client)
 }
 
-func (s *registerService) generateTokenResponse(sub string, user *User, Client *Client) (*RegisterResponseDTO, error) {
-	accessToken, err := jwt.GenerateAccessToken(
-		sub,
-		"openid profile email",
-		*Client.Domain,
-		*Client.Identifier,
-		*Client.Identifier,
-		Client.IdentityProvider.Identifier,
-	)
+func (s *registerService) generateTokenResponse(sub string, user *User, client *Client) (*RegisterResponseDTO, error) {
+	accessToken, idToken, refreshToken, err := generateTokenSet(sub, user, client)
 	if err != nil {
 		return nil, err
 	}
-
-	// Create user profile for ID token (populate from user data)
-	profile := &jwt.UserProfile{
-		Email:         user.Email,
-		EmailVerified: user.IsEmailVerified,
-		Phone:         user.Phone,
-		PhoneVerified: user.IsPhoneVerified,
-	}
-
-	// Generate ID token with user profile (no nonce for registration flow)
-	idToken, err := jwt.GenerateIDToken(sub, *Client.Domain, *Client.Identifier, Client.IdentityProvider.Identifier, profile, "", nil)
-	if err != nil {
-		return nil, err
-	}
-
-	refreshToken, err := jwt.GenerateRefreshToken(sub, *Client.Domain, *Client.Identifier, Client.IdentityProvider.Identifier)
-	if err != nil {
-		return nil, err
-	}
-
 	return &RegisterResponseDTO{
 		AccessToken:  accessToken,
 		IDToken:      idToken,

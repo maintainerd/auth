@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/maintainerd/auth/internal/platform/database"
 	"github.com/maintainerd/auth/internal/shared"
 	"gorm.io/gorm"
 )
@@ -56,7 +57,7 @@ type userRepository struct {
 
 func NewUserRepository(db *gorm.DB) UserRepository {
 	return &userRepository{
-		BaseRepository: NewBaseRepository[User](db, "user_uuid", "user_id"),
+		BaseRepository: database.NewBaseRepository[User](db, "user_uuid", "user_id"),
 	}
 }
 
@@ -254,9 +255,6 @@ func (r *userRepository) FindByPendingEmail(email string) (*User, error) {
 }
 
 func (r *userRepository) FindPaginated(filter UserRepositoryGetFilter) (*PaginationResult[User], error) {
-	var users []User
-	var total int64
-
 	query := r.DB().Model(&User{})
 
 	// Filter by user_identities fields (tenant, client) — join once to avoid duplicates.
@@ -288,28 +286,8 @@ func (r *userRepository) FindPaginated(filter UserRepositoryGetFilter) (*Paginat
 		query = query.Joins("JOIN user_roles ON users.user_id = user_roles.user_id").Where("user_roles.role_id = ?", *filter.RoleID)
 	}
 
-	// Count total records
-	if err := query.Count(&total).Error; err != nil {
-		return nil, err
-	}
-
 	// Apply sorting — protected against SQL injection via allowlist
-	query = query.Order(sanitizeOrderPrefixed("users.", filter.SortBy, filter.SortOrder, "users.created_at DESC"))
+	query = query.Order(database.SanitizeOrderPrefixed("users.", filter.SortBy, filter.SortOrder, "users.created_at DESC"))
 
-	// Apply pagination
-	filter.Page, filter.Limit = normalizePagination(filter.Page, filter.Limit)
-	offset := (filter.Page - 1) * filter.Limit
-	if err := query.Offset(offset).Limit(filter.Limit).Find(&users).Error; err != nil {
-		return nil, err
-	}
-
-	totalPages := int((total + int64(filter.Limit) - 1) / int64(filter.Limit))
-
-	return &PaginationResult[User]{
-		Data:       users,
-		Total:      total,
-		Page:       filter.Page,
-		Limit:      filter.Limit,
-		TotalPages: totalPages,
-	}, nil
+	return database.PaginateQuery[User](query, filter.Page, filter.Limit)
 }

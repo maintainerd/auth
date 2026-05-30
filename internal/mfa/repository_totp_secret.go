@@ -4,6 +4,7 @@ import (
 	"errors"
 	"time"
 
+	"github.com/maintainerd/auth/internal/platform/database"
 	"gorm.io/gorm"
 )
 
@@ -24,7 +25,7 @@ type userTOTPSecretRepository struct {
 
 func NewUserTOTPSecretRepository(db *gorm.DB) UserTOTPSecretRepository {
 	return &userTOTPSecretRepository{
-		BaseRepository: NewBaseRepository[UserTOTPSecret](db, "totp_secret_uuid", "totp_secret_id"),
+		BaseRepository: database.NewBaseRepository[UserTOTPSecret](db, "totp_secret_uuid", "totp_secret_id"),
 	}
 }
 

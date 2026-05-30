@@ -4,6 +4,7 @@ import (
 	"errors"
 	"time"
 
+	"github.com/maintainerd/auth/internal/platform/database"
 	"gorm.io/gorm"
 )
 
@@ -43,7 +44,7 @@ type authEventRepository struct {
 // NewAuthEventRepository creates a new AuthEventRepository backed by the supplied DB.
 func NewAuthEventRepository(db *gorm.DB) AuthEventRepository {
 	return &authEventRepository{
-		BaseRepository: NewBaseRepository[AuthEvent](db, "auth_event_uuid", "auth_event_id"),
+		BaseRepository: database.NewBaseRepository[AuthEvent](db, "auth_event_uuid", "auth_event_id"),
 	}
 }
 
@@ -86,29 +87,9 @@ func (r *authEventRepository) FindPaginated(filter AuthEventRepositoryGetFilter)
 		query = query.Where("created_at <= ?", *filter.DateTo)
 	}
 
-	var total int64
-	if err := query.Count(&total).Error; err != nil {
-		return nil, err
-	}
+	query = query.Order(database.SanitizeOrder(filter.SortBy, filter.SortOrder, "created_at DESC"))
 
-	query = query.Order(sanitizeOrder(filter.SortBy, filter.SortOrder, "created_at DESC"))
-
-	filter.Page, filter.Limit = normalizePagination(filter.Page, filter.Limit)
-	offset := (filter.Page - 1) * filter.Limit
-
-	var events []AuthEvent
-	if err := query.Offset(offset).Limit(filter.Limit).Find(&events).Error; err != nil {
-		return nil, err
-	}
-
-	totalPages := int((total + int64(filter.Limit) - 1) / int64(filter.Limit))
-	return &PaginationResult[AuthEvent]{
-		Data:       events,
-		Total:      total,
-		Page:       filter.Page,
-		Limit:      filter.Limit,
-		TotalPages: totalPages,
-	}, nil
+	return database.PaginateQuery[AuthEvent](query, filter.Page, filter.Limit)
 }
 
 // FindByUUIDAndTenantID retrieves a single auth event by UUID scoped to a tenant.

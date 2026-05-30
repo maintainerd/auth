@@ -4,6 +4,7 @@ import (
 	"errors"
 	"time"
 
+	"github.com/maintainerd/auth/internal/platform/database"
 	"gorm.io/gorm"
 )
 
@@ -23,7 +24,7 @@ type userBackupCodeRepository struct {
 
 func NewUserBackupCodeRepository(db *gorm.DB) UserBackupCodeRepository {
 	return &userBackupCodeRepository{
-		BaseRepository: NewBaseRepository[UserBackupCode](db, "backup_code_uuid", "backup_code_id"),
+		BaseRepository: database.NewBaseRepository[UserBackupCode](db, "backup_code_uuid", "backup_code_id"),
 	}
 }
 

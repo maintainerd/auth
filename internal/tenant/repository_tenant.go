@@ -5,6 +5,7 @@ import (
 	"errors"
 
 	"github.com/google/uuid"
+	"github.com/maintainerd/auth/internal/platform/database"
 	"gorm.io/gorm"
 )
 
@@ -40,7 +41,7 @@ type tenantRepository struct {
 
 func NewTenantRepository(db *gorm.DB) TenantRepository {
 	return &tenantRepository{
-		BaseRepository: NewBaseRepository[Tenant](db, "tenant_uuid", "tenant_id"),
+		BaseRepository: database.NewBaseRepository[Tenant](db, "tenant_uuid", "tenant_id"),
 	}
 }
 
@@ -113,33 +114,9 @@ func (r *tenantRepository) FindPaginated(filter TenantRepositoryGetFilter) (*Pag
 		query = query.Where("is_system = ?", *filter.IsSystem)
 	}
 
-	query = query.Order(sanitizeOrder(filter.SortBy, filter.SortOrder, "created_at DESC"))
+	query = query.Order(database.SanitizeOrder(filter.SortBy, filter.SortOrder, "created_at DESC"))
 
-	var total int64
-	if err := query.Count(&total).Error; err != nil {
-		return nil, err
-	}
-
-	if filter.Page < 1 {
-		filter.Page = 1
-	}
-	if filter.Limit < 1 {
-		filter.Limit = 10
-	}
-	offset := (filter.Page - 1) * filter.Limit
-	var tenants []Tenant
-	if err := query.Limit(filter.Limit).Offset(offset).Find(&tenants).Error; err != nil {
-		return nil, err
-	}
-
-	totalPages := int((total + int64(filter.Limit) - 1) / int64(filter.Limit))
-	return &PaginationResult[Tenant]{
-		Data:       tenants,
-		Total:      total,
-		Page:       filter.Page,
-		Limit:      filter.Limit,
-		TotalPages: totalPages,
-	}, nil
+	return database.PaginateQuery[Tenant](query, filter.Page, filter.Limit)
 }
 
 func (r *tenantRepository) SetStatusByUUID(tenantUUID uuid.UUID, status string) error {

@@ -127,7 +127,7 @@ func (s *oauthAuthorizeService) Authorize(ctx context.Context, req OAuthAuthoriz
 	}
 
 	// Validate that the client supports the authorization_code grant.
-	if !s.clientSupportsGrant(client, GrantTypeAuthorizationCode) {
+	if !clientHasGrant(client, GrantTypeAuthorizationCode) {
 		span.SetStatus(codes.Error, "grant type not allowed")
 		return nil, apperror.NewOAuthUnauthorizedClient("client is not authorized for authorization_code grant")
 	}

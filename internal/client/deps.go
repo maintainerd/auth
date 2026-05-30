@@ -153,6 +153,19 @@ type PermissionServiceDataResult struct {
 	UpdatedAt      time.Time
 }
 
+func toPermissionServiceDataResult(p *Permission) PermissionServiceDataResult {
+	return PermissionServiceDataResult{
+		PermissionUUID: p.PermissionUUID,
+		Name:           p.Name,
+		Description:    p.Description,
+		Status:         p.Status,
+		IsDefault:      p.IsDefault,
+		IsSystem:       p.IsSystem,
+		CreatedAt:      p.CreatedAt,
+		UpdatedAt:      p.UpdatedAt,
+	}
+}
+
 type IdentityProviderServiceDataResult struct {
 	IdentityProviderUUID uuid.UUID
 	Name                 string

@@ -2,6 +2,8 @@ package client
 
 import (
 	"errors"
+
+	"github.com/maintainerd/auth/internal/platform/database"
 	"gorm.io/gorm"
 )
 
@@ -19,7 +21,7 @@ type clientPermissionRepository struct {
 
 func NewClientPermissionRepository(db *gorm.DB) ClientPermissionRepository {
 	return &clientPermissionRepository{
-		BaseRepository: NewBaseRepository[ClientPermission](db, "client_permission_uuid", "client_permission_id"),
+		BaseRepository: database.NewBaseRepository[ClientPermission](db, "client_permission_uuid", "client_permission_id"),
 	}
 }
 

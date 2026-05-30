@@ -4,6 +4,7 @@ import (
 	"errors"
 	"time"
 
+	"github.com/maintainerd/auth/internal/platform/database"
 	"gorm.io/gorm"
 )
 
@@ -24,7 +25,7 @@ type oauthPARRequestRepository struct {
 // NewOAuthPARRequestRepository creates a new OAuthPARRequestRepository.
 func NewOAuthPARRequestRepository(db *gorm.DB) OAuthPARRequestRepository {
 	return &oauthPARRequestRepository{
-		BaseRepository: NewBaseRepository[OAuthPARRequest](db, "oauth_par_request_uuid", "oauth_par_request_id"),
+		BaseRepository: database.NewBaseRepository[OAuthPARRequest](db, "oauth_par_request_uuid", "oauth_par_request_id"),
 	}
 }
 

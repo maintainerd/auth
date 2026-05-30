@@ -2,6 +2,8 @@ package branding
 
 import (
 	"errors"
+
+	"github.com/maintainerd/auth/internal/platform/database"
 	"github.com/maintainerd/auth/internal/shared"
 	"gorm.io/gorm"
 )
@@ -32,7 +34,7 @@ type smsTemplateRepository struct {
 
 func NewSMSTemplateRepository(db *gorm.DB) SMSTemplateRepository {
 	return &smsTemplateRepository{
-		BaseRepository: NewBaseRepository[SMSTemplate](db, "sms_template_uuid", "sms_template_id"),
+		BaseRepository: database.NewBaseRepository[SMSTemplate](db, "sms_template_uuid", "sms_template_id"),
 	}
 }
 
@@ -87,43 +89,8 @@ func (r *smsTemplateRepository) FindPaginated(filter SMSTemplateRepositoryGetFil
 		query = query.Where("is_system = ?", *filter.IsSystem)
 	}
 
-	// Count total
-	var total int64
-	if err := query.Count(&total).Error; err != nil {
-		return nil, err
-	}
-
 	// Apply sorting — protected against SQL injection via allowlist
-	query = query.Order(sanitizeOrder(filter.SortBy, filter.SortOrder, "created_at DESC"))
+	query = query.Order(database.SanitizeOrder(filter.SortBy, filter.SortOrder, "created_at DESC"))
 
-	// Apply pagination
-	page := 1
-	if filter.Page > 0 {
-		page = filter.Page
-	}
-	limit := 10
-	if filter.Limit > 0 {
-		limit = filter.Limit
-	}
-	offset := (page - 1) * limit
-	query = query.Offset(offset).Limit(limit)
-
-	// Execute query
-	var templates []SMSTemplate
-	if err := query.Find(&templates).Error; err != nil {
-		return nil, err
-	}
-
-	totalPages := int(total) / limit
-	if int(total)%limit > 0 {
-		totalPages++
-	}
-
-	return &PaginationResult[SMSTemplate]{
-		Data:       templates,
-		Total:      total,
-		Page:       page,
-		Limit:      limit,
-		TotalPages: totalPages,
-	}, nil
+	return database.PaginateQuery[SMSTemplate](query, filter.Page, filter.Limit)
 }

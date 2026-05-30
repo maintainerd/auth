@@ -4,6 +4,7 @@ import (
 	"errors"
 	"time"
 
+	"github.com/maintainerd/auth/internal/platform/database"
 	"gorm.io/gorm"
 )
 
@@ -27,7 +28,7 @@ type oauthCIBARequestRepository struct {
 // NewOAuthCIBARequestRepository creates a new OAuthCIBARequestRepository.
 func NewOAuthCIBARequestRepository(db *gorm.DB) OAuthCIBARequestRepository {
 	return &oauthCIBARequestRepository{
-		BaseRepository: NewBaseRepository[OAuthCIBARequest](db, "oauth_ciba_request_uuid", "oauth_ciba_request_id"),
+		BaseRepository: database.NewBaseRepository[OAuthCIBARequest](db, "oauth_ciba_request_uuid", "oauth_ciba_request_id"),
 	}
 }
 

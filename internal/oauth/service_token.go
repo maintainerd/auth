@@ -107,7 +107,7 @@ func (s *oauthTokenService) exchangeAuthorizationCode(ctx context.Context, req O
 	}
 
 	// Authenticate the client.
-	client, oerr := s.authenticateClient(ctx, creds)
+	client, oerr := authenticateOAuthClient(s.db, creds)
 	if oerr != nil {
 		return nil, oerr
 	}
@@ -228,7 +228,7 @@ func (s *oauthTokenService) exchangeRefreshToken(ctx context.Context, req OAuthT
 	}
 
 	// Authenticate the client.
-	client, oerr := s.authenticateClient(ctx, creds)
+	client, oerr := authenticateOAuthClient(s.db, creds)
 	if oerr != nil {
 		return nil, oerr
 	}
@@ -369,13 +369,13 @@ func (s *oauthTokenService) exchangeClientCredentials(ctx context.Context, _ OAu
 	defer span.End()
 
 	// Authenticate the client.
-	client, oerr := s.authenticateClient(ctx, creds)
+	client, oerr := authenticateOAuthClient(s.db, creds)
 	if oerr != nil {
 		return nil, oerr
 	}
 
 	// The client must have the client_credentials grant enabled.
-	if !hasGrant(client, GrantTypeClientCredentials) {
+	if !clientHasGrant(client, GrantTypeClientCredentials) {
 		span.SetStatus(codes.Error, "client_credentials grant not allowed")
 		return nil, apperror.NewOAuthUnauthorizedClient("client is not authorized for client_credentials grant")
 	}
@@ -442,7 +442,7 @@ func (s *oauthTokenService) Revoke(ctx context.Context, req OAuthRevokeRequestDT
 	defer span.End()
 
 	// Authenticate the client.
-	client, oerr := s.authenticateClient(ctx, creds)
+	client, oerr := authenticateOAuthClient(s.db, creds)
 	if oerr != nil {
 		return oerr
 	}
@@ -486,7 +486,7 @@ func (s *oauthTokenService) Introspect(ctx context.Context, req OAuthIntrospectR
 	_, span := otel.Tracer("service").Start(ctx, "oauth_token.introspect")
 	defer span.End()
 
-	_, oerr := s.authenticateClient(ctx, creds)
+	_, oerr := authenticateOAuthClient(s.db, creds)
 	if oerr != nil {
 		return nil, oerr
 	}
@@ -560,39 +560,6 @@ func (s *oauthTokenService) Introspect(ctx context.Context, req OAuthIntrospectR
 // ──────────────────────────────────────────────────────────────────────────────
 // Helpers
 // ──────────────────────────────────────────────────────────────────────────────
-
-// authenticateClient resolves and validates client credentials from either
-// HTTP Basic auth or the request body.
-func (s *oauthTokenService) authenticateClient(ctx context.Context, creds OAuthClientCredentials) (*Client, *apperror.OAuthError) {
-	if creds.ClientID == "" {
-		return nil, apperror.NewOAuthInvalidClient("client_id is required")
-	}
-
-	// Look up the client.
-	client, err := findActiveClientByIdentifier(s.db, creds.ClientID)
-	if err != nil {
-		return nil, apperror.NewOAuthServerError("an unexpected error occurred")
-	}
-	if client == nil {
-		s.logClientAuthFail(ctx, 0, "unknown client_id")
-		return nil, apperror.NewOAuthInvalidClient("client authentication failed")
-	}
-
-	// Authenticate based on the client's configured method.
-	switch client.TokenEndpointAuthMethod {
-	case TokenAuthMethodNone:
-		// Public clients (SPA/mobile) do not have a secret.
-	case TokenAuthMethodSecretBasic, TokenAuthMethodSecretPost:
-		if !clientSecretMatches(client, creds.ClientSecret) {
-			s.logClientAuthFail(ctx, client.TenantID, "invalid client_secret")
-			return nil, apperror.NewOAuthInvalidClient("client authentication failed")
-		}
-	default:
-		return nil, apperror.NewOAuthInvalidClient("unsupported token_endpoint_auth_method")
-	}
-
-	return client, nil
-}
 
 // generateTokens creates an access token, ID token, and a new refresh token.
 func (s *oauthTokenService) generateTokens(ctx context.Context, sub string, user *User, client *Client, scope string, nonce *string) (*OAuthTokenResult, *apperror.OAuthError) {

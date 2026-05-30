@@ -7,7 +7,6 @@ import (
 
 	"github.com/maintainerd/auth/internal/authevent"
 	"github.com/maintainerd/auth/internal/platform/apperror"
-	"github.com/maintainerd/auth/internal/platform/jwt"
 	"github.com/maintainerd/auth/internal/platform/middleware"
 	"github.com/maintainerd/auth/internal/platform/ptr"
 	"github.com/maintainerd/auth/internal/platform/security"
@@ -60,10 +59,6 @@ func NewLoginService(
 		securitySettingRepo:  securitySettingRepo,
 	}
 }
-
-// Function variables to allow stubbing in tests.
-var generateIDTokenFn = jwt.GenerateIDToken
-var generateRefreshTokenFn = jwt.GenerateRefreshToken
 
 // LoginPublic authenticates users for public-facing applications.
 // Requires clientID and providerID to identify the auth client.
@@ -513,33 +508,7 @@ func (s *loginService) checkPasswordExpiry(ctx context.Context, user *User, tena
 }
 
 func (s *loginService) generateTokenResponse(ctx context.Context, sub string, user *User, Client *Client) (*LoginResponseDTO, error) {
-	accessToken, err := jwt.GenerateAccessToken(
-		sub,
-		"openid profile email",
-		*Client.Domain,
-		*Client.Identifier,
-		*Client.Identifier,
-		Client.IdentityProvider.Identifier,
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	// Create user profile for ID token (populate from user data)
-	profile := &jwt.UserProfile{
-		Email:         user.Email,
-		EmailVerified: user.IsEmailVerified,
-		Phone:         user.Phone,
-		PhoneVerified: user.IsPhoneVerified,
-	}
-
-	// Generate ID token with user profile (no nonce for login flow)
-	idToken, err := generateIDTokenFn(sub, *Client.Domain, *Client.Identifier, Client.IdentityProvider.Identifier, profile, "", nil)
-	if err != nil {
-		return nil, err
-	}
-
-	refreshToken, err := generateRefreshTokenFn(sub, *Client.Domain, *Client.Identifier, Client.IdentityProvider.Identifier)
+	accessToken, idToken, refreshToken, err := generateTokenSet(sub, user, Client)
 	if err != nil {
 		return nil, err
 	}

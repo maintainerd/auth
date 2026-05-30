@@ -12,7 +12,6 @@ import (
 	"github.com/maintainerd/auth/internal/platform/apperror"
 	"github.com/maintainerd/auth/internal/platform/config"
 	"github.com/maintainerd/auth/internal/platform/email"
-	"github.com/maintainerd/auth/internal/platform/jwt"
 	"github.com/maintainerd/auth/internal/platform/security"
 	"github.com/maintainerd/auth/internal/platform/signedurl"
 	"github.com/maintainerd/auth/internal/shared"
@@ -336,36 +335,11 @@ func (s *magicLinkService) sendMagicLinkEmail(ctx context.Context, to, token str
 	})
 }
 
-func (s *magicLinkService) generateTokenResponse(sub string, user *User, Client *Client) (*LoginResponseDTO, error) {
-	accessToken, err := jwt.GenerateAccessToken(
-		sub,
-		"openid profile email",
-		*Client.Domain,
-		*Client.Identifier,
-		*Client.Identifier,
-		Client.IdentityProvider.Identifier,
-	)
+func (s *magicLinkService) generateTokenResponse(sub string, user *User, client *Client) (*LoginResponseDTO, error) {
+	accessToken, idToken, refreshToken, err := generateTokenSet(sub, user, client)
 	if err != nil {
 		return nil, err
 	}
-
-	profile := &jwt.UserProfile{
-		Email:         user.Email,
-		EmailVerified: user.IsEmailVerified,
-		Phone:         user.Phone,
-		PhoneVerified: user.IsPhoneVerified,
-	}
-
-	idToken, err := generateIDTokenFn(sub, *Client.Domain, *Client.Identifier, Client.IdentityProvider.Identifier, profile, "", nil)
-	if err != nil {
-		return nil, err
-	}
-
-	refreshToken, err := generateRefreshTokenFn(sub, *Client.Domain, *Client.Identifier, Client.IdentityProvider.Identifier)
-	if err != nil {
-		return nil, err
-	}
-
 	return &LoginResponseDTO{
 		AccessToken:  accessToken,
 		IDToken:      idToken,

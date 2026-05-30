@@ -2,7 +2,9 @@ package iam
 
 import (
 	"errors"
+
 	"github.com/google/uuid"
+	"github.com/maintainerd/auth/internal/platform/database"
 	"gorm.io/gorm"
 )
 
@@ -38,7 +40,7 @@ type serviceRepository struct {
 
 func NewServiceRepository(db *gorm.DB) ServiceRepository {
 	return &serviceRepository{
-		BaseRepository: NewBaseRepository[Service](db, "service_uuid", "service_id"),
+		BaseRepository: database.NewBaseRepository[Service](db, "service_uuid", "service_id"),
 	}
 }
 
@@ -114,36 +116,9 @@ func (r *serviceRepository) FindPaginated(filter ServiceRepositoryGetFilter) (*P
 	}
 
 	// Sorting — protected against SQL injection via allowlist
-	query = query.Order(sanitizeOrder(filter.SortBy, filter.SortOrder, "created_at DESC"))
+	query = query.Order(database.SanitizeOrder(filter.SortBy, filter.SortOrder, "created_at DESC"))
 
-	// Count
-	var total int64
-	if err := query.Count(&total).Error; err != nil {
-		return nil, err
-	}
-
-	// Pagination guards prevent division-by-zero and negative offsets
-	if filter.Page < 1 {
-		filter.Page = 1
-	}
-	if filter.Limit < 1 {
-		filter.Limit = 10
-	}
-	offset := (filter.Page - 1) * filter.Limit
-	var services []Service
-	if err := query.Limit(filter.Limit).Offset(offset).Find(&services).Error; err != nil {
-		return nil, err
-	}
-
-	totalPages := int((total + int64(filter.Limit) - 1) / int64(filter.Limit))
-
-	return &PaginationResult[Service]{
-		Data:       services,
-		Total:      total,
-		Page:       filter.Page,
-		Limit:      filter.Limit,
-		TotalPages: totalPages,
-	}, nil
+	return database.PaginateQuery[Service](query, filter.Page, filter.Limit)
 }
 
 func (r *serviceRepository) FindServicesByPolicyUUID(policyUUID uuid.UUID, filter ServiceRepositoryGetFilter) (*PaginationResult[Service], error) {
@@ -183,30 +158,9 @@ func (r *serviceRepository) FindServicesByPolicyUUID(policyUUID uuid.UUID, filte
 	}
 
 	// Apply sorting — protected against SQL injection via allowlist
-	query = query.Order(sanitizeOrderPrefixed("services.", filter.SortBy, filter.SortOrder, "services.created_at DESC"))
+	query = query.Order(database.SanitizeOrderPrefixed("services.", filter.SortBy, filter.SortOrder, "services.created_at DESC"))
 
-	// Pagination guards prevent division-by-zero and negative offsets
-	if filter.Page < 1 {
-		filter.Page = 1
-	}
-	if filter.Limit < 1 {
-		filter.Limit = 10
-	}
-	offset := (filter.Page - 1) * filter.Limit
-	var services []Service
-	if err := query.Limit(filter.Limit).Offset(offset).Find(&services).Error; err != nil {
-		return nil, err
-	}
-
-	totalPages := int((total + int64(filter.Limit) - 1) / int64(filter.Limit))
-
-	return &PaginationResult[Service]{
-		Data:       services,
-		Total:      total,
-		Page:       filter.Page,
-		Limit:      filter.Limit,
-		TotalPages: totalPages,
-	}, nil
+	return database.PaginateQuery[Service](query, filter.Page, filter.Limit)
 }
 
 func (r *serviceRepository) SetStatusByUUID(serviceUUID uuid.UUID, status string) error {

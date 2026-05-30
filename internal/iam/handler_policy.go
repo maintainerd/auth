@@ -9,6 +9,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/platform/middleware"
+	"github.com/maintainerd/auth/internal/platform/pagination"
 	resp "github.com/maintainerd/auth/internal/platform/response"
 )
 
@@ -79,7 +80,7 @@ func (h *PolicyHandler) Get(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Parse pagination
-	pag := parsePaginationQuery(r)
+	pag := pagination.ParseQuery(r)
 	filter.Page = pag.Page
 	filter.Limit = pag.Limit
 	filter.SortBy = pag.SortBy
@@ -323,7 +324,7 @@ func (h *PolicyHandler) GetServicesByPolicyUUID(w http.ResponseWriter, r *http.R
 
 	// Build filter
 	filter := PolicyServicesFilterDTO{
-		PaginationRequestDTO: parsePaginationQuery(r),
+		PaginationRequestDTO: pagination.ParseQuery(r),
 	}
 
 	// Parse string filters
