@@ -1,0 +1,155 @@
+package iam
+
+import (
+	"errors"
+	"github.com/google/uuid"
+	"gorm.io/gorm"
+)
+
+type PermissionRepositoryGetFilter struct {
+	TenantID    int64
+	Name        *string
+	Description *string
+	APIID       *int64
+	RoleID      *int64
+	Status      *string
+	IsDefault   *bool
+	IsSystem    *bool
+	Page        int
+	Limit       int
+	SortBy      string
+	SortOrder   string
+}
+
+type PermissionRepository interface {
+	BaseRepositoryMethods[Permission]
+	WithTx(tx *gorm.DB) PermissionRepository
+	FindByUUIDAndTenantID(permissionUUID uuid.UUID, tenantID int64) (*Permission, error)
+	FindByName(name string, tenantID int64) (*Permission, error)
+	FindPaginated(filter PermissionRepositoryGetFilter) (*PaginationResult[Permission], error)
+	DeleteByUUIDAndTenantID(permissionUUID uuid.UUID, tenantID int64) error
+}
+
+type permissionRepository struct {
+	*BaseRepository[Permission]
+}
+
+func NewPermissionRepository(db *gorm.DB) PermissionRepository {
+	return &permissionRepository{
+		BaseRepository: NewBaseRepository[Permission](db, "permission_uuid", "permission_id"),
+	}
+}
+
+func (r *permissionRepository) WithTx(tx *gorm.DB) PermissionRepository {
+	return &permissionRepository{
+		BaseRepository: r.BaseRepository.WithTx(tx),
+	}
+}
+
+func (r *permissionRepository) FindByUUIDAndTenantID(permissionUUID uuid.UUID, tenantID int64) (*Permission, error) {
+	var permission Permission
+	err := r.DB().
+		Preload("API").
+		Where("permission_uuid = ? AND tenant_id = ?", permissionUUID, tenantID).
+		First(&permission).Error
+
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	return &permission, nil
+}
+
+func (r *permissionRepository) FindByName(name string, tenantID int64) (*Permission, error) {
+	var permission Permission
+	err := r.DB().Where("name = ? AND tenant_id = ?", name, tenantID).First(&permission).Error
+
+	// If no record is found, return nil record and nil error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	return &permission, err
+}
+
+func (r *permissionRepository) FindPaginated(filter PermissionRepositoryGetFilter) (*PaginationResult[Permission], error) {
+	query := r.DB().Model(&Permission{}).Where("tenant_id = ?", filter.TenantID)
+
+	// Filters with LIKE
+	if filter.Name != nil {
+		query = query.Where("name ILIKE ?", "%"+*filter.Name+"%")
+	}
+	if filter.Description != nil {
+		query = query.Where("description ILIKE ?", "%"+*filter.Description+"%")
+	}
+
+	// Filters with exact match
+	if filter.APIID != nil {
+		query = query.Where("api_id = ?", *filter.APIID)
+	}
+	if filter.Status != nil {
+		query = query.Where("status = ?", *filter.Status)
+	}
+	if filter.IsDefault != nil {
+		query = query.Where("is_default = ?", *filter.IsDefault)
+	}
+	if filter.IsSystem != nil {
+		query = query.Where("is_system = ?", *filter.IsSystem)
+	}
+
+	// Joined table filter
+	if filter.RoleID != nil {
+		query = query.Joins(
+			"JOIN role_permissions rp ON rp.permission_id = permissions.permission_id",
+		).Where("rp.role_id = ?", *filter.RoleID)
+	}
+
+	// Sorting — protected against SQL injection via allowlist
+	query = query.Order(sanitizeOrder(filter.SortBy, filter.SortOrder, "created_at DESC"))
+
+	// Count
+	var total int64
+	if err := query.Count(&total).Error; err != nil {
+		return nil, err
+	}
+
+	// Pagination guards prevent division-by-zero and negative offsets
+	if filter.Page < 1 {
+		filter.Page = 1
+	}
+	if filter.Limit < 1 {
+		filter.Limit = 10
+	}
+	offset := (filter.Page - 1) * filter.Limit
+	var permissions []Permission
+	if err := query.Preload("API").Limit(filter.Limit).Offset(offset).Find(&permissions).Error; err != nil {
+		return nil, err
+	}
+
+	totalPages := int((total + int64(filter.Limit) - 1) / int64(filter.Limit))
+
+	return &PaginationResult[Permission]{
+		Data:       permissions,
+		Total:      total,
+		Page:       filter.Page,
+		Limit:      filter.Limit,
+		TotalPages: totalPages,
+	}, nil
+}
+
+func (r *permissionRepository) DeleteByUUIDAndTenantID(permissionUUID uuid.UUID, tenantID int64) error {
+	result := r.DB().Where("permission_uuid = ? AND tenant_id = ?", permissionUUID, tenantID).Delete(&Permission{})
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+	return nil
+}

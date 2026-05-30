@@ -1,0 +1,214 @@
+package invite
+
+import (
+	"bytes"
+	"context"
+	"html/template"
+	"time"
+
+	"github.com/maintainerd/auth/internal/branding"
+	"github.com/maintainerd/auth/internal/platform/apperror"
+	"github.com/maintainerd/auth/internal/platform/config"
+	"github.com/maintainerd/auth/internal/platform/crypto"
+	"github.com/maintainerd/auth/internal/platform/email"
+	"github.com/maintainerd/auth/internal/platform/ptr"
+	"github.com/maintainerd/auth/internal/platform/signedurl"
+	"github.com/maintainerd/auth/internal/shared"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/codes"
+	"gorm.io/gorm"
+)
+
+type InviteService interface {
+	SendInvite(ctx context.Context, tenantID int64, email string, userID int64, roleUUIDs []string) (*Invite, error)
+}
+
+type inviteService struct {
+	db                *gorm.DB
+	inviteRepo        InviteRepository
+	clientRepo        ClientRepository
+	roleRepo          RoleRepository
+	emailTemplateRepo branding.EmailTemplateRepository
+}
+
+func NewInviteService(
+	db *gorm.DB,
+	inviteRepo InviteRepository,
+	clientRepo ClientRepository,
+	roleRepo RoleRepository,
+	emailTemplateRepo branding.EmailTemplateRepository,
+) InviteService {
+	return &inviteService{
+		db:                db,
+		inviteRepo:        inviteRepo,
+		clientRepo:        clientRepo,
+		roleRepo:          roleRepo,
+		emailTemplateRepo: emailTemplateRepo,
+	}
+}
+
+func (s *inviteService) SendInvite(
+	ctx context.Context,
+	tenantID int64,
+	email string,
+	userID int64,
+	roleUUIDs []string,
+) (*Invite, error) {
+	_, span := otel.Tracer("service").Start(ctx, "invite.send")
+	defer span.End()
+
+	var invite *Invite
+
+	err := s.db.Transaction(func(tx *gorm.DB) error {
+		clientRepo := s.clientRepo.WithTx(tx)
+		roleRepo := s.roleRepo.WithTx(tx)
+		inviteRepo := s.inviteRepo.WithTx(tx)
+
+		Client, err := clientRepo.FindSystem()
+		if err != nil {
+			return err
+		}
+		if Client == nil ||
+			Client.Status != shared.StatusActive ||
+			Client.Domain == nil || *Client.Domain == "" ||
+			Client.IdentityProvider == nil ||
+			Client.IdentityProvider.Tenant == nil ||
+			Client.IdentityProvider.Tenant.TenantID == 0 {
+			return apperror.NewValidation("invalid client or identity provider")
+		}
+
+		// Get tenant id
+		tenantId := Client.IdentityProvider.Tenant.TenantID
+
+		// Find roles by UUIDs
+		foundRoles, err := roleRepo.FindByUUIDs(roleUUIDs)
+		if err != nil {
+			return err
+		}
+
+		// Validate all roles belong to the correct tenant
+		if len(foundRoles) != len(roleUUIDs) {
+			return apperror.NewNotFoundWithReason("one or more roles not found")
+		}
+		for _, role := range foundRoles {
+			if role.TenantID != tenantId {
+				return apperror.NewValidation("invalid role for the given client")
+			}
+		}
+
+		inviteToken, err := crypto.GenerateIdentifier(32)
+		if err != nil {
+			return err
+		}
+		expiresAt := ptr.TimePtr(time.Now().Add(72 * time.Hour))
+
+		invite = &Invite{
+			TenantID:        tenantID,
+			ClientID:        Client.ClientID,
+			InvitedEmail:    email,
+			InvitedByUserID: &userID,
+			InviteToken:     inviteToken,
+			Status:          shared.StatusPending,
+			ExpiresAt:       expiresAt,
+		}
+
+		if _, err := inviteRepo.Create(invite); err != nil {
+			return err
+		}
+
+		// Create invite roles request
+		var inviteRoles []InviteRole
+		for _, role := range foundRoles {
+			inviteRoles = append(inviteRoles, InviteRole{
+				InviteID: invite.InviteID,
+				RoleID:   role.RoleID,
+			})
+		}
+
+		// Bulk create invite roles
+		if err := tx.Create(&inviteRoles).Error; err != nil {
+			return err
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "transaction failed")
+		return nil, err
+	}
+
+	// Generate signed invite URL (API domain)
+	params := map[string]string{"invite_token": invite.InviteToken}
+	apiBaseURL := config.AppPrivateHostname + "/register/invite"
+	signedAPIURL, err := signedurl.GenerateSignedURL(apiBaseURL, params, 72*time.Hour)
+	if err != nil {
+		return nil, apperror.NewInternal("failed to generate signed invite URL", err)
+	}
+
+	// Convert it to frontend URL
+	frontendBaseURL := config.AccountHostname + "/register/invite"
+	inviteURL, err := signedurl.ConvertToFrontendURL(signedAPIURL, frontendBaseURL)
+	if err != nil {
+		return nil, apperror.NewInternal("failed to convert invite URL", err)
+	}
+
+	// Send invite email
+	if err := s.sendInviteEmail(ctx, email, inviteURL); err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "failed to send invite email")
+		return nil, apperror.NewInternal("failed to send invite email", err)
+	}
+
+	span.SetStatus(codes.Ok, "")
+	return invite, nil
+}
+
+func (s *inviteService) sendInviteEmail(ctx context.Context, to, inviteURL string) error {
+	// Get email template from DB
+	templateEntity, err := s.emailTemplateRepo.FindByName("internal:user:invite")
+	if err != nil {
+		return apperror.NewInternal("failed to fetch invite email template", err)
+	}
+
+	// Prepare data for the template
+	data := struct {
+		InviteURL string
+		LogoURL   string
+	}{
+		InviteURL: inviteURL,
+	}
+
+	// Parse HTML template
+	tmpl, err := template.New("invite_html").Parse(templateEntity.BodyHTML)
+	if err != nil {
+		return apperror.NewInternal("failed to parse HTML invite template", err)
+	}
+	var bodyHTML bytes.Buffer
+	if err := tmpl.Execute(&bodyHTML, data); err != nil {
+		return apperror.NewInternal("failed to execute HTML invite template", err)
+	}
+
+	// Parse plain-text template if available
+	var bodyPlainStr string
+	if templateEntity.BodyPlain != nil {
+		tmplPlain, err := template.New("invite_plain").Parse(*templateEntity.BodyPlain)
+		if err != nil {
+			return apperror.NewInternal("failed to parse plain invite template", err)
+		}
+		var bodyPlain bytes.Buffer
+		if err := tmplPlain.Execute(&bodyPlain, data); err != nil {
+			return apperror.NewInternal("failed to execute plain invite template", err)
+		}
+		bodyPlainStr = bodyPlain.String()
+	}
+
+	// Send email
+	return email.SendEmail(ctx, email.SendEmailParams{
+		To:        to,
+		Subject:   templateEntity.Subject,
+		BodyHTML:  bodyHTML.String(),
+		BodyPlain: bodyPlainStr,
+	})
+}
