@@ -1,0 +1,175 @@
+package iam
+
+import (
+	"errors"
+
+	"github.com/google/uuid"
+	"gorm.io/gorm"
+)
+
+type APIRepositoryGetFilter struct {
+	TenantID    int64
+	Name        *string
+	DisplayName *string
+	APIType     *string
+	Identifier  *string
+	ServiceID   *int64
+	Status      []string
+	IsSystem    *bool
+	Page        int
+	Limit       int
+	SortBy      string
+	SortOrder   string
+}
+
+type APIRepository interface {
+	BaseRepositoryMethods[API]
+	WithTx(tx *gorm.DB) APIRepository
+	FindByUUIDAndTenantID(apiUUID uuid.UUID, tenantID int64) (*API, error)
+	FindByName(apiName string, tenantID int64) (*API, error)
+	FindByIdentifier(identifier string, tenantID int64) (*API, error)
+	FindPaginated(filter APIRepositoryGetFilter) (*PaginationResult[API], error)
+	SetStatusByUUID(apiUUID uuid.UUID, tenantID int64, status string) error
+	CountByServiceID(serviceID int64, tenantID int64) (int64, error)
+	DeleteByUUIDAndTenantID(apiUUID uuid.UUID, tenantID int64) error
+}
+
+type apiRepository struct {
+	*BaseRepository[API]
+}
+
+func NewAPIRepository(db *gorm.DB) APIRepository {
+	return &apiRepository{
+		BaseRepository: NewBaseRepository[API](db, "api_uuid", "api_id"),
+	}
+}
+
+func (r *apiRepository) WithTx(tx *gorm.DB) APIRepository {
+	return &apiRepository{
+		BaseRepository: r.BaseRepository.WithTx(tx),
+	}
+}
+
+func (r *apiRepository) FindByUUIDAndTenantID(apiUUID uuid.UUID, tenantID int64) (*API, error) {
+	var api API
+	err := r.DB().
+		Preload("Service").
+		Where("api_uuid = ? AND tenant_id = ?", apiUUID, tenantID).
+		First(&api).Error
+
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	return &api, nil
+}
+
+func (r *apiRepository) FindByName(apiName string, tenantID int64) (*API, error) {
+	var api API
+	err := r.DB().
+		Preload("Service").
+		Where("name = ? AND tenant_id = ?", apiName, tenantID).
+		First(&api).Error
+
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	return &api, err
+}
+
+func (r *apiRepository) FindByIdentifier(identifier string, tenantID int64) (*API, error) {
+	var api API
+	err := r.DB().
+		Where("identifier = ? AND tenant_id = ?", identifier, tenantID).
+		First(&api).Error
+	return &api, err
+}
+
+func (r *apiRepository) FindPaginated(filter APIRepositoryGetFilter) (*PaginationResult[API], error) {
+	query := r.DB().Model(&API{})
+
+	// Filter by tenant_id
+	query = query.Where("tenant_id = ?", filter.TenantID)
+
+	// Filters with LIKE
+	if filter.Name != nil {
+		query = query.Where("name ILIKE ?", "%"+*filter.Name+"%")
+	}
+	if filter.DisplayName != nil {
+		query = query.Where("display_name ILIKE ?", "%"+*filter.DisplayName+"%")
+	}
+
+	// Filters with exact match
+	if filter.APIType != nil {
+		query = query.Where("api_type = ?", *filter.APIType)
+	}
+	if filter.Identifier != nil {
+		query = query.Where("identifier = ?", *filter.Identifier)
+	}
+	if filter.ServiceID != nil {
+		query = query.Where("service_id = ?", *filter.ServiceID)
+	}
+	if len(filter.Status) > 0 {
+		query = query.Where("status IN ?", filter.Status)
+	}
+	if filter.IsSystem != nil {
+		query = query.Where("is_system = ?", *filter.IsSystem)
+	}
+
+	// Sorting — protected against SQL injection via allowlist
+	query = query.Order(sanitizeOrder(filter.SortBy, filter.SortOrder, "created_at DESC"))
+
+	// Count
+	var total int64
+	if err := query.Count(&total).Error; err != nil {
+		return nil, err
+	}
+
+	// Pagination guards prevent division-by-zero and negative offsets
+	if filter.Page < 1 {
+		filter.Page = 1
+	}
+	if filter.Limit < 1 {
+		filter.Limit = 10
+	}
+	offset := (filter.Page - 1) * filter.Limit
+	var apis []API
+	if err := query.Preload("Service").Limit(filter.Limit).Offset(offset).Find(&apis).Error; err != nil {
+		return nil, err
+	}
+
+	totalPages := int((total + int64(filter.Limit) - 1) / int64(filter.Limit))
+
+	return &PaginationResult[API]{
+		Data:       apis,
+		Total:      total,
+		Page:       filter.Page,
+		Limit:      filter.Limit,
+		TotalPages: totalPages,
+	}, nil
+}
+
+func (r *apiRepository) SetStatusByUUID(apiUUID uuid.UUID, tenantID int64, status string) error {
+	return r.DB().Model(&API{}).
+		Where("api_uuid = ? AND tenant_id = ?", apiUUID, tenantID).
+		Update("status", status).Error
+}
+
+func (r *apiRepository) CountByServiceID(serviceID int64, tenantID int64) (int64, error) {
+	var count int64
+	err := r.DB().Model(&API{}).
+		Where("service_id = ? AND tenant_id = ?", serviceID, tenantID).
+		Count(&count).Error
+	return count, err
+}
+
+func (r *apiRepository) DeleteByUUIDAndTenantID(apiUUID uuid.UUID, tenantID int64) error {
+	return r.DB().Where("api_uuid = ? AND tenant_id = ?", apiUUID, tenantID).Delete(&API{}).Error
+}

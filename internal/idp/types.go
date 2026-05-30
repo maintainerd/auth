@@ -3,12 +3,8 @@ package idp
 import (
 	"time"
 
-	validation "github.com/go-ozzo/ozzo-validation/v4"
-	"github.com/go-ozzo/ozzo-validation/v4/is"
 	"github.com/google/uuid"
-	"github.com/maintainerd/auth/internal/shared"
 	"gorm.io/datatypes"
-	"gorm.io/gorm"
 )
 
 type FederationTokenRequestDTO struct {
@@ -93,39 +89,6 @@ type IdentityProviderCreateRequestDTO struct {
 	TenantUUID   string         `json:"tenant_id"`
 }
 
-// Validation for create request
-func (r IdentityProviderCreateRequestDTO) Validate() error {
-	return validation.ValidateStruct(&r,
-		validation.Field(&r.Name,
-			validation.Required.Error("Name is required"),
-			validation.Length(3, 50).Error("Name must be between 3 and 50 characters"),
-		),
-		validation.Field(&r.DisplayName,
-			validation.Required.Error("Display name is required"),
-			validation.Length(8, 200).Error("Display name must be between 8 and 200 characters"),
-		),
-		validation.Field(&r.Provider,
-			validation.Required.Error("Provider is required"),
-			validation.In(shared.IDPProviderInternal, shared.IDPProviderCognito, shared.IDPProviderAuth0, shared.IDPProviderGoogle, shared.IDPProviderFacebook, shared.IDPProviderGitHub, shared.IDPProviderMicrosoft, shared.IDPProviderApple, shared.IDPProviderLinkedIn, shared.IDPProviderTwitter).Error("Provider must be one of: internal, cognito, auth0, google, facebook, github, microsoft, apple, linkedin, twitter"),
-		),
-		validation.Field(&r.ProviderType,
-			validation.Required.Error("Provider type is required"),
-			validation.In(shared.IDPTypeIdentity, shared.IDPTypeSocial).Error("Provider type must be either 'identity' or 'social'"),
-		),
-		validation.Field(&r.Config,
-			validation.Required.Error("Config is required"),
-		),
-		validation.Field(&r.Status,
-			validation.Required.Error("Status is required"),
-			validation.In(shared.StatusActive, shared.StatusInactive).Error("Status must be either 'active' or 'inactive'"),
-		),
-		validation.Field(&r.TenantUUID,
-			validation.Required.Error("Tenant UUID is required"),
-			is.UUID.Error("Tenant UUID must be a valid UUID"),
-		),
-	)
-}
-
 // Update identity provider request DTO (without tenant_id)
 type IdentityProviderUpdateRequestDTO struct {
 	Name         string         `json:"name"`
@@ -136,47 +99,9 @@ type IdentityProviderUpdateRequestDTO struct {
 	Status       string         `json:"status"`
 }
 
-// Validation for update request
-func (r IdentityProviderUpdateRequestDTO) Validate() error {
-	return validation.ValidateStruct(&r,
-		validation.Field(&r.Name,
-			validation.Required.Error("Name is required"),
-			validation.Length(3, 50).Error("Name must be between 3 and 50 characters"),
-		),
-		validation.Field(&r.DisplayName,
-			validation.Required.Error("Display name is required"),
-			validation.Length(8, 200).Error("Display name must be between 8 and 200 characters"),
-		),
-		validation.Field(&r.Provider,
-			validation.Required.Error("Provider is required"),
-			validation.In(shared.IDPProviderInternal, shared.IDPProviderCognito, shared.IDPProviderAuth0, shared.IDPProviderGoogle, shared.IDPProviderFacebook, shared.IDPProviderGitHub, shared.IDPProviderMicrosoft, shared.IDPProviderApple, shared.IDPProviderLinkedIn, shared.IDPProviderTwitter).Error("Provider must be one of: internal, cognito, auth0, google, facebook, github, microsoft, apple, linkedin, twitter"),
-		),
-		validation.Field(&r.ProviderType,
-			validation.Required.Error("Provider type is required"),
-			validation.In(shared.IDPTypeIdentity, shared.IDPTypeSocial).Error("Provider type must be either 'identity' or 'social'"),
-		),
-		validation.Field(&r.Config,
-			validation.Required.Error("Config is required"),
-		),
-		validation.Field(&r.Status,
-			validation.Required.Error("Status is required"),
-			validation.In(shared.StatusActive, shared.StatusInactive).Error("Status must be either 'active' or 'inactive'"),
-		),
-	)
-}
-
 // Identity provider status update DTO
 type IdentityProviderStatusUpdateDTO struct {
 	Status string `json:"status"`
-}
-
-func (r IdentityProviderStatusUpdateDTO) Validate() error {
-	return validation.ValidateStruct(&r,
-		validation.Field(&r.Status,
-			validation.Required.Error("Status is required"),
-			validation.In(shared.StatusActive, shared.StatusInactive).Error("Status must be either 'active' or 'inactive'"),
-		),
-	)
 }
 
 // Identity provider listing / filter DTO
@@ -192,28 +117,6 @@ type IdentityProviderFilterDTO struct {
 
 	// Pagination and sorting
 	PaginationRequestDTO
-}
-
-// Validate validates the identity provider filter DTO.
-func (f IdentityProviderFilterDTO) Validate() error {
-	return validation.ValidateStruct(&f,
-		validation.Field(&f.Provider,
-			validation.When(len(f.Provider) > 0,
-				validation.Each(validation.In(shared.IDPProviderInternal, shared.IDPProviderCognito, shared.IDPProviderAuth0, shared.IDPProviderGoogle, shared.IDPProviderFacebook, shared.IDPProviderGitHub, shared.IDPProviderMicrosoft, shared.IDPProviderApple, shared.IDPProviderLinkedIn, shared.IDPProviderTwitter).Error("Invalid identity provider")),
-			),
-		),
-		validation.Field(&f.ProviderType,
-			validation.When(f.ProviderType != nil,
-				validation.In(shared.IDPTypeIdentity, shared.IDPTypeSocial).Error("Provider type must be one of: identity, social"),
-			),
-		),
-		validation.Field(&f.Status,
-			validation.When(len(f.Status) > 0,
-				validation.Each(validation.In(shared.StatusActive, shared.StatusInactive).Error("Status must be 'active' or 'inactive'")),
-			),
-		),
-		validation.Field(&f.PaginationRequestDTO),
-	)
 }
 
 // Signup flow output structure
@@ -238,25 +141,6 @@ type SignupFlowCreateRequestDTO struct {
 	ClientUUID  string         `json:"client_id"`
 }
 
-func (r SignupFlowCreateRequestDTO) Validate() error {
-	return validation.ValidateStruct(&r,
-		validation.Field(&r.Name,
-			validation.Required.Error("Signup flow name is required"),
-			validation.Length(1, 100).Error("Signup flow name must be between 1 and 100 characters"),
-		),
-		validation.Field(&r.Description,
-			validation.Required.Error("Description is required"),
-		),
-		validation.Field(&r.Status,
-			validation.In(shared.StatusActive, shared.StatusInactive).Error("Status must be 'active' or 'inactive'"),
-		),
-		validation.Field(&r.ClientUUID,
-			validation.Required.Error("Auth client UUID is required"),
-			is.UUID.Error("Invalid auth client UUID format"),
-		),
-	)
-}
-
 // Update signup flow request dto
 type SignupFlowUpdateRequestDTO struct {
 	Name        string         `json:"name"`
@@ -265,33 +149,9 @@ type SignupFlowUpdateRequestDTO struct {
 	Status      *string        `json:"status,omitempty"`
 }
 
-func (r SignupFlowUpdateRequestDTO) Validate() error {
-	return validation.ValidateStruct(&r,
-		validation.Field(&r.Name,
-			validation.Required.Error("Signup flow name is required"),
-			validation.Length(1, 100).Error("Signup flow name must be between 1 and 100 characters"),
-		),
-		validation.Field(&r.Description,
-			validation.Required.Error("Description is required"),
-		),
-		validation.Field(&r.Status,
-			validation.In(shared.StatusActive, shared.StatusInactive).Error("Status must be 'active' or 'inactive'"),
-		),
-	)
-}
-
 // Update signup flow status request dto
 type SignupFlowUpdateStatusRequestDTO struct {
 	Status string `json:"status"`
-}
-
-func (r SignupFlowUpdateStatusRequestDTO) Validate() error {
-	return validation.ValidateStruct(&r,
-		validation.Field(&r.Status,
-			validation.Required.Error("Status is required"),
-			validation.In(shared.StatusActive, shared.StatusInactive).Error("Status must be 'active' or 'inactive'"),
-		),
-	)
 }
 
 // Signup flow listing request dto
@@ -306,21 +166,6 @@ type SignupFlowFilterDTO struct {
 }
 
 // Validate validates the signup flow filter DTO.
-func (f SignupFlowFilterDTO) Validate() error {
-	return validation.ValidateStruct(&f,
-		validation.Field(&f.Status,
-			validation.When(len(f.Status) > 0,
-				validation.Each(validation.In(shared.StatusActive, shared.StatusInactive).Error("Status must be 'active' or 'inactive'")),
-			),
-		),
-		validation.Field(&f.ClientUUID,
-			validation.When(f.ClientUUID != nil,
-				is.UUID.Error("Client ID must be a valid UUID"),
-			),
-		),
-		validation.Field(&f.PaginationRequestDTO),
-	)
-}
 
 // Signup flow role output structure
 type SignupFlowRoleResponseDTO struct {
@@ -336,46 +181,37 @@ type SignupFlowAssignRolesRequestDTO struct {
 	RoleUUIDs []string `json:"role_uuids"`
 }
 
-func (r SignupFlowAssignRolesRequestDTO) Validate() error {
-	return validation.ValidateStruct(&r,
-		validation.Field(&r.RoleUUIDs,
-			validation.Required.Error("Role UUIDs are required"),
-			validation.Length(1, 0).Error("At least one role UUID is required"),
-			validation.Each(is.UUID.Error("Invalid UUID provided")),
-		),
-	)
+type LoginResponseDTO struct {
+	AccessToken           string  `json:"access_token"`
+	IDToken               string  `json:"id_token"`
+	RefreshToken          string  `json:"refresh_token,omitempty"`
+	ExpiresIn             int64   `json:"expires_in"`
+	TokenType             string  `json:"token_type"`
+	IssuedAt              int64   `json:"issued_at"`
+	RequirePasswordChange bool    `json:"require_password_change,omitempty"`
+	SessionID             *string `json:"session_id,omitempty"`
 }
 
-type IdentityProvider struct {
-	IdentityProviderID   int64          `gorm:"column:identity_provider_id;primaryKey"`
-	IdentityProviderUUID uuid.UUID      `gorm:"column:identity_provider_uuid"`
-	TenantID             int64          `gorm:"column:tenant_id"`
-	Name                 string         `gorm:"column:name"`
-	DisplayName          string         `gorm:"column:display_name"`
-	Provider             string         `gorm:"column:provider"`
-	ProviderType         string         `gorm:"column:provider_type"`
-	Identifier           string         `gorm:"column:identifier"`
-	Config               datatypes.JSON `gorm:"column:config"`
-	Status               string         `gorm:"column:status;default:'inactive'"`
-	IsDefault            bool           `gorm:"column:is_default;default:false"`
-	IsSystem             bool           `gorm:"column:is_system;default:false"`
-	CreatedBy            *int64         `gorm:"column:created_by"`
-	UpdatedBy            *int64         `gorm:"column:updated_by"`
-	CreatedAt            time.Time      `gorm:"column:created_at;autoCreateTime"`
-	UpdatedAt            time.Time      `gorm:"column:updated_at;autoUpdateTime"`
-	DeletedAt            gorm.DeletedAt `gorm:"column:deleted_at;index"`
-
-	// Relationships
-	Tenant *Tenant `gorm:"foreignKey:TenantID;references:TenantID"`
+type TenantResponseDTO struct {
+	TenantUUID  uuid.UUID `json:"tenant_id"`
+	Name        string    `json:"name"`
+	DisplayName string    `json:"display_name,omitempty"`
+	Description string    `json:"description"`
+	Identifier  string    `json:"identifier"`
+	Status      string    `json:"status"`
+	IsPublic    bool      `json:"is_public"`
+	IsSystem    bool      `json:"is_system,omitempty"`
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
 }
 
-func (IdentityProvider) TableName() string {
-	return "identity_providers"
-}
-
-func (ip *IdentityProvider) BeforeCreate(tx *gorm.DB) (err error) {
-	if ip.IdentityProviderUUID == uuid.Nil {
-		ip.IdentityProviderUUID = uuid.New()
-	}
-	return
+type RoleResponseDTO struct {
+	RoleUUID    uuid.UUID `json:"role_id"`
+	Name        string    `json:"name"`
+	Description string    `json:"description"`
+	IsDefault   bool      `json:"is_default"`
+	IsSystem    bool      `json:"is_system"`
+	Status      string    `json:"status"`
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
 }
