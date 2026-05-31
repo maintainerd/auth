@@ -63,7 +63,7 @@ The OTel SDK is initialized once in `main()`. When disabled (`OTEL_ENABLED != "t
 | File | Function | Purpose |
 |---|---|---|
 | `internal/telemetry/telemetry.go` | `Init(ctx)` | Bootstraps TracerProvider, exporter, propagators |
-| `cmd/server/main.go` | — | Calls `telemetry.Init()` at startup, defers shutdown |
+| `cmd/server/telemetry.go` | `initTelemetry(ctx)` | Calls `telemetry.Init()` / `telemetry.InitMetrics()` at startup and returns the deferred shutdown function |
 
 **What `Init()` does when enabled:**
 

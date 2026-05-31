@@ -137,7 +137,7 @@ REDIS_PORT=6379
 make run
 
 # Or directly
-go run cmd/server/main.go
+go run ./cmd/server
 ```
 
 ---
@@ -259,4 +259,3 @@ go test ./...
 6. Fill in the PR template and link any related issues.
 
 > For significant changes, open an issue first to discuss the approach before investing time in implementation.
-

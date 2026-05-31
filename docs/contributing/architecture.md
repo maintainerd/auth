@@ -9,6 +9,7 @@ If you are new to the codebase, read this first to understand how the pieces fit
 
 - [High-Level Overview](#high-level-overview)
 - [Architecture Diagram](#architecture-diagram)
+- [Architecture Flowchart](architecture-flowchart.md)
 - [Request Lifecycle](#request-lifecycle)
 - [Entry Point & Bootstrap](#entry-point--bootstrap)
 - [Dependency Injection](#dependency-injection)
@@ -54,7 +55,7 @@ All cross-layer communication happens through **interfaces**, making every layer
 
 ```
 ┌──────────────────────────────────────────────────────────────┐
-│                     cmd/server/main.go                       │
+│                       cmd/server/                            │
 │  config → DB → Redis → migrations → seeders → DI → servers  │
 └────────────┬─────────────────────────────────┬───────────────┘
              │                                 │
@@ -125,7 +126,7 @@ A typical authenticated API request flows through these steps:
 
 ## Entry Point & Bootstrap
 
-**File:** `cmd/server/main.go`
+**Package:** `cmd/server`
 
 The boot sequence is strictly sequential — each step must succeed before the next begins:
 
