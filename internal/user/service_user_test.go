@@ -1387,36 +1387,42 @@ func TestUserService_RemoveUserRole(t *testing.T) {
 
 func TestUserService_GetUserRoles(t *testing.T) {
 	uid := uuid.New()
+	tenantID := int64(1)
+	filter := GetUserRolesFilter{Page: 1, Limit: 10}
 
 	t.Run("user not found", func(t *testing.T) {
 		ur, ui, urr, rr, tr, idp, cr, up := defaultMocks()
 		ur.findByUUIDFn = func(_ any, _ ...string) (*User, error) { return nil, nil }
 		_, svc := fullUserSvc(t, ur, ui, urr, rr, tr, idp, cr, up)
-		_, err := svc.GetUserRoles(context.Background(), uid)
+		_, _, err := svc.GetUserRoles(context.Background(), uid, tenantID, filter)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "user not found")
 	})
 
-	t.Run("FindRoles error", func(t *testing.T) {
+	t.Run("FindRolesPaginated error", func(t *testing.T) {
 		ur, ui, urr, rr, tr, idp, cr, up := defaultMocks()
-		ur.findByUUIDFn = func(_ any, _ ...string) (*User, error) { return &User{UserID: 1}, nil }
-		ur.findRolesFn = func(_ int64) ([]Role, error) { return nil, errors.New("roles err") }
+		ur.findByUUIDFn = func(_ any, _ ...string) (*User, error) { return userWithAccess(1, tenantID), nil }
+		ur.findRolesPaginatedFn = func(_ GetUserRolesFilter) (*PaginationResult[Role], error) { return nil, errors.New("roles err") }
 		_, svc := fullUserSvc(t, ur, ui, urr, rr, tr, idp, cr, up)
-		_, err := svc.GetUserRoles(context.Background(), uid)
+		_, _, err := svc.GetUserRoles(context.Background(), uid, tenantID, filter)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "roles err")
 	})
 
 	t.Run("success", func(t *testing.T) {
 		ur, ui, urr, rr, tr, idp, cr, up := defaultMocks()
-		ur.findByUUIDFn = func(_ any, _ ...string) (*User, error) { return &User{UserID: 1}, nil }
-		ur.findRolesFn = func(_ int64) ([]Role, error) {
-			return []Role{{RoleUUID: uuid.New(), Name: "editor"}}, nil
+		ur.findByUUIDFn = func(_ any, _ ...string) (*User, error) { return userWithAccess(1, tenantID), nil }
+		ur.findRolesPaginatedFn = func(_ GetUserRolesFilter) (*PaginationResult[Role], error) {
+			return &PaginationResult[Role]{
+				Data:  []Role{{RoleUUID: uuid.New(), Name: "editor"}},
+				Total: 1,
+			}, nil
 		}
 		_, svc := fullUserSvc(t, ur, ui, urr, rr, tr, idp, cr, up)
-		res, err := svc.GetUserRoles(context.Background(), uid)
+		res, total, err := svc.GetUserRoles(context.Background(), uid, tenantID, filter)
 		require.NoError(t, err)
 		assert.Len(t, res, 1)
+		assert.Equal(t, int64(1), total)
 	})
 }
 
@@ -1426,37 +1432,42 @@ func TestUserService_GetUserRoles(t *testing.T) {
 
 func TestUserService_GetUserIdentities(t *testing.T) {
 	uid := uuid.New()
+	tenantID := int64(1)
+	filter := GetUserIdentitiesFilter{Page: 1, Limit: 10}
 
 	t.Run("user not found", func(t *testing.T) {
 		ur, ui, urr, rr, tr, idp, cr, up := defaultMocks()
 		ur.findByUUIDFn = func(_ any, _ ...string) (*User, error) { return nil, nil }
 		_, svc := fullUserSvc(t, ur, ui, urr, rr, tr, idp, cr, up)
-		_, err := svc.GetUserIdentities(context.Background(), uid)
+		_, _, err := svc.GetUserIdentities(context.Background(), uid, tenantID, filter)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "user not found")
 	})
 
-	t.Run("FindByUserID error", func(t *testing.T) {
+	t.Run("FindUserIdentitiesPaginated error", func(t *testing.T) {
 		ur, ui, urr, rr, tr, idp, cr, up := defaultMocks()
-		ur.findByUUIDFn = func(_ any, _ ...string) (*User, error) { return &User{UserID: 1}, nil }
-		ui.findByUserIDFn = func(_ int64) ([]UserIdentity, error) { return nil, errors.New("ident err") }
+		ur.findByUUIDFn = func(_ any, _ ...string) (*User, error) { return userWithAccess(1, tenantID), nil }
+		ui.findUserIdentitiesPaginatedFn = func(_ GetUserIdentitiesFilter) (*PaginationResult[UserIdentity], error) { return nil, errors.New("ident err") }
 		_, svc := fullUserSvc(t, ur, ui, urr, rr, tr, idp, cr, up)
-		_, err := svc.GetUserIdentities(context.Background(), uid)
+		_, _, err := svc.GetUserIdentities(context.Background(), uid, tenantID, filter)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "ident err")
 	})
 
 	t.Run("success with client loaded", func(t *testing.T) {
 		ur, ui, urr, rr, tr, idp, cr, up := defaultMocks()
-		ur.findByUUIDFn = func(_ any, _ ...string) (*User, error) { return &User{UserID: 1}, nil }
-		ui.findByUserIDFn = func(_ int64) ([]UserIdentity, error) {
-			return []UserIdentity{{UserIdentityUUID: uuid.New(), ClientID: 5, Provider: "default"}}, nil
+		ur.findByUUIDFn = func(_ any, _ ...string) (*User, error) { return userWithAccess(1, tenantID), nil }
+		ui.findUserIdentitiesPaginatedFn = func(_ GetUserIdentitiesFilter) (*PaginationResult[UserIdentity], error) {
+			return &PaginationResult[UserIdentity]{
+				Data:  []UserIdentity{{UserIdentityUUID: uuid.New(), ClientID: 5, Provider: "default"}},
+				Total: 1,
+			}, nil
 		}
 		cr.findByIDFn = func(_ any, _ ...string) (*Client, error) {
 			return &Client{ClientUUID: uuid.New(), Name: "main"}, nil
 		}
 		_, svc := fullUserSvc(t, ur, ui, urr, rr, tr, idp, cr, up)
-		res, err := svc.GetUserIdentities(context.Background(), uid)
+		res, _, err := svc.GetUserIdentities(context.Background(), uid, tenantID, filter)
 		require.NoError(t, err)
 		assert.Len(t, res, 1)
 		assert.NotNil(t, res[0].Client)
@@ -1464,12 +1475,15 @@ func TestUserService_GetUserIdentities(t *testing.T) {
 
 	t.Run("success with client ID zero", func(t *testing.T) {
 		ur, ui, urr, rr, tr, idp, cr, up := defaultMocks()
-		ur.findByUUIDFn = func(_ any, _ ...string) (*User, error) { return &User{UserID: 1}, nil }
-		ui.findByUserIDFn = func(_ int64) ([]UserIdentity, error) {
-			return []UserIdentity{{UserIdentityUUID: uuid.New(), ClientID: 0}}, nil
+		ur.findByUUIDFn = func(_ any, _ ...string) (*User, error) { return userWithAccess(1, tenantID), nil }
+		ui.findUserIdentitiesPaginatedFn = func(_ GetUserIdentitiesFilter) (*PaginationResult[UserIdentity], error) {
+			return &PaginationResult[UserIdentity]{
+				Data:  []UserIdentity{{UserIdentityUUID: uuid.New(), ClientID: 0}},
+				Total: 1,
+			}, nil
 		}
 		_, svc := fullUserSvc(t, ur, ui, urr, rr, tr, idp, cr, up)
-		res, err := svc.GetUserIdentities(context.Background(), uid)
+		res, _, err := svc.GetUserIdentities(context.Background(), uid, tenantID, filter)
 		require.NoError(t, err)
 		assert.Len(t, res, 1)
 		assert.Nil(t, res[0].Client)
@@ -1477,13 +1491,16 @@ func TestUserService_GetUserIdentities(t *testing.T) {
 
 	t.Run("FindByID error → client nil", func(t *testing.T) {
 		ur, ui, urr, rr, tr, idp, cr, up := defaultMocks()
-		ur.findByUUIDFn = func(_ any, _ ...string) (*User, error) { return &User{UserID: 1}, nil }
-		ui.findByUserIDFn = func(_ int64) ([]UserIdentity, error) {
-			return []UserIdentity{{UserIdentityUUID: uuid.New(), ClientID: 5}}, nil
+		ur.findByUUIDFn = func(_ any, _ ...string) (*User, error) { return userWithAccess(1, tenantID), nil }
+		ui.findUserIdentitiesPaginatedFn = func(_ GetUserIdentitiesFilter) (*PaginationResult[UserIdentity], error) {
+			return &PaginationResult[UserIdentity]{
+				Data:  []UserIdentity{{UserIdentityUUID: uuid.New(), ClientID: 5}},
+				Total: 1,
+			}, nil
 		}
 		cr.findByIDFn = func(_ any, _ ...string) (*Client, error) { return nil, errors.New("find err") }
 		_, svc := fullUserSvc(t, ur, ui, urr, rr, tr, idp, cr, up)
-		res, err := svc.GetUserIdentities(context.Background(), uid)
+		res, _, err := svc.GetUserIdentities(context.Background(), uid, tenantID, filter)
 		require.NoError(t, err)
 		assert.Nil(t, res[0].Client)
 	})

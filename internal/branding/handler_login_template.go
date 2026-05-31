@@ -63,14 +63,16 @@ func (h *LoginTemplateHandler) GetAll(w http.ResponseWriter, r *http.Request) {
 	// Parse boolean filters for default and system templates
 	var isDefault *bool
 	if q.Get("is_default") != "" {
-		val := q.Get("is_default") == "true"
-		isDefault = &val
+		if val, err := strconv.ParseBool(q.Get("is_default")); err == nil {
+			isDefault = &val
+		}
 	}
 
 	var isSystem *bool
 	if q.Get("is_system") != "" {
-		val := q.Get("is_system") == "true"
-		isSystem = &val
+		if val, err := strconv.ParseBool(q.Get("is_system")); err == nil {
+			isSystem = &val
+		}
 	}
 
 	// Build filter DTO with all query parameters
@@ -153,7 +155,7 @@ func (h *LoginTemplateHandler) Create(w http.ResponseWriter, r *http.Request) {
 	// Decode request body
 	var req LoginTemplateCreateRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		resp.Error(w, http.StatusBadRequest, "Invalid request")
+		resp.BadRequestBody(w)
 		return
 	}
 
@@ -217,7 +219,7 @@ func (h *LoginTemplateHandler) Update(w http.ResponseWriter, r *http.Request) {
 	// Decode request body
 	var req LoginTemplateUpdateRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		resp.Error(w, http.StatusBadRequest, "Invalid request")
+		resp.BadRequestBody(w)
 		return
 	}
 
@@ -313,7 +315,7 @@ func (h *LoginTemplateHandler) UpdateStatus(w http.ResponseWriter, r *http.Reque
 	// Decode request body
 	var req LoginTemplateUpdateStatusRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		resp.Error(w, http.StatusBadRequest, "Invalid request")
+		resp.BadRequestBody(w)
 		return
 	}
 

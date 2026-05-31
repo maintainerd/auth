@@ -84,10 +84,10 @@ func (h *MagicLinkHandler) handleSendMagicLink(
 			Endpoint:  "/magic-link/send",
 			Method:    r.Method,
 			Timestamp: startTime,
-			Details:   "Invalid JSON in request body",
+			Details:   "Invalid request body",
 			Severity:  "MEDIUM",
 		})
-		resp.Error(w, http.StatusBadRequest, "Invalid request body")
+		resp.BadRequestBody(w)
 		return
 	}
 
@@ -183,10 +183,10 @@ func (h *MagicLinkHandler) VerifyMagicLink(w http.ResponseWriter, r *http.Reques
 			Endpoint:  "/magic-link/verify",
 			Method:    r.Method,
 			Timestamp: startTime,
-			Details:   "Invalid JSON in request body",
+			Details:   "Invalid request body",
 			Severity:  "MEDIUM",
 		})
-		resp.Error(w, http.StatusBadRequest, "Invalid request body")
+		resp.BadRequestBody(w)
 		return
 	}
 

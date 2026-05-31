@@ -2,6 +2,7 @@ package oauth
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -695,7 +696,7 @@ func findActiveClientByIdentifier(db *gorm.DB, identifier string) (*Client, erro
 		Where("identifier = ? AND status = ?", identifier, shared.StatusActive).
 		First(&client).Error
 	if err != nil {
-		if err == gorm.ErrRecordNotFound {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, nil
 		}
 		return nil, err

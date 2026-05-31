@@ -1,7 +1,6 @@
 package oauth
 
 import (
-	"encoding/json"
 	"net/http"
 
 	"github.com/maintainerd/auth/internal/platform/middleware"
@@ -44,9 +43,7 @@ func (h *OAuthCIBAHandler) Initiate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	_ = json.NewEncoder(w).Encode(result)
+	writeOAuthJSON(w, http.StatusOK, result)
 }
 
 // ExchangeToken handles POST /oauth/token with grant_type=urn:openid:params:grant-type:ciba.
@@ -68,9 +65,7 @@ func (h *OAuthCIBAHandler) ExchangeToken(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	_ = json.NewEncoder(w).Encode(result)
+	writeOAuthJSON(w, http.StatusOK, result)
 }
 
 // ApproveRequest handles POST /oauth/ciba/approve (authenticated user approves).

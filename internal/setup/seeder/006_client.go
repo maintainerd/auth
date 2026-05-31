@@ -1,6 +1,7 @@
 package seeder
 
 import (
+	"errors"
 	"fmt"
 	"log/slog"
 	"time"
@@ -74,7 +75,7 @@ func SeedClients(db *gorm.DB, tenantID int64, identityProviderID int64) error {
 			continue
 		}
 
-		if err == gorm.ErrRecordNotFound {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
 			// Create new client
 			if err := db.Create(&client).Error; err != nil {
 				return fmt.Errorf("failed to create auth client %q: %w", client.Name, err)

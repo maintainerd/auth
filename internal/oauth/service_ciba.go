@@ -2,6 +2,7 @@ package oauth
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -349,7 +350,7 @@ func (s *oauthCIBAService) authenticateClient(creds OAuthClientCredentials) (*Cl
 		Where("identifier = ? AND status = ?", creds.ClientID, shared.StatusActive).
 		First(&client).Error
 	if err != nil {
-		if err == gorm.ErrRecordNotFound {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, apperror.NewOAuthInvalidClient("unknown client_id")
 		}
 		return nil, apperror.NewOAuthServerError("an unexpected error occurred")

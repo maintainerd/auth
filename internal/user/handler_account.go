@@ -32,7 +32,7 @@ func (h *AccountHandler) InitiateEmailChange(w http.ResponseWriter, r *http.Requ
 
 	var req ChangeEmailRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		resp.Error(w, http.StatusBadRequest, "Invalid JSON format")
+		resp.BadRequestBody(w)
 		return
 	}
 	if err := req.Validate(); err != nil {
@@ -60,7 +60,7 @@ func (h *AccountHandler) VerifyEmailChange(w http.ResponseWriter, r *http.Reques
 
 	var req VerifyEmailChangeDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		resp.Error(w, http.StatusBadRequest, "Invalid JSON format")
+		resp.BadRequestBody(w)
 		return
 	}
 	if err := req.Validate(); err != nil {
@@ -88,7 +88,7 @@ func (h *AccountHandler) ChangeUsername(w http.ResponseWriter, r *http.Request) 
 
 	var req ChangeUsernameDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		resp.Error(w, http.StatusBadRequest, "Invalid JSON format")
+		resp.BadRequestBody(w)
 		return
 	}
 	if err := req.Validate(); err != nil {
@@ -116,7 +116,7 @@ func (h *AccountHandler) DeleteAccount(w http.ResponseWriter, r *http.Request) {
 
 	var req AccountDeleteDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		resp.Error(w, http.StatusBadRequest, "Invalid JSON format")
+		resp.BadRequestBody(w)
 		return
 	}
 	if err := req.Validate(); err != nil {
@@ -176,7 +176,7 @@ func (h *AccountHandler) GenerateBackupCodes(w http.ResponseWriter, r *http.Requ
 func (h *AccountHandler) VerifyBackupCode(w http.ResponseWriter, r *http.Request) {
 	var req VerifyBackupCodeDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		resp.Error(w, http.StatusBadRequest, "Invalid JSON format")
+		resp.BadRequestBody(w)
 		return
 	}
 	if err := req.Validate(); err != nil {

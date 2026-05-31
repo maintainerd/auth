@@ -102,7 +102,7 @@ func (h *OAuthAuthorizeHandler) HandleConsent(w http.ResponseWriter, r *http.Req
 
 	var req OAuthConsentDecisionDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		resp.Error(w, http.StatusBadRequest, "Invalid request body")
+		resp.BadRequestBody(w)
 		return
 	}
 

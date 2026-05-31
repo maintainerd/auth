@@ -41,7 +41,7 @@ func (h *InviteHandler) Send(w http.ResponseWriter, r *http.Request) {
 	// Decode request body
 	var req SendInviteRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		resp.Error(w, http.StatusBadRequest, "Invalid request payload")
+		resp.BadRequestBody(w)
 		return
 	}
 

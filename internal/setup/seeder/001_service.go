@@ -1,6 +1,7 @@
 package seeder
 
 import (
+	"errors"
 	"log/slog"
 
 	"github.com/google/uuid"
@@ -17,7 +18,7 @@ func SeedService(db *gorm.DB, appVersion string) (*model.Service, error) {
 	}
 
 	err := db.Where("name = ?", "auth").First(&service).Error
-	if err == gorm.ErrRecordNotFound {
+	if errors.Is(err, gorm.ErrRecordNotFound) {
 		service = model.Service{
 			ServiceUUID: uuid.New(),
 			Name:        "auth",

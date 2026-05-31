@@ -78,7 +78,7 @@ func (h *MFAHandler) FinishTOTPEnrollment(w http.ResponseWriter, r *http.Request
 
 	var req TOTPVerifyRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		resp.Error(w, http.StatusBadRequest, "Invalid JSON format")
+		resp.BadRequestBody(w)
 		return
 	}
 
@@ -312,7 +312,7 @@ func (h *MFAHandler) VerifyStepUp(w http.ResponseWriter, r *http.Request) {
 
 	var req StepUpVerifyRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		resp.Error(w, http.StatusBadRequest, "Invalid JSON format")
+		resp.BadRequestBody(w)
 		return
 	}
 

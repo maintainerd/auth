@@ -174,7 +174,7 @@ func (h *APIKeyHandler) Create(w http.ResponseWriter, r *http.Request) {
 
 	var req APIKeyCreateRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		resp.Error(w, http.StatusBadRequest, "Invalid request")
+		resp.BadRequestBody(w)
 		return
 	}
 
@@ -233,7 +233,7 @@ func (h *APIKeyHandler) Update(w http.ResponseWriter, r *http.Request) {
 
 	var req APIKeyUpdateRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		resp.Error(w, http.StatusBadRequest, "Invalid request")
+		resp.BadRequestBody(w)
 		return
 	}
 
@@ -272,7 +272,7 @@ func (h *APIKeyHandler) SetStatus(w http.ResponseWriter, r *http.Request) {
 	// Parse request body
 	var req APIKeyStatusUpdateDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		resp.Error(w, http.StatusBadRequest, "Invalid request body")
+		resp.BadRequestBody(w)
 		return
 	}
 
@@ -420,7 +420,7 @@ func (h *APIKeyHandler) AddAPIs(w http.ResponseWriter, r *http.Request) {
 
 	var req AddAPIKeyAPIsRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		resp.Error(w, http.StatusBadRequest, "Invalid request body")
+		resp.BadRequestBody(w)
 		return
 	}
 
@@ -541,7 +541,7 @@ func (h *APIKeyHandler) AddAPIPermissions(w http.ResponseWriter, r *http.Request
 
 	var req AddAPIKeyPermissionsRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		resp.Error(w, http.StatusBadRequest, "Invalid request body")
+		resp.BadRequestBody(w)
 		return
 	}
 

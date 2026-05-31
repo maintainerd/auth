@@ -148,7 +148,7 @@ func (h *PermissionHandler) Create(w http.ResponseWriter, r *http.Request) {
 
 	var req PermissionCreateRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		resp.Error(w, http.StatusBadRequest, "Invalid request")
+		resp.BadRequestBody(w)
 		return
 	}
 
@@ -185,7 +185,7 @@ func (h *PermissionHandler) Update(w http.ResponseWriter, r *http.Request) {
 
 	var req PermissionUpdateRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		resp.Error(w, http.StatusBadRequest, "Invalid request")
+		resp.BadRequestBody(w)
 		return
 	}
 
@@ -222,7 +222,7 @@ func (h *PermissionHandler) SetStatus(w http.ResponseWriter, r *http.Request) {
 
 	var req PermissionStatusUpdateDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		resp.Error(w, http.StatusBadRequest, "Invalid request body")
+		resp.BadRequestBody(w)
 		return
 	}
 

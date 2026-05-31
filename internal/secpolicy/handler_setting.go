@@ -196,7 +196,7 @@ func (h *SecuritySettingHandler) updateConfig(w http.ResponseWriter, r *http.Req
 
 	var req SecuritySettingUpdateConfigRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		resp.Error(w, http.StatusBadRequest, "Invalid request")
+		resp.BadRequestBody(w)
 		return
 	}
 
