@@ -105,7 +105,7 @@ func (h *LoginHandler) LoginPublic(w http.ResponseWriter, r *http.Request) {
 			Details:   "Malformed JSON request body",
 			Severity:  "MEDIUM",
 		})
-		resp.Error(w, http.StatusBadRequest, "Invalid request format")
+		resp.BadRequestBody(w)
 		return
 	}
 
@@ -210,7 +210,7 @@ func (h *LoginHandler) Login(w http.ResponseWriter, r *http.Request) {
 	// Validate body payload
 	var req LoginRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		resp.Error(w, http.StatusBadRequest, "Invalid request")
+		resp.BadRequestBody(w)
 		return
 	}
 

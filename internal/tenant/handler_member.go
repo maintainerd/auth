@@ -65,7 +65,7 @@ func (h *TenantHandler) AddMember(w http.ResponseWriter, r *http.Request) {
 
 	var req TenantMemberAddMemberRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		resp.Error(w, http.StatusBadRequest, "Invalid request body")
+		resp.BadRequestBody(w)
 		return
 	}
 	if err := req.Validate(); err != nil {
@@ -97,7 +97,7 @@ func (h *TenantHandler) UpdateMemberRole(w http.ResponseWriter, r *http.Request)
 
 	var req TenantMemberUpdateRoleRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		resp.Error(w, http.StatusBadRequest, "Invalid request body")
+		resp.BadRequestBody(w)
 		return
 	}
 	if err := req.Validate(); err != nil {

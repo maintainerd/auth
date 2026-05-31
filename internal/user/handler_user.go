@@ -3,8 +3,6 @@ package user
 import (
 	"encoding/json"
 	"net/http"
-	"sort"
-	"strings"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
@@ -189,7 +187,7 @@ func (h *UserHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
 	// Decode and validate request body
 	var req UserCreateRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		resp.Error(w, http.StatusBadRequest, "Invalid JSON format")
+		resp.BadRequestBody(w)
 		return
 	}
 
@@ -239,7 +237,7 @@ func (h *UserHandler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 	// Decode and validate request body
 	var req UserUpdateRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		resp.Error(w, http.StatusBadRequest, "Invalid JSON format")
+		resp.BadRequestBody(w)
 		return
 	}
 
@@ -289,7 +287,7 @@ func (h *UserHandler) SetUserStatus(w http.ResponseWriter, r *http.Request) {
 	// Decode and validate request body
 	var req UserSetStatusRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		resp.Error(w, http.StatusBadRequest, "Invalid JSON format")
+		resp.BadRequestBody(w)
 		return
 	}
 
@@ -473,7 +471,7 @@ func (h *UserHandler) AssignRoles(w http.ResponseWriter, r *http.Request) {
 	// Decode and validate request body
 	var req UserAssignRolesRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		resp.Error(w, http.StatusBadRequest, "Invalid JSON format")
+		resp.BadRequestBody(w)
 		return
 	}
 
@@ -616,8 +614,6 @@ func (h *UserHandler) GetUserRoles(w http.ResponseWriter, r *http.Request) {
 	// Parse query parameters
 	q := r.URL.Query()
 
-	// Parse pagination parameters
-
 	// Build filter DTO for validation
 	reqParams := UserRoleFilterDTO{
 		Name:                 ptr.PtrOrNil(q.Get("name")),
@@ -639,58 +635,27 @@ func (h *UserHandler) GetUserRoles(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Verify user exists and belongs to tenant
-	user, err := h.userService.GetByUUID(r.Context(), userUUID, tenant.TenantID)
-	if err != nil {
-		resp.HandleServiceError(w, r, "User not found", err)
-		return
+	// Build service filter with pagination and sorting params
+	filter := GetUserRolesFilter{
+		Name:      reqParams.Name,
+		Description: reqParams.Description,
+		Status:    reqParams.Status,
+		Page:      reqParams.Page,
+		Limit:     reqParams.Limit,
+		SortBy:    reqParams.SortBy,
+		SortOrder: reqParams.SortOrder,
 	}
 
-	// Fetch roles for the user
-	roles, err := h.userService.GetUserRoles(r.Context(), user.UserUUID)
+	// Fetch roles for the user (service validates tenant ownership internally)
+	roles, total, err := h.userService.GetUserRoles(r.Context(), userUUID, tenant.TenantID, filter)
 	if err != nil {
 		resp.HandleServiceError(w, r, "Failed to fetch user roles", err)
 		return
 	}
 
-	// Apply filters
-	filteredRoles := []RoleServiceDataResult{}
-	for _, role := range roles {
-		// Filter by name
-		if reqParams.Name != nil && !containsIgnoreCase(role.Name, *reqParams.Name) {
-			continue
-		}
-		// Filter by description
-		if reqParams.Description != nil && !containsIgnoreCase(role.Description, *reqParams.Description) {
-			continue
-		}
-		// Filter by status
-		if reqParams.Status != nil && role.Status != *reqParams.Status {
-			continue
-		}
-		filteredRoles = append(filteredRoles, role)
-	}
-
-	// Apply sorting
-	if reqParams.SortBy != "" {
-		sortRoles(filteredRoles, reqParams.SortBy, reqParams.SortOrder)
-	}
-
-	// Apply pagination
-	total := int64(len(filteredRoles))
-	offset := (reqParams.Page - 1) * reqParams.Limit
-	end := offset + reqParams.Limit
-	if end > len(filteredRoles) {
-		end = len(filteredRoles)
-	}
-	if offset > len(filteredRoles) {
-		offset = len(filteredRoles)
-	}
-	paginatedRoles := filteredRoles[offset:end]
-
 	// Map to DTOs
-	rows := make([]RoleResponseDTO, len(paginatedRoles))
-	for i, role := range paginatedRoles {
+	rows := make([]RoleResponseDTO, len(roles))
+	for i, role := range roles {
 		rows[i] = RoleResponseDTO{
 			RoleUUID:    role.RoleUUID,
 			Name:        role.Name,
@@ -732,8 +697,6 @@ func (h *UserHandler) GetUserIdentities(w http.ResponseWriter, r *http.Request) 
 	// Parse query parameters
 	q := r.URL.Query()
 
-	// Parse pagination parameters
-
 	// Build filter DTO for validation
 	reqParams := UserIdentityFilterDTO{
 		Provider:             ptr.PtrOrNil(q.Get("provider")),
@@ -753,50 +716,25 @@ func (h *UserHandler) GetUserIdentities(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	// Verify user exists and belongs to tenant
-	user, err := h.userService.GetByUUID(r.Context(), userUUID, tenant.TenantID)
-	if err != nil {
-		resp.HandleServiceError(w, r, "User not found", err)
-		return
+	// Build service filter with pagination and sorting params
+	filter := GetUserIdentitiesFilter{
+		Provider:  reqParams.Provider,
+		Page:      reqParams.Page,
+		Limit:     reqParams.Limit,
+		SortBy:    reqParams.SortBy,
+		SortOrder: reqParams.SortOrder,
 	}
 
-	// Fetch identities for the user
-	identities, err := h.userService.GetUserIdentities(r.Context(), user.UserUUID)
+	// Fetch identities for the user (service validates tenant ownership internally)
+	identities, total, err := h.userService.GetUserIdentities(r.Context(), userUUID, tenant.TenantID, filter)
 	if err != nil {
 		resp.HandleServiceError(w, r, "Failed to fetch user identities", err)
 		return
 	}
 
-	// Apply filters
-	filteredIdentities := []UserIdentityServiceDataResult{}
-	for _, identity := range identities {
-		// Filter by provider
-		if reqParams.Provider != nil && !containsIgnoreCase(identity.Provider, *reqParams.Provider) {
-			continue
-		}
-		filteredIdentities = append(filteredIdentities, identity)
-	}
-
-	// Apply sorting
-	if reqParams.SortBy != "" {
-		sortIdentities(filteredIdentities, reqParams.SortBy, reqParams.SortOrder)
-	}
-
-	// Apply pagination
-	total := int64(len(filteredIdentities))
-	offset := (reqParams.Page - 1) * reqParams.Limit
-	end := offset + reqParams.Limit
-	if end > len(filteredIdentities) {
-		end = len(filteredIdentities)
-	}
-	if offset > len(filteredIdentities) {
-		offset = len(filteredIdentities)
-	}
-	paginatedIdentities := filteredIdentities[offset:end]
-
 	// Map to DTOs
-	rows := make([]UserIdentityResponseDTO, len(paginatedIdentities))
-	for i, identity := range paginatedIdentities {
+	rows := make([]UserIdentityResponseDTO, len(identities))
+	for i, identity := range identities {
 		rows[i] = UserIdentityResponseDTO{
 			UserIdentityUUID: identity.UserIdentityUUID,
 			Provider:         identity.Provider,
@@ -833,55 +771,4 @@ func (h *UserHandler) GetUserIdentities(w http.ResponseWriter, r *http.Request) 
 	resp.Success(w, response, "User identities fetched successfully")
 }
 
-// Helper function for case-insensitive contains check
-func containsIgnoreCase(str, substr string) bool {
-	return strings.Contains(strings.ToLower(str), strings.ToLower(substr))
-}
 
-// Helper function to sort roles
-func sortRoles(roles []RoleServiceDataResult, sortBy, sortOrder string) {
-	sort.Slice(roles, func(i, j int) bool {
-		var result bool
-		switch sortBy {
-		case "name":
-			result = roles[i].Name < roles[j].Name
-		case "description":
-			result = roles[i].Description < roles[j].Description
-		case "status":
-			result = roles[i].Status < roles[j].Status
-		case "created_at":
-			result = roles[i].CreatedAt.Before(roles[j].CreatedAt)
-		case "updated_at":
-			result = roles[i].UpdatedAt.Before(roles[j].UpdatedAt)
-		default:
-			result = roles[i].CreatedAt.After(roles[j].CreatedAt) // Default sort by created_at DESC
-		}
-		if sortOrder == "desc" {
-			return !result
-		}
-		return result
-	})
-}
-
-// Helper function to sort identities
-func sortIdentities(identities []UserIdentityServiceDataResult, sortBy, sortOrder string) {
-	sort.Slice(identities, func(i, j int) bool {
-		var result bool
-		switch sortBy {
-		case "provider":
-			result = identities[i].Provider < identities[j].Provider
-		case "sub":
-			result = identities[i].Sub < identities[j].Sub
-		case "created_at":
-			result = identities[i].CreatedAt.Before(identities[j].CreatedAt)
-		case "updated_at":
-			result = identities[i].UpdatedAt.Before(identities[j].UpdatedAt)
-		default:
-			result = identities[i].CreatedAt.After(identities[j].CreatedAt) // Default sort by created_at DESC
-		}
-		if sortOrder == "desc" {
-			return !result
-		}
-		return result
-	})
-}

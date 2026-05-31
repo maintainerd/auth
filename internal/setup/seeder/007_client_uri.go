@@ -1,6 +1,7 @@
 package seeder
 
 import (
+	"errors"
 	"fmt"
 	"log/slog"
 	"time"
@@ -55,7 +56,7 @@ func SeedClientURIs(db *gorm.DB, tenantID int64, identityProviderID int64) error
 				continue
 			}
 
-			if err == gorm.ErrRecordNotFound {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
 				// Create new URI
 				uri := model.ClientURI{
 					ClientURIUUID: uuid.New(),

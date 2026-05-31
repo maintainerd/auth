@@ -167,7 +167,7 @@ func (h *PolicyHandler) Create(w http.ResponseWriter, r *http.Request) {
 
 	var req PolicyCreateRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		resp.Error(w, http.StatusBadRequest, "Invalid request")
+		resp.BadRequestBody(w)
 		return
 	}
 
@@ -213,7 +213,7 @@ func (h *PolicyHandler) Update(w http.ResponseWriter, r *http.Request) {
 
 	var req PolicyUpdateRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		resp.Error(w, http.StatusBadRequest, "Invalid request")
+		resp.BadRequestBody(w)
 		return
 	}
 
@@ -259,7 +259,7 @@ func (h *PolicyHandler) UpdateStatus(w http.ResponseWriter, r *http.Request) {
 
 	var req PolicyStatusUpdateDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		resp.Error(w, http.StatusBadRequest, "Invalid request")
+		resp.BadRequestBody(w)
 		return
 	}
 

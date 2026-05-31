@@ -22,7 +22,7 @@ func NewSMSLoginHandler(smsLoginService SMSLoginService) *SMSLoginHandler {
 func (h *SMSLoginHandler) SendOTP(w http.ResponseWriter, r *http.Request) {
 	var req SMSLoginSendDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		resp.Error(w, http.StatusBadRequest, "Invalid JSON format")
+		resp.BadRequestBody(w)
 		return
 	}
 	if err := req.Validate(); err != nil {
@@ -44,7 +44,7 @@ func (h *SMSLoginHandler) SendOTP(w http.ResponseWriter, r *http.Request) {
 func (h *SMSLoginHandler) VerifyOTP(w http.ResponseWriter, r *http.Request) {
 	var req SMSLoginVerifyDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		resp.Error(w, http.StatusBadRequest, "Invalid JSON format")
+		resp.BadRequestBody(w)
 		return
 	}
 	if err := req.Validate(); err != nil {

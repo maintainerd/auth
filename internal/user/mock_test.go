@@ -127,6 +127,7 @@ type mockUserRepo struct {
 	findByPhoneFn            func(string) (*User, error)
 	findSuperAdminFn         func() (*User, error)
 	findRolesFn              func(int64) ([]Role, error)
+	findRolesPaginatedFn     func(GetUserRolesFilter) (*PaginationResult[Role], error)
 	findBySubAndClientIDFn   func(string, string) (*User, error)
 	findPaginatedFn          func(UserRepositoryGetFilter) (*PaginationResult[User], error)
 	setEmailVerifiedFn       func(uuid.UUID, bool) error
@@ -208,6 +209,12 @@ func (m *mockUserRepo) FindRoles(userID int64) ([]Role, error) {
 		return m.findRolesFn(userID)
 	}
 	return nil, nil
+}
+func (m *mockUserRepo) FindRolesPaginated(f GetUserRolesFilter) (*PaginationResult[Role], error) {
+	if m.findRolesPaginatedFn != nil {
+		return m.findRolesPaginatedFn(f)
+	}
+	return &PaginationResult[Role]{}, nil
 }
 func (m *mockUserRepo) FindBySubAndClientID(sub, clientID string) (*User, error) {
 	if m.findBySubAndClientIDFn != nil {
@@ -501,13 +508,14 @@ func (m *mockIdentityProviderRepo) FindByIdentifier(identifier string) (*Identit
 
 type mockUserIdentityRepo struct {
 	mockBaseRepo[UserIdentity]
-	findByUserIDFn             func(int64) ([]UserIdentity, error)
-	findByUserIDAndClientIDFn  func(int64, int64) (*UserIdentity, error)
-	findByProviderAndSubFn     func(string, string) (*UserIdentity, error)
-	findByUserIDAndProviderFn  func(int64, string) (*UserIdentity, error)
-	findByIdentityProviderIDFn func(int64) ([]UserIdentity, error)
-	deleteByUserIDFn           func(int64) error
-	createFn                   func(*UserIdentity) (*UserIdentity, error)
+	findByUserIDFn                 func(int64) ([]UserIdentity, error)
+	findUserIdentitiesPaginatedFn  func(GetUserIdentitiesFilter) (*PaginationResult[UserIdentity], error)
+	findByUserIDAndClientIDFn      func(int64, int64) (*UserIdentity, error)
+	findByProviderAndSubFn         func(string, string) (*UserIdentity, error)
+	findByUserIDAndProviderFn      func(int64, string) (*UserIdentity, error)
+	findByIdentityProviderIDFn     func(int64) ([]UserIdentity, error)
+	deleteByUserIDFn               func(int64) error
+	createFn                       func(*UserIdentity) (*UserIdentity, error)
 }
 
 func (m *mockUserIdentityRepo) WithTx(_ *gorm.DB) UserIdentityRepository { return m }
@@ -522,6 +530,12 @@ func (m *mockUserIdentityRepo) FindByUserID(userID int64) ([]UserIdentity, error
 		return m.findByUserIDFn(userID)
 	}
 	return nil, nil
+}
+func (m *mockUserIdentityRepo) FindUserIdentitiesPaginated(f GetUserIdentitiesFilter) (*PaginationResult[UserIdentity], error) {
+	if m.findUserIdentitiesPaginatedFn != nil {
+		return m.findUserIdentitiesPaginatedFn(f)
+	}
+	return &PaginationResult[UserIdentity]{}, nil
 }
 func (m *mockUserIdentityRepo) FindByUserIDAndClientID(userID, clientID int64) (*UserIdentity, error) {
 	if m.findByUserIDAndClientIDFn != nil {
@@ -655,9 +669,9 @@ type mockUserService struct {
 	deleteByUUIDFn         func(uuid.UUID, int64, uuid.UUID) (*UserServiceDataResult, error)
 	assignUserRolesFn      func(uuid.UUID, []uuid.UUID, int64) (*UserServiceDataResult, error)
 	removeUserRoleFn       func(uuid.UUID, uuid.UUID, int64) (*UserServiceDataResult, error)
-	getUserRolesFn         func(uuid.UUID) ([]RoleServiceDataResult, error)
-	getUserIdentitiesFn    func(uuid.UUID) ([]UserIdentityServiceDataResult, error)
-	getUserIdentsFn        func(uuid.UUID) ([]UserIdentityServiceDataResult, error)
+	getUserRolesFn         func(uuid.UUID, int64, GetUserRolesFilter) ([]RoleServiceDataResult, int64, error)
+	getUserIdentitiesFn    func(uuid.UUID, int64, GetUserIdentitiesFilter) ([]UserIdentityServiceDataResult, int64, error)
+	getUserIdentsFn        func(uuid.UUID, int64, GetUserIdentitiesFilter) ([]UserIdentityServiceDataResult, int64, error)
 	findBySubAndClientIDFn func(string, string) (*User, error)
 	forcePasswordChangeFn  func(uuid.UUID, bool) error
 }
@@ -728,20 +742,20 @@ func (m *mockUserService) RemoveUserRole(_ context.Context, userUUID uuid.UUID, 
 	}
 	return &UserServiceDataResult{}, nil
 }
-func (m *mockUserService) GetUserRoles(_ context.Context, userUUID uuid.UUID) ([]RoleServiceDataResult, error) {
+func (m *mockUserService) GetUserRoles(_ context.Context, userUUID uuid.UUID, tenantID int64, filter GetUserRolesFilter) ([]RoleServiceDataResult, int64, error) {
 	if m.getUserRolesFn != nil {
-		return m.getUserRolesFn(userUUID)
+		return m.getUserRolesFn(userUUID, tenantID, filter)
 	}
-	return nil, nil
+	return nil, 0, nil
 }
-func (m *mockUserService) GetUserIdentities(_ context.Context, userUUID uuid.UUID) ([]UserIdentityServiceDataResult, error) {
+func (m *mockUserService) GetUserIdentities(_ context.Context, userUUID uuid.UUID, tenantID int64, filter GetUserIdentitiesFilter) ([]UserIdentityServiceDataResult, int64, error) {
 	if m.getUserIdentitiesFn != nil {
-		return m.getUserIdentitiesFn(userUUID)
+		return m.getUserIdentitiesFn(userUUID, tenantID, filter)
 	}
 	if m.getUserIdentsFn != nil {
-		return m.getUserIdentsFn(userUUID)
+		return m.getUserIdentsFn(userUUID, tenantID, filter)
 	}
-	return nil, nil
+	return nil, 0, nil
 }
 func (m *mockUserService) FindBySubAndClientID(_ context.Context, sub string, clientID string) (*User, error) {
 	if m.findBySubAndClientIDFn != nil {

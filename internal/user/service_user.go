@@ -85,8 +85,8 @@ type UserService interface {
 	DeleteByUUID(ctx context.Context, userUUID uuid.UUID, tenantID int64, deleterUserUUID uuid.UUID) (*UserServiceDataResult, error)
 	AssignUserRoles(ctx context.Context, userUUID uuid.UUID, roleUUIDs []uuid.UUID, tenantID int64) (*UserServiceDataResult, error)
 	RemoveUserRole(ctx context.Context, userUUID uuid.UUID, roleUUID uuid.UUID, tenantID int64) (*UserServiceDataResult, error)
-	GetUserRoles(ctx context.Context, userUUID uuid.UUID) ([]RoleServiceDataResult, error)
-	GetUserIdentities(ctx context.Context, userUUID uuid.UUID) ([]UserIdentityServiceDataResult, error)
+	GetUserRoles(ctx context.Context, userUUID uuid.UUID, tenantID int64, filter GetUserRolesFilter) ([]RoleServiceDataResult, int64, error)
+	GetUserIdentities(ctx context.Context, userUUID uuid.UUID, tenantID int64, filter GetUserIdentitiesFilter) ([]UserIdentityServiceDataResult, int64, error)
 	// FindBySubAndClientID resolves a user from a JWT sub claim and client ID.
 	// Used by UserContextMiddleware to populate the request context.
 	FindBySubAndClientID(ctx context.Context, sub string, clientID string) (*User, error)
@@ -1073,58 +1073,71 @@ func toUserServiceDataResult(user *User) *UserServiceDataResult {
 	return result
 }
 
-func (s *userService) GetUserRoles(ctx context.Context, userUUID uuid.UUID) ([]RoleServiceDataResult, error) {
+func (s *userService) GetUserRoles(ctx context.Context, userUUID uuid.UUID, tenantID int64, filter GetUserRolesFilter) ([]RoleServiceDataResult, int64, error) {
 	_, span := otel.Tracer("service").Start(ctx, "user.getUserRoles")
 	defer span.End()
 	span.SetAttributes(attribute.String("user.uuid", userUUID.String()))
 
-	user, err := s.userRepo.FindByUUID(userUUID)
+	user, err := s.userRepo.FindByUUID(userUUID, "UserIdentities")
 	if err != nil || user == nil {
 		if err != nil {
 			span.RecordError(err)
 		}
 		span.SetStatus(codes.Error, "user not found")
-		return nil, apperror.NewNotFound("user not found")
+		return nil, 0, apperror.NewNotFound("user not found")
 	}
 
-	roles, err := s.userRepo.FindRoles(user.UserID)
+	if !userHasTenantAccess(user, tenantID) {
+		span.SetStatus(codes.Error, "user not found or access denied")
+		return nil, 0, apperror.NewNotFoundWithReason("user not found or access denied")
+	}
+
+	filter.UserID = user.UserID
+	result, err := s.userRepo.FindRolesPaginated(filter)
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "get user roles failed")
-		return nil, err
+		return nil, 0, err
 	}
 
-	result := make([]RoleServiceDataResult, len(roles))
-	for i, role := range roles {
-		result[i] = *toRoleServiceDataResult(&role)
+	roles := make([]RoleServiceDataResult, len(result.Data))
+	for i, role := range result.Data {
+		roles[i] = *toRoleServiceDataResult(&role)
 	}
 
 	span.SetStatus(codes.Ok, "")
-	return result, nil
+	return roles, result.Total, nil
 }
 
-func (s *userService) GetUserIdentities(ctx context.Context, userUUID uuid.UUID) ([]UserIdentityServiceDataResult, error) {
+func (s *userService) GetUserIdentities(ctx context.Context, userUUID uuid.UUID, tenantID int64, filter GetUserIdentitiesFilter) ([]UserIdentityServiceDataResult, int64, error) {
 	_, span := otel.Tracer("service").Start(ctx, "user.getUserIdentities")
 	defer span.End()
 	span.SetAttributes(attribute.String("user.uuid", userUUID.String()))
 
-	user, err := s.userRepo.FindByUUID(userUUID)
+	user, err := s.userRepo.FindByUUID(userUUID, "UserIdentities")
 	if err != nil || user == nil {
 		if err != nil {
 			span.RecordError(err)
 		}
 		span.SetStatus(codes.Error, "user not found")
-		return nil, apperror.NewNotFound("user not found")
+		return nil, 0, apperror.NewNotFound("user not found")
 	}
 
-	identities, err := s.userIdentityRepo.FindByUserID(user.UserID)
+	if !userHasTenantAccess(user, tenantID) {
+		span.SetStatus(codes.Error, "user not found or access denied")
+		return nil, 0, apperror.NewNotFoundWithReason("user not found or access denied")
+	}
+
+	filter.UserID = user.UserID
+	result, err := s.userIdentityRepo.FindUserIdentitiesPaginated(filter)
 	if err != nil {
-		return nil, err
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "get user identities failed")
+		return nil, 0, err
 	}
 
-	result := make([]UserIdentityServiceDataResult, len(identities))
-	for i, identity := range identities {
-		// Load Client if needed
+	identities := make([]UserIdentityServiceDataResult, len(result.Data))
+	for i, identity := range result.Data {
 		var Client *ClientServiceDataResult
 		if identity.ClientID > 0 {
 			ac, err := s.clientRepo.FindByID(identity.ClientID)
@@ -1133,7 +1146,7 @@ func (s *userService) GetUserIdentities(ctx context.Context, userUUID uuid.UUID)
 			}
 		}
 
-		result[i] = UserIdentityServiceDataResult{
+		identities[i] = UserIdentityServiceDataResult{
 			UserIdentityUUID: identity.UserIdentityUUID,
 			Provider:         identity.Provider,
 			Sub:              identity.Sub,
@@ -1145,7 +1158,7 @@ func (s *userService) GetUserIdentities(ctx context.Context, userUUID uuid.UUID)
 	}
 
 	span.SetStatus(codes.Ok, "")
-	return result, nil
+	return identities, result.Total, nil
 }
 
 // ForcePasswordChange sets or clears the force_password_change flag for a user.

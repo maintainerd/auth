@@ -154,7 +154,7 @@ func (h *IdentityProviderHandler) Create(w http.ResponseWriter, r *http.Request)
 
 	var req IdentityProviderCreateRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		resp.Error(w, http.StatusBadRequest, "Invalid request")
+		resp.BadRequestBody(w)
 		return
 	}
 
@@ -188,7 +188,7 @@ func (h *IdentityProviderHandler) Update(w http.ResponseWriter, r *http.Request)
 
 	var req IdentityProviderUpdateRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		resp.Error(w, http.StatusBadRequest, "Invalid request")
+		resp.BadRequestBody(w)
 		return
 	}
 
@@ -223,7 +223,7 @@ func (h *IdentityProviderHandler) SetStatus(w http.ResponseWriter, r *http.Reque
 	// Parse and validate request body
 	var req IdentityProviderStatusUpdateDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		resp.Error(w, http.StatusBadRequest, "Invalid request")
+		resp.BadRequestBody(w)
 		return
 	}
 

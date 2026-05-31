@@ -3,8 +3,6 @@ package idp
 import (
 	"errors"
 
-	"strings"
-
 	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/platform/database"
 	"gorm.io/gorm"
@@ -52,10 +50,10 @@ func (r *signupFlowRepository) FindPaginated(filter SignupFlowRepositoryGetFilte
 
 	// Apply filters
 	if filter.Name != nil && *filter.Name != "" {
-		query = query.Where("LOWER(name) LIKE ?", "%"+strings.ToLower(*filter.Name)+"%")
+		query = database.ApplyILike(query, "name", filter.Name)
 	}
 	if filter.Identifier != nil && *filter.Identifier != "" {
-		query = query.Where("LOWER(identifier) LIKE ?", "%"+strings.ToLower(*filter.Identifier)+"%")
+		query = database.ApplyILike(query, "identifier", filter.Identifier)
 	}
 	if len(filter.Status) > 0 {
 		query = query.Where("status IN ?", filter.Status)

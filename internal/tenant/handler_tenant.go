@@ -166,7 +166,7 @@ func (h *TenantHandler) GetByIdentifier(w http.ResponseWriter, r *http.Request) 
 func (h *TenantHandler) Create(w http.ResponseWriter, r *http.Request) {
 	var req TenantCreateRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		resp.Error(w, http.StatusBadRequest, "Invalid request")
+		resp.BadRequestBody(w)
 		return
 	}
 
@@ -213,7 +213,7 @@ func (h *TenantHandler) Update(w http.ResponseWriter, r *http.Request) {
 
 	var req TenantUpdateRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		resp.Error(w, http.StatusBadRequest, "Invalid request")
+		resp.BadRequestBody(w)
 		return
 	}
 
@@ -243,7 +243,7 @@ func (h *TenantHandler) SetStatus(w http.ResponseWriter, r *http.Request) {
 
 	var req TenantSetStatusRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		resp.Error(w, http.StatusBadRequest, "Invalid request")
+		resp.BadRequestBody(w)
 		return
 	}
 	if err := req.Validate(); err != nil {

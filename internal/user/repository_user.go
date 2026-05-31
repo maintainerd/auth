@@ -25,6 +25,17 @@ type UserRepositoryGetFilter struct {
 	SortOrder  string
 }
 
+type GetUserRolesFilter struct {
+	UserID      int64
+	Name        *string
+	Description *string
+	Status      *string
+	Page        int
+	Limit       int
+	SortBy      string
+	SortOrder   string
+}
+
 type UserRepository interface {
 	BaseRepositoryMethods[User]
 	WithTx(tx *gorm.DB) UserRepository
@@ -37,6 +48,7 @@ type UserRepository interface {
 	FindByPhone(phone string) (*User, error)
 	FindSuperAdmin() (*User, error)
 	FindRoles(userID int64) ([]Role, error)
+	FindRolesPaginated(filter GetUserRolesFilter) (*PaginationResult[Role], error)
 	FindBySubAndClientID(sub string, clientID string) (*User, error)
 	FindPaginated(filter UserRepositoryGetFilter) (*PaginationResult[User], error)
 	SetEmailVerified(userUUID uuid.UUID, verified bool) error
@@ -162,6 +174,28 @@ func (r *userRepository) FindRoles(userID int64) ([]Role, error) {
 		Where("ur.user_id = ?", userID).
 		Find(&roles).Error
 	return roles, err
+}
+
+func (r *userRepository) FindRolesPaginated(filter GetUserRolesFilter) (*PaginationResult[Role], error) {
+	query := r.DB().
+		Model(&Role{}).
+		Select("roles.*").
+		Joins("JOIN user_roles ur ON ur.role_id = roles.role_id").
+		Where("ur.user_id = ?", filter.UserID)
+
+	if filter.Name != nil && *filter.Name != "" {
+		query = query.Where("roles.name ILIKE ?", "%"+*filter.Name+"%")
+	}
+	if filter.Description != nil && *filter.Description != "" {
+		query = query.Where("roles.description ILIKE ?", "%"+*filter.Description+"%")
+	}
+	if filter.Status != nil && *filter.Status != "" {
+		query = query.Where("roles.status = ?", *filter.Status)
+	}
+
+	query = query.Order(database.SanitizeOrderPrefixed("roles.", filter.SortBy, filter.SortOrder, "roles.created_at DESC"))
+
+	return database.PaginateQuery[Role](query, filter.Page, filter.Limit)
 }
 
 func (r *userRepository) FindBySubAndClientID(sub string, clientID string) (*User, error) {

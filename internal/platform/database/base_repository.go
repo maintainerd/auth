@@ -235,6 +235,16 @@ func (r *BaseRepository[T]) DeleteByID(id any) error {
 	return nil
 }
 
+// ApplyILike adds a case-insensitive LIKE filter to the query for the given
+// column when value is non-nil and non-empty. The column name is interpolated
+// directly — callers must ensure it is not user-controlled.
+func ApplyILike(query *gorm.DB, column string, value *string) *gorm.DB {
+	if value == nil || *value == "" {
+		return query
+	}
+	return query.Where("LOWER("+column+") LIKE ?", "%"+strings.ToLower(*value)+"%")
+}
+
 // Paginate with optional preloads
 func (r *BaseRepository[T]) Paginate(conditions map[string]any, page int, limit int, preloads ...string) (*PaginationResult[T], error) {
 	page, limit = normalizePagination(page, limit)

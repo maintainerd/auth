@@ -94,10 +94,10 @@ func (h *ResetPasswordHandler) ResetPasswordPublic(w http.ResponseWriter, r *htt
 			Endpoint:  "/reset-password",
 			Method:    r.Method,
 			Timestamp: startTime,
-			Details:   "Invalid JSON in request body",
+			Details:   "Invalid request body",
 			Severity:  "MEDIUM",
 		})
-		resp.Error(w, http.StatusBadRequest, "Invalid request body")
+		resp.BadRequestBody(w)
 		return
 	}
 
@@ -254,10 +254,10 @@ func (h *ResetPasswordHandler) ResetPassword(w http.ResponseWriter, r *http.Requ
 			Endpoint:  "/reset-password",
 			Method:    r.Method,
 			Timestamp: startTime,
-			Details:   "Invalid JSON in request body",
+			Details:   "Invalid request body",
 			Severity:  "MEDIUM",
 		})
-		resp.Error(w, http.StatusBadRequest, "Invalid request body")
+		resp.BadRequestBody(w)
 		return
 	}
 

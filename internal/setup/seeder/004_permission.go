@@ -1,6 +1,7 @@
 package seeder
 
 import (
+	"errors"
 	"fmt"
 	"log/slog"
 	"time"
@@ -334,7 +335,7 @@ func permissionExists(db *gorm.DB, name string, tenantID int64) (bool, error) {
 	if err == nil {
 		return true, nil
 	}
-	if err == gorm.ErrRecordNotFound {
+	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return false, nil
 	}
 	return false, err

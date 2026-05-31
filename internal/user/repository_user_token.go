@@ -1,6 +1,7 @@
 package user
 
 import (
+	"errors"
 	"time"
 
 	"github.com/google/uuid"
@@ -111,7 +112,7 @@ func (r *userTokenRepository) FindActiveSessionByUUID(userID int64, sessionUUID 
 		Where("user_id = ? AND user_token_uuid = ? AND token_type = ? AND is_revoked = false AND (absolute_expires_at IS NULL OR absolute_expires_at > ?)",
 			userID, sessionUUID, shared.TokenTypeSession, now).
 		First(&token).Error
-	if err == gorm.ErrRecordNotFound {
+	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, nil
 	}
 	return &token, err

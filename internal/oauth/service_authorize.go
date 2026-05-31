@@ -2,6 +2,7 @@ package oauth
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"time"
 
@@ -396,7 +397,7 @@ func (s *oauthAuthorizeService) findClientByIdentifier(identifier string) (*Clie
 		Where("identifier = ? AND status = ?", identifier, shared.StatusActive).
 		First(&client).Error
 	if err != nil {
-		if err == gorm.ErrRecordNotFound {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, nil
 		}
 		return nil, err

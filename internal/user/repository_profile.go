@@ -79,22 +79,22 @@ func (r *profileRepository) FindAllByUserID(filter ProfileRepositoryGetFilter) (
 
 	// Apply filters
 	if filter.FirstName != nil && *filter.FirstName != "" {
-		query = query.Where("LOWER(first_name) LIKE ?", "%"+strings.ToLower(*filter.FirstName)+"%")
+		query = database.ApplyILike(query, "first_name", filter.FirstName)
 	}
 	if filter.LastName != nil && *filter.LastName != "" {
-		query = query.Where("LOWER(last_name) LIKE ?", "%"+strings.ToLower(*filter.LastName)+"%")
+		query = database.ApplyILike(query, "last_name", filter.LastName)
 	}
 	if filter.Email != nil && *filter.Email != "" {
 		// Email lives on users (not profiles) since the column was removed —
 		// join to users to preserve the existing filter API.
-		query = query.Joins("JOIN users ON users.user_id = profiles.user_id").
-			Where("LOWER(users.email) LIKE ?", "%"+strings.ToLower(*filter.Email)+"%")
+		query = query.Joins("JOIN users ON users.user_id = profiles.user_id")
+		query = database.ApplyILike(query, "users.email", filter.Email)
 	}
 	if filter.Phone != nil && *filter.Phone != "" {
-		query = query.Where("phone LIKE ?", "%"+*filter.Phone+"%")
+		query = database.ApplyILike(query, "phone", filter.Phone)
 	}
 	if filter.City != nil && *filter.City != "" {
-		query = query.Where("LOWER(city) LIKE ?", "%"+strings.ToLower(*filter.City)+"%")
+		query = database.ApplyILike(query, "city", filter.City)
 	}
 	if filter.Country != nil && *filter.Country != "" {
 		query = query.Where("LOWER(country) = ?", strings.ToLower(*filter.Country))

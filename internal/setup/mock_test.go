@@ -307,6 +307,9 @@ func (m *mockUserRepo) FindRoles(userID int64) ([]user.Role, error) {
 	}
 	return nil, nil
 }
+func (m *mockUserRepo) FindRolesPaginated(_ user.GetUserRolesFilter) (*PaginationResult[user.Role], error) {
+	return &PaginationResult[user.Role]{}, nil
+}
 func (m *mockUserRepo) FindBySubAndClientID(sub, clientID string) (*User, error) {
 	if m.findBySubAndClientIDFn != nil {
 		return m.findBySubAndClientIDFn(sub, clientID)
@@ -697,6 +700,9 @@ func (m *mockUserIdentityRepo) FindByUserID(userID int64) ([]UserIdentity, error
 		return m.findByUserIDFn(userID)
 	}
 	return nil, nil
+}
+func (m *mockUserIdentityRepo) FindUserIdentitiesPaginated(_ user.GetUserIdentitiesFilter) (*PaginationResult[user.UserIdentity], error) {
+	return &PaginationResult[user.UserIdentity]{}, nil
 }
 func (m *mockUserIdentityRepo) FindByUserIDAndClientID(userID, clientID int64) (*UserIdentity, error) {
 	if m.findByUserIDAndClientIDFn != nil {
