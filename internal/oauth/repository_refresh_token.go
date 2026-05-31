@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/maintainerd/auth/internal/platform/database"
 	"gorm.io/gorm"
 )
 
@@ -31,7 +32,7 @@ type oauthRefreshTokenRepository struct {
 // NewOAuthRefreshTokenRepository creates a new OAuthRefreshTokenRepository.
 func NewOAuthRefreshTokenRepository(db *gorm.DB) OAuthRefreshTokenRepository {
 	return &oauthRefreshTokenRepository{
-		BaseRepository: NewBaseRepository[OAuthRefreshToken](db, "oauth_refresh_token_uuid", "oauth_refresh_token_id"),
+		BaseRepository: database.NewBaseRepository[OAuthRefreshToken](db, "oauth_refresh_token_uuid", "oauth_refresh_token_id"),
 	}
 }
 

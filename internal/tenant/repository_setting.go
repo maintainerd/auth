@@ -3,6 +3,7 @@ package tenant
 import (
 	"errors"
 
+	"github.com/maintainerd/auth/internal/platform/database"
 	"gorm.io/gorm"
 )
 
@@ -22,7 +23,7 @@ type tenantSettingRepository struct {
 // the given database connection.
 func NewTenantSettingRepository(db *gorm.DB) TenantSettingRepository {
 	return &tenantSettingRepository{
-		BaseRepository: NewBaseRepository[TenantSetting](db, "tenant_setting_uuid", "tenant_setting_id"),
+		BaseRepository: database.NewBaseRepository[TenantSetting](db, "tenant_setting_uuid", "tenant_setting_id"),
 	}
 }
 

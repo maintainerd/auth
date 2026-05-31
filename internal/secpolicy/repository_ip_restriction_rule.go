@@ -1,6 +1,9 @@
 package secpolicy
 
-import "gorm.io/gorm"
+import (
+	"github.com/maintainerd/auth/internal/platform/database"
+	"gorm.io/gorm"
+)
 
 // IPRestrictionRuleRepositoryGetFilter holds filter, pagination, and sorting
 // parameters for paginated IP restriction rule queries.
@@ -37,7 +40,7 @@ type ipRestrictionRuleRepository struct {
 // backed by the given database connection.
 func NewIPRestrictionRuleRepository(db *gorm.DB) IPRestrictionRuleRepository {
 	return &ipRestrictionRuleRepository{
-		BaseRepository: NewBaseRepository[IPRestrictionRule](db, "ip_restriction_rule_uuid", "ip_restriction_rule_id"),
+		BaseRepository: database.NewBaseRepository[IPRestrictionRule](db, "ip_restriction_rule_uuid", "ip_restriction_rule_id"),
 	}
 }
 
@@ -108,39 +111,7 @@ func (r *ipRestrictionRuleRepository) FindPaginated(filter IPRestrictionRuleRepo
 		query = query.Where("updated_by = ?", *filter.UpdatedBy)
 	}
 
-	// Get total count
-	var total int64
-	if err := query.Count(&total).Error; err != nil {
-		return nil, err
-	}
+	query = query.Order(database.SanitizeOrder(filter.SortBy, filter.SortOrder, "created_at DESC"))
 
-	// Apply sorting — protected against SQL injection via allowlist
-	query = query.Order(sanitizeOrder(filter.SortBy, filter.SortOrder, "created_at DESC"))
-
-	// Pagination guards prevent division-by-zero and negative offsets
-	if filter.Page < 1 {
-		filter.Page = 1
-	}
-	if filter.Limit < 1 {
-		filter.Limit = 10
-	}
-	offset := (filter.Page - 1) * filter.Limit
-	var rules []IPRestrictionRule
-	if err := query.Offset(offset).Limit(filter.Limit).Find(&rules).Error; err != nil {
-		return nil, err
-	}
-
-	// Calculate total pages
-	totalPages := int(total) / filter.Limit
-	if int(total)%filter.Limit > 0 {
-		totalPages++
-	}
-
-	return &PaginationResult[IPRestrictionRule]{
-		Data:       rules,
-		Total:      total,
-		Page:       filter.Page,
-		Limit:      filter.Limit,
-		TotalPages: totalPages,
-	}, nil
+	return database.PaginateQuery[IPRestrictionRule](query, filter.Page, filter.Limit)
 }

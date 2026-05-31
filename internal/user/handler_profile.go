@@ -9,6 +9,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/maintainerd/auth/internal/platform/middleware"
+	"github.com/maintainerd/auth/internal/platform/pagination"
 	"github.com/maintainerd/auth/internal/platform/ptr"
 	resp "github.com/maintainerd/auth/internal/platform/response"
 )
@@ -195,7 +196,7 @@ func (h *ProfileHandler) GetAll(w http.ResponseWriter, r *http.Request) {
 		City:                 ptr.PtrOrNil(q.Get("city")),
 		Country:              ptr.PtrOrNil(q.Get("country")),
 		IsDefault:            isDefault,
-		PaginationRequestDTO: parsePaginationQuery(r),
+		PaginationRequestDTO: pagination.ParseQuery(r),
 	}
 
 	if err := reqParams.Validate(); err != nil {
@@ -338,7 +339,7 @@ func (h *ProfileHandler) AdminGetAllProfiles(w http.ResponseWriter, r *http.Requ
 		City:                 ptr.PtrOrNil(q.Get("city")),
 		Country:              ptr.PtrOrNil(q.Get("country")),
 		IsDefault:            isDefault,
-		PaginationRequestDTO: parsePaginationQuery(r),
+		PaginationRequestDTO: pagination.ParseQuery(r),
 	}
 
 	if err := reqParams.Validate(); err != nil {

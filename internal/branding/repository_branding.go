@@ -2,6 +2,8 @@ package branding
 
 import (
 	"errors"
+
+	"github.com/maintainerd/auth/internal/platform/database"
 	"gorm.io/gorm"
 )
 
@@ -20,7 +22,7 @@ type brandingRepository struct {
 // database connection.
 func NewBrandingRepository(db *gorm.DB) BrandingRepository {
 	return &brandingRepository{
-		BaseRepository: NewBaseRepository[Branding](db, "branding_uuid", "branding_id"),
+		BaseRepository: database.NewBaseRepository[Branding](db, "branding_uuid", "branding_id"),
 	}
 }
 

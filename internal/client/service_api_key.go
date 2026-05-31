@@ -587,16 +587,7 @@ func (s *apiKeyService) GetAPIKeyAPIs(ctx context.Context, tenantID int64, apiKe
 		// Convert permissions
 		permissions := make([]PermissionServiceDataResult, len(apiKeyAPI.Permissions))
 		for j, perm := range apiKeyAPI.Permissions {
-			permissions[j] = PermissionServiceDataResult{
-				PermissionUUID: perm.Permission.PermissionUUID,
-				Name:           perm.Permission.Name,
-				Description:    perm.Permission.Description,
-				Status:         perm.Permission.Status,
-				IsDefault:      perm.Permission.IsDefault,
-				IsSystem:       perm.Permission.IsSystem,
-				CreatedAt:      perm.Permission.CreatedAt,
-				UpdatedAt:      perm.Permission.UpdatedAt,
-			}
+			permissions[j] = toPermissionServiceDataResult(perm.Permission)
 		}
 
 		results[i] = APIKeyAPIServiceDataResult{
@@ -770,16 +761,7 @@ func (s *apiKeyService) GetAPIKeyAPIPermissions(ctx context.Context, tenantID in
 	// Convert to service data result
 	results := make([]PermissionServiceDataResult, len(permissions))
 	for i, perm := range permissions {
-		results[i] = PermissionServiceDataResult{
-			PermissionUUID: perm.Permission.PermissionUUID,
-			Name:           perm.Permission.Name,
-			Description:    perm.Permission.Description,
-			Status:         perm.Permission.Status,
-			IsDefault:      perm.Permission.IsDefault,
-			IsSystem:       perm.Permission.IsSystem,
-			CreatedAt:      perm.Permission.CreatedAt,
-			UpdatedAt:      perm.Permission.UpdatedAt,
-		}
+		results[i] = toPermissionServiceDataResult(perm.Permission)
 	}
 
 	span.SetStatus(codes.Ok, "")

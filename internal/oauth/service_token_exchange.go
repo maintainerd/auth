@@ -61,7 +61,7 @@ func (s *oauthTokenExchangeService) Exchange(ctx context.Context, req OAuthToken
 	)
 
 	// Authenticate the requesting client.
-	client, oerr := s.authenticateClient(creds)
+	client, oerr := authenticateOAuthClient(s.db, creds)
 	if oerr != nil {
 		span.SetStatus(codes.Error, "client auth failed")
 		return nil, oerr

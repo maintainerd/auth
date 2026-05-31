@@ -1,6 +1,9 @@
 package secpolicy
 
-import "gorm.io/gorm"
+import (
+	"github.com/maintainerd/auth/internal/platform/database"
+	"gorm.io/gorm"
+)
 
 type SecuritySettingsAuditRepositoryGetFilter struct {
 	UserPoolID        *int64
@@ -27,7 +30,7 @@ type securitySettingsAuditRepository struct {
 
 func NewSecuritySettingsAuditRepository(db *gorm.DB) SecuritySettingsAuditRepository {
 	return &securitySettingsAuditRepository{
-		BaseRepository: NewBaseRepository[SecuritySettingsAudit](db, "security_settings_audit_uuid", "security_settings_audit_id"),
+		BaseRepository: database.NewBaseRepository[SecuritySettingsAudit](db, "security_settings_audit_uuid", "security_settings_audit_id"),
 	}
 }
 
@@ -71,35 +74,7 @@ func (r *securitySettingsAuditRepository) FindPaginated(filter SecuritySettingsA
 		query = query.Where("created_by = ?", *filter.CreatedBy)
 	}
 
-	var total int64
-	if err := query.Count(&total).Error; err != nil {
-		return nil, err
-	}
+	query = query.Order(database.SanitizeOrder(filter.SortBy, filter.SortOrder, "created_at DESC"))
 
-	query = query.Order(sanitizeOrder(filter.SortBy, filter.SortOrder, "created_at DESC"))
-
-	if filter.Page < 1 {
-		filter.Page = 1
-	}
-	if filter.Limit < 1 {
-		filter.Limit = 10
-	}
-	offset := (filter.Page - 1) * filter.Limit
-	var audits []SecuritySettingsAudit
-	if err := query.Offset(offset).Limit(filter.Limit).Find(&audits).Error; err != nil {
-		return nil, err
-	}
-
-	totalPages := int(total) / filter.Limit
-	if int(total)%filter.Limit > 0 {
-		totalPages++
-	}
-
-	return &PaginationResult[SecuritySettingsAudit]{
-		Data:       audits,
-		Total:      total,
-		Page:       filter.Page,
-		Limit:      filter.Limit,
-		TotalPages: totalPages,
-	}, nil
+	return database.PaginateQuery[SecuritySettingsAudit](query, filter.Page, filter.Limit)
 }

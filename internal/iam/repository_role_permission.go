@@ -2,7 +2,9 @@ package iam
 
 import (
 	"errors"
+
 	"github.com/google/uuid"
+	"github.com/maintainerd/auth/internal/platform/database"
 	"gorm.io/gorm"
 )
 
@@ -23,7 +25,7 @@ type rolePermissionRepository struct {
 
 func NewRolePermissionRepository(db *gorm.DB) RolePermissionRepository {
 	return &rolePermissionRepository{
-		BaseRepository: NewBaseRepository[RolePermission](db, "role_permission_uuid", "role_permission_id"),
+		BaseRepository: database.NewBaseRepository[RolePermission](db, "role_permission_uuid", "role_permission_id"),
 	}
 }
 

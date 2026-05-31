@@ -2,7 +2,9 @@ package client
 
 import (
 	"errors"
+
 	"github.com/google/uuid"
+	"github.com/maintainerd/auth/internal/platform/database"
 	"github.com/maintainerd/auth/internal/shared"
 	"gorm.io/gorm"
 )
@@ -44,7 +46,7 @@ type clientRepository struct {
 
 func NewClientRepository(db *gorm.DB) ClientRepository {
 	return &clientRepository{
-		BaseRepository: NewBaseRepository[Client](db, "client_uuid", "client_id"),
+		BaseRepository: database.NewBaseRepository[Client](db, "client_uuid", "client_id"),
 	}
 }
 
@@ -195,36 +197,11 @@ func (r *clientRepository) FindPaginated(filter ClientRepositoryGetFilter) (*Pag
 	}
 
 	// Sorting — protected against SQL injection via allowlist
-	query = query.Order(sanitizeOrder(filter.SortBy, filter.SortOrder, "created_at DESC"))
-
-	// Count
-	var total int64
-	if err := query.Count(&total).Error; err != nil {
-		return nil, err
-	}
-
-	// Pagination
-	filter.Page, filter.Limit = normalizePagination(filter.Page, filter.Limit)
-	offset := (filter.Page - 1) * filter.Limit
-	var clients []Client
-	if err := query.
+	query = query.Order(database.SanitizeOrder(filter.SortBy, filter.SortOrder, "created_at DESC")).
 		Preload("IdentityProvider").
-		Preload("ClientURIs").
-		Limit(filter.Limit).
-		Offset(offset).
-		Find(&clients).Error; err != nil {
-		return nil, err
-	}
+		Preload("ClientURIs")
 
-	totalPages := int((total + int64(filter.Limit) - 1) / int64(filter.Limit))
-
-	return &PaginationResult[Client]{
-		Data:       clients,
-		Total:      total,
-		Page:       filter.Page,
-		Limit:      filter.Limit,
-		TotalPages: totalPages,
-	}, nil
+	return database.PaginateQuery[Client](query, filter.Page, filter.Limit)
 }
 
 func (r *clientRepository) SetStatusByUUID(clientUUID uuid.UUID, tenantID int64, status string) error {

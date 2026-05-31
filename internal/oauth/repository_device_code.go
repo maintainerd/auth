@@ -4,6 +4,7 @@ import (
 	"errors"
 	"time"
 
+	"github.com/maintainerd/auth/internal/platform/database"
 	"gorm.io/gorm"
 )
 
@@ -26,7 +27,7 @@ type oauthDeviceCodeRepository struct {
 // NewOAuthDeviceCodeRepository creates a new OAuthDeviceCodeRepository.
 func NewOAuthDeviceCodeRepository(db *gorm.DB) OAuthDeviceCodeRepository {
 	return &oauthDeviceCodeRepository{
-		BaseRepository: NewBaseRepository[OAuthDeviceCode](db, "oauth_device_code_uuid", "oauth_device_code_id"),
+		BaseRepository: database.NewBaseRepository[OAuthDeviceCode](db, "oauth_device_code_uuid", "oauth_device_code_id"),
 	}
 }
 

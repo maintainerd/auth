@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/maintainerd/auth/internal/platform/database"
 	"gorm.io/gorm"
 )
 
@@ -39,7 +40,7 @@ type webhookEndpointRepository struct {
 // by the given database connection.
 func NewWebhookEndpointRepository(db *gorm.DB) WebhookEndpointRepository {
 	return &webhookEndpointRepository{
-		BaseRepository: NewBaseRepository[WebhookEndpoint](db, "webhook_endpoint_uuid", "webhook_endpoint_id"),
+		BaseRepository: database.NewBaseRepository[WebhookEndpoint](db, "webhook_endpoint_uuid", "webhook_endpoint_id"),
 	}
 }
 
@@ -85,38 +86,9 @@ func (r *webhookEndpointRepository) FindPaginated(filter WebhookEndpointReposito
 		query = query.Where("status IN ?", filter.Status)
 	}
 
-	var total int64
-	if err := query.Count(&total).Error; err != nil {
-		return nil, err
-	}
+	query = query.Order(database.SanitizeOrder(filter.SortBy, filter.SortOrder, "created_at DESC"))
 
-	query = query.Order(sanitizeOrder(filter.SortBy, filter.SortOrder, "created_at DESC"))
-
-	if filter.Page < 1 {
-		filter.Page = 1
-	}
-	if filter.Limit < 1 {
-		filter.Limit = 10
-	}
-	offset := (filter.Page - 1) * filter.Limit
-
-	var endpoints []WebhookEndpoint
-	if err := query.Offset(offset).Limit(filter.Limit).Find(&endpoints).Error; err != nil {
-		return nil, err
-	}
-
-	totalPages := int(total) / filter.Limit
-	if int(total)%filter.Limit > 0 {
-		totalPages++
-	}
-
-	return &PaginationResult[WebhookEndpoint]{
-		Data:       endpoints,
-		Total:      total,
-		Page:       filter.Page,
-		Limit:      filter.Limit,
-		TotalPages: totalPages,
-	}, nil
+	return database.PaginateQuery[WebhookEndpoint](query, filter.Page, filter.Limit)
 }
 
 // FindActiveByTenantID retrieves all active (non-deleted) webhook endpoints for a tenant.

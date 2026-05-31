@@ -9,6 +9,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/platform/middleware"
+	"github.com/maintainerd/auth/internal/platform/pagination"
 	"github.com/maintainerd/auth/internal/platform/ptr"
 	resp "github.com/maintainerd/auth/internal/platform/response"
 )
@@ -83,7 +84,7 @@ func (h *UserHandler) GetUsers(w http.ResponseWriter, r *http.Request) {
 		RoleUUID:             roleUUID,
 		UserPoolUUID:         userPoolUUID,
 		ClientUUID:           clientUUID,
-		PaginationRequestDTO: parsePaginationQuery(r),
+		PaginationRequestDTO: pagination.ParseQuery(r),
 	}
 
 	// Validate filter parameters
@@ -622,7 +623,7 @@ func (h *UserHandler) GetUserRoles(w http.ResponseWriter, r *http.Request) {
 		Name:                 ptr.PtrOrNil(q.Get("name")),
 		Description:          ptr.PtrOrNil(q.Get("description")),
 		Status:               ptr.PtrOrNil(q.Get("status")),
-		PaginationRequestDTO: parsePaginationQuery(r),
+		PaginationRequestDTO: pagination.ParseQuery(r),
 	}
 
 	// Validate filter parameters
@@ -736,7 +737,7 @@ func (h *UserHandler) GetUserIdentities(w http.ResponseWriter, r *http.Request) 
 	// Build filter DTO for validation
 	reqParams := UserIdentityFilterDTO{
 		Provider:             ptr.PtrOrNil(q.Get("provider")),
-		PaginationRequestDTO: parsePaginationQuery(r),
+		PaginationRequestDTO: pagination.ParseQuery(r),
 	}
 
 	// Validate filter parameters

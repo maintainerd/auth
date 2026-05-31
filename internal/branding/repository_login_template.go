@@ -2,7 +2,9 @@ package branding
 
 import (
 	"errors"
+
 	"github.com/google/uuid"
+	"github.com/maintainerd/auth/internal/platform/database"
 	"github.com/maintainerd/auth/internal/shared"
 	"gorm.io/gorm"
 )
@@ -33,7 +35,7 @@ type loginTemplateRepository struct {
 
 func NewLoginTemplateRepository(db *gorm.DB) LoginTemplateRepository {
 	return &loginTemplateRepository{
-		BaseRepository: NewBaseRepository[LoginTemplate](db, "login_template_uuid", "login_template_id"),
+		BaseRepository: database.NewBaseRepository[LoginTemplate](db, "login_template_uuid", "login_template_id"),
 	}
 }
 
@@ -95,43 +97,8 @@ func (r *loginTemplateRepository) FindPaginated(filter LoginTemplateRepositoryGe
 		query = query.Where("is_system = ?", *filter.IsSystem)
 	}
 
-	// Count total
-	var total int64
-	if err := query.Count(&total).Error; err != nil {
-		return nil, err
-	}
-
 	// Apply sorting — protected against SQL injection via allowlist
-	query = query.Order(sanitizeOrder(filter.SortBy, filter.SortOrder, "created_at DESC"))
+	query = query.Order(database.SanitizeOrder(filter.SortBy, filter.SortOrder, "created_at DESC"))
 
-	// Apply pagination
-	page := 1
-	if filter.Page > 0 {
-		page = filter.Page
-	}
-	limit := 10
-	if filter.Limit > 0 {
-		limit = filter.Limit
-	}
-	offset := (page - 1) * limit
-	query = query.Offset(offset).Limit(limit)
-
-	// Execute query
-	var templates []LoginTemplate
-	if err := query.Find(&templates).Error; err != nil {
-		return nil, err
-	}
-
-	totalPages := int(total) / limit
-	if int(total)%limit > 0 {
-		totalPages++
-	}
-
-	return &PaginationResult[LoginTemplate]{
-		Data:       templates,
-		Total:      total,
-		Page:       page,
-		Limit:      limit,
-		TotalPages: totalPages,
-	}, nil
+	return database.PaginateQuery[LoginTemplate](query, filter.Page, filter.Limit)
 }

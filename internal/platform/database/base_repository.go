@@ -282,3 +282,27 @@ func SanitizeOrderPrefixed(prefix, sortBy, sortOrder, defaultCol string) string 
 func NormalizePagination(page, limit int) (int, int) {
 	return normalizePagination(page, limit)
 }
+
+func PaginateQuery[T any](query *gorm.DB, page, limit int) (*PaginationResult[T], error) {
+	page, limit = normalizePagination(page, limit)
+
+	var total int64
+	if err := query.Count(&total).Error; err != nil {
+		return nil, err
+	}
+
+	var entities []T
+	offset := (page - 1) * limit
+	if err := query.Limit(limit).Offset(offset).Find(&entities).Error; err != nil {
+		return nil, err
+	}
+
+	totalPages := int((total + int64(limit) - 1) / int64(limit))
+	return &PaginationResult[T]{
+		Data:       entities,
+		Total:      total,
+		Page:       page,
+		Limit:      limit,
+		TotalPages: totalPages,
+	}, nil
+}

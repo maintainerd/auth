@@ -1630,9 +1630,9 @@ func TestRegisterService_GenerateTokenResponse(t *testing.T) {
 
 	t.Run("GenerateIDToken error", func(t *testing.T) {
 		initTestJWTKeysService(t)
-		origIDToken := jwt.GenerateIDToken
-		defer func() { jwt.GenerateIDToken = origIDToken }()
-		jwt.GenerateIDToken = func(_, _, _, _ string, _ *jwt.UserProfile, _ string, _ *jwt.IDTokenParams) (string, error) {
+		origIDToken := generateIDTokenFn
+		defer func() { generateIDTokenFn = origIDToken }()
+		generateIDTokenFn = func(_, _, _, _ string, _ *jwt.UserProfile, _ string, _ *jwt.IDTokenParams) (string, error) {
 			return "", errors.New("id token error")
 		}
 
@@ -1645,9 +1645,9 @@ func TestRegisterService_GenerateTokenResponse(t *testing.T) {
 
 	t.Run("GenerateRefreshToken error", func(t *testing.T) {
 		initTestJWTKeysService(t)
-		origRefresh := jwt.GenerateRefreshToken
-		defer func() { jwt.GenerateRefreshToken = origRefresh }()
-		jwt.GenerateRefreshToken = func(_, _, _, _ string) (string, error) {
+		origRefresh := generateRefreshTokenFn
+		defer func() { generateRefreshTokenFn = origRefresh }()
+		generateRefreshTokenFn = func(_, _, _, _ string) (string, error) {
 			return "", errors.New("refresh error")
 		}
 

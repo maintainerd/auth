@@ -8,6 +8,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/platform/middleware"
+	"github.com/maintainerd/auth/internal/platform/pagination"
 	"github.com/maintainerd/auth/internal/platform/ptr"
 	resp "github.com/maintainerd/auth/internal/platform/response"
 )
@@ -41,7 +42,7 @@ func (h *AuthEventHandler) GetAll(w http.ResponseWriter, r *http.Request) {
 		Result:               ptr.PtrOrNil(q.Get("result")),
 		DateFrom:             ptr.PtrOrNil(q.Get("date_from")),
 		DateTo:               ptr.PtrOrNil(q.Get("date_to")),
-		PaginationRequestDTO: parsePaginationQuery(r),
+		PaginationRequestDTO: pagination.ParseQuery(r),
 	}
 
 	if err := filter.Validate(); err != nil {

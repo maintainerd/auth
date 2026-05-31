@@ -74,7 +74,7 @@ func (s *oauthCIBAService) Initiate(ctx context.Context, req OAuthCIBARequestDTO
 	defer span.End()
 	span.SetAttributes(attribute.String("oauth.client_id", creds.ClientID))
 
-	client, oerr := s.authenticateClient(creds)
+	client, oerr := authenticateOAuthClient(s.db, creds)
 	if oerr != nil {
 		span.SetStatus(codes.Error, "client auth failed")
 		return nil, oerr
@@ -232,7 +232,7 @@ func (s *oauthCIBAService) ExchangeToken(ctx context.Context, req OAuthCIBAToken
 	defer span.End()
 	span.SetAttributes(attribute.String("oauth.client_id", creds.ClientID))
 
-	client, oerr := s.authenticateClient(creds)
+	client, oerr := authenticateOAuthClient(s.db, creds)
 	if oerr != nil {
 		span.SetStatus(codes.Error, "client auth failed")
 		return nil, oerr

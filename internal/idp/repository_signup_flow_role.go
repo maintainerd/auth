@@ -2,6 +2,8 @@ package idp
 
 import (
 	"errors"
+
+	"github.com/maintainerd/auth/internal/platform/database"
 	"gorm.io/gorm"
 )
 
@@ -20,7 +22,7 @@ type signupFlowRoleRepository struct {
 
 func NewSignupFlowRoleRepository(db *gorm.DB) SignupFlowRoleRepository {
 	return &signupFlowRoleRepository{
-		BaseRepository: NewBaseRepository[SignupFlowRole](db, "signup_flow_role_uuid", "signup_flow_role_id"),
+		BaseRepository: database.NewBaseRepository[SignupFlowRole](db, "signup_flow_role_uuid", "signup_flow_role_id"),
 	}
 }
 

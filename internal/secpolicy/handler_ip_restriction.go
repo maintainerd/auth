@@ -7,6 +7,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/platform/middleware"
+	"github.com/maintainerd/auth/internal/platform/pagination"
 	"github.com/maintainerd/auth/internal/platform/ptr"
 	resp "github.com/maintainerd/auth/internal/platform/response"
 	"github.com/maintainerd/auth/internal/shared"
@@ -54,7 +55,7 @@ func (h *IPRestrictionRuleHandler) GetAll(w http.ResponseWriter, r *http.Request
 		Status:               status,
 		IPAddress:            ptr.PtrOrNil(q.Get("ip_address")),
 		Description:          ptr.PtrOrNil(q.Get("description")),
-		PaginationRequestDTO: parsePaginationQuery(r),
+		PaginationRequestDTO: pagination.ParseQuery(r),
 	}
 
 	// Validate filter parameters

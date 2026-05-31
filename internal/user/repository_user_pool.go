@@ -3,6 +3,7 @@ package user
 import (
 	"errors"
 
+	"github.com/maintainerd/auth/internal/platform/database"
 	"gorm.io/gorm"
 )
 
@@ -25,7 +26,7 @@ type userPoolRepository struct {
 // NewUserPoolRepository returns a UserPoolRepository backed by the given gorm.DB.
 func NewUserPoolRepository(db *gorm.DB) UserPoolRepository {
 	return &userPoolRepository{
-		BaseRepository: NewBaseRepository[UserPool](db, "user_pool_uuid", "user_pool_id"),
+		BaseRepository: database.NewBaseRepository[UserPool](db, "user_pool_uuid", "user_pool_id"),
 	}
 }
 

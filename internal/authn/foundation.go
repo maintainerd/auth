@@ -1,10 +1,12 @@
 package authn
 
 import (
+	"net/http"
+
 	"github.com/maintainerd/auth/internal/platform/database"
+	"github.com/maintainerd/auth/internal/platform/jwt"
 	"github.com/maintainerd/auth/internal/platform/pagination"
 	"gorm.io/gorm"
-	"net/http"
 )
 
 type BaseRepository[T any] = database.BaseRepository[T]
@@ -14,6 +16,9 @@ type PaginationResult[T any] = database.PaginationResult[T]
 type PaginationRequestDTO = pagination.PaginationRequestDTO
 type PaginatedResponseDTO[T any] = pagination.PaginatedResponseDTO[T]
 type SuccessResponseDTO = pagination.SuccessResponseDTO
+
+var generateIDTokenFn = jwt.GenerateIDToken
+var generateRefreshTokenFn = jwt.GenerateRefreshToken
 
 const (
 	SortOrderAsc  = pagination.SortOrderAsc

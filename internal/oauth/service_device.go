@@ -80,7 +80,7 @@ func (s *oauthDeviceService) Authorize(ctx context.Context, req OAuthDeviceAutho
 	defer span.End()
 	span.SetAttributes(attribute.String("oauth.client_id", creds.ClientID))
 
-	client, oerr := s.authenticateClient(creds)
+	client, oerr := authenticateOAuthClient(s.db, creds)
 	if oerr != nil {
 		span.SetStatus(codes.Error, "client auth failed")
 		return nil, oerr
@@ -216,7 +216,7 @@ func (s *oauthDeviceService) ExchangeToken(ctx context.Context, req OAuthDeviceT
 	defer span.End()
 	span.SetAttributes(attribute.String("oauth.client_id", creds.ClientID))
 
-	client, oerr := s.authenticateClient(creds)
+	client, oerr := authenticateOAuthClient(s.db, creds)
 	if oerr != nil {
 		span.SetStatus(codes.Error, "client auth failed")
 		return nil, oerr

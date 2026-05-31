@@ -2,7 +2,9 @@ package client
 
 import (
 	"errors"
+
 	"github.com/google/uuid"
+	"github.com/maintainerd/auth/internal/platform/database"
 	"gorm.io/gorm"
 )
 
@@ -22,7 +24,7 @@ type clientAPIRepository struct {
 
 func NewClientAPIRepository(db *gorm.DB) ClientAPIRepository {
 	return &clientAPIRepository{
-		BaseRepository: NewBaseRepository[ClientAPI](db, "client_api_uuid", "client_api_id"),
+		BaseRepository: database.NewBaseRepository[ClientAPI](db, "client_api_uuid", "client_api_id"),
 	}
 }
 

@@ -3,6 +3,7 @@ package secpolicy
 import (
 	"errors"
 
+	"github.com/maintainerd/auth/internal/platform/database"
 	"gorm.io/gorm"
 )
 
@@ -34,7 +35,7 @@ type securitySettingRepository struct {
 
 func NewSecuritySettingRepository(db *gorm.DB) SecuritySettingRepository {
 	return &securitySettingRepository{
-		BaseRepository: NewBaseRepository[SecuritySetting](db, "security_setting_uuid", "security_setting_id"),
+		BaseRepository: database.NewBaseRepository[SecuritySetting](db, "security_setting_uuid", "security_setting_id"),
 	}
 }
 
@@ -87,37 +88,9 @@ func (r *securitySettingRepository) FindPaginated(filter SecuritySettingReposito
 		query = query.Where("updated_by = ?", *filter.UpdatedBy)
 	}
 
-	var total int64
-	if err := query.Count(&total).Error; err != nil {
-		return nil, err
-	}
+	query = query.Order(database.SanitizeOrder(filter.SortBy, filter.SortOrder, "created_at DESC"))
 
-	query = query.Order(sanitizeOrder(filter.SortBy, filter.SortOrder, "created_at DESC"))
-
-	if filter.Page < 1 {
-		filter.Page = 1
-	}
-	if filter.Limit < 1 {
-		filter.Limit = 10
-	}
-	offset := (filter.Page - 1) * filter.Limit
-	var securitySettings []SecuritySetting
-	if err := query.Offset(offset).Limit(filter.Limit).Find(&securitySettings).Error; err != nil {
-		return nil, err
-	}
-
-	totalPages := int(total) / filter.Limit
-	if int(total)%filter.Limit > 0 {
-		totalPages++
-	}
-
-	return &PaginationResult[SecuritySetting]{
-		Data:       securitySettings,
-		Total:      total,
-		Page:       filter.Page,
-		Limit:      filter.Limit,
-		TotalPages: totalPages,
-	}, nil
+	return database.PaginateQuery[SecuritySetting](query, filter.Page, filter.Limit)
 }
 
 func (r *securitySettingRepository) IncrementVersion(securitySettingID int64) error {

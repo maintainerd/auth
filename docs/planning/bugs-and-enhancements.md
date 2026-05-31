@@ -236,14 +236,14 @@ Structural debt that diverges from [code-structure.md](../contributing/code-stru
 
 Mechanical debt the refactor didn't finish. Big LOC reduction, low risk.
 
-- [ ] **DUP-01** 🟠 ✅ — **`FindPaginated` Count/offset/totalPages reimplemented ~25×.**
+- [x] **DUP-01** 🟠 ✅ — **`FindPaginated` Count/offset/totalPages reimplemented ~25×.**
   Every repo hand-writes it even though
   [`base_repository.go:238`](../../internal/platform/database/base_repository.go#L238)
   `Paginate` exists (it just can't express LIKE/IN filters).
   **Fix:** add `database.PaginateQuery[T](preFilteredQuery, page, limit, order)`; repos
   keep only their `.Where()` chain.
 
-- [ ] **DUP-02** 🟠 ✅ — **`foundation.go` ~25-line alias/wrapper block copy-pasted ~13×**
+- [x] **DUP-02** 🟠 ✅ — **`foundation.go` ~25-line alias/wrapper block copy-pasted ~13×**
   (incl. a lossy `NewBaseRepository(db any)` `db.(*gorm.DB)` shim).
   **Fix:** export the helpers directly from `platform/database` / `platform/pagination`.
 
@@ -254,7 +254,7 @@ Mechanical debt the refactor didn't finish. Big LOC reduction, low risk.
   [`idp/foundation.go:52`](../../internal/idp/foundation.go#L52).
   **Fix:** `authevent.NoopService()`.
 
-- [ ] **DUP-04** 🟠 ⚠️ — **Client authentication duplicated 4–6× (and divergent).**
+- [x] **DUP-04** 🟠 ⚠️ — **Client authentication duplicated 4–6× (and divergent).**
   [`oauth/service_token_exchange.go:154`](../../internal/oauth/service_token_exchange.go#L154),
   [`service_device.go:329`](../../internal/oauth/service_device.go#L329), `service_ciba.go`,
   [`service_par.go:205`](../../internal/oauth/service_par.go#L205), `service_token.go`.
@@ -262,7 +262,7 @@ Mechanical debt the refactor didn't finish. Big LOC reduction, low risk.
   (`clientSupportsGrant`/`hasGrant`/`clientHasGrant`) is byte-identical in 3 places.
   **Fix:** one shared `authenticateClient` + one grant-check helper.
 
-- [ ] **DUP-05** 🟠 ⚠️ — **`authn.LoginPublic` ≈ `Login` (~200 dup lines)** and
+- [x] **DUP-05** 🟠 ⚠️ — **`authn.LoginPublic` ≈ `Login` (~200 dup lines)** and
   **`generateTokenResponse` copy-pasted 4×**
   ([`authn/service_login.go:515`](../../internal/authn/service_login.go#L515),
   `service_magic_link.go`, `service_register.go`, `user/service_account.go`).
@@ -273,14 +273,14 @@ Mechanical debt the refactor didn't finish. Big LOC reduction, low risk.
   `findDefaultRole` / `loadPolicy` / `recordPasswordHistory` duplicated across `user` & `authn`.
   **Fix:** extract `userHasTenantAccess(...)`; share the policy helpers.
 
-- [ ] **DUP-07** 🟠 ✅ — **secpolicy: 7 config get/update handlers + services are pure copy-paste.**
+- [x] **DUP-07** 🟠 ✅ — **secpolicy: 7 config get/update handlers + services are pure copy-paste.**
   [`internal/secpolicy/handler_setting.go`](../../internal/secpolicy/handler_setting.go) +
   [`service_setting.go:109`](../../internal/secpolicy/service_setting.go#L109).
   **Fix:** collapse to one handler/service parameterized by config type.
   Also reuse `middleware.ClientIPFromContext`/`UserAgentFromContext` instead of the
   copy-pasted `ctx.Value(...)` blocks.
 
-- [ ] **DUP-08** 🟡 ✅ — **Three near-identical template `FindPaginated` + permission→DTO mappers.**
+- [x] **DUP-08** 🟡 ✅ — **Three near-identical template `FindPaginated` + permission→DTO mappers.**
   branding [`repository_email_template.go:74`](../../internal/branding/repository_email_template.go#L74)
   /login/sms; permission mapping repeated 4× across
   [`client/service_client.go`](../../internal/client/service_client.go) &

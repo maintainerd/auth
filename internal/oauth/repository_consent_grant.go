@@ -3,6 +3,7 @@ package oauth
 import (
 	"errors"
 
+	"github.com/maintainerd/auth/internal/platform/database"
 	"gorm.io/gorm"
 )
 
@@ -24,7 +25,7 @@ type oauthConsentGrantRepository struct {
 // NewOAuthConsentGrantRepository creates a new OAuthConsentGrantRepository.
 func NewOAuthConsentGrantRepository(db *gorm.DB) OAuthConsentGrantRepository {
 	return &oauthConsentGrantRepository{
-		BaseRepository: NewBaseRepository[OAuthConsentGrant](db, "oauth_consent_grant_uuid", "oauth_consent_grant_id"),
+		BaseRepository: database.NewBaseRepository[OAuthConsentGrant](db, "oauth_consent_grant_uuid", "oauth_consent_grant_id"),
 	}
 }
 

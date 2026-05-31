@@ -7,6 +7,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/platform/middleware"
+	"github.com/maintainerd/auth/internal/platform/pagination"
 	resp "github.com/maintainerd/auth/internal/platform/response"
 	"github.com/maintainerd/auth/internal/shared"
 )
@@ -40,7 +41,7 @@ func (h *WebhookEndpointHandler) GetAll(w http.ResponseWriter, r *http.Request) 
 
 	filter := WebhookEndpointFilterDTO{
 		Status:               status,
-		PaginationRequestDTO: parsePaginationQuery(r),
+		PaginationRequestDTO: pagination.ParseQuery(r),
 	}
 
 	if err := filter.Validate(); err != nil {

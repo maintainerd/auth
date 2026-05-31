@@ -3,6 +3,7 @@ package notifier
 import (
 	"errors"
 
+	"github.com/maintainerd/auth/internal/platform/database"
 	"gorm.io/gorm"
 )
 
@@ -22,7 +23,7 @@ type smsConfigRepository struct {
 // given database connection.
 func NewSMSConfigRepository(db *gorm.DB) SMSConfigRepository {
 	return &smsConfigRepository{
-		BaseRepository: NewBaseRepository[SMSConfig](db, "sms_config_uuid", "sms_config_id"),
+		BaseRepository: database.NewBaseRepository[SMSConfig](db, "sms_config_uuid", "sms_config_id"),
 	}
 }
 

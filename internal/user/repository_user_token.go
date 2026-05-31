@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/maintainerd/auth/internal/platform/database"
 	"github.com/maintainerd/auth/internal/shared"
 	"gorm.io/gorm"
 )
@@ -34,7 +35,7 @@ type userTokenRepository struct {
 
 func NewUserTokenRepository(db *gorm.DB) UserTokenRepository {
 	return &userTokenRepository{
-		BaseRepository: NewBaseRepository[UserToken](db, "user_token_uuid", "user_token_id"),
+		BaseRepository: database.NewBaseRepository[UserToken](db, "user_token_uuid", "user_token_id"),
 	}
 }
 

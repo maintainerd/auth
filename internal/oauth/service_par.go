@@ -232,15 +232,6 @@ func (s *oauthPARService) resolveAndAuthenticateClient(creds OAuthClientCredenti
 	return &client, nil
 }
 
-func clientHasGrant(client *Client, grantType string) bool {
-	for _, g := range client.GrantTypes {
-		if g == grantType {
-			return true
-		}
-	}
-	return false
-}
-
 func validateClientRedirectURI(client *Client, redirectURI string) *apperror.OAuthError {
 	if client.ClientURIs == nil {
 		return apperror.NewOAuthInvalidRequest("no redirect URIs registered for this client")

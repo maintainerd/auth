@@ -1,6 +1,9 @@
 package user
 
-import "gorm.io/gorm"
+import (
+	"github.com/maintainerd/auth/internal/platform/database"
+	"gorm.io/gorm"
+)
 
 type UserSettingRepository interface {
 	BaseRepositoryMethods[UserSetting]
@@ -16,7 +19,7 @@ type userSettingRepository struct {
 
 func NewUserSettingRepository(db *gorm.DB) UserSettingRepository {
 	return &userSettingRepository{
-		BaseRepository: NewBaseRepository[UserSetting](db, "user_setting_uuid", "user_setting_id"),
+		BaseRepository: database.NewBaseRepository[UserSetting](db, "user_setting_uuid", "user_setting_id"),
 	}
 }
 
