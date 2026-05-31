@@ -9,9 +9,11 @@ import (
 	"github.com/maintainerd/auth/internal/platform/jwt"
 	"github.com/maintainerd/auth/internal/platform/middleware"
 	"github.com/maintainerd/auth/internal/platform/ptr"
+	"github.com/maintainerd/auth/internal/platform/security"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
+	"gorm.io/gorm"
 )
 
 // OAuthSessionService handles RP-Initiated Logout (OIDC Session Mgmt 1.0) and
@@ -28,6 +30,7 @@ type OAuthSessionService interface {
 }
 
 type oauthSessionService struct {
+	db               *gorm.DB
 	clientRepo       ClientRepository
 	userRepo         UserRepository
 	refreshTokenRepo OAuthRefreshTokenRepository
@@ -36,12 +39,14 @@ type oauthSessionService struct {
 
 // NewOAuthSessionService creates a new OAuthSessionService.
 func NewOAuthSessionService(
+	db *gorm.DB,
 	clientRepo ClientRepository,
 	userRepo UserRepository,
 	refreshTokenRepo OAuthRefreshTokenRepository,
 	authEventService authevent.AuthEventService,
 ) OAuthSessionService {
 	return &oauthSessionService{
+		db:               db,
 		clientRepo:       clientRepo,
 		userRepo:         userRepo,
 		refreshTokenRepo: refreshTokenRepo,
@@ -86,13 +91,17 @@ func (s *oauthSessionService) EndSession(ctx context.Context, req OAuthEndSessio
 		span.SetAttributes(attribute.Int64("user.id", *userID))
 	}
 
-	// Build the post-logout redirect URI if provided.
+	// Build the post-logout redirect URI if provided and validated.
 	postLogoutRedirectURI := ""
 	if req.PostLogoutRedirectURI != "" {
 		if _, err := url.ParseRequestURI(req.PostLogoutRedirectURI); err == nil {
-			postLogoutRedirectURI = req.PostLogoutRedirectURI
-			if req.State != "" {
-				postLogoutRedirectURI += "?state=" + url.QueryEscape(req.State)
+			if err := security.ValidateRedirectURI(req.PostLogoutRedirectURI); err == nil {
+				if s.validateClientPostLogoutRedirect(req.ClientID, req.PostLogoutRedirectURI) {
+					postLogoutRedirectURI = req.PostLogoutRedirectURI
+					if req.State != "" {
+						postLogoutRedirectURI += "?state=" + url.QueryEscape(req.State)
+					}
+				}
 			}
 		}
 	}
@@ -153,4 +162,20 @@ func (s *oauthSessionService) BackchannelLogout(ctx context.Context, req OAuthBa
 
 	span.SetStatus(codes.Ok, "")
 	return nil
+}
+
+func (s *oauthSessionService) validateClientPostLogoutRedirect(clientID string, redirectURI string) bool {
+	if clientID == "" {
+		return false
+	}
+	client, err := findActiveClientByIdentifier(s.db, clientID)
+	if err != nil || client == nil || client.ClientURIs == nil {
+		return false
+	}
+	for _, uri := range *client.ClientURIs {
+		if uri.URI == redirectURI {
+			return true
+		}
+	}
+	return false
 }

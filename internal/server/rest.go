@@ -2,11 +2,11 @@ package server
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
-	"sync"
 	"syscall"
 	"time"
 
@@ -15,7 +15,8 @@ import (
 
 // StartRESTServer launches the internal and public HTTP servers, blocks until
 // a termination signal is received, then drains connections gracefully.
-func StartRESTServer(application *Application) {
+// Returns an error if either server fails to start or shut down cleanly.
+func StartRESTServer(application *Application) error {
 	h := initHandlers(application)
 
 	internalSrv := &http.Server{
@@ -34,32 +35,33 @@ func StartRESTServer(application *Application) {
 		IdleTimeout:  120 * time.Second,
 	}
 
-	var wg sync.WaitGroup
-	wg.Add(2)
+	listenErr := make(chan error, 2)
 
 	go func() {
-		defer wg.Done()
 		slog.Info("Internal REST server starting", "addr", internalSrv.Addr)
 		if err := internalSrv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			slog.Error("Internal REST server error", "error", err)
-			os.Exit(1)
+			listenErr <- err
 		}
 	}()
 
 	go func() {
-		defer wg.Done()
 		slog.Info("Public REST server starting", "addr", publicSrv.Addr)
 		if err := publicSrv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			slog.Error("Public REST server error", "error", err)
-			os.Exit(1)
+			listenErr <- err
 		}
 	}()
 
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, os.Interrupt, syscall.SIGTERM)
-	<-quit
 
-	slog.Info("Shutdown signal received, draining connections...")
+	select {
+	case <-quit:
+		slog.Info("Shutdown signal received, draining connections...")
+	case err := <-listenErr:
+		return fmt.Errorf("server listen failed: %w", err)
+	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
@@ -74,10 +76,9 @@ func StartRESTServer(application *Application) {
 		slog.Error("Public server shutdown error", "error", err)
 	}
 
-	wg.Wait()
-
 	if shutdownErr != nil {
-		os.Exit(1)
+		return fmt.Errorf("server shutdown failed: %w", shutdownErr)
 	}
 	slog.Info("Servers stopped cleanly")
+	return nil
 }

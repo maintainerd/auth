@@ -20,6 +20,7 @@ func TestInit(t *testing.T) {
 		t.Setenv("AUTH_HOSTNAME", "https://auth.example.com")
 		t.Setenv("JWT_PRIVATE_KEY", "private-key-data")
 		t.Setenv("JWT_PUBLIC_KEY", "public-key-data")
+		t.Setenv("APP_ENCRYPTION_KEY", "12345678901234567890123456789012")
 		t.Setenv("DB_HOST", "localhost")
 		t.Setenv("DB_PORT", "5432")
 		t.Setenv("DB_USER", "postgres")
@@ -56,6 +57,7 @@ func TestInit(t *testing.T) {
 		origSMTPFromEmail := SMTPFromEmail
 		origSMTPFromName := SMTPFromName
 		origEmailLogo := EmailLogo
+		origEncKey := AppEncryptionKey
 		t.Cleanup(func() {
 			activeSecretManager = origSM
 			SecretProvider = origProvider
@@ -80,6 +82,7 @@ func TestInit(t *testing.T) {
 			SMTPFromEmail = origSMTPFromEmail
 			SMTPFromName = origSMTPFromName
 			EmailLogo = origEmailLogo
+			AppEncryptionKey = origEncKey
 		})
 	}
 
@@ -107,6 +110,7 @@ func TestInit(t *testing.T) {
 		assert.Equal(t, 587, SMTPPort)
 		assert.Equal(t, "user", SMTPUser)
 		assert.Equal(t, "pass", SMTPPass)
+		assert.Equal(t, []byte("12345678901234567890123456789012"), AppEncryptionKey)
 	})
 
 	t.Run("invalid secret provider", func(t *testing.T) {

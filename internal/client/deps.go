@@ -4,7 +4,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/maintainerd/auth/internal/platform/apperror"
 	"gorm.io/datatypes"
 	"gorm.io/gorm"
 )
@@ -166,22 +165,4 @@ type IdentityProviderServiceDataResult struct {
 	IsSystem             bool
 	CreatedAt            time.Time
 	UpdatedAt            time.Time
-}
-
-func ValidateTenantAccess(actor *User, target *Tenant) error {
-	if actor == nil {
-		return apperror.NewUnauthorized("actor user not found")
-	}
-	if target == nil {
-		return apperror.NewNotFoundWithReason("tenant not found")
-	}
-	for _, identity := range actor.UserIdentities {
-		if identity.TenantID == target.TenantID {
-			return nil
-		}
-		if identity.Tenant != nil && identity.Tenant.IsSystem {
-			return nil
-		}
-	}
-	return apperror.NewForbidden("tenant access denied")
 }

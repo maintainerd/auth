@@ -151,7 +151,7 @@ func initServices(db *gorm.DB, r *repos, appCache *cache.Cache) (*svcs, error) {
 		oauthPARService:           oauth.NewOAuthPARService(db, oauthClientRepo, oauthClientURIRepo, r.oauthPARRequestRepo, authEventSvc),
 		oauthDeviceService:        oauth.NewOAuthDeviceService(db, oauthClientRepo, r.oauthDeviceCodeRepo, oauthUserRepo, oauthUserIdentityRepo, authEventSvc),
 		oauthTokenExchangeService: oauth.NewOAuthTokenExchangeService(db, oauthClientRepo, oauthUserRepo, authEventSvc),
-		oauthSessionService:       oauth.NewOAuthSessionService(oauthClientRepo, oauthUserRepo, r.oauthRefreshTokenRepo, authEventSvc),
+		oauthSessionService:       oauth.NewOAuthSessionService(db, oauthClientRepo, oauthUserRepo, r.oauthRefreshTokenRepo, authEventSvc),
 		oauthCIBAService:          oauth.NewOAuthCIBAService(db, oauthClientRepo, r.oauthCIBARequestRepo, oauthUserRepo, authEventSvc),
 		oauthRegisterService:      oauth.NewOAuthRegisterService(db, oauthClientRepo, oauthClientURIRepo, oauthTenantRepo, authEventSvc),
 		accountService:            user.NewAccountService(db, r.userRepo, r.userTokenRepo, r.profileRepo, r.userSettingRepo, userRoleRepo, userClientRepo, userBackupCodeRepo, r.userIdentityRepo, userIDPRepo, authEventSvc),

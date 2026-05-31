@@ -64,7 +64,10 @@ func run(ctx context.Context) error {
 
 	// internal/app owns domain composition; cmd/server only receives the fully
 	// wired app and adapts it to transport runtime dependencies.
-	application := app.NewApp(db, redisClient)
+	application, err := app.NewApp(db, redisClient)
+	if err != nil {
+		return fmt.Errorf("initialize application: %w", err)
+	}
 	serverApplication := application.ServerApplication()
 
 	// Wire the JTI denylist checker so ValidateToken rejects revoked access tokens.
@@ -78,7 +81,5 @@ func run(ctx context.Context) error {
 	// Background workers start before REST begins blocking, while REST remains
 	// the foreground server that owns process lifetime.
 	startBackgroundWorkers(bgCtx, application, serverApplication)
-	appserver.StartRESTServer(serverApplication)
-
-	return nil
+	return appserver.StartRESTServer(serverApplication)
 }

@@ -82,7 +82,7 @@ These are exploitable or data-exposing today. Tackle this section first.
 
 ### OAuth / OIDC / Federation (⚠️ confirm — sandbox blocked direct re-read)
 
-- [ ] **SEC-08** 🔴 ⚠️ — **Token introspection endpoint is unauthenticated.**
+- [x] **SEC-08** 🔴 ⚠️ — **Token introspection endpoint is unauthenticated.**
   `oauth` `service_token.go` `Introspect` / `handler_token.go` — RFC 7662 §2.1 requires
   the caller (client) be authenticated; as-is anyone can probe token validity and read
   `sub`/`scope`/`client_id`.
@@ -103,7 +103,7 @@ These are exploitable or data-exposing today. Tackle this section first.
   (`existing, _ := ...FindByProviderAndSub`). On DB error it proceeds to `Create`.
   **Fix:** propagate the error and fail closed.
 
-- [ ] **SEC-12** 🔴 ⚠️ — **PAR / EndSession skip dangerous-scheme redirect validation.**
+- [x] **SEC-12** 🔴 ⚠️ — **PAR / EndSession skip dangerous-scheme redirect validation.**
   [`internal/oauth/service_par.go:238`](../../internal/oauth/service_par.go#L238) and
   [`internal/oauth/service_session.go:90`](../../internal/oauth/service_session.go#L90)
   do not call `security.ValidateRedirectURI` (the authorize path does); `EndSession`
@@ -120,23 +120,23 @@ These are exploitable or data-exposing today. Tackle this section first.
 
 ### MFA
 
-- [ ] **SEC-14** 🔴 ⚠️ — **Step-up token subject not bound to the verifying user.**
+- [x] **SEC-14** 🔴 ⚠️ — **Step-up token subject not bound to the verifying user.**
   `mfa` `service_mfa.go` `VerifyStepUp` extracts `userUUID` from the challenge token's
   `sub` but verifies the factor against the caller's session `userID` and never compares
   the two → any valid challenge token is accepted.
   **Fix:** load the user by token `sub` and assert it equals the authenticated `userID`.
 
-- [ ] **SEC-15** 🟠 ⚠️ — **WebAuthn sign-count regression not enforced.**
+- [x] **SEC-15** 🟠 ⚠️ — **WebAuthn sign-count regression not enforced.**
   `mfa` `service_webauthn.go` stores the new `SignCount` unconditionally → cloned-
   authenticator detection lost.
   **Fix:** reject when `new <= stored` (allow the 0/0 exception) before updating.
 
-- [ ] **SEC-16** 🟠 ⚠️ — **No rate limiting / lockout on TOTP, step-up, or backup-code verification.**
+- [x] **SEC-16** 🟠 ⚠️ — **No rate limiting / lockout on TOTP, step-up, or backup-code verification.**
   **Fix:** add attempt throttling/lockout on the verify paths.
 
 ### authn
 
-- [ ] **SEC-17** 🟠 ⚠️ — **Email-change / verification OTPs stored plaintext & compared with `!=`.**
+- [x] **SEC-17** 🟠 ⚠️ — **Email-change / verification OTPs stored plaintext & compared with `!=`.**
   `user/service_account.go` and `authn/service_email_verification.go` — non-constant-time,
   unlike backup codes which are hashed.
   **Fix:** hash at rest, use `crypto/subtle.ConstantTimeCompare` (or hash-then-lookup).
@@ -180,7 +180,7 @@ These are exploitable or data-exposing today. Tackle this section first.
 
 Structural debt that diverges from [code-structure.md](../contributing/code-structure.md).
 
-- [ ] **ARC-01** 🟠 ✅ — **`deps.go` used as a dumping ground.**
+- [x] **ARC-01** 🟠 ✅ — **`deps.go` used as a dumping ground.**
   Per the doc it holds consumer interfaces + tag-free projections only. Violations:
   - [`internal/user/deps.go`](../../internal/user/deps.go) — `*ResponseDTO` types **with json tags** + GORM models with `TableName()`.
   - [`internal/iam/deps.go:11`](../../internal/iam/deps.go#L11) & [`internal/client/deps.go:12`](../../internal/client/deps.go#L12) — GORM models (incl. `foreignKey` tags) + access-control logic (`ValidateTenantAccess`).
@@ -188,18 +188,18 @@ Structural debt that diverges from [code-structure.md](../contributing/code-stru
   **Fix:** move DTOs → `types.go`, models → `model_*.go`, access logic → `service_*.go`;
   type the authn interfaces against the projection structs or delete if dead.
 
-- [ ] **ARC-02** 🟠 ✅ — **`foundation.go` carries real logic, not just aliases.**
+- [x] **ARC-02** 🟠 ✅ — **`foundation.go` carries real logic, not just aliases.**
   [`internal/user/foundation.go:51`](../../internal/user/foundation.go#L51) holds
   authorization (`ValidateTenantAccess`) and model→DTO mappers.
   **Fix:** move logic to service files; keep foundation thin.
 
-- [ ] **ARC-03** 🟡 ✅ — **Structs/logic in the wrong files.**
+- [x] **ARC-03** 🟡 ✅ — **Structs/logic in the wrong files.**
   Mapping logic + `json.Unmarshal` in [`internal/user/types.go`](../../internal/user/types.go)
   (DTO-only file); DTO structs in `authn/validation_*.go` (belong in `types.go`);
   json-tagged config types in
   [`internal/idp/service_federation.go:647`](../../internal/idp/service_federation.go#L647).
 
-- [ ] **ARC-04** 🔴 ✅ — **Platform-purity violations: `platform/*` imports `internal/<domain>` (15 imports).**
+- [x] **ARC-04** 🔴 ✅ — **Platform-purity violations: `platform/*` imports `internal/<domain>` (15 imports).**
   [`internal/platform/database/seeder/`](../../internal/platform/database/seeder/) — 13 files
   import `iam`, `tenant`, `idp`, `client`, `branding`, `secpolicy`, `shared`;
   [`internal/platform/runner/seeder.go:7`](../../internal/platform/runner/seeder.go#L7) imports `tenant` + `user`.
@@ -210,7 +210,7 @@ Structural debt that diverges from [code-structure.md](../contributing/code-stru
   **Fix:** move seeders to a bootstrap/app layer; keep only generic migration runner +
   generic cache in platform; relocate auth context types to a domain-aware package.
 
-- [ ] **ARC-05** 🟠 ✅ — **`panic` / `os.Exit` instead of returning errors.**
+- [x] **ARC-05** 🟠 ✅ — **`panic` / `os.Exit` instead of returning errors.**
   [`internal/app/app.go:88`](../../internal/app/app.go#L88) panics on service-init failure
   though called from `run(ctx) error`;
   [`internal/server/rest.go:45`](../../internal/server/rest.go#L45) /
@@ -218,14 +218,14 @@ Structural debt that diverges from [code-structure.md](../contributing/code-stru
   bypassing telemetry/Redis shutdown (gRPC returns errors — inconsistent).
   **Fix:** return errors up to `cmd/server` for unified graceful shutdown.
 
-- [ ] **ARC-06** 🟡 ✅ — **Doc vs code: package-name stutter.**
+- [x] **ARC-06** 🟡 ✅ — **Doc vs code: package-name stutter.**
   [code-structure.md](../contributing/code-structure.md) says prefer `tenant.Service`
   over `tenant.TenantService`, but every package (incl. the `tenant` exemplar) uses the
   stuttered form. The doc hedges ("intended direction, not a mandate").
   **Decision needed:** either fix the doc's example or accept stutter project-wide and
   remove the guidance. Don't leave them contradictory.
 
-- [ ] **ARC-07** 🟡 ✅ — **`tenant` services leak `*gorm.DB` into the service layer.**
+- [x] **ARC-07** 🟡 ✅ — **`tenant` services leak `*gorm.DB` into the service layer.**
   [`internal/tenant/service_tenant.go:75`](../../internal/tenant/service_tenant.go#L75)
   and `service_member.go` — the only services taking a raw `*gorm.DB` (for cascade deletes).
   **Fix:** wrap cascade/transaction behind a repo/unit-of-work interface.
@@ -247,7 +247,7 @@ Mechanical debt the refactor didn't finish. Big LOC reduction, low risk.
   (incl. a lossy `NewBaseRepository(db any)` `db.(*gorm.DB)` shim).
   **Fix:** export the helpers directly from `platform/database` / `platform/pagination`.
 
-- [ ] **DUP-03** 🟠 ✅ — **`noopAuthEventService` duplicated verbatim in 4 packages.**
+- [x] **DUP-03** 🟠 ✅ — **`noopAuthEventService` duplicated verbatim in 4 packages.**
   [`iam/foundation.go:48`](../../internal/iam/foundation.go#L48),
   [`client/foundation.go:24`](../../internal/client/foundation.go#L24),
   [`user/foundation.go:28`](../../internal/user/foundation.go#L28),
@@ -268,7 +268,7 @@ Mechanical debt the refactor didn't finish. Big LOC reduction, low risk.
   `service_magic_link.go`, `service_register.go`, `user/service_account.go`).
   **Fix:** extract a shared `authenticate(...)` and one token-response builder.
 
-- [ ] **DUP-06** 🟠 ✅ — **`hasTenantAccess` loop duplicated 9× in one file**
+- [x] **DUP-06** 🟠 ✅ — **`hasTenantAccess` loop duplicated 9× in one file**
   ([`internal/user/service_user.go`](../../internal/user/service_user.go));
   `findDefaultRole` / `loadPolicy` / `recordPasswordHistory` duplicated across `user` & `authn`.
   **Fix:** extract `userHasTenantAccess(...)`; share the policy helpers.
@@ -291,7 +291,7 @@ Mechanical debt the refactor didn't finish. Big LOC reduction, low risk.
 
 ## 4. Consistency Issues
 
-- [ ] **CON-01** 🟠 ✅ — **Default page size is both 10 and 20.**
+- [x] **CON-01** 🟠 ✅ — **Default page size is both 10 and 20.**
   `pagination.ParseQuery`→10 ([`query.go:19`](../../internal/platform/pagination/query.go#L19)),
   `database.normalizePagination`→20
   ([`base_repository.go:28`](../../internal/platform/database/base_repository.go#L28)),

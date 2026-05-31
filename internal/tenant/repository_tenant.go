@@ -1,6 +1,7 @@
 package tenant
 
 import (
+	"context"
 	"errors"
 
 	"github.com/google/uuid"
@@ -30,6 +31,7 @@ type TenantRepository interface {
 	FindPaginated(filter TenantRepositoryGetFilter) (*PaginationResult[Tenant], error)
 	SetStatusByUUID(tenantUUID uuid.UUID, status string) error
 	SetSystemStatusByUUID(tenantUUID uuid.UUID, isSystem bool) error
+	DeleteCascade(ctx context.Context, tx *gorm.DB, tenantID int64, cascadeModels []any) error
 }
 
 type tenantRepository struct {
@@ -146,4 +148,13 @@ func (r *tenantRepository) SetStatusByUUID(tenantUUID uuid.UUID, status string) 
 
 func (r *tenantRepository) SetSystemStatusByUUID(tenantUUID uuid.UUID, isSystem bool) error {
 	return r.DB().Model(&Tenant{}).Where("tenant_uuid = ?", tenantUUID).Update("is_system", isSystem).Error
+}
+
+func (r *tenantRepository) DeleteCascade(ctx context.Context, tx *gorm.DB, tenantID int64, cascadeModels []any) error {
+	for _, m := range cascadeModels {
+		if err := tx.WithContext(ctx).Where("tenant_id = ?", tenantID).Delete(m).Error; err != nil {
+			return err
+		}
+	}
+	return nil
 }

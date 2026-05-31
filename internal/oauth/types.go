@@ -99,6 +99,8 @@ type OAuthRevokeRequestDTO struct {
 type OAuthIntrospectRequestDTO struct {
 	Token         string `json:"token"`
 	TokenTypeHint string `json:"token_type_hint"`
+	ClientID      string `json:"client_id"`
+	ClientSecret  string `json:"client_secret"`
 }
 
 // OAuthIntrospectResponseDTO is the JSON body returned by the introspection

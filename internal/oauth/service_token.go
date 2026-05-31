@@ -35,9 +35,10 @@ type OAuthTokenService interface {
 	// prevent information leakage.
 	Revoke(ctx context.Context, req OAuthRevokeRequestDTO, creds OAuthClientCredentials) *apperror.OAuthError
 
-	// Introspect inspects a token per RFC 7662. Returns active=false for
-	// invalid, expired, or revoked tokens without revealing the reason.
-	Introspect(ctx context.Context, req OAuthIntrospectRequestDTO) (*OAuthIntrospectResponseDTO, *apperror.OAuthError)
+	// Introspect inspects a token per RFC 7662. Client authentication is
+	// required per RFC 7662 §2.1. Returns active=false for invalid, expired,
+	// or revoked tokens without revealing the reason.
+	Introspect(ctx context.Context, req OAuthIntrospectRequestDTO, creds OAuthClientCredentials) (*OAuthIntrospectResponseDTO, *apperror.OAuthError)
 }
 
 type oauthTokenService struct {
@@ -481,9 +482,14 @@ func (s *oauthTokenService) Revoke(ctx context.Context, req OAuthRevokeRequestDT
 }
 
 // Introspect implements OAuthTokenService.
-func (s *oauthTokenService) Introspect(ctx context.Context, req OAuthIntrospectRequestDTO) (*OAuthIntrospectResponseDTO, *apperror.OAuthError) {
+func (s *oauthTokenService) Introspect(ctx context.Context, req OAuthIntrospectRequestDTO, creds OAuthClientCredentials) (*OAuthIntrospectResponseDTO, *apperror.OAuthError) {
 	_, span := otel.Tracer("service").Start(ctx, "oauth_token.introspect")
 	defer span.End()
+
+	_, oerr := s.authenticateClient(ctx, creds)
+	if oerr != nil {
+		return nil, oerr
+	}
 
 	// Try to validate as a JWT (access token or ID token).
 	claims, err := jwt.ValidateToken(req.Token)

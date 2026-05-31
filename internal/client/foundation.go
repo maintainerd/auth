@@ -1,11 +1,8 @@
 package client
 
 import (
-	"context"
 	"net/http"
-	"time"
 
-	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/authevent"
 	"github.com/maintainerd/auth/internal/platform/database"
 	"github.com/maintainerd/auth/internal/platform/pagination"
@@ -21,27 +18,11 @@ type PaginatedResponseDTO[T any] = pagination.PaginatedResponseDTO[T]
 type SuccessResponseDTO = pagination.SuccessResponseDTO
 type AuthEventService = authevent.AuthEventService
 
-type noopAuthEventService struct{}
-
-func (noopAuthEventService) Log(_ context.Context, _ authevent.AuthEventInput) {}
-func (noopAuthEventService) FindPaginated(_ context.Context, _ authevent.AuthEventRepositoryGetFilter) (*PaginationResult[authevent.AuthEventServiceDataResult], error) {
-	return &PaginationResult[authevent.AuthEventServiceDataResult]{}, nil
-}
-func (noopAuthEventService) FindByUUID(_ context.Context, _ int64, _ uuid.UUID) (*authevent.AuthEventServiceDataResult, error) {
-	return nil, nil
-}
-func (noopAuthEventService) CountByEventType(_ context.Context, _ string, _ int64) (int64, error) {
-	return 0, nil
-}
-func (noopAuthEventService) DeleteOlderThan(_ context.Context, _ time.Time) (int64, error) {
-	return 0, nil
-}
-
 func coalesceAuthEventService(svc authevent.AuthEventService) authevent.AuthEventService {
 	if svc != nil {
 		return svc
 	}
-	return noopAuthEventService{}
+	return authevent.NoopService()
 }
 
 const (

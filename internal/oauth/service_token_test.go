@@ -1075,7 +1075,8 @@ func TestOAuthTokenService_Introspect(t *testing.T) {
 	ctx := context.Background()
 
 	t.Run("invalid token — active false", func(t *testing.T) {
-		db, _ := newMockDB(t)
+		db, mock := newMockDB(t)
+		expectClientLookup(mock, mockClientRows())
 		svc := newOAuthTokenSvc(db, &mockClientRepo{}, &mockOAuthAuthCodeRepo{},
 			&mockOAuthRefreshTokenRepo{
 				findByTokenHashFn: func(_ string) (*OAuthRefreshToken, error) {
@@ -1086,13 +1087,14 @@ func TestOAuthTokenService_Introspect(t *testing.T) {
 			&mockUserIdentityRepo{findByUserIDAndClientIDFn: func(_, _ int64) (*UserIdentity, error) { return nil, nil }},
 			&mockAuthEventService{})
 
-		result, oerr := svc.Introspect(ctx, OAuthIntrospectRequestDTO{Token: "garbage"})
+		result, oerr := svc.Introspect(ctx, OAuthIntrospectRequestDTO{Token: "garbage"}, OAuthClientCredentials{ClientID: "my-client"})
 		require.Nil(t, oerr)
 		assert.False(t, result.Active)
 	})
 
 	t.Run("valid refresh token", func(t *testing.T) {
-		db, _ := newMockDB(t)
+		db, mock := newMockDB(t)
+		expectClientLookup(mock, mockClientRows())
 		now := time.Now()
 		svc := newOAuthTokenSvc(db, &mockClientRepo{}, &mockOAuthAuthCodeRepo{},
 			&mockOAuthRefreshTokenRepo{
@@ -1114,7 +1116,7 @@ func TestOAuthTokenService_Introspect(t *testing.T) {
 			},
 			&mockAuthEventService{})
 
-		result, oerr := svc.Introspect(ctx, OAuthIntrospectRequestDTO{Token: "rt-token"})
+		result, oerr := svc.Introspect(ctx, OAuthIntrospectRequestDTO{Token: "rt-token"}, OAuthClientCredentials{ClientID: "my-client"})
 		require.Nil(t, oerr)
 		assert.True(t, result.Active)
 		assert.Equal(t, "refresh_token", result.TokenType)
@@ -1123,7 +1125,8 @@ func TestOAuthTokenService_Introspect(t *testing.T) {
 	})
 
 	t.Run("revoked refresh token — active false", func(t *testing.T) {
-		db, _ := newMockDB(t)
+		db, mock := newMockDB(t)
+		expectClientLookup(mock, mockClientRows())
 		svc := newOAuthTokenSvc(db, &mockClientRepo{}, &mockOAuthAuthCodeRepo{},
 			&mockOAuthRefreshTokenRepo{
 				findByTokenHashFn: func(_ string) (*OAuthRefreshToken, error) {
@@ -1137,13 +1140,14 @@ func TestOAuthTokenService_Introspect(t *testing.T) {
 			&mockUserIdentityRepo{findByUserIDAndClientIDFn: func(_, _ int64) (*UserIdentity, error) { return nil, nil }},
 			&mockAuthEventService{})
 
-		result, oerr := svc.Introspect(ctx, OAuthIntrospectRequestDTO{Token: "rt-token"})
+		result, oerr := svc.Introspect(ctx, OAuthIntrospectRequestDTO{Token: "rt-token"}, OAuthClientCredentials{ClientID: "my-client"})
 		require.Nil(t, oerr)
 		assert.False(t, result.Active)
 	})
 
 	t.Run("refresh token sub resolution error — still returns active", func(t *testing.T) {
-		db, _ := newMockDB(t)
+		db, mock := newMockDB(t)
+		expectClientLookup(mock, mockClientRows())
 		svc := newOAuthTokenSvc(db, &mockClientRepo{}, &mockOAuthAuthCodeRepo{},
 			&mockOAuthRefreshTokenRepo{
 				findByTokenHashFn: func(_ string) (*OAuthRefreshToken, error) {
@@ -1164,7 +1168,7 @@ func TestOAuthTokenService_Introspect(t *testing.T) {
 			},
 			&mockAuthEventService{})
 
-		result, oerr := svc.Introspect(ctx, OAuthIntrospectRequestDTO{Token: "rt-token"})
+		result, oerr := svc.Introspect(ctx, OAuthIntrospectRequestDTO{Token: "rt-token"}, OAuthClientCredentials{ClientID: "my-client"})
 		require.Nil(t, oerr)
 		assert.True(t, result.Active)
 		assert.Empty(t, result.Sub) // sub couldn't be resolved
@@ -1172,7 +1176,8 @@ func TestOAuthTokenService_Introspect(t *testing.T) {
 
 	t.Run("valid JWT access token", func(t *testing.T) {
 		initTestJWTKeysService(t)
-		db, _ := newMockDB(t)
+		db, mock := newMockDB(t)
+		expectClientLookup(mock, mockClientRows())
 
 		token, err := jwt.GenerateAccessToken("user-sub", "openid profile", "https://auth.example.com", "my-client", "my-client", "default-provider")
 		require.NoError(t, err)
@@ -1183,7 +1188,7 @@ func TestOAuthTokenService_Introspect(t *testing.T) {
 			&mockUserIdentityRepo{findByUserIDAndClientIDFn: func(_, _ int64) (*UserIdentity, error) { return nil, nil }},
 			&mockAuthEventService{})
 
-		result, oerr := svc.Introspect(ctx, OAuthIntrospectRequestDTO{Token: token})
+		result, oerr := svc.Introspect(ctx, OAuthIntrospectRequestDTO{Token: token}, OAuthClientCredentials{ClientID: "my-client"})
 		require.Nil(t, oerr)
 		assert.True(t, result.Active)
 		assert.Equal(t, "Bearer", result.TokenType)
@@ -1199,7 +1204,8 @@ func TestOAuthTokenService_Introspect(t *testing.T) {
 	})
 
 	t.Run("expired refresh token — active false", func(t *testing.T) {
-		db, _ := newMockDB(t)
+		db, mock := newMockDB(t)
+		expectClientLookup(mock, mockClientRows())
 		svc := newOAuthTokenSvc(db, &mockClientRepo{}, &mockOAuthAuthCodeRepo{},
 			&mockOAuthRefreshTokenRepo{
 				findByTokenHashFn: func(_ string) (*OAuthRefreshToken, error) {
@@ -1212,13 +1218,14 @@ func TestOAuthTokenService_Introspect(t *testing.T) {
 			&mockUserIdentityRepo{findByUserIDAndClientIDFn: func(_, _ int64) (*UserIdentity, error) { return nil, nil }},
 			&mockAuthEventService{})
 
-		result, oerr := svc.Introspect(ctx, OAuthIntrospectRequestDTO{Token: "rt-token"})
+		result, oerr := svc.Introspect(ctx, OAuthIntrospectRequestDTO{Token: "rt-token"}, OAuthClientCredentials{ClientID: "my-client"})
 		require.Nil(t, oerr)
 		assert.False(t, result.Active)
 	})
 
 	t.Run("refresh token lookup error — active false", func(t *testing.T) {
-		db, _ := newMockDB(t)
+		db, mock := newMockDB(t)
+		expectClientLookup(mock, mockClientRows())
 		svc := newOAuthTokenSvc(db, &mockClientRepo{}, &mockOAuthAuthCodeRepo{},
 			&mockOAuthRefreshTokenRepo{
 				findByTokenHashFn: func(_ string) (*OAuthRefreshToken, error) {
@@ -1229,7 +1236,7 @@ func TestOAuthTokenService_Introspect(t *testing.T) {
 			&mockUserIdentityRepo{findByUserIDAndClientIDFn: func(_, _ int64) (*UserIdentity, error) { return nil, nil }},
 			&mockAuthEventService{})
 
-		result, oerr := svc.Introspect(ctx, OAuthIntrospectRequestDTO{Token: "rt-token"})
+		result, oerr := svc.Introspect(ctx, OAuthIntrospectRequestDTO{Token: "rt-token"}, OAuthClientCredentials{ClientID: "my-client"})
 		require.Nil(t, oerr)
 		assert.False(t, result.Active)
 	})

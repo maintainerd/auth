@@ -10,6 +10,7 @@ import (
 	"github.com/maintainerd/auth/internal/platform/crypto"
 	"github.com/maintainerd/auth/internal/platform/middleware"
 	"github.com/maintainerd/auth/internal/platform/ptr"
+	"github.com/maintainerd/auth/internal/platform/security"
 	"github.com/maintainerd/auth/internal/shared"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
@@ -85,6 +86,12 @@ func (s *oauthPARService) Push(ctx context.Context, req OAuthPARRequestDTO, cred
 	if oerr := validateClientRedirectURI(client, req.RedirectURI); oerr != nil {
 		span.SetStatus(codes.Error, "invalid redirect_uri")
 		return nil, oerr
+	}
+
+	// Reject dangerous redirect URI schemes.
+	if err := security.ValidateRedirectURI(req.RedirectURI); err != nil {
+		span.SetStatus(codes.Error, "dangerous redirect_uri scheme")
+		return nil, apperror.NewOAuthInvalidRequest("redirect_uri uses a forbidden scheme")
 	}
 
 	// Generate a unique request_uri token and hash it for storage.

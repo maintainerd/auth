@@ -399,7 +399,7 @@ func TestOAuthTokenHandler_Introspect_InvalidTokenTypeHint(t *testing.T) {
 
 func TestOAuthTokenHandler_Introspect_ServiceOAuthError(t *testing.T) {
 	svc := &mockOAuthTokenService{
-		introspectFn: func(_ context.Context, _ OAuthIntrospectRequestDTO) (*OAuthIntrospectResponseDTO, *apperror.OAuthError) {
+		introspectFn: func(_ context.Context, _ OAuthIntrospectRequestDTO, _ OAuthClientCredentials) (*OAuthIntrospectResponseDTO, *apperror.OAuthError) {
 			return nil, apperror.NewOAuthInvalidRequest("missing token")
 		},
 	}
@@ -416,7 +416,7 @@ func TestOAuthTokenHandler_Introspect_ServiceOAuthError(t *testing.T) {
 
 func TestOAuthTokenHandler_Introspect_ActiveToken(t *testing.T) {
 	svc := &mockOAuthTokenService{
-		introspectFn: func(_ context.Context, _ OAuthIntrospectRequestDTO) (*OAuthIntrospectResponseDTO, *apperror.OAuthError) {
+		introspectFn: func(_ context.Context, _ OAuthIntrospectRequestDTO, _ OAuthClientCredentials) (*OAuthIntrospectResponseDTO, *apperror.OAuthError) {
 			return &OAuthIntrospectResponseDTO{
 				Active:    true,
 				Scope:     "openid profile",
@@ -452,7 +452,7 @@ func TestOAuthTokenHandler_Introspect_ActiveToken(t *testing.T) {
 
 func TestOAuthTokenHandler_Introspect_InactiveToken(t *testing.T) {
 	svc := &mockOAuthTokenService{
-		introspectFn: func(_ context.Context, _ OAuthIntrospectRequestDTO) (*OAuthIntrospectResponseDTO, *apperror.OAuthError) {
+		introspectFn: func(_ context.Context, _ OAuthIntrospectRequestDTO, _ OAuthClientCredentials) (*OAuthIntrospectResponseDTO, *apperror.OAuthError) {
 			return &OAuthIntrospectResponseDTO{Active: false}, nil
 		},
 	}
