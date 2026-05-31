@@ -306,7 +306,7 @@ This file is intentionally an implementation-facing checklist. Marketing copy an
 
 ## Architecture
 
-- [x] `cmd/server/main.go` thin entrypoint
+- [x] `cmd/server` thin executable entrypoint
 - [x] `internal/app` composition root
 - [x] Domain-grouped packages under `internal/`
 - [x] Cross-cutting infrastructure under `internal/platform/`

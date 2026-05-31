@@ -19,7 +19,7 @@ Everything beyond that is an architectural choice for this project. The choices 
 1. **Organize by domain (bounded context), not by architectural layer.** A package owns _everything_ for its domain: service logic, HTTP handlers, storage interface, GORM implementation, types, routes, and tests.
 2. **Small, focused packages.** No flat `service/` or `repository/` buckets holding 50+ files.
 3. **`internal/` for everything private to this module.** `pkg/` is unused because this server currently exposes no public Go library API. If a package later becomes useful to other projects, split it into a separate module or deliberately promote it outside `internal/`.
-4. **`cmd/server/main.go` stays thin** — bootstraps config/logging/DB/Redis, then delegates to `internal/app`.
+4. **`cmd/server` stays thin** — `main.go` only calls `run(context.Context)`; focused bootstrap files handle config/logging/DB/Redis, then delegate to `internal/app`.
 5. **Cross-cutting infrastructure is grouped under `internal/platform/`.** Domains sit at the top of `internal/`; infrastructure sits one level deeper. This keeps the top-level reading like a list of *what this service does*, not a list of *how it is built*.
 6. **Two distinct interface patterns** — both correct, used in different places:
     - **Owner interface (repository contract):** A domain defines its own persistence interface in `repository.go`. The domain owns the contract because the domain owns the data.
@@ -1124,7 +1124,7 @@ Tests move with the code they verify. This is how we make sure no feature disapp
 ### 8.12 Things that stay exactly where they are
 
 ```
-cmd/server/main.go
+cmd/server/
 proto/
 docs/
 tests/

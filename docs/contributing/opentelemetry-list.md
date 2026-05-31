@@ -37,7 +37,7 @@ layers (handlers, repositories), and thin middleware are excluded to reduce nois
 - [x] `service/invite.go` — email sending uses `context.Background()`
 - [x] `service/forgot_password.go` — email sending uses `context.Background()`
 - [x] `service/role.go` (×5) — cache invalidation uses `context.Background()`
-- [x] `service/user.go` — cache invalidation uses `context.Background()`
+- [x] `internal/user/service_user.go` — cache invalidation uses `context.Background()`
 
 ---
 
@@ -172,7 +172,7 @@ layers (handlers, repositories), and thin middleware are excluded to reduce nois
 - [x] `SetStatusByUUID`
 - [x] `DeleteByUUID`
 
-### service/profile.go
+### internal/user/service_profile.go
 
 - [x] `CreateOrUpdateProfile`
 - [x] `CreateOrUpdateSpecificProfile`
@@ -230,7 +230,7 @@ layers (handlers, repositories), and thin middleware are excluded to reduce nois
 - [x] `AssignPolicy`
 - [x] `RemovePolicy`
 
-### service/setup.go
+### internal/setup/service_setup.go
 
 - [x] `GetSetupStatus`
 - [x] `CreateTenant`
@@ -288,7 +288,7 @@ layers (handlers, repositories), and thin middleware are excluded to reduce nois
 - [x] `DeleteByUUID`
 - [x] `IsUserInTenant`
 
-### service/user.go
+### internal/user/service_user.go
 
 - [x] `Get`
 - [x] `GetByUUID`
@@ -305,7 +305,7 @@ layers (handlers, repositories), and thin middleware are excluded to reduce nois
 - [x] `GetUserIdentities`
 - [x] `FindBySubAndClientID`
 
-### service/user_setting.go
+### internal/user/service_setting.go
 
 - [x] `CreateOrUpdateUserSetting`
 - [x] `GetByUUID`

@@ -48,7 +48,7 @@ func normalizeYAMLDoc(v any) any {
 		for k, v2 := range val {
 			out[k.(string)] = normalizeYAMLDoc(v2)
 		}
-		return val
+		return out
 	case []any:
 		for i, item := range val {
 			val[i] = normalizeYAMLDoc(item)
