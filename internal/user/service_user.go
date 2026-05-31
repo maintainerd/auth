@@ -291,14 +291,7 @@ func (s *userService) GetByUUID(ctx context.Context, userUUID uuid.UUID, tenantI
 	}
 
 	// Validate tenant ownership - check if user has an identity in this tenant
-	hasTenantAccess := false
-	for _, identity := range user.UserIdentities {
-		if identity.TenantID == tenantID {
-			hasTenantAccess = true
-			break
-		}
-	}
-	if !hasTenantAccess {
+	if !userHasTenantAccess(user, tenantID) {
 		span.SetStatus(codes.Error, "user not found or access denied")
 		return nil, apperror.NewNotFoundWithReason("user not found or access denied")
 	}
@@ -627,14 +620,7 @@ func (s *userService) SetStatus(ctx context.Context, userUUID uuid.UUID, tenantI
 	}
 
 	// Validate tenant ownership - check if user has an identity in this tenant
-	hasTenantAccess := false
-	for _, identity := range user.UserIdentities {
-		if identity.TenantID == tenantID {
-			hasTenantAccess = true
-			break
-		}
-	}
-	if !hasTenantAccess {
+	if !userHasTenantAccess(user, tenantID) {
 		return nil, apperror.NewNotFoundWithReason("user not found or access denied")
 	}
 
@@ -689,14 +675,7 @@ func (s *userService) VerifyEmail(ctx context.Context, userUUID uuid.UUID, tenan
 	}
 
 	// Validate tenant ownership - check if user has an identity in this tenant
-	hasTenantAccess := false
-	for _, identity := range user.UserIdentities {
-		if identity.TenantID == tenantID {
-			hasTenantAccess = true
-			break
-		}
-	}
-	if !hasTenantAccess {
+	if !userHasTenantAccess(user, tenantID) {
 		return nil, apperror.NewNotFoundWithReason("user not found or access denied")
 	}
 
@@ -733,14 +712,7 @@ func (s *userService) VerifyPhone(ctx context.Context, userUUID uuid.UUID, tenan
 	}
 
 	// Validate tenant ownership - check if user has an identity in this tenant
-	hasTenantAccess := false
-	for _, identity := range user.UserIdentities {
-		if identity.TenantID == tenantID {
-			hasTenantAccess = true
-			break
-		}
-	}
-	if !hasTenantAccess {
+	if !userHasTenantAccess(user, tenantID) {
 		return nil, apperror.NewNotFoundWithReason("user not found or access denied")
 	}
 
@@ -776,14 +748,7 @@ func (s *userService) CompleteAccount(ctx context.Context, userUUID uuid.UUID, t
 	}
 
 	// Validate tenant ownership - check if user has an identity in this tenant
-	hasTenantAccess := false
-	for _, identity := range user.UserIdentities {
-		if identity.TenantID == tenantID {
-			hasTenantAccess = true
-			break
-		}
-	}
-	if !hasTenantAccess {
+	if !userHasTenantAccess(user, tenantID) {
 		return nil, apperror.NewNotFoundWithReason("user not found or access denied")
 	}
 
@@ -819,14 +784,7 @@ func (s *userService) DeleteByUUID(ctx context.Context, userUUID uuid.UUID, tena
 	}
 
 	// Validate tenant ownership - check if user has an identity in this tenant
-	hasTenantAccess := false
-	for _, identity := range user.UserIdentities {
-		if identity.TenantID == tenantID {
-			hasTenantAccess = true
-			break
-		}
-	}
-	if !hasTenantAccess {
+	if !userHasTenantAccess(user, tenantID) {
 		return nil, apperror.NewNotFoundWithReason("user not found or access denied")
 	}
 
@@ -1222,4 +1180,86 @@ func (s *userService) FindBySubAndClientID(ctx context.Context, sub string, clie
 	}
 	span.SetStatus(codes.Ok, "")
 	return user, nil
+}
+
+func userHasTenantAccess(user *User, tenantID int64) bool {
+	for _, identity := range user.UserIdentities {
+		if identity.TenantID == tenantID {
+			return true
+		}
+	}
+	return false
+}
+
+func ValidateTenantAccess(actor *User, target *Tenant) error {
+	if actor == nil {
+		return apperror.NewUnauthorized("actor user not found")
+	}
+	if target == nil {
+		return apperror.NewNotFoundWithReason("tenant not found")
+	}
+	if len(actor.UserIdentities) == 0 {
+		return apperror.NewForbidden("actor user has no identities")
+	}
+	for _, identity := range actor.UserIdentities {
+		if identity.TenantID == target.TenantID {
+			return nil
+		}
+		if identity.Tenant != nil && identity.Tenant.IsSystem {
+			return nil
+		}
+	}
+	return apperror.NewForbidden("tenant access denied")
+}
+
+func toTenantServiceDataResult(t *Tenant) *TenantServiceDataResult {
+	if t == nil {
+		return nil
+	}
+	return &TenantServiceDataResult{
+		TenantUUID:  t.TenantUUID,
+		Name:        t.Name,
+		DisplayName: t.DisplayName,
+		Description: t.Description,
+		Identifier:  t.Identifier,
+		Status:      t.Status,
+		IsPublic:    t.IsPublic,
+		IsSystem:    t.IsSystem,
+		CreatedAt:   t.CreatedAt,
+		UpdatedAt:   t.UpdatedAt,
+	}
+}
+
+func toRoleServiceDataResult(role *Role) *RoleServiceDataResult {
+	if role == nil {
+		return nil
+	}
+	return &RoleServiceDataResult{
+		RoleUUID:    role.RoleUUID,
+		Name:        role.Name,
+		Description: role.Description,
+		IsDefault:   role.IsDefault,
+		IsSystem:    role.IsSystem,
+		Status:      role.Status,
+		CreatedAt:   role.CreatedAt,
+		UpdatedAt:   role.UpdatedAt,
+	}
+}
+
+func ToClientServiceDataResult(client *Client) *ClientServiceDataResult {
+	if client == nil {
+		return nil
+	}
+	return &ClientServiceDataResult{
+		ClientUUID:  client.ClientUUID,
+		Name:        client.Name,
+		DisplayName: client.DisplayName,
+		ClientType:  client.ClientType,
+		Domain:      client.Domain,
+		Status:      client.Status,
+		IsDefault:   client.IsDefault,
+		IsSystem:    client.IsSystem,
+		CreatedAt:   client.CreatedAt,
+		UpdatedAt:   client.UpdatedAt,
+	}
 }

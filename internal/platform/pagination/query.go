@@ -5,7 +5,9 @@ import (
 	"strconv"
 )
 
-// parsePaginationQuery extracts page, limit, sort_by, and sort_order from the
+const DefaultPageSize = 20
+
+// ParseQuery extracts page, limit, sort_by, and sort_order from the
 // request query string. Missing or invalid page/limit values fall back to the
 // conventional defaults (page=1, limit=10) so callers never receive zero values
 // that would fail the PaginationRequestDTO min-1 validation.
@@ -17,7 +19,7 @@ func ParseQuery(r *http.Request) PaginationRequestDTO {
 	}
 	limit, _ := strconv.Atoi(q.Get("limit"))
 	if limit < 1 {
-		limit = 10
+		limit = DefaultPageSize
 	}
 	return PaginationRequestDTO{
 		Page:      page,

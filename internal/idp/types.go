@@ -57,8 +57,33 @@ type IdentityProviderResponseDTO struct {
 	Status               string    `json:"status"`
 	IsDefault            bool      `json:"is_default"`
 	IsSystem             bool      `json:"is_system"`
-	CreatedAt            time.Time `json:"created_at"`
-	UpdatedAt            time.Time `json:"updated_at"`
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
+}
+
+// OIDCProviderConfig is stored as JSONB in IdentityProvider.Config for
+// providers with provider_type = "social" (external OIDC/OAuth2 upstreams).
+type OIDCProviderConfig struct {
+	Issuer           string `json:"issuer"`
+	ClientID         string `json:"client_id"`
+	ClientSecret     string `json:"client_secret,omitempty"`
+	Scopes           []string            `json:"scopes,omitempty"`
+	AllowJITProvisioning bool            `json:"allow_jit_provisioning"`
+	AttributeMapping map[string]string   `json:"attribute_mapping,omitempty"`
+	EmailDomains     []string            `json:"email_domains,omitempty"`
+	UserinfoEndpoint string              `json:"userinfo_endpoint,omitempty"`
+}
+
+// IdentityMetadata is stored as JSONB in UserIdentity.Metadata for external
+// provider identities.
+type IdentityMetadata struct {
+	Email         string `json:"email,omitempty"`
+	EmailVerified bool   `json:"email_verified,omitempty"`
+	Name          string `json:"name,omitempty"`
+	GivenName     string `json:"given_name,omitempty"`
+	FamilyName    string `json:"family_name,omitempty"`
+	Picture       string `json:"picture,omitempty"`
+	Locale        string `json:"locale,omitempty"`
 }
 
 // Identity provider detail response structure (with config and tenant)

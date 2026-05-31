@@ -9,27 +9,6 @@ import (
 	"gorm.io/gorm"
 )
 
-type LoginResponseDTO struct {
-	AccessToken           string  `json:"access_token"`
-	IDToken               string  `json:"id_token"`
-	RefreshToken          string  `json:"refresh_token,omitempty"`
-	ExpiresIn             int64   `json:"expires_in"`
-	TokenType             string  `json:"token_type"`
-	IssuedAt              int64   `json:"issued_at"`
-	RequirePasswordChange bool    `json:"require_password_change,omitempty"`
-	SessionID             *string `json:"session_id,omitempty"`
-}
-
-type SessionDataResult struct {
-	SessionID         string     `json:"session_id"`
-	IPAddress         *string    `json:"ip_address,omitempty"`
-	UserAgent         *string    `json:"user_agent,omitempty"`
-	LastUsedAt        *time.Time `json:"last_used_at,omitempty"`
-	ExpiresAt         *time.Time `json:"expires_at,omitempty"`
-	AbsoluteExpiresAt *time.Time `json:"absolute_expires_at,omitempty"`
-	CreatedAt         time.Time  `json:"created_at"`
-}
-
 type SessionService interface {
 	ListSessions(ctx context.Context, userID int64) ([]*SessionDataResult, error)
 	RevokeSession(ctx context.Context, userID int64, sessionUUID uuid.UUID) error
@@ -68,19 +47,6 @@ type TenantServiceDataResult struct {
 	UpdatedAt   time.Time
 }
 
-type TenantResponseDTO struct {
-	TenantUUID  uuid.UUID `json:"tenant_id"`
-	Name        string    `json:"name"`
-	DisplayName string    `json:"display_name"`
-	Description string    `json:"description"`
-	Identifier  string    `json:"identifier"`
-	Status      string    `json:"status"`
-	IsPublic    bool      `json:"is_public"`
-	IsSystem    bool      `json:"is_system"`
-	CreatedAt   time.Time `json:"created_at"`
-	UpdatedAt   time.Time `json:"updated_at"`
-}
-
 type Role struct {
 	RoleID          int64
 	RoleUUID        uuid.UUID
@@ -115,17 +81,6 @@ type RoleServiceDataResult struct {
 	Status      string
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
-}
-
-type RoleResponseDTO struct {
-	RoleUUID    uuid.UUID `json:"role_id"`
-	Name        string    `json:"name"`
-	Description string    `json:"description"`
-	IsDefault   bool      `json:"is_default"`
-	IsSystem    bool      `json:"is_system"`
-	Status      string    `json:"status"`
-	CreatedAt   time.Time `json:"created_at"`
-	UpdatedAt   time.Time `json:"updated_at"`
 }
 
 type RoleRepositoryGetFilter struct {
@@ -172,19 +127,6 @@ type ClientServiceDataResult struct {
 	IsSystem    bool
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
-}
-
-type ClientResponseDTO struct {
-	ClientUUID  uuid.UUID `json:"client_id"`
-	Name        string    `json:"name"`
-	DisplayName string    `json:"display_name"`
-	ClientType  string    `json:"client_type"`
-	Domain      *string   `json:"domain,omitempty"`
-	Status      string    `json:"status"`
-	IsDefault   bool      `json:"is_default"`
-	IsSystem    bool      `json:"is_system"`
-	CreatedAt   time.Time `json:"created_at"`
-	UpdatedAt   time.Time `json:"updated_at"`
 }
 
 type IdentityProvider struct {

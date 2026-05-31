@@ -14,7 +14,10 @@ func TestNewAppWiresAllExportedServices(t *testing.T) {
 		config.AppPublicHostname = origPublicHostname
 	})
 
-	application := NewApp(nil, nil)
+	application, err := NewApp(nil, nil)
+	if err != nil {
+		t.Fatalf("NewApp failed: %v", err)
+	}
 	value := reflect.ValueOf(application).Elem()
 	typ := value.Type()
 

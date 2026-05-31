@@ -378,16 +378,8 @@ func (s *tenantService) DeleteByUUID(ctx context.Context, tenantUUID uuid.UUID) 
 		result = toTenantServiceDataResult(tenant)
 		id := tenant.TenantID
 
-		// Cascade order: children before parents to respect FK constraints.
-		// The concrete model list (which spans many domains) is injected by the
-		// composition root via cascadeModels so this package stays decoupled.
-		// Soft-delete capable models (have gorm.DeletedAt) — GORM issues UPDATE SET deleted_at.
-		// Hard-delete models (no DeletedAt) — GORM issues DELETE FROM.
-		// authevent.AuthEvent is intentionally excluded: audit logs must be retained for compliance.
-		for _, m := range s.cascadeModels {
-			if err := tx.Where("tenant_id = ?", id).Delete(m).Error; err != nil {
-				return err
-			}
+		if err := s.tenantRepo.DeleteCascade(ctx, tx, id, s.cascadeModels); err != nil {
+			return err
 		}
 
 		return s.tenantRepo.WithTx(tx).DeleteByUUID(tenantUUID)

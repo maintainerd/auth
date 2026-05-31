@@ -120,12 +120,13 @@ func (s *emailVerificationService) SendVerificationEmail(ctx context.Context, em
 		if txErr != nil {
 			return apperror.NewInternal("failed to generate verification code", txErr)
 		}
+		otpHash := crypto.HashAuthorizationCode(otp)
 
 		expiresAt := time.Now().Add(EmailVerificationOTPTTL)
 		if _, txErr := txUserTokenRepo.Create(&UserToken{
 			UserID:    user.UserID,
 			TokenType: shared.TokenTypeEmailVerification,
-			Token:     otp,
+			Token:     otpHash,
 			ExpiresAt: &expiresAt,
 		}); txErr != nil {
 			return apperror.NewInternal("failed to create verification token", txErr)
@@ -193,12 +194,13 @@ func (s *emailVerificationService) VerifyEmail(ctx context.Context, emailAddr, o
 			return nil
 		}
 
-		// Find an active, non-revoked verification token matching the OTP.
+		// Find an active, non-revoked verification token matching the OTP hash.
+		otpHash := crypto.HashAuthorizationCode(otp)
 		var match *UserToken
 		var matches []UserToken
 		if txErr := tx.Where(
 			"user_id = ? AND token_type = ? AND token = ? AND is_revoked = false",
-			user.UserID, shared.TokenTypeEmailVerification, otp,
+			user.UserID, shared.TokenTypeEmailVerification, otpHash,
 		).Find(&matches).Error; txErr != nil {
 			return apperror.NewInternal("failed to find verification token", txErr)
 		}

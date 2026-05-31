@@ -1405,3 +1405,21 @@ func (s *clientService) RemoveClientAPIPermission(ctx context.Context, tenantID 
 }
 
 // TokenEndpointAuthMethod constants for the token_endpoint_auth_method column.
+
+func ValidateTenantAccess(actor *User, target *Tenant) error {
+	if actor == nil {
+		return apperror.NewUnauthorized("actor user not found")
+	}
+	if target == nil {
+		return apperror.NewNotFoundWithReason("tenant not found")
+	}
+	for _, identity := range actor.UserIdentities {
+		if identity.TenantID == target.TenantID {
+			return nil
+		}
+		if identity.Tenant != nil && identity.Tenant.IsSystem {
+			return nil
+		}
+	}
+	return apperror.NewForbidden("tenant access denied")
+}

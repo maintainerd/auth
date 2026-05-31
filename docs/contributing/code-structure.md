@@ -261,10 +261,11 @@ for existing code, not a mandate to rewrite working symbols all at once.
 - **Accept interfaces, return concrete types.** Constructors and functions should
   take the minimal interface they need and return concrete structs/results where
   practical, so callers are not forced to depend on an interface they do not own.
-- **Avoid package-name stutter.** A symbol is always read with its package
-  qualifier, so `tenant.Service` reads better than `tenant.TenantService`, and
-  `tenant.Handler` better than `tenant.TenantHandler`. Prefer the unqualified
-  form for new types; the package name already supplies the domain context.
+- **Use package-qualified names.** Since the package name already supplies domain
+  context, `tenant.Service` is the stylistically preferred form for new code.
+  However, many existing symbols use the stuttered form (`tenant.TenantService`)
+  — the project intentionally accepts both forms. Do not rename working symbols
+  solely to fix stutter.
 - **Package names are short, lower-case, singular, no underscores.** The
   underscores in *file* names (`model_tenant.go`) are fine — they are not package
   names.

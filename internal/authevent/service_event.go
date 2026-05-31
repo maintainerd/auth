@@ -105,6 +105,11 @@ func (noopAuthEventService) DeleteOlderThan(_ context.Context, _ time.Time) (int
 	return 0, nil
 }
 
+// NoopService returns a silent AuthEventService that discards all events.
+func NoopService() AuthEventService {
+	return noopAuthEventService{}
+}
+
 // coalesceAuthEventService returns svc if non-nil, otherwise a no-op.
 func coalesceAuthEventService(svc AuthEventService) AuthEventService {
 	if svc != nil {

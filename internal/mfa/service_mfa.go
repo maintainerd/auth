@@ -13,6 +13,7 @@ import (
 	"github.com/maintainerd/auth/internal/platform/jwt"
 	"github.com/maintainerd/auth/internal/platform/middleware"
 	"github.com/maintainerd/auth/internal/platform/ptr"
+	"github.com/maintainerd/auth/internal/platform/security"
 	"github.com/maintainerd/auth/internal/secpolicy"
 	"github.com/pquerna/otp"
 	"github.com/pquerna/otp/totp"
@@ -222,10 +223,19 @@ func (s *mfaService) VerifyTOTP(ctx context.Context, userID int64, code string) 
 		return false, apperror.NewValidation("TOTP is not enabled for this user")
 	}
 
+	rateLimitKey := security.RateLimitKey(fmt.Sprintf("totp:%d", userID), "verify")
+	if err := security.CheckRateLimit(rateLimitKey); err != nil {
+		span.SetStatus(codes.Error, "totp rate limited")
+		return false, apperror.NewUnauthorized("too many attempts; try again later")
+	}
+
 	dec := crypto.SafeDecryptAtRest(record.Secret)
 	valid := totp.Validate(code, dec)
 	if valid {
 		_ = s.totpRepo.UpdateLastUsed(userID)
+		security.ResetFailedAttempts(rateLimitKey)
+	} else {
+		security.RecordFailedAttempt(rateLimitKey)
 	}
 	span.SetStatus(codes.Ok, "")
 	return valid, nil
@@ -487,6 +497,14 @@ func (s *mfaService) VerifyStepUp(ctx context.Context, req StepUpVerifyRequestDT
 		return nil, apperror.NewUnauthorized("step-up challenge token missing sub")
 	}
 
+	tokenUser, err := s.userRepo.FindByUUID(userUUID)
+	if err != nil || tokenUser == nil {
+		return nil, apperror.NewUnauthorized("step-up challenge token references unknown user")
+	}
+	if tokenUser.UserID != userID {
+		return nil, apperror.NewUnauthorized("step-up challenge token subject does not match authenticated user")
+	}
+
 	// Verify the provided MFA factor.
 	var amr []string
 	switch req.Method {
@@ -499,6 +517,11 @@ func (s *mfaService) VerifyStepUp(ctx context.Context, req StepUpVerifyRequestDT
 		amr = []string{"pwd", "otp"}
 
 	case "backup_code":
+		backupRateLimitKey := security.RateLimitKey(fmt.Sprintf("backup_code:%d", userID), "verify")
+		if err := security.CheckRateLimit(backupRateLimitKey); err != nil {
+			span.SetStatus(codes.Error, "backup code rate limited")
+			return nil, apperror.NewUnauthorized("too many attempts; try again later")
+		}
 		bCodes, lerr := s.backupCodeRepo.FindUnusedByUserID(userID)
 		if lerr != nil {
 			return nil, apperror.NewInternal("backup code lookup failed", lerr)
@@ -512,6 +535,7 @@ func (s *mfaService) VerifyStepUp(ctx context.Context, req StepUpVerifyRequestDT
 			}
 		}
 		if !matched {
+			security.RecordFailedAttempt(backupRateLimitKey)
 			span.SetStatus(codes.Error, "backup code invalid")
 			return nil, apperror.NewUnauthorized("invalid backup code")
 		}

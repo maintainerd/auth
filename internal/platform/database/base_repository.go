@@ -4,6 +4,7 @@ import (
 	"errors"
 	"strings"
 
+	"github.com/maintainerd/auth/internal/platform/pagination"
 	"gorm.io/gorm"
 )
 
@@ -20,13 +21,13 @@ var allowedSortColumns = map[string]struct{}{
 }
 
 // normalizePagination clamps page and limit to safe positive values.
-// page defaults to 1 and limit defaults to 20 when zero or negative.
+// page defaults to 1 and limit defaults to pagination.DefaultPageSize when zero or negative.
 func normalizePagination(page, limit int) (int, int) {
 	if page < 1 {
 		page = 1
 	}
 	if limit < 1 {
-		limit = 20
+		limit = pagination.DefaultPageSize
 	}
 	return page, limit
 }
