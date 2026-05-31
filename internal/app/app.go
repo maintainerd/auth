@@ -1,6 +1,8 @@
 package app
 
 import (
+	"fmt"
+
 	"github.com/maintainerd/auth/internal/authevent"
 	"github.com/maintainerd/auth/internal/authn"
 	"github.com/maintainerd/auth/internal/branding"
@@ -81,12 +83,12 @@ type App struct {
 //  2. initServices — every service, consuming repos
 //
 // Handler creation is delegated to transport packages (rest, grpcserver).
-func NewApp(db *gorm.DB, redisClient *redis.Client) *App {
+func NewApp(db *gorm.DB, redisClient *redis.Client) (*App, error) {
 	r := initRepos(db)
 	appCache := cache.New(redisClient)
 	s, err := initServices(db, r, appCache)
 	if err != nil {
-		panic("app: service init failed: " + err.Error())
+		return nil, fmt.Errorf("service init failed: %w", err)
 	}
 
 	return &App{
@@ -142,5 +144,5 @@ func NewApp(db *gorm.DB, redisClient *redis.Client) *App {
 		MFAService:                s.mfaService,
 		WebAuthnService:           s.webAuthnService,
 		FederationService:         s.federationService,
-	}
+	}, nil
 }

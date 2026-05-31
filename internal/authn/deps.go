@@ -63,14 +63,6 @@ type SessionManager interface {
 	RefreshToken(ctx context.Context, userID int64) (string, error)
 }
 
-// Adapter is a placeholder type for adapters that connect consumer interfaces
-// to upstream domain implementations. Each consumer-interface has a corresponding
-// adapter struct in the upstream domain that satisfies it.
-type Adapter struct {
-	// This type is not instantiated; it documents the adapter pattern used
-	// for cross-domain communication.
-}
-
 // Repository projections and interfaces used by authn.
 // ---------------------------------------------------------------------------
 // Local aggregate structs — same underlying tables as owning domains.

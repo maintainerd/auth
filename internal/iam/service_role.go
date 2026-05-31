@@ -829,3 +829,24 @@ func toRoleServiceDataResult(role *Role) *RoleServiceDataResult {
 
 	return result
 }
+
+func ValidateTenantAccess(actor *User, target *Tenant) error {
+	if actor == nil {
+		return apperror.NewUnauthorized("actor user not found")
+	}
+	if target == nil {
+		return apperror.NewNotFoundWithReason("tenant not found")
+	}
+	if len(actor.UserIdentities) == 0 {
+		return apperror.NewForbidden("actor user has no identities")
+	}
+	for _, identity := range actor.UserIdentities {
+		if identity.TenantID == target.TenantID {
+			return nil
+		}
+		if identity.Tenant != nil && identity.Tenant.IsSystem {
+			return nil
+		}
+	}
+	return apperror.NewForbidden("tenant access denied")
+}

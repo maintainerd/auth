@@ -105,14 +105,15 @@ func (s *accountService) InitiateEmailChange(ctx context.Context, userID int64, 
 		return apperror.NewValidation("email address is already in use")
 	}
 
-	// Generate OTP
+	// Generate OTP and hash it for at-rest storage.
 	otp, err := crypto.GenerateOTP(emailChangeOTPLength)
 	if err != nil {
 		return apperror.NewInternal("failed to generate OTP", err)
 	}
+	otpHash := crypto.HashAuthorizationCode(otp)
 
 	expiresAt := time.Now().Add(emailChangeOTPTTL)
-	if err := s.userRepo.SetPendingEmail(user.UserUUID, newEmail, otp, expiresAt); err != nil {
+	if err := s.userRepo.SetPendingEmail(user.UserUUID, newEmail, otpHash, expiresAt); err != nil {
 		return apperror.NewInternal("failed to store pending email", err)
 	}
 
@@ -171,7 +172,8 @@ func (s *accountService) VerifyEmailChange(ctx context.Context, userID int64, ot
 		return apperror.NewValidation("email change OTP has expired")
 	}
 
-	if *user.EmailChangeOTP != otp {
+	expectedHash := crypto.HashAuthorizationCode(otp)
+	if *user.EmailChangeOTP != expectedHash {
 		return apperror.NewUnauthorized("invalid OTP")
 	}
 

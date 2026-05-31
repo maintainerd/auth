@@ -94,6 +94,15 @@ func (m *mockTenantRepo) DeleteByUUID(id any) error {
 	return nil
 }
 
+func (m *mockTenantRepo) DeleteCascade(ctx context.Context, tx *gorm.DB, tenantID int64, cascadeModels []any) error {
+	for _, model := range cascadeModels {
+		if err := tx.WithContext(ctx).Where("tenant_id = ?", tenantID).Delete(model).Error; err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 type mockTenantMemberRepo struct {
 	findByTenantMemberUUIDFn func(uuid.UUID) (*TenantMember, error)
 	findByTenantAndUserFn    func(tenantID int64, userID int64) (*TenantMember, error)

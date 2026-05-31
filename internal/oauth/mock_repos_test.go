@@ -439,7 +439,7 @@ func (m *mockAuthEventService) DeleteOlderThan(_ context.Context, _ time.Time) (
 type mockOAuthTokenService struct {
 	exchangeFn   func(context.Context, OAuthTokenRequestDTO, OAuthClientCredentials) (*OAuthTokenResult, *apperror.OAuthError)
 	revokeFn     func(context.Context, OAuthRevokeRequestDTO, OAuthClientCredentials) *apperror.OAuthError
-	introspectFn func(context.Context, OAuthIntrospectRequestDTO) (*OAuthIntrospectResponseDTO, *apperror.OAuthError)
+	introspectFn func(context.Context, OAuthIntrospectRequestDTO, OAuthClientCredentials) (*OAuthIntrospectResponseDTO, *apperror.OAuthError)
 }
 
 func (m *mockOAuthTokenService) Exchange(ctx context.Context, req OAuthTokenRequestDTO, creds OAuthClientCredentials) (*OAuthTokenResult, *apperror.OAuthError) {
@@ -454,9 +454,9 @@ func (m *mockOAuthTokenService) Revoke(ctx context.Context, req OAuthRevokeReque
 	}
 	return nil
 }
-func (m *mockOAuthTokenService) Introspect(ctx context.Context, req OAuthIntrospectRequestDTO) (*OAuthIntrospectResponseDTO, *apperror.OAuthError) {
+func (m *mockOAuthTokenService) Introspect(ctx context.Context, req OAuthIntrospectRequestDTO, creds OAuthClientCredentials) (*OAuthIntrospectResponseDTO, *apperror.OAuthError) {
 	if m.introspectFn != nil {
-		return m.introspectFn(ctx, req)
+		return m.introspectFn(ctx, req, creds)
 	}
 	return nil, nil
 }

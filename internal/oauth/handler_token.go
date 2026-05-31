@@ -96,7 +96,8 @@ func (h *OAuthTokenHandler) Revoke(w http.ResponseWriter, r *http.Request) {
 }
 
 // Introspect handles POST /oauth/introspect (RFC 7662). The request body is
-// application/x-www-form-urlencoded.
+// application/x-www-form-urlencoded. Client authentication is required per
+// RFC 7662 §2.1.
 func (h *OAuthTokenHandler) Introspect(w http.ResponseWriter, r *http.Request) {
 	if err := r.ParseForm(); err != nil {
 		oerr := apperror.NewOAuthInvalidRequest("malformed request body")
@@ -107,6 +108,8 @@ func (h *OAuthTokenHandler) Introspect(w http.ResponseWriter, r *http.Request) {
 	req := OAuthIntrospectRequestDTO{
 		Token:         r.PostFormValue("token"),
 		TokenTypeHint: r.PostFormValue("token_type_hint"),
+		ClientID:      r.PostFormValue("client_id"),
+		ClientSecret:  r.PostFormValue("client_secret"),
 	}
 
 	if err := req.Validate(); err != nil {
@@ -115,7 +118,12 @@ func (h *OAuthTokenHandler) Introspect(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	result, oerr := h.tokenService.Introspect(r.Context(), req)
+	creds := extractClientCredentials(r, OAuthTokenRequestDTO{
+		ClientID:     req.ClientID,
+		ClientSecret: req.ClientSecret,
+	})
+
+	result, oerr := h.tokenService.Introspect(r.Context(), req, creds)
 	if oerr != nil {
 		oerr.WriteJSON(w)
 		return

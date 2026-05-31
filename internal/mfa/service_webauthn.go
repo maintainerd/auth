@@ -258,7 +258,12 @@ func (s *webAuthnService) FinishAuthentication(ctx context.Context, userID int64
 	if err != nil || stored == nil {
 		return nil, apperror.NewInternal("credential not found after validation", err)
 	}
-	_ = s.webAuthnCredRepo.UpdateSignCount(stored.CredentialID, int64(cred.Authenticator.SignCount))
+	newSignCount := int64(cred.Authenticator.SignCount)
+	if stored.SignCount > 0 && newSignCount <= stored.SignCount {
+		span.SetStatus(codes.Error, "sign count regression")
+		return nil, apperror.NewUnauthorized("WebAuthn authentication failed: sign count regression detected")
+	}
+	_ = s.webAuthnCredRepo.UpdateSignCount(stored.CredentialID, newSignCount)
 	_ = s.webAuthnCredRepo.UpdateLastUsed(stored.CredentialID)
 
 	_ = s.deleteSession(ctx, userID, "auth")

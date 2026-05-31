@@ -225,6 +225,10 @@ func (m *mockTenantRepo) CreateOrUpdate(e *Tenant) (*Tenant, error) {
 	return e, nil
 }
 
+func (m *mockTenantRepo) DeleteCascade(_ context.Context, _ *gorm.DB, _ int64, _ []any) error {
+	return nil
+}
+
 type mockUserRepo struct {
 	mockBaseRepo[User]
 	findByUUIDFn             func(any, ...string) (*User, error)
