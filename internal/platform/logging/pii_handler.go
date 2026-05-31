@@ -128,3 +128,19 @@ func redactMap(m map[string]any) {
 		}
 	}
 }
+
+func RedactString(s *string) *string {
+	if s == nil || *s == "" {
+		return s
+	}
+	result := *s
+	for key := range piiFields {
+		lower := strings.ToLower(result)
+		idx := strings.Index(lower, key)
+		if idx >= 0 {
+			result = "[REDACTED]"
+			return &result
+		}
+	}
+	return s
+}

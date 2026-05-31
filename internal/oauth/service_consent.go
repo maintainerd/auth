@@ -5,7 +5,9 @@ import (
 	"strings"
 
 	"github.com/google/uuid"
+	"github.com/maintainerd/auth/internal/authevent"
 	"github.com/maintainerd/auth/internal/platform/apperror"
+	"github.com/maintainerd/auth/internal/platform/ptr"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -24,14 +26,17 @@ type OAuthConsentService interface {
 
 type oauthConsentService struct {
 	consentGrantRepo OAuthConsentGrantRepository
+	authEventService authevent.AuthEventService
 }
 
 // NewOAuthConsentService creates a new OAuthConsentService.
 func NewOAuthConsentService(
 	consentGrantRepo OAuthConsentGrantRepository,
+	authEventService authevent.AuthEventService,
 ) OAuthConsentService {
 	return &oauthConsentService{
 		consentGrantRepo: consentGrantRepo,
+		authEventService: authEventService,
 	}
 }
 
@@ -105,6 +110,17 @@ func (s *oauthConsentService) RevokeGrant(ctx context.Context, grantUUID uuid.UU
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "consent grant deletion failed")
 		return apperror.NewInternal("failed to revoke consent grant", err)
+	}
+
+	if s.authEventService != nil {
+		s.authEventService.Log(ctx, authevent.AuthEventInput{
+			ActorUserID: &userID,
+			Category:    authevent.AuthEventCategoryAuthn,
+			EventType:   authevent.AuthEventTypeOAuthConsentRevoke,
+			Severity:    authevent.AuthEventSeverityInfo,
+			Result:      authevent.AuthEventResultSuccess,
+			Description: ptr.Ptr("Consent grant revoked"),
+		})
 	}
 
 	span.SetStatus(codes.Ok, "")

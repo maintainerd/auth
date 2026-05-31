@@ -12,7 +12,7 @@ import (
 )
 
 func newOAuthConsentSvc(repo *mockOAuthConsentGrantRepo) OAuthConsentService {
-	return NewOAuthConsentService(repo)
+	return NewOAuthConsentService(repo, nil)
 }
 
 func TestOAuthConsentService_ListGrants(t *testing.T) {
