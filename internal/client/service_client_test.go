@@ -1136,7 +1136,12 @@ func TestClientService_GetClientAPIs(t *testing.T) {
 		caRepo := &mockClientAPIRepo{
 			findByClientUUIDFn: func(_ uuid.UUID) ([]ClientAPI, error) { return nil, errors.New("err") },
 		}
-		svc := buildFullClientService(t, &mockClientRepo{}, &mockClientURIRepo{}, &mockIdentityProviderRepo{},
+		clientRepo := &mockClientRepo{
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, tenantID int64) (*Client, error) {
+				return &Client{ClientID: 1, ClientUUID: cUUID, TenantID: tenantID}, nil
+			},
+		}
+		svc := buildFullClientService(t, clientRepo, &mockClientURIRepo{}, &mockIdentityProviderRepo{},
 			&mockPermissionRepo{}, &mockClientPermissionRepo{}, caRepo, &mockAPIRepo{}, &mockUserRepo{}, &mockTenantRepo{}, nil)
 		_, err := svc.GetClientAPIs(context.Background(), 1, cUUID)
 		require.Error(t, err)
@@ -1152,7 +1157,12 @@ func TestClientService_GetClientAPIs(t *testing.T) {
 		caRepo := &mockClientAPIRepo{
 			findByClientUUIDFn: func(_ uuid.UUID) ([]ClientAPI, error) { return cas, nil },
 		}
-		svc := buildFullClientService(t, &mockClientRepo{}, &mockClientURIRepo{}, &mockIdentityProviderRepo{},
+		clientRepo := &mockClientRepo{
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, tenantID int64) (*Client, error) {
+				return &Client{ClientID: 1, ClientUUID: cUUID, TenantID: tenantID}, nil
+			},
+		}
+		svc := buildFullClientService(t, clientRepo, &mockClientURIRepo{}, &mockIdentityProviderRepo{},
 			&mockPermissionRepo{}, &mockClientPermissionRepo{}, caRepo, &mockAPIRepo{}, &mockUserRepo{}, &mockTenantRepo{}, nil)
 		results, err := svc.GetClientAPIs(context.Background(), 1, cUUID)
 		require.NoError(t, err)
@@ -1169,7 +1179,12 @@ func TestClientService_GetClientAPIs(t *testing.T) {
 		caRepo := &mockClientAPIRepo{
 			findByClientUUIDFn: func(_ uuid.UUID) ([]ClientAPI, error) { return cas, nil },
 		}
-		svc := buildFullClientService(t, &mockClientRepo{}, &mockClientURIRepo{}, &mockIdentityProviderRepo{},
+		clientRepo := &mockClientRepo{
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, tenantID int64) (*Client, error) {
+				return &Client{ClientID: 1, ClientUUID: cUUID, TenantID: tenantID}, nil
+			},
+		}
+		svc := buildFullClientService(t, clientRepo, &mockClientURIRepo{}, &mockIdentityProviderRepo{},
 			&mockPermissionRepo{}, &mockClientPermissionRepo{}, caRepo, &mockAPIRepo{}, &mockUserRepo{}, &mockTenantRepo{}, nil)
 		results, err := svc.GetClientAPIs(context.Background(), 1, cUUID)
 		require.NoError(t, err)

@@ -427,6 +427,7 @@ func TestAPIKeyHandler_GetAPIs(t *testing.T) {
 	t.Run("invalid uuid returns 400", func(t *testing.T) {
 		r := jsonReq(t, http.MethodGet, "/", nil)
 		r = withChiParam(r, "api_key_uuid", "bad")
+		r = withTenant(r)
 		w := httptest.NewRecorder()
 		NewAPIKeyHandler(&mockAPIKeyService{}).GetAPIs(w, r)
 		assert.Equal(t, http.StatusBadRequest, w.Code)
@@ -436,6 +437,7 @@ func TestAPIKeyHandler_GetAPIs(t *testing.T) {
 		// invalid sort_order triggers PaginationRequestDTO.Validate failure
 		r := jsonReq(t, http.MethodGet, "/?sort_order=invalid", nil)
 		r = withChiParam(r, "api_key_uuid", keyUUID.String())
+		r = withTenant(r)
 		w := httptest.NewRecorder()
 		NewAPIKeyHandler(&mockAPIKeyService{}).GetAPIs(w, r)
 		assert.Equal(t, http.StatusBadRequest, w.Code)
@@ -443,12 +445,13 @@ func TestAPIKeyHandler_GetAPIs(t *testing.T) {
 
 	t.Run("service error returns 500", func(t *testing.T) {
 		svc := &mockAPIKeyService{
-			getAPIKeyAPIsFn: func(id uuid.UUID, pg, lim int, sb, so string) (*APIKeyAPIServicePaginatedResult, error) {
+			getAPIKeyAPIsFn: func(_ int64, id uuid.UUID, pg, lim int, sb, so string) (*APIKeyAPIServicePaginatedResult, error) {
 				return nil, errors.New("db error")
 			},
 		}
 		r := jsonReq(t, http.MethodGet, "/", nil)
 		r = withChiParam(r, "api_key_uuid", keyUUID.String())
+		r = withTenant(r)
 		w := httptest.NewRecorder()
 		NewAPIKeyHandler(svc).GetAPIs(w, r)
 		assert.Equal(t, http.StatusInternalServerError, w.Code)
@@ -457,7 +460,7 @@ func TestAPIKeyHandler_GetAPIs(t *testing.T) {
 	t.Run("success with rows", func(t *testing.T) {
 		// Covers the loop body in GetAPIs that maps rows to APIResponseDTO
 		svc := &mockAPIKeyService{
-			getAPIKeyAPIsFn: func(id uuid.UUID, pg, lim int, sb, so string) (*APIKeyAPIServicePaginatedResult, error) {
+			getAPIKeyAPIsFn: func(_ int64, id uuid.UUID, pg, lim int, sb, so string) (*APIKeyAPIServicePaginatedResult, error) {
 				return &APIKeyAPIServicePaginatedResult{
 					Data: []APIKeyAPIServiceDataResult{
 						{Api: APIServiceDataResult{APIUUID: apiUUID, Name: "api1"}},
@@ -468,6 +471,7 @@ func TestAPIKeyHandler_GetAPIs(t *testing.T) {
 		}
 		r := jsonReq(t, http.MethodGet, "/", nil)
 		r = withChiParam(r, "api_key_uuid", keyUUID.String())
+		r = withTenant(r)
 		w := httptest.NewRecorder()
 		NewAPIKeyHandler(svc).GetAPIs(w, r)
 		assert.Equal(t, http.StatusOK, w.Code)
@@ -476,6 +480,7 @@ func TestAPIKeyHandler_GetAPIs(t *testing.T) {
 	t.Run("success empty", func(t *testing.T) {
 		r := jsonReq(t, http.MethodGet, "/", nil)
 		r = withChiParam(r, "api_key_uuid", keyUUID.String())
+		r = withTenant(r)
 		w := httptest.NewRecorder()
 		NewAPIKeyHandler(&mockAPIKeyService{}).GetAPIs(w, r)
 		assert.Equal(t, http.StatusOK, w.Code)
@@ -489,6 +494,7 @@ func TestAPIKeyHandler_AddAPIs(t *testing.T) {
 	t.Run("invalid uuid returns 400", func(t *testing.T) {
 		r := jsonReq(t, http.MethodPost, "/", map[string]any{"api_uuids": []string{apiUUID.String()}})
 		r = withChiParam(r, "api_key_uuid", "bad")
+		r = withTenant(r)
 		w := httptest.NewRecorder()
 		NewAPIKeyHandler(&mockAPIKeyService{}).AddAPIs(w, r)
 		assert.Equal(t, http.StatusBadRequest, w.Code)
@@ -497,6 +503,7 @@ func TestAPIKeyHandler_AddAPIs(t *testing.T) {
 	t.Run("bad json returns 400", func(t *testing.T) {
 		r := badJSONReq(t, http.MethodPost, "/")
 		r = withChiParam(r, "api_key_uuid", keyUUID.String())
+		r = withTenant(r)
 		w := httptest.NewRecorder()
 		NewAPIKeyHandler(&mockAPIKeyService{}).AddAPIs(w, r)
 		assert.Equal(t, http.StatusBadRequest, w.Code)
@@ -506,6 +513,7 @@ func TestAPIKeyHandler_AddAPIs(t *testing.T) {
 		// empty api_uuids fails validation
 		r := jsonReq(t, http.MethodPost, "/", map[string]any{"api_uuids": []string{}})
 		r = withChiParam(r, "api_key_uuid", keyUUID.String())
+		r = withTenant(r)
 		w := httptest.NewRecorder()
 		NewAPIKeyHandler(&mockAPIKeyService{}).AddAPIs(w, r)
 		assert.Equal(t, http.StatusBadRequest, w.Code)
@@ -513,12 +521,13 @@ func TestAPIKeyHandler_AddAPIs(t *testing.T) {
 
 	t.Run("service error returns 500", func(t *testing.T) {
 		svc := &mockAPIKeyService{
-			addAPIKeyAPIsFn: func(id uuid.UUID, apis []uuid.UUID) error {
+			addAPIKeyAPIsFn: func(_ int64, id uuid.UUID, apis []uuid.UUID) error {
 				return errors.New("db error")
 			},
 		}
 		r := jsonReq(t, http.MethodPost, "/", map[string]any{"api_uuids": []string{apiUUID.String()}})
 		r = withChiParam(r, "api_key_uuid", keyUUID.String())
+		r = withTenant(r)
 		w := httptest.NewRecorder()
 		NewAPIKeyHandler(svc).AddAPIs(w, r)
 		assert.Equal(t, http.StatusInternalServerError, w.Code)
@@ -527,6 +536,7 @@ func TestAPIKeyHandler_AddAPIs(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		r := jsonReq(t, http.MethodPost, "/", map[string]any{"api_uuids": []string{apiUUID.String()}})
 		r = withChiParam(r, "api_key_uuid", keyUUID.String())
+		r = withTenant(r)
 		w := httptest.NewRecorder()
 		NewAPIKeyHandler(&mockAPIKeyService{}).AddAPIs(w, r)
 		assert.Equal(t, http.StatusOK, w.Code)
@@ -541,6 +551,7 @@ func TestAPIKeyHandler_RemoveAPI(t *testing.T) {
 		r := jsonReq(t, http.MethodDelete, "/", nil)
 		r = withChiParam(r, "api_key_uuid", "bad")
 		r = withChiParam(r, "api_uuid", apiUUID.String())
+		r = withTenant(r)
 		w := httptest.NewRecorder()
 		NewAPIKeyHandler(&mockAPIKeyService{}).RemoveAPI(w, r)
 		assert.Equal(t, http.StatusBadRequest, w.Code)
@@ -550,6 +561,7 @@ func TestAPIKeyHandler_RemoveAPI(t *testing.T) {
 		r := jsonReq(t, http.MethodDelete, "/", nil)
 		r = withChiParam(r, "api_key_uuid", keyUUID.String())
 		r = withChiParam(r, "api_uuid", "bad")
+		r = withTenant(r)
 		w := httptest.NewRecorder()
 		NewAPIKeyHandler(&mockAPIKeyService{}).RemoveAPI(w, r)
 		assert.Equal(t, http.StatusBadRequest, w.Code)
@@ -557,13 +569,14 @@ func TestAPIKeyHandler_RemoveAPI(t *testing.T) {
 
 	t.Run("service error returns 500", func(t *testing.T) {
 		svc := &mockAPIKeyService{
-			removeAPIKeyAPIFn: func(id, api uuid.UUID) error {
+			removeAPIKeyAPIFn: func(_ int64, id, api uuid.UUID) error {
 				return errors.New("db error")
 			},
 		}
 		r := jsonReq(t, http.MethodDelete, "/", nil)
 		r = withChiParam(r, "api_key_uuid", keyUUID.String())
 		r = withChiParam(r, "api_uuid", apiUUID.String())
+		r = withTenant(r)
 		w := httptest.NewRecorder()
 		NewAPIKeyHandler(svc).RemoveAPI(w, r)
 		assert.Equal(t, http.StatusInternalServerError, w.Code)
@@ -573,6 +586,7 @@ func TestAPIKeyHandler_RemoveAPI(t *testing.T) {
 		r := jsonReq(t, http.MethodDelete, "/", nil)
 		r = withChiParam(r, "api_key_uuid", keyUUID.String())
 		r = withChiParam(r, "api_uuid", apiUUID.String())
+		r = withTenant(r)
 		w := httptest.NewRecorder()
 		NewAPIKeyHandler(&mockAPIKeyService{}).RemoveAPI(w, r)
 		assert.Equal(t, http.StatusOK, w.Code)
@@ -587,6 +601,7 @@ func TestAPIKeyHandler_GetAPIPermissions(t *testing.T) {
 		r := jsonReq(t, http.MethodGet, "/", nil)
 		r = withChiParam(r, "api_key_uuid", "bad")
 		r = withChiParam(r, "api_uuid", apiUUID.String())
+		r = withTenant(r)
 		w := httptest.NewRecorder()
 		NewAPIKeyHandler(&mockAPIKeyService{}).GetAPIPermissions(w, r)
 		assert.Equal(t, http.StatusBadRequest, w.Code)
@@ -596,6 +611,7 @@ func TestAPIKeyHandler_GetAPIPermissions(t *testing.T) {
 		r := jsonReq(t, http.MethodGet, "/", nil)
 		r = withChiParam(r, "api_key_uuid", keyUUID.String())
 		r = withChiParam(r, "api_uuid", "bad")
+		r = withTenant(r)
 		w := httptest.NewRecorder()
 		NewAPIKeyHandler(&mockAPIKeyService{}).GetAPIPermissions(w, r)
 		assert.Equal(t, http.StatusBadRequest, w.Code)
@@ -603,13 +619,14 @@ func TestAPIKeyHandler_GetAPIPermissions(t *testing.T) {
 
 	t.Run("service error returns 500", func(t *testing.T) {
 		svc := &mockAPIKeyService{
-			getAPIKeyAPIPermsFn: func(id, api uuid.UUID) ([]PermissionServiceDataResult, error) {
+			getAPIKeyAPIPermsFn: func(_ int64, id, api uuid.UUID) ([]PermissionServiceDataResult, error) {
 				return nil, errors.New("db error")
 			},
 		}
 		r := jsonReq(t, http.MethodGet, "/", nil)
 		r = withChiParam(r, "api_key_uuid", keyUUID.String())
 		r = withChiParam(r, "api_uuid", apiUUID.String())
+		r = withTenant(r)
 		w := httptest.NewRecorder()
 		NewAPIKeyHandler(svc).GetAPIPermissions(w, r)
 		assert.Equal(t, http.StatusInternalServerError, w.Code)
@@ -617,13 +634,14 @@ func TestAPIKeyHandler_GetAPIPermissions(t *testing.T) {
 
 	t.Run("success", func(t *testing.T) {
 		svc := &mockAPIKeyService{
-			getAPIKeyAPIPermsFn: func(id, api uuid.UUID) ([]PermissionServiceDataResult, error) {
+			getAPIKeyAPIPermsFn: func(_ int64, id, api uuid.UUID) ([]PermissionServiceDataResult, error) {
 				return []PermissionServiceDataResult{{Name: "read"}}, nil
 			},
 		}
 		r := jsonReq(t, http.MethodGet, "/", nil)
 		r = withChiParam(r, "api_key_uuid", keyUUID.String())
 		r = withChiParam(r, "api_uuid", apiUUID.String())
+		r = withTenant(r)
 		w := httptest.NewRecorder()
 		NewAPIKeyHandler(svc).GetAPIPermissions(w, r)
 		assert.Equal(t, http.StatusOK, w.Code)
@@ -639,6 +657,7 @@ func TestAPIKeyHandler_AddAPIPermissions(t *testing.T) {
 		r := jsonReq(t, http.MethodPost, "/", map[string]any{"permission_uuids": []string{permUUID.String()}})
 		r = withChiParam(r, "api_key_uuid", "bad")
 		r = withChiParam(r, "api_uuid", apiUUID.String())
+		r = withTenant(r)
 		w := httptest.NewRecorder()
 		NewAPIKeyHandler(&mockAPIKeyService{}).AddAPIPermissions(w, r)
 		assert.Equal(t, http.StatusBadRequest, w.Code)
@@ -648,6 +667,7 @@ func TestAPIKeyHandler_AddAPIPermissions(t *testing.T) {
 		r := jsonReq(t, http.MethodPost, "/", map[string]any{"permission_uuids": []string{permUUID.String()}})
 		r = withChiParam(r, "api_key_uuid", keyUUID.String())
 		r = withChiParam(r, "api_uuid", "bad")
+		r = withTenant(r)
 		w := httptest.NewRecorder()
 		NewAPIKeyHandler(&mockAPIKeyService{}).AddAPIPermissions(w, r)
 		assert.Equal(t, http.StatusBadRequest, w.Code)
@@ -657,6 +677,7 @@ func TestAPIKeyHandler_AddAPIPermissions(t *testing.T) {
 		r := badJSONReq(t, http.MethodPost, "/")
 		r = withChiParam(r, "api_key_uuid", keyUUID.String())
 		r = withChiParam(r, "api_uuid", apiUUID.String())
+		r = withTenant(r)
 		w := httptest.NewRecorder()
 		NewAPIKeyHandler(&mockAPIKeyService{}).AddAPIPermissions(w, r)
 		assert.Equal(t, http.StatusBadRequest, w.Code)
@@ -666,6 +687,7 @@ func TestAPIKeyHandler_AddAPIPermissions(t *testing.T) {
 		r := jsonReq(t, http.MethodPost, "/", map[string]any{"permission_uuids": []string{}})
 		r = withChiParam(r, "api_key_uuid", keyUUID.String())
 		r = withChiParam(r, "api_uuid", apiUUID.String())
+		r = withTenant(r)
 		w := httptest.NewRecorder()
 		NewAPIKeyHandler(&mockAPIKeyService{}).AddAPIPermissions(w, r)
 		assert.Equal(t, http.StatusBadRequest, w.Code)
@@ -673,13 +695,14 @@ func TestAPIKeyHandler_AddAPIPermissions(t *testing.T) {
 
 	t.Run("service error returns 500", func(t *testing.T) {
 		svc := &mockAPIKeyService{
-			addAPIKeyAPIPermsFn: func(id, api uuid.UUID, perms []uuid.UUID) error {
+			addAPIKeyAPIPermsFn: func(_ int64, id, api uuid.UUID, perms []uuid.UUID) error {
 				return errors.New("db error")
 			},
 		}
 		r := jsonReq(t, http.MethodPost, "/", map[string]any{"permission_uuids": []string{permUUID.String()}})
 		r = withChiParam(r, "api_key_uuid", keyUUID.String())
 		r = withChiParam(r, "api_uuid", apiUUID.String())
+		r = withTenant(r)
 		w := httptest.NewRecorder()
 		NewAPIKeyHandler(svc).AddAPIPermissions(w, r)
 		assert.Equal(t, http.StatusInternalServerError, w.Code)
@@ -689,6 +712,7 @@ func TestAPIKeyHandler_AddAPIPermissions(t *testing.T) {
 		r := jsonReq(t, http.MethodPost, "/", map[string]any{"permission_uuids": []string{permUUID.String()}})
 		r = withChiParam(r, "api_key_uuid", keyUUID.String())
 		r = withChiParam(r, "api_uuid", apiUUID.String())
+		r = withTenant(r)
 		w := httptest.NewRecorder()
 		NewAPIKeyHandler(&mockAPIKeyService{}).AddAPIPermissions(w, r)
 		assert.Equal(t, http.StatusOK, w.Code)
@@ -705,6 +729,7 @@ func TestAPIKeyHandler_RemoveAPIPermission(t *testing.T) {
 		r = withChiParam(r, "api_key_uuid", "bad")
 		r = withChiParam(r, "api_uuid", apiUUID.String())
 		r = withChiParam(r, "permission_uuid", permUUID.String())
+		r = withTenant(r)
 		w := httptest.NewRecorder()
 		NewAPIKeyHandler(&mockAPIKeyService{}).RemoveAPIPermission(w, r)
 		assert.Equal(t, http.StatusBadRequest, w.Code)
@@ -715,6 +740,7 @@ func TestAPIKeyHandler_RemoveAPIPermission(t *testing.T) {
 		r = withChiParam(r, "api_key_uuid", keyUUID.String())
 		r = withChiParam(r, "api_uuid", "bad")
 		r = withChiParam(r, "permission_uuid", permUUID.String())
+		r = withTenant(r)
 		w := httptest.NewRecorder()
 		NewAPIKeyHandler(&mockAPIKeyService{}).RemoveAPIPermission(w, r)
 		assert.Equal(t, http.StatusBadRequest, w.Code)
@@ -725,6 +751,7 @@ func TestAPIKeyHandler_RemoveAPIPermission(t *testing.T) {
 		r = withChiParam(r, "api_key_uuid", keyUUID.String())
 		r = withChiParam(r, "api_uuid", apiUUID.String())
 		r = withChiParam(r, "permission_uuid", "bad")
+		r = withTenant(r)
 		w := httptest.NewRecorder()
 		NewAPIKeyHandler(&mockAPIKeyService{}).RemoveAPIPermission(w, r)
 		assert.Equal(t, http.StatusBadRequest, w.Code)
@@ -732,7 +759,7 @@ func TestAPIKeyHandler_RemoveAPIPermission(t *testing.T) {
 
 	t.Run("service error returns 500", func(t *testing.T) {
 		svc := &mockAPIKeyService{
-			removeAPIKeyAPIPermFn: func(id, api, perm uuid.UUID) error {
+			removeAPIKeyAPIPermFn: func(_ int64, id, api, perm uuid.UUID) error {
 				return errors.New("db error")
 			},
 		}
@@ -740,6 +767,7 @@ func TestAPIKeyHandler_RemoveAPIPermission(t *testing.T) {
 		r = withChiParam(r, "api_key_uuid", keyUUID.String())
 		r = withChiParam(r, "api_uuid", apiUUID.String())
 		r = withChiParam(r, "permission_uuid", permUUID.String())
+		r = withTenant(r)
 		w := httptest.NewRecorder()
 		NewAPIKeyHandler(svc).RemoveAPIPermission(w, r)
 		assert.Equal(t, http.StatusInternalServerError, w.Code)
@@ -750,6 +778,7 @@ func TestAPIKeyHandler_RemoveAPIPermission(t *testing.T) {
 		r = withChiParam(r, "api_key_uuid", keyUUID.String())
 		r = withChiParam(r, "api_uuid", apiUUID.String())
 		r = withChiParam(r, "permission_uuid", permUUID.String())
+		r = withTenant(r)
 		w := httptest.NewRecorder()
 		NewAPIKeyHandler(&mockAPIKeyService{}).RemoveAPIPermission(w, r)
 		assert.Equal(t, http.StatusOK, w.Code)

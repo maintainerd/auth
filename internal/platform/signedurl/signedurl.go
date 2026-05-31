@@ -43,20 +43,31 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/maintainerd/auth/internal/platform/config"
 )
 
 // ============================================================================
 // CONFIGURATION
 // ============================================================================
 
-// hmacSecretKey returns the HMAC signing key, loaded from the HMAC_SECRET_KEY
-// environment variable. Returns an error if the variable is unset or empty.
+var loadHMACSecret = func() ([]byte, error) {
+	return config.LoadSecret("HMAC_SECRET_KEY")
+}
+
+// hmacSecretKey returns the HMAC signing key through the configured secret
+// manager. Tests that do not initialize config may still fall back to the env
+// provider, which mirrors config's default provider behavior.
 func hmacSecretKey() ([]byte, error) {
-	key := os.Getenv("HMAC_SECRET_KEY")
-	if key == "" {
-		return nil, fmt.Errorf("HMAC_SECRET_KEY environment variable is required but not set")
+	key, err := loadHMACSecret()
+	if err == nil {
+		return key, nil
 	}
-	return []byte(key), nil
+
+	if envKey := os.Getenv("HMAC_SECRET_KEY"); envKey != "" {
+		return []byte(envKey), nil
+	}
+	return nil, fmt.Errorf("HMAC_SECRET_KEY secret is required but not available: %w", err)
 }
 
 // ============================================================================

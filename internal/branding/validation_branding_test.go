@@ -66,6 +66,12 @@ func TestBrandingUpdateRequestDTO_Validate(t *testing.T) {
 		require.Error(t, d.Validate())
 	})
 
+	t.Run("logo_url rejects script scheme", func(t *testing.T) {
+		d := validBrandingUpdate()
+		d.LogoURL = "javascript:alert(1)"
+		require.Error(t, d.Validate())
+	})
+
 	t.Run("logo_url valid", func(t *testing.T) {
 		d := validBrandingUpdate()
 		d.LogoURL = "https://cdn.example.com/logo.png"

@@ -74,18 +74,7 @@ func (r *apiKeyAPIRepository) FindByAPIKeyUUIDPaginated(apiKeyUUID uuid.UUID, pa
 		return nil, err
 	}
 
-	// Apply sorting
-	if sortBy != "" {
-		orderClause := sortBy
-		if sortOrder == "desc" {
-			orderClause += " DESC"
-		} else {
-			orderClause += " ASC"
-		}
-		query = query.Order(orderClause)
-	} else {
-		query = query.Order("api_key_apis.created_at DESC") // Default sorting
-	}
+	query = query.Order(sanitizeOrderPrefixed("api_key_apis", sortBy, sortOrder, "created_at"))
 
 	// Pagination guards prevent division-by-zero and negative offsets
 	if page < 1 {

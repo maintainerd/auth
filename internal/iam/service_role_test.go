@@ -982,7 +982,7 @@ func TestRoleService_AddRolePermissions(t *testing.T) {
 			},
 		}, &mockPermissionRepo{
 			findByUUIDsFn: func(_ []string, _ ...string) ([]Permission, error) {
-				return []Permission{{PermissionID: 1}}, nil // only 1 found but requested 2
+				return []Permission{{PermissionID: 1, TenantID: tenantID}}, nil // only 1 found but requested 2
 			},
 		}, &mockRolePermissionRepo{}, &mockUserRepo{
 			findByUUIDFn: func(_ any, _ ...string) (*User, error) {
@@ -1004,7 +1004,7 @@ func TestRoleService_AddRolePermissions(t *testing.T) {
 			},
 		}, &mockPermissionRepo{
 			findByUUIDsFn: func(_ []string, _ ...string) ([]Permission, error) {
-				return []Permission{{PermissionID: 10}}, nil
+				return []Permission{{PermissionID: 10, TenantID: tenantID}}, nil
 			},
 		}, &mockRolePermissionRepo{
 			findByRoleAndPermissionFn: func(_, _ int64) (*RolePermission, error) {
@@ -1030,7 +1030,7 @@ func TestRoleService_AddRolePermissions(t *testing.T) {
 			},
 		}, &mockPermissionRepo{
 			findByUUIDsFn: func(_ []string, _ ...string) ([]Permission, error) {
-				return []Permission{{PermissionID: 10}}, nil
+				return []Permission{{PermissionID: 10, TenantID: tenantID}}, nil
 			},
 		}, &mockRolePermissionRepo{
 			createFn: func(_ *RolePermission) (*RolePermission, error) {
@@ -1059,12 +1059,12 @@ func TestRoleService_AddRolePermissions(t *testing.T) {
 				}
 				// Second call: fetch with Permissions
 				r := newRole(1, "admin", tenantID)
-				r.Permissions = []Permission{{PermissionID: 10, Name: "read"}}
+				r.Permissions = []Permission{{PermissionID: 10, Name: "read", TenantID: tenantID}}
 				return r, nil
 			},
 		}, &mockPermissionRepo{
 			findByUUIDsFn: func(_ []string, _ ...string) ([]Permission, error) {
-				return []Permission{{PermissionID: 10}}, nil
+				return []Permission{{PermissionID: 10, TenantID: tenantID}}, nil
 			},
 		}, &mockRolePermissionRepo{
 			findByRoleAndPermissionFn: func(_, _ int64) (*RolePermission, error) {
@@ -1095,7 +1095,7 @@ func TestRoleService_AddRolePermissions(t *testing.T) {
 			},
 		}, &mockPermissionRepo{
 			findByUUIDsFn: func(_ []string, _ ...string) ([]Permission, error) {
-				return []Permission{{PermissionID: 10}}, nil
+				return []Permission{{PermissionID: 10, TenantID: tenantID}}, nil
 			},
 		}, &mockRolePermissionRepo{
 			findByRoleAndPermissionFn: func(_, _ int64) (*RolePermission, error) {
@@ -1123,12 +1123,12 @@ func TestRoleService_AddRolePermissions(t *testing.T) {
 					return newRole(1, "admin", tenantID), nil
 				}
 				r := newRole(1, "admin", tenantID)
-				r.Permissions = []Permission{{PermissionID: 10, Name: "read"}}
+				r.Permissions = []Permission{{PermissionID: 10, Name: "read", TenantID: tenantID}}
 				return r, nil
 			},
 		}, &mockPermissionRepo{
 			findByUUIDsFn: func(_ []string, _ ...string) ([]Permission, error) {
-				return []Permission{{PermissionID: 10}}, nil
+				return []Permission{{PermissionID: 10, TenantID: tenantID}}, nil
 			},
 		}, &mockRolePermissionRepo{}, &mockUserRepo{
 			findByUUIDFn: func(_ any, _ ...string) (*User, error) {
@@ -1296,7 +1296,7 @@ func TestRoleService_RemoveRolePermissions(t *testing.T) {
 			},
 		}, &mockPermissionRepo{
 			findByUUIDFn: func(_ any, _ ...string) (*Permission, error) {
-				return &Permission{PermissionID: 10}, nil
+				return &Permission{PermissionID: 10, TenantID: tenantID}, nil
 			},
 		}, &mockRolePermissionRepo{
 			findByRoleAndPermissionFn: func(_, _ int64) (*RolePermission, error) {
@@ -1327,7 +1327,7 @@ func TestRoleService_RemoveRolePermissions(t *testing.T) {
 			},
 		}, &mockPermissionRepo{
 			findByUUIDFn: func(_ any, _ ...string) (*Permission, error) {
-				return &Permission{PermissionID: 10}, nil
+				return &Permission{PermissionID: 10, TenantID: tenantID}, nil
 			},
 		}, &mockRolePermissionRepo{}, &mockUserRepo{
 			findByUUIDFn: func(_ any, _ ...string) (*User, error) {
@@ -1354,7 +1354,7 @@ func TestRoleService_RemoveRolePermissions(t *testing.T) {
 			},
 		}, &mockPermissionRepo{
 			findByUUIDFn: func(_ any, _ ...string) (*Permission, error) {
-				return &Permission{PermissionID: 10}, nil
+				return &Permission{PermissionID: 10, TenantID: tenantID}, nil
 			},
 		}, &mockRolePermissionRepo{}, &mockUserRepo{
 			findByUUIDFn: func(_ any, _ ...string) (*User, error) {
@@ -1376,7 +1376,7 @@ func TestRoleService_RemoveRolePermissions(t *testing.T) {
 			},
 		}, &mockPermissionRepo{
 			findByUUIDFn: func(_ any, _ ...string) (*Permission, error) {
-				return &Permission{PermissionID: 10}, nil
+				return &Permission{PermissionID: 10, TenantID: tenantID}, nil
 			},
 		}, &mockRolePermissionRepo{
 			findByRoleAndPermissionFn: func(_, _ int64) (*RolePermission, error) {
@@ -1410,7 +1410,7 @@ func TestRoleService_RemoveRolePermissions(t *testing.T) {
 			},
 		}, &mockPermissionRepo{
 			findByUUIDFn: func(_ any, _ ...string) (*Permission, error) {
-				return &Permission{PermissionID: 10}, nil
+				return &Permission{PermissionID: 10, TenantID: tenantID}, nil
 			},
 		}, &mockRolePermissionRepo{
 			findByRoleAndPermissionFn: func(_, _ int64) (*RolePermission, error) {
@@ -1441,7 +1441,7 @@ func TestRoleService_RemoveRolePermissions(t *testing.T) {
 			},
 		}, &mockPermissionRepo{
 			findByUUIDFn: func(_ any, _ ...string) (*Permission, error) {
-				return &Permission{PermissionID: 10}, nil
+				return &Permission{PermissionID: 10, TenantID: tenantID}, nil
 			},
 		}, &mockRolePermissionRepo{
 			findByRoleAndPermissionFn: func(_, _ int64) (*RolePermission, error) {

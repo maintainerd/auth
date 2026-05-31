@@ -64,6 +64,8 @@ type Client struct {
 	Domain                  *string           `gorm:"column:domain"`
 	Identifier              *string           `gorm:"column:identifier"`
 	SecretHash              *string           `gorm:"column:secret_hash"`
+	PreviousSecretHash      *string           `gorm:"column:previous_secret_hash"`
+	PreviousSecretExpiresAt *time.Time        `gorm:"column:previous_secret_expires_at"`
 	Status                  string            `gorm:"column:status"`
 	IsDefault               bool              `gorm:"column:is_default"`
 	IsSystem                bool              `gorm:"column:is_system"`

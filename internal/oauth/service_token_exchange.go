@@ -9,7 +9,6 @@ import (
 	"github.com/maintainerd/auth/internal/platform/jwt"
 	"github.com/maintainerd/auth/internal/platform/middleware"
 	"github.com/maintainerd/auth/internal/platform/ptr"
-	"github.com/maintainerd/auth/internal/platform/security"
 	"github.com/maintainerd/auth/internal/shared"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
@@ -164,7 +163,7 @@ func (s *oauthTokenExchangeService) authenticateClient(creds OAuthClientCredenti
 		return nil, apperror.NewOAuthServerError("an unexpected error occurred")
 	}
 	if client.SecretHash != nil && *client.SecretHash != "" {
-		if creds.ClientSecret == "" || !security.CompareClientSecret(creds.ClientSecret, *client.SecretHash) {
+		if !clientSecretMatches(&client, creds.ClientSecret) {
 			return nil, apperror.NewOAuthInvalidClient("client authentication failed")
 		}
 	}
