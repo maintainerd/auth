@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/go-chi/chi/v5/middleware"
 	"github.com/maintainerd/auth/internal/authevent"
 	"github.com/maintainerd/auth/internal/authn"
 	"github.com/maintainerd/auth/internal/branding"
@@ -161,8 +160,8 @@ func buildPublicRouter(h *handlers, application *Application) http.Handler {
 }
 
 func mountCommonMiddleware(r chi.Router) {
-	// Built-in Chi middlewares
-	r.Use(middleware.Recoverer)
+	// Recovery middleware — logs panics with structured logging and stack traces.
+	r.Use(securityMiddleware.RecoveryMiddleware)
 
 	// Global security middleware for SOC2/ISO27001 compliance
 	r.Use(securityMiddleware.SecurityHeadersMiddleware)

@@ -91,6 +91,13 @@ func (s *loginService) LoginPublic(ctx context.Context, usernameOrEmail, passwor
 			Timestamp: startTime,
 			Details:   err.Error(),
 		})
+		s.authEventService.Log(ctx, authevent.AuthEventInput{
+			Category:    authevent.AuthEventCategoryAuthn,
+			EventType:   authevent.AuthEventTypeLoginLock,
+			Severity:    authevent.AuthEventSeverityWarn,
+			Result:      authevent.AuthEventResultFailure,
+			Description: ptr.Ptr(err.Error()),
+		})
 		return nil, err
 	}
 
@@ -290,13 +297,20 @@ func (s *loginService) Login(ctx context.Context, usernameOrEmail, password stri
 	startTime := time.Now()
 
 	// Rate limiting check (SOC2 CC6.1 - Logical Access Controls)
-	if err := security.CheckRateLimit(usernameOrEmail); err != nil {
+		if err := security.CheckRateLimit(usernameOrEmail); err != nil {
 		security.LogSecurityEvent(security.SecurityEvent{
 			EventType: "login_rate_limited",
 			UserID:    usernameOrEmail,
 			ClientID:  "internal",
 			Timestamp: startTime,
 			Details:   err.Error(),
+		})
+		s.authEventService.Log(ctx, authevent.AuthEventInput{
+			Category:    authevent.AuthEventCategoryAuthn,
+			EventType:   authevent.AuthEventTypeLoginLock,
+			Severity:    authevent.AuthEventSeverityWarn,
+			Result:      authevent.AuthEventResultFailure,
+			Description: ptr.Ptr(err.Error()),
 		})
 		return nil, err
 	}
