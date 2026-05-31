@@ -12,6 +12,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/authevent"
+	"github.com/maintainerd/auth/internal/platform/crypto"
 )
 
 func (d *Dispatcher) deliver(ctx context.Context, ep WebhookEndpoint, event *authevent.AuthEvent) {
@@ -23,7 +24,8 @@ func (d *Dispatcher) deliver(ctx context.Context, ep WebhookEndpoint, event *aut
 	}
 
 	timestamp := time.Now().Unix()
-	sig := computeSignature(ep.SecretEncrypted, timestamp, body)
+	secret := crypto.SafeDecryptAtRest(ep.SecretEncrypted)
+	sig := computeSignature(secret, timestamp, body)
 	deliveryID := uuid.New().String()
 	timeout := time.Duration(ep.TimeoutSeconds) * time.Second
 

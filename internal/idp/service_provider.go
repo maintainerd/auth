@@ -213,13 +213,17 @@ func (s *identityProviderService) Create(ctx context.Context, name string, displ
 		identifier := fmt.Sprintf("idp-%s", idSuffix)
 
 		// Create idp
+		encConfig, encErr := encryptIdpConfig(config)
+		if encErr != nil {
+			return encErr
+		}
 		newIdp := &IdentityProvider{
 			Name:         name,
 			DisplayName:  displayName,
 			Provider:     provider,
 			ProviderType: providerType,
 			Identifier:   identifier,
-			Config:       config,
+			Config:       encConfig,
 			TenantID:     tenant.TenantID,
 			Status:       status,
 			IsDefault:    false, // System-managed field, always default to false for user-created providers
@@ -310,7 +314,11 @@ func (s *identityProviderService) Update(ctx context.Context, idpUUID uuid.UUID,
 		idp.DisplayName = displayName
 		idp.Provider = provider
 		idp.ProviderType = providerType
-		idp.Config = config
+		encConfig, encErr := encryptIdpConfig(config)
+		if encErr != nil {
+			return encErr
+		}
+		idp.Config = encConfig
 		idp.Status = status
 		// IsDefault and IsSystem are system-managed, don't update them in user requests
 
