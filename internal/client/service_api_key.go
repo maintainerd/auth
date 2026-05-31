@@ -77,14 +77,14 @@ type APIKeyService interface {
 	ValidateAPIKey(ctx context.Context, keyHash string) (*APIKeyServiceDataResult, error)
 
 	// API Key API methods
-	GetAPIKeyAPIs(ctx context.Context, apiKeyUUID uuid.UUID, page, limit int, sortBy, sortOrder string) (*APIKeyAPIServicePaginatedResult, error)
-	AddAPIKeyAPIs(ctx context.Context, apiKeyUUID uuid.UUID, apiUUIDs []uuid.UUID) error
-	RemoveAPIKeyAPI(ctx context.Context, apiKeyUUID uuid.UUID, apiUUID uuid.UUID) error
+	GetAPIKeyAPIs(ctx context.Context, tenantID int64, apiKeyUUID uuid.UUID, page, limit int, sortBy, sortOrder string) (*APIKeyAPIServicePaginatedResult, error)
+	AddAPIKeyAPIs(ctx context.Context, tenantID int64, apiKeyUUID uuid.UUID, apiUUIDs []uuid.UUID) error
+	RemoveAPIKeyAPI(ctx context.Context, tenantID int64, apiKeyUUID uuid.UUID, apiUUID uuid.UUID) error
 
 	// API Key API Permission methods
-	GetAPIKeyAPIPermissions(ctx context.Context, apiKeyUUID uuid.UUID, apiUUID uuid.UUID) ([]PermissionServiceDataResult, error)
-	AddAPIKeyAPIPermissions(ctx context.Context, apiKeyUUID uuid.UUID, apiUUID uuid.UUID, permissionUUIDs []uuid.UUID) error
-	RemoveAPIKeyAPIPermission(ctx context.Context, apiKeyUUID uuid.UUID, apiUUID uuid.UUID, permissionUUID uuid.UUID) error
+	GetAPIKeyAPIPermissions(ctx context.Context, tenantID int64, apiKeyUUID uuid.UUID, apiUUID uuid.UUID) ([]PermissionServiceDataResult, error)
+	AddAPIKeyAPIPermissions(ctx context.Context, tenantID int64, apiKeyUUID uuid.UUID, apiUUID uuid.UUID, permissionUUIDs []uuid.UUID) error
+	RemoveAPIKeyAPIPermission(ctx context.Context, tenantID int64, apiKeyUUID uuid.UUID, apiUUID uuid.UUID, permissionUUID uuid.UUID) error
 }
 
 type apiKeyService struct {
@@ -117,11 +117,13 @@ func NewAPIKeyService(
 	}
 }
 
-// generateAPIKey generates a secure API key and returns the key and its hash
-func (s *apiKeyService) generateAPIKey() (string, string, string) {
+// generateAPIKey generates a secure API key and returns the key and its hash.
+func (s *apiKeyService) generateAPIKey() (string, string, string, error) {
 	// Generate 32 random bytes
 	bytes := make([]byte, 32)
-	_, _ = rand.Read(bytes)
+	if _, err := rand.Read(bytes); err != nil {
+		return "", "", "", err
+	}
 
 	// Create the API key with a prefix
 	apiKey := "ak_" + hex.EncodeToString(bytes)
@@ -133,7 +135,7 @@ func (s *apiKeyService) generateAPIKey() (string, string, string) {
 	// Get prefix for identification (first 12 characters)
 	keyPrefix := apiKey[:12]
 
-	return apiKey, keyHash, keyPrefix
+	return apiKey, keyHash, keyPrefix, nil
 }
 
 func (s *apiKeyService) Get(ctx context.Context, filter APIKeyServiceGetFilter, requestingUserUUID uuid.UUID) (*APIKeyServiceGetResult, error) {
@@ -291,7 +293,11 @@ func (s *apiKeyService) Create(ctx context.Context, tenantID int64, name, descri
 
 		// Generate API key
 		var keyHash, keyPrefix string
-		plainKey, keyHash, keyPrefix = s.generateAPIKey()
+		var keyErr error
+		plainKey, keyHash, keyPrefix, keyErr = s.generateAPIKey()
+		if keyErr != nil {
+			return keyErr
+		}
 
 		// Create API key model
 		apiKey := &APIKey{
@@ -530,16 +536,27 @@ func (s *apiKeyService) SetStatusByUUID(ctx context.Context, apiKeyUUID uuid.UUI
 }
 
 // Get APIs assigned to API key with pagination
-func (s *apiKeyService) GetAPIKeyAPIs(ctx context.Context, apiKeyUUID uuid.UUID, page, limit int, sortBy, sortOrder string) (*APIKeyAPIServicePaginatedResult, error) {
+func (s *apiKeyService) GetAPIKeyAPIs(ctx context.Context, tenantID int64, apiKeyUUID uuid.UUID, page, limit int, sortBy, sortOrder string) (*APIKeyAPIServicePaginatedResult, error) {
 	_, span := otel.Tracer("service").Start(ctx, "api_key.getAPIs")
 	defer span.End()
-	span.SetAttributes(attribute.String("api_key.uuid", apiKeyUUID.String()))
+	span.SetAttributes(attribute.String("api_key.uuid", apiKeyUUID.String()), attribute.Int64("tenant.id", tenantID))
 	// Set defaults for pagination
 	if page <= 0 {
 		page = 1
 	}
 	if limit <= 0 {
 		limit = 10
+	}
+
+	apiKey, err := s.apiKeyRepo.FindByUUIDAndTenantID(apiKeyUUID.String(), tenantID)
+	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "failed to fetch api key")
+		return nil, err
+	}
+	if apiKey == nil {
+		span.SetStatus(codes.Error, "api key not found or access denied")
+		return nil, apperror.NewNotFoundWithReason("API key not found or access denied")
 	}
 
 	// Get API key APIs with pagination
@@ -601,10 +618,10 @@ func (s *apiKeyService) GetAPIKeyAPIs(ctx context.Context, apiKeyUUID uuid.UUID,
 }
 
 // Add APIs to API key
-func (s *apiKeyService) AddAPIKeyAPIs(ctx context.Context, apiKeyUUID uuid.UUID, apiUUIDs []uuid.UUID) error {
+func (s *apiKeyService) AddAPIKeyAPIs(ctx context.Context, tenantID int64, apiKeyUUID uuid.UUID, apiUUIDs []uuid.UUID) error {
 	_, span := otel.Tracer("service").Start(ctx, "api_key.addAPIs")
 	defer span.End()
-	span.SetAttributes(attribute.String("api_key.uuid", apiKeyUUID.String()))
+	span.SetAttributes(attribute.String("api_key.uuid", apiKeyUUID.String()), attribute.Int64("tenant.id", tenantID))
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
 		apiKeyRepo := s.apiKeyRepo.WithTx(tx)
@@ -612,12 +629,12 @@ func (s *apiKeyService) AddAPIKeyAPIs(ctx context.Context, apiKeyUUID uuid.UUID,
 		apiRepo := s.apiRepo.WithTx(tx)
 
 		// Get API key
-		apiKey, err := apiKeyRepo.FindByUUID(apiKeyUUID)
+		apiKey, err := apiKeyRepo.FindByUUIDAndTenantID(apiKeyUUID.String(), tenantID)
 		if err != nil {
 			return err
 		}
 		if apiKey == nil {
-			return apperror.NewNotFoundWithReason("API key not found")
+			return apperror.NewNotFoundWithReason("API key not found or access denied")
 		}
 
 		// Process each API UUID
@@ -629,6 +646,9 @@ func (s *apiKeyService) AddAPIKeyAPIs(ctx context.Context, apiKeyUUID uuid.UUID,
 			}
 			if api == nil {
 				return apperror.NewNotFoundWithReason("API not found: " + apiUUID.String())
+			}
+			if api.TenantID != tenantID {
+				return apperror.NewNotFoundWithReason("API not found or access denied: " + apiUUID.String())
 			}
 
 			// Check if relationship already exists
@@ -664,16 +684,26 @@ func (s *apiKeyService) AddAPIKeyAPIs(ctx context.Context, apiKeyUUID uuid.UUID,
 }
 
 // Remove API from API key
-func (s *apiKeyService) RemoveAPIKeyAPI(ctx context.Context, apiKeyUUID uuid.UUID, apiUUID uuid.UUID) error {
+func (s *apiKeyService) RemoveAPIKeyAPI(ctx context.Context, tenantID int64, apiKeyUUID uuid.UUID, apiUUID uuid.UUID) error {
 	_, span := otel.Tracer("service").Start(ctx, "api_key.removeAPI")
 	defer span.End()
 	span.SetAttributes(
 		attribute.String("api_key.uuid", apiKeyUUID.String()),
 		attribute.String("api.uuid", apiUUID.String()),
+		attribute.Int64("tenant.id", tenantID),
 	)
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
+		apiKeyRepo := s.apiKeyRepo.WithTx(tx)
 		apiKeyAPIRepo := s.apiKeyAPIRepo.WithTx(tx)
+
+		apiKey, err := apiKeyRepo.FindByUUIDAndTenantID(apiKeyUUID.String(), tenantID)
+		if err != nil {
+			return err
+		}
+		if apiKey == nil {
+			return apperror.NewNotFoundWithReason("API key not found or access denied")
+		}
 
 		// First check if the relationship exists
 		apiKeyAPI, err := apiKeyAPIRepo.FindByAPIKeyUUIDAndAPIUUID(apiKeyUUID, apiUUID)
@@ -697,13 +727,25 @@ func (s *apiKeyService) RemoveAPIKeyAPI(ctx context.Context, apiKeyUUID uuid.UUI
 }
 
 // Get permissions for a specific API assigned to API key
-func (s *apiKeyService) GetAPIKeyAPIPermissions(ctx context.Context, apiKeyUUID uuid.UUID, apiUUID uuid.UUID) ([]PermissionServiceDataResult, error) {
+func (s *apiKeyService) GetAPIKeyAPIPermissions(ctx context.Context, tenantID int64, apiKeyUUID uuid.UUID, apiUUID uuid.UUID) ([]PermissionServiceDataResult, error) {
 	_, span := otel.Tracer("service").Start(ctx, "api_key.getAPIPermissions")
 	defer span.End()
 	span.SetAttributes(
 		attribute.String("api_key.uuid", apiKeyUUID.String()),
 		attribute.String("api.uuid", apiUUID.String()),
+		attribute.Int64("tenant.id", tenantID),
 	)
+
+	apiKey, err := s.apiKeyRepo.FindByUUIDAndTenantID(apiKeyUUID.String(), tenantID)
+	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "failed to fetch api key")
+		return nil, err
+	}
+	if apiKey == nil {
+		span.SetStatus(codes.Error, "api key not found or access denied")
+		return nil, apperror.NewNotFoundWithReason("API key not found or access denied")
+	}
 
 	// Get API key API relationship
 	apiKeyAPI, err := s.apiKeyAPIRepo.FindByAPIKeyUUIDAndAPIUUID(apiKeyUUID, apiUUID)
@@ -745,19 +787,29 @@ func (s *apiKeyService) GetAPIKeyAPIPermissions(ctx context.Context, apiKeyUUID 
 }
 
 // Add permissions to a specific API for API key
-func (s *apiKeyService) AddAPIKeyAPIPermissions(ctx context.Context, apiKeyUUID uuid.UUID, apiUUID uuid.UUID, permissionUUIDs []uuid.UUID) error {
+func (s *apiKeyService) AddAPIKeyAPIPermissions(ctx context.Context, tenantID int64, apiKeyUUID uuid.UUID, apiUUID uuid.UUID, permissionUUIDs []uuid.UUID) error {
 	_, span := otel.Tracer("service").Start(ctx, "api_key.addAPIPermissions")
 	defer span.End()
 	span.SetAttributes(
 		attribute.String("api_key.uuid", apiKeyUUID.String()),
 		attribute.String("api.uuid", apiUUID.String()),
+		attribute.Int64("tenant.id", tenantID),
 	)
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
+		apiKeyRepo := s.apiKeyRepo.WithTx(tx)
 		apiKeyAPIRepo := s.apiKeyAPIRepo.WithTx(tx)
 		apiKeyPermissionRepo := s.apiKeyPermissionRepo.WithTx(tx)
 		permissionRepo := s.permissionRepo.WithTx(tx)
 		apiRepo := s.apiRepo.WithTx(tx)
+
+		apiKey, err := apiKeyRepo.FindByUUIDAndTenantID(apiKeyUUID.String(), tenantID)
+		if err != nil {
+			return err
+		}
+		if apiKey == nil {
+			return apperror.NewNotFoundWithReason("API key not found or access denied")
+		}
 
 		// Get API key API relationship
 		apiKeyAPI, err := apiKeyAPIRepo.FindByAPIKeyUUIDAndAPIUUID(apiKeyUUID, apiUUID)
@@ -776,6 +828,9 @@ func (s *apiKeyService) AddAPIKeyAPIPermissions(ctx context.Context, apiKeyUUID 
 		if api == nil {
 			return apperror.NewNotFoundWithReason("API not found")
 		}
+		if api.TenantID != tenantID {
+			return apperror.NewNotFoundWithReason("API not found or access denied")
+		}
 
 		// Process each permission UUID
 		for _, permissionUUID := range permissionUUIDs {
@@ -786,6 +841,9 @@ func (s *apiKeyService) AddAPIKeyAPIPermissions(ctx context.Context, apiKeyUUID 
 			}
 			if permission == nil {
 				return apperror.NewNotFoundWithReason("permission not found: " + permissionUUID.String())
+			}
+			if permission.TenantID != tenantID {
+				return apperror.NewNotFoundWithReason("permission not found or access denied: " + permissionUUID.String())
 			}
 
 			// Validate that the permission belongs to the specified API
@@ -826,20 +884,30 @@ func (s *apiKeyService) AddAPIKeyAPIPermissions(ctx context.Context, apiKeyUUID 
 }
 
 // Remove permission from a specific API for API key
-func (s *apiKeyService) RemoveAPIKeyAPIPermission(ctx context.Context, apiKeyUUID uuid.UUID, apiUUID uuid.UUID, permissionUUID uuid.UUID) error {
+func (s *apiKeyService) RemoveAPIKeyAPIPermission(ctx context.Context, tenantID int64, apiKeyUUID uuid.UUID, apiUUID uuid.UUID, permissionUUID uuid.UUID) error {
 	_, span := otel.Tracer("service").Start(ctx, "api_key.removeAPIPermission")
 	defer span.End()
 	span.SetAttributes(
 		attribute.String("api_key.uuid", apiKeyUUID.String()),
 		attribute.String("api.uuid", apiUUID.String()),
 		attribute.String("permission.uuid", permissionUUID.String()),
+		attribute.Int64("tenant.id", tenantID),
 	)
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
+		apiKeyRepo := s.apiKeyRepo.WithTx(tx)
 		apiKeyAPIRepo := s.apiKeyAPIRepo.WithTx(tx)
 		apiKeyPermissionRepo := s.apiKeyPermissionRepo.WithTx(tx)
 		permissionRepo := s.permissionRepo.WithTx(tx)
 		apiRepo := s.apiRepo.WithTx(tx)
+
+		apiKey, err := apiKeyRepo.FindByUUIDAndTenantID(apiKeyUUID.String(), tenantID)
+		if err != nil {
+			return err
+		}
+		if apiKey == nil {
+			return apperror.NewNotFoundWithReason("API key not found or access denied")
+		}
 
 		// Get API key API relationship
 		apiKeyAPI, err := apiKeyAPIRepo.FindByAPIKeyUUIDAndAPIUUID(apiKeyUUID, apiUUID)
@@ -858,6 +926,9 @@ func (s *apiKeyService) RemoveAPIKeyAPIPermission(ctx context.Context, apiKeyUUI
 		if api == nil {
 			return apperror.NewNotFoundWithReason("API not found")
 		}
+		if api.TenantID != tenantID {
+			return apperror.NewNotFoundWithReason("API not found or access denied")
+		}
 
 		// Get permission
 		permission, err := permissionRepo.FindByUUID(permissionUUID)
@@ -866,6 +937,9 @@ func (s *apiKeyService) RemoveAPIKeyAPIPermission(ctx context.Context, apiKeyUUI
 		}
 		if permission == nil {
 			return apperror.NewNotFound("permission not found")
+		}
+		if permission.TenantID != tenantID {
+			return apperror.NewNotFoundWithReason("permission not found or access denied")
 		}
 
 		// Validate that the permission belongs to the specified API

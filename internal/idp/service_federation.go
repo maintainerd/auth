@@ -238,7 +238,10 @@ func (s *federationService) LinkIdentity(ctx context.Context, userID int64, req 
 	}
 
 	// Ensure this external identity isn't already claimed by another user.
-	existing, _ := s.userIdentityRepo.FindByProviderAndSub(idp.Provider, externalSub)
+	existing, err := s.userIdentityRepo.FindByProviderAndSub(idp.Provider, externalSub)
+	if err != nil {
+		return nil, err
+	}
 	if existing != nil {
 		if existing.UserID != userID {
 			return nil, apperror.NewValidation("this external identity is already linked to a different account")
@@ -394,7 +397,7 @@ func (s *federationService) validateOIDCToken(ctx context.Context, cfg OIDCProvi
 
 	verifierCfg := &oidclib.Config{ClientID: cfg.ClientID}
 	if cfg.ClientID == "" {
-		verifierCfg.SkipClientIDCheck = true
+		return nil, fmt.Errorf("OIDC client_id is required")
 	}
 	verifier := provider.Verifier(verifierCfg)
 
@@ -439,7 +442,7 @@ func (s *federationService) provisionUser(
 		newUser := &User{
 			Email:           email,
 			Username:        username,
-			IsEmailVerified: stringClaim2(meta.Email) != "",
+			IsEmailVerified: meta.EmailVerified,
 		}
 		created, err := txUserRepo.Create(newUser)
 		if err != nil || created == nil {
@@ -569,7 +572,14 @@ func stringClaim(claims map[string]interface{}, key string) string {
 	return s
 }
 
-func stringClaim2(s string) string { return s }
+func boolClaim(claims map[string]interface{}, key string) bool {
+	v, ok := claims[key]
+	if !ok {
+		return false
+	}
+	b, _ := v.(bool)
+	return b
+}
 
 func extractMetadata(claims map[string]interface{}, mapping map[string]string) IdentityMetadata {
 	claimName := func(field string) string {
@@ -581,12 +591,13 @@ func extractMetadata(claims map[string]interface{}, mapping map[string]string) I
 		return field
 	}
 	return IdentityMetadata{
-		Email:      stringClaim(claims, claimName("email")),
-		Name:       stringClaim(claims, claimName("name")),
-		GivenName:  stringClaim(claims, claimName("given_name")),
-		FamilyName: stringClaim(claims, claimName("family_name")),
-		Picture:    stringClaim(claims, claimName("picture")),
-		Locale:     stringClaim(claims, claimName("locale")),
+		Email:         stringClaim(claims, claimName("email")),
+		EmailVerified: boolClaim(claims, claimName("email_verified")),
+		Name:          stringClaim(claims, claimName("name")),
+		GivenName:     stringClaim(claims, claimName("given_name")),
+		FamilyName:    stringClaim(claims, claimName("family_name")),
+		Picture:       stringClaim(claims, claimName("picture")),
+		Locale:        stringClaim(claims, claimName("locale")),
 	}
 }
 
@@ -683,10 +694,11 @@ type OIDCProviderConfig struct {
 // provider identities. It captures the profile attributes returned by the
 // upstream provider at link/login time.
 type IdentityMetadata struct {
-	Email      string `json:"email,omitempty"`
-	Name       string `json:"name,omitempty"`
-	GivenName  string `json:"given_name,omitempty"`
-	FamilyName string `json:"family_name,omitempty"`
-	Picture    string `json:"picture,omitempty"`
-	Locale     string `json:"locale,omitempty"`
+	Email         string `json:"email,omitempty"`
+	EmailVerified bool   `json:"email_verified,omitempty"`
+	Name          string `json:"name,omitempty"`
+	GivenName     string `json:"given_name,omitempty"`
+	FamilyName    string `json:"family_name,omitempty"`
+	Picture       string `json:"picture,omitempty"`
+	Locale        string `json:"locale,omitempty"`
 }

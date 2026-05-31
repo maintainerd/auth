@@ -2,10 +2,12 @@ package oauth
 
 import (
 	"net/http"
+	"time"
 
 	"github.com/maintainerd/auth/internal/platform/cache"
 	"github.com/maintainerd/auth/internal/platform/database"
 	"github.com/maintainerd/auth/internal/platform/pagination"
+	"github.com/maintainerd/auth/internal/platform/security"
 	"gorm.io/gorm"
 )
 
@@ -77,4 +79,20 @@ func extractOAuthClientCredentials(r *http.Request, clientID, clientSecret strin
 		return OAuthClientCredentials{ClientID: id, ClientSecret: secret}
 	}
 	return OAuthClientCredentials{ClientID: clientID, ClientSecret: clientSecret}
+}
+
+func clientSecretMatches(client *Client, plaintext string) bool {
+	if plaintext == "" {
+		return false
+	}
+	if client.SecretHash != nil && security.CompareClientSecret(plaintext, *client.SecretHash) {
+		return true
+	}
+	if client.PreviousSecretHash == nil || client.PreviousSecretExpiresAt == nil {
+		return false
+	}
+	if !client.PreviousSecretExpiresAt.After(time.Now()) {
+		return false
+	}
+	return security.CompareClientSecret(plaintext, *client.PreviousSecretHash)
 }

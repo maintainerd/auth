@@ -90,6 +90,13 @@ func TestTenantFilterDto_Validate(t *testing.T) {
 	})
 }
 
+func TestTenantSetStatusRequestDto_Validate(t *testing.T) {
+	assert.NoError(t, TenantSetStatusRequestDTO{Status: shared.StatusActive}.Validate())
+	assert.NoError(t, TenantSetStatusRequestDTO{Status: shared.StatusSuspended}.Validate())
+	require.Error(t, TenantSetStatusRequestDTO{Status: ""}.Validate())
+	require.Error(t, TenantSetStatusRequestDTO{Status: "deleted"}.Validate())
+}
+
 // ------ TenantMember tests ------
 
 func TestTenantMemberAddMemberRequestDto_Validate(t *testing.T) {

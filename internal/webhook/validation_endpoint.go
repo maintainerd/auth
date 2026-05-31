@@ -1,10 +1,23 @@
 package webhook
 
 import (
+	"context"
+
 	validation "github.com/go-ozzo/ozzo-validation/v4"
 	"github.com/go-ozzo/ozzo-validation/v4/is"
 	"github.com/maintainerd/auth/internal/shared"
 )
+
+var webhookURLRule = validation.By(func(value any) error {
+	raw, _ := value.(string)
+	if raw == "" {
+		return nil
+	}
+	if err := validateWebhookURL(context.Background(), raw, false); err != nil {
+		return validation.NewError("validation_webhook_url", err.Error())
+	}
+	return nil
+})
 
 // Validate validates the webhook endpoint create request.
 func (r WebhookEndpointCreateRequestDTO) Validate() error {
@@ -12,6 +25,7 @@ func (r WebhookEndpointCreateRequestDTO) Validate() error {
 		validation.Field(&r.URL,
 			validation.Required.Error("URL is required"),
 			is.URL.Error("URL must be a valid URL"),
+			webhookURLRule,
 		),
 		validation.Field(&r.Events,
 			validation.Required.Error("Events list is required"),
@@ -38,6 +52,7 @@ func (r WebhookEndpointUpdateRequestDTO) Validate() error {
 		validation.Field(&r.URL,
 			validation.Required.Error("URL is required"),
 			is.URL.Error("URL must be a valid URL"),
+			webhookURLRule,
 		),
 		validation.Field(&r.Events,
 			validation.Required.Error("Events list is required"),
