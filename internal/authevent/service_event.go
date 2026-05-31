@@ -2,6 +2,7 @@ package authevent
 
 import (
 	"context"
+	"sync"
 	"time"
 
 	"github.com/google/uuid"
@@ -53,6 +54,7 @@ type AuthEventServiceDataResult struct {
 // WebhookDispatcher delivers a persisted auth event to subscribed webhook endpoints.
 type WebhookDispatcher interface {
 	Dispatch(ctx context.Context, event *AuthEvent)
+	Shutdown()
 }
 
 // AuthEventService defines business operations on security auth events.
@@ -74,11 +76,15 @@ type AuthEventService interface {
 	// DeleteOlderThan removes events older than the cutoff. Returns the number
 	// of rows deleted. Used by the retention background job.
 	DeleteOlderThan(ctx context.Context, cutoff time.Time) (int64, error)
+
+	// Shutdown waits for all in-flight webhook dispatches to complete.
+	Shutdown()
 }
 
 type authEventService struct {
 	authEventRepo AuthEventRepository
 	dispatcher    WebhookDispatcher
+	wg            sync.WaitGroup
 }
 
 // NewAuthEventService creates a new AuthEventService.
@@ -104,6 +110,7 @@ func (noopAuthEventService) CountByEventType(_ context.Context, _ string, _ int6
 func (noopAuthEventService) DeleteOlderThan(_ context.Context, _ time.Time) (int64, error) {
 	return 0, nil
 }
+func (noopAuthEventService) Shutdown() {}
 
 // NoopService returns a silent AuthEventService that discards all events.
 func NoopService() AuthEventService {
@@ -159,7 +166,9 @@ func (s *authEventService) Log(ctx context.Context, input AuthEventInput) {
 	}
 
 	if s.dispatcher != nil {
+		s.wg.Add(1)
 		go func() {
+			defer s.wg.Done()
 			dCtx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 			defer cancel()
 			s.dispatcher.Dispatch(dCtx, created)
@@ -251,6 +260,14 @@ func (s *authEventService) DeleteOlderThan(ctx context.Context, cutoff time.Time
 	span.SetAttributes(attribute.Int64("deleted_count", count))
 	span.SetStatus(codes.Ok, "")
 	return count, nil
+}
+
+// Shutdown waits for all in-flight webhook dispatches to complete.
+func (s *authEventService) Shutdown() {
+	s.wg.Wait()
+	if s.dispatcher != nil {
+		s.dispatcher.Shutdown()
+	}
 }
 
 func toAuthEventServiceDataResult(e *AuthEvent) AuthEventServiceDataResult {

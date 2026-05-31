@@ -62,6 +62,8 @@ func (m *mockAuthEventService) DeleteOlderThan(ctx context.Context, cutoff time.
 	return 0, nil
 }
 
+func (m *mockAuthEventService) Shutdown() {}
+
 func withTenant(r *http.Request) *http.Request {
 	tenant := &cache.AuthTenant{TenantID: testTenantID, TenantUUID: testTenantUUID}
 	return middleware.WithAuthContext(r, &middleware.AuthContext{Tenant: tenant})

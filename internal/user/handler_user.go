@@ -582,14 +582,14 @@ func toUserResponseDTO(u UserServiceDataResult) UserResponseDTO {
 		result.Tenant = &TenantResponseDTO{
 			TenantUUID:  u.Tenant.TenantUUID,
 			Name:        u.Tenant.Name,
+			DisplayName: u.Tenant.DisplayName,
 			Description: u.Tenant.Description,
 			Identifier:  u.Tenant.Identifier,
 			Status:      u.Tenant.Status,
 			IsPublic:    u.Tenant.IsPublic,
-
-			IsSystem:  u.Tenant.IsSystem,
-			CreatedAt: u.Tenant.CreatedAt,
-			UpdatedAt: u.Tenant.UpdatedAt,
+			IsSystem:    u.Tenant.IsSystem,
+			CreatedAt:   u.Tenant.CreatedAt,
+			UpdatedAt:   u.Tenant.UpdatedAt,
 		}
 	}
 

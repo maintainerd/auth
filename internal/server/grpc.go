@@ -22,7 +22,7 @@ func StartGRPCServer(ctx context.Context, application *Application) error {
 		return fmt.Errorf("gRPC failed to listen on :50051: %w", err)
 	}
 
-	seederHandler := setup.NewSeederHandler(application.RegisterService)
+	seederHandler := &setup.SeederHandler{}
 
 	s := grpc.NewServer(
 		grpc.StatsHandler(otelgrpc.NewServerHandler()),

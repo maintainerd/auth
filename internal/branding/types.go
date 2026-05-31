@@ -97,8 +97,6 @@ type EmailTemplateFilterDTO struct {
 	PaginationRequestDTO
 }
 
-// Validate validates the email template filter DTO.
-
 // Login template list response DTO (without metadata)
 type LoginTemplateListResponseDTO struct {
 	LoginTemplateID string    `json:"login_template_id"`
@@ -161,8 +159,6 @@ type LoginTemplateFilterDTO struct {
 	PaginationRequestDTO
 }
 
-// Validate validates the login template filter DTO.
-
 // SMS template list response DTO (without message content)
 type SMSTemplateListResponseDTO struct {
 	SMSTemplateID string    `json:"sms_template_id"`
@@ -224,4 +220,4 @@ type SMSTemplateFilterDTO struct {
 	PaginationRequestDTO
 }
 
-// Validate validates the SMS template filter DTO.
+

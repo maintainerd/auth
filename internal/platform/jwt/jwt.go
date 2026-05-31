@@ -373,6 +373,8 @@ func buildAllowedClaimsSet(params *IDTokenParams) map[string]struct{} {
 	return allowed
 }
 
+// GenerateIDToken is the public entry point for ID token generation.
+// It is assigned to the private implementation so tests can swap it out.
 var GenerateIDToken = generateIDToken
 
 func generateIDToken(userUUID, issuer, clientID, providerID string, profile *UserProfile, nonce string, params *IDTokenParams) (string, error) {
@@ -501,6 +503,8 @@ func generateIDToken(userUUID, issuer, clientID, providerID string, profile *Use
 	return tok, nil
 }
 
+// GenerateRefreshToken is the public entry point for refresh token generation.
+// It is assigned to the private implementation so tests can swap it out.
 var GenerateRefreshToken = generateRefreshToken
 
 func generateRefreshToken(userUUID, issuer, clientID, providerID string) (string, error) {

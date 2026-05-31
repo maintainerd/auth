@@ -526,7 +526,7 @@ type mockIdentityProviderRepo struct {
 	findPaginatedFn           func(idp.IdentityProviderRepositoryGetFilter) (*PaginationResult[IdentityProvider], error)
 }
 
-func (m *mockIdentityProviderRepo) WithTx(_ *gorm.DB) IdentityProviderRepository { return m }
+func (m *mockIdentityProviderRepo) WithTx(_ *gorm.DB) any { return m }
 func (m *mockIdentityProviderRepo) FindByName(name string, tenantID int64) (*IdentityProvider, error) {
 	if m.findByNameFn != nil {
 		return m.findByNameFn(name, tenantID)

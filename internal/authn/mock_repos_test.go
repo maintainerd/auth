@@ -345,3 +345,4 @@ func (m *mockAuthEventService) CountByEventType(_ context.Context, _ string, _ i
 func (m *mockAuthEventService) DeleteOlderThan(_ context.Context, _ time.Time) (int64, error) {
 	return 0, nil
 }
+func (m *mockAuthEventService) Shutdown() {}

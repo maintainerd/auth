@@ -6,6 +6,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/platform/database"
+	"github.com/maintainerd/auth/internal/shared"
 	"gorm.io/gorm"
 )
 
@@ -94,7 +95,7 @@ func (r *webhookEndpointRepository) FindPaginated(filter WebhookEndpointReposito
 // FindActiveByTenantID retrieves all active (non-deleted) webhook endpoints for a tenant.
 func (r *webhookEndpointRepository) FindActiveByTenantID(tenantID int64) ([]WebhookEndpoint, error) {
 	var endpoints []WebhookEndpoint
-	err := r.DB().Where("tenant_id = ? AND status = ?", tenantID, "active").Find(&endpoints).Error
+	err := r.DB().Where("tenant_id = ? AND status = ?", tenantID, shared.StatusActive).Find(&endpoints).Error
 	if err != nil {
 		return nil, err
 	}

@@ -11,7 +11,7 @@ import (
 )
 
 func newEmailTemplateSvc(repo *mockEmailTemplateRepo) EmailTemplateService {
-	return NewEmailTemplateService(nil, repo)
+	return NewEmailTemplateService(repo)
 }
 
 func TestEmailTemplateService_GetByUUID(t *testing.T) {
