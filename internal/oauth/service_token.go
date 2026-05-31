@@ -12,7 +12,6 @@ import (
 	"github.com/maintainerd/auth/internal/platform/jwt"
 	"github.com/maintainerd/auth/internal/platform/middleware"
 	"github.com/maintainerd/auth/internal/platform/ptr"
-	"github.com/maintainerd/auth/internal/platform/security"
 	"github.com/maintainerd/auth/internal/shared"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
@@ -578,7 +577,7 @@ func (s *oauthTokenService) authenticateClient(ctx context.Context, creds OAuthC
 	case TokenAuthMethodNone:
 		// Public clients (SPA/mobile) do not have a secret.
 	case TokenAuthMethodSecretBasic, TokenAuthMethodSecretPost:
-		if client.SecretHash == nil || !security.CompareClientSecret(creds.ClientSecret, *client.SecretHash) {
+		if !clientSecretMatches(client, creds.ClientSecret) {
 			s.logClientAuthFail(ctx, client.TenantID, "invalid client_secret")
 			return nil, apperror.NewOAuthInvalidClient("client authentication failed")
 		}

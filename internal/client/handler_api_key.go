@@ -344,6 +344,12 @@ func toAPIKeyResponseDTO(r APIKeyServiceDataResult) APIKeyResponseDTO {
 
 // GetAPIs retrieves APIs assigned to API key with pagination.
 func (h *APIKeyHandler) GetAPIs(w http.ResponseWriter, r *http.Request) {
+	tenant := middleware.AuthFromRequest(r).Tenant
+	if tenant == nil {
+		resp.Error(w, http.StatusUnauthorized, "Tenant not found in context")
+		return
+	}
+
 	apiKeyUUID, err := uuid.Parse(chi.URLParam(r, "api_key_uuid"))
 	if err != nil {
 		resp.Error(w, http.StatusBadRequest, "Invalid API key UUID")
@@ -361,7 +367,7 @@ func (h *APIKeyHandler) GetAPIs(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Get API key APIs with pagination
-	result, err := h.apiKeyService.GetAPIKeyAPIs(r.Context(), apiKeyUUID, reqParams.Page, reqParams.Limit, reqParams.SortBy, reqParams.SortOrder)
+	result, err := h.apiKeyService.GetAPIKeyAPIs(r.Context(), tenant.TenantID, apiKeyUUID, reqParams.Page, reqParams.Limit, reqParams.SortBy, reqParams.SortOrder)
 	if err != nil {
 		resp.HandleServiceError(w, r, "Failed to get API key APIs", err)
 		return
@@ -399,6 +405,12 @@ func (h *APIKeyHandler) GetAPIs(w http.ResponseWriter, r *http.Request) {
 
 // AddAPIs adds APIs to API key.
 func (h *APIKeyHandler) AddAPIs(w http.ResponseWriter, r *http.Request) {
+	tenant := middleware.AuthFromRequest(r).Tenant
+	if tenant == nil {
+		resp.Error(w, http.StatusUnauthorized, "Tenant not found in context")
+		return
+	}
+
 	apiKeyUUID, err := uuid.Parse(chi.URLParam(r, "api_key_uuid"))
 	if err != nil {
 		resp.Error(w, http.StatusBadRequest, "Invalid API key UUID")
@@ -417,7 +429,7 @@ func (h *APIKeyHandler) AddAPIs(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Add APIs to API key
-	err = h.apiKeyService.AddAPIKeyAPIs(r.Context(), apiKeyUUID, req.APIUUIDs)
+	err = h.apiKeyService.AddAPIKeyAPIs(r.Context(), tenant.TenantID, apiKeyUUID, req.APIUUIDs)
 	if err != nil {
 		resp.HandleServiceError(w, r, "Failed to add APIs to API key", err)
 		return
@@ -428,6 +440,12 @@ func (h *APIKeyHandler) AddAPIs(w http.ResponseWriter, r *http.Request) {
 
 // RemoveAPI removes an API from API key.
 func (h *APIKeyHandler) RemoveAPI(w http.ResponseWriter, r *http.Request) {
+	tenant := middleware.AuthFromRequest(r).Tenant
+	if tenant == nil {
+		resp.Error(w, http.StatusUnauthorized, "Tenant not found in context")
+		return
+	}
+
 	apiKeyUUID, err := uuid.Parse(chi.URLParam(r, "api_key_uuid"))
 	if err != nil {
 		resp.Error(w, http.StatusBadRequest, "Invalid API key UUID")
@@ -441,7 +459,7 @@ func (h *APIKeyHandler) RemoveAPI(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Remove API from API key
-	err = h.apiKeyService.RemoveAPIKeyAPI(r.Context(), apiKeyUUID, apiUUID)
+	err = h.apiKeyService.RemoveAPIKeyAPI(r.Context(), tenant.TenantID, apiKeyUUID, apiUUID)
 	if err != nil {
 		resp.HandleServiceError(w, r, "Failed to remove API from API key", err)
 		return
@@ -452,6 +470,12 @@ func (h *APIKeyHandler) RemoveAPI(w http.ResponseWriter, r *http.Request) {
 
 // GetAPIPermissions retrieves permissions for a specific API assigned to API key.
 func (h *APIKeyHandler) GetAPIPermissions(w http.ResponseWriter, r *http.Request) {
+	tenant := middleware.AuthFromRequest(r).Tenant
+	if tenant == nil {
+		resp.Error(w, http.StatusUnauthorized, "Tenant not found in context")
+		return
+	}
+
 	apiKeyUUID, err := uuid.Parse(chi.URLParam(r, "api_key_uuid"))
 	if err != nil {
 		resp.Error(w, http.StatusBadRequest, "Invalid API key UUID")
@@ -465,7 +489,7 @@ func (h *APIKeyHandler) GetAPIPermissions(w http.ResponseWriter, r *http.Request
 	}
 
 	// Get API key API permissions
-	permissions, err := h.apiKeyService.GetAPIKeyAPIPermissions(r.Context(), apiKeyUUID, apiUUID)
+	permissions, err := h.apiKeyService.GetAPIKeyAPIPermissions(r.Context(), tenant.TenantID, apiKeyUUID, apiUUID)
 	if err != nil {
 		resp.HandleServiceError(w, r, "Failed to get API key API permissions", err)
 		return
@@ -496,6 +520,12 @@ func (h *APIKeyHandler) GetAPIPermissions(w http.ResponseWriter, r *http.Request
 
 // AddAPIPermissions adds permissions to a specific API for API key.
 func (h *APIKeyHandler) AddAPIPermissions(w http.ResponseWriter, r *http.Request) {
+	tenant := middleware.AuthFromRequest(r).Tenant
+	if tenant == nil {
+		resp.Error(w, http.StatusUnauthorized, "Tenant not found in context")
+		return
+	}
+
 	apiKeyUUID, err := uuid.Parse(chi.URLParam(r, "api_key_uuid"))
 	if err != nil {
 		resp.Error(w, http.StatusBadRequest, "Invalid API key UUID")
@@ -520,7 +550,7 @@ func (h *APIKeyHandler) AddAPIPermissions(w http.ResponseWriter, r *http.Request
 	}
 
 	// Add permissions to API key API
-	err = h.apiKeyService.AddAPIKeyAPIPermissions(r.Context(), apiKeyUUID, apiUUID, req.PermissionUUIDs)
+	err = h.apiKeyService.AddAPIKeyAPIPermissions(r.Context(), tenant.TenantID, apiKeyUUID, apiUUID, req.PermissionUUIDs)
 	if err != nil {
 		resp.HandleServiceError(w, r, "Failed to add permissions to API key API", err)
 		return
@@ -531,6 +561,12 @@ func (h *APIKeyHandler) AddAPIPermissions(w http.ResponseWriter, r *http.Request
 
 // RemoveAPIPermission removes a permission from a specific API for API key.
 func (h *APIKeyHandler) RemoveAPIPermission(w http.ResponseWriter, r *http.Request) {
+	tenant := middleware.AuthFromRequest(r).Tenant
+	if tenant == nil {
+		resp.Error(w, http.StatusUnauthorized, "Tenant not found in context")
+		return
+	}
+
 	apiKeyUUID, err := uuid.Parse(chi.URLParam(r, "api_key_uuid"))
 	if err != nil {
 		resp.Error(w, http.StatusBadRequest, "Invalid API key UUID")
@@ -550,7 +586,7 @@ func (h *APIKeyHandler) RemoveAPIPermission(w http.ResponseWriter, r *http.Reque
 	}
 
 	// Remove permission from API key API
-	err = h.apiKeyService.RemoveAPIKeyAPIPermission(r.Context(), apiKeyUUID, apiUUID, permissionUUID)
+	err = h.apiKeyService.RemoveAPIKeyAPIPermission(r.Context(), tenant.TenantID, apiKeyUUID, apiUUID, permissionUUID)
 	if err != nil {
 		resp.HandleServiceError(w, r, "Failed to remove permission from API key API", err)
 		return

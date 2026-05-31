@@ -631,6 +631,10 @@ func (s *roleService) AddRolePermissions(ctx context.Context, roleUUID uuid.UUID
 
 		// Create role-permission associations using the dedicated repository
 		for _, permission := range permissions {
+			if permission.TenantID != role.TenantID {
+				return apperror.NewNotFoundWithReason("one or more permissions not found or access denied")
+			}
+
 			// Check if association already exists
 			existing, err := txRolePermissionRepo.FindByRoleAndPermission(role.RoleID, permission.PermissionID)
 			if err != nil {
@@ -739,6 +743,9 @@ func (s *roleService) RemoveRolePermissions(ctx context.Context, roleUUID uuid.U
 		}
 		if permission == nil {
 			return apperror.NewNotFound("permission not found")
+		}
+		if permission.TenantID != role.TenantID {
+			return apperror.NewNotFoundWithReason("permission not found or access denied")
 		}
 
 		// Check if association exists

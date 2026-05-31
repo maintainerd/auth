@@ -240,11 +240,13 @@ func (h *TenantHandler) SetStatus(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var req struct {
-		Status string `json:"status"`
-	}
+	var req TenantSetStatusRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		resp.Error(w, http.StatusBadRequest, "Invalid request")
+		return
+	}
+	if err := req.Validate(); err != nil {
+		resp.ValidationError(w, err)
 		return
 	}
 

@@ -254,6 +254,13 @@ func TestTenantHandler_SetStatus(t *testing.T) {
 		assert.Equal(t, http.StatusBadRequest, w.Code)
 	})
 
+	t.Run("invalid status returns 400", func(t *testing.T) {
+		r := withChiParam(jsonReq(t, http.MethodPatch, "/", map[string]any{"status": "deleted"}), "tenant_uuid", testResourceUUID.String())
+		w := httptest.NewRecorder()
+		newTenantHandler(nil, nil).SetStatus(w, r)
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+	})
+
 	t.Run("service error returns 500", func(t *testing.T) {
 		ts := &mockTenantService{setStatusByUUIDFn: func(uuid.UUID, string) (*TenantServiceDataResult, error) {
 			return nil, errors.New("status error")

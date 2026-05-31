@@ -1002,6 +1002,17 @@ func (s *clientService) GetClientAPIs(ctx context.Context, tenantID int64, Clien
 		attribute.Int64("tenant.id", tenantID),
 	)
 
+	client, err := s.clientRepo.FindByUUIDAndTenantID(ClientUUID, tenantID)
+	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "failed to fetch client")
+		return nil, err
+	}
+	if client == nil {
+		span.SetStatus(codes.Error, "client not found or access denied")
+		return nil, apperror.NewNotFoundWithReason("client not found or access denied")
+	}
+
 	// Get auth client APIs from repository
 	ClientAPIs, err := s.clientAPIRepo.FindByClientUUID(ClientUUID)
 	if err != nil {

@@ -14,7 +14,6 @@ import (
 	"github.com/maintainerd/auth/internal/platform/jwt"
 	"github.com/maintainerd/auth/internal/platform/middleware"
 	"github.com/maintainerd/auth/internal/platform/ptr"
-	"github.com/maintainerd/auth/internal/platform/security"
 	"github.com/maintainerd/auth/internal/shared"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
@@ -99,7 +98,11 @@ func (s *oauthDeviceService) Authorize(ctx context.Context, req OAuthDeviceAutho
 	}
 	deviceCodeHash := crypto.HashAuthorizationCode(rawDeviceCode)
 
-	userCode := generateUserCode()
+	userCode, err := generateUserCode()
+	if err != nil {
+		span.RecordError(err)
+		return nil, apperror.NewOAuthServerError("an unexpected error occurred")
+	}
 
 	deviceCode := &OAuthDeviceCode{
 		DeviceCodeHash: deviceCodeHash,
@@ -340,7 +343,7 @@ func (s *oauthDeviceService) authenticateClient(creds OAuthClientCredentials) (*
 		return nil, apperror.NewOAuthServerError("an unexpected error occurred")
 	}
 	if client.SecretHash != nil && *client.SecretHash != "" {
-		if creds.ClientSecret == "" || !security.CompareClientSecret(creds.ClientSecret, *client.SecretHash) {
+		if !clientSecretMatches(&client, creds.ClientSecret) {
 			return nil, apperror.NewOAuthInvalidClient("client authentication failed")
 		}
 	}
@@ -349,10 +352,13 @@ func (s *oauthDeviceService) authenticateClient(creds OAuthClientCredentials) (*
 
 // generateUserCode returns an 8-character uppercase alphanumeric code in the
 // format XXXX-XXXX for easy human entry.
-func generateUserCode() string {
+func generateUserCode() (string, error) {
 	const charset = "BCDFGHJKLMNPQRSTVWXYZ23456789"
 	result := make([]byte, userCodeLength+1) // +1 for separator
-	raw, _ := crypto.GenerateRandomString(16)
+	raw, err := crypto.GenerateRandomString(16)
+	if err != nil {
+		return "", err
+	}
 	for i := 0; i < userCodeLength+1; i++ {
 		if i == 4 {
 			result[i] = '-'
@@ -364,7 +370,7 @@ func generateUserCode() string {
 		}
 		result[i] = charset[int(raw[idx])%len(charset)]
 	}
-	return string(result)
+	return string(result), nil
 }
 
 func (s *oauthDeviceService) sendDeviceApprovalEmail(ctx context.Context, user *User, client *Client) error {

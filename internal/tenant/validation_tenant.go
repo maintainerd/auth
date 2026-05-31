@@ -51,6 +51,15 @@ func (r TenantUpdateRequestDTO) Validate() error {
 	)
 }
 
+func (r TenantSetStatusRequestDTO) Validate() error {
+	return validation.ValidateStruct(&r,
+		validation.Field(&r.Status,
+			validation.Required.Error("Status is required"),
+			validation.In(shared.StatusActive, shared.StatusInactive, shared.StatusPending, shared.StatusSuspended).Error("Status must be active, inactive, pending, or suspended"),
+		),
+	)
+}
+
 func (r TenantFilterDTO) Validate() error {
 	return validation.ValidateStruct(&r,
 		validation.Field(&r.PaginationRequestDTO),

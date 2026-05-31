@@ -62,6 +62,10 @@ func (d *Dispatcher) deliver(ctx context.Context, ep WebhookEndpoint, event *aut
 }
 
 func doRequest(ctx context.Context, url string, body []byte, sig string, timestamp int64, deliveryID, eventType string) error {
+	if err := validateWebhookURL(ctx, url, true); err != nil {
+		return err
+	}
+
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(body))
 	if err != nil {
 		return fmt.Errorf("build request: %w", err)
@@ -72,7 +76,12 @@ func doRequest(ctx context.Context, url string, body []byte, sig string, timesta
 	req.Header.Set("X-Maintainerd-Timestamp", strconv.FormatInt(timestamp, 10))
 	req.Header.Set("X-Maintainerd-Signature-256", sig)
 
-	resp, err := http.DefaultClient.Do(req)
+	client := &http.Client{
+		CheckRedirect: func(req *http.Request, _ []*http.Request) error {
+			return validateWebhookURL(req.Context(), req.URL.String(), true)
+		},
+	}
+	resp, err := client.Do(req)
 	if err != nil {
 		return err
 	}

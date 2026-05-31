@@ -40,6 +40,11 @@ type TenantUpdateRequestDTO struct {
 	IsPublic    bool   `json:"is_public"`
 }
 
+// TenantSetStatusRequestDTO is the request body for changing tenant status.
+type TenantSetStatusRequestDTO struct {
+	Status string `json:"status"`
+}
+
 // API listing / filter DTO
 type TenantFilterDTO struct {
 	Name        *string  `json:"name"`

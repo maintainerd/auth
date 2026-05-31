@@ -50,6 +50,18 @@ func TestWebhookEndpointCreateRequestDTO_Validate(t *testing.T) {
 		require.Error(t, d.Validate())
 	})
 
+	t.Run("http url rejected", func(t *testing.T) {
+		d := validWebhookCreate()
+		d.URL = "http://example.com/hook"
+		require.Error(t, d.Validate())
+	})
+
+	t.Run("private ip url rejected", func(t *testing.T) {
+		d := validWebhookCreate()
+		d.URL = "https://127.0.0.1/hook"
+		require.Error(t, d.Validate())
+	})
+
 	t.Run("missing events", func(t *testing.T) {
 		d := validWebhookCreate()
 		d.Events = nil
