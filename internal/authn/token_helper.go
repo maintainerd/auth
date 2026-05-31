@@ -4,10 +4,16 @@ import (
 	"github.com/maintainerd/auth/internal/platform/jwt"
 )
 
+// DefaultAccessTokenExpiresIn is the lifetime of an access token in seconds.
+const DefaultAccessTokenExpiresIn = 3600
+
+// DefaultTokenScope is the OAuth scope string used when issuing tokens.
+const DefaultTokenScope = "openid profile email"
+
 func generateTokenSet(sub string, user *User, client *Client) (accessToken, idToken, refreshToken string, err error) {
 	accessToken, err = jwt.GenerateAccessToken(
 		sub,
-		"openid profile email",
+		DefaultTokenScope,
 		*client.Domain,
 		*client.Identifier,
 		*client.Identifier,

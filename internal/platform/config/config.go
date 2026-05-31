@@ -8,6 +8,10 @@ import (
 	"github.com/joho/godotenv"
 )
 
+// Package-level configuration variables are populated exactly once by Init()
+// at application startup and are read-only thereafter. Tests that need to
+// override values should use t.Setenv before calling Init() or manipulate
+// the exported vars directly via a test helper.
 var (
 	// APP
 	AppEnv             string // "development" or "production"; defaults "development"

@@ -3,6 +3,7 @@ package setup
 import (
 	"context"
 	"encoding/json"
+	"log/slog"
 	"time"
 
 	"github.com/google/uuid"
@@ -27,17 +28,15 @@ type SetupService interface {
 }
 
 type setupService struct {
-	db                   *gorm.DB
-	userRepo             UserRepository
-	tenantRepo           TenantRepository
-	tenantMemberRepo     TenantMemberRepository
-	clientRepo           ClientRepository
-	identityProviderRepo IdentityProviderRepository
-	roleRepo             RoleRepository
-	userRoleRepo         UserRoleRepository
-	userTokenRepo        UserTokenRepository
-	userIdentityRepo     UserIdentityRepository
-	profileRepo          ProfileRepository
+	db               *gorm.DB
+	userRepo         UserRepository
+	tenantRepo       TenantRepository
+	tenantMemberRepo TenantMemberRepository
+	clientRepo       ClientRepository
+	roleRepo         RoleRepository
+	userRoleRepo     UserRoleRepository
+	userIdentityRepo UserIdentityRepository
+	profileRepo      ProfileRepository
 }
 
 func NewSetupService(
@@ -46,25 +45,21 @@ func NewSetupService(
 	tenantRepo TenantRepository,
 	tenantMemberRepo TenantMemberRepository,
 	clientRepo ClientRepository,
-	identityProviderRepo IdentityProviderRepository,
 	roleRepo RoleRepository,
 	userRoleRepo UserRoleRepository,
-	userTokenRepo UserTokenRepository,
 	userIdentityRepo UserIdentityRepository,
 	profileRepo ProfileRepository,
 ) SetupService {
 	return &setupService{
-		db:                   db,
-		userRepo:             userRepo,
-		tenantRepo:           tenantRepo,
-		tenantMemberRepo:     tenantMemberRepo,
-		clientRepo:           clientRepo,
-		identityProviderRepo: identityProviderRepo,
-		roleRepo:             roleRepo,
-		userRoleRepo:         userRoleRepo,
-		userTokenRepo:        userTokenRepo,
-		userIdentityRepo:     userIdentityRepo,
-		profileRepo:          profileRepo,
+		db:               db,
+		userRepo:         userRepo,
+		tenantRepo:       tenantRepo,
+		tenantMemberRepo: tenantMemberRepo,
+		clientRepo:       clientRepo,
+		roleRepo:         roleRepo,
+		userRoleRepo:     userRoleRepo,
+		userIdentityRepo: userIdentityRepo,
+		profileRepo:      profileRepo,
 	}
 }
 
@@ -142,7 +137,10 @@ func (s *setupService) CreateTenant(ctx context.Context, req CreateTenantRequest
 		// Handle metadata (optional field)
 		var metadataJSON datatypes.JSON
 		if req.Metadata != nil {
-			metadataJSON, _ = json.Marshal(req.Metadata)
+			metadataJSON, err = json.Marshal(req.Metadata)
+			if err != nil {
+				slog.Warn("setup: metadata marshal failed", "err", err)
+			}
 		} else {
 			metadataJSON = datatypes.JSON([]byte("{}"))
 		}
@@ -178,24 +176,15 @@ func (s *setupService) CreateTenant(ctx context.Context, req CreateTenantRequest
 	}
 
 	// Convert to response DTO
-	var metadata any
-	if len(createdTenant.Metadata) > 0 {
-		if err := json.Unmarshal(createdTenant.Metadata, &metadata); err == nil {
-			// Only include if unmarshaling was successful
-		} else {
-			metadata = nil
-		}
-	}
-
 	tenantResponse := TenantResponseDTO{
 		TenantUUID:  createdTenant.TenantUUID,
 		Name:        createdTenant.Name,
+		DisplayName: createdTenant.DisplayName,
 		Description: createdTenant.Description,
 		Identifier:  createdTenant.Identifier,
 		Status:      createdTenant.Status,
 		IsPublic:    createdTenant.IsPublic,
 		IsSystem:    createdTenant.IsSystem,
-		Metadata:    metadata,
 		CreatedAt:   createdTenant.CreatedAt,
 		UpdatedAt:   createdTenant.UpdatedAt,
 	}

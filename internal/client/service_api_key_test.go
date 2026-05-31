@@ -343,20 +343,6 @@ func TestAPIKeyService_Get(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
-// ValidateAPIKey
-// ---------------------------------------------------------------------------
-
-func TestAPIKeyService_ValidateAPIKey(t *testing.T) {
-	t.Run("not implemented", func(t *testing.T) {
-		svc := newAPIKeySvc(t, &mockAPIKeyRepo{}, &mockUserRepo{})
-		res, err := svc.ValidateAPIKey(context.Background(), "somehash")
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "not implemented")
-		assert.Nil(t, res)
-	})
-}
-
-// ---------------------------------------------------------------------------
 // GetConfigByUUID
 // ---------------------------------------------------------------------------
 

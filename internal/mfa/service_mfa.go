@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"time"
 
 	"github.com/maintainerd/auth/internal/authevent"
@@ -252,8 +253,10 @@ func (s *mfaService) DisableTOTP(ctx context.Context, userID int64) error {
 	}
 	_ = s.backupCodeRepo.DeleteAllByUserID(userID)
 
-	_ = s.db.Model(&User{}).Where("user_id = ?", userID).
-		Updates(map[string]any{"is_totp_enabled": false}).Error
+	if err := s.db.Model(&User{}).Where("user_id = ?", userID).
+		Updates(map[string]any{"is_totp_enabled": false}).Error; err != nil {
+		slog.Warn("mfa: failed to update is_totp_enabled after disable", "user_id", userID, "err", err)
+	}
 
 	s.authEventService.Log(ctx, authevent.AuthEventInput{
 		ActorUserID: &userID,

@@ -38,7 +38,7 @@ type UserReader interface {
 }
 
 // AccessActor exposes the tenant-relevant identity data needed for access
-// control checks (see access.go). The user domain implements this on its User.
+// control checks. The user domain implements this on its User.
 type AccessActor interface {
 	AccessIdentities() []AccessIdentity
 }

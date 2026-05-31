@@ -15,6 +15,15 @@ import (
 	"github.com/maintainerd/auth/internal/platform/crypto"
 )
 
+const (
+	// webhookSuccessMaxStatus is the highest HTTP status code still
+	// considered a successful delivery (exclusive).
+	webhookSuccessMaxStatus = 300
+
+	// webhookMaxBackoff caps the exponential backoff between retries.
+	webhookMaxBackoff = 60 * time.Second
+)
+
 func (d *Dispatcher) deliver(ctx context.Context, ep WebhookEndpoint, event *authevent.AuthEvent) {
 	payload := buildPayload(event)
 	body, err := json.Marshal(payload)
@@ -53,6 +62,9 @@ func (d *Dispatcher) deliver(ctx context.Context, ep WebhookEndpoint, event *aut
 				return
 			case <-time.After(backoff):
 				backoff *= 2
+				if backoff > webhookMaxBackoff {
+					backoff = webhookMaxBackoff
+				}
 			}
 		}
 	}
@@ -89,7 +101,7 @@ func doRequest(ctx context.Context, url string, body []byte, sig string, timesta
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode >= 300 {
+	if resp.StatusCode >= webhookSuccessMaxStatus {
 		return fmt.Errorf("unexpected status %d", resp.StatusCode)
 	}
 	return nil

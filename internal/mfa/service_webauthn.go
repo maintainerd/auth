@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	"log/slog"
 	"strings"
 	"time"
 
@@ -162,15 +163,7 @@ func (s *webAuthnService) FinishRegistration(ctx context.Context, userID int64, 
 		IsBackupState:    cred.Flags.BackupState,
 		Name:             name,
 	}
-	if cred.Authenticator.AAGUID != nil {
-		aaguidStr := fmt.Sprintf("%x-%x-%x-%x-%x",
-			cred.Authenticator.AAGUID[:4],
-			cred.Authenticator.AAGUID[4:6],
-			cred.Authenticator.AAGUID[6:8],
-			cred.Authenticator.AAGUID[8:10],
-			cred.Authenticator.AAGUID[10:])
-		_ = aaguidStr // stored separately if needed
-	}
+
 
 	if err := s.webAuthnCredRepo.CreateCredential(storedCred); err != nil {
 		span.RecordError(err)
@@ -178,11 +171,13 @@ func (s *webAuthnService) FinishRegistration(ctx context.Context, userID int64, 
 	}
 
 	now := time.Now()
-	_ = s.db.Model(&User{}).Where("user_id = ?", userID).
+	if err := s.db.Model(&User{}).Where("user_id = ?", userID).
 		Updates(map[string]any{
 			"is_webauthn_enabled": true,
 			"mfa_enabled_at":      now,
-		})
+		}).Error; err != nil {
+		slog.Warn("webauthn: failed to update user state after registration", "user_id", userID, "err", err)
+	}
 
 	_ = s.deleteSession(ctx, userID, "reg")
 
@@ -310,8 +305,10 @@ func (s *webAuthnService) DeleteCredential(ctx context.Context, credentialUUIDSt
 	// Disable WebAuthn on user if no credentials remain.
 	remaining, _ := s.webAuthnCredRepo.FindByUserID(userID)
 	if len(remaining) == 0 {
-		_ = s.db.Model(&User{}).Where("user_id = ?", userID).
-			Updates(map[string]any{"is_webauthn_enabled": false})
+		if err := s.db.Model(&User{}).Where("user_id = ?", userID).
+			Updates(map[string]any{"is_webauthn_enabled": false}).Error; err != nil {
+			slog.Warn("webauthn: failed to disable webauthn flag", "user_id", userID, "err", err)
+		}
 	}
 
 	span.SetStatus(codes.Ok, "")

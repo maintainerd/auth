@@ -43,17 +43,6 @@ func (h *LoginTemplateHandler) GetAll(w http.ResponseWriter, r *http.Request) {
 	// Extract query parameters
 	q := r.URL.Query()
 
-	// Parse pagination parameters with defaults
-	page, _ := strconv.Atoi(q.Get("page"))
-	if page < 1 {
-		page = 1
-	}
-
-	limit, _ := strconv.Atoi(q.Get("limit"))
-	if limit < 1 {
-		limit = 10
-	}
-
 	// Parse status filter (can be comma-separated)
 	var status []string
 	if q.Get("status") != "" {
