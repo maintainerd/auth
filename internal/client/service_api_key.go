@@ -74,7 +74,6 @@ type APIKeyService interface {
 	Update(ctx context.Context, apiKeyUUID uuid.UUID, tenantID int64, name, description *string, config datatypes.JSON, expiresAt *time.Time, rateLimit *int, status *string, updaterUserUUID uuid.UUID) (*APIKeyServiceDataResult, error)
 	SetStatusByUUID(ctx context.Context, apiKeyUUID uuid.UUID, tenantID int64, status string) (*APIKeyServiceDataResult, error)
 	Delete(ctx context.Context, apiKeyUUID uuid.UUID, tenantID int64, deleterUserUUID uuid.UUID) (*APIKeyServiceDataResult, error)
-	ValidateAPIKey(ctx context.Context, keyHash string) (*APIKeyServiceDataResult, error)
 
 	// API Key API methods
 	GetAPIKeyAPIs(ctx context.Context, tenantID int64, apiKeyUUID uuid.UUID, page, limit int, sortBy, sortOrder string) (*APIKeyAPIServicePaginatedResult, error)
@@ -941,9 +940,3 @@ func (s *apiKeyService) RemoveAPIKeyAPIPermission(ctx context.Context, tenantID 
 	return nil
 }
 
-func (s *apiKeyService) ValidateAPIKey(ctx context.Context, keyHash string) (*APIKeyServiceDataResult, error) {
-	_, span := otel.Tracer("service").Start(ctx, "api_key.validate")
-	defer span.End()
-	span.SetStatus(codes.Error, "not implemented")
-	return nil, apperror.NewValidation("not implemented")
-}

@@ -11,7 +11,7 @@ import (
 )
 
 func newSMSTemplateSvc(repo *mockSMSTemplateRepo) SMSTemplateService {
-	return NewSMSTemplateService(nil, repo)
+	return NewSMSTemplateService(repo)
 }
 
 func TestSMSTemplateService_GetByUUID(t *testing.T) {

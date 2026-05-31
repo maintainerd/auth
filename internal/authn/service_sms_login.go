@@ -194,7 +194,7 @@ func (s *smsLoginService) generateSMSTokenResponse(sub string, user *User, clien
 		AccessToken:  accessToken,
 		IDToken:      idToken,
 		RefreshToken: refreshToken,
-		ExpiresIn:    3600,
+		ExpiresIn:    DefaultAccessTokenExpiresIn,
 		TokenType:    "Bearer",
 		IssuedAt:     time.Now().Unix(),
 	}, nil

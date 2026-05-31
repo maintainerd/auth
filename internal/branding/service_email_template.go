@@ -9,7 +9,6 @@ import (
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
-	"gorm.io/gorm"
 )
 
 type EmailTemplateServiceDataResult struct {
@@ -43,16 +42,11 @@ type EmailTemplateService interface {
 }
 
 type emailTemplateService struct {
-	db                *gorm.DB
 	emailTemplateRepo EmailTemplateRepository
 }
 
-func NewEmailTemplateService(
-	db *gorm.DB,
-	emailTemplateRepo EmailTemplateRepository,
-) EmailTemplateService {
+func NewEmailTemplateService(emailTemplateRepo EmailTemplateRepository) EmailTemplateService {
 	return &emailTemplateService{
-		db:                db,
 		emailTemplateRepo: emailTemplateRepo,
 	}
 }

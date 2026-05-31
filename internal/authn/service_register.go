@@ -795,7 +795,7 @@ func (s *registerService) generateTokenResponse(sub string, user *User, client *
 		AccessToken:  accessToken,
 		IDToken:      idToken,
 		RefreshToken: refreshToken,
-		ExpiresIn:    3600,
+		ExpiresIn:    DefaultAccessTokenExpiresIn,
 		TokenType:    "Bearer",
 		IssuedAt:     time.Now().Unix(),
 	}, nil

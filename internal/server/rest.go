@@ -13,6 +13,11 @@ import (
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
 
+const (
+	defaultInternalPort = ":8080"
+	defaultPublicPort   = ":8081"
+)
+
 // StartRESTServer launches the internal and public HTTP servers, blocks until
 // a termination signal is received, then drains connections gracefully.
 // Returns an error if either server fails to start or shut down cleanly.
@@ -20,7 +25,7 @@ func StartRESTServer(application *Application) error {
 	h := initHandlers(application)
 
 	internalSrv := &http.Server{
-		Addr:         ":8080",
+		Addr:         defaultInternalPort,
 		Handler:      otelhttp.NewHandler(buildInternalRouter(h, application), "internal"),
 		ReadTimeout:  15 * time.Second,
 		WriteTimeout: 60 * time.Second,
@@ -28,7 +33,7 @@ func StartRESTServer(application *Application) error {
 	}
 
 	publicSrv := &http.Server{
-		Addr:         ":8081",
+		Addr:         defaultPublicPort,
 		Handler:      otelhttp.NewHandler(buildPublicRouter(h, application), "public"),
 		ReadTimeout:  15 * time.Second,
 		WriteTimeout: 60 * time.Second,

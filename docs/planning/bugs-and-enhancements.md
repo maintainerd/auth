@@ -330,7 +330,7 @@ Mechanical debt the refactor didn't finish. Big LOC reduction, low risk.
 
 ## 5. Cleanup (dead code, hygiene)
 
-- [ ] **CLN-01** 🟡 ✅ — **Dead injected deps / stubs.**
+- [x] **CLN-01** 🟡 ✅ — **Dead injected deps / stubs.**
   `setup` `identityProviderRepo` + `userTokenRepo` injected-but-unused
   ([`service_setup.go:35`](../../internal/setup/service_setup.go#L35)) with
   `IdentityProviderRepository = any` ([`setup/deps.go:31`](../../internal/setup/deps.go#L31));
@@ -342,13 +342,13 @@ Mechanical debt the refactor didn't finish. Big LOC reduction, low risk.
   ([`setup/service_setup.go:182`](../../internal/setup/service_setup.go#L182)); dead
   pagination parse in [`branding/handler_login_template.go:46`](../../internal/branding/handler_login_template.go#L46).
 
-- [ ] **CLN-02** 🟡 ✅ — **Swallowed errors** beyond the security ones:
+- [x] **CLN-02** 🟡 ✅ — **Swallowed errors** beyond the security ones:
   member duplicate check ([`tenant/service_member.go:112`](../../internal/tenant/service_member.go#L112)),
   password-expiry update ([`authn/service_login.go:511`](../../internal/authn/service_login.go#L511)),
   metadata marshal ([`setup/service_setup.go:145`](../../internal/setup/service_setup.go#L145)),
   MFA user-state updates (`mfa/service_webauthn.go`, `service_mfa.go`).
 
-- [ ] **CLN-03** 🟡 ✅ — **Globals / `init()` side-effects / test-seam indirection.**
+- [x] **CLN-03** 🟡 ✅ — **Globals / `init()` side-effects / test-seam indirection.**
   bcrypt in `init()` + rate-limiter no-ops-when-nil + dropped `ctx`
   ([`platform/security/security.go`](../../internal/platform/security/security.go));
   global signing-key state ([`platform/jwt/jwt.go:43`](../../internal/platform/jwt/jwt.go#L43));
@@ -356,14 +356,14 @@ Mechanical debt the refactor didn't finish. Big LOC reduction, low risk.
   `var Fn = fn` indirection across ~9 platform files.
   **Fix:** encapsulate in injected structs; prefer interfaces over mutable function vars.
 
-- [ ] **CLN-04** 🟡 ✅ — **Unpopulated DTO fields / misleading docs.**
+- [x] **CLN-04** 🟡 ✅ — **Unpopulated DTO fields / misleading docs.**
   `TenantResponseDTO.Metadata` never set ([`tenant/types.go:20`](../../internal/tenant/types.go#L20));
   `toUserResponseDTO` drops `Tenant.DisplayName`
   ([`user/handler_user.go:564`](../../internal/user/handler_user.go#L564));
   stray "Validate ..." comments in [`branding/types.go`](../../internal/branding/types.go);
   stale "see access.go" comment ([`tenant/deps.go:41`](../../internal/tenant/deps.go#L41)).
 
-- [ ] **CLN-05** 🟡 ✅ — **Magic values.** token `ExpiresIn: 3600` + scope
+- [x] **CLN-05** 🟡 ✅ — **Magic values.** token `ExpiresIn: 3600` + scope
   `"openid profile email"` hardcoded in 5 places; invite TTL `72*time.Hour` duplicated
   ([`invite/service_invite.go:103`](../../internal/invite/service_invite.go#L103));
   webhook `>= 300` success threshold + uncapped backoff
@@ -371,13 +371,13 @@ Mechanical debt the refactor didn't finish. Big LOC reduction, low risk.
   hardcoded `"active"` ([`webhook/repository_endpoint.go:125`](../../internal/webhook/repository_endpoint.go#L125));
   hardcoded ports/limits in `server/rest.go`/`grpc.go`/`router.go`.
 
-- [ ] **CLN-06** 🟡 ✅ — **Fire-and-forget goroutines detached from shutdown.**
+- [x] **CLN-06** 🟡 ✅ — **Fire-and-forget goroutines detached from shutdown.**
   [`authevent/service_event.go:156`](../../internal/authevent/service_event.go#L156) and
   [`webhook/dispatcher.go:36`](../../internal/webhook/dispatcher.go#L36) use
   `context.Background()` with no WaitGroup/worker-pool → abandoned on shutdown, unbounded.
   **Fix:** server-scoped context + bounded worker pool.
 
-- [ ] **CLN-07** 🟡 ✅ — **~30 untracked `*.out` coverage files in the repo root.**
+- [x] **CLN-07** 🟡 ✅ — **~30 untracked `*.out` coverage files in the repo root.**
   Not committed, just clutter. **Fix:** add to `.gitignore` / remove; route coverage to a
   build dir.
 

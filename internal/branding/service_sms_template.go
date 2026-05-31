@@ -9,7 +9,6 @@ import (
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
-	"gorm.io/gorm"
 )
 
 type SMSTemplateServiceDataResult struct {
@@ -43,16 +42,11 @@ type SMSTemplateService interface {
 }
 
 type smsTemplateService struct {
-	db              *gorm.DB
 	smsTemplateRepo SMSTemplateRepository
 }
 
-func NewSMSTemplateService(
-	db *gorm.DB,
-	smsTemplateRepo SMSTemplateRepository,
-) SMSTemplateService {
+func NewSMSTemplateService(smsTemplateRepo SMSTemplateRepository) SMSTemplateService {
 	return &smsTemplateService{
-		db:              db,
 		smsTemplateRepo: smsTemplateRepo,
 	}
 }

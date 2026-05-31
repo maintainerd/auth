@@ -19,6 +19,8 @@ import (
 	"gorm.io/gorm"
 )
 
+const DefaultInviteTTL = 72 * time.Hour
+
 type InviteService interface {
 	SendInvite(ctx context.Context, tenantID int64, email string, userID int64, roleUUIDs []string) (*Invite, error)
 }
@@ -100,7 +102,7 @@ func (s *inviteService) SendInvite(
 		if err != nil {
 			return err
 		}
-		expiresAt := ptr.TimePtr(time.Now().Add(72 * time.Hour))
+		expiresAt := ptr.TimePtr(time.Now().Add(DefaultInviteTTL))
 
 		invite = &Invite{
 			TenantID:        tenantID,
@@ -142,7 +144,7 @@ func (s *inviteService) SendInvite(
 	// Generate signed invite URL (API domain)
 	params := map[string]string{"invite_token": invite.InviteToken}
 	apiBaseURL := config.AppPrivateHostname + "/register/invite"
-	signedAPIURL, err := signedurl.GenerateSignedURL(apiBaseURL, params, 72*time.Hour)
+	signedAPIURL, err := signedurl.GenerateSignedURL(apiBaseURL, params, DefaultInviteTTL)
 	if err != nil {
 		return nil, apperror.NewInternal("failed to generate signed invite URL", err)
 	}

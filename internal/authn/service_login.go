@@ -12,6 +12,7 @@ import (
 	"github.com/maintainerd/auth/internal/platform/security"
 	"github.com/maintainerd/auth/internal/secpolicy"
 	"github.com/maintainerd/auth/internal/shared"
+	"log/slog"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/codes"
 	"golang.org/x/crypto/bcrypt"
@@ -503,7 +504,9 @@ func (s *loginService) checkPasswordExpiry(ctx context.Context, user *User, tena
 	deadline := user.PasswordChangedAt.AddDate(0, 0, policy.ExpiryDays)
 	if time.Now().After(deadline) {
 		user.ForcePasswordChange = true
-		_, _ = s.userRepo.UpdateByID(user.UserID, map[string]any{"force_password_change": true})
+		if _, err := s.userRepo.UpdateByID(user.UserID, map[string]any{"force_password_change": true}); err != nil {
+			slog.Warn("failed to set force_password_change", "user_id", user.UserID, "err", err)
+		}
 	}
 }
 
@@ -517,7 +520,7 @@ func (s *loginService) generateTokenResponse(ctx context.Context, sub string, us
 		AccessToken:           accessToken,
 		IDToken:               idToken,
 		RefreshToken:          refreshToken,
-		ExpiresIn:             3600,
+		ExpiresIn:             DefaultAccessTokenExpiresIn,
 		TokenType:             "Bearer",
 		IssuedAt:              time.Now().Unix(),
 		RequirePasswordChange: user.ForcePasswordChange,

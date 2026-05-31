@@ -28,13 +28,9 @@ type UserRepository = user.UserRepository
 type TenantRepository = tenant.TenantRepository
 type TenantMemberRepository = tenant.TenantMemberRepository
 type ClientRepository = client.ClientRepository
-type IdentityProviderRepository = any
 type RoleRepository = iam.RoleRepository
 type UserRoleRepository = user.UserRoleRepository
-type UserTokenRepository = user.UserTokenRepository
 type UserIdentityRepository = user.UserIdentityRepository
 type ProfileRepository = user.ProfileRepository
-
-type RegisterService = authn.RegisterService
 
 var NewProfileResponseDTO = user.NewProfileResponseDTO

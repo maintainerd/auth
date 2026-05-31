@@ -2,6 +2,7 @@ package tenant
 
 import (
 	"context"
+	"log/slog"
 	"time"
 
 	"github.com/google/uuid"
@@ -109,7 +110,10 @@ func (s *tenantMemberService) CreateByUserUUID(ctx context.Context, tenantID int
 	}
 
 	// Check if user is already a member of this tenant
-	existing, _ := s.tenantMemberRepo.FindByTenantAndUser(tenantID, user.UserID)
+	existing, err := s.tenantMemberRepo.FindByTenantAndUser(tenantID, user.UserID)
+	if err != nil {
+		slog.Warn("tenant member duplicate check error", "tenant_id", tenantID, "user_id", user.UserID, "err", err)
+	}
 	if existing != nil {
 		span.SetStatus(codes.Error, "user already a member of this tenant")
 		return nil, apperror.NewConflict("user is already a member of this tenant")

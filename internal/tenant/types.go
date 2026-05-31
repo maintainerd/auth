@@ -17,7 +17,6 @@ type TenantResponseDTO struct {
 	Status      string    `json:"status"`
 	IsPublic    bool      `json:"is_public"`
 	IsSystem    bool      `json:"is_system"`
-	Metadata    any       `json:"metadata,omitempty"`
 	CreatedAt   time.Time `json:"created_at"`
 	UpdatedAt   time.Time `json:"updated_at"`
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"log/slog"
+	"sync"
 
 	"github.com/maintainerd/auth/internal/authevent"
 )
@@ -11,6 +12,7 @@ import (
 // Dispatcher delivers auth events to subscribed webhook endpoints.
 type Dispatcher struct {
 	repo WebhookEndpointRepository
+	wg   sync.WaitGroup
 }
 
 // NewDispatcher creates a new Dispatcher backed by the given
@@ -33,7 +35,11 @@ func (d *Dispatcher) Dispatch(ctx context.Context, event *authevent.AuthEvent) {
 		if !matchesEvent(ep.Events, event.EventType) {
 			continue
 		}
-		go d.deliver(ctx, ep, event)
+		d.wg.Add(1)
+		go func(ep WebhookEndpoint) {
+			defer d.wg.Done()
+			d.deliver(ctx, ep, event)
+		}(ep)
 	}
 }
 
@@ -56,4 +62,9 @@ func matchesEvent(events []byte, eventType string) bool {
 		}
 	}
 	return false
+}
+
+// Shutdown waits for all in-flight webhook deliveries to complete.
+func (d *Dispatcher) Shutdown() {
+	d.wg.Wait()
 }
