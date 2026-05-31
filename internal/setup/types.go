@@ -1,14 +1,5 @@
 package setup
 
-import (
-	"regexp"
-	"time"
-
-	validation "github.com/go-ozzo/ozzo-validation/v4"
-	"github.com/go-ozzo/ozzo-validation/v4/is"
-	"github.com/maintainerd/auth/internal/shared"
-)
-
 // TenantMetadataDTO represents the metadata structure for tenant configuration
 type TenantMetadataDTO struct {
 	ApplicationLogoURL *string `json:"application_logo_url,omitempty"`
@@ -21,56 +12,6 @@ type TenantMetadataDTO struct {
 	TermOfServiceURL   *string `json:"term_of_service_url,omitempty"`
 }
 
-func (dto TenantMetadataDTO) Validate() error {
-	return validation.ValidateStruct(&dto,
-		validation.Field(&dto.ApplicationLogoURL,
-			validation.When(dto.ApplicationLogoURL != nil,
-				is.URL.Error("Application logo URL must be a valid URL"),
-				validation.Length(0, 500).Error("Application logo URL must not exceed 500 characters"),
-			),
-		),
-		validation.Field(&dto.FaviconURL,
-			validation.When(dto.FaviconURL != nil,
-				is.URL.Error("Favicon URL must be a valid URL"),
-				validation.Length(0, 500).Error("Favicon URL must not exceed 500 characters"),
-			),
-		),
-		validation.Field(&dto.Language,
-			validation.When(dto.Language != nil,
-				validation.Length(2, 10).Error("Language must be between 2 and 10 characters"),
-				validation.Match(regexp.MustCompile(`^[a-zA-Z]{2}(-[a-zA-Z]{2})?$`)).Error("Language must be in format 'en' or 'en-US'"),
-			),
-		),
-		validation.Field(&dto.Timezone,
-			validation.When(dto.Timezone != nil,
-				validation.Length(0, 50).Error("Timezone must not exceed 50 characters"),
-			),
-		),
-		validation.Field(&dto.DateFormat,
-			validation.When(dto.DateFormat != nil,
-				validation.Length(0, 20).Error("Date format must not exceed 20 characters"),
-			),
-		),
-		validation.Field(&dto.TimeFormat,
-			validation.When(dto.TimeFormat != nil,
-				validation.Length(0, 20).Error("Time format must not exceed 20 characters"),
-			),
-		),
-		validation.Field(&dto.PrivacyPolicyURL,
-			validation.When(dto.PrivacyPolicyURL != nil,
-				is.URL.Error("Privacy policy URL must be a valid URL"),
-				validation.Length(0, 500).Error("Privacy policy URL must not exceed 500 characters"),
-			),
-		),
-		validation.Field(&dto.TermOfServiceURL,
-			validation.When(dto.TermOfServiceURL != nil,
-				is.URL.Error("Terms of service URL must be a valid URL"),
-				validation.Length(0, 500).Error("Terms of service URL must not exceed 500 characters"),
-			),
-		),
-	)
-}
-
 // CreateTenantRequestDTO for initial tenant setup
 type CreateTenantRequestDTO struct {
 	Name        string             `json:"name"`
@@ -79,62 +20,12 @@ type CreateTenantRequestDTO struct {
 	Metadata    *TenantMetadataDTO `json:"metadata,omitempty"`
 }
 
-func (dto CreateTenantRequestDTO) Validate() error {
-	return validation.ValidateStruct(&dto,
-		validation.Field(&dto.Name,
-			validation.Required.Error("Tenant name is required"),
-			validation.Length(2, 100).Error("Tenant name must be between 2 and 100 characters"),
-			validation.Match(regexp.MustCompile(`^[a-zA-Z0-9\s\-_\.]+$`)).Error("Tenant name contains invalid characters"),
-		),
-		validation.Field(&dto.DisplayName,
-			validation.Required.Error("Display name is required"),
-			validation.Length(2, 100).Error("Display name must be between 2 and 100 characters"),
-		),
-		validation.Field(&dto.Description,
-			validation.When(dto.Description != nil,
-				validation.Length(0, 500).Error("Description must not exceed 500 characters"),
-			),
-		),
-		validation.Field(&dto.Metadata,
-			validation.When(dto.Metadata != nil,
-				// Metadata is non-nil (guarded by When), type assertion is always safe here
-				validation.By(func(value any) error {
-					return value.(*TenantMetadataDTO).Validate()
-				}),
-			),
-		),
-	)
-}
-
 // CreateAdminRequestDTO for initial admin user setup
 type CreateAdminRequestDTO struct {
 	Username string `json:"username"`
 	Fullname string `json:"fullname"`
 	Password string `json:"password"`
 	Email    string `json:"email"`
-}
-
-func (dto CreateAdminRequestDTO) Validate() error {
-	return validation.ValidateStruct(&dto,
-		validation.Field(&dto.Username,
-			validation.Required.Error("Username is required"),
-			validation.Length(3, 50).Error("Username must be between 3 and 50 characters"),
-			validation.Match(regexp.MustCompile(`^[a-zA-Z0-9_\-\.@]+$`)).Error("Username contains invalid characters"),
-		),
-		validation.Field(&dto.Fullname,
-			validation.Required.Error("Fullname is required"),
-			validation.Length(1, 255).Error("Fullname must be between 1 and 255 characters"),
-		),
-		validation.Field(&dto.Password,
-			validation.Required.Error("Password is required"),
-			validation.Length(8, 100).Error("Password must be between 8 and 100 characters"),
-		),
-		validation.Field(&dto.Email,
-			validation.Required.Error("Email is required"),
-			is.Email.Error("Invalid email format"),
-			validation.Length(0, 100).Error("Email must not exceed 100 characters"),
-		),
-	)
 }
 
 // SetupStatusResponseDTO for checking setup status
@@ -192,98 +83,7 @@ type CreateProfileRequestDTO struct {
 	Metadata map[string]any `json:"metadata,omitempty"`
 }
 
-func (dto CreateProfileRequestDTO) Validate() error {
-	return validation.ValidateStruct(&dto,
-		// Basic Identity Information
-		validation.Field(&dto.FirstName,
-			validation.Required.Error("First name is required"),
-			validation.RuneLength(1, 100).Error("First name must be 1-100 characters"),
-		),
-		validation.Field(&dto.MiddleName,
-			validation.NilOrNotEmpty,
-			validation.RuneLength(0, 100).Error("Middle name must be at most 100 characters"),
-		),
-		validation.Field(&dto.LastName,
-			validation.NilOrNotEmpty,
-			validation.RuneLength(0, 100).Error("Last name must be at most 100 characters"),
-		),
-		validation.Field(&dto.Suffix,
-			validation.NilOrNotEmpty,
-			validation.RuneLength(0, 50).Error("Suffix must be at most 50 characters"),
-		),
-		validation.Field(&dto.DisplayName,
-			validation.NilOrNotEmpty,
-			validation.RuneLength(0, 100).Error("Display name must be at most 100 characters"),
-		),
-
-		// Personal Information
-		validation.Field(&dto.Birthdate,
-			validation.NilOrNotEmpty,
-			validation.By(validateDateFormat),
-		),
-		validation.Field(&dto.Gender,
-			validation.NilOrNotEmpty,
-			validation.In(shared.GenderMale, shared.GenderFemale, shared.GenderOther, shared.GenderPreferNotToSay).Error("Gender must be male, female, other, or prefer_not_to_say"),
-		),
-		validation.Field(&dto.Bio,
-			validation.NilOrNotEmpty,
-			validation.RuneLength(0, 1000).Error("Bio must be at most 1000 characters"),
-		),
-
-		// Contact Information
-		validation.Field(&dto.Phone,
-			validation.NilOrNotEmpty,
-			validation.RuneLength(0, 20).Error("Phone must be at most 20 characters"),
-		),
-		validation.Field(&dto.Email,
-			validation.NilOrNotEmpty,
-			is.Email.Error("Invalid email format"),
-			validation.RuneLength(0, 255).Error("Email must be at most 255 characters"),
-		),
-		validation.Field(&dto.Address,
-			validation.NilOrNotEmpty,
-			validation.RuneLength(0, 500).Error("Address must be at most 500 characters"),
-		),
-
-		// Location Information
-		validation.Field(&dto.City,
-			validation.NilOrNotEmpty,
-			validation.RuneLength(0, 100).Error("City must be at most 100 characters"),
-		),
-		validation.Field(&dto.Country,
-			validation.NilOrNotEmpty,
-			validation.RuneLength(2, 2).Error("Country must be a 2-character ISO code (e.g., US, PH, CA)"),
-		),
-
-		// Preference
-		validation.Field(&dto.Timezone,
-			validation.NilOrNotEmpty,
-			validation.RuneLength(0, 50).Error("Timezone must be at most 50 characters"),
-		),
-		validation.Field(&dto.Language,
-			validation.NilOrNotEmpty,
-			validation.RuneLength(0, 10).Error("Language must be at most 10 characters"),
-		),
-
-		// Media & Assets
-		validation.Field(&dto.ProfileURL,
-			validation.NilOrNotEmpty,
-			is.URL.Error("Invalid profile URL format"),
-			validation.RuneLength(0, 1000).Error("Profile URL must be at most 1000 characters"),
-		),
-	)
-}
-
 // CreateProfileResponseDTO for profile creation response
 type CreateProfileResponseDTO struct {
 	Profile ProfileResponseDTO `json:"profile"`
-}
-
-func validateDateFormat(value any) error {
-	if str, ok := value.(*string); ok && str != nil {
-		if _, err := time.Parse("2006-01-02", *str); err != nil {
-			return validation.NewError("validation_invalid_date", "Birthdate must be in YYYY-MM-DD format (e.g., 1990-01-25)")
-		}
-	}
-	return nil
 }

@@ -1,7 +1,9 @@
 # Code Structure
 
 This project uses role-first file names inside feature packages so related layers
-are easy to scan and keep separate.
+are easy to scan and keep separate. This is a convention for code that actually
+has those roles; it is not a requirement to invent empty model, handler,
+repository, or validation files in packages that do not need them.
 
 > Note on Go semantics: Go compiles every `.go` file in a directory as one
 > package and ignores file names entirely. The naming scheme below is an
@@ -30,6 +32,53 @@ Use these prefixes consistently:
 - `mock_test.go`, `mock_repos_test.go`, `http_testhelpers_test.go`, and
   `testhelpers_test.go` for test-only mocks and shared helpers. Put helpers used
   by more than one test file here rather than in one test's file.
+
+Apply only the roles a package truly has. A package with no database-owned
+aggregate should not have a `model_*.go`; a package with no HTTP surface should
+not have a `handler_*.go`; a package with no repository should not carry a
+placeholder repository file. The structure exists to make real boundaries
+visible, not to make every package look identical.
+
+Composition and infrastructure packages use their own honest names:
+
+- `cmd/server` is the executable bootstrap package. Keep `main.go` tiny: it
+  should call a package-local `run(context.Context)` and translate a returned
+  error into process exit. Use focused files such as `bootstrap.go` for the
+  startup sequence, `logging.go` for logger configuration, `telemetry.go` for
+  OpenTelemetry setup/shutdown, and `workers.go` for background workers. When a
+  command package has multiple files, run it with `go run ./cmd/server`, not
+  `go run cmd/server/main.go`. Document command-package helpers with short
+  developer-facing comments that explain ordering and ownership decisions:
+  why `main` delegates to `run`, why bootstrap logging exists before config,
+  why telemetry shutdown is bundled, and why background workers share the
+  bootstrap cancellation context. Every function in `cmd/server`, including
+  unexported helpers and tests, should have a short purpose comment because this
+  package is the executable startup map.
+- `internal/app` is the composition root. It wires dependency graph objects; it
+  does not own domain behavior, models, handlers, routes, or DTO validation. Use
+  `app.go` for the exported runtime bundle, `repositories.go` for repository
+  construction, `services.go` for service construction, `application.go` for
+  adapting the app bundle to runtime/transport bundles, and
+  `adapters_<consumer>[_<source-or-concern>].go` for cross-domain adapter
+  implementations. Keep adapter model mappers beside the adapter family, for
+  example `adapters_authn_user_models.go`, instead of collecting unrelated
+  mappings in a broad `models.go` file.
+- `internal/server` owns transport runtime concerns. Use `application.go` for
+  the transport dependency bundle, `rest.go` and `grpc.go` for server lifecycle,
+  `router.go` for route mounting and transport middleware, `handlers.go` for
+  transport handler construction, `health.go` for liveness/readiness endpoints,
+  `openapi.go` for OpenAPI serving, and `adapters_<concern>.go` for transport
+  adapter glue. Avoid feature-package role prefixes here unless the server
+  package actually grows a real domain model, repository, service, or handler
+  layer of its own.
+- `internal/platform/*` packages are reusable infrastructure. Prefer names that
+  describe the utility or component (`jwt`, `middleware`, `database`,
+  `telemetry`) rather than domain-layer prefixes.
+- Feature packages may also contain cohesive support components that are not
+  CRUD layers. For example `internal/webhook` keeps delivery-specific files such
+  as `dispatcher.go`, `deliver.go`, `payload.go`, and `signer.go` because those
+  are parts of the webhook delivery pipeline, not endpoint CRUD handlers,
+  repositories, or DTO validation.
 
 ## Test File Naming
 
