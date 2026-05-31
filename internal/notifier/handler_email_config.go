@@ -49,7 +49,7 @@ func (h *EmailConfigHandler) Update(w http.ResponseWriter, r *http.Request) {
 
 	var req EmailConfigUpdateRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		resp.Error(w, http.StatusBadRequest, "Invalid request")
+		resp.BadRequestBody(w)
 		return
 	}
 

@@ -1,7 +1,6 @@
 package oauth
 
 import (
-	"encoding/json"
 	"net/http"
 
 	"github.com/maintainerd/auth/internal/platform/middleware"
@@ -43,9 +42,7 @@ func (h *OAuthDeviceHandler) Authorize(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	_ = json.NewEncoder(w).Encode(result)
+	writeOAuthJSON(w, http.StatusOK, result)
 }
 
 // VerifyUserCode handles POST /oauth/device (authenticated user submits user_code).
@@ -97,9 +94,7 @@ func (h *OAuthDeviceHandler) ExchangeDeviceToken(w http.ResponseWriter, r *http.
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	_ = json.NewEncoder(w).Encode(result)
+	writeOAuthJSON(w, http.StatusOK, result)
 }
 
 // DenyUserCode handles POST /oauth/device/deny (authenticated user denies the request).

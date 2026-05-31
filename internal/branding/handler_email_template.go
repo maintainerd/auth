@@ -3,6 +3,7 @@ package branding
 import (
 	"encoding/json"
 	"net/http"
+	"strconv"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
@@ -52,14 +53,16 @@ func (h *EmailTemplateHandler) GetAll(w http.ResponseWriter, r *http.Request) {
 	// Parse boolean filters for default and system templates
 	var isDefault *bool
 	if v := q.Get("is_default"); v != "" {
-		val := v == "true"
-		isDefault = &val
+		if val, err := strconv.ParseBool(v); err == nil {
+			isDefault = &val
+		}
 	}
 
 	var isSystem *bool
 	if v := q.Get("is_system"); v != "" {
-		val := v == "true"
-		isSystem = &val
+		if val, err := strconv.ParseBool(v); err == nil {
+			isSystem = &val
+		}
 	}
 
 	// Build filter DTO with all query parameters
@@ -141,7 +144,7 @@ func (h *EmailTemplateHandler) Create(w http.ResponseWriter, r *http.Request) {
 	// Decode request body
 	var req EmailTemplateCreateRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		resp.Error(w, http.StatusBadRequest, "Invalid request")
+		resp.BadRequestBody(w)
 		return
 	}
 
@@ -200,7 +203,7 @@ func (h *EmailTemplateHandler) Update(w http.ResponseWriter, r *http.Request) {
 	// Decode request body
 	var req EmailTemplateUpdateRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		resp.Error(w, http.StatusBadRequest, "Invalid request")
+		resp.BadRequestBody(w)
 		return
 	}
 
@@ -290,7 +293,7 @@ func (h *EmailTemplateHandler) UpdateStatus(w http.ResponseWriter, r *http.Reque
 	// Decode request body
 	var req EmailTemplateUpdateStatusRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		resp.Error(w, http.StatusBadRequest, "Invalid request body")
+		resp.BadRequestBody(w)
 		return
 	}
 

@@ -135,7 +135,7 @@ func (h *IPRestrictionRuleHandler) Create(w http.ResponseWriter, r *http.Request
 	// Decode request body
 	var req IPRestrictionRuleCreateRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		resp.Error(w, http.StatusBadRequest, "Invalid request")
+		resp.BadRequestBody(w)
 		return
 	}
 
@@ -200,7 +200,7 @@ func (h *IPRestrictionRuleHandler) Update(w http.ResponseWriter, r *http.Request
 	// Decode request body
 	var req IPRestrictionRuleUpdateRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		resp.Error(w, http.StatusBadRequest, "Invalid request")
+		resp.BadRequestBody(w)
 		return
 	}
 
@@ -297,7 +297,7 @@ func (h *IPRestrictionRuleHandler) UpdateStatus(w http.ResponseWriter, r *http.R
 	// Decode request body
 	var req IPRestrictionRuleUpdateStatusRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		resp.Error(w, http.StatusBadRequest, "Invalid request body")
+		resp.BadRequestBody(w)
 		return
 	}
 

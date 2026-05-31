@@ -146,7 +146,7 @@ func (h *SignupFlowHandler) Create(w http.ResponseWriter, r *http.Request) {
 	// Decode and validate request body
 	var req SignupFlowCreateRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		resp.Error(w, http.StatusBadRequest, "Invalid request")
+		resp.BadRequestBody(w)
 		return
 	}
 
@@ -207,7 +207,7 @@ func (h *SignupFlowHandler) Update(w http.ResponseWriter, r *http.Request) {
 	// Decode and validate request body
 	var req SignupFlowUpdateRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		resp.Error(w, http.StatusBadRequest, "Invalid request")
+		resp.BadRequestBody(w)
 		return
 	}
 
@@ -297,7 +297,7 @@ func (h *SignupFlowHandler) UpdateStatus(w http.ResponseWriter, r *http.Request)
 	// Decode and validate request body
 	var req SignupFlowUpdateStatusRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		resp.Error(w, http.StatusBadRequest, "Invalid request body")
+		resp.BadRequestBody(w)
 		return
 	}
 
@@ -346,7 +346,7 @@ func (h *SignupFlowHandler) AssignRoles(w http.ResponseWriter, r *http.Request) 
 	// Decode and validate request body
 	var req SignupFlowAssignRolesRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		resp.Error(w, http.StatusBadRequest, "Invalid request body")
+		resp.BadRequestBody(w)
 		return
 	}
 

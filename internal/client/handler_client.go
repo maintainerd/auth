@@ -202,7 +202,7 @@ func (h *ClientHandler) Create(w http.ResponseWriter, r *http.Request) {
 
 	var req ClientCreateRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		resp.Error(w, http.StatusBadRequest, "Invalid request")
+		resp.BadRequestBody(w)
 		return
 	}
 
@@ -252,7 +252,7 @@ func (h *ClientHandler) Update(w http.ResponseWriter, r *http.Request) {
 
 	var req ClientUpdateRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		resp.Error(w, http.StatusBadRequest, "Invalid request")
+		resp.BadRequestBody(w)
 		return
 	}
 
@@ -444,7 +444,7 @@ func (h *ClientHandler) CreateURI(w http.ResponseWriter, r *http.Request) {
 
 	var req ClientURICreateOrUpdateRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		resp.Error(w, http.StatusBadRequest, "Invalid request")
+		resp.BadRequestBody(w)
 		return
 	}
 
@@ -495,7 +495,7 @@ func (h *ClientHandler) UpdateURI(w http.ResponseWriter, r *http.Request) {
 
 	var req ClientURICreateOrUpdateRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		resp.Error(w, http.StatusBadRequest, "Invalid request")
+		resp.BadRequestBody(w)
 		return
 	}
 
@@ -650,7 +650,7 @@ func (h *ClientHandler) AddAPIs(w http.ResponseWriter, r *http.Request) {
 
 	var req AddClientAPIsRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		resp.Error(w, http.StatusBadRequest, "Invalid request body")
+		resp.BadRequestBody(w)
 		return
 	}
 
@@ -777,7 +777,7 @@ func (h *ClientHandler) AddAPIPermissions(w http.ResponseWriter, r *http.Request
 
 	var req AddClientAPIPermissionsRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		resp.Error(w, http.StatusBadRequest, "Invalid request body")
+		resp.BadRequestBody(w)
 		return
 	}
 

@@ -55,10 +55,10 @@ func (h *ForgotPasswordHandler) ForgotPasswordPublic(w http.ResponseWriter, r *h
 			Endpoint:  "/forgot-password",
 			Method:    r.Method,
 			Timestamp: startTime,
-			Details:   "Invalid JSON in request body",
+			Details:   "Invalid request body",
 			Severity:  "MEDIUM",
 		})
-		resp.Error(w, http.StatusBadRequest, "Invalid request body")
+		resp.BadRequestBody(w)
 		return
 	}
 
@@ -159,10 +159,10 @@ func (h *ForgotPasswordHandler) ForgotPassword(w http.ResponseWriter, r *http.Re
 			Endpoint:  "/forgot-password",
 			Method:    r.Method,
 			Timestamp: startTime,
-			Details:   "Invalid JSON in request body",
+			Details:   "Invalid request body",
 			Severity:  "MEDIUM",
 		})
-		resp.Error(w, http.StatusBadRequest, "Invalid request body")
+		resp.BadRequestBody(w)
 		return
 	}
 

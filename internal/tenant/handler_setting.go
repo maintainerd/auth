@@ -50,7 +50,7 @@ func (h *TenantSettingHandler) UpdateRateLimitConfig(w http.ResponseWriter, r *h
 
 	var req TenantSettingUpdateConfigRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		resp.Error(w, http.StatusBadRequest, "Invalid request")
+		resp.BadRequestBody(w)
 		return
 	}
 
@@ -99,7 +99,7 @@ func (h *TenantSettingHandler) UpdateAuditConfig(w http.ResponseWriter, r *http.
 
 	var req TenantSettingUpdateConfigRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		resp.Error(w, http.StatusBadRequest, "Invalid request")
+		resp.BadRequestBody(w)
 		return
 	}
 
@@ -148,7 +148,7 @@ func (h *TenantSettingHandler) UpdateMaintenanceConfig(w http.ResponseWriter, r 
 
 	var req TenantSettingUpdateConfigRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		resp.Error(w, http.StatusBadRequest, "Invalid request")
+		resp.BadRequestBody(w)
 		return
 	}
 
@@ -197,7 +197,7 @@ func (h *TenantSettingHandler) UpdateFeatureFlags(w http.ResponseWriter, r *http
 
 	var req TenantSettingUpdateConfigRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		resp.Error(w, http.StatusBadRequest, "Invalid request")
+		resp.BadRequestBody(w)
 		return
 	}
 

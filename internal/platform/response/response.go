@@ -106,6 +106,12 @@ func ValidationError(w http.ResponseWriter, err error) {
 	Error(w, http.StatusBadRequest, "Validation failed", err.Error())
 }
 
+// BadRequestBody sends a 400 Bad Request response with the standard
+// "Invalid request body" message.
+func BadRequestBody(w http.ResponseWriter) {
+	Error(w, http.StatusBadRequest, "Invalid request body")
+}
+
 // writeJSON writes a JSON response with the specified status code
 func writeJSON(w http.ResponseWriter, status int, payload interface{}) {
 	w.Header().Set("Content-Type", "application/json")

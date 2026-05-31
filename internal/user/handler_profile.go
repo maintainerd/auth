@@ -3,6 +3,7 @@ package user
 import (
 	"encoding/json"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -25,7 +26,7 @@ func NewProfileHandler(profileService ProfileService) *ProfileHandler {
 func (h *ProfileHandler) CreateOrUpdate(w http.ResponseWriter, r *http.Request) {
 	var req ProfileRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		resp.Error(w, http.StatusBadRequest, "Invalid request")
+		resp.BadRequestBody(w)
 		return
 	}
 
@@ -66,7 +67,7 @@ func (h *ProfileHandler) CreateOrUpdate(w http.ResponseWriter, r *http.Request) 
 func (h *ProfileHandler) CreateProfile(w http.ResponseWriter, r *http.Request) {
 	var req ProfileRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		resp.Error(w, http.StatusBadRequest, "Invalid request")
+		resp.BadRequestBody(w)
 		return
 	}
 
@@ -120,7 +121,7 @@ func (h *ProfileHandler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 
 	var req ProfileRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		resp.Error(w, http.StatusBadRequest, "Invalid request")
+		resp.BadRequestBody(w)
 		return
 	}
 
@@ -179,12 +180,8 @@ func (h *ProfileHandler) GetAll(w http.ResponseWriter, r *http.Request) {
 	// Build filter DTO
 	var isDefault *bool
 	if v := q.Get("is_default"); v != "" {
-		if v == "true" {
-			trueVal := true
-			isDefault = &trueVal
-		} else if v == "false" {
-			falseVal := false
-			isDefault = &falseVal
+		if val, err := strconv.ParseBool(v); err == nil {
+			isDefault = &val
 		}
 	}
 
@@ -322,12 +319,8 @@ func (h *ProfileHandler) AdminGetAllProfiles(w http.ResponseWriter, r *http.Requ
 	// Build filter DTO
 	var isDefault *bool
 	if v := q.Get("is_default"); v != "" {
-		if v == "true" {
-			trueVal := true
-			isDefault = &trueVal
-		} else if v == "false" {
-			falseVal := false
-			isDefault = &falseVal
+		if val, err := strconv.ParseBool(v); err == nil {
+			isDefault = &val
 		}
 	}
 
@@ -424,7 +417,7 @@ func (h *ProfileHandler) AdminCreateProfile(w http.ResponseWriter, r *http.Reque
 
 	var req ProfileRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		resp.Error(w, http.StatusBadRequest, "Invalid request")
+		resp.BadRequestBody(w)
 		return
 	}
 
@@ -484,7 +477,7 @@ func (h *ProfileHandler) AdminUpdateProfile(w http.ResponseWriter, r *http.Reque
 
 	var req ProfileRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		resp.Error(w, http.StatusBadRequest, "Invalid request")
+		resp.BadRequestBody(w)
 		return
 	}
 

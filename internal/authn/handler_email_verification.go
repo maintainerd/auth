@@ -81,10 +81,10 @@ func (h *EmailVerificationHandler) handleSendVerification(
 			Endpoint:  "/email-verification/send",
 			Method:    r.Method,
 			Timestamp: startTime,
-			Details:   "Invalid JSON in request body",
+			Details:   "Invalid request body",
 			Severity:  "MEDIUM",
 		})
-		resp.Error(w, http.StatusBadRequest, "Invalid request body")
+		resp.BadRequestBody(w)
 		return
 	}
 
@@ -173,10 +173,10 @@ func (h *EmailVerificationHandler) VerifyEmail(w http.ResponseWriter, r *http.Re
 			Endpoint:  "/email-verification/verify",
 			Method:    r.Method,
 			Timestamp: startTime,
-			Details:   "Invalid JSON in request body",
+			Details:   "Invalid request body",
 			Severity:  "MEDIUM",
 		})
-		resp.Error(w, http.StatusBadRequest, "Invalid request body")
+		resp.BadRequestBody(w)
 		return
 	}
 

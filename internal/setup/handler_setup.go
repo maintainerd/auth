@@ -34,7 +34,7 @@ func (h *SetupHandler) CreateTenant(w http.ResponseWriter, r *http.Request) {
 
 	// Validate body payload
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		resp.Error(w, http.StatusBadRequest, "Invalid request")
+		resp.BadRequestBody(w)
 		return
 	}
 
@@ -59,7 +59,7 @@ func (h *SetupHandler) CreateAdmin(w http.ResponseWriter, r *http.Request) {
 
 	// Validate body payload
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		resp.Error(w, http.StatusBadRequest, "Invalid request")
+		resp.BadRequestBody(w)
 		return
 	}
 
@@ -84,7 +84,7 @@ func (h *SetupHandler) CreateProfile(w http.ResponseWriter, r *http.Request) {
 
 	// Validate body payload
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		resp.Error(w, http.StatusBadRequest, "Invalid request")
+		resp.BadRequestBody(w)
 		return
 	}
 

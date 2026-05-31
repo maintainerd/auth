@@ -540,11 +540,8 @@ func userRolesReq(t *testing.T, extraQuery string, userUUID uuid.UUID) *http.Req
 
 func userRolesSvc(roles []RoleServiceDataResult) *mockUserService {
 	return &mockUserService{
-		getByUUIDFn: func(uuid.UUID, int64) (*UserServiceDataResult, error) {
-			return &UserServiceDataResult{}, nil
-		},
-		getUserRolesFn: func(uuid.UUID) ([]RoleServiceDataResult, error) {
-			return roles, nil
+		getUserRolesFn: func(uuid.UUID, int64, GetUserRolesFilter) ([]RoleServiceDataResult, int64, error) {
+			return roles, int64(len(roles)), nil
 		},
 	}
 }
@@ -572,9 +569,11 @@ func TestUserHandler_GetUserRoles(t *testing.T) {
 	})
 
 	t.Run("user not found returns 404", func(t *testing.T) {
-		svc := &mockUserService{getByUUIDFn: func(uuid.UUID, int64) (*UserServiceDataResult, error) {
-			return nil, errNotFound
-		}}
+		svc := &mockUserService{
+			getUserRolesFn: func(uuid.UUID, int64, GetUserRolesFilter) ([]RoleServiceDataResult, int64, error) {
+				return nil, 0, errNotFound
+			},
+		}
 		w := httptest.NewRecorder()
 		NewUserHandler(svc).GetUserRoles(w, userRolesReq(t, "", testResourceUUID))
 		assert.Equal(t, http.StatusNotFound, w.Code)
@@ -582,11 +581,8 @@ func TestUserHandler_GetUserRoles(t *testing.T) {
 
 	t.Run("GetUserRoles error returns 500", func(t *testing.T) {
 		svc := &mockUserService{
-			getByUUIDFn: func(uuid.UUID, int64) (*UserServiceDataResult, error) {
-				return &UserServiceDataResult{}, nil
-			},
-			getUserRolesFn: func(uuid.UUID) ([]RoleServiceDataResult, error) {
-				return nil, errors.New("db error")
+			getUserRolesFn: func(uuid.UUID, int64, GetUserRolesFilter) ([]RoleServiceDataResult, int64, error) {
+				return nil, 0, errors.New("db error")
 			},
 		}
 		w := httptest.NewRecorder()
@@ -690,11 +686,8 @@ func userIdentitiesReq(t *testing.T, extraQuery string, userUUID uuid.UUID) *htt
 
 func userIdentitiesSvc(identities []UserIdentityServiceDataResult) *mockUserService {
 	return &mockUserService{
-		getByUUIDFn: func(uuid.UUID, int64) (*UserServiceDataResult, error) {
-			return &UserServiceDataResult{}, nil
-		},
-		getUserIdentsFn: func(uuid.UUID) ([]UserIdentityServiceDataResult, error) {
-			return identities, nil
+		getUserIdentitiesFn: func(uuid.UUID, int64, GetUserIdentitiesFilter) ([]UserIdentityServiceDataResult, int64, error) {
+			return identities, int64(len(identities)), nil
 		},
 	}
 }
@@ -722,9 +715,11 @@ func TestUserHandler_GetUserIdentities(t *testing.T) {
 	})
 
 	t.Run("user not found returns 404", func(t *testing.T) {
-		svc := &mockUserService{getByUUIDFn: func(uuid.UUID, int64) (*UserServiceDataResult, error) {
-			return nil, errNotFound
-		}}
+		svc := &mockUserService{
+			getUserIdentitiesFn: func(uuid.UUID, int64, GetUserIdentitiesFilter) ([]UserIdentityServiceDataResult, int64, error) {
+				return nil, 0, errNotFound
+			},
+		}
 		w := httptest.NewRecorder()
 		NewUserHandler(svc).GetUserIdentities(w, userIdentitiesReq(t, "", testResourceUUID))
 		assert.Equal(t, http.StatusNotFound, w.Code)
@@ -732,11 +727,8 @@ func TestUserHandler_GetUserIdentities(t *testing.T) {
 
 	t.Run("GetUserIdentities error returns 500", func(t *testing.T) {
 		svc := &mockUserService{
-			getByUUIDFn: func(uuid.UUID, int64) (*UserServiceDataResult, error) {
-				return &UserServiceDataResult{}, nil
-			},
-			getUserIdentsFn: func(uuid.UUID) ([]UserIdentityServiceDataResult, error) {
-				return nil, errors.New("db error")
+			getUserIdentitiesFn: func(uuid.UUID, int64, GetUserIdentitiesFilter) ([]UserIdentityServiceDataResult, int64, error) {
+				return nil, 0, errors.New("db error")
 			},
 		}
 		w := httptest.NewRecorder()

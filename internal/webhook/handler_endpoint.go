@@ -109,7 +109,7 @@ func (h *WebhookEndpointHandler) Create(w http.ResponseWriter, r *http.Request) 
 
 	var req WebhookEndpointCreateRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		resp.Error(w, http.StatusBadRequest, "Invalid request")
+		resp.BadRequestBody(w)
 		return
 	}
 
@@ -156,7 +156,7 @@ func (h *WebhookEndpointHandler) Update(w http.ResponseWriter, r *http.Request) 
 
 	var req WebhookEndpointUpdateRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		resp.Error(w, http.StatusBadRequest, "Invalid request")
+		resp.BadRequestBody(w)
 		return
 	}
 
@@ -229,7 +229,7 @@ func (h *WebhookEndpointHandler) UpdateStatus(w http.ResponseWriter, r *http.Req
 
 	var req WebhookEndpointUpdateStatusRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		resp.Error(w, http.StatusBadRequest, "Invalid request body")
+		resp.BadRequestBody(w)
 		return
 	}
 

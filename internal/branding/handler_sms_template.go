@@ -3,6 +3,7 @@ package branding
 import (
 	"encoding/json"
 	"net/http"
+	"strconv"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
@@ -58,14 +59,16 @@ func (h *SMSTemplateHandler) GetAll(w http.ResponseWriter, r *http.Request) {
 	// Parse boolean filters for default and system templates
 	var isDefault *bool
 	if v := q.Get("is_default"); v != "" {
-		val := v == "true"
-		isDefault = &val
+		if val, err := strconv.ParseBool(v); err == nil {
+			isDefault = &val
+		}
 	}
 
 	var isSystem *bool
 	if v := q.Get("is_system"); v != "" {
-		val := v == "true"
-		isSystem = &val
+		if val, err := strconv.ParseBool(v); err == nil {
+			isSystem = &val
+		}
 	}
 
 	// Build filter DTO for validation
@@ -151,7 +154,7 @@ func (h *SMSTemplateHandler) Create(w http.ResponseWriter, r *http.Request) {
 	// Decode and validate request body
 	var req SMSTemplateCreateRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		resp.Error(w, http.StatusBadRequest, "Invalid request")
+		resp.BadRequestBody(w)
 		return
 	}
 
@@ -209,7 +212,7 @@ func (h *SMSTemplateHandler) Update(w http.ResponseWriter, r *http.Request) {
 	// Decode and validate request body
 	var req SMSTemplateUpdateRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		resp.Error(w, http.StatusBadRequest, "Invalid request")
+		resp.BadRequestBody(w)
 		return
 	}
 
@@ -300,7 +303,7 @@ func (h *SMSTemplateHandler) UpdateStatus(w http.ResponseWriter, r *http.Request
 	// Decode and validate request body
 	var req SMSTemplateUpdateStatusRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		resp.Error(w, http.StatusBadRequest, "Invalid request body")
+		resp.BadRequestBody(w)
 		return
 	}
 

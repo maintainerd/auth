@@ -298,31 +298,31 @@ Mechanical debt the refactor didn't finish. Big LOC reduction, low risk.
   plus inline `=10`/`=20` clamps in many repos. Same package can return different defaults.
   **Fix:** one source of truth; delete inline clamps.
 
-- [ ] **CON-02** 🟡 ✅ — **Search casing differs**: `ILIKE` vs `LOWER(col) LIKE` vs bare `LIKE`
+- [x] **CON-02** 🟡 ✅ — **Search casing differs**: `ILIKE` vs `LOWER(col) LIKE` vs bare `LIKE`
   across packages. **Fix:** shared `applyILike(q, col, *val)` helper.
 
-- [ ] **CON-03** 🟡 ✅ — **`errors.Is(err, gorm.ErrRecordNotFound)` vs `err == gorm.ErrRecordNotFound`**
+- [x] **CON-03** 🟡 ✅ — **`errors.Is(err, gorm.ErrRecordNotFound)` vs `err == gorm.ErrRecordNotFound`**
   mixed (repos vs services). **Fix:** standardize on `errors.Is`.
 
-- [ ] **CON-04** 🟡 ✅ — **`apperror.NewNotFound` vs `NewNotFoundWithReason`** used arbitrarily;
+- [x] **CON-04** 🟡 ✅ — **`apperror.NewNotFound` vs `NewNotFoundWithReason`** used arbitrarily;
   decode-error messages come in 4 spellings ("Invalid JSON format" / "Invalid request" /
   "Invalid request body" / "Invalid JSON"). **Fix:** convention per case + a
   `resp.BadRequestBody(w)` helper.
 
-- [ ] **CON-05** 🟡 ✅ — **Bool query parsing**: `v == "true"` (silently drops `"1"`/`"TRUE"`)
+- [x] **CON-05** 🟡 ✅ — **Bool query parsing**: `v == "true"` (silently drops `"1"`/`"TRUE"`)
   vs `strconv.ParseBool`. **Fix:** standardize on `strconv.ParseBool`.
 
-- [ ] **CON-06** 🟡 ✅ — **`user` list endpoints filter/sort/paginate in-memory in the handler.**
+- [x] **CON-06** 🟡 ✅ — **`user` list endpoints filter/sort/paginate in-memory in the handler.**
   [`internal/user/handler_user.go:655`](../../internal/user/handler_user.go#L655)
   (`GetUserRoles`/`GetUserIdentities`) load all rows then slice, unlike every other
   repo-side list. **Fix:** push into the repository.
 
-- [ ] **CON-07** 🟡 ✅ — **Token responses bypass cache headers / OAuth error shape.**
+- [x] **CON-07** 🟡 ✅ — **Token responses bypass cache headers / OAuth error shape.**
   token-exchange/device handlers write token JSON without `Cache-Control: no-store`
   / `Pragma: no-cache` and use a different error envelope than `writeOAuthJSON`.
   **Fix:** route all token responses through `writeOAuthJSON`.
 
-- [ ] **CON-08** 🟡 ✅ — **`deps.go` present in 10/15 domains, absent in 5**
+- [x] **CON-08** 🟡 ✅ — **`deps.go` present in 10/15 domains, absent in 5**
   (`branding`, `notifier`, `authevent`, `webhook`, `secpolicy`). DI organization differs.
   **Fix:** align the pattern.
 

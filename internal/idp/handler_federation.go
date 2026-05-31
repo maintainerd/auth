@@ -26,7 +26,7 @@ func NewFederationHandler(federationSvc FederationService) *FederationHandler {
 func (h *FederationHandler) ExchangeExternalToken(w http.ResponseWriter, r *http.Request) {
 	var req FederationTokenRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		resp.Error(w, http.StatusBadRequest, "Invalid JSON format")
+		resp.BadRequestBody(w)
 		return
 	}
 	if req.ProviderIdentifier == "" || req.ExternalToken == "" || req.ClientID == "" {
@@ -101,7 +101,7 @@ func (h *FederationHandler) LinkIdentity(w http.ResponseWriter, r *http.Request)
 
 	var req LinkIdentityRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		resp.Error(w, http.StatusBadRequest, "Invalid JSON format")
+		resp.BadRequestBody(w)
 		return
 	}
 	if req.ProviderIdentifier == "" || req.ExternalToken == "" {

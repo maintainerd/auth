@@ -1,7 +1,6 @@
 package oauth
 
 import (
-	"encoding/json"
 	"net/http"
 
 	resp "github.com/maintainerd/auth/internal/platform/response"
@@ -48,7 +47,5 @@ func (h *OAuthTokenExchangeHandler) Exchange(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	_ = json.NewEncoder(w).Encode(result)
+	writeOAuthJSON(w, http.StatusOK, result)
 }
