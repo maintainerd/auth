@@ -144,18 +144,18 @@ Mark boxes as you bring each handler/service/validation/middleware up to the sta
 
 ### E2E Tests
 
-- [ ] `tests/e2e/login_test.go` — POST /login flow
-- [ ] `tests/e2e/register_test.go` — POST /register flow
-- [ ] `tests/e2e/forgot_password_test.go` — POST /forgot-password flow
-- [ ] `tests/e2e/reset_password_test.go` — POST /reset-password flow
-- [ ] `tests/e2e/oauth_flow_test.go` — Full OAuth authorization code grant
-- [ ] `tests/e2e/tenant_test.go` — CRUD /tenants
-- [ ] `tests/e2e/multi_tenant_test.go` — Cross-tenant isolation
-- [ ] `tests/e2e/user_test.go` — User profile
-- [ ] `tests/e2e/iam_test.go` — Roles and permissions
-- [ ] `tests/e2e/invite_test.go` — Invite flow
-- [ ] `tests/e2e/branding_test.go` — Branding CRUD
-- [ ] `tests/e2e/client_test.go` — Client management
+- [x] `tests/e2e/login_test.go` — POST /login flow
+- [x] `tests/e2e/register_test.go` — POST /register flow
+- [x] `tests/e2e/forgot_password_test.go` — POST /forgot-password flow
+- [x] `tests/e2e/reset_password_test.go` — POST /reset-password flow
+- [x] `tests/e2e/oauth_flow_test.go` — Full OAuth authorization code grant
+- [x] `tests/e2e/tenant_test.go` — CRUD /tenants
+- [x] `tests/e2e/multi_tenant_test.go` — Cross-tenant isolation
+- [x] `tests/e2e/user_test.go` — User profile
+- [x] `tests/e2e/iam_test.go` — Roles and permissions
+- [x] `tests/e2e/invite_test.go` — Invite flow
+- [x] `tests/e2e/branding_test.go` — Branding CRUD
+- [x] `tests/e2e/client_test.go` — Client management
 
 ### Integration Tests
 
