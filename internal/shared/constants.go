@@ -80,6 +80,7 @@ const (
 	IDPProviderApple     = "apple"
 	IDPProviderLinkedIn  = "linkedin"
 	IDPProviderTwitter   = "twitter"
+	IDPProviderGitLab    = "gitlab"
 
 	// Identity provider types (IdentityProvider.ProviderType)
 	IDPTypeIdentity = "identity"

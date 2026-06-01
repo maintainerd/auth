@@ -12,6 +12,8 @@ func FederationPublicRoute(r chi.Router, h *FederationHandler) {
 	r.Route("/federation", func(r chi.Router) {
 		// POST /federation/token — exchange an upstream OIDC token for our JWT.
 		r.Post("/token", h.ExchangeExternalToken)
+		// POST /federation/oauth2/callback — exchange an OAuth2 authorization code.
+		r.Post("/oauth2/callback", h.ExchangeOAuth2Code)
 		// GET /federation/hrd — home-realm discovery by email domain.
 		r.Get("/hrd", h.HomeRealmDiscovery)
 	})
