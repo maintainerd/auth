@@ -104,7 +104,7 @@ Mark boxes as you bring each handler/service/validation/middleware up to the sta
 
 - [x] `handler_authorize.go` — Authorize, GetConsentChallenge, HandleConsent (existing tests cover full checklist)
 - [x] `handler_token.go` — Token, Revoke, Introspect (existing tests cover full checklist)
-- [ ] `handler_token.go` — DPoP proof validation path (non-nil dpopStore + valid/invalid DPoP proof)
+- [x] `handler_token.go` — DPoP proof validation path (invalid proof → 400, header ignored when dpopStore nil)
 - [x] `handler_discovery.go` — Discovery, JWKS (existing), AuthorizationServerMetadata (new)
 - [x] `handler_consent.go` — ListGrants, RevokeGrant (existing tests cover full checklist)
 - [x] `handler_userinfo.go` — UserInfo (existing tests cover full checklist)
