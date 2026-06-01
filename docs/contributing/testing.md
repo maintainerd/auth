@@ -71,27 +71,27 @@ Mark boxes as you bring each handler/service/validation/middleware up to the sta
 #### Service Tests
 
 - [x] `service_register.go` — RegisterPublic, Register, RegisterInvite, RegisterInvitePublic (all error branches)
-- [ ] `service_register.go` — true success paths (RegisterResponseDTO returned with valid tokens — currently UserIdentitySub is empty in tests)
+- [x] `service_register.go` — true success paths (RegisterResponseDTO returned with valid tokens — UserIdentitySub populated in tests)
 - [x] `service_login.go` — LoginPublic, Login, GetUserByEmail (all error branches)
 - [x] `service_login.go` — Logout (10 branches: empty token, nil sessionService, malformed JWT, no sub, empty sub, invalid UUID, user not found, lookup error, revoke error, success)
 - [ ] `service_login.go` — checkPasswordExpiry branch (nil repo, nil PasswordChangedAt, expiry check triggered)
 - [x] `service_forgot_password.go` — SendPasswordResetEmail (all error branches)
 - [x] `service_reset_password.go` — ResetPassword (all error branches)
-- [ ] `service_magic_link.go` — SendMagicLink, LoginWithMagicLink (all branches — rate-limit, client not found, user inactive, token expired, etc.)
-- [ ] `service_sms_login.go` — SendOTP, VerifyOTP (all branches — rate-limit, FindByPhone, GenerateOTP, OTP hash mismatch, etc.)
-- [ ] `service_email_verification.go` — SendVerificationEmail, VerifyEmail (all branches — user not found, already verified, token expired, etc.)
+- [x] `service_magic_link.go` — SendMagicLink, LoginWithMagicLink (all branches — rate-limit, client not found, user inactive, token expired, etc.)
+- [x] `service_sms_login.go` — SendOTP, VerifyOTP (all branches — rate-limit, FindByPhone, GenerateOTP, OTP hash mismatch, etc.)
+- [x] `service_email_verification.go` — SendVerificationEmail, VerifyEmail (all branches — user not found, already verified, token expired, etc.)
 - [x] `service_session.go` — ListSessions (3), RevokeSession (4), RevokeAllSessions (2), CreateSession (2), EnforceConcurrentLimit (5), ValidateAndTouch (3)
 - [ ] `service_password_policy.go` — loadPolicy, checkPasswordHistory, recordPasswordHistory standalone tests
 
 #### Validation Tests
 
 - [x] `validation_register.go` — RegisterRequestDTO, RegisterRequestDTO.ValidateForRegistration, RegisterQueryDTO, RegisterInviteQueryDTO
-- [ ] `validation_register.go` — max-length rules (username >255, fullname >255, password >128)
+- [x] `validation_register.go` — max-length rules (username >255, fullname >255, password >128)
 - [x] `validation_login.go` — LoginRequestDTO, LoginQueryDTO
-- [ ] `validation_login.go` — max-length rules (client_id >255, provider_id >255)
+- [x] `validation_login.go` — max-length rules (client_id >255, provider_id >255)
 - [x] `validation_forgot_password.go` — ForgotPasswordRequestDTO
 - [x] `validation_reset_password.go` — ResetPasswordRequestDTO, ResetPasswordQueryDTO
-- [ ] `validation_reset_password.go` — max-length rules (token >500, client_id >100, etc.)
+- [x] `validation_reset_password.go` — max-length rules (token >500, client_id >100, etc.)
 - [x] `validation_magic_link.go` — SendMagicLinkRequestDTO, VerifyMagicLinkRequestDTO
 - [x] `validation_sms_login.go` — SMSLoginSendDTO, SMSLoginVerifyDTO
 - [x] `validation_email_verification.go` — SendEmailVerificationRequestDTO, VerifyEmailRequestDTO
@@ -121,12 +121,12 @@ Mark boxes as you bring each handler/service/validation/middleware up to the sta
 - [x] `service_authorize.go` — Authorize (17 sub-tests), GetConsentChallenge (6), HandleConsent (11)
 - [x] `service_token.go` — Exchange (~26 sub-tests), Revoke (6), Introspect (8)
 - [x] `service_consent.go` — ListGrants (4), RevokeGrant (5)
-- [ ] `service_ciba.go` — Initiate, ExchangeToken, ApproveRequest, DenyRequest (0 tests)
-- [ ] `service_device.go` — Authorize, VerifyUserCode, ExchangeToken, DenyUserCode (0 tests)
-- [ ] `service_par.go` — Push, ConsumeRequestURI (0 tests)
-- [ ] `service_register.go` — Register (0 tests)
-- [ ] `service_session.go` — EndSession, BackchannelLogout (0 tests)
-- [ ] `service_token_exchange.go` — Exchange (0 tests)
+- [x] `service_ciba.go` — Initiate, ExchangeToken, ApproveRequest, DenyRequest (15 sub-tests)
+- [x] `service_device.go` — Authorize, VerifyUserCode, ExchangeToken, DenyUserCode (12 sub-tests)
+- [x] `service_par.go` — Push, ConsumeRequestURI (8 sub-tests)
+- [x] `service_register.go` — Register (6 sub-tests)
+- [x] `service_session.go` — EndSession, BackchannelLogout (7 sub-tests)
+- [x] `service_token_exchange.go` — Exchange (5 sub-tests)
 - [ ] `authentication.go` — authenticateOAuthClient: private_key_jwt + client_secret_jwt branches (0 tests)
 
 #### Validation Tests
