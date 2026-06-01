@@ -461,7 +461,7 @@ func TestOAuthTokenService_Exchange(t *testing.T) {
 						UserID:                   1,
 						TenantID:                 1,
 						RedirectURI:              "https://example.com/callback",
-						Scope:                    "openid profile",
+						Scope:                    "openid profile offline_access",
 						CodeChallenge:            challenge,
 						CodeChallengeMethod:      "S256",
 						ExpiresAt:                time.Now().Add(10 * time.Minute),
@@ -493,7 +493,7 @@ func TestOAuthTokenService_Exchange(t *testing.T) {
 		assert.NotEmpty(t, result.IDToken)
 		assert.NotEmpty(t, result.RefreshToken)
 		assert.Equal(t, "Bearer", result.TokenType)
-		assert.Equal(t, "openid profile", result.Scope)
+		assert.Equal(t, "openid profile offline_access", result.Scope)
 	})
 
 	t.Run("authorization_code — auth code lookup error", func(t *testing.T) {
@@ -683,7 +683,7 @@ func TestOAuthTokenService_Exchange_RefreshToken(t *testing.T) {
 						UserID:              1,
 						TenantID:            1,
 						FamilyID:            familyID,
-						Scope:               "openid profile",
+						Scope:               "openid profile offline_access",
 						ExpiresAt:           time.Now().Add(7 * 24 * time.Hour),
 					}, nil
 				},
@@ -711,7 +711,7 @@ func TestOAuthTokenService_Exchange_RefreshToken(t *testing.T) {
 		assert.NotEmpty(t, result.IDToken)
 		assert.NotEmpty(t, result.RefreshToken)
 		assert.Equal(t, "Bearer", result.TokenType)
-		assert.Equal(t, "openid profile", result.Scope)
+		assert.Equal(t, "openid profile offline_access", result.Scope)
 	})
 
 	t.Run("full success — with scope narrowing", func(t *testing.T) {
