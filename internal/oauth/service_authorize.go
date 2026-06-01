@@ -405,17 +405,6 @@ func (s *oauthAuthorizeService) findClientByIdentifier(identifier string) (*Clie
 	return &client, nil
 }
 
-// clientSupportsGrant checks whether the client has the given grant_type in
-// its configuration.
-func (s *oauthAuthorizeService) clientSupportsGrant(client *Client, grantType string) bool {
-	for _, g := range client.GrantTypes {
-		if g == grantType {
-			return true
-		}
-	}
-	return false
-}
-
 // clientSupportsResponseType checks whether the client has the given
 // response_type in its configuration.
 func (s *oauthAuthorizeService) clientSupportsResponseType(client *Client, responseType string) bool {

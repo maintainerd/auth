@@ -24,8 +24,6 @@ import (
 var (
 	errNotFound     = apperror.NewNotFoundWithReason("not found")
 	errValidation   = apperror.NewValidation("validation error")
-	errUnauthorized = apperror.NewUnauthorized("unauthorized")
-	errForbidden    = apperror.NewForbidden("access denied")
 )
 
 const tenantID int64 = 1
@@ -98,8 +96,6 @@ func jsonReq(t *testing.T, method, url string, body any) *http.Request {
 	r.Header.Set("Content-Type", "application/json")
 	return r
 }
-
-func strPtr(v string) *string { return &v }
 
 func validPagination() PaginationRequestDTO {
 	return PaginationRequestDTO{Page: 1, Limit: 10, SortBy: "created_at", SortOrder: SortOrderDesc}

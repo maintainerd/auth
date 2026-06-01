@@ -25,8 +25,6 @@ import (
 var (
 	errNotFound     = apperror.NewNotFoundWithReason("not found")
 	errValidation   = apperror.NewValidation("validation error")
-	errUnauthorized = apperror.NewUnauthorized("unauthorized")
-	errForbidden    = apperror.NewForbidden("access denied")
 )
 
 const tenantID int64 = 1
@@ -34,7 +32,6 @@ const tenantID int64 = 1
 var (
 	testTenantUUID   = uuid.MustParse("00000000-0000-0000-0000-000000000001")
 	testUserUUID     = uuid.MustParse("00000000-0000-0000-0000-000000000002")
-	testResourceUUID = uuid.MustParse("00000000-0000-0000-0000-000000000099")
 )
 
 func newMockGormDB(t *testing.T) (*gorm.DB, sqlmock.Sqlmock) {
@@ -51,12 +48,6 @@ func newMockGormDB(t *testing.T) (*gorm.DB, sqlmock.Sqlmock) {
 func withTenant(r *http.Request) *http.Request {
 	return middleware.WithAuthContext(r, &middleware.AuthContext{
 		Tenant: &cache.AuthTenant{TenantID: tenantID, TenantUUID: testTenantUUID},
-	})
-}
-
-func withUser(r *http.Request) *http.Request {
-	return middleware.WithAuthContext(r, &middleware.AuthContext{
-		User: &cache.AuthUser{UserUUID: testUserUUID},
 	})
 }
 
@@ -93,8 +84,6 @@ func jsonReq(t *testing.T, method, url string, body any) *http.Request {
 	r.Header.Set("Content-Type", "application/json")
 	return r
 }
-
-func strPtr(v string) *string { return &v }
 
 func validPagination() PaginationRequestDTO {
 	return PaginationRequestDTO{Page: 1, Limit: 10, SortBy: "created_at", SortOrder: SortOrderDesc}
@@ -342,47 +331,6 @@ func (m *mockUserRepo) FindByEmailAndTenantID(email string, tenantID int64) (*Us
 	return nil, nil
 }
 
-type mockUserIdentityRepo struct {
-	mockBaseRepo[UserIdentity]
-	findByUserIDFn            func(int64) ([]UserIdentity, error)
-	findByProviderAndSubFn    func(string, string) (*UserIdentity, error)
-	findByUserIDAndProviderFn func(int64, string) (*UserIdentity, error)
-	deleteByUserIDFn          func(int64) error
-	createFn                  func(*UserIdentity) (*UserIdentity, error)
-}
-
-func (m *mockUserIdentityRepo) WithTx(_ *gorm.DB) UserIdentityRepository { return m }
-func (m *mockUserIdentityRepo) Create(e *UserIdentity) (*UserIdentity, error) {
-	if m.createFn != nil {
-		return m.createFn(e)
-	}
-	return e, nil
-}
-func (m *mockUserIdentityRepo) FindByUserID(userID int64) ([]UserIdentity, error) {
-	if m.findByUserIDFn != nil {
-		return m.findByUserIDFn(userID)
-	}
-	return nil, nil
-}
-func (m *mockUserIdentityRepo) FindByProviderAndSub(provider, sub string) (*UserIdentity, error) {
-	if m.findByProviderAndSubFn != nil {
-		return m.findByProviderAndSubFn(provider, sub)
-	}
-	return nil, nil
-}
-func (m *mockUserIdentityRepo) FindByUserIDAndProvider(userID int64, provider string) (*UserIdentity, error) {
-	if m.findByUserIDAndProviderFn != nil {
-		return m.findByUserIDAndProviderFn(userID, provider)
-	}
-	return nil, nil
-}
-func (m *mockUserIdentityRepo) DeleteByUserID(userID int64) error {
-	if m.deleteByUserIDFn != nil {
-		return m.deleteByUserIDFn(userID)
-	}
-	return nil
-}
-
 type mockClientRepo struct {
 	mockBaseRepo[Client]
 	findByUUIDFn                        func(any, ...string) (*Client, error)
@@ -402,40 +350,6 @@ func (m *mockClientRepo) FindByClientIDAndIdentityProvider(clientID, identityPro
 		return m.findByClientIDAndIdentityProviderFn(clientID, identityProviderIdentifier)
 	}
 	return nil, nil
-}
-
-type mockUserRoleRepo struct {
-	mockBaseRepo[UserRole]
-	findByUserIDFn            func(int64) ([]UserRole, error)
-	findByUserIDAndRoleIDFn   func(int64, int64) (*UserRole, error)
-	deleteByUserIDAndRoleIDFn func(int64, int64) error
-	createFn                  func(*UserRole) (*UserRole, error)
-}
-
-func (m *mockUserRoleRepo) WithTx(_ *gorm.DB) UserRoleRepository { return m }
-func (m *mockUserRoleRepo) Create(e *UserRole) (*UserRole, error) {
-	if m.createFn != nil {
-		return m.createFn(e)
-	}
-	return e, nil
-}
-func (m *mockUserRoleRepo) FindByUserID(userID int64) ([]UserRole, error) {
-	if m.findByUserIDFn != nil {
-		return m.findByUserIDFn(userID)
-	}
-	return nil, nil
-}
-func (m *mockUserRoleRepo) FindByUserIDAndRoleID(userID, roleID int64) (*UserRole, error) {
-	if m.findByUserIDAndRoleIDFn != nil {
-		return m.findByUserIDAndRoleIDFn(userID, roleID)
-	}
-	return nil, nil
-}
-func (m *mockUserRoleRepo) DeleteByUserIDAndRoleID(userID, roleID int64) error {
-	if m.deleteByUserIDAndRoleIDFn != nil {
-		return m.deleteByUserIDAndRoleIDFn(userID, roleID)
-	}
-	return nil
 }
 
 type mockRoleRepo struct {

@@ -1,9 +1,7 @@
 package idp
 
 import (
-	"github.com/maintainerd/auth/internal/authevent"
 	"github.com/maintainerd/auth/internal/platform/database"
-	"github.com/maintainerd/auth/internal/platform/jwt"
 	"github.com/maintainerd/auth/internal/platform/pagination"
 )
 
@@ -19,13 +17,3 @@ const (
 	SortOrderAsc  = pagination.SortOrderAsc
 	SortOrderDesc = pagination.SortOrderDesc
 )
-
-var generateIDTokenFn = jwt.GenerateIDToken
-var generateRefreshTokenFn = jwt.GenerateRefreshToken
-
-func coalesceAuthEventService(svc authevent.AuthEventService) authevent.AuthEventService {
-	if svc != nil {
-		return svc
-	}
-	return authevent.NoopService()
-}

@@ -8,17 +8,6 @@ import (
 )
 
 // ---------------------------------------------------------------------------
-// Shared test helpers (used across all _test.go files in this package)
-// ---------------------------------------------------------------------------
-
-func strPtr(s string) *string { return &s }
-func intPtr(i int) *int       { return &i }
-
-func validPagination() PaginationRequestDTO {
-	return PaginationRequestDTO{Page: 1, Limit: 10}
-}
-
-// ---------------------------------------------------------------------------
 // PaginationRequestDTO tests
 // ---------------------------------------------------------------------------
 
