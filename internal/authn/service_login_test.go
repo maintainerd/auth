@@ -397,9 +397,15 @@ func (m *mockIdentityProviderRepo) FindByTenantAndProvider(_ int64, _ string) (*
 // ---------------------------------------------------------------------------
 
 type mockUserTokenRepo struct {
-	createFn                   func(*UserToken) (*UserToken, error)
-	findByUserIDAndTokenTypeFn func(userID int64, tokenType string) ([]UserToken, error)
-	revokeByUUIDFn             func(id uuid.UUID) error
+	createFn                      func(*UserToken) (*UserToken, error)
+	findByUserIDAndTokenTypeFn    func(userID int64, tokenType string) ([]UserToken, error)
+	revokeByUUIDFn                func(id uuid.UUID) error
+	findActiveSessionsFn          func(int64) ([]UserToken, error)
+	findActiveSessionByUUIDFn     func(int64, uuid.UUID) (*UserToken, error)
+	countActiveSessionsFn         func(int64) (int64, error)
+	revokeSessionByUUIDFn         func(int64, uuid.UUID) error
+	revokeAllSessionsByUserIDFn   func(int64) error
+	touchSessionFn               func(uuid.UUID, time.Time) error
 }
 
 func (m *mockUserTokenRepo) WithTx(_ *gorm.DB) UserTokenRepository { return m }
@@ -447,17 +453,41 @@ func (m *mockUserTokenRepo) RevokeAllByUserID(uID int64) error          { return
 func (m *mockUserTokenRepo) DeleteByUserID(uID int64) error             { return nil }
 func (m *mockUserTokenRepo) DeleteExpiredTokens(before time.Time) error { return nil }
 func (m *mockUserTokenRepo) FindActiveSessions(userID int64) ([]UserToken, error) {
+	if m.findActiveSessionsFn != nil {
+		return m.findActiveSessionsFn(userID)
+	}
 	return nil, nil
 }
 func (m *mockUserTokenRepo) FindActiveSessionByUUID(userID int64, sessionUUID uuid.UUID) (*UserToken, error) {
+	if m.findActiveSessionByUUIDFn != nil {
+		return m.findActiveSessionByUUIDFn(userID, sessionUUID)
+	}
 	return nil, nil
 }
-func (m *mockUserTokenRepo) CountActiveSessions(userID int64) (int64, error)         { return 0, nil }
-func (m *mockUserTokenRepo) TouchSession(sessionUUID uuid.UUID, now time.Time) error { return nil }
-func (m *mockUserTokenRepo) RevokeSessionByUUID(userID int64, sessionUUID uuid.UUID) error {
+func (m *mockUserTokenRepo) CountActiveSessions(userID int64) (int64, error) {
+	if m.countActiveSessionsFn != nil {
+		return m.countActiveSessionsFn(userID)
+	}
+	return 0, nil
+}
+func (m *mockUserTokenRepo) TouchSession(sessionUUID uuid.UUID, now time.Time) error {
+	if m.touchSessionFn != nil {
+		return m.touchSessionFn(sessionUUID, now)
+	}
 	return nil
 }
-func (m *mockUserTokenRepo) RevokeAllSessionsByUserID(userID int64) error { return nil }
+func (m *mockUserTokenRepo) RevokeSessionByUUID(userID int64, sessionUUID uuid.UUID) error {
+	if m.revokeSessionByUUIDFn != nil {
+		return m.revokeSessionByUUIDFn(userID, sessionUUID)
+	}
+	return nil
+}
+func (m *mockUserTokenRepo) RevokeAllSessionsByUserID(userID int64) error {
+	if m.revokeAllSessionsByUserIDFn != nil {
+		return m.revokeAllSessionsByUserIDFn(userID)
+	}
+	return nil
+}
 
 // ---------------------------------------------------------------------------
 // Test helpers
