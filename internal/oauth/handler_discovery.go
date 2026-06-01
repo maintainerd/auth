@@ -41,8 +41,9 @@ func (h *OAuthDiscoveryHandler) Discovery(w http.ResponseWriter, r *http.Request
 		},
 		SubjectTypesSupported: []string{"public"},
 		IDTokenSignAlgValues:  []string{"RS256"},
-		TokenEndpointAuth:     []string{"client_secret_basic", "client_secret_post", "none"},
+		TokenEndpointAuth:     []string{"client_secret_basic", "client_secret_post", "none", "private_key_jwt", "client_secret_jwt"},
 		CodeChallengeMethods:  []string{"S256"},
+		DPoPSigningAlgValues:  []string{"RS256", "RS384", "RS512", "ES256", "ES384", "ES512"},
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -75,9 +76,10 @@ func (h *OAuthDiscoveryHandler) AuthorizationServerMetadata(w http.ResponseWrite
 			"urn:ietf:params:oauth:grant-type:token-exchange",
 			"urn:openid:params:grant-type:ciba",
 		},
-		TokenEndpointAuthMethods:      []string{"client_secret_basic", "client_secret_post", "none"},
+		TokenEndpointAuthMethods:      []string{"client_secret_basic", "client_secret_post", "none", "private_key_jwt", "client_secret_jwt"},
 		CodeChallengeMethods:          []string{"S256"},
 		BackchannelTokenDeliveryModes: []string{"poll"},
+		DPoPSigningAlgValues:          []string{"RS256", "RS384", "RS512", "ES256", "ES384", "ES512"},
 	}
 
 	w.Header().Set("Content-Type", "application/json")

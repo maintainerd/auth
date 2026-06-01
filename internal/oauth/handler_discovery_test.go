@@ -64,8 +64,9 @@ func TestOAuthDiscoveryHandler_Discovery(t *testing.T) {
 	}, doc.GrantTypesSupported)
 	assert.Equal(t, []string{"public"}, doc.SubjectTypesSupported)
 	assert.Equal(t, []string{"RS256"}, doc.IDTokenSignAlgValues)
-	assert.Equal(t, []string{"client_secret_basic", "client_secret_post", "none"}, doc.TokenEndpointAuth)
+	assert.Equal(t, []string{"client_secret_basic", "client_secret_post", "none", "private_key_jwt", "client_secret_jwt"}, doc.TokenEndpointAuth)
 	assert.Equal(t, []string{"S256"}, doc.CodeChallengeMethods)
+	assert.Equal(t, []string{"RS256", "RS384", "RS512", "ES256", "ES384", "ES512"}, doc.DPoPSigningAlgValues)
 }
 
 // ---------------------------------------------------------------------------

@@ -7,17 +7,21 @@ import (
 	"strings"
 
 	"github.com/maintainerd/auth/internal/platform/apperror"
+	"github.com/maintainerd/auth/internal/platform/config"
+	"github.com/maintainerd/auth/internal/platform/dpop"
 )
 
 // OAuthTokenHandler handles the OAuth 2.0 token, revocation, and
 // introspection endpoints.
 type OAuthTokenHandler struct {
 	tokenService OAuthTokenService
+	nonceManager *dpop.NonceManager
+	dpopStore    dpop.JTIStore
 }
 
 // NewOAuthTokenHandler creates a new OAuthTokenHandler.
-func NewOAuthTokenHandler(tokenService OAuthTokenService) *OAuthTokenHandler {
-	return &OAuthTokenHandler{tokenService: tokenService}
+func NewOAuthTokenHandler(tokenService OAuthTokenService, nonceManager *dpop.NonceManager, dpopStore dpop.JTIStore) *OAuthTokenHandler {
+	return &OAuthTokenHandler{tokenService: tokenService, nonceManager: nonceManager, dpopStore: dpopStore}
 }
 
 // Token handles POST /oauth/token (RFC 6749 §4.1.3, §6, §4.4). The
@@ -48,13 +52,31 @@ func (h *OAuthTokenHandler) Token(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Resolve client credentials from either HTTP Basic auth or the form body.
+	dpopProof := r.Header.Get("DPoP")
+	if dpopProof != "" && h.dpopStore != nil {
+		requestURL := config.AppPublicHostname + "/api/v1/oauth/token"
+		claims, err := dpop.ValidateProof(r.Context(), dpopProof, "POST", requestURL, "", h.dpopStore)
+		if err != nil {
+			if h.nonceManager != nil {
+				h.nonceManager.SetNonceHeader(w)
+			}
+			oerr := apperror.NewOAuthInvalidRequest("invalid_dpop_proof: " + err.Error())
+			oerr.WriteJSON(w)
+			return
+		}
+		req.DPoPThumbprint = claims.Thumbprint
+	}
+
 	creds := extractClientCredentials(r, req)
 
 	result, oerr := h.tokenService.Exchange(r.Context(), req, creds)
 	if oerr != nil {
 		oerr.WriteJSON(w)
 		return
+	}
+
+	if dpopProof != "" && h.nonceManager != nil {
+		h.nonceManager.SetNonceHeader(w)
 	}
 
 	writeTokenResponse(w, result)
