@@ -1,0 +1,236 @@
+package idp
+
+import (
+	"context"
+	"errors"
+	"net/http"
+	"net/http/httptest"
+	"testing"
+
+	"github.com/maintainerd/auth/internal/platform/apperror"
+	"github.com/stretchr/testify/assert"
+)
+
+type mockFederationService struct {
+	exchangeExternalTokenFn func(req FederationTokenRequestDTO) (*LoginResponseDTO, error)
+	exchangeOAuth2CodeFn    func(req FederationOAuth2CallbackDTO) (*LoginResponseDTO, error)
+	homeRealmDiscoveryFn    func(tenantID int64, email string) (*HRDResponseDTO, error)
+	getUserIdentitiesFn     func(userID int64) ([]IdentityDTO, error)
+	linkIdentityFn          func(userID int64, req LinkIdentityRequestDTO) (*IdentityDTO, error)
+	unlinkIdentityFn        func(userID int64, identityUUID string) error
+}
+
+func (m *mockFederationService) ExchangeExternalToken(_ context.Context, req FederationTokenRequestDTO) (*LoginResponseDTO, error) {
+	if m.exchangeExternalTokenFn != nil {
+		return m.exchangeExternalTokenFn(req)
+	}
+	return &LoginResponseDTO{AccessToken: "at"}, nil
+}
+func (m *mockFederationService) ExchangeOAuth2Code(_ context.Context, req FederationOAuth2CallbackDTO) (*LoginResponseDTO, error) {
+	if m.exchangeOAuth2CodeFn != nil {
+		return m.exchangeOAuth2CodeFn(req)
+	}
+	return &LoginResponseDTO{AccessToken: "at"}, nil
+}
+func (m *mockFederationService) HomeRealmDiscovery(_ context.Context, tenantID int64, email string) (*HRDResponseDTO, error) {
+	if m.homeRealmDiscoveryFn != nil {
+		return m.homeRealmDiscoveryFn(tenantID, email)
+	}
+	return &HRDResponseDTO{ProviderIdentifier: "idp-1"}, nil
+}
+func (m *mockFederationService) GetUserIdentities(_ context.Context, userID int64) ([]IdentityDTO, error) {
+	if m.getUserIdentitiesFn != nil {
+		return m.getUserIdentitiesFn(userID)
+	}
+	return nil, nil
+}
+func (m *mockFederationService) LinkIdentity(_ context.Context, userID int64, req LinkIdentityRequestDTO) (*IdentityDTO, error) {
+	if m.linkIdentityFn != nil {
+		return m.linkIdentityFn(userID, req)
+	}
+	return &IdentityDTO{Provider: "google"}, nil
+}
+func (m *mockFederationService) UnlinkIdentity(_ context.Context, userID int64, identityUUID string) error {
+	if m.unlinkIdentityFn != nil {
+		return m.unlinkIdentityFn(userID, identityUUID)
+	}
+	return nil
+}
+
+func TestFederationHandler_ExchangeExternalToken(t *testing.T) {
+	t.Run("bad JSON returns 400", func(t *testing.T) {
+		r := badJSONReq(t, http.MethodPost, "/federation/token")
+		w := httptest.NewRecorder()
+		NewFederationHandler(&mockFederationService{}).ExchangeExternalToken(w, r)
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+	})
+
+	t.Run("missing provider_identifier returns 400", func(t *testing.T) {
+		r := jsonReq(t, http.MethodPost, "/federation/token", map[string]string{"external_token": "tok", "client_id": "app"})
+		w := httptest.NewRecorder()
+		NewFederationHandler(&mockFederationService{}).ExchangeExternalToken(w, r)
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+	})
+
+	t.Run("service error returns 500", func(t *testing.T) {
+		svc := &mockFederationService{
+			exchangeExternalTokenFn: func(FederationTokenRequestDTO) (*LoginResponseDTO, error) {
+				return nil, apperror.NewUnauthorized("invalid token")
+			},
+		}
+		r := jsonReq(t, http.MethodPost, "/federation/token", map[string]string{
+			"provider_identifier": "idp-1", "external_token": "tok", "client_id": "app",
+		})
+		w := httptest.NewRecorder()
+		NewFederationHandler(svc).ExchangeExternalToken(w, r)
+		assert.Equal(t, http.StatusUnauthorized, w.Code)
+	})
+
+	t.Run("success returns 200", func(t *testing.T) {
+		r := jsonReq(t, http.MethodPost, "/federation/token", map[string]string{
+			"provider_identifier": "idp-1", "external_token": "tok", "client_id": "app",
+		})
+		w := httptest.NewRecorder()
+		NewFederationHandler(&mockFederationService{}).ExchangeExternalToken(w, r)
+		assert.Equal(t, http.StatusOK, w.Code)
+	})
+}
+
+func TestFederationHandler_ExchangeOAuth2Code(t *testing.T) {
+	t.Run("bad JSON returns 400", func(t *testing.T) {
+		r := badJSONReq(t, http.MethodPost, "/federation/oauth2/callback")
+		w := httptest.NewRecorder()
+		NewFederationHandler(&mockFederationService{}).ExchangeOAuth2Code(w, r)
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+	})
+
+	t.Run("missing provider_identifier returns 400", func(t *testing.T) {
+		r := jsonReq(t, http.MethodPost, "/federation/oauth2/callback", map[string]string{"code": "c", "redirect_uri": "https://x.com", "client_id": "app"})
+		w := httptest.NewRecorder()
+		NewFederationHandler(&mockFederationService{}).ExchangeOAuth2Code(w, r)
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+	})
+
+	t.Run("success returns 200", func(t *testing.T) {
+		r := jsonReq(t, http.MethodPost, "/federation/oauth2/callback", map[string]string{
+			"provider_identifier": "idp-1", "code": "c", "redirect_uri": "https://x.com", "client_id": "app",
+		})
+		w := httptest.NewRecorder()
+		NewFederationHandler(&mockFederationService{}).ExchangeOAuth2Code(w, r)
+		assert.Equal(t, http.StatusOK, w.Code)
+	})
+}
+
+func TestFederationHandler_HomeRealmDiscovery(t *testing.T) {
+	t.Run("missing email returns 400", func(t *testing.T) {
+		r := httptest.NewRequest(http.MethodGet, "/federation/hrd?tenant_id=1", nil)
+		w := httptest.NewRecorder()
+		NewFederationHandler(&mockFederationService{}).HomeRealmDiscovery(w, r)
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+	})
+
+	t.Run("invalid tenant_id returns 400", func(t *testing.T) {
+		r := httptest.NewRequest(http.MethodGet, "/federation/hrd?email=user@example.com&tenant_id=bad", nil)
+		w := httptest.NewRecorder()
+		NewFederationHandler(&mockFederationService{}).HomeRealmDiscovery(w, r)
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+	})
+
+	t.Run("service error returns 500", func(t *testing.T) {
+		svc := &mockFederationService{
+			homeRealmDiscoveryFn: func(int64, string) (*HRDResponseDTO, error) {
+				return nil, errors.New("not found")
+			},
+		}
+		r := httptest.NewRequest(http.MethodGet, "/federation/hrd?email=user@example.com&tenant_id=1", nil)
+		w := httptest.NewRecorder()
+		NewFederationHandler(svc).HomeRealmDiscovery(w, r)
+		assert.Equal(t, http.StatusInternalServerError, w.Code)
+	})
+
+	t.Run("success returns 200", func(t *testing.T) {
+		r := httptest.NewRequest(http.MethodGet, "/federation/hrd?email=user@example.com&tenant_id=1", nil)
+		w := httptest.NewRecorder()
+		NewFederationHandler(&mockFederationService{}).HomeRealmDiscovery(w, r)
+		assert.Equal(t, http.StatusOK, w.Code)
+	})
+}
+
+func TestFederationHandler_GetIdentities(t *testing.T) {
+	t.Run("no user returns 401", func(t *testing.T) {
+		r := httptest.NewRequest(http.MethodGet, "/account/identities", nil)
+		w := httptest.NewRecorder()
+		NewFederationHandler(&mockFederationService{}).GetIdentities(w, r)
+		assert.Equal(t, http.StatusUnauthorized, w.Code)
+	})
+
+	t.Run("service error returns 500", func(t *testing.T) {
+		svc := &mockFederationService{
+			getUserIdentitiesFn: func(int64) ([]IdentityDTO, error) {
+				return nil, errors.New("db error")
+			},
+		}
+		r := withTenantAndUser(httptest.NewRequest(http.MethodGet, "/account/identities", nil))
+		w := httptest.NewRecorder()
+		NewFederationHandler(svc).GetIdentities(w, r)
+		assert.Equal(t, http.StatusInternalServerError, w.Code)
+	})
+
+	t.Run("success returns 200", func(t *testing.T) {
+		r := withTenantAndUser(httptest.NewRequest(http.MethodGet, "/account/identities", nil))
+		w := httptest.NewRecorder()
+		NewFederationHandler(&mockFederationService{}).GetIdentities(w, r)
+		assert.Equal(t, http.StatusOK, w.Code)
+	})
+}
+
+func TestFederationHandler_LinkIdentity(t *testing.T) {
+	t.Run("no user returns 401", func(t *testing.T) {
+		r := jsonReq(t, http.MethodPost, "/account/identities/link", map[string]string{"provider_identifier": "idp-1", "external_token": "tok"})
+		w := httptest.NewRecorder()
+		NewFederationHandler(&mockFederationService{}).LinkIdentity(w, r)
+		assert.Equal(t, http.StatusUnauthorized, w.Code)
+	})
+
+	t.Run("missing fields returns 400", func(t *testing.T) {
+		r := withTenantAndUser(jsonReq(t, http.MethodPost, "/account/identities/link", map[string]string{}))
+		w := httptest.NewRecorder()
+		NewFederationHandler(&mockFederationService{}).LinkIdentity(w, r)
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+	})
+
+	t.Run("success returns 200", func(t *testing.T) {
+		r := withTenantAndUser(jsonReq(t, http.MethodPost, "/account/identities/link", map[string]string{
+			"provider_identifier": "idp-1", "external_token": "tok",
+		}))
+		w := httptest.NewRecorder()
+		NewFederationHandler(&mockFederationService{}).LinkIdentity(w, r)
+		assert.Equal(t, http.StatusOK, w.Code)
+	})
+}
+
+func TestFederationHandler_UnlinkIdentity(t *testing.T) {
+	t.Run("no user returns 401", func(t *testing.T) {
+		r := withChiParam(httptest.NewRequest(http.MethodDelete, "/", nil), "identity_uuid", "id-1")
+		w := httptest.NewRecorder()
+		NewFederationHandler(&mockFederationService{}).UnlinkIdentity(w, r)
+		assert.Equal(t, http.StatusUnauthorized, w.Code)
+	})
+
+	t.Run("service error returns 500", func(t *testing.T) {
+		svc := &mockFederationService{
+			unlinkIdentityFn: func(int64, string) error { return errors.New("not found") },
+		}
+		r := withTenantAndUser(withChiParam(httptest.NewRequest(http.MethodDelete, "/", nil), "identity_uuid", "id-1"))
+		w := httptest.NewRecorder()
+		NewFederationHandler(svc).UnlinkIdentity(w, r)
+		assert.Equal(t, http.StatusInternalServerError, w.Code)
+	})
+
+	t.Run("success returns 200", func(t *testing.T) {
+		r := withTenantAndUser(withChiParam(httptest.NewRequest(http.MethodDelete, "/", nil), "identity_uuid", "id-1"))
+		w := httptest.NewRecorder()
+		NewFederationHandler(&mockFederationService{}).UnlinkIdentity(w, r)
+		assert.Equal(t, http.StatusOK, w.Code)
+	})
+}
