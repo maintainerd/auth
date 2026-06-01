@@ -33,7 +33,10 @@ func buildInternalRouter(h *handlers, application *Application) http.Handler {
 
 	// Health / readiness probes (no auth, no rate-limit)
 	r.Get("/health", handleHealth)
+	r.Get("/healthz", handleHealthz)
 	r.Get("/ready", handleReady(application))
+	r.Get("/readyz", handleReady(application))
+	r.Get("/livez", handleLivez)
 
 	// OpenAPI 3.1 spec — internal port only
 	r.Get("/openapi.json", ServeOpenAPISpec)
@@ -109,7 +112,10 @@ func buildPublicRouter(h *handlers, application *Application) http.Handler {
 
 	// Health / readiness probes (no auth, no rate-limit)
 	r.Get("/health", handleHealth)
+	r.Get("/healthz", handleHealthz)
 	r.Get("/ready", handleReady(application))
+	r.Get("/readyz", handleReady(application))
+	r.Get("/livez", handleLivez)
 
 	// OpenID Connect discovery endpoints (root-level, fully public)
 	oauth.OAuthDiscoveryRoute(r, h.oauthDiscovery)
