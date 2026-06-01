@@ -1,37 +1,29 @@
 # --- Stage 1: Build ---
 FROM golang:1.26-alpine AS builder
 
-# Install build dependencies
-RUN apk add --no-cache git
+RUN apk add --no-cache git ca-certificates
 
-# Set working directory
 WORKDIR /app
 
-# Cache deps
-COPY go.mod ./
+COPY go.mod go.sum ./
 RUN go mod download
 
-# Copy the source
 COPY . .
 
-# Build the Go binary statically
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o /auth ./cmd/server
 
-# --- Stage 2: Production image ---
-FROM alpine:3.21
+RUN printf 'm9d:x:65532:65532:maintainerd:/nonexistent:/sbin/nologin\n' > /tmp/passwd && \
+    printf 'm9d:x:65532:\n' > /tmp/group
 
-# Install wget for health checks (tiny footprint)
-RUN apk add --no-cache wget
+# --- Stage 2: Distroless static (m9d user) ---
+FROM gcr.io/distroless/static-debian13:nonroot
 
-# Copy the compiled Go binary
+COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
+COPY --from=builder /tmp/passwd /tmp/group /etc/
 COPY --from=builder /auth /auth
 
-# Health check against the internal readiness endpoint
-HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-  CMD wget --no-verbose --tries=1 --spider http://localhost:8080/ready || exit 1
+EXPOSE 8080 8081
 
-# Expose port
-EXPOSE 8080
+USER m9d
 
-# Set entrypoint
 ENTRYPOINT ["/auth"]
