@@ -30,14 +30,16 @@ func (h *OAuthTokenHandler) Token(w http.ResponseWriter, r *http.Request) {
 	}
 
 	req := OAuthTokenRequestDTO{
-		GrantType:    r.PostFormValue("grant_type"),
-		Code:         r.PostFormValue("code"),
-		RedirectURI:  r.PostFormValue("redirect_uri"),
-		CodeVerifier: r.PostFormValue("code_verifier"),
-		RefreshToken: r.PostFormValue("refresh_token"),
-		Scope:        r.PostFormValue("scope"),
-		ClientID:     r.PostFormValue("client_id"),
-		ClientSecret: r.PostFormValue("client_secret"),
+		GrantType:           r.PostFormValue("grant_type"),
+		Code:                r.PostFormValue("code"),
+		RedirectURI:         r.PostFormValue("redirect_uri"),
+		CodeVerifier:        r.PostFormValue("code_verifier"),
+		RefreshToken:        r.PostFormValue("refresh_token"),
+		Scope:               r.PostFormValue("scope"),
+		ClientID:            r.PostFormValue("client_id"),
+		ClientSecret:        r.PostFormValue("client_secret"),
+		ClientAssertionType: r.PostFormValue("client_assertion_type"),
+		ClientAssertion:     r.PostFormValue("client_assertion"),
 	}
 
 	if err := req.Validate(); err != nil {
@@ -147,8 +149,10 @@ func extractClientCredentials(r *http.Request, req OAuthTokenRequestDTO) OAuthCl
 		}
 	}
 	return OAuthClientCredentials{
-		ClientID:     req.ClientID,
-		ClientSecret: req.ClientSecret,
+		ClientID:            req.ClientID,
+		ClientSecret:        req.ClientSecret,
+		ClientAssertionType: req.ClientAssertionType,
+		ClientAssertion:     req.ClientAssertion,
 	}
 }
 
