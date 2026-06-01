@@ -33,8 +33,18 @@ func (m *mockLogoutUserRepo) FindByID(id interface{}, p ...string) (*User, error
 	}
 	return nil, nil
 }
-func (m *mockLogoutUserRepo) FindByUsername(username string) (*User, error) { return nil, nil }
-func (m *mockLogoutUserRepo) FindByEmail(email string) (*User, error)      { return nil, nil }
+func (m *mockLogoutUserRepo) FindByUsername(username string) (*User, error) {
+	if m.findByUsernameFn != nil {
+		return m.findByUsernameFn(username)
+	}
+	return nil, nil
+}
+func (m *mockLogoutUserRepo) FindByEmail(email string) (*User, error) {
+	if m.findByEmailFn != nil {
+		return m.findByEmailFn(email)
+	}
+	return nil, nil
+}
 func (m *mockLogoutUserRepo) FindByEmailAndTenantID(email string, tenantID int64) (*User, error) {
 	return nil, nil
 }
