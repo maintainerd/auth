@@ -1,0 +1,272 @@
+package authn
+
+import (
+	"context"
+	"errors"
+	"testing"
+	"time"
+
+	"github.com/google/uuid"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+)
+
+func TestSessionService_ListSessions(t *testing.T) {
+	sessionUUID := uuid.New()
+	now := time.Now()
+
+	t.Run("success with sessions", func(t *testing.T) {
+		repo := &mockUserTokenRepo{
+			findActiveSessionsFn: func(int64) ([]UserToken, error) {
+				return []UserToken{
+					{UserTokenUUID: sessionUUID, TokenType: "session", CreatedAt: now},
+				}, nil
+			},
+		}
+		svc := NewSessionService(repo)
+		result, err := svc.ListSessions(context.Background(), 1)
+		require.NoError(t, err)
+		require.Len(t, result, 1)
+		assert.Equal(t, sessionUUID.String(), result[0].SessionID)
+	})
+
+	t.Run("empty list", func(t *testing.T) {
+		repo := &mockUserTokenRepo{
+			findActiveSessionsFn: func(int64) ([]UserToken, error) {
+				return []UserToken{}, nil
+			},
+		}
+		svc := NewSessionService(repo)
+		result, err := svc.ListSessions(context.Background(), 1)
+		require.NoError(t, err)
+		assert.Empty(t, result)
+	})
+
+	t.Run("repo error", func(t *testing.T) {
+		repo := &mockUserTokenRepo{
+			findActiveSessionsFn: func(int64) ([]UserToken, error) {
+				return nil, errors.New("db error")
+			},
+		}
+		svc := NewSessionService(repo)
+		result, err := svc.ListSessions(context.Background(), 1)
+		require.Error(t, err)
+		assert.Nil(t, result)
+	})
+}
+
+func TestSessionService_RevokeSession(t *testing.T) {
+	sessionUUID := uuid.New()
+
+	t.Run("success", func(t *testing.T) {
+		repo := &mockUserTokenRepo{
+			findActiveSessionByUUIDFn: func(int64, uuid.UUID) (*UserToken, error) {
+				return &UserToken{UserTokenUUID: sessionUUID}, nil
+			},
+		}
+		svc := NewSessionService(repo)
+		err := svc.RevokeSession(context.Background(), 1, sessionUUID)
+		require.NoError(t, err)
+	})
+
+	t.Run("session not found", func(t *testing.T) {
+		repo := &mockUserTokenRepo{
+			findActiveSessionByUUIDFn: func(int64, uuid.UUID) (*UserToken, error) {
+				return nil, nil
+			},
+		}
+		svc := NewSessionService(repo)
+		err := svc.RevokeSession(context.Background(), 1, sessionUUID)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "not found")
+	})
+
+	t.Run("lookup error", func(t *testing.T) {
+		repo := &mockUserTokenRepo{
+			findActiveSessionByUUIDFn: func(int64, uuid.UUID) (*UserToken, error) {
+				return nil, errors.New("db error")
+			},
+		}
+		svc := NewSessionService(repo)
+		err := svc.RevokeSession(context.Background(), 1, sessionUUID)
+		require.Error(t, err)
+	})
+
+	t.Run("revoke error", func(t *testing.T) {
+		repo := &mockUserTokenRepo{
+			findActiveSessionByUUIDFn: func(int64, uuid.UUID) (*UserToken, error) {
+				return &UserToken{}, nil
+			},
+			revokeSessionByUUIDFn: func(int64, uuid.UUID) error {
+				return errors.New("revoke error")
+			},
+		}
+		svc := NewSessionService(repo)
+		err := svc.RevokeSession(context.Background(), 1, sessionUUID)
+		require.Error(t, err)
+	})
+}
+
+func TestSessionService_RevokeAllSessions(t *testing.T) {
+	t.Run("success", func(t *testing.T) {
+		repo := &mockUserTokenRepo{}
+		svc := NewSessionService(repo)
+		err := svc.RevokeAllSessions(context.Background(), 1)
+		require.NoError(t, err)
+	})
+
+	t.Run("error", func(t *testing.T) {
+		repo := &mockUserTokenRepo{
+			revokeAllSessionsByUserIDFn: func(int64) error {
+				return errors.New("revoke error")
+			},
+		}
+		svc := NewSessionService(repo)
+		err := svc.RevokeAllSessions(context.Background(), 1)
+		require.Error(t, err)
+	})
+}
+
+func TestSessionService_CreateSession(t *testing.T) {
+	t.Run("success", func(t *testing.T) {
+		repo := &mockUserTokenRepo{
+			createFn: func(t *UserToken) (*UserToken, error) {
+				t.UserTokenUUID = uuid.New()
+				return t, nil
+			},
+		}
+		svc := NewSessionService(repo)
+		result, err := svc.CreateSession(context.Background(), 1, "192.168.1.1", "UA/1.0")
+		require.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Equal(t, int64(1), result.UserID)
+		assert.Equal(t, "user:session", result.TokenType)
+		assert.False(t, result.IsRevoked)
+	})
+
+	t.Run("create error", func(t *testing.T) {
+		repo := &mockUserTokenRepo{
+			createFn: func(*UserToken) (*UserToken, error) {
+				return nil, errors.New("db error")
+			},
+		}
+		svc := NewSessionService(repo)
+		result, err := svc.CreateSession(context.Background(), 1, "", "")
+		require.Error(t, err)
+		assert.Nil(t, result)
+	})
+}
+
+func TestSessionService_EnforceConcurrentLimit(t *testing.T) {
+	userUUID := uuid.New()
+	sessionUUID := uuid.New()
+
+	t.Run("under limit", func(t *testing.T) {
+		repo := &mockUserTokenRepo{
+			countActiveSessionsFn: func(int64) (int64, error) {
+				return 2, nil
+			},
+		}
+		svc := NewSessionService(repo)
+		err := svc.EnforceConcurrentLimit(context.Background(), userUUID, 1)
+		require.NoError(t, err)
+	})
+
+	t.Run("count error", func(t *testing.T) {
+		repo := &mockUserTokenRepo{
+			countActiveSessionsFn: func(int64) (int64, error) {
+				return 0, errors.New("db error")
+			},
+		}
+		svc := NewSessionService(repo)
+		err := svc.EnforceConcurrentLimit(context.Background(), userUUID, 1)
+		require.Error(t, err)
+	})
+
+	t.Run("evicts oldest when at limit", func(t *testing.T) {
+		repo := &mockUserTokenRepo{
+			countActiveSessionsFn: func(int64) (int64, error) {
+				return 5, nil
+			},
+			findActiveSessionsFn: func(int64) ([]UserToken, error) {
+				return []UserToken{
+					{UserTokenUUID: sessionUUID},
+				}, nil
+			},
+		}
+		svc := NewSessionService(repo)
+		err := svc.EnforceConcurrentLimit(context.Background(), userUUID, 1)
+		require.NoError(t, err)
+	})
+
+	t.Run("find sessions for eviction error", func(t *testing.T) {
+		repo := &mockUserTokenRepo{
+			countActiveSessionsFn: func(int64) (int64, error) {
+				return 5, nil
+			},
+			findActiveSessionsFn: func(int64) ([]UserToken, error) {
+				return nil, errors.New("db error")
+			},
+		}
+		svc := NewSessionService(repo)
+		err := svc.EnforceConcurrentLimit(context.Background(), userUUID, 1)
+		require.Error(t, err)
+	})
+
+	t.Run("eviction error during revoke", func(t *testing.T) {
+		repo := &mockUserTokenRepo{
+			countActiveSessionsFn: func(int64) (int64, error) {
+				return 5, nil
+			},
+			findActiveSessionsFn: func(int64) ([]UserToken, error) {
+				return []UserToken{
+					{UserTokenUUID: sessionUUID},
+				}, nil
+			},
+			revokeSessionByUUIDFn: func(int64, uuid.UUID) error {
+				return errors.New("revoke error")
+			},
+		}
+		svc := NewSessionService(repo)
+		err := svc.EnforceConcurrentLimit(context.Background(), userUUID, 1)
+		require.Error(t, err)
+	})
+}
+
+func TestSessionService_ValidateAndTouch(t *testing.T) {
+	sessionUUID := uuid.New()
+
+	t.Run("success", func(t *testing.T) {
+		repo := &mockUserTokenRepo{
+			findActiveSessionByUUIDFn: func(int64, uuid.UUID) (*UserToken, error) {
+				return &UserToken{UserTokenUUID: sessionUUID}, nil
+			},
+		}
+		svc := NewSessionService(repo)
+		err := svc.ValidateAndTouch(context.Background(), sessionUUID, 1)
+		require.NoError(t, err)
+	})
+
+	t.Run("session not found", func(t *testing.T) {
+		repo := &mockUserTokenRepo{
+			findActiveSessionByUUIDFn: func(int64, uuid.UUID) (*UserToken, error) {
+				return nil, nil
+			},
+		}
+		svc := NewSessionService(repo)
+		err := svc.ValidateAndTouch(context.Background(), sessionUUID, 1)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "revoked")
+	})
+
+	t.Run("lookup error", func(t *testing.T) {
+		repo := &mockUserTokenRepo{
+			findActiveSessionByUUIDFn: func(int64, uuid.UUID) (*UserToken, error) {
+				return nil, errors.New("db error")
+			},
+		}
+		svc := NewSessionService(repo)
+		err := svc.ValidateAndTouch(context.Background(), sessionUUID, 1)
+		require.Error(t, err)
+	})
+}
