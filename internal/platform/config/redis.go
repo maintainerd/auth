@@ -2,8 +2,10 @@ package config
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
 	"log/slog"
+	"strings"
 	"time"
 
 	"github.com/redis/go-redis/extra/redisotel/v9"
@@ -17,11 +19,19 @@ func NewRedisClient() (*redis.Client, error) {
 	addr := GetEnvOrDefault("REDIS_ADDR", "redis-db:6379")
 	password := GetEnvOrDefault("REDIS_PASSWORD", "")
 
-	rdb := redis.NewClient(&redis.Options{
+	opts := &redis.Options{
 		Addr:     addr,
 		Password: password,
 		DB:       0,
-	})
+	}
+
+	useTLS := GetEnvOrDefault("REDIS_TLS", "") == "true" || strings.HasPrefix(addr, "rediss://")
+	if useTLS {
+		opts.TLSConfig = &tls.Config{MinVersion: tls.VersionTLS12}
+		slog.Info("Redis TLS enabled")
+	}
+
+	rdb := redis.NewClient(opts)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
