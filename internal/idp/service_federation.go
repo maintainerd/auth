@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"strings"
 	"time"
 
@@ -18,9 +19,12 @@ import (
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
+	"golang.org/x/oauth2"
 	"gorm.io/datatypes"
 	"gorm.io/gorm"
 )
+
+const DefaultOIDCUserinfoEndpoint = "/userinfo"
 
 // FederationService handles external identity provider flows:
 // OIDC token exchange, JIT user provisioning, identity linking/unlinking,
@@ -31,6 +35,12 @@ type FederationService interface {
 	// for frontends that authenticate entirely with an upstream provider
 	// (Google, Cognito, Auth0, …) and want to check permissions via our system.
 	ExchangeExternalToken(ctx context.Context, req FederationTokenRequestDTO) (*LoginResponseDTO, error)
+
+	// ExchangeOAuth2Code handles the OAuth2 authorization code flow for
+	// generic OAuth2 providers. It exchanges the code for an access token,
+	// fetches user info from the provider's userinfo endpoint, and
+	// provisions/links the user.
+	ExchangeOAuth2Code(ctx context.Context, req FederationOAuth2CallbackDTO) (*LoginResponseDTO, error)
 
 	// LinkIdentity attaches an external provider identity to an already
 	// authenticated user. If the identity is already linked to a different user,
@@ -205,6 +215,136 @@ func (s *federationService) ExchangeExternalToken(ctx context.Context, req Feder
 	})
 
 	span.SetStatus(codes.Ok, "")
+	return s.generateTokens(internalSub, user, client)
+}
+
+// Generic OAuth2 authorization code flow
+
+func (s *federationService) ExchangeOAuth2Code(ctx context.Context, req FederationOAuth2CallbackDTO) (*LoginResponseDTO, error) {
+	_, span := otel.Tracer("service").Start(ctx, "federation.exchange_oauth2_code")
+	defer span.End()
+	span.SetAttributes(attribute.String("provider_identifier", req.ProviderIdentifier))
+
+	idp, err := s.idpRepo.FindByIdentifier(req.ProviderIdentifier)
+	if err != nil || idp == nil {
+		return nil, apperror.NewNotFound("identity provider not found")
+	}
+	if idp.Status != "active" {
+		return nil, apperror.NewValidation("identity provider is not active")
+	}
+
+	decCfg := decryptIdpConfig(idp.Config)
+	var cfg OIDCProviderConfig
+	if err := json.Unmarshal(decCfg, &cfg); err != nil {
+		return nil, apperror.NewValidation("identity provider configuration is invalid")
+	}
+	if cfg.ClientID == "" || cfg.ClientSecret == "" {
+		return nil, apperror.NewValidation("identity provider missing OAuth2 client credentials")
+	}
+
+	userinfoURL := cfg.UserinfoEndpoint
+	if userinfoURL == "" && cfg.Issuer != "" {
+		userinfoURL = strings.TrimRight(cfg.Issuer, "/") + DefaultOIDCUserinfoEndpoint
+	}
+	if userinfoURL == "" {
+		return nil, apperror.NewValidation("identity provider missing userinfo endpoint")
+	}
+
+	oauth2Cfg := &oauth2.Config{
+		ClientID:     cfg.ClientID,
+		ClientSecret: cfg.ClientSecret,
+		RedirectURL:  req.RedirectURI,
+		Endpoint: oauth2.Endpoint{
+			TokenURL:  strings.TrimRight(cfg.Issuer, "/") + "/oauth/token",
+			AuthStyle: oauth2.AuthStyleAutoDetect,
+		},
+		Scopes: cfg.Scopes,
+	}
+
+	tok, err := oauth2Cfg.Exchange(ctx, req.Code)
+	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "oauth2 code exchange failed")
+		return nil, apperror.NewUnauthorized("failed to exchange authorization code: " + err.Error())
+	}
+
+	hc := oauth2Cfg.Client(ctx, tok)
+	resp, err := hc.Get(userinfoURL)
+	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "userinfo fetch failed")
+		return nil, apperror.NewUnauthorized("failed to fetch user info from provider")
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, apperror.NewUnauthorized("failed to read user info response")
+	}
+
+	var claims map[string]interface{}
+	if err := json.Unmarshal(body, &claims); err != nil {
+		return nil, apperror.NewUnauthorized("failed to parse user info response")
+	}
+
+	externalSub := stringClaim(claims, "sub")
+	if externalSub == "" {
+		externalSub = stringClaim(claims, "id")
+	}
+	if externalSub == "" {
+		return nil, apperror.NewValidation("external token missing user identifier")
+	}
+	span.SetAttributes(attribute.String("external_sub", externalSub))
+
+	meta := extractMetadata(claims, cfg.AttributeMapping)
+	email := meta.Email
+	if email == "" {
+		email = stringClaim(claims, "email")
+	}
+
+	var user *User
+	var internalSub string
+
+	err = s.db.Transaction(func(tx *gorm.DB) error {
+		txUserIdentityRepo := s.userIdentityRepo.WithTx(tx)
+		txUserRepo := s.userRepo.WithTx(tx)
+
+		existing, txErr := txUserIdentityRepo.FindByProviderAndSub(idp.Provider, externalSub)
+		if txErr != nil {
+			return apperror.NewInternal("identity lookup failed", txErr)
+		}
+
+		if existing != nil {
+			user, txErr = txUserRepo.FindByID(existing.UserID)
+			if txErr != nil || user == nil {
+				return apperror.NewInternal("user lookup failed", txErr)
+			}
+			_ = s.refreshMetadata(tx, existing, meta)
+		} else {
+			var isNew bool
+			user, isNew, txErr = s.provisionUser(ctx, tx, idp, externalSub, email, meta)
+			if txErr != nil {
+				return txErr
+			}
+			_ = isNew
+		}
+
+		identity, txErr := txUserIdentityRepo.FindByUserIDAndProvider(user.UserID, idp.Provider)
+		if txErr != nil || identity == nil {
+			return apperror.NewInternal("identity resolution failed", txErr)
+		}
+		internalSub = identity.Sub
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	client, err := s.clientRepo.FindByClientIDAndIdentityProvider(req.ClientID, idp.Identifier)
+	if err != nil || client == nil {
+		return nil, apperror.NewNotFound("client not found")
+	}
+
 	return s.generateTokens(internalSub, user, client)
 }
 
