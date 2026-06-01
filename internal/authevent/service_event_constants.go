@@ -39,6 +39,7 @@ const (
 	AuthEventTypeOAuthAuthorize        = "authn_oauth_authorize"
 	AuthEventTypeOAuthConsent          = "authn_oauth_consent"
 	AuthEventTypeOAuthConsentDeny      = "authn_oauth_consent_deny"
+	AuthEventTypeOAuthConsentRevoke    = "authn_oauth_consent_revoke"
 	AuthEventTypeOAuthTokenExchange    = "authn_oauth_token_exchange"
 	AuthEventTypeOAuthTokenRefresh     = "authn_oauth_token_refresh"
 	AuthEventTypeOAuthTokenRevoke      = "authn_oauth_token_revoke"

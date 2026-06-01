@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"runtime/debug"
 	"time"
 
 	"go.opentelemetry.io/otel"
@@ -144,13 +145,21 @@ func InitMetrics(ctx context.Context) (shutdown func(context.Context) error, err
 	if err != nil {
 		return mp.Shutdown, fmt.Errorf("telemetry: register build_info gauge: %w", err)
 	}
+
+	buildCommit, buildDate := readBuildInfo()
+
 	_, err = meter.RegisterCallback(func(_ context.Context, o metric.Observer) error {
-		o.ObserveInt64(buildInfo, 1,
-			metric.WithAttributes(
-				attribute.String("version", appVersion),
-				attribute.String("service", serviceName),
-			),
-		)
+		attrs := []attribute.KeyValue{
+			attribute.String("version", appVersion),
+			attribute.String("service", serviceName),
+		}
+		if buildCommit != "" {
+			attrs = append(attrs, attribute.String("commit", buildCommit))
+		}
+		if buildDate != "" {
+			attrs = append(attrs, attribute.String("build_date", buildDate))
+		}
+		o.ObserveInt64(buildInfo, 1, metric.WithAttributes(attrs...))
 		return nil
 	}, buildInfo)
 	if err != nil {
@@ -166,3 +175,19 @@ func InitMetrics(ctx context.Context) (shutdown func(context.Context) error, err
 }
 
 func noopShutdown(context.Context) error { return nil }
+
+func readBuildInfo() (commit, date string) {
+	bi, ok := debug.ReadBuildInfo()
+	if !ok {
+		return "", ""
+	}
+	for _, s := range bi.Settings {
+		switch s.Key {
+		case "vcs.revision":
+			commit = s.Value
+		case "vcs.time":
+			date = s.Value
+		}
+	}
+	return commit, date
+}

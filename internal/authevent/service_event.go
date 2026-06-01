@@ -144,8 +144,8 @@ func (s *authEventService) Log(ctx context.Context, input AuthEventInput) {
 		EventType:    input.EventType,
 		Severity:     input.Severity,
 		Result:       input.Result,
-		Description:  input.Description,
-		ErrorReason:  input.ErrorReason,
+		Description:  logging.RedactString(input.Description),
+		ErrorReason:  logging.RedactString(input.ErrorReason),
 		TraceID:      traceID,
 		Metadata:     datatypes.JSON(logging.RedactJSON(input.Metadata)),
 	}
