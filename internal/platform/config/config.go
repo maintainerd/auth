@@ -33,6 +33,9 @@ var (
 	JWTPrivateKey []byte
 	JWTPublicKey  []byte
 
+	// HMAC Secret for signed URLs
+	HMACSecretKey []byte
+
 	// Secret Management
 	SecretProvider string // "env", "aws_ssm", "aws_secrets", "vault", "azure_kv"
 	SecretPrefix   string // Prefix for secret names in external providers
@@ -147,6 +150,13 @@ func Init() error {
 	}
 	slog.Info("Application encryption key loaded successfully")
 
+	// HMAC secret key for signed URLs — loaded via the configured secret provider.
+	slog.Info("Loading HMAC secret key from secret provider")
+	if HMACSecretKey, err = loadSecret("HMAC_SECRET_KEY"); err != nil {
+		return fmt.Errorf("failed to load HMAC_SECRET_KEY: %w", err)
+	}
+	slog.Info("HMAC secret key loaded successfully")
+
 	// DB Config
 	if DBHost, err = GetEnv("DB_HOST"); err != nil {
 		return err
@@ -213,4 +223,110 @@ func Init() error {
 	LogLevel = GetEnvOrDefault("LOG_LEVEL", "info")
 
 	return nil
+}
+
+type Config struct {
+	AppEnv             string
+	AppVersion         string
+	AppPublicHostname  string
+	AppPrivateHostname string
+	AppEncryptionKey   []byte
+
+	LogLevel string
+
+	AccountHostname string
+	AuthHostname    string
+
+	JWTPrivateKey    []byte
+	JWTPublicKey     []byte
+	HMACSecretKey    []byte
+
+	SecretProvider string
+	SecretPrefix   string
+
+	DBHost     string
+	DBPort     string
+	DBUser     string
+	DBPassword string
+	DBName     string
+	DBSSLMode  string
+
+	DBMaxOpenConns       int
+	DBMaxIdleConns       int
+	DBConnMaxLifetimeSec int
+	DBStatementTimeoutMs int
+
+	CookieSecure   bool
+	CookieSameSite string
+
+	SMTPHost      string
+	SMTPPort      int
+	SMTPUser      string
+	SMTPPass      string
+	SMTPFromEmail string
+	SMTPFromName  string
+	EmailLogo     string
+
+	EmailProvider string
+	EmailAPIKey   string
+	EmailDomain   string
+	EmailRegion   string
+
+	SMSProvider      string
+	TwilioAccountSID string
+	TwilioAuthToken  string
+	TwilioFromNumber string
+	SNSRegion        string
+	VonageAPIKey     string
+	VonageAPISecret  string
+	VonageFrom       string
+}
+
+func GetConfig() Config {
+	return Config{
+		AppEnv:             AppEnv,
+		AppVersion:         AppVersion,
+		AppPublicHostname:  AppPublicHostname,
+		AppPrivateHostname: AppPrivateHostname,
+		AppEncryptionKey:   AppEncryptionKey,
+		LogLevel:           LogLevel,
+		AccountHostname:    AccountHostname,
+		AuthHostname:       AuthHostname,
+		JWTPrivateKey:      JWTPrivateKey,
+		JWTPublicKey:       JWTPublicKey,
+		HMACSecretKey:      HMACSecretKey,
+		SecretProvider:     SecretProvider,
+		SecretPrefix:       SecretPrefix,
+		DBHost:             DBHost,
+		DBPort:             DBPort,
+		DBUser:             DBUser,
+		DBPassword:         DBPassword,
+		DBName:             DBName,
+		DBSSLMode:          DBSSLMode,
+		DBMaxOpenConns:       DBMaxOpenConns,
+		DBMaxIdleConns:       DBMaxIdleConns,
+		DBConnMaxLifetimeSec: DBConnMaxLifetimeSec,
+		DBStatementTimeoutMs: DBStatementTimeoutMs,
+		CookieSecure:         CookieSecure,
+		CookieSameSite:       CookieSameSite,
+		SMTPHost:             SMTPHost,
+		SMTPPort:             SMTPPort,
+		SMTPUser:             SMTPUser,
+		SMTPPass:             SMTPPass,
+		SMTPFromEmail:        SMTPFromEmail,
+		SMTPFromName:         SMTPFromName,
+		EmailLogo:            EmailLogo,
+		EmailProvider:        EmailProvider,
+		EmailAPIKey:          EmailAPIKey,
+		EmailDomain:          EmailDomain,
+		EmailRegion:          EmailRegion,
+		SMSProvider:          SMSProvider,
+		TwilioAccountSID:     TwilioAccountSID,
+		TwilioAuthToken:      TwilioAuthToken,
+		TwilioFromNumber:     TwilioFromNumber,
+		SNSRegion:            SNSRegion,
+		VonageAPIKey:         VonageAPIKey,
+		VonageAPISecret:      VonageAPISecret,
+		VonageFrom:           VonageFrom,
+	}
 }

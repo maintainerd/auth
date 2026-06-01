@@ -21,6 +21,7 @@ func TestInit(t *testing.T) {
 		t.Setenv("JWT_PRIVATE_KEY", "private-key-data")
 		t.Setenv("JWT_PUBLIC_KEY", "public-key-data")
 		t.Setenv("APP_ENCRYPTION_KEY", "12345678901234567890123456789012")
+		t.Setenv("HMAC_SECRET_KEY", "hmac-secret-data")
 		t.Setenv("DB_HOST", "localhost")
 		t.Setenv("DB_PORT", "5432")
 		t.Setenv("DB_USER", "postgres")
@@ -58,6 +59,7 @@ func TestInit(t *testing.T) {
 		origSMTPFromName := SMTPFromName
 		origEmailLogo := EmailLogo
 		origEncKey := AppEncryptionKey
+		origHMACKey := HMACSecretKey
 		t.Cleanup(func() {
 			activeSecretManager = origSM
 			SecretProvider = origProvider
@@ -83,6 +85,7 @@ func TestInit(t *testing.T) {
 			SMTPFromName = origSMTPFromName
 			EmailLogo = origEmailLogo
 			AppEncryptionKey = origEncKey
+			HMACSecretKey = origHMACKey
 		})
 	}
 
