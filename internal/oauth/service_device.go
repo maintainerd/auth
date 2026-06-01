@@ -288,13 +288,14 @@ func (s *oauthDeviceService) ExchangeToken(ctx context.Context, req OAuthDeviceT
 	issuer := config.AppPublicHostname
 	clientIdentifier := resolveClientIdentifier(record.Client)
 
-	accessToken, err := jwt.GenerateAccessToken(
+	accessToken, err := jwt.GenerateAccessTokenWithOptions(
 		user.UserUUID.String(),
 		record.Scope,
 		issuer,
 		issuer,
 		clientIdentifier,
 		providerID,
+		clientAccessTokenOpts(record.Client),
 	)
 	if err != nil {
 		span.RecordError(err)

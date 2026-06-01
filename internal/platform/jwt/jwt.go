@@ -215,6 +215,10 @@ type AccessTokenOptions struct {
 	// When non-empty, the token will contain a cnf.jkt claim and must be
 	// presented with a matching DPoP proof on each resource request (RFC 9449).
 	DPoPThumbprint string
+
+	// AccessTokenTTL overrides the default AccessTokenTTL when > 0.
+	// Used for per-client token lifetime configuration.
+	AccessTokenTTL time.Duration
 }
 
 // GenerateAccessToken is the standard (Bearer) entry point for access token
@@ -275,14 +279,18 @@ func GenerateAccessTokenWithOptions(
 	jti := generateSecureJTI()
 
 	now := time.Now()
+	ttl := AccessTokenTTL
+	if opts != nil && opts.AccessTokenTTL > 0 {
+		ttl = opts.AccessTokenTTL
+	}
 	claims := jwtlib.MapClaims{
 		// Standard JWT claims (RFC 7519)
 		"sub": userId,
 		"aud": audience,
 		"iss": issuer,
 		"iat": jwtlib.NewNumericDate(now),
-		"exp": jwtlib.NewNumericDate(now.Add(AccessTokenTTL)), // Short-lived tokens
-		"nbf": jwtlib.NewNumericDate(now),                     // Not before
+		"exp": jwtlib.NewNumericDate(now.Add(ttl)),
+		"nbf": jwtlib.NewNumericDate(now),
 		"jti": jti,                                            // Secure unique identifier
 
 		// OAuth2 claims
