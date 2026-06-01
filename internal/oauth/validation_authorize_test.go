@@ -159,3 +159,30 @@ func TestOAuthConsentDecisionDTO_Validate(t *testing.T) {
 		require.NoError(t, r.Validate())
 	})
 }
+
+func TestOAuthAuthorizeRequestDTO_Validate_MaxLengths(t *testing.T) {
+	validReq := OAuthAuthorizeRequestDTO{
+		ResponseType:        "code",
+		ClientID:            "my-client",
+		RedirectURI:         "https://example.com/callback",
+		Scope:               "openid",
+		CodeChallenge:       strings.Repeat("A", 43),
+		CodeChallengeMethod: "S256",
+	}
+
+	t.Run("client_id too long", func(t *testing.T) {
+		r := validReq
+		r.ClientID = strings.Repeat("x", 300)
+		err := r.Validate()
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "client_id")
+	})
+
+	t.Run("redirect_uri too long", func(t *testing.T) {
+		r := validReq
+		r.RedirectURI = "https://x.com/" + strings.Repeat("y", 3000)
+		err := r.Validate()
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "redirect_uri")
+	})
+}
