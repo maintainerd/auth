@@ -12,17 +12,18 @@ COPY . .
 
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o /auth ./cmd/server
 
-RUN printf 'm9d:x:65532:65532:maintainerd:/nonexistent:/sbin/nologin\n' > /tmp/passwd && \
-    printf 'm9d:x:65532:\n' > /tmp/group
+# --- Stage 2: Runtime ---
+FROM alpine:3.21
 
-# --- Stage 2: Distroless static (m9d user) ---
-FROM gcr.io/distroless/static-debian13:nonroot
+RUN apk add --no-cache ca-certificates && \
+    adduser -D -u 65532 -g 65532 m9d
 
-COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
-COPY --from=builder /tmp/passwd /tmp/group /etc/
 COPY --from=builder /auth /auth
 
 EXPOSE 8080 8081
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+    CMD wget --no-verbose --tries=1 --spider http://localhost:8080/readyz || exit 1
 
 USER m9d
 
