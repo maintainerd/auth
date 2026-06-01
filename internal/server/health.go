@@ -1,45 +1,87 @@
 package server
 
-import "net/http"
+import (
+	"encoding/json"
+	"net/http"
 
-// handleHealth responds to liveness probes. Always returns 200 OK when the
-// process is running — no dependency checks.
-func handleHealth(w http.ResponseWriter, _ *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	w.Write([]byte(`{"status":"ok"}`)) //nolint:errcheck
+	"github.com/maintainerd/auth/internal/platform/config"
+	"github.com/maintainerd/auth/internal/platform/jwt"
+)
+
+type healthResponse struct {
+	Status     string            `json:"status"`
+	Version    string            `json:"version,omitempty"`
+	Dependency *dependencyStatus `json:"dependency,omitempty"`
+	Reason     string            `json:"reason,omitempty"`
 }
 
-// handleReady returns an http.HandlerFunc that checks database and Redis
-// connectivity. It returns 200 OK when both dependencies are reachable, or
-// 503 Service Unavailable when either check fails.
+type dependencyStatus struct {
+	Database string `json:"database"`
+	Redis    string `json:"redis"`
+	JWKS     string `json:"jwks"`
+}
+
+func handleHealth(w http.ResponseWriter, _ *http.Request) {
+	writeJSON(w, http.StatusOK, healthResponse{Status: "ok"})
+}
+
+func handleHealthz(w http.ResponseWriter, _ *http.Request) {
+	writeJSON(w, http.StatusOK, healthResponse{Status: "ok"})
+}
+
+func handleLivez(w http.ResponseWriter, _ *http.Request) {
+	writeJSON(w, http.StatusOK, healthResponse{
+		Status:  "ok",
+		Version: config.AppVersion,
+	})
+}
+
 func handleReady(application *Application) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
+		deps := &dependencyStatus{Database: "ok", Redis: "ok", JWKS: "ok"}
+		allOk := true
 
 		sqlDB, err := application.DB.DB()
 		if err != nil {
-			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(http.StatusServiceUnavailable)
-			w.Write([]byte(`{"status":"not ready","reason":"database connection unavailable"}`)) //nolint:errcheck
-			return
-		}
-		if err := sqlDB.PingContext(ctx); err != nil {
-			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(http.StatusServiceUnavailable)
-			w.Write([]byte(`{"status":"not ready","reason":"database ping failed"}`)) //nolint:errcheck
-			return
+			deps.Database = "unavailable"
+			allOk = false
+		} else if err := sqlDB.PingContext(ctx); err != nil {
+			deps.Database = "unreachable"
+			allOk = false
 		}
 
-		if err := application.RedisClient.Ping(ctx).Err(); err != nil {
-			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(http.StatusServiceUnavailable)
-			w.Write([]byte(`{"status":"not ready","reason":"redis ping failed"}`)) //nolint:errcheck
-			return
+		if application.RedisClient != nil {
+			if err := application.RedisClient.Ping(ctx).Err(); err != nil {
+				deps.Redis = "unreachable"
+				allOk = false
+			}
+		} else {
+			deps.Redis = "not configured"
 		}
 
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{"status":"ready"}`)) //nolint:errcheck
+		if jwt.GetPublicKey() == nil {
+			deps.JWKS = "not loaded"
+			allOk = false
+		}
+
+		status := "ready"
+		httpStatus := http.StatusOK
+		if !allOk {
+			status = "not ready"
+			httpStatus = http.StatusServiceUnavailable
+		}
+
+		writeJSON(w, httpStatus, healthResponse{
+			Status:     status,
+			Version:    config.AppVersion,
+			Dependency: deps,
+		})
 	}
+}
+
+func writeJSON(w http.ResponseWriter, status int, v any) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	_ = json.NewEncoder(w).Encode(v)
 }
