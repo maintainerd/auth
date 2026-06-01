@@ -2,6 +2,7 @@ package authn
 
 import (
 	"net/url"
+	"strings"
 	"testing"
 	"time"
 
@@ -144,4 +145,20 @@ func TestLoginResponseDto_Fields(t *testing.T) {
 	assert.Equal(t, "access", resp.AccessToken)
 	assert.Equal(t, "Bearer", resp.TokenType)
 	assert.Equal(t, int64(3600), resp.ExpiresIn)
+}
+
+func TestLoginQueryDto_Validate_MaxLengths(t *testing.T) {
+	t.Run("client_id too long", func(t *testing.T) {
+		d := LoginQueryDTO{ClientID: strings.Repeat("x", 256), ProviderID: "p1"}
+		err := d.Validate()
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "Client ID")
+	})
+
+	t.Run("provider_id too long", func(t *testing.T) {
+		d := LoginQueryDTO{ClientID: "c1", ProviderID: strings.Repeat("x", 256)}
+		err := d.Validate()
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "Provider ID")
+	})
 }

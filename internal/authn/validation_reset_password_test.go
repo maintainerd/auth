@@ -2,6 +2,7 @@ package authn
 
 import (
 	"net/url"
+	"strings"
 	"testing"
 	"time"
 
@@ -99,5 +100,41 @@ func TestResetPasswordQueryDto_ValidateSignedURL(t *testing.T) {
 		parsed, _ := url.Parse(raw)
 		err := q.ValidateSignedURL(parsed.Query())
 		assert.NoError(t, err)
+	})
+}
+
+func TestResetPasswordQueryDto_Validate_MaxLengths(t *testing.T) {
+	valid := ResetPasswordQueryDTO{
+		Token: "tok", ClientID: "c1", ProviderID: "p1", Expires: "1", Sig: "sig",
+	}
+
+	t.Run("token too long", func(t *testing.T) {
+		d := valid
+		d.Token = strings.Repeat("x", 501)
+		require.Error(t, d.Validate())
+	})
+
+	t.Run("client_id too long", func(t *testing.T) {
+		d := valid
+		d.ClientID = strings.Repeat("x", 101)
+		require.Error(t, d.Validate())
+	})
+
+	t.Run("provider_id too long", func(t *testing.T) {
+		d := valid
+		d.ProviderID = strings.Repeat("x", 101)
+		require.Error(t, d.Validate())
+	})
+
+	t.Run("expires too long", func(t *testing.T) {
+		d := valid
+		d.Expires = strings.Repeat("x", 51)
+		require.Error(t, d.Validate())
+	})
+
+	t.Run("sig too long", func(t *testing.T) {
+		d := valid
+		d.Sig = strings.Repeat("x", 501)
+		require.Error(t, d.Validate())
 	})
 }
