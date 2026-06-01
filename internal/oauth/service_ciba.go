@@ -2,7 +2,6 @@ package oauth
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -15,7 +14,6 @@ import (
 	"github.com/maintainerd/auth/internal/platform/jwt"
 	"github.com/maintainerd/auth/internal/platform/middleware"
 	"github.com/maintainerd/auth/internal/platform/ptr"
-	"github.com/maintainerd/auth/internal/shared"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -336,31 +334,6 @@ func (s *oauthCIBAService) ExchangeToken(ctx context.Context, req OAuthCIBAToken
 		ExpiresIn:   int64(jwt.AccessTokenTTL.Seconds()),
 		Scope:       record.Scope,
 	}, nil
-}
-
-// ──────────────────────────────────────────────────────────────────────────────
-// Helpers
-// ──────────────────────────────────────────────────────────────────────────────
-
-func (s *oauthCIBAService) authenticateClient(creds OAuthClientCredentials) (*Client, *apperror.OAuthError) {
-	var client Client
-	err := s.db.
-		Preload("IdentityProvider").
-		Preload("ClientURIs").
-		Where("identifier = ? AND status = ?", creds.ClientID, shared.StatusActive).
-		First(&client).Error
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, apperror.NewOAuthInvalidClient("unknown client_id")
-		}
-		return nil, apperror.NewOAuthServerError("an unexpected error occurred")
-	}
-	if client.SecretHash != nil && *client.SecretHash != "" {
-		if !clientSecretMatches(&client, creds.ClientSecret) {
-			return nil, apperror.NewOAuthInvalidClient("client authentication failed")
-		}
-	}
-	return &client, nil
 }
 
 func (s *oauthCIBAService) sendCIBANotificationEmail(ctx context.Context, user *User, client *Client, bindingMessage string) error {

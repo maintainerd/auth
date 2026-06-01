@@ -155,16 +155,7 @@ func (s *apiKeyService) Get(ctx context.Context, filter APIKeyServiceGetFilter, 
 	}
 
 	// Build repository filter
-	repoFilter := APIKeyRepositoryGetFilter{
-		TenantID:    filter.TenantID,
-		Name:        filter.Name,
-		Description: filter.Description,
-		Status:      filter.Status,
-		Page:        filter.Page,
-		Limit:       filter.Limit,
-		SortBy:      filter.SortBy,
-		SortOrder:   filter.SortOrder,
-	}
+	repoFilter := APIKeyRepositoryGetFilter(filter)
 
 	result, err := s.apiKeyRepo.FindPaginated(repoFilter)
 	if err != nil {

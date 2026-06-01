@@ -1,8 +1,6 @@
 package authn
 
 import (
-	"net/http"
-
 	"github.com/maintainerd/auth/internal/platform/database"
 	"github.com/maintainerd/auth/internal/platform/jwt"
 	"github.com/maintainerd/auth/internal/platform/pagination"
@@ -27,8 +25,4 @@ const (
 
 func NewBaseRepository[T any](db any, uuidFieldName, idFieldName string) *database.BaseRepository[T] {
 	return database.NewBaseRepository[T](db.(*gorm.DB), uuidFieldName, idFieldName)
-}
-
-func parsePaginationQuery(r *http.Request) pagination.PaginationRequestDTO {
-	return pagination.ParseQuery(r)
 }

@@ -2,7 +2,6 @@ package oauth
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -15,7 +14,6 @@ import (
 	"github.com/maintainerd/auth/internal/platform/jwt"
 	"github.com/maintainerd/auth/internal/platform/middleware"
 	"github.com/maintainerd/auth/internal/platform/ptr"
-	"github.com/maintainerd/auth/internal/shared"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -329,27 +327,6 @@ func (s *oauthDeviceService) ExchangeToken(ctx context.Context, req OAuthDeviceT
 // ──────────────────────────────────────────────────────────────────────────────
 // Helpers
 // ──────────────────────────────────────────────────────────────────────────────
-
-func (s *oauthDeviceService) authenticateClient(creds OAuthClientCredentials) (*Client, *apperror.OAuthError) {
-	var client Client
-	err := s.db.
-		Preload("IdentityProvider").
-		Preload("ClientURIs").
-		Where("identifier = ? AND status = ?", creds.ClientID, shared.StatusActive).
-		First(&client).Error
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, apperror.NewOAuthInvalidClient("unknown client_id")
-		}
-		return nil, apperror.NewOAuthServerError("an unexpected error occurred")
-	}
-	if client.SecretHash != nil && *client.SecretHash != "" {
-		if !clientSecretMatches(&client, creds.ClientSecret) {
-			return nil, apperror.NewOAuthInvalidClient("client authentication failed")
-		}
-	}
-	return &client, nil
-}
 
 // generateUserCode returns an 8-character uppercase alphanumeric code in the
 // format XXXX-XXXX for easy human entry.

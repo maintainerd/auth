@@ -117,18 +117,7 @@ func (s *roleService) Get(ctx context.Context, filter RoleServiceGetFilter) (*Ro
 	_, span := otel.Tracer("service").Start(ctx, "role.list")
 	defer span.End()
 
-	roleFilter := RoleRepositoryGetFilter{
-		Name:        filter.Name,
-		Description: filter.Description,
-		IsDefault:   filter.IsDefault,
-		IsSystem:    filter.IsSystem,
-		Status:      filter.Status,
-		TenantID:    filter.TenantID,
-		Page:        filter.Page,
-		Limit:       filter.Limit,
-		SortBy:      filter.SortBy,
-		SortOrder:   filter.SortOrder,
-	}
+	roleFilter := RoleRepositoryGetFilter(filter)
 
 	// Query paginated roles
 	result, err := s.roleRepo.FindPaginated(roleFilter)

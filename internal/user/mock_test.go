@@ -24,10 +24,9 @@ import (
 )
 
 var (
-	errNotFound     = apperror.NewNotFoundWithReason("not found")
-	errValidation   = apperror.NewValidation("validation error")
-	errUnauthorized = apperror.NewUnauthorized("unauthorized")
-	errForbidden    = apperror.NewForbidden("access denied")
+	errNotFound   = apperror.NewNotFoundWithReason("not found")
+	errValidation = apperror.NewValidation("validation error")
+	errForbidden  = apperror.NewForbidden("access denied")
 )
 
 const tenantID int64 = 1
@@ -41,12 +40,6 @@ var (
 func withTenant(r *http.Request) *http.Request {
 	return middleware.WithAuthContext(r, &middleware.AuthContext{
 		Tenant: &cache.AuthTenant{TenantID: tenantID, TenantUUID: testTenantUUID},
-	})
-}
-
-func withUser(r *http.Request) *http.Request {
-	return middleware.WithAuthContext(r, &middleware.AuthContext{
-		User: &cache.AuthUser{UserUUID: testUserUUID},
 	})
 }
 

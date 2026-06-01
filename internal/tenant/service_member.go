@@ -172,14 +172,7 @@ func (s *tenantMemberService) ListByTenant(ctx context.Context, filter TenantMem
 	defer span.End()
 	span.SetAttributes(attribute.Int64("tenant.id", filter.TenantID))
 
-	tus, err := s.tenantMemberRepo.FindByTenant(TenantMemberRepositoryListFilter{
-		TenantID:  filter.TenantID,
-		Role:      filter.Role,
-		Page:      filter.Page,
-		Limit:     filter.Limit,
-		SortBy:    filter.SortBy,
-		SortOrder: filter.SortOrder,
-	})
+	tus, err := s.tenantMemberRepo.FindByTenant(TenantMemberRepositoryListFilter(filter))
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "list tenant members failed")

@@ -1,24 +1,15 @@
 package setup
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
-	"net/http"
-	"net/http/httptest"
-	"strings"
 	"testing"
 	"time"
 
 	sqlmock "github.com/DATA-DOG/go-sqlmock"
-	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/client"
 	"github.com/maintainerd/auth/internal/iam"
-	"github.com/maintainerd/auth/internal/idp"
 	"github.com/maintainerd/auth/internal/platform/apperror"
-	"github.com/maintainerd/auth/internal/platform/cache"
-	"github.com/maintainerd/auth/internal/platform/middleware"
 	"github.com/maintainerd/auth/internal/tenant"
 	"github.com/maintainerd/auth/internal/user"
 	"github.com/stretchr/testify/require"
@@ -28,19 +19,10 @@ import (
 )
 
 var (
-	errNotFound     = apperror.NewNotFoundWithReason("not found")
-	errValidation   = apperror.NewValidation("validation error")
-	errUnauthorized = apperror.NewUnauthorized("unauthorized")
-	errForbidden    = apperror.NewForbidden("access denied")
+	errValidation = apperror.NewValidation("validation error")
 )
 
-const tenantID int64 = 1
-
-var (
-	testTenantUUID   = uuid.MustParse("00000000-0000-0000-0000-000000000001")
-	testUserUUID     = uuid.MustParse("00000000-0000-0000-0000-000000000002")
-	testResourceUUID = uuid.MustParse("00000000-0000-0000-0000-000000000099")
-)
+func strPtr(v string) *string { return &v }
 
 func newMockGormDB(t *testing.T) (*gorm.DB, sqlmock.Sqlmock) {
 	t.Helper()
@@ -53,53 +35,6 @@ func newMockGormDB(t *testing.T) (*gorm.DB, sqlmock.Sqlmock) {
 	return gormDB, mock
 }
 
-func withTenant(r *http.Request) *http.Request {
-	return middleware.WithAuthContext(r, &middleware.AuthContext{
-		Tenant: &cache.AuthTenant{TenantID: tenantID, TenantUUID: testTenantUUID},
-	})
-}
-
-func withUser(r *http.Request) *http.Request {
-	return middleware.WithAuthContext(r, &middleware.AuthContext{
-		User: &cache.AuthUser{UserUUID: testUserUUID},
-	})
-}
-
-func withTenantAndUser(r *http.Request) *http.Request {
-	return middleware.WithAuthContext(r, &middleware.AuthContext{
-		Tenant: &cache.AuthTenant{TenantID: tenantID, TenantUUID: testTenantUUID},
-		User:   &cache.AuthUser{UserUUID: testUserUUID},
-	})
-}
-
-func withChiParam(r *http.Request, key, val string) *http.Request {
-	rctx := chi.RouteContext(r.Context())
-	if rctx == nil {
-		rctx = chi.NewRouteContext()
-	}
-	rctx.URLParams.Add(key, val)
-	return r.WithContext(context.WithValue(r.Context(), chi.RouteCtxKey, rctx))
-}
-
-func badJSONReq(t *testing.T, method, target string) *http.Request {
-	t.Helper()
-	r := httptest.NewRequest(method, target, strings.NewReader("{bad json"))
-	r.Header.Set("Content-Type", "application/json")
-	return r
-}
-
-func jsonReq(t *testing.T, method, url string, body any) *http.Request {
-	t.Helper()
-	var buf bytes.Buffer
-	if body != nil {
-		require.NoError(t, json.NewEncoder(&buf).Encode(body))
-	}
-	r := httptest.NewRequest(method, url, &buf)
-	r.Header.Set("Content-Type", "application/json")
-	return r
-}
-
-func strPtr(v string) *string { return &v }
 
 type mockBaseRepo[T any] struct{}
 
@@ -516,53 +451,6 @@ func (m *mockClientRepo) DeleteByUUIDAndTenantID(id uuid.UUID, tenantID int64) e
 	return nil
 }
 
-type mockIdentityProviderRepo struct {
-	mockBaseRepo[IdentityProvider]
-	findByNameFn              func(string, int64) (*IdentityProvider, error)
-	findByIdentifierFn        func(string) (*IdentityProvider, error)
-	findDefaultByTenantIDFn   func(int64) (*IdentityProvider, error)
-	findByTenantAndProviderFn func(int64, string) (*IdentityProvider, error)
-	findAllByTenantIDFn       func(int64) ([]IdentityProvider, error)
-	findPaginatedFn           func(idp.IdentityProviderRepositoryGetFilter) (*PaginationResult[IdentityProvider], error)
-}
-
-func (m *mockIdentityProviderRepo) WithTx(_ *gorm.DB) any { return m }
-func (m *mockIdentityProviderRepo) FindByName(name string, tenantID int64) (*IdentityProvider, error) {
-	if m.findByNameFn != nil {
-		return m.findByNameFn(name, tenantID)
-	}
-	return nil, nil
-}
-func (m *mockIdentityProviderRepo) FindByIdentifier(identifier string) (*IdentityProvider, error) {
-	if m.findByIdentifierFn != nil {
-		return m.findByIdentifierFn(identifier)
-	}
-	return nil, nil
-}
-func (m *mockIdentityProviderRepo) FindDefaultByTenantID(tenantID int64) (*IdentityProvider, error) {
-	if m.findDefaultByTenantIDFn != nil {
-		return m.findDefaultByTenantIDFn(tenantID)
-	}
-	return nil, nil
-}
-func (m *mockIdentityProviderRepo) FindByTenantAndProvider(tenantID int64, provider string) (*IdentityProvider, error) {
-	if m.findByTenantAndProviderFn != nil {
-		return m.findByTenantAndProviderFn(tenantID, provider)
-	}
-	return nil, nil
-}
-func (m *mockIdentityProviderRepo) FindAllByTenantID(tenantID int64) ([]IdentityProvider, error) {
-	if m.findAllByTenantIDFn != nil {
-		return m.findAllByTenantIDFn(tenantID)
-	}
-	return nil, nil
-}
-func (m *mockIdentityProviderRepo) FindPaginated(f idp.IdentityProviderRepositoryGetFilter) (*PaginationResult[IdentityProvider], error) {
-	if m.findPaginatedFn != nil {
-		return m.findPaginatedFn(f)
-	}
-	return &PaginationResult[IdentityProvider]{}, nil
-}
 
 type mockRoleRepo struct {
 	mockBaseRepo[Role]
