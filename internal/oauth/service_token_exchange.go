@@ -114,13 +114,14 @@ func (s *oauthTokenExchangeService) Exchange(ctx context.Context, req OAuthToken
 		}
 	}
 
-	newToken, err := jwt.GenerateAccessToken(
+	newToken, err := jwt.GenerateAccessTokenWithOptions(
 		subjectSub,
 		scope,
 		issuer,
 		audience,
 		clientIdentifier,
 		providerID,
+		clientAccessTokenOpts(client),
 	)
 	if err != nil {
 		span.RecordError(err)

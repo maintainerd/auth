@@ -113,6 +113,10 @@ func (s *oauthTokenService) exchangeAuthorizationCode(ctx context.Context, req O
 		return nil, oerr
 	}
 
+	if !clientHasGrant(client, GrantTypeAuthorizationCode) {
+		return nil, apperror.NewOAuthUnauthorizedClient("client is not authorized for authorization_code grant")
+	}
+
 	// Look up the authorization code by hash.
 	codeHash := crypto.HashAuthorizationCode(req.Code)
 	authCode, err := s.authCodeRepo.FindByCodeHash(codeHash)
@@ -232,6 +236,10 @@ func (s *oauthTokenService) exchangeRefreshToken(ctx context.Context, req OAuthT
 	client, oerr := authenticateOAuthClient(s.db, creds)
 	if oerr != nil {
 		return nil, oerr
+	}
+
+	if !clientHasGrant(client, GrantTypeRefreshToken) {
+		return nil, apperror.NewOAuthUnauthorizedClient("client is not authorized for refresh_token grant")
 	}
 
 	// Look up the refresh token by hash.
@@ -398,13 +406,14 @@ func (s *oauthTokenService) exchangeClientCredentials(ctx context.Context, _ OAu
 		providerID = client.IdentityProvider.Identifier
 	}
 
-	accessToken, err := jwt.GenerateAccessToken(
+	accessToken, err := jwt.GenerateAccessTokenWithOptions(
 		identifier,
 		"", // no user scope for m2m
 		issuer,
 		audience,
 		identifier,
 		providerID,
+		clientAccessTokenOpts(client),
 	)
 	if err != nil {
 		span.RecordError(err)
@@ -579,7 +588,7 @@ func (s *oauthTokenService) generateTokens(ctx context.Context, sub string, user
 		providerID = client.IdentityProvider.Identifier
 	}
 
-	accessToken, err := jwt.GenerateAccessToken(sub, scope, issuer, audience, identifier, providerID)
+	accessToken, err := jwt.GenerateAccessTokenWithOptions(sub, scope, issuer, audience, identifier, providerID, clientAccessTokenOpts(client))
 	if err != nil {
 		return nil, apperror.NewOAuthServerError("an unexpected error occurred")
 	}
@@ -688,4 +697,12 @@ func findActiveClientByIdentifier(db *gorm.DB, identifier string) (*Client, erro
 		return nil, err
 	}
 	return &client, nil
+}
+
+func clientAccessTokenOpts(client *Client) *jwt.AccessTokenOptions {
+	opts := &jwt.AccessTokenOptions{}
+	if client.AccessTokenTTL != nil && *client.AccessTokenTTL > 0 {
+		opts.AccessTokenTTL = time.Duration(*client.AccessTokenTTL) * time.Second
+	}
+	return opts
 }
