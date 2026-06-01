@@ -9,8 +9,10 @@ import (
 	"net/url"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/maintainerd/auth/internal/platform/apperror"
+	"github.com/maintainerd/auth/internal/platform/dpop"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -576,4 +578,62 @@ type errReader struct{}
 
 func (errReader) Read([]byte) (int, error) {
 	return 0, assert.AnError
+}
+
+// mockDpopStore is a minimal mock of dpop.JTIStore for handler tests.
+type mockDpopStore struct{}
+
+func (mockDpopStore) DenyJTI(_ context.Context, _ string, _ time.Duration) error { return nil }
+func (mockDpopStore) IsJTIDenied(_ context.Context, _ string) (bool, error)      { return false, nil }
+
+func TestOAuthTokenHandler_Token_InvalidDPoPProof(t *testing.T) {
+	svc := &mockOAuthTokenService{
+		exchangeFn: func(_ context.Context, _ OAuthTokenRequestDTO, _ OAuthClientCredentials) (*OAuthTokenResult, *apperror.OAuthError) {
+			return &OAuthTokenResult{AccessToken: "at"}, nil
+		},
+	}
+
+	// Use a real NonceManager and mock DPoP store so the DPoP path is exercised.
+	nm := dpop.NewNonceManager()
+	store := &mockDpopStore{}
+
+	h := NewOAuthTokenHandler(svc, nm, store)
+	r := formReq(t, "/oauth/token", url.Values{
+		"grant_type":    {"authorization_code"},
+		"code":          {"valid-code"},
+		"redirect_uri":  {"https://app.example.com/cb"},
+		"code_verifier": {"dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"},
+		"client_id":     {"myapp"},
+	})
+	r.Header.Set("DPoP", "invalid-dpop-proof-jwt")
+	w := httptest.NewRecorder()
+
+	h.Token(w, r)
+
+	// DPoP validation should fail with an invalid proof → 400.
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+}
+
+func TestOAuthTokenHandler_Token_DPoPHeaderIgnoredWithoutStore(t *testing.T) {
+	svc := &mockOAuthTokenService{
+		exchangeFn: func(_ context.Context, _ OAuthTokenRequestDTO, _ OAuthClientCredentials) (*OAuthTokenResult, *apperror.OAuthError) {
+			return &OAuthTokenResult{AccessToken: "at"}, nil
+		},
+	}
+
+	// No DPoP store — DPoP header should be ignored, handler proceeds normally.
+	h := NewOAuthTokenHandler(svc, nil, nil)
+	r := formReq(t, "/oauth/token", url.Values{
+		"grant_type":    {"authorization_code"},
+		"code":          {"valid-code"},
+		"redirect_uri":  {"https://app.example.com/cb"},
+		"code_verifier": {"dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"},
+		"client_id":     {"myapp"},
+	})
+	r.Header.Set("DPoP", "ignored-proof")
+	w := httptest.NewRecorder()
+
+	h.Token(w, r)
+
+	assert.Equal(t, http.StatusOK, w.Code)
 }

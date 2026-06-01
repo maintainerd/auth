@@ -108,7 +108,7 @@ Mark boxes as you bring each handler/service/validation/middleware up to the sta
 - [x] `handler_discovery.go` — Discovery, JWKS (existing), AuthorizationServerMetadata (new)
 - [x] `handler_consent.go` — ListGrants, RevokeGrant (existing tests cover full checklist)
 - [x] `handler_userinfo.go` — UserInfo (existing tests cover full checklist)
-- [ ] `handler_userinfo.go` — composeUserDisplayName edge cases (DisplayName whitespace, FirstName+LastName fallback, nil User)
+- [x] `handler_userinfo.go` — composeUserDisplayName edge cases (nil User, DisplayName whitespace, FirstName+LastName fallback, nil Profile)
 - [x] `handler_ciba.go` — Initiate, ExchangeToken (validation), ApproveRequest, DenyRequest
 - [x] `handler_device.go` — Authorize, VerifyUserCode, ExchangeDeviceToken (validation), DenyUserCode
 - [x] `handler_par.go` — Push
