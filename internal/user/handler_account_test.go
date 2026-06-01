@@ -101,9 +101,15 @@ func (m *mockSessionService) CreateSession(_ context.Context, userID int64, ipAd
 	return nil, nil
 }
 func (m *mockSessionService) EnforceConcurrentLimit(_ context.Context, userUUID uuid.UUID, userID int64) error {
+	if m.enforceConcurrentFn != nil {
+		return m.enforceConcurrentFn(userUUID, userID)
+	}
 	return nil
 }
 func (m *mockSessionService) ValidateAndTouch(_ context.Context, sessionUUID uuid.UUID, userID int64) error {
+	if m.validateAndTouchFn != nil {
+		return m.validateAndTouchFn(sessionUUID, userID)
+	}
 	return nil
 }
 
