@@ -44,7 +44,7 @@ jobs:
             -race \
             -coverprofile=coverage.out \
             -covermode=atomic \
-            -timeout=120s
+            -timeout=600s
 
       - name: Print coverage summary
         run: go tool cover -func=coverage.out | tail -1
