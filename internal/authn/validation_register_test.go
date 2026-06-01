@@ -2,6 +2,7 @@ package authn
 
 import (
 	"net/url"
+	"strings"
 	"testing"
 	"time"
 
@@ -166,5 +167,73 @@ func TestRegisterInviteQueryDto_ValidateSignedURL(t *testing.T) {
 		parsed, _ := url.Parse(raw)
 		err := q.ValidateSignedURL(parsed.Query())
 		assert.NoError(t, err)
+	})
+}
+
+func TestRegisterRequestDto_Validate_MaxLengths(t *testing.T) {
+	base := RegisterRequestDTO{Username: "johndoe", Fullname: "John Doe", Password: "SecurePass1!"}
+
+	t.Run("username too long", func(t *testing.T) {
+		d := base
+		d.Username = strings.Repeat("x", 256)
+		err := d.Validate()
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "Username")
+	})
+
+	t.Run("fullname too long", func(t *testing.T) {
+		d := base
+		d.Fullname = strings.Repeat("x", 256)
+		err := d.Validate()
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "Fullname")
+	})
+
+	t.Run("password too long", func(t *testing.T) {
+		d := base
+		d.Password = strings.Repeat("x", 129)
+		err := d.Validate()
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "Password")
+	})
+}
+
+func TestRegisterQueryDto_Validate_MaxLengths(t *testing.T) {
+	t.Run("client_id too long", func(t *testing.T) {
+		d := RegisterQueryDTO{ClientID: strings.Repeat("x", 256), ProviderID: "p1"}
+		err := d.Validate()
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "Client ID")
+	})
+
+	t.Run("provider_id too long", func(t *testing.T) {
+		d := RegisterQueryDTO{ClientID: "c1", ProviderID: strings.Repeat("x", 256)}
+		err := d.Validate()
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "Provider ID")
+	})
+}
+
+func TestRegisterInviteQueryDto_Validate_MaxLengths(t *testing.T) {
+	valid := RegisterInviteQueryDTO{
+		ClientID: "c1", ProviderID: "p1", InviteToken: "token", Expires: "1", Sig: "sig",
+	}
+
+	t.Run("invite_token too long", func(t *testing.T) {
+		d := valid
+		d.InviteToken = strings.Repeat("x", 501)
+		require.Error(t, d.Validate())
+	})
+
+	t.Run("expires too long", func(t *testing.T) {
+		d := valid
+		d.Expires = strings.Repeat("x", 51)
+		require.Error(t, d.Validate())
+	})
+
+	t.Run("sig too long", func(t *testing.T) {
+		d := valid
+		d.Sig = strings.Repeat("x", 501)
+		require.Error(t, d.Validate())
 	})
 }
