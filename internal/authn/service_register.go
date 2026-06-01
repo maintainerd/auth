@@ -749,6 +749,13 @@ func (s *registerService) RegisterInvitePublic(
 
 		// Assign additional roles from invite
 		for _, role := range invite.Roles {
+			existingRole, txErr := txUserRoleRepo.FindByUserIDAndRoleID(createdUser.UserID, role.RoleID)
+			if txErr != nil {
+				return txErr
+			}
+			if existingRole != nil {
+				continue
+			}
 			userRole := &UserRole{
 				UserID: createdUser.UserID,
 				RoleID: role.RoleID,
@@ -758,6 +765,12 @@ func (s *registerService) RegisterInvitePublic(
 			if txErr != nil {
 				return txErr
 			}
+		}
+
+		// Mark invite as used
+		txErr = txInviteRepo.MarkAsUsed(invite.InviteUUID)
+		if txErr != nil {
+			return txErr
 		}
 
 		return nil // commit
