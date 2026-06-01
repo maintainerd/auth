@@ -159,14 +159,14 @@ Mark boxes as you bring each handler/service/validation/middleware up to the sta
 
 ### Integration Tests
 
-- [ ] `tests/integration/repository/tenant_test.go`
-- [ ] `tests/integration/repository/user_test.go`
-- [ ] `tests/integration/repository/oauth_test.go`
-- [ ] `tests/integration/repository/iam_test.go`
-- [ ] `tests/integration/repository/client_test.go`
-- [ ] `tests/integration/cache/user_context_test.go`
-- [ ] `tests/integration/cache/jti_denylist_test.go`
-- [ ] `tests/integration/middleware/auth_chain_test.go`
+- [x] `tests/integration/repository/tenant_test.go`
+- [x] `tests/integration/repository/user_test.go`
+- [x] `tests/integration/repository/oauth_test.go`
+- [x] `tests/integration/repository/iam_test.go`
+- [x] `tests/integration/repository/client_test.go`
+- [x] `tests/integration/cache/user_context_test.go`
+- [x] `tests/integration/cache/jti_denylist_test.go`
+- [x] `tests/integration/middleware/auth_chain_test.go`
 
 ---
 
