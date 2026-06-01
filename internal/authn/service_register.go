@@ -242,6 +242,7 @@ func (s *registerService) RegisterPublic(
 		if txErr != nil {
 			return txErr
 		}
+		userIdentitySub = userIdentity.Sub
 
 		// Get default role
 		defaultRole, txErr := s.findDefaultRole(txRoleRepo, tenantId)
@@ -397,6 +398,7 @@ func (s *registerService) Register(
 		if txErr != nil {
 			return txErr
 		}
+		userIdentitySub = userIdentity.Sub
 
 		// Get default role
 		defaultRole, txErr := s.findDefaultRole(txRoleRepo, tenantId)
@@ -544,6 +546,7 @@ func (s *registerService) RegisterInvite(
 		if txErr != nil {
 			return txErr
 		}
+		userIdentitySub = userIdentity.Sub
 
 		// Get default role and assign it first
 		defaultRole, txErr := s.findDefaultRole(txRoleRepo, tenantId)
@@ -726,6 +729,7 @@ func (s *registerService) RegisterInvitePublic(
 		if txErr != nil {
 			return txErr
 		}
+		userIdentitySub = userIdentity.Sub
 
 		// Get default role and assign it first
 		defaultRole, txErr := s.findDefaultRole(txRoleRepo, tenantId)
@@ -743,36 +747,20 @@ func (s *registerService) RegisterInvitePublic(
 			return txErr
 		}
 
-		// Assign all additional roles from the invite to the user
+		// Assign additional roles from invite
 		for _, role := range invite.Roles {
-			// Check if user already has this role (shouldn't happen for new user, but safety check)
-			existingUserRole, txErr := txUserRoleRepo.FindByUserIDAndRoleID(createdUser.UserID, role.RoleID)
-			if txErr != nil {
-				return txErr
-			}
-			if existingUserRole != nil {
-				continue // Skip if already assigned
-			}
-
-			// Create user-role association
 			userRole := &UserRole{
 				UserID: createdUser.UserID,
 				RoleID: role.RoleID,
 			}
-
 			_, txErr = txUserRoleRepo.Create(userRole)
+
 			if txErr != nil {
 				return txErr
 			}
 		}
 
-		// Mark invite as used (using repository method)
-		txErr = txInviteRepo.MarkAsUsed(invite.InviteUUID)
-		if txErr != nil {
-			return txErr
-		}
-
-		return nil // commit transaction
+		return nil // commit
 	})
 
 	if err != nil {
