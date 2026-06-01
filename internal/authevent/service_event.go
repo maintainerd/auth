@@ -117,14 +117,6 @@ func NoopService() AuthEventService {
 	return noopAuthEventService{}
 }
 
-// coalesceAuthEventService returns svc if non-nil, otherwise a no-op.
-func coalesceAuthEventService(svc AuthEventService) AuthEventService {
-	if svc != nil {
-		return svc
-	}
-	return noopAuthEventService{}
-}
-
 // Log records a new auth event. The trace ID is extracted from the span
 // context automatically so it appears in both the DB and OTel.
 func (s *authEventService) Log(ctx context.Context, input AuthEventInput) {

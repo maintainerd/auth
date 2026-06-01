@@ -87,20 +87,7 @@ func (s *apiService) Get(ctx context.Context, filter APIServiceGetFilter) (*APIS
 	defer span.End()
 	span.SetAttributes(attribute.Int64("tenant.id", filter.TenantID))
 
-	apiFilter := APIRepositoryGetFilter{
-		TenantID:    filter.TenantID,
-		Name:        filter.Name,
-		DisplayName: filter.DisplayName,
-		APIType:     filter.APIType,
-		Identifier:  filter.Identifier,
-		ServiceID:   filter.ServiceID,
-		Status:      filter.Status,
-		IsSystem:    filter.IsSystem,
-		Page:        filter.Page,
-		Limit:       filter.Limit,
-		SortBy:      filter.SortBy,
-		SortOrder:   filter.SortOrder,
-	}
+	apiFilter := APIRepositoryGetFilter(filter)
 
 	result, err := s.apiRepo.FindPaginated(apiFilter)
 	if err != nil {

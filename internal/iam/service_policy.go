@@ -114,19 +114,7 @@ func (s *policyService) Get(ctx context.Context, filter PolicyServiceGetFilter) 
 	_, span := otel.Tracer("service").Start(ctx, "policy.list")
 	defer span.End()
 	span.SetAttributes(attribute.Int64("tenant.id", filter.TenantID))
-	repoFilter := PolicyRepositoryGetFilter{
-		TenantID:    filter.TenantID,
-		Name:        filter.Name,
-		Description: filter.Description,
-		Version:     filter.Version,
-		Status:      filter.Status,
-		IsSystem:    filter.IsSystem,
-		ServiceID:   filter.ServiceID,
-		Page:        filter.Page,
-		Limit:       filter.Limit,
-		SortBy:      filter.SortBy,
-		SortOrder:   filter.SortOrder,
-	}
+	repoFilter := PolicyRepositoryGetFilter(filter)
 
 	result, err := s.policyRepo.FindPaginated(repoFilter)
 	if err != nil {

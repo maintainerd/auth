@@ -2,7 +2,6 @@ package oauth
 
 import (
 	"context"
-	"errors"
 
 	"github.com/maintainerd/auth/internal/authevent"
 	"github.com/maintainerd/auth/internal/platform/apperror"
@@ -10,7 +9,6 @@ import (
 	"github.com/maintainerd/auth/internal/platform/jwt"
 	"github.com/maintainerd/auth/internal/platform/middleware"
 	"github.com/maintainerd/auth/internal/platform/ptr"
-	"github.com/maintainerd/auth/internal/shared"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -149,24 +147,4 @@ func (s *oauthTokenExchangeService) Exchange(ctx context.Context, req OAuthToken
 		ExpiresIn:       int64(jwt.AccessTokenTTL.Seconds()),
 		Scope:           scope,
 	}, nil
-}
-
-func (s *oauthTokenExchangeService) authenticateClient(creds OAuthClientCredentials) (*Client, *apperror.OAuthError) {
-	var client Client
-	err := s.db.
-		Preload("IdentityProvider").
-		Where("identifier = ? AND status = ?", creds.ClientID, shared.StatusActive).
-		First(&client).Error
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, apperror.NewOAuthInvalidClient("unknown client_id")
-		}
-		return nil, apperror.NewOAuthServerError("an unexpected error occurred")
-	}
-	if client.SecretHash != nil && *client.SecretHash != "" {
-		if !clientSecretMatches(&client, creds.ClientSecret) {
-			return nil, apperror.NewOAuthInvalidClient("client authentication failed")
-		}
-	}
-	return &client, nil
 }

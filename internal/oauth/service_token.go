@@ -662,20 +662,6 @@ func (s *oauthTokenService) refreshTokenTTL(client *Client) time.Duration {
 	return jwt.RefreshTokenTTL
 }
 
-// logClientAuthFail logs a failed client authentication attempt.
-func (s *oauthTokenService) logClientAuthFail(ctx context.Context, tenantID int64, reason string) {
-	s.authEventService.Log(ctx, authevent.AuthEventInput{
-		TenantID:    tenantID,
-		IPAddress:   middleware.ClientIPFromContext(ctx),
-		UserAgent:   ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),
-		Category:    authevent.AuthEventCategoryAuthn,
-		EventType:   authevent.AuthEventTypeOAuthClientAuthFail,
-		Severity:    authevent.AuthEventSeverityWarn,
-		Result:      authevent.AuthEventResultFailure,
-		Description: ptr.Ptr(reason),
-	})
-}
-
 // hasGrant checks whether the client has the given grant type.
 func hasGrant(client *Client, grantType string) bool {
 	for _, g := range client.GrantTypes {

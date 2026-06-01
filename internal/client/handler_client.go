@@ -408,13 +408,7 @@ func (h *ClientHandler) GetURIs(w http.ResponseWriter, r *http.Request) {
 	if Client.ClientURIs != nil {
 		uris = make([]ClientURIResponseDTO, len(*Client.ClientURIs))
 		for i, uri := range *Client.ClientURIs {
-			uris[i] = ClientURIResponseDTO{
-				ClientURIUUID: uri.ClientURIUUID,
-				URI:           uri.URI,
-				Type:          uri.Type,
-				CreatedAt:     uri.CreatedAt,
-				UpdatedAt:     uri.UpdatedAt,
-			}
+			uris[i] = ClientURIResponseDTO(uri)
 		}
 	}
 
@@ -878,13 +872,7 @@ func toClientResponseDTO(r ClientServiceDataResult) ClientResponseDTO {
 	if r.ClientURIs != nil && len(*r.ClientURIs) > 0 {
 		result.URIs = make([]ClientURIResponseDTO, len(*r.ClientURIs))
 		for i, uri := range *r.ClientURIs {
-			result.URIs[i] = ClientURIResponseDTO{
-				ClientURIUUID: uri.ClientURIUUID,
-				URI:           uri.URI,
-				Type:          uri.Type,
-				CreatedAt:     uri.CreatedAt,
-				UpdatedAt:     uri.UpdatedAt,
-			}
+			result.URIs[i] = ClientURIResponseDTO(uri)
 		}
 	}
 

@@ -365,19 +365,7 @@ func (h *PolicyHandler) GetServicesByPolicyUUID(w http.ResponseWriter, r *http.R
 	// Convert to response DTOs
 	var services []ServiceResponseDTO
 	for _, svc := range result.Data {
-		services = append(services, ServiceResponseDTO{
-			ServiceUUID: svc.ServiceUUID,
-			Name:        svc.Name,
-			DisplayName: svc.DisplayName,
-			Description: svc.Description,
-			Version:     svc.Version,
-			Status:      svc.Status,
-			IsSystem:    svc.IsSystem,
-			APICount:    svc.APICount,
-			PolicyCount: svc.PolicyCount,
-			CreatedAt:   svc.CreatedAt,
-			UpdatedAt:   svc.UpdatedAt,
-		})
+		services = append(services, ServiceResponseDTO(svc))
 	}
 
 	// Build paginated response
@@ -408,15 +396,5 @@ func toPolicyResponseDTO(policy PolicyServiceDataResult) PolicyResponseDTO {
 
 // Helper function to convert service result to detail DTO (for individual retrieval - with document)
 func toPolicyDetailResponseDTO(policy PolicyServiceDataResult) PolicyDetailResponseDTO {
-	return PolicyDetailResponseDTO{
-		PolicyUUID:  policy.PolicyUUID,
-		Name:        policy.Name,
-		Description: policy.Description,
-		Document:    policy.Document,
-		Version:     policy.Version,
-		Status:      policy.Status,
-		IsSystem:    policy.IsSystem,
-		CreatedAt:   policy.CreatedAt,
-		UpdatedAt:   policy.UpdatedAt,
-	}
+	return PolicyDetailResponseDTO(policy)
 }
