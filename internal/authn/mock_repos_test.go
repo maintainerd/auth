@@ -234,6 +234,10 @@ func (m *mockLoginService) GetUserByEmail(ctx context.Context, email string, ten
 	return nil, nil
 }
 
+func (m *mockLoginService) Logout(ctx context.Context, accessToken string) error {
+	return nil
+}
+
 // ---------------------------------------------------------------------------
 // Mock: RegisterService
 // ---------------------------------------------------------------------------
