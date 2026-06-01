@@ -11,6 +11,7 @@ import (
 	"github.com/maintainerd/auth/internal/platform/apperror"
 	"github.com/maintainerd/auth/internal/platform/config"
 	"github.com/maintainerd/auth/internal/platform/crypto"
+	"github.com/maintainerd/auth/internal/platform/security"
 	"github.com/maintainerd/auth/internal/platform/sms"
 	"github.com/maintainerd/auth/internal/shared"
 	"go.opentelemetry.io/otel"
@@ -63,6 +64,16 @@ func (s *smsLoginService) SendOTP(ctx context.Context, req SMSLoginSendDTO) erro
 	_, span := otel.Tracer("service").Start(ctx, "smsLogin.sendOTP")
 	defer span.End()
 
+	if err := security.CheckRateLimit("sms-otp:send:" + req.Phone); err != nil {
+		security.LogSecurityEvent(security.SecurityEvent{
+			EventType: "sms_otp_rate_limited",
+			UserID:    req.Phone,
+			Timestamp: time.Now(),
+			Details:   err.Error(),
+		})
+		return err
+	}
+
 	// Look up user by phone — respond generically so we don't leak user existence.
 	user, err := s.userRepo.FindByPhone(req.Phone)
 	if err != nil {
@@ -111,6 +122,16 @@ func (s *smsLoginService) SendOTP(ctx context.Context, req SMSLoginSendDTO) erro
 func (s *smsLoginService) VerifyOTP(ctx context.Context, req SMSLoginVerifyDTO) (*LoginResponseDTO, error) {
 	_, span := otel.Tracer("service").Start(ctx, "smsLogin.verifyOTP")
 	defer span.End()
+
+	if err := security.CheckRateLimit("sms-otp:verify:" + req.Phone); err != nil {
+		security.LogSecurityEvent(security.SecurityEvent{
+			EventType: "sms_otp_verify_rate_limited",
+			UserID:    req.Phone,
+			Timestamp: time.Now(),
+			Details:   err.Error(),
+		})
+		return nil, err
+	}
 
 	var user *User
 	var client *Client

@@ -1,6 +1,8 @@
 package authn
 
 import (
+	"strings"
+
 	"github.com/maintainerd/auth/internal/platform/jwt"
 )
 
@@ -23,14 +25,15 @@ func generateTokenSet(sub string, user *User, client *Client) (accessToken, idTo
 		return "", "", "", err
 	}
 
-	profile := &jwt.UserProfile{
-		Email:         user.Email,
-		EmailVerified: user.IsEmailVerified,
-		Phone:         user.Phone,
-		PhoneVerified: user.IsPhoneVerified,
+	profile := buildAuthNUserProfile(user)
+
+	params := &jwt.IDTokenParams{
+		RequestedScopes: strings.Fields(DefaultTokenScope),
+		AMR:             []string{jwt.AMRPassword},
+		ACR:             jwt.ACRLevel1,
 	}
 
-	idToken, err = generateIDTokenFn(sub, *client.Domain, *client.Identifier, client.IdentityProvider.Identifier, profile, "", nil)
+	idToken, err = generateIDTokenFn(sub, *client.Domain, *client.Identifier, client.IdentityProvider.Identifier, profile, "", params)
 	if err != nil {
 		return "", "", "", err
 	}
@@ -41,4 +44,14 @@ func generateTokenSet(sub string, user *User, client *Client) (accessToken, idTo
 	}
 
 	return accessToken, idToken, refreshToken, nil
+}
+
+func buildAuthNUserProfile(user *User) *jwt.UserProfile {
+	return &jwt.UserProfile{
+		Name:          user.Fullname,
+		Email:         user.Email,
+		EmailVerified: user.IsEmailVerified,
+		Phone:         user.Phone,
+		PhoneVerified: user.IsPhoneVerified,
+	}
 }
