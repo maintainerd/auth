@@ -79,8 +79,13 @@ jobs:
         uses: golangci/golangci-lint-action@v6
         with:
           version: latest
-          install-mode: goinstall   # build from source with the Go 1.26.x already set up above
+          install-mode: goinstall
           args: --timeout=5m
+
+      - name: Run gosec
+        run: |
+          go install github.com/securego/gosec/v2/cmd/gosec@latest
+          gosec -exclude=G101,G103,G104,G102,G124,G304 ./...
 
   # ─────────────────────────────────────────────────────────────────────────────
   # Build — ensure the binary compiles cleanly
