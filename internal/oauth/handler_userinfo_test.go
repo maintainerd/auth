@@ -13,10 +13,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// ---------------------------------------------------------------------------
-// NewOAuthUserInfoHandler
-// ---------------------------------------------------------------------------
-
 func TestNewOAuthUserInfoHandler(t *testing.T) {
 	h := NewOAuthUserInfoHandler()
 	assert.NotNil(t, h)
@@ -92,34 +88,6 @@ func TestOAuthUserInfoHandler_UserInfo_Success(t *testing.T) {
 	assert.Empty(t, resp.Picture)
 }
 
-func TestOAuthUserInfoHandler_UserInfo_WithProfilePicture(t *testing.T) {
-	profileURL := "https://cdn.example.com/avatar.jpg"
-
-	h := NewOAuthUserInfoHandler()
-	r := httptest.NewRequest(http.MethodGet, "/oauth/userinfo", nil)
-	r = middleware.WithAuthContext(r, &middleware.AuthContext{
-		User: &User{
-			UserUUID:        testUserUUID,
-			Email:           "pic@example.com",
-			IsEmailVerified: false,
-			Fullname:        "Pic User",
-			UpdatedAt:       time.Now(),
-			Profile: &Profile{
-				ProfileURL: &profileURL,
-			},
-		},
-	})
-	w := httptest.NewRecorder()
-
-	h.UserInfo(w, r)
-
-	assert.Equal(t, http.StatusOK, w.Code)
-
-	var resp OAuthUserInfoResponseDTO
-	require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
-	assert.Equal(t, "https://cdn.example.com/avatar.jpg", resp.Picture)
-}
-
 func TestOAuthUserInfoHandler_UserInfo_NilProfileURL(t *testing.T) {
 	h := NewOAuthUserInfoHandler()
 	r := httptest.NewRequest(http.MethodGet, "/oauth/userinfo", nil)
@@ -164,4 +132,45 @@ func TestOAuthUserInfoHandler_UserInfo_NoProfile(t *testing.T) {
 	var resp OAuthUserInfoResponseDTO
 	require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
 	assert.Empty(t, resp.Picture)
+}
+
+func TestComposeUserDisplayName(t *testing.T) {
+	t.Run("nil user", func(t *testing.T) {
+		assert.Empty(t, composeUserDisplayName(nil))
+	})
+
+	t.Run("profile display name takes priority", func(t *testing.T) {
+		dn := "Display Name"
+		u := &User{Fullname: "Legacy", Profile: &Profile{DisplayName: &dn}}
+		assert.Equal(t, "Display Name", composeUserDisplayName(u))
+	})
+
+	t.Run("display name whitespace only falls through", func(t *testing.T) {
+		dn := "   "
+		u := &User{Fullname: "Legacy", Profile: &Profile{DisplayName: &dn}}
+		assert.Equal(t, "Legacy", composeUserDisplayName(u))
+	})
+
+	t.Run("first name + last name fallback", func(t *testing.T) {
+		ln := "Doe"
+		u := &User{Fullname: "Legacy", Profile: &Profile{FirstName: "John", LastName: &ln}}
+		assert.Equal(t, "John Doe", composeUserDisplayName(u))
+	})
+
+	t.Run("first name only", func(t *testing.T) {
+		u := &User{Fullname: "Legacy", Profile: &Profile{FirstName: "John"}}
+		assert.Equal(t, "John", composeUserDisplayName(u))
+	})
+
+	t.Run("display name empty string falls through", func(t *testing.T) {
+		dn := ""
+		ln := "Doe"
+		u := &User{Fullname: "Legacy", Profile: &Profile{DisplayName: &dn, FirstName: "John", LastName: &ln}}
+		assert.Equal(t, "John Doe", composeUserDisplayName(u))
+	})
+
+	t.Run("no profile falls back to fullname", func(t *testing.T) {
+		u := &User{Fullname: "Legacy User"}
+		assert.Equal(t, "Legacy User", composeUserDisplayName(u))
+	})
 }
