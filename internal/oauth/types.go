@@ -67,6 +67,9 @@ type OAuthTokenRequestDTO struct {
 	// Client credentials (from body when token_endpoint_auth_method=client_secret_post)
 	ClientID     string `json:"client_id"`
 	ClientSecret string `json:"client_secret"`
+	// JWT assertion for private_key_jwt / client_secret_jwt (RFC 7523)
+	ClientAssertionType string `json:"client_assertion_type"`
+	ClientAssertion     string `json:"client_assertion"`
 }
 
 // OAuthTokenResponseDTO is the JSON body returned by the token endpoint on

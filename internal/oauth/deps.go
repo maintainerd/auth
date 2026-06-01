@@ -78,7 +78,11 @@ type Client struct {
 	AllowedScopes           pq.StringArray    `gorm:"column:allowed_scopes;type:text[]"`
 	ClientURIs              *[]ClientURI      `gorm:"foreignKey:ClientID;references:ClientID"`
 	IdentityProvider        *IdentityProvider `gorm:"foreignKey:IdentityProviderID;references:IdentityProviderID"`
-	CreatedAt               time.Time
+
+	JWKS    datatypes.JSON `gorm:"column:jwks;type:jsonb"`
+	JWKSUri *string        `gorm:"column:jwks_uri"`
+
+	CreatedAt time.Time
 	UpdatedAt               time.Time
 	DeletedAt               gorm.DeletedAt `gorm:"index"`
 }

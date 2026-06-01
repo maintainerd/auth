@@ -49,6 +49,9 @@ const (
 	TokenAuthMethodSecretPost  = "client_secret_post"
 	TokenAuthMethodNone        = "none"
 
+	TokenAuthMethodPrivateKeyJWT   = "private_key_jwt"
+	TokenAuthMethodClientSecretJWT = "client_secret_jwt"
+
 	ResponseTypeCode = "code"
 )
 
@@ -59,8 +62,10 @@ const (
 // OAuthClientCredentials holds the resolved client_id and client_secret from
 // either the Authorization header (Basic auth) or the POST body.
 type OAuthClientCredentials struct {
-	ClientID     string
-	ClientSecret string
+	ClientID            string
+	ClientSecret        string
+	ClientAssertionType string
+	ClientAssertion     string
 }
 
 // extractOAuthClientCredentials resolves client_id / client_secret from either
