@@ -764,6 +764,8 @@ func buildIDTokenParams(scope string, client *Client) *jwt.IDTokenParams {
 
 	params := &jwt.IDTokenParams{
 		RequestedScopes: scopes,
+		AMR:             []string{jwt.AMRPassword},
+		ACR:             jwt.ACRLevel1,
 	}
 
 	if client.ScopeClaimMappings != nil {
