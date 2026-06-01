@@ -3,6 +3,7 @@ package cache
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/alicebob/miniredis/v2"
 	"github.com/google/uuid"
@@ -161,4 +162,152 @@ func TestNopInvalidator(t *testing.T) {
 	nop.InvalidateUser(ctx, "sub", "client")
 	nop.InvalidateUserAll(ctx, "sub")
 	nop.InvalidateAllUsers(ctx)
+}
+
+// ---------------------------------------------------------------------------
+// DenyJTI / IsJTIDenied
+// ---------------------------------------------------------------------------
+
+func TestDenyJTI_Success(t *testing.T) {
+	c, mr := newTestCache(t)
+	ctx := context.Background()
+
+	err := c.DenyJTI(ctx, "jti-123", time.Hour)
+	require.NoError(t, err)
+
+	// Verify the key exists
+	assert.True(t, mr.Exists(jtiDenylistKey("jti-123")))
+}
+
+func TestDenyJTI_Error(t *testing.T) {
+	c, mr := newTestCache(t)
+	ctx := context.Background()
+	mr.Close()
+
+	err := c.DenyJTI(ctx, "jti-123", time.Hour)
+	require.Error(t, err)
+}
+
+func TestIsJTIDenied_Denied(t *testing.T) {
+	c, _ := newTestCache(t)
+	ctx := context.Background()
+
+	err := c.DenyJTI(ctx, "jti-abc", time.Hour)
+	require.NoError(t, err)
+
+	denied, err := c.IsJTIDenied(ctx, "jti-abc")
+	require.NoError(t, err)
+	assert.True(t, denied)
+}
+
+func TestIsJTIDenied_NotDenied(t *testing.T) {
+	c, _ := newTestCache(t)
+	ctx := context.Background()
+
+	denied, err := c.IsJTIDenied(ctx, "jti-never-set")
+	require.NoError(t, err)
+	assert.False(t, denied)
+}
+
+func TestIsJTIDenied_Error(t *testing.T) {
+	c, mr := newTestCache(t)
+	ctx := context.Background()
+	mr.Close()
+
+	denied, err := c.IsJTIDenied(ctx, "jti-err")
+	require.Error(t, err)
+	assert.False(t, denied)
+}
+
+// ---------------------------------------------------------------------------
+// SetSession / GetSession / DeleteSession
+// ---------------------------------------------------------------------------
+
+func TestSetSession_Success(t *testing.T) {
+	c, mr := newTestCache(t)
+	ctx := context.Background()
+
+	err := c.SetSession(ctx, "session-key", map[string]string{"challenge": "abc123"}, time.Hour)
+	require.NoError(t, err)
+	assert.True(t, mr.Exists("session-key"))
+}
+
+func TestSetSession_MarshalError(t *testing.T) {
+	c, _ := newTestCache(t)
+	ctx := context.Background()
+
+	// Passing an un-marshalable value (channel) causes json.Marshal to fail.
+	err := c.SetSession(ctx, "bad-key", make(chan int), time.Hour)
+	require.Error(t, err)
+}
+
+func TestGetSession_Success(t *testing.T) {
+	c, _ := newTestCache(t)
+	ctx := context.Background()
+
+	type testData struct {
+		Challenge string `json:"challenge"`
+	}
+	err := c.SetSession(ctx, "get-key", testData{Challenge: "xyz"}, time.Hour)
+	require.NoError(t, err)
+
+	var result testData
+	err = c.GetSession(ctx, "get-key", &result)
+	require.NoError(t, err)
+	assert.Equal(t, "xyz", result.Challenge)
+}
+
+func TestGetSession_Miss(t *testing.T) {
+	c, _ := newTestCache(t)
+	ctx := context.Background()
+
+	var result map[string]string
+	err := c.GetSession(ctx, "nonexistent-key", &result)
+	assert.ErrorIs(t, err, redis.Nil)
+}
+
+func TestDeleteSession_Success(t *testing.T) {
+	c, mr := newTestCache(t)
+	ctx := context.Background()
+
+	err := c.SetSession(ctx, "del-key", "data", time.Hour)
+	require.NoError(t, err)
+	assert.True(t, mr.Exists("del-key"))
+
+	err = c.DeleteSession(ctx, "del-key")
+	require.NoError(t, err)
+	assert.False(t, mr.Exists("del-key"))
+}
+
+// ---------------------------------------------------------------------------
+// NopJTIDenylister
+// ---------------------------------------------------------------------------
+
+func TestNopJTIDenylister(t *testing.T) {
+	var nop NopJTIDenylister
+	ctx := context.Background()
+
+	err := nop.DenyJTI(ctx, "any-jti", time.Hour)
+	require.NoError(t, err)
+
+	denied, err := nop.IsJTIDenied(ctx, "any-jti")
+	require.NoError(t, err)
+	assert.False(t, denied)
+}
+
+// ---------------------------------------------------------------------------
+// deleteByPattern — SCAN error path
+// ---------------------------------------------------------------------------
+
+func TestInvalidateAllUsers_RedisClosed(t *testing.T) {
+	c, mr := newTestCache(t)
+	ctx := context.Background()
+
+	// Set some data, then close Redis so SCAN fails.
+	uc := &UserContext{User: &AuthUser{UserUUID: uuid.New(), Email: "alice@example.com"}}
+	c.SetUserContext(ctx, "sub1", "client1", uc)
+
+	mr.Close()
+	// Should not panic when Redis is unreachable.
+	c.InvalidateAllUsers(ctx)
 }
