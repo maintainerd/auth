@@ -209,6 +209,31 @@ func AccessTokenHash(accessToken string) string {
 	return base64.RawURLEncoding.EncodeToString(sum[:])
 }
 
+// ValidateResourceRequest performs full DPoP validation for a resource endpoint.
+// It validates the proof and additionally verifies the proof's JWK thumbprint
+// matches the access token's cnf.jkt claim (RFC 9449 §7).
+func ValidateResourceRequest(
+	ctx context.Context,
+	proofHeader string,
+	method string,
+	requestURL string,
+	accessToken string,
+	cnfJKT string,
+	store JTIStore,
+) (*Claims, error) {
+	ath := AccessTokenHash(accessToken)
+	claims, err := ValidateProof(ctx, proofHeader, method, requestURL, ath, store)
+	if err != nil {
+		return nil, err
+	}
+
+	if cnfJKT != "" && claims.Thumbprint != cnfJKT {
+		return nil, fmt.Errorf("DPoP proof key thumbprint does not match token binding")
+	}
+
+	return claims, nil
+}
+
 // ──────────────────────────────────────────────────────────────────────────────
 // Internal helpers
 // ──────────────────────────────────────────────────────────────────────────────
