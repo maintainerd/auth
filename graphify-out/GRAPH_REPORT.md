@@ -1,16 +1,16 @@
 # Graph Report - maintainerd-auth  (2026-06-01)
 
 ## Corpus Check
-- 757 files · ~550,307 words
+- 776 files · ~557,639 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 13161 nodes · 27231 edges · 819 communities (707 shown, 112 thin omitted)
-- Extraction: 83% EXTRACTED · 17% INFERRED · 0% AMBIGUOUS · INFERRED: 4632 edges (avg confidence: 0.8)
+- 13302 nodes · 27505 edges · 833 communities (723 shown, 110 thin omitted)
+- Extraction: 83% EXTRACTED · 17% INFERRED · 0% AMBIGUOUS · INFERRED: 4722 edges (avg confidence: 0.8)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `0bef061a`
+- Built from commit: `1bd2480a`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -785,48 +785,62 @@
 - [[_COMMUNITY_Community 816|Community 816]]
 - [[_COMMUNITY_Community 817|Community 817]]
 - [[_COMMUNITY_Community 818|Community 818]]
+- [[_COMMUNITY_Community 819|Community 819]]
+- [[_COMMUNITY_Community 820|Community 820]]
+- [[_COMMUNITY_Community 821|Community 821]]
+- [[_COMMUNITY_Community 822|Community 822]]
+- [[_COMMUNITY_Community 823|Community 823]]
+- [[_COMMUNITY_Community 824|Community 824]]
+- [[_COMMUNITY_Community 825|Community 825]]
+- [[_COMMUNITY_Community 826|Community 826]]
+- [[_COMMUNITY_Community 827|Community 827]]
+- [[_COMMUNITY_Community 828|Community 828]]
+- [[_COMMUNITY_Community 829|Community 829]]
+- [[_COMMUNITY_Community 830|Community 830]]
+- [[_COMMUNITY_Community 831|Community 831]]
+- [[_COMMUNITY_Community 832|Community 832]]
 
 ## God Nodes (most connected - your core abstractions)
-1. `New()` - 613 edges
+1. `New()` - 642 edges
 2. `HandleServiceError()` - 248 edges
-3. `Success()` - 225 edges
+3. `Success()` - 237 edges
 4. `AuthFromRequest()` - 220 edges
 5. `NewNotFoundWithReason()` - 132 edges
 6. `handlers` - 107 edges
 7. `BadRequestBody()` - 101 edges
 8. `initServices()` - 87 edges
-9. `NewValidation()` - 81 edges
-10. `NewNotFound()` - 73 edges
+9. `HandlerFunc` - 81 edges
+10. `NewValidation()` - 81 edges
 
 ## Surprising Connections (you probably didn't know these)
 - `IP Restriction Rules` --references--> `DeletedAt`  [EXTRACTED]
   docs/apis/settings/ip-restriction-rules.md → internal/secpolicy/types.go
+- `Security Settings` --references--> `JSON`  [EXTRACTED]
+  docs/apis/settings/security-settings.md → internal/secpolicy/types.go
 - `handlers` --references--> `IP Restriction Rules`  [EXTRACTED]
   internal/server/handlers.go → docs/apis/settings/ip-restriction-rules.md
 - `handlers` --references--> `Webhook Endpoints`  [EXTRACTED]
   internal/server/handlers.go → docs/apis/webhooks/webhook-endpoint.md
 - `mockWebhookEndpointRepo` --references--> `Webhook Endpoints`  [EXTRACTED]
   internal/webhook/mock_test.go → docs/apis/webhooks/webhook-endpoint.md
-- `repos` --references--> `IP Restriction Rules`  [EXTRACTED]
-  internal/app/repositories.go → docs/apis/settings/ip-restriction-rules.md
 
-## Communities (819 total, 112 thin omitted)
+## Communities (833 total, 110 thin omitted)
 
 ### Community 0 - "Community 0"
-Cohesion: 0.09
-Nodes (39): NewOAuthInvalidGrant(), NewOAuthServerError(), HashAuthorizationCode(), toRoleServiceDataResult(), ValidateTenantAccess(), Context, Role, Tenant (+31 more)
+Cohesion: 0.08
+Nodes (27): TestE2E_LoginFlow(), TestE2E_BrandingEndpoints(), TestE2E_ClientEndpoints(), TestE2E_IAMEndpoints(), TestE2E_InviteEndpoints(), TestE2E_MultiTenantIsolation(), TestE2E_OAuthFlow(), TestE2E_RegisterFlow() (+19 more)
 
 ### Community 1 - "Community 1"
 Cohesion: 0.12
 Nodes (42): TestServiceHandler_Get_NoTenant(), UserService, Request, RoleServiceDataResult, T, UserIdentityServiceDataResult, UUID, mockUserService (+34 more)
 
 ### Community 2 - "Community 2"
-Cohesion: 0.04
-Nodes (51): ClientAPI, ClientPermission, badJSONReq(), jsonReq(), newMockGormDB(), validPagination(), withChiParam(), withTenant() (+43 more)
+Cohesion: 0.10
+Nodes (24): badJSONReq(), jsonReq(), newMockGormDB(), validPagination(), withChiParam(), withTenant(), withTenantAndUser(), withUser() (+16 more)
 
 ### Community 3 - "Community 3"
-Cohesion: 0.15
-Nodes (26): IdentityProvider, JSON, RolePermission, Time, UUID, IdentityProvider, JSON, RolePermission (+18 more)
+Cohesion: 0.09
+Nodes (48): BaseRepositoryMethods, IdentityProvider, JSON, RolePermission, Time, UUID, BaseRepositoryMethods, Client (+40 more)
 
 ### Community 4 - "Community 4"
 Cohesion: 0.06
@@ -837,8 +851,8 @@ Cohesion: 0.14
 Nodes (13): sanitizeOrderPrefixed(), BaseRepository, BaseRepositoryMethods, DB, PaginationResult, Role, Time, User (+5 more)
 
 ### Community 6 - "Community 6"
-Cohesion: 0.16
-Nodes (23): NewForbidden(), NewNotFoundWithReason(), ClientAPIServiceDataResult, ClientCreateServiceResult, ClientSecretServiceDataResult, ClientService, ClientServiceDataResult, ClientServiceGetFilter (+15 more)
+Cohesion: 0.14
+Nodes (25): NewForbidden(), NewNotFoundWithReason(), ClientAPIServiceDataResult, ClientCreateServiceResult, ClientSecretServiceDataResult, ClientService, ClientServiceDataResult, ClientServiceGetFilter (+17 more)
 
 ### Community 7 - "Community 7"
 Cohesion: 0.13
@@ -846,15 +860,15 @@ Nodes (14): SMSConfig, DB, DeletedAt, JSON, Time, UUID, DB, DeletedAt (+6 more)
 
 ### Community 8 - "Community 8"
 Cohesion: 0.07
-Nodes (45): NewInternal(), NewUnauthorized(), FederationTokenRequestDTO, HRDResponseDTO, IdentityDTO, IdentityMetadata, FederationService, IdentityMetadata (+37 more)
+Nodes (49): SafeDecryptAtRest(), FederationTokenRequestDTO, HRDResponseDTO, IdentityDTO, IdentityMetadata, decryptIdpConfig(), encryptIdpConfig(), redactIdpConfig() (+41 more)
 
 ### Community 9 - "Community 9"
 Cohesion: 0.17
 Nodes (18): Claims, extractNumericDate(), extractPublicKeyAndThumbprint(), jwkThumbprint(), parseECJWK(), parseRSAJWK(), stripQuery(), ValidateProof() (+10 more)
 
 ### Community 10 - "Community 10"
-Cohesion: 0.12
-Nodes (19): mockEmailVerificationService, mockForgotPasswordService, mockLoginService, mockRegisterService, mockResetPasswordService, Invite, Login (Internal), Login (Public) (+11 more)
+Cohesion: 0.15
+Nodes (15): mockEmailVerificationService, mockLoginService, mockRegisterService, Invite, Login (Internal), Login (Public), Magic Link (Passwordless Login), Register (Internal) (+7 more)
 
 ### Community 11 - "Community 11"
 Cohesion: 0.26
@@ -865,16 +879,16 @@ Cohesion: 0.05
 Nodes (27): Context, DB, PaginationResult, Tenant, TenantMember, TenantMemberRepository, TenantMemberRepositoryListFilter, TenantRepository (+19 more)
 
 ### Community 13 - "Community 13"
-Cohesion: 0.11
-Nodes (44): NewNotFound(), RoleServiceDataResult, Time, AuthEventService, Client, ClientRepository, ClientServiceDataResult, Context (+36 more)
+Cohesion: 0.05
+Nodes (82): NewOAuthAccessDenied(), NewOAuthInvalidGrant(), NewOAuthServerError(), HashAuthorizationCode(), Client, Context, LoginResponseDTO, User (+74 more)
 
 ### Community 14 - "Community 14"
-Cohesion: 0.19
-Nodes (10): NewServicePolicyRepository(), ServicePolicyRepository, ServicePolicyRepositoryGetFilter, BaseRepository, BaseRepositoryMethods, DB, PaginationResult, Policy (+2 more)
+Cohesion: 0.21
+Nodes (15): NewServiceService(), ServiceService, ServiceServiceDataResult, ServiceServiceGetFilter, ServiceServiceGetResult, APIRepository, Context, DB (+7 more)
 
 ### Community 15 - "Community 15"
-Cohesion: 0.08
-Nodes (11): APIKeyRepositoryGetFilter, mockAPIKeyRepo, mockBaseRepo[T], mockClientRepo, mockClientURIRepo, APIKey, Client, ClientRepositoryGetFilter (+3 more)
+Cohesion: 0.10
+Nodes (9): APIKeyRepositoryGetFilter, mockAPIKeyRepo, mockClientRepo, mockClientURIRepo, APIKey, Client, ClientRepositoryGetFilter, ClientURI (+1 more)
 
 ### Community 16 - "Community 16"
 Cohesion: 0.08
@@ -882,7 +896,7 @@ Nodes (78): NewAPIHandler(), TestAPIHandler_Create_BadJSON(), TestAPIHandler_Cre
 
 ### Community 17 - "Community 17"
 Cohesion: 0.04
-Nodes (55): NewApp(), TestNewAppWiresAllExportedServices(), AccountService, APIKeyService, APIService, App, AuthEventService, BrandingService (+47 more)
+Nodes (53): NewApp(), AccountService, APIKeyService, APIService, App, AuthEventService, BrandingService, Cache (+45 more)
 
 ### Community 18 - "Community 18"
 Cohesion: 0.17
@@ -906,11 +920,11 @@ Nodes (53): repos, APIKeyAPIRepository, APIKeyPermissionRepository, APIKeyReposi
 
 ### Community 23 - "Community 23"
 Cohesion: 0.09
-Nodes (32): newIDPClientRepo(), newIDPRoleRepo(), newIDPTenantRepo(), newIDPUserIdentityRepo(), newIDPUserRepo(), newIDPUserRoleRepo(), idpClientRepo, idpRoleRepo (+24 more)
+Nodes (33): firstOrNil(), newIDPClientRepo(), newIDPRoleRepo(), newIDPTenantRepo(), newIDPUserIdentityRepo(), newIDPUserRepo(), newIDPUserRoleRepo(), idpClientRepo (+25 more)
 
 ### Community 24 - "Community 24"
-Cohesion: 0.16
-Nodes (15): AuthenticatorTransport, CredentialAssertion, CredentialCreation, AuthEventService, Context, DB, UserRepository, UserWebAuthnCredentialRepository (+7 more)
+Cohesion: 0.15
+Nodes (18): AuthenticatorTransport, CredentialAssertion, CredentialCreation, AuthEventService, Context, DB, UserRepository, UserWebAuthnCredentialRepository (+10 more)
 
 ### Community 25 - "Community 25"
 Cohesion: 0.08
@@ -921,20 +935,20 @@ Cohesion: 0.17
 Nodes (21): Client, toTenantServiceDataResult(), ValidateTenantAccess(), toTenantServiceDataResult(), ValidateTenantAccess(), Role, Tenant, TenantServiceDataResult (+13 more)
 
 ### Community 27 - "Community 27"
-Cohesion: 0.05
-Nodes (69): AuthPermission, AuthRole, AuthClient, AuthPermission, AuthProfile, AuthProvider, AuthRole, AuthTenant (+61 more)
+Cohesion: 0.21
+Nodes (23): jtiDenylistKey(), newTestCache(), TestDeleteSession_Success(), TestDenyJTI_Error(), TestDenyJTI_Success(), TestGetSession_Miss(), TestGetSession_Success(), TestGetUserContext_Miss() (+15 more)
 
 ### Community 28 - "Community 28"
 Cohesion: 0.07
 Nodes (15): mockLogoutSessionService, mockLogoutUserRepo, TestLoginService_Logout(), Context, DB, PaginationResult, Role, SessionDataResult (+7 more)
 
 ### Community 29 - "Community 29"
-Cohesion: 0.24
-Nodes (11): Context, MemberUser, TenantMember, TenantMemberServiceDataResult, Time, UUID, toTenantMemberServiceDataResult(), TenantMemberService (+3 more)
+Cohesion: 0.18
+Nodes (15): Context, DB, MemberUser, TenantMember, TenantMemberRepository, TenantMemberServiceDataResult, TenantRepository, Time (+7 more)
 
 ### Community 30 - "Community 30"
-Cohesion: 0.14
-Nodes (29): API, APIRepository, APIServiceDataResult, toPermissionServiceDataResult(), ValidateTenantAccess(), ValidateTenantAccess(), IdentityProvider, IdentityProviderRepository (+21 more)
+Cohesion: 0.11
+Nodes (35): API, APIRepository, APIServiceDataResult, toPermissionServiceDataResult(), ValidateTenantAccess(), NewBaseRepository(), parsePaginationQuery(), ValidateTenantAccess() (+27 more)
 
 ### Community 31 - "Community 31"
 Cohesion: 0.10
@@ -942,11 +956,11 @@ Nodes (25): newUserBackupCodeRepo(), newUserClientRepo(), newUserIDPRepo(), newU
 
 ### Community 32 - "Community 32"
 Cohesion: 0.11
-Nodes (52): PrivateKey, T, InitJWTKeys(), initTestJWTKeys(), saveAndRestoreJWTConfig(), TestGenerateAccessToken_EmptyAudience(), TestGenerateAccessToken_EmptyClientID(), TestGenerateAccessToken_EmptyIssuer() (+44 more)
+Nodes (55): MapClaims, PrivateKey, T, GenerateAccessToken(), generateIDToken(), generateRefreshToken(), generateToken(), InitJWTKeys() (+47 more)
 
 ### Community 33 - "Community 33"
-Cohesion: 0.09
-Nodes (24): DB, DeletedAt, Time, UUID, DB, JSON, Time, UUID (+16 more)
+Cohesion: 0.10
+Nodes (16): DB, DeletedAt, Time, UUID, DB, JSON, Time, UUID (+8 more)
 
 ### Community 34 - "Community 34"
 Cohesion: 0.09
@@ -965,12 +979,12 @@ Cohesion: 0.02
 Nodes (95): AccountHandler, APIHandler, APIKeyHandler, AuthEventHandler, BrandingHandler, ClientHandler, EmailConfigHandler, EmailTemplateHandler (+87 more)
 
 ### Community 38 - "Community 38"
-Cohesion: 0.10
-Nodes (53): Client, Client, Miniredis, T, GenerateCSRFToken(), GetDummyBcryptHash(), InitRateLimiter(), rateLimitCountKey() (+45 more)
+Cohesion: 0.08
+Nodes (60): Client, Time, Client, Miniredis, T, LoginAttempt, CheckRateLimit(), determineSeverity() (+52 more)
 
 ### Community 39 - "Community 39"
-Cohesion: 0.06
-Nodes (32): badJSONReq(), jsonReq(), newMockGormDB(), validPagination(), withChiParam(), withTenant(), withTenantAndUser(), withUser() (+24 more)
+Cohesion: 0.11
+Nodes (20): badJSONReq(), jsonReq(), newMockGormDB(), validPagination(), withChiParam(), withTenant(), withTenantAndUser(), withUser() (+12 more)
 
 ### Community 40 - "Community 40"
 Cohesion: 0.07
@@ -982,27 +996,27 @@ Nodes (9): ClientURI, User, Client, DB, Time, UUID, mockClientURIRepo, mockUserR
 
 ### Community 42 - "Community 42"
 Cohesion: 0.14
-Nodes (21): AuthEventService, Client, ClientRepository, ClientURIRepository, Context, DB, OAuthAuthorizationCodeRepository, OAuthAuthorizeRequestDTO (+13 more)
+Nodes (20): AuthEventService, Client, ClientRepository, ClientURIRepository, Context, DB, OAuthAuthorizationCodeRepository, OAuthAuthorizeRequestDTO (+12 more)
 
 ### Community 43 - "Community 43"
 Cohesion: 0.11
 Nodes (11): mapAuthnUsers(), toAuthnUser(), toUserUser(), authnUserRepoAdapter, PaginationResult, Role, Time, User (+3 more)
 
 ### Community 44 - "Community 44"
-Cohesion: 0.08
-Nodes (40): NewOAuthInvalidClient(), GenerateRandomString(), Client, DB, MapClaims, OAuthClientCredentials, OAuthError, Client (+32 more)
+Cohesion: 0.18
+Nodes (14): GenerateRandomString(), AuthEventService, ClientRepository, DB, OAuthDeviceAuthorizationRequestDTO, OAuthDeviceAuthorizationResponseDTO, OAuthDeviceCodeRepository, UserIdentityRepository (+6 more)
 
 ### Community 45 - "Community 45"
 Cohesion: 0.04
 Nodes (52): AccountService, APIKeyService, APIService, AuthEventService, BrandingService, Cache, Client, ClientService (+44 more)
 
 ### Community 46 - "Community 46"
-Cohesion: 0.12
-Nodes (12): IPRestrictionRule, PaginationResult, SecuritySetting, T, IP Restriction Rules, IPRestrictionRuleRepositoryGetFilter, mockSecuritySettingRepo, mockBaseRepo (+4 more)
+Cohesion: 0.11
+Nodes (14): IPRestrictionRule, IPRestrictionRuleRepository, PaginationResult, SecuritySetting, SecuritySettingRepository, T, IP Restriction Rules, IPRestrictionRuleRepositoryGetFilter (+6 more)
 
 ### Community 47 - "Community 47"
-Cohesion: 0.11
-Nodes (20): APIKeyAPIServicePaginatedResult, APIKeyServiceGetFilter, APIKeyServiceGetResult, mockAPIKeyAPIRepo, mockAPIKeyService, mockClientService, ClientAPIServiceDataResult, ClientCreateServiceResult (+12 more)
+Cohesion: 0.13
+Nodes (18): APIKeyAPIServicePaginatedResult, APIKeyServiceGetFilter, APIKeyServiceGetResult, mockAPIKeyService, mockClientService, ClientAPIServiceDataResult, ClientCreateServiceResult, ClientSecretServiceDataResult (+10 more)
 
 ### Community 48 - "Community 48"
 Cohesion: 0.10
@@ -1013,20 +1027,20 @@ Cohesion: 0.13
 Nodes (13): mapAuthnIDPs(), toAuthnIDPFromIdp(), toAuthnTenantFromIdp(), toIdpIDP(), newAuthnIDPRepoAdapter(), authnIDPRepoAdapter, DB, IdentityProvider (+5 more)
 
 ### Community 50 - "Community 50"
-Cohesion: 0.16
-Nodes (17): EmailTemplate, EmailTemplateService, EmailTemplateServiceDataResult, EmailTemplateServiceListResult, NewEmailTemplateService(), toEmailTemplateServiceDataResult(), Email Templates, DB (+9 more)
+Cohesion: 0.27
+Nodes (12): EmailTemplateService, EmailTemplateServiceDataResult, EmailTemplateServiceListResult, NewEmailTemplateService(), toEmailTemplateServiceDataResult(), Email Templates, Context, DB (+4 more)
 
 ### Community 51 - "Community 51"
-Cohesion: 0.11
-Nodes (17): generateRandomToken(), toSessionDataResult(), SessionDataResult, SessionService, Context, Time, UserToken, UserTokenRepository (+9 more)
+Cohesion: 0.21
+Nodes (10): generateRandomToken(), toSessionDataResult(), SessionDataResult, SessionService, Context, Time, UserToken, UserTokenRepository (+2 more)
 
 ### Community 52 - "Community 52"
-Cohesion: 0.15
-Nodes (32): Context, Invite, ClientRepository, DB, EmailTemplateRepository, InviteRepository, RoleRepository, Client (+24 more)
+Cohesion: 0.12
+Nodes (37): Context, Invite, Request, T, ClientRepository, DB, EmailTemplateRepository, InviteRepository (+29 more)
 
 ### Community 53 - "Community 53"
-Cohesion: 0.21
-Nodes (9): MFAService, Request, ResponseWriter, WebAuthnService, Request, ResponseWriter, NewMFAHandler(), MFAHandler (+1 more)
+Cohesion: 0.18
+Nodes (11): MFAService, Request, ResponseWriter, WebAuthnService, Request, ResponseWriter, NewMFAHandler(), MFAHandler (+3 more)
 
 ### Community 54 - "Community 54"
 Cohesion: 0.12
@@ -1045,8 +1059,8 @@ Cohesion: 0.11
 Nodes (58): NewLoginHandler(), newLoginRequest(), TestExtractSecurityContext_NonStringValue(), TestLoginHandler_Login_BodyValidationError(), TestLoginHandler_Login_InvalidBody(), TestLoginHandler_Login_ServiceError(), TestLoginHandler_Login_Success(), TestLoginHandler_Login_WithOptionalParams() (+50 more)
 
 ### Community 58 - "Community 58"
-Cohesion: 0.23
-Nodes (8): BaseRepository, BaseRepositoryMethods, DB, PaginationResult, Profile, ProfileRepository, ProfileRepositoryGetFilter, NewProfileRepository()
+Cohesion: 0.09
+Nodes (21): ApplyILike(), BaseRepository, BaseRepositoryMethods, DB, PaginationResult, Profile, BaseRepository, BaseRepositoryMethods (+13 more)
 
 ### Community 59 - "Community 59"
 Cohesion: 0.10
@@ -1057,36 +1071,36 @@ Cohesion: 0.14
 Nodes (16): Context, GetUserRolesFilter, JSON, ProfileServiceDataResult, RoleServiceDataResult, Time, UserIdentityServiceDataResult, UserServiceDataResult (+8 more)
 
 ### Community 61 - "Community 61"
-Cohesion: 0.11
-Nodes (14): mapAuthnInvites(), toAuthnInvite(), toInviteInvite(), newAuthnInviteRepoAdapter(), newAuthnPasswordHistoryRepoAdapter(), authnInviteRepoAdapter, authnPasswordHistoryRepoAdapter, DB (+6 more)
+Cohesion: 0.19
+Nodes (8): mapAuthnInvites(), toAuthnInvite(), toInviteInvite(), authnInviteRepoAdapter, Invite, PaginationResult, UUID, Invite
 
 ### Community 62 - "Community 62"
-Cohesion: 0.08
-Nodes (43): AuthEventRoute(), BrandingRoute(), EmailTemplateRoute(), LoginTemplateRoute(), SMSTemplateRoute(), APIRoute(), PermissionRoute(), PolicyRoute() (+35 more)
+Cohesion: 0.16
+Nodes (24): APIRoute(), PermissionRoute(), PolicyRoute(), RoleRoute(), ServiceRoute(), SignupFlowRoute(), APIHandler, Cache (+16 more)
 
 ### Community 63 - "Community 63"
-Cohesion: 0.26
-Nodes (9): errReader, generateOTP(), TestGenerateOTP(), TestGenerateOTP_CryptoRandError(), TestGenerateOTPOnlyDigits(), TestGenerateOTPUniqueness(), withFailingRand(), T (+1 more)
+Cohesion: 0.08
+Nodes (26): errReader, generateOTP(), TestGenerateOTP(), TestGenerateOTP_CryptoRandError(), TestGenerateOTPOnlyDigits(), TestGenerateOTPUniqueness(), generateIdentifier(), TestGenerateIdentifier() (+18 more)
 
 ### Community 64 - "Community 64"
 Cohesion: 0.15
 Nodes (14): AuthEventService, Context, DB, SecuritySettingRepository, UserBackupCodeRepository, UserRepository, UserTOTPSecretRepository, UserWebAuthnCredentialRepository (+6 more)
 
 ### Community 65 - "Community 65"
-Cohesion: 0.10
-Nodes (32): EmailVerificationHandler, extractAccessToken(), extractSecurityContext(), LoginHandler, securityContext, Request, ResponseWriter, securityContext (+24 more)
+Cohesion: 0.11
+Nodes (27): EmailVerificationHandler, extractAccessToken(), extractSecurityContext(), LoginHandler, securityContext, Request, ResponseWriter, securityContext (+19 more)
 
 ### Community 66 - "Community 66"
 Cohesion: 0.23
 Nodes (14): Profile, User, UserSetting, Context, Profile, Time, UUID, ProfileService (+6 more)
 
 ### Community 67 - "Community 67"
-Cohesion: 0.05
-Nodes (34): PaginationRequestDTO, AccountDeleteDTO, ChangeEmailRequestDTO, ChangeUsernameDTO, ProfileFilterDTO, ProfileRequestDTO, UserFilterDTO, UserIdentityFilterDTO (+26 more)
+Cohesion: 0.04
+Nodes (53): ClientResponseDTO, JSON, PaginationRequestDTO, Profile, TenantResponseDTO, AccountDeleteDTO, ChangeEmailRequestDTO, ChangeUsernameDTO (+45 more)
 
 ### Community 68 - "Community 68"
-Cohesion: 0.20
-Nodes (15): RoleService, RoleServiceGetFilter, RoleServiceGetPermissionsFilter, RoleServiceGetPermissionsResult, RoleServiceGetResult, NewRoleService(), AuthEventService, DB (+7 more)
+Cohesion: 0.15
+Nodes (25): NewNotFound(), RoleService, RoleServiceDataResult, RoleServiceGetFilter, RoleServiceGetPermissionsFilter, RoleServiceGetPermissionsResult, RoleServiceGetResult, NewRoleService() (+17 more)
 
 ### Community 69 - "Community 69"
 Cohesion: 0.10
@@ -1098,15 +1112,15 @@ Nodes (11): APIKeyResponseDTO, APIKeyHandler, toAPIKeyResponseDTO(), ApiPermissi
 
 ### Community 71 - "Community 71"
 Cohesion: 0.21
-Nodes (9): ClientHandler, toClientResponseDTO(), ClientResponseDTO, ClientServiceDataResult, Request, ResponseWriter, Request, ResponseWriter (+1 more)
+Nodes (9): ClientHandler, toClientResponseDTO(), Request, ResponseWriter, ClientResponseDTO, ClientServiceDataResult, Request, ResponseWriter (+1 more)
 
 ### Community 72 - "Community 72"
-Cohesion: 0.18
-Nodes (11): DB, Request, ResponseWriter, ProfileResponseDTO, ProfileServiceDataResult, Request, ResponseWriter, CreateProfileTable() (+3 more)
+Cohesion: 0.17
+Nodes (12): DB, Request, ResponseWriter, ProfileResponseDTO, ProfileService, ProfileServiceDataResult, Request, ResponseWriter (+4 more)
 
 ### Community 73 - "Community 73"
-Cohesion: 0.08
-Nodes (30): NewConflict(), NewValidation(), ConflictError, ForbiddenError, InternalError, NotFoundError, UnauthorizedError, ValidationError (+22 more)
+Cohesion: 0.05
+Nodes (55): NewConflict(), NewInternal(), NewUnauthorized(), NewValidation(), TestConflictError(), TestForbiddenError(), TestInternalError(), TestNotFoundError() (+47 more)
 
 ### Community 74 - "Community 74"
 Cohesion: 0.15
@@ -1121,8 +1135,8 @@ Cohesion: 0.09
 Nodes (24): sanitizeOrder(), IdentityProviderRepository, IdentityProviderRepositoryGetFilter, NewIdentityProviderRepository(), NewSignupFlowRepository(), NewSignupFlowRoleRepository(), SignupFlowRepository, SignupFlowRepositoryGetFilter (+16 more)
 
 ### Community 77 - "Community 77"
-Cohesion: 0.13
-Nodes (23): firstOrNil(), newOAuthClientRepo(), newOAuthClientURIRepo(), newOAuthTenantRepo(), newOAuthUserIdentityRepo(), newOAuthUserRepo(), oauthClientRepo, oauthClientURIRepo (+15 more)
+Cohesion: 0.14
+Nodes (22): newOAuthClientRepo(), newOAuthClientURIRepo(), newOAuthTenantRepo(), newOAuthUserIdentityRepo(), newOAuthUserRepo(), oauthClientRepo, oauthClientURIRepo, oauthTenantRepo (+14 more)
 
 ### Community 78 - "Community 78"
 Cohesion: 0.19
@@ -1133,7 +1147,7 @@ Cohesion: 0.43
 Nodes (6): TestServiceCreateOrUpdateRequestDto_Validate(), TestServiceFilterDto_Validate(), TestServiceStatusUpdateRequestDto_Validate(), validServiceCreate(), T, ServiceCreateOrUpdateRequestDTO
 
 ### Community 80 - "Community 80"
-Cohesion: 0.18
+Cohesion: 0.20
 Nodes (13): APIKeyAPIServiceDataResult, APIKeyAPIServicePaginatedResult, APIKeyService, APIKeyServiceDataResult, APIKeyServiceGetFilter, APIKeyServiceGetResult, APIKey, APIServiceDataResult (+5 more)
 
 ### Community 81 - "Community 81"
@@ -1141,16 +1155,16 @@ Cohesion: 0.10
 Nodes (24): AuthEventInput, AuthEventRepositoryGetFilter, AuthEventServiceDataResult, Context, OAuthAuthorizeRequestDTO, OAuthAuthorizeResult, OAuthClientCredentials, OAuthConsentChallengeResponseDTO (+16 more)
 
 ### Community 83 - "Community 83"
-Cohesion: 0.16
-Nodes (35): EmailVerificationPublicRoute(), EmailVerificationRoute(), ForgotPasswordPublicRoute(), ForgotPasswordRoute(), LoginPublicRoute(), LoginRoute(), MagicLinkPublicRoute(), MagicLinkRoute() (+27 more)
+Cohesion: 0.17
+Nodes (30): EmailVerificationPublicRoute(), EmailVerificationRoute(), ForgotPasswordPublicRoute(), ForgotPasswordRoute(), LoginPublicRoute(), LoginRoute(), MagicLinkPublicRoute(), MagicLinkRoute() (+22 more)
 
 ### Community 84 - "Community 84"
-Cohesion: 0.12
-Nodes (16): 1. Security & Correctness Bugs, 2. Architecture & Convention Drift, 3. Duplication — Consolidation Targets, 4. Consistency Issues, 5. Cleanup (dead code, hygiene), authn, Bugs & Enhancements — Post-Refactor Audit, Cross-tenant authorization (+8 more)
+Cohesion: 0.07
+Nodes (26): 1. Security & Correctness Bugs, 2. Architecture & Convention Drift, 3. Duplication — Consolidation Targets, 4. Consistency Issues, 5. Cleanup (dead code, hygiene), 6. Feature Completeness & Spec Compliance, 7. Observability, CI & Operations, Auth flows (+18 more)
 
 ### Community 85 - "Community 85"
-Cohesion: 0.15
-Nodes (24): handlers, Cache, MFAHandler, Router, UserContextProvider, Application, Handler, Router (+16 more)
+Cohesion: 0.21
+Nodes (12): handlers, Cache, MFAHandler, Router, UserContextProvider, Application, Handler, Router (+4 more)
 
 ### Community 87 - "Community 87"
 Cohesion: 0.28
@@ -1169,8 +1183,8 @@ Cohesion: 0.14
 Nodes (12): mapAuthnRoles(), toAuthnRole(), toIamRole(), mapAuthnUserRoles(), toAuthnUserRole(), toUserUserRole(), Role, PaginationResult (+4 more)
 
 ### Community 91 - "Community 91"
-Cohesion: 0.09
-Nodes (28): initRepos(), EmailTemplateRepository, EmailTemplateRepositoryGetFilter, LoginTemplateRepository, LoginTemplateRepositoryGetFilter, NewEmailTemplateRepository(), NewLoginTemplateRepository(), NewSMSTemplateRepository() (+20 more)
+Cohesion: 0.10
+Nodes (26): EmailTemplateRepository, EmailTemplateRepositoryGetFilter, LoginTemplateRepository, LoginTemplateRepositoryGetFilter, NewEmailTemplateRepository(), NewLoginTemplateRepository(), NewSMSTemplateRepository(), SMSTemplateRepository (+18 more)
 
 ### Community 92 - "Community 92"
 Cohesion: 0.17
@@ -1201,8 +1215,8 @@ Cohesion: 0.14
 Nodes (20): newIAMClientRepo(), newIAMTenantRepo(), newIAMTenantServiceRepo(), newIAMUserRepo(), iamClientRepo, iamTenantRepo, iamTenantServiceRepo, iamUserRepo (+12 more)
 
 ### Community 99 - "Community 99"
-Cohesion: 0.67
-Nodes (3): NewBaseRepository(), BaseRepository, T
+Cohesion: 0.13
+Nodes (12): APIRepository, ClientRepository, DB, PermissionRepository, PolicyRepository, RolePermissionRepository, RoleRepository, ServicePolicyRepository (+4 more)
 
 ### Community 100 - "Community 100"
 Cohesion: 0.09
@@ -1245,16 +1259,16 @@ Cohesion: 0.22
 Nodes (6): DB, DeletedAt, JSON, Time, UUID, Tenant
 
 ### Community 110 - "Community 110"
-Cohesion: 0.14
-Nodes (31): NewSignupFlowService(), buildSignupFlow(), defaultCR(), TestSignupFlowService_AssignRoles(), TestSignupFlowService_Create(), TestSignupFlowService_Delete(), TestSignupFlowService_GetAll(), TestSignupFlowService_GetByUUID() (+23 more)
+Cohesion: 0.24
+Nodes (21): NewSignupFlowService(), buildSignupFlow(), defaultCR(), TestSignupFlowService_AssignRoles(), TestSignupFlowService_Create(), TestSignupFlowService_Delete(), TestSignupFlowService_GetAll(), TestSignupFlowService_GetByUUID() (+13 more)
 
 ### Community 111 - "Community 111"
 Cohesion: 0.17
 Nodes (17): NewFederationHandler(), TestFederationHandler_ExchangeExternalToken(), TestFederationHandler_ExchangeOAuth2Code(), TestFederationHandler_GetIdentities(), TestFederationHandler_HomeRealmDiscovery(), TestFederationHandler_LinkIdentity(), TestFederationHandler_UnlinkIdentity(), mockFederationService (+9 more)
 
 ### Community 112 - "Community 112"
-Cohesion: 0.15
-Nodes (10): ClientRepository, DB, IdentityProviderRepository, RoleRepository, SignupFlowRepository, SignupFlowRoleRepository, TenantRepository, UserIdentityRepository (+2 more)
+Cohesion: 0.12
+Nodes (14): newMockGormDB(), mockClientRepo, Client, ClientRepository, DB, IdentityProviderRepository, RoleRepository, SignupFlowRepository (+6 more)
 
 ### Community 113 - "Community 113"
 Cohesion: 0.22
@@ -1265,16 +1279,16 @@ Cohesion: 0.20
 Nodes (23): newRole(), newRoleService(), roleActorNoIdentities(), roleActorUser(), TestRoleService_AddRolePermissions(), TestRoleService_Create(), TestRoleService_DeleteByUUID(), TestRoleService_Get() (+15 more)
 
 ### Community 115 - "Community 115"
-Cohesion: 0.11
-Nodes (19): BaseRepository, BaseRepositoryMethods, DB, EmailConfig, BaseRepository, BaseRepositoryMethods, DB, SMSConfig (+11 more)
+Cohesion: 0.08
+Nodes (27): initRepos(), BrandingRepository, NewBrandingRepository(), DB, BaseRepository, BaseRepositoryMethods, Branding, DB (+19 more)
 
 ### Community 116 - "Community 116"
 Cohesion: 0.26
 Nodes (23): OAuthAuthorizeService, T, NewOAuthAuthorizeHandler(), TestNewOAuthAuthorizeHandler(), TestOAuthAuthorizeHandler_Authorize_ConsentRequired(), TestOAuthAuthorizeHandler_Authorize_NoUser(), TestOAuthAuthorizeHandler_Authorize_PassesQueryParams(), TestOAuthAuthorizeHandler_Authorize_ServiceOAuthError() (+15 more)
 
 ### Community 117 - "Community 117"
-Cohesion: 0.24
-Nodes (10): OAuthDeviceService, Request, ResponseWriter, T, NewOAuthDeviceHandler(), TestOAuthDeviceHandler_Authorize(), TestOAuthDeviceHandler_DenyUserCode(), TestOAuthDeviceHandler_ExchangeDeviceToken() (+2 more)
+Cohesion: 0.17
+Nodes (11): PaginationRequestDTO, Request, OAuthDeviceService, Request, ResponseWriter, Request, ResponseWriter, extractOAuthClientCredentials() (+3 more)
 
 ### Community 118 - "Community 118"
 Cohesion: 0.23
@@ -1293,12 +1307,12 @@ Cohesion: 0.15
 Nodes (7): PaginationResult, Role, RoleRepositoryGetFilter, User, UserRepositoryGetFilter, mockRoleRepo, mockUserRepo
 
 ### Community 122 - "Community 122"
-Cohesion: 0.05
-Nodes (40): AuthEventInput, AuthEventService, AuthEventServiceDataResult, mockAuthEventRepo, noopAuthEventService, coalesceAuthEventService(), NewAuthEventService(), NoopService() (+32 more)
+Cohesion: 0.19
+Nodes (11): AuthEventInput, AuthEventServiceDataResult, noopAuthEventService, toAuthEventServiceDataResult(), AuthEvent, AuthEventRepositoryGetFilter, Context, JSON (+3 more)
 
 ### Community 123 - "Community 123"
-Cohesion: 0.09
-Nodes (34): ClientURI, Client, DB, Time, UUID, BaseRepositoryMethods, ClientURI, DeletedAt (+26 more)
+Cohesion: 0.13
+Nodes (29): BaseRepositoryMethods, ClientURI, DeletedAt, JSON, StringArray, Time, User, UUID (+21 more)
 
 ### Community 124 - "Community 124"
 Cohesion: 0.21
@@ -1321,8 +1335,8 @@ Cohesion: 0.14
 Nodes (18): BrandingResponseDTO, EmailTemplateListResponseDTO, EmailTemplateResponseDTO, LoginTemplateListResponseDTO, LoginTemplateResponseDTO, SMSTemplateListResponseDTO, SMSTemplateResponseDTO, BrandingUpdateRequestDTO (+10 more)
 
 ### Community 129 - "Community 129"
-Cohesion: 0.23
-Nodes (9): ApplyILike(), NewBaseRepository(), normalizePagination(), PaginateQuery(), BaseRepository, BaseRepository[T], DB, PaginationResult (+1 more)
+Cohesion: 0.24
+Nodes (8): NewBaseRepository(), normalizePagination(), PaginateQuery(), BaseRepository, BaseRepository[T], DB, PaginationResult, T
 
 ### Community 130 - "Community 130"
 Cohesion: 0.09
@@ -1357,12 +1371,12 @@ Cohesion: 0.10
 Nodes (17): Credential, User, BackupCodesResponseDTO, BackupCodeVerifyRequestDTO, MFAAdminResetRequestDTO, MFAPolicyDTO, MFAStatusResponseDTO, StepUpChallengeResponseDTO (+9 more)
 
 ### Community 138 - "Community 138"
-Cohesion: 0.23
-Nodes (6): mockSignupFlowRepo, mockSignupFlowRoleRepo, SignupFlow, SignupFlowRole, Signup Flows, SignupFlowRepositoryGetFilter
+Cohesion: 0.22
+Nodes (7): mockBaseRepo, mockSignupFlowRepo, mockSignupFlowRoleRepo, SignupFlow, SignupFlowRole, Signup Flows, SignupFlowRepositoryGetFilter
 
 ### Community 139 - "Community 139"
-Cohesion: 0.25
-Nodes (18): IdentityProviderService, NewIdentityProviderService(), actorUserWithDefaultTenant(), newIDP(), TestIdentityProviderService_Create(), TestIdentityProviderService_DeleteByUUID(), TestIdentityProviderService_Get(), TestIdentityProviderService_GetByUUID() (+10 more)
+Cohesion: 0.24
+Nodes (17): NewIdentityProviderService(), actorUserWithDefaultTenant(), newIDP(), TestIdentityProviderService_Create(), TestIdentityProviderService_DeleteByUUID(), TestIdentityProviderService_Get(), TestIdentityProviderService_GetByUUID(), TestIdentityProviderService_SetStatusByUUID() (+9 more)
 
 ### Community 140 - "Community 140"
 Cohesion: 0.17
@@ -1370,7 +1384,7 @@ Nodes (22): regMocks, defaultRegInternalMocks(), defaultRegPublicMocks(), locked
 
 ### Community 141 - "Community 141"
 Cohesion: 0.14
-Nodes (29): Context, Logger, Request, ResponseWriter, ResponseRecorder, T, loggerContextKey, response (+21 more)
+Nodes (28): Context, Logger, Request, ResponseWriter, ResponseRecorder, T, loggerContextKey, response (+20 more)
 
 ### Community 142 - "Community 142"
 Cohesion: 0.16
@@ -1390,7 +1404,7 @@ Nodes (17): Cache, OAuthAuthorizeHandler, OAuthCIBAHandler, OAuthConsentHandler,
 
 ### Community 146 - "Community 146"
 Cohesion: 0.17
-Nodes (14): Context, Level, T, DB, bootstrapTrackingTable(), isMigrationApplied(), recordMigration(), RunMigrations() (+6 more)
+Nodes (11): Context, Level, T, Context, run(), initBootstrapLogger(), initConfiguredLogger(), parseSlogLevel() (+3 more)
 
 ### Community 147 - "Community 147"
 Cohesion: 0.20
@@ -1401,16 +1415,16 @@ Cohesion: 0.17
 Nodes (15): SeederServiceClient, SeederServiceServer, UnimplementedSeederServiceServer, UnsafeSeederServiceServer, NewSeederServiceClient(), RegisterSeederServiceServer(), _SeederService_TriggerSeeder_Handler(), ClientConnInterface (+7 more)
 
 ### Community 149 - "Community 149"
-Cohesion: 0.11
-Nodes (65): New(), ProfileService, T, NewProfileHandler(), TestProfileHandler_AdminCreateProfile(), TestProfileHandler_AdminCreateProfile_BadJSON(), TestProfileHandler_AdminCreateProfile_InvalidUserUUID(), TestProfileHandler_AdminCreateProfile_ServiceError() (+57 more)
+Cohesion: 0.10
+Nodes (62): T, NewProfileHandler(), TestProfileHandler_AdminCreateProfile(), TestProfileHandler_AdminCreateProfile_BadJSON(), TestProfileHandler_AdminCreateProfile_InvalidUserUUID(), TestProfileHandler_AdminCreateProfile_ServiceError(), TestProfileHandler_AdminCreateProfile_ValidationError(), TestProfileHandler_AdminCreateProfile_WithBirthdate() (+54 more)
 
 ### Community 150 - "Community 150"
 Cohesion: 0.14
 Nodes (4): OAuthCIBARequest, PaginationResult, Time, mockOAuthCIBARepo
 
 ### Community 151 - "Community 151"
-Cohesion: 0.15
-Nodes (13): toPermissionResponseDTO(), PermissionHandler, Request, ResponseWriter, Request, ResponseWriter, PermissionResponseDTO, PermissionServiceDataResult (+5 more)
+Cohesion: 0.36
+Nodes (6): toPermissionResponseDTO(), PermissionHandler, PermissionResponseDTO, PermissionServiceDataResult, Request, ResponseWriter
 
 ### Community 152 - "Community 152"
 Cohesion: 0.21
@@ -1425,12 +1439,12 @@ Cohesion: 0.32
 Nodes (16): dev.sh script, check_docker(), check_docker_compose(), dev_clean(), dev_logs(), dev_reload(), dev_restart(), dev_shell() (+8 more)
 
 ### Community 155 - "Community 155"
-Cohesion: 0.22
-Nodes (11): badJSONReq(), jsonReq(), newMockGormDB(), validPagination(), withChiParam(), withTenant(), withTenantAndUser(), withUser() (+3 more)
+Cohesion: 0.27
+Nodes (9): badJSONReq(), jsonReq(), validPagination(), withChiParam(), withTenant(), withTenantAndUser(), withUser(), PaginationRequestDTO (+1 more)
 
 ### Community 156 - "Community 156"
-Cohesion: 0.19
-Nodes (12): TestMain(), Config, GetConfig(), Init(), GetEnv(), GetEnvOrDefault(), parseIntDefault(), TestGetEnv() (+4 more)
+Cohesion: 0.23
+Nodes (10): Config, GetConfig(), Init(), GetEnv(), GetEnvOrDefault(), parseIntDefault(), TestGetEnv(), TestGetEnvOrDefault() (+2 more)
 
 ### Community 157 - "Community 157"
 Cohesion: 0.04
@@ -1449,8 +1463,8 @@ Cohesion: 0.05
 Nodes (43): DELETE /api/v1/services/{service_uuid}, DELETE /api/v1/services/{service_uuid}/policies/{policy_uuid}, Endpoints, Error Responses, Error Responses, Error Responses, Error Responses, Error Responses (+35 more)
 
 ### Community 161 - "Community 161"
-Cohesion: 0.24
-Nodes (16): Request, T, T, Request, jsonReq(), withTenant(), withTenantAndUser(), WithAuthContext() (+8 more)
+Cohesion: 0.21
+Nodes (17): Request, ResponseWriter, User, T, Request, WithAuthContext(), composeUserDisplayName(), NewOAuthUserInfoHandler() (+9 more)
 
 ### Community 162 - "Community 162"
 Cohesion: 0.24
@@ -1461,19 +1475,19 @@ Cohesion: 0.12
 Nodes (18): APIRepository, APIRepositoryGetFilter, PermissionRepository, PermissionRepositoryGetFilter, NewAPIRepository(), NewPermissionRepository(), API, BaseRepository (+10 more)
 
 ### Community 164 - "Community 164"
-Cohesion: 0.22
-Nodes (10): Attr, Context, Handler, Level, isPIIKey(), redactAttr(), RedactJSON(), redactMap() (+2 more)
+Cohesion: 0.20
+Nodes (11): Attr, Context, Handler, Level, isPIIKey(), redactAttr(), RedactJSON(), redactMap() (+3 more)
 
 ### Community 165 - "Community 165"
-Cohesion: 0.17
-Nodes (19): IdentityProviderReader, FederationIdentityRoute(), FederationPublicRoute(), IdentityProviderRoute(), SignupFlowRoute(), Cache, FederationHandler, IdentityProviderHandler (+11 more)
+Cohesion: 0.40
+Nodes (9): IdentityProviderReader, FederationIdentityRoute(), FederationPublicRoute(), IdentityProviderRoute(), Cache, FederationHandler, IdentityProviderHandler, Router (+1 more)
 
 ### Community 166 - "Community 166"
 Cohesion: 0.09
 Nodes (16): IdentityProviderCreateRequestDTO, IdentityProviderStatusUpdateDTO, IdentityProviderUpdateRequestDTO, SignupFlowAssignRolesRequestDTO, SignupFlowCreateRequestDTO, SignupFlowUpdateRequestDTO, IdentityProviderCreateRequestDTO, IdentityProviderUpdateRequestDTO (+8 more)
 
 ### Community 167 - "Community 167"
-Cohesion: 0.21
+Cohesion: 0.20
 Nodes (7): mockIdentityProviderRepo, mockRoleRepo, IdentityProvider, IdentityProviderRepositoryGetFilter, PaginationResult, Role, RoleRepositoryGetFilter
 
 ### Community 168 - "Community 168"
@@ -1485,8 +1499,8 @@ Cohesion: 0.32
 Nodes (9): EmailTemplateHandler, toEmailTemplateListResponseDTO(), toEmailTemplateListResponseDtoList(), toEmailTemplateResponseDTO(), EmailTemplateListResponseDTO, EmailTemplateResponseDTO, EmailTemplateServiceDataResult, Request (+1 more)
 
 ### Community 170 - "Community 170"
-Cohesion: 0.33
-Nodes (6): toRoleResponseDTO(), RoleHandler, Request, ResponseWriter, RoleServiceDataResult, RoleResponseDTO
+Cohesion: 0.19
+Nodes (7): Cache, JTIDenylister, NopInvalidator, NopJTIDenylister, Client, Context, Duration
 
 ### Community 171 - "Community 171"
 Cohesion: 0.32
@@ -1569,8 +1583,8 @@ Cohesion: 0.04
 Nodes (45): Broken Trace Propagation (High Priority), Cache — `internal/cache/` (Low Priority), Email (Manual Instrumentation), Infrastructure (Auto-Instrumentation), internal/setup/service_setup.go, internal/user/service_profile.go, internal/user/service_setting.go, internal/user/service_user.go (+37 more)
 
 ### Community 191 - "Community 191"
-Cohesion: 0.07
-Nodes (26): DB, DB, API, DB, DB, IdentityProvider, DB, DB (+18 more)
+Cohesion: 0.06
+Nodes (31): DB, DB, Service, DB, API, DB, DB, IdentityProvider (+23 more)
 
 ### Community 192 - "Community 192"
 Cohesion: 0.31
@@ -1582,7 +1596,7 @@ Nodes (6): APIHandler, toAPIResponseDTO(), APIResponseDTO, APIServiceDataResult,
 
 ### Community 194 - "Community 194"
 Cohesion: 0.10
-Nodes (19): Domain Package Coverage (ranked), E2E test coverage checklist per flow, E2E Test Plan, Excluded from Codecov (wiring/infra/generated), Immediate (P0), Integration test coverage per repository, Integration Test Plan, Nice-to-have (P2) (+11 more)
+Nodes (20): Domain Package Coverage (ranked), E2E test coverage checklist per flow, E2E Test Plan, Excluded from Codecov (wiring/infra/generated), Immediate (P0), Integration test coverage per repository, Integration Test Plan, New unit-test checklist (added 2026-06-01) (+12 more)
 
 ### Community 195 - "Community 195"
 Cohesion: 0.26
@@ -1617,8 +1631,8 @@ Cohesion: 0.12
 Nodes (14): AuthEvent, AuthEventFilterDTO, AuthEventResponseDTO, DB, JSON, Time, UUID, AuthEventFilterDTO (+6 more)
 
 ### Community 203 - "Community 203"
-Cohesion: 0.15
-Nodes (9): APIKeyPermission, mockAPIKeyPermissionRepo, APIKeyPermission, APIKeyPermissionRepository, APIKeyAPI, DB, Permission, Time (+1 more)
+Cohesion: 0.18
+Nodes (8): APIKeyPermission, mockAPIKeyPermissionRepo, APIKeyPermission, APIKeyAPI, DB, Permission, Time, UUID
 
 ### Community 204 - "Community 204"
 Cohesion: 0.16
@@ -1645,8 +1659,8 @@ Cohesion: 0.05
 Nodes (40): DELETE /api/v1/policies/{policy_uuid}, Endpoints, Error Responses, Error Responses, Error Responses, Error Responses, Error Responses, Error Responses (+32 more)
 
 ### Community 211 - "Community 211"
-Cohesion: 0.18
-Nodes (22): Duration, MapClaims, PublicKey, Time, AccessTokenOptions, IDTokenParams, buildAllowedClaimsSet(), GenerateAccessToken() (+14 more)
+Cohesion: 0.11
+Nodes (22): Duration, PublicKey, Time, Context, Duration, AccessTokenOptions, IDTokenParams, buildAllowedClaimsSet() (+14 more)
 
 ### Community 212 - "Community 212"
 Cohesion: 0.20
@@ -1690,7 +1704,7 @@ Nodes (10): T, TestUserAssignRolesRequestDto_Validate(), TestUserCreateRequestDt
 
 ### Community 222 - "Community 222"
 Cohesion: 0.22
-Nodes (13): ClientRepository, NewBaseRepository(), LoginResponseDTO, RoleRepository, RoleRepositoryGetFilter, TenantRepository, UserIdentityRepository, UserRepository (+5 more)
+Nodes (13): ClientRepository, parsePaginationQuery(), LoginResponseDTO, RoleRepository, RoleRepositoryGetFilter, TenantRepository, UserIdentityRepository, UserRepository (+5 more)
 
 ### Community 223 - "Community 223"
 Cohesion: 0.05
@@ -1705,8 +1719,8 @@ Cohesion: 0.21
 Nodes (19): Handler, Request, UUID, MapClaims, T, GetClientIDFromContext(), GetProviderIDFromContext(), JWTAuthMiddleware() (+11 more)
 
 ### Community 226 - "Community 226"
-Cohesion: 0.44
-Nodes (10): NewBrandingHandler(), TestBrandingHandler_Get_NoTenant(), TestBrandingHandler_Get_ServiceError(), TestBrandingHandler_Get_Success(), TestBrandingHandler_Update_BadJSON(), TestBrandingHandler_Update_NoTenant(), TestBrandingHandler_Update_ServiceError(), TestBrandingHandler_Update_Success() (+2 more)
+Cohesion: 0.38
+Nodes (11): NewBrandingHandler(), TestBrandingHandler_Get_NoTenant(), TestBrandingHandler_Get_ServiceError(), TestBrandingHandler_Get_Success(), TestBrandingHandler_Update_BadJSON(), TestBrandingHandler_Update_NoTenant(), TestBrandingHandler_Update_ServiceError(), TestBrandingHandler_Update_Success() (+3 more)
 
 ### Community 227 - "Community 227"
 Cohesion: 0.27
@@ -1717,8 +1731,8 @@ Cohesion: 0.29
 Nodes (14): OAuthConsentService, T, NewOAuthConsentHandler(), TestNewOAuthConsentHandler(), TestOAuthConsentHandler_ListGrants_Empty(), TestOAuthConsentHandler_ListGrants_NoUser(), TestOAuthConsentHandler_ListGrants_ServiceError(), TestOAuthConsentHandler_ListGrants_Success() (+6 more)
 
 ### Community 229 - "Community 229"
-Cohesion: 0.24
-Nodes (11): Context, Request, T, UUID, WebhookEndpointServiceDataResult, badJSONReq(), jsonReq(), withChiParam() (+3 more)
+Cohesion: 0.45
+Nodes (5): Context, UUID, WebhookEndpointServiceDataResult, mockWebhookEndpointService, WebhookEndpointServiceListResult
 
 ### Community 230 - "Community 230"
 Cohesion: 0.20
@@ -1781,8 +1795,8 @@ Cohesion: 0.20
 Nodes (6): BaseRepository, PaginationRequestDTO, Request, T, NewBaseRepository(), parsePaginationQuery()
 
 ### Community 245 - "Community 245"
-Cohesion: 0.05
-Nodes (49): API, Policy, Service, NewServiceService(), newServiceSvc(), TestServiceService_AssignPolicy(), TestServiceService_Create(), TestServiceService_DeleteByUUID() (+41 more)
+Cohesion: 0.08
+Nodes (17): API, Policy, Service, DB, DeletedAt, Service, Time, UUID (+9 more)
 
 ### Community 246 - "Community 246"
 Cohesion: 0.36
@@ -1825,8 +1839,8 @@ Cohesion: 0.27
 Nodes (7): toPolicyDetailResponseDTO(), toPolicyResponseDTO(), PolicyServiceDataResult, Request, ResponseWriter, PolicyDetailResponseDTO, PolicyResponseDTO
 
 ### Community 256 - "Community 256"
-Cohesion: 0.12
-Nodes (13): APIKeyCreateRequestDTO, APIKeyUpdateRequestDTO, ClientCreateRequestDTO, ClientUpdateRequestDTO, APIKeyCreateRequestDTO, APIKeyUpdateRequestDTO, ClientCreateRequestDTO, ClientUpdateRequestDTO (+5 more)
+Cohesion: 0.15
+Nodes (19): BrandingRoute(), EmailTemplateRoute(), LoginTemplateRoute(), SMSTemplateRoute(), BrandingHandler, Cache, EmailTemplateHandler, LoginTemplateHandler (+11 more)
 
 ### Community 257 - "Community 257"
 Cohesion: 0.22
@@ -1837,16 +1851,16 @@ Cohesion: 0.39
 Nodes (7): IdentityProviderCreateRequestDTO, TestIdentityProviderCreateRequestDto_Validate(), TestIdentityProviderFilterDto_Validate(), TestIdentityProviderStatusUpdateDto_Validate(), TestIdentityProviderUpdateRequestDto_Validate(), validIDPCreate(), T
 
 ### Community 259 - "Community 259"
-Cohesion: 0.35
-Nodes (11): newLoginTemplateSvc(), TestLoginTemplateService_Create(), TestLoginTemplateService_Delete(), TestLoginTemplateService_GetAll(), TestLoginTemplateService_GetByUUID(), TestLoginTemplateService_Update(), TestLoginTemplateService_UpdateStatus(), TestToLoginTemplateServiceDataResult_InvalidMetadata() (+3 more)
+Cohesion: 0.29
+Nodes (16): NewAPIKeyHandler(), TestAPIKeyHandler_AddAPIPermissions(), TestAPIKeyHandler_AddAPIs(), TestAPIKeyHandler_Create(), TestAPIKeyHandler_Delete(), TestAPIKeyHandler_Get(), TestAPIKeyHandler_GetAPIPermissions(), TestAPIKeyHandler_GetAPIs() (+8 more)
 
 ### Community 260 - "Community 260"
 Cohesion: 0.39
 Nodes (7): APICreateRequestDTO, TestAPICreateRequestDto_Validate(), TestAPIFilterDto_Validate(), TestAPIStatusUpdateDto_Validate(), TestAPIUpdateRequestDto_Validate(), validAPICreate(), T
 
 ### Community 261 - "Community 261"
-Cohesion: 0.23
-Nodes (9): NewServiceRepository(), ServiceRepository, ServiceRepositoryGetFilter, BaseRepository, BaseRepositoryMethods, DB, PaginationResult, Service (+1 more)
+Cohesion: 0.10
+Nodes (19): NewServiceRepository(), NewServicePolicyRepository(), ServicePolicyRepository, ServicePolicyRepositoryGetFilter, ServiceRepository, ServiceRepositoryGetFilter, BaseRepository, BaseRepositoryMethods (+11 more)
 
 ### Community 262 - "Community 262"
 Cohesion: 0.22
@@ -1857,8 +1871,8 @@ Cohesion: 0.22
 Nodes (17): newPermission(), newPermissionService(), TestPermissionService_Create(), TestPermissionService_DeleteByUUID(), TestPermissionService_Get(), TestPermissionService_GetByUUID(), TestPermissionService_SetActiveStatusByUUID(), TestPermissionService_SetStatus() (+9 more)
 
 ### Community 264 - "Community 264"
-Cohesion: 0.28
-Nodes (16): HandlerFunc, Handler, Request, ResponseWriter, T, CSRFMiddleware(), ensureCSRFCookie(), TestCSRFMiddleware_AllNonSafeMethods() (+8 more)
+Cohesion: 0.19
+Nodes (23): HandlerFunc, Handler, Request, ResponseWriter, T, TestIntegration_AuthChain_FullFlow(), TestIntegration_ContentTypeEnforcement(), TestIntegration_CORSMiddleware() (+15 more)
 
 ### Community 265 - "Community 265"
 Cohesion: 0.25
@@ -1869,8 +1883,8 @@ Cohesion: 0.25
 Nodes (6): newResendProvider(), resendProvider, Context, Provider, ProviderConfig, SendParams
 
 ### Community 267 - "Community 267"
-Cohesion: 0.18
-Nodes (12): OAuthRegisterService, Request, ResponseWriter, Context, OAuthClientRegistrationRequestDTO, OAuthClientRegistrationResponseDTO, OAuthError, T (+4 more)
+Cohesion: 0.36
+Nodes (7): Context, OAuthClientRegistrationRequestDTO, OAuthClientRegistrationResponseDTO, OAuthError, T, TestOAuthRegisterHandler_Register(), mockOAuthRegisterService
 
 ### Community 268 - "Community 268"
 Cohesion: 0.25
@@ -1909,8 +1923,8 @@ Cohesion: 0.09
 Nodes (22): Client, DB, Time, UUID, Client, DB, Time, UUID (+14 more)
 
 ### Community 277 - "Community 277"
-Cohesion: 0.24
-Nodes (17): DB, TenantMemberRepository, TenantRepository, UserReader, T, NewTenantMemberService(), TestTenantMemberService_Create(), TestTenantMemberService_CreateByUserUUID() (+9 more)
+Cohesion: 0.36
+Nodes (13): T, NewTenantMemberService(), TestTenantMemberService_Create(), TestTenantMemberService_CreateByUserUUID(), TestTenantMemberService_CreateByUserUUID_Extra(), TestTenantMemberService_DeleteByUUID(), TestTenantMemberService_DeleteByUUID_Extra(), TestTenantMemberService_GetByTenantAndUser() (+5 more)
 
 ### Community 278 - "Community 278"
 Cohesion: 0.24
@@ -1965,8 +1979,8 @@ Cohesion: 0.38
 Nodes (5): EmailConfigResponseDTO, EmailConfigServiceDataResult, Request, ResponseWriter, toEmailConfigResponseDTO()
 
 ### Community 292 - "Community 292"
-Cohesion: 0.48
-Nodes (4): Request, ResponseWriter, TenantSettingConfigResponseDTO, TenantSettingHandler
+Cohesion: 0.19
+Nodes (5): mockAuthEventRepo, AuthEvent, AuthEventRepositoryGetFilter, PaginationResult, Time
 
 ### Community 293 - "Community 293"
 Cohesion: 0.28
@@ -1989,8 +2003,8 @@ Cohesion: 0.14
 Nodes (23): Client, DB, mockAuthEventService, mockClientRepo, mockClientURIRepo, mockOAuthConsentGrantRepo, OAuthAuthorizeRequestDTO, OAuthAuthorizeService (+15 more)
 
 ### Community 298 - "Community 298"
-Cohesion: 0.12
-Nodes (15): ClientResponseDTO, JSON, TenantResponseDTO, UserAssignRolesRequestDTO, UserCreateRequestDTO, UserUpdateRequestDTO, UUID, UserAssignRolesRequestDTO (+7 more)
+Cohesion: 0.30
+Nodes (10): toSignupFlowServiceDataResult(), SignupFlowRoleServiceDataResult, SignupFlowRoleServiceListResult, SignupFlowService, SignupFlowServiceDataResult, SignupFlowServiceListResult, Context, SignupFlow (+2 more)
 
 ### Community 299 - "Community 299"
 Cohesion: 0.18
@@ -2001,8 +2015,8 @@ Cohesion: 0.33
 Nodes (6): Branding, Email Configuration, IP Restriction Rules, SMS Configuration, Tenant Settings, Webhook Endpoints
 
 ### Community 301 - "Community 301"
-Cohesion: 0.31
-Nodes (6): BaseRepository, BaseRepositoryMethods, DB, UserSetting, NewUserSettingRepository(), UserSettingRepository
+Cohesion: 0.21
+Nodes (4): mockEmailTemplateRepo, EmailTemplate, EmailTemplateRepositoryGetFilter, PaginationResult
 
 ### Community 302 - "Community 302"
 Cohesion: 0.32
@@ -2025,8 +2039,8 @@ Cohesion: 0.39
 Nodes (7): T, IPRestrictionRuleCreateRequestDTO, TestIPRestrictionRuleCreateRequestDto_Validate(), TestIPRestrictionRuleFilterDto_Validate(), TestIPRestrictionRuleUpdateRequestDto_Validate(), TestIPRestrictionRuleUpdateStatusRequestDto_Validate(), validIPRuleCreate()
 
 ### Community 307 - "Community 307"
-Cohesion: 0.33
-Nodes (6): BrandingRepository, NewBrandingRepository(), BaseRepository, BaseRepositoryMethods, Branding, DB
+Cohesion: 0.18
+Nodes (3): mockSMSTemplateRepo, SMSTemplate, SMSTemplateRepositoryGetFilter
 
 ### Community 308 - "Community 308"
 Cohesion: 0.27
@@ -2125,15 +2139,19 @@ Cohesion: 0.22
 Nodes (6): SignupFlowRole, DB, Role, SignupFlow, Time, UUID
 
 ### Community 334 - "Community 334"
-Cohesion: 0.12
-Nodes (26): newClientAPIRepo(), newClientIDPRepo(), newClientPermissionRepo(), newClientTenantRepo(), newClientUserRepo(), clientAPIRepo, clientIDPRepo, clientPermissionRepo (+18 more)
+Cohesion: 0.09
+Nodes (30): newClientAPIRepo(), newClientIDPRepo(), newClientPermissionRepo(), newClientTenantRepo(), newClientUserRepo(), clientAPIRepo, clientIDPRepo, clientPermissionRepo (+22 more)
 
 ### Community 337 - "Community 337"
 Cohesion: 0.67
 Nodes (3): Clients, Client APIs and Permissions, Client URIs
 
+### Community 338 - "Community 338"
+Cohesion: 0.15
+Nodes (14): AuthEventService, coalesceAuthEventService(), NoopService(), WebhookDispatcher, coalesceAuthEventService(), coalesceAuthEventService(), coalesceAuthEventService(), AuthEventRepository (+6 more)
+
 ### Community 351 - "Community 351"
-Cohesion: 0.51
+Cohesion: 0.45
 Nodes (4): IPRestrictionRuleServiceDataResult, UUID, IPRestrictionRuleServiceListResult, mockIPRestrictionRuleService
 
 ### Community 352 - "Community 352"
@@ -2143,6 +2161,10 @@ Nodes (13): NewMagicLinkHandler(), magicLinkJSONReq(), TestMagicLinkHandler_Send
 ### Community 386 - "Community 386"
 Cohesion: 0.15
 Nodes (13): For --cluster-only, For git commit hook, For /graphify add, For /graphify explain, For /graphify path, For /graphify query, For native CLAUDE.md integration, For --update (incremental re-extraction) (+5 more)
+
+### Community 387 - "Community 387"
+Cohesion: 0.18
+Nodes (8): ClientAPI, mockClientAPIRepo, ClientAPI, API, Client, ClientPermission, Time, UUID
 
 ### Community 388 - "Community 388"
 Cohesion: 0.30
@@ -2216,9 +2238,13 @@ Nodes (25): Anti-Abuse & Rate Limiting, API Endpoints, Architecture, Common Prov
 Cohesion: 0.08
 Nodes (25): API Endpoints, Architecture, Common Event Categories, Core CRUD Operations, Data Model, Data Validation, Delivery Logging, Event Dispatch Engine (+17 more)
 
+### Community 427 - "Community 427"
+Cohesion: 0.18
+Nodes (4): mockRoleRepo, mockUserRoleRepo, Role, UserRole
+
 ### Community 428 - "Community 428"
-Cohesion: 0.19
-Nodes (5): mockAuthEventService, AuthEventInput, AuthEventServiceDataResult, Time, UUID
+Cohesion: 0.15
+Nodes (8): mockAuthEventService, AuthEventInput, AuthEventRepositoryGetFilter, AuthEventServiceDataResult, EmailTemplateRepositoryGetFilter, RoleRepositoryGetFilter, Time, UUID
 
 ### Community 429 - "Community 429"
 Cohesion: 0.08
@@ -2237,12 +2263,12 @@ Cohesion: 0.08
 Nodes (24): Accessibility, API Endpoints, Architecture, Branding, Core Operations, Data Model, How Auth Branding Typically Works, Industry Standards & Background (+16 more)
 
 ### Community 433 - "Community 433"
-Cohesion: 0.17
-Nodes (9): SecuritySettingsAudit, DB, JSON, SecuritySetting, Time, UUID, mockSecuritySettingsAuditRepo, SecuritySettingsAudit (+1 more)
+Cohesion: 0.12
+Nodes (13): DB, SecuritySettingsAudit, SecuritySettingsAuditRepository, Sqlmock, DB, JSON, SecuritySetting, Time (+5 more)
 
 ### Community 434 - "Community 434"
-Cohesion: 0.13
-Nodes (32): APIKeyAPIPermissionsResponseDTO, APIKeyAPIResponseDTO, APIKeyAPIsResponseDTO, APIKeyCreateResponseDTO, APIKeyPermissionResponseDTO, APIKeyResponseDTO, APIResponseDTO, ClientAPIPermissionsResponseDTO (+24 more)
+Cohesion: 0.05
+Nodes (66): AddAPIKeyAPIsRequestDTO, AddAPIKeyPermissionsRequestDTO, AddClientAPIPermissionsRequestDTO, AddClientAPIsRequestDTO, APIKeyAPIPermissionsResponseDTO, APIKeyAPIResponseDTO, APIKeyAPIsGetRequestDTO, APIKeyAPIsResponseDTO (+58 more)
 
 ### Community 435 - "Community 435"
 Cohesion: 0.07
@@ -2277,12 +2303,12 @@ Cohesion: 0.13
 Nodes (3): mockUserTokenRepo, Time, UserToken
 
 ### Community 444 - "Community 444"
-Cohesion: 0.06
-Nodes (29): LoginTemplate, mockBrandingRepo, mockEmailTemplateRepo, mockLoginTemplateRepo, mockSMSTemplateRepo, SMSTemplate, Branding, BrandingRepository (+21 more)
+Cohesion: 0.19
+Nodes (4): mockLoginTemplateRepo, LoginTemplate, UUID, LoginTemplateRepositoryGetFilter
 
 ### Community 445 - "Community 445"
-Cohesion: 0.25
-Nodes (6): BaseRepository, BaseRepositoryMethods, DB, UserRole, NewUserRoleRepository(), UserRoleRepository
+Cohesion: 0.21
+Nodes (14): AuthUser, Cache, Client, Context, Miniredis, Request, T, mockContextProvider (+6 more)
 
 ### Community 446 - "Community 446"
 Cohesion: 0.33
@@ -2329,8 +2355,8 @@ Cohesion: 0.15
 Nodes (10): IdentityProvider, DB, DeletedAt, JSON, Tenant, Time, UUID, DB (+2 more)
 
 ### Community 457 - "Community 457"
-Cohesion: 0.25
-Nodes (5): mockBaseRepo, mockUserIdentityRepo, mockUserRoleRepo, UserIdentity, UserRole
+Cohesion: 0.26
+Nodes (4): mockUserIdentityRepo, mockUserRoleRepo, UserIdentity, UserRole
 
 ### Community 458 - "Community 458"
 Cohesion: 0.11
@@ -2369,8 +2395,8 @@ Cohesion: 0.19
 Nodes (3): EmailConfig, PaginationResult, mockEmailConfigRepo
 
 ### Community 468 - "Community 468"
-Cohesion: 0.14
-Nodes (8): mockEmailTemplateRepo, mockRoleRepo, AuthEventRepositoryGetFilter, EmailTemplate, EmailTemplateRepositoryGetFilter, PaginationResult, Role, RoleRepositoryGetFilter
+Cohesion: 0.21
+Nodes (3): mockEmailTemplateRepo, EmailTemplate, PaginationResult
 
 ### Community 469 - "Community 469"
 Cohesion: 0.31
@@ -2393,16 +2419,16 @@ Cohesion: 0.13
 Nodes (14): Authentication, End Session (RP-Initiated Logout), Endpoints, Error Responses, Examples, GET /api/v1/oauth/end_session, GET Request Example, Parameters (+6 more)
 
 ### Community 475 - "Community 475"
-Cohesion: 0.32
-Nodes (8): Context, EmailConfigServiceDataResult, SMSConfigServiceDataResult, Time, UUID, mockEmailConfigService, mockSMSConfigService, SMSConfigServiceDataResult
+Cohesion: 0.25
+Nodes (10): Context, EmailConfigServiceDataResult, Request, SMSConfigServiceDataResult, T, badJSONReq(), jsonReq(), withTenant() (+2 more)
 
 ### Community 476 - "Community 476"
 Cohesion: 0.16
 Nodes (4): OAuthConsentChallenge, PaginationResult, Time, mockOAuthConsentChallRepo
 
 ### Community 477 - "Community 477"
-Cohesion: 0.25
-Nodes (7): FederationHandler, Request, ResponseWriter, Request, ResponseWriter, HandleServiceError(), AccountHandler
+Cohesion: 0.16
+Nodes (11): FederationHandler, Request, ResponseWriter, Request, ResponseWriter, Request, ResponseWriter, Request (+3 more)
 
 ### Community 478 - "Community 478"
 Cohesion: 0.13
@@ -2501,12 +2527,12 @@ Cohesion: 0.38
 Nodes (10): newSMSTemplateSvc(), TestSMSTemplateService_Create(), TestSMSTemplateService_Delete(), TestSMSTemplateService_GetAll(), TestSMSTemplateService_GetByUUID(), TestSMSTemplateService_Update(), TestSMSTemplateService_UpdateStatus(), SMSTemplateService (+2 more)
 
 ### Community 502 - "Community 502"
-Cohesion: 0.17
-Nodes (15): Context, EmailConfig, EmailConfigRepository, Time, UUID, EmailConfigService, T, mockEmailConfigRepo (+7 more)
+Cohesion: 0.29
+Nodes (9): Context, EmailConfig, EmailConfigRepository, Time, UUID, EmailConfigService, EmailConfigServiceDataResult, NewEmailConfigService() (+1 more)
 
 ### Community 503 - "Community 503"
-Cohesion: 0.36
-Nodes (6): Context, SMSConfig, SMSConfigRepository, NewSMSConfigService(), toSMSConfigServiceDataResult(), SMSConfigService
+Cohesion: 0.29
+Nodes (9): Context, SMSConfig, SMSConfigRepository, Time, UUID, NewSMSConfigService(), toSMSConfigServiceDataResult(), SMSConfigService (+1 more)
 
 ### Community 504 - "Community 504"
 Cohesion: 0.20
@@ -2525,8 +2551,8 @@ Cohesion: 0.18
 Nodes (10): Authentication, Endpoints, Error Responses, Example, GET /api/v1/oauth/userinfo, Headers, Request, Response (+2 more)
 
 ### Community 508 - "Community 508"
-Cohesion: 0.08
-Nodes (27): APIFilterDTO, PermissionFilterDTO, PolicyStatement, RoleFilterDTO, ServiceFilterDTO, APICreateRequestDTO, APIFilterDTO, APIStatusUpdateDTO (+19 more)
+Cohesion: 0.09
+Nodes (25): APIFilterDTO, PermissionFilterDTO, RoleFilterDTO, ServiceFilterDTO, APICreateRequestDTO, APIFilterDTO, APIStatusUpdateDTO, APIUpdateRequestDTO (+17 more)
 
 ### Community 509 - "Community 509"
 Cohesion: 0.15
@@ -2548,6 +2574,10 @@ Nodes (9): 200 OK, Authentication, Endpoints, Error Responses, Example, Invite, 
 Cohesion: 0.27
 Nodes (9): Claims, contextKey, AccessTokenHash(), ClaimsFromContext(), Middleware(), Context, Handler, Request (+1 more)
 
+### Community 514 - "Community 514"
+Cohesion: 0.18
+Nodes (6): mockBaseRepo[T], mockTenantRepo, mockUserRepo, T, Tenant, User
+
 ### Community 515 - "Community 515"
 Cohesion: 0.20
 Nodes (10): 14. Endpoint Specifications, GET /oauth/authorize, GET /oauth/consent, GET /oauth/userinfo, GET /.well-known/jwks.json, GET /.well-known/openid-configuration, POST /oauth/consent, POST /oauth/introspect (+2 more)
@@ -2561,8 +2591,8 @@ Cohesion: 0.20
 Nodes (9): Architecture Overview, Contributing, Cross-Cutting Concerns, Fully Implemented (config management only — enforcement logic is separate), Implementation Status Summary, Missing Components, Not Yet Implemented (enforcement layer), Settings at a Glance (+1 more)
 
 ### Community 518 - "Community 518"
-Cohesion: 0.19
-Nodes (16): Context, Context, T, initTelemetry(), shutdownWithTimeout(), Init(), InitMetrics(), noopShutdown() (+8 more)
+Cohesion: 0.25
+Nodes (13): Context, T, Init(), InitMetrics(), noopShutdown(), readBuildInfo(), TestInit_Disabled(), TestInit_Enabled() (+5 more)
 
 ### Community 519 - "Community 519"
 Cohesion: 0.17
@@ -2577,8 +2607,8 @@ Cohesion: 0.22
 Nodes (8): Checklist, Do not implement in v1, How OIDC Discovery works, Implementation order, Phase A — JWKS Endpoint (prerequisite, useful standalone), Phase B — OIDC Discovery Endpoint, Phase C — Authorization Code Flow (full OIDC), What this is
 
 ### Community 522 - "Community 522"
-Cohesion: 0.36
-Nodes (7): BrandingHandler, toBrandingResponseDTO(), BrandingResponseDTO, BrandingService, BrandingServiceDataResult, Request, ResponseWriter
+Cohesion: 0.42
+Nodes (6): BrandingHandler, toBrandingResponseDTO(), BrandingResponseDTO, BrandingServiceDataResult, Request, ResponseWriter
 
 ### Community 523 - "Community 523"
 Cohesion: 0.36
@@ -2593,8 +2623,8 @@ Cohesion: 0.25
 Nodes (8): Authentication, Error Responses, Example, Path Parameters, PUT /api/v1/api_keys/{api_key_uuid}/status, Request Body, Request Fields, Response — 200 OK
 
 ### Community 526 - "Community 526"
-Cohesion: 0.67
-Nodes (3): Request, ResponseWriter, handleHealth()
+Cohesion: 0.14
+Nodes (11): hooks, PreToolUse, permissions, allow, Permission, API, DB, DeletedAt (+3 more)
 
 ### Community 527 - "Community 527"
 Cohesion: 0.15
@@ -2621,8 +2651,8 @@ Cohesion: 0.25
 Nodes (8): 200 OK, Authentication, Error Responses, Example, Path Parameters, PUT /api/v1/identity_providers/{identity_provider_uuid}/status, Request Body, Response
 
 ### Community 533 - "Community 533"
-Cohesion: 0.30
-Nodes (11): TestPolicyCreateRequestDto_Validate(), TestPolicyDocument_Validate(), TestPolicyFilterDto_Validate(), TestPolicyServicesFilterDto_Validate(), TestPolicyStatement_Validate(), TestPolicyStatusUpdateDto_Validate(), TestPolicyUpdateRequestDto_Validate(), TestValidatePolicyDocumentStructure() (+3 more)
+Cohesion: 0.18
+Nodes (14): PolicyServicesFilterDTO, TestPolicyCreateRequestDto_Validate(), TestPolicyDocument_Validate(), TestPolicyFilterDto_Validate(), TestPolicyServicesFilterDto_Validate(), TestPolicyStatement_Validate(), TestPolicyStatusUpdateDto_Validate(), TestPolicyUpdateRequestDto_Validate() (+6 more)
 
 ### Community 534 - "Community 534"
 Cohesion: 0.25
@@ -3013,8 +3043,8 @@ Cohesion: 0.67
 Nodes (3): Error Responses, GET /api/v1/security-settings/registration, Response — 200 OK
 
 ### Community 640 - "Community 640"
-Cohesion: 0.05
-Nodes (31): APIRepositoryGetFilter, hooks, PreToolUse, permissions, allow, mockAPIRepo, mockPermissionRepo, mockPolicyRepo (+23 more)
+Cohesion: 0.08
+Nodes (17): APIRepositoryGetFilter, mockAPIRepo, mockPolicyRepo, mockRoleRepo, mockServicePolicyRepo, mockServiceRepo, API, PaginationResult (+9 more)
 
 ### Community 643 - "Community 643"
 Cohesion: 0.29
@@ -3033,7 +3063,7 @@ Cohesion: 0.38
 Nodes (10): newEmailTemplateSvc(), TestEmailTemplateService_Create(), TestEmailTemplateService_Delete(), TestEmailTemplateService_GetAll(), TestEmailTemplateService_GetByUUID(), TestEmailTemplateService_Update(), TestEmailTemplateService_UpdateStatus(), EmailTemplateService (+2 more)
 
 ### Community 647 - "Community 647"
-Cohesion: 0.21
+Cohesion: 0.22
 Nodes (7): NewNonceManager(), nonceEntry, NonceManager, ResponseWriter, Time, Once, RWMutex
 
 ### Community 648 - "Community 648"
@@ -3053,8 +3083,8 @@ Cohesion: 0.31
 Nodes (12): Handler, T, allowedOrigins(), CORSMiddleware(), TestCORSMiddleware_AllowedOriginsEmpty(), TestCORSMiddleware_AllowedOriginsParsing(), TestCORSMiddleware_AllowedOriginsWhitespace(), TestCORSMiddleware_ExplicitOriginMatch() (+4 more)
 
 ### Community 652 - "Community 652"
-Cohesion: 0.28
-Nodes (8): Profile, T, ProfileResponseDTO, convertJSONBToMap(), NewProfileResponseDTO(), TestNewProfileResponseDTO(), TestProfileFilterDto_Validate(), TestProfileRequestDto_Validate()
+Cohesion: 0.60
+Nodes (4): T, TestNewProfileResponseDTO(), TestProfileFilterDto_Validate(), TestProfileRequestDto_Validate()
 
 ### Community 656 - "Community 656"
 Cohesion: 0.27
@@ -3065,12 +3095,12 @@ Cohesion: 0.53
 Nodes (5): TestPermissionCreateRequestDto_Validate(), TestPermissionFilterDto_Validate(), TestPermissionStatusUpdateDto_Validate(), TestPermissionUpdateRequestDto_Validate(), T
 
 ### Community 658 - "Community 658"
-Cohesion: 0.67
-Nodes (3): parsePaginationQuery(), PaginationRequestDTO, Request
+Cohesion: 0.29
+Nodes (14): Handler, AccountHandler, Cache, ProfileHandler, Router, UserContextProvider, UserHandler, UserSettingHandler (+6 more)
 
 ### Community 659 - "Community 659"
-Cohesion: 0.46
-Nodes (7): AuthEventService, ClientRepository, ClientURIRepository, DB, TenantRepository, OAuthRegisterService, NewOAuthRegisterService()
+Cohesion: 0.12
+Nodes (18): newAuthnInviteRepoAdapter(), newAuthnPasswordHistoryRepoAdapter(), authnPasswordHistoryRepoAdapter, initServices(), tenantCascadeModels(), DB, InviteRepository, UserPasswordHistoryRepository (+10 more)
 
 ### Community 660 - "Community 660"
 Cohesion: 0.26
@@ -3081,16 +3111,16 @@ Cohesion: 0.40
 Nodes (4): PolicyDocument, PolicyDocument, PolicyDocument, PolicyStatement
 
 ### Community 662 - "Community 662"
-Cohesion: 0.40
-Nodes (3): PolicyServicesFilterDTO, validatePolicyDocumentStructure(), PolicyServicesFilterDTO
+Cohesion: 0.33
+Nodes (6): toRoleResponseDTO(), RoleHandler, Request, ResponseWriter, RoleServiceDataResult, RoleResponseDTO
 
 ### Community 663 - "Community 663"
 Cohesion: 0.60
 Nodes (4): TestRoleAddPermissionsRequestDto_Validate(), TestRoleCreateOrUpdateRequestDto_Validate(), TestRoleFilterDto_Validate(), T
 
 ### Community 664 - "Community 664"
-Cohesion: 0.29
-Nodes (16): NewAPIKeyHandler(), TestAPIKeyHandler_AddAPIPermissions(), TestAPIKeyHandler_AddAPIs(), TestAPIKeyHandler_Create(), TestAPIKeyHandler_Delete(), TestAPIKeyHandler_Get(), TestAPIKeyHandler_GetAPIPermissions(), TestAPIKeyHandler_GetAPIs() (+8 more)
+Cohesion: 0.08
+Nodes (47): NewSessionService(), TestSessionService_CreateSession(), TestSessionService_EnforceConcurrentLimit(), TestSessionService_ListSessions(), TestSessionService_RevokeAllSessions(), TestSessionService_RevokeSession(), TestSessionService_ValidateAndTouch(), newLoginTemplateSvc() (+39 more)
 
 ### Community 665 - "Community 665"
 Cohesion: 0.26
@@ -3117,16 +3147,20 @@ Cohesion: 0.28
 Nodes (6): ClientURIRepository, NewClientURIRepository(), BaseRepository, BaseRepositoryMethods, ClientURI, DB
 
 ### Community 679 - "Community 679"
-Cohesion: 0.09
-Nodes (34): NewOAuthAccessDenied(), NewOAuthConsentRequired(), NewOAuthInvalidRequest(), NewOAuthInvalidScope(), NewOAuthLoginRequired(), NewOAuthUnauthorizedClient(), NewOAuthUnsupportedGrantType(), NewOAuthUnsupportedResponseType() (+26 more)
+Cohesion: 0.06
+Nodes (51): NewOAuthConsentRequired(), NewOAuthInvalidClient(), NewOAuthInvalidRequest(), NewOAuthInvalidScope(), NewOAuthLoginRequired(), NewOAuthUnauthorizedClient(), NewOAuthUnsupportedGrantType(), NewOAuthUnsupportedResponseType() (+43 more)
+
+### Community 680 - "Community 680"
+Cohesion: 0.26
+Nodes (13): AuthPermission, AuthRole, AuthClient, AuthPermission, AuthProfile, AuthProvider, AuthRole, AuthTenant (+5 more)
 
 ### Community 684 - "Community 684"
-Cohesion: 0.43
-Nodes (6): mockOAuthConsentGrantRepo, OAuthConsentService, T, newOAuthConsentSvc(), TestOAuthConsentService_ListGrants(), TestOAuthConsentService_RevokeGrant()
+Cohesion: 0.26
+Nodes (10): AuthEventService, OAuthConsentGrantRepository, mockOAuthConsentGrantRepo, OAuthConsentService, T, OAuthConsentService, NewOAuthConsentService(), newOAuthConsentSvc() (+2 more)
 
 ### Community 689 - "Community 689"
-Cohesion: 0.11
-Nodes (16): generateIdentifier(), TestGenerateIdentifier(), TestGenerateIdentifier_CryptoRandError(), TestGenerateIdentifierUniqueness(), TestGenerateIdentifierZeroLength(), Int, DB, DeletedAt (+8 more)
+Cohesion: 0.25
+Nodes (5): DB, DeletedAt, Time, UUID, Invite
 
 ### Community 691 - "Community 691"
 Cohesion: 0.43
@@ -3149,8 +3183,8 @@ Cohesion: 0.48
 Nodes (6): TestSignupFlowAssignRolesRequestDto_Validate(), TestSignupFlowCreateRequestDto_Validate(), TestSignupFlowFilterDto_Validate(), TestSignupFlowUpdateRequestDto_Validate(), TestSignupFlowUpdateStatusRequestDto_Validate(), T
 
 ### Community 696 - "Community 696"
-Cohesion: 0.12
-Nodes (14): DB, JSON, Time, User, UUID, DB, User, UserSetting (+6 more)
+Cohesion: 0.18
+Nodes (8): DB, JSON, Time, User, UUID, DB, User, UserSetting
 
 ### Community 697 - "Community 697"
 Cohesion: 0.50
@@ -3165,24 +3199,20 @@ Cohesion: 0.29
 Nodes (5): DeletedAt, Time, UUID, DeletedAt, TenantMember
 
 ### Community 708 - "Community 708"
-Cohesion: 0.50
-Nodes (3): Context, Duration, StartKeyRotationRunner()
+Cohesion: 0.43
+Nodes (4): mockBrandingRepo, Branding, Login Templates, SMS Templates
 
 ### Community 712 - "Community 712"
 Cohesion: 0.30
 Nodes (11): dependencyStatus, Application, Request, ResponseWriter, dependencyStatus, handleHealth(), handleHealthz(), handleLivez() (+3 more)
 
-### Community 713 - "Community 713"
-Cohesion: 0.07
-Nodes (22): AddAPIKeyAPIsRequestDTO, AddAPIKeyPermissionsRequestDTO, AddClientAPIPermissionsRequestDTO, AddClientAPIsRequestDTO, APIKeyAPIsGetRequestDTO, APIKeyGetRequestDTO, APIKeyStatusUpdateDTO, ClientAddPermissionsRequestDTO (+14 more)
-
 ### Community 714 - "Community 714"
-Cohesion: 0.17
-Nodes (11): PaginationRequestDTO, Request, OAuthCIBAService, Request, ResponseWriter, Request, ResponseWriter, extractOAuthClientCredentials() (+3 more)
+Cohesion: 0.57
+Nodes (3): Request, ResponseWriter, OAuthCIBAHandler
 
 ### Community 715 - "Community 715"
-Cohesion: 0.31
-Nodes (11): SafeDecryptAtRest(), decryptIdpConfig(), encryptIdpConfig(), redactIdpConfig(), setTestEncryptionKey(), TestDecryptIdpConfig(), TestEncryptIdpConfig(), TestRedactIdpConfig() (+3 more)
+Cohesion: 0.23
+Nodes (7): Context, SessionDataResult, SessionService, UserToken, UUID, newUserSessionServiceAdapter(), userSessionServiceAdapter
 
 ### Community 719 - "Community 719"
 Cohesion: 0.38
@@ -3217,24 +3247,24 @@ Cohesion: 0.53
 Nodes (5): T, TestCreateAdminRequestDto_Validate(), TestCreateProfileRequestDto_Validate(), TestCreateTenantRequestDto_Validate(), TestTenantMetadataDto_Validate()
 
 ### Community 740 - "Community 740"
-Cohesion: 0.27
-Nodes (6): mockClientRepo, mockTenantRepo, mockUserRepo, Client, Tenant, User
+Cohesion: 0.25
+Nodes (12): testUser, newMockDB(), TestIntegration_User_Create(), TestIntegration_User_Delete(), TestIntegration_User_FindByEmail(), TestIntegration_User_FindByUUID(), TestIntegration_User_UpdateStatus(), DB (+4 more)
 
 ### Community 743 - "Community 743"
-Cohesion: 0.17
-Nodes (16): BaseRepositoryMethods, BaseRepository, BaseRepositoryMethods, PaginationRequestDTO, Request, T, ClientRepository, NewBaseRepository() (+8 more)
+Cohesion: 0.67
+Nodes (3): BaseRepository, T, NewBaseRepository()
 
 ### Community 744 - "Community 744"
 Cohesion: 0.60
 Nodes (4): mockBrandingService, BrandingServiceDataResult, companyName, logoURL
 
 ### Community 745 - "Community 745"
-Cohesion: 0.53
-Nodes (5): Request, T, badJSONReq(), jsonReq(), withTenant()
+Cohesion: 0.43
+Nodes (6): EmailConfigService, T, mockEmailConfigRepo, newEmailConfigSvc(), TestEmailConfigService_Get(), TestEmailConfigService_Update()
 
 ### Community 746 - "Community 746"
-Cohesion: 0.67
-Nodes (3): Tenant, User, ValidateTenantAccess()
+Cohesion: 0.33
+Nodes (11): JSON, MapClaims, PrivateKey, T, bigEndianBytes(), buildRSAPublicKeyJWK(), genRSAKey(), signJWTWithRSA() (+3 more)
 
 ### Community 747 - "Community 747"
 Cohesion: 0.36
@@ -3273,8 +3303,8 @@ Cohesion: 0.23
 Nodes (11): DB, mockAuthEventService, mockUserRepo, OAuthSessionService, Sqlmock, T, mockOAuthRefreshTokenRepo, expectSessionClientURILookup() (+3 more)
 
 ### Community 767 - "Community 767"
-Cohesion: 0.20
-Nodes (8): Client, Context, LoginResponseDTO, SMSLoginSendDTO, SMSLoginVerifyDTO, User, SMSLoginSendDTO, SMSLoginVerifyDTO
+Cohesion: 0.24
+Nodes (10): TestGetUserContext_CorruptData(), TestSetUserContext_TTL(), TestUserContextKeyFor(), userContextKey(), UserContextKeyFor(), UserContext, AuthClient, AuthProvider (+2 more)
 
 ### Community 768 - "Community 768"
 Cohesion: 0.33
@@ -3297,8 +3327,8 @@ Cohesion: 0.38
 Nodes (8): NewEmailVerificationHandler(), evJSONReq(), TestEmailVerificationHandler_SendVerificationEmail(), TestEmailVerificationHandler_SendVerificationEmailPublic(), TestEmailVerificationHandler_VerifyEmail(), EmailVerificationService, Request, T
 
 ### Community 774 - "Community 774"
-Cohesion: 0.38
-Nodes (4): Client, Context, LoginResponseDTO, User
+Cohesion: 0.31
+Nodes (3): mockPermissionRepo, Permission, PermissionRepositoryGetFilter
 
 ### Community 775 - "Community 775"
 Cohesion: 0.20
@@ -3309,28 +3339,28 @@ Cohesion: 0.20
 Nodes (10): 1. Authentication check, 2. Authorization / permission check, 3. URL parameter validation, 4. Body parsing check (POST/PUT/PATCH only), 5. Request DTO validation, 6. Dependency lookup errors, 7. Business rule errors, 8. Primary operation service error (+2 more)
 
 ### Community 777 - "Community 777"
-Cohesion: 0.44
-Nodes (9): Request, T, Values, NewOAuthCIBAHandler(), formPost(), TestOAuthCIBAHandler_ApproveRequest(), TestOAuthCIBAHandler_DenyRequest(), TestOAuthCIBAHandler_ExchangeToken() (+1 more)
+Cohesion: 0.22
+Nodes (16): OAuthCIBAService, Request, T, Values, T, NewOAuthCIBAHandler(), formPost(), TestOAuthCIBAHandler_ApproveRequest() (+8 more)
 
 ### Community 778 - "Community 778"
-Cohesion: 0.29
-Nodes (7): AuthEventService, Context, OAuthConsentGrantRepository, OAuthConsentGrantResponseDTO, UUID, OAuthConsentService, NewOAuthConsentService()
+Cohesion: 0.25
+Nodes (9): TestIntegration_Client_Create(), TestIntegration_Client_Delete(), TestIntegration_Client_FindByNameAndIdentityProvider(), TestIntegration_Client_FindSystem(), TestIntegration_Client_SetStatus(), testClient, T, Time (+1 more)
 
 ### Community 779 - "Community 779"
 Cohesion: 0.33
 Nodes (8): newMockGormDBRegex(), TestLoginWithMagicLink(), TestSendMagicLink(), validEmailTemplate(), DB, EmailTemplate, Sqlmock, T
 
 ### Community 780 - "Community 780"
-Cohesion: 0.50
-Nodes (8): NewSessionService(), TestSessionService_CreateSession(), TestSessionService_EnforceConcurrentLimit(), TestSessionService_ListSessions(), TestSessionService_RevokeAllSessions(), TestSessionService_RevokeSession(), TestSessionService_ValidateAndTouch(), T
+Cohesion: 0.33
+Nodes (5): Cache, Router, UserContextProvider, WebhookEndpointHandler, WebhookEndpointRoute()
 
 ### Community 781 - "Community 781"
-Cohesion: 0.28
-Nodes (6): DB, IPRestrictionRuleRepository, SecuritySettingRepository, SecuritySettingsAuditRepository, Sqlmock, newMockGormDB()
+Cohesion: 0.25
+Nodes (8): TestIntegration_IAM_CreateRole(), TestIntegration_IAM_FindPermissions(), TestIntegration_IAM_FindRoleByNameAndTenant(), testPermission, testRole, T, Time, UUID
 
 ### Community 782 - "Community 782"
-Cohesion: 0.43
-Nodes (7): TestConflictError(), TestForbiddenError(), TestInternalError(), TestNotFoundError(), TestUnauthorizedError(), TestValidationError(), T
+Cohesion: 0.33
+Nodes (9): FormatKey(), TestFormatKey(), TestIntegration_DeleteByPattern(), TestIntegration_JTIDenyList_DenyAndCheck(), TestIntegration_JTIDenyList_MultipleJTIs(), TestIntegration_JTIDenyList_NotDenied(), TestIntegration_JTIDenyList_TTL(), TestIntegration_Session_SetGetDelete() (+1 more)
 
 ### Community 783 - "Community 783"
 Cohesion: 0.43
@@ -3349,12 +3379,12 @@ Cohesion: 0.29
 Nodes (7): Belongs-to-tenant checks, DELETE handlers, GET handlers (reads), Handler (API) Layer Tests, HTTP handler test helpers, POST/PUT/PATCH handlers (state-changing), Unauthenticated routes
 
 ### Community 787 - "Community 787"
-Cohesion: 0.38
-Nodes (5): OAuthPARService, Application, NewOAuthPARHandler(), OAuthPARHandler, initHandlers()
+Cohesion: 0.13
+Nodes (17): OAuthPARService, OAuthRegisterService, Request, ResponseWriter, Application, Application, Request, ResponseWriter (+9 more)
 
 ### Community 788 - "Community 788"
-Cohesion: 0.33
-Nodes (5): Request, ResponseWriter, User, composeUserDisplayName(), OAuthUserInfoHandler
+Cohesion: 0.27
+Nodes (8): TestIntegration_OAuth_CleanupExpired(), TestIntegration_OAuth_FindActiveToken(), TestIntegration_OAuth_RevokeByFamily(), TestIntegration_OAuth_RevokeToken(), testOAuthToken, T, Time, UUID
 
 ### Community 789 - "Community 789"
 Cohesion: 0.38
@@ -3417,8 +3447,8 @@ Cohesion: 0.50
 Nodes (3): DeletedAt, Time, Base
 
 ### Community 804 - "Community 804"
-Cohesion: 0.50
-Nodes (3): DB, Service, SeedService()
+Cohesion: 0.42
+Nodes (9): newMockGormDB(), TestIntegration_GORM_Rollback(), TestIntegration_GORM_Transaction(), TestIntegration_Tenant_Create(), TestIntegration_Tenant_FindByUUID(), TestIntegration_Tenant_Pagination(), DB, Sqlmock (+1 more)
 
 ### Community 805 - "Community 805"
 Cohesion: 0.67
@@ -3432,37 +3462,85 @@ Nodes (3): Directory structure, Integration Tests, What to test at the integrati
 Cohesion: 0.67
 Nodes (3): Directory structure, End-to-End Tests, What to test at the E2E level
 
-### Community 813 - "Community 813"
-Cohesion: 0.67
-Nodes (3): parsePaginationQuery(), PaginationRequestDTO, Request
+### Community 816 - "Community 816"
+Cohesion: 0.44
+Nodes (7): NewAuthEventService(), TestAuthEventService_CountByEventType(), TestAuthEventService_DeleteOlderThan(), TestAuthEventService_FindByUUID(), TestAuthEventService_FindPaginated(), TestAuthEventService_Log(), T
 
 ### Community 817 - "Community 817"
-Cohesion: 0.67
-Nodes (3): Client, ClientServiceDataResult, ToClientServiceDataResult()
+Cohesion: 0.28
+Nodes (6): TestMain(), mockForgotPasswordService, mockResetPasswordService, ForgotPasswordResponseDTO, M, ResetPasswordResponseDTO
 
 ### Community 818 - "Community 818"
+Cohesion: 0.22
+Nodes (6): LoginTemplate, DB, DeletedAt, JSON, Time, UUID
+
+### Community 819 - "Community 819"
+Cohesion: 0.09
+Nodes (15): mockAPIKeyAPIRepo, APIKeyAPI, APIKeyAPIRepository, APIKeyPermissionRepository, APIKeyRepository, APIRepository, ClientAPIRepository, ClientPermissionRepository (+7 more)
+
+### Community 820 - "Community 820"
+Cohesion: 0.42
+Nodes (8): Cache, IPRestrictionRuleHandler, Router, SecuritySettingHandler, UserContextProvider, IPRestrictionRuleRoute(), SecuritySettingRoute(), Security Settings
+
+### Community 821 - "Community 821"
+Cohesion: 0.25
+Nodes (5): EmailTemplate, DB, DeletedAt, Time, UUID
+
+### Community 822 - "Community 822"
+Cohesion: 0.25
+Nodes (5): SMSTemplate, DB, DeletedAt, Time, UUID
+
+### Community 823 - "Community 823"
+Cohesion: 0.25
+Nodes (5): ClientURI, Client, DB, Time, UUID
+
+### Community 824 - "Community 824"
+Cohesion: 0.62
+Nodes (6): DB, bootstrapTrackingTable(), isMigrationApplied(), recordMigration(), RunMigrations(), migrationEntry
+
+### Community 825 - "Community 825"
+Cohesion: 0.48
+Nodes (6): Request, T, badJSONReq(), jsonReq(), withChiParam(), withTenant()
+
+### Community 826 - "Community 826"
+Cohesion: 0.33
+Nodes (5): AuthEventRoute(), AuthEventHandler, Cache, Router, UserContextProvider
+
+### Community 827 - "Community 827"
+Cohesion: 0.50
+Nodes (3): BrandingRepository, DB, SMSTemplateRepository
+
+### Community 828 - "Community 828"
+Cohesion: 0.40
+Nodes (4): newTestCache(), Cache, Miniredis, T
+
+### Community 829 - "Community 829"
 Cohesion: 0.67
-Nodes (3): Role, RoleServiceDataResult, toRoleServiceDataResult()
+Nodes (3): T, TestNewUserSettingResponseDTO(), TestUserSettingRequestDto_Validate()
+
+### Community 832 - "Community 832"
+Cohesion: 0.67
+Nodes (3): NewBaseRepository(), BaseRepository, T
 
 ## Knowledge Gaps
-- **4056 isolated node(s):** `$schema`, `plugin`, `@opencode-ai/plugin`, `DB`, `Client` (+4051 more)
+- **4090 isolated node(s):** `$schema`, `plugin`, `@opencode-ai/plugin`, `DB`, `Client` (+4085 more)
   These have ≤1 connection - possible missing edges or undocumented components.
-- **112 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **110 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `New()` connect `Community 149` to `Community 1`, `Community 2`, `Community 6`, `Community 7`, `Community 8`, `Community 9`, `Community 518`, `Community 519`, `Community 16`, `Community 17`, `Community 19`, `Community 24`, `Community 25`, `Community 27`, `Community 28`, `Community 31`, `Community 32`, `Community 33`, `Community 35`, `Community 36`, `Community 39`, `Community 40`, `Community 41`, `Community 551`, `Community 44`, `Community 560`, `Community 50`, `Community 52`, `Community 54`, `Community 55`, `Community 57`, `Community 59`, `Community 65`, `Community 66`, `Community 69`, `Community 583`, `Community 72`, `Community 73`, `Community 75`, `Community 78`, `Community 88`, `Community 89`, `Community 95`, `Community 102`, `Community 105`, `Community 109`, `Community 110`, `Community 111`, `Community 114`, `Community 116`, `Community 631`, `Community 122`, `Community 123`, `Community 125`, `Community 640`, `Community 129`, `Community 645`, `Community 646`, `Community 648`, `Community 649`, `Community 139`, `Community 140`, `Community 141`, `Community 652`, `Community 657`, `Community 146`, `Community 147`, `Community 148`, `Community 663`, `Community 664`, `Community 155`, `Community 168`, `Community 680`, `Community 684`, `Community 689`, `Community 178`, `Community 179`, `Community 180`, `Community 695`, `Community 184`, `Community 183`, `Community 186`, `Community 187`, `Community 188`, `Community 189`, `Community 696`, `Community 191`, `Community 199`, `Community 201`, `Community 202`, `Community 203`, `Community 206`, `Community 722`, `Community 211`, `Community 212`, `Community 214`, `Community 219`, `Community 220`, `Community 221`, `Community 735`, `Community 225`, `Community 226`, `Community 228`, `Community 231`, `Community 232`, `Community 233`, `Community 234`, `Community 239`, `Community 754`, `Community 245`, `Community 250`, `Community 251`, `Community 253`, `Community 766`, `Community 769`, `Community 258`, `Community 259`, `Community 260`, `Community 773`, `Community 262`, `Community 775`, `Community 263`, `Community 771`, `Community 779`, `Community 780`, `Community 781`, `Community 273`, `Community 276`, `Community 277`, `Community 791`, `Community 280`, `Community 281`, `Community 286`, `Community 800`, `Community 804`, `Community 297`, `Community 302`, `Community 313`, `Community 326`, `Community 333`, `Community 352`, `Community 395`, `Community 396`, `Community 433`, `Community 444`, `Community 455`, `Community 456`, `Community 462`, `Community 494`, `Community 501`, `Community 502`, `Community 504`, `Community 505`?**
-  _High betweenness centrality (0.318) - this node is a cross-community bridge._
-- **Why does `NewApp()` connect `Community 17` to `Community 769`, `Community 334`, `Community 146`, `Community 149`, `Community 91`?**
-  _High betweenness centrality (0.049) - this node is a cross-community bridge._
-- **Why does `initServices()` connect `Community 334` to `Community 388`, `Community 134`, `Community 8`, `Community 649`, `Community 778`, `Community 139`, `Community 780`, `Community 12`, `Community 13`, `Community 271`, `Community 17`, `Community 785`, `Community 659`, `Community 20`, `Community 277`, `Community 274`, `Community 23`, `Community 24`, `Community 25`, `Community 31`, `Community 36`, `Community 679`, `Community 42`, `Community 44`, `Community 48`, `Community 49`, `Community 50`, `Community 52`, `Community 59`, `Community 61`, `Community 64`, `Community 195`, `Community 69`, `Community 326`, `Community 74`, `Community 77`, `Community 212`, `Community 469`, `Community 214`, `Community 87`, `Community 216`, `Community 89`, `Community 734`, `Community 98`, `Community 227`, `Community 105`, `Community 505`, `Community 110`, `Community 245`, `Community 502`, `Community 503`, `Community 249`, `Community 122`, `Community 125`?**
-  _High betweenness centrality (0.046) - this node is a cross-community bridge._
-- **Are the 610 inferred relationships involving `New()` (e.g. with `NewApp()` and `.TriggerSeeder()`) actually correct?**
-  _`New()` has 610 INFERRED edges - model-reasoned connections that need verification._
+- **Why does `New()` connect `Community 664` to `Community 0`, `Community 1`, `Community 2`, `Community 6`, `Community 7`, `Community 8`, `Community 9`, `Community 518`, `Community 519`, `Community 526`, `Community 14`, `Community 16`, `Community 17`, `Community 19`, `Community 24`, `Community 25`, `Community 27`, `Community 28`, `Community 31`, `Community 32`, `Community 33`, `Community 35`, `Community 36`, `Community 39`, `Community 40`, `Community 41`, `Community 551`, `Community 560`, `Community 52`, `Community 54`, `Community 55`, `Community 57`, `Community 59`, `Community 66`, `Community 69`, `Community 583`, `Community 72`, `Community 73`, `Community 75`, `Community 78`, `Community 88`, `Community 89`, `Community 95`, `Community 102`, `Community 105`, `Community 109`, `Community 110`, `Community 111`, `Community 112`, `Community 114`, `Community 116`, `Community 631`, `Community 125`, `Community 129`, `Community 645`, `Community 646`, `Community 648`, `Community 649`, `Community 139`, `Community 140`, `Community 141`, `Community 652`, `Community 657`, `Community 146`, `Community 147`, `Community 148`, `Community 149`, `Community 663`, `Community 679`, `Community 168`, `Community 680`, `Community 170`, `Community 684`, `Community 689`, `Community 178`, `Community 179`, `Community 180`, `Community 695`, `Community 184`, `Community 183`, `Community 186`, `Community 187`, `Community 188`, `Community 189`, `Community 696`, `Community 191`, `Community 199`, `Community 201`, `Community 202`, `Community 203`, `Community 206`, `Community 722`, `Community 211`, `Community 212`, `Community 214`, `Community 219`, `Community 220`, `Community 221`, `Community 735`, `Community 225`, `Community 226`, `Community 228`, `Community 740`, `Community 231`, `Community 232`, `Community 745`, `Community 234`, `Community 233`, `Community 239`, `Community 754`, `Community 245`, `Community 250`, `Community 251`, `Community 253`, `Community 766`, `Community 767`, `Community 769`, `Community 258`, `Community 259`, `Community 260`, `Community 773`, `Community 262`, `Community 775`, `Community 263`, `Community 771`, `Community 778`, `Community 779`, `Community 781`, `Community 782`, `Community 273`, `Community 276`, `Community 788`, `Community 277`, `Community 791`, `Community 280`, `Community 281`, `Community 286`, `Community 800`, `Community 804`, `Community 297`, `Community 302`, `Community 816`, `Community 818`, `Community 821`, `Community 822`, `Community 823`, `Community 313`, `Community 828`, `Community 829`, `Community 326`, `Community 333`, `Community 334`, `Community 352`, `Community 395`, `Community 396`, `Community 433`, `Community 445`, `Community 455`, `Community 456`, `Community 462`, `Community 494`, `Community 501`, `Community 504`, `Community 505`?**
+  _High betweenness centrality (0.316) - this node is a cross-community bridge._
+- **Why does `NewApp()` connect `Community 17` to `Community 769`, `Community 146`, `Community 115`, `Community 659`, `Community 664`, `Community 830`?**
+  _High betweenness centrality (0.045) - this node is a cross-community bridge._
+- **Why does `initServices()` connect `Community 659` to `Community 388`, `Community 134`, `Community 8`, `Community 649`, `Community 139`, `Community 12`, `Community 13`, `Community 14`, `Community 271`, `Community 17`, `Community 785`, `Community 274`, `Community 20`, `Community 277`, `Community 23`, `Community 664`, `Community 25`, `Community 24`, `Community 31`, `Community 36`, `Community 679`, `Community 42`, `Community 684`, `Community 44`, `Community 48`, `Community 49`, `Community 816`, `Community 50`, `Community 52`, `Community 59`, `Community 64`, `Community 195`, `Community 69`, `Community 326`, `Community 74`, `Community 77`, `Community 334`, `Community 212`, `Community 469`, `Community 214`, `Community 87`, `Community 216`, `Community 89`, `Community 734`, `Community 98`, `Community 227`, `Community 105`, `Community 505`, `Community 110`, `Community 502`, `Community 503`, `Community 249`, `Community 125`?**
+  _High betweenness centrality (0.044) - this node is a cross-community bridge._
+- **Are the 639 inferred relationships involving `New()` (e.g. with `NewApp()` and `.TriggerSeeder()`) actually correct?**
+  _`New()` has 639 INFERRED edges - model-reasoned connections that need verification._
 - **Are the 243 inferred relationships involving `HandleServiceError()` (e.g. with `.CountByType()` and `.Get()`) actually correct?**
   _`HandleServiceError()` has 243 INFERRED edges - model-reasoned connections that need verification._
-- **Are the 222 inferred relationships involving `Success()` (e.g. with `.CountByType()` and `.Get()`) actually correct?**
-  _`Success()` has 222 INFERRED edges - model-reasoned connections that need verification._
+- **Are the 234 inferred relationships involving `Success()` (e.g. with `.CountByType()` and `.Get()`) actually correct?**
+  _`Success()` has 234 INFERRED edges - model-reasoned connections that need verification._
 - **Are the 217 inferred relationships involving `AuthFromRequest()` (e.g. with `.CountByType()` and `.Get()`) actually correct?**
   _`AuthFromRequest()` has 217 INFERRED edges - model-reasoned connections that need verification._
