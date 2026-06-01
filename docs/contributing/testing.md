@@ -74,14 +74,14 @@ Mark boxes as you bring each handler/service/validation/middleware up to the sta
 - [x] `service_register.go` — true success paths (RegisterResponseDTO returned with valid tokens — UserIdentitySub populated in tests)
 - [x] `service_login.go` — LoginPublic, Login, GetUserByEmail (all error branches)
 - [x] `service_login.go` — Logout (10 branches: empty token, nil sessionService, malformed JWT, no sub, empty sub, invalid UUID, user not found, lookup error, revoke error, success)
-- [ ] `service_login.go` — checkPasswordExpiry branch (nil repo, nil PasswordChangedAt, expiry check triggered)
+- [x] `service_login.go` — checkPasswordExpiry branch (nil repo, nil PasswordChangedAt, expiry days 0, expired sets ForcePasswordChange, not expired)
 - [x] `service_forgot_password.go` — SendPasswordResetEmail (all error branches)
 - [x] `service_reset_password.go` — ResetPassword (all error branches)
 - [x] `service_magic_link.go` — SendMagicLink, LoginWithMagicLink (all branches — rate-limit, client not found, user inactive, token expired, etc.)
 - [x] `service_sms_login.go` — SendOTP, VerifyOTP (all branches — rate-limit, FindByPhone, GenerateOTP, OTP hash mismatch, etc.)
 - [x] `service_email_verification.go` — SendVerificationEmail, VerifyEmail (all branches — user not found, already verified, token expired, etc.)
 - [x] `service_session.go` — ListSessions (3), RevokeSession (4), RevokeAllSessions (2), CreateSession (2), EnforceConcurrentLimit (5), ValidateAndTouch (3)
-- [ ] `service_password_policy.go` — loadPolicy, checkPasswordHistory, recordPasswordHistory standalone tests
+- [x] `service_password_policy.go` — loadPolicy (nil repo, repo error, nil result), checkPasswordHistory (nil repo, count 0, no match, match, find error), recordPasswordHistory (nil repo, count 0)
 
 #### Validation Tests
 
@@ -127,7 +127,7 @@ Mark boxes as you bring each handler/service/validation/middleware up to the sta
 - [x] `service_register.go` — Register (6 sub-tests)
 - [x] `service_session.go` — EndSession, BackchannelLogout (7 sub-tests)
 - [x] `service_token_exchange.go` — Exchange (5 sub-tests)
-- [ ] `authentication.go` — authenticateOAuthClient: private_key_jwt + client_secret_jwt branches (0 tests)
+- [x] `authentication.go` — authenticatePrivateKeyJWT (invalid assertion_type, empty assertion, no JWKS, invalid signature), authenticateClientSecretJWT (invalid assertion_type, empty assertion, no secret, issuer mismatch), validateAssertionClaims (6 sub-tests)
 
 #### Validation Tests
 
