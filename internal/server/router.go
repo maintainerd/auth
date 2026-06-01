@@ -117,6 +117,9 @@ func buildPublicRouter(h *handlers, application *Application) http.Handler {
 	r.Get("/readyz", handleReady(application))
 	r.Get("/livez", handleLivez)
 
+	// OpenAPI 3.1 spec — public
+	r.Get("/openapi.json", ServeOpenAPISpec)
+
 	// OpenID Connect discovery endpoints (root-level, fully public)
 	oauth.OAuthDiscoveryRoute(r, h.oauthDiscovery)
 
