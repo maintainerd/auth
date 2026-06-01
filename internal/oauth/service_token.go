@@ -2,8 +2,10 @@ package oauth
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -603,37 +605,38 @@ func (s *oauthTokenService) generateTokens(ctx context.Context, sub string, user
 		nonceStr = *nonce
 	}
 
-	profile := &jwt.UserProfile{
-		Email:         user.Email,
-		EmailVerified: user.IsEmailVerified,
-		Phone:         user.Phone,
-		PhoneVerified: user.IsPhoneVerified,
-	}
+	profile := buildUserProfile(user)
 
-	idToken, err := jwt.GenerateIDToken(sub, issuer, identifier, providerID, profile, nonceStr, nil)
+	idTokenParams := buildIDTokenParams(scope, client)
+
+	idToken, err := jwt.GenerateIDToken(sub, issuer, identifier, providerID, profile, nonceStr, idTokenParams)
 	if err != nil {
 		return nil, apperror.NewOAuthServerError("an unexpected error occurred")
 	}
 
-	// Generate refresh token.
-	rawRT, err := crypto.GenerateRandomString(refreshTokenByteLength)
-	if err != nil {
-		return nil, apperror.NewOAuthServerError("an unexpected error occurred")
-	}
-	rtHash := crypto.HashRefreshToken(rawRT)
+	// Refresh tokens are only issued when offline_access scope is requested
+	// (RFC 6749 §1.5) or for authorization_code grant with a valid DPoP binding.
+	var rawRT string
+	if hasOfflineAccess(scope) {
+		rawRT, err = crypto.GenerateRandomString(refreshTokenByteLength)
+		if err != nil {
+			return nil, apperror.NewOAuthServerError("an unexpected error occurred")
+		}
+		rtHash := crypto.HashRefreshToken(rawRT)
 
-	rtTTL := s.refreshTokenTTL(client)
-	newRT := &OAuthRefreshToken{
-		TokenHash: rtHash,
-		FamilyID:  uuid.New(),
-		ClientID:  client.ClientID,
-		UserID:    user.UserID,
-		TenantID:  client.TenantID,
-		Scope:     scope,
-		ExpiresAt: time.Now().Add(rtTTL),
-	}
-	if _, err := s.refreshTokenRepo.Create(newRT); err != nil {
-		return nil, apperror.NewOAuthServerError("an unexpected error occurred")
+		rtTTL := s.refreshTokenTTL(client)
+		newRT := &OAuthRefreshToken{
+			TokenHash: rtHash,
+			FamilyID:  uuid.New(),
+			ClientID:  client.ClientID,
+			UserID:    user.UserID,
+			TenantID:  client.TenantID,
+			Scope:     scope,
+			ExpiresAt: time.Now().Add(rtTTL),
+		}
+		if _, err := s.refreshTokenRepo.Create(newRT); err != nil {
+			return nil, apperror.NewOAuthServerError("an unexpected error occurred")
+		}
 	}
 
 	expiresIn := int64(jwt.AccessTokenTTL.Seconds())
@@ -715,4 +718,87 @@ func clientAccessTokenOpts(client *Client) *jwt.AccessTokenOptions {
 		opts.AccessTokenTTL = time.Duration(*client.AccessTokenTTL) * time.Second
 	}
 	return opts
+}
+
+func buildUserProfile(user *User) *jwt.UserProfile {
+	p := &jwt.UserProfile{
+		Email:         user.Email,
+		EmailVerified: user.IsEmailVerified,
+		Phone:         user.Phone,
+		PhoneVerified: user.IsPhoneVerified,
+	}
+
+	if user.Profile != nil {
+		p.FirstName = user.Profile.FirstName
+		if user.Profile.LastName != nil {
+			p.LastName = *user.Profile.LastName
+		}
+		if user.Profile.ProfileURL != nil {
+			p.Picture = *user.Profile.ProfileURL
+		}
+
+		parts := []string{}
+		if p.FirstName != "" {
+			parts = append(parts, p.FirstName)
+		}
+		if p.LastName != "" {
+			parts = append(parts, p.LastName)
+		}
+		if len(parts) > 0 {
+			p.Name = strings.Join(parts, " ")
+		}
+	}
+
+	if p.Name == "" {
+		p.Name = user.Fullname
+	}
+
+	return p
+}
+
+func buildIDTokenParams(scope string, client *Client) *jwt.IDTokenParams {
+	scopes := parseScopes(scope)
+	if len(scopes) == 0 {
+		return nil
+	}
+
+	params := &jwt.IDTokenParams{
+		RequestedScopes: scopes,
+	}
+
+	if client.ScopeClaimMappings != nil {
+		var mappings map[string][]string
+		if err := json.Unmarshal(client.ScopeClaimMappings, &mappings); err == nil {
+			params.ScopeClaimMappings = mappings
+		}
+	}
+
+	if client.ClaimMappers != nil {
+		var extraClaims map[string]any
+		if err := json.Unmarshal(client.ClaimMappers, &extraClaims); err == nil {
+			params.ExtraClaims = extraClaims
+		}
+	}
+
+	return params
+}
+
+func parseScopes(scope string) []string {
+	if scope == "" {
+		return nil
+	}
+	parts := strings.Fields(scope)
+	if len(parts) == 0 {
+		return nil
+	}
+	return parts
+}
+
+func hasOfflineAccess(scope string) bool {
+	for _, s := range parseScopes(scope) {
+		if s == "offline_access" {
+			return true
+		}
+	}
+	return false
 }

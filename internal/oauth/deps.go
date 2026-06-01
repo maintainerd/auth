@@ -82,6 +82,9 @@ type Client struct {
 	JWKS    datatypes.JSON `gorm:"column:jwks;type:jsonb"`
 	JWKSUri *string        `gorm:"column:jwks_uri"`
 
+	ScopeClaimMappings datatypes.JSON `gorm:"column:scope_claim_mappings;type:jsonb"`
+	ClaimMappers       datatypes.JSON `gorm:"column:claim_mappers;type:jsonb"`
+
 	CreatedAt time.Time
 	UpdatedAt               time.Time
 	DeletedAt               gorm.DeletedAt `gorm:"index"`

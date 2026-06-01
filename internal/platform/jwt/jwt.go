@@ -324,6 +324,7 @@ type UserProfile struct {
 	EmailVerified bool   `json:"email_verified"`
 	Phone         string `json:"phone,omitempty"`
 	PhoneVerified bool   `json:"phone_verified"`
+	Name          string `json:"name,omitempty"`
 	FirstName     string `json:"first_name,omitempty"`
 	MiddleName    string `json:"middle_name,omitempty"`
 	LastName      string `json:"last_name,omitempty"`
@@ -337,7 +338,7 @@ type UserProfile struct {
 // defaultScopeClaimMap is the standard OIDC scope → profile claim mapping
 // (OpenID Connect Core 1.0 §5.4). Clients may override this via ScopeClaimMappings.
 var defaultScopeClaimMap = map[string][]string{
-	"profile": {"first_name", "middle_name", "last_name", "suffix", "birthdate", "gender", "picture"},
+	"profile": {"name", "first_name", "middle_name", "last_name", "suffix", "birthdate", "gender", "picture"},
 	"email":   {"email", "email_verified"},
 	"phone":   {"phone", "phone_verified"},
 	"address": {"address"},
@@ -453,6 +454,9 @@ func generateIDToken(userUUID, issuer, clientID, providerID string, profile *Use
 
 	// Add profile claims filtered by the requested scopes.
 	if profile != nil {
+		if profile.Name != "" {
+			addClaim("name", profile.Name)
+		}
 		if profile.Email != "" {
 			addClaim("email", profile.Email)
 			addClaim("email_verified", profile.EmailVerified)
