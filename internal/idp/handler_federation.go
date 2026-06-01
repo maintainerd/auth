@@ -43,6 +43,30 @@ func (h *FederationHandler) ExchangeExternalToken(w http.ResponseWriter, r *http
 	resp.Success(w, result, "")
 }
 
+// ExchangeOAuth2Code handles the OAuth2 authorization code callback for
+// generic OAuth2 providers (not OIDC, which uses ExchangeExternalToken).
+//
+// POST /federation/oauth2/callback
+func (h *FederationHandler) ExchangeOAuth2Code(w http.ResponseWriter, r *http.Request) {
+	var req FederationOAuth2CallbackDTO
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		resp.BadRequestBody(w)
+		return
+	}
+	if req.ProviderIdentifier == "" || req.Code == "" || req.RedirectURI == "" || req.ClientID == "" {
+		resp.Error(w, http.StatusBadRequest, "provider_identifier, code, redirect_uri and client_id are required")
+		return
+	}
+
+	result, err := h.federationSvc.ExchangeOAuth2Code(r.Context(), req)
+	if err != nil {
+		resp.HandleServiceError(w, r, "OAuth2 code exchange failed", err)
+		return
+	}
+
+	resp.Success(w, result, "")
+}
+
 // HomeRealmDiscovery returns the identity provider for the given email.
 //
 // GET /federation/hrd?email=user@company.com&tenant_id=123

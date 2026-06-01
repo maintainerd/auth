@@ -17,6 +17,16 @@ type FederationTokenRequestDTO struct {
 	ClientID string `json:"client_id"`
 }
 
+// FederationOAuth2CallbackDTO is the body for POST /federation/oauth2/callback.
+// Clients send the authorization code received from the upstream OAuth2 provider
+// after the user has authorized and been redirected back.
+type FederationOAuth2CallbackDTO struct {
+	ProviderIdentifier string `json:"provider_identifier"`
+	Code               string `json:"code"`
+	RedirectURI        string `json:"redirect_uri"`
+	ClientID           string `json:"client_id"`
+}
+
 // Identity link / unlink
 
 // LinkIdentityRequestDTO is the body for POST /account/identities/link.
