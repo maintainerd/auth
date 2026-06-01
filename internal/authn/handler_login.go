@@ -1,6 +1,7 @@
 package authn
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"time"
@@ -173,7 +174,6 @@ func (h *LoginHandler) Logout(w http.ResponseWriter, r *http.Request) {
 	sc := extractSecurityContext(r)
 	clientIPStr, userAgentStr, requestIDStr := sc.clientIP, sc.userAgent, sc.requestID
 
-	// authevent.Log logout event
 	security.LogSecurityEvent(security.SecurityEvent{
 		EventType: "logout",
 		ClientIP:  clientIPStr,
@@ -186,11 +186,21 @@ func (h *LoginHandler) Logout(w http.ResponseWriter, r *http.Request) {
 		Severity:  "LOW",
 	})
 
-	// Clear authentication cookies if they exist
+	accessToken := extractAccessToken(r)
+	if accessToken != "" {
+		_ = h.loginService.Logout(context.Background(), accessToken)
+	}
+
 	cookie.ClearAuthCookies(w)
 
-	// Return success response
 	resp.Success(w, nil, "Logout successful")
+}
+
+func extractAccessToken(r *http.Request) string {
+	if cookie, err := r.Cookie("access_token"); err == nil {
+		return cookie.Value
+	}
+	return ""
 }
 
 func (h *LoginHandler) Login(w http.ResponseWriter, r *http.Request) {

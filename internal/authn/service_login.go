@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"time"
 
+	jwtlib "github.com/golang-jwt/jwt/v5"
+	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/authevent"
 	"github.com/maintainerd/auth/internal/platform/apperror"
 	"github.com/maintainerd/auth/internal/platform/middleware"
@@ -23,6 +25,7 @@ type LoginService interface {
 	LoginPublic(ctx context.Context, usernameOrEmail, password, clientID, providerID string) (*LoginResponseDTO, error)
 	Login(ctx context.Context, usernameOrEmail, password string, clientID, providerID *string) (*LoginResponseDTO, error)
 	GetUserByEmail(ctx context.Context, email string, tenantID int64) (*User, error)
+	Logout(ctx context.Context, accessToken string) error
 }
 
 type loginService struct {
@@ -488,6 +491,48 @@ func (s *loginService) GetUserByEmail(ctx context.Context, email string, tenantI
 	}
 	span.SetStatus(codes.Ok, "")
 	return user, nil
+}
+
+func (s *loginService) Logout(ctx context.Context, accessToken string) error {
+	_, span := otel.Tracer("service").Start(ctx, "login.logout")
+	defer span.End()
+
+	if accessToken == "" || s.sessionService == nil {
+		return nil
+	}
+
+	parser := jwtlib.NewParser()
+	token, _, err := parser.ParseUnverified(accessToken, jwtlib.MapClaims{})
+	if err != nil {
+		return nil
+	}
+
+	claims, ok := token.Claims.(jwtlib.MapClaims)
+	if !ok {
+		return nil
+	}
+
+	sub, ok := claims["sub"].(string)
+	if !ok || sub == "" {
+		return nil
+	}
+
+	userUUID, err := uuid.Parse(sub)
+	if err != nil {
+		return nil
+	}
+
+	user, err := s.userRepo.FindByUUID(userUUID)
+	if err != nil || user == nil {
+		return nil
+	}
+
+	if err := s.sessionService.RevokeAllSessions(ctx, user.UserID); err != nil {
+		return nil
+	}
+
+	span.SetStatus(codes.Ok, "")
+	return nil
 }
 
 // checkPasswordExpiry marks ForcePasswordChange on the user if the policy has an
