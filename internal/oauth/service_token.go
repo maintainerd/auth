@@ -201,7 +201,7 @@ func (s *oauthTokenService) exchangeAuthorizationCode(ctx context.Context, req O
 	}
 
 	// Generate tokens.
-	result, oerr := s.generateTokens(ctx, sub, user, client, authCode.Scope, authCode.Nonce)
+	result, oerr := s.generateTokens(ctx, sub, user, client, authCode.Scope, authCode.Nonce, req.DPoPThumbprint)
 	if oerr != nil {
 		span.SetStatus(codes.Error, "token generation failed")
 		return nil, oerr
@@ -316,7 +316,7 @@ func (s *oauthTokenService) exchangeRefreshToken(ctx context.Context, req OAuthT
 		}
 
 		// Generate new access + ID tokens.
-		result, oerr = s.generateTokens(ctx, sub, user, client, scope, nil)
+		result, oerr = s.generateTokens(ctx, sub, user, client, scope, nil, req.DPoPThumbprint)
 		if oerr != nil {
 			return oerr
 		}
@@ -572,7 +572,7 @@ func (s *oauthTokenService) Introspect(ctx context.Context, req OAuthIntrospectR
 // ──────────────────────────────────────────────────────────────────────────────
 
 // generateTokens creates an access token, ID token, and a new refresh token.
-func (s *oauthTokenService) generateTokens(ctx context.Context, sub string, user *User, client *Client, scope string, nonce *string) (*OAuthTokenResult, *apperror.OAuthError) {
+func (s *oauthTokenService) generateTokens(ctx context.Context, sub string, user *User, client *Client, scope string, nonce *string, dpopThumbprint string) (*OAuthTokenResult, *apperror.OAuthError) {
 	issuer := ""
 	audience := ""
 	identifier := ""
@@ -588,7 +588,12 @@ func (s *oauthTokenService) generateTokens(ctx context.Context, sub string, user
 		providerID = client.IdentityProvider.Identifier
 	}
 
-	accessToken, err := jwt.GenerateAccessTokenWithOptions(sub, scope, issuer, audience, identifier, providerID, clientAccessTokenOpts(client))
+	accessTokenOpts := clientAccessTokenOpts(client)
+	if dpopThumbprint != "" {
+		accessTokenOpts.DPoPThumbprint = dpopThumbprint
+	}
+
+	accessToken, err := jwt.GenerateAccessTokenWithOptions(sub, scope, issuer, audience, identifier, providerID, accessTokenOpts)
 	if err != nil {
 		return nil, apperror.NewOAuthServerError("an unexpected error occurred")
 	}
@@ -636,10 +641,15 @@ func (s *oauthTokenService) generateTokens(ctx context.Context, sub string, user
 		expiresIn = int64(*client.AccessTokenTTL)
 	}
 
+	tokenType := "Bearer"
+	if dpopThumbprint != "" {
+		tokenType = "DPoP"
+	}
+
 	_ = ctx // used by callers for auth event logging
 	return &OAuthTokenResult{
 		AccessToken:  accessToken,
-		TokenType:    "Bearer",
+		TokenType:    tokenType,
 		ExpiresIn:    expiresIn,
 		RefreshToken: rawRT,
 		IDToken:      idToken,

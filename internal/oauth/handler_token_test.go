@@ -37,7 +37,7 @@ func basicAuth(user, pass string) string {
 // ---------------------------------------------------------------------------
 
 func TestNewOAuthTokenHandler(t *testing.T) {
-	h := NewOAuthTokenHandler(&mockOAuthTokenService{})
+	h := NewOAuthTokenHandler(&mockOAuthTokenService{}, nil, nil)
 	assert.NotNil(t, h)
 }
 
@@ -46,7 +46,7 @@ func TestNewOAuthTokenHandler(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestOAuthTokenHandler_Token_MalformedBody(t *testing.T) {
-	h := NewOAuthTokenHandler(&mockOAuthTokenService{})
+	h := NewOAuthTokenHandler(&mockOAuthTokenService{}, nil, nil)
 	// Send a body that can't be parsed as form data — use a too-large body
 	// that triggers ParseForm error by exceeding limit. In practice, a nil
 	// body with wrong content type suffices with Go < 1.28.
@@ -65,7 +65,7 @@ func TestOAuthTokenHandler_Token_MalformedBody(t *testing.T) {
 }
 
 func TestOAuthTokenHandler_Token_ValidationError(t *testing.T) {
-	h := NewOAuthTokenHandler(&mockOAuthTokenService{})
+	h := NewOAuthTokenHandler(&mockOAuthTokenService{}, nil, nil)
 	// Missing grant_type.
 	r := formReq(t, "/oauth/token", url.Values{"code": {"abc"}})
 	w := httptest.NewRecorder()
@@ -80,7 +80,7 @@ func TestOAuthTokenHandler_Token_ValidationError(t *testing.T) {
 }
 
 func TestOAuthTokenHandler_Token_InvalidGrantType(t *testing.T) {
-	h := NewOAuthTokenHandler(&mockOAuthTokenService{})
+	h := NewOAuthTokenHandler(&mockOAuthTokenService{}, nil, nil)
 	r := formReq(t, "/oauth/token", url.Values{"grant_type": {"password"}})
 	w := httptest.NewRecorder()
 
@@ -95,7 +95,7 @@ func TestOAuthTokenHandler_Token_ServiceOAuthError(t *testing.T) {
 			return nil, apperror.NewOAuthInvalidGrant("expired code")
 		},
 	}
-	h := NewOAuthTokenHandler(svc)
+	h := NewOAuthTokenHandler(svc, nil, nil)
 	r := formReq(t, "/oauth/token", url.Values{
 		"grant_type": {"authorization_code"},
 		"code":       {"somecode"},
@@ -124,7 +124,7 @@ func TestOAuthTokenHandler_Token_Success_AuthorizationCode(t *testing.T) {
 			}, nil
 		},
 	}
-	h := NewOAuthTokenHandler(svc)
+	h := NewOAuthTokenHandler(svc, nil, nil)
 	r := formReq(t, "/oauth/token", url.Values{
 		"grant_type":    {"authorization_code"},
 		"code":          {"valid-code"},
@@ -161,7 +161,7 @@ func TestOAuthTokenHandler_Token_Success_RefreshToken(t *testing.T) {
 			}, nil
 		},
 	}
-	h := NewOAuthTokenHandler(svc)
+	h := NewOAuthTokenHandler(svc, nil, nil)
 	r := formReq(t, "/oauth/token", url.Values{
 		"grant_type":    {"refresh_token"},
 		"refresh_token": {"rt-old"},
@@ -183,7 +183,7 @@ func TestOAuthTokenHandler_Token_Success_ClientCredentials(t *testing.T) {
 			}, nil
 		},
 	}
-	h := NewOAuthTokenHandler(svc)
+	h := NewOAuthTokenHandler(svc, nil, nil)
 	r := formReq(t, "/oauth/token", url.Values{
 		"grant_type":    {"client_credentials"},
 		"client_id":     {"myapp"},
@@ -209,7 +209,7 @@ func TestOAuthTokenHandler_Token_BasicAuthCredentials(t *testing.T) {
 			}, nil
 		},
 	}
-	h := NewOAuthTokenHandler(svc)
+	h := NewOAuthTokenHandler(svc, nil, nil)
 	r := formReq(t, "/oauth/token", url.Values{
 		"grant_type":    {"authorization_code"},
 		"code":          {"c"},
@@ -239,7 +239,7 @@ func TestOAuthTokenHandler_Token_FormBodyCredentials(t *testing.T) {
 			}, nil
 		},
 	}
-	h := NewOAuthTokenHandler(svc)
+	h := NewOAuthTokenHandler(svc, nil, nil)
 	r := formReq(t, "/oauth/token", url.Values{
 		"grant_type":    {"authorization_code"},
 		"code":          {"c"},
@@ -261,7 +261,7 @@ func TestOAuthTokenHandler_Token_FormBodyCredentials(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestOAuthTokenHandler_Revoke_MalformedBody(t *testing.T) {
-	h := NewOAuthTokenHandler(&mockOAuthTokenService{})
+	h := NewOAuthTokenHandler(&mockOAuthTokenService{}, nil, nil)
 	r := httptest.NewRequest(http.MethodPost, "/oauth/revoke", errReader{})
 	r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	w := httptest.NewRecorder()
@@ -272,7 +272,7 @@ func TestOAuthTokenHandler_Revoke_MalformedBody(t *testing.T) {
 }
 
 func TestOAuthTokenHandler_Revoke_ValidationError(t *testing.T) {
-	h := NewOAuthTokenHandler(&mockOAuthTokenService{})
+	h := NewOAuthTokenHandler(&mockOAuthTokenService{}, nil, nil)
 	// Missing token.
 	r := formReq(t, "/oauth/revoke", url.Values{})
 	w := httptest.NewRecorder()
@@ -283,7 +283,7 @@ func TestOAuthTokenHandler_Revoke_ValidationError(t *testing.T) {
 }
 
 func TestOAuthTokenHandler_Revoke_InvalidTokenTypeHint(t *testing.T) {
-	h := NewOAuthTokenHandler(&mockOAuthTokenService{})
+	h := NewOAuthTokenHandler(&mockOAuthTokenService{}, nil, nil)
 	r := formReq(t, "/oauth/revoke", url.Values{
 		"token":           {"some-token"},
 		"token_type_hint": {"invalid_hint"},
@@ -301,7 +301,7 @@ func TestOAuthTokenHandler_Revoke_ServiceOAuthError(t *testing.T) {
 			return apperror.NewOAuthInvalidClient("unknown client")
 		},
 	}
-	h := NewOAuthTokenHandler(svc)
+	h := NewOAuthTokenHandler(svc, nil, nil)
 	r := formReq(t, "/oauth/revoke", url.Values{
 		"token":     {"some-token"},
 		"client_id": {"myapp"},
@@ -323,7 +323,7 @@ func TestOAuthTokenHandler_Revoke_Success(t *testing.T) {
 			return nil
 		},
 	}
-	h := NewOAuthTokenHandler(svc)
+	h := NewOAuthTokenHandler(svc, nil, nil)
 	r := formReq(t, "/oauth/revoke", url.Values{
 		"token": {"some-token"},
 	})
@@ -343,7 +343,7 @@ func TestOAuthTokenHandler_Revoke_BasicAuthCredentials(t *testing.T) {
 			return nil
 		},
 	}
-	h := NewOAuthTokenHandler(svc)
+	h := NewOAuthTokenHandler(svc, nil, nil)
 	r := formReq(t, "/oauth/revoke", url.Values{
 		"token":     {"some-token"},
 		"client_id": {"body-id"},
@@ -363,7 +363,7 @@ func TestOAuthTokenHandler_Revoke_BasicAuthCredentials(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestOAuthTokenHandler_Introspect_MalformedBody(t *testing.T) {
-	h := NewOAuthTokenHandler(&mockOAuthTokenService{})
+	h := NewOAuthTokenHandler(&mockOAuthTokenService{}, nil, nil)
 	r := httptest.NewRequest(http.MethodPost, "/oauth/introspect", errReader{})
 	r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	w := httptest.NewRecorder()
@@ -374,7 +374,7 @@ func TestOAuthTokenHandler_Introspect_MalformedBody(t *testing.T) {
 }
 
 func TestOAuthTokenHandler_Introspect_ValidationError(t *testing.T) {
-	h := NewOAuthTokenHandler(&mockOAuthTokenService{})
+	h := NewOAuthTokenHandler(&mockOAuthTokenService{}, nil, nil)
 	// Missing token.
 	r := formReq(t, "/oauth/introspect", url.Values{})
 	w := httptest.NewRecorder()
@@ -385,7 +385,7 @@ func TestOAuthTokenHandler_Introspect_ValidationError(t *testing.T) {
 }
 
 func TestOAuthTokenHandler_Introspect_InvalidTokenTypeHint(t *testing.T) {
-	h := NewOAuthTokenHandler(&mockOAuthTokenService{})
+	h := NewOAuthTokenHandler(&mockOAuthTokenService{}, nil, nil)
 	r := formReq(t, "/oauth/introspect", url.Values{
 		"token":           {"some-token"},
 		"token_type_hint": {"bad_hint"},
@@ -403,7 +403,7 @@ func TestOAuthTokenHandler_Introspect_ServiceOAuthError(t *testing.T) {
 			return nil, apperror.NewOAuthInvalidRequest("missing token")
 		},
 	}
-	h := NewOAuthTokenHandler(svc)
+	h := NewOAuthTokenHandler(svc, nil, nil)
 	r := formReq(t, "/oauth/introspect", url.Values{
 		"token": {"some-token"},
 	})
@@ -428,7 +428,7 @@ func TestOAuthTokenHandler_Introspect_ActiveToken(t *testing.T) {
 			}, nil
 		},
 	}
-	h := NewOAuthTokenHandler(svc)
+	h := NewOAuthTokenHandler(svc, nil, nil)
 	r := formReq(t, "/oauth/introspect", url.Values{
 		"token": {"valid-token"},
 	})
@@ -456,7 +456,7 @@ func TestOAuthTokenHandler_Introspect_InactiveToken(t *testing.T) {
 			return &OAuthIntrospectResponseDTO{Active: false}, nil
 		},
 	}
-	h := NewOAuthTokenHandler(svc)
+	h := NewOAuthTokenHandler(svc, nil, nil)
 	r := formReq(t, "/oauth/introspect", url.Values{
 		"token": {"expired-token"},
 	})
@@ -483,7 +483,7 @@ func TestOAuthTokenHandler_Token_InvalidBasicAuth_NotBase64(t *testing.T) {
 			return &OAuthTokenResult{AccessToken: "at", TokenType: "Bearer", ExpiresIn: 900}, nil
 		},
 	}
-	h := NewOAuthTokenHandler(svc)
+	h := NewOAuthTokenHandler(svc, nil, nil)
 	r := formReq(t, "/oauth/token", url.Values{
 		"grant_type": {"authorization_code"},
 		"code":       {"c"},
@@ -507,7 +507,7 @@ func TestOAuthTokenHandler_Token_InvalidBasicAuth_NoColon(t *testing.T) {
 			return &OAuthTokenResult{AccessToken: "at", TokenType: "Bearer", ExpiresIn: 900}, nil
 		},
 	}
-	h := NewOAuthTokenHandler(svc)
+	h := NewOAuthTokenHandler(svc, nil, nil)
 	r := formReq(t, "/oauth/token", url.Values{
 		"grant_type": {"authorization_code"},
 		"code":       {"c"},
@@ -531,7 +531,7 @@ func TestOAuthTokenHandler_Token_BearerAuth_FallsBackToForm(t *testing.T) {
 			return &OAuthTokenResult{AccessToken: "at", TokenType: "Bearer", ExpiresIn: 900}, nil
 		},
 	}
-	h := NewOAuthTokenHandler(svc)
+	h := NewOAuthTokenHandler(svc, nil, nil)
 	r := formReq(t, "/oauth/token", url.Values{
 		"grant_type": {"authorization_code"},
 		"code":       {"c"},
@@ -555,7 +555,7 @@ func TestOAuthTokenHandler_Token_NoAuthHeader_FallsBackToForm(t *testing.T) {
 			return &OAuthTokenResult{AccessToken: "at", TokenType: "Bearer", ExpiresIn: 900}, nil
 		},
 	}
-	h := NewOAuthTokenHandler(svc)
+	h := NewOAuthTokenHandler(svc, nil, nil)
 	r := formReq(t, "/oauth/token", url.Values{
 		"grant_type":    {"authorization_code"},
 		"code":          {"c"},

@@ -104,7 +104,7 @@ func initHandlers(application *Application) *handlers {
 		webhookEndpoint:    webhook.NewWebhookEndpointHandler(application.WebhookEndpointService),
 		authEvent:          authevent.NewAuthEventHandler(application.AuthEventService),
 		oauthAuthorize:     oauth.NewOAuthAuthorizeHandler(application.OAuthAuthorizeService),
-		oauthToken:         oauth.NewOAuthTokenHandler(application.OAuthTokenService),
+		oauthToken:         oauth.NewOAuthTokenHandler(application.OAuthTokenService, nil, nil),
 		oauthTokenExchange: oauth.NewOAuthTokenExchangeHandler(application.OAuthTokenExchangeService),
 		oauthConsent:       oauth.NewOAuthConsentHandler(application.OAuthConsentService),
 		oauthDiscovery:     oauth.NewOAuthDiscoveryHandler(),

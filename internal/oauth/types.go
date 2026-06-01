@@ -70,6 +70,8 @@ type OAuthTokenRequestDTO struct {
 	// JWT assertion for private_key_jwt / client_secret_jwt (RFC 7523)
 	ClientAssertionType string `json:"client_assertion_type"`
 	ClientAssertion     string `json:"client_assertion"`
+	// DPoP proof JWK thumbprint (RFC 9449) — set by the handler after proof validation.
+	DPoPThumbprint string `json:"-"`
 }
 
 // OAuthTokenResponseDTO is the JSON body returned by the token endpoint on
@@ -142,6 +144,7 @@ type OAuthDiscoveryResponseDTO struct {
 	IDTokenSignAlgValues  []string `json:"id_token_signing_alg_values_supported"`
 	TokenEndpointAuth     []string `json:"token_endpoint_auth_methods_supported"`
 	CodeChallengeMethods  []string `json:"code_challenge_methods_supported"`
+	DPoPSigningAlgValues  []string `json:"dpop_signing_alg_values_supported,omitempty"`
 }
 
 // JWKS (RFC 7517)
@@ -210,6 +213,8 @@ type OAuthAuthorizationServerMetadataDTO struct {
 	TokenEndpointAuthMethods      []string `json:"token_endpoint_auth_methods_supported"`
 	CodeChallengeMethods          []string `json:"code_challenge_methods_supported"`
 	BackchannelTokenDeliveryModes []string `json:"backchannel_token_delivery_modes_supported,omitempty"`
+	DPoPSigningAlgValues          []string `json:"dpop_signing_alg_values_supported,omitempty"`
+	DPoPBindingRequired           bool     `json:"dpop_bound_access_tokens_required,omitempty"`
 }
 
 // Pushed Authorization Requests (RFC 9126)
