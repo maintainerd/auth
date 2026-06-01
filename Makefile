@@ -3,7 +3,7 @@ MAIN := cmd/server/main.go
 PROTO_SRC := proto
 PROTO_OUT := internal/gen/go
 
-.PHONY: run build clean proto proto-clean tidy test test-cover test-race
+.PHONY: run build clean proto proto-clean tidy test test-cover test-race setup-hooks
 
 # Run the main application
 run:
@@ -52,3 +52,8 @@ test-cover:
 	go test ./... -count=1 -coverprofile=coverage.out
 	go tool cover -html=coverage.out -o coverage.html
 	@echo "Coverage report written to coverage.html"
+
+# Install git hooks for pre-commit secret scanning
+setup-hooks:
+	git config core.hooksPath .githooks
+	@echo "Git hooks installed — gitleaks will scan staged changes on commit"

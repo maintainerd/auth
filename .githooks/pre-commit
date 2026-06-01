@@ -1,0 +1,20 @@
+#!/bin/sh
+# Gitleaks pre-commit hook — scans staged changes for secrets.
+# Install: git config core.hooksPath .githooks
+# Skip:    GITLEAKS_SKIP=1 git commit ...
+
+set -e
+
+if [ "${GITLEAKS_SKIP:-}" = "1" ]; then
+	exit 0
+fi
+
+if ! command -v gitleaks >/dev/null 2>&1; then
+	echo "gitleaks not found — skipping secret scan (install: https://github.com/gitleaks/gitleaks#installing)"
+	exit 0
+fi
+
+gitleaks protect \
+	--config .gitleaks.toml \
+	--staged \
+	--verbose
