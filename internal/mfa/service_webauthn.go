@@ -24,6 +24,21 @@ import (
 const webAuthnSessionPrefix = "webauthn:session:"
 const webAuthnSessionTTL = 5 * time.Minute
 
+var (
+	beginWebAuthnRegistration = func(wa *webauthn.WebAuthn, user webauthn.User) (*protocol.CredentialCreation, *webauthn.SessionData, error) {
+		return wa.BeginRegistration(user)
+	}
+	createWebAuthnCredential = func(wa *webauthn.WebAuthn, user webauthn.User, session webauthn.SessionData, response *protocol.ParsedCredentialCreationData) (*webauthn.Credential, error) {
+		return wa.CreateCredential(user, session, response)
+	}
+	beginWebAuthnLogin = func(wa *webauthn.WebAuthn, user webauthn.User) (*protocol.CredentialAssertion, *webauthn.SessionData, error) {
+		return wa.BeginLogin(user)
+	}
+	validateWebAuthnLogin = func(wa *webauthn.WebAuthn, user webauthn.User, session webauthn.SessionData, response *protocol.ParsedCredentialAssertionData) (*webauthn.Credential, error) {
+		return wa.ValidateLogin(user, session, response)
+	}
+)
+
 // WebAuthnService handles FIDO2 / WebAuthn passkey registration and authentication.
 type WebAuthnService interface {
 	// BeginRegistration initiates a credential registration ceremony.
@@ -109,7 +124,7 @@ func (s *webAuthnService) BeginRegistration(ctx context.Context, userID int64) (
 		return nil, err
 	}
 
-	creation, session, err := s.wa.BeginRegistration(wu)
+	creation, session, err := beginWebAuthnRegistration(s.wa, wu)
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "begin registration failed")
@@ -139,7 +154,7 @@ func (s *webAuthnService) FinishRegistration(ctx context.Context, userID int64, 
 		return nil, err
 	}
 
-	cred, err := s.wa.CreateCredential(wu, *session, response)
+	cred, err := createWebAuthnCredential(s.wa, wu, *session, response)
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "credential creation failed")
@@ -212,7 +227,7 @@ func (s *webAuthnService) BeginAuthentication(ctx context.Context, userID int64)
 		return nil, err
 	}
 
-	assertion, session, err := s.wa.BeginLogin(wu)
+	assertion, session, err := beginWebAuthnLogin(s.wa, wu)
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "begin login failed")
@@ -242,7 +257,7 @@ func (s *webAuthnService) FinishAuthentication(ctx context.Context, userID int64
 		return nil, err
 	}
 
-	cred, err := s.wa.ValidateLogin(wu, *session, response)
+	cred, err := validateWebAuthnLogin(s.wa, wu, *session, response)
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "login validation failed")
