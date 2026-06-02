@@ -64,7 +64,9 @@ type Client struct {
 	Domain                  *string           `gorm:"column:domain"`
 	Identifier              *string           `gorm:"column:identifier"`
 	SecretHash              *string           `gorm:"column:secret_hash"`
+	SecretEncrypted         *string           `gorm:"column:secret_encrypted"`
 	PreviousSecretHash      *string           `gorm:"column:previous_secret_hash"`
+	PreviousSecretEncrypted *string           `gorm:"column:previous_secret_encrypted"`
 	PreviousSecretExpiresAt *time.Time        `gorm:"column:previous_secret_expires_at"`
 	Status                  string            `gorm:"column:status"`
 	IsDefault               bool              `gorm:"column:is_default"`
@@ -86,8 +88,8 @@ type Client struct {
 	ClaimMappers       datatypes.JSON `gorm:"column:claim_mappers;type:jsonb"`
 
 	CreatedAt time.Time
-	UpdatedAt               time.Time
-	DeletedAt               gorm.DeletedAt `gorm:"index"`
+	UpdatedAt time.Time
+	DeletedAt gorm.DeletedAt `gorm:"index"`
 }
 
 func (Client) TableName() string { return "clients" }

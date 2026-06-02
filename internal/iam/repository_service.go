@@ -90,18 +90,10 @@ func (r *serviceRepository) FindPaginated(filter ServiceRepositoryGetFilter) (*P
 	query := r.DB().Model(&Service{})
 
 	// Filters with LIKE
-	if filter.Name != nil {
-		query = query.Where("name ILIKE ?", "%"+*filter.Name+"%")
-	}
-	if filter.DisplayName != nil {
-		query = query.Where("display_name ILIKE ?", "%"+*filter.DisplayName+"%")
-	}
-	if filter.Description != nil {
-		query = query.Where("description ILIKE ?", "%"+*filter.Description+"%")
-	}
-	if filter.Version != nil {
-		query = query.Where("version ILIKE ?", "%"+*filter.Version+"%")
-	}
+	query = database.ApplyILike(query, "name", filter.Name)
+	query = database.ApplyILike(query, "display_name", filter.DisplayName)
+	query = database.ApplyILike(query, "description", filter.Description)
+	query = database.ApplyILike(query, "version", filter.Version)
 
 	// Filters with exact match
 	if filter.TenantID != nil {
@@ -128,18 +120,10 @@ func (r *serviceRepository) FindServicesByPolicyUUID(policyUUID uuid.UUID, filte
 		Where("policies.policy_uuid = ?", policyUUID)
 
 	// Apply filters with LIKE
-	if filter.Name != nil {
-		query = query.Where("services.name ILIKE ?", "%"+*filter.Name+"%")
-	}
-	if filter.DisplayName != nil {
-		query = query.Where("services.display_name ILIKE ?", "%"+*filter.DisplayName+"%")
-	}
-	if filter.Description != nil {
-		query = query.Where("services.description ILIKE ?", "%"+*filter.Description+"%")
-	}
-	if filter.Version != nil {
-		query = query.Where("services.version ILIKE ?", "%"+*filter.Version+"%")
-	}
+	query = database.ApplyILike(query, "services.name", filter.Name)
+	query = database.ApplyILike(query, "services.display_name", filter.DisplayName)
+	query = database.ApplyILike(query, "services.description", filter.Description)
+	query = database.ApplyILike(query, "services.version", filter.Version)
 
 	// Status filter (multiple values)
 	if len(filter.Status) > 0 {

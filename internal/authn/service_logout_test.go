@@ -10,14 +10,15 @@ import (
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 type mockLogoutUserRepo struct {
-	findByUUIDFn  func(uuid.UUID) (*User, error)
-	findByIDFn    func(interface{}, ...string) (*User, error)
+	findByUUIDFn     func(uuid.UUID) (*User, error)
+	findByIDFn       func(interface{}, ...string) (*User, error)
 	findByUsernameFn func(string) (*User, error)
-	findByEmailFn func(string) (*User, error)
+	findByEmailFn    func(string) (*User, error)
 }
 
 func (m *mockLogoutUserRepo) WithTx(_ *gorm.DB) UserRepository { return m }
@@ -48,41 +49,57 @@ func (m *mockLogoutUserRepo) FindByEmail(email string) (*User, error) {
 func (m *mockLogoutUserRepo) FindByEmailAndTenantID(email string, tenantID int64) (*User, error) {
 	return nil, nil
 }
-func (m *mockLogoutUserRepo) FindByPhone(phone string) (*User, error)        { return nil, nil }
-func (m *mockLogoutUserRepo) FindSuperAdmin() (*User, error)                  { return nil, nil }
-func (m *mockLogoutUserRepo) FindRoles(userID int64) ([]Role, error)          { return nil, nil }
+func (m *mockLogoutUserRepo) FindByPhone(phone string) (*User, error) { return nil, nil }
+func (m *mockLogoutUserRepo) FindSuperAdmin() (*User, error)          { return nil, nil }
+func (m *mockLogoutUserRepo) FindRoles(userID int64) ([]Role, error)  { return nil, nil }
 func (m *mockLogoutUserRepo) FindBySubAndClientID(sub, clientID string) (*User, error) {
 	return nil, nil
 }
 func (m *mockLogoutUserRepo) FindPaginated(filter UserRepositoryGetFilter) (*PaginationResult[User], error) {
 	return nil, nil
 }
-func (m *mockLogoutUserRepo) SetEmailVerified(id uuid.UUID, verified bool) error   { return nil }
-func (m *mockLogoutUserRepo) SetStatus(id uuid.UUID, status string) error            { return nil }
+func (m *mockLogoutUserRepo) SetEmailVerified(id uuid.UUID, verified bool) error    { return nil }
+func (m *mockLogoutUserRepo) SetStatus(id uuid.UUID, status string) error           { return nil }
 func (m *mockLogoutUserRepo) SetForcePasswordChange(id uuid.UUID, force bool) error { return nil }
 func (m *mockLogoutUserRepo) SetPendingEmail(id uuid.UUID, pendingEmail, token string, expiresAt time.Time) error {
 	return nil
 }
-func (m *mockLogoutUserRepo) ClearEmailChange(id uuid.UUID) error { return nil }
-func (m *mockLogoutUserRepo) UpdateEmail(id uuid.UUID, email string) error { return nil }
+func (m *mockLogoutUserRepo) ClearEmailChange(id uuid.UUID) error                { return nil }
+func (m *mockLogoutUserRepo) UpdateEmail(id uuid.UUID, email string) error       { return nil }
 func (m *mockLogoutUserRepo) UpdateUsername(id uuid.UUID, username string) error { return nil }
-func (m *mockLogoutUserRepo) FindByPendingEmail(email string) (*User, error)       { return nil, nil }
-func (m *mockLogoutUserRepo) Create(e *User) (*User, error)                        { return e, nil }
-func (m *mockLogoutUserRepo) CreateOrUpdate(e *User) (*User, error)                 { return e, nil }
-func (m *mockLogoutUserRepo) FindAll(p ...string) ([]User, error)                  { return nil, nil }
+func (m *mockLogoutUserRepo) FindByPendingEmail(email string) (*User, error)     { return nil, nil }
+func (m *mockLogoutUserRepo) Create(e *User) (*User, error)                      { return e, nil }
+func (m *mockLogoutUserRepo) CreateOrUpdate(e *User) (*User, error)              { return e, nil }
+func (m *mockLogoutUserRepo) FindAll(p ...string) ([]User, error)                { return nil, nil }
 func (m *mockLogoutUserRepo) FindByUUIDs(ids []string, p ...string) ([]User, error) {
 	return nil, nil
 }
 func (m *mockLogoutUserRepo) UpdateByUUID(id, data any) (*User, error) { return nil, nil }
 func (m *mockLogoutUserRepo) UpdateByID(id, data any) (*User, error)   { return nil, nil }
-func (m *mockLogoutUserRepo) DeleteByUUID(id any) error                 { return nil }
-func (m *mockLogoutUserRepo) DeleteByID(id any) error                   { return nil }
+func (m *mockLogoutUserRepo) DeleteByUUID(id any) error                { return nil }
+func (m *mockLogoutUserRepo) DeleteByID(id any) error                  { return nil }
 func (m *mockLogoutUserRepo) Paginate(c map[string]any, pg, lim int, p ...string) (*PaginationResult[User], error) {
 	return nil, nil
 }
 
 type mockLogoutSessionService struct {
 	revokeAllSessionsFn func(int64) error
+}
+
+type recordingLogoutJTIDenylister struct {
+	jti string
+	ttl time.Duration
+	err error
+}
+
+func (r *recordingLogoutJTIDenylister) DenyJTI(_ context.Context, jti string, ttl time.Duration) error {
+	r.jti = jti
+	r.ttl = ttl
+	return r.err
+}
+
+func (r *recordingLogoutJTIDenylister) IsJTIDenied(_ context.Context, _ string) (bool, error) {
+	return false, nil
 }
 
 func (m *mockLogoutSessionService) ListSessions(ctx context.Context, userID int64) ([]*SessionDataResult, error) {
@@ -176,7 +193,7 @@ func TestLoginService_Logout(t *testing.T) {
 		require.NoError(t, err)
 	})
 
-	t.Run("session revoke error returns nil", func(t *testing.T) {
+	t.Run("session revoke error is returned", func(t *testing.T) {
 		token := jwtlib.NewWithClaims(jwtlib.SigningMethodHS256, jwtlib.MapClaims{"sub": userUUID.String()})
 		tokenStr, _ := token.SignedString([]byte("secret"))
 
@@ -188,7 +205,8 @@ func TestLoginService_Logout(t *testing.T) {
 		}
 		svc := &loginService{userRepo: repo, sessionService: sess}
 		err := svc.Logout(context.Background(), tokenStr)
-		require.NoError(t, err)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "revoke error")
 	})
 
 	t.Run("success revokes all sessions", func(t *testing.T) {
@@ -210,5 +228,29 @@ func TestLoginService_Logout(t *testing.T) {
 		err := svc.Logout(context.Background(), tokenStr)
 		require.NoError(t, err)
 		require.True(t, called)
+	})
+
+	t.Run("success denylists access token jti", func(t *testing.T) {
+		token := jwtlib.NewWithClaims(jwtlib.SigningMethodHS256, jwtlib.MapClaims{
+			"sub": userUUID.String(),
+			"jti": "logout-jti",
+			"exp": time.Now().Add(time.Hour).Unix(),
+		})
+		tokenStr, _ := token.SignedString([]byte("secret"))
+
+		denylist := &recordingLogoutJTIDenylister{}
+		repo := &mockLogoutUserRepo{
+			findByUUIDFn: func(uuid.UUID) (*User, error) { return &User{UserID: 42}, nil },
+		}
+		sess := &mockLogoutSessionService{
+			revokeAllSessionsFn: func(int64) error { return nil },
+		}
+		svc := &loginService{userRepo: repo, sessionService: sess, jtiDenylist: denylist}
+
+		err := svc.Logout(context.Background(), tokenStr)
+
+		require.NoError(t, err)
+		assert.Equal(t, "logout-jti", denylist.jti)
+		assert.Positive(t, denylist.ttl)
 	})
 }

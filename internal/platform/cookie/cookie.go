@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/maintainerd/auth/internal/platform/config"
+	"github.com/maintainerd/auth/internal/shared"
 )
 
 // cookieSecure returns whether cookies should set Secure=true.
@@ -26,6 +27,34 @@ func cookieSameSite() http.SameSite {
 	}
 }
 
+func secureForCookieName(name string) bool {
+	if strings.HasPrefix(name, "__Host-") || strings.HasPrefix(name, "__Secure-") {
+		return true
+	}
+	return cookieSecure()
+}
+
+func sameSiteForCookie(secure bool) http.SameSite {
+	sameSite := cookieSameSite()
+	if sameSite == http.SameSiteNoneMode && !secure {
+		return http.SameSiteLaxMode
+	}
+	return sameSite
+}
+
+func setAuthCookie(w http.ResponseWriter, name, value, path string, maxAge int) {
+	secure := secureForCookieName(name)
+	http.SetCookie(w, &http.Cookie{
+		Name:     name,
+		Value:    value,
+		Path:     path,
+		MaxAge:   maxAge,
+		HttpOnly: true,
+		Secure:   secure,
+		SameSite: sameSiteForCookie(secure),
+	})
+}
+
 // SetAuthCookies sets authentication tokens as secure HTTP-only cookies.
 //
 // Cookie naming conventions:
@@ -36,7 +65,7 @@ func cookieSameSite() http.SameSite {
 // the refresh token because it has a non-root path (/auth/refresh).
 func SetAuthCookies(w http.ResponseWriter, authResponse interface{}) {
 	var accessToken, idToken, refreshToken string
-	var expiresIn int64 = 3600
+	var expiresIn int64 = shared.DefaultAccessTokenExpiresIn
 
 	if response, ok := authResponse.(map[string]interface{}); ok {
 		if at, exists := response["access_token"]; exists {
@@ -80,76 +109,22 @@ func SetAuthCookies(w http.ResponseWriter, authResponse interface{}) {
 		}
 	}
 
-	secure := cookieSecure()
-	sameSite := cookieSameSite()
-
 	if accessToken != "" {
-		http.SetCookie(w, &http.Cookie{
-			Name:     "__Host-access_token",
-			Value:    accessToken,
-			Path:     "/",
-			MaxAge:   int(expiresIn),
-			HttpOnly: true,
-			Secure:   secure,
-			SameSite: sameSite,
-		})
+		setAuthCookie(w, "__Host-access_token", accessToken, "/", int(expiresIn))
 	}
 
 	if idToken != "" {
-		http.SetCookie(w, &http.Cookie{
-			Name:     "__Host-id_token",
-			Value:    idToken,
-			Path:     "/",
-			MaxAge:   3600,
-			HttpOnly: true,
-			Secure:   secure,
-			SameSite: sameSite,
-		})
+		setAuthCookie(w, "__Host-id_token", idToken, "/", shared.DefaultAccessTokenExpiresIn)
 	}
 
 	if refreshToken != "" {
-		http.SetCookie(w, &http.Cookie{
-			Name:     "__Secure-refresh_token",
-			Value:    refreshToken,
-			Path:     "/auth/refresh",
-			MaxAge:   7 * 24 * 60 * 60,
-			HttpOnly: true,
-			Secure:   secure,
-			SameSite: sameSite,
-		})
+		setAuthCookie(w, "__Secure-refresh_token", refreshToken, "/auth/refresh", 7*24*60*60)
 	}
 }
 
 // ClearAuthCookies clears all authentication-related cookies.
 func ClearAuthCookies(w http.ResponseWriter) {
-	secure := cookieSecure()
-	sameSite := cookieSameSite()
-
-	http.SetCookie(w, &http.Cookie{
-		Name:     "__Host-access_token",
-		Value:    "",
-		Path:     "/",
-		MaxAge:   -1,
-		HttpOnly: true,
-		Secure:   secure,
-		SameSite: sameSite,
-	})
-	http.SetCookie(w, &http.Cookie{
-		Name:     "__Host-id_token",
-		Value:    "",
-		Path:     "/",
-		MaxAge:   -1,
-		HttpOnly: true,
-		Secure:   secure,
-		SameSite: sameSite,
-	})
-	http.SetCookie(w, &http.Cookie{
-		Name:     "__Secure-refresh_token",
-		Value:    "",
-		Path:     "/auth/refresh",
-		MaxAge:   -1,
-		HttpOnly: true,
-		Secure:   secure,
-		SameSite: sameSite,
-	})
+	setAuthCookie(w, "__Host-access_token", "", "/", -1)
+	setAuthCookie(w, "__Host-id_token", "", "/", -1)
+	setAuthCookie(w, "__Secure-refresh_token", "", "/auth/refresh", -1)
 }

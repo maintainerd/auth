@@ -13,8 +13,8 @@ import (
 	sqlmock "github.com/DATA-DOG/go-sqlmock"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
+	"github.com/maintainerd/auth/internal/authctx"
 	"github.com/maintainerd/auth/internal/platform/apperror"
-	"github.com/maintainerd/auth/internal/platform/cache"
 	"github.com/maintainerd/auth/internal/platform/middleware"
 	"github.com/stretchr/testify/require"
 	"gorm.io/datatypes"
@@ -38,15 +38,15 @@ var (
 )
 
 func withTenant(r *http.Request) *http.Request {
-	return middleware.WithAuthContext(r, &middleware.AuthContext{
-		Tenant: &cache.AuthTenant{TenantID: tenantID, TenantUUID: testTenantUUID},
+	return middleware.WithAuthContext(r, &authctx.AuthContext{
+		Tenant: &authctx.AuthTenant{TenantID: tenantID, TenantUUID: testTenantUUID},
 	})
 }
 
 func withTenantAndUser(r *http.Request) *http.Request {
-	return middleware.WithAuthContext(r, &middleware.AuthContext{
-		Tenant: &cache.AuthTenant{TenantID: tenantID, TenantUUID: testTenantUUID},
-		User:   &cache.AuthUser{UserUUID: testUserUUID},
+	return middleware.WithAuthContext(r, &authctx.AuthContext{
+		Tenant: &authctx.AuthTenant{TenantID: tenantID, TenantUUID: testTenantUUID},
+		User:   &authctx.AuthUser{UserUUID: testUserUUID},
 	})
 }
 
@@ -501,14 +501,14 @@ func (m *mockIdentityProviderRepo) FindByIdentifier(identifier string) (*Identit
 
 type mockUserIdentityRepo struct {
 	mockBaseRepo[UserIdentity]
-	findByUserIDFn                 func(int64) ([]UserIdentity, error)
-	findUserIdentitiesPaginatedFn  func(GetUserIdentitiesFilter) (*PaginationResult[UserIdentity], error)
-	findByUserIDAndClientIDFn      func(int64, int64) (*UserIdentity, error)
-	findByProviderAndSubFn         func(string, string) (*UserIdentity, error)
-	findByUserIDAndProviderFn      func(int64, string) (*UserIdentity, error)
-	findByIdentityProviderIDFn     func(int64) ([]UserIdentity, error)
-	deleteByUserIDFn               func(int64) error
-	createFn                       func(*UserIdentity) (*UserIdentity, error)
+	findByUserIDFn                func(int64) ([]UserIdentity, error)
+	findUserIdentitiesPaginatedFn func(GetUserIdentitiesFilter) (*PaginationResult[UserIdentity], error)
+	findByUserIDAndClientIDFn     func(int64, int64) (*UserIdentity, error)
+	findByProviderAndSubFn        func(string, string) (*UserIdentity, error)
+	findByUserIDAndProviderFn     func(int64, string) (*UserIdentity, error)
+	findByIdentityProviderIDFn    func(int64) ([]UserIdentity, error)
+	deleteByUserIDFn              func(int64) error
+	createFn                      func(*UserIdentity) (*UserIdentity, error)
 }
 
 func (m *mockUserIdentityRepo) WithTx(_ *gorm.DB) UserIdentityRepository { return m }

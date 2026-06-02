@@ -5,6 +5,7 @@ import (
 	"crypto/rsa"
 	"crypto/x509"
 	"encoding/pem"
+	"errors"
 	"maps"
 	"testing"
 	"time"
@@ -166,6 +167,28 @@ func TestGenerateSecureID_Format(t *testing.T) {
 func TestGenerateSecureID_Unique(t *testing.T) {
 	a, b := GenerateSecureID(), GenerateSecureID()
 	assert.NotEqual(t, a, b, "two consecutive IDs must differ")
+}
+
+type failingReader struct{}
+
+func (failingReader) Read([]byte) (int, error) {
+	return 0, errors.New("entropy unavailable")
+}
+
+func TestGenerateSecureID_RandomReadFailurePanics(t *testing.T) {
+	oldReader := rand.Reader
+	rand.Reader = failingReader{}
+	t.Cleanup(func() { rand.Reader = oldReader })
+
+	require.Panics(t, func() { GenerateSecureID() })
+}
+
+func TestGenerateSecureJTI_RandomReadFailurePanics(t *testing.T) {
+	oldReader := rand.Reader
+	rand.Reader = failingReader{}
+	t.Cleanup(func() { rand.Reader = oldReader })
+
+	require.Panics(t, func() { generateSecureJTI() })
 }
 
 // ---------------------------------------------------------------------------

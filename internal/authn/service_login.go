@@ -2,19 +2,22 @@ package authn
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"log/slog"
+	"strings"
 	"time"
 
 	jwtlib "github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/authevent"
 	"github.com/maintainerd/auth/internal/platform/apperror"
+	"github.com/maintainerd/auth/internal/platform/cache"
 	"github.com/maintainerd/auth/internal/platform/middleware"
 	"github.com/maintainerd/auth/internal/platform/ptr"
 	"github.com/maintainerd/auth/internal/platform/security"
 	"github.com/maintainerd/auth/internal/secpolicy"
 	"github.com/maintainerd/auth/internal/shared"
-	"log/slog"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/codes"
 	"golang.org/x/crypto/bcrypt"
@@ -38,6 +41,7 @@ type loginService struct {
 	authEventService     authevent.AuthEventService
 	sessionService       SessionService
 	securitySettingRepo  secpolicy.SecuritySettingRepository // nil → skip expiry check
+	jtiDenylist          cache.JTIDenylister
 }
 
 func NewLoginService(
@@ -50,7 +54,12 @@ func NewLoginService(
 	authEventService authevent.AuthEventService,
 	sessionService SessionService,
 	securitySettingRepo secpolicy.SecuritySettingRepository,
+	jtiDenylist ...cache.JTIDenylister,
 ) LoginService {
+	var denylist cache.JTIDenylister
+	if len(jtiDenylist) > 0 {
+		denylist = jtiDenylist[0]
+	}
 	return &loginService{
 		db:                   db,
 		clientRepo:           clientRepo,
@@ -61,6 +70,7 @@ func NewLoginService(
 		authEventService:     authEventService,
 		sessionService:       sessionService,
 		securitySettingRepo:  securitySettingRepo,
+		jtiDenylist:          denylist,
 	}
 }
 
@@ -181,45 +191,11 @@ func (s *loginService) LoginPublic(ctx context.Context, usernameOrEmail, passwor
 		return nil, err
 	}
 
-	// Timing-safe credential verification to prevent user enumeration
-	var passwordValid bool = false
-	var hashedPassword []byte
-
-	if userLookupErr == nil && user != nil && user.Password != nil {
-		hashedPassword = []byte(*user.Password)
-		passwordValid = bcrypt.CompareHashAndPassword(hashedPassword, []byte(password)) == nil
-	} else {
-		// Perform dummy bcrypt operation to maintain consistent timing
-		bcrypt.CompareHashAndPassword(security.GetDummyBcryptHash(), []byte(password)) //nolint:errcheck // intentional timing dummy; error is irrelevant
-	}
+	passwordValid := verifyLoginPassword(user, password, userLookupErr == nil)
 
 	// Check if authentication succeeded
 	if !passwordValid || user == nil || user.Password == nil {
-		// Record failed attempt
-		security.RecordFailedAttempt(usernameOrEmail)
-
-		security.LogSecurityEvent(security.SecurityEvent{
-			EventType: "login_failure",
-			UserID:    usernameOrEmail,
-			ClientID:  clientID,
-			Timestamp: startTime,
-			Details:   "Invalid credentials provided",
-		})
-
-		// authevent.Log structured auth event
-		if client != nil {
-			s.authEventService.Log(ctx, authevent.AuthEventInput{
-				TenantID:    client.IdentityProvider.TenantID,
-				IPAddress:   middleware.ClientIPFromContext(ctx),
-				UserAgent:   ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),
-				Category:    authevent.AuthEventCategoryAuthn,
-				EventType:   authevent.AuthEventTypeLoginFail,
-				Severity:    authevent.AuthEventSeverityWarn,
-				Result:      authevent.AuthEventResultFailure,
-				Description: ptr.Ptr("Invalid credentials"),
-			})
-		}
-
+		s.recordFailedLogin(ctx, usernameOrEmail, clientID, client, startTime)
 		return nil, apperror.NewUnauthorized("invalid credentials")
 	}
 
@@ -297,7 +273,7 @@ func (s *loginService) Login(ctx context.Context, usernameOrEmail, password stri
 	startTime := time.Now()
 
 	// Rate limiting check (SOC2 CC6.1 - Logical Access Controls)
-		if err := security.CheckRateLimit(usernameOrEmail); err != nil {
+	if err := security.CheckRateLimit(usernameOrEmail); err != nil {
 		security.LogSecurityEvent(security.SecurityEvent{
 			EventType: "login_rate_limited",
 			UserID:    usernameOrEmail,
@@ -387,46 +363,11 @@ func (s *loginService) Login(ctx context.Context, usernameOrEmail, password stri
 		return nil, err
 	}
 
-	// Timing-safe password comparison (always compare even if user not found)
-	var passwordValid bool
-	if user != nil && user.Password != nil {
-		err := bcrypt.CompareHashAndPassword([]byte(*user.Password), []byte(password))
-		passwordValid = (err == nil)
-	} else {
-		// Use a properly pre-computed dummy hash so the timing profile is
-		// identical whether the user exists or not. A literal/invalid hash
-		// string would return immediately without doing real bcrypt work.
-		bcrypt.CompareHashAndPassword(security.GetDummyBcryptHash(), []byte(password)) //nolint:errcheck
-		passwordValid = false
-	}
+	passwordValid := verifyLoginPassword(user, password, true)
 
 	// Check if authentication succeeded
 	if !passwordValid || user == nil || user.Password == nil {
-		// Record failed attempt
-		security.RecordFailedAttempt(usernameOrEmail)
-
-		security.LogSecurityEvent(security.SecurityEvent{
-			EventType: "login_failure",
-			UserID:    usernameOrEmail,
-			ClientID:  "internal",
-			Timestamp: startTime,
-			Details:   "Invalid credentials provided",
-		})
-
-		// authevent.Log structured auth event
-		if client != nil {
-			s.authEventService.Log(ctx, authevent.AuthEventInput{
-				TenantID:    client.IdentityProvider.TenantID,
-				IPAddress:   middleware.ClientIPFromContext(ctx),
-				UserAgent:   ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),
-				Category:    authevent.AuthEventCategoryAuthn,
-				EventType:   authevent.AuthEventTypeLoginFail,
-				Severity:    authevent.AuthEventSeverityWarn,
-				Result:      authevent.AuthEventResultFailure,
-				Description: ptr.Ptr("Invalid credentials"),
-			})
-		}
-
+		s.recordFailedLogin(ctx, usernameOrEmail, "internal", client, startTime)
 		return nil, apperror.NewUnauthorized("invalid credentials")
 	}
 
@@ -526,6 +467,12 @@ func (s *loginService) Logout(ctx context.Context, accessToken string) error {
 		return nil
 	}
 
+	if err := s.denylistLogoutJTI(ctx, claims); err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "access token denylist failed")
+		return err
+	}
+
 	sub, ok := claims["sub"].(string)
 	if !ok || sub == "" {
 		return nil
@@ -542,11 +489,52 @@ func (s *loginService) Logout(ctx context.Context, accessToken string) error {
 	}
 
 	if err := s.sessionService.RevokeAllSessions(ctx, user.UserID); err != nil {
-		return nil
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "session revoke failed")
+		return err
 	}
 
 	span.SetStatus(codes.Ok, "")
 	return nil
+}
+
+func (s *loginService) denylistLogoutJTI(ctx context.Context, claims jwtlib.MapClaims) error {
+	if s.jtiDenylist == nil {
+		return nil
+	}
+
+	jti, _ := claims["jti"].(string)
+	if strings.TrimSpace(jti) == "" {
+		return nil
+	}
+
+	ttl := jwtClaimTTL(claims["exp"])
+	if ttl <= 0 {
+		return nil
+	}
+
+	return s.jtiDenylist.DenyJTI(ctx, jti, ttl)
+}
+
+func jwtClaimTTL(expClaim any) time.Duration {
+	var expUnix int64
+	switch exp := expClaim.(type) {
+	case float64:
+		expUnix = int64(exp)
+	case int64:
+		expUnix = exp
+	case int:
+		expUnix = int64(exp)
+	case json.Number:
+		parsed, err := exp.Int64()
+		if err != nil {
+			return 0
+		}
+		expUnix = parsed
+	default:
+		return 0
+	}
+	return time.Until(time.Unix(expUnix, 0))
 }
 
 // checkPasswordExpiry marks ForcePasswordChange on the user if the policy has an
@@ -556,7 +544,7 @@ func (s *loginService) checkPasswordExpiry(ctx context.Context, user *User, tena
 	if s.securitySettingRepo == nil || user.PasswordChangedAt == nil {
 		return
 	}
-	policy := loadPolicy(s.securitySettingRepo, tenantID)
+	policy := secpolicy.LoadPasswordPolicy(s.securitySettingRepo, tenantID)
 	if policy.ExpiryDays <= 0 {
 		return
 	}
@@ -569,21 +557,47 @@ func (s *loginService) checkPasswordExpiry(ctx context.Context, user *User, tena
 	}
 }
 
+func verifyLoginPassword(user *User, password string, lookupOK bool) bool {
+	if lookupOK && user != nil && user.Password != nil {
+		return security.ComparePassword([]byte(*user.Password), []byte(password))
+	}
+	bcrypt.CompareHashAndPassword(security.GetDummyBcryptHash(), []byte(password)) //nolint:errcheck
+	return false
+}
+
+func (s *loginService) recordFailedLogin(ctx context.Context, usernameOrEmail, clientID string, client *Client, at time.Time) {
+	security.RecordFailedAttempt(usernameOrEmail)
+
+	security.LogSecurityEvent(security.SecurityEvent{
+		EventType: "login_failure",
+		UserID:    usernameOrEmail,
+		ClientID:  clientID,
+		Timestamp: at,
+		Details:   "Invalid credentials provided",
+	})
+
+	if client != nil {
+		s.authEventService.Log(ctx, authevent.AuthEventInput{
+			TenantID:    client.IdentityProvider.TenantID,
+			IPAddress:   middleware.ClientIPFromContext(ctx),
+			UserAgent:   ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),
+			Category:    authevent.AuthEventCategoryAuthn,
+			EventType:   authevent.AuthEventTypeLoginFail,
+			Severity:    authevent.AuthEventSeverityWarn,
+			Result:      authevent.AuthEventResultFailure,
+			Description: ptr.Ptr("Invalid credentials"),
+		})
+	}
+}
+
 func (s *loginService) generateTokenResponse(ctx context.Context, sub string, user *User, Client *Client) (*LoginResponseDTO, error) {
 	accessToken, idToken, refreshToken, err := generateTokenSet(sub, user, Client)
 	if err != nil {
 		return nil, err
 	}
 
-	resp := &LoginResponseDTO{
-		AccessToken:           accessToken,
-		IDToken:               idToken,
-		RefreshToken:          refreshToken,
-		ExpiresIn:             DefaultAccessTokenExpiresIn,
-		TokenType:             "Bearer",
-		IssuedAt:              time.Now().Unix(),
-		RequirePasswordChange: user.ForcePasswordChange,
-	}
+	resp := buildLoginTokenResponse(accessToken, idToken, refreshToken, time.Now().Unix())
+	resp.RequirePasswordChange = user.ForcePasswordChange
 
 	// Create a session record and enforce concurrent session limit.
 	if s.sessionService != nil {

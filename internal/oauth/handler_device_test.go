@@ -12,7 +12,7 @@ import (
 )
 
 type mockOAuthDeviceService struct {
-	authorizeFn     func(context.Context, OAuthDeviceAuthorizationRequestDTO, OAuthClientCredentials) (*OAuthDeviceAuthorizationResponseDTO, *apperror.OAuthError)
+	authorizeFn      func(context.Context, OAuthDeviceAuthorizationRequestDTO, OAuthClientCredentials) (*OAuthDeviceAuthorizationResponseDTO, *apperror.OAuthError)
 	verifyUserCodeFn func(context.Context, OAuthDeviceVerifyRequestDTO, int64) *apperror.OAuthError
 	exchangeTokenFn  func(context.Context, OAuthDeviceTokenRequestDTO, OAuthClientCredentials) (*OAuthTokenResponseDTO, *apperror.OAuthError)
 	denyUserCodeFn   func(context.Context, OAuthDeviceVerifyRequestDTO, int64) *apperror.OAuthError

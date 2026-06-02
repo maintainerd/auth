@@ -15,8 +15,8 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
+	"github.com/maintainerd/auth/internal/authctx"
 	"github.com/maintainerd/auth/internal/platform/apperror"
-	"github.com/maintainerd/auth/internal/platform/cache"
 	"github.com/maintainerd/auth/internal/platform/config"
 	"github.com/maintainerd/auth/internal/platform/jwt"
 	"github.com/maintainerd/auth/internal/platform/middleware"
@@ -76,8 +76,8 @@ func initTestJWTKeysService(t *testing.T) {
 
 // withUser injects an authenticated user into the request context.
 func withUser(r *http.Request) *http.Request {
-	user := &cache.AuthUser{UserID: 1, UserUUID: testUserUUID}
-	return middleware.WithAuthContext(r, &middleware.AuthContext{User: user})
+	user := &authctx.AuthUser{UserID: 1, UserUUID: testUserUUID}
+	return middleware.WithAuthContext(r, &authctx.AuthContext{User: user})
 }
 
 // withChiParam injects a chi URL parameter into the request context.

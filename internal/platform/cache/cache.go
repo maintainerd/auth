@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/google/uuid"
+	"github.com/maintainerd/auth/internal/authctx"
 	"github.com/redis/go-redis/v9"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
@@ -26,64 +26,6 @@ const (
 	// scanBatchSize is the COUNT hint for SCAN commands.
 	scanBatchSize = 100
 )
-
-// UserContext is the data stored in the user-context cache.
-type UserContext struct {
-	User     *AuthUser     `json:"user"`
-	Tenant   *AuthTenant   `json:"tenant"`
-	Provider *AuthProvider `json:"provider"`
-	Client   *AuthClient   `json:"client"`
-}
-
-// AuthProfile holds optional profile fields cached alongside the user context.
-type AuthProfile struct {
-	DisplayName *string `json:"display_name,omitempty"`
-	FirstName   string  `json:"first_name,omitempty"`
-	LastName    *string `json:"last_name,omitempty"`
-	ProfileURL  *string `json:"profile_url,omitempty"`
-}
-
-type AuthUser struct {
-	UserID          int64        `json:"user_id"`
-	UserUUID        uuid.UUID    `json:"user_uuid"`
-	Roles           []AuthRole   `json:"roles,omitempty"`
-	Email           string       `json:"email,omitempty"`
-	IsEmailVerified bool         `json:"is_email_verified,omitempty"`
-	Phone           string       `json:"phone,omitempty"`
-	IsPhoneVerified bool         `json:"is_phone_verified,omitempty"`
-	Fullname        string       `json:"fullname,omitempty"`
-	UpdatedAt       time.Time    `json:"updated_at,omitempty"`
-	Profile         *AuthProfile `json:"profile,omitempty"`
-}
-
-type AuthRole struct {
-	RoleID      int64            `json:"role_id"`
-	RoleUUID    uuid.UUID        `json:"role_uuid"`
-	Name        string           `json:"name"`
-	Permissions []AuthPermission `json:"permissions,omitempty"`
-}
-
-type AuthPermission struct {
-	PermissionID   int64     `json:"permission_id"`
-	PermissionUUID uuid.UUID `json:"permission_uuid"`
-	Name           string    `json:"name"`
-}
-
-type AuthTenant struct {
-	TenantID   int64     `json:"tenant_id"`
-	TenantUUID uuid.UUID `json:"tenant_uuid"`
-}
-
-type AuthProvider struct {
-	IdentityProviderID   int64     `json:"identity_provider_id"`
-	IdentityProviderUUID uuid.UUID `json:"identity_provider_uuid"`
-}
-
-type AuthClient struct {
-	ClientID   int64     `json:"client_id"`
-	ClientUUID uuid.UUID `json:"client_uuid"`
-	Identifier *string   `json:"identifier,omitempty"`
-}
 
 // Cache provides typed helpers around a Redis client for user-context
 // caching and invalidation.
@@ -107,7 +49,7 @@ func userContextKey(sub, clientID string) string {
 
 // GetUserContext retrieves a cached user context. Returns nil when the key
 // does not exist or cannot be deserialized (cache miss).
-func (c *Cache) GetUserContext(ctx context.Context, sub, clientID string) *UserContext {
+func (c *Cache) GetUserContext(ctx context.Context, sub, clientID string) *authctx.UserContext {
 	_, span := otel.Tracer("cache").Start(ctx, "cache.get_user_context")
 	defer span.End()
 	span.SetAttributes(
@@ -120,7 +62,7 @@ func (c *Cache) GetUserContext(ctx context.Context, sub, clientID string) *UserC
 		span.SetStatus(codes.Error, "cache miss")
 		return nil
 	}
-	var uc UserContext
+	var uc authctx.UserContext
 	if err := json.Unmarshal([]byte(raw), &uc); err != nil {
 		span.SetStatus(codes.Error, "deserialize failed")
 		return nil
@@ -130,7 +72,7 @@ func (c *Cache) GetUserContext(ctx context.Context, sub, clientID string) *UserC
 }
 
 // SetUserContext caches a user context entry with the default TTL.
-func (c *Cache) SetUserContext(ctx context.Context, sub, clientID string, uc *UserContext) {
+func (c *Cache) SetUserContext(ctx context.Context, sub, clientID string, uc *authctx.UserContext) {
 	_, span := otel.Tracer("cache").Start(ctx, "cache.set_user_context")
 	defer span.End()
 	span.SetAttributes(

@@ -7,6 +7,6 @@ import (
 )
 
 func TestSeederHandler_NewSeederHandler(t *testing.T) {
-	h := &SeederHandler{}
+	h := NewSeederHandler(nil)
 	require.NotNil(t, h)
 }

@@ -2,7 +2,6 @@ package tenant
 
 import (
 	"context"
-	"log/slog"
 	"time"
 
 	"github.com/google/uuid"
@@ -10,7 +9,6 @@ import (
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
-	"gorm.io/gorm"
 )
 
 type TenantMemberServiceListFilter struct {
@@ -53,18 +51,21 @@ type TenantMemberService interface {
 }
 
 type tenantMemberService struct {
-	db               *gorm.DB
 	tenantMemberRepo TenantMemberRepository
 	userRepo         UserReader
 	tenantRepo       TenantRepository
+	uow              UnitOfWork
 }
 
-func NewTenantMemberService(db *gorm.DB, tenantMemberRepo TenantMemberRepository, userRepo UserReader, tenantRepo TenantRepository) TenantMemberService {
+func NewTenantMemberService(tenantMemberRepo TenantMemberRepository, userRepo UserReader, tenantRepo TenantRepository, uow UnitOfWork) TenantMemberService {
+	if uow == nil {
+		uow = newDirectUnitOfWork(tenantRepo, tenantMemberRepo)
+	}
 	return &tenantMemberService{
-		db:               db,
 		tenantMemberRepo: tenantMemberRepo,
 		userRepo:         userRepo,
 		tenantRepo:       tenantRepo,
+		uow:              uow,
 	}
 }
 
@@ -74,8 +75,8 @@ func (s *tenantMemberService) Create(ctx context.Context, tenantID int64, userID
 	span.SetAttributes(attribute.Int64("tenant.id", tenantID), attribute.Int64("user.id", userID))
 
 	var created *TenantMember
-	err := s.db.Transaction(func(tx *gorm.DB) error {
-		repo := s.tenantMemberRepo.WithTx(tx)
+	err := s.uow.Do(ctx, func(tx Transaction) error {
+		repo := tx.TenantMemberRepository()
 		tu := &TenantMember{
 			TenantID: tenantID,
 			UserID:   userID,
@@ -112,7 +113,9 @@ func (s *tenantMemberService) CreateByUserUUID(ctx context.Context, tenantID int
 	// Check if user is already a member of this tenant
 	existing, err := s.tenantMemberRepo.FindByTenantAndUser(tenantID, user.UserID)
 	if err != nil {
-		slog.Warn("tenant member duplicate check error", "tenant_id", tenantID, "user_id", user.UserID, "err", err)
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "tenant member duplicate check failed")
+		return nil, apperror.NewInternal("failed to check tenant membership", err)
 	}
 	if existing != nil {
 		span.SetStatus(codes.Error, "user already a member of this tenant")
@@ -227,8 +230,8 @@ func (s *tenantMemberService) UpdateRole(ctx context.Context, tenantID int64, te
 	span.SetAttributes(attribute.Int64("tenant.id", tenantID), attribute.String("tenantMember.uuid", tenantMemberUUID.String()))
 
 	var updated *TenantMember
-	err := s.db.Transaction(func(tx *gorm.DB) error {
-		repo := s.tenantMemberRepo.WithTx(tx)
+	err := s.uow.Do(ctx, func(tx Transaction) error {
+		repo := tx.TenantMemberRepository()
 		tu, err := repo.FindByTenantMemberUUID(tenantMemberUUID)
 		if err != nil {
 			return err
@@ -266,8 +269,8 @@ func (s *tenantMemberService) DeleteByUUID(ctx context.Context, tenantID int64, 
 	defer span.End()
 	span.SetAttributes(attribute.Int64("tenant.id", tenantID), attribute.String("tenantMember.uuid", tenantMemberUUID.String()))
 
-	err := s.db.Transaction(func(tx *gorm.DB) error {
-		repo := s.tenantMemberRepo.WithTx(tx)
+	err := s.uow.Do(ctx, func(tx Transaction) error {
+		repo := tx.TenantMemberRepository()
 		tu, err := repo.FindByTenantMemberUUID(tenantMemberUUID)
 		if err != nil {
 			return err

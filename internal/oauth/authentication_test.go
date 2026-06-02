@@ -9,6 +9,7 @@ import (
 	"time"
 
 	jwtlib "github.com/golang-jwt/jwt/v5"
+	"github.com/maintainerd/auth/internal/platform/crypto"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gorm.io/datatypes"
@@ -60,7 +61,7 @@ func TestAuthenticatePrivateKeyJWT(t *testing.T) {
 	kid := "key-1"
 
 	client := &Client{
-		ClientID:  1,
+		ClientID:   1,
 		Identifier: &clientID,
 		Domain:     &domain,
 		JWKS:       buildRSAPublicKeyJWK(t, privKey, kid),
@@ -124,12 +125,28 @@ func TestAuthenticateClientSecretJWT(t *testing.T) {
 	clientID := "test-app"
 	domain := "test-app.example.com"
 	secret := "my-client-secret"
+	secretHash := "$2a$10$not-the-hmac-secret"
+	secretEncrypted := "encrypted-current-secret"
+
+	origDecrypt := crypto.DecryptAtRest
+	t.Cleanup(func() { crypto.DecryptAtRest = origDecrypt })
+	crypto.DecryptAtRest = func(ciphertext string) (string, error) {
+		switch ciphertext {
+		case secretEncrypted:
+			return secret, nil
+		case "encrypted-previous-secret":
+			return "previous-client-secret", nil
+		default:
+			return "", assert.AnError
+		}
+	}
 
 	client := &Client{
-		ClientID:   1,
-		Identifier: &clientID,
-		Domain:     &domain,
-		SecretHash: &secret,
+		ClientID:        1,
+		Identifier:      &clientID,
+		Domain:          &domain,
+		SecretHash:      &secretHash,
+		SecretEncrypted: &secretEncrypted,
 	}
 
 	t.Run("invalid assertion_type", func(t *testing.T) {
@@ -174,6 +191,67 @@ func TestAuthenticateClientSecretJWT(t *testing.T) {
 		assert.Nil(t, result)
 		require.NotNil(t, oerr)
 		assert.Equal(t, "invalid_client", oerr.Code)
+	})
+
+	t.Run("valid assertion uses encrypted secret not bcrypt hash", func(t *testing.T) {
+		claims := jwtlib.MapClaims{
+			"iss": clientID, "sub": clientID, "aud": domain,
+			"exp": time.Now().Add(time.Hour).Unix(), "iat": time.Now().Unix(),
+		}
+		token := jwtlib.NewWithClaims(jwtlib.SigningMethodHS256, claims)
+		assertion, err := token.SignedString([]byte(secret))
+		require.NoError(t, err)
+
+		creds := OAuthClientCredentials{
+			ClientAssertionType: "urn:ietf:params:oauth:client-assertion-type:jwt-bearer",
+			ClientAssertion:     assertion,
+		}
+		result, oerr := authenticateClientSecretJWT(client, creds)
+		require.Nil(t, oerr)
+		assert.Equal(t, client, result)
+	})
+
+	t.Run("assertion signed with secret hash is rejected", func(t *testing.T) {
+		claims := jwtlib.MapClaims{
+			"iss": clientID, "sub": clientID, "aud": domain,
+			"exp": time.Now().Add(time.Hour).Unix(), "iat": time.Now().Unix(),
+		}
+		token := jwtlib.NewWithClaims(jwtlib.SigningMethodHS256, claims)
+		assertion, err := token.SignedString([]byte(secretHash))
+		require.NoError(t, err)
+
+		creds := OAuthClientCredentials{
+			ClientAssertionType: "urn:ietf:params:oauth:client-assertion-type:jwt-bearer",
+			ClientAssertion:     assertion,
+		}
+		result, oerr := authenticateClientSecretJWT(client, creds)
+		assert.Nil(t, result)
+		require.NotNil(t, oerr)
+		assert.Equal(t, "invalid_client", oerr.Code)
+	})
+
+	t.Run("valid assertion can use previous encrypted secret during grace period", func(t *testing.T) {
+		previousEncrypted := "encrypted-previous-secret"
+		expires := time.Now().Add(time.Hour)
+		c := *client
+		c.PreviousSecretEncrypted = &previousEncrypted
+		c.PreviousSecretExpiresAt = &expires
+
+		claims := jwtlib.MapClaims{
+			"iss": clientID, "sub": clientID, "aud": domain,
+			"exp": time.Now().Add(time.Hour).Unix(), "iat": time.Now().Unix(),
+		}
+		token := jwtlib.NewWithClaims(jwtlib.SigningMethodHS256, claims)
+		assertion, err := token.SignedString([]byte("previous-client-secret"))
+		require.NoError(t, err)
+
+		creds := OAuthClientCredentials{
+			ClientAssertionType: "urn:ietf:params:oauth:client-assertion-type:jwt-bearer",
+			ClientAssertion:     assertion,
+		}
+		result, oerr := authenticateClientSecretJWT(&c, creds)
+		require.Nil(t, oerr)
+		assert.Equal(t, &c, result)
 	})
 }
 

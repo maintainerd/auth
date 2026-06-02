@@ -172,12 +172,8 @@ func (r *clientRepository) FindPaginated(filter ClientRepositoryGetFilter) (*Pag
 	query := r.DB().Model(&Client{}).Where("tenant_id = ?", filter.TenantID)
 
 	// Filters with LIKE
-	if filter.Name != nil {
-		query = query.Where("name ILIKE ?", "%"+*filter.Name+"%")
-	}
-	if filter.DisplayName != nil {
-		query = query.Where("display_name ILIKE ?", "%"+*filter.DisplayName+"%")
-	}
+	query = database.ApplyILike(query, "name", filter.Name)
+	query = database.ApplyILike(query, "display_name", filter.DisplayName)
 
 	// Filters with exact match
 	if len(filter.Status) > 0 {

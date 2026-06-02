@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
+	"github.com/maintainerd/auth/internal/authctx"
 	"github.com/maintainerd/auth/internal/platform/middleware"
 	"github.com/stretchr/testify/require"
 )
@@ -34,13 +35,13 @@ func (m *mockInviteService) SendInvite(_ context.Context, tenantID int64, email 
 
 func withTenant(r *http.Request) *http.Request {
 	tenant := &Tenant{TenantID: testTenantID, TenantUUID: testTenantUUID}
-	return middleware.WithAuthContext(r, &middleware.AuthContext{Tenant: tenant})
+	return middleware.WithAuthContext(r, &authctx.AuthContext{Tenant: tenant})
 }
 
 func withTenantAndUser(r *http.Request) *http.Request {
 	tenant := &Tenant{TenantID: testTenantID, TenantUUID: testTenantUUID}
 	user := &User{UserID: 2, UserUUID: testUserUUID}
-	return middleware.WithAuthContext(r, &middleware.AuthContext{Tenant: tenant, User: user})
+	return middleware.WithAuthContext(r, &authctx.AuthContext{Tenant: tenant, User: user})
 }
 
 func jsonReq(t *testing.T, method, url string, body any) *http.Request {

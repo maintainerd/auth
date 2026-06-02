@@ -10,8 +10,8 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
+	"github.com/maintainerd/auth/internal/authctx"
 	"github.com/maintainerd/auth/internal/platform/apperror"
-	"github.com/maintainerd/auth/internal/platform/cache"
 	"github.com/maintainerd/auth/internal/platform/middleware"
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
@@ -29,8 +29,8 @@ var (
 )
 
 func withTenant(r *http.Request) *http.Request {
-	tenant := &cache.AuthTenant{TenantID: testTenantID, TenantUUID: testTenantUUID}
-	return middleware.WithAuthContext(r, &middleware.AuthContext{Tenant: tenant})
+	tenant := &authctx.AuthTenant{TenantID: testTenantID, TenantUUID: testTenantUUID}
+	return middleware.WithAuthContext(r, &authctx.AuthContext{Tenant: tenant})
 }
 
 func jsonReq(t *testing.T, method, url string, body any) *http.Request {

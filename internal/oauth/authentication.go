@@ -11,6 +11,7 @@ import (
 
 	jwtlib "github.com/golang-jwt/jwt/v5"
 	"github.com/maintainerd/auth/internal/platform/apperror"
+	"github.com/maintainerd/auth/internal/platform/crypto"
 	"gorm.io/gorm"
 )
 
@@ -108,15 +109,19 @@ func authenticateClientSecretJWT(client *Client, creds OAuthClientCredentials) (
 		return nil, apperror.NewOAuthInvalidClient("client_assertion is required")
 	}
 
+	secrets, err := clientSecretJWTSecrets(client)
+	if err != nil {
+		return nil, apperror.NewOAuthInvalidClient("client assertion is invalid")
+	}
+	if len(secrets) == 0 {
+		return nil, apperror.NewOAuthInvalidClient("client has no registered secret")
+	}
+
 	token, err := jwtlib.Parse(creds.ClientAssertion, func(t *jwtlib.Token) (interface{}, error) {
 		if _, ok := t.Method.(*jwtlib.SigningMethodHMAC); !ok {
 			return nil, fmt.Errorf("unexpected signing method: %v", t.Header["alg"])
 		}
-		secret := ptrOrEmpty(client.SecretHash)
-		if secret == "" {
-			return nil, fmt.Errorf("client has no registered secret")
-		}
-		return []byte(secret), nil
+		return jwtlib.VerificationKeySet{Keys: secrets}, nil
 	}, jwtlib.WithLeeway(assertionMaxAge), jwtlib.WithValidMethods([]string{"HS256", "HS384", "HS512"}))
 
 	if err != nil || !token.Valid {
@@ -133,6 +138,35 @@ func authenticateClientSecretJWT(client *Client, creds OAuthClientCredentials) (
 	}
 
 	return client, nil
+}
+
+func clientSecretJWTSecrets(client *Client) ([]jwtlib.VerificationKey, error) {
+	secrets := make([]jwtlib.VerificationKey, 0, 2)
+
+	if client.SecretEncrypted != nil && strings.TrimSpace(*client.SecretEncrypted) != "" {
+		secret, err := crypto.DecryptAtRest(*client.SecretEncrypted)
+		if err != nil {
+			return nil, err
+		}
+		if secret != "" {
+			secrets = append(secrets, []byte(secret))
+		}
+	}
+
+	if client.PreviousSecretEncrypted != nil &&
+		client.PreviousSecretExpiresAt != nil &&
+		client.PreviousSecretExpiresAt.After(time.Now()) &&
+		strings.TrimSpace(*client.PreviousSecretEncrypted) != "" {
+		secret, err := crypto.DecryptAtRest(*client.PreviousSecretEncrypted)
+		if err != nil {
+			return nil, err
+		}
+		if secret != "" {
+			secrets = append(secrets, []byte(secret))
+		}
+	}
+
+	return secrets, nil
 }
 
 func validateAssertionClaims(claims jwtlib.MapClaims, client *Client) error {

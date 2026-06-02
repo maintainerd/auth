@@ -35,30 +35,30 @@ Findings:
 
 **🔁 Re-opened items — residual scope**
 
-| ID | Verdict | What still remains |
-|----|---------|--------------------|
-| SEC-07 | PARTIAL | Signing path still falls back to `os.Getenv("HMAC_SECRET_KEY")` at call time and fetches lazily ([`signedurl.go:~67`](../../internal/platform/signedurl/signedurl.go#L67)); never constructor-injected, so the env bypass survives as a degraded mode. |
-| SEC-09 | PARTIAL | `email_verified` claim is now read, but `provisionUser` still merges into an existing local account by email **unconditionally** ([`service_federation.go:~575`](../../internal/idp/service_federation.go#L575)) — an unverified federated email can still take over a local account. |
-| SEC-17 | PARTIAL | Email-change OTP is now hashed but compared with `!=` ([`user/service_account.go:176`](../../internal/user/service_account.go#L176)), not `crypto/subtle.ConstantTimeCompare`/hash-lookup. |
-| ARC-01 | PARTIAL | `authn/deps.go` (~17-64) still types cross-domain interfaces as `interface{}`/`map[string]interface{}` and they are now **dead code**. |
-| ARC-03 | PARTIAL | `user/types.go` (~135,342) still has `json.Unmarshal` mapping constructors; `authn/validation_*.go` still defines DTO structs. |
-| ARC-04 | PARTIAL | Platform purity restored, but `Auth*`/`UserContext` domain types still live in `platform/cache/cache.go` (~31-82) and `AuthContext` in `platform/middleware/user_middleware.go` (~26). |
-| ARC-07 | NOT FIXED | Tenant services still take a raw `*gorm.DB` and call `s.db.Transaction` directly ([`service_tenant.go:~75`](../../internal/tenant/service_tenant.go#L75), `service_member.go`); a `cascadeModels []any` injection was added but the gorm leak remains. |
-| DUP-02 | NOT FIXED | ~25-line alias block still copy-pasted ~13× across `foundation.go`; lossy `NewBaseRepository(db any)` shim still in `authn/foundation.go` (~26) + `setup/foundation.go` (~22). |
-| DUP-04 | PARTIAL | Shared `authenticateOAuthClient` + `clientHasGrant` done, but a dead duplicate `hasGrant` remains ([`service_token.go:~688`](../../internal/oauth/service_token.go#L688)). |
-| DUP-05 | NOT FIXED | `Login`/`LoginPublic` are still ~190-line near-duplicates; `generateTokenResponse` still copy-pasted 4× (`service_login.go`, `service_magic_link.go`, `service_register.go`, `user/service_account.go`). |
-| DUP-06 | PARTIAL | `userHasTenantAccess` extracted but 3 inline loops remain (`service_user.go` ~501,848,946); `loadPolicy`/`recordPasswordHistory`/`findDefaultRole` still duplicated across `user` & `authn`. |
-| DUP-07 | PARTIAL | Handlers + update path collapsed, but 8 `Get*Config` service methods are still copy-paste ([`secpolicy/service_setting.go:109-212`](../../internal/secpolicy/service_setting.go#L109)). |
-| CON-01 | PARTIAL | `DefaultPageSize=20` source of truth set, but client API-key list still hardcodes `=10` (`handler_api_key.go` ~57, `service_api_key.go` ~538) + stale `ParseQuery` doc comment. |
-| CON-02 | NOT FIXED | `ApplyILike` helper exists but ~40 repo sites still inline `ILIKE` (Postgres-only); only ~9 sites use the helper. |
-| CON-04 | PARTIAL | `resp.BadRequestBody` added but authn handlers still inline `"Invalid request"`/`"Invalid request body"` (`handler_login.go` ~91, etc.) — 2 of 4 old spellings survive. |
-| CON-05 | PARTIAL | Standardized except `config/redis.go` (~28) still uses `== "true"` (won't accept `1`/`yes`). |
-| CLN-01 | PARTIAL | Branding `FindByName` dead on login+sms template repos; mfa `amr` computed-then-discarded (`service_mfa.go` ~567). |
-| CLN-02 | PARTIAL | Main ones now logged, but WebAuthn `UpdateSignCount`/`UpdateLastUsed` errors still swallowed ([`service_webauthn.go:~261`](../../internal/mfa/service_webauthn.go#L261)) — weakens clone detection; several mfa state updates too. |
-| CLN-03 | NOT FIXED | Globals/`init()`/test-seam indirection unchanged — bcrypt in `init()`, global JWT signing key, config package globals, ~14 `var Fn = fn` seams. |
-| CLN-04 | PARTIAL | Most fixed, but `TenantResponseDTO.Metadata` is still never populated (4 mappers omit it). |
-| CLN-05 | PARTIAL | Mostly extracted, but scope literal still hardcoded ×2 (`user/service_account.go` ~411, `idp/service_federation.go` ~655), gRPC `:50051` hardcoded ×2, stray `3600` in `cookie.go`. |
-| CLN-06 | PARTIAL | Now drained on shutdown via `WaitGroup`, but still **unbounded** (one goroutine per event) and authevent still uses `context.Background()` — no worker pool. |
+| ID     | Verdict | What still remains                                                                                                                                                                           |
+| ------ | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| SEC-07 | FIXED   | `signedurl` now uses a preloaded signer configured from the secret manager-loaded `config.HMACSecretKey`; no call-time `os.Getenv` fallback remains.                                         |
+| SEC-09 | FIXED   | `provisionUser` now only merges existing users when the upstream email is verified, and the lookup is scoped to the provider tenant.                                                         |
+| SEC-17 | FIXED   | Email verification uses hash lookup, and email-change OTP verification now compares stored and submitted hashes with `crypto/subtle.ConstantTimeCompare`.                                    |
+| ARC-01 | FIXED   | Dead loose `authn/deps.go` interfaces using `interface{}` / `map[string]interface{}` were removed.                                                                                           |
+| ARC-03 | FIXED   | Authn DTO structs now live in `types.go`; user DTO mapping constructors moved out of `types.go`.                                                                                             |
+| ARC-04 | FIXED   | Auth request/cache context structs moved from `platform/*` to `internal/authctx`; platform retains generic cache/middleware behavior.                                                        |
+| ARC-07 | FIXED   | Tenant services now depend on a tenant `UnitOfWork`; GORM transaction/cascade behavior is isolated behind `NewGormUnitOfWork`.                                                               |
+| DUP-02 | FIXED   | Unsafe `NewBaseRepository(db any)` shims were removed from authn/setup foundation files; packages now use exported platform helpers directly.                                                |
+| DUP-04 | FIXED   | OAuth client auth uses shared `authenticateOAuthClient` + `clientHasGrant`; dead duplicate `hasGrant` was removed.                                                                           |
+| DUP-05 | FIXED   | Login variants share timing-safe credential/failure helpers; authn token response shaping now uses shared builders.                                                                          |
+| DUP-06 | FIXED   | Remaining inline tenant-access loops now call `userHasTenantAccess`; password policy/history helpers moved to `secpolicy`.                                                                   |
+| DUP-07 | FIXED   | Security policy config service methods now use a shared config definition table for get/update behavior.                                                                                     |
+| CON-01 | FIXED   | `pagination.DefaultPageSize` is the shared fallback; API-key handler/service residual `=10` defaults and stale `ParseQuery` comment were removed.                                            |
+| CON-02 | FIXED   | Repository search filters now use `database.ApplyILike`; no inline `ILIKE` clauses remain in `internal/`.                                                                                    |
+| CON-04 | FIXED   | Request decode failures use `resp.BadRequestBody`; generic suspicious-request responses use the shared `resp.BadRequest` helper.                                                             |
+| CON-05 | FIXED   | Env/query boolean parsing now uses `strconv.ParseBool` for the residual Redis and telemetry env flags.                                                                                       |
+| CLN-01 | FIXED   | Dead login/SMS branding `FindByName` repo methods/mocks removed, API-key validation test seam removed, gRPC seeder handler now runs seeders, and step-up `amr` is embedded in access tokens. |
+| CLN-02 | FIXED   | Tenant duplicate checks, setup metadata marshal, and MFA/WebAuthn state updates now return errors instead of being swallowed.                                                                |
+| CLN-03 | PARTIAL | Bcrypt `init()` side effect removed via lazy `sync.Once`; remaining residual is the broader config/JWT global-state and mutable test-seam refactor.                                          |
+| CLN-04 | FIXED   | Tenant metadata now flows through tenant/setup/user service results and response DTOs.                                                                                                       |
+| CLN-05 | FIXED   | Shared constants now cover default token scope/expires-in, gRPC address, discovery/OpenAPI cache max-age, and cookie token max-age literals.                                                 |
+| CLN-06 | FIXED   | Auth event dispatch no longer creates a detached goroutine with `context.Background`; webhook delivery now uses a bounded worker queue drained on shutdown.                                  |
 
 ---
 
@@ -117,7 +117,7 @@ These are exploitable or data-exposing today. Tackle this section first.
 
 ### Platform secret sourcing
 
-- [ ] **SEC-07** 🟠 🔁 — **`signedurl` reads `os.Getenv` at call time, bypassing the secret manager.**
+- [x] **SEC-07** 🟠 🔁 — **`signedurl` reads `os.Getenv` at call time, bypassing the secret manager.**
   [`internal/platform/signedurl/signedurl.go:54`](../../internal/platform/signedurl/signedurl.go#L54)
   reads `HMAC_SECRET_KEY` on every signature call, ignoring the existing
   `config.SecretManager` (AWS/GCP/Azure/Vault). Untestable without mutating env;
@@ -131,7 +131,7 @@ These are exploitable or data-exposing today. Tackle this section first.
   the caller (client) be authenticated; as-is anyone can probe token validity and read
   `sub`/`scope`/`client_id`.
 
-- [ ] **SEC-09** 🔴 🔁 — **Federation sets `email_verified` from email presence, not the claim.**
+- [x] **SEC-09** 🔴 🔁 — **Federation sets `email_verified` from email presence, not the claim.**
   [`internal/idp/service_federation.go:442`](../../internal/idp/service_federation.go#L442)
   (`IsEmailVerified: stringClaim2(meta.Email) != ""`) combined with email-based account
   merge → an unverified federated email can take over an existing local account.
@@ -180,7 +180,7 @@ These are exploitable or data-exposing today. Tackle this section first.
 
 ### authn
 
-- [ ] **SEC-17** 🟠 🔁 — **Email-change / verification OTPs stored plaintext & compared with `!=`.**
+- [x] **SEC-17** 🟠 🔁 — **Email-change / verification OTPs stored plaintext & compared with `!=`.**
   `user/service_account.go` and `authn/service_email_verification.go` — non-constant-time,
   unlike backup codes which are hashed.
   **Fix:** hash at rest, use `crypto/subtle.ConstantTimeCompare` (or hash-then-lookup).
@@ -222,89 +222,82 @@ These are exploitable or data-exposing today. Tackle this section first.
 
 New vulnerabilities surfaced while verifying ✅ features in `v1.0.0.md`. All ✅-claimed.
 
-- [ ] **SEC-23** 🔴 ✅ — **Access-token denylist is never populated (read-but-empty).**
-  [`internal/platform/jwt/jwt.go:73`](../../internal/platform/jwt/jwt.go#L73) declares
-  `var JTIChecker` and `ValidateToken` reads it ([`:731`](../../internal/platform/jwt/jwt.go#L731)),
-  but **nothing ever assigns `JTIChecker`** and no revoke/logout/password-change/session
-  path calls `cache.DenyJTI` for an access-token `jti` (the only `DenyJTI` caller is the
-  separate `dpop:` keyspace). The Redis denylist (`v1.0.0.md` §2 Tokens, ✅) does nothing.
-  **Fix:** wire `jwt.JTIChecker = cache.IsJTIDenied` at startup and call `cache.DenyJTI(jti, ttl)`
-  on revoke / logout / password & session revocation.
+- [x] **SEC-23** 🔴 ✅ — **Access-token denylist is never populated (read-but-empty).**
+  `jwt.JTIChecker` is wired at startup, and OAuth token revocation now writes access-token
+  JTIs to the Redis denylist with the remaining token TTL. Logout-specific denylisting remains
+  tracked separately under SEC-30.
 
-- [ ] **SEC-24** 🔴 ✅ — **`POST /oauth/revoke` does not revoke access tokens.**
-  `oauth` `service_token.go` `Revoke` only revokes refresh tokens; for access tokens it
-  comments "we cannot revoke them server-side" and no-ops. Combined with SEC-23 the issued
-  access JWT stays valid until expiry after a revoke. **Fix:** denylist the access `jti`.
+- [x] **SEC-24** 🔴 ✅ — **`POST /oauth/revoke` does not revoke access tokens.**
+  `oauth` `service_token.go` `Revoke` now validates access JWTs for the authenticated client
+  and denylists their `jti` until expiry.
 
-- [ ] **SEC-25** 🔴 ✅ — **`client_secret_jwt` (RFC 7523) is broken — verifies against the bcrypt hash.**
-  [`internal/oauth/authentication.go:115`](../../internal/oauth/authentication.go#L115)
-  uses `client.SecretHash` (the bcrypt hash) as the HMAC key. The client signs with the
-  plaintext secret, so HS256 verification can never match — the auth method is non-functional.
-  **Fix:** store/retrieve a symmetric key (or the raw secret for these clients) and HMAC with it.
+- [x] **SEC-25** 🔴 ✅ — **`client_secret_jwt` (RFC 7523) is broken — verifies against the bcrypt hash.**
+  Client secrets are still bcrypt-hashed for `client_secret_basic`/`client_secret_post`, and
+  creation/rotation now also stores an encrypted copy for `client_secret_jwt` HMAC verification.
+  JWT assertions are verified against decrypted current/previous secrets, never the bcrypt hash.
 
-- [ ] **SEC-26** 🔴 ✅ — **Per-client `allowed_scopes` is never enforced.**
-  `AllowedScopes` exists on the model ([`client/model_client.go:66`](../../internal/client/model_client.go#L66))
-  but is referenced nowhere in `oauth` issuance — requested scopes flow unchecked into the
-  authorize challenge, auth code, and all token grants → scope escalation.
-  **Fix:** intersect/validate requested scope against `client.AllowedScopes` in authorize + every grant.
+- [x] **SEC-26** 🔴 ✅ — **Per-client `allowed_scopes` is never enforced.**
+  OAuth now validates requested scopes against `Client.AllowedScopes` in authorize/PAR, auth-code
+  exchange, refresh narrowing, device authorization, CIBA, and token exchange. Empty allowed scopes
+  remains the documented "all scopes permitted" behavior.
 
-- [ ] **SEC-27** 🟠 ✅ — **`/oauth/userinfo` over-discloses PII regardless of granted scope.**
-  `oauth/handler_userinfo.go` always returns email/email_verified/phone/name/picture; a token
-  with only `openid` still gets full PII. **Fix:** filter claims by the token's `scope`
-  (`email`→email, `profile`→name/picture, `phone`→phone).
+- [x] **SEC-27** 🟠 ✅ — **`/oauth/userinfo` over-discloses PII regardless of granted scope.**
+  UserInfo now returns only `sub` for `openid`, then gates `email`, `phone`, and `profile` claims
+  behind their corresponding access-token scopes.
 
-- [ ] **SEC-28** 🟠 ✅ — **`sub` is inconsistent between id_token and userinfo.**
-  id_token uses `userIdentity.Sub` (`service_token.go`) but userinfo returns
-  `user.UserUUID.String()` (`handler_userinfo.go`) → same user, different `sub`, breaking
-  OIDC clients that key on `sub`. **Fix:** use the identity `sub` consistently.
+- [x] **SEC-28** 🟠 ✅ — **`sub` is inconsistent between id_token and userinfo.**
+  UserInfo now uses the validated JWT `sub` claim when present, matching the subject used in issued
+  OAuth/OIDC tokens.
 
-- [ ] **SEC-29** 🔴 ✅ — **Magic-link / forgot / reset tokens stored plaintext + matched by raw equality.**
-  `authn/service_magic_link.go` and `service_forgot_password.go` persist `UserToken{Token: token}`
-  in the clear and look them up with `Where("token = ?", token)`. Refresh tokens / auth codes /
-  SMS OTP are SHA-256-hashed at rest; these email-bearer secrets are not → a DB read is account
-  takeover. **Fix:** hash at rest (SHA-256) and look up by hash, like refresh tokens.
+- [x] **SEC-29** 🔴 ✅ — **Magic-link / forgot / reset tokens stored plaintext + matched by raw equality.**
+  Magic-link and password-reset bearer tokens are now SHA-256-hashed before persistence and matched
+  by hash during magic-link login and password reset.
 
-- [ ] **SEC-30** 🟠 ✅ — **Logout swallows `RevokeAllSessions` error.**
-  `authn/service_login.go` `Logout` returns `nil` even when revoke fails → reports success on a
-  failed revoke (and does not denylist the access `jti`). **Fix:** propagate the error; denylist jti.
+- [x] **SEC-30** 🟠 ✅ — **Logout swallows `RevokeAllSessions` error.**
+  Logout now propagates session revocation failures to the handler and denylists the access-token
+  `jti` until expiry when a denylist backend is configured.
 
-- [ ] **SEC-31** 🟠 ✅ — **SMS-OTP login: wrong code is not consumed and the compare is non-constant-time.**
+- [x] **SEC-31** 🟠 ✅ — **SMS-OTP login: wrong code is not consumed and the compare is non-constant-time.**
   `authn/service_sms_login.go` `VerifyOTP` does not invalidate the OTP record on a wrong guess
   (only a coarse per-phone rate limit) and compares with `otpRecord.OTPHash != expectedHash`.
-  **Fix:** track per-OTP attempt count + invalidate after N failures; constant-time compare.
+  **Fixed:** SMS OTPs now track failed attempts, invalidate after three wrong guesses, and compare
+  hashed OTP values with `crypto/subtle.ConstantTimeCompare`.
 
-- [ ] **SEC-32** 🟠 ✅ — **`rand.Read` errors discarded for JTI / secure-ID generation.**
+- [x] **SEC-32** 🟠 ✅ — **`rand.Read` errors discarded for JTI / secure-ID generation.**
   [`internal/platform/jwt/jwt.go:38`](../../internal/platform/jwt/jwt.go#L38) (`GenerateSecureID`)
   and [`:143`](../../internal/platform/jwt/jwt.go#L143) (`generateSecureJTI`) do `_, _ = rand.Read(...)`
   → predictable/zeroed IDs on RNG failure (contrast `crypto/rand.go` which propagates).
-  **Fix:** check and return/panic on the error. (Same class as SEC-20, different files.)
+  **Fixed:** secure-ID/JTI generation now reads via `io.ReadFull(rand.Reader, ...)` and panics on
+  entropy-source failure instead of returning zeroed identifiers.
 
-- [ ] **SEC-33** 🟠 ✅ — **Bcrypt 72-byte silent truncation vs. 128-char max password.**
+- [x] **SEC-33** 🟠 ✅ — **Bcrypt 72-byte silent truncation vs. 128-char max password.**
   Password policy allows `MaxLength: 128` ([`security/password_policy.go`](../../internal/platform/security/password_policy.go))
   but bcrypt (`security/hash.go`) truncates at 72 bytes (same for `HashClientSecret`) → the tail
-  is ignored. **Fix:** SHA-256 pre-hash before bcrypt, or cap effective length at 72 with a clear error.
+  is ignored. **Fixed:** passwords and client secrets are SHA-256 pre-hashed before bcrypt; compare
+  helpers retain legacy raw-bcrypt fallback for existing stored hashes.
 
-- [ ] **SEC-34** 🟠 ✅ — **`__Host-`/`__Secure-` cookie prefixes break when `COOKIE_SECURE=false`.**
+- [x] **SEC-34** 🟠 ✅ — **`__Host-`/`__Secure-` cookie prefixes break when `COOKIE_SECURE=false`.**
   [`internal/platform/cookie/cookie.go`](../../internal/platform/cookie/cookie.go) uses the prefixed
   names unconditionally but sets `Secure` from config; browsers reject prefixed cookies without
   `Secure`, silently breaking auth (and `SameSite=None`+insecure is invalid).
-  **Fix:** force `Secure=true` whenever a prefixed name is used; reject `SameSite=None` without Secure.
+  **Fixed:** prefixed auth cookies always set `Secure=true`, and `SameSite=None` is only emitted for
+  secure cookies.
 
-- [ ] **SEC-35** 🟠 ✅ — **PII redaction over-redacts audit free-text (data loss).**
+- [x] **SEC-35** 🟠 ✅ — **PII redaction over-redacts audit free-text (data loss).**
   [`internal/platform/logging/pii_handler.go:~132`](../../internal/platform/logging/pii_handler.go#L132)
   `RedactString` replaces the **entire** string if it merely *contains* a PII keyword as a substring.
   Applied to every audit event ([`authevent/service_event.go:~147`](../../internal/authevent/service_event.go#L147)),
   benign descriptions ("user updated email preferences", "token refresh succeeded") become
-  `[REDACTED]` → legitimate audit detail is destroyed. **Fix:** redact structured field *keys* /
-  value-shaped patterns (regex), not free-text substring scans.
+  `[REDACTED]` → legitimate audit detail is destroyed. **Fixed:** free-text redaction now preserves
+  harmless prose and only replaces value-shaped email, bearer-token, and JWT patterns.
 
-- [ ] **SEC-36** 🔴 ✅ — **Role/permission change does not revoke sessions or tokens; cache flush is global.**
+- [x] **SEC-36** 🔴 ✅ — **Role/permission change does not revoke sessions or tokens; cache flush is global.**
   `iam` `service_role.go` / `service_permission.go` call only `cacheInvalidator.InvalidateAllUsers(ctx)`
   on role/permission edits — no `RevokeByUserID`/family revocation, so existing access/refresh tokens
   remain valid until expiry (contradicts `v1.0.0.md` §6 "session revoked on permission change", ✅).
   `InvalidateAllUsers` also blows away every tenant's cache on any single edit (thundering herd /
-  cross-tenant blast radius). **Fix:** revoke affected users' token families (or bump a token-version
-  claim checked at validation); scope invalidation to affected users only.
+  cross-tenant blast radius). **Fixed:** role/permission mutations now revoke stored tokens for
+  affected users and clear only those users' authorization cache entries.
 
 ---
 
@@ -312,26 +305,28 @@ New vulnerabilities surfaced while verifying ✅ features in `v1.0.0.md`. All �
 
 Structural debt that diverges from [code-structure.md](../contributing/code-structure.md).
 
-- [ ] **ARC-01** 🟠 🔁 — **`deps.go` used as a dumping ground.**
+- [x] **ARC-01** 🟠 🔁 — **`deps.go` used as a dumping ground.**
   Per the doc it holds consumer interfaces + tag-free projections only. Violations:
   - [`internal/user/deps.go`](../../internal/user/deps.go) — `*ResponseDTO` types **with json tags** + GORM models with `TableName()`.
   - [`internal/iam/deps.go:11`](../../internal/iam/deps.go#L11) & [`internal/client/deps.go:12`](../../internal/client/deps.go#L12) — GORM models (incl. `foreignKey` tags) + access-control logic (`ValidateTenantAccess`).
   - [`internal/authn/deps.go:17`](../../internal/authn/deps.go#L17) — interfaces typed as `interface{}` / `map[string]interface{}` (type safety gone) + dead `Adapter` placeholder.
-  **Fix:** move DTOs → `types.go`, models → `model_*.go`, access logic → `service_*.go`;
-  type the authn interfaces against the projection structs or delete if dead.
+  **Fixed:** the remaining residual from the re-audit — dead authn consumer interfaces typed as
+  `interface{}` / `map[string]interface{}` — was deleted.
 
 - [x] **ARC-02** 🟠 ✅ — **`foundation.go` carries real logic, not just aliases.**
   [`internal/user/foundation.go:51`](../../internal/user/foundation.go#L51) holds
   authorization (`ValidateTenantAccess`) and model→DTO mappers.
   **Fix:** move logic to service files; keep foundation thin.
 
-- [ ] **ARC-03** 🟡 🔁 — **Structs/logic in the wrong files.**
+- [x] **ARC-03** 🟡 🔁 — **Structs/logic in the wrong files.**
   Mapping logic + `json.Unmarshal` in [`internal/user/types.go`](../../internal/user/types.go)
   (DTO-only file); DTO structs in `authn/validation_*.go` (belong in `types.go`);
   json-tagged config types in
   [`internal/idp/service_federation.go:647`](../../internal/idp/service_federation.go#L647).
+  **Fixed:** authn query/response/request DTO structs were consolidated into
+  `internal/authn/types.go`; user DTO mapping constructors moved to handler-layer files.
 
-- [ ] **ARC-04** 🔴 🔁 — **Platform-purity violations: `platform/*` imports `internal/<domain>` (15 imports).**
+- [x] **ARC-04** 🔴 🔁 — **Platform-purity violations: `platform/*` imports `internal/<domain>` (15 imports).**
   [`internal/platform/database/seeder/`](../../internal/platform/database/seeder/) — 13 files
   import `iam`, `tenant`, `idp`, `client`, `branding`, `secpolicy`, `shared`;
   [`internal/platform/runner/seeder.go:7`](../../internal/platform/runner/seeder.go#L7) imports `tenant` + `user`.
@@ -339,8 +334,9 @@ Structural debt that diverges from [code-structure.md](../contributing/code-stru
   [`internal/platform/cache/cache.go:31`](../../internal/platform/cache/cache.go#L31)
   (`UserContext`/`Auth*`) and
   [`internal/platform/middleware/user_middleware.go:26`](../../internal/platform/middleware/user_middleware.go#L26) (`AuthContext`).
-  **Fix:** move seeders to a bootstrap/app layer; keep only generic migration runner +
-  generic cache in platform; relocate auth context types to a domain-aware package.
+  **Fixed:** seeders had already moved out of platform; this pass relocated `UserContext`,
+  `Auth*`, and `AuthContext` into `internal/authctx`, leaving platform cache/middleware free of
+  domain-shaped auth structs.
 
 - [x] **ARC-05** 🟠 ✅ — **`panic` / `os.Exit` instead of returning errors.**
   [`internal/app/app.go:88`](../../internal/app/app.go#L88) panics on service-init failure
@@ -357,10 +353,11 @@ Structural debt that diverges from [code-structure.md](../contributing/code-stru
   **Decision needed:** either fix the doc's example or accept stutter project-wide and
   remove the guidance. Don't leave them contradictory.
 
-- [ ] **ARC-07** 🟡 🔁 — **`tenant` services leak `*gorm.DB` into the service layer.**
+- [x] **ARC-07** 🟡 🔁 — **`tenant` services leak `*gorm.DB` into the service layer.**
   [`internal/tenant/service_tenant.go:75`](../../internal/tenant/service_tenant.go#L75)
   and `service_member.go` — the only services taking a raw `*gorm.DB` (for cascade deletes).
-  **Fix:** wrap cascade/transaction behind a repo/unit-of-work interface.
+  **Fixed:** `TenantService` and `TenantMemberService` now accept a tenant `UnitOfWork`; GORM
+  transactions and tenant cascade deletes are isolated behind `NewGormUnitOfWork`.
 
 ---
 
@@ -375,9 +372,10 @@ Mechanical debt the refactor didn't finish. Big LOC reduction, low risk.
   **Fix:** add `database.PaginateQuery[T](preFilteredQuery, page, limit, order)`; repos
   keep only their `.Where()` chain.
 
-- [ ] **DUP-02** 🟠 🔁 — **`foundation.go` ~25-line alias/wrapper block copy-pasted ~13×**
+- [x] **DUP-02** 🟠 🔁 — **`foundation.go` ~25-line alias/wrapper block copy-pasted ~13×**
   (incl. a lossy `NewBaseRepository(db any)` `db.(*gorm.DB)` shim).
-  **Fix:** export the helpers directly from `platform/database` / `platform/pagination`.
+  **Fixed:** removed the lossy `NewBaseRepository(db any)` shims from `authn` and `setup`;
+  callers now use the already-exported `platform/database` helper directly.
 
 - [x] **DUP-03** 🟠 ✅ — **`noopAuthEventService` duplicated verbatim in 4 packages.**
   [`iam/foundation.go:48`](../../internal/iam/foundation.go#L48),
@@ -386,29 +384,33 @@ Mechanical debt the refactor didn't finish. Big LOC reduction, low risk.
   [`idp/foundation.go:52`](../../internal/idp/foundation.go#L52).
   **Fix:** `authevent.NoopService()`.
 
-- [ ] **DUP-04** 🟠 🔁 — **Client authentication duplicated 4–6× (and divergent).**
+- [x] **DUP-04** 🟠 🔁 — **Client authentication duplicated 4–6× (and divergent).**
   [`oauth/service_token_exchange.go:154`](../../internal/oauth/service_token_exchange.go#L154),
   [`service_device.go:329`](../../internal/oauth/service_device.go#L329), `service_ciba.go`,
   [`service_par.go:205`](../../internal/oauth/service_par.go#L205), `service_token.go`.
   Public clients are authenticated inconsistently across them. Grant-check helper
   (`clientSupportsGrant`/`hasGrant`/`clientHasGrant`) is byte-identical in 3 places.
-  **Fix:** one shared `authenticateClient` + one grant-check helper.
+  **Fixed:** OAuth flows now use shared `authenticateOAuthClient` and `clientHasGrant`; the
+  stale duplicate `hasGrant` helper and tests were removed/redirected.
 
-- [ ] **DUP-05** 🟠 🔁 — **`authn.LoginPublic` ≈ `Login` (~200 dup lines)** and
+- [x] **DUP-05** 🟠 🔁 — **`authn.LoginPublic` ≈ `Login` (~200 dup lines)** and
   **`generateTokenResponse` copy-pasted 4×**
   ([`authn/service_login.go:515`](../../internal/authn/service_login.go#L515),
   `service_magic_link.go`, `service_register.go`, `user/service_account.go`).
-  **Fix:** extract a shared `authenticate(...)` and one token-response builder.
+  **Fixed:** `Login`/`LoginPublic` now share timing-safe password verification and failed-login
+  event handling; authn login/register/magic/SMS token responses share token response builders.
 
-- [ ] **DUP-06** 🟠 🔁 — **`hasTenantAccess` loop duplicated 9× in one file**
+- [x] **DUP-06** 🟠 🔁 — **`hasTenantAccess` loop duplicated 9× in one file**
   ([`internal/user/service_user.go`](../../internal/user/service_user.go));
   `findDefaultRole` / `loadPolicy` / `recordPasswordHistory` duplicated across `user` & `authn`.
-  **Fix:** extract `userHasTenantAccess(...)`; share the policy helpers.
+  **Fixed:** remaining inline tenant-access loops call `userHasTenantAccess`; password policy
+  loading and history recording are shared via `secpolicy`.
 
-- [ ] **DUP-07** 🟠 🔁 — **secpolicy: 7 config get/update handlers + services are pure copy-paste.**
+- [x] **DUP-07** 🟠 🔁 — **secpolicy: 7 config get/update handlers + services are pure copy-paste.**
   [`internal/secpolicy/handler_setting.go`](../../internal/secpolicy/handler_setting.go) +
   [`service_setting.go:109`](../../internal/secpolicy/service_setting.go#L109).
-  **Fix:** collapse to one handler/service parameterized by config type.
+  **Fixed:** service get/update methods are thin wrappers around a shared config-definition table;
+  config selection and audit update behavior are parameterized by config type.
   Also reuse `middleware.ClientIPFromContext`/`UserAgentFromContext` instead of the
   copy-pasted `ctx.Value(...)` blocks.
 
@@ -423,26 +425,30 @@ Mechanical debt the refactor didn't finish. Big LOC reduction, low risk.
 
 ## 4. Consistency Issues
 
-- [ ] **CON-01** 🟠 🔁 — **Default page size is both 10 and 20.**
+- [x] **CON-01** 🟠 ✅ — **Default page size is both 10 and 20.**
   `pagination.ParseQuery`→10 ([`query.go:19`](../../internal/platform/pagination/query.go#L19)),
   `database.normalizePagination`→20
   ([`base_repository.go:28`](../../internal/platform/database/base_repository.go#L28)),
   plus inline `=10`/`=20` clamps in many repos. Same package can return different defaults.
-  **Fix:** one source of truth; delete inline clamps.
+  **Fixed:** `pagination.DefaultPageSize` is the source of truth; API-key residual
+  `=10` fallbacks and the stale `ParseQuery` doc comment were removed.
 
-- [ ] **CON-02** 🟡 🔁 — **Search casing differs**: `ILIKE` vs `LOWER(col) LIKE` vs bare `LIKE`
-  across packages. **Fix:** shared `applyILike(q, col, *val)` helper.
+- [x] **CON-02** 🟡 ✅ — **Search casing differs**: `ILIKE` vs `LOWER(col) LIKE` vs bare `LIKE`
+  across packages. **Fixed:** repository search filters now use
+  `database.ApplyILike(q, col, *val)`.
 
 - [x] **CON-03** 🟡 ✅ — **`errors.Is(err, gorm.ErrRecordNotFound)` vs `err == gorm.ErrRecordNotFound`**
   mixed (repos vs services). **Fix:** standardize on `errors.Is`.
 
-- [ ] **CON-04** 🟡 🔁 — **`apperror.NewNotFound` vs `NewNotFoundWithReason`** used arbitrarily;
+- [x] **CON-04** 🟡 ✅ — **`apperror.NewNotFound` vs `NewNotFoundWithReason`** used arbitrarily;
   decode-error messages come in 4 spellings ("Invalid JSON format" / "Invalid request" /
   "Invalid request body" / "Invalid JSON"). **Fix:** convention per case + a
-  `resp.BadRequestBody(w)` helper.
+  `resp.BadRequestBody(w)` helper. **Fixed:** decode failures use
+  `resp.BadRequestBody`; generic suspicious-request responses use `resp.BadRequest`.
 
-- [ ] **CON-05** 🟡 🔁 — **Bool query parsing**: `v == "true"` (silently drops `"1"`/`"TRUE"`)
-  vs `strconv.ParseBool`. **Fix:** standardize on `strconv.ParseBool`.
+- [x] **CON-05** 🟡 ✅ — **Bool query parsing**: `v == "true"` (silently drops `"1"`/`"TRUE"`)
+  vs `strconv.ParseBool`. **Fixed:** residual Redis and telemetry env flags now
+  use `strconv.ParseBool`.
 
 - [x] **CON-06** 🟡 ✅ — **`user` list endpoints filter/sort/paginate in-memory in the handler.**
   [`internal/user/handler_user.go:655`](../../internal/user/handler_user.go#L655)
@@ -462,7 +468,7 @@ Mechanical debt the refactor didn't finish. Big LOC reduction, low risk.
 
 ## 5. Cleanup (dead code, hygiene)
 
-- [ ] **CLN-01** 🟡 🔁 — **Dead injected deps / stubs.**
+- [x] **CLN-01** 🟡 ✅ — **Dead injected deps / stubs.**
   `setup` `identityProviderRepo` + `userTokenRepo` injected-but-unused
   ([`service_setup.go:35`](../../internal/setup/service_setup.go#L35)) with
   `IdentityProviderRepository = any` ([`setup/deps.go:31`](../../internal/setup/deps.go#L31));
@@ -473,12 +479,17 @@ Mechanical debt the refactor didn't finish. Big LOC reduction, low risk.
   `authn/deps.go` `Adapter`; empty `if` branch
   ([`setup/service_setup.go:182`](../../internal/setup/service_setup.go#L182)); dead
   pagination parse in [`branding/handler_login_template.go:46`](../../internal/branding/handler_login_template.go#L46).
+  **Fixed:** removed dead login/SMS template `FindByName` methods and mocks,
+  removed the unused API-key validation test seam, wired the seeder gRPC handler
+  to run seeders, and used step-up `amr`/`acr` in the issued access token.
 
-- [ ] **CLN-02** 🟡 🔁 — **Swallowed errors** beyond the security ones:
+- [x] **CLN-02** 🟡 ✅ — **Swallowed errors** beyond the security ones:
   member duplicate check ([`tenant/service_member.go:112`](../../internal/tenant/service_member.go#L112)),
   password-expiry update ([`authn/service_login.go:511`](../../internal/authn/service_login.go#L511)),
   metadata marshal ([`setup/service_setup.go:145`](../../internal/setup/service_setup.go#L145)),
   MFA user-state updates (`mfa/service_webauthn.go`, `service_mfa.go`).
+  **Fixed:** these paths now return internal errors instead of continuing after
+  failed state updates/checks.
 
 - [ ] **CLN-03** 🟡 🔁 — **Globals / `init()` side-effects / test-seam indirection.**
   bcrypt in `init()` + rate-limiter no-ops-when-nil + dropped `ctx`
@@ -486,28 +497,34 @@ Mechanical debt the refactor didn't finish. Big LOC reduction, low risk.
   global signing-key state ([`platform/jwt/jwt.go:43`](../../internal/platform/jwt/jwt.go#L43));
   global config vars ([`platform/config/config.go:11`](../../internal/platform/config/config.go#L11));
   `var Fn = fn` indirection across ~9 platform files.
-  **Fix:** encapsulate in injected structs; prefer interfaces over mutable function vars.
+  **Partial:** bcrypt dummy hash generation is now lazy via `sync.Once`. Remaining:
+  config globals, JWT default key state, and mutable test seams should be
+  handled as a focused injection refactor.
 
-- [ ] **CLN-04** 🟡 🔁 — **Unpopulated DTO fields / misleading docs.**
+- [x] **CLN-04** 🟡 ✅ — **Unpopulated DTO fields / misleading docs.**
   `TenantResponseDTO.Metadata` never set ([`tenant/types.go:20`](../../internal/tenant/types.go#L20));
   `toUserResponseDTO` drops `Tenant.DisplayName`
   ([`user/handler_user.go:564`](../../internal/user/handler_user.go#L564));
   stray "Validate ..." comments in [`branding/types.go`](../../internal/branding/types.go);
   stale "see access.go" comment ([`tenant/deps.go:41`](../../internal/tenant/deps.go#L41)).
+  **Fixed:** tenant metadata now flows through tenant/setup/user mappers and DTOs.
 
-- [ ] **CLN-05** 🟡 🔁 — **Magic values.** token `ExpiresIn: 3600` + scope
+- [x] **CLN-05** 🟡 ✅ — **Magic values.** token `ExpiresIn: 3600` + scope
   `"openid profile email"` hardcoded in 5 places; invite TTL `72*time.Hour` duplicated
   ([`invite/service_invite.go:103`](../../internal/invite/service_invite.go#L103));
   webhook `>= 300` success threshold + uncapped backoff
   ([`webhook/deliver.go:81`](../../internal/webhook/deliver.go#L81));
   hardcoded `"active"` ([`webhook/repository_endpoint.go:125`](../../internal/webhook/repository_endpoint.go#L125));
   hardcoded ports/limits in `server/rest.go`/`grpc.go`/`router.go`.
+  **Fixed:** shared constants now cover the residual default scope/expires-in,
+  cookie max-age, gRPC address, and discovery/OpenAPI cache max-age literals.
 
-- [ ] **CLN-06** 🟡 🔁 — **Fire-and-forget goroutines detached from shutdown.**
+- [x] **CLN-06** 🟡 ✅ — **Fire-and-forget goroutines detached from shutdown.**
   [`authevent/service_event.go:156`](../../internal/authevent/service_event.go#L156) and
   [`webhook/dispatcher.go:36`](../../internal/webhook/dispatcher.go#L36) use
   `context.Background()` with no WaitGroup/worker-pool → abandoned on shutdown, unbounded.
-  **Fix:** server-scoped context + bounded worker pool.
+  **Fixed:** auth event logging passes the caller context to the dispatcher, and
+  webhook delivery uses a bounded worker queue drained by `Shutdown`.
 
 - [x] **CLN-07** 🟡 ✅ — **~30 untracked `*.out` coverage files in the repo root.**
   Not committed, just clutter. **Fix:** add to `.gitignore` / remove; route coverage to a
@@ -703,17 +720,15 @@ gaps rather than classic bugs — either finish the wiring or downgrade the chec
 highest-value work is now the *new* findings — several are claimed-✅ features that don't
 actually function:
 
-1. **Token revocation that doesn't revoke (`SEC-23`, `SEC-24`, `SEC-36`)** — denylist is
-   never populated, `/oauth/revoke` and permission changes leave access tokens live. Top priority.
-2. **Plaintext bearer secrets (`SEC-29`)** + **broken `client_secret_jwt` (`SEC-25`)** +
-   **unenforced `allowed_scopes` (`SEC-26`)** — exploitable / spec-breaking today.
-3. **Dead runners (`FC-01`, `FC-02`)** and **unenforced MFA / session timeout
+1. **Token revocation cluster (`SEC-23`, `SEC-24`, `SEC-36`)** — access-token denylist,
+   `/oauth/revoke`, and permission-change revocation are now landed; keep regression coverage
+   around this path high.
+2. **Dead runners (`FC-01`, `FC-02`)** and **unenforced MFA / session timeout
    (`FC-03`, `FC-07`)** — ✅ features that silently do nothing; either wire or mark 🔨.
-4. **Re-opened residuals** — `SEC-07`, `SEC-09`, `SEC-17`, `ARC-07`, `DUP-05`, `CON-02`,
-   `CLN-03` (see the Re-Audit table). `SEC-09` (federated account takeover) first.
-5. **GDPR / claim-accuracy (`FC-12`, `SEC-27`, `SEC-28`, `FC-14..17`)** — correctness of the
+3. **Re-opened residuals** — `CLN-03` (see the Re-Audit table).
+4. **GDPR / claim-accuracy (`FC-12`, `FC-14..17`)** — correctness of the
    public contract.
-6. **CI/observability hygiene (`OPS-01..06`)** — cheap, raises the floor on everything else.
+5. **CI/observability hygiene (`OPS-01..06`)** — cheap, raises the floor on everything else.
 
 ---
 

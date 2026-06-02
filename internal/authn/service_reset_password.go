@@ -79,7 +79,7 @@ func (s *resetPasswordService) ResetPassword(ctx context.Context, token, newPass
 		// We need to find all password reset tokens and check which one matches our token
 		// This is a security consideration - we don't want to reveal if a token exists
 		allTokens := []UserToken{}
-		txErr = tx.Where("token_type = ? AND token = ? AND is_revoked = false", shared.TokenTypePasswordReset, token).Find(&allTokens).Error
+		txErr = tx.Where("token_type = ? AND token = ? AND is_revoked = false", shared.TokenTypePasswordReset, hashUserBearerToken(token)).Find(&allTokens).Error
 		if txErr != nil {
 			return apperror.NewInternal("failed to find reset token", txErr)
 		}
@@ -120,7 +120,7 @@ func (s *resetPasswordService) ResetPassword(ctx context.Context, token, newPass
 		if Client.IdentityProvider != nil {
 			tenantID = Client.IdentityProvider.TenantID
 		}
-		policy := loadPolicy(s.securitySettingRepo, tenantID)
+		policy := secpolicy.LoadPasswordPolicy(s.securitySettingRepo, tenantID)
 		if err := security.ValidatePasswordPolicy(newPassword, policy); err != nil {
 			return apperror.NewValidation(err.Error())
 		}
@@ -148,7 +148,7 @@ func (s *resetPasswordService) ResetPassword(ctx context.Context, token, newPass
 		}
 
 		// Record new hash in history
-		recordPasswordHistory(s.passwordHistoryRepo, user.UserID, policy.HistoryCount, string(hashedPassword))
+		secpolicy.RecordPasswordHistory(s.passwordHistoryRepo, user.UserID, policy.HistoryCount, string(hashedPassword))
 
 		// Revoke all sessions so existing logins are invalidated after password change.
 		if txErr = txUserTokenRepo.RevokeAllSessionsByUserID(user.UserID); txErr != nil {

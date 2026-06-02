@@ -14,14 +14,6 @@ func (r *SMSLoginSendDTO) Validate() error {
 	)
 }
 
-// SMSLoginVerifyDTO is the request to verify an SMS OTP and obtain tokens.
-type SMSLoginVerifyDTO struct {
-	Phone      string `json:"phone"`
-	OTP        string `json:"otp"`
-	ClientID   string `json:"client_id"`
-	ProviderID string `json:"provider_id"`
-}
-
 func (r *SMSLoginVerifyDTO) Validate() error {
 	r.Phone = security.SanitizeInput(r.Phone)
 	return validation.ValidateStruct(r,

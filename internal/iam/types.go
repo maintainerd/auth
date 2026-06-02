@@ -1,9 +1,10 @@
 package iam
 
 import (
+	"time"
+
 	"github.com/google/uuid"
 	"gorm.io/datatypes"
-	"time"
 )
 
 // API output structure

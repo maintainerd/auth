@@ -2,11 +2,12 @@ package iam
 
 import (
 	"encoding/json"
+	"regexp"
+
 	validation "github.com/go-ozzo/ozzo-validation/v4"
 	"github.com/go-ozzo/ozzo-validation/v4/is"
 	"github.com/maintainerd/auth/internal/shared"
 	"gorm.io/datatypes"
-	"regexp"
 )
 
 // policyNamePattern matches valid policy name characters (compiled once for performance).

@@ -10,11 +10,11 @@ import (
 
 func TestSMSLoginSendDTO_Validate(t *testing.T) {
 	tests := []struct {
-		name    string
-		phone   string
-		client  string
+		name     string
+		phone    string
+		client   string
 		provider string
-		wantErr bool
+		wantErr  bool
 	}{
 		{"valid", "+1234567890", "myapp", "default", false},
 		{"missing phone", "", "myapp", "default", true},

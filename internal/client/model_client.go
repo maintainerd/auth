@@ -44,7 +44,9 @@ type Client struct {
 	Domain                  *string        `gorm:"column:domain"`
 	Identifier              *string        `gorm:"column:identifier"`
 	SecretHash              *string        `gorm:"column:secret_hash"`
+	SecretEncrypted         *string        `gorm:"column:secret_encrypted"`
 	PreviousSecretHash      *string        `gorm:"column:previous_secret_hash"`
+	PreviousSecretEncrypted *string        `gorm:"column:previous_secret_encrypted"`
 	PreviousSecretExpiresAt *time.Time     `gorm:"column:previous_secret_expires_at"`
 	Config                  datatypes.JSON `gorm:"column:config"`
 	Status                  string         `gorm:"column:status;default:'inactive'"`

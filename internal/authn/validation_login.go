@@ -1,10 +1,11 @@
 package authn
 
 import (
+	"net/url"
+
 	validation "github.com/go-ozzo/ozzo-validation/v4"
 	"github.com/maintainerd/auth/internal/platform/security"
 	"github.com/maintainerd/auth/internal/platform/signedurl"
-	"net/url"
 )
 
 func (r *LoginRequestDTO) Validate() error {
@@ -22,12 +23,6 @@ func (r *LoginRequestDTO) Validate() error {
 			validation.Length(1, 128).Error("Password must not exceed 128 characters"),
 		),
 	)
-}
-
-// Login query parameters structure
-type LoginQueryDTO struct {
-	ClientID   string `json:"client_id"`
-	ProviderID string `json:"provider_id"`
 }
 
 func (q *LoginQueryDTO) Validate() error {

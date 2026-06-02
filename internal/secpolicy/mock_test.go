@@ -12,8 +12,8 @@ import (
 	sqlmock "github.com/DATA-DOG/go-sqlmock"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
+	"github.com/maintainerd/auth/internal/authctx"
 	"github.com/maintainerd/auth/internal/platform/apperror"
-	"github.com/maintainerd/auth/internal/platform/cache"
 	"github.com/maintainerd/auth/internal/platform/middleware"
 	"github.com/stretchr/testify/require"
 	"gorm.io/driver/postgres"
@@ -22,8 +22,8 @@ import (
 )
 
 var (
-	errNotFound     = apperror.NewNotFoundWithReason("not found")
-	errValidation   = apperror.NewValidation("validation error")
+	errNotFound   = apperror.NewNotFoundWithReason("not found")
+	errValidation = apperror.NewValidation("validation error")
 )
 
 const tenantID int64 = 1
@@ -46,21 +46,21 @@ func newMockGormDB(t *testing.T) (*gorm.DB, sqlmock.Sqlmock) {
 }
 
 func withTenant(r *http.Request) *http.Request {
-	return middleware.WithAuthContext(r, &middleware.AuthContext{
-		Tenant: &cache.AuthTenant{TenantID: tenantID, TenantUUID: testTenantUUID},
+	return middleware.WithAuthContext(r, &authctx.AuthContext{
+		Tenant: &authctx.AuthTenant{TenantID: tenantID, TenantUUID: testTenantUUID},
 	})
 }
 
 func withUser(r *http.Request) *http.Request {
-	return middleware.WithAuthContext(r, &middleware.AuthContext{
-		User: &cache.AuthUser{UserUUID: testUserUUID},
+	return middleware.WithAuthContext(r, &authctx.AuthContext{
+		User: &authctx.AuthUser{UserUUID: testUserUUID},
 	})
 }
 
 func withTenantAndUser(r *http.Request) *http.Request {
-	return middleware.WithAuthContext(r, &middleware.AuthContext{
-		Tenant: &cache.AuthTenant{TenantID: tenantID, TenantUUID: testTenantUUID},
-		User:   &cache.AuthUser{UserUUID: testUserUUID},
+	return middleware.WithAuthContext(r, &authctx.AuthContext{
+		Tenant: &authctx.AuthTenant{TenantID: tenantID, TenantUUID: testTenantUUID},
+		User:   &authctx.AuthUser{UserUUID: testUserUUID},
 	})
 }
 

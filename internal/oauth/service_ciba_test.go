@@ -65,17 +65,21 @@ func (m *mockOAuthCIBARepo) UpdateLastPollAt(id int64) error {
 	}
 	return nil
 }
-func (m *mockOAuthCIBARepo) MarkNotificationSent(_ int64) error              { return nil }
-func (m *mockOAuthCIBARepo) DeleteExpired(_ time.Time) (int64, error)        { return 0, nil }
+func (m *mockOAuthCIBARepo) MarkNotificationSent(_ int64) error       { return nil }
+func (m *mockOAuthCIBARepo) DeleteExpired(_ time.Time) (int64, error) { return 0, nil }
 func (m *mockOAuthCIBARepo) Create(e *OAuthCIBARequest) (*OAuthCIBARequest, error) {
 	if m.createFn != nil {
 		return m.createFn(e)
 	}
 	return e, nil
 }
-func (m *mockOAuthCIBARepo) CreateOrUpdate(e *OAuthCIBARequest) (*OAuthCIBARequest, error) { return e, nil }
-func (m *mockOAuthCIBARepo) FindAll(_ ...string) ([]OAuthCIBARequest, error)               { return nil, nil }
-func (m *mockOAuthCIBARepo) FindByUUID(_ any, _ ...string) (*OAuthCIBARequest, error)      { return nil, nil }
+func (m *mockOAuthCIBARepo) CreateOrUpdate(e *OAuthCIBARequest) (*OAuthCIBARequest, error) {
+	return e, nil
+}
+func (m *mockOAuthCIBARepo) FindAll(_ ...string) ([]OAuthCIBARequest, error) { return nil, nil }
+func (m *mockOAuthCIBARepo) FindByUUID(_ any, _ ...string) (*OAuthCIBARequest, error) {
+	return nil, nil
+}
 func (m *mockOAuthCIBARepo) FindByUUIDs(_ []string, _ ...string) ([]OAuthCIBARequest, error) {
 	return nil, nil
 }
@@ -358,8 +362,8 @@ func TestOAuthCIBAService_ApproveRequest(t *testing.T) {
 	t.Run("not found", func(t *testing.T) {
 		db, _ := newMockDB(t)
 		svc := &oauthCIBAService{
-			db:       db,
-			cibaRepo: &mockOAuthCIBARepo{},
+			db:               db,
+			cibaRepo:         &mockOAuthCIBARepo{},
 			authEventService: &mockAuthEventService{},
 		}
 
@@ -431,8 +435,8 @@ func TestOAuthCIBAService_DenyRequest(t *testing.T) {
 	t.Run("not found", func(t *testing.T) {
 		db, _ := newMockDB(t)
 		svc := &oauthCIBAService{
-			db:       db,
-			cibaRepo: &mockOAuthCIBARepo{},
+			db:               db,
+			cibaRepo:         &mockOAuthCIBARepo{},
 			authEventService: &mockAuthEventService{},
 		}
 
@@ -470,5 +474,3 @@ func TestOAuthCIBAService_DenyRequest(t *testing.T) {
 		assert.Equal(t, int64(1), deniedID)
 	})
 }
-
-

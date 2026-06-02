@@ -11,6 +11,7 @@ import (
 
 	"github.com/alicebob/miniredis/v2"
 	"github.com/google/uuid"
+	"github.com/maintainerd/auth/internal/authctx"
 	"github.com/maintainerd/auth/internal/platform/cache"
 	"github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/assert"
@@ -33,10 +34,10 @@ func newMiniredisClient(t *testing.T) (*miniredis.Miniredis, *redis.Client) {
 
 // mockContextProvider implements UserContextProvider with ctx support.
 type mockContextProvider struct {
-	findFn func(sub, cID string) (*cache.AuthUser, error)
+	findFn func(sub, cID string) (*authctx.AuthUser, error)
 }
 
-func (m *mockContextProvider) FindBySubAndClientID(_ context.Context, sub, cID string) (*cache.AuthUser, error) {
+func (m *mockContextProvider) FindBySubAndClientID(_ context.Context, sub, cID string) (*authctx.AuthUser, error) {
 	if m.findFn != nil {
 		return m.findFn(sub, cID)
 	}
@@ -75,29 +76,29 @@ func TestUserContextMiddleware(t *testing.T) {
 
 	cases := []struct {
 		name              string
-		findBySubClientID func(sub, cID string) (*cache.AuthUser, error)
+		findBySubClientID func(sub, cID string) (*authctx.AuthUser, error)
 		wantStatus        int
-		checkContext      func(t *testing.T, captured *cache.AuthUser)
+		checkContext      func(t *testing.T, captured *authctx.AuthUser)
 	}{
 		{
 			name: "user found -> context populated -> 200",
-			findBySubClientID: func(_, _ string) (*cache.AuthUser, error) {
-				return &cache.AuthUser{UserID: 1, UserUUID: userUUID}, nil
+			findBySubClientID: func(_, _ string) (*authctx.AuthUser, error) {
+				return &authctx.AuthUser{UserID: 1, UserUUID: userUUID}, nil
 			},
 			wantStatus: http.StatusOK,
-			checkContext: func(t *testing.T, captured *cache.AuthUser) {
+			checkContext: func(t *testing.T, captured *authctx.AuthUser) {
 				require.NotNil(t, captured)
 				assert.Equal(t, userUUID, captured.UserUUID)
 			},
 		},
 		{
 			name:              "user not found -> 401",
-			findBySubClientID: func(_, _ string) (*cache.AuthUser, error) { return nil, nil },
+			findBySubClientID: func(_, _ string) (*authctx.AuthUser, error) { return nil, nil },
 			wantStatus:        http.StatusUnauthorized,
 		},
 		{
 			name: "db error -> 500",
-			findBySubClientID: func(_, _ string) (*cache.AuthUser, error) {
+			findBySubClientID: func(_, _ string) (*authctx.AuthUser, error) {
 				return nil, errors.New("db error")
 			},
 			wantStatus: http.StatusInternalServerError,
@@ -106,7 +107,7 @@ func TestUserContextMiddleware(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			var captured *cache.AuthUser
+			var captured *authctx.AuthUser
 			next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				captured = AuthFromRequest(r).User
 				w.WriteHeader(http.StatusOK)
@@ -134,7 +135,7 @@ func TestUserContextMiddleware_CacheHit(t *testing.T) {
 	userUUID := uuid.New()
 
 	// Seed the cache via the cache package
-	payload := cache.UserContext{User: &cache.AuthUser{UserUUID: userUUID}}
+	payload := authctx.UserContext{User: &authctx.AuthUser{UserUUID: userUUID}}
 	data, err := json.Marshal(payload)
 	require.NoError(t, err)
 
@@ -144,7 +145,7 @@ func TestUserContextMiddleware_CacheHit(t *testing.T) {
 
 	appCache := cache.New(redisCli)
 
-	var captured *cache.AuthUser
+	var captured *authctx.AuthUser
 	next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		captured = AuthFromRequest(r).User
 		w.WriteHeader(http.StatusOK)
@@ -164,18 +165,18 @@ func TestUserContextMiddleware_IdentityFiltering(t *testing.T) {
 	const sub = "user-sub-identity"
 	const clientID = "my-client-id"
 	userUUID := uuid.New()
-	user := &cache.AuthUser{
+	user := &authctx.AuthUser{
 		UserUUID: userUUID,
 	}
 
-	var capturedTenant *cache.AuthTenant
+	var capturedTenant *authctx.AuthTenant
 	next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		capturedTenant = AuthFromRequest(r).Tenant
 		w.WriteHeader(http.StatusOK)
 	})
 
 	repo := &mockContextProvider{
-		findFn: func(_, _ string) (*cache.AuthUser, error) { return user, nil },
+		findFn: func(_, _ string) (*authctx.AuthUser, error) { return user, nil },
 	}
 	mw := UserContextMiddleware(repo, newFakeCache())
 	req := withJWTContext(httptest.NewRequest(http.MethodGet, "/", nil), sub, clientID)

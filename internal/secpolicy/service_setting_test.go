@@ -526,20 +526,8 @@ func TestSecuritySettingService_UpdateLockoutConfig(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestSecuritySettingService_UpdateConfig_InvalidConfigType(t *testing.T) {
-	db, mock := newMockGormDB(t)
-	mock.ExpectBegin()
-	mock.ExpectRollback()
-	svc := &securitySettingService{
-		db: db,
-		securitySettingRepo: &mockSecuritySettingRepo{
-			findByUserPoolIDFn: func(_ int64) (*SecuritySetting, error) {
-				return newSecSetting(1), nil
-			},
-		},
-		securitySettingsAuditRepo: &mockSecuritySettingsAuditRepo{},
-	}
-	_, err := svc.updateConfig(1, "invalid_type", map[string]any{"key": "val"}, 10, "1.2.3.4", "agent")
+	svc := &securitySettingService{}
+	_, err := svc.updateConfigByDefinition(context.Background(), 1, "invalid_type", map[string]any{"key": "val"}, 10, "1.2.3.4", "agent")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "invalid config type")
-	assert.NoError(t, mock.ExpectationsWereMet())
 }

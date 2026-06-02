@@ -183,12 +183,8 @@ func (r *userRepository) FindRolesPaginated(filter GetUserRolesFilter) (*Paginat
 		Joins("JOIN user_roles ur ON ur.role_id = roles.role_id").
 		Where("ur.user_id = ?", filter.UserID)
 
-	if filter.Name != nil && *filter.Name != "" {
-		query = query.Where("roles.name ILIKE ?", "%"+*filter.Name+"%")
-	}
-	if filter.Description != nil && *filter.Description != "" {
-		query = query.Where("roles.description ILIKE ?", "%"+*filter.Description+"%")
-	}
+	query = database.ApplyILike(query, "roles.name", filter.Name)
+	query = database.ApplyILike(query, "roles.description", filter.Description)
 	if filter.Status != nil && *filter.Status != "" {
 		query = query.Where("roles.status = ?", *filter.Status)
 	}
@@ -304,15 +300,9 @@ func (r *userRepository) FindPaginated(filter UserRepositoryGetFilter) (*Paginat
 	}
 
 	// Apply filters
-	if filter.Username != nil {
-		query = query.Where("users.username ILIKE ?", "%"+*filter.Username+"%")
-	}
-	if filter.Email != nil {
-		query = query.Where("users.email ILIKE ?", "%"+*filter.Email+"%")
-	}
-	if filter.Phone != nil {
-		query = query.Where("users.phone ILIKE ?", "%"+*filter.Phone+"%")
-	}
+	query = database.ApplyILike(query, "users.username", filter.Username)
+	query = database.ApplyILike(query, "users.email", filter.Email)
+	query = database.ApplyILike(query, "users.phone", filter.Phone)
 	if len(filter.Status) > 0 {
 		query = query.Where("users.status IN ?", filter.Status)
 	}

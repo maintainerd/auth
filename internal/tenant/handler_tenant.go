@@ -341,6 +341,7 @@ func toTenantResponseDTO(r TenantServiceDataResult) TenantResponseDTO {
 		Status:      r.Status,
 		IsPublic:    r.IsPublic,
 		IsSystem:    r.IsSystem,
+		Metadata:    r.Metadata,
 		CreatedAt:   r.CreatedAt,
 		UpdatedAt:   r.UpdatedAt,
 	}

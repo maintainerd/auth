@@ -38,36 +38,64 @@ import (
 	"encoding/base64"
 	"fmt"
 	"net/url"
-	"os"
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
-
-	"github.com/maintainerd/auth/internal/platform/config"
 )
 
 // ============================================================================
 // CONFIGURATION
 // ============================================================================
 
-var loadHMACSecret = func() ([]byte, error) {
-	return config.LoadSecret("HMAC_SECRET_KEY")
+// Signer signs and validates URL query parameters with a preloaded HMAC key.
+type Signer struct {
+	secret []byte
 }
 
-// hmacSecretKey returns the HMAC signing key through the configured secret
-// manager. Tests that do not initialize config may still fall back to the env
-// provider, which mirrors config's default provider behavior.
-func hmacSecretKey() ([]byte, error) {
-	key, err := loadHMACSecret()
-	if err == nil {
-		return key, nil
+var (
+	defaultSignerMu sync.RWMutex
+	defaultSigner   *Signer
+)
+
+// NewSigner returns a signed URL helper using the supplied HMAC key.
+func NewSigner(secret []byte) (*Signer, error) {
+	if len(secret) == 0 {
+		return nil, fmt.Errorf("HMAC secret key is required")
+	}
+	copied := make([]byte, len(secret))
+	copy(copied, secret)
+	return &Signer{secret: copied}, nil
+}
+
+// Configure installs the process-wide signer used by the package-level helpers.
+func Configure(secret []byte) error {
+	signer, err := NewSigner(secret)
+	if err != nil {
+		return err
 	}
 
-	if envKey := os.Getenv("HMAC_SECRET_KEY"); envKey != "" {
-		return []byte(envKey), nil
+	defaultSignerMu.Lock()
+	defaultSigner = signer
+	defaultSignerMu.Unlock()
+	return nil
+}
+
+func configuredSigner() (*Signer, error) {
+	defaultSignerMu.RLock()
+	signer := defaultSigner
+	defaultSignerMu.RUnlock()
+	if signer == nil {
+		return nil, fmt.Errorf("signed URL signer is not configured")
 	}
-	return nil, fmt.Errorf("HMAC_SECRET_KEY secret is required but not available: %w", err)
+	return signer, nil
+}
+
+func resetDefaultSignerForTest() {
+	defaultSignerMu.Lock()
+	defaultSigner = nil
+	defaultSignerMu.Unlock()
 }
 
 // ============================================================================
@@ -79,6 +107,15 @@ func hmacSecretKey() ([]byte, error) {
 var GenerateSignedURL = generateSignedURL
 
 func generateSignedURL(baseURL string, params map[string]string, ttl time.Duration) (string, error) {
+	signer, err := configuredSigner()
+	if err != nil {
+		return "", err
+	}
+	return signer.GenerateSignedURL(baseURL, params, ttl)
+}
+
+// GenerateSignedURL generates a signed URL with custom params and expiration.
+func (s *Signer) GenerateSignedURL(baseURL string, params map[string]string, ttl time.Duration) (string, error) {
 	expires := time.Now().Add(ttl).Unix()
 
 	// Build query params
@@ -89,7 +126,7 @@ func generateSignedURL(baseURL string, params map[string]string, ttl time.Durati
 	values.Set("expires", fmt.Sprintf("%d", expires))
 
 	// Compute signature
-	sig, err := computeSignature(values)
+	sig, err := s.computeSignature(values)
 	if err != nil {
 		return "", fmt.Errorf("failed to compute signature: %w", err)
 	}
@@ -101,6 +138,15 @@ func generateSignedURL(baseURL string, params map[string]string, ttl time.Durati
 // ValidateSignedURL validates a signed URL and returns the query params if valid
 // Complies with SOC2 CC6.1 and ISO27001 A.13.2.1
 func ValidateSignedURL(values url.Values) (map[string]string, error) {
+	signer, err := configuredSigner()
+	if err != nil {
+		return nil, err
+	}
+	return signer.ValidateSignedURL(values)
+}
+
+// ValidateSignedURL validates a signed URL and returns the query params if valid.
+func (s *Signer) ValidateSignedURL(values url.Values) (map[string]string, error) {
 	expires := values.Get("expires")
 	sig := values.Get("sig")
 
@@ -121,7 +167,7 @@ func ValidateSignedURL(values url.Values) (map[string]string, error) {
 	expected := cloneValues(values)
 	expected.Del("sig") // remove sig before recomputing
 
-	expectedSig, err := computeSignature(expected)
+	expectedSig, err := s.computeSignature(expected)
 	if err != nil {
 		return nil, fmt.Errorf("failed to compute signature: %w", err)
 	}
@@ -165,6 +211,14 @@ func convertToFrontendURL(apiSignedURL, frontendBaseURL string) (string, error) 
 // computeSignature generates HMAC signature for url.Values.
 // Used internally by signed URL functions.
 func computeSignature(values url.Values) (string, error) {
+	signer, err := configuredSigner()
+	if err != nil {
+		return "", err
+	}
+	return signer.computeSignature(values)
+}
+
+func (s *Signer) computeSignature(values url.Values) (string, error) {
 	// Sort keys for deterministic signing
 	keys := make([]string, 0, len(values))
 	for k := range values {
@@ -186,11 +240,7 @@ func computeSignature(values url.Values) (string, error) {
 	data := strings.TrimRight(sb.String(), "&")
 
 	// Compute HMAC SHA256
-	secret, err := hmacSecretKey()
-	if err != nil {
-		return "", err
-	}
-	mac := hmac.New(sha256.New, secret)
+	mac := hmac.New(sha256.New, s.secret)
 	mac.Write([]byte(data))
 	return base64.URLEncoding.EncodeToString(mac.Sum(nil)), nil
 }

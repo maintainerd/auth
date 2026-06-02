@@ -14,7 +14,9 @@ const testHMACSecret = "test-hmac-secret-key-for-unit-tests"
 
 func setHMACSecret(t *testing.T) {
 	t.Helper()
-	t.Setenv("HMAC_SECRET_KEY", testHMACSecret)
+	resetDefaultSignerForTest()
+	require.NoError(t, Configure([]byte(testHMACSecret)))
+	t.Cleanup(resetDefaultSignerForTest)
 }
 
 func TestGenerateSignedURL(t *testing.T) {
@@ -153,26 +155,26 @@ func TestComputeSignature_IgnoresSigKey(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
-// hmacSecretKey — error path
+// signer configuration — error path
 // ---------------------------------------------------------------------------
 
-func TestHMACSecretKey_ErrorWhenMissing(t *testing.T) {
-	t.Setenv("HMAC_SECRET_KEY", "")
-	_, err := hmacSecretKey()
+func TestConfigure_ErrorWhenMissingSecret(t *testing.T) {
+	resetDefaultSignerForTest()
+	_, err := NewSigner(nil)
 	assert.Error(t, err)
 }
 
 func TestComputeSignature_ErrorWhenNoHMAC(t *testing.T) {
-	t.Setenv("HMAC_SECRET_KEY", "")
+	resetDefaultSignerForTest()
 	_, err := computeSignature(url.Values{"key": {"val"}})
 	assert.Error(t, err)
 }
 
 func TestGenerateSignedURL_ErrorWhenNoHMAC(t *testing.T) {
-	t.Setenv("HMAC_SECRET_KEY", "")
+	resetDefaultSignerForTest()
 	_, err := GenerateSignedURL("https://example.com", map[string]string{"k": "v"}, time.Hour)
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "failed to compute signature")
+	assert.Contains(t, err.Error(), "not configured")
 }
 
 func TestValidateSignedURL_ErrorWhenNoHMAC(t *testing.T) {
@@ -184,10 +186,10 @@ func TestValidateSignedURL_ErrorWhenNoHMAC(t *testing.T) {
 	parsed, err := url.Parse(signed)
 	require.NoError(t, err)
 
-	t.Setenv("HMAC_SECRET_KEY", "")
+	resetDefaultSignerForTest()
 	_, err = ValidateSignedURL(parsed.Query())
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "failed to compute signature")
+	assert.Contains(t, err.Error(), "not configured")
 }
 
 // ---------------------------------------------------------------------------

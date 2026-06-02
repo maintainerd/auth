@@ -1,11 +1,9 @@
 package user
 
 import (
-	"encoding/json"
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/maintainerd/auth/internal/platform/jsonutil"
 	"gorm.io/datatypes"
 )
 
@@ -130,50 +128,6 @@ type ProfileResponseDTO struct {
 	// System Fields
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
-}
-
-func NewProfileResponseDTO(p *Profile) *ProfileResponseDTO {
-	return &ProfileResponseDTO{
-		ProfileUUID: p.ProfileUUID.String(),
-
-		// Basic Identity Information
-		FirstName:   p.FirstName,
-		MiddleName:  p.MiddleName,
-		LastName:    p.LastName,
-		Suffix:      p.Suffix,
-		DisplayName: p.DisplayName,
-		Bio:         p.Bio,
-
-		// Personal Information
-		Birthdate: p.Birthdate,
-		Gender:    p.Gender,
-
-		// Contact Information
-		Phone:   p.Phone,
-		Email:   p.Email,
-		Address: p.Address,
-
-		// Location Information
-		City:    p.City,
-		Country: p.Country,
-
-		// Preference
-		Timezone: p.Timezone,
-		Language: p.Language,
-
-		// Media & Assets (auth-centric)
-		ProfileURL: p.ProfileURL,
-
-		// Profile Flags
-		IsDefault: p.IsDefault,
-
-		// Extended data
-		Metadata: jsonutil.JSONToMap(p.Metadata),
-
-		// System Fields
-		CreatedAt: p.CreatedAt,
-		UpdatedAt: p.UpdatedAt,
-	}
 }
 
 // ProfileFilterDTO for filtering and paginating profiles
@@ -339,50 +293,6 @@ type UserSettingResponseDTO struct {
 	UpdatedAt time.Time `json:"updated_at"`
 }
 
-func NewUserSettingResponseDTO(us *UserSetting) *UserSettingResponseDTO {
-	// Convert GORM JSON to map for social links
-	var socialLinks map[string]any
-	if len(us.SocialLinks) > 0 {
-		if err := json.Unmarshal(us.SocialLinks, &socialLinks); err != nil {
-			socialLinks = nil
-		}
-	}
-
-	return &UserSettingResponseDTO{
-		UserSettingUUID: us.UserSettingUUID.String(),
-
-		// Internationalization
-		Timezone:          us.Timezone,
-		PreferredLanguage: us.PreferredLanguage,
-		Locale:            us.Locale,
-
-		// Social Media & External Links
-		SocialLinks: socialLinks,
-
-		// Communication Preferences
-		PreferredContactMethod:   us.PreferredContactMethod,
-		MarketingEmailConsent:    us.MarketingEmailConsent,
-		SMSNotificationsConsent:  us.SMSNotificationsConsent,
-		PushNotificationsConsent: us.PushNotificationsConsent,
-
-		// Privacy & Compliance
-		ProfileVisibility:       us.ProfileVisibility,
-		DataProcessingConsent:   us.DataProcessingConsent,
-		TermsAcceptedAt:         us.TermsAcceptedAt,
-		PrivacyPolicyAcceptedAt: us.PrivacyPolicyAcceptedAt,
-
-		// Emergency Contact
-		EmergencyContactName:     us.EmergencyContactName,
-		EmergencyContactPhone:    us.EmergencyContactPhone,
-		EmergencyContactEmail:    us.EmergencyContactEmail,
-		EmergencyContactRelation: us.EmergencyContactRelation,
-
-		// System Fields
-		CreatedAt: us.CreatedAt,
-		UpdatedAt: us.UpdatedAt,
-	}
-}
-
 type LoginResponseDTO struct {
 	AccessToken           string  `json:"access_token"`
 	IDToken               string  `json:"id_token"`
@@ -405,16 +315,17 @@ type SessionDataResult struct {
 }
 
 type TenantResponseDTO struct {
-	TenantUUID  uuid.UUID `json:"tenant_id"`
-	Name        string    `json:"name"`
-	DisplayName string    `json:"display_name"`
-	Description string    `json:"description"`
-	Identifier  string    `json:"identifier"`
-	Status      string    `json:"status"`
-	IsPublic    bool      `json:"is_public"`
-	IsSystem    bool      `json:"is_system"`
-	CreatedAt   time.Time `json:"created_at"`
-	UpdatedAt   time.Time `json:"updated_at"`
+	TenantUUID  uuid.UUID      `json:"tenant_id"`
+	Name        string         `json:"name"`
+	DisplayName string         `json:"display_name"`
+	Description string         `json:"description"`
+	Identifier  string         `json:"identifier"`
+	Status      string         `json:"status"`
+	IsPublic    bool           `json:"is_public"`
+	IsSystem    bool           `json:"is_system"`
+	Metadata    datatypes.JSON `json:"metadata"`
+	CreatedAt   time.Time      `json:"created_at"`
+	UpdatedAt   time.Time      `json:"updated_at"`
 }
 
 type RoleResponseDTO struct {

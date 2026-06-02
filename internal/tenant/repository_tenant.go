@@ -92,18 +92,10 @@ func (r *tenantRepository) FindSystem() (*Tenant, error) {
 func (r *tenantRepository) FindPaginated(filter TenantRepositoryGetFilter) (*PaginationResult[Tenant], error) {
 	query := r.DB().Model(&Tenant{})
 
-	if filter.Name != nil {
-		query = query.Where("name ILIKE ?", "%"+*filter.Name+"%")
-	}
-	if filter.DisplayName != nil {
-		query = query.Where("display_name ILIKE ?", "%"+*filter.DisplayName+"%")
-	}
-	if filter.Description != nil {
-		query = query.Where("description ILIKE ?", "%"+*filter.Description+"%")
-	}
-	if filter.Identifier != nil {
-		query = query.Where("identifier ILIKE ?", "%"+*filter.Identifier+"%")
-	}
+	query = database.ApplyILike(query, "name", filter.Name)
+	query = database.ApplyILike(query, "display_name", filter.DisplayName)
+	query = database.ApplyILike(query, "description", filter.Description)
+	query = database.ApplyILike(query, "identifier", filter.Identifier)
 	if len(filter.Status) > 0 {
 		query = query.Where("status IN ?", filter.Status)
 	}

@@ -3,6 +3,7 @@ package user
 import (
 	"bytes"
 	"context"
+	"crypto/subtle"
 	"fmt"
 	"html/template"
 	"log/slog"
@@ -13,10 +14,10 @@ import (
 	"github.com/maintainerd/auth/internal/platform/crypto"
 	"github.com/maintainerd/auth/internal/platform/email"
 	"github.com/maintainerd/auth/internal/platform/jwt"
+	"github.com/maintainerd/auth/internal/platform/security"
 	"github.com/maintainerd/auth/internal/shared"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/codes"
-	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 )
 
@@ -92,7 +93,7 @@ func (s *accountService) InitiateEmailChange(ctx context.Context, userID int64, 
 	if user.Password == nil {
 		return apperror.NewValidation("account has no password set")
 	}
-	if err := bcrypt.CompareHashAndPassword([]byte(*user.Password), []byte(currentPassword)); err != nil {
+	if !security.ComparePassword([]byte(*user.Password), []byte(currentPassword)) {
 		return apperror.NewUnauthorized("invalid current password")
 	}
 
@@ -173,7 +174,7 @@ func (s *accountService) VerifyEmailChange(ctx context.Context, userID int64, ot
 	}
 
 	expectedHash := crypto.HashAuthorizationCode(otp)
-	if *user.EmailChangeOTP != expectedHash {
+	if subtle.ConstantTimeCompare([]byte(*user.EmailChangeOTP), []byte(expectedHash)) != 1 {
 		return apperror.NewUnauthorized("invalid OTP")
 	}
 
@@ -205,7 +206,7 @@ func (s *accountService) ChangeUsername(ctx context.Context, userID int64, newUs
 	if user.Password == nil {
 		return apperror.NewValidation("account has no password set")
 	}
-	if err := bcrypt.CompareHashAndPassword([]byte(*user.Password), []byte(currentPassword)); err != nil {
+	if !security.ComparePassword([]byte(*user.Password), []byte(currentPassword)) {
 		return apperror.NewUnauthorized("invalid current password")
 	}
 
@@ -239,7 +240,7 @@ func (s *accountService) DeleteAccount(ctx context.Context, userID int64, curren
 	if user.Password == nil {
 		return apperror.NewValidation("account has no password set")
 	}
-	if err := bcrypt.CompareHashAndPassword([]byte(*user.Password), []byte(currentPassword)); err != nil {
+	if !security.ComparePassword([]byte(*user.Password), []byte(currentPassword)) {
 		return apperror.NewUnauthorized("invalid current password")
 	}
 
@@ -408,7 +409,7 @@ func (s *accountService) VerifyBackupCode(ctx context.Context, req VerifyBackupC
 func (s *accountService) generateTokenResponse(sub string, user *User, client *Client) (*LoginResponseDTO, error) {
 	accessToken, err := jwt.GenerateAccessToken(
 		sub,
-		"openid profile email",
+		shared.DefaultTokenScope,
 		*client.Domain,
 		*client.Identifier,
 		*client.Identifier,
@@ -439,7 +440,7 @@ func (s *accountService) generateTokenResponse(sub string, user *User, client *C
 		AccessToken:  accessToken,
 		IDToken:      idToken,
 		RefreshToken: refreshToken,
-		ExpiresIn:    3600,
+		ExpiresIn:    shared.DefaultAccessTokenExpiresIn,
 		TokenType:    "Bearer",
 		IssuedAt:     time.Now().Unix(),
 	}, nil

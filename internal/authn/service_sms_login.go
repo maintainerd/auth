@@ -2,6 +2,7 @@ package authn
 
 import (
 	"context"
+	"crypto/subtle"
 	"fmt"
 	"log/slog"
 	"time"
@@ -21,6 +22,7 @@ import (
 
 const smsOTPLength = 6
 const smsOTPTTL = 10 * time.Minute
+const smsOTPMaxFailedAttempts = 3
 
 // SMSLoginService handles SMS one-time-code login flows.
 type SMSLoginService interface {
@@ -177,7 +179,10 @@ func (s *smsLoginService) VerifyOTP(ctx context.Context, req SMSLoginVerifyDTO) 
 
 		// Verify hash.
 		expectedHash := crypto.HashAuthorizationCode(req.OTP)
-		if otpRecord.OTPHash != expectedHash {
+		if subtle.ConstantTimeCompare([]byte(otpRecord.OTPHash), []byte(expectedHash)) != 1 {
+			if txErr := txSmsOtpRepo.RecordFailure(otpRecord.SMSOtpID, smsOTPMaxFailedAttempts); txErr != nil {
+				return apperror.NewInternal("failed to record OTP attempt", txErr)
+			}
 			return apperror.NewUnauthorized("invalid or expired OTP")
 		}
 
@@ -211,12 +216,5 @@ func (s *smsLoginService) generateSMSTokenResponse(sub string, user *User, clien
 	if err != nil {
 		return nil, err
 	}
-	return &LoginResponseDTO{
-		AccessToken:  accessToken,
-		IDToken:      idToken,
-		RefreshToken: refreshToken,
-		ExpiresIn:    DefaultAccessTokenExpiresIn,
-		TokenType:    "Bearer",
-		IssuedAt:     time.Now().Unix(),
-	}, nil
+	return buildLoginTokenResponse(accessToken, idToken, refreshToken, time.Now().Unix()), nil
 }

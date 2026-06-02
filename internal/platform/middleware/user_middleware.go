@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 
+	"github.com/maintainerd/auth/internal/authctx"
 	"github.com/maintainerd/auth/internal/platform/cache"
 	resp "github.com/maintainerd/auth/internal/platform/response"
 )
@@ -13,36 +14,26 @@ import (
 // narrow so the middleware does not depend on a raw repository or the full
 // UserService interface.
 type UserContextProvider interface {
-	FindBySubAndClientID(ctx context.Context, sub string, clientID string) (*cache.AuthUser, error)
+	FindBySubAndClientID(ctx context.Context, sub string, clientID string) (*authctx.AuthUser, error)
 }
 
 // authKey is the unexported context key type for AuthContext, preventing key
 // collisions with other packages.
 type authKey struct{}
 
-// AuthContext holds the authenticated principal and their associated tenant,
-// identity provider, and client. It is set once by UserContextMiddleware and
-// retrieved by downstream middleware and handlers via AuthFromRequest.
-type AuthContext struct {
-	User     *cache.AuthUser
-	Tenant   *cache.AuthTenant
-	Provider *cache.AuthProvider
-	Client   *cache.AuthClient
-}
-
 // AuthFromRequest returns the AuthContext stored in the request context by
 // UserContextMiddleware. It never returns nil — fields inside the struct may
 // be nil when the middleware has not populated them.
-func AuthFromRequest(r *http.Request) *AuthContext {
-	if auth, ok := r.Context().Value(authKey{}).(*AuthContext); ok {
+func AuthFromRequest(r *http.Request) *authctx.AuthContext {
+	if auth, ok := r.Context().Value(authKey{}).(*authctx.AuthContext); ok {
 		return auth
 	}
-	return &AuthContext{}
+	return &authctx.AuthContext{}
 }
 
 // WithAuthContext returns a shallow copy of r with the given AuthContext stored
 // in its context. It is intended for use in tests.
-func WithAuthContext(r *http.Request, auth *AuthContext) *http.Request {
+func WithAuthContext(r *http.Request, auth *authctx.AuthContext) *http.Request {
 	return r.WithContext(context.WithValue(r.Context(), authKey{}, auth))
 }
 
@@ -64,7 +55,7 @@ func UserContextMiddleware(
 
 			// Try cache first
 			if uc := appCache.GetUserContext(ctx, sub, clientID); uc != nil {
-				auth := &AuthContext{
+				auth := &authctx.AuthContext{
 					User:     uc.User,
 					Tenant:   uc.Tenant,
 					Provider: uc.Provider,
@@ -86,19 +77,19 @@ func UserContextMiddleware(
 			}
 
 			// Extract tenant from user identities matching the current client.
-			var tenant *cache.AuthTenant
-			var provider *cache.AuthProvider
-			var client *cache.AuthClient
+			var tenant *authctx.AuthTenant
+			var provider *authctx.AuthProvider
+			var client *authctx.AuthClient
 
 			// Write through to cache
-			appCache.SetUserContext(ctx, sub, clientID, &cache.UserContext{
+			appCache.SetUserContext(ctx, sub, clientID, &authctx.UserContext{
 				User:     user,
 				Tenant:   tenant,
 				Provider: provider,
 				Client:   client,
 			})
 
-			auth := &AuthContext{
+			auth := &authctx.AuthContext{
 				User:     user,
 				Tenant:   tenant,
 				Provider: provider,

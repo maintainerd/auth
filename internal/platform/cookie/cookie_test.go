@@ -5,6 +5,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/maintainerd/auth/internal/platform/config"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -103,6 +104,31 @@ func TestSetAuthCookies_EmptyTokensNotSet(t *testing.T) {
 	assert.Nil(t, findCookie(t, rr, "__Host-access_token"))
 	assert.Nil(t, findCookie(t, rr, "__Host-id_token"))
 	assert.Nil(t, findCookie(t, rr, "__Secure-refresh_token"))
+}
+
+func TestAuthCookies_ForceSecureForPrefixedNames(t *testing.T) {
+	oldSecure := config.CookieSecure
+	oldSameSite := config.CookieSameSite
+	t.Cleanup(func() {
+		config.CookieSecure = oldSecure
+		config.CookieSameSite = oldSameSite
+	})
+	config.CookieSecure = false
+	config.CookieSameSite = "none"
+
+	rr := httptest.NewRecorder()
+	SetAuthCookies(rr, map[string]interface{}{
+		"access_token":  "at",
+		"id_token":      "it",
+		"refresh_token": "rt",
+	})
+
+	for _, name := range []string{"__Host-access_token", "__Host-id_token", "__Secure-refresh_token"} {
+		c := findCookie(t, rr, name)
+		require.NotNil(t, c)
+		assert.True(t, c.Secure)
+		assert.Equal(t, http.SameSiteNoneMode, c.SameSite)
+	}
 }
 
 func TestClearAuthCookies(t *testing.T) {

@@ -17,10 +17,10 @@ func TestOAuthClientRegistrationRequestDTO_Validate(t *testing.T) {
 		{
 			"valid",
 			OAuthClientRegistrationRequestDTO{
-				ClientName:            "My App",
-				RedirectURIs:          []string{"https://example.com/cb"},
+				ClientName:              "My App",
+				RedirectURIs:            []string{"https://example.com/cb"},
 				TokenEndpointAuthMethod: "client_secret_basic",
-				IdentityProviderID:    1,
+				IdentityProviderID:      1,
 			},
 			"",
 		},

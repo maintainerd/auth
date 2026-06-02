@@ -2,6 +2,7 @@ package security
 
 import (
 	"context"
+	"crypto/sha256"
 
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/codes"
@@ -18,7 +19,7 @@ var HashPassword = func(ctx context.Context, password []byte) ([]byte, error) {
 	_, span := otel.Tracer("security").Start(ctx, "security.hash_password")
 	defer span.End()
 
-	hash, err := bcrypt.GenerateFromPassword(password, BcryptCost)
+	hash, err := bcrypt.GenerateFromPassword(bcryptInput(password), BcryptCost)
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "hash password failed")
@@ -35,7 +36,7 @@ var HashClientSecret = func(ctx context.Context, secret string) (string, error) 
 	_, span := otel.Tracer("security").Start(ctx, "security.hash_client_secret")
 	defer span.End()
 
-	hash, err := bcrypt.GenerateFromPassword([]byte(secret), BcryptCost)
+	hash, err := bcrypt.GenerateFromPassword(bcryptInput([]byte(secret)), BcryptCost)
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "hash client secret failed")
@@ -45,8 +46,25 @@ var HashClientSecret = func(ctx context.Context, secret string) (string, error) 
 	return string(hash), nil
 }
 
+// ComparePassword validates passwords hashed by HashPassword. It also accepts
+// legacy raw bcrypt hashes so existing users are not locked out during rollout.
+func ComparePassword(hash []byte, password []byte) bool {
+	if bcrypt.CompareHashAndPassword(hash, bcryptInput(password)) == nil {
+		return true
+	}
+	return bcrypt.CompareHashAndPassword(hash, password) == nil
+}
+
 // CompareClientSecret performs a constant-time bcrypt comparison between a
 // plaintext client secret and its stored hash, preventing timing attacks.
 func CompareClientSecret(plaintext, hash string) bool {
+	if bcrypt.CompareHashAndPassword([]byte(hash), bcryptInput([]byte(plaintext))) == nil {
+		return true
+	}
 	return bcrypt.CompareHashAndPassword([]byte(hash), []byte(plaintext)) == nil
+}
+
+func bcryptInput(input []byte) []byte {
+	sum := sha256.Sum256(input)
+	return sum[:]
 }

@@ -2,11 +2,12 @@ package authn
 
 import (
 	"errors"
+	"net/url"
+
 	validation "github.com/go-ozzo/ozzo-validation/v4"
 	"github.com/maintainerd/auth/internal/platform/security"
 	"github.com/maintainerd/auth/internal/platform/signedurl"
 	"github.com/maintainerd/auth/internal/platform/valid"
-	"net/url"
 )
 
 func (r *RegisterRequestDTO) Validate() error {
@@ -91,15 +92,6 @@ func (q *RegisterQueryDTO) Validate() error {
 			validation.Length(1, 255).Error("Provider ID must not exceed 255 characters"),
 		),
 	)
-}
-
-// Register invite query parameters structure
-type RegisterInviteQueryDTO struct {
-	ClientID    string `json:"client_id"`
-	ProviderID  string `json:"provider_id"`
-	InviteToken string `json:"invite_token"`
-	Expires     string `json:"expires"`
-	Sig         string `json:"sig"`
 }
 
 func (q *RegisterInviteQueryDTO) Validate() error {

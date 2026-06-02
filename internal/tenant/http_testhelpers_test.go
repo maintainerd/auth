@@ -11,8 +11,8 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
+	"github.com/maintainerd/auth/internal/authctx"
 	"github.com/maintainerd/auth/internal/platform/apperror"
-	"github.com/maintainerd/auth/internal/platform/cache"
 	"github.com/maintainerd/auth/internal/platform/middleware"
 	"github.com/stretchr/testify/require"
 )
@@ -33,14 +33,14 @@ var (
 
 // withTenant injects an authenticated tenant into the request context.
 func withTenant(r *http.Request) *http.Request {
-	tenant := &cache.AuthTenant{TenantID: tenantID, TenantUUID: testTenantUUID}
-	return middleware.WithAuthContext(r, &middleware.AuthContext{Tenant: tenant})
+	tenant := &authctx.AuthTenant{TenantID: tenantID, TenantUUID: testTenantUUID}
+	return middleware.WithAuthContext(r, &authctx.AuthContext{Tenant: tenant})
 }
 
 // withUser injects only an authenticated user into the request context.
 func withUser(r *http.Request) *http.Request {
-	user := &cache.AuthUser{UserUUID: testUserUUID}
-	return middleware.WithAuthContext(r, &middleware.AuthContext{User: user})
+	user := &authctx.AuthUser{UserUUID: testUserUUID}
+	return middleware.WithAuthContext(r, &authctx.AuthContext{User: user})
 }
 
 // withChiParam injects a chi URL parameter into the request context.

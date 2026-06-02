@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"fmt"
 	"log/slog"
+	"strconv"
 	"strings"
 	"time"
 
@@ -25,7 +26,8 @@ func NewRedisClient() (*redis.Client, error) {
 		DB:       0,
 	}
 
-	useTLS := GetEnvOrDefault("REDIS_TLS", "") == "true" || strings.HasPrefix(addr, "rediss://")
+	useTLS, _ := strconv.ParseBool(GetEnvOrDefault("REDIS_TLS", "false"))
+	useTLS = useTLS || strings.HasPrefix(addr, "rediss://")
 	if useTLS {
 		opts.TLSConfig = &tls.Config{MinVersion: tls.VersionTLS12}
 		slog.Info("Redis TLS enabled")

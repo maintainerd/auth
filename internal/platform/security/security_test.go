@@ -1,6 +1,7 @@
 package security
 
 import (
+	"context"
 	"fmt"
 	"strings"
 	"testing"
@@ -162,6 +163,35 @@ func TestGetDummyBcryptHash_IsValidBcrypt(t *testing.T) {
 func TestGetDummyBcryptHash_Idempotent(t *testing.T) {
 	// Same slice returned on every call (pre-computed once at init)
 	assert.Equal(t, GetDummyBcryptHash(), GetDummyBcryptHash())
+}
+
+func TestHashPassword_PreventsBcrypt72ByteCollision(t *testing.T) {
+	passwordA := []byte(strings.Repeat("a", 72) + "X")
+	passwordB := []byte(strings.Repeat("a", 72) + "Y")
+
+	hash, err := HashPassword(context.Background(), passwordA)
+	require.NoError(t, err)
+
+	assert.True(t, ComparePassword(hash, passwordA))
+	assert.False(t, ComparePassword(hash, passwordB))
+}
+
+func TestComparePassword_LegacyRawBcryptFallback(t *testing.T) {
+	legacyHash, err := bcrypt.GenerateFromPassword([]byte("legacy-password"), BcryptCost)
+	require.NoError(t, err)
+
+	assert.True(t, ComparePassword(legacyHash, []byte("legacy-password")))
+}
+
+func TestCompareClientSecret_PreventsBcrypt72ByteCollision(t *testing.T) {
+	secretA := strings.Repeat("s", 72) + "X"
+	secretB := strings.Repeat("s", 72) + "Y"
+
+	hash, err := HashClientSecret(context.Background(), secretA)
+	require.NoError(t, err)
+
+	assert.True(t, CompareClientSecret(secretA, hash))
+	assert.False(t, CompareClientSecret(secretB, hash))
 }
 
 // ---------------------------------------------------------------------------

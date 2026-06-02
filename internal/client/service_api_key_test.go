@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/maintainerd/auth/internal/platform/pagination"
 	"github.com/maintainerd/auth/internal/shared"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -493,7 +494,7 @@ func TestAPIKeyService_GetAPIKeyAPIs(t *testing.T) {
 		akaRepo := &mockAPIKeyAPIRepo{
 			findByAPIKeyUUIDPaginatedFn: func(_ uuid.UUID, page, limit int, _, _ string) (*PaginationResult[APIKeyAPI], error) {
 				assert.Equal(t, 1, page)
-				assert.Equal(t, 10, limit)
+				assert.Equal(t, pagination.DefaultPageSize, limit)
 				return &PaginationResult[APIKeyAPI]{
 					Data: []APIKeyAPI{
 						{
@@ -522,7 +523,7 @@ func TestAPIKeyService_GetAPIKeyAPIs(t *testing.T) {
 							},
 						},
 					},
-					Total: 1, Page: 1, Limit: 10, TotalPages: 1,
+					Total: 1, Page: 1, Limit: pagination.DefaultPageSize, TotalPages: 1,
 				}, nil
 			},
 		}

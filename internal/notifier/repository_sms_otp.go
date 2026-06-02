@@ -12,6 +12,7 @@ type SMSOtpRepository interface {
 	BaseRepositoryMethods[SMSOtp]
 	WithTx(tx *gorm.DB) SMSOtpRepository
 	FindValidByPhone(phone string) (*SMSOtp, error)
+	RecordFailure(id int64, maxAttempts int) error
 	MarkUsed(id int64) error
 }
 
@@ -44,6 +45,15 @@ func (r *smsOtpRepository) FindValidByPhone(phone string) (*SMSOtp, error) {
 		return nil, err
 	}
 	return &otp, nil
+}
+
+func (r *smsOtpRepository) RecordFailure(id int64, maxAttempts int) error {
+	return r.DB().Model(&SMSOtp{}).
+		Where("sms_otp_id = ?", id).
+		Updates(map[string]any{
+			"failed_attempts": gorm.Expr("failed_attempts + 1"),
+			"used":            gorm.Expr("CASE WHEN failed_attempts + 1 >= ? THEN TRUE ELSE used END", maxAttempts),
+		}).Error
 }
 
 func (r *smsOtpRepository) MarkUsed(id int64) error {

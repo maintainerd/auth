@@ -18,10 +18,10 @@ func TestOAuthTokenExchangeRequestDTO_Validate(t *testing.T) {
 		{
 			"valid",
 			OAuthTokenExchangeRequestDTO{
-				SubjectToken:      "tok123",
-				SubjectTokenType:  validTokenType,
+				SubjectToken:       "tok123",
+				SubjectTokenType:   validTokenType,
 				RequestedTokenType: validTokenType,
-				ClientID:          "app",
+				ClientID:           "app",
 			},
 			"",
 		},

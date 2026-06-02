@@ -8,6 +8,7 @@ import (
 
 	"github.com/maintainerd/auth/internal/platform/config"
 	"github.com/maintainerd/auth/internal/platform/jwt"
+	"github.com/maintainerd/auth/internal/shared"
 )
 
 // OAuthDiscoveryHandler serves the OpenID Connect discovery document and
@@ -47,7 +48,7 @@ func (h *OAuthDiscoveryHandler) Discovery(w http.ResponseWriter, r *http.Request
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	w.Header().Set("Cache-Control", "public, max-age=3600")
+	w.Header().Set("Cache-Control", shared.DefaultDiscoveryCacheMaxAge)
 	w.WriteHeader(http.StatusOK)
 	_ = json.NewEncoder(w).Encode(doc)
 }
@@ -83,7 +84,7 @@ func (h *OAuthDiscoveryHandler) AuthorizationServerMetadata(w http.ResponseWrite
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	w.Header().Set("Cache-Control", "public, max-age=3600")
+	w.Header().Set("Cache-Control", shared.DefaultDiscoveryCacheMaxAge)
 	w.WriteHeader(http.StatusOK)
 	_ = json.NewEncoder(w).Encode(doc)
 }
@@ -113,7 +114,7 @@ func (h *OAuthDiscoveryHandler) JWKS(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	w.Header().Set("Cache-Control", "public, max-age=3600")
+	w.Header().Set("Cache-Control", shared.DefaultDiscoveryCacheMaxAge)
 	w.WriteHeader(http.StatusOK)
 	_ = json.NewEncoder(w).Encode(JWKSResponseDTO{Keys: keys})
 }

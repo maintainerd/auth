@@ -9,6 +9,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 
+	"github.com/maintainerd/auth/internal/platform/jsonutil"
 	"github.com/maintainerd/auth/internal/platform/middleware"
 	"github.com/maintainerd/auth/internal/platform/pagination"
 	"github.com/maintainerd/auth/internal/platform/ptr"
@@ -632,5 +633,31 @@ func toProfileResponseDTO(p ProfileServiceDataResult) ProfileResponseDTO {
 		// System Fields
 		CreatedAt: p.CreatedAt,
 		UpdatedAt: p.UpdatedAt,
+	}
+}
+
+func NewProfileResponseDTO(p *Profile) *ProfileResponseDTO {
+	return &ProfileResponseDTO{
+		ProfileUUID: p.ProfileUUID.String(),
+		FirstName:   p.FirstName,
+		MiddleName:  p.MiddleName,
+		LastName:    p.LastName,
+		Suffix:      p.Suffix,
+		DisplayName: p.DisplayName,
+		Bio:         p.Bio,
+		Birthdate:   p.Birthdate,
+		Gender:      p.Gender,
+		Phone:       p.Phone,
+		Email:       p.Email,
+		Address:     p.Address,
+		City:        p.City,
+		Country:     p.Country,
+		Timezone:    p.Timezone,
+		Language:    p.Language,
+		ProfileURL:  p.ProfileURL,
+		IsDefault:   p.IsDefault,
+		Metadata:    jsonutil.JSONToMap(p.Metadata),
+		CreatedAt:   p.CreatedAt,
+		UpdatedAt:   p.UpdatedAt,
 	}
 }

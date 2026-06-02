@@ -97,12 +97,8 @@ func (r *identityProviderRepository) FindPaginated(filter IdentityProviderReposi
 	query := r.DB().Model(&IdentityProvider{})
 
 	// Filters with LIKE
-	if filter.Name != nil {
-		query = query.Where("name ILIKE ?", "%"+*filter.Name+"%")
-	}
-	if filter.DisplayName != nil {
-		query = query.Where("display_name ILIKE ?", "%"+*filter.DisplayName+"%")
-	}
+	query = database.ApplyILike(query, "name", filter.Name)
+	query = database.ApplyILike(query, "display_name", filter.DisplayName)
 
 	// Filters with exact match
 	if len(filter.Provider) > 0 {

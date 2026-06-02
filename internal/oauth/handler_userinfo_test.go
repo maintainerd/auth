@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/maintainerd/auth/internal/authctx"
 	"github.com/maintainerd/auth/internal/platform/middleware"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -26,7 +27,7 @@ func TestOAuthUserInfoHandler_UserInfo_NoUser(t *testing.T) {
 	h := NewOAuthUserInfoHandler()
 	r := httptest.NewRequest(http.MethodGet, "/oauth/userinfo", nil)
 	// Inject empty auth context (no user).
-	r = middleware.WithAuthContext(r, &middleware.AuthContext{})
+	r = middleware.WithAuthContext(r, &authctx.AuthContext{})
 	w := httptest.NewRecorder()
 
 	h.UserInfo(w, r)
@@ -56,7 +57,11 @@ func TestOAuthUserInfoHandler_UserInfo_Success(t *testing.T) {
 
 	h := NewOAuthUserInfoHandler()
 	r := httptest.NewRequest(http.MethodGet, "/oauth/userinfo", nil)
-	r = middleware.WithAuthContext(r, &middleware.AuthContext{
+	r = middleware.WithJWTClaims(r, &middleware.JWTClaims{
+		Sub:   "identity-sub-123",
+		Scope: "openid email profile phone",
+	})
+	r = middleware.WithAuthContext(r, &authctx.AuthContext{
 		User: &User{
 			UserUUID:        userUUID,
 			Email:           "user@example.com",
@@ -78,7 +83,7 @@ func TestOAuthUserInfoHandler_UserInfo_Success(t *testing.T) {
 	var resp OAuthUserInfoResponseDTO
 	require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
 
-	assert.Equal(t, userUUID.String(), resp.Sub)
+	assert.Equal(t, "identity-sub-123", resp.Sub)
 	assert.Equal(t, "user@example.com", resp.Email)
 	assert.True(t, resp.EmailVerified)
 	assert.Equal(t, "+1234567890", resp.Phone)
@@ -88,10 +93,45 @@ func TestOAuthUserInfoHandler_UserInfo_Success(t *testing.T) {
 	assert.Empty(t, resp.Picture)
 }
 
+func TestOAuthUserInfoHandler_UserInfo_OpenIDOnly(t *testing.T) {
+	userUUID := uuid.MustParse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee")
+
+	h := NewOAuthUserInfoHandler()
+	r := httptest.NewRequest(http.MethodGet, "/oauth/userinfo", nil)
+	r = middleware.WithJWTClaims(r, &middleware.JWTClaims{
+		Sub:   "identity-sub-123",
+		Scope: "openid",
+	})
+	r = middleware.WithAuthContext(r, &authctx.AuthContext{
+		User: &User{
+			UserUUID:        userUUID,
+			Email:           "user@example.com",
+			IsEmailVerified: true,
+			Phone:           "+1234567890",
+			Fullname:        "Jane Doe",
+			UpdatedAt:       time.Now(),
+		},
+	})
+	w := httptest.NewRecorder()
+
+	h.UserInfo(w, r)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+
+	var resp OAuthUserInfoResponseDTO
+	require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
+	assert.Equal(t, "identity-sub-123", resp.Sub)
+	assert.Empty(t, resp.Email)
+	assert.Empty(t, resp.Phone)
+	assert.Empty(t, resp.Name)
+	assert.Zero(t, resp.UpdatedAt)
+}
+
 func TestOAuthUserInfoHandler_UserInfo_NilProfileURL(t *testing.T) {
 	h := NewOAuthUserInfoHandler()
 	r := httptest.NewRequest(http.MethodGet, "/oauth/userinfo", nil)
-	r = middleware.WithAuthContext(r, &middleware.AuthContext{
+	r = middleware.WithJWTClaims(r, &middleware.JWTClaims{Scope: "profile"})
+	r = middleware.WithAuthContext(r, &authctx.AuthContext{
 		User: &User{
 			UserUUID:  testUserUUID,
 			Fullname:  "No Pic",
@@ -115,7 +155,8 @@ func TestOAuthUserInfoHandler_UserInfo_NilProfileURL(t *testing.T) {
 func TestOAuthUserInfoHandler_UserInfo_NoProfile(t *testing.T) {
 	h := NewOAuthUserInfoHandler()
 	r := httptest.NewRequest(http.MethodGet, "/oauth/userinfo", nil)
-	r = middleware.WithAuthContext(r, &middleware.AuthContext{
+	r = middleware.WithJWTClaims(r, &middleware.JWTClaims{Scope: "profile"})
+	r = middleware.WithAuthContext(r, &authctx.AuthContext{
 		User: &User{
 			UserUUID:  testUserUUID,
 			Fullname:  "No Profile",

@@ -77,9 +77,7 @@ func (r *emailTemplateRepository) FindPaginated(filter EmailTemplateRepositoryGe
 	query := r.DB().Model(&EmailTemplate{})
 
 	// Apply filters
-	if filter.Name != nil && *filter.Name != "" {
-		query = query.Where("name ILIKE ?", "%"+*filter.Name+"%")
-	}
+	query = database.ApplyILike(query, "name", filter.Name)
 	if len(filter.Status) > 0 {
 		query = query.Where("status IN ?", filter.Status)
 	}

@@ -588,6 +588,7 @@ func toUserResponseDTO(u UserServiceDataResult) UserResponseDTO {
 			Status:      u.Tenant.Status,
 			IsPublic:    u.Tenant.IsPublic,
 			IsSystem:    u.Tenant.IsSystem,
+			Metadata:    u.Tenant.Metadata,
 			CreatedAt:   u.Tenant.CreatedAt,
 			UpdatedAt:   u.Tenant.UpdatedAt,
 		}
@@ -637,13 +638,13 @@ func (h *UserHandler) GetUserRoles(w http.ResponseWriter, r *http.Request) {
 
 	// Build service filter with pagination and sorting params
 	filter := GetUserRolesFilter{
-		Name:      reqParams.Name,
+		Name:        reqParams.Name,
 		Description: reqParams.Description,
-		Status:    reqParams.Status,
-		Page:      reqParams.Page,
-		Limit:     reqParams.Limit,
-		SortBy:    reqParams.SortBy,
-		SortOrder: reqParams.SortOrder,
+		Status:      reqParams.Status,
+		Page:        reqParams.Page,
+		Limit:       reqParams.Limit,
+		SortBy:      reqParams.SortBy,
+		SortOrder:   reqParams.SortOrder,
 	}
 
 	// Fetch roles for the user (service validates tenant ownership internally)
@@ -770,5 +771,3 @@ func (h *UserHandler) GetUserIdentities(w http.ResponseWriter, r *http.Request) 
 
 	resp.Success(w, response, "User identities fetched successfully")
 }
-
-
