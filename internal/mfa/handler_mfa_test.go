@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -488,6 +489,87 @@ func TestMFAHandler_WebAuthnFinishBadBodies(t *testing.T) {
 	}
 }
 
+func TestMFAHandler_WebAuthnFinishParserBackedBranches(t *testing.T) {
+	originalCreation := parseWebAuthnCreationResponse
+	originalRequest := parseWebAuthnRequestResponse
+	t.Cleanup(func() {
+		parseWebAuthnCreationResponse = originalCreation
+		parseWebAuthnRequestResponse = originalRequest
+	})
+
+	parseWebAuthnCreationResponse = func(io.Reader) (*protocol.ParsedCredentialCreationData, error) {
+		return &protocol.ParsedCredentialCreationData{}, nil
+	}
+	parseWebAuthnRequestResponse = func(io.Reader) (*protocol.ParsedCredentialAssertionData, error) {
+		return &protocol.ParsedCredentialAssertionData{}, nil
+	}
+
+	tests := []struct {
+		name         string
+		request      *http.Request
+		handler      func(*MFAHandler, http.ResponseWriter, *http.Request)
+		webAuthnSvc  *mockWebAuthnService
+		wantStatus   int
+		wantContains string
+	}{
+		{
+			name:    "finish registration success",
+			request: authenticatedMFARequest(t, http.MethodPost, "/mfa/webauthn/register/finish?name=laptop", nil),
+			handler: (*MFAHandler).WebAuthnFinishRegistration,
+			webAuthnSvc: &mockWebAuthnService{finishRegistrationFn: func(_ context.Context, userID int64, name string, _ *protocol.ParsedCredentialCreationData) (*UserWebAuthnCredential, error) {
+				assert.Equal(t, mfaTestUserID, userID)
+				assert.Equal(t, "laptop", name)
+				return &UserWebAuthnCredential{CredentialUUID: mfaTestCredentialUUID, Name: name, Transport: "usb", CreatedAt: time.Unix(1_700_000_000, 0).UTC()}, nil
+			}},
+			wantStatus:   http.StatusOK,
+			wantContains: "Passkey registered successfully",
+		},
+		{
+			name:    "finish registration service error",
+			request: authenticatedMFARequest(t, http.MethodPost, "/mfa/webauthn/register/finish", nil),
+			handler: (*MFAHandler).WebAuthnFinishRegistration,
+			webAuthnSvc: &mockWebAuthnService{finishRegistrationFn: func(context.Context, int64, string, *protocol.ParsedCredentialCreationData) (*UserWebAuthnCredential, error) {
+				return nil, apperror.NewInternal("registration failed", errors.New("db down"))
+			}},
+			wantStatus:   http.StatusInternalServerError,
+			wantContains: "WebAuthn registration failed",
+		},
+		{
+			name:    "finish authentication success",
+			request: authenticatedMFARequest(t, http.MethodPost, "/mfa/webauthn/auth/finish", nil),
+			handler: (*MFAHandler).WebAuthnFinishAuthentication,
+			webAuthnSvc: &mockWebAuthnService{finishAuthenticationFn: func(_ context.Context, userID int64, _ *protocol.ParsedCredentialAssertionData) (*UserWebAuthnCredential, error) {
+				assert.Equal(t, mfaTestUserID, userID)
+				return &UserWebAuthnCredential{CredentialUUID: mfaTestCredentialUUID, Name: "Security Key"}, nil
+			}},
+			wantStatus:   http.StatusOK,
+			wantContains: "WebAuthn authentication succeeded",
+		},
+		{
+			name:    "finish authentication service error",
+			request: authenticatedMFARequest(t, http.MethodPost, "/mfa/webauthn/auth/finish", nil),
+			handler: (*MFAHandler).WebAuthnFinishAuthentication,
+			webAuthnSvc: &mockWebAuthnService{finishAuthenticationFn: func(context.Context, int64, *protocol.ParsedCredentialAssertionData) (*UserWebAuthnCredential, error) {
+				return nil, apperror.NewUnauthorized("assertion failed")
+			}},
+			wantStatus:   http.StatusUnauthorized,
+			wantContains: "assertion failed",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			h := NewMFAHandler(&mockMFAService{}, tt.webAuthnSvc)
+			rec := httptest.NewRecorder()
+
+			tt.handler(h, rec, tt.request)
+
+			assert.Equal(t, tt.wantStatus, rec.Code)
+			assert.Contains(t, rec.Body.String(), tt.wantContains)
+		})
+	}
+}
+
 func TestMFAHandler_ServiceErrors(t *testing.T) {
 	errInternal := errors.New("db down")
 
@@ -521,6 +603,46 @@ func TestMFAHandler_ServiceErrors(t *testing.T) {
 			wantContains: "Failed to disable TOTP",
 		},
 		{
+			name:    "begin totp service error",
+			request: authenticatedMFARequest(t, http.MethodPost, "/mfa/totp/enroll", nil),
+			handler: (*MFAHandler).BeginTOTPEnrollment,
+			mfaSvc: &mockMFAService{beginTOTPEnrollmentFn: func(context.Context, int64) (*TOTPEnrollResponseDTO, error) {
+				return nil, apperror.NewInternal("begin failed", errInternal)
+			}},
+			wantStatus:   http.StatusInternalServerError,
+			wantContains: "Failed to begin TOTP enrollment",
+		},
+		{
+			name:    "backup count service error",
+			request: authenticatedMFARequest(t, http.MethodGet, "/mfa/backup-codes/count", nil),
+			handler: (*MFAHandler).GetBackupCodesCount,
+			mfaSvc: &mockMFAService{getBackupCodesCountFn: func(context.Context, int64) (int, error) {
+				return 0, apperror.NewInternal("count failed", errInternal)
+			}},
+			wantStatus:   http.StatusInternalServerError,
+			wantContains: "Failed to get backup codes count",
+		},
+		{
+			name:    "regenerate backup codes service error",
+			request: authenticatedMFARequest(t, http.MethodPost, "/mfa/backup-codes/regenerate", nil),
+			handler: (*MFAHandler).RegenerateBackupCodes,
+			mfaSvc: &mockMFAService{regenerateBackupCodesFn: func(context.Context, int64) ([]string, error) {
+				return nil, apperror.NewInternal("regenerate failed", errInternal)
+			}},
+			wantStatus:   http.StatusInternalServerError,
+			wantContains: "Failed to regenerate backup codes",
+		},
+		{
+			name:    "webauthn begin registration service error",
+			request: authenticatedMFARequest(t, http.MethodPost, "/mfa/webauthn/register/begin", nil),
+			handler: (*MFAHandler).WebAuthnBeginRegistration,
+			webAuthnSvc: &mockWebAuthnService{beginRegistrationFn: func(context.Context, int64) (*protocol.CredentialCreation, error) {
+				return nil, apperror.NewInternal("begin registration failed", errInternal)
+			}},
+			wantStatus:   http.StatusInternalServerError,
+			wantContains: "Failed to begin WebAuthn registration",
+		},
+		{
 			name:    "webauthn begin auth service error",
 			request: authenticatedMFARequest(t, http.MethodPost, "/mfa/webauthn/auth/begin", nil),
 			handler: (*MFAHandler).WebAuthnBeginAuthentication,
@@ -529,6 +651,16 @@ func TestMFAHandler_ServiceErrors(t *testing.T) {
 			}},
 			wantStatus:   http.StatusBadRequest,
 			wantContains: "no credentials",
+		},
+		{
+			name:    "step-up challenge service error",
+			request: authenticatedMFARequest(t, http.MethodPost, "/mfa/step-up/challenge", nil),
+			handler: (*MFAHandler).IssueStepUpChallenge,
+			mfaSvc: &mockMFAService{issueStepUpChallengeFn: func(context.Context, string, []string) (*StepUpChallengeResponseDTO, error) {
+				return nil, apperror.NewInternal("challenge failed", errInternal)
+			}},
+			wantStatus:   http.StatusInternalServerError,
+			wantContains: "Failed to issue step-up challenge",
 		},
 		{
 			name:    "delete credential not found",

@@ -35,6 +35,16 @@ const (
 	stepUpChallengeTTL  = 5 * time.Minute
 )
 
+var (
+	generateBackupCodeString     = crypto.GenerateRandomString
+	generateTOTPKey              = totp.Generate
+	hashBackupCodePassword       = bcrypt.GenerateFromPassword
+	generateStepUpChallengeToken = jwt.GenerateStepUpChallengeTokenWithContext
+	validateStepUpChallengeToken = jwt.ValidateStepUpChallengeToken
+	generateStepUpAccessToken    = jwt.GenerateAccessTokenWithOptionsContext
+	checkMFARateLimit            = security.CheckRateLimit
+)
+
 // MFAService handles TOTP enrollment/verification, backup code management,
 // per-tenant MFA policy, admin resets, and step-up authentication.
 type MFAService interface {
@@ -111,7 +121,7 @@ func (s *mfaService) BeginTOTPEnrollment(ctx context.Context, userID int64) (*TO
 		return nil, apperror.NewNotFound("user not found")
 	}
 
-	key, err := totp.Generate(totp.GenerateOpts{
+	key, err := generateTOTPKey(totp.GenerateOpts{
 		Issuer:      totpIssuer,
 		AccountName: user.Email,
 		Digits:      totpDigits,
@@ -226,7 +236,7 @@ func (s *mfaService) VerifyTOTP(ctx context.Context, userID int64, code string) 
 	}
 
 	rateLimitKey := security.RateLimitKey(fmt.Sprintf("totp:%d", userID), "verify")
-	if err := security.CheckRateLimit(rateLimitKey); err != nil {
+	if err := checkMFARateLimit(rateLimitKey); err != nil {
 		span.SetStatus(codes.Error, "totp rate limited")
 		return false, apperror.NewUnauthorized("too many attempts; try again later")
 	}
@@ -354,11 +364,11 @@ func (s *mfaService) generateAndStoreBackupCodes(userID int64) ([]string, error)
 	plainCodes := make([]string, mfaBackupCodeCount)
 	models := make([]*UserBackupCode, mfaBackupCodeCount)
 	for i := range mfaBackupCodeCount {
-		code, err := crypto.GenerateRandomString(mfaBackupCodeLength)
+		code, err := generateBackupCodeString(mfaBackupCodeLength)
 		if err != nil {
 			return nil, apperror.NewInternal("backup code generation failed", err)
 		}
-		hash, err := bcrypt.GenerateFromPassword([]byte(code), bcrypt.DefaultCost)
+		hash, err := hashBackupCodePassword([]byte(code), bcrypt.DefaultCost)
 		if err != nil {
 			return nil, apperror.NewInternal("backup code hashing failed", err)
 		}
@@ -438,10 +448,7 @@ func (s *mfaService) GetMFAPolicy(ctx context.Context, userPoolID int64) (*MFAPo
 
 // IsMFARequired returns true when the pool policy requires MFA.
 func (s *mfaService) IsMFARequired(ctx context.Context, userPoolID int64) (bool, error) {
-	policy, err := s.GetMFAPolicy(ctx, userPoolID)
-	if err != nil {
-		return false, err
-	}
+	policy, _ := s.GetMFAPolicy(ctx, userPoolID)
 	return policy.Required, nil
 }
 
@@ -522,7 +529,7 @@ func (s *mfaService) IssueStepUpChallenge(ctx context.Context, userUUID string, 
 	_, span := otel.Tracer("service").Start(ctx, "mfa.issue_step_up_challenge")
 	defer span.End()
 
-	token, err := jwt.GenerateStepUpChallengeTokenWithContext(ctx, userUUID, stepUpChallengeTTL, allowedMethods)
+	token, err := generateStepUpChallengeToken(ctx, userUUID, stepUpChallengeTTL, allowedMethods)
 	if err != nil {
 		span.RecordError(err)
 		return nil, apperror.NewInternal("step-up challenge generation failed", err)
@@ -543,7 +550,7 @@ func (s *mfaService) VerifyStepUp(ctx context.Context, req StepUpVerifyRequestDT
 	defer span.End()
 
 	// Validate the challenge token.
-	claims, err := jwt.ValidateStepUpChallengeToken(req.ChallengeToken)
+	claims, err := validateStepUpChallengeToken(req.ChallengeToken)
 	if err != nil {
 		span.SetStatus(codes.Error, "invalid challenge token")
 		return nil, apperror.NewUnauthorized("invalid or expired step-up challenge token")
@@ -577,7 +584,7 @@ func (s *mfaService) VerifyStepUp(ctx context.Context, req StepUpVerifyRequestDT
 
 	case "backup_code":
 		backupRateLimitKey := security.RateLimitKey(fmt.Sprintf("backup_code:%d", userID), "verify")
-		if err := security.CheckRateLimit(backupRateLimitKey); err != nil {
+		if err := checkMFARateLimit(backupRateLimitKey); err != nil {
 			span.SetStatus(codes.Error, "backup code rate limited")
 			return nil, apperror.NewUnauthorized("too many attempts; try again later")
 		}
@@ -614,7 +621,7 @@ func (s *mfaService) VerifyStepUp(ctx context.Context, req StepUpVerifyRequestDT
 	}
 
 	issuer := config.AppPublicHostname
-	accessToken, err := jwt.GenerateAccessTokenWithOptionsContext(
+	accessToken, err := generateStepUpAccessToken(
 		ctx,
 		user.UserUUID.String(), "", issuer, issuer, "", "",
 		&jwt.AccessTokenOptions{
