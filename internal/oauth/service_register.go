@@ -121,8 +121,14 @@ func (s *oauthRegisterService) Register(ctx context.Context, req OAuthClientRegi
 			span.RecordError(herr)
 			return nil, apperror.NewOAuthServerError("an unexpected error occurred")
 		}
+		secretEncrypted, encErr := crypto.EncryptAtRest(rawSecret)
+		if encErr != nil {
+			span.RecordError(encErr)
+			return nil, apperror.NewOAuthServerError("an unexpected error occurred")
+		}
 		clientSecret = rawSecret
 		client.SecretHash = ptr.Ptr(secretHash)
+		client.SecretEncrypted = ptr.Ptr(secretEncrypted)
 		client.ClientType = "confidential"
 	}
 

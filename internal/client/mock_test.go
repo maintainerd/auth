@@ -13,8 +13,8 @@ import (
 	sqlmock "github.com/DATA-DOG/go-sqlmock"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
+	"github.com/maintainerd/auth/internal/authctx"
 	"github.com/maintainerd/auth/internal/platform/apperror"
-	"github.com/maintainerd/auth/internal/platform/cache"
 	"github.com/maintainerd/auth/internal/platform/middleware"
 	"github.com/stretchr/testify/require"
 	"gorm.io/datatypes"
@@ -24,7 +24,7 @@ import (
 )
 
 var (
-	errNotFound     = apperror.NewNotFoundWithReason("not found")
+	errNotFound = apperror.NewNotFoundWithReason("not found")
 )
 
 const tenantID int64 = 1
@@ -42,21 +42,21 @@ func validPagination() PaginationRequestDTO {
 }
 
 func withTenant(r *http.Request) *http.Request {
-	return middleware.WithAuthContext(r, &middleware.AuthContext{
-		Tenant: &cache.AuthTenant{TenantID: tenantID, TenantUUID: testTenantUUID},
+	return middleware.WithAuthContext(r, &authctx.AuthContext{
+		Tenant: &authctx.AuthTenant{TenantID: tenantID, TenantUUID: testTenantUUID},
 	})
 }
 
 func withUser(r *http.Request) *http.Request {
-	return middleware.WithAuthContext(r, &middleware.AuthContext{
-		User: &cache.AuthUser{UserUUID: testUserUUID},
+	return middleware.WithAuthContext(r, &authctx.AuthContext{
+		User: &authctx.AuthUser{UserUUID: testUserUUID},
 	})
 }
 
 func withTenantAndUser(r *http.Request) *http.Request {
-	return middleware.WithAuthContext(r, &middleware.AuthContext{
-		Tenant: &cache.AuthTenant{TenantID: tenantID, TenantUUID: testTenantUUID},
-		User:   &cache.AuthUser{UserUUID: testUserUUID},
+	return middleware.WithAuthContext(r, &authctx.AuthContext{
+		Tenant: &authctx.AuthTenant{TenantID: tenantID, TenantUUID: testTenantUUID},
+		User:   &authctx.AuthUser{UserUUID: testUserUUID},
 	})
 }
 
@@ -95,7 +95,6 @@ type mockAPIKeyService struct {
 	updateFn              func(uuid.UUID, int64, *string, *string, datatypes.JSON, *time.Time, *int, *string, uuid.UUID) (*APIKeyServiceDataResult, error)
 	setStatusByUUIDFn     func(uuid.UUID, int64, string) (*APIKeyServiceDataResult, error)
 	deleteFn              func(uuid.UUID, int64, uuid.UUID) (*APIKeyServiceDataResult, error)
-	validateAPIKeyFn      func(string) (*APIKeyServiceDataResult, error)
 	getAPIKeyAPIsFn       func(int64, uuid.UUID, int, int, string, string) (*APIKeyAPIServicePaginatedResult, error)
 	addAPIKeyAPIsFn       func(int64, uuid.UUID, []uuid.UUID) error
 	removeAPIKeyAPIFn     func(int64, uuid.UUID, uuid.UUID) error
@@ -143,12 +142,6 @@ func (m *mockAPIKeyService) SetStatusByUUID(_ context.Context, id uuid.UUID, tid
 func (m *mockAPIKeyService) Delete(_ context.Context, id uuid.UUID, tid int64, u uuid.UUID) (*APIKeyServiceDataResult, error) {
 	if m.deleteFn != nil {
 		return m.deleteFn(id, tid, u)
-	}
-	return nil, nil
-}
-func (m *mockAPIKeyService) ValidateAPIKey(_ context.Context, k string) (*APIKeyServiceDataResult, error) {
-	if m.validateAPIKeyFn != nil {
-		return m.validateAPIKeyFn(k)
 	}
 	return nil, nil
 }

@@ -77,12 +77,10 @@ func JWTAuthMiddleware(next http.Handler) http.Handler {
 		// Extract subject — ValidateToken already guarantees sub is non-empty.
 		sub, _ := rawClaims["sub"].(string)
 
-		// Parse sub into a UUID.
-		userUUID, err := uuid.Parse(sub)
-		if err != nil {
-			resp.Error(w, http.StatusBadRequest, "Invalid User UUID format", err.Error())
-			return
-		}
+		// Authn tokens often use user UUIDs, while OAuth/OIDC tokens may use a
+		// pairwise subject. Preserve sub either way and populate UserUUID only
+		// when the subject happens to be a UUID.
+		userUUID, _ := uuid.Parse(sub)
 
 		scope, _ := rawClaims["scope"].(string)
 		aud, _ := rawClaims["aud"].(string)

@@ -40,6 +40,12 @@ type LoginRequestDTO struct {
 	Password string `json:"password"`
 }
 
+// LoginQueryDTO holds login query parameters.
+type LoginQueryDTO struct {
+	ClientID   string `json:"client_id"`
+	ProviderID string `json:"provider_id"`
+}
+
 // LoginResponseDTO is the response structure for login operations
 type LoginResponseDTO struct {
 	AccessToken           string  `json:"access_token"`
@@ -85,6 +91,15 @@ type RegisterQueryDTO struct {
 	ProviderID string `json:"provider_id"`
 }
 
+// RegisterInviteQueryDTO holds signed invite registration query parameters.
+type RegisterInviteQueryDTO struct {
+	ClientID    string `json:"client_id"`
+	ProviderID  string `json:"provider_id"`
+	InviteToken string `json:"invite_token"`
+	Expires     string `json:"expires"`
+	Sig         string `json:"sig"`
+}
+
 // RegisterResponseDTO is the response structure for registration operations
 type RegisterResponseDTO struct {
 	AccessToken  string `json:"access_token"`
@@ -101,11 +116,32 @@ type ResetPasswordRequestDTO struct {
 	NewPassword string `json:"new_password" example:"NewSecurePassword123!"`
 }
 
-// Validate validates the reset password request
+// ResetPasswordResponseDTO represents the response after password reset.
+type ResetPasswordResponseDTO struct {
+	Message string `json:"message" example:"Password has been reset successfully"`
+	Success bool   `json:"success" example:"true"`
+}
+
+// ResetPasswordQueryDTO represents query parameters for signed URL validation.
+type ResetPasswordQueryDTO struct {
+	Token      string `json:"token"`
+	ClientID   string `json:"client_id"`
+	ProviderID string `json:"provider_id"`
+	Expires    string `json:"expires"`
+	Sig        string `json:"sig"`
+}
 
 // SMSLoginSendDTO is the request to send a one-time SMS code.
 type SMSLoginSendDTO struct {
 	Phone      string `json:"phone"`
+	ClientID   string `json:"client_id"`
+	ProviderID string `json:"provider_id"`
+}
+
+// SMSLoginVerifyDTO is the request to verify an SMS OTP and obtain tokens.
+type SMSLoginVerifyDTO struct {
+	Phone      string `json:"phone"`
+	OTP        string `json:"otp"`
 	ClientID   string `json:"client_id"`
 	ProviderID string `json:"provider_id"`
 }

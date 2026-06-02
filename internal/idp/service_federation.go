@@ -569,11 +569,15 @@ func (s *federationService) provisionUser(
 	txUserRepo := s.userRepo.WithTx(tx)
 	txUserIdentityRepo := s.userIdentityRepo.WithTx(tx)
 
-	// Try to match an existing user by email to merge identities rather than duplicate.
+	// Only verified upstream emails may be used to merge identities. An
+	// unverified email claim is profile data, not proof of account ownership.
 	var user *User
 	var isNew bool
-	if email != "" {
-		existing, _ := txUserRepo.FindByEmail(email)
+	if email != "" && meta.EmailVerified {
+		existing, err := txUserRepo.FindByEmailAndTenantID(email, idp.TenantID)
+		if err != nil {
+			return nil, false, apperror.NewInternal("email lookup failed", err)
+		}
 		if existing != nil {
 			user = existing
 		}
@@ -652,7 +656,7 @@ func (s *federationService) refreshMetadata(tx *gorm.DB, identity *UserIdentity,
 func (s *federationService) generateTokens(sub string, user *User, client *Client) (*LoginResponseDTO, error) {
 	accessToken, err := jwtlib.GenerateAccessToken(
 		sub,
-		"openid profile email",
+		shared.DefaultTokenScope,
 		*client.Domain,
 		*client.Identifier,
 		*client.Identifier,
@@ -682,7 +686,7 @@ func (s *federationService) generateTokens(sub string, user *User, client *Clien
 		AccessToken:  accessToken,
 		IDToken:      idToken,
 		RefreshToken: refreshToken,
-		ExpiresIn:    3600,
+		ExpiresIn:    shared.DefaultAccessTokenExpiresIn,
 		TokenType:    "Bearer",
 		IssuedAt:     time.Now().Unix(),
 	}, nil

@@ -83,6 +83,11 @@ func (s *oauthPARService) Push(ctx context.Context, req OAuthPARRequestDTO, cred
 		return nil, apperror.NewOAuthUnauthorizedClient("client is not authorized for authorization_code grant")
 	}
 
+	if oerr := validateClientAllowedScopes(client, req.Scope); oerr != nil {
+		span.SetStatus(codes.Error, "scope not allowed")
+		return nil, oerr
+	}
+
 	// Validate redirect_uri against registered URIs.
 	if oerr := validateClientRedirectURI(client, req.RedirectURI); oerr != nil {
 		span.SetStatus(codes.Error, "invalid redirect_uri")

@@ -56,6 +56,61 @@ type securitySettingService struct {
 	securitySettingsAuditRepo SecuritySettingsAuditRepository
 }
 
+type securityConfigDefinition struct {
+	key        string
+	spanGet    string
+	spanUpdate string
+	errGet     string
+	errUpdate  string
+	selectJSON func(*SecuritySetting) datatypes.JSON
+	assignJSON func(*SecuritySetting, datatypes.JSON)
+}
+
+var securityConfigDefinitions = map[string]securityConfigDefinition{
+	"mfa": {
+		key: "mfa", spanGet: "securitySetting.getMFA", spanUpdate: "securitySetting.updateMFA",
+		errGet: "get mfa config failed", errUpdate: "update mfa config failed",
+		selectJSON: func(s *SecuritySetting) datatypes.JSON { return s.MFAConfig },
+		assignJSON: func(s *SecuritySetting, v datatypes.JSON) { s.MFAConfig = v },
+	},
+	"password": {
+		key: "password", spanGet: "securitySetting.getPassword", spanUpdate: "securitySetting.updatePassword",
+		errGet: "get password config failed", errUpdate: "update password config failed",
+		selectJSON: func(s *SecuritySetting) datatypes.JSON { return s.PasswordConfig },
+		assignJSON: func(s *SecuritySetting, v datatypes.JSON) { s.PasswordConfig = v },
+	},
+	"session": {
+		key: "session", spanGet: "securitySetting.getSession", spanUpdate: "securitySetting.updateSession",
+		errGet: "get session config failed", errUpdate: "update session config failed",
+		selectJSON: func(s *SecuritySetting) datatypes.JSON { return s.SessionConfig },
+		assignJSON: func(s *SecuritySetting, v datatypes.JSON) { s.SessionConfig = v },
+	},
+	"threat": {
+		key: "threat", spanGet: "securitySetting.getThreat", spanUpdate: "securitySetting.updateThreat",
+		errGet: "get threat config failed", errUpdate: "update threat config failed",
+		selectJSON: func(s *SecuritySetting) datatypes.JSON { return s.ThreatConfig },
+		assignJSON: func(s *SecuritySetting, v datatypes.JSON) { s.ThreatConfig = v },
+	},
+	"lockout": {
+		key: "lockout", spanGet: "securitySetting.getLockout", spanUpdate: "securitySetting.updateLockout",
+		errGet: "get lockout config failed", errUpdate: "update lockout config failed",
+		selectJSON: func(s *SecuritySetting) datatypes.JSON { return s.LockoutConfig },
+		assignJSON: func(s *SecuritySetting, v datatypes.JSON) { s.LockoutConfig = v },
+	},
+	"registration": {
+		key: "registration", spanGet: "securitySetting.getRegistration", spanUpdate: "securitySetting.updateRegistration",
+		errGet: "get registration config failed", errUpdate: "update registration config failed",
+		selectJSON: func(s *SecuritySetting) datatypes.JSON { return s.RegistrationConfig },
+		assignJSON: func(s *SecuritySetting, v datatypes.JSON) { s.RegistrationConfig = v },
+	},
+	"token": {
+		key: "token", spanGet: "securitySetting.getToken", spanUpdate: "securitySetting.updateToken",
+		errGet: "get token config failed", errUpdate: "update token config failed",
+		selectJSON: func(s *SecuritySetting) datatypes.JSON { return s.TokenConfig },
+		assignJSON: func(s *SecuritySetting, v datatypes.JSON) { s.TokenConfig = v },
+	},
+}
+
 func NewSecuritySettingService(
 	db *gorm.DB,
 	securitySettingRepo SecuritySettingRepository,
@@ -107,209 +162,95 @@ func (s *securitySettingService) GetByUserPoolID(ctx context.Context, userPoolID
 }
 
 func (s *securitySettingService) GetMFAConfig(ctx context.Context, userPoolID int64) (map[string]any, error) {
-	_, span := otel.Tracer("service").Start(ctx, "securitySetting.getMFA")
-	defer span.End()
-	span.SetAttributes(attribute.Int64("user_pool.id", userPoolID))
-
-	setting, err := s.getOrCreateSecuritySetting(userPoolID)
-	if err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, "get mfa config failed")
-		return nil, err
-	}
-	span.SetStatus(codes.Ok, "")
-	return jsonutil.JSONToMap(setting.MFAConfig), nil
+	return s.getConfig(ctx, userPoolID, "mfa")
 }
 
 func (s *securitySettingService) GetPasswordConfig(ctx context.Context, userPoolID int64) (map[string]any, error) {
-	_, span := otel.Tracer("service").Start(ctx, "securitySetting.getPassword")
-	defer span.End()
-	span.SetAttributes(attribute.Int64("user_pool.id", userPoolID))
-
-	setting, err := s.getOrCreateSecuritySetting(userPoolID)
-	if err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, "get password config failed")
-		return nil, err
-	}
-	span.SetStatus(codes.Ok, "")
-	return jsonutil.JSONToMap(setting.PasswordConfig), nil
+	return s.getConfig(ctx, userPoolID, "password")
 }
 
 func (s *securitySettingService) GetSessionConfig(ctx context.Context, userPoolID int64) (map[string]any, error) {
-	_, span := otel.Tracer("service").Start(ctx, "securitySetting.getSession")
-	defer span.End()
-	span.SetAttributes(attribute.Int64("user_pool.id", userPoolID))
-
-	setting, err := s.getOrCreateSecuritySetting(userPoolID)
-	if err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, "get session config failed")
-		return nil, err
-	}
-	span.SetStatus(codes.Ok, "")
-	return jsonutil.JSONToMap(setting.SessionConfig), nil
+	return s.getConfig(ctx, userPoolID, "session")
 }
 
 func (s *securitySettingService) GetThreatConfig(ctx context.Context, userPoolID int64) (map[string]any, error) {
-	_, span := otel.Tracer("service").Start(ctx, "securitySetting.getThreat")
-	defer span.End()
-	span.SetAttributes(attribute.Int64("user_pool.id", userPoolID))
-
-	setting, err := s.getOrCreateSecuritySetting(userPoolID)
-	if err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, "get threat config failed")
-		return nil, err
-	}
-	span.SetStatus(codes.Ok, "")
-	return jsonutil.JSONToMap(setting.ThreatConfig), nil
+	return s.getConfig(ctx, userPoolID, "threat")
 }
 
 func (s *securitySettingService) GetLockoutConfig(ctx context.Context, userPoolID int64) (map[string]any, error) {
-	_, span := otel.Tracer("service").Start(ctx, "securitySetting.getLockout")
-	defer span.End()
-	span.SetAttributes(attribute.Int64("user_pool.id", userPoolID))
-
-	setting, err := s.getOrCreateSecuritySetting(userPoolID)
-	if err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, "get lockout config failed")
-		return nil, err
-	}
-	span.SetStatus(codes.Ok, "")
-	return jsonutil.JSONToMap(setting.LockoutConfig), nil
+	return s.getConfig(ctx, userPoolID, "lockout")
 }
 
 func (s *securitySettingService) GetRegistrationConfig(ctx context.Context, userPoolID int64) (map[string]any, error) {
-	_, span := otel.Tracer("service").Start(ctx, "securitySetting.getRegistration")
-	defer span.End()
-	span.SetAttributes(attribute.Int64("user_pool.id", userPoolID))
-
-	setting, err := s.getOrCreateSecuritySetting(userPoolID)
-	if err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, "get registration config failed")
-		return nil, err
-	}
-	span.SetStatus(codes.Ok, "")
-	return jsonutil.JSONToMap(setting.RegistrationConfig), nil
+	return s.getConfig(ctx, userPoolID, "registration")
 }
 
 func (s *securitySettingService) GetTokenConfig(ctx context.Context, userPoolID int64) (map[string]any, error) {
-	_, span := otel.Tracer("service").Start(ctx, "securitySetting.getToken")
+	return s.getConfig(ctx, userPoolID, "token")
+}
+
+func (s *securitySettingService) getConfig(ctx context.Context, userPoolID int64, configType string) (map[string]any, error) {
+	def, ok := securityConfigDefinitions[configType]
+	if !ok {
+		return nil, apperror.NewValidation("invalid config type")
+	}
+
+	_, span := otel.Tracer("service").Start(ctx, def.spanGet)
 	defer span.End()
 	span.SetAttributes(attribute.Int64("user_pool.id", userPoolID))
 
 	setting, err := s.getOrCreateSecuritySetting(userPoolID)
 	if err != nil {
 		span.RecordError(err)
-		span.SetStatus(codes.Error, "get token config failed")
+		span.SetStatus(codes.Error, def.errGet)
 		return nil, err
 	}
 	span.SetStatus(codes.Ok, "")
-	return jsonutil.JSONToMap(setting.TokenConfig), nil
+	return jsonutil.JSONToMap(def.selectJSON(setting)), nil
 }
 
 func (s *securitySettingService) UpdateMFAConfig(ctx context.Context, userPoolID int64, config map[string]any, updatedBy int64, ipAddress, userAgent string) (*SecuritySettingServiceDataResult, error) {
-	_, span := otel.Tracer("service").Start(ctx, "securitySetting.updateMFA")
-	defer span.End()
-	span.SetAttributes(attribute.Int64("user_pool.id", userPoolID))
-
-	result, err := s.updateConfig(userPoolID, "mfa", config, updatedBy, ipAddress, userAgent)
-	if err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, "update mfa config failed")
-		return nil, err
-	}
-	span.SetStatus(codes.Ok, "")
-	return result, nil
+	return s.updateConfigByDefinition(ctx, userPoolID, "mfa", config, updatedBy, ipAddress, userAgent)
 }
 
 func (s *securitySettingService) UpdatePasswordConfig(ctx context.Context, userPoolID int64, config map[string]any, updatedBy int64, ipAddress, userAgent string) (*SecuritySettingServiceDataResult, error) {
-	_, span := otel.Tracer("service").Start(ctx, "securitySetting.updatePassword")
-	defer span.End()
-	span.SetAttributes(attribute.Int64("user_pool.id", userPoolID))
-
-	result, err := s.updateConfig(userPoolID, "password", config, updatedBy, ipAddress, userAgent)
-	if err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, "update password config failed")
-		return nil, err
-	}
-	span.SetStatus(codes.Ok, "")
-	return result, nil
+	return s.updateConfigByDefinition(ctx, userPoolID, "password", config, updatedBy, ipAddress, userAgent)
 }
 
 func (s *securitySettingService) UpdateSessionConfig(ctx context.Context, userPoolID int64, config map[string]any, updatedBy int64, ipAddress, userAgent string) (*SecuritySettingServiceDataResult, error) {
-	_, span := otel.Tracer("service").Start(ctx, "securitySetting.updateSession")
-	defer span.End()
-	span.SetAttributes(attribute.Int64("user_pool.id", userPoolID))
-
-	result, err := s.updateConfig(userPoolID, "session", config, updatedBy, ipAddress, userAgent)
-	if err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, "update session config failed")
-		return nil, err
-	}
-	span.SetStatus(codes.Ok, "")
-	return result, nil
+	return s.updateConfigByDefinition(ctx, userPoolID, "session", config, updatedBy, ipAddress, userAgent)
 }
 
 func (s *securitySettingService) UpdateThreatConfig(ctx context.Context, userPoolID int64, config map[string]any, updatedBy int64, ipAddress, userAgent string) (*SecuritySettingServiceDataResult, error) {
-	_, span := otel.Tracer("service").Start(ctx, "securitySetting.updateThreat")
-	defer span.End()
-	span.SetAttributes(attribute.Int64("user_pool.id", userPoolID))
-
-	result, err := s.updateConfig(userPoolID, "threat", config, updatedBy, ipAddress, userAgent)
-	if err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, "update threat config failed")
-		return nil, err
-	}
-	span.SetStatus(codes.Ok, "")
-	return result, nil
+	return s.updateConfigByDefinition(ctx, userPoolID, "threat", config, updatedBy, ipAddress, userAgent)
 }
 
 func (s *securitySettingService) UpdateLockoutConfig(ctx context.Context, userPoolID int64, config map[string]any, updatedBy int64, ipAddress, userAgent string) (*SecuritySettingServiceDataResult, error) {
-	_, span := otel.Tracer("service").Start(ctx, "securitySetting.updateLockout")
-	defer span.End()
-	span.SetAttributes(attribute.Int64("user_pool.id", userPoolID))
-
-	result, err := s.updateConfig(userPoolID, "lockout", config, updatedBy, ipAddress, userAgent)
-	if err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, "update lockout config failed")
-		return nil, err
-	}
-	span.SetStatus(codes.Ok, "")
-	return result, nil
+	return s.updateConfigByDefinition(ctx, userPoolID, "lockout", config, updatedBy, ipAddress, userAgent)
 }
 
 func (s *securitySettingService) UpdateRegistrationConfig(ctx context.Context, userPoolID int64, config map[string]any, updatedBy int64, ipAddress, userAgent string) (*SecuritySettingServiceDataResult, error) {
-	_, span := otel.Tracer("service").Start(ctx, "securitySetting.updateRegistration")
-	defer span.End()
-	span.SetAttributes(attribute.Int64("user_pool.id", userPoolID))
-
-	result, err := s.updateConfig(userPoolID, "registration", config, updatedBy, ipAddress, userAgent)
-	if err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, "update registration config failed")
-		return nil, err
-	}
-	span.SetStatus(codes.Ok, "")
-	return result, nil
+	return s.updateConfigByDefinition(ctx, userPoolID, "registration", config, updatedBy, ipAddress, userAgent)
 }
 
 func (s *securitySettingService) UpdateTokenConfig(ctx context.Context, userPoolID int64, config map[string]any, updatedBy int64, ipAddress, userAgent string) (*SecuritySettingServiceDataResult, error) {
-	_, span := otel.Tracer("service").Start(ctx, "securitySetting.updateToken")
+	return s.updateConfigByDefinition(ctx, userPoolID, "token", config, updatedBy, ipAddress, userAgent)
+}
+
+func (s *securitySettingService) updateConfigByDefinition(ctx context.Context, userPoolID int64, configType string, config map[string]any, updatedBy int64, ipAddress, userAgent string) (*SecuritySettingServiceDataResult, error) {
+	def, ok := securityConfigDefinitions[configType]
+	if !ok {
+		return nil, apperror.NewValidation("invalid config type")
+	}
+
+	_, span := otel.Tracer("service").Start(ctx, def.spanUpdate)
 	defer span.End()
 	span.SetAttributes(attribute.Int64("user_pool.id", userPoolID))
 
-	result, err := s.updateConfig(userPoolID, "token", config, updatedBy, ipAddress, userAgent)
+	result, err := s.updateConfig(userPoolID, def, config, updatedBy, ipAddress, userAgent)
 	if err != nil {
 		span.RecordError(err)
-		span.SetStatus(codes.Error, "update token config failed")
+		span.SetStatus(codes.Error, def.errUpdate)
 		return nil, err
 	}
 	span.SetStatus(codes.Ok, "")
@@ -345,7 +286,7 @@ func (s *securitySettingService) getOrCreateSecuritySetting(userPoolID int64) (*
 	return setting, nil
 }
 
-func (s *securitySettingService) updateConfig(userPoolID int64, configType string, config map[string]any, updatedBy int64, ipAddress, userAgent string) (*SecuritySettingServiceDataResult, error) {
+func (s *securitySettingService) updateConfig(userPoolID int64, def securityConfigDefinition, config map[string]any, updatedBy int64, ipAddress, userAgent string) (*SecuritySettingServiceDataResult, error) {
 	var updatedSetting *SecuritySetting
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
@@ -385,32 +326,8 @@ func (s *securitySettingService) updateConfig(userPoolID int64, configType strin
 		}
 		newConfigJSON := datatypes.JSON(configBytes)
 
-		// Update the appropriate config field and capture old value
-		switch configType {
-		case "mfa":
-			oldConfigJSON = setting.MFAConfig
-			setting.MFAConfig = newConfigJSON
-		case "password":
-			oldConfigJSON = setting.PasswordConfig
-			setting.PasswordConfig = newConfigJSON
-		case "session":
-			oldConfigJSON = setting.SessionConfig
-			setting.SessionConfig = newConfigJSON
-		case "threat":
-			oldConfigJSON = setting.ThreatConfig
-			setting.ThreatConfig = newConfigJSON
-		case "lockout":
-			oldConfigJSON = setting.LockoutConfig
-			setting.LockoutConfig = newConfigJSON
-		case "registration":
-			oldConfigJSON = setting.RegistrationConfig
-			setting.RegistrationConfig = newConfigJSON
-		case "token":
-			oldConfigJSON = setting.TokenConfig
-			setting.TokenConfig = newConfigJSON
-		default:
-			return apperror.NewValidation("invalid config type")
-		}
+		oldConfigJSON = def.selectJSON(setting)
+		def.assignJSON(setting, newConfigJSON)
 
 		setting.UpdatedBy = &updatedBy
 
@@ -434,7 +351,7 @@ func (s *securitySettingService) updateConfig(userPoolID int64, configType strin
 		audit := &SecuritySettingsAudit{
 			UserPoolID:        userPoolID,
 			SecuritySettingID: saved.SecuritySettingID,
-			ChangeType:        "update_" + configType + "_config",
+			ChangeType:        "update_" + def.key + "_config",
 			OldConfig:         oldConfigJSON,
 			NewConfig:         newConfigJSON,
 			IPAddress:         ipAddress,

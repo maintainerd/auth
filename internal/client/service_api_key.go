@@ -9,6 +9,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/platform/apperror"
+	"github.com/maintainerd/auth/internal/platform/pagination"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -535,7 +536,7 @@ func (s *apiKeyService) GetAPIKeyAPIs(ctx context.Context, tenantID int64, apiKe
 		page = 1
 	}
 	if limit <= 0 {
-		limit = 10
+		limit = pagination.DefaultPageSize
 	}
 
 	apiKey, err := s.apiKeyRepo.FindByUUIDAndTenantID(apiKeyUUID.String(), tenantID)
@@ -930,4 +931,3 @@ func (s *apiKeyService) RemoveAPIKeyAPIPermission(ctx context.Context, tenantID 
 	span.SetStatus(codes.Ok, "")
 	return nil
 }
-

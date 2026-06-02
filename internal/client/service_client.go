@@ -333,16 +333,22 @@ func (s *clientService) Create(ctx context.Context, tenantID int64, name string,
 		if err != nil {
 			return err
 		}
+		secretEncrypted, err := crypto.EncryptAtRest(rawSecret)
+		if err != nil {
+			return err
+		}
 		plaintextSecret = rawSecret
 
 		newClient := &Client{
-			Name:               name,
-			DisplayName:        displayName,
-			ClientType:         clientType,
-			Domain:             &domain,
-			Identifier:         &clientID,
-			SecretHash:         &secretHash,
-			Config:             config,
+			Name:            name,
+			DisplayName:     displayName,
+			ClientType:      clientType,
+			Domain:          &domain,
+			Identifier:      &clientID,
+			SecretHash:      &secretHash,
+			SecretEncrypted: &secretEncrypted,
+			Config:          config,
+
 			TenantID:           tenantID,
 			IdentityProviderID: identityProvider.IdentityProviderID,
 			Status:             status,
@@ -422,18 +428,25 @@ func (s *clientService) RotateSecret(ctx context.Context, clientUUID uuid.UUID, 
 		if err != nil {
 			return err
 		}
+		newEncrypted, err := crypto.EncryptAtRest(rawSecret)
+		if err != nil {
+			return err
+		}
 		plaintextSecret = rawSecret
 
 		// Move current hash to previous for the grace window.
 		client.PreviousSecretHash = client.SecretHash
+		client.PreviousSecretEncrypted = client.SecretEncrypted
 		if gracePeriodHours > 0 {
 			exp := time.Now().Add(time.Duration(gracePeriodHours) * time.Hour)
 			client.PreviousSecretExpiresAt = &exp
 		} else {
 			client.PreviousSecretHash = nil
+			client.PreviousSecretEncrypted = nil
 			client.PreviousSecretExpiresAt = nil
 		}
 		client.SecretHash = &newHash
+		client.SecretEncrypted = &newEncrypted
 
 		_, err = txClientRepo.CreateOrUpdate(client)
 		return err

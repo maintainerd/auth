@@ -4,7 +4,6 @@ import (
 	"errors"
 
 	"github.com/maintainerd/auth/internal/platform/database"
-	"github.com/maintainerd/auth/internal/shared"
 	"gorm.io/gorm"
 )
 
@@ -23,7 +22,6 @@ type SMSTemplateRepositoryGetFilter struct {
 
 type SMSTemplateRepository interface {
 	BaseRepositoryMethods[SMSTemplate]
-	FindByName(name string) (*SMSTemplate, error)
 	FindByUUIDAndTenantID(uuid string, tenantID int64) (*SMSTemplate, error)
 	FindPaginated(filter SMSTemplateRepositoryGetFilter) (*PaginationResult[SMSTemplate], error)
 }
@@ -36,21 +34,6 @@ func NewSMSTemplateRepository(db *gorm.DB) SMSTemplateRepository {
 	return &smsTemplateRepository{
 		BaseRepository: database.NewBaseRepository[SMSTemplate](db, "sms_template_uuid", "sms_template_id"),
 	}
-}
-
-// FindByName retrieves an active SMS template by its name
-func (r *smsTemplateRepository) FindByName(name string) (*SMSTemplate, error) {
-	var template SMSTemplate
-	err := r.DB().
-		Where("name = ? AND status = ?", name, shared.StatusActive).
-		First(&template).Error
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, nil
-		}
-		return nil, err
-	}
-	return &template, nil
 }
 
 // FindByUUIDAndTenantID retrieves an SMS template by UUID and tenant ID
@@ -76,9 +59,7 @@ func (r *smsTemplateRepository) FindPaginated(filter SMSTemplateRepositoryGetFil
 	if filter.TenantID != nil {
 		query = query.Where("tenant_id = ?", *filter.TenantID)
 	}
-	if filter.Name != nil && *filter.Name != "" {
-		query = query.Where("name ILIKE ?", "%"+*filter.Name+"%")
-	}
+	query = database.ApplyILike(query, "name", filter.Name)
 	if len(filter.Status) > 0 {
 		query = query.Where("status IN ?", filter.Status)
 	}

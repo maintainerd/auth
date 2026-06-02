@@ -118,15 +118,9 @@ func (r *policyRepository) FindPaginated(filter PolicyRepositoryGetFilter) (*Pag
 	query = query.Where("tenant_id = ?", filter.TenantID)
 
 	// Apply filters
-	if filter.Name != nil {
-		query = query.Where("name ILIKE ?", "%"+*filter.Name+"%")
-	}
-	if filter.Description != nil {
-		query = query.Where("description ILIKE ?", "%"+*filter.Description+"%")
-	}
-	if filter.Version != nil {
-		query = query.Where("version ILIKE ?", "%"+*filter.Version+"%")
-	}
+	query = database.ApplyILike(query, "name", filter.Name)
+	query = database.ApplyILike(query, "description", filter.Description)
+	query = database.ApplyILike(query, "version", filter.Version)
 	if len(filter.Status) > 0 {
 		query = query.Where("status IN ?", filter.Status)
 	}

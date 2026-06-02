@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/maintainerd/auth/docs"
+	"github.com/maintainerd/auth/internal/shared"
 	"gopkg.in/yaml.v3"
 )
 
@@ -28,7 +29,7 @@ func ServeOpenAPISpec(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	w.Header().Set("Cache-Control", "public, max-age=3600")
+	w.Header().Set("Cache-Control", shared.DefaultDiscoveryCacheMaxAge)
 	http.ServeContent(w, r, "openapi.json", zeroTime, bytes.NewReader(out))
 }
 

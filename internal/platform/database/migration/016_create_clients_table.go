@@ -18,9 +18,12 @@ CREATE TABLE IF NOT EXISTS clients (
     domain                  TEXT,
     identifier              TEXT,
 
-    -- Secret storage: bcrypt hash of current secret; plaintext never persisted.
+    -- Secret storage: bcrypt hash for password-style auth plus encrypted copy
+    -- for client_secret_jwt HMAC verification. Plaintext is returned once only.
     secret_hash                  TEXT,
+    secret_encrypted             TEXT,
     previous_secret_hash         TEXT,
+    previous_secret_encrypted    TEXT,
     previous_secret_expires_at   TIMESTAMPTZ,
 
     config                  JSONB,

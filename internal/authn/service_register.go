@@ -190,7 +190,7 @@ func (s *registerService) RegisterPublic(
 		}
 
 		// Validate password against tenant policy
-		policy := loadPolicy(s.securitySettingRepo, tenantId)
+		policy := secpolicy.LoadPasswordPolicy(s.securitySettingRepo, tenantId)
 		if txErr = security.ValidatePasswordPolicy(password, policy); txErr != nil {
 			return apperror.NewValidation(txErr.Error())
 		}
@@ -227,7 +227,7 @@ func (s *registerService) RegisterPublic(
 		}
 
 		// Record password history
-		recordPasswordHistory(s.passwordHistoryRepo, createdUser.UserID, policy.HistoryCount, string(hashed))
+		secpolicy.RecordPasswordHistory(s.passwordHistoryRepo, createdUser.UserID, policy.HistoryCount, string(hashed))
 
 		// Create user identity
 		userIdentity := &UserIdentity{
@@ -345,7 +345,7 @@ func (s *registerService) Register(
 		}
 
 		// Validate password against tenant policy
-		policy := loadPolicy(s.securitySettingRepo, tenantId)
+		policy := secpolicy.LoadPasswordPolicy(s.securitySettingRepo, tenantId)
 		if txErr = security.ValidatePasswordPolicy(password, policy); txErr != nil {
 			return apperror.NewValidation(txErr.Error())
 		}
@@ -382,7 +382,7 @@ func (s *registerService) Register(
 		}
 
 		// Record password history
-		recordPasswordHistory(s.passwordHistoryRepo, createdUser.UserID, policy.HistoryCount, string(hashed))
+		secpolicy.RecordPasswordHistory(s.passwordHistoryRepo, createdUser.UserID, policy.HistoryCount, string(hashed))
 
 		// Create user identity
 		userIdentity := &UserIdentity{
@@ -502,7 +502,7 @@ func (s *registerService) RegisterInvite(
 		}
 
 		// Validate password against tenant policy
-		policy := loadPolicy(s.securitySettingRepo, tenantId)
+		policy := secpolicy.LoadPasswordPolicy(s.securitySettingRepo, tenantId)
 		if txErr = security.ValidatePasswordPolicy(password, policy); txErr != nil {
 			return apperror.NewValidation(txErr.Error())
 		}
@@ -530,7 +530,7 @@ func (s *registerService) RegisterInvite(
 		}
 
 		// Record password history
-		recordPasswordHistory(s.passwordHistoryRepo, createdUser.UserID, policy.HistoryCount, string(hashed))
+		secpolicy.RecordPasswordHistory(s.passwordHistoryRepo, createdUser.UserID, policy.HistoryCount, string(hashed))
 
 		// Create user identity
 		userIdentity := &UserIdentity{
@@ -685,7 +685,7 @@ func (s *registerService) RegisterInvitePublic(
 		}
 
 		// Validate password against tenant policy
-		policy := loadPolicy(s.securitySettingRepo, tenantId)
+		policy := secpolicy.LoadPasswordPolicy(s.securitySettingRepo, tenantId)
 		if txErr = security.ValidatePasswordPolicy(password, policy); txErr != nil {
 			return apperror.NewValidation(txErr.Error())
 		}
@@ -713,7 +713,7 @@ func (s *registerService) RegisterInvitePublic(
 		}
 
 		// Record password history
-		recordPasswordHistory(s.passwordHistoryRepo, createdUser.UserID, policy.HistoryCount, string(hashed))
+		secpolicy.RecordPasswordHistory(s.passwordHistoryRepo, createdUser.UserID, policy.HistoryCount, string(hashed))
 
 		// Create user identity
 		userIdentity := &UserIdentity{
@@ -792,12 +792,5 @@ func (s *registerService) generateTokenResponse(sub string, user *User, client *
 	if err != nil {
 		return nil, err
 	}
-	return &RegisterResponseDTO{
-		AccessToken:  accessToken,
-		IDToken:      idToken,
-		RefreshToken: refreshToken,
-		ExpiresIn:    DefaultAccessTokenExpiresIn,
-		TokenType:    "Bearer",
-		IssuedAt:     time.Now().Unix(),
-	}, nil
+	return buildRegisterTokenResponse(accessToken, idToken, refreshToken, time.Now().Unix()), nil
 }

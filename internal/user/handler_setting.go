@@ -133,3 +133,34 @@ func toUserSettingResponseDTO(us UserSettingServiceDataResult) UserSettingRespon
 		UpdatedAt: us.UpdatedAt,
 	}
 }
+
+func NewUserSettingResponseDTO(us *UserSetting) *UserSettingResponseDTO {
+	var socialLinks map[string]any
+	if len(us.SocialLinks) > 0 {
+		if err := json.Unmarshal(us.SocialLinks, &socialLinks); err != nil {
+			socialLinks = nil
+		}
+	}
+
+	return &UserSettingResponseDTO{
+		UserSettingUUID:          us.UserSettingUUID.String(),
+		Timezone:                 us.Timezone,
+		PreferredLanguage:        us.PreferredLanguage,
+		Locale:                   us.Locale,
+		SocialLinks:              socialLinks,
+		PreferredContactMethod:   us.PreferredContactMethod,
+		MarketingEmailConsent:    us.MarketingEmailConsent,
+		SMSNotificationsConsent:  us.SMSNotificationsConsent,
+		PushNotificationsConsent: us.PushNotificationsConsent,
+		ProfileVisibility:        us.ProfileVisibility,
+		DataProcessingConsent:    us.DataProcessingConsent,
+		TermsAcceptedAt:          us.TermsAcceptedAt,
+		PrivacyPolicyAcceptedAt:  us.PrivacyPolicyAcceptedAt,
+		EmergencyContactName:     us.EmergencyContactName,
+		EmergencyContactPhone:    us.EmergencyContactPhone,
+		EmergencyContactEmail:    us.EmergencyContactEmail,
+		EmergencyContactRelation: us.EmergencyContactRelation,
+		CreatedAt:                us.CreatedAt,
+		UpdatedAt:                us.UpdatedAt,
+	}
+}

@@ -219,5 +219,3 @@ type SMSTemplateFilterDTO struct {
 	// Pagination and sorting
 	PaginationRequestDTO
 }
-
-

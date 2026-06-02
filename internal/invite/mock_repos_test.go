@@ -1,17 +1,24 @@
 package invite
 
 import (
+	"os"
 	"testing"
 
 	sqlmock "github.com/DATA-DOG/go-sqlmock"
 	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/branding"
+	"github.com/maintainerd/auth/internal/platform/signedurl"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 
 	"github.com/stretchr/testify/require"
 )
+
+func TestMain(m *testing.M) {
+	_ = signedurl.Configure([]byte("test-secret-key-for-hmac"))
+	os.Exit(m.Run())
+}
 
 func newMockGormDB(t *testing.T) (*gorm.DB, sqlmock.Sqlmock) {
 	t.Helper()

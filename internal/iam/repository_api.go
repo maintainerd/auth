@@ -100,12 +100,8 @@ func (r *apiRepository) FindPaginated(filter APIRepositoryGetFilter) (*Paginatio
 	query = query.Where("tenant_id = ?", filter.TenantID)
 
 	// Filters with LIKE
-	if filter.Name != nil {
-		query = query.Where("name ILIKE ?", "%"+*filter.Name+"%")
-	}
-	if filter.DisplayName != nil {
-		query = query.Where("display_name ILIKE ?", "%"+*filter.DisplayName+"%")
-	}
+	query = database.ApplyILike(query, "name", filter.Name)
+	query = database.ApplyILike(query, "display_name", filter.DisplayName)
 
 	// Filters with exact match
 	if filter.APIType != nil {

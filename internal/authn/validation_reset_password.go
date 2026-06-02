@@ -1,9 +1,10 @@
 package authn
 
 import (
+	"net/url"
+
 	validation "github.com/go-ozzo/ozzo-validation/v4"
 	"github.com/maintainerd/auth/internal/platform/signedurl"
-	"net/url"
 )
 
 func (dto ResetPasswordRequestDTO) Validate() error {
@@ -11,21 +12,6 @@ func (dto ResetPasswordRequestDTO) Validate() error {
 		validation.Field(&dto.NewPassword, validation.Required.Error("New password is required")),
 		// Token is optional in request body - can come from signed URL instead
 	)
-}
-
-// ResetPasswordResponseDTO represents the response after password reset
-type ResetPasswordResponseDTO struct {
-	Message string `json:"message" example:"Password has been reset successfully"`
-	Success bool   `json:"success" example:"true"`
-}
-
-// ResetPasswordQueryDTO represents query parameters for signed URL validation
-type ResetPasswordQueryDTO struct {
-	Token      string `json:"token"`
-	ClientID   string `json:"client_id"`
-	ProviderID string `json:"provider_id"`
-	Expires    string `json:"expires"`
-	Sig        string `json:"sig"`
 }
 
 // Validate validates the reset password query parameters

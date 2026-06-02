@@ -29,6 +29,10 @@ const (
 	TokenTypeMagicLink         = "user:magic_link"
 	TokenTypeSession           = "user:session"
 
+	// Default OAuth token response values.
+	DefaultAccessTokenExpiresIn = 3600
+	DefaultTokenScope           = "openid profile email"
+
 	// Role names (Role.Name) — system-defined roles
 	RoleSuperAdmin = "super-admin"
 	RoleRegistered = "registered"
@@ -103,4 +107,8 @@ const (
 	// Policy statement effects (PolicyStatement.Effect)
 	PolicyEffectAllow = "allow"
 	PolicyEffectDeny  = "deny"
+
+	// Transport/cache defaults.
+	DefaultGRPCAddr             = ":50051"
+	DefaultDiscoveryCacheMaxAge = "public, max-age=3600"
 )

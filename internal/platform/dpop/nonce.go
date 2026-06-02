@@ -19,10 +19,10 @@ type nonceEntry struct {
 }
 
 type NonceManager struct {
-	mu      sync.RWMutex
-	nonces  map[string]nonceEntry
-	stopGC  chan struct{}
-	gcOnce  sync.Once
+	mu     sync.RWMutex
+	nonces map[string]nonceEntry
+	stopGC chan struct{}
+	gcOnce sync.Once
 }
 
 func NewNonceManager() *NonceManager {

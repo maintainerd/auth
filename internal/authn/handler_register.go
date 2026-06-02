@@ -64,7 +64,7 @@ func (h *RegisterHandler) RegisterPublic(w http.ResponseWriter, r *http.Request)
 			Details:   "Suspicious user agent detected",
 			Severity:  "HIGH",
 		})
-		resp.Error(w, http.StatusBadRequest, "Invalid request")
+		resp.BadRequest(w)
 		return
 	}
 

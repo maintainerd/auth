@@ -87,7 +87,7 @@ type roleService struct {
 	rolePermissionRepo RolePermissionRepository
 	userRepo           UserRepository
 	tenantRepo         TenantRepository
-	cacheInvalidator   cache.Invalidator
+	authzInvalidator   AuthorizationTokenInvalidator
 	authEventService   authevent.AuthEventService
 }
 
@@ -100,7 +100,12 @@ func NewRoleService(
 	tenantRepo TenantRepository,
 	cacheInvalidator cache.Invalidator,
 	authEventService authevent.AuthEventService,
+	authzInvalidator ...AuthorizationTokenInvalidator,
 ) RoleService {
+	invalidator := AuthorizationTokenInvalidator(noopAuthorizationTokenInvalidator{})
+	if len(authzInvalidator) > 0 && authzInvalidator[0] != nil {
+		invalidator = authzInvalidator[0]
+	}
 	return &roleService{
 		db:                 db,
 		roleRepo:           roleRepo,
@@ -108,7 +113,7 @@ func NewRoleService(
 		rolePermissionRepo: rolePermissionRepo,
 		userRepo:           userRepo,
 		tenantRepo:         tenantRepo,
-		cacheInvalidator:   cacheInvalidator,
+		authzInvalidator:   invalidator,
 		authEventService:   coalesceAuthEventService(authEventService),
 	}
 }
@@ -390,7 +395,11 @@ func (s *roleService) Update(ctx context.Context, roleUUID uuid.UUID, tenantID i
 		return nil, err
 	}
 
-	s.cacheInvalidator.InvalidateAllUsers(ctx)
+	if err := s.authzInvalidator.InvalidateRoleChange(ctx, updatedRole.RoleID); err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "invalidate role sessions failed")
+		return nil, apperror.NewInternal("failed to invalidate affected role sessions", err)
+	}
 
 	span.SetStatus(codes.Ok, "")
 	s.authEventService.Log(ctx, authevent.AuthEventInput{
@@ -470,7 +479,11 @@ func (s *roleService) SetStatusByUUID(ctx context.Context, roleUUID uuid.UUID, t
 		return nil, err
 	}
 
-	s.cacheInvalidator.InvalidateAllUsers(ctx)
+	if err := s.authzInvalidator.InvalidateRoleChange(ctx, updatedRole.RoleID); err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "invalidate role sessions failed")
+		return nil, apperror.NewInternal("failed to invalidate affected role sessions", err)
+	}
 
 	span.SetStatus(codes.Ok, "")
 	s.authEventService.Log(ctx, authevent.AuthEventInput{
@@ -538,7 +551,11 @@ func (s *roleService) DeleteByUUID(ctx context.Context, roleUUID uuid.UUID, tena
 		return nil, err
 	}
 
-	s.cacheInvalidator.InvalidateAllUsers(ctx)
+	if err := s.authzInvalidator.InvalidateRoleChange(ctx, role.RoleID); err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "invalidate role sessions failed")
+		return nil, apperror.NewInternal("failed to invalidate affected role sessions", err)
+	}
 
 	span.SetStatus(codes.Ok, "")
 	s.authEventService.Log(ctx, authevent.AuthEventInput{
@@ -662,7 +679,11 @@ func (s *roleService) AddRolePermissions(ctx context.Context, roleUUID uuid.UUID
 		return nil, err
 	}
 
-	s.cacheInvalidator.InvalidateAllUsers(ctx)
+	if err := s.authzInvalidator.InvalidateRoleChange(ctx, roleWithPermissions.RoleID); err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "invalidate role sessions failed")
+		return nil, apperror.NewInternal("failed to invalidate affected role sessions", err)
+	}
 
 	span.SetStatus(codes.Ok, "")
 	s.authEventService.Log(ctx, authevent.AuthEventInput{
@@ -774,7 +795,11 @@ func (s *roleService) RemoveRolePermissions(ctx context.Context, roleUUID uuid.U
 		return nil, err
 	}
 
-	s.cacheInvalidator.InvalidateAllUsers(ctx)
+	if err := s.authzInvalidator.InvalidateRoleChange(ctx, roleWithPermissions.RoleID); err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "invalidate role sessions failed")
+		return nil, apperror.NewInternal("failed to invalidate affected role sessions", err)
+	}
 
 	span.SetStatus(codes.Ok, "")
 	s.authEventService.Log(ctx, authevent.AuthEventInput{

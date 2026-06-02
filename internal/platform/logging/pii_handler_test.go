@@ -92,3 +92,17 @@ func TestPIIRedact_Enabled(t *testing.T) {
 	assert.False(t, h.Enabled(context.Background(), slog.LevelInfo))
 	assert.True(t, h.Enabled(context.Background(), slog.LevelWarn))
 }
+
+func TestRedactString_DoesNotRedactFreeTextKeyword(t *testing.T) {
+	input := "user updated email preferences"
+	got := RedactString(&input)
+	require.NotNil(t, got)
+	assert.Equal(t, input, *got)
+}
+
+func TestRedactString_RedactsEmailAndBearerValues(t *testing.T) {
+	input := "failed login for jane@example.com with Bearer abc.def.ghi"
+	got := RedactString(&input)
+	require.NotNil(t, got)
+	assert.Equal(t, "failed login for [REDACTED] with Bearer [REDACTED]", *got)
+}

@@ -10,7 +10,7 @@ import (
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
-	"gorm.io/gorm"
+	"gorm.io/datatypes"
 )
 
 type TenantServiceDataResult struct {
@@ -23,6 +23,7 @@ type TenantServiceDataResult struct {
 	Status      string
 	IsPublic    bool
 	IsSystem    bool
+	Metadata    datatypes.JSON
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
 }
@@ -63,20 +64,17 @@ type TenantService interface {
 }
 
 type tenantService struct {
-	db         *gorm.DB
 	tenantRepo TenantRepository
-	// cascadeModels is the ordered list of (mostly cross-domain) GORM models
-	// whose tenant-scoped rows are deleted when a tenant is removed. It is
-	// injected by the composition root so this package does not import the
-	// domains it cascades into. Order matters: children before parents.
-	cascadeModels []any
+	uow        UnitOfWork
 }
 
-func NewTenantService(db *gorm.DB, tenantRepo TenantRepository, cascadeModels []any) TenantService {
+func NewTenantService(tenantRepo TenantRepository, uow UnitOfWork) TenantService {
+	if uow == nil {
+		uow = newDirectUnitOfWork(tenantRepo, nil)
+	}
 	return &tenantService{
-		db:            db,
-		tenantRepo:    tenantRepo,
-		cascadeModels: cascadeModels,
+		tenantRepo: tenantRepo,
+		uow:        uow,
 	}
 }
 
@@ -182,9 +180,8 @@ func (s *tenantService) Create(ctx context.Context, name string, displayName str
 
 	var createdTenant *Tenant
 
-	err := s.db.Transaction(func(tx *gorm.DB) error {
-		txTenantRepo := s.tenantRepo.WithTx(tx)
-
+	err := s.uow.Do(ctx, func(tx Transaction) error {
+		txTenantRepo := tx.TenantRepository()
 		// Check if tenant already exists
 		existingTenant, err := txTenantRepo.FindByName(name)
 		if err != nil {
@@ -241,9 +238,8 @@ func (s *tenantService) Update(ctx context.Context, tenantUUID uuid.UUID, name s
 
 	var updatedTenant *Tenant
 
-	err := s.db.Transaction(func(tx *gorm.DB) error {
-		txTenantRepo := s.tenantRepo.WithTx(tx)
-
+	err := s.uow.Do(ctx, func(tx Transaction) error {
+		txTenantRepo := tx.TenantRepository()
 		// Find existing tenant
 		tenant, err := txTenantRepo.FindByUUID(tenantUUID)
 		if err != nil {
@@ -337,7 +333,8 @@ func (s *tenantService) SetActivePublicByUUID(ctx context.Context, tenantUUID uu
 	}
 
 	// Toggle public status
-	err = s.db.Model(&Tenant{}).Where("tenant_uuid = ?", tenantUUID).Update("is_public", !tenant.IsPublic).Error
+	tenant.IsPublic = !tenant.IsPublic
+	_, err = s.tenantRepo.CreateOrUpdate(tenant)
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "set active public failed")
@@ -363,8 +360,9 @@ func (s *tenantService) DeleteByUUID(ctx context.Context, tenantUUID uuid.UUID) 
 
 	var result *TenantServiceDataResult
 
-	err := s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		tenant, err := s.tenantRepo.WithTx(tx).FindByUUID(tenantUUID)
+	err := s.uow.Do(ctx, func(tx Transaction) error {
+		txTenantRepo := tx.TenantRepository()
+		tenant, err := txTenantRepo.FindByUUID(tenantUUID)
 		if err != nil {
 			return err
 		}
@@ -378,11 +376,11 @@ func (s *tenantService) DeleteByUUID(ctx context.Context, tenantUUID uuid.UUID) 
 		result = toTenantServiceDataResult(tenant)
 		id := tenant.TenantID
 
-		if err := s.tenantRepo.DeleteCascade(ctx, tx, id, s.cascadeModels); err != nil {
+		if err := tx.DeleteTenantCascade(ctx, id); err != nil {
 			return err
 		}
 
-		return s.tenantRepo.WithTx(tx).DeleteByUUID(tenantUUID)
+		return txTenantRepo.DeleteByUUID(tenantUUID)
 	})
 
 	if err != nil {
@@ -406,6 +404,7 @@ func toTenantServiceDataResult(tenant *Tenant) *TenantServiceDataResult {
 		Status:      tenant.Status,
 		IsPublic:    tenant.IsPublic,
 		IsSystem:    tenant.IsSystem,
+		Metadata:    tenant.Metadata,
 		CreatedAt:   tenant.CreatedAt,
 		UpdatedAt:   tenant.UpdatedAt,
 	}

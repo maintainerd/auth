@@ -113,6 +113,17 @@ func (s *oauthTokenExchangeService) Exchange(ctx context.Context, req OAuthToken
 			scope = s
 		}
 	}
+	if req.Scope != "" {
+		if sourceScope, ok := claims["scope"].(string); ok {
+			if oerr := validateRequestedScopesSubset(req.Scope, sourceScope); oerr != nil {
+				return nil, oerr
+			}
+		}
+	}
+	if oerr := validateClientAllowedScopes(client, scope); oerr != nil {
+		span.SetStatus(codes.Error, "scope not allowed")
+		return nil, oerr
+	}
 
 	newToken, err := jwt.GenerateAccessTokenWithOptions(
 		subjectSub,

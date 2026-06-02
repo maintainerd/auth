@@ -3,16 +3,15 @@ package setup
 import (
 	"context"
 	"encoding/json"
-	"log/slog"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/platform/apperror"
 	"github.com/maintainerd/auth/internal/platform/crypto"
-	"github.com/maintainerd/auth/internal/setup/seeder"
 	"github.com/maintainerd/auth/internal/platform/ptr"
 	"github.com/maintainerd/auth/internal/platform/runner"
 	"github.com/maintainerd/auth/internal/platform/security"
+	"github.com/maintainerd/auth/internal/setup/seeder"
 	"github.com/maintainerd/auth/internal/shared"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/codes"
@@ -139,7 +138,7 @@ func (s *setupService) CreateTenant(ctx context.Context, req CreateTenantRequest
 		if req.Metadata != nil {
 			metadataJSON, err = json.Marshal(req.Metadata)
 			if err != nil {
-				slog.Warn("setup: metadata marshal failed", "err", err)
+				return apperror.NewInternal("failed to marshal tenant metadata", err)
 			}
 		} else {
 			metadataJSON = datatypes.JSON([]byte("{}"))
@@ -185,6 +184,7 @@ func (s *setupService) CreateTenant(ctx context.Context, req CreateTenantRequest
 		Status:      createdTenant.Status,
 		IsPublic:    createdTenant.IsPublic,
 		IsSystem:    createdTenant.IsSystem,
+		Metadata:    createdTenant.Metadata,
 		CreatedAt:   createdTenant.CreatedAt,
 		UpdatedAt:   createdTenant.UpdatedAt,
 	}

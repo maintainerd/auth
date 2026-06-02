@@ -1447,7 +1447,9 @@ func TestUserService_GetUserIdentities(t *testing.T) {
 	t.Run("FindUserIdentitiesPaginated error", func(t *testing.T) {
 		ur, ui, urr, rr, tr, idp, cr, up := defaultMocks()
 		ur.findByUUIDFn = func(_ any, _ ...string) (*User, error) { return userWithAccess(1, tenantID), nil }
-		ui.findUserIdentitiesPaginatedFn = func(_ GetUserIdentitiesFilter) (*PaginationResult[UserIdentity], error) { return nil, errors.New("ident err") }
+		ui.findUserIdentitiesPaginatedFn = func(_ GetUserIdentitiesFilter) (*PaginationResult[UserIdentity], error) {
+			return nil, errors.New("ident err")
+		}
 		_, svc := fullUserSvc(t, ur, ui, urr, rr, tr, idp, cr, up)
 		_, _, err := svc.GetUserIdentities(context.Background(), uid, tenantID, filter)
 		require.Error(t, err)

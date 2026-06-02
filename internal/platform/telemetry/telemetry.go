@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"runtime/debug"
+	"strconv"
 	"time"
 
 	"go.opentelemetry.io/otel"
@@ -45,7 +46,8 @@ func Init(ctx context.Context) (shutdown func(context.Context) error, err error)
 	serviceName := config.GetEnvOrDefault("OTEL_SERVICE_NAME", defaultServiceName)
 	appVersion := config.AppVersion
 
-	if config.GetEnvOrDefault("OTEL_ENABLED", "false") != "true" {
+	otelEnabled, _ := strconv.ParseBool(config.GetEnvOrDefault("OTEL_ENABLED", "false"))
+	if !otelEnabled {
 		otel.SetTracerProvider(noop.NewTracerProvider())
 		slog.Info("OpenTelemetry tracing disabled (OTEL_ENABLED != true)")
 		return noopShutdown, nil

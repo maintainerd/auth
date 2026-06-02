@@ -34,9 +34,9 @@ func TestOAuthDeviceAuthorizationRequestDTO_Validate(t *testing.T) {
 
 func TestOAuthDeviceVerifyRequestDTO_Validate(t *testing.T) {
 	cases := []struct {
-		name    string
+		name     string
 		userCode string
-		wantErr string
+		wantErr  string
 	}{
 		{"valid 8-char code", "ABCD-123", ""},
 		{"valid 9-char code", "ABCD-1234", ""},

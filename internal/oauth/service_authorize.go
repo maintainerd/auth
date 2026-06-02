@@ -139,6 +139,11 @@ func (s *oauthAuthorizeService) Authorize(ctx context.Context, req OAuthAuthoriz
 		return nil, apperror.NewOAuthUnsupportedResponseType("response_type 'code' is not enabled for this client")
 	}
 
+	if oerr := validateClientAllowedScopes(client, req.Scope); oerr != nil {
+		span.SetStatus(codes.Error, "scope not allowed")
+		return nil, oerr
+	}
+
 	// Validate redirect_uri against registered URIs.
 	if oerr := s.validateRedirectURI(client, req.RedirectURI); oerr != nil {
 		span.SetStatus(codes.Error, "invalid redirect_uri")

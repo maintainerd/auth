@@ -397,15 +397,15 @@ func (m *mockIdentityProviderRepo) FindByTenantAndProvider(_ int64, _ string) (*
 // ---------------------------------------------------------------------------
 
 type mockUserTokenRepo struct {
-	createFn                      func(*UserToken) (*UserToken, error)
-	findByUserIDAndTokenTypeFn    func(userID int64, tokenType string) ([]UserToken, error)
-	revokeByUUIDFn                func(id uuid.UUID) error
-	findActiveSessionsFn          func(int64) ([]UserToken, error)
-	findActiveSessionByUUIDFn     func(int64, uuid.UUID) (*UserToken, error)
-	countActiveSessionsFn         func(int64) (int64, error)
-	revokeSessionByUUIDFn         func(int64, uuid.UUID) error
-	revokeAllSessionsByUserIDFn   func(int64) error
-	touchSessionFn               func(uuid.UUID, time.Time) error
+	createFn                    func(*UserToken) (*UserToken, error)
+	findByUserIDAndTokenTypeFn  func(userID int64, tokenType string) ([]UserToken, error)
+	revokeByUUIDFn              func(id uuid.UUID) error
+	findActiveSessionsFn        func(int64) ([]UserToken, error)
+	findActiveSessionByUUIDFn   func(int64, uuid.UUID) (*UserToken, error)
+	countActiveSessionsFn       func(int64) (int64, error)
+	revokeSessionByUUIDFn       func(int64, uuid.UUID) error
+	revokeAllSessionsByUserIDFn func(int64) error
+	touchSessionFn              func(uuid.UUID, time.Time) error
 }
 
 func (m *mockUserTokenRepo) WithTx(_ *gorm.DB) UserTokenRepository { return m }

@@ -193,6 +193,7 @@ func TestSendMagicLink(t *testing.T) {
 
 func TestLoginWithMagicLink(t *testing.T) {
 	token := "valid-magic-link-token-0000000000000000000000000000000000000000000000000000"
+	tokenHash := hashUserBearerToken(token)
 	clientID := "test-client"
 	providerID := "test-provider"
 
@@ -292,7 +293,7 @@ func TestLoginWithMagicLink(t *testing.T) {
 		gormDB, mock := newMockGormDBRegex(t)
 		mock.ExpectBegin()
 		mock.ExpectQuery(`SELECT \* FROM "user_tokens" WHERE .+`).
-			WithArgs("user:magic_link", token).
+			WithArgs("user:magic_link", tokenHash).
 			WillReturnRows(sqlmock.NewRows([]string{"user_token_id", "user_token_uuid", "user_id", "token_type", "token", "expires_at", "is_revoked", "ip_address", "user_agent", "last_used_at", "idle_timeout_seconds", "absolute_expires_at", "created_at", "updated_at"}))
 		mock.ExpectRollback()
 
@@ -321,9 +322,9 @@ func TestLoginWithMagicLink(t *testing.T) {
 		pastTime := time.Now().Add(-1 * time.Hour)
 		mock.ExpectBegin()
 		mock.ExpectQuery(`SELECT \* FROM "user_tokens" WHERE .+`).
-			WithArgs("user:magic_link", token).
+			WithArgs("user:magic_link", tokenHash).
 			WillReturnRows(sqlmock.NewRows([]string{"user_token_id", "user_token_uuid", "user_id", "token_type", "token", "expires_at", "is_revoked", "ip_address", "user_agent", "last_used_at", "idle_timeout_seconds", "absolute_expires_at", "created_at", "updated_at"}).
-				AddRow(1, uuid.New(), 1, "user:magic_link", token, pastTime, false, nil, nil, nil, nil, nil, time.Now(), time.Now()))
+				AddRow(1, uuid.New(), 1, "user:magic_link", tokenHash, pastTime, false, nil, nil, nil, nil, nil, time.Now(), time.Now()))
 		mock.ExpectRollback()
 
 		idpRepo := &mockIdentityProviderRepo{
@@ -352,9 +353,9 @@ func TestLoginWithMagicLink(t *testing.T) {
 		futureTime := time.Now().Add(1 * time.Hour)
 		mock.ExpectBegin()
 		mock.ExpectQuery(`SELECT \* FROM "user_tokens" WHERE .+`).
-			WithArgs("user:magic_link", token).
+			WithArgs("user:magic_link", tokenHash).
 			WillReturnRows(sqlmock.NewRows([]string{"user_token_id", "user_token_uuid", "user_id", "token_type", "token", "expires_at", "is_revoked", "ip_address", "user_agent", "last_used_at", "idle_timeout_seconds", "absolute_expires_at", "created_at", "updated_at"}).
-				AddRow(1, uuid.New(), userID, "user:magic_link", token, futureTime, false, nil, nil, nil, nil, nil, time.Now(), time.Now()))
+				AddRow(1, uuid.New(), userID, "user:magic_link", tokenHash, futureTime, false, nil, nil, nil, nil, nil, time.Now(), time.Now()))
 		mock.ExpectRollback()
 
 		idpRepo := &mockIdentityProviderRepo{
@@ -388,9 +389,9 @@ func TestLoginWithMagicLink(t *testing.T) {
 		futureTime := time.Now().Add(1 * time.Hour)
 		mock.ExpectBegin()
 		mock.ExpectQuery(`SELECT \* FROM "user_tokens" WHERE .+`).
-			WithArgs("user:magic_link", token).
+			WithArgs("user:magic_link", tokenHash).
 			WillReturnRows(sqlmock.NewRows([]string{"user_token_id", "user_token_uuid", "user_id", "token_type", "token", "expires_at", "is_revoked", "ip_address", "user_agent", "last_used_at", "idle_timeout_seconds", "absolute_expires_at", "created_at", "updated_at"}).
-				AddRow(1, uuid.New(), userID, "user:magic_link", token, futureTime, false, nil, nil, nil, nil, nil, time.Now(), time.Now()))
+				AddRow(1, uuid.New(), userID, "user:magic_link", tokenHash, futureTime, false, nil, nil, nil, nil, nil, time.Now(), time.Now()))
 		mock.ExpectRollback()
 
 		idpRepo := &mockIdentityProviderRepo{
@@ -432,9 +433,9 @@ func TestLoginWithMagicLink(t *testing.T) {
 		futureTime := time.Now().Add(1 * time.Hour)
 		mock.ExpectBegin()
 		mock.ExpectQuery(`SELECT \* FROM "user_tokens" WHERE .+`).
-			WithArgs("user:magic_link", token).
+			WithArgs("user:magic_link", tokenHash).
 			WillReturnRows(sqlmock.NewRows([]string{"user_token_id", "user_token_uuid", "user_id", "token_type", "token", "expires_at", "is_revoked", "ip_address", "user_agent", "last_used_at", "idle_timeout_seconds", "absolute_expires_at", "created_at", "updated_at"}).
-				AddRow(1, uuid.New(), userID, "user:magic_link", token, futureTime, false, nil, nil, nil, nil, nil, time.Now(), time.Now()))
+				AddRow(1, uuid.New(), userID, "user:magic_link", tokenHash, futureTime, false, nil, nil, nil, nil, nil, time.Now(), time.Now()))
 		mock.ExpectCommit()
 
 		idpRepo := &mockIdentityProviderRepo{

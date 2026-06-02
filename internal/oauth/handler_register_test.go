@@ -45,8 +45,8 @@ func TestOAuthRegisterHandler_Register(t *testing.T) {
 			},
 		}
 		r := jsonReq(t, http.MethodPost, "/oauth/register", map[string]any{
-			"client_name":     "My App",
-			"redirect_uris":   []string{"https://example.com/cb"},
+			"client_name":          "My App",
+			"redirect_uris":        []string{"https://example.com/cb"},
 			"identity_provider_id": 1,
 		})
 		w := httptest.NewRecorder()
@@ -61,8 +61,8 @@ func TestOAuthRegisterHandler_Register(t *testing.T) {
 			},
 		}
 		r := jsonReq(t, http.MethodPost, "/oauth/register", map[string]any{
-			"client_name":     "My App",
-			"redirect_uris":   []string{"https://example.com/cb"},
+			"client_name":          "My App",
+			"redirect_uris":        []string{"https://example.com/cb"},
 			"identity_provider_id": 1,
 		})
 		w := httptest.NewRecorder()

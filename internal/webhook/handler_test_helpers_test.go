@@ -11,8 +11,8 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
+	"github.com/maintainerd/auth/internal/authctx"
 	"github.com/maintainerd/auth/internal/platform/apperror"
-	"github.com/maintainerd/auth/internal/platform/cache"
 	"github.com/maintainerd/auth/internal/platform/middleware"
 	"github.com/stretchr/testify/require"
 )
@@ -77,8 +77,8 @@ func (m *mockWebhookEndpointService) Delete(_ context.Context, tid int64, id uui
 }
 
 func withTenant(r *http.Request) *http.Request {
-	tenant := &cache.AuthTenant{TenantID: testTenantID, TenantUUID: testTenantUUID}
-	return middleware.WithAuthContext(r, &middleware.AuthContext{Tenant: tenant})
+	tenant := &authctx.AuthTenant{TenantID: testTenantID, TenantUUID: testTenantUUID}
+	return middleware.WithAuthContext(r, &authctx.AuthContext{Tenant: tenant})
 }
 
 func withChiParam(r *http.Request, key, val string) *http.Request {

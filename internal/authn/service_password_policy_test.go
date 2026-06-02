@@ -16,9 +16,9 @@ import (
 )
 
 type mockPasswordHistoryRepo struct {
-	addEntryFn        func(int64, string) error
+	addEntryFn         func(int64, string) error
 	findRecentHashesFn func(int64, int) ([]string, error)
-	pruneExcessFn     func(int64, int) error
+	pruneExcessFn      func(int64, int) error
 }
 
 func (m *mockPasswordHistoryRepo) WithTx(_ *gorm.DB) UserPasswordHistoryRepository { return m }
@@ -52,28 +52,46 @@ func (m *mockSecuritySettingRepo) FindDefaultByTenantID(tenantID int64) (*secpol
 	}
 	return nil, nil
 }
-func (m *mockSecuritySettingRepo) FindByUserPoolID(tenantID int64) (*secpolicy.SecuritySetting, error) { return nil, nil }
+func (m *mockSecuritySettingRepo) FindByUserPoolID(tenantID int64) (*secpolicy.SecuritySetting, error) {
+	return nil, nil
+}
 func (m *mockSecuritySettingRepo) FindPaginated(f secpolicy.SecuritySettingRepositoryGetFilter) (*PaginationResult[secpolicy.SecuritySetting], error) {
 	return nil, nil
 }
 func (m *mockSecuritySettingRepo) IncrementVersion(id int64) error { return nil }
-func (m *mockSecuritySettingRepo) Create(e *secpolicy.SecuritySetting) (*secpolicy.SecuritySetting, error) { return e, nil }
-func (m *mockSecuritySettingRepo) CreateOrUpdate(e *secpolicy.SecuritySetting) (*secpolicy.SecuritySetting, error) { return e, nil }
-func (m *mockSecuritySettingRepo) FindAll(...string) ([]secpolicy.SecuritySetting, error) { return nil, nil }
-func (m *mockSecuritySettingRepo) FindByUUID(any, ...string) (*secpolicy.SecuritySetting, error) { return nil, nil }
-func (m *mockSecuritySettingRepo) FindByUUIDs([]string, ...string) ([]secpolicy.SecuritySetting, error) { return nil, nil }
-func (m *mockSecuritySettingRepo) FindByID(any, ...string) (*secpolicy.SecuritySetting, error) { return nil, nil }
-func (m *mockSecuritySettingRepo) UpdateByUUID(any, any) (*secpolicy.SecuritySetting, error) { return nil, nil }
-func (m *mockSecuritySettingRepo) UpdateByID(any, any) (*secpolicy.SecuritySetting, error) { return nil, nil }
+func (m *mockSecuritySettingRepo) Create(e *secpolicy.SecuritySetting) (*secpolicy.SecuritySetting, error) {
+	return e, nil
+}
+func (m *mockSecuritySettingRepo) CreateOrUpdate(e *secpolicy.SecuritySetting) (*secpolicy.SecuritySetting, error) {
+	return e, nil
+}
+func (m *mockSecuritySettingRepo) FindAll(...string) ([]secpolicy.SecuritySetting, error) {
+	return nil, nil
+}
+func (m *mockSecuritySettingRepo) FindByUUID(any, ...string) (*secpolicy.SecuritySetting, error) {
+	return nil, nil
+}
+func (m *mockSecuritySettingRepo) FindByUUIDs([]string, ...string) ([]secpolicy.SecuritySetting, error) {
+	return nil, nil
+}
+func (m *mockSecuritySettingRepo) FindByID(any, ...string) (*secpolicy.SecuritySetting, error) {
+	return nil, nil
+}
+func (m *mockSecuritySettingRepo) UpdateByUUID(any, any) (*secpolicy.SecuritySetting, error) {
+	return nil, nil
+}
+func (m *mockSecuritySettingRepo) UpdateByID(any, any) (*secpolicy.SecuritySetting, error) {
+	return nil, nil
+}
 func (m *mockSecuritySettingRepo) DeleteByUUID(any) error { return nil }
-func (m *mockSecuritySettingRepo) DeleteByID(any) error { return nil }
+func (m *mockSecuritySettingRepo) DeleteByID(any) error   { return nil }
 func (m *mockSecuritySettingRepo) Paginate(map[string]any, int, int, ...string) (*PaginationResult[secpolicy.SecuritySetting], error) {
 	return nil, nil
 }
 
 func TestLoadPolicy(t *testing.T) {
 	t.Run("nil repo returns default", func(t *testing.T) {
-		policy := loadPolicy(nil, 1)
+		policy := secpolicy.LoadPasswordPolicy(nil, 1)
 		assert.Equal(t, security.DefaultPasswordPolicy(), policy)
 	})
 
@@ -83,7 +101,7 @@ func TestLoadPolicy(t *testing.T) {
 				return nil, errors.New("db error")
 			},
 		}
-		policy := loadPolicy(repo, 1)
+		policy := secpolicy.LoadPasswordPolicy(repo, 1)
 		assert.Equal(t, security.DefaultPasswordPolicy(), policy)
 	})
 
@@ -93,7 +111,7 @@ func TestLoadPolicy(t *testing.T) {
 				return nil, nil
 			},
 		}
-		policy := loadPolicy(repo, 1)
+		policy := secpolicy.LoadPasswordPolicy(repo, 1)
 		assert.Equal(t, security.DefaultPasswordPolicy(), policy)
 	})
 }
@@ -145,11 +163,11 @@ func TestCheckPasswordHistory(t *testing.T) {
 
 func TestRecordPasswordHistory(t *testing.T) {
 	t.Run("nil repo is no-op", func(t *testing.T) {
-		recordPasswordHistory(nil, 1, 5, "hash")
+		secpolicy.RecordPasswordHistory(nil, 1, 5, "hash")
 	})
 
 	t.Run("history count 0 is no-op", func(t *testing.T) {
-		recordPasswordHistory(&mockPasswordHistoryRepo{}, 1, 0, "hash")
+		secpolicy.RecordPasswordHistory(&mockPasswordHistoryRepo{}, 1, 0, "hash")
 	})
 }
 

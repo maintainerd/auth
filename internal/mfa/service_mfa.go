@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log/slog"
 	"time"
 
 	"github.com/maintainerd/auth/internal/authevent"
@@ -233,7 +232,10 @@ func (s *mfaService) VerifyTOTP(ctx context.Context, userID int64, code string) 
 	dec := crypto.SafeDecryptAtRest(record.Secret)
 	valid := totp.Validate(code, dec)
 	if valid {
-		_ = s.totpRepo.UpdateLastUsed(userID)
+		if err := s.totpRepo.UpdateLastUsed(userID); err != nil {
+			span.RecordError(err)
+			return false, apperror.NewInternal("failed to update TOTP last-used timestamp", err)
+		}
 		security.ResetFailedAttempts(rateLimitKey)
 	} else {
 		security.RecordFailedAttempt(rateLimitKey)
@@ -251,11 +253,15 @@ func (s *mfaService) DisableTOTP(ctx context.Context, userID int64) error {
 		span.RecordError(err)
 		return apperror.NewInternal("failed to disable TOTP", err)
 	}
-	_ = s.backupCodeRepo.DeleteAllByUserID(userID)
+	if err := s.backupCodeRepo.DeleteAllByUserID(userID); err != nil {
+		span.RecordError(err)
+		return apperror.NewInternal("failed to delete backup codes", err)
+	}
 
 	if err := s.db.Model(&User{}).Where("user_id = ?", userID).
 		Updates(map[string]any{"is_totp_enabled": false}).Error; err != nil {
-		slog.Warn("mfa: failed to update is_totp_enabled after disable", "user_id", userID, "err", err)
+		span.RecordError(err)
+		return apperror.NewInternal("failed to update user TOTP state", err)
 	}
 
 	s.authEventService.Log(ctx, authevent.AuthEventInput{
@@ -305,7 +311,9 @@ func (s *mfaService) RegenerateBackupCodes(ctx context.Context, userID int64) ([
 // generateAndStoreBackupCodes generates mfaBackupCodeCount new codes,
 // replaces all existing codes for the user, and returns the plaintexts.
 func (s *mfaService) generateAndStoreBackupCodes(userID int64) ([]string, error) {
-	_ = s.backupCodeRepo.DeleteAllByUserID(userID)
+	if err := s.backupCodeRepo.DeleteAllByUserID(userID); err != nil {
+		return nil, apperror.NewInternal("failed to delete existing backup codes", err)
+	}
 
 	plainCodes := make([]string, mfaBackupCodeCount)
 	models := make([]*UserBackupCode, mfaBackupCodeCount)
@@ -429,9 +437,18 @@ func (s *mfaService) AdminResetMFA(ctx context.Context, targetUserUUID string, a
 	}
 	targetUserID := target.UserID
 
-	_ = s.totpRepo.Disable(targetUserID)
-	_ = s.backupCodeRepo.DeleteAllByUserID(targetUserID)
-	_ = s.webAuthnCredRepo.DeleteAllByUserID(targetUserID)
+	if err := s.totpRepo.Disable(targetUserID); err != nil {
+		span.RecordError(err)
+		return apperror.NewInternal("failed to disable target TOTP", err)
+	}
+	if err := s.backupCodeRepo.DeleteAllByUserID(targetUserID); err != nil {
+		span.RecordError(err)
+		return apperror.NewInternal("failed to delete target backup codes", err)
+	}
+	if err := s.webAuthnCredRepo.DeleteAllByUserID(targetUserID); err != nil {
+		span.RecordError(err)
+		return apperror.NewInternal("failed to delete target WebAuthn credentials", err)
+	}
 
 	if err := s.db.Model(&User{}).Where("user_id = ?", targetUserID).
 		Updates(map[string]any{
@@ -532,7 +549,10 @@ func (s *mfaService) VerifyStepUp(ctx context.Context, req StepUpVerifyRequestDT
 		matched := false
 		for _, bc := range bCodes {
 			if bcrypt.CompareHashAndPassword([]byte(bc.CodeHash), []byte(req.Code)) == nil {
-				_ = s.backupCodeRepo.MarkUsed(bc.BackupCodeID)
+				if err := s.backupCodeRepo.MarkUsed(bc.BackupCodeID); err != nil {
+					span.RecordError(err)
+					return nil, apperror.NewInternal("failed to mark backup code used", err)
+				}
 				matched = true
 				break
 			}
@@ -557,14 +577,15 @@ func (s *mfaService) VerifyStepUp(ctx context.Context, req StepUpVerifyRequestDT
 	issuer := config.AppPublicHostname
 	accessToken, err := jwt.GenerateAccessTokenWithOptions(
 		user.UserUUID.String(), "", issuer, issuer, "", "",
-		&jwt.AccessTokenOptions{},
+		&jwt.AccessTokenOptions{
+			AMR: amr,
+			ACR: jwt.ACRLevel2,
+		},
 	)
 	if err != nil {
 		span.RecordError(err)
 		return nil, apperror.NewInternal("token generation failed", err)
 	}
-
-	_ = amr // amr will be embedded in ID token via IDTokenParams in a full login flow
 
 	s.authEventService.Log(ctx, authevent.AuthEventInput{
 		ActorUserID: &userID,

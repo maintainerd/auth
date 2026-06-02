@@ -84,6 +84,11 @@ func (s *oauthCIBAService) Initiate(ctx context.Context, req OAuthCIBARequestDTO
 		return nil, apperror.NewOAuthUnauthorizedClient("client is not authorized for urn:openid:params:grant-type:ciba")
 	}
 
+	if oerr := validateClientAllowedScopes(client, req.Scope); oerr != nil {
+		span.SetStatus(codes.Error, "scope not allowed")
+		return nil, oerr
+	}
+
 	// Resolve the user from login_hint (email or phone).
 	if req.LoginHint == "" {
 		return nil, apperror.NewOAuthInvalidRequest("login_hint is required")

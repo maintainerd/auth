@@ -2,7 +2,6 @@ package authevent
 
 import (
 	"context"
-	"sync"
 	"time"
 
 	"github.com/google/uuid"
@@ -84,7 +83,6 @@ type AuthEventService interface {
 type authEventService struct {
 	authEventRepo AuthEventRepository
 	dispatcher    WebhookDispatcher
-	wg            sync.WaitGroup
 }
 
 // NewAuthEventService creates a new AuthEventService.
@@ -158,13 +156,7 @@ func (s *authEventService) Log(ctx context.Context, input AuthEventInput) {
 	}
 
 	if s.dispatcher != nil {
-		s.wg.Add(1)
-		go func() {
-			defer s.wg.Done()
-			dCtx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
-			defer cancel()
-			s.dispatcher.Dispatch(dCtx, created)
-		}()
+		s.dispatcher.Dispatch(ctx, created)
 	}
 }
 
@@ -256,7 +248,6 @@ func (s *authEventService) DeleteOlderThan(ctx context.Context, cutoff time.Time
 
 // Shutdown waits for all in-flight webhook dispatches to complete.
 func (s *authEventService) Shutdown() {
-	s.wg.Wait()
 	if s.dispatcher != nil {
 		s.dispatcher.Shutdown()
 	}

@@ -26,3 +26,23 @@ func TestClientSecretMatches(t *testing.T) {
 	assert.False(t, clientSecretMatches(&Client{SecretHash: ptr.Ptr(currentHash)}, "wrong-secret"))
 	assert.False(t, clientSecretMatches(&Client{SecretHash: ptr.Ptr(currentHash)}, ""))
 }
+
+func TestValidateClientAllowedScopes(t *testing.T) {
+	client := &Client{AllowedScopes: []string{"openid", "email"}}
+
+	assert.Nil(t, validateClientAllowedScopes(client, "openid email"))
+
+	oerr := validateClientAllowedScopes(client, "openid profile")
+	require.NotNil(t, oerr)
+	assert.Equal(t, "invalid_scope", oerr.Code)
+
+	assert.Nil(t, validateClientAllowedScopes(&Client{}, "openid profile"))
+}
+
+func TestValidateRequestedScopesSubset(t *testing.T) {
+	assert.Nil(t, validateRequestedScopesSubset("openid", "openid email"))
+
+	oerr := validateRequestedScopesSubset("profile", "openid email")
+	require.NotNil(t, oerr)
+	assert.Equal(t, "invalid_scope", oerr.Code)
+}

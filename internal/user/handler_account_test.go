@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/maintainerd/auth/internal/platform/cache"
+	"github.com/maintainerd/auth/internal/authctx"
 	"github.com/maintainerd/auth/internal/platform/middleware"
 	"github.com/stretchr/testify/assert"
 )
@@ -68,12 +68,12 @@ func (m *mockAccountService) VerifyBackupCode(_ context.Context, req VerifyBacku
 }
 
 type mockSessionService struct {
-	listSessionsFn       func(userID int64) ([]*SessionDataResult, error)
-	revokeSessionFn      func(userID int64, sessionUUID uuid.UUID) error
-	revokeAllSessionsFn  func(userID int64) error
-	createSessionFn      func(userID int64, ipAddress, userAgent string) (*UserToken, error)
-	enforceConcurrentFn  func(userUUID uuid.UUID, userID int64) error
-	validateAndTouchFn   func(sessionUUID uuid.UUID, userID int64) error
+	listSessionsFn      func(userID int64) ([]*SessionDataResult, error)
+	revokeSessionFn     func(userID int64, sessionUUID uuid.UUID) error
+	revokeAllSessionsFn func(userID int64) error
+	createSessionFn     func(userID int64, ipAddress, userAgent string) (*UserToken, error)
+	enforceConcurrentFn func(userUUID uuid.UUID, userID int64) error
+	validateAndTouchFn  func(sessionUUID uuid.UUID, userID int64) error
 }
 
 func (m *mockSessionService) ListSessions(_ context.Context, userID int64) ([]*SessionDataResult, error) {
@@ -114,8 +114,8 @@ func (m *mockSessionService) ValidateAndTouch(_ context.Context, sessionUUID uui
 }
 
 func withAuthUser(r *http.Request) *http.Request {
-	return middleware.WithAuthContext(r, &middleware.AuthContext{
-		User: &cache.AuthUser{UserUUID: testUserUUID, UserID: 42},
+	return middleware.WithAuthContext(r, &authctx.AuthContext{
+		User: &authctx.AuthUser{UserUUID: testUserUUID, UserID: 42},
 	})
 }
 

@@ -94,12 +94,8 @@ func (r *roleRepository) FindPaginated(filter RoleRepositoryGetFilter) (*Paginat
 	query = query.Where("tenant_id = ?", filter.TenantID)
 
 	// Filters with LIKE
-	if filter.Name != nil {
-		query = query.Where("name ILIKE ?", "%"+*filter.Name+"%")
-	}
-	if filter.Description != nil {
-		query = query.Where("description ILIKE ?", "%"+*filter.Description+"%")
-	}
+	query = database.ApplyILike(query, "name", filter.Name)
+	query = database.ApplyILike(query, "description", filter.Description)
 
 	// Filters with exact match
 	if filter.IsDefault != nil {

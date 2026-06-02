@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
-	"log/slog"
 	"strings"
 	"time"
 
@@ -164,7 +163,6 @@ func (s *webAuthnService) FinishRegistration(ctx context.Context, userID int64, 
 		Name:             name,
 	}
 
-
 	if err := s.webAuthnCredRepo.CreateCredential(storedCred); err != nil {
 		span.RecordError(err)
 		return nil, apperror.NewInternal("failed to persist WebAuthn credential", err)
@@ -176,10 +174,14 @@ func (s *webAuthnService) FinishRegistration(ctx context.Context, userID int64, 
 			"is_webauthn_enabled": true,
 			"mfa_enabled_at":      now,
 		}).Error; err != nil {
-		slog.Warn("webauthn: failed to update user state after registration", "user_id", userID, "err", err)
+		span.RecordError(err)
+		return nil, apperror.NewInternal("failed to update user WebAuthn state", err)
 	}
 
-	_ = s.deleteSession(ctx, userID, "reg")
+	if err := s.deleteSession(ctx, userID, "reg"); err != nil {
+		span.RecordError(err)
+		return nil, apperror.NewInternal("failed to clear WebAuthn registration session", err)
+	}
 
 	s.authEventService.Log(ctx, authevent.AuthEventInput{
 		ActorUserID: &userID,
@@ -258,10 +260,19 @@ func (s *webAuthnService) FinishAuthentication(ctx context.Context, userID int64
 		span.SetStatus(codes.Error, "sign count regression")
 		return nil, apperror.NewUnauthorized("WebAuthn authentication failed: sign count regression detected")
 	}
-	_ = s.webAuthnCredRepo.UpdateSignCount(stored.CredentialID, newSignCount)
-	_ = s.webAuthnCredRepo.UpdateLastUsed(stored.CredentialID)
+	if err := s.webAuthnCredRepo.UpdateSignCount(stored.CredentialID, newSignCount); err != nil {
+		span.RecordError(err)
+		return nil, apperror.NewInternal("failed to update WebAuthn sign count", err)
+	}
+	if err := s.webAuthnCredRepo.UpdateLastUsed(stored.CredentialID); err != nil {
+		span.RecordError(err)
+		return nil, apperror.NewInternal("failed to update WebAuthn last-used timestamp", err)
+	}
 
-	_ = s.deleteSession(ctx, userID, "auth")
+	if err := s.deleteSession(ctx, userID, "auth"); err != nil {
+		span.RecordError(err)
+		return nil, apperror.NewInternal("failed to clear WebAuthn authentication session", err)
+	}
 
 	s.authEventService.Log(ctx, authevent.AuthEventInput{
 		ActorUserID: &userID,
@@ -303,11 +314,16 @@ func (s *webAuthnService) DeleteCredential(ctx context.Context, credentialUUIDSt
 	}
 
 	// Disable WebAuthn on user if no credentials remain.
-	remaining, _ := s.webAuthnCredRepo.FindByUserID(userID)
+	remaining, err := s.webAuthnCredRepo.FindByUserID(userID)
+	if err != nil {
+		span.RecordError(err)
+		return apperror.NewInternal("failed to list remaining WebAuthn credentials", err)
+	}
 	if len(remaining) == 0 {
 		if err := s.db.Model(&User{}).Where("user_id = ?", userID).
 			Updates(map[string]any{"is_webauthn_enabled": false}).Error; err != nil {
-			slog.Warn("webauthn: failed to disable webauthn flag", "user_id", userID, "err", err)
+			span.RecordError(err)
+			return apperror.NewInternal("failed to update user WebAuthn state", err)
 		}
 	}
 

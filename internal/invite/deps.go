@@ -4,14 +4,14 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/maintainerd/auth/internal/platform/cache"
+	"github.com/maintainerd/auth/internal/authctx"
 	"gorm.io/gorm"
 )
 
 // Tenant and User are type aliases for the cache auth types so test helpers
-// can pass them directly into middleware.AuthContext.
-type Tenant = cache.AuthTenant
-type User = cache.AuthUser
+// can pass them directly into authctx.AuthContext.
+type Tenant = authctx.AuthTenant
+type User = authctx.AuthUser
 
 type TenantRecord struct {
 	TenantID   int64
