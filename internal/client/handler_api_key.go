@@ -49,13 +49,6 @@ func (h *APIKeyHandler) Get(w http.ResponseWriter, r *http.Request) {
 	}
 	// UserUUID parameter removed
 
-	// Set defaults
-	if reqParams.Page == 0 {
-		reqParams.Page = 1
-	}
-	if reqParams.Limit == 0 {
-		reqParams.Limit = 10
-	}
 	if reqParams.SortBy == "" {
 		reqParams.SortBy = "created_at"
 	}

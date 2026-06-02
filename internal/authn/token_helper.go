@@ -3,14 +3,19 @@ package authn
 import (
 	"strings"
 
+	"github.com/maintainerd/auth/internal/platform/crypto"
 	"github.com/maintainerd/auth/internal/platform/jwt"
+	"github.com/maintainerd/auth/internal/shared"
 )
 
-// DefaultAccessTokenExpiresIn is the lifetime of an access token in seconds.
-const DefaultAccessTokenExpiresIn = 3600
+const (
+	DefaultAccessTokenExpiresIn = shared.DefaultAccessTokenExpiresIn
+	DefaultTokenScope           = shared.DefaultTokenScope
+)
 
-// DefaultTokenScope is the OAuth scope string used when issuing tokens.
-const DefaultTokenScope = "openid profile email"
+func hashUserBearerToken(token string) string {
+	return crypto.HashAuthorizationCode(strings.TrimSpace(token))
+}
 
 func generateTokenSet(sub string, user *User, client *Client) (accessToken, idToken, refreshToken string, err error) {
 	accessToken, err = jwt.GenerateAccessToken(
@@ -53,5 +58,27 @@ func buildAuthNUserProfile(user *User) *jwt.UserProfile {
 		EmailVerified: user.IsEmailVerified,
 		Phone:         user.Phone,
 		PhoneVerified: user.IsPhoneVerified,
+	}
+}
+
+func buildLoginTokenResponse(accessToken, idToken, refreshToken string, issuedAt int64) *LoginResponseDTO {
+	return &LoginResponseDTO{
+		AccessToken:  accessToken,
+		IDToken:      idToken,
+		RefreshToken: refreshToken,
+		ExpiresIn:    DefaultAccessTokenExpiresIn,
+		TokenType:    "Bearer",
+		IssuedAt:     issuedAt,
+	}
+}
+
+func buildRegisterTokenResponse(accessToken, idToken, refreshToken string, issuedAt int64) *RegisterResponseDTO {
+	return &RegisterResponseDTO{
+		AccessToken:  accessToken,
+		IDToken:      idToken,
+		RefreshToken: refreshToken,
+		ExpiresIn:    DefaultAccessTokenExpiresIn,
+		TokenType:    "Bearer",
+		IssuedAt:     issuedAt,
 	}
 }

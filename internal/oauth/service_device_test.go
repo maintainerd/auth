@@ -72,17 +72,23 @@ func (m *mockOAuthDeviceCodeRepo) Create(e *OAuthDeviceCode) (*OAuthDeviceCode, 
 	}
 	return e, nil
 }
-func (m *mockOAuthDeviceCodeRepo) CreateOrUpdate(e *OAuthDeviceCode) (*OAuthDeviceCode, error) { return e, nil }
-func (m *mockOAuthDeviceCodeRepo) FindAll(_ ...string) ([]OAuthDeviceCode, error)              { return nil, nil }
-func (m *mockOAuthDeviceCodeRepo) FindByUUID(_ any, _ ...string) (*OAuthDeviceCode, error)    { return nil, nil }
+func (m *mockOAuthDeviceCodeRepo) CreateOrUpdate(e *OAuthDeviceCode) (*OAuthDeviceCode, error) {
+	return e, nil
+}
+func (m *mockOAuthDeviceCodeRepo) FindAll(_ ...string) ([]OAuthDeviceCode, error) { return nil, nil }
+func (m *mockOAuthDeviceCodeRepo) FindByUUID(_ any, _ ...string) (*OAuthDeviceCode, error) {
+	return nil, nil
+}
 func (m *mockOAuthDeviceCodeRepo) FindByUUIDs(_ []string, _ ...string) ([]OAuthDeviceCode, error) {
 	return nil, nil
 }
-func (m *mockOAuthDeviceCodeRepo) FindByID(_ any, _ ...string) (*OAuthDeviceCode, error) { return nil, nil }
-func (m *mockOAuthDeviceCodeRepo) UpdateByUUID(_, _ any) (*OAuthDeviceCode, error)       { return nil, nil }
-func (m *mockOAuthDeviceCodeRepo) UpdateByID(_, _ any) (*OAuthDeviceCode, error)         { return nil, nil }
-func (m *mockOAuthDeviceCodeRepo) DeleteByUUID(_ any) error                              { return nil }
-func (m *mockOAuthDeviceCodeRepo) DeleteByID(_ any) error                                { return nil }
+func (m *mockOAuthDeviceCodeRepo) FindByID(_ any, _ ...string) (*OAuthDeviceCode, error) {
+	return nil, nil
+}
+func (m *mockOAuthDeviceCodeRepo) UpdateByUUID(_, _ any) (*OAuthDeviceCode, error) { return nil, nil }
+func (m *mockOAuthDeviceCodeRepo) UpdateByID(_, _ any) (*OAuthDeviceCode, error)   { return nil, nil }
+func (m *mockOAuthDeviceCodeRepo) DeleteByUUID(_ any) error                        { return nil }
+func (m *mockOAuthDeviceCodeRepo) DeleteByID(_ any) error                          { return nil }
 func (m *mockOAuthDeviceCodeRepo) Paginate(_ map[string]any, _, _ int, _ ...string) (*PaginationResult[OAuthDeviceCode], error) {
 	return nil, nil
 }

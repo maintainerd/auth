@@ -11,6 +11,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/authevent"
 	"github.com/maintainerd/auth/internal/platform/apperror"
+	"github.com/maintainerd/auth/internal/platform/cache"
 	"github.com/maintainerd/auth/internal/platform/crypto"
 	"github.com/maintainerd/auth/internal/platform/jwt"
 	"github.com/maintainerd/auth/internal/platform/middleware"
@@ -52,6 +53,7 @@ type oauthTokenService struct {
 	userRepo         UserRepository
 	userIdentityRepo UserIdentityRepository
 	authEventService authevent.AuthEventService
+	jtiDenylist      cache.JTIDenylister
 }
 
 // NewOAuthTokenService creates a new OAuthTokenService.
@@ -63,6 +65,7 @@ func NewOAuthTokenService(
 	userRepo UserRepository,
 	userIdentityRepo UserIdentityRepository,
 	authEventService authevent.AuthEventService,
+	jtiDenylist cache.JTIDenylister,
 ) OAuthTokenService {
 	return &oauthTokenService{
 		db:               db,
@@ -72,6 +75,7 @@ func NewOAuthTokenService(
 		userRepo:         userRepo,
 		userIdentityRepo: userIdentityRepo,
 		authEventService: authEventService,
+		jtiDenylist:      jtiDenylist,
 	}
 }
 
@@ -165,6 +169,11 @@ func (s *oauthTokenService) exchangeAuthorizationCode(ctx context.Context, req O
 	if authCode.ClientID != client.ClientID {
 		span.SetStatus(codes.Error, "client mismatch")
 		return nil, apperror.NewOAuthInvalidGrant("the authorization code was not issued to this client")
+	}
+
+	if oerr := validateClientAllowedScopes(client, authCode.Scope); oerr != nil {
+		span.SetStatus(codes.Error, "scope not allowed")
+		return nil, oerr
 	}
 
 	// Verify redirect_uri matches.
@@ -314,7 +323,13 @@ func (s *oauthTokenService) exchangeRefreshToken(ctx context.Context, req OAuthT
 		// Use the same scope unless a narrower scope was requested.
 		scope := storedToken.Scope
 		if req.Scope != "" {
+			if oerr := validateRequestedScopesSubset(req.Scope, storedToken.Scope); oerr != nil {
+				return oerr
+			}
 			scope = req.Scope
+		}
+		if oerr := validateClientAllowedScopes(client, scope); oerr != nil {
+			return oerr
 		}
 
 		// Generate new access + ID tokens.
@@ -464,11 +479,8 @@ func (s *oauthTokenService) Revoke(ctx context.Context, req OAuthRevokeRequestDT
 	storedRT, err := s.refreshTokenRepo.FindByTokenHash(tokenHash)
 	if err != nil {
 		span.RecordError(err)
-		span.SetStatus(codes.Error, "token lookup failed")
-		return nil // RFC 7009 §2.2: always 200 OK
 	}
-
-	if storedRT != nil && storedRT.ClientID == client.ClientID {
+	if err == nil && storedRT != nil && storedRT.ClientID == client.ClientID {
 		if !storedRT.IsRevoked {
 			_ = s.refreshTokenRepo.RevokeByID(storedRT.OAuthRefreshTokenID)
 			s.authEventService.Log(ctx, authevent.AuthEventInput{
@@ -485,12 +497,81 @@ func (s *oauthTokenService) Revoke(ctx context.Context, req OAuthRevokeRequestDT
 		}
 	}
 
-	// Access tokens are stateless JWTs — we cannot revoke them server-side
-	// without a blacklist. RFC 7009 says the server SHOULD revoke if possible;
-	// we log the event but don't fail.
+	if oerr := s.revokeAccessToken(ctx, req.Token, client); oerr != nil {
+		span.RecordError(oerr)
+		span.SetStatus(codes.Error, "access token revoke failed")
+		return oerr
+	}
 
 	span.SetStatus(codes.Ok, "")
 	return nil
+}
+
+func (s *oauthTokenService) revokeAccessToken(ctx context.Context, rawToken string, client *Client) *apperror.OAuthError {
+	if s.jtiDenylist == nil {
+		return nil
+	}
+
+	claims, err := jwt.ValidateToken(rawToken)
+	if err != nil || claims == nil {
+		return nil
+	}
+
+	tokenType, _ := claims["token_type"].(string)
+	if tokenType != "access_token" {
+		return nil
+	}
+
+	if clientID, _ := claims["client_id"].(string); client.Identifier == nil || clientID != *client.Identifier {
+		return nil
+	}
+
+	jti, _ := claims["jti"].(string)
+	if strings.TrimSpace(jti) == "" {
+		return nil
+	}
+
+	ttl := tokenRemainingTTL(claims["exp"])
+	if ttl <= 0 {
+		return nil
+	}
+
+	if err := s.jtiDenylist.DenyJTI(ctx, jti, ttl); err != nil {
+		return apperror.NewOAuthServerError("an unexpected error occurred")
+	}
+
+	s.authEventService.Log(ctx, authevent.AuthEventInput{
+		TenantID:    client.TenantID,
+		IPAddress:   middleware.ClientIPFromContext(ctx),
+		UserAgent:   ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),
+		Category:    authevent.AuthEventCategoryAuthn,
+		EventType:   authevent.AuthEventTypeOAuthTokenRevoke,
+		Severity:    authevent.AuthEventSeverityInfo,
+		Result:      authevent.AuthEventResultSuccess,
+		Description: ptr.Ptr("Access token revoked"),
+	})
+	return nil
+}
+
+func tokenRemainingTTL(expClaim any) time.Duration {
+	var expUnix int64
+	switch exp := expClaim.(type) {
+	case float64:
+		expUnix = int64(exp)
+	case int64:
+		expUnix = exp
+	case int:
+		expUnix = int64(exp)
+	case json.Number:
+		parsed, err := exp.Int64()
+		if err != nil {
+			return 0
+		}
+		expUnix = parsed
+	default:
+		return 0
+	}
+	return time.Until(time.Unix(expUnix, 0))
 }
 
 // Introspect implements OAuthTokenService.
@@ -682,16 +763,6 @@ func (s *oauthTokenService) refreshTokenTTL(client *Client) time.Duration {
 		return time.Duration(*client.RefreshTokenTTL) * time.Second
 	}
 	return jwt.RefreshTokenTTL
-}
-
-// hasGrant checks whether the client has the given grant type.
-func hasGrant(client *Client, grantType string) bool {
-	for _, g := range client.GrantTypes {
-		if g == grantType {
-			return true
-		}
-	}
-	return false
 }
 
 // findActiveClientByIdentifier is a shared helper used by the token and

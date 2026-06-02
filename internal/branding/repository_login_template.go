@@ -5,7 +5,6 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/platform/database"
-	"github.com/maintainerd/auth/internal/shared"
 	"gorm.io/gorm"
 )
 
@@ -25,7 +24,6 @@ type LoginTemplateRepositoryGetFilter struct {
 type LoginTemplateRepository interface {
 	BaseRepositoryMethods[LoginTemplate]
 	FindByUUIDAndTenantID(loginTemplateUUID uuid.UUID, tenantID int64, preloads ...string) (*LoginTemplate, error)
-	FindByName(name string) (*LoginTemplate, error)
 	FindPaginated(filter LoginTemplateRepositoryGetFilter) (*PaginationResult[LoginTemplate], error)
 }
 
@@ -58,29 +56,12 @@ func (r *loginTemplateRepository) FindByUUIDAndTenantID(loginTemplateUUID uuid.U
 	return &template, nil
 }
 
-// FindByName retrieves an active login template by its name
-func (r *loginTemplateRepository) FindByName(name string) (*LoginTemplate, error) {
-	var template LoginTemplate
-	err := r.DB().
-		Where("name = ? AND status = ?", name, shared.StatusActive).
-		First(&template).Error
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, nil
-		}
-		return nil, err
-	}
-	return &template, nil
-}
-
 // FindPaginated retrieves paginated login templates with filtering
 func (r *loginTemplateRepository) FindPaginated(filter LoginTemplateRepositoryGetFilter) (*PaginationResult[LoginTemplate], error) {
 	query := r.DB().Model(&LoginTemplate{})
 
 	// Apply filters
-	if filter.Name != nil && *filter.Name != "" {
-		query = query.Where("name ILIKE ?", "%"+*filter.Name+"%")
-	}
+	query = database.ApplyILike(query, "name", filter.Name)
 	if len(filter.Status) > 0 {
 		query = query.Where("status IN ?", filter.Status)
 	}

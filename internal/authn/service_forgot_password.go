@@ -109,7 +109,7 @@ func (s *forgotPasswordService) SendPasswordResetEmail(ctx context.Context, emai
 		userToken := &UserToken{
 			UserID:    user.UserID,
 			TokenType: shared.TokenTypePasswordReset,
-			Token:     resetToken,
+			Token:     hashUserBearerToken(resetToken),
 			ExpiresAt: &expiresAt,
 		}
 		_, txErr = txUserTokenRepo.Create(userToken)

@@ -10,6 +10,7 @@ import (
 	sqlmock "github.com/DATA-DOG/go-sqlmock"
 	"github.com/google/uuid"
 	"github.com/lib/pq"
+	"github.com/maintainerd/auth/internal/platform/cache"
 	"github.com/maintainerd/auth/internal/platform/crypto"
 	"github.com/maintainerd/auth/internal/platform/jwt"
 	"github.com/maintainerd/auth/internal/platform/security"
@@ -29,7 +30,23 @@ func newOAuthTokenSvc(
 	userIdentityRepo *mockUserIdentityRepo,
 	authEventSvc *mockAuthEventService,
 ) OAuthTokenService {
-	return NewOAuthTokenService(db, clientRepo, authCodeRepo, refreshTokenRepo, userRepo, userIdentityRepo, authEventSvc)
+	return NewOAuthTokenService(db, clientRepo, authCodeRepo, refreshTokenRepo, userRepo, userIdentityRepo, authEventSvc, cache.NopJTIDenylister{})
+}
+
+type recordingJTIDenylister struct {
+	jti string
+	ttl time.Duration
+	err error
+}
+
+func (r *recordingJTIDenylister) DenyJTI(_ context.Context, jti string, ttl time.Duration) error {
+	r.jti = jti
+	r.ttl = ttl
+	return r.err
+}
+
+func (r *recordingJTIDenylister) IsJTIDenied(_ context.Context, _ string) (bool, error) {
+	return false, nil
 }
 
 func mockClientRows() *sqlmock.Rows {
@@ -1067,6 +1084,63 @@ func TestOAuthTokenService_Revoke(t *testing.T) {
 		oerr := svc.Revoke(ctx, OAuthRevokeRequestDTO{Token: "t"}, OAuthClientCredentials{ClientID: "my-client"})
 		require.Nil(t, oerr) // always 200 OK
 	})
+
+	t.Run("revokes access token by denylisting jti", func(t *testing.T) {
+		initTestJWTKeysService(t)
+		origChecker := jwt.JTIChecker
+		jwt.JTIChecker = nil
+		t.Cleanup(func() { jwt.JTIChecker = origChecker })
+
+		db, mock := newMockDB(t)
+		expectClientLookup(mock, mockClientRows())
+
+		token, err := jwt.GenerateAccessToken("user-sub", "openid profile", "https://auth.example.com", "my-client", "my-client", "default-provider")
+		require.NoError(t, err)
+		claims, err := jwt.ValidateToken(token)
+		require.NoError(t, err)
+		jti, _ := claims["jti"].(string)
+		require.NotEmpty(t, jti)
+
+		denylist := &recordingJTIDenylister{}
+		svc := &oauthTokenService{
+			db:               db,
+			refreshTokenRepo: &mockOAuthRefreshTokenRepo{},
+			authEventService: &mockAuthEventService{},
+			jtiDenylist:      denylist,
+		}
+
+		oerr := svc.Revoke(ctx, OAuthRevokeRequestDTO{Token: token}, OAuthClientCredentials{ClientID: "my-client"})
+
+		require.Nil(t, oerr)
+		assert.Equal(t, jti, denylist.jti)
+		assert.Positive(t, denylist.ttl)
+		assert.LessOrEqual(t, denylist.ttl, jwt.AccessTokenTTL)
+	})
+
+	t.Run("access token denylist error returns server error", func(t *testing.T) {
+		initTestJWTKeysService(t)
+		origChecker := jwt.JTIChecker
+		jwt.JTIChecker = nil
+		t.Cleanup(func() { jwt.JTIChecker = origChecker })
+
+		db, mock := newMockDB(t)
+		expectClientLookup(mock, mockClientRows())
+
+		token, err := jwt.GenerateAccessToken("user-sub", "openid profile", "https://auth.example.com", "my-client", "my-client", "default-provider")
+		require.NoError(t, err)
+
+		svc := &oauthTokenService{
+			db:               db,
+			refreshTokenRepo: &mockOAuthRefreshTokenRepo{},
+			authEventService: &mockAuthEventService{},
+			jtiDenylist:      &recordingJTIDenylister{err: errors.New("redis down")},
+		}
+
+		oerr := svc.Revoke(ctx, OAuthRevokeRequestDTO{Token: token}, OAuthClientCredentials{ClientID: "my-client"})
+
+		require.NotNil(t, oerr)
+		assert.Equal(t, "server_error", oerr.Code)
+	})
 }
 
 // ── TestOAuthTokenService_Introspect ────────────────────────────────────────
@@ -1311,20 +1385,20 @@ func TestRefreshTokenTTL(t *testing.T) {
 
 // ── TestHasGrant ────────────────────────────────────────────────────────────
 
-func TestHasGrant(t *testing.T) {
+func TestClientHasGrant(t *testing.T) {
 	t.Run("found", func(t *testing.T) {
 		c := &Client{GrantTypes: pq.StringArray{"authorization_code", "refresh_token"}}
-		assert.True(t, hasGrant(c, "refresh_token"))
+		assert.True(t, clientHasGrant(c, "refresh_token"))
 	})
 
 	t.Run("not found", func(t *testing.T) {
 		c := &Client{GrantTypes: pq.StringArray{"authorization_code"}}
-		assert.False(t, hasGrant(c, "client_credentials"))
+		assert.False(t, clientHasGrant(c, "client_credentials"))
 	})
 
 	t.Run("empty", func(t *testing.T) {
 		c := &Client{}
-		assert.False(t, hasGrant(c, "authorization_code"))
+		assert.False(t, clientHasGrant(c, "authorization_code"))
 	})
 }
 

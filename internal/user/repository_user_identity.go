@@ -57,9 +57,7 @@ func (r *userIdentityRepository) FindByUserID(userID int64) ([]UserIdentity, err
 func (r *userIdentityRepository) FindUserIdentitiesPaginated(filter GetUserIdentitiesFilter) (*PaginationResult[UserIdentity], error) {
 	query := r.DB().Model(&UserIdentity{}).Where("user_id = ?", filter.UserID)
 
-	if filter.Provider != nil && *filter.Provider != "" {
-		query = query.Where("provider ILIKE ?", "%"+*filter.Provider+"%")
-	}
+	query = database.ApplyILike(query, "provider", filter.Provider)
 
 	query = query.Order(database.SanitizeOrderPrefixed("user_identities.", filter.SortBy, filter.SortOrder, "user_identities.created_at DESC"))
 

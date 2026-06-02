@@ -98,12 +98,8 @@ func (r *ipRestrictionRuleRepository) FindPaginated(filter IPRestrictionRuleRepo
 	if len(filter.Status) > 0 {
 		query = query.Where("status IN ?", filter.Status)
 	}
-	if filter.IPAddress != nil {
-		query = query.Where("ip_address ILIKE ?", "%"+*filter.IPAddress+"%")
-	}
-	if filter.Description != nil {
-		query = query.Where("description ILIKE ?", "%"+*filter.Description+"%")
-	}
+	query = database.ApplyILike(query, "ip_address", filter.IPAddress)
+	query = database.ApplyILike(query, "description", filter.Description)
 	if filter.CreatedBy != nil {
 		query = query.Where("created_by = ?", *filter.CreatedBy)
 	}

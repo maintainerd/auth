@@ -35,7 +35,6 @@ func newMockGormDB(t *testing.T) (*gorm.DB, sqlmock.Sqlmock) {
 	return gormDB, mock
 }
 
-
 type mockBaseRepo[T any] struct{}
 
 func (m *mockBaseRepo[T]) Create(e *T) (*T, error)                            { return e, nil }
@@ -450,7 +449,6 @@ func (m *mockClientRepo) DeleteByUUIDAndTenantID(id uuid.UUID, tenantID int64) e
 	}
 	return nil
 }
-
 
 type mockRoleRepo struct {
 	mockBaseRepo[Role]

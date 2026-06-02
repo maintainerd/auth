@@ -8,8 +8,8 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
+	"github.com/maintainerd/auth/internal/authctx"
 	"github.com/maintainerd/auth/internal/platform/apperror"
-	"github.com/maintainerd/auth/internal/platform/cache"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -82,8 +82,8 @@ func TestSessionValidationMiddleware_ValidSession(t *testing.T) {
 
 	r := httptest.NewRequest(http.MethodGet, "/", nil)
 	r.Header.Set("X-Session-ID", sessionUUID.String())
-	r = WithAuthContext(r, &AuthContext{
-		User: &cache.AuthUser{UserUUID: userUUID, UserID: 42},
+	r = WithAuthContext(r, &authctx.AuthContext{
+		User: &authctx.AuthUser{UserUUID: userUUID, UserID: 42},
 	})
 	w := httptest.NewRecorder()
 	handler.ServeHTTP(w, r)
@@ -103,8 +103,8 @@ func TestSessionValidationMiddleware_UnauthorizedError(t *testing.T) {
 
 	r := httptest.NewRequest(http.MethodGet, "/", nil)
 	r.Header.Set("X-Session-ID", uuid.New().String())
-	r = WithAuthContext(r, &AuthContext{
-		User: &cache.AuthUser{UserUUID: uuid.New(), UserID: 1},
+	r = WithAuthContext(r, &authctx.AuthContext{
+		User: &authctx.AuthUser{UserUUID: uuid.New(), UserID: 1},
 	})
 	w := httptest.NewRecorder()
 	handler.ServeHTTP(w, r)
@@ -124,8 +124,8 @@ func TestSessionValidationMiddleware_GenericError(t *testing.T) {
 
 	r := httptest.NewRequest(http.MethodGet, "/", nil)
 	r.Header.Set("X-Session-ID", uuid.New().String())
-	r = WithAuthContext(r, &AuthContext{
-		User: &cache.AuthUser{UserUUID: uuid.New(), UserID: 1},
+	r = WithAuthContext(r, &authctx.AuthContext{
+		User: &authctx.AuthUser{UserUUID: uuid.New(), UserID: 1},
 	})
 	w := httptest.NewRecorder()
 	handler.ServeHTTP(w, r)

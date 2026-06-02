@@ -173,8 +173,7 @@ func (m *mockSMSTemplateRepo) DeleteByID(id any) error { return nil }
 func (m *mockSMSTemplateRepo) Paginate(c map[string]any, pg, lim int, p ...string) (*PaginationResult[SMSTemplate], error) {
 	return nil, nil
 }
-func (m *mockSMSTemplateRepo) WithTx(_ *gorm.DB) SMSTemplateRepository   { return m }
-func (m *mockSMSTemplateRepo) FindByName(_ string) (*SMSTemplate, error) { return nil, nil }
+func (m *mockSMSTemplateRepo) WithTx(_ *gorm.DB) SMSTemplateRepository { return m }
 
 // ---------------------------------------------------------------------------
 // Mock: LoginTemplateRepository
@@ -236,4 +235,3 @@ func (m *mockLoginTemplateRepo) DeleteByID(id any) error { return nil }
 func (m *mockLoginTemplateRepo) Paginate(c map[string]any, pg, lim int, p ...string) (*PaginationResult[LoginTemplate], error) {
 	return nil, nil
 }
-func (m *mockLoginTemplateRepo) FindByName(_ string) (*LoginTemplate, error) { return nil, nil }

@@ -30,18 +30,34 @@ func (h *OAuthUserInfoHandler) UserInfo(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	resp := OAuthUserInfoResponseDTO{
-		Sub:           user.UserUUID.String(),
-		Email:         user.Email,
-		EmailVerified: user.IsEmailVerified,
-		Phone:         user.Phone,
-		PhoneVerified: user.IsPhoneVerified,
-		Name:          composeUserDisplayName(user),
-		UpdatedAt:     user.UpdatedAt.Unix(),
+	claims := middleware.JWTClaimsFromRequest(r)
+	tokenScopes := scopeSet(parseScopeFields(""))
+	sub := user.UserUUID.String()
+	if claims != nil {
+		tokenScopes = scopeSet(parseScopeFields(claims.Scope))
+		if strings.TrimSpace(claims.Sub) != "" {
+			sub = claims.Sub
+		}
 	}
 
-	if user.Profile != nil && user.Profile.ProfileURL != nil {
-		resp.Picture = *user.Profile.ProfileURL
+	resp := OAuthUserInfoResponseDTO{
+		Sub: sub,
+	}
+
+	if _, ok := tokenScopes["email"]; ok {
+		resp.Email = user.Email
+		resp.EmailVerified = user.IsEmailVerified
+	}
+	if _, ok := tokenScopes["phone"]; ok {
+		resp.Phone = user.Phone
+		resp.PhoneVerified = user.IsPhoneVerified
+	}
+	if _, ok := tokenScopes["profile"]; ok {
+		resp.Name = composeUserDisplayName(user)
+		resp.UpdatedAt = user.UpdatedAt.Unix()
+		if user.Profile != nil && user.Profile.ProfileURL != nil {
+			resp.Picture = *user.Profile.ProfileURL
+		}
 	}
 
 	w.Header().Set("Content-Type", "application/json")

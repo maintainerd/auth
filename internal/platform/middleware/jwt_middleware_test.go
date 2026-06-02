@@ -185,7 +185,7 @@ func TestJWTAuthMiddleware_MissingOrInvalidSub(t *testing.T) {
 		assert.Equal(t, http.StatusUnauthorized, rr.Code)
 	})
 
-	t.Run("sub is not a valid UUID → 400", func(t *testing.T) {
+	t.Run("sub is not a valid UUID passes through as pairwise subject", func(t *testing.T) {
 		claims := jwtlib.MapClaims{
 			"sub": "not-a-uuid", "exp": exp, "iat": iat,
 			"iss": "https://issuer", "aud": "https://api",
@@ -196,6 +196,6 @@ func TestJWTAuthMiddleware_MissingOrInvalidSub(t *testing.T) {
 		req.Header.Set("Authorization", "Bearer "+tok)
 		rr := httptest.NewRecorder()
 		JWTAuthMiddleware(okHandler()).ServeHTTP(rr, req)
-		assert.Equal(t, http.StatusBadRequest, rr.Code)
+		assert.Equal(t, http.StatusOK, rr.Code)
 	})
 }

@@ -27,6 +27,7 @@ type UserIdentity struct {
 	UserIdentityID uuid.UUID
 	TenantID       int64
 	UserID         int64
+	Sub            string
 	Tenant         *Tenant `gorm:"foreignKey:TenantID;references:TenantID"`
 }
 
@@ -63,6 +64,22 @@ type TenantService struct {
 
 func (TenantService) TableName() string { return "tenant_services" }
 
+type UserRole struct {
+	UserRoleID uuid.UUID
+	UserID     int64
+	RoleID     int64
+}
+
+func (UserRole) TableName() string { return "user_roles" }
+
+type UserToken struct {
+	UserTokenID int64
+	UserID      int64
+	IsRevoked   bool
+}
+
+func (UserToken) TableName() string { return "user_tokens" }
+
 type TenantRepository interface {
 	BaseRepositoryMethods[Tenant]
 	WithTx(tx *gorm.DB) TenantRepository
@@ -97,4 +114,3 @@ type TenantServiceRepository interface {
 	FindByTenantAndService(tenantID int64, serviceID int64) (*TenantService, error)
 	DeleteByTenantAndService(tenantID int64, serviceID int64) error
 }
-

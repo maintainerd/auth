@@ -37,10 +37,10 @@ func (m *mockTenantRepo) FindSystem() (*Tenant, error) {
 	}
 	return &Tenant{TenantID: 1}, nil
 }
-func (m *mockTenantRepo) Create(e *Tenant) (*Tenant, error)                 { return e, nil }
-func (m *mockTenantRepo) CreateOrUpdate(e *Tenant) (*Tenant, error)         { return e, nil }
-func (m *mockTenantRepo) FindAll(_ ...string) ([]Tenant, error)             { return nil, nil }
-func (m *mockTenantRepo) FindByUUID(_ any, _ ...string) (*Tenant, error)   { return nil, nil }
+func (m *mockTenantRepo) Create(e *Tenant) (*Tenant, error)              { return e, nil }
+func (m *mockTenantRepo) CreateOrUpdate(e *Tenant) (*Tenant, error)      { return e, nil }
+func (m *mockTenantRepo) FindAll(_ ...string) ([]Tenant, error)          { return nil, nil }
+func (m *mockTenantRepo) FindByUUID(_ any, _ ...string) (*Tenant, error) { return nil, nil }
 func (m *mockTenantRepo) FindByUUIDs(_ []string, _ ...string) ([]Tenant, error) {
 	return nil, nil
 }

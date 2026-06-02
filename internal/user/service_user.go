@@ -362,7 +362,7 @@ func (s *userService) Create(ctx context.Context, username string, fullname stri
 		}
 
 		// Validate password against tenant policy
-		policy := loadPolicy(s.securitySettingRepo, targetTenant.TenantID)
+		policy := secpolicy.LoadPasswordPolicy(s.securitySettingRepo, targetTenant.TenantID)
 		if err = security.ValidatePasswordPolicy(password, policy); err != nil {
 			return apperror.NewValidation(err.Error())
 		}
@@ -404,7 +404,7 @@ func (s *userService) Create(ctx context.Context, username string, fullname stri
 		}
 
 		// Record password history
-		recordPasswordHistory(s.passwordHistoryRepo, newUser.UserID, policy.HistoryCount, hashedPasswordStr)
+		secpolicy.RecordPasswordHistory(s.passwordHistoryRepo, newUser.UserID, policy.HistoryCount, hashedPasswordStr)
 
 		// Find default auth client for this tenant
 		defaultClient, err := txClientRepo.FindDefaultByTenantID(targetTenant.TenantID)
@@ -497,15 +497,8 @@ func (s *userService) Update(ctx context.Context, userUUID uuid.UUID, tenantID i
 			return apperror.NewNotFound("user not found")
 		}
 
-		// Validate tenant ownership - check if user has an identity in this tenant
-		hasTenantAccess := false
-		for _, identity := range user.UserIdentities {
-			if identity.TenantID == tenantID {
-				hasTenantAccess = true
-				break
-			}
-		}
-		if !hasTenantAccess {
+		// Validate tenant ownership.
+		if !userHasTenantAccess(user, tenantID) {
 			return apperror.NewNotFoundWithReason("user not found or access denied")
 		}
 
@@ -844,15 +837,8 @@ func (s *userService) AssignUserRoles(ctx context.Context, userUUID uuid.UUID, r
 			return apperror.NewNotFound("user not found")
 		}
 
-		// Validate tenant ownership - check if user has an identity in this tenant
-		hasTenantAccess := false
-		for _, identity := range user.UserIdentities {
-			if identity.TenantID == tenantID {
-				hasTenantAccess = true
-				break
-			}
-		}
-		if !hasTenantAccess {
+		// Validate tenant ownership.
+		if !userHasTenantAccess(user, tenantID) {
 			return apperror.NewNotFoundWithReason("user not found or access denied")
 		}
 
@@ -942,15 +928,8 @@ func (s *userService) RemoveUserRole(ctx context.Context, userUUID uuid.UUID, ro
 			return apperror.NewNotFound("user not found")
 		}
 
-		// Validate tenant ownership - check if user has an identity in this tenant
-		hasTenantAccess := false
-		for _, identity := range user.UserIdentities {
-			if identity.TenantID == tenantID {
-				hasTenantAccess = true
-				break
-			}
-		}
-		if !hasTenantAccess {
+		// Validate tenant ownership.
+		if !userHasTenantAccess(user, tenantID) {
 			return apperror.NewNotFoundWithReason("user not found or access denied")
 		}
 
@@ -1238,6 +1217,7 @@ func toTenantServiceDataResult(t *Tenant) *TenantServiceDataResult {
 		Status:      t.Status,
 		IsPublic:    t.IsPublic,
 		IsSystem:    t.IsSystem,
+		Metadata:    t.Metadata,
 		CreatedAt:   t.CreatedAt,
 		UpdatedAt:   t.UpdatedAt,
 	}

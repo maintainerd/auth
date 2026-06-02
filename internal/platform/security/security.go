@@ -52,6 +52,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/redis/go-redis/v9"
@@ -287,18 +288,19 @@ func RateLimitKey(identifier, action string) string {
 	return fmt.Sprintf("rate_limit:%s:%s", action, identifier)
 }
 
-// dummyBcryptHash is pre-computed once at startup for timing-safe operations.
+// dummyBcryptHash is computed lazily for timing-safe operations.
 // Complies with SOC2 CC6.1 and ISO27001 A.9.4.2
-var dummyBcryptHash []byte
+var (
+	dummyBcryptHash []byte
+	dummyBcryptOnce sync.Once
+)
 
-func init() {
-	// bcrypt.GenerateFromPassword with DefaultCost cannot fail:
-	// the cost is valid and crypto/rand.Read is guaranteed to succeed (Go 1.24+).
-	dummyBcryptHash, _ = bcrypt.GenerateFromPassword([]byte("dummy_password_for_timing_safety"), BcryptCost)
-}
-
-// GetDummyBcryptHash returns the pre-computed dummy bcrypt hash for timing-safe operations.
+// GetDummyBcryptHash returns the dummy bcrypt hash for timing-safe operations.
 func GetDummyBcryptHash() []byte {
+	dummyBcryptOnce.Do(func() {
+		// bcrypt.GenerateFromPassword with DefaultCost cannot fail with a valid cost.
+		dummyBcryptHash, _ = bcrypt.GenerateFromPassword([]byte("dummy_password_for_timing_safety"), BcryptCost)
+	})
 	return dummyBcryptHash
 }
 

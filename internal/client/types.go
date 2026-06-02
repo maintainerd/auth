@@ -1,9 +1,10 @@
 package client
 
 import (
+	"time"
+
 	"github.com/google/uuid"
 	"gorm.io/datatypes"
-	"time"
 )
 
 // Response DTOs

@@ -11,8 +11,8 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
+	"github.com/maintainerd/auth/internal/authctx"
 	"github.com/maintainerd/auth/internal/platform/apperror"
-	"github.com/maintainerd/auth/internal/platform/cache"
 	"github.com/maintainerd/auth/internal/platform/middleware"
 	"github.com/stretchr/testify/require"
 )
@@ -27,19 +27,19 @@ var (
 )
 
 func withTenant(r *http.Request) *http.Request {
-	tenant := &cache.AuthTenant{TenantID: testTenantID, TenantUUID: testTenantUUID}
-	return middleware.WithAuthContext(r, &middleware.AuthContext{Tenant: tenant})
+	tenant := &authctx.AuthTenant{TenantID: testTenantID, TenantUUID: testTenantUUID}
+	return middleware.WithAuthContext(r, &authctx.AuthContext{Tenant: tenant})
 }
 
 func withUser(r *http.Request) *http.Request {
-	user := &cache.AuthUser{UserUUID: testResourceUUID}
-	return middleware.WithAuthContext(r, &middleware.AuthContext{User: user})
+	user := &authctx.AuthUser{UserUUID: testResourceUUID}
+	return middleware.WithAuthContext(r, &authctx.AuthContext{User: user})
 }
 
 func withTenantAndUser(r *http.Request) *http.Request {
-	tenant := &cache.AuthTenant{TenantID: testTenantID, TenantUUID: testTenantUUID}
-	user := &cache.AuthUser{UserUUID: testResourceUUID}
-	return middleware.WithAuthContext(r, &middleware.AuthContext{Tenant: tenant, User: user})
+	tenant := &authctx.AuthTenant{TenantID: testTenantID, TenantUUID: testTenantUUID}
+	user := &authctx.AuthUser{UserUUID: testResourceUUID}
+	return middleware.WithAuthContext(r, &authctx.AuthContext{Tenant: tenant, User: user})
 }
 
 func withChiParam(r *http.Request, key, val string) *http.Request {

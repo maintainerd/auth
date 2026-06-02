@@ -7,6 +7,7 @@ import (
 
 	"github.com/alicebob/miniredis/v2"
 	"github.com/google/uuid"
+	"github.com/maintainerd/auth/internal/authctx"
 	"github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -27,13 +28,13 @@ func TestSetAndGetUserContext(t *testing.T) {
 	c, _ := newTestCache(t)
 	ctx := context.Background()
 
-	uc := &UserContext{
-		User: &AuthUser{
+	uc := &authctx.UserContext{
+		User: &authctx.AuthUser{
 			UserUUID: uuid.New(),
 			Email:    "alice@example.com",
 			Fullname: "Alice Example",
 		},
-		Tenant: &AuthTenant{
+		Tenant: &authctx.AuthTenant{
 			TenantID:   42,
 			TenantUUID: uuid.New(),
 		},
@@ -72,7 +73,7 @@ func TestSetUserContext_TTL(t *testing.T) {
 	c, mr := newTestCache(t)
 	ctx := context.Background()
 
-	uc := &UserContext{User: &AuthUser{UserUUID: uuid.New(), Email: "bob@example.com"}}
+	uc := &authctx.UserContext{User: &authctx.AuthUser{UserUUID: uuid.New(), Email: "bob@example.com"}}
 	c.SetUserContext(ctx, "sub1", "client1", uc)
 
 	ttl := mr.TTL(userContextKey("sub1", "client1"))
@@ -87,7 +88,7 @@ func TestInvalidateUser(t *testing.T) {
 	c, _ := newTestCache(t)
 	ctx := context.Background()
 
-	uc := &UserContext{User: &AuthUser{UserUUID: uuid.New(), Email: "alice@example.com"}}
+	uc := &authctx.UserContext{User: &authctx.AuthUser{UserUUID: uuid.New(), Email: "alice@example.com"}}
 	c.SetUserContext(ctx, "sub1", "client1", uc)
 
 	// Also set another key for same sub but different client
@@ -107,7 +108,7 @@ func TestInvalidateUserAll(t *testing.T) {
 	c, _ := newTestCache(t)
 	ctx := context.Background()
 
-	uc := &UserContext{User: &AuthUser{UserUUID: uuid.New(), Email: "alice@example.com"}}
+	uc := &authctx.UserContext{User: &authctx.AuthUser{UserUUID: uuid.New(), Email: "alice@example.com"}}
 	c.SetUserContext(ctx, "sub1", "client1", uc)
 	c.SetUserContext(ctx, "sub1", "client2", uc)
 	c.SetUserContext(ctx, "sub2", "client1", uc)
@@ -127,7 +128,7 @@ func TestInvalidateAllUsers(t *testing.T) {
 	c, _ := newTestCache(t)
 	ctx := context.Background()
 
-	uc := &UserContext{User: &AuthUser{UserUUID: uuid.New(), Email: "alice@example.com"}}
+	uc := &authctx.UserContext{User: &authctx.AuthUser{UserUUID: uuid.New(), Email: "alice@example.com"}}
 	c.SetUserContext(ctx, "sub1", "client1", uc)
 	c.SetUserContext(ctx, "sub2", "client2", uc)
 
@@ -304,7 +305,7 @@ func TestInvalidateAllUsers_RedisClosed(t *testing.T) {
 	ctx := context.Background()
 
 	// Set some data, then close Redis so SCAN fails.
-	uc := &UserContext{User: &AuthUser{UserUUID: uuid.New(), Email: "alice@example.com"}}
+	uc := &authctx.UserContext{User: &authctx.AuthUser{UserUUID: uuid.New(), Email: "alice@example.com"}}
 	c.SetUserContext(ctx, "sub1", "client1", uc)
 
 	mr.Close()

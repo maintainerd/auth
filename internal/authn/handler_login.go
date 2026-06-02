@@ -1,7 +1,6 @@
 package authn
 
 import (
-	"context"
 	"encoding/json"
 	"net/http"
 	"time"
@@ -88,7 +87,7 @@ func (h *LoginHandler) LoginPublic(w http.ResponseWriter, r *http.Request) {
 			Details:   "Suspicious user agent detected",
 			Severity:  "HIGH",
 		})
-		resp.Error(w, http.StatusBadRequest, "Invalid request")
+		resp.BadRequest(w)
 		return
 	}
 
@@ -188,7 +187,10 @@ func (h *LoginHandler) Logout(w http.ResponseWriter, r *http.Request) {
 
 	accessToken := extractAccessToken(r)
 	if accessToken != "" {
-		_ = h.loginService.Logout(context.Background(), accessToken)
+		if err := h.loginService.Logout(r.Context(), accessToken); err != nil {
+			resp.Error(w, http.StatusInternalServerError, "Logout failed")
+			return
+		}
 	}
 
 	cookie.ClearAuthCookies(w)

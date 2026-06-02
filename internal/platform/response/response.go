@@ -106,6 +106,12 @@ func ValidationError(w http.ResponseWriter, err error) {
 	Error(w, http.StatusBadRequest, "Validation failed", err.Error())
 }
 
+// BadRequest sends a 400 Bad Request response with the standard generic
+// "Invalid request" message.
+func BadRequest(w http.ResponseWriter) {
+	Error(w, http.StatusBadRequest, "Invalid request")
+}
+
 // BadRequestBody sends a 400 Bad Request response with the standard
 // "Invalid request body" message.
 func BadRequestBody(w http.ResponseWriter) {

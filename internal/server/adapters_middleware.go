@@ -3,7 +3,7 @@ package server
 import (
 	"context"
 
-	"github.com/maintainerd/auth/internal/platform/cache"
+	"github.com/maintainerd/auth/internal/authctx"
 	"github.com/maintainerd/auth/internal/user"
 )
 
@@ -15,7 +15,7 @@ func newMiddlewareUserContextProvider(userService user.UserService) *middlewareU
 	return &middlewareUserContextProvider{userService: userService}
 }
 
-func (p *middlewareUserContextProvider) FindBySubAndClientID(ctx context.Context, sub string, clientID string) (*cache.AuthUser, error) {
+func (p *middlewareUserContextProvider) FindBySubAndClientID(ctx context.Context, sub string, clientID string) (*authctx.AuthUser, error) {
 	u, err := p.userService.FindBySubAndClientID(ctx, sub, clientID)
 	if err != nil || u == nil {
 		return nil, err
@@ -23,23 +23,23 @@ func (p *middlewareUserContextProvider) FindBySubAndClientID(ctx context.Context
 	return toAuthUser(u), nil
 }
 
-func toAuthUser(u *user.User) *cache.AuthUser {
+func toAuthUser(u *user.User) *authctx.AuthUser {
 	if u == nil {
 		return nil
 	}
 
-	roles := make([]cache.AuthRole, len(u.Roles))
+	roles := make([]authctx.AuthRole, len(u.Roles))
 	for i, role := range u.Roles {
-		roles[i] = cache.AuthRole{
+		roles[i] = authctx.AuthRole{
 			RoleID:   role.RoleID,
 			RoleUUID: role.RoleUUID,
 			Name:     role.Name,
 		}
 	}
 
-	var profile *cache.AuthProfile
+	var profile *authctx.AuthProfile
 	if u.Profile != nil {
-		profile = &cache.AuthProfile{
+		profile = &authctx.AuthProfile{
 			DisplayName: u.Profile.DisplayName,
 			FirstName:   u.Profile.FirstName,
 			LastName:    u.Profile.LastName,
@@ -47,7 +47,7 @@ func toAuthUser(u *user.User) *cache.AuthUser {
 		}
 	}
 
-	return &cache.AuthUser{
+	return &authctx.AuthUser{
 		UserID:          u.UserID,
 		UserUUID:        u.UserUUID,
 		Roles:           roles,

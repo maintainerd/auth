@@ -28,6 +28,7 @@ type Tenant struct {
 	Status      string
 	IsPublic    bool
 	IsSystem    bool
+	Metadata    datatypes.JSON
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
 }
@@ -43,6 +44,7 @@ type TenantServiceDataResult struct {
 	Status      string
 	IsPublic    bool
 	IsSystem    bool
+	Metadata    datatypes.JSON
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
 }

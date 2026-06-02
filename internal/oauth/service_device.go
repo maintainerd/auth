@@ -90,6 +90,11 @@ func (s *oauthDeviceService) Authorize(ctx context.Context, req OAuthDeviceAutho
 		return nil, apperror.NewOAuthUnauthorizedClient("client is not authorized for device_code grant")
 	}
 
+	if oerr := validateClientAllowedScopes(client, req.Scope); oerr != nil {
+		span.SetStatus(codes.Error, "scope not allowed")
+		return nil, oerr
+	}
+
 	rawDeviceCode, err := crypto.GenerateRandomString(deviceCodeLength)
 	if err != nil {
 		span.RecordError(err)

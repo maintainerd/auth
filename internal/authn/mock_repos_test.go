@@ -10,6 +10,7 @@ import (
 	"github.com/maintainerd/auth/internal/authevent"
 	"github.com/maintainerd/auth/internal/branding"
 	"github.com/maintainerd/auth/internal/platform/apperror"
+	"github.com/maintainerd/auth/internal/platform/signedurl"
 	"gorm.io/gorm"
 )
 
@@ -191,6 +192,7 @@ func TestMain(m *testing.M) {
 	if os.Getenv("HMAC_SECRET_KEY") == "" {
 		os.Setenv("HMAC_SECRET_KEY", "test-secret-key-for-unit-tests") //nolint:errcheck
 	}
+	_ = signedurl.Configure([]byte(os.Getenv("HMAC_SECRET_KEY")))
 	m.Run()
 }
 

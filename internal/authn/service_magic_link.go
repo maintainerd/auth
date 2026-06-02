@@ -120,7 +120,7 @@ func (s *magicLinkService) SendMagicLink(ctx context.Context, emailAddr string, 
 		if _, txErr := txUserTokenRepo.Create(&UserToken{
 			UserID:    user.UserID,
 			TokenType: shared.TokenTypeMagicLink,
-			Token:     token,
+			Token:     hashUserBearerToken(token),
 			ExpiresAt: &expiresAt,
 		}); txErr != nil {
 			return apperror.NewInternal("failed to create magic link token", txErr)
@@ -191,7 +191,7 @@ func (s *magicLinkService) LoginWithMagicLink(ctx context.Context, token, client
 		var matches []UserToken
 		if txErr := tx.Where(
 			"token_type = ? AND token = ? AND is_revoked = false",
-			shared.TokenTypeMagicLink, token,
+			shared.TokenTypeMagicLink, hashUserBearerToken(token),
 		).Find(&matches).Error; txErr != nil {
 			return apperror.NewInternal("failed to find magic link token", txErr)
 		}
@@ -340,12 +340,5 @@ func (s *magicLinkService) generateTokenResponse(sub string, user *User, client 
 	if err != nil {
 		return nil, err
 	}
-	return &LoginResponseDTO{
-		AccessToken:  accessToken,
-		IDToken:      idToken,
-		RefreshToken: refreshToken,
-		ExpiresIn:    DefaultAccessTokenExpiresIn,
-		TokenType:    "Bearer",
-		IssuedAt:     time.Now().Unix(),
-	}, nil
+	return buildLoginTokenResponse(accessToken, idToken, refreshToken, time.Now().Unix()), nil
 }

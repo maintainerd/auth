@@ -5,19 +5,19 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/maintainerd/auth/internal/platform/cache"
+	"github.com/maintainerd/auth/internal/authctx"
 	"github.com/stretchr/testify/assert"
 )
 
 // userWithPermissions returns a minimal cached user fixture with the given permission names.
-func userWithPermissions(perms ...string) *cache.AuthUser {
-	var permissions []cache.AuthPermission
+func userWithPermissions(perms ...string) *authctx.AuthUser {
+	var permissions []authctx.AuthPermission
 	for _, p := range perms {
-		permissions = append(permissions, cache.AuthPermission{Name: p})
+		permissions = append(permissions, authctx.AuthPermission{Name: p})
 	}
-	return &cache.AuthUser{
+	return &authctx.AuthUser{
 		UserID: 1,
-		Roles:  []cache.AuthRole{{Permissions: permissions}},
+		Roles:  []authctx.AuthRole{{Permissions: permissions}},
 	}
 }
 
@@ -38,7 +38,7 @@ func TestPermissionMiddleware(t *testing.T) {
 			name:     "user lacks required permission → 403",
 			required: []string{"write"},
 			setupContext: func(r *http.Request) *http.Request {
-				return WithAuthContext(r, &AuthContext{User: userWithPermissions("read")})
+				return WithAuthContext(r, &authctx.AuthContext{User: userWithPermissions("read")})
 			},
 			wantStatus: http.StatusForbidden,
 		},
@@ -46,7 +46,7 @@ func TestPermissionMiddleware(t *testing.T) {
 			name:     "user has required permission → 200",
 			required: []string{"read"},
 			setupContext: func(r *http.Request) *http.Request {
-				return WithAuthContext(r, &AuthContext{User: userWithPermissions("read", "write")})
+				return WithAuthContext(r, &authctx.AuthContext{User: userWithPermissions("read", "write")})
 			},
 			wantStatus: http.StatusOK,
 		},
@@ -54,7 +54,7 @@ func TestPermissionMiddleware(t *testing.T) {
 			name:     "user has one of multiple required permissions → 200",
 			required: []string{"admin", "write"},
 			setupContext: func(r *http.Request) *http.Request {
-				return WithAuthContext(r, &AuthContext{User: userWithPermissions("write")})
+				return WithAuthContext(r, &authctx.AuthContext{User: userWithPermissions("write")})
 			},
 			wantStatus: http.StatusOK,
 		},
@@ -62,7 +62,7 @@ func TestPermissionMiddleware(t *testing.T) {
 			name:     "empty required list → 403",
 			required: []string{},
 			setupContext: func(r *http.Request) *http.Request {
-				return WithAuthContext(r, &AuthContext{User: userWithPermissions("read")})
+				return WithAuthContext(r, &authctx.AuthContext{User: userWithPermissions("read")})
 			},
 			wantStatus: http.StatusForbidden,
 		},
@@ -81,7 +81,7 @@ func TestPermissionMiddleware(t *testing.T) {
 
 func TestHasAnyPermission(t *testing.T) {
 	t.Run("no roles → false", func(t *testing.T) {
-		assert.False(t, hasAnyPermission(&cache.AuthUser{}, []string{"read"}))
+		assert.False(t, hasAnyPermission(&authctx.AuthUser{}, []string{"read"}))
 	})
 
 	t.Run("has matching permission → true", func(t *testing.T) {
@@ -97,10 +97,10 @@ func TestHasAnyPermission(t *testing.T) {
 	})
 
 	t.Run("multiple roles, permission in second role → true", func(t *testing.T) {
-		user := &cache.AuthUser{
-			Roles: []cache.AuthRole{
-				{Permissions: []cache.AuthPermission{{Name: "read"}}},
-				{Permissions: []cache.AuthPermission{{Name: "admin"}}},
+		user := &authctx.AuthUser{
+			Roles: []authctx.AuthRole{
+				{Permissions: []authctx.AuthPermission{{Name: "read"}}},
+				{Permissions: []authctx.AuthPermission{{Name: "admin"}}},
 			},
 		}
 		assert.True(t, hasAnyPermission(user, []string{"admin"}))

@@ -66,7 +66,7 @@ type permissionService struct {
 	apiRepo          APIRepository
 	roleRepo         RoleRepository
 	clientRepo       ClientRepository
-	cacheInvalidator cache.Invalidator
+	authzInvalidator AuthorizationTokenInvalidator
 }
 
 func NewPermissionService(
@@ -76,14 +76,19 @@ func NewPermissionService(
 	roleRepo RoleRepository,
 	clientRepo ClientRepository,
 	cacheInvalidator cache.Invalidator,
+	authzInvalidator ...AuthorizationTokenInvalidator,
 ) PermissionService {
+	invalidator := AuthorizationTokenInvalidator(noopAuthorizationTokenInvalidator{})
+	if len(authzInvalidator) > 0 && authzInvalidator[0] != nil {
+		invalidator = authzInvalidator[0]
+	}
 	return &permissionService{
 		db:               db,
 		permissionRepo:   permissionRepo,
 		apiRepo:          apiRepo,
 		roleRepo:         roleRepo,
 		clientRepo:       clientRepo,
-		cacheInvalidator: cacheInvalidator,
+		authzInvalidator: invalidator,
 	}
 }
 
@@ -299,7 +304,11 @@ func (s *permissionService) Update(ctx context.Context, permissionUUID uuid.UUID
 		return nil, err
 	}
 
-	s.cacheInvalidator.InvalidateAllUsers(ctx)
+	if err := s.authzInvalidator.InvalidatePermissionChange(ctx, updatedPermission.PermissionID); err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "invalidate permission sessions failed")
+		return nil, apperror.NewInternal("failed to invalidate affected permission sessions", err)
+	}
 	span.SetStatus(codes.Ok, "")
 	return toPermissionServiceDataResult(updatedPermission), nil
 }
@@ -349,7 +358,11 @@ func (s *permissionService) SetActiveStatusByUUID(ctx context.Context, permissio
 		return nil, err
 	}
 
-	s.cacheInvalidator.InvalidateAllUsers(ctx)
+	if err := s.authzInvalidator.InvalidatePermissionChange(ctx, updatedPermission.PermissionID); err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "invalidate permission sessions failed")
+		return nil, apperror.NewInternal("failed to invalidate affected permission sessions", err)
+	}
 	span.SetStatus(codes.Ok, "")
 	return toPermissionServiceDataResult(updatedPermission), nil
 }
@@ -391,7 +404,11 @@ func (s *permissionService) SetStatus(ctx context.Context, permissionUUID uuid.U
 		return nil, err
 	}
 
-	s.cacheInvalidator.InvalidateAllUsers(ctx)
+	if err := s.authzInvalidator.InvalidatePermissionChange(ctx, updatedPermission.PermissionID); err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "invalidate permission sessions failed")
+		return nil, apperror.NewInternal("failed to invalidate affected permission sessions", err)
+	}
 	span.SetStatus(codes.Ok, "")
 	return toPermissionServiceDataResult(updatedPermission), nil
 }
@@ -423,7 +440,11 @@ func (s *permissionService) DeleteByUUID(ctx context.Context, permissionUUID uui
 		return nil, err
 	}
 
-	s.cacheInvalidator.InvalidateAllUsers(ctx)
+	if err := s.authzInvalidator.InvalidatePermissionChange(ctx, permission.PermissionID); err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "invalidate permission sessions failed")
+		return nil, apperror.NewInternal("failed to invalidate affected permission sessions", err)
+	}
 	span.SetStatus(codes.Ok, "")
 	return toPermissionServiceDataResult(permission), nil
 }

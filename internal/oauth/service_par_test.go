@@ -58,9 +58,11 @@ func (m *mockOAuthPARRepo) Create(e *OAuthPARRequest) (*OAuthPARRequest, error) 
 	return e, nil
 }
 func (m *mockOAuthPARRepo) DeleteExpired(_ time.Time) (int64, error) { return 0, nil }
-func (m *mockOAuthPARRepo) CreateOrUpdate(e *OAuthPARRequest) (*OAuthPARRequest, error) { return e, nil }
-func (m *mockOAuthPARRepo) FindAll(_ ...string) ([]OAuthPARRequest, error)              { return nil, nil }
-func (m *mockOAuthPARRepo) FindByUUID(_ any, _ ...string) (*OAuthPARRequest, error)    { return nil, nil }
+func (m *mockOAuthPARRepo) CreateOrUpdate(e *OAuthPARRequest) (*OAuthPARRequest, error) {
+	return e, nil
+}
+func (m *mockOAuthPARRepo) FindAll(_ ...string) ([]OAuthPARRequest, error)          { return nil, nil }
+func (m *mockOAuthPARRepo) FindByUUID(_ any, _ ...string) (*OAuthPARRequest, error) { return nil, nil }
 func (m *mockOAuthPARRepo) FindByUUIDs(_ []string, _ ...string) ([]OAuthPARRequest, error) {
 	return nil, nil
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"log/slog"
+	"regexp"
 	"strings"
 )
 
@@ -35,6 +36,12 @@ var piiFields = map[string]bool{
 }
 
 const redacted = "[REDACTED]"
+
+var redactStringPatterns = []*regexp.Regexp{
+	regexp.MustCompile(`(?i)\b[A-Z0-9._%+\-]+@[A-Z0-9.\-]+\.[A-Z]{2,}\b`),
+	regexp.MustCompile(`(?i)\bBearer\s+[A-Za-z0-9._~+/=-]+\b`),
+	regexp.MustCompile(`\beyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\b`),
+}
 
 // PIIRedactHandler wraps a slog.Handler and replaces values of known PII
 // attribute keys with [REDACTED] before forwarding to the inner handler.
@@ -134,13 +141,16 @@ func RedactString(s *string) *string {
 		return s
 	}
 	result := *s
-	for key := range piiFields {
-		lower := strings.ToLower(result)
-		idx := strings.Index(lower, key)
-		if idx >= 0 {
-			result = "[REDACTED]"
-			return &result
-		}
+	for _, pattern := range redactStringPatterns {
+		result = pattern.ReplaceAllStringFunc(result, func(match string) string {
+			if strings.HasPrefix(strings.ToLower(match), "bearer ") {
+				return "Bearer " + redacted
+			}
+			return redacted
+		})
+	}
+	if result != *s {
+		return &result
 	}
 	return s
 }

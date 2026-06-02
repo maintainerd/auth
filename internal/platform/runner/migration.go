@@ -97,6 +97,10 @@ var migrations = []migrationEntry{
 	{"055_add_password_changed_at_to_users", migration.AddPasswordChangedAtToUsers},
 	// Block 15: Audit hardening
 	{"056_auth_events_append_only", migration.CreateAuthEventsAppendOnlyRule},
+	// Block 16: OAuth client auth hardening
+	{"057_add_client_secret_encrypted", migration.AddClientSecretEncrypted},
+	// Block 17: SMS OTP hardening
+	{"058_add_sms_otp_failed_attempts", migration.AddSMSOTPFailedAttempts},
 }
 
 // RunMigrations bootstraps the schema_migrations tracking table, acquires a

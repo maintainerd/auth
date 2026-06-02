@@ -6,6 +6,7 @@ import (
 	"strconv"
 
 	"github.com/joho/godotenv"
+	"github.com/maintainerd/auth/internal/platform/signedurl"
 )
 
 // Package-level configuration variables are populated exactly once by Init()
@@ -155,6 +156,9 @@ func Init() error {
 	if HMACSecretKey, err = loadSecret("HMAC_SECRET_KEY"); err != nil {
 		return fmt.Errorf("failed to load HMAC_SECRET_KEY: %w", err)
 	}
+	if err := signedurl.Configure(HMACSecretKey); err != nil {
+		return fmt.Errorf("failed to configure signed URL signer: %w", err)
+	}
 	slog.Info("HMAC secret key loaded successfully")
 
 	// DB Config
@@ -237,9 +241,9 @@ type Config struct {
 	AccountHostname string
 	AuthHostname    string
 
-	JWTPrivateKey    []byte
-	JWTPublicKey     []byte
-	HMACSecretKey    []byte
+	JWTPrivateKey []byte
+	JWTPublicKey  []byte
+	HMACSecretKey []byte
 
 	SecretProvider string
 	SecretPrefix   string
@@ -284,25 +288,25 @@ type Config struct {
 
 func GetConfig() Config {
 	return Config{
-		AppEnv:             AppEnv,
-		AppVersion:         AppVersion,
-		AppPublicHostname:  AppPublicHostname,
-		AppPrivateHostname: AppPrivateHostname,
-		AppEncryptionKey:   AppEncryptionKey,
-		LogLevel:           LogLevel,
-		AccountHostname:    AccountHostname,
-		AuthHostname:       AuthHostname,
-		JWTPrivateKey:      JWTPrivateKey,
-		JWTPublicKey:       JWTPublicKey,
-		HMACSecretKey:      HMACSecretKey,
-		SecretProvider:     SecretProvider,
-		SecretPrefix:       SecretPrefix,
-		DBHost:             DBHost,
-		DBPort:             DBPort,
-		DBUser:             DBUser,
-		DBPassword:         DBPassword,
-		DBName:             DBName,
-		DBSSLMode:          DBSSLMode,
+		AppEnv:               AppEnv,
+		AppVersion:           AppVersion,
+		AppPublicHostname:    AppPublicHostname,
+		AppPrivateHostname:   AppPrivateHostname,
+		AppEncryptionKey:     AppEncryptionKey,
+		LogLevel:             LogLevel,
+		AccountHostname:      AccountHostname,
+		AuthHostname:         AuthHostname,
+		JWTPrivateKey:        JWTPrivateKey,
+		JWTPublicKey:         JWTPublicKey,
+		HMACSecretKey:        HMACSecretKey,
+		SecretProvider:       SecretProvider,
+		SecretPrefix:         SecretPrefix,
+		DBHost:               DBHost,
+		DBPort:               DBPort,
+		DBUser:               DBUser,
+		DBPassword:           DBPassword,
+		DBName:               DBName,
+		DBSSLMode:            DBSSLMode,
 		DBMaxOpenConns:       DBMaxOpenConns,
 		DBMaxIdleConns:       DBMaxIdleConns,
 		DBConnMaxLifetimeSec: DBConnMaxLifetimeSec,

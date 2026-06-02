@@ -8,6 +8,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"io"
 	"strings"
 	"sync"
 	"time"
@@ -35,7 +36,7 @@ const (
 // Complies with SOC2 CC6.1 and ISO27001 A.10.1.1
 func GenerateSecureID() string {
 	bytes := make([]byte, 16)
-	_, _ = rand.Read(bytes)
+	mustReadRandom(bytes)
 	return hex.EncodeToString(bytes)
 }
 
@@ -140,11 +141,17 @@ func RotateKeys() error {
 // Complies with SOC2 CC6.1 and ISO27001 A.10.1.1
 func generateSecureJTI() string {
 	bytes := make([]byte, JTILength)
-	_, _ = rand.Read(bytes)
+	mustReadRandom(bytes)
 
 	// Create deterministic hash for uniqueness validation
 	hash := sha256.Sum256(bytes)
 	return hex.EncodeToString(hash[:16]) // 32 character hex string
+}
+
+func mustReadRandom(dst []byte) {
+	if _, err := io.ReadFull(rand.Reader, dst); err != nil {
+		panic(fmt.Errorf("jwt: read secure random bytes: %w", err))
+	}
 }
 
 // validateKeyStrength ensures RSA keys meet minimum security requirements
@@ -219,6 +226,12 @@ type AccessTokenOptions struct {
 	// AccessTokenTTL overrides the default AccessTokenTTL when > 0.
 	// Used for per-client token lifetime configuration.
 	AccessTokenTTL time.Duration
+
+	// AMR is the list of Authentication Methods References (RFC 8176).
+	AMR []string
+
+	// ACR is the Authentication Context Class Reference.
+	ACR string
 }
 
 // GenerateAccessToken is the standard (Bearer) entry point for access token
@@ -291,7 +304,7 @@ func GenerateAccessTokenWithOptions(
 		"iat": jwtlib.NewNumericDate(now),
 		"exp": jwtlib.NewNumericDate(now.Add(ttl)),
 		"nbf": jwtlib.NewNumericDate(now),
-		"jti": jti,                                            // Secure unique identifier
+		"jti": jti, // Secure unique identifier
 
 		// OAuth2 claims
 		"scope":      scope,
@@ -306,6 +319,12 @@ func GenerateAccessTokenWithOptions(
 	if opts != nil && opts.DPoPThumbprint != "" {
 		claims["cnf"] = map[string]string{"jkt": opts.DPoPThumbprint}
 		claims["token_type"] = "DPoP"
+	}
+	if opts != nil && len(opts.AMR) > 0 {
+		claims["amr"] = opts.AMR
+	}
+	if opts != nil && opts.ACR != "" {
+		claims["acr"] = opts.ACR
 	}
 
 	tok, err := generateToken(claims)

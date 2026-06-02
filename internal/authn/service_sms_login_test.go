@@ -20,6 +20,7 @@ import (
 type mockSMSOtpRepo struct {
 	createFn           func(*notifier.SMSOtp) (*notifier.SMSOtp, error)
 	findValidByPhoneFn func(string) (*notifier.SMSOtp, error)
+	recordFailureFn    func(int64, int) error
 	markUsedFn         func(int64) error
 }
 
@@ -45,8 +46,8 @@ func (m *mockSMSOtpRepo) UpdateByUUID(id, data any) (*notifier.SMSOtp, error) {
 	return nil, nil
 }
 func (m *mockSMSOtpRepo) UpdateByID(id, data any) (*notifier.SMSOtp, error) { return nil, nil }
-func (m *mockSMSOtpRepo) DeleteByUUID(id any) error                        { return nil }
-func (m *mockSMSOtpRepo) DeleteByID(id any) error                          { return nil }
+func (m *mockSMSOtpRepo) DeleteByUUID(id any) error                         { return nil }
+func (m *mockSMSOtpRepo) DeleteByID(id any) error                           { return nil }
 func (m *mockSMSOtpRepo) Paginate(c map[string]any, pg, lim int, p ...string) (*notifier.PaginationResult[notifier.SMSOtp], error) {
 	return nil, nil
 }
@@ -55,6 +56,12 @@ func (m *mockSMSOtpRepo) FindValidByPhone(phone string) (*notifier.SMSOtp, error
 		return m.findValidByPhoneFn(phone)
 	}
 	return nil, nil
+}
+func (m *mockSMSOtpRepo) RecordFailure(id int64, maxAttempts int) error {
+	if m.recordFailureFn != nil {
+		return m.recordFailureFn(id, maxAttempts)
+	}
+	return nil
 }
 func (m *mockSMSOtpRepo) MarkUsed(id int64) error {
 	if m.markUsedFn != nil {
@@ -272,6 +279,11 @@ func TestVerifyOTP(t *testing.T) {
 					SMSOtpID: 1,
 					OTPHash:  "wrong-hash-value-for-verification-testing",
 				}, nil
+			},
+			recordFailureFn: func(id int64, maxAttempts int) error {
+				assert.Equal(t, int64(1), id)
+				assert.Equal(t, smsOTPMaxFailedAttempts, maxAttempts)
+				return nil
 			},
 		}
 
