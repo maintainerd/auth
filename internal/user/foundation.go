@@ -3,7 +3,6 @@ package user
 import (
 	"github.com/maintainerd/auth/internal/authevent"
 	"github.com/maintainerd/auth/internal/platform/database"
-	"github.com/maintainerd/auth/internal/platform/jwt"
 	"github.com/maintainerd/auth/internal/platform/pagination"
 )
 
@@ -14,9 +13,6 @@ type PaginationResult[T any] = database.PaginationResult[T]
 type PaginationRequestDTO = pagination.PaginationRequestDTO
 type PaginatedResponseDTO[T any] = pagination.PaginatedResponseDTO[T]
 type SuccessResponseDTO = pagination.SuccessResponseDTO
-
-var generateIDTokenFn = jwt.GenerateIDToken
-var generateRefreshTokenFn = jwt.GenerateRefreshToken
 
 func coalesceAuthEventService(svc authevent.AuthEventService) authevent.AuthEventService {
 	if svc != nil {

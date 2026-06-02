@@ -271,7 +271,7 @@ func (s *registerService) RegisterPublic(
 
 	span.SetStatus(codes.Ok, "")
 	// Return token response
-	return s.generateTokenResponse(userIdentitySub, createdUser, Client)
+	return s.generateTokenResponse(ctx, userIdentitySub, createdUser, Client)
 }
 
 // Register registers new users for internal applications.
@@ -427,7 +427,7 @@ func (s *registerService) Register(
 
 	span.SetStatus(codes.Ok, "")
 	// Return token response
-	return s.generateTokenResponse(userIdentitySub, createdUser, Client)
+	return s.generateTokenResponse(ctx, userIdentitySub, createdUser, Client)
 }
 
 // RegisterInvite registers new users via invite token for internal applications.
@@ -593,7 +593,7 @@ func (s *registerService) RegisterInvite(
 
 	span.SetStatus(codes.Ok, "")
 	// Return token response
-	return s.generateTokenResponse(userIdentitySub, createdUser, Client)
+	return s.generateTokenResponse(ctx, userIdentitySub, createdUser, Client)
 }
 
 // RegisterInvitePublic registers new users via invite token for public-facing applications.
@@ -784,11 +784,11 @@ func (s *registerService) RegisterInvitePublic(
 
 	span.SetStatus(codes.Ok, "")
 	// Return token response
-	return s.generateTokenResponse(userIdentitySub, createdUser, Client)
+	return s.generateTokenResponse(ctx, userIdentitySub, createdUser, Client)
 }
 
-func (s *registerService) generateTokenResponse(sub string, user *User, client *Client) (*RegisterResponseDTO, error) {
-	accessToken, idToken, refreshToken, err := generateTokenSet(sub, user, client)
+func (s *registerService) generateTokenResponse(ctx context.Context, sub string, user *User, client *Client) (*RegisterResponseDTO, error) {
+	accessToken, idToken, refreshToken, err := generateTokenSetWithContext(ctx, sub, user, client)
 	if err != nil {
 		return nil, err
 	}

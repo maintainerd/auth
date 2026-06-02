@@ -1,6 +1,7 @@
 package oauth
 
 import (
+	"encoding/json"
 	"errors"
 	"time"
 
@@ -16,6 +17,7 @@ type OAuthDeviceCodeRepository interface {
 	FindByDeviceCodeHash(hash string) (*OAuthDeviceCode, error)
 	FindByUserCode(userCode string) (*OAuthDeviceCode, error)
 	UpdateStatus(id int64, status string, userID *int64) error
+	UpdateApproval(id int64, userID int64, acr string, amr []string) error
 	UpdateLastPollAt(id int64) error
 	DeleteExpired(before time.Time) (int64, error)
 }
@@ -82,6 +84,21 @@ func (r *oauthDeviceCodeRepository) UpdateStatus(id int64, status string, userID
 	return r.DB().Model(&OAuthDeviceCode{}).
 		Where("oauth_device_code_id = ?", id).
 		Updates(updates).Error
+}
+
+func (r *oauthDeviceCodeRepository) UpdateApproval(id int64, userID int64, acr string, amr []string) error {
+	amrJSON, err := json.Marshal(amr)
+	if err != nil {
+		return err
+	}
+	return r.DB().Model(&OAuthDeviceCode{}).
+		Where("oauth_device_code_id = ?", id).
+		Updates(map[string]any{
+			"status":   DeviceCodeStatusApproved,
+			"user_id":  userID,
+			"auth_acr": acr,
+			"auth_amr": amrJSON,
+		}).Error
 }
 
 // UpdateLastPollAt records when the device last polled to enforce the minimum

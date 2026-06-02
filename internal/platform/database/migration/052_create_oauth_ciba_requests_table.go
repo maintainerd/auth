@@ -18,6 +18,8 @@ CREATE TABLE IF NOT EXISTS oauth_ciba_requests (
     user_id                 BIGINT,
     scope                   TEXT         NOT NULL DEFAULT '',
     binding_message         TEXT,
+    auth_acr                VARCHAR(32),
+    auth_amr                JSONB        NOT NULL DEFAULT '[]'::jsonb,
     status                  VARCHAR(20)  NOT NULL DEFAULT 'pending',
     interval                SMALLINT     NOT NULL DEFAULT 5,
     last_poll_at            TIMESTAMPTZ,
@@ -62,6 +64,9 @@ CREATE INDEX IF NOT EXISTS idx_oauth_ciba_requests_client_id  ON oauth_ciba_requ
 CREATE INDEX IF NOT EXISTS idx_oauth_ciba_requests_user_id    ON oauth_ciba_requests (user_id);
 CREATE INDEX IF NOT EXISTS idx_oauth_ciba_requests_expires_at ON oauth_ciba_requests (expires_at);
 CREATE INDEX IF NOT EXISTS idx_oauth_ciba_requests_status     ON oauth_ciba_requests (status);
+
+ALTER TABLE oauth_ciba_requests ADD COLUMN IF NOT EXISTS auth_acr VARCHAR(32);
+ALTER TABLE oauth_ciba_requests ADD COLUMN IF NOT EXISTS auth_amr JSONB NOT NULL DEFAULT '[]'::jsonb;
 `
 	return db.Exec(sql).Error
 }

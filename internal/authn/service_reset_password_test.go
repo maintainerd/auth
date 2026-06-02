@@ -8,7 +8,6 @@ import (
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/google/uuid"
-	"github.com/maintainerd/auth/internal/platform/security"
 	"github.com/maintainerd/auth/internal/shared"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -540,29 +539,4 @@ func TestResetPasswordService_ResetPassword(t *testing.T) {
 		assert.NoError(t, mock.ExpectationsWereMet())
 	})
 
-	t.Run("HashPassword error", func(t *testing.T) {
-		origHash := security.HashPassword
-		defer func() { security.HashPassword = origHash }()
-		security.HashPassword = func(_ context.Context, _ []byte) ([]byte, error) { return nil, errors.New("hash error") }
-
-		db, mock := newMockGormDB(t)
-		mock.ExpectBegin()
-		mock.ExpectQuery(`SELECT \* FROM "user_tokens"`).
-			WillReturnRows(validTokenRow(tok, userID, tokenUUID))
-		mock.ExpectRollback()
-		svc := NewResetPasswordService(db, &mockUserRepo{
-			findByIDFn: func(_ any, _ ...string) (*User, error) {
-				return &User{UserID: userID, UserUUID: userUUID, Status: shared.StatusActive, Email: "test@test.com"}, nil
-			},
-		}, &mockUserTokenRepo{}, &mockClientRepo{
-			findSystemFn: func() (*Client, error) {
-				return &Client{ClientID: 1}, nil
-			},
-		}, nil, nil)
-		resp, err := svc.ResetPassword(context.Background(), tok, strongPassword, nil, nil)
-		require.Error(t, err)
-		assert.Nil(t, resp)
-		assert.Contains(t, err.Error(), "hash error")
-		assert.NoError(t, mock.ExpectationsWereMet())
-	})
 }

@@ -15,10 +15,13 @@ CREATE TABLE IF NOT EXISTS user_totp_secrets (
     -- Set to now() when the user completes enrollment (verifies first code).
     enrolled_at      TIMESTAMPTZ,
     last_used_at     TIMESTAMPTZ,
+    last_used_step   BIGINT,
     created_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at       TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE UNIQUE INDEX IF NOT EXISTS uq_user_totp_secrets_user_id ON user_totp_secrets(user_id);
 CREATE INDEX IF NOT EXISTS idx_user_totp_secrets_user_id ON user_totp_secrets(user_id);
+ALTER TABLE user_totp_secrets
+    ADD COLUMN IF NOT EXISTS last_used_step BIGINT;
 `).Error
 }

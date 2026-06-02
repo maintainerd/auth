@@ -63,6 +63,12 @@ SMTP_FROM_NAME="Maintainerd"
 EMAIL_LOGO_URL=""
 
 # =============================================================================
+# SMS
+# =============================================================================
+SMS_PROVIDER=""
+SMS_DAILY_SEND_LIMIT="1000"
+
+# =============================================================================
 # SECRET MANAGEMENT
 # =============================================================================
 SECRET_PROVIDER=env
@@ -123,6 +129,7 @@ OTEL_ENABLED="false"
 - [Database](#database)
 - [Redis](#redis)
 - [Email (SMTP)](#email-smtp)
+- [SMS](#sms)
 - [Secret Management](#secret-management)
 - [JWT Configuration](#jwt-configuration)
 - [OpenTelemetry (Tracing)](#opentelemetry-tracing)
@@ -138,6 +145,7 @@ Controls the API versioning and the public/private base URLs that the service ad
 | `APP_VERSION` | ✅ | `v1` | API version prefix used in every route path (e.g. `/v1/…`). |
 | `APP_PUBLIC_HOSTNAME` | ✅ | — | Fully-qualified base URL of the **public** REST API, reachable from the internet or the frontend. |
 | `APP_PRIVATE_HOSTNAME` | ✅ | — | Fully-qualified base URL of the **internal** REST API, reachable only within the private network / service mesh. |
+| `MANAGEMENT_PORT` | ❌ | `8082` | Dedicated operations listener for `/metrics`, `/readyz`, `/livez`, and `/openapi.json`. |
 
 **Example**
 
@@ -145,12 +153,14 @@ Controls the API versioning and the public/private base URLs that the service ad
 APP_VERSION="v1"
 APP_PUBLIC_HOSTNAME="http://localhost:8081"
 APP_PRIVATE_HOSTNAME="http://localhost:8080"
+MANAGEMENT_PORT="8082"
 ```
 
 > For Docker Compose local development, use the service names defined in `docker-compose.yml` as hostnames:
 > ```env
 > APP_PUBLIC_HOSTNAME="http://public.api.maintainerd.auth"
 > APP_PRIVATE_HOSTNAME="http://private.api.maintainerd.auth"
+> MANAGEMENT_PORT="8082"
 > ```
 
 ---
@@ -284,6 +294,29 @@ If you are using Gmail as your SMTP provider you must use an **App Password**, n
 
 ---
 
+## SMS
+
+SMS settings control one-time-code delivery and the hard daily cost guard.
+
+| Variable | Required | Default | Description |
+|---|---|---|---|
+| `SMS_PROVIDER` | ❌ | — | SMS provider name: `twilio`, `sns`, or `vonage`. Empty logs OTPs locally for development. |
+| `SMS_DAILY_SEND_LIMIT` | ❌ | `1000` | Global daily SMS send ceiling. Set to `0` only for tests or deliberately uncapped local development. |
+| `TWILIO_ACCOUNT_SID` | ❌ | — | Twilio account SID when `SMS_PROVIDER=twilio`. |
+| `TWILIO_AUTH_TOKEN` | ❌ | — | Twilio auth token when `SMS_PROVIDER=twilio`. |
+| `TWILIO_FROM_NUMBER` | ❌ | — | Twilio sender phone number. |
+| `SNS_REGION` | ❌ | `us-east-1` | AWS SNS region when `SMS_PROVIDER=sns`. |
+| `VONAGE_API_KEY` | ❌ | — | Vonage API key when `SMS_PROVIDER=vonage`. |
+| `VONAGE_API_SECRET` | ❌ | — | Vonage API secret when `SMS_PROVIDER=vonage`. |
+| `VONAGE_FROM` | ❌ | — | Vonage sender name/number. |
+
+```env
+SMS_PROVIDER=""
+SMS_DAILY_SEND_LIMIT="1000"
+```
+
+---
+
 ## Secret Management
 
 Maintainerd Auth supports pluggable secret backends so sensitive values (JWT keys, database passwords) can be stored outside of environment variables in production.
@@ -294,6 +327,8 @@ Maintainerd Auth supports pluggable secret backends so sensitive values (JWT key
 |---|---|---|---|
 | `SECRET_PROVIDER` | ✅ | `env` | Secret backend to use. One of: `env`, `file`, `aws_secrets`, `aws_ssm`, `vault`, `gcp`, `azure_kv`. |
 | `SECRET_PREFIX` | ❌ | `maintainerd/auth` | Namespace prefix for secrets in external providers. Not used by `env`, `file`, or `gcp`. |
+| `SECRET_REFRESH_PERIOD_SECONDS` | ❌ | `300` | Background hot-reload interval for re-reading refreshable secrets from the active provider. |
+| `JWT_KEY_ROTATION_PERIOD_SECONDS` | ❌ | `86400` | Background JWT signing-key rotation interval. Invalid or non-positive values fall back to 24 hours at runtime. |
 
 ### Provider-Specific Variables
 
@@ -572,4 +607,3 @@ OTEL_SERVICE_NAME="maintainerd-auth"
 ```
 
 Open <http://localhost:16686> to browse traces.
-

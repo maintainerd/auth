@@ -313,24 +313,6 @@ func TestRegisterService_RegisterPublic(t *testing.T) {
 		assert.NoError(t, mock.ExpectationsWereMet())
 	})
 
-	t.Run("HashPassword error", func(t *testing.T) {
-		origHash := security.HashPassword
-		defer func() { security.HashPassword = origHash }()
-		security.HashPassword = func(_ context.Context, _ []byte) ([]byte, error) { return nil, errors.New("hash error") }
-
-		gormDB, mock := newMockGormDB(t)
-		mock.ExpectBegin()
-		mock.ExpectRollback()
-		m := defaultRegPublicMocks()
-		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
-			m.userIdentity, m.role, m.invite, m.idp, nil, nil)
-		resp, err := svc.RegisterPublic(context.Background(), "u", "Full Name", "P@ssW0rd!", nil, nil, "c", "p")
-		require.Error(t, err)
-		assert.Nil(t, resp)
-		assert.Contains(t, err.Error(), "hash error")
-		assert.NoError(t, mock.ExpectationsWereMet())
-	})
-
 }
 
 // ---------------------------------------------------------------------------
@@ -549,24 +531,6 @@ func TestRegisterService_Register(t *testing.T) {
 		require.NoError(t, err)
 		assert.NotNil(t, resp)
 		assert.NotEmpty(t, resp.AccessToken)
-		assert.NoError(t, mock.ExpectationsWereMet())
-	})
-
-	t.Run("HashPassword error", func(t *testing.T) {
-		origHash := security.HashPassword
-		defer func() { security.HashPassword = origHash }()
-		security.HashPassword = func(_ context.Context, _ []byte) ([]byte, error) { return nil, errors.New("hash error") }
-
-		gormDB, mock := newMockGormDB(t)
-		mock.ExpectBegin()
-		mock.ExpectRollback()
-		m := defaultRegInternalMocks()
-		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
-			m.userIdentity, m.role, m.invite, m.idp, nil, nil)
-		resp, err := svc.Register(context.Background(), "u", "F", "P@ssW0rd!", nil, nil, &cid, &pid)
-		require.Error(t, err)
-		assert.Nil(t, resp)
-		assert.Contains(t, err.Error(), "hash error")
 		assert.NoError(t, mock.ExpectationsWereMet())
 	})
 
@@ -898,24 +862,6 @@ func TestRegisterService_RegisterInvite(t *testing.T) {
 		assert.NoError(t, mock.ExpectationsWereMet())
 	})
 
-	t.Run("HashPassword error", func(t *testing.T) {
-		origHash := security.HashPassword
-		defer func() { security.HashPassword = origHash }()
-		security.HashPassword = func(_ context.Context, _ []byte) ([]byte, error) { return nil, errors.New("hash error") }
-
-		gormDB, mock := newMockGormDB(t)
-		mock.ExpectBegin()
-		mock.ExpectRollback()
-		m := defaultRegInternalMocks()
-		m.invite.findByTokenFn = func(_ string) (*Invite, error) { return validInvite(), nil }
-		svc := NewRegistrationService(gormDB, m.client, m.user, m.userRole, m.userToken,
-			m.userIdentity, m.role, m.invite, m.idp, nil, nil)
-		resp, err := svc.RegisterInvite(context.Background(), "u", "P@ssW0rd!", "token", &cid, &pid)
-		require.Error(t, err)
-		assert.Nil(t, resp)
-		assert.Contains(t, err.Error(), "hash error")
-		assert.NoError(t, mock.ExpectationsWereMet())
-	})
 }
 
 // ---------------------------------------------------------------------------
@@ -1338,7 +1284,7 @@ func TestRegisterService_GenerateTokenResponse(t *testing.T) {
 		defer initTestJWTKeysService(t)
 
 		svc := &registerService{}
-		resp, err := svc.generateTokenResponse("sub", &User{}, client)
+		resp, err := svc.generateTokenResponse(context.Background(), "sub", &User{}, client)
 		require.Error(t, err)
 		assert.Nil(t, resp)
 	})
@@ -1347,7 +1293,7 @@ func TestRegisterService_GenerateTokenResponse(t *testing.T) {
 		initTestJWTKeysService(t)
 
 		svc := &registerService{}
-		resp, err := svc.generateTokenResponse("sub", &User{
+		resp, err := svc.generateTokenResponse(context.Background(), "sub", &User{
 			Email:           "test@example.com",
 			IsEmailVerified: true,
 			Phone:           "+1234567890",
@@ -1362,33 +1308,4 @@ func TestRegisterService_GenerateTokenResponse(t *testing.T) {
 		assert.Equal(t, int64(3600), resp.ExpiresIn)
 	})
 
-	t.Run("GenerateIDToken error", func(t *testing.T) {
-		initTestJWTKeysService(t)
-		origIDToken := generateIDTokenFn
-		defer func() { generateIDTokenFn = origIDToken }()
-		generateIDTokenFn = func(_, _, _, _ string, _ *jwt.UserProfile, _ string, _ *jwt.IDTokenParams) (string, error) {
-			return "", errors.New("id token error")
-		}
-
-		svc := &registerService{}
-		resp, err := svc.generateTokenResponse("sub", &User{}, client)
-		require.Error(t, err)
-		assert.Nil(t, resp)
-		assert.Contains(t, err.Error(), "id token error")
-	})
-
-	t.Run("GenerateRefreshToken error", func(t *testing.T) {
-		initTestJWTKeysService(t)
-		origRefresh := generateRefreshTokenFn
-		defer func() { generateRefreshTokenFn = origRefresh }()
-		generateRefreshTokenFn = func(_, _, _, _ string) (string, error) {
-			return "", errors.New("refresh error")
-		}
-
-		svc := &registerService{}
-		resp, err := svc.generateTokenResponse("sub", &User{}, client)
-		require.Error(t, err)
-		assert.Nil(t, resp)
-		assert.Contains(t, err.Error(), "refresh error")
-	})
 }

@@ -43,6 +43,7 @@ func OAuthPublicRoute(
 	registerHandler *OAuthRegisterHandler,
 	userService middleware.UserContextProvider,
 	appCache *cache.Cache,
+	tokenRateLimit func(http.Handler) http.Handler,
 ) {
 	r.Route("/oauth", func(r chi.Router) {
 		r.Use(middleware.RequestSizeLimitMiddleware(1024 * 1024))
@@ -77,7 +78,7 @@ func OAuthPublicRoute(
 		// ── Unauthenticated endpoints (client auth handled internally) ────
 
 		// Token endpoint — existing grants
-		r.Post("/token", func(w http.ResponseWriter, req *http.Request) {
+		tokenEndpoint := func(w http.ResponseWriter, req *http.Request) {
 			if err := req.ParseForm(); err != nil {
 				w.WriteHeader(http.StatusBadRequest)
 				return
@@ -94,7 +95,15 @@ func OAuthPublicRoute(
 			default:
 				tokenHandler.Token(w, req)
 			}
-		})
+		}
+		if tokenRateLimit != nil {
+			r.Group(func(r chi.Router) {
+				r.Use(tokenRateLimit)
+				r.Post("/token", tokenEndpoint)
+			})
+		} else {
+			r.Post("/token", tokenEndpoint)
+		}
 
 		r.Post("/revoke", tokenHandler.Revoke)
 

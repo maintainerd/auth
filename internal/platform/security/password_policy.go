@@ -91,10 +91,118 @@ func MergePasswordPolicy(raw []byte) PasswordPolicy {
 	return policy
 }
 
-// weakPasswords is the common-pattern blocklist used by ValidatePasswordPolicy.
-var weakPasswords = []string{
-	"password", "123456", "password123", "admin", "qwerty",
-	"letmein", "welcome", "monkey", "dragon", "master",
+// commonPasswordBlocklist contains a curated embedded top-N common password list.
+// Matching is exact after lowercasing and trimming to avoid substring false positives.
+var commonPasswordBlocklist = map[string]struct{}{
+	"123456":        {},
+	"123456789":     {},
+	"12345":         {},
+	"qwerty":        {},
+	"password":      {},
+	"12345678":      {},
+	"111111":        {},
+	"123123":        {},
+	"1234567890":    {},
+	"1234567":       {},
+	"qwerty123":     {},
+	"000000":        {},
+	"1q2w3e":        {},
+	"aa12345678":    {},
+	"abc123":        {},
+	"password1":     {},
+	"1234":          {},
+	"qwertyuiop":    {},
+	"123321":        {},
+	"password123":   {},
+	"1q2w3e4r5t":    {},
+	"iloveyou":      {},
+	"654321":        {},
+	"666666":        {},
+	"987654321":     {},
+	"123":           {},
+	"monkey":        {},
+	"dragon":        {},
+	"letmein":       {},
+	"football":      {},
+	"baseball":      {},
+	"sunshine":      {},
+	"princess":      {},
+	"admin":         {},
+	"welcome":       {},
+	"login":         {},
+	"solo":          {},
+	"starwars":      {},
+	"master":        {},
+	"hello":         {},
+	"freedom":       {},
+	"whatever":      {},
+	"qazwsx":        {},
+	"trustno1":      {},
+	"jordan":        {},
+	"harley":        {},
+	"buster":        {},
+	"thomas":        {},
+	"tigger":        {},
+	"robert":        {},
+	"soccer":        {},
+	"hockey":        {},
+	"killer":        {},
+	"george":        {},
+	"charlie":       {},
+	"andrew":        {},
+	"michelle":      {},
+	"love":          {},
+	"jessica":       {},
+	"pepper":        {},
+	"daniel":        {},
+	"access":        {},
+	"shadow":        {},
+	"maggie":        {},
+	"computer":      {},
+	"ashley":        {},
+	"bailey":        {},
+	"passw0rd":      {},
+	"superman":      {},
+	"michael":       {},
+	"football1":     {},
+	"q1w2e3r4":      {},
+	"zaq12wsx":      {},
+	"password!":     {},
+	"password1!":    {},
+	"password123!":  {},
+	"password1234!": {},
+	"welcome1":      {},
+	"welcome1!":     {},
+	"admin123":      {},
+	"admin123!":     {},
+	"changeme":      {},
+	"changeme1":     {},
+	"changeme1!":    {},
+	"letmein1":      {},
+	"letmein1!":     {},
+	"default":       {},
+	"default1":      {},
+	"default1!":     {},
+	"maintainerd":   {},
+	"maintainerd1":  {},
+	"maintainerd1!": {},
+	"company123":    {},
+	"company123!":   {},
+	"summer2024!":   {},
+	"summer2025!":   {},
+	"summer2026!":   {},
+	"winter2024!":   {},
+	"winter2025!":   {},
+	"winter2026!":   {},
+	"spring2024!":   {},
+	"spring2025!":   {},
+	"spring2026!":   {},
+	"autumn2024!":   {},
+	"autumn2025!":   {},
+	"autumn2026!":   {},
+	"fall2024!":     {},
+	"fall2025!":     {},
+	"fall2026!":     {},
 }
 
 // ValidatePasswordPolicy validates a password against the given policy.
@@ -118,11 +226,9 @@ func ValidatePasswordPolicy(password string, policy PasswordPolicy) error {
 		return fmt.Errorf("password must contain at least one special character")
 	}
 	if policy.BlocklistEnabled {
-		lower := strings.ToLower(password)
-		for _, weak := range weakPasswords {
-			if strings.Contains(lower, weak) {
-				return fmt.Errorf("password contains common weak patterns")
-			}
+		normalized := strings.ToLower(strings.TrimSpace(password))
+		if _, found := commonPasswordBlocklist[normalized]; found {
+			return fmt.Errorf("password is a common weak password")
 		}
 	}
 	return nil

@@ -37,6 +37,7 @@ type mockOAuthCIBARepo struct {
 	createFn            func(*OAuthCIBARequest) (*OAuthCIBARequest, error)
 	updateStatusFn      func(int64, string) error
 	updateApprovalFn    func(int64, int64) error
+	updateApprovalCtxFn func(int64, int64, string, []string) error
 	updateLastPollAtFn  func(int64) error
 }
 
@@ -58,6 +59,12 @@ func (m *mockOAuthCIBARepo) UpdateApproval(id int64, userID int64) error {
 		return m.updateApprovalFn(id, userID)
 	}
 	return nil
+}
+func (m *mockOAuthCIBARepo) UpdateApprovalContext(id int64, userID int64, acr string, amr []string) error {
+	if m.updateApprovalCtxFn != nil {
+		return m.updateApprovalCtxFn(id, userID, acr, amr)
+	}
+	return m.UpdateApproval(id, userID)
 }
 func (m *mockOAuthCIBARepo) UpdateLastPollAt(id int64) error {
 	if m.updateLastPollAtFn != nil {

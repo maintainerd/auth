@@ -17,6 +17,7 @@ type UserTOTPSecret struct {
 	IsEnabled      bool       `gorm:"column:is_enabled;default:false"`
 	EnrolledAt     *time.Time `gorm:"column:enrolled_at"`
 	LastUsedAt     *time.Time `gorm:"column:last_used_at"`
+	LastUsedStep   *int64     `gorm:"column:last_used_step"`
 	CreatedAt      time.Time  `gorm:"column:created_at;autoCreateTime"`
 	UpdatedAt      time.Time  `gorm:"column:updated_at;autoUpdateTime"`
 }

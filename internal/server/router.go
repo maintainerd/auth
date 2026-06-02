@@ -41,9 +41,6 @@ func buildInternalRouter(h *handlers, application *Application) http.Handler {
 	// OpenAPI 3.1 spec — internal port only
 	r.Get("/openapi.json", ServeOpenAPISpec)
 
-	// Prometheus metrics — internal port only, never exposed publicly
-	r.Handle("/metrics", promhttp.Handler())
-
 	r.Route("/api/v1", func(api chi.Router) {
 		// Setup Routes (no authentication required)
 		setup.SetupRoute(api, h.setup)
@@ -96,6 +93,23 @@ func buildInternalRouter(h *handlers, application *Application) http.Handler {
 		// Account recovery via backup code (unauthenticated)
 		user.RecoveryRoute(api, h.account)
 	})
+
+	return r
+}
+
+// buildManagementRouter constructs the management router for probes, metrics,
+// and machine-readable specs. It should be bound to a private management port.
+func buildManagementRouter(application *Application) http.Handler {
+	r := chi.NewRouter()
+	mountCommonMiddleware(r)
+
+	r.Get("/health", handleHealth)
+	r.Get("/healthz", handleHealthz)
+	r.Get("/ready", handleReady(application))
+	r.Get("/readyz", handleReady(application))
+	r.Get("/livez", handleLivez)
+	r.Get("/openapi.json", ServeOpenAPISpec)
+	r.Handle("/metrics", promhttp.Handler())
 
 	return r
 }
@@ -155,7 +169,7 @@ func buildPublicRouter(h *handlers, application *Application) http.Handler {
 			idp.FederationIdentityRoute(cookieAuth, h.federation, userProvider, application.Cache)
 		})
 
-		oauth.OAuthPublicRoute(api, h.oauthAuthorize, h.oauthToken, h.oauthTokenExchange, h.oauthConsent, h.oauthUserInfo, h.oauthPAR, h.oauthDevice, h.oauthSession, h.oauthCIBA, h.oauthRegister, userProvider, application.Cache)
+		oauth.OAuthPublicRoute(api, h.oauthAuthorize, h.oauthToken, h.oauthTokenExchange, h.oauthConsent, h.oauthUserInfo, h.oauthPAR, h.oauthDevice, h.oauthSession, h.oauthCIBA, h.oauthRegister, userProvider, application.Cache, authRateLimit)
 
 		// Federation HRD (public, no cookie auth)
 		idp.FederationPublicRoute(api, h.federation)

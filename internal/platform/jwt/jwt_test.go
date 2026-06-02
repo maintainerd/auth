@@ -17,7 +17,7 @@ import (
 )
 
 // initTestJWTKeys generates a fresh RSA key pair for each test run and wires
-// it into the package-level variables used by GenerateAccessToken / ValidateToken.
+// it into the default JWT key store used by GenerateAccessToken / ValidateToken.
 func initTestJWTKeys(t *testing.T) {
 	t.Helper()
 
@@ -137,15 +137,8 @@ func TestValidateToken_TamperedToken(t *testing.T) {
 
 func TestValidateToken_NilPublicKey(t *testing.T) {
 	initTestJWTKeys(t)
-	keyMu.Lock()
-	saved := activePubKey
-	activePubKey = nil
-	keyMu.Unlock()
-	t.Cleanup(func() {
-		keyMu.Lock()
-		activePubKey = saved
-		keyMu.Unlock()
-	})
+	ResetJWTKeys()
+	t.Cleanup(func() { initTestJWTKeys(t) })
 
 	_, err := ValidateToken("any.token.string")
 	require.Error(t, err)
@@ -391,15 +384,9 @@ func TestInitJWTKeys_WeakPrivateKey(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestGenerateToken_NilPrivateKey(t *testing.T) {
-	keyMu.Lock()
-	saved := activePrivKey
-	activePrivKey = nil
-	keyMu.Unlock()
-	t.Cleanup(func() {
-		keyMu.Lock()
-		activePrivKey = saved
-		keyMu.Unlock()
-	})
+	initTestJWTKeys(t)
+	ResetJWTKeys()
+	t.Cleanup(func() { initTestJWTKeys(t) })
 
 	claims := jwtlib.MapClaims{
 		"sub": "user-uuid", "aud": "myapp", "iss": "https://auth.example.com",
@@ -433,9 +420,7 @@ func TestValidateToken_KIDMismatch(t *testing.T) {
 
 	// Craft a token signed with the real private key but carrying a KID that
 	// is not registered in the active or retiring key set.
-	keyMu.RLock()
-	priv := activePrivKey
-	keyMu.RUnlock()
+	priv, _ := activeSigningKeyForTest()
 
 	now := time.Now()
 	tok := jwtlib.NewWithClaims(jwtlib.SigningMethodRS256, jwtlib.MapClaims{
@@ -483,9 +468,7 @@ func TestValidateToken_WrongRSAVariant(t *testing.T) {
 	initTestJWTKeys(t)
 
 	// RS384-signed token — only RS256 is allowed
-	keyMu.RLock()
-	testPrivKey := activePrivKey
-	keyMu.RUnlock()
+	testPrivKey, _ := activeSigningKeyForTest()
 	rs384Tok, err := jwtlib.NewWithClaims(jwtlib.SigningMethodRS384, jwtlib.MapClaims{
 		"sub": "user-uuid",
 		"aud": "myapp",
@@ -611,10 +594,7 @@ func TestValidateToken_MissingJTIInSignedToken(t *testing.T) {
 		"exp": jwtlib.NewNumericDate(now.Add(time.Hour)),
 		// "jti" deliberately omitted
 	}
-	keyMu.RLock()
-	sigPrivKey := activePrivKey
-	sigKID := activeKID
-	keyMu.RUnlock()
+	sigPrivKey, sigKID := activeSigningKeyForTest()
 
 	token := jwtlib.NewWithClaims(jwtlib.SigningMethodRS256, claims)
 	token.Header["kid"] = sigKID
@@ -624,4 +604,22 @@ func TestValidateToken_MissingJTIInSignedToken(t *testing.T) {
 	_, err = ValidateToken(tokenString)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "jti")
+}
+
+func TestStepUpChallengeToken_IncludesRequiredClaimsAndAllowedMethods(t *testing.T) {
+	initTestJWTKeys(t)
+	origHostname := config.AppPublicHostname
+	t.Cleanup(func() { config.AppPublicHostname = origHostname })
+	config.AppPublicHostname = "https://auth.example.com"
+
+	token, err := GenerateStepUpChallengeToken("user-uuid", time.Minute, []string{"totp", "backup_code"})
+	require.NoError(t, err)
+
+	claims, err := ValidateStepUpChallengeToken(token)
+	require.NoError(t, err)
+	assert.Equal(t, "user-uuid", claims["sub"])
+	assert.Equal(t, "https://auth.example.com", claims["iss"])
+	assert.Equal(t, "https://auth.example.com", claims["aud"])
+	assert.Equal(t, "step_up_challenge", claims["typ"])
+	assert.ElementsMatch(t, []any{"totp", "backup_code"}, claims["allowed_methods"])
 }

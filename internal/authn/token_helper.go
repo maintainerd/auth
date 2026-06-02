@@ -1,6 +1,7 @@
 package authn
 
 import (
+	"context"
 	"strings"
 
 	"github.com/maintainerd/auth/internal/platform/crypto"
@@ -17,14 +18,51 @@ func hashUserBearerToken(token string) string {
 	return crypto.HashAuthorizationCode(strings.TrimSpace(token))
 }
 
+type tokenAuthContext struct {
+	AMR       []string
+	ACR       string
+	SessionID string
+}
+
+func passwordAuthContext() tokenAuthContext {
+	return tokenAuthContext{
+		AMR: []string{jwt.AMRPassword},
+		ACR: jwt.ACRLevel1,
+	}
+}
+
 func generateTokenSet(sub string, user *User, client *Client) (accessToken, idToken, refreshToken string, err error) {
-	accessToken, err = jwt.GenerateAccessToken(
+	return generateTokenSetWithContext(context.Background(), sub, user, client)
+}
+
+func generateTokenSetWithContext(ctx context.Context, sub string, user *User, client *Client) (accessToken, idToken, refreshToken string, err error) {
+	return generateTokenSetWithAuthContext(ctx, sub, user, client, passwordAuthContext())
+}
+
+func generateTokenSetWithAuthContext(ctx context.Context, sub string, user *User, client *Client, authCtx tokenAuthContext) (accessToken, idToken, refreshToken string, err error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	if len(authCtx.AMR) == 0 {
+		authCtx.AMR = []string{jwt.AMRPassword}
+	}
+	if authCtx.ACR == "" {
+		authCtx.ACR = jwt.ACRLevel1
+	}
+
+	accessToken, err = jwt.GenerateAccessTokenWithOptionsContext(
+		ctx,
 		sub,
 		DefaultTokenScope,
 		*client.Domain,
 		*client.Identifier,
 		*client.Identifier,
 		client.IdentityProvider.Identifier,
+		&jwt.AccessTokenOptions{
+			AMR:       authCtx.AMR,
+			ACR:       authCtx.ACR,
+			SessionID: authCtx.SessionID,
+		},
 	)
 	if err != nil {
 		return "", "", "", err
@@ -34,16 +72,16 @@ func generateTokenSet(sub string, user *User, client *Client) (accessToken, idTo
 
 	params := &jwt.IDTokenParams{
 		RequestedScopes: strings.Fields(DefaultTokenScope),
-		AMR:             []string{jwt.AMRPassword},
-		ACR:             jwt.ACRLevel1,
+		AMR:             authCtx.AMR,
+		ACR:             authCtx.ACR,
 	}
 
-	idToken, err = generateIDTokenFn(sub, *client.Domain, *client.Identifier, client.IdentityProvider.Identifier, profile, "", params)
+	idToken, err = jwt.GenerateIDTokenWithContext(ctx, sub, *client.Domain, *client.Identifier, client.IdentityProvider.Identifier, profile, "", params)
 	if err != nil {
 		return "", "", "", err
 	}
 
-	refreshToken, err = generateRefreshTokenFn(sub, *client.Domain, *client.Identifier, client.IdentityProvider.Identifier)
+	refreshToken, err = jwt.GenerateRefreshTokenWithContext(ctx, sub, *client.Domain, *client.Identifier, client.IdentityProvider.Identifier)
 	if err != nil {
 		return "", "", "", err
 	}

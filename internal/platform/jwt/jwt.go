@@ -40,16 +40,6 @@ func GenerateSecureID() string {
 	return hex.EncodeToString(bytes)
 }
 
-// keyMu guards all fields below. Use RLock for reads, Lock for writes.
-var keyMu sync.RWMutex
-
-// activePrivKey / activePubKey are the current signing key pair.
-var (
-	activePrivKey *rsa.PrivateKey
-	activePubKey  *rsa.PublicKey
-	activeKID     string
-)
-
 // retiredKey holds a public key that has been rotated out but may still be
 // needed to verify tokens whose refresh window has not yet expired.
 type retiredKey struct {
@@ -58,8 +48,16 @@ type retiredKey struct {
 	retiredAt time.Time
 }
 
-// retiringKeys is the ordered list of recently retired keys (oldest first).
-var retiringKeys []retiredKey
+type keyStore struct {
+	mu sync.RWMutex
+
+	activePrivKey *rsa.PrivateKey
+	activePubKey  *rsa.PublicKey
+	activeKID     string
+	retiringKeys  []retiredKey
+}
+
+var defaultKeyStore = &keyStore{}
 
 // PublicKeyEntry is a KID-tagged public key returned by GetAllPublicKeys.
 type PublicKeyEntry struct {
@@ -67,35 +65,137 @@ type PublicKeyEntry struct {
 	PubKey *rsa.PublicKey
 }
 
-// JTIChecker is called during ValidateToken to check whether a token's JTI
-// has been added to the denylist (e.g. by an explicit revocation call).
-// Set this at startup: jwt.JTIChecker = cache.IsJTIDenied
-// When nil, no denylist check is performed (tokens are validated purely by signature + expiry).
-var JTIChecker func(ctx context.Context, jti string) (bool, error)
+func (ks *keyStore) publicKey() *rsa.PublicKey {
+	ks.mu.RLock()
+	defer ks.mu.RUnlock()
+	return ks.activePubKey
+}
+
+func (ks *keyStore) allPublicKeys() []PublicKeyEntry {
+	ks.mu.RLock()
+	defer ks.mu.RUnlock()
+
+	out := make([]PublicKeyEntry, 0, 1+len(ks.retiringKeys))
+	if ks.activePubKey != nil {
+		out = append(out, PublicKeyEntry{KID: ks.activeKID, PubKey: ks.activePubKey})
+	}
+	for _, rk := range ks.retiringKeys {
+		out = append(out, PublicKeyEntry{KID: rk.kid, PubKey: rk.pubKey})
+	}
+	return out
+}
+
+func (ks *keyStore) rotate(newKey *rsa.PrivateKey, newKID string, now time.Time) {
+	ks.mu.Lock()
+	defer ks.mu.Unlock()
+
+	if ks.activePubKey != nil {
+		ks.retiringKeys = append(ks.retiringKeys, retiredKey{
+			kid:       ks.activeKID,
+			pubKey:    ks.activePubKey,
+			retiredAt: now,
+		})
+	}
+
+	cutoff := now.Add(-RefreshTokenTTL)
+	live := ks.retiringKeys[:0]
+	for _, rk := range ks.retiringKeys {
+		if rk.retiredAt.After(cutoff) {
+			live = append(live, rk)
+		}
+	}
+	ks.retiringKeys = live
+
+	ks.activePrivKey = newKey
+	ks.activePubKey = &newKey.PublicKey
+	ks.activeKID = newKID
+}
+
+func (ks *keyStore) install(privKey *rsa.PrivateKey, pubKey *rsa.PublicKey, kid string) {
+	ks.mu.Lock()
+	defer ks.mu.Unlock()
+	ks.activePrivKey = privKey
+	ks.activePubKey = pubKey
+	ks.activeKID = kid
+	ks.retiringKeys = nil
+}
+
+func (ks *keyStore) reset() {
+	ks.mu.Lock()
+	defer ks.mu.Unlock()
+	ks.activePrivKey = nil
+	ks.activePubKey = nil
+	ks.activeKID = ""
+	ks.retiringKeys = nil
+}
+
+func (ks *keyStore) hasPublicKey() bool {
+	ks.mu.RLock()
+	defer ks.mu.RUnlock()
+	return ks.activePubKey != nil
+}
+
+func (ks *keyStore) signingKey() (*rsa.PrivateKey, string) {
+	ks.mu.RLock()
+	defer ks.mu.RUnlock()
+	return ks.activePrivKey, ks.activeKID
+}
+
+func (ks *keyStore) verificationKey(kid string) (*rsa.PublicKey, error) {
+	ks.mu.RLock()
+	defer ks.mu.RUnlock()
+
+	if kid == "" || kid == ks.activeKID {
+		return ks.activePubKey, nil
+	}
+	for _, rk := range ks.retiringKeys {
+		if rk.kid == kid {
+			return rk.pubKey, nil
+		}
+	}
+	return nil, fmt.Errorf("unknown key ID: %v", kid)
+}
+
+func activeSigningKeyForTest() (*rsa.PrivateKey, string) {
+	return defaultKeyStore.signingKey()
+}
+
+type JTIDenylistChecker func(ctx context.Context, jti string) (bool, error)
+
+var jtiChecker struct {
+	mu      sync.RWMutex
+	checker JTIDenylistChecker
+}
+
+// SetJTIChecker configures the optional denylist lookup used by ValidateToken.
+func SetJTIChecker(checker JTIDenylistChecker) {
+	jtiChecker.mu.Lock()
+	defer jtiChecker.mu.Unlock()
+	jtiChecker.checker = checker
+}
+
+// ResetJTIChecker clears the token denylist lookup.
+func ResetJTIChecker() {
+	SetJTIChecker(nil)
+}
+
+func getJTIChecker() JTIDenylistChecker {
+	jtiChecker.mu.RLock()
+	defer jtiChecker.mu.RUnlock()
+	return jtiChecker.checker
+}
 
 // GetPublicKey returns the active RSA public key used for JWT verification.
 // Returns nil if InitJWTKeys has not been called.
 func GetPublicKey() *rsa.PublicKey {
-	keyMu.RLock()
-	defer keyMu.RUnlock()
-	return activePubKey
+	return defaultKeyStore.publicKey()
 }
 
 // GetAllPublicKeys returns the active key followed by any retiring keys that
 // are still within the refresh-token validity window. The JWKS endpoint calls
 // this so that clients can verify tokens signed by recently rotated keys.
 func GetAllPublicKeys() []PublicKeyEntry {
-	keyMu.RLock()
-	defer keyMu.RUnlock()
-
-	out := make([]PublicKeyEntry, 0, 1+len(retiringKeys))
-	if activePubKey != nil {
-		out = append(out, PublicKeyEntry{KID: activeKID, PubKey: activePubKey})
-	}
-	for _, rk := range retiringKeys {
-		out = append(out, PublicKeyEntry{KID: rk.kid, PubKey: rk.pubKey})
-	}
-	return out
+	return defaultKeyStore.allPublicKeys()
 }
 
 // RotateKeys generates a fresh RSA-2048 key pair, promotes the current active
@@ -106,34 +206,7 @@ func RotateKeys() error {
 	if err != nil {
 		return fmt.Errorf("jwt: generate rotation key: %w", err)
 	}
-	newKID := GenerateSecureID()
-
-	keyMu.Lock()
-	defer keyMu.Unlock()
-
-	// Promote current active key to retiring list.
-	if activePubKey != nil {
-		retiringKeys = append(retiringKeys, retiredKey{
-			kid:       activeKID,
-			pubKey:    activePubKey,
-			retiredAt: time.Now(),
-		})
-	}
-
-	// Prune keys that are older than RefreshTokenTTL — no valid token can
-	// still carry one of those KIDs.
-	cutoff := time.Now().Add(-RefreshTokenTTL)
-	live := retiringKeys[:0]
-	for _, rk := range retiringKeys {
-		if rk.retiredAt.After(cutoff) {
-			live = append(live, rk)
-		}
-	}
-	retiringKeys = live
-
-	activePrivKey = newKey
-	activePubKey = &newKey.PublicKey
-	activeKID = newKID
+	defaultKeyStore.rotate(newKey, GenerateSecureID(), time.Now())
 	return nil
 }
 
@@ -196,11 +269,7 @@ func InitJWTKeys() error {
 		return errors.New("private and public keys do not form a valid key pair")
 	}
 
-	keyMu.Lock()
-	activePrivKey = privKey
-	activePubKey = pubKey
-	activeKID = config.GetEnvOrDefault("JWT_KEY_ID", "maintainerd-auth-key-1")
-	keyMu.Unlock()
+	defaultKeyStore.install(privKey, pubKey, config.GetEnvOrDefault("JWT_KEY_ID", "maintainerd-auth-key-1"))
 
 	return nil
 }
@@ -208,12 +277,7 @@ func InitJWTKeys() error {
 // ResetJWTKeys clears the cached JWT signing keys.
 // Intended for testing only.
 func ResetJWTKeys() {
-	keyMu.Lock()
-	activePrivKey = nil
-	activePubKey = nil
-	activeKID = ""
-	retiringKeys = nil
-	keyMu.Unlock()
+	defaultKeyStore.reset()
 }
 
 // AccessTokenOptions carries optional per-issuance parameters for access tokens.
@@ -232,6 +296,9 @@ type AccessTokenOptions struct {
 
 	// ACR is the Authentication Context Class Reference.
 	ACR string
+
+	// SessionID is the opaque session identifier associated with this token.
+	SessionID string
 }
 
 // GenerateAccessToken is the standard (Bearer) entry point for access token
@@ -244,7 +311,21 @@ func GenerateAccessToken(
 	clientID string,
 	providerID string,
 ) (string, error) {
-	return GenerateAccessTokenWithOptions(userId, scope, issuer, audience, clientID, providerID, nil)
+	return GenerateAccessTokenWithContext(context.Background(), userId, scope, issuer, audience, clientID, providerID)
+}
+
+// GenerateAccessTokenWithContext is the context-aware entry point for access
+// token issuance so JWT spans remain parented to the request span.
+func GenerateAccessTokenWithContext(
+	ctx context.Context,
+	userId string,
+	scope string,
+	issuer string,
+	audience string,
+	clientID string,
+	providerID string,
+) (string, error) {
+	return GenerateAccessTokenWithOptionsContext(ctx, userId, scope, issuer, audience, clientID, providerID, nil)
 }
 
 // GenerateAccessTokenWithOptions issues an access token and optionally binds
@@ -258,7 +339,25 @@ func GenerateAccessTokenWithOptions(
 	providerID string,
 	opts *AccessTokenOptions,
 ) (string, error) {
-	_, span := otel.Tracer("jwt").Start(context.Background(), "jwt.generate_access_token")
+	return GenerateAccessTokenWithOptionsContext(context.Background(), userId, scope, issuer, audience, clientID, providerID, opts)
+}
+
+// GenerateAccessTokenWithOptionsContext issues an access token using the caller
+// context for tracing.
+func GenerateAccessTokenWithOptionsContext(
+	ctx context.Context,
+	userId string,
+	scope string,
+	issuer string,
+	audience string,
+	clientID string,
+	providerID string,
+	opts *AccessTokenOptions,
+) (string, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	_, span := otel.Tracer("jwt").Start(ctx, "jwt.generate_access_token")
 	defer span.End()
 	span.SetAttributes(
 		attribute.String("user_id", userId),
@@ -325,6 +424,9 @@ func GenerateAccessTokenWithOptions(
 	}
 	if opts != nil && opts.ACR != "" {
 		claims["acr"] = opts.ACR
+	}
+	if opts != nil && opts.SessionID != "" {
+		claims["sid"] = opts.SessionID
 	}
 
 	tok, err := generateToken(claims)
@@ -406,7 +508,20 @@ func buildAllowedClaimsSet(params *IDTokenParams) map[string]struct{} {
 var GenerateIDToken = generateIDToken
 
 func generateIDToken(userUUID, issuer, clientID, providerID string, profile *UserProfile, nonce string, params *IDTokenParams) (string, error) {
-	_, span := otel.Tracer("jwt").Start(context.Background(), "jwt.generate_id_token")
+	return generateIDTokenWithContext(context.Background(), userUUID, issuer, clientID, providerID, profile, nonce, params)
+}
+
+// GenerateIDTokenWithContext issues an ID token using the caller context for
+// tracing while preserving the swappable GenerateIDToken test hook.
+func GenerateIDTokenWithContext(ctx context.Context, userUUID, issuer, clientID, providerID string, profile *UserProfile, nonce string, params *IDTokenParams) (string, error) {
+	return generateIDTokenWithContext(ctx, userUUID, issuer, clientID, providerID, profile, nonce, params)
+}
+
+func generateIDTokenWithContext(ctx context.Context, userUUID, issuer, clientID, providerID string, profile *UserProfile, nonce string, params *IDTokenParams) (string, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	_, span := otel.Tracer("jwt").Start(ctx, "jwt.generate_id_token")
 	defer span.End()
 	span.SetAttributes(
 		attribute.String("user_uuid", userUUID),
@@ -539,7 +654,20 @@ func generateIDToken(userUUID, issuer, clientID, providerID string, profile *Use
 var GenerateRefreshToken = generateRefreshToken
 
 func generateRefreshToken(userUUID, issuer, clientID, providerID string) (string, error) {
-	_, span := otel.Tracer("jwt").Start(context.Background(), "jwt.generate_refresh_token")
+	return generateRefreshTokenWithContext(context.Background(), userUUID, issuer, clientID, providerID)
+}
+
+// GenerateRefreshTokenWithContext issues a refresh token using the caller
+// context for tracing while preserving the swappable GenerateRefreshToken hook.
+func GenerateRefreshTokenWithContext(ctx context.Context, userUUID, issuer, clientID, providerID string) (string, error) {
+	return generateRefreshTokenWithContext(ctx, userUUID, issuer, clientID, providerID)
+}
+
+func generateRefreshTokenWithContext(ctx context.Context, userUUID, issuer, clientID, providerID string) (string, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	_, span := otel.Tracer("jwt").Start(ctx, "jwt.generate_refresh_token")
 	defer span.End()
 	span.SetAttributes(
 		attribute.String("user_uuid", userUUID),
@@ -597,11 +725,7 @@ func generateRefreshToken(userUUID, issuer, clientID, providerID string) (string
 // generateToken creates a JWT with enhanced security validation
 // Complies with SOC2 CC6.1 and ISO27001 A.10.1.1
 func generateToken(claims jwtlib.MapClaims) (string, error) {
-	keyMu.RLock()
-	priv := activePrivKey
-	kid := activeKID
-	keyMu.RUnlock()
-
+	priv, kid := defaultKeyStore.signingKey()
 	if priv == nil {
 		return "", errors.New("private key not initialized - call InitJWTKeys() first")
 	}
@@ -627,22 +751,46 @@ func generateToken(claims jwtlib.MapClaims) (string, error) {
 // ──────────────────────────────────────────────────────────────────────────────
 
 // GenerateStepUpChallengeToken issues a short-lived signed JWT used as a
-// step-up challenge handle. The token encodes the user's UUID so the MFA
-// endpoint can cross-check it against the authenticated session.
-func GenerateStepUpChallengeToken(userUUID string, ttl time.Duration) (string, error) {
+// step-up challenge handle. The token encodes the user's UUID and optional
+// allowed MFA methods so the verifier can cross-check the completed factor.
+func GenerateStepUpChallengeToken(userUUID string, ttl time.Duration, allowedMethods ...[]string) (string, error) {
+	return GenerateStepUpChallengeTokenWithContext(context.Background(), userUUID, ttl, allowedMethods...)
+}
+
+// GenerateStepUpChallengeTokenWithContext issues a short-lived step-up
+// challenge token using the caller context for tracing.
+func GenerateStepUpChallengeTokenWithContext(ctx context.Context, userUUID string, ttl time.Duration, allowedMethods ...[]string) (string, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	_, span := otel.Tracer("jwt").Start(ctx, "jwt.generate_step_up_challenge_token")
+	defer span.End()
+
 	jti := generateSecureJTI()
 	now := time.Now()
+	issuer := config.AppPublicHostname
+	if issuer == "" {
+		issuer = "maintainerd-auth"
+	}
 	claims := jwtlib.MapClaims{
 		"sub": userUUID,
+		"aud": issuer,
+		"iss": issuer,
 		"jti": jti,
 		"typ": "step_up_challenge",
 		"iat": jwtlib.NewNumericDate(now),
 		"exp": jwtlib.NewNumericDate(now.Add(ttl)),
 	}
+	if len(allowedMethods) > 0 && len(allowedMethods[0]) > 0 {
+		claims["allowed_methods"] = allowedMethods[0]
+	}
 	tok, err := generateToken(claims)
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "generate step-up challenge token failed")
 		return "", fmt.Errorf("step-up challenge token: %w", err)
 	}
+	span.SetStatus(codes.Ok, "")
 	return tok, nil
 }
 
@@ -679,14 +827,17 @@ const ACRLevel1 = "1"
 const ACRLevel2 = "2"
 
 func ValidateToken(tokenString string) (jwtlib.MapClaims, error) {
-	_, span := otel.Tracer("jwt").Start(context.Background(), "jwt.validate_token")
+	return ValidateTokenWithContext(context.Background(), tokenString)
+}
+
+func ValidateTokenWithContext(ctx context.Context, tokenString string) (jwtlib.MapClaims, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	_, span := otel.Tracer("jwt").Start(ctx, "jwt.validate_token")
 	defer span.End()
 
-	keyMu.RLock()
-	noKeys := activePubKey == nil
-	keyMu.RUnlock()
-
-	if noKeys {
+	if !defaultKeyStore.hasPublicKey() {
 		err := errors.New("public key not initialized - call InitJWTKeys() first")
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "validate token failed")
@@ -714,19 +865,7 @@ func ValidateToken(tokenString string) (jwtlib.MapClaims, error) {
 		// Tokens without a KID header (pre-rotation or test-crafted) are
 		// verified with the active key for backward compatibility.
 		kidVal, _ := t.Header["kid"].(string)
-
-		keyMu.RLock()
-		defer keyMu.RUnlock()
-
-		if kidVal == "" || kidVal == activeKID {
-			return activePubKey, nil
-		}
-		for _, rk := range retiringKeys {
-			if rk.kid == kidVal {
-				return rk.pubKey, nil
-			}
-		}
-		return nil, fmt.Errorf("unknown key ID: %v", kidVal)
+		return defaultKeyStore.verificationKey(kidVal)
 	})
 
 	if err != nil {
@@ -747,9 +886,9 @@ func ValidateToken(tokenString string) (jwtlib.MapClaims, error) {
 	}
 
 	// JTI denylist check — rejects explicitly revoked access tokens.
-	if JTIChecker != nil {
+	if checker := getJTIChecker(); checker != nil {
 		if jti, ok := claims["jti"].(string); ok && jti != "" {
-			denied, checkErr := JTIChecker(context.Background(), jti)
+			denied, checkErr := checker(ctx, jti)
 			if checkErr != nil {
 				span.RecordError(checkErr)
 				span.SetStatus(codes.Error, "jti denylist check failed")

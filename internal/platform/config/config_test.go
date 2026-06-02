@@ -41,6 +41,7 @@ func TestInit(t *testing.T) {
 		origAppVersion := AppVersion
 		origAppPubHost := AppPublicHostname
 		origAppPrivHost := AppPrivateHostname
+		origManagementPort := ManagementPort
 		origAccountHost := AccountHostname
 		origAuthHost := AuthHostname
 		origJWTPriv := JWTPrivateKey
@@ -67,6 +68,7 @@ func TestInit(t *testing.T) {
 			AppVersion = origAppVersion
 			AppPublicHostname = origAppPubHost
 			AppPrivateHostname = origAppPrivHost
+			ManagementPort = origManagementPort
 			AccountHostname = origAccountHost
 			AuthHostname = origAuthHost
 			JWTPrivateKey = origJWTPriv
@@ -99,6 +101,7 @@ func TestInit(t *testing.T) {
 		assert.Equal(t, "1.0.0", AppVersion)
 		assert.Equal(t, "https://pub.example.com", AppPublicHostname)
 		assert.Equal(t, "https://priv.example.com", AppPrivateHostname)
+		assert.Equal(t, ":8082", ManagementPort)
 		assert.Equal(t, "https://account.example.com", AccountHostname)
 		assert.Equal(t, "https://auth.example.com", AuthHostname)
 		assert.Equal(t, []byte("private-key-data"), JWTPrivateKey)

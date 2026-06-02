@@ -1087,9 +1087,8 @@ func TestOAuthTokenService_Revoke(t *testing.T) {
 
 	t.Run("revokes access token by denylisting jti", func(t *testing.T) {
 		initTestJWTKeysService(t)
-		origChecker := jwt.JTIChecker
-		jwt.JTIChecker = nil
-		t.Cleanup(func() { jwt.JTIChecker = origChecker })
+		jwt.ResetJTIChecker()
+		t.Cleanup(jwt.ResetJTIChecker)
 
 		db, mock := newMockDB(t)
 		expectClientLookup(mock, mockClientRows())
@@ -1119,9 +1118,8 @@ func TestOAuthTokenService_Revoke(t *testing.T) {
 
 	t.Run("access token denylist error returns server error", func(t *testing.T) {
 		initTestJWTKeysService(t)
-		origChecker := jwt.JTIChecker
-		jwt.JTIChecker = nil
-		t.Cleanup(func() { jwt.JTIChecker = origChecker })
+		jwt.ResetJTIChecker()
+		t.Cleanup(jwt.ResetJTIChecker)
 
 		db, mock := newMockDB(t)
 		expectClientLookup(mock, mockClientRows())
@@ -1381,6 +1379,38 @@ func TestRefreshTokenTTL(t *testing.T) {
 		client := &Client{}
 		assert.Equal(t, 7*24*time.Hour, svc.refreshTokenTTL(client))
 	})
+}
+
+func TestOAuthTokenService_GenerateTokensAccessTokenAuthContext(t *testing.T) {
+	initTestJWTKeysService(t)
+
+	domain := "https://auth.example.com"
+	identifier := "my-client"
+	client := &Client{
+		ClientID:   10,
+		TenantID:   1,
+		Domain:     &domain,
+		Identifier: &identifier,
+		IdentityProvider: &IdentityProvider{
+			Identifier: "default-provider",
+		},
+	}
+	user := &User{
+		UserUUID:        uuid.New(),
+		Email:           "test@example.com",
+		IsEmailVerified: true,
+		Fullname:        "Test User",
+	}
+	svc := &oauthTokenService{}
+
+	result, oerr := svc.generateTokens(context.Background(), "user-sub", user, client, "openid profile", nil, "")
+	require.Nil(t, oerr)
+	require.NotNil(t, result)
+
+	claims, err := jwt.ValidateToken(result.AccessToken)
+	require.NoError(t, err)
+	assert.Equal(t, jwt.ACRLevel1, claims["acr"])
+	assert.ElementsMatch(t, []any{jwt.AMRPassword}, claims["amr"])
 }
 
 // ── TestHasGrant ────────────────────────────────────────────────────────────

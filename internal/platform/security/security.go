@@ -406,6 +406,62 @@ func ResetFailedAttempts(identifier string) {
 	span.SetStatus(codes.Ok, "")
 }
 
+var (
+	smsBudgetMu       sync.Mutex
+	smsBudgetCounters = map[string]int{}
+)
+
+func smsDailyBudgetKey(scope string, now time.Time) string {
+	return fmt.Sprintf("sms:budget:daily:%s:%s", now.UTC().Format("2006-01-02"), scope)
+}
+
+func smsDailyBudgetTTL(now time.Time) time.Duration {
+	nextDay := now.UTC().Truncate(24 * time.Hour).Add(25 * time.Hour)
+	return time.Until(nextDay)
+}
+
+// CheckAndRecordSMSDailyBudget enforces a hard daily SMS send ceiling. The
+// Redis path works across pods; the in-memory fallback keeps local/test mode
+// from silently disabling the cost guard.
+func CheckAndRecordSMSDailyBudget(ctx context.Context, scope string, limit int) error {
+	if limit <= 0 {
+		return nil
+	}
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	now := time.Now()
+	key := smsDailyBudgetKey(scope, now)
+	if rateLimiterClient != nil {
+		count, err := rateLimiterClient.Incr(ctx, key).Result()
+		if err == nil {
+			if count == 1 {
+				_ = rateLimiterClient.Expire(ctx, key, smsDailyBudgetTTL(now)).Err()
+			}
+			if count > int64(limit) {
+				return fmt.Errorf("daily SMS send budget exceeded for %s", scope)
+			}
+			return nil
+		}
+	}
+
+	smsBudgetMu.Lock()
+	defer smsBudgetMu.Unlock()
+	smsBudgetCounters[key]++
+	if smsBudgetCounters[key] > limit {
+		return fmt.Errorf("daily SMS send budget exceeded for %s", scope)
+	}
+	return nil
+}
+
+// ResetSMSDailyBudgetCounters clears process-local SMS budget counters. It is
+// intended for tests and does not affect Redis-backed counters.
+func ResetSMSDailyBudgetCounters() {
+	smsBudgetMu.Lock()
+	defer smsBudgetMu.Unlock()
+	smsBudgetCounters = map[string]int{}
+}
+
 // ============================================================================
 // SESSION MANAGEMENT
 // ============================================================================

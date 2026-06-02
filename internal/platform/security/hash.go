@@ -14,8 +14,8 @@ import (
 const BcryptCost = 12
 
 // HashPassword hashes a password using bcrypt. The caller's ctx is propagated
-// into the tracing span. Exposed as a var so tests can inject errors.
-var HashPassword = func(ctx context.Context, password []byte) ([]byte, error) {
+// into the tracing span.
+func HashPassword(ctx context.Context, password []byte) ([]byte, error) {
 	_, span := otel.Tracer("security").Start(ctx, "security.hash_password")
 	defer span.End()
 
@@ -31,8 +31,8 @@ var HashPassword = func(ctx context.Context, password []byte) ([]byte, error) {
 
 // HashClientSecret hashes a client secret with bcrypt. Client secrets are
 // high-entropy random strings, but bcrypt ensures the hash is useless even if
-// the database is compromised. Exposed as a var so tests can inject errors.
-var HashClientSecret = func(ctx context.Context, secret string) (string, error) {
+// the database is compromised.
+func HashClientSecret(ctx context.Context, secret string) (string, error) {
 	_, span := otel.Tracer("security").Start(ctx, "security.hash_client_secret")
 	defer span.End()
 

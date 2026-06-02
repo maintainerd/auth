@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
-	"os"
 	"testing"
 	"time"
 
@@ -14,12 +13,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
-
-func init() {
-	if os.Getenv("HMAC_SECRET_KEY") == "" {
-		os.Setenv("HMAC_SECRET_KEY", "test-secret-key-for-unit-tests")
-	}
-}
 
 func validSignedQuery(t *testing.T, params map[string]string) string {
 	t.Helper()

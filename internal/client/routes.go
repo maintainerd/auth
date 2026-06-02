@@ -26,16 +26,16 @@ func APIKeyRoute(
 		r.With(middleware.PermissionMiddleware([]string{"api_key:read"})).
 			Get("/{api_key_uuid}/config", apiKeyHandler.GetConfigByUUID)
 
-		r.With(middleware.PermissionMiddleware([]string{"api_key:create"})).
+		r.With(middleware.PermissionMiddleware([]string{"api_key:create"}), middleware.RequireStepUp).
 			Post("/", apiKeyHandler.Create)
 
-		r.With(middleware.PermissionMiddleware([]string{"api_key:update"})).
+		r.With(middleware.PermissionMiddleware([]string{"api_key:update"}), middleware.RequireStepUp).
 			Put("/{api_key_uuid}", apiKeyHandler.Update)
 
-		r.With(middleware.PermissionMiddleware([]string{"api_key:update"})).
+		r.With(middleware.PermissionMiddleware([]string{"api_key:update"}), middleware.RequireStepUp).
 			Put("/{api_key_uuid}/status", apiKeyHandler.SetStatus)
 
-		r.With(middleware.PermissionMiddleware([]string{"api_key:delete"})).
+		r.With(middleware.PermissionMiddleware([]string{"api_key:delete"}), middleware.RequireStepUp).
 			Delete("/{api_key_uuid}", apiKeyHandler.Delete)
 
 		// API Key API operations
@@ -43,10 +43,10 @@ func APIKeyRoute(
 			r.With(middleware.PermissionMiddleware([]string{"api_key:read"})).
 				Get("/", apiKeyHandler.GetAPIs)
 
-			r.With(middleware.PermissionMiddleware([]string{"api_key:update"})).
+			r.With(middleware.PermissionMiddleware([]string{"api_key:update"}), middleware.RequireStepUp).
 				Post("/", apiKeyHandler.AddAPIs)
 
-			r.With(middleware.PermissionMiddleware([]string{"api_key:update"})).
+			r.With(middleware.PermissionMiddleware([]string{"api_key:update"}), middleware.RequireStepUp).
 				Delete("/{api_uuid}", apiKeyHandler.RemoveAPI)
 
 			// API Key API Permission operations
@@ -54,10 +54,10 @@ func APIKeyRoute(
 				r.With(middleware.PermissionMiddleware([]string{"api_key:read"})).
 					Get("/", apiKeyHandler.GetAPIPermissions)
 
-				r.With(middleware.PermissionMiddleware([]string{"api_key:update"})).
+				r.With(middleware.PermissionMiddleware([]string{"api_key:update"}), middleware.RequireStepUp).
 					Post("/", apiKeyHandler.AddAPIPermissions)
 
-				r.With(middleware.PermissionMiddleware([]string{"api_key:update"})).
+				r.With(middleware.PermissionMiddleware([]string{"api_key:update"}), middleware.RequireStepUp).
 					Delete("/{permission_uuid}", apiKeyHandler.RemoveAPIPermission)
 			})
 		})
@@ -80,10 +80,10 @@ func ClientRoute(
 		r.With(middleware.PermissionMiddleware([]string{"client:read"})).
 			Get("/{client_uuid}", ClientHandler.GetByUUID)
 
-		r.With(middleware.PermissionMiddleware([]string{"client:secret:read"})).
+		r.With(middleware.PermissionMiddleware([]string{"client:secret:read"}), middleware.RequireStepUp).
 			Get("/{client_uuid}/secret", ClientHandler.GetSecretByUUID)
 
-		r.With(middleware.PermissionMiddleware([]string{"client:secret:rotate"})).
+		r.With(middleware.PermissionMiddleware([]string{"client:secret:rotate"}), middleware.RequireStepUp).
 			Post("/{client_uuid}/rotate-secret", ClientHandler.RotateSecret)
 
 		r.With(middleware.PermissionMiddleware([]string{"client:config:read"})).

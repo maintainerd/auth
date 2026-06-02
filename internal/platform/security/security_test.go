@@ -69,11 +69,15 @@ func TestValidatePasswordStrength_MissingSpecial(t *testing.T) {
 	assert.Contains(t, err.Error(), "special character")
 }
 
-func TestValidatePasswordStrength_WeakPattern(t *testing.T) {
-	// Contains "password" → rejected even though it meets other criteria
+func TestValidatePasswordStrength_CommonPassword(t *testing.T) {
 	err := ValidatePasswordStrength("Password1!")
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "weak")
+	assert.Contains(t, err.Error(), "common weak password")
+}
+
+func TestValidatePasswordStrength_CommonPasswordSubstringAllowed(t *testing.T) {
+	err := ValidatePasswordStrength("ThisPasswordWordIsFine1!")
+	assert.NoError(t, err)
 }
 
 // ---------------------------------------------------------------------------
@@ -334,6 +338,17 @@ func TestRecordFailedAttempt_NilClient(t *testing.T) {
 func TestResetFailedAttempts_NilClient(t *testing.T) {
 	InitRateLimiter(nil)
 	assert.NotPanics(t, func() { ResetFailedAttempts("user@example.com") })
+}
+
+func TestCheckAndRecordSMSDailyBudget_InMemoryFallback(t *testing.T) {
+	InitRateLimiter(nil)
+	ResetSMSDailyBudgetCounters()
+	t.Cleanup(ResetSMSDailyBudgetCounters)
+
+	require.NoError(t, CheckAndRecordSMSDailyBudget(context.Background(), "global", 1))
+	err := CheckAndRecordSMSDailyBudget(context.Background(), "global", 1)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "daily SMS send budget exceeded")
 }
 
 // ---------------------------------------------------------------------------

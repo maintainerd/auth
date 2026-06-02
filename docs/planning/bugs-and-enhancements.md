@@ -55,7 +55,7 @@ Findings:
 | CON-05 | FIXED   | Env/query boolean parsing now uses `strconv.ParseBool` for the residual Redis and telemetry env flags.                                                                                       |
 | CLN-01 | FIXED   | Dead login/SMS branding `FindByName` repo methods/mocks removed, API-key validation test seam removed, gRPC seeder handler now runs seeders, and step-up `amr` is embedded in access tokens. |
 | CLN-02 | FIXED   | Tenant duplicate checks, setup metadata marshal, and MFA/WebAuthn state updates now return errors instead of being swallowed.                                                                |
-| CLN-03 | PARTIAL | Bcrypt `init()` side effect removed via lazy `sync.Once`; remaining residual is the broader config/JWT global-state and mutable test-seam refactor.                                          |
+| CLN-03 | FIXED   | Bcrypt dummy hashing is lazy, security/token generation monkeypatch vars are gone, JWT key state is encapsulated, JTI denylist uses setters, and test `init()` hooks were removed.             |
 | CLN-04 | FIXED   | Tenant metadata now flows through tenant/setup/user service results and response DTOs.                                                                                                       |
 | CLN-05 | FIXED   | Shared constants now cover default token scope/expires-in, gRPC address, discovery/OpenAPI cache max-age, and cookie token max-age literals.                                                 |
 | CLN-06 | FIXED   | Auth event dispatch no longer creates a detached goroutine with `context.Background`; webhook delivery now uses a bounded worker queue drained on shutdown.                                  |
@@ -491,15 +491,18 @@ Mechanical debt the refactor didn't finish. Big LOC reduction, low risk.
   **Fixed:** these paths now return internal errors instead of continuing after
   failed state updates/checks.
 
-- [ ] **CLN-03** 🟡 🔁 — **Globals / `init()` side-effects / test-seam indirection.**
+- [x] **CLN-03** 🟡 ✅ — **Globals / `init()` side-effects / test-seam indirection.**
   bcrypt in `init()` + rate-limiter no-ops-when-nil + dropped `ctx`
   ([`platform/security/security.go`](../../internal/platform/security/security.go));
   global signing-key state ([`platform/jwt/jwt.go:43`](../../internal/platform/jwt/jwt.go#L43));
   global config vars ([`platform/config/config.go:11`](../../internal/platform/config/config.go#L11));
   `var Fn = fn` indirection across ~9 platform files.
-  **Partial:** bcrypt dummy hash generation is now lazy via `sync.Once`. Remaining:
-  config globals, JWT default key state, and mutable test seams should be
-  handled as a focused injection refactor.
+  **Fixed:** bcrypt dummy hash generation is lazy via `sync.Once`; security hash helpers are
+  ordinary functions; authn/user token issuance calls the JWT package directly; JWT signing
+  state is behind a guarded key store; revocation denylist checks use `SetJTIChecker`;
+  validation can carry caller `ctx` via `ValidateTokenWithContext`; and test `init()` hooks
+  were replaced with package `TestMain` setup. The broader `config.X` globals remain tracked
+  separately under `OPS-03`.
 
 - [x] **CLN-04** 🟡 ✅ — **Unpopulated DTO fields / misleading docs.**
   `TenantResponseDTO.Metadata` never set ([`tenant/types.go:20`](../../internal/tenant/types.go#L20));
@@ -540,165 +543,228 @@ gaps rather than classic bugs — either finish the wiring or downgrade the chec
 
 ### Dead / unwired runners
 
-- [ ] **FC-01** 🔴 — **Automatic key-rotation runner is dead code.**
+- [x] **FC-01** 🔴 ✅ — **Automatic key-rotation runner is dead code.**
   `StartKeyRotationRunner` ([`platform/runner/key_rotation.go:14`](../../internal/platform/runner/key_rotation.go#L14))
   has **zero callers**; `cmd/server/workers.go` only starts the auth-event retention runner.
   Keys never rotate, which also makes multi-key JWKS (`v1.0.0.md` §7) effectively single-key.
-  **Fix:** start it in `startBackgroundWorkers` with a configurable period.
+  **Fixed:** `cmd/server` now launches the key-rotation runner from `startBackgroundWorkers`
+  using `JWT_KEY_ROTATION_PERIOD_SECONDS` (default 86400 seconds, runtime fallback 24h), with
+  worker startup tests.
 
-- [ ] **FC-02** 🟠 — **Secret hot-reload runner is dead code.**
+- [x] **FC-02** 🟠 ✅ — **Secret hot-reload runner is dead code.**
   `StartSecretRefreshRunner` ([`platform/runner/secret_refresh.go:19`](../../internal/platform/runner/secret_refresh.go#L19))
   has zero callers; secrets load once at `config.Init()`. "Secret refresh / hot-reload without
-  restart" (`v1.0.0.md` §8, ✅) is non-functional. **Fix:** launch it from `startBackgroundWorkers`.
+  restart" (`v1.0.0.md` §8, ✅) is non-functional.
+  **Fixed:** `cmd/server` now launches the secret-refresh runner from `startBackgroundWorkers`
+  using `SECRET_REFRESH_PERIOD_SECONDS` (default 300 seconds, runtime fallback 5m), with env docs
+  and worker startup tests.
 
 ### MFA / step-up enforcement
 
-- [ ] **FC-03** 🔴 — **Per-tenant MFA policy is never enforced at login.**
+- [x] **FC-03** 🔴 — **Per-tenant MFA policy is never enforced at login.**
   `MFAService.IsMFARequired`/`UserHasMFA` exist ([`mfa/service_mfa.go`](../../internal/mfa/service_mfa.go))
   but no `authn`/`oauth` login path calls them; login issues full tokens without ever
   challenging for a second factor. **Fix:** after password auth, check `IsMFARequired(poolID)`
   / user factors and require an MFA challenge before issuing final tokens.
+  **Fixed:** password login now reads the tenant `mfa_config` (`required` and legacy
+  `enforce_mfa`), intersects policy methods with enrolled/supported factors, and returns
+  `mfa_required` plus a short-lived challenge token instead of access/ID/refresh tokens when
+  MFA is required.
 
-- [ ] **FC-04** 🟠 — **Step-up authentication is never enforced on any sensitive op.**
+- [x] **FC-04** 🟠 — **Step-up authentication is never enforced on any sensitive op.**
   `IssueStepUpChallenge`/`VerifyStepUp` are routed but no caller requires a fresh `acr=2`
   before secret rotation, MFA reset, account deletion, etc. **Fix:** add guards on sensitive
   routes that require a recent step-up acr.
+  **Fixed:** sensitive account, user-admin, MFA reset/factor deletion, client-secret/API-key,
+  tenant status/deletion, and security-setting update routes now require `acr=2`, while JWT
+  middleware extracts `acr`/`amr` for route enforcement.
 
-- [ ] **FC-05** 🟠 — **`acr`/`amr` claims are fabricated, not derived from the actual auth.**
+- [x] **FC-05** 🟠 — **`acr`/`amr` claims are fabricated, not derived from the actual auth.**
   All login paths hardcode `amr:["pwd"], acr:"1"` ([`authn/token_helper.go:32`](../../internal/authn/token_helper.go#L32),
   [`oauth/service_token.go:767`](../../internal/oauth/service_token.go#L767)); acr/amr are absent
   from access tokens (only added to id_token), step-up issues a token with empty options
   (`_ = amr`, `mfa/service_mfa.go:567`), and SMS login mislabels itself as `pwd` instead of `sms`.
   RS-side step-up checks therefore can't work. **Fix:** thread real `amr`/`acr` from each flow
   into id_token + access token.
+  **Fixed:** password login/register/magic-link now put `pwd`/`1` on both access and ID tokens;
+  SMS login now puts `sms`/`1` on both access and ID tokens; OAuth authorization-code access
+  tokens now carry `pwd`/`1`; token exchange preserves the subject token's `amr`/`acr`; step-up
+  access tokens carry `acr=2`; device authorization and CIBA approval now persist the approving
+  session's `acr`/`amr` and replay it into the polled access token.
 
-- [ ] **FC-18** 🟡 — **TOTP / backup codes lack replay protection within the validity window.**
+- [x] **FC-18** 🟡 — **TOTP / backup codes lack replay protection within the validity window.**
   `mfa/service_mfa.go` uses `totp.Validate` + `UpdateLastUsed` but never records/compares the
   consumed time-step, so a code is reusable for ~30-60s across calls. **Fix:** persist last-accepted
   step and reject codes ≤ it. (Backup codes are correctly one-time via `MarkUsed`.)
+  **Fixed:** TOTP verification now resolves the accepted time-step and persists `last_used_step`
+  through a conditional update, rejecting same-step replays even inside the validity window.
 
-- [ ] **FC-19** 🟡 — **SMS "cost guard" is only a per-phone rate limit.**
+- [x] **FC-19** 🟡 — **SMS "cost guard" is only a per-phone rate limit.**
   `authn/service_sms_login.go` has no spend/budget cap or global daily ceiling, contrary to the
   "rate-limit + cost guard" claim. **Fix:** add a per-tenant/global SMS send budget with a hard cap.
+  **Fixed:** SMS OTP sends now enforce `SMS_DAILY_SEND_LIMIT` as a global daily hard cap using Redis
+  across pods, with a process-local fallback when Redis is unavailable.
 
 ### Tenancy / federation / sessions
 
-- [ ] **FC-06** 🟠 — **API keys cannot authenticate a request — no API-key middleware exists.**
+- [x] **FC-06** 🟠 — **API keys cannot authenticate a request — no API-key middleware exists.**
   Full CRUD + API/permission scoping + `FindByKeyHash`/`FindByKeyPrefix` exist
   ([`client/repository_api_key.go`](../../internal/client/repository_api_key.go)) but there is **no**
   middleware reading an inbound key, so a created key can't call the API. **Fix:** add API-key auth
   middleware that resolves key → scopes and populates the auth context.
+  **Fixed:** `JWTAuthMiddleware` now accepts `X-API-Key` or `Bearer ak_...`, resolves the key hash,
+  validates status/expiry/tenant feature flag, loads granted permissions, and populates
+  `AuthContext` for the existing permission middleware.
 
-- [ ] **FC-07** 🟠 — **Idle / absolute session timeout is dead code.**
+- [x] **FC-07** 🟠 — **Idle / absolute session timeout is dead code.**
   `SessionValidationMiddleware` ([`platform/middleware/session_middleware.go:24`](../../internal/platform/middleware/session_middleware.go#L24))
   is never mounted in `router.go`, and it is opt-in via a client-supplied `X-Session-ID` header,
   so `IdleTimeoutSeconds`/`AbsoluteExpiresAt` are never enforced on real traffic (`v1.0.0.md` §6, ✅).
   **Fix:** mount it on authenticated route groups and derive the session id from the auth context/cookie.
+  **Fixed:** access tokens can carry `sid`, login/SMS/federation flows attach the created session ID,
+  and `UserContextMiddleware` automatically enforces idle/absolute session validation from `sid`
+  (or legacy `X-Session-ID`) after user context is resolved.
 
-- [ ] **FC-08** 🟠 — **Concurrent-session limit is enforced only on password login.**
+- [x] **FC-08** 🟠 — **Concurrent-session limit is enforced only on password login.**
   `EnforceConcurrentLimit` is called in `authn/service_login.go` but not in `oauth/service_token.go`,
   SMS login, or federation. **Fix:** enforce at the common session-creation point used by all login paths.
+  **Fixed:** password, SMS, and federation login flows now enforce the concurrent-session limit before
+  creating session-bound access tokens; OAuth polling/token-exchange flows replay existing auth context
+  rather than creating independent user sessions.
 
-- [ ] **FC-09** 🟠 — **Per-tenant feature flags have zero consumers.**
+- [x] **FC-09** 🟠 — **Per-tenant feature flags have zero consumers.**
   `tenant/service_setting.go` stores/gets/updates `feature_flags` JSON but nothing reads them to
   gate behavior. **Fix:** add a `feature.Enabled(ctx, tenantID, key)` helper and gate features, or mark 🔨.
+  **Fixed:** added a shared feature flag reader and gated API-key request authentication with
+  `api_key_authentication` (default enabled).
 
-- [ ] **FC-10** 🟠 — **Named social connectors don't all work via the generic-OIDC path.**
+- [x] **FC-10** 🟠 — **Named social connectors don't all work via the generic-OIDC path.**
   [`idp/service_federation.go:535`](../../internal/idp/service_federation.go#L535) relies on
   `oidc.NewProvider(issuer)` discovery; GitHub has no OIDC discovery, Apple needs client-secret-JWT,
   and `gitlab` isn't even a valid provider type ([`validation_provider.go:22`](../../internal/idp/validation_provider.go#L22)).
   **Fix:** add provider-specific connectors, or correct the doc to "generic OIDC + OAuth2".
+  **Fixed:** GitLab is now an accepted provider type, and named non-OIDC social providers can use the
+  existing generic OAuth2 callback/userinfo connector instead of being forced through OIDC discovery.
 
-- [ ] **FC-11** 🟠 — **Home-realm discovery only matches `IDPTypeSocial` providers.**
+- [x] **FC-11** 🟠 — **Home-realm discovery only matches `IDPTypeSocial` providers.**
   [`idp/service_federation.go:504`](../../internal/idp/service_federation.go#L504) skips non-social
   providers, so enterprise OIDC realms configured with `EmailDomains` are never matched by HRD.
   **Fix:** match on presence of `EmailDomains` regardless of provider type.
+  **Fixed:** HRD now evaluates `email_domains` on every provider config regardless of provider type.
 
-- [ ] **FC-12** 🔴 — **GDPR account deletion is deactivation only.**
+- [x] **FC-12** 🔴 — **GDPR account deletion is deactivation only.**
   [`user/service_account.go:~230`](../../internal/user/service_account.go#L230) `DeleteAccount`
   only sets `status="deleted"`; email/phone/profile PII remain and tokens/sessions are not revoked.
   "Right to erasure" (`v1.0.0.md` §1, ✅) requires actual erasure/anonymization.
   **Fix:** anonymize/erase PII columns (or hard-delete per retention) and revoke all tokens/sessions.
+  **Fixed:** account deletion anonymizes direct user PII, clears password/MFA/email-change state,
+  revokes/removes user tokens, and deletes profile, settings, and linked-identity records.
 
-- [ ] **FC-13** 🟠 — **Tenant deletion "retention" is unbacked.**
+- [x] **FC-13** 🟠 — **Tenant deletion "retention" is unbacked.**
   `tenant` `DeleteCascade` soft-deletes child models but there is no retention window, purge, or
   retention runner (`v1.0.0.md` §5 "cascade / soft-delete + retention", ✅). **Fix:** add a retention/
   purge runner or drop the retention claim.
+  **Fixed:** a tenant retention runner now periodically hard-purges soft-deleted non-system tenants
+  after the default retention period.
 
 ### Auth flows
 
-- [ ] **FC-14** 🟠 — **Force-password-change is not enforced.**
+- [x] **FC-14** 🟠 — **Force-password-change is not enforced.**
   `authn/service_login.go` sets `RequirePasswordChange` but still issues full access/refresh/id
   tokens + a session; nothing blocks normal API use until the password is changed.
   **Fix:** issue a restricted/short-lived token (or block protected routes) until reset.
+  **Fixed:** login now returns a password-change-required response without access, ID, refresh tokens,
+  cookies, or session creation when the user is flagged for forced password change.
 
-- [ ] **FC-15** 🟠 — **Email login is broken — only username is matched.**
+- [x] **FC-15** 🟠 — **Email login is broken — only username is matched.**
   `Login`/`LoginPublic` resolve the user via `FindByUsername(usernameOrEmail)` only, so logging in
   with an email fails unless username == email (`v1.0.0.md` §1 "username / email + password", ✅).
   **Fix:** add a `FindByUsernameOrEmail` lookup.
+  **Fixed:** login now falls back from username lookup to tenant-scoped email lookup for identifiers
+  containing `@`, covering both public and internal login flows.
 
-- [ ] **FC-16** 🟡 — **Common-password blocklist is a 10-entry substring list.**
+- [x] **FC-16** 🟡 — **Common-password blocklist is a 10-entry substring list.**
   [`platform/security/password_policy.go:~95`](../../internal/platform/security/password_policy.go#L95)
   has ~10 hardcoded substrings matched with `strings.Contains` — both too weak (real lists are 10k–100k)
   and prone to false positives in long passphrases. **Fix:** load an embedded HIBP top-N list; pick
   exact-match vs substring deliberately.
+  **Fixed:** password policy now uses an embedded exact-match common-password map with common
+  complexity-bypass variants, avoiding substring false positives.
 
-- [ ] **FC-17** 🟠 — **`/oauth/token` is missing the tight per-endpoint IP rate limit.**
+- [x] **FC-17** 🟠 — **`/oauth/token` is missing the tight per-endpoint IP rate limit.**
   [`server/router.go:136`](../../internal/server/router.go#L136) applies `authRateLimit` to
   register/login/forgot/reset only; `/oauth/token` (mounted at `:158`) gets only the global 100/min,
   contrary to `v1.0.0.md` §10. **Fix:** add `/oauth/token` to the `authRateLimit` group.
+  **Fixed:** the public OAuth token endpoint now receives the same tight 10/min per-IP limiter used
+  by credential and credential-reset routes.
 
 ### Spec-wording mismatches
 
-- [ ] **FC-20** 🟡 — **"Strict CSP for login/consent pages" describes pages that don't exist.**
+- [x] **FC-20** 🟡 — **"Strict CSP for login/consent pages" describes pages that don't exist.**
   No server-rendered login/consent HTML exists (html/template is used only for email/SMS bodies);
   the single global CSP in `security_middleware.go` applies to JSON responses. **Fix:** clarify the
   checklist (external SPA) or add a per-route nonce-based CSP if pages will be rendered.
+  **Fixed:** v1.0.0 now states the backend provides a strict API CSP and that rendered login/consent
+  pages are owned by the external SPA; the CSP regression test rejects inline/eval allowances.
 
-- [ ] **FC-21** 🟡 — **Append-only audit blocks UPDATE only, not DELETE.**
+- [x] **FC-21** 🟡 — **Append-only audit blocks UPDATE only, not DELETE.**
   [`migration/056_auth_events_append_only.go`](../../internal/platform/database/migration/056_auth_events_append_only.go)
   installs a `DO INSTEAD NOTHING` rule on UPDATE only; DELETE is intentionally left open for the
   retention runner — contradicting the literal "no UPDATE/DELETE" claim (`v1.0.0.md` §12).
   **Fix:** reword to "no UPDATEs; DELETE only via retention", or gate DELETE behind a separate role.
+  **Fixed:** v1.0.0 now describes the implemented contract precisely: UPDATEs are blocked at the
+  database layer, while DELETE is reserved for the retention runner.
 
 ---
 
 ## 7. Observability, CI & Operations
 
-- [ ] **OPS-01** 🟠 — **`/metrics` is on the internal API port, not a dedicated management port.**
+- [x] **OPS-01** 🟠 — **`/metrics` is on the internal API port, not a dedicated management port.**
   [`server/router.go:45`](../../internal/server/router.go#L45) mounts `/metrics` on the internal
   API router; only `:8080`/`:8081` exist (`rest.go`). No separate management listener (`v1.0.0.md` §11
   "Prometheus /metrics on mgmt port"). **Fix:** bind `/metrics` (and arguably `/openapi.json`) to a
   separate management listener, or correct the checklist to "internal port".
+  **Fixed:** added a dedicated management listener (`MANAGEMENT_PORT`, default `:8082`) for `/metrics`,
+  health/readiness, and `/openapi.json`; removed `/metrics` from the internal API router.
 
-- [ ] **OPS-02** 🟠 — **JWT spans use `context.Background()` → orphaned, not trace-correlated.**
+- [x] **OPS-02** 🟠 — **JWT spans use `context.Background()` → orphaned, not trace-correlated.**
   [`platform/jwt/jwt.go:248`](../../internal/platform/jwt/jwt.go#L248) (and `:390,:523,:663`) start
-  spans from `context.Background()`; the generate/validate funcs take no `ctx`, so JWT spans are never
-  children of the request span (`v1.0.0.md` §11 + §22 "context.Background audit"). **Fix:** thread `ctx`
-  through the JWT signatures and pass it to `Start`.
+  spans from `context.Background()`; validation now has `ValidateTokenWithContext`, but token generation
+  still takes no `ctx`, so generation spans are not children of the request span (`v1.0.0.md` §11 + §22
+  "context.Background audit"). **Fix:** thread `ctx` through the JWT generation signatures and pass it
+  to `Start`.
+  **Fixed:** added context-aware JWT generation APIs and updated auth/OAuth/federation/MFA issuance
+  paths to pass the request context into JWT spans.
 
-- [ ] **OPS-03** 🟠 — **"Single canonical Config struct (no package globals)" is inaccurate.**
+- [x] **OPS-03** 🟠 — **"Single canonical Config struct (no package globals)" is inaccurate.**
   [`platform/config/config.go:15`](../../internal/platform/config/config.go#L15) declares ~60 exported
   package-level `var`s populated by `Init()`; `GetConfig()` merely copies them into a duplicate struct,
   and the codebase reads `config.X` globals everywhere — including secrets in mutable globals
   (`v1.0.0.md` §18, ✅; overlaps `CLN-03`). **Fix:** make `Config` the injected single source and delete
   the globals, or drop the "no package globals" claim.
+  **Fixed:** dropped the over-claim from v1.0.0 and documented the implemented startup-loaded
+  `GetConfig()` snapshot plus compatibility globals.
 
-- [ ] **OPS-04** 🟠 — **`gosec` excludes G104 (and G101/G102/G103/G124/G304); runs `@latest`.**
+- [x] **OPS-04** 🟠 — **`gosec` excludes G104 (and G101/G102/G103/G124/G304); runs `@latest`.**
   [`.github/workflows/ci.yml:88`](../../.github/workflows/ci.yml#L88) — "gosec clean" (`v1.0.0.md` §22)
   is partly because unhandled-error and other rules are disabled, on a non-pinned version.
   **Fix:** narrow the exclude list (justify each `#nosec` inline), pin a gosec version.
+  **Fixed:** pinned gosec to `v2.22.8` and narrowed the CI exclude list to `G101` only.
 
-- [ ] **OPS-05** 🟡 — **No explicit `go vet` / `staticcheck` step in CI.**
+- [x] **OPS-05** 🟡 — **No explicit `go vet` / `staticcheck` step in CI.**
   Neither appears in `.github/workflows/` or `Makefile`; reliance is on golangci-lint defaults and no
   committed `.golangci.yml` was found to confirm staticcheck is enabled (`v1.0.0.md` §22).
   **Fix:** add explicit `go vet ./...` + enable staticcheck in a committed `.golangci.yml`.
+  **Fixed:** added explicit CI `go vet` and `staticcheck` steps, committed `.golangci.yml`, and added
+  Makefile targets.
 
-- [ ] **OPS-06** 🟠 — **Security scanners are advisory-only (`continue-on-error: true`).**
+- [x] **OPS-06** 🟠 — **Security scanners are advisory-only (`continue-on-error: true`).**
   [`.github/workflows/security.yml`](../../.github/workflows/security.yml) sets `continue-on-error: true`
   on Semgrep, Snyk, **and Gitleaks**, so a committed secret or high-severity vuln never fails the
   pipeline (`v1.0.0.md` §22 lists these as gates). **Fix:** drop `continue-on-error` for gitleaks (and
   gate on the SARIF result) so leaks fail CI.
+  **Fixed:** removed advisory-only `continue-on-error` from Semgrep, Snyk, and Gitleaks while keeping
+  SARIF uploads under `if: always()`.
 
 ---
 
@@ -723,12 +789,11 @@ actually function:
 1. **Token revocation cluster (`SEC-23`, `SEC-24`, `SEC-36`)** — access-token denylist,
    `/oauth/revoke`, and permission-change revocation are now landed; keep regression coverage
    around this path high.
-2. **Dead runners (`FC-01`, `FC-02`)** and **unenforced MFA / session timeout
-   (`FC-03`, `FC-07`)** — ✅ features that silently do nothing; either wire or mark 🔨.
-3. **Re-opened residuals** — `CLN-03` (see the Re-Audit table).
-4. **GDPR / claim-accuracy (`FC-12`, `FC-14..17`)** — correctness of the
+2. **Unenforced MFA / session timeout (`FC-03`, `FC-07`)** — ✅ features that
+   silently do nothing; either wire or mark 🔨.
+3. **GDPR / claim-accuracy (`FC-12`, `FC-14..17`)** — correctness of the
    public contract.
-5. **CI/observability hygiene (`OPS-01..06`)** — cheap, raises the floor on everything else.
+4. **CI/observability hygiene (`OPS-01..06`)** — cheap, raises the floor on everything else.
 
 ---
 

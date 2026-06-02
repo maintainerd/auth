@@ -8,7 +8,7 @@
 docker build -t maintainerd-auth .
 docker run -d \
   --name auth \
-  -p 8080:8080 -p 8081:8081 \
+  -p 8080:8080 -p 8081:8081 -p 8082:8082 \
   --env-file .env \
   maintainerd-auth
 ```
@@ -23,6 +23,7 @@ services:
     ports:
       - "8080:8080"
       - "8081:8081"
+      - "8082:8082"
     env_file: .env
     depends_on:
       postgres:
@@ -128,7 +129,7 @@ If the database is fresh:
 
 ### Metrics
 
-Prometheus endpoint: `GET /metrics` on port 8080
+Prometheus endpoint: `GET /metrics` on the dedicated management listener, port 8082 by default (`MANAGEMENT_PORT`).
 
 Key metrics:
 - `build_info` — version, commit, build date

@@ -96,7 +96,8 @@ func (h *RegisterHandler) RegisterPublic(w http.ResponseWriter, r *http.Request)
 			err.Error() == "password must contain at least one lowercase letter" ||
 			err.Error() == "password must contain at least one digit" ||
 			err.Error() == "password must contain at least one special character" ||
-			err.Error() == "password contains a common weak password" {
+			err.Error() == "password contains a common weak password" ||
+			err.Error() == "password is a common weak password" {
 			eventType = "registration_weak_password"
 		}
 
@@ -212,7 +213,8 @@ func (h *RegisterHandler) Register(w http.ResponseWriter, r *http.Request) {
 			err.Error() == "password must contain at least one lowercase letter" ||
 			err.Error() == "password must contain at least one digit" ||
 			err.Error() == "password must contain at least one special character" ||
-			err.Error() == "password contains a common weak password" {
+			err.Error() == "password contains a common weak password" ||
+			err.Error() == "password is a common weak password" {
 			eventType = "registration_weak_password"
 		}
 
