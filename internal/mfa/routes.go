@@ -23,11 +23,11 @@ func MFARoute(
 		// TOTP
 		r.Post("/totp/enroll", mfaHandler.BeginTOTPEnrollment)
 		r.Post("/totp/verify", mfaHandler.FinishTOTPEnrollment)
-		r.Delete("/totp", mfaHandler.DisableTOTP)
+		r.With(middleware.RequireStepUp).Delete("/totp", mfaHandler.DisableTOTP)
 
 		// Backup codes
 		r.Get("/backup-codes/count", mfaHandler.GetBackupCodesCount)
-		r.Post("/backup-codes/regenerate", mfaHandler.RegenerateBackupCodes)
+		r.With(middleware.RequireStepUp).Post("/backup-codes/regenerate", mfaHandler.RegenerateBackupCodes)
 
 		// WebAuthn passkey registration
 		r.Post("/webauthn/register/begin", mfaHandler.WebAuthnBeginRegistration)
@@ -38,13 +38,13 @@ func MFARoute(
 		r.Post("/webauthn/auth/finish", mfaHandler.WebAuthnFinishAuthentication)
 
 		// WebAuthn credential management
-		r.Delete("/webauthn/{credential_uuid}", mfaHandler.WebAuthnDeleteCredential)
+		r.With(middleware.RequireStepUp).Delete("/webauthn/{credential_uuid}", mfaHandler.WebAuthnDeleteCredential)
 
 		// Step-up authentication
 		r.Post("/step-up/challenge", mfaHandler.IssueStepUpChallenge)
 		r.Post("/step-up/verify", mfaHandler.VerifyStepUp)
 
 		// Admin — reset another user's MFA
-		r.Post("/admin/users/{user_uuid}/reset", mfaHandler.AdminResetMFA)
+		r.With(middleware.RequireStepUp).Post("/admin/users/{user_uuid}/reset", mfaHandler.AdminResetMFA)
 	})
 }

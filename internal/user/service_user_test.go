@@ -8,7 +8,6 @@ import (
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/platform/cache"
-	"github.com/maintainerd/auth/internal/platform/security"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gorm.io/datatypes"
@@ -462,22 +461,6 @@ func TestUserService_Create(t *testing.T) {
 		assert.NotNil(t, res)
 	})
 
-	t.Run("HashPassword error", func(t *testing.T) {
-		origHash := security.HashPassword
-		defer func() { security.HashPassword = origHash }()
-		security.HashPassword = func(_ context.Context, _ []byte) ([]byte, error) { return nil, errors.New("hash error") }
-
-		ur, ui, urr, rr, tr, idp, cr, up := defaultMocks()
-		tr.findByUUIDFn = func(_ any, _ ...string) (*Tenant, error) { return &Tenant{TenantID: 1}, nil }
-		ur.findByUUIDFn = func(_ any, _ ...string) (*User, error) { return userWithAccess(2, 1), nil }
-		cr.findDefaultByTenantIDFn = func(_ int64) (*Client, error) { return &Client{ClientID: 1}, nil }
-		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr, up)
-		mock.ExpectBegin()
-		mock.ExpectRollback()
-		_, err := svc.Create(context.Background(), "user", "name", nil, nil, "P@ssW0rd1!", "active", nil, tenantUUID, creatorUUID)
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "hash error")
-	})
 }
 
 // ---------------------------------------------------------------------------

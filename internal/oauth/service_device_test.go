@@ -37,6 +37,7 @@ type mockOAuthDeviceCodeRepo struct {
 	findByUserCodeFn       func(string) (*OAuthDeviceCode, error)
 	createFn               func(*OAuthDeviceCode) (*OAuthDeviceCode, error)
 	updateStatusFn         func(int64, string, *int64) error
+	updateApprovalFn       func(int64, int64, string, []string) error
 	updateLastPollAtFn     func(int64) error
 }
 
@@ -58,6 +59,12 @@ func (m *mockOAuthDeviceCodeRepo) UpdateStatus(id int64, status string, userID *
 		return m.updateStatusFn(id, status, userID)
 	}
 	return nil
+}
+func (m *mockOAuthDeviceCodeRepo) UpdateApproval(id int64, userID int64, acr string, amr []string) error {
+	if m.updateApprovalFn != nil {
+		return m.updateApprovalFn(id, userID, acr, amr)
+	}
+	return m.UpdateStatus(id, DeviceCodeStatusApproved, &userID)
 }
 func (m *mockOAuthDeviceCodeRepo) UpdateLastPollAt(id int64) error {
 	if m.updateLastPollAtFn != nil {

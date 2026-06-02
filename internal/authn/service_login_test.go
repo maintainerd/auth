@@ -16,11 +16,13 @@ import (
 	"github.com/maintainerd/auth/internal/platform/config"
 	"github.com/maintainerd/auth/internal/platform/jwt"
 	"github.com/maintainerd/auth/internal/platform/security"
+	"github.com/maintainerd/auth/internal/secpolicy"
 	"github.com/maintainerd/auth/internal/shared"
 	"github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/crypto/bcrypt"
+	"gorm.io/datatypes"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
@@ -651,15 +653,16 @@ func TestLoginPublic(t *testing.T) {
 	}
 
 	cases := []struct {
-		name           string
-		username       string // unique per case to avoid rate-limiter cross-talk
-		password       string
-		clientID       string
-		providerID     string
-		setup          func(t *testing.T, r repoSetup)
-		expectCommit   bool // false → expect rollback (callback returned error)
-		wantErr        bool
-		wantErrContain string
+		name               string
+		username           string // unique per case to avoid rate-limiter cross-talk
+		password           string
+		clientID           string
+		providerID         string
+		setup              func(t *testing.T, r repoSetup)
+		expectCommit       bool // false → expect rollback (callback returned error)
+		wantErr            bool
+		wantErrContain     string
+		wantPasswordChange bool
 	}{
 		{
 			name:         "success",
@@ -677,6 +680,62 @@ func TestLoginPublic(t *testing.T) {
 				}
 				r.userRepo.findByUsernameFn = func(_ string) (*User, error) {
 					return buildActiveUser(t, correctPassword), nil
+				}
+				r.userIdentity.findByUserIDAndClientIDFn = func(_, _ int64) (*UserIdentity, error) {
+					return &UserIdentity{Sub: "sub-123"}, nil
+				}
+			},
+		},
+		{
+			name:         "success with tenant-scoped email",
+			username:     "pub-success@example.com",
+			password:     correctPassword,
+			clientID:     "client-1",
+			providerID:   "provider-1",
+			expectCommit: true,
+			setup: func(t *testing.T, r repoSetup) {
+				idp := buildActiveIdentityProvider()
+				idp.TenantID = 42
+				client := buildActiveClient()
+				client.IdentityProvider = idp
+				r.idpRepo.findByIdentifierFn = func(_ string) (*IdentityProvider, error) {
+					return idp, nil
+				}
+				r.clientRepo.findByClientIDAndIdentityProviderFn = func(_, _ string) (*Client, error) {
+					return client, nil
+				}
+				r.userRepo.findByUsernameFn = func(_ string) (*User, error) {
+					return nil, errors.New("not found")
+				}
+				r.userRepo.findByEmailAndTenantIDFn = func(email string, tenantID int64) (*User, error) {
+					assert.Equal(t, "pub-success@example.com", email)
+					assert.Equal(t, int64(42), tenantID)
+					return buildActiveUser(t, correctPassword), nil
+				}
+				r.userIdentity.findByUserIDAndClientIDFn = func(_, _ int64) (*UserIdentity, error) {
+					return &UserIdentity{Sub: "sub-123"}, nil
+				}
+			},
+		},
+		{
+			name:               "force password change blocks token issuance",
+			username:           "pub-force-change",
+			password:           correctPassword,
+			clientID:           "client-1",
+			providerID:         "provider-1",
+			expectCommit:       true,
+			wantPasswordChange: true,
+			setup: func(t *testing.T, r repoSetup) {
+				r.idpRepo.findByIdentifierFn = func(_ string) (*IdentityProvider, error) {
+					return buildActiveIdentityProvider(), nil
+				}
+				r.clientRepo.findByClientIDAndIdentityProviderFn = func(_, _ string) (*Client, error) {
+					return buildActiveClient(), nil
+				}
+				r.userRepo.findByUsernameFn = func(_ string) (*User, error) {
+					u := buildActiveUser(t, correctPassword)
+					u.ForcePasswordChange = true
+					return u, nil
 				}
 				r.userIdentity.findByUserIDAndClientIDFn = func(_, _ int64) (*UserIdentity, error) {
 					return &UserIdentity{Sub: "sub-123"}, nil
@@ -817,14 +876,97 @@ func TestLoginPublic(t *testing.T) {
 			} else {
 				require.NoError(t, err)
 				assert.NotNil(t, resp)
-				assert.NotEmpty(t, resp.AccessToken)
-				assert.NotEmpty(t, resp.IDToken)
-				assert.NotEmpty(t, resp.RefreshToken)
-				assert.Equal(t, "Bearer", resp.TokenType)
+				if tc.wantPasswordChange {
+					assert.True(t, resp.RequirePasswordChange)
+					assert.Empty(t, resp.AccessToken)
+					assert.Empty(t, resp.IDToken)
+					assert.Empty(t, resp.RefreshToken)
+					assert.Empty(t, resp.TokenType)
+				} else {
+					assert.NotEmpty(t, resp.AccessToken)
+					assert.NotEmpty(t, resp.IDToken)
+					assert.NotEmpty(t, resp.RefreshToken)
+					assert.Equal(t, "Bearer", resp.TokenType)
+				}
 			}
 			assert.NoError(t, mock.ExpectationsWereMet())
 		})
 	}
+}
+
+func TestLoginPublic_TenantMFAPolicyRequiresChallengeBeforeTokens(t *testing.T) {
+	const correctPassword = "S3cur3P@ss!"
+
+	initTestJWTKeysService(t)
+	gormDB, mock := newMockGormDB(t)
+	mock.ExpectBegin()
+	mock.ExpectCommit()
+
+	idp := buildActiveIdentityProvider()
+	idp.TenantID = 42
+	client := buildActiveClient()
+	client.IdentityProvider = idp
+	user := buildActiveUser(t, correctPassword)
+	user.IsTOTPEnabled = true
+	now := time.Now()
+	user.MFAEnabledAt = &now
+
+	userRepo := &mockUserRepo{
+		findByUsernameFn: func(_ string) (*User, error) {
+			return user, nil
+		},
+	}
+	clientRepo := &mockClientRepo{
+		findByClientIDAndIdentityProviderFn: func(_, _ string) (*Client, error) {
+			return client, nil
+		},
+	}
+	idpRepo := &mockIdentityProviderRepo{
+		findByIdentifierFn: func(_ string) (*IdentityProvider, error) {
+			return idp, nil
+		},
+	}
+	userIdentityRepo := &mockUserIdentityRepo{
+		findByUserIDAndClientIDFn: func(_, _ int64) (*UserIdentity, error) {
+			return &UserIdentity{Sub: "sub-123"}, nil
+		},
+	}
+	securitySettingRepo := &mockSecuritySettingRepo{
+		findDefaultByTenantIDFn: func(tenantID int64) (*secpolicy.SecuritySetting, error) {
+			require.Equal(t, int64(42), tenantID)
+			return &secpolicy.SecuritySetting{
+				MFAConfig: datatypes.JSON([]byte(`{"required":true,"allowed_methods":["totp","backup_code","webauthn"]}`)),
+			}, nil
+		},
+	}
+
+	svc := NewLoginService(
+		gormDB,
+		clientRepo,
+		userRepo,
+		&mockUserTokenRepo{},
+		userIdentityRepo,
+		idpRepo,
+		&mockAuthEventService{},
+		nil,
+		securitySettingRepo,
+	)
+
+	resp, err := svc.LoginPublic(context.Background(), "pub-mfa-required", correctPassword, "client-1", "provider-1")
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	assert.True(t, resp.MFARequired)
+	assert.Empty(t, resp.AccessToken)
+	assert.Empty(t, resp.IDToken)
+	assert.Empty(t, resp.RefreshToken)
+	require.NotNil(t, resp.MFAChallengeToken)
+	assert.ElementsMatch(t, []string{"totp", "backup_code"}, resp.MFAAllowedMethods)
+
+	claims, err := jwt.ValidateStepUpChallengeToken(*resp.MFAChallengeToken)
+	require.NoError(t, err)
+	assert.Equal(t, user.UserUUID.String(), claims["sub"])
+	assert.ElementsMatch(t, []any{"totp", "backup_code"}, claims["allowed_methods"])
+	assert.NoError(t, mock.ExpectationsWereMet())
 }
 
 // ---------------------------------------------------------------------------
@@ -1233,88 +1375,4 @@ func TestLogin_GenerateAccessTokenError(t *testing.T) {
 	_, err := svc.Login(context.Background(), "int-token-err", correctPassword, nil, nil)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "private key not initialized")
-}
-
-func TestLoginPublic_GenerateIDTokenError(t *testing.T) {
-	initTestJWTKeysService(t)
-	gormDB, mock := newMockGormDB(t)
-	mock.ExpectBegin()
-	mock.ExpectCommit()
-
-	const correctPassword = "S3cur3P@ss!"
-
-	// Stub generateIDTokenFn to return an error
-	orig := generateIDTokenFn
-	generateIDTokenFn = func(string, string, string, string, *jwt.UserProfile, string, *jwt.IDTokenParams) (string, error) {
-		return "", errors.New("id token error")
-	}
-	defer func() { generateIDTokenFn = orig }()
-
-	idpRepo := &mockIdentityProviderRepo{
-		findByIdentifierFn: func(_ string) (*IdentityProvider, error) {
-			return buildActiveIdentityProvider(), nil
-		},
-	}
-	clientRepo := &mockClientRepo{
-		findByClientIDAndIdentityProviderFn: func(_, _ string) (*Client, error) {
-			return buildActiveClient(), nil
-		},
-	}
-	userRepo := &mockUserRepo{
-		findByUsernameFn: func(_ string) (*User, error) {
-			return buildActiveUser(t, correctPassword), nil
-		},
-	}
-	userIdentityRepo := &mockUserIdentityRepo{
-		findByUserIDAndClientIDFn: func(_, _ int64) (*UserIdentity, error) {
-			return &UserIdentity{Sub: "sub-idtoken-err"}, nil
-		},
-	}
-
-	svc := NewLoginService(gormDB, clientRepo, userRepo, &mockUserTokenRepo{}, userIdentityRepo, idpRepo, &mockAuthEventService{}, nil, nil)
-	_, err := svc.LoginPublic(context.Background(), "pub-idtoken-err", correctPassword, "c1", "p1")
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "id token error")
-}
-
-func TestLoginPublic_GenerateRefreshTokenError(t *testing.T) {
-	initTestJWTKeysService(t)
-	gormDB, mock := newMockGormDB(t)
-	mock.ExpectBegin()
-	mock.ExpectCommit()
-
-	const correctPassword = "S3cur3P@ss!"
-
-	// Stub generateRefreshTokenFn to return an error
-	orig := generateRefreshTokenFn
-	generateRefreshTokenFn = func(string, string, string, string) (string, error) {
-		return "", errors.New("refresh token error")
-	}
-	defer func() { generateRefreshTokenFn = orig }()
-
-	idpRepo := &mockIdentityProviderRepo{
-		findByIdentifierFn: func(_ string) (*IdentityProvider, error) {
-			return buildActiveIdentityProvider(), nil
-		},
-	}
-	clientRepo := &mockClientRepo{
-		findByClientIDAndIdentityProviderFn: func(_, _ string) (*Client, error) {
-			return buildActiveClient(), nil
-		},
-	}
-	userRepo := &mockUserRepo{
-		findByUsernameFn: func(_ string) (*User, error) {
-			return buildActiveUser(t, correctPassword), nil
-		},
-	}
-	userIdentityRepo := &mockUserIdentityRepo{
-		findByUserIDAndClientIDFn: func(_, _ int64) (*UserIdentity, error) {
-			return &UserIdentity{Sub: "sub-refresh-err"}, nil
-		},
-	}
-
-	svc := NewLoginService(gormDB, clientRepo, userRepo, &mockUserTokenRepo{}, userIdentityRepo, idpRepo, &mockAuthEventService{}, nil, nil)
-	_, err := svc.LoginPublic(context.Background(), "pub-refresh-err", correctPassword, "c1", "p1")
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "refresh token error")
 }

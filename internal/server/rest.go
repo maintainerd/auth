@@ -10,12 +10,14 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/maintainerd/auth/internal/platform/config"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
 
 const (
 	defaultInternalPort = ":8080"
 	defaultPublicPort   = ":8081"
+	defaultMgmtPort     = ":8082"
 )
 
 // StartRESTServer launches the internal and public HTTP servers, blocks until
@@ -40,7 +42,19 @@ func StartRESTServer(application *Application) error {
 		IdleTimeout:  120 * time.Second,
 	}
 
-	listenErr := make(chan error, 2)
+	managementAddr := config.ManagementPort
+	if managementAddr == "" {
+		managementAddr = defaultMgmtPort
+	}
+	managementSrv := &http.Server{
+		Addr:         managementAddr,
+		Handler:      otelhttp.NewHandler(buildManagementRouter(application), "management"),
+		ReadTimeout:  15 * time.Second,
+		WriteTimeout: 60 * time.Second,
+		IdleTimeout:  120 * time.Second,
+	}
+
+	listenErr := make(chan error, 3)
 
 	go func() {
 		slog.Info("Internal REST server starting", "addr", internalSrv.Addr)
@@ -54,6 +68,14 @@ func StartRESTServer(application *Application) error {
 		slog.Info("Public REST server starting", "addr", publicSrv.Addr)
 		if err := publicSrv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			slog.Error("Public REST server error", "error", err)
+			listenErr <- err
+		}
+	}()
+
+	go func() {
+		slog.Info("Management REST server starting", "addr", managementSrv.Addr)
+		if err := managementSrv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			slog.Error("Management REST server error", "error", err)
 			listenErr <- err
 		}
 	}()
@@ -79,6 +101,10 @@ func StartRESTServer(application *Application) error {
 	if err := publicSrv.Shutdown(ctx); err != nil {
 		shutdownErr = err
 		slog.Error("Public server shutdown error", "error", err)
+	}
+	if err := managementSrv.Shutdown(ctx); err != nil {
+		shutdownErr = err
+		slog.Error("Management server shutdown error", "error", err)
 	}
 
 	if shutdownErr != nil {

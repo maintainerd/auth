@@ -46,6 +46,14 @@ func UserContextMiddleware(
 ) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if auth := AuthFromRequest(r); auth.User != nil {
+				if !ValidateSessionFromRequest(w, r) {
+					return
+				}
+				next.ServeHTTP(w, r)
+				return
+			}
+
 			var sub, clientID string
 			if c := JWTClaimsFromRequest(r); c != nil {
 				sub, clientID = c.Sub, c.ClientID
@@ -61,7 +69,11 @@ func UserContextMiddleware(
 					Provider: uc.Provider,
 					Client:   uc.Client,
 				}
-				next.ServeHTTP(w, r.WithContext(context.WithValue(ctx, authKey{}, auth)))
+				req := r.WithContext(context.WithValue(ctx, authKey{}, auth))
+				if !ValidateSessionFromRequest(w, req) {
+					return
+				}
+				next.ServeHTTP(w, req)
 				return
 			}
 
@@ -95,7 +107,11 @@ func UserContextMiddleware(
 				Provider: provider,
 				Client:   client,
 			}
-			next.ServeHTTP(w, r.WithContext(context.WithValue(ctx, authKey{}, auth)))
+			req := r.WithContext(context.WithValue(ctx, authKey{}, auth))
+			if !ValidateSessionFromRequest(w, req) {
+				return
+			}
+			next.ServeHTTP(w, req)
 		})
 	}
 }

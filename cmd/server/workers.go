@@ -3,22 +3,47 @@ package main
 import (
 	"context"
 	"log/slog"
+	"time"
 
 	"github.com/maintainerd/auth/internal/app"
 	"github.com/maintainerd/auth/internal/authevent"
+	"github.com/maintainerd/auth/internal/platform/config"
+	"github.com/maintainerd/auth/internal/platform/runner"
 	appserver "github.com/maintainerd/auth/internal/server"
+	"github.com/maintainerd/auth/internal/tenant"
+)
+
+var (
+	startRetentionRunner       = authevent.StartRetentionRunner
+	startTenantRetentionRunner = tenant.StartRetentionRunner
+	startKeyRotationRunner     = runner.StartKeyRotationRunner
+	startSecretRefreshRunner   = runner.StartSecretRefreshRunner
+	startGRPCServer            = appserver.StartGRPCServer
 )
 
 // startBackgroundWorkers launches non-REST runtimes that should stop when the
 // bootstrap context is cancelled during shutdown.
 func startBackgroundWorkers(ctx context.Context, application *app.App, serverApplication *appserver.Application) {
 	// Retention runs periodically and exits when ctx is cancelled.
-	go authevent.StartRetentionRunner(ctx, application.AuthEventService, authevent.DefaultRetentionPeriod, authevent.DefaultRetentionInterval)
+	go startRetentionRunner(ctx, application.AuthEventService, authevent.DefaultRetentionPeriod, authevent.DefaultRetentionInterval)
+	go startTenantRetentionRunner(ctx, application.DB, tenant.DefaultTenantRetentionPeriod, tenant.DefaultTenantRetentionInterval)
+
+	keyRotationPeriod := time.Duration(config.JWTKeyRotationPeriodSeconds) * time.Second
+	if keyRotationPeriod <= 0 {
+		keyRotationPeriod = 24 * time.Hour
+	}
+	go startKeyRotationRunner(ctx, keyRotationPeriod)
+
+	secretRefreshPeriod := time.Duration(config.SecretRefreshPeriodSeconds) * time.Second
+	if secretRefreshPeriod <= 0 {
+		secretRefreshPeriod = 5 * time.Minute
+	}
+	go startSecretRefreshRunner(ctx, secretRefreshPeriod)
 
 	// gRPC is best-effort alongside REST: failures are logged here while REST
 	// keeps owning process lifetime and graceful shutdown.
 	go func() {
-		if err := appserver.StartGRPCServer(ctx, serverApplication); err != nil {
+		if err := startGRPCServer(ctx, serverApplication); err != nil {
 			slog.Error("gRPC server error", "error", err)
 		}
 	}()

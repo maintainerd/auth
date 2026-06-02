@@ -6,7 +6,10 @@ import (
 	"testing"
 
 	"github.com/maintainerd/auth/internal/notifier"
+	"github.com/maintainerd/auth/internal/platform/config"
 	"github.com/maintainerd/auth/internal/platform/crypto"
+	"github.com/maintainerd/auth/internal/platform/jwt"
+	"github.com/maintainerd/auth/internal/platform/security"
 	"github.com/maintainerd/auth/internal/shared"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -76,6 +79,12 @@ func (m *mockSMSOtpRepo) MarkUsed(id int64) error {
 
 func TestSendOTP(t *testing.T) {
 	phone := "+1234567890"
+	originalBudget := config.SMSDailySendLimit
+	t.Cleanup(func() {
+		config.SMSDailySendLimit = originalBudget
+		security.InitRateLimiter(nil)
+		security.ResetSMSDailyBudgetCounters()
+	})
 
 	t.Run("user not found returns nil no error", func(t *testing.T) {
 		userRepo := &mockUserRepo{
@@ -102,6 +111,7 @@ func TestSendOTP(t *testing.T) {
 	})
 
 	t.Run("success rate-limit passes user found OTP stored", func(t *testing.T) {
+		config.SMSDailySendLimit = 0
 		userRepo := &mockUserRepo{
 			findByPhoneFn: func(_ string) (*User, error) {
 				return &User{UserID: 1, Phone: phone, Status: shared.StatusActive}, nil
@@ -118,6 +128,33 @@ func TestSendOTP(t *testing.T) {
 		err := svc.SendOTP(context.Background(), SMSLoginSendDTO{Phone: phone})
 
 		require.NoError(t, err)
+	})
+
+	t.Run("daily SMS budget blocks additional sends", func(t *testing.T) {
+		config.SMSDailySendLimit = 1
+		security.InitRateLimiter(nil)
+		security.ResetSMSDailyBudgetCounters()
+		userRepo := &mockUserRepo{
+			findByPhoneFn: func(_ string) (*User, error) {
+				return &User{UserID: 1, Phone: phone, Status: shared.StatusActive}, nil
+			},
+		}
+		createCount := 0
+		smsOtpRepo := &mockSMSOtpRepo{
+			createFn: func(otp *notifier.SMSOtp) (*notifier.SMSOtp, error) {
+				createCount++
+				otp.SMSOtpID = int64(createCount)
+				return otp, nil
+			},
+		}
+
+		svc := NewSMSLoginService(nil, userRepo, smsOtpRepo, &mockClientRepo{}, &mockUserIdentityRepo{}, &mockIdentityProviderRepo{}, &mockAuthEventService{})
+		require.NoError(t, svc.SendOTP(context.Background(), SMSLoginSendDTO{Phone: phone}))
+		err := svc.SendOTP(context.Background(), SMSLoginSendDTO{Phone: phone})
+
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "SMS send budget exceeded")
+		assert.Equal(t, 1, createCount)
 	})
 
 	t.Run("user lookup error returns internal error", func(t *testing.T) {
@@ -382,6 +419,14 @@ func TestVerifyOTP(t *testing.T) {
 		assert.NotEmpty(t, resp.AccessToken)
 		assert.Equal(t, "Bearer", resp.TokenType)
 		assert.Equal(t, int64(3600), resp.ExpiresIn)
+		accessClaims, err := jwt.ValidateToken(resp.AccessToken)
+		require.NoError(t, err)
+		assert.Equal(t, jwt.ACRLevel1, accessClaims["acr"])
+		assert.ElementsMatch(t, []any{jwt.AMRSMS}, accessClaims["amr"])
+		idClaims, err := jwt.ValidateToken(resp.IDToken)
+		require.NoError(t, err)
+		assert.Equal(t, jwt.ACRLevel1, idClaims["acr"])
+		assert.ElementsMatch(t, []any{jwt.AMRSMS}, idClaims["amr"])
 		assert.NoError(t, mock.ExpectationsWereMet())
 	})
 }

@@ -12,6 +12,8 @@ import (
 	"github.com/maintainerd/auth/internal/platform/apperror"
 	"github.com/maintainerd/auth/internal/platform/config"
 	"github.com/maintainerd/auth/internal/platform/crypto"
+	"github.com/maintainerd/auth/internal/platform/jwt"
+	"github.com/maintainerd/auth/internal/platform/middleware"
 	"github.com/maintainerd/auth/internal/platform/security"
 	"github.com/maintainerd/auth/internal/platform/sms"
 	"github.com/maintainerd/auth/internal/shared"
@@ -38,6 +40,7 @@ type smsLoginService struct {
 	userIdentityRepo     UserIdentityRepository
 	identityProviderRepo IdentityProviderRepository
 	authEventService     authevent.AuthEventService
+	sessionService       SessionService
 }
 
 func NewSMSLoginService(
@@ -48,7 +51,12 @@ func NewSMSLoginService(
 	userIdentityRepo UserIdentityRepository,
 	identityProviderRepo IdentityProviderRepository,
 	authEventService authevent.AuthEventService,
+	sessionService ...SessionService,
 ) SMSLoginService {
+	var sessions SessionService
+	if len(sessionService) > 0 {
+		sessions = sessionService[0]
+	}
 	return &smsLoginService{
 		db:                   db,
 		userRepo:             userRepo,
@@ -57,6 +65,7 @@ func NewSMSLoginService(
 		userIdentityRepo:     userIdentityRepo,
 		identityProviderRepo: identityProviderRepo,
 		authEventService:     authEventService,
+		sessionService:       sessions,
 	}
 }
 
@@ -85,6 +94,15 @@ func (s *smsLoginService) SendOTP(ctx context.Context, req SMSLoginSendDTO) erro
 		// Still return success to avoid phone enumeration.
 		span.SetStatus(codes.Ok, "")
 		return nil
+	}
+	if err := security.CheckAndRecordSMSDailyBudget(ctx, "global", config.SMSDailySendLimit); err != nil {
+		security.LogSecurityEvent(security.SecurityEvent{
+			EventType: "sms_otp_budget_exceeded",
+			UserID:    req.Phone,
+			Timestamp: time.Now(),
+			Details:   err.Error(),
+		})
+		return apperror.NewValidation("SMS send budget exceeded")
 	}
 
 	// Generate OTP and hash it for storage.
@@ -208,13 +226,32 @@ func (s *smsLoginService) VerifyOTP(ctx context.Context, req SMSLoginVerifyDTO) 
 	}
 
 	span.SetStatus(codes.Ok, "")
-	return s.generateSMSTokenResponse(userIdentitySub, user, client)
+	return s.generateSMSTokenResponse(ctx, userIdentitySub, user, client)
 }
 
-func (s *smsLoginService) generateSMSTokenResponse(sub string, user *User, client *Client) (*LoginResponseDTO, error) {
-	accessToken, idToken, refreshToken, err := generateTokenSet(sub, user, client)
+func (s *smsLoginService) generateSMSTokenResponse(ctx context.Context, sub string, user *User, client *Client) (*LoginResponseDTO, error) {
+	var sessionID string
+	if s.sessionService != nil {
+		if err := s.sessionService.EnforceConcurrentLimit(ctx, user.UserUUID, user.UserID); err != nil {
+			return nil, err
+		}
+		sess, err := s.sessionService.CreateSession(ctx, user.UserID, middleware.ClientIPFromContext(ctx), middleware.UserAgentFromContext(ctx))
+		if err != nil {
+			return nil, err
+		}
+		sessionID = sess.UserTokenUUID.String()
+	}
+	accessToken, idToken, refreshToken, err := generateTokenSetWithAuthContext(ctx, sub, user, client, tokenAuthContext{
+		AMR:       []string{jwt.AMRSMS},
+		ACR:       jwt.ACRLevel1,
+		SessionID: sessionID,
+	})
 	if err != nil {
 		return nil, err
 	}
-	return buildLoginTokenResponse(accessToken, idToken, refreshToken, time.Now().Unix()), nil
+	resp := buildLoginTokenResponse(accessToken, idToken, refreshToken, time.Now().Unix())
+	if sessionID != "" {
+		resp.SessionID = &sessionID
+	}
+	return resp, nil
 }

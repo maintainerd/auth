@@ -16,6 +16,7 @@ type UserTOTPSecretRepository interface {
 	Enable(userID int64) error
 	Disable(userID int64) error
 	UpdateLastUsed(userID int64) error
+	MarkStepUsed(userID int64, step int64) (bool, error)
 	DeleteByUserID(userID int64) error
 }
 
@@ -89,6 +90,18 @@ func (r *userTOTPSecretRepository) UpdateLastUsed(userID int64) error {
 			"last_used_at": now,
 			"updated_at":   now,
 		}).Error
+}
+
+func (r *userTOTPSecretRepository) MarkStepUsed(userID int64, step int64) (bool, error) {
+	now := time.Now()
+	result := r.DB().Model(&UserTOTPSecret{}).
+		Where("user_id = ? AND (last_used_step IS NULL OR last_used_step < ?)", userID, step).
+		Updates(map[string]any{
+			"last_used_step": step,
+			"last_used_at":   now,
+			"updated_at":     now,
+		})
+	return result.RowsAffected > 0, result.Error
 }
 
 func (r *userTOTPSecretRepository) DeleteByUserID(userID int64) error {

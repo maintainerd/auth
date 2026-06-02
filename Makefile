@@ -3,7 +3,7 @@ MAIN := cmd/server/main.go
 PROTO_SRC := proto
 PROTO_OUT := internal/gen/go
 
-.PHONY: run build clean proto proto-clean tidy test test-cover test-race setup-hooks
+.PHONY: run build clean proto proto-clean tidy test test-cover test-race vet staticcheck lint setup-hooks
 
 # Run the main application
 run:
@@ -45,6 +45,15 @@ test:
 # Run all unit tests with race detector
 test-race:
 	go test ./... -count=1 -race
+
+vet:
+	go vet ./...
+
+staticcheck:
+	go install honnef.co/go/tools/cmd/staticcheck@v0.7.0
+	staticcheck ./...
+
+lint: vet staticcheck
 
 # Run unit tests and output an HTML coverage report (opens in browser).
 # Folder exclusions are handled by codecov.yml on the Codecov side.

@@ -164,6 +164,15 @@ func (h *LoginHandler) LoginPublic(w http.ResponseWriter, r *http.Request) {
 		Severity:  "LOW",
 	})
 
+	if tokenResponse.MFARequired {
+		resp.Success(w, tokenResponse, "MFA verification required")
+		return
+	}
+	if tokenResponse.RequirePasswordChange && tokenResponse.AccessToken == "" {
+		resp.Success(w, tokenResponse, "Password change required")
+		return
+	}
+
 	// Response with optional cookie delivery based on X-Token-Delivery header
 	resp.SuccessWithCookies(w, r, tokenResponse, "Login successful")
 }
@@ -280,6 +289,11 @@ func (h *LoginHandler) Login(w http.ResponseWriter, r *http.Request) {
 		Details:   "User successfully authenticated via internal endpoint",
 		Severity:  "LOW",
 	})
+
+	if tokenResponse.MFARequired {
+		resp.Success(w, tokenResponse, "MFA verification required")
+		return
+	}
 
 	// Response with optional cookie delivery based on X-Token-Delivery header
 	resp.SuccessWithCookies(w, r, tokenResponse, "Login successful")

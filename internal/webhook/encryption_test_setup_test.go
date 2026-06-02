@@ -1,6 +1,11 @@
 package webhook
 
-import "github.com/maintainerd/auth/internal/platform/crypto"
+import (
+	"os"
+	"testing"
+
+	"github.com/maintainerd/auth/internal/platform/crypto"
+)
 
 var testEncryptionKey = []byte{
 	0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
@@ -9,11 +14,12 @@ var testEncryptionKey = []byte{
 	0x18, 0x19, 0x1a, 0x1b, 0x1c, 0x1d, 0x1e, 0x1f,
 }
 
-func init() {
+func TestMain(m *testing.M) {
 	crypto.EncryptAtRest = func(plaintext string) (string, error) {
 		return crypto.EncryptString(plaintext, testEncryptionKey)
 	}
 	crypto.DecryptAtRest = func(ciphertext string) (string, error) {
 		return crypto.DecryptString(ciphertext, testEncryptionKey)
 	}
+	os.Exit(m.Run())
 }

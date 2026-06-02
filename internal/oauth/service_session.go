@@ -63,7 +63,7 @@ func (s *oauthSessionService) EndSession(ctx context.Context, req OAuthEndSessio
 
 	// If an id_token_hint was provided, identify the user from it.
 	if req.IDTokenHint != "" {
-		claims, err := jwt.ValidateToken(req.IDTokenHint)
+		claims, err := jwt.ValidateTokenWithContext(ctx, req.IDTokenHint)
 		if err == nil {
 			if sub, ok := claims["sub"].(string); ok && sub != "" {
 				user, _ := s.userRepo.FindBySubAndClientID(sub, req.ClientID)
@@ -116,7 +116,7 @@ func (s *oauthSessionService) BackchannelLogout(ctx context.Context, req OAuthBa
 	defer span.End()
 
 	// Validate the logout token as a JWT.
-	claims, err := jwt.ValidateToken(req.LogoutToken)
+	claims, err := jwt.ValidateTokenWithContext(ctx, req.LogoutToken)
 	if err != nil {
 		span.SetStatus(codes.Error, "invalid logout token")
 		return apperror.NewOAuthInvalidRequest("logout_token is invalid or expired")

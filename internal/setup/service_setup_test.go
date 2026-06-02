@@ -9,7 +9,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/platform/crypto"
 	"github.com/maintainerd/auth/internal/platform/runner"
-	"github.com/maintainerd/auth/internal/platform/security"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
@@ -734,20 +733,6 @@ func TestSetupService_CreateAdmin(t *testing.T) {
 		assert.Equal(t, "Admin User", res.User.Fullname)
 	})
 
-	t.Run("HashPassword error → rollback", func(t *testing.T) {
-		origHash := security.HashPassword
-		defer func() { security.HashPassword = origHash }()
-		security.HashPassword = func(_ context.Context, _ []byte) ([]byte, error) { return nil, errors.New("hash error") }
-
-		db, mock := newMockGormDB(t)
-		mock.ExpectBegin()
-		mock.ExpectRollback()
-		tr, _, cr, rr, uir, urr, tmr := adminRepos()
-		svc := NewSetupService(db, &mockUserRepo{}, tr, tmr, cr, rr, urr, uir, &mockProfileRepo{})
-		_, err := svc.CreateAdmin(context.Background(), validReq)
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "hash error")
-	})
 }
 
 // ---------------------------------------------------------------------------

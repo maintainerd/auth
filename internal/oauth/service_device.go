@@ -2,6 +2,7 @@ package oauth
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -158,7 +159,8 @@ func (s *oauthDeviceService) VerifyUserCode(ctx context.Context, req OAuthDevice
 		return apperror.NewOAuthInvalidGrant("user_code has expired")
 	}
 
-	if err := s.deviceCodeRepo.UpdateStatus(record.OAuthDeviceCodeID, DeviceCodeStatusApproved, &userID); err != nil {
+	acr, amr := authContextFromContext(ctx)
+	if err := s.deviceCodeRepo.UpdateApproval(record.OAuthDeviceCodeID, userID, acr, amr); err != nil {
 		span.RecordError(err)
 		return apperror.NewOAuthServerError("an unexpected error occurred")
 	}
@@ -293,14 +295,15 @@ func (s *oauthDeviceService) ExchangeToken(ctx context.Context, req OAuthDeviceT
 	issuer := config.AppPublicHostname
 	clientIdentifier := resolveClientIdentifier(record.Client)
 
-	accessToken, err := jwt.GenerateAccessTokenWithOptions(
+	accessToken, err := jwt.GenerateAccessTokenWithOptionsContext(
+		ctx,
 		user.UserUUID.String(),
 		record.Scope,
 		issuer,
 		issuer,
 		clientIdentifier,
 		providerID,
-		clientAccessTokenOpts(record.Client),
+		deviceAccessTokenOpts(record),
 	)
 	if err != nil {
 		span.RecordError(err)
@@ -355,6 +358,44 @@ func generateUserCode() (string, error) {
 		result[i] = charset[int(raw[idx])%len(charset)]
 	}
 	return string(result), nil
+}
+
+func authContextFromContext(ctx context.Context) (string, []string) {
+	claims := middleware.JWTClaimsFromContext(ctx)
+	if claims == nil {
+		return jwt.ACRLevel1, []string{jwt.AMRPassword}
+	}
+	acr := claims.ACR
+	if acr == "" {
+		acr = jwt.ACRLevel1
+	}
+	amr := claims.AMR
+	if len(amr) == 0 {
+		amr = []string{jwt.AMRPassword}
+	}
+	return acr, amr
+}
+
+func deviceAccessTokenOpts(record *OAuthDeviceCode) *jwt.AccessTokenOptions {
+	opts := clientAccessTokenOpts(record.Client)
+	acr, amr := persistedAuthContext(record.AuthACR, record.AuthAMR)
+	opts.ACR = acr
+	opts.AMR = amr
+	return opts
+}
+
+func persistedAuthContext(acr string, raw []byte) (string, []string) {
+	if acr == "" {
+		acr = jwt.ACRLevel1
+	}
+	var amr []string
+	if len(raw) > 0 {
+		_ = json.Unmarshal(raw, &amr)
+	}
+	if len(amr) == 0 {
+		amr = []string{jwt.AMRPassword}
+	}
+	return acr, amr
 }
 
 func (s *oauthDeviceService) sendDeviceApprovalEmail(ctx context.Context, user *User, client *Client) error {

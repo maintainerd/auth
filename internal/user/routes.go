@@ -25,17 +25,17 @@ func AccountRoute(
 		r.Put("/username", accountHandler.ChangeUsername)
 
 		// Account deletion
-		r.Delete("/", accountHandler.DeleteAccount)
+		r.With(middleware.RequireStepUp).Delete("/", accountHandler.DeleteAccount)
 
 		// Account data export (GDPR / data portability)
 		r.Get("/export", accountHandler.ExportAccountData)
 
 		// Backup codes — generate and store securely
-		r.Post("/backup-codes", accountHandler.GenerateBackupCodes)
+		r.With(middleware.RequireStepUp).Post("/backup-codes", accountHandler.GenerateBackupCodes)
 
 		// Session management
 		r.Get("/sessions", accountHandler.ListSessions)
-		r.Delete("/sessions", accountHandler.RevokeAllSessions)
+		r.With(middleware.RequireStepUp).Delete("/sessions", accountHandler.RevokeAllSessions)
 		r.Delete("/sessions/{session_uuid}", accountHandler.RevokeSession)
 	})
 }
@@ -138,7 +138,7 @@ func UserRoute(
 			Put("/{user_uuid}", userHandler.UpdateUser)
 
 		// Set user status
-		r.With(middleware.PermissionMiddleware([]string{"user:update"})).
+		r.With(middleware.PermissionMiddleware([]string{"user:update"}), middleware.RequireStepUp).
 			Patch("/{user_uuid}/status", userHandler.SetUserStatus)
 
 		// Verify email (also marks account as completed)
@@ -154,11 +154,11 @@ func UserRoute(
 			Patch("/{user_uuid}/complete-account", userHandler.CompleteAccount)
 
 		// Delete user
-		r.With(middleware.PermissionMiddleware([]string{"user:delete"})).
+		r.With(middleware.PermissionMiddleware([]string{"user:delete"}), middleware.RequireStepUp).
 			Delete("/{user_uuid}", userHandler.DeleteUser)
 
 		// Force password change on next login
-		r.With(middleware.PermissionMiddleware([]string{"user:update"})).
+		r.With(middleware.PermissionMiddleware([]string{"user:update"}), middleware.RequireStepUp).
 			Put("/{user_uuid}/force-password-change", userHandler.ForcePasswordChange)
 
 		// Role management
@@ -171,11 +171,11 @@ func UserRoute(
 			Get("/{user_uuid}/identities", userHandler.GetUserIdentities)
 
 		// Assign roles to user
-		r.With(middleware.PermissionMiddleware([]string{"user:create"})).
+		r.With(middleware.PermissionMiddleware([]string{"user:create"}), middleware.RequireStepUp).
 			Post("/{user_uuid}/roles", userHandler.AssignRoles)
 
 		// Remove role from user
-		r.With(middleware.PermissionMiddleware([]string{"user:create"})).
+		r.With(middleware.PermissionMiddleware([]string{"user:create"}), middleware.RequireStepUp).
 			Delete("/{user_uuid}/roles/{role_uuid}", userHandler.RemoveRole)
 
 		// Profile management (admin access to user profiles)

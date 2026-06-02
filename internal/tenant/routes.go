@@ -53,13 +53,13 @@ func TenantRoute(
 		r.With(middleware.PermissionMiddleware([]string{"tenant:update"})).
 			Put("/{tenant_uuid}", tenantHandler.Update)
 
-		r.With(middleware.PermissionMiddleware([]string{"tenant:update"})).
+		r.With(middleware.PermissionMiddleware([]string{"tenant:update"}), middleware.RequireStepUp).
 			Put("/{tenant_uuid}/status", tenantHandler.SetStatus)
 
-		r.With(middleware.PermissionMiddleware([]string{"tenant:update"})).
+		r.With(middleware.PermissionMiddleware([]string{"tenant:update"}), middleware.RequireStepUp).
 			Put("/{tenant_uuid}/public", tenantHandler.SetPublic)
 
-		r.With(middleware.PermissionMiddleware([]string{"tenant:delete"})).
+		r.With(middleware.PermissionMiddleware([]string{"tenant:delete"}), middleware.RequireStepUp).
 			Delete("/{tenant_uuid}", tenantHandler.Delete)
 
 		// Tenant member management

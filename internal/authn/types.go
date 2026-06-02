@@ -48,14 +48,17 @@ type LoginQueryDTO struct {
 
 // LoginResponseDTO is the response structure for login operations
 type LoginResponseDTO struct {
-	AccessToken           string  `json:"access_token"`
-	IDToken               string  `json:"id_token"`
-	RefreshToken          string  `json:"refresh_token,omitempty"`
-	ExpiresIn             int64   `json:"expires_in"`
-	TokenType             string  `json:"token_type"`
-	IssuedAt              int64   `json:"issued_at"`
-	RequirePasswordChange bool    `json:"require_password_change,omitempty"`
-	SessionID             *string `json:"session_id,omitempty"`
+	AccessToken           string   `json:"access_token,omitempty"`
+	IDToken               string   `json:"id_token,omitempty"`
+	RefreshToken          string   `json:"refresh_token,omitempty"`
+	ExpiresIn             int64    `json:"expires_in,omitempty"`
+	TokenType             string   `json:"token_type,omitempty"`
+	IssuedAt              int64    `json:"issued_at,omitempty"`
+	RequirePasswordChange bool     `json:"require_password_change,omitempty"`
+	SessionID             *string  `json:"session_id,omitempty"`
+	MFARequired           bool     `json:"mfa_required,omitempty"`
+	MFAChallengeToken     *string  `json:"mfa_challenge_token,omitempty"`
+	MFAAllowedMethods     []string `json:"mfa_allowed_methods,omitempty"`
 }
 
 // SendMagicLinkRequestDTO represents the request payload to send a passwordless
