@@ -16,6 +16,16 @@ type SessionValidator interface {
 	ValidateAndTouch(ctx context.Context, sessionUUID uuid.UUID, userID int64) error
 }
 
+var defaultSessionValidator SessionValidator
+
+func SetSessionValidator(svc SessionValidator) {
+	defaultSessionValidator = svc
+}
+
+func ValidateSessionFromRequest(w http.ResponseWriter, r *http.Request) bool {
+	return validateSessionWith(defaultSessionValidator, w, r)
+}
+
 // SessionValidationMiddleware enforces idle timeout and absolute session lifetime
 // on every authenticated request. It must run after UserContextMiddleware so that
 // the authenticated user (and therefore the userID) is available in the context.
@@ -26,35 +36,49 @@ type SessionValidator interface {
 func SessionValidationMiddleware(svc SessionValidator) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			sessionIDHeader := r.Header.Get("X-Session-ID")
-			if sessionIDHeader == "" {
-				next.ServeHTTP(w, r)
+			if !validateSessionWith(svc, w, r) {
 				return
 			}
-
-			sessionUUID, err := uuid.Parse(sessionIDHeader)
-			if err != nil {
-				resp.Error(w, http.StatusBadRequest, "Invalid X-Session-ID format")
-				return
-			}
-
-			auth := AuthFromRequest(r)
-			if auth.User == nil {
-				resp.Error(w, http.StatusUnauthorized, "Unauthorized")
-				return
-			}
-
-			if err := svc.ValidateAndTouch(r.Context(), sessionUUID, auth.User.UserID); err != nil {
-				var unauth *apperror.UnauthorizedError
-				if errors.As(err, &unauth) {
-					resp.Error(w, http.StatusUnauthorized, err.Error())
-					return
-				}
-				resp.Error(w, http.StatusInternalServerError, "Session validation failed")
-				return
-			}
-
 			next.ServeHTTP(w, r)
 		})
 	}
+}
+
+func validateSessionWith(svc SessionValidator, w http.ResponseWriter, r *http.Request) bool {
+	if svc == nil {
+		return true
+	}
+	sessionID := ""
+	if claims := JWTClaimsFromRequest(r); claims != nil {
+		sessionID = claims.SessionID
+	}
+	if sessionID == "" {
+		sessionID = r.Header.Get("X-Session-ID")
+	}
+	if sessionID == "" {
+		return true
+	}
+
+	sessionUUID, err := uuid.Parse(sessionID)
+	if err != nil {
+		resp.Error(w, http.StatusBadRequest, "Invalid session ID format")
+		return false
+	}
+
+	auth := AuthFromRequest(r)
+	if auth.User == nil {
+		resp.Error(w, http.StatusUnauthorized, "Unauthorized")
+		return false
+	}
+
+	if err := svc.ValidateAndTouch(r.Context(), sessionUUID, auth.User.UserID); err != nil {
+		var unauth *apperror.UnauthorizedError
+		if errors.As(err, &unauth) {
+			resp.Error(w, http.StatusUnauthorized, err.Error())
+			return false
+		}
+		resp.Error(w, http.StatusInternalServerError, "Session validation failed")
+		return false
+	}
+	return true
 }

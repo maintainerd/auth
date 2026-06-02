@@ -291,7 +291,7 @@ func (h *MFAHandler) IssueStepUpChallenge(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	result, err := h.mfaSvc.IssueStepUpChallenge(r.Context(), user.UserUUID.String(), []string{"totp", "backup_code", "webauthn"})
+	result, err := h.mfaSvc.IssueStepUpChallenge(r.Context(), user.UserUUID.String(), []string{"totp", "backup_code"})
 	if err != nil {
 		resp.HandleServiceError(w, r, "Failed to issue step-up challenge", err)
 		return

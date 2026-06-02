@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"gorm.io/datatypes"
 	"gorm.io/gorm"
 )
 
@@ -28,9 +29,11 @@ type OAuthDeviceCode struct {
 	TenantID            int64     `gorm:"column:tenant_id;not null"`
 	Scope               string    `gorm:"column:scope;not null;default:''"`
 	// UserID is set once the user approves the request at the verification URI.
-	UserID   *int64 `gorm:"column:user_id"`
-	Status   string `gorm:"column:status;not null;default:'pending'"`
-	Interval int    `gorm:"column:interval;not null;default:5"`
+	UserID   *int64         `gorm:"column:user_id"`
+	AuthACR  string         `gorm:"column:auth_acr"`
+	AuthAMR  datatypes.JSON `gorm:"column:auth_amr;type:jsonb;default:'[]'"`
+	Status   string         `gorm:"column:status;not null;default:'pending'"`
+	Interval int            `gorm:"column:interval;not null;default:5"`
 	// LastPollAt tracks the most recent polling attempt for slow-down enforcement.
 	LastPollAt *time.Time `gorm:"column:last_poll_at"`
 	ExpiresAt  time.Time  `gorm:"column:expires_at;not null"`

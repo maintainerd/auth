@@ -1,6 +1,7 @@
 package oauth
 
 import (
+	"encoding/json"
 	"errors"
 	"time"
 
@@ -16,6 +17,7 @@ type OAuthCIBARequestRepository interface {
 	FindByAuthReqIDHash(hash string) (*OAuthCIBARequest, error)
 	UpdateStatus(id int64, status string) error
 	UpdateApproval(id int64, userID int64) error
+	UpdateApprovalContext(id int64, userID int64, acr string, amr []string) error
 	UpdateLastPollAt(id int64) error
 	MarkNotificationSent(id int64) error
 	DeleteExpired(before time.Time) (int64, error)
@@ -66,12 +68,27 @@ func (r *oauthCIBARequestRepository) UpdateStatus(id int64, status string) error
 
 // UpdateApproval sets status=approved and records the approving user.
 func (r *oauthCIBARequestRepository) UpdateApproval(id int64, userID int64) error {
+	return r.UpdateApprovalContext(id, userID, "", nil)
+}
+
+func (r *oauthCIBARequestRepository) UpdateApprovalContext(id int64, userID int64, acr string, amr []string) error {
+	updates := map[string]any{
+		"status":  CIBAStatusApproved,
+		"user_id": userID,
+	}
+	if acr != "" {
+		updates["auth_acr"] = acr
+	}
+	if len(amr) > 0 {
+		amrJSON, err := json.Marshal(amr)
+		if err != nil {
+			return err
+		}
+		updates["auth_amr"] = amrJSON
+	}
 	return r.DB().Model(&OAuthCIBARequest{}).
 		Where("oauth_ciba_request_id = ?", id).
-		Updates(map[string]any{
-			"status":  CIBAStatusApproved,
-			"user_id": userID,
-		}).Error
+		Updates(updates).Error
 }
 
 // UpdateLastPollAt records when the client last polled.

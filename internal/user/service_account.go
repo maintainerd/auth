@@ -227,7 +227,8 @@ func (s *accountService) ChangeUsername(ctx context.Context, userID int64, newUs
 	return nil
 }
 
-// DeleteAccount verifies the current password and soft-deletes the account.
+// DeleteAccount verifies the current password, anonymizes direct PII, and
+// revokes/removes account data that should not survive GDPR erasure.
 func (s *accountService) DeleteAccount(ctx context.Context, userID int64, currentPassword string) error {
 	_, span := otel.Tracer("service").Start(ctx, "account.deleteAccount")
 	defer span.End()
@@ -244,8 +245,40 @@ func (s *accountService) DeleteAccount(ctx context.Context, userID int64, curren
 		return apperror.NewUnauthorized("invalid current password")
 	}
 
-	if err := s.userRepo.SetStatus(user.UserUUID, "deleted"); err != nil {
+	anonymized := fmt.Sprintf("deleted-%d-%s", user.UserID, user.UserUUID.String()[:8])
+	if _, err := s.userRepo.UpdateByID(user.UserID, map[string]any{
+		"username":                    anonymized,
+		"email":                       nil,
+		"phone":                       nil,
+		"password":                    nil,
+		"pending_email":               nil,
+		"email_change_otp":            nil,
+		"email_change_otp_expires_at": nil,
+		"is_email_verified":           false,
+		"is_phone_verified":           false,
+		"is_profile_completed":        false,
+		"is_account_completed":        false,
+		"is_totp_enabled":             false,
+		"is_webauthn_enabled":         false,
+		"mfa_enabled_at":              nil,
+		"status":                      "deleted",
+	}); err != nil {
 		return apperror.NewInternal("failed to delete account", err)
+	}
+	if err := s.userTokenRepo.RevokeAllByUserID(user.UserID); err != nil {
+		return apperror.NewInternal("failed to revoke account tokens", err)
+	}
+	if err := s.userTokenRepo.DeleteByUserID(user.UserID); err != nil {
+		return apperror.NewInternal("failed to remove account tokens", err)
+	}
+	if err := s.profileRepo.DeleteByUserID(user.UserID); err != nil {
+		return apperror.NewInternal("failed to remove profile data", err)
+	}
+	if err := s.userSettingRepo.DeleteByUserID(user.UserID); err != nil {
+		return apperror.NewInternal("failed to remove user settings", err)
+	}
+	if err := s.userIdentityRepo.DeleteByUserID(user.UserID); err != nil {
+		return apperror.NewInternal("failed to remove linked identities", err)
 	}
 
 	span.SetStatus(codes.Ok, "")
@@ -402,12 +435,13 @@ func (s *accountService) VerifyBackupCode(ctx context.Context, req VerifyBackupC
 	}
 
 	span.SetStatus(codes.Ok, "")
-	return s.generateTokenResponse(userIdentitySub, user, client)
+	return s.generateTokenResponse(ctx, userIdentitySub, user, client)
 }
 
 // generateTokenResponse issues access, ID, and refresh tokens for the given user and client.
-func (s *accountService) generateTokenResponse(sub string, user *User, client *Client) (*LoginResponseDTO, error) {
-	accessToken, err := jwt.GenerateAccessToken(
+func (s *accountService) generateTokenResponse(ctx context.Context, sub string, user *User, client *Client) (*LoginResponseDTO, error) {
+	accessToken, err := jwt.GenerateAccessTokenWithContext(
+		ctx,
 		sub,
 		shared.DefaultTokenScope,
 		*client.Domain,
@@ -426,12 +460,12 @@ func (s *accountService) generateTokenResponse(sub string, user *User, client *C
 		PhoneVerified: user.IsPhoneVerified,
 	}
 
-	idToken, err := generateIDTokenFn(sub, *client.Domain, *client.Identifier, client.IdentityProvider.Identifier, profile, "", nil)
+	idToken, err := jwt.GenerateIDTokenWithContext(ctx, sub, *client.Domain, *client.Identifier, client.IdentityProvider.Identifier, profile, "", nil)
 	if err != nil {
 		return nil, err
 	}
 
-	refreshToken, err := generateRefreshTokenFn(sub, *client.Domain, *client.Identifier, client.IdentityProvider.Identifier)
+	refreshToken, err := jwt.GenerateRefreshTokenWithContext(ctx, sub, *client.Domain, *client.Identifier, client.IdentityProvider.Identifier)
 	if err != nil {
 		return nil, err
 	}

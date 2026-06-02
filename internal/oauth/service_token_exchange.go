@@ -72,7 +72,7 @@ func (s *oauthTokenExchangeService) Exchange(ctx context.Context, req OAuthToken
 	}
 
 	// Validate the subject token.
-	claims, err := jwt.ValidateToken(req.SubjectToken)
+	claims, err := jwt.ValidateTokenWithContext(ctx, req.SubjectToken)
 	if err != nil {
 		span.SetStatus(codes.Error, "subject token invalid")
 		return nil, apperror.NewOAuthInvalidGrant("subject_token is invalid or expired")
@@ -125,14 +125,21 @@ func (s *oauthTokenExchangeService) Exchange(ctx context.Context, req OAuthToken
 		return nil, oerr
 	}
 
-	newToken, err := jwt.GenerateAccessTokenWithOptions(
+	accessTokenOpts := clientAccessTokenOpts(client)
+	accessTokenOpts.AMR = amrClaimValues(claims["amr"])
+	if acr, ok := claims["acr"].(string); ok {
+		accessTokenOpts.ACR = acr
+	}
+
+	newToken, err := jwt.GenerateAccessTokenWithOptionsContext(
+		ctx,
 		subjectSub,
 		scope,
 		issuer,
 		audience,
 		clientIdentifier,
 		providerID,
-		clientAccessTokenOpts(client),
+		accessTokenOpts,
 	)
 	if err != nil {
 		span.RecordError(err)
@@ -159,4 +166,18 @@ func (s *oauthTokenExchangeService) Exchange(ctx context.Context, req OAuthToken
 		ExpiresIn:       int64(jwt.AccessTokenTTL.Seconds()),
 		Scope:           scope,
 	}, nil
+}
+
+func amrClaimValues(raw any) []string {
+	values, ok := raw.([]any)
+	if !ok {
+		return nil
+	}
+	amr := make([]string, 0, len(values))
+	for _, value := range values {
+		if s, ok := value.(string); ok && s != "" {
+			amr = append(amr, s)
+		}
+	}
+	return amr
 }

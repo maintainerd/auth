@@ -12,6 +12,7 @@ import (
 	"github.com/maintainerd/auth/internal/notifier"
 	"github.com/maintainerd/auth/internal/oauth"
 	"github.com/maintainerd/auth/internal/platform/cache"
+	"github.com/maintainerd/auth/internal/platform/middleware"
 	"github.com/maintainerd/auth/internal/secpolicy"
 	"github.com/maintainerd/auth/internal/setup"
 	"github.com/maintainerd/auth/internal/tenant"
@@ -106,6 +107,8 @@ func initServices(db *gorm.DB, r *repos, appCache *cache.Cache) (*svcs, error) {
 	oauthUserIdentityRepo := newOAuthUserIdentityRepo(db)
 	authzInvalidator := iam.NewDBAuthorizationTokenInvalidator(db, appCache)
 	tenantUOW := tenant.NewGormUnitOfWork(db, r.tenantRepo, r.tenantMemberRepo, tenantCascadeModels())
+	middleware.SetAPIKeyAuthenticator(client.NewAPIKeyAuthenticator(r.apiKeyRepo, r.apiKeyAPIRepo, featureSettingReader{repo: r.tenantSettingRepo}))
+	middleware.SetSessionValidator(sessionSvc)
 
 	webAuthnSvc, err := mfa.NewWebAuthnService(db, mfaUserRepo, r.webAuthnCredRepo, appCache, authEventSvc)
 	if err != nil {
@@ -157,10 +160,10 @@ func initServices(db *gorm.DB, r *repos, appCache *cache.Cache) (*svcs, error) {
 		oauthCIBAService:          oauth.NewOAuthCIBAService(db, oauthClientRepo, r.oauthCIBARequestRepo, oauthUserRepo, authEventSvc),
 		oauthRegisterService:      oauth.NewOAuthRegisterService(db, oauthClientRepo, oauthClientURIRepo, oauthTenantRepo, authEventSvc),
 		accountService:            user.NewAccountService(db, r.userRepo, r.userTokenRepo, r.profileRepo, r.userSettingRepo, userRoleRepo, userClientRepo, userBackupCodeRepo, r.userIdentityRepo, userIDPRepo, authEventSvc),
-		smsLoginService:           authn.NewSMSLoginService(db, newAuthnUserRepoAdapter(r.userRepo), r.smsOtpRepo, newAuthnClientRepoAdapter(r.clientRepo), newAuthnUserIdentityRepoAdapter(r.userIdentityRepo), newAuthnIDPRepoAdapter(r.idpRepo), authEventSvc),
+		smsLoginService:           authn.NewSMSLoginService(db, newAuthnUserRepoAdapter(r.userRepo), r.smsOtpRepo, newAuthnClientRepoAdapter(r.clientRepo), newAuthnUserIdentityRepoAdapter(r.userIdentityRepo), newAuthnIDPRepoAdapter(r.idpRepo), authEventSvc, sessionSvc),
 		mfaService:                mfa.NewMFAService(db, mfaUserRepo, r.totpSecretRepo, r.webAuthnCredRepo, r.userBackupCodeRepo, r.securitySettingRepo, authEventSvc),
 		webAuthnService:           webAuthnSvc,
-		federationService:         idp.NewFederationService(db, idpUserRepo, idpUserIdentityRepo, r.idpRepo, idpClientRepo, idpUserRoleRepo, idpRoleRepo, authEventSvc),
+		federationService:         idp.NewFederationService(db, idpUserRepo, idpUserIdentityRepo, r.idpRepo, idpClientRepo, idpUserRoleRepo, idpRoleRepo, authEventSvc, sessionSvc),
 	}
 	return s, nil
 }

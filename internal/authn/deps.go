@@ -83,6 +83,9 @@ type User struct {
 	Status              string
 	ForcePasswordChange bool
 	PasswordChangedAt   *time.Time
+	IsTOTPEnabled       bool
+	IsWebAuthnEnabled   bool
+	MFAEnabledAt        *time.Time
 	CreatedAt           time.Time
 	UpdatedAt           time.Time
 }

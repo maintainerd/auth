@@ -266,7 +266,7 @@ func (s *magicLinkService) LoginWithMagicLink(ctx context.Context, token, client
 	})
 
 	span.SetStatus(codes.Ok, "")
-	return s.generateTokenResponse(userIdentitySub, user, Client)
+	return s.generateTokenResponse(ctx, userIdentitySub, user, Client)
 }
 
 func (s *magicLinkService) sendMagicLinkEmail(ctx context.Context, to, token string, Client *Client, isInternal bool) error {
@@ -335,8 +335,8 @@ func (s *magicLinkService) sendMagicLinkEmail(ctx context.Context, to, token str
 	})
 }
 
-func (s *magicLinkService) generateTokenResponse(sub string, user *User, client *Client) (*LoginResponseDTO, error) {
-	accessToken, idToken, refreshToken, err := generateTokenSet(sub, user, client)
+func (s *magicLinkService) generateTokenResponse(ctx context.Context, sub string, user *User, client *Client) (*LoginResponseDTO, error) {
+	accessToken, idToken, refreshToken, err := generateTokenSetWithContext(ctx, sub, user, client)
 	if err != nil {
 		return nil, err
 	}

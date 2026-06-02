@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log/slog"
 	"strconv"
+	"strings"
 
 	"github.com/joho/godotenv"
 	"github.com/maintainerd/auth/internal/platform/signedurl"
@@ -19,6 +20,7 @@ var (
 	AppVersion         string
 	AppPublicHostname  string
 	AppPrivateHostname string
+	ManagementPort     string // MANAGEMENT_PORT; default ":8082"
 
 	// Application Encryption Key (AES-256)
 	AppEncryptionKey []byte
@@ -31,8 +33,10 @@ var (
 	AuthHostname    string
 
 	// JWT Configuration
-	JWTPrivateKey []byte
-	JWTPublicKey  []byte
+	JWTPrivateKey               []byte
+	JWTPublicKey                []byte
+	JWTKeyRotationPeriodSeconds int
+	SecretRefreshPeriodSeconds  int
 
 	// HMAC Secret for signed URLs
 	HMACSecretKey []byte
@@ -77,14 +81,15 @@ var (
 	EmailRegion   string // EMAIL_REGION (SES); default "us-east-1"
 
 	// SMS Config
-	SMSProvider      string // SMS_PROVIDER; "twilio", "sns", "vonage"
-	TwilioAccountSID string // TWILIO_ACCOUNT_SID
-	TwilioAuthToken  string // TWILIO_AUTH_TOKEN
-	TwilioFromNumber string // TWILIO_FROM_NUMBER
-	SNSRegion        string // SNS_REGION; default "us-east-1"
-	VonageAPIKey     string // VONAGE_API_KEY
-	VonageAPISecret  string // VONAGE_API_SECRET
-	VonageFrom       string // VONAGE_FROM
+	SMSProvider       string // SMS_PROVIDER; "twilio", "sns", "vonage"
+	TwilioAccountSID  string // TWILIO_ACCOUNT_SID
+	TwilioAuthToken   string // TWILIO_AUTH_TOKEN
+	TwilioFromNumber  string // TWILIO_FROM_NUMBER
+	SNSRegion         string // SNS_REGION; default "us-east-1"
+	VonageAPIKey      string // VONAGE_API_KEY
+	VonageAPISecret   string // VONAGE_API_SECRET
+	VonageFrom        string // VONAGE_FROM
+	SMSDailySendLimit int    // SMS_DAILY_SEND_LIMIT; 0 disables the budget guard
 )
 
 // Init loads all configuration from environment variables (and an optional .env file).
@@ -120,6 +125,7 @@ func Init() error {
 	if AppPrivateHostname, err = GetEnv("APP_PRIVATE_HOSTNAME"); err != nil {
 		return err
 	}
+	ManagementPort = normalizeListenAddr(GetEnvOrDefault("MANAGEMENT_PORT", "8082"))
 
 	// Frontend Config
 	if AccountHostname, err = GetEnv("ACCOUNT_HOSTNAME"); err != nil {
@@ -138,6 +144,8 @@ func Init() error {
 		return fmt.Errorf("failed to load JWT public key: %w", err)
 	}
 	slog.Info("JWT keys loaded successfully")
+	JWTKeyRotationPeriodSeconds = parseIntDefault(GetEnvOrDefault("JWT_KEY_ROTATION_PERIOD_SECONDS", "86400"), 86400)
+	SecretRefreshPeriodSeconds = parseIntDefault(GetEnvOrDefault("SECRET_REFRESH_PERIOD_SECONDS", "300"), 300)
 
 	// Application encryption key — loaded via the configured secret provider.
 	slog.Info("Loading application encryption key from secret provider")
@@ -218,6 +226,7 @@ func Init() error {
 	VonageAPIKey = GetEnvOrDefault("VONAGE_API_KEY", "")
 	VonageAPISecret = GetEnvOrDefault("VONAGE_API_SECRET", "")
 	VonageFrom = GetEnvOrDefault("VONAGE_FROM", "")
+	SMSDailySendLimit = parseIntDefault(GetEnvOrDefault("SMS_DAILY_SEND_LIMIT", "1000"), 1000)
 
 	// Cookie Config
 	CookieSecure = GetEnvOrDefault("COOKIE_SECURE", "true") != "false"
@@ -234,6 +243,7 @@ type Config struct {
 	AppVersion         string
 	AppPublicHostname  string
 	AppPrivateHostname string
+	ManagementPort     string
 	AppEncryptionKey   []byte
 
 	LogLevel string
@@ -241,9 +251,11 @@ type Config struct {
 	AccountHostname string
 	AuthHostname    string
 
-	JWTPrivateKey []byte
-	JWTPublicKey  []byte
-	HMACSecretKey []byte
+	JWTPrivateKey               []byte
+	JWTPublicKey                []byte
+	JWTKeyRotationPeriodSeconds int
+	SecretRefreshPeriodSeconds  int
+	HMACSecretKey               []byte
 
 	SecretProvider string
 	SecretPrefix   string
@@ -276,61 +288,77 @@ type Config struct {
 	EmailDomain   string
 	EmailRegion   string
 
-	SMSProvider      string
-	TwilioAccountSID string
-	TwilioAuthToken  string
-	TwilioFromNumber string
-	SNSRegion        string
-	VonageAPIKey     string
-	VonageAPISecret  string
-	VonageFrom       string
+	SMSProvider       string
+	TwilioAccountSID  string
+	TwilioAuthToken   string
+	TwilioFromNumber  string
+	SNSRegion         string
+	VonageAPIKey      string
+	VonageAPISecret   string
+	VonageFrom        string
+	SMSDailySendLimit int
 }
 
 func GetConfig() Config {
 	return Config{
-		AppEnv:               AppEnv,
-		AppVersion:           AppVersion,
-		AppPublicHostname:    AppPublicHostname,
-		AppPrivateHostname:   AppPrivateHostname,
-		AppEncryptionKey:     AppEncryptionKey,
-		LogLevel:             LogLevel,
-		AccountHostname:      AccountHostname,
-		AuthHostname:         AuthHostname,
-		JWTPrivateKey:        JWTPrivateKey,
-		JWTPublicKey:         JWTPublicKey,
-		HMACSecretKey:        HMACSecretKey,
-		SecretProvider:       SecretProvider,
-		SecretPrefix:         SecretPrefix,
-		DBHost:               DBHost,
-		DBPort:               DBPort,
-		DBUser:               DBUser,
-		DBPassword:           DBPassword,
-		DBName:               DBName,
-		DBSSLMode:            DBSSLMode,
-		DBMaxOpenConns:       DBMaxOpenConns,
-		DBMaxIdleConns:       DBMaxIdleConns,
-		DBConnMaxLifetimeSec: DBConnMaxLifetimeSec,
-		DBStatementTimeoutMs: DBStatementTimeoutMs,
-		CookieSecure:         CookieSecure,
-		CookieSameSite:       CookieSameSite,
-		SMTPHost:             SMTPHost,
-		SMTPPort:             SMTPPort,
-		SMTPUser:             SMTPUser,
-		SMTPPass:             SMTPPass,
-		SMTPFromEmail:        SMTPFromEmail,
-		SMTPFromName:         SMTPFromName,
-		EmailLogo:            EmailLogo,
-		EmailProvider:        EmailProvider,
-		EmailAPIKey:          EmailAPIKey,
-		EmailDomain:          EmailDomain,
-		EmailRegion:          EmailRegion,
-		SMSProvider:          SMSProvider,
-		TwilioAccountSID:     TwilioAccountSID,
-		TwilioAuthToken:      TwilioAuthToken,
-		TwilioFromNumber:     TwilioFromNumber,
-		SNSRegion:            SNSRegion,
-		VonageAPIKey:         VonageAPIKey,
-		VonageAPISecret:      VonageAPISecret,
-		VonageFrom:           VonageFrom,
+		AppEnv:                      AppEnv,
+		AppVersion:                  AppVersion,
+		AppPublicHostname:           AppPublicHostname,
+		AppPrivateHostname:          AppPrivateHostname,
+		ManagementPort:              ManagementPort,
+		AppEncryptionKey:            AppEncryptionKey,
+		LogLevel:                    LogLevel,
+		AccountHostname:             AccountHostname,
+		AuthHostname:                AuthHostname,
+		JWTPrivateKey:               JWTPrivateKey,
+		JWTPublicKey:                JWTPublicKey,
+		JWTKeyRotationPeriodSeconds: JWTKeyRotationPeriodSeconds,
+		SecretRefreshPeriodSeconds:  SecretRefreshPeriodSeconds,
+		HMACSecretKey:               HMACSecretKey,
+		SecretProvider:              SecretProvider,
+		SecretPrefix:                SecretPrefix,
+		DBHost:                      DBHost,
+		DBPort:                      DBPort,
+		DBUser:                      DBUser,
+		DBPassword:                  DBPassword,
+		DBName:                      DBName,
+		DBSSLMode:                   DBSSLMode,
+		DBMaxOpenConns:              DBMaxOpenConns,
+		DBMaxIdleConns:              DBMaxIdleConns,
+		DBConnMaxLifetimeSec:        DBConnMaxLifetimeSec,
+		DBStatementTimeoutMs:        DBStatementTimeoutMs,
+		CookieSecure:                CookieSecure,
+		CookieSameSite:              CookieSameSite,
+		SMTPHost:                    SMTPHost,
+		SMTPPort:                    SMTPPort,
+		SMTPUser:                    SMTPUser,
+		SMTPPass:                    SMTPPass,
+		SMTPFromEmail:               SMTPFromEmail,
+		SMTPFromName:                SMTPFromName,
+		EmailLogo:                   EmailLogo,
+		EmailProvider:               EmailProvider,
+		EmailAPIKey:                 EmailAPIKey,
+		EmailDomain:                 EmailDomain,
+		EmailRegion:                 EmailRegion,
+		SMSProvider:                 SMSProvider,
+		TwilioAccountSID:            TwilioAccountSID,
+		TwilioAuthToken:             TwilioAuthToken,
+		TwilioFromNumber:            TwilioFromNumber,
+		SNSRegion:                   SNSRegion,
+		VonageAPIKey:                VonageAPIKey,
+		VonageAPISecret:             VonageAPISecret,
+		VonageFrom:                  VonageFrom,
+		SMSDailySendLimit:           SMSDailySendLimit,
 	}
+}
+
+func normalizeListenAddr(port string) string {
+	port = strings.TrimSpace(port)
+	if port == "" {
+		return ""
+	}
+	if strings.Contains(port, ":") {
+		return port
+	}
+	return ":" + port
 }

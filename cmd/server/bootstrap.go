@@ -71,7 +71,7 @@ func run(ctx context.Context) error {
 	serverApplication := application.ServerApplication()
 
 	// Wire the JTI denylist checker so ValidateToken rejects revoked access tokens.
-	jwt.JTIChecker = application.Cache.IsJTIDenied
+	jwt.SetJTIChecker(application.Cache.IsJTIDenied)
 
 	// Background workers use a child context so they are cancelled after the
 	// blocking REST server returns from graceful shutdown.

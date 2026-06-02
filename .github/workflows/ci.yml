@@ -78,14 +78,22 @@ jobs:
       - name: Run golangci-lint
         uses: golangci/golangci-lint-action@v6
         with:
-          version: latest
+          version: v2.11.4
           install-mode: goinstall
           args: --timeout=5m
 
+      - name: Run go vet
+        run: go vet ./...
+
+      - name: Run staticcheck
+        run: |
+          go install honnef.co/go/tools/cmd/staticcheck@v0.7.0
+          staticcheck ./...
+
       - name: Run gosec
         run: |
-          go install github.com/securego/gosec/v2/cmd/gosec@latest
-          gosec -exclude=G101,G103,G104,G102,G124,G304 ./...
+          go install github.com/securego/gosec/v2/cmd/gosec@v2.22.8
+          gosec -exclude=G101 ./...
 
   # ─────────────────────────────────────────────────────────────────────────────
   # Build — ensure the binary compiles cleanly
@@ -107,4 +115,3 @@ jobs:
 
       - name: Build binary
         run: go build -v -o /dev/null ./cmd/server
-

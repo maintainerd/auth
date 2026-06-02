@@ -19,6 +19,7 @@ Refer to the relevant section below for instructions on generating each secret.
 APP_VERSION="v1"
 APP_PUBLIC_HOSTNAME="https://auth.yourdomain.com"           # ← replace
 APP_PRIVATE_HOSTNAME="https://auth-internal.yourdomain.com" # ← replace
+MANAGEMENT_PORT="8082"
 
 # =============================================================================
 # FRONTEND
@@ -55,6 +56,15 @@ SMTP_PASS="<retrieved-from-secret-manager>" # ← replace
 SMTP_FROM_EMAIL="noreply@yourdomain.com"    # ← replace (must match SPF/DKIM)
 SMTP_FROM_NAME="Maintainerd"
 EMAIL_LOGO_URL="https://cdn.yourdomain.com/logo.png" # ← replace
+
+# =============================================================================
+# SMS
+# =============================================================================
+SMS_PROVIDER="twilio"
+SMS_DAILY_SEND_LIMIT="1000"
+TWILIO_ACCOUNT_SID="<retrieved-from-secret-manager>" # ← replace if SMS is enabled
+TWILIO_AUTH_TOKEN="<retrieved-from-secret-manager>"  # ← replace if SMS is enabled
+TWILIO_FROM_NUMBER="+15551234567"                    # ← replace if SMS is enabled
 
 # =============================================================================
 # SECRET MANAGEMENT
@@ -115,6 +125,7 @@ OTEL_SERVICE_NAME="maintainerd-auth"
 - [Database](#database)
 - [Redis](#redis)
 - [Email (SMTP)](#email-smtp)
+- [SMS](#sms)
 - [Secret Management](#secret-management)
 - [JWT Configuration](#jwt-configuration)
 - [OpenTelemetry (Tracing)](#opentelemetry-tracing)
@@ -142,11 +153,13 @@ Before configuring any variable, follow these non-negotiable rules:
 | `APP_VERSION` | ✅ | API version prefix. Set to `v1` unless you are running a major version migration. |
 | `APP_PUBLIC_HOSTNAME` | ✅ | Fully-qualified public base URL, e.g. `https://auth.yourdomain.com`. Must use HTTPS. |
 | `APP_PRIVATE_HOSTNAME` | ✅ | Internal base URL, e.g. `https://auth-internal.yourdomain.com`. Must be unreachable from the public internet. |
+| `MANAGEMENT_PORT` | ❌ | Dedicated operations listener for `/metrics`, `/readyz`, `/livez`, and `/openapi.json`. Defaults to `8082`. |
 
 ```env
 APP_VERSION="v1"
 APP_PUBLIC_HOSTNAME="https://auth.yourdomain.com"
 APP_PRIVATE_HOSTNAME="https://auth-internal.yourdomain.com"
+MANAGEMENT_PORT="8082"
 ```
 
 ---
@@ -243,6 +256,32 @@ EMAIL_LOGO_URL="https://cdn.yourdomain.com/logo.png"
 
 ---
 
+## SMS
+
+| Variable | Required | Description |
+|---|---|---|
+| `SMS_PROVIDER` | ❌ | SMS provider name: `twilio`, `sns`, or `vonage`. Configure a provider before enabling SMS OTP in production. |
+| `SMS_DAILY_SEND_LIMIT` | ✅ | Global daily SMS send ceiling. Keep nonzero in production to cap spend; default is `1000`. |
+| `TWILIO_ACCOUNT_SID` | ❌ | Twilio account SID when `SMS_PROVIDER=twilio`. Store in your secret manager. |
+| `TWILIO_AUTH_TOKEN` | ❌ | Twilio auth token when `SMS_PROVIDER=twilio`. Store in your secret manager. |
+| `TWILIO_FROM_NUMBER` | ❌ | Twilio sender phone number. |
+| `SNS_REGION` | ❌ | AWS SNS region when `SMS_PROVIDER=sns`. |
+| `VONAGE_API_KEY` | ❌ | Vonage API key when `SMS_PROVIDER=vonage`. Store in your secret manager. |
+| `VONAGE_API_SECRET` | ❌ | Vonage API secret when `SMS_PROVIDER=vonage`. Store in your secret manager. |
+| `VONAGE_FROM` | ❌ | Vonage sender name/number. |
+
+```env
+SMS_PROVIDER="twilio"
+SMS_DAILY_SEND_LIMIT="1000"
+TWILIO_ACCOUNT_SID="<retrieved-from-secret-manager>"
+TWILIO_AUTH_TOKEN="<retrieved-from-secret-manager>"
+TWILIO_FROM_NUMBER="+15551234567"
+```
+
+> The SMS budget uses Redis across pods. If Redis is unavailable, the service falls back to a process-local budget counter rather than disabling the guard.
+
+---
+
 ## Secret Management
 
 ### Core Variables
@@ -251,6 +290,8 @@ EMAIL_LOGO_URL="https://cdn.yourdomain.com/logo.png"
 |---|---|---|---|
 | `SECRET_PROVIDER` | ✅ | `env` | Secret backend. Use `env` only for local dev. Production: `aws_secrets`, `aws_ssm`, `vault`, `gcp`, `azure_kv`, or `file`. |
 | `SECRET_PREFIX` | ❌ | `maintainerd/auth` | Namespace prefix for secrets in external providers. Not used by `env`, `file`, or `gcp`. |
+| `SECRET_REFRESH_PERIOD_SECONDS` | ❌ | `300` | Background hot-reload interval for re-reading refreshable secrets from the active provider. |
+| `JWT_KEY_ROTATION_PERIOD_SECONDS` | ❌ | `86400` | Background JWT signing-key rotation interval. Invalid or non-positive values fall back to 24 hours at runtime. |
 
 ### Provider-Specific Variables
 
@@ -527,4 +568,3 @@ Use this checklist before every production deployment.
 - [ ] No `.env` files are present on the production host
 - [ ] Key rotation schedule is documented and owned by a team member
 - [ ] If `OTEL_ENABLED=true`, `OTEL_EXPORTER_OTLP_ENDPOINT` points to a reachable collector and `OTEL_EXPORTER_OTLP_INSECURE` is not `true`
-

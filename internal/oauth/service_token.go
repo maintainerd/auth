@@ -423,7 +423,8 @@ func (s *oauthTokenService) exchangeClientCredentials(ctx context.Context, _ OAu
 		providerID = client.IdentityProvider.Identifier
 	}
 
-	accessToken, err := jwt.GenerateAccessTokenWithOptions(
+	accessToken, err := jwt.GenerateAccessTokenWithOptionsContext(
+		ctx,
 		identifier,
 		"", // no user scope for m2m
 		issuer,
@@ -512,7 +513,7 @@ func (s *oauthTokenService) revokeAccessToken(ctx context.Context, rawToken stri
 		return nil
 	}
 
-	claims, err := jwt.ValidateToken(rawToken)
+	claims, err := jwt.ValidateTokenWithContext(ctx, rawToken)
 	if err != nil || claims == nil {
 		return nil
 	}
@@ -585,7 +586,7 @@ func (s *oauthTokenService) Introspect(ctx context.Context, req OAuthIntrospectR
 	}
 
 	// Try to validate as a JWT (access token or ID token).
-	claims, err := jwt.ValidateToken(req.Token)
+	claims, err := jwt.ValidateTokenWithContext(ctx, req.Token)
 	if err == nil && claims != nil {
 		resp := &OAuthIntrospectResponseDTO{
 			Active:    true,
@@ -675,8 +676,10 @@ func (s *oauthTokenService) generateTokens(ctx context.Context, sub string, user
 	if dpopThumbprint != "" {
 		accessTokenOpts.DPoPThumbprint = dpopThumbprint
 	}
+	accessTokenOpts.AMR = []string{jwt.AMRPassword}
+	accessTokenOpts.ACR = jwt.ACRLevel1
 
-	accessToken, err := jwt.GenerateAccessTokenWithOptions(sub, scope, issuer, audience, identifier, providerID, accessTokenOpts)
+	accessToken, err := jwt.GenerateAccessTokenWithOptionsContext(ctx, sub, scope, issuer, audience, identifier, providerID, accessTokenOpts)
 	if err != nil {
 		return nil, apperror.NewOAuthServerError("an unexpected error occurred")
 	}
@@ -690,7 +693,7 @@ func (s *oauthTokenService) generateTokens(ctx context.Context, sub string, user
 
 	idTokenParams := buildIDTokenParams(scope, client)
 
-	idToken, err := jwt.GenerateIDToken(sub, issuer, identifier, providerID, profile, nonceStr, idTokenParams)
+	idToken, err := jwt.GenerateIDTokenWithContext(ctx, sub, issuer, identifier, providerID, profile, nonceStr, idTokenParams)
 	if err != nil {
 		return nil, apperror.NewOAuthServerError("an unexpected error occurred")
 	}
@@ -785,7 +788,7 @@ func findActiveClientByIdentifier(db *gorm.DB, identifier string) (*Client, erro
 
 func clientAccessTokenOpts(client *Client) *jwt.AccessTokenOptions {
 	opts := &jwt.AccessTokenOptions{}
-	if client.AccessTokenTTL != nil && *client.AccessTokenTTL > 0 {
+	if client != nil && client.AccessTokenTTL != nil && *client.AccessTokenTTL > 0 {
 		opts.AccessTokenTTL = time.Duration(*client.AccessTokenTTL) * time.Second
 	}
 	return opts

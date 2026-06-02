@@ -173,7 +173,8 @@ func (s *oauthCIBAService) ApproveRequest(ctx context.Context, authReqID string,
 		return apperror.NewOAuthInvalidGrant("auth_req_id has expired")
 	}
 
-	if err := s.cibaRepo.UpdateApproval(record.OAuthCIBARRequestID, userID); err != nil {
+	acr, amr := authContextFromContext(ctx)
+	if err := s.cibaRepo.UpdateApprovalContext(record.OAuthCIBARRequestID, userID, acr, amr); err != nil {
 		span.RecordError(err)
 		return apperror.NewOAuthServerError("an unexpected error occurred")
 	}
@@ -307,14 +308,15 @@ func (s *oauthCIBAService) ExchangeToken(ctx context.Context, req OAuthCIBAToken
 	issuer := config.AppPublicHostname
 	clientIdentifier := resolveClientIdentifier(record.Client)
 
-	accessToken, err := jwt.GenerateAccessTokenWithOptions(
+	accessToken, err := jwt.GenerateAccessTokenWithOptionsContext(
+		ctx,
 		user.UserUUID.String(),
 		record.Scope,
 		issuer,
 		issuer,
 		clientIdentifier,
 		providerID,
-		clientAccessTokenOpts(record.Client),
+		cibaAccessTokenOpts(record),
 	)
 	if err != nil {
 		span.RecordError(err)
@@ -340,6 +342,14 @@ func (s *oauthCIBAService) ExchangeToken(ctx context.Context, req OAuthCIBAToken
 		ExpiresIn:   int64(jwt.AccessTokenTTL.Seconds()),
 		Scope:       record.Scope,
 	}, nil
+}
+
+func cibaAccessTokenOpts(record *OAuthCIBARequest) *jwt.AccessTokenOptions {
+	opts := clientAccessTokenOpts(record.Client)
+	acr, amr := persistedAuthContext(record.AuthACR, record.AuthAMR)
+	opts.ACR = acr
+	opts.AMR = amr
+	return opts
 }
 
 func (s *oauthCIBAService) sendCIBANotificationEmail(ctx context.Context, user *User, client *Client, bindingMessage string) error {

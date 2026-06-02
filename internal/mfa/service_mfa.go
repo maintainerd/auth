@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"math"
 	"time"
 
 	"github.com/maintainerd/auth/internal/authevent"
@@ -16,6 +17,7 @@ import (
 	"github.com/maintainerd/auth/internal/platform/security"
 	"github.com/maintainerd/auth/internal/secpolicy"
 	"github.com/pquerna/otp"
+	"github.com/pquerna/otp/hotp"
 	"github.com/pquerna/otp/totp"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
@@ -230,11 +232,21 @@ func (s *mfaService) VerifyTOTP(ctx context.Context, userID int64, code string) 
 	}
 
 	dec := crypto.SafeDecryptAtRest(record.Secret)
-	valid := totp.Validate(code, dec)
+	step, valid, validationErr := validateTOTPAndStep(code, dec, time.Now())
+	if validationErr != nil {
+		span.RecordError(validationErr)
+		return false, apperror.NewValidation("invalid TOTP code")
+	}
 	if valid {
-		if err := s.totpRepo.UpdateLastUsed(userID); err != nil {
+		accepted, err := s.totpRepo.MarkStepUsed(userID, step)
+		if err != nil {
 			span.RecordError(err)
-			return false, apperror.NewInternal("failed to update TOTP last-used timestamp", err)
+			return false, apperror.NewInternal("failed to update TOTP last-used step", err)
+		}
+		if !accepted {
+			security.RecordFailedAttempt(rateLimitKey)
+			span.SetStatus(codes.Error, "totp replay detected")
+			return false, nil
 		}
 		security.ResetFailedAttempts(rateLimitKey)
 	} else {
@@ -242,6 +254,30 @@ func (s *mfaService) VerifyTOTP(ctx context.Context, userID int64, code string) 
 	}
 	span.SetStatus(codes.Ok, "")
 	return valid, nil
+}
+
+func validateTOTPAndStep(passcode, secret string, at time.Time) (int64, bool, error) {
+	counter := int64(math.Floor(float64(at.UTC().Unix()) / float64(totpPeriod)))
+	candidates := []int64{counter}
+	for i := int64(1); i <= 1; i++ {
+		candidates = append(candidates, counter+i, counter-i)
+	}
+	for _, candidate := range candidates {
+		if candidate < 0 {
+			continue
+		}
+		ok, err := hotp.ValidateCustom(passcode, uint64(candidate), secret, hotp.ValidateOpts{
+			Digits:    totpDigits,
+			Algorithm: otp.AlgorithmSHA1,
+		})
+		if err != nil {
+			return 0, false, err
+		}
+		if ok {
+			return candidate, true, nil
+		}
+	}
+	return 0, false, nil
 }
 
 // DisableTOTP removes TOTP enrollment and clears all backup codes.
@@ -486,7 +522,7 @@ func (s *mfaService) IssueStepUpChallenge(ctx context.Context, userUUID string, 
 	_, span := otel.Tracer("service").Start(ctx, "mfa.issue_step_up_challenge")
 	defer span.End()
 
-	token, err := jwt.GenerateStepUpChallengeToken(userUUID, stepUpChallengeTTL)
+	token, err := jwt.GenerateStepUpChallengeTokenWithContext(ctx, userUUID, stepUpChallengeTTL, allowedMethods)
 	if err != nil {
 		span.RecordError(err)
 		return nil, apperror.NewInternal("step-up challenge generation failed", err)
@@ -523,6 +559,9 @@ func (s *mfaService) VerifyStepUp(ctx context.Context, req StepUpVerifyRequestDT
 	}
 	if tokenUser.UserID != userID {
 		return nil, apperror.NewUnauthorized("step-up challenge token subject does not match authenticated user")
+	}
+	if !stepUpMethodAllowed(claims["allowed_methods"], req.Method) {
+		return nil, apperror.NewValidation(fmt.Sprintf("step-up method not allowed: %s", req.Method))
 	}
 
 	// Verify the provided MFA factor.
@@ -575,7 +614,8 @@ func (s *mfaService) VerifyStepUp(ctx context.Context, req StepUpVerifyRequestDT
 	}
 
 	issuer := config.AppPublicHostname
-	accessToken, err := jwt.GenerateAccessTokenWithOptions(
+	accessToken, err := jwt.GenerateAccessTokenWithOptionsContext(
+		ctx,
 		user.UserUUID.String(), "", issuer, issuer, "", "",
 		&jwt.AccessTokenOptions{
 			AMR: amr,
@@ -603,4 +643,20 @@ func (s *mfaService) VerifyStepUp(ctx context.Context, req StepUpVerifyRequestDT
 		AccessToken: accessToken,
 		ExpiresIn:   int64(jwt.AccessTokenTTL.Seconds()),
 	}, nil
+}
+
+func stepUpMethodAllowed(raw any, method string) bool {
+	if method == "" {
+		return false
+	}
+	values, ok := raw.([]any)
+	if !ok {
+		return true
+	}
+	for _, value := range values {
+		if s, ok := value.(string); ok && s == method {
+			return true
+		}
+	}
+	return false
 }

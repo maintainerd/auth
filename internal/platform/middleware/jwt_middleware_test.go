@@ -103,16 +103,19 @@ func TestJWTAuthMiddleware_ContextValues(t *testing.T) {
 	initTestJWTKeys(t)
 
 	userUUID := uuid.New().String()
-	token, err := jwt.GenerateAccessToken(
+	token, err := jwt.GenerateAccessTokenWithOptions(
 		userUUID, "read write", "https://auth.example.com",
 		"https://api.example.com", "my-client", "provider-1",
+		&jwt.AccessTokenOptions{AMR: []string{jwt.AMRPassword, jwt.AMROTP}, ACR: jwt.ACRLevel2},
 	)
 	require.NoError(t, err)
 
 	var capturedClientID, capturedProviderID string
+	var capturedClaims *JWTClaims
 	next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		capturedClientID = GetClientIDFromContext(r)
 		capturedProviderID = GetProviderIDFromContext(r)
+		capturedClaims = JWTClaimsFromRequest(r)
 		w.WriteHeader(http.StatusOK)
 	})
 
@@ -124,6 +127,9 @@ func TestJWTAuthMiddleware_ContextValues(t *testing.T) {
 	require.Equal(t, http.StatusOK, rr.Code)
 	assert.Equal(t, "my-client", capturedClientID)
 	assert.Equal(t, "provider-1", capturedProviderID)
+	require.NotNil(t, capturedClaims)
+	assert.Equal(t, jwt.ACRLevel2, capturedClaims.ACR)
+	assert.ElementsMatch(t, []string{jwt.AMRPassword, jwt.AMROTP}, capturedClaims.AMR)
 }
 
 func TestGetClientIDFromContext(t *testing.T) {
@@ -196,6 +202,37 @@ func TestJWTAuthMiddleware_MissingOrInvalidSub(t *testing.T) {
 		req.Header.Set("Authorization", "Bearer "+tok)
 		rr := httptest.NewRecorder()
 		JWTAuthMiddleware(okHandler()).ServeHTTP(rr, req)
+		assert.Equal(t, http.StatusOK, rr.Code)
+	})
+}
+
+func TestRequireStepUp(t *testing.T) {
+	t.Run("missing claims returns 401", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodPost, "/sensitive", nil)
+		rr := httptest.NewRecorder()
+
+		RequireStepUp(okHandler()).ServeHTTP(rr, req)
+
+		assert.Equal(t, http.StatusUnauthorized, rr.Code)
+	})
+
+	t.Run("acr below level 2 returns 403", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodPost, "/sensitive", nil)
+		req = WithJWTClaims(req, &JWTClaims{ACR: jwt.ACRLevel1})
+		rr := httptest.NewRecorder()
+
+		RequireStepUp(okHandler()).ServeHTTP(rr, req)
+
+		assert.Equal(t, http.StatusForbidden, rr.Code)
+	})
+
+	t.Run("acr level 2 passes", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodPost, "/sensitive", nil)
+		req = WithJWTClaims(req, &JWTClaims{ACR: jwt.ACRLevel2})
+		rr := httptest.NewRecorder()
+
+		RequireStepUp(okHandler()).ServeHTTP(rr, req)
+
 		assert.Equal(t, http.StatusOK, rr.Code)
 	})
 }

@@ -17,6 +17,8 @@ CREATE TABLE IF NOT EXISTS oauth_device_codes (
     client_id              BIGINT       NOT NULL,
     tenant_id              BIGINT       NOT NULL,
     user_id                BIGINT,
+    auth_acr               VARCHAR(32),
+    auth_amr               JSONB        NOT NULL DEFAULT '[]'::jsonb,
     scope                  TEXT         NOT NULL DEFAULT '',
     status                 VARCHAR(20)  NOT NULL DEFAULT 'pending',
     interval               SMALLINT     NOT NULL DEFAULT 5,
@@ -61,6 +63,9 @@ CREATE INDEX IF NOT EXISTS idx_oauth_device_codes_user_code  ON oauth_device_cod
 CREATE INDEX IF NOT EXISTS idx_oauth_device_codes_client_id  ON oauth_device_codes (client_id);
 CREATE INDEX IF NOT EXISTS idx_oauth_device_codes_expires_at ON oauth_device_codes (expires_at);
 CREATE INDEX IF NOT EXISTS idx_oauth_device_codes_status     ON oauth_device_codes (status);
+
+ALTER TABLE oauth_device_codes ADD COLUMN IF NOT EXISTS auth_acr VARCHAR(32);
+ALTER TABLE oauth_device_codes ADD COLUMN IF NOT EXISTS auth_amr JSONB NOT NULL DEFAULT '[]'::jsonb;
 `
 	return db.Exec(sql).Error
 }

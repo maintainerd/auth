@@ -101,6 +101,8 @@ var migrations = []migrationEntry{
 	{"057_add_client_secret_encrypted", migration.AddClientSecretEncrypted},
 	// Block 17: SMS OTP hardening
 	{"058_add_sms_otp_failed_attempts", migration.AddSMSOTPFailedAttempts},
+	// Block 18: TOTP replay hardening
+	{"059_add_totp_last_used_step", migration.AddTOTPLastUsedStep},
 }
 
 // RunMigrations bootstraps the schema_migrations tracking table, acquires a

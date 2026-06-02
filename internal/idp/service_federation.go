@@ -11,6 +11,7 @@ import (
 	oidclib "github.com/coreos/go-oidc/v3/oidc"
 	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/authevent"
+	"github.com/maintainerd/auth/internal/authn"
 	"github.com/maintainerd/auth/internal/platform/apperror"
 	jwtlib "github.com/maintainerd/auth/internal/platform/jwt"
 	"github.com/maintainerd/auth/internal/platform/middleware"
@@ -68,6 +69,7 @@ type federationService struct {
 	userRoleRepo     UserRoleRepository
 	roleRepo         RoleRepository
 	authEventService authevent.AuthEventService
+	sessionService   authn.SessionService
 }
 
 func NewFederationService(
@@ -79,7 +81,12 @@ func NewFederationService(
 	userRoleRepo UserRoleRepository,
 	roleRepo RoleRepository,
 	authEventService authevent.AuthEventService,
+	sessionService ...authn.SessionService,
 ) FederationService {
+	var sessions authn.SessionService
+	if len(sessionService) > 0 {
+		sessions = sessionService[0]
+	}
 	return &federationService{
 		db:               db,
 		userRepo:         userRepo,
@@ -89,6 +96,7 @@ func NewFederationService(
 		userRoleRepo:     userRoleRepo,
 		roleRepo:         roleRepo,
 		authEventService: authEventService,
+		sessionService:   sessions,
 	}
 }
 
@@ -215,7 +223,7 @@ func (s *federationService) ExchangeExternalToken(ctx context.Context, req Feder
 	})
 
 	span.SetStatus(codes.Ok, "")
-	return s.generateTokens(internalSub, user, client)
+	return s.generateTokens(ctx, internalSub, user, client)
 }
 
 // Generic OAuth2 authorization code flow
@@ -345,7 +353,7 @@ func (s *federationService) ExchangeOAuth2Code(ctx context.Context, req Federati
 		return nil, apperror.NewNotFound("client not found")
 	}
 
-	return s.generateTokens(internalSub, user, client)
+	return s.generateTokens(ctx, internalSub, user, client)
 }
 
 // Identity linking / unlinking
@@ -502,9 +510,6 @@ func (s *federationService) HomeRealmDiscovery(ctx context.Context, tenantID int
 	}
 
 	for _, idp := range idps {
-		if idp.ProviderType != shared.IDPTypeSocial {
-			continue
-		}
 		decCfg := decryptIdpConfig(idp.Config)
 		var cfg OIDCProviderConfig
 		if err := json.Unmarshal(decCfg, &cfg); err != nil {
@@ -653,14 +658,32 @@ func (s *federationService) refreshMetadata(tx *gorm.DB, identity *UserIdentity,
 	return tx.Model(identity).Update("metadata", datatypes.JSON(metaJSON)).Error
 }
 
-func (s *federationService) generateTokens(sub string, user *User, client *Client) (*LoginResponseDTO, error) {
-	accessToken, err := jwtlib.GenerateAccessToken(
+func (s *federationService) generateTokens(ctx context.Context, sub string, user *User, client *Client) (*LoginResponseDTO, error) {
+	var sessionID string
+	if s.sessionService != nil {
+		if err := s.sessionService.EnforceConcurrentLimit(ctx, user.UserUUID, user.UserID); err != nil {
+			return nil, apperror.NewInternal("session limit enforcement failed", err)
+		}
+		sess, err := s.sessionService.CreateSession(ctx, user.UserID, middleware.ClientIPFromContext(ctx), middleware.UserAgentFromContext(ctx))
+		if err != nil {
+			return nil, apperror.NewInternal("session creation failed", err)
+		}
+		sessionID = sess.UserTokenUUID.String()
+	}
+
+	accessToken, err := jwtlib.GenerateAccessTokenWithOptionsContext(
+		ctx,
 		sub,
 		shared.DefaultTokenScope,
 		*client.Domain,
 		*client.Identifier,
 		*client.Identifier,
 		client.IdentityProvider.Identifier,
+		&jwtlib.AccessTokenOptions{
+			AMR:       []string{jwtlib.AMRMFA},
+			ACR:       jwtlib.ACRLevel1,
+			SessionID: sessionID,
+		},
 	)
 	if err != nil {
 		return nil, apperror.NewInternal("access token generation failed", err)
@@ -672,24 +695,32 @@ func (s *federationService) generateTokens(sub string, user *User, client *Clien
 		Phone:         user.Phone,
 		PhoneVerified: user.IsPhoneVerified,
 	}
-	idToken, err := jwtlib.GenerateIDToken(sub, *client.Domain, *client.Identifier, client.IdentityProvider.Identifier, profile, "", nil)
+	idToken, err := jwtlib.GenerateIDTokenWithContext(ctx, sub, *client.Domain, *client.Identifier, client.IdentityProvider.Identifier, profile, "", &jwtlib.IDTokenParams{
+		RequestedScopes: strings.Fields(shared.DefaultTokenScope),
+		AMR:             []string{jwtlib.AMRMFA},
+		ACR:             jwtlib.ACRLevel1,
+	})
 	if err != nil {
 		return nil, apperror.NewInternal("id token generation failed", err)
 	}
 
-	refreshToken, err := jwtlib.GenerateRefreshToken(sub, *client.Domain, *client.Identifier, client.IdentityProvider.Identifier)
+	refreshToken, err := jwtlib.GenerateRefreshTokenWithContext(ctx, sub, *client.Domain, *client.Identifier, client.IdentityProvider.Identifier)
 	if err != nil {
 		return nil, apperror.NewInternal("refresh token generation failed", err)
 	}
 
-	return &LoginResponseDTO{
+	resp := &LoginResponseDTO{
 		AccessToken:  accessToken,
 		IDToken:      idToken,
 		RefreshToken: refreshToken,
 		ExpiresIn:    shared.DefaultAccessTokenExpiresIn,
 		TokenType:    "Bearer",
 		IssuedAt:     time.Now().Unix(),
-	}, nil
+	}
+	if sessionID != "" {
+		resp.SessionID = &sessionID
+	}
+	return resp, nil
 }
 
 // findDefaultRole mirrors the logic in registerService to locate the tenant's

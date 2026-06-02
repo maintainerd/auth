@@ -13,6 +13,7 @@ import (
 	"github.com/maintainerd/auth/internal/authevent"
 	"github.com/maintainerd/auth/internal/platform/apperror"
 	"github.com/maintainerd/auth/internal/platform/cache"
+	platformjwt "github.com/maintainerd/auth/internal/platform/jwt"
 	"github.com/maintainerd/auth/internal/platform/middleware"
 	"github.com/maintainerd/auth/internal/platform/ptr"
 	"github.com/maintainerd/auth/internal/platform/security"
@@ -72,6 +73,27 @@ func NewLoginService(
 		securitySettingRepo:  securitySettingRepo,
 		jtiDenylist:          denylist,
 	}
+}
+
+func findLoginUser(repo UserRepository, usernameOrEmail string, tenantID int64) (*User, error) {
+	user, err := repo.FindByUsername(usernameOrEmail)
+	if err == nil && user != nil {
+		return user, nil
+	}
+	if strings.Contains(usernameOrEmail, "@") && tenantID > 0 {
+		emailUser, emailErr := repo.FindByEmailAndTenantID(usernameOrEmail, tenantID)
+		if emailErr == nil && emailUser != nil {
+			return emailUser, nil
+		}
+		if err == nil {
+			return emailUser, emailErr
+		}
+	}
+	return user, err
+}
+
+func passwordChangeRequiredLoginResponse() *LoginResponseDTO {
+	return &LoginResponseDTO{RequirePasswordChange: true}
 }
 
 // LoginPublic authenticates users for public-facing applications.
@@ -173,8 +195,8 @@ func (s *loginService) LoginPublic(ctx context.Context, usernameOrEmail, passwor
 			return apperror.NewUnauthorized("authentication failed")
 		}
 
-		// Get user by username (timing-safe user lookup)
-		user, userLookupErr = txUserRepo.FindByUsername(usernameOrEmail)
+		// Get user by username or tenant-scoped email (timing-safe user lookup)
+		user, userLookupErr = findLoginUser(txUserRepo, usernameOrEmail, identityProvider.TenantID)
 
 		// Fetch user identity to get the Sub claim
 		if userLookupErr == nil && user != nil {
@@ -251,6 +273,14 @@ func (s *loginService) LoginPublic(ctx context.Context, usernameOrEmail, passwor
 	// Check password expiry and set ForcePasswordChange if needed
 	s.checkPasswordExpiry(ctx, user, client.IdentityProvider.TenantID)
 
+	if user.ForcePasswordChange {
+		return passwordChangeRequiredLoginResponse(), nil
+	}
+
+	if mfaResponse, mfaErr := s.loginMFAChallengeResponse(ctx, user, client.IdentityProvider.TenantID); mfaErr != nil || mfaResponse != nil {
+		return mfaResponse, mfaErr
+	}
+
 	// Generate token response
 	return s.generateTokenResponse(ctx, userIdentitySub, user, client)
 }
@@ -294,6 +324,7 @@ func (s *loginService) Login(ctx context.Context, usernameOrEmail, password stri
 	var user *User
 	var client *Client
 	var userIdentitySub string
+	var userLookupErr error
 
 	// All database operations in transaction for consistency
 	err = s.db.Transaction(func(tx *gorm.DB) error {
@@ -344,8 +375,8 @@ func (s *loginService) Login(ctx context.Context, usernameOrEmail, password stri
 			return apperror.NewUnauthorized("authentication failed")
 		}
 
-		// Get user by username (timing-safe user lookup)
-		user, _ = txUserRepo.FindByUsername(usernameOrEmail)
+		// Get user by username or tenant-scoped email (timing-safe user lookup)
+		user, userLookupErr = findLoginUser(txUserRepo, usernameOrEmail, client.IdentityProvider.TenantID)
 		// Note: We don't return error here to maintain timing-safe behavior
 
 		// Fetch user identity to get the Sub claim
@@ -363,7 +394,7 @@ func (s *loginService) Login(ctx context.Context, usernameOrEmail, password stri
 		return nil, err
 	}
 
-	passwordValid := verifyLoginPassword(user, password, true)
+	passwordValid := verifyLoginPassword(user, password, userLookupErr == nil)
 
 	// Check if authentication succeeded
 	if !passwordValid || user == nil || user.Password == nil {
@@ -422,6 +453,14 @@ func (s *loginService) Login(ctx context.Context, usernameOrEmail, password stri
 
 	// Check password expiry and set ForcePasswordChange if needed
 	s.checkPasswordExpiry(ctx, user, client.IdentityProvider.TenantID)
+
+	if user.ForcePasswordChange {
+		return passwordChangeRequiredLoginResponse(), nil
+	}
+
+	if mfaResponse, mfaErr := s.loginMFAChallengeResponse(ctx, user, client.IdentityProvider.TenantID); mfaErr != nil || mfaResponse != nil {
+		return mfaResponse, mfaErr
+	}
 
 	// Generate token response
 	return s.generateTokenResponse(ctx, userIdentitySub, user, client)
@@ -557,6 +596,81 @@ func (s *loginService) checkPasswordExpiry(ctx context.Context, user *User, tena
 	}
 }
 
+const loginMFAChallengeTTL = 5 * time.Minute
+
+type loginMFAPolicy struct {
+	Required       bool     `json:"required"`
+	EnforceMFA     bool     `json:"enforce_mfa"`
+	AllowedMethods []string `json:"allowed_methods"`
+}
+
+func (s *loginService) loginMFAChallengeResponse(ctx context.Context, user *User, tenantID int64) (*LoginResponseDTO, error) {
+	if s.securitySettingRepo == nil || user == nil {
+		return nil, nil
+	}
+
+	setting, err := s.securitySettingRepo.FindDefaultByTenantID(tenantID)
+	if err != nil || setting == nil || len(setting.MFAConfig) == 0 {
+		return nil, nil
+	}
+
+	var policy loginMFAPolicy
+	if err := json.Unmarshal(setting.MFAConfig, &policy); err != nil {
+		return nil, nil
+	}
+	if !policy.Required && !policy.EnforceMFA {
+		return nil, nil
+	}
+
+	allowedMethods := loginMFAAllowedMethods(user, policy.AllowedMethods)
+	if len(allowedMethods) == 0 {
+		return nil, apperror.NewUnauthorized("MFA is required but no supported factors are enrolled")
+	}
+
+	challengeToken, err := platformjwt.GenerateStepUpChallengeTokenWithContext(
+		ctx,
+		user.UserUUID.String(),
+		loginMFAChallengeTTL,
+		allowedMethods,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return &LoginResponseDTO{
+		MFARequired:       true,
+		MFAChallengeToken: &challengeToken,
+		MFAAllowedMethods: allowedMethods,
+	}, nil
+}
+
+func loginMFAAllowedMethods(user *User, policyMethods []string) []string {
+	policyAllows := map[string]bool{}
+	for _, method := range policyMethods {
+		method = strings.ToLower(strings.TrimSpace(method))
+		if method != "" {
+			policyAllows[method] = true
+		}
+	}
+	if len(policyAllows) == 0 {
+		policyAllows["totp"] = true
+		policyAllows["backup_code"] = true
+	}
+
+	var methods []string
+	if user.IsTOTPEnabled && policyAllows["totp"] {
+		methods = append(methods, "totp")
+	}
+	if userHasAnyMFAFactor(user) && policyAllows["backup_code"] {
+		methods = append(methods, "backup_code")
+	}
+	return methods
+}
+
+func userHasAnyMFAFactor(user *User) bool {
+	return user.IsTOTPEnabled || user.IsWebAuthnEnabled || user.MFAEnabledAt != nil
+}
+
 func verifyLoginPassword(user *User, password string, lookupOK bool) bool {
 	if lookupOK && user != nil && user.Password != nil {
 		return security.ComparePassword([]byte(*user.Password), []byte(password))
@@ -591,13 +705,7 @@ func (s *loginService) recordFailedLogin(ctx context.Context, usernameOrEmail, c
 }
 
 func (s *loginService) generateTokenResponse(ctx context.Context, sub string, user *User, Client *Client) (*LoginResponseDTO, error) {
-	accessToken, idToken, refreshToken, err := generateTokenSet(sub, user, Client)
-	if err != nil {
-		return nil, err
-	}
-
-	resp := buildLoginTokenResponse(accessToken, idToken, refreshToken, time.Now().Unix())
-	resp.RequirePasswordChange = user.ForcePasswordChange
+	var sessionID string
 
 	// Create a session record and enforce concurrent session limit.
 	if s.sessionService != nil {
@@ -610,7 +718,21 @@ func (s *loginService) generateTokenResponse(ctx context.Context, sub string, us
 		if err != nil {
 			return nil, err
 		}
-		sessionID := sess.UserTokenUUID.String()
+		sessionID = sess.UserTokenUUID.String()
+	}
+
+	accessToken, idToken, refreshToken, err := generateTokenSetWithAuthContext(ctx, sub, user, Client, tokenAuthContext{
+		AMR:       []string{platformjwt.AMRPassword},
+		ACR:       platformjwt.ACRLevel1,
+		SessionID: sessionID,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	resp := buildLoginTokenResponse(accessToken, idToken, refreshToken, time.Now().Unix())
+	resp.RequirePasswordChange = user.ForcePasswordChange
+	if sessionID != "" {
 		resp.SessionID = &sessionID
 	}
 
