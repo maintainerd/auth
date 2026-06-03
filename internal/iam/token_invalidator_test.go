@@ -2,6 +2,7 @@ package iam
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	sqlmock "github.com/DATA-DOG/go-sqlmock"
@@ -40,4 +41,93 @@ func TestDBAuthorizationTokenInvalidator_InvalidateRoleChange(t *testing.T) {
 	require.NoError(t, invalidator.InvalidateRoleChange(context.Background(), 7))
 	assert.ElementsMatch(t, []string{"sub-11", "sub-12"}, cacheInvalidator.subs)
 	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestDBAuthorizationTokenInvalidator_EdgeCases(t *testing.T) {
+	t.Run("constructor uses nop invalidator when nil", func(t *testing.T) {
+		db, _ := newMockGormDB(t)
+		got := NewDBAuthorizationTokenInvalidator(db, nil)
+		assert.NotNil(t, got)
+	})
+
+	t.Run("nil receiver db and empty role IDs are noops", func(t *testing.T) {
+		var invalidator *dbAuthorizationTokenInvalidator
+		require.NoError(t, invalidator.InvalidateRoleChange(context.Background(), 1))
+		require.NoError(t, invalidator.InvalidatePermissionChange(context.Background(), 1))
+
+		invalidator = &dbAuthorizationTokenInvalidator{}
+		require.NoError(t, invalidator.InvalidateRoleChange(context.Background(), 1))
+		require.NoError(t, invalidator.InvalidatePermissionChange(context.Background(), 1))
+		db, _ := newMockGormDB(t)
+		invalidator = &dbAuthorizationTokenInvalidator{db: db}
+		require.NoError(t, invalidator.InvalidateRoleChange(context.Background()))
+	})
+
+	t.Run("role lookup error is returned", func(t *testing.T) {
+		db, mock := newMockGormDB(t)
+		invalidator := NewDBAuthorizationTokenInvalidator(db, nil)
+		mock.ExpectQuery(`SELECT DISTINCT "user_id" FROM "user_roles".*`).
+			WillReturnError(errors.New("pluck error"))
+
+		err := invalidator.InvalidateRoleChange(context.Background(), 7)
+
+		require.Error(t, err)
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+
+	t.Run("permission lookup error is returned", func(t *testing.T) {
+		db, mock := newMockGormDB(t)
+		invalidator := NewDBAuthorizationTokenInvalidator(db, nil)
+		mock.ExpectQuery(`SELECT DISTINCT "role_id" FROM "role_permissions".*`).
+			WillReturnError(errors.New("pluck error"))
+
+		err := invalidator.InvalidatePermissionChange(context.Background(), 9)
+
+		require.Error(t, err)
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+
+	t.Run("permission change with no roles is noop after lookup", func(t *testing.T) {
+		db, mock := newMockGormDB(t)
+		invalidator := NewDBAuthorizationTokenInvalidator(db, nil)
+		mock.ExpectQuery(`SELECT DISTINCT "role_id" FROM "role_permissions".*`).
+			WillReturnRows(sqlmock.NewRows([]string{"role_id"}))
+
+		require.NoError(t, invalidator.InvalidatePermissionChange(context.Background(), 9))
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+
+	t.Run("invalidate users update error is returned", func(t *testing.T) {
+		db, mock := newMockGormDB(t)
+		invalidator := &dbAuthorizationTokenInvalidator{db: db, cacheInvalidator: &recordingInvalidator{}}
+		mock.ExpectBegin()
+		mock.ExpectExec(`UPDATE "user_tokens".*`).WillReturnError(errors.New("update error"))
+		mock.ExpectRollback()
+
+		err := invalidator.invalidateUsers(context.Background(), []int64{11})
+
+		require.Error(t, err)
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+
+	t.Run("invalidate users with empty users is noop", func(t *testing.T) {
+		db, _ := newMockGormDB(t)
+		invalidator := &dbAuthorizationTokenInvalidator{db: db, cacheInvalidator: &recordingInvalidator{}}
+
+		require.NoError(t, invalidator.invalidateUsers(context.Background(), nil))
+	})
+
+	t.Run("invalidate users sub lookup error is returned", func(t *testing.T) {
+		db, mock := newMockGormDB(t)
+		invalidator := &dbAuthorizationTokenInvalidator{db: db, cacheInvalidator: &recordingInvalidator{}}
+		mock.ExpectBegin()
+		mock.ExpectExec(`UPDATE "user_tokens".*`).WillReturnResult(sqlmock.NewResult(0, 1))
+		mock.ExpectCommit()
+		mock.ExpectQuery(`SELECT DISTINCT "sub" FROM "user_identities".*`).WillReturnError(errors.New("sub error"))
+
+		err := invalidator.invalidateUsers(context.Background(), []int64{11})
+
+		require.Error(t, err)
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
 }

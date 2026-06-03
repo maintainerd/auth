@@ -225,4 +225,14 @@ func TestClientAPIRepository_RemoveByClientUUIDAndAPIUUID(t *testing.T) {
 		require.Error(t, err)
 		assert.NoError(t, mock.ExpectationsWereMet())
 	})
+
+	t.Run("not found returns nil", func(t *testing.T) {
+		gdb, mock := newMockGormDBRegex(t)
+		mock.ExpectQuery(`SELECT .* FROM "client_apis" JOIN clients ON clients\.client_id = client_apis\.client_id JOIN apis ON apis\.api_id = client_apis\.api_id WHERE.*clients\.client_uuid = \$1.*apis\.api_uuid = \$2`).
+			WithArgs(clientUUID, apiUUID, 1).
+			WillReturnRows(sqlmock.NewRows([]string{"client_api_id", "client_api_uuid", "client_id"}))
+		err := NewClientAPIRepository(gdb).RemoveByClientUUIDAndAPIUUID(clientUUID, apiUUID)
+		require.NoError(t, err)
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
 }

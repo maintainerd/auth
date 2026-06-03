@@ -15,6 +15,7 @@ import (
 	"github.com/maintainerd/auth/internal/authctx"
 	"github.com/maintainerd/auth/internal/platform/apperror"
 	"github.com/maintainerd/auth/internal/platform/middleware"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gorm.io/datatypes"
 	"gorm.io/driver/postgres"
@@ -690,6 +691,16 @@ func (m *mockClientRepo) FindByUUID(id any, p ...string) (*Client, error) {
 		return m.findByUUIDFn(id, p...)
 	}
 	return nil, nil
+}
+
+type failingAuthorizationTokenInvalidator struct{}
+
+func (failingAuthorizationTokenInvalidator) InvalidateRoleChange(context.Context, ...int64) error {
+	return assert.AnError
+}
+
+func (failingAuthorizationTokenInvalidator) InvalidatePermissionChange(context.Context, int64) error {
+	return assert.AnError
 }
 
 type mockAPIService struct {

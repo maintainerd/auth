@@ -17,6 +17,9 @@ import (
 	"gorm.io/gorm"
 )
 
+var secValidatePasswordPolicy = security.ValidatePasswordPolicy
+var secHashPassword = security.HashPassword
+
 type RegisterService interface {
 	RegisterPublic(ctx context.Context, username, fullname, password string, email, phone *string, clientID, providerID string) (*RegisterResponseDTO, error)
 	RegisterInvitePublic(ctx context.Context, username, password, clientID, providerID, inviteToken string) (*RegisterResponseDTO, error)
@@ -191,12 +194,12 @@ func (s *registerService) RegisterPublic(
 
 		// Validate password against tenant policy
 		policy := secpolicy.LoadPasswordPolicy(s.securitySettingRepo, tenantId)
-		if txErr = security.ValidatePasswordPolicy(password, policy); txErr != nil {
+		if txErr = secValidatePasswordPolicy(password, policy); txErr != nil {
 			return apperror.NewValidation(txErr.Error())
 		}
 
 		// Hash password
-		hashed, txErr := security.HashPassword(ctx, []byte(password))
+		hashed, txErr := secHashPassword(ctx, []byte(password))
 		if txErr != nil {
 			return txErr
 		}
@@ -346,12 +349,12 @@ func (s *registerService) Register(
 
 		// Validate password against tenant policy
 		policy := secpolicy.LoadPasswordPolicy(s.securitySettingRepo, tenantId)
-		if txErr = security.ValidatePasswordPolicy(password, policy); txErr != nil {
+		if txErr = secValidatePasswordPolicy(password, policy); txErr != nil {
 			return apperror.NewValidation(txErr.Error())
 		}
 
 		// Hash password
-		hashed, txErr := security.HashPassword(ctx, []byte(password))
+		hashed, txErr := secHashPassword(ctx, []byte(password))
 		if txErr != nil {
 			return txErr
 		}
@@ -503,12 +506,12 @@ func (s *registerService) RegisterInvite(
 
 		// Validate password against tenant policy
 		policy := secpolicy.LoadPasswordPolicy(s.securitySettingRepo, tenantId)
-		if txErr = security.ValidatePasswordPolicy(password, policy); txErr != nil {
+		if txErr = secValidatePasswordPolicy(password, policy); txErr != nil {
 			return apperror.NewValidation(txErr.Error())
 		}
 
 		// Hash password
-		hashed, txErr := security.HashPassword(ctx, []byte(password))
+		hashed, txErr := secHashPassword(ctx, []byte(password))
 		if txErr != nil {
 			return txErr
 		}
@@ -686,12 +689,12 @@ func (s *registerService) RegisterInvitePublic(
 
 		// Validate password against tenant policy
 		policy := secpolicy.LoadPasswordPolicy(s.securitySettingRepo, tenantId)
-		if txErr = security.ValidatePasswordPolicy(password, policy); txErr != nil {
+		if txErr = secValidatePasswordPolicy(password, policy); txErr != nil {
 			return apperror.NewValidation(txErr.Error())
 		}
 
 		// Hash password
-		hashed, txErr := security.HashPassword(ctx, []byte(password))
+		hashed, txErr := secHashPassword(ctx, []byte(password))
 		if txErr != nil {
 			return txErr
 		}

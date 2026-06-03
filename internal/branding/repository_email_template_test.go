@@ -52,6 +52,17 @@ func TestEmailTemplateRepository_FindByUUIDAndTenantID(t *testing.T) {
 		assert.Nil(t, result)
 		assert.NoError(t, mock.ExpectationsWereMet())
 	})
+
+	t.Run("with preloads", func(t *testing.T) {
+		gdb, mock := newMockGormDBRegex(t)
+		mock.ExpectQuery(`SELECT \* FROM "email_templates" WHERE .*email_template_uuid = \$1.*tenant_id = \$2.*AND "email_templates"\."deleted_at" IS NULL`).
+			WithArgs(id, int64(1), 1).
+			WillReturnRows(sqlmock.NewRows([]string{"email_template_id", "email_template_uuid", "tenant_id", "name", "status", "created_at", "updated_at"}).
+				AddRow(1, id, 1, "Test", "active", now, now))
+		repo := NewEmailTemplateRepository(gdb)
+		_, _ = repo.FindByUUIDAndTenantID(id, 1, "any_relation")
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
 }
 
 func TestEmailTemplateRepository_FindByName(t *testing.T) {

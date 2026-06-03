@@ -277,4 +277,15 @@ func TestAPIKeyAPIRepository_RemoveByAPIKeyUUIDAndAPIUUID(t *testing.T) {
 		require.Error(t, err)
 		assert.NoError(t, mock.ExpectationsWereMet())
 	})
+
+	t.Run("not found returns error", func(t *testing.T) {
+		gdb, mock := newMockGormDBRegex(t)
+		mock.ExpectQuery(`SELECT .* FROM "api_key_apis" JOIN api_keys ON api_keys\.api_key_id = api_key_apis\.api_key_id JOIN apis ON apis\.api_id = api_key_apis\.api_id WHERE.*api_keys\.api_key_uuid = \$1.*apis\.api_uuid = \$2`).
+			WithArgs(apiKeyUUID, apiUUID, 1).
+			WillReturnRows(sqlmock.NewRows([]string{"api_key_api_id", "api_key_api_uuid", "api_key_id"}))
+		err := NewAPIKeyAPIRepository(gdb).RemoveByAPIKeyUUIDAndAPIUUID(apiKeyUUID, apiUUID)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "API key API relationship not found")
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
 }

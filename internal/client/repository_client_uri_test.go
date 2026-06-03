@@ -169,4 +169,16 @@ func TestClientURIRepository_DeleteByUUIDAndTenantID(t *testing.T) {
 		require.Error(t, err)
 		assert.NoError(t, mock.ExpectationsWereMet())
 	})
+
+	t.Run("not found when rows affected zero", func(t *testing.T) {
+		gdb, mock := newMockGormDBRegex(t)
+		mock.ExpectBegin()
+		mock.ExpectExec(`DELETE FROM "client_uris" WHERE.*client_uri_uuid = \$1.*tenant_id = \$2`).
+			WithArgs(id.String(), int64(1)).
+			WillReturnResult(sqlmock.NewResult(0, 0))
+		mock.ExpectRollback()
+		err := NewClientURIRepository(gdb).DeleteByUUIDAndTenantID(id.String(), 1)
+		require.Error(t, err)
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
 }

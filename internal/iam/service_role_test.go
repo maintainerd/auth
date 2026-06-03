@@ -10,6 +10,7 @@ import (
 	"github.com/maintainerd/auth/internal/shared"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"gorm.io/gorm"
 )
 
 // newRole returns a minimal Role fixture.
@@ -859,6 +860,365 @@ func TestRoleService_DeleteByUUID(t *testing.T) {
 		require.NoError(t, err)
 		assert.NotNil(t, result)
 	})
+}
+
+func TestRoleService_InvalidatorErrors(t *testing.T) {
+	roleUUID := uuid.New()
+	permissionUUID := uuid.New()
+	actorUUID := uuid.New()
+
+	newSvc := func(db *gorm.DB, roleRepo *mockRoleRepo, permRepo *mockPermissionRepo, rpRepo *mockRolePermissionRepo) RoleService {
+		return NewRoleService(
+			db,
+			roleRepo,
+			permRepo,
+			rpRepo,
+			&mockUserRepo{
+				findByUUIDFn: func(_ any, _ ...string) (*User, error) {
+					return roleActorUser(tenantID), nil
+				},
+			},
+			&mockTenantRepo{},
+			cache.NopInvalidator{},
+			nil,
+			failingAuthorizationTokenInvalidator{},
+		)
+	}
+
+	t.Run("update", func(t *testing.T) {
+		db, mock := newMockGormDB(t)
+		mock.ExpectBegin()
+		mock.ExpectCommit()
+		role := newRole(1, "admin", tenantID)
+		svc := newSvc(db, &mockRoleRepo{
+			findByUUIDFn: func(_ any, _ ...string) (*Role, error) { return role, nil },
+		}, &mockPermissionRepo{}, &mockRolePermissionRepo{})
+
+		result, err := svc.Update(context.Background(), roleUUID, tenantID, "admin", "desc", false, false, shared.StatusActive, actorUUID)
+
+		require.Error(t, err)
+		assert.Nil(t, result)
+		assert.Contains(t, err.Error(), "invalidate")
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+
+	t.Run("set status", func(t *testing.T) {
+		db, mock := newMockGormDB(t)
+		mock.ExpectBegin()
+		mock.ExpectCommit()
+		role := newRole(1, "admin", tenantID)
+		svc := newSvc(db, &mockRoleRepo{
+			findByUUIDFn: func(_ any, _ ...string) (*Role, error) { return role, nil },
+		}, &mockPermissionRepo{}, &mockRolePermissionRepo{})
+
+		result, err := svc.SetStatusByUUID(context.Background(), roleUUID, tenantID, shared.StatusInactive, actorUUID)
+
+		require.Error(t, err)
+		assert.Nil(t, result)
+		assert.Contains(t, err.Error(), "invalidate")
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+
+	t.Run("delete", func(t *testing.T) {
+		role := newRole(1, "admin", tenantID)
+		svc := newSvc(nil, &mockRoleRepo{
+			findByUUIDFn:   func(_ any, _ ...string) (*Role, error) { return role, nil },
+			deleteByUUIDFn: func(any) error { return nil },
+		}, &mockPermissionRepo{}, &mockRolePermissionRepo{})
+
+		result, err := svc.DeleteByUUID(context.Background(), roleUUID, tenantID, actorUUID)
+
+		require.Error(t, err)
+		assert.Nil(t, result)
+		assert.Contains(t, err.Error(), "invalidate")
+	})
+
+	t.Run("add permissions", func(t *testing.T) {
+		db, mock := newMockGormDB(t)
+		mock.ExpectBegin()
+		mock.ExpectCommit()
+		role := newRole(1, "admin", tenantID)
+		permission := Permission{PermissionID: 2, PermissionUUID: permissionUUID, TenantID: tenantID}
+		roleWithPermissions := *role
+		roleWithPermissions.Permissions = []Permission{permission}
+		svc := newSvc(db, &mockRoleRepo{
+			findByUUIDFn: func(_ any, _ ...string) (*Role, error) {
+				if len(role.Permissions) == 0 {
+					role.Permissions = roleWithPermissions.Permissions
+					return role, nil
+				}
+				return &roleWithPermissions, nil
+			},
+		}, &mockPermissionRepo{
+			findByUUIDsFn: func([]string, ...string) ([]Permission, error) { return []Permission{permission}, nil },
+		}, &mockRolePermissionRepo{})
+
+		result, err := svc.AddRolePermissions(context.Background(), roleUUID, tenantID, []uuid.UUID{permissionUUID}, actorUUID)
+
+		require.Error(t, err)
+		assert.Nil(t, result)
+		assert.Contains(t, err.Error(), "invalidate")
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+
+	t.Run("remove permissions", func(t *testing.T) {
+		db, mock := newMockGormDB(t)
+		mock.ExpectBegin()
+		mock.ExpectCommit()
+		role := newRole(1, "admin", tenantID)
+		permission := &Permission{PermissionID: 2, PermissionUUID: permissionUUID, TenantID: tenantID}
+		roleWithPermissions := *role
+		svc := newSvc(db, &mockRoleRepo{
+			findByUUIDFn: func(_ any, _ ...string) (*Role, error) { return &roleWithPermissions, nil },
+		}, &mockPermissionRepo{
+			findByUUIDFn: func(any, ...string) (*Permission, error) { return permission, nil },
+		}, &mockRolePermissionRepo{
+			findByRoleAndPermissionFn: func(int64, int64) (*RolePermission, error) {
+				return &RolePermission{RoleID: role.RoleID, PermissionID: permission.PermissionID}, nil
+			},
+		})
+
+		result, err := svc.RemoveRolePermissions(context.Background(), roleUUID, tenantID, permissionUUID, actorUUID)
+
+		require.Error(t, err)
+		assert.Nil(t, result)
+		assert.Contains(t, err.Error(), "invalidate")
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+}
+
+func TestRoleService_RolePermissionIdempotency(t *testing.T) {
+	roleUUID := uuid.New()
+	permissionUUID := uuid.New()
+	actorUUID := uuid.New()
+	role := newRole(1, "admin", tenantID)
+	permission := Permission{PermissionID: 2, PermissionUUID: permissionUUID, TenantID: tenantID}
+
+	t.Run("add skips existing association", func(t *testing.T) {
+		db, mock := newMockGormDB(t)
+		mock.ExpectBegin()
+		mock.ExpectCommit()
+		svc := NewRoleService(db, &mockRoleRepo{
+			findByUUIDFn: func(_ any, _ ...string) (*Role, error) {
+				return role, nil
+			},
+		}, &mockPermissionRepo{
+			findByUUIDsFn: func([]string, ...string) ([]Permission, error) {
+				return []Permission{permission}, nil
+			},
+		}, &mockRolePermissionRepo{
+			findByRoleAndPermissionFn: func(int64, int64) (*RolePermission, error) {
+				return &RolePermission{RoleID: role.RoleID, PermissionID: permission.PermissionID}, nil
+			},
+		}, &mockUserRepo{
+			findByUUIDFn: func(any, ...string) (*User, error) {
+				return roleActorUser(tenantID), nil
+			},
+		}, &mockTenantRepo{}, cache.NopInvalidator{}, nil)
+
+		result, err := svc.AddRolePermissions(context.Background(), roleUUID, tenantID, []uuid.UUID{permissionUUID}, actorUUID)
+
+		require.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+
+	t.Run("remove missing association is idempotent", func(t *testing.T) {
+		db, mock := newMockGormDB(t)
+		mock.ExpectBegin()
+		mock.ExpectCommit()
+		svc := NewRoleService(db, &mockRoleRepo{
+			findByUUIDFn: func(_ any, _ ...string) (*Role, error) {
+				return role, nil
+			},
+		}, &mockPermissionRepo{
+			findByUUIDFn: func(any, ...string) (*Permission, error) {
+				return &permission, nil
+			},
+		}, &mockRolePermissionRepo{}, &mockUserRepo{
+			findByUUIDFn: func(any, ...string) (*User, error) {
+				return roleActorUser(tenantID), nil
+			},
+		}, &mockTenantRepo{}, cache.NopInvalidator{}, nil)
+
+		result, err := svc.RemoveRolePermissions(context.Background(), roleUUID, tenantID, permissionUUID, actorUUID)
+
+		require.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+}
+
+func TestRoleService_RolePermissionResponseRefreshErrors(t *testing.T) {
+	roleUUID := uuid.New()
+	permissionUUID := uuid.New()
+	actorUUID := uuid.New()
+	role := newRole(1, "admin", tenantID)
+	permission := Permission{PermissionID: 2, PermissionUUID: permissionUUID, TenantID: tenantID}
+	callCount := 0
+
+	t.Run("add permissions refresh error", func(t *testing.T) {
+		db, mock := newMockGormDB(t)
+		mock.ExpectBegin()
+		mock.ExpectRollback()
+		callCount = 0
+		svc := NewRoleService(db, &mockRoleRepo{
+			findByUUIDFn: func(_ any, _ ...string) (*Role, error) {
+				callCount++
+				if callCount == 1 {
+					return role, nil
+				}
+				return nil, assert.AnError
+			},
+		}, &mockPermissionRepo{
+			findByUUIDsFn: func([]string, ...string) ([]Permission, error) {
+				return []Permission{permission}, nil
+			},
+		}, &mockRolePermissionRepo{}, &mockUserRepo{
+			findByUUIDFn: func(any, ...string) (*User, error) {
+				return roleActorUser(tenantID), nil
+			},
+		}, &mockTenantRepo{}, cache.NopInvalidator{}, nil)
+
+		result, err := svc.AddRolePermissions(context.Background(), roleUUID, tenantID, []uuid.UUID{permissionUUID}, actorUUID)
+
+		require.ErrorIs(t, err, assert.AnError)
+		assert.Nil(t, result)
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+
+	t.Run("remove permissions refresh error", func(t *testing.T) {
+		db, mock := newMockGormDB(t)
+		mock.ExpectBegin()
+		mock.ExpectRollback()
+		callCount = 0
+		svc := NewRoleService(db, &mockRoleRepo{
+			findByUUIDFn: func(_ any, _ ...string) (*Role, error) {
+				callCount++
+				if callCount == 1 {
+					return role, nil
+				}
+				return nil, assert.AnError
+			},
+		}, &mockPermissionRepo{
+			findByUUIDFn: func(any, ...string) (*Permission, error) {
+				return &permission, nil
+			},
+		}, &mockRolePermissionRepo{
+			findByRoleAndPermissionFn: func(int64, int64) (*RolePermission, error) {
+				return &RolePermission{RoleID: role.RoleID, PermissionID: permission.PermissionID}, nil
+			},
+		}, &mockUserRepo{
+			findByUUIDFn: func(any, ...string) (*User, error) {
+				return roleActorUser(tenantID), nil
+			},
+		}, &mockTenantRepo{}, cache.NopInvalidator{}, nil)
+
+		result, err := svc.RemoveRolePermissions(context.Background(), roleUUID, tenantID, permissionUUID, actorUUID)
+
+		require.ErrorIs(t, err, assert.AnError)
+		assert.Nil(t, result)
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+}
+
+func TestRoleService_RolePermissionTenantMismatch(t *testing.T) {
+	roleUUID := uuid.New()
+	permissionUUID := uuid.New()
+	actorUUID := uuid.New()
+	role := newRole(1, "admin", tenantID)
+	otherTenantPermission := Permission{PermissionID: 2, PermissionUUID: permissionUUID, TenantID: tenantID + 1}
+
+	t.Run("add rejects cross tenant permission", func(t *testing.T) {
+		db, mock := newMockGormDB(t)
+		mock.ExpectBegin()
+		mock.ExpectRollback()
+		svc := NewRoleService(db, &mockRoleRepo{
+			findByUUIDFn: func(_ any, _ ...string) (*Role, error) { return role, nil },
+		}, &mockPermissionRepo{
+			findByUUIDsFn: func([]string, ...string) ([]Permission, error) {
+				return []Permission{otherTenantPermission}, nil
+			},
+		}, &mockRolePermissionRepo{}, &mockUserRepo{
+			findByUUIDFn: func(any, ...string) (*User, error) {
+				return roleActorUser(tenantID), nil
+			},
+		}, &mockTenantRepo{}, cache.NopInvalidator{}, nil)
+
+		result, err := svc.AddRolePermissions(context.Background(), roleUUID, tenantID, []uuid.UUID{permissionUUID}, actorUUID)
+
+		require.Error(t, err)
+		assert.Nil(t, result)
+		assert.Contains(t, err.Error(), "access denied")
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+
+	t.Run("remove rejects cross tenant permission", func(t *testing.T) {
+		db, mock := newMockGormDB(t)
+		mock.ExpectBegin()
+		mock.ExpectRollback()
+		svc := NewRoleService(db, &mockRoleRepo{
+			findByUUIDFn: func(_ any, _ ...string) (*Role, error) { return role, nil },
+		}, &mockPermissionRepo{
+			findByUUIDFn: func(any, ...string) (*Permission, error) {
+				return &otherTenantPermission, nil
+			},
+		}, &mockRolePermissionRepo{}, &mockUserRepo{
+			findByUUIDFn: func(any, ...string) (*User, error) {
+				return roleActorUser(tenantID), nil
+			},
+		}, &mockTenantRepo{}, cache.NopInvalidator{}, nil)
+
+		result, err := svc.RemoveRolePermissions(context.Background(), roleUUID, tenantID, permissionUUID, actorUUID)
+
+		require.Error(t, err)
+		assert.Nil(t, result)
+		assert.Contains(t, err.Error(), "access denied")
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+}
+
+func TestValidateTenantAccess(t *testing.T) {
+	target := &Tenant{TenantID: tenantID}
+
+	tests := []struct {
+		name    string
+		actor   *User
+		target  *Tenant
+		wantErr string
+	}{
+		{name: "nil actor", actor: nil, target: target, wantErr: "actor user not found"},
+		{name: "nil target", actor: roleActorUser(tenantID), target: nil, wantErr: "tenant not found"},
+		{name: "no identities", actor: &User{UserID: 1}, target: target, wantErr: "no identities"},
+		{name: "same tenant", actor: roleActorUser(tenantID), target: target},
+		{
+			name: "system tenant identity",
+			actor: &User{UserID: 1, UserIdentities: []UserIdentity{
+				{TenantID: 99, Tenant: &Tenant{TenantID: 99, IsSystem: true}},
+			}},
+			target: target,
+		},
+		{
+			name: "denied",
+			actor: &User{UserID: 1, UserIdentities: []UserIdentity{
+				{TenantID: 99, Tenant: &Tenant{TenantID: 99}},
+			}},
+			target:  target,
+			wantErr: "tenant access denied",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			err := ValidateTenantAccess(tc.actor, tc.target)
+			if tc.wantErr == "" {
+				require.NoError(t, err)
+				return
+			}
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), tc.wantErr)
+		})
+	}
 }
 
 // ---------------------------------------------------------------------------

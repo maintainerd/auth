@@ -61,6 +61,37 @@ func TestNewSMSTemplateRepository(t *testing.T) {
 }
 
 func TestSMSTemplateRepository_FindPaginated(t *testing.T) {
+	t.Run("with all filters", func(t *testing.T) {
+		now := time.Now()
+		gdb, mock := newMockGormDBRegex(t)
+		name := "otp"
+		active := true
+		sys := false
+		mock.ExpectQuery(`SELECT count\(\*\) FROM "sms_templates"`).
+			WithArgs(int64(1), "%otp%", "active", true, false).
+			WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(1))
+		mock.ExpectQuery(`SELECT \* FROM "sms_templates"`).
+			WithArgs(int64(1), "%otp%", "active", true, false, 10).
+			WillReturnRows(sqlmock.NewRows([]string{"sms_template_id", "sms_template_uuid", "name", "status", "created_at", "updated_at"}).
+				AddRow(1, uuid.New(), "OTP", "active", now, now))
+
+		repo := NewSMSTemplateRepository(gdb)
+		result, err := repo.FindPaginated(SMSTemplateRepositoryGetFilter{
+			TenantID:  ptrI64(1),
+			Name:      &name,
+			Status:    []string{"active"},
+			IsDefault: &active,
+			IsSystem:  &sys,
+			Page:      1,
+			Limit:     10,
+		})
+
+		require.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Equal(t, int64(1), result.Total)
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+
 	gdb, mock := newMockGormDBRegex(t)
 	mock.ExpectQuery(`SELECT count\(\*\) FROM "sms_templates"`).
 		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(0))
