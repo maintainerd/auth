@@ -136,6 +136,25 @@ func TestEmailConfigService_Update(t *testing.T) {
 		assert.Equal(t, "new-secret", pw)
 	})
 
+	t.Run("encrypt password error", func(t *testing.T) {
+		original := crypto.EncryptAtRest
+		t.Cleanup(func() { crypto.EncryptAtRest = original })
+		crypto.EncryptAtRest = func(string) (string, error) { return "", errors.New("encrypt failed") }
+		svc := newEmailConfigSvc(&mockEmailConfigRepo{
+			findByTenantIDFn: func(_ int64) (*EmailConfig, error) { return nil, nil },
+		})
+
+		_, err := svc.Update(context.Background(), 1,
+			"smtp", "mail.example.com", 465,
+			"user", "new-secret",
+			"noreply@example.com", "Acme", "",
+			"ssl", boolPtr(false),
+		)
+
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "encrypt failed")
+	})
+
 	t.Run("FindByTenantID error", func(t *testing.T) {
 		svc := newEmailConfigSvc(&mockEmailConfigRepo{
 			findByTenantIDFn: func(_ int64) (*EmailConfig, error) { return nil, errors.New("db") },
