@@ -72,21 +72,70 @@ func TestTenantCreateRequestDto_Validate(t *testing.T) {
 }
 
 func TestTenantUpdateRequestDto_Validate(t *testing.T) {
-	d := TenantUpdateRequestDTO{
-		Name:        "updated-tenant",
-		Description: "An updated tenant description",
-		Status:      shared.StatusInactive,
-	}
-	assert.NoError(t, d.Validate())
+	t.Run("valid", func(t *testing.T) {
+		d := TenantUpdateRequestDTO{
+			Name:        "updated-tenant",
+			Description: "An updated tenant description",
+			Status:      shared.StatusInactive,
+		}
+		assert.NoError(t, d.Validate())
+	})
 
-	d.Name = ""
-	require.Error(t, d.Validate())
+	t.Run("missing name", func(t *testing.T) {
+		d := TenantUpdateRequestDTO{
+			Name:        "",
+			Description: "An updated tenant description",
+			Status:      shared.StatusActive,
+		}
+		require.Error(t, d.Validate())
+	})
+
+	t.Run("name too short", func(t *testing.T) {
+		d := TenantUpdateRequestDTO{
+			Name:        "ab",
+			Description: "An updated tenant description",
+			Status:      shared.StatusActive,
+		}
+		require.Error(t, d.Validate())
+	})
+
+	t.Run("name with uppercase invalid", func(t *testing.T) {
+		d := TenantUpdateRequestDTO{
+			Name:        "UpdatedTenant",
+			Description: "An updated tenant description",
+			Status:      shared.StatusActive,
+		}
+		require.Error(t, d.Validate())
+	})
+
+	t.Run("description too short", func(t *testing.T) {
+		d := TenantUpdateRequestDTO{
+			Name:        "updated-tenant",
+			Description: "short",
+			Status:      shared.StatusActive,
+		}
+		require.Error(t, d.Validate())
+	})
+
+	t.Run("invalid status", func(t *testing.T) {
+		d := TenantUpdateRequestDTO{
+			Name:        "updated-tenant",
+			Description: "An updated tenant description",
+			Status:      "unknown",
+		}
+		require.Error(t, d.Validate())
+	})
 }
 
 func TestTenantFilterDto_Validate(t *testing.T) {
 	t.Run("valid with pagination", func(t *testing.T) {
 		f := TenantFilterDTO{PaginationRequestDTO: validPagination()}
 		assert.NoError(t, f.Validate())
+	})
+
+	t.Run("invalid pagination", func(t *testing.T) {
+		f := TenantFilterDTO{PaginationRequestDTO: PaginationRequestDTO{Page: 0, Limit: 0}}
+		require.Error(t, f.Validate())
 	})
 }
 
@@ -112,6 +161,11 @@ func TestTenantMemberAddMemberRequestDto_Validate(t *testing.T) {
 
 	t.Run("invalid role", func(t *testing.T) {
 		d := TenantMemberAddMemberRequestDTO{UserUUID: uuid.New(), Role: "admin"}
+		require.Error(t, d.Validate())
+	})
+
+	t.Run("missing UserUUID", func(t *testing.T) {
+		d := TenantMemberAddMemberRequestDTO{UserUUID: uuid.Nil, Role: "member"}
 		require.Error(t, d.Validate())
 	})
 }
