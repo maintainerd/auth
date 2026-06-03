@@ -708,7 +708,7 @@ gaps rather than classic bugs — either finish the wiring or downgrade the chec
   pages are owned by the external SPA; the CSP regression test rejects inline/eval allowances.
 
 - [x] **FC-21** 🟡 — **Append-only audit blocks UPDATE only, not DELETE.**
-  [`migration/056_auth_events_append_only.go`](../../internal/platform/database/migration/056_auth_events_append_only.go)
+  [`migration/045_create_auth_events_table.go`](../../internal/platform/database/migration/045_create_auth_events_table.go)
   installs a `DO INSTEAD NOTHING` rule on UPDATE only; DELETE is intentionally left open for the
   retention runner — contradicting the literal "no UPDATE/DELETE" claim (`v1.0.0.md` §12).
   **Fix:** reword to "no UPDATEs; DELETE only via retention", or gate DELETE behind a separate role.
