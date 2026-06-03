@@ -38,6 +38,8 @@ jobs:
         run: go mod verify
 
       - name: Run tests (race detector + coverage)
+        id: unit-tests
+        continue-on-error: true
         run: |
           go test ./... \
             -count=1 \
@@ -47,9 +49,11 @@ jobs:
             -timeout=600s
 
       - name: Print coverage summary
+        if: ${{ always() && hashFiles('coverage.out') != '' }}
         run: go tool cover -func=coverage.out | tail -1
 
       - name: Upload coverage to Codecov
+        if: ${{ always() && hashFiles('coverage.out') != '' }}
         uses: codecov/codecov-action@v5
         with:
           files: coverage.out
@@ -57,6 +61,10 @@ jobs:
           name: maintainerd-auth
           fail_ci_if_error: true
           token: ${{ secrets.CODECOV_TOKEN }}
+
+      - name: Fail if tests failed
+        if: ${{ steps.unit-tests.outcome == 'failure' }}
+        run: exit 1
 
   # ─────────────────────────────────────────────────────────────────────────────
   # Lint — static analysis with golangci-lint
@@ -101,7 +109,6 @@ jobs:
   build:
     name: Build
     runs-on: ubuntu-latest
-    needs: test
 
     steps:
       - name: Checkout code
