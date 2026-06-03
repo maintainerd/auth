@@ -5,12 +5,15 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/alicebob/miniredis/v2"
+	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/notifier"
 	"github.com/maintainerd/auth/internal/platform/config"
 	"github.com/maintainerd/auth/internal/platform/crypto"
 	"github.com/maintainerd/auth/internal/platform/jwt"
 	"github.com/maintainerd/auth/internal/platform/security"
 	"github.com/maintainerd/auth/internal/shared"
+	"github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
@@ -429,4 +432,514 @@ func TestVerifyOTP(t *testing.T) {
 		assert.ElementsMatch(t, []any{jwt.AMRSMS}, idClaims["amr"])
 		assert.NoError(t, mock.ExpectationsWereMet())
 	})
+}
+
+// ---------------------------------------------------------------------------
+// Mock: SessionService for SMS login tests
+// ---------------------------------------------------------------------------
+
+type mockSMSSessionService struct {
+	enforceFn func(context.Context, uuid.UUID, int64) error
+	createFn  func(context.Context, int64, string, string) (*UserToken, error)
+}
+
+func (m *mockSMSSessionService) ListSessions(ctx context.Context, userID int64) ([]*SessionDataResult, error) {
+	return nil, nil
+}
+func (m *mockSMSSessionService) RevokeSession(ctx context.Context, userID int64, sessionUUID uuid.UUID) error {
+	return nil
+}
+func (m *mockSMSSessionService) RevokeAllSessions(ctx context.Context, userID int64) error { return nil }
+func (m *mockSMSSessionService) CreateSession(ctx context.Context, userID int64, ipAddress, userAgent string) (*UserToken, error) {
+	if m.createFn != nil {
+		return m.createFn(ctx, userID, ipAddress, userAgent)
+	}
+	return &UserToken{UserTokenUUID: uuid.New(), TokenType: "session"}, nil
+}
+func (m *mockSMSSessionService) EnforceConcurrentLimit(ctx context.Context, userUUID uuid.UUID, userID int64) error {
+	if m.enforceFn != nil {
+		return m.enforceFn(ctx, userUUID, userID)
+	}
+	return nil
+}
+func (m *mockSMSSessionService) ValidateAndTouch(ctx context.Context, sessionUUID uuid.UUID, userID int64) error {
+	return nil
+}
+
+// ---------------------------------------------------------------------------
+// Helper: lockedRateLimiterSMS
+// ---------------------------------------------------------------------------
+
+func lockedRateLimiterSMS(t *testing.T, identifier string) func() {
+	t.Helper()
+	mr, err := miniredis.Run()
+	require.NoError(t, err)
+	rdb := redis.NewClient(&redis.Options{Addr: mr.Addr()})
+	security.InitRateLimiter(rdb)
+	require.NoError(t, mr.Set("rl:lock:"+identifier, "1"))
+	return func() {
+		security.InitRateLimiter(nil)
+		rdb.Close()
+		mr.Close()
+	}
+}
+
+// ---------------------------------------------------------------------------
+// TestNewSMSLoginService_WithSession
+// ---------------------------------------------------------------------------
+
+func TestNewSMSLoginService_WithSession(t *testing.T) {
+	mockSess := &mockSMSSessionService{}
+	svc := NewSMSLoginService(nil, &mockUserRepo{}, &mockSMSOtpRepo{}, &mockClientRepo{}, &mockUserIdentityRepo{}, &mockIdentityProviderRepo{}, &mockAuthEventService{}, mockSess)
+	typed, ok := svc.(*smsLoginService)
+	require.True(t, ok)
+	assert.Same(t, mockSess, typed.sessionService)
+}
+
+// ---------------------------------------------------------------------------
+// TestSendOTP – rate limit error
+// ---------------------------------------------------------------------------
+
+func TestSendOTP_RateLimited(t *testing.T) {
+	phone := "+1234567890"
+	cleanup := lockedRateLimiterSMS(t, "sms-otp:send:"+phone)
+	defer cleanup()
+
+	svc := NewSMSLoginService(nil, &mockUserRepo{}, &mockSMSOtpRepo{}, &mockClientRepo{}, &mockUserIdentityRepo{}, &mockIdentityProviderRepo{}, &mockAuthEventService{})
+	err := svc.SendOTP(context.Background(), SMSLoginSendDTO{Phone: phone})
+
+	require.Error(t, err)
+		assert.Contains(t, err.Error(), "account is locked")
+}
+
+// ---------------------------------------------------------------------------
+// TestSendOTP – storage error
+// ---------------------------------------------------------------------------
+
+func TestSendOTP_StorageError(t *testing.T) {
+	phone := "+1234567890"
+	originalBudget := config.SMSDailySendLimit
+	t.Cleanup(func() {
+		config.SMSDailySendLimit = originalBudget
+		security.InitRateLimiter(nil)
+		security.ResetSMSDailyBudgetCounters()
+	})
+	config.SMSDailySendLimit = 0
+
+	userRepo := &mockUserRepo{
+		findByPhoneFn: func(_ string) (*User, error) {
+			return &User{UserID: 1, Phone: phone, Status: shared.StatusActive}, nil
+		},
+	}
+	smsOtpRepo := &mockSMSOtpRepo{
+		createFn: func(_ *notifier.SMSOtp) (*notifier.SMSOtp, error) {
+			return nil, errors.New("db error")
+		},
+	}
+
+	svc := NewSMSLoginService(nil, userRepo, smsOtpRepo, &mockClientRepo{}, &mockUserIdentityRepo{}, &mockIdentityProviderRepo{}, &mockAuthEventService{})
+	err := svc.SendOTP(context.Background(), SMSLoginSendDTO{Phone: phone})
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to store SMS OTP")
+}
+
+// ---------------------------------------------------------------------------
+// TestSendOTP – SMS provider path
+// ---------------------------------------------------------------------------
+
+func TestSendOTP_SMSProviderPath(t *testing.T) {
+	phone := "+1234567890"
+	originalBudget := config.SMSDailySendLimit
+	originalProvider := config.SMSProvider
+	t.Cleanup(func() {
+		config.SMSDailySendLimit = originalBudget
+		config.SMSProvider = originalProvider
+		security.InitRateLimiter(nil)
+		security.ResetSMSDailyBudgetCounters()
+	})
+	config.SMSDailySendLimit = 0
+	config.SMSProvider = "test-provider"
+
+	userRepo := &mockUserRepo{
+		findByPhoneFn: func(_ string) (*User, error) {
+			return &User{UserID: 1, Phone: phone, Status: shared.StatusActive}, nil
+		},
+	}
+	smsOtpRepo := &mockSMSOtpRepo{
+		createFn: func(otp *notifier.SMSOtp) (*notifier.SMSOtp, error) {
+			otp.SMSOtpID = 1
+			return otp, nil
+		},
+	}
+
+	svc := NewSMSLoginService(nil, userRepo, smsOtpRepo, &mockClientRepo{}, &mockUserIdentityRepo{}, &mockIdentityProviderRepo{}, &mockAuthEventService{})
+	err := svc.SendOTP(context.Background(), SMSLoginSendDTO{Phone: phone})
+
+	require.NoError(t, err)
+}
+
+// ---------------------------------------------------------------------------
+// TestVerifyOTP – rate limit error
+// ---------------------------------------------------------------------------
+
+func TestVerifyOTP_RateLimited(t *testing.T) {
+	phone := "+1234567890"
+	cleanup := lockedRateLimiterSMS(t, "sms-otp:verify:"+phone)
+	defer cleanup()
+
+	svc := NewSMSLoginService(nil, &mockUserRepo{}, &mockSMSOtpRepo{}, &mockClientRepo{}, &mockUserIdentityRepo{}, &mockIdentityProviderRepo{}, &mockAuthEventService{})
+	resp, err := svc.VerifyOTP(context.Background(), SMSLoginVerifyDTO{Phone: phone, OTP: "123456", ClientID: "c", ProviderID: "p"})
+
+	require.Error(t, err)
+	assert.Nil(t, resp)
+		assert.Contains(t, err.Error(), "account is locked")
+}
+
+
+// ---------------------------------------------------------------------------
+// TestVerifyOTP – user lookup error
+// ---------------------------------------------------------------------------
+
+func TestVerifyOTP_UserLookupError(t *testing.T) {
+	phone := "+1234567890"
+	gormDB, mock := newMockGormDB(t)
+	mock.ExpectBegin()
+	mock.ExpectRollback()
+
+	idpRepo := &mockIdentityProviderRepo{
+		findByIdentifierFn: func(_ string) (*IdentityProvider, error) {
+			return buildActiveIdentityProvider(), nil
+		},
+	}
+	clientRepo := &mockClientRepo{
+		findByClientIDAndIdentityProviderFn: func(_, _ string) (*Client, error) {
+			return buildActiveClient(), nil
+		},
+	}
+	userRepo := &mockUserRepo{
+		findByPhoneFn: func(_ string) (*User, error) {
+			return nil, errors.New("db error")
+		},
+	}
+
+	svc := NewSMSLoginService(gormDB, userRepo, &mockSMSOtpRepo{}, clientRepo, &mockUserIdentityRepo{}, idpRepo, &mockAuthEventService{})
+	resp, err := svc.VerifyOTP(context.Background(), SMSLoginVerifyDTO{Phone: phone, OTP: "123456", ClientID: "test-client", ProviderID: "test-provider"})
+
+	require.Error(t, err)
+	assert.Nil(t, resp)
+	assert.Contains(t, err.Error(), "failed to look up user")
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+// ---------------------------------------------------------------------------
+// TestVerifyOTP – RecordFailure error on hash mismatch
+// ---------------------------------------------------------------------------
+
+func TestVerifyOTP_RecordFailureError(t *testing.T) {
+	phone := "+1234567890"
+	gormDB, mock := newMockGormDB(t)
+	mock.ExpectBegin()
+	mock.ExpectRollback()
+
+	idpRepo := &mockIdentityProviderRepo{
+		findByIdentifierFn: func(_ string) (*IdentityProvider, error) {
+			return buildActiveIdentityProvider(), nil
+		},
+	}
+	clientRepo := &mockClientRepo{
+		findByClientIDAndIdentityProviderFn: func(_, _ string) (*Client, error) {
+			return buildActiveClient(), nil
+		},
+	}
+	userRepo := &mockUserRepo{
+		findByPhoneFn: func(_ string) (*User, error) {
+			return &User{UserID: 1, Phone: phone, Status: shared.StatusActive}, nil
+		},
+	}
+	smsOtpRepo := &mockSMSOtpRepo{
+		findValidByPhoneFn: func(_ string) (*notifier.SMSOtp, error) {
+			return &notifier.SMSOtp{
+				SMSOtpID: 1,
+				OTPHash:  "wrong-hash",
+			}, nil
+		},
+		recordFailureFn: func(_ int64, _ int) error {
+			return errors.New("db error")
+		},
+	}
+
+	svc := NewSMSLoginService(gormDB, userRepo, smsOtpRepo, clientRepo, &mockUserIdentityRepo{}, idpRepo, &mockAuthEventService{})
+	resp, err := svc.VerifyOTP(context.Background(), SMSLoginVerifyDTO{Phone: phone, OTP: "123456", ClientID: "test-client", ProviderID: "test-provider"})
+
+	require.Error(t, err)
+	assert.Nil(t, resp)
+	assert.Contains(t, err.Error(), "failed to record OTP attempt")
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+// ---------------------------------------------------------------------------
+// TestVerifyOTP – user identity nil
+// ---------------------------------------------------------------------------
+
+func TestVerifyOTP_UserIdentityNil(t *testing.T) {
+	phone := "+1234567890"
+	otp := "123456"
+	correctHash := crypto.HashAuthorizationCode(otp)
+	gormDB, mock := newMockGormDB(t)
+	mock.ExpectBegin()
+	mock.ExpectRollback()
+
+	idpRepo := &mockIdentityProviderRepo{
+		findByIdentifierFn: func(_ string) (*IdentityProvider, error) {
+			return buildActiveIdentityProvider(), nil
+		},
+	}
+	clientRepo := &mockClientRepo{
+		findByClientIDAndIdentityProviderFn: func(_, _ string) (*Client, error) {
+			return buildActiveClient(), nil
+		},
+	}
+	userRepo := &mockUserRepo{
+		findByPhoneFn: func(_ string) (*User, error) {
+			return &User{UserID: 1, Phone: phone, Status: shared.StatusActive}, nil
+		},
+	}
+	smsOtpRepo := &mockSMSOtpRepo{
+		findValidByPhoneFn: func(_ string) (*notifier.SMSOtp, error) {
+			return &notifier.SMSOtp{
+				SMSOtpID: 1,
+				OTPHash:  correctHash,
+			}, nil
+		},
+	}
+	userIdentityRepo := &mockUserIdentityRepo{
+		findByUserIDAndClientIDFn: func(_, _ int64) (*UserIdentity, error) {
+			return nil, nil
+		},
+	}
+
+	svc := NewSMSLoginService(gormDB, userRepo, smsOtpRepo, clientRepo, userIdentityRepo, idpRepo, &mockAuthEventService{})
+	resp, err := svc.VerifyOTP(context.Background(), SMSLoginVerifyDTO{Phone: phone, OTP: otp, ClientID: "test-client", ProviderID: "test-provider"})
+
+	require.Error(t, err)
+	assert.Nil(t, resp)
+	assert.Contains(t, err.Error(), "authentication failed")
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+// ---------------------------------------------------------------------------
+// TestVerifyOTP – success with session
+// ---------------------------------------------------------------------------
+
+func TestVerifyOTP_WithSession(t *testing.T) {
+	initTestJWTKeysService(t)
+	phone := "+1234567890"
+	otp := "123456"
+	correctHash := crypto.HashAuthorizationCode(otp)
+	sessionUUID := uuid.New()
+	gormDB, mock := newMockGormDB(t)
+	mock.ExpectBegin()
+	mock.ExpectCommit()
+
+	idpRepo := &mockIdentityProviderRepo{
+		findByIdentifierFn: func(_ string) (*IdentityProvider, error) {
+			return buildActiveIdentityProvider(), nil
+		},
+	}
+	clientRepo := &mockClientRepo{
+		findByClientIDAndIdentityProviderFn: func(_, _ string) (*Client, error) {
+			return buildActiveClient(), nil
+		},
+	}
+	userRepo := &mockUserRepo{
+		findByPhoneFn: func(_ string) (*User, error) {
+			return &User{UserID: 1, UserUUID: uuid.New(), Phone: phone, Status: shared.StatusActive, Email: "test@example.com", Username: "testuser"}, nil
+		},
+	}
+	smsOtpRepo := &mockSMSOtpRepo{
+		findValidByPhoneFn: func(_ string) (*notifier.SMSOtp, error) {
+			return &notifier.SMSOtp{
+				SMSOtpID: 1,
+				OTPHash:  correctHash,
+			}, nil
+		},
+	}
+	userIdentityRepo := &mockUserIdentityRepo{
+		findByUserIDAndClientIDFn: func(_, _ int64) (*UserIdentity, error) {
+			return &UserIdentity{Sub: "sub-123"}, nil
+		},
+	}
+	sessionSvc := &mockSMSSessionService{
+		createFn: func(_ context.Context, _ int64, _, _ string) (*UserToken, error) {
+			return &UserToken{UserTokenUUID: sessionUUID, TokenType: "session"}, nil
+		},
+	}
+
+	svc := NewSMSLoginService(gormDB, userRepo, smsOtpRepo, clientRepo, userIdentityRepo, idpRepo, &mockAuthEventService{}, sessionSvc)
+	resp, err := svc.VerifyOTP(context.Background(), SMSLoginVerifyDTO{Phone: phone, OTP: otp, ClientID: "test-client", ProviderID: "test-provider"})
+
+	require.NoError(t, err)
+	assert.NotNil(t, resp)
+	assert.NotEmpty(t, resp.AccessToken)
+	assert.Equal(t, "Bearer", resp.TokenType)
+	assert.Equal(t, int64(3600), resp.ExpiresIn)
+	require.NotNil(t, resp.SessionID)
+	assert.Equal(t, sessionUUID.String(), *resp.SessionID)
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+// ---------------------------------------------------------------------------
+// TestVerifyOTP – EnforceConcurrentLimit error
+// ---------------------------------------------------------------------------
+
+func TestVerifyOTP_EnforceConcurrentLimitError(t *testing.T) {
+	initTestJWTKeysService(t)
+	phone := "+1234567890"
+	otp := "123456"
+	correctHash := crypto.HashAuthorizationCode(otp)
+	gormDB, mock := newMockGormDB(t)
+	mock.ExpectBegin()
+	mock.ExpectCommit()
+
+	idpRepo := &mockIdentityProviderRepo{
+		findByIdentifierFn: func(_ string) (*IdentityProvider, error) {
+			return buildActiveIdentityProvider(), nil
+		},
+	}
+	clientRepo := &mockClientRepo{
+		findByClientIDAndIdentityProviderFn: func(_, _ string) (*Client, error) {
+			return buildActiveClient(), nil
+		},
+	}
+	userRepo := &mockUserRepo{
+		findByPhoneFn: func(_ string) (*User, error) {
+			return &User{UserID: 1, UserUUID: uuid.New(), Phone: phone, Status: shared.StatusActive, Email: "test@example.com", Username: "testuser"}, nil
+		},
+	}
+	smsOtpRepo := &mockSMSOtpRepo{
+		findValidByPhoneFn: func(_ string) (*notifier.SMSOtp, error) {
+			return &notifier.SMSOtp{SMSOtpID: 1, OTPHash: correctHash}, nil
+		},
+	}
+	userIdentityRepo := &mockUserIdentityRepo{
+		findByUserIDAndClientIDFn: func(_, _ int64) (*UserIdentity, error) {
+			return &UserIdentity{Sub: "sub-123"}, nil
+		},
+	}
+	sessionSvc := &mockSMSSessionService{
+		enforceFn: func(_ context.Context, _ uuid.UUID, _ int64) error {
+			return errors.New("session limit exceeded")
+		},
+	}
+
+	svc := NewSMSLoginService(gormDB, userRepo, smsOtpRepo, clientRepo, userIdentityRepo, idpRepo, &mockAuthEventService{}, sessionSvc)
+	resp, err := svc.VerifyOTP(context.Background(), SMSLoginVerifyDTO{Phone: phone, OTP: otp, ClientID: "test-client", ProviderID: "test-provider"})
+
+	require.Error(t, err)
+	assert.Nil(t, resp)
+	assert.Contains(t, err.Error(), "session limit exceeded")
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+// ---------------------------------------------------------------------------
+// TestVerifyOTP – CreateSession error
+// ---------------------------------------------------------------------------
+
+func TestVerifyOTP_CreateSessionError(t *testing.T) {
+	initTestJWTKeysService(t)
+	phone := "+1234567890"
+	otp := "123456"
+	correctHash := crypto.HashAuthorizationCode(otp)
+	gormDB, mock := newMockGormDB(t)
+	mock.ExpectBegin()
+	mock.ExpectCommit()
+
+	idpRepo := &mockIdentityProviderRepo{
+		findByIdentifierFn: func(_ string) (*IdentityProvider, error) {
+			return buildActiveIdentityProvider(), nil
+		},
+	}
+	clientRepo := &mockClientRepo{
+		findByClientIDAndIdentityProviderFn: func(_, _ string) (*Client, error) {
+			return buildActiveClient(), nil
+		},
+	}
+	userRepo := &mockUserRepo{
+		findByPhoneFn: func(_ string) (*User, error) {
+			return &User{UserID: 1, UserUUID: uuid.New(), Phone: phone, Status: shared.StatusActive, Email: "test@example.com", Username: "testuser"}, nil
+		},
+	}
+	smsOtpRepo := &mockSMSOtpRepo{
+		findValidByPhoneFn: func(_ string) (*notifier.SMSOtp, error) {
+			return &notifier.SMSOtp{SMSOtpID: 1, OTPHash: correctHash}, nil
+		},
+	}
+	userIdentityRepo := &mockUserIdentityRepo{
+		findByUserIDAndClientIDFn: func(_, _ int64) (*UserIdentity, error) {
+			return &UserIdentity{Sub: "sub-123"}, nil
+		},
+	}
+	sessionSvc := &mockSMSSessionService{
+		createFn: func(_ context.Context, _ int64, _, _ string) (*UserToken, error) {
+			return nil, errors.New("create session failed")
+		},
+	}
+
+	svc := NewSMSLoginService(gormDB, userRepo, smsOtpRepo, clientRepo, userIdentityRepo, idpRepo, &mockAuthEventService{}, sessionSvc)
+	resp, err := svc.VerifyOTP(context.Background(), SMSLoginVerifyDTO{Phone: phone, OTP: otp, ClientID: "test-client", ProviderID: "test-provider"})
+
+	require.Error(t, err)
+	assert.Nil(t, resp)
+	assert.Contains(t, err.Error(), "create session failed")
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+// ---------------------------------------------------------------------------
+// TestVerifyOTP – GenerateTokenSet error
+// ---------------------------------------------------------------------------
+
+func TestVerifyOTP_GenerateTokenSetError(t *testing.T) {
+	jwt.ResetJWTKeys()
+	defer initTestJWTKeysService(t)
+
+	phone := "+1234567890"
+	otp := "123456"
+	correctHash := crypto.HashAuthorizationCode(otp)
+	gormDB, mock := newMockGormDB(t)
+	mock.ExpectBegin()
+	mock.ExpectCommit()
+
+	idpRepo := &mockIdentityProviderRepo{
+		findByIdentifierFn: func(_ string) (*IdentityProvider, error) {
+			return buildActiveIdentityProvider(), nil
+		},
+	}
+	clientRepo := &mockClientRepo{
+		findByClientIDAndIdentityProviderFn: func(_, _ string) (*Client, error) {
+			return buildActiveClient(), nil
+		},
+	}
+	userRepo := &mockUserRepo{
+		findByPhoneFn: func(_ string) (*User, error) {
+			return &User{UserID: 1, UserUUID: uuid.New(), Phone: phone, Status: shared.StatusActive, Email: "test@example.com", Username: "testuser"}, nil
+		},
+	}
+	smsOtpRepo := &mockSMSOtpRepo{
+		findValidByPhoneFn: func(_ string) (*notifier.SMSOtp, error) {
+			return &notifier.SMSOtp{SMSOtpID: 1, OTPHash: correctHash}, nil
+		},
+	}
+	userIdentityRepo := &mockUserIdentityRepo{
+		findByUserIDAndClientIDFn: func(_, _ int64) (*UserIdentity, error) {
+			return &UserIdentity{Sub: "sub-123"}, nil
+		},
+	}
+
+	svc := NewSMSLoginService(gormDB, userRepo, smsOtpRepo, clientRepo, userIdentityRepo, idpRepo, &mockAuthEventService{})
+	resp, err := svc.VerifyOTP(context.Background(), SMSLoginVerifyDTO{Phone: phone, OTP: otp, ClientID: "test-client", ProviderID: "test-provider"})
+
+	require.Error(t, err)
+	assert.Nil(t, resp)
+	assert.NoError(t, mock.ExpectationsWereMet())
 }

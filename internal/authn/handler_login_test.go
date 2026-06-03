@@ -140,6 +140,40 @@ func TestLoginHandler_LoginPublic_Success(t *testing.T) {
 	assert.Equal(t, http.StatusOK, w.Code)
 }
 
+func TestLoginHandler_LoginPublic_MFARequired(t *testing.T) {
+	svc := &mockLoginService{
+		loginPublicFn: func(u, p, c, pr string) (*LoginResponseDTO, error) {
+			return &LoginResponseDTO{MFARequired: true}, nil
+		},
+	}
+	h := NewLoginHandler(svc)
+	r := withSecurityCtx(newLoginRequest(t, http.MethodPost, "/public/login?client_id=c1&provider_id=p1",
+		map[string]string{"username": "user1", "password": "pass1"}))
+	w := httptest.NewRecorder()
+
+	h.LoginPublic(w, r)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	assert.Contains(t, w.Body.String(), "MFA verification required")
+}
+
+func TestLoginHandler_LoginPublic_PasswordChangeRequired(t *testing.T) {
+	svc := &mockLoginService{
+		loginPublicFn: func(u, p, c, pr string) (*LoginResponseDTO, error) {
+			return &LoginResponseDTO{RequirePasswordChange: true}, nil
+		},
+	}
+	h := NewLoginHandler(svc)
+	r := withSecurityCtx(newLoginRequest(t, http.MethodPost, "/public/login?client_id=c1&provider_id=p1",
+		map[string]string{"username": "user1", "password": "pass1"}))
+	w := httptest.NewRecorder()
+
+	h.LoginPublic(w, r)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	assert.Contains(t, w.Body.String(), "Password change required")
+}
+
 // ---------------------------------------------------------------------------
 // Logout
 // ---------------------------------------------------------------------------
@@ -150,6 +184,49 @@ func TestLoginHandler_Logout_Success(t *testing.T) {
 	w := httptest.NewRecorder()
 	h.Logout(w, r)
 	assert.Equal(t, http.StatusOK, w.Code)
+}
+
+func TestLoginHandler_Logout_WithAccessTokenCookie(t *testing.T) {
+	called := false
+	svc := &mockLoginService{
+		logoutFn: func(ctx context.Context, accessToken string) error {
+			called = true
+			assert.Equal(t, "cookie-token", accessToken)
+			return nil
+		},
+	}
+	h := NewLoginHandler(svc)
+	r := withSecurityCtx(httptest.NewRequest(http.MethodPost, "/logout", nil))
+	r.AddCookie(&http.Cookie{Name: "access_token", Value: "cookie-token"})
+	w := httptest.NewRecorder()
+
+	h.Logout(w, r)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	assert.True(t, called)
+}
+
+func TestLoginHandler_Logout_ServiceError(t *testing.T) {
+	svc := &mockLoginService{
+		logoutFn: func(ctx context.Context, accessToken string) error {
+			return assert.AnError
+		},
+	}
+	h := NewLoginHandler(svc)
+	r := withSecurityCtx(httptest.NewRequest(http.MethodPost, "/logout", nil))
+	r.AddCookie(&http.Cookie{Name: "access_token", Value: "cookie-token"})
+	w := httptest.NewRecorder()
+
+	h.Logout(w, r)
+
+	assert.Equal(t, http.StatusInternalServerError, w.Code)
+}
+
+func TestExtractAccessToken_WithCookie(t *testing.T) {
+	r := httptest.NewRequest(http.MethodGet, "/", nil)
+	r.AddCookie(&http.Cookie{Name: "access_token", Value: "cookie-token"})
+
+	assert.Equal(t, "cookie-token", extractAccessToken(r))
 }
 
 // ---------------------------------------------------------------------------
@@ -218,4 +295,21 @@ func TestLoginHandler_Login_Success(t *testing.T) {
 	w := httptest.NewRecorder()
 	h.Login(w, r)
 	assert.Equal(t, http.StatusOK, w.Code)
+}
+
+func TestLoginHandler_Login_MFARequired(t *testing.T) {
+	svc := &mockLoginService{
+		loginFn: func(u, p string, c, pr *string) (*LoginResponseDTO, error) {
+			return &LoginResponseDTO{MFARequired: true}, nil
+		},
+	}
+	h := NewLoginHandler(svc)
+	r := withSecurityCtx(newLoginRequest(t, http.MethodPost, "/login",
+		map[string]string{"username": "user1", "password": "pass1"}))
+	w := httptest.NewRecorder()
+
+	h.Login(w, r)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	assert.Contains(t, w.Body.String(), "MFA verification required")
 }

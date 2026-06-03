@@ -101,6 +101,61 @@ func TestRegisterHandler_RegisterPublic_Success(t *testing.T) {
 	assert.Equal(t, http.StatusCreated, w.Code)
 }
 
+func TestRegisterHandler_RegisterPublic_SendsVerificationEmail(t *testing.T) {
+	email := "user@example.com"
+	regSvc := &mockRegisterService{
+		registerPublicFn: func(u, f, p string, e, ph *string, c, pr string) (*RegisterResponseDTO, error) {
+			require.NotNil(t, e)
+			assert.Equal(t, email, *e)
+			return &RegisterResponseDTO{}, nil
+		},
+	}
+	called := false
+	emailSvc := &mockEmailVerificationService{
+		sendVerificationEmailFn: func(ctx context.Context, sentEmail string, clientID, providerID *string) (*SendEmailVerificationResponseDTO, error) {
+			called = true
+			assert.Equal(t, email, sentEmail)
+			require.NotNil(t, clientID)
+			require.NotNil(t, providerID)
+			assert.Equal(t, "c1", *clientID)
+			assert.Equal(t, "p1", *providerID)
+			return &SendEmailVerificationResponseDTO{Success: true}, nil
+		},
+	}
+	h := NewRegisterHandler(regSvc, emailSvc)
+	r := regRequest(t, "/public/register?client_id=c1&provider_id=p1", map[string]string{
+		"username": "user1", "password": "Pass@1234!", "fullname": "User One", "email": email,
+	})
+	w := httptest.NewRecorder()
+
+	h.RegisterPublic(w, r)
+
+	assert.Equal(t, http.StatusCreated, w.Code)
+	assert.True(t, called)
+}
+
+func TestRegisterHandler_RegisterPublic_VerificationEmailErrorStillCreates(t *testing.T) {
+	regSvc := &mockRegisterService{
+		registerPublicFn: func(u, f, p string, e, ph *string, c, pr string) (*RegisterResponseDTO, error) {
+			return &RegisterResponseDTO{}, nil
+		},
+	}
+	emailSvc := &mockEmailVerificationService{
+		sendVerificationEmailFn: func(ctx context.Context, sentEmail string, clientID, providerID *string) (*SendEmailVerificationResponseDTO, error) {
+			return nil, assert.AnError
+		},
+	}
+	h := NewRegisterHandler(regSvc, emailSvc)
+	r := regRequest(t, "/public/register?client_id=c1&provider_id=p1", map[string]string{
+		"username": "user1", "password": "Pass@1234!", "fullname": "User One", "email": "user@example.com",
+	})
+	w := httptest.NewRecorder()
+
+	h.RegisterPublic(w, r)
+
+	assert.Equal(t, http.StatusCreated, w.Code)
+}
+
 // ---------------------------------------------------------------------------
 // Register (internal)
 // ---------------------------------------------------------------------------
