@@ -251,6 +251,25 @@ func TestUserSettingService_CreateOrUpdateUserSetting(t *testing.T) {
 		assert.Contains(t, err.Error(), "update failed")
 	})
 
+	t.Run("preferredLanguage fallback when locale is nil", func(t *testing.T) {
+		db, mock := newMockGormDB(t)
+		mock.ExpectBegin()
+		mock.ExpectCommit()
+		tz := "UTC"
+		lang := "en"
+		svc := NewUserSettingService(db, &mockUserSettingRepo{
+			findByUserIDFn: func(_ int64) (*UserSetting, error) { return nil, nil },
+		}, &mockUserRepo{
+			findByUUIDFn: func(_ any, _ ...string) (*User, error) {
+				return &User{UserID: 1}, nil
+			},
+		})
+		res, err := svc.CreateOrUpdateUserSetting(context.Background(), userUUID, &tz, &lang, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
+		require.NoError(t, err)
+		assert.Equal(t, &lang, res.Locale)
+		assert.Equal(t, &lang, res.PreferredLanguage)
+	})
+
 	t.Run("create with all optional fields", func(t *testing.T) {
 		db, mock := newMockGormDB(t)
 		mock.ExpectBegin()

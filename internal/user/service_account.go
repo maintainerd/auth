@@ -1,11 +1,9 @@
 package user
 
 import (
-	"bytes"
 	"context"
 	"crypto/subtle"
 	"fmt"
-	"html/template"
 	"log/slog"
 	"time"
 
@@ -25,6 +23,12 @@ const emailChangeOTPLength = 6
 const emailChangeOTPTTL = 1 * time.Hour
 const backupCodeCount = 10
 const backupCodeLength = 8
+
+var (
+	accountGenerateAccessTokenWithContext  = jwt.GenerateAccessTokenWithContext
+	accountGenerateIDTokenWithContext      = jwt.GenerateIDTokenWithContext
+	accountGenerateRefreshTokenWithContext = jwt.GenerateRefreshTokenWithContext
+)
 
 // AccountService handles self-service account management operations.
 type AccountService interface {
@@ -131,27 +135,13 @@ func (s *accountService) InitiateEmailChange(ctx context.Context, userID int64, 
 }
 
 func (s *accountService) sendEmailChangeOTP(ctx context.Context, toEmail, otp string) error {
-	data := struct {
-		OTP string
-	}{OTP: otp}
-
 	subject := "Your email change verification code"
 	bodyHTML := fmt.Sprintf("<p>Your email change verification code is: <strong>%s</strong>. It expires in 1 hour.</p>", otp)
-
-	// Try to use a template if available; fall back to inline HTML
-	tmpl, err := template.New("email_change").Parse(bodyHTML)
-	if err != nil {
-		return err
-	}
-	var buf bytes.Buffer
-	if err := tmpl.Execute(&buf, data); err != nil {
-		return err
-	}
 
 	return email.SendEmail(ctx, email.SendEmailParams{
 		To:       toEmail,
 		Subject:  subject,
-		BodyHTML: buf.String(),
+		BodyHTML: bodyHTML,
 	})
 }
 
@@ -440,7 +430,7 @@ func (s *accountService) VerifyBackupCode(ctx context.Context, req VerifyBackupC
 
 // generateTokenResponse issues access, ID, and refresh tokens for the given user and client.
 func (s *accountService) generateTokenResponse(ctx context.Context, sub string, user *User, client *Client) (*LoginResponseDTO, error) {
-	accessToken, err := jwt.GenerateAccessTokenWithContext(
+	accessToken, err := accountGenerateAccessTokenWithContext(
 		ctx,
 		sub,
 		shared.DefaultTokenScope,
@@ -460,12 +450,12 @@ func (s *accountService) generateTokenResponse(ctx context.Context, sub string, 
 		PhoneVerified: user.IsPhoneVerified,
 	}
 
-	idToken, err := jwt.GenerateIDTokenWithContext(ctx, sub, *client.Domain, *client.Identifier, client.IdentityProvider.Identifier, profile, "", nil)
+	idToken, err := accountGenerateIDTokenWithContext(ctx, sub, *client.Domain, *client.Identifier, client.IdentityProvider.Identifier, profile, "", nil)
 	if err != nil {
 		return nil, err
 	}
 
-	refreshToken, err := jwt.GenerateRefreshTokenWithContext(ctx, sub, *client.Domain, *client.Identifier, client.IdentityProvider.Identifier)
+	refreshToken, err := accountGenerateRefreshTokenWithContext(ctx, sub, *client.Domain, *client.Identifier, client.IdentityProvider.Identifier)
 	if err != nil {
 		return nil, err
 	}

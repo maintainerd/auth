@@ -34,9 +34,6 @@ func validateWebhookURL(ctx context.Context, raw string, resolve bool) error {
 	if err != nil {
 		return fmt.Errorf("resolve webhook URL host: %w", err)
 	}
-	if len(addrs) == 0 {
-		return fmt.Errorf("webhook URL host has no addresses")
-	}
 	for _, addr := range addrs {
 		if isUnsafeWebhookIP(addr.IP) {
 			return fmt.Errorf("webhook URL host resolves to a private address")
