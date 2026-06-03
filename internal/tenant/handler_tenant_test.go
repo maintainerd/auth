@@ -541,7 +541,33 @@ func TestTenantHandler_UpdateMemberRole(t *testing.T) {
 		assert.Equal(t, http.StatusBadRequest, w.Code)
 	})
 
+	t.Run("valid member UUID but missing tenant UUID returns 400", func(t *testing.T) {
+		r := withChiParam(jsonReq(t, http.MethodPut, "/", map[string]any{"role": "admin"}), "tenant_member_uuid", memberUUID.String())
+		w := httptest.NewRecorder()
+		newTenantHandler(nil, nil).UpdateMemberRole(w, r)
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+	})
+
+	t.Run("tenant lookup error returns 404", func(t *testing.T) {
+		ts := &mockTenantService{getByUUIDFn: func(uuid.UUID) (*TenantServiceDataResult, error) {
+			return nil, errNotFound
+		}}
+		r := withChiParam(jsonReq(t, http.MethodPut, "/", map[string]any{"role": "admin"}), "tenant_uuid", testResourceUUID.String())
+		r = withChiParam(r, "tenant_member_uuid", memberUUID.String())
+		w := httptest.NewRecorder()
+		newTenantHandler(ts, nil).UpdateMemberRole(w, r)
+		assert.Equal(t, http.StatusNotFound, w.Code)
+	})
+
 	t.Run("invalid UUID format returns 400", func(t *testing.T) {
+		r := withChiParam(jsonReq(t, http.MethodPut, "/", map[string]any{"role": "admin"}), "tenant_uuid", testResourceUUID.String())
+		r = withChiParam(r, "tenant_member_uuid", "bad")
+		w := httptest.NewRecorder()
+		newTenantHandler(nil, nil).UpdateMemberRole(w, r)
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+	})
+
+	t.Run("invalid tenant UUID format returns 400 before member UUID parsing", func(t *testing.T) {
 		r := withChiParam(jsonReq(t, http.MethodPut, "/", map[string]any{"role": "admin"}), "tenant_member_uuid", "bad")
 		w := httptest.NewRecorder()
 		newTenantHandler(nil, nil).UpdateMemberRole(w, r)
@@ -549,16 +575,24 @@ func TestTenantHandler_UpdateMemberRole(t *testing.T) {
 	})
 
 	t.Run("bad JSON returns 400", func(t *testing.T) {
-		r := withChiParam(badJSONReq(t, http.MethodPut, "/"), "tenant_member_uuid", memberUUID.String())
+		ts := &mockTenantService{getByUUIDFn: func(uuid.UUID) (*TenantServiceDataResult, error) {
+			return &TenantServiceDataResult{TenantID: 1}, nil
+		}}
+		r := withChiParam(badJSONReq(t, http.MethodPut, "/"), "tenant_uuid", testResourceUUID.String())
+		r = withChiParam(r, "tenant_member_uuid", memberUUID.String())
 		w := httptest.NewRecorder()
-		newTenantHandler(nil, nil).UpdateMemberRole(w, r)
+		newTenantHandler(ts, nil).UpdateMemberRole(w, r)
 		assert.Equal(t, http.StatusBadRequest, w.Code)
 	})
 
 	t.Run("validation error returns 400", func(t *testing.T) {
-		r := withChiParam(jsonReq(t, http.MethodPut, "/", map[string]any{"role": ""}), "tenant_member_uuid", memberUUID.String())
+		ts := &mockTenantService{getByUUIDFn: func(uuid.UUID) (*TenantServiceDataResult, error) {
+			return &TenantServiceDataResult{TenantID: 1}, nil
+		}}
+		r := withChiParam(jsonReq(t, http.MethodPut, "/", map[string]any{"role": ""}), "tenant_uuid", testResourceUUID.String())
+		r = withChiParam(r, "tenant_member_uuid", memberUUID.String())
 		w := httptest.NewRecorder()
-		newTenantHandler(nil, nil).UpdateMemberRole(w, r)
+		newTenantHandler(ts, nil).UpdateMemberRole(w, r)
 		assert.Equal(t, http.StatusBadRequest, w.Code)
 	})
 
@@ -601,8 +635,27 @@ func TestTenantHandler_RemoveMember(t *testing.T) {
 		assert.Equal(t, http.StatusBadRequest, w.Code)
 	})
 
+	t.Run("valid member UUID but missing tenant UUID returns 400", func(t *testing.T) {
+		r := withChiParam(httptest.NewRequest(http.MethodDelete, "/", nil), "tenant_member_uuid", memberUUID.String())
+		w := httptest.NewRecorder()
+		newTenantHandler(nil, nil).RemoveMember(w, r)
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+	})
+
+	t.Run("tenant lookup error returns 404", func(t *testing.T) {
+		ts := &mockTenantService{getByUUIDFn: func(uuid.UUID) (*TenantServiceDataResult, error) {
+			return nil, errNotFound
+		}}
+		r := withChiParam(httptest.NewRequest(http.MethodDelete, "/", nil), "tenant_uuid", testResourceUUID.String())
+		r = withChiParam(r, "tenant_member_uuid", memberUUID.String())
+		w := httptest.NewRecorder()
+		newTenantHandler(ts, nil).RemoveMember(w, r)
+		assert.Equal(t, http.StatusNotFound, w.Code)
+	})
+
 	t.Run("invalid UUID format returns 400", func(t *testing.T) {
-		r := withChiParam(httptest.NewRequest(http.MethodDelete, "/", nil), "tenant_member_uuid", "bad")
+		r := withChiParam(httptest.NewRequest(http.MethodDelete, "/", nil), "tenant_uuid", testResourceUUID.String())
+		r = withChiParam(r, "tenant_member_uuid", "bad")
 		w := httptest.NewRecorder()
 		newTenantHandler(nil, nil).RemoveMember(w, r)
 		assert.Equal(t, http.StatusBadRequest, w.Code)
