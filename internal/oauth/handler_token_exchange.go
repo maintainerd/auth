@@ -32,6 +32,8 @@ func (h *OAuthTokenExchangeHandler) Exchange(w http.ResponseWriter, r *http.Requ
 		Resource:           r.FormValue("resource"),
 		ActorToken:         r.FormValue("actor_token"),
 		ActorTokenType:     r.FormValue("actor_token_type"),
+		ClientID:           r.FormValue("client_id"),
+		ClientSecret:       r.FormValue("client_secret"),
 	}
 
 	if err := req.Validate(); err != nil {

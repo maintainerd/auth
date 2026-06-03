@@ -29,4 +29,39 @@ func TestOAuthTokenExchangeHandler_Exchange(t *testing.T) {
 		NewOAuthTokenExchangeHandler(&mockOAuthTokenExchangeService{}).Exchange(w, r)
 		assert.Equal(t, http.StatusBadRequest, w.Code)
 	})
+
+	t.Run("service error returns oauth error", func(t *testing.T) {
+		svc := &mockOAuthTokenExchangeService{
+			exchangeFn: func(context.Context, OAuthTokenExchangeRequestDTO, OAuthClientCredentials) (*OAuthTokenExchangeResponseDTO, *apperror.OAuthError) {
+				return nil, apperror.NewOAuthInvalidClient("bad client")
+			},
+		}
+		r := formPost(t, "/oauth/token", url.Values{
+			"client_id":          {"app"},
+			"subject_token":      {"subject"},
+			"subject_token_type": {"urn:ietf:params:oauth:token-type:access_token"},
+		})
+		w := httptest.NewRecorder()
+		NewOAuthTokenExchangeHandler(svc).Exchange(w, r)
+		assert.Equal(t, http.StatusUnauthorized, w.Code)
+	})
+
+	t.Run("success returns 200", func(t *testing.T) {
+		svc := &mockOAuthTokenExchangeService{
+			exchangeFn: func(_ context.Context, req OAuthTokenExchangeRequestDTO, creds OAuthClientCredentials) (*OAuthTokenExchangeResponseDTO, *apperror.OAuthError) {
+				assert.Equal(t, "subject", req.SubjectToken)
+				assert.Equal(t, "app", req.ClientID)
+				assert.Equal(t, "app", creds.ClientID)
+				return &OAuthTokenExchangeResponseDTO{AccessToken: "token", TokenType: "Bearer", ExpiresIn: 60}, nil
+			},
+		}
+		r := formPost(t, "/oauth/token", url.Values{
+			"client_id":          {"app"},
+			"subject_token":      {"subject"},
+			"subject_token_type": {"urn:ietf:params:oauth:token-type:access_token"},
+		})
+		w := httptest.NewRecorder()
+		NewOAuthTokenExchangeHandler(svc).Exchange(w, r)
+		assert.Equal(t, http.StatusOK, w.Code)
+	})
 }
