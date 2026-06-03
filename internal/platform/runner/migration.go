@@ -23,8 +23,14 @@ type migrationEntry struct {
 	Fn      func(db *gorm.DB) error
 }
 
-// migrations is the ordered list of all migrations. Add new entries at the
-// bottom only — never reorder or remove existing entries.
+// migrations is the ordered list of all migrations.
+//
+// Schema policy (pre-release / not deployed) — see
+// docs/contributing/database-migrations.md: migrations are CREATE-ONLY, one
+// canonical create migration per table. To change a table, edit its create
+// migration in place; do NOT add *_add_/*_alter_/*_drop_ migrations. Only
+// brand-new TABLES get a new entry appended at the bottom.
+// This policy freezes at first production deployment (then: forward-only).
 var migrations = []migrationEntry{
 	// Block 1: Tenant core
 	{"001_create_tenants_table", migration.CreateTenantTable},
@@ -94,15 +100,6 @@ var migrations = []migrationEntry{
 	{"053_create_sms_otps_table", migration.CreateSMSOtpsTable},
 	// Block 14: Password policy
 	{"054_create_user_password_history_table", migration.CreateUserPasswordHistoryTable},
-	{"055_add_password_changed_at_to_users", migration.AddPasswordChangedAtToUsers},
-	// Block 15: Audit hardening
-	{"056_auth_events_append_only", migration.CreateAuthEventsAppendOnlyRule},
-	// Block 16: OAuth client auth hardening
-	{"057_add_client_secret_encrypted", migration.AddClientSecretEncrypted},
-	// Block 17: SMS OTP hardening
-	{"058_add_sms_otp_failed_attempts", migration.AddSMSOTPFailedAttempts},
-	// Block 18: TOTP replay hardening
-	{"059_add_totp_last_used_step", migration.AddTOTPLastUsedStep},
 }
 
 // RunMigrations bootstraps the schema_migrations tracking table, acquires a

@@ -21,7 +21,5 @@ CREATE TABLE IF NOT EXISTS user_totp_secrets (
 );
 CREATE UNIQUE INDEX IF NOT EXISTS uq_user_totp_secrets_user_id ON user_totp_secrets(user_id);
 CREATE INDEX IF NOT EXISTS idx_user_totp_secrets_user_id ON user_totp_secrets(user_id);
-ALTER TABLE user_totp_secrets
-    ADD COLUMN IF NOT EXISTS last_used_step BIGINT;
 `).Error
 }

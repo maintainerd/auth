@@ -13,7 +13,7 @@ type User struct {
 	Email             string
 	Username          string
 	IsTOTPEnabled     bool
-	IsWebAuthnEnabled bool
+	IsWebAuthnEnabled bool `gorm:"column:is_webauthn_enabled"`
 	MFAEnabledAt      *time.Time
 	CreatedAt         time.Time
 	UpdatedAt         time.Time

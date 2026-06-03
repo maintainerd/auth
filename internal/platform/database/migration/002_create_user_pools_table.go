@@ -20,6 +20,8 @@ CREATE TABLE IF NOT EXISTS user_pools (
     is_system      BOOLEAN     NOT NULL DEFAULT FALSE,
     status         VARCHAR(16) NOT NULL DEFAULT 'active',
     metadata       JSONB       NOT NULL DEFAULT '{}',
+    created_by     BIGINT,
+    updated_by     BIGINT,
     created_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
     deleted_at     TIMESTAMPTZ,
