@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/maintainerd/auth/internal/platform/crypto"
 	"github.com/maintainerd/auth/internal/shared"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -175,6 +176,29 @@ func TestWebhookEndpointService_Create(t *testing.T) {
 		)
 		require.Error(t, err)
 	})
+
+	t.Run("encrypt secret error", func(t *testing.T) {
+		original := crypto.EncryptAtRest
+		crypto.EncryptAtRest = func(string) (string, error) {
+			return "", assert.AnError
+		}
+		t.Cleanup(func() {
+			crypto.EncryptAtRest = original
+		})
+		svc := newWebhookEndpointSvc(&mockWebhookEndpointRepo{
+			createFn: func(_ *WebhookEndpoint) (*WebhookEndpoint, error) {
+				t.Fatal("repo should not be called when encryption fails")
+				return nil, nil
+			},
+		})
+
+		_, err := svc.Create(context.Background(), 1,
+			"https://example.com/hook", "secret",
+			[]string{"user.created"}, nil, nil, "", shared.StatusActive,
+		)
+
+		require.ErrorIs(t, err, assert.AnError)
+	})
 }
 
 // ---------------------------------------------------------------------------
@@ -255,6 +279,31 @@ func TestWebhookEndpointService_Update(t *testing.T) {
 			[]string{}, nil, nil, "", shared.StatusActive,
 		)
 		require.Error(t, err)
+	})
+
+	t.Run("encrypt secret error", func(t *testing.T) {
+		original := crypto.EncryptAtRest
+		crypto.EncryptAtRest = func(string) (string, error) {
+			return "", assert.AnError
+		}
+		t.Cleanup(func() {
+			crypto.EncryptAtRest = original
+		})
+		ep := newWebhookEndpoint(1)
+		svc := newWebhookEndpointSvc(&mockWebhookEndpointRepo{
+			findByUUIDAndTenantFn: func(_ uuid.UUID, _ int64) (*WebhookEndpoint, error) { return ep, nil },
+			updateByUUIDFn: func(_ any, _ any) (*WebhookEndpoint, error) {
+				t.Fatal("repo update should not be called when encryption fails")
+				return nil, nil
+			},
+		})
+
+		_, err := svc.Update(context.Background(), 1, ep.WebhookEndpointUUID,
+			"https://example.com", "secret",
+			[]string{"user.created"}, nil, nil, "", shared.StatusActive,
+		)
+
+		require.ErrorIs(t, err, assert.AnError)
 	})
 }
 

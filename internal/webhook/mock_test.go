@@ -33,9 +33,15 @@ type mockWebhookEndpointRepo struct {
 	updateByUUIDFn         func(any, any) (*WebhookEndpoint, error)
 	deleteByUUIDFn         func(any) error
 	updateLastTriggeredFn  func(int64, time.Time) error
+	withTxFn               func(*gorm.DB) WebhookEndpointRepository
 }
 
-func (m *mockWebhookEndpointRepo) WithTx(_ *gorm.DB) WebhookEndpointRepository { return m }
+func (m *mockWebhookEndpointRepo) WithTx(tx *gorm.DB) WebhookEndpointRepository {
+	if m.withTxFn != nil {
+		return m.withTxFn(tx)
+	}
+	return m
+}
 
 func (m *mockWebhookEndpointRepo) FindByTenantID(tenantID int64) ([]WebhookEndpoint, error) {
 	if m.findByTenantIDFn != nil {

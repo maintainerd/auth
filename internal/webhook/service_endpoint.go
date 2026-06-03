@@ -149,12 +149,7 @@ func (s *webhookEndpointService) Create(ctx context.Context, tenantID int64, url
 	defer span.End()
 	span.SetAttributes(attribute.Int64("tenant.id", tenantID))
 
-	eventsJSON, err := json.Marshal(events)
-	if err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, "marshal events failed")
-		return nil, apperror.NewValidation("invalid events payload")
-	}
+	eventsJSON, _ := json.Marshal(events)
 
 	ep := &WebhookEndpoint{
 		TenantID:        tenantID,
@@ -214,12 +209,7 @@ func (s *webhookEndpointService) Update(ctx context.Context, tenantID int64, web
 		return nil, apperror.NewNotFoundWithReason("webhook endpoint not found")
 	}
 
-	eventsJSON, err := json.Marshal(events)
-	if err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, "marshal events failed")
-		return nil, apperror.NewValidation("invalid events payload")
-	}
+	eventsJSON, _ := json.Marshal(events)
 
 	ep.URL = url
 	ep.Events = datatypes.JSON(eventsJSON)

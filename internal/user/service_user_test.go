@@ -126,6 +126,77 @@ func TestUserService_Get(t *testing.T) {
 		require.NoError(t, err)
 		assert.NotNil(t, res)
 	})
+
+	t.Run("invalid client UUID", func(t *testing.T) {
+		ur, ui, urr, rr, tr, idp, cr, up := defaultMocks()
+		_, svc := fullUserSvc(t, ur, ui, urr, rr, tr, idp, cr, up)
+		bad := "not-a-uuid"
+		_, err := svc.Get(context.Background(), UserServiceGetFilter{ClientUUID: &bad, TenantID: 1})
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "invalid client UUID")
+	})
+
+	t.Run("client not found", func(t *testing.T) {
+		ur, ui, urr, rr, tr, idp, cr, up := defaultMocks()
+		cr.findByUUIDAndTenantIDFn = func(_ uuid.UUID, _ int64) (*Client, error) { return nil, nil }
+		_, svc := fullUserSvc(t, ur, ui, urr, rr, tr, idp, cr, up)
+		cid := uuid.New().String()
+		_, err := svc.Get(context.Background(), UserServiceGetFilter{ClientUUID: &cid, TenantID: 1})
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "client not found")
+	})
+
+	t.Run("with client filter success", func(t *testing.T) {
+		ur, ui, urr, rr, tr, idp, cr, up := defaultMocks()
+		cr.findByUUIDAndTenantIDFn = func(_ uuid.UUID, _ int64) (*Client, error) {
+			return &Client{ClientID: 5}, nil
+		}
+		ur.findPaginatedFn = func(f UserRepositoryGetFilter) (*PaginationResult[User], error) {
+			assert.NotNil(t, f.ClientID)
+			return &PaginationResult[User]{Data: []User{}, Total: 0, Page: 1, Limit: 10, TotalPages: 0}, nil
+		}
+		_, svc := fullUserSvc(t, ur, ui, urr, rr, tr, idp, cr, up)
+		cid := uuid.New().String()
+		res, err := svc.Get(context.Background(), UserServiceGetFilter{ClientUUID: &cid, TenantID: 1})
+		require.NoError(t, err)
+		assert.NotNil(t, res)
+	})
+
+	t.Run("invalid user pool UUID", func(t *testing.T) {
+		ur, ui, urr, rr, tr, idp, cr, up := defaultMocks()
+		_, svc := fullUserSvc(t, ur, ui, urr, rr, tr, idp, cr, up)
+		bad := "not-a-uuid"
+		_, err := svc.Get(context.Background(), UserServiceGetFilter{UserPoolUUID: &bad, TenantID: 1})
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "invalid user pool UUID")
+	})
+
+	t.Run("user pool not found", func(t *testing.T) {
+		ur, ui, urr, rr, tr, idp, cr, up := defaultMocks()
+		ur.findByUUIDFn = func(_ any, _ ...string) (*User, error) { return nil, nil }
+		up.findByUUIDFn = func(_ any, _ ...string) (*UserPool, error) { return nil, nil }
+		_, svc := fullUserSvc(t, ur, ui, urr, rr, tr, idp, cr, up)
+		pid := uuid.New().String()
+		_, err := svc.Get(context.Background(), UserServiceGetFilter{UserPoolUUID: &pid, TenantID: 1})
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "user pool not found")
+	})
+
+	t.Run("with user pool filter success", func(t *testing.T) {
+		ur, ui, urr, rr, tr, idp, cr, up := defaultMocks()
+		up.findByUUIDFn = func(_ any, _ ...string) (*UserPool, error) {
+			return &UserPool{UserPoolID: 3}, nil
+		}
+		ur.findPaginatedFn = func(f UserRepositoryGetFilter) (*PaginationResult[User], error) {
+			assert.NotNil(t, f.UserPoolID)
+			return &PaginationResult[User]{Data: []User{}, Total: 0, Page: 1, Limit: 10, TotalPages: 0}, nil
+		}
+		_, svc := fullUserSvc(t, ur, ui, urr, rr, tr, idp, cr, up)
+		pid := uuid.New().String()
+		res, err := svc.Get(context.Background(), UserServiceGetFilter{UserPoolUUID: &pid, TenantID: 1})
+		require.NoError(t, err)
+		assert.NotNil(t, res)
+	})
 }
 
 // ---------------------------------------------------------------------------
@@ -138,6 +209,15 @@ func TestUserService_GetByUUID(t *testing.T) {
 	t.Run("user not found", func(t *testing.T) {
 		ur, ui, urr, rr, tr, idp, cr, up := defaultMocks()
 		ur.findByUUIDFn = func(_ any, _ ...string) (*User, error) { return nil, nil }
+		_, svc := fullUserSvc(t, ur, ui, urr, rr, tr, idp, cr, up)
+		_, err := svc.GetByUUID(context.Background(), uid, 1)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "user not found")
+	})
+
+	t.Run("FindByUUID db error", func(t *testing.T) {
+		ur, ui, urr, rr, tr, idp, cr, up := defaultMocks()
+		ur.findByUUIDFn = func(_ any, _ ...string) (*User, error) { return nil, errors.New("db error") }
 		_, svc := fullUserSvc(t, ur, ui, urr, rr, tr, idp, cr, up)
 		_, err := svc.GetByUUID(context.Background(), uid, 1)
 		require.Error(t, err)
@@ -369,6 +449,37 @@ func TestUserService_Create(t *testing.T) {
 		_, err := svc.Create(context.Background(), "user", "name", nil, nil, "P@ssW0rd1!", "active", nil, tenantUUID, creatorUUID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "name err")
+	})
+
+	t.Run("password validation failure", func(t *testing.T) {
+		ur, ui, urr, rr, tr, idp, cr, up := defaultMocks()
+		tr.findByUUIDFn = func(_ any, _ ...string) (*Tenant, error) { return &Tenant{TenantID: 1}, nil }
+		ur.findByUUIDFn = func(_ any, _ ...string) (*User, error) { return userWithAccess(2, 1), nil }
+		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr, up)
+		mock.ExpectBegin()
+		mock.ExpectRollback()
+		_, err := svc.Create(context.Background(), "user", "name", nil, nil, "short", "active", nil, tenantUUID, creatorUUID)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "password must")
+	})
+
+	t.Run("hash password error", func(t *testing.T) {
+		original := userHashPassword
+		userHashPassword = func(context.Context, []byte) ([]byte, error) {
+			return nil, errors.New("hash error")
+		}
+		t.Cleanup(func() { userHashPassword = original })
+		ur, ui, urr, rr, tr, idp, cr, up := defaultMocks()
+		tr.findByUUIDFn = func(_ any, _ ...string) (*Tenant, error) { return &Tenant{TenantID: 1}, nil }
+		ur.findByUUIDFn = func(_ any, _ ...string) (*User, error) { return userWithAccess(2, 1), nil }
+		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr, up)
+		mock.ExpectBegin()
+		mock.ExpectRollback()
+
+		_, err := svc.Create(context.Background(), "user", "name", nil, nil, "P@ssW0rd1!", "active", nil, tenantUUID, creatorUUID)
+
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "hash error")
 	})
 
 	t.Run("Create user role error", func(t *testing.T) {
@@ -1215,6 +1326,29 @@ func TestUserService_AssignUserRoles(t *testing.T) {
 		assert.NotNil(t, res)
 	})
 
+	t.Run("with token repo revocation", func(t *testing.T) {
+		ur, ui, urr, rr, tr, idp, cr, up := defaultMocks()
+		mockTokenRepo := &mockUserTokenRepo{}
+		callCount := 0
+		ur.findByUUIDFn = func(_ any, _ ...string) (*User, error) {
+			callCount++
+			if callCount == 1 {
+				return &User{UserID: 1, UserIdentities: []UserIdentity{{TenantID: 1}}}, nil
+			}
+			return &User{UserUUID: uid}, nil
+		}
+		rr.findByUUIDFn = func(_ any, _ ...string) (*Role, error) { return &Role{RoleID: 5}, nil }
+		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr, up)
+		// Inject token repo manually since fullUserSvc passes nil
+		svcImpl := svc.(*userService)
+		svcImpl.userTokenRepo = mockTokenRepo
+		mock.ExpectBegin()
+		mock.ExpectCommit()
+		res, err := svc.AssignUserRoles(context.Background(), uid, []uuid.UUID{roleUUID}, 1)
+		require.NoError(t, err)
+		assert.NotNil(t, res)
+	})
+
 	t.Run("Create user role error", func(t *testing.T) {
 		ur, ui, urr, rr, tr, idp, cr, up := defaultMocks()
 		ur.findByUUIDFn = func(_ any, _ ...string) (*User, error) {
@@ -1230,7 +1364,7 @@ func TestUserService_AssignUserRoles(t *testing.T) {
 		assert.Contains(t, err.Error(), "ur create err")
 	})
 
-	t.Run("success", func(t *testing.T) {
+	t.Run("success with dedup identities", func(t *testing.T) {
 		ur, ui, urr, rr, tr, idp, cr, up := defaultMocks()
 		callCount := 0
 		ur.findByUUIDFn = func(_ any, _ ...string) (*User, error) {
@@ -1238,7 +1372,10 @@ func TestUserService_AssignUserRoles(t *testing.T) {
 			if callCount == 1 {
 				return &User{UserID: 1, UserIdentities: []UserIdentity{{TenantID: 1}}}, nil
 			}
-			return &User{UserUUID: uid}, nil
+			return &User{UserUUID: uid, UserIdentities: []UserIdentity{
+				{TenantID: 1, Sub: "same-sub"},
+				{TenantID: 1, Sub: "same-sub"},
+			}}, nil
 		}
 		rr.findByUUIDFn = func(_ any, _ ...string) (*Role, error) { return &Role{RoleID: 5}, nil }
 		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr, up)
@@ -1362,6 +1499,28 @@ func TestUserService_RemoveUserRole(t *testing.T) {
 		require.NoError(t, err)
 		assert.NotNil(t, res)
 	})
+
+	t.Run("with token repo revocation", func(t *testing.T) {
+		ur, ui, urr, rr, tr, idp, cr, up := defaultMocks()
+		mockTokenRepo := &mockUserTokenRepo{}
+		callCount := 0
+		ur.findByUUIDFn = func(_ any, _ ...string) (*User, error) {
+			callCount++
+			if callCount == 1 {
+				return &User{UserID: 1, UserIdentities: []UserIdentity{{TenantID: 1}}}, nil
+			}
+			return &User{UserUUID: uid}, nil
+		}
+		rr.findByUUIDFn = func(_ any, _ ...string) (*Role, error) { return &Role{RoleID: 5}, nil }
+		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr, up)
+		svcImpl := svc.(*userService)
+		svcImpl.userTokenRepo = mockTokenRepo
+		mock.ExpectBegin()
+		mock.ExpectCommit()
+		res, err := svc.RemoveUserRole(context.Background(), uid, roleUUID, 1)
+		require.NoError(t, err)
+		assert.NotNil(t, res)
+	})
 }
 
 // ---------------------------------------------------------------------------
@@ -1380,6 +1539,26 @@ func TestUserService_GetUserRoles(t *testing.T) {
 		_, _, err := svc.GetUserRoles(context.Background(), uid, tenantID, filter)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "user not found")
+	})
+
+	t.Run("FindByUUID db error", func(t *testing.T) {
+		ur, ui, urr, rr, tr, idp, cr, up := defaultMocks()
+		ur.findByUUIDFn = func(_ any, _ ...string) (*User, error) { return nil, errors.New("db error") }
+		_, svc := fullUserSvc(t, ur, ui, urr, rr, tr, idp, cr, up)
+		_, _, err := svc.GetUserRoles(context.Background(), uid, tenantID, filter)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "user not found")
+	})
+
+	t.Run("no tenant access", func(t *testing.T) {
+		ur, ui, urr, rr, tr, idp, cr, up := defaultMocks()
+		ur.findByUUIDFn = func(_ any, _ ...string) (*User, error) {
+			return &User{UserID: 1, UserIdentities: []UserIdentity{{TenantID: 99}}}, nil
+		}
+		_, svc := fullUserSvc(t, ur, ui, urr, rr, tr, idp, cr, up)
+		_, _, err := svc.GetUserRoles(context.Background(), uid, tenantID, filter)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "access denied")
 	})
 
 	t.Run("FindRolesPaginated error", func(t *testing.T) {
@@ -1425,6 +1604,26 @@ func TestUserService_GetUserIdentities(t *testing.T) {
 		_, _, err := svc.GetUserIdentities(context.Background(), uid, tenantID, filter)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "user not found")
+	})
+
+	t.Run("FindByUUID db error", func(t *testing.T) {
+		ur, ui, urr, rr, tr, idp, cr, up := defaultMocks()
+		ur.findByUUIDFn = func(_ any, _ ...string) (*User, error) { return nil, errors.New("db error") }
+		_, svc := fullUserSvc(t, ur, ui, urr, rr, tr, idp, cr, up)
+		_, _, err := svc.GetUserIdentities(context.Background(), uid, tenantID, filter)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "user not found")
+	})
+
+	t.Run("no tenant access", func(t *testing.T) {
+		ur, ui, urr, rr, tr, idp, cr, up := defaultMocks()
+		ur.findByUUIDFn = func(_ any, _ ...string) (*User, error) {
+			return &User{UserID: 1, UserIdentities: []UserIdentity{{TenantID: 99}}}, nil
+		}
+		_, svc := fullUserSvc(t, ur, ui, urr, rr, tr, idp, cr, up)
+		_, _, err := svc.GetUserIdentities(context.Background(), uid, tenantID, filter)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "access denied")
 	})
 
 	t.Run("FindUserIdentitiesPaginated error", func(t *testing.T) {

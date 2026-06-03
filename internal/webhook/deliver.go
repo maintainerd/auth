@@ -24,6 +24,8 @@ const (
 	webhookMaxBackoff = 60 * time.Second
 )
 
+var webhookBackoffSleep = time.After
+
 func (d *Dispatcher) deliver(ctx context.Context, ep WebhookEndpoint, event *authevent.AuthEvent) {
 	payload := buildPayload(event)
 	body, err := json.Marshal(payload)
@@ -60,7 +62,7 @@ func (d *Dispatcher) deliver(ctx context.Context, ep WebhookEndpoint, event *aut
 			select {
 			case <-ctx.Done():
 				return
-			case <-time.After(backoff):
+			case <-webhookBackoffSleep(backoff):
 				backoff *= 2
 				if backoff > webhookMaxBackoff {
 					backoff = webhookMaxBackoff
@@ -80,10 +82,7 @@ func doRequest(ctx context.Context, url string, body []byte, sig string, timesta
 		return err
 	}
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(body))
-	if err != nil {
-		return fmt.Errorf("build request: %w", err)
-	}
+	req, _ := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("X-Maintainerd-Event", eventType)
 	req.Header.Set("X-Maintainerd-Delivery", deliveryID)

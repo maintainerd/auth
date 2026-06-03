@@ -60,7 +60,7 @@ type Role struct {
 	Status          string
 	CreatedAt       time.Time
 	UpdatedAt       time.Time
-	Tenant          *Tenant
+	Tenant          *Tenant          `gorm:"foreignKey:TenantID;references:TenantID"`
 	RolePermissions []RolePermission `gorm:"foreignKey:RoleID;references:RoleID"`
 }
 
@@ -146,7 +146,7 @@ type IdentityProvider struct {
 	IsSystem             bool
 	CreatedAt            time.Time
 	UpdatedAt            time.Time
-	Tenant               *Tenant
+	Tenant               *Tenant `gorm:"foreignKey:TenantID;references:TenantID"`
 }
 
 func (IdentityProvider) TableName() string { return "identity_providers" }
