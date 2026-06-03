@@ -7,7 +7,6 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/authevent"
-	"github.com/maintainerd/auth/internal/platform/crypto"
 	"github.com/maintainerd/auth/internal/shared"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -367,9 +366,9 @@ func TestClientService_Create(t *testing.T) {
 	})
 
 	t.Run("GenerateIdentifier failure on clientId", func(t *testing.T) {
-		orig := crypto.GenerateIdentifier
-		defer func() { crypto.GenerateIdentifier = orig }()
-		crypto.GenerateIdentifier = func(int) (string, error) { return "", errors.New("rand failure") }
+		orig := generateClientIdentifier
+		defer func() { generateClientIdentifier = orig }()
+		generateClientIdentifier = func(int) (string, error) { return "", errors.New("rand failure") }
 
 		gormDB, mock := newMockGormDB(t)
 		mock.ExpectBegin()
@@ -391,10 +390,10 @@ func TestClientService_Create(t *testing.T) {
 	})
 
 	t.Run("GenerateIdentifier failure on clientSecret", func(t *testing.T) {
-		orig := crypto.GenerateIdentifier
-		defer func() { crypto.GenerateIdentifier = orig }()
+		orig := generateClientIdentifier
+		defer func() { generateClientIdentifier = orig }()
 		callCount := 0
-		crypto.GenerateIdentifier = func(n int) (string, error) {
+		generateClientIdentifier = func(n int) (string, error) {
 			callCount++
 			if callCount == 1 {
 				return "fake-client-id", nil

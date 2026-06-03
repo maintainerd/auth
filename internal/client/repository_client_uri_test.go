@@ -176,7 +176,7 @@ func TestClientURIRepository_DeleteByUUIDAndTenantID(t *testing.T) {
 		mock.ExpectExec(`DELETE FROM "client_uris" WHERE.*client_uri_uuid = \$1.*tenant_id = \$2`).
 			WithArgs(id.String(), int64(1)).
 			WillReturnResult(sqlmock.NewResult(0, 0))
-		mock.ExpectRollback()
+		mock.ExpectCommit()
 		err := NewClientURIRepository(gdb).DeleteByUUIDAndTenantID(id.String(), 1)
 		require.Error(t, err)
 		assert.NoError(t, mock.ExpectationsWereMet())
