@@ -2,9 +2,11 @@ package idp
 
 import (
 	"encoding/json"
+	"errors"
 	"testing"
 
 	"github.com/maintainerd/auth/internal/platform/config"
+	"github.com/maintainerd/auth/internal/platform/crypto"
 	"gorm.io/datatypes"
 
 	"github.com/stretchr/testify/assert"
@@ -120,5 +122,87 @@ func TestRedactIdpConfig(t *testing.T) {
 		result := redactIdpConfig(config)
 		require.NotNil(t, result)
 		assert.Equal(t, config, *result)
+	})
+
+	t.Run("nil config", func(t *testing.T) {
+		result := redactIdpConfig(nil)
+		require.NotNil(t, result)
+		assert.Nil(t, *result)
+	})
+}
+
+func TestEncryptIdpConfig_NonStringClientSecret(t *testing.T) {
+	setTestEncryptionKey(t)
+
+	t.Run("null client_secret passes through", func(t *testing.T) {
+		config := datatypes.JSON(json.RawMessage(`{"client_secret":null,"issuer":"https://idp.example.com"}`))
+		result, err := encryptIdpConfig(config)
+		require.NoError(t, err)
+		assert.Equal(t, config, result)
+	})
+
+	t.Run("numeric client_secret passes through", func(t *testing.T) {
+		config := datatypes.JSON(json.RawMessage(`{"client_secret":12345,"issuer":"https://idp.example.com"}`))
+		result, err := encryptIdpConfig(config)
+		require.NoError(t, err)
+		assert.Equal(t, config, result)
+	})
+
+	t.Run("empty client_secret passes through", func(t *testing.T) {
+		setTestEncryptionKey(t)
+		config := datatypes.JSON(json.RawMessage(`{"client_secret":"","issuer":"https://idp.example.com"}`))
+		result, err := encryptIdpConfig(config)
+		require.NoError(t, err)
+		assert.Equal(t, config, result)
+	})
+
+	t.Run("encrypt error propagates", func(t *testing.T) {
+		orig := crypto.EncryptAtRest
+		defer func() { crypto.EncryptAtRest = orig }()
+		crypto.EncryptAtRest = func(string) (string, error) { return "", errors.New("encrypt failure") }
+
+		config := datatypes.JSON(json.RawMessage(`{"client_secret":"secret","issuer":"https://idp.example.com"}`))
+		result, err := encryptIdpConfig(config)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "encrypt failure")
+		assert.Nil(t, result)
+	})
+}
+
+func TestDecryptIdpConfig_NonStringClientSecret(t *testing.T) {
+	setTestEncryptionKey(t)
+
+	t.Run("null client_secret passes through", func(t *testing.T) {
+		config := datatypes.JSON(json.RawMessage(`{"client_secret":null,"issuer":"https://idp.example.com"}`))
+		result := decryptIdpConfig(config)
+		assert.Equal(t, config, result)
+	})
+
+	t.Run("numeric client_secret passes through", func(t *testing.T) {
+		config := datatypes.JSON(json.RawMessage(`{"client_secret":12345,"issuer":"https://idp.example.com"}`))
+		result := decryptIdpConfig(config)
+		assert.Equal(t, config, result)
+	})
+
+	t.Run("empty client_secret passes through", func(t *testing.T) {
+		config := datatypes.JSON(json.RawMessage(`{"client_secret":"","issuer":"https://idp.example.com"}`))
+		result := decryptIdpConfig(config)
+		assert.Equal(t, config, result)
+	})
+}
+
+func TestRedactIdpConfig_NonStringClientSecret(t *testing.T) {
+	t.Run("null client_secret redacts", func(t *testing.T) {
+		config := datatypes.JSON(json.RawMessage(`{"client_secret":null,"issuer":"https://idp.example.com"}`))
+		result := redactIdpConfig(config)
+		require.NotNil(t, result)
+		assert.Contains(t, string(*result), "***REDACTED***")
+	})
+
+	t.Run("numeric client_secret redacts", func(t *testing.T) {
+		config := datatypes.JSON(json.RawMessage(`{"client_secret":12345,"issuer":"https://idp.example.com"}`))
+		result := redactIdpConfig(config)
+		require.NotNil(t, result)
+		assert.Contains(t, string(*result), "***REDACTED***")
 	})
 }

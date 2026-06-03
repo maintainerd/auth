@@ -1,6 +1,7 @@
 package idp
 
 import (
+	"encoding/json"
 	"errors"
 	"net/http"
 	"net/http/httptest"
@@ -107,7 +108,6 @@ func TestIdentityProviderHandler_GetByUUID(t *testing.T) {
 	})
 
 	t.Run("success with tenant covers toIdpDetailResponseDTO tenant branch", func(t *testing.T) {
-		// Covers the r.Tenant != nil branch in toIdpDetailResponseDTO (lines 310-322).
 		svc := &mockIdentityProviderService{
 			getByUUIDFn: func(id uuid.UUID, tid int64) (*IdentityProviderServiceDataResult, error) {
 				return &IdentityProviderServiceDataResult{
@@ -116,6 +116,22 @@ func TestIdentityProviderHandler_GetByUUID(t *testing.T) {
 						TenantUUID: testTenantUUID,
 						Name:       "main",
 					},
+				}, nil
+			},
+		}
+		r := withTenant(withChiParam(jsonReq(t, http.MethodGet, "/", nil), "identity_provider_uuid", idpUUID.String()))
+		w := httptest.NewRecorder()
+		NewIdentityProviderHandler(svc).GetByUUID(w, r)
+		assert.Equal(t, http.StatusOK, w.Code)
+	})
+
+	t.Run("success with config covers toIdpDetailResponseDTO config branch", func(t *testing.T) {
+		cfg := datatypes.JSON(json.RawMessage(`{}`))
+		svc := &mockIdentityProviderService{
+			getByUUIDFn: func(id uuid.UUID, tid int64) (*IdentityProviderServiceDataResult, error) {
+				return &IdentityProviderServiceDataResult{
+					IdentityProviderUUID: id,
+					Config:               &cfg,
 				}, nil
 			},
 		}
