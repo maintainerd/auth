@@ -121,6 +121,22 @@ func TestSMSConfigService_Update(t *testing.T) {
 		assert.True(t, existing.TestMode)
 	})
 
+	t.Run("encrypt auth token error", func(t *testing.T) {
+		original := crypto.EncryptAtRest
+		t.Cleanup(func() { crypto.EncryptAtRest = original })
+		crypto.EncryptAtRest = func(string) (string, error) { return "", errors.New("encrypt failed") }
+		svc := newSMSConfigSvc(&mockSMSConfigRepo{
+			findByTenantIDFn: func(_ int64) (*SMSConfig, error) { return nil, nil },
+		})
+
+		_, err := svc.Update(context.Background(), 1,
+			"twilio", "AC123", "token123", "+15551234567", "", boolPtr(false),
+		)
+
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "encrypt failed")
+	})
+
 	t.Run("FindByTenantID error", func(t *testing.T) {
 		svc := newSMSConfigSvc(&mockSMSConfigRepo{
 			findByTenantIDFn: func(_ int64) (*SMSConfig, error) { return nil, errors.New("db") },
