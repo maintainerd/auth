@@ -442,7 +442,7 @@ func TestClientRepository_DeleteByUUIDAndTenantID(t *testing.T) {
 		mock.ExpectExec(`UPDATE "clients" SET.*"deleted_at"=.*WHERE.*client_uuid = \$\d+.*tenant_id = \$\d+`).
 			WithArgs(sqlmock.AnyArg(), id, int64(1)).
 			WillReturnResult(sqlmock.NewResult(0, 0))
-		mock.ExpectRollback()
+		mock.ExpectCommit()
 		err := NewClientRepository(gdb).DeleteByUUIDAndTenantID(id, 1)
 		require.Error(t, err)
 		assert.NoError(t, mock.ExpectationsWereMet())

@@ -157,7 +157,17 @@ func TestSessionService_CreateSession(t *testing.T) {
 	})
 
 	t.Run("random token generation error", func(t *testing.T) {
-		t.Skip("crypto/rand.Reader replacement causes panic on this Go version")
+		originalRandRead := randRead
+		randRead = func([]byte) (int, error) {
+			return 0, errors.New("entropy unavailable")
+		}
+		t.Cleanup(func() { randRead = originalRandRead })
+
+		repo := &mockUserTokenRepo{}
+		svc := NewSessionService(repo)
+		result, err := svc.CreateSession(context.Background(), 1, "", "")
+		require.Error(t, err)
+		assert.Nil(t, result)
 	})
 }
 
@@ -168,7 +178,15 @@ func TestGenerateRandomToken(t *testing.T) {
 }
 
 func TestGenerateRandomToken_Error(t *testing.T) {
-	t.Skip("crypto/rand.Reader replacement causes panic on this Go version")
+	originalRandRead := randRead
+	randRead = func([]byte) (int, error) {
+		return 0, errors.New("entropy unavailable")
+	}
+	t.Cleanup(func() { randRead = originalRandRead })
+
+	token, err := generateRandomToken(4)
+	require.Error(t, err)
+	assert.Empty(t, token)
 }
 
 func TestSessionService_EnforceConcurrentLimit(t *testing.T) {

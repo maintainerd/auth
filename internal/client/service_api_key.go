@@ -97,6 +97,8 @@ type apiKeyService struct {
 	permissionRepo       PermissionRepository
 }
 
+var apiKeyRandRead = rand.Read
+
 func NewAPIKeyService(
 	db *gorm.DB,
 	apiKeyRepo APIKeyRepository,
@@ -121,7 +123,7 @@ func NewAPIKeyService(
 func (s *apiKeyService) generateAPIKey() (string, string, string, error) {
 	// Generate 32 random bytes
 	bytes := make([]byte, 32)
-	if _, err := rand.Read(bytes); err != nil {
+	if _, err := apiKeyRandRead(bytes); err != nil {
 		return "", "", "", err
 	}
 

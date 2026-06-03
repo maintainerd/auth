@@ -26,6 +26,9 @@ const smsOTPLength = 6
 const smsOTPTTL = 10 * time.Minute
 const smsOTPMaxFailedAttempts = 3
 
+var generateSMSOTP = crypto.GenerateOTP
+var newSMSProvider = sms.NewSystemProvider
+
 // SMSLoginService handles SMS one-time-code login flows.
 type SMSLoginService interface {
 	SendOTP(ctx context.Context, req SMSLoginSendDTO) error
@@ -106,7 +109,7 @@ func (s *smsLoginService) SendOTP(ctx context.Context, req SMSLoginSendDTO) erro
 	}
 
 	// Generate OTP and hash it for storage.
-	otp, err := crypto.GenerateOTP(smsOTPLength)
+	otp, err := generateSMSOTP(smsOTPLength)
 	if err != nil {
 		return apperror.NewInternal("failed to generate OTP", err)
 	}
@@ -124,7 +127,7 @@ func (s *smsLoginService) SendOTP(ctx context.Context, req SMSLoginSendDTO) erro
 	}
 
 	if config.SMSProvider != "" {
-		provider, smsErr := sms.NewSystemProvider(ctx)
+		provider, smsErr := newSMSProvider(ctx)
 		if smsErr != nil {
 			slog.Error("SMS provider init failed", "err", smsErr)
 		} else if smsErr = provider.Send(ctx, req.Phone, fmt.Sprintf("Your verification code is: %s", otp)); smsErr != nil {

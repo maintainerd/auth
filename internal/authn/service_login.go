@@ -501,10 +501,7 @@ func (s *loginService) Logout(ctx context.Context, accessToken string) error {
 		return nil
 	}
 
-	claims, ok := token.Claims.(jwtlib.MapClaims)
-	if !ok {
-		return nil
-	}
+	claims := token.Claims.(jwtlib.MapClaims)
 
 	if err := s.denylistLogoutJTI(ctx, claims); err != nil {
 		span.RecordError(err)

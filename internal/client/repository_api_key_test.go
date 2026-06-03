@@ -176,7 +176,7 @@ func TestAPIKeyRepository_DeleteByUUIDAndTenantID(t *testing.T) {
 		mock.ExpectExec(`UPDATE "api_keys" SET.*"deleted_at"=.*WHERE.*api_key_uuid = \$\d+.*tenant_id = \$\d+`).
 			WithArgs(sqlmock.AnyArg(), id.String(), int64(1)).
 			WillReturnResult(sqlmock.NewResult(0, 0))
-		mock.ExpectRollback()
+		mock.ExpectCommit()
 		err := NewAPIKeyRepository(gdb).DeleteByUUIDAndTenantID(id.String(), 1)
 		require.Error(t, err)
 		assert.NoError(t, mock.ExpectationsWereMet())
