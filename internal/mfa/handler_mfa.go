@@ -16,6 +16,11 @@ type MFAHandler struct {
 	webAuthnSvc WebAuthnService
 }
 
+var (
+	parseWebAuthnCreationResponse = protocol.ParseCredentialCreationResponseBody
+	parseWebAuthnRequestResponse  = protocol.ParseCredentialRequestResponseBody
+)
+
 func NewMFAHandler(mfaSvc MFAService, webAuthnSvc WebAuthnService) *MFAHandler {
 	return &MFAHandler{mfaSvc: mfaSvc, webAuthnSvc: webAuthnSvc}
 }
@@ -186,7 +191,7 @@ func (h *MFAHandler) WebAuthnFinishRegistration(w http.ResponseWriter, r *http.R
 
 	credName := r.URL.Query().Get("name")
 
-	parsedResponse, err := protocol.ParseCredentialCreationResponseBody(r.Body)
+	parsedResponse, err := parseWebAuthnCreationResponse(r.Body)
 	if err != nil {
 		resp.Error(w, http.StatusBadRequest, "Invalid WebAuthn credential response")
 		return
@@ -239,7 +244,7 @@ func (h *MFAHandler) WebAuthnFinishAuthentication(w http.ResponseWriter, r *http
 		return
 	}
 
-	parsedResponse, err := protocol.ParseCredentialRequestResponseBody(r.Body)
+	parsedResponse, err := parseWebAuthnRequestResponse(r.Body)
 	if err != nil {
 		resp.Error(w, http.StatusBadRequest, "Invalid WebAuthn assertion response")
 		return
