@@ -9,8 +9,8 @@ import (
 )
 
 type API struct {
-	APIID       int64
-	APIUUID     uuid.UUID
+	APIID       int64     `gorm:"column:api_id"`
+	APIUUID     uuid.UUID `gorm:"column:api_uuid"`
 	TenantID    int64
 	Name        string
 	DisplayName string
@@ -29,7 +29,7 @@ type Permission struct {
 	PermissionID   int64
 	PermissionUUID uuid.UUID
 	TenantID       int64
-	APIID          int64
+	APIID          int64 `gorm:"column:api_id"`
 	Name           string
 	Description    string
 	Status         string

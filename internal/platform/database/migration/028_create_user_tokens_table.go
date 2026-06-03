@@ -8,17 +8,23 @@ func CreateUserTokenTable(db *gorm.DB) error {
 	sql := `
 -- CREATE TABLE
 CREATE TABLE IF NOT EXISTS user_tokens (
-    user_token_id				SERIAL PRIMARY KEY,
-    user_token_uuid			UUID NOT NULL UNIQUE,
-		user_id							INTEGER NOT NULL,
-    token_type					VARCHAR(50) NOT NULL, -- 'refresh', 'api', 'reset_password'
-    token								TEXT NOT NULL, -- hashed token string
-    user_agent					TEXT,
-    ip_address					VARCHAR(50),
-    expires_at					TIMESTAMPTZ,
-		is_revoked					BOOLEAN DEFAULT FALSE,
-    created_at					TIMESTAMPTZ DEFAULT now(),
-    updated_at					TIMESTAMPTZ DEFAULT now()
+    user_token_id         BIGSERIAL PRIMARY KEY,
+    user_token_uuid       UUID NOT NULL UNIQUE,
+    user_id               BIGINT NOT NULL,
+    token_type            VARCHAR(50) NOT NULL, -- 'refresh', 'api', 'reset_password', 'session'
+    token                 TEXT NOT NULL, -- hashed token string
+    user_agent            TEXT,
+    ip_address            VARCHAR(50),
+    expires_at            TIMESTAMPTZ,
+    is_revoked            BOOLEAN DEFAULT FALSE,
+
+    -- Session-specific fields. NULL for non-session token types.
+    last_used_at          TIMESTAMPTZ,
+    idle_timeout_seconds  INTEGER,
+    absolute_expires_at   TIMESTAMPTZ,
+
+    created_at            TIMESTAMPTZ DEFAULT now(),
+    updated_at            TIMESTAMPTZ DEFAULT now()
 );
 
 -- ADD CONSTRAINTS
@@ -39,6 +45,7 @@ CREATE INDEX IF NOT EXISTS idx_user_tokens_user_id ON user_tokens (user_id);
 CREATE INDEX IF NOT EXISTS idx_user_tokens_token_type ON user_tokens (token_type);
 CREATE INDEX IF NOT EXISTS idx_user_tokens_token ON user_tokens (token);
 CREATE INDEX IF NOT EXISTS idx_user_tokens_created_at ON user_tokens (created_at);
+CREATE INDEX IF NOT EXISTS idx_user_tokens_session_active ON user_tokens (user_id, token_type, is_revoked, absolute_expires_at);
 `
 	return db.Exec(sql).Error
 }

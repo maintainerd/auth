@@ -22,6 +22,10 @@ Always follow the test standards in [docs/contributing/testing.md](docs/contribu
 - **Validation tests**: one sub-test per validation rule. See [validation-tests](docs/contributing/testing.md#validation-tests).
 - **Mock conventions**: function-field pattern in `mock_test.go` / `mock_repos_test.go`. See [mocking-strategy](docs/contributing/testing.md#mocking-strategy).
 - **Test placement**: unit tests beside source; integration tests in `tests/integration/` (tag: `integration`); e2e tests in `tests/e2e/` (tag: `e2e`). See [test-tiers](docs/contributing/testing.md#test-tiers-and-placement).
-- **Coverage baseline**: total is ~60%. Target ≥80% per domain package. Track gaps in [docs/planning/test-coverage-plan.md](docs/planning/test-coverage-plan.md).
+- **Coverage baseline**: total is ~69%. Target ≥80% per domain package. Track gaps in [docs/planning/test-coverage.md](docs/planning/test-coverage.md).
 
 When writing or fixing tests, consult the coverage plan to see which packages need attention and what is missing.
+
+## database migrations
+
+Follow [docs/contributing/database-migrations.md](docs/contributing/database-migrations.md). Key rule: **migrations are create-only** while the project is pre-release / not deployed anywhere — there is one canonical `NNN_create_<table>_table.go` per table. To change a table's schema, **edit its original create migration in place** (and the matching GORM model in the owning package); do **not** add `*_add_*`/`*_alter_*`/`*_drop_*`/backfill migrations. Only brand-new tables get a new migration, appended to the registry in `internal/platform/runner/migration.go`. This rule freezes at first production deployment.

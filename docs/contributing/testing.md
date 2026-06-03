@@ -36,137 +36,173 @@ This document describes how to run, write, and organise tests when contributing 
 
 ---
 
-## Test Coverage Checklist
+## Test Standards (Definition of Done)
 
-Mark boxes as you bring each handler/service/validation/middleware up to the standard below.
+These standards are **normative**. A test (or test file) is "done" only when it meets the
+standard for its tier. This section defines *what "done" means*; the living checklist of
+*which* tests still need writing (per package, per endpoint, per repository) is tracked in
+[docs/planning/test-coverage.md](../planning/test-coverage.md) — update the boxes
+there, keep this file as the standard.
 
-### Middleware Tests
+**Coverage targets.** ≥80% per domain package is the CI floor. Security-critical and
+pure-logic units target **100% branch coverage**. Throughout this section "100%" means *every
+branch/path of the unit under test* (each `if`/`switch`/`for`/early-return), not just line %.
 
-- [x] `RecoveryMiddleware` — panic recovery + normal path
-- [x] `CORSMiddleware` — no-origin, wildcard, explicit match, origin-not-allowed, OPTIONS preflight
-- [x] `CSRFMiddleware` — safe methods (GET/HEAD/OPTIONS/TRACE), non-safe: no-cookie, empty-cookie, missing-header, mismatch, success
-- [x] `IPRateLimitMiddleware` — nil Redis, under limit, exceeds limit (429 + Retry-After), per-path keys, per-IP keys
-- [x] `EnforceJSONContentType` — GET/HEAD/DELETE skip, JSON passes, charset passes, empty Content-Type (415), text/plain (415), OAuth form-encoded exemption
-- [x] `SessionValidationMiddleware` — no header (pass-through), invalid UUID (400), no user (401), valid session, UnauthorizedError (401), generic error (500)
-- [x] `JWTAuthMiddleware` — existing tests cover all branches
-- [x] `UserContextMiddleware` — existing tests cover all branches
-- [x] `PermissionMiddleware` — existing tests cover all branches
-- [x] `LoggingMiddleware` — existing tests cover all branches
-- [x] `SecurityHeadersMiddleware` / `SecurityContextMiddleware` / `RequestSizeLimitMiddleware` / `TimeoutMiddleware` / `IPWhitelistMiddleware` — existing tests cover all branches
+### Unit test standards
+
+Applies to every exported function, service method, validation method, and HTTP handler.
+Mock all external dependencies (DB, cache, network, clock, RNG). Fast, no I/O, deterministic.
+
+**Folders that do NOT need a unit test.** Do not create `_test.go` files beside these — they
+are pure wiring, generated, or require real infrastructure, so they are excluded from Codecov
+and verified through the integration/e2e tiers instead:
+
+| Folder | Why it's skipped | Where it's covered |
+|--------|------------------|--------------------|
+| `cmd/server` | Process entrypoint / bootstrap wiring | e2e (server boots) |
+| `internal/app` | DI composition root — only constructs & connects deps | e2e |
+| `internal/server` | HTTP/gRPC transport routing & server setup | e2e + middleware integration |
+| `internal/platform/database` | GORM engine/driver setup (needs a real DB) | repository integration |
+| `internal/platform/database/migration` | Schema migrations | applied by the integration harness |
+| `internal/platform/runner` | Process/worker lifecycle (background loops, signals) | e2e / manual |
+| `internal/platform/gen` | Generated protobuf code — never hand-test generated output | n/a |
+| `internal/platform/model` | Plain GORM struct definitions — no behavior to test | repository integration |
+| `internal/setup/seeder` | DB seeding | repository/e2e integration |
+
+Rule of thumb: if a file is **pure wiring** (only constructs and connects dependencies) or
+**generated**, skip the unit test. If it has a branch, a validation rule, or a decision,
+unit-test it. Everything else under `internal/` is in scope.
+
+**Coverage & structure**
+- 100% of branches in the unit under test
+- Table-driven sub-tests; one named sub-test per distinct case
+- Deterministic — inject clock/RNG/UUID; no real `time.Now()`/`rand` so reruns are stable
+- Passes under `-race`
+- No shared/global state leaks between sub-tests; `t.Parallel()` where safe
+
+**Success cases (cover all of them)**
+- Primary happy path returns the expected value/DTO with every field populated correctly
+- Each alternative success branch (optional inputs present/absent, defaults applied, feature flag on/off)
+- Idempotent operations succeed on repeat where the contract promises idempotency
+- Returned object excludes sensitive fields (secrets/hashes/tokens redacted)
+
+**Error / failure cases (cover all of them)**
+- One sub-test per distinct error branch: not-found, duplicate/conflict, validation failure, business-rule violation, dependency/repo error, downstream/service error
+- Context cancellation / timeout is honored and propagated
+- Wrapped errors carry context and map to the correct `apperror` type / HTTP status
+- Failure does not partially mutate state (no half-writes; transaction rolled back)
+- Error messages never leak secrets/PII
+
+**Input / boundary (validation)**
+- One sub-test per validation rule (required, format, min/max length, enum/allowlist, numeric range)
+- Boundary values: empty, nil pointer, zero, just-under/just-over limits, max length, unicode/whitespace
+- Malformed input rejected (bad JSON shape handled at the handler layer)
+
+**Authorization & tenancy (if applicable)**
+- Cross-tenant access denied — an actor scoped to tenant A cannot read/mutate a tenant-B resource (returns not-found/forbidden, never another tenant's data)
+- Ownership check — a non-owner cannot act on a user-owned resource
+- Permission/scope gate enforced where the service is the trust boundary
+- Step-up / re-auth required for sensitive operations where the contract demands it
+
+**Dependency interaction**
+- Asserts the correct arguments were passed to mocked deps (e.g. repo called with the tenant-scoped query)
+- Asserts a dep is NOT called when the path short-circuits (e.g. no token issued on failed auth)
+- Constant-time comparison used (and tested) for secret/token/OTP equality
+
+Handlers additionally follow the [9-step handler checklist](#handler-test-checklist):
+auth → authz → params → body → validation → deps → business rules → service error →
+success (status + headers + full body).
+
+### E2E test standards
+
+Applies per endpoint × HTTP method (GET/POST/PUT/PATCH/DELETE). Drive the **real** router
+(`internal/server` `buildPublicRouter`/`buildInternalRouter`/`buildManagementRouter`) against
+live, seeded Postgres + Redis — never inline stub handlers. Each test is a contract test:
+assert status code, response body shape, and headers. Each test seeds and tears down its own
+data (isolated; no order dependence).
+
+**Coverage**
+- 100% of endpoints × methods exposed by the router have ≥1 e2e test
+- Every documented status code for the endpoint is exercised
+- Endpoints present on both ports are covered on both (internal 8080 + public 8081)
+
+**Success cases (cover all of them)**
+- Happy path returns the correct 2xx (200/201/204) with the documented body shape
+- Full lifecycle round-trip where applicable: create → read → update → delete are mutually consistent
+- List endpoints: pagination (page/limit), sorting, filtering, default page size, and the empty-result case
+- Idempotency: safe re-DELETE / re-PUT behaves per contract
+- Correct headers: security headers present; `Cache-Control: no-store` + `Pragma: no-cache` on token/sensitive responses; `Location` on create where applicable
+- Sensitive values returned only when contractually allowed (client/api-key secret shown once at creation, never on read)
+
+**Error / failure cases (cover all of them)**
+- 400 — missing required field, malformed JSON, invalid value/format, wrong type
+- 404 — unknown resource id
+- 405 — unsupported method on the path (where the router distinguishes)
+- 409 — duplicate/conflict on a unique constraint
+- 415 — wrong/missing `Content-Type` on a JSON endpoint
+- 413 — oversized body on size-limited routes
+- Business-rule/semantic failure returns the standard error envelope; OAuth endpoints return the OAuth error shape (`error`/`error_description`), not the generic envelope
+- Error responses never leak stack traces, internal ids, or secrets
+
+**Authentication (protected endpoints)**
+- 401 — no token
+- 401 — malformed / wrong-signature / wrong-`alg` / expired / not-yet-valid token
+- 401 — token for a revoked session / denylisted `jti`
+- 403 — missing/invalid CSRF token on cookie-auth state-changing routes (double-submit)
+
+**Authorization (protected endpoints)**
+- 403 — authenticated user lacking the required permission/scope
+- 2xx — user WITH the required permission succeeds (positive authz path)
+- Step-up — 403/precondition without a fresh step-up acr on sensitive ops; success with it
+
+**Tenancy / multi-tenant isolation**
+- User belongs to the resource's tenant → success
+- Cross-tenant READ denied — tenant A token cannot read a tenant B resource (404/403; body never leaks B's data)
+- Cross-tenant WRITE/DELETE denied — tenant A cannot mutate a tenant B resource
+- List endpoints return only the caller's tenant rows (no bleed-through)
+
+**Resilience / abuse**
+- 429 — rate-limited endpoints return Too Many Requests + `Retry-After` past the threshold
+
+### Integration test standards
+
+Applies per repository, cache, and middleware chain. Requires a **real** Postgres (live
+migration schema, via testcontainers-go or docker-compose) and real Redis/miniredis — never
+sqlmock or fake structs. Use the real `*Repository` constructors and real models.
+
+**Repository**
+- CRUD round-trip against the live schema via the real repo methods
+- Pagination with real data: page/limit/sort, total count, first/last page, out-of-range page
+- Soft-delete: deleted rows excluded from normal queries, still present unscoped, `deleted_at` set
+- Tenant scoping: `tenant_id`-scoped queries return only the right subset; cross-tenant lookup returns nothing
+- Cascade: parent delete removes/handles child rows per the FK/cascade contract
+- Transaction boundaries: commit persists; an error inside the tx rolls back ALL writes (real rollback, not a mock)
+- Unique constraints / conflicts surface the expected error
+- Single-use / consumable rows (auth codes, OTPs, invites, magic links): marked used and cannot be reused
+- TTL / expiry: expired rows excluded and removed by the cleanup method
+- Optimistic concurrency / version increment where the model uses it
+
+**Cache**
+- Serialization round-trip fidelity (struct → Redis → struct, all fields intact)
+- TTL set correctly and the key actually expires (advance the clock / `FastForward`)
+- Invalidation on change: the right keys are evicted on user/permission/session change; siblings untouched
+- Key namespacing prevents cross-tenant / cross-client collisions
+
+**Middleware**
+- Full chain (`JWTAuth → SecurityContext → UserContext → Permission`) reaches 2xx with a valid seeded user (positive path)
+- 401 negative paths (no/expired/malformed token); 403 on missing permission
+- Session validation against a real store: valid passes, revoked/expired → 401
+- CSRF, content-type, and CORS behaviors compose correctly with real context
 
 ---
 
-### authn Package
+### Coverage tracking lives in the plan doc
 
-#### Handler Tests (9-step checklist)
-
-- [x] `handler_register.go` — RegisterPublic, Register, RegisterInvite, RegisterInvitePublic
-- [x] `handler_login.go` — LoginPublic, Login, Logout (handler-level)
-- [x] `handler_forgot_password.go` — ForgotPasswordPublic, ForgotPassword
-- [x] `handler_reset_password.go` — ResetPasswordPublic, ResetPassword
-- [x] `handler_magic_link.go` — SendMagicLinkPublic, SendMagicLink, VerifyMagicLink
-- [x] `handler_sms_login.go` — SendOTP, VerifyOTP
-- [x] `handler_email_verification.go` — SendVerificationEmailPublic, SendVerificationEmail, VerifyEmail
-
-#### Service Tests
-
-- [x] `service_register.go` — RegisterPublic, Register, RegisterInvite, RegisterInvitePublic (all error branches)
-- [x] `service_register.go` — true success paths (RegisterResponseDTO returned with valid tokens — UserIdentitySub populated in tests)
-- [x] `service_login.go` — LoginPublic, Login, GetUserByEmail (all error branches)
-- [x] `service_login.go` — Logout (10 branches: empty token, nil sessionService, malformed JWT, no sub, empty sub, invalid UUID, user not found, lookup error, revoke error, success)
-- [x] `service_login.go` — checkPasswordExpiry branch (nil repo, nil PasswordChangedAt, expiry days 0, expired sets ForcePasswordChange, not expired)
-- [x] `service_forgot_password.go` — SendPasswordResetEmail (all error branches)
-- [x] `service_reset_password.go` — ResetPassword (all error branches)
-- [x] `service_magic_link.go` — SendMagicLink, LoginWithMagicLink (all branches — rate-limit, client not found, user inactive, token expired, etc.)
-- [x] `service_sms_login.go` — SendOTP, VerifyOTP (all branches — rate-limit, FindByPhone, GenerateOTP, OTP hash mismatch, etc.)
-- [x] `service_email_verification.go` — SendVerificationEmail, VerifyEmail (all branches — user not found, already verified, token expired, etc.)
-- [x] `service_session.go` — ListSessions (3), RevokeSession (4), RevokeAllSessions (2), CreateSession (2), EnforceConcurrentLimit (5), ValidateAndTouch (3)
-- [x] `service_password_policy.go` — loadPolicy (nil repo, repo error, nil result), checkPasswordHistory (nil repo, count 0, no match, match, find error), recordPasswordHistory (nil repo, count 0)
-
-#### Validation Tests
-
-- [x] `validation_register.go` — RegisterRequestDTO, RegisterRequestDTO.ValidateForRegistration, RegisterQueryDTO, RegisterInviteQueryDTO
-- [x] `validation_register.go` — max-length rules (username >255, fullname >255, password >128)
-- [x] `validation_login.go` — LoginRequestDTO, LoginQueryDTO
-- [x] `validation_login.go` — max-length rules (client_id >255, provider_id >255)
-- [x] `validation_forgot_password.go` — ForgotPasswordRequestDTO
-- [x] `validation_reset_password.go` — ResetPasswordRequestDTO, ResetPasswordQueryDTO
-- [x] `validation_reset_password.go` — max-length rules (token >500, client_id >100, etc.)
-- [x] `validation_magic_link.go` — SendMagicLinkRequestDTO, VerifyMagicLinkRequestDTO
-- [x] `validation_sms_login.go` — SMSLoginSendDTO, SMSLoginVerifyDTO
-- [x] `validation_email_verification.go` — SendEmailVerificationRequestDTO, VerifyEmailRequestDTO
-
----
-
-### oauth Package
-
-#### Handler Tests (9-step checklist)
-
-- [x] `handler_authorize.go` — Authorize, GetConsentChallenge, HandleConsent (existing tests cover full checklist)
-- [x] `handler_token.go` — Token, Revoke, Introspect (existing tests cover full checklist)
-- [x] `handler_token.go` — DPoP proof validation path (invalid proof → 400, header ignored when dpopStore nil)
-- [x] `handler_discovery.go` — Discovery, JWKS (existing), AuthorizationServerMetadata (new)
-- [x] `handler_consent.go` — ListGrants, RevokeGrant (existing tests cover full checklist)
-- [x] `handler_userinfo.go` — UserInfo (existing tests cover full checklist)
-- [x] `handler_userinfo.go` — composeUserDisplayName edge cases (nil User, DisplayName whitespace, FirstName+LastName fallback, nil Profile)
-- [x] `handler_ciba.go` — Initiate, ExchangeToken (validation), ApproveRequest, DenyRequest
-- [x] `handler_device.go` — Authorize, VerifyUserCode, ExchangeDeviceToken (validation), DenyUserCode
-- [x] `handler_par.go` — Push
-- [x] `handler_register.go` — Register
-- [x] `handler_session.go` — EndSession (GET + POST), BackchannelLogout
-- [x] `handler_token_exchange.go` — Exchange (validation)
-
-#### Service Tests
-
-- [x] `service_authorize.go` — Authorize (17 sub-tests), GetConsentChallenge (6), HandleConsent (11)
-- [x] `service_token.go` — Exchange (~26 sub-tests), Revoke (6), Introspect (8)
-- [x] `service_consent.go` — ListGrants (4), RevokeGrant (5)
-- [x] `service_ciba.go` — Initiate, ExchangeToken, ApproveRequest, DenyRequest (15 sub-tests)
-- [x] `service_device.go` — Authorize, VerifyUserCode, ExchangeToken, DenyUserCode (12 sub-tests)
-- [x] `service_par.go` — Push, ConsumeRequestURI (8 sub-tests)
-- [x] `service_register.go` — Register (6 sub-tests)
-- [x] `service_session.go` — EndSession, BackchannelLogout (7 sub-tests)
-- [x] `service_token_exchange.go` — Exchange (5 sub-tests)
-- [x] `authentication.go` — authenticatePrivateKeyJWT (invalid assertion_type, empty assertion, no JWKS, invalid signature), authenticateClientSecretJWT (invalid assertion_type, empty assertion, no secret, issuer mismatch), validateAssertionClaims (6 sub-tests)
-
-#### Validation Tests
-
-- [x] `validation_authorize.go` — OAuthAuthorizeRequestDTO, OAuthConsentDecisionDTO (existing + max-length tests added)
-- [x] `validation_token.go` — OAuthTokenRequestDTO, OAuthRevokeRequestDTO, OAuthIntrospectRequestDTO
-- [x] `validation_ciba.go` — OAuthCIBARequestDTO, OAuthCIBATokenRequestDTO
-- [x] `validation_device.go` — OAuthDeviceAuthorizationRequestDTO, OAuthDeviceVerifyRequestDTO, OAuthDeviceTokenRequestDTO
-- [x] `validation_par.go` — OAuthPARRequestDTO
-- [x] `validation_register.go` — OAuthClientRegistrationRequestDTO
-- [x] `validation_session.go` — OAuthEndSessionRequestDTO, OAuthBackchannelLogoutRequestDTO
-- [x] `validation_token_exchange.go` — OAuthTokenExchangeRequestDTO
-
----
-
-### E2E Tests
-
-- [x] `tests/e2e/login_test.go` — POST /login flow
-- [x] `tests/e2e/register_test.go` — POST /register flow
-- [x] `tests/e2e/forgot_password_test.go` — POST /forgot-password flow
-- [x] `tests/e2e/reset_password_test.go` — POST /reset-password flow
-- [x] `tests/e2e/oauth_flow_test.go` — Full OAuth authorization code grant
-- [x] `tests/e2e/tenant_test.go` — CRUD /tenants
-- [x] `tests/e2e/multi_tenant_test.go` — Cross-tenant isolation
-- [x] `tests/e2e/user_test.go` — User profile
-- [x] `tests/e2e/iam_test.go` — Roles and permissions
-- [x] `tests/e2e/invite_test.go` — Invite flow
-- [x] `tests/e2e/branding_test.go` — Branding CRUD
-- [x] `tests/e2e/client_test.go` — Client management
-
-### Integration Tests
-
-- [x] `tests/integration/repository/tenant_test.go`
-- [x] `tests/integration/repository/user_test.go`
-- [x] `tests/integration/repository/oauth_test.go`
-- [x] `tests/integration/repository/iam_test.go`
-- [x] `tests/integration/repository/client_test.go`
-- [x] `tests/integration/cache/user_context_test.go`
-- [x] `tests/integration/cache/jti_denylist_test.go`
-- [x] `tests/integration/middleware/auth_chain_test.go`
+The concrete, living checklist of **which** unit, e2e, and integration tests still need
+writing — per package, per endpoint, per repository, with priorities — is maintained in
+[docs/planning/test-coverage.md](../planning/test-coverage.md). Update the boxes
+there as you complete work. Keep *this* file as the standard (the "definition of done"
+each of those boxes must satisfy).
 
 ---
 
@@ -997,8 +1033,8 @@ Open `coverage.html` in a browser to see per-line coverage. Red lines are uncove
 
 **Paths excluded from coverage** (`codecov.yml`):
 - `cmd/server`, `internal/app`, `internal/server` — pure wiring, no branching logic
-- `internal/gen` — generated code
-- `internal/database`, `internal/runner`, `internal/model`, `internal/grpc`, `internal/rest`, `internal/templates` — infrastructure-dependent; covered by integration/e2e tiers
+- `internal/platform/gen` — generated code
+- `internal/platform/database`, `internal/platform/runner`, `internal/platform/model`, `internal/setup/seeder` — infrastructure-dependent; covered by integration/e2e tiers
 
 ---
 

@@ -87,6 +87,11 @@ CREATE INDEX IF NOT EXISTS idx_auth_events_failures ON auth_events (result, crea
     WHERE result = 'failure';
 CREATE INDEX IF NOT EXISTS idx_auth_events_critical ON auth_events (severity, created_at DESC)
     WHERE severity IN ('WARN', 'CRITICAL');
+
+-- Append-only audit records: UPDATEs are silently discarded. DELETE remains
+-- allowed so the retention runner can prune old events.
+CREATE OR REPLACE RULE no_update_auth_events
+AS ON UPDATE TO auth_events DO INSTEAD NOTHING;
 `
 	return db.Exec(sql).Error
 }
