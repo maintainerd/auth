@@ -3,6 +3,7 @@ package authevent
 import (
 	"context"
 	"errors"
+	"sync"
 	"testing"
 	"time"
 
@@ -25,6 +26,24 @@ type mockAuthEventRepo struct {
 	findByDateRangeFn  func(tenantID int64, from, to time.Time) ([]AuthEvent, error)
 	deleteOlderThanFn  func(cutoff time.Time) (int64, error)
 	countByEventTypeFn func(eventType string, tenantID int64) (int64, error)
+}
+
+type mockWebhookDispatcher struct {
+	mu             sync.Mutex
+	dispatched     []*AuthEvent
+	shutdownCalled bool
+}
+
+func (m *mockWebhookDispatcher) Dispatch(_ context.Context, event *AuthEvent) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.dispatched = append(m.dispatched, event)
+}
+
+func (m *mockWebhookDispatcher) Shutdown() {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.shutdownCalled = true
 }
 
 func (m *mockAuthEventRepo) WithTx(_ *gorm.DB) AuthEventRepository { return m }
@@ -200,6 +219,30 @@ func TestAuthEventService_Log(t *testing.T) {
 		require.NotNil(t, created.TraceID)
 		assert.Equal(t, "0102030405060708090a0b0c0d0e0f10", *created.TraceID)
 	})
+
+	t.Run("dispatcher receives persisted event", func(t *testing.T) {
+		eventUUID := uuid.New()
+		dispatcher := &mockWebhookDispatcher{}
+		repo := &mockAuthEventRepo{
+			createFn: func(e *AuthEvent) (*AuthEvent, error) {
+				e.AuthEventUUID = eventUUID
+				return e, nil
+			},
+		}
+		svc := NewAuthEventService(repo, dispatcher)
+
+		svc.Log(context.Background(), AuthEventInput{
+			TenantID:  1,
+			IPAddress: "10.0.0.1",
+			Category:  AuthEventCategoryAuthn,
+			EventType: AuthEventTypeLoginSuccess,
+			Severity:  AuthEventSeverityInfo,
+			Result:    AuthEventResultSuccess,
+		})
+
+		require.Len(t, dispatcher.dispatched, 1)
+		assert.Equal(t, eventUUID, dispatcher.dispatched[0].AuthEventUUID)
+	})
 }
 
 // ---------------------------------------------------------------------------
@@ -351,4 +394,44 @@ func TestAuthEventService_DeleteOlderThan(t *testing.T) {
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "failed to delete old auth events")
 	})
+}
+
+func TestAuthEventService_Shutdown(t *testing.T) {
+	t.Run("dispatcher shutdown called", func(t *testing.T) {
+		dispatcher := &mockWebhookDispatcher{}
+		svc := NewAuthEventService(&mockAuthEventRepo{}, dispatcher)
+
+		svc.Shutdown()
+
+		assert.True(t, dispatcher.shutdownCalled)
+	})
+
+	t.Run("nil dispatcher is no-op", func(t *testing.T) {
+		svc := NewAuthEventService(&mockAuthEventRepo{}, nil)
+		assert.NotPanics(t, func() { svc.Shutdown() })
+	})
+}
+
+func TestNoopService(t *testing.T) {
+	svc := NoopService()
+	assert.NotNil(t, svc)
+
+	svc.Log(context.Background(), AuthEventInput{})
+	page, err := svc.FindPaginated(context.Background(), AuthEventRepositoryGetFilter{})
+	require.NoError(t, err)
+	assert.Empty(t, page.Data)
+
+	event, err := svc.FindByUUID(context.Background(), 1, uuid.New())
+	require.NoError(t, err)
+	assert.Nil(t, event)
+
+	count, err := svc.CountByEventType(context.Background(), AuthEventTypeLoginSuccess, 1)
+	require.NoError(t, err)
+	assert.Equal(t, int64(0), count)
+
+	deleted, err := svc.DeleteOlderThan(context.Background(), time.Now())
+	require.NoError(t, err)
+	assert.Equal(t, int64(0), deleted)
+
+	assert.NotPanics(t, func() { svc.Shutdown() })
 }
