@@ -97,6 +97,18 @@ func TestOAuthDeviceHandler_VerifyUserCode(t *testing.T) {
 		NewOAuthDeviceHandler(&mockOAuthDeviceService{}).VerifyUserCode(w, r)
 		assert.Equal(t, http.StatusOK, w.Code)
 	})
+
+	t.Run("service error returns oauth error", func(t *testing.T) {
+		svc := &mockOAuthDeviceService{
+			verifyUserCodeFn: func(context.Context, OAuthDeviceVerifyRequestDTO, int64) *apperror.OAuthError {
+				return apperror.NewOAuthInvalidGrant("expired")
+			},
+		}
+		r := withUser(formPost(t, "/oauth/device", url.Values{"user_code": {"ABCD-123"}}))
+		w := httptest.NewRecorder()
+		NewOAuthDeviceHandler(svc).VerifyUserCode(w, r)
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+	})
 }
 
 func TestOAuthDeviceHandler_ExchangeDeviceToken(t *testing.T) {
@@ -105,6 +117,33 @@ func TestOAuthDeviceHandler_ExchangeDeviceToken(t *testing.T) {
 		w := httptest.NewRecorder()
 		NewOAuthDeviceHandler(&mockOAuthDeviceService{}).ExchangeDeviceToken(w, r)
 		assert.Equal(t, http.StatusBadRequest, w.Code)
+	})
+
+	t.Run("service error returns oauth error", func(t *testing.T) {
+		svc := &mockOAuthDeviceService{
+			exchangeTokenFn: func(context.Context, OAuthDeviceTokenRequestDTO, OAuthClientCredentials) (*OAuthTokenResponseDTO, *apperror.OAuthError) {
+				return nil, apperror.NewOAuthInvalidGrant("authorization pending")
+			},
+		}
+		r := formPost(t, "/oauth/token", url.Values{"client_id": {"app"}, "device_code": {"device-code"}})
+		w := httptest.NewRecorder()
+		NewOAuthDeviceHandler(svc).ExchangeDeviceToken(w, r)
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+	})
+
+	t.Run("success returns 200", func(t *testing.T) {
+		svc := &mockOAuthDeviceService{
+			exchangeTokenFn: func(_ context.Context, req OAuthDeviceTokenRequestDTO, creds OAuthClientCredentials) (*OAuthTokenResponseDTO, *apperror.OAuthError) {
+				assert.Equal(t, "device-code", req.DeviceCode)
+				assert.Equal(t, "app", req.ClientID)
+				assert.Equal(t, "app", creds.ClientID)
+				return &OAuthTokenResponseDTO{AccessToken: "token", TokenType: "Bearer", ExpiresIn: 60}, nil
+			},
+		}
+		r := formPost(t, "/oauth/token", url.Values{"client_id": {"app"}, "device_code": {"device-code"}})
+		w := httptest.NewRecorder()
+		NewOAuthDeviceHandler(svc).ExchangeDeviceToken(w, r)
+		assert.Equal(t, http.StatusOK, w.Code)
 	})
 }
 
@@ -121,5 +160,24 @@ func TestOAuthDeviceHandler_DenyUserCode(t *testing.T) {
 		w := httptest.NewRecorder()
 		NewOAuthDeviceHandler(&mockOAuthDeviceService{}).DenyUserCode(w, r)
 		assert.Equal(t, http.StatusOK, w.Code)
+	})
+
+	t.Run("validation error returns 400", func(t *testing.T) {
+		r := withUser(formPost(t, "/oauth/device/deny", url.Values{}))
+		w := httptest.NewRecorder()
+		NewOAuthDeviceHandler(&mockOAuthDeviceService{}).DenyUserCode(w, r)
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+	})
+
+	t.Run("service error returns oauth error", func(t *testing.T) {
+		svc := &mockOAuthDeviceService{
+			denyUserCodeFn: func(context.Context, OAuthDeviceVerifyRequestDTO, int64) *apperror.OAuthError {
+				return apperror.NewOAuthInvalidGrant("expired")
+			},
+		}
+		r := withUser(formPost(t, "/oauth/device/deny", url.Values{"user_code": {"ABCD-123"}}))
+		w := httptest.NewRecorder()
+		NewOAuthDeviceHandler(svc).DenyUserCode(w, r)
+		assert.Equal(t, http.StatusBadRequest, w.Code)
 	})
 }

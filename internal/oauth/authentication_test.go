@@ -112,6 +112,23 @@ func TestAuthenticatePrivateKeyJWT(t *testing.T) {
 		require.NotNil(t, oerr)
 		assert.Equal(t, "invalid_client", oerr.Code)
 	})
+
+	t.Run("valid assertion", func(t *testing.T) {
+		claims := jwtlib.MapClaims{
+			"iss": clientID, "sub": clientID, "aud": domain,
+			"exp": time.Now().Add(time.Hour).Unix(), "iat": time.Now().Unix(),
+		}
+		assertion := signJWTWithRSA(t, claims, privKey, kid)
+
+		creds := OAuthClientCredentials{
+			ClientAssertionType: assertionTypeJWTBearer,
+			ClientAssertion:     assertion,
+		}
+
+		result, oerr := authenticatePrivateKeyJWT(client, creds)
+		require.Nil(t, oerr)
+		assert.Equal(t, client, result)
+	})
 }
 
 func genRSAKey(t *testing.T) *rsa.PrivateKey {
@@ -314,4 +331,59 @@ func TestValidateAssertionClaims(t *testing.T) {
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "expired")
 	})
+}
+
+func TestFindClientJWK(t *testing.T) {
+	privKey := genRSAKey(t)
+	jwks := buildRSAPublicKeyJWK(t, privKey, "key-1")
+
+	t.Run("finds matching RSA key", func(t *testing.T) {
+		key, err := findClientJWK(&Client{JWKS: jwks}, "key-1")
+		require.NoError(t, err)
+		assert.IsType(t, &rsa.PublicKey{}, key)
+	})
+
+	t.Run("uses first RSA key when kid is empty", func(t *testing.T) {
+		key, err := findClientJWK(&Client{JWKS: jwks}, "")
+		require.NoError(t, err)
+		assert.IsType(t, &rsa.PublicKey{}, key)
+	})
+
+	t.Run("invalid JWKS JSON", func(t *testing.T) {
+		key, err := findClientJWK(&Client{JWKS: []byte("{")}, "key-1")
+		assert.Nil(t, key)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "invalid JWKS")
+	})
+
+	t.Run("skips malformed and non matching keys", func(t *testing.T) {
+		raw, err := json.Marshal(map[string]any{
+			"keys": []any{
+				"{",
+				map[string]string{"kid": "other", "kty": "RSA", "n": "!", "e": "!"},
+				map[string]string{"kid": "key-1", "kty": "EC"},
+				map[string]string{"kid": "key-1", "kty": "RSA", "n": "!", "e": "AQAB"},
+				map[string]string{"kid": "key-1", "kty": "RSA", "n": base64.RawURLEncoding.EncodeToString([]byte{1}), "e": "!"},
+			},
+		})
+		require.NoError(t, err)
+
+		key, err := findClientJWK(&Client{JWKS: raw}, "key-1")
+		assert.Nil(t, key)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "no usable RSA")
+	})
+
+	t.Run("no JWKS configured", func(t *testing.T) {
+		key, err := findClientJWK(&Client{}, "key-1")
+		assert.Nil(t, key)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "no JWKS")
+	})
+}
+
+func TestPtrOrEmpty(t *testing.T) {
+	assert.Equal(t, "", ptrOrEmpty(nil))
+	value := "client"
+	assert.Equal(t, "client", ptrOrEmpty(&value))
 }
