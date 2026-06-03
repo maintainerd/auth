@@ -45,6 +45,8 @@ func NewResetPasswordService(
 	}
 }
 
+var resetHashPassword = security.HashPassword
+
 func (s *resetPasswordService) ResetPassword(ctx context.Context, token, newPassword string, clientID, providerID *string) (*ResetPasswordResponseDTO, error) {
 	_, span := otel.Tracer("service").Start(ctx, "password.reset")
 	defer span.End()
@@ -131,7 +133,7 @@ func (s *resetPasswordService) ResetPassword(ctx context.Context, token, newPass
 		}
 
 		// Hash the new password
-		hashedPassword, txErr := security.HashPassword(ctx, []byte(newPassword))
+		hashedPassword, txErr := resetHashPassword(ctx, []byte(newPassword))
 		if txErr != nil {
 			return apperror.NewInternal("failed to hash password", txErr)
 		}

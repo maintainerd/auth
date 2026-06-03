@@ -118,6 +118,12 @@ type ClientService interface {
 	RemoveClientAPIPermission(ctx context.Context, tenantID int64, ClientUUID uuid.UUID, apiUUID uuid.UUID, permissionUUID uuid.UUID) error
 }
 
+var (
+	generateClientIdentifier = crypto.GenerateIdentifier
+	hashClientSecret         = security.HashClientSecret
+	encryptClientSecret      = crypto.EncryptAtRest
+)
+
 type clientService struct {
 	db                   *gorm.DB
 	clientRepo           ClientRepository
@@ -321,19 +327,19 @@ func (s *clientService) Create(ctx context.Context, tenantID int64, name string,
 			return apperror.NewConflict(name + " auth client already exists")
 		}
 
-		clientID, err := crypto.GenerateIdentifier(12)
+		clientID, err := generateClientIdentifier(12)
 		if err != nil {
 			return err
 		}
-		rawSecret, err := crypto.GenerateIdentifier(64)
+		rawSecret, err := generateClientIdentifier(64)
 		if err != nil {
 			return err
 		}
-		secretHash, err := security.HashClientSecret(ctx, rawSecret)
+		secretHash, err := hashClientSecret(ctx, rawSecret)
 		if err != nil {
 			return err
 		}
-		secretEncrypted, err := crypto.EncryptAtRest(rawSecret)
+		secretEncrypted, err := encryptClientSecret(rawSecret)
 		if err != nil {
 			return err
 		}
@@ -420,15 +426,15 @@ func (s *clientService) RotateSecret(ctx context.Context, clientUUID uuid.UUID, 
 			return apperror.NewNotFoundWithReason("auth client not found or access denied")
 		}
 
-		rawSecret, err := crypto.GenerateIdentifier(64)
+		rawSecret, err := generateClientIdentifier(64)
 		if err != nil {
 			return err
 		}
-		newHash, err := security.HashClientSecret(ctx, rawSecret)
+		newHash, err := hashClientSecret(ctx, rawSecret)
 		if err != nil {
 			return err
 		}
-		newEncrypted, err := crypto.EncryptAtRest(rawSecret)
+		newEncrypted, err := encryptClientSecret(rawSecret)
 		if err != nil {
 			return err
 		}

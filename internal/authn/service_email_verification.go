@@ -42,6 +42,8 @@ type emailVerificationService struct {
 	emailTemplateRepo branding.EmailTemplateRepository
 }
 
+var generateEmailVerificationOTP = crypto.GenerateOTP
+
 func NewEmailVerificationService(
 	db *gorm.DB,
 	userRepo UserRepository,
@@ -116,7 +118,7 @@ func (s *emailVerificationService) SendVerificationEmail(ctx context.Context, em
 		}
 
 		// Generate a fresh OTP with a bounded TTL.
-		otp, txErr = crypto.GenerateOTP(EmailVerificationOTPLength)
+		otp, txErr = generateEmailVerificationOTP(EmailVerificationOTPLength)
 		if txErr != nil {
 			return apperror.NewInternal("failed to generate verification code", txErr)
 		}
