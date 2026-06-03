@@ -118,3 +118,118 @@ func TestIntegration_Tenant_Pagination(t *testing.T) {
 	assert.Len(t, results, 2)
 	assert.NoError(t, mock.ExpectationsWereMet())
 }
+
+func TestIntegration_TenantRepository_FindPaginated_WithFilters(t *testing.T) {
+	db, mock := newMockGormDB(t)
+	now := time.Now()
+	status := "active"
+	public := true
+
+	mock.ExpectQuery(`SELECT count\(\*\) FROM "tenants" WHERE.*name.*display_name.*description.*identifier.*status IN.*is_public`).
+		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(1))
+	mock.ExpectQuery(`SELECT \* FROM "tenants" WHERE.*name.*display_name.*description.*identifier.*status IN.*is_public.*ORDER BY name ASC LIMIT`).
+		WillReturnRows(sqlmock.NewRows([]string{"tenant_id", "tenant_uuid", "name", "display_name", "description", "identifier", "status", "is_public", "created_at", "updated_at"}).
+			AddRow(1, uuid.New(), "acme", "Acme", "Acme tenant", "acme", "active", true, now, now))
+
+	repo := tenant.NewTenantRepository(db)
+	result, err := repo.FindPaginated(tenant.TenantRepositoryGetFilter{
+		Name:        &status,
+		DisplayName: &status,
+		Description: &status,
+		Identifier:  &status,
+		Status:      []string{"active"},
+		IsPublic:    &public,
+		Page:        1,
+		Limit:       10,
+		SortBy:      "name",
+		SortOrder:   "asc",
+	})
+
+	require.NoError(t, err)
+	require.Len(t, result.Data, 1)
+	assert.Equal(t, "acme", result.Data[0].Name)
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestIntegration_TenantRepository_SetStatusByUUID(t *testing.T) {
+	db, mock := newMockGormDB(t)
+	tenantUUID := uuid.New()
+
+	mock.ExpectBegin()
+	mock.ExpectExec(`UPDATE "tenants" SET "status"=\$1,"updated_at"=\$2 WHERE tenant_uuid = \$3 AND "tenants"."deleted_at" IS NULL`).
+		WithArgs("inactive", sqlmock.AnyArg(), tenantUUID).
+		WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectCommit()
+
+	repo := tenant.NewTenantRepository(db)
+	err := repo.SetStatusByUUID(tenantUUID, "inactive")
+
+	require.NoError(t, err)
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestIntegration_TenantMemberRepository_FindByTenantAndUser(t *testing.T) {
+	db, mock := newMockGormDB(t)
+	memberUUID := uuid.New()
+	now := time.Now()
+
+	mock.ExpectQuery(`SELECT \* FROM "tenant_members" WHERE \(tenant_id = \$1 AND user_id = \$2\) AND "tenant_members"."deleted_at" IS NULL ORDER BY "tenant_members"."tenant_member_id" LIMIT \$3`).
+		WithArgs(int64(10), int64(20), 1).
+		WillReturnRows(sqlmock.NewRows([]string{"tenant_member_id", "tenant_member_uuid", "tenant_id", "user_id", "role", "created_at", "updated_at"}).
+			AddRow(1, memberUUID, 10, 20, "owner", now, now))
+
+	repo := tenant.NewTenantMemberRepository(db)
+	result, err := repo.FindByTenantAndUser(10, 20)
+
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	assert.Equal(t, memberUUID, result.TenantMemberUUID)
+	assert.Equal(t, "owner", result.Role)
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestIntegration_TenantMemberRepository_FindByTenant_IsTenantScoped(t *testing.T) {
+	db, mock := newMockGormDB(t)
+	now := time.Now()
+	role := "member"
+
+	mock.ExpectQuery(`SELECT count\(\*\) FROM "tenant_members" WHERE tenant_id = \$1 AND role = \$2 AND "tenant_members"."deleted_at" IS NULL`).
+		WithArgs(int64(10), role).
+		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(1))
+	mock.ExpectQuery(`SELECT \* FROM "tenant_members" WHERE tenant_id = \$1 AND role = \$2 AND "tenant_members"."deleted_at" IS NULL ORDER BY created_at DESC LIMIT \$3`).
+		WithArgs(int64(10), role, 10).
+		WillReturnRows(sqlmock.NewRows([]string{"tenant_member_id", "tenant_member_uuid", "tenant_id", "user_id", "role", "created_at", "updated_at"}).
+			AddRow(1, uuid.New(), 10, 20, "member", now, now))
+
+	repo := tenant.NewTenantMemberRepository(db)
+	result, err := repo.FindByTenant(tenant.TenantMemberRepositoryListFilter{
+		TenantID: 10,
+		Role:     &role,
+		Page:     1,
+		Limit:    10,
+	})
+
+	require.NoError(t, err)
+	require.Len(t, result.Data, 1)
+	assert.Equal(t, int64(10), result.Data[0].TenantID)
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestIntegration_TenantSettingRepository_FindByTenantID(t *testing.T) {
+	db, mock := newMockGormDB(t)
+	settingUUID := uuid.New()
+	now := time.Now()
+
+	mock.ExpectQuery(`SELECT \* FROM "tenant_settings" WHERE tenant_id = \$1 ORDER BY "tenant_settings"."tenant_setting_id" LIMIT \$2`).
+		WithArgs(int64(10), 1).
+		WillReturnRows(sqlmock.NewRows([]string{"tenant_setting_id", "tenant_setting_uuid", "tenant_id", "rate_limit_config", "audit_config", "maintenance_config", "feature_flags", "created_at", "updated_at"}).
+			AddRow(1, settingUUID, 10, []byte(`{"max":100}`), []byte(`{"enabled":true}`), []byte(`{"active":false}`), []byte(`{"beta":true}`), now, now))
+
+	repo := tenant.NewTenantSettingRepository(db)
+	result, err := repo.FindByTenantID(10)
+
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	assert.Equal(t, settingUUID, result.TenantSettingUUID)
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
