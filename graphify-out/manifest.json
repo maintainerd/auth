@@ -4368,5 +4368,10 @@
     "mtime": 1780459643.0378692,
     "ast_hash": "45fcda0b29cf9553d3eeb3f6a186dffa",
     "semantic_hash": ""
+  },
+  "/home/reyco/Desktop/xreyc/maintainerd/maintainerd-auth/internal/feature/feature_test.go": {
+    "mtime": 1780469599.4116566,
+    "ast_hash": "e1ee87ba8f3d8965c5e0e7a3bc9431a2",
+    "semantic_hash": ""
   }
 }
