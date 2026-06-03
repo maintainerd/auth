@@ -770,6 +770,39 @@ func TestClientHandler_AddAPIPermissions(t *testing.T) {
 	})
 }
 
+func TestClientHandler_RotateSecret(t *testing.T) {
+	t.Run("no tenant returns 401", func(t *testing.T) {
+		r := withUser(withChiParam(httptest.NewRequest(http.MethodPost, "/", nil), "client_uuid", testResourceUUID.String()))
+		w := httptest.NewRecorder()
+		NewClientHandler(&mockClientService{}).RotateSecret(w, r)
+		assert.Equal(t, http.StatusUnauthorized, w.Code)
+	})
+	t.Run("invalid uuid returns 400", func(t *testing.T) {
+		r := withTenantAndUser(withChiParam(httptest.NewRequest(http.MethodPost, "/", nil), "client_uuid", "bad"))
+		w := httptest.NewRecorder()
+		NewClientHandler(&mockClientService{}).RotateSecret(w, r)
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+	})
+	t.Run("service error returns 500", func(t *testing.T) {
+		svc := &mockClientService{rotateSecretFn: func(uuid.UUID, int64, uuid.UUID, int) (string, error) {
+			return "", errors.New("db error")
+		}}
+		r := withTenantAndUser(withChiParam(httptest.NewRequest(http.MethodPost, "/", nil), "client_uuid", testResourceUUID.String()))
+		w := httptest.NewRecorder()
+		NewClientHandler(svc).RotateSecret(w, r)
+		assert.Equal(t, http.StatusInternalServerError, w.Code)
+	})
+	t.Run("success", func(t *testing.T) {
+		svc := &mockClientService{rotateSecretFn: func(uuid.UUID, int64, uuid.UUID, int) (string, error) {
+			return "new-secret-value", nil
+		}}
+		r := withTenantAndUser(withChiParam(httptest.NewRequest(http.MethodPost, "/", nil), "client_uuid", testResourceUUID.String()))
+		w := httptest.NewRecorder()
+		NewClientHandler(svc).RotateSecret(w, r)
+		assert.Equal(t, http.StatusOK, w.Code)
+	})
+}
+
 func TestClientHandler_RemoveAPIPermission(t *testing.T) {
 	apiUUID := uuid.New()
 	permUUID := uuid.New()
