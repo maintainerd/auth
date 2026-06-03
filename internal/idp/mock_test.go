@@ -45,6 +45,17 @@ func newMockGormDB(t *testing.T) (*gorm.DB, sqlmock.Sqlmock) {
 	return gormDB, mock
 }
 
+func newMockGormDBRegex(t *testing.T) (*gorm.DB, sqlmock.Sqlmock) {
+	t.Helper()
+	sqlDB, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherRegexp))
+	require.NoError(t, err)
+	gormDB, err := gorm.Open(postgres.New(postgres.Config{Conn: sqlDB}), &gorm.Config{
+		Logger: logger.Default.LogMode(logger.Silent),
+	})
+	require.NoError(t, err)
+	return gormDB, mock
+}
+
 func withTenant(r *http.Request) *http.Request {
 	return middleware.WithAuthContext(r, &authctx.AuthContext{
 		Tenant: &authctx.AuthTenant{TenantID: tenantID, TenantUUID: testTenantUUID},

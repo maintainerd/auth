@@ -2,6 +2,7 @@ package idp
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"testing"
 
@@ -454,6 +455,30 @@ func TestIdentityProviderService_Create(t *testing.T) {
 		assert.Contains(t, err.Error(), "create err")
 	})
 
+	t.Run("encryptIdpConfig failure", func(t *testing.T) {
+		orig := crypto.EncryptAtRest
+		defer func() { crypto.EncryptAtRest = orig }()
+		crypto.EncryptAtRest = func(string) (string, error) { return "", errors.New("encrypt failure") }
+
+		cfgWithSecret := datatypes.JSON(json.RawMessage(`{"client_secret":"secret"}`))
+		gormDB, mock := newMockGormDB(t)
+		mock.ExpectBegin()
+		mock.ExpectRollback()
+		tenant := &Tenant{TenantID: tenantID, TenantUUID: tenantUUID, IsSystem: true}
+		tenantRepo := &mockTenantRepo{
+			findByUUIDFn: func(_ any, _ ...string) (*Tenant, error) { return tenant, nil },
+		}
+		userRepo := &mockUserRepo{
+			findByUUIDFn: func(_ any, _ ...string) (*User, error) {
+				return actorUserWithDefaultTenant(tenantID), nil
+			},
+		}
+		svc := NewIdentityProviderService(gormDB, &mockIdentityProviderRepo{}, tenantRepo, userRepo)
+		_, err := svc.Create(context.Background(), "idp", "IDP", "local", "password", cfgWithSecret, "active", tenantUUID.String(), tenantID, actorUUID)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "encrypt failure")
+	})
+
 	t.Run("findByUUID after create error", func(t *testing.T) {
 		gormDB, mock := newMockGormDB(t)
 		mock.ExpectBegin()
@@ -731,6 +756,30 @@ func TestIdentityProviderService_Update(t *testing.T) {
 		res, err := svc.Update(context.Background(), idpUUID, "new-name", "d", "local", "password", cfg, "active", tenantID, actorUUID)
 		require.NoError(t, err)
 		assert.Equal(t, "new-name", res.Name)
+	})
+
+	t.Run("encryptIdpConfig failure", func(t *testing.T) {
+		orig := crypto.EncryptAtRest
+		defer func() { crypto.EncryptAtRest = orig }()
+		crypto.EncryptAtRest = func(string) (string, error) { return "", errors.New("encrypt failure") }
+
+		cfgWithSecret := datatypes.JSON(json.RawMessage(`{"client_secret":"secret"}`))
+		gormDB, mock := newMockGormDB(t)
+		mock.ExpectBegin()
+		mock.ExpectRollback()
+		idp := newIDP(tenantID, "local")
+		idpRepo := &mockIdentityProviderRepo{
+			findByUUIDFn: func(_ any, _ ...string) (*IdentityProvider, error) { return idp, nil },
+		}
+		userRepo := &mockUserRepo{
+			findByUUIDFn: func(_ any, _ ...string) (*User, error) {
+				return actorUserWithDefaultTenant(tenantID), nil
+			},
+		}
+		svc := NewIdentityProviderService(gormDB, idpRepo, &mockTenantRepo{}, userRepo)
+		_, err := svc.Update(context.Background(), idpUUID, "local", "d", "local", "password", cfgWithSecret, "active", tenantID, actorUUID)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "encrypt failure")
 	})
 }
 

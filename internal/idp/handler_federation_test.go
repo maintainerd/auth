@@ -111,6 +111,20 @@ func TestFederationHandler_ExchangeOAuth2Code(t *testing.T) {
 		assert.Equal(t, http.StatusBadRequest, w.Code)
 	})
 
+	t.Run("service error returns 500", func(t *testing.T) {
+		svc := &mockFederationService{
+			exchangeOAuth2CodeFn: func(FederationOAuth2CallbackDTO) (*LoginResponseDTO, error) {
+				return nil, errors.New("exchange failed")
+			},
+		}
+		r := jsonReq(t, http.MethodPost, "/federation/oauth2/callback", map[string]string{
+			"provider_identifier": "idp-1", "code": "c", "redirect_uri": "https://x.com", "client_id": "app",
+		})
+		w := httptest.NewRecorder()
+		NewFederationHandler(svc).ExchangeOAuth2Code(w, r)
+		assert.Equal(t, http.StatusInternalServerError, w.Code)
+	})
+
 	t.Run("success returns 200", func(t *testing.T) {
 		r := jsonReq(t, http.MethodPost, "/federation/oauth2/callback", map[string]string{
 			"provider_identifier": "idp-1", "code": "c", "redirect_uri": "https://x.com", "client_id": "app",
@@ -192,11 +206,32 @@ func TestFederationHandler_LinkIdentity(t *testing.T) {
 		assert.Equal(t, http.StatusUnauthorized, w.Code)
 	})
 
+	t.Run("bad JSON returns 400", func(t *testing.T) {
+		r := withTenantAndUser(badJSONReq(t, http.MethodPost, "/account/identities/link"))
+		w := httptest.NewRecorder()
+		NewFederationHandler(&mockFederationService{}).LinkIdentity(w, r)
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+	})
+
 	t.Run("missing fields returns 400", func(t *testing.T) {
 		r := withTenantAndUser(jsonReq(t, http.MethodPost, "/account/identities/link", map[string]string{}))
 		w := httptest.NewRecorder()
 		NewFederationHandler(&mockFederationService{}).LinkIdentity(w, r)
 		assert.Equal(t, http.StatusBadRequest, w.Code)
+	})
+
+	t.Run("service error returns 500", func(t *testing.T) {
+		svc := &mockFederationService{
+			linkIdentityFn: func(int64, LinkIdentityRequestDTO) (*IdentityDTO, error) {
+				return nil, errors.New("link failed")
+			},
+		}
+		r := withTenantAndUser(jsonReq(t, http.MethodPost, "/account/identities/link", map[string]string{
+			"provider_identifier": "idp-1", "external_token": "tok",
+		}))
+		w := httptest.NewRecorder()
+		NewFederationHandler(svc).LinkIdentity(w, r)
+		assert.Equal(t, http.StatusInternalServerError, w.Code)
 	})
 
 	t.Run("success returns 200", func(t *testing.T) {
