@@ -744,6 +744,73 @@ func TestPermissionService_Update(t *testing.T) {
 	})
 }
 
+func TestPermissionService_InvalidatorErrors(t *testing.T) {
+	permUUID := uuid.New()
+
+	for _, tc := range []struct {
+		name string
+		run  func(PermissionService) (*PermissionServiceDataResult, error)
+	}{
+		{
+			name: "update",
+			run: func(s PermissionService) (*PermissionServiceDataResult, error) {
+				return s.Update(context.Background(), permUUID, tenantID, "read:users", "updated", shared.StatusActive)
+			},
+		},
+		{
+			name: "set active status",
+			run: func(s PermissionService) (*PermissionServiceDataResult, error) {
+				return s.SetActiveStatusByUUID(context.Background(), permUUID, tenantID)
+			},
+		},
+		{
+			name: "set status",
+			run: func(s PermissionService) (*PermissionServiceDataResult, error) {
+				return s.SetStatus(context.Background(), permUUID, tenantID, shared.StatusInactive)
+			},
+		},
+		{
+			name: "delete",
+			run: func(s PermissionService) (*PermissionServiceDataResult, error) {
+				return s.DeleteByUUID(context.Background(), permUUID, tenantID)
+			},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			db, mock := newMockGormDB(t)
+			perm := newPermission(1, "read:users", tenantID)
+			permRepo := &mockPermissionRepo{
+				findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*Permission, error) {
+					return perm, nil
+				},
+				deleteByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) error {
+					return nil
+				},
+			}
+			if tc.name != "delete" {
+				mock.ExpectBegin()
+				mock.ExpectCommit()
+			}
+			svc := NewPermissionService(
+				db,
+				permRepo,
+				&mockAPIRepo{},
+				&mockRoleRepo{},
+				&mockClientRepo{},
+				cache.NopInvalidator{},
+				failingAuthorizationTokenInvalidator{},
+			)
+
+			result, err := tc.run(svc)
+
+			require.Error(t, err)
+			assert.Nil(t, result)
+			assert.Contains(t, err.Error(), "invalidate")
+			assert.NoError(t, mock.ExpectationsWereMet())
+		})
+	}
+}
+
 // ---------------------------------------------------------------------------
 // toPermissionServiceDataResult – nil permission
 // ---------------------------------------------------------------------------

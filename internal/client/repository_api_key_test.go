@@ -169,6 +169,18 @@ func TestAPIKeyRepository_DeleteByUUIDAndTenantID(t *testing.T) {
 		require.Error(t, err)
 		assert.NoError(t, mock.ExpectationsWereMet())
 	})
+
+	t.Run("not found when rows affected zero", func(t *testing.T) {
+		gdb, mock := newMockGormDBRegex(t)
+		mock.ExpectBegin()
+		mock.ExpectExec(`UPDATE "api_keys" SET.*"deleted_at"=.*WHERE.*api_key_uuid = \$\d+.*tenant_id = \$\d+`).
+			WithArgs(sqlmock.AnyArg(), id.String(), int64(1)).
+			WillReturnResult(sqlmock.NewResult(0, 0))
+		mock.ExpectRollback()
+		err := NewAPIKeyRepository(gdb).DeleteByUUIDAndTenantID(id.String(), 1)
+		require.Error(t, err)
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
 }
 
 func TestAPIKeyRepository_FindPaginated(t *testing.T) {
@@ -210,6 +222,29 @@ func TestAPIKeyRepository_FindPaginated(t *testing.T) {
 		})
 		require.Error(t, err)
 		assert.Nil(t, result)
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+
+	t.Run("with status filter", func(t *testing.T) {
+		status := "active"
+		gdb, mock := newMockGormDBRegex(t)
+		mock.ExpectQuery(`SELECT count\(\*\) FROM "api_keys" WHERE.*tenant_id = \$1.*status = \$2`).
+			WithArgs(int64(1), "active").
+			WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(1))
+		mock.ExpectQuery(`SELECT \* FROM "api_keys" WHERE.*tenant_id = \$1.*status = \$2.*ORDER BY created_at DESC.*LIMIT \$\d+`).
+			WithArgs(int64(1), "active", 10).
+			WillReturnRows(sqlmock.NewRows([]string{"api_key_id", "api_key_uuid", "tenant_id", "name", "key_hash", "key_prefix", "status", "created_at", "updated_at"}).
+				AddRow(1, id, 1, "test-key", "hash123", "kp_abc", "active", now, now))
+		result, err := NewAPIKeyRepository(gdb).FindPaginated(APIKeyRepositoryGetFilter{
+			TenantID:  1,
+			Status:    &status,
+			Page:      1,
+			Limit:     10,
+			SortBy:    "created_at",
+			SortOrder: "DESC",
+		})
+		require.NoError(t, err)
+		assert.Len(t, result.Data, 1)
 		assert.NoError(t, mock.ExpectationsWereMet())
 	})
 }

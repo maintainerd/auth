@@ -305,10 +305,12 @@ func toSessionDataResult(t *UserToken) *SessionDataResult {
 	}
 }
 
+var randRead = rand.Read
+
 // generateRandomToken generates a hex-encoded random token of byteLen bytes.
 func generateRandomToken(byteLen int) (string, error) {
 	b := make([]byte, byteLen)
-	if _, err := rand.Read(b); err != nil {
+	if _, err := randRead(b); err != nil {
 		return "", err
 	}
 	return hex.EncodeToString(b), nil

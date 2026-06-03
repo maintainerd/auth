@@ -15,6 +15,24 @@ func validBrandingUpdate() BrandingUpdateRequestDTO {
 	}
 }
 
+func TestHttpURL(t *testing.T) {
+	t.Run("empty string", func(t *testing.T) {
+		assert.NoError(t, httpURL.Validate(""))
+	})
+
+	t.Run("invalid url", func(t *testing.T) {
+		assert.Error(t, httpURL.Validate("not a url"))
+	})
+
+	t.Run("non http scheme", func(t *testing.T) {
+		assert.Error(t, httpURL.Validate("ftp://example.com"))
+	})
+
+	t.Run("valid https", func(t *testing.T) {
+		assert.NoError(t, httpURL.Validate("https://example.com"))
+	})
+}
+
 func TestBrandingUpdateRequestDTO_Validate(t *testing.T) {
 	t.Run("valid minimal", func(t *testing.T) {
 		assert.NoError(t, BrandingUpdateRequestDTO{}.Validate())
