@@ -9,12 +9,16 @@ import (
 	"strings"
 	"testing"
 
+	sqlmock "github.com/DATA-DOG/go-sqlmock"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/authctx"
 	"github.com/maintainerd/auth/internal/platform/apperror"
 	"github.com/maintainerd/auth/internal/platform/middleware"
 	"github.com/stretchr/testify/require"
+	"gorm.io/driver/postgres"
+	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
 )
 
 const testTenantID int64 = 1
@@ -259,4 +263,26 @@ func (m *mockLoginTemplateService) Delete(ctx context.Context, id uuid.UUID, ten
 		return m.deleteFn(id, tenantID)
 	}
 	return nil, nil
+}
+
+func newMockGormDB(t *testing.T) (*gorm.DB, sqlmock.Sqlmock) {
+	t.Helper()
+	sqlDB, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	gormDB, err := gorm.Open(postgres.New(postgres.Config{Conn: sqlDB}), &gorm.Config{
+		Logger: logger.Default.LogMode(logger.Silent),
+	})
+	require.NoError(t, err)
+	return gormDB, mock
+}
+
+func newMockGormDBRegex(t *testing.T) (*gorm.DB, sqlmock.Sqlmock) {
+	t.Helper()
+	sqlDB, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherRegexp))
+	require.NoError(t, err)
+	gormDB, err := gorm.Open(postgres.New(postgres.Config{Conn: sqlDB}), &gorm.Config{
+		Logger: logger.Default.LogMode(logger.Silent),
+	})
+	require.NoError(t, err)
+	return gormDB, mock
 }
