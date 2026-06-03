@@ -11,6 +11,7 @@ import (
 	"github.com/maintainerd/auth/internal/branding"
 	"github.com/maintainerd/auth/internal/platform/config"
 	"github.com/maintainerd/auth/internal/platform/email"
+	"github.com/maintainerd/auth/internal/platform/jwt"
 	"github.com/maintainerd/auth/internal/shared"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -475,4 +476,1012 @@ func TestLoginWithMagicLink(t *testing.T) {
 		assert.Equal(t, int64(3600), resp.ExpiresIn)
 		assert.NoError(t, mock.ExpectationsWereMet())
 	})
+}
+
+// ---------------------------------------------------------------------------
+// TestSendMagicLink_DefaultClient
+// ---------------------------------------------------------------------------
+
+func TestSendMagicLink_DefaultClient(t *testing.T) {
+	emailAddr := "test@example.com"
+
+	gormDB, mock := newMockGormDB(t)
+	mock.ExpectBegin()
+	mock.ExpectCommit()
+
+	config.AppPublicHostname = "http://localhost"
+	config.AccountHostname = "http://localhost"
+
+	origSendEmail := email.SendEmail
+	email.SendEmail = func(_ context.Context, _ email.SendEmailParams) error { return nil }
+	defer func() { email.SendEmail = origSendEmail }()
+
+	clientRepo := &mockClientRepo{
+		findSystemFn: func() (*Client, error) {
+			return &Client{
+				ClientID:   1,
+				Status:     shared.StatusActive,
+				Domain:     strPtr("https://auth.example.com"),
+				Identifier: strPtr("system"),
+				IdentityProvider: &IdentityProvider{
+					Identifier: "default",
+				},
+			}, nil
+		},
+	}
+	userRepo := &mockUserRepo{
+		findByEmailFn: func(_ string) (*User, error) {
+			return &User{UserID: 1, UserUUID: uuid.New(), Email: emailAddr, Username: "testuser", Status: shared.StatusActive}, nil
+		},
+	}
+	userTokenRepo := &mockUserTokenRepo{
+		findByUserIDAndTokenTypeFn: func(_ int64, _ string) ([]UserToken, error) { return nil, nil },
+		createFn:                   func(ut *UserToken) (*UserToken, error) { ut.UserTokenID = 1; return ut, nil },
+	}
+	emailTemplateRepo := &mockEmailTemplateRepo{
+		findByNameFn: func(_ string) (*branding.EmailTemplate, error) {
+			return validEmailTemplate(), nil
+		},
+	}
+
+	svc := NewMagicLinkService(gormDB, userRepo, userTokenRepo, clientRepo, &mockUserIdentityRepo{}, &mockIdentityProviderRepo{}, emailTemplateRepo)
+	resp, err := svc.SendMagicLink(context.Background(), emailAddr, nil, nil, false)
+
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	assert.True(t, resp.Success)
+	assert.NotEmpty(t, resp.Message)
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+// ---------------------------------------------------------------------------
+// TestSendMagicLink_ExistingTokensError
+// ---------------------------------------------------------------------------
+
+func TestSendMagicLink_ExistingTokensError(t *testing.T) {
+	emailAddr := "test@example.com"
+	clientID := strPtr("test-client")
+	providerID := strPtr("test-provider")
+
+	gormDB, mock := newMockGormDB(t)
+	mock.ExpectBegin()
+	mock.ExpectRollback()
+
+	clientRepo := &mockClientRepo{
+		findByClientIDAndIdentityProviderFn: func(_, _ string) (*Client, error) {
+			return &Client{
+				ClientID:   1,
+				Status:     shared.StatusActive,
+				Domain:     strPtr("https://auth.example.com"),
+				Identifier: strPtr("test-client"),
+				IdentityProvider: &IdentityProvider{
+					Identifier: "test-provider",
+				},
+			}, nil
+		},
+	}
+	userRepo := &mockUserRepo{
+		findByEmailFn: func(_ string) (*User, error) {
+			return &User{UserID: 1, UserUUID: uuid.New(), Email: emailAddr, Username: "testuser", Status: shared.StatusActive}, nil
+		},
+	}
+	userTokenRepo := &mockUserTokenRepo{
+		findByUserIDAndTokenTypeFn: func(_ int64, _ string) ([]UserToken, error) {
+			return nil, errors.New("db error")
+		},
+	}
+
+	svc := NewMagicLinkService(gormDB, userRepo, userTokenRepo, clientRepo, &mockUserIdentityRepo{}, &mockIdentityProviderRepo{}, &mockEmailTemplateRepo{})
+	resp, err := svc.SendMagicLink(context.Background(), emailAddr, clientID, providerID, false)
+
+	require.Error(t, err)
+	assert.Nil(t, resp)
+	assert.Contains(t, err.Error(), "failed to find existing tokens")
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+// ---------------------------------------------------------------------------
+// TestSendMagicLink_RevokeError
+// ---------------------------------------------------------------------------
+
+func TestSendMagicLink_RevokeError(t *testing.T) {
+	emailAddr := "test@example.com"
+	clientID := strPtr("test-client")
+	providerID := strPtr("test-provider")
+
+	gormDB, mock := newMockGormDB(t)
+	mock.ExpectBegin()
+	mock.ExpectRollback()
+
+	clientRepo := &mockClientRepo{
+		findByClientIDAndIdentityProviderFn: func(_, _ string) (*Client, error) {
+			return &Client{
+				ClientID:   1,
+				Status:     shared.StatusActive,
+				Domain:     strPtr("https://auth.example.com"),
+				Identifier: strPtr("test-client"),
+				IdentityProvider: &IdentityProvider{
+					Identifier: "test-provider",
+				},
+			}, nil
+		},
+	}
+	userRepo := &mockUserRepo{
+		findByEmailFn: func(_ string) (*User, error) {
+			return &User{UserID: 1, UserUUID: uuid.New(), Email: emailAddr, Username: "testuser", Status: shared.StatusActive}, nil
+		},
+	}
+	userTokenRepo := &mockUserTokenRepo{
+		findByUserIDAndTokenTypeFn: func(_ int64, _ string) ([]UserToken, error) {
+			return []UserToken{{UserTokenUUID: uuid.New()}}, nil
+		},
+		revokeByUUIDFn: func(_ uuid.UUID) error {
+			return errors.New("revoke error")
+		},
+	}
+
+	svc := NewMagicLinkService(gormDB, userRepo, userTokenRepo, clientRepo, &mockUserIdentityRepo{}, &mockIdentityProviderRepo{}, &mockEmailTemplateRepo{})
+	resp, err := svc.SendMagicLink(context.Background(), emailAddr, clientID, providerID, false)
+
+	require.Error(t, err)
+	assert.Nil(t, resp)
+	assert.Contains(t, err.Error(), "failed to revoke existing token")
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+// ---------------------------------------------------------------------------
+// TestSendMagicLink_TokenCreateError
+// ---------------------------------------------------------------------------
+
+func TestSendMagicLink_TokenCreateError(t *testing.T) {
+	emailAddr := "test@example.com"
+	clientID := strPtr("test-client")
+	providerID := strPtr("test-provider")
+
+	gormDB, mock := newMockGormDB(t)
+	mock.ExpectBegin()
+	mock.ExpectRollback()
+
+	clientRepo := &mockClientRepo{
+		findByClientIDAndIdentityProviderFn: func(_, _ string) (*Client, error) {
+			return &Client{
+				ClientID:   1,
+				Status:     shared.StatusActive,
+				Domain:     strPtr("https://auth.example.com"),
+				Identifier: strPtr("test-client"),
+				IdentityProvider: &IdentityProvider{
+					Identifier: "test-provider",
+				},
+			}, nil
+		},
+	}
+	userRepo := &mockUserRepo{
+		findByEmailFn: func(_ string) (*User, error) {
+			return &User{UserID: 1, UserUUID: uuid.New(), Email: emailAddr, Username: "testuser", Status: shared.StatusActive}, nil
+		},
+	}
+	userTokenRepo := &mockUserTokenRepo{
+		findByUserIDAndTokenTypeFn: func(_ int64, _ string) ([]UserToken, error) { return nil, nil },
+		createFn:                   func(_ *UserToken) (*UserToken, error) { return nil, errors.New("create error") },
+	}
+
+	svc := NewMagicLinkService(gormDB, userRepo, userTokenRepo, clientRepo, &mockUserIdentityRepo{}, &mockIdentityProviderRepo{}, &mockEmailTemplateRepo{})
+	resp, err := svc.SendMagicLink(context.Background(), emailAddr, clientID, providerID, false)
+
+	require.Error(t, err)
+	assert.Nil(t, resp)
+	assert.Contains(t, err.Error(), "failed to create magic link token")
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+// ---------------------------------------------------------------------------
+// TestSendMagicLink_Internal
+// ---------------------------------------------------------------------------
+
+func TestSendMagicLink_Internal(t *testing.T) {
+	emailAddr := "test@example.com"
+	clientID := strPtr("test-client")
+	providerID := strPtr("test-provider")
+
+	gormDB, mock := newMockGormDB(t)
+	mock.ExpectBegin()
+	mock.ExpectCommit()
+
+	config.AppPublicHostname = "http://localhost"
+	config.AccountHostname = "http://localhost"
+	config.AuthHostname = "http://localhost"
+
+	origSendEmail := email.SendEmail
+	email.SendEmail = func(_ context.Context, _ email.SendEmailParams) error { return nil }
+	defer func() { email.SendEmail = origSendEmail }()
+
+	clientRepo := &mockClientRepo{
+		findByClientIDAndIdentityProviderFn: func(_, _ string) (*Client, error) {
+			return &Client{
+				ClientID:   1,
+				Status:     shared.StatusActive,
+				Domain:     strPtr("https://auth.example.com"),
+				Identifier: strPtr("test-client"),
+				IdentityProvider: &IdentityProvider{
+					Identifier: "test-provider",
+				},
+			}, nil
+		},
+	}
+	userRepo := &mockUserRepo{
+		findByEmailFn: func(_ string) (*User, error) {
+			return &User{UserID: 1, UserUUID: uuid.New(), Email: emailAddr, Username: "testuser", Status: shared.StatusActive}, nil
+		},
+	}
+	userTokenRepo := &mockUserTokenRepo{
+		findByUserIDAndTokenTypeFn: func(_ int64, _ string) ([]UserToken, error) { return nil, nil },
+		createFn:                   func(ut *UserToken) (*UserToken, error) { ut.UserTokenID = 1; return ut, nil },
+	}
+	emailTemplateRepo := &mockEmailTemplateRepo{
+		findByNameFn: func(_ string) (*branding.EmailTemplate, error) {
+			return validEmailTemplate(), nil
+		},
+	}
+
+	svc := NewMagicLinkService(gormDB, userRepo, userTokenRepo, clientRepo, &mockUserIdentityRepo{}, &mockIdentityProviderRepo{}, emailTemplateRepo)
+	resp, err := svc.SendMagicLink(context.Background(), emailAddr, clientID, providerID, true)
+
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	assert.True(t, resp.Success)
+	assert.NotEmpty(t, resp.Message)
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+// ---------------------------------------------------------------------------
+// TestSendMagicLink_TemplateFindByNameError
+// ---------------------------------------------------------------------------
+
+func TestSendMagicLink_TemplateFindByNameError(t *testing.T) {
+	emailAddr := "test@example.com"
+	clientID := strPtr("test-client")
+	providerID := strPtr("test-provider")
+
+	gormDB, mock := newMockGormDB(t)
+	mock.ExpectBegin()
+	mock.ExpectCommit()
+
+	origSendEmail := email.SendEmail
+	email.SendEmail = func(_ context.Context, _ email.SendEmailParams) error { return nil }
+	defer func() { email.SendEmail = origSendEmail }()
+
+	clientRepo := &mockClientRepo{
+		findByClientIDAndIdentityProviderFn: func(_, _ string) (*Client, error) {
+			return &Client{
+				ClientID:   1,
+				Status:     shared.StatusActive,
+				Domain:     strPtr("https://auth.example.com"),
+				Identifier: strPtr("test-client"),
+				IdentityProvider: &IdentityProvider{
+					Identifier: "test-provider",
+				},
+			}, nil
+		},
+	}
+	userRepo := &mockUserRepo{
+		findByEmailFn: func(_ string) (*User, error) {
+			return &User{UserID: 1, UserUUID: uuid.New(), Email: emailAddr, Username: "testuser", Status: shared.StatusActive}, nil
+		},
+	}
+	userTokenRepo := &mockUserTokenRepo{
+		findByUserIDAndTokenTypeFn: func(_ int64, _ string) ([]UserToken, error) { return nil, nil },
+		createFn:                   func(ut *UserToken) (*UserToken, error) { ut.UserTokenID = 1; return ut, nil },
+	}
+	emailTemplateRepo := &mockEmailTemplateRepo{
+		findByNameFn: func(_ string) (*branding.EmailTemplate, error) {
+			return nil, errors.New("template not found")
+		},
+	}
+
+	svc := NewMagicLinkService(gormDB, userRepo, userTokenRepo, clientRepo, &mockUserIdentityRepo{}, &mockIdentityProviderRepo{}, emailTemplateRepo)
+	resp, err := svc.SendMagicLink(context.Background(), emailAddr, clientID, providerID, false)
+
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	assert.True(t, resp.Success)
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+// ---------------------------------------------------------------------------
+// TestSendMagicLink_TemplateParseError
+// ---------------------------------------------------------------------------
+
+func TestSendMagicLink_TemplateParseError(t *testing.T) {
+	emailAddr := "test@example.com"
+	clientID := strPtr("test-client")
+	providerID := strPtr("test-provider")
+
+	gormDB, mock := newMockGormDB(t)
+	mock.ExpectBegin()
+	mock.ExpectCommit()
+
+	origSendEmail := email.SendEmail
+	email.SendEmail = func(_ context.Context, _ email.SendEmailParams) error { return nil }
+	defer func() { email.SendEmail = origSendEmail }()
+
+	clientRepo := &mockClientRepo{
+		findByClientIDAndIdentityProviderFn: func(_, _ string) (*Client, error) {
+			return &Client{
+				ClientID:   1,
+				Status:     shared.StatusActive,
+				Domain:     strPtr("https://auth.example.com"),
+				Identifier: strPtr("test-client"),
+				IdentityProvider: &IdentityProvider{
+					Identifier: "test-provider",
+				},
+			}, nil
+		},
+	}
+	userRepo := &mockUserRepo{
+		findByEmailFn: func(_ string) (*User, error) {
+			return &User{UserID: 1, UserUUID: uuid.New(), Email: emailAddr, Username: "testuser", Status: shared.StatusActive}, nil
+		},
+	}
+	userTokenRepo := &mockUserTokenRepo{
+		findByUserIDAndTokenTypeFn: func(_ int64, _ string) ([]UserToken, error) { return nil, nil },
+		createFn:                   func(ut *UserToken) (*UserToken, error) { ut.UserTokenID = 1; return ut, nil },
+	}
+	emailTemplateRepo := &mockEmailTemplateRepo{
+		findByNameFn: func(_ string) (*branding.EmailTemplate, error) {
+			return &branding.EmailTemplate{
+				Subject:  "Magic Link",
+				BodyHTML: `{{if}}`,
+			}, nil
+		},
+	}
+
+	svc := NewMagicLinkService(gormDB, userRepo, userTokenRepo, clientRepo, &mockUserIdentityRepo{}, &mockIdentityProviderRepo{}, emailTemplateRepo)
+	resp, err := svc.SendMagicLink(context.Background(), emailAddr, clientID, providerID, false)
+
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	assert.True(t, resp.Success)
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+// ---------------------------------------------------------------------------
+// TestSendMagicLink_TemplateExecuteError
+// ---------------------------------------------------------------------------
+
+func TestSendMagicLink_TemplateExecuteError(t *testing.T) {
+	emailAddr := "test@example.com"
+	clientID := strPtr("test-client")
+	providerID := strPtr("test-provider")
+
+	gormDB, mock := newMockGormDB(t)
+	mock.ExpectBegin()
+	mock.ExpectCommit()
+
+	origSendEmail := email.SendEmail
+	email.SendEmail = func(_ context.Context, _ email.SendEmailParams) error { return nil }
+	defer func() { email.SendEmail = origSendEmail }()
+
+	clientRepo := &mockClientRepo{
+		findByClientIDAndIdentityProviderFn: func(_, _ string) (*Client, error) {
+			return &Client{
+				ClientID:   1,
+				Status:     shared.StatusActive,
+				Domain:     strPtr("https://auth.example.com"),
+				Identifier: strPtr("test-client"),
+				IdentityProvider: &IdentityProvider{
+					Identifier: "test-provider",
+				},
+			}, nil
+		},
+	}
+	userRepo := &mockUserRepo{
+		findByEmailFn: func(_ string) (*User, error) {
+			return &User{UserID: 1, UserUUID: uuid.New(), Email: emailAddr, Username: "testuser", Status: shared.StatusActive}, nil
+		},
+	}
+	userTokenRepo := &mockUserTokenRepo{
+		findByUserIDAndTokenTypeFn: func(_ int64, _ string) ([]UserToken, error) { return nil, nil },
+		createFn:                   func(ut *UserToken) (*UserToken, error) { ut.UserTokenID = 1; return ut, nil },
+	}
+	emailTemplateRepo := &mockEmailTemplateRepo{
+		findByNameFn: func(_ string) (*branding.EmailTemplate, error) {
+			return &branding.EmailTemplate{
+				Subject:  "Magic Link",
+				BodyHTML: `{{index . 0}}`,
+			}, nil
+		},
+	}
+
+	svc := NewMagicLinkService(gormDB, userRepo, userTokenRepo, clientRepo, &mockUserIdentityRepo{}, &mockIdentityProviderRepo{}, emailTemplateRepo)
+	resp, err := svc.SendMagicLink(context.Background(), emailAddr, clientID, providerID, false)
+
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	assert.True(t, resp.Success)
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+// ---------------------------------------------------------------------------
+// TestSendMagicLink_PlaintextParseError
+// ---------------------------------------------------------------------------
+
+func TestSendMagicLink_PlaintextParseError(t *testing.T) {
+	emailAddr := "test@example.com"
+	clientID := strPtr("test-client")
+	providerID := strPtr("test-provider")
+
+	gormDB, mock := newMockGormDB(t)
+	mock.ExpectBegin()
+	mock.ExpectCommit()
+
+	origSendEmail := email.SendEmail
+	email.SendEmail = func(_ context.Context, _ email.SendEmailParams) error { return nil }
+	defer func() { email.SendEmail = origSendEmail }()
+
+	clientRepo := &mockClientRepo{
+		findByClientIDAndIdentityProviderFn: func(_, _ string) (*Client, error) {
+			return &Client{
+				ClientID:   1,
+				Status:     shared.StatusActive,
+				Domain:     strPtr("https://auth.example.com"),
+				Identifier: strPtr("test-client"),
+				IdentityProvider: &IdentityProvider{
+					Identifier: "test-provider",
+				},
+			}, nil
+		},
+	}
+	userRepo := &mockUserRepo{
+		findByEmailFn: func(_ string) (*User, error) {
+			return &User{UserID: 1, UserUUID: uuid.New(), Email: emailAddr, Username: "testuser", Status: shared.StatusActive}, nil
+		},
+	}
+	userTokenRepo := &mockUserTokenRepo{
+		findByUserIDAndTokenTypeFn: func(_ int64, _ string) ([]UserToken, error) { return nil, nil },
+		createFn:                   func(ut *UserToken) (*UserToken, error) { ut.UserTokenID = 1; return ut, nil },
+	}
+	invalidPlain := "{{if}}"
+	emailTemplateRepo := &mockEmailTemplateRepo{
+		findByNameFn: func(_ string) (*branding.EmailTemplate, error) {
+			return &branding.EmailTemplate{
+				Subject:   "Magic Link",
+				BodyHTML:  `<a href="{{.MagicLinkURL}}">Click here to login</a>`,
+				BodyPlain: &invalidPlain,
+			}, nil
+		},
+	}
+
+	svc := NewMagicLinkService(gormDB, userRepo, userTokenRepo, clientRepo, &mockUserIdentityRepo{}, &mockIdentityProviderRepo{}, emailTemplateRepo)
+	resp, err := svc.SendMagicLink(context.Background(), emailAddr, clientID, providerID, false)
+
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	assert.True(t, resp.Success)
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+// ---------------------------------------------------------------------------
+// TestSendMagicLink_PlaintextExecuteError
+// ---------------------------------------------------------------------------
+
+func TestSendMagicLink_PlaintextExecuteError(t *testing.T) {
+	emailAddr := "test@example.com"
+	clientID := strPtr("test-client")
+	providerID := strPtr("test-provider")
+
+	gormDB, mock := newMockGormDB(t)
+	mock.ExpectBegin()
+	mock.ExpectCommit()
+
+	origSendEmail := email.SendEmail
+	email.SendEmail = func(_ context.Context, _ email.SendEmailParams) error { return nil }
+	defer func() { email.SendEmail = origSendEmail }()
+
+	clientRepo := &mockClientRepo{
+		findByClientIDAndIdentityProviderFn: func(_, _ string) (*Client, error) {
+			return &Client{
+				ClientID:   1,
+				Status:     shared.StatusActive,
+				Domain:     strPtr("https://auth.example.com"),
+				Identifier: strPtr("test-client"),
+				IdentityProvider: &IdentityProvider{
+					Identifier: "test-provider",
+				},
+			}, nil
+		},
+	}
+	userRepo := &mockUserRepo{
+		findByEmailFn: func(_ string) (*User, error) {
+			return &User{UserID: 1, UserUUID: uuid.New(), Email: emailAddr, Username: "testuser", Status: shared.StatusActive}, nil
+		},
+	}
+	userTokenRepo := &mockUserTokenRepo{
+		findByUserIDAndTokenTypeFn: func(_ int64, _ string) ([]UserToken, error) { return nil, nil },
+		createFn:                   func(ut *UserToken) (*UserToken, error) { ut.UserTokenID = 1; return ut, nil },
+	}
+	invalidPlain := "{{index . 0}}"
+	emailTemplateRepo := &mockEmailTemplateRepo{
+		findByNameFn: func(_ string) (*branding.EmailTemplate, error) {
+			return &branding.EmailTemplate{
+				Subject:   "Magic Link",
+				BodyHTML:  `<a href="{{.MagicLinkURL}}">Click here to login</a>`,
+				BodyPlain: &invalidPlain,
+			}, nil
+		},
+	}
+
+	svc := NewMagicLinkService(gormDB, userRepo, userTokenRepo, clientRepo, &mockUserIdentityRepo{}, &mockIdentityProviderRepo{}, emailTemplateRepo)
+	resp, err := svc.SendMagicLink(context.Background(), emailAddr, clientID, providerID, false)
+
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	assert.True(t, resp.Success)
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+// ---------------------------------------------------------------------------
+// TestLoginWithMagicLink_TokenQueryError
+// ---------------------------------------------------------------------------
+
+func TestLoginWithMagicLink_TokenQueryError(t *testing.T) {
+	token := "valid-magic-link-token-0000000000000000000000000000000000000000000000000000"
+	tokenHash := hashUserBearerToken(token)
+	clientID := "test-client"
+	providerID := "test-provider"
+
+	gormDB, mock := newMockGormDBRegex(t)
+	mock.ExpectBegin()
+	mock.ExpectQuery(`SELECT \* FROM "user_tokens" WHERE .+`).
+		WithArgs("user:magic_link", tokenHash).
+		WillReturnError(errors.New("db error"))
+	mock.ExpectRollback()
+
+	idpRepo := &mockIdentityProviderRepo{
+		findByIdentifierFn: func(_ string) (*IdentityProvider, error) {
+			return buildActiveIdentityProvider(), nil
+		},
+	}
+	clientRepo := &mockClientRepo{
+		findByClientIDAndIdentityProviderFn: func(_, _ string) (*Client, error) {
+			return buildActiveClient(), nil
+		},
+	}
+
+	svc := NewMagicLinkService(gormDB, &mockUserRepo{}, &mockUserTokenRepo{}, clientRepo, &mockUserIdentityRepo{}, idpRepo, &mockEmailTemplateRepo{})
+	resp, err := svc.LoginWithMagicLink(context.Background(), token, clientID, providerID)
+
+	require.Error(t, err)
+	assert.Nil(t, resp)
+	assert.Contains(t, err.Error(), "failed to find magic link token")
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+// ---------------------------------------------------------------------------
+// TestLoginWithMagicLink_UserIdentityNotFound
+// ---------------------------------------------------------------------------
+
+func TestLoginWithMagicLink_UserIdentityNotFound(t *testing.T) {
+	token := "valid-magic-link-token-0000000000000000000000000000000000000000000000000000"
+	tokenHash := hashUserBearerToken(token)
+	userID := int64(1)
+	clientID := "test-client"
+	providerID := "test-provider"
+
+	gormDB, mock := newMockGormDBRegex(t)
+	futureTime := time.Now().Add(1 * time.Hour)
+	mock.ExpectBegin()
+	mock.ExpectQuery(`SELECT \* FROM "user_tokens" WHERE .+`).
+		WithArgs("user:magic_link", tokenHash).
+		WillReturnRows(sqlmock.NewRows([]string{"user_token_id", "user_token_uuid", "user_id", "token_type", "token", "expires_at", "is_revoked", "ip_address", "user_agent", "last_used_at", "idle_timeout_seconds", "absolute_expires_at", "created_at", "updated_at"}).
+			AddRow(1, uuid.New(), userID, "user:magic_link", tokenHash, futureTime, false, nil, nil, nil, nil, nil, time.Now(), time.Now()))
+	mock.ExpectRollback()
+
+	idpRepo := &mockIdentityProviderRepo{
+		findByIdentifierFn: func(_ string) (*IdentityProvider, error) {
+			return buildActiveIdentityProvider(), nil
+		},
+	}
+	clientRepo := &mockClientRepo{
+		findByClientIDAndIdentityProviderFn: func(_, _ string) (*Client, error) {
+			return buildActiveClient(), nil
+		},
+	}
+	userRepo := &mockUserRepo{
+		findByIDFn: func(_ any, _ ...string) (*User, error) {
+			return &User{UserID: userID, UserUUID: uuid.New(), Email: "test@example.com", Username: "testuser", Status: shared.StatusActive}, nil
+		},
+	}
+	userIdentityRepo := &mockUserIdentityRepo{
+		findByUserIDAndClientIDFn: func(_, _ int64) (*UserIdentity, error) {
+			return nil, nil
+		},
+	}
+
+	svc := NewMagicLinkService(gormDB, userRepo, &mockUserTokenRepo{}, clientRepo, userIdentityRepo, idpRepo, &mockEmailTemplateRepo{})
+	resp, err := svc.LoginWithMagicLink(context.Background(), token, clientID, providerID)
+
+	require.Error(t, err)
+	assert.Nil(t, resp)
+	assert.Contains(t, err.Error(), "authentication failed")
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+// ---------------------------------------------------------------------------
+// TestLoginWithMagicLink_ExistingTokensError
+// ---------------------------------------------------------------------------
+
+func TestLoginWithMagicLink_ExistingTokensError(t *testing.T) {
+	token := "valid-magic-link-token-0000000000000000000000000000000000000000000000000000"
+	tokenHash := hashUserBearerToken(token)
+	userID := int64(1)
+	clientID := "test-client"
+	providerID := "test-provider"
+
+	gormDB, mock := newMockGormDBRegex(t)
+	futureTime := time.Now().Add(1 * time.Hour)
+	mock.ExpectBegin()
+	mock.ExpectQuery(`SELECT \* FROM "user_tokens" WHERE .+`).
+		WithArgs("user:magic_link", tokenHash).
+		WillReturnRows(sqlmock.NewRows([]string{"user_token_id", "user_token_uuid", "user_id", "token_type", "token", "expires_at", "is_revoked", "ip_address", "user_agent", "last_used_at", "idle_timeout_seconds", "absolute_expires_at", "created_at", "updated_at"}).
+			AddRow(1, uuid.New(), userID, "user:magic_link", tokenHash, futureTime, false, nil, nil, nil, nil, nil, time.Now(), time.Now()))
+	mock.ExpectRollback()
+
+	idpRepo := &mockIdentityProviderRepo{
+		findByIdentifierFn: func(_ string) (*IdentityProvider, error) {
+			return buildActiveIdentityProvider(), nil
+		},
+	}
+	clientRepo := &mockClientRepo{
+		findByClientIDAndIdentityProviderFn: func(_, _ string) (*Client, error) {
+			return buildActiveClient(), nil
+		},
+	}
+	userRepo := &mockUserRepo{
+		findByIDFn: func(_ any, _ ...string) (*User, error) {
+			return &User{UserID: userID, UserUUID: uuid.New(), Email: "test@example.com", Username: "testuser", Status: shared.StatusActive}, nil
+		},
+	}
+	userIdentityRepo := &mockUserIdentityRepo{
+		findByUserIDAndClientIDFn: func(_, _ int64) (*UserIdentity, error) {
+			return &UserIdentity{Sub: "sub-123"}, nil
+		},
+	}
+	userTokenRepo := &mockUserTokenRepo{
+		findByUserIDAndTokenTypeFn: func(_ int64, _ string) ([]UserToken, error) {
+			return nil, errors.New("db error")
+		},
+	}
+
+	svc := NewMagicLinkService(gormDB, userRepo, userTokenRepo, clientRepo, userIdentityRepo, idpRepo, &mockEmailTemplateRepo{})
+	resp, err := svc.LoginWithMagicLink(context.Background(), token, clientID, providerID)
+
+	require.Error(t, err)
+	assert.Nil(t, resp)
+	assert.Contains(t, err.Error(), "failed to find existing tokens")
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+// ---------------------------------------------------------------------------
+// TestLoginWithMagicLink_RevokeByUUIDError
+// ---------------------------------------------------------------------------
+
+func TestLoginWithMagicLink_RevokeByUUIDError(t *testing.T) {
+	token := "valid-magic-link-token-0000000000000000000000000000000000000000000000000000"
+	tokenHash := hashUserBearerToken(token)
+	userID := int64(1)
+	clientID := "test-client"
+	providerID := "test-provider"
+
+	gormDB, mock := newMockGormDBRegex(t)
+	futureTime := time.Now().Add(1 * time.Hour)
+	mock.ExpectBegin()
+	mock.ExpectQuery(`SELECT \* FROM "user_tokens" WHERE .+`).
+		WithArgs("user:magic_link", tokenHash).
+		WillReturnRows(sqlmock.NewRows([]string{"user_token_id", "user_token_uuid", "user_id", "token_type", "token", "expires_at", "is_revoked", "ip_address", "user_agent", "last_used_at", "idle_timeout_seconds", "absolute_expires_at", "created_at", "updated_at"}).
+			AddRow(1, uuid.New(), userID, "user:magic_link", tokenHash, futureTime, false, nil, nil, nil, nil, nil, time.Now(), time.Now()))
+	mock.ExpectRollback()
+
+	idpRepo := &mockIdentityProviderRepo{
+		findByIdentifierFn: func(_ string) (*IdentityProvider, error) {
+			return buildActiveIdentityProvider(), nil
+		},
+	}
+	clientRepo := &mockClientRepo{
+		findByClientIDAndIdentityProviderFn: func(_, _ string) (*Client, error) {
+			return buildActiveClient(), nil
+		},
+	}
+	userRepo := &mockUserRepo{
+		findByIDFn: func(_ any, _ ...string) (*User, error) {
+			return &User{UserID: userID, UserUUID: uuid.New(), Email: "test@example.com", Username: "testuser", Status: shared.StatusActive}, nil
+		},
+	}
+	userIdentityRepo := &mockUserIdentityRepo{
+		findByUserIDAndClientIDFn: func(_, _ int64) (*UserIdentity, error) {
+			return &UserIdentity{Sub: "sub-123"}, nil
+		},
+	}
+	userTokenRepo := &mockUserTokenRepo{
+		findByUserIDAndTokenTypeFn: func(_ int64, _ string) ([]UserToken, error) {
+			return []UserToken{{UserTokenUUID: uuid.New()}}, nil
+		},
+		revokeByUUIDFn: func(_ uuid.UUID) error {
+			return errors.New("revoke error")
+		},
+	}
+
+	svc := NewMagicLinkService(gormDB, userRepo, userTokenRepo, clientRepo, userIdentityRepo, idpRepo, &mockEmailTemplateRepo{})
+	resp, err := svc.LoginWithMagicLink(context.Background(), token, clientID, providerID)
+
+	require.Error(t, err)
+	assert.Nil(t, resp)
+	assert.Contains(t, err.Error(), "failed to revoke magic link token")
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+// ---------------------------------------------------------------------------
+// TestLoginWithMagicLink_UpdateByIDError
+// ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+// TestLoginWithMagicLink_GenerateTokenResponseError
+// ---------------------------------------------------------------------------
+
+func TestLoginWithMagicLink_GenerateTokenResponseError(t *testing.T) {
+	token := "valid-magic-link-token-0000000000000000000000000000000000000000000000000000"
+	tokenHash := hashUserBearerToken(token)
+	userID := int64(1)
+	clientID := "test-client"
+	providerID := "test-provider"
+
+	jwt.ResetJWTKeys()
+	defer initTestJWTKeysService(t)
+
+	gormDB, mock := newMockGormDBRegex(t)
+	futureTime := time.Now().Add(1 * time.Hour)
+	mock.ExpectBegin()
+	mock.ExpectQuery(`SELECT \* FROM "user_tokens" WHERE .+`).
+		WithArgs("user:magic_link", tokenHash).
+		WillReturnRows(sqlmock.NewRows([]string{"user_token_id", "user_token_uuid", "user_id", "token_type", "token", "expires_at", "is_revoked", "ip_address", "user_agent", "last_used_at", "idle_timeout_seconds", "absolute_expires_at", "created_at", "updated_at"}).
+			AddRow(1, uuid.New(), userID, "user:magic_link", tokenHash, futureTime, false, nil, nil, nil, nil, nil, time.Now(), time.Now()))
+	mock.ExpectCommit()
+
+	idpRepo := &mockIdentityProviderRepo{
+		findByIdentifierFn: func(_ string) (*IdentityProvider, error) {
+			return buildActiveIdentityProvider(), nil
+		},
+	}
+	clientRepo := &mockClientRepo{
+		findByClientIDAndIdentityProviderFn: func(_, _ string) (*Client, error) {
+			return buildActiveClient(), nil
+		},
+	}
+	userRepo := &mockUserRepo{
+		findByIDFn: func(_ any, _ ...string) (*User, error) {
+			return &User{UserID: userID, UserUUID: uuid.New(), Email: "test@example.com", Username: "testuser", Status: shared.StatusActive, IsEmailVerified: true}, nil
+		},
+	}
+	userIdentityRepo := &mockUserIdentityRepo{
+		findByUserIDAndClientIDFn: func(_, _ int64) (*UserIdentity, error) {
+			return &UserIdentity{Sub: "sub-123"}, nil
+		},
+	}
+	userTokenRepo := &mockUserTokenRepo{
+		findByUserIDAndTokenTypeFn: func(_ int64, _ string) ([]UserToken, error) { return nil, nil },
+	}
+
+	svc := NewMagicLinkService(gormDB, userRepo, userTokenRepo, clientRepo, userIdentityRepo, idpRepo, &mockEmailTemplateRepo{})
+	resp, err := svc.LoginWithMagicLink(context.Background(), token, clientID, providerID)
+
+	require.Error(t, err)
+	assert.Nil(t, resp)
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+// ---------------------------------------------------------------------------
+// TestSendMagicLink_SignedURLError
+// ---------------------------------------------------------------------------
+
+func TestSendMagicLink_SignedURLError(t *testing.T) {
+	emailAddr := "test@example.com"
+	clientID := strPtr("test-client")
+	providerID := strPtr("test-provider")
+
+	initTestJWTKeysService(t)
+	gormDB, mock := newMockGormDB(t)
+	mock.ExpectBegin()
+	mock.ExpectCommit()
+
+	origHostname := config.AppPublicHostname
+	config.AppPublicHostname = ""
+	defer func() { config.AppPublicHostname = origHostname }()
+
+	origSendEmail := email.SendEmail
+	email.SendEmail = func(_ context.Context, _ email.SendEmailParams) error { return nil }
+	defer func() { email.SendEmail = origSendEmail }()
+
+	clientRepo := &mockClientRepo{
+		findByClientIDAndIdentityProviderFn: func(_, _ string) (*Client, error) {
+			return &Client{
+				ClientID:   1,
+				Status:     shared.StatusActive,
+				Domain:     strPtr("https://auth.example.com"),
+				Identifier: strPtr("test-client"),
+				IdentityProvider: &IdentityProvider{
+					Identifier: "test-provider",
+				},
+			}, nil
+		},
+	}
+	userRepo := &mockUserRepo{
+		findByEmailFn: func(_ string) (*User, error) {
+			return &User{UserID: 1, UserUUID: uuid.New(), Email: emailAddr, Username: "testuser", Status: shared.StatusActive}, nil
+		},
+	}
+	userTokenRepo := &mockUserTokenRepo{
+		findByUserIDAndTokenTypeFn: func(_ int64, _ string) ([]UserToken, error) { return nil, nil },
+		createFn:                   func(ut *UserToken) (*UserToken, error) { ut.UserTokenID = 1; return ut, nil },
+	}
+	emailTemplateRepo := &mockEmailTemplateRepo{
+		findByNameFn: func(_ string) (*branding.EmailTemplate, error) {
+			return validEmailTemplate(), nil
+		},
+	}
+
+	svc := NewMagicLinkService(gormDB, userRepo, userTokenRepo, clientRepo, &mockUserIdentityRepo{}, &mockIdentityProviderRepo{}, emailTemplateRepo)
+	resp, err := svc.SendMagicLink(context.Background(), emailAddr, clientID, providerID, false)
+
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	assert.True(t, resp.Success)
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+// ---------------------------------------------------------------------------
+// TestSendMagicLink_ConvertToFrontendURLError
+// ---------------------------------------------------------------------------
+
+func TestSendMagicLink_ConvertToFrontendURLError(t *testing.T) {
+	emailAddr := "test@example.com"
+	clientID := strPtr("test-client")
+	providerID := strPtr("test-provider")
+
+	initTestJWTKeysService(t)
+	gormDB, mock := newMockGormDB(t)
+	mock.ExpectBegin()
+	mock.ExpectCommit()
+
+	config.AppPublicHostname = "http://localhost"
+	origAccount := config.AccountHostname
+	config.AccountHostname = "://invalid-url"
+	defer func() { config.AccountHostname = origAccount }()
+
+	origSendEmail := email.SendEmail
+	email.SendEmail = func(_ context.Context, _ email.SendEmailParams) error { return nil }
+	defer func() { email.SendEmail = origSendEmail }()
+
+	clientRepo := &mockClientRepo{
+		findByClientIDAndIdentityProviderFn: func(_, _ string) (*Client, error) {
+			return &Client{
+				ClientID:   1,
+				Status:     shared.StatusActive,
+				Domain:     strPtr("https://auth.example.com"),
+				Identifier: strPtr("test-client"),
+				IdentityProvider: &IdentityProvider{
+					Identifier: "test-provider",
+				},
+			}, nil
+		},
+	}
+	userRepo := &mockUserRepo{
+		findByEmailFn: func(_ string) (*User, error) {
+			return &User{UserID: 1, UserUUID: uuid.New(), Email: emailAddr, Username: "testuser", Status: shared.StatusActive}, nil
+		},
+	}
+	userTokenRepo := &mockUserTokenRepo{
+		findByUserIDAndTokenTypeFn: func(_ int64, _ string) ([]UserToken, error) { return nil, nil },
+		createFn:                   func(ut *UserToken) (*UserToken, error) { ut.UserTokenID = 1; return ut, nil },
+	}
+	emailTemplateRepo := &mockEmailTemplateRepo{
+		findByNameFn: func(_ string) (*branding.EmailTemplate, error) {
+			return validEmailTemplate(), nil
+		},
+	}
+
+	svc := NewMagicLinkService(gormDB, userRepo, userTokenRepo, clientRepo, &mockUserIdentityRepo{}, &mockIdentityProviderRepo{}, emailTemplateRepo)
+	resp, err := svc.SendMagicLink(context.Background(), emailAddr, clientID, providerID, false)
+
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	assert.True(t, resp.Success)
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestLoginWithMagicLink_UpdateByIDError(t *testing.T) {
+	token := "valid-magic-link-token-0000000000000000000000000000000000000000000000000000"
+	tokenHash := hashUserBearerToken(token)
+	userID := int64(1)
+	clientID := "test-client"
+	providerID := "test-provider"
+
+	gormDB, mock := newMockGormDBRegex(t)
+	futureTime := time.Now().Add(1 * time.Hour)
+	mock.ExpectBegin()
+	mock.ExpectQuery(`SELECT \* FROM "user_tokens" WHERE .+`).
+		WithArgs("user:magic_link", tokenHash).
+		WillReturnRows(sqlmock.NewRows([]string{"user_token_id", "user_token_uuid", "user_id", "token_type", "token", "expires_at", "is_revoked", "ip_address", "user_agent", "last_used_at", "idle_timeout_seconds", "absolute_expires_at", "created_at", "updated_at"}).
+			AddRow(1, uuid.New(), userID, "user:magic_link", tokenHash, futureTime, false, nil, nil, nil, nil, nil, time.Now(), time.Now()))
+	mock.ExpectRollback()
+
+	idpRepo := &mockIdentityProviderRepo{
+		findByIdentifierFn: func(_ string) (*IdentityProvider, error) {
+			return buildActiveIdentityProvider(), nil
+		},
+	}
+	clientRepo := &mockClientRepo{
+		findByClientIDAndIdentityProviderFn: func(_, _ string) (*Client, error) {
+			return buildActiveClient(), nil
+		},
+	}
+	userRepo := &mockUserRepo{
+		findByIDFn: func(_ any, _ ...string) (*User, error) {
+			return &User{UserID: userID, UserUUID: uuid.New(), Email: "test@example.com", Username: "testuser", Status: shared.StatusActive, IsEmailVerified: false}, nil
+		},
+		updateByIDFn: func(_ any, _ any) (*User, error) {
+			return nil, errors.New("update error")
+		},
+	}
+	userIdentityRepo := &mockUserIdentityRepo{
+		findByUserIDAndClientIDFn: func(_, _ int64) (*UserIdentity, error) {
+			return &UserIdentity{Sub: "sub-123"}, nil
+		},
+	}
+	userTokenRepo := &mockUserTokenRepo{
+		findByUserIDAndTokenTypeFn: func(_ int64, _ string) ([]UserToken, error) { return nil, nil },
+	}
+
+	svc := NewMagicLinkService(gormDB, userRepo, userTokenRepo, clientRepo, userIdentityRepo, idpRepo, &mockEmailTemplateRepo{})
+	resp, err := svc.LoginWithMagicLink(context.Background(), token, clientID, providerID)
+
+	require.Error(t, err)
+	assert.Nil(t, resp)
+	assert.Contains(t, err.Error(), "failed to update user verification status")
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestSendMagicLink_FindByEmailError(t *testing.T) {
+	emailAddr := "test@example.com"
+	clientID := strPtr("test-client")
+	providerID := strPtr("test-provider")
+
+	gormDB, mock := newMockGormDB(t)
+	mock.ExpectBegin()
+	mock.ExpectCommit()
+
+	clientRepo := &mockClientRepo{
+		findByClientIDAndIdentityProviderFn: func(_, _ string) (*Client, error) {
+			return &Client{
+				ClientID:   1,
+				Status:     shared.StatusActive,
+				Domain:     strPtr("https://auth.example.com"),
+				Identifier: strPtr("test-client"),
+				IdentityProvider: &IdentityProvider{
+					Identifier: "test-provider",
+				},
+			}, nil
+		},
+	}
+	userRepo := &mockUserRepo{
+		findByEmailFn: func(_ string) (*User, error) {
+			return nil, errors.New("db error")
+		},
+	}
+
+	svc := NewMagicLinkService(gormDB, userRepo, &mockUserTokenRepo{}, clientRepo, &mockUserIdentityRepo{}, &mockIdentityProviderRepo{}, &mockEmailTemplateRepo{})
+	resp, err := svc.SendMagicLink(context.Background(), emailAddr, clientID, providerID, false)
+
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	assert.True(t, resp.Success)
+	assert.NoError(t, mock.ExpectationsWereMet())
 }

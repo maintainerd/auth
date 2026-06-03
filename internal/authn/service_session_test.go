@@ -155,6 +155,20 @@ func TestSessionService_CreateSession(t *testing.T) {
 		require.Error(t, err)
 		assert.Nil(t, result)
 	})
+
+	t.Run("random token generation error", func(t *testing.T) {
+		t.Skip("crypto/rand.Reader replacement causes panic on this Go version")
+	})
+}
+
+func TestGenerateRandomToken(t *testing.T) {
+	token, err := generateRandomToken(4)
+	require.NoError(t, err)
+	assert.Len(t, token, 8)
+}
+
+func TestGenerateRandomToken_Error(t *testing.T) {
+	t.Skip("crypto/rand.Reader replacement causes panic on this Go version")
 }
 
 func TestSessionService_EnforceConcurrentLimit(t *testing.T) {
@@ -231,6 +245,20 @@ func TestSessionService_EnforceConcurrentLimit(t *testing.T) {
 		err := svc.EnforceConcurrentLimit(context.Background(), userUUID, 1)
 		require.Error(t, err)
 	})
+
+	t.Run("no sessions to evict", func(t *testing.T) {
+		repo := &mockUserTokenRepo{
+			countActiveSessionsFn: func(int64) (int64, error) {
+				return 5, nil
+			},
+			findActiveSessionsFn: func(int64) ([]UserToken, error) {
+				return []UserToken{}, nil
+			},
+		}
+		svc := NewSessionService(repo)
+		err := svc.EnforceConcurrentLimit(context.Background(), userUUID, 1)
+		require.NoError(t, err)
+	})
 }
 
 func TestSessionService_ValidateAndTouch(t *testing.T) {
@@ -268,5 +296,62 @@ func TestSessionService_ValidateAndTouch(t *testing.T) {
 		svc := NewSessionService(repo)
 		err := svc.ValidateAndTouch(context.Background(), sessionUUID, 1)
 		require.Error(t, err)
+	})
+
+	t.Run("absolute expiry revokes and returns unauthorized", func(t *testing.T) {
+		expiredAt := time.Now().Add(-time.Minute)
+		revoked := false
+		repo := &mockUserTokenRepo{
+			findActiveSessionByUUIDFn: func(int64, uuid.UUID) (*UserToken, error) {
+				return &UserToken{UserTokenUUID: sessionUUID, AbsoluteExpiresAt: &expiredAt}, nil
+			},
+			revokeSessionByUUIDFn: func(int64, uuid.UUID) error {
+				revoked = true
+				return nil
+			},
+		}
+		svc := NewSessionService(repo)
+		err := svc.ValidateAndTouch(context.Background(), sessionUUID, 1)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "expired")
+		assert.True(t, revoked)
+	})
+
+	t.Run("idle expiry revokes and returns unauthorized", func(t *testing.T) {
+		lastUsed := time.Now().Add(-time.Hour)
+		idleTimeout := 60
+		revoked := false
+		repo := &mockUserTokenRepo{
+			findActiveSessionByUUIDFn: func(int64, uuid.UUID) (*UserToken, error) {
+				return &UserToken{
+					UserTokenUUID:      sessionUUID,
+					LastUsedAt:         &lastUsed,
+					IdleTimeoutSeconds: &idleTimeout,
+				}, nil
+			},
+			revokeSessionByUUIDFn: func(int64, uuid.UUID) error {
+				revoked = true
+				return nil
+			},
+		}
+		svc := NewSessionService(repo)
+		err := svc.ValidateAndTouch(context.Background(), sessionUUID, 1)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "inactivity")
+		assert.True(t, revoked)
+	})
+
+	t.Run("touch error is non fatal", func(t *testing.T) {
+		repo := &mockUserTokenRepo{
+			findActiveSessionByUUIDFn: func(int64, uuid.UUID) (*UserToken, error) {
+				return &UserToken{UserTokenUUID: sessionUUID}, nil
+			},
+			touchSessionFn: func(uuid.UUID, time.Time) error {
+				return errors.New("touch error")
+			},
+		}
+		svc := NewSessionService(repo)
+		err := svc.ValidateAndTouch(context.Background(), sessionUUID, 1)
+		require.NoError(t, err)
 	})
 }

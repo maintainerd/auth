@@ -9,7 +9,10 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/alicebob/miniredis/v2"
 	"github.com/maintainerd/auth/internal/platform/apperror"
+	"github.com/maintainerd/auth/internal/platform/security"
+	"github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -206,4 +209,42 @@ func TestMagicLinkHandler_VerifyMagicLink(t *testing.T) {
 		NewMagicLinkHandler(svc).VerifyMagicLink(w, r)
 		assert.Equal(t, http.StatusOK, w.Code)
 	})
+}
+
+func lockedRateLimiterML(t *testing.T, identifier string) func() {
+	t.Helper()
+	mr, err := miniredis.Run()
+	require.NoError(t, err)
+	rdb := redis.NewClient(&redis.Options{Addr: mr.Addr()})
+	security.InitRateLimiter(rdb)
+	require.NoError(t, mr.Set("rl:lock:"+identifier, "1"))
+	return func() {
+		security.InitRateLimiter(nil)
+		rdb.Close()
+		mr.Close()
+	}
+}
+
+func TestMagicLinkHandler_HandleSendMagicLink_RateLimited(t *testing.T) {
+	email := "ratelimited-ml@example.com"
+	cleanup := lockedRateLimiterML(t, email)
+	defer cleanup()
+
+	r := withSecurityCtx(magicLinkJSONReq(t, http.MethodPost, "/magic-link/send?client_id=app&provider_id=idp",
+		map[string]string{"email": email}))
+	w := httptest.NewRecorder()
+	NewMagicLinkHandler(&mockMagicLinkService{}).SendMagicLinkPublic(w, r)
+	assert.Equal(t, http.StatusTooManyRequests, w.Code)
+}
+
+func TestMagicLinkHandler_VerifyMagicLink_RateLimited(t *testing.T) {
+	// Rate limit for VerifyMagicLink is by client IP (127.0.0.1)
+	cleanup := lockedRateLimiterML(t, "127.0.0.1")
+	defer cleanup()
+
+	r := withSecurityCtx(magicLinkJSONReq(t, http.MethodPost, "/magic-link/verify?client_id=app&provider_id=idp",
+		map[string]string{"token": "abcdef1234567890"}))
+	w := httptest.NewRecorder()
+	NewMagicLinkHandler(&mockMagicLinkService{}).VerifyMagicLink(w, r)
+	assert.Equal(t, http.StatusTooManyRequests, w.Code)
 }
