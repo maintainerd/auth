@@ -9,6 +9,9 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/alicebob/miniredis/v2"
+	"github.com/maintainerd/auth/internal/platform/security"
+	"github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -98,6 +101,23 @@ func TestEmailVerificationHandler_SendVerificationEmail(t *testing.T) {
 		NewEmailVerificationHandler(svc).SendVerificationEmail(w, r)
 		assert.Equal(t, http.StatusOK, w.Code)
 	})
+
+	t.Run("success with optional params", func(t *testing.T) {
+		svc := &mockEmailVerificationService{
+			sendVerificationEmailFn: func(ctx context.Context, email string, clientID, providerID *string) (*SendEmailVerificationResponseDTO, error) {
+				require.NotNil(t, clientID)
+				require.NotNil(t, providerID)
+				assert.Equal(t, "app", *clientID)
+				assert.Equal(t, "idp", *providerID)
+				return &SendEmailVerificationResponseDTO{Success: true}, nil
+			},
+		}
+		r := withSecurityCtx(evJSONReq(t, http.MethodPost, "/email-verification/send?client_id=app&provider_id=idp",
+			map[string]string{"email": "user@example.com"}))
+		w := httptest.NewRecorder()
+		NewEmailVerificationHandler(svc).SendVerificationEmail(w, r)
+		assert.Equal(t, http.StatusOK, w.Code)
+	})
 }
 
 func TestEmailVerificationHandler_VerifyEmail(t *testing.T) {
@@ -143,4 +163,42 @@ func TestEmailVerificationHandler_VerifyEmail(t *testing.T) {
 		NewEmailVerificationHandler(svc).VerifyEmail(w, r)
 		assert.Equal(t, http.StatusOK, w.Code)
 	})
+}
+
+func lockedRateLimiterEV(t *testing.T, identifier string) func() {
+	t.Helper()
+	mr, err := miniredis.Run()
+	require.NoError(t, err)
+	rdb := redis.NewClient(&redis.Options{Addr: mr.Addr()})
+	security.InitRateLimiter(rdb)
+	require.NoError(t, mr.Set("rl:lock:"+identifier, "1"))
+	return func() {
+		security.InitRateLimiter(nil)
+		rdb.Close()
+		mr.Close()
+	}
+}
+
+func TestEmailVerificationHandler_HandleSendVerification_RateLimited(t *testing.T) {
+	email := "ratelimited-ev@example.com"
+	cleanup := lockedRateLimiterEV(t, email)
+	defer cleanup()
+
+	r := withSecurityCtx(evJSONReq(t, http.MethodPost, "/email-verification/send?client_id=app&provider_id=idp",
+		map[string]string{"email": email}))
+	w := httptest.NewRecorder()
+	NewEmailVerificationHandler(&mockEmailVerificationService{}).SendVerificationEmailPublic(w, r)
+	assert.Equal(t, http.StatusTooManyRequests, w.Code)
+}
+
+func TestEmailVerificationHandler_VerifyEmail_RateLimited(t *testing.T) {
+	email := "ratelimited-verify@example.com"
+	cleanup := lockedRateLimiterEV(t, email)
+	defer cleanup()
+
+	r := withSecurityCtx(evJSONReq(t, http.MethodPost, "/email-verification/verify",
+		map[string]string{"email": email, "otp": "123456"}))
+	w := httptest.NewRecorder()
+	NewEmailVerificationHandler(&mockEmailVerificationService{}).VerifyEmail(w, r)
+	assert.Equal(t, http.StatusTooManyRequests, w.Code)
 }

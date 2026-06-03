@@ -153,6 +153,14 @@ func TestLoginService_Logout(t *testing.T) {
 		require.NoError(t, err)
 	})
 
+	t.Run("JWT with non map claims returns nil", func(t *testing.T) {
+		token := jwtlib.NewWithClaims(jwtlib.SigningMethodHS256, jwtlib.RegisteredClaims{Subject: userUUID.String()})
+		tokenStr, _ := token.SignedString([]byte("secret"))
+		svc := &loginService{userRepo: &mockLogoutUserRepo{}, sessionService: &mockLogoutSessionService{}}
+		err := svc.Logout(context.Background(), tokenStr)
+		require.NoError(t, err)
+	})
+
 	t.Run("JWT with empty sub returns nil", func(t *testing.T) {
 		token := jwtlib.NewWithClaims(jwtlib.SigningMethodHS256, jwtlib.MapClaims{"sub": ""})
 		tokenStr, _ := token.SignedString([]byte("secret"))
@@ -252,5 +260,22 @@ func TestLoginService_Logout(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, "logout-jti", denylist.jti)
 		assert.Positive(t, denylist.ttl)
+	})
+
+	t.Run("denylist error is returned before session revoke", func(t *testing.T) {
+		token := jwtlib.NewWithClaims(jwtlib.SigningMethodHS256, jwtlib.MapClaims{
+			"sub": userUUID.String(),
+			"jti": "logout-jti",
+			"exp": time.Now().Add(time.Hour).Unix(),
+		})
+		tokenStr, _ := token.SignedString([]byte("secret"))
+
+		denylist := &recordingLogoutJTIDenylister{err: errors.New("denylist error")}
+		svc := &loginService{userRepo: &mockLogoutUserRepo{}, sessionService: &mockLogoutSessionService{}, jtiDenylist: denylist}
+
+		err := svc.Logout(context.Background(), tokenStr)
+
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "denylist error")
 	})
 }

@@ -8,9 +8,11 @@ import (
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/google/uuid"
+	"github.com/maintainerd/auth/internal/secpolicy"
 	"github.com/maintainerd/auth/internal/shared"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"gorm.io/datatypes"
 )
 
 // ---------------------------------------------------------------------------
@@ -539,4 +541,107 @@ func TestResetPasswordService_ResetPassword(t *testing.T) {
 		assert.NoError(t, mock.ExpectationsWereMet())
 	})
 
+	t.Run("RevokeAllSessionsByUserID error → rollback", func(t *testing.T) {
+		db, mock := newMockGormDB(t)
+		mock.ExpectBegin()
+		mock.ExpectQuery(`SELECT \* FROM "user_tokens"`).
+			WillReturnRows(validTokenRow(tok, userID, tokenUUID))
+		mock.ExpectRollback()
+		svc := NewResetPasswordService(db, &mockUserRepo{
+			findByIDFn: func(_ any, _ ...string) (*User, error) {
+				return &User{UserID: userID, UserUUID: userUUID, Status: shared.StatusActive}, nil
+			},
+		}, &mockUserTokenRepo{
+			findByUserIDAndTokenTypeFn: func(_ int64, _ string) ([]UserToken, error) {
+				return nil, nil
+			},
+			revokeAllSessionsByUserIDFn: func(_ int64) error {
+				return errors.New("revoke sessions failed")
+			},
+		}, &mockClientRepo{
+			findSystemFn: func() (*Client, error) {
+				return &Client{ClientID: 1}, nil
+			},
+		}, nil, nil)
+		resp, err := svc.ResetPassword(context.Background(), tok, strongPassword, nil, nil)
+		require.Error(t, err)
+		assert.Nil(t, resp)
+		assert.Contains(t, err.Error(), "failed to revoke sessions on password reset")
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+
+	t.Run("success with IdentityProvider on client", func(t *testing.T) {
+		db, mock := newMockGormDB(t)
+		mock.ExpectBegin()
+		mock.ExpectQuery(`SELECT \* FROM "user_tokens"`).
+			WillReturnRows(validTokenRow(tok, userID, tokenUUID))
+		mock.ExpectCommit()
+		svc := NewResetPasswordService(db, &mockUserRepo{
+			findByIDFn: func(_ any, _ ...string) (*User, error) {
+				return &User{UserID: userID, UserUUID: userUUID, Status: shared.StatusActive, Email: "test@test.com"}, nil
+			},
+		}, &mockUserTokenRepo{
+			findByUserIDAndTokenTypeFn: func(_ int64, _ string) ([]UserToken, error) {
+				return nil, nil
+			},
+		}, &mockClientRepo{
+			findSystemFn: func() (*Client, error) {
+				return &Client{
+					ClientID: 1,
+					IdentityProvider: &IdentityProvider{
+						TenantID: 5,
+					},
+				}, nil
+			},
+		}, nil, nil)
+		resp, err := svc.ResetPassword(context.Background(), tok, strongPassword, nil, nil)
+		require.NoError(t, err)
+		require.NotNil(t, resp)
+		assert.True(t, resp.Success)
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+
+}
+
+// ---------------------------------------------------------------------------
+// TestResetPasswordService_CheckPasswordHistoryError
+// ---------------------------------------------------------------------------
+
+func TestResetPasswordService_CheckPasswordHistoryError(t *testing.T) {
+	tok := "some-token"
+	userID := int64(42)
+	tokenUUID := uuid.New()
+	userUUID := uuid.New()
+
+	db, mock := newMockGormDB(t)
+	mock.ExpectBegin()
+	mock.ExpectQuery(`SELECT \* FROM "user_tokens"`).
+		WillReturnRows(validTokenRow(tok, userID, tokenUUID))
+	mock.ExpectRollback()
+
+	historyRepo := &mockPasswordHistoryRepo{
+		findRecentHashesFn: func(_ int64, _ int) ([]string, error) {
+			return nil, errors.New("history db error")
+		},
+	}
+	svc := NewResetPasswordService(db, &mockUserRepo{
+		findByIDFn: func(_ any, _ ...string) (*User, error) {
+			return &User{UserID: userID, UserUUID: userUUID, Status: shared.StatusActive, Email: "test@test.com"}, nil
+		},
+	}, &mockUserTokenRepo{}, &mockClientRepo{
+		findSystemFn: func() (*Client, error) {
+			return &Client{ClientID: 1}, nil
+		},
+	}, &mockSecuritySettingRepo{
+		findDefaultByTenantIDFn: func(int64) (*secpolicy.SecuritySetting, error) {
+			return &secpolicy.SecuritySetting{
+				PasswordConfig: datatypes.JSON([]byte(`{"min_length":8,"history_count":5}`)),
+			}, nil
+		},
+	}, historyRepo)
+	resp, err := svc.ResetPassword(context.Background(), tok, strongPassword, nil, nil)
+	require.Error(t, err)
+	assert.Nil(t, resp)
+	assert.Contains(t, err.Error(), "history db error")
+	assert.NoError(t, mock.ExpectationsWereMet())
 }

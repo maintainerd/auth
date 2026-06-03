@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
+	"encoding/json"
 	"encoding/pem"
 	"errors"
 	"testing"
@@ -511,6 +512,127 @@ func initTestJWTKeysService(t *testing.T) {
 
 // strPtr returns a pointer to the given string literal — handy for Client fields.
 func strPtr(s string) *string { return &s }
+
+func TestNewLoginService_WithJTIDenylist(t *testing.T) {
+	denylist := &recordingLogoutJTIDenylister{}
+	svc := NewLoginService(nil, nil, nil, nil, nil, nil, nil, nil, nil, denylist)
+
+	typed, ok := svc.(*loginService)
+	require.True(t, ok)
+	assert.Same(t, denylist, typed.jtiDenylist)
+}
+
+func TestFindLoginUser(t *testing.T) {
+	t.Run("username lookup succeeds", func(t *testing.T) {
+		expected := &User{UserID: 1, Username: "user1"}
+		repo := &mockUserRepo{
+			findByUsernameFn: func(username string) (*User, error) {
+				assert.Equal(t, "user1", username)
+				return expected, nil
+			},
+		}
+
+		user, err := findLoginUser(repo, "user1", 1)
+
+		require.NoError(t, err)
+		assert.Same(t, expected, user)
+	})
+
+	t.Run("email fallback succeeds after username miss", func(t *testing.T) {
+		expected := &User{UserID: 2, Email: "user@example.com"}
+		repo := &mockUserRepo{
+			findByUsernameFn: func(username string) (*User, error) {
+				return nil, gorm.ErrRecordNotFound
+			},
+			findByEmailAndTenantIDFn: func(email string, tenantID int64) (*User, error) {
+				assert.Equal(t, "user@example.com", email)
+				assert.Equal(t, int64(9), tenantID)
+				return expected, nil
+			},
+		}
+
+		user, err := findLoginUser(repo, "user@example.com", 9)
+
+		require.NoError(t, err)
+		assert.Same(t, expected, user)
+	})
+
+	t.Run("email fallback returns email lookup error when username had no error", func(t *testing.T) {
+		repo := &mockUserRepo{
+			findByUsernameFn: func(username string) (*User, error) {
+				return nil, nil
+			},
+			findByEmailAndTenantIDFn: func(email string, tenantID int64) (*User, error) {
+				return nil, assert.AnError
+			},
+		}
+
+		user, err := findLoginUser(repo, "user@example.com", 9)
+
+		require.ErrorIs(t, err, assert.AnError)
+		assert.Nil(t, user)
+	})
+}
+
+func TestJWTClaimTTL(t *testing.T) {
+	future := time.Now().Add(time.Hour).Unix()
+
+	tests := []struct {
+		name  string
+		claim any
+		want  bool
+	}{
+		{name: "float64", claim: float64(future), want: true},
+		{name: "int64", claim: int64(future), want: true},
+		{name: "int", claim: int(future), want: true},
+		{name: "json number", claim: json.Number("4102444800"), want: true},
+		{name: "invalid json number", claim: json.Number("not-number"), want: false},
+		{name: "unsupported type", claim: "4102444800", want: false},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			ttl := jwtClaimTTL(tc.claim)
+			if tc.want {
+				assert.Positive(t, ttl)
+			} else {
+				assert.Zero(t, ttl)
+			}
+		})
+	}
+}
+
+func TestLoginService_DenylistLogoutJTI(t *testing.T) {
+	t.Run("blank jti skips denylist", func(t *testing.T) {
+		denylist := &recordingLogoutJTIDenylister{}
+		svc := &loginService{jtiDenylist: denylist}
+
+		err := svc.denylistLogoutJTI(context.Background(), map[string]any{"jti": "  ", "exp": time.Now().Add(time.Hour).Unix()})
+
+		require.NoError(t, err)
+		assert.Empty(t, denylist.jti)
+	})
+
+	t.Run("expired token skips denylist", func(t *testing.T) {
+		denylist := &recordingLogoutJTIDenylister{}
+		svc := &loginService{jtiDenylist: denylist}
+
+		err := svc.denylistLogoutJTI(context.Background(), map[string]any{"jti": "jti-1", "exp": time.Now().Add(-time.Hour).Unix()})
+
+		require.NoError(t, err)
+		assert.Empty(t, denylist.jti)
+	})
+
+	t.Run("denylist error is returned", func(t *testing.T) {
+		denylist := &recordingLogoutJTIDenylister{err: assert.AnError}
+		svc := &loginService{jtiDenylist: denylist}
+
+		err := svc.denylistLogoutJTI(context.Background(), map[string]any{"jti": "jti-1", "exp": time.Now().Add(time.Hour).Unix()})
+
+		require.ErrorIs(t, err, assert.AnError)
+		assert.Equal(t, "jti-1", denylist.jti)
+	})
+}
 
 // newMockGormDB creates a *gorm.DB backed by sqlmock so service tests can
 // verify BEGIN / COMMIT / ROLLBACK without a real database.
@@ -1375,4 +1497,472 @@ func TestLogin_GenerateAccessTokenError(t *testing.T) {
 	_, err := svc.Login(context.Background(), "int-token-err", correctPassword, nil, nil)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "private key not initialized")
+}
+
+// ---------------------------------------------------------------------------
+// mockSessionService
+// ---------------------------------------------------------------------------
+
+type mockSessionService struct {
+	enforceConcurrentLimitFn func(ctx context.Context, userUUID uuid.UUID, userID int64) error
+	createSessionFn          func(ctx context.Context, userID int64, ipAddress, userAgent string) (*UserToken, error)
+}
+
+func (m *mockSessionService) ListSessions(ctx context.Context, userID int64) ([]*SessionDataResult, error) {
+	return nil, nil
+}
+func (m *mockSessionService) RevokeSession(ctx context.Context, userID int64, sessionUUID uuid.UUID) error {
+	return nil
+}
+func (m *mockSessionService) RevokeAllSessions(ctx context.Context, userID int64) error {
+	return nil
+}
+func (m *mockSessionService) CreateSession(ctx context.Context, userID int64, ipAddress, userAgent string) (*UserToken, error) {
+	if m.createSessionFn != nil {
+		return m.createSessionFn(ctx, userID, ipAddress, userAgent)
+	}
+	return &UserToken{UserTokenUUID: uuid.New(), TokenType: "session"}, nil
+}
+func (m *mockSessionService) EnforceConcurrentLimit(ctx context.Context, userUUID uuid.UUID, userID int64) error {
+	if m.enforceConcurrentLimitFn != nil {
+		return m.enforceConcurrentLimitFn(ctx, userUUID, userID)
+	}
+	return nil
+}
+func (m *mockSessionService) ValidateAndTouch(ctx context.Context, sessionUUID uuid.UUID, userID int64) error {
+	return nil
+}
+
+// ---------------------------------------------------------------------------
+// TestLoginPublic_WithSession – verify generateTokenResponse session paths
+// ---------------------------------------------------------------------------
+
+func TestLoginPublic_WithSession(t *testing.T) {
+	const correctPassword = "S3cur3P@ss!"
+
+	t.Run("enforce concurrent limit error", func(t *testing.T) {
+		initTestJWTKeysService(t)
+		gormDB, mock := newMockGormDB(t)
+		mock.ExpectBegin()
+		mock.ExpectCommit()
+
+		idpRepo := &mockIdentityProviderRepo{
+			findByIdentifierFn: func(_ string) (*IdentityProvider, error) {
+				return buildActiveIdentityProvider(), nil
+			},
+		}
+		clientRepo := &mockClientRepo{
+			findByClientIDAndIdentityProviderFn: func(_, _ string) (*Client, error) {
+				return buildActiveClient(), nil
+			},
+		}
+		userRepo := &mockUserRepo{
+			findByUsernameFn: func(_ string) (*User, error) {
+				return buildActiveUser(t, correctPassword), nil
+			},
+		}
+		userIdentityRepo := &mockUserIdentityRepo{
+			findByUserIDAndClientIDFn: func(_, _ int64) (*UserIdentity, error) {
+				return &UserIdentity{Sub: "sub-session-limit"}, nil
+			},
+		}
+		sessionSvc := &mockSessionService{
+			enforceConcurrentLimitFn: func(_ context.Context, _ uuid.UUID, _ int64) error {
+				return errors.New("too many sessions")
+			},
+		}
+
+		svc := NewLoginService(gormDB, clientRepo, userRepo, &mockUserTokenRepo{},
+			userIdentityRepo, idpRepo, &mockAuthEventService{}, sessionSvc, nil)
+		_, err := svc.LoginPublic(context.Background(), "pub-session-limit", correctPassword, "c1", "p1")
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "too many sessions")
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+
+	t.Run("create session error", func(t *testing.T) {
+		initTestJWTKeysService(t)
+		gormDB, mock := newMockGormDB(t)
+		mock.ExpectBegin()
+		mock.ExpectCommit()
+
+		idpRepo := &mockIdentityProviderRepo{
+			findByIdentifierFn: func(_ string) (*IdentityProvider, error) {
+				return buildActiveIdentityProvider(), nil
+			},
+		}
+		clientRepo := &mockClientRepo{
+			findByClientIDAndIdentityProviderFn: func(_, _ string) (*Client, error) {
+				return buildActiveClient(), nil
+			},
+		}
+		userRepo := &mockUserRepo{
+			findByUsernameFn: func(_ string) (*User, error) {
+				return buildActiveUser(t, correctPassword), nil
+			},
+		}
+		userIdentityRepo := &mockUserIdentityRepo{
+			findByUserIDAndClientIDFn: func(_, _ int64) (*UserIdentity, error) {
+				return &UserIdentity{Sub: "sub-session-create"}, nil
+			},
+		}
+		sessionSvc := &mockSessionService{
+			createSessionFn: func(_ context.Context, _ int64, _, _ string) (*UserToken, error) {
+				return nil, errors.New("create session failed")
+			},
+		}
+
+		svc := NewLoginService(gormDB, clientRepo, userRepo, &mockUserTokenRepo{},
+			userIdentityRepo, idpRepo, &mockAuthEventService{}, sessionSvc, nil)
+		_, err := svc.LoginPublic(context.Background(), "pub-session-create", correctPassword, "c1", "p1")
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "create session failed")
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+
+	t.Run("success with session id in response", func(t *testing.T) {
+		initTestJWTKeysService(t)
+		gormDB, mock := newMockGormDB(t)
+		mock.ExpectBegin()
+		mock.ExpectCommit()
+
+		idpRepo := &mockIdentityProviderRepo{
+			findByIdentifierFn: func(_ string) (*IdentityProvider, error) {
+				return buildActiveIdentityProvider(), nil
+			},
+		}
+		clientRepo := &mockClientRepo{
+			findByClientIDAndIdentityProviderFn: func(_, _ string) (*Client, error) {
+				return buildActiveClient(), nil
+			},
+		}
+		userRepo := &mockUserRepo{
+			findByUsernameFn: func(_ string) (*User, error) {
+				return buildActiveUser(t, correctPassword), nil
+			},
+		}
+		userIdentityRepo := &mockUserIdentityRepo{
+			findByUserIDAndClientIDFn: func(_, _ int64) (*UserIdentity, error) {
+				return &UserIdentity{Sub: "sub-session-ok"}, nil
+			},
+		}
+
+		svc := NewLoginService(gormDB, clientRepo, userRepo, &mockUserTokenRepo{},
+			userIdentityRepo, idpRepo, &mockAuthEventService{}, &mockSessionService{}, nil)
+		resp, err := svc.LoginPublic(context.Background(), "pub-session-ok", correctPassword, "c1", "p1")
+		require.NoError(t, err)
+		require.NotNil(t, resp)
+		require.NotNil(t, resp.SessionID)
+		assert.NotEmpty(t, *resp.SessionID)
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+}
+
+// ---------------------------------------------------------------------------
+// TestLoginMFAChallengeResponse
+// ---------------------------------------------------------------------------
+
+func TestLoginMFAChallengeResponse(t *testing.T) {
+	t.Run("FindDefaultByTenantID error returns nil nil", func(t *testing.T) {
+		settingRepo := &mockSecuritySettingRepo{
+			findDefaultByTenantIDFn: func(int64) (*secpolicy.SecuritySetting, error) {
+				return nil, errors.New("db error")
+			},
+		}
+		svc := &loginService{securitySettingRepo: settingRepo}
+		resp, err := svc.loginMFAChallengeResponse(context.Background(), &User{UserID: 1}, 1)
+		assert.NoError(t, err)
+		assert.Nil(t, resp)
+	})
+
+	t.Run("setting nil returns nil nil", func(t *testing.T) {
+		settingRepo := &mockSecuritySettingRepo{
+			findDefaultByTenantIDFn: func(int64) (*secpolicy.SecuritySetting, error) {
+				return nil, nil
+			},
+		}
+		svc := &loginService{securitySettingRepo: settingRepo}
+		resp, err := svc.loginMFAChallengeResponse(context.Background(), &User{UserID: 1}, 1)
+		assert.NoError(t, err)
+		assert.Nil(t, resp)
+	})
+
+	t.Run("MFAConfig empty returns nil nil", func(t *testing.T) {
+		settingRepo := &mockSecuritySettingRepo{
+			findDefaultByTenantIDFn: func(int64) (*secpolicy.SecuritySetting, error) {
+				return &secpolicy.SecuritySetting{}, nil
+			},
+		}
+		svc := &loginService{securitySettingRepo: settingRepo}
+		resp, err := svc.loginMFAChallengeResponse(context.Background(), &User{UserID: 1}, 1)
+		assert.NoError(t, err)
+		assert.Nil(t, resp)
+	})
+
+	t.Run("invalid JSON unmarshal error returns nil nil", func(t *testing.T) {
+		settingRepo := &mockSecuritySettingRepo{
+			findDefaultByTenantIDFn: func(int64) (*secpolicy.SecuritySetting, error) {
+				return &secpolicy.SecuritySetting{
+					MFAConfig: datatypes.JSON([]byte("not-json")),
+				}, nil
+			},
+		}
+		svc := &loginService{securitySettingRepo: settingRepo}
+		resp, err := svc.loginMFAChallengeResponse(context.Background(), &User{UserID: 1}, 1)
+		assert.NoError(t, err)
+		assert.Nil(t, resp)
+	})
+
+	t.Run("not required and not enforce MFA returns nil nil", func(t *testing.T) {
+		settingRepo := &mockSecuritySettingRepo{
+			findDefaultByTenantIDFn: func(int64) (*secpolicy.SecuritySetting, error) {
+				return &secpolicy.SecuritySetting{
+					MFAConfig: datatypes.JSON([]byte(`{"required":false,"enforce_mfa":false}`)),
+				}, nil
+			},
+		}
+		svc := &loginService{securitySettingRepo: settingRepo}
+		resp, err := svc.loginMFAChallengeResponse(context.Background(), &User{UserID: 1}, 1)
+		assert.NoError(t, err)
+		assert.Nil(t, resp)
+	})
+
+	t.Run("no allowed methods returns error", func(t *testing.T) {
+		settingRepo := &mockSecuritySettingRepo{
+			findDefaultByTenantIDFn: func(int64) (*secpolicy.SecuritySetting, error) {
+				return &secpolicy.SecuritySetting{
+					MFAConfig: datatypes.JSON([]byte(`{"required":true,"allowed_methods":["totp"]}`)),
+				}, nil
+			},
+		}
+		svc := &loginService{securitySettingRepo: settingRepo}
+		user := &User{UserID: 1, IsTOTPEnabled: false, IsWebAuthnEnabled: false}
+		resp, err := svc.loginMFAChallengeResponse(context.Background(), user, 1)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "MFA is required but no supported factors are enrolled")
+		assert.Nil(t, resp)
+	})
+
+	t.Run("GenerateStepUpChallengeToken error returns error", func(t *testing.T) {
+		jwt.ResetJWTKeys()
+		defer initTestJWTKeysService(t)
+
+		now := time.Now()
+		settingRepo := &mockSecuritySettingRepo{
+			findDefaultByTenantIDFn: func(int64) (*secpolicy.SecuritySetting, error) {
+				return &secpolicy.SecuritySetting{
+					MFAConfig: datatypes.JSON([]byte(`{"required":true,"allowed_methods":["totp","backup_code"]}`)),
+				}, nil
+			},
+		}
+		svc := &loginService{securitySettingRepo: settingRepo}
+		user := &User{UserID: 1, IsTOTPEnabled: true, MFAEnabledAt: &now}
+		resp, err := svc.loginMFAChallengeResponse(context.Background(), user, 1)
+		require.Error(t, err)
+		assert.Nil(t, resp)
+	})
+}
+
+// ---------------------------------------------------------------------------
+// TestLoginMFAAllowedMethods
+// ---------------------------------------------------------------------------
+
+func TestLoginMFAAllowedMethods(t *testing.T) {
+	t.Run("empty policy methods defaults to totp and backup_code", func(t *testing.T) {
+		user := &User{IsTOTPEnabled: true}
+		methods := loginMFAAllowedMethods(user, nil)
+		assert.Equal(t, []string{"totp", "backup_code"}, methods)
+	})
+
+	t.Run("webauthn user gets backup_code when policy includes backup_code", func(t *testing.T) {
+		user := &User{IsWebAuthnEnabled: true}
+		methods := loginMFAAllowedMethods(user, []string{"backup_code"})
+		assert.Equal(t, []string{"backup_code"}, methods)
+	})
+}
+
+// ---------------------------------------------------------------------------
+// TestLoginCheckPasswordExpiry
+// ---------------------------------------------------------------------------
+
+func TestLoginCheckPasswordExpiry(t *testing.T) {
+	t.Run("password expired sets ForcePasswordChange true", func(t *testing.T) {
+		userRepo := &mockUserRepo{}
+		pastTime := time.Now().AddDate(0, 0, -10)
+		user := &User{UserID: 42, PasswordChangedAt: &pastTime}
+		settingRepo := &mockSecuritySettingRepo{
+			findDefaultByTenantIDFn: func(int64) (*secpolicy.SecuritySetting, error) {
+				return &secpolicy.SecuritySetting{
+					PasswordConfig: datatypes.JSON([]byte(`{"expiry_days":1}`)),
+				}, nil
+			},
+		}
+		svc := &loginService{
+			userRepo:            userRepo,
+			securitySettingRepo: settingRepo,
+		}
+		svc.checkPasswordExpiry(context.Background(), user, 1)
+		assert.True(t, user.ForcePasswordChange)
+	})
+
+	t.Run("password expired UpdateByID error does not panic", func(t *testing.T) {
+		userRepo := &mockUserRepo{
+			updateByIDFn: func(id any, data any) (*User, error) {
+				return nil, errors.New("db error")
+			},
+		}
+		pastTime := time.Now().AddDate(0, 0, -10)
+		user := &User{UserID: 42, PasswordChangedAt: &pastTime}
+		settingRepo := &mockSecuritySettingRepo{
+			findDefaultByTenantIDFn: func(int64) (*secpolicy.SecuritySetting, error) {
+				return &secpolicy.SecuritySetting{
+					PasswordConfig: datatypes.JSON([]byte(`{"expiry_days":1}`)),
+				}, nil
+			},
+		}
+		svc := &loginService{
+			userRepo:            userRepo,
+			securitySettingRepo: settingRepo,
+		}
+		svc.checkPasswordExpiry(context.Background(), user, 1)
+		assert.True(t, user.ForcePasswordChange)
+	})
+}
+
+// ---------------------------------------------------------------------------
+// TestLogout
+// ---------------------------------------------------------------------------
+
+func TestLogout(t *testing.T) {
+	t.Run("invalid token format returns nil", func(t *testing.T) {
+		svc := &loginService{}
+		err := svc.Logout(context.Background(), "not.a.valid.token")
+		assert.NoError(t, err)
+	})
+}
+
+// ---------------------------------------------------------------------------
+// TestLogin_ForcePasswordChange
+// ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+// TestLogin_MFAChallenge — covers the MFA path in the internal Login function
+// (service_login.go:461-462)
+// ---------------------------------------------------------------------------
+
+func TestLogin_MFAChallenge(t *testing.T) {
+	const correctPassword = "S3cur3P@ss!"
+
+	initTestJWTKeysService(t)
+	gormDB, mock := newMockGormDB(t)
+	mock.ExpectBegin()
+	mock.ExpectCommit()
+
+	idp := buildActiveIdentityProvider()
+	idp.TenantID = 42
+	client := buildActiveClient()
+	client.IdentityProvider = idp
+	user := buildActiveUser(t, correctPassword)
+	user.IsTOTPEnabled = true
+	now := time.Now()
+	user.MFAEnabledAt = &now
+
+	userRepo := &mockUserRepo{
+		findByUsernameFn: func(_ string) (*User, error) {
+			return user, nil
+		},
+	}
+	clientRepo := &mockClientRepo{
+		findSystemFn: func() (*Client, error) {
+			return client, nil
+		},
+	}
+	userIdentityRepo := &mockUserIdentityRepo{
+		findByUserIDAndClientIDFn: func(_, _ int64) (*UserIdentity, error) {
+			return &UserIdentity{Sub: "sub-mfa"}, nil
+		},
+	}
+	securitySettingRepo := &mockSecuritySettingRepo{
+		findDefaultByTenantIDFn: func(tenantID int64) (*secpolicy.SecuritySetting, error) {
+			require.Equal(t, int64(42), tenantID)
+			return &secpolicy.SecuritySetting{
+				MFAConfig: datatypes.JSON([]byte(`{"required":true,"allowed_methods":["totp","backup_code","webauthn"]}`)),
+			}, nil
+		},
+	}
+
+	svc := NewLoginService(
+		gormDB,
+		clientRepo,
+		userRepo,
+		&mockUserTokenRepo{},
+		userIdentityRepo,
+		&mockIdentityProviderRepo{},
+		&mockAuthEventService{},
+		nil,
+		securitySettingRepo,
+	)
+
+	resp, err := svc.Login(context.Background(), "int-mfa-required", correctPassword, nil, nil)
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	assert.True(t, resp.MFARequired)
+	assert.Empty(t, resp.AccessToken)
+	assert.Empty(t, resp.IDToken)
+	assert.Empty(t, resp.RefreshToken)
+	require.NotNil(t, resp.MFAChallengeToken)
+	assert.ElementsMatch(t, []string{"totp", "backup_code"}, resp.MFAAllowedMethods)
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+// ---------------------------------------------------------------------------
+// TestLogout_InvalidClaims — covers the !ok path in Logout
+// (service_login.go:504-507) where ParseUnverified returns claims that
+// are not MapClaims.
+// ---------------------------------------------------------------------------
+
+func TestLogout_InvalidClaims(t *testing.T) {
+	svc := &loginService{sessionService: &mockLogoutSessionService{}, userRepo: &mockLogoutUserRepo{}}
+	err := svc.Logout(context.Background(), "eyJhbGciOiJub25lIn0.eyJzdWIiOiIxMjM0NTY3ODkwIn0.")
+	require.NoError(t, err)
+}
+
+// ---------------------------------------------------------------------------
+// TestLogin_ForcePasswordChange
+// ---------------------------------------------------------------------------
+
+func TestLogin_ForcePasswordChange(t *testing.T) {
+	const correctPassword = "S3cur3P@ss!"
+
+	initTestJWTKeysService(t)
+	gormDB, mock := newMockGormDB(t)
+	mock.ExpectBegin()
+	mock.ExpectCommit()
+
+	clientRepo := &mockClientRepo{
+		findSystemFn: func() (*Client, error) { return buildActiveClient(), nil },
+	}
+	userRepo := &mockUserRepo{
+		findByUsernameFn: func(_ string) (*User, error) {
+			u := buildActiveUser(t, correctPassword)
+			u.ForcePasswordChange = true
+			return u, nil
+		},
+	}
+	userIdentityRepo := &mockUserIdentityRepo{
+		findByUserIDAndClientIDFn: func(_, _ int64) (*UserIdentity, error) {
+			return &UserIdentity{Sub: "sub-fpc"}, nil
+		},
+	}
+
+	svc := NewLoginService(gormDB, clientRepo, userRepo, &mockUserTokenRepo{},
+		userIdentityRepo, &mockIdentityProviderRepo{}, &mockAuthEventService{}, nil, nil)
+	resp, err := svc.Login(context.Background(), "int-force-change", correctPassword, nil, nil)
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	assert.True(t, resp.RequirePasswordChange)
+	assert.Empty(t, resp.AccessToken)
+	assert.Empty(t, resp.IDToken)
+	assert.Empty(t, resp.RefreshToken)
+	assert.NoError(t, mock.ExpectationsWereMet())
 }
