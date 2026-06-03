@@ -11,6 +11,7 @@ import (
 	sqlmock "github.com/DATA-DOG/go-sqlmock"
 	"github.com/google/uuid"
 	"github.com/lib/pq"
+	"github.com/maintainerd/auth/internal/platform/crypto"
 	"github.com/maintainerd/auth/internal/shared"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -742,6 +743,39 @@ func TestOAuthAuthorizeService_HandleConsent(t *testing.T) {
 		assert.Contains(t, result.RedirectURI, "state=mystate")
 	})
 
+	t.Run("approved — GenerateRandomString error in transaction", func(t *testing.T) {
+		db, mock := newMockDB(t)
+		mock.ExpectBegin()
+		mock.ExpectRollback()
+
+		orig := crypto.GenerateRandomString
+		defer func() { crypto.GenerateRandomString = orig }()
+		crypto.GenerateRandomString = func(int) (string, error) { return "", errors.New("rand failure") }
+
+		svc := newOAuthAuthorizeSvc(db,
+			&mockClientRepo{}, &mockClientURIRepo{},
+			&mockOAuthAuthCodeRepo{},
+			&mockOAuthConsentGrantRepo{},
+			&mockOAuthConsentChallRepo{
+				findChallengeByUUIDFn: func(_ uuid.UUID) (*OAuthConsentChallenge, error) {
+					return &OAuthConsentChallenge{
+						OAuthConsentChallengeUUID: challengeUUID,
+						ClientID:                  10,
+						UserID:                    1,
+						TenantID:                  100,
+						RedirectURI:               "https://example.com/callback",
+						ExpiresAt:                 time.Now().Add(5 * time.Minute),
+					}, nil
+				},
+			},
+			&mockAuthEventService{},
+		)
+
+		_, oerr := svc.HandleConsent(ctx, validDecision(true), 1)
+		require.NotNil(t, oerr)
+		assert.Equal(t, "server_error", oerr.Code)
+	})
+
 	t.Run("denied — returns error redirect", func(t *testing.T) {
 		state := "mystate"
 		db, _ := newMockDB(t)
@@ -1051,5 +1085,229 @@ func TestSplitScopes(t *testing.T) {
 
 	t.Run("extra whitespace", func(t *testing.T) {
 		assert.Equal(t, []string{"a", "b"}, splitScopes("  a   b  "))
+	})
+}
+
+// ── TestOAuthAuthorizeService_findClientByIdentifier ────────────────────────
+
+func TestOAuthAuthorizeService_findClientByIdentifier(t *testing.T) {
+	t.Run("successful lookup", func(t *testing.T) {
+		db, mock := newMockDB(t)
+		rows := sqlmock.NewRows([]string{
+			"client_id", "client_uuid", "tenant_id", "identity_provider_id", "name", "display_name",
+			"client_type", "domain", "identifier", "secret", "status",
+			"is_default", "is_system", "token_endpoint_auth_method",
+			"grant_types", "response_types", "access_token_ttl", "refresh_token_ttl",
+			"require_consent", "created_at", "updated_at",
+		}).AddRow(
+			10, uuid.New(), 1, int64(100), "test-client", "Test Client",
+			"spa", nil, "my-client", nil, "active",
+			false, false, "none",
+			pq.StringArray{GrantTypeAuthorizationCode}, pq.StringArray{ResponseTypeCode}, nil, nil,
+			false, time.Now(), time.Now(),
+		)
+		mock.ExpectQuery(regexp.QuoteMeta(`SELECT`)).WillReturnRows(rows)
+		mock.ExpectQuery(regexp.QuoteMeta(`SELECT`)).WillReturnRows(sqlmock.NewRows(nil))
+		mock.ExpectQuery(regexp.QuoteMeta(`SELECT`)).WillReturnRows(sqlmock.NewRows(nil))
+		mock.ExpectQuery(regexp.QuoteMeta(`SELECT`)).WillReturnRows(sqlmock.NewRows(nil))
+
+		svc := &oauthAuthorizeService{db: db}
+		client, err := svc.findClientByIdentifier("my-client")
+		require.NoError(t, err)
+		require.NotNil(t, client)
+		assert.Equal(t, int64(10), client.ClientID)
+	})
+}
+
+// ── TestOAuthAuthorizeService_validateRedirectURI ────────────────────────────
+
+func TestOAuthAuthorizeService_validateRedirectURI(t *testing.T) {
+	t.Run("dangerous scheme", func(t *testing.T) {
+		svc := &oauthAuthorizeService{}
+		client := &Client{}
+		oerr := svc.validateRedirectURI(client, "javascript:alert(1)")
+		require.NotNil(t, oerr)
+		assert.Contains(t, oerr.Description, "forbidden scheme")
+	})
+}
+
+// ── TestOAuthAuthorizeService_Authorize_Additional ──────────────────────────
+
+func TestOAuthAuthorizeService_Authorize_Additional(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("scope not allowed", func(t *testing.T) {
+		client := activeClient()
+		client.AllowedScopes = pq.StringArray{"openid"}
+		db, _ := newMockDB(t)
+
+		svc := newOAuthAuthorizeSvc(db,
+			&mockClientRepo{
+				findByClientIDAndIdentityProviderFn: func(_, _ string) (*Client, error) {
+					return client, nil
+				},
+			},
+			&mockClientURIRepo{},
+			&mockOAuthAuthCodeRepo{},
+			&mockOAuthConsentGrantRepo{},
+			&mockOAuthConsentChallRepo{},
+			&mockAuthEventService{},
+		)
+
+		req := validAuthorizeRequest()
+		req.Scope = "openid admin"
+		_, oerr := svc.Authorize(ctx, req, 1)
+		require.NotNil(t, oerr)
+		assert.Equal(t, "invalid_scope", oerr.Code)
+	})
+
+	t.Run("id_token response_type with nonce", func(t *testing.T) {
+		client := activeClient()
+		client.ResponseTypes = pq.StringArray{"code id_token"}
+		db, _ := newMockDB(t)
+
+		svc := newOAuthAuthorizeSvc(db,
+			&mockClientRepo{
+				findByClientIDAndIdentityProviderFn: func(_, _ string) (*Client, error) {
+					return client, nil
+				},
+			},
+			&mockClientURIRepo{},
+			&mockOAuthAuthCodeRepo{},
+			&mockOAuthConsentGrantRepo{},
+			&mockOAuthConsentChallRepo{},
+			&mockAuthEventService{},
+		)
+
+		req := validAuthorizeRequest()
+		req.ResponseType = "code id_token"
+		req.Nonce = "nonce123"
+		result, oerr := svc.Authorize(ctx, req, 1)
+		require.Nil(t, oerr)
+		require.NotNil(t, result)
+		assert.Contains(t, result.RedirectURI, "code=")
+	})
+
+	t.Run("id_token response_type without nonce", func(t *testing.T) {
+		client := activeClient()
+		client.ResponseTypes = pq.StringArray{"code id_token"}
+		db, _ := newMockDB(t)
+
+		svc := newOAuthAuthorizeSvc(db,
+			&mockClientRepo{
+				findByClientIDAndIdentityProviderFn: func(_, _ string) (*Client, error) {
+					return client, nil
+				},
+			},
+			&mockClientURIRepo{},
+			&mockOAuthAuthCodeRepo{},
+			&mockOAuthConsentGrantRepo{},
+			&mockOAuthConsentChallRepo{},
+			&mockAuthEventService{},
+		)
+
+		req := validAuthorizeRequest()
+		req.ResponseType = "code id_token"
+		req.Nonce = ""
+		_, oerr := svc.Authorize(ctx, req, 1)
+		require.NotNil(t, oerr)
+		assert.Equal(t, "invalid_request", oerr.Code)
+		assert.Contains(t, oerr.Description, "nonce")
+	})
+
+	t.Run("issueAuthorizationCode with empty nonce", func(t *testing.T) {
+		client := activeClient()
+		db, _ := newMockDB(t)
+
+		svc := newOAuthAuthorizeSvc(db,
+			&mockClientRepo{
+				findByClientIDAndIdentityProviderFn: func(_, _ string) (*Client, error) {
+					return client, nil
+				},
+			},
+			&mockClientURIRepo{},
+			&mockOAuthAuthCodeRepo{},
+			&mockOAuthConsentGrantRepo{},
+			&mockOAuthConsentChallRepo{},
+			&mockAuthEventService{},
+		)
+
+		req := validAuthorizeRequest()
+		req.Nonce = ""
+		result, oerr := svc.Authorize(ctx, req, 1)
+		require.Nil(t, oerr)
+		require.NotNil(t, result)
+		assert.Contains(t, result.RedirectURI, "code=")
+	})
+
+	t.Run("issueAuthorizationCode GenerateRandomString error", func(t *testing.T) {
+		client := activeClient()
+		db, _ := newMockDB(t)
+
+		orig := crypto.GenerateRandomString
+		defer func() { crypto.GenerateRandomString = orig }()
+		crypto.GenerateRandomString = func(int) (string, error) { return "", errors.New("rand failure") }
+
+		svc := newOAuthAuthorizeSvc(db,
+			&mockClientRepo{
+				findByClientIDAndIdentityProviderFn: func(_, _ string) (*Client, error) {
+					return client, nil
+				},
+			},
+			&mockClientURIRepo{},
+			&mockOAuthAuthCodeRepo{},
+			&mockOAuthConsentGrantRepo{},
+			&mockOAuthConsentChallRepo{},
+			&mockAuthEventService{},
+		)
+
+		_, oerr := svc.Authorize(ctx, validAuthorizeRequest(), 1)
+		require.NotNil(t, oerr)
+		assert.Equal(t, "server_error", oerr.Code)
+	})
+}
+
+// ── TestOAuthAuthorizeService_HandleConsent_Additional ──────────────────────
+
+func TestOAuthAuthorizeService_HandleConsent_Additional(t *testing.T) {
+	ctx := context.Background()
+	challengeUUID := uuid.New()
+
+	t.Run("approved with nil state", func(t *testing.T) {
+		db, mock := newMockDB(t)
+		mock.ExpectBegin()
+		mock.ExpectCommit()
+
+		svc := newOAuthAuthorizeSvc(db,
+			&mockClientRepo{}, &mockClientURIRepo{},
+			&mockOAuthAuthCodeRepo{},
+			&mockOAuthConsentGrantRepo{},
+			&mockOAuthConsentChallRepo{
+				findChallengeByUUIDFn: func(_ uuid.UUID) (*OAuthConsentChallenge, error) {
+					return &OAuthConsentChallenge{
+						OAuthConsentChallengeUUID: challengeUUID,
+						ClientID:                  10,
+						UserID:                    1,
+						TenantID:                  100,
+						RedirectURI:               "https://example.com/callback",
+						Scope:                     "openid profile",
+						CodeChallenge:             strings.Repeat("A", 43),
+						CodeChallengeMethod:       "S256",
+						ExpiresAt:                 time.Now().Add(5 * time.Minute),
+					}, nil
+				},
+			},
+			&mockAuthEventService{},
+		)
+
+		decision := OAuthConsentDecisionDTO{
+			ChallengeID: challengeUUID.String(),
+			Approved:    true,
+		}
+		result, oerr := svc.HandleConsent(ctx, decision, 1)
+		require.Nil(t, oerr)
+		require.NotNil(t, result)
+		assert.Contains(t, result.RedirectURI, "code=")
+		assert.NotContains(t, result.RedirectURI, "state=")
 	})
 }

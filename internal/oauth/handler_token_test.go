@@ -2,6 +2,9 @@ package oauth
 
 import (
 	"context"
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
 	"encoding/base64"
 	"encoding/json"
 	"net/http"
@@ -11,7 +14,9 @@ import (
 	"testing"
 	"time"
 
+	jwtlib "github.com/golang-jwt/jwt/v5"
 	"github.com/maintainerd/auth/internal/platform/apperror"
+	"github.com/maintainerd/auth/internal/platform/config"
 	"github.com/maintainerd/auth/internal/platform/dpop"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -636,4 +641,76 @@ func TestOAuthTokenHandler_Token_DPoPHeaderIgnoredWithoutStore(t *testing.T) {
 	h.Token(w, r)
 
 	assert.Equal(t, http.StatusOK, w.Code)
+}
+
+func TestOAuthTokenHandler_Token_SuccessWithDPoPProof(t *testing.T) {
+	origHost := config.AppPublicHostname
+	config.AppPublicHostname = "https://auth.example.com"
+	defer func() { config.AppPublicHostname = origHost }()
+
+	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	require.NoError(t, err)
+
+	jwk := ecJWKForTest(t, &key.PublicKey)
+
+	claims := jwtlib.MapClaims{
+		"jti": "test-dpop-jti-2",
+		"htm": "POST",
+		"htu": "https://auth.example.com/api/v1/oauth/token",
+		"iat": time.Now().Unix(),
+	}
+	token := jwtlib.NewWithClaims(jwtlib.SigningMethodES256, claims)
+	token.Header["typ"] = "dpop+jwt"
+	token.Header["jwk"] = jwk
+	proof, err := token.SignedString(key)
+	require.NoError(t, err)
+
+	var capturedThumbprint string
+	svc := &mockOAuthTokenService{
+		exchangeFn: func(_ context.Context, req OAuthTokenRequestDTO, _ OAuthClientCredentials) (*OAuthTokenResult, *apperror.OAuthError) {
+			capturedThumbprint = req.DPoPThumbprint
+			return &OAuthTokenResult{AccessToken: "at", TokenType: "Bearer", ExpiresIn: 900}, nil
+		},
+	}
+
+	nm := dpop.NewNonceManager()
+	store := &mockDpopStore{}
+
+	h := NewOAuthTokenHandler(svc, nm, store)
+	r := formReq(t, "/oauth/token", url.Values{
+		"grant_type":    {"authorization_code"},
+		"code":          {"valid-code"},
+		"redirect_uri":  {"https://app.example.com/cb"},
+		"code_verifier": {"dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"},
+		"client_id":     {"myapp"},
+	})
+	r.Header.Set("DPoP", proof)
+	w := httptest.NewRecorder()
+
+	h.Token(w, r)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	assert.NotEmpty(t, capturedThumbprint)
+	assert.NotEmpty(t, w.Header().Get("DPoP-Nonce"))
+	assert.Equal(t, "no-store", w.Header().Get("Cache-Control"))
+}
+
+func ecJWKForTest(t *testing.T, pub *ecdsa.PublicKey) map[string]any {
+	t.Helper()
+	size := (pub.Curve.Params().BitSize + 7) / 8
+	return map[string]any{
+		"kty": "EC",
+		"crv": "P-256",
+		"x":   base64.RawURLEncoding.EncodeToString(leftPadBytes(pub.X.Bytes(), size)),
+		"y":   base64.RawURLEncoding.EncodeToString(leftPadBytes(pub.Y.Bytes(), size)),
+	}
+}
+
+func leftPadBytes(in []byte, size int) []byte {
+	if len(in) >= size {
+		return in
+	}
+	out := make([]byte, size)
+	copy(out[size-len(in):], in)
+	return out
 }

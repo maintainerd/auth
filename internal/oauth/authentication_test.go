@@ -5,11 +5,15 @@ import (
 	"crypto/rsa"
 	"encoding/base64"
 	"encoding/json"
+	"regexp"
 	"testing"
 	"time"
 
+	sqlmock "github.com/DATA-DOG/go-sqlmock"
 	jwtlib "github.com/golang-jwt/jwt/v5"
 	"github.com/maintainerd/auth/internal/platform/crypto"
+	"github.com/maintainerd/auth/internal/platform/security"
+	"github.com/lib/pq"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gorm.io/datatypes"
@@ -526,4 +530,295 @@ func TestValidateAssertionClaims_DomainNil(t *testing.T) {
 	err := validateAssertionClaims(claims, client)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "audience")
+}
+
+func TestAuthenticatePrivateKeyJWT_BadClaims(t *testing.T) {
+	privKey := genRSAKey(t)
+	clientID := "test-app"
+	domain := "test-app.example.com"
+	kid := "key-1"
+
+	client := &Client{
+		ClientID:   1,
+		Identifier: &clientID,
+		Domain:     &domain,
+		JWKS:       buildRSAPublicKeyJWK(t, privKey, kid),
+	}
+
+	t.Run("expired assertion", func(t *testing.T) {
+		claims := jwtlib.MapClaims{
+			"iss": clientID, "sub": clientID, "aud": domain,
+			"exp": time.Now().Add(-time.Hour).Unix(), "iat": time.Now().Add(-2 * time.Hour).Unix(),
+		}
+		assertion := signJWTWithRSA(t, claims, privKey, kid)
+		creds := OAuthClientCredentials{
+			ClientAssertionType: assertionTypeJWTBearer,
+			ClientAssertion:     assertion,
+		}
+		result, oerr := authenticatePrivateKeyJWT(client, creds)
+		assert.Nil(t, result)
+		require.NotNil(t, oerr)
+		assert.Equal(t, "invalid_client", oerr.Code)
+	})
+
+	t.Run("issuer mismatch in assertion", func(t *testing.T) {
+		claims := jwtlib.MapClaims{
+			"iss": "wrong-client", "sub": clientID, "aud": domain,
+			"exp": time.Now().Add(time.Hour).Unix(), "iat": time.Now().Unix(),
+		}
+		assertion := signJWTWithRSA(t, claims, privKey, kid)
+		creds := OAuthClientCredentials{
+			ClientAssertionType: assertionTypeJWTBearer,
+			ClientAssertion:     assertion,
+		}
+		result, oerr := authenticatePrivateKeyJWT(client, creds)
+		assert.Nil(t, result)
+		require.NotNil(t, oerr)
+		assert.Equal(t, "invalid_client", oerr.Code)
+	})
+
+	t.Run("missing claims in assertion", func(t *testing.T) {
+		claims := jwtlib.MapClaims{
+			"iss": clientID,
+			"exp": time.Now().Add(time.Hour).Unix(),
+		}
+		assertion := signJWTWithRSA(t, claims, privKey, kid)
+		creds := OAuthClientCredentials{
+			ClientAssertionType: assertionTypeJWTBearer,
+			ClientAssertion:     assertion,
+		}
+		result, oerr := authenticatePrivateKeyJWT(client, creds)
+		assert.Nil(t, result)
+		require.NotNil(t, oerr)
+		assert.Equal(t, "invalid_client", oerr.Code)
+	})
+
+	t.Run("audience invalid", func(t *testing.T) {
+		claims := jwtlib.MapClaims{
+			"iss": clientID, "sub": clientID, "aud": "wrong-domain.example.com",
+			"exp": time.Now().Add(time.Hour).Unix(), "iat": time.Now().Unix(),
+		}
+		assertion := signJWTWithRSA(t, claims, privKey, kid)
+		creds := OAuthClientCredentials{
+			ClientAssertionType: assertionTypeJWTBearer,
+			ClientAssertion:     assertion,
+		}
+		result, oerr := authenticatePrivateKeyJWT(client, creds)
+		assert.Nil(t, result)
+		require.NotNil(t, oerr)
+		assert.Equal(t, "invalid_client", oerr.Code)
+	})
+
+	t.Run("JWKSUri only (no JWKS)", func(t *testing.T) {
+		jwksURI := "https://example.com/jwks"
+		c := &Client{
+			ClientID:   1,
+			Identifier: &clientID,
+			Domain:     &domain,
+			JWKSUri:    &jwksURI,
+		}
+		creds := OAuthClientCredentials{
+			ClientAssertionType: assertionTypeJWTBearer,
+			ClientAssertion:     "some-jwt",
+		}
+		result, oerr := authenticatePrivateKeyJWT(c, creds)
+		assert.Nil(t, result)
+		require.NotNil(t, oerr)
+		assert.Equal(t, "invalid_client", oerr.Code)
+	})
+}
+
+func TestAuthenticateClientSecretJWT_BadClaims(t *testing.T) {
+	clientID := "test-app"
+	domain := "test-app.example.com"
+	secret := "my-client-secret"
+	secretEncrypted := "encrypted-current-secret"
+
+	origDecrypt := crypto.DecryptAtRest
+	t.Cleanup(func() { crypto.DecryptAtRest = origDecrypt })
+	crypto.DecryptAtRest = func(ciphertext string) (string, error) {
+		return secret, nil
+	}
+
+	client := &Client{
+		ClientID:        1,
+		Identifier:      &clientID,
+		Domain:          &domain,
+		SecretEncrypted: &secretEncrypted,
+	}
+
+	t.Run("expired assertion", func(t *testing.T) {
+		claims := jwtlib.MapClaims{
+			"iss": clientID, "sub": clientID, "aud": domain,
+			"exp": time.Now().Add(-time.Hour).Unix(), "iat": time.Now().Add(-2 * time.Hour).Unix(),
+		}
+		token := jwtlib.NewWithClaims(jwtlib.SigningMethodHS256, claims)
+		assertion, err := token.SignedString([]byte(secret))
+		require.NoError(t, err)
+		creds := OAuthClientCredentials{
+			ClientAssertionType: assertionTypeJWTBearer,
+			ClientAssertion:     assertion,
+		}
+		result, oerr := authenticateClientSecretJWT(client, creds)
+		assert.Nil(t, result)
+		require.NotNil(t, oerr)
+		assert.Equal(t, "invalid_client", oerr.Code)
+	})
+
+	t.Run("subject mismatch in assertion", func(t *testing.T) {
+		claims := jwtlib.MapClaims{
+			"iss": clientID, "sub": "wrong-sub", "aud": domain,
+			"exp": time.Now().Add(time.Hour).Unix(), "iat": time.Now().Unix(),
+		}
+		token := jwtlib.NewWithClaims(jwtlib.SigningMethodHS256, claims)
+		assertion, err := token.SignedString([]byte(secret))
+		require.NoError(t, err)
+		creds := OAuthClientCredentials{
+			ClientAssertionType: assertionTypeJWTBearer,
+			ClientAssertion:     assertion,
+		}
+		result, oerr := authenticateClientSecretJWT(client, creds)
+		assert.Nil(t, result)
+		require.NotNil(t, oerr)
+		assert.Equal(t, "invalid_client", oerr.Code)
+	})
+
+	t.Run("missing claims in assertion", func(t *testing.T) {
+		claims := jwtlib.MapClaims{
+			"iss": clientID,
+			"exp": time.Now().Add(time.Hour).Unix(),
+		}
+		token := jwtlib.NewWithClaims(jwtlib.SigningMethodHS256, claims)
+		assertion, err := token.SignedString([]byte(secret))
+		require.NoError(t, err)
+		creds := OAuthClientCredentials{
+			ClientAssertionType: assertionTypeJWTBearer,
+			ClientAssertion:     assertion,
+		}
+		result, oerr := authenticateClientSecretJWT(client, creds)
+		assert.Nil(t, result)
+		require.NotNil(t, oerr)
+		assert.Equal(t, "invalid_client", oerr.Code)
+	})
+
+	t.Run("audience invalid in assertion", func(t *testing.T) {
+		claims := jwtlib.MapClaims{
+			"iss": clientID, "sub": clientID, "aud": "wrong-domain.example.com",
+			"exp": time.Now().Add(time.Hour).Unix(), "iat": time.Now().Unix(),
+		}
+		token := jwtlib.NewWithClaims(jwtlib.SigningMethodHS256, claims)
+		assertion, err := token.SignedString([]byte(secret))
+		require.NoError(t, err)
+		creds := OAuthClientCredentials{
+			ClientAssertionType: assertionTypeJWTBearer,
+			ClientAssertion:     assertion,
+		}
+		result, oerr := authenticateClientSecretJWT(client, creds)
+		assert.Nil(t, result)
+		require.NotNil(t, oerr)
+		assert.Equal(t, "invalid_client", oerr.Code)
+	})
+}
+
+func TestAuthenticateOAuthClient_SecretMismatch(t *testing.T) {
+	secretHash, err := security.HashClientSecret(t.Context(), "correct-secret")
+	require.NoError(t, err)
+	clientID := "test-app"
+
+	db, mock := newMockDB(t)
+	rows := sqlmock.NewRows([]string{
+		"client_id", "client_uuid", "tenant_id", "identity_provider_id", "name", "display_name",
+		"client_type", "domain", "identifier", "secret_hash", "status",
+		"is_default", "is_system", "token_endpoint_auth_method",
+		"grant_types", "response_types", "access_token_ttl", "refresh_token_ttl",
+		"require_consent", "created_at", "updated_at",
+	}).AddRow(
+		10, testResourceUUID, 1, int64(100), "test-client", "Test Client",
+		"spa", nil, clientID, secretHash, "active",
+		false, false, TokenAuthMethodSecretBasic,
+		pq.StringArray{}, pq.StringArray{}, nil, nil,
+		false, time.Now(), time.Now(),
+	)
+	mock.ExpectQuery(regexp.QuoteMeta(`SELECT`)).WillReturnRows(rows)
+	mock.ExpectQuery(regexp.QuoteMeta(`SELECT`)).WillReturnRows(sqlmock.NewRows(nil))
+	mock.ExpectQuery(regexp.QuoteMeta(`SELECT`)).WillReturnRows(sqlmock.NewRows(nil))
+
+	creds := OAuthClientCredentials{ClientID: clientID, ClientSecret: "wrong-secret"}
+	result, oerr := authenticateOAuthClient(db, creds)
+	assert.Nil(t, result)
+	require.NotNil(t, oerr)
+	assert.Equal(t, "invalid_client", oerr.Code)
+	assert.Contains(t, oerr.Description, "authentication failed")
+}
+
+func TestAuthenticateOAuthClient_ClientSecretJWT(t *testing.T) {
+	clientID := "test-app"
+	domain := "test-app.example.com"
+	secret := "my-client-secret"
+	secretEncrypted := "test-enc:" + secret
+
+	db, mock := newMockDB(t)
+	rows := sqlmock.NewRows([]string{
+		"client_id", "client_uuid", "tenant_id", "identity_provider_id", "name", "display_name",
+		"client_type", "domain", "identifier", "secret_encrypted", "status",
+		"is_default", "is_system", "token_endpoint_auth_method",
+		"grant_types", "response_types", "access_token_ttl", "refresh_token_ttl",
+		"require_consent", "created_at", "updated_at",
+	}).AddRow(
+		10, testResourceUUID, 1, int64(100), "test-client", "Test Client",
+		"spa", domain, clientID, secretEncrypted, "active",
+		false, false, TokenAuthMethodClientSecretJWT,
+		pq.StringArray{}, pq.StringArray{}, nil, nil,
+		false, time.Now(), time.Now(),
+	)
+	mock.ExpectQuery(regexp.QuoteMeta(`SELECT`)).WillReturnRows(rows)
+	mock.ExpectQuery(regexp.QuoteMeta(`SELECT`)).WillReturnRows(sqlmock.NewRows(nil))
+	mock.ExpectQuery(regexp.QuoteMeta(`SELECT`)).WillReturnRows(sqlmock.NewRows(nil))
+
+	claims := jwtlib.MapClaims{
+		"iss": clientID, "sub": clientID, "aud": domain,
+		"exp": time.Now().Add(time.Hour).Unix(), "iat": time.Now().Unix(),
+	}
+	token := jwtlib.NewWithClaims(jwtlib.SigningMethodHS256, claims)
+	assertion, err := token.SignedString([]byte(secret))
+	require.NoError(t, err)
+
+	creds := OAuthClientCredentials{
+		ClientID:            clientID,
+		ClientAssertionType: "urn:ietf:params:oauth:client-assertion-type:jwt-bearer",
+		ClientAssertion:     assertion,
+	}
+	result, oerr := authenticateOAuthClient(db, creds)
+	require.Nil(t, oerr)
+	require.NotNil(t, result)
+	assert.Equal(t, clientID, *result.Identifier)
+}
+
+func TestAuthenticateOAuthClient_UnsupportedAuthMethod(t *testing.T) {
+	clientID := "test-app"
+
+	db, mock := newMockDB(t)
+	rows := sqlmock.NewRows([]string{
+		"client_id", "client_uuid", "tenant_id", "identity_provider_id", "name", "display_name",
+		"client_type", "domain", "identifier", "secret_hash", "status",
+		"is_default", "is_system", "token_endpoint_auth_method",
+		"grant_types", "response_types", "access_token_ttl", "refresh_token_ttl",
+		"require_consent", "created_at", "updated_at",
+	}).AddRow(
+		10, testResourceUUID, 1, int64(100), "test-client", "Test Client",
+		"spa", nil, clientID, ptrOrEmpty(&clientID), "active",
+		false, false, "custom_unsupported_method",
+		pq.StringArray{}, pq.StringArray{}, nil, nil,
+		false, time.Now(), time.Now(),
+	)
+	mock.ExpectQuery(regexp.QuoteMeta(`SELECT`)).WillReturnRows(rows)
+	mock.ExpectQuery(regexp.QuoteMeta(`SELECT`)).WillReturnRows(sqlmock.NewRows(nil))
+	mock.ExpectQuery(regexp.QuoteMeta(`SELECT`)).WillReturnRows(sqlmock.NewRows(nil))
+
+	creds := OAuthClientCredentials{ClientID: clientID}
+	result, oerr := authenticateOAuthClient(db, creds)
+	assert.Nil(t, result)
+	require.NotNil(t, oerr)
+	assert.Equal(t, "invalid_client", oerr.Code)
+	assert.Contains(t, oerr.Description, "unsupported")
 }

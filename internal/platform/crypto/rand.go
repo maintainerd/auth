@@ -27,7 +27,10 @@ func generateIdentifier(n int) (string, error) {
 
 // GenerateRandomString returns a URL-safe base64-encoded string derived from
 // n random bytes. The resulting string length is approximately 4*n/3.
-func GenerateRandomString(n int) (string, error) {
+// Assigned to a var so that tests can swap the implementation.
+var GenerateRandomString = generateRandomString
+
+func generateRandomString(n int) (string, error) {
 	b := make([]byte, n)
 	if _, err := rand.Read(b); err != nil {
 		return "", fmt.Errorf("crypto/rand failure: %w", err)

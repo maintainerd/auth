@@ -168,8 +168,12 @@ func (s *oauthSessionService) validateClientPostLogoutRedirect(clientID string, 
 	if clientID == "" {
 		return false
 	}
-	client, err := findActiveClientByIdentifier(s.db, clientID)
-	if err != nil || client == nil || client.ClientURIs == nil {
+	var client Client
+	err := s.db.
+		Preload("ClientURIs").
+		Where("identifier = ? AND status = ?", clientID, "active").
+		First(&client).Error
+	if err != nil || client.ClientURIs == nil {
 		return false
 	}
 	for _, uri := range *client.ClientURIs {
