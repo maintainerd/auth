@@ -2590,8 +2590,8 @@
     "semantic_hash": ""
   },
   "/home/reyco/Desktop/xreyc/maintainerd/maintainerd-auth/internal/authevent/service_event_test.go": {
-    "mtime": 1780059282.6180336,
-    "ast_hash": "4646df8aa2ffbf43d365d97ba5a3422a",
+    "mtime": 1780451840.2203655,
+    "ast_hash": "7f101011ef1d91846f5143d131293ebb",
     "semantic_hash": ""
   },
   "/home/reyco/Desktop/xreyc/maintainerd/maintainerd-auth/internal/branding/validation_sms_template.go": {
@@ -4077,6 +4077,41 @@
   "/home/reyco/Desktop/xreyc/maintainerd/maintainerd-auth/internal/tenant/model_setting_test.go": {
     "mtime": 1780449649.412014,
     "ast_hash": "4cc60dad79c77a1b7285729db28bdb54",
+    "semantic_hash": ""
+  },
+  "/home/reyco/Desktop/xreyc/maintainerd/maintainerd-auth/internal/authevent/repository_event_test.go": {
+    "mtime": 1780451820.4741194,
+    "ast_hash": "ed040714181bb7e3694863836ef40ab5",
+    "semantic_hash": ""
+  },
+  "/home/reyco/Desktop/xreyc/maintainerd/maintainerd-auth/internal/authevent/routes_test.go": {
+    "mtime": 1780451773.1137455,
+    "ast_hash": "e4a5ebbe6379fc08d1832b87eaa80927",
+    "semantic_hash": ""
+  },
+  "/home/reyco/Desktop/xreyc/maintainerd/maintainerd-auth/internal/authevent/types_test.go": {
+    "mtime": 1780451773.1133668,
+    "ast_hash": "968dde1853e3d3725f81f43409dc6ec1",
+    "semantic_hash": ""
+  },
+  "/home/reyco/Desktop/xreyc/maintainerd/maintainerd-auth/internal/authevent/model_event_test.go": {
+    "mtime": 1780451773.1115425,
+    "ast_hash": "00afa758bcb3f6ef7acdad384a605d16",
+    "semantic_hash": ""
+  },
+  "/home/reyco/Desktop/xreyc/maintainerd/maintainerd-auth/internal/authevent/foundation_test.go": {
+    "mtime": 1780451773.1115425,
+    "ast_hash": "39d319c122e07f8912d73dd23dbef7f3",
+    "semantic_hash": ""
+  },
+  "/home/reyco/Desktop/xreyc/maintainerd/maintainerd-auth/internal/authevent/deps_test.go": {
+    "mtime": 1780451773.1125426,
+    "ast_hash": "7b1ccbd88412e1624c2f1340d8dfa25d",
+    "semantic_hash": ""
+  },
+  "/home/reyco/Desktop/xreyc/maintainerd/maintainerd-auth/internal/authevent/service_event_constants_test.go": {
+    "mtime": 1780451773.1136014,
+    "ast_hash": "ec0f5178b7b3f2fd02906112a2bf138a",
     "semantic_hash": ""
   }
 }
