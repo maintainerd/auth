@@ -27,11 +27,15 @@ func StartRetentionRunner(ctx context.Context, db *gorm.DB, retentionPeriod, int
 	runTenantRetention(ctx, db, retentionPeriod)
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
+	runTenantRetentionLoop(ctx, db, retentionPeriod, ticker.C)
+}
+
+func runTenantRetentionLoop(ctx context.Context, db *gorm.DB, retentionPeriod time.Duration, ticks <-chan time.Time) {
 	for {
 		select {
 		case <-ctx.Done():
 			return
-		case <-ticker.C:
+		case <-ticks:
 			runTenantRetention(ctx, db, retentionPeriod)
 		}
 	}

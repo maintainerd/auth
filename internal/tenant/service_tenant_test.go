@@ -105,6 +105,13 @@ func TestTenantService_GetSystem(t *testing.T) {
 			},
 			expectError: true,
 		},
+		{
+			name: "repo error → error",
+			setupRepo: func(r *mockTenantRepo) {
+				r.findSystemFn = func() (*Tenant, error) { return nil, errors.New("db error") }
+			},
+			expectError: true,
+		},
 	}
 
 	for _, tc := range cases {
@@ -148,6 +155,14 @@ func TestTenantService_GetByIdentifier(t *testing.T) {
 			identifier: "unknown",
 			setupRepo: func(r *mockTenantRepo) {
 				r.findByIdentifierFn = func(id string) (*Tenant, error) { return nil, nil }
+			},
+			expectError: true,
+		},
+		{
+			name:       "repo error → error",
+			identifier: "acme-corp",
+			setupRepo: func(r *mockTenantRepo) {
+				r.findByIdentifierFn = func(id string) (*Tenant, error) { return nil, errors.New("db error") }
 			},
 			expectError: true,
 		},
@@ -520,6 +535,16 @@ func TestTenantService_Update(t *testing.T) {
 		assert.Contains(t, err.Error(), "tenant not found")
 	})
 
+	t.Run("initial fetch error", func(t *testing.T) {
+		repo := &mockTenantRepo{
+			findByUUIDFn: func(_ any, _ ...string) (*Tenant, error) { return nil, errors.New("fetch err") },
+		}
+		svc := NewTenantService(repo, nil)
+		_, err := svc.SetActivePublicByUUID(context.Background(), tenantUUID)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "tenant not found")
+	})
+
 	t.Run("name conflict FindByName error", func(t *testing.T) {
 		repo := &mockTenantRepo{
 			findByUUIDFn: func(_ any, _ ...string) (*Tenant, error) {
@@ -700,6 +725,47 @@ func TestTenantService_DeleteByUUID_DeleteError(t *testing.T) {
 	assert.NoError(t, mock.ExpectationsWereMet())
 }
 
+func TestTenantService_DeleteByUUID_AdditionalErrors(t *testing.T) {
+	tenantUUID := uuid.New()
+
+	t.Run("initial fetch error rolls back", func(t *testing.T) {
+		db, mock := newMockGormDB(t)
+		mock.ExpectBegin()
+		mock.ExpectRollback()
+		repo := &mockTenantRepo{
+			findByUUIDFn: func(_ any, _ ...string) (*Tenant, error) {
+				return nil, errors.New("fetch err")
+			},
+		}
+		svc := NewTenantService(repo, NewGormUnitOfWork(db, repo, nil, testCascadeModels()))
+
+		_, err := svc.DeleteByUUID(context.Background(), tenantUUID)
+
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "fetch err")
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+
+	t.Run("cascade error rolls back", func(t *testing.T) {
+		db, mock := newMockGormDB(t)
+		mock.ExpectBegin()
+		mock.ExpectExec(".*").WillReturnError(errors.New("cascade err"))
+		mock.ExpectRollback()
+		repo := &mockTenantRepo{
+			findByUUIDFn: func(_ any, _ ...string) (*Tenant, error) {
+				return newTenant(1, "acme"), nil
+			},
+		}
+		svc := NewTenantService(repo, NewGormUnitOfWork(db, repo, nil, testCascadeModels()))
+
+		_, err := svc.DeleteByUUID(context.Background(), tenantUUID)
+
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "cascade err")
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+}
+
 func TestValidateTenantAccess(t *testing.T) {
 	cases := []struct {
 		name        string
@@ -708,6 +774,20 @@ func TestValidateTenantAccess(t *testing.T) {
 		expectError bool
 		errContains string
 	}{
+		{
+			name:        "nil actor → error",
+			user:        nil,
+			target:      buildTenant(10, false),
+			expectError: true,
+			errContains: "actor user is nil",
+		},
+		{
+			name:        "nil target → error",
+			user:        buildUserWithIdentities([]AccessIdentity{buildIdentity(10, false)}),
+			target:      nil,
+			expectError: true,
+			errContains: "target tenant is nil",
+		},
 		{
 			name:        "no identities → error",
 			user:        buildUserWithIdentities(nil),
@@ -772,6 +852,13 @@ func TestValidateTenantAccessByID(t *testing.T) {
 		expectError    bool
 		errContains    string
 	}{
+		{
+			name:           "nil actor → error",
+			user:           nil,
+			targetTenantID: 10,
+			expectError:    true,
+			errContains:    "actor user is nil",
+		},
 		{
 			name:           "no identities → error",
 			user:           buildUserWithIdentities(nil),

@@ -28,6 +28,18 @@ func TestTenantMemberService_GetByUUID(t *testing.T) {
 		assert.Contains(t, err.Error(), "not found")
 	})
 
+	t.Run("repo error is mapped to not found", func(t *testing.T) {
+		db, _ := newMockGormDB(t)
+		svc := newTenantMemberServiceForTest(db, &mockTenantMemberRepo{
+			findByTenantMemberUUIDFn: func(_ uuid.UUID) (*TenantMember, error) {
+				return nil, errors.New("db error")
+			},
+		}, &mockUserRepo{}, &mockTenantRepo{})
+		_, err := svc.GetByUUID(context.Background(), id)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "not found")
+	})
+
 	t.Run("success", func(t *testing.T) {
 		db, _ := newMockGormDB(t)
 		svc := newTenantMemberServiceForTest(db, &mockTenantMemberRepo{
@@ -50,6 +62,18 @@ func TestTenantMemberService_GetByTenantAndUser(t *testing.T) {
 		}, &mockUserRepo{}, &mockTenantRepo{})
 		_, err := svc.GetByTenantAndUser(context.Background(), 1, 2)
 		require.Error(t, err)
+	})
+
+	t.Run("repo error is mapped to not found", func(t *testing.T) {
+		db, _ := newMockGormDB(t)
+		svc := newTenantMemberServiceForTest(db, &mockTenantMemberRepo{
+			findByTenantAndUserFn: func(_ int64, _ int64) (*TenantMember, error) {
+				return nil, errors.New("db error")
+			},
+		}, &mockUserRepo{}, &mockTenantRepo{})
+		_, err := svc.GetByTenantAndUser(context.Background(), 1, 2)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "not found")
 	})
 
 	t.Run("success", func(t *testing.T) {
@@ -93,6 +117,22 @@ func TestTenantMemberService_CreateByUserUUID(t *testing.T) {
 		_, err := svc.CreateByUserUUID(context.Background(), 1, userUUID, "member")
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "already a member")
+	})
+
+	t.Run("duplicate check error", func(t *testing.T) {
+		db, _ := newMockGormDB(t)
+		svc := newTenantMemberServiceForTest(db, &mockTenantMemberRepo{
+			findByTenantAndUserFn: func(_ int64, _ int64) (*TenantMember, error) {
+				return nil, errors.New("lookup failed")
+			},
+		}, &mockUserRepo{
+			findByUUIDFn: func(_ uuid.UUID) (*MemberUser, error) {
+				return &MemberUser{UserID: 5}, nil
+			},
+		}, &mockTenantRepo{})
+		_, err := svc.CreateByUserUUID(context.Background(), 1, userUUID, "member")
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to check tenant membership")
 	})
 
 	t.Run("success → commit", func(t *testing.T) {
@@ -455,6 +495,20 @@ func TestTenantMemberService_UpdateRole(t *testing.T) {
 		assert.Contains(t, err.Error(), "update error")
 	})
 
+	t.Run("cross-tenant member → rollback", func(t *testing.T) {
+		db, mock := newMockGormDB(t)
+		mock.ExpectBegin()
+		mock.ExpectRollback()
+		svc := newTenantMemberServiceForTest(db, &mockTenantMemberRepo{
+			findByTenantMemberUUIDFn: func(id uuid.UUID) (*TenantMember, error) {
+				return &TenantMember{TenantMemberUUID: id, TenantID: 99, UserID: 5, Role: "member"}, nil
+			},
+		}, &mockUserRepo{}, &mockTenantRepo{})
+		_, err := svc.UpdateRole(context.Background(), 1, tmUUID, "owner")
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "not found")
+	})
+
 	t.Run("success with user populated", func(t *testing.T) {
 		db, mock := newMockGormDB(t)
 		mock.ExpectBegin()
@@ -530,4 +584,28 @@ func TestTenantMemberService_DeleteByUUID_Extra(t *testing.T) {
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "delete failed")
 	})
+
+	t.Run("cross-tenant member → rollback", func(t *testing.T) {
+		db, mock := newMockGormDB(t)
+		mock.ExpectBegin()
+		mock.ExpectRollback()
+		svc := newTenantMemberServiceForTest(db, &mockTenantMemberRepo{
+			findByTenantMemberUUIDFn: func(i uuid.UUID) (*TenantMember, error) {
+				return &TenantMember{TenantMemberUUID: i, TenantID: 99}, nil
+			},
+		}, &mockUserRepo{}, &mockTenantRepo{})
+		err := svc.DeleteByUUID(context.Background(), 1, id)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "not found")
+	})
+}
+
+func TestTenantMemberService_NewWithNilUnitOfWork(t *testing.T) {
+	svc := NewTenantMemberService(&mockTenantMemberRepo{}, &mockUserRepo{}, &mockTenantRepo{}, nil)
+
+	result, err := svc.Create(context.Background(), 1, 2, "member")
+
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	assert.Equal(t, int64(1), result.TenantID)
 }
