@@ -28,6 +28,8 @@ func (h *OAuthCIBAHandler) Initiate(w http.ResponseWriter, r *http.Request) {
 		Scope:          r.FormValue("scope"),
 		LoginHint:      r.FormValue("login_hint"),
 		BindingMessage: r.FormValue("binding_message"),
+		ClientID:       r.FormValue("client_id"),
+		ClientSecret:   r.FormValue("client_secret"),
 	}
 
 	if err := req.Validate(); err != nil {
@@ -49,7 +51,9 @@ func (h *OAuthCIBAHandler) Initiate(w http.ResponseWriter, r *http.Request) {
 // ExchangeToken handles POST /oauth/token with grant_type=urn:openid:params:grant-type:ciba.
 func (h *OAuthCIBAHandler) ExchangeToken(w http.ResponseWriter, r *http.Request) {
 	req := OAuthCIBATokenRequestDTO{
-		AuthReqID: r.FormValue("auth_req_id"),
+		AuthReqID:    r.FormValue("auth_req_id"),
+		ClientID:     r.FormValue("client_id"),
+		ClientSecret: r.FormValue("client_secret"),
 	}
 
 	if err := req.Validate(); err != nil {

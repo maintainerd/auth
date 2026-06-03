@@ -78,7 +78,9 @@ func (h *OAuthDeviceHandler) VerifyUserCode(w http.ResponseWriter, r *http.Reque
 // ExchangeDeviceToken handles POST /oauth/token with grant_type=urn:ietf:params:oauth:grant-type:device_code.
 func (h *OAuthDeviceHandler) ExchangeDeviceToken(w http.ResponseWriter, r *http.Request) {
 	req := OAuthDeviceTokenRequestDTO{
-		DeviceCode: r.FormValue("device_code"),
+		DeviceCode:   r.FormValue("device_code"),
+		ClientID:     r.FormValue("client_id"),
+		ClientSecret: r.FormValue("client_secret"),
 	}
 
 	if err := req.Validate(); err != nil {

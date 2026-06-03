@@ -94,6 +94,25 @@ func TestOAuthCIBAHandler_DenyRequest(t *testing.T) {
 		assert.Equal(t, http.StatusUnauthorized, w.Code)
 	})
 
+	t.Run("missing auth_req_id returns 400", func(t *testing.T) {
+		r := withUser(formPost(t, "/oauth/ciba/deny", url.Values{}))
+		w := httptest.NewRecorder()
+		NewOAuthCIBAHandler(&mockOAuthCIBAService{}).DenyRequest(w, r)
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+	})
+
+	t.Run("service error returns oauth error", func(t *testing.T) {
+		svc := &mockOAuthCIBAService{
+			denyFn: func(context.Context, string, int64) *apperror.OAuthError {
+				return apperror.NewOAuthInvalidGrant("expired")
+			},
+		}
+		r := withUser(formPost(t, "/oauth/ciba/deny", url.Values{"auth_req_id": {"req123"}}))
+		w := httptest.NewRecorder()
+		NewOAuthCIBAHandler(svc).DenyRequest(w, r)
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+	})
+
 	t.Run("success returns 200", func(t *testing.T) {
 		r := withUser(formPost(t, "/oauth/ciba/deny", url.Values{"auth_req_id": {"req123"}}))
 		w := httptest.NewRecorder()
@@ -109,6 +128,32 @@ func TestOAuthCIBAHandler_Initiate(t *testing.T) {
 		NewOAuthCIBAHandler(&mockOAuthCIBAService{}).Initiate(w, r)
 		assert.Equal(t, http.StatusBadRequest, w.Code)
 	})
+
+	t.Run("service error returns oauth error", func(t *testing.T) {
+		svc := &mockOAuthCIBAService{
+			initiateFn: func(context.Context, OAuthCIBARequestDTO, OAuthClientCredentials) (*OAuthCIBAResponseDTO, *apperror.OAuthError) {
+				return nil, apperror.NewOAuthInvalidClient("bad client")
+			},
+		}
+		r := formPost(t, "/oauth/ciba", url.Values{"client_id": {"app"}, "scope": {"openid"}, "login_hint": {"jane@example.com"}})
+		w := httptest.NewRecorder()
+		NewOAuthCIBAHandler(svc).Initiate(w, r)
+		assert.Equal(t, http.StatusUnauthorized, w.Code)
+	})
+
+	t.Run("success returns 200", func(t *testing.T) {
+		svc := &mockOAuthCIBAService{
+			initiateFn: func(_ context.Context, req OAuthCIBARequestDTO, creds OAuthClientCredentials) (*OAuthCIBAResponseDTO, *apperror.OAuthError) {
+				assert.Equal(t, "app", req.ClientID)
+				assert.Equal(t, "app", creds.ClientID)
+				return &OAuthCIBAResponseDTO{AuthReqID: "auth-req", ExpiresIn: 60, Interval: 5}, nil
+			},
+		}
+		r := formPost(t, "/oauth/ciba", url.Values{"client_id": {"app"}, "scope": {"openid"}, "login_hint": {"jane@example.com"}})
+		w := httptest.NewRecorder()
+		NewOAuthCIBAHandler(svc).Initiate(w, r)
+		assert.Equal(t, http.StatusOK, w.Code)
+	})
 }
 
 func TestOAuthCIBAHandler_ExchangeToken(t *testing.T) {
@@ -117,5 +162,32 @@ func TestOAuthCIBAHandler_ExchangeToken(t *testing.T) {
 		w := httptest.NewRecorder()
 		NewOAuthCIBAHandler(&mockOAuthCIBAService{}).ExchangeToken(w, r)
 		assert.Equal(t, http.StatusBadRequest, w.Code)
+	})
+
+	t.Run("service error returns oauth error", func(t *testing.T) {
+		svc := &mockOAuthCIBAService{
+			exchangeTokenFn: func(context.Context, OAuthCIBATokenRequestDTO, OAuthClientCredentials) (*OAuthTokenResponseDTO, *apperror.OAuthError) {
+				return nil, apperror.NewOAuthInvalidGrant("authorization pending")
+			},
+		}
+		r := formPost(t, "/oauth/token", url.Values{"client_id": {"app"}, "auth_req_id": {"auth-req"}})
+		w := httptest.NewRecorder()
+		NewOAuthCIBAHandler(svc).ExchangeToken(w, r)
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+	})
+
+	t.Run("success returns 200", func(t *testing.T) {
+		svc := &mockOAuthCIBAService{
+			exchangeTokenFn: func(_ context.Context, req OAuthCIBATokenRequestDTO, creds OAuthClientCredentials) (*OAuthTokenResponseDTO, *apperror.OAuthError) {
+				assert.Equal(t, "auth-req", req.AuthReqID)
+				assert.Equal(t, "app", req.ClientID)
+				assert.Equal(t, "app", creds.ClientID)
+				return &OAuthTokenResponseDTO{AccessToken: "token", TokenType: "Bearer", ExpiresIn: 60}, nil
+			},
+		}
+		r := formPost(t, "/oauth/token", url.Values{"client_id": {"app"}, "auth_req_id": {"auth-req"}})
+		w := httptest.NewRecorder()
+		NewOAuthCIBAHandler(svc).ExchangeToken(w, r)
+		assert.Equal(t, http.StatusOK, w.Code)
 	})
 }

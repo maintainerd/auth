@@ -46,7 +46,6 @@ func (r *oauthDeviceCodeRepository) FindByDeviceCodeHash(hash string) (*OAuthDev
 	err := r.DB().
 		Preload("Client").
 		Preload("Client.IdentityProvider").
-		Preload("User").
 		Where("device_code_hash = ?", hash).
 		First(&code).Error
 	if err != nil {

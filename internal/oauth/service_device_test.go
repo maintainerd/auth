@@ -2,6 +2,8 @@ package oauth
 
 import (
 	"context"
+	"net/http"
+	"net/http/httptest"
 	"regexp"
 	"testing"
 	"time"
@@ -10,6 +12,8 @@ import (
 	"github.com/google/uuid"
 	"github.com/lib/pq"
 	"github.com/maintainerd/auth/internal/platform/config"
+	"github.com/maintainerd/auth/internal/platform/jwt"
+	"github.com/maintainerd/auth/internal/platform/middleware"
 	"github.com/maintainerd/auth/internal/platform/ptr"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -30,6 +34,52 @@ func newOAuthDeviceSvc(
 		userIdentityRepo: &mockUserIdentityRepo{},
 		authEventService: authEventSvc,
 	}
+}
+
+func TestOAuthDeviceAuthContextHelpers(t *testing.T) {
+	t.Run("auth context defaults without claims", func(t *testing.T) {
+		acr, amr := authContextFromContext(context.Background())
+
+		assert.Equal(t, jwt.ACRLevel1, acr)
+		assert.Equal(t, []string{jwt.AMRPassword}, amr)
+	})
+
+	t.Run("auth context uses claims", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/", nil)
+		req = middleware.WithJWTClaims(req, &middleware.JWTClaims{
+			ACR: jwt.ACRLevel2,
+			AMR: []string{jwt.AMRPassword, jwt.AMRMFA},
+		})
+
+		acr, amr := authContextFromContext(req.Context())
+
+		assert.Equal(t, jwt.ACRLevel2, acr)
+		assert.Equal(t, []string{jwt.AMRPassword, jwt.AMRMFA}, amr)
+	})
+
+	t.Run("auth context fills missing claim values", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/", nil)
+		req = middleware.WithJWTClaims(req, &middleware.JWTClaims{})
+
+		acr, amr := authContextFromContext(req.Context())
+
+		assert.Equal(t, jwt.ACRLevel1, acr)
+		assert.Equal(t, []string{jwt.AMRPassword}, amr)
+	})
+
+	t.Run("persisted context decodes values", func(t *testing.T) {
+		acr, amr := persistedAuthContext(jwt.ACRLevel2, []byte(`["pwd","mfa"]`))
+
+		assert.Equal(t, jwt.ACRLevel2, acr)
+		assert.Equal(t, []string{jwt.AMRPassword, jwt.AMRMFA}, amr)
+	})
+
+	t.Run("persisted context defaults invalid values", func(t *testing.T) {
+		acr, amr := persistedAuthContext("", []byte(`{`))
+
+		assert.Equal(t, jwt.ACRLevel1, acr)
+		assert.Equal(t, []string{jwt.AMRPassword}, amr)
+	})
 }
 
 type mockOAuthDeviceCodeRepo struct {

@@ -27,6 +27,7 @@ type OAuthRefreshToken struct {
 	CreatedAt             time.Time  `gorm:"column:created_at;autoCreateTime;not null"`
 
 	// Relationships
+	Client *Client `gorm:"foreignKey:ClientID;references:ClientID"`
 }
 
 // TableName returns the database table name for GORM.
