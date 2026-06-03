@@ -52,6 +52,14 @@ func formPost(t *testing.T, target string, values url.Values) *http.Request {
 }
 
 func TestOAuthCIBAHandler_ApproveRequest(t *testing.T) {
+	t.Run("body parse error returns 400", func(t *testing.T) {
+		r := withUser(httptest.NewRequest(http.MethodPost, "/oauth/ciba/approve", errReader{}))
+		r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		w := httptest.NewRecorder()
+		NewOAuthCIBAHandler(&mockOAuthCIBAService{}).ApproveRequest(w, r)
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+	})
+
 	t.Run("no user returns 401", func(t *testing.T) {
 		r := formPost(t, "/oauth/ciba/approve", url.Values{"auth_req_id": {"req123"}})
 		w := httptest.NewRecorder()
@@ -87,6 +95,14 @@ func TestOAuthCIBAHandler_ApproveRequest(t *testing.T) {
 }
 
 func TestOAuthCIBAHandler_DenyRequest(t *testing.T) {
+	t.Run("body parse error returns 400", func(t *testing.T) {
+		r := withUser(httptest.NewRequest(http.MethodPost, "/oauth/ciba/deny", errReader{}))
+		r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		w := httptest.NewRecorder()
+		NewOAuthCIBAHandler(&mockOAuthCIBAService{}).DenyRequest(w, r)
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+	})
+
 	t.Run("no user returns 401", func(t *testing.T) {
 		r := formPost(t, "/oauth/ciba/deny", url.Values{"auth_req_id": {"req123"}})
 		w := httptest.NewRecorder()
@@ -122,6 +138,14 @@ func TestOAuthCIBAHandler_DenyRequest(t *testing.T) {
 }
 
 func TestOAuthCIBAHandler_Initiate(t *testing.T) {
+	t.Run("body parse error returns 400", func(t *testing.T) {
+		r := httptest.NewRequest(http.MethodPost, "/oauth/ciba", errReader{})
+		r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		w := httptest.NewRecorder()
+		NewOAuthCIBAHandler(&mockOAuthCIBAService{}).Initiate(w, r)
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+	})
+
 	t.Run("validation error returns 400", func(t *testing.T) {
 		r := formPost(t, "/oauth/ciba", url.Values{})
 		w := httptest.NewRecorder()

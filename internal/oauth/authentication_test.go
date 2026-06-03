@@ -387,3 +387,143 @@ func TestPtrOrEmpty(t *testing.T) {
 	value := "client"
 	assert.Equal(t, "client", ptrOrEmpty(&value))
 }
+
+func TestAuthenticateOAuthClient_EmptyClientID(t *testing.T) {
+	result, oerr := authenticateOAuthClient(nil, OAuthClientCredentials{})
+	assert.Nil(t, result)
+	require.NotNil(t, oerr)
+	assert.Equal(t, "invalid_client", oerr.Code)
+	assert.Contains(t, oerr.Description, "required")
+}
+
+func TestClientSecretJWTSecrets_DecryptError(t *testing.T) {
+	origDecrypt := crypto.DecryptAtRest
+	t.Cleanup(func() { crypto.DecryptAtRest = origDecrypt })
+	crypto.DecryptAtRest = func(ciphertext string) (string, error) {
+		return "", assert.AnError
+	}
+
+	secretEncrypted := "encrypted-secret"
+	client := &Client{SecretEncrypted: &secretEncrypted}
+
+	secrets, err := clientSecretJWTSecrets(client)
+	assert.Nil(t, secrets)
+	require.Error(t, err)
+}
+
+func TestClientSecretJWTSecrets_PreviousSecretDecryptError(t *testing.T) {
+	origDecrypt := crypto.DecryptAtRest
+	t.Cleanup(func() { crypto.DecryptAtRest = origDecrypt })
+	expireTime := time.Now().Add(time.Hour)
+	callCount := 0
+	crypto.DecryptAtRest = func(ciphertext string) (string, error) {
+		callCount++
+		if callCount == 1 {
+			return "valid-secret", nil
+		}
+		return "", assert.AnError
+	}
+
+	currentEncrypted := "encrypted-current"
+	previousEncrypted := "encrypted-previous"
+	client := &Client{
+		SecretEncrypted:         &currentEncrypted,
+		PreviousSecretEncrypted: &previousEncrypted,
+		PreviousSecretExpiresAt: &expireTime,
+	}
+
+	_, err := clientSecretJWTSecrets(client)
+	require.Error(t, err)
+}
+
+func TestClientSecretJWTSecrets_PreviousSecretEmpty(t *testing.T) {
+	origDecrypt := crypto.DecryptAtRest
+	t.Cleanup(func() { crypto.DecryptAtRest = origDecrypt })
+	crypto.DecryptAtRest = func(ciphertext string) (string, error) {
+		return ciphertext, nil
+	}
+
+	currentEncrypted := "encrypted-current"
+	previousEncrypted := ""
+	expireTime := time.Now().Add(time.Hour)
+	client := &Client{
+		SecretEncrypted:         &currentEncrypted,
+		PreviousSecretEncrypted: &previousEncrypted,
+		PreviousSecretExpiresAt: &expireTime,
+	}
+
+	secrets, err := clientSecretJWTSecrets(client)
+	require.NoError(t, err)
+	assert.Len(t, secrets, 1)
+}
+
+func TestClientSecretJWTSecrets_PreviousSecretExpired(t *testing.T) {
+	origDecrypt := crypto.DecryptAtRest
+	t.Cleanup(func() { crypto.DecryptAtRest = origDecrypt })
+	crypto.DecryptAtRest = func(ciphertext string) (string, error) {
+		return "decrypted-" + ciphertext, nil
+	}
+
+	currentEncrypted := "encrypted-current"
+	previousEncrypted := "encrypted-previous"
+	pastTime := time.Now().Add(-time.Hour)
+	client := &Client{
+		SecretEncrypted:         &currentEncrypted,
+		PreviousSecretEncrypted: &previousEncrypted,
+		PreviousSecretExpiresAt: &pastTime,
+	}
+
+	secrets, err := clientSecretJWTSecrets(client)
+	require.NoError(t, err)
+	assert.Len(t, secrets, 1)
+}
+
+func TestAuthenticateClientSecretJWT_DecryptError(t *testing.T) {
+	clientID := "test-app"
+	domain := "test-app.example.com"
+
+	origDecrypt := crypto.DecryptAtRest
+	t.Cleanup(func() { crypto.DecryptAtRest = origDecrypt })
+	crypto.DecryptAtRest = func(ciphertext string) (string, error) {
+		return "", assert.AnError
+	}
+
+	secretEncrypted := "encrypted-secret"
+	client := &Client{
+		ClientID:        1,
+		Identifier:      &clientID,
+		Domain:          &domain,
+		SecretEncrypted: &secretEncrypted,
+	}
+
+	claims := jwtlib.MapClaims{
+		"iss": clientID, "sub": clientID, "aud": domain,
+		"exp": time.Now().Add(time.Hour).Unix(), "iat": time.Now().Unix(),
+	}
+	token := jwtlib.NewWithClaims(jwtlib.SigningMethodHS256, claims)
+	assertion, err := token.SignedString([]byte("doesnt-matter"))
+	require.NoError(t, err)
+
+	creds := OAuthClientCredentials{
+		ClientAssertionType: assertionTypeJWTBearer,
+		ClientAssertion:     assertion,
+	}
+
+	result, oerr := authenticateClientSecretJWT(client, creds)
+	assert.Nil(t, result)
+	require.NotNil(t, oerr)
+	assert.Equal(t, "invalid_client", oerr.Code)
+}
+
+func TestValidateAssertionClaims_DomainNil(t *testing.T) {
+	clientID := "test-app"
+	client := &Client{ClientID: 1, Identifier: &clientID, Domain: nil}
+
+	claims := jwtlib.MapClaims{
+		"iss": clientID, "sub": clientID, "aud": "any-audience.example.com",
+		"exp": float64(time.Now().Add(time.Hour).Unix()),
+	}
+	err := validateAssertionClaims(claims, client)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "audience")
+}

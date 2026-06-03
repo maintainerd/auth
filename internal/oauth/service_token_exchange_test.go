@@ -129,13 +129,35 @@ func TestOAuthTokenExchangeService_Exchange(t *testing.T) {
 		svc := newOAuthTokenExchangeSvc(db, &mockUserRepo{}, &mockAuthEventService{})
 
 		_, oerr := svc.Exchange(ctx, OAuthTokenExchangeRequestDTO{
-			SubjectToken:       token,
-			SubjectTokenType:   "urn:ietf:params:oauth:token-type:access_token",
-			RequestedTokenType: "urn:ietf:params:oauth:token-type:refresh_token",
+			SubjectToken:     token,
+			SubjectTokenType: "urn:ietf:params:oauth:token-type:access_token",
+			Scope:            "profile",
 		}, OAuthClientCredentials{ClientID: "my-client"})
 		require.NotNil(t, oerr)
-		assert.Equal(t, "invalid_request", oerr.Code)
-		assert.Contains(t, oerr.Description, "only access_token issuance is supported")
+		assert.Equal(t, "invalid_scope", oerr.Code)
+	})
+
+	t.Run("scope from claims fallback", func(t *testing.T) {
+		initTestJWTKeysService(t)
+		origHost := config.AppPublicHostname
+		config.AppPublicHostname = "https://auth.example.com"
+		defer func() { config.AppPublicHostname = origHost }()
+
+		db, mock := newMockDB(t)
+		expectTokenExchangeClientLookup(mock)
+
+		token, err := jwt.GenerateAccessToken("user-sub", "openid profile", "https://auth.example.com", "my-client", "my-client", "default-provider")
+		require.NoError(t, err)
+
+		svc := newOAuthTokenExchangeSvc(db, &mockUserRepo{}, &mockAuthEventService{})
+
+		result, oerr := svc.Exchange(ctx, OAuthTokenExchangeRequestDTO{
+			SubjectToken:     token,
+			SubjectTokenType: "urn:ietf:params:oauth:token-type:access_token",
+		}, OAuthClientCredentials{ClientID: "my-client"})
+		require.Nil(t, oerr)
+		require.NotNil(t, result)
+		assert.Equal(t, "openid profile", result.Scope)
 	})
 
 	t.Run("success", func(t *testing.T) {
