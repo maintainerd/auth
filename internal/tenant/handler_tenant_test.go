@@ -38,6 +38,16 @@ func TestTenantHandler_Get(t *testing.T) {
 		assert.Equal(t, http.StatusInternalServerError, w.Code)
 	})
 
+	t.Run("success with no rows covers empty result branch", func(t *testing.T) {
+		svc := &mockTenantService{getFn: func(TenantServiceGetFilter) (*TenantServiceGetResult, error) {
+			return &TenantServiceGetResult{Data: nil, Total: 0, Page: 1, Limit: 10}, nil
+		}}
+		r := httptest.NewRequest(http.MethodGet, "/tenants?page=1&limit=10", nil)
+		w := httptest.NewRecorder()
+		newTenantHandler(svc, nil).Get(w, r)
+		assert.Equal(t, http.StatusOK, w.Code)
+	})
+
 	t.Run("success with all filters and rows covers filter+loop branches", func(t *testing.T) {
 		svc := &mockTenantService{getFn: func(TenantServiceGetFilter) (*TenantServiceGetResult, error) {
 			return &TenantServiceGetResult{Data: []TenantServiceDataResult{{Name: "t1"}}}, nil
@@ -55,6 +65,16 @@ func TestTenantHandler_GetByUUID(t *testing.T) {
 		w := httptest.NewRecorder()
 		newTenantHandler(nil, nil).GetByUUID(w, r)
 		assert.Equal(t, http.StatusBadRequest, w.Code)
+	})
+
+	t.Run("service error returns 500", func(t *testing.T) {
+		svc := &mockTenantService{getByUUIDFn: func(uuid.UUID) (*TenantServiceDataResult, error) {
+			return nil, errors.New("db error")
+		}}
+		r := withChiParam(httptest.NewRequest(http.MethodGet, "/", nil), "tenant_uuid", testResourceUUID.String())
+		w := httptest.NewRecorder()
+		newTenantHandler(svc, nil).GetByUUID(w, r)
+		assert.Equal(t, http.StatusInternalServerError, w.Code)
 	})
 
 	t.Run("not found returns 404", func(t *testing.T) {
@@ -440,6 +460,24 @@ func TestTenantHandler_GetMembers(t *testing.T) {
 		w := httptest.NewRecorder()
 		newTenantHandler(ts, ms).GetMembers(w, r)
 		assert.Equal(t, http.StatusInternalServerError, w.Code)
+	})
+
+	t.Run("success with no rows covers empty result branch", func(t *testing.T) {
+		ts := &mockTenantService{getByUUIDFn: func(uuid.UUID) (*TenantServiceDataResult, error) {
+			return &TenantServiceDataResult{TenantID: 1}, nil
+		}}
+		ms := &mockTenantMemberService{listByTenantFn: func(TenantMemberServiceListFilter) (*TenantMemberServiceListResult, error) {
+			return &TenantMemberServiceListResult{
+				Data:  nil,
+				Total: 0,
+				Page:  1,
+				Limit: 10,
+			}, nil
+		}}
+		r := withChiParam(jsonReq(t, http.MethodGet, "/?page=1&limit=10", nil), "tenant_uuid", testResourceUUID.String())
+		w := httptest.NewRecorder()
+		newTenantHandler(ts, ms).GetMembers(w, r)
+		assert.Equal(t, http.StatusOK, w.Code)
 	})
 
 	t.Run("success with user member covers toTenantMemberResponseDTO User branch", func(t *testing.T) {
