@@ -39,6 +39,9 @@ func generateTokenSetWithContext(ctx context.Context, sub string, user *User, cl
 	return generateTokenSetWithAuthContext(ctx, sub, user, client, passwordAuthContext())
 }
 
+var jwtGenIDToken = jwt.GenerateIDTokenWithContext
+var jwtGenRefreshToken = jwt.GenerateRefreshTokenWithContext
+
 func generateTokenSetWithAuthContext(ctx context.Context, sub string, user *User, client *Client, authCtx tokenAuthContext) (accessToken, idToken, refreshToken string, err error) {
 	if ctx == nil {
 		ctx = context.Background()
@@ -76,12 +79,12 @@ func generateTokenSetWithAuthContext(ctx context.Context, sub string, user *User
 		ACR:             authCtx.ACR,
 	}
 
-	idToken, err = jwt.GenerateIDTokenWithContext(ctx, sub, *client.Domain, *client.Identifier, client.IdentityProvider.Identifier, profile, "", params)
+	idToken, err = jwtGenIDToken(ctx, sub, *client.Domain, *client.Identifier, client.IdentityProvider.Identifier, profile, "", params)
 	if err != nil {
 		return "", "", "", err
 	}
 
-	refreshToken, err = jwt.GenerateRefreshTokenWithContext(ctx, sub, *client.Domain, *client.Identifier, client.IdentityProvider.Identifier)
+	refreshToken, err = jwtGenRefreshToken(ctx, sub, *client.Domain, *client.Identifier, client.IdentityProvider.Identifier)
 	if err != nil {
 		return "", "", "", err
 	}

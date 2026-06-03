@@ -184,6 +184,17 @@ func TestClientRepository_FindSystem(t *testing.T) {
 		assert.Nil(t, result)
 		assert.NoError(t, mock.ExpectationsWereMet())
 	})
+
+	t.Run("not found returns nil", func(t *testing.T) {
+		gdb, mock := newMockGormDBRegex(t)
+		mock.ExpectQuery(`SELECT .* FROM "clients" JOIN identity_providers.*JOIN tenants.*WHERE.*clients\.is_system = \$1.*clients\.status = \$2.*identity_providers\.status = \$3.*tenants\.is_system = \$4.*AND "clients"\."deleted_at" IS NULL`).
+			WithArgs(true, "active", "active", true, 1).
+			WillReturnRows(sqlmock.NewRows([]string{"client_id", "client_uuid", "tenant_id"}))
+		result, err := NewClientRepository(gdb).FindSystem()
+		require.NoError(t, err)
+		assert.Nil(t, result)
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
 }
 
 func TestNewClientRepository(t *testing.T) {
@@ -424,6 +435,18 @@ func TestClientRepository_DeleteByUUIDAndTenantID(t *testing.T) {
 		require.Error(t, err)
 		assert.NoError(t, mock.ExpectationsWereMet())
 	})
+
+	t.Run("not found when rows affected zero", func(t *testing.T) {
+		gdb, mock := newMockGormDBRegex(t)
+		mock.ExpectBegin()
+		mock.ExpectExec(`UPDATE "clients" SET.*"deleted_at"=.*WHERE.*client_uuid = \$\d+.*tenant_id = \$\d+`).
+			WithArgs(sqlmock.AnyArg(), id, int64(1)).
+			WillReturnResult(sqlmock.NewResult(0, 0))
+		mock.ExpectRollback()
+		err := NewClientRepository(gdb).DeleteByUUIDAndTenantID(id, 1)
+		require.Error(t, err)
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
 }
 
 func TestClientRepository_FindPaginated(t *testing.T) {
@@ -472,6 +495,42 @@ func TestClientRepository_FindPaginated(t *testing.T) {
 		})
 		require.Error(t, err)
 		assert.Nil(t, result)
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+
+	t.Run("with all filter options", func(t *testing.T) {
+		isDef := true
+		isSys := false
+		idpID := int64(5)
+		gdb, mock := newMockGormDBRegex(t)
+		mock.ExpectQuery(`SELECT count\(\*\) FROM "clients" WHERE.*tenant_id = \$1.*status IN \(\$2\).*is_default = \$3.*is_system = \$4.*client_type IN \(\$5\).*identity_provider_id = \$6`).
+			WithArgs(int64(1), "active", true, false, "public", int64(5)).
+			WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(1))
+		mock.ExpectQuery(`SELECT .* FROM "clients" WHERE.*tenant_id = \$1.*status IN \(\$2\).*is_default = \$3.*is_system = \$4.*client_type IN \(\$5\).*identity_provider_id = \$6.*ORDER BY created_at DESC.*LIMIT \$\d+`).
+			WithArgs(int64(1), "active", true, false, "public", int64(5), 10).
+			WillReturnRows(sqlmock.NewRows([]string{"client_id", "client_uuid", "tenant_id", "identity_provider_id", "name", "status", "created_at", "updated_at"}).
+				AddRow(1, id, 1, 5, "test-client", "active", now, now))
+		mock.ExpectQuery(`SELECT \* FROM "client_uris" WHERE "client_uris"\."client_id" = \$1`).
+			WithArgs(int64(1)).
+			WillReturnRows(sqlmock.NewRows([]string{"client_uri_id", "client_uri_uuid", "tenant_id", "client_id", "uri", "type", "created_at", "updated_at"}))
+		mock.ExpectQuery(`SELECT \* FROM "identity_providers" WHERE "identity_providers"\."identity_provider_id" = \$1`).
+			WithArgs(int64(5)).
+			WillReturnRows(sqlmock.NewRows([]string{"identity_provider_id", "tenant_id", "name", "status", "created_at", "updated_at"}).
+				AddRow(5, 1, "test-idp", "active", now, now))
+		result, err := NewClientRepository(gdb).FindPaginated(ClientRepositoryGetFilter{
+			TenantID:           1,
+			Status:             []string{"active"},
+			IsDefault:          &isDef,
+			IsSystem:           &isSys,
+			ClientType:         []string{"public"},
+			IdentityProviderID: &idpID,
+			Page:               1,
+			Limit:              10,
+			SortBy:             "created_at",
+			SortOrder:          "DESC",
+		})
+		require.NoError(t, err)
+		assert.Len(t, result.Data, 1)
 		assert.NoError(t, mock.ExpectationsWereMet())
 	})
 }

@@ -160,6 +160,21 @@ func TestAPIService_GetServiceIDByUUID(t *testing.T) {
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "service not found")
 	})
+
+	t.Run("repo error → not found error", func(t *testing.T) {
+		svcRepo := &mockServiceRepo{
+			findByUUIDFn: func(_ any, _ ...string) (*Service, error) {
+				return nil, errors.New("db error")
+			},
+		}
+		svc := newAPIService(&mockAPIRepo{}, svcRepo, &mockTenantServiceRepo{})
+
+		id, err := svc.GetServiceIDByUUID(context.Background(), serviceUUID)
+
+		require.Error(t, err)
+		assert.Zero(t, id)
+		assert.Contains(t, err.Error(), "service not found")
+	})
 }
 
 // ---------------------------------------------------------------------------

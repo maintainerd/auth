@@ -424,6 +424,15 @@ func TestAPIKeyHandler_GetAPIs(t *testing.T) {
 	keyUUID := uuid.New()
 	apiUUID := uuid.New()
 
+	t.Run("no tenant returns 401", func(t *testing.T) {
+		r := jsonReq(t, http.MethodGet, "/", nil)
+		r = withChiParam(r, "api_key_uuid", keyUUID.String())
+		r = withUser(r)
+		w := httptest.NewRecorder()
+		NewAPIKeyHandler(&mockAPIKeyService{}).GetAPIs(w, r)
+		assert.Equal(t, http.StatusUnauthorized, w.Code)
+	})
+
 	t.Run("invalid uuid returns 400", func(t *testing.T) {
 		r := jsonReq(t, http.MethodGet, "/", nil)
 		r = withChiParam(r, "api_key_uuid", "bad")
@@ -491,6 +500,15 @@ func TestAPIKeyHandler_AddAPIs(t *testing.T) {
 	keyUUID := uuid.New()
 	apiUUID := uuid.New()
 
+	t.Run("no tenant returns 401", func(t *testing.T) {
+		r := jsonReq(t, http.MethodPost, "/", map[string]any{"api_uuids": []string{apiUUID.String()}})
+		r = withChiParam(r, "api_key_uuid", keyUUID.String())
+		r = withUser(r)
+		w := httptest.NewRecorder()
+		NewAPIKeyHandler(&mockAPIKeyService{}).AddAPIs(w, r)
+		assert.Equal(t, http.StatusUnauthorized, w.Code)
+	})
+
 	t.Run("invalid uuid returns 400", func(t *testing.T) {
 		r := jsonReq(t, http.MethodPost, "/", map[string]any{"api_uuids": []string{apiUUID.String()}})
 		r = withChiParam(r, "api_key_uuid", "bad")
@@ -547,6 +565,16 @@ func TestAPIKeyHandler_RemoveAPI(t *testing.T) {
 	keyUUID := uuid.New()
 	apiUUID := uuid.New()
 
+	t.Run("no tenant returns 401", func(t *testing.T) {
+		r := jsonReq(t, http.MethodDelete, "/", nil)
+		r = withChiParam(r, "api_key_uuid", keyUUID.String())
+		r = withChiParam(r, "api_uuid", apiUUID.String())
+		r = withUser(r)
+		w := httptest.NewRecorder()
+		NewAPIKeyHandler(&mockAPIKeyService{}).RemoveAPI(w, r)
+		assert.Equal(t, http.StatusUnauthorized, w.Code)
+	})
+
 	t.Run("invalid api_key_uuid returns 400", func(t *testing.T) {
 		r := jsonReq(t, http.MethodDelete, "/", nil)
 		r = withChiParam(r, "api_key_uuid", "bad")
@@ -596,6 +624,16 @@ func TestAPIKeyHandler_RemoveAPI(t *testing.T) {
 func TestAPIKeyHandler_GetAPIPermissions(t *testing.T) {
 	keyUUID := uuid.New()
 	apiUUID := uuid.New()
+
+	t.Run("no tenant returns 401", func(t *testing.T) {
+		r := jsonReq(t, http.MethodGet, "/", nil)
+		r = withChiParam(r, "api_key_uuid", keyUUID.String())
+		r = withChiParam(r, "api_uuid", apiUUID.String())
+		r = withUser(r)
+		w := httptest.NewRecorder()
+		NewAPIKeyHandler(&mockAPIKeyService{}).GetAPIPermissions(w, r)
+		assert.Equal(t, http.StatusUnauthorized, w.Code)
+	})
 
 	t.Run("invalid api_key_uuid returns 400", func(t *testing.T) {
 		r := jsonReq(t, http.MethodGet, "/", nil)
@@ -652,6 +690,16 @@ func TestAPIKeyHandler_AddAPIPermissions(t *testing.T) {
 	keyUUID := uuid.New()
 	apiUUID := uuid.New()
 	permUUID := uuid.New()
+
+	t.Run("no tenant returns 401", func(t *testing.T) {
+		r := jsonReq(t, http.MethodPost, "/", map[string]any{"permission_uuids": []string{permUUID.String()}})
+		r = withChiParam(r, "api_key_uuid", keyUUID.String())
+		r = withChiParam(r, "api_uuid", apiUUID.String())
+		r = withUser(r)
+		w := httptest.NewRecorder()
+		NewAPIKeyHandler(&mockAPIKeyService{}).AddAPIPermissions(w, r)
+		assert.Equal(t, http.StatusUnauthorized, w.Code)
+	})
 
 	t.Run("invalid api_key_uuid returns 400", func(t *testing.T) {
 		r := jsonReq(t, http.MethodPost, "/", map[string]any{"permission_uuids": []string{permUUID.String()}})
@@ -723,6 +771,17 @@ func TestAPIKeyHandler_RemoveAPIPermission(t *testing.T) {
 	keyUUID := uuid.New()
 	apiUUID := uuid.New()
 	permUUID := uuid.New()
+
+	t.Run("no tenant returns 401", func(t *testing.T) {
+		r := jsonReq(t, http.MethodDelete, "/", nil)
+		r = withChiParam(r, "api_key_uuid", keyUUID.String())
+		r = withChiParam(r, "api_uuid", apiUUID.String())
+		r = withChiParam(r, "permission_uuid", permUUID.String())
+		r = withUser(r)
+		w := httptest.NewRecorder()
+		NewAPIKeyHandler(&mockAPIKeyService{}).RemoveAPIPermission(w, r)
+		assert.Equal(t, http.StatusUnauthorized, w.Code)
+	})
 
 	t.Run("invalid api_key_uuid returns 400", func(t *testing.T) {
 		r := jsonReq(t, http.MethodDelete, "/", nil)

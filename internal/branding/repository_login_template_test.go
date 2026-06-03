@@ -51,6 +51,17 @@ func TestLoginTemplateRepository_FindByUUIDAndTenantID(t *testing.T) {
 		assert.Nil(t, result)
 		assert.NoError(t, mock.ExpectationsWereMet())
 	})
+
+	t.Run("with preloads", func(t *testing.T) {
+		gdb, mock := newMockGormDBRegex(t)
+		mock.ExpectQuery(`SELECT \* FROM "login_templates" WHERE .*login_template_uuid = \$1.*tenant_id = \$2.*AND "login_templates"\."deleted_at" IS NULL`).
+			WithArgs(id, int64(1), 1).
+			WillReturnRows(sqlmock.NewRows([]string{"login_template_id", "login_template_uuid", "tenant_id", "name", "status", "created_at", "updated_at"}).
+				AddRow(1, id, 1, "Test", "active", now, now))
+		repo := NewLoginTemplateRepository(gdb)
+		_, _ = repo.FindByUUIDAndTenantID(id, 1, "any_relation")
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
 }
 
 func TestNewLoginTemplateRepository(t *testing.T) {

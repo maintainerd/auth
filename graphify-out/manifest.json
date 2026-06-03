@@ -55,8 +55,8 @@
     "semantic_hash": "18537958a2662b4ffb7352705d3f6a64"
   },
   "/home/reyco/Desktop/xreyc/maintainerd/maintainerd-auth/internal/iam/mock_test.go": {
-    "mtime": 1780372031.6167123,
-    "ast_hash": "da5f8a5a34ceebfd410d1a50fab3e60f",
+    "mtime": 1780467843.2227793,
+    "ast_hash": "2677aee1f84760055f46f83fb675c300",
     "semantic_hash": ""
   },
   "/home/reyco/Desktop/xreyc/maintainerd/maintainerd-auth/internal/iam/handler_service.go": {
@@ -935,9 +935,9 @@
     "semantic_hash": ""
   },
   "/home/reyco/Desktop/xreyc/maintainerd/maintainerd-auth/internal/client/handler_client_test.go": {
-    "mtime": 1780238276.9909012,
-    "ast_hash": "efb259dafbf339c4fc5579e3d7a3cef0",
-    "semantic_hash": "efb259dafbf339c4fc5579e3d7a3cef0"
+    "mtime": 1780462990.3346562,
+    "ast_hash": "bcb0e2feae9300099ec72e424f542735",
+    "semantic_hash": ""
   },
   "/home/reyco/Desktop/xreyc/maintainerd/maintainerd-auth/internal/client/foundation.go": {
     "mtime": 1780236338.9866636,
@@ -960,8 +960,8 @@
     "semantic_hash": ""
   },
   "/home/reyco/Desktop/xreyc/maintainerd/maintainerd-auth/internal/client/handler_api_key_test.go": {
-    "mtime": 1780238276.9913092,
-    "ast_hash": "149a8b8a69560d7547654da22b2eb31d",
+    "mtime": 1780466743.8606036,
+    "ast_hash": "52788c9c7d03b181ed669e69f5a377ea",
     "semantic_hash": ""
   },
   "/home/reyco/Desktop/xreyc/maintainerd/maintainerd-auth/internal/tenant/mock_test.go": {
@@ -975,8 +975,8 @@
     "semantic_hash": ""
   },
   "/home/reyco/Desktop/xreyc/maintainerd/maintainerd-auth/internal/tenant/handler_tenant_test.go": {
-    "mtime": 1780448525.1521728,
-    "ast_hash": "155dc8c69f2c5be49cef839a680eadd5",
+    "mtime": 1780457087.5879915,
+    "ast_hash": "bca51d724c7748ae60033f54e5cf4cea",
     "semantic_hash": ""
   },
   "/home/reyco/Desktop/xreyc/maintainerd/maintainerd-auth/internal/tenant/types.go": {
@@ -1140,8 +1140,8 @@
     "semantic_hash": ""
   },
   "/home/reyco/Desktop/xreyc/maintainerd/maintainerd-auth/internal/branding/http_testhelpers_test.go": {
-    "mtime": 1780372031.616342,
-    "ast_hash": "78c08f86a78832f94a54f0adbec23f39",
+    "mtime": 1780460141.4206612,
+    "ast_hash": "488fbebf4437241cd05921d22059e536",
     "semantic_hash": ""
   },
   "/home/reyco/Desktop/xreyc/maintainerd/maintainerd-auth/internal/branding/routes.go": {
@@ -2175,8 +2175,8 @@
     "semantic_hash": ""
   },
   "/home/reyco/Desktop/xreyc/maintainerd/maintainerd-auth/internal/tenant/validation_tenant_test.go": {
-    "mtime": 1780203073.286264,
-    "ast_hash": "cf4116d39141dead6384cdb144f89b5e",
+    "mtime": 1780457022.6653664,
+    "ast_hash": "f2e979cf8ed0530c1f174c35a1b24c79",
     "semantic_hash": ""
   },
   "/home/reyco/Desktop/xreyc/maintainerd/maintainerd-auth/internal/tenant/validation_setting_test.go": {
@@ -2200,8 +2200,8 @@
     "semantic_hash": ""
   },
   "/home/reyco/Desktop/xreyc/maintainerd/maintainerd-auth/internal/iam/service_role_test.go": {
-    "mtime": 1780202917.0745099,
-    "ast_hash": "e1c44a0efca15088f8ad76b4cdda0c6a",
+    "mtime": 1780468183.7583606,
+    "ast_hash": "ab2d2bf2ba3c25039ff9c8efe22eb675",
     "semantic_hash": ""
   },
   "/home/reyco/Desktop/xreyc/maintainerd/maintainerd-auth/internal/iam/validation_service.go": {
@@ -2245,8 +2245,8 @@
     "semantic_hash": ""
   },
   "/home/reyco/Desktop/xreyc/maintainerd/maintainerd-auth/internal/iam/service_api_test.go": {
-    "mtime": 1780059282.6315246,
-    "ast_hash": "ce95e016de0b2345250ac3736e0a747f",
+    "mtime": 1780468012.6692638,
+    "ast_hash": "6fce0fa4a9f2c15a50dbfc3abc5233c2",
     "semantic_hash": ""
   },
   "/home/reyco/Desktop/xreyc/maintainerd/maintainerd-auth/internal/iam/validation_policy_test.go": {
@@ -2335,8 +2335,8 @@
     "semantic_hash": ""
   },
   "/home/reyco/Desktop/xreyc/maintainerd/maintainerd-auth/internal/iam/service_permission_test.go": {
-    "mtime": 1780059282.633505,
-    "ast_hash": "d82fd0d45e3e6a7716830ab4b9bc05e2",
+    "mtime": 1780467890.741723,
+    "ast_hash": "362cb654f8141cc7968503efffe6017f",
     "semantic_hash": ""
   },
   "/home/reyco/Desktop/xreyc/maintainerd/maintainerd-auth/internal/iam/deps.go": {
@@ -2440,8 +2440,8 @@
     "semantic_hash": ""
   },
   "/home/reyco/Desktop/xreyc/maintainerd/maintainerd-auth/internal/client/service_client_test.go": {
-    "mtime": 1780202956.1436894,
-    "ast_hash": "bf3a77dd32a3a125034fd717f4b19bcd",
+    "mtime": 1780463031.7327006,
+    "ast_hash": "7ee798a2dadf3530367b0fa3fa3aa686",
     "semantic_hash": ""
   },
   "/home/reyco/Desktop/xreyc/maintainerd/maintainerd-auth/internal/client/repository_api_key_permission.go": {
@@ -2465,8 +2465,8 @@
     "semantic_hash": ""
   },
   "/home/reyco/Desktop/xreyc/maintainerd/maintainerd-auth/internal/client/deps.go": {
-    "mtime": 1780445544.8632035,
-    "ast_hash": "c1e7803ea7e6aaddd1b5d296260af624",
+    "mtime": 1780462658.4929957,
+    "ast_hash": "ebb900a4946972c15645f0f76c3dabdf",
     "semantic_hash": ""
   },
   "/home/reyco/Desktop/xreyc/maintainerd/maintainerd-auth/internal/client/model_api_key_api.go": {
@@ -2520,8 +2520,8 @@
     "semantic_hash": ""
   },
   "/home/reyco/Desktop/xreyc/maintainerd/maintainerd-auth/internal/authn/service_session.go": {
-    "mtime": 1780059282.623448,
-    "ast_hash": "08352234aae1ba27a9d5bdebf9b91be1",
+    "mtime": 1780467027.5873232,
+    "ast_hash": "f372f5bc80701de603db737daca9afed",
     "semantic_hash": ""
   },
   "/home/reyco/Desktop/xreyc/maintainerd/maintainerd-auth/internal/authn/service_register_test.go": {
@@ -2535,8 +2535,8 @@
     "semantic_hash": ""
   },
   "/home/reyco/Desktop/xreyc/maintainerd/maintainerd-auth/internal/authn/service_register.go": {
-    "mtime": 1780412094.4464657,
-    "ast_hash": "afa9b21282ddd9998a2533883710cfd6",
+    "mtime": 1780467208.0020032,
+    "ast_hash": "38ddd367f6c55a88afa33c3871923d03",
     "semantic_hash": ""
   },
   "/home/reyco/Desktop/xreyc/maintainerd/maintainerd-auth/internal/authn/validation_login_test.go": {
@@ -2610,8 +2610,8 @@
     "semantic_hash": ""
   },
   "/home/reyco/Desktop/xreyc/maintainerd/maintainerd-auth/internal/branding/validation_branding_test.go": {
-    "mtime": 1780203046.483128,
-    "ast_hash": "ea47095ab0500f124506b1fefb3b53a2",
+    "mtime": 1780466985.2718935,
+    "ast_hash": "618fda5748c6de79db32ca4d12f60659",
     "semantic_hash": ""
   },
   "/home/reyco/Desktop/xreyc/maintainerd/maintainerd-auth/internal/branding/repository_login_template.go": {
@@ -4132,6 +4132,241 @@
   "/home/reyco/Desktop/xreyc/maintainerd/maintainerd-auth/internal/authn/deps_test.go": {
     "mtime": 1780452474.359367,
     "ast_hash": "81b1f9cbe1b8a306d07436bed24780cb",
+    "semantic_hash": ""
+  },
+  "/home/reyco/Desktop/xreyc/maintainerd/maintainerd-auth/internal/iam/routes_test.go": {
+    "mtime": 1780467411.9284303,
+    "ast_hash": "2bfec5fdf6d631fa7f2a4733d1953d94",
+    "semantic_hash": ""
+  },
+  "/home/reyco/Desktop/xreyc/maintainerd/maintainerd-auth/internal/iam/repository_api_test.go": {
+    "mtime": 1780467498.1671703,
+    "ast_hash": "c8ed6b94de312f8e82d6dc8e9e8d7d81",
+    "semantic_hash": ""
+  },
+  "/home/reyco/Desktop/xreyc/maintainerd/maintainerd-auth/internal/iam/types_test.go": {
+    "mtime": 1780467369.5149746,
+    "ast_hash": "cc811a22195a70d6786c7e351184db87",
+    "semantic_hash": ""
+  },
+  "/home/reyco/Desktop/xreyc/maintainerd/maintainerd-auth/internal/iam/model_service_test.go": {
+    "mtime": 1780467295.8029654,
+    "ast_hash": "40dc320b7167bf5c33444f31599d8a02",
+    "semantic_hash": ""
+  },
+  "/home/reyco/Desktop/xreyc/maintainerd/maintainerd-auth/internal/iam/repository_role_test.go": {
+    "mtime": 1780467688.1732516,
+    "ast_hash": "8e74dd6508b107faa1eecb0001d601e2",
+    "semantic_hash": ""
+  },
+  "/home/reyco/Desktop/xreyc/maintainerd/maintainerd-auth/internal/iam/model_service_policy_test.go": {
+    "mtime": 1780467369.5149746,
+    "ast_hash": "1b2497e0c88e0a9b454b2709c0b9cb73",
+    "semantic_hash": ""
+  },
+  "/home/reyco/Desktop/xreyc/maintainerd/maintainerd-auth/internal/iam/repository_service_policy_test.go": {
+    "mtime": 1780467745.437456,
+    "ast_hash": "1f6b85b7aacd52c0c67fac1f67d7c9c4",
+    "semantic_hash": ""
+  },
+  "/home/reyco/Desktop/xreyc/maintainerd/maintainerd-auth/internal/iam/repository_service_test.go": {
+    "mtime": 1780467979.748029,
+    "ast_hash": "d5daf96805382111717e1a608cf09fc9",
+    "semantic_hash": ""
+  },
+  "/home/reyco/Desktop/xreyc/maintainerd/maintainerd-auth/internal/iam/repository_role_permission_test.go": {
+    "mtime": 1780467727.2806737,
+    "ast_hash": "3f5c85dbfba78d61058706c2d28fca4a",
+    "semantic_hash": ""
+  },
+  "/home/reyco/Desktop/xreyc/maintainerd/maintainerd-auth/internal/iam/model_policy_test.go": {
+    "mtime": 1780467295.802553,
+    "ast_hash": "70cb5d90cddf2455efea4f1537d88125",
+    "semantic_hash": ""
+  },
+  "/home/reyco/Desktop/xreyc/maintainerd/maintainerd-auth/internal/iam/model_role_test.go": {
+    "mtime": 1780467295.802553,
+    "ast_hash": "f1e0c38d6f8fb4f3dbcb2f9be165f1ab",
+    "semantic_hash": ""
+  },
+  "/home/reyco/Desktop/xreyc/maintainerd/maintainerd-auth/internal/iam/model_api_test.go": {
+    "mtime": 1780467295.8024132,
+    "ast_hash": "14d7a0cc841dc7947931b87e4a4f4633",
+    "semantic_hash": ""
+  },
+  "/home/reyco/Desktop/xreyc/maintainerd/maintainerd-auth/internal/iam/model_permission_test.go": {
+    "mtime": 1780467295.802553,
+    "ast_hash": "9fa04635e78035b806118ab48569efb5",
+    "semantic_hash": ""
+  },
+  "/home/reyco/Desktop/xreyc/maintainerd/maintainerd-auth/internal/iam/foundation_test.go": {
+    "mtime": 1780467344.122866,
+    "ast_hash": "a3ca60a34bac0f8cdbfe484f0df6405a",
+    "semantic_hash": ""
+  },
+  "/home/reyco/Desktop/xreyc/maintainerd/maintainerd-auth/internal/iam/model_api_permission_test.go": {
+    "mtime": 1780467369.5139744,
+    "ast_hash": "996fceb7cda019e8e3f40a15786ca3e0",
+    "semantic_hash": ""
+  },
+  "/home/reyco/Desktop/xreyc/maintainerd/maintainerd-auth/internal/iam/deps_test.go": {
+    "mtime": 1780467295.8004522,
+    "ast_hash": "8c6f98e6c54e8076c1e145bba783d073",
+    "semantic_hash": ""
+  },
+  "/home/reyco/Desktop/xreyc/maintainerd/maintainerd-auth/internal/iam/repository_permission_test.go": {
+    "mtime": 1780467616.0767405,
+    "ast_hash": "ebf8fb0fb7225deb7c95a03039d6a42c",
+    "semantic_hash": ""
+  },
+  "/home/reyco/Desktop/xreyc/maintainerd/maintainerd-auth/internal/iam/repository_policy_test.go": {
+    "mtime": 1780467569.6780202,
+    "ast_hash": "b553474b4aa2e35c9311ef8fb3e68e8b",
+    "semantic_hash": ""
+  },
+  "/home/reyco/Desktop/xreyc/maintainerd/maintainerd-auth/internal/iam/model_role_permission_test.go": {
+    "mtime": 1780467369.5139744,
+    "ast_hash": "92982d5df9d9860b06ce640cae45121f",
+    "semantic_hash": ""
+  },
+  "/home/reyco/Desktop/xreyc/maintainerd/maintainerd-auth/internal/client/model_api_key_api_test.go": {
+    "mtime": 1780461732.54254,
+    "ast_hash": "2a898d2db923aec3798d46227c4b8454",
+    "semantic_hash": ""
+  },
+  "/home/reyco/Desktop/xreyc/maintainerd/maintainerd-auth/internal/client/routes_test.go": {
+    "mtime": 1780461766.526234,
+    "ast_hash": "bda97df4a32ba6ac0dd14b90d1944260",
+    "semantic_hash": ""
+  },
+  "/home/reyco/Desktop/xreyc/maintainerd/maintainerd-auth/internal/client/repository_api_key_api_test.go": {
+    "mtime": 1780466930.952456,
+    "ast_hash": "84a86eac4b2fb3c4bbd065c70f3ed9dd",
+    "semantic_hash": ""
+  },
+  "/home/reyco/Desktop/xreyc/maintainerd/maintainerd-auth/internal/client/model_client_api_test.go": {
+    "mtime": 1780461733.7322326,
+    "ast_hash": "2db9e78de1f9e2bec70c188cc8c91ce4",
+    "semantic_hash": ""
+  },
+  "/home/reyco/Desktop/xreyc/maintainerd/maintainerd-auth/internal/client/model_client_permission_test.go": {
+    "mtime": 1780461736.95055,
+    "ast_hash": "bb7cefbd6b933b471be75cdb15362025",
+    "semantic_hash": ""
+  },
+  "/home/reyco/Desktop/xreyc/maintainerd/maintainerd-auth/internal/client/repository_client_test.go": {
+    "mtime": 1780467746.8348422,
+    "ast_hash": "158e3eded515b1513a2ea1923da4e3f0",
+    "semantic_hash": ""
+  },
+  "/home/reyco/Desktop/xreyc/maintainerd/maintainerd-auth/internal/client/repository_api_key_test.go": {
+    "mtime": 1780467739.386013,
+    "ast_hash": "f7a55cb73fcb85f427f0d74b2f216fd2",
+    "semantic_hash": ""
+  },
+  "/home/reyco/Desktop/xreyc/maintainerd/maintainerd-auth/internal/client/model_client_test.go": {
+    "mtime": 1780461733.5933447,
+    "ast_hash": "728ee78399ba66e360ceb0e6e85b2a0c",
+    "semantic_hash": ""
+  },
+  "/home/reyco/Desktop/xreyc/maintainerd/maintainerd-auth/internal/client/repository_client_api_test.go": {
+    "mtime": 1780467072.4308596,
+    "ast_hash": "03efe8b9c8b2f741a2d5fa10a6bcb5e0",
+    "semantic_hash": ""
+  },
+  "/home/reyco/Desktop/xreyc/maintainerd/maintainerd-auth/internal/client/http_testhelpers_test.go": {
+    "mtime": 1780461855.8503802,
+    "ast_hash": "8fe313ac0aa908f414e6c4991106a75f",
+    "semantic_hash": ""
+  },
+  "/home/reyco/Desktop/xreyc/maintainerd/maintainerd-auth/internal/client/repository_api_key_permission_test.go": {
+    "mtime": 1780464715.1567404,
+    "ast_hash": "e72fb24e97dba1893baaf7256aa3e492",
+    "semantic_hash": ""
+  },
+  "/home/reyco/Desktop/xreyc/maintainerd/maintainerd-auth/internal/client/model_client_uri_test.go": {
+    "mtime": 1780461740.6875465,
+    "ast_hash": "31be09f184ca28d6d29758e9d43b0fd5",
+    "semantic_hash": ""
+  },
+  "/home/reyco/Desktop/xreyc/maintainerd/maintainerd-auth/internal/client/repository_client_uri_test.go": {
+    "mtime": 1780467754.0175645,
+    "ast_hash": "41716df66133e2ce7ab1b764eef9904b",
+    "semantic_hash": ""
+  },
+  "/home/reyco/Desktop/xreyc/maintainerd/maintainerd-auth/internal/client/foundation_test.go": {
+    "mtime": 1780462980.9246309,
+    "ast_hash": "9b90f1125bf9a1f8c36d0f42e4fe6abe",
+    "semantic_hash": ""
+  },
+  "/home/reyco/Desktop/xreyc/maintainerd/maintainerd-auth/internal/client/model_api_key_permission_test.go": {
+    "mtime": 1780461733.1555426,
+    "ast_hash": "0c6de43c84d03564cfbdced95dddfe34",
+    "semantic_hash": ""
+  },
+  "/home/reyco/Desktop/xreyc/maintainerd/maintainerd-auth/internal/client/deps_test.go": {
+    "mtime": 1780464330.6234531,
+    "ast_hash": "6c24387e05f1c611e9509ce3a1a6fcc5",
+    "semantic_hash": ""
+  },
+  "/home/reyco/Desktop/xreyc/maintainerd/maintainerd-auth/internal/client/repository_client_permission_test.go": {
+    "mtime": 1780464694.056914,
+    "ast_hash": "b227825a8c57574a230645f965ca8266",
+    "semantic_hash": ""
+  },
+  "/home/reyco/Desktop/xreyc/maintainerd/maintainerd-auth/internal/client/model_api_key_test.go": {
+    "mtime": 1780461731.4625351,
+    "ast_hash": "1975e4bedf41ae853185cfb2f256f5d4",
+    "semantic_hash": ""
+  },
+  "/home/reyco/Desktop/xreyc/maintainerd/maintainerd-auth/internal/client/api_key_authenticator_test.go": {
+    "mtime": 1780463072.4026504,
+    "ast_hash": "20591512a957f170e332671ae00cc63f",
+    "semantic_hash": ""
+  },
+  "/home/reyco/Desktop/xreyc/maintainerd/maintainerd-auth/internal/branding/model_login_template_test.go": {
+    "mtime": 1780459645.9517376,
+    "ast_hash": "a097ad6d1b4c45b2545f813171b8a875",
+    "semantic_hash": ""
+  },
+  "/home/reyco/Desktop/xreyc/maintainerd/maintainerd-auth/internal/branding/repository_login_template_test.go": {
+    "mtime": 1780466706.292457,
+    "ast_hash": "838ffe7c9df8b99c5a1dbe5e796a29d3",
+    "semantic_hash": ""
+  },
+  "/home/reyco/Desktop/xreyc/maintainerd/maintainerd-auth/internal/branding/routes_test.go": {
+    "mtime": 1780459664.109963,
+    "ast_hash": "52eaec6b05be74a9c654dbe9926bac38",
+    "semantic_hash": ""
+  },
+  "/home/reyco/Desktop/xreyc/maintainerd/maintainerd-auth/internal/branding/model_sms_template_test.go": {
+    "mtime": 1780459648.7698944,
+    "ast_hash": "b0cd55aea0729150acd61100571a6e58",
+    "semantic_hash": ""
+  },
+  "/home/reyco/Desktop/xreyc/maintainerd/maintainerd-auth/internal/branding/repository_branding_test.go": {
+    "mtime": 1780460247.031359,
+    "ast_hash": "e70a6bbfc64ebf45b1ccdebefc2d2d77",
+    "semantic_hash": ""
+  },
+  "/home/reyco/Desktop/xreyc/maintainerd/maintainerd-auth/internal/branding/repository_email_template_test.go": {
+    "mtime": 1780466682.2524848,
+    "ast_hash": "d397dd1fa2a9cad8f13dbe952788fdfe",
+    "semantic_hash": ""
+  },
+  "/home/reyco/Desktop/xreyc/maintainerd/maintainerd-auth/internal/branding/repository_sms_template_test.go": {
+    "mtime": 1780466746.2974393,
+    "ast_hash": "1cf41eac38512c5a1fc011f883d606fe",
+    "semantic_hash": ""
+  },
+  "/home/reyco/Desktop/xreyc/maintainerd/maintainerd-auth/internal/branding/model_branding_test.go": {
+    "mtime": 1780459640.4068577,
+    "ast_hash": "8429d05313575208e904dfc032423481",
+    "semantic_hash": ""
+  },
+  "/home/reyco/Desktop/xreyc/maintainerd/maintainerd-auth/internal/branding/model_email_template_test.go": {
+    "mtime": 1780459643.0378692,
+    "ast_hash": "45fcda0b29cf9553d3eeb3f6a186dffa",
     "semantic_hash": ""
   }
 }
