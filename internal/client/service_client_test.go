@@ -2353,6 +2353,103 @@ func TestClientService_AddClientAPIPermissions_EdgeCases(t *testing.T) {
 	})
 }
 
+// ===========================================================================
+// RotateSecret
+// ===========================================================================
+
+func TestClientService_RotateSecret(t *testing.T) {
+	cUUID := uuid.New()
+	actorUUID := uuid.New()
+	tenantID := int64(1)
+
+	t.Run("FindByUUIDAndTenantID error", func(t *testing.T) {
+		gormDB, mock := newMockGormDB(t)
+		mock.ExpectBegin()
+		mock.ExpectRollback()
+		clientRepo := &mockClientRepo{
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*Client, error) {
+				return nil, errors.New("db error")
+			},
+		}
+		svc := NewClientService(gormDB, clientRepo, &mockClientURIRepo{}, &mockIdentityProviderRepo{},
+			&mockPermissionRepo{}, &mockClientPermissionRepo{}, &mockClientAPIRepo{},
+			&mockAPIRepo{}, &mockUserRepo{}, &mockTenantRepo{}, nil)
+		_, err := svc.RotateSecret(context.Background(), cUUID, tenantID, actorUUID, 0)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "db error")
+	})
+
+	t.Run("client not found", func(t *testing.T) {
+		gormDB, mock := newMockGormDB(t)
+		mock.ExpectBegin()
+		mock.ExpectRollback()
+		clientRepo := &mockClientRepo{
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*Client, error) {
+				return nil, nil
+			},
+		}
+		svc := NewClientService(gormDB, clientRepo, &mockClientURIRepo{}, &mockIdentityProviderRepo{},
+			&mockPermissionRepo{}, &mockClientPermissionRepo{}, &mockClientAPIRepo{},
+			&mockAPIRepo{}, &mockUserRepo{}, &mockTenantRepo{}, nil)
+		_, err := svc.RotateSecret(context.Background(), cUUID, tenantID, actorUUID, 0)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "not found")
+	})
+
+	t.Run("CreateOrUpdate error", func(t *testing.T) {
+		gormDB, mock := newMockGormDB(t)
+		mock.ExpectBegin()
+		mock.ExpectRollback()
+		clientRepo := &mockClientRepo{
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*Client, error) {
+				return &Client{ClientID: 1, ClientUUID: cUUID, TenantID: tenantID}, nil
+			},
+			createOrUpdateFn: func(_ *Client) (*Client, error) {
+				return nil, errors.New("save err")
+			},
+		}
+		svc := NewClientService(gormDB, clientRepo, &mockClientURIRepo{}, &mockIdentityProviderRepo{},
+			&mockPermissionRepo{}, &mockClientPermissionRepo{}, &mockClientAPIRepo{},
+			&mockAPIRepo{}, &mockUserRepo{}, &mockTenantRepo{}, nil)
+		_, err := svc.RotateSecret(context.Background(), cUUID, tenantID, actorUUID, 0)
+		require.Error(t, err)
+	})
+
+	t.Run("success with grace period", func(t *testing.T) {
+		gormDB, mock := newMockGormDB(t)
+		mock.ExpectBegin()
+		mock.ExpectCommit()
+		clientRepo := &mockClientRepo{
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*Client, error) {
+				return &Client{ClientID: 1, ClientUUID: cUUID, TenantID: tenantID}, nil
+			},
+		}
+		svc := NewClientService(gormDB, clientRepo, &mockClientURIRepo{}, &mockIdentityProviderRepo{},
+			&mockPermissionRepo{}, &mockClientPermissionRepo{}, &mockClientAPIRepo{},
+			&mockAPIRepo{}, &mockUserRepo{}, &mockTenantRepo{}, nil)
+		secret, err := svc.RotateSecret(context.Background(), cUUID, tenantID, actorUUID, 24)
+		require.NoError(t, err)
+		assert.NotEmpty(t, secret)
+	})
+
+	t.Run("success with zero grace period (immediate revoke)", func(t *testing.T) {
+		gormDB, mock := newMockGormDB(t)
+		mock.ExpectBegin()
+		mock.ExpectCommit()
+		clientRepo := &mockClientRepo{
+			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*Client, error) {
+				return &Client{ClientID: 1, ClientUUID: cUUID, TenantID: tenantID}, nil
+			},
+		}
+		svc := NewClientService(gormDB, clientRepo, &mockClientURIRepo{}, &mockIdentityProviderRepo{},
+			&mockPermissionRepo{}, &mockClientPermissionRepo{}, &mockClientAPIRepo{},
+			&mockAPIRepo{}, &mockUserRepo{}, &mockTenantRepo{}, nil)
+		secret, err := svc.RotateSecret(context.Background(), cUUID, tenantID, actorUUID, 0)
+		require.NoError(t, err)
+		assert.NotEmpty(t, secret)
+	})
+}
+
 func TestClientService_RemoveClientAPIPermission_EdgeCases(t *testing.T) {
 	cUUID := uuid.New()
 	apiUUID := uuid.New()

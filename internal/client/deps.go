@@ -72,7 +72,7 @@ type IdentityProvider struct {
 	IsSystem             bool
 	CreatedAt            time.Time
 	UpdatedAt            time.Time
-	Tenant               *Tenant
+	Tenant               *Tenant `gorm:"foreignKey:TenantID;references:TenantID"`
 }
 
 func (IdentityProvider) TableName() string { return "identity_providers" }
