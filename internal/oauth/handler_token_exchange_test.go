@@ -23,6 +23,14 @@ func (m *mockOAuthTokenExchangeService) Exchange(ctx context.Context, req OAuthT
 }
 
 func TestOAuthTokenExchangeHandler_Exchange(t *testing.T) {
+	t.Run("body parse error returns 400", func(t *testing.T) {
+		r := httptest.NewRequest(http.MethodPost, "/oauth/token", errReader{})
+		r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		w := httptest.NewRecorder()
+		NewOAuthTokenExchangeHandler(&mockOAuthTokenExchangeService{}).Exchange(w, r)
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+	})
+
 	t.Run("validation error returns 400", func(t *testing.T) {
 		r := formPost(t, "/oauth/token", url.Values{})
 		w := httptest.NewRecorder()

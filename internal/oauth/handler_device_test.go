@@ -44,6 +44,14 @@ func (m *mockOAuthDeviceService) DenyUserCode(ctx context.Context, req OAuthDevi
 }
 
 func TestOAuthDeviceHandler_Authorize(t *testing.T) {
+	t.Run("body parse error returns 400", func(t *testing.T) {
+		r := httptest.NewRequest(http.MethodPost, "/oauth/device_authorization", errReader{})
+		r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		w := httptest.NewRecorder()
+		NewOAuthDeviceHandler(&mockOAuthDeviceService{}).Authorize(w, r)
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+	})
+
 	t.Run("validation error returns 400", func(t *testing.T) {
 		r := formPost(t, "/oauth/device_authorization", url.Values{})
 		w := httptest.NewRecorder()
@@ -77,6 +85,14 @@ func TestOAuthDeviceHandler_Authorize(t *testing.T) {
 }
 
 func TestOAuthDeviceHandler_VerifyUserCode(t *testing.T) {
+	t.Run("body parse error returns 400", func(t *testing.T) {
+		r := withUser(httptest.NewRequest(http.MethodPost, "/oauth/device", errReader{}))
+		r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		w := httptest.NewRecorder()
+		NewOAuthDeviceHandler(&mockOAuthDeviceService{}).VerifyUserCode(w, r)
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+	})
+
 	t.Run("no user returns 401", func(t *testing.T) {
 		r := formPost(t, "/oauth/device", url.Values{"user_code": {"ABCD-123"}})
 		w := httptest.NewRecorder()
@@ -148,6 +164,14 @@ func TestOAuthDeviceHandler_ExchangeDeviceToken(t *testing.T) {
 }
 
 func TestOAuthDeviceHandler_DenyUserCode(t *testing.T) {
+	t.Run("body parse error returns 400", func(t *testing.T) {
+		r := withUser(httptest.NewRequest(http.MethodPost, "/oauth/device/deny", errReader{}))
+		r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		w := httptest.NewRecorder()
+		NewOAuthDeviceHandler(&mockOAuthDeviceService{}).DenyUserCode(w, r)
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+	})
+
 	t.Run("no user returns 401", func(t *testing.T) {
 		r := formPost(t, "/oauth/device/deny", url.Values{"user_code": {"ABCD-123"}})
 		w := httptest.NewRecorder()

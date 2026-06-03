@@ -63,6 +63,14 @@ func TestOAuthSessionHandler_EndSession_GET(t *testing.T) {
 }
 
 func TestOAuthSessionHandler_EndSession_POST(t *testing.T) {
+	t.Run("body parse error returns 400", func(t *testing.T) {
+		r := httptest.NewRequest(http.MethodPost, "/oauth/end_session", errReader{})
+		r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		w := httptest.NewRecorder()
+		NewOAuthSessionHandler(&mockOAuthSessionService{}).EndSession(w, r)
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+	})
+
 	t.Run("success returns 200", func(t *testing.T) {
 		r := formPost(t, "/oauth/end_session", url.Values{})
 		w := httptest.NewRecorder()
@@ -72,6 +80,14 @@ func TestOAuthSessionHandler_EndSession_POST(t *testing.T) {
 }
 
 func TestOAuthSessionHandler_BackchannelLogout(t *testing.T) {
+	t.Run("body parse error returns 400", func(t *testing.T) {
+		r := httptest.NewRequest(http.MethodPost, "/oauth/logout/backchannel", errReader{})
+		r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		w := httptest.NewRecorder()
+		NewOAuthSessionHandler(&mockOAuthSessionService{}).BackchannelLogout(w, r)
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+	})
+
 	t.Run("validation error returns 400", func(t *testing.T) {
 		r := formPost(t, "/oauth/logout/backchannel", url.Values{})
 		w := httptest.NewRecorder()

@@ -2,6 +2,7 @@ package oauth
 
 import (
 	"context"
+	"errors"
 	"regexp"
 	"testing"
 	"time"
@@ -88,6 +89,42 @@ func TestOAuthSessionService_EndSession(t *testing.T) {
 		assert.Empty(t, redirect) // ClientURIs not preloaded by findActiveClientByIdentifier
 	})
 
+	t.Run("post_logout_redirect with no state", func(t *testing.T) {
+		initTestJWTKeysService(t)
+		db, mock := newMockDB(t)
+		expectSessionClientURILookup(mock, "https://example.com/logout", "my-client")
+
+		token, err := jwt.GenerateAccessToken("user-sub-123", "openid", "https://auth.example.com", "my-client", "my-client", "default-provider")
+		require.NoError(t, err)
+
+		svc := newOAuthSessionSvc(db,
+			&mockUserRepo{
+				findBySubAndClientIDFn: func(sub, clientID string) (*User, error) {
+					return &User{UserID: 42, UserUUID: uuid.New(), Email: "a@b.com"}, nil
+				},
+			},
+			&mockOAuthRefreshTokenRepo{},
+			&mockAuthEventService{})
+
+		redirect, oerr := svc.EndSession(ctx, OAuthEndSessionRequestDTO{
+			IDTokenHint:           token,
+			ClientID:              "my-client",
+			PostLogoutRedirectURI: "https://example.com/logout",
+		})
+		require.Nil(t, oerr)
+		assert.Empty(t, redirect) // ClientURIs not preloaded
+	})
+
+	t.Run("post_logout_redirect invalid URL", func(t *testing.T) {
+		svc := newOAuthSessionSvc(nil, &mockUserRepo{}, &mockOAuthRefreshTokenRepo{}, &mockAuthEventService{})
+
+		redirect, oerr := svc.EndSession(ctx, OAuthEndSessionRequestDTO{
+			PostLogoutRedirectURI: "://invalid-url",
+		})
+		require.Nil(t, oerr)
+		assert.Empty(t, redirect)
+	})
+
 	t.Run("id_token_hint valid no client match no revoke", func(t *testing.T) {
 		initTestJWTKeysService(t)
 
@@ -171,5 +208,25 @@ func TestOAuthSessionService_BackchannelLogout(t *testing.T) {
 
 		oerr := svc.BackchannelLogout(ctx, OAuthBackchannelLogoutRequestDTO{LogoutToken: token})
 		require.Nil(t, oerr)
+	})
+
+	t.Run("valid logout_token user lookup error", func(t *testing.T) {
+		initTestJWTKeysService(t)
+
+		token, err := jwt.GenerateAccessToken("user-sub-err", "openid", "https://auth.example.com", "my-client", "my-client", "default-provider")
+		require.NoError(t, err)
+
+		svc := newOAuthSessionSvc(nil,
+			&mockUserRepo{
+				findBySubAndClientIDFn: func(sub, clientID string) (*User, error) {
+					return nil, errors.New("db error")
+				},
+			},
+			&mockOAuthRefreshTokenRepo{},
+			&mockAuthEventService{})
+
+		oerr := svc.BackchannelLogout(ctx, OAuthBackchannelLogoutRequestDTO{LogoutToken: token})
+		require.NotNil(t, oerr)
+		assert.Equal(t, "server_error", oerr.Code)
 	})
 }

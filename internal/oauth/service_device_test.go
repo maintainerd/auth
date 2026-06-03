@@ -2,6 +2,7 @@ package oauth
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"regexp"
@@ -211,6 +212,23 @@ func TestOAuthDeviceService_Authorize(t *testing.T) {
 		assert.Equal(t, "unauthorized_client", oerr.Code)
 	})
 
+	t.Run("create error", func(t *testing.T) {
+		db, mock := newMockDB(t)
+		expectDeviceClientLookup(mock)
+
+		svc := newOAuthDeviceSvc(db,
+			&mockOAuthDeviceCodeRepo{
+				createFn: func(_ *OAuthDeviceCode) (*OAuthDeviceCode, error) {
+					return nil, errors.New("db error")
+				},
+			},
+			&mockUserRepo{}, &mockAuthEventService{})
+
+		_, oerr := svc.Authorize(ctx, OAuthDeviceAuthorizationRequestDTO{Scope: "openid"}, OAuthClientCredentials{ClientID: "my-client"})
+		require.NotNil(t, oerr)
+		assert.Equal(t, "server_error", oerr.Code)
+	})
+
 	t.Run("success", func(t *testing.T) {
 		db, mock := newMockDB(t)
 		expectDeviceClientLookup(mock)
@@ -248,6 +266,23 @@ func TestOAuthDeviceService_VerifyUserCode(t *testing.T) {
 		oerr := svc.VerifyUserCode(ctx, OAuthDeviceVerifyRequestDTO{UserCode: "ABCD-EFGH"}, 1)
 		require.NotNil(t, oerr)
 		assert.Equal(t, "invalid_grant", oerr.Code)
+	})
+
+	t.Run("repo error", func(t *testing.T) {
+		db, _ := newMockDB(t)
+		svc := &oauthDeviceService{
+			db: db,
+			deviceCodeRepo: &mockOAuthDeviceCodeRepo{
+				findByUserCodeFn: func(_ string) (*OAuthDeviceCode, error) {
+					return nil, errors.New("db error")
+				},
+			},
+			authEventService: &mockAuthEventService{},
+		}
+
+		oerr := svc.VerifyUserCode(ctx, OAuthDeviceVerifyRequestDTO{UserCode: "ABCD-EFGH"}, 1)
+		require.NotNil(t, oerr)
+		assert.Equal(t, "server_error", oerr.Code)
 	})
 
 	t.Run("expired", func(t *testing.T) {
@@ -330,7 +365,7 @@ func TestOAuthDeviceService_ExchangeToken(t *testing.T) {
 		assert.Equal(t, "invalid_grant", oerr.Code)
 	})
 
-	t.Run("authorization_pending", func(t *testing.T) {
+	t.Run("client mismatch", func(t *testing.T) {
 		db, mock := newMockDB(t)
 		expectDeviceClientLookup(mock)
 
@@ -339,7 +374,7 @@ func TestOAuthDeviceService_ExchangeToken(t *testing.T) {
 				findByDeviceCodeHashFn: func(_ string) (*OAuthDeviceCode, error) {
 					return &OAuthDeviceCode{
 						OAuthDeviceCodeID: 1,
-						ClientID:          10,
+						ClientID:          999,
 						Status:            DeviceCodeStatusPending,
 						Interval:          5,
 						ExpiresAt:         time.Now().Add(5 * time.Minute),
@@ -350,7 +385,150 @@ func TestOAuthDeviceService_ExchangeToken(t *testing.T) {
 
 		_, oerr := svc.ExchangeToken(ctx, OAuthDeviceTokenRequestDTO{DeviceCode: "xxxx"}, OAuthClientCredentials{ClientID: "my-client"})
 		require.NotNil(t, oerr)
-		assert.Equal(t, "authorization_pending", oerr.Code)
+		assert.Equal(t, "invalid_grant", oerr.Code)
+		assert.Contains(t, oerr.Description, "does not belong")
+	})
+
+	t.Run("slow_down", func(t *testing.T) {
+		db, mock := newMockDB(t)
+		expectDeviceClientLookup(mock)
+		lastPoll := time.Now().Add(-1 * time.Second)
+
+		svc := newOAuthDeviceSvc(db,
+			&mockOAuthDeviceCodeRepo{
+				findByDeviceCodeHashFn: func(_ string) (*OAuthDeviceCode, error) {
+					return &OAuthDeviceCode{
+						OAuthDeviceCodeID: 1,
+						ClientID:          10,
+						Status:            DeviceCodeStatusPending,
+						Interval:          5,
+						LastPollAt:        &lastPoll,
+						ExpiresAt:         time.Now().Add(5 * time.Minute),
+					}, nil
+				},
+			},
+			&mockUserRepo{}, &mockAuthEventService{})
+
+		_, oerr := svc.ExchangeToken(ctx, OAuthDeviceTokenRequestDTO{DeviceCode: "xxxx"}, OAuthClientCredentials{ClientID: "my-client"})
+		require.NotNil(t, oerr)
+		assert.Equal(t, "slow_down", oerr.Code)
+	})
+
+	t.Run("denied", func(t *testing.T) {
+		db, mock := newMockDB(t)
+		expectDeviceClientLookup(mock)
+
+		svc := newOAuthDeviceSvc(db,
+			&mockOAuthDeviceCodeRepo{
+				findByDeviceCodeHashFn: func(_ string) (*OAuthDeviceCode, error) {
+					return &OAuthDeviceCode{
+						OAuthDeviceCodeID: 1,
+						ClientID:          10,
+						Status:            DeviceCodeStatusDenied,
+						Interval:          5,
+						ExpiresAt:         time.Now().Add(5 * time.Minute),
+					}, nil
+				},
+			},
+			&mockUserRepo{}, &mockAuthEventService{})
+
+		_, oerr := svc.ExchangeToken(ctx, OAuthDeviceTokenRequestDTO{DeviceCode: "xxxx"}, OAuthClientCredentials{ClientID: "my-client"})
+		require.NotNil(t, oerr)
+		assert.Equal(t, "access_denied", oerr.Code)
+	})
+
+	t.Run("expired status", func(t *testing.T) {
+		db, mock := newMockDB(t)
+		expectDeviceClientLookup(mock)
+
+		svc := newOAuthDeviceSvc(db,
+			&mockOAuthDeviceCodeRepo{
+				findByDeviceCodeHashFn: func(_ string) (*OAuthDeviceCode, error) {
+					return &OAuthDeviceCode{
+						ClientID:  10,
+						Status:    DeviceCodeStatusExpired,
+						ExpiresAt: time.Now().Add(-1 * time.Minute),
+					}, nil
+				},
+			},
+			&mockUserRepo{}, &mockAuthEventService{})
+
+		_, oerr := svc.ExchangeToken(ctx, OAuthDeviceTokenRequestDTO{DeviceCode: "xxxx"}, OAuthClientCredentials{ClientID: "my-client"})
+		require.NotNil(t, oerr)
+		assert.Equal(t, "expired_token", oerr.Code)
+	})
+
+	t.Run("approved with nil userID", func(t *testing.T) {
+		db, mock := newMockDB(t)
+		expectDeviceClientLookup(mock)
+
+		svc := newOAuthDeviceSvc(db,
+			&mockOAuthDeviceCodeRepo{
+				findByDeviceCodeHashFn: func(_ string) (*OAuthDeviceCode, error) {
+					return &OAuthDeviceCode{
+						OAuthDeviceCodeID: 1,
+						ClientID:          10,
+						UserID:            nil,
+						Status:            DeviceCodeStatusApproved,
+						Interval:          5,
+						ExpiresAt:         time.Now().Add(5 * time.Minute),
+					}, nil
+				},
+			},
+			&mockUserRepo{}, &mockAuthEventService{})
+
+		_, oerr := svc.ExchangeToken(ctx, OAuthDeviceTokenRequestDTO{DeviceCode: "xxxx"}, OAuthClientCredentials{ClientID: "my-client"})
+		require.NotNil(t, oerr)
+		assert.Equal(t, "server_error", oerr.Code)
+	})
+
+	t.Run("user not found after approval", func(t *testing.T) {
+		db, mock := newMockDB(t)
+		expectDeviceClientLookup(mock)
+		userID := int64(1)
+
+		svc := newOAuthDeviceSvc(db,
+			&mockOAuthDeviceCodeRepo{
+				findByDeviceCodeHashFn: func(_ string) (*OAuthDeviceCode, error) {
+					return &OAuthDeviceCode{
+						OAuthDeviceCodeID: 1,
+						ClientID:          10,
+						TenantID:          1,
+						UserID:            &userID,
+						Scope:             "openid",
+						Status:            DeviceCodeStatusApproved,
+						Interval:          5,
+						ExpiresAt:         time.Now().Add(5 * time.Minute),
+					}, nil
+				},
+			},
+			&mockUserRepo{
+				findByIDFn: func(_ any, _ ...string) (*User, error) {
+					return nil, nil
+				},
+			},
+			&mockAuthEventService{})
+
+		_, oerr := svc.ExchangeToken(ctx, OAuthDeviceTokenRequestDTO{DeviceCode: "xxxx"}, OAuthClientCredentials{ClientID: "my-client"})
+		require.NotNil(t, oerr)
+		assert.Equal(t, "server_error", oerr.Code)
+	})
+
+	t.Run("repo lookup error", func(t *testing.T) {
+		db, mock := newMockDB(t)
+		expectDeviceClientLookup(mock)
+
+		svc := newOAuthDeviceSvc(db,
+			&mockOAuthDeviceCodeRepo{
+				findByDeviceCodeHashFn: func(_ string) (*OAuthDeviceCode, error) {
+					return nil, errors.New("db error")
+				},
+			},
+			&mockUserRepo{}, &mockAuthEventService{})
+
+		_, oerr := svc.ExchangeToken(ctx, OAuthDeviceTokenRequestDTO{DeviceCode: "xxxx"}, OAuthClientCredentials{ClientID: "my-client"})
+		require.NotNil(t, oerr)
+		assert.Equal(t, "server_error", oerr.Code)
 	})
 
 	t.Run("expired", func(t *testing.T) {
@@ -442,6 +620,23 @@ func TestOAuthDeviceService_DenyUserCode(t *testing.T) {
 		oerr := svc.DenyUserCode(ctx, OAuthDeviceVerifyRequestDTO{UserCode: "ABCD-EFGH"}, 1)
 		require.NotNil(t, oerr)
 		assert.Equal(t, "invalid_grant", oerr.Code)
+	})
+
+	t.Run("repo error", func(t *testing.T) {
+		db, _ := newMockDB(t)
+		svc := &oauthDeviceService{
+			db: db,
+			deviceCodeRepo: &mockOAuthDeviceCodeRepo{
+				findByUserCodeFn: func(_ string) (*OAuthDeviceCode, error) {
+					return nil, errors.New("db error")
+				},
+			},
+			authEventService: &mockAuthEventService{},
+		}
+
+		oerr := svc.DenyUserCode(ctx, OAuthDeviceVerifyRequestDTO{UserCode: "ABCD-EFGH"}, 1)
+		require.NotNil(t, oerr)
+		assert.Equal(t, "server_error", oerr.Code)
 	})
 
 	t.Run("success", func(t *testing.T) {
