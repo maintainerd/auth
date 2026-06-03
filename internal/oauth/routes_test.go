@@ -80,3 +80,30 @@ func TestOAuthRoutesMountEndpoints(t *testing.T) {
 	match := chi.NewRouteContext()
 	assert.True(t, internal.Match(match, http.MethodPost, "/oauth/introspect"))
 }
+
+func TestOAuthRoutesMountEndpointsWithRateLimit(t *testing.T) {
+	public := chi.NewRouter()
+	OAuthPublicRoute(
+		public,
+		NewOAuthAuthorizeHandler(&mockOAuthAuthorizeService{}),
+		NewOAuthTokenHandler(&mockOAuthTokenService{}, &dpop.NonceManager{}, nil),
+		NewOAuthTokenExchangeHandler(&mockOAuthTokenExchangeService{}),
+		NewOAuthConsentHandler(&mockOAuthConsentService{}),
+		NewOAuthUserInfoHandler(),
+		NewOAuthPARHandler(&mockOAuthPARService{}),
+		NewOAuthDeviceHandler(&mockOAuthDeviceService{}),
+		NewOAuthSessionHandler(&mockOAuthSessionService{}),
+		NewOAuthCIBAHandler(&mockOAuthCIBAService{}),
+		NewOAuthRegisterHandler(&mockOAuthRegisterService{}),
+		nil,
+		nil,
+		func(next http.Handler) http.Handler {
+			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				next.ServeHTTP(w, r)
+			})
+		},
+	)
+
+	match := chi.NewRouteContext()
+	assert.True(t, public.Match(match, http.MethodPost, "/oauth/token"))
+}

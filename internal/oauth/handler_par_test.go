@@ -27,6 +27,14 @@ func (m *mockOAuthPARService) ConsumeRequestURI(ctx context.Context, requestURI 
 }
 
 func TestOAuthPARHandler_Push(t *testing.T) {
+	t.Run("body parse error returns 400", func(t *testing.T) {
+		r := httptest.NewRequest(http.MethodPost, "/oauth/par", errReader{})
+		r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		w := httptest.NewRecorder()
+		NewOAuthPARHandler(&mockOAuthPARService{}).Push(w, r)
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+	})
+
 	t.Run("validation error returns 400", func(t *testing.T) {
 		r := formPost(t, "/oauth/par", url.Values{})
 		w := httptest.NewRecorder()
@@ -50,5 +58,23 @@ func TestOAuthPARHandler_Push(t *testing.T) {
 		w := httptest.NewRecorder()
 		NewOAuthPARHandler(svc).Push(w, r)
 		assert.Equal(t, http.StatusOK, w.Code)
+	})
+
+	t.Run("service error returns oauth error", func(t *testing.T) {
+		svc := &mockOAuthPARService{
+			pushFn: func(context.Context, OAuthPARRequestDTO, OAuthClientCredentials) (*OAuthPARResponseDTO, *apperror.OAuthError) {
+				return nil, apperror.NewOAuthInvalidClient("bad client")
+			},
+		}
+		r := formPost(t, "/oauth/par", url.Values{
+			"response_type":         {"code"},
+			"client_id":             {"app"},
+			"redirect_uri":          {"https://example.com/cb"},
+			"code_challenge":        {strings.Repeat("x", 43)},
+			"code_challenge_method": {"S256"},
+		})
+		w := httptest.NewRecorder()
+		NewOAuthPARHandler(svc).Push(w, r)
+		assert.Equal(t, http.StatusUnauthorized, w.Code)
 	})
 }

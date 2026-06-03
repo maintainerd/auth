@@ -164,21 +164,33 @@ func TestOAuthCIBAService_Initiate(t *testing.T) {
 		assert.Equal(t, "unauthorized_client", oerr.Code)
 	})
 
-	t.Run("user not found", func(t *testing.T) {
+	t.Run("empty login_hint", func(t *testing.T) {
+		db, mock := newMockDB(t)
+		expectCIBAClientLookup(mock)
+
+		svc := newOAuthCIBASvc(db, &mockOAuthCIBARepo{}, &mockUserRepo{}, &mockAuthEventService{})
+
+		_, oerr := svc.Initiate(ctx, OAuthCIBARequestDTO{}, OAuthClientCredentials{ClientID: "my-client"})
+		require.NotNil(t, oerr)
+		assert.Equal(t, "invalid_request", oerr.Code)
+		assert.Contains(t, oerr.Description, "login_hint")
+	})
+
+	t.Run("user repo error on login_hint lookup", func(t *testing.T) {
 		db, mock := newMockDB(t)
 		expectCIBAClientLookup(mock)
 
 		svc := newOAuthCIBASvc(db, &mockOAuthCIBARepo{},
 			&mockUserRepo{
 				findByEmailFn: func(_ string) (*User, error) {
-					return nil, nil
+					return nil, errors.New("db error")
 				},
 			},
 			&mockAuthEventService{})
 
 		_, oerr := svc.Initiate(ctx, OAuthCIBARequestDTO{LoginHint: "a@b.com"}, OAuthClientCredentials{ClientID: "my-client"})
 		require.NotNil(t, oerr)
-		assert.Equal(t, "invalid_request", oerr.Code)
+		assert.Equal(t, "server_error", oerr.Code)
 	})
 
 	t.Run("repo create error", func(t *testing.T) {
@@ -244,6 +256,172 @@ func TestOAuthCIBAService_ExchangeToken(t *testing.T) {
 		_, oerr := svc.ExchangeToken(ctx, OAuthCIBATokenRequestDTO{AuthReqID: "xxxx"}, OAuthClientCredentials{ClientID: "my-client"})
 		require.NotNil(t, oerr)
 		assert.Equal(t, "invalid_grant", oerr.Code)
+	})
+
+	t.Run("repo error", func(t *testing.T) {
+		db, mock := newMockDB(t)
+		expectCIBAClientLookup(mock)
+
+		svc := newOAuthCIBASvc(db,
+			&mockOAuthCIBARepo{
+				findCIBAReqByHashFn: func(_ string) (*OAuthCIBARequest, error) {
+					return nil, errors.New("db error")
+				},
+			},
+			&mockUserRepo{}, &mockAuthEventService{})
+
+		_, oerr := svc.ExchangeToken(ctx, OAuthCIBATokenRequestDTO{AuthReqID: "xxxx"}, OAuthClientCredentials{ClientID: "my-client"})
+		require.NotNil(t, oerr)
+		assert.Equal(t, "server_error", oerr.Code)
+	})
+
+	t.Run("client mismatch", func(t *testing.T) {
+		db, mock := newMockDB(t)
+		expectCIBAClientLookup(mock)
+
+		svc := newOAuthCIBASvc(db,
+			&mockOAuthCIBARepo{
+				findCIBAReqByHashFn: func(_ string) (*OAuthCIBARequest, error) {
+					return &OAuthCIBARequest{
+						OAuthCIBARRequestID: 1,
+						ClientID:            999,
+						Status:              CIBAStatusPending,
+						Interval:            5,
+						ExpiresAt:           time.Now().Add(5 * time.Minute),
+					}, nil
+				},
+			},
+			&mockUserRepo{}, &mockAuthEventService{})
+
+		_, oerr := svc.ExchangeToken(ctx, OAuthCIBATokenRequestDTO{AuthReqID: "xxxx"}, OAuthClientCredentials{ClientID: "my-client"})
+		require.NotNil(t, oerr)
+		assert.Equal(t, "invalid_grant", oerr.Code)
+		assert.Contains(t, oerr.Description, "does not belong")
+	})
+
+	t.Run("slow_down", func(t *testing.T) {
+		db, mock := newMockDB(t)
+		expectCIBAClientLookup(mock)
+		lastPoll := time.Now().Add(-1 * time.Second)
+
+		svc := newOAuthCIBASvc(db,
+			&mockOAuthCIBARepo{
+				findCIBAReqByHashFn: func(_ string) (*OAuthCIBARequest, error) {
+					return &OAuthCIBARequest{
+						OAuthCIBARRequestID: 1,
+						ClientID:            10,
+						Status:              CIBAStatusPending,
+						Interval:            5,
+						LastPollAt:          &lastPoll,
+						ExpiresAt:           time.Now().Add(5 * time.Minute),
+					}, nil
+				},
+			},
+			&mockUserRepo{}, &mockAuthEventService{})
+
+		_, oerr := svc.ExchangeToken(ctx, OAuthCIBATokenRequestDTO{AuthReqID: "xxxx"}, OAuthClientCredentials{ClientID: "my-client"})
+		require.NotNil(t, oerr)
+		assert.Equal(t, "slow_down", oerr.Code)
+	})
+
+	t.Run("denied", func(t *testing.T) {
+		db, mock := newMockDB(t)
+		expectCIBAClientLookup(mock)
+
+		svc := newOAuthCIBASvc(db,
+			&mockOAuthCIBARepo{
+				findCIBAReqByHashFn: func(_ string) (*OAuthCIBARequest, error) {
+					return &OAuthCIBARequest{
+						OAuthCIBARRequestID: 1,
+						ClientID:            10,
+						Status:              CIBAStatusDenied,
+						Interval:            5,
+						ExpiresAt:           time.Now().Add(5 * time.Minute),
+					}, nil
+				},
+			},
+			&mockUserRepo{}, &mockAuthEventService{})
+
+		_, oerr := svc.ExchangeToken(ctx, OAuthCIBATokenRequestDTO{AuthReqID: "xxxx"}, OAuthClientCredentials{ClientID: "my-client"})
+		require.NotNil(t, oerr)
+		assert.Equal(t, "access_denied", oerr.Code)
+	})
+
+	t.Run("expired status", func(t *testing.T) {
+		db, mock := newMockDB(t)
+		expectCIBAClientLookup(mock)
+
+		svc := newOAuthCIBASvc(db,
+			&mockOAuthCIBARepo{
+				findCIBAReqByHashFn: func(_ string) (*OAuthCIBARequest, error) {
+					return &OAuthCIBARequest{
+						ClientID:  10,
+						Status:    CIBAStatusExpired,
+						ExpiresAt: time.Now().Add(-1 * time.Minute),
+					}, nil
+				},
+			},
+			&mockUserRepo{}, &mockAuthEventService{})
+
+		_, oerr := svc.ExchangeToken(ctx, OAuthCIBATokenRequestDTO{AuthReqID: "xxxx"}, OAuthClientCredentials{ClientID: "my-client"})
+		require.NotNil(t, oerr)
+		assert.Equal(t, "expired_token", oerr.Code)
+	})
+
+	t.Run("approved with nil userID", func(t *testing.T) {
+		db, mock := newMockDB(t)
+		expectCIBAClientLookup(mock)
+
+		svc := newOAuthCIBASvc(db,
+			&mockOAuthCIBARepo{
+				findCIBAReqByHashFn: func(_ string) (*OAuthCIBARequest, error) {
+					return &OAuthCIBARequest{
+						OAuthCIBARRequestID: 1,
+						ClientID:            10,
+						UserID:              nil,
+						Status:              CIBAStatusApproved,
+						Interval:            5,
+						ExpiresAt:           time.Now().Add(5 * time.Minute),
+					}, nil
+				},
+			},
+			&mockUserRepo{}, &mockAuthEventService{})
+
+		_, oerr := svc.ExchangeToken(ctx, OAuthCIBATokenRequestDTO{AuthReqID: "xxxx"}, OAuthClientCredentials{ClientID: "my-client"})
+		require.NotNil(t, oerr)
+		assert.Equal(t, "server_error", oerr.Code)
+	})
+
+	t.Run("user not found after approval", func(t *testing.T) {
+		db, mock := newMockDB(t)
+		expectCIBAClientLookup(mock)
+		userID := int64(1)
+
+		svc := newOAuthCIBASvc(db,
+			&mockOAuthCIBARepo{
+				findCIBAReqByHashFn: func(_ string) (*OAuthCIBARequest, error) {
+					return &OAuthCIBARequest{
+						OAuthCIBARRequestID: 1,
+						ClientID:            10,
+						TenantID:            1,
+						UserID:              &userID,
+						Scope:               "openid",
+						Status:              CIBAStatusApproved,
+						Interval:            5,
+						ExpiresAt:           time.Now().Add(5 * time.Minute),
+					}, nil
+				},
+			},
+			&mockUserRepo{
+				findByIDFn: func(_ any, _ ...string) (*User, error) {
+					return nil, nil
+				},
+			},
+			&mockAuthEventService{})
+
+		_, oerr := svc.ExchangeToken(ctx, OAuthCIBATokenRequestDTO{AuthReqID: "xxxx"}, OAuthClientCredentials{ClientID: "my-client"})
+		require.NotNil(t, oerr)
+		assert.Equal(t, "server_error", oerr.Code)
 	})
 
 	t.Run("expired", func(t *testing.T) {
@@ -380,6 +558,23 @@ func TestOAuthCIBAService_ApproveRequest(t *testing.T) {
 		assert.Contains(t, oerr.Description, "not found")
 	})
 
+	t.Run("repo error", func(t *testing.T) {
+		db, _ := newMockDB(t)
+		svc := &oauthCIBAService{
+			db: db,
+			cibaRepo: &mockOAuthCIBARepo{
+				findCIBAReqByHashFn: func(_ string) (*OAuthCIBARequest, error) {
+					return nil, errors.New("db error")
+				},
+			},
+			authEventService: &mockAuthEventService{},
+		}
+
+		oerr := svc.ApproveRequest(ctx, "xxxx", 1)
+		require.NotNil(t, oerr)
+		assert.Equal(t, "server_error", oerr.Code)
+	})
+
 	t.Run("already processed (expired)", func(t *testing.T) {
 		db, _ := newMockDB(t)
 		svc := &oauthCIBAService{
@@ -451,6 +646,47 @@ func TestOAuthCIBAService_DenyRequest(t *testing.T) {
 		require.NotNil(t, oerr)
 		assert.Equal(t, "invalid_grant", oerr.Code)
 		assert.Contains(t, oerr.Description, "not found")
+	})
+
+	t.Run("repo error", func(t *testing.T) {
+		db, _ := newMockDB(t)
+		svc := &oauthCIBAService{
+			db: db,
+			cibaRepo: &mockOAuthCIBARepo{
+				findCIBAReqByHashFn: func(_ string) (*OAuthCIBARequest, error) {
+					return nil, errors.New("db error")
+				},
+			},
+			authEventService: &mockAuthEventService{},
+		}
+
+		oerr := svc.DenyRequest(ctx, "xxxx", 1)
+		require.NotNil(t, oerr)
+		assert.Equal(t, "server_error", oerr.Code)
+	})
+
+	t.Run("update status error", func(t *testing.T) {
+		db, _ := newMockDB(t)
+		svc := &oauthCIBAService{
+			db: db,
+			cibaRepo: &mockOAuthCIBARepo{
+				findCIBAReqByHashFn: func(_ string) (*OAuthCIBARequest, error) {
+					return &OAuthCIBARequest{
+						OAuthCIBARRequestID: 1,
+						Status:              CIBAStatusPending,
+						ExpiresAt:           time.Now().Add(5 * time.Minute),
+					}, nil
+				},
+				updateStatusFn: func(_ int64, _ string) error {
+					return errors.New("db error")
+				},
+			},
+			authEventService: &mockAuthEventService{},
+		}
+
+		oerr := svc.DenyRequest(ctx, "xxxx", 1)
+		require.NotNil(t, oerr)
+		assert.Equal(t, "server_error", oerr.Code)
 	})
 
 	t.Run("success", func(t *testing.T) {
