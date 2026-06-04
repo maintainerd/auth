@@ -37,6 +37,7 @@ type Client struct {
 	ClientID                int64          `gorm:"column:client_id;primaryKey"`
 	ClientUUID              uuid.UUID      `gorm:"column:client_uuid"`
 	TenantID                int64          `gorm:"column:tenant_id;not null"`
+	ServiceID               *int64         `gorm:"column:service_id"`
 	IdentityProviderID      int64          `gorm:"column:identity_provider_id"`
 	Name                    string         `gorm:"column:name"`
 	DisplayName             string         `gorm:"column:display_name"`

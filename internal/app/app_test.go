@@ -2,6 +2,7 @@ package app
 
 import (
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/maintainerd/auth/internal/platform/config"
@@ -29,5 +30,24 @@ func TestNewAppWiresAllExportedServices(t *testing.T) {
 		if value.Field(i).IsNil() {
 			t.Fatalf("%s was not wired", field.Name)
 		}
+	}
+}
+
+func TestNewApp_ServiceInitError(t *testing.T) {
+	origPublicHostname := config.AppPublicHostname
+	config.AppPublicHostname = "not a url with spaces"
+	t.Cleanup(func() {
+		config.AppPublicHostname = origPublicHostname
+	})
+
+	application, err := NewApp(nil, nil)
+	if err == nil {
+		t.Fatal("NewApp error = nil")
+	}
+	if application != nil {
+		t.Fatalf("NewApp application = %#v", application)
+	}
+	if !strings.Contains(err.Error(), "service init failed") {
+		t.Fatalf("NewApp error = %v", err)
 	}
 }

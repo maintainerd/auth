@@ -989,4 +989,23 @@ func (m *mockServiceService) RemovePolicy(_ context.Context, serviceUUID uuid.UU
 	return nil
 }
 
+type mockAuthorizationService struct {
+	policyBundleFn func(ServiceIdentity) (*PolicyBundle, string, error)
+	authorizeFn    func(AuthzRequest) Decision
+}
+
+func (m *mockAuthorizationService) PolicyBundle(_ context.Context, identity ServiceIdentity) (*PolicyBundle, string, error) {
+	if m.policyBundleFn != nil {
+		return m.policyBundleFn(identity)
+	}
+	return &PolicyBundle{Service: identity.ServiceName, Version: "v1"}, `"v1"`, nil
+}
+
+func (m *mockAuthorizationService) Authorize(_ context.Context, req AuthzRequest) Decision {
+	if m.authorizeFn != nil {
+		return m.authorizeFn(req)
+	}
+	return Decision{Allowed: true, Reason: "matched allow"}
+}
+
 var _ = datatypes.JSON{}

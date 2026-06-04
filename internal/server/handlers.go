@@ -52,6 +52,7 @@ type handlers struct {
 	smsConfig          *notifier.SMSConfigHandler
 	webhookEndpoint    *webhook.WebhookEndpointHandler
 	authEvent          *authevent.AuthEventHandler
+	authorization      *iam.AuthorizationHandler
 	oauthAuthorize     *oauth.OAuthAuthorizeHandler
 	oauthToken         *oauth.OAuthTokenHandler
 	oauthTokenExchange *oauth.OAuthTokenExchangeHandler
@@ -103,6 +104,7 @@ func initHandlers(application *Application) *handlers {
 		smsConfig:          notifier.NewSMSConfigHandler(application.SMSConfigService),
 		webhookEndpoint:    webhook.NewWebhookEndpointHandler(application.WebhookEndpointService),
 		authEvent:          authevent.NewAuthEventHandler(application.AuthEventService),
+		authorization:      iam.NewAuthorizationHandler(application.AuthorizationService),
 		oauthAuthorize:     oauth.NewOAuthAuthorizeHandler(application.OAuthAuthorizeService),
 		oauthToken:         oauth.NewOAuthTokenHandler(application.OAuthTokenService, nil, nil),
 		oauthTokenExchange: oauth.NewOAuthTokenExchangeHandler(application.OAuthTokenExchangeService),

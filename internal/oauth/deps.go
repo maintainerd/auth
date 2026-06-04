@@ -57,6 +57,7 @@ type Client struct {
 	ClientID                int64             `gorm:"column:client_id;primaryKey"`
 	ClientUUID              uuid.UUID         `gorm:"column:client_uuid"`
 	TenantID                int64             `gorm:"column:tenant_id"`
+	ServiceID               *int64            `gorm:"column:service_id"`
 	IdentityProviderID      int64             `gorm:"column:identity_provider_id"`
 	Name                    string            `gorm:"column:name"`
 	DisplayName             string            `gorm:"column:display_name"`
@@ -80,6 +81,7 @@ type Client struct {
 	AllowedScopes           pq.StringArray    `gorm:"column:allowed_scopes;type:text[]"`
 	ClientURIs              *[]ClientURI      `gorm:"foreignKey:ClientID;references:ClientID"`
 	IdentityProvider        *IdentityProvider `gorm:"foreignKey:IdentityProviderID;references:IdentityProviderID"`
+	Service                 *Service          `gorm:"foreignKey:ServiceID;references:ServiceID"`
 
 	JWKS    datatypes.JSON `gorm:"column:jwks;type:jsonb"`
 	JWKSUri *string        `gorm:"column:jwks_uri"`
@@ -93,6 +95,14 @@ type Client struct {
 }
 
 func (Client) TableName() string { return "clients" }
+
+type Service struct {
+	ServiceID int64
+	Name      string
+	Status    string
+}
+
+func (Service) TableName() string { return "services" }
 
 type ClientURI struct {
 	ClientURIID   int64     `gorm:"column:client_uri_id;primaryKey"`

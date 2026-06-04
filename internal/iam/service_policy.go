@@ -5,7 +5,9 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/maintainerd/auth/internal/authevent"
 	"github.com/maintainerd/auth/internal/platform/apperror"
+	"github.com/maintainerd/auth/internal/platform/ptr"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -90,10 +92,11 @@ type PolicyService interface {
 }
 
 type policyService struct {
-	db          *gorm.DB
-	policyRepo  PolicyRepository
-	serviceRepo ServiceRepository
-	apiRepo     APIRepository
+	db               *gorm.DB
+	policyRepo       PolicyRepository
+	serviceRepo      ServiceRepository
+	apiRepo          APIRepository
+	authEventService authevent.AuthEventService
 }
 
 func NewPolicyService(
@@ -101,12 +104,18 @@ func NewPolicyService(
 	policyRepo PolicyRepository,
 	serviceRepo ServiceRepository,
 	apiRepo APIRepository,
+	authEventService ...authevent.AuthEventService,
 ) PolicyService {
+	eventSvc := authevent.NoopService()
+	if len(authEventService) > 0 && authEventService[0] != nil {
+		eventSvc = authEventService[0]
+	}
 	return &policyService{
-		db:          db,
-		policyRepo:  policyRepo,
-		serviceRepo: serviceRepo,
-		apiRepo:     apiRepo,
+		db:               db,
+		policyRepo:       policyRepo,
+		serviceRepo:      serviceRepo,
+		apiRepo:          apiRepo,
+		authEventService: eventSvc,
 	}
 }
 
@@ -351,6 +360,14 @@ func (s *policyService) Update(ctx context.Context, policyUUID uuid.UUID, tenant
 	}
 
 	span.SetStatus(codes.Ok, "")
+	s.authEventService.Log(ctx, authevent.AuthEventInput{
+		TenantID:    tenantID,
+		Category:    authevent.AuthEventCategoryAuthz,
+		EventType:   authevent.AuthEventTypeIAMPolicyUpdated,
+		Severity:    authevent.AuthEventSeverityInfo,
+		Result:      authevent.AuthEventResultSuccess,
+		Description: ptr.Ptr("IAM policy updated"),
+	})
 	return &PolicyServiceDataResult{
 		PolicyUUID:  updatedPolicy.PolicyUUID,
 		Name:        updatedPolicy.Name,

@@ -201,8 +201,10 @@ func GetAllPublicKeys() []PublicKeyEntry {
 // RotateKeys generates a fresh RSA-2048 key pair, promotes the current active
 // key to the retiring list, and prunes any retiring keys older than
 // RefreshTokenTTL (tokens signed with them cannot be valid any more).
+var generateRSAKey = rsa.GenerateKey
+
 func RotateKeys() error {
-	newKey, err := rsa.GenerateKey(rand.Reader, MinKeySize)
+	newKey, err := generateRSAKey(rand.Reader, MinKeySize)
 	if err != nil {
 		return fmt.Errorf("jwt: generate rotation key: %w", err)
 	}
@@ -299,6 +301,12 @@ type AccessTokenOptions struct {
 
 	// SessionID is the opaque session identifier associated with this token.
 	SessionID string
+
+	// Service identifies a service principal for client_credentials tokens.
+	Service string
+
+	// SubjectType classifies the token subject, for example "user" or "service".
+	SubjectType string
 }
 
 // GenerateAccessToken is the standard (Bearer) entry point for access token
@@ -427,6 +435,12 @@ func GenerateAccessTokenWithOptionsContext(
 	}
 	if opts != nil && opts.SessionID != "" {
 		claims["sid"] = opts.SessionID
+	}
+	if opts != nil && opts.Service != "" {
+		claims["svc"] = opts.Service
+	}
+	if opts != nil && opts.SubjectType != "" {
+		claims["sub_type"] = opts.SubjectType
 	}
 
 	tok, err := generateToken(claims)

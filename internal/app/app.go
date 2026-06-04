@@ -61,6 +61,7 @@ type App struct {
 	SMSConfigService          notifier.SMSConfigService
 	WebhookEndpointService    webhook.WebhookEndpointService
 	AuthEventService          authevent.AuthEventService
+	AuthorizationService      iam.ServiceAuthorizationService
 	OAuthAuthorizeService     oauth.OAuthAuthorizeService
 	OAuthTokenService         oauth.OAuthTokenService
 	OAuthConsentService       oauth.OAuthConsentService
@@ -129,6 +130,7 @@ func NewApp(db *gorm.DB, redisClient *redis.Client) (*App, error) {
 		SMSConfigService:          s.smsConfigService,
 		WebhookEndpointService:    s.webhookEndpointService,
 		AuthEventService:          s.authEventService,
+		AuthorizationService:      s.authorizationService,
 		OAuthAuthorizeService:     s.oauthAuthorizeService,
 		OAuthTokenService:         s.oauthTokenService,
 		OAuthConsentService:       s.oauthConsentService,

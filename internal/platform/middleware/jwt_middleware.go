@@ -30,17 +30,19 @@ func SetAPIKeyAuthenticator(authenticator APIKeyAuthenticator) {
 // It is stored once by JWTAuthMiddleware and retrieved by downstream
 // middleware and handlers via JWTClaimsFromRequest.
 type JWTClaims struct {
-	Sub        string
-	UserUUID   uuid.UUID
-	Scope      string
-	Audience   string
-	Issuer     string
-	JTI        string
-	ClientID   string
-	ProviderID string
-	SessionID  string
-	AMR        []string
-	ACR        string
+	Sub         string
+	UserUUID    uuid.UUID
+	Service     string
+	SubjectType string
+	Scope       string
+	Audience    string
+	Issuer      string
+	JTI         string
+	ClientID    string
+	ProviderID  string
+	SessionID   string
+	AMR         []string
+	ACR         string
 }
 
 // JWTClaimsFromRequest returns the JWTClaims stored in the request context
@@ -136,21 +138,25 @@ func JWTAuthMiddleware(next http.Handler) http.Handler {
 		clientID, _ := rawClaims["client_id"].(string)
 		providerID, _ := rawClaims["provider_id"].(string)
 		sessionID, _ := rawClaims["sid"].(string)
+		service, _ := rawClaims["svc"].(string)
+		subjectType, _ := rawClaims["sub_type"].(string)
 		acr, _ := rawClaims["acr"].(string)
 		amr := stringSliceClaim(rawClaims["amr"])
 
 		claims := &JWTClaims{
-			Sub:        sub,
-			UserUUID:   userUUID,
-			Scope:      scope,
-			Audience:   aud,
-			Issuer:     iss,
-			JTI:        jti,
-			ClientID:   clientID,
-			ProviderID: providerID,
-			SessionID:  sessionID,
-			AMR:        amr,
-			ACR:        acr,
+			Sub:         sub,
+			UserUUID:    userUUID,
+			Service:     service,
+			SubjectType: subjectType,
+			Scope:       scope,
+			Audience:    aud,
+			Issuer:      iss,
+			JTI:         jti,
+			ClientID:    clientID,
+			ProviderID:  providerID,
+			SessionID:   sessionID,
+			AMR:         amr,
+			ACR:         acr,
 		}
 
 		next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), jwtKey{}, claims)))

@@ -92,7 +92,7 @@ func TestIAMRoutesRegister(t *testing.T) {
 		{
 			name: "services",
 			register: func(r chi.Router) {
-				ServiceRoute(r, NewServiceHandler(&mockServiceService{}), nil, nil)
+				ServiceRoute(r, NewServiceHandler(&mockServiceService{}), NewAuthorizationHandler(&mockAuthorizationService{}), nil, nil)
 			},
 			routes: []struct {
 				method string
@@ -106,6 +106,18 @@ func TestIAMRoutesRegister(t *testing.T) {
 				{http.MethodDelete, "/services/{service_uuid}"},
 				{http.MethodPost, "/services/{service_uuid}/policies/{policy_uuid}"},
 				{http.MethodDelete, "/services/{service_uuid}/policies/{policy_uuid}"},
+			},
+		},
+		{
+			name: "authorize",
+			register: func(r chi.Router) {
+				AuthorizationRoute(r, NewAuthorizationHandler(&mockAuthorizationService{}))
+			},
+			routes: []struct {
+				method string
+				path   string
+			}{
+				{http.MethodPost, "/authorize/"},
 			},
 		},
 	}

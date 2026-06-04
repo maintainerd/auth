@@ -46,6 +46,7 @@ func (a *App) ServerApplication() *server.Application {
 		SMSConfigService:          a.SMSConfigService,
 		WebhookEndpointService:    a.WebhookEndpointService,
 		AuthEventService:          a.AuthEventService,
+		AuthorizationService:      a.AuthorizationService,
 		OAuthAuthorizeService:     a.OAuthAuthorizeService,
 		OAuthTokenService:         a.OAuthTokenService,
 		OAuthConsentService:       a.OAuthConsentService,

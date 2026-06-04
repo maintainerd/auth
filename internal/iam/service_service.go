@@ -5,7 +5,9 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/maintainerd/auth/internal/authevent"
 	"github.com/maintainerd/auth/internal/platform/apperror"
+	"github.com/maintainerd/auth/internal/platform/ptr"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -66,6 +68,7 @@ type serviceService struct {
 	apiRepo           APIRepository
 	servicePolicyRepo ServicePolicyRepository
 	policyRepo        PolicyRepository
+	authEventService  authevent.AuthEventService
 }
 
 func NewServiceService(
@@ -75,7 +78,12 @@ func NewServiceService(
 	apiRepo APIRepository,
 	servicePolicyRepo ServicePolicyRepository,
 	policyRepo PolicyRepository,
+	authEventService ...authevent.AuthEventService,
 ) ServiceService {
+	eventSvc := authevent.NoopService()
+	if len(authEventService) > 0 && authEventService[0] != nil {
+		eventSvc = authEventService[0]
+	}
 	return &serviceService{
 		db:                db,
 		serviceRepo:       serviceRepo,
@@ -83,6 +91,7 @@ func NewServiceService(
 		apiRepo:           apiRepo,
 		servicePolicyRepo: servicePolicyRepo,
 		policyRepo:        policyRepo,
+		authEventService:  eventSvc,
 	}
 }
 
@@ -439,6 +448,14 @@ func (s *serviceService) AssignPolicy(ctx context.Context, serviceUUID uuid.UUID
 		return err
 	}
 	span.SetStatus(codes.Ok, "")
+	s.authEventService.Log(ctx, authevent.AuthEventInput{
+		TenantID:    tenantID,
+		Category:    authevent.AuthEventCategoryAuthz,
+		EventType:   authevent.AuthEventTypeIAMServicePolicyAssigned,
+		Severity:    authevent.AuthEventSeverityInfo,
+		Result:      authevent.AuthEventResultSuccess,
+		Description: ptr.Ptr("Service policy assigned"),
+	})
 	return nil
 }
 
@@ -489,5 +506,13 @@ func (s *serviceService) RemovePolicy(ctx context.Context, serviceUUID uuid.UUID
 		return err
 	}
 	span.SetStatus(codes.Ok, "")
+	s.authEventService.Log(ctx, authevent.AuthEventInput{
+		TenantID:    tenantID,
+		Category:    authevent.AuthEventCategoryAuthz,
+		EventType:   authevent.AuthEventTypeIAMServicePolicyRemoved,
+		Severity:    authevent.AuthEventSeverityInfo,
+		Result:      authevent.AuthEventResultSuccess,
+		Description: ptr.Ptr("Service policy removed"),
+	})
 	return nil
 }

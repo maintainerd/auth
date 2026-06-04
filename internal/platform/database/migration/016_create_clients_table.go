@@ -11,6 +11,7 @@ CREATE TABLE IF NOT EXISTS clients (
     client_id               BIGSERIAL PRIMARY KEY,
     client_uuid             UUID NOT NULL UNIQUE,
     tenant_id               BIGINT NOT NULL,
+    service_id              BIGINT,
     identity_provider_id    BIGINT NOT NULL,
     name                    VARCHAR(100) NOT NULL,
     display_name            TEXT NOT NULL,
@@ -85,6 +86,14 @@ BEGIN
     END IF;
 
     IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint WHERE conname = 'fk_clients_service_id'
+    ) THEN
+        ALTER TABLE clients
+            ADD CONSTRAINT fk_clients_service_id FOREIGN KEY (service_id)
+            REFERENCES services(service_id) ON DELETE SET NULL;
+    END IF;
+
+    IF NOT EXISTS (
         SELECT 1 FROM pg_constraint WHERE conname = 'fk_clients_identity_provider_id'
     ) THEN
         ALTER TABLE clients
@@ -98,6 +107,7 @@ END$$;
 CREATE INDEX IF NOT EXISTS idx_clients_tenant_id_status ON clients (tenant_id, status);
 CREATE INDEX IF NOT EXISTS idx_clients_tenant_id_is_default ON clients (tenant_id, is_default) WHERE is_default = TRUE;
 CREATE INDEX IF NOT EXISTS idx_clients_tenant_id_identity_provider_id ON clients (tenant_id, identity_provider_id);
+CREATE INDEX IF NOT EXISTS idx_clients_service_id ON clients (service_id) WHERE service_id IS NOT NULL;
 CREATE UNIQUE INDEX IF NOT EXISTS uq_clients_tenant_name ON clients (tenant_id, name) WHERE deleted_at IS NULL;
 
 -- Single column indexes
