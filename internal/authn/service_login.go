@@ -672,7 +672,7 @@ func verifyLoginPassword(user *User, password string, lookupOK bool) bool {
 	if lookupOK && user != nil && user.Password != nil {
 		return security.ComparePassword([]byte(*user.Password), []byte(password))
 	}
-	bcrypt.CompareHashAndPassword(security.GetDummyBcryptHash(), []byte(password)) //nolint:errcheck
+	bcrypt.CompareHashAndPassword(security.GetDummyBcryptHash(), []byte(password)) // #nosec G104 -- intentional dummy hash comparison
 	return false
 }
 

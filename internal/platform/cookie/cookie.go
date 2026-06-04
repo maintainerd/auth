@@ -44,7 +44,7 @@ func sameSiteForCookie(secure bool) http.SameSite {
 
 func setAuthCookie(w http.ResponseWriter, name, value, path string, maxAge int) {
 	secure := secureForCookieName(name)
-	http.SetCookie(w, &http.Cookie{
+	http.SetCookie(w, &http.Cookie{ // #nosec G124 -- cookie attributes set per-name via helpers
 		Name:     name,
 		Value:    value,
 		Path:     path,
