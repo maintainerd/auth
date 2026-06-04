@@ -57,7 +57,7 @@ func buildInternalRouter(h *handlers, application *Application) http.Handler {
 
 		// Management Routes (internal access only)
 		tenant.TenantRoute(api, h.tenant, userProvider, application.Cache)
-		iam.ServiceRoute(api, h.service, userProvider, application.Cache)
+		iam.ServiceRoute(api, h.service, h.authorization, userProvider, application.Cache)
 		iam.APIRoute(api, h.api, userProvider, application.Cache)
 		iam.PermissionRoute(api, h.permission, userProvider, application.Cache)
 		iam.PolicyRoute(api, h.policy, userProvider, application.Cache)
@@ -80,6 +80,7 @@ func buildInternalRouter(h *handlers, application *Application) http.Handler {
 		webhook.WebhookEndpointRoute(api, h.webhookEndpoint, userProvider, application.Cache)
 		authevent.AuthEventRoute(api, h.authEvent, userProvider, application.Cache)
 		oauth.OAuthInternalRoute(api, h.oauthToken, userProvider, application.Cache)
+		iam.AuthorizationRoute(api, h.authorization)
 
 		// Account self-service routes (authenticated)
 		user.AccountRoute(api, h.account, userProvider, application.Cache)

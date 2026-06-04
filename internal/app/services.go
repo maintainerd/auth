@@ -56,6 +56,7 @@ type svcs struct {
 	smsConfigService          notifier.SMSConfigService
 	webhookEndpointService    webhook.WebhookEndpointService
 	authEventService          authevent.AuthEventService
+	authorizationService      iam.ServiceAuthorizationService
 	oauthAuthorizeService     oauth.OAuthAuthorizeService
 	oauthTokenService         oauth.OAuthTokenService
 	oauthConsentService       oauth.OAuthConsentService
@@ -116,7 +117,7 @@ func initServices(db *gorm.DB, r *repos, appCache *cache.Cache) (*svcs, error) {
 	}
 
 	s := &svcs{
-		serviceService:            iam.NewServiceService(db, r.serviceRepo, iamTenantServiceRepo, r.apiRepo, r.servicePolicyRepo, r.policyRepo),
+		serviceService:            iam.NewServiceService(db, r.serviceRepo, iamTenantServiceRepo, r.apiRepo, r.servicePolicyRepo, r.policyRepo, authEventSvc),
 		apiService:                iam.NewAPIService(db, r.apiRepo, r.serviceRepo, iamTenantServiceRepo),
 		permissionService:         iam.NewPermissionService(db, r.permissionRepo, r.apiRepo, r.roleRepo, iamClientRepo, appCache, authzInvalidator),
 		tenantService:             tenant.NewTenantService(r.tenantRepo, tenantUOW),
@@ -137,7 +138,7 @@ func initServices(db *gorm.DB, r *repos, appCache *cache.Cache) (*svcs, error) {
 		magicLinkService:          authn.NewMagicLinkService(db, newAuthnUserRepoAdapter(r.userRepo), newAuthnUserTokenRepoAdapter(r.userTokenRepo), newAuthnClientRepoAdapter(r.clientRepo), newAuthnUserIdentityRepoAdapter(r.userIdentityRepo), newAuthnIDPRepoAdapter(r.idpRepo), r.emailTemplateRepo),
 		setupService:              setup.NewSetupService(db, r.userRepo, r.tenantRepo, r.tenantMemberRepo, r.clientRepo, r.roleRepo, r.userRoleRepo, r.userIdentityRepo, r.profileRepo),
 		signupFlowService:         idp.NewSignupFlowService(db, r.signupFlowRepo, r.signupFlowRoleRepo, idpRoleRepo, idpClientRepo),
-		policyService:             iam.NewPolicyService(db, r.policyRepo, r.serviceRepo, r.apiRepo),
+		policyService:             iam.NewPolicyService(db, r.policyRepo, r.serviceRepo, r.apiRepo, authEventSvc),
 		apiKeyService:             client.NewAPIKeyService(db, r.apiKeyRepo, r.apiKeyAPIRepo, r.apiKeyPermissionRepo, clientAPIRepo, clientUserRepo, clientPermissionRepo),
 		securitySettingService:    secpolicy.NewSecuritySettingService(db, r.securitySettingRepo, r.securitySettingsAuditRepo),
 		ipRestrictionRuleService:  secpolicy.NewIPRestrictionRuleService(db, r.ipRestrictionRuleRepo),
@@ -150,6 +151,7 @@ func initServices(db *gorm.DB, r *repos, appCache *cache.Cache) (*svcs, error) {
 		smsConfigService:          notifier.NewSMSConfigService(r.smsConfigRepo),
 		webhookEndpointService:    webhook.NewWebhookEndpointService(r.webhookEndpointRepo),
 		authEventService:          authEventSvc,
+		authorizationService:      iam.NewServiceAuthorizationService(r.serviceRepo, r.servicePolicyRepo),
 		oauthAuthorizeService:     oauth.NewOAuthAuthorizeService(db, oauthClientRepo, oauthClientURIRepo, r.oauthAuthCodeRepo, r.oauthConsentGrantRepo, r.oauthConsentChallengeRepo, authEventSvc),
 		oauthTokenService:         oauth.NewOAuthTokenService(db, oauthClientRepo, r.oauthAuthCodeRepo, r.oauthRefreshTokenRepo, oauthUserRepo, oauthUserIdentityRepo, authEventSvc, appCache),
 		oauthConsentService:       oauth.NewOAuthConsentService(r.oauthConsentGrantRepo, authEventSvc),

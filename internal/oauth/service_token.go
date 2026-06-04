@@ -419,6 +419,7 @@ func (s *oauthTokenService) exchangeClientCredentials(ctx context.Context, _ OAu
 	audience := ""
 	identifier := ""
 	providerID := ""
+	subjectType := "client"
 	if client.Domain != nil {
 		issuer = *client.Domain
 	}
@@ -429,16 +430,26 @@ func (s *oauthTokenService) exchangeClientCredentials(ctx context.Context, _ OAu
 	if client.IdentityProvider != nil {
 		providerID = client.IdentityProvider.Identifier
 	}
+	subject := identifier
+	serviceName := ""
+	if client.Service != nil && client.Service.Name != "" {
+		subject = client.Service.Name
+		serviceName = client.Service.Name
+		subjectType = "service"
+	}
+	opts := clientAccessTokenOpts(client)
+	opts.Service = serviceName
+	opts.SubjectType = subjectType
 
 	accessToken, err := oauthTokenGenerateAccessTokenWithOptionsContext(
 		ctx,
-		identifier,
+		subject,
 		"", // no user scope for m2m
 		issuer,
 		audience,
 		identifier,
 		providerID,
-		clientAccessTokenOpts(client),
+		opts,
 	)
 	if err != nil {
 		span.RecordError(err)
@@ -782,6 +793,7 @@ func findActiveClientByIdentifier(db *gorm.DB, identifier string) (*Client, erro
 	err := db.
 		Preload("IdentityProvider").
 		Preload("IdentityProvider.Tenant").
+		Preload("Service").
 		Where("identifier = ? AND status = ?", identifier, shared.StatusActive).
 		First(&client).Error
 	if err != nil {

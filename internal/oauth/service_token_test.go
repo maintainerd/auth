@@ -1381,6 +1381,42 @@ func TestOAuthTokenService_Exchange_ClientCredentials(t *testing.T) {
 		assert.Empty(t, result.IDToken)
 	})
 
+	t.Run("success with linked service principal", func(t *testing.T) {
+		initTestJWTKeysService(t)
+		db, mock := newMockDB(t)
+		rows := sqlmock.NewRows([]string{
+			"client_id", "client_uuid", "tenant_id", "service_id", "identity_provider_id", "name", "display_name",
+			"client_type", "domain", "identifier", "secret", "status",
+			"is_default", "is_system", "token_endpoint_auth_method",
+			"grant_types", "response_types", "access_token_ttl", "refresh_token_ttl",
+			"require_consent", "created_at", "updated_at",
+		}).AddRow(
+			10, uuid.New(), 1, int64(42), int64(100), "m2m-client", "M2M Client",
+			"m2m", "https://auth.example.com", "m2m-client", nil, "active",
+			false, false, "none",
+			`{client_credentials}`, `{}`, nil, nil,
+			false, time.Now(), time.Now(),
+		)
+		mock.ExpectQuery(regexp.QuoteMeta(`SELECT`)).WillReturnRows(rows)
+		mock.ExpectQuery(regexp.QuoteMeta(`SELECT`)).WillReturnRows(mockIDPRows())
+		mock.ExpectQuery(regexp.QuoteMeta(`SELECT`)).WillReturnRows(sqlmock.NewRows(nil))
+		mock.ExpectQuery(regexp.QuoteMeta(`SELECT`)).WillReturnRows(sqlmock.NewRows([]string{"service_id", "name", "status"}).AddRow(42, "serviceA", "active"))
+
+		svc := newOAuthTokenSvc(db, &mockClientRepo{}, &mockOAuthAuthCodeRepo{}, &mockOAuthRefreshTokenRepo{}, &mockUserRepo{},
+			&mockUserIdentityRepo{findByUserIDAndClientIDFn: func(_, _ int64) (*UserIdentity, error) { return nil, nil }},
+			&mockAuthEventService{})
+
+		result, oerr := svc.Exchange(ctx, OAuthTokenRequestDTO{
+			GrantType: "client_credentials",
+		}, OAuthClientCredentials{ClientID: "m2m-client"})
+		require.Nil(t, oerr)
+		claims, err := jwt.ValidateToken(result.AccessToken)
+		require.NoError(t, err)
+		assert.Equal(t, "serviceA", claims["sub"])
+		assert.Equal(t, "serviceA", claims["svc"])
+		assert.Equal(t, "service", claims["sub_type"])
+	})
+
 	t.Run("success with custom access token ttl", func(t *testing.T) {
 		initTestJWTKeysService(t)
 		db, mock := newMockDB(t)
