@@ -1,6 +1,7 @@
 package jwt
 
 import (
+	"context"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
@@ -622,4 +623,573 @@ func TestStepUpChallengeToken_IncludesRequiredClaimsAndAllowedMethods(t *testing
 	assert.Equal(t, "https://auth.example.com", claims["aud"])
 	assert.Equal(t, "step_up_challenge", claims["typ"])
 	assert.ElementsMatch(t, []any{"totp", "backup_code"}, claims["allowed_methods"])
+}
+
+func TestStepUpChallengeToken_NoAllowedMethods(t *testing.T) {
+	initTestJWTKeys(t)
+	origHostname := config.AppPublicHostname
+	t.Cleanup(func() { config.AppPublicHostname = origHostname })
+	config.AppPublicHostname = ""
+
+	token, err := GenerateStepUpChallengeToken("user-uuid", time.Minute)
+	require.NoError(t, err)
+
+	claims, err := ValidateStepUpChallengeToken(token)
+	require.NoError(t, err)
+	assert.Equal(t, "user-uuid", claims["sub"])
+	assert.Equal(t, "maintainerd-auth", claims["iss"])
+	assert.Nil(t, claims["allowed_methods"])
+}
+
+func TestValidateStepUpChallengeToken_WrongType(t *testing.T) {
+	initTestJWTKeys(t)
+
+	tok, err := GenerateAccessToken("user-uuid", "read", "https://auth.example.com", "myapp", "client-1", "provider-1")
+	require.NoError(t, err)
+
+	_, err = ValidateStepUpChallengeToken(tok)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "not a step-up challenge token")
+}
+
+func TestValidateStepUpChallengeToken_InvalidToken(t *testing.T) {
+	_, err := ValidateStepUpChallengeToken("not-a-token")
+	require.Error(t, err)
+}
+
+// ---------------------------------------------------------------------------
+// Key store tests
+// ---------------------------------------------------------------------------
+
+func TestKeyStore_PublicKey_And_AllPublicKeys(t *testing.T) {
+	initTestJWTKeys(t)
+
+	pub := GetPublicKey()
+	require.NotNil(t, pub)
+
+	all := GetAllPublicKeys()
+	require.Len(t, all, 1)
+	assert.NotEmpty(t, all[0].KID)
+}
+
+func TestKeyStore_Rotate(t *testing.T) {
+	initTestJWTKeys(t)
+
+	origKID := GetAllPublicKeys()[0].KID
+	err := RotateKeys()
+	require.NoError(t, err)
+
+	all := GetAllPublicKeys()
+	require.Len(t, all, 2)
+	assert.NotEqual(t, origKID, all[0].KID)
+}
+
+func TestKeyStore_VerificationKey_EmptyKID(t *testing.T) {
+	initTestJWTKeys(t)
+
+	priv, kid := activeSigningKeyForTest()
+	require.NotNil(t, priv)
+
+	pub, err := defaultKeyStore.verificationKey("")
+	require.NoError(t, err)
+	assert.NotNil(t, pub)
+
+	pub2, err := defaultKeyStore.verificationKey(kid)
+	require.NoError(t, err)
+	assert.NotNil(t, pub2)
+}
+
+// ---------------------------------------------------------------------------
+// GenerateAccessTokenWithOptions
+// ---------------------------------------------------------------------------
+
+func TestGenerateAccessTokenWithOptions(t *testing.T) {
+	initTestJWTKeys(t)
+
+	opts := &AccessTokenOptions{
+		DPoPThumbprint: "dpop-thumb",
+		AccessTokenTTL: 30 * time.Second,
+		AMR:            []string{"pwd"},
+		ACR:            "1",
+		SessionID:      "session-123",
+	}
+	tok, err := GenerateAccessTokenWithOptions("user-uuid", "read", "https://auth.example.com", "myapp", "client-1", "provider-1", opts)
+	require.NoError(t, err)
+	assert.NotEmpty(t, tok)
+
+	claims, err := ValidateToken(tok)
+	require.NoError(t, err)
+	assert.Equal(t, "DPoP", claims["token_type"])
+	cnf, ok := claims["cnf"].(map[string]any)
+	require.True(t, ok)
+	assert.Equal(t, "dpop-thumb", cnf["jkt"])
+	assert.Equal(t, []any{"pwd"}, claims["amr"])
+	assert.Equal(t, "1", claims["acr"])
+	assert.Equal(t, "session-123", claims["sid"])
+}
+
+func TestGenerateAccessTokenWithOptions_NoOptions(t *testing.T) {
+	initTestJWTKeys(t)
+
+	tok, err := GenerateAccessTokenWithOptions("user-uuid", "read", "https://auth.example.com", "myapp", "client-1", "provider-1", nil)
+	require.NoError(t, err)
+	assert.NotEmpty(t, tok)
+}
+
+// ---------------------------------------------------------------------------
+// ID token — scope filtering and extra claims
+// ---------------------------------------------------------------------------
+
+func TestGenerateIDToken_ScopeFiltering(t *testing.T) {
+	initTestJWTKeys(t)
+	profile := &UserProfile{
+		Email: "user@example.com", EmailVerified: true,
+		Phone: "+1234567890", PhoneVerified: true,
+		FirstName: "Jane", MiddleName: "A", LastName: "Doe",
+		Name: "Jane Doe",
+	}
+
+	params := &IDTokenParams{
+		RequestedScopes: []string{"email"},
+	}
+	tok, err := GenerateIDToken("user-uuid", "https://auth.example.com", "client-1", "provider-1", profile, "", params)
+	require.NoError(t, err)
+
+	claims, err := ValidateToken(tok)
+	require.NoError(t, err)
+	assert.Equal(t, "user@example.com", claims["email"])
+	assert.True(t, claims["email_verified"].(bool))
+	assert.Nil(t, claims["first_name"])
+}
+
+func TestGenerateIDToken_CustomScopeClaimMappings(t *testing.T) {
+	initTestJWTKeys(t)
+	profile := &UserProfile{FirstName: "Jane", Email: "user@example.com"}
+
+	params := &IDTokenParams{
+		RequestedScopes:   []string{"custom"},
+		ScopeClaimMappings: map[string][]string{"custom": {"first_name"}},
+	}
+	tok, err := GenerateIDToken("user-uuid", "https://auth.example.com", "client-1", "provider-1", profile, "", params)
+	require.NoError(t, err)
+
+	claims, err := ValidateToken(tok)
+	require.NoError(t, err)
+	assert.Equal(t, "Jane", claims["first_name"])
+	assert.Nil(t, claims["email"])
+}
+
+func TestGenerateIDToken_ExtraClaims(t *testing.T) {
+	initTestJWTKeys(t)
+
+	params := &IDTokenParams{
+		ExtraClaims: map[string]any{"custom_key": "custom_value"},
+		AMR:         []string{"pwd"},
+		ACR:         "2",
+	}
+	tok, err := GenerateIDToken("user-uuid", "https://auth.example.com", "client-1", "provider-1", nil, "", params)
+	require.NoError(t, err)
+
+	claims, err := ValidateToken(tok)
+	require.NoError(t, err)
+	assert.Equal(t, "custom_value", claims["custom_key"])
+	assert.Equal(t, []any{"pwd"}, claims["amr"])
+	assert.Equal(t, "2", claims["acr"])
+}
+
+func TestGenerateIDToken_AMRAndACR(t *testing.T) {
+	initTestJWTKeys(t)
+
+	params := &IDTokenParams{AMR: []string{"pwd", "otp"}, ACR: "2"}
+	tok, err := GenerateIDToken("user-uuid", "https://auth.example.com", "client-1", "provider-1", nil, "", params)
+	require.NoError(t, err)
+
+	claims, err := ValidateToken(tok)
+	require.NoError(t, err)
+	assert.Equal(t, []any{"pwd", "otp"}, claims["amr"])
+	assert.Equal(t, "2", claims["acr"])
+}
+
+func TestGenerateIDTokenWithContext_Success(t *testing.T) {
+	initTestJWTKeys(t)
+	tok, err := GenerateIDTokenWithContext(context.Background(), "user-uuid", "https://auth.example.com", "client-1", "provider-1", nil, "", nil)
+	require.NoError(t, err)
+	assert.NotEmpty(t, tok)
+}
+
+// ---------------------------------------------------------------------------
+// Refresh token context wrappers
+// ---------------------------------------------------------------------------
+
+func TestGenerateRefreshTokenWithContext_Success(t *testing.T) {
+	initTestJWTKeys(t)
+	tok, err := GenerateRefreshTokenWithContext(context.Background(), "user-uuid", "https://auth.example.com", "client-1", "provider-1")
+	require.NoError(t, err)
+	assert.NotEmpty(t, tok)
+}
+
+// ---------------------------------------------------------------------------
+// JTI denylist checker
+// ---------------------------------------------------------------------------
+
+func TestSetAndResetJTIChecker(t *testing.T) {
+	called := false
+	SetJTIChecker(func(ctx context.Context, jti string) (bool, error) {
+		called = true
+		return false, nil
+	})
+
+	checker := getJTIChecker()
+	require.NotNil(t, checker)
+	denied, err := checker(context.Background(), "test-jti")
+	require.NoError(t, err)
+	assert.False(t, denied)
+	assert.True(t, called)
+
+	ResetJTIChecker()
+	assert.Nil(t, getJTIChecker())
+}
+
+func TestValidateToken_JTIDenylistDenied(t *testing.T) {
+	initTestJWTKeys(t)
+
+	SetJTIChecker(func(ctx context.Context, jti string) (bool, error) {
+		return true, nil
+	})
+	t.Cleanup(ResetJTIChecker)
+
+	tok, err := GenerateAccessToken("user-uuid", "read", "https://auth.example.com", "myapp", "client-1", "provider-1")
+	require.NoError(t, err)
+
+	_, err = ValidateToken(tok)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "revoked")
+}
+
+func TestValidateToken_JTIDenylistError(t *testing.T) {
+	initTestJWTKeys(t)
+
+	SetJTIChecker(func(ctx context.Context, jti string) (bool, error) {
+		return false, errors.New("redis down")
+	})
+	t.Cleanup(ResetJTIChecker)
+
+	tok, err := GenerateAccessToken("user-uuid", "read", "https://auth.example.com", "myapp", "client-1", "provider-1")
+	require.NoError(t, err)
+
+	_, err = ValidateToken(tok)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "revocation check failed")
+}
+
+func TestValidateToken_NoJTIChecker(t *testing.T) {
+	initTestJWTKeys(t)
+	ResetJTIChecker()
+
+	tok, err := GenerateAccessToken("user-uuid", "read", "https://auth.example.com", "myapp", "client-1", "provider-1")
+	require.NoError(t, err)
+
+	claims, err := ValidateToken(tok)
+	require.NoError(t, err)
+	assert.NotNil(t, claims)
+}
+
+// ---------------------------------------------------------------------------
+// ValidateTokenWithContext
+// ---------------------------------------------------------------------------
+
+func TestValidateTokenWithContext_Success(t *testing.T) {
+	initTestJWTKeys(t)
+	tok, err := GenerateAccessToken("user-uuid", "read", "https://auth.example.com", "myapp", "client-1", "provider-1")
+	require.NoError(t, err)
+
+	claims, err := ValidateTokenWithContext(context.Background(), tok)
+	require.NoError(t, err)
+	assert.Equal(t, "user-uuid", claims["sub"])
+}
+
+func TestValidateTokenWithContext_NilContext(t *testing.T) {
+	initTestJWTKeys(t)
+	tok, err := GenerateAccessToken("user-uuid", "read", "https://auth.example.com", "myapp", "client-1", "provider-1")
+	require.NoError(t, err)
+
+	claims, err := ValidateTokenWithContext(nil, tok)
+	require.NoError(t, err)
+	assert.NotNil(t, claims)
+}
+
+func TestGenerateAccessTokenWithOptionsContext_NilContext(t *testing.T) {
+	initTestJWTKeys(t)
+	tok, err := GenerateAccessTokenWithOptionsContext(nil, "user-uuid", "read", "https://auth.example.com", "myapp", "client-1", "provider-1", nil)
+	require.NoError(t, err)
+	assert.NotEmpty(t, tok)
+}
+
+// ---------------------------------------------------------------------------
+// generateToken — missing required claims (each one)
+// ---------------------------------------------------------------------------
+
+func TestGenerateToken_MissingEachRequiredClaim(t *testing.T) {
+	initTestJWTKeys(t)
+
+	required := []string{"sub", "aud", "iss", "iat", "exp", "jti"}
+	base := jwtlib.MapClaims{
+		"sub": "user-uuid", "aud": "myapp", "iss": "https://auth.example.com",
+		"iat": jwtlib.NewNumericDate(time.Now()), "exp": jwtlib.NewNumericDate(time.Now().Add(time.Hour)),
+		"jti": "test-jti",
+	}
+	for _, claim := range required {
+		t.Run(claim, func(t *testing.T) {
+			claims := make(jwtlib.MapClaims)
+			maps.Copy(claims, base)
+			delete(claims, claim)
+			_, err := generateToken(claims)
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), claim)
+		})
+	}
+}
+
+// ---------------------------------------------------------------------------
+// buildAllowedClaimsSet
+// ---------------------------------------------------------------------------
+
+func TestBuildAllowedClaimsSet(t *testing.T) {
+	assert.Nil(t, buildAllowedClaimsSet(nil))
+
+	params := &IDTokenParams{}
+	assert.Nil(t, buildAllowedClaimsSet(params))
+
+	params.RequestedScopes = []string{"profile"}
+	allowed := buildAllowedClaimsSet(params)
+	require.NotNil(t, allowed)
+	assert.Contains(t, allowed, "name")
+	assert.NotContains(t, allowed, "email")
+
+	params.RequestedScopes = []string{"custom"}
+	params.ScopeClaimMappings = map[string][]string{"custom": {"foo", "bar"}}
+	allowed = buildAllowedClaimsSet(params)
+	assert.NotNil(t, allowed)
+	assert.Contains(t, allowed, "foo")
+	assert.Contains(t, allowed, "bar")
+}
+
+// ---------------------------------------------------------------------------
+// Export wrapper tests
+// ---------------------------------------------------------------------------
+
+func TestGetPublicKey(t *testing.T) {
+	ResetJWTKeys()
+	t.Cleanup(func() { initTestJWTKeys(t) })
+
+	pub := GetPublicKey()
+	assert.Nil(t, pub)
+
+	initTestJWTKeys(t)
+	pub = GetPublicKey()
+	assert.NotNil(t, pub)
+}
+
+func TestGetAllPublicKeys(t *testing.T) {
+	ResetJWTKeys()
+	t.Cleanup(func() { initTestJWTKeys(t) })
+
+	all := GetAllPublicKeys()
+	assert.Empty(t, all)
+
+	initTestJWTKeys(t)
+	all = GetAllPublicKeys()
+	assert.NotEmpty(t, all)
+}
+
+func TestValidateTokenClaims_SubNotString(t *testing.T) {
+	claims := jwtlib.MapClaims{
+		"sub": 123, "aud": "app", "iss": "https://example.com",
+		"iat": jwtlib.NewNumericDate(time.Now()), "exp": jwtlib.NewNumericDate(time.Now().Add(time.Hour)),
+		"jti": "abc123",
+	}
+	err := validateTokenClaims(claims)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "subject")
+}
+
+func TestValidateTokenClaims_AudNotString(t *testing.T) {
+	claims := jwtlib.MapClaims{
+		"sub": "user", "aud": 456, "iss": "https://example.com",
+		"iat": jwtlib.NewNumericDate(time.Now()), "exp": jwtlib.NewNumericDate(time.Now().Add(time.Hour)),
+		"jti": "abc123",
+	}
+	err := validateTokenClaims(claims)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "audience")
+}
+
+func TestValidateTokenClaims_IssNotString(t *testing.T) {
+	claims := jwtlib.MapClaims{
+		"sub": "user", "aud": "app", "iss": 789,
+		"iat": jwtlib.NewNumericDate(time.Now()), "exp": jwtlib.NewNumericDate(time.Now().Add(time.Hour)),
+		"jti": "abc123",
+	}
+	err := validateTokenClaims(claims)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "issuer")
+}
+
+func TestValidateTokenClaims_JTINotString(t *testing.T) {
+	claims := jwtlib.MapClaims{
+		"sub": "user", "aud": "app", "iss": "https://example.com",
+		"iat": jwtlib.NewNumericDate(time.Now()), "exp": jwtlib.NewNumericDate(time.Now().Add(time.Hour)),
+		"jti": 321,
+	}
+	err := validateTokenClaims(claims)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "JTI")
+}
+
+// ---------------------------------------------------------------------------
+// ValidateToken — signed token with empty sub/aud/iss/jti
+// ---------------------------------------------------------------------------
+
+func TestValidateToken_EmptySubInSignedToken(t *testing.T) {
+	initTestJWTKeys(t)
+	now := time.Now()
+	claims := jwtlib.MapClaims{
+		"sub": "", "aud": "app", "iss": "https://auth.example.com",
+		"iat": jwtlib.NewNumericDate(now), "exp": jwtlib.NewNumericDate(now.Add(time.Hour)),
+		"jti": "abc123",
+	}
+	sigPrivKey, sigKID := activeSigningKeyForTest()
+	token := jwtlib.NewWithClaims(jwtlib.SigningMethodRS256, claims)
+	token.Header["kid"] = sigKID
+	tokenString, err := token.SignedString(sigPrivKey)
+	require.NoError(t, err)
+	_, err = ValidateToken(tokenString)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "subject")
+}
+
+func TestValidateToken_EmptyAudInSignedToken(t *testing.T) {
+	initTestJWTKeys(t)
+	now := time.Now()
+	claims := jwtlib.MapClaims{
+		"sub": "user", "aud": "", "iss": "https://auth.example.com",
+		"iat": jwtlib.NewNumericDate(now), "exp": jwtlib.NewNumericDate(now.Add(time.Hour)),
+		"jti": "abc123",
+	}
+	sigPrivKey, sigKID := activeSigningKeyForTest()
+	token := jwtlib.NewWithClaims(jwtlib.SigningMethodRS256, claims)
+	token.Header["kid"] = sigKID
+	tokenString, err := token.SignedString(sigPrivKey)
+	require.NoError(t, err)
+	_, err = ValidateToken(tokenString)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "audience")
+}
+
+func TestValidateToken_EmptyIssInSignedToken(t *testing.T) {
+	initTestJWTKeys(t)
+	now := time.Now()
+	claims := jwtlib.MapClaims{
+		"sub": "user", "aud": "app", "iss": "",
+		"iat": jwtlib.NewNumericDate(now), "exp": jwtlib.NewNumericDate(now.Add(time.Hour)),
+		"jti": "abc123",
+	}
+	sigPrivKey, sigKID := activeSigningKeyForTest()
+	token := jwtlib.NewWithClaims(jwtlib.SigningMethodRS256, claims)
+	token.Header["kid"] = sigKID
+	tokenString, err := token.SignedString(sigPrivKey)
+	require.NoError(t, err)
+	_, err = ValidateToken(tokenString)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "issuer")
+}
+
+func TestValidateToken_EmptyJTIInSignedToken(t *testing.T) {
+	initTestJWTKeys(t)
+	now := time.Now()
+	claims := jwtlib.MapClaims{
+		"sub": "user", "aud": "app", "iss": "https://auth.example.com",
+		"iat": jwtlib.NewNumericDate(now), "exp": jwtlib.NewNumericDate(now.Add(time.Hour)),
+		"jti": "",
+	}
+	sigPrivKey, sigKID := activeSigningKeyForTest()
+	token := jwtlib.NewWithClaims(jwtlib.SigningMethodRS256, claims)
+	token.Header["kid"] = sigKID
+	tokenString, err := token.SignedString(sigPrivKey)
+	require.NoError(t, err)
+	_, err = ValidateToken(tokenString)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "JTI")
+}
+
+// ---------------------------------------------------------------------------
+// ValidateTokenWithContext — no public key
+// ---------------------------------------------------------------------------
+
+func TestValidateTokenWithContext_NoPublicKey(t *testing.T) {
+	ResetJWTKeys()
+
+	_, err := ValidateTokenWithContext(context.Background(), "any.token.string")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "public key not initialized")
+}
+
+// ---------------------------------------------------------------------------
+// Verification key — retired key lookup
+// ---------------------------------------------------------------------------
+
+func TestVerificationKey_RetiredKey(t *testing.T) {
+	initTestJWTKeys(t)
+
+	err := RotateKeys()
+	require.NoError(t, err)
+
+	all := GetAllPublicKeys()
+	require.Len(t, all, 2)
+
+	oldKID := all[1].KID
+	pub, err := defaultKeyStore.verificationKey(oldKID)
+	require.NoError(t, err)
+	assert.NotNil(t, pub)
+}
+
+// ---------------------------------------------------------------------------
+// GenerateToken — missing sub claim
+// ---------------------------------------------------------------------------
+
+func TestGenerateToken_MissingSub(t *testing.T) {
+	initTestJWTKeys(t)
+	claims := jwtlib.MapClaims{
+		"aud": "myapp", "iss": "https://auth.example.com",
+		"iat": jwtlib.NewNumericDate(time.Now()), "exp": jwtlib.NewNumericDate(time.Now().Add(time.Hour)),
+		"jti": "test-jti",
+	}
+	_, err := generateToken(claims)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "sub")
+}
+
+// ---------------------------------------------------------------------------
+// GenerateAccessTokenWithOptionsContext — nil context
+// ---------------------------------------------------------------------------
+
+func TestGenerateAccessTokenWithOptionsContext_Success(t *testing.T) {
+	initTestJWTKeys(t)
+	tok, err := GenerateAccessTokenWithOptionsContext(context.Background(), "user-uuid", "read", "https://auth.example.com", "myapp", "client-1", "provider-1", nil)
+	require.NoError(t, err)
+	assert.NotEmpty(t, tok)
+}
+
+// ---------------------------------------------------------------------------
+// GenerateIDToken — nonce
+// ---------------------------------------------------------------------------
+
+func TestGenerateIDToken_Nonce(t *testing.T) {
+	initTestJWTKeys(t)
+	tok, err := GenerateIDToken("user-uuid", "https://auth.example.com", "client-1", "provider-1", nil, "mynonce", nil)
+	require.NoError(t, err)
+
+	claims, err := ValidateToken(tok)
+	require.NoError(t, err)
+	assert.Equal(t, "mynonce", claims["nonce"])
 }

@@ -147,3 +147,265 @@ func TestSendEmail_Success(t *testing.T) {
 	})
 	assert.NoError(t, err)
 }
+
+func TestSendEmail_WithCustomFrom(t *testing.T) {
+	port := startMockSMTP(t)
+	setSMTPConfig(t, "127.0.0.1", port, "", "", "noreply@example.com", "Test")
+
+	err := SendEmail(context.Background(), SendEmailParams{
+		To:       "user@example.com",
+		From:     "custom@example.com",
+		Subject:  "Hello",
+		BodyHTML: "<p>Hello</p>",
+	})
+	assert.NoError(t, err)
+}
+
+// ---------------------------------------------------------------------------
+// Factory tests
+// ---------------------------------------------------------------------------
+
+func TestNewProvider_SMTP(t *testing.T) {
+	cfg := ProviderConfig{Provider: "smtp", Host: "smtp.example.com", Port: 587}
+	p, err := NewProvider(context.Background(), cfg)
+	require.NoError(t, err)
+	assert.NotNil(t, p)
+}
+
+func TestNewProvider_EmptyProviderDefaultsToSMTP(t *testing.T) {
+	cfg := ProviderConfig{Provider: "", Host: "smtp.example.com", Port: 587}
+	p, err := NewProvider(context.Background(), cfg)
+	require.NoError(t, err)
+	assert.NotNil(t, p)
+}
+
+func TestNewProvider_UnknownProvider(t *testing.T) {
+	cfg := ProviderConfig{Provider: "unknown"}
+	_, err := NewProvider(context.Background(), cfg)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "unknown provider")
+}
+
+func TestNewProvider_SendGrid(t *testing.T) {
+	cfg := ProviderConfig{Provider: "sendgrid", APIKey: "test-key"}
+	p, err := NewProvider(context.Background(), cfg)
+	require.NoError(t, err)
+	assert.NotNil(t, p)
+}
+
+func TestNewProvider_Postmark(t *testing.T) {
+	cfg := ProviderConfig{Provider: "postmark", APIKey: "test-key"}
+	p, err := NewProvider(context.Background(), cfg)
+	require.NoError(t, err)
+	assert.NotNil(t, p)
+}
+
+func TestNewProvider_Mailgun(t *testing.T) {
+	cfg := ProviderConfig{Provider: "mailgun", APIKey: "test-key", Domain: "example.com"}
+	p, err := NewProvider(context.Background(), cfg)
+	require.NoError(t, err)
+	assert.NotNil(t, p)
+}
+
+func TestNewProvider_Resend(t *testing.T) {
+	cfg := ProviderConfig{Provider: "resend", APIKey: "test-key"}
+	p, err := NewProvider(context.Background(), cfg)
+	require.NoError(t, err)
+	assert.NotNil(t, p)
+}
+
+// ---------------------------------------------------------------------------
+// SendGrid provider tests
+// ---------------------------------------------------------------------------
+
+func TestSendGrid_Send_Success(t *testing.T) {
+	p, err := NewProvider(context.Background(), ProviderConfig{Provider: "sendgrid", APIKey: "test-key"})
+	require.NoError(t, err)
+
+	err = p.Send(context.Background(), SendParams{
+		To: "user@example.com", From: "noreply@example.com",
+		Subject: "Test", BodyHTML: "<p>test</p>",
+	})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "sendgrid")
+}
+
+func TestSendGrid_Send_Error(t *testing.T) {
+	p, err := NewProvider(context.Background(), ProviderConfig{Provider: "sendgrid", APIKey: "test-key"})
+	require.NoError(t, err)
+
+	err = p.Send(context.Background(), SendParams{
+		To: "user@example.com", From: "noreply@example.com",
+		Subject: "Test", BodyHTML: "<p>test</p>",
+	})
+	require.Error(t, err)
+}
+
+// ---------------------------------------------------------------------------
+// Postmark provider tests
+// ---------------------------------------------------------------------------
+
+func TestPostmark_Send_Error(t *testing.T) {
+	p, err := NewProvider(context.Background(), ProviderConfig{Provider: "postmark", APIKey: "test-key"})
+	require.NoError(t, err)
+
+	err = p.Send(context.Background(), SendParams{
+		To: "user@example.com", From: "noreply@example.com",
+		Subject: "Test", BodyHTML: "<p>test</p>",
+	})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "postmark")
+}
+
+// ---------------------------------------------------------------------------
+// Mailgun provider tests
+// ---------------------------------------------------------------------------
+
+func TestMailgun_Send_Error(t *testing.T) {
+	p, err := NewProvider(context.Background(), ProviderConfig{Provider: "mailgun", APIKey: "test-key", Domain: "example.com"})
+	require.NoError(t, err)
+
+	err = p.Send(context.Background(), SendParams{
+		To: "user@example.com", From: "noreply@example.com",
+		Subject: "Test", BodyHTML: "<p>test</p>",
+	})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "mailgun")
+}
+
+func TestMailgun_Send_WithPlainText(t *testing.T) {
+	p, err := NewProvider(context.Background(), ProviderConfig{Provider: "mailgun", APIKey: "test-key", Domain: "example.com"})
+	require.NoError(t, err)
+
+	err = p.Send(context.Background(), SendParams{
+		To: "user@example.com", From: "noreply@example.com",
+		Subject: "Test", BodyHTML: "<p>test</p>", BodyPlain: "test",
+	})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "mailgun")
+}
+
+// ---------------------------------------------------------------------------
+// Resend provider tests
+// ---------------------------------------------------------------------------
+
+func TestResend_Send_Error(t *testing.T) {
+	p, err := NewProvider(context.Background(), ProviderConfig{Provider: "resend", APIKey: "test-key"})
+	require.NoError(t, err)
+
+	err = p.Send(context.Background(), SendParams{
+		To: "user@example.com", From: "noreply@example.com",
+		Subject: "Test", BodyHTML: "<p>test</p>",
+	})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "resend")
+}
+
+func TestResend_Send_WithPlainText(t *testing.T) {
+	p, err := NewProvider(context.Background(), ProviderConfig{Provider: "resend", APIKey: "test-key"})
+	require.NoError(t, err)
+
+	err = p.Send(context.Background(), SendParams{
+		To: "user@example.com", From: "noreply@example.com",
+		Subject: "Test", BodyHTML: "<p>test</p>", BodyPlain: "test",
+	})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "resend")
+}
+
+// ---------------------------------------------------------------------------
+// SMTP provider Send tests — direct via Provider interface
+// ---------------------------------------------------------------------------
+
+func TestSMTPProvider_Send_PlainText(t *testing.T) {
+	port := startMockSMTP(t)
+	cfg := ProviderConfig{Provider: "smtp", Host: "127.0.0.1", Port: port}
+	p, err := NewProvider(context.Background(), cfg)
+	require.NoError(t, err)
+
+	err = p.Send(context.Background(), SendParams{
+		To: "user@example.com", From: "noreply@example.com",
+		Subject: "Test", BodyHTML: "<p>test</p>", BodyPlain: "plain text",
+	})
+	assert.NoError(t, err)
+}
+
+// ---------------------------------------------------------------------------
+// NewSystemProvider error path
+// ---------------------------------------------------------------------------
+
+func TestSendEmail_UnknownProvider(t *testing.T) {
+	origProvider := config.EmailProvider
+	t.Cleanup(func() { config.EmailProvider = origProvider })
+	config.EmailProvider = "unknown"
+
+	err := SendEmail(context.Background(), SendEmailParams{
+		To: "user@example.com", Subject: "Test", BodyHTML: "<p>test</p>",
+	})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "unknown provider")
+}
+
+func TestSendGrid_Send_BadRequest(t *testing.T) {
+	p, err := NewProvider(context.Background(), ProviderConfig{Provider: "sendgrid", APIKey: "test-key"})
+	require.NoError(t, err)
+
+	err = p.Send(context.Background(), SendParams{
+		To: "user@example.com", From: "noreply@example.com",
+		Subject: "Test", BodyHTML: "<p>test</p>", BodyPlain: "plain",
+	})
+	require.Error(t, err)
+}
+
+// ---------------------------------------------------------------------------
+// Postmark plain text body branch
+// ---------------------------------------------------------------------------
+
+func TestPostmark_Send_WithPlainText(t *testing.T) {
+	p, err := NewProvider(context.Background(), ProviderConfig{Provider: "postmark", APIKey: "test-key"})
+	require.NoError(t, err)
+
+	err = p.Send(context.Background(), SendParams{
+		To: "user@example.com", From: "noreply@example.com",
+		Subject: "Test", BodyHTML: "<p>test</p>", BodyPlain: "plain",
+	})
+	require.Error(t, err)
+}
+
+// ---------------------------------------------------------------------------
+// SES provider tests
+// ---------------------------------------------------------------------------
+
+func TestNewProvider_SES(t *testing.T) {
+	cfg := ProviderConfig{Provider: "ses", Region: "us-east-1"}
+	p, err := NewProvider(context.Background(), cfg)
+	if err != nil {
+		assert.Nil(t, p)
+		return
+	}
+	assert.NotNil(t, p)
+
+	err = p.Send(context.Background(), SendParams{
+		To: "user@example.com", From: "noreply@example.com",
+		Subject: "Test", BodyHTML: "<p>test</p>",
+	})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "ses")
+}
+
+func TestNewProvider_SES_DefaultRegion(t *testing.T) {
+	cfg := ProviderConfig{Provider: "ses"}
+	p, err := NewProvider(context.Background(), cfg)
+	if err != nil {
+		assert.Nil(t, p)
+		return
+	}
+	assert.NotNil(t, p)
+
+	err = p.Send(context.Background(), SendParams{
+		To: "user@example.com", From: "noreply@example.com",
+		Subject: "Test", BodyHTML: "<p>test</p>", BodyPlain: "plain",
+	})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "ses")
+}
