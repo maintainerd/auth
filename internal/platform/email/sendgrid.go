@@ -62,7 +62,7 @@ func (p *sendgridProvider) Send(ctx context.Context, params SendParams) error {
 		span.SetStatus(codes.Error, "sendgrid send failed")
 		return fmt.Errorf("sendgrid: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode >= 300 {
 		err := fmt.Errorf("sendgrid: unexpected status %d", resp.StatusCode)

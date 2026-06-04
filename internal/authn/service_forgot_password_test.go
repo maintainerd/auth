@@ -115,7 +115,7 @@ func TestForgotPasswordService_SendPasswordResetEmail_FindByEmailError(t *testin
 
 func TestForgotPasswordService_SendPasswordResetEmail_UserInactive(t *testing.T) {
 	// Inactive user: transaction succeeds, but user var is set, so sendPasswordResetEmail is called
-	os.Setenv("HMAC_SECRET_KEY", "test-secret-key-for-hmac")
+	_ = os.Setenv("HMAC_SECRET_KEY", "test-secret-key-for-hmac")
 	// cleanup handled by TestMain
 
 	origAppPublicHostname := config.AppPublicHostname
@@ -239,7 +239,7 @@ func TestForgotPasswordService_SendPasswordResetEmail_CreateTokenError(t *testin
 
 func TestForgotPasswordService_SendPasswordResetEmail_FullPath(t *testing.T) {
 	// Full success path: user found, active, tokens revoked, new token created, email sent
-	os.Setenv("HMAC_SECRET_KEY", "test-secret-key-for-hmac")
+	_ = os.Setenv("HMAC_SECRET_KEY", "test-secret-key-for-hmac")
 	// cleanup handled by TestMain
 
 	// Save original values and restore
@@ -307,7 +307,7 @@ func TestForgotPasswordService_SendPasswordResetEmail_FullPath(t *testing.T) {
 
 func TestForgotPasswordService_SendPasswordResetEmail_ExternalURL(t *testing.T) {
 	// Test the isInternal=false path → uses AccountHostname
-	os.Setenv("HMAC_SECRET_KEY", "test-secret-key-for-hmac")
+	_ = os.Setenv("HMAC_SECRET_KEY", "test-secret-key-for-hmac")
 	// cleanup handled by TestMain
 
 	origAppPublicHostname := config.AppPublicHostname
@@ -362,7 +362,7 @@ func TestForgotPasswordService_SendPasswordResetEmail_ExternalURL(t *testing.T) 
 
 func TestForgotPasswordService_SendPasswordResetEmail_EmailSendError(t *testing.T) {
 	// Email send failure is logged but doesn't cause error response
-	os.Setenv("HMAC_SECRET_KEY", "test-secret-key-for-hmac")
+	_ = os.Setenv("HMAC_SECRET_KEY", "test-secret-key-for-hmac")
 	// cleanup handled by TestMain
 
 	origAppPublicHostname := config.AppPublicHostname
@@ -416,7 +416,7 @@ func TestForgotPasswordService_SendPasswordResetEmail_EmailSendError(t *testing.
 
 func TestForgotPasswordService_SendPasswordResetEmail_TemplateError(t *testing.T) {
 	// Template fetch error from sendPasswordResetEmail is logged silently
-	os.Setenv("HMAC_SECRET_KEY", "test-secret-key-for-hmac")
+	_ = os.Setenv("HMAC_SECRET_KEY", "test-secret-key-for-hmac")
 	// cleanup handled by TestMain
 
 	origAppPublicHostname := config.AppPublicHostname
@@ -464,7 +464,7 @@ func TestForgotPasswordService_SendPasswordResetEmail_TemplateError(t *testing.T
 }
 
 func TestForgotPasswordService_SendPasswordResetEmail_HTMLParseError(t *testing.T) {
-	os.Setenv("HMAC_SECRET_KEY", "test-secret-key-for-hmac")
+	_ = os.Setenv("HMAC_SECRET_KEY", "test-secret-key-for-hmac")
 	// cleanup handled by TestMain
 
 	origAppPublicHostname := config.AppPublicHostname
@@ -514,7 +514,7 @@ func TestForgotPasswordService_SendPasswordResetEmail_HTMLParseError(t *testing.
 }
 
 func TestForgotPasswordService_SendPasswordResetEmail_PlainParseError(t *testing.T) {
-	os.Setenv("HMAC_SECRET_KEY", "test-secret-key-for-hmac")
+	_ = os.Setenv("HMAC_SECRET_KEY", "test-secret-key-for-hmac")
 	// cleanup handled by TestMain
 
 	origAppPublicHostname := config.AppPublicHostname
@@ -566,7 +566,7 @@ func TestForgotPasswordService_SendPasswordResetEmail_PlainParseError(t *testing
 }
 
 func TestForgotPasswordService_SendPasswordResetEmail_HTMLExecuteError(t *testing.T) {
-	os.Setenv("HMAC_SECRET_KEY", "test-secret-key-for-hmac")
+	_ = os.Setenv("HMAC_SECRET_KEY", "test-secret-key-for-hmac")
 	// cleanup handled by TestMain
 
 	origAppPublicHostname := config.AppPublicHostname
@@ -616,7 +616,7 @@ func TestForgotPasswordService_SendPasswordResetEmail_HTMLExecuteError(t *testin
 }
 
 func TestForgotPasswordService_SendPasswordResetEmail_PlainExecuteError(t *testing.T) {
-	os.Setenv("HMAC_SECRET_KEY", "test-secret-key-for-hmac")
+	_ = os.Setenv("HMAC_SECRET_KEY", "test-secret-key-for-hmac")
 	// cleanup handled by TestMain
 
 	origAppPublicHostname := config.AppPublicHostname
@@ -676,7 +676,7 @@ func TestGenerateSecureToken(t *testing.T) {
 
 func TestForgotPasswordService_SendPasswordResetEmail_WithExistingTokens(t *testing.T) {
 	// Tests the path where existing tokens are found and revoked
-	os.Setenv("HMAC_SECRET_KEY", "test-secret-key-for-hmac")
+	_ = os.Setenv("HMAC_SECRET_KEY", "test-secret-key-for-hmac")
 	// cleanup handled by TestMain
 
 	origAppPublicHostname := config.AppPublicHostname
@@ -742,7 +742,7 @@ func TestForgotPasswordService_SendPasswordResetEmail_WithExistingTokens(t *test
 }
 
 func TestForgotPasswordService_SendPasswordResetEmail_GenerateSignedURLError(t *testing.T) {
-	os.Setenv("HMAC_SECRET_KEY", "test-secret-key-for-hmac")
+	_ = os.Setenv("HMAC_SECRET_KEY", "test-secret-key-for-hmac")
 	// cleanup handled by TestMain
 
 	origAppPublicHostname := config.AppPublicHostname
@@ -795,7 +795,7 @@ func TestForgotPasswordService_SendPasswordResetEmail_GenerateSignedURLError(t *
 }
 
 func TestForgotPasswordService_SendPasswordResetEmail_ConvertToFrontendURLError(t *testing.T) {
-	os.Setenv("HMAC_SECRET_KEY", "test-secret-key-for-hmac")
+	_ = os.Setenv("HMAC_SECRET_KEY", "test-secret-key-for-hmac")
 	// cleanup handled by TestMain
 
 	origAppPublicHostname := config.AppPublicHostname
