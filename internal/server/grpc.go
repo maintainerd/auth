@@ -30,7 +30,10 @@ func StartGRPCServer(ctx context.Context, application *Application) error {
 	if err != nil {
 		return fmt.Errorf("gRPC failed to listen on %s: %w", shared.DefaultGRPCAddr, err)
 	}
+	return serveGRPC(ctx, application, lis)
+}
 
+func serveGRPC(ctx context.Context, application *Application, lis net.Listener) error {
 	seederHandler := setup.NewSeederHandler(application.DB)
 
 	opts, err := grpcServerOptions(application)
