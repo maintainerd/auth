@@ -33,11 +33,11 @@ type azureSecretsClient interface {
 var newAzureClient = func(vaultURL string) (azureSecretsClient, error) {
 	cred, err := azidentity.NewDefaultAzureCredential(nil)
 	if err != nil {
-		return nil, fmt.Errorf("Azure Key Vault: failed to create credential: %w", err)
+		return nil, fmt.Errorf("azure key vault: failed to create credential: %w", err)
 	}
 	client, err := azsecrets.NewClient(vaultURL, cred, nil)
 	if err != nil {
-		return nil, fmt.Errorf("Azure Key Vault: failed to create client for %q: %w", vaultURL, err)
+		return nil, fmt.Errorf("azure key vault: failed to create client for %q: %w", vaultURL, err)
 	}
 	return client, nil
 }
@@ -66,10 +66,10 @@ func (a *azureKeyVaultManager) GetSecret(key string) ([]byte, error) {
 	// Empty version string fetches the latest version.
 	result, err := a.client.GetSecret(ctx, name, "", nil)
 	if err != nil {
-		return nil, fmt.Errorf("Azure Key Vault: failed to get secret %q: %w", name, err)
+		return nil, fmt.Errorf("azure key vault: failed to get secret %q: %w", name, err)
 	}
 	if result.Value == nil {
-		return nil, fmt.Errorf("Azure Key Vault: secret %q has no value", name)
+		return nil, fmt.Errorf("azure key vault: secret %q has no value", name)
 	}
 	return []byte(*result.Value), nil
 }

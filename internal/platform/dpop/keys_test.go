@@ -14,8 +14,12 @@ import (
 
 func TestBuildECPublicKey(t *testing.T) {
 	key := newTestP256Key(t)
-	x := leftPad(key.PublicKey.X.Bytes(), 32)
-	y := leftPad(key.PublicKey.Y.Bytes(), 32)
+	ecdhKey, err := key.PublicKey.ECDH()
+	require.NoError(t, err)
+	point := ecdhKey.Bytes()
+	size := (len(point) - 1) / 2
+	x := point[1 : 1+size]
+	y := point[1+size:]
 	p384 := mustGenerateECPoint(t, elliptic.P384())
 	p521 := mustGenerateECPoint(t, elliptic.P521())
 
@@ -41,7 +45,8 @@ func TestBuildECPublicKey(t *testing.T) {
 				return
 			}
 			require.NoError(t, err)
-			assert.True(t, pub.Curve.IsOnCurve(pub.X, pub.Y))
+			_, err = pub.ECDH()
+			assert.NoError(t, err)
 		})
 	}
 }
@@ -97,6 +102,9 @@ func mustGenerateECPoint(t *testing.T, curve elliptic.Curve) ecPoint {
 	t.Helper()
 	key, err := ecdsa.GenerateKey(curve, rand.Reader)
 	require.NoError(t, err)
-	size := (curve.Params().BitSize + 7) / 8
-	return ecPoint{x: leftPad(key.PublicKey.X.Bytes(), size), y: leftPad(key.PublicKey.Y.Bytes(), size)}
+	ecdhKey, err := key.PublicKey.ECDH()
+	require.NoError(t, err)
+	point := ecdhKey.Bytes()
+	size := (len(point) - 1) / 2
+	return ecPoint{x: point[1 : 1+size], y: point[1+size:]}
 }

@@ -265,17 +265,6 @@ func (m *mockLoginTemplateService) Delete(ctx context.Context, id uuid.UUID, ten
 	return nil, nil
 }
 
-func newMockGormDB(t *testing.T) (*gorm.DB, sqlmock.Sqlmock) {
-	t.Helper()
-	sqlDB, mock, err := sqlmock.New()
-	require.NoError(t, err)
-	gormDB, err := gorm.Open(postgres.New(postgres.Config{Conn: sqlDB}), &gorm.Config{
-		Logger: logger.Default.LogMode(logger.Silent),
-	})
-	require.NoError(t, err)
-	return gormDB, mock
-}
-
 func newMockGormDBRegex(t *testing.T) (*gorm.DB, sqlmock.Sqlmock) {
 	t.Helper()
 	sqlDB, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherRegexp))

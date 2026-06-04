@@ -29,7 +29,7 @@ func TestTokenHelper_GenerateTokenSetWithAuthContext_Defaults(t *testing.T) {
 	user := buildActiveUser(t, "Password123!")
 	client := buildActiveClient()
 
-	accessToken, idToken, refreshToken, err := generateTokenSetWithAuthContext(nil, "sub-1", user, client, tokenAuthContext{})
+	accessToken, idToken, refreshToken, err := generateTokenSetWithAuthContext(context.Background(), "sub-1", user, client, tokenAuthContext{})
 
 	require.NoError(t, err)
 	assert.NotEmpty(t, accessToken)

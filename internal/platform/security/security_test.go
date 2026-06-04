@@ -615,11 +615,11 @@ func TestCheckAndRecordSMSDailyBudget_Disabled(t *testing.T) {
 	assert.NoError(t, CheckAndRecordSMSDailyBudget(context.Background(), "scope", -1))
 }
 
-func TestCheckAndRecordSMSDailyBudget_NilCtx(t *testing.T) {
+func TestCheckAndRecordSMSDailyBudget_TODOCtx(t *testing.T) {
 	ResetSMSDailyBudgetCounters()
 	t.Cleanup(ResetSMSDailyBudgetCounters)
 
-	assert.NoError(t, CheckAndRecordSMSDailyBudget(nil, "scope", 10))
+	assert.NoError(t, CheckAndRecordSMSDailyBudget(context.TODO(), "scope", 10))
 }
 
 func TestCheckAndRecordSMSDailyBudget_RedisPath(t *testing.T) {
