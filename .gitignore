@@ -63,6 +63,15 @@ yarn-error.log*
 *.old
 *.orig
 
+# AI tools (local only)
+.agents/
+.claude/
+.codex/
+.opencode/
+AGENTS.md
+CLAUDE.md
+graphify-out/
+
 # Air live reload temp
 .air.toml
 tmp/
