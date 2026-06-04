@@ -1,6 +1,8 @@
 package pagination
 
 import (
+	"net/http"
+	"net/http/httptest"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -89,4 +91,65 @@ func TestPaginatedResponseDto_Fields(t *testing.T) {
 	}
 	assert.Len(t, resp.Rows, 2)
 	assert.Equal(t, int64(2), resp.Total)
+}
+
+// ---------------------------------------------------------------------------
+// ParseQuery tests
+// ---------------------------------------------------------------------------
+
+func TestParseQuery_Defaults(t *testing.T) {
+	r := httptest.NewRequest(http.MethodGet, "/", nil)
+	dto := ParseQuery(r)
+	assert.Equal(t, 1, dto.Page)
+	assert.Equal(t, DefaultPageSize, dto.Limit)
+	assert.Equal(t, "", dto.SortBy)
+	assert.Equal(t, "", dto.SortOrder)
+}
+
+func TestParseQuery_ValidParams(t *testing.T) {
+	r := httptest.NewRequest(http.MethodGet, "/?page=3&limit=50&sort_by=name&sort_order=asc", nil)
+	dto := ParseQuery(r)
+	assert.Equal(t, 3, dto.Page)
+	assert.Equal(t, 50, dto.Limit)
+	assert.Equal(t, "name", dto.SortBy)
+	assert.Equal(t, "asc", dto.SortOrder)
+}
+
+func TestParseQuery_InvalidPageDefaultsTo1(t *testing.T) {
+	r := httptest.NewRequest(http.MethodGet, "/?page=abc&limit=10", nil)
+	dto := ParseQuery(r)
+	assert.Equal(t, 1, dto.Page)
+	assert.Equal(t, 10, dto.Limit)
+}
+
+func TestParseQuery_NegativePageDefaultsTo1(t *testing.T) {
+	r := httptest.NewRequest(http.MethodGet, "/?page=-1&limit=10", nil)
+	dto := ParseQuery(r)
+	assert.Equal(t, 1, dto.Page)
+}
+
+func TestParseQuery_InvalidLimitDefaultsToDefault(t *testing.T) {
+	r := httptest.NewRequest(http.MethodGet, "/?page=1&limit=abc", nil)
+	dto := ParseQuery(r)
+	assert.Equal(t, 1, dto.Page)
+	assert.Equal(t, DefaultPageSize, dto.Limit)
+}
+
+func TestParseQuery_ZeroLimitDefaultsToDefault(t *testing.T) {
+	r := httptest.NewRequest(http.MethodGet, "/?page=1&limit=0", nil)
+	dto := ParseQuery(r)
+	assert.Equal(t, DefaultPageSize, dto.Limit)
+}
+
+func TestParseQuery_NegativeLimitDefaultsToDefault(t *testing.T) {
+	r := httptest.NewRequest(http.MethodGet, "/?page=1&limit=-5", nil)
+	dto := ParseQuery(r)
+	assert.Equal(t, DefaultPageSize, dto.Limit)
+}
+
+func TestParseQuery_SortDesc(t *testing.T) {
+	r := httptest.NewRequest(http.MethodGet, "/?page=1&limit=25&sort_by=email&sort_order=desc", nil)
+	dto := ParseQuery(r)
+	assert.Equal(t, "email", dto.SortBy)
+	assert.Equal(t, "desc", dto.SortOrder)
 }

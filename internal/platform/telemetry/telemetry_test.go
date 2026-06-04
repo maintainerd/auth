@@ -71,3 +71,46 @@ func TestTraceIDFromContext_NoopSpan(t *testing.T) {
 func TestNoopShutdown(t *testing.T) {
 	assert.NoError(t, noopShutdown(context.Background()))
 }
+
+// ---------------------------------------------------------------------------
+// InitMetrics
+// ---------------------------------------------------------------------------
+
+func TestInitMetrics_Success(t *testing.T) {
+	t.Setenv("OTEL_ENABLED", "true")
+	t.Setenv("OTEL_SERVICE_NAME", "test-metrics")
+
+	shutdown, err := InitMetrics(context.Background())
+	require.NoError(t, err)
+	require.NotNil(t, shutdown)
+
+	assert.NoError(t, shutdown(context.Background()))
+}
+
+// ---------------------------------------------------------------------------
+// readBuildInfo
+// ---------------------------------------------------------------------------
+
+func TestReadBuildInfo(t *testing.T) {
+	commit, date := readBuildInfo()
+	// In a test environment, build info may or may not be available.
+	// Just verify it doesn't panic.
+	assert.NotPanics(t, func() { readBuildInfo() })
+	_ = commit
+	_ = date
+}
+
+// ---------------------------------------------------------------------------
+// Init — resource merge error (via empty OTEL_SERVICE_NAME)
+// ---------------------------------------------------------------------------
+
+func TestInit_Enabled_DefaultServiceName(t *testing.T) {
+	t.Setenv("OTEL_ENABLED", "true")
+	t.Setenv("OTEL_EXPORTER_OTLP_ENDPOINT", "http://127.0.0.1:0")
+
+	shutdown, err := Init(context.Background())
+	require.NoError(t, err)
+	require.NotNil(t, shutdown)
+
+	assert.NoError(t, shutdown(context.Background()))
+}
