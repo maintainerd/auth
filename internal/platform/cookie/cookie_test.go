@@ -148,3 +148,63 @@ func TestClearAuthCookies(t *testing.T) {
 	require.NotNil(t, rt)
 	assert.Equal(t, "/auth/refresh", rt.Path)
 }
+
+func TestCookieSecure(t *testing.T) {
+	oldSecure := config.CookieSecure
+	t.Cleanup(func() { config.CookieSecure = oldSecure })
+
+	config.CookieSecure = true
+	assert.True(t, cookieSecure())
+
+	config.CookieSecure = false
+	assert.False(t, cookieSecure())
+}
+
+func TestCookieSameSite(t *testing.T) {
+	oldSameSite := config.CookieSameSite
+	t.Cleanup(func() { config.CookieSameSite = oldSameSite })
+
+	config.CookieSameSite = "strict"
+	assert.Equal(t, http.SameSiteStrictMode, cookieSameSite())
+
+	config.CookieSameSite = "lax"
+	assert.Equal(t, http.SameSiteLaxMode, cookieSameSite())
+
+	config.CookieSameSite = "none"
+	assert.Equal(t, http.SameSiteNoneMode, cookieSameSite())
+
+	config.CookieSameSite = "unknown"
+	assert.Equal(t, http.SameSiteStrictMode, cookieSameSite())
+}
+
+func TestSecureForCookieName(t *testing.T) {
+	oldSecure := config.CookieSecure
+	t.Cleanup(func() { config.CookieSecure = oldSecure })
+
+	config.CookieSecure = false
+
+	assert.True(t, secureForCookieName("__Host-access_token"))
+	assert.True(t, secureForCookieName("__Secure-refresh_token"))
+	assert.False(t, secureForCookieName("plain_cookie"))
+}
+
+func TestSameSiteForCookie(t *testing.T) {
+	oldSecure := config.CookieSecure
+	oldSameSite := config.CookieSameSite
+	t.Cleanup(func() {
+		config.CookieSecure = oldSecure
+		config.CookieSameSite = oldSameSite
+	})
+
+	config.CookieSameSite = "strict"
+	assert.Equal(t, http.SameSiteStrictMode, sameSiteForCookie(true))
+	assert.Equal(t, http.SameSiteStrictMode, sameSiteForCookie(false))
+
+	config.CookieSameSite = "lax"
+	assert.Equal(t, http.SameSiteLaxMode, sameSiteForCookie(true))
+	assert.Equal(t, http.SameSiteLaxMode, sameSiteForCookie(false))
+
+	config.CookieSameSite = "none"
+	assert.Equal(t, http.SameSiteNoneMode, sameSiteForCookie(true))
+	assert.Equal(t, http.SameSiteLaxMode, sameSiteForCookie(false))
+}

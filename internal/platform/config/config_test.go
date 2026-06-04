@@ -321,4 +321,171 @@ func TestInit(t *testing.T) {
 		assert.Equal(t, "Maintainerd", SMTPFromName)
 		assert.NotEmpty(t, EmailLogo)
 	})
+
+	t.Run("APP_ENCRYPTION_KEY wrong size", func(t *testing.T) {
+		saveGlobals(t)
+		setRequiredEnv(t)
+		t.Setenv("APP_ENCRYPTION_KEY", "tooshort")
+
+		err := Init()
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "APP_ENCRYPTION_KEY must be 32 bytes")
+	})
+
+	t.Run("missing APP_ENCRYPTION_KEY", func(t *testing.T) {
+		saveGlobals(t)
+		setRequiredEnv(t)
+		t.Setenv("APP_ENCRYPTION_KEY", "")
+
+		err := Init()
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "APP_ENCRYPTION_KEY")
+	})
+
+	t.Run("missing HMAC_SECRET_KEY", func(t *testing.T) {
+		saveGlobals(t)
+		setRequiredEnv(t)
+		t.Setenv("HMAC_SECRET_KEY", "")
+
+		err := Init()
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "HMAC_SECRET_KEY")
+	})
+
+	t.Run("custom SMS_DAILY_SEND_LIMIT", func(t *testing.T) {
+		saveGlobals(t)
+		setRequiredEnv(t)
+		t.Setenv("SMS_DAILY_SEND_LIMIT", "500")
+
+		err := Init()
+		require.NoError(t, err)
+		assert.Equal(t, 500, SMSDailySendLimit)
+	})
+
+	t.Run("SMS_DAILY_SEND_LIMIT disabled", func(t *testing.T) {
+		saveGlobals(t)
+		setRequiredEnv(t)
+		t.Setenv("SMS_DAILY_SEND_LIMIT", "0")
+
+		err := Init()
+		require.NoError(t, err)
+		assert.Equal(t, 0, SMSDailySendLimit)
+	})
+
+	t.Run("custom MANAGEMENT_PORT", func(t *testing.T) {
+		saveGlobals(t)
+		setRequiredEnv(t)
+		t.Setenv("MANAGEMENT_PORT", "9090")
+
+		err := Init()
+		require.NoError(t, err)
+		assert.Equal(t, ":9090", ManagementPort)
+	})
+
+	t.Run("custom LOG_LEVEL", func(t *testing.T) {
+		saveGlobals(t)
+		setRequiredEnv(t)
+		t.Setenv("LOG_LEVEL", "debug")
+
+		err := Init()
+		require.NoError(t, err)
+		assert.Equal(t, "debug", LogLevel)
+	})
+
+	t.Run("custom COOKIE_SECURE false", func(t *testing.T) {
+		saveGlobals(t)
+		setRequiredEnv(t)
+		t.Setenv("COOKIE_SECURE", "false")
+
+		err := Init()
+		require.NoError(t, err)
+		assert.False(t, CookieSecure)
+	})
+
+	t.Run("custom COOKIE_SECURE true", func(t *testing.T) {
+		saveGlobals(t)
+		setRequiredEnv(t)
+		t.Setenv("COOKIE_SECURE", "true")
+
+		err := Init()
+		require.NoError(t, err)
+		assert.True(t, CookieSecure)
+	})
+
+	t.Run("custom COOKIE_SAMESITE lax", func(t *testing.T) {
+		saveGlobals(t)
+		setRequiredEnv(t)
+		t.Setenv("COOKIE_SAMESITE", "lax")
+
+		err := Init()
+		require.NoError(t, err)
+		assert.Equal(t, "lax", CookieSameSite)
+	})
+
+	t.Run("custom EMAIL_PROVIDER", func(t *testing.T) {
+		saveGlobals(t)
+		setRequiredEnv(t)
+		t.Setenv("EMAIL_PROVIDER", "mailgun")
+
+		err := Init()
+		require.NoError(t, err)
+		assert.Equal(t, "mailgun", EmailProvider)
+	})
+
+	t.Run("custom DB pool config", func(t *testing.T) {
+		saveGlobals(t)
+		setRequiredEnv(t)
+		t.Setenv("DB_MAX_OPEN_CONNS", "50")
+		t.Setenv("DB_MAX_IDLE_CONNS", "20")
+		t.Setenv("DB_CONN_MAX_LIFETIME_SEC", "600")
+
+		err := Init()
+		require.NoError(t, err)
+		assert.Equal(t, 50, DBMaxOpenConns)
+		assert.Equal(t, 20, DBMaxIdleConns)
+		assert.Equal(t, 600, DBConnMaxLifetimeSec)
+	})
+
+	t.Run("custom EMAIL_API_KEY set", func(t *testing.T) {
+		saveGlobals(t)
+		setRequiredEnv(t)
+		t.Setenv("EMAIL_API_KEY", "key-123")
+
+		err := Init()
+		require.NoError(t, err)
+		assert.Equal(t, "key-123", EmailAPIKey)
+	})
+}
+
+func TestGetConfig(t *testing.T) {
+	saveGlobals := func(t *testing.T) {
+		t.Helper()
+		orig := AppEnv
+		t.Cleanup(func() { AppEnv = orig })
+	}
+	saveGlobals(t)
+	AppEnv = "production"
+
+	cfg := GetConfig()
+	assert.Equal(t, "production", cfg.AppEnv)
+	assert.NotNil(t, cfg)
+}
+
+func TestNormalizeListenAddr(t *testing.T) {
+	tests := []struct {
+		name string
+		port string
+		want string
+	}{
+		{"with colon", ":8080", ":8080"},
+		{"without colon", "8080", ":8080"},
+		{"empty", "", ""},
+		{"whitespace trimmed", " 9090 ", ":9090"},
+		{"already has colon and path", "0.0.0.0:8080", "0.0.0.0:8080"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Equal(t, tc.want, normalizeListenAddr(tc.port))
+		})
+	}
 }

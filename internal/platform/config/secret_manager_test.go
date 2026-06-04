@@ -210,6 +210,34 @@ func TestLoadSecret(t *testing.T) {
 	})
 }
 
+func TestLoadSecret_Exported(t *testing.T) {
+	t.Run("delegates to loadSecret", func(t *testing.T) {
+		saveActiveSecretManager(t)
+		activeSecretManager = &mockSecretManager{
+			getSecretFn: func(key string) ([]byte, error) {
+				return []byte("exported-value"), nil
+			},
+		}
+
+		data, err := LoadSecret("TEST_KEY")
+		require.NoError(t, err)
+		assert.Equal(t, []byte("exported-value"), data)
+	})
+
+	t.Run("propagates error from loadSecret", func(t *testing.T) {
+		saveActiveSecretManager(t)
+		activeSecretManager = &mockSecretManager{
+			getSecretFn: func(key string) ([]byte, error) {
+				return nil, fmt.Errorf("load error")
+			},
+		}
+
+		_, err := LoadSecret("FAIL_KEY")
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "load error")
+	})
+}
+
 // ─── initSecretManager ──────────────────────────────────────────────────
 
 func TestInitSecretManager(t *testing.T) {
