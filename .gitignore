@@ -66,3 +66,4 @@ yarn-error.log*
 # Air live reload temp
 .air.toml
 tmp/
+server
