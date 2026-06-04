@@ -1676,6 +1676,13 @@ Response:
 
 For machine-to-machine communication where no user is involved.
 
+If the OAuth client is linked to an IAM service through `clients.service_id`,
+the access token is issued as a service-principal token (`sub_type=service`,
+`svc=<service name>`). That service can then fetch
+`GET /api/v1/services/me/policy-bundle` and evaluate outbound calls locally, or
+call `POST /api/v1/authorize/` for a central decision. See
+[Service-to-Service Authorization](../iam/authorization.md).
+
 ```
 ┌──────────┐     ┌──────────────┐
 │  M2M App  │     │  Auth Server  │
