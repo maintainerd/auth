@@ -1,6 +1,6 @@
 module github.com/maintainerd/auth
 
-go 1.26.4
+go 1.26.3
 
 require (
 	cloud.google.com/go/secretmanager v1.17.0
