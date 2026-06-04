@@ -63,10 +63,7 @@ func SeedControlPolicy(db *gorm.DB, tenantID int64) error {
 		},
 	}
 
-	raw, err := json.Marshal(document)
-	if err != nil {
-		return fmt.Errorf("failed to encode control policy: %w", err)
-	}
+	raw, _ := json.Marshal(document)
 
 	policy := model.Policy{
 		PolicyUUID:  uuid.New(),

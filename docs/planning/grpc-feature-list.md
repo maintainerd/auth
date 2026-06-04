@@ -1,6 +1,6 @@
 # gRPC Feature List — Service-to-Service Control Plane Transport
 
-**Status:** Planning — proposed for **v1.1.0** (post REST/S2S-authz baseline).
+**Status:** Phase 0 foundation in progress — proposed for **v1.1.0** (post REST/S2S-authz baseline).
 **Owner:** rseguma@lula.life
 **Created:** 2026-06-04
 **Related:** [service-to-service-authorization.md](../documentations/service-to-service-authorization/service-to-service-authorization.md) · [architecture.md](../documentations/architecture/architecture.md) · [code-structure.md](../contributing/code-structure.md) · [testing.md](../contributing/testing.md)
@@ -38,9 +38,9 @@ and a location.
 | 🔵 | **testing** | Code complete; under test / review per [testing.md](../contributing/testing.md). |
 | ✅ | **done** | Merged, tested, and verified. |
 
-> Everything is 🔴 **todo** unless noted. The ✅ **done** items today are the
-> bootstrap `SeederService` (see §3) and the non-deletable system service guard
-> (GRPC-017, see §7.7) — both already in the codebase.
+> Everything is 🔴 **todo** unless noted. Phase 0 items that landed are marked ✅
+> below; partially implemented foundation items stay 🟡 until their remaining
+> coverage or integration/CI work lands.
 
 **ID convention:** `GRPC-0xx` = Phase 0 foundation **plus cross-cutting
 provisioning/setup items** (GRPC-015…023, gathered in §7.7). `GRPC-1xx` =
@@ -103,10 +103,10 @@ the contract stays idiomatic and forward-compatible.
 |-------|-------|--------|
 | gRPC server lifecycle (listen, graceful stop, otelgrpc stats handler) | [grpc.go](../../internal/server/grpc.go) `StartGRPCServer` | ✅ exists |
 | Bound address constant | `shared.DefaultGRPCAddr` | ✅ exists |
-| `SeederService` (1 RPC: `TriggerSeeder`) | [v1.proto](../../proto/maintainerd/auth/v1.proto), handler in [setup](../../internal/setup) | ✅ done |
-| Proto source | `proto/maintainerd/auth/v1.proto` (flat — `v1` is the **filename**) | ⚠️ needs restructure (§4) |
-| Generated Go | `internal/platform/gen/go/maintainerd/auth/` | ⚠️ path mismatch (§4) |
-| Codegen | `make proto` (raw `protoc`) | ⚠️ migrate to `buf` (GRPC-001) |
+| `SeederService` (1 RPC: `TriggerSeeder`) | [seeder.proto](../../proto/maintainerd/auth/v1/seeder.proto), handler in [setup](../../internal/setup) | ✅ done |
+| Proto source | `proto/maintainerd/auth/v1/` (`v1` is now a directory) | ✅ restructured |
+| Generated Go | `internal/platform/gen/go/maintainerd/auth/` | ✅ aligned |
+| Codegen | `make proto` via buf (`buf generate`) | ✅ migrated |
 | S2S authz primitives (OAuth `client_credentials`, PDP evaluator, `/authorize/`, policy bundle, default-deny) | [iam](../../internal/iam), [oauth](../../internal/oauth) | ✅ done — **reuse for gRPC** (§6) |
 
 **The auth model is already built.** The S2S authorization design
@@ -396,18 +396,18 @@ Each item below is independently trackable. `GRPC-015` and `GRPC-191` also appea
 their phase tables (§8/§9); they are repeated here so the whole provisioning model
 lives in one place.
 
-| ID | Status | Item | Maps to your point |
-|----|--------|------|--------------------|
-| GRPC-016 | 🔴 todo | **Independence guarantee:** a standalone setup (tenant + admin) seeds **exactly one principal — its own `auth` system service** — with **no controller** attached; verify default-deny holds and the app is fully functional with zero controllers. Add a regression test. | "standalone setup creates only one service (its own)" |
-| GRPC-017 | ✅ done | **Self-service is non-deletable:** the seeded `auth` service is `IsSystem=true` and update/status/**delete** are already blocked in [service_service.go](../../internal/iam/service_service.go). Tracked as a guard — **do not regress**; add a test asserting it. | "the service representing this app is not deletable" |
-| GRPC-015 | 🔴 todo | **Seed the default control policy** (`Policy.IsSystem=true`, *unattached*) carrying all actions/permissions a controller needs. **D1 is still open** — defaulting to one shared template until confirmed. | "a prepared/default policy for the control service" |
-| GRPC-191 | 🔴 todo | **Register a controller at init** (`RegisterControlService`, gRPC + REST): create a **second service record** for the controller, provision its OAuth `client_credentials` client, and **attach the control policy**. TOFU-gated; **runs only during the setup window before the persisted `CompleteSetup` lock is set**. | "register the core/control plane during setup → another service + attach policy" |
-| GRPC-018 | 🔴 todo | **Runtime registration path (no core, or after setup is closed):** register a controller at runtime — create the service + `AssignServicePolicy` (GRPC-110), authenticated + PDP-gated, **not** via the setup endpoint. This is the **only** way to add/change a controller after init; verify it reaches the same end-state as GRPC-191. | "manually register without the core by applying a policy defining the core service" |
-| GRPC-019 | 🔴 todo | **Un-provision / revoke control:** detaching (or deleting) the controller's control-policy attachment, and/or removing the controller service, revokes control immediately (PDP + webhook push + short token TTL). The `auth` system service is untouched. | "core can provision and unprovision" |
-| GRPC-020 | 🔴 todo | **Multiple instances:** each maintainerd-auth instance seeds its own system service + control-policy template; a controller registers with **each instance independently** (TOFU per instance). Verify isolation between instances. | "core can provision multiple instances" |
-| GRPC-021 | 🔴 todo | **One-time setup gate parity (REST ↔ gRPC):** both transports reuse the **same persisted setup-complete flag** (set by `CompleteSetup`, GRPC-023) — every mutating setup operation (incl. `RegisterControlService`) becomes unavailable once the flag is set; only `GetSetupStatus` stays available. `IsSetupComplete` is no longer derived from tenant+admin+profile; it is read from setup state. A completed setup disables setup on **both** ports. | "all setup endpoints are available only once; same for gRPC setup" |
-| GRPC-022 | 🔴 todo | **REST equivalent of `RegisterControlService`** — `POST /setup/register-control-service` _(REST)_: same behavior as GRPC-191, exposed on the REST setup surface so a non-gRPC operator/core can register a controller during init. | "add a REST equivalent of RegisterControlService (note: for REST)" |
-| GRPC-023 | 🔴 todo | **`setup/complete` lock** — `POST /setup/complete` _(REST + gRPC)_: sets the persisted setup-complete flag that **locks controller registration and all mutating setup ops**. It exists only to close the setup window; it provisions nothing. Anti-infiltration: prevents any other service from registering itself as controller after a standalone setup. Optional `RegisterControlService` lives in the window *before* this call. | "endpoint for setup/complete to lock control-plane registration; register is optional so lock it by flagging setup complete" |
+| ID       | Status  | Item                                                                                                                                                                                                                                                                                                                                                                                                                                                    | Maps to your point                                                                                                           |
+| -------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| GRPC-016 | 🔴 todo | **Independence guarantee:** a standalone setup (tenant + admin) seeds **exactly one principal — its own `auth` system service** — with **no controller** attached; verify default-deny holds and the app is fully functional with zero controllers. Add a regression test.                                                                                                                                                                              | "standalone setup creates only one service (its own)"                                                                        |
+| GRPC-017 | ✅ done  | **Self-service is non-deletable:** the seeded `auth` service is `IsSystem=true` and update/status/**delete** are already blocked in [service_service.go](../../internal/iam/service_service.go). Tracked as a guard — **do not regress**; add a test asserting it.                                                                                                                                                                                      | "the service representing this app is not deletable"                                                                         |
+| GRPC-015 | ✅ done | **Seed the default control policy** (`Policy.IsSystem=true`, *unattached*) carrying all actions/permissions a controller needs. **D1 is still open** — defaulting to one shared template until confirmed.                                                                                                                                                                                                                                               | "a prepared/default policy for the control service"                                                                          |
+| GRPC-191 | 🔴 todo | **Register a controller at init** (`RegisterControlService`, gRPC + REST): create a **second service record** for the controller, provision its OAuth `client_credentials` client, and **attach the control policy**. TOFU-gated; **runs only during the setup window before the persisted `CompleteSetup` lock is set**.                                                                                                                               | "register the core/control plane during setup → another service + attach policy"                                             |
+| GRPC-018 | 🔴 todo | **Runtime registration path (no core, or after setup is closed):** register a controller at runtime — create the service + `AssignServicePolicy` (GRPC-110), authenticated + PDP-gated, **not** via the setup endpoint. This is the **only** way to add/change a controller after init; verify it reaches the same end-state as GRPC-191.                                                                                                               | "manually register without the core by applying a policy defining the core service"                                          |
+| GRPC-019 | 🔴 todo | **Un-provision / revoke control:** detaching (or deleting) the controller's control-policy attachment, and/or removing the controller service, revokes control immediately (PDP + webhook push + short token TTL). The `auth` system service is untouched.                                                                                                                                                                                              | "core can provision and unprovision"                                                                                         |
+| GRPC-020 | 🔴 todo | **Multiple instances:** each maintainerd-auth instance seeds its own system service + control-policy template; a controller registers with **each instance independently** (TOFU per instance). Verify isolation between instances.                                                                                                                                                                                                                     | "core can provision multiple instances"                                                                                      |
+| GRPC-021 | 🟡 in-development | **One-time setup gate parity (REST ↔ gRPC):** REST setup now reuses the **same persisted setup-complete flag** (set by `CompleteSetup`, GRPC-023); mutating REST setup operations are unavailable once the flag is set; only `GetSetupStatus` stays available. gRPC setup parity remains pending until `setup.proto` lands. `IsSetupComplete` is no longer derived from tenant+admin+profile; it is read from setup state. | "all setup endpoints are available only once; same for gRPC setup"                                                           |
+| GRPC-022 | 🔴 todo | **REST equivalent of `RegisterControlService`** — `POST /setup/register-control-service` _(REST)_: same behavior as GRPC-191, exposed on the REST setup surface so a non-gRPC operator/core can register a controller during init.                                                                                                                                                                                                                      | "add a REST equivalent of RegisterControlService (note: for REST)"                                                           |
+| GRPC-023 | 🟡 in-development | **`setup/complete` lock** — `POST /setup/complete` _(REST implemented; gRPC pending with `setup.proto`)_: sets the persisted setup-complete flag that **locks controller registration and all mutating setup ops**. It exists only to close the setup window; it provisions nothing. Anti-infiltration: prevents any other service from registering itself as controller after a standalone setup. Optional `RegisterControlService` lives in the window *before* this call. | "endpoint for setup/complete to lock control-plane registration; register is optional so lock it by flagging setup complete" |
 
 ---
 
@@ -415,21 +415,21 @@ lives in one place.
 
 | ID | Status | Item | Location |
 |----|--------|------|----------|
-| GRPC-001 | 🔴 todo | Adopt **buf**: add `buf.yaml` + `buf.gen.yaml`; replace `make proto` raw-`protoc` with `buf generate`; add `buf lint` + `buf breaking` to CI. | `proto/`, `Makefile`, CI |
-| GRPC-002 | 🔴 todo | Restructure proto layout: `v1` becomes a directory, split per-domain files (see §4), move `SeederService` into `seeder.proto`. | `proto/maintainerd/auth/v1/` |
-| GRPC-003 | 🔴 todo | Fix `go_package` ↔ output-path ↔ import mismatch; standardize generated code under `internal/platform/gen/go`. | `*.proto`, `Makefile`, [grpc.go](../../internal/server/grpc.go) |
-| GRPC-004 | 🔴 todo | **Error mapping**: `apperror` → `google.rpc.Code` + `ErrorInfo`/`BadRequest` details helper, used by every handler. | `internal/platform/apperror`, new grpc error adapter |
-| GRPC-005 | 🔴 todo | Recovery + structured logging interceptors (request_id correlation). | [internal/server](../../internal/server) |
-| GRPC-006 | 🔴 todo | **Auth interceptor**: extract `authorization` metadata, verify service-account token, denylist check, populate `authctx`. | `internal/server`, [jwt](../../internal/platform/jwt) |
-| GRPC-007 | 🔴 todo | **Authz interceptor + per-RPC permission registry** reusing REST permission strings + PDP `iam.Evaluate()`. | `internal/server`, [iam](../../internal/iam) |
-| GRPC-008 | 🔴 todo | Per-identity rate-limit + request-size + timeout interceptors. | `internal/server`, [middleware](../../internal/platform/middleware) |
-| GRPC-009 | 🔴 todo | Register `grpc.health.v1.Health` (wire to readiness probes in [health.go](../../internal/server/health.go)). | [internal/server](../../internal/server) |
-| GRPC-010 | 🔴 todo | Enable **server reflection** (gated to non-prod or behind authz) for `grpcurl`/control-plane discovery. | [internal/server](../../internal/server) |
-| GRPC-011 | 🔴 todo | TLS/mTLS transport config (cert loading, mesh cert verification, fail-closed). | `internal/server`, [config](../../internal/platform/config) |
-| GRPC-012 | 🔴 todo | `common.proto`: shared pagination (`PageRequest`/`PageResponse`), status enums, audit/timestamp fields. | `proto/maintainerd/auth/v1/common.proto` |
-| GRPC-013 | 🔴 todo | Handler wiring pattern + `internal/server` service-registration map; one adapter per domain service to its existing service layer (no business logic in transport). | [internal/server](../../internal/server) |
-| GRPC-014 | 🔴 todo | gRPC integration test harness (bufconn) + handler test conventions extending [testing.md](../contributing/testing.md). | `tests/integration/` |
-| GRPC-015 | 🔴 todo | **Seed the default control policy** (`Policy.IsSystem=true`, *unattached*) — the "manager" template granting management actions over this app; granted/revoked by attaching/detaching it. See §7.2. | `internal/setup/seeder/`, [iam](../../internal/iam) |
+| GRPC-001 | 🟡 in-development | Adopt **buf**: add `buf.yaml` + `buf.gen.yaml`; replace `make proto` raw-`protoc` with `buf generate`; add `buf lint` + `buf breaking` targets. CI wiring still pending. | `proto/`, `Makefile`, CI |
+| GRPC-002 | ✅ done | Restructure proto layout: `v1` becomes a directory, split per-domain files (see §4), move `SeederService` into `seeder.proto`. | `proto/maintainerd/auth/v1/` |
+| GRPC-003 | ✅ done | Fix `go_package` ↔ output-path ↔ import mismatch; standardize generated code under `internal/platform/gen/go`. | `*.proto`, `Makefile`, [grpc.go](../../internal/server/grpc.go) |
+| GRPC-004 | ✅ done | **Error mapping**: `apperror` → `google.rpc.Code` + `ErrorInfo`/`BadRequest` details helper, used by every handler. | `internal/platform/apperror`, new grpc error adapter |
+| GRPC-005 | ✅ done | Recovery + structured logging interceptors (request_id correlation). | [internal/server](../../internal/server) |
+| GRPC-006 | ✅ done | **Auth interceptor**: extract `authorization` metadata, verify service-account token, denylist check, populate JWT claims context. | `internal/server`, [jwt](../../internal/platform/jwt) |
+| GRPC-007 | ✅ done | **Authz interceptor + per-RPC permission registry** reusing REST permission strings + PDP `iam.Evaluate()`. | `internal/server`, [iam](../../internal/iam) |
+| GRPC-008 | ✅ done | Per-identity rate-limit + request-size + timeout interceptors. | `internal/server`, [middleware](../../internal/platform/middleware) |
+| GRPC-009 | ✅ done | Register `grpc.health.v1.Health` (wire to readiness probes in [health.go](../../internal/server/health.go)). | [internal/server](../../internal/server) |
+| GRPC-010 | ✅ done | Enable **server reflection** (gated to non-prod or behind authz) for `grpcurl`/control-plane discovery. | [internal/server](../../internal/server) |
+| GRPC-011 | ✅ done | TLS/mTLS transport config (cert loading, mesh cert verification, fail-closed). | `internal/server`, [config](../../internal/platform/config) |
+| GRPC-012 | ✅ done | `common.proto`: shared pagination (`PageRequest`/`PageResponse`), status enums, audit/timestamp fields. | `proto/maintainerd/auth/v1/common.proto` |
+| GRPC-013 | 🟡 in-development | Handler wiring pattern started with server options/interceptor registration and existing `SeederService`; full per-domain service-registration map lands as domain RPCs are added. | [internal/server](../../internal/server) |
+| GRPC-014 | 🟡 in-development | gRPC test coverage added for health/interceptor/TLS paths; full bufconn integration harness + testing.md conventions still pending. | `tests/integration/` |
+| GRPC-015 | ✅ done | **Seed the default control policy** (`Policy.IsSystem=true`, *unattached*) — the "manager" template granting management actions over this app; granted/revoked by attaching/detaching it. See §7.2. | `internal/setup/seeder/`, [iam](../../internal/iam) |
 
 ---
 
@@ -709,7 +709,7 @@ permission string shown. Status is per-RPC.
 | `CreateAdmin` | `POST /setup/create_admin` | (bootstrap) | 🔴 todo |
 | `CreateProfile` | `POST /setup/create_profile` | (bootstrap) | 🔴 todo |
 | `RegisterControlService` (GRPC-191) | NEW (REST `POST /setup/register-control-service`, GRPC-022 + gRPC) | (bootstrap, TOFU, **optional**) | 🔴 todo |
-| `CompleteSetup` (GRPC-023) | NEW (REST `POST /setup/complete` + gRPC) | (bootstrap, final) | 🔴 todo |
+| `CompleteSetup` (GRPC-023) | NEW (REST `POST /setup/complete`; gRPC pending) | (bootstrap, final) | 🟡 in-development |
 
 > **SetupService** is the control plane's natural provisioning entry point
 > (a fresh tenant + admin) — high S2S value despite living under the "bootstrap"
