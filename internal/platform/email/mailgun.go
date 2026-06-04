@@ -49,7 +49,7 @@ func (p *mailgunProvider) Send(ctx context.Context, params SendParams) error {
 		span.SetStatus(codes.Error, "mailgun send failed")
 		return fmt.Errorf("mailgun: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode >= 300 {
 		err := fmt.Errorf("mailgun: unexpected status %d", resp.StatusCode)

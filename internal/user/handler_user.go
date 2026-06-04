@@ -101,10 +101,10 @@ func (h *UserHandler) GetUsers(w http.ResponseWriter, r *http.Request) {
 		RoleUUID:     reqParams.RoleUUID,
 		UserPoolUUID: reqParams.UserPoolUUID,
 		ClientUUID:   reqParams.ClientUUID,
-		Page:         reqParams.PaginationRequestDTO.Page,
-		Limit:        reqParams.PaginationRequestDTO.Limit,
-		SortBy:       reqParams.PaginationRequestDTO.SortBy,
-		SortOrder:    reqParams.PaginationRequestDTO.SortOrder,
+		Page:         reqParams.Page,
+		Limit:        reqParams.Limit,
+		SortBy:       reqParams.SortBy,
+		SortOrder:    reqParams.SortOrder,
 	}
 
 	// Fetch users from service layer

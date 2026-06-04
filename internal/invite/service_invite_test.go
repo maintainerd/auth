@@ -218,9 +218,8 @@ func TestInviteService_SendInvite_BulkRoleCreateError(t *testing.T) {
 }
 
 func TestInviteService_SendInvite_FullSuccess(t *testing.T) {
-	os.Setenv("HMAC_SECRET_KEY", "test-secret-key-for-hmac")
-	defer os.Unsetenv("HMAC_SECRET_KEY")
-
+	_ = os.Setenv("HMAC_SECRET_KEY", "test-secret-key-for-hmac")
+	t.Cleanup(func() { _ = os.Unsetenv("HMAC_SECRET_KEY") })
 	origAppPrivateHostname := config.AppPrivateHostname
 	origAccountHostname := config.AccountHostname
 	defer func() {
@@ -272,9 +271,8 @@ func TestInviteService_SendInvite_FullSuccess(t *testing.T) {
 }
 
 func TestInviteService_SendInvite_EmailSendError(t *testing.T) {
-	os.Setenv("HMAC_SECRET_KEY", "test-secret-key-for-hmac")
-	defer os.Unsetenv("HMAC_SECRET_KEY")
-
+	_ = os.Setenv("HMAC_SECRET_KEY", "test-secret-key-for-hmac")
+	t.Cleanup(func() { _ = os.Unsetenv("HMAC_SECRET_KEY") })
 	origAppPrivateHostname := config.AppPrivateHostname
 	origAccountHostname := config.AccountHostname
 	defer func() {
@@ -317,9 +315,8 @@ func TestInviteService_SendInvite_EmailSendError(t *testing.T) {
 }
 
 func TestInviteService_SendInvite_TemplateFetchError(t *testing.T) {
-	os.Setenv("HMAC_SECRET_KEY", "test-secret-key-for-hmac")
-	defer os.Unsetenv("HMAC_SECRET_KEY")
-
+	_ = os.Setenv("HMAC_SECRET_KEY", "test-secret-key-for-hmac")
+	t.Cleanup(func() { _ = os.Unsetenv("HMAC_SECRET_KEY") })
 	origAppPrivateHostname := config.AppPrivateHostname
 	origAccountHostname := config.AccountHostname
 	defer func() {
@@ -358,9 +355,8 @@ func TestInviteService_SendInvite_TemplateFetchError(t *testing.T) {
 }
 
 func TestInviteService_SendInvite_HTMLParseError(t *testing.T) {
-	os.Setenv("HMAC_SECRET_KEY", "test-secret-key-for-hmac")
-	defer os.Unsetenv("HMAC_SECRET_KEY")
-
+	_ = os.Setenv("HMAC_SECRET_KEY", "test-secret-key-for-hmac")
+	t.Cleanup(func() { _ = os.Unsetenv("HMAC_SECRET_KEY") })
 	origAppPrivateHostname := config.AppPrivateHostname
 	origAccountHostname := config.AccountHostname
 	defer func() {
@@ -402,9 +398,8 @@ func TestInviteService_SendInvite_HTMLParseError(t *testing.T) {
 }
 
 func TestInviteService_SendInvite_HTMLExecuteError(t *testing.T) {
-	os.Setenv("HMAC_SECRET_KEY", "test-secret-key-for-hmac")
-	defer os.Unsetenv("HMAC_SECRET_KEY")
-
+	_ = os.Setenv("HMAC_SECRET_KEY", "test-secret-key-for-hmac")
+	t.Cleanup(func() { _ = os.Unsetenv("HMAC_SECRET_KEY") })
 	origAppPrivateHostname := config.AppPrivateHostname
 	origAccountHostname := config.AccountHostname
 	defer func() {
@@ -446,9 +441,8 @@ func TestInviteService_SendInvite_HTMLExecuteError(t *testing.T) {
 }
 
 func TestInviteService_SendInvite_PlainParseError(t *testing.T) {
-	os.Setenv("HMAC_SECRET_KEY", "test-secret-key-for-hmac")
-	defer os.Unsetenv("HMAC_SECRET_KEY")
-
+	_ = os.Setenv("HMAC_SECRET_KEY", "test-secret-key-for-hmac")
+	t.Cleanup(func() { _ = os.Unsetenv("HMAC_SECRET_KEY") })
 	origAppPrivateHostname := config.AppPrivateHostname
 	origAccountHostname := config.AccountHostname
 	defer func() {
@@ -492,9 +486,8 @@ func TestInviteService_SendInvite_PlainParseError(t *testing.T) {
 }
 
 func TestInviteService_SendInvite_PlainExecuteError(t *testing.T) {
-	os.Setenv("HMAC_SECRET_KEY", "test-secret-key-for-hmac")
-	defer os.Unsetenv("HMAC_SECRET_KEY")
-
+	_ = os.Setenv("HMAC_SECRET_KEY", "test-secret-key-for-hmac")
+	t.Cleanup(func() { _ = os.Unsetenv("HMAC_SECRET_KEY") })
 	origAppPrivateHostname := config.AppPrivateHostname
 	origAccountHostname := config.AccountHostname
 	defer func() {
@@ -662,9 +655,8 @@ func TestInviteService_SendInvite_TenantIDZero(t *testing.T) {
 }
 
 func TestInviteService_SendInvite_GenerateSignedURLError(t *testing.T) {
-	os.Setenv("HMAC_SECRET_KEY", "test-secret-key-for-hmac")
-	defer os.Unsetenv("HMAC_SECRET_KEY")
-
+	_ = os.Setenv("HMAC_SECRET_KEY", "test-secret-key-for-hmac")
+	t.Cleanup(func() { _ = os.Unsetenv("HMAC_SECRET_KEY") })
 	origAppPrivateHostname := config.AppPrivateHostname
 	origAccountHostname := config.AccountHostname
 	defer func() {
@@ -701,9 +693,8 @@ func TestInviteService_SendInvite_GenerateSignedURLError(t *testing.T) {
 }
 
 func TestInviteService_SendInvite_ConvertToFrontendURLError(t *testing.T) {
-	os.Setenv("HMAC_SECRET_KEY", "test-secret-key-for-hmac")
-	defer os.Unsetenv("HMAC_SECRET_KEY")
-
+	_ = os.Setenv("HMAC_SECRET_KEY", "test-secret-key-for-hmac")
+	t.Cleanup(func() { _ = os.Unsetenv("HMAC_SECRET_KEY") })
 	origAppPrivateHostname := config.AppPrivateHostname
 	origAccountHostname := config.AccountHostname
 	defer func() {

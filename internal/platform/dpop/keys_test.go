@@ -54,7 +54,7 @@ func TestBuildECPublicKey(t *testing.T) {
 func TestBuildRSAPublicKey(t *testing.T) {
 	key, err := rsa.GenerateKey(rand.Reader, 2048)
 	require.NoError(t, err)
-	nb64 := base64.RawURLEncoding.EncodeToString(key.PublicKey.N.Bytes())
+	nb64 := base64.RawURLEncoding.EncodeToString(key.N.Bytes())
 	eb64 := base64.RawURLEncoding.EncodeToString([]byte{1, 0, 1})
 
 	tests := []struct {
@@ -77,7 +77,7 @@ func TestBuildRSAPublicKey(t *testing.T) {
 				return
 			}
 			require.NoError(t, err)
-			assert.Equal(t, key.PublicKey.N, pub.N)
+			assert.Equal(t, key.N, pub.N)
 			assert.Equal(t, 65537, pub.E)
 		})
 	}

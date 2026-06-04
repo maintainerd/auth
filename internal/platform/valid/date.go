@@ -27,8 +27,8 @@ func (d *Date) UnmarshalJSON(b []byte) error {
 }
 
 func (d Date) MarshalJSON() ([]byte, error) {
-	if d.Time.IsZero() {
+	if d.IsZero() {
 		return []byte(`null`), nil
 	}
-	return json.Marshal(d.Time.Format(dateLayout))
+	return json.Marshal(d.Format(dateLayout))
 }
