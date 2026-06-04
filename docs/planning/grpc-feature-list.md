@@ -12,9 +12,11 @@ especially — **control** this auth service (create/update/delete resources) an
 **read data** from it, mirroring the existing **internal (private) REST port**
 (`:8080`).
 
-It backlogs every internal-port REST endpoint as a gRPC RPC, assigns each a
-status, and pins down the **contract layout, naming, and S2S authentication
-standard** so the work follows gRPC best practice from the start.
+It backlogs every internal-port **application API** endpoint as a gRPC RPC,
+assigns each a status, and pins down the **contract layout, naming, and S2S
+authentication standard** so the work follows gRPC best practice from the start.
+Operational endpoints (`/health`, `/ready`, `/livez`, `/openapi.json`) map to
+gRPC health/reflection/proto discovery instead of one-off product RPCs.
 
 ---
 
@@ -36,10 +38,10 @@ and a location.
 
 > Everything is 🔴 **todo** unless noted. The ✅ **done** items today are the
 > bootstrap `SeederService` (see §3) and the non-deletable system service guard
-> (GRPC-017, see §7.6) — both already in the codebase.
+> (GRPC-017, see §7.7) — both already in the codebase.
 
 **ID convention:** `GRPC-0xx` = Phase 0 foundation **plus cross-cutting
-provisioning/setup items** (GRPC-015…023, gathered in §7.6). `GRPC-1xx` =
+provisioning/setup items** (GRPC-015…023, gathered in §7.7). `GRPC-1xx` =
 control-plane (management) services. `GRPC-2xx` = identity / end-user-flow services
 (deferred — see §10). Per-RPC status lives in each service's table.
 
@@ -51,7 +53,7 @@ control-plane (management) services. `GRPC-2xx` = identity / end-user-flow servi
 |---|---|
 | **Independence** | maintainerd-auth is **fully standalone** — it boots, migrates, seeds, and serves with **no dependency on the core / control plane**. The core is an *optional* manager, never a runtime requirement. The gRPC surface assumes nothing about the core's existence. See §7. |
 | **Why gRPC** | Typed contracts, codegen for every consumer language, streaming-capable, low overhead — the right tool for **service-to-service** traffic (core/control plane ↔ auth, and peer services reading auth data). |
-| **What it mirrors** | The **internal (private) REST port** (`:8080`, VPN/private-network only — see [router.go](../../internal/server/router.go) `buildInternalRouter`). gRPC becomes a private-network-only control surface, **never** exposed to the public internet (the public port `:8081` stays REST-only). |
+| **What it mirrors** | The **internal (private) REST port** (`:8080`, VPN/private-network only — see [router.go](../../internal/server/router.go) `buildInternalRouter`). gRPC becomes a private-network-only control surface, **never** exposed to the public internet (the public port `:8081` stays REST-only). Product APIs are mirrored as RPCs; operational probes/spec endpoints are covered by gRPC health, reflection, and generated proto contracts. |
 | **Two use-cases** | **(a) Control** — external services (e.g. the core/control plane) mutate auth resources (tenants, clients, policies, users, settings…). **(b) Data** — peer services read auth data (introspect tokens, fetch policies, list roles…). |
 | **Auth model** | S2S only. Every call carries a **service-account access token**; every RPC is policy-gated. **A policy must always exist** for a caller to reach an RPC — default-deny. See §6. |
 | **Out of scope** | Browser/public/end-user-interactive traffic stays on REST. gRPC-Web/public gateway, and breaking v2 changes — see §11. |
@@ -301,18 +303,18 @@ policy.
    This is the **trust-on-first-use (TOFU)** moment — setup is the *one* place a
    control grant can be minted without already holding one.
 
-   > ⚠️ **Setup runs exactly once, at initialization.** The setup endpoints are
-   > self-closing: [service_setup.go](../../internal/setup/service_setup.go) rejects a
-   > second run (`"setup can only be run once"`). Standalone setup runs
+   > ⚠️ **Setup is a one-time initialization window.** Today
+   > [service_setup.go](../../internal/setup/service_setup.go) derives completion from
+   > `tenant + admin + profile`, but gRPC setup must change that to a persisted,
+   > explicit lock. Standalone setup runs
    > `create_tenant → create_admin → create_profile`, then *optionally*
-   > `RegisterControlService`, then an **explicit `CompleteSetup`** (`POST
-   > /setup/complete`, GRPC-023) that flags completion and **locks controller
-   > registration**. Because the controller step is optional, completion is an
-   > **explicit flag**, not inferred from "profile exists" — that's what keeps the
-   > optional-register window open until the operator deliberately closes it. After
-   > the lock, the setup path is gone and controller changes use path 2 (runtime).
-   > **Anti-infiltration:** the explicit lock stops any other service from registering
-   > itself as the controller once a standalone operator has finished.
+   > `RegisterControlService`, then **`CompleteSetup`** (`POST /setup/complete`,
+   > GRPC-023). `CompleteSetup` is not another provisioning step; it only closes the
+   > bootstrap window for cases where the instance was **not** provisioned by a core,
+   > or where the operator is done with setup. After the lock, the setup path is gone
+   > and controller changes use path 2 (runtime). **Anti-infiltration:** the explicit
+   > lock stops any other service from registering itself as the controller once a
+   > standalone operator has finished.
 
 2. **Manual / runtime (no core, or after setup is closed).** An operator (or an
    already-authorized controller) does the same at runtime over REST/gRPC: create a
@@ -345,7 +347,44 @@ evaluating the **same `service_policies`** used for any other S2S call (§6). Se
 the only special case (bootstrap, no policy can exist yet) — and it is guarded by the
 setup gate, not the PDP.
 
-### 7.6 Provisioning & independence backlog (trackable)
+### 7.6 Persisted setup lock state (NEW — GRPC-021/023)
+
+`IsSetupComplete` should be persisted as **app/bootstrap state**, not stored on
+`Tenant` or `Service`.
+
+Why:
+
+- It is not a tenant property. A tenant can exist before setup is deliberately locked,
+  and future tenant changes should not reopen bootstrap setup.
+- It is not a service property. The seeded `auth` service represents this app as an
+  IAM principal; overloading it with bootstrap lifecycle state would mix identity with
+  setup control.
+- It is instance-wide state: "are mutating setup endpoints still open for this
+  deployment?"
+
+Recommended shape: add a small `setup_state` table owned by `internal/setup`, with a
+single row keyed by a stable name such as `bootstrap`, plus fields like
+`is_complete`, `completed_at`, and optional `completed_by` / `metadata`. In this
+pre-release codebase, that means a new canonical create migration
+(`NNN_create_setup_state_table.go`) and a matching setup model/repository, following
+[database-migrations.md](../contributing/database-migrations.md). `GetSetupStatus`
+should still report the derived milestones (`IsTenantSetup`, `IsAdminSetup`,
+`IsProfileSetup`), but `IsSetupComplete` must read this persisted lock.
+
+`CompleteSetup` only flips this persisted flag. It does not create tenants, admins,
+profiles, services, OAuth clients, or policies. A core-provisioned install may call it
+immediately after `RegisterControlService`; a standalone operator calls it when they are
+done and want to close the bootstrap registration window.
+
+Decision notes from the review:
+
+| ID | Decision | Status |
+|----|----------|--------|
+| D1 | Control-policy shape: one shared seeded system policy template attached to each controller vs. per-controller policy created at registration. | **Open** — defaulting to one shared system template until confirmed. |
+| D2 | `IsSetupComplete` source of truth. | **Resolved** — use persisted `setup_state`, not derived tenant/admin/profile existence and not a `Tenant`/`Service` field. |
+| D3 | `RegisterControlService` shape. | **Resolved** — dedicated setup endpoint/RPC, not an optional field on `CreateTenant` or `CreateAdmin`. |
+
+### 7.7 Provisioning & independence backlog (trackable)
 
 Each item below is independently trackable. `GRPC-015` and `GRPC-191` also appear in
 their phase tables (§8/§9); they are repeated here so the whole provisioning model
@@ -355,14 +394,14 @@ lives in one place.
 |----|--------|------|--------------------|
 | GRPC-016 | 🔴 todo | **Independence guarantee:** a standalone setup (tenant + admin) seeds **exactly one principal — its own `auth` system service** — with **no controller** attached; verify default-deny holds and the app is fully functional with zero controllers. Add a regression test. | "standalone setup creates only one service (its own)" |
 | GRPC-017 | ✅ done | **Self-service is non-deletable:** the seeded `auth` service is `IsSystem=true` and update/status/**delete** are already blocked in [service_service.go](../../internal/iam/service_service.go). Tracked as a guard — **do not regress**; add a test asserting it. | "the service representing this app is not deletable" |
-| GRPC-015 | 🔴 todo | **Seed the default control policy** (`Policy.IsSystem=true`, *unattached*) carrying all actions/permissions a controller needs. **Decision A vs B (see §7.2 note) still open** — defaulting to A (one shared template) until you confirm. | "a prepared/default policy for the control service" |
-| GRPC-191 | 🔴 todo | **Register a controller at init** (`RegisterControlService`, gRPC + REST): create a **second service record** for the controller, provision its OAuth `client_credentials` client, and **attach the control policy**. TOFU-gated; **runs only during the one-time setup window** (setup self-closes after tenant+admin+profile — `"setup can only be run once"`). | "register the core/control plane during setup → another service + attach policy" |
+| GRPC-015 | 🔴 todo | **Seed the default control policy** (`Policy.IsSystem=true`, *unattached*) carrying all actions/permissions a controller needs. **D1 is still open** — defaulting to one shared template until confirmed. | "a prepared/default policy for the control service" |
+| GRPC-191 | 🔴 todo | **Register a controller at init** (`RegisterControlService`, gRPC + REST): create a **second service record** for the controller, provision its OAuth `client_credentials` client, and **attach the control policy**. TOFU-gated; **runs only during the setup window before the persisted `CompleteSetup` lock is set**. | "register the core/control plane during setup → another service + attach policy" |
 | GRPC-018 | 🔴 todo | **Runtime registration path (no core, or after setup is closed):** register a controller at runtime — create the service + `AssignServicePolicy` (GRPC-110), authenticated + PDP-gated, **not** via the setup endpoint. This is the **only** way to add/change a controller after init; verify it reaches the same end-state as GRPC-191. | "manually register without the core by applying a policy defining the core service" |
 | GRPC-019 | 🔴 todo | **Un-provision / revoke control:** detaching (or deleting) the controller's control-policy attachment, and/or removing the controller service, revokes control immediately (PDP + webhook push + short token TTL). The `auth` system service is untouched. | "core can provision and unprovision" |
 | GRPC-020 | 🔴 todo | **Multiple instances:** each maintainerd-auth instance seeds its own system service + control-policy template; a controller registers with **each instance independently** (TOFU per instance). Verify isolation between instances. | "core can provision multiple instances" |
-| GRPC-021 | 🔴 todo | **One-time setup gate parity (REST ↔ gRPC):** both transports reuse the **same explicit setup-complete flag** (set by `CompleteSetup`, GRPC-023) — every mutating setup operation (incl. `RegisterControlService`) becomes unavailable once the flag is set; only `GetSetupStatus` stays available. A completed setup disables setup on **both** ports. | "all setup endpoints are available only once; same for gRPC setup" |
+| GRPC-021 | 🔴 todo | **One-time setup gate parity (REST ↔ gRPC):** both transports reuse the **same persisted setup-complete flag** (set by `CompleteSetup`, GRPC-023) — every mutating setup operation (incl. `RegisterControlService`) becomes unavailable once the flag is set; only `GetSetupStatus` stays available. `IsSetupComplete` is no longer derived from tenant+admin+profile; it is read from setup state. A completed setup disables setup on **both** ports. | "all setup endpoints are available only once; same for gRPC setup" |
 | GRPC-022 | 🔴 todo | **REST equivalent of `RegisterControlService`** — `POST /setup/register-control-service` _(REST)_: same behavior as GRPC-191, exposed on the REST setup surface so a non-gRPC operator/core can register a controller during init. | "add a REST equivalent of RegisterControlService (note: for REST)" |
-| GRPC-023 | 🔴 todo | **`setup/complete` lock** — `POST /setup/complete` _(REST + gRPC)_: sets the explicit setup-complete flag that **locks controller registration and all mutating setup ops**. Anti-infiltration: prevents any other service from registering itself as controller after a standalone setup. Optional `RegisterControlService` lives in the window *before* this call. | "endpoint for setup/complete to lock control-plane registration; register is optional so lock it by flagging setup complete" |
+| GRPC-023 | 🔴 todo | **`setup/complete` lock** — `POST /setup/complete` _(REST + gRPC)_: sets the persisted setup-complete flag that **locks controller registration and all mutating setup ops**. It exists only to close the setup window; it provisions nothing. Anti-infiltration: prevents any other service from registering itself as controller after a standalone setup. Optional `RegisterControlService` lives in the window *before* this call. | "endpoint for setup/complete to lock control-plane registration; register is optional so lock it by flagging setup complete" |
 
 ---
 
@@ -671,14 +710,14 @@ permission string shown. Status is per-RPC.
 > auth flows. Bootstrap auth differs (no policy yet exists); guard with the
 > existing setup gate, not the PDP.
 >
-> **One-time, then disabled — gRPC mirrors REST exactly (GRPC-021).** As in REST
-> ([service_setup.go](../../internal/setup/service_setup.go) → `"setup can only be
-> run once"`, [routes.go](../../internal/setup/routes.go)), **every mutating setup
-> RPC** (`CreateTenant`, `CreateAdmin`, `CreateProfile`, `RegisterControlService`)
-> is a one-shot init operation that **becomes unavailable once setup is complete**.
-> `GetSetupStatus` is the **only** RPC that stays available afterward (read-only
-> probe). The gRPC handlers must reuse the same setup-complete gate so both
-> transports behave identically — a completed setup disables setup on **both** ports.
+> **One-time, then disabled — REST and gRPC share one gate (GRPC-021).** Today REST
+> derives completion from tenant/admin/profile existence in
+> [service_setup.go](../../internal/setup/service_setup.go). GRPC-021 changes that
+> to one persisted setup-complete flag used by both transports. Every mutating setup
+> operation (`CreateTenant`, `CreateAdmin`, `CreateProfile`,
+> `RegisterControlService`) becomes unavailable once the persisted lock is set.
+> `GetSetupStatus` is the **only** setup operation that stays available afterward
+> (read-only probe).
 >
 > **`RegisterControlService` (GRPC-191)** implements §7.3 path 1: the caller passes a
 > controller **service name/identifier**; auth creates the `Service`, provisions its
@@ -691,12 +730,13 @@ permission string shown. Status is per-RPC.
 > install runs `create_tenant → create_admin → create_profile` and then, optionally,
 > `RegisterControlService`. Because the controller step is optional, completion
 > **must be flagged explicitly** by **`CompleteSetup`** (`POST /setup/complete`) —
-> not merely inferred from "profile exists." `CompleteSetup` sets the
+> not merely inferred from "profile exists." `CompleteSetup` sets the persisted
 > setup-complete flag, which **locks all mutating setup operations, including
-> `RegisterControlService`**. This is the **anti-infiltration control**: once a
-> standalone operator completes setup, no other service can sneak in and register
-> itself as the controller through the setup path. After the lock, controller changes
-> happen only via the runtime path (`AssignServicePolicy`, GRPC-018 — authenticated +
+> `RegisterControlService`**. It provisions nothing; it only closes the bootstrap
+> window. This is the **anti-infiltration control**: once a standalone operator
+> completes setup, no other service can sneak in and register itself as the
+> controller through the setup path. After the lock, controller changes happen only
+> via the runtime path (`AssignServicePolicy`, GRPC-018 — authenticated +
 > PDP-gated). `GetSetupStatus` remains available; everything else is closed.
 
 ---
@@ -704,20 +744,93 @@ permission string shown. Status is per-RPC.
 ## 10. Phase 2 — Identity & end-user-flow services (deferred)
 
 These internal-port routes are **interactive end-user auth flows** (browser/app
-driven). They are listed for completeness because you asked to match *all* private
-endpoints, but they are **lower priority for S2S** — a control plane rarely drives
-a user's login/MFA ceremony. Default status 🔴 **todo**, deferred unless a concrete
-S2S consumer needs them.
+driven). They are listed for completeness because the gRPC backlog mirrors all
+private application APIs, but they are **lower priority for S2S** — a control plane
+rarely drives a user's login/MFA ceremony. Default status 🔴 **todo**, deferred
+unless a concrete S2S consumer needs them.
 
-| Service (proto) | REST origin (route fn) | RPCs (count) | Notes |
-|-----------------|------------------------|--------------|-------|
-| `AuthnService` (`authn.proto`) | Register/Login/ForgotPassword/ResetPassword/EmailVerification/MagicLink/SMSLogin | ~13 | Interactive credential flows; only expose over gRPC if a trusted service proxies logins. |
-| `ProfileService` (`user.proto`) | `user.ProfileRoute` (self) | 10 | Self-service `:self` permissions — caller is a *user*, not a service. |
-| `UserSettingService` | `user.UserSettingRoute` (self) | 3 | Self-service. |
-| `AccountService` | `user.AccountRoute` (self) | 9 | Email/username change, sessions, backup codes — self-service + step-up. |
-| `RecoveryService` | `user.RecoveryRoute` | 1 | Backup-code recovery (unauthenticated). |
-| `MFAService` | `mfa.MFARoute` (self) | 14 | Self-service MFA ceremonies; `AdminResetMFA` is the one admin/S2S-relevant RPC — could be promoted to Phase 1. |
-| `FederationService` | `idp.FederationPublic/IdentityRoute` | ~6 | Token exchange / HRD / link-unlink — mostly public/self-service. |
+### GRPC-200 · AuthnService — `authn.proto`
+| RPC | REST origin | Auth shape | Status |
+|-----|-------------|------------|--------|
+| `Register` | `POST /register` | bootstrap/public-style authn | 🔴 todo |
+| `RegisterInvite` | `POST /register/invite` | invite token | 🔴 todo |
+| `Login` | `POST /login` | credential flow | 🔴 todo |
+| `Logout` | `POST /logout` | authenticated session/token | 🔴 todo |
+| `ForgotPassword` | `POST /forgot-password` | unauthenticated recovery | 🔴 todo |
+| `ResetPassword` | `POST /reset-password` | reset token | 🔴 todo |
+| `SendVerificationEmail` | `POST /email-verification/send` | authenticated/user context | 🔴 todo |
+| `VerifyEmail` | `POST /email-verification/verify` | verification token | 🔴 todo |
+| `SendMagicLink` | `POST /magic-link/send` | unauthenticated/email flow | 🔴 todo |
+| `VerifyMagicLink` | `POST /magic-link/verify` | magic-link token | 🔴 todo |
+| `SendSMSLoginOTP` | `POST /sms-login/send` | unauthenticated phone flow | 🔴 todo |
+| `VerifySMSLoginOTP` | `POST /sms-login/verify` | OTP verification | 🔴 todo |
+
+### GRPC-201 · ProfileService (self) — `user.proto`
+| RPC | REST origin | Permission | Status |
+|-----|-------------|-----------|--------|
+| `GetDefaultProfile` | `GET /profile/` | `account:profile:read:self` | 🔴 todo |
+| `CreateOrUpdateDefaultProfile` | `POST /profile/` | `account:profile:update:self` | 🔴 todo |
+| `UpdateDefaultProfile` | `PUT /profile/` | `account:profile:update:self` | 🔴 todo |
+| `DeleteDefaultProfile` | `DELETE /profile/` | `account:profile:delete:self` | 🔴 todo |
+| `ListProfiles` | `GET /profiles/` | `account:profile:read:self` | 🔴 todo |
+| `CreateProfileSelf` | `POST /profiles/` | `account:profile:update:self` | 🔴 todo |
+| `GetProfileSelf` | `GET /profiles/{uuid}` | `account:profile:read:self` | 🔴 todo |
+| `UpdateProfileSelf` | `PUT /profiles/{uuid}` | `account:profile:update:self` | 🔴 todo |
+| `SetDefaultProfileSelf` | `PATCH /profiles/{uuid}/set-default` | `account:profile:update:self` | 🔴 todo |
+| `DeleteProfileSelf` | `DELETE /profiles/{uuid}` | `account:profile:delete:self` | 🔴 todo |
+
+### GRPC-202 · UserSettingService (self) — `user.proto`
+| RPC | REST origin | Permission | Status |
+|-----|-------------|-----------|--------|
+| `CreateOrUpdateUserSettings` | `POST /user-settings/` | `settings:update:self` | 🔴 todo |
+| `GetUserSettings` | `GET /user-settings/` | `settings:read:self` | 🔴 todo |
+| `DeleteUserSettings` | `DELETE /user-settings/` | `settings:update:self` | 🔴 todo |
+
+### GRPC-203 · AccountService (self) — `user.proto`
+| RPC | REST origin | Auth shape | Status |
+|-----|-------------|------------|--------|
+| `InitiateEmailChange` | `POST /account/email/change` | authenticated user | 🔴 todo |
+| `VerifyEmailChange` | `POST /account/email/verify` | authenticated user + token | 🔴 todo |
+| `ChangeUsername` | `PUT /account/username` | authenticated user | 🔴 todo |
+| `DeleteAccount` | `DELETE /account/` | authenticated user + step-up | 🔴 todo |
+| `ExportAccountData` | `GET /account/export` | authenticated user | 🔴 todo |
+| `GenerateBackupCodes` | `POST /account/backup-codes` | authenticated user + step-up | 🔴 todo |
+| `ListSessions` | `GET /account/sessions` | authenticated user | 🔴 todo |
+| `RevokeAllSessions` | `DELETE /account/sessions` | authenticated user + step-up | 🔴 todo |
+| `RevokeSession` | `DELETE /account/sessions/{uuid}` | authenticated user | 🔴 todo |
+
+### GRPC-204 · RecoveryService — `user.proto`
+| RPC | REST origin | Auth shape | Status |
+|-----|-------------|------------|--------|
+| `VerifyBackupCode` | `POST /recovery/backup-code` | unauthenticated recovery | 🔴 todo |
+
+### GRPC-205 · MFAService — `mfa.proto`
+| RPC | REST origin | Auth shape | Status |
+|-----|-------------|------------|--------|
+| `GetMFAStatus` | `GET /mfa/status` | authenticated user | 🔴 todo |
+| `BeginTOTPEnrollment` | `POST /mfa/totp/enroll` | authenticated user | 🔴 todo |
+| `FinishTOTPEnrollment` | `POST /mfa/totp/verify` | authenticated user | 🔴 todo |
+| `DisableTOTP` | `DELETE /mfa/totp` | authenticated user + step-up | 🔴 todo |
+| `GetBackupCodesCount` | `GET /mfa/backup-codes/count` | authenticated user | 🔴 todo |
+| `RegenerateBackupCodes` | `POST /mfa/backup-codes/regenerate` | authenticated user + step-up | 🔴 todo |
+| `BeginWebAuthnRegistration` | `POST /mfa/webauthn/register/begin` | authenticated user | 🔴 todo |
+| `FinishWebAuthnRegistration` | `POST /mfa/webauthn/register/finish` | authenticated user | 🔴 todo |
+| `BeginWebAuthnAuthentication` | `POST /mfa/webauthn/auth/begin` | authenticated user | 🔴 todo |
+| `FinishWebAuthnAuthentication` | `POST /mfa/webauthn/auth/finish` | authenticated user | 🔴 todo |
+| `DeleteWebAuthnCredential` | `DELETE /mfa/webauthn/{uuid}` | authenticated user + step-up | 🔴 todo |
+| `IssueStepUpChallenge` | `POST /mfa/step-up/challenge` | authenticated user | 🔴 todo |
+| `VerifyStepUp` | `POST /mfa/step-up/verify` | authenticated user | 🔴 todo |
+| `AdminResetMFA` | `POST /mfa/admin/users/{uuid}/reset` | authenticated admin + step-up | 🔴 todo |
+
+### GRPC-206 · FederationService — `identity_provider.proto`
+| RPC | REST origin | Auth shape | Status |
+|-----|-------------|------------|--------|
+| `ExchangeExternalToken` | `POST /federation/token` | upstream identity token | 🔴 todo |
+| `ExchangeOAuth2Code` | `POST /federation/oauth2/callback` | OAuth2 callback/code | 🔴 todo |
+| `HomeRealmDiscovery` | `GET /federation/hrd` | unauthenticated discovery | 🔴 todo |
+| `ListLinkedIdentities` | `GET /account/identities/` | authenticated user | 🔴 todo |
+| `LinkIdentity` | `POST /account/identities/link` | authenticated user | 🔴 todo |
+| `UnlinkIdentity` | `DELETE /account/identities/{uuid}` | authenticated user | 🔴 todo |
 
 > **Promotion candidates** from Phase 2 to Phase 1 if a control-plane need appears:
 > `MFAService.AdminResetMFA` (admin op), `AuthnService` token-issuance for
