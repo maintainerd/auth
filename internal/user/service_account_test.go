@@ -2,6 +2,10 @@ package user
 
 import (
 	"context"
+	"crypto/rand"
+	"crypto/rsa"
+	"crypto/x509"
+	"encoding/pem"
 	"errors"
 	"testing"
 	"time"
@@ -9,8 +13,11 @@ import (
 	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/authevent"
 	"github.com/maintainerd/auth/internal/platform/apperror"
+	"github.com/maintainerd/auth/internal/platform/config"
 	"github.com/maintainerd/auth/internal/platform/crypto"
+	"github.com/maintainerd/auth/internal/platform/jwt"
 	"github.com/maintainerd/auth/internal/platform/security"
+	"github.com/maintainerd/auth/internal/shared"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -42,6 +49,14 @@ func newAccountSvc(repos ...interface{}) *accountService {
 		}
 	}
 	return svc
+}
+
+func TestNewAccountService(t *testing.T) {
+	db, _ := newMockGormDB(t)
+	svc := NewAccountService(db, &mockUserRepo{}, &mockUserTokenRepo{}, &mockProfileRepo{},
+		&mockUserSettingRepo{}, &mockRoleRepo{}, &mockClientRepo{}, &mockUserBackupCodeRepo{},
+		&mockUserIdentityRepo{}, &mockIdentityProviderRepo{}, authevent.NoopService())
+	assert.NotNil(t, svc)
 }
 
 func TestAccountService_InitiateEmailChange(t *testing.T) {
@@ -129,6 +144,22 @@ func TestAccountService_InitiateEmailChange(t *testing.T) {
 		err := svc.InitiateEmailChange(context.Background(), userID, "new@example.com", "correctpass")
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "failed to store pending email")
+	})
+
+	t.Run("GenerateOTP error", func(t *testing.T) {
+		orig := crypto.GenerateOTP
+		crypto.GenerateOTP = func(int) (string, error) { return "", errors.New("otp error") }
+		defer func() { crypto.GenerateOTP = orig }()
+
+		svc := newAccountSvc(&mockUserRepo{
+			findByIDFn: func(_ any, _ ...string) (*User, error) {
+				return &User{UserID: userID, UserUUID: userUUID, Password: &hashedPass}, nil
+			},
+			findByEmailFn: func(_ string) (*User, error) { return nil, nil },
+		})
+		err := svc.InitiateEmailChange(context.Background(), userID, "new@example.com", "correctpass")
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to generate OTP")
 	})
 
 	t.Run("success", func(t *testing.T) {
@@ -222,7 +253,7 @@ func TestAccountService_VerifyEmailChange(t *testing.T) {
 					EmailChangeOTPExpiresAt: &future,
 				}, nil
 			},
-			updateEmailFn: func(_ uuid.UUID, _ string) error { return nil },
+			updateEmailFn:      func(_ uuid.UUID, _ string) error { return nil },
 			clearEmailChangeFn: func(_ uuid.UUID) error { return errors.New("clear failed") },
 		})
 		err := svc.VerifyEmailChange(context.Background(), userID, validOTP)
@@ -689,6 +720,49 @@ func TestAccountService_GenerateBackupCodes(t *testing.T) {
 		assert.Contains(t, err.Error(), "failed to store backup codes")
 	})
 
+	t.Run("GenerateRandomString error", func(t *testing.T) {
+		orig := crypto.GenerateRandomString
+		crypto.GenerateRandomString = func(int) (string, error) { return "", errors.New("rand error") }
+		defer func() { crypto.GenerateRandomString = orig }()
+
+		svc := newAccountSvc(
+			&mockUserRepo{
+				findByIDFn: func(_ any, _ ...string) (*User, error) {
+					return &User{UserID: userID, UserUUID: userUUID}, nil
+				},
+			},
+			&mockUserBackupCodeRepo{
+				deleteAllByUserIDFn: func(int64) error { return nil },
+			},
+		)
+		codes, err := svc.GenerateBackupCodes(context.Background(), userID)
+		require.Error(t, err)
+		assert.Nil(t, codes)
+		assert.Contains(t, err.Error(), "failed to generate backup code")
+	})
+
+	t.Run("truncate long code", func(t *testing.T) {
+		orig := crypto.GenerateRandomString
+		crypto.GenerateRandomString = func(int) (string, error) { return "abcdefghijklmnop", nil }
+		defer func() { crypto.GenerateRandomString = orig }()
+
+		svc := newAccountSvc(
+			&mockUserRepo{
+				findByIDFn: func(_ any, _ ...string) (*User, error) {
+					return &User{UserID: userID, UserUUID: userUUID}, nil
+				},
+			},
+			&mockUserBackupCodeRepo{},
+		)
+		codes, err := svc.GenerateBackupCodes(context.Background(), userID)
+		require.NoError(t, err)
+		assert.NotNil(t, codes)
+		assert.Len(t, codes.Codes, 10)
+		for _, c := range codes.Codes {
+			assert.Len(t, c, 8)
+		}
+	})
+
 	t.Run("success", func(t *testing.T) {
 		orig := crypto.GenerateRandomString
 		crypto.GenerateRandomString = func(int) (string, error) { return "abcdefgh", nil }
@@ -707,4 +781,566 @@ func TestAccountService_GenerateBackupCodes(t *testing.T) {
 		assert.NotNil(t, codes)
 		assert.Len(t, codes.Codes, 10)
 	})
+}
+
+func TestAccountService_VerifyBackupCode(t *testing.T) {
+	initJWTKeys(t)
+
+	userUUID := uuid.New()
+	userID := int64(42)
+	backupCodeID := int64(100)
+	clientIDStr := "test-client"
+	providerID := "test-provider"
+	code := "12345678"
+	codeHash := crypto.HashAuthorizationCode(code)
+	domain := "example.com"
+	identifier := "client-id"
+
+	t.Run("success", func(t *testing.T) {
+		db, mock := newMockGormDB(t)
+		mock.ExpectBegin()
+		mock.ExpectCommit()
+
+		idp := &IdentityProvider{Identifier: identifier}
+		client := &Client{
+			ClientID:   1,
+			Domain:     &domain,
+			Identifier: &identifier,
+			Status:     shared.StatusActive,
+			IdentityProvider: &IdentityProvider{
+				Identifier: identifier,
+			},
+		}
+		user := &User{
+			UserID:   userID,
+			UserUUID: userUUID,
+			Email:    "test@example.com",
+			Status:   shared.StatusActive,
+		}
+		backupCode := &UserBackupCode{
+			BackupCodeID: backupCodeID,
+			UserID:       userID,
+			CodeHash:     codeHash,
+		}
+		userIdentity := &UserIdentity{
+			UserIdentityUUID: uuid.New(),
+			UserID:           userID,
+			ClientID:         1,
+			Sub:              "test-sub",
+		}
+
+		svc := &accountService{
+			db: db,
+			userRepo: &mockUserRepo{
+				findByEmailFn: func(_ string) (*User, error) { return user, nil },
+			},
+			clientRepo: &mockClientRepo{
+				findByClientIDAndIdentityProviderFn: func(_, _ string) (*Client, error) { return client, nil },
+			},
+			identityProviderRepo: &mockIdentityProviderRepo{
+				findByIdentifierFn: func(_ string) (*IdentityProvider, error) { return idp, nil },
+			},
+			userIdentityRepo: &mockUserIdentityRepo{
+				findByUserIDAndClientIDFn: func(_, _ int64) (*UserIdentity, error) { return userIdentity, nil },
+			},
+			backupCodeRepo: &mockUserBackupCodeRepo{
+				findByUserIDAndCodeHashFn: func(_ int64, _ string) (*UserBackupCode, error) { return backupCode, nil },
+			},
+			authEventService: authevent.NoopService(),
+		}
+
+		res, err := svc.VerifyBackupCode(context.Background(), VerifyBackupCodeDTO{
+			Email:      "test@example.com",
+			Code:       code,
+			ClientID:   clientIDStr,
+			ProviderID: providerID,
+		})
+		require.NoError(t, err)
+		assert.NotNil(t, res)
+		assert.NotEmpty(t, res.AccessToken)
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+
+	t.Run("identity provider not found", func(t *testing.T) {
+		db, mock := newMockGormDB(t)
+		mock.ExpectBegin()
+		mock.ExpectRollback()
+
+		svc := &accountService{
+			db:               db,
+			userRepo:         &mockUserRepo{},
+			clientRepo:       &mockClientRepo{},
+			userIdentityRepo: &mockUserIdentityRepo{},
+			backupCodeRepo:   &mockUserBackupCodeRepo{},
+			identityProviderRepo: &mockIdentityProviderRepo{
+				findByIdentifierFn: func(_ string) (*IdentityProvider, error) { return nil, nil },
+			},
+			authEventService: authevent.NoopService(),
+		}
+
+		_, err := svc.VerifyBackupCode(context.Background(), VerifyBackupCodeDTO{
+			Email:      "test@example.com",
+			Code:       code,
+			ClientID:   clientIDStr,
+			ProviderID: providerID,
+		})
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "authentication failed")
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+
+	t.Run("client not active", func(t *testing.T) {
+		db, mock := newMockGormDB(t)
+		mock.ExpectBegin()
+		mock.ExpectRollback()
+
+		idp := &IdentityProvider{Identifier: identifier}
+		svc := &accountService{
+			db:               db,
+			userRepo:         &mockUserRepo{},
+			userIdentityRepo: &mockUserIdentityRepo{},
+			backupCodeRepo:   &mockUserBackupCodeRepo{},
+			identityProviderRepo: &mockIdentityProviderRepo{
+				findByIdentifierFn: func(_ string) (*IdentityProvider, error) { return idp, nil },
+			},
+			clientRepo: &mockClientRepo{
+				findByClientIDAndIdentityProviderFn: func(_, _ string) (*Client, error) {
+					return &Client{Status: shared.StatusInactive}, nil
+				},
+			},
+			authEventService: authevent.NoopService(),
+		}
+
+		_, err := svc.VerifyBackupCode(context.Background(), VerifyBackupCodeDTO{
+			Email:      "test@example.com",
+			Code:       code,
+			ClientID:   clientIDStr,
+			ProviderID: providerID,
+		})
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "authentication failed")
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+
+	t.Run("user not found by email", func(t *testing.T) {
+		db, mock := newMockGormDB(t)
+		mock.ExpectBegin()
+		mock.ExpectRollback()
+
+		idp := &IdentityProvider{Identifier: identifier}
+		client := &Client{
+			ClientID:   1,
+			Domain:     &domain,
+			Identifier: &identifier,
+			Status:     shared.StatusActive,
+			IdentityProvider: &IdentityProvider{
+				Identifier: identifier,
+			},
+		}
+		svc := &accountService{
+			db:               db,
+			userIdentityRepo: &mockUserIdentityRepo{},
+			backupCodeRepo:   &mockUserBackupCodeRepo{},
+			identityProviderRepo: &mockIdentityProviderRepo{
+				findByIdentifierFn: func(_ string) (*IdentityProvider, error) { return idp, nil },
+			},
+			clientRepo: &mockClientRepo{
+				findByClientIDAndIdentityProviderFn: func(_, _ string) (*Client, error) { return client, nil },
+			},
+			userRepo: &mockUserRepo{
+				findByEmailFn: func(_ string) (*User, error) { return nil, nil },
+			},
+			authEventService: authevent.NoopService(),
+		}
+
+		_, err := svc.VerifyBackupCode(context.Background(), VerifyBackupCodeDTO{
+			Email:      "test@example.com",
+			Code:       code,
+			ClientID:   clientIDStr,
+			ProviderID: providerID,
+		})
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "invalid email or backup code")
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+
+	t.Run("find user by email error", func(t *testing.T) {
+		db, mock := newMockGormDB(t)
+		mock.ExpectBegin()
+		mock.ExpectRollback()
+
+		idp := &IdentityProvider{Identifier: identifier}
+		client := &Client{
+			ClientID:   1,
+			Domain:     &domain,
+			Identifier: &identifier,
+			Status:     shared.StatusActive,
+			IdentityProvider: &IdentityProvider{
+				Identifier: identifier,
+			},
+		}
+		svc := &accountService{
+			db:               db,
+			userIdentityRepo: &mockUserIdentityRepo{},
+			backupCodeRepo:   &mockUserBackupCodeRepo{},
+			identityProviderRepo: &mockIdentityProviderRepo{
+				findByIdentifierFn: func(_ string) (*IdentityProvider, error) { return idp, nil },
+			},
+			clientRepo: &mockClientRepo{
+				findByClientIDAndIdentityProviderFn: func(_, _ string) (*Client, error) { return client, nil },
+			},
+			userRepo: &mockUserRepo{
+				findByEmailFn: func(_ string) (*User, error) { return nil, assert.AnError },
+			},
+			authEventService: authevent.NoopService(),
+		}
+
+		_, err := svc.VerifyBackupCode(context.Background(), VerifyBackupCodeDTO{
+			Email:      "test@example.com",
+			Code:       code,
+			ClientID:   clientIDStr,
+			ProviderID: providerID,
+		})
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to look up user")
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+
+	t.Run("user status not active", func(t *testing.T) {
+		db, mock := newMockGormDB(t)
+		mock.ExpectBegin()
+		mock.ExpectRollback()
+
+		idp := &IdentityProvider{Identifier: identifier}
+		client := &Client{
+			ClientID:   1,
+			Domain:     &domain,
+			Identifier: &identifier,
+			Status:     shared.StatusActive,
+			IdentityProvider: &IdentityProvider{
+				Identifier: identifier,
+			},
+		}
+		svc := &accountService{
+			db:               db,
+			userIdentityRepo: &mockUserIdentityRepo{},
+			backupCodeRepo:   &mockUserBackupCodeRepo{},
+			identityProviderRepo: &mockIdentityProviderRepo{
+				findByIdentifierFn: func(_ string) (*IdentityProvider, error) { return idp, nil },
+			},
+			clientRepo: &mockClientRepo{
+				findByClientIDAndIdentityProviderFn: func(_, _ string) (*Client, error) { return client, nil },
+			},
+			userRepo: &mockUserRepo{
+				findByEmailFn: func(_ string) (*User, error) {
+					return &User{UserID: userID, Status: shared.StatusInactive}, nil
+				},
+			},
+			authEventService: authevent.NoopService(),
+		}
+
+		_, err := svc.VerifyBackupCode(context.Background(), VerifyBackupCodeDTO{
+			Email:      "test@example.com",
+			Code:       code,
+			ClientID:   clientIDStr,
+			ProviderID: providerID,
+		})
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "account is not active")
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+
+	t.Run("backup code lookup error", func(t *testing.T) {
+		db, mock := newMockGormDB(t)
+		mock.ExpectBegin()
+		mock.ExpectRollback()
+
+		idp := &IdentityProvider{Identifier: identifier}
+		client := &Client{
+			ClientID:   1,
+			Domain:     &domain,
+			Identifier: &identifier,
+			Status:     shared.StatusActive,
+			IdentityProvider: &IdentityProvider{
+				Identifier: identifier,
+			},
+		}
+		user := &User{
+			UserID: userID,
+			Email:  "test@example.com",
+			Status: shared.StatusActive,
+		}
+		svc := &accountService{
+			db:               db,
+			userIdentityRepo: &mockUserIdentityRepo{},
+			identityProviderRepo: &mockIdentityProviderRepo{
+				findByIdentifierFn: func(_ string) (*IdentityProvider, error) { return idp, nil },
+			},
+			clientRepo: &mockClientRepo{
+				findByClientIDAndIdentityProviderFn: func(_, _ string) (*Client, error) { return client, nil },
+			},
+			userRepo: &mockUserRepo{
+				findByEmailFn: func(_ string) (*User, error) { return user, nil },
+			},
+			backupCodeRepo: &mockUserBackupCodeRepo{
+				findByUserIDAndCodeHashFn: func(_ int64, _ string) (*UserBackupCode, error) {
+					return nil, assert.AnError
+				},
+			},
+			authEventService: authevent.NoopService(),
+		}
+
+		_, err := svc.VerifyBackupCode(context.Background(), VerifyBackupCodeDTO{
+			Email:      "test@example.com",
+			Code:       code,
+			ClientID:   clientIDStr,
+			ProviderID: providerID,
+		})
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to verify backup code")
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+
+	t.Run("backup code not found", func(t *testing.T) {
+		db, mock := newMockGormDB(t)
+		mock.ExpectBegin()
+		mock.ExpectRollback()
+
+		idp := &IdentityProvider{Identifier: identifier}
+		client := &Client{
+			ClientID:   1,
+			Domain:     &domain,
+			Identifier: &identifier,
+			Status:     shared.StatusActive,
+			IdentityProvider: &IdentityProvider{
+				Identifier: identifier,
+			},
+		}
+		user := &User{
+			UserID: userID,
+			Email:  "test@example.com",
+			Status: shared.StatusActive,
+		}
+		svc := &accountService{
+			db:               db,
+			userIdentityRepo: &mockUserIdentityRepo{},
+			identityProviderRepo: &mockIdentityProviderRepo{
+				findByIdentifierFn: func(_ string) (*IdentityProvider, error) { return idp, nil },
+			},
+			clientRepo: &mockClientRepo{
+				findByClientIDAndIdentityProviderFn: func(_, _ string) (*Client, error) { return client, nil },
+			},
+			userRepo: &mockUserRepo{
+				findByEmailFn: func(_ string) (*User, error) { return user, nil },
+			},
+			backupCodeRepo: &mockUserBackupCodeRepo{
+				findByUserIDAndCodeHashFn: func(_ int64, _ string) (*UserBackupCode, error) { return nil, nil },
+			},
+			authEventService: authevent.NoopService(),
+		}
+
+		_, err := svc.VerifyBackupCode(context.Background(), VerifyBackupCodeDTO{
+			Email:      "test@example.com",
+			Code:       code,
+			ClientID:   clientIDStr,
+			ProviderID: providerID,
+		})
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "invalid email or backup code")
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+
+	t.Run("mark backup code used error", func(t *testing.T) {
+		db, mock := newMockGormDB(t)
+		mock.ExpectBegin()
+		mock.ExpectRollback()
+
+		idp := &IdentityProvider{Identifier: identifier}
+		client := &Client{
+			ClientID:   1,
+			Domain:     &domain,
+			Identifier: &identifier,
+			Status:     shared.StatusActive,
+			IdentityProvider: &IdentityProvider{
+				Identifier: identifier,
+			},
+		}
+		user := &User{
+			UserID:   userID,
+			UserUUID: userUUID,
+			Email:    "test@example.com",
+			Status:   shared.StatusActive,
+		}
+		backupCode := &UserBackupCode{
+			BackupCodeID: backupCodeID,
+			UserID:       userID,
+			CodeHash:     codeHash,
+		}
+		svc := &accountService{
+			db:               db,
+			userIdentityRepo: &mockUserIdentityRepo{},
+			identityProviderRepo: &mockIdentityProviderRepo{
+				findByIdentifierFn: func(_ string) (*IdentityProvider, error) { return idp, nil },
+			},
+			clientRepo: &mockClientRepo{
+				findByClientIDAndIdentityProviderFn: func(_, _ string) (*Client, error) { return client, nil },
+			},
+			userRepo: &mockUserRepo{
+				findByEmailFn: func(_ string) (*User, error) { return user, nil },
+			},
+			backupCodeRepo: &mockUserBackupCodeRepo{
+				findByUserIDAndCodeHashFn: func(_ int64, _ string) (*UserBackupCode, error) { return backupCode, nil },
+				markUsedFn:                func(_ int64) error { return assert.AnError },
+			},
+			authEventService: authevent.NoopService(),
+		}
+
+		_, err := svc.VerifyBackupCode(context.Background(), VerifyBackupCodeDTO{
+			Email:      "test@example.com",
+			Code:       code,
+			ClientID:   clientIDStr,
+			ProviderID: providerID,
+		})
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to mark backup code as used")
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+
+	t.Run("user identity not found", func(t *testing.T) {
+		db, mock := newMockGormDB(t)
+		mock.ExpectBegin()
+		mock.ExpectRollback()
+
+		idp := &IdentityProvider{Identifier: identifier}
+		client := &Client{
+			ClientID:   1,
+			Domain:     &domain,
+			Identifier: &identifier,
+			Status:     shared.StatusActive,
+			IdentityProvider: &IdentityProvider{
+				Identifier: identifier,
+			},
+		}
+		user := &User{
+			UserID:   userID,
+			UserUUID: userUUID,
+			Email:    "test@example.com",
+			Status:   shared.StatusActive,
+		}
+		backupCode := &UserBackupCode{
+			BackupCodeID: backupCodeID,
+			UserID:       userID,
+			CodeHash:     codeHash,
+		}
+		svc := &accountService{
+			db: db,
+			identityProviderRepo: &mockIdentityProviderRepo{
+				findByIdentifierFn: func(_ string) (*IdentityProvider, error) { return idp, nil },
+			},
+			clientRepo: &mockClientRepo{
+				findByClientIDAndIdentityProviderFn: func(_, _ string) (*Client, error) { return client, nil },
+			},
+			userRepo: &mockUserRepo{
+				findByEmailFn: func(_ string) (*User, error) { return user, nil },
+			},
+			backupCodeRepo: &mockUserBackupCodeRepo{
+				findByUserIDAndCodeHashFn: func(_ int64, _ string) (*UserBackupCode, error) { return backupCode, nil },
+			},
+			userIdentityRepo: &mockUserIdentityRepo{
+				findByUserIDAndClientIDFn: func(_, _ int64) (*UserIdentity, error) { return nil, nil },
+			},
+			authEventService: authevent.NoopService(),
+		}
+
+		_, err := svc.VerifyBackupCode(context.Background(), VerifyBackupCodeDTO{
+			Email:      "test@example.com",
+			Code:       code,
+			ClientID:   clientIDStr,
+			ProviderID: providerID,
+		})
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "authentication failed")
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+}
+
+func TestAccountService_generateTokenResponse_Errors(t *testing.T) {
+	initJWTKeys(t)
+	domain := "https://auth.example.com"
+	identifier := "client-id"
+	client := &Client{
+		Domain:     &domain,
+		Identifier: &identifier,
+		IdentityProvider: &IdentityProvider{
+			Identifier: "provider",
+		},
+	}
+	user := &User{Email: "test@example.com", Phone: "+15555550100"}
+	svc := &accountService{}
+
+	t.Run("access token error", func(t *testing.T) {
+		origAccess := accountGenerateAccessTokenWithContext
+		accountGenerateAccessTokenWithContext = func(context.Context, string, string, string, string, string, string) (string, error) {
+			return "", assert.AnError
+		}
+		t.Cleanup(func() { accountGenerateAccessTokenWithContext = origAccess })
+
+		_, err := svc.generateTokenResponse(context.Background(), "sub", user, client)
+
+		require.ErrorIs(t, err, assert.AnError)
+	})
+
+	t.Run("id token error", func(t *testing.T) {
+		origAccess := accountGenerateAccessTokenWithContext
+		origID := accountGenerateIDTokenWithContext
+		accountGenerateAccessTokenWithContext = func(context.Context, string, string, string, string, string, string) (string, error) {
+			return "access", nil
+		}
+		accountGenerateIDTokenWithContext = func(context.Context, string, string, string, string, *jwt.UserProfile, string, *jwt.IDTokenParams) (string, error) {
+			return "", assert.AnError
+		}
+		t.Cleanup(func() {
+			accountGenerateAccessTokenWithContext = origAccess
+			accountGenerateIDTokenWithContext = origID
+		})
+
+		_, err := svc.generateTokenResponse(context.Background(), "sub", user, client)
+
+		require.ErrorIs(t, err, assert.AnError)
+	})
+
+	t.Run("refresh token error", func(t *testing.T) {
+		origAccess := accountGenerateAccessTokenWithContext
+		origID := accountGenerateIDTokenWithContext
+		origRefresh := accountGenerateRefreshTokenWithContext
+		accountGenerateAccessTokenWithContext = func(context.Context, string, string, string, string, string, string) (string, error) {
+			return "access", nil
+		}
+		accountGenerateIDTokenWithContext = func(context.Context, string, string, string, string, *jwt.UserProfile, string, *jwt.IDTokenParams) (string, error) {
+			return "id", nil
+		}
+		accountGenerateRefreshTokenWithContext = func(context.Context, string, string, string, string) (string, error) {
+			return "", assert.AnError
+		}
+		t.Cleanup(func() {
+			accountGenerateAccessTokenWithContext = origAccess
+			accountGenerateIDTokenWithContext = origID
+			accountGenerateRefreshTokenWithContext = origRefresh
+		})
+
+		_, err := svc.generateTokenResponse(context.Background(), "sub", user, client)
+
+		require.ErrorIs(t, err, assert.AnError)
+	})
+}
+
+func initJWTKeys(t *testing.T) {
+	t.Helper()
+	priv, err := rsa.GenerateKey(rand.Reader, 2048)
+	require.NoError(t, err)
+	privPEM := pem.EncodeToMemory(&pem.Block{Type: "RSA PRIVATE KEY", Bytes: x509.MarshalPKCS1PrivateKey(priv)})
+	pubPEM := pem.EncodeToMemory(&pem.Block{Type: "RSA PUBLIC KEY", Bytes: x509.MarshalPKCS1PublicKey(&priv.PublicKey)})
+	config.JWTPrivateKey = privPEM
+	config.JWTPublicKey = pubPEM
+	require.NoError(t, jwt.InitJWTKeys())
 }
