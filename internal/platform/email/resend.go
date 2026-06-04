@@ -47,7 +47,7 @@ func (p *resendProvider) Send(ctx context.Context, params SendParams) error {
 		span.SetStatus(codes.Error, "resend send failed")
 		return fmt.Errorf("resend: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode >= 300 {
 		err := fmt.Errorf("resend: unexpected status %d", resp.StatusCode)

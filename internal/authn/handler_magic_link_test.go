@@ -220,7 +220,7 @@ func lockedRateLimiterML(t *testing.T, identifier string) func() {
 	require.NoError(t, mr.Set("rl:lock:"+identifier, "1"))
 	return func() {
 		security.InitRateLimiter(nil)
-		rdb.Close()
+		_ = rdb.Close()
 		mr.Close()
 	}
 }

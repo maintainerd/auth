@@ -98,7 +98,7 @@ func doRequest(ctx context.Context, url string, body []byte, sig string, timesta
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode >= webhookSuccessMaxStatus {
 		return fmt.Errorf("unexpected status %d", resp.StatusCode)

@@ -265,7 +265,7 @@ func InitJWTKeys() error {
 	}
 
 	// Validate key pair consistency
-	if privKey.PublicKey.N.Cmp(pubKey.N) != 0 || privKey.PublicKey.E != pubKey.E {
+	if privKey.N.Cmp(pubKey.N) != 0 || privKey.E != pubKey.E {
 		return errors.New("private and public keys do not form a valid key pair")
 	}
 

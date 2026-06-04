@@ -117,7 +117,7 @@ func startMockSMTP(t *testing.T) int {
 			case strings.HasPrefix(cmd, "RCPT"):
 				_, _ = fmt.Fprintf(conn, "250 OK\r\n")
 			case strings.HasPrefix(cmd, "DATA"):
-				fmt.Fprintf(conn, "354 Go ahead\r\n")
+				_, _ = fmt.Fprintf(conn, "354 Go ahead\r\n")
 				for scanner.Scan() {
 					if scanner.Text() == "." {
 						break
@@ -125,7 +125,7 @@ func startMockSMTP(t *testing.T) int {
 				}
 				_, _ = fmt.Fprintf(conn, "250 OK\r\n")
 			case strings.HasPrefix(cmd, "QUIT"):
-				fmt.Fprintf(conn, "221 Bye\r\n")
+				_, _ = fmt.Fprintf(conn, "221 Bye\r\n")
 				return
 			default:
 				_, _ = fmt.Fprintf(conn, "250 OK\r\n")

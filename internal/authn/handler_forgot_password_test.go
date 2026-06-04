@@ -150,7 +150,7 @@ func lockedRateLimiter(t *testing.T, identifier string) func() {
 
 	return func() {
 		security.InitRateLimiter(nil)
-		rdb.Close()
+		_ = rdb.Close()
 		mr.Close()
 	}
 }
