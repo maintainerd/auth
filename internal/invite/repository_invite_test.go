@@ -100,8 +100,8 @@ func TestInviteRepository_FindByToken(t *testing.T) {
 		// Remove the gorm:preload callback to bypass schema validation for "Roles"
 		// (Invite struct does not have a Roles field yet Preload("Roles") is called)
 		origCb := db.Callback().Query().Get("gorm:preload")
-		db.Callback().Query().Remove("gorm:preload")
-		defer db.Callback().Query().Register("gorm:preload", origCb)
+		_ = db.Callback().Query().Remove("gorm:preload")
+		defer func() { _ = db.Callback().Query().Register("gorm:preload", origCb) }()
 
 		testUUID := uuid.New()
 		mock.ExpectQuery(`SELECT \* FROM "invites" WHERE invite_token = \$1 AND "invites"\."deleted_at" IS NULL ORDER BY "invites"\."invite_id" LIMIT \$2`).

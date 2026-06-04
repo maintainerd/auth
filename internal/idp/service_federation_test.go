@@ -1476,8 +1476,8 @@ func TestFederationService_ValidateOIDCToken(t *testing.T) {
 }
 
 func rsaPublicJWK(key *rsa.PrivateKey, kid string) string {
-	n := base64.RawURLEncoding.EncodeToString(key.PublicKey.N.Bytes())
-	e := base64.RawURLEncoding.EncodeToString(big.NewInt(int64(key.PublicKey.E)).Bytes())
+	n := base64.RawURLEncoding.EncodeToString(key.N.Bytes())
+	e := base64.RawURLEncoding.EncodeToString(big.NewInt(int64(key.E)).Bytes())
 	return `{"kty":"RSA","kid":"` + kid + `","alg":"RS256","use":"sig","n":"` + n + `","e":"` + e + `"}`
 }
 

@@ -57,12 +57,12 @@ func TestDate_UnmarshalJSON(t *testing.T) {
 			}
 			require.NoError(t, err)
 			if tc.wantZero {
-				assert.True(t, d.Time.IsZero())
+				assert.True(t, d.IsZero())
 			} else {
-				assert.False(t, d.Time.IsZero())
-				assert.Equal(t, 2024, d.Time.Year())
-				assert.Equal(t, 6, int(d.Time.Month()))
-				assert.Equal(t, 15, d.Time.Day())
+				assert.False(t, d.IsZero())
+				assert.Equal(t, 2024, d.Year())
+				assert.Equal(t, 6, int(d.Month()))
+				assert.Equal(t, 15, d.Day())
 			}
 		})
 	}
