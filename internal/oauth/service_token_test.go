@@ -10,6 +10,7 @@ import (
 	"time"
 
 	sqlmock "github.com/DATA-DOG/go-sqlmock"
+	jwtlib "github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 	"github.com/lib/pq"
 	"github.com/maintainerd/auth/internal/platform/cache"
@@ -514,6 +515,59 @@ func TestOAuthTokenService_Exchange(t *testing.T) {
 		assert.NotEmpty(t, result.RefreshToken)
 		assert.Equal(t, "Bearer", result.TokenType)
 		assert.Equal(t, "openid profile offline_access", result.Scope)
+	})
+
+	t.Run("authorization_code — token generation error", func(t *testing.T) {
+		initTestJWTKeysService(t)
+		orig := oauthTokenGenerateAccessTokenWithOptionsContext
+		defer func() { oauthTokenGenerateAccessTokenWithOptionsContext = orig }()
+		oauthTokenGenerateAccessTokenWithOptionsContext = func(context.Context, string, string, string, string, string, string, *jwt.AccessTokenOptions) (string, error) {
+			return "", errors.New("token error")
+		}
+
+		verifier := "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"
+		challenge := crypto.ComputeS256Challenge(verifier)
+
+		db, mock := newMockDB(t)
+		expectClientLookup(mock, mockClientRows())
+
+		svc := newOAuthTokenSvc(db, &mockClientRepo{},
+			&mockOAuthAuthCodeRepo{
+				findByCodeHashFn: func(_ string) (*OAuthAuthorizationCode, error) {
+					return &OAuthAuthorizationCode{
+						OAuthAuthorizationCodeID: 1,
+						ClientID:                 10,
+						UserID:                   1,
+						TenantID:                 1,
+						RedirectURI:              "https://example.com/callback",
+						Scope:                    "openid profile",
+						CodeChallenge:            challenge,
+						CodeChallengeMethod:      "S256",
+						ExpiresAt:                time.Now().Add(10 * time.Minute),
+					}, nil
+				},
+			},
+			&mockOAuthRefreshTokenRepo{},
+			&mockUserRepo{
+				findByIDFn: func(_ any, _ ...string) (*User, error) {
+					return &User{UserID: 1, UserUUID: uuid.New(), Email: "test@example.com"}, nil
+				},
+			},
+			&mockUserIdentityRepo{
+				findByUserIDAndClientIDFn: func(_, _ int64) (*UserIdentity, error) {
+					return &UserIdentity{Sub: "user-sub-123"}, nil
+				},
+			},
+			&mockAuthEventService{})
+
+		_, oerr := svc.Exchange(ctx, OAuthTokenRequestDTO{
+			GrantType:    "authorization_code",
+			Code:         "code123",
+			RedirectURI:  "https://example.com/callback",
+			CodeVerifier: verifier,
+		}, OAuthClientCredentials{ClientID: "my-client"})
+		require.NotNil(t, oerr)
+		assert.Equal(t, "server_error", oerr.Code)
 	})
 
 	t.Run("authorization_code — auth code lookup error", func(t *testing.T) {
@@ -1117,7 +1171,7 @@ func TestOAuthTokenService_Exchange_RefreshToken(t *testing.T) {
 						OAuthRefreshTokenID: 1,
 						ClientID:            10,
 						UserID:              1,
-						Scope:               "openid profile offline_access",
+						Scope:               "openid profile",
 						ExpiresAt:           time.Now().Add(7 * 24 * time.Hour),
 					}, nil
 				},
@@ -1125,6 +1179,98 @@ func TestOAuthTokenService_Exchange_RefreshToken(t *testing.T) {
 				createFn: func(_ *OAuthRefreshToken) (*OAuthRefreshToken, error) {
 					return nil, errors.New("create error")
 				},
+			},
+			&mockUserRepo{
+				findByIDFn: func(_ any, _ ...string) (*User, error) {
+					return &User{UserID: 1, UserUUID: uuid.New(), Email: "test@example.com"}, nil
+				},
+			},
+			&mockUserIdentityRepo{
+				findByUserIDAndClientIDFn: func(_, _ int64) (*UserIdentity, error) {
+					return &UserIdentity{Sub: "user-sub-rt"}, nil
+				},
+			},
+			&mockAuthEventService{})
+
+		_, oerr := svc.Exchange(ctx, OAuthTokenRequestDTO{
+			GrantType:    "refresh_token",
+			RefreshToken: "some-token",
+		}, OAuthClientCredentials{ClientID: "my-client"})
+		require.NotNil(t, oerr)
+		assert.Equal(t, "server_error", oerr.Code)
+	})
+
+	t.Run("GenerateRandomString fails in transaction", func(t *testing.T) {
+		initTestJWTKeysService(t)
+		orig := oauthTokenGenerateRandomString
+		defer func() { oauthTokenGenerateRandomString = orig }()
+		oauthTokenGenerateRandomString = func(int) (string, error) {
+			return "", errors.New("random error")
+		}
+
+		db, mock := newMockDB(t)
+		expectClientLookup(mock, mockClientRows())
+		mock.ExpectBegin()
+		mock.ExpectRollback()
+
+		svc := newOAuthTokenSvc(db, &mockClientRepo{}, &mockOAuthAuthCodeRepo{},
+			&mockOAuthRefreshTokenRepo{
+				findByTokenHashFn: func(_ string) (*OAuthRefreshToken, error) {
+					return &OAuthRefreshToken{
+						OAuthRefreshTokenID: 1,
+						ClientID:            10,
+						UserID:              1,
+						Scope:               "openid profile",
+						ExpiresAt:           time.Now().Add(7 * 24 * time.Hour),
+					}, nil
+				},
+				revokeByIDFn: func(_ int64) error { return nil },
+			},
+			&mockUserRepo{
+				findByIDFn: func(_ any, _ ...string) (*User, error) {
+					return &User{UserID: 1, UserUUID: uuid.New(), Email: "test@example.com"}, nil
+				},
+			},
+			&mockUserIdentityRepo{
+				findByUserIDAndClientIDFn: func(_, _ int64) (*UserIdentity, error) {
+					return &UserIdentity{Sub: "user-sub-rt"}, nil
+				},
+			},
+			&mockAuthEventService{})
+
+		_, oerr := svc.Exchange(ctx, OAuthTokenRequestDTO{
+			GrantType:    "refresh_token",
+			RefreshToken: "some-token",
+		}, OAuthClientCredentials{ClientID: "my-client"})
+		require.NotNil(t, oerr)
+		assert.Equal(t, "server_error", oerr.Code)
+	})
+
+	t.Run("generateTokens returns OAuth error in transaction", func(t *testing.T) {
+		initTestJWTKeysService(t)
+		orig := oauthTokenGenerateAccessTokenWithOptionsContext
+		defer func() { oauthTokenGenerateAccessTokenWithOptionsContext = orig }()
+		oauthTokenGenerateAccessTokenWithOptionsContext = func(context.Context, string, string, string, string, string, string, *jwt.AccessTokenOptions) (string, error) {
+			return "", errors.New("token error")
+		}
+
+		db, mock := newMockDB(t)
+		expectClientLookup(mock, mockClientRows())
+		mock.ExpectBegin()
+		mock.ExpectRollback()
+
+		svc := newOAuthTokenSvc(db, &mockClientRepo{}, &mockOAuthAuthCodeRepo{},
+			&mockOAuthRefreshTokenRepo{
+				findByTokenHashFn: func(_ string) (*OAuthRefreshToken, error) {
+					return &OAuthRefreshToken{
+						OAuthRefreshTokenID: 1,
+						ClientID:            10,
+						UserID:              1,
+						Scope:               "openid profile",
+						ExpiresAt:           time.Now().Add(7 * 24 * time.Hour),
+					}, nil
+				},
+				revokeByIDFn: func(_ int64) error { return nil },
 			},
 			&mockUserRepo{
 				findByIDFn: func(_ any, _ ...string) (*User, error) {
@@ -1277,6 +1423,41 @@ func TestOAuthTokenService_Exchange_ClientCredentials(t *testing.T) {
 		}, OAuthClientCredentials{ClientID: "unknown"})
 		require.NotNil(t, oerr)
 		assert.Equal(t, "invalid_client", oerr.Code)
+	})
+
+	t.Run("access token generation error", func(t *testing.T) {
+		initTestJWTKeysService(t)
+		orig := oauthTokenGenerateAccessTokenWithOptionsContext
+		defer func() { oauthTokenGenerateAccessTokenWithOptionsContext = orig }()
+		oauthTokenGenerateAccessTokenWithOptionsContext = func(context.Context, string, string, string, string, string, string, *jwt.AccessTokenOptions) (string, error) {
+			return "", errors.New("token error")
+		}
+
+		db, mock := newMockDB(t)
+		rows := sqlmock.NewRows([]string{
+			"client_id", "client_uuid", "tenant_id", "identity_provider_id", "name", "display_name",
+			"client_type", "domain", "identifier", "secret", "status",
+			"is_default", "is_system", "token_endpoint_auth_method",
+			"grant_types", "response_types", "access_token_ttl", "refresh_token_ttl",
+			"require_consent", "created_at", "updated_at",
+		}).AddRow(
+			10, uuid.New(), 1, int64(100), "m2m-client", "M2M Client",
+			"m2m", "https://auth.example.com", "m2m-client", nil, "active",
+			false, false, "none",
+			`{client_credentials}`, `{}`, nil, nil,
+			false, time.Now(), time.Now(),
+		)
+		expectClientLookup(mock, rows)
+
+		svc := newOAuthTokenSvc(db, &mockClientRepo{}, &mockOAuthAuthCodeRepo{}, &mockOAuthRefreshTokenRepo{}, &mockUserRepo{},
+			&mockUserIdentityRepo{findByUserIDAndClientIDFn: func(_, _ int64) (*UserIdentity, error) { return nil, nil }},
+			&mockAuthEventService{})
+
+		_, oerr := svc.Exchange(ctx, OAuthTokenRequestDTO{
+			GrantType: "client_credentials",
+		}, OAuthClientCredentials{ClientID: "m2m-client"})
+		require.NotNil(t, oerr)
+		assert.Equal(t, "server_error", oerr.Code)
 	})
 }
 
@@ -1478,6 +1659,55 @@ func TestOAuthTokenService_Revoke(t *testing.T) {
 		require.Nil(t, oerr)
 	})
 
+	t.Run("access token without jti is skipped", func(t *testing.T) {
+		orig := oauthTokenValidateTokenWithContext
+		defer func() { oauthTokenValidateTokenWithContext = orig }()
+		oauthTokenValidateTokenWithContext = func(context.Context, string) (jwtlib.MapClaims, error) {
+			return jwtlib.MapClaims{
+				"token_type": "access_token",
+				"client_id":  "my-client",
+				"exp":        float64(time.Now().Add(time.Hour).Unix()),
+			}, nil
+		}
+
+		clientID := "my-client"
+		denylist := &recordingJTIDenylister{}
+		svc := &oauthTokenService{
+			refreshTokenRepo: &mockOAuthRefreshTokenRepo{},
+			jtiDenylist:      denylist,
+		}
+
+		oerr := svc.revokeAccessToken(ctx, "token-without-jti", &Client{Identifier: &clientID})
+
+		require.Nil(t, oerr)
+		assert.Empty(t, denylist.jti)
+	})
+
+	t.Run("expired access token is skipped", func(t *testing.T) {
+		orig := oauthTokenValidateTokenWithContext
+		defer func() { oauthTokenValidateTokenWithContext = orig }()
+		oauthTokenValidateTokenWithContext = func(context.Context, string) (jwtlib.MapClaims, error) {
+			return jwtlib.MapClaims{
+				"token_type": "access_token",
+				"client_id":  "my-client",
+				"jti":        "jti-123",
+				"exp":        float64(time.Now().Add(-time.Hour).Unix()),
+			}, nil
+		}
+
+		clientID := "my-client"
+		denylist := &recordingJTIDenylister{}
+		svc := &oauthTokenService{
+			refreshTokenRepo: &mockOAuthRefreshTokenRepo{},
+			jtiDenylist:      denylist,
+		}
+
+		oerr := svc.revokeAccessToken(ctx, "expired-token", &Client{Identifier: &clientID})
+
+		require.Nil(t, oerr)
+		assert.Empty(t, denylist.jti)
+	})
+
 	t.Run("id_token is skipped", func(t *testing.T) {
 		initTestJWTKeysService(t)
 		jwt.ResetJTIChecker()
@@ -1582,7 +1812,6 @@ func TestOAuthTokenService_Revoke(t *testing.T) {
 		assert.Empty(t, denylist.jti)
 	})
 }
-
 
 // ── TestOAuthTokenService_Introspect ────────────────────────────────────────
 
@@ -1930,6 +2159,47 @@ func TestOAuthTokenService_GenerateTokens(t *testing.T) {
 		defer jwt.ResetJWTKeys()
 
 		_, oerr := svc.generateTokens(context.Background(), "user-sub", user, fullClient, "openid profile", nil, "")
+		require.NotNil(t, oerr)
+		assert.Equal(t, "server_error", oerr.Code)
+	})
+
+	t.Run("ID token generation error", func(t *testing.T) {
+		initTestJWTKeysService(t)
+		orig := oauthTokenGenerateIDTokenWithContext
+		defer func() { oauthTokenGenerateIDTokenWithContext = orig }()
+		oauthTokenGenerateIDTokenWithContext = func(context.Context, string, string, string, string, *jwt.UserProfile, string, *jwt.IDTokenParams) (string, error) {
+			return "", errors.New("id token error")
+		}
+
+		_, oerr := svc.generateTokens(context.Background(), "user-sub", user, fullClient, "openid profile", nil, "")
+		require.NotNil(t, oerr)
+		assert.Equal(t, "server_error", oerr.Code)
+	})
+
+	t.Run("refresh token random error", func(t *testing.T) {
+		initTestJWTKeysService(t)
+		orig := oauthTokenGenerateRandomString
+		defer func() { oauthTokenGenerateRandomString = orig }()
+		oauthTokenGenerateRandomString = func(int) (string, error) {
+			return "", errors.New("random error")
+		}
+
+		_, oerr := svc.generateTokens(context.Background(), "user-sub", user, fullClient, "openid offline_access", nil, "")
+		require.NotNil(t, oerr)
+		assert.Equal(t, "server_error", oerr.Code)
+	})
+
+	t.Run("refresh token create error", func(t *testing.T) {
+		initTestJWTKeysService(t)
+		svc := &oauthTokenService{
+			refreshTokenRepo: &mockOAuthRefreshTokenRepo{
+				createFn: func(_ *OAuthRefreshToken) (*OAuthRefreshToken, error) {
+					return nil, errors.New("create error")
+				},
+			},
+		}
+
+		_, oerr := svc.generateTokens(context.Background(), "user-sub", user, fullClient, "openid offline_access", nil, "")
 		require.NotNil(t, oerr)
 		assert.Equal(t, "server_error", oerr.Code)
 	})

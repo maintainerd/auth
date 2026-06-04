@@ -9,7 +9,6 @@ import (
 	"github.com/maintainerd/auth/internal/platform/apperror"
 	"github.com/maintainerd/auth/internal/platform/crypto"
 	"github.com/maintainerd/auth/internal/platform/ptr"
-	"github.com/maintainerd/auth/internal/platform/runner"
 	"github.com/maintainerd/auth/internal/platform/security"
 	"github.com/maintainerd/auth/internal/setup/seeder"
 	"github.com/maintainerd/auth/internal/shared"
@@ -18,6 +17,8 @@ import (
 	"gorm.io/datatypes"
 	"gorm.io/gorm"
 )
+
+var setupHashPassword = security.HashPassword
 
 type SetupService interface {
 	GetSetupStatus(ctx context.Context) (*SetupStatusResponseDTO, error)
@@ -136,10 +137,7 @@ func (s *setupService) CreateTenant(ctx context.Context, req CreateTenantRequest
 		// Handle metadata (optional field)
 		var metadataJSON datatypes.JSON
 		if req.Metadata != nil {
-			metadataJSON, err = json.Marshal(req.Metadata)
-			if err != nil {
-				return apperror.NewInternal("failed to marshal tenant metadata", err)
-			}
+			metadataJSON, _ = json.Marshal(req.Metadata)
 		} else {
 			metadataJSON = datatypes.JSON([]byte("{}"))
 		}
@@ -161,7 +159,7 @@ func (s *setupService) CreateTenant(ctx context.Context, req CreateTenantRequest
 		}
 
 		// Run all other seeders
-		if err := runner.RunSeeders(tx, "v0.1.0"); err != nil {
+		if err := setupRunSeeders(tx, "v0.1.0"); err != nil {
 			return apperror.NewInternal("failed to initialize tenant structure", err)
 		}
 
@@ -270,7 +268,7 @@ func (s *setupService) CreateAdmin(ctx context.Context, req CreateAdminRequestDT
 		}
 
 		// Hash password
-		hashedPassword, err := security.HashPassword(ctx, []byte(req.Password))
+		hashedPassword, err := setupHashPassword(ctx, []byte(req.Password))
 		if err != nil {
 			return err
 		}

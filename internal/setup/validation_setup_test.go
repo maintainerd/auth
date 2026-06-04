@@ -143,4 +143,14 @@ func TestCreateProfileRequestDto_Validate(t *testing.T) {
 		d := CreateProfileRequestDTO{FirstName: "John", Country: strPtr("USA")}
 		require.Error(t, d.Validate())
 	})
+
+	t.Run("invalid birthdate format", func(t *testing.T) {
+		d := CreateProfileRequestDTO{FirstName: "John", Birthdate: strPtr("01-25-1990")}
+		require.Error(t, d.Validate())
+	})
+
+	t.Run("valid birthdate format", func(t *testing.T) {
+		d := CreateProfileRequestDTO{FirstName: "John", Birthdate: strPtr("1990-01-25")}
+		assert.NoError(t, d.Validate())
+	})
 }

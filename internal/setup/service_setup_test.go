@@ -8,7 +8,6 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/platform/crypto"
-	"github.com/maintainerd/auth/internal/platform/runner"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
@@ -290,9 +289,9 @@ func TestSetupService_CreateTenant(t *testing.T) {
 	})
 
 	t.Run("success without metadata", func(t *testing.T) {
-		origRunSeeders := runner.RunSeeders
-		defer func() { runner.RunSeeders = origRunSeeders }()
-		runner.RunSeeders = func(_ *gorm.DB, _ string) error { return nil }
+		origRunSeeders := setupRunSeeders
+		defer func() { setupRunSeeders = origRunSeeders }()
+		setupRunSeeders = func(_ *gorm.DB, _ string) error { return nil }
 
 		db, mock := newMockGormDB(t)
 		mock.ExpectBegin()
@@ -329,9 +328,9 @@ func TestSetupService_CreateTenant(t *testing.T) {
 	})
 
 	t.Run("success with metadata and description", func(t *testing.T) {
-		origRunSeeders := runner.RunSeeders
-		defer func() { runner.RunSeeders = origRunSeeders }()
-		runner.RunSeeders = func(_ *gorm.DB, _ string) error { return nil }
+		origRunSeeders := setupRunSeeders
+		defer func() { setupRunSeeders = origRunSeeders }()
+		setupRunSeeders = func(_ *gorm.DB, _ string) error { return nil }
 
 		db, mock := newMockGormDB(t)
 		mock.ExpectBegin()
@@ -368,9 +367,9 @@ func TestSetupService_CreateTenant(t *testing.T) {
 	})
 
 	t.Run("success but FindDefault error", func(t *testing.T) {
-		origRunSeeders := runner.RunSeeders
-		defer func() { runner.RunSeeders = origRunSeeders }()
-		runner.RunSeeders = func(_ *gorm.DB, _ string) error { return nil }
+		origRunSeeders := setupRunSeeders
+		defer func() { setupRunSeeders = origRunSeeders }()
+		setupRunSeeders = func(_ *gorm.DB, _ string) error { return nil }
 
 		db, mock := newMockGormDB(t)
 		mock.ExpectBegin()
@@ -396,9 +395,9 @@ func TestSetupService_CreateTenant(t *testing.T) {
 	})
 
 	t.Run("success with invalid metadata JSON in tenant", func(t *testing.T) {
-		origRunSeeders := runner.RunSeeders
-		defer func() { runner.RunSeeders = origRunSeeders }()
-		runner.RunSeeders = func(_ *gorm.DB, _ string) error { return nil }
+		origRunSeeders := setupRunSeeders
+		defer func() { setupRunSeeders = origRunSeeders }()
+		setupRunSeeders = func(_ *gorm.DB, _ string) error { return nil }
 
 		db, mock := newMockGormDB(t)
 		mock.ExpectBegin()
@@ -590,6 +589,22 @@ func TestSetupService_CreateAdmin(t *testing.T) {
 		_, err := svc.CreateAdmin(context.Background(), validReq)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "user with this email already exists")
+	})
+
+	t.Run("TX: hash password error → rollback", func(t *testing.T) {
+		orig := setupHashPassword
+		setupHashPassword = func(context.Context, []byte) ([]byte, error) {
+			return nil, errors.New("hash error")
+		}
+		t.Cleanup(func() { setupHashPassword = orig })
+		db, mock := newMockGormDB(t)
+		mock.ExpectBegin()
+		mock.ExpectRollback()
+		tr, ur, cr, rr, uir, urr, tmr := adminRepos()
+		svc := NewSetupService(db, ur, tr, tmr, cr, rr, urr, uir, &mockProfileRepo{})
+		_, err := svc.CreateAdmin(context.Background(), validReq)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "hash error")
 	})
 
 	t.Run("TX: Create user error → rollback", func(t *testing.T) {

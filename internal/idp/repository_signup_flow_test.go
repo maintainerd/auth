@@ -152,6 +152,32 @@ func TestSignupFlowRepository_FindPaginated(t *testing.T) {
 		assert.NoError(t, mock.ExpectationsWereMet())
 	})
 
+	t.Run("success with name filter", func(t *testing.T) {
+		gdb, mock := newMockGormDBRegex(t)
+		name := "flow1"
+		mock.ExpectQuery(`SELECT count\(\*\) FROM "signup_flows" WHERE LOWER\(name\) LIKE`).
+			WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(1))
+		mock.ExpectQuery(`SELECT \* FROM "signup_flows" WHERE LOWER\(name\) LIKE.*ORDER BY.*LIMIT`).
+			WillReturnRows(sqlmock.NewRows([]string{"signup_flow_id", "signup_flow_uuid", "tenant_id", "name", "client_id", "created_at", "updated_at"}).
+				AddRow(1, uuid.New(), int64(1), "flow1", int64(1), now, now))
+		mock.ExpectQuery(`SELECT \* FROM "clients"`).
+			WithArgs(int64(1)).
+			WillReturnRows(sqlmock.NewRows([]string{"client_id", "client_uuid", "name"}).
+				AddRow(1, uuid.New(), "client1"))
+
+		repo := NewSignupFlowRepository(gdb)
+		result, err := repo.FindPaginated(SignupFlowRepositoryGetFilter{
+			Name:      &name,
+			Page:      1,
+			Limit:     10,
+			SortBy:    "created_at",
+			SortOrder: "desc",
+		})
+		require.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+
 	t.Run("success with empty name skips filter", func(t *testing.T) {
 		gdb, mock := newMockGormDBRegex(t)
 		emptyName := ""
