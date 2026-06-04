@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"sync"
 	"testing"
 	"time"
 
@@ -37,6 +38,8 @@ func TestStartBackgroundWorkers_StartsSecurityRunners(t *testing.T) {
 		period time.Duration
 	}
 	calls := make(chan workerCall, 4)
+	var grpcWg sync.WaitGroup
+	grpcWg.Add(1)
 
 	startRetentionRunner = func(context.Context, authevent.RetentionDeleter, time.Duration, time.Duration) {
 		calls <- workerCall{name: "retention"}
@@ -49,6 +52,7 @@ func TestStartBackgroundWorkers_StartsSecurityRunners(t *testing.T) {
 	}
 	startGRPCServer = func(context.Context, *appserver.Application) error {
 		calls <- workerCall{name: "grpc"}
+		grpcWg.Done()
 		return nil
 	}
 
@@ -68,6 +72,7 @@ func TestStartBackgroundWorkers_StartsSecurityRunners(t *testing.T) {
 		}
 	}
 
+	grpcWg.Wait()
 	require.Contains(t, seen, "retention")
 	require.Contains(t, seen, "grpc")
 	assert.Equal(t, 42*time.Second, seen["key_rotation"])
@@ -93,6 +98,8 @@ func TestStartBackgroundWorkers_UsesDefaultSecurityRunnerPeriods(t *testing.T) {
 	config.JWTKeyRotationPeriodSeconds = 0
 	config.SecretRefreshPeriodSeconds = -1
 
+	var grpcWg sync.WaitGroup
+	grpcWg.Add(1)
 	keyRotationPeriods := make(chan time.Duration, 1)
 	secretRefreshPeriods := make(chan time.Duration, 1)
 
@@ -103,7 +110,10 @@ func TestStartBackgroundWorkers_UsesDefaultSecurityRunnerPeriods(t *testing.T) {
 	startSecretRefreshRunner = func(_ context.Context, period time.Duration) {
 		secretRefreshPeriods <- period
 	}
-	startGRPCServer = func(context.Context, *appserver.Application) error { return nil }
+	startGRPCServer = func(context.Context, *appserver.Application) error {
+		grpcWg.Done()
+		return nil
+	}
 
 	startBackgroundWorkers(
 		context.Background(),
@@ -124,4 +134,6 @@ func TestStartBackgroundWorkers_UsesDefaultSecurityRunnerPeriods(t *testing.T) {
 	case <-time.After(time.Second):
 		t.Fatal("timed out waiting for secret refresh runner")
 	}
+
+	grpcWg.Wait()
 }
