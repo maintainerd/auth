@@ -296,7 +296,7 @@ func (s *federationService) ExchangeOAuth2Code(ctx context.Context, req Federati
 		span.SetStatus(codes.Error, "userinfo fetch failed")
 		return nil, apperror.NewUnauthorized("failed to fetch user info from provider")
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {

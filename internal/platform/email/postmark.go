@@ -48,7 +48,7 @@ func (p *postmarkProvider) Send(ctx context.Context, params SendParams) error {
 		span.SetStatus(codes.Error, "postmark send failed")
 		return fmt.Errorf("postmark: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode >= 300 {
 		err := fmt.Errorf("postmark: unexpected status %d", resp.StatusCode)
