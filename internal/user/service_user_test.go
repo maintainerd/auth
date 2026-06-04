@@ -1568,3 +1568,137 @@ func TestToUserServiceDataResult(t *testing.T) {
 		assert.Nil(t, res.Tenant)
 	})
 }
+
+func TestUserService_ForcePasswordChange(t *testing.T) {
+	t.Run("success", func(t *testing.T) {
+		ur, ui, urr, rr, tr, idp, cr, up := defaultMocks()
+		ur.setForcePasswordChangeFn = func(uuid.UUID, bool) error { return nil }
+		_, svc := fullUserSvc(t, ur, ui, urr, rr, tr, idp, cr, up)
+		err := svc.ForcePasswordChange(context.Background(), uuid.New(), true)
+		require.NoError(t, err)
+	})
+
+	t.Run("repo error", func(t *testing.T) {
+		ur, ui, urr, rr, tr, idp, cr, up := defaultMocks()
+		ur.setForcePasswordChangeFn = func(uuid.UUID, bool) error { return errors.New("db error") }
+		_, svc := fullUserSvc(t, ur, ui, urr, rr, tr, idp, cr, up)
+		err := svc.ForcePasswordChange(context.Background(), uuid.New(), true)
+		require.Error(t, err)
+	})
+}
+
+func TestUserService_FindBySubAndClientID(t *testing.T) {
+	t.Run("success", func(t *testing.T) {
+		ur, ui, urr, rr, tr, idp, cr, up := defaultMocks()
+		ur.findBySubAndClientIDFn = func(string, string) (*User, error) {
+			return &User{UserUUID: uuid.New()}, nil
+		}
+		_, svc := fullUserSvc(t, ur, ui, urr, rr, tr, idp, cr, up)
+		user, err := svc.FindBySubAndClientID(context.Background(), "sub1", "client1")
+		require.NoError(t, err)
+		assert.NotNil(t, user)
+	})
+
+	t.Run("repo error", func(t *testing.T) {
+		ur, ui, urr, rr, tr, idp, cr, up := defaultMocks()
+		ur.findBySubAndClientIDFn = func(string, string) (*User, error) {
+			return nil, errors.New("db error")
+		}
+		_, svc := fullUserSvc(t, ur, ui, urr, rr, tr, idp, cr, up)
+		user, err := svc.FindBySubAndClientID(context.Background(), "sub1", "client1")
+		require.Error(t, err)
+		assert.Nil(t, user)
+	})
+}
+
+func TestValidateTenantAccess(t *testing.T) {
+	tenantID := int64(1)
+
+	t.Run("nil actor returns unauthorized", func(t *testing.T) {
+		err := ValidateTenantAccess(nil, &Tenant{TenantID: tenantID})
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "actor user not found")
+	})
+
+	t.Run("nil target returns not found", func(t *testing.T) {
+		err := ValidateTenantAccess(&User{}, nil)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "tenant not found")
+	})
+
+	t.Run("actor with no identities returns forbidden", func(t *testing.T) {
+		err := ValidateTenantAccess(&User{}, &Tenant{TenantID: tenantID})
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "actor user has no identities")
+	})
+
+	t.Run("matching tenant ID permits access", func(t *testing.T) {
+		actor := &User{
+			UserIdentities: []UserIdentity{
+				{TenantID: tenantID},
+			},
+		}
+		err := ValidateTenantAccess(actor, &Tenant{TenantID: tenantID})
+		require.NoError(t, err)
+	})
+
+	t.Run("system tenant permits access", func(t *testing.T) {
+		actor := &User{
+			UserIdentities: []UserIdentity{
+				{TenantID: 99, Tenant: &Tenant{TenantID: 99, IsSystem: true}},
+			},
+		}
+		err := ValidateTenantAccess(actor, &Tenant{TenantID: tenantID})
+		require.NoError(t, err)
+	})
+
+	t.Run("wrong tenant ID returns forbidden", func(t *testing.T) {
+		actor := &User{
+			UserIdentities: []UserIdentity{
+				{TenantID: 99},
+			},
+		}
+		err := ValidateTenantAccess(actor, &Tenant{TenantID: tenantID})
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "tenant access denied")
+	})
+}
+
+func TestToTenantServiceDataResult(t *testing.T) {
+	t.Run("nil returns nil", func(t *testing.T) {
+		assert.Nil(t, toTenantServiceDataResult(nil))
+	})
+
+	t.Run("non-nil returns populated result", func(t *testing.T) {
+		tnt := &Tenant{Name: "acme", TenantID: 1}
+		res := toTenantServiceDataResult(tnt)
+		require.NotNil(t, res)
+		assert.Equal(t, "acme", res.Name)
+	})
+}
+
+func TestToRoleServiceDataResult(t *testing.T) {
+	t.Run("nil returns nil", func(t *testing.T) {
+		assert.Nil(t, toRoleServiceDataResult(nil))
+	})
+
+	t.Run("non-nil returns populated result", func(t *testing.T) {
+		role := &Role{Name: "admin", RoleID: 1}
+		res := toRoleServiceDataResult(role)
+		require.NotNil(t, res)
+		assert.Equal(t, "admin", res.Name)
+	})
+}
+
+func TestToClientServiceDataResult(t *testing.T) {
+	t.Run("nil returns nil", func(t *testing.T) {
+		assert.Nil(t, ToClientServiceDataResult(nil))
+	})
+
+	t.Run("non-nil returns populated result", func(t *testing.T) {
+		client := &Client{Name: "app", ClientID: 1}
+		res := ToClientServiceDataResult(client)
+		require.NotNil(t, res)
+		assert.Equal(t, "app", res.Name)
+	})
+}

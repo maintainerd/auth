@@ -133,6 +133,7 @@ type mockUserRepo struct {
 	findByPendingEmailFn     func(string) (*User, error)
 	createFn                 func(*User) (*User, error)
 	updateByUUIDFn           func(any, any) (*User, error)
+	updateByIDFn             func(any, any) (*User, error)
 	deleteByUUIDFn           func(any) error
 }
 
@@ -158,6 +159,12 @@ func (m *mockUserRepo) FindByID(id any, p ...string) (*User, error) {
 func (m *mockUserRepo) UpdateByUUID(id, data any) (*User, error) {
 	if m.updateByUUIDFn != nil {
 		return m.updateByUUIDFn(id, data)
+	}
+	return nil, nil
+}
+func (m *mockUserRepo) UpdateByID(id, data any) (*User, error) {
+	if m.updateByIDFn != nil {
+		return m.updateByIDFn(id, data)
 	}
 	return nil, nil
 }
@@ -854,4 +861,149 @@ func (m *mockUserSettingService) DeleteByUUID(_ context.Context, userSettingUUID
 		return m.deleteByUUIDFn(userSettingUUID)
 	}
 	return &UserSettingServiceDataResult{}, nil
+}
+
+type mockUserTokenRepo struct {
+	mockBaseRepo[UserToken]
+	findByUserIDFn              func(int64) ([]UserToken, error)
+	findActiveTokensByUserIDFn  func(int64) ([]UserToken, error)
+	findByUserIDAndTokenTypeFn  func(int64, string) ([]UserToken, error)
+	revokeByUUIDFn              func(uuid.UUID) error
+	revokeAllByUserIDFn         func(int64) error
+	deleteByUserIDFn            func(int64) error
+	deleteExpiredTokensFn       func(time.Time) error
+	findActiveSessionsFn        func(int64) ([]UserToken, error)
+	findActiveSessionByUUIDFn   func(int64, uuid.UUID) (*UserToken, error)
+	countActiveSessionsFn       func(int64) (int64, error)
+	touchSessionFn              func(uuid.UUID, time.Time) error
+	revokeSessionByUUIDFn       func(int64, uuid.UUID) error
+	revokeAllSessionsByUserIDFn func(int64) error
+	createFn                    func(*UserToken) (*UserToken, error)
+}
+
+func (m *mockUserTokenRepo) WithTx(_ *gorm.DB) UserTokenRepository { return m }
+func (m *mockUserTokenRepo) Create(e *UserToken) (*UserToken, error) {
+	if m.createFn != nil {
+		return m.createFn(e)
+	}
+	return e, nil
+}
+func (m *mockUserTokenRepo) FindByUserID(userID int64) ([]UserToken, error) {
+	if m.findByUserIDFn != nil {
+		return m.findByUserIDFn(userID)
+	}
+	return nil, nil
+}
+func (m *mockUserTokenRepo) FindActiveTokensByUserID(userID int64) ([]UserToken, error) {
+	if m.findActiveTokensByUserIDFn != nil {
+		return m.findActiveTokensByUserIDFn(userID)
+	}
+	return nil, nil
+}
+func (m *mockUserTokenRepo) FindByUserIDAndTokenType(userID int64, tokenType string) ([]UserToken, error) {
+	if m.findByUserIDAndTokenTypeFn != nil {
+		return m.findByUserIDAndTokenTypeFn(userID, tokenType)
+	}
+	return nil, nil
+}
+func (m *mockUserTokenRepo) RevokeByUUID(tokenUUID uuid.UUID) error {
+	if m.revokeByUUIDFn != nil {
+		return m.revokeByUUIDFn(tokenUUID)
+	}
+	return nil
+}
+func (m *mockUserTokenRepo) RevokeAllByUserID(userID int64) error {
+	if m.revokeAllByUserIDFn != nil {
+		return m.revokeAllByUserIDFn(userID)
+	}
+	return nil
+}
+func (m *mockUserTokenRepo) DeleteByUserID(userID int64) error {
+	if m.deleteByUserIDFn != nil {
+		return m.deleteByUserIDFn(userID)
+	}
+	return nil
+}
+func (m *mockUserTokenRepo) DeleteExpiredTokens(before time.Time) error {
+	if m.deleteExpiredTokensFn != nil {
+		return m.deleteExpiredTokensFn(before)
+	}
+	return nil
+}
+func (m *mockUserTokenRepo) FindActiveSessions(userID int64) ([]UserToken, error) {
+	if m.findActiveSessionsFn != nil {
+		return m.findActiveSessionsFn(userID)
+	}
+	return nil, nil
+}
+func (m *mockUserTokenRepo) FindActiveSessionByUUID(userID int64, sessionUUID uuid.UUID) (*UserToken, error) {
+	if m.findActiveSessionByUUIDFn != nil {
+		return m.findActiveSessionByUUIDFn(userID, sessionUUID)
+	}
+	return nil, nil
+}
+func (m *mockUserTokenRepo) CountActiveSessions(userID int64) (int64, error) {
+	if m.countActiveSessionsFn != nil {
+		return m.countActiveSessionsFn(userID)
+	}
+	return 0, nil
+}
+func (m *mockUserTokenRepo) TouchSession(sessionUUID uuid.UUID, now time.Time) error {
+	if m.touchSessionFn != nil {
+		return m.touchSessionFn(sessionUUID, now)
+	}
+	return nil
+}
+func (m *mockUserTokenRepo) RevokeSessionByUUID(userID int64, sessionUUID uuid.UUID) error {
+	if m.revokeSessionByUUIDFn != nil {
+		return m.revokeSessionByUUIDFn(userID, sessionUUID)
+	}
+	return nil
+}
+func (m *mockUserTokenRepo) RevokeAllSessionsByUserID(userID int64) error {
+	if m.revokeAllSessionsByUserIDFn != nil {
+		return m.revokeAllSessionsByUserIDFn(userID)
+	}
+	return nil
+}
+
+type mockUserBackupCodeRepo struct {
+	mockBaseRepo[UserBackupCode]
+	createBulkFn            func([]*UserBackupCode) error
+	findUnusedByUserIDFn    func(int64) ([]UserBackupCode, error)
+	findByUserIDAndCodeHashFn func(int64, string) (*UserBackupCode, error)
+	markUsedFn              func(int64) error
+	deleteAllByUserIDFn     func(int64) error
+}
+
+func (m *mockUserBackupCodeRepo) WithTx(_ *gorm.DB) UserBackupCodeRepository { return m }
+func (m *mockUserBackupCodeRepo) CreateBulk(codes []*UserBackupCode) error {
+	if m.createBulkFn != nil {
+		return m.createBulkFn(codes)
+	}
+	return nil
+}
+func (m *mockUserBackupCodeRepo) FindUnusedByUserID(userID int64) ([]UserBackupCode, error) {
+	if m.findUnusedByUserIDFn != nil {
+		return m.findUnusedByUserIDFn(userID)
+	}
+	return nil, nil
+}
+func (m *mockUserBackupCodeRepo) FindByUserIDAndCodeHash(userID int64, codeHash string) (*UserBackupCode, error) {
+	if m.findByUserIDAndCodeHashFn != nil {
+		return m.findByUserIDAndCodeHashFn(userID, codeHash)
+	}
+	return nil, nil
+}
+func (m *mockUserBackupCodeRepo) MarkUsed(id int64) error {
+	if m.markUsedFn != nil {
+		return m.markUsedFn(id)
+	}
+	return nil
+}
+func (m *mockUserBackupCodeRepo) DeleteAllByUserID(userID int64) error {
+	if m.deleteAllByUserIDFn != nil {
+		return m.deleteAllByUserIDFn(userID)
+	}
+	return nil
 }
