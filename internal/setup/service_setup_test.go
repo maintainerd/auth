@@ -5,6 +5,7 @@ import (
 	"errors"
 	"math"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/platform/crypto"
@@ -222,6 +223,53 @@ func TestSetupService_CompleteSetup(t *testing.T) {
 		assert.True(t, stateRepo.complete)
 	})
 
+	t.Run("already complete is idempotent", func(t *testing.T) {
+		svc := NewSetupService(nil,
+			&mockUserRepo{}, &mockTenantRepo{findAllFn: func(...string) ([]Tenant, error) { return nil, nil }},
+			&mockTenantMemberRepo{}, &mockClientRepo{},
+			&mockRoleRepo{}, &mockUserRoleRepo{}, &mockUserIdentityRepo{}, &mockProfileRepo{},
+			&mockSetupStateRepo{complete: true},
+		)
+
+		res, err := svc.CompleteSetup(context.Background())
+		require.NoError(t, err)
+		assert.True(t, res.IsSetupComplete)
+	})
+
+	t.Run("status error is propagated", func(t *testing.T) {
+		svc := NewSetupService(nil,
+			&mockUserRepo{}, &mockTenantRepo{findAllFn: func(...string) ([]Tenant, error) { return nil, assert.AnError }},
+			&mockTenantMemberRepo{}, &mockClientRepo{},
+			&mockRoleRepo{}, &mockUserRoleRepo{}, &mockUserIdentityRepo{}, &mockProfileRepo{},
+			&mockSetupStateRepo{},
+		)
+
+		_, err := svc.CompleteSetup(context.Background())
+		require.ErrorIs(t, err, assert.AnError)
+	})
+
+	t.Run("mark complete error is propagated", func(t *testing.T) {
+		stateRepo := &mockSetupStateRepo{
+			markCompleteFn: func(string, time.Time) (*SetupState, error) {
+				return nil, assert.AnError
+			},
+		}
+		svc := NewSetupService(nil,
+			&mockUserRepo{findSuperAdminFn: func() (*User, error) { return &User{UserID: 1}, nil }},
+			&mockTenantRepo{
+				findAllFn:    func(...string) ([]Tenant, error) { return []Tenant{{TenantID: 1}}, nil },
+				findSystemFn: func() (*Tenant, error) { return &Tenant{TenantID: 1}, nil },
+			},
+			&mockTenantMemberRepo{}, &mockClientRepo{},
+			&mockRoleRepo{}, &mockUserRoleRepo{}, &mockUserIdentityRepo{},
+			&mockProfileRepo{findByUserIDFn: func(_ int64) (*Profile, error) { return &Profile{ProfileID: 1}, nil }},
+			stateRepo,
+		)
+
+		_, err := svc.CompleteSetup(context.Background())
+		require.ErrorIs(t, err, assert.AnError)
+	})
+
 	t.Run("locked setup rejects tenant creation", func(t *testing.T) {
 		svc := NewSetupService(nil,
 			&mockUserRepo{}, &mockTenantRepo{},
@@ -233,6 +281,18 @@ func TestSetupService_CompleteSetup(t *testing.T) {
 		_, err := svc.CreateTenant(context.Background(), CreateTenantRequestDTO{Name: "maintainerd", DisplayName: "Maintainerd"})
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "setup is complete and locked")
+	})
+
+	t.Run("setup state error rejects mutating setup", func(t *testing.T) {
+		svc := NewSetupService(nil,
+			&mockUserRepo{}, &mockTenantRepo{},
+			&mockTenantMemberRepo{}, &mockClientRepo{},
+			&mockRoleRepo{}, &mockUserRoleRepo{}, &mockUserIdentityRepo{}, &mockProfileRepo{},
+			&mockSetupStateRepo{isCompleteErr: assert.AnError},
+		)
+
+		_, err := svc.CreateTenant(context.Background(), CreateTenantRequestDTO{Name: "maintainerd", DisplayName: "Maintainerd"})
+		require.ErrorIs(t, err, assert.AnError)
 	})
 }
 
