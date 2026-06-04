@@ -11,7 +11,10 @@ import (
 
 func TestNonceManager(t *testing.T) {
 	nm := NewNonceManager()
-	t.Cleanup(nm.Stop)
+	t.Cleanup(func() {
+		nm.Stop()
+		time.Sleep(10 * time.Millisecond)
+	})
 
 	nonce := nm.Generate()
 	require.NotEmpty(t, nonce)
@@ -46,5 +49,15 @@ func TestNonceManager(t *testing.T) {
 	assert.True(t, nm.Validate(headerNonce))
 
 	nm.Stop()
+	assert.NotPanics(t, nm.Stop)
+
+	time.Sleep(10 * time.Millisecond)
+}
+
+func TestNonceManager_GCStop(t *testing.T) {
+	nm := NewNonceManager()
+
+	nm.Stop()
+	time.Sleep(10 * time.Millisecond)
 	assert.NotPanics(t, nm.Stop)
 }

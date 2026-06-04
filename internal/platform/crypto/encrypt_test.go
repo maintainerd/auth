@@ -1,8 +1,10 @@
 package crypto
 
 import (
+	"errors"
 	"testing"
 
+	"github.com/maintainerd/auth/internal/platform/config"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -142,4 +144,110 @@ func TestEncryptAtRest_DecryptAtRest(t *testing.T) {
 		require.NoError(t, err)
 		assert.Empty(t, pt)
 	})
+}
+
+func TestSafeDecryptAtRest(t *testing.T) {
+	key := make([]byte, 32)
+	for i := range key {
+		key[i] = byte(i)
+	}
+
+	origEncrypt := EncryptAtRest
+	origDecrypt := DecryptAtRest
+	defer func() {
+		EncryptAtRest = origEncrypt
+		DecryptAtRest = origDecrypt
+	}()
+
+	EncryptAtRest = func(plaintext string) (string, error) { return EncryptString(plaintext, key) }
+
+	t.Run("decrypts valid ciphertext", func(t *testing.T) {
+		ct, err := EncryptAtRest("sensitive data")
+		require.NoError(t, err)
+
+		DecryptAtRest = func(ciphertext string) (string, error) { return DecryptString(ciphertext, key) }
+		result := SafeDecryptAtRest(ct)
+		assert.Equal(t, "sensitive data", result)
+	})
+
+	t.Run("returns empty for empty input", func(t *testing.T) {
+		assert.Equal(t, "", SafeDecryptAtRest(""))
+	})
+
+	t.Run("returns original value on decrypt failure", func(t *testing.T) {
+		DecryptAtRest = func(ciphertext string) (string, error) {
+			return "", errors.New("decrypt error")
+		}
+		result := SafeDecryptAtRest("corrupted-data")
+		assert.Equal(t, "corrupted-data", result)
+	})
+}
+
+func TestAppEncryptionKey(t *testing.T) {
+	origKey := config.AppEncryptionKey
+	t.Cleanup(func() { config.AppEncryptionKey = origKey })
+
+	key := make([]byte, 32)
+	for i := range key {
+		key[i] = byte(i)
+	}
+	config.AppEncryptionKey = key
+
+	assert.Equal(t, key, appEncryptionKey())
+}
+
+func TestEncryptBytes_ErrorPaths(t *testing.T) {
+	t.Run("key too short on encrypt", func(t *testing.T) {
+		_, err := encryptBytes([]byte("test"), make([]byte, 16))
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "32 bytes")
+	})
+}
+
+func TestDecryptBytes_ErrorPaths(t *testing.T) {
+	key := make([]byte, 32)
+	for i := range key {
+		key[i] = byte(i)
+	}
+
+	t.Run("key too short on decrypt", func(t *testing.T) {
+		ct, err := encryptBytes([]byte("test"), key)
+		require.NoError(t, err)
+		_, err = decryptBytes(ct, make([]byte, 16))
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "32 bytes")
+	})
+}
+
+func TestEncryptString_ErrorPropagation(t *testing.T) {
+	origEncrypt := EncryptBytes
+	t.Cleanup(func() { EncryptBytes = origEncrypt })
+
+	EncryptBytes = func(plaintext, key []byte) ([]byte, error) {
+		return nil, errors.New("encrypt failure")
+	}
+
+	_, err := EncryptString("test", make([]byte, 32))
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "encrypt failure")
+}
+
+func TestDecryptString_ErrorPropagation(t *testing.T) {
+	origDecrypt := DecryptBytes
+	t.Cleanup(func() { DecryptBytes = origDecrypt })
+
+	DecryptBytes = func(ciphertext, key []byte) ([]byte, error) {
+		return nil, errors.New("decrypt failure")
+	}
+
+	_, err := DecryptString("dGVzdA", make([]byte, 32))
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "decrypt failure")
+}
+
+func TestEncryptBytes_FailingRand(t *testing.T) {
+	withFailingRand(t)
+	_, err := encryptBytes([]byte("test"), make([]byte, 32))
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "nonce")
 }
