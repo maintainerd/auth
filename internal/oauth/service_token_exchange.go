@@ -20,6 +20,11 @@ const (
 	tokenTypeAccessToken = "urn:ietf:params:oauth:token-type:access_token"
 )
 
+var (
+	oauthTokenExchangeGenerateAccessTokenWithOptionsContext = jwt.GenerateAccessTokenWithOptionsContext
+	oauthTokenExchangeValidateTokenWithContext              = jwt.ValidateTokenWithContext
+)
+
 // OAuthTokenExchangeService handles the Token Exchange grant (RFC 8693).
 type OAuthTokenExchangeService interface {
 	// Exchange validates the subject_token and issues a new token of the
@@ -72,7 +77,7 @@ func (s *oauthTokenExchangeService) Exchange(ctx context.Context, req OAuthToken
 	}
 
 	// Validate the subject token.
-	claims, err := jwt.ValidateTokenWithContext(ctx, req.SubjectToken)
+	claims, err := oauthTokenExchangeValidateTokenWithContext(ctx, req.SubjectToken)
 	if err != nil {
 		span.SetStatus(codes.Error, "subject token invalid")
 		return nil, apperror.NewOAuthInvalidGrant("subject_token is invalid or expired")
@@ -131,7 +136,7 @@ func (s *oauthTokenExchangeService) Exchange(ctx context.Context, req OAuthToken
 		accessTokenOpts.ACR = acr
 	}
 
-	newToken, err := jwt.GenerateAccessTokenWithOptionsContext(
+	newToken, err := oauthTokenExchangeGenerateAccessTokenWithOptionsContext(
 		ctx,
 		subjectSub,
 		scope,

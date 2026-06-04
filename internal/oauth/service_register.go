@@ -22,6 +22,11 @@ const (
 	clientSecretLength = 48
 )
 
+var (
+	oauthRegisterGenerateRandomString = crypto.GenerateRandomString
+	oauthRegisterHashClientSecret     = security.HashClientSecret
+)
+
 // OAuthRegisterService handles Dynamic Client Registration (RFC 7591).
 type OAuthRegisterService interface {
 	// Register creates a new OAuth client from the supplied metadata and returns
@@ -83,7 +88,7 @@ func (s *oauthRegisterService) Register(ctx context.Context, req OAuthClientRegi
 		return nil, apperror.NewOAuthServerError("an unexpected error occurred")
 	}
 
-	rawClientID, err := crypto.GenerateRandomString(clientIDLength)
+	rawClientID, err := oauthRegisterGenerateRandomString(clientIDLength)
 	if err != nil {
 		span.RecordError(err)
 		return nil, apperror.NewOAuthServerError("an unexpected error occurred")
@@ -111,12 +116,12 @@ func (s *oauthRegisterService) Register(ctx context.Context, req OAuthClientRegi
 		tokenEndpointAuthMethod = TokenAuthMethodSecretBasic
 	}
 	if tokenEndpointAuthMethod != "none" {
-		rawSecret, serr := crypto.GenerateRandomString(clientSecretLength)
+		rawSecret, serr := oauthRegisterGenerateRandomString(clientSecretLength)
 		if serr != nil {
 			span.RecordError(serr)
 			return nil, apperror.NewOAuthServerError("an unexpected error occurred")
 		}
-		secretHash, herr := security.HashClientSecret(ctx, rawSecret)
+		secretHash, herr := oauthRegisterHashClientSecret(ctx, rawSecret)
 		if herr != nil {
 			span.RecordError(herr)
 			return nil, apperror.NewOAuthServerError("an unexpected error occurred")

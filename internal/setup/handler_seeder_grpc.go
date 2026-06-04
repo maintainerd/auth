@@ -8,6 +8,8 @@ import (
 	"gorm.io/gorm"
 )
 
+var setupRunSeeders = runner.RunSeeders
+
 type SeederHandler struct {
 	authv1.UnimplementedSeederServiceServer
 	db *gorm.DB
@@ -18,7 +20,7 @@ func NewSeederHandler(db *gorm.DB) *SeederHandler {
 }
 
 func (h *SeederHandler) TriggerSeeder(_ context.Context, _ *authv1.TriggerSeederRequest) (*authv1.TriggerSeederResponse, error) {
-	if err := runner.RunSeeders(h.db, "v0.1.0"); err != nil {
+	if err := setupRunSeeders(h.db, "v0.1.0"); err != nil {
 		return nil, err
 	}
 	return &authv1.TriggerSeederResponse{

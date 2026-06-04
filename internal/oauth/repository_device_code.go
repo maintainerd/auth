@@ -86,10 +86,7 @@ func (r *oauthDeviceCodeRepository) UpdateStatus(id int64, status string, userID
 }
 
 func (r *oauthDeviceCodeRepository) UpdateApproval(id int64, userID int64, acr string, amr []string) error {
-	amrJSON, err := json.Marshal(amr)
-	if err != nil {
-		return err
-	}
+	amrJSON, _ := json.Marshal(amr)
 	return r.DB().Model(&OAuthDeviceCode{}).
 		Where("oauth_device_code_id = ?", id).
 		Updates(map[string]any{

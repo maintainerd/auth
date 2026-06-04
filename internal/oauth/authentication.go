@@ -74,9 +74,6 @@ func authenticatePrivateKeyJWT(client *Client, creds OAuthClientCredentials) (*C
 	}
 
 	token, err := jwtlib.Parse(creds.ClientAssertion, func(t *jwtlib.Token) (interface{}, error) {
-		if _, ok := t.Method.(*jwtlib.SigningMethodRSA); !ok {
-			return nil, fmt.Errorf("unexpected signing method: %v", t.Header["alg"])
-		}
 		kid, _ := t.Header["kid"].(string)
 		key, err := findClientJWK(client, kid)
 		if err != nil {
@@ -89,10 +86,7 @@ func authenticatePrivateKeyJWT(client *Client, creds OAuthClientCredentials) (*C
 		return nil, apperror.NewOAuthInvalidClient("client assertion is invalid")
 	}
 
-	claims, ok := token.Claims.(jwtlib.MapClaims)
-	if !ok {
-		return nil, apperror.NewOAuthInvalidClient("invalid assertion claims")
-	}
+	claims := token.Claims.(jwtlib.MapClaims)
 
 	if err := validateAssertionClaims(claims, client); err != nil {
 		return nil, apperror.NewOAuthInvalidClient(err.Error())
@@ -118,9 +112,6 @@ func authenticateClientSecretJWT(client *Client, creds OAuthClientCredentials) (
 	}
 
 	token, err := jwtlib.Parse(creds.ClientAssertion, func(t *jwtlib.Token) (interface{}, error) {
-		if _, ok := t.Method.(*jwtlib.SigningMethodHMAC); !ok {
-			return nil, fmt.Errorf("unexpected signing method: %v", t.Header["alg"])
-		}
 		return jwtlib.VerificationKeySet{Keys: secrets}, nil
 	}, jwtlib.WithLeeway(assertionMaxAge), jwtlib.WithValidMethods([]string{"HS256", "HS384", "HS512"}))
 
@@ -128,10 +119,7 @@ func authenticateClientSecretJWT(client *Client, creds OAuthClientCredentials) (
 		return nil, apperror.NewOAuthInvalidClient("client assertion is invalid")
 	}
 
-	claims, ok := token.Claims.(jwtlib.MapClaims)
-	if !ok {
-		return nil, apperror.NewOAuthInvalidClient("invalid assertion claims")
-	}
+	claims := token.Claims.(jwtlib.MapClaims)
 
 	if err := validateAssertionClaims(claims, client); err != nil {
 		return nil, apperror.NewOAuthInvalidClient(err.Error())

@@ -79,10 +79,7 @@ func (r *oauthCIBARequestRepository) UpdateApprovalContext(id int64, userID int6
 		updates["auth_acr"] = acr
 	}
 	if len(amr) > 0 {
-		amrJSON, err := json.Marshal(amr)
-		if err != nil {
-			return err
-		}
+		amrJSON, _ := json.Marshal(amr)
 		updates["auth_amr"] = amrJSON
 	}
 	return r.DB().Model(&OAuthCIBARequest{}).
