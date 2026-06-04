@@ -1,6 +1,7 @@
 package secpolicy
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -526,4 +527,229 @@ func TestSecuritySettingHandler_UpdateLockoutConfig_Success(t *testing.T) {
 	w := httptest.NewRecorder()
 	h.UpdateLockoutConfig(w, r)
 	assert.Equal(t, http.StatusOK, w.Code)
+}
+
+// ── GetRegistrationConfig ─────────────────────────────────────────────────────
+
+func TestSecuritySettingHandler_GetRegistrationConfig_NoTenant(t *testing.T) {
+	h := NewSecuritySettingHandler(&mockSecuritySettingService{})
+	r := httptest.NewRequest(http.MethodGet, "/security-settings/registration", nil)
+	w := httptest.NewRecorder()
+	h.GetRegistrationConfig(w, r)
+	assert.Equal(t, http.StatusUnauthorized, w.Code)
+}
+
+func TestSecuritySettingHandler_GetRegistrationConfig_ServiceError(t *testing.T) {
+	svc := &mockSecuritySettingService{
+		getRegistrationConfigFn: func(tid int64) (map[string]any, error) {
+			return nil, assert.AnError
+		},
+	}
+	h := NewSecuritySettingHandler(svc)
+	r := withTenant(httptest.NewRequest(http.MethodGet, "/security-settings/registration", nil))
+	w := httptest.NewRecorder()
+	h.GetRegistrationConfig(w, r)
+	assert.Equal(t, http.StatusInternalServerError, w.Code)
+}
+
+func TestSecuritySettingHandler_GetRegistrationConfig_Success(t *testing.T) {
+	svc := &mockSecuritySettingService{
+		getRegistrationConfigFn: func(tid int64) (map[string]any, error) {
+			return map[string]any{}, nil
+		},
+	}
+	h := NewSecuritySettingHandler(svc)
+	r := withTenant(httptest.NewRequest(http.MethodGet, "/security-settings/registration", nil))
+	w := httptest.NewRecorder()
+	h.GetRegistrationConfig(w, r)
+	assert.Equal(t, http.StatusOK, w.Code)
+}
+
+// ── GetTokenConfig ────────────────────────────────────────────────────────────
+
+func TestSecuritySettingHandler_GetTokenConfig_NoTenant(t *testing.T) {
+	h := NewSecuritySettingHandler(&mockSecuritySettingService{})
+	r := httptest.NewRequest(http.MethodGet, "/security-settings/token", nil)
+	w := httptest.NewRecorder()
+	h.GetTokenConfig(w, r)
+	assert.Equal(t, http.StatusUnauthorized, w.Code)
+}
+
+func TestSecuritySettingHandler_GetTokenConfig_ServiceError(t *testing.T) {
+	svc := &mockSecuritySettingService{
+		getTokenConfigFn: func(tid int64) (map[string]any, error) {
+			return nil, assert.AnError
+		},
+	}
+	h := NewSecuritySettingHandler(svc)
+	r := withTenant(httptest.NewRequest(http.MethodGet, "/security-settings/token", nil))
+	w := httptest.NewRecorder()
+	h.GetTokenConfig(w, r)
+	assert.Equal(t, http.StatusInternalServerError, w.Code)
+}
+
+func TestSecuritySettingHandler_GetTokenConfig_Success(t *testing.T) {
+	svc := &mockSecuritySettingService{
+		getTokenConfigFn: func(tid int64) (map[string]any, error) {
+			return map[string]any{}, nil
+		},
+	}
+	h := NewSecuritySettingHandler(svc)
+	r := withTenant(httptest.NewRequest(http.MethodGet, "/security-settings/token", nil))
+	w := httptest.NewRecorder()
+	h.GetTokenConfig(w, r)
+	assert.Equal(t, http.StatusOK, w.Code)
+}
+
+// ── UpdateRegistrationConfig ──────────────────────────────────────────────────
+
+func TestSecuritySettingHandler_UpdateRegistrationConfig_NoTenant(t *testing.T) {
+	h := NewSecuritySettingHandler(&mockSecuritySettingService{})
+	r := withUser(jsonReq(t, http.MethodPut, "/security-settings/registration", map[string]any{"key": "val"}))
+	w := httptest.NewRecorder()
+	h.UpdateRegistrationConfig(w, r)
+	assert.Equal(t, http.StatusUnauthorized, w.Code)
+}
+
+func TestSecuritySettingHandler_UpdateRegistrationConfig_BadJSON(t *testing.T) {
+	h := NewSecuritySettingHandler(&mockSecuritySettingService{})
+	r := withTenant(withUser(badJSONReq(t, http.MethodPut, "/security-settings/registration")))
+	w := httptest.NewRecorder()
+	h.UpdateRegistrationConfig(w, r)
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+}
+
+func TestSecuritySettingHandler_UpdateRegistrationConfig_ValidationError(t *testing.T) {
+	h := NewSecuritySettingHandler(&mockSecuritySettingService{})
+	r := withTenantAndUser(jsonReq(t, http.MethodPut, "/security-settings/registration", map[string]any{}))
+	w := httptest.NewRecorder()
+	h.UpdateRegistrationConfig(w, r)
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+}
+
+func TestSecuritySettingHandler_UpdateRegistrationConfig_ServiceError(t *testing.T) {
+	svc := &mockSecuritySettingService{
+		updateRegistrationConfigFn: func(tid int64, cfg map[string]any, by int64, ip, ua string) (*SecuritySettingServiceDataResult, error) {
+			return nil, errValidation
+		},
+	}
+	h := NewSecuritySettingHandler(svc)
+	r := withTenantAndUser(jsonReq(t, http.MethodPut, "/security-settings/registration", map[string]any{"key": "val"}))
+	w := httptest.NewRecorder()
+	h.UpdateRegistrationConfig(w, r)
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+}
+
+func TestSecuritySettingHandler_UpdateRegistrationConfig_GetConfigError(t *testing.T) {
+	svc := &mockSecuritySettingService{
+		updateRegistrationConfigFn: func(tid int64, cfg map[string]any, by int64, ip, ua string) (*SecuritySettingServiceDataResult, error) {
+			return &SecuritySettingServiceDataResult{}, nil
+		},
+		getRegistrationConfigFn: func(tid int64) (map[string]any, error) {
+			return nil, assert.AnError
+		},
+	}
+	h := NewSecuritySettingHandler(svc)
+	r := withTenantAndUser(jsonReq(t, http.MethodPut, "/security-settings/registration", map[string]any{"key": "val"}))
+	w := httptest.NewRecorder()
+	h.UpdateRegistrationConfig(w, r)
+	assert.Equal(t, http.StatusInternalServerError, w.Code)
+}
+
+func TestSecuritySettingHandler_UpdateRegistrationConfig_Success(t *testing.T) {
+	svc := &mockSecuritySettingService{
+		updateRegistrationConfigFn: func(tid int64, cfg map[string]any, by int64, ip, ua string) (*SecuritySettingServiceDataResult, error) {
+			return &SecuritySettingServiceDataResult{}, nil
+		},
+	}
+	h := NewSecuritySettingHandler(svc)
+	r := withSecurityCtx(withTenantAndUser(jsonReq(t, http.MethodPut, "/security-settings/registration", map[string]any{"key": "val"})))
+	w := httptest.NewRecorder()
+	h.UpdateRegistrationConfig(w, r)
+	assert.Equal(t, http.StatusOK, w.Code)
+}
+
+// ── UpdateTokenConfig ─────────────────────────────────────────────────────────
+
+func TestSecuritySettingHandler_UpdateTokenConfig_NoTenant(t *testing.T) {
+	h := NewSecuritySettingHandler(&mockSecuritySettingService{})
+	r := withUser(jsonReq(t, http.MethodPut, "/security-settings/token", map[string]any{"key": "val"}))
+	w := httptest.NewRecorder()
+	h.UpdateTokenConfig(w, r)
+	assert.Equal(t, http.StatusUnauthorized, w.Code)
+}
+
+func TestSecuritySettingHandler_UpdateTokenConfig_BadJSON(t *testing.T) {
+	h := NewSecuritySettingHandler(&mockSecuritySettingService{})
+	r := withTenant(withUser(badJSONReq(t, http.MethodPut, "/security-settings/token")))
+	w := httptest.NewRecorder()
+	h.UpdateTokenConfig(w, r)
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+}
+
+func TestSecuritySettingHandler_UpdateTokenConfig_ValidationError(t *testing.T) {
+	h := NewSecuritySettingHandler(&mockSecuritySettingService{})
+	r := withTenantAndUser(jsonReq(t, http.MethodPut, "/security-settings/token", map[string]any{}))
+	w := httptest.NewRecorder()
+	h.UpdateTokenConfig(w, r)
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+}
+
+func TestSecuritySettingHandler_UpdateTokenConfig_ServiceError(t *testing.T) {
+	svc := &mockSecuritySettingService{
+		updateTokenConfigFn: func(tid int64, cfg map[string]any, by int64, ip, ua string) (*SecuritySettingServiceDataResult, error) {
+			return nil, errValidation
+		},
+	}
+	h := NewSecuritySettingHandler(svc)
+	r := withTenantAndUser(jsonReq(t, http.MethodPut, "/security-settings/token", map[string]any{"key": "val"}))
+	w := httptest.NewRecorder()
+	h.UpdateTokenConfig(w, r)
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+}
+
+func TestSecuritySettingHandler_UpdateTokenConfig_GetConfigError(t *testing.T) {
+	svc := &mockSecuritySettingService{
+		updateTokenConfigFn: func(tid int64, cfg map[string]any, by int64, ip, ua string) (*SecuritySettingServiceDataResult, error) {
+			return &SecuritySettingServiceDataResult{}, nil
+		},
+		getTokenConfigFn: func(tid int64) (map[string]any, error) {
+			return nil, assert.AnError
+		},
+	}
+	h := NewSecuritySettingHandler(svc)
+	r := withTenantAndUser(jsonReq(t, http.MethodPut, "/security-settings/token", map[string]any{"key": "val"}))
+	w := httptest.NewRecorder()
+	h.UpdateTokenConfig(w, r)
+	assert.Equal(t, http.StatusInternalServerError, w.Code)
+}
+
+func TestSecuritySettingHandler_UpdateTokenConfig_Success(t *testing.T) {
+	svc := &mockSecuritySettingService{
+		updateTokenConfigFn: func(tid int64, cfg map[string]any, by int64, ip, ua string) (*SecuritySettingServiceDataResult, error) {
+			return &SecuritySettingServiceDataResult{}, nil
+		},
+	}
+	h := NewSecuritySettingHandler(svc)
+	r := withSecurityCtx(withTenantAndUser(jsonReq(t, http.MethodPut, "/security-settings/token", map[string]any{"key": "val"})))
+	w := httptest.NewRecorder()
+	h.UpdateTokenConfig(w, r)
+	assert.Equal(t, http.StatusOK, w.Code)
+}
+
+// ── Default cases in fetchConfigByType / updateConfigByType ──────────────────
+
+func TestSecuritySettingHandler_FetchConfigByType_Default(t *testing.T) {
+	h := NewSecuritySettingHandler(&mockSecuritySettingService{})
+	r := withTenant(httptest.NewRequest(http.MethodGet, "/security-settings/general", nil))
+	_, err := h.fetchConfigByType(r.Context(), 1, "invalid")
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "invalid config type")
+}
+
+func TestSecuritySettingHandler_UpdateConfigByType_Default(t *testing.T) {
+	h := NewSecuritySettingHandler(&mockSecuritySettingService{})
+	err := h.updateConfigByType(context.Background(), 1, "invalid", map[string]any{}, 10, "1.2.3.4", "agent")
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "invalid config type")
 }

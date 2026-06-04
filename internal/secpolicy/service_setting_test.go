@@ -531,3 +531,138 @@ func TestSecuritySettingService_UpdateConfig_InvalidConfigType(t *testing.T) {
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "invalid config type")
 }
+
+// ---------------------------------------------------------------------------
+// GetRegistrationConfig
+// ---------------------------------------------------------------------------
+
+func TestSecuritySettingService_GetRegistrationConfig(t *testing.T) {
+	t.Run("success", func(t *testing.T) {
+		svc := newSecuritySettingSvc(&mockSecuritySettingRepo{
+			findByUserPoolIDFn: func(_ int64) (*SecuritySetting, error) {
+				return &SecuritySetting{
+					RegistrationConfig: datatypes.JSON([]byte(`{"enabled":true}`)),
+				}, nil
+			},
+		}, &mockSecuritySettingsAuditRepo{})
+		cfg, err := svc.GetRegistrationConfig(context.Background(), 1)
+		require.NoError(t, err)
+		assert.Equal(t, true, cfg["enabled"])
+	})
+
+	t.Run("error", func(t *testing.T) {
+		svc := newSecuritySettingSvc(&mockSecuritySettingRepo{
+			findByUserPoolIDFn: func(_ int64) (*SecuritySetting, error) { return nil, errors.New("fail") },
+		}, &mockSecuritySettingsAuditRepo{})
+		_, err := svc.GetRegistrationConfig(context.Background(), 1)
+		require.Error(t, err)
+	})
+}
+
+// ---------------------------------------------------------------------------
+// GetTokenConfig
+// ---------------------------------------------------------------------------
+
+func TestSecuritySettingService_GetTokenConfig(t *testing.T) {
+	t.Run("success", func(t *testing.T) {
+		svc := newSecuritySettingSvc(&mockSecuritySettingRepo{
+			findByUserPoolIDFn: func(_ int64) (*SecuritySetting, error) {
+				return &SecuritySetting{
+					TokenConfig: datatypes.JSON([]byte(`{"expiry":3600}`)),
+				}, nil
+			},
+		}, &mockSecuritySettingsAuditRepo{})
+		cfg, err := svc.GetTokenConfig(context.Background(), 1)
+		require.NoError(t, err)
+		assert.EqualValues(t, float64(3600), cfg["expiry"])
+	})
+
+	t.Run("error", func(t *testing.T) {
+		svc := newSecuritySettingSvc(&mockSecuritySettingRepo{
+			findByUserPoolIDFn: func(_ int64) (*SecuritySetting, error) { return nil, errors.New("fail") },
+		}, &mockSecuritySettingsAuditRepo{})
+		_, err := svc.GetTokenConfig(context.Background(), 1)
+		require.Error(t, err)
+	})
+}
+
+// ---------------------------------------------------------------------------
+// UpdateRegistrationConfig
+// ---------------------------------------------------------------------------
+
+func TestSecuritySettingService_UpdateRegistrationConfig(t *testing.T) {
+	userPoolID := int64(1)
+	cfg := map[string]any{"enabled": true}
+
+	t.Run("success", func(t *testing.T) {
+		db, mock := newMockGormDB(t)
+		mock.ExpectBegin()
+		mock.ExpectCommit()
+		existing := newSecSetting(userPoolID)
+		svc := NewSecuritySettingService(db, &mockSecuritySettingRepo{
+			findByUserPoolIDFn: func(_ int64) (*SecuritySetting, error) { return existing, nil },
+			createOrUpdateFn:   func(e *SecuritySetting) (*SecuritySetting, error) { return e, nil },
+			findByUUIDFn:       func(_ any, _ ...string) (*SecuritySetting, error) { return existing, nil },
+		}, &mockSecuritySettingsAuditRepo{})
+		res, err := svc.UpdateRegistrationConfig(context.Background(), userPoolID, cfg, 10, "1.2.3.4", "agent")
+		require.NoError(t, err)
+		assert.NotNil(t, res)
+	})
+
+	t.Run("error", func(t *testing.T) {
+		db, mock := newMockGormDB(t)
+		mock.ExpectBegin()
+		mock.ExpectRollback()
+		svc := NewSecuritySettingService(db, &mockSecuritySettingRepo{
+			findByUserPoolIDFn: func(_ int64) (*SecuritySetting, error) { return nil, errors.New("db") },
+		}, &mockSecuritySettingsAuditRepo{})
+		_, err := svc.UpdateRegistrationConfig(context.Background(), userPoolID, cfg, 10, "1.2.3.4", "agent")
+		require.Error(t, err)
+	})
+}
+
+// ---------------------------------------------------------------------------
+// UpdateTokenConfig
+// ---------------------------------------------------------------------------
+
+func TestSecuritySettingService_UpdateTokenConfig(t *testing.T) {
+	userPoolID := int64(1)
+	cfg := map[string]any{"expiry": 7200}
+
+	t.Run("success", func(t *testing.T) {
+		db, mock := newMockGormDB(t)
+		mock.ExpectBegin()
+		mock.ExpectCommit()
+		existing := newSecSetting(userPoolID)
+		svc := NewSecuritySettingService(db, &mockSecuritySettingRepo{
+			findByUserPoolIDFn: func(_ int64) (*SecuritySetting, error) { return existing, nil },
+			createOrUpdateFn:   func(e *SecuritySetting) (*SecuritySetting, error) { return e, nil },
+			findByUUIDFn:       func(_ any, _ ...string) (*SecuritySetting, error) { return existing, nil },
+		}, &mockSecuritySettingsAuditRepo{})
+		res, err := svc.UpdateTokenConfig(context.Background(), userPoolID, cfg, 10, "1.2.3.4", "agent")
+		require.NoError(t, err)
+		assert.NotNil(t, res)
+	})
+
+	t.Run("error", func(t *testing.T) {
+		db, mock := newMockGormDB(t)
+		mock.ExpectBegin()
+		mock.ExpectRollback()
+		svc := NewSecuritySettingService(db, &mockSecuritySettingRepo{
+			findByUserPoolIDFn: func(_ int64) (*SecuritySetting, error) { return nil, errors.New("db") },
+		}, &mockSecuritySettingsAuditRepo{})
+		_, err := svc.UpdateTokenConfig(context.Background(), userPoolID, cfg, 10, "1.2.3.4", "agent")
+		require.Error(t, err)
+	})
+}
+
+// ---------------------------------------------------------------------------
+// getConfig - invalid config type
+// ---------------------------------------------------------------------------
+
+func TestSecuritySettingService_GetConfig_InvalidConfigType(t *testing.T) {
+	svc := &securitySettingService{}
+	_, err := svc.getConfig(context.Background(), 1, "invalid")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "invalid config type")
+}
