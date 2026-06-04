@@ -36,6 +36,10 @@ type SetupStatusResponseDTO struct {
 	IsSetupComplete bool `json:"is_setup_complete"`
 }
 
+type CompleteSetupResponseDTO struct {
+	IsSetupComplete bool `json:"is_setup_complete"`
+}
+
 // CreateTenantResponseDTO for tenant creation response
 type CreateTenantResponseDTO struct {
 	Tenant            TenantResponseDTO `json:"tenant"`

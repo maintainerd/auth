@@ -56,6 +56,7 @@ type mockSetupService struct {
 	createTenantFn   func(req CreateTenantRequestDTO) (*CreateTenantResponseDTO, error)
 	createAdminFn    func(req CreateAdminRequestDTO) (*CreateAdminResponseDTO, error)
 	createProfileFn  func(req CreateProfileRequestDTO) (*CreateProfileResponseDTO, error)
+	completeSetupFn  func() (*CompleteSetupResponseDTO, error)
 }
 
 func (m *mockSetupService) GetSetupStatus(_ context.Context) (*SetupStatusResponseDTO, error) {
@@ -81,6 +82,40 @@ func (m *mockSetupService) CreateProfile(_ context.Context, req CreateProfileReq
 		return m.createProfileFn(req)
 	}
 	return &CreateProfileResponseDTO{}, nil
+}
+func (m *mockSetupService) CompleteSetup(_ context.Context) (*CompleteSetupResponseDTO, error) {
+	if m.completeSetupFn != nil {
+		return m.completeSetupFn()
+	}
+	return &CompleteSetupResponseDTO{}, nil
+}
+
+type mockSetupStateRepo struct {
+	complete       bool
+	isCompleteErr  error
+	markCompleteFn func(string, time.Time) (*SetupState, error)
+}
+
+func (m *mockSetupStateRepo) WithTx(_ *gorm.DB) SetupStateRepository { return m }
+func (m *mockSetupStateRepo) FindByKey(key string) (*SetupState, error) {
+	if m.complete {
+		now := time.Now()
+		return &SetupState{Key: key, IsComplete: true, CompletedAt: &now}, nil
+	}
+	return nil, nil
+}
+func (m *mockSetupStateRepo) IsComplete(_ string) (bool, error) {
+	if m.isCompleteErr != nil {
+		return false, m.isCompleteErr
+	}
+	return m.complete, nil
+}
+func (m *mockSetupStateRepo) MarkComplete(key string, completedAt time.Time) (*SetupState, error) {
+	if m.markCompleteFn != nil {
+		return m.markCompleteFn(key, completedAt)
+	}
+	m.complete = true
+	return &SetupState{Key: key, IsComplete: true, CompletedAt: &completedAt}, nil
 }
 
 type mockTenantRepo struct {

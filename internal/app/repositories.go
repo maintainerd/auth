@@ -11,6 +11,7 @@ import (
 	"github.com/maintainerd/auth/internal/notifier"
 	"github.com/maintainerd/auth/internal/oauth"
 	"github.com/maintainerd/auth/internal/secpolicy"
+	"github.com/maintainerd/auth/internal/setup"
 	"github.com/maintainerd/auth/internal/tenant"
 	"github.com/maintainerd/auth/internal/user"
 	"github.com/maintainerd/auth/internal/webhook"
@@ -71,6 +72,7 @@ type repos struct {
 	totpSecretRepo            mfa.UserTOTPSecretRepository
 	webAuthnCredRepo          mfa.UserWebAuthnCredentialRepository
 	userPasswordHistoryRepo   user.UserPasswordHistoryRepository
+	setupStateRepo            setup.SetupStateRepository
 }
 
 func initRepos(db *gorm.DB) *repos {
@@ -126,5 +128,6 @@ func initRepos(db *gorm.DB) *repos {
 		totpSecretRepo:            mfa.NewUserTOTPSecretRepository(db),
 		webAuthnCredRepo:          mfa.NewUserWebAuthnCredentialRepository(db),
 		userPasswordHistoryRepo:   user.NewUserPasswordHistoryRepository(db),
+		setupStateRepo:            setup.NewSetupStateRepository(db),
 	}
 }
