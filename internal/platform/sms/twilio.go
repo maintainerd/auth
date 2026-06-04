@@ -51,7 +51,7 @@ func (p *twilioProvider) Send(ctx context.Context, to, body string) error {
 		span.SetStatus(codes.Error, "twilio send failed")
 		return fmt.Errorf("twilio: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode >= 300 {
 		err := fmt.Errorf("twilio: unexpected status %d", resp.StatusCode)

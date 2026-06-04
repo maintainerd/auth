@@ -19,7 +19,7 @@ func TestNewRedisClient_Success(t *testing.T) {
 	rdb, err := NewRedisClient()
 	require.NoError(t, err)
 	require.NotNil(t, rdb)
-	defer rdb.Close()
+	defer func() { _ = rdb.Close() }()
 
 	// Verify the client is functional
 	assert.NoError(t, rdb.Ping(t.Context()).Err())
@@ -38,7 +38,7 @@ func TestNewRedisClient_WithPassword(t *testing.T) {
 	rdb, err := NewRedisClient()
 	require.NoError(t, err)
 	require.NotNil(t, rdb)
-	defer rdb.Close()
+	defer func() { _ = rdb.Close() }()
 
 	assert.NoError(t, rdb.Ping(t.Context()).Err())
 }
@@ -90,7 +90,7 @@ func TestNewRedisClient_OTelTracingRegistered(t *testing.T) {
 	rdb, err := NewRedisClient()
 	require.NoError(t, err)
 	require.NotNil(t, rdb)
-	defer rdb.Close()
+	defer func() { _ = rdb.Close() }()
 
 	// After NewRedisClient, redisotel.InstrumentTracing was called.
 	// Verify the client still works (tracing hook is transparent).
@@ -112,7 +112,7 @@ func TestNewRedisClient_TLSViaRedissPrefix(t *testing.T) {
 
 	rdb, _ := NewRedisClient()
 	if rdb != nil {
-		defer rdb.Close()
+		defer func() { _ = rdb.Close() }()
 	}
 	// Connection will fail because miniredis is plaintext, but the TLS branch is covered.
 }
@@ -128,7 +128,7 @@ func TestNewRedisClient_TLSViaEnvVar(t *testing.T) {
 
 	rdb, _ := NewRedisClient()
 	if rdb != nil {
-		defer rdb.Close()
+		defer func() { _ = rdb.Close() }()
 	}
 	// Connection will fail because miniredis is plaintext, but the TLS env var branch is covered.
 }

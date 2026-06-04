@@ -52,7 +52,7 @@ func (p *vonageProvider) Send(ctx context.Context, to, body string) error {
 		span.SetStatus(codes.Error, "vonage send failed")
 		return fmt.Errorf("vonage: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode >= 300 {
 		err := fmt.Errorf("vonage: unexpected status %d", resp.StatusCode)
