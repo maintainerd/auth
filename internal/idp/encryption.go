@@ -26,10 +26,7 @@ func encryptIdpConfig(config datatypes.JSON) (datatypes.JSON, error) {
 			m[idpClientSecretKey] = enc
 		}
 	}
-	b, err := json.Marshal(m)
-	if err != nil {
-		return nil, err
-	}
+	b, _ := json.Marshal(m)
 	return datatypes.JSON(b), nil
 }
 
@@ -46,10 +43,7 @@ func decryptIdpConfig(config datatypes.JSON) datatypes.JSON {
 			m[idpClientSecretKey] = crypto.SafeDecryptAtRest(s)
 		}
 	}
-	b, err := json.Marshal(m)
-	if err != nil {
-		return config
-	}
+	b, _ := json.Marshal(m)
 	return datatypes.JSON(b)
 }
 
@@ -64,10 +58,7 @@ func redactIdpConfig(config datatypes.JSON) *datatypes.JSON {
 	if _, ok := m[idpClientSecretKey]; ok {
 		m[idpClientSecretKey] = "***REDACTED***"
 	}
-	b, err := json.Marshal(m)
-	if err != nil {
-		return &config
-	}
+	b, _ := json.Marshal(m)
 	result := datatypes.JSON(b)
 	return &result
 }

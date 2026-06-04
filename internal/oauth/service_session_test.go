@@ -8,6 +8,7 @@ import (
 	"time"
 
 	sqlmock "github.com/DATA-DOG/go-sqlmock"
+	jwtlib "github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/platform/jwt"
 	"github.com/stretchr/testify/assert"
@@ -172,6 +173,21 @@ func TestOAuthSessionService_BackchannelLogout(t *testing.T) {
 		require.NotNil(t, oerr)
 		assert.Equal(t, "invalid_request", oerr.Code)
 		assert.Contains(t, oerr.Description, "logout_token is invalid or expired")
+	})
+
+	t.Run("missing sub claim", func(t *testing.T) {
+		orig := oauthSessionValidateTokenWithContext
+		defer func() { oauthSessionValidateTokenWithContext = orig }()
+		oauthSessionValidateTokenWithContext = func(context.Context, string) (jwtlib.MapClaims, error) {
+			return jwtlib.MapClaims{"client_id": "my-client"}, nil
+		}
+
+		svc := newOAuthSessionSvc(nil, &mockUserRepo{}, &mockOAuthRefreshTokenRepo{}, &mockAuthEventService{})
+
+		oerr := svc.BackchannelLogout(ctx, OAuthBackchannelLogoutRequestDTO{LogoutToken: "valid-no-sub"})
+		require.NotNil(t, oerr)
+		assert.Equal(t, "invalid_request", oerr.Code)
+		assert.Contains(t, oerr.Description, "sub claim")
 	})
 
 	t.Run("valid logout_token revokes sessions", func(t *testing.T) {

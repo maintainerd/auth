@@ -2,11 +2,13 @@ package oauth
 
 import (
 	"context"
+	"errors"
 	"regexp"
 	"testing"
 	"time"
 
 	sqlmock "github.com/DATA-DOG/go-sqlmock"
+	jwtlib "github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 	"github.com/lib/pq"
 	"github.com/maintainerd/auth/internal/platform/config"
@@ -118,6 +120,27 @@ func TestOAuthTokenExchangeService_Exchange(t *testing.T) {
 		assert.Contains(t, oerr.Description, "invalid or expired")
 	})
 
+	t.Run("subject_token missing sub claim", func(t *testing.T) {
+		orig := oauthTokenExchangeValidateTokenWithContext
+		defer func() { oauthTokenExchangeValidateTokenWithContext = orig }()
+		oauthTokenExchangeValidateTokenWithContext = func(context.Context, string) (jwtlib.MapClaims, error) {
+			return jwtlib.MapClaims{"scope": "openid"}, nil
+		}
+
+		db, mock := newMockDB(t)
+		expectTokenExchangeClientLookup(mock)
+
+		svc := newOAuthTokenExchangeSvc(db, &mockUserRepo{}, &mockAuthEventService{})
+
+		_, oerr := svc.Exchange(ctx, OAuthTokenExchangeRequestDTO{
+			SubjectToken:     "valid-no-sub",
+			SubjectTokenType: "urn:ietf:params:oauth:token-type:access_token",
+		}, OAuthClientCredentials{ClientID: "my-client"})
+		require.NotNil(t, oerr)
+		assert.Equal(t, "invalid_grant", oerr.Code)
+		assert.Contains(t, oerr.Description, "sub claim")
+	})
+
 	t.Run("invalid requested_token_type", func(t *testing.T) {
 		initTestJWTKeysService(t)
 		db, mock := newMockDB(t)
@@ -184,6 +207,34 @@ func TestOAuthTokenExchangeService_Exchange(t *testing.T) {
 		assert.Equal(t, "Bearer", result.TokenType)
 		assert.Equal(t, "urn:ietf:params:oauth:token-type:access_token", result.IssuedTokenType)
 		assert.Equal(t, "openid profile", result.Scope)
+	})
+
+	t.Run("access token generation error", func(t *testing.T) {
+		initTestJWTKeysService(t)
+		orig := oauthTokenExchangeGenerateAccessTokenWithOptionsContext
+		defer func() { oauthTokenExchangeGenerateAccessTokenWithOptionsContext = orig }()
+		oauthTokenExchangeGenerateAccessTokenWithOptionsContext = func(context.Context, string, string, string, string, string, string, *jwt.AccessTokenOptions) (string, error) {
+			return "", errors.New("token error")
+		}
+
+		origHost := config.AppPublicHostname
+		config.AppPublicHostname = "https://auth.example.com"
+		defer func() { config.AppPublicHostname = origHost }()
+
+		db, mock := newMockDB(t)
+		expectTokenExchangeClientLookup(mock)
+
+		token, err := jwt.GenerateAccessToken("user-sub", "openid profile", "https://auth.example.com", "my-client", "my-client", "default-provider")
+		require.NoError(t, err)
+
+		svc := newOAuthTokenExchangeSvc(db, &mockUserRepo{}, &mockAuthEventService{})
+
+		_, oerr := svc.Exchange(ctx, OAuthTokenExchangeRequestDTO{
+			SubjectToken:     token,
+			SubjectTokenType: "urn:ietf:params:oauth:token-type:access_token",
+		}, OAuthClientCredentials{ClientID: "my-client"})
+		require.NotNil(t, oerr)
+		assert.Equal(t, "server_error", oerr.Code)
 	})
 
 	t.Run("nil Domain, nil Identifier, nil IdentityProvider", func(t *testing.T) {

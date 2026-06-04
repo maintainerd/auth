@@ -28,6 +28,14 @@ const (
 	refreshTokenByteLength = 32
 )
 
+var (
+	oauthTokenGenerateRandomString                  = crypto.GenerateRandomString
+	oauthTokenGenerateAccessTokenWithOptionsContext = jwt.GenerateAccessTokenWithOptionsContext
+	oauthTokenGenerateIDTokenWithContext            = jwt.GenerateIDTokenWithContext
+	oauthTokenGenerateRefreshTokenWithContext       = jwt.GenerateRefreshTokenWithContext
+	oauthTokenValidateTokenWithContext              = jwt.ValidateTokenWithContext
+)
+
 // OAuthTokenService handles the OAuth 2.0 token endpoint logic.
 type OAuthTokenService interface {
 	// Exchange processes a token request. It routes to the appropriate grant
@@ -339,7 +347,7 @@ func (s *oauthTokenService) exchangeRefreshToken(ctx context.Context, req OAuthT
 		}
 
 		// Create the new refresh token in the same family.
-		rawRT, err := crypto.GenerateRandomString(refreshTokenByteLength)
+		rawRT, err := oauthTokenGenerateRandomString(refreshTokenByteLength)
 		if err != nil {
 			return err
 		}
@@ -423,7 +431,7 @@ func (s *oauthTokenService) exchangeClientCredentials(ctx context.Context, _ OAu
 		providerID = client.IdentityProvider.Identifier
 	}
 
-	accessToken, err := jwt.GenerateAccessTokenWithOptionsContext(
+	accessToken, err := oauthTokenGenerateAccessTokenWithOptionsContext(
 		ctx,
 		identifier,
 		"", // no user scope for m2m
@@ -513,7 +521,7 @@ func (s *oauthTokenService) revokeAccessToken(ctx context.Context, rawToken stri
 		return nil
 	}
 
-	claims, err := jwt.ValidateTokenWithContext(ctx, rawToken)
+	claims, err := oauthTokenValidateTokenWithContext(ctx, rawToken)
 	if err != nil || claims == nil {
 		return nil
 	}
@@ -586,7 +594,7 @@ func (s *oauthTokenService) Introspect(ctx context.Context, req OAuthIntrospectR
 	}
 
 	// Try to validate as a JWT (access token or ID token).
-	claims, err := jwt.ValidateTokenWithContext(ctx, req.Token)
+	claims, err := oauthTokenValidateTokenWithContext(ctx, req.Token)
 	if err == nil && claims != nil {
 		resp := &OAuthIntrospectResponseDTO{
 			Active:    true,
@@ -679,7 +687,7 @@ func (s *oauthTokenService) generateTokens(ctx context.Context, sub string, user
 	accessTokenOpts.AMR = []string{jwt.AMRPassword}
 	accessTokenOpts.ACR = jwt.ACRLevel1
 
-	accessToken, err := jwt.GenerateAccessTokenWithOptionsContext(ctx, sub, scope, issuer, audience, identifier, providerID, accessTokenOpts)
+	accessToken, err := oauthTokenGenerateAccessTokenWithOptionsContext(ctx, sub, scope, issuer, audience, identifier, providerID, accessTokenOpts)
 	if err != nil {
 		return nil, apperror.NewOAuthServerError("an unexpected error occurred")
 	}
@@ -693,7 +701,7 @@ func (s *oauthTokenService) generateTokens(ctx context.Context, sub string, user
 
 	idTokenParams := buildIDTokenParams(scope, client)
 
-	idToken, err := jwt.GenerateIDTokenWithContext(ctx, sub, issuer, identifier, providerID, profile, nonceStr, idTokenParams)
+	idToken, err := oauthTokenGenerateIDTokenWithContext(ctx, sub, issuer, identifier, providerID, profile, nonceStr, idTokenParams)
 	if err != nil {
 		return nil, apperror.NewOAuthServerError("an unexpected error occurred")
 	}
@@ -702,7 +710,7 @@ func (s *oauthTokenService) generateTokens(ctx context.Context, sub string, user
 	// (RFC 6749 §1.5) or for authorization_code grant with a valid DPoP binding.
 	var rawRT string
 	if hasOfflineAccess(scope) {
-		rawRT, err = crypto.GenerateRandomString(refreshTokenByteLength)
+		rawRT, err = oauthTokenGenerateRandomString(refreshTokenByteLength)
 		if err != nil {
 			return nil, apperror.NewOAuthServerError("an unexpected error occurred")
 		}

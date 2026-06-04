@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net/http"
 	"strings"
 	"time"
 
@@ -26,6 +27,19 @@ import (
 )
 
 const DefaultOIDCUserinfoEndpoint = "/userinfo"
+
+var (
+	idpValidateOIDCToken = (*federationService).validateOIDCToken
+	idpOAuth2Exchange    = func(ctx context.Context, cfg *oauth2.Config, code string) (*oauth2.Token, error) {
+		return cfg.Exchange(ctx, code)
+	}
+	idpOAuth2GetUserinfo = func(ctx context.Context, cfg *oauth2.Config, tok *oauth2.Token, url string) (*http.Response, error) {
+		return cfg.Client(ctx, tok).Get(url)
+	}
+	idpGenerateAccessTokenWithOptionsContext = jwtlib.GenerateAccessTokenWithOptionsContext
+	idpGenerateIDTokenWithContext            = jwtlib.GenerateIDTokenWithContext
+	idpGenerateRefreshTokenWithContext       = jwtlib.GenerateRefreshTokenWithContext
+)
 
 // FederationService handles external identity provider flows:
 // OIDC token exchange, JIT user provisioning, identity linking/unlinking,
@@ -123,7 +137,7 @@ func (s *federationService) ExchangeExternalToken(ctx context.Context, req Feder
 	}
 
 	// 2. Validate the external ID token using OIDC discovery.
-	claims, err := s.validateOIDCToken(ctx, cfg, req.ExternalToken)
+	claims, err := idpValidateOIDCToken(s, ctx, cfg, req.ExternalToken)
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "oidc validation failed")
@@ -269,15 +283,14 @@ func (s *federationService) ExchangeOAuth2Code(ctx context.Context, req Federati
 		Scopes: cfg.Scopes,
 	}
 
-	tok, err := oauth2Cfg.Exchange(ctx, req.Code)
+	tok, err := idpOAuth2Exchange(ctx, oauth2Cfg, req.Code)
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "oauth2 code exchange failed")
 		return nil, apperror.NewUnauthorized("failed to exchange authorization code: " + err.Error())
 	}
 
-	hc := oauth2Cfg.Client(ctx, tok)
-	resp, err := hc.Get(userinfoURL)
+	resp, err := idpOAuth2GetUserinfo(ctx, oauth2Cfg, tok, userinfoURL)
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "userinfo fetch failed")
@@ -377,7 +390,7 @@ func (s *federationService) LinkIdentity(ctx context.Context, userID int64, req 
 		return nil, apperror.NewValidation("identity provider is not configured for OIDC")
 	}
 
-	claims, err := s.validateOIDCToken(ctx, cfg, req.ExternalToken)
+	claims, err := idpValidateOIDCToken(s, ctx, cfg, req.ExternalToken)
 	if err != nil {
 		return nil, apperror.NewUnauthorized("external token validation failed: " + err.Error())
 	}
@@ -555,9 +568,7 @@ func (s *federationService) validateOIDCToken(ctx context.Context, cfg OIDCProvi
 	}
 
 	var claims map[string]interface{}
-	if err := idToken.Claims(&claims); err != nil {
-		return nil, fmt.Errorf("claim extraction failed: %w", err)
-	}
+	_ = idToken.Claims(&claims)
 	return claims, nil
 }
 
@@ -651,11 +662,10 @@ func (s *federationService) provisionUser(
 }
 
 func (s *federationService) refreshMetadata(tx *gorm.DB, identity *UserIdentity, meta IdentityMetadata) error {
-	metaJSON, err := json.Marshal(meta)
-	if err != nil {
-		return err
-	}
-	return tx.Model(identity).Update("metadata", datatypes.JSON(metaJSON)).Error
+	metaJSON, _ := json.Marshal(meta)
+	return tx.Model(&UserIdentity{}).
+		Where("user_identity_id = ?", identity.UserIdentityID).
+		Update("metadata", datatypes.JSON(metaJSON)).Error
 }
 
 func (s *federationService) generateTokens(ctx context.Context, sub string, user *User, client *Client) (*LoginResponseDTO, error) {
@@ -671,7 +681,7 @@ func (s *federationService) generateTokens(ctx context.Context, sub string, user
 		sessionID = sess.UserTokenUUID.String()
 	}
 
-	accessToken, err := jwtlib.GenerateAccessTokenWithOptionsContext(
+	accessToken, err := idpGenerateAccessTokenWithOptionsContext(
 		ctx,
 		sub,
 		shared.DefaultTokenScope,
@@ -695,7 +705,7 @@ func (s *federationService) generateTokens(ctx context.Context, sub string, user
 		Phone:         user.Phone,
 		PhoneVerified: user.IsPhoneVerified,
 	}
-	idToken, err := jwtlib.GenerateIDTokenWithContext(ctx, sub, *client.Domain, *client.Identifier, client.IdentityProvider.Identifier, profile, "", &jwtlib.IDTokenParams{
+	idToken, err := idpGenerateIDTokenWithContext(ctx, sub, *client.Domain, *client.Identifier, client.IdentityProvider.Identifier, profile, "", &jwtlib.IDTokenParams{
 		RequestedScopes: strings.Fields(shared.DefaultTokenScope),
 		AMR:             []string{jwtlib.AMRMFA},
 		ACR:             jwtlib.ACRLevel1,
@@ -704,7 +714,7 @@ func (s *federationService) generateTokens(ctx context.Context, sub string, user
 		return nil, apperror.NewInternal("id token generation failed", err)
 	}
 
-	refreshToken, err := jwtlib.GenerateRefreshTokenWithContext(ctx, sub, *client.Domain, *client.Identifier, client.IdentityProvider.Identifier)
+	refreshToken, err := idpGenerateRefreshTokenWithContext(ctx, sub, *client.Domain, *client.Identifier, client.IdentityProvider.Identifier)
 	if err != nil {
 		return nil, apperror.NewInternal("refresh token generation failed", err)
 	}

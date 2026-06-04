@@ -16,6 +16,8 @@ import (
 	"gorm.io/gorm"
 )
 
+var oauthSessionValidateTokenWithContext = jwt.ValidateTokenWithContext
+
 // OAuthSessionService handles RP-Initiated Logout (OIDC Session Mgmt 1.0) and
 // OIDC Back-Channel Logout 1.0.
 type OAuthSessionService interface {
@@ -63,7 +65,7 @@ func (s *oauthSessionService) EndSession(ctx context.Context, req OAuthEndSessio
 
 	// If an id_token_hint was provided, identify the user from it.
 	if req.IDTokenHint != "" {
-		claims, err := jwt.ValidateTokenWithContext(ctx, req.IDTokenHint)
+		claims, err := oauthSessionValidateTokenWithContext(ctx, req.IDTokenHint)
 		if err == nil {
 			if sub, ok := claims["sub"].(string); ok && sub != "" {
 				user, _ := s.userRepo.FindBySubAndClientID(sub, req.ClientID)
@@ -116,7 +118,7 @@ func (s *oauthSessionService) BackchannelLogout(ctx context.Context, req OAuthBa
 	defer span.End()
 
 	// Validate the logout token as a JWT.
-	claims, err := jwt.ValidateTokenWithContext(ctx, req.LogoutToken)
+	claims, err := oauthSessionValidateTokenWithContext(ctx, req.LogoutToken)
 	if err != nil {
 		span.SetStatus(codes.Error, "invalid logout token")
 		return apperror.NewOAuthInvalidRequest("logout_token is invalid or expired")

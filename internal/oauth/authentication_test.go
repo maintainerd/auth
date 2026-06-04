@@ -11,9 +11,9 @@ import (
 
 	sqlmock "github.com/DATA-DOG/go-sqlmock"
 	jwtlib "github.com/golang-jwt/jwt/v5"
+	"github.com/lib/pq"
 	"github.com/maintainerd/auth/internal/platform/crypto"
 	"github.com/maintainerd/auth/internal/platform/security"
-	"github.com/lib/pq"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gorm.io/datatypes"
@@ -117,6 +117,43 @@ func TestAuthenticatePrivateKeyJWT(t *testing.T) {
 		assert.Equal(t, "invalid_client", oerr.Code)
 	})
 
+	t.Run("unexpected signing method", func(t *testing.T) {
+		claims := jwtlib.MapClaims{
+			"iss": clientID, "sub": clientID, "aud": domain,
+			"exp": time.Now().Add(time.Hour).Unix(), "iat": time.Now().Unix(),
+		}
+		token := jwtlib.NewWithClaims(jwtlib.SigningMethodHS256, claims)
+		token.Header["kid"] = kid
+		assertion, err := token.SignedString([]byte("secret"))
+		require.NoError(t, err)
+
+		result, oerr := authenticatePrivateKeyJWT(client, OAuthClientCredentials{
+			ClientAssertionType: assertionTypeJWTBearer,
+			ClientAssertion:     assertion,
+		})
+
+		assert.Nil(t, result)
+		require.NotNil(t, oerr)
+		assert.Equal(t, "invalid_client", oerr.Code)
+	})
+
+	t.Run("kid not found", func(t *testing.T) {
+		claims := jwtlib.MapClaims{
+			"iss": clientID, "sub": clientID, "aud": domain,
+			"exp": time.Now().Add(time.Hour).Unix(), "iat": time.Now().Unix(),
+		}
+		assertion := signJWTWithRSA(t, claims, privKey, "missing-key")
+
+		result, oerr := authenticatePrivateKeyJWT(client, OAuthClientCredentials{
+			ClientAssertionType: assertionTypeJWTBearer,
+			ClientAssertion:     assertion,
+		})
+
+		assert.Nil(t, result)
+		require.NotNil(t, oerr)
+		assert.Equal(t, "invalid_client", oerr.Code)
+	})
+
 	t.Run("valid assertion", func(t *testing.T) {
 		claims := jwtlib.MapClaims{
 			"iss": clientID, "sub": clientID, "aud": domain,
@@ -209,6 +246,26 @@ func TestAuthenticateClientSecretJWT(t *testing.T) {
 			ClientAssertion:     assertion,
 		}
 		result, oerr := authenticateClientSecretJWT(client, creds)
+		assert.Nil(t, result)
+		require.NotNil(t, oerr)
+		assert.Equal(t, "invalid_client", oerr.Code)
+	})
+
+	t.Run("unexpected signing method", func(t *testing.T) {
+		claims := jwtlib.MapClaims{
+			"iss": clientID, "sub": clientID, "aud": domain,
+			"exp": time.Now().Add(time.Hour).Unix(), "iat": time.Now().Unix(),
+		}
+		privKey := genRSAKey(t)
+		token := jwtlib.NewWithClaims(jwtlib.SigningMethodRS256, claims)
+		assertion, err := token.SignedString(privKey)
+		require.NoError(t, err)
+
+		result, oerr := authenticateClientSecretJWT(client, OAuthClientCredentials{
+			ClientAssertionType: assertionTypeJWTBearer,
+			ClientAssertion:     assertion,
+		})
+
 		assert.Nil(t, result)
 		require.NotNil(t, oerr)
 		assert.Equal(t, "invalid_client", oerr.Code)
