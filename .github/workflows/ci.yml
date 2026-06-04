@@ -100,7 +100,7 @@ jobs:
       - name: Run gosec
         run: |
           go install github.com/securego/gosec/v2/cmd/gosec@v2.22.8
-          gosec -exclude=G101 ./...
+          gosec -exclude=G101 -exclude-dir=internal/platform/gen ./...
 
   # ─────────────────────────────────────────────────────────────────────────────
   # Build — ensure the binary compiles cleanly

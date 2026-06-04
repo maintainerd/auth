@@ -122,7 +122,7 @@ func (s *accountService) InitiateEmailChange(ctx context.Context, userID int64, 
 		return apperror.NewInternal("failed to store pending email", err)
 	}
 
-	// Send OTP email (best-effort)
+	// #nosec G118 -- best-effort background goroutine must outlive request context
 	go func() {
 		sendCtx := context.Background()
 		if sendErr := s.sendEmailChangeOTP(sendCtx, newEmail, otp); sendErr != nil {

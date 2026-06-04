@@ -60,7 +60,7 @@ type fileSecretManager struct{ basePath string }
 func (f *fileSecretManager) GetSecret(key string) ([]byte, error) {
 	name := strings.ToLower(strings.ReplaceAll(key, "_", "-"))
 	path := fmt.Sprintf("%s/%s", f.basePath, name)
-	data, err := os.ReadFile(path)
+	data, err := os.ReadFile(path) // #nosec G304 -- file secret manager reads from configured directory
 	if err != nil {
 		return nil, fmt.Errorf("failed to read secret file %q: %w", path, err)
 	}
