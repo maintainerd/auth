@@ -106,3 +106,96 @@ func TestRedactString_RedactsEmailAndBearerValues(t *testing.T) {
 	require.NotNil(t, got)
 	assert.Equal(t, "failed login for [REDACTED] with Bearer [REDACTED]", *got)
 }
+
+func TestRedactString_NoChangeReturnsSamePointer(t *testing.T) {
+	input := "no sensitive data here"
+	got := RedactString(&input)
+	assert.Same(t, &input, got)
+}
+
+func TestRedactString_NilPointer(t *testing.T) {
+	got := RedactString(nil)
+	assert.Nil(t, got)
+}
+
+func TestRedactString_EmptyString(t *testing.T) {
+	input := ""
+	got := RedactString(&input)
+	assert.Same(t, &input, got)
+}
+
+func TestRedactJSON_Empty(t *testing.T) {
+	assert.Empty(t, RedactJSON(nil))
+	assert.Empty(t, RedactJSON([]byte{}))
+}
+
+func TestRedactJSON_NonJSON(t *testing.T) {
+	raw := []byte("not-json")
+	assert.Equal(t, raw, RedactJSON(raw))
+}
+
+func TestRedactJSON_RedactsPII(t *testing.T) {
+	raw := []byte(`{"email":"test@x.com","name":"Alice","token":"s3cret"}`)
+	got := RedactJSON(raw)
+	var m map[string]any
+	require.NoError(t, json.Unmarshal(got, &m))
+	assert.Equal(t, redacted, m["email"])
+	assert.Equal(t, "Alice", m["name"])
+	assert.Equal(t, redacted, m["token"])
+}
+
+func TestRedactJSON_NestedMap(t *testing.T) {
+	raw := []byte(`{"user":{"email":"nested@x.com","id":"42"}}`)
+	got := RedactJSON(raw)
+	var m map[string]any
+	require.NoError(t, json.Unmarshal(got, &m))
+	user := m["user"].(map[string]any)
+	assert.Equal(t, redacted, user["email"])
+	assert.Equal(t, "42", user["id"])
+}
+
+func TestRedactJSON_ArrayOfMaps(t *testing.T) {
+	raw := []byte(`{"items":[{"email":"a@b.com"},{"id":"x","password":"pw"}]}`)
+	got := RedactJSON(raw)
+	var m map[string]any
+	require.NoError(t, json.Unmarshal(got, &m))
+	items := m["items"].([]any)
+	assert.Equal(t, redacted, items[0].(map[string]any)["email"])
+	assert.Equal(t, redacted, items[1].(map[string]any)["password"])
+	assert.Equal(t, "x", items[1].(map[string]any)["id"])
+}
+
+func TestPIIRedact_WithGroup(t *testing.T) {
+	var buf bytes.Buffer
+	inner := slog.NewJSONHandler(&buf, &slog.HandlerOptions{Level: slog.LevelDebug})
+	h := NewPIIRedactHandler(inner)
+	grouped := h.WithGroup("db").WithAttrs([]slog.Attr{slog.String("password", "s3cret")})
+	log := slog.New(grouped)
+	log.Info("ns")
+	m := loggedFields(t, &buf)
+	db, ok := m["db"].(map[string]any)
+	require.True(t, ok)
+	assert.Equal(t, redacted, db["password"])
+}
+
+func TestPIIRedact_HandleEmptyAttrs(t *testing.T) {
+	var buf bytes.Buffer
+	log := newTestLogger(&buf)
+	log.Info("no-attrs")
+	m := loggedFields(t, &buf)
+	assert.Equal(t, "no-attrs", m["msg"])
+}
+
+func TestRedactString_JWTPatternMatched(t *testing.T) {
+	input := "token=eyJhbGciOiJSUzI1NiIs.eyJzdWIiOiIxMjM0NTY3ODkw.IiwibmFtZSI6IkpvaG4_"
+	got := RedactString(&input)
+	assert.Equal(t, "token=[REDACTED]", *got)
+}
+
+func TestIsPIIKey(t *testing.T) {
+	assert.True(t, isPIIKey("email"))
+	assert.True(t, isPIIKey("EMAIL"))
+	assert.True(t, isPIIKey("password"))
+	assert.False(t, isPIIKey("user_id"))
+	assert.False(t, isPIIKey("request_id"))
+}
