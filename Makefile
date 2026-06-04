@@ -1,9 +1,9 @@
 APP_NAME := auth
 MAIN := cmd/server/main.go
 PROTO_SRC := proto
-PROTO_OUT := internal/gen/go
+PROTO_OUT := internal/platform/gen/go
 
-.PHONY: run build clean proto proto-clean tidy test test-cover test-race vet staticcheck lint setup-hooks
+.PHONY: run build clean proto proto-lint proto-breaking proto-clean tidy test test-cover test-race vet staticcheck lint setup-hooks
 
 # Run the main application
 run:
@@ -21,13 +21,13 @@ clean:
 proto:
 	@echo "Generating Go gRPC code from proto files..."
 	@mkdir -p $(PROTO_OUT)
-	protoc \
-		--go_out=$(PROTO_OUT) \
-		--go-grpc_out=$(PROTO_OUT) \
-		--go_opt=paths=source_relative \
-		--go-grpc_opt=paths=source_relative \
-		-I $(PROTO_SRC) \
-		$$(find $(PROTO_SRC) -name "*.proto")
+	cd $(PROTO_SRC) && buf generate --template buf.gen.yaml .
+
+proto-lint:
+	cd $(PROTO_SRC) && buf lint .
+
+proto-breaking:
+	cd $(PROTO_SRC) && buf breaking . --against '.git#branch=main,subdir=proto'
 
 # Clean generated proto files
 proto-clean:

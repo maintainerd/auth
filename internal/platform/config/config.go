@@ -21,6 +21,10 @@ var (
 	AppPublicHostname  string
 	AppPrivateHostname string
 	ManagementPort     string // MANAGEMENT_PORT; default ":8082"
+	GRPCTLSCertFile    string
+	GRPCTLSKeyFile     string
+	GRPCClientCAFile   string
+	GRPCRequireMTLS    bool
 
 	// Application Encryption Key (AES-256)
 	AppEncryptionKey []byte
@@ -126,6 +130,10 @@ func Init() error {
 		return err
 	}
 	ManagementPort = normalizeListenAddr(GetEnvOrDefault("MANAGEMENT_PORT", "8082"))
+	GRPCTLSCertFile = GetEnvOrDefault("GRPC_TLS_CERT_FILE", "")
+	GRPCTLSKeyFile = GetEnvOrDefault("GRPC_TLS_KEY_FILE", "")
+	GRPCClientCAFile = GetEnvOrDefault("GRPC_CLIENT_CA_FILE", "")
+	GRPCRequireMTLS = strings.EqualFold(GetEnvOrDefault("GRPC_REQUIRE_MTLS", "false"), "true")
 
 	// Frontend Config
 	if AccountHostname, err = GetEnv("ACCOUNT_HOSTNAME"); err != nil {
@@ -244,6 +252,10 @@ type Config struct {
 	AppPublicHostname  string
 	AppPrivateHostname string
 	ManagementPort     string
+	GRPCTLSCertFile    string
+	GRPCTLSKeyFile     string
+	GRPCClientCAFile   string
+	GRPCRequireMTLS    bool
 	AppEncryptionKey   []byte
 
 	LogLevel string
@@ -306,6 +318,10 @@ func GetConfig() Config {
 		AppPublicHostname:           AppPublicHostname,
 		AppPrivateHostname:          AppPrivateHostname,
 		ManagementPort:              ManagementPort,
+		GRPCTLSCertFile:             GRPCTLSCertFile,
+		GRPCTLSKeyFile:              GRPCTLSKeyFile,
+		GRPCClientCAFile:            GRPCClientCAFile,
+		GRPCRequireMTLS:             GRPCRequireMTLS,
 		AppEncryptionKey:            AppEncryptionKey,
 		LogLevel:                    LogLevel,
 		AccountHostname:             AccountHostname,
