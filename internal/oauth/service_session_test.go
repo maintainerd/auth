@@ -45,8 +45,10 @@ func expectSessionClientURILookup(mock sqlmock.Sqlmock, uri, clientID string) {
 		false, time.Now(), time.Now(),
 	)
 	mock.ExpectQuery(regexp.QuoteMeta(`SELECT`)).WillReturnRows(rows)
-	mock.ExpectQuery(regexp.QuoteMeta(`SELECT`)).WillReturnRows(sqlmock.NewRows(nil))
-	mock.ExpectQuery(regexp.QuoteMeta(`SELECT`)).WillReturnRows(sqlmock.NewRows(nil))
+	mock.ExpectQuery(regexp.QuoteMeta(`SELECT`)).WillReturnRows(
+		sqlmock.NewRows([]string{"client_uri_id", "client_uri_uuid", "tenant_id", "client_id", "uri", "type", "created_at", "updated_at"}).
+			AddRow(1, uuid.New(), 1, 10, uri, "redirect", time.Now(), time.Now()),
+	)
 }
 
 // ── TestOAuthSessionService_EndSession ──────────────────────────────────────
@@ -86,7 +88,7 @@ func TestOAuthSessionService_EndSession(t *testing.T) {
 			State:                 "state123",
 		})
 		require.Nil(t, oerr)
-		assert.Empty(t, redirect) // ClientURIs not preloaded by findActiveClientByIdentifier
+		assert.Equal(t, "https://example.com/logout?state=state123", redirect)
 	})
 
 	t.Run("post_logout_redirect with no state", func(t *testing.T) {
@@ -112,7 +114,7 @@ func TestOAuthSessionService_EndSession(t *testing.T) {
 			PostLogoutRedirectURI: "https://example.com/logout",
 		})
 		require.Nil(t, oerr)
-		assert.Empty(t, redirect) // ClientURIs not preloaded
+		assert.Equal(t, "https://example.com/logout", redirect)
 	})
 
 	t.Run("post_logout_redirect invalid URL", func(t *testing.T) {
@@ -228,5 +230,121 @@ func TestOAuthSessionService_BackchannelLogout(t *testing.T) {
 		oerr := svc.BackchannelLogout(ctx, OAuthBackchannelLogoutRequestDTO{LogoutToken: token})
 		require.NotNil(t, oerr)
 		assert.Equal(t, "server_error", oerr.Code)
+	})
+}
+
+// ── TestOAuthSessionService_validateClientPostLogoutRedirect ────────────────
+
+func TestOAuthSessionService_validateClientPostLogoutRedirect(t *testing.T) {
+	t.Run("empty clientID returns false", func(t *testing.T) {
+		svc := &oauthSessionService{db: nil}
+		assert.False(t, svc.validateClientPostLogoutRedirect("", "https://x.com"))
+	})
+
+	t.Run("client not found returns false", func(t *testing.T) {
+		db, mock := newMockDB(t)
+		mock.ExpectQuery(regexp.QuoteMeta(`SELECT`)).WillReturnError(gorm.ErrRecordNotFound)
+
+		svc := &oauthSessionService{db: db}
+		assert.False(t, svc.validateClientPostLogoutRedirect("unknown", "https://x.com"))
+	})
+
+	t.Run("no matching URI returns false", func(t *testing.T) {
+		db, mock := newMockDB(t)
+		rows := sqlmock.NewRows([]string{
+			"client_id", "client_uuid", "tenant_id", "identity_provider_id", "name", "display_name",
+			"client_type", "domain", "identifier", "secret", "status",
+			"is_default", "is_system", "token_endpoint_auth_method",
+			"grant_types", "response_types", "access_token_ttl", "refresh_token_ttl",
+			"require_consent", "created_at", "updated_at",
+		}).AddRow(
+			10, uuid.New(), 1, int64(100), "test-client", "Test Client",
+			"spa", nil, "my-client", nil, "active",
+			false, false, "none",
+			`{}`, `{}`, nil, nil,
+			false, time.Now(), time.Now(),
+		)
+		mock.ExpectQuery(regexp.QuoteMeta(`SELECT`)).WillReturnRows(rows)
+		mock.ExpectQuery(regexp.QuoteMeta(`SELECT`)).WillReturnRows(
+			sqlmock.NewRows([]string{"client_uri_id", "client_uri_uuid", "tenant_id", "client_id", "uri", "type", "created_at", "updated_at"}).
+				AddRow(1, uuid.New(), 1, 10, "https://other.com/cb", "redirect", time.Now(), time.Now()),
+		)
+
+		svc := &oauthSessionService{db: db}
+		assert.False(t, svc.validateClientPostLogoutRedirect("my-client", "https://x.com"))
+	})
+
+	t.Run("matching URI returns true", func(t *testing.T) {
+		db, mock := newMockDB(t)
+		rows := sqlmock.NewRows([]string{
+			"client_id", "client_uuid", "tenant_id", "identity_provider_id", "name", "display_name",
+			"client_type", "domain", "identifier", "secret", "status",
+			"is_default", "is_system", "token_endpoint_auth_method",
+			"grant_types", "response_types", "access_token_ttl", "refresh_token_ttl",
+			"require_consent", "created_at", "updated_at",
+		}).AddRow(
+			10, uuid.New(), 1, int64(100), "test-client", "Test Client",
+			"spa", nil, "my-client", nil, "active",
+			false, false, "none",
+			`{}`, `{}`, nil, nil,
+			false, time.Now(), time.Now(),
+		)
+		mock.ExpectQuery(regexp.QuoteMeta(`SELECT`)).WillReturnRows(rows)
+		mock.ExpectQuery(regexp.QuoteMeta(`SELECT`)).WillReturnRows(
+			sqlmock.NewRows([]string{"client_uri_id", "client_uri_uuid", "tenant_id", "client_id", "uri", "type", "created_at", "updated_at"}).
+				AddRow(1, uuid.New(), 1, 10, "https://example.com/logout", "redirect", time.Now(), time.Now()),
+		)
+
+		svc := &oauthSessionService{db: db}
+		assert.True(t, svc.validateClientPostLogoutRedirect("my-client", "https://example.com/logout"))
+	})
+
+	t.Run("nil ClientURIs returns false", func(t *testing.T) {
+		db, mock := newMockDB(t)
+		rows := sqlmock.NewRows([]string{
+			"client_id", "client_uuid", "tenant_id", "identity_provider_id", "name", "display_name",
+			"client_type", "domain", "identifier", "secret", "status",
+			"is_default", "is_system", "token_endpoint_auth_method",
+			"grant_types", "response_types", "access_token_ttl", "refresh_token_ttl",
+			"require_consent", "created_at", "updated_at",
+		}).AddRow(
+			10, uuid.New(), 1, int64(100), "test-client", "Test Client",
+			"spa", nil, "my-client", nil, "active",
+			false, false, "none",
+			`{}`, `{}`, nil, nil,
+			false, time.Now(), time.Now(),
+		)
+		mock.ExpectQuery(regexp.QuoteMeta(`SELECT`)).WillReturnRows(rows)
+		mock.ExpectQuery(regexp.QuoteMeta(`SELECT`)).WillReturnRows(sqlmock.NewRows(nil))
+
+		svc := &oauthSessionService{db: db}
+		assert.False(t, svc.validateClientPostLogoutRedirect("my-client", "https://x.com"))
+	})
+}
+
+// ── TestOAuthSessionService_EndSession_Additional ───────────────────────────
+
+func TestOAuthSessionService_EndSession_Additional(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("invalid id_token_hint silently ignored", func(t *testing.T) {
+		svc := newOAuthSessionSvc(nil, &mockUserRepo{}, &mockOAuthRefreshTokenRepo{}, &mockAuthEventService{})
+
+		redirect, oerr := svc.EndSession(ctx, OAuthEndSessionRequestDTO{
+			IDTokenHint: "garbage",
+		})
+		require.Nil(t, oerr)
+		assert.Empty(t, redirect)
+	})
+
+	t.Run("dangerous post_logout_redirect_uri ignored", func(t *testing.T) {
+		svc := newOAuthSessionSvc(nil, &mockUserRepo{}, &mockOAuthRefreshTokenRepo{}, &mockAuthEventService{})
+
+		redirect, oerr := svc.EndSession(ctx, OAuthEndSessionRequestDTO{
+			PostLogoutRedirectURI: "javascript:alert(1)",
+			ClientID:              "my-client",
+		})
+		require.Nil(t, oerr)
+		assert.Empty(t, redirect)
 	})
 }

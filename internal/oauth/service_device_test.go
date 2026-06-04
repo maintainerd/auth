@@ -13,6 +13,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/lib/pq"
 	"github.com/maintainerd/auth/internal/platform/config"
+	"github.com/maintainerd/auth/internal/platform/crypto"
 	"github.com/maintainerd/auth/internal/platform/jwt"
 	"github.com/maintainerd/auth/internal/platform/middleware"
 	"github.com/maintainerd/auth/internal/platform/ptr"
@@ -212,6 +213,58 @@ func TestOAuthDeviceService_Authorize(t *testing.T) {
 		assert.Equal(t, "unauthorized_client", oerr.Code)
 	})
 
+	t.Run("scope not allowed", func(t *testing.T) {
+		db, mock := newMockDB(t)
+		rows := sqlmock.NewRows([]string{
+			"client_id", "client_uuid", "tenant_id", "identity_provider_id", "name", "display_name",
+			"client_type", "domain", "identifier", "secret", "status",
+			"is_default", "is_system", "token_endpoint_auth_method",
+			"grant_types", "response_types", "access_token_ttl", "refresh_token_ttl",
+			"require_consent", "allowed_scopes", "created_at", "updated_at",
+		}).AddRow(
+			10, uuid.New(), 1, int64(100), "test-client", "Test Client",
+			"spa", nil, "my-client", nil, "active",
+			false, false, "none",
+			pq.StringArray{GrantTypeDeviceCode}, pq.StringArray{ResponseTypeCode}, nil, nil,
+			false, pq.StringArray{"openid"}, time.Now(), time.Now(),
+		)
+		mock.ExpectQuery(regexp.QuoteMeta(`SELECT`)).WillReturnRows(rows)
+		mock.ExpectQuery(regexp.QuoteMeta(`SELECT`)).WillReturnRows(sqlmock.NewRows(nil))
+		mock.ExpectQuery(regexp.QuoteMeta(`SELECT`)).WillReturnRows(sqlmock.NewRows(nil))
+
+		svc := newOAuthDeviceSvc(db, &mockOAuthDeviceCodeRepo{}, &mockUserRepo{}, &mockAuthEventService{})
+
+		_, oerr := svc.Authorize(ctx, OAuthDeviceAuthorizationRequestDTO{Scope: "profile admin"}, OAuthClientCredentials{ClientID: "my-client"})
+		require.NotNil(t, oerr)
+		assert.Equal(t, "invalid_scope", oerr.Code)
+	})
+
+	t.Run("client with restricted allowed_scopes", func(t *testing.T) {
+		db, mock := newMockDB(t)
+		rows := sqlmock.NewRows([]string{
+			"client_id", "client_uuid", "tenant_id", "identity_provider_id", "name", "display_name",
+			"client_type", "domain", "identifier", "secret", "status",
+			"is_default", "is_system", "token_endpoint_auth_method",
+			"grant_types", "response_types", "access_token_ttl", "refresh_token_ttl",
+			"require_consent", "allowed_scopes", "created_at", "updated_at",
+		}).AddRow(
+			10, uuid.New(), 1, int64(100), "test-client", "Test Client",
+			"spa", nil, "my-client", nil, "active",
+			false, false, "none",
+			pq.StringArray{GrantTypeDeviceCode}, pq.StringArray{ResponseTypeCode}, nil, nil,
+			false, pq.StringArray{"openid"}, time.Now(), time.Now(),
+		)
+		mock.ExpectQuery(regexp.QuoteMeta(`SELECT`)).WillReturnRows(rows)
+		mock.ExpectQuery(regexp.QuoteMeta(`SELECT`)).WillReturnRows(sqlmock.NewRows(nil))
+		mock.ExpectQuery(regexp.QuoteMeta(`SELECT`)).WillReturnRows(sqlmock.NewRows(nil))
+
+		svc := newOAuthDeviceSvc(db, &mockOAuthDeviceCodeRepo{}, &mockUserRepo{}, &mockAuthEventService{})
+
+		_, oerr := svc.Authorize(ctx, OAuthDeviceAuthorizationRequestDTO{Scope: "email"}, OAuthClientCredentials{ClientID: "my-client"})
+		require.NotNil(t, oerr)
+		assert.Equal(t, "invalid_scope", oerr.Code)
+	})
+
 	t.Run("create error", func(t *testing.T) {
 		db, mock := newMockDB(t)
 		expectDeviceClientLookup(mock)
@@ -243,6 +296,43 @@ func TestOAuthDeviceService_Authorize(t *testing.T) {
 		assert.Contains(t, result.VerificationURI, "/device")
 		assert.Equal(t, 900, result.ExpiresIn)
 		assert.Equal(t, 5, result.Interval)
+	})
+
+	t.Run("GenerateRandomString error", func(t *testing.T) {
+		db, mock := newMockDB(t)
+		expectDeviceClientLookup(mock)
+
+		orig := crypto.GenerateRandomString
+		defer func() { crypto.GenerateRandomString = orig }()
+		crypto.GenerateRandomString = func(int) (string, error) { return "", errors.New("rand failure") }
+
+		svc := newOAuthDeviceSvc(db, &mockOAuthDeviceCodeRepo{}, &mockUserRepo{}, &mockAuthEventService{})
+
+		_, oerr := svc.Authorize(ctx, OAuthDeviceAuthorizationRequestDTO{Scope: "openid"}, OAuthClientCredentials{ClientID: "my-client"})
+		require.NotNil(t, oerr)
+		assert.Equal(t, "server_error", oerr.Code)
+	})
+
+	t.Run("generateUserCode error", func(t *testing.T) {
+		db, mock := newMockDB(t)
+		expectDeviceClientLookup(mock)
+
+		orig := crypto.GenerateRandomString
+		defer func() { crypto.GenerateRandomString = orig }()
+		callCount := 0
+		crypto.GenerateRandomString = func(int) (string, error) {
+			callCount++
+			if callCount == 1 {
+				return "valid-device-code-with-thirty-two-bytes!", nil
+			}
+			return "", errors.New("rand failure")
+		}
+
+		svc := newOAuthDeviceSvc(db, &mockOAuthDeviceCodeRepo{}, &mockUserRepo{}, &mockAuthEventService{})
+
+		_, oerr := svc.Authorize(ctx, OAuthDeviceAuthorizationRequestDTO{Scope: "openid"}, OAuthClientCredentials{ClientID: "my-client"})
+		require.NotNil(t, oerr)
+		assert.Equal(t, "server_error", oerr.Code)
 	})
 }
 
@@ -307,6 +397,30 @@ func TestOAuthDeviceService_VerifyUserCode(t *testing.T) {
 		assert.Contains(t, oerr.Description, "expired")
 	})
 
+	t.Run("update approval error", func(t *testing.T) {
+		db, _ := newMockDB(t)
+		svc := &oauthDeviceService{
+			db: db,
+			deviceCodeRepo: &mockOAuthDeviceCodeRepo{
+				findByUserCodeFn: func(_ string) (*OAuthDeviceCode, error) {
+					return &OAuthDeviceCode{
+						OAuthDeviceCodeID: 1,
+						Status:            DeviceCodeStatusPending,
+						ExpiresAt:         time.Now().Add(5 * time.Minute),
+					}, nil
+				},
+				updateApprovalFn: func(_ int64, _ int64, _ string, _ []string) error {
+					return errors.New("db error")
+				},
+			},
+			authEventService: &mockAuthEventService{},
+		}
+
+		oerr := svc.VerifyUserCode(ctx, OAuthDeviceVerifyRequestDTO{UserCode: "ABCD-EFGH"}, 42)
+		require.NotNil(t, oerr)
+		assert.Equal(t, "server_error", oerr.Code)
+	})
+
 	t.Run("success", func(t *testing.T) {
 		db, _ := newMockDB(t)
 		var updatedID int64
@@ -347,6 +461,17 @@ func TestOAuthDeviceService_VerifyUserCode(t *testing.T) {
 
 func TestOAuthDeviceService_ExchangeToken(t *testing.T) {
 	ctx := context.Background()
+
+	t.Run("client auth error", func(t *testing.T) {
+		db, mock := newMockDB(t)
+		mock.ExpectQuery(regexp.QuoteMeta(`SELECT`)).WillReturnError(gorm.ErrRecordNotFound)
+
+		svc := newOAuthDeviceSvc(db, &mockOAuthDeviceCodeRepo{}, &mockUserRepo{}, &mockAuthEventService{})
+
+		_, oerr := svc.ExchangeToken(ctx, OAuthDeviceTokenRequestDTO{DeviceCode: "xxxx"}, OAuthClientCredentials{ClientID: "unknown"})
+		require.NotNil(t, oerr)
+		assert.Equal(t, "invalid_client", oerr.Code)
+	})
 
 	t.Run("device_code not found", func(t *testing.T) {
 		db, mock := newMockDB(t)
@@ -598,6 +723,148 @@ func TestOAuthDeviceService_ExchangeToken(t *testing.T) {
 		assert.Equal(t, "Bearer", result.TokenType)
 		assert.Equal(t, "openid", result.Scope)
 	})
+
+	t.Run("authorization_pending", func(t *testing.T) {
+		db, mock := newMockDB(t)
+		expectDeviceClientLookup(mock)
+
+		svc := newOAuthDeviceSvc(db,
+			&mockOAuthDeviceCodeRepo{
+				findByDeviceCodeHashFn: func(_ string) (*OAuthDeviceCode, error) {
+					return &OAuthDeviceCode{
+						OAuthDeviceCodeID: 1,
+						ClientID:          10,
+						Status:            DeviceCodeStatusPending,
+						Interval:          5,
+						ExpiresAt:         time.Now().Add(5 * time.Minute),
+					}, nil
+				},
+			},
+			&mockUserRepo{}, &mockAuthEventService{})
+
+		_, oerr := svc.ExchangeToken(ctx, OAuthDeviceTokenRequestDTO{DeviceCode: "xxxx"}, OAuthClientCredentials{ClientID: "my-client"})
+		require.NotNil(t, oerr)
+		assert.Equal(t, "authorization_pending", oerr.Code)
+	})
+
+	t.Run("unexpected status", func(t *testing.T) {
+		db, mock := newMockDB(t)
+		expectDeviceClientLookup(mock)
+
+		svc := newOAuthDeviceSvc(db,
+			&mockOAuthDeviceCodeRepo{
+				findByDeviceCodeHashFn: func(_ string) (*OAuthDeviceCode, error) {
+					return &OAuthDeviceCode{
+						OAuthDeviceCodeID: 1,
+						ClientID:          10,
+						Status:            "unknown_status",
+						Interval:          5,
+						ExpiresAt:         time.Now().Add(5 * time.Minute),
+					}, nil
+				},
+			},
+			&mockUserRepo{}, &mockAuthEventService{})
+
+		_, oerr := svc.ExchangeToken(ctx, OAuthDeviceTokenRequestDTO{DeviceCode: "xxxx"}, OAuthClientCredentials{ClientID: "my-client"})
+		require.NotNil(t, oerr)
+		assert.Equal(t, "invalid_grant", oerr.Code)
+		assert.Contains(t, oerr.Description, "unexpected")
+	})
+
+	t.Run("empty user email", func(t *testing.T) {
+		initTestJWTKeysService(t)
+		origHost := config.AppPublicHostname
+		config.AppPublicHostname = "https://auth.example.com"
+		defer func() { config.AppPublicHostname = origHost }()
+
+		db, mock := newMockDB(t)
+		expectDeviceClientLookup(mock)
+		userID := int64(1)
+
+		svc := newOAuthDeviceSvc(db,
+			&mockOAuthDeviceCodeRepo{
+				findByDeviceCodeHashFn: func(_ string) (*OAuthDeviceCode, error) {
+					return &OAuthDeviceCode{
+						OAuthDeviceCodeID: 1,
+						ClientID:          10,
+						TenantID:          1,
+						UserID:            &userID,
+						Scope:             "openid",
+						Status:            DeviceCodeStatusApproved,
+						Interval:          5,
+						ExpiresAt:         time.Now().Add(5 * time.Minute),
+						Client: &Client{
+							ClientUUID: uuid.New(),
+							Identifier: ptr.Ptr("my-client"),
+							IdentityProvider: &IdentityProvider{
+								IdentityProviderUUID: uuid.New(),
+							},
+						},
+					}, nil
+				},
+			},
+			&mockUserRepo{
+				findByIDFn: func(_ any, _ ...string) (*User, error) {
+					return &User{UserID: 1, UserUUID: uuid.New(), Email: ""}, nil
+				},
+			},
+			&mockAuthEventService{})
+
+		result, oerr := svc.ExchangeToken(ctx, OAuthDeviceTokenRequestDTO{DeviceCode: "xxxx"}, OAuthClientCredentials{ClientID: "my-client"})
+		require.Nil(t, oerr)
+		require.NotNil(t, result)
+		assert.NotEmpty(t, result.AccessToken)
+		assert.Equal(t, "Bearer", result.TokenType)
+		assert.Equal(t, "openid", result.Scope)
+	})
+
+	// NOTE: The nil-client path in sendDeviceApprovalEmail is currently
+	// unreachable in a success flow because jwt.GenerateAccessTokenWithOptionsContext
+	// requires a non-empty providerID (derived from record.Client.IdentityProvider).
+	// When record.Client is nil, token generation fails with a server_error.
+	// A nil-client sendDeviceApprovalEmail test can be added after that dependency
+	// is relaxed.
+
+	t.Run("JWT generation error", func(t *testing.T) {
+		jwt.ResetJWTKeys()
+
+		db, mock := newMockDB(t)
+		expectDeviceClientLookup(mock)
+		userID := int64(1)
+
+		svc := newOAuthDeviceSvc(db,
+			&mockOAuthDeviceCodeRepo{
+				findByDeviceCodeHashFn: func(_ string) (*OAuthDeviceCode, error) {
+					return &OAuthDeviceCode{
+						OAuthDeviceCodeID: 1,
+						ClientID:          10,
+						TenantID:          1,
+						UserID:            &userID,
+						Scope:             "openid",
+						Status:            DeviceCodeStatusApproved,
+						Interval:          5,
+						ExpiresAt:         time.Now().Add(5 * time.Minute),
+						Client: &Client{
+							ClientUUID: uuid.New(),
+							Identifier: ptr.Ptr("my-client"),
+							IdentityProvider: &IdentityProvider{
+								IdentityProviderUUID: uuid.New(),
+							},
+						},
+					}, nil
+				},
+			},
+			&mockUserRepo{
+				findByIDFn: func(_ any, _ ...string) (*User, error) {
+					return &User{UserID: 1, UserUUID: uuid.New(), Email: "a@b.com"}, nil
+				},
+			},
+			&mockAuthEventService{})
+
+		_, oerr := svc.ExchangeToken(ctx, OAuthDeviceTokenRequestDTO{DeviceCode: "xxxx"}, OAuthClientCredentials{ClientID: "my-client"})
+		require.NotNil(t, oerr)
+		assert.Equal(t, "server_error", oerr.Code)
+	})
 }
 
 // ── TestOAuthDeviceService_DenyUserCode ──────────────────────────────────────
@@ -635,6 +902,30 @@ func TestOAuthDeviceService_DenyUserCode(t *testing.T) {
 		}
 
 		oerr := svc.DenyUserCode(ctx, OAuthDeviceVerifyRequestDTO{UserCode: "ABCD-EFGH"}, 1)
+		require.NotNil(t, oerr)
+		assert.Equal(t, "server_error", oerr.Code)
+	})
+
+	t.Run("update status error", func(t *testing.T) {
+		db, _ := newMockDB(t)
+		svc := &oauthDeviceService{
+			db: db,
+			deviceCodeRepo: &mockOAuthDeviceCodeRepo{
+				findByUserCodeFn: func(_ string) (*OAuthDeviceCode, error) {
+					return &OAuthDeviceCode{
+						OAuthDeviceCodeID: 1,
+						Status:            DeviceCodeStatusPending,
+						ExpiresAt:         time.Now().Add(5 * time.Minute),
+					}, nil
+				},
+				updateStatusFn: func(_ int64, _ string, _ *int64) error {
+					return errors.New("db error")
+				},
+			},
+			authEventService: &mockAuthEventService{},
+		}
+
+		oerr := svc.DenyUserCode(ctx, OAuthDeviceVerifyRequestDTO{UserCode: "ABCD-EFGH"}, 42)
 		require.NotNil(t, oerr)
 		assert.Equal(t, "server_error", oerr.Code)
 	})

@@ -10,6 +10,7 @@ import (
 	sqlmock "github.com/DATA-DOG/go-sqlmock"
 	"github.com/google/uuid"
 	"github.com/lib/pq"
+	"github.com/maintainerd/auth/internal/platform/crypto"
 	"github.com/maintainerd/auth/internal/platform/ptr"
 	"github.com/maintainerd/auth/internal/shared"
 	"github.com/stretchr/testify/assert"
@@ -278,6 +279,187 @@ func TestOAuthPARService_Push(t *testing.T) {
 		assert.NotEmpty(t, result.RequestURI)
 		assert.Contains(t, result.RequestURI, "urn:ietf:params:oauth:request-uri:")
 		assert.Equal(t, 90, result.ExpiresIn)
+	})
+
+	t.Run("grant not allowed", func(t *testing.T) {
+		db, mock := newMockDB(t)
+		rows := sqlmock.NewRows([]string{
+			"client_id", "client_uuid", "tenant_id", "identity_provider_id", "name", "display_name",
+			"client_type", "domain", "identifier", "secret", "status",
+			"is_default", "is_system", "token_endpoint_auth_method",
+			"grant_types", "response_types", "access_token_ttl", "refresh_token_ttl",
+			"require_consent", "created_at", "updated_at",
+		}).AddRow(
+			10, uuid.New(), 1, int64(100), "test-client", "Test Client",
+			"spa", nil, "my-client", nil, "active",
+			false, false, "none",
+			pq.StringArray{GrantTypeDeviceCode}, pq.StringArray{ResponseTypeCode}, nil, nil,
+			false, time.Now(), time.Now(),
+		)
+		mock.ExpectQuery(regexp.QuoteMeta(`SELECT`)).WillReturnRows(rows)
+		mock.ExpectQuery(regexp.QuoteMeta(`SELECT`)).WillReturnRows(sqlmock.NewRows(nil))
+		mock.ExpectQuery(regexp.QuoteMeta(`SELECT`)).WillReturnRows(sqlmock.NewRows(nil))
+
+		svc := newOAuthPARSvc(db, &mockClientURIRepo{}, &mockOAuthPARRepo{}, &mockAuthEventService{})
+
+		_, oerr := svc.Push(ctx, OAuthPARRequestDTO{
+			RedirectURI:  "https://example.com/callback",
+			ResponseType: ResponseTypeCode,
+		}, OAuthClientCredentials{ClientID: "my-client"})
+		require.NotNil(t, oerr)
+		assert.Equal(t, "unauthorized_client", oerr.Code)
+	})
+
+	t.Run("scope not allowed", func(t *testing.T) {
+		db, mock := newMockDB(t)
+		rows := sqlmock.NewRows([]string{
+			"client_id", "client_uuid", "tenant_id", "identity_provider_id", "name", "display_name",
+			"client_type", "domain", "identifier", "secret", "status",
+			"is_default", "is_system", "token_endpoint_auth_method",
+			"grant_types", "response_types", "access_token_ttl", "refresh_token_ttl",
+			"require_consent", "allowed_scopes", "created_at", "updated_at",
+		}).AddRow(
+			10, uuid.New(), 1, int64(100), "test-client", "Test Client",
+			"spa", nil, "my-client", nil, "active",
+			false, false, "none",
+			pq.StringArray{GrantTypeAuthorizationCode}, pq.StringArray{ResponseTypeCode}, nil, nil,
+			false, pq.StringArray{"openid"}, time.Now(), time.Now(),
+		)
+		mock.ExpectQuery(regexp.QuoteMeta(`SELECT`)).WillReturnRows(rows)
+		mock.ExpectQuery(regexp.QuoteMeta(`SELECT`)).WillReturnRows(sqlmock.NewRows(nil))
+		mock.ExpectQuery(regexp.QuoteMeta(`SELECT`)).WillReturnRows(sqlmock.NewRows(nil))
+
+		svc := newOAuthPARSvc(db, &mockClientURIRepo{}, &mockOAuthPARRepo{}, &mockAuthEventService{})
+
+		_, oerr := svc.Push(ctx, OAuthPARRequestDTO{
+			RedirectURI:  "https://example.com/callback",
+			ResponseType: ResponseTypeCode,
+			Scope:        "admin",
+		}, OAuthClientCredentials{ClientID: "my-client"})
+		require.NotNil(t, oerr)
+		assert.Equal(t, "invalid_scope", oerr.Code)
+	})
+
+	t.Run("with state and nonce", func(t *testing.T) {
+		db, mock := newMockDB(t)
+		mock.MatchExpectationsInOrder(false)
+		rows := sqlmock.NewRows([]string{
+			"client_id", "client_uuid", "tenant_id", "identity_provider_id", "name", "display_name",
+			"client_type", "domain", "identifier", "secret", "status",
+			"is_default", "is_system", "token_endpoint_auth_method",
+			"grant_types", "response_types", "access_token_ttl", "refresh_token_ttl",
+			"require_consent", "created_at", "updated_at",
+		}).AddRow(
+			10, uuid.New(), 1, int64(100), "test-client", "Test Client",
+			"spa", nil, "my-client", nil, "active",
+			false, false, "none",
+			pq.StringArray{GrantTypeAuthorizationCode}, pq.StringArray{ResponseTypeCode}, nil, nil,
+			false, time.Now(), time.Now(),
+		)
+		mock.ExpectQuery(regexp.QuoteMeta(`SELECT`)).WillReturnRows(rows)
+		mock.ExpectQuery(`FROM "identity_providers"`).WillReturnRows(sqlmock.NewRows(nil))
+		mock.ExpectQuery(`FROM "client_uris"`).WillReturnRows(
+			sqlmock.NewRows([]string{"client_uri_id", "client_uri_uuid", "tenant_id", "client_id", "uri", "type", "created_at", "updated_at"}).
+				AddRow(1, uuid.New(), 1, 10, "https://example.com/callback", shared.ClientURITypeRedirect, time.Now(), time.Now()),
+		)
+
+		var capturedPAR *OAuthPARRequest
+		svc := newOAuthPARSvc(db, &mockClientURIRepo{},
+			&mockOAuthPARRepo{
+				createFn: func(p *OAuthPARRequest) (*OAuthPARRequest, error) {
+					capturedPAR = p
+					return p, nil
+				},
+			},
+			&mockAuthEventService{})
+
+		result, oerr := svc.Push(ctx, OAuthPARRequestDTO{
+			RedirectURI:         "https://example.com/callback",
+			ResponseType:        ResponseTypeCode,
+			CodeChallenge:       "abc",
+			CodeChallengeMethod: "S256",
+			State:               "mystate",
+			Nonce:               "mynonce",
+		}, OAuthClientCredentials{ClientID: "my-client"})
+		require.Nil(t, oerr)
+		require.NotNil(t, result)
+		assert.NotEmpty(t, result.RequestURI)
+		require.NotNil(t, capturedPAR)
+		require.NotNil(t, capturedPAR.State)
+		assert.Equal(t, "mystate", *capturedPAR.State)
+		require.NotNil(t, capturedPAR.Nonce)
+		assert.Equal(t, "mynonce", *capturedPAR.Nonce)
+	})
+
+	t.Run("dangerous redirect URI", func(t *testing.T) {
+		db, mock := newMockDB(t)
+		mock.MatchExpectationsInOrder(false)
+		rows := sqlmock.NewRows([]string{
+			"client_id", "client_uuid", "tenant_id", "identity_provider_id", "name", "display_name",
+			"client_type", "domain", "identifier", "secret", "status",
+			"is_default", "is_system", "token_endpoint_auth_method",
+			"grant_types", "response_types", "access_token_ttl", "refresh_token_ttl",
+			"require_consent", "created_at", "updated_at",
+		}).AddRow(
+			10, uuid.New(), 1, int64(100), "test-client", "Test Client",
+			"spa", nil, "my-client", nil, "active",
+			false, false, "none",
+			pq.StringArray{GrantTypeAuthorizationCode}, pq.StringArray{ResponseTypeCode}, nil, nil,
+			false, time.Now(), time.Now(),
+		)
+		mock.ExpectQuery(regexp.QuoteMeta(`SELECT`)).WillReturnRows(rows)
+		mock.ExpectQuery(`FROM "identity_providers"`).WillReturnRows(sqlmock.NewRows(nil))
+		mock.ExpectQuery(`FROM "client_uris"`).WillReturnRows(
+			sqlmock.NewRows([]string{"client_uri_id", "client_uri_uuid", "tenant_id", "client_id", "uri", "type", "created_at", "updated_at"}).
+				AddRow(1, uuid.New(), 1, 10, "javascript:alert(1)", shared.ClientURITypeRedirect, time.Now(), time.Now()),
+		)
+
+		svc := newOAuthPARSvc(db, &mockClientURIRepo{}, &mockOAuthPARRepo{}, &mockAuthEventService{})
+
+		_, oerr := svc.Push(ctx, OAuthPARRequestDTO{
+			RedirectURI:  "javascript:alert(1)",
+			ResponseType: ResponseTypeCode,
+		}, OAuthClientCredentials{ClientID: "my-client"})
+		require.NotNil(t, oerr)
+		assert.Equal(t, "invalid_request", oerr.Code)
+		assert.Contains(t, oerr.Description, "forbidden scheme")
+	})
+
+	t.Run("GenerateRandomString error", func(t *testing.T) {
+		db, mock := newMockDB(t)
+		mock.MatchExpectationsInOrder(false)
+		rows := sqlmock.NewRows([]string{
+			"client_id", "client_uuid", "tenant_id", "identity_provider_id", "name", "display_name",
+			"client_type", "domain", "identifier", "secret", "status",
+			"is_default", "is_system", "token_endpoint_auth_method",
+			"grant_types", "response_types", "access_token_ttl", "refresh_token_ttl",
+			"require_consent", "created_at", "updated_at",
+		}).AddRow(
+			10, uuid.New(), 1, int64(100), "test-client", "Test Client",
+			"spa", nil, "my-client", nil, "active",
+			false, false, "none",
+			pq.StringArray{GrantTypeAuthorizationCode}, pq.StringArray{ResponseTypeCode}, nil, nil,
+			false, time.Now(), time.Now(),
+		)
+		mock.ExpectQuery(regexp.QuoteMeta(`SELECT`)).WillReturnRows(rows)
+		mock.ExpectQuery(`FROM "identity_providers"`).WillReturnRows(sqlmock.NewRows(nil))
+		mock.ExpectQuery(`FROM "client_uris"`).WillReturnRows(
+			sqlmock.NewRows([]string{"client_uri_id", "client_uri_uuid", "tenant_id", "client_id", "uri", "type", "created_at", "updated_at"}).
+				AddRow(1, uuid.New(), 1, 10, "https://example.com/callback", shared.ClientURITypeRedirect, time.Now(), time.Now()),
+		)
+
+		orig := crypto.GenerateRandomString
+		defer func() { crypto.GenerateRandomString = orig }()
+		crypto.GenerateRandomString = func(int) (string, error) { return "", errors.New("rand failure") }
+
+		svc := newOAuthPARSvc(db, &mockClientURIRepo{}, &mockOAuthPARRepo{}, &mockAuthEventService{})
+
+		_, oerr := svc.Push(ctx, OAuthPARRequestDTO{
+			RedirectURI:  "https://example.com/callback",
+			ResponseType: ResponseTypeCode,
+		}, OAuthClientCredentials{ClientID: "my-client"})
+		require.NotNil(t, oerr)
+		assert.Equal(t, "server_error", oerr.Code)
 	})
 }
 

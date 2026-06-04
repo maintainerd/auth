@@ -175,6 +175,58 @@ func TestOAuthUserInfoHandler_UserInfo_NoProfile(t *testing.T) {
 	assert.Empty(t, resp.Picture)
 }
 
+func TestOAuthUserInfoHandler_UserInfo_EmptySubFallsBackToUUID(t *testing.T) {
+	userUUID := uuid.MustParse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee")
+
+	h := NewOAuthUserInfoHandler()
+	r := httptest.NewRequest(http.MethodGet, "/oauth/userinfo", nil)
+	r = middleware.WithJWTClaims(r, &middleware.JWTClaims{
+		Sub:   "",
+		Scope: "openid",
+	})
+	r = middleware.WithAuthContext(r, &authctx.AuthContext{
+		User: &User{
+			UserUUID: userUUID,
+			Fullname: "Jane Doe",
+		},
+	})
+	w := httptest.NewRecorder()
+
+	h.UserInfo(w, r)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+
+	var resp OAuthUserInfoResponseDTO
+	require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
+	assert.Equal(t, userUUID.String(), resp.Sub)
+}
+
+func TestOAuthUserInfoHandler_UserInfo_WithProfileURL(t *testing.T) {
+	picURL := "https://example.com/pic.jpg"
+	h := NewOAuthUserInfoHandler()
+	r := httptest.NewRequest(http.MethodGet, "/oauth/userinfo", nil)
+	r = middleware.WithJWTClaims(r, &middleware.JWTClaims{Scope: "profile"})
+	r = middleware.WithAuthContext(r, &authctx.AuthContext{
+		User: &User{
+			UserUUID:  testUserUUID,
+			Fullname:  "Pic User",
+			UpdatedAt: time.Now(),
+			Profile: &Profile{
+				ProfileURL: &picURL,
+			},
+		},
+	})
+	w := httptest.NewRecorder()
+
+	h.UserInfo(w, r)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+
+	var resp OAuthUserInfoResponseDTO
+	require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
+	assert.Equal(t, picURL, resp.Picture)
+}
+
 func TestComposeUserDisplayName(t *testing.T) {
 	t.Run("nil user", func(t *testing.T) {
 		assert.Empty(t, composeUserDisplayName(nil))

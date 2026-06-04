@@ -11,6 +11,8 @@ import (
 	"github.com/google/uuid"
 	"github.com/lib/pq"
 	"github.com/maintainerd/auth/internal/platform/config"
+	"github.com/maintainerd/auth/internal/platform/crypto"
+	"github.com/maintainerd/auth/internal/platform/jwt"
 	"github.com/maintainerd/auth/internal/platform/ptr"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -193,6 +195,56 @@ func TestOAuthCIBAService_Initiate(t *testing.T) {
 		assert.Equal(t, "server_error", oerr.Code)
 	})
 
+	t.Run("user not found by login_hint", func(t *testing.T) {
+		db, mock := newMockDB(t)
+		expectCIBAClientLookup(mock)
+
+		svc := newOAuthCIBASvc(db, &mockOAuthCIBARepo{},
+			&mockUserRepo{
+				findByEmailFn: func(_ string) (*User, error) {
+					return nil, nil
+				},
+			},
+			&mockAuthEventService{})
+
+		_, oerr := svc.Initiate(ctx, OAuthCIBARequestDTO{LoginHint: "a@b.com"}, OAuthClientCredentials{ClientID: "my-client"})
+		require.NotNil(t, oerr)
+		assert.Equal(t, "invalid_request", oerr.Code)
+		assert.Contains(t, oerr.Description, "no user found")
+	})
+
+	t.Run("scope not allowed", func(t *testing.T) {
+		db, mock := newMockDB(t)
+		rows := sqlmock.NewRows([]string{
+			"client_id", "client_uuid", "tenant_id", "identity_provider_id", "name", "display_name",
+			"client_type", "domain", "identifier", "secret", "status",
+			"is_default", "is_system", "token_endpoint_auth_method",
+			"grant_types", "response_types", "access_token_ttl", "refresh_token_ttl",
+			"require_consent", "allowed_scopes", "created_at", "updated_at",
+		}).AddRow(
+			10, uuid.New(), 1, int64(100), "test-client", "Test Client",
+			"spa", nil, "my-client", nil, "active",
+			false, false, "none",
+			pq.StringArray{GrantTypeCIBA}, pq.StringArray{ResponseTypeCode}, nil, nil,
+			false, pq.StringArray{"openid"}, time.Now(), time.Now(),
+		)
+		mock.ExpectQuery(regexp.QuoteMeta(`SELECT`)).WillReturnRows(rows)
+		mock.ExpectQuery(regexp.QuoteMeta(`SELECT`)).WillReturnRows(sqlmock.NewRows(nil))
+		mock.ExpectQuery(regexp.QuoteMeta(`SELECT`)).WillReturnRows(sqlmock.NewRows(nil))
+
+		svc := newOAuthCIBASvc(db, &mockOAuthCIBARepo{},
+			&mockUserRepo{
+				findByEmailFn: func(_ string) (*User, error) {
+					return &User{UserID: 1, UserUUID: uuid.New(), Email: "a@b.com"}, nil
+				},
+			},
+			&mockAuthEventService{})
+
+		_, oerr := svc.Initiate(ctx, OAuthCIBARequestDTO{LoginHint: "a@b.com", Scope: "profile admin"}, OAuthClientCredentials{ClientID: "my-client"})
+		require.NotNil(t, oerr)
+		assert.Equal(t, "invalid_scope", oerr.Code)
+	})
+
 	t.Run("repo create error", func(t *testing.T) {
 		db, mock := newMockDB(t)
 		expectCIBAClientLookup(mock)
@@ -234,12 +286,93 @@ func TestOAuthCIBAService_Initiate(t *testing.T) {
 		assert.Equal(t, 300, result.ExpiresIn)
 		assert.Equal(t, 5, result.Interval)
 	})
+
+	t.Run("with binding_message", func(t *testing.T) {
+		db, mock := newMockDB(t)
+		expectCIBAClientLookup(mock)
+
+		var capturedBinding *string
+		svc := newOAuthCIBASvc(db,
+			&mockOAuthCIBARepo{
+				createFn: func(r *OAuthCIBARequest) (*OAuthCIBARequest, error) {
+					capturedBinding = r.BindingMessage
+					return r, nil
+				},
+			},
+			&mockUserRepo{
+				findByEmailFn: func(_ string) (*User, error) {
+					return &User{UserID: 1, UserUUID: uuid.New(), Email: "a@b.com"}, nil
+				},
+			},
+			&mockAuthEventService{})
+
+		result, oerr := svc.Initiate(ctx, OAuthCIBARequestDTO{
+			LoginHint:      "a@b.com",
+			Scope:          "openid",
+			BindingMessage: "confirm transaction 12345",
+		}, OAuthClientCredentials{ClientID: "my-client"})
+		require.Nil(t, oerr)
+		require.NotNil(t, result)
+		assert.NotEmpty(t, result.AuthReqID)
+		require.NotNil(t, capturedBinding)
+		assert.Equal(t, "confirm transaction 12345", *capturedBinding)
+	})
+
+	t.Run("empty email skips notification", func(t *testing.T) {
+		db, mock := newMockDB(t)
+		expectCIBAClientLookup(mock)
+
+		svc := newOAuthCIBASvc(db, &mockOAuthCIBARepo{},
+			&mockUserRepo{
+				findByEmailFn: func(_ string) (*User, error) {
+					return &User{UserID: 1, UserUUID: uuid.New(), Email: ""}, nil
+				},
+			},
+			&mockAuthEventService{})
+
+		result, oerr := svc.Initiate(ctx, OAuthCIBARequestDTO{LoginHint: "user@noemail.com", Scope: "openid"}, OAuthClientCredentials{ClientID: "my-client"})
+		require.Nil(t, oerr)
+		require.NotNil(t, result)
+		assert.NotEmpty(t, result.AuthReqID)
+	})
+
+	t.Run("GenerateRandomString error", func(t *testing.T) {
+		db, mock := newMockDB(t)
+		expectCIBAClientLookup(mock)
+
+		orig := crypto.GenerateRandomString
+		defer func() { crypto.GenerateRandomString = orig }()
+		crypto.GenerateRandomString = func(int) (string, error) { return "", errors.New("rand failure") }
+
+		svc := newOAuthCIBASvc(db, &mockOAuthCIBARepo{},
+			&mockUserRepo{
+				findByEmailFn: func(_ string) (*User, error) {
+					return &User{UserID: 1, UserUUID: uuid.New(), Email: "a@b.com"}, nil
+				},
+			},
+			&mockAuthEventService{})
+
+		_, oerr := svc.Initiate(ctx, OAuthCIBARequestDTO{LoginHint: "a@b.com", Scope: "openid"}, OAuthClientCredentials{ClientID: "my-client"})
+		require.NotNil(t, oerr)
+		assert.Equal(t, "server_error", oerr.Code)
+	})
 }
 
 // ── TestOAuthCIBAService_ExchangeToken ──────────────────────────────────────
 
 func TestOAuthCIBAService_ExchangeToken(t *testing.T) {
 	ctx := context.Background()
+
+	t.Run("client auth error", func(t *testing.T) {
+		db, mock := newMockDB(t)
+		expectCIBAClientNotFound(mock)
+
+		svc := newOAuthCIBASvc(db, &mockOAuthCIBARepo{}, &mockUserRepo{}, &mockAuthEventService{})
+
+		_, oerr := svc.ExchangeToken(ctx, OAuthCIBATokenRequestDTO{AuthReqID: "xxxx"}, OAuthClientCredentials{ClientID: "unknown"})
+		require.NotNil(t, oerr)
+		assert.Equal(t, "invalid_client", oerr.Code)
+	})
 
 	t.Run("auth_req_id not found", func(t *testing.T) {
 		db, mock := newMockDB(t)
@@ -491,6 +624,30 @@ func TestOAuthCIBAService_ExchangeToken(t *testing.T) {
 		assert.Equal(t, "access_denied", oerr.Code)
 	})
 
+	t.Run("unexpected status", func(t *testing.T) {
+		db, mock := newMockDB(t)
+		expectCIBAClientLookup(mock)
+
+		svc := newOAuthCIBASvc(db,
+			&mockOAuthCIBARepo{
+				findCIBAReqByHashFn: func(_ string) (*OAuthCIBARequest, error) {
+					return &OAuthCIBARequest{
+						OAuthCIBARRequestID: 1,
+						ClientID:            10,
+						Status:              "unknown_status",
+						Interval:            5,
+						ExpiresAt:           time.Now().Add(5 * time.Minute),
+					}, nil
+				},
+			},
+			&mockUserRepo{}, &mockAuthEventService{})
+
+		_, oerr := svc.ExchangeToken(ctx, OAuthCIBATokenRequestDTO{AuthReqID: "xxxx"}, OAuthClientCredentials{ClientID: "my-client"})
+		require.NotNil(t, oerr)
+		assert.Equal(t, "invalid_grant", oerr.Code)
+		assert.Contains(t, oerr.Description, "unexpected CIBA")
+	})
+
 	t.Run("success", func(t *testing.T) {
 		initTestJWTKeysService(t)
 		origHost := config.AppPublicHostname
@@ -536,6 +693,47 @@ func TestOAuthCIBAService_ExchangeToken(t *testing.T) {
 		assert.NotEmpty(t, result.AccessToken)
 		assert.Equal(t, "Bearer", result.TokenType)
 		assert.Equal(t, "openid", result.Scope)
+	})
+
+	t.Run("JWT generation error", func(t *testing.T) {
+		jwt.ResetJWTKeys()
+
+		db, mock := newMockDB(t)
+		expectCIBAClientLookup(mock)
+		userID := int64(1)
+
+		svc := newOAuthCIBASvc(db,
+			&mockOAuthCIBARepo{
+				findCIBAReqByHashFn: func(_ string) (*OAuthCIBARequest, error) {
+					return &OAuthCIBARequest{
+						OAuthCIBARRequestID: 1,
+						ClientID:            10,
+						TenantID:            1,
+						UserID:              &userID,
+						Scope:               "openid",
+						Status:              CIBAStatusApproved,
+						Interval:            5,
+						ExpiresAt:           time.Now().Add(5 * time.Minute),
+						Client: &Client{
+							ClientUUID: uuid.New(),
+							Identifier: ptr.Ptr("my-client"),
+							IdentityProvider: &IdentityProvider{
+								IdentityProviderUUID: uuid.New(),
+							},
+						},
+					}, nil
+				},
+			},
+			&mockUserRepo{
+				findByIDFn: func(_ any, _ ...string) (*User, error) {
+					return &User{UserID: 1, UserUUID: uuid.New(), Email: "a@b.com"}, nil
+				},
+			},
+			&mockAuthEventService{})
+
+		_, oerr := svc.ExchangeToken(ctx, OAuthCIBATokenRequestDTO{AuthReqID: "xxxx"}, OAuthClientCredentials{ClientID: "my-client"})
+		require.NotNil(t, oerr)
+		assert.Equal(t, "server_error", oerr.Code)
 	})
 }
 
@@ -626,6 +824,31 @@ func TestOAuthCIBAService_ApproveRequest(t *testing.T) {
 		require.Nil(t, oerr)
 		assert.Equal(t, int64(1), approvedID)
 		assert.Equal(t, int64(42), approvedUser)
+	})
+
+	t.Run("updateApprovalContext error", func(t *testing.T) {
+		db, _ := newMockDB(t)
+		svc := &oauthCIBAService{
+			db: db,
+			cibaRepo: &mockOAuthCIBARepo{
+				findCIBAReqByHashFn: func(_ string) (*OAuthCIBARequest, error) {
+					return &OAuthCIBARequest{
+						OAuthCIBARRequestID: 1,
+						TenantID:            1,
+						Status:              CIBAStatusPending,
+						ExpiresAt:           time.Now().Add(5 * time.Minute),
+					}, nil
+				},
+				updateApprovalCtxFn: func(_ int64, _ int64, _ string, _ []string) error {
+					return errors.New("db error")
+				},
+			},
+			authEventService: &mockAuthEventService{},
+		}
+
+		oerr := svc.ApproveRequest(ctx, "xxxx", 42)
+		require.NotNil(t, oerr)
+		assert.Equal(t, "server_error", oerr.Code)
 	})
 }
 

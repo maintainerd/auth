@@ -147,10 +147,18 @@ func TestOAuthCIBARequestRepository(t *testing.T) {
 	repo := NewOAuthCIBARequestRepository(db)
 	require.NotNil(t, repo)
 	assert.NotNil(t, repo.(*oauthCIBARequestRepository).WithTx(db))
+
+	// ── expectations ──
 	expectOAuthSelect(mock, "oauth_ciba_requests").WillReturnRows(oauthCIBARows())
 	expectClientPreloads(mock)
 	expectOAuthSelect(mock, "oauth_ciba_requests").WillReturnError(gorm.ErrRecordNotFound)
 	expectOAuthSelect(mock, "oauth_ciba_requests").WillReturnError(errors.New("db down"))
+
+	// UpdateApprovalContext error path
+	mock.ExpectBegin()
+	expectOAuthUpdate(mock, "oauth_ciba_requests").WillReturnError(errors.New("db down"))
+	mock.ExpectRollback()
+
 	for i := 0; i < 5; i++ {
 		mock.ExpectBegin()
 		expectOAuthUpdate(mock, "oauth_ciba_requests").WillReturnResult(sqlmock.NewResult(0, 1))
@@ -160,6 +168,7 @@ func TestOAuthCIBARequestRepository(t *testing.T) {
 	expectOAuthDelete(mock, "oauth_ciba_requests").WillReturnResult(sqlmock.NewResult(0, 3))
 	mock.ExpectCommit()
 
+	// ── calls ──
 	got, err := repo.FindByAuthReqIDHash("hash")
 	require.NoError(t, err)
 	require.NotNil(t, got)
@@ -169,6 +178,10 @@ func TestOAuthCIBARequestRepository(t *testing.T) {
 	got, err = repo.FindByAuthReqIDHash("hash")
 	require.Error(t, err)
 	assert.Nil(t, got)
+
+	err = repo.UpdateApprovalContext(1, 99, "urn:mace:incommon:iap:silver", []string{"pwd"})
+	require.Error(t, err)
+
 	require.NoError(t, repo.UpdateStatus(1, CIBAStatusDenied))
 	require.NoError(t, repo.UpdateApproval(1, 99))
 	require.NoError(t, repo.UpdateApprovalContext(1, 99, "urn:mace:incommon:iap:silver", []string{"pwd"}))
@@ -219,6 +232,16 @@ func TestOAuthConsentGrantRepository(t *testing.T) {
 	expectOAuthSelect(mock, "oauth_consent_grants").WillReturnRows(oauthConsentGrantRows())
 	expectOAuthSelect(mock, "oauth_consent_grants").WillReturnError(gorm.ErrRecordNotFound)
 	expectOAuthSelect(mock, "oauth_consent_grants").WillReturnError(errors.New("db down"))
+
+	// Upsert error path — FindByUserAndClient returns a non-ErrNotFound error.
+	expectOAuthSelect(mock, "oauth_consent_grants").WillReturnError(errors.New("db down"))
+
+	// Upsert Save error — FindByUserAndClient returns existing, Save fails.
+	expectOAuthSelect(mock, "oauth_consent_grants").WillReturnRows(oauthConsentGrantRows())
+	mock.ExpectBegin()
+	expectOAuthUpdate(mock, "oauth_consent_grants").WillReturnError(errors.New("db down"))
+	mock.ExpectRollback()
+
 	expectOAuthSelect(mock, "oauth_consent_grants").WillReturnRows(oauthConsentGrantRows())
 	mock.ExpectBegin()
 	mock.ExpectExec(`UPDATE "oauth_consent_grants"|INSERT INTO "oauth_consent_grants"`).WillReturnResult(sqlmock.NewResult(0, 1))
@@ -244,6 +267,13 @@ func TestOAuthConsentGrantRepository(t *testing.T) {
 	got, err = repo.FindByUserAndClient(1, 10)
 	require.Error(t, err)
 	assert.Nil(t, got)
+
+	_, err = repo.Upsert(&OAuthConsentGrant{UserID: 3, ClientID: 10, TenantID: 1, Scopes: "openid"})
+	require.Error(t, err)
+
+	_, err = repo.Upsert(&OAuthConsentGrant{UserID: 1, ClientID: 10, TenantID: 1, Scopes: "openid email"})
+	require.Error(t, err) // Save error
+
 	updated, err := repo.Upsert(&OAuthConsentGrant{UserID: 1, ClientID: 10, TenantID: 1, Scopes: "openid email"})
 	require.NoError(t, err)
 	require.NotNil(t, updated)
@@ -270,6 +300,12 @@ func TestOAuthDeviceCodeRepository(t *testing.T) {
 	expectOAuthSelect(mock, "clients").WillReturnRows(oauthClientRows())
 	expectOAuthSelect(mock, "oauth_device_codes").WillReturnError(gorm.ErrRecordNotFound)
 	expectOAuthSelect(mock, "oauth_device_codes").WillReturnError(errors.New("db down"))
+
+	// UpdateApproval error path — DB returns an error.
+	mock.ExpectBegin()
+	expectOAuthUpdate(mock, "oauth_device_codes").WillReturnError(errors.New("db down"))
+	mock.ExpectRollback()
+
 	for i := 0; i < 3; i++ {
 		mock.ExpectBegin()
 		expectOAuthUpdate(mock, "oauth_device_codes").WillReturnResult(sqlmock.NewResult(0, 1))
@@ -298,6 +334,8 @@ func TestOAuthDeviceCodeRepository(t *testing.T) {
 	require.Error(t, err)
 	assert.Nil(t, byUserCode)
 	userID := int64(1)
+	err = repo.UpdateApproval(1, userID, "2", []string{"pwd"})
+	require.Error(t, err)
 	require.NoError(t, repo.UpdateStatus(1, DeviceCodeStatusApproved, &userID))
 	require.NoError(t, repo.UpdateApproval(1, userID, "2", []string{"pwd"}))
 	require.NoError(t, repo.UpdateLastPollAt(1))
