@@ -371,7 +371,7 @@ func (s *webAuthnService) loadWebAuthnUser(userID int64) (*webAuthnUser, error) 
 			ID:        id,
 			PublicKey: sc.PublicKey,
 			Authenticator: webauthn.Authenticator{
-				//nolint:gosec // sign count from webauthn library fits uint32
+				// #nosec G115 -- sign count from webauthn library fits uint32
 				SignCount: uint32(sc.SignCount),
 			},
 			Flags: webauthn.CredentialFlags{
