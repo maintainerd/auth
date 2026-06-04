@@ -1,4 +1,4 @@
-# gRPC Feature List — Service-to-Service Control Plane
+# gRPC Feature List — Service-to-Service Control Plane Transport
 
 **Status:** Planning — proposed for **v1.1.0** (post REST/S2S-authz baseline).
 **Owner:** rseguma@lula.life
@@ -6,11 +6,13 @@
 **Related:** [service-to-service-authorization.md](../documentations/service-to-service-authorization/service-to-service-authorization.md) · [architecture.md](../documentations/architecture/architecture.md) · [code-structure.md](../contributing/code-structure.md) · [testing.md](../contributing/testing.md)
 
 This document is the implementation backlog for exposing Lula's auth server over
-**gRPC** as a **service-to-service (S2S) control plane**. The goal is a typed,
-high-performance channel that lets other services — the **core / control plane**
-especially — **control** this auth service (create/update/delete resources) and
-**read data** from it, mirroring the existing **internal (private) REST port**
-(`:8080`).
+**gRPC** as an additional **service-to-service (S2S) control-plane transport**.
+S2S is **not gRPC-only** in this project: the internal/private REST port already
+supports S2S use cases and keeps doing so. The goal of this backlog is to add a
+typed, high-performance gRPC channel that lets other services — the **core /
+control plane** especially — **control** this auth service (create/update/delete
+resources) and **read data** from it, mirroring the existing **internal (private)
+REST port** (`:8080`).
 
 It backlogs every internal-port **application API** endpoint as a gRPC RPC,
 assigns each a status, and pins down the **contract layout, naming, and S2S
@@ -49,14 +51,14 @@ control-plane (management) services. `GRPC-2xx` = identity / end-user-flow servi
 
 ## 1. Goal & scope
 
-| | |
-|---|---|
-| **Independence** | maintainerd-auth is **fully standalone** — it boots, migrates, seeds, and serves with **no dependency on the core / control plane**. The core is an *optional* manager, never a runtime requirement. The gRPC surface assumes nothing about the core's existence. See §7. |
-| **Why gRPC** | Typed contracts, codegen for every consumer language, streaming-capable, low overhead — the right tool for **service-to-service** traffic (core/control plane ↔ auth, and peer services reading auth data). |
-| **What it mirrors** | The **internal (private) REST port** (`:8080`, VPN/private-network only — see [router.go](../../internal/server/router.go) `buildInternalRouter`). gRPC becomes a private-network-only control surface, **never** exposed to the public internet (the public port `:8081` stays REST-only). Product APIs are mirrored as RPCs; operational probes/spec endpoints are covered by gRPC health, reflection, and generated proto contracts. |
-| **Two use-cases** | **(a) Control** — external services (e.g. the core/control plane) mutate auth resources (tenants, clients, policies, users, settings…). **(b) Data** — peer services read auth data (introspect tokens, fetch policies, list roles…). |
-| **Auth model** | S2S only. Every call carries a **service-account access token**; every RPC is policy-gated. **A policy must always exist** for a caller to reach an RPC — default-deny. See §6. |
-| **Out of scope** | Browser/public/end-user-interactive traffic stays on REST. gRPC-Web/public gateway, and breaking v2 changes — see §11. |
+|                     |                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Independence**    | maintainerd-auth is **fully standalone** — it boots, migrates, seeds, and serves with **no dependency on the core / control plane**. The core is an *optional* manager, never a runtime requirement. The gRPC surface assumes nothing about the core's existence. See §7.                                                                                                                                                               |
+| **Why gRPC**        | Typed contracts, codegen for every consumer language, streaming-capable, low overhead — a strong fit for **service-to-service** traffic (core/control plane ↔ auth, and peer services reading auth data). It is an additional S2S transport, not the only S2S path.                                                                                                                                               |
+| **What it mirrors** | The **internal (private) REST port** (`:8080`, VPN/private-network only — see [router.go](../../internal/server/router.go) `buildInternalRouter`). gRPC becomes a private-network-only control surface beside REST, **never** exposed to the public internet (the public port `:8081` stays REST-only). Product APIs are mirrored as RPCs; operational probes/spec endpoints are covered by gRPC health, reflection, and generated proto contracts. |
+| **Two use-cases**   | **(a) Control** — external services (e.g. the core/control plane) mutate auth resources (tenants, clients, policies, users, settings…). **(b) Data** — peer services read auth data (introspect tokens, fetch policies, list roles…).                                                                                                                                                                                                   |
+| **Auth model**      | Transport-agnostic S2S. REST and gRPC both use **service-account access tokens** and PDP policy checks. For gRPC, every RPC carries the token in metadata and is policy-gated. **A policy must always exist** for a caller to reach a protected REST endpoint or gRPC RPC — default-deny. See §6.                                                                                                                                         |
+| **Out of scope**    | Browser/public/end-user-interactive traffic stays on REST. gRPC-Web/public gateway, and breaking v2 changes — see §11.                                                                                                                                                                                                                                                                                                                  |
 
 ---
 
@@ -207,30 +209,34 @@ Per-RPC permission/scope requirements are declared in a **registry** (a map of
 
 ---
 
-## 6. S2S authentication & authorization standard (the one to follow)
+## 6. S2S authentication & authorization standard (transport-agnostic)
 
-This is the standard for every gRPC call. It **reuses the existing S2S design** —
-no new auth scheme.
+This is the standard for service-to-service calls **regardless of transport**.
+REST already uses this model, and gRPC must reuse it. gRPC does **not** invent a
+new auth scheme; it adds interceptors/adapters around the same service-account
+tokens, policy bundles, and PDP.
 
 1. **Caller identity = service principal.** The calling service authenticates as
    itself via OAuth **`client_credentials`** (already in v1.0.0,
    [oauth](../../internal/oauth)). Its `Service` row is linked to an OAuth client;
    the issued access token carries the service identifier (`sub`/`svc` claim).
-2. **Token on the wire.** The caller attaches the token as gRPC metadata:
+2. **Token on the wire.** REST callers send `Authorization: Bearer <token>`;
+   gRPC callers send the same bearer token as metadata:
    `authorization: Bearer <service-account token>`. The **Auth interceptor**
-   (GRPC-006) extracts and verifies it (signature, expiry, denylist —
+   (GRPC-006) extracts and verifies it for gRPC (signature, expiry, denylist —
    reusing [jwt](../../internal/platform/jwt) + the Redis denylist /
    [token_invalidator](../../internal/iam)), then puts the principal in context
    (same shape REST uses via `authctx`).
-3. **Per-RPC authorization (default-deny).** The **Authz interceptor** (GRPC-007)
-   looks up the RPC's required permission/action and asks the **PDP**
-   (`iam.Evaluate()` — already built) against the caller's resolved policy bundle.
-   **No matching `allow` → `codes.PermissionDenied`.** Explicit deny wins.
-   **A policy must always be attached to the calling service** or every RPC is
-   denied — exactly the property you asked for.
-4. **Token validation for peers.** The `OAuthIntrospectionService.Introspect` RPC
-   (GRPC-180) lets a peer validate tokens it receives, so the whole mesh shares one
-   introspection authority.
+3. **Per-call authorization (default-deny).** REST middleware and the gRPC **Authz
+   interceptor** (GRPC-007) look up the endpoint/RPC's required permission/action
+   and ask the **PDP** (`iam.Evaluate()` — already built) against the caller's
+   resolved policy bundle. **No matching `allow` → denied** (`403` for REST,
+   `codes.PermissionDenied` for gRPC). Explicit deny wins. **A policy must always
+   be attached to the calling service** or every protected REST endpoint / gRPC RPC
+   is denied — exactly the property you asked for.
+4. **Token validation for peers.** REST already exposes `POST /oauth/introspect`;
+   the `OAuthIntrospectionService.Introspect` RPC (GRPC-180) adds the gRPC equivalent
+   so peers can validate tokens over either private transport.
 5. **Transport security.** Bind the gRPC port to the **private network only** (like
    the internal REST port). Require **TLS**; prefer **mTLS** where the service mesh
    issues client certs — the cert proves transport-level service identity and the
@@ -238,12 +244,12 @@ no new auth scheme.
 6. **Short-lived tokens + push invalidation.** Keep service-account tokens
    short-lived (5–15 min) and rely on the existing webhook policy-invalidation
    (`iam.policy.updated`, `iam.service.policy.assigned/removed`) so revocation
-   propagates fast — identical to the REST S2S story.
+   propagates fast across REST and gRPC callers.
 
-> **Net:** a service can only reach a gRPC RPC if (a) it presents a valid
-> service-account token, and (b) it holds an attached policy whose statements
-> `allow` that RPC's action. Same author-centrally / decide-from-policy model as
-> the REST control plane.
+> **Net:** a service can only reach a protected REST endpoint or gRPC RPC if (a)
+> it presents a valid service-account token, and (b) it holds an attached policy
+> whose statements `allow` that action. Same author-centrally /
+> decide-from-policy model on both private transports.
 
 ---
 
