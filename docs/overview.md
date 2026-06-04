@@ -301,6 +301,16 @@ Permissions from this registry are assigned to roles and to clients, forming the
 
 ---
 
+## Service-to-Service Authorization
+
+OAuth `client_credentials` clients can be linked to IAM services through `clients.service_id`. When linked, their access tokens carry service-principal claims (`sub_type=service`, `svc`) and can fetch a scoped policy bundle from `GET /api/v1/services/me/policy-bundle`.
+
+Services evaluate those bundles locally with the shared IAM evaluator, or call `POST /api/v1/authorize/` when they need a central authorization decision. Policy updates and service-policy assignment changes emit IAM webhook events so consumers can refresh cached bundles immediately.
+
+See [docs/apis/iam/authorization.md](./apis/iam/authorization.md) for the integration guide.
+
+---
+
 ## API Keys
 
 **API keys** provide machine-to-machine access without going through an OAuth flow. They are scoped to a user pool and can be restricted to specific APIs and permissions.
@@ -447,7 +457,7 @@ The following are known gaps between the intended design and the current impleme
 | `email_config` table | Done | Migration 005, model `EmailConfig`. |
 | `sms_config` table | Done | Migration 006, model `SMSConfig`. |
 | `branding` table | Done | Migration 003, model `Branding`. Tenant-level admin console branding. |
-| `webhook_endpoints` table | Done | Migration 007, model `WebhookEndpoint`. Needs dispatcher implementation. |
+| `webhook_endpoints` table | Done | Migration 007, model `WebhookEndpoint`, dispatcher, HMAC delivery, retry, and IAM invalidation events. |
 | `login_templates` `tenant_id` FK | Phase 2 | Should reference `user_pool_id` since branding is per-pool. |
 | OIDC provider (JWKS + discovery) | In progress | `/.well-known/jwks.json` and `/.well-known/openid-configuration` on port 8081. See `docs/v1-features/oidc-provider.md`. |
 | Frontend init endpoint | In progress | `GET /tenant/{identifier}/config` on port 8081. See `docs/v1-features/frontend-initialization.md`. |

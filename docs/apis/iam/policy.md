@@ -32,7 +32,10 @@ A policy document must follow this structure:
 | `statement[].action` | array | Permission identifiers in `resource:action` format. Use `resource:*` for all actions on a resource. |
 | `statement[].resource` | array | Service and API identifiers in `service:api` format. Use `service:*` for all APIs under a service. |
 
-Action and resource values are not validated against existing permissions or services at write time. Invalid values result in no access being granted.
+Action and resource values are not validated against existing permissions or services at write time. Invalid values result in no access being granted. Policy updates emit `iam.policy.updated` so service-to-service authorization clients can refresh cached bundles.
+
+For bundle distribution and enforcement semantics, see
+[Service-to-Service Authorization](./authorization.md).
 
 ---
 

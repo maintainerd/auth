@@ -35,6 +35,7 @@ Legend:
 - [x] `iam/api.md` — `GET/POST/PUT/DELETE /api/v1/apis`, `PUT .../status`
 - [x] `iam/permission.md` — `GET/POST/PUT/DELETE /api/v1/permissions`, `PUT .../status`
 - [x] `iam/policy.md` — `GET/POST/PUT/DELETE /api/v1/policies`, `PUT .../status`, `GET .../services`
+- [x] `iam/authorization.md` — `GET /api/v1/services/me/policy-bundle`, `POST /api/v1/authorize/`
 
 ### Identity Providers
 - [x] `idp/identity-provider.md` — `GET/POST/PUT/DELETE /api/v1/identity_providers`, `PUT .../status`
@@ -133,7 +134,7 @@ Legend:
 | Auth (public) | 6 | 6 |
 | Profile & User Settings | 2 | 2 |
 | Tenant | 3 | 3 |
-| IAM (services/apis/permissions/policies) | 4 | 4 |
+| IAM (services/apis/permissions/policies/authorization) | 5 | 5 |
 | Identity Providers | 1 | 1 |
 | Client Management | 4 | 4 |
 | Roles & Users | 5 | 5 |
@@ -149,4 +150,4 @@ Legend:
 | OAuth (internal) | 1 | 1 |
 | Discovery | 1 | 1 |
 | OAuth (public) | 14 | 14 |
-| **Total** | **63** | **63** |
+| **Total** | **64** | **64** |

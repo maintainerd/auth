@@ -44,6 +44,8 @@ tags:
     description: Audit log of authentication and authorization events (read-only)
   - name: API Keys
     description: API key management
+  - name: IAM
+    description: IAM services, policies, and service-to-service authorization
   - name: Profile
     description: Authenticated user profile (self-service)
   - name: MFA
@@ -1624,6 +1626,74 @@ paths:
           $ref: '#/components/responses/InternalError'
 
   # ============================================================
+  # IAM Authorization
+  # ============================================================
+  /services/me/policy-bundle:
+    get:
+      tags: [IAM]
+      summary: Get the current service principal policy bundle
+      operationId: getServicePolicyBundle
+      description: >
+        Returns the active IAM policies attached to the service principal
+        represented by the caller's OAuth client_credentials access token.
+        Service tokens must include either svc=<service name> or sub_type=service
+        with sub=<service name>.
+      parameters:
+        - name: If-None-Match
+          in: header
+          required: false
+          schema:
+            type: string
+          description: Previously returned bundle ETag, including quotes.
+      responses:
+        '200':
+          description: Current service policy bundle
+          headers:
+            ETag:
+              schema:
+                type: string
+              description: Bundle version ETag.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServicePolicyBundleEnvelope'
+        '304':
+          description: Policy bundle has not changed.
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /authorize/:
+    post:
+      tags: [IAM]
+      summary: Evaluate a service-to-service authorization decision
+      operationId: authorizeServiceRequest
+      description: >
+        Convenience endpoint for callers that cannot embed the Go authzclient.
+        The request is evaluated with the same IAM policy evaluator used by
+        policy bundles and the SDK.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AuthzRequest'
+      responses:
+        '200':
+          description: Authorization decision
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthzDecisionEnvelope'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  # ============================================================
   # Webhook Endpoints
   # ============================================================
   /webhook-endpoints:
@@ -3078,6 +3148,97 @@ components:
         updated_at:
           type: integer
           format: int64
+
+    AuthzRequest:
+      type: object
+      required: [principal, action, resource]
+      properties:
+        principal:
+          type: string
+          description: Service principal name to evaluate.
+          example: serviceA
+        action:
+          type: string
+          description: Requested action.
+          example: serviceB:invoke
+        resource:
+          type: string
+          description: Requested resource.
+          example: serviceB:grpc
+
+    AuthzDecision:
+      type: object
+      properties:
+        allowed:
+          type: boolean
+        reason:
+          type: string
+          example: matched allow
+
+    AuthzDecisionEnvelope:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          $ref: '#/components/schemas/AuthzDecision'
+
+    IAMPolicyStatement:
+      type: object
+      required: [effect, action, resource]
+      properties:
+        effect:
+          type: string
+          enum: [allow, deny]
+        action:
+          type: array
+          items:
+            type: string
+          example: [serviceB:invoke]
+        resource:
+          type: array
+          items:
+            type: string
+          example: [serviceB:grpc]
+
+    IAMPolicyDocument:
+      type: object
+      required: [version, statement]
+      properties:
+        version:
+          type: string
+          example: v1
+        statement:
+          type: array
+          items:
+            $ref: '#/components/schemas/IAMPolicyStatement'
+
+    ServicePolicyBundle:
+      type: object
+      properties:
+        service:
+          type: string
+          example: serviceA
+        version:
+          type: string
+          example: v516dcc9a08d5
+        policies:
+          type: array
+          items:
+            $ref: '#/components/schemas/IAMPolicyDocument'
+        generated_at:
+          type: string
+          format: date-time
+
+    ServicePolicyBundleEnvelope:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          $ref: '#/components/schemas/ServicePolicyBundle'
 
     OAuthConsentChallengeResponse:
       type: object
