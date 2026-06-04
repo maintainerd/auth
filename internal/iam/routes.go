@@ -141,36 +141,51 @@ func RoleRoute(
 func ServiceRoute(
 	r chi.Router,
 	serviceHandler *ServiceHandler,
+	authorizationHandler *AuthorizationHandler,
 	userService middleware.UserContextProvider,
 	appCache *cache.Cache,
 ) {
 	r.Route("/services", func(r chi.Router) {
+		r.Group(func(r chi.Router) {
+			r.Use(middleware.JWTAuthMiddleware)
+			r.Get("/me/policy-bundle", authorizationHandler.PolicyBundle)
+		})
+
+		r.Group(func(r chi.Router) {
+			r.Use(middleware.JWTAuthMiddleware)
+			r.Use(middleware.UserContextMiddleware(userService, appCache))
+
+			r.With(middleware.PermissionMiddleware([]string{"service:read"})).
+				Get("/", serviceHandler.Get)
+
+			r.With(middleware.PermissionMiddleware([]string{"service:read"})).
+				Get("/{service_uuid}", serviceHandler.GetByUUID)
+
+			r.With(middleware.PermissionMiddleware([]string{"service:create"})).
+				Post("/", serviceHandler.Create)
+
+			r.With(middleware.PermissionMiddleware([]string{"service:update"})).
+				Put("/{service_uuid}", serviceHandler.Update)
+
+			r.With(middleware.PermissionMiddleware([]string{"service:update"})).
+				Put("/{service_uuid}/status", serviceHandler.SetStatus)
+
+			r.With(middleware.PermissionMiddleware([]string{"service:delete"})).
+				Delete("/{service_uuid}", serviceHandler.Delete)
+
+			// Service-Policy Assignment endpoints
+			r.With(middleware.PermissionMiddleware([]string{"service:policy:assign"})).
+				Post("/{service_uuid}/policies/{policy_uuid}", serviceHandler.AssignPolicy)
+
+			r.With(middleware.PermissionMiddleware([]string{"service:policy:remove"})).
+				Delete("/{service_uuid}/policies/{policy_uuid}", serviceHandler.RemovePolicy)
+		})
+	})
+}
+
+func AuthorizationRoute(r chi.Router, authorizationHandler *AuthorizationHandler) {
+	r.Route("/authorize", func(r chi.Router) {
 		r.Use(middleware.JWTAuthMiddleware)
-		r.Use(middleware.UserContextMiddleware(userService, appCache))
-
-		r.With(middleware.PermissionMiddleware([]string{"service:read"})).
-			Get("/", serviceHandler.Get)
-
-		r.With(middleware.PermissionMiddleware([]string{"service:read"})).
-			Get("/{service_uuid}", serviceHandler.GetByUUID)
-
-		r.With(middleware.PermissionMiddleware([]string{"service:create"})).
-			Post("/", serviceHandler.Create)
-
-		r.With(middleware.PermissionMiddleware([]string{"service:update"})).
-			Put("/{service_uuid}", serviceHandler.Update)
-
-		r.With(middleware.PermissionMiddleware([]string{"service:update"})).
-			Put("/{service_uuid}/status", serviceHandler.SetStatus)
-
-		r.With(middleware.PermissionMiddleware([]string{"service:delete"})).
-			Delete("/{service_uuid}", serviceHandler.Delete)
-
-		// Service-Policy Assignment endpoints
-		r.With(middleware.PermissionMiddleware([]string{"service:policy:assign"})).
-			Post("/{service_uuid}/policies/{policy_uuid}", serviceHandler.AssignPolicy)
-
-		r.With(middleware.PermissionMiddleware([]string{"service:policy:remove"})).
-			Delete("/{service_uuid}/policies/{policy_uuid}", serviceHandler.RemovePolicy)
+		r.Post("/", authorizationHandler.Authorize)
 	})
 }

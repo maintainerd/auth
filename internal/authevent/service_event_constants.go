@@ -52,6 +52,10 @@ const (
 	AuthEventTypeAuthzFail   = "authz_fail"
 	AuthEventTypeAuthzChange = "authz_change"
 	AuthEventTypeAuthzAdmin  = "authz_admin"
+
+	AuthEventTypeIAMPolicyUpdated         = "iam.policy.updated"
+	AuthEventTypeIAMServicePolicyAssigned = "iam.service.policy.assigned"
+	AuthEventTypeIAMServicePolicyRemoved  = "iam.service.policy.removed"
 )
 
 // OWASP Logging Vocabulary event type constants for the SESSION category.

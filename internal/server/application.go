@@ -62,6 +62,7 @@ type Application struct {
 	SMSConfigService          notifier.SMSConfigService
 	WebhookEndpointService    webhook.WebhookEndpointService
 	AuthEventService          authevent.AuthEventService
+	AuthorizationService      iam.ServiceAuthorizationService
 	OAuthAuthorizeService     oauth.OAuthAuthorizeService
 	OAuthTokenService         oauth.OAuthTokenService
 	OAuthConsentService       oauth.OAuthConsentService
