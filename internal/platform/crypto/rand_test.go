@@ -1,6 +1,7 @@
 package crypto
 
 import (
+	"encoding/base64"
 	"strings"
 	"testing"
 
@@ -55,4 +56,33 @@ func TestGenerateIdentifier_CryptoRandError(t *testing.T) {
 	withFailingRand(t)
 	_, err := GenerateIdentifier(8)
 	assert.Error(t, err)
+}
+
+func TestGenerateRandomString(t *testing.T) {
+	tests := []struct {
+		name   string
+		length int
+	}{
+		{"length 16", 16},
+		{"length 32", 32},
+		{"length 64", 64},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := GenerateRandomString(tc.length)
+			require.NoError(t, err)
+			assert.Len(t, got, base64.RawURLEncoding.EncodedLen(tc.length))
+		})
+	}
+}
+
+func TestGenerateRandomStringUniqueness(t *testing.T) {
+	seen := make(map[string]struct{}, 100)
+	for i := 0; i < 100; i++ {
+		id, err := GenerateRandomString(16)
+		require.NoError(t, err)
+		_, dup := seen[id]
+		assert.False(t, dup, "duplicate random string generated: %s", id)
+		seen[id] = struct{}{}
+	}
 }

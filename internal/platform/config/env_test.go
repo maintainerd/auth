@@ -45,3 +45,17 @@ func TestGetEnvOrDefault(t *testing.T) {
 		assert.Equal(t, "fallback", GetEnvOrDefault("TEST_ENV_OR_DEFAULT_EMPTY", "fallback"))
 	})
 }
+
+func TestParseIntDefault(t *testing.T) {
+	t.Run("parses valid number", func(t *testing.T) {
+		assert.Equal(t, 42, parseIntDefault("42", 10))
+	})
+
+	t.Run("returns fallback on invalid input", func(t *testing.T) {
+		assert.Equal(t, 10, parseIntDefault("not-a-number", 10))
+	})
+
+	t.Run("returns fallback on empty input", func(t *testing.T) {
+		assert.Equal(t, 5, parseIntDefault("", 5))
+	})
+}

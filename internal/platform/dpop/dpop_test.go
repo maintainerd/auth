@@ -242,6 +242,23 @@ func TestValidateProof(t *testing.T) {
 	}
 }
 
+func TestValidateProof_NilStore(t *testing.T) {
+	key := newTestP256Key(t)
+	proof := signDPoPProof(t, key, proofOptions{
+		jti:    "jti-nil-store",
+		htm:    testMethod,
+		htu:    "https://auth.example.com/oauth/token",
+		iat:    time.Now(),
+		typ:    "dpop+jwt",
+		header: ecJWK(t, &key.PublicKey),
+	})
+
+	claims, err := ValidateProof(context.Background(), proof, testMethod, testRequestURL, "", nil)
+	require.NoError(t, err)
+	require.NotNil(t, claims)
+	assert.Equal(t, "jti-nil-store", claims.JTI)
+}
+
 func TestValidateResourceRequest(t *testing.T) {
 	key := newTestP256Key(t)
 	proof := signDPoPProof(t, key, proofOptions{
@@ -263,6 +280,14 @@ func TestValidateResourceRequest(t *testing.T) {
 	_, err = ValidateResourceRequest(context.Background(), proof, "GET", "https://api.example.com/resource", testAccessTok, "different-thumbprint", nil)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "does not match token binding")
+
+	claims, err = ValidateResourceRequest(context.Background(), proof, "GET", "https://api.example.com/resource", testAccessTok, "", nil)
+	require.NoError(t, err)
+	assert.Equal(t, thumbprint, claims.Thumbprint)
+
+	_, err = ValidateResourceRequest(context.Background(), "not-a-jwt", "GET", "https://api.example.com/resource", testAccessTok, thumbprint, nil)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "not a valid JWT")
 }
 
 func TestAccessTokenHash(t *testing.T) {
@@ -303,6 +328,112 @@ func TestExtractNumericDate(t *testing.T) {
 func TestStripQuery(t *testing.T) {
 	assert.Equal(t, "https://example.com/path", stripQuery("https://example.com/path?a=b"))
 	assert.Equal(t, "https://example.com/path", stripQuery("https://example.com/path"))
+	assert.Equal(t, "https://example.com", stripQuery("https://example.com"))
+}
+
+func TestExtractPublicKeyAndThumbprint_Errors(t *testing.T) {
+	t.Run("invalid json marshal", func(t *testing.T) {
+		_, _, err := extractPublicKeyAndThumbprint(make(chan int))
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "cannot marshal JWK")
+	})
+
+	t.Run("invalid kty", func(t *testing.T) {
+		_, _, err := extractPublicKeyAndThumbprint(map[string]any{"kty": "unknown"})
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "unsupported JWK kty")
+	})
+
+	t.Run("EC missing x", func(t *testing.T) {
+		_, _, err := extractPublicKeyAndThumbprint(map[string]any{
+			"kty": "EC",
+			"crv": "P-256",
+			"y":   base64.RawURLEncoding.EncodeToString(make([]byte, 32)),
+		})
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "missing crv, x, or y")
+	})
+
+	t.Run("EC missing y", func(t *testing.T) {
+		_, _, err := extractPublicKeyAndThumbprint(map[string]any{
+			"kty": "EC",
+			"crv": "P-256",
+			"x":   base64.RawURLEncoding.EncodeToString(make([]byte, 32)),
+		})
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "missing crv, x, or y")
+	})
+
+	t.Run("EC invalid x base64", func(t *testing.T) {
+		_, _, err := extractPublicKeyAndThumbprint(map[string]any{
+			"kty": "EC",
+			"crv": "P-256",
+			"x":   "!!!",
+			"y":   base64.RawURLEncoding.EncodeToString(make([]byte, 32)),
+		})
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "x decode")
+	})
+
+	t.Run("EC invalid y base64", func(t *testing.T) {
+		_, _, err := extractPublicKeyAndThumbprint(map[string]any{
+			"kty": "EC",
+			"crv": "P-256",
+			"x":   base64.RawURLEncoding.EncodeToString(make([]byte, 32)),
+			"y":   "!!!",
+		})
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "y decode")
+	})
+
+	t.Run("RSA missing n", func(t *testing.T) {
+		_, _, err := extractPublicKeyAndThumbprint(map[string]any{
+			"kty": "RSA",
+			"e":   base64.RawURLEncoding.EncodeToString([]byte{1, 0, 1}),
+		})
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "missing n or e")
+	})
+
+	t.Run("RSA missing e", func(t *testing.T) {
+		_, _, err := extractPublicKeyAndThumbprint(map[string]any{
+			"kty": "RSA",
+			"n":   base64.RawURLEncoding.EncodeToString(make([]byte, 256)),
+		})
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "missing n or e")
+	})
+
+	t.Run("RSA invalid n base64", func(t *testing.T) {
+		_, _, err := extractPublicKeyAndThumbprint(map[string]any{
+			"kty": "RSA",
+			"n":   "!!!",
+			"e":   base64.RawURLEncoding.EncodeToString([]byte{1, 0, 1}),
+		})
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "n decode")
+	})
+
+	t.Run("RSA invalid e base64", func(t *testing.T) {
+		_, _, err := extractPublicKeyAndThumbprint(map[string]any{
+			"kty": "RSA",
+			"n":   base64.RawURLEncoding.EncodeToString(make([]byte, 256)),
+			"e":   "!!!",
+		})
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "e decode")
+	})
+
+	t.Run("EC point not on curve", func(t *testing.T) {
+		_, _, err := extractPublicKeyAndThumbprint(map[string]any{
+			"kty": "EC",
+			"crv": "P-256",
+			"x":   base64.RawURLEncoding.EncodeToString(make([]byte, 32)),
+			"y":   base64.RawURLEncoding.EncodeToString(make([]byte, 32)),
+		})
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "not on curve")
+	})
 }
 
 type proofOptions struct {
