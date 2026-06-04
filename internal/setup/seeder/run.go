@@ -42,6 +42,11 @@ func RunAll(db *gorm.DB, appVersion string) error {
 		return err
 	}
 
+	if err := SeedControlPolicy(db, sysTenant.TenantID); err != nil {
+		slog.Error("Failed to seed control policy", "error", err)
+		return err
+	}
+
 	identityProvider, err := SeedIdentityProviders(db, sysTenant.TenantID)
 	if err != nil {
 		slog.Error("Failed to seed identity provider", "error", err)

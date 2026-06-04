@@ -19,6 +19,9 @@ func SetupRoute(r chi.Router, setupHandler *SetupHandler) {
 		// Setup status endpoint (always available)
 		r.Get("/setup/status", setupHandler.GetSetupStatus)
 
+		// Explicitly locks setup once bootstrap records are provisioned.
+		r.Post("/setup/complete", setupHandler.CompleteSetup)
+
 		// Tenant setup (one-time only)
 		r.Post("/setup/create_tenant", setupHandler.CreateTenant)
 

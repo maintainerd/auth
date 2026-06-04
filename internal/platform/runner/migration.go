@@ -100,6 +100,8 @@ var migrations = []migrationEntry{
 	{"053_create_sms_otps_table", migration.CreateSMSOtpsTable},
 	// Block 14: Password policy
 	{"054_create_user_password_history_table", migration.CreateUserPasswordHistoryTable},
+	// Block 15: Setup process state
+	{"055_create_setup_states_table", migration.CreateSetupStatesTable},
 }
 
 // RunMigrations bootstraps the schema_migrations tracking table, acquires a

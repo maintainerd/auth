@@ -154,7 +154,7 @@ func TestSetupService_GetSetupStatus(t *testing.T) {
 		assert.False(t, res.IsProfileSetup)
 	})
 
-	t.Run("full setup complete", func(t *testing.T) {
+	t.Run("full setup ready but not locked", func(t *testing.T) {
 		svc := buildSetupService(t,
 			&mockTenantRepo{
 				findAllFn:    func(...string) ([]Tenant, error) { return []Tenant{{Name: "main"}}, nil },
@@ -170,7 +170,69 @@ func TestSetupService_GetSetupStatus(t *testing.T) {
 		assert.True(t, res.IsTenantSetup)
 		assert.True(t, res.IsAdminSetup)
 		assert.True(t, res.IsProfileSetup)
+		assert.False(t, res.IsSetupComplete)
+	})
+
+	t.Run("setup complete from persisted lock", func(t *testing.T) {
+		svc := NewSetupService(nil,
+			&mockUserRepo{},
+			&mockTenantRepo{findAllFn: func(...string) ([]Tenant, error) { return nil, nil }},
+			&mockTenantMemberRepo{}, &mockClientRepo{},
+			&mockRoleRepo{}, &mockUserRoleRepo{}, &mockUserIdentityRepo{}, &mockProfileRepo{},
+			&mockSetupStateRepo{complete: true},
+		)
+		res, err := svc.GetSetupStatus(context.Background())
+		require.NoError(t, err)
 		assert.True(t, res.IsSetupComplete)
+	})
+}
+
+func TestSetupService_CompleteSetup(t *testing.T) {
+	t.Run("requires tenant admin and profile before locking", func(t *testing.T) {
+		svc := NewSetupService(nil,
+			&mockUserRepo{},
+			&mockTenantRepo{findAllFn: func(...string) ([]Tenant, error) { return nil, nil }},
+			&mockTenantMemberRepo{}, &mockClientRepo{},
+			&mockRoleRepo{}, &mockUserRoleRepo{}, &mockUserIdentityRepo{}, &mockProfileRepo{},
+			&mockSetupStateRepo{},
+		)
+
+		_, err := svc.CompleteSetup(context.Background())
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "tenant, admin, and profile setup")
+	})
+
+	t.Run("marks persisted lock when bootstrap is ready", func(t *testing.T) {
+		stateRepo := &mockSetupStateRepo{}
+		svc := NewSetupService(nil,
+			&mockUserRepo{findSuperAdminFn: func() (*User, error) { return &User{UserID: 1}, nil }},
+			&mockTenantRepo{
+				findAllFn:    func(...string) ([]Tenant, error) { return []Tenant{{TenantID: 1}}, nil },
+				findSystemFn: func() (*Tenant, error) { return &Tenant{TenantID: 1}, nil },
+			},
+			&mockTenantMemberRepo{}, &mockClientRepo{},
+			&mockRoleRepo{}, &mockUserRoleRepo{}, &mockUserIdentityRepo{},
+			&mockProfileRepo{findByUserIDFn: func(_ int64) (*Profile, error) { return &Profile{ProfileID: 1}, nil }},
+			stateRepo,
+		)
+
+		res, err := svc.CompleteSetup(context.Background())
+		require.NoError(t, err)
+		assert.True(t, res.IsSetupComplete)
+		assert.True(t, stateRepo.complete)
+	})
+
+	t.Run("locked setup rejects tenant creation", func(t *testing.T) {
+		svc := NewSetupService(nil,
+			&mockUserRepo{}, &mockTenantRepo{},
+			&mockTenantMemberRepo{}, &mockClientRepo{},
+			&mockRoleRepo{}, &mockUserRoleRepo{}, &mockUserIdentityRepo{}, &mockProfileRepo{},
+			&mockSetupStateRepo{complete: true},
+		)
+
+		_, err := svc.CreateTenant(context.Background(), CreateTenantRequestDTO{Name: "maintainerd", DisplayName: "Maintainerd"})
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "setup is complete and locked")
 	})
 }
 

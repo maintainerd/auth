@@ -57,6 +57,10 @@ func JWTClaimsFromContext(ctx context.Context) *JWTClaims {
 	return claims
 }
 
+func ContextWithJWTClaims(ctx context.Context, claims *JWTClaims) context.Context {
+	return context.WithValue(ctx, jwtKey{}, claims)
+}
+
 // WithJWTClaims returns a shallow copy of r with the given JWTClaims stored
 // in its context. It is intended for use in tests.
 func WithJWTClaims(r *http.Request, claims *JWTClaims) *http.Request {

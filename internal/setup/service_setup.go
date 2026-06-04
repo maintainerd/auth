@@ -25,6 +25,7 @@ type SetupService interface {
 	CreateTenant(ctx context.Context, req CreateTenantRequestDTO) (*CreateTenantResponseDTO, error)
 	CreateAdmin(ctx context.Context, req CreateAdminRequestDTO) (*CreateAdminResponseDTO, error)
 	CreateProfile(ctx context.Context, req CreateProfileRequestDTO) (*CreateProfileResponseDTO, error)
+	CompleteSetup(ctx context.Context) (*CompleteSetupResponseDTO, error)
 }
 
 type setupService struct {
@@ -37,6 +38,7 @@ type setupService struct {
 	userRoleRepo     UserRoleRepository
 	userIdentityRepo UserIdentityRepository
 	profileRepo      ProfileRepository
+	setupStateRepo   SetupStateRepository
 }
 
 func NewSetupService(
@@ -49,7 +51,12 @@ func NewSetupService(
 	userRoleRepo UserRoleRepository,
 	userIdentityRepo UserIdentityRepository,
 	profileRepo ProfileRepository,
+	setupStateRepo ...SetupStateRepository,
 ) SetupService {
+	stateRepo := NewOpenSetupStateRepository()
+	if len(setupStateRepo) > 0 && setupStateRepo[0] != nil {
+		stateRepo = setupStateRepo[0]
+	}
 	return &setupService{
 		db:               db,
 		userRepo:         userRepo,
@@ -60,6 +67,7 @@ func NewSetupService(
 		userRoleRepo:     userRoleRepo,
 		userIdentityRepo: userIdentityRepo,
 		profileRepo:      profileRepo,
+		setupStateRepo:   stateRepo,
 	}
 }
 
@@ -96,18 +104,27 @@ func (s *setupService) GetSetupStatus(ctx context.Context) (*SetupStatusResponse
 		}
 	}
 
+	isSetupComplete, err := s.setupStateRepo.IsComplete(SetupStateBootstrap)
+	if err != nil {
+		return nil, err
+	}
+
 	span.SetStatus(codes.Ok, "")
 	return &SetupStatusResponseDTO{
 		IsTenantSetup:   isTenantSetup,
 		IsAdminSetup:    isAdminSetup,
 		IsProfileSetup:  isProfileSetup,
-		IsSetupComplete: isTenantSetup && isAdminSetup && isProfileSetup,
+		IsSetupComplete: isSetupComplete,
 	}, nil
 }
 
 func (s *setupService) CreateTenant(ctx context.Context, req CreateTenantRequestDTO) (*CreateTenantResponseDTO, error) {
 	_, span := otel.Tracer("service").Start(ctx, "setup.createTenant")
 	defer span.End()
+
+	if err := s.ensureSetupOpen(); err != nil {
+		return nil, err
+	}
 
 	// Check if tenant already exists
 	tenants, err := s.tenantRepo.FindAll()
@@ -212,6 +229,10 @@ func (s *setupService) CreateTenant(ctx context.Context, req CreateTenantRequest
 func (s *setupService) CreateAdmin(ctx context.Context, req CreateAdminRequestDTO) (*CreateAdminResponseDTO, error) {
 	_, span := otel.Tracer("service").Start(ctx, "setup.createAdmin")
 	defer span.End()
+
+	if err := s.ensureSetupOpen(); err != nil {
+		return nil, err
+	}
 
 	// Check if tenant exists
 	tenants, err := s.tenantRepo.FindAll()
@@ -384,6 +405,10 @@ func (s *setupService) CreateProfile(ctx context.Context, req CreateProfileReque
 	_, span := otel.Tracer("service").Start(ctx, "setup.createProfile")
 	defer span.End()
 
+	if err := s.ensureSetupOpen(); err != nil {
+		return nil, err
+	}
+
 	// Find the super admin user (the only user during setup)
 	user, err := s.userRepo.FindSuperAdmin()
 	if err != nil {
@@ -484,4 +509,41 @@ func (s *setupService) CreateProfile(ctx context.Context, req CreateProfileReque
 	return &CreateProfileResponseDTO{
 		Profile: *profileResponse,
 	}, nil
+}
+
+func (s *setupService) CompleteSetup(ctx context.Context) (*CompleteSetupResponseDTO, error) {
+	_, span := otel.Tracer("service").Start(ctx, "setup.complete")
+	defer span.End()
+
+	status, err := s.GetSetupStatus(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if status.IsSetupComplete {
+		return &CompleteSetupResponseDTO{IsSetupComplete: true}, nil
+	}
+	if !status.IsTenantSetup || !status.IsAdminSetup || !status.IsProfileSetup {
+		return nil, apperror.NewValidation("tenant, admin, and profile setup must be completed before locking setup")
+	}
+
+	now := time.Now().UTC()
+	if _, err := s.setupStateRepo.MarkComplete(SetupStateBootstrap, now); err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "complete setup failed")
+		return nil, err
+	}
+
+	span.SetStatus(codes.Ok, "")
+	return &CompleteSetupResponseDTO{IsSetupComplete: true}, nil
+}
+
+func (s *setupService) ensureSetupOpen() error {
+	complete, err := s.setupStateRepo.IsComplete(SetupStateBootstrap)
+	if err != nil {
+		return err
+	}
+	if complete {
+		return apperror.NewConflict("setup is complete and locked")
+	}
+	return nil
 }

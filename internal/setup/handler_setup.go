@@ -28,6 +28,16 @@ func (h *SetupHandler) GetSetupStatus(w http.ResponseWriter, r *http.Request) {
 	resp.Success(w, status, "Setup status retrieved successfully")
 }
 
+func (h *SetupHandler) CompleteSetup(w http.ResponseWriter, r *http.Request) {
+	response, err := h.setupService.CompleteSetup(r.Context())
+	if err != nil {
+		resp.HandleServiceError(w, r, "Failed to complete setup", err)
+		return
+	}
+
+	resp.Success(w, response, "Setup completed successfully")
+}
+
 // CreateTenant creates the initial tenant and runs all seeders
 func (h *SetupHandler) CreateTenant(w http.ResponseWriter, r *http.Request) {
 	var req CreateTenantRequestDTO
