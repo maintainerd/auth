@@ -1595,8 +1595,8 @@
     "semantic_hash": ""
   },
   "/home/reyco/Desktop/xreyc/maintainerd/maintainerd-auth/README.md": {
-    "mtime": 1780280756.880436,
-    "ast_hash": "af7861193f616368acf62444b0ad3f86",
+    "mtime": 1780532240.0654535,
+    "ast_hash": "849a38eaa2772c1d463923fce9c13f64",
     "semantic_hash": ""
   },
   "/home/reyco/Desktop/xreyc/maintainerd/maintainerd-auth/docker-compose.yml": {
@@ -3240,8 +3240,8 @@
     "semantic_hash": ""
   },
   "/home/reyco/Desktop/xreyc/maintainerd/maintainerd-auth/internal/user/service_user_test.go": {
-    "mtime": 1780530763.619752,
-    "ast_hash": "ce725dec17951f143dbceb78db52b628",
+    "mtime": 1780531206.8110003,
+    "ast_hash": "9f264600a3acd47bed3939c6aeefaca3",
     "semantic_hash": ""
   },
   "/home/reyco/Desktop/xreyc/maintainerd/maintainerd-auth/internal/user/model_setting.go": {
@@ -4587,6 +4587,36 @@
   "/home/reyco/Desktop/xreyc/maintainerd/maintainerd-auth/docs/planning/service-to-service-authorization.md": {
     "mtime": 1780531119.1896482,
     "ast_hash": "c6edca7985a2b8fe373128433d0693df",
+    "semantic_hash": ""
+  },
+  "/home/reyco/Desktop/xreyc/maintainerd/maintainerd-auth/internal/user/model_profile_test.go": {
+    "mtime": 1780531144.4271753,
+    "ast_hash": "465de4ff06bbc13f5fcdec1daa7e1f6d",
+    "semantic_hash": ""
+  },
+  "/home/reyco/Desktop/xreyc/maintainerd/maintainerd-auth/internal/user/model_user_pool_test.go": {
+    "mtime": 1780531152.4665794,
+    "ast_hash": "b7e2e576152e4ba645733948e3f1216a",
+    "semantic_hash": ""
+  },
+  "/home/reyco/Desktop/xreyc/maintainerd/maintainerd-auth/internal/user/model_user_role_test.go": {
+    "mtime": 1780531155.2398434,
+    "ast_hash": "e496e296f25deba73d17c59242264274",
+    "semantic_hash": ""
+  },
+  "/home/reyco/Desktop/xreyc/maintainerd/maintainerd-auth/internal/user/model_user_test.go": {
+    "mtime": 1780531141.8119032,
+    "ast_hash": "419de858b8d5a843c18005c48f6efcf5",
+    "semantic_hash": ""
+  },
+  "/home/reyco/Desktop/xreyc/maintainerd/maintainerd-auth/internal/user/model_user_identity_test.go": {
+    "mtime": 1780531149.761124,
+    "ast_hash": "651e8687d99e619bdddfcb3f2bde5826",
+    "semantic_hash": ""
+  },
+  "/home/reyco/Desktop/xreyc/maintainerd/maintainerd-auth/internal/user/model_setting_test.go": {
+    "mtime": 1780531147.0766885,
+    "ast_hash": "53ffac06bb22189d1fc7b9587dc75725",
     "semantic_hash": ""
   }
 }

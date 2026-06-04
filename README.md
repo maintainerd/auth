@@ -22,7 +22,7 @@
   </a>
 </p>
 
-An open-source, self-hostable identity server. Handles authentication, authorization, and user management so your services don't have to.
+An open-source, self-hostable identity and access platform. Delivers identity and access management (IAM) for applications, services, and APIs — from authentication and federation to fine-grained authorization.
 
 ---
 
@@ -32,7 +32,8 @@ An open-source, self-hostable identity server. Handles authentication, authoriza
 - **JWT (RS256)** with multi-key JWKS and automatic key rotation
 - **Multi-factor authentication** — TOTP, WebAuthn/passkeys, SMS OTP, backup codes, step-up auth
 - **Federation** — OIDC upstream connectors (Google, Microsoft, Apple, GitHub, GitLab), JIT provisioning, identity linking, home-realm discovery
-- **Multi-tenant** — full tenant isolation, RBAC with granular permissions, API keys, invite flows
+- **Fine-grained access control** — RBAC with granular permissions, plus an IAM resource model of services, APIs, permissions, and policies
+- **Multi-tenant** — full tenant isolation, API keys, invite flows
 - **Session management** — refresh token rotation, family revocation, reuse detection, concurrent session limits
 - **Webhook delivery** — auth event notifications with HMAC-SHA256 signatures and replay protection
 - **Audit logging** — structured auth events with retention, per-tenant isolation, and PII redaction
