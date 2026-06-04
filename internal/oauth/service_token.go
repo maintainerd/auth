@@ -32,7 +32,6 @@ var (
 	oauthTokenGenerateRandomString                  = crypto.GenerateRandomString
 	oauthTokenGenerateAccessTokenWithOptionsContext = jwt.GenerateAccessTokenWithOptionsContext
 	oauthTokenGenerateIDTokenWithContext            = jwt.GenerateIDTokenWithContext
-	oauthTokenGenerateRefreshTokenWithContext       = jwt.GenerateRefreshTokenWithContext
 	oauthTokenValidateTokenWithContext              = jwt.ValidateTokenWithContext
 )
 

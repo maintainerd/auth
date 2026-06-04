@@ -139,7 +139,7 @@ func newSecretManager() (SecretManager, error) {
 	case "azure_kv":
 		vaultURL, err := GetEnv("AZURE_KEYVAULT_URL")
 		if err != nil {
-			return nil, fmt.Errorf("Azure Key Vault requires AZURE_KEYVAULT_URL: %w", err)
+			return nil, fmt.Errorf("azure key vault requires AZURE_KEYVAULT_URL: %w", err)
 		}
 		slog.Info("Secret provider: Azure Key Vault", "url", vaultURL)
 		return newAzureKeyVaultManager(vaultURL)

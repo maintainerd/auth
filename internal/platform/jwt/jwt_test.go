@@ -908,19 +908,19 @@ func TestValidateTokenWithContext_Success(t *testing.T) {
 	assert.Equal(t, "user-uuid", claims["sub"])
 }
 
-func TestValidateTokenWithContext_NilContext(t *testing.T) {
+func TestValidateTokenWithContext_TODOContext(t *testing.T) {
 	initTestJWTKeys(t)
 	tok, err := GenerateAccessToken("user-uuid", "read", "https://auth.example.com", "myapp", "client-1", "provider-1")
 	require.NoError(t, err)
 
-	claims, err := ValidateTokenWithContext(nil, tok)
+	claims, err := ValidateTokenWithContext(context.TODO(), tok)
 	require.NoError(t, err)
 	assert.NotNil(t, claims)
 }
 
-func TestGenerateAccessTokenWithOptionsContext_NilContext(t *testing.T) {
+func TestGenerateAccessTokenWithOptionsContext_TODOContext(t *testing.T) {
 	initTestJWTKeys(t)
-	tok, err := GenerateAccessTokenWithOptionsContext(nil, "user-uuid", "read", "https://auth.example.com", "myapp", "client-1", "provider-1", nil)
+	tok, err := GenerateAccessTokenWithOptionsContext(context.TODO(), "user-uuid", "read", "https://auth.example.com", "myapp", "client-1", "provider-1", nil)
 	require.NoError(t, err)
 	assert.NotEmpty(t, tok)
 }

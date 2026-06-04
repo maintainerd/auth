@@ -29,7 +29,7 @@ func buildECPublicKey(crv string, x, y []byte) (*ecdsa.PublicKey, error) {
 		X:     new(big.Int).SetBytes(x),
 		Y:     new(big.Int).SetBytes(y),
 	}
-	if !curve.IsOnCurve(pub.X, pub.Y) {
+	if _, err := pub.ECDH(); err != nil {
 		return nil, fmt.Errorf("EC point (%s) is not on curve %q", crv, crv)
 	}
 	return pub, nil

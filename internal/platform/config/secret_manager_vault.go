@@ -48,7 +48,7 @@ func newVaultSecretManager(address, token, prefix, mount string) (*vaultSecretMa
 
 	client, err := vaultNewClient(cfg)
 	if err != nil {
-		return nil, fmt.Errorf("Vault: failed to create client: %w", err)
+		return nil, fmt.Errorf("vault: failed to create client: %w", err)
 	}
 
 	if token != "" {
@@ -56,7 +56,7 @@ func newVaultSecretManager(address, token, prefix, mount string) (*vaultSecretMa
 	} else {
 		// Fall back to AppRole authentication.
 		if err := vaultAppRoleLogin(client); err != nil {
-			return nil, fmt.Errorf("Vault: AppRole login failed (set VAULT_TOKEN or VAULT_ROLE_ID+VAULT_SECRET_ID): %w", err)
+			return nil, fmt.Errorf("vault: AppRole login failed (set VAULT_TOKEN or VAULT_ROLE_ID+VAULT_SECRET_ID): %w", err)
 		}
 	}
 
@@ -106,10 +106,10 @@ func (v *vaultSecretManager) GetSecret(key string) ([]byte, error) {
 	defer cancel()
 	secret, err := v.kv.Get(ctx, path)
 	if err != nil {
-		return nil, fmt.Errorf("Vault: failed to read %q at mount %q: %w", path, v.mount, err)
+		return nil, fmt.Errorf("vault: failed to read %q at mount %q: %w", path, v.mount, err)
 	}
 	if secret == nil || secret.Data == nil {
-		return nil, fmt.Errorf("Vault: secret %q not found", path)
+		return nil, fmt.Errorf("vault: secret %q not found", path)
 	}
 
 	val, ok := secret.Data[v.field]
@@ -118,12 +118,12 @@ func (v *vaultSecretManager) GetSecret(key string) ([]byte, error) {
 		for k := range secret.Data {
 			keys = append(keys, k)
 		}
-		return nil, fmt.Errorf("Vault: secret %q missing field %q (found: %v)", path, v.field, keys)
+		return nil, fmt.Errorf("vault: secret %q missing field %q (found: %v)", path, v.field, keys)
 	}
 
 	str, ok := val.(string)
 	if !ok {
-		return nil, fmt.Errorf("Vault: field %q in secret %q is not a string (got %T)", v.field, path, val)
+		return nil, fmt.Errorf("vault: field %q in secret %q is not a string (got %T)", v.field, path, val)
 	}
 	return []byte(str), nil
 }
