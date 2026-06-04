@@ -32,7 +32,7 @@ An open-source, self-hostable identity and access platform. Delivers identity an
 - **JWT (RS256)** with multi-key JWKS and automatic key rotation
 - **Multi-factor authentication** — TOTP, WebAuthn/passkeys, SMS OTP, backup codes, step-up auth
 - **Federation** — OIDC upstream connectors (Google, Microsoft, Apple, GitHub, GitLab), JIT provisioning, identity linking, home-realm discovery
-- **Fine-grained access control** — RBAC with granular permissions, plus an IAM resource model of services, APIs, permissions, and policies
+- **Fine-grained access control** — RBAC with granular permissions, plus IAM services, APIs, permissions, policies, service-token policy bundles, and service-to-service authorization
 - **Multi-tenant** — full tenant isolation, API keys, invite flows
 - **Session management** — refresh token rotation, family revocation, reuse detection, concurrent session limits
 - **Webhook delivery** — auth event notifications with HMAC-SHA256 signatures and replay protection
@@ -73,6 +73,7 @@ cat keys/jwt_env_vars.txt >> .env
 | [Getting Started](docs/contributing/getting-started.md) | Set up your local development environment |
 | [Environment Variables](docs/contributing/environment-variables.md) | All configuration variables |
 | [API Reference](docs/apis/) | Full REST API reference |
+| [Service-to-Service Authorization](docs/apis/iam/authorization.md) | IAM policy bundles, local authorization, and service integration |
 | [Architecture](docs/architecture/) | System design and data flow |
 
 ---

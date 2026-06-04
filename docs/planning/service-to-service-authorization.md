@@ -140,7 +140,7 @@ Validation of the *structure* already exists in
 [`internal/iam/validation_policy.go`](../../internal/iam/validation_policy.go) — reuse it.
 
 **Optional convenience endpoint** (for services that can't embed the SDK, e.g. another
-language): `POST /api/v1/authorize { principal, action, resource } → { decision }`. Same
+language): `POST /api/v1/authorize/ { principal, action, resource } → { decision }`. Same
 `Evaluate()` under the hood. Lower priority than the bundle path since the whole point is to
 *avoid* per-request calls.
 
@@ -232,7 +232,7 @@ if !authz.CanPrincipal(callerSvc, "serviceB:invoke", "serviceB:grpc") { ... }
 
 The SDK = token acquisition + bundle cache + `Evaluate()` (the **same** code from §4) +
 poll loop + optional webhook receiver. Ships in this repo or a sibling module; the
-evaluator is shared so server `/authorize` and SDK never diverge.
+evaluator is shared so server `/authorize/` and SDK never diverge.
 
 ---
 
@@ -243,10 +243,10 @@ Stable IDs `S2S-*` for tracking in [bugs-and-enhancements.md](./bugs-and-enhance
 - [x] **S2S-01** — Service principal: link `Service` ↔ OAuth `client_credentials` client; emit service identity in token (`sub`/`svc` claim). _(oauth, iam)_
 - [x] **S2S-02** — PDP engine `internal/iam/policy_evaluator.go`: default-deny, explicit-deny-wins, action/resource wildcard matching, v1-only. Exhaustive table tests. _(iam)_
 - [x] **S2S-03** — Bundle endpoint `GET /api/v1/services/me/policy-bundle` with `ETag`/`If-None-Match`/`304`, principal-from-token, active-only resolution. _(iam)_
-- [x] **S2S-04** — Webhook events `iam.policy.updated`, `iam.service.policy.assigned/removed` wired into existing dispatcher. _(webhook, iam)_
+- [x] **S2S-04** — Webhook events `iam.policy.updated`, `iam.service.policy.assigned`/`iam.service.policy.removed` wired into existing dispatcher. _(webhook, iam)_
 - [x] **S2S-05** — Client SDK module: token acquisition + bundle cache + shared `Evaluate()` + poll loop + optional webhook receiver. _(new module)_
 - [x] **S2S-06** — Short service-token TTL default + denylist integration verified for instant revocation. _(oauth)_
-- [x] **S2S-07** — (Optional) `POST /api/v1/authorize` convenience endpoint reusing `Evaluate()` for non-Go callers. _(iam)_
+- [x] **S2S-07** — (Optional) `POST /api/v1/authorize/` convenience endpoint reusing `Evaluate()` for non-Go callers. _(iam)_
 - [x] **S2S-08** — Docs: `docs/apis/iam/authorization.md` (bundle + authorize), integration guide for service A/B. _(docs)_
 
 **Test obligations** (per [`docs/contributing/testing.md`](../contributing/testing.md)):

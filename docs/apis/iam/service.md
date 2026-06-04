@@ -16,8 +16,14 @@ A **Service** represents an external application or system that integrates with 
 | DELETE | `/api/v1/services/{service_uuid}` | Delete a service |
 | POST | `/api/v1/services/{service_uuid}/policies/{policy_uuid}` | Assign a policy to a service |
 | DELETE | `/api/v1/services/{service_uuid}/policies/{policy_uuid}` | Remove a policy from a service |
+| GET | `/api/v1/services/me/policy-bundle` | Fetch the current service principal's IAM policy bundle |
 
 All endpoints require: `Authorization: Bearer <token>` — Port 8080
+
+`GET /services/me/policy-bundle` requires a service-principal access token from
+the OAuth `client_credentials` flow. See
+[Service-to-Service Authorization](./authorization.md) for bundle caching,
+`ETag` handling, and local authorization.
 
 ---
 
@@ -360,7 +366,7 @@ curl -X DELETE "http://localhost:8080/api/v1/services/3fa85f64-5717-4562-b3fc-2c
 
 ## POST /api/v1/services/{service_uuid}/policies/{policy_uuid}
 
-Associates a policy with a service for access control. Both the service and policy must belong to the authenticated tenant.
+Associates a policy with a service for access control. Both the service and policy must belong to the authenticated tenant. Assignment emits `iam.service.policy.assigned` so service-policy bundle consumers can refresh cached authorization data.
 
 ### Path Parameters
 
@@ -398,7 +404,7 @@ curl -X POST "http://localhost:8080/api/v1/services/3fa85f64-5717-4562-b3fc-2c96
 
 ## DELETE /api/v1/services/{service_uuid}/policies/{policy_uuid}
 
-Removes the association between a policy and a service. The access control rules defined by the policy no longer apply to the service.
+Removes the association between a policy and a service. The access control rules defined by the policy no longer apply to the service. Removal emits `iam.service.policy.removed` so service-policy bundle consumers can refresh cached authorization data.
 
 ### Path Parameters
 

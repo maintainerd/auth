@@ -39,7 +39,7 @@ known untested logic. Cross-references in parentheses point to
 - [ ] **`platform/email`** — provider factory + each adapter (SES/SendGrid/Postmark/Mailgun/Resend/SMTP) smoke tests.
 - [ ] **`platform/telemetry`** — meter/tracer provider init, build-info gauge.
 - [ ] **`platform/logging`** — `RedactString` behavior (currently over-redacts free-text, SEC-35) + PII handler field redaction.
-- [ ] **`platform/jwt`** — span/`ctx` propagation (OPS-02), `JTIChecker` denylist read path (SEC-23), `rand.Read` error handling (SEC-32), multi-key JWKS / rotation.
+- [x] **`platform/jwt`** — span/`ctx` propagation (OPS-02), `JTIChecker` denylist read path (SEC-23), `rand.Read` error handling (SEC-32), multi-key JWKS / rotation.
 - [ ] **`webhook`** — SSRF URL guard (loopback/private/redirect re-check, SEC-18) + HMAC signer + replay window.
 - [ ] **`idp`** — thin federation branches: JIT merge (SEC-09), HRD (FC-11), OIDC verify.
 - [ ] **`platform/templates/emailtemplate`, `platform/model`, `shared`** — smoke/render tests where branching logic exists.

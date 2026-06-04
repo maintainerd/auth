@@ -1,6 +1,6 @@
 # maintainerd-auth - Feature Audit
 
-Last audited: 2026-05-30, after the domain-grouped rearchitecture.
+Last audited: 2026-06-04, after the v1.0.0 service-to-service authorization pass.
 
 Legend:
 
@@ -131,6 +131,13 @@ This file is intentionally an implementation-facing checklist. Marketing copy an
 - [x] Permissions
 - [x] Policies
 - [x] Services and APIs as IAM resources
+- [x] Service principals linked to OAuth `client_credentials` clients
+- [x] Service identity claims in access tokens (`sub_type=service`, `svc`)
+- [x] IAM policy evaluator with default deny, explicit-deny-wins, and wildcard matching
+- [x] Service policy bundle endpoint with `ETag` and `304 Not Modified`
+- [x] Service-to-service authorization endpoint for non-Go callers
+- [x] Go `authzclient` module with token acquisition, bundle cache, polling, webhook refresh, and shared evaluator
+- [x] IAM policy update and service-policy assignment/removal webhook invalidation events
 - [x] API keys scoped to APIs and permissions
 - [x] Signup flows with automatic role assignment
 - [x] Invite system with pre-assigned roles
@@ -341,5 +348,5 @@ This file is intentionally an implementation-facing checklist. Marketing copy an
 
 ## Release Roadmap Claims
 
-- [ ] v1.0.0 is not yet accurately represented by the old release claim of complete OAuth/OIDC, MFA, SAML, SCIM, federation, gRPC, and full security hardening.
+- [x] v1.0.0 release documentation is aligned with implemented OAuth/OIDC, MFA, federation, IAM, S2S authorization, CI, and test coverage status.
 - [ ] v2.0.0 enterprise roadmap items such as LDAP/AD, ABAC, adaptive MFA, FAPI 2.0, SDKs, multi-region HA, and compliance are not implemented in this repository.

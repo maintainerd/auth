@@ -89,6 +89,13 @@ curl -X POST "https://auth.example.com/api/v1/oauth/token" \
 
 Issues an access token directly to the client, without user involvement. Used for machine-to-machine authentication.
 
+When the OAuth client is linked to an IAM service through `clients.service_id`,
+the issued access token represents that service principal. The token subject is
+the service name and includes `sub_type=service` plus `svc=<service name>`,
+which allows the service to fetch
+`GET /api/v1/services/me/policy-bundle` and participate in
+[service-to-service authorization](../iam/authorization.md).
+
 #### Example
 
 ```bash
