@@ -3,7 +3,6 @@ package mfa
 import (
 	"context"
 	"database/sql/driver"
-	"regexp"
 	"testing"
 	"time"
 
@@ -99,6 +98,4 @@ func assertExpectationsMet(t *testing.T, mock sqlmock.Sqlmock) {
 	require.NoError(t, mock.ExpectationsWereMet())
 }
 
-func quoteMeta(pattern string) string {
-	return regexp.QuoteMeta(pattern)
-}
+

@@ -697,20 +697,16 @@ func TestOAuthTokenHandler_Token_SuccessWithDPoPProof(t *testing.T) {
 
 func ecJWKForTest(t *testing.T, pub *ecdsa.PublicKey) map[string]any {
 	t.Helper()
-	size := (pub.Curve.Params().BitSize + 7) / 8
+	ecdhKey, err := pub.ECDH()
+	require.NoError(t, err)
+	point := ecdhKey.Bytes()
+	size := (len(point) - 1) / 2
 	return map[string]any{
 		"kty": "EC",
 		"crv": "P-256",
-		"x":   base64.RawURLEncoding.EncodeToString(leftPadBytes(pub.X.Bytes(), size)),
-		"y":   base64.RawURLEncoding.EncodeToString(leftPadBytes(pub.Y.Bytes(), size)),
+		"x":   base64.RawURLEncoding.EncodeToString(point[1 : 1+size]),
+		"y":   base64.RawURLEncoding.EncodeToString(point[1+size:]),
 	}
 }
 
-func leftPadBytes(in []byte, size int) []byte {
-	if len(in) >= size {
-		return in
-	}
-	out := make([]byte, size)
-	copy(out[size-len(in):], in)
-	return out
-}
+
