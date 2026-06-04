@@ -167,6 +167,13 @@ func TestAccountHandler_VerifyEmailChange(t *testing.T) {
 		assert.Equal(t, http.StatusUnauthorized, w.Code)
 	})
 
+	t.Run("invalid JSON returns 400", func(t *testing.T) {
+		r := withAuthUser(badJSONReq(t, http.MethodPost, "/account/email/verify"))
+		w := httptest.NewRecorder()
+		NewAccountHandler(&mockAccountService{}, &mockSessionService{}).VerifyEmailChange(w, r)
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+	})
+
 	t.Run("validation error returns 400", func(t *testing.T) {
 		r := withAuthUser(jsonReq(t, http.MethodPost, "/account/email/verify", map[string]string{"otp": ""}))
 		w := httptest.NewRecorder()
@@ -200,6 +207,30 @@ func TestAccountHandler_ChangeUsername(t *testing.T) {
 		assert.Equal(t, http.StatusUnauthorized, w.Code)
 	})
 
+	t.Run("invalid JSON returns 400", func(t *testing.T) {
+		r := withAuthUser(badJSONReq(t, http.MethodPut, "/account/username"))
+		w := httptest.NewRecorder()
+		NewAccountHandler(&mockAccountService{}, &mockSessionService{}).ChangeUsername(w, r)
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+	})
+
+	t.Run("validation error returns 400", func(t *testing.T) {
+		r := withAuthUser(jsonReq(t, http.MethodPut, "/account/username", map[string]string{"new_username": "", "current_password": ""}))
+		w := httptest.NewRecorder()
+		NewAccountHandler(&mockAccountService{}, &mockSessionService{}).ChangeUsername(w, r)
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+	})
+
+	t.Run("service error returns 500", func(t *testing.T) {
+		svc := &mockAccountService{
+			changeUsernameFn: func(int64, string, string) error { return errors.New("db error") },
+		}
+		r := withAuthUser(jsonReq(t, http.MethodPut, "/account/username", map[string]string{"new_username": "newuser", "current_password": "pass"}))
+		w := httptest.NewRecorder()
+		NewAccountHandler(svc, &mockSessionService{}).ChangeUsername(w, r)
+		assert.Equal(t, http.StatusInternalServerError, w.Code)
+	})
+
 	t.Run("success returns 200", func(t *testing.T) {
 		r := withAuthUser(jsonReq(t, http.MethodPut, "/account/username", map[string]string{"new_username": "newuser", "current_password": "pass"}))
 		w := httptest.NewRecorder()
@@ -216,6 +247,30 @@ func TestAccountHandler_DeleteAccount(t *testing.T) {
 		assert.Equal(t, http.StatusUnauthorized, w.Code)
 	})
 
+	t.Run("invalid JSON returns 400", func(t *testing.T) {
+		r := withAuthUser(badJSONReq(t, http.MethodDelete, "/account"))
+		w := httptest.NewRecorder()
+		NewAccountHandler(&mockAccountService{}, &mockSessionService{}).DeleteAccount(w, r)
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+	})
+
+	t.Run("validation error returns 400", func(t *testing.T) {
+		r := withAuthUser(jsonReq(t, http.MethodDelete, "/account", map[string]string{"current_password": ""}))
+		w := httptest.NewRecorder()
+		NewAccountHandler(&mockAccountService{}, &mockSessionService{}).DeleteAccount(w, r)
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+	})
+
+	t.Run("service error returns 500", func(t *testing.T) {
+		svc := &mockAccountService{
+			deleteAccountFn: func(int64, string) error { return errors.New("db error") },
+		}
+		r := withAuthUser(jsonReq(t, http.MethodDelete, "/account", map[string]string{"current_password": "pass"}))
+		w := httptest.NewRecorder()
+		NewAccountHandler(svc, &mockSessionService{}).DeleteAccount(w, r)
+		assert.Equal(t, http.StatusInternalServerError, w.Code)
+	})
+
 	t.Run("success returns 200", func(t *testing.T) {
 		r := withAuthUser(jsonReq(t, http.MethodDelete, "/account", map[string]string{"current_password": "pass"}))
 		w := httptest.NewRecorder()
@@ -230,6 +285,16 @@ func TestAccountHandler_ExportAccountData(t *testing.T) {
 		w := httptest.NewRecorder()
 		NewAccountHandler(&mockAccountService{}, &mockSessionService{}).ExportAccountData(w, r)
 		assert.Equal(t, http.StatusUnauthorized, w.Code)
+	})
+
+	t.Run("service error returns 500", func(t *testing.T) {
+		svc := &mockAccountService{
+			exportAccountDataFn: func(int64) (*AccountExportDTO, error) { return nil, errors.New("db error") },
+		}
+		r := withAuthUser(httptest.NewRequest(http.MethodGet, "/account/export", nil))
+		w := httptest.NewRecorder()
+		NewAccountHandler(svc, &mockSessionService{}).ExportAccountData(w, r)
+		assert.Equal(t, http.StatusInternalServerError, w.Code)
 	})
 
 	t.Run("success returns 200", func(t *testing.T) {
@@ -253,6 +318,18 @@ func TestAccountHandler_GenerateBackupCodes(t *testing.T) {
 		assert.Equal(t, http.StatusUnauthorized, w.Code)
 	})
 
+	t.Run("service error returns 500", func(t *testing.T) {
+		svc := &mockAccountService{
+			generateBackupCodesFn: func(int64) (*GenerateBackupCodesResponseDTO, error) {
+				return nil, errors.New("db error")
+			},
+		}
+		r := withAuthUser(httptest.NewRequest(http.MethodPost, "/account/backup-codes", nil))
+		w := httptest.NewRecorder()
+		NewAccountHandler(svc, &mockSessionService{}).GenerateBackupCodes(w, r)
+		assert.Equal(t, http.StatusInternalServerError, w.Code)
+	})
+
 	t.Run("success returns 200", func(t *testing.T) {
 		r := withAuthUser(httptest.NewRequest(http.MethodPost, "/account/backup-codes", nil))
 		w := httptest.NewRecorder()
@@ -274,6 +351,20 @@ func TestAccountHandler_VerifyBackupCode(t *testing.T) {
 		w := httptest.NewRecorder()
 		NewAccountHandler(&mockAccountService{}, &mockSessionService{}).VerifyBackupCode(w, r)
 		assert.Equal(t, http.StatusBadRequest, w.Code)
+	})
+
+	t.Run("service error returns 500", func(t *testing.T) {
+		svc := &mockAccountService{
+			verifyBackupCodeFn: func(req VerifyBackupCodeDTO) (*LoginResponseDTO, error) {
+				return nil, errors.New("invalid code")
+			},
+		}
+		r := jsonReq(t, http.MethodPost, "/recovery/backup-code", map[string]string{
+			"email": "user@example.com", "code": "abc12345", "client_id": "app", "provider_id": "idp",
+		})
+		w := httptest.NewRecorder()
+		NewAccountHandler(svc, &mockSessionService{}).VerifyBackupCode(w, r)
+		assert.Equal(t, http.StatusInternalServerError, w.Code)
 	})
 
 	t.Run("success returns 200", func(t *testing.T) {
