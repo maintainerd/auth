@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/maintainerd/auth/internal/platform/config"
+	"github.com/maintainerd/auth/internal/platform/jwt"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -54,6 +55,20 @@ func TestOAuthDiscoveryHandler_Discovery(t *testing.T) {
 	require.NoError(t, json.NewDecoder(w.Body).Decode(&doc))
 	assert.Equal(t, "https://auth.example.com", doc.Issuer)
 	assert.Contains(t, doc.ScopesSupported, "openid")
+}
+
+func TestOAuthDiscoveryHandler_JWKS_EmptyKeys(t *testing.T) {
+	jwt.ResetJWTKeys()
+
+	w := httptest.NewRecorder()
+	NewOAuthDiscoveryHandler().JWKS(w, httptest.NewRequest(http.MethodGet, "/.well-known/jwks.json", nil))
+
+	assert.Equal(t, http.StatusInternalServerError, w.Code)
+	assert.Equal(t, "application/json", w.Header().Get("Content-Type"))
+
+	var body map[string]string
+	require.NoError(t, json.NewDecoder(w.Body).Decode(&body))
+	assert.Equal(t, "keys not initialised", body["error"])
 }
 
 func TestOAuthDiscoveryHandler_JWKS(t *testing.T) {

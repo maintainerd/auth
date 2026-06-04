@@ -271,6 +271,7 @@ func (m *mockOAuthConsentGrantRepo) Paginate(c map[string]any, pg, lim int, p ..
 type mockOAuthRefreshTokenRepo struct {
 	findByTokenHashFn func(string) (*OAuthRefreshToken, error)
 	revokeByIDFn      func(int64) error
+	createFn          func(*OAuthRefreshToken) (*OAuthRefreshToken, error)
 }
 
 func (m *mockOAuthRefreshTokenRepo) WithTx(_ *gorm.DB) OAuthRefreshTokenRepository { return m }
@@ -304,6 +305,9 @@ func (m *mockOAuthRefreshTokenRepo) CountByUserAndClient(userID, clientID int64)
 	return 0, nil
 }
 func (m *mockOAuthRefreshTokenRepo) Create(e *OAuthRefreshToken) (*OAuthRefreshToken, error) {
+	if m.createFn != nil {
+		return m.createFn(e)
+	}
 	return e, nil
 }
 func (m *mockOAuthRefreshTokenRepo) CreateOrUpdate(e *OAuthRefreshToken) (*OAuthRefreshToken, error) {

@@ -190,4 +190,25 @@ func TestOAuthConsentService_RevokeGrant(t *testing.T) {
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "failed to revoke consent grant")
 	})
+
+	t.Run("non-nil authEventService logs event", func(t *testing.T) {
+		grantUUID := uuid.New()
+		var logged bool
+
+		svc := NewOAuthConsentService(&mockOAuthConsentGrantRepo{
+			findByUserIDFn: func(uid int64) ([]OAuthConsentGrant, error) {
+				return []OAuthConsentGrant{
+					{OAuthConsentGrantUUID: grantUUID, UserID: uid, ClientID: 10},
+				}, nil
+			},
+			deleteByUserAndClientFn: func(_, _ int64) error {
+				logged = true
+				return nil
+			},
+		}, &mockAuthEventService{})
+
+		err := svc.RevokeGrant(ctx, grantUUID, 1)
+		require.NoError(t, err)
+		assert.True(t, logged)
+	})
 }

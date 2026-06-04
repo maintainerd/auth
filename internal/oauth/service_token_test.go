@@ -2,7 +2,9 @@ package oauth
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"fmt"
 	"regexp"
 	"testing"
 	"time"
@@ -16,6 +18,7 @@ import (
 	"github.com/maintainerd/auth/internal/platform/security"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"gorm.io/datatypes"
 	"gorm.io/gorm"
 )
 
@@ -536,6 +539,86 @@ func TestOAuthTokenService_Exchange(t *testing.T) {
 		require.NotNil(t, oerr)
 		assert.Equal(t, "server_error", oerr.Code)
 	})
+
+	t.Run("authorization_code — client lacks authorization_code grant", func(t *testing.T) {
+		db, mock := newMockDB(t)
+		rows := sqlmock.NewRows([]string{
+			"client_id", "client_uuid", "tenant_id", "identity_provider_id", "name", "display_name",
+			"client_type", "domain", "identifier", "secret", "status",
+			"is_default", "is_system", "token_endpoint_auth_method",
+			"grant_types", "response_types", "access_token_ttl", "refresh_token_ttl",
+			"require_consent", "created_at", "updated_at",
+		}).AddRow(
+			10, uuid.New(), 1, int64(100), "test-client", "Test Client",
+			"spa", "https://auth.example.com", "my-client", nil, "active",
+			false, false, "none",
+			`{client_credentials,refresh_token}`, `{code}`, nil, nil,
+			true, time.Now(), time.Now(),
+		)
+		expectClientLookup(mock, rows)
+
+		svc := newOAuthTokenSvc(db, &mockClientRepo{}, &mockOAuthAuthCodeRepo{}, &mockOAuthRefreshTokenRepo{}, &mockUserRepo{},
+			&mockUserIdentityRepo{findByUserIDAndClientIDFn: func(_, _ int64) (*UserIdentity, error) { return nil, nil }},
+			&mockAuthEventService{})
+
+		_, oerr := svc.Exchange(ctx, OAuthTokenRequestDTO{
+			GrantType:    "authorization_code",
+			Code:         "code123",
+			RedirectURI:  "https://example.com/callback",
+			CodeVerifier: "abc",
+		}, OAuthClientCredentials{ClientID: "my-client"})
+		require.NotNil(t, oerr)
+		assert.Equal(t, "unauthorized_client", oerr.Code)
+		assert.Contains(t, oerr.Description, "authorization_code grant")
+	})
+
+	t.Run("authorization_code — scope not in client AllowedScopes", func(t *testing.T) {
+		verifier := "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"
+		challenge := crypto.ComputeS256Challenge(verifier)
+
+		db, mock := newMockDB(t)
+		rows := sqlmock.NewRows([]string{
+			"client_id", "client_uuid", "tenant_id", "identity_provider_id", "name", "display_name",
+			"client_type", "domain", "identifier", "secret", "status",
+			"is_default", "is_system", "token_endpoint_auth_method",
+			"grant_types", "response_types", "access_token_ttl", "refresh_token_ttl",
+			"require_consent", "allowed_scopes", "created_at", "updated_at",
+		}).AddRow(
+			10, uuid.New(), 1, int64(100), "test-client", "Test Client",
+			"spa", "https://auth.example.com", "my-client", nil, "active",
+			false, false, "none",
+			`{authorization_code,refresh_token}`, `{code}`, nil, nil,
+			true, pq.StringArray{"openid"}, time.Now(), time.Now(),
+		)
+		expectClientLookup(mock, rows)
+
+		svc := newOAuthTokenSvc(db, &mockClientRepo{},
+			&mockOAuthAuthCodeRepo{
+				findByCodeHashFn: func(_ string) (*OAuthAuthorizationCode, error) {
+					return &OAuthAuthorizationCode{
+						ClientID:            10,
+						UserID:              1,
+						RedirectURI:         "https://example.com/callback",
+						Scope:               "openid profile",
+						CodeChallenge:       challenge,
+						CodeChallengeMethod: "S256",
+						ExpiresAt:           time.Now().Add(10 * time.Minute),
+					}, nil
+				},
+			},
+			&mockOAuthRefreshTokenRepo{}, &mockUserRepo{},
+			&mockUserIdentityRepo{findByUserIDAndClientIDFn: func(_, _ int64) (*UserIdentity, error) { return nil, nil }},
+			&mockAuthEventService{})
+
+		_, oerr := svc.Exchange(ctx, OAuthTokenRequestDTO{
+			GrantType:    "authorization_code",
+			Code:         "code123",
+			RedirectURI:  "https://example.com/callback",
+			CodeVerifier: verifier,
+		}, OAuthClientCredentials{ClientID: "my-client"})
+		require.NotNil(t, oerr)
+		assert.Equal(t, "invalid_scope", oerr.Code)
+	})
 }
 
 // ── TestOAuthTokenService_Exchange_RefreshToken ─────────────────────────────
@@ -845,6 +928,224 @@ func TestOAuthTokenService_Exchange_RefreshToken(t *testing.T) {
 		assert.Equal(t, "server_error", oerr.Code)
 	})
 
+	t.Run("client auth fails — client not found", func(t *testing.T) {
+		db, mock := newMockDB(t)
+		expectClientNotFound(mock)
+
+		svc := newOAuthTokenSvc(db, &mockClientRepo{}, &mockOAuthAuthCodeRepo{}, &mockOAuthRefreshTokenRepo{}, &mockUserRepo{},
+			&mockUserIdentityRepo{findByUserIDAndClientIDFn: func(_, _ int64) (*UserIdentity, error) { return nil, nil }},
+			&mockAuthEventService{})
+
+		_, oerr := svc.Exchange(ctx, OAuthTokenRequestDTO{
+			GrantType:    "refresh_token",
+			RefreshToken: "some-token",
+		}, OAuthClientCredentials{ClientID: "unknown"})
+		require.NotNil(t, oerr)
+		assert.Equal(t, "invalid_client", oerr.Code)
+	})
+
+	t.Run("client lacks refresh_token grant", func(t *testing.T) {
+		db, mock := newMockDB(t)
+		rows := sqlmock.NewRows([]string{
+			"client_id", "client_uuid", "tenant_id", "identity_provider_id", "name", "display_name",
+			"client_type", "domain", "identifier", "secret", "status",
+			"is_default", "is_system", "token_endpoint_auth_method",
+			"grant_types", "response_types", "access_token_ttl", "refresh_token_ttl",
+			"require_consent", "created_at", "updated_at",
+		}).AddRow(
+			10, uuid.New(), 1, int64(100), "test-client", "Test Client",
+			"spa", "https://auth.example.com", "my-client", nil, "active",
+			false, false, "none",
+			`{authorization_code}`, `{code}`, nil, nil,
+			true, time.Now(), time.Now(),
+		)
+		expectClientLookup(mock, rows)
+
+		svc := newOAuthTokenSvc(db, &mockClientRepo{}, &mockOAuthAuthCodeRepo{}, &mockOAuthRefreshTokenRepo{}, &mockUserRepo{},
+			&mockUserIdentityRepo{findByUserIDAndClientIDFn: func(_, _ int64) (*UserIdentity, error) { return nil, nil }},
+			&mockAuthEventService{})
+
+		_, oerr := svc.Exchange(ctx, OAuthTokenRequestDTO{
+			GrantType:    "refresh_token",
+			RefreshToken: "some-token",
+		}, OAuthClientCredentials{ClientID: "my-client"})
+		require.NotNil(t, oerr)
+		assert.Equal(t, "unauthorized_client", oerr.Code)
+		assert.Contains(t, oerr.Description, "refresh_token grant")
+	})
+
+	t.Run("resolveUserSub fails in transaction", func(t *testing.T) {
+		db, mock := newMockDB(t)
+		expectClientLookup(mock, mockClientRows())
+		mock.ExpectBegin()
+		mock.ExpectRollback()
+
+		svc := newOAuthTokenSvc(db, &mockClientRepo{}, &mockOAuthAuthCodeRepo{},
+			&mockOAuthRefreshTokenRepo{
+				findByTokenHashFn: func(_ string) (*OAuthRefreshToken, error) {
+					return &OAuthRefreshToken{
+						OAuthRefreshTokenID: 1,
+						ClientID:            10,
+						UserID:              1,
+						ExpiresAt:           time.Now().Add(7 * 24 * time.Hour),
+					}, nil
+				},
+				revokeByIDFn: func(_ int64) error { return nil },
+			},
+			&mockUserRepo{},
+			&mockUserIdentityRepo{
+				findByUserIDAndClientIDFn: func(_, _ int64) (*UserIdentity, error) {
+					return nil, errors.New("identity lookup error")
+				},
+			},
+			&mockAuthEventService{})
+
+		_, oerr := svc.Exchange(ctx, OAuthTokenRequestDTO{
+			GrantType:    "refresh_token",
+			RefreshToken: "some-token",
+		}, OAuthClientCredentials{ClientID: "my-client"})
+		require.NotNil(t, oerr)
+		assert.Equal(t, "server_error", oerr.Code)
+	})
+
+	t.Run("requested scope not subset of stored scope", func(t *testing.T) {
+		db, mock := newMockDB(t)
+		expectClientLookup(mock, mockClientRows())
+		mock.ExpectBegin()
+		mock.ExpectRollback()
+
+		svc := newOAuthTokenSvc(db, &mockClientRepo{}, &mockOAuthAuthCodeRepo{},
+			&mockOAuthRefreshTokenRepo{
+				findByTokenHashFn: func(_ string) (*OAuthRefreshToken, error) {
+					return &OAuthRefreshToken{
+						OAuthRefreshTokenID: 1,
+						ClientID:            10,
+						UserID:              1,
+						Scope:               "openid",
+						ExpiresAt:           time.Now().Add(7 * 24 * time.Hour),
+					}, nil
+				},
+				revokeByIDFn: func(_ int64) error { return nil },
+			},
+			&mockUserRepo{
+				findByIDFn: func(_ any, _ ...string) (*User, error) {
+					return &User{UserID: 1, UserUUID: uuid.New(), Email: "test@example.com"}, nil
+				},
+			},
+			&mockUserIdentityRepo{
+				findByUserIDAndClientIDFn: func(_, _ int64) (*UserIdentity, error) {
+					return &UserIdentity{Sub: "user-sub"}, nil
+				},
+			},
+			&mockAuthEventService{})
+
+		_, oerr := svc.Exchange(ctx, OAuthTokenRequestDTO{
+			GrantType:    "refresh_token",
+			RefreshToken: "some-token",
+			Scope:        "admin",
+		}, OAuthClientCredentials{ClientID: "my-client"})
+		require.NotNil(t, oerr)
+		assert.Equal(t, "invalid_scope", oerr.Code)
+		assert.Contains(t, oerr.Description, "exceeds the original grant")
+	})
+
+	t.Run("requested scope not in client AllowedScopes", func(t *testing.T) {
+		db, mock := newMockDB(t)
+		rows := sqlmock.NewRows([]string{
+			"client_id", "client_uuid", "tenant_id", "identity_provider_id", "name", "display_name",
+			"client_type", "domain", "identifier", "secret", "status",
+			"is_default", "is_system", "token_endpoint_auth_method",
+			"grant_types", "response_types", "access_token_ttl", "refresh_token_ttl",
+			"require_consent", "allowed_scopes", "created_at", "updated_at",
+		}).AddRow(
+			10, uuid.New(), 1, int64(100), "test-client", "Test Client",
+			"spa", "https://auth.example.com", "my-client", nil, "active",
+			false, false, "none",
+			`{authorization_code,refresh_token}`, `{code}`, nil, nil,
+			true, pq.StringArray{"openid"}, time.Now(), time.Now(),
+		)
+		expectClientLookup(mock, rows)
+		mock.ExpectBegin()
+		mock.ExpectRollback()
+
+		svc := newOAuthTokenSvc(db, &mockClientRepo{}, &mockOAuthAuthCodeRepo{},
+			&mockOAuthRefreshTokenRepo{
+				findByTokenHashFn: func(_ string) (*OAuthRefreshToken, error) {
+					return &OAuthRefreshToken{
+						OAuthRefreshTokenID: 1,
+						ClientID:            10,
+						UserID:              1,
+						Scope:               "openid profile",
+						ExpiresAt:           time.Now().Add(7 * 24 * time.Hour),
+					}, nil
+				},
+				revokeByIDFn: func(_ int64) error { return nil },
+			},
+			&mockUserRepo{
+				findByIDFn: func(_ any, _ ...string) (*User, error) {
+					return &User{UserID: 1, UserUUID: uuid.New(), Email: "test@example.com"}, nil
+				},
+			},
+			&mockUserIdentityRepo{
+				findByUserIDAndClientIDFn: func(_, _ int64) (*UserIdentity, error) {
+					return &UserIdentity{Sub: "user-sub"}, nil
+				},
+			},
+			&mockAuthEventService{})
+
+		_, oerr := svc.Exchange(ctx, OAuthTokenRequestDTO{
+			GrantType:    "refresh_token",
+			RefreshToken: "some-token",
+			Scope:        "profile",
+		}, OAuthClientCredentials{ClientID: "my-client"})
+		require.NotNil(t, oerr)
+		assert.Equal(t, "invalid_scope", oerr.Code)
+		assert.Contains(t, oerr.Description, "not allowed")
+	})
+
+	t.Run("Create refresh token fails in transaction", func(t *testing.T) {
+		initTestJWTKeysService(t)
+		db, mock := newMockDB(t)
+		expectClientLookup(mock, mockClientRows())
+		mock.ExpectBegin()
+		mock.ExpectRollback()
+
+		svc := newOAuthTokenSvc(db, &mockClientRepo{}, &mockOAuthAuthCodeRepo{},
+			&mockOAuthRefreshTokenRepo{
+				findByTokenHashFn: func(_ string) (*OAuthRefreshToken, error) {
+					return &OAuthRefreshToken{
+						OAuthRefreshTokenID: 1,
+						ClientID:            10,
+						UserID:              1,
+						Scope:               "openid profile offline_access",
+						ExpiresAt:           time.Now().Add(7 * 24 * time.Hour),
+					}, nil
+				},
+				revokeByIDFn: func(_ int64) error { return nil },
+				createFn: func(_ *OAuthRefreshToken) (*OAuthRefreshToken, error) {
+					return nil, errors.New("create error")
+				},
+			},
+			&mockUserRepo{
+				findByIDFn: func(_ any, _ ...string) (*User, error) {
+					return &User{UserID: 1, UserUUID: uuid.New(), Email: "test@example.com"}, nil
+				},
+			},
+			&mockUserIdentityRepo{
+				findByUserIDAndClientIDFn: func(_, _ int64) (*UserIdentity, error) {
+					return &UserIdentity{Sub: "user-sub-rt"}, nil
+				},
+			},
+			&mockAuthEventService{})
+
+		_, oerr := svc.Exchange(ctx, OAuthTokenRequestDTO{
+			GrantType:    "refresh_token",
+			RefreshToken: "some-token",
+		}, OAuthClientCredentials{ClientID: "my-client"})
+		require.NotNil(t, oerr)
+		assert.Equal(t, "server_error", oerr.Code)
+	})
+
 	t.Run("refresh token lookup error", func(t *testing.T) {
 		db, mock := newMockDB(t)
 		expectClientLookup(mock, mockClientRows())
@@ -961,6 +1262,21 @@ func TestOAuthTokenService_Exchange_ClientCredentials(t *testing.T) {
 		}, OAuthClientCredentials{ClientID: "m2m-client"})
 		require.Nil(t, oerr)
 		assert.Equal(t, int64(3600), result.ExpiresIn)
+	})
+
+	t.Run("client auth failure", func(t *testing.T) {
+		db, mock := newMockDB(t)
+		expectClientNotFound(mock)
+
+		svc := newOAuthTokenSvc(db, &mockClientRepo{}, &mockOAuthAuthCodeRepo{}, &mockOAuthRefreshTokenRepo{}, &mockUserRepo{},
+			&mockUserIdentityRepo{findByUserIDAndClientIDFn: func(_, _ int64) (*UserIdentity, error) { return nil, nil }},
+			&mockAuthEventService{})
+
+		_, oerr := svc.Exchange(ctx, OAuthTokenRequestDTO{
+			GrantType: "client_credentials",
+		}, OAuthClientCredentials{ClientID: "unknown"})
+		require.NotNil(t, oerr)
+		assert.Equal(t, "invalid_client", oerr.Code)
 	})
 }
 
@@ -1139,7 +1455,134 @@ func TestOAuthTokenService_Revoke(t *testing.T) {
 		require.NotNil(t, oerr)
 		assert.Equal(t, "server_error", oerr.Code)
 	})
+
+	t.Run("nil jtiDenylist — no-op", func(t *testing.T) {
+		initTestJWTKeysService(t)
+		jwt.ResetJTIChecker()
+		t.Cleanup(jwt.ResetJTIChecker)
+
+		db, mock := newMockDB(t)
+		expectClientLookup(mock, mockClientRows())
+
+		token, err := jwt.GenerateAccessToken("user-sub", "openid", "https://auth.example.com", "my-client", "my-client", "default-provider")
+		require.NoError(t, err)
+
+		svc := &oauthTokenService{
+			db:               db,
+			refreshTokenRepo: &mockOAuthRefreshTokenRepo{},
+			authEventService: &mockAuthEventService{},
+			jtiDenylist:      nil,
+		}
+
+		oerr := svc.Revoke(ctx, OAuthRevokeRequestDTO{Token: token}, OAuthClientCredentials{ClientID: "my-client"})
+		require.Nil(t, oerr)
+	})
+
+	t.Run("id_token is skipped", func(t *testing.T) {
+		initTestJWTKeysService(t)
+		jwt.ResetJTIChecker()
+		t.Cleanup(jwt.ResetJTIChecker)
+
+		db, mock := newMockDB(t)
+		expectClientLookup(mock, mockClientRows())
+
+		originalGenerateIDToken := jwt.GenerateIDToken
+		jwt.GenerateIDToken = func(userUUID, issuer, clientID, providerID string, profile *jwt.UserProfile, nonce string, params *jwt.IDTokenParams) (string, error) {
+			return jwt.GenerateIDTokenWithContext(ctx, userUUID, issuer, clientID, providerID, profile, nonce, params)
+		}
+		defer func() { jwt.GenerateIDToken = originalGenerateIDToken }()
+
+		idToken, err := jwt.GenerateIDToken("user-sub", "https://auth.example.com", "my-client", "default-provider", nil, "", nil)
+		require.NoError(t, err)
+
+		denylist := &recordingJTIDenylister{}
+		svc := &oauthTokenService{
+			db:               db,
+			refreshTokenRepo: &mockOAuthRefreshTokenRepo{},
+			authEventService: &mockAuthEventService{},
+			jtiDenylist:      denylist,
+		}
+
+		oerr := svc.Revoke(ctx, OAuthRevokeRequestDTO{Token: idToken}, OAuthClientCredentials{ClientID: "my-client"})
+		require.Nil(t, oerr)
+		assert.Empty(t, denylist.jti)
+	})
+
+	t.Run("client ID mismatch", func(t *testing.T) {
+		initTestJWTKeysService(t)
+		jwt.ResetJTIChecker()
+		t.Cleanup(jwt.ResetJTIChecker)
+
+		db, mock := newMockDB(t)
+		rows := sqlmock.NewRows([]string{
+			"client_id", "client_uuid", "tenant_id", "identity_provider_id", "name", "display_name",
+			"client_type", "domain", "identifier", "secret", "status",
+			"is_default", "is_system", "token_endpoint_auth_method",
+			"grant_types", "response_types", "access_token_ttl", "refresh_token_ttl",
+			"require_consent", "created_at", "updated_at",
+		}).AddRow(
+			10, uuid.New(), 1, int64(100), "test-client", "Test Client",
+			"spa", "https://auth.example.com", "my-client", nil, "active",
+			false, false, "none",
+			`{authorization_code,refresh_token}`, `{code}`, nil, nil,
+			true, time.Now(), time.Now(),
+		)
+		expectClientLookup(mock, rows)
+
+		token, err := jwt.GenerateAccessToken("user-sub", "openid", "https://auth.example.com", "other-client", "other-client", "default-provider")
+		require.NoError(t, err)
+
+		denylist := &recordingJTIDenylister{}
+		svc := &oauthTokenService{
+			db:               db,
+			refreshTokenRepo: &mockOAuthRefreshTokenRepo{},
+			authEventService: &mockAuthEventService{},
+			jtiDenylist:      denylist,
+		}
+
+		oerr := svc.Revoke(ctx, OAuthRevokeRequestDTO{Token: token}, OAuthClientCredentials{ClientID: "my-client"})
+		require.Nil(t, oerr)
+		assert.Empty(t, denylist.jti)
+	})
+
+	t.Run("client.Identifier nil — skipped", func(t *testing.T) {
+		initTestJWTKeysService(t)
+		jwt.ResetJTIChecker()
+		t.Cleanup(jwt.ResetJTIChecker)
+
+		db, mock := newMockDB(t)
+		rows := sqlmock.NewRows([]string{
+			"client_id", "client_uuid", "tenant_id", "identity_provider_id", "name", "display_name",
+			"client_type", "domain", "identifier", "secret", "status",
+			"is_default", "is_system", "token_endpoint_auth_method",
+			"grant_types", "response_types", "access_token_ttl", "refresh_token_ttl",
+			"require_consent", "created_at", "updated_at",
+		}).AddRow(
+			10, uuid.New(), 1, int64(100), "test-client", "Test Client",
+			"spa", "https://auth.example.com", nil, nil, "active",
+			false, false, "none",
+			`{authorization_code,refresh_token}`, `{code}`, nil, nil,
+			true, time.Now(), time.Now(),
+		)
+		expectClientLookup(mock, rows)
+
+		token, err := jwt.GenerateAccessToken("user-sub", "openid", "https://auth.example.com", "my-client", "my-client", "default-provider")
+		require.NoError(t, err)
+
+		denylist := &recordingJTIDenylister{}
+		svc := &oauthTokenService{
+			db:               db,
+			refreshTokenRepo: &mockOAuthRefreshTokenRepo{},
+			authEventService: &mockAuthEventService{},
+			jtiDenylist:      denylist,
+		}
+
+		oerr := svc.Revoke(ctx, OAuthRevokeRequestDTO{Token: token}, OAuthClientCredentials{ClientID: "my-client"})
+		require.Nil(t, oerr)
+		assert.Empty(t, denylist.jti)
+	})
 }
+
 
 // ── TestOAuthTokenService_Introspect ────────────────────────────────────────
 
@@ -1312,6 +1755,18 @@ func TestOAuthTokenService_Introspect(t *testing.T) {
 		require.Nil(t, oerr)
 		assert.False(t, result.Active)
 	})
+
+	t.Run("bad client auth", func(t *testing.T) {
+		db, mock := newMockDB(t)
+		expectClientNotFound(mock)
+		svc := newOAuthTokenSvc(db, &mockClientRepo{}, &mockOAuthAuthCodeRepo{}, &mockOAuthRefreshTokenRepo{}, &mockUserRepo{},
+			&mockUserIdentityRepo{findByUserIDAndClientIDFn: func(_, _ int64) (*UserIdentity, error) { return nil, nil }},
+			&mockAuthEventService{})
+
+		_, oerr := svc.Introspect(ctx, OAuthIntrospectRequestDTO{Token: "any-token"}, OAuthClientCredentials{ClientID: "unknown"})
+		require.NotNil(t, oerr)
+		assert.Equal(t, "invalid_client", oerr.Code)
+	})
 }
 
 // ── TestResolveUserSub ──────────────────────────────────────────────────────
@@ -1381,12 +1836,10 @@ func TestRefreshTokenTTL(t *testing.T) {
 	})
 }
 
-func TestOAuthTokenService_GenerateTokensAccessTokenAuthContext(t *testing.T) {
-	initTestJWTKeysService(t)
-
+func TestOAuthTokenService_GenerateTokens(t *testing.T) {
 	domain := "https://auth.example.com"
 	identifier := "my-client"
-	client := &Client{
+	fullClient := &Client{
 		ClientID:   10,
 		TenantID:   1,
 		Domain:     &domain,
@@ -1403,17 +1856,281 @@ func TestOAuthTokenService_GenerateTokensAccessTokenAuthContext(t *testing.T) {
 	}
 	svc := &oauthTokenService{}
 
-	result, oerr := svc.generateTokens(context.Background(), "user-sub", user, client, "openid profile", nil, "")
-	require.Nil(t, oerr)
-	require.NotNil(t, result)
+	t.Run("access token auth context", func(t *testing.T) {
+		initTestJWTKeysService(t)
+		result, oerr := svc.generateTokens(context.Background(), "user-sub", user, fullClient, "openid profile", nil, "")
+		require.Nil(t, oerr)
+		require.NotNil(t, result)
 
-	claims, err := jwt.ValidateToken(result.AccessToken)
-	require.NoError(t, err)
-	assert.Equal(t, jwt.ACRLevel1, claims["acr"])
-	assert.ElementsMatch(t, []any{jwt.AMRPassword}, claims["amr"])
+		claims, err := jwt.ValidateToken(result.AccessToken)
+		require.NoError(t, err)
+		assert.Equal(t, jwt.ACRLevel1, claims["acr"])
+		assert.ElementsMatch(t, []any{jwt.AMRPassword}, claims["amr"])
+	})
+
+	t.Run("nil Domain, nil Identifier, nil IdentityProvider", func(t *testing.T) {
+		initTestJWTKeysService(t)
+		nilClient := &Client{ClientID: 10, TenantID: 1}
+		_, oerr := svc.generateTokens(context.Background(), "user-sub", user, nilClient, "openid profile", nil, "")
+		require.NotNil(t, oerr)
+		assert.Equal(t, "server_error", oerr.Code)
+	})
+
+	t.Run("non-empty dpopThumbprint", func(t *testing.T) {
+		initTestJWTKeysService(t)
+		result, oerr := svc.generateTokens(context.Background(), "user-sub", user, fullClient, "openid profile", nil, "thumbprint123")
+		require.Nil(t, oerr)
+		require.NotNil(t, result)
+		assert.Equal(t, "DPoP", result.TokenType)
+		claims, err := jwt.ValidateToken(result.AccessToken)
+		require.NoError(t, err)
+		assert.Contains(t, claims, "cnf")
+	})
+
+	t.Run("with nonce", func(t *testing.T) {
+		initTestJWTKeysService(t)
+		nonce := "nonce-abc-123"
+		result, oerr := svc.generateTokens(context.Background(), "user-sub", user, fullClient, "openid profile", &nonce, "")
+		require.Nil(t, oerr)
+		require.NotNil(t, result)
+		assert.NotEmpty(t, result.IDToken)
+	})
+
+	t.Run("without offline_access scope", func(t *testing.T) {
+		initTestJWTKeysService(t)
+		result, oerr := svc.generateTokens(context.Background(), "user-sub", user, fullClient, "openid profile", nil, "")
+		require.Nil(t, oerr)
+		require.NotNil(t, result)
+		assert.NotEmpty(t, result.AccessToken)
+		assert.NotEmpty(t, result.IDToken)
+		assert.Empty(t, result.RefreshToken)
+	})
+
+	t.Run("custom AccessTokenTTL", func(t *testing.T) {
+		initTestJWTKeysService(t)
+		ttl := 1800
+		ttlClient := &Client{
+			ClientID:       10,
+			TenantID:       1,
+			Domain:         &domain,
+			Identifier:     &identifier,
+			AccessTokenTTL: &ttl,
+			IdentityProvider: &IdentityProvider{
+				Identifier: "default-provider",
+			},
+		}
+		result, oerr := svc.generateTokens(context.Background(), "user-sub", user, ttlClient, "openid profile", nil, "")
+		require.Nil(t, oerr)
+		require.NotNil(t, result)
+		assert.Equal(t, int64(1800), result.ExpiresIn)
+	})
+
+	t.Run("JWT generation error — keys not initialized", func(t *testing.T) {
+		jwt.ResetJWTKeys()
+		defer jwt.ResetJWTKeys()
+
+		_, oerr := svc.generateTokens(context.Background(), "user-sub", user, fullClient, "openid profile", nil, "")
+		require.NotNil(t, oerr)
+		assert.Equal(t, "server_error", oerr.Code)
+	})
 }
 
-// ── TestHasGrant ────────────────────────────────────────────────────────────
+// ── TestTokenRemainingTTL ──────────────────────────────────────────────────
+
+func TestTokenRemainingTTL(t *testing.T) {
+	t.Run("float64 exp", func(t *testing.T) {
+		now := time.Now().Unix()
+		ttl := tokenRemainingTTL(float64(now + 3600))
+		assert.Positive(t, ttl)
+		assert.LessOrEqual(t, ttl, time.Duration(3600)*time.Second)
+	})
+
+	t.Run("int64 exp", func(t *testing.T) {
+		now := time.Now().Unix()
+		ttl := tokenRemainingTTL(int64(now + 7200))
+		assert.Positive(t, ttl)
+	})
+
+	t.Run("int exp", func(t *testing.T) {
+		now := time.Now().Unix()
+		ttl := tokenRemainingTTL(int(now + 1800))
+		assert.Positive(t, ttl)
+	})
+
+	t.Run("json.Number valid", func(t *testing.T) {
+		now := time.Now().Unix()
+		jn := json.Number(fmt.Sprintf("%d", now+600))
+		ttl := tokenRemainingTTL(jn)
+		assert.Positive(t, ttl)
+	})
+
+	t.Run("json.Number parse error", func(t *testing.T) {
+		ttl := tokenRemainingTTL(json.Number("not-a-number"))
+		assert.Equal(t, time.Duration(0), ttl)
+	})
+
+	t.Run("default case", func(t *testing.T) {
+		ttl := tokenRemainingTTL("string-not-supported")
+		assert.Equal(t, time.Duration(0), ttl)
+	})
+
+	t.Run("negative TTL for expired token", func(t *testing.T) {
+		ttl := tokenRemainingTTL(float64(time.Now().Unix() - 3600))
+		assert.Negative(t, ttl)
+	})
+}
+
+// ── TestBuildUserProfile ────────────────────────────────────────────────────
+
+func TestBuildUserProfile(t *testing.T) {
+	t.Run("nil Profile", func(t *testing.T) {
+		user := &User{
+			Email:           "test@example.com",
+			IsEmailVerified: true,
+			Phone:           "+1234567890",
+			IsPhoneVerified: true,
+			Fullname:        "Fallback Name",
+		}
+		p := buildUserProfile(user)
+		assert.Equal(t, "test@example.com", p.Email)
+		assert.True(t, p.EmailVerified)
+		assert.Equal(t, "+1234567890", p.Phone)
+		assert.True(t, p.PhoneVerified)
+		assert.Equal(t, "Fallback Name", p.Name)
+	})
+
+	t.Run("full Profile with LastName and ProfileURL", func(t *testing.T) {
+		lastName := "Doe"
+		profileURL := "https://example.com/avatar.jpg"
+		user := &User{
+			Email:           "john@example.com",
+			IsEmailVerified: true,
+			Fullname:        "Fallback Name",
+			Profile: &Profile{
+				FirstName:  "John",
+				LastName:   &lastName,
+				ProfileURL: &profileURL,
+			},
+		}
+		p := buildUserProfile(user)
+		assert.Equal(t, "John", p.FirstName)
+		assert.Equal(t, "Doe", p.LastName)
+		assert.Equal(t, "https://example.com/avatar.jpg", p.Picture)
+		assert.Equal(t, "John Doe", p.Name)
+	})
+
+	t.Run("partial Profile without LastName", func(t *testing.T) {
+		user := &User{
+			Email:    "jane@example.com",
+			Fullname: "Fallback",
+			Profile: &Profile{
+				FirstName: "Jane",
+			},
+		}
+		p := buildUserProfile(user)
+		assert.Equal(t, "Jane", p.FirstName)
+		assert.Equal(t, "", p.LastName)
+		assert.Equal(t, "Jane", p.Name)
+	})
+
+	t.Run("Profile without ProfileURL", func(t *testing.T) {
+		lastName := "Smith"
+		user := &User{
+			Email:    "bob@example.com",
+			Fullname: "Fallback",
+			Profile: &Profile{
+				FirstName: "Bob",
+				LastName:  &lastName,
+			},
+		}
+		p := buildUserProfile(user)
+		assert.Equal(t, "", p.Picture)
+		assert.Equal(t, "Bob Smith", p.Name)
+	})
+}
+
+// ── TestBuildIDTokenParams ──────────────────────────────────────────────────
+
+func TestBuildIDTokenParams(t *testing.T) {
+	t.Run("empty scope", func(t *testing.T) {
+		client := &Client{}
+		params := buildIDTokenParams("", client)
+		assert.Nil(t, params)
+	})
+
+	t.Run("populated ScopeClaimMappings and ClaimMappers", func(t *testing.T) {
+		mappings := `{"openid":["sub"],"profile":["name"]}`
+		rawMappings := datatypes.JSON(mappings)
+		claims := `{"custom_claim":"value"}`
+		rawClaims := datatypes.JSON(claims)
+
+		client := &Client{
+			ScopeClaimMappings: rawMappings,
+			ClaimMappers:       rawClaims,
+		}
+
+		params := buildIDTokenParams("openid profile", client)
+		require.NotNil(t, params)
+		assert.Equal(t, []string{"openid", "profile"}, params.RequestedScopes)
+		assert.Equal(t, []string{jwt.AMRPassword}, params.AMR)
+		assert.Equal(t, jwt.ACRLevel1, params.ACR)
+		require.NotNil(t, params.ScopeClaimMappings)
+		assert.Equal(t, []string{"sub"}, params.ScopeClaimMappings["openid"])
+		require.NotNil(t, params.ExtraClaims)
+		assert.Equal(t, "value", params.ExtraClaims["custom_claim"])
+	})
+
+	t.Run("nil ScopeClaimMappings and nil ClaimMappers", func(t *testing.T) {
+		client := &Client{}
+		params := buildIDTokenParams("openid", client)
+		require.NotNil(t, params)
+		assert.Equal(t, []string{"openid"}, params.RequestedScopes)
+		assert.Nil(t, params.ScopeClaimMappings)
+		assert.Nil(t, params.ExtraClaims)
+	})
+
+	t.Run("invalid ScopeClaimMappings JSON", func(t *testing.T) {
+		raw := datatypes.JSON("{invalid")
+		client := &Client{
+			ScopeClaimMappings: raw,
+		}
+		params := buildIDTokenParams("openid", client)
+		require.NotNil(t, params)
+		assert.Nil(t, params.ScopeClaimMappings)
+	})
+
+	t.Run("invalid ClaimMappers JSON", func(t *testing.T) {
+		raw := datatypes.JSON("{invalid")
+		client := &Client{
+			ClaimMappers: raw,
+		}
+		params := buildIDTokenParams("openid", client)
+		require.NotNil(t, params)
+		assert.Nil(t, params.ExtraClaims)
+	})
+}
+
+// ── TestParseScopes ─────────────────────────────────────────────────────────
+
+func TestParseScopes(t *testing.T) {
+	t.Run("empty string", func(t *testing.T) {
+		assert.Nil(t, parseScopes(""))
+	})
+
+	t.Run("whitespace only", func(t *testing.T) {
+		assert.Nil(t, parseScopes("   "))
+	})
+
+	t.Run("single scope", func(t *testing.T) {
+		assert.Equal(t, []string{"openid"}, parseScopes("openid"))
+	})
+
+	t.Run("multiple scopes", func(t *testing.T) {
+		assert.Equal(t, []string{"openid", "profile", "email"}, parseScopes("openid profile email"))
+	})
+}
+
+// ── TestClientHasGrant ──────────────────────────────────────────────────────
 
 func TestClientHasGrant(t *testing.T) {
 	t.Run("found", func(t *testing.T) {

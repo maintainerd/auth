@@ -5,6 +5,8 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/lib/pq"
+	"github.com/maintainerd/auth/internal/platform/crypto"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
@@ -197,5 +199,296 @@ func TestOAuthRegisterService_Register(t *testing.T) {
 		require.NotNil(t, oerr)
 		assert.Equal(t, "invalid_request", oerr.Code)
 		assert.Contains(t, oerr.Description, "at least one redirect_uri is required")
+	})
+
+	t.Run("multiple redirect_uris", func(t *testing.T) {
+		type capturedURI struct {
+			uri      string
+			clientID int64
+		}
+		var capturedURIs []capturedURI
+
+		svc := newOAuthRegisterSvc(nil,
+			&mockClientRepo{
+				createFn: func(c *Client) (*Client, error) {
+					c.ClientID = 10
+					return c, nil
+				},
+			},
+			&mockClientURIRepo{
+				createFn: func(uri *ClientURI) (*ClientURI, error) {
+					capturedURIs = append(capturedURIs, capturedURI{uri: uri.URI, clientID: uri.ClientID})
+					return uri, nil
+				},
+			},
+			&mockTenantRepo{
+				findSystemFn: func() (*Tenant, error) {
+					return &Tenant{TenantID: 1, Status: "active"}, nil
+				},
+			},
+			&mockAuthEventService{})
+
+		result, oerr := svc.Register(ctx, OAuthClientRegistrationRequestDTO{
+			ClientName:              "Multi URI Client",
+			RedirectURIs:            []string{"https://example.com/callback", "https://example.com/callback2"},
+			TokenEndpointAuthMethod: "none",
+		})
+		require.Nil(t, oerr)
+		require.NotNil(t, result)
+		assert.Len(t, capturedURIs, 2)
+		assert.Equal(t, "https://example.com/callback", capturedURIs[0].uri)
+		assert.Equal(t, "https://example.com/callback2", capturedURIs[1].uri)
+	})
+
+	t.Run("explicit grant_types and response_types", func(t *testing.T) {
+		var savedClient *Client
+		svc := newOAuthRegisterSvc(nil,
+			&mockClientRepo{
+				createFn: func(c *Client) (*Client, error) {
+					savedClient = c
+					c.ClientID = 10
+					return c, nil
+				},
+			},
+			&mockClientURIRepo{},
+			&mockTenantRepo{
+				findSystemFn: func() (*Tenant, error) {
+					return &Tenant{TenantID: 1, Status: "active"}, nil
+				},
+			},
+			&mockAuthEventService{})
+
+		result, oerr := svc.Register(ctx, OAuthClientRegistrationRequestDTO{
+			ClientName:   "Custom Grants Client",
+			RedirectURIs: []string{"https://example.com/callback"},
+			GrantTypes:   []string{"client_credentials", "refresh_token"},
+			ResponseTypes: []string{"token"},
+			TokenEndpointAuthMethod: "client_secret_basic",
+		})
+		require.Nil(t, oerr)
+		require.NotNil(t, result)
+		assert.Equal(t, []string{"client_credentials", "refresh_token"}, result.GrantTypes)
+		assert.Equal(t, []string{"token"}, result.ResponseTypes)
+		require.NotNil(t, savedClient)
+		assert.ElementsMatch(t, []string{"client_credentials", "refresh_token"}, []string(savedClient.GrantTypes))
+		assert.ElementsMatch(t, []string{"token"}, []string(savedClient.ResponseTypes))
+	})
+
+	t.Run("client URI create error — registration succeeds", func(t *testing.T) {
+		svc := newOAuthRegisterSvc(nil,
+			&mockClientRepo{
+				createFn: func(c *Client) (*Client, error) {
+					c.ClientID = 10
+					return c, nil
+				},
+			},
+			&mockClientURIRepo{
+				createFn: func(uri *ClientURI) (*ClientURI, error) {
+					return nil, errors.New("uri create error")
+				},
+			},
+			&mockTenantRepo{
+				findSystemFn: func() (*Tenant, error) {
+					return &Tenant{TenantID: 1, Status: "active"}, nil
+				},
+			},
+			&mockAuthEventService{})
+
+		result, oerr := svc.Register(ctx, OAuthClientRegistrationRequestDTO{
+			ClientName:              "Test Client",
+			RedirectURIs:            []string{"https://example.com/callback"},
+			TokenEndpointAuthMethod: "none",
+		})
+		require.Nil(t, oerr)
+		require.NotNil(t, result)
+		assert.NotEmpty(t, result.ClientID)
+		assert.Equal(t, "Test Client", result.ClientName)
+	})
+
+	t.Run("tenant is nil", func(t *testing.T) {
+		svc := newOAuthRegisterSvc(nil,
+			&mockClientRepo{},
+			&mockClientURIRepo{},
+			&mockTenantRepo{
+				findSystemFn: func() (*Tenant, error) {
+					return nil, nil
+				},
+			},
+			&mockAuthEventService{})
+
+		_, oerr := svc.Register(ctx, OAuthClientRegistrationRequestDTO{
+			ClientName:   "Test",
+			RedirectURIs: []string{"https://example.com/callback"},
+		})
+		require.NotNil(t, oerr)
+		assert.Equal(t, "server_error", oerr.Code)
+	})
+
+	t.Run("GenerateRandomString error for clientID", func(t *testing.T) {
+		orig := crypto.GenerateRandomString
+		defer func() { crypto.GenerateRandomString = orig }()
+		crypto.GenerateRandomString = func(int) (string, error) { return "", errors.New("rand failure") }
+
+		svc := newOAuthRegisterSvc(nil,
+			&mockClientRepo{},
+			&mockClientURIRepo{},
+			&mockTenantRepo{
+				findSystemFn: func() (*Tenant, error) {
+					return &Tenant{TenantID: 1, Status: "active"}, nil
+				},
+			},
+			&mockAuthEventService{})
+
+		_, oerr := svc.Register(ctx, OAuthClientRegistrationRequestDTO{
+			ClientName:   "Test",
+			RedirectURIs: []string{"https://example.com/callback"},
+		})
+		require.NotNil(t, oerr)
+		assert.Equal(t, "server_error", oerr.Code)
+	})
+
+	t.Run("GenerateRandomString error for clientSecret", func(t *testing.T) {
+		orig := crypto.GenerateRandomString
+		defer func() { crypto.GenerateRandomString = orig }()
+		callCount := 0
+		crypto.GenerateRandomString = func(int) (string, error) {
+			callCount++
+			if callCount == 1 {
+				return "valid-client-id-with-24-chars!", nil
+			}
+			return "", errors.New("rand failure")
+		}
+
+		svc := newOAuthRegisterSvc(nil,
+			&mockClientRepo{},
+			&mockClientURIRepo{},
+			&mockTenantRepo{
+				findSystemFn: func() (*Tenant, error) {
+					return &Tenant{TenantID: 1, Status: "active"}, nil
+				},
+			},
+			&mockAuthEventService{})
+
+		_, oerr := svc.Register(ctx, OAuthClientRegistrationRequestDTO{
+			ClientName:   "Secret Client",
+			RedirectURIs: []string{"https://example.com/callback"},
+		})
+		require.NotNil(t, oerr)
+		assert.Equal(t, "server_error", oerr.Code)
+	})
+
+	t.Run("empty token_endpoint_auth_method defaults to secret", func(t *testing.T) {
+		svc := newOAuthRegisterSvc(nil,
+			&mockClientRepo{
+				createFn: func(c *Client) (*Client, error) {
+					c.ClientID = 10
+					return c, nil
+				},
+			},
+			&mockClientURIRepo{},
+			&mockTenantRepo{
+				findSystemFn: func() (*Tenant, error) {
+					return &Tenant{TenantID: 1, Status: "active"}, nil
+				},
+			},
+			&mockAuthEventService{})
+
+		result, oerr := svc.Register(ctx, OAuthClientRegistrationRequestDTO{
+			ClientName:   "Default Auth Client",
+			RedirectURIs: []string{"https://example.com/callback"},
+		})
+		require.Nil(t, oerr)
+		require.NotNil(t, result)
+		assert.NotEmpty(t, result.ClientID)
+		assert.NotEmpty(t, result.ClientSecret)
+	})
+
+	t.Run("empty grant and response types use defaults", func(t *testing.T) {
+		var savedClient *Client
+		svc := newOAuthRegisterSvc(nil,
+			&mockClientRepo{
+				createFn: func(c *Client) (*Client, error) {
+					savedClient = c
+					c.ClientID = 10
+					return c, nil
+				},
+			},
+			&mockClientURIRepo{},
+			&mockTenantRepo{
+				findSystemFn: func() (*Tenant, error) {
+					return &Tenant{TenantID: 1, Status: "active"}, nil
+				},
+			},
+			&mockAuthEventService{})
+
+		result, oerr := svc.Register(ctx, OAuthClientRegistrationRequestDTO{
+			ClientName:              "Default Grants Client",
+			RedirectURIs:            []string{"https://example.com/callback"},
+			TokenEndpointAuthMethod: "none",
+		})
+		require.Nil(t, oerr)
+		require.NotNil(t, result)
+		assert.Equal(t, []string{GrantTypeAuthorizationCode}, result.GrantTypes)
+		assert.Equal(t, []string{"code"}, result.ResponseTypes)
+		require.NotNil(t, savedClient)
+		assert.Equal(t, pq.StringArray{GrantTypeAuthorizationCode}, savedClient.GrantTypes)
+		assert.Equal(t, pq.StringArray{"code"}, savedClient.ResponseTypes)
+	})
+
+	t.Run("EncryptAtRest error", func(t *testing.T) {
+		orig := crypto.EncryptAtRest
+		defer func() { crypto.EncryptAtRest = orig }()
+		crypto.EncryptAtRest = func(string) (string, error) { return "", errors.New("encrypt failure") }
+
+		svc := newOAuthRegisterSvc(nil,
+			&mockClientRepo{},
+			&mockClientURIRepo{},
+			&mockTenantRepo{
+				findSystemFn: func() (*Tenant, error) {
+					return &Tenant{TenantID: 1, Status: "active"}, nil
+				},
+			},
+			&mockAuthEventService{})
+
+		_, oerr := svc.Register(ctx, OAuthClientRegistrationRequestDTO{
+			ClientName:              "Secret Client",
+			RedirectURIs:            []string{"https://example.com/callback"},
+			TokenEndpointAuthMethod: "client_secret_basic",
+		})
+		require.NotNil(t, oerr)
+		assert.Equal(t, "server_error", oerr.Code)
+	})
+
+	t.Run("redirect URI sanitizes to empty is skipped", func(t *testing.T) {
+		var createdURIs []string
+		svc := newOAuthRegisterSvc(nil,
+			&mockClientRepo{
+				createFn: func(c *Client) (*Client, error) {
+					c.ClientID = 10
+					return c, nil
+				},
+			},
+			&mockClientURIRepo{
+				createFn: func(uri *ClientURI) (*ClientURI, error) {
+					createdURIs = append(createdURIs, uri.URI)
+					return uri, nil
+				},
+			},
+			&mockTenantRepo{
+				findSystemFn: func() (*Tenant, error) {
+					return &Tenant{TenantID: 1, Status: "active"}, nil
+				},
+			},
+			&mockAuthEventService{})
+
+		result, oerr := svc.Register(ctx, OAuthClientRegistrationRequestDTO{
+			ClientName:   "Test Client",
+			RedirectURIs: []string{"https://example.com/callback", ""},
+			TokenEndpointAuthMethod: "none",
+		})
+		require.Nil(t, oerr)
+		require.NotNil(t, result)
+		assert.Len(t, createdURIs, 1)
+		assert.Equal(t, "https://example.com/callback", createdURIs[0])
 	})
 }
