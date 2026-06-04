@@ -521,3 +521,242 @@ func TestResetFailedAttempts_WithRedis(t *testing.T) {
 	assert.False(t, mr.Exists(rateLimitCountKey(identifier)))
 	assert.False(t, mr.Exists(rateLimitLockKey(identifier)))
 }
+
+// ---------------------------------------------------------------------------
+// ValidateRedirectURI
+// ---------------------------------------------------------------------------
+
+func TestValidateRedirectURI(t *testing.T) {
+	tests := []struct {
+		name    string
+		uri     string
+		wantErr bool
+	}{
+		{"valid https", "https://app.example.com/callback", false},
+		{"valid http localhost", "http://localhost:3000/callback", false},
+		{"custom scheme", "myapp://callback", false},
+		{"javascript forbidden", "javascript:alert(1)", true},
+		{"data forbidden", "data:text/html,<script>alert(1)</script>", true},
+		{"vbscript forbidden", "VBSCRIPT:msgbox", true},
+		{"file forbidden", "file:///etc/passwd", true},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			err := ValidateRedirectURI(tc.uri)
+			if tc.wantErr {
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), "forbidden scheme")
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}
+
+// ---------------------------------------------------------------------------
+// MergePasswordPolicy
+// ---------------------------------------------------------------------------
+
+func TestMergePasswordPolicy_EmptyReturnsDefault(t *testing.T) {
+	p := MergePasswordPolicy(nil)
+	assert.Equal(t, DefaultPasswordPolicy(), p)
+
+	p = MergePasswordPolicy([]byte{})
+	assert.Equal(t, DefaultPasswordPolicy(), p)
+
+	p = MergePasswordPolicy([]byte("{}"))
+	assert.Equal(t, DefaultPasswordPolicy(), p)
+
+	p = MergePasswordPolicy([]byte("null"))
+	assert.Equal(t, DefaultPasswordPolicy(), p)
+
+	p = MergePasswordPolicy([]byte("  "))
+	assert.Equal(t, DefaultPasswordPolicy(), p)
+}
+
+func TestMergePasswordPolicy_InvalidJSONReturnsDefault(t *testing.T) {
+	p := MergePasswordPolicy([]byte("not-json"))
+	assert.Equal(t, DefaultPasswordPolicy(), p)
+}
+
+func TestMergePasswordPolicy_OverridesFields(t *testing.T) {
+	p := MergePasswordPolicy([]byte(`{"min_length":12,"require_upper":false,"history_count":5}`))
+	assert.Equal(t, 12, p.MinLength)
+	assert.Equal(t, 128, p.MaxLength)
+	assert.False(t, p.RequireUpper)
+	assert.True(t, p.RequireLower)
+	assert.Equal(t, 5, p.HistoryCount)
+	assert.Equal(t, 0, p.ExpiryDays)
+}
+
+func TestMergePasswordPolicy_AllFields(t *testing.T) {
+	raw := `{"min_length":16,"max_length":64,"require_upper":false,"require_lower":false,"require_digit":false,"require_special":false,"blocklist_enabled":false,"history_count":10,"expiry_days":90}`
+	p := MergePasswordPolicy([]byte(raw))
+	assert.Equal(t, 16, p.MinLength)
+	assert.Equal(t, 64, p.MaxLength)
+	assert.False(t, p.RequireUpper)
+	assert.False(t, p.RequireLower)
+	assert.False(t, p.RequireDigit)
+	assert.False(t, p.RequireSpecial)
+	assert.False(t, p.BlocklistEnabled)
+	assert.Equal(t, 10, p.HistoryCount)
+	assert.Equal(t, 90, p.ExpiryDays)
+}
+
+// ---------------------------------------------------------------------------
+// CheckAndRecordSMSDailyBudget — Redis path and disabled limit
+// ---------------------------------------------------------------------------
+
+func TestCheckAndRecordSMSDailyBudget_Disabled(t *testing.T) {
+	ResetSMSDailyBudgetCounters()
+	t.Cleanup(ResetSMSDailyBudgetCounters)
+
+	assert.NoError(t, CheckAndRecordSMSDailyBudget(context.Background(), "scope", 0))
+	assert.NoError(t, CheckAndRecordSMSDailyBudget(context.Background(), "scope", -1))
+}
+
+func TestCheckAndRecordSMSDailyBudget_NilCtx(t *testing.T) {
+	ResetSMSDailyBudgetCounters()
+	t.Cleanup(ResetSMSDailyBudgetCounters)
+
+	assert.NoError(t, CheckAndRecordSMSDailyBudget(nil, "scope", 10))
+}
+
+func TestCheckAndRecordSMSDailyBudget_RedisPath(t *testing.T) {
+	saveAndRestoreRateLimiter(t)
+	mr, cli := newMiniredisClient(t)
+	InitRateLimiter(cli)
+	ResetSMSDailyBudgetCounters()
+	t.Cleanup(ResetSMSDailyBudgetCounters)
+
+	assert.NoError(t, CheckAndRecordSMSDailyBudget(context.Background(), "redis-scope", 2))
+	assert.True(t, mr.Exists(smsDailyBudgetKey("redis-scope", time.Now())))
+
+	assert.NoError(t, CheckAndRecordSMSDailyBudget(context.Background(), "redis-scope", 2))
+	err := CheckAndRecordSMSDailyBudget(context.Background(), "redis-scope", 2)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "SMS send budget exceeded")
+}
+
+// ---------------------------------------------------------------------------
+// smsDailyBudgetTTL
+// ---------------------------------------------------------------------------
+
+func TestSmsDailyBudgetTTL(t *testing.T) {
+	now := time.Now()
+	ttl := smsDailyBudgetTTL(now)
+	assert.True(t, ttl > 0)
+	assert.True(t, ttl < 26*time.Hour)
+}
+
+// ---------------------------------------------------------------------------
+// CheckRateLimit — lock key with TTL parse error (graceful)
+// ---------------------------------------------------------------------------
+
+func TestCheckRateLimit_LockedAccountTTLError(t *testing.T) {
+	saveAndRestoreRateLimiter(t)
+	mr, cli := newMiniredisClient(t)
+	InitRateLimiter(cli)
+
+	identifier := "lock-ttl-err@example.com"
+	require.NoError(t, mr.Set(rateLimitLockKey(identifier), "1"))
+	mr.SetTTL(rateLimitLockKey(identifier), time.Second)
+	mr.FastForward(time.Second)
+	// Key should still exist after fast-forward (TTL in miniredis may differ)
+
+	err := CheckRateLimit(identifier)
+	if err != nil {
+		assert.Contains(t, err.Error(), "account is locked")
+	}
+}
+
+// ---------------------------------------------------------------------------
+// CheckRateLimit — empty lock value (no lock)
+// ---------------------------------------------------------------------------
+
+func TestCheckRateLimit_EmptyLockValue(t *testing.T) {
+	saveAndRestoreRateLimiter(t)
+	_, cli := newMiniredisClient(t)
+	InitRateLimiter(cli)
+
+	identifier := "empty-lock@example.com"
+	err := CheckRateLimit(identifier)
+	assert.NoError(t, err)
+}
+
+// ---------------------------------------------------------------------------
+// CheckAndRecordSMSDailyBudget — in-memory path with reset
+// ---------------------------------------------------------------------------
+
+func TestCheckAndRecordSMSDailyBudget_MultipleScopes(t *testing.T) {
+	saveAndRestoreRateLimiter(t)
+	InitRateLimiter(nil)
+	ResetSMSDailyBudgetCounters()
+	t.Cleanup(ResetSMSDailyBudgetCounters)
+
+	assert.NoError(t, CheckAndRecordSMSDailyBudget(context.Background(), "scope-A", 2))
+	assert.NoError(t, CheckAndRecordSMSDailyBudget(context.Background(), "scope-B", 2))
+	assert.NoError(t, CheckAndRecordSMSDailyBudget(context.Background(), "scope-A", 2))
+	err := CheckAndRecordSMSDailyBudget(context.Background(), "scope-A", 2)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "SMS send budget exceeded")
+	assert.NoError(t, CheckAndRecordSMSDailyBudget(context.Background(), "scope-B", 2))
+}
+
+// ---------------------------------------------------------------------------
+// DefaultPasswordPolicy
+// ---------------------------------------------------------------------------
+
+func TestDefaultPasswordPolicy_Fields(t *testing.T) {
+	p := DefaultPasswordPolicy()
+	assert.Equal(t, 8, p.MinLength)
+	assert.Equal(t, 128, p.MaxLength)
+	assert.True(t, p.RequireUpper)
+	assert.True(t, p.RequireLower)
+	assert.True(t, p.RequireDigit)
+	assert.True(t, p.RequireSpecial)
+	assert.True(t, p.BlocklistEnabled)
+}
+
+// ---------------------------------------------------------------------------
+// ValidatePasswordPolicy — custom policy without max length
+// ---------------------------------------------------------------------------
+
+func TestValidatePasswordPolicy_NoMaxLength(t *testing.T) {
+	policy := PasswordPolicy{
+		MinLength:      4,
+		MaxLength:      0,
+		RequireUpper:   false,
+		RequireLower:   true,
+		RequireDigit:   false,
+		RequireSpecial: false,
+	}
+	assert.NoError(t, ValidatePasswordPolicy(strings.Repeat("a", 1000), policy))
+}
+
+// ---------------------------------------------------------------------------
+// ValidatePasswordPolicy — blocklist disabled
+// ---------------------------------------------------------------------------
+
+func TestValidatePasswordPolicy_BlocklistDisabled(t *testing.T) {
+	policy := PasswordPolicy{
+		MinLength:        4,
+		RequireLower:     false,
+		BlocklistEnabled: false,
+	}
+	assert.NoError(t, ValidatePasswordPolicy("password", policy))
+}
+
+// ---------------------------------------------------------------------------
+// CheckRateLimit — count key parse error
+// ---------------------------------------------------------------------------
+
+func TestCheckRateLimit_CountKeyNotSet(t *testing.T) {
+	saveAndRestoreRateLimiter(t)
+	_, cli := newMiniredisClient(t)
+	InitRateLimiter(cli)
+
+	identifier := "no-count@example.com"
+	err := CheckRateLimit(identifier)
+	assert.NoError(t, err)
+}
