@@ -31,7 +31,7 @@ func encryptBytes(plaintext, key []byte) ([]byte, error) {
 	if _, err := io.ReadFull(rand.Reader, nonce); err != nil {
 		return nil, fmt.Errorf("nonce: %w", err)
 	}
-	result := gcm.Seal(nonce, nonce, plaintext, nil)
+	result := gcm.Seal(nonce, nonce, plaintext, nil) // #nosec G407 -- random nonce prepended to ciphertext
 	return result, nil
 }
 
