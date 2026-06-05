@@ -1,0 +1,222 @@
+syntax = "proto3";
+
+package maintainerd.auth.v1;
+
+import "google/protobuf/struct.proto";
+import "google/protobuf/timestamp.proto";
+import "maintainerd/auth/v1/tenant.proto";
+
+option go_package = "github.com/maintainerd/auth/internal/platform/gen/go/maintainerd/auth;authv1";
+
+service BrandingService {
+  rpc GetBranding(GetBrandingRequest) returns (GetBrandingResponse);
+  rpc UpdateBranding(UpdateBrandingRequest) returns (UpdateBrandingResponse);
+}
+
+service EmailTemplateService {
+  rpc ListEmailTemplates(ListEmailTemplatesRequest) returns (ListEmailTemplatesResponse);
+  rpc GetEmailTemplate(GetEmailTemplateRequest) returns (GetEmailTemplateResponse);
+  rpc CreateEmailTemplate(CreateEmailTemplateRequest) returns (CreateEmailTemplateResponse);
+  rpc UpdateEmailTemplate(UpdateEmailTemplateRequest) returns (UpdateEmailTemplateResponse);
+  rpc SetEmailTemplateStatus(SetEmailTemplateStatusRequest) returns (SetEmailTemplateStatusResponse);
+  rpc DeleteEmailTemplate(DeleteEmailTemplateRequest) returns (DeleteEmailTemplateResponse);
+}
+
+service SMSTemplateService {
+  rpc ListSMSTemplates(ListSMSTemplatesRequest) returns (ListSMSTemplatesResponse);
+  rpc GetSMSTemplate(GetSMSTemplateRequest) returns (GetSMSTemplateResponse);
+  rpc CreateSMSTemplate(CreateSMSTemplateRequest) returns (CreateSMSTemplateResponse);
+  rpc UpdateSMSTemplate(UpdateSMSTemplateRequest) returns (UpdateSMSTemplateResponse);
+  rpc SetSMSTemplateStatus(SetSMSTemplateStatusRequest) returns (SetSMSTemplateStatusResponse);
+  rpc DeleteSMSTemplate(DeleteSMSTemplateRequest) returns (DeleteSMSTemplateResponse);
+}
+
+service LoginTemplateService {
+  rpc ListLoginTemplates(ListLoginTemplatesRequest) returns (ListLoginTemplatesResponse);
+  rpc GetLoginTemplate(GetLoginTemplateRequest) returns (GetLoginTemplateResponse);
+  rpc CreateLoginTemplate(CreateLoginTemplateRequest) returns (CreateLoginTemplateResponse);
+  rpc UpdateLoginTemplate(UpdateLoginTemplateRequest) returns (UpdateLoginTemplateResponse);
+  rpc SetLoginTemplateStatus(SetLoginTemplateStatusRequest) returns (SetLoginTemplateStatusResponse);
+  rpc DeleteLoginTemplate(DeleteLoginTemplateRequest) returns (DeleteLoginTemplateResponse);
+}
+
+message Branding {
+  string branding_uuid = 1;
+  string company_name = 2;
+  string logo_url = 3;
+  string favicon_url = 4;
+  string primary_color = 5;
+  string secondary_color = 6;
+  string accent_color = 7;
+  string font_family = 8;
+  string custom_css = 9;
+  string support_url = 10;
+  string privacy_policy_url = 11;
+  string terms_of_service_url = 12;
+  google.protobuf.Timestamp created_at = 13;
+  google.protobuf.Timestamp updated_at = 14;
+}
+
+message GetBrandingRequest { string tenant_uuid = 1; }
+message GetBrandingResponse { Branding branding = 1; }
+message UpdateBrandingRequest {
+  string tenant_uuid = 1;
+  string company_name = 2;
+  string logo_url = 3;
+  string favicon_url = 4;
+  string primary_color = 5;
+  string secondary_color = 6;
+  string accent_color = 7;
+  string font_family = 8;
+  string custom_css = 9;
+  string support_url = 10;
+  string privacy_policy_url = 11;
+  string terms_of_service_url = 12;
+}
+message UpdateBrandingResponse { Branding branding = 1; }
+
+message EmailTemplate {
+  string email_template_uuid = 1;
+  string name = 2;
+  string subject = 3;
+  string body_html = 4;
+  optional string body_plain = 5;
+  string status = 6;
+  bool is_default = 7;
+  bool is_system = 8;
+  google.protobuf.Timestamp created_at = 9;
+  google.protobuf.Timestamp updated_at = 10;
+}
+
+message ListEmailTemplatesRequest {
+  string tenant_uuid = 1;
+  string name = 2;
+  repeated string status = 3;
+  optional bool is_default = 4;
+  optional bool is_system = 5;
+  Pagination pagination = 6;
+}
+message ListEmailTemplatesResponse { repeated EmailTemplate email_templates = 1; PageMetadata page = 2; }
+message GetEmailTemplateRequest { string tenant_uuid = 1; string email_template_uuid = 2; }
+message GetEmailTemplateResponse { EmailTemplate email_template = 1; }
+message CreateEmailTemplateRequest {
+  string tenant_uuid = 1;
+  string name = 2;
+  string subject = 3;
+  string body_html = 4;
+  optional string body_plain = 5;
+  string status = 6;
+  bool is_default = 7;
+}
+message CreateEmailTemplateResponse { EmailTemplate email_template = 1; }
+message UpdateEmailTemplateRequest {
+  string tenant_uuid = 1;
+  string email_template_uuid = 2;
+  string name = 3;
+  string subject = 4;
+  string body_html = 5;
+  optional string body_plain = 6;
+  string status = 7;
+}
+message UpdateEmailTemplateResponse { EmailTemplate email_template = 1; }
+message SetEmailTemplateStatusRequest { string tenant_uuid = 1; string email_template_uuid = 2; string status = 3; }
+message SetEmailTemplateStatusResponse { EmailTemplate email_template = 1; }
+message DeleteEmailTemplateRequest { string tenant_uuid = 1; string email_template_uuid = 2; }
+message DeleteEmailTemplateResponse { EmailTemplate email_template = 1; }
+
+message SMSTemplate {
+  string sms_template_uuid = 1;
+  string name = 2;
+  optional string description = 3;
+  string message = 4;
+  optional string sender_id = 5;
+  string status = 6;
+  bool is_default = 7;
+  bool is_system = 8;
+  google.protobuf.Timestamp created_at = 9;
+  google.protobuf.Timestamp updated_at = 10;
+}
+
+message ListSMSTemplatesRequest {
+  string tenant_uuid = 1;
+  string name = 2;
+  repeated string status = 3;
+  optional bool is_default = 4;
+  optional bool is_system = 5;
+  Pagination pagination = 6;
+}
+message ListSMSTemplatesResponse { repeated SMSTemplate sms_templates = 1; PageMetadata page = 2; }
+message GetSMSTemplateRequest { string tenant_uuid = 1; string sms_template_uuid = 2; }
+message GetSMSTemplateResponse { SMSTemplate sms_template = 1; }
+message CreateSMSTemplateRequest {
+  string tenant_uuid = 1;
+  string name = 2;
+  optional string description = 3;
+  string message = 4;
+  optional string sender_id = 5;
+  string status = 6;
+}
+message CreateSMSTemplateResponse { SMSTemplate sms_template = 1; }
+message UpdateSMSTemplateRequest {
+  string tenant_uuid = 1;
+  string sms_template_uuid = 2;
+  string name = 3;
+  optional string description = 4;
+  string message = 5;
+  optional string sender_id = 6;
+  string status = 7;
+}
+message UpdateSMSTemplateResponse { SMSTemplate sms_template = 1; }
+message SetSMSTemplateStatusRequest { string tenant_uuid = 1; string sms_template_uuid = 2; string status = 3; }
+message SetSMSTemplateStatusResponse { SMSTemplate sms_template = 1; }
+message DeleteSMSTemplateRequest { string tenant_uuid = 1; string sms_template_uuid = 2; }
+message DeleteSMSTemplateResponse { SMSTemplate sms_template = 1; }
+
+message LoginTemplate {
+  string login_template_uuid = 1;
+  string name = 2;
+  optional string description = 3;
+  string template = 4;
+  google.protobuf.Struct metadata = 5;
+  string status = 6;
+  bool is_default = 7;
+  bool is_system = 8;
+  google.protobuf.Timestamp created_at = 9;
+  google.protobuf.Timestamp updated_at = 10;
+}
+
+message ListLoginTemplatesRequest {
+  string tenant_uuid = 1;
+  string name = 2;
+  repeated string status = 3;
+  string template = 4;
+  optional bool is_default = 5;
+  optional bool is_system = 6;
+  Pagination pagination = 7;
+}
+message ListLoginTemplatesResponse { repeated LoginTemplate login_templates = 1; PageMetadata page = 2; }
+message GetLoginTemplateRequest { string tenant_uuid = 1; string login_template_uuid = 2; }
+message GetLoginTemplateResponse { LoginTemplate login_template = 1; }
+message CreateLoginTemplateRequest {
+  string tenant_uuid = 1;
+  string name = 2;
+  optional string description = 3;
+  string template = 4;
+  google.protobuf.Struct metadata = 5;
+  string status = 6;
+}
+message CreateLoginTemplateResponse { LoginTemplate login_template = 1; }
+message UpdateLoginTemplateRequest {
+  string tenant_uuid = 1;
+  string login_template_uuid = 2;
+  string name = 3;
+  optional string description = 4;
+  string template = 5;
+  google.protobuf.Struct metadata = 6;
+  string status = 7;
+}
+message UpdateLoginTemplateResponse { LoginTemplate login_template = 1; }
+message SetLoginTemplateStatusRequest { string tenant_uuid = 1; string login_template_uuid = 2; string status = 3; }
+message SetLoginTemplateStatusResponse { LoginTemplate login_template = 1; }
+message DeleteLoginTemplateRequest { string tenant_uuid = 1; string login_template_uuid = 2; }
+message DeleteLoginTemplateResponse { LoginTemplate login_template = 1; }

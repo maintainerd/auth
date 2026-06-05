@@ -129,6 +129,52 @@ var grpcServicePermissions = map[string]string{
 	grpcMethod(authv1.UserService_ServiceDesc.ServiceName, "AssignUserRoles"):          "user:create",
 	grpcMethod(authv1.UserService_ServiceDesc.ServiceName, "RemoveUserRole"):           "user:create",
 	grpcMethod(authv1.InviteService_ServiceDesc.ServiceName, "SendInvite"):             "",
+
+	grpcMethod(authv1.SecuritySettingService_ServiceDesc.ServiceName, "GetMFAConfig"):           "security-setting:read",
+	grpcMethod(authv1.SecuritySettingService_ServiceDesc.ServiceName, "UpdateMFAConfig"):        "security-setting:update",
+	grpcMethod(authv1.SecuritySettingService_ServiceDesc.ServiceName, "GetPasswordConfig"):      "security-setting:read",
+	grpcMethod(authv1.SecuritySettingService_ServiceDesc.ServiceName, "UpdatePasswordConfig"):   "security-setting:update",
+	grpcMethod(authv1.SecuritySettingService_ServiceDesc.ServiceName, "GetSessionConfig"):       "security-setting:read",
+	grpcMethod(authv1.SecuritySettingService_ServiceDesc.ServiceName, "UpdateSessionConfig"):    "security-setting:update",
+	grpcMethod(authv1.SecuritySettingService_ServiceDesc.ServiceName, "GetThreatConfig"):        "security-setting:read",
+	grpcMethod(authv1.SecuritySettingService_ServiceDesc.ServiceName, "UpdateThreatConfig"):     "security-setting:update",
+	grpcMethod(authv1.SecuritySettingService_ServiceDesc.ServiceName, "GetLockoutConfig"):       "security-setting:read",
+	grpcMethod(authv1.SecuritySettingService_ServiceDesc.ServiceName, "UpdateLockoutConfig"):    "security-setting:update",
+	grpcMethod(authv1.SecuritySettingService_ServiceDesc.ServiceName, "GetRegistrationConfig"):  "security-setting:read",
+	grpcMethod(authv1.SecuritySettingService_ServiceDesc.ServiceName, "UpdateRegistrationConfig"): "security-setting:update",
+	grpcMethod(authv1.SecuritySettingService_ServiceDesc.ServiceName, "GetTokenConfig"):         "security-setting:read",
+	grpcMethod(authv1.SecuritySettingService_ServiceDesc.ServiceName, "UpdateTokenConfig"):      "security-setting:update",
+
+	grpcMethod(authv1.IPRestrictionRuleService_ServiceDesc.ServiceName, "ListIPRestrictionRules"):    "ip-restriction-rule:read",
+	grpcMethod(authv1.IPRestrictionRuleService_ServiceDesc.ServiceName, "GetIPRestrictionRule"):      "ip-restriction-rule:read",
+	grpcMethod(authv1.IPRestrictionRuleService_ServiceDesc.ServiceName, "CreateIPRestrictionRule"):   "ip-restriction-rule:create",
+	grpcMethod(authv1.IPRestrictionRuleService_ServiceDesc.ServiceName, "UpdateIPRestrictionRule"):   "ip-restriction-rule:update",
+	grpcMethod(authv1.IPRestrictionRuleService_ServiceDesc.ServiceName, "SetIPRestrictionRuleStatus"): "ip-restriction-rule:update",
+	grpcMethod(authv1.IPRestrictionRuleService_ServiceDesc.ServiceName, "DeleteIPRestrictionRule"):   "ip-restriction-rule:delete",
+
+	grpcMethod(authv1.BrandingService_ServiceDesc.ServiceName, "GetBranding"):          "branding:read",
+	grpcMethod(authv1.BrandingService_ServiceDesc.ServiceName, "UpdateBranding"):       "branding:update",
+
+	grpcMethod(authv1.EmailTemplateService_ServiceDesc.ServiceName, "ListEmailTemplates"):   "email-template:read",
+	grpcMethod(authv1.EmailTemplateService_ServiceDesc.ServiceName, "GetEmailTemplate"):     "email-template:read",
+	grpcMethod(authv1.EmailTemplateService_ServiceDesc.ServiceName, "CreateEmailTemplate"):  "email-template:create",
+	grpcMethod(authv1.EmailTemplateService_ServiceDesc.ServiceName, "UpdateEmailTemplate"):  "email-template:update",
+	grpcMethod(authv1.EmailTemplateService_ServiceDesc.ServiceName, "SetEmailTemplateStatus"): "email-template:update",
+	grpcMethod(authv1.EmailTemplateService_ServiceDesc.ServiceName, "DeleteEmailTemplate"):  "email-template:delete",
+
+	grpcMethod(authv1.SMSTemplateService_ServiceDesc.ServiceName, "ListSMSTemplates"):   "sms-template:read",
+	grpcMethod(authv1.SMSTemplateService_ServiceDesc.ServiceName, "GetSMSTemplate"):     "sms-template:read",
+	grpcMethod(authv1.SMSTemplateService_ServiceDesc.ServiceName, "CreateSMSTemplate"):  "sms-template:create",
+	grpcMethod(authv1.SMSTemplateService_ServiceDesc.ServiceName, "UpdateSMSTemplate"):  "sms-template:update",
+	grpcMethod(authv1.SMSTemplateService_ServiceDesc.ServiceName, "SetSMSTemplateStatus"): "sms-template:update",
+	grpcMethod(authv1.SMSTemplateService_ServiceDesc.ServiceName, "DeleteSMSTemplate"):  "sms-template:delete",
+
+	grpcMethod(authv1.LoginTemplateService_ServiceDesc.ServiceName, "ListLoginTemplates"):   "login-template:read",
+	grpcMethod(authv1.LoginTemplateService_ServiceDesc.ServiceName, "GetLoginTemplate"):     "login-template:read",
+	grpcMethod(authv1.LoginTemplateService_ServiceDesc.ServiceName, "CreateLoginTemplate"):  "login-template:create",
+	grpcMethod(authv1.LoginTemplateService_ServiceDesc.ServiceName, "UpdateLoginTemplate"):  "login-template:update",
+	grpcMethod(authv1.LoginTemplateService_ServiceDesc.ServiceName, "SetLoginTemplateStatus"): "login-template:update",
+	grpcMethod(authv1.LoginTemplateService_ServiceDesc.ServiceName, "DeleteLoginTemplate"):  "login-template:delete",
 }
 
 var grpcStepUpMethods = map[string]struct{}{
@@ -150,6 +196,13 @@ var grpcStepUpMethods = map[string]struct{}{
 	grpcMethod(authv1.UserService_ServiceDesc.ServiceName, "ForceUserPasswordChange"):     {},
 	grpcMethod(authv1.UserService_ServiceDesc.ServiceName, "AssignUserRoles"):             {},
 	grpcMethod(authv1.UserService_ServiceDesc.ServiceName, "RemoveUserRole"):              {},
+	grpcMethod(authv1.SecuritySettingService_ServiceDesc.ServiceName, "UpdateMFAConfig"): {},
+	grpcMethod(authv1.SecuritySettingService_ServiceDesc.ServiceName, "UpdatePasswordConfig"): {},
+	grpcMethod(authv1.SecuritySettingService_ServiceDesc.ServiceName, "UpdateSessionConfig"): {},
+	grpcMethod(authv1.SecuritySettingService_ServiceDesc.ServiceName, "UpdateThreatConfig"): {},
+	grpcMethod(authv1.SecuritySettingService_ServiceDesc.ServiceName, "UpdateLockoutConfig"): {},
+	grpcMethod(authv1.SecuritySettingService_ServiceDesc.ServiceName, "UpdateRegistrationConfig"): {},
+	grpcMethod(authv1.SecuritySettingService_ServiceDesc.ServiceName, "UpdateTokenConfig"): {},
 }
 
 func grpcMethod(service string, method string) string {
