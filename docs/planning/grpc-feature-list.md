@@ -534,89 +534,83 @@ permission string shown. Status is per-RPC.
 ### GRPC-120 · IdentityProviderService — `identity_provider.proto`
 | RPC | REST origin | Permission | Status |
 |-----|-------------|-----------|--------|
-| `ListIdentityProviders` / `GetIdentityProvider` | `GET /identity_providers/`, `…/{uuid}` | `idp:read` | 🔴 todo |
-| `CreateIdentityProvider` | `POST /identity_providers/` | `idp:create` | 🔴 todo |
-| `UpdateIdentityProvider` | `PUT /identity_providers/{uuid}` | `idp:update` | 🔴 todo |
-| `SetIdentityProviderStatus` | `PUT /identity_providers/{uuid}/status` | `idp:update` | 🔴 todo |
-| `DeleteIdentityProvider` | `DELETE /identity_providers/{uuid}` | `idp:delete` | 🔴 todo |
+| `ListIdentityProviders` / `GetIdentityProvider` | `GET /identity_providers/`, `…/{uuid}` | `idp:read` | ✅ done |
+| `CreateIdentityProvider` | `POST /identity_providers/` | `idp:create` | ✅ done |
+| `UpdateIdentityProvider` | `PUT /identity_providers/{uuid}` | `idp:update` | ✅ done |
+| `SetIdentityProviderStatus` | `PUT /identity_providers/{uuid}/status` | `idp:update` | ✅ done |
+| `DeleteIdentityProvider` | `DELETE /identity_providers/{uuid}` | `idp:delete` | ✅ done |
 
 ### GRPC-121 · SignupFlowService — `identity_provider.proto`
 | RPC | REST origin | Permission | Status |
 |-----|-------------|-----------|--------|
-| `ListSignupFlows` / `GetSignupFlow` | `GET /signup_flows/`, `…/{uuid}` | `signup-flow:read` | 🔴 todo |
-| `CreateSignupFlow` | `POST /signup_flows/` | `signup-flow:create` | 🔴 todo |
-| `UpdateSignupFlow` | `PUT /signup_flows/{uuid}` | `signup-flow:update` | 🔴 todo |
-| `SetSignupFlowStatus` | `PATCH /signup_flows/{uuid}/status` | `signup-flow:update` | 🔴 todo |
-| `DeleteSignupFlow` | `DELETE /signup_flows/{uuid}` | `signup-flow:delete` | 🔴 todo |
-| `AssignSignupFlowRoles` | `POST /signup_flows/{uuid}/roles/` | `signup-flow:update` | 🔴 todo |
-| `ListSignupFlowRoles` | `GET /signup_flows/{uuid}/roles/` | `signup-flow:read` | 🔴 todo |
-| `RemoveSignupFlowRole` | `DELETE /signup_flows/{uuid}/roles/{r}` | `signup-flow:update` | 🔴 todo |
+| `ListSignupFlows` / `GetSignupFlow` | `GET /signup_flows/`, `…/{uuid}` | `signup-flow:read` | ✅ done |
+| `CreateSignupFlow` | `POST /signup_flows/` | `signup-flow:create` | ✅ done |
+| `UpdateSignupFlow` | `PUT /signup_flows/{uuid}` | `signup-flow:update` | ✅ done |
+| `SetSignupFlowStatus` | `PATCH /signup_flows/{uuid}/status` | `signup-flow:update` | ✅ done |
+| `DeleteSignupFlow` | `DELETE /signup_flows/{uuid}` | `signup-flow:delete` | ✅ done |
+| `AssignSignupFlowRoles` | `POST /signup_flows/{uuid}/roles/` | `signup-flow:update` | ✅ done |
+| `ListSignupFlowRoles` | `GET /signup_flows/{uuid}/roles/` | `signup-flow:read` | ✅ done |
+| `RemoveSignupFlowRole` | `DELETE /signup_flows/{uuid}/roles/{r}` | `signup-flow:update` | ✅ done |
 
 ### GRPC-130 · ClientService — `client.proto`
 | RPC | REST origin | Permission | Status |
 |-----|-------------|-----------|--------|
-| `ListClients` / `GetClient` | `GET /clients/`, `…/{uuid}` | `client:read` | 🔴 todo |
-| `GetClientSecret` | `GET /clients/{uuid}/secret` | `client:secret:read` + step-up | 🔴 todo |
-| `RotateClientSecret` | `POST /clients/{uuid}/rotate-secret` | `client:secret:rotate` + step-up | 🔴 todo |
-| `GetClientConfig` | `GET /clients/{uuid}/config` | `client:config:read` | 🔴 todo |
-| `CreateClient` | `POST /clients/` | `client:create` | 🔴 todo |
-| `UpdateClient` | `PUT /clients/{uuid}` | `client:update` | 🔴 todo |
-| `SetClientStatus` | `PUT /clients/{uuid}/status` | `client:update` | 🔴 todo |
-| `DeleteClient` | `DELETE /clients/{uuid}` | `client:delete` | 🔴 todo |
-| `ListClientURIs` | `GET /clients/{uuid}/uris` | `client:uri:read` | 🔴 todo |
-| `CreateClientURI` | `POST /clients/{uuid}/uris` | `client:uri:create` | 🔴 todo |
-| `UpdateClientURI` | `PUT /clients/{uuid}/uris/{u}` | `client:uri:update` | 🔴 todo |
-| `DeleteClientURI` | `DELETE /clients/{uuid}/uris/{u}` | `client:uri:delete` | 🔴 todo |
-| `ListClientAPIs` | `GET /clients/{uuid}/apis` | `client:api:read` | 🔴 todo |
-| `AddClientAPIs` | `POST /clients/{uuid}/apis` | `client:api:create` | 🔴 todo |
-| `RemoveClientAPI` | `DELETE /clients/{uuid}/apis/{a}` | `client:api:delete` | 🔴 todo |
-| `ListClientAPIPermissions` | `GET /clients/{uuid}/apis/{a}/permissions` | `client:api:permission:read` | 🔴 todo |
-| `AddClientAPIPermissions` | `POST /clients/{uuid}/apis/{a}/permissions` | `client:api:permission:create` | 🔴 todo |
-| `RemoveClientAPIPermission` | `DELETE /clients/{uuid}/apis/{a}/permissions/{p}` | `client:api:permission:delete` | 🔴 todo |
+| `ListClients` / `GetClient` | `GET /clients/`, `…/{uuid}` | `client:read` | ✅ done |
+| `GetClientSecret` | `GET /clients/{uuid}/secret` | `client:secret:read` + step-up | ✅ done |
+| `RotateClientSecret` | `POST /clients/{uuid}/rotate-secret` | `client:secret:rotate` + step-up | ✅ done |
+| `GetClientConfig` | `GET /clients/{uuid}/config` | `client:config:read` | ✅ done |
+| `CreateClient` | `POST /clients/` | `client:create` | ✅ done |
+| `UpdateClient` | `PUT /clients/{uuid}` | `client:update` | ✅ done |
+| `SetClientStatus` | `PUT /clients/{uuid}/status` | `client:update` | ✅ done |
+| `DeleteClient` | `DELETE /clients/{uuid}` | `client:delete` | ✅ done |
+| `ListClientURIs` | `GET /clients/{uuid}/uris` | `client:uri:read` | ✅ done |
+| `CreateClientURI` | `POST /clients/{uuid}/uris` | `client:uri:create` | ✅ done |
+| `UpdateClientURI` | `PUT /clients/{uuid}/uris/{u}` | `client:uri:update` | ✅ done |
+| `DeleteClientURI` | `DELETE /clients/{uuid}/uris/{u}` | `client:uri:delete` | ✅ done |
+| `ListClientAPIs` | `GET /clients/{uuid}/apis` | `client:api:read` | ✅ done |
+| `AddClientAPIs` | `POST /clients/{uuid}/apis` | `client:api:create` | ✅ done |
+| `RemoveClientAPI` | `DELETE /clients/{uuid}/apis/{a}` | `client:api:delete` | ✅ done |
+| `ListClientAPIPermissions` | `GET /clients/{uuid}/apis/{a}/permissions` | `client:api:permission:read` | ✅ done |
+| `AddClientAPIPermissions` | `POST /clients/{uuid}/apis/{a}/permissions` | `client:api:permission:create` | ✅ done |
+| `RemoveClientAPIPermission` | `DELETE /clients/{uuid}/apis/{a}/permissions/{p}` | `client:api:permission:delete` | ✅ done |
 
 ### GRPC-131 · APIKeyService — `client.proto`
 | RPC | REST origin | Permission | Status |
 |-----|-------------|-----------|--------|
-| `ListAPIKeys` / `GetAPIKey` | `GET /api_keys/`, `…/{uuid}` | `api_key:read` | 🔴 todo |
-| `GetAPIKeyConfig` | `GET /api_keys/{uuid}/config` | `api_key:read` | 🔴 todo |
-| `CreateAPIKey` | `POST /api_keys/` | `api_key:create` + step-up | 🔴 todo |
-| `UpdateAPIKey` | `PUT /api_keys/{uuid}` | `api_key:update` + step-up | 🔴 todo |
-| `SetAPIKeyStatus` | `PUT /api_keys/{uuid}/status` | `api_key:update` + step-up | 🔴 todo |
-| `DeleteAPIKey` | `DELETE /api_keys/{uuid}` | `api_key:delete` + step-up | 🔴 todo |
-| `ListAPIKeyAPIs` | `GET /api_keys/{uuid}/apis/` | `api_key:read` | 🔴 todo |
-| `AddAPIKeyAPIs` | `POST /api_keys/{uuid}/apis/` | `api_key:update` + step-up | 🔴 todo |
-| `RemoveAPIKeyAPI` | `DELETE /api_keys/{uuid}/apis/{a}` | `api_key:update` + step-up | 🔴 todo |
-| `ListAPIKeyAPIPermissions` | `GET /api_keys/{uuid}/apis/{a}/permissions/` | `api_key:read` | 🔴 todo |
-| `AddAPIKeyAPIPermissions` | `POST /api_keys/{uuid}/apis/{a}/permissions/` | `api_key:update` + step-up | 🔴 todo |
-| `RemoveAPIKeyAPIPermission` | `DELETE /api_keys/{uuid}/apis/{a}/permissions/{p}` | `api_key:update` + step-up | 🔴 todo |
+| `ListAPIKeys` / `GetAPIKey` | `GET /api_keys/`, `…/{uuid}` | `api_key:read` | ✅ done |
+| `GetAPIKeyConfig` | `GET /api_keys/{uuid}/config` | `api_key:read` | ✅ done |
+| `CreateAPIKey` | `POST /api_keys/` | `api_key:create` + step-up | ✅ done |
+| `UpdateAPIKey` | `PUT /api_keys/{uuid}` | `api_key:update` + step-up | ✅ done |
+| `SetAPIKeyStatus` | `PUT /api_keys/{uuid}/status` | `api_key:update` + step-up | ✅ done |
+| `DeleteAPIKey` | `DELETE /api_keys/{uuid}` | `api_key:delete` + step-up | ✅ done |
+| `ListAPIKeyAPIs` | `GET /api_keys/{uuid}/apis/` | `api_key:read` | ✅ done |
+| `AddAPIKeyAPIs` | `POST /api_keys/{uuid}/apis/` | `api_key:update` + step-up | ✅ done |
+| `RemoveAPIKeyAPI` | `DELETE /api_keys/{uuid}/apis/{a}` | `api_key:update` + step-up | ✅ done |
+| `ListAPIKeyAPIPermissions` | `GET /api_keys/{uuid}/apis/{a}/permissions/` | `api_key:read` | ✅ done |
+| `AddAPIKeyAPIPermissions` | `POST /api_keys/{uuid}/apis/{a}/permissions/` | `api_key:update` + step-up | ✅ done |
+| `RemoveAPIKeyAPIPermission` | `DELETE /api_keys/{uuid}/apis/{a}/permissions/{p}` | `api_key:update` + step-up | ✅ done |
 
 ### GRPC-140 · UserService (admin) — `user.proto`
 | RPC | REST origin | Permission | Status |
 |-----|-------------|-----------|--------|
-| `ListUsers` / `GetUser` | `GET /users/`, `…/{uuid}` | `user:read` | 🔴 todo |
-| `CreateUser` | `POST /users/` | `user:create` | 🔴 todo |
-| `UpdateUser` | `PUT /users/{uuid}` | `user:update` | 🔴 todo |
-| `SetUserStatus` | `PATCH /users/{uuid}/status` | `user:update` + step-up | 🔴 todo |
-| `VerifyUserEmail` | `PATCH /users/{uuid}/verify-email` | `user:update` | 🔴 todo |
-| `VerifyUserPhone` | `PATCH /users/{uuid}/verify-phone` | `user:update` | 🔴 todo |
-| `CompleteUserAccount` | `PATCH /users/{uuid}/complete-account` | `user:update` | 🔴 todo |
-| `DeleteUser` | `DELETE /users/{uuid}` | `user:delete` + step-up | 🔴 todo |
-| `ForceUserPasswordChange` | `PUT /users/{uuid}/force-password-change` | `user:update` + step-up | 🔴 todo |
-| `ListUserRoles` | `GET /users/{uuid}/roles` | `user:read` | 🔴 todo |
-| `ListUserIdentities` | `GET /users/{uuid}/identities` | `user:read` | 🔴 todo |
-| `AssignUserRoles` | `POST /users/{uuid}/roles` | `user:create` + step-up | 🔴 todo |
-| `RemoveUserRole` | `DELETE /users/{uuid}/roles/{r}` | `user:create` + step-up | 🔴 todo |
-| `ListUserProfiles` | `GET /users/{uuid}/profiles` | `user:read` | 🔴 todo |
-| `CreateUserProfile` | `POST /users/{uuid}/profiles` | `user:update` | 🔴 todo |
-| `GetUserProfile` | `GET /users/{uuid}/profiles/{p}` | `user:read` | 🔴 todo |
-| `UpdateUserProfile` | `PUT /users/{uuid}/profiles/{p}` | `user:update` | 🔴 todo |
-| `SetDefaultUserProfile` | `PUT /users/{uuid}/profiles/{p}/set-default` | `user:update` | 🔴 todo |
-| `DeleteUserProfile` | `DELETE /users/{uuid}/profiles/{p}` | `user:delete` | 🔴 todo |
+| `ListUsers` / `GetUser` | `GET /users/`, `…/{uuid}` | `user:read` | ✅ done |
+| `CreateUser` | `POST /users/` | `user:create` | ✅ done |
+| `UpdateUser` | `PUT /users/{uuid}` | `user:update` | ✅ done |
+| `SetUserStatus` | `PATCH /users/{uuid}/status` | `user:update` + step-up | ✅ done |
+| `VerifyUserEmail` | `PATCH /users/{uuid}/verify-email` | `user:update` | ✅ done |
+| `VerifyUserPhone` | `PATCH /users/{uuid}/verify-phone` | `user:update` | ✅ done |
+| `CompleteUserAccount` | `PATCH /users/{uuid}/complete-account` | `user:update` | ✅ done |
+| `DeleteUser` | `DELETE /users/{uuid}` | `user:delete` + step-up | ✅ done |
+| `ForceUserPasswordChange` | `PUT /users/{uuid}/force-password-change` | `user:update` + step-up | ✅ done |
+| `ListUserRoles` | `GET /users/{uuid}/roles` | `user:read` | ✅ done |
+| `ListUserIdentities` | `GET /users/{uuid}/identities` | `user:read` | ✅ done |
+| `AssignUserRoles` | `POST /users/{uuid}/roles` | `user:create` + step-up | ✅ done |
+| `RemoveUserRole` | `DELETE /users/{uuid}/roles/{r}` | `user:create` + step-up | ✅ done |
 
 ### GRPC-141 · InviteService — `user.proto`
 | RPC | REST origin | Permission | Status |
 |-----|-------------|-----------|--------|
-| `SendInvite` | `POST /invite/` | (authenticated admin) | 🔴 todo |
+| `SendInvite` | `POST /invite/` | (authenticated admin) | ✅ done |
 
 ### GRPC-150 · SecuritySettingService — `security.proto`
 | RPC | REST origin | Permission | Status |

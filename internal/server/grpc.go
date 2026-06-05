@@ -9,12 +9,17 @@ import (
 	"net"
 	"os"
 
+	"github.com/google/uuid"
+	"github.com/maintainerd/auth/internal/client"
 	"github.com/maintainerd/auth/internal/iam"
+	"github.com/maintainerd/auth/internal/idp"
+	"github.com/maintainerd/auth/internal/invite"
 	"github.com/maintainerd/auth/internal/platform/config"
 	authv1 "github.com/maintainerd/auth/internal/platform/gen/go/maintainerd/auth"
 	"github.com/maintainerd/auth/internal/setup"
 	"github.com/maintainerd/auth/internal/shared"
 	"github.com/maintainerd/auth/internal/tenant"
+	"github.com/maintainerd/auth/internal/user"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
@@ -53,6 +58,12 @@ func serveGRPC(ctx context.Context, application *Application, lis net.Listener) 
 	healthServer.SetServingStatus(authv1.PolicyService_ServiceDesc.ServiceName, healthpb.HealthCheckResponse_SERVING)
 	healthServer.SetServingStatus(authv1.RoleService_ServiceDesc.ServiceName, healthpb.HealthCheckResponse_SERVING)
 	healthServer.SetServingStatus(authv1.AuthorizationService_ServiceDesc.ServiceName, healthpb.HealthCheckResponse_SERVING)
+	healthServer.SetServingStatus(authv1.IdentityProviderService_ServiceDesc.ServiceName, healthpb.HealthCheckResponse_SERVING)
+	healthServer.SetServingStatus(authv1.SignupFlowService_ServiceDesc.ServiceName, healthpb.HealthCheckResponse_SERVING)
+	healthServer.SetServingStatus(authv1.ClientService_ServiceDesc.ServiceName, healthpb.HealthCheckResponse_SERVING)
+	healthServer.SetServingStatus(authv1.APIKeyService_ServiceDesc.ServiceName, healthpb.HealthCheckResponse_SERVING)
+	healthServer.SetServingStatus(authv1.UserService_ServiceDesc.ServiceName, healthpb.HealthCheckResponse_SERVING)
+	healthServer.SetServingStatus(authv1.InviteService_ServiceDesc.ServiceName, healthpb.HealthCheckResponse_SERVING)
 
 	if config.AppEnv != "production" {
 		reflection.Register(s)
@@ -67,6 +78,12 @@ func serveGRPC(ctx context.Context, application *Application, lis net.Listener) 
 	authv1.RegisterPolicyServiceServer(s, iam.NewPolicyGRPCHandler(application.TenantService, application.PolicyService))
 	authv1.RegisterRoleServiceServer(s, iam.NewRoleGRPCHandler(application.TenantService, application.RoleService))
 	authv1.RegisterAuthorizationServiceServer(s, iam.NewAuthorizationGRPCHandler(application.AuthorizationService))
+	authv1.RegisterIdentityProviderServiceServer(s, idp.NewIdentityProviderGRPCHandler(idpTenantResolver{application.TenantService}, application.IdentityProviderService))
+	authv1.RegisterSignupFlowServiceServer(s, idp.NewSignupFlowGRPCHandler(idpTenantResolver{application.TenantService}, application.SignupFlowService))
+	authv1.RegisterClientServiceServer(s, client.NewClientGRPCHandler(clientTenantResolver{application.TenantService}, application.ClientService))
+	authv1.RegisterAPIKeyServiceServer(s, client.NewAPIKeyGRPCHandler(clientTenantResolver{application.TenantService}, application.APIKeyService))
+	authv1.RegisterUserServiceServer(s, user.NewUserGRPCHandler(userTenantResolver{application.TenantService}, application.UserService))
+	authv1.RegisterInviteServiceServer(s, invite.NewInviteGRPCHandler(inviteTenantResolver{application.TenantService}, application.InviteService))
 
 	// Stop the server when the context is cancelled (e.g. after REST servers drain).
 	go func() {
@@ -137,4 +154,88 @@ func loadGRPCTLSConfig() (*tls.Config, error) {
 		tlsConfig.ClientAuth = tls.RequireAndVerifyClientCert
 	}
 	return tlsConfig, nil
+}
+
+type idpTenantResolver struct {
+	svc tenant.TenantService
+}
+
+func (r idpTenantResolver) GetByUUID(ctx context.Context, tenantUUID uuid.UUID) (*idp.TenantServiceDataResult, error) {
+	t, err := r.svc.GetByUUID(ctx, tenantUUID)
+	if err != nil {
+		return nil, err
+	}
+	return &idp.TenantServiceDataResult{
+		TenantID:    t.TenantID,
+		TenantUUID:  t.TenantUUID,
+		Name:        t.Name,
+		DisplayName: t.DisplayName,
+		Description: t.Description,
+		Identifier:  t.Identifier,
+		Status:      t.Status,
+		IsPublic:    t.IsPublic,
+		IsSystem:    t.IsSystem,
+		CreatedAt:   t.CreatedAt,
+		UpdatedAt:   t.UpdatedAt,
+	}, nil
+}
+
+type clientTenantResolver struct {
+	svc tenant.TenantService
+}
+
+func (r clientTenantResolver) GetByUUID(ctx context.Context, tenantUUID uuid.UUID) (*client.TenantServiceDataResult, error) {
+	t, err := r.svc.GetByUUID(ctx, tenantUUID)
+	if err != nil {
+		return nil, err
+	}
+	return &client.TenantServiceDataResult{
+		TenantID:    t.TenantID,
+		TenantUUID:  t.TenantUUID,
+		Name:        t.Name,
+		DisplayName: t.DisplayName,
+		Description: t.Description,
+		Identifier:  t.Identifier,
+		Status:      t.Status,
+		IsPublic:    t.IsPublic,
+		IsSystem:    t.IsSystem,
+		CreatedAt:   t.CreatedAt,
+		UpdatedAt:   t.UpdatedAt,
+	}, nil
+}
+
+type userTenantResolver struct {
+	svc tenant.TenantService
+}
+
+func (r userTenantResolver) GetByUUID(ctx context.Context, tenantUUID uuid.UUID) (*user.TenantServiceDataResult, error) {
+	t, err := r.svc.GetByUUID(ctx, tenantUUID)
+	if err != nil {
+		return nil, err
+	}
+	return &user.TenantServiceDataResult{
+		TenantID:    t.TenantID,
+		TenantUUID:  t.TenantUUID,
+		Name:        t.Name,
+		DisplayName: t.DisplayName,
+		Description: t.Description,
+		Identifier:  t.Identifier,
+		Status:      t.Status,
+		IsPublic:    t.IsPublic,
+		IsSystem:    t.IsSystem,
+		CreatedAt:   t.CreatedAt,
+		UpdatedAt:   t.UpdatedAt,
+	}, nil
+}
+
+type inviteTenantResolver struct {
+	svc tenant.TenantService
+}
+
+func (r inviteTenantResolver) GetTenantIDByUUID(ctx context.Context, tenantUUID uuid.UUID) (int64, error) {
+	t, err := r.svc.GetByUUID(ctx, tenantUUID)
+	if err != nil {
+		return 0, err
+	}
+	return t.TenantID, nil
 }

@@ -1,0 +1,503 @@
+syntax = "proto3";
+
+package maintainerd.auth.v1;
+
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/struct.proto";
+import "maintainerd/auth/v1/tenant.proto";
+
+option go_package = "github.com/maintainerd/auth/internal/platform/gen/go/maintainerd/auth;authv1";
+
+service ClientService {
+  rpc ListClients(ListClientsRequest) returns (ListClientsResponse);
+  rpc GetClient(GetClientRequest) returns (GetClientResponse);
+  rpc GetClientSecret(GetClientSecretRequest) returns (GetClientSecretResponse);
+  rpc RotateClientSecret(RotateClientSecretRequest) returns (RotateClientSecretResponse);
+  rpc GetClientConfig(GetClientConfigRequest) returns (GetClientConfigResponse);
+  rpc CreateClient(CreateClientRequest) returns (CreateClientResponse);
+  rpc UpdateClient(UpdateClientRequest) returns (UpdateClientResponse);
+  rpc SetClientStatus(SetClientStatusRequest) returns (SetClientStatusResponse);
+  rpc DeleteClient(DeleteClientRequest) returns (DeleteClientResponse);
+  rpc ListClientURIs(ListClientURIsRequest) returns (ListClientURIsResponse);
+  rpc CreateClientURI(CreateClientURIRequest) returns (CreateClientURIResponse);
+  rpc UpdateClientURI(UpdateClientURIRequest) returns (UpdateClientURIResponse);
+  rpc DeleteClientURI(DeleteClientURIRequest) returns (DeleteClientURIResponse);
+  rpc ListClientAPIs(ListClientAPIsRequest) returns (ListClientAPIsResponse);
+  rpc AddClientAPIs(AddClientAPIsRequest) returns (AddClientAPIsResponse);
+  rpc RemoveClientAPI(RemoveClientAPIRequest) returns (RemoveClientAPIResponse);
+  rpc ListClientAPIPermissions(ListClientAPIPermissionsRequest) returns (ListClientAPIPermissionsResponse);
+  rpc AddClientAPIPermissions(AddClientAPIPermissionsRequest) returns (AddClientAPIPermissionsResponse);
+  rpc RemoveClientAPIPermission(RemoveClientAPIPermissionRequest) returns (RemoveClientAPIPermissionResponse);
+}
+
+service APIKeyService {
+  rpc ListAPIKeys(ListAPIKeysRequest) returns (ListAPIKeysResponse);
+  rpc GetAPIKey(GetAPIKeyRequest) returns (GetAPIKeyResponse);
+  rpc GetAPIKeyConfig(GetAPIKeyConfigRequest) returns (GetAPIKeyConfigResponse);
+  rpc CreateAPIKey(CreateAPIKeyRequest) returns (CreateAPIKeyResponse);
+  rpc UpdateAPIKey(UpdateAPIKeyRequest) returns (UpdateAPIKeyResponse);
+  rpc SetAPIKeyStatus(SetAPIKeyStatusRequest) returns (SetAPIKeyStatusResponse);
+  rpc DeleteAPIKey(DeleteAPIKeyRequest) returns (DeleteAPIKeyResponse);
+  rpc ListAPIKeyAPIs(ListAPIKeyAPIsRequest) returns (ListAPIKeyAPIsResponse);
+  rpc AddAPIKeyAPIs(AddAPIKeyAPIsRequest) returns (AddAPIKeyAPIsResponse);
+  rpc RemoveAPIKeyAPI(RemoveAPIKeyAPIRequest) returns (RemoveAPIKeyAPIResponse);
+  rpc ListAPIKeyAPIPermissions(ListAPIKeyAPIPermissionsRequest) returns (ListAPIKeyAPIPermissionsResponse);
+  rpc AddAPIKeyAPIPermissions(AddAPIKeyAPIPermissionsRequest) returns (AddAPIKeyAPIPermissionsResponse);
+  rpc RemoveAPIKeyAPIPermission(RemoveAPIKeyAPIPermissionRequest) returns (RemoveAPIKeyAPIPermissionResponse);
+}
+
+message Client {
+  string client_uuid = 1;
+  string name = 2;
+  string display_name = 3;
+  string client_type = 4;
+  string domain = 5;
+  string status = 6;
+  bool is_default = 7;
+  bool is_system = 8;
+  ClientIdentityProvider identity_provider = 9;
+  repeated ClientURI uris = 10;
+  google.protobuf.Timestamp created_at = 11;
+  google.protobuf.Timestamp updated_at = 12;
+}
+
+message ClientIdentityProvider {
+  string identity_provider_uuid = 1;
+  string name = 2;
+  string display_name = 3;
+  string provider = 4;
+  string provider_type = 5;
+  string identifier = 6;
+  string status = 7;
+  bool is_default = 8;
+  bool is_system = 9;
+  google.protobuf.Timestamp created_at = 10;
+  google.protobuf.Timestamp updated_at = 11;
+}
+
+message ClientURI {
+  string client_uri_uuid = 1;
+  string uri = 2;
+  string type = 3;
+  google.protobuf.Timestamp created_at = 4;
+  google.protobuf.Timestamp updated_at = 5;
+}
+
+message ClientAPI {
+  string client_api_uuid = 1;
+  ClientAPIDetail api = 2;
+  repeated ClientAPIPermission permissions = 3;
+  google.protobuf.Timestamp created_at = 4;
+}
+
+message ClientAPIDetail {
+  string api_uuid = 1;
+  string name = 2;
+  string display_name = 3;
+  string description = 4;
+  string status = 5;
+  bool is_system = 6;
+  google.protobuf.Timestamp created_at = 7;
+  google.protobuf.Timestamp updated_at = 8;
+}
+
+message ClientAPIPermission {
+  string permission_uuid = 1;
+  string name = 2;
+  string description = 3;
+  string status = 4;
+  bool is_default = 5;
+  bool is_system = 6;
+  google.protobuf.Timestamp created_at = 7;
+  google.protobuf.Timestamp updated_at = 8;
+}
+
+message ListClientsRequest {
+  string tenant_uuid = 1;
+  string name = 2;
+  string display_name = 3;
+  repeated string client_type = 4;
+  string identity_provider_uuid = 5;
+  repeated string status = 6;
+  optional bool is_default = 7;
+  optional bool is_system = 8;
+  Pagination pagination = 9;
+}
+
+message ListClientsResponse {
+  repeated Client clients = 1;
+  PageMetadata page = 2;
+}
+
+message GetClientRequest {
+  string tenant_uuid = 1;
+  string client_uuid = 2;
+}
+
+message GetClientResponse {
+  Client client = 1;
+}
+
+message GetClientSecretRequest {
+  string tenant_uuid = 1;
+  string client_uuid = 2;
+}
+
+message GetClientSecretResponse {
+  string client_id = 1;
+  string message = 2;
+}
+
+message RotateClientSecretRequest {
+  string tenant_uuid = 1;
+  string client_uuid = 2;
+  string actor_user_uuid = 3;
+  int32 grace_period_hours = 4;
+}
+
+message RotateClientSecretResponse {
+  string client_secret = 1;
+  string previous_secret_expires_at = 2;
+}
+
+message GetClientConfigRequest {
+  string tenant_uuid = 1;
+  string client_uuid = 2;
+}
+
+message GetClientConfigResponse {
+  google.protobuf.Struct config = 1;
+}
+
+message CreateClientRequest {
+  string tenant_uuid = 1;
+  string name = 2;
+  string display_name = 3;
+  string client_type = 4;
+  string domain = 5;
+  google.protobuf.Struct config = 6;
+  string status = 7;
+  string identity_provider_uuid = 8;
+  string actor_user_uuid = 9;
+}
+
+message CreateClientResponse {
+  Client client = 1;
+  ClientCredentials credentials = 2;
+}
+
+message ClientCredentials {
+  string client_uuid = 1;
+  string client_id = 2;
+  string client_secret = 3;
+}
+
+message UpdateClientRequest {
+  string tenant_uuid = 1;
+  string client_uuid = 2;
+  string name = 3;
+  string display_name = 4;
+  string client_type = 5;
+  string domain = 6;
+  google.protobuf.Struct config = 7;
+  string status = 8;
+  string actor_user_uuid = 9;
+}
+
+message UpdateClientResponse {
+  Client client = 1;
+}
+
+message SetClientStatusRequest {
+  string tenant_uuid = 1;
+  string client_uuid = 2;
+  string status = 3;
+  string actor_user_uuid = 4;
+}
+
+message SetClientStatusResponse {
+  Client client = 1;
+}
+
+message DeleteClientRequest {
+  string tenant_uuid = 1;
+  string client_uuid = 2;
+  string actor_user_uuid = 3;
+}
+
+message DeleteClientResponse {
+  Client client = 1;
+}
+
+message ListClientURIsRequest {
+  string tenant_uuid = 1;
+  string client_uuid = 2;
+}
+
+message ListClientURIsResponse {
+  repeated ClientURI uris = 1;
+}
+
+message CreateClientURIRequest {
+  string tenant_uuid = 1;
+  string client_uuid = 2;
+  string uri = 3;
+  string type = 4;
+  string actor_user_uuid = 5;
+}
+
+message CreateClientURIResponse {
+  ClientURI uri = 1;
+}
+
+message UpdateClientURIRequest {
+  string tenant_uuid = 1;
+  string client_uuid = 2;
+  string client_uri_uuid = 3;
+  string uri = 4;
+  string type = 5;
+  string actor_user_uuid = 6;
+}
+
+message UpdateClientURIResponse {
+  ClientURI uri = 1;
+}
+
+message DeleteClientURIRequest {
+  string tenant_uuid = 1;
+  string client_uuid = 2;
+  string client_uri_uuid = 3;
+  string actor_user_uuid = 4;
+}
+
+message DeleteClientURIResponse {
+  Client client = 1;
+}
+
+message ListClientAPIsRequest {
+  string tenant_uuid = 1;
+  string client_uuid = 2;
+}
+
+message ListClientAPIsResponse {
+  repeated ClientAPI apis = 1;
+}
+
+message AddClientAPIsRequest {
+  string tenant_uuid = 1;
+  string client_uuid = 2;
+  repeated string api_uuids = 3;
+}
+
+message AddClientAPIsResponse {
+  string message = 1;
+}
+
+message RemoveClientAPIRequest {
+  string tenant_uuid = 1;
+  string client_uuid = 2;
+  string api_uuid = 3;
+}
+
+message RemoveClientAPIResponse {
+  string message = 1;
+}
+
+message ListClientAPIPermissionsRequest {
+  string tenant_uuid = 1;
+  string client_uuid = 2;
+  string api_uuid = 3;
+}
+
+message ListClientAPIPermissionsResponse {
+  repeated ClientAPIPermission permissions = 1;
+}
+
+message AddClientAPIPermissionsRequest {
+  string tenant_uuid = 1;
+  string client_uuid = 2;
+  string api_uuid = 3;
+  repeated string permission_uuids = 4;
+}
+
+message AddClientAPIPermissionsResponse {
+  string message = 1;
+}
+
+message RemoveClientAPIPermissionRequest {
+  string tenant_uuid = 1;
+  string client_uuid = 2;
+  string api_uuid = 3;
+  string permission_uuid = 4;
+}
+
+message RemoveClientAPIPermissionResponse {
+  string message = 1;
+}
+
+message APIKey {
+  string api_key_uuid = 1;
+  string name = 2;
+  string description = 3;
+  string key_prefix = 4;
+  google.protobuf.Timestamp expires_at = 5;
+  optional int32 rate_limit = 6;
+  string status = 7;
+  google.protobuf.Timestamp created_at = 8;
+  google.protobuf.Timestamp updated_at = 9;
+}
+
+message APIKeyAPI {
+  string api_key_api_uuid = 1;
+  ClientAPIDetail api = 2;
+  repeated ClientAPIPermission permissions = 3;
+  google.protobuf.Timestamp created_at = 4;
+}
+
+message ListAPIKeysRequest {
+  string tenant_uuid = 1;
+  string name = 2;
+  string description = 3;
+  string status = 4;
+  Pagination pagination = 5;
+}
+
+message ListAPIKeysResponse {
+  repeated APIKey api_keys = 1;
+  PageMetadata page = 2;
+}
+
+message GetAPIKeyRequest {
+  string tenant_uuid = 1;
+  string api_key_uuid = 2;
+}
+
+message GetAPIKeyResponse {
+  APIKey api_key = 1;
+}
+
+message GetAPIKeyConfigRequest {
+  string tenant_uuid = 1;
+  string api_key_uuid = 2;
+}
+
+message GetAPIKeyConfigResponse {
+  google.protobuf.Struct config = 1;
+}
+
+message CreateAPIKeyRequest {
+  string tenant_uuid = 1;
+  string name = 2;
+  string description = 3;
+  google.protobuf.Struct config = 4;
+  google.protobuf.Timestamp expires_at = 5;
+  optional int32 rate_limit = 6;
+  string status = 7;
+  string actor_user_uuid = 8;
+}
+
+message CreateAPIKeyResponse {
+  APIKey api_key = 1;
+  string key = 2;
+}
+
+message UpdateAPIKeyRequest {
+  string tenant_uuid = 1;
+  string api_key_uuid = 2;
+  optional string name = 3;
+  optional string description = 4;
+  google.protobuf.Struct config = 5;
+  google.protobuf.Timestamp expires_at = 6;
+  optional int32 rate_limit = 7;
+  optional string status = 8;
+  string actor_user_uuid = 9;
+}
+
+message UpdateAPIKeyResponse {
+  APIKey api_key = 1;
+}
+
+message SetAPIKeyStatusRequest {
+  string tenant_uuid = 1;
+  string api_key_uuid = 2;
+  string status = 3;
+}
+
+message SetAPIKeyStatusResponse {
+  APIKey api_key = 1;
+}
+
+message DeleteAPIKeyRequest {
+  string tenant_uuid = 1;
+  string api_key_uuid = 2;
+  string actor_user_uuid = 3;
+}
+
+message DeleteAPIKeyResponse {
+  APIKey api_key = 1;
+}
+
+message ListAPIKeyAPIsRequest {
+  string tenant_uuid = 1;
+  string api_key_uuid = 2;
+  Pagination pagination = 3;
+}
+
+message ListAPIKeyAPIsResponse {
+  repeated APIKeyAPI apis = 1;
+  PageMetadata page = 2;
+}
+
+message AddAPIKeyAPIsRequest {
+  string tenant_uuid = 1;
+  string api_key_uuid = 2;
+  repeated string api_uuids = 3;
+  string actor_user_uuid = 4;
+}
+
+message AddAPIKeyAPIsResponse {
+  string message = 1;
+}
+
+message RemoveAPIKeyAPIRequest {
+  string tenant_uuid = 1;
+  string api_key_uuid = 2;
+  string api_uuid = 3;
+}
+
+message RemoveAPIKeyAPIResponse {
+  string message = 1;
+}
+
+message ListAPIKeyAPIPermissionsRequest {
+  string tenant_uuid = 1;
+  string api_key_uuid = 2;
+  string api_uuid = 3;
+}
+
+message ListAPIKeyAPIPermissionsResponse {
+  repeated ClientAPIPermission permissions = 1;
+}
+
+message AddAPIKeyAPIPermissionsRequest {
+  string tenant_uuid = 1;
+  string api_key_uuid = 2;
+  string api_uuid = 3;
+  repeated string permission_uuids = 4;
+  string actor_user_uuid = 5;
+}
+
+message AddAPIKeyAPIPermissionsResponse {
+  string message = 1;
+}
+
+message RemoveAPIKeyAPIPermissionRequest {
+  string tenant_uuid = 1;
+  string api_key_uuid = 2;
+  string api_uuid = 3;
+  string permission_uuid = 4;
+}
+
+message RemoveAPIKeyAPIPermissionResponse {
+  string message = 1;
+}
