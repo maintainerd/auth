@@ -57,4 +57,36 @@ func TestSMSConfigGRPCHandler_RPCS(t *testing.T) {
 		_, err := h.GetSMSConfig(ctx, &authv1.GetSMSConfigRequest{TenantUuid: tenantUUID.String()})
 		if code := status.Code(err); code != codes.Internal { t.Errorf("expected Internal, got %v", code) }
 	})
+
+	t.Run("tenant error invalid UUID", func(t *testing.T) {
+		svc := &testSMSConfigService{}
+		h := NewSMSConfigGRPCHandler(resolver, svc)
+		_, err := h.GetSMSConfig(ctx, &authv1.GetSMSConfigRequest{TenantUuid: "bad"})
+		if code := status.Code(err); code != codes.InvalidArgument { t.Errorf("expected InvalidArgument, got %v", code) }
+	})
+
+	t.Run("tenant error resolver", func(t *testing.T) {
+		errResolver := &testNotifierTenant{getFn: func(ctx context.Context, tuuid uuid.UUID) (*TenantServiceDataResult, error) { return nil, errors.New("tenant") }}
+		svc := &testSMSConfigService{}
+		h := NewSMSConfigGRPCHandler(errResolver, svc)
+		_, err := h.GetSMSConfig(ctx, &authv1.GetSMSConfigRequest{TenantUuid: tenantUUID.String()})
+		if code := status.Code(err); code != codes.Internal { t.Errorf("expected Internal, got %v", code) }
+	})
+
+	t.Run("update service error", func(t *testing.T) {
+		svc := &testSMSConfigService{
+			updateFn: func(ctx context.Context, tenantID int64, provider, accountSID, authToken, fromNumber, senderID string, testMode *bool) (*SMSConfigServiceDataResult, error) { return nil, errors.New("db") },
+		}
+		h := NewSMSConfigGRPCHandler(resolver, svc)
+		_, err := h.UpdateSMSConfig(ctx, &authv1.UpdateSMSConfigRequest{TenantUuid: tenantUUID.String(), Provider: "twilio"})
+		if code := status.Code(err); code != codes.Internal { t.Errorf("expected Internal, got %v", code) }
+	})
+
+	t.Run("update tenant resolver error", func(t *testing.T) {
+		errResolver := &testNotifierTenant{getFn: func(ctx context.Context, tuuid uuid.UUID) (*TenantServiceDataResult, error) { return nil, errors.New("tenant") }}
+		svc := &testSMSConfigService{}
+		h := NewSMSConfigGRPCHandler(errResolver, svc)
+		_, err := h.UpdateSMSConfig(ctx, &authv1.UpdateSMSConfigRequest{TenantUuid: tenantUUID.String(), Provider: "twilio"})
+		if code := status.Code(err); code != codes.Internal { t.Errorf("expected Internal, got %v", code) }
+	})
 }
