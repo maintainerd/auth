@@ -104,7 +104,6 @@ the contract stays idiomatic and forward-compatible.
 | gRPC server lifecycle (listen, graceful stop, otelgrpc stats handler) | [grpc.go](../../internal/server/grpc.go) `StartGRPCServer` | ✅ exists |
 | Bound address constant | `shared.DefaultGRPCAddr` | ✅ exists |
 | Domain RPC registrations | [grpc.go](../../internal/server/grpc.go) | ✅ `SetupService` and `TenantService` registered |
-| Deprecated `SeederService` contract | [seeder.proto](../../proto/maintainerd/auth/v1/seeder.proto) | ⚠️ compatibility-only; no runtime handler is registered |
 | Proto source | `proto/maintainerd/auth/v1/` (`v1` is now a directory) | ✅ restructured |
 | Generated Go | `internal/platform/gen/go/maintainerd/auth/` | ✅ aligned |
 | Codegen | `make proto` via buf (`buf generate`) | ✅ migrated |
@@ -153,7 +152,6 @@ Why this is the best practice:
        auth/
          v1/
            common.proto            # shared: pagination, status enums, error msgs
-           seeder.proto            # deprecated compatibility surface; no runtime handler
            tenant.proto            # TenantService; TenantSettingService lands under GRPC-102
            iam.proto               # Service/API/Permission/Policy/Role/Authorization
            identity_provider.proto # IdentityProviderService, SignupFlowService
@@ -391,7 +389,7 @@ Decision notes from the review:
 | D1 | Control-policy shape: one shared seeded system policy template attached to each controller vs. per-controller policy created at registration. | **Open** — defaulting to one shared system template until confirmed. |
 | D2 | `IsSetupComplete` source of truth. | **Resolved** — use persisted `setup_state`, not derived tenant/admin/profile existence and not a `Tenant`/`Service` field. |
 | D3 | `RegisterControlService` shape. | **Resolved** — dedicated setup endpoint/RPC, not an optional field on `CreateTenant` or `CreateAdmin`. |
-| D4 | Standalone `SeederService.TriggerSeeder`. | **Resolved** — remove the runtime handler. Seeders run only from the tenant-creation setup path; the proto remains deprecated until a safe compatibility cleanup is planned. |
+| D4 | Standalone seeder RPC. | **Resolved** — removed. Seeders run only from the tenant-creation setup path; there is no standalone seeder gRPC contract. |
 
 ### 7.7 Provisioning & independence backlog (trackable)
 
@@ -419,7 +417,7 @@ lives in one place.
 | ID       | Status | Item                                                                                                                                                                                                                                             | Location                                                             |
 | -------- | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------- |
 | GRPC-001 | ✅ done | Adopt **buf**: add `buf.yaml` + `buf.gen.yaml`; replace `make proto` raw-`protoc` with `buf generate`; add `buf lint` + `buf breaking` targets and CI enforcement.                                                                               | `proto/`, `Makefile`, CI                                             |
-| GRPC-002 | ✅ done | Restructure proto layout: `v1` becomes a directory, split per-domain files (see §4). Legacy `SeederService` stays in `seeder.proto` only as a deprecated compatibility contract.                                                                 | `proto/maintainerd/auth/v1/`                                         |
+| GRPC-002 | ✅ done | Restructure proto layout: `v1` becomes a directory, split per-domain files (see §4). Removed the obsolete standalone seeder contract; seeders run from tenant creation only.                                                                 | `proto/maintainerd/auth/v1/`                                         |
 | GRPC-003 | ✅ done | Fix `go_package` ↔ output-path ↔ import mismatch; standardize generated code under `internal/platform/gen/go`.                                                                                                                                   | `*.proto`, `Makefile`, [grpc.go](../../internal/server/grpc.go)      |
 | GRPC-004 | ✅ done | **Error mapping**: `apperror` → `google.rpc.Code` + `ErrorInfo`/`BadRequest` details helper, used by every handler.                                                                                                                              | `internal/platform/apperror`, new grpc error adapter                 |
 | GRPC-005 | ✅ done | Recovery + structured logging interceptors (request_id correlation).                                                                                                                                                                             | [internal/server](../../internal/server)                             |
