@@ -13,6 +13,7 @@ import (
 	authv1 "github.com/maintainerd/auth/internal/platform/gen/go/maintainerd/auth"
 	"github.com/maintainerd/auth/internal/setup"
 	"github.com/maintainerd/auth/internal/shared"
+	"github.com/maintainerd/auth/internal/tenant"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
@@ -43,12 +44,14 @@ func serveGRPC(ctx context.Context, application *Application, lis net.Listener) 
 	healthpb.RegisterHealthServer(s, healthServer)
 	healthServer.SetServingStatus("", healthpb.HealthCheckResponse_SERVING)
 	healthServer.SetServingStatus(authv1.SetupService_ServiceDesc.ServiceName, healthpb.HealthCheckResponse_SERVING)
+	healthServer.SetServingStatus(authv1.TenantService_ServiceDesc.ServiceName, healthpb.HealthCheckResponse_SERVING)
 
 	if config.AppEnv != "production" {
 		reflection.Register(s)
 	}
 
 	authv1.RegisterSetupServiceServer(s, setup.NewSetupGRPCHandler(application.SetupService))
+	authv1.RegisterTenantServiceServer(s, tenant.NewTenantGRPCHandler(application.TenantService, application.TenantMemberService))
 
 	// Stop the server when the context is cancelled (e.g. after REST servers drain).
 	go func() {

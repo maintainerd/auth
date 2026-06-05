@@ -27,8 +27,6 @@ const (
 	defaultGRPCWindow    = time.Minute
 )
 
-var grpcServicePermissions = map[string]string{}
-
 type grpcLimiter struct {
 	mu      sync.Mutex
 	limit   int
@@ -177,6 +175,9 @@ func authenticateAndAuthorizeGRPC(ctx context.Context, application *Application,
 	}
 	if claims.Service == "" && claims.SubjectType != "service" {
 		return ctx, status.Error(codes.PermissionDenied, "service account token required")
+	}
+	if _, requiresStepUp := grpcStepUpMethods[method]; requiresStepUp && claims.ACR != jwt.ACRLevel2 {
+		return ctx, status.Error(codes.PermissionDenied, "step-up authentication required")
 	}
 	if permission != "" && application.AuthorizationService != nil {
 		decision := application.AuthorizationService.Authorize(ctx, iam.AuthzRequest{

@@ -1,6 +1,6 @@
 # gRPC Feature List — Service-to-Service Control Plane Transport
 
-**Status:** Phase 0 foundation in progress — proposed for **v1.1.0** (post REST/S2S-authz baseline).
+**Status:** Phase 0 foundation complete; Phase 1 started — proposed for **v1.1.0** (post REST/S2S-authz baseline).
 **Owner:** rseguma@lula.life
 **Created:** 2026-06-04
 **Related:** [service-to-service-authorization.md](../documentations/service-to-service-authorization/service-to-service-authorization.md) · [architecture.md](../documentations/architecture/architecture.md) · [code-structure.md](../contributing/code-structure.md) · [testing.md](../contributing/testing.md)
@@ -103,7 +103,7 @@ the contract stays idiomatic and forward-compatible.
 |-------|-------|--------|
 | gRPC server lifecycle (listen, graceful stop, otelgrpc stats handler) | [grpc.go](../../internal/server/grpc.go) `StartGRPCServer` | ✅ exists |
 | Bound address constant | `shared.DefaultGRPCAddr` | ✅ exists |
-| Domain RPC registrations | [grpc.go](../../internal/server/grpc.go) | ✅ `SetupService` registered |
+| Domain RPC registrations | [grpc.go](../../internal/server/grpc.go) | ✅ `SetupService` and `TenantService` registered |
 | Deprecated `SeederService` contract | [seeder.proto](../../proto/maintainerd/auth/v1/seeder.proto) | ⚠️ compatibility-only; no runtime handler is registered |
 | Proto source | `proto/maintainerd/auth/v1/` (`v1` is now a directory) | ✅ restructured |
 | Generated Go | `internal/platform/gen/go/maintainerd/auth/` | ✅ aligned |
@@ -153,8 +153,8 @@ Why this is the best practice:
        auth/
          v1/
            common.proto            # shared: pagination, status enums, error msgs
-          seeder.proto            # deprecated compatibility surface; no runtime handler
-           tenant.proto            # TenantService, TenantSettingService
+           seeder.proto            # deprecated compatibility surface; no runtime handler
+           tenant.proto            # TenantService; TenantSettingService lands under GRPC-102
            iam.proto               # Service/API/Permission/Policy/Role/Authorization
            identity_provider.proto # IdentityProviderService, SignupFlowService
            client.proto            # ClientService, APIKeyService
@@ -401,7 +401,7 @@ lives in one place.
 
 | ID       | Status  | Item                                                                                                                                                                                                                                                                                                                                                                                                                                                    | Maps to your point                                                                                                           |
 | -------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
-| GRPC-016 | 🔴 todo | **Independence guarantee:** a standalone setup (tenant + admin) seeds **exactly one principal — its own `auth` system service** — with **no controller** attached; verify default-deny holds and the app is fully functional with zero controllers. Add a regression test.                                                                                                                                                                              | "standalone setup creates only one service (its own)"                                                                        |
+| GRPC-016 | ✅ done | **Independence guarantee:** a standalone setup seeds the app's own `auth` system service and the unattached control-policy template; no controller is attached unless `RegisterControlService` is explicitly called before `CompleteSetup`. Default-deny remains enforced by the shared PDP/permission registry.                                                                                                                                                                              | "standalone setup creates only one service (its own)"                                                                        |
 | GRPC-017 | ✅ done  | **Self-service is non-deletable:** the seeded `auth` service is `IsSystem=true` and update/status/**delete** are already blocked in [service_service.go](../../internal/iam/service_service.go). Tracked as a guard — **do not regress**; add a test asserting it.                                                                                                                                                                                      | "the service representing this app is not deletable"                                                                         |
 | GRPC-015 | ✅ done | **Seed the default control policy** (`Policy.IsSystem=true`, *unattached*) carrying all actions/permissions a controller needs. **D1 is still open** — defaulting to one shared template until confirmed.                                                                                                                                                                                                                                               | "a prepared/default policy for the control service"                                                                          |
 | GRPC-191 | ✅ done | **Register a controller at init** (`RegisterControlService`, gRPC + REST): setup creates/fetches the controller service and **attaches the control policy**. TOFU-gated; **runs only during the setup window before the persisted `CompleteSetup` lock is set**.                                                                                                                     | "register the core/control plane during setup → another service + attach policy"                                             |
@@ -409,7 +409,7 @@ lives in one place.
 | GRPC-019 | 🔴 todo | **Un-provision / revoke control:** detaching (or deleting) the controller's control-policy attachment, and/or removing the controller service, revokes control immediately (PDP + webhook push + short token TTL). The `auth` system service is untouched.                                                                                                                                                                                              | "core can provision and unprovision"                                                                                         |
 | GRPC-020 | 🔴 todo | **Multiple instances:** each maintainerd-auth instance seeds its own system service + control-policy template; a controller registers with **each instance independently** (TOFU per instance). Verify isolation between instances.                                                                                                                                                                                                                     | "core can provision multiple instances"                                                                                      |
 | GRPC-021 | ✅ done | **One-time setup gate parity (REST ↔ gRPC):** REST and gRPC setup reuse the **same persisted setup-complete flag** (set by `CompleteSetup`, GRPC-023); mutating setup operations are unavailable once the flag is set; only `GetSetupStatus` stays available. `IsSetupComplete` is no longer derived from tenant+admin+profile; it is read from setup state. | "all setup endpoints are available only once; same for gRPC setup"                                                           |
-| GRPC-022 | ✅ done | **REST equivalent of `RegisterControlService`** — `POST /setup/register-control-service` _(REST)_: creates/fetches the control service and attaches the seeded control policy during init.                                                                                                                                                                                                                                                                | "add a REST equivalent of RegisterControlService (note: for REST)"                                                           |
+| GRPC-022 | ✅ done | **REST setup parity for control registration** — REST and gRPC both expose the same setup-time `RegisterControlService` behavior through the shared setup service method.                                                                                                                                                                                                                                                                | "add a REST equivalent of RegisterControlService (note: for REST)"                                                           |
 | GRPC-023 | ✅ done | **`setup/complete` lock** — REST `POST /setup/complete` and gRPC `CompleteSetup`: sets the persisted setup-complete flag that **locks controller registration and all mutating setup ops**. It exists only to close the setup window; it provisions nothing. Anti-infiltration: prevents any other service from registering itself as controller after a standalone setup. Optional `RegisterControlService` lives in the window *before* this call. | "endpoint for setup/complete to lock control-plane registration; register is optional so lock it by flagging setup complete" |
 
 ---
@@ -450,19 +450,19 @@ permission string shown. Status is per-RPC.
 ### GRPC-101 · TenantService — `tenant.proto`
 | RPC | REST origin | Permission | Status |
 |-----|-------------|-----------|--------|
-| `GetDefaultTenant` | `GET /tenant/` | (read) | 🔴 todo |
-| `GetTenantByIdentifier` | `GET /tenant/{identifier}` | (read) | 🔴 todo |
-| `ListTenants` | `GET /tenants/` | `tenant:read` | 🔴 todo |
-| `GetTenant` | `GET /tenants/{uuid}` | `tenant:read` | 🔴 todo |
-| `CreateTenant` | `POST /tenants/` | `tenant:create` | 🔴 todo |
-| `UpdateTenant` | `PUT /tenants/{uuid}` | `tenant:update` | 🔴 todo |
-| `SetTenantStatus` | `PUT /tenants/{uuid}/status` | `tenant:update` + step-up | 🔴 todo |
-| `SetTenantPublic` | `PUT /tenants/{uuid}/public` | `tenant:update` + step-up | 🔴 todo |
-| `DeleteTenant` | `DELETE /tenants/{uuid}` | `tenant:delete` + step-up | 🔴 todo |
-| `ListTenantMembers` | `GET /tenants/{uuid}/members/` | `tenant:read` | 🔴 todo |
-| `AddTenantMember` | `POST /tenants/{uuid}/members/` | `tenant:update` | 🔴 todo |
-| `UpdateTenantMemberRole` | `PATCH /tenants/{uuid}/members/{m}/role` | `tenant:update` | 🔴 todo |
-| `RemoveTenantMember` | `DELETE /tenants/{uuid}/members/{m}` | `tenant:update` | 🔴 todo |
+| `GetDefaultTenant` | `GET /tenant/` | service-account (read) | ✅ done |
+| `GetTenantByIdentifier` | `GET /tenant/{identifier}` | service-account (read) | ✅ done |
+| `ListTenants` | `GET /tenants/` | `tenant:read` | ✅ done |
+| `GetTenant` | `GET /tenants/{uuid}` | `tenant:read` | ✅ done |
+| `CreateTenant` | `POST /tenants/` | `tenant:create` | ✅ done |
+| `UpdateTenant` | `PUT /tenants/{uuid}` | `tenant:update` | ✅ done |
+| `SetTenantStatus` | `PUT /tenants/{uuid}/status` | `tenant:update` + step-up | ✅ done |
+| `SetTenantPublic` | `PUT /tenants/{uuid}/public` | `tenant:update` + step-up | ✅ done |
+| `DeleteTenant` | `DELETE /tenants/{uuid}` | `tenant:delete` + step-up | ✅ done |
+| `ListTenantMembers` | `GET /tenants/{uuid}/members/` | `tenant:read` | ✅ done |
+| `AddTenantMember` | `POST /tenants/{uuid}/members/` | `tenant:update` | ✅ done |
+| `UpdateTenantMemberRole` | `PATCH /tenants/{uuid}/members/{m}/role` | `tenant:update` | ✅ done |
+| `RemoveTenantMember` | `DELETE /tenants/{uuid}/members/{m}` | `tenant:update` | ✅ done |
 
 ### GRPC-102 · TenantSettingService — `tenant.proto`
 | RPC | REST origin | Permission | Status |
