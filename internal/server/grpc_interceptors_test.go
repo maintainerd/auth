@@ -200,6 +200,48 @@ func TestGRPCInterceptors_BasicBranches(t *testing.T) {
 		assert.NotNil(t, middleware.JWTClaimsFromContext(authCtx))
 	})
 
+	t.Run("step-up denies protected method without elevated acr", func(t *testing.T) {
+		initServerTestJWTKeys(t)
+		const method = "/test.Service/NeedsStepUp"
+		grpcServicePermissions[method] = ""
+		grpcStepUpMethods[method] = struct{}{}
+		t.Cleanup(func() {
+			delete(grpcServicePermissions, method)
+			delete(grpcStepUpMethods, method)
+		})
+		token, err := jwt.GenerateAccessTokenWithOptions("svc-auth", "read", "https://auth.example.com", "auth", "client-1", "provider-1", &jwt.AccessTokenOptions{
+			Service:     "auth",
+			SubjectType: "service",
+		})
+		require.NoError(t, err)
+		ctx := metadata.NewIncomingContext(context.Background(), metadata.Pairs("authorization", "Bearer "+token))
+
+		_, err = authenticateAndAuthorizeGRPC(ctx, &Application{}, newGRPCLimiter(2, time.Minute), method)
+		assert.Equal(t, codes.PermissionDenied, status.Code(err))
+	})
+
+	t.Run("step-up allows protected method with elevated acr", func(t *testing.T) {
+		initServerTestJWTKeys(t)
+		const method = "/test.Service/NeedsStepUp"
+		grpcServicePermissions[method] = ""
+		grpcStepUpMethods[method] = struct{}{}
+		t.Cleanup(func() {
+			delete(grpcServicePermissions, method)
+			delete(grpcStepUpMethods, method)
+		})
+		token, err := jwt.GenerateAccessTokenWithOptions("svc-auth", "read", "https://auth.example.com", "auth", "client-1", "provider-1", &jwt.AccessTokenOptions{
+			ACR:         jwt.ACRLevel2,
+			Service:     "auth",
+			SubjectType: "service",
+		})
+		require.NoError(t, err)
+		ctx := metadata.NewIncomingContext(context.Background(), metadata.Pairs("authorization", "Bearer "+token))
+
+		authCtx, err := authenticateAndAuthorizeGRPC(ctx, &Application{}, newGRPCLimiter(2, time.Minute), method)
+		require.NoError(t, err)
+		assert.Equal(t, jwt.ACRLevel2, middleware.JWTClaimsFromContext(authCtx).ACR)
+	})
+
 	t.Run("unknown method skips auth", func(t *testing.T) {
 		ctx, err := authenticateAndAuthorizeGRPC(context.Background(), &Application{}, newGRPCLimiter(1, time.Minute), "/unknown.Service/Call")
 		require.NoError(t, err)

@@ -1,0 +1,204 @@
+syntax = "proto3";
+
+package maintainerd.auth.v1;
+
+import "google/protobuf/struct.proto";
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/maintainerd/auth/internal/platform/gen/go/maintainerd/auth;authv1";
+
+service TenantService {
+  rpc GetDefaultTenant(GetDefaultTenantRequest) returns (GetDefaultTenantResponse);
+  rpc GetTenantByIdentifier(GetTenantByIdentifierRequest) returns (GetTenantByIdentifierResponse);
+  rpc ListTenants(ListTenantsRequest) returns (ListTenantsResponse);
+  rpc GetTenant(GetTenantRequest) returns (GetTenantResponse);
+  rpc CreateTenant(TenantServiceCreateTenantRequest) returns (TenantServiceCreateTenantResponse);
+  rpc UpdateTenant(TenantServiceUpdateTenantRequest) returns (TenantServiceUpdateTenantResponse);
+  rpc SetTenantStatus(SetTenantStatusRequest) returns (SetTenantStatusResponse);
+  rpc SetTenantPublic(SetTenantPublicRequest) returns (SetTenantPublicResponse);
+  rpc DeleteTenant(DeleteTenantRequest) returns (DeleteTenantResponse);
+  rpc ListTenantMembers(ListTenantMembersRequest) returns (ListTenantMembersResponse);
+  rpc AddTenantMember(AddTenantMemberRequest) returns (AddTenantMemberResponse);
+  rpc UpdateTenantMemberRole(UpdateTenantMemberRoleRequest) returns (UpdateTenantMemberRoleResponse);
+  rpc RemoveTenantMember(RemoveTenantMemberRequest) returns (RemoveTenantMemberResponse);
+}
+
+message Tenant {
+  string tenant_uuid = 1;
+  string name = 2;
+  string display_name = 3;
+  string description = 4;
+  string identifier = 5;
+  string status = 6;
+  bool is_public = 7;
+  bool is_system = 8;
+  google.protobuf.Struct metadata = 9;
+  google.protobuf.Timestamp created_at = 10;
+  google.protobuf.Timestamp updated_at = 11;
+}
+
+message TenantMemberUser {
+  string user_uuid = 1;
+  string username = 2;
+  string fullname = 3;
+  string email = 4;
+  string phone = 5;
+  bool is_email_verified = 6;
+  bool is_phone_verified = 7;
+  bool is_profile_completed = 8;
+  bool is_account_completed = 9;
+  string status = 10;
+  google.protobuf.Struct metadata = 11;
+  google.protobuf.Timestamp created_at = 12;
+  google.protobuf.Timestamp updated_at = 13;
+}
+
+message TenantMember {
+  string tenant_member_uuid = 1;
+  string role = 2;
+  TenantMemberUser user = 3;
+  google.protobuf.Timestamp created_at = 4;
+  google.protobuf.Timestamp updated_at = 5;
+}
+
+message Pagination {
+  int32 page = 1;
+  int32 limit = 2;
+  string sort_by = 3;
+  string sort_order = 4;
+}
+
+message PageMetadata {
+  int64 total = 1;
+  int32 page = 2;
+  int32 limit = 3;
+  int32 total_pages = 4;
+}
+
+message GetDefaultTenantRequest {}
+
+message GetDefaultTenantResponse {
+  Tenant tenant = 1;
+}
+
+message GetTenantByIdentifierRequest {
+  string identifier = 1;
+}
+
+message GetTenantByIdentifierResponse {
+  Tenant tenant = 1;
+}
+
+message ListTenantsRequest {
+  string name = 1;
+  string display_name = 2;
+  string description = 3;
+  string identifier = 4;
+  repeated string status = 5;
+  optional bool is_public = 6;
+  optional bool is_system = 7;
+  Pagination pagination = 8;
+}
+
+message ListTenantsResponse {
+  repeated Tenant tenants = 1;
+  PageMetadata page = 2;
+}
+
+message GetTenantRequest {
+  string tenant_uuid = 1;
+}
+
+message GetTenantResponse {
+  Tenant tenant = 1;
+}
+
+message TenantServiceCreateTenantRequest {
+  string name = 1;
+  string display_name = 2;
+  string description = 3;
+  string status = 4;
+  bool is_public = 5;
+}
+
+message TenantServiceCreateTenantResponse {
+  Tenant tenant = 1;
+}
+
+message TenantServiceUpdateTenantRequest {
+  string tenant_uuid = 1;
+  string name = 2;
+  string display_name = 3;
+  string description = 4;
+  string status = 5;
+  bool is_public = 6;
+}
+
+message TenantServiceUpdateTenantResponse {
+  Tenant tenant = 1;
+}
+
+message SetTenantStatusRequest {
+  string tenant_uuid = 1;
+  string status = 2;
+}
+
+message SetTenantStatusResponse {
+  Tenant tenant = 1;
+}
+
+message SetTenantPublicRequest {
+  string tenant_uuid = 1;
+}
+
+message SetTenantPublicResponse {
+  Tenant tenant = 1;
+}
+
+message DeleteTenantRequest {
+  string tenant_uuid = 1;
+}
+
+message DeleteTenantResponse {
+  Tenant tenant = 1;
+}
+
+message ListTenantMembersRequest {
+  string tenant_uuid = 1;
+  string role = 2;
+  Pagination pagination = 3;
+}
+
+message ListTenantMembersResponse {
+  repeated TenantMember members = 1;
+  PageMetadata page = 2;
+}
+
+message AddTenantMemberRequest {
+  string tenant_uuid = 1;
+  string user_uuid = 2;
+  string role = 3;
+}
+
+message AddTenantMemberResponse {
+  TenantMember member = 1;
+}
+
+message UpdateTenantMemberRoleRequest {
+  string tenant_uuid = 1;
+  string tenant_member_uuid = 2;
+  string role = 3;
+}
+
+message UpdateTenantMemberRoleResponse {
+  TenantMember member = 1;
+}
+
+message RemoveTenantMemberRequest {
+  string tenant_uuid = 1;
+  string tenant_member_uuid = 2;
+}
+
+message RemoveTenantMemberResponse {
+  bool removed = 1;
+}
