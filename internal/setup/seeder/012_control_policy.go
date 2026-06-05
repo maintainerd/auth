@@ -29,39 +29,7 @@ func SeedControlPolicy(db *gorm.DB, tenantID int64) error {
 		return fmt.Errorf("failed to check control policy: %w", err)
 	}
 
-	document := model.PolicyDocument{
-		Version: "v1",
-		Statement: []model.PolicyStatement{
-			{
-				Effect: "allow",
-				Action: []string{
-					"tenant:*",
-					"service:*",
-					"api:*",
-					"permission:*",
-					"policy:*",
-					"role:*",
-					"idp:*",
-					"client:*",
-					"api_key:*",
-					"user:*",
-					"account:*:self",
-					"profile:*",
-					"signup-flow:*",
-					"security:*",
-					"settings:*",
-					"notification:*",
-					"system:*",
-					"audit:*",
-					"root:*",
-					"webhook:*",
-					"branding:*",
-					"auth_event:*",
-				},
-				Resource: []string{"*"},
-			},
-		},
-	}
+	document := controlPolicyDocument()
 
 	raw, _ := json.Marshal(document)
 
@@ -82,4 +50,49 @@ func SeedControlPolicy(db *gorm.DB, tenantID int64) error {
 	}
 	slog.Info("Control policy seeded", "name", policy.Name, "id", policy.PolicyID)
 	return nil
+}
+
+func controlPolicyDocument() model.PolicyDocument {
+	return model.PolicyDocument{
+		Version: "v1",
+		Statement: []model.PolicyStatement{
+			{
+				Effect: "allow",
+				Action: []string{
+					"tenant:*",
+					"service:*",
+					"api:*",
+					"permission:*",
+					"policy:*",
+					"role:*",
+					"idp:*",
+					"client:*",
+					"api_key:*",
+					"user:*",
+					"auth_event:*",
+					"account:*:self",
+					"profile:*",
+					"signup-flow:*",
+					"security-setting:*",
+					"ip-restriction-rule:*",
+					"email-template:*",
+					"sms-template:*",
+					"login-template:*",
+					"branding:*",
+					"tenant-setting:*",
+					"email-config:*",
+					"sms-config:*",
+					"webhook-endpoint:*",
+					"security:*",
+					"settings:*",
+					"notification:*",
+					"system:*",
+					"audit:*",
+					"root:*",
+					"webhook:*",
+				},
+				Resource: []string{"*"},
+			},
+		},
+	}
 }

@@ -70,17 +70,58 @@ func TestSeedControlPolicy(t *testing.T) {
 }
 
 func TestControlPolicyDocumentShape(t *testing.T) {
-	document := iam.PolicyDocument{
-		Version: "v1",
-		Statement: []iam.PolicyStatement{{
-			Effect:   "allow",
-			Action:   []string{"tenant:*"},
-			Resource: []string{"*"},
-		}},
-	}
+	document := controlPolicyDocument()
 	raw, err := json.Marshal(document)
 	require.NoError(t, err)
+
+	assert.Equal(t, "v1", document.Version)
+	require.Len(t, document.Statement, 1)
+	assert.Equal(t, "allow", document.Statement[0].Effect)
+	assert.Equal(t, []string{"*"}, document.Statement[0].Resource)
 	assert.Contains(t, string(raw), "tenant:*")
+
+	for _, action := range []string{
+		"tenant:create",
+		"service:policy:assign",
+		"permission:read",
+		"client:secret:rotate",
+		"api_key:update",
+		"user:invite",
+		"auth_event:read",
+		"signup-flow:update",
+		"security-setting:update",
+		"ip-restriction-rule:create",
+		"email-template:update",
+		"sms-template:update",
+		"login-template:update",
+		"branding:update",
+		"tenant-setting:update",
+		"email-config:update",
+		"sms-config:update",
+		"webhook-endpoint:create",
+	} {
+		t.Run("allows "+action, func(t *testing.T) {
+			decision := iam.Evaluate([]iam.PolicyDocument{document}, iam.AuthzRequest{
+				Action:   action,
+				Resource: "auth:management",
+			})
+			assert.True(t, decision.Allowed)
+		})
+	}
+
+	for _, action := range []string{
+		"public:register",
+		"public:login",
+		"public:reset-password",
+	} {
+		t.Run("does not grant "+action, func(t *testing.T) {
+			decision := iam.Evaluate([]iam.PolicyDocument{document}, iam.AuthzRequest{
+				Action:   action,
+				Resource: "auth:public",
+			})
+			assert.False(t, decision.Allowed)
+		})
+	}
 }
 
 func newSeederMockDB(t *testing.T) (*gorm.DB, sqlmock.Sqlmock) {
