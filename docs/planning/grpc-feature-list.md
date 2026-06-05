@@ -103,7 +103,7 @@ the contract stays idiomatic and forward-compatible.
 |-------|-------|--------|
 | gRPC server lifecycle (listen, graceful stop, otelgrpc stats handler) | [grpc.go](../../internal/server/grpc.go) `StartGRPCServer` | ✅ exists |
 | Bound address constant | `shared.DefaultGRPCAddr` | ✅ exists |
-| Domain RPC registrations | [grpc.go](../../internal/server/grpc.go) | 🔴 none active yet — next active surface is `SetupService` |
+| Domain RPC registrations | [grpc.go](../../internal/server/grpc.go) | ✅ `SetupService` registered |
 | Deprecated `SeederService` contract | [seeder.proto](../../proto/maintainerd/auth/v1/seeder.proto) | ⚠️ compatibility-only; no runtime handler is registered |
 | Proto source | `proto/maintainerd/auth/v1/` (`v1` is now a directory) | ✅ restructured |
 | Generated Go | `internal/platform/gen/go/maintainerd/auth/` | ✅ aligned |
@@ -404,13 +404,13 @@ lives in one place.
 | GRPC-016 | 🔴 todo | **Independence guarantee:** a standalone setup (tenant + admin) seeds **exactly one principal — its own `auth` system service** — with **no controller** attached; verify default-deny holds and the app is fully functional with zero controllers. Add a regression test.                                                                                                                                                                              | "standalone setup creates only one service (its own)"                                                                        |
 | GRPC-017 | ✅ done  | **Self-service is non-deletable:** the seeded `auth` service is `IsSystem=true` and update/status/**delete** are already blocked in [service_service.go](../../internal/iam/service_service.go). Tracked as a guard — **do not regress**; add a test asserting it.                                                                                                                                                                                      | "the service representing this app is not deletable"                                                                         |
 | GRPC-015 | ✅ done | **Seed the default control policy** (`Policy.IsSystem=true`, *unattached*) carrying all actions/permissions a controller needs. **D1 is still open** — defaulting to one shared template until confirmed.                                                                                                                                                                                                                                               | "a prepared/default policy for the control service"                                                                          |
-| GRPC-191 | 🟡 in-development | **Register a controller at init** (`RegisterControlService`, gRPC + REST): REST setup now creates/fetches the controller service and **attaches the control policy**. gRPC setup parity remains pending until `setup.proto` lands. TOFU-gated; **runs only during the setup window before the persisted `CompleteSetup` lock is set**.                                                                                                                     | "register the core/control plane during setup → another service + attach policy"                                             |
+| GRPC-191 | ✅ done | **Register a controller at init** (`RegisterControlService`, gRPC + REST): setup creates/fetches the controller service and **attaches the control policy**. TOFU-gated; **runs only during the setup window before the persisted `CompleteSetup` lock is set**.                                                                                                                     | "register the core/control plane during setup → another service + attach policy"                                             |
 | GRPC-018 | 🔴 todo | **Runtime registration path (no core, or after setup is closed):** register a controller at runtime — create the service + `AssignServicePolicy` (GRPC-110), authenticated + PDP-gated, **not** via the setup endpoint. This is the **only** way to add/change a controller after init; verify it reaches the same end-state as GRPC-191.                                                                                                               | "manually register without the core by applying a policy defining the core service"                                          |
 | GRPC-019 | 🔴 todo | **Un-provision / revoke control:** detaching (or deleting) the controller's control-policy attachment, and/or removing the controller service, revokes control immediately (PDP + webhook push + short token TTL). The `auth` system service is untouched.                                                                                                                                                                                              | "core can provision and unprovision"                                                                                         |
 | GRPC-020 | 🔴 todo | **Multiple instances:** each maintainerd-auth instance seeds its own system service + control-policy template; a controller registers with **each instance independently** (TOFU per instance). Verify isolation between instances.                                                                                                                                                                                                                     | "core can provision multiple instances"                                                                                      |
-| GRPC-021 | 🟡 in-development | **One-time setup gate parity (REST ↔ gRPC):** REST setup now reuses the **same persisted setup-complete flag** (set by `CompleteSetup`, GRPC-023); mutating REST setup operations are unavailable once the flag is set; only `GetSetupStatus` stays available. gRPC setup parity remains pending until `setup.proto` lands. `IsSetupComplete` is no longer derived from tenant+admin+profile; it is read from setup state. | "all setup endpoints are available only once; same for gRPC setup"                                                           |
+| GRPC-021 | ✅ done | **One-time setup gate parity (REST ↔ gRPC):** REST and gRPC setup reuse the **same persisted setup-complete flag** (set by `CompleteSetup`, GRPC-023); mutating setup operations are unavailable once the flag is set; only `GetSetupStatus` stays available. `IsSetupComplete` is no longer derived from tenant+admin+profile; it is read from setup state. | "all setup endpoints are available only once; same for gRPC setup"                                                           |
 | GRPC-022 | ✅ done | **REST equivalent of `RegisterControlService`** — `POST /setup/register-control-service` _(REST)_: creates/fetches the control service and attaches the seeded control policy during init.                                                                                                                                                                                                                                                                | "add a REST equivalent of RegisterControlService (note: for REST)"                                                           |
-| GRPC-023 | 🟡 in-development | **`setup/complete` lock** — `POST /setup/complete` _(REST implemented; gRPC pending with `setup.proto`)_: sets the persisted setup-complete flag that **locks controller registration and all mutating setup ops**. It exists only to close the setup window; it provisions nothing. Anti-infiltration: prevents any other service from registering itself as controller after a standalone setup. Optional `RegisterControlService` lives in the window *before* this call. | "endpoint for setup/complete to lock control-plane registration; register is optional so lock it by flagging setup complete" |
+| GRPC-023 | ✅ done | **`setup/complete` lock** — REST `POST /setup/complete` and gRPC `CompleteSetup`: sets the persisted setup-complete flag that **locks controller registration and all mutating setup ops**. It exists only to close the setup window; it provisions nothing. Anti-infiltration: prevents any other service from registering itself as controller after a standalone setup. Optional `RegisterControlService` lives in the window *before* this call. | "endpoint for setup/complete to lock control-plane registration; register is optional so lock it by flagging setup complete" |
 
 ---
 
@@ -702,12 +702,12 @@ permission string shown. Status is per-RPC.
 ### GRPC-190 · SetupService — `setup.proto`
 | RPC                                 | REST origin                                                        | Permission                      | Status            |
 | ----------------------------------- | ------------------------------------------------------------------ | ------------------------------- | ----------------- |
-| `GetSetupStatus`                    | `GET /setup/status`                                                | (bootstrap)                     | 🔴 todo           |
-| `CreateTenant`                      | `POST /setup/create_tenant`                                        | (bootstrap)                     | 🔴 todo           |
-| `CreateAdmin`                       | `POST /setup/create_admin`                                         | (bootstrap)                     | 🔴 todo           |
-| `CreateProfile`                     | `POST /setup/create_profile`                                       | (bootstrap)                     | 🔴 todo           |
-| `RegisterControlService` (GRPC-191) | REST `POST /setup/register-control-service`; gRPC pending | (bootstrap, TOFU, **optional**) | 🟡 in-development |
-| `CompleteSetup` (GRPC-023)          | NEW (REST `POST /setup/complete`; gRPC pending)                    | (bootstrap, final)              | 🟡 in-development |
+| `GetSetupStatus`                    | `GET /setup/status`                                                | (bootstrap)                     | ✅ done           |
+| `CreateTenant`                      | `POST /setup/create_tenant`                                        | (bootstrap)                     | ✅ done           |
+| `CreateAdmin`                       | `POST /setup/create_admin`                                         | (bootstrap)                     | ✅ done           |
+| `CreateProfile`                     | `POST /setup/create_profile`                                       | (bootstrap)                     | ✅ done           |
+| `RegisterControlService` (GRPC-191) | `POST /setup/register-control-service`                             | (bootstrap, TOFU, **optional**) | ✅ done           |
+| `CompleteSetup` (GRPC-023)          | `POST /setup/complete`                                             | (bootstrap, final)              | ✅ done           |
 
 > **SetupService** is the control plane's natural provisioning entry point
 > (a fresh tenant + admin + profile, with tenant seeders run during
@@ -715,10 +715,9 @@ permission string shown. Status is per-RPC.
 > flows. Bootstrap auth differs (no policy yet exists); guard with the existing
 > setup gate, not the PDP.
 >
-> **One-time, then disabled — REST and gRPC share one gate (GRPC-021).** Today REST
-> derives completion from tenant/admin/profile existence in
-> [service_setup.go](../../internal/setup/service_setup.go). GRPC-021 changes that
-> to one persisted setup-complete flag used by both transports. Every mutating setup
+> **One-time, then disabled — REST and gRPC share one gate (GRPC-021).** Both
+> transports use one persisted setup-complete flag from
+> [service_setup.go](../../internal/setup/service_setup.go). Every mutating setup
 > operation (`CreateTenant`, `CreateAdmin`, `CreateProfile`,
 > `RegisterControlService`) becomes unavailable once the persisted lock is set.
 > `GetSetupStatus` is the **only** setup operation that stays available afterward
@@ -728,14 +727,15 @@ permission string shown. Status is per-RPC.
 > controller **service name/identifier**; auth creates or reuses the `Service` and
 > **attaches the seeded control policy** (GRPC-015) — the trust-on-first-use grant
 > that lets the core control this auth instance. It is **optional**. The REST
-> endpoint (`POST /setup/register-control-service` — GRPC-022) is implemented; the
-> gRPC RPC lands with `setup.proto`.
+> endpoint (`POST /setup/register-control-service` — GRPC-022) and the gRPC RPC are
+> implemented through the same setup service method.
 >
 > **Setup ordering & the explicit lock (`CompleteSetup` / GRPC-023).** A standalone
 > install runs `create_tenant` (tenant row + all default tenant seeders) →
 > `create_admin` → `create_profile` and then, optionally,
 > `RegisterControlService`. Because the controller step is optional, completion
-> **must be flagged explicitly** by **`CompleteSetup`** (`POST /setup/complete`) —
+> **must be flagged explicitly** by **`CompleteSetup`** (`POST /setup/complete` or
+> the gRPC RPC) —
 > not merely inferred from "profile exists." `CompleteSetup` sets the persisted
 > setup-complete flag, which **locks all mutating setup operations, including
 > `RegisterControlService`**. It provisions nothing; it only closes the bootstrap
