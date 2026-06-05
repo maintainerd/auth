@@ -495,38 +495,38 @@ permission string shown. Status is per-RPC.
 ### GRPC-112 · PermissionService — `iam.proto`
 | RPC | REST origin | Permission | Status |
 |-----|-------------|-----------|--------|
-| `ListPermissions` / `GetPermission` | `GET /permissions/`, `…/{uuid}` | `permission:read` | 🔴 todo |
-| `CreatePermission` | `POST /permissions/` | `permission:create` | 🔴 todo |
-| `UpdatePermission` | `PUT /permissions/{uuid}` | `permission:update` | 🔴 todo |
-| `SetPermissionStatus` | `PUT /permissions/{uuid}/status` | `permission:update` | 🔴 todo |
-| `DeletePermission` | `DELETE /permissions/{uuid}` | `permission:delete` | 🔴 todo |
+| `ListPermissions` / `GetPermission` | `GET /permissions/`, `…/{uuid}` | `permission:read` | ✅ done |
+| `CreatePermission` | `POST /permissions/` | `permission:create` | ✅ done |
+| `UpdatePermission` | `PUT /permissions/{uuid}` | `permission:update` | ✅ done |
+| `SetPermissionStatus` | `PUT /permissions/{uuid}/status` | `permission:update` | ✅ done |
+| `DeletePermission` | `DELETE /permissions/{uuid}` | `permission:delete` | ✅ done |
 
 ### GRPC-113 · PolicyService — `iam.proto`
 | RPC | REST origin | Permission | Status |
 |-----|-------------|-----------|--------|
-| `ListPolicies` / `GetPolicy` | `GET /policies/`, `…/{uuid}` | `policy:read` | 🔴 todo |
-| `ListPolicyServices` | `GET /policies/{uuid}/services` | `policy:read` | 🔴 todo |
-| `CreatePolicy` | `POST /policies/` | `policy:create` | 🔴 todo |
-| `UpdatePolicy` | `PUT /policies/{uuid}` | `policy:update` | 🔴 todo |
-| `SetPolicyStatus` | `PUT /policies/{uuid}/status` | `policy:update` | 🔴 todo |
-| `DeletePolicy` | `DELETE /policies/{uuid}` | `policy:delete` | 🔴 todo |
+| `ListPolicies` / `GetPolicy` | `GET /policies/`, `…/{uuid}` | `policy:read` | ✅ done |
+| `ListPolicyServices` | `GET /policies/{uuid}/services` | `policy:read` | ✅ done |
+| `CreatePolicy` | `POST /policies/` | `policy:create` | ✅ done |
+| `UpdatePolicy` | `PUT /policies/{uuid}` | `policy:update` | ✅ done |
+| `SetPolicyStatus` | `PUT /policies/{uuid}/status` | `policy:update` | ✅ done |
+| `DeletePolicy` | `DELETE /policies/{uuid}` | `policy:delete` | ✅ done |
 
 ### GRPC-114 · RoleService — `iam.proto`
 | RPC | REST origin | Permission | Status |
 |-----|-------------|-----------|--------|
-| `ListRoles` / `GetRole` | `GET /roles/`, `…/{uuid}` | `role:read` | 🔴 todo |
-| `CreateRole` | `POST /roles/` | `role:create` | 🔴 todo |
-| `UpdateRole` | `PUT /roles/{uuid}` | `role:update` | 🔴 todo |
-| `SetRoleStatus` | `PUT /roles/{uuid}/status` | `role:update` | 🔴 todo |
-| `DeleteRole` | `DELETE /roles/{uuid}` | `role:delete` | 🔴 todo |
-| `ListRolePermissions` | `GET /roles/{uuid}/permissions` | `role:read` | 🔴 todo |
-| `AddRolePermissions` | `POST /roles/{uuid}/permissions` | `role:permission:create` | 🔴 todo |
-| `RemoveRolePermission` | `DELETE /roles/{uuid}/permissions/{p}` | `role:permission:delete` | 🔴 todo |
+| `ListRoles` / `GetRole` | `GET /roles/`, `…/{uuid}` | `role:read` | ✅ done |
+| `CreateRole` | `POST /roles/` | `role:create` | ✅ done |
+| `UpdateRole` | `PUT /roles/{uuid}` | `role:update` | ✅ done |
+| `SetRoleStatus` | `PUT /roles/{uuid}/status` | `role:update` | ✅ done |
+| `DeleteRole` | `DELETE /roles/{uuid}` | `role:delete` | ✅ done |
+| `ListRolePermissions` | `GET /roles/{uuid}/permissions` | `role:read` | ✅ done |
+| `AddRolePermissions` | `POST /roles/{uuid}/permissions` | `role:permission:create` | ✅ done |
+| `RemoveRolePermission` | `DELETE /roles/{uuid}/permissions/{p}` | `role:permission:delete` | ✅ done |
 
 ### GRPC-115 · AuthorizationService — `iam.proto`
 | RPC | REST origin | Permission | Status |
 |-----|-------------|-----------|--------|
-| `Authorize` | `POST /authorize/` | service-account | 🔴 todo |
+| `Authorize` | `POST /authorize/` | service-account | ✅ done |
 
 > This is the **S2S decision RPC** (PDP). High value: peers can ask "can principal X
 > do action Y on resource Z?" over gRPC instead of embedding the SDK.

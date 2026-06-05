@@ -49,6 +49,10 @@ func serveGRPC(ctx context.Context, application *Application, lis net.Listener) 
 	healthServer.SetServingStatus(authv1.TenantSettingService_ServiceDesc.ServiceName, healthpb.HealthCheckResponse_SERVING)
 	healthServer.SetServingStatus(authv1.ServiceService_ServiceDesc.ServiceName, healthpb.HealthCheckResponse_SERVING)
 	healthServer.SetServingStatus(authv1.APIService_ServiceDesc.ServiceName, healthpb.HealthCheckResponse_SERVING)
+	healthServer.SetServingStatus(authv1.PermissionService_ServiceDesc.ServiceName, healthpb.HealthCheckResponse_SERVING)
+	healthServer.SetServingStatus(authv1.PolicyService_ServiceDesc.ServiceName, healthpb.HealthCheckResponse_SERVING)
+	healthServer.SetServingStatus(authv1.RoleService_ServiceDesc.ServiceName, healthpb.HealthCheckResponse_SERVING)
+	healthServer.SetServingStatus(authv1.AuthorizationService_ServiceDesc.ServiceName, healthpb.HealthCheckResponse_SERVING)
 
 	if config.AppEnv != "production" {
 		reflection.Register(s)
@@ -59,6 +63,10 @@ func serveGRPC(ctx context.Context, application *Application, lis net.Listener) 
 	authv1.RegisterTenantSettingServiceServer(s, tenant.NewTenantSettingGRPCHandler(application.TenantService, application.TenantSettingService))
 	authv1.RegisterServiceServiceServer(s, iam.NewServiceGRPCHandler(application.TenantService, application.ServiceService))
 	authv1.RegisterAPIServiceServer(s, iam.NewAPIGRPCHandler(application.TenantService, application.APIService))
+	authv1.RegisterPermissionServiceServer(s, iam.NewPermissionGRPCHandler(application.TenantService, application.PermissionService))
+	authv1.RegisterPolicyServiceServer(s, iam.NewPolicyGRPCHandler(application.TenantService, application.PolicyService))
+	authv1.RegisterRoleServiceServer(s, iam.NewRoleGRPCHandler(application.TenantService, application.RoleService))
+	authv1.RegisterAuthorizationServiceServer(s, iam.NewAuthorizationGRPCHandler(application.AuthorizationService))
 
 	// Stop the server when the context is cancelled (e.g. after REST servers drain).
 	go func() {
