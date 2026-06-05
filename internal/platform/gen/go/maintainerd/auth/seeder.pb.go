@@ -126,9 +126,9 @@ const file_maintainerd_auth_v1_seeder_proto_rawDesc = "" +
 	"\ftriggered_by\x18\x01 \x01(\tR\vtriggeredBy\"K\n" +
 	"\x15TriggerSeederResponse\x12\x18\n" +
 	"\asuccess\x18\x01 \x01(\bR\asuccess\x12\x18\n" +
-	"\amessage\x18\x02 \x01(\tR\amessage2w\n" +
+	"\amessage\x18\x02 \x01(\tR\amessage2|\n" +
 	"\rSeederService\x12f\n" +
-	"\rTriggerSeeder\x12).maintainerd.auth.v1.TriggerSeederRequest\x1a*.maintainerd.auth.v1.TriggerSeederResponseBNZLgithub.com/maintainerd/auth/internal/platform/gen/go/maintainerd/auth;authv1b\x06proto3"
+	"\rTriggerSeeder\x12).maintainerd.auth.v1.TriggerSeederRequest\x1a*.maintainerd.auth.v1.TriggerSeederResponse\x1a\x03\x88\x02\x01BNZLgithub.com/maintainerd/auth/internal/platform/gen/go/maintainerd/auth;authv1b\x06proto3"
 
 var (
 	file_maintainerd_auth_v1_seeder_proto_rawDescOnce sync.Once

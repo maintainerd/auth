@@ -5,6 +5,8 @@ package maintainerd.auth.v1;
 option go_package = "github.com/maintainerd/auth/internal/platform/gen/go/maintainerd/auth;authv1";
 
 service SeederService {
+  option deprecated = true;
+
   rpc TriggerSeeder(TriggerSeederRequest) returns (TriggerSeederResponse);
 }
 

@@ -26,6 +26,7 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/metadata"
+	"google.golang.org/grpc/peer"
 	"google.golang.org/grpc/status"
 )
 
@@ -39,6 +40,10 @@ func TestGRPCLimiter(t *testing.T) {
 }
 
 func TestGRPCInterceptors_BasicBranches(t *testing.T) {
+	const openMethod = "/test.Service/Open"
+	grpcServicePermissions[openMethod] = ""
+	t.Cleanup(func() { delete(grpcServicePermissions, openMethod) })
+
 	t.Run("recovery unary converts panic", func(t *testing.T) {
 		interceptor := grpcRecoveryUnaryInterceptor()
 		_, err := interceptor(context.Background(), nil, &grpc.UnaryServerInfo{FullMethod: "/svc/Panic"}, func(context.Context, any) (any, error) {
@@ -70,7 +75,7 @@ func TestGRPCInterceptors_BasicBranches(t *testing.T) {
 	})
 
 	t.Run("auth rejects missing metadata", func(t *testing.T) {
-		_, err := authenticateAndAuthorizeGRPC(context.Background(), &Application{}, newGRPCLimiter(1, time.Minute), "/maintainerd.auth.v1.SeederService/TriggerSeeder")
+		_, err := authenticateAndAuthorizeGRPC(context.Background(), &Application{}, newGRPCLimiter(1, time.Minute), openMethod)
 		assert.Equal(t, codes.Unauthenticated, status.Code(err))
 	})
 
@@ -86,7 +91,7 @@ func TestGRPCInterceptors_BasicBranches(t *testing.T) {
 		require.NoError(t, err)
 		ctx := metadata.NewIncomingContext(context.Background(), metadata.Pairs("authorization", "Bearer "+token))
 
-		authCtx, err := authenticateAndAuthorizeGRPC(ctx, &Application{}, newGRPCLimiter(1, time.Minute), "/maintainerd.auth.v1.SeederService/TriggerSeeder")
+		authCtx, err := authenticateAndAuthorizeGRPC(ctx, &Application{}, newGRPCLimiter(1, time.Minute), openMethod)
 		require.NoError(t, err)
 		claims := middleware.JWTClaimsFromContext(authCtx)
 		require.NotNil(t, claims)
@@ -98,7 +103,7 @@ func TestGRPCInterceptors_BasicBranches(t *testing.T) {
 
 	t.Run("auth rejects malformed bearer", func(t *testing.T) {
 		ctx := metadata.NewIncomingContext(context.Background(), metadata.Pairs("authorization", "basic nope"))
-		_, err := authenticateAndAuthorizeGRPC(ctx, &Application{}, newGRPCLimiter(1, time.Minute), "/maintainerd.auth.v1.SeederService/TriggerSeeder")
+		_, err := authenticateAndAuthorizeGRPC(ctx, &Application{}, newGRPCLimiter(1, time.Minute), openMethod)
 		assert.Equal(t, codes.Unauthenticated, status.Code(err))
 	})
 
@@ -108,7 +113,7 @@ func TestGRPCInterceptors_BasicBranches(t *testing.T) {
 		require.NoError(t, err)
 		ctx := metadata.NewIncomingContext(context.Background(), metadata.Pairs("authorization", "Bearer "+token))
 
-		_, err = authenticateAndAuthorizeGRPC(ctx, &Application{}, newGRPCLimiter(1, time.Minute), "/maintainerd.auth.v1.SeederService/TriggerSeeder")
+		_, err = authenticateAndAuthorizeGRPC(ctx, &Application{}, newGRPCLimiter(1, time.Minute), openMethod)
 		assert.Equal(t, codes.PermissionDenied, status.Code(err))
 	})
 
@@ -121,10 +126,47 @@ func TestGRPCInterceptors_BasicBranches(t *testing.T) {
 		require.NoError(t, err)
 		ctx := metadata.NewIncomingContext(context.Background(), metadata.Pairs("authorization", "Bearer "+token))
 		limiter := newGRPCLimiter(1, time.Minute)
-		_, err = authenticateAndAuthorizeGRPC(ctx, &Application{}, limiter, "/maintainerd.auth.v1.SeederService/TriggerSeeder")
+		_, err = authenticateAndAuthorizeGRPC(ctx, &Application{}, limiter, openMethod)
 		require.NoError(t, err)
-		_, err = authenticateAndAuthorizeGRPC(ctx, &Application{}, limiter, "/maintainerd.auth.v1.SeederService/TriggerSeeder")
+		_, err = authenticateAndAuthorizeGRPC(ctx, &Application{}, limiter, openMethod)
 		assert.Equal(t, codes.ResourceExhausted, status.Code(err))
+	})
+
+	t.Run("auth unary interceptor returns auth error", func(t *testing.T) {
+		interceptor := grpcAuthUnaryInterceptor(&Application{}, newGRPCLimiter(1, time.Minute))
+		_, err := interceptor(context.Background(), nil, &grpc.UnaryServerInfo{FullMethod: openMethod}, func(context.Context, any) (any, error) {
+			return "unexpected", nil
+		})
+
+		assert.Equal(t, codes.Unauthenticated, status.Code(err))
+	})
+
+	t.Run("auth unary interceptor passes auth context to handler", func(t *testing.T) {
+		initServerTestJWTKeys(t)
+		token, err := jwt.GenerateAccessTokenWithOptions("svc-auth", "read", "https://auth.example.com", "auth", "client-1", "provider-1", &jwt.AccessTokenOptions{
+			Service:     "auth",
+			SubjectType: "service",
+		})
+		require.NoError(t, err)
+		ctx := metadata.NewIncomingContext(context.Background(), metadata.Pairs("authorization", "Bearer "+token))
+		interceptor := grpcAuthUnaryInterceptor(&Application{}, newGRPCLimiter(1, time.Minute))
+
+		resp, err := interceptor(ctx, nil, &grpc.UnaryServerInfo{FullMethod: openMethod}, func(ctx context.Context, _ any) (any, error) {
+			require.NotNil(t, middleware.JWTClaimsFromContext(ctx))
+			return "ok", nil
+		})
+
+		require.NoError(t, err)
+		assert.Equal(t, "ok", resp)
+	})
+
+	t.Run("auth stream interceptor returns auth error", func(t *testing.T) {
+		interceptor := grpcAuthStreamInterceptor(&Application{}, newGRPCLimiter(1, time.Minute))
+		err := interceptor(nil, &testServerStream{ctx: context.Background()}, &grpc.StreamServerInfo{FullMethod: openMethod}, func(any, grpc.ServerStream) error {
+			return nil
+		})
+
+		assert.Equal(t, codes.Unauthenticated, status.Code(err))
 	})
 
 	t.Run("authz denies protected permission", func(t *testing.T) {
@@ -170,6 +212,13 @@ func TestGRPCInterceptors_BasicBranches(t *testing.T) {
 		assert.Equal(t, "sub:subj", grpcPrincipalKey(nilClaims("subj", "", "")))
 		assert.Equal(t, "client:client", grpcPrincipalKey(nilClaims("subj", "", "client")))
 		assert.Equal(t, "svc:svc", grpcPrincipalKey(nilClaims("subj", "svc", "client")))
+
+		ctx := metadata.NewIncomingContext(context.Background(), metadata.Pairs("authorization", "Bearer invalid"))
+		_, err := grpcJWTClaims(ctx)
+		assert.Equal(t, codes.Unauthenticated, status.Code(err))
+
+		logGRPC(peer.NewContext(context.Background(), &peer.Peer{Addr: &net.TCPAddr{IP: net.ParseIP("127.0.0.1")}}), "/svc/Ok", time.Now(), nil)
+		logGRPC(peer.NewContext(context.Background(), &peer.Peer{Addr: testAddr("pipe")}), "/svc/Ok", time.Now(), nil)
 	})
 
 	t.Run("stream logging timeout and auth interceptors pass through", func(t *testing.T) {
@@ -471,6 +520,11 @@ type testServerStream struct {
 func (s *testServerStream) Context() context.Context {
 	return s.ctx
 }
+
+type testAddr string
+
+func (a testAddr) Network() string { return "test" }
+func (a testAddr) String() string  { return string(a) }
 
 func writeTestCert(t *testing.T) (string, string) {
 	t.Helper()

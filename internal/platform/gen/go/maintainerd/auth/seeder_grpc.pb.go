@@ -25,6 +25,8 @@ const (
 // SeederServiceClient is the client API for SeederService service.
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
+//
+// Deprecated: Do not use.
 type SeederServiceClient interface {
 	TriggerSeeder(ctx context.Context, in *TriggerSeederRequest, opts ...grpc.CallOption) (*TriggerSeederResponse, error)
 }
@@ -33,6 +35,7 @@ type seederServiceClient struct {
 	cc grpc.ClientConnInterface
 }
 
+// Deprecated: Do not use.
 func NewSeederServiceClient(cc grpc.ClientConnInterface) SeederServiceClient {
 	return &seederServiceClient{cc}
 }
@@ -50,6 +53,8 @@ func (c *seederServiceClient) TriggerSeeder(ctx context.Context, in *TriggerSeed
 // SeederServiceServer is the server API for SeederService service.
 // All implementations must embed UnimplementedSeederServiceServer
 // for forward compatibility.
+//
+// Deprecated: Do not use.
 type SeederServiceServer interface {
 	TriggerSeeder(context.Context, *TriggerSeederRequest) (*TriggerSeederResponse, error)
 	mustEmbedUnimplementedSeederServiceServer()
@@ -75,6 +80,7 @@ type UnsafeSeederServiceServer interface {
 	mustEmbedUnimplementedSeederServiceServer()
 }
 
+// Deprecated: Do not use.
 func RegisterSeederServiceServer(s grpc.ServiceRegistrar, srv SeederServiceServer) {
 	// If the following call pancis, it indicates UnimplementedSeederServiceServer was
 	// embedded by pointer and is nil.  This will cause panics if an
