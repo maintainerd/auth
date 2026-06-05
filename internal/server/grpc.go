@@ -9,6 +9,7 @@ import (
 	"net"
 	"os"
 
+	"github.com/maintainerd/auth/internal/iam"
 	"github.com/maintainerd/auth/internal/platform/config"
 	authv1 "github.com/maintainerd/auth/internal/platform/gen/go/maintainerd/auth"
 	"github.com/maintainerd/auth/internal/setup"
@@ -45,6 +46,9 @@ func serveGRPC(ctx context.Context, application *Application, lis net.Listener) 
 	healthServer.SetServingStatus("", healthpb.HealthCheckResponse_SERVING)
 	healthServer.SetServingStatus(authv1.SetupService_ServiceDesc.ServiceName, healthpb.HealthCheckResponse_SERVING)
 	healthServer.SetServingStatus(authv1.TenantService_ServiceDesc.ServiceName, healthpb.HealthCheckResponse_SERVING)
+	healthServer.SetServingStatus(authv1.TenantSettingService_ServiceDesc.ServiceName, healthpb.HealthCheckResponse_SERVING)
+	healthServer.SetServingStatus(authv1.ServiceService_ServiceDesc.ServiceName, healthpb.HealthCheckResponse_SERVING)
+	healthServer.SetServingStatus(authv1.APIService_ServiceDesc.ServiceName, healthpb.HealthCheckResponse_SERVING)
 
 	if config.AppEnv != "production" {
 		reflection.Register(s)
@@ -52,6 +56,9 @@ func serveGRPC(ctx context.Context, application *Application, lis net.Listener) 
 
 	authv1.RegisterSetupServiceServer(s, setup.NewSetupGRPCHandler(application.SetupService))
 	authv1.RegisterTenantServiceServer(s, tenant.NewTenantGRPCHandler(application.TenantService, application.TenantMemberService))
+	authv1.RegisterTenantSettingServiceServer(s, tenant.NewTenantSettingGRPCHandler(application.TenantService, application.TenantSettingService))
+	authv1.RegisterServiceServiceServer(s, iam.NewServiceGRPCHandler(application.TenantService, application.ServiceService))
+	authv1.RegisterAPIServiceServer(s, iam.NewAPIGRPCHandler(application.TenantService, application.APIService))
 
 	// Stop the server when the context is cancelled (e.g. after REST servers drain).
 	go func() {

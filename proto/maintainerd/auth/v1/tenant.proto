@@ -23,6 +23,17 @@ service TenantService {
   rpc RemoveTenantMember(RemoveTenantMemberRequest) returns (RemoveTenantMemberResponse);
 }
 
+service TenantSettingService {
+  rpc GetRateLimitConfig(GetRateLimitConfigRequest) returns (GetRateLimitConfigResponse);
+  rpc UpdateRateLimitConfig(UpdateRateLimitConfigRequest) returns (UpdateRateLimitConfigResponse);
+  rpc GetAuditConfig(GetAuditConfigRequest) returns (GetAuditConfigResponse);
+  rpc UpdateAuditConfig(UpdateAuditConfigRequest) returns (UpdateAuditConfigResponse);
+  rpc GetMaintenanceConfig(GetMaintenanceConfigRequest) returns (GetMaintenanceConfigResponse);
+  rpc UpdateMaintenanceConfig(UpdateMaintenanceConfigRequest) returns (UpdateMaintenanceConfigResponse);
+  rpc GetFeatureFlags(GetFeatureFlagsRequest) returns (GetFeatureFlagsResponse);
+  rpc UpdateFeatureFlags(UpdateFeatureFlagsRequest) returns (UpdateFeatureFlagsResponse);
+}
+
 message Tenant {
   string tenant_uuid = 1;
   string name = 2;
@@ -201,4 +212,72 @@ message RemoveTenantMemberRequest {
 
 message RemoveTenantMemberResponse {
   bool removed = 1;
+}
+
+message GetRateLimitConfigRequest {
+  string tenant_uuid = 1;
+}
+
+message GetRateLimitConfigResponse {
+  google.protobuf.Struct config = 1;
+}
+
+message UpdateRateLimitConfigRequest {
+  string tenant_uuid = 1;
+  google.protobuf.Struct config = 2;
+}
+
+message UpdateRateLimitConfigResponse {
+  google.protobuf.Struct config = 1;
+}
+
+message GetAuditConfigRequest {
+  string tenant_uuid = 1;
+}
+
+message GetAuditConfigResponse {
+  google.protobuf.Struct config = 1;
+}
+
+message UpdateAuditConfigRequest {
+  string tenant_uuid = 1;
+  google.protobuf.Struct config = 2;
+}
+
+message UpdateAuditConfigResponse {
+  google.protobuf.Struct config = 1;
+}
+
+message GetMaintenanceConfigRequest {
+  string tenant_uuid = 1;
+}
+
+message GetMaintenanceConfigResponse {
+  google.protobuf.Struct config = 1;
+}
+
+message UpdateMaintenanceConfigRequest {
+  string tenant_uuid = 1;
+  google.protobuf.Struct config = 2;
+}
+
+message UpdateMaintenanceConfigResponse {
+  google.protobuf.Struct config = 1;
+}
+
+message GetFeatureFlagsRequest {
+  string tenant_uuid = 1;
+}
+
+message GetFeatureFlagsResponse {
+  google.protobuf.Struct config = 1;
+}
+
+message UpdateFeatureFlagsRequest {
+  string tenant_uuid = 1;
+  google.protobuf.Struct config = 2;
+}
+
+message UpdateFeatureFlagsResponse {
+  google.protobuf.Struct config = 1;
 }
