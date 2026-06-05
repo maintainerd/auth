@@ -22,6 +22,9 @@ func SetupRoute(r chi.Router, setupHandler *SetupHandler) {
 		// Explicitly locks setup once bootstrap records are provisioned.
 		r.Post("/setup/complete", setupHandler.CompleteSetup)
 
+		// Optional controller registration before setup is locked.
+		r.Post("/setup/register-control-service", setupHandler.RegisterControlService)
+
 		// Tenant setup (one-time only)
 		r.Post("/setup/create_tenant", setupHandler.CreateTenant)
 
