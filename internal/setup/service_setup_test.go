@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	sqlmock "github.com/DATA-DOG/go-sqlmock"
 	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/platform/crypto"
 	"github.com/stretchr/testify/assert"
@@ -28,6 +29,256 @@ func buildSetupService(t *testing.T,
 	db, _ := newMockGormDB(t)
 	return NewSetupService(db, userRepo, tenantRepo, tenantMemberRepo,
 		clientRepo, roleRepo, userRoleRepo, userIdentityRepo, profileRepo)
+}
+
+func TestSetupService_RegisterControlService(t *testing.T) {
+	validReq := RegisterControlServiceRequestDTO{Name: "core", DisplayName: "Core"}
+	tenant := &Tenant{TenantID: 1, TenantUUID: uuid.New(), Name: "maintainerd"}
+	policyUUID := uuid.New()
+	policy := &Policy{PolicyID: 88, PolicyUUID: policyUUID, TenantID: tenant.TenantID, Name: "auth-control", Version: "v1"}
+
+	newService := func(db *gorm.DB, stateRepo SetupStateRepository, serviceRepo ServiceRepository, policyRepo PolicyRepository, servicePolicyRepo ServicePolicyRepository, tenantRepo *mockTenantRepo) SetupService {
+		if tenantRepo == nil {
+			tenantRepo = &mockTenantRepo{findSystemFn: func() (*Tenant, error) { return tenant, nil }}
+		}
+		return NewSetupService(db, &mockUserRepo{}, tenantRepo, &mockTenantMemberRepo{}, &mockClientRepo{}, &mockRoleRepo{}, &mockUserRoleRepo{}, &mockUserIdentityRepo{}, &mockProfileRepo{},
+			stateRepo,
+			ControlRegistrationDeps{ServiceRepo: serviceRepo, PolicyRepo: policyRepo, ServicePolicyRepo: servicePolicyRepo},
+		)
+	}
+
+	t.Run("setup locked", func(t *testing.T) {
+		svc := newService(nil, &mockSetupStateRepo{complete: true}, nil, nil, nil, nil)
+
+		_, err := svc.RegisterControlService(context.Background(), validReq)
+
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "setup is complete")
+	})
+
+	t.Run("missing dependencies", func(t *testing.T) {
+		svc := newService(nil, &mockSetupStateRepo{}, nil, nil, nil, nil)
+
+		_, err := svc.RegisterControlService(context.Background(), validReq)
+
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "control registration dependencies")
+	})
+
+	t.Run("tenant must exist", func(t *testing.T) {
+		db, _ := newMockGormDB(t)
+		svc := newService(db, &mockSetupStateRepo{}, &mockServiceRepo{}, &mockPolicyRepo{}, &mockServicePolicyRepo{}, &mockTenantRepo{findSystemFn: func() (*Tenant, error) { return nil, nil }})
+
+		_, err := svc.RegisterControlService(context.Background(), validReq)
+
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "tenant must be created first")
+	})
+
+	t.Run("tenant lookup error", func(t *testing.T) {
+		db, _ := newMockGormDB(t)
+		svc := newService(db, &mockSetupStateRepo{}, &mockServiceRepo{}, &mockPolicyRepo{}, &mockServicePolicyRepo{}, &mockTenantRepo{findSystemFn: func() (*Tenant, error) { return nil, assert.AnError }})
+
+		_, err := svc.RegisterControlService(context.Background(), validReq)
+
+		require.ErrorIs(t, err, assert.AnError)
+	})
+
+	t.Run("control policy lookup error", func(t *testing.T) {
+		db, mock := newMockGormDB(t)
+		mock.ExpectBegin()
+		mock.ExpectRollback()
+		svc := newService(db, &mockSetupStateRepo{}, &mockServiceRepo{}, &mockPolicyRepo{
+			findByNameAndVersionFn: func(string, string, int64) (*Policy, error) { return nil, assert.AnError },
+		}, &mockServicePolicyRepo{}, nil)
+
+		_, err := svc.RegisterControlService(context.Background(), validReq)
+
+		require.ErrorIs(t, err, assert.AnError)
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+
+	t.Run("control policy must exist", func(t *testing.T) {
+		db, mock := newMockGormDB(t)
+		mock.ExpectBegin()
+		mock.ExpectRollback()
+		svc := newService(db, &mockSetupStateRepo{}, &mockServiceRepo{}, &mockPolicyRepo{
+			findByNameAndVersionFn: func(string, string, int64) (*Policy, error) { return nil, nil },
+		}, &mockServicePolicyRepo{}, nil)
+
+		_, err := svc.RegisterControlService(context.Background(), validReq)
+
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "control policy is not seeded")
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+
+	t.Run("creates service and attaches policy", func(t *testing.T) {
+		db, mock := newMockGormDB(t)
+		mock.ExpectBegin()
+		mock.ExpectExec(`INSERT INTO "tenant_services"`).
+			WithArgs(int64(0), int64(1), int64(77), sqlmock.AnyArg(), sqlmock.AnyArg()).
+			WillReturnResult(sqlmock.NewResult(1, 1))
+		mock.ExpectCommit()
+		desc := "Maintainerd Core"
+		req := validReq
+		req.Description = &desc
+		req.Version = "v2"
+		svc := newService(db, &mockSetupStateRepo{}, &mockServiceRepo{
+			createOrUpdateFn: func(service *Service) (*Service, error) {
+				assert.Equal(t, desc, service.Description)
+				assert.Equal(t, "v2", service.Version)
+				service.ServiceID = 77
+				return service, nil
+			},
+		}, &mockPolicyRepo{
+			findByNameAndVersionFn: func(name, version string, tenantID int64) (*Policy, error) {
+				assert.Equal(t, "auth-control", name)
+				assert.Equal(t, "v1", version)
+				assert.Equal(t, int64(1), tenantID)
+				return policy, nil
+			},
+		}, &mockServicePolicyRepo{
+			createFn: func(attachment *ServicePolicy) (*ServicePolicy, error) {
+				assert.Equal(t, int64(77), attachment.ServiceID)
+				assert.Equal(t, int64(88), attachment.PolicyID)
+				return attachment, nil
+			},
+		}, nil)
+
+		res, err := svc.RegisterControlService(context.Background(), req)
+
+		require.NoError(t, err)
+		assert.Equal(t, "core", res.Name)
+		assert.Equal(t, policyUUID.String(), res.PolicyUUID)
+		assert.True(t, res.PolicyWasAttached)
+		assert.False(t, res.AlreadyExisted)
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+
+	t.Run("service lookup error", func(t *testing.T) {
+		db, mock := newMockGormDB(t)
+		mock.ExpectBegin()
+		mock.ExpectRollback()
+		svc := newService(db, &mockSetupStateRepo{}, &mockServiceRepo{
+			findByNameAndTenantIDFn: func(string, int64) (*Service, error) { return nil, assert.AnError },
+		}, &mockPolicyRepo{
+			findByNameAndVersionFn: func(string, string, int64) (*Policy, error) { return policy, nil },
+		}, &mockServicePolicyRepo{}, nil)
+
+		_, err := svc.RegisterControlService(context.Background(), validReq)
+
+		require.ErrorIs(t, err, assert.AnError)
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+
+	t.Run("service create error", func(t *testing.T) {
+		db, mock := newMockGormDB(t)
+		mock.ExpectBegin()
+		mock.ExpectRollback()
+		svc := newService(db, &mockSetupStateRepo{}, &mockServiceRepo{
+			createOrUpdateFn: func(*Service) (*Service, error) { return nil, assert.AnError },
+		}, &mockPolicyRepo{
+			findByNameAndVersionFn: func(string, string, int64) (*Policy, error) { return policy, nil },
+		}, &mockServicePolicyRepo{}, nil)
+
+		_, err := svc.RegisterControlService(context.Background(), validReq)
+
+		require.ErrorIs(t, err, assert.AnError)
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+
+	t.Run("tenant service link create error", func(t *testing.T) {
+		db, mock := newMockGormDB(t)
+		mock.ExpectBegin()
+		mock.ExpectExec(`INSERT INTO "tenant_services"`).
+			WithArgs(int64(0), int64(1), int64(77), sqlmock.AnyArg(), sqlmock.AnyArg()).
+			WillReturnError(assert.AnError)
+		mock.ExpectRollback()
+		svc := newService(db, &mockSetupStateRepo{}, &mockServiceRepo{
+			createOrUpdateFn: func(service *Service) (*Service, error) {
+				service.ServiceID = 77
+				return service, nil
+			},
+		}, &mockPolicyRepo{
+			findByNameAndVersionFn: func(string, string, int64) (*Policy, error) { return policy, nil },
+		}, &mockServicePolicyRepo{}, nil)
+
+		_, err := svc.RegisterControlService(context.Background(), validReq)
+
+		require.ErrorIs(t, err, assert.AnError)
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+
+	t.Run("attachment lookup error", func(t *testing.T) {
+		db, mock := newMockGormDB(t)
+		mock.ExpectBegin()
+		mock.ExpectRollback()
+		svc := newService(db, &mockSetupStateRepo{}, &mockServiceRepo{
+			findByNameAndTenantIDFn: func(string, int64) (*Service, error) {
+				return &Service{ServiceID: 77, ServiceUUID: uuid.New(), Name: "core", DisplayName: "Core"}, nil
+			},
+		}, &mockPolicyRepo{
+			findByNameAndVersionFn: func(string, string, int64) (*Policy, error) { return policy, nil },
+		}, &mockServicePolicyRepo{
+			findByServiceAndPolicyFn: func(int64, int64) (*ServicePolicy, error) { return nil, assert.AnError },
+		}, nil)
+
+		_, err := svc.RegisterControlService(context.Background(), validReq)
+
+		require.ErrorIs(t, err, assert.AnError)
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+
+	t.Run("attachment create error", func(t *testing.T) {
+		db, mock := newMockGormDB(t)
+		mock.ExpectBegin()
+		mock.ExpectRollback()
+		svc := newService(db, &mockSetupStateRepo{}, &mockServiceRepo{
+			findByNameAndTenantIDFn: func(string, int64) (*Service, error) {
+				return &Service{ServiceID: 77, ServiceUUID: uuid.New(), Name: "core", DisplayName: "Core"}, nil
+			},
+		}, &mockPolicyRepo{
+			findByNameAndVersionFn: func(string, string, int64) (*Policy, error) { return policy, nil },
+		}, &mockServicePolicyRepo{
+			createFn: func(*ServicePolicy) (*ServicePolicy, error) { return nil, assert.AnError },
+		}, nil)
+
+		_, err := svc.RegisterControlService(context.Background(), validReq)
+
+		require.ErrorIs(t, err, assert.AnError)
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+
+	t.Run("idempotent when service and attachment exist", func(t *testing.T) {
+		db, mock := newMockGormDB(t)
+		mock.ExpectBegin()
+		mock.ExpectCommit()
+		serviceUUID := uuid.New()
+		svc := newService(db, &mockSetupStateRepo{}, &mockServiceRepo{
+			findByNameAndTenantIDFn: func(name string, tenantID int64) (*Service, error) {
+				assert.Equal(t, "core", name)
+				assert.Equal(t, int64(1), tenantID)
+				return &Service{ServiceID: 77, ServiceUUID: serviceUUID, Name: name, DisplayName: "Core"}, nil
+			},
+		}, &mockPolicyRepo{
+			findByNameAndVersionFn: func(string, string, int64) (*Policy, error) { return policy, nil },
+		}, &mockServicePolicyRepo{
+			findByServiceAndPolicyFn: func(serviceID, policyID int64) (*ServicePolicy, error) {
+				assert.Equal(t, int64(77), serviceID)
+				assert.Equal(t, int64(88), policyID)
+				return &ServicePolicy{ServiceID: serviceID, PolicyID: policyID}, nil
+			},
+		}, nil)
+
+		res, err := svc.RegisterControlService(context.Background(), validReq)
+
+		require.NoError(t, err)
+		assert.Equal(t, serviceUUID.String(), res.ServiceUUID)
+		assert.True(t, res.AlreadyExisted)
+		assert.False(t, res.PolicyWasAttached)
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
 }
 
 // ---------------------------------------------------------------------------
