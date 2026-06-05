@@ -288,9 +288,11 @@ func (s *policyService) Create(ctx context.Context, tenantID int64, name string,
 
 		// Emit policy.created integration event inside the transaction
 		if s.eventService != nil {
-			s.eventService.Emit(ctx, tx, event.NewIntegrationEvent(
+			if _, emitErr := s.eventService.Emit(ctx, tx, event.NewIntegrationEvent(
 				event.EventTypePolicyCreated, 1, tenantID,
-			).SetSubject(&createdPolicy.PolicyUUID, "policy"))
+			).SetSubject(&createdPolicy.PolicyUUID, "policy")); emitErr != nil {
+				return emitErr
+			}
 		}
 
 		return nil
@@ -382,10 +384,12 @@ func (s *policyService) Update(ctx context.Context, policyUUID uuid.UUID, tenant
 
 		// Emit policy.updated integration event inside the transaction
 		if s.eventService != nil && len(changed) > 0 {
-			s.eventService.Emit(ctx, tx, event.NewIntegrationEvent(
+			if _, emitErr := s.eventService.Emit(ctx, tx, event.NewIntegrationEvent(
 				event.EventTypeIAMPolicyUpdated, 1, tenantID,
 			).SetSubject(&updatedPolicy.PolicyUUID, "policy").
-				SetChangedFields(changed...))
+				SetChangedFields(changed...)); emitErr != nil {
+				return emitErr
+			}
 		}
 
 		return nil

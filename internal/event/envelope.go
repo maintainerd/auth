@@ -27,12 +27,12 @@ type IntegrationEvent struct {
 // NewIntegrationEvent creates a new IntegrationEvent with defaults populated.
 func NewIntegrationEvent(eventType string, version int, tenantID int64) *IntegrationEvent {
 	return &IntegrationEvent{
-		EventID:      uuid.New(),
-		EventType:    eventType,
-		EventVersion: version,
-		TenantID:     tenantID,
+		EventID:       uuid.New(),
+		EventType:     eventType,
+		EventVersion:  version,
+		TenantID:      tenantID,
 		ChangedFields: []string{},
-		OccurredAt:   time.Now().UTC(),
+		OccurredAt:    time.Now().UTC(),
 	}
 }
 

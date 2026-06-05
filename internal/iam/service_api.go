@@ -224,9 +224,11 @@ func (s *apiService) Create(ctx context.Context, tenantID int64, name string, di
 
 		// Emit api.created inside the transaction
 		if s.eventService != nil {
-			s.eventService.Emit(ctx, tx, event.NewIntegrationEvent(
+			if _, emitErr := s.eventService.Emit(ctx, tx, event.NewIntegrationEvent(
 				event.EventTypeAPICreated, 1, tenantID,
-			).SetSubject(&createdAPI.APIUUID, "api"))
+			).SetSubject(&createdAPI.APIUUID, "api")); emitErr != nil {
+				return emitErr
+			}
 		}
 
 		return nil

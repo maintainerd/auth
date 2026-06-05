@@ -803,9 +803,9 @@ func TestPermissionService_InvalidatorErrors(t *testing.T) {
 				&mockAPIRepo{},
 				&mockRoleRepo{},
 				&mockClientRepo{},
-			cache.NopInvalidator{},
-			nil,
-			failingAuthorizationTokenInvalidator{},
+				cache.NopInvalidator{},
+				nil,
+				failingAuthorizationTokenInvalidator{},
 			)
 
 			result, err := tc.run(svc)

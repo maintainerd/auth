@@ -10,9 +10,9 @@ import (
 )
 
 const (
-	writeGateCacheTTL              = 30 * time.Second
-	writeGateInvalidationChan      = "event:gate:invalidate"
-	writeGateRefreshInterval       = 25 * time.Second
+	writeGateCacheTTL         = 30 * time.Second
+	writeGateInvalidationChan = "event:gate:invalidate"
+	writeGateRefreshInterval  = 25 * time.Second
 )
 
 // WriteGate decides whether an integration event should be written to the outbox.
@@ -50,16 +50,16 @@ func NewWriteGate(
 	rdb *redis.Client,
 ) *WriteGate {
 	wg := &WriteGate{
-		activeTypes:        make(map[string]bool),
-		tenantDisabledKeys: make(map[int64]map[string]bool),
-		tenantHasListener:  make(map[int64]bool),
-		eventTypeRepo:      eventTypeRepo,
+		activeTypes:         make(map[string]bool),
+		tenantDisabledKeys:  make(map[int64]map[string]bool),
+		tenantHasListener:   make(map[int64]bool),
+		eventTypeRepo:       eventTypeRepo,
 		tenantEventTypeRepo: tenantEventTypeRepo,
-		listenerChecker:    listenerChecker,
-		eventRouteRepo:     eventRouteRepo,
-		rdb:                rdb,
-		stopCh:             make(chan struct{}),
-		ttlOnly:            rdb == nil,
+		listenerChecker:     listenerChecker,
+		eventRouteRepo:      eventRouteRepo,
+		rdb:                 rdb,
+		stopCh:              make(chan struct{}),
+		ttlOnly:             rdb == nil,
 	}
 
 	if rdb != nil {
@@ -68,7 +68,11 @@ func NewWriteGate(
 	}
 
 	go func() {
-		defer func() { recover() }()
+		defer func() {
+			if r := recover(); r != nil {
+				slog.Error("recovered from panic in background goroutine", "panic", r)
+			}
+		}()
 		wg.startBackgroundRefresh()
 	}()
 	return wg
@@ -243,6 +247,6 @@ func (wg *WriteGate) InvalidateTenant(ctx context.Context, tenantID int64) {
 func (wg *WriteGate) Shutdown() {
 	close(wg.stopCh)
 	if wg.sub != nil {
-		wg.sub.Close()
+		_ = wg.sub.Close()
 	}
 }

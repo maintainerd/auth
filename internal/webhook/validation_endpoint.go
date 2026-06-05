@@ -1,6 +1,8 @@
 package webhook
 
 import (
+	"context"
+
 	validation "github.com/go-ozzo/ozzo-validation/v4"
 	"github.com/go-ozzo/ozzo-validation/v4/is"
 	"github.com/maintainerd/auth/internal/shared"
@@ -11,7 +13,7 @@ var webhookURLRule = validation.By(func(value any) error {
 	if raw == "" {
 		return nil
 	}
-	if err := validateWebhookURL(nil, raw, false); err != nil {
+	if err := validateWebhookURL(context.TODO(), raw, false); err != nil {
 		return validation.NewError("validation_webhook_url", err.Error())
 	}
 	return nil

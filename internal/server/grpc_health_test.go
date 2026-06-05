@@ -48,7 +48,7 @@ func TestGRPCOverallHealthStatus(t *testing.T) {
 		db, mock := newGRPCHealthMockDB(t)
 		mock.ExpectPing()
 		redisClient := redis.NewClient(&redis.Options{Addr: "127.0.0.1:1"})
-		defer redisClient.Close()
+		defer func() { _ = redisClient.Close() }()
 
 		assert.Equal(t, healthpb.HealthCheckResponse_NOT_SERVING, grpcOverallHealthStatus(context.Background(), &Application{DB: db, RedisClient: redisClient}))
 		require.NoError(t, mock.ExpectationsWereMet())
@@ -60,7 +60,7 @@ func TestGRPCOverallHealthStatus(t *testing.T) {
 		mock.ExpectPing()
 		redisServer := miniredis.RunT(t)
 		redisClient := redis.NewClient(&redis.Options{Addr: redisServer.Addr()})
-		defer redisClient.Close()
+		defer func() { _ = redisClient.Close() }()
 
 		assert.Equal(t, healthpb.HealthCheckResponse_SERVING, grpcOverallHealthStatus(context.Background(), &Application{DB: db, RedisClient: redisClient}))
 		require.NoError(t, mock.ExpectationsWereMet())

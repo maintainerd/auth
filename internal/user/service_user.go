@@ -463,9 +463,11 @@ func (s *userService) Create(ctx context.Context, username string, fullname stri
 
 		// Emit integration event inside the transaction
 		if s.eventService != nil {
-			s.eventService.Emit(ctx, tx, event.NewIntegrationEvent(
+			if _, emitErr := s.eventService.Emit(ctx, tx, event.NewIntegrationEvent(
 				event.EventTypeUserCreated, 1, targetTenant.TenantID,
-			).SetActor(&creatorUser.UserID).SetSubject(&createdUser.UserUUID, "user"))
+			).SetActor(&creatorUser.UserID).SetSubject(&createdUser.UserUUID, "user")); emitErr != nil {
+				return emitErr
+			}
 		}
 
 		return nil
@@ -606,11 +608,13 @@ func (s *userService) Update(ctx context.Context, userUUID uuid.UUID, tenantID i
 
 		// Emit integration event inside the transaction
 		if s.eventService != nil && len(changed) > 0 {
-			s.eventService.Emit(ctx, tx, event.NewIntegrationEvent(
+			if _, emitErr := s.eventService.Emit(ctx, tx, event.NewIntegrationEvent(
 				event.EventTypeUserUpdated, 1, tenantID,
 			).SetActor(&updaterUser.UserID).
 				SetSubject(&updatedUser.UserUUID, "user").
-				SetChangedFields(changed...))
+				SetChangedFields(changed...)); emitErr != nil {
+				return emitErr
+			}
 		}
 
 		return nil
@@ -970,7 +974,7 @@ func (s *userService) AssignUserRoles(ctx context.Context, userUUID uuid.UUID, r
 		_ = s.userTokenRepo.RevokeAllSessionsByUserID(userWithRoles.UserID)
 	}
 	s.authEventService.Log(ctx, authevent.AuthEventInput{
-		TenantID:    tenantID,
+		TenantID:     tenantID,
 		TargetUserID: &userWithRoles.UserID,
 		IPAddress:    middleware.ClientIPFromContext(ctx),
 		UserAgent:    ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),
@@ -1051,7 +1055,7 @@ func (s *userService) RemoveUserRole(ctx context.Context, userUUID uuid.UUID, ro
 		_ = s.userTokenRepo.RevokeAllSessionsByUserID(userWithRoles.UserID)
 	}
 	s.authEventService.Log(ctx, authevent.AuthEventInput{
-		TenantID:    tenantID,
+		TenantID:     tenantID,
 		TargetUserID: &userWithRoles.UserID,
 		IPAddress:    middleware.ClientIPFromContext(ctx),
 		UserAgent:    ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),

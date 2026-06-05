@@ -708,5 +708,3 @@ func ecJWKForTest(t *testing.T, pub *ecdsa.PublicKey) map[string]any {
 		"y":   base64.RawURLEncoding.EncodeToString(point[1+size:]),
 	}
 }
-
-

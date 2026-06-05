@@ -318,9 +318,11 @@ func (s *apiKeyService) Create(ctx context.Context, tenantID int64, name, descri
 
 		// Emit api_key.created inside the transaction
 		if s.eventService != nil {
-			s.eventService.Emit(ctx, tx, event.NewIntegrationEvent(
+			if _, emitErr := s.eventService.Emit(ctx, tx, event.NewIntegrationEvent(
 				event.EventTypeAPIKeyCreated, 1, tenantID,
-			).SetSubject(&createdAPIKey.APIKeyUUID, "api_key"))
+			).SetSubject(&createdAPIKey.APIKeyUUID, "api_key")); emitErr != nil {
+				return emitErr
+			}
 		}
 
 		return nil
@@ -470,9 +472,11 @@ func (s *apiKeyService) Delete(ctx context.Context, apiKeyUUID uuid.UUID, tenant
 
 		// Emit api_key.revoked inside the transaction
 		if s.eventService != nil {
-			s.eventService.Emit(ctx, tx, event.NewIntegrationEvent(
+			if _, emitErr := s.eventService.Emit(ctx, tx, event.NewIntegrationEvent(
 				event.EventTypeAPIKeyRevoked, 1, tenantID,
-			).SetSubject(&apiKeyUUID, "api_key"))
+			).SetSubject(&apiKeyUUID, "api_key")); emitErr != nil {
+				return emitErr
+			}
 		}
 
 		return nil
@@ -534,9 +538,11 @@ func (s *apiKeyService) SetStatusByUUID(ctx context.Context, apiKeyUUID uuid.UUI
 
 		// Emit api_key.status_changed inside the transaction
 		if s.eventService != nil {
-			s.eventService.Emit(ctx, tx, event.NewIntegrationEvent(
+			if _, emitErr := s.eventService.Emit(ctx, tx, event.NewIntegrationEvent(
 				event.EventTypeAPIKeyStatusChanged, 1, tenantID,
-			).SetSubject(&apiKeyUUID, "api_key").SetChangedFields("status"))
+			).SetSubject(&apiKeyUUID, "api_key").SetChangedFields("status")); emitErr != nil {
+				return emitErr
+			}
 		}
 
 		return nil

@@ -98,7 +98,7 @@ func TestWaitForServeStop(t *testing.T) {
 
 func TestCloseUsesConnCloseWhenNoHook(t *testing.T) {
 	listener := bufconn.Listen(1024)
-	defer listener.Close()
+	defer func() { _ = listener.Close() }()
 
 	server := grpc.NewServer()
 	defer server.Stop()

@@ -17,10 +17,10 @@ import (
 )
 
 type testIDPService struct {
-	getFn            func(ctx context.Context, filter IdentityProviderServiceGetFilter) (*IdentityProviderServiceGetResult, error)
-	getByUUIDFn      func(ctx context.Context, idpUUID uuid.UUID, tenantID int64) (*IdentityProviderServiceDataResult, error)
-	createFn         func(ctx context.Context, name, displayName, provider, providerType string, config datatypes.JSON, pStatus string, tenantUUID string, tenantID int64, actorUserUUID uuid.UUID) (*IdentityProviderServiceDataResult, error)
-	updateFn         func(ctx context.Context, idpUUID uuid.UUID, name, displayName, provider, providerType string, config datatypes.JSON, pStatus string, tenantID int64, actorUserUUID uuid.UUID) (*IdentityProviderServiceDataResult, error)
+	getFn             func(ctx context.Context, filter IdentityProviderServiceGetFilter) (*IdentityProviderServiceGetResult, error)
+	getByUUIDFn       func(ctx context.Context, idpUUID uuid.UUID, tenantID int64) (*IdentityProviderServiceDataResult, error)
+	createFn          func(ctx context.Context, name, displayName, provider, providerType string, config datatypes.JSON, pStatus string, tenantUUID string, tenantID int64, actorUserUUID uuid.UUID) (*IdentityProviderServiceDataResult, error)
+	updateFn          func(ctx context.Context, idpUUID uuid.UUID, name, displayName, provider, providerType string, config datatypes.JSON, pStatus string, tenantID int64, actorUserUUID uuid.UUID) (*IdentityProviderServiceDataResult, error)
 	setStatusByUUIDFn func(ctx context.Context, idpUUID uuid.UUID, pStatus string, tenantID int64, actorUserUUID uuid.UUID) (*IdentityProviderServiceDataResult, error)
 	deleteByUUIDFn    func(ctx context.Context, idpUUID uuid.UUID, tenantID int64, actorUserUUID uuid.UUID) (*IdentityProviderServiceDataResult, error)
 }
@@ -143,14 +143,14 @@ func TestIdentityProviderGRPCHandler_RPCS(t *testing.T) {
 		}
 		h := NewIdentityProviderGRPCHandler(resolver, svc)
 		res, err := h.UpdateIdentityProvider(ctx, &authv1.UpdateIdentityProviderRequest{
-			TenantUuid:            tenantUUID.String(),
-			IdentityProviderUuid:  idpUUID.String(),
-			Name:                  "google",
-			DisplayName:           "Google",
-			Provider:              "google",
-			ProviderType:          "social",
-			Status:                "active",
-			ActorUserUuid:         actorUUID.String(),
+			TenantUuid:           tenantUUID.String(),
+			IdentityProviderUuid: idpUUID.String(),
+			Name:                 "google",
+			DisplayName:          "Google",
+			Provider:             "google",
+			ProviderType:         "social",
+			Status:               "active",
+			ActorUserUuid:        actorUUID.String(),
 		})
 		if err != nil {
 			t.Fatal(err)

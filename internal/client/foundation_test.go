@@ -12,7 +12,7 @@ import (
 
 type mockAuthEventService struct{}
 
-func (m *mockAuthEventService) Log(_ context.Context, _ authevent.AuthEventInput)              {}
+func (m *mockAuthEventService) Log(_ context.Context, _ authevent.AuthEventInput) {}
 func (m *mockAuthEventService) FindPaginated(_ context.Context, _ authevent.AuthEventRepositoryGetFilter) (*authevent.PaginationResult[authevent.AuthEventServiceDataResult], error) {
 	return nil, nil
 }

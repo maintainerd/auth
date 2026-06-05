@@ -12,7 +12,7 @@ import (
 
 type SignupFlowGRPCHandler struct {
 	authv1.UnimplementedSignupFlowServiceServer
-	tenantResolver   TenantResolver
+	tenantResolver    TenantResolver
 	signupFlowService SignupFlowService
 }
 

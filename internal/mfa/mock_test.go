@@ -97,5 +97,3 @@ func assertExpectationsMet(t *testing.T, mock sqlmock.Sqlmock) {
 	t.Helper()
 	require.NoError(t, mock.ExpectationsWereMet())
 }
-
-

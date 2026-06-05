@@ -10,7 +10,7 @@ import (
 
 // ConfigHandler handles HTTP requests for event configuration management.
 type ConfigHandler struct {
-	eventTypeService            EventTypeService
+	eventTypeService             EventTypeService
 	tenantEventTypeConfigService TenantEventTypeConfigService
 }
 
@@ -20,7 +20,7 @@ func NewConfigHandler(
 	tenantEventTypeConfigService TenantEventTypeConfigService,
 ) *ConfigHandler {
 	return &ConfigHandler{
-		eventTypeService:            eventTypeService,
+		eventTypeService:             eventTypeService,
 		tenantEventTypeConfigService: tenantEventTypeConfigService,
 	}
 }

@@ -11,7 +11,9 @@ type testBrandingTenantResolver struct {
 }
 
 func (m *testBrandingTenantResolver) GetByUUID(ctx context.Context, tenantUUID uuid.UUID) (*TenantServiceDataResult, error) {
-	if m.getByUUIDFn != nil { return m.getByUUIDFn(ctx, tenantUUID) }
+	if m.getByUUIDFn != nil {
+		return m.getByUUIDFn(ctx, tenantUUID)
+	}
 	return &TenantServiceDataResult{TenantID: 1, TenantUUID: tenantUUID}, nil
 }
 
@@ -28,12 +30,12 @@ func (m *testBrandingService) Update(ctx context.Context, tenantID int64, compan
 }
 
 type testEmailTemplateService struct {
-	getAllFn        func(ctx context.Context, tenantID int64, name *string, status []string, isDefault, isSystem *bool, page, limit int, sortBy, sortOrder string) (*EmailTemplateServiceListResult, error)
-	getByUUIDFn     func(ctx context.Context, etUUID uuid.UUID, tenantID int64) (*EmailTemplateServiceDataResult, error)
-	createFn        func(ctx context.Context, tenantID int64, name, subject, bodyHTML string, bodyPlain *string, status string, isDefault bool) (*EmailTemplateServiceDataResult, error)
-	updateFn        func(ctx context.Context, etUUID uuid.UUID, tenantID int64, name, subject, bodyHTML string, bodyPlain *string, status string) (*EmailTemplateServiceDataResult, error)
-	updateStatusFn  func(ctx context.Context, etUUID uuid.UUID, tenantID int64, status string) (*EmailTemplateServiceDataResult, error)
-	deleteFn        func(ctx context.Context, etUUID uuid.UUID, tenantID int64) (*EmailTemplateServiceDataResult, error)
+	getAllFn       func(ctx context.Context, tenantID int64, name *string, status []string, isDefault, isSystem *bool, page, limit int, sortBy, sortOrder string) (*EmailTemplateServiceListResult, error)
+	getByUUIDFn    func(ctx context.Context, etUUID uuid.UUID, tenantID int64) (*EmailTemplateServiceDataResult, error)
+	createFn       func(ctx context.Context, tenantID int64, name, subject, bodyHTML string, bodyPlain *string, status string, isDefault bool) (*EmailTemplateServiceDataResult, error)
+	updateFn       func(ctx context.Context, etUUID uuid.UUID, tenantID int64, name, subject, bodyHTML string, bodyPlain *string, status string) (*EmailTemplateServiceDataResult, error)
+	updateStatusFn func(ctx context.Context, etUUID uuid.UUID, tenantID int64, status string) (*EmailTemplateServiceDataResult, error)
+	deleteFn       func(ctx context.Context, etUUID uuid.UUID, tenantID int64) (*EmailTemplateServiceDataResult, error)
 }
 
 func (m *testEmailTemplateService) GetAll(ctx context.Context, tenantID int64, name *string, status []string, isDefault, isSystem *bool, page, limit int, sortBy, sortOrder string) (*EmailTemplateServiceListResult, error) {
@@ -56,12 +58,12 @@ func (m *testEmailTemplateService) Delete(ctx context.Context, etUUID uuid.UUID,
 }
 
 type testSMSTemplateService struct {
-	getAllFn        func(ctx context.Context, tenantID int64, name *string, status []string, isDefault, isSystem *bool, page, limit int, sortBy, sortOrder string) (*SMSTemplateServiceListResult, error)
-	getByUUIDFn     func(ctx context.Context, stUUID uuid.UUID, tenantID int64) (*SMSTemplateServiceDataResult, error)
-	createFn        func(ctx context.Context, tenantID int64, name string, description *string, message string, senderID *string, status string) (*SMSTemplateServiceDataResult, error)
-	updateFn        func(ctx context.Context, stUUID uuid.UUID, tenantID int64, name string, description *string, message string, senderID *string, status string) (*SMSTemplateServiceDataResult, error)
-	updateStatusFn  func(ctx context.Context, stUUID uuid.UUID, tenantID int64, status string) (*SMSTemplateServiceDataResult, error)
-	deleteFn        func(ctx context.Context, stUUID uuid.UUID, tenantID int64) (*SMSTemplateServiceDataResult, error)
+	getAllFn       func(ctx context.Context, tenantID int64, name *string, status []string, isDefault, isSystem *bool, page, limit int, sortBy, sortOrder string) (*SMSTemplateServiceListResult, error)
+	getByUUIDFn    func(ctx context.Context, stUUID uuid.UUID, tenantID int64) (*SMSTemplateServiceDataResult, error)
+	createFn       func(ctx context.Context, tenantID int64, name string, description *string, message string, senderID *string, status string) (*SMSTemplateServiceDataResult, error)
+	updateFn       func(ctx context.Context, stUUID uuid.UUID, tenantID int64, name string, description *string, message string, senderID *string, status string) (*SMSTemplateServiceDataResult, error)
+	updateStatusFn func(ctx context.Context, stUUID uuid.UUID, tenantID int64, status string) (*SMSTemplateServiceDataResult, error)
+	deleteFn       func(ctx context.Context, stUUID uuid.UUID, tenantID int64) (*SMSTemplateServiceDataResult, error)
 }
 
 func (m *testSMSTemplateService) GetAll(ctx context.Context, tenantID int64, name *string, status []string, isDefault, isSystem *bool, page, limit int, sortBy, sortOrder string) (*SMSTemplateServiceListResult, error) {
@@ -84,12 +86,12 @@ func (m *testSMSTemplateService) Delete(ctx context.Context, stUUID uuid.UUID, t
 }
 
 type testLoginTemplateService struct {
-	getAllFn        func(ctx context.Context, tenantID int64, name *string, status []string, template *string, isDefault, isSystem *bool, page, limit int, sortBy, sortOrder string) (*LoginTemplateServiceListResult, error)
-	getByUUIDFn     func(ctx context.Context, ltUUID uuid.UUID, tenantID int64) (*LoginTemplateServiceDataResult, error)
-	createFn        func(ctx context.Context, tenantID int64, name string, description *string, template string, metadata map[string]any, status string) (*LoginTemplateServiceDataResult, error)
-	updateFn        func(ctx context.Context, ltUUID uuid.UUID, tenantID int64, name string, description *string, template string, metadata map[string]any, status string) (*LoginTemplateServiceDataResult, error)
-	updateStatusFn  func(ctx context.Context, ltUUID uuid.UUID, tenantID int64, status string) (*LoginTemplateServiceDataResult, error)
-	deleteFn        func(ctx context.Context, ltUUID uuid.UUID, tenantID int64) (*LoginTemplateServiceDataResult, error)
+	getAllFn       func(ctx context.Context, tenantID int64, name *string, status []string, template *string, isDefault, isSystem *bool, page, limit int, sortBy, sortOrder string) (*LoginTemplateServiceListResult, error)
+	getByUUIDFn    func(ctx context.Context, ltUUID uuid.UUID, tenantID int64) (*LoginTemplateServiceDataResult, error)
+	createFn       func(ctx context.Context, tenantID int64, name string, description *string, template string, metadata map[string]any, status string) (*LoginTemplateServiceDataResult, error)
+	updateFn       func(ctx context.Context, ltUUID uuid.UUID, tenantID int64, name string, description *string, template string, metadata map[string]any, status string) (*LoginTemplateServiceDataResult, error)
+	updateStatusFn func(ctx context.Context, ltUUID uuid.UUID, tenantID int64, status string) (*LoginTemplateServiceDataResult, error)
+	deleteFn       func(ctx context.Context, ltUUID uuid.UUID, tenantID int64) (*LoginTemplateServiceDataResult, error)
 }
 
 func (m *testLoginTemplateService) GetAll(ctx context.Context, tenantID int64, name *string, status []string, template *string, isDefault, isSystem *bool, page, limit int, sortBy, sortOrder string) (*LoginTemplateServiceListResult, error) {
