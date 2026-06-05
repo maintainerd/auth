@@ -472,14 +472,14 @@ Mechanical debt the refactor didn't finish. Big LOC reduction, low risk.
   `setup` `identityProviderRepo` + `userTokenRepo` injected-but-unused
   ([`service_setup.go:35`](../../internal/setup/service_setup.go#L35)) with
   `IdentityProviderRepository = any` ([`setup/deps.go:31`](../../internal/setup/deps.go#L31));
-  legacy gRPC `TriggerSeeder` runtime handler;
+  obsolete standalone seeder gRPC surface;
   `ValidateAPIKey` stub ([`client/service_api_key.go:888`](../../internal/client/service_api_key.go#L888));
   branding `FindByName` + unused `db` fields; mfa `aaguidStr`/`amr` computed-then-discarded;
   `authn/deps.go` `Adapter`; empty `if` branch
   ([`setup/service_setup.go:182`](../../internal/setup/service_setup.go#L182)); dead
   pagination parse in [`branding/handler_login_template.go:46`](../../internal/branding/handler_login_template.go#L46).
   **Fixed:** removed dead login/SMS template `FindByName` methods and mocks,
-  removed the unused API-key validation test seam, deprecated the seeder gRPC
+  removed the unused API-key validation test seam, removed the obsolete seeder gRPC
   contract in favor of tenant-creation seeders, and used step-up `amr`/`acr` in
   the issued access token.
 

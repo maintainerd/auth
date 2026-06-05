@@ -301,12 +301,12 @@ This file is intentionally an implementation-facing checklist. Marketing copy an
 
 - [x] gRPC server on `:50051`
 - [x] OpenTelemetry gRPC stats handler
-- [x] Seeder gRPC service
+- [x] Setup and tenant management gRPC services
 - [ ] Proto definitions for all core identity services
 - [ ] Dedicated management-only gRPC port separate from the basic server bind
-- [ ] gRPC reflection
-- [ ] Auth, logging, and recovery interceptors
-- [ ] `grpc.health.v1` health check service
+- [x] gRPC reflection
+- [x] Auth, logging, and recovery interceptors
+- [x] `grpc.health.v1` health check service
 - [ ] gRPC-Gateway transcoding
 
 ---

@@ -463,4 +463,4 @@ The following are known gaps between the intended design and the current impleme
 | Frontend init endpoint | In progress | `GET /tenant/{identifier}/config` on port 8081. See `docs/v1-features/frontend-initialization.md`. |
 | Health and readiness endpoints | Planned | `/healthz` and `/readyz` on both ports. |
 | CORS on public port | Planned | Required for browser-based clients on port 8081. |
-| gRPC layer | Future | Only a stub (`SeederService`) exists. Not in active development. |
+| gRPC layer | Active | Setup and tenant management services are exposed over gRPC for private service-to-service use. |
