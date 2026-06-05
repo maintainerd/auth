@@ -1843,6 +1843,742 @@ func (x *RemoveTenantMemberResponse) GetRemoved() bool {
 	return false
 }
 
+type GetRateLimitConfigRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	TenantUuid    string                 `protobuf:"bytes,1,opt,name=tenant_uuid,json=tenantUuid,proto3" json:"tenant_uuid,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetRateLimitConfigRequest) Reset() {
+	*x = GetRateLimitConfigRequest{}
+	mi := &file_maintainerd_auth_v1_tenant_proto_msgTypes[31]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetRateLimitConfigRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetRateLimitConfigRequest) ProtoMessage() {}
+
+func (x *GetRateLimitConfigRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_maintainerd_auth_v1_tenant_proto_msgTypes[31]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetRateLimitConfigRequest.ProtoReflect.Descriptor instead.
+func (*GetRateLimitConfigRequest) Descriptor() ([]byte, []int) {
+	return file_maintainerd_auth_v1_tenant_proto_rawDescGZIP(), []int{31}
+}
+
+func (x *GetRateLimitConfigRequest) GetTenantUuid() string {
+	if x != nil {
+		return x.TenantUuid
+	}
+	return ""
+}
+
+type GetRateLimitConfigResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Config        *structpb.Struct       `protobuf:"bytes,1,opt,name=config,proto3" json:"config,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetRateLimitConfigResponse) Reset() {
+	*x = GetRateLimitConfigResponse{}
+	mi := &file_maintainerd_auth_v1_tenant_proto_msgTypes[32]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetRateLimitConfigResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetRateLimitConfigResponse) ProtoMessage() {}
+
+func (x *GetRateLimitConfigResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_maintainerd_auth_v1_tenant_proto_msgTypes[32]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetRateLimitConfigResponse.ProtoReflect.Descriptor instead.
+func (*GetRateLimitConfigResponse) Descriptor() ([]byte, []int) {
+	return file_maintainerd_auth_v1_tenant_proto_rawDescGZIP(), []int{32}
+}
+
+func (x *GetRateLimitConfigResponse) GetConfig() *structpb.Struct {
+	if x != nil {
+		return x.Config
+	}
+	return nil
+}
+
+type UpdateRateLimitConfigRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	TenantUuid    string                 `protobuf:"bytes,1,opt,name=tenant_uuid,json=tenantUuid,proto3" json:"tenant_uuid,omitempty"`
+	Config        *structpb.Struct       `protobuf:"bytes,2,opt,name=config,proto3" json:"config,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UpdateRateLimitConfigRequest) Reset() {
+	*x = UpdateRateLimitConfigRequest{}
+	mi := &file_maintainerd_auth_v1_tenant_proto_msgTypes[33]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpdateRateLimitConfigRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpdateRateLimitConfigRequest) ProtoMessage() {}
+
+func (x *UpdateRateLimitConfigRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_maintainerd_auth_v1_tenant_proto_msgTypes[33]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpdateRateLimitConfigRequest.ProtoReflect.Descriptor instead.
+func (*UpdateRateLimitConfigRequest) Descriptor() ([]byte, []int) {
+	return file_maintainerd_auth_v1_tenant_proto_rawDescGZIP(), []int{33}
+}
+
+func (x *UpdateRateLimitConfigRequest) GetTenantUuid() string {
+	if x != nil {
+		return x.TenantUuid
+	}
+	return ""
+}
+
+func (x *UpdateRateLimitConfigRequest) GetConfig() *structpb.Struct {
+	if x != nil {
+		return x.Config
+	}
+	return nil
+}
+
+type UpdateRateLimitConfigResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Config        *structpb.Struct       `protobuf:"bytes,1,opt,name=config,proto3" json:"config,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UpdateRateLimitConfigResponse) Reset() {
+	*x = UpdateRateLimitConfigResponse{}
+	mi := &file_maintainerd_auth_v1_tenant_proto_msgTypes[34]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpdateRateLimitConfigResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpdateRateLimitConfigResponse) ProtoMessage() {}
+
+func (x *UpdateRateLimitConfigResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_maintainerd_auth_v1_tenant_proto_msgTypes[34]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpdateRateLimitConfigResponse.ProtoReflect.Descriptor instead.
+func (*UpdateRateLimitConfigResponse) Descriptor() ([]byte, []int) {
+	return file_maintainerd_auth_v1_tenant_proto_rawDescGZIP(), []int{34}
+}
+
+func (x *UpdateRateLimitConfigResponse) GetConfig() *structpb.Struct {
+	if x != nil {
+		return x.Config
+	}
+	return nil
+}
+
+type GetAuditConfigRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	TenantUuid    string                 `protobuf:"bytes,1,opt,name=tenant_uuid,json=tenantUuid,proto3" json:"tenant_uuid,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetAuditConfigRequest) Reset() {
+	*x = GetAuditConfigRequest{}
+	mi := &file_maintainerd_auth_v1_tenant_proto_msgTypes[35]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetAuditConfigRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetAuditConfigRequest) ProtoMessage() {}
+
+func (x *GetAuditConfigRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_maintainerd_auth_v1_tenant_proto_msgTypes[35]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetAuditConfigRequest.ProtoReflect.Descriptor instead.
+func (*GetAuditConfigRequest) Descriptor() ([]byte, []int) {
+	return file_maintainerd_auth_v1_tenant_proto_rawDescGZIP(), []int{35}
+}
+
+func (x *GetAuditConfigRequest) GetTenantUuid() string {
+	if x != nil {
+		return x.TenantUuid
+	}
+	return ""
+}
+
+type GetAuditConfigResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Config        *structpb.Struct       `protobuf:"bytes,1,opt,name=config,proto3" json:"config,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetAuditConfigResponse) Reset() {
+	*x = GetAuditConfigResponse{}
+	mi := &file_maintainerd_auth_v1_tenant_proto_msgTypes[36]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetAuditConfigResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetAuditConfigResponse) ProtoMessage() {}
+
+func (x *GetAuditConfigResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_maintainerd_auth_v1_tenant_proto_msgTypes[36]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetAuditConfigResponse.ProtoReflect.Descriptor instead.
+func (*GetAuditConfigResponse) Descriptor() ([]byte, []int) {
+	return file_maintainerd_auth_v1_tenant_proto_rawDescGZIP(), []int{36}
+}
+
+func (x *GetAuditConfigResponse) GetConfig() *structpb.Struct {
+	if x != nil {
+		return x.Config
+	}
+	return nil
+}
+
+type UpdateAuditConfigRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	TenantUuid    string                 `protobuf:"bytes,1,opt,name=tenant_uuid,json=tenantUuid,proto3" json:"tenant_uuid,omitempty"`
+	Config        *structpb.Struct       `protobuf:"bytes,2,opt,name=config,proto3" json:"config,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UpdateAuditConfigRequest) Reset() {
+	*x = UpdateAuditConfigRequest{}
+	mi := &file_maintainerd_auth_v1_tenant_proto_msgTypes[37]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpdateAuditConfigRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpdateAuditConfigRequest) ProtoMessage() {}
+
+func (x *UpdateAuditConfigRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_maintainerd_auth_v1_tenant_proto_msgTypes[37]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpdateAuditConfigRequest.ProtoReflect.Descriptor instead.
+func (*UpdateAuditConfigRequest) Descriptor() ([]byte, []int) {
+	return file_maintainerd_auth_v1_tenant_proto_rawDescGZIP(), []int{37}
+}
+
+func (x *UpdateAuditConfigRequest) GetTenantUuid() string {
+	if x != nil {
+		return x.TenantUuid
+	}
+	return ""
+}
+
+func (x *UpdateAuditConfigRequest) GetConfig() *structpb.Struct {
+	if x != nil {
+		return x.Config
+	}
+	return nil
+}
+
+type UpdateAuditConfigResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Config        *structpb.Struct       `protobuf:"bytes,1,opt,name=config,proto3" json:"config,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UpdateAuditConfigResponse) Reset() {
+	*x = UpdateAuditConfigResponse{}
+	mi := &file_maintainerd_auth_v1_tenant_proto_msgTypes[38]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpdateAuditConfigResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpdateAuditConfigResponse) ProtoMessage() {}
+
+func (x *UpdateAuditConfigResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_maintainerd_auth_v1_tenant_proto_msgTypes[38]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpdateAuditConfigResponse.ProtoReflect.Descriptor instead.
+func (*UpdateAuditConfigResponse) Descriptor() ([]byte, []int) {
+	return file_maintainerd_auth_v1_tenant_proto_rawDescGZIP(), []int{38}
+}
+
+func (x *UpdateAuditConfigResponse) GetConfig() *structpb.Struct {
+	if x != nil {
+		return x.Config
+	}
+	return nil
+}
+
+type GetMaintenanceConfigRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	TenantUuid    string                 `protobuf:"bytes,1,opt,name=tenant_uuid,json=tenantUuid,proto3" json:"tenant_uuid,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetMaintenanceConfigRequest) Reset() {
+	*x = GetMaintenanceConfigRequest{}
+	mi := &file_maintainerd_auth_v1_tenant_proto_msgTypes[39]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetMaintenanceConfigRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetMaintenanceConfigRequest) ProtoMessage() {}
+
+func (x *GetMaintenanceConfigRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_maintainerd_auth_v1_tenant_proto_msgTypes[39]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetMaintenanceConfigRequest.ProtoReflect.Descriptor instead.
+func (*GetMaintenanceConfigRequest) Descriptor() ([]byte, []int) {
+	return file_maintainerd_auth_v1_tenant_proto_rawDescGZIP(), []int{39}
+}
+
+func (x *GetMaintenanceConfigRequest) GetTenantUuid() string {
+	if x != nil {
+		return x.TenantUuid
+	}
+	return ""
+}
+
+type GetMaintenanceConfigResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Config        *structpb.Struct       `protobuf:"bytes,1,opt,name=config,proto3" json:"config,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetMaintenanceConfigResponse) Reset() {
+	*x = GetMaintenanceConfigResponse{}
+	mi := &file_maintainerd_auth_v1_tenant_proto_msgTypes[40]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetMaintenanceConfigResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetMaintenanceConfigResponse) ProtoMessage() {}
+
+func (x *GetMaintenanceConfigResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_maintainerd_auth_v1_tenant_proto_msgTypes[40]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetMaintenanceConfigResponse.ProtoReflect.Descriptor instead.
+func (*GetMaintenanceConfigResponse) Descriptor() ([]byte, []int) {
+	return file_maintainerd_auth_v1_tenant_proto_rawDescGZIP(), []int{40}
+}
+
+func (x *GetMaintenanceConfigResponse) GetConfig() *structpb.Struct {
+	if x != nil {
+		return x.Config
+	}
+	return nil
+}
+
+type UpdateMaintenanceConfigRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	TenantUuid    string                 `protobuf:"bytes,1,opt,name=tenant_uuid,json=tenantUuid,proto3" json:"tenant_uuid,omitempty"`
+	Config        *structpb.Struct       `protobuf:"bytes,2,opt,name=config,proto3" json:"config,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UpdateMaintenanceConfigRequest) Reset() {
+	*x = UpdateMaintenanceConfigRequest{}
+	mi := &file_maintainerd_auth_v1_tenant_proto_msgTypes[41]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpdateMaintenanceConfigRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpdateMaintenanceConfigRequest) ProtoMessage() {}
+
+func (x *UpdateMaintenanceConfigRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_maintainerd_auth_v1_tenant_proto_msgTypes[41]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpdateMaintenanceConfigRequest.ProtoReflect.Descriptor instead.
+func (*UpdateMaintenanceConfigRequest) Descriptor() ([]byte, []int) {
+	return file_maintainerd_auth_v1_tenant_proto_rawDescGZIP(), []int{41}
+}
+
+func (x *UpdateMaintenanceConfigRequest) GetTenantUuid() string {
+	if x != nil {
+		return x.TenantUuid
+	}
+	return ""
+}
+
+func (x *UpdateMaintenanceConfigRequest) GetConfig() *structpb.Struct {
+	if x != nil {
+		return x.Config
+	}
+	return nil
+}
+
+type UpdateMaintenanceConfigResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Config        *structpb.Struct       `protobuf:"bytes,1,opt,name=config,proto3" json:"config,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UpdateMaintenanceConfigResponse) Reset() {
+	*x = UpdateMaintenanceConfigResponse{}
+	mi := &file_maintainerd_auth_v1_tenant_proto_msgTypes[42]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpdateMaintenanceConfigResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpdateMaintenanceConfigResponse) ProtoMessage() {}
+
+func (x *UpdateMaintenanceConfigResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_maintainerd_auth_v1_tenant_proto_msgTypes[42]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpdateMaintenanceConfigResponse.ProtoReflect.Descriptor instead.
+func (*UpdateMaintenanceConfigResponse) Descriptor() ([]byte, []int) {
+	return file_maintainerd_auth_v1_tenant_proto_rawDescGZIP(), []int{42}
+}
+
+func (x *UpdateMaintenanceConfigResponse) GetConfig() *structpb.Struct {
+	if x != nil {
+		return x.Config
+	}
+	return nil
+}
+
+type GetFeatureFlagsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	TenantUuid    string                 `protobuf:"bytes,1,opt,name=tenant_uuid,json=tenantUuid,proto3" json:"tenant_uuid,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetFeatureFlagsRequest) Reset() {
+	*x = GetFeatureFlagsRequest{}
+	mi := &file_maintainerd_auth_v1_tenant_proto_msgTypes[43]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetFeatureFlagsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetFeatureFlagsRequest) ProtoMessage() {}
+
+func (x *GetFeatureFlagsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_maintainerd_auth_v1_tenant_proto_msgTypes[43]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetFeatureFlagsRequest.ProtoReflect.Descriptor instead.
+func (*GetFeatureFlagsRequest) Descriptor() ([]byte, []int) {
+	return file_maintainerd_auth_v1_tenant_proto_rawDescGZIP(), []int{43}
+}
+
+func (x *GetFeatureFlagsRequest) GetTenantUuid() string {
+	if x != nil {
+		return x.TenantUuid
+	}
+	return ""
+}
+
+type GetFeatureFlagsResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Config        *structpb.Struct       `protobuf:"bytes,1,opt,name=config,proto3" json:"config,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetFeatureFlagsResponse) Reset() {
+	*x = GetFeatureFlagsResponse{}
+	mi := &file_maintainerd_auth_v1_tenant_proto_msgTypes[44]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetFeatureFlagsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetFeatureFlagsResponse) ProtoMessage() {}
+
+func (x *GetFeatureFlagsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_maintainerd_auth_v1_tenant_proto_msgTypes[44]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetFeatureFlagsResponse.ProtoReflect.Descriptor instead.
+func (*GetFeatureFlagsResponse) Descriptor() ([]byte, []int) {
+	return file_maintainerd_auth_v1_tenant_proto_rawDescGZIP(), []int{44}
+}
+
+func (x *GetFeatureFlagsResponse) GetConfig() *structpb.Struct {
+	if x != nil {
+		return x.Config
+	}
+	return nil
+}
+
+type UpdateFeatureFlagsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	TenantUuid    string                 `protobuf:"bytes,1,opt,name=tenant_uuid,json=tenantUuid,proto3" json:"tenant_uuid,omitempty"`
+	Config        *structpb.Struct       `protobuf:"bytes,2,opt,name=config,proto3" json:"config,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UpdateFeatureFlagsRequest) Reset() {
+	*x = UpdateFeatureFlagsRequest{}
+	mi := &file_maintainerd_auth_v1_tenant_proto_msgTypes[45]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpdateFeatureFlagsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpdateFeatureFlagsRequest) ProtoMessage() {}
+
+func (x *UpdateFeatureFlagsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_maintainerd_auth_v1_tenant_proto_msgTypes[45]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpdateFeatureFlagsRequest.ProtoReflect.Descriptor instead.
+func (*UpdateFeatureFlagsRequest) Descriptor() ([]byte, []int) {
+	return file_maintainerd_auth_v1_tenant_proto_rawDescGZIP(), []int{45}
+}
+
+func (x *UpdateFeatureFlagsRequest) GetTenantUuid() string {
+	if x != nil {
+		return x.TenantUuid
+	}
+	return ""
+}
+
+func (x *UpdateFeatureFlagsRequest) GetConfig() *structpb.Struct {
+	if x != nil {
+		return x.Config
+	}
+	return nil
+}
+
+type UpdateFeatureFlagsResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Config        *structpb.Struct       `protobuf:"bytes,1,opt,name=config,proto3" json:"config,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UpdateFeatureFlagsResponse) Reset() {
+	*x = UpdateFeatureFlagsResponse{}
+	mi := &file_maintainerd_auth_v1_tenant_proto_msgTypes[46]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpdateFeatureFlagsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpdateFeatureFlagsResponse) ProtoMessage() {}
+
+func (x *UpdateFeatureFlagsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_maintainerd_auth_v1_tenant_proto_msgTypes[46]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpdateFeatureFlagsResponse.ProtoReflect.Descriptor instead.
+func (*UpdateFeatureFlagsResponse) Descriptor() ([]byte, []int) {
+	return file_maintainerd_auth_v1_tenant_proto_rawDescGZIP(), []int{46}
+}
+
+func (x *UpdateFeatureFlagsResponse) GetConfig() *structpb.Struct {
+	if x != nil {
+		return x.Config
+	}
+	return nil
+}
+
 var File_maintainerd_auth_v1_tenant_proto protoreflect.FileDescriptor
 
 const file_maintainerd_auth_v1_tenant_proto_rawDesc = "" +
@@ -2001,7 +2737,51 @@ const file_maintainerd_auth_v1_tenant_proto_rawDesc = "" +
 	"tenantUuid\x12,\n" +
 	"\x12tenant_member_uuid\x18\x02 \x01(\tR\x10tenantMemberUuid\"6\n" +
 	"\x1aRemoveTenantMemberResponse\x12\x18\n" +
-	"\aremoved\x18\x01 \x01(\bR\aremoved2\xda\v\n" +
+	"\aremoved\x18\x01 \x01(\bR\aremoved\"<\n" +
+	"\x19GetRateLimitConfigRequest\x12\x1f\n" +
+	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
+	"tenantUuid\"M\n" +
+	"\x1aGetRateLimitConfigResponse\x12/\n" +
+	"\x06config\x18\x01 \x01(\v2\x17.google.protobuf.StructR\x06config\"p\n" +
+	"\x1cUpdateRateLimitConfigRequest\x12\x1f\n" +
+	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
+	"tenantUuid\x12/\n" +
+	"\x06config\x18\x02 \x01(\v2\x17.google.protobuf.StructR\x06config\"P\n" +
+	"\x1dUpdateRateLimitConfigResponse\x12/\n" +
+	"\x06config\x18\x01 \x01(\v2\x17.google.protobuf.StructR\x06config\"8\n" +
+	"\x15GetAuditConfigRequest\x12\x1f\n" +
+	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
+	"tenantUuid\"I\n" +
+	"\x16GetAuditConfigResponse\x12/\n" +
+	"\x06config\x18\x01 \x01(\v2\x17.google.protobuf.StructR\x06config\"l\n" +
+	"\x18UpdateAuditConfigRequest\x12\x1f\n" +
+	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
+	"tenantUuid\x12/\n" +
+	"\x06config\x18\x02 \x01(\v2\x17.google.protobuf.StructR\x06config\"L\n" +
+	"\x19UpdateAuditConfigResponse\x12/\n" +
+	"\x06config\x18\x01 \x01(\v2\x17.google.protobuf.StructR\x06config\">\n" +
+	"\x1bGetMaintenanceConfigRequest\x12\x1f\n" +
+	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
+	"tenantUuid\"O\n" +
+	"\x1cGetMaintenanceConfigResponse\x12/\n" +
+	"\x06config\x18\x01 \x01(\v2\x17.google.protobuf.StructR\x06config\"r\n" +
+	"\x1eUpdateMaintenanceConfigRequest\x12\x1f\n" +
+	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
+	"tenantUuid\x12/\n" +
+	"\x06config\x18\x02 \x01(\v2\x17.google.protobuf.StructR\x06config\"R\n" +
+	"\x1fUpdateMaintenanceConfigResponse\x12/\n" +
+	"\x06config\x18\x01 \x01(\v2\x17.google.protobuf.StructR\x06config\"9\n" +
+	"\x16GetFeatureFlagsRequest\x12\x1f\n" +
+	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
+	"tenantUuid\"J\n" +
+	"\x17GetFeatureFlagsResponse\x12/\n" +
+	"\x06config\x18\x01 \x01(\v2\x17.google.protobuf.StructR\x06config\"m\n" +
+	"\x19UpdateFeatureFlagsRequest\x12\x1f\n" +
+	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
+	"tenantUuid\x12/\n" +
+	"\x06config\x18\x02 \x01(\v2\x17.google.protobuf.StructR\x06config\"M\n" +
+	"\x1aUpdateFeatureFlagsResponse\x12/\n" +
+	"\x06config\x18\x01 \x01(\v2\x17.google.protobuf.StructR\x06config2\xda\v\n" +
 	"\rTenantService\x12o\n" +
 	"\x10GetDefaultTenant\x12,.maintainerd.auth.v1.GetDefaultTenantRequest\x1a-.maintainerd.auth.v1.GetDefaultTenantResponse\x12~\n" +
 	"\x15GetTenantByIdentifier\x121.maintainerd.auth.v1.GetTenantByIdentifierRequest\x1a2.maintainerd.auth.v1.GetTenantByIdentifierResponse\x12`\n" +
@@ -2015,7 +2795,16 @@ const file_maintainerd_auth_v1_tenant_proto_rawDesc = "" +
 	"\x11ListTenantMembers\x12-.maintainerd.auth.v1.ListTenantMembersRequest\x1a..maintainerd.auth.v1.ListTenantMembersResponse\x12l\n" +
 	"\x0fAddTenantMember\x12+.maintainerd.auth.v1.AddTenantMemberRequest\x1a,.maintainerd.auth.v1.AddTenantMemberResponse\x12\x81\x01\n" +
 	"\x16UpdateTenantMemberRole\x122.maintainerd.auth.v1.UpdateTenantMemberRoleRequest\x1a3.maintainerd.auth.v1.UpdateTenantMemberRoleResponse\x12u\n" +
-	"\x12RemoveTenantMember\x12..maintainerd.auth.v1.RemoveTenantMemberRequest\x1a/.maintainerd.auth.v1.RemoveTenantMemberResponseBNZLgithub.com/maintainerd/auth/internal/platform/gen/go/maintainerd/auth;authv1b\x06proto3"
+	"\x12RemoveTenantMember\x12..maintainerd.auth.v1.RemoveTenantMemberRequest\x1a/.maintainerd.auth.v1.RemoveTenantMemberResponse2\xd5\a\n" +
+	"\x14TenantSettingService\x12u\n" +
+	"\x12GetRateLimitConfig\x12..maintainerd.auth.v1.GetRateLimitConfigRequest\x1a/.maintainerd.auth.v1.GetRateLimitConfigResponse\x12~\n" +
+	"\x15UpdateRateLimitConfig\x121.maintainerd.auth.v1.UpdateRateLimitConfigRequest\x1a2.maintainerd.auth.v1.UpdateRateLimitConfigResponse\x12i\n" +
+	"\x0eGetAuditConfig\x12*.maintainerd.auth.v1.GetAuditConfigRequest\x1a+.maintainerd.auth.v1.GetAuditConfigResponse\x12r\n" +
+	"\x11UpdateAuditConfig\x12-.maintainerd.auth.v1.UpdateAuditConfigRequest\x1a..maintainerd.auth.v1.UpdateAuditConfigResponse\x12{\n" +
+	"\x14GetMaintenanceConfig\x120.maintainerd.auth.v1.GetMaintenanceConfigRequest\x1a1.maintainerd.auth.v1.GetMaintenanceConfigResponse\x12\x84\x01\n" +
+	"\x17UpdateMaintenanceConfig\x123.maintainerd.auth.v1.UpdateMaintenanceConfigRequest\x1a4.maintainerd.auth.v1.UpdateMaintenanceConfigResponse\x12l\n" +
+	"\x0fGetFeatureFlags\x12+.maintainerd.auth.v1.GetFeatureFlagsRequest\x1a,.maintainerd.auth.v1.GetFeatureFlagsResponse\x12u\n" +
+	"\x12UpdateFeatureFlags\x12..maintainerd.auth.v1.UpdateFeatureFlagsRequest\x1a/.maintainerd.auth.v1.UpdateFeatureFlagsResponseBNZLgithub.com/maintainerd/auth/internal/platform/gen/go/maintainerd/auth;authv1b\x06proto3"
 
 var (
 	file_maintainerd_auth_v1_tenant_proto_rawDescOnce sync.Once
@@ -2029,7 +2818,7 @@ func file_maintainerd_auth_v1_tenant_proto_rawDescGZIP() []byte {
 	return file_maintainerd_auth_v1_tenant_proto_rawDescData
 }
 
-var file_maintainerd_auth_v1_tenant_proto_msgTypes = make([]protoimpl.MessageInfo, 31)
+var file_maintainerd_auth_v1_tenant_proto_msgTypes = make([]protoimpl.MessageInfo, 47)
 var file_maintainerd_auth_v1_tenant_proto_goTypes = []any{
 	(*Tenant)(nil),                            // 0: maintainerd.auth.v1.Tenant
 	(*TenantMemberUser)(nil),                  // 1: maintainerd.auth.v1.TenantMemberUser
@@ -2062,19 +2851,35 @@ var file_maintainerd_auth_v1_tenant_proto_goTypes = []any{
 	(*UpdateTenantMemberRoleResponse)(nil),    // 28: maintainerd.auth.v1.UpdateTenantMemberRoleResponse
 	(*RemoveTenantMemberRequest)(nil),         // 29: maintainerd.auth.v1.RemoveTenantMemberRequest
 	(*RemoveTenantMemberResponse)(nil),        // 30: maintainerd.auth.v1.RemoveTenantMemberResponse
-	(*structpb.Struct)(nil),                   // 31: google.protobuf.Struct
-	(*timestamppb.Timestamp)(nil),             // 32: google.protobuf.Timestamp
+	(*GetRateLimitConfigRequest)(nil),         // 31: maintainerd.auth.v1.GetRateLimitConfigRequest
+	(*GetRateLimitConfigResponse)(nil),        // 32: maintainerd.auth.v1.GetRateLimitConfigResponse
+	(*UpdateRateLimitConfigRequest)(nil),      // 33: maintainerd.auth.v1.UpdateRateLimitConfigRequest
+	(*UpdateRateLimitConfigResponse)(nil),     // 34: maintainerd.auth.v1.UpdateRateLimitConfigResponse
+	(*GetAuditConfigRequest)(nil),             // 35: maintainerd.auth.v1.GetAuditConfigRequest
+	(*GetAuditConfigResponse)(nil),            // 36: maintainerd.auth.v1.GetAuditConfigResponse
+	(*UpdateAuditConfigRequest)(nil),          // 37: maintainerd.auth.v1.UpdateAuditConfigRequest
+	(*UpdateAuditConfigResponse)(nil),         // 38: maintainerd.auth.v1.UpdateAuditConfigResponse
+	(*GetMaintenanceConfigRequest)(nil),       // 39: maintainerd.auth.v1.GetMaintenanceConfigRequest
+	(*GetMaintenanceConfigResponse)(nil),      // 40: maintainerd.auth.v1.GetMaintenanceConfigResponse
+	(*UpdateMaintenanceConfigRequest)(nil),    // 41: maintainerd.auth.v1.UpdateMaintenanceConfigRequest
+	(*UpdateMaintenanceConfigResponse)(nil),   // 42: maintainerd.auth.v1.UpdateMaintenanceConfigResponse
+	(*GetFeatureFlagsRequest)(nil),            // 43: maintainerd.auth.v1.GetFeatureFlagsRequest
+	(*GetFeatureFlagsResponse)(nil),           // 44: maintainerd.auth.v1.GetFeatureFlagsResponse
+	(*UpdateFeatureFlagsRequest)(nil),         // 45: maintainerd.auth.v1.UpdateFeatureFlagsRequest
+	(*UpdateFeatureFlagsResponse)(nil),        // 46: maintainerd.auth.v1.UpdateFeatureFlagsResponse
+	(*structpb.Struct)(nil),                   // 47: google.protobuf.Struct
+	(*timestamppb.Timestamp)(nil),             // 48: google.protobuf.Timestamp
 }
 var file_maintainerd_auth_v1_tenant_proto_depIdxs = []int32{
-	31, // 0: maintainerd.auth.v1.Tenant.metadata:type_name -> google.protobuf.Struct
-	32, // 1: maintainerd.auth.v1.Tenant.created_at:type_name -> google.protobuf.Timestamp
-	32, // 2: maintainerd.auth.v1.Tenant.updated_at:type_name -> google.protobuf.Timestamp
-	31, // 3: maintainerd.auth.v1.TenantMemberUser.metadata:type_name -> google.protobuf.Struct
-	32, // 4: maintainerd.auth.v1.TenantMemberUser.created_at:type_name -> google.protobuf.Timestamp
-	32, // 5: maintainerd.auth.v1.TenantMemberUser.updated_at:type_name -> google.protobuf.Timestamp
+	47, // 0: maintainerd.auth.v1.Tenant.metadata:type_name -> google.protobuf.Struct
+	48, // 1: maintainerd.auth.v1.Tenant.created_at:type_name -> google.protobuf.Timestamp
+	48, // 2: maintainerd.auth.v1.Tenant.updated_at:type_name -> google.protobuf.Timestamp
+	47, // 3: maintainerd.auth.v1.TenantMemberUser.metadata:type_name -> google.protobuf.Struct
+	48, // 4: maintainerd.auth.v1.TenantMemberUser.created_at:type_name -> google.protobuf.Timestamp
+	48, // 5: maintainerd.auth.v1.TenantMemberUser.updated_at:type_name -> google.protobuf.Timestamp
 	1,  // 6: maintainerd.auth.v1.TenantMember.user:type_name -> maintainerd.auth.v1.TenantMemberUser
-	32, // 7: maintainerd.auth.v1.TenantMember.created_at:type_name -> google.protobuf.Timestamp
-	32, // 8: maintainerd.auth.v1.TenantMember.updated_at:type_name -> google.protobuf.Timestamp
+	48, // 7: maintainerd.auth.v1.TenantMember.created_at:type_name -> google.protobuf.Timestamp
+	48, // 8: maintainerd.auth.v1.TenantMember.updated_at:type_name -> google.protobuf.Timestamp
 	0,  // 9: maintainerd.auth.v1.GetDefaultTenantResponse.tenant:type_name -> maintainerd.auth.v1.Tenant
 	0,  // 10: maintainerd.auth.v1.GetTenantByIdentifierResponse.tenant:type_name -> maintainerd.auth.v1.Tenant
 	3,  // 11: maintainerd.auth.v1.ListTenantsRequest.pagination:type_name -> maintainerd.auth.v1.Pagination
@@ -2091,37 +2896,65 @@ var file_maintainerd_auth_v1_tenant_proto_depIdxs = []int32{
 	4,  // 22: maintainerd.auth.v1.ListTenantMembersResponse.page:type_name -> maintainerd.auth.v1.PageMetadata
 	2,  // 23: maintainerd.auth.v1.AddTenantMemberResponse.member:type_name -> maintainerd.auth.v1.TenantMember
 	2,  // 24: maintainerd.auth.v1.UpdateTenantMemberRoleResponse.member:type_name -> maintainerd.auth.v1.TenantMember
-	5,  // 25: maintainerd.auth.v1.TenantService.GetDefaultTenant:input_type -> maintainerd.auth.v1.GetDefaultTenantRequest
-	7,  // 26: maintainerd.auth.v1.TenantService.GetTenantByIdentifier:input_type -> maintainerd.auth.v1.GetTenantByIdentifierRequest
-	9,  // 27: maintainerd.auth.v1.TenantService.ListTenants:input_type -> maintainerd.auth.v1.ListTenantsRequest
-	11, // 28: maintainerd.auth.v1.TenantService.GetTenant:input_type -> maintainerd.auth.v1.GetTenantRequest
-	13, // 29: maintainerd.auth.v1.TenantService.CreateTenant:input_type -> maintainerd.auth.v1.TenantServiceCreateTenantRequest
-	15, // 30: maintainerd.auth.v1.TenantService.UpdateTenant:input_type -> maintainerd.auth.v1.TenantServiceUpdateTenantRequest
-	17, // 31: maintainerd.auth.v1.TenantService.SetTenantStatus:input_type -> maintainerd.auth.v1.SetTenantStatusRequest
-	19, // 32: maintainerd.auth.v1.TenantService.SetTenantPublic:input_type -> maintainerd.auth.v1.SetTenantPublicRequest
-	21, // 33: maintainerd.auth.v1.TenantService.DeleteTenant:input_type -> maintainerd.auth.v1.DeleteTenantRequest
-	23, // 34: maintainerd.auth.v1.TenantService.ListTenantMembers:input_type -> maintainerd.auth.v1.ListTenantMembersRequest
-	25, // 35: maintainerd.auth.v1.TenantService.AddTenantMember:input_type -> maintainerd.auth.v1.AddTenantMemberRequest
-	27, // 36: maintainerd.auth.v1.TenantService.UpdateTenantMemberRole:input_type -> maintainerd.auth.v1.UpdateTenantMemberRoleRequest
-	29, // 37: maintainerd.auth.v1.TenantService.RemoveTenantMember:input_type -> maintainerd.auth.v1.RemoveTenantMemberRequest
-	6,  // 38: maintainerd.auth.v1.TenantService.GetDefaultTenant:output_type -> maintainerd.auth.v1.GetDefaultTenantResponse
-	8,  // 39: maintainerd.auth.v1.TenantService.GetTenantByIdentifier:output_type -> maintainerd.auth.v1.GetTenantByIdentifierResponse
-	10, // 40: maintainerd.auth.v1.TenantService.ListTenants:output_type -> maintainerd.auth.v1.ListTenantsResponse
-	12, // 41: maintainerd.auth.v1.TenantService.GetTenant:output_type -> maintainerd.auth.v1.GetTenantResponse
-	14, // 42: maintainerd.auth.v1.TenantService.CreateTenant:output_type -> maintainerd.auth.v1.TenantServiceCreateTenantResponse
-	16, // 43: maintainerd.auth.v1.TenantService.UpdateTenant:output_type -> maintainerd.auth.v1.TenantServiceUpdateTenantResponse
-	18, // 44: maintainerd.auth.v1.TenantService.SetTenantStatus:output_type -> maintainerd.auth.v1.SetTenantStatusResponse
-	20, // 45: maintainerd.auth.v1.TenantService.SetTenantPublic:output_type -> maintainerd.auth.v1.SetTenantPublicResponse
-	22, // 46: maintainerd.auth.v1.TenantService.DeleteTenant:output_type -> maintainerd.auth.v1.DeleteTenantResponse
-	24, // 47: maintainerd.auth.v1.TenantService.ListTenantMembers:output_type -> maintainerd.auth.v1.ListTenantMembersResponse
-	26, // 48: maintainerd.auth.v1.TenantService.AddTenantMember:output_type -> maintainerd.auth.v1.AddTenantMemberResponse
-	28, // 49: maintainerd.auth.v1.TenantService.UpdateTenantMemberRole:output_type -> maintainerd.auth.v1.UpdateTenantMemberRoleResponse
-	30, // 50: maintainerd.auth.v1.TenantService.RemoveTenantMember:output_type -> maintainerd.auth.v1.RemoveTenantMemberResponse
-	38, // [38:51] is the sub-list for method output_type
-	25, // [25:38] is the sub-list for method input_type
-	25, // [25:25] is the sub-list for extension type_name
-	25, // [25:25] is the sub-list for extension extendee
-	0,  // [0:25] is the sub-list for field type_name
+	47, // 25: maintainerd.auth.v1.GetRateLimitConfigResponse.config:type_name -> google.protobuf.Struct
+	47, // 26: maintainerd.auth.v1.UpdateRateLimitConfigRequest.config:type_name -> google.protobuf.Struct
+	47, // 27: maintainerd.auth.v1.UpdateRateLimitConfigResponse.config:type_name -> google.protobuf.Struct
+	47, // 28: maintainerd.auth.v1.GetAuditConfigResponse.config:type_name -> google.protobuf.Struct
+	47, // 29: maintainerd.auth.v1.UpdateAuditConfigRequest.config:type_name -> google.protobuf.Struct
+	47, // 30: maintainerd.auth.v1.UpdateAuditConfigResponse.config:type_name -> google.protobuf.Struct
+	47, // 31: maintainerd.auth.v1.GetMaintenanceConfigResponse.config:type_name -> google.protobuf.Struct
+	47, // 32: maintainerd.auth.v1.UpdateMaintenanceConfigRequest.config:type_name -> google.protobuf.Struct
+	47, // 33: maintainerd.auth.v1.UpdateMaintenanceConfigResponse.config:type_name -> google.protobuf.Struct
+	47, // 34: maintainerd.auth.v1.GetFeatureFlagsResponse.config:type_name -> google.protobuf.Struct
+	47, // 35: maintainerd.auth.v1.UpdateFeatureFlagsRequest.config:type_name -> google.protobuf.Struct
+	47, // 36: maintainerd.auth.v1.UpdateFeatureFlagsResponse.config:type_name -> google.protobuf.Struct
+	5,  // 37: maintainerd.auth.v1.TenantService.GetDefaultTenant:input_type -> maintainerd.auth.v1.GetDefaultTenantRequest
+	7,  // 38: maintainerd.auth.v1.TenantService.GetTenantByIdentifier:input_type -> maintainerd.auth.v1.GetTenantByIdentifierRequest
+	9,  // 39: maintainerd.auth.v1.TenantService.ListTenants:input_type -> maintainerd.auth.v1.ListTenantsRequest
+	11, // 40: maintainerd.auth.v1.TenantService.GetTenant:input_type -> maintainerd.auth.v1.GetTenantRequest
+	13, // 41: maintainerd.auth.v1.TenantService.CreateTenant:input_type -> maintainerd.auth.v1.TenantServiceCreateTenantRequest
+	15, // 42: maintainerd.auth.v1.TenantService.UpdateTenant:input_type -> maintainerd.auth.v1.TenantServiceUpdateTenantRequest
+	17, // 43: maintainerd.auth.v1.TenantService.SetTenantStatus:input_type -> maintainerd.auth.v1.SetTenantStatusRequest
+	19, // 44: maintainerd.auth.v1.TenantService.SetTenantPublic:input_type -> maintainerd.auth.v1.SetTenantPublicRequest
+	21, // 45: maintainerd.auth.v1.TenantService.DeleteTenant:input_type -> maintainerd.auth.v1.DeleteTenantRequest
+	23, // 46: maintainerd.auth.v1.TenantService.ListTenantMembers:input_type -> maintainerd.auth.v1.ListTenantMembersRequest
+	25, // 47: maintainerd.auth.v1.TenantService.AddTenantMember:input_type -> maintainerd.auth.v1.AddTenantMemberRequest
+	27, // 48: maintainerd.auth.v1.TenantService.UpdateTenantMemberRole:input_type -> maintainerd.auth.v1.UpdateTenantMemberRoleRequest
+	29, // 49: maintainerd.auth.v1.TenantService.RemoveTenantMember:input_type -> maintainerd.auth.v1.RemoveTenantMemberRequest
+	31, // 50: maintainerd.auth.v1.TenantSettingService.GetRateLimitConfig:input_type -> maintainerd.auth.v1.GetRateLimitConfigRequest
+	33, // 51: maintainerd.auth.v1.TenantSettingService.UpdateRateLimitConfig:input_type -> maintainerd.auth.v1.UpdateRateLimitConfigRequest
+	35, // 52: maintainerd.auth.v1.TenantSettingService.GetAuditConfig:input_type -> maintainerd.auth.v1.GetAuditConfigRequest
+	37, // 53: maintainerd.auth.v1.TenantSettingService.UpdateAuditConfig:input_type -> maintainerd.auth.v1.UpdateAuditConfigRequest
+	39, // 54: maintainerd.auth.v1.TenantSettingService.GetMaintenanceConfig:input_type -> maintainerd.auth.v1.GetMaintenanceConfigRequest
+	41, // 55: maintainerd.auth.v1.TenantSettingService.UpdateMaintenanceConfig:input_type -> maintainerd.auth.v1.UpdateMaintenanceConfigRequest
+	43, // 56: maintainerd.auth.v1.TenantSettingService.GetFeatureFlags:input_type -> maintainerd.auth.v1.GetFeatureFlagsRequest
+	45, // 57: maintainerd.auth.v1.TenantSettingService.UpdateFeatureFlags:input_type -> maintainerd.auth.v1.UpdateFeatureFlagsRequest
+	6,  // 58: maintainerd.auth.v1.TenantService.GetDefaultTenant:output_type -> maintainerd.auth.v1.GetDefaultTenantResponse
+	8,  // 59: maintainerd.auth.v1.TenantService.GetTenantByIdentifier:output_type -> maintainerd.auth.v1.GetTenantByIdentifierResponse
+	10, // 60: maintainerd.auth.v1.TenantService.ListTenants:output_type -> maintainerd.auth.v1.ListTenantsResponse
+	12, // 61: maintainerd.auth.v1.TenantService.GetTenant:output_type -> maintainerd.auth.v1.GetTenantResponse
+	14, // 62: maintainerd.auth.v1.TenantService.CreateTenant:output_type -> maintainerd.auth.v1.TenantServiceCreateTenantResponse
+	16, // 63: maintainerd.auth.v1.TenantService.UpdateTenant:output_type -> maintainerd.auth.v1.TenantServiceUpdateTenantResponse
+	18, // 64: maintainerd.auth.v1.TenantService.SetTenantStatus:output_type -> maintainerd.auth.v1.SetTenantStatusResponse
+	20, // 65: maintainerd.auth.v1.TenantService.SetTenantPublic:output_type -> maintainerd.auth.v1.SetTenantPublicResponse
+	22, // 66: maintainerd.auth.v1.TenantService.DeleteTenant:output_type -> maintainerd.auth.v1.DeleteTenantResponse
+	24, // 67: maintainerd.auth.v1.TenantService.ListTenantMembers:output_type -> maintainerd.auth.v1.ListTenantMembersResponse
+	26, // 68: maintainerd.auth.v1.TenantService.AddTenantMember:output_type -> maintainerd.auth.v1.AddTenantMemberResponse
+	28, // 69: maintainerd.auth.v1.TenantService.UpdateTenantMemberRole:output_type -> maintainerd.auth.v1.UpdateTenantMemberRoleResponse
+	30, // 70: maintainerd.auth.v1.TenantService.RemoveTenantMember:output_type -> maintainerd.auth.v1.RemoveTenantMemberResponse
+	32, // 71: maintainerd.auth.v1.TenantSettingService.GetRateLimitConfig:output_type -> maintainerd.auth.v1.GetRateLimitConfigResponse
+	34, // 72: maintainerd.auth.v1.TenantSettingService.UpdateRateLimitConfig:output_type -> maintainerd.auth.v1.UpdateRateLimitConfigResponse
+	36, // 73: maintainerd.auth.v1.TenantSettingService.GetAuditConfig:output_type -> maintainerd.auth.v1.GetAuditConfigResponse
+	38, // 74: maintainerd.auth.v1.TenantSettingService.UpdateAuditConfig:output_type -> maintainerd.auth.v1.UpdateAuditConfigResponse
+	40, // 75: maintainerd.auth.v1.TenantSettingService.GetMaintenanceConfig:output_type -> maintainerd.auth.v1.GetMaintenanceConfigResponse
+	42, // 76: maintainerd.auth.v1.TenantSettingService.UpdateMaintenanceConfig:output_type -> maintainerd.auth.v1.UpdateMaintenanceConfigResponse
+	44, // 77: maintainerd.auth.v1.TenantSettingService.GetFeatureFlags:output_type -> maintainerd.auth.v1.GetFeatureFlagsResponse
+	46, // 78: maintainerd.auth.v1.TenantSettingService.UpdateFeatureFlags:output_type -> maintainerd.auth.v1.UpdateFeatureFlagsResponse
+	58, // [58:79] is the sub-list for method output_type
+	37, // [37:58] is the sub-list for method input_type
+	37, // [37:37] is the sub-list for extension type_name
+	37, // [37:37] is the sub-list for extension extendee
+	0,  // [0:37] is the sub-list for field type_name
 }
 
 func init() { file_maintainerd_auth_v1_tenant_proto_init() }
@@ -2136,9 +2969,9 @@ func file_maintainerd_auth_v1_tenant_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_maintainerd_auth_v1_tenant_proto_rawDesc), len(file_maintainerd_auth_v1_tenant_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   31,
+			NumMessages:   47,
 			NumExtensions: 0,
-			NumServices:   1,
+			NumServices:   2,
 		},
 		GoTypes:           file_maintainerd_auth_v1_tenant_proto_goTypes,
 		DependencyIndexes: file_maintainerd_auth_v1_tenant_proto_depIdxs,

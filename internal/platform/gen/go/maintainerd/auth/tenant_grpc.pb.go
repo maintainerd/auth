@@ -575,3 +575,371 @@ var TenantService_ServiceDesc = grpc.ServiceDesc{
 	Streams:  []grpc.StreamDesc{},
 	Metadata: "maintainerd/auth/v1/tenant.proto",
 }
+
+const (
+	TenantSettingService_GetRateLimitConfig_FullMethodName      = "/maintainerd.auth.v1.TenantSettingService/GetRateLimitConfig"
+	TenantSettingService_UpdateRateLimitConfig_FullMethodName   = "/maintainerd.auth.v1.TenantSettingService/UpdateRateLimitConfig"
+	TenantSettingService_GetAuditConfig_FullMethodName          = "/maintainerd.auth.v1.TenantSettingService/GetAuditConfig"
+	TenantSettingService_UpdateAuditConfig_FullMethodName       = "/maintainerd.auth.v1.TenantSettingService/UpdateAuditConfig"
+	TenantSettingService_GetMaintenanceConfig_FullMethodName    = "/maintainerd.auth.v1.TenantSettingService/GetMaintenanceConfig"
+	TenantSettingService_UpdateMaintenanceConfig_FullMethodName = "/maintainerd.auth.v1.TenantSettingService/UpdateMaintenanceConfig"
+	TenantSettingService_GetFeatureFlags_FullMethodName         = "/maintainerd.auth.v1.TenantSettingService/GetFeatureFlags"
+	TenantSettingService_UpdateFeatureFlags_FullMethodName      = "/maintainerd.auth.v1.TenantSettingService/UpdateFeatureFlags"
+)
+
+// TenantSettingServiceClient is the client API for TenantSettingService service.
+//
+// For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
+type TenantSettingServiceClient interface {
+	GetRateLimitConfig(ctx context.Context, in *GetRateLimitConfigRequest, opts ...grpc.CallOption) (*GetRateLimitConfigResponse, error)
+	UpdateRateLimitConfig(ctx context.Context, in *UpdateRateLimitConfigRequest, opts ...grpc.CallOption) (*UpdateRateLimitConfigResponse, error)
+	GetAuditConfig(ctx context.Context, in *GetAuditConfigRequest, opts ...grpc.CallOption) (*GetAuditConfigResponse, error)
+	UpdateAuditConfig(ctx context.Context, in *UpdateAuditConfigRequest, opts ...grpc.CallOption) (*UpdateAuditConfigResponse, error)
+	GetMaintenanceConfig(ctx context.Context, in *GetMaintenanceConfigRequest, opts ...grpc.CallOption) (*GetMaintenanceConfigResponse, error)
+	UpdateMaintenanceConfig(ctx context.Context, in *UpdateMaintenanceConfigRequest, opts ...grpc.CallOption) (*UpdateMaintenanceConfigResponse, error)
+	GetFeatureFlags(ctx context.Context, in *GetFeatureFlagsRequest, opts ...grpc.CallOption) (*GetFeatureFlagsResponse, error)
+	UpdateFeatureFlags(ctx context.Context, in *UpdateFeatureFlagsRequest, opts ...grpc.CallOption) (*UpdateFeatureFlagsResponse, error)
+}
+
+type tenantSettingServiceClient struct {
+	cc grpc.ClientConnInterface
+}
+
+func NewTenantSettingServiceClient(cc grpc.ClientConnInterface) TenantSettingServiceClient {
+	return &tenantSettingServiceClient{cc}
+}
+
+func (c *tenantSettingServiceClient) GetRateLimitConfig(ctx context.Context, in *GetRateLimitConfigRequest, opts ...grpc.CallOption) (*GetRateLimitConfigResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetRateLimitConfigResponse)
+	err := c.cc.Invoke(ctx, TenantSettingService_GetRateLimitConfig_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *tenantSettingServiceClient) UpdateRateLimitConfig(ctx context.Context, in *UpdateRateLimitConfigRequest, opts ...grpc.CallOption) (*UpdateRateLimitConfigResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(UpdateRateLimitConfigResponse)
+	err := c.cc.Invoke(ctx, TenantSettingService_UpdateRateLimitConfig_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *tenantSettingServiceClient) GetAuditConfig(ctx context.Context, in *GetAuditConfigRequest, opts ...grpc.CallOption) (*GetAuditConfigResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetAuditConfigResponse)
+	err := c.cc.Invoke(ctx, TenantSettingService_GetAuditConfig_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *tenantSettingServiceClient) UpdateAuditConfig(ctx context.Context, in *UpdateAuditConfigRequest, opts ...grpc.CallOption) (*UpdateAuditConfigResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(UpdateAuditConfigResponse)
+	err := c.cc.Invoke(ctx, TenantSettingService_UpdateAuditConfig_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *tenantSettingServiceClient) GetMaintenanceConfig(ctx context.Context, in *GetMaintenanceConfigRequest, opts ...grpc.CallOption) (*GetMaintenanceConfigResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetMaintenanceConfigResponse)
+	err := c.cc.Invoke(ctx, TenantSettingService_GetMaintenanceConfig_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *tenantSettingServiceClient) UpdateMaintenanceConfig(ctx context.Context, in *UpdateMaintenanceConfigRequest, opts ...grpc.CallOption) (*UpdateMaintenanceConfigResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(UpdateMaintenanceConfigResponse)
+	err := c.cc.Invoke(ctx, TenantSettingService_UpdateMaintenanceConfig_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *tenantSettingServiceClient) GetFeatureFlags(ctx context.Context, in *GetFeatureFlagsRequest, opts ...grpc.CallOption) (*GetFeatureFlagsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetFeatureFlagsResponse)
+	err := c.cc.Invoke(ctx, TenantSettingService_GetFeatureFlags_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *tenantSettingServiceClient) UpdateFeatureFlags(ctx context.Context, in *UpdateFeatureFlagsRequest, opts ...grpc.CallOption) (*UpdateFeatureFlagsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(UpdateFeatureFlagsResponse)
+	err := c.cc.Invoke(ctx, TenantSettingService_UpdateFeatureFlags_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+// TenantSettingServiceServer is the server API for TenantSettingService service.
+// All implementations must embed UnimplementedTenantSettingServiceServer
+// for forward compatibility.
+type TenantSettingServiceServer interface {
+	GetRateLimitConfig(context.Context, *GetRateLimitConfigRequest) (*GetRateLimitConfigResponse, error)
+	UpdateRateLimitConfig(context.Context, *UpdateRateLimitConfigRequest) (*UpdateRateLimitConfigResponse, error)
+	GetAuditConfig(context.Context, *GetAuditConfigRequest) (*GetAuditConfigResponse, error)
+	UpdateAuditConfig(context.Context, *UpdateAuditConfigRequest) (*UpdateAuditConfigResponse, error)
+	GetMaintenanceConfig(context.Context, *GetMaintenanceConfigRequest) (*GetMaintenanceConfigResponse, error)
+	UpdateMaintenanceConfig(context.Context, *UpdateMaintenanceConfigRequest) (*UpdateMaintenanceConfigResponse, error)
+	GetFeatureFlags(context.Context, *GetFeatureFlagsRequest) (*GetFeatureFlagsResponse, error)
+	UpdateFeatureFlags(context.Context, *UpdateFeatureFlagsRequest) (*UpdateFeatureFlagsResponse, error)
+	mustEmbedUnimplementedTenantSettingServiceServer()
+}
+
+// UnimplementedTenantSettingServiceServer must be embedded to have
+// forward compatible implementations.
+//
+// NOTE: this should be embedded by value instead of pointer to avoid a nil
+// pointer dereference when methods are called.
+type UnimplementedTenantSettingServiceServer struct{}
+
+func (UnimplementedTenantSettingServiceServer) GetRateLimitConfig(context.Context, *GetRateLimitConfigRequest) (*GetRateLimitConfigResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetRateLimitConfig not implemented")
+}
+func (UnimplementedTenantSettingServiceServer) UpdateRateLimitConfig(context.Context, *UpdateRateLimitConfigRequest) (*UpdateRateLimitConfigResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method UpdateRateLimitConfig not implemented")
+}
+func (UnimplementedTenantSettingServiceServer) GetAuditConfig(context.Context, *GetAuditConfigRequest) (*GetAuditConfigResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetAuditConfig not implemented")
+}
+func (UnimplementedTenantSettingServiceServer) UpdateAuditConfig(context.Context, *UpdateAuditConfigRequest) (*UpdateAuditConfigResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method UpdateAuditConfig not implemented")
+}
+func (UnimplementedTenantSettingServiceServer) GetMaintenanceConfig(context.Context, *GetMaintenanceConfigRequest) (*GetMaintenanceConfigResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetMaintenanceConfig not implemented")
+}
+func (UnimplementedTenantSettingServiceServer) UpdateMaintenanceConfig(context.Context, *UpdateMaintenanceConfigRequest) (*UpdateMaintenanceConfigResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method UpdateMaintenanceConfig not implemented")
+}
+func (UnimplementedTenantSettingServiceServer) GetFeatureFlags(context.Context, *GetFeatureFlagsRequest) (*GetFeatureFlagsResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetFeatureFlags not implemented")
+}
+func (UnimplementedTenantSettingServiceServer) UpdateFeatureFlags(context.Context, *UpdateFeatureFlagsRequest) (*UpdateFeatureFlagsResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method UpdateFeatureFlags not implemented")
+}
+func (UnimplementedTenantSettingServiceServer) mustEmbedUnimplementedTenantSettingServiceServer() {}
+func (UnimplementedTenantSettingServiceServer) testEmbeddedByValue()                              {}
+
+// UnsafeTenantSettingServiceServer may be embedded to opt out of forward compatibility for this service.
+// Use of this interface is not recommended, as added methods to TenantSettingServiceServer will
+// result in compilation errors.
+type UnsafeTenantSettingServiceServer interface {
+	mustEmbedUnimplementedTenantSettingServiceServer()
+}
+
+func RegisterTenantSettingServiceServer(s grpc.ServiceRegistrar, srv TenantSettingServiceServer) {
+	// If the following call pancis, it indicates UnimplementedTenantSettingServiceServer was
+	// embedded by pointer and is nil.  This will cause panics if an
+	// unimplemented method is ever invoked, so we test this at initialization
+	// time to prevent it from happening at runtime later due to I/O.
+	if t, ok := srv.(interface{ testEmbeddedByValue() }); ok {
+		t.testEmbeddedByValue()
+	}
+	s.RegisterService(&TenantSettingService_ServiceDesc, srv)
+}
+
+func _TenantSettingService_GetRateLimitConfig_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetRateLimitConfigRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(TenantSettingServiceServer).GetRateLimitConfig(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: TenantSettingService_GetRateLimitConfig_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(TenantSettingServiceServer).GetRateLimitConfig(ctx, req.(*GetRateLimitConfigRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _TenantSettingService_UpdateRateLimitConfig_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UpdateRateLimitConfigRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(TenantSettingServiceServer).UpdateRateLimitConfig(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: TenantSettingService_UpdateRateLimitConfig_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(TenantSettingServiceServer).UpdateRateLimitConfig(ctx, req.(*UpdateRateLimitConfigRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _TenantSettingService_GetAuditConfig_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetAuditConfigRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(TenantSettingServiceServer).GetAuditConfig(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: TenantSettingService_GetAuditConfig_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(TenantSettingServiceServer).GetAuditConfig(ctx, req.(*GetAuditConfigRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _TenantSettingService_UpdateAuditConfig_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UpdateAuditConfigRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(TenantSettingServiceServer).UpdateAuditConfig(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: TenantSettingService_UpdateAuditConfig_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(TenantSettingServiceServer).UpdateAuditConfig(ctx, req.(*UpdateAuditConfigRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _TenantSettingService_GetMaintenanceConfig_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetMaintenanceConfigRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(TenantSettingServiceServer).GetMaintenanceConfig(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: TenantSettingService_GetMaintenanceConfig_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(TenantSettingServiceServer).GetMaintenanceConfig(ctx, req.(*GetMaintenanceConfigRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _TenantSettingService_UpdateMaintenanceConfig_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UpdateMaintenanceConfigRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(TenantSettingServiceServer).UpdateMaintenanceConfig(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: TenantSettingService_UpdateMaintenanceConfig_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(TenantSettingServiceServer).UpdateMaintenanceConfig(ctx, req.(*UpdateMaintenanceConfigRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _TenantSettingService_GetFeatureFlags_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetFeatureFlagsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(TenantSettingServiceServer).GetFeatureFlags(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: TenantSettingService_GetFeatureFlags_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(TenantSettingServiceServer).GetFeatureFlags(ctx, req.(*GetFeatureFlagsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _TenantSettingService_UpdateFeatureFlags_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UpdateFeatureFlagsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(TenantSettingServiceServer).UpdateFeatureFlags(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: TenantSettingService_UpdateFeatureFlags_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(TenantSettingServiceServer).UpdateFeatureFlags(ctx, req.(*UpdateFeatureFlagsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+// TenantSettingService_ServiceDesc is the grpc.ServiceDesc for TenantSettingService service.
+// It's only intended for direct use with grpc.RegisterService,
+// and not to be introspected or modified (even as a copy)
+var TenantSettingService_ServiceDesc = grpc.ServiceDesc{
+	ServiceName: "maintainerd.auth.v1.TenantSettingService",
+	HandlerType: (*TenantSettingServiceServer)(nil),
+	Methods: []grpc.MethodDesc{
+		{
+			MethodName: "GetRateLimitConfig",
+			Handler:    _TenantSettingService_GetRateLimitConfig_Handler,
+		},
+		{
+			MethodName: "UpdateRateLimitConfig",
+			Handler:    _TenantSettingService_UpdateRateLimitConfig_Handler,
+		},
+		{
+			MethodName: "GetAuditConfig",
+			Handler:    _TenantSettingService_GetAuditConfig_Handler,
+		},
+		{
+			MethodName: "UpdateAuditConfig",
+			Handler:    _TenantSettingService_UpdateAuditConfig_Handler,
+		},
+		{
+			MethodName: "GetMaintenanceConfig",
+			Handler:    _TenantSettingService_GetMaintenanceConfig_Handler,
+		},
+		{
+			MethodName: "UpdateMaintenanceConfig",
+			Handler:    _TenantSettingService_UpdateMaintenanceConfig_Handler,
+		},
+		{
+			MethodName: "GetFeatureFlags",
+			Handler:    _TenantSettingService_GetFeatureFlags_Handler,
+		},
+		{
+			MethodName: "UpdateFeatureFlags",
+			Handler:    _TenantSettingService_UpdateFeatureFlags_Handler,
+		},
+	},
+	Streams:  []grpc.StreamDesc{},
+	Metadata: "maintainerd/auth/v1/tenant.proto",
+}

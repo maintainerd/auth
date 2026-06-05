@@ -465,32 +465,32 @@ permission string shown. Status is per-RPC.
 ### GRPC-102 · TenantSettingService — `tenant.proto`
 | RPC | REST origin | Permission | Status |
 |-----|-------------|-----------|--------|
-| `GetRateLimitConfig` / `UpdateRateLimitConfig` | `GET/PUT /tenant-settings/rate-limit` | `tenant-setting:read` / `:update` | 🔴 todo |
-| `GetAuditConfig` / `UpdateAuditConfig` | `GET/PUT /tenant-settings/audit` | `tenant-setting:read` / `:update` | 🔴 todo |
-| `GetMaintenanceConfig` / `UpdateMaintenanceConfig` | `GET/PUT /tenant-settings/maintenance` | `tenant-setting:read` / `:update` | 🔴 todo |
-| `GetFeatureFlags` / `UpdateFeatureFlags` | `GET/PUT /tenant-settings/feature-flags` | `tenant-setting:read` / `:update` | 🔴 todo |
+| `GetRateLimitConfig` / `UpdateRateLimitConfig` | `GET/PUT /tenant-settings/rate-limit` | `tenant-setting:read` / `:update` | ✅ done |
+| `GetAuditConfig` / `UpdateAuditConfig` | `GET/PUT /tenant-settings/audit` | `tenant-setting:read` / `:update` | ✅ done |
+| `GetMaintenanceConfig` / `UpdateMaintenanceConfig` | `GET/PUT /tenant-settings/maintenance` | `tenant-setting:read` / `:update` | ✅ done |
+| `GetFeatureFlags` / `UpdateFeatureFlags` | `GET/PUT /tenant-settings/feature-flags` | `tenant-setting:read` / `:update` | ✅ done |
 
 ### GRPC-110 · ServiceService — `iam.proto`
 | RPC | REST origin | Permission | Status |
 |-----|-------------|-----------|--------|
 | `GetMyPolicyBundle` | `GET /services/me/policy-bundle` | service-account (self) | 🔴 todo |
-| `ListServices` | `GET /services/` | `service:read` | 🔴 todo |
-| `GetService` | `GET /services/{uuid}` | `service:read` | 🔴 todo |
-| `CreateService` | `POST /services/` | `service:create` | 🔴 todo |
-| `UpdateService` | `PUT /services/{uuid}` | `service:update` | 🔴 todo |
-| `SetServiceStatus` | `PUT /services/{uuid}/status` | `service:update` | 🔴 todo |
-| `DeleteService` | `DELETE /services/{uuid}` | `service:delete` | 🔴 todo |
-| `AssignServicePolicy` | `POST /services/{uuid}/policies/{p}` | `service:policy:assign` | 🔴 todo |
-| `RemoveServicePolicy` | `DELETE /services/{uuid}/policies/{p}` | `service:policy:remove` | 🔴 todo |
+| `ListServices` | `GET /services/` | `service:read` | ✅ done |
+| `GetService` | `GET /services/{uuid}` | `service:read` | ✅ done |
+| `CreateService` | `POST /services/` | `service:create` | ✅ done |
+| `UpdateService` | `PUT /services/{uuid}` | `service:update` | ✅ done |
+| `SetServiceStatus` | `PUT /services/{uuid}/status` | `service:update` | ✅ done |
+| `DeleteService` | `DELETE /services/{uuid}` | `service:delete` | ✅ done |
+| `AssignServicePolicy` | `POST /services/{uuid}/policies/{p}` | `service:policy:assign` | ✅ done |
+| `RemoveServicePolicy` | `DELETE /services/{uuid}/policies/{p}` | `service:policy:remove` | ✅ done |
 
 ### GRPC-111 · APIService — `iam.proto`
 | RPC | REST origin | Permission | Status |
 |-----|-------------|-----------|--------|
-| `ListAPIs` / `GetAPI` | `GET /apis/`, `GET /apis/{uuid}` | `api:read` | 🔴 todo |
-| `CreateAPI` | `POST /apis/` | `api:create` | 🔴 todo |
-| `UpdateAPI` | `PUT /apis/{uuid}` | `api:update` | 🔴 todo |
-| `SetAPIStatus` | `PUT /apis/{uuid}/status` | `api:update` | 🔴 todo |
-| `DeleteAPI` | `DELETE /apis/{uuid}` | `api:delete` | 🔴 todo |
+| `ListAPIs` / `GetAPI` | `GET /apis/`, `GET /apis/{uuid}` | `api:read` | ✅ done |
+| `CreateAPI` | `POST /apis/` | `api:create` | ✅ done |
+| `UpdateAPI` | `PUT /apis/{uuid}` | `api:update` | ✅ done |
+| `SetAPIStatus` | `PUT /apis/{uuid}/status` | `api:update` | ✅ done |
+| `DeleteAPI` | `DELETE /apis/{uuid}` | `api:delete` | ✅ done |
 
 ### GRPC-112 · PermissionService — `iam.proto`
 | RPC | REST origin | Permission | Status |

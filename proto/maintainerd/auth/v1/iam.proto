@@ -1,0 +1,221 @@
+syntax = "proto3";
+
+package maintainerd.auth.v1;
+
+import "google/protobuf/timestamp.proto";
+import "maintainerd/auth/v1/tenant.proto";
+
+option go_package = "github.com/maintainerd/auth/internal/platform/gen/go/maintainerd/auth;authv1";
+
+service ServiceService {
+  rpc ListServices(ListServicesRequest) returns (ListServicesResponse);
+  rpc GetService(GetServiceRequest) returns (GetServiceResponse);
+  rpc CreateService(CreateServiceRequest) returns (CreateServiceResponse);
+  rpc UpdateService(UpdateServiceRequest) returns (UpdateServiceResponse);
+  rpc SetServiceStatus(SetServiceStatusRequest) returns (SetServiceStatusResponse);
+  rpc DeleteService(DeleteServiceRequest) returns (DeleteServiceResponse);
+  rpc AssignServicePolicy(AssignServicePolicyRequest) returns (AssignServicePolicyResponse);
+  rpc RemoveServicePolicy(RemoveServicePolicyRequest) returns (RemoveServicePolicyResponse);
+}
+
+service APIService {
+  rpc ListAPIs(ListAPIsRequest) returns (ListAPIsResponse);
+  rpc GetAPI(GetAPIRequest) returns (GetAPIResponse);
+  rpc CreateAPI(CreateAPIRequest) returns (CreateAPIResponse);
+  rpc UpdateAPI(UpdateAPIRequest) returns (UpdateAPIResponse);
+  rpc SetAPIStatus(SetAPIStatusRequest) returns (SetAPIStatusResponse);
+  rpc DeleteAPI(DeleteAPIRequest) returns (DeleteAPIResponse);
+}
+
+message Service {
+  string service_uuid = 1;
+  string name = 2;
+  string display_name = 3;
+  string description = 4;
+  string version = 5;
+  string status = 6;
+  bool is_system = 7;
+  int64 api_count = 8;
+  int64 policy_count = 9;
+  google.protobuf.Timestamp created_at = 10;
+  google.protobuf.Timestamp updated_at = 11;
+}
+
+message API {
+  string api_uuid = 1;
+  string name = 2;
+  string display_name = 3;
+  string description = 4;
+  string api_type = 5;
+  string identifier = 6;
+  string status = 7;
+  bool is_system = 8;
+  Service service = 9;
+  google.protobuf.Timestamp created_at = 10;
+  google.protobuf.Timestamp updated_at = 11;
+}
+
+message ListServicesRequest {
+  string tenant_uuid = 1;
+  string name = 2;
+  string display_name = 3;
+  string description = 4;
+  string version = 5;
+  repeated string status = 6;
+  optional bool is_system = 7;
+  Pagination pagination = 8;
+}
+
+message ListServicesResponse {
+  repeated Service services = 1;
+  PageMetadata page = 2;
+}
+
+message GetServiceRequest {
+  string tenant_uuid = 1;
+  string service_uuid = 2;
+}
+
+message GetServiceResponse {
+  Service service = 1;
+}
+
+message CreateServiceRequest {
+  string tenant_uuid = 1;
+  string name = 2;
+  string display_name = 3;
+  string description = 4;
+  string version = 5;
+  string status = 6;
+}
+
+message CreateServiceResponse {
+  Service service = 1;
+}
+
+message UpdateServiceRequest {
+  string tenant_uuid = 1;
+  string service_uuid = 2;
+  string name = 3;
+  string display_name = 4;
+  string description = 5;
+  string version = 6;
+  string status = 7;
+}
+
+message UpdateServiceResponse {
+  Service service = 1;
+}
+
+message SetServiceStatusRequest {
+  string tenant_uuid = 1;
+  string service_uuid = 2;
+  string status = 3;
+}
+
+message SetServiceStatusResponse {
+  Service service = 1;
+}
+
+message DeleteServiceRequest {
+  string tenant_uuid = 1;
+  string service_uuid = 2;
+}
+
+message DeleteServiceResponse {
+  Service service = 1;
+}
+
+message AssignServicePolicyRequest {
+  string tenant_uuid = 1;
+  string service_uuid = 2;
+  string policy_uuid = 3;
+}
+
+message AssignServicePolicyResponse {
+  bool assigned = 1;
+}
+
+message RemoveServicePolicyRequest {
+  string tenant_uuid = 1;
+  string service_uuid = 2;
+  string policy_uuid = 3;
+}
+
+message RemoveServicePolicyResponse {
+  bool removed = 1;
+}
+
+message ListAPIsRequest {
+  string tenant_uuid = 1;
+  string name = 2;
+  string display_name = 3;
+  string api_type = 4;
+  string identifier = 5;
+  string service_uuid = 6;
+  repeated string status = 7;
+  optional bool is_system = 8;
+  Pagination pagination = 9;
+}
+
+message ListAPIsResponse {
+  repeated API apis = 1;
+  PageMetadata page = 2;
+}
+
+message GetAPIRequest {
+  string tenant_uuid = 1;
+  string api_uuid = 2;
+}
+
+message GetAPIResponse {
+  API api = 1;
+}
+
+message CreateAPIRequest {
+  string tenant_uuid = 1;
+  string name = 2;
+  string display_name = 3;
+  string description = 4;
+  string api_type = 5;
+  string status = 6;
+  string service_uuid = 7;
+}
+
+message CreateAPIResponse {
+  API api = 1;
+}
+
+message UpdateAPIRequest {
+  string tenant_uuid = 1;
+  string api_uuid = 2;
+  string name = 3;
+  string display_name = 4;
+  string description = 5;
+  string api_type = 6;
+  string status = 7;
+  string service_uuid = 8;
+}
+
+message UpdateAPIResponse {
+  API api = 1;
+}
+
+message SetAPIStatusRequest {
+  string tenant_uuid = 1;
+  string api_uuid = 2;
+  string status = 3;
+}
+
+message SetAPIStatusResponse {
+  API api = 1;
+}
+
+message DeleteAPIRequest {
+  string tenant_uuid = 1;
+  string api_uuid = 2;
+}
+
+message DeleteAPIResponse {
+  API api = 1;
+}
