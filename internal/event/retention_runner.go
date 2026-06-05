@@ -13,8 +13,8 @@ import (
 )
 
 const (
-	retentionInterval       = 6 * time.Hour
-	outboxRetentionDays     = 7
+	retentionInterval            = 6 * time.Hour
+	outboxRetentionDays          = 7
 	deliveryHistoryRetentionDays = 90
 )
 

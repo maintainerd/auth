@@ -440,9 +440,11 @@ func (s *tenantService) DeleteByUUID(ctx context.Context, tenantUUID uuid.UUID) 
 
 		// Emit tenant.deleted inside the transaction
 		if s.eventService != nil {
-			s.eventService.Emit(ctx, tx.Tx(), event.NewIntegrationEvent(
+			if _, emitErr := s.eventService.Emit(ctx, tx.Tx(), event.NewIntegrationEvent(
 				event.EventTypeTenantDeleted, 1, tenant.TenantID,
-			).SetSubject(&tenant.TenantUUID, "tenant"))
+			).SetSubject(&tenant.TenantUUID, "tenant")); emitErr != nil {
+				return emitErr
+			}
 		}
 
 		return nil

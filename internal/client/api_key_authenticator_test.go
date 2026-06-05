@@ -24,7 +24,7 @@ func (m *mockFeatureReader) FindByTenantID(tenantID int64) (*feature.Setting, er
 	return nil, nil
 }
 
-func int64Ptr(v int64) *int64 { return &v }
+func int64Ptr(v int64) *int64         { return &v }
 func timePtr(tp time.Time) *time.Time { return &tp }
 
 func TestNewAPIKeyAuthenticator(t *testing.T) {

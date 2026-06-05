@@ -969,11 +969,11 @@ func (m *mockUserTokenRepo) RevokeAllSessionsByUserID(userID int64) error {
 
 type mockUserBackupCodeRepo struct {
 	mockBaseRepo[UserBackupCode]
-	createBulkFn            func([]*UserBackupCode) error
-	findUnusedByUserIDFn    func(int64) ([]UserBackupCode, error)
+	createBulkFn              func([]*UserBackupCode) error
+	findUnusedByUserIDFn      func(int64) ([]UserBackupCode, error)
 	findByUserIDAndCodeHashFn func(int64, string) (*UserBackupCode, error)
-	markUsedFn              func(int64) error
-	deleteAllByUserIDFn     func(int64) error
+	markUsedFn                func(int64) error
+	deleteAllByUserIDFn       func(int64) error
 }
 
 func (m *mockUserBackupCodeRepo) WithTx(_ *gorm.DB) UserBackupCodeRepository { return m }

@@ -299,9 +299,11 @@ func (s *roleService) Create(ctx context.Context, name string, description strin
 
 		// Emit role.created integration event inside the transaction
 		if s.eventService != nil {
-			s.eventService.Emit(ctx, tx, event.NewIntegrationEvent(
+			if _, emitErr := s.eventService.Emit(ctx, tx, event.NewIntegrationEvent(
 				event.EventTypeRoleCreated, 1, targetTenant.TenantID,
-			).SetActor(&actorUser.UserID).SetSubject(&createdRole.RoleUUID, "role"))
+			).SetActor(&actorUser.UserID).SetSubject(&createdRole.RoleUUID, "role")); emitErr != nil {
+				return emitErr
+			}
 		}
 
 		return nil
@@ -417,11 +419,13 @@ func (s *roleService) Update(ctx context.Context, roleUUID uuid.UUID, tenantID i
 
 		// Emit role.updated integration event inside the transaction
 		if s.eventService != nil && len(changed) > 0 {
-			s.eventService.Emit(ctx, tx, event.NewIntegrationEvent(
+			if _, emitErr := s.eventService.Emit(ctx, tx, event.NewIntegrationEvent(
 				event.EventTypeRoleUpdated, 1, tenantID,
 			).SetActor(&actorUser.UserID).
 				SetSubject(&updatedRole.RoleUUID, "role").
-				SetChangedFields(changed...))
+				SetChangedFields(changed...)); emitErr != nil {
+				return emitErr
+			}
 		}
 
 		return nil

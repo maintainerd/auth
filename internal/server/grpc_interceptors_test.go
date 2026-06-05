@@ -440,7 +440,7 @@ func TestStartGRPCServer_ListenError(t *testing.T) {
 	if err != nil {
 		t.Skipf("default gRPC port already unavailable: %v", err)
 	}
-	defer lis.Close()
+	defer func() { _ = lis.Close() }()
 
 	err = StartGRPCServer(context.Background(), &Application{})
 	require.Error(t, err)
@@ -464,7 +464,7 @@ func TestStartGRPCServer_Success(t *testing.T) {
 	if err != nil {
 		t.Skipf("default gRPC port unavailable: %v", err)
 	}
-	conn.Close()
+	_ = conn.Close()
 
 	ctx, cancel := context.WithCancel(context.Background())
 	done := make(chan error, 1)
@@ -475,7 +475,7 @@ func TestStartGRPCServer_Success(t *testing.T) {
 		if err != nil {
 			return false
 		}
-		defer c.Close()
+		defer func() { _ = c.Close() }()
 		c.Connect()
 		waitCtx, waitCancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
 		defer waitCancel()
@@ -508,7 +508,7 @@ func TestServeGRPC_ErrorBranches(t *testing.T) {
 		config.GRPCTLSKeyFile = ""
 		lis, err := net.Listen("tcp", "127.0.0.1:0")
 		require.NoError(t, err)
-		defer lis.Close()
+		defer func() { _ = lis.Close() }()
 		require.Error(t, serveGRPC(context.Background(), &Application{}, lis))
 	})
 
@@ -552,7 +552,7 @@ func TestServeGRPC_HealthAndShutdown(t *testing.T) {
 
 	conn, err := grpc.NewClient(lis.Addr().String(), grpc.WithTransportCredentials(insecure.NewCredentials()))
 	require.NoError(t, err)
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	checkCtx, checkCancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer checkCancel()

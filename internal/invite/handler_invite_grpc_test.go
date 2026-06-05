@@ -95,6 +95,8 @@ func TestInviteGRPCHandler_RPCS(t *testing.T) {
 		svc := &testInviteService{}
 		h := NewInviteGRPCHandler(errResolver, svc)
 		_, err := h.SendInvite(ctx, &authv1.SendInviteRequest{TenantUuid: tenantUUID.String(), Email: "test@example.com"})
-		if code := status.Code(err); code != codes.Internal { t.Errorf("expected Internal, got %v", code) }
+		if code := status.Code(err); code != codes.Internal {
+			t.Errorf("expected Internal, got %v", code)
+		}
 	})
 }

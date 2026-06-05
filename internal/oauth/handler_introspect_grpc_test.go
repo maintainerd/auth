@@ -33,8 +33,12 @@ func TestOAuthIntrospectionGRPCHandler_RPCS(t *testing.T) {
 		}
 		h := NewOAuthIntrospectionGRPCHandler(svc)
 		res, err := h.Introspect(ctx, &authv1.IntrospectRequest{Token: "valid-token"})
-		if err != nil { t.Fatal(err) }
-		if !res.Active { t.Error("expected active") }
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !res.Active {
+			t.Error("expected active")
+		}
 	})
 
 	t.Run("inactive token", func(t *testing.T) {
@@ -45,7 +49,11 @@ func TestOAuthIntrospectionGRPCHandler_RPCS(t *testing.T) {
 		}
 		h := NewOAuthIntrospectionGRPCHandler(svc)
 		res, err := h.Introspect(ctx, &authv1.IntrospectRequest{Token: "bad-token"})
-		if err != nil { t.Fatal(err) }
-		if res.Active { t.Error("expected inactive") }
+		if err != nil {
+			t.Fatal(err)
+		}
+		if res.Active {
+			t.Error("expected inactive")
+		}
 	})
 }

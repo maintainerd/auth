@@ -449,7 +449,9 @@ func (m *mockSMSSessionService) ListSessions(ctx context.Context, userID int64) 
 func (m *mockSMSSessionService) RevokeSession(ctx context.Context, userID int64, sessionUUID uuid.UUID) error {
 	return nil
 }
-func (m *mockSMSSessionService) RevokeAllSessions(ctx context.Context, userID int64) error { return nil }
+func (m *mockSMSSessionService) RevokeAllSessions(ctx context.Context, userID int64) error {
+	return nil
+}
 func (m *mockSMSSessionService) CreateSession(ctx context.Context, userID int64, ipAddress, userAgent string) (*UserToken, error) {
 	if m.createFn != nil {
 		return m.createFn(ctx, userID, ipAddress, userAgent)
@@ -509,7 +511,7 @@ func TestSendOTP_RateLimited(t *testing.T) {
 	err := svc.SendOTP(context.Background(), SMSLoginSendDTO{Phone: phone})
 
 	require.Error(t, err)
-		assert.Contains(t, err.Error(), "account is locked")
+	assert.Contains(t, err.Error(), "account is locked")
 }
 
 // ---------------------------------------------------------------------------
@@ -593,9 +595,8 @@ func TestVerifyOTP_RateLimited(t *testing.T) {
 
 	require.Error(t, err)
 	assert.Nil(t, resp)
-		assert.Contains(t, err.Error(), "account is locked")
+	assert.Contains(t, err.Error(), "account is locked")
 }
-
 
 // ---------------------------------------------------------------------------
 // TestVerifyOTP – user lookup error

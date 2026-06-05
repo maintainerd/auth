@@ -15,10 +15,10 @@ import (
 
 func TestNewProvider_Twilio(t *testing.T) {
 	cfg := ProviderConfig{
-		Provider:   "twilio",
-		TwilioSID:  "test-sid",
+		Provider:    "twilio",
+		TwilioSID:   "test-sid",
 		TwilioToken: "test-token",
-		TwilioFrom: "+1234567890",
+		TwilioFrom:  "+1234567890",
 	}
 	p, err := NewProvider(context.Background(), cfg)
 	require.NoError(t, err)
@@ -106,10 +106,10 @@ func TestNewSystemProvider_TwilioFromConfig(t *testing.T) {
 
 func TestTwilio_Send_Error(t *testing.T) {
 	p, err := NewProvider(context.Background(), ProviderConfig{
-		Provider:   "twilio",
-		TwilioSID:  "test-sid",
+		Provider:    "twilio",
+		TwilioSID:   "test-sid",
 		TwilioToken: "test-token",
-		TwilioFrom: "+1234567890",
+		TwilioFrom:  "+1234567890",
 	})
 	require.NoError(t, err)
 

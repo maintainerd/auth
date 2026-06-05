@@ -28,23 +28,23 @@ func (m *mockClientTenantResolver) GetByUUID(ctx context.Context, tenantUUID uui
 }
 
 type testClientService struct {
-	getFn                      func(ctx context.Context, filter ClientServiceGetFilter) (*ClientServiceGetResult, error)
-	getByUUIDFn                func(ctx context.Context, clientUUID uuid.UUID, tenantID int64) (*ClientServiceDataResult, error)
-	getSecretByUUIDFn          func(ctx context.Context, clientUUID uuid.UUID, tenantID int64) (*ClientSecretServiceDataResult, error)
-	getConfigByUUIDFn          func(ctx context.Context, clientUUID uuid.UUID, tenantID int64) (datatypes.JSON, error)
-	createFn                   func(ctx context.Context, tenantID int64, name, displayName, clientType, domain string, config datatypes.JSON, status string, isDefault bool, identityProviderUUID string, actorUserUUID uuid.UUID) (*ClientCreateServiceResult, error)
-	updateFn                   func(ctx context.Context, clientUUID uuid.UUID, tenantID int64, name, displayName, clientType, domain string, config datatypes.JSON, status string, isDefault bool, actorUserUUID uuid.UUID) (*ClientServiceDataResult, error)
-	rotateSecretFn             func(ctx context.Context, clientUUID uuid.UUID, tenantID int64, actorUserUUID uuid.UUID, gracePeriodHours int) (string, error)
-	setStatusByUUIDFn          func(ctx context.Context, clientUUID uuid.UUID, tenantID int64, status string, actorUserUUID uuid.UUID) (*ClientServiceDataResult, error)
-	deleteByUUIDFn             func(ctx context.Context, clientUUID uuid.UUID, tenantID int64, actorUserUUID uuid.UUID) (*ClientServiceDataResult, error)
-	createURIFn                func(ctx context.Context, clientUUID uuid.UUID, tenantID int64, uri, uriType string, actorUserUUID uuid.UUID) (*ClientServiceDataResult, error)
-	updateURIFn                func(ctx context.Context, clientUUID uuid.UUID, tenantID int64, uriUUID uuid.UUID, uri, uriType string, actorUserUUID uuid.UUID) (*ClientServiceDataResult, error)
-	deleteURIFn                func(ctx context.Context, clientUUID uuid.UUID, tenantID int64, uriUUID uuid.UUID, actorUserUUID uuid.UUID) (*ClientServiceDataResult, error)
-	getClientAPIsFn            func(ctx context.Context, tenantID int64, clientUUID uuid.UUID) ([]ClientAPIServiceDataResult, error)
-	addClientAPIsFn            func(ctx context.Context, tenantID int64, clientUUID uuid.UUID, apiUUIDs []uuid.UUID) error
-	removeClientAPIFn          func(ctx context.Context, tenantID int64, clientUUID uuid.UUID, apiUUID uuid.UUID) error
-	getClientAPIPermissionsFn  func(ctx context.Context, tenantID int64, clientUUID uuid.UUID, apiUUID uuid.UUID) ([]PermissionServiceDataResult, error)
-	addClientAPIPermissionsFn  func(ctx context.Context, tenantID int64, clientUUID uuid.UUID, apiUUID uuid.UUID, permissionUUIDs []uuid.UUID) error
+	getFn                       func(ctx context.Context, filter ClientServiceGetFilter) (*ClientServiceGetResult, error)
+	getByUUIDFn                 func(ctx context.Context, clientUUID uuid.UUID, tenantID int64) (*ClientServiceDataResult, error)
+	getSecretByUUIDFn           func(ctx context.Context, clientUUID uuid.UUID, tenantID int64) (*ClientSecretServiceDataResult, error)
+	getConfigByUUIDFn           func(ctx context.Context, clientUUID uuid.UUID, tenantID int64) (datatypes.JSON, error)
+	createFn                    func(ctx context.Context, tenantID int64, name, displayName, clientType, domain string, config datatypes.JSON, status string, isDefault bool, identityProviderUUID string, actorUserUUID uuid.UUID) (*ClientCreateServiceResult, error)
+	updateFn                    func(ctx context.Context, clientUUID uuid.UUID, tenantID int64, name, displayName, clientType, domain string, config datatypes.JSON, status string, isDefault bool, actorUserUUID uuid.UUID) (*ClientServiceDataResult, error)
+	rotateSecretFn              func(ctx context.Context, clientUUID uuid.UUID, tenantID int64, actorUserUUID uuid.UUID, gracePeriodHours int) (string, error)
+	setStatusByUUIDFn           func(ctx context.Context, clientUUID uuid.UUID, tenantID int64, status string, actorUserUUID uuid.UUID) (*ClientServiceDataResult, error)
+	deleteByUUIDFn              func(ctx context.Context, clientUUID uuid.UUID, tenantID int64, actorUserUUID uuid.UUID) (*ClientServiceDataResult, error)
+	createURIFn                 func(ctx context.Context, clientUUID uuid.UUID, tenantID int64, uri, uriType string, actorUserUUID uuid.UUID) (*ClientServiceDataResult, error)
+	updateURIFn                 func(ctx context.Context, clientUUID uuid.UUID, tenantID int64, uriUUID uuid.UUID, uri, uriType string, actorUserUUID uuid.UUID) (*ClientServiceDataResult, error)
+	deleteURIFn                 func(ctx context.Context, clientUUID uuid.UUID, tenantID int64, uriUUID uuid.UUID, actorUserUUID uuid.UUID) (*ClientServiceDataResult, error)
+	getClientAPIsFn             func(ctx context.Context, tenantID int64, clientUUID uuid.UUID) ([]ClientAPIServiceDataResult, error)
+	addClientAPIsFn             func(ctx context.Context, tenantID int64, clientUUID uuid.UUID, apiUUIDs []uuid.UUID) error
+	removeClientAPIFn           func(ctx context.Context, tenantID int64, clientUUID uuid.UUID, apiUUID uuid.UUID) error
+	getClientAPIPermissionsFn   func(ctx context.Context, tenantID int64, clientUUID uuid.UUID, apiUUID uuid.UUID) ([]PermissionServiceDataResult, error)
+	addClientAPIPermissionsFn   func(ctx context.Context, tenantID int64, clientUUID uuid.UUID, apiUUID uuid.UUID, permissionUUIDs []uuid.UUID) error
 	removeClientAPIPermissionFn func(ctx context.Context, tenantID int64, clientUUID uuid.UUID, apiUUID uuid.UUID, permissionUUID uuid.UUID) error
 }
 
@@ -624,23 +624,51 @@ func TestClientGRPCHandler_AllErrorPaths(t *testing.T) {
 
 	t.Run("service errors for all handlers", func(t *testing.T) {
 		svc := &testClientService{
-			getFn:                      func(ctx context.Context, filter ClientServiceGetFilter) (*ClientServiceGetResult, error) { return nil, svcErr },
-			getByUUIDFn:                func(ctx context.Context, id uuid.UUID, tenantID int64) (*ClientServiceDataResult, error) { return nil, svcErr },
-			rotateSecretFn:             func(ctx context.Context, id uuid.UUID, tenantID int64, actor uuid.UUID, hours int) (string, error) { return "", svcErr },
-			getConfigByUUIDFn:          func(ctx context.Context, id uuid.UUID, tenantID int64) (datatypes.JSON, error) { return nil, svcErr },
-			createFn:                   func(ctx context.Context, tenantID int64, name, displayName, clientType, domain string, config datatypes.JSON, status string, isDefault bool, ipUUID string, actor uuid.UUID) (*ClientCreateServiceResult, error) { return nil, svcErr },
-			updateFn:                   func(ctx context.Context, id uuid.UUID, tenantID int64, name, displayName, clientType, domain string, config datatypes.JSON, status string, isDefault bool, actor uuid.UUID) (*ClientServiceDataResult, error) { return nil, svcErr },
-			setStatusByUUIDFn:          func(ctx context.Context, id uuid.UUID, tenantID int64, status string, actor uuid.UUID) (*ClientServiceDataResult, error) { return nil, svcErr },
-			deleteByUUIDFn:             func(ctx context.Context, id uuid.UUID, tenantID int64, actor uuid.UUID) (*ClientServiceDataResult, error) { return nil, svcErr },
-			createURIFn:                func(ctx context.Context, id uuid.UUID, tenantID int64, uri, uriType string, actor uuid.UUID) (*ClientServiceDataResult, error) { return nil, svcErr },
-			updateURIFn:                func(ctx context.Context, id uuid.UUID, tenantID int64, uriID uuid.UUID, uri, uriType string, actor uuid.UUID) (*ClientServiceDataResult, error) { return nil, svcErr },
-			deleteURIFn:                func(ctx context.Context, id uuid.UUID, tenantID int64, uriID uuid.UUID, actor uuid.UUID) (*ClientServiceDataResult, error) { return nil, svcErr },
-			getClientAPIsFn:            func(ctx context.Context, tenantID int64, id uuid.UUID) ([]ClientAPIServiceDataResult, error) { return nil, svcErr },
-			addClientAPIsFn:            func(ctx context.Context, tenantID int64, id uuid.UUID, apiUUIDs []uuid.UUID) error { return svcErr },
-			removeClientAPIFn:          func(ctx context.Context, tenantID int64, id uuid.UUID, apiID uuid.UUID) error { return svcErr },
-			getClientAPIPermissionsFn:  func(ctx context.Context, tenantID int64, id uuid.UUID, apiID uuid.UUID) ([]PermissionServiceDataResult, error) { return nil, svcErr },
-			addClientAPIPermissionsFn:  func(ctx context.Context, tenantID int64, id uuid.UUID, apiID uuid.UUID, permIDs []uuid.UUID) error { return svcErr },
-			removeClientAPIPermissionFn: func(ctx context.Context, tenantID int64, id uuid.UUID, apiID uuid.UUID, permID uuid.UUID) error { return svcErr },
+			getFn: func(ctx context.Context, filter ClientServiceGetFilter) (*ClientServiceGetResult, error) {
+				return nil, svcErr
+			},
+			getByUUIDFn: func(ctx context.Context, id uuid.UUID, tenantID int64) (*ClientServiceDataResult, error) {
+				return nil, svcErr
+			},
+			rotateSecretFn: func(ctx context.Context, id uuid.UUID, tenantID int64, actor uuid.UUID, hours int) (string, error) {
+				return "", svcErr
+			},
+			getConfigByUUIDFn: func(ctx context.Context, id uuid.UUID, tenantID int64) (datatypes.JSON, error) { return nil, svcErr },
+			createFn: func(ctx context.Context, tenantID int64, name, displayName, clientType, domain string, config datatypes.JSON, status string, isDefault bool, ipUUID string, actor uuid.UUID) (*ClientCreateServiceResult, error) {
+				return nil, svcErr
+			},
+			updateFn: func(ctx context.Context, id uuid.UUID, tenantID int64, name, displayName, clientType, domain string, config datatypes.JSON, status string, isDefault bool, actor uuid.UUID) (*ClientServiceDataResult, error) {
+				return nil, svcErr
+			},
+			setStatusByUUIDFn: func(ctx context.Context, id uuid.UUID, tenantID int64, status string, actor uuid.UUID) (*ClientServiceDataResult, error) {
+				return nil, svcErr
+			},
+			deleteByUUIDFn: func(ctx context.Context, id uuid.UUID, tenantID int64, actor uuid.UUID) (*ClientServiceDataResult, error) {
+				return nil, svcErr
+			},
+			createURIFn: func(ctx context.Context, id uuid.UUID, tenantID int64, uri, uriType string, actor uuid.UUID) (*ClientServiceDataResult, error) {
+				return nil, svcErr
+			},
+			updateURIFn: func(ctx context.Context, id uuid.UUID, tenantID int64, uriID uuid.UUID, uri, uriType string, actor uuid.UUID) (*ClientServiceDataResult, error) {
+				return nil, svcErr
+			},
+			deleteURIFn: func(ctx context.Context, id uuid.UUID, tenantID int64, uriID uuid.UUID, actor uuid.UUID) (*ClientServiceDataResult, error) {
+				return nil, svcErr
+			},
+			getClientAPIsFn: func(ctx context.Context, tenantID int64, id uuid.UUID) ([]ClientAPIServiceDataResult, error) {
+				return nil, svcErr
+			},
+			addClientAPIsFn:   func(ctx context.Context, tenantID int64, id uuid.UUID, apiUUIDs []uuid.UUID) error { return svcErr },
+			removeClientAPIFn: func(ctx context.Context, tenantID int64, id uuid.UUID, apiID uuid.UUID) error { return svcErr },
+			getClientAPIPermissionsFn: func(ctx context.Context, tenantID int64, id uuid.UUID, apiID uuid.UUID) ([]PermissionServiceDataResult, error) {
+				return nil, svcErr
+			},
+			addClientAPIPermissionsFn: func(ctx context.Context, tenantID int64, id uuid.UUID, apiID uuid.UUID, permIDs []uuid.UUID) error {
+				return svcErr
+			},
+			removeClientAPIPermissionFn: func(ctx context.Context, tenantID int64, id uuid.UUID, apiID uuid.UUID, permID uuid.UUID) error {
+				return svcErr
+			},
 		}
 		h := NewClientGRPCHandler(okResolver, svc)
 		_, err := h.RotateClientSecret(ctx, &authv1.RotateClientSecretRequest{TenantUuid: tUUID.String(), ClientUuid: cUUID.String()})
@@ -1062,7 +1090,7 @@ func TestClientHelpersFull(t *testing.T) {
 		}
 		proto := toClientAPIPermissionProto(perm)
 		if proto == nil {
-			t.Error("expected non-nil proto")
+			t.Fatal("expected non-nil proto")
 		}
 		if proto.Name != "read" {
 			t.Errorf("expected read, got %s", proto.Name)

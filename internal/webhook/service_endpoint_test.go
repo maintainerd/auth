@@ -215,7 +215,7 @@ func TestWebhookEndpointService_Update(t *testing.T) {
 		})
 		res, err := svc.Update(context.Background(), 1, ep.WebhookEndpointUUID,
 			"https://new.example.com/hook", true,
-		true, intPtr(5), intPtr(60), "updated", shared.StatusActive,
+			true, intPtr(5), intPtr(60), "updated", shared.StatusActive,
 		)
 		require.NoError(t, err)
 		assert.Equal(t, "https://new.example.com/hook", res.URL)

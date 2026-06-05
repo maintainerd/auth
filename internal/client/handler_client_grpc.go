@@ -564,7 +564,7 @@ func structProtoToMap(s *structpb.Struct) map[string]any {
 }
 
 func mapToJSON(m map[string]any) (datatypes.JSON, error) {
-	if m == nil || len(m) == 0 {
+	if len(m) == 0 {
 		return nil, nil
 	}
 	payload, err := json.Marshal(m)

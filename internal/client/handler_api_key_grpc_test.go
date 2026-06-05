@@ -147,7 +147,9 @@ func TestAPIKeyGRPCHandler_RPCS(t *testing.T) {
 
 	t.Run("addAPIPermissions success", func(t *testing.T) {
 		svc := &testAPIKeyService{
-			addAPIKeyAPIPermissionsFn: func(ctx context.Context, tenantID int64, id uuid.UUID, apiID uuid.UUID, permIDs []uuid.UUID) error { return nil },
+			addAPIKeyAPIPermissionsFn: func(ctx context.Context, tenantID int64, id uuid.UUID, apiID uuid.UUID, permIDs []uuid.UUID) error {
+				return nil
+			},
 		}
 		h := NewAPIKeyGRPCHandler(resolver, svc)
 		res, err := h.AddAPIKeyAPIPermissions(ctx, &authv1.AddAPIKeyAPIPermissionsRequest{TenantUuid: tenantUUID.String(), ApiKeyUuid: akUUID.String(), ApiUuid: apiUUID.String(), PermissionUuids: []string{permUUID.String()}})
@@ -175,7 +177,9 @@ func TestAPIKeyGRPCHandler_RPCS(t *testing.T) {
 	t.Run("service errors", func(t *testing.T) {
 		svcErr := errors.New("db error")
 		svc := &testAPIKeyService{
-			getFn: func(ctx context.Context, filter APIKeyServiceGetFilter, ru uuid.UUID) (*APIKeyServiceGetResult, error) { return nil, svcErr },
+			getFn: func(ctx context.Context, filter APIKeyServiceGetFilter, ru uuid.UUID) (*APIKeyServiceGetResult, error) {
+				return nil, svcErr
+			},
 		}
 		h := NewAPIKeyGRPCHandler(resolver, svc)
 		_, err := h.ListAPIKeys(ctx, &authv1.ListAPIKeysRequest{TenantUuid: tenantUUID.String()})
@@ -276,11 +280,11 @@ func TestAPIKeyGRPCHandler_AllMissingHandlers(t *testing.T) {
 		h := NewAPIKeyGRPCHandler(okResolver, svc)
 		res, err := h.UpdateAPIKey(ctx, &authv1.UpdateAPIKeyRequest{
 			TenantUuid: tUUID.String(), ApiKeyUuid: akUUID.String(),
-			Config: cfgStruct,
-			ExpiresAt: timestamppb.New(expiry),
-			RateLimit: &rl,
+			Config:        cfgStruct,
+			ExpiresAt:     timestamppb.New(expiry),
+			RateLimit:     &rl,
 			ActorUserUuid: actorUUID.String(),
-			Status: strptr("inactive"),
+			Status:        strptr("inactive"),
 		})
 		if err != nil {
 			t.Fatal(err)
@@ -416,7 +420,9 @@ func TestAPIKeyGRPCHandler_AllMissingHandlers(t *testing.T) {
 
 	t.Run("RemoveAPIKeyAPIPermission success", func(t *testing.T) {
 		svc := &testAPIKeyService{
-			removeAPIKeyAPIPermissionFn: func(ctx context.Context, tenantID int64, id uuid.UUID, apiID uuid.UUID, permID uuid.UUID) error { return nil },
+			removeAPIKeyAPIPermissionFn: func(ctx context.Context, tenantID int64, id uuid.UUID, apiID uuid.UUID, permID uuid.UUID) error {
+				return nil
+			},
 		}
 		h := NewAPIKeyGRPCHandler(okResolver, svc)
 		res, err := h.RemoveAPIKeyAPIPermission(ctx, &authv1.RemoveAPIKeyAPIPermissionRequest{TenantUuid: tUUID.String(), ApiKeyUuid: akUUID.String(), ApiUuid: apiUUID.String(), PermissionUuid: permUUID.String()})
@@ -579,19 +585,39 @@ func TestAPIKeyGRPCHandler_AllErrorPaths(t *testing.T) {
 	t.Run("service errors for all handlers", func(t *testing.T) {
 		permErrSvc := func() error { return svcErr }
 		svc := &testAPIKeyService{
-			getFn:                       func(ctx context.Context, filter APIKeyServiceGetFilter, ru uuid.UUID) (*APIKeyServiceGetResult, error) { return nil, svcErr },
-			getByUUIDFn:                 func(ctx context.Context, id uuid.UUID, tenantID int64, ru uuid.UUID) (*APIKeyServiceDataResult, error) { return nil, svcErr },
-			getConfigByUUIDFn:           func(ctx context.Context, id uuid.UUID, tenantID int64) (datatypes.JSON, error) { return nil, svcErr },
-			createFn:                    func(ctx context.Context, tenantID int64, name, description string, config datatypes.JSON, expiresAt *time.Time, rateLimit *int, status string) (*APIKeyServiceDataResult, string, error) { return nil, "", svcErr },
-			updateFn:                    func(ctx context.Context, id uuid.UUID, tenantID int64, name, description *string, config datatypes.JSON, expiresAt *time.Time, rateLimit *int, status *string, updater uuid.UUID) (*APIKeyServiceDataResult, error) { return nil, svcErr },
-			setStatusByUUIDFn:           func(ctx context.Context, id uuid.UUID, tenantID int64, status string) (*APIKeyServiceDataResult, error) { return nil, svcErr },
-			deleteFn:                    func(ctx context.Context, id uuid.UUID, tenantID int64, deleter uuid.UUID) (*APIKeyServiceDataResult, error) { return nil, svcErr },
-			getAPIKeyAPIsFn:             func(ctx context.Context, tenantID int64, id uuid.UUID, page, limit int, sortBy, sortOrder string) (*APIKeyAPIServicePaginatedResult, error) { return nil, svcErr },
-			addAPIKeyAPIsFn:             func(ctx context.Context, tenantID int64, id uuid.UUID, apiUUIDs []uuid.UUID) error { return svcErr },
-			removeAPIKeyAPIFn:           func(ctx context.Context, tenantID int64, id uuid.UUID, apiID uuid.UUID) error { return svcErr },
-			getAPIKeyAPIPermissionsFn:   func(ctx context.Context, tenantID int64, id uuid.UUID, apiID uuid.UUID) ([]PermissionServiceDataResult, error) { return nil, svcErr },
-			addAPIKeyAPIPermissionsFn:   func(ctx context.Context, tenantID int64, id uuid.UUID, apiID uuid.UUID, permIDs []uuid.UUID) error { return svcErr },
-			removeAPIKeyAPIPermissionFn: func(ctx context.Context, tenantID int64, id uuid.UUID, apiID uuid.UUID, permID uuid.UUID) error { return svcErr },
+			getFn: func(ctx context.Context, filter APIKeyServiceGetFilter, ru uuid.UUID) (*APIKeyServiceGetResult, error) {
+				return nil, svcErr
+			},
+			getByUUIDFn: func(ctx context.Context, id uuid.UUID, tenantID int64, ru uuid.UUID) (*APIKeyServiceDataResult, error) {
+				return nil, svcErr
+			},
+			getConfigByUUIDFn: func(ctx context.Context, id uuid.UUID, tenantID int64) (datatypes.JSON, error) { return nil, svcErr },
+			createFn: func(ctx context.Context, tenantID int64, name, description string, config datatypes.JSON, expiresAt *time.Time, rateLimit *int, status string) (*APIKeyServiceDataResult, string, error) {
+				return nil, "", svcErr
+			},
+			updateFn: func(ctx context.Context, id uuid.UUID, tenantID int64, name, description *string, config datatypes.JSON, expiresAt *time.Time, rateLimit *int, status *string, updater uuid.UUID) (*APIKeyServiceDataResult, error) {
+				return nil, svcErr
+			},
+			setStatusByUUIDFn: func(ctx context.Context, id uuid.UUID, tenantID int64, status string) (*APIKeyServiceDataResult, error) {
+				return nil, svcErr
+			},
+			deleteFn: func(ctx context.Context, id uuid.UUID, tenantID int64, deleter uuid.UUID) (*APIKeyServiceDataResult, error) {
+				return nil, svcErr
+			},
+			getAPIKeyAPIsFn: func(ctx context.Context, tenantID int64, id uuid.UUID, page, limit int, sortBy, sortOrder string) (*APIKeyAPIServicePaginatedResult, error) {
+				return nil, svcErr
+			},
+			addAPIKeyAPIsFn:   func(ctx context.Context, tenantID int64, id uuid.UUID, apiUUIDs []uuid.UUID) error { return svcErr },
+			removeAPIKeyAPIFn: func(ctx context.Context, tenantID int64, id uuid.UUID, apiID uuid.UUID) error { return svcErr },
+			getAPIKeyAPIPermissionsFn: func(ctx context.Context, tenantID int64, id uuid.UUID, apiID uuid.UUID) ([]PermissionServiceDataResult, error) {
+				return nil, svcErr
+			},
+			addAPIKeyAPIPermissionsFn: func(ctx context.Context, tenantID int64, id uuid.UUID, apiID uuid.UUID, permIDs []uuid.UUID) error {
+				return svcErr
+			},
+			removeAPIKeyAPIPermissionFn: func(ctx context.Context, tenantID int64, id uuid.UUID, apiID uuid.UUID, permID uuid.UUID) error {
+				return svcErr
+			},
 		}
 		_ = permErrSvc
 		h := NewAPIKeyGRPCHandler(okResolver, svc)
@@ -694,7 +720,7 @@ func TestAPIKeyHelpersFull(t *testing.T) {
 	t.Run("jsonToConfigProto valid JSON", func(t *testing.T) {
 		result := jsonToConfigProto(datatypes.JSON(`{"key":"value"}`))
 		if result == nil {
-			t.Error("expected non-nil struct")
+			t.Fatal("expected non-nil struct")
 		}
 		if result.Fields["key"].GetStringValue() != "value" {
 			t.Error("expected value")

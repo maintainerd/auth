@@ -474,9 +474,11 @@ func (s *clientService) RotateSecret(ctx context.Context, clientUUID uuid.UUID, 
 		}
 		// Emit client.secret_rotated inside the transaction
 		if s.eventService != nil {
-			s.eventService.Emit(ctx, tx, event.NewIntegrationEvent(
+			if _, emitErr := s.eventService.Emit(ctx, tx, event.NewIntegrationEvent(
 				event.EventTypeClientSecretRotated, 1, tenantID,
-			).SetSubject(&client.ClientUUID, "client"))
+			).SetSubject(&client.ClientUUID, "client")); emitErr != nil {
+				return emitErr
+			}
 		}
 		return nil
 	})

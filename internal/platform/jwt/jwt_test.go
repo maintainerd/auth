@@ -767,7 +767,7 @@ func TestGenerateIDToken_CustomScopeClaimMappings(t *testing.T) {
 	profile := &UserProfile{FirstName: "Jane", Email: "user@example.com"}
 
 	params := &IDTokenParams{
-		RequestedScopes:   []string{"custom"},
+		RequestedScopes:    []string{"custom"},
 		ScopeClaimMappings: map[string][]string{"custom": {"first_name"}},
 	}
 	tok, err := GenerateIDToken("user-uuid", "https://auth.example.com", "client-1", "provider-1", profile, "", params)

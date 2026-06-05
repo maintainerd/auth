@@ -241,9 +241,11 @@ func (s *permissionService) Create(ctx context.Context, tenantID int64, name str
 
 		// Emit permission.created integration event inside the transaction
 		if s.eventService != nil {
-			s.eventService.Emit(ctx, tx, event.NewIntegrationEvent(
+			if _, emitErr := s.eventService.Emit(ctx, tx, event.NewIntegrationEvent(
 				event.EventTypePermissionCreated, 1, tenantID,
-			).SetSubject(&createdPermission.PermissionUUID, "permission"))
+			).SetSubject(&createdPermission.PermissionUUID, "permission")); emitErr != nil {
+				return emitErr
+			}
 		}
 
 		return nil
@@ -320,10 +322,12 @@ func (s *permissionService) Update(ctx context.Context, permissionUUID uuid.UUID
 
 		// Emit permission.updated integration event inside the transaction
 		if s.eventService != nil && len(changed) > 0 {
-			s.eventService.Emit(ctx, tx, event.NewIntegrationEvent(
+			if _, emitErr := s.eventService.Emit(ctx, tx, event.NewIntegrationEvent(
 				event.EventTypePermissionUpdated, 1, tenantID,
 			).SetSubject(&updatedPermission.PermissionUUID, "permission").
-				SetChangedFields(changed...))
+				SetChangedFields(changed...)); emitErr != nil {
+				return emitErr
+			}
 		}
 
 		return nil

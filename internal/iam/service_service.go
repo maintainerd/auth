@@ -222,9 +222,11 @@ func (s *serviceService) Create(ctx context.Context, name string, displayName st
 
 		// Emit service.created inside the transaction
 		if s.eventService != nil {
-			s.eventService.Emit(ctx, tx, event.NewIntegrationEvent(
+			if _, emitErr := s.eventService.Emit(ctx, tx, event.NewIntegrationEvent(
 				event.EventTypeServiceCreated, 1, tenantID,
-			).SetSubject(&createdService.ServiceUUID, "service"))
+			).SetSubject(&createdService.ServiceUUID, "service")); emitErr != nil {
+				return emitErr
+			}
 		}
 
 		return nil

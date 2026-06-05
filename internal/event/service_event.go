@@ -25,9 +25,9 @@ type EventService interface {
 }
 
 type eventService struct {
-	outboxRepo  OutboxRepository
-	writeGate   *WriteGate
-	relay       *Relay
+	outboxRepo OutboxRepository
+	writeGate  *WriteGate
+	relay      *Relay
 }
 
 // NewEventService creates a new EventService.

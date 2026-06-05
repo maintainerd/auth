@@ -230,5 +230,3 @@ func (noopTenantEventTypeConfigService) SetEnabled(_ context.Context, _ int64, _
 }
 
 var _ TenantEventTypeConfigService = noopTenantEventTypeConfigService{}
-
-
