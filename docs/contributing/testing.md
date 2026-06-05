@@ -250,6 +250,18 @@ All commands below are available via `make` or raw `go test`.
 
 > **Before every pull request**, run `make test-race` to catch data races that the standard runner will miss.
 
+### gRPC transport tests
+
+Use `internal/server/grpctest.New` for in-process gRPC handler tests. It creates a
+`bufconn` listener, registers the supplied service(s), dials with an in-memory
+client connection, and cleans up automatically with `t.Cleanup`.
+
+Follow the REST handler checklist shape for RPCs: missing/invalid auth metadata,
+authz denial, request validation, dependency errors, service-layer error mapping,
+and success. Keep business-rule coverage in the service tests; gRPC handler tests
+should focus on transport mapping, interceptor behavior, and proto request/response
+shape.
+
 ---
 
 ## Test Layout

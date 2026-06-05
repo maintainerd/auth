@@ -22,6 +22,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/connectivity"
+	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
@@ -364,12 +366,23 @@ func TestStartGRPCServer_Success(t *testing.T) {
 	go func() { done <- StartGRPCServer(ctx, &Application{}) }()
 
 	require.Eventually(t, func() bool {
-		c, err := grpc.Dial("127.0.0.1:50051", grpc.WithInsecure(), grpc.WithBlock(), grpc.WithTimeout(50*time.Millisecond))
+		c, err := grpc.NewClient("127.0.0.1:50051", grpc.WithTransportCredentials(insecure.NewCredentials()))
 		if err != nil {
 			return false
 		}
-		_ = c.Close()
-		return true
+		defer c.Close()
+		c.Connect()
+		waitCtx, waitCancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
+		defer waitCancel()
+		for {
+			state := c.GetState()
+			if state == connectivity.Ready {
+				return true
+			}
+			if !c.WaitForStateChange(waitCtx, state) {
+				return c.GetState() == connectivity.Ready
+			}
+		}
 	}, 2*time.Second, 50*time.Millisecond)
 	cancel()
 	require.NoError(t, <-done)
@@ -432,11 +445,13 @@ func TestServeGRPC_HealthAndShutdown(t *testing.T) {
 	done := make(chan error, 1)
 	go func() { done <- serveGRPC(ctx, &Application{}, lis) }()
 
-	conn, err := grpc.Dial(lis.Addr().String(), grpc.WithInsecure(), grpc.WithBlock(), grpc.WithTimeout(2*time.Second))
+	conn, err := grpc.NewClient(lis.Addr().String(), grpc.WithTransportCredentials(insecure.NewCredentials()))
 	require.NoError(t, err)
 	defer conn.Close()
 
-	resp, err := grpc_health_v1.NewHealthClient(conn).Check(context.Background(), &grpc_health_v1.HealthCheckRequest{})
+	checkCtx, checkCancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer checkCancel()
+	resp, err := grpc_health_v1.NewHealthClient(conn).Check(checkCtx, &grpc_health_v1.HealthCheckRequest{})
 	require.NoError(t, err)
 	assert.Equal(t, grpc_health_v1.HealthCheckResponse_SERVING, resp.Status)
 
