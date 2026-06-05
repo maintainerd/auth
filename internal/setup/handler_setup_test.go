@@ -178,6 +178,75 @@ func TestSetupHandler_CreateTenant_Success(t *testing.T) {
 	assert.Equal(t, http.StatusCreated, w.Code)
 }
 
+func TestSetupHandler_CompleteSetup_ServiceError(t *testing.T) {
+	svc := &mockSetupService{
+		completeSetupFn: func() (*CompleteSetupResponseDTO, error) {
+			return nil, errValidation
+		},
+	}
+	h := NewSetupHandler(svc)
+	r := httptest.NewRequest(http.MethodPost, "/setup/complete", nil)
+	w := httptest.NewRecorder()
+	h.CompleteSetup(w, r)
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+}
+
+func TestSetupHandler_CompleteSetup_Success(t *testing.T) {
+	h := NewSetupHandler(&mockSetupService{
+		completeSetupFn: func() (*CompleteSetupResponseDTO, error) {
+			return &CompleteSetupResponseDTO{IsSetupComplete: true}, nil
+		},
+	})
+	r := httptest.NewRequest(http.MethodPost, "/setup/complete", nil)
+	w := httptest.NewRecorder()
+	h.CompleteSetup(w, r)
+	assert.Equal(t, http.StatusOK, w.Code)
+}
+
+func TestSetupHandler_RegisterControlService_BadJSON(t *testing.T) {
+	h := NewSetupHandler(&mockSetupService{})
+	r := httptest.NewRequest(http.MethodPost, "/setup/register-control-service", bytes.NewBufferString(`{bad}`))
+	r.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	h.RegisterControlService(w, r)
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+}
+
+func TestSetupHandler_RegisterControlService_ValidationError(t *testing.T) {
+	h := NewSetupHandler(&mockSetupService{})
+	r := setupRequest(t, map[string]string{"name": "bad space", "display_name": "Core"})
+	w := httptest.NewRecorder()
+	h.RegisterControlService(w, r)
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+}
+
+func TestSetupHandler_RegisterControlService_ServiceError(t *testing.T) {
+	svc := &mockSetupService{
+		registerControlServiceFn: func(req RegisterControlServiceRequestDTO) (*RegisterControlServiceResponseDTO, error) {
+			return nil, errValidation
+		},
+	}
+	h := NewSetupHandler(svc)
+	r := setupRequest(t, map[string]string{"name": "core", "display_name": "Core"})
+	w := httptest.NewRecorder()
+	h.RegisterControlService(w, r)
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+}
+
+func TestSetupHandler_RegisterControlService_Success(t *testing.T) {
+	svc := &mockSetupService{
+		registerControlServiceFn: func(req RegisterControlServiceRequestDTO) (*RegisterControlServiceResponseDTO, error) {
+			assert.Equal(t, "core", req.Name)
+			return &RegisterControlServiceResponseDTO{Name: req.Name}, nil
+		},
+	}
+	h := NewSetupHandler(svc)
+	r := setupRequest(t, map[string]string{"name": "core", "display_name": "Core"})
+	w := httptest.NewRecorder()
+	h.RegisterControlService(w, r)
+	assert.Equal(t, http.StatusCreated, w.Code)
+}
+
 // ── CreateAdmin: success path and corrected service-error path ────────────────
 
 // The existing CreateAdmin_ServiceError test omits "fullname" so Validate()

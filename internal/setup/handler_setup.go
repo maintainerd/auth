@@ -38,6 +38,28 @@ func (h *SetupHandler) CompleteSetup(w http.ResponseWriter, r *http.Request) {
 	resp.Success(w, response, "Setup completed successfully")
 }
 
+func (h *SetupHandler) RegisterControlService(w http.ResponseWriter, r *http.Request) {
+	var req RegisterControlServiceRequestDTO
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		resp.BadRequestBody(w)
+		return
+	}
+
+	if err := req.Validate(); err != nil {
+		resp.ValidationError(w, err)
+		return
+	}
+
+	response, err := h.setupService.RegisterControlService(r.Context(), req)
+	if err != nil {
+		resp.HandleServiceError(w, r, "Failed to register control service", err)
+		return
+	}
+
+	resp.Created(w, response, "Control service registered successfully")
+}
+
 // CreateTenant creates the initial tenant and runs all seeders
 func (h *SetupHandler) CreateTenant(w http.ResponseWriter, r *http.Request) {
 	var req CreateTenantRequestDTO
