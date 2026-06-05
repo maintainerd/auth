@@ -3,6 +3,7 @@ syntax = "proto3";
 package maintainerd.auth.v1;
 
 import "google/protobuf/timestamp.proto";
+import "google/protobuf/struct.proto";
 import "maintainerd/auth/v1/tenant.proto";
 
 option go_package = "github.com/maintainerd/auth/internal/platform/gen/go/maintainerd/auth;authv1";
@@ -25,6 +26,41 @@ service APIService {
   rpc UpdateAPI(UpdateAPIRequest) returns (UpdateAPIResponse);
   rpc SetAPIStatus(SetAPIStatusRequest) returns (SetAPIStatusResponse);
   rpc DeleteAPI(DeleteAPIRequest) returns (DeleteAPIResponse);
+}
+
+service PermissionService {
+  rpc ListPermissions(ListPermissionsRequest) returns (ListPermissionsResponse);
+  rpc GetPermission(GetPermissionRequest) returns (GetPermissionResponse);
+  rpc CreatePermission(CreatePermissionRequest) returns (CreatePermissionResponse);
+  rpc UpdatePermission(UpdatePermissionRequest) returns (UpdatePermissionResponse);
+  rpc SetPermissionStatus(SetPermissionStatusRequest) returns (SetPermissionStatusResponse);
+  rpc DeletePermission(DeletePermissionRequest) returns (DeletePermissionResponse);
+}
+
+service PolicyService {
+  rpc ListPolicies(ListPoliciesRequest) returns (ListPoliciesResponse);
+  rpc GetPolicy(GetPolicyRequest) returns (GetPolicyResponse);
+  rpc ListPolicyServices(ListPolicyServicesRequest) returns (ListPolicyServicesResponse);
+  rpc CreatePolicy(CreatePolicyRequest) returns (CreatePolicyResponse);
+  rpc UpdatePolicy(UpdatePolicyRequest) returns (UpdatePolicyResponse);
+  rpc SetPolicyStatus(SetPolicyStatusRequest) returns (SetPolicyStatusResponse);
+  rpc DeletePolicy(DeletePolicyRequest) returns (DeletePolicyResponse);
+}
+
+service RoleService {
+  rpc ListRoles(ListRolesRequest) returns (ListRolesResponse);
+  rpc GetRole(GetRoleRequest) returns (GetRoleResponse);
+  rpc CreateRole(CreateRoleRequest) returns (CreateRoleResponse);
+  rpc UpdateRole(UpdateRoleRequest) returns (UpdateRoleResponse);
+  rpc SetRoleStatus(SetRoleStatusRequest) returns (SetRoleStatusResponse);
+  rpc DeleteRole(DeleteRoleRequest) returns (DeleteRoleResponse);
+  rpc ListRolePermissions(ListRolePermissionsRequest) returns (ListRolePermissionsResponse);
+  rpc AddRolePermissions(AddRolePermissionsRequest) returns (AddRolePermissionsResponse);
+  rpc RemoveRolePermission(RemoveRolePermissionRequest) returns (RemoveRolePermissionResponse);
+}
+
+service AuthorizationService {
+  rpc Authorize(AuthorizeRequest) returns (AuthorizeResponse);
 }
 
 message Service {
@@ -53,6 +89,42 @@ message API {
   Service service = 9;
   google.protobuf.Timestamp created_at = 10;
   google.protobuf.Timestamp updated_at = 11;
+}
+
+message Permission {
+  string permission_uuid = 1;
+  string name = 2;
+  string description = 3;
+  API api = 4;
+  string status = 5;
+  bool is_default = 6;
+  bool is_system = 7;
+  google.protobuf.Timestamp created_at = 8;
+  google.protobuf.Timestamp updated_at = 9;
+}
+
+message Policy {
+  string policy_uuid = 1;
+  string name = 2;
+  optional string description = 3;
+  google.protobuf.Struct document = 4;
+  string version = 5;
+  string status = 6;
+  bool is_system = 7;
+  google.protobuf.Timestamp created_at = 8;
+  google.protobuf.Timestamp updated_at = 9;
+}
+
+message Role {
+  string role_uuid = 1;
+  string name = 2;
+  string description = 3;
+  repeated Permission permissions = 4;
+  bool is_default = 5;
+  bool is_system = 6;
+  string status = 7;
+  google.protobuf.Timestamp created_at = 8;
+  google.protobuf.Timestamp updated_at = 9;
 }
 
 message ListServicesRequest {
@@ -218,4 +290,274 @@ message DeleteAPIRequest {
 
 message DeleteAPIResponse {
   API api = 1;
+}
+
+message ListPermissionsRequest {
+  string tenant_uuid = 1;
+  string name = 2;
+  string description = 3;
+  string api_uuid = 4;
+  string role_uuid = 5;
+  string client_uuid = 6;
+  string status = 7;
+  optional bool is_default = 8;
+  optional bool is_system = 9;
+  Pagination pagination = 10;
+}
+
+message ListPermissionsResponse {
+  repeated Permission permissions = 1;
+  PageMetadata page = 2;
+}
+
+message GetPermissionRequest {
+  string tenant_uuid = 1;
+  string permission_uuid = 2;
+}
+
+message GetPermissionResponse {
+  Permission permission = 1;
+}
+
+message CreatePermissionRequest {
+  string tenant_uuid = 1;
+  string name = 2;
+  string description = 3;
+  string status = 4;
+  string api_uuid = 5;
+}
+
+message CreatePermissionResponse {
+  Permission permission = 1;
+}
+
+message UpdatePermissionRequest {
+  string tenant_uuid = 1;
+  string permission_uuid = 2;
+  string name = 3;
+  string description = 4;
+  string status = 5;
+}
+
+message UpdatePermissionResponse {
+  Permission permission = 1;
+}
+
+message SetPermissionStatusRequest {
+  string tenant_uuid = 1;
+  string permission_uuid = 2;
+  string status = 3;
+}
+
+message SetPermissionStatusResponse {
+  Permission permission = 1;
+}
+
+message DeletePermissionRequest {
+  string tenant_uuid = 1;
+  string permission_uuid = 2;
+}
+
+message DeletePermissionResponse {
+  Permission permission = 1;
+}
+
+message ListPoliciesRequest {
+  string tenant_uuid = 1;
+  string name = 2;
+  string description = 3;
+  string version = 4;
+  repeated string status = 5;
+  optional bool is_system = 6;
+  string service_uuid = 7;
+  Pagination pagination = 8;
+}
+
+message ListPoliciesResponse {
+  repeated Policy policies = 1;
+  PageMetadata page = 2;
+}
+
+message GetPolicyRequest {
+  string tenant_uuid = 1;
+  string policy_uuid = 2;
+}
+
+message GetPolicyResponse {
+  Policy policy = 1;
+}
+
+message ListPolicyServicesRequest {
+  string tenant_uuid = 1;
+  string policy_uuid = 2;
+  string name = 3;
+  string display_name = 4;
+  string description = 5;
+  Pagination pagination = 6;
+}
+
+message ListPolicyServicesResponse {
+  repeated Service services = 1;
+  PageMetadata page = 2;
+}
+
+message CreatePolicyRequest {
+  string tenant_uuid = 1;
+  string name = 2;
+  optional string description = 3;
+  google.protobuf.Struct document = 4;
+  string version = 5;
+  string status = 6;
+}
+
+message CreatePolicyResponse {
+  Policy policy = 1;
+}
+
+message UpdatePolicyRequest {
+  string tenant_uuid = 1;
+  string policy_uuid = 2;
+  string name = 3;
+  optional string description = 4;
+  google.protobuf.Struct document = 5;
+  string version = 6;
+  string status = 7;
+}
+
+message UpdatePolicyResponse {
+  Policy policy = 1;
+}
+
+message SetPolicyStatusRequest {
+  string tenant_uuid = 1;
+  string policy_uuid = 2;
+  string status = 3;
+}
+
+message SetPolicyStatusResponse {
+  Policy policy = 1;
+}
+
+message DeletePolicyRequest {
+  string tenant_uuid = 1;
+  string policy_uuid = 2;
+}
+
+message DeletePolicyResponse {
+  Policy policy = 1;
+}
+
+message ListRolesRequest {
+  string tenant_uuid = 1;
+  string name = 2;
+  string description = 3;
+  optional bool is_default = 4;
+  optional bool is_system = 5;
+  string status = 6;
+  Pagination pagination = 7;
+}
+
+message ListRolesResponse {
+  repeated Role roles = 1;
+  PageMetadata page = 2;
+}
+
+message GetRoleRequest {
+  string tenant_uuid = 1;
+  string role_uuid = 2;
+}
+
+message GetRoleResponse {
+  Role role = 1;
+}
+
+message CreateRoleRequest {
+  string tenant_uuid = 1;
+  string actor_user_uuid = 2;
+  string name = 3;
+  string description = 4;
+  string status = 5;
+}
+
+message CreateRoleResponse {
+  Role role = 1;
+}
+
+message UpdateRoleRequest {
+  string tenant_uuid = 1;
+  string actor_user_uuid = 2;
+  string role_uuid = 3;
+  string name = 4;
+  string description = 5;
+  string status = 6;
+}
+
+message UpdateRoleResponse {
+  Role role = 1;
+}
+
+message SetRoleStatusRequest {
+  string tenant_uuid = 1;
+  string actor_user_uuid = 2;
+  string role_uuid = 3;
+  string status = 4;
+}
+
+message SetRoleStatusResponse {
+  Role role = 1;
+}
+
+message DeleteRoleRequest {
+  string tenant_uuid = 1;
+  string actor_user_uuid = 2;
+  string role_uuid = 3;
+}
+
+message DeleteRoleResponse {
+  Role role = 1;
+}
+
+message ListRolePermissionsRequest {
+  string tenant_uuid = 1;
+  string role_uuid = 2;
+  string status = 3;
+  Pagination pagination = 4;
+}
+
+message ListRolePermissionsResponse {
+  repeated Permission permissions = 1;
+  PageMetadata page = 2;
+}
+
+message AddRolePermissionsRequest {
+  string tenant_uuid = 1;
+  string actor_user_uuid = 2;
+  string role_uuid = 3;
+  repeated string permission_uuids = 4;
+}
+
+message AddRolePermissionsResponse {
+  Role role = 1;
+}
+
+message RemoveRolePermissionRequest {
+  string tenant_uuid = 1;
+  string actor_user_uuid = 2;
+  string role_uuid = 3;
+  string permission_uuid = 4;
+}
+
+message RemoveRolePermissionResponse {
+  Role role = 1;
+}
+
+message AuthorizeRequest {
+  string principal = 1;
+  string action = 2;
+  string resource = 3;
+}
+
+message AuthorizeResponse {
+  bool allowed = 1;
+  string reason = 2;
 }
