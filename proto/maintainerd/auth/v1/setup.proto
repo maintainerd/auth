@@ -1,0 +1,116 @@
+syntax = "proto3";
+
+package maintainerd.auth.v1;
+
+import "google/protobuf/struct.proto";
+
+option go_package = "github.com/maintainerd/auth/internal/platform/gen/go/maintainerd/auth;authv1";
+
+service SetupService {
+  rpc GetSetupStatus(GetSetupStatusRequest) returns (GetSetupStatusResponse);
+  rpc CreateTenant(CreateTenantRequest) returns (CreateTenantResponse);
+  rpc CreateAdmin(CreateAdminRequest) returns (CreateAdminResponse);
+  rpc CreateProfile(CreateProfileRequest) returns (CreateProfileResponse);
+  rpc RegisterControlService(RegisterControlServiceRequest) returns (RegisterControlServiceResponse);
+  rpc CompleteSetup(CompleteSetupRequest) returns (CompleteSetupResponse);
+}
+
+message GetSetupStatusRequest {}
+
+message GetSetupStatusResponse {
+  bool is_tenant_setup = 1;
+  bool is_admin_setup = 2;
+  bool is_profile_setup = 3;
+  bool is_setup_complete = 4;
+}
+
+message TenantMetadata {
+  string application_logo_url = 1;
+  string favicon_url = 2;
+  string language = 3;
+  string timezone = 4;
+  string date_format = 5;
+  string time_format = 6;
+  string privacy_policy_url = 7;
+  string term_of_service_url = 8;
+}
+
+message CreateTenantRequest {
+  string name = 1;
+  string display_name = 2;
+  string description = 3;
+  TenantMetadata metadata = 4;
+}
+
+message CreateTenantResponse {
+  string tenant_uuid = 1;
+  string name = 2;
+  string display_name = 3;
+  string identifier = 4;
+  string default_client_id = 5;
+  string default_provider_id = 6;
+}
+
+message CreateAdminRequest {
+  string username = 1;
+  string fullname = 2;
+  string password = 3;
+  string email = 4;
+}
+
+message CreateAdminResponse {
+  string user_uuid = 1;
+  string username = 2;
+  string fullname = 3;
+  string email = 4;
+  string status = 5;
+}
+
+message CreateProfileRequest {
+  string first_name = 1;
+  string middle_name = 2;
+  string last_name = 3;
+  string suffix = 4;
+  string display_name = 5;
+  string birthdate = 6;
+  string gender = 7;
+  string bio = 8;
+  string phone = 9;
+  string email = 10;
+  string address = 11;
+  string city = 12;
+  string country = 13;
+  string timezone = 14;
+  string language = 15;
+  string profile_url = 16;
+  google.protobuf.Struct metadata = 17;
+}
+
+message CreateProfileResponse {
+  string profile_uuid = 1;
+  string first_name = 2;
+  string display_name = 3;
+}
+
+message RegisterControlServiceRequest {
+  string name = 1;
+  string display_name = 2;
+  string description = 3;
+  string version = 4;
+}
+
+message RegisterControlServiceResponse {
+  string service_uuid = 1;
+  string name = 2;
+  string display_name = 3;
+  string policy_uuid = 4;
+  string policy_name = 5;
+  bool already_existed = 6;
+  bool policy_was_attached = 7;
+}
+
+message CompleteSetupRequest {}
+
+message CompleteSetupResponse {
+  bool is_setup_complete = 1;
+}
