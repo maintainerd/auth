@@ -615,54 +615,54 @@ permission string shown. Status is per-RPC.
 ### GRPC-150 · SecuritySettingService — `security.proto`
 | RPC | REST origin | Permission | Status |
 |-----|-------------|-----------|--------|
-| `GetMFAConfig` / `UpdateMFAConfig` | `GET/PUT /security-settings/mfa` | `security-setting:read` / `:update` (+step-up) | 🔴 todo |
-| `GetPasswordConfig` / `UpdatePasswordConfig` | `…/password` | `security-setting:read` / `:update` (+step-up) | 🔴 todo |
-| `GetSessionConfig` / `UpdateSessionConfig` | `…/session` | `security-setting:read` / `:update` (+step-up) | 🔴 todo |
-| `GetThreatConfig` / `UpdateThreatConfig` | `…/threat` | `security-setting:read` / `:update` (+step-up) | 🔴 todo |
-| `GetLockoutConfig` / `UpdateLockoutConfig` | `…/lockout` | `security-setting:read` / `:update` (+step-up) | 🔴 todo |
-| `GetRegistrationConfig` / `UpdateRegistrationConfig` | `…/registration` | `security-setting:read` / `:update` (+step-up) | 🔴 todo |
-| `GetTokenConfig` / `UpdateTokenConfig` | `…/token` | `security-setting:read` / `:update` (+step-up) | 🔴 todo |
+| `GetMFAConfig` / `UpdateMFAConfig` | `GET/PUT /security-settings/mfa` | `security-setting:read` / `:update` (+step-up) | ✅ done |
+| `GetPasswordConfig` / `UpdatePasswordConfig` | `…/password` | `security-setting:read` / `:update` (+step-up) | ✅ done |
+| `GetSessionConfig` / `UpdateSessionConfig` | `…/session` | `security-setting:read` / `:update` (+step-up) | ✅ done |
+| `GetThreatConfig` / `UpdateThreatConfig` | `…/threat` | `security-setting:read` / `:update` (+step-up) | ✅ done |
+| `GetLockoutConfig` / `UpdateLockoutConfig` | `…/lockout` | `security-setting:read` / `:update` (+step-up) | ✅ done |
+| `GetRegistrationConfig` / `UpdateRegistrationConfig` | `…/registration` | `security-setting:read` / `:update` (+step-up) | ✅ done |
+| `GetTokenConfig` / `UpdateTokenConfig` | `…/token` | `security-setting:read` / `:update` (+step-up) | ✅ done |
 
 ### GRPC-151 · IPRestrictionRuleService — `security.proto`
 | RPC | REST origin | Permission | Status |
 |-----|-------------|-----------|--------|
-| `ListIPRestrictionRules` / `GetIPRestrictionRule` | `GET /ip-restriction-rules/`, `…/{uuid}` | `ip-restriction-rule:read` | 🔴 todo |
-| `CreateIPRestrictionRule` | `POST /ip-restriction-rules/` | `ip-restriction-rule:create` | 🔴 todo |
-| `UpdateIPRestrictionRule` | `PUT /ip-restriction-rules/{uuid}` | `ip-restriction-rule:update` | 🔴 todo |
-| `DeleteIPRestrictionRule` | `DELETE /ip-restriction-rules/{uuid}` | `ip-restriction-rule:delete` | 🔴 todo |
-| `SetIPRestrictionRuleStatus` | `PATCH /ip-restriction-rules/{uuid}/status` | `ip-restriction-rule:update` | 🔴 todo |
+| `ListIPRestrictionRules` / `GetIPRestrictionRule` | `GET /ip-restriction-rules/`, `…/{uuid}` | `ip-restriction-rule:read` | ✅ done |
+| `CreateIPRestrictionRule` | `POST /ip-restriction-rules/` | `ip-restriction-rule:create` | ✅ done |
+| `UpdateIPRestrictionRule` | `PUT /ip-restriction-rules/{uuid}` | `ip-restriction-rule:update` | ✅ done |
+| `DeleteIPRestrictionRule` | `DELETE /ip-restriction-rules/{uuid}` | `ip-restriction-rule:delete` | ✅ done |
+| `SetIPRestrictionRuleStatus` | `PATCH /ip-restriction-rules/{uuid}/status` | `ip-restriction-rule:update` | ✅ done |
 
 ### GRPC-160 · BrandingService — `branding.proto`
 | RPC | REST origin | Permission | Status |
 |-----|-------------|-----------|--------|
-| `GetBranding` / `UpdateBranding` | `GET/PUT /branding/` | `branding:read` / `:update` | 🔴 todo |
+| `GetBranding` / `UpdateBranding` | `GET/PUT /branding/` | `branding:read` / `:update` | ✅ done |
 
 ### GRPC-161 · EmailTemplateService — `branding.proto`
 | RPC | REST origin | Permission | Status |
 |-----|-------------|-----------|--------|
-| `ListEmailTemplates` / `GetEmailTemplate` | `GET /email_templates/`, `…/{uuid}` | `email-template:read` | 🔴 todo |
-| `CreateEmailTemplate` | `POST /email_templates/` | `email-template:create` | 🔴 todo |
-| `UpdateEmailTemplate` | `PUT /email_templates/{uuid}` | `email-template:update` | 🔴 todo |
-| `DeleteEmailTemplate` | `DELETE /email_templates/{uuid}` | `email-template:delete` | 🔴 todo |
-| `SetEmailTemplateStatus` | `PATCH /email_templates/{uuid}/status` | `email-template:update` | 🔴 todo |
+| `ListEmailTemplates` / `GetEmailTemplate` | `GET /email_templates/`, `…/{uuid}` | `email-template:read` | ✅ done |
+| `CreateEmailTemplate` | `POST /email_templates/` | `email-template:create` | ✅ done |
+| `UpdateEmailTemplate` | `PUT /email_templates/{uuid}` | `email-template:update` | ✅ done |
+| `DeleteEmailTemplate` | `DELETE /email_templates/{uuid}` | `email-template:delete` | ✅ done |
+| `SetEmailTemplateStatus` | `PATCH /email_templates/{uuid}/status` | `email-template:update` | ✅ done |
 
 ### GRPC-162 · SMSTemplateService — `branding.proto`
 | RPC | REST origin | Permission | Status |
 |-----|-------------|-----------|--------|
-| `ListSMSTemplates` / `GetSMSTemplate` | `GET /sms_templates/`, `…/{uuid}` | `sms-template:read` | 🔴 todo |
-| `CreateSMSTemplate` | `POST /sms_templates/` | `sms-template:create` | 🔴 todo |
-| `UpdateSMSTemplate` | `PUT /sms_templates/{uuid}` | `sms-template:update` | 🔴 todo |
-| `DeleteSMSTemplate` | `DELETE /sms_templates/{uuid}` | `sms-template:delete` | 🔴 todo |
-| `SetSMSTemplateStatus` | `PATCH /sms_templates/{uuid}/status` | `sms-template:update` | 🔴 todo |
+| `ListSMSTemplates` / `GetSMSTemplate` | `GET /sms_templates/`, `…/{uuid}` | `sms-template:read` | ✅ done |
+| `CreateSMSTemplate` | `POST /sms_templates/` | `sms-template:create` | ✅ done |
+| `UpdateSMSTemplate` | `PUT /sms_templates/{uuid}` | `sms-template:update` | ✅ done |
+| `DeleteSMSTemplate` | `DELETE /sms_templates/{uuid}` | `sms-template:delete` | ✅ done |
+| `SetSMSTemplateStatus` | `PATCH /sms_templates/{uuid}/status` | `sms-template:update` | ✅ done |
 
 ### GRPC-163 · LoginTemplateService — `branding.proto`
 | RPC | REST origin | Permission | Status |
 |-----|-------------|-----------|--------|
-| `ListLoginTemplates` / `GetLoginTemplate` | `GET /login_templates/`, `…/{uuid}` | `login-template:read` | 🔴 todo |
-| `CreateLoginTemplate` | `POST /login_templates/` | `login-template:create` | 🔴 todo |
-| `UpdateLoginTemplate` | `PUT /login_templates/{uuid}` | `login-template:update` | 🔴 todo |
-| `DeleteLoginTemplate` | `DELETE /login_templates/{uuid}` | `login-template:delete` | 🔴 todo |
-| `SetLoginTemplateStatus` | `PATCH /login_templates/{uuid}/status` | `login-template:update` | 🔴 todo |
+| `ListLoginTemplates` / `GetLoginTemplate` | `GET /login_templates/`, `…/{uuid}` | `login-template:read` | ✅ done |
+| `CreateLoginTemplate` | `POST /login_templates/` | `login-template:create` | ✅ done |
+| `UpdateLoginTemplate` | `PUT /login_templates/{uuid}` | `login-template:update` | ✅ done |
+| `DeleteLoginTemplate` | `DELETE /login_templates/{uuid}` | `login-template:delete` | ✅ done |
+| `SetLoginTemplateStatus` | `PATCH /login_templates/{uuid}/status` | `login-template:update` | ✅ done |
 
 ### GRPC-170 · EmailConfigService / SMSConfigService — `notifier.proto`
 | RPC | REST origin | Permission | Status |

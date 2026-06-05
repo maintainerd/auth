@@ -1,0 +1,150 @@
+syntax = "proto3";
+
+package maintainerd.auth.v1;
+
+import "google/protobuf/struct.proto";
+import "google/protobuf/timestamp.proto";
+import "maintainerd/auth/v1/tenant.proto";
+
+option go_package = "github.com/maintainerd/auth/internal/platform/gen/go/maintainerd/auth;authv1";
+
+service SecuritySettingService {
+  rpc GetMFAConfig(GetMFAConfigRequest) returns (GetMFAConfigResponse);
+  rpc UpdateMFAConfig(UpdateMFAConfigRequest) returns (UpdateMFAConfigResponse);
+  rpc GetPasswordConfig(GetPasswordConfigRequest) returns (GetPasswordConfigResponse);
+  rpc UpdatePasswordConfig(UpdatePasswordConfigRequest) returns (UpdatePasswordConfigResponse);
+  rpc GetSessionConfig(GetSessionConfigRequest) returns (GetSessionConfigResponse);
+  rpc UpdateSessionConfig(UpdateSessionConfigRequest) returns (UpdateSessionConfigResponse);
+  rpc GetThreatConfig(GetThreatConfigRequest) returns (GetThreatConfigResponse);
+  rpc UpdateThreatConfig(UpdateThreatConfigRequest) returns (UpdateThreatConfigResponse);
+  rpc GetLockoutConfig(GetLockoutConfigRequest) returns (GetLockoutConfigResponse);
+  rpc UpdateLockoutConfig(UpdateLockoutConfigRequest) returns (UpdateLockoutConfigResponse);
+  rpc GetRegistrationConfig(GetRegistrationConfigRequest) returns (GetRegistrationConfigResponse);
+  rpc UpdateRegistrationConfig(UpdateRegistrationConfigRequest) returns (UpdateRegistrationConfigResponse);
+  rpc GetTokenConfig(GetTokenConfigRequest) returns (GetTokenConfigResponse);
+  rpc UpdateTokenConfig(UpdateTokenConfigRequest) returns (UpdateTokenConfigResponse);
+}
+
+service IPRestrictionRuleService {
+  rpc ListIPRestrictionRules(ListIPRestrictionRulesRequest) returns (ListIPRestrictionRulesResponse);
+  rpc GetIPRestrictionRule(GetIPRestrictionRuleRequest) returns (GetIPRestrictionRuleResponse);
+  rpc CreateIPRestrictionRule(CreateIPRestrictionRuleRequest) returns (CreateIPRestrictionRuleResponse);
+  rpc UpdateIPRestrictionRule(UpdateIPRestrictionRuleRequest) returns (UpdateIPRestrictionRuleResponse);
+  rpc SetIPRestrictionRuleStatus(SetIPRestrictionRuleStatusRequest) returns (SetIPRestrictionRuleStatusResponse);
+  rpc DeleteIPRestrictionRule(DeleteIPRestrictionRuleRequest) returns (DeleteIPRestrictionRuleResponse);
+}
+
+message GetMFAConfigRequest { int64 user_pool_id = 1; }
+message GetMFAConfigResponse { google.protobuf.Struct config = 1; }
+message UpdateMFAConfigRequest { int64 user_pool_id = 1; google.protobuf.Struct config = 2; string updated_by = 3; string ip_address = 4; string user_agent = 5; }
+message UpdateMFAConfigResponse { google.protobuf.Struct config = 1; }
+
+message GetPasswordConfigRequest { int64 user_pool_id = 1; }
+message GetPasswordConfigResponse { google.protobuf.Struct config = 1; }
+message UpdatePasswordConfigRequest { int64 user_pool_id = 1; google.protobuf.Struct config = 2; string updated_by = 3; string ip_address = 4; string user_agent = 5; }
+message UpdatePasswordConfigResponse { google.protobuf.Struct config = 1; }
+
+message GetSessionConfigRequest { int64 user_pool_id = 1; }
+message GetSessionConfigResponse { google.protobuf.Struct config = 1; }
+message UpdateSessionConfigRequest { int64 user_pool_id = 1; google.protobuf.Struct config = 2; string updated_by = 3; string ip_address = 4; string user_agent = 5; }
+message UpdateSessionConfigResponse { google.protobuf.Struct config = 1; }
+
+message GetThreatConfigRequest { int64 user_pool_id = 1; }
+message GetThreatConfigResponse { google.protobuf.Struct config = 1; }
+message UpdateThreatConfigRequest { int64 user_pool_id = 1; google.protobuf.Struct config = 2; string updated_by = 3; string ip_address = 4; string user_agent = 5; }
+message UpdateThreatConfigResponse { google.protobuf.Struct config = 1; }
+
+message GetLockoutConfigRequest { int64 user_pool_id = 1; }
+message GetLockoutConfigResponse { google.protobuf.Struct config = 1; }
+message UpdateLockoutConfigRequest { int64 user_pool_id = 1; google.protobuf.Struct config = 2; string updated_by = 3; string ip_address = 4; string user_agent = 5; }
+message UpdateLockoutConfigResponse { google.protobuf.Struct config = 1; }
+
+message GetRegistrationConfigRequest { int64 user_pool_id = 1; }
+message GetRegistrationConfigResponse { google.protobuf.Struct config = 1; }
+message UpdateRegistrationConfigRequest { int64 user_pool_id = 1; google.protobuf.Struct config = 2; string updated_by = 3; string ip_address = 4; string user_agent = 5; }
+message UpdateRegistrationConfigResponse { google.protobuf.Struct config = 1; }
+
+message GetTokenConfigRequest { int64 user_pool_id = 1; }
+message GetTokenConfigResponse { google.protobuf.Struct config = 1; }
+message UpdateTokenConfigRequest { int64 user_pool_id = 1; google.protobuf.Struct config = 2; string updated_by = 3; string ip_address = 4; string user_agent = 5; }
+message UpdateTokenConfigResponse { google.protobuf.Struct config = 1; }
+
+message IPRestrictionRule {
+  string ip_restriction_rule_uuid = 1;
+  string description = 2;
+  string type = 3;
+  string ip_address = 4;
+  string status = 5;
+  google.protobuf.Timestamp created_at = 6;
+  google.protobuf.Timestamp updated_at = 7;
+}
+
+message ListIPRestrictionRulesRequest {
+  string tenant_uuid = 1;
+  string type = 2;
+  repeated string status = 3;
+  string ip_address = 4;
+  string description = 5;
+  Pagination pagination = 6;
+}
+
+message ListIPRestrictionRulesResponse {
+  repeated IPRestrictionRule rules = 1;
+  PageMetadata page = 2;
+}
+
+message GetIPRestrictionRuleRequest {
+  string tenant_uuid = 1;
+  string ip_restriction_rule_uuid = 2;
+}
+
+message GetIPRestrictionRuleResponse {
+  IPRestrictionRule rule = 1;
+}
+
+message CreateIPRestrictionRuleRequest {
+  string tenant_uuid = 1;
+  string description = 2;
+  string type = 3;
+  string ip_address = 4;
+  string status = 5;
+  int64 created_by = 6;
+}
+
+message CreateIPRestrictionRuleResponse {
+  IPRestrictionRule rule = 1;
+}
+
+message UpdateIPRestrictionRuleRequest {
+  string tenant_uuid = 1;
+  string ip_restriction_rule_uuid = 2;
+  string description = 3;
+  string type = 4;
+  string ip_address = 5;
+  string status = 6;
+  int64 updated_by = 7;
+}
+
+message UpdateIPRestrictionRuleResponse {
+  IPRestrictionRule rule = 1;
+}
+
+message SetIPRestrictionRuleStatusRequest {
+  string tenant_uuid = 1;
+  string ip_restriction_rule_uuid = 2;
+  string status = 3;
+  int64 updated_by = 4;
+}
+
+message SetIPRestrictionRuleStatusResponse {
+  IPRestrictionRule rule = 1;
+}
+
+message DeleteIPRestrictionRuleRequest {
+  string tenant_uuid = 1;
+  string ip_restriction_rule_uuid = 2;
+}
+
+message DeleteIPRestrictionRuleResponse {
+  IPRestrictionRule rule = 1;
+}
