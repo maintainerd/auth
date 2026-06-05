@@ -1,0 +1,247 @@
+syntax = "proto3";
+
+package maintainerd.auth.v1;
+
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/struct.proto";
+import "maintainerd/auth/v1/tenant.proto";
+
+option go_package = "github.com/maintainerd/auth/internal/platform/gen/go/maintainerd/auth;authv1";
+
+service IdentityProviderService {
+  rpc ListIdentityProviders(ListIdentityProvidersRequest) returns (ListIdentityProvidersResponse);
+  rpc GetIdentityProvider(GetIdentityProviderRequest) returns (GetIdentityProviderResponse);
+  rpc CreateIdentityProvider(CreateIdentityProviderRequest) returns (CreateIdentityProviderResponse);
+  rpc UpdateIdentityProvider(UpdateIdentityProviderRequest) returns (UpdateIdentityProviderResponse);
+  rpc SetIdentityProviderStatus(SetIdentityProviderStatusRequest) returns (SetIdentityProviderStatusResponse);
+  rpc DeleteIdentityProvider(DeleteIdentityProviderRequest) returns (DeleteIdentityProviderResponse);
+}
+
+service SignupFlowService {
+  rpc ListSignupFlows(ListSignupFlowsRequest) returns (ListSignupFlowsResponse);
+  rpc GetSignupFlow(GetSignupFlowRequest) returns (GetSignupFlowResponse);
+  rpc CreateSignupFlow(CreateSignupFlowRequest) returns (CreateSignupFlowResponse);
+  rpc UpdateSignupFlow(UpdateSignupFlowRequest) returns (UpdateSignupFlowResponse);
+  rpc SetSignupFlowStatus(SetSignupFlowStatusRequest) returns (SetSignupFlowStatusResponse);
+  rpc DeleteSignupFlow(DeleteSignupFlowRequest) returns (DeleteSignupFlowResponse);
+  rpc AssignSignupFlowRoles(AssignSignupFlowRolesRequest) returns (AssignSignupFlowRolesResponse);
+  rpc ListSignupFlowRoles(ListSignupFlowRolesRequest) returns (ListSignupFlowRolesResponse);
+  rpc RemoveSignupFlowRole(RemoveSignupFlowRoleRequest) returns (RemoveSignupFlowRoleResponse);
+}
+
+message IdentityProvider {
+  string identity_provider_uuid = 1;
+  string name = 2;
+  string display_name = 3;
+  string provider = 4;
+  string provider_type = 5;
+  string identifier = 6;
+  google.protobuf.Struct config = 7;
+  string status = 8;
+  bool is_default = 9;
+  bool is_system = 10;
+  google.protobuf.Timestamp created_at = 11;
+  google.protobuf.Timestamp updated_at = 12;
+}
+
+message SignupFlow {
+  string signup_flow_uuid = 1;
+  string name = 2;
+  string description = 3;
+  string identifier = 4;
+  google.protobuf.Struct config = 5;
+  string status = 6;
+  string client_uuid = 7;
+  google.protobuf.Timestamp created_at = 8;
+  google.protobuf.Timestamp updated_at = 9;
+}
+
+message SignupFlowRole {
+  string signup_flow_role_uuid = 1;
+  string role_uuid = 2;
+  string role_name = 3;
+  string role_description = 4;
+  bool role_is_default = 5;
+  bool role_is_system = 6;
+  string role_status = 7;
+  google.protobuf.Timestamp created_at = 8;
+  google.protobuf.Timestamp updated_at = 9;
+}
+
+message ListIdentityProvidersRequest {
+  string tenant_uuid = 1;
+  string name = 2;
+  string display_name = 3;
+  repeated string provider = 4;
+  string provider_type = 5;
+  string identifier = 6;
+  repeated string status = 7;
+  optional bool is_default = 8;
+  optional bool is_system = 9;
+  Pagination pagination = 10;
+}
+
+message ListIdentityProvidersResponse {
+  repeated IdentityProvider identity_providers = 1;
+  PageMetadata page = 2;
+}
+
+message GetIdentityProviderRequest {
+  string tenant_uuid = 1;
+  string identity_provider_uuid = 2;
+}
+
+message GetIdentityProviderResponse {
+  IdentityProvider identity_provider = 1;
+}
+
+message CreateIdentityProviderRequest {
+  string tenant_uuid = 1;
+  string name = 2;
+  string display_name = 3;
+  string provider = 4;
+  string provider_type = 5;
+  google.protobuf.Struct config = 6;
+  string status = 7;
+  string actor_user_uuid = 8;
+}
+
+message CreateIdentityProviderResponse {
+  IdentityProvider identity_provider = 1;
+}
+
+message UpdateIdentityProviderRequest {
+  string tenant_uuid = 1;
+  string identity_provider_uuid = 2;
+  string name = 3;
+  string display_name = 4;
+  string provider = 5;
+  string provider_type = 6;
+  google.protobuf.Struct config = 7;
+  string status = 8;
+  string actor_user_uuid = 9;
+}
+
+message UpdateIdentityProviderResponse {
+  IdentityProvider identity_provider = 1;
+}
+
+message SetIdentityProviderStatusRequest {
+  string tenant_uuid = 1;
+  string identity_provider_uuid = 2;
+  string status = 3;
+  string actor_user_uuid = 4;
+}
+
+message SetIdentityProviderStatusResponse {
+  IdentityProvider identity_provider = 1;
+}
+
+message DeleteIdentityProviderRequest {
+  string tenant_uuid = 1;
+  string identity_provider_uuid = 2;
+  string actor_user_uuid = 3;
+}
+
+message DeleteIdentityProviderResponse {
+  IdentityProvider identity_provider = 1;
+}
+
+message ListSignupFlowsRequest {
+  string tenant_uuid = 1;
+  string name = 2;
+  string identifier = 3;
+  repeated string status = 4;
+  string client_uuid = 5;
+  Pagination pagination = 6;
+}
+
+message ListSignupFlowsResponse {
+  repeated SignupFlow signup_flows = 1;
+  PageMetadata page = 2;
+}
+
+message GetSignupFlowRequest {
+  string tenant_uuid = 1;
+  string signup_flow_uuid = 2;
+}
+
+message GetSignupFlowResponse {
+  SignupFlow signup_flow = 1;
+}
+
+message CreateSignupFlowRequest {
+  string tenant_uuid = 1;
+  string name = 2;
+  string description = 3;
+  google.protobuf.Struct config = 4;
+  string status = 5;
+  string client_uuid = 6;
+}
+
+message CreateSignupFlowResponse {
+  SignupFlow signup_flow = 1;
+}
+
+message UpdateSignupFlowRequest {
+  string tenant_uuid = 1;
+  string signup_flow_uuid = 2;
+  string name = 3;
+  string description = 4;
+  google.protobuf.Struct config = 5;
+  string status = 6;
+}
+
+message UpdateSignupFlowResponse {
+  SignupFlow signup_flow = 1;
+}
+
+message SetSignupFlowStatusRequest {
+  string tenant_uuid = 1;
+  string signup_flow_uuid = 2;
+  string status = 3;
+}
+
+message SetSignupFlowStatusResponse {
+  SignupFlow signup_flow = 1;
+}
+
+message DeleteSignupFlowRequest {
+  string tenant_uuid = 1;
+  string signup_flow_uuid = 2;
+}
+
+message DeleteSignupFlowResponse {
+  SignupFlow signup_flow = 1;
+}
+
+message AssignSignupFlowRolesRequest {
+  string tenant_uuid = 1;
+  string signup_flow_uuid = 2;
+  repeated string role_uuids = 3;
+}
+
+message AssignSignupFlowRolesResponse {
+  repeated SignupFlowRole roles = 1;
+}
+
+message ListSignupFlowRolesRequest {
+  string tenant_uuid = 1;
+  string signup_flow_uuid = 2;
+  Pagination pagination = 3;
+}
+
+message ListSignupFlowRolesResponse {
+  repeated SignupFlowRole roles = 1;
+  PageMetadata page = 2;
+}
+
+message RemoveSignupFlowRoleRequest {
+  string tenant_uuid = 1;
+  string signup_flow_uuid = 2;
+  string role_uuid = 3;
+}
+
+message RemoveSignupFlowRoleResponse {
+  bool removed = 1;
+}

@@ -57,6 +57,20 @@ type Tenant struct {
 
 func (Tenant) TableName() string { return "tenants" }
 
+type TenantServiceDataResult struct {
+	TenantID    int64
+	TenantUUID  uuid.UUID
+	Name        string
+	DisplayName string
+	Description string
+	Identifier  string
+	Status      string
+	IsPublic    bool
+	IsSystem    bool
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
+}
+
 type IdentityProvider struct {
 	IdentityProviderID   int64
 	IdentityProviderUUID uuid.UUID

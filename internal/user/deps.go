@@ -36,6 +36,7 @@ type Tenant struct {
 func (Tenant) TableName() string { return "tenants" }
 
 type TenantServiceDataResult struct {
+	TenantID    int64
 	TenantUUID  uuid.UUID
 	Name        string
 	DisplayName string

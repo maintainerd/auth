@@ -26,6 +26,7 @@ type Tenant struct {
 func (Tenant) TableName() string { return "tenants" }
 
 type TenantServiceDataResult struct {
+	TenantID    int64
 	TenantUUID  uuid.UUID
 	Name        string
 	DisplayName string
@@ -208,6 +209,7 @@ func toTenantServiceDataResult(t *Tenant) *TenantServiceDataResult {
 		return nil
 	}
 	return &TenantServiceDataResult{
+		TenantID:    t.TenantID,
 		TenantUUID:  t.TenantUUID,
 		Name:        t.Name,
 		DisplayName: t.DisplayName,

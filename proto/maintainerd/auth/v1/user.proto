@@ -1,0 +1,231 @@
+syntax = "proto3";
+
+package maintainerd.auth.v1;
+
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/struct.proto";
+import "maintainerd/auth/v1/tenant.proto";
+
+option go_package = "github.com/maintainerd/auth/internal/platform/gen/go/maintainerd/auth;authv1";
+
+service UserService {
+  rpc ListUsers(ListUsersRequest) returns (ListUsersResponse);
+  rpc GetUser(GetUserRequest) returns (GetUserResponse);
+  rpc CreateUser(CreateUserRequest) returns (CreateUserResponse);
+  rpc UpdateUser(UpdateUserRequest) returns (UpdateUserResponse);
+  rpc SetUserStatus(SetUserStatusRequest) returns (SetUserStatusResponse);
+  rpc VerifyUserEmail(VerifyUserEmailRequest) returns (VerifyUserEmailResponse);
+  rpc VerifyUserPhone(VerifyUserPhoneRequest) returns (VerifyUserPhoneResponse);
+  rpc CompleteUserAccount(CompleteUserAccountRequest) returns (CompleteUserAccountResponse);
+  rpc DeleteUser(DeleteUserRequest) returns (DeleteUserResponse);
+  rpc ForceUserPasswordChange(ForceUserPasswordChangeRequest) returns (ForceUserPasswordChangeResponse);
+  rpc ListUserRoles(ListUserRolesRequest) returns (ListUserRolesResponse);
+  rpc ListUserIdentities(ListUserIdentitiesRequest) returns (ListUserIdentitiesResponse);
+  rpc AssignUserRoles(AssignUserRolesRequest) returns (AssignUserRolesResponse);
+  rpc RemoveUserRole(RemoveUserRoleRequest) returns (RemoveUserRoleResponse);
+}
+
+service InviteService {
+  rpc SendInvite(SendInviteRequest) returns (SendInviteResponse);
+}
+
+message User {
+  string user_uuid = 1;
+  string username = 2;
+  string fullname = 3;
+  string email = 4;
+  string phone = 5;
+  bool is_email_verified = 6;
+  bool is_phone_verified = 7;
+  bool is_profile_completed = 8;
+  bool is_account_completed = 9;
+  string status = 10;
+  google.protobuf.Struct metadata = 11;
+  google.protobuf.Timestamp created_at = 12;
+  google.protobuf.Timestamp updated_at = 13;
+}
+
+message UserIdentity {
+  string user_identity_uuid = 1;
+  string provider = 2;
+  string sub = 3;
+  google.protobuf.Timestamp created_at = 4;
+  google.protobuf.Timestamp updated_at = 5;
+}
+
+message UserRole {
+  string role_uuid = 1;
+  string name = 2;
+  string description = 3;
+  bool is_default = 4;
+  bool is_system = 5;
+  string status = 6;
+  google.protobuf.Timestamp created_at = 7;
+  google.protobuf.Timestamp updated_at = 8;
+}
+
+message ListUsersRequest {
+  string tenant_uuid = 1;
+  string username = 2;
+  string email = 3;
+  string phone = 4;
+  repeated string status = 5;
+  Pagination pagination = 6;
+}
+
+message ListUsersResponse {
+  repeated User users = 1;
+  PageMetadata page = 2;
+}
+
+message GetUserRequest {
+  string tenant_uuid = 1;
+  string user_uuid = 2;
+}
+
+message GetUserResponse {
+  User user = 1;
+}
+
+message CreateUserRequest {
+  string tenant_uuid = 1;
+  string username = 2;
+  string fullname = 3;
+  string email = 4;
+  string phone = 5;
+  string password = 6;
+  string status = 7;
+  google.protobuf.Struct metadata = 8;
+  string actor_user_uuid = 9;
+}
+
+message CreateUserResponse {
+  User user = 1;
+}
+
+message UpdateUserRequest {
+  string tenant_uuid = 1;
+  string user_uuid = 2;
+  string username = 3;
+  string fullname = 4;
+  string email = 5;
+  string phone = 6;
+  string status = 7;
+  google.protobuf.Struct metadata = 8;
+  string actor_user_uuid = 9;
+}
+
+message UpdateUserResponse {
+  User user = 1;
+}
+
+message SetUserStatusRequest {
+  string tenant_uuid = 1;
+  string user_uuid = 2;
+  string status = 3;
+  string actor_user_uuid = 4;
+}
+
+message SetUserStatusResponse {
+  User user = 1;
+}
+
+message VerifyUserEmailRequest {
+  string tenant_uuid = 1;
+  string user_uuid = 2;
+}
+
+message VerifyUserEmailResponse {
+  User user = 1;
+}
+
+message VerifyUserPhoneRequest {
+  string tenant_uuid = 1;
+  string user_uuid = 2;
+}
+
+message VerifyUserPhoneResponse {
+  User user = 1;
+}
+
+message CompleteUserAccountRequest {
+  string tenant_uuid = 1;
+  string user_uuid = 2;
+}
+
+message CompleteUserAccountResponse {
+  User user = 1;
+}
+
+message DeleteUserRequest {
+  string tenant_uuid = 1;
+  string user_uuid = 2;
+  string actor_user_uuid = 3;
+}
+
+message DeleteUserResponse {
+  User user = 1;
+}
+
+message ForceUserPasswordChangeRequest {
+  string tenant_uuid = 1;
+  string user_uuid = 2;
+  bool force = 3;
+}
+
+message ForceUserPasswordChangeResponse {
+  bool success = 1;
+}
+
+message ListUserRolesRequest {
+  string tenant_uuid = 1;
+  string user_uuid = 2;
+  Pagination pagination = 3;
+}
+
+message ListUserRolesResponse {
+  repeated UserRole roles = 1;
+  PageMetadata page = 2;
+}
+
+message ListUserIdentitiesRequest {
+  string tenant_uuid = 1;
+  string user_uuid = 2;
+  Pagination pagination = 3;
+}
+
+message ListUserIdentitiesResponse {
+  repeated UserIdentity identities = 1;
+  PageMetadata page = 2;
+}
+
+message AssignUserRolesRequest {
+  string tenant_uuid = 1;
+  string user_uuid = 2;
+  repeated string role_uuids = 3;
+}
+
+message AssignUserRolesResponse {
+  User user = 1;
+}
+
+message RemoveUserRoleRequest {
+  string tenant_uuid = 1;
+  string user_uuid = 2;
+  string role_uuid = 3;
+}
+
+message RemoveUserRoleResponse {
+  User user = 1;
+}
+
+message SendInviteRequest {
+  string tenant_uuid = 1;
+  string email = 2;
+  repeated string role_uuids = 3;
+  string actor_user_uuid = 4;
+}
+
+message SendInviteResponse {
+  string message = 1;
+}
