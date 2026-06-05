@@ -8,7 +8,9 @@ service SeederService {
   rpc TriggerSeeder(TriggerSeederRequest) returns (TriggerSeederResponse);
 }
 
-message TriggerSeederRequest {}
+message TriggerSeederRequest {
+  string triggered_by = 1;
+}
 
 message TriggerSeederResponse {
   bool success = 1;

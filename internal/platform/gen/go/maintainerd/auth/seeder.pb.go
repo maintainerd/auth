@@ -23,6 +23,7 @@ const (
 
 type TriggerSeederRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
+	TriggeredBy   string                 `protobuf:"bytes,1,opt,name=triggered_by,json=triggeredBy,proto3" json:"triggered_by,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -55,6 +56,13 @@ func (x *TriggerSeederRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use TriggerSeederRequest.ProtoReflect.Descriptor instead.
 func (*TriggerSeederRequest) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_seeder_proto_rawDescGZIP(), []int{0}
+}
+
+func (x *TriggerSeederRequest) GetTriggeredBy() string {
+	if x != nil {
+		return x.TriggeredBy
+	}
+	return ""
 }
 
 type TriggerSeederResponse struct {
@@ -113,8 +121,9 @@ var File_maintainerd_auth_v1_seeder_proto protoreflect.FileDescriptor
 
 const file_maintainerd_auth_v1_seeder_proto_rawDesc = "" +
 	"\n" +
-	" maintainerd/auth/v1/seeder.proto\x12\x13maintainerd.auth.v1\"\x16\n" +
-	"\x14TriggerSeederRequest\"K\n" +
+	" maintainerd/auth/v1/seeder.proto\x12\x13maintainerd.auth.v1\"9\n" +
+	"\x14TriggerSeederRequest\x12!\n" +
+	"\ftriggered_by\x18\x01 \x01(\tR\vtriggeredBy\"K\n" +
 	"\x15TriggerSeederResponse\x12\x18\n" +
 	"\asuccess\x18\x01 \x01(\bR\asuccess\x12\x18\n" +
 	"\amessage\x18\x02 \x01(\tR\amessage2w\n" +
