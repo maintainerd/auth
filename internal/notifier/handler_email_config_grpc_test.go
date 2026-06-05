@@ -68,4 +68,36 @@ func TestEmailConfigGRPCHandler_RPCS(t *testing.T) {
 		_, err := h.GetEmailConfig(ctx, &authv1.GetEmailConfigRequest{TenantUuid: tenantUUID.String()})
 		if code := status.Code(err); code != codes.Internal { t.Errorf("expected Internal, got %v", code) }
 	})
+
+	t.Run("tenant error invalid UUID", func(t *testing.T) {
+		svc := &testEmailConfigService{}
+		h := NewEmailConfigGRPCHandler(resolver, svc)
+		_, err := h.GetEmailConfig(ctx, &authv1.GetEmailConfigRequest{TenantUuid: "bad"})
+		if code := status.Code(err); code != codes.InvalidArgument { t.Errorf("expected InvalidArgument, got %v", code) }
+	})
+
+	t.Run("tenant error resolver", func(t *testing.T) {
+		errResolver := &testNotifierTenant{getFn: func(ctx context.Context, tuuid uuid.UUID) (*TenantServiceDataResult, error) { return nil, errors.New("tenant") }}
+		svc := &testEmailConfigService{}
+		h := NewEmailConfigGRPCHandler(errResolver, svc)
+		_, err := h.GetEmailConfig(ctx, &authv1.GetEmailConfigRequest{TenantUuid: tenantUUID.String()})
+		if code := status.Code(err); code != codes.Internal { t.Errorf("expected Internal, got %v", code) }
+	})
+
+	t.Run("update service error", func(t *testing.T) {
+		svc := &testEmailConfigService{
+			updateFn: func(ctx context.Context, tenantID int64, provider, host string, port int, username, password, fromAddress, fromName, replyTo, encryption string, testMode *bool) (*EmailConfigServiceDataResult, error) { return nil, errors.New("db") },
+		}
+		h := NewEmailConfigGRPCHandler(resolver, svc)
+		_, err := h.UpdateEmailConfig(ctx, &authv1.UpdateEmailConfigRequest{TenantUuid: tenantUUID.String(), Provider: "smtp"})
+		if code := status.Code(err); code != codes.Internal { t.Errorf("expected Internal, got %v", code) }
+	})
+
+	t.Run("update tenant resolver error", func(t *testing.T) {
+		errResolver := &testNotifierTenant{getFn: func(ctx context.Context, tuuid uuid.UUID) (*TenantServiceDataResult, error) { return nil, errors.New("tenant") }}
+		svc := &testEmailConfigService{}
+		h := NewEmailConfigGRPCHandler(errResolver, svc)
+		_, err := h.UpdateEmailConfig(ctx, &authv1.UpdateEmailConfigRequest{TenantUuid: tenantUUID.String(), Provider: "smtp"})
+		if code := status.Code(err); code != codes.Internal { t.Errorf("expected Internal, got %v", code) }
+	})
 }

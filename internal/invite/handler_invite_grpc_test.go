@@ -73,4 +73,28 @@ func TestInviteGRPCHandler_RPCS(t *testing.T) {
 			t.Errorf("expected Internal, got %v", code)
 		}
 	})
+
+	t.Run("missing tenant UUID", func(t *testing.T) {
+		svc := &testInviteService{}
+		h := NewInviteGRPCHandler(resolver, svc)
+		_, err := h.SendInvite(ctx, &authv1.SendInviteRequest{Email: "test@example.com"})
+		if code := status.Code(err); code != codes.InvalidArgument {
+			t.Errorf("expected InvalidArgument, got %v", code)
+		}
+	})
+
+	t.Run("parseUUID empty", func(t *testing.T) {
+		_, err := parseUUID("", "test")
+		if code := status.Code(err); code != codes.InvalidArgument {
+			t.Errorf("expected InvalidArgument, got %v", code)
+		}
+	})
+
+	t.Run("tenant resolver error", func(t *testing.T) {
+		errResolver := &testInviteTenantResolver{getFn: func(ctx context.Context, tuuid uuid.UUID) (int64, error) { return 0, errors.New("tenant") }}
+		svc := &testInviteService{}
+		h := NewInviteGRPCHandler(errResolver, svc)
+		_, err := h.SendInvite(ctx, &authv1.SendInviteRequest{TenantUuid: tenantUUID.String(), Email: "test@example.com"})
+		if code := status.Code(err); code != codes.Internal { t.Errorf("expected Internal, got %v", code) }
+	})
 }
