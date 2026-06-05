@@ -2,6 +2,7 @@ APP_NAME := auth
 MAIN := cmd/server/main.go
 PROTO_SRC := proto
 PROTO_OUT := internal/platform/gen/go
+PROTO_BREAKING_AGAINST ?= ../.git\#branch=origin/main,subdir=proto
 
 .PHONY: run build clean proto proto-lint proto-breaking proto-clean tidy test test-cover test-race vet staticcheck lint setup-hooks
 
@@ -27,7 +28,7 @@ proto-lint:
 	cd $(PROTO_SRC) && buf lint .
 
 proto-breaking:
-	cd $(PROTO_SRC) && buf breaking . --against '.git#branch=main,subdir=proto'
+	cd $(PROTO_SRC) && buf breaking . --against '$(PROTO_BREAKING_AGAINST)'
 
 # Clean generated proto files
 proto-clean:

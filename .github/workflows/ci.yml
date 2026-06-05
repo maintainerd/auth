@@ -11,6 +11,34 @@ permissions:
 
 jobs:
   # ─────────────────────────────────────────────────────────────────────────────
+  # Proto — buf lint + breaking checks
+  # ─────────────────────────────────────────────────────────────────────────────
+  proto:
+    name: Proto
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.26.x"
+          cache: true
+
+      - name: Install buf
+        run: go install github.com/bufbuild/buf/cmd/buf@v1.59.0
+
+      - name: Lint proto contracts
+        run: make proto-lint
+
+      - name: Check proto breaking changes
+        run: make proto-breaking
+
+  # ─────────────────────────────────────────────────────────────────────────────
   # Test — unit tests with race detector + coverage
   # ─────────────────────────────────────────────────────────────────────────────
   test:
