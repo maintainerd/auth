@@ -1,0 +1,137 @@
+syntax = "proto3";
+
+package maintainerd.auth.v1;
+
+import "google/protobuf/timestamp.proto";
+import "maintainerd/auth/v1/permission.proto";
+import "maintainerd/auth/v1/tenant.proto";
+
+option go_package = "github.com/maintainerd/auth/internal/platform/gen/go/maintainerd/auth;authv1";
+
+service RoleService {
+  rpc ListRoles(ListRolesRequest) returns (ListRolesResponse);
+  rpc GetRole(GetRoleRequest) returns (GetRoleResponse);
+  rpc CreateRole(CreateRoleRequest) returns (CreateRoleResponse);
+  rpc UpdateRole(UpdateRoleRequest) returns (UpdateRoleResponse);
+  rpc SetRoleStatus(SetRoleStatusRequest) returns (SetRoleStatusResponse);
+  rpc DeleteRole(DeleteRoleRequest) returns (DeleteRoleResponse);
+  rpc ListRolePermissions(ListRolePermissionsRequest) returns (ListRolePermissionsResponse);
+  rpc AddRolePermissions(AddRolePermissionsRequest) returns (AddRolePermissionsResponse);
+  rpc RemoveRolePermission(RemoveRolePermissionRequest) returns (RemoveRolePermissionResponse);
+}
+
+message Role {
+  string role_uuid = 1;
+  string name = 2;
+  string description = 3;
+  repeated Permission permissions = 4;
+  bool is_default = 5;
+  bool is_system = 6;
+  string status = 7;
+  google.protobuf.Timestamp created_at = 8;
+  google.protobuf.Timestamp updated_at = 9;
+}
+
+message ListRolesRequest {
+  string tenant_uuid = 1;
+  string name = 2;
+  string description = 3;
+  optional bool is_default = 4;
+  optional bool is_system = 5;
+  string status = 6;
+  Pagination pagination = 7;
+}
+
+message ListRolesResponse {
+  repeated Role roles = 1;
+  PageMetadata page = 2;
+}
+
+message GetRoleRequest {
+  string tenant_uuid = 1;
+  string role_uuid = 2;
+}
+
+message GetRoleResponse {
+  Role role = 1;
+}
+
+message CreateRoleRequest {
+  string tenant_uuid = 1;
+  string actor_user_uuid = 2;
+  string name = 3;
+  string description = 4;
+  string status = 5;
+}
+
+message CreateRoleResponse {
+  Role role = 1;
+}
+
+message UpdateRoleRequest {
+  string tenant_uuid = 1;
+  string actor_user_uuid = 2;
+  string role_uuid = 3;
+  string name = 4;
+  string description = 5;
+  string status = 6;
+}
+
+message UpdateRoleResponse {
+  Role role = 1;
+}
+
+message SetRoleStatusRequest {
+  string tenant_uuid = 1;
+  string actor_user_uuid = 2;
+  string role_uuid = 3;
+  string status = 4;
+}
+
+message SetRoleStatusResponse {
+  Role role = 1;
+}
+
+message DeleteRoleRequest {
+  string tenant_uuid = 1;
+  string actor_user_uuid = 2;
+  string role_uuid = 3;
+}
+
+message DeleteRoleResponse {
+  Role role = 1;
+}
+
+message ListRolePermissionsRequest {
+  string tenant_uuid = 1;
+  string role_uuid = 2;
+  string status = 3;
+  Pagination pagination = 4;
+}
+
+message ListRolePermissionsResponse {
+  repeated Permission permissions = 1;
+  PageMetadata page = 2;
+}
+
+message AddRolePermissionsRequest {
+  string tenant_uuid = 1;
+  string actor_user_uuid = 2;
+  string role_uuid = 3;
+  repeated string permission_uuids = 4;
+}
+
+message AddRolePermissionsResponse {
+  Role role = 1;
+}
+
+message RemoveRolePermissionRequest {
+  string tenant_uuid = 1;
+  string actor_user_uuid = 2;
+  string role_uuid = 3;
+  string permission_uuid = 4;
+}
+
+message RemoveRolePermissionResponse {
+  Role role = 1;
+}

@@ -161,9 +161,14 @@ Why this is the best practice:
      maintainerd/
        auth/
          v1/
-           common.proto            # shared: pagination, status enums, error msgs
+           common.proto            # shared: status enums, audit/timestamp fields
            tenant.proto            # TenantService, TenantSettingService
-           iam.proto               # Service/API/Permission/Policy/Role/Authorization
+           service.proto           # ServiceService
+           api.proto               # APIService
+           permission.proto        # PermissionService
+           policy.proto            # PolicyService
+           role.proto              # RoleService
+           authorization.proto     # AuthorizationService
            identity_provider.proto # IdentityProviderService, SignupFlowService
            client.proto            # ClientService, APIKeyService
            user.proto              # UserService (admin)
@@ -494,7 +499,7 @@ permission string shown. Status is per-RPC.
 | `GetMaintenanceConfig` / `UpdateMaintenanceConfig` | `GET/PUT /tenant-settings/maintenance` | `tenant-setting:read` / `:update` | ✅ done |
 | `GetFeatureFlags` / `UpdateFeatureFlags` | `GET/PUT /tenant-settings/feature-flags` | `tenant-setting:read` / `:update` | ✅ done |
 
-### GRPC-110 · ServiceService — `iam.proto`
+### GRPC-110 · ServiceService — `service.proto`
 | RPC | REST origin | Permission | Status |
 |-----|-------------|-----------|--------|
 | `GetMyPolicyBundle` | `GET /services/me/policy-bundle` | service-account (self) | ✅ done |
@@ -507,7 +512,7 @@ permission string shown. Status is per-RPC.
 | `AssignServicePolicy` | `POST /services/{uuid}/policies/{p}` | `service:policy:assign` | ✅ done |
 | `RemoveServicePolicy` | `DELETE /services/{uuid}/policies/{p}` | `service:policy:remove` | ✅ done |
 
-### GRPC-111 · APIService — `iam.proto`
+### GRPC-111 · APIService — `api.proto`
 | RPC | REST origin | Permission | Status |
 |-----|-------------|-----------|--------|
 | `ListAPIs` / `GetAPI` | `GET /apis/`, `GET /apis/{uuid}` | `api:read` | ✅ done |
@@ -516,7 +521,7 @@ permission string shown. Status is per-RPC.
 | `SetAPIStatus` | `PUT /apis/{uuid}/status` | `api:update` | ✅ done |
 | `DeleteAPI` | `DELETE /apis/{uuid}` | `api:delete` | ✅ done |
 
-### GRPC-112 · PermissionService — `iam.proto`
+### GRPC-112 · PermissionService — `permission.proto`
 | RPC | REST origin | Permission | Status |
 |-----|-------------|-----------|--------|
 | `ListPermissions` / `GetPermission` | `GET /permissions/`, `…/{uuid}` | `permission:read` | ✅ done |
@@ -525,7 +530,7 @@ permission string shown. Status is per-RPC.
 | `SetPermissionStatus` | `PUT /permissions/{uuid}/status` | `permission:update` | ✅ done |
 | `DeletePermission` | `DELETE /permissions/{uuid}` | `permission:delete` | ✅ done |
 
-### GRPC-113 · PolicyService — `iam.proto`
+### GRPC-113 · PolicyService — `policy.proto`
 | RPC | REST origin | Permission | Status |
 |-----|-------------|-----------|--------|
 | `ListPolicies` / `GetPolicy` | `GET /policies/`, `…/{uuid}` | `policy:read` | ✅ done |
@@ -535,7 +540,7 @@ permission string shown. Status is per-RPC.
 | `SetPolicyStatus` | `PUT /policies/{uuid}/status` | `policy:update` | ✅ done |
 | `DeletePolicy` | `DELETE /policies/{uuid}` | `policy:delete` | ✅ done |
 
-### GRPC-114 · RoleService — `iam.proto`
+### GRPC-114 · RoleService — `role.proto`
 | RPC | REST origin | Permission | Status |
 |-----|-------------|-----------|--------|
 | `ListRoles` / `GetRole` | `GET /roles/`, `…/{uuid}` | `role:read` | ✅ done |
@@ -547,7 +552,7 @@ permission string shown. Status is per-RPC.
 | `AddRolePermissions` | `POST /roles/{uuid}/permissions` | `role:permission:create` | ✅ done |
 | `RemoveRolePermission` | `DELETE /roles/{uuid}/permissions/{p}` | `role:permission:delete` | ✅ done |
 
-### GRPC-115 · AuthorizationService — `iam.proto`
+### GRPC-115 · AuthorizationService — `authorization.proto`
 | RPC | REST origin | Permission | Status |
 |-----|-------------|-----------|--------|
 | `Authorize` | `POST /authorize/` | service-account | ✅ done |

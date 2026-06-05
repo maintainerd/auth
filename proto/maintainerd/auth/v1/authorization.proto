@@ -1,0 +1,20 @@
+syntax = "proto3";
+
+package maintainerd.auth.v1;
+
+option go_package = "github.com/maintainerd/auth/internal/platform/gen/go/maintainerd/auth;authv1";
+
+service AuthorizationService {
+  rpc Authorize(AuthorizeRequest) returns (AuthorizeResponse);
+}
+
+message AuthorizeRequest {
+  string principal = 1;
+  string action = 2;
+  string resource = 3;
+}
+
+message AuthorizeResponse {
+  bool allowed = 1;
+  string reason = 2;
+}

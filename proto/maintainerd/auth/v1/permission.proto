@@ -1,0 +1,100 @@
+syntax = "proto3";
+
+package maintainerd.auth.v1;
+
+import "google/protobuf/timestamp.proto";
+import "maintainerd/auth/v1/api.proto";
+import "maintainerd/auth/v1/tenant.proto";
+
+option go_package = "github.com/maintainerd/auth/internal/platform/gen/go/maintainerd/auth;authv1";
+
+service PermissionService {
+  rpc ListPermissions(ListPermissionsRequest) returns (ListPermissionsResponse);
+  rpc GetPermission(GetPermissionRequest) returns (GetPermissionResponse);
+  rpc CreatePermission(CreatePermissionRequest) returns (CreatePermissionResponse);
+  rpc UpdatePermission(UpdatePermissionRequest) returns (UpdatePermissionResponse);
+  rpc SetPermissionStatus(SetPermissionStatusRequest) returns (SetPermissionStatusResponse);
+  rpc DeletePermission(DeletePermissionRequest) returns (DeletePermissionResponse);
+}
+
+message Permission {
+  string permission_uuid = 1;
+  string name = 2;
+  string description = 3;
+  API api = 4;
+  string status = 5;
+  bool is_default = 6;
+  bool is_system = 7;
+  google.protobuf.Timestamp created_at = 8;
+  google.protobuf.Timestamp updated_at = 9;
+}
+
+message ListPermissionsRequest {
+  string tenant_uuid = 1;
+  string name = 2;
+  string description = 3;
+  string api_uuid = 4;
+  string role_uuid = 5;
+  string client_uuid = 6;
+  string status = 7;
+  optional bool is_default = 8;
+  optional bool is_system = 9;
+  Pagination pagination = 10;
+}
+
+message ListPermissionsResponse {
+  repeated Permission permissions = 1;
+  PageMetadata page = 2;
+}
+
+message GetPermissionRequest {
+  string tenant_uuid = 1;
+  string permission_uuid = 2;
+}
+
+message GetPermissionResponse {
+  Permission permission = 1;
+}
+
+message CreatePermissionRequest {
+  string tenant_uuid = 1;
+  string name = 2;
+  string description = 3;
+  string status = 4;
+  string api_uuid = 5;
+}
+
+message CreatePermissionResponse {
+  Permission permission = 1;
+}
+
+message UpdatePermissionRequest {
+  string tenant_uuid = 1;
+  string permission_uuid = 2;
+  string name = 3;
+  string description = 4;
+  string status = 5;
+}
+
+message UpdatePermissionResponse {
+  Permission permission = 1;
+}
+
+message SetPermissionStatusRequest {
+  string tenant_uuid = 1;
+  string permission_uuid = 2;
+  string status = 3;
+}
+
+message SetPermissionStatusResponse {
+  Permission permission = 1;
+}
+
+message DeletePermissionRequest {
+  string tenant_uuid = 1;
+  string permission_uuid = 2;
+}
+
+message DeletePermissionResponse {
+  Permission permission = 1;
+}
