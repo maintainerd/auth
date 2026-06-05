@@ -1,0 +1,66 @@
+syntax = "proto3";
+
+package maintainerd.auth.v1;
+
+import "google/protobuf/timestamp.proto";
+import "maintainerd/auth/v1/tenant.proto";
+
+option go_package = "github.com/maintainerd/auth/internal/platform/gen/go/maintainerd/auth;authv1";
+
+service WebhookEndpointService {
+  rpc ListWebhookEndpoints(ListWebhookEndpointsRequest) returns (ListWebhookEndpointsResponse);
+  rpc GetWebhookEndpoint(GetWebhookEndpointRequest) returns (GetWebhookEndpointResponse);
+  rpc CreateWebhookEndpoint(CreateWebhookEndpointRequest) returns (CreateWebhookEndpointResponse);
+  rpc UpdateWebhookEndpoint(UpdateWebhookEndpointRequest) returns (UpdateWebhookEndpointResponse);
+  rpc SetWebhookEndpointStatus(SetWebhookEndpointStatusRequest) returns (SetWebhookEndpointStatusResponse);
+  rpc DeleteWebhookEndpoint(DeleteWebhookEndpointRequest) returns (DeleteWebhookEndpointResponse);
+}
+
+message WebhookEndpoint {
+  string webhook_endpoint_uuid = 1;
+  string url = 2;
+  string description = 3;
+  repeated string events = 4;
+  int32 max_retries = 5;
+  int32 timeout_seconds = 6;
+  string status = 7;
+  google.protobuf.Timestamp last_triggered_at = 8;
+  google.protobuf.Timestamp created_at = 9;
+  google.protobuf.Timestamp updated_at = 10;
+}
+
+message ListWebhookEndpointsRequest {
+  string tenant_uuid = 1;
+  repeated string status = 2;
+  Pagination pagination = 3;
+}
+message ListWebhookEndpointsResponse { repeated WebhookEndpoint endpoints = 1; PageMetadata page = 2; }
+message GetWebhookEndpointRequest { string tenant_uuid = 1; string webhook_endpoint_uuid = 2; }
+message GetWebhookEndpointResponse { WebhookEndpoint endpoint = 1; }
+message CreateWebhookEndpointRequest {
+  string tenant_uuid = 1;
+  string url = 2;
+  string secret = 3;
+  repeated string events = 4;
+  optional int32 max_retries = 5;
+  optional int32 timeout_seconds = 6;
+  string description = 7;
+  string status = 8;
+}
+message CreateWebhookEndpointResponse { WebhookEndpoint endpoint = 1; }
+message UpdateWebhookEndpointRequest {
+  string tenant_uuid = 1;
+  string webhook_endpoint_uuid = 2;
+  string url = 3;
+  string secret = 4;
+  repeated string events = 5;
+  optional int32 max_retries = 6;
+  optional int32 timeout_seconds = 7;
+  string description = 8;
+  string status = 9;
+}
+message UpdateWebhookEndpointResponse { WebhookEndpoint endpoint = 1; }
+message SetWebhookEndpointStatusRequest { string tenant_uuid = 1; string webhook_endpoint_uuid = 2; string status = 3; }
+message SetWebhookEndpointStatusResponse { WebhookEndpoint endpoint = 1; }
+message DeleteWebhookEndpointRequest { string tenant_uuid = 1; string webhook_endpoint_uuid = 2; }
+message DeleteWebhookEndpointResponse { WebhookEndpoint endpoint = 1; }

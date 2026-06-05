@@ -1,0 +1,47 @@
+syntax = "proto3";
+
+package maintainerd.auth.v1;
+
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/struct.proto";
+import "maintainerd/auth/v1/tenant.proto";
+
+option go_package = "github.com/maintainerd/auth/internal/platform/gen/go/maintainerd/auth;authv1";
+
+service AuthEventService {
+  rpc ListAuthEvents(ListAuthEventsRequest) returns (ListAuthEventsResponse);
+  rpc GetAuthEvent(GetAuthEventRequest) returns (GetAuthEventResponse);
+  rpc CountAuthEventsByType(CountAuthEventsByTypeRequest) returns (CountAuthEventsByTypeResponse);
+}
+
+message AuthEvent {
+  string auth_event_uuid = 1;
+  string category = 2;
+  string event_type = 3;
+  string severity = 4;
+  string result = 5;
+  string ip_address = 6;
+  optional string user_agent = 7;
+  optional string description = 8;
+  optional string error_reason = 9;
+  optional string trace_id = 10;
+  google.protobuf.Struct metadata = 11;
+  google.protobuf.Timestamp created_at = 12;
+}
+
+message ListAuthEventsRequest {
+  string tenant_uuid = 1;
+  string event_type = 2;
+  string category = 3;
+  string severity = 4;
+  string result = 5;
+  optional string ip_address = 6;
+  google.protobuf.Timestamp from = 7;
+  google.protobuf.Timestamp to = 8;
+  Pagination pagination = 9;
+}
+message ListAuthEventsResponse { repeated AuthEvent events = 1; PageMetadata page = 2; }
+message GetAuthEventRequest { string tenant_uuid = 1; string auth_event_uuid = 2; }
+message GetAuthEventResponse { AuthEvent event = 1; }
+message CountAuthEventsByTypeRequest { string tenant_uuid = 1; string event_type = 2; }
+message CountAuthEventsByTypeResponse { int64 count = 1; }

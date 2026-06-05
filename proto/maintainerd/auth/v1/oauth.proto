@@ -1,0 +1,28 @@
+syntax = "proto3";
+
+package maintainerd.auth.v1;
+
+option go_package = "github.com/maintainerd/auth/internal/platform/gen/go/maintainerd/auth;authv1";
+
+service OAuthIntrospectionService {
+  rpc Introspect(IntrospectRequest) returns (IntrospectResponse);
+}
+
+message IntrospectRequest {
+  string token = 1;
+  string token_type_hint = 2;
+}
+
+message IntrospectResponse {
+  bool active = 1;
+  string scope = 2;
+  string client_id = 3;
+  string username = 4;
+  string token_type = 5;
+  int64 exp = 6;
+  int64 iat = 7;
+  string sub = 8;
+  string aud = 9;
+  string iss = 10;
+  string jti = 11;
+}
