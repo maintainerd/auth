@@ -34,7 +34,7 @@ func StartGRPCServer(ctx context.Context, application *Application) error {
 }
 
 func serveGRPC(ctx context.Context, application *Application, lis net.Listener) error {
-	seederHandler := setup.NewSeederHandler(application.DB)
+	seederHandler := setup.NewSeederGRPCHandler(application.DB)
 
 	opts, err := grpcServerOptions(application)
 	if err != nil {

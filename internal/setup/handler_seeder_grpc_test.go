@@ -11,12 +11,12 @@ import (
 	"gorm.io/gorm"
 )
 
-func TestSeederHandler_NewSeederHandler(t *testing.T) {
-	h := NewSeederHandler(nil)
+func TestSeederGRPCHandler_NewSeederGRPCHandler(t *testing.T) {
+	h := NewSeederGRPCHandler(nil)
 	require.NotNil(t, h)
 }
 
-func TestSeederHandler_TriggerSeeder(t *testing.T) {
+func TestSeederGRPCHandler_TriggerSeeder(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		orig := setupRunSeeders
 		setupRunSeeders = func(db *gorm.DB, version string) error {
@@ -26,7 +26,7 @@ func TestSeederHandler_TriggerSeeder(t *testing.T) {
 		}
 		t.Cleanup(func() { setupRunSeeders = orig })
 
-		resp, err := NewSeederHandler(nil).TriggerSeeder(context.Background(), &authv1.TriggerSeederRequest{})
+		resp, err := NewSeederGRPCHandler(nil).TriggerSeeder(context.Background(), &authv1.TriggerSeederRequest{})
 
 		require.NoError(t, err)
 		assert.True(t, resp.Success)
@@ -40,7 +40,7 @@ func TestSeederHandler_TriggerSeeder(t *testing.T) {
 		}
 		t.Cleanup(func() { setupRunSeeders = orig })
 
-		resp, err := NewSeederHandler(nil).TriggerSeeder(context.Background(), &authv1.TriggerSeederRequest{})
+		resp, err := NewSeederGRPCHandler(nil).TriggerSeeder(context.Background(), &authv1.TriggerSeederRequest{})
 
 		require.Error(t, err)
 		assert.Nil(t, resp)
