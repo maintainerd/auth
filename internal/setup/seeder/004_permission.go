@@ -12,7 +12,30 @@ import (
 )
 
 func SeedPermissions(db *gorm.DB, tenantID, apiID int64) error {
-	permissions := []model.Permission{
+	permissions := defaultPermissions(tenantID, apiID)
+
+	for _, perm := range permissions {
+		exists, err := permissionExists(db, perm.Name, tenantID)
+		if err != nil {
+			return fmt.Errorf("failed to check permission %q: %w", perm.Name, err)
+		}
+		if exists {
+			slog.Info("Permission already exists, skipping", "name", perm.Name)
+			continue
+		}
+
+		if err := db.Create(&perm).Error; err != nil {
+			return fmt.Errorf("failed to seed permission %q: %w", perm.Name, err)
+		}
+
+		slog.Info("Permission seeded", "name", perm.Name)
+	}
+
+	return nil
+}
+
+func defaultPermissions(tenantID, apiID int64) []model.Permission {
+	return []model.Permission{
 		// PUBLIC
 		// All public permissions are automatically assigned to all users.
 		// There may be changes on spefific routes that may no longer available a public in the future
@@ -134,6 +157,7 @@ func SeedPermissions(db *gorm.DB, tenantID, apiID int64) error {
 		// Auth Clients
 		newPermission("client:read", "Read auth clients", tenantID, apiID),
 		newPermission("client:secret:read", "Get auth client secret", tenantID, apiID),
+		newPermission("client:secret:rotate", "Rotate auth client secret", tenantID, apiID),
 		newPermission("client:config:read", "Get auth client configurations", tenantID, apiID),
 		newPermission("client:create", "Create auth client", tenantID, apiID),
 		newPermission("client:update", "Update auth client", tenantID, apiID),
@@ -293,25 +317,6 @@ func SeedPermissions(db *gorm.DB, tenantID, apiID int64) error {
 		newPermission("root:impersonate", "Impersonate any user", tenantID, apiID),
 		newPermission("root:hard-delete-user", "Irrecoverably delete user & data", tenantID, apiID),
 	}
-
-	for _, perm := range permissions {
-		exists, err := permissionExists(db, perm.Name, tenantID)
-		if err != nil {
-			return fmt.Errorf("failed to check permission %q: %w", perm.Name, err)
-		}
-		if exists {
-			slog.Info("Permission already exists, skipping", "name", perm.Name)
-			continue
-		}
-
-		if err := db.Create(&perm).Error; err != nil {
-			return fmt.Errorf("failed to seed permission %q: %w", perm.Name, err)
-		}
-
-		slog.Info("Permission seeded", "name", perm.Name)
-	}
-
-	return nil
 }
 
 func newPermission(name, description string, tenantID, apiID int64) model.Permission {
