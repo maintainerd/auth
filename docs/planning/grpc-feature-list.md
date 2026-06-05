@@ -667,29 +667,29 @@ permission string shown. Status is per-RPC.
 ### GRPC-170 · EmailConfigService / SMSConfigService — `notifier.proto`
 | RPC | REST origin | Permission | Status |
 |-----|-------------|-----------|--------|
-| `GetEmailConfig` / `UpdateEmailConfig` | `GET/PUT /email-config/` | `email-config:read` / `:update` | 🔴 todo |
-| `GetSMSConfig` / `UpdateSMSConfig` | `GET/PUT /sms-config/` | `sms-config:read` / `:update` | 🔴 todo |
+| `GetEmailConfig` / `UpdateEmailConfig` | `GET/PUT /email-config/` | `email-config:read` / `:update` | ✅ done |
+| `GetSMSConfig` / `UpdateSMSConfig` | `GET/PUT /sms-config/` | `sms-config:read` / `:update` | ✅ done |
 
 ### GRPC-171 · WebhookEndpointService — `webhook.proto`
 | RPC | REST origin | Permission | Status |
 |-----|-------------|-----------|--------|
-| `ListWebhookEndpoints` / `GetWebhookEndpoint` | `GET /webhook-endpoints/`, `…/{uuid}` | `webhook-endpoint:read` | 🔴 todo |
-| `CreateWebhookEndpoint` | `POST /webhook-endpoints/` | `webhook-endpoint:create` | 🔴 todo |
-| `UpdateWebhookEndpoint` | `PUT /webhook-endpoints/{uuid}` | `webhook-endpoint:update` | 🔴 todo |
-| `DeleteWebhookEndpoint` | `DELETE /webhook-endpoints/{uuid}` | `webhook-endpoint:delete` | 🔴 todo |
-| `SetWebhookEndpointStatus` | `PATCH /webhook-endpoints/{uuid}/status` | `webhook-endpoint:update` | 🔴 todo |
+| `ListWebhookEndpoints` / `GetWebhookEndpoint` | `GET /webhook-endpoints/`, `…/{uuid}` | `webhook-endpoint:read` | ✅ done |
+| `CreateWebhookEndpoint` | `POST /webhook-endpoints/` | `webhook-endpoint:create` | ✅ done |
+| `UpdateWebhookEndpoint` | `PUT /webhook-endpoints/{uuid}` | `webhook-endpoint:update` | ✅ done |
+| `DeleteWebhookEndpoint` | `DELETE /webhook-endpoints/{uuid}` | `webhook-endpoint:delete` | ✅ done |
+| `SetWebhookEndpointStatus` | `PATCH /webhook-endpoints/{uuid}/status` | `webhook-endpoint:update` | ✅ done |
 
 ### GRPC-172 · AuthEventService — `authevent.proto`
 | RPC | REST origin | Permission | Status |
 |-----|-------------|-----------|--------|
-| `ListAuthEvents` | `GET /auth-events/` | `auth_event:read` | 🔴 todo |
-| `CountAuthEventsByType` | `GET /auth-events/count` | `auth_event:read` | 🔴 todo |
-| `GetAuthEvent` | `GET /auth-events/{uuid}` | `auth_event:read` | 🔴 todo |
+| `ListAuthEvents` | `GET /auth-events/` | `auth_event:read` | ✅ done |
+| `CountAuthEventsByType` | `GET /auth-events/count` | `auth_event:read` | ✅ done |
+| `GetAuthEvent` | `GET /auth-events/{uuid}` | `auth_event:read` | ✅ done |
 
 ### GRPC-180 · OAuthIntrospectionService — `oauth.proto`
 | RPC | REST origin | Permission | Status |
 |-----|-------------|-----------|--------|
-| `Introspect` | `POST /oauth/introspect` | service-account | 🔴 todo |
+| `Introspect` | `POST /oauth/introspect` | service-account | ✅ done |
 
 ### GRPC-190 · SetupService — `setup.proto`
 | RPC                                 | REST origin                                                        | Permission                      | Status            |
@@ -785,17 +785,17 @@ unless a concrete S2S consumer needs them.
 | `DeleteUserSettings` | `DELETE /user-settings/` | `settings:update:self` | 🔴 todo |
 
 ### GRPC-203 · AccountService (self) — `user.proto`
-| RPC | REST origin | Auth shape | Status |
-|-----|-------------|------------|--------|
-| `InitiateEmailChange` | `POST /account/email/change` | authenticated user | 🔴 todo |
-| `VerifyEmailChange` | `POST /account/email/verify` | authenticated user + token | 🔴 todo |
-| `ChangeUsername` | `PUT /account/username` | authenticated user | 🔴 todo |
-| `DeleteAccount` | `DELETE /account/` | authenticated user + step-up | 🔴 todo |
-| `ExportAccountData` | `GET /account/export` | authenticated user | 🔴 todo |
-| `GenerateBackupCodes` | `POST /account/backup-codes` | authenticated user + step-up | 🔴 todo |
-| `ListSessions` | `GET /account/sessions` | authenticated user | 🔴 todo |
-| `RevokeAllSessions` | `DELETE /account/sessions` | authenticated user + step-up | 🔴 todo |
-| `RevokeSession` | `DELETE /account/sessions/{uuid}` | authenticated user | 🔴 todo |
+| RPC                   | REST origin                       | Auth shape                   | Status  |
+| --------------------- | --------------------------------- | ---------------------------- | ------- |
+| `InitiateEmailChange` | `POST /account/email/change`      | authenticated user           | 🔴 todo |
+| `VerifyEmailChange`   | `POST /account/email/verify`      | authenticated user + token   | 🔴 todo |
+| `ChangeUsername`      | `PUT /account/username`           | authenticated user           | 🔴 todo |
+| `DeleteAccount`       | `DELETE /account/`                | authenticated user + step-up | 🔴 todo |
+| `ExportAccountData`   | `GET /account/export`             | authenticated user           | 🔴 todo |
+| `GenerateBackupCodes` | `POST /account/backup-codes`      | authenticated user + step-up | 🔴 todo |
+| `ListSessions`        | `GET /account/sessions`           | authenticated user           | 🔴 todo |
+| `RevokeAllSessions`   | `DELETE /account/sessions`        | authenticated user + step-up | 🔴 todo |
+| `RevokeSession`       | `DELETE /account/sessions/{uuid}` | authenticated user           | 🔴 todo |
 
 ### GRPC-204 · RecoveryService — `user.proto`
 | RPC | REST origin | Auth shape | Status |

@@ -175,6 +175,24 @@ var grpcServicePermissions = map[string]string{
 	grpcMethod(authv1.LoginTemplateService_ServiceDesc.ServiceName, "UpdateLoginTemplate"):  "login-template:update",
 	grpcMethod(authv1.LoginTemplateService_ServiceDesc.ServiceName, "SetLoginTemplateStatus"): "login-template:update",
 	grpcMethod(authv1.LoginTemplateService_ServiceDesc.ServiceName, "DeleteLoginTemplate"):  "login-template:delete",
+
+	grpcMethod(authv1.EmailConfigService_ServiceDesc.ServiceName, "GetEmailConfig"):       "email-config:read",
+	grpcMethod(authv1.EmailConfigService_ServiceDesc.ServiceName, "UpdateEmailConfig"):    "email-config:update",
+	grpcMethod(authv1.SMSConfigService_ServiceDesc.ServiceName, "GetSMSConfig"):           "sms-config:read",
+	grpcMethod(authv1.SMSConfigService_ServiceDesc.ServiceName, "UpdateSMSConfig"):        "sms-config:update",
+
+	grpcMethod(authv1.WebhookEndpointService_ServiceDesc.ServiceName, "ListWebhookEndpoints"):    "webhook-endpoint:read",
+	grpcMethod(authv1.WebhookEndpointService_ServiceDesc.ServiceName, "GetWebhookEndpoint"):     "webhook-endpoint:read",
+	grpcMethod(authv1.WebhookEndpointService_ServiceDesc.ServiceName, "CreateWebhookEndpoint"):  "webhook-endpoint:create",
+	grpcMethod(authv1.WebhookEndpointService_ServiceDesc.ServiceName, "UpdateWebhookEndpoint"):  "webhook-endpoint:update",
+	grpcMethod(authv1.WebhookEndpointService_ServiceDesc.ServiceName, "SetWebhookEndpointStatus"): "webhook-endpoint:update",
+	grpcMethod(authv1.WebhookEndpointService_ServiceDesc.ServiceName, "DeleteWebhookEndpoint"):  "webhook-endpoint:delete",
+
+	grpcMethod(authv1.AuthEventService_ServiceDesc.ServiceName, "ListAuthEvents"):        "auth_event:read",
+	grpcMethod(authv1.AuthEventService_ServiceDesc.ServiceName, "CountAuthEventsByType"): "auth_event:read",
+	grpcMethod(authv1.AuthEventService_ServiceDesc.ServiceName, "GetAuthEvent"):          "auth_event:read",
+
+	grpcMethod(authv1.OAuthIntrospectionService_ServiceDesc.ServiceName, "Introspect"): "",
 }
 
 var grpcStepUpMethods = map[string]struct{}{

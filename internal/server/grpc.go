@@ -10,11 +10,14 @@ import (
 	"os"
 
 	"github.com/google/uuid"
+	"github.com/maintainerd/auth/internal/authevent"
 	"github.com/maintainerd/auth/internal/branding"
 	"github.com/maintainerd/auth/internal/client"
 	"github.com/maintainerd/auth/internal/iam"
 	"github.com/maintainerd/auth/internal/idp"
 	"github.com/maintainerd/auth/internal/invite"
+	"github.com/maintainerd/auth/internal/notifier"
+	"github.com/maintainerd/auth/internal/oauth"
 	"github.com/maintainerd/auth/internal/platform/config"
 	authv1 "github.com/maintainerd/auth/internal/platform/gen/go/maintainerd/auth"
 	"github.com/maintainerd/auth/internal/secpolicy"
@@ -22,6 +25,7 @@ import (
 	"github.com/maintainerd/auth/internal/shared"
 	"github.com/maintainerd/auth/internal/tenant"
 	"github.com/maintainerd/auth/internal/user"
+	"github.com/maintainerd/auth/internal/webhook"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
@@ -72,6 +76,11 @@ func serveGRPC(ctx context.Context, application *Application, lis net.Listener) 
 	healthServer.SetServingStatus(authv1.EmailTemplateService_ServiceDesc.ServiceName, healthpb.HealthCheckResponse_SERVING)
 	healthServer.SetServingStatus(authv1.SMSTemplateService_ServiceDesc.ServiceName, healthpb.HealthCheckResponse_SERVING)
 	healthServer.SetServingStatus(authv1.LoginTemplateService_ServiceDesc.ServiceName, healthpb.HealthCheckResponse_SERVING)
+	healthServer.SetServingStatus(authv1.EmailConfigService_ServiceDesc.ServiceName, healthpb.HealthCheckResponse_SERVING)
+	healthServer.SetServingStatus(authv1.SMSConfigService_ServiceDesc.ServiceName, healthpb.HealthCheckResponse_SERVING)
+	healthServer.SetServingStatus(authv1.WebhookEndpointService_ServiceDesc.ServiceName, healthpb.HealthCheckResponse_SERVING)
+	healthServer.SetServingStatus(authv1.AuthEventService_ServiceDesc.ServiceName, healthpb.HealthCheckResponse_SERVING)
+	healthServer.SetServingStatus(authv1.OAuthIntrospectionService_ServiceDesc.ServiceName, healthpb.HealthCheckResponse_SERVING)
 
 	if config.AppEnv != "production" {
 		reflection.Register(s)
@@ -98,6 +107,11 @@ func serveGRPC(ctx context.Context, application *Application, lis net.Listener) 
 	authv1.RegisterEmailTemplateServiceServer(s, branding.NewEmailTemplateGRPCHandler(brandingTenantResolver{application.TenantService}, application.EmailTemplateService))
 	authv1.RegisterSMSTemplateServiceServer(s, branding.NewSMSTemplateGRPCHandler(brandingTenantResolver{application.TenantService}, application.SMSTemplateService))
 	authv1.RegisterLoginTemplateServiceServer(s, branding.NewLoginTemplateGRPCHandler(brandingTenantResolver{application.TenantService}, application.LoginTemplateService))
+	authv1.RegisterEmailConfigServiceServer(s, notifier.NewEmailConfigGRPCHandler(notifierTenantResolver{application.TenantService}, application.EmailConfigService))
+	authv1.RegisterSMSConfigServiceServer(s, notifier.NewSMSConfigGRPCHandler(notifierTenantResolver{application.TenantService}, application.SMSConfigService))
+	authv1.RegisterWebhookEndpointServiceServer(s, webhook.NewWebhookEndpointGRPCHandler(webhookTenantResolver{application.TenantService}, application.WebhookEndpointService))
+	authv1.RegisterAuthEventServiceServer(s, authevent.NewAuthEventGRPCHandler(autheventTenantResolver{application.TenantService}, application.AuthEventService))
+	authv1.RegisterOAuthIntrospectionServiceServer(s, oauth.NewOAuthIntrospectionGRPCHandler(application.OAuthTokenService))
 
 	// Stop the server when the context is cancelled (e.g. after REST servers drain).
 	go func() {
@@ -270,6 +284,42 @@ func (r brandingTenantResolver) GetByUUID(ctx context.Context, tenantUUID uuid.U
 	t, err := r.svc.GetByUUID(ctx, tenantUUID)
 	if err != nil { return nil, err }
 	return &branding.TenantServiceDataResult{
+		TenantID: t.TenantID, TenantUUID: t.TenantUUID, Name: t.Name, DisplayName: t.DisplayName,
+		Description: t.Description, Identifier: t.Identifier, Status: t.Status,
+		IsPublic: t.IsPublic, IsSystem: t.IsSystem, CreatedAt: t.CreatedAt, UpdatedAt: t.UpdatedAt,
+	}, nil
+}
+
+type notifierTenantResolver struct{ svc tenant.TenantService }
+
+func (r notifierTenantResolver) GetByUUID(ctx context.Context, tenantUUID uuid.UUID) (*notifier.TenantServiceDataResult, error) {
+	t, err := r.svc.GetByUUID(ctx, tenantUUID)
+	if err != nil { return nil, err }
+	return &notifier.TenantServiceDataResult{
+		TenantID: t.TenantID, TenantUUID: t.TenantUUID, Name: t.Name, DisplayName: t.DisplayName,
+		Description: t.Description, Identifier: t.Identifier, Status: t.Status,
+		IsPublic: t.IsPublic, IsSystem: t.IsSystem, CreatedAt: t.CreatedAt, UpdatedAt: t.UpdatedAt,
+	}, nil
+}
+
+type webhookTenantResolver struct{ svc tenant.TenantService }
+
+func (r webhookTenantResolver) GetByUUID(ctx context.Context, tenantUUID uuid.UUID) (*webhook.TenantServiceDataResult, error) {
+	t, err := r.svc.GetByUUID(ctx, tenantUUID)
+	if err != nil { return nil, err }
+	return &webhook.TenantServiceDataResult{
+		TenantID: t.TenantID, TenantUUID: t.TenantUUID, Name: t.Name, DisplayName: t.DisplayName,
+		Description: t.Description, Identifier: t.Identifier, Status: t.Status,
+		IsPublic: t.IsPublic, IsSystem: t.IsSystem, CreatedAt: t.CreatedAt, UpdatedAt: t.UpdatedAt,
+	}, nil
+}
+
+type autheventTenantResolver struct{ svc tenant.TenantService }
+
+func (r autheventTenantResolver) GetByUUID(ctx context.Context, tenantUUID uuid.UUID) (*authevent.TenantServiceDataResult, error) {
+	t, err := r.svc.GetByUUID(ctx, tenantUUID)
+	if err != nil { return nil, err }
+	return &authevent.TenantServiceDataResult{
 		TenantID: t.TenantID, TenantUUID: t.TenantUUID, Name: t.Name, DisplayName: t.DisplayName,
 		Description: t.Description, Identifier: t.Identifier, Status: t.Status,
 		IsPublic: t.IsPublic, IsSystem: t.IsSystem, CreatedAt: t.CreatedAt, UpdatedAt: t.UpdatedAt,

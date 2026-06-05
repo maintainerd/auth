@@ -1,0 +1,72 @@
+syntax = "proto3";
+
+package maintainerd.auth.v1;
+
+import "google/protobuf/struct.proto";
+import "maintainerd/auth/v1/tenant.proto";
+
+option go_package = "github.com/maintainerd/auth/internal/platform/gen/go/maintainerd/auth;authv1";
+
+service EmailConfigService {
+  rpc GetEmailConfig(GetEmailConfigRequest) returns (GetEmailConfigResponse);
+  rpc UpdateEmailConfig(UpdateEmailConfigRequest) returns (UpdateEmailConfigResponse);
+}
+
+service SMSConfigService {
+  rpc GetSMSConfig(GetSMSConfigRequest) returns (GetSMSConfigResponse);
+  rpc UpdateSMSConfig(UpdateSMSConfigRequest) returns (UpdateSMSConfigResponse);
+}
+
+message EmailConfig {
+  string email_config_uuid = 1;
+  string provider = 2;
+  string host = 3;
+  int32 port = 4;
+  string username = 5;
+  string from_address = 6;
+  string from_name = 7;
+  string reply_to = 8;
+  string encryption = 9;
+  bool test_mode = 10;
+  string status = 11;
+}
+
+message GetEmailConfigRequest { string tenant_uuid = 1; }
+message GetEmailConfigResponse { EmailConfig config = 1; }
+message UpdateEmailConfigRequest {
+  string tenant_uuid = 1;
+  string provider = 2;
+  string host = 3;
+  int32 port = 4;
+  string username = 5;
+  string password = 6;
+  string from_address = 7;
+  string from_name = 8;
+  string reply_to = 9;
+  string encryption = 10;
+  optional bool test_mode = 11;
+}
+message UpdateEmailConfigResponse { EmailConfig config = 1; }
+
+message SMSConfig {
+  string sms_config_uuid = 1;
+  string provider = 2;
+  string account_sid = 3;
+  string from_number = 4;
+  string sender_id = 5;
+  bool test_mode = 6;
+  string status = 7;
+}
+
+message GetSMSConfigRequest { string tenant_uuid = 1; }
+message GetSMSConfigResponse { SMSConfig config = 1; }
+message UpdateSMSConfigRequest {
+  string tenant_uuid = 1;
+  string provider = 2;
+  string account_sid = 3;
+  string auth_token = 4;
+  string from_number = 5;
+  string sender_id = 6;
+  optional bool test_mode = 7;
+}
+message UpdateSMSConfigResponse { SMSConfig config = 1; }
