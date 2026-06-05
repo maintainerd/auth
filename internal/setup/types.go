@@ -36,6 +36,27 @@ type SetupStatusResponseDTO struct {
 	IsSetupComplete bool `json:"is_setup_complete"`
 }
 
+type CompleteSetupResponseDTO struct {
+	IsSetupComplete bool `json:"is_setup_complete"`
+}
+
+type RegisterControlServiceRequestDTO struct {
+	Name        string  `json:"name"`
+	DisplayName string  `json:"display_name"`
+	Description *string `json:"description,omitempty"`
+	Version     string  `json:"version,omitempty"`
+}
+
+type RegisterControlServiceResponseDTO struct {
+	ServiceUUID       string `json:"service_uuid"`
+	Name              string `json:"name"`
+	DisplayName       string `json:"display_name"`
+	PolicyUUID        string `json:"policy_uuid"`
+	PolicyName        string `json:"policy_name"`
+	AlreadyExisted    bool   `json:"already_existed"`
+	PolicyWasAttached bool   `json:"policy_was_attached"`
+}
+
 // CreateTenantResponseDTO for tenant creation response
 type CreateTenantResponseDTO struct {
 	Tenant            TenantResponseDTO `json:"tenant"`

@@ -86,6 +86,55 @@ func TestCreateTenantRequestDto_Validate(t *testing.T) {
 	})
 }
 
+func TestRegisterControlServiceRequestDTO_Validate(t *testing.T) {
+	valid := RegisterControlServiceRequestDTO{Name: "core", DisplayName: "Core"}
+
+	t.Run("valid minimal", func(t *testing.T) {
+		assert.NoError(t, valid.Validate())
+	})
+
+	t.Run("valid with optional fields", func(t *testing.T) {
+		d := valid
+		d.Description = strPtr("Maintainerd Core")
+		d.Version = "v1.2.3"
+		assert.NoError(t, d.Validate())
+	})
+
+	t.Run("missing name", func(t *testing.T) {
+		d := valid
+		d.Name = ""
+		require.Error(t, d.Validate())
+	})
+
+	t.Run("invalid name characters", func(t *testing.T) {
+		d := valid
+		d.Name = "core service"
+		require.Error(t, d.Validate())
+	})
+
+	t.Run("missing display name", func(t *testing.T) {
+		d := valid
+		d.DisplayName = ""
+		require.Error(t, d.Validate())
+	})
+
+	t.Run("description too long", func(t *testing.T) {
+		d := valid
+		long := make([]byte, 501)
+		for i := range long {
+			long[i] = 'a'
+		}
+		d.Description = strPtr(string(long))
+		require.Error(t, d.Validate())
+	})
+
+	t.Run("invalid version", func(t *testing.T) {
+		d := valid
+		d.Version = "v1 beta"
+		require.Error(t, d.Validate())
+	})
+}
+
 func TestCreateAdminRequestDto_Validate(t *testing.T) {
 	valid := CreateAdminRequestDTO{
 		Username: "adminuser",
