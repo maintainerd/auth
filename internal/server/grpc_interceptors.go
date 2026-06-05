@@ -12,7 +12,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/iam"
 	"github.com/maintainerd/auth/internal/platform/apperror"
-	authv1 "github.com/maintainerd/auth/internal/platform/gen/go/maintainerd/auth"
 	"github.com/maintainerd/auth/internal/platform/jwt"
 	"github.com/maintainerd/auth/internal/platform/middleware"
 	"google.golang.org/grpc"
@@ -28,9 +27,7 @@ const (
 	defaultGRPCWindow    = time.Minute
 )
 
-var grpcServicePermissions = map[string]string{
-	authv1.SeederService_TriggerSeeder_FullMethodName: "",
-}
+var grpcServicePermissions = map[string]string{}
 
 type grpcLimiter struct {
 	mu      sync.Mutex

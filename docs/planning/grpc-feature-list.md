@@ -103,7 +103,8 @@ the contract stays idiomatic and forward-compatible.
 |-------|-------|--------|
 | gRPC server lifecycle (listen, graceful stop, otelgrpc stats handler) | [grpc.go](../../internal/server/grpc.go) `StartGRPCServer` | ✅ exists |
 | Bound address constant | `shared.DefaultGRPCAddr` | ✅ exists |
-| `SeederService` (1 RPC: `TriggerSeeder`) | [seeder.proto](../../proto/maintainerd/auth/v1/seeder.proto), handler in [setup](../../internal/setup) | ✅ done |
+| Domain RPC registrations | [grpc.go](../../internal/server/grpc.go) | 🔴 none active yet — next active surface is `SetupService` |
+| Deprecated `SeederService` contract | [seeder.proto](../../proto/maintainerd/auth/v1/seeder.proto) | ⚠️ compatibility-only; no runtime handler is registered |
 | Proto source | `proto/maintainerd/auth/v1/` (`v1` is now a directory) | ✅ restructured |
 | Generated Go | `internal/platform/gen/go/maintainerd/auth/` | ✅ aligned |
 | Codegen | `make proto` via buf (`buf generate`) | ✅ migrated |
@@ -152,7 +153,7 @@ Why this is the best practice:
        auth/
          v1/
            common.proto            # shared: pagination, status enums, error msgs
-           seeder.proto            # existing SeederService (move here)
+          seeder.proto            # deprecated compatibility surface; no runtime handler
            tenant.proto            # TenantService, TenantSettingService
            iam.proto               # Service/API/Permission/Policy/Role/Authorization
            identity_provider.proto # IdentityProviderService, SignupFlowService
@@ -313,8 +314,9 @@ policy.
    > [service_setup.go](../../internal/setup/service_setup.go) derives completion from
    > `tenant + admin + profile`, but gRPC setup must change that to a persisted,
    > explicit lock. Standalone setup runs
-   > `create_tenant → create_admin → create_profile`, then *optionally*
-   > `RegisterControlService`, then **`CompleteSetup`** (`POST /setup/complete`,
+   > `create_tenant` (which runs all default tenant seeders) → `create_admin` →
+   > `create_profile`, then *optionally* `RegisterControlService`, then
+   > **`CompleteSetup`** (`POST /setup/complete`,
    > GRPC-023). `CompleteSetup` is not another provisioning step; it only closes the
    > bootstrap window for cases where the instance was **not** provisioned by a core,
    > or where the operator is done with setup. After the lock, the setup path is gone
@@ -389,6 +391,7 @@ Decision notes from the review:
 | D1 | Control-policy shape: one shared seeded system policy template attached to each controller vs. per-controller policy created at registration. | **Open** — defaulting to one shared system template until confirmed. |
 | D2 | `IsSetupComplete` source of truth. | **Resolved** — use persisted `setup_state`, not derived tenant/admin/profile existence and not a `Tenant`/`Service` field. |
 | D3 | `RegisterControlService` shape. | **Resolved** — dedicated setup endpoint/RPC, not an optional field on `CreateTenant` or `CreateAdmin`. |
+| D4 | Standalone `SeederService.TriggerSeeder`. | **Resolved** — remove the runtime handler. Seeders run only from the tenant-creation setup path; the proto remains deprecated until a safe compatibility cleanup is planned. |
 
 ### 7.7 Provisioning & independence backlog (trackable)
 
@@ -416,7 +419,7 @@ lives in one place.
 | ID       | Status            | Item                                                                                                                                                                                                | Location                                                            |
 | -------- | ----------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------- |
 | GRPC-001 | ✅ done            | Adopt **buf**: add `buf.yaml` + `buf.gen.yaml`; replace `make proto` raw-`protoc` with `buf generate`; add `buf lint` + `buf breaking` targets and CI enforcement.                                  | `proto/`, `Makefile`, CI                                            |
-| GRPC-002 | ✅ done            | Restructure proto layout: `v1` becomes a directory, split per-domain files (see §4), move `SeederService` into `seeder.proto`.                                                                      | `proto/maintainerd/auth/v1/`                                        |
+| GRPC-002 | ✅ done            | Restructure proto layout: `v1` becomes a directory, split per-domain files (see §4). Legacy `SeederService` stays in `seeder.proto` only as a deprecated compatibility contract.                   | `proto/maintainerd/auth/v1/`                                        |
 | GRPC-003 | ✅ done            | Fix `go_package` ↔ output-path ↔ import mismatch; standardize generated code under `internal/platform/gen/go`.                                                                                      | `*.proto`, `Makefile`, [grpc.go](../../internal/server/grpc.go)     |
 | GRPC-004 | ✅ done            | **Error mapping**: `apperror` → `google.rpc.Code` + `ErrorInfo`/`BadRequest` details helper, used by every handler.                                                                                 | `internal/platform/apperror`, new grpc error adapter                |
 | GRPC-005 | ✅ done            | Recovery + structured logging interceptors (request_id correlation).                                                                                                                                | [internal/server](../../internal/server)                            |
@@ -427,7 +430,7 @@ lives in one place.
 | GRPC-010 | ✅ done            | Enable **server reflection** (gated to non-prod or behind authz) for `grpcurl`/control-plane discovery.                                                                                             | [internal/server](../../internal/server)                            |
 | GRPC-011 | ✅ done            | TLS/mTLS transport config (cert loading, mesh cert verification, fail-closed).                                                                                                                      | `internal/server`, [config](../../internal/platform/config)         |
 | GRPC-012 | ✅ done            | `common.proto`: shared pagination (`PageRequest`/`PageResponse`), status enums, audit/timestamp fields.                                                                                             | `proto/maintainerd/auth/v1/common.proto`                            |
-| GRPC-013 | ✅ done            | Base handler wiring pattern is established: gRPC server options, interceptor registration, health/reflection registration, and `SeederService` registration. Future per-domain service registrations are tracked with each Phase 1 service table. | [internal/server](../../internal/server)                            |
+| GRPC-013 | ✅ done            | Base server wiring pattern is established: gRPC server options, interceptor registration, health/reflection registration, and a no-domain-service baseline. Future per-domain service registrations are tracked with each Phase 1 service table. | [internal/server](../../internal/server)                            |
 | GRPC-014 | ✅ done            | gRPC test harness and conventions are established: `internal/server/grpctest` provides a reusable bufconn harness, and [testing.md](../contributing/testing.md) documents the RPC checklist.         | `internal/server/grpctest`, [testing.md](../contributing/testing.md) |
 | GRPC-015 | ✅ done            | **Seed the default control policy** (`Policy.IsSystem=true`, *unattached*) — the "manager" template granting management actions over this app; granted/revoked by attaching/detaching it. See §7.2. | `internal/setup/seeder/`, [iam](../../internal/iam)                 |
 
@@ -447,7 +450,7 @@ permission string shown. Status is per-RPC.
 ### GRPC-100 · SeederService — `seeder.proto`
 | RPC | REST origin | Permission | Status |
 |-----|-------------|-----------|--------|
-| `TriggerSeeder` | (existing gRPC) | service-account | ✅ done |
+| `TriggerSeeder` | none — seeders run from `CreateTenant` | n/a | ⛔ deprecated; no runtime handler |
 
 ### GRPC-101 · TenantService — `tenant.proto`
 | RPC | REST origin | Permission | Status |
@@ -702,19 +705,20 @@ permission string shown. Status is per-RPC.
 | `Introspect` | `POST /oauth/introspect` | service-account | 🔴 todo |
 
 ### GRPC-190 · SetupService — `setup.proto`
-| RPC | REST origin | Permission | Status |
-|-----|-------------|-----------|--------|
-| `GetSetupStatus` | `GET /setup/status` | (bootstrap) | 🔴 todo |
-| `CreateTenant` | `POST /setup/create_tenant` | (bootstrap) | 🔴 todo |
-| `CreateAdmin` | `POST /setup/create_admin` | (bootstrap) | 🔴 todo |
-| `CreateProfile` | `POST /setup/create_profile` | (bootstrap) | 🔴 todo |
-| `RegisterControlService` (GRPC-191) | NEW (REST `POST /setup/register-control-service`, GRPC-022 + gRPC) | (bootstrap, TOFU, **optional**) | 🔴 todo |
-| `CompleteSetup` (GRPC-023) | NEW (REST `POST /setup/complete`; gRPC pending) | (bootstrap, final) | 🟡 in-development |
+| RPC                                 | REST origin                                                        | Permission                      | Status            |
+| ----------------------------------- | ------------------------------------------------------------------ | ------------------------------- | ----------------- |
+| `GetSetupStatus`                    | `GET /setup/status`                                                | (bootstrap)                     | 🔴 todo           |
+| `CreateTenant`                      | `POST /setup/create_tenant`                                        | (bootstrap)                     | 🔴 todo           |
+| `CreateAdmin`                       | `POST /setup/create_admin`                                         | (bootstrap)                     | 🔴 todo           |
+| `CreateProfile`                     | `POST /setup/create_profile`                                       | (bootstrap)                     | 🔴 todo           |
+| `RegisterControlService` (GRPC-191) | NEW (REST `POST /setup/register-control-service`, GRPC-022 + gRPC) | (bootstrap, TOFU, **optional**) | 🔴 todo           |
+| `CompleteSetup` (GRPC-023)          | NEW (REST `POST /setup/complete`; gRPC pending)                    | (bootstrap, final)              | 🟡 in-development |
 
 > **SetupService** is the control plane's natural provisioning entry point
-> (a fresh tenant + admin) — high S2S value despite living under the "bootstrap"
-> auth flows. Bootstrap auth differs (no policy yet exists); guard with the
-> existing setup gate, not the PDP.
+> (a fresh tenant + admin + profile, with tenant seeders run during
+> `CreateTenant`) — high S2S value despite living under the "bootstrap" auth
+> flows. Bootstrap auth differs (no policy yet exists); guard with the existing
+> setup gate, not the PDP.
 >
 > **One-time, then disabled — REST and gRPC share one gate (GRPC-021).** Today REST
 > derives completion from tenant/admin/profile existence in
@@ -733,7 +737,8 @@ permission string shown. Status is per-RPC.
 > /setup/register-control-service` — GRPC-022 — and the gRPC RPC).
 >
 > **Setup ordering & the explicit lock (`CompleteSetup` / GRPC-023).** A standalone
-> install runs `create_tenant → create_admin → create_profile` and then, optionally,
+> install runs `create_tenant` (tenant row + all default tenant seeders) →
+> `create_admin` → `create_profile` and then, optionally,
 > `RegisterControlService`. Because the controller step is optional, completion
 > **must be flagged explicitly** by **`CompleteSetup`** (`POST /setup/complete`) —
 > not merely inferred from "profile exists." `CompleteSetup` sets the persisted

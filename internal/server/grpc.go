@@ -10,8 +10,6 @@ import (
 	"os"
 
 	"github.com/maintainerd/auth/internal/platform/config"
-	authv1 "github.com/maintainerd/auth/internal/platform/gen/go/maintainerd/auth"
-	"github.com/maintainerd/auth/internal/setup"
 	"github.com/maintainerd/auth/internal/shared"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"google.golang.org/grpc"
@@ -34,8 +32,6 @@ func StartGRPCServer(ctx context.Context, application *Application) error {
 }
 
 func serveGRPC(ctx context.Context, application *Application, lis net.Listener) error {
-	seederHandler := setup.NewSeederGRPCHandler(application.DB)
-
 	opts, err := grpcServerOptions(application)
 	if err != nil {
 		return err
@@ -44,13 +40,10 @@ func serveGRPC(ctx context.Context, application *Application, lis net.Listener) 
 	healthServer := health.NewServer()
 	healthpb.RegisterHealthServer(s, healthServer)
 	healthServer.SetServingStatus("", healthpb.HealthCheckResponse_SERVING)
-	healthServer.SetServingStatus(authv1.SeederService_ServiceDesc.ServiceName, healthpb.HealthCheckResponse_SERVING)
 
 	if config.AppEnv != "production" {
 		reflection.Register(s)
 	}
-
-	authv1.RegisterSeederServiceServer(s, seederHandler)
 
 	// Stop the server when the context is cancelled (e.g. after REST servers drain).
 	go func() {
