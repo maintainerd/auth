@@ -9,6 +9,7 @@ import (
 	"github.com/maintainerd/auth/internal/platform/apperror"
 	"github.com/maintainerd/auth/internal/platform/crypto"
 	"github.com/maintainerd/auth/internal/platform/ptr"
+	"github.com/maintainerd/auth/internal/platform/runner"
 	"github.com/maintainerd/auth/internal/platform/security"
 	"github.com/maintainerd/auth/internal/setup/seeder"
 	"github.com/maintainerd/auth/internal/shared"
@@ -19,6 +20,7 @@ import (
 )
 
 var setupHashPassword = security.HashPassword
+var setupRunSeeders = runner.RunSeeders
 
 type SetupService interface {
 	GetSetupStatus(ctx context.Context) (*SetupStatusResponseDTO, error)
