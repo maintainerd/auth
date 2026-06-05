@@ -10,13 +10,17 @@ This document is the implementation backlog for exposing Lula's auth server over
 S2S is **not gRPC-only** in this project: the internal/private REST port already
 supports S2S use cases and keeps doing so. The goal of this backlog is to add a
 typed, high-performance gRPC channel that lets other services — the **core /
-control plane** especially — **control** this auth service (create/update/delete
-resources) and **read data** from it, mirroring the existing **internal (private)
-REST port** (`:8080`).
+control plane** especially — **configure and manage** this auth service
+(create/update/delete resources, settings, policies, users, clients, providers,
+webhooks, templates, etc.) and perform necessary **verification / decision**
+reads (for example token introspection and authorization checks).
 
-It backlogs every internal-port **application API** endpoint as a gRPC RPC,
-assigns each a status, and pins down the **contract layout, naming, and S2S
-authentication standard** so the work follows gRPC best practice from the start.
+It does **not** backlog every internal-port application API as gRPC. Browser,
+frontend, and end-user-interactive flows stay REST-first/REST-only unless a clear
+service-to-service management or verification need appears. This document assigns
+each eligible management/config/verification RPC a status and pins down the
+**contract layout, naming, and S2S authentication standard** so the work follows
+gRPC best practice from the start.
 Operational endpoints (`/health`, `/ready`, `/livez`, `/openapi.json`) map to
 gRPC health/reflection/proto discovery instead of one-off product RPCs.
 
@@ -44,8 +48,9 @@ and a location.
 
 **ID convention:** `GRPC-0xx` = Phase 0 foundation **plus cross-cutting
 provisioning/setup items** (GRPC-015…023, gathered in §7.7). `GRPC-1xx` =
-control-plane (management) services. `GRPC-2xx` = identity / end-user-flow services
-(deferred — see §10). Per-RPC status lives in each service's table.
+control-plane management, configuration, and verification services. `GRPC-2xx`
+is intentionally reserved for a future decision and is not used for end-user
+auth ceremonies in this backlog. Per-RPC status lives in each service's table.
 
 ---
 
@@ -55,10 +60,10 @@ control-plane (management) services. `GRPC-2xx` = identity / end-user-flow servi
 | ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Independence**    | maintainerd-auth is **fully standalone** — it boots, migrates, seeds, and serves with **no dependency on the core / control plane**. The core is an *optional* manager, never a runtime requirement. The gRPC surface assumes nothing about the core's existence. See §7.                                                                                                                                                               |
 | **Why gRPC**        | Typed contracts, codegen for every consumer language, streaming-capable, low overhead — a strong fit for **service-to-service** traffic (core/control plane ↔ auth, and peer services reading auth data). It is an additional S2S transport, not the only S2S path.                                                                                                                                               |
-| **What it mirrors** | The **internal (private) REST port** (`:8080`, VPN/private-network only — see [router.go](../../internal/server/router.go) `buildInternalRouter`). gRPC becomes a private-network-only control surface beside REST, **never** exposed to the public internet (the public port `:8081` stays REST-only). Product APIs are mirrored as RPCs; operational probes/spec endpoints are covered by gRPC health, reflection, and generated proto contracts. |
-| **Two use-cases**   | **(a) Control** — external services (e.g. the core/control plane) mutate auth resources (tenants, clients, policies, users, settings…). **(b) Data** — peer services read auth data (introspect tokens, fetch policies, list roles…).                                                                                                                                                                                                   |
+| **What it mirrors** | The **management/configuration subset** of the internal/private REST port (`:8080`, VPN/private-network only — see [router.go](../../internal/server/router.go) `buildInternalRouter`). gRPC becomes a private-network-only control surface beside REST, **never** exposed to the public internet (the public port `:8081` stays REST-only). Operational probes/spec endpoints are covered by gRPC health, reflection, and generated proto contracts. |
+| **Two use-cases**   | **(a) Control/configuration** — external services (e.g. the core/control plane) mutate auth resources (tenants, clients, policies, users, settings…). **(b) Verification/decision reads** — peer services confirm auth facts needed to serve their own users (introspect tokens, ask `Authorize`, fetch policy bundles, read identities/roles where needed).                                                                                         |
 | **Auth model**      | Transport-agnostic S2S. REST and gRPC both use **service-account access tokens** and PDP policy checks. For gRPC, every RPC carries the token in metadata and is policy-gated. **A policy must always exist** for a caller to reach a protected REST endpoint or gRPC RPC — default-deny. See §6.                                                                                                                                         |
-| **Out of scope**    | Browser/public/end-user-interactive traffic stays on REST. gRPC-Web/public gateway, and breaking v2 changes — see §11.                                                                                                                                                                                                                                                                                                                  |
+| **Out of scope**    | Browser/public/end-user-interactive traffic stays on REST: self-registration, login, logout, password reset, magic-link/SMS login, user self-profile/account settings, and MFA ceremonies. gRPC-Web/public gateway and breaking v2 changes are also out of scope — see §10.                                                                                                                                                             |
 
 ---
 
@@ -739,107 +744,45 @@ permission string shown. Status is per-RPC.
 
 ---
 
-## 10. Phase 2 — Identity & end-user-flow services (deferred)
+## 10. REST-only / not a gRPC backlog
 
-These internal-port routes are **interactive end-user auth flows** (browser/app
-driven). They are listed for completeness because the gRPC backlog mirrors all
-private application APIs, but they are **lower priority for S2S** — a control plane
-rarely drives a user's login/MFA ceremony. Default status 🔴 **todo**, deferred
-unless a concrete S2S consumer needs them.
+The gRPC surface is **not** a second copy of every private REST route. It is for
+service-to-service setup, configuration, management, and verification/decision
+reads. End-user ceremonies remain REST because they are driven by browsers,
+mobile apps, redirects, cookies, recovery tokens, and UI state.
 
-### GRPC-200 · AuthnService — `authn.proto`
-| RPC | REST origin | Auth shape | Status |
-|-----|-------------|------------|--------|
-| `Register` | `POST /register` | bootstrap/public-style authn | 🔴 todo |
-| `RegisterInvite` | `POST /register/invite` | invite token | 🔴 todo |
-| `Login` | `POST /login` | credential flow | 🔴 todo |
-| `Logout` | `POST /logout` | authenticated session/token | 🔴 todo |
-| `ForgotPassword` | `POST /forgot-password` | unauthenticated recovery | 🔴 todo |
-| `ResetPassword` | `POST /reset-password` | reset token | 🔴 todo |
-| `SendVerificationEmail` | `POST /email-verification/send` | authenticated/user context | 🔴 todo |
-| `VerifyEmail` | `POST /email-verification/verify` | verification token | 🔴 todo |
-| `SendMagicLink` | `POST /magic-link/send` | unauthenticated/email flow | 🔴 todo |
-| `VerifyMagicLink` | `POST /magic-link/verify` | magic-link token | 🔴 todo |
-| `SendSMSLoginOTP` | `POST /sms-login/send` | unauthenticated phone flow | 🔴 todo |
-| `VerifySMSLoginOTP` | `POST /sms-login/verify` | OTP verification | 🔴 todo |
+Do **not** add gRPC checklist items or proto services for these REST flows:
 
-### GRPC-201 · ProfileService (self) — `user.proto`
-| RPC | REST origin | Permission | Status |
-|-----|-------------|-----------|--------|
-| `GetDefaultProfile` | `GET /profile/` | `account:profile:read:self` | 🔴 todo |
-| `CreateOrUpdateDefaultProfile` | `POST /profile/` | `account:profile:update:self` | 🔴 todo |
-| `UpdateDefaultProfile` | `PUT /profile/` | `account:profile:update:self` | 🔴 todo |
-| `DeleteDefaultProfile` | `DELETE /profile/` | `account:profile:delete:self` | 🔴 todo |
-| `ListProfiles` | `GET /profiles/` | `account:profile:read:self` | 🔴 todo |
-| `CreateProfileSelf` | `POST /profiles/` | `account:profile:update:self` | 🔴 todo |
-| `GetProfileSelf` | `GET /profiles/{uuid}` | `account:profile:read:self` | 🔴 todo |
-| `UpdateProfileSelf` | `PUT /profiles/{uuid}` | `account:profile:update:self` | 🔴 todo |
-| `SetDefaultProfileSelf` | `PATCH /profiles/{uuid}/set-default` | `account:profile:update:self` | 🔴 todo |
-| `DeleteProfileSelf` | `DELETE /profiles/{uuid}` | `account:profile:delete:self` | 🔴 todo |
+| REST area | REST origin examples | Why it stays REST |
+|-----------|----------------------|-------------------|
+| Registration and invite acceptance | `POST /register`, `POST /register/invite` | End-user onboarding and frontend form flow. Core can manage users through `UserService`; it should not run self-registration ceremonies. |
+| Login/logout/session ceremonies | `POST /login`, `POST /logout`, `/account/sessions` | Credential, cookie, token, and device/session UX flow. Peer services should use token introspection / authorization checks instead. |
+| Password and account recovery | `POST /forgot-password`, `POST /reset-password`, `/recovery/backup-code` | Token/email/SMS-driven recovery flow intended for users. |
+| Email verification and magic links | `/email-verification/*`, `/magic-link/*` | Public/user token ceremony bound to email links and frontend redirects. |
+| SMS login OTP | `/sms-login/*` | Public/user OTP ceremony. |
+| Self profile/account/settings | `/profile/*`, `/profiles/*`, `/account/*`, `/user-settings/*` | Authenticated user self-service. Core/admin management belongs in Phase 1 `UserService`. |
+| User MFA enrollment/authentication | `/mfa/totp/*`, `/mfa/webauthn/*`, `/mfa/step-up/*` | User challenge ceremony. Only admin/configuration MFA surfaces should be considered for gRPC. |
+| Federation callback/exchange | `/federation/token`, `/federation/oauth2/callback`, `/federation/hrd`, `/account/identities/*` | External IdP redirects/tokens and authenticated user account-linking ceremonies. IdP configuration belongs in Phase 1. |
 
-### GRPC-202 · UserSettingService (self) — `user.proto`
-| RPC | REST origin | Permission | Status |
-|-----|-------------|-----------|--------|
-| `CreateOrUpdateUserSettings` | `POST /user-settings/` | `settings:update:self` | 🔴 todo |
-| `GetUserSettings` | `GET /user-settings/` | `settings:read:self` | 🔴 todo |
-| `DeleteUserSettings` | `DELETE /user-settings/` | `settings:update:self` | 🔴 todo |
+Allowed exceptions must fit one of these buckets:
 
-### GRPC-203 · AccountService (self) — `user.proto`
-| RPC                   | REST origin                       | Auth shape                   | Status  |
-| --------------------- | --------------------------------- | ---------------------------- | ------- |
-| `InitiateEmailChange` | `POST /account/email/change`      | authenticated user           | 🔴 todo |
-| `VerifyEmailChange`   | `POST /account/email/verify`      | authenticated user + token   | 🔴 todo |
-| `ChangeUsername`      | `PUT /account/username`           | authenticated user           | 🔴 todo |
-| `DeleteAccount`       | `DELETE /account/`                | authenticated user + step-up | 🔴 todo |
-| `ExportAccountData`   | `GET /account/export`             | authenticated user           | 🔴 todo |
-| `GenerateBackupCodes` | `POST /account/backup-codes`      | authenticated user + step-up | 🔴 todo |
-| `ListSessions`        | `GET /account/sessions`           | authenticated user           | 🔴 todo |
-| `RevokeAllSessions`   | `DELETE /account/sessions`        | authenticated user + step-up | 🔴 todo |
-| `RevokeSession`       | `DELETE /account/sessions/{uuid}` | authenticated user           | 🔴 todo |
+- **Management/configuration:** for example admin reset of another user's MFA,
+  IdP configuration, signup-flow configuration, client/API-key management, and
+  security/branding/notifier settings.
+- **Verification/decision reads:** for example token introspection, `Authorize`,
+  policy-bundle distribution, or narrowly scoped identity/permission reads needed
+  by a peer service to serve its own request.
 
-### GRPC-204 · RecoveryService — `user.proto`
-| RPC | REST origin | Auth shape | Status |
-|-----|-------------|------------|--------|
-| `VerifyBackupCode` | `POST /recovery/backup-code` | unauthenticated recovery | 🔴 todo |
-
-### GRPC-205 · MFAService — `mfa.proto`
-| RPC | REST origin | Auth shape | Status |
-|-----|-------------|------------|--------|
-| `GetMFAStatus` | `GET /mfa/status` | authenticated user | 🔴 todo |
-| `BeginTOTPEnrollment` | `POST /mfa/totp/enroll` | authenticated user | 🔴 todo |
-| `FinishTOTPEnrollment` | `POST /mfa/totp/verify` | authenticated user | 🔴 todo |
-| `DisableTOTP` | `DELETE /mfa/totp` | authenticated user + step-up | 🔴 todo |
-| `GetBackupCodesCount` | `GET /mfa/backup-codes/count` | authenticated user | 🔴 todo |
-| `RegenerateBackupCodes` | `POST /mfa/backup-codes/regenerate` | authenticated user + step-up | 🔴 todo |
-| `BeginWebAuthnRegistration` | `POST /mfa/webauthn/register/begin` | authenticated user | 🔴 todo |
-| `FinishWebAuthnRegistration` | `POST /mfa/webauthn/register/finish` | authenticated user | 🔴 todo |
-| `BeginWebAuthnAuthentication` | `POST /mfa/webauthn/auth/begin` | authenticated user | 🔴 todo |
-| `FinishWebAuthnAuthentication` | `POST /mfa/webauthn/auth/finish` | authenticated user | 🔴 todo |
-| `DeleteWebAuthnCredential` | `DELETE /mfa/webauthn/{uuid}` | authenticated user + step-up | 🔴 todo |
-| `IssueStepUpChallenge` | `POST /mfa/step-up/challenge` | authenticated user | 🔴 todo |
-| `VerifyStepUp` | `POST /mfa/step-up/verify` | authenticated user | 🔴 todo |
-| `AdminResetMFA` | `POST /mfa/admin/users/{uuid}/reset` | authenticated admin + step-up | 🔴 todo |
-
-### GRPC-206 · FederationService — `identity_provider.proto`
-| RPC | REST origin | Auth shape | Status |
-|-----|-------------|------------|--------|
-| `ExchangeExternalToken` | `POST /federation/token` | upstream identity token | 🔴 todo |
-| `ExchangeOAuth2Code` | `POST /federation/oauth2/callback` | OAuth2 callback/code | 🔴 todo |
-| `HomeRealmDiscovery` | `GET /federation/hrd` | unauthenticated discovery | 🔴 todo |
-| `ListLinkedIdentities` | `GET /account/identities/` | authenticated user | 🔴 todo |
-| `LinkIdentity` | `POST /account/identities/link` | authenticated user | 🔴 todo |
-| `UnlinkIdentity` | `DELETE /account/identities/{uuid}` | authenticated user | 🔴 todo |
-
-> **Promotion candidates** from Phase 2 to Phase 1 if a control-plane need appears:
-> `MFAService.AdminResetMFA` (admin op), `AuthnService` token-issuance for
-> machine-driven onboarding.
+Any exception should be promoted into Phase 1 with a concrete S2S consumer and
+permission string before implementation.
 
 ---
 
 ## 11. Deferred to a later version (v2 / future)
 
 - **gRPC-Web / public gateway** — if any browser or third-party needs gRPC; would
-  require its own public-port surface and rate-limit posture (out of scope here).
+  require its own public-port surface and rate-limit posture. End-user auth flows
+  remain REST even if this exists later.
 - **Streaming RPCs** — e.g. server-stream `WatchPolicyChanges` as a gRPC-native
   alternative to the webhook push (Pattern 3). Nice-to-have once bundle
   distribution is gRPC-served.
@@ -875,6 +818,5 @@ Per [testing.md](../contributing/testing.md), gRPC work carries the same bar as 
 |-----------|-------|---------|
 | **M0 — Foundation** | GRPC-001…017 | buf layout, codegen, auth/authz/observability interceptors, health, reflection, TLS, error mapping, **default control policy seed** + **independence guarantees** (GRPC-015/016/017), test harness. **Blocks everything.** |
 | **M1 — IAM + Tenant core + controller lifecycle** | GRPC-101/102/110–115, GRPC-190/191, GRPC-018…023 | The control plane can register itself at init (TOFU, lockable via explicit `CompleteSetup` — GRPC-021/022/023), be un-registered, and run multiple instances; then manage tenants, services, policies, roles, and ask `Authorize`. Highest S2S value. |
-| **M2 — Clients, Users, IdP** | GRPC-120/121/130/131/140/141 | Full provisioning surface (clients, api-keys, users, identity providers, signup flows, invites). |
+| **M2 — Clients, Users, IdP** | GRPC-120/121/130/131/140/141 | Management/provisioning surface only: clients, API keys, admin user management, identity-provider configuration, signup-flow configuration, and invites. |
 | **M3 — Settings, Branding, Notifier, Webhooks, Events, OAuth, Setup** | GRPC-150…190 | Remaining management surface + introspection + provisioning. |
-| **M4 — (optional) Identity flows** | GRPC-2xx | Only if a concrete S2S consumer needs end-user flows. |
