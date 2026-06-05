@@ -52,10 +52,12 @@ func (m *mockBaseRepo[T]) Paginate(c map[string]any, page, limit int, p ...strin
 }
 
 type mockSetupService struct {
-	getSetupStatusFn func() (*SetupStatusResponseDTO, error)
-	createTenantFn   func(req CreateTenantRequestDTO) (*CreateTenantResponseDTO, error)
-	createAdminFn    func(req CreateAdminRequestDTO) (*CreateAdminResponseDTO, error)
-	createProfileFn  func(req CreateProfileRequestDTO) (*CreateProfileResponseDTO, error)
+	getSetupStatusFn         func() (*SetupStatusResponseDTO, error)
+	createTenantFn           func(req CreateTenantRequestDTO) (*CreateTenantResponseDTO, error)
+	createAdminFn            func(req CreateAdminRequestDTO) (*CreateAdminResponseDTO, error)
+	createProfileFn          func(req CreateProfileRequestDTO) (*CreateProfileResponseDTO, error)
+	registerControlServiceFn func(req RegisterControlServiceRequestDTO) (*RegisterControlServiceResponseDTO, error)
+	completeSetupFn          func() (*CompleteSetupResponseDTO, error)
 }
 
 func (m *mockSetupService) GetSetupStatus(_ context.Context) (*SetupStatusResponseDTO, error) {
@@ -81,6 +83,127 @@ func (m *mockSetupService) CreateProfile(_ context.Context, req CreateProfileReq
 		return m.createProfileFn(req)
 	}
 	return &CreateProfileResponseDTO{}, nil
+}
+func (m *mockSetupService) RegisterControlService(_ context.Context, req RegisterControlServiceRequestDTO) (*RegisterControlServiceResponseDTO, error) {
+	if m.registerControlServiceFn != nil {
+		return m.registerControlServiceFn(req)
+	}
+	return &RegisterControlServiceResponseDTO{}, nil
+}
+func (m *mockSetupService) CompleteSetup(_ context.Context) (*CompleteSetupResponseDTO, error) {
+	if m.completeSetupFn != nil {
+		return m.completeSetupFn()
+	}
+	return &CompleteSetupResponseDTO{}, nil
+}
+
+type mockSetupStateRepo struct {
+	complete       bool
+	isCompleteErr  error
+	markCompleteFn func(string, time.Time) (*SetupState, error)
+}
+
+type mockServiceRepo struct {
+	mockBaseRepo[Service]
+	findByNameAndTenantIDFn func(string, int64) (*Service, error)
+	createOrUpdateFn        func(*Service) (*Service, error)
+}
+
+func (m *mockServiceRepo) WithTx(_ *gorm.DB) ServiceRepository   { return m }
+func (m *mockServiceRepo) FindByName(_ string) (*Service, error) { return nil, nil }
+func (m *mockServiceRepo) FindByNameAndTenantID(name string, tenantID int64) (*Service, error) {
+	if m.findByNameAndTenantIDFn != nil {
+		return m.findByNameAndTenantIDFn(name, tenantID)
+	}
+	return nil, nil
+}
+func (m *mockServiceRepo) FindByTenantID(int64) ([]Service, error) { return nil, nil }
+func (m *mockServiceRepo) FindPaginated(ServiceRepositoryGetFilter) (*PaginationResult[Service], error) {
+	return &PaginationResult[Service]{}, nil
+}
+func (m *mockServiceRepo) FindServicesByPolicyUUID(uuid.UUID, ServiceRepositoryGetFilter) (*PaginationResult[Service], error) {
+	return &PaginationResult[Service]{}, nil
+}
+func (m *mockServiceRepo) SetStatusByUUID(uuid.UUID, string) error       { return nil }
+func (m *mockServiceRepo) CountPoliciesByServiceID(int64) (int64, error) { return 0, nil }
+func (m *mockServiceRepo) CreateOrUpdate(service *Service) (*Service, error) {
+	if m.createOrUpdateFn != nil {
+		return m.createOrUpdateFn(service)
+	}
+	if service.ServiceID == 0 {
+		service.ServiceID = 77
+	}
+	return service, nil
+}
+
+type mockPolicyRepo struct {
+	mockBaseRepo[Policy]
+	findByNameAndVersionFn func(string, string, int64) (*Policy, error)
+}
+
+func (m *mockPolicyRepo) WithTx(_ *gorm.DB) PolicyRepository                      { return m }
+func (m *mockPolicyRepo) FindByUUIDAndTenantID(uuid.UUID, int64) (*Policy, error) { return nil, nil }
+func (m *mockPolicyRepo) FindByName(string, int64) (*Policy, error)               { return nil, nil }
+func (m *mockPolicyRepo) FindByNameAndVersion(name string, version string, tenantID int64) (*Policy, error) {
+	if m.findByNameAndVersionFn != nil {
+		return m.findByNameAndVersionFn(name, version, tenantID)
+	}
+	return &Policy{PolicyID: 88, PolicyUUID: uuid.New(), TenantID: tenantID, Name: name, Version: version}, nil
+}
+func (m *mockPolicyRepo) FindSystemPolicies(int64) ([]Policy, error) { return nil, nil }
+func (m *mockPolicyRepo) FindPaginated(PolicyRepositoryGetFilter) (*PaginationResult[Policy], error) {
+	return &PaginationResult[Policy]{}, nil
+}
+func (m *mockPolicyRepo) SetStatusByUUID(uuid.UUID, int64, string) error     { return nil }
+func (m *mockPolicyRepo) SetSystemStatusByUUID(uuid.UUID, int64, bool) error { return nil }
+func (m *mockPolicyRepo) DeleteByUUIDAndTenantID(uuid.UUID, int64) error     { return nil }
+
+type mockServicePolicyRepo struct {
+	mockBaseRepo[ServicePolicy]
+	findByServiceAndPolicyFn func(int64, int64) (*ServicePolicy, error)
+	createFn                 func(*ServicePolicy) (*ServicePolicy, error)
+}
+
+func (m *mockServicePolicyRepo) WithTx(_ *gorm.DB) ServicePolicyRepository { return m }
+func (m *mockServicePolicyRepo) FindPaginated(ServicePolicyRepositoryGetFilter) (*PaginationResult[ServicePolicy], error) {
+	return &PaginationResult[ServicePolicy]{}, nil
+}
+func (m *mockServicePolicyRepo) FindByServiceAndPolicy(serviceID int64, policyID int64) (*ServicePolicy, error) {
+	if m.findByServiceAndPolicyFn != nil {
+		return m.findByServiceAndPolicyFn(serviceID, policyID)
+	}
+	return nil, nil
+}
+func (m *mockServicePolicyRepo) DeleteByServiceAndPolicy(int64, int64) error     { return nil }
+func (m *mockServicePolicyRepo) FindPoliciesByServiceID(int64) ([]Policy, error) { return nil, nil }
+func (m *mockServicePolicyRepo) FindServicesByPolicyID(int64) ([]Service, error) { return nil, nil }
+func (m *mockServicePolicyRepo) Create(policy *ServicePolicy) (*ServicePolicy, error) {
+	if m.createFn != nil {
+		return m.createFn(policy)
+	}
+	return policy, nil
+}
+
+func (m *mockSetupStateRepo) WithTx(_ *gorm.DB) SetupStateRepository { return m }
+func (m *mockSetupStateRepo) FindByKey(key string) (*SetupState, error) {
+	if m.complete {
+		now := time.Now()
+		return &SetupState{Key: key, IsComplete: true, CompletedAt: &now}, nil
+	}
+	return nil, nil
+}
+func (m *mockSetupStateRepo) IsComplete(_ string) (bool, error) {
+	if m.isCompleteErr != nil {
+		return false, m.isCompleteErr
+	}
+	return m.complete, nil
+}
+func (m *mockSetupStateRepo) MarkComplete(key string, completedAt time.Time) (*SetupState, error) {
+	if m.markCompleteFn != nil {
+		return m.markCompleteFn(key, completedAt)
+	}
+	m.complete = true
+	return &SetupState{Key: key, IsComplete: true, CompletedAt: &completedAt}, nil
 }
 
 type mockTenantRepo struct {

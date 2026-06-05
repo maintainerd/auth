@@ -102,7 +102,7 @@ All cross-layer communication happens through **interfaces**, making every layer
              │
   ┌──────────▼───────────┐         ┌─────────────────────┐
   │    PostgreSQL        │         │  gRPC Server :50051  │
-  │    (GORM + JSONB)    │         │  (SeederService)     │
+  │    (GORM + JSONB)    │         │  (health/reflection) │
   └──────────────────────┘         └─────────────────────┘
 ```
 
@@ -160,7 +160,7 @@ infrastructure. It shows ownership boundaries, not every function call.
 │  handlers.go → construct REST handlers from services         │
 │  router.go   → mount internal/public routes + middleware     │
 │  rest.go     → serve :8080 internal and :8081 public         │
-│  grpc.go     → serve SeederService on :50051                 │
+│  grpc.go     → serve gRPC health/reflection on :50051         │
 │  health.go   → /health and /ready                            │
 │  openapi.go  → /openapi.json                                 │
 └───────────────────────────────┬──────────────────────────────┘
@@ -235,7 +235,7 @@ run(context.Background())
   │    Convert app bundle into transport dependencies.
   │
   ├─ startBackgroundWorkers(ctx, app, serverApp)
-  │    Start auth-event retention and gRPC SeederService.
+  │    Start auth-event retention and the gRPC server.
   │
   └─ server.StartRESTServer(serverApp)
        Start internal/public REST servers and block until shutdown.
@@ -646,7 +646,8 @@ Error responses follow the same shape with `success: false` and an `error` field
 - Regenerate with `make proto`.
 - The gRPC server runs on `:50051` in a background goroutine and shuts down via context cancellation.
 
-Currently only `SeederService` is implemented. The infrastructure is ready for expansion.
+No domain gRPC service is registered yet. The infrastructure is ready for the
+planned `SetupService` and control-plane RPCs.
 
 ---
 

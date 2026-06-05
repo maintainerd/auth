@@ -3,12 +3,14 @@ package setup
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/platform/apperror"
 	"github.com/maintainerd/auth/internal/platform/crypto"
 	"github.com/maintainerd/auth/internal/platform/ptr"
+	"github.com/maintainerd/auth/internal/platform/runner"
 	"github.com/maintainerd/auth/internal/platform/security"
 	"github.com/maintainerd/auth/internal/setup/seeder"
 	"github.com/maintainerd/auth/internal/shared"
@@ -19,24 +21,37 @@ import (
 )
 
 var setupHashPassword = security.HashPassword
+var setupRunSeeders = runner.RunSeeders
 
 type SetupService interface {
 	GetSetupStatus(ctx context.Context) (*SetupStatusResponseDTO, error)
 	CreateTenant(ctx context.Context, req CreateTenantRequestDTO) (*CreateTenantResponseDTO, error)
 	CreateAdmin(ctx context.Context, req CreateAdminRequestDTO) (*CreateAdminResponseDTO, error)
 	CreateProfile(ctx context.Context, req CreateProfileRequestDTO) (*CreateProfileResponseDTO, error)
+	RegisterControlService(ctx context.Context, req RegisterControlServiceRequestDTO) (*RegisterControlServiceResponseDTO, error)
+	CompleteSetup(ctx context.Context) (*CompleteSetupResponseDTO, error)
 }
 
 type setupService struct {
-	db               *gorm.DB
-	userRepo         UserRepository
-	tenantRepo       TenantRepository
-	tenantMemberRepo TenantMemberRepository
-	clientRepo       ClientRepository
-	roleRepo         RoleRepository
-	userRoleRepo     UserRoleRepository
-	userIdentityRepo UserIdentityRepository
-	profileRepo      ProfileRepository
+	db                *gorm.DB
+	userRepo          UserRepository
+	tenantRepo        TenantRepository
+	tenantMemberRepo  TenantMemberRepository
+	clientRepo        ClientRepository
+	roleRepo          RoleRepository
+	userRoleRepo      UserRoleRepository
+	userIdentityRepo  UserIdentityRepository
+	profileRepo       ProfileRepository
+	setupStateRepo    SetupStateRepository
+	serviceRepo       ServiceRepository
+	policyRepo        PolicyRepository
+	servicePolicyRepo ServicePolicyRepository
+}
+
+type ControlRegistrationDeps struct {
+	ServiceRepo       ServiceRepository
+	PolicyRepo        PolicyRepository
+	ServicePolicyRepo ServicePolicyRepository
 }
 
 func NewSetupService(
@@ -49,17 +64,34 @@ func NewSetupService(
 	userRoleRepo UserRoleRepository,
 	userIdentityRepo UserIdentityRepository,
 	profileRepo ProfileRepository,
+	setupOptions ...any,
 ) SetupService {
+	stateRepo := NewOpenSetupStateRepository()
+	controlDeps := ControlRegistrationDeps{}
+	for _, option := range setupOptions {
+		switch value := option.(type) {
+		case SetupStateRepository:
+			if value != nil {
+				stateRepo = value
+			}
+		case ControlRegistrationDeps:
+			controlDeps = value
+		}
+	}
 	return &setupService{
-		db:               db,
-		userRepo:         userRepo,
-		tenantRepo:       tenantRepo,
-		tenantMemberRepo: tenantMemberRepo,
-		clientRepo:       clientRepo,
-		roleRepo:         roleRepo,
-		userRoleRepo:     userRoleRepo,
-		userIdentityRepo: userIdentityRepo,
-		profileRepo:      profileRepo,
+		db:                db,
+		userRepo:          userRepo,
+		tenantRepo:        tenantRepo,
+		tenantMemberRepo:  tenantMemberRepo,
+		clientRepo:        clientRepo,
+		roleRepo:          roleRepo,
+		userRoleRepo:      userRoleRepo,
+		userIdentityRepo:  userIdentityRepo,
+		profileRepo:       profileRepo,
+		setupStateRepo:    stateRepo,
+		serviceRepo:       controlDeps.ServiceRepo,
+		policyRepo:        controlDeps.PolicyRepo,
+		servicePolicyRepo: controlDeps.ServicePolicyRepo,
 	}
 }
 
@@ -96,18 +128,27 @@ func (s *setupService) GetSetupStatus(ctx context.Context) (*SetupStatusResponse
 		}
 	}
 
+	isSetupComplete, err := s.setupStateRepo.IsComplete(SetupStateBootstrap)
+	if err != nil {
+		return nil, err
+	}
+
 	span.SetStatus(codes.Ok, "")
 	return &SetupStatusResponseDTO{
 		IsTenantSetup:   isTenantSetup,
 		IsAdminSetup:    isAdminSetup,
 		IsProfileSetup:  isProfileSetup,
-		IsSetupComplete: isTenantSetup && isAdminSetup && isProfileSetup,
+		IsSetupComplete: isSetupComplete,
 	}, nil
 }
 
 func (s *setupService) CreateTenant(ctx context.Context, req CreateTenantRequestDTO) (*CreateTenantResponseDTO, error) {
 	_, span := otel.Tracer("service").Start(ctx, "setup.createTenant")
 	defer span.End()
+
+	if err := s.ensureSetupOpen(); err != nil {
+		return nil, err
+	}
 
 	// Check if tenant already exists
 	tenants, err := s.tenantRepo.FindAll()
@@ -212,6 +253,10 @@ func (s *setupService) CreateTenant(ctx context.Context, req CreateTenantRequest
 func (s *setupService) CreateAdmin(ctx context.Context, req CreateAdminRequestDTO) (*CreateAdminResponseDTO, error) {
 	_, span := otel.Tracer("service").Start(ctx, "setup.createAdmin")
 	defer span.End()
+
+	if err := s.ensureSetupOpen(); err != nil {
+		return nil, err
+	}
 
 	// Check if tenant exists
 	tenants, err := s.tenantRepo.FindAll()
@@ -384,6 +429,10 @@ func (s *setupService) CreateProfile(ctx context.Context, req CreateProfileReque
 	_, span := otel.Tracer("service").Start(ctx, "setup.createProfile")
 	defer span.End()
 
+	if err := s.ensureSetupOpen(); err != nil {
+		return nil, err
+	}
+
 	// Find the super admin user (the only user during setup)
 	user, err := s.userRepo.FindSuperAdmin()
 	if err != nil {
@@ -484,4 +533,153 @@ func (s *setupService) CreateProfile(ctx context.Context, req CreateProfileReque
 	return &CreateProfileResponseDTO{
 		Profile: *profileResponse,
 	}, nil
+}
+
+func (s *setupService) RegisterControlService(ctx context.Context, req RegisterControlServiceRequestDTO) (*RegisterControlServiceResponseDTO, error) {
+	_, span := otel.Tracer("service").Start(ctx, "setup.registerControlService")
+	defer span.End()
+
+	if err := s.ensureSetupOpen(); err != nil {
+		return nil, err
+	}
+	if s.serviceRepo == nil || s.policyRepo == nil || s.servicePolicyRepo == nil || s.db == nil {
+		err := apperror.NewInternal("control registration dependencies are not configured", errors.New("missing setup control registration dependencies"))
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "register control service failed")
+		return nil, err
+	}
+
+	sysTenant, err := s.tenantRepo.FindSystem()
+	if err != nil {
+		return nil, err
+	}
+	if sysTenant == nil {
+		return nil, apperror.NewValidation("tenant must be created first")
+	}
+
+	version := req.Version
+	if version == "" {
+		version = "v1"
+	}
+	description := ""
+	if req.Description != nil {
+		description = *req.Description
+	}
+
+	var registeredService *Service
+	var controlPolicy *Policy
+	var alreadyExisted bool
+	var policyWasAttached bool
+
+	err = s.db.Transaction(func(tx *gorm.DB) error {
+		txServiceRepo := s.serviceRepo.WithTx(tx)
+		txPolicyRepo := s.policyRepo.WithTx(tx)
+		txServicePolicyRepo := s.servicePolicyRepo.WithTx(tx)
+
+		policy, err := txPolicyRepo.FindByNameAndVersion(seeder.SystemControlPolicyName, "v1", sysTenant.TenantID)
+		if err != nil {
+			return err
+		}
+		if policy == nil {
+			return apperror.NewValidation("control policy is not seeded")
+		}
+		controlPolicy = policy
+
+		service, err := txServiceRepo.FindByNameAndTenantID(req.Name, sysTenant.TenantID)
+		if err != nil {
+			return err
+		}
+		if service != nil {
+			alreadyExisted = true
+			registeredService = service
+		} else {
+			service = &Service{
+				ServiceUUID: uuid.New(),
+				Name:        req.Name,
+				DisplayName: req.DisplayName,
+				Description: description,
+				Version:     version,
+				Status:      shared.StatusActive,
+				IsSystem:    false,
+			}
+			if _, err := txServiceRepo.CreateOrUpdate(service); err != nil {
+				return err
+			}
+			if err := tx.Create(&TenantServiceLink{TenantID: sysTenant.TenantID, ServiceID: service.ServiceID}).Error; err != nil {
+				return err
+			}
+			registeredService = service
+		}
+
+		existingAttachment, err := txServicePolicyRepo.FindByServiceAndPolicy(registeredService.ServiceID, policy.PolicyID)
+		if err != nil {
+			return err
+		}
+		if existingAttachment == nil {
+			_, err = txServicePolicyRepo.Create(&ServicePolicy{
+				ServicePolicyUUID: uuid.New(),
+				ServiceID:         registeredService.ServiceID,
+				PolicyID:          policy.PolicyID,
+			})
+			if err != nil {
+				return err
+			}
+			policyWasAttached = true
+		}
+
+		return nil
+	})
+	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "register control service failed")
+		return nil, err
+	}
+
+	span.SetStatus(codes.Ok, "")
+	return &RegisterControlServiceResponseDTO{
+		ServiceUUID:       registeredService.ServiceUUID.String(),
+		Name:              registeredService.Name,
+		DisplayName:       registeredService.DisplayName,
+		PolicyUUID:        controlPolicy.PolicyUUID.String(),
+		PolicyName:        controlPolicy.Name,
+		AlreadyExisted:    alreadyExisted,
+		PolicyWasAttached: policyWasAttached,
+	}, nil
+}
+
+func (s *setupService) CompleteSetup(ctx context.Context) (*CompleteSetupResponseDTO, error) {
+	_, span := otel.Tracer("service").Start(ctx, "setup.complete")
+	defer span.End()
+
+	status, err := s.GetSetupStatus(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if status.IsSetupComplete {
+		return &CompleteSetupResponseDTO{IsSetupComplete: true}, nil
+	}
+	if !status.IsTenantSetup || !status.IsAdminSetup || !status.IsProfileSetup {
+		return nil, apperror.NewValidation("tenant, admin, and profile setup must be completed before locking setup")
+	}
+
+	now := time.Now().UTC()
+	if _, err := s.setupStateRepo.MarkComplete(SetupStateBootstrap, now); err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "complete setup failed")
+		return nil, err
+	}
+
+	span.SetStatus(codes.Ok, "")
+	return &CompleteSetupResponseDTO{IsSetupComplete: true}, nil
+}
+
+func (s *setupService) ensureSetupOpen() error {
+	complete, err := s.setupStateRepo.IsComplete(SetupStateBootstrap)
+	if err != nil {
+		return err
+	}
+	if complete {
+		return apperror.NewConflict("setup is complete and locked")
+	}
+	return nil
 }

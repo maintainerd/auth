@@ -85,6 +85,31 @@ func (dto CreateTenantRequestDTO) Validate() error {
 	)
 }
 
+func (dto RegisterControlServiceRequestDTO) Validate() error {
+	return validation.ValidateStruct(&dto,
+		validation.Field(&dto.Name,
+			validation.Required.Error("Service name is required"),
+			validation.Length(2, 100).Error("Service name must be between 2 and 100 characters"),
+			validation.Match(regexp.MustCompile(`^[a-zA-Z0-9\-_\.]+$`)).Error("Service name contains invalid characters"),
+		),
+		validation.Field(&dto.DisplayName,
+			validation.Required.Error("Display name is required"),
+			validation.Length(2, 100).Error("Display name must be between 2 and 100 characters"),
+		),
+		validation.Field(&dto.Description,
+			validation.When(dto.Description != nil,
+				validation.Length(0, 500).Error("Description must not exceed 500 characters"),
+			),
+		),
+		validation.Field(&dto.Version,
+			validation.When(dto.Version != "",
+				validation.Length(1, 50).Error("Version must be between 1 and 50 characters"),
+				validation.Match(regexp.MustCompile(`^[a-zA-Z0-9\-_\.]+$`)).Error("Version contains invalid characters"),
+			),
+		),
+	)
+}
+
 func (dto CreateAdminRequestDTO) Validate() error {
 	return validation.ValidateStruct(&dto,
 		validation.Field(&dto.Username,
