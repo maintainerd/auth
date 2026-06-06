@@ -1,8 +1,6 @@
 package webhook
 
 import (
-	"context"
-
 	validation "github.com/go-ozzo/ozzo-validation/v4"
 	"github.com/go-ozzo/ozzo-validation/v4/is"
 	"github.com/maintainerd/auth/internal/shared"
@@ -13,7 +11,7 @@ var webhookURLRule = validation.By(func(value any) error {
 	if raw == "" {
 		return nil
 	}
-	if err := validateWebhookURL(context.Background(), raw, false); err != nil {
+	if err := validateWebhookURL(nil, raw, false); err != nil {
 		return validation.NewError("validation_webhook_url", err.Error())
 	}
 	return nil
@@ -26,10 +24,6 @@ func (r WebhookEndpointCreateRequestDTO) Validate() error {
 			validation.Required.Error("URL is required"),
 			is.URL.Error("URL must be a valid URL"),
 			webhookURLRule,
-		),
-		validation.Field(&r.Events,
-			validation.Required.Error("Events list is required"),
-			validation.Each(validation.Length(1, 100).Error("Event name must be between 1 and 100 characters")),
 		),
 		validation.Field(&r.MaxRetries,
 			validation.When(r.MaxRetries != nil, validation.Min(0).Error("Max retries must be at least 0"), validation.Max(10).Error("Max retries must not exceed 10")),
@@ -53,10 +47,6 @@ func (r WebhookEndpointUpdateRequestDTO) Validate() error {
 			validation.Required.Error("URL is required"),
 			is.URL.Error("URL must be a valid URL"),
 			webhookURLRule,
-		),
-		validation.Field(&r.Events,
-			validation.Required.Error("Events list is required"),
-			validation.Each(validation.Length(1, 100).Error("Event name must be between 1 and 100 characters")),
 		),
 		validation.Field(&r.MaxRetries,
 			validation.When(r.MaxRetries != nil, validation.Min(0).Error("Max retries must be at least 0"), validation.Max(10).Error("Max retries must not exceed 10")),

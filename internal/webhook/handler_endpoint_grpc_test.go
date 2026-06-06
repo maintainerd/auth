@@ -25,8 +25,8 @@ func (m *testWebhookTenant) GetByUUID(ctx context.Context, tuuid uuid.UUID) (*Te
 type testWebhookEndpointService struct {
 	getAllFn        func(ctx context.Context, tenantID int64, status []string, page, limit int, sortBy, sortOrder string) (*WebhookEndpointServiceListResult, error)
 	getByUUIDFn     func(ctx context.Context, tenantID int64, weUUID uuid.UUID) (*WebhookEndpointServiceDataResult, error)
-	createFn        func(ctx context.Context, tenantID int64, url, secret string, events []string, maxRetries, timeoutSeconds *int, description, status string) (*WebhookEndpointServiceDataResult, error)
-	updateFn        func(ctx context.Context, tenantID int64, weUUID uuid.UUID, url, secret string, events []string, maxRetries, timeoutSeconds *int, description, status string) (*WebhookEndpointServiceDataResult, error)
+	createFn        func(ctx context.Context, tenantID int64, url string, subscribeAll bool, maxRetries, timeoutSeconds *int, description, status string) (*WebhookEndpointServiceDataResult, error)
+	updateFn        func(ctx context.Context, tenantID int64, weUUID uuid.UUID, url string, rotateSecret bool, subscribeAll bool, maxRetries, timeoutSeconds *int, description, status string) (*WebhookEndpointServiceDataResult, error)
 	updateStatusFn  func(ctx context.Context, tenantID int64, weUUID uuid.UUID, status string) (*WebhookEndpointServiceDataResult, error)
 	deleteFn        func(ctx context.Context, tenantID int64, weUUID uuid.UUID) (*WebhookEndpointServiceDataResult, error)
 }
@@ -37,11 +37,11 @@ func (m *testWebhookEndpointService) GetAll(ctx context.Context, tenantID int64,
 func (m *testWebhookEndpointService) GetByUUID(ctx context.Context, tenantID int64, weUUID uuid.UUID) (*WebhookEndpointServiceDataResult, error) {
 	return m.getByUUIDFn(ctx, tenantID, weUUID)
 }
-func (m *testWebhookEndpointService) Create(ctx context.Context, tenantID int64, url, secret string, events []string, maxRetries, timeoutSeconds *int, description, status string) (*WebhookEndpointServiceDataResult, error) {
-	return m.createFn(ctx, tenantID, url, secret, events, maxRetries, timeoutSeconds, description, status)
+func (m *testWebhookEndpointService) Create(ctx context.Context, tenantID int64, url string, subscribeAll bool, maxRetries, timeoutSeconds *int, description, status string) (*WebhookEndpointServiceDataResult, error) {
+	return m.createFn(ctx, tenantID, url, subscribeAll, maxRetries, timeoutSeconds, description, status)
 }
-func (m *testWebhookEndpointService) Update(ctx context.Context, tenantID int64, weUUID uuid.UUID, url, secret string, events []string, maxRetries, timeoutSeconds *int, description, status string) (*WebhookEndpointServiceDataResult, error) {
-	return m.updateFn(ctx, tenantID, weUUID, url, secret, events, maxRetries, timeoutSeconds, description, status)
+func (m *testWebhookEndpointService) Update(ctx context.Context, tenantID int64, weUUID uuid.UUID, url string, rotateSecret bool, subscribeAll bool, maxRetries, timeoutSeconds *int, description, status string) (*WebhookEndpointServiceDataResult, error) {
+	return m.updateFn(ctx, tenantID, weUUID, url, rotateSecret, subscribeAll, maxRetries, timeoutSeconds, description, status)
 }
 func (m *testWebhookEndpointService) UpdateStatus(ctx context.Context, tenantID int64, weUUID uuid.UUID, status string) (*WebhookEndpointServiceDataResult, error) {
 	return m.updateStatusFn(ctx, tenantID, weUUID, status)
@@ -80,7 +80,7 @@ func TestWebhookEndpointGRPCHandler_RPCS(t *testing.T) {
 
 	t.Run("create success", func(t *testing.T) {
 		svc := &testWebhookEndpointService{
-			createFn: func(ctx context.Context, tenantID int64, url, secret string, events []string, maxRetries, timeoutSeconds *int, description, status string) (*WebhookEndpointServiceDataResult, error) { return &weResult, nil },
+			createFn: func(ctx context.Context, tenantID int64, url string, subscribeAll bool, maxRetries, timeoutSeconds *int, description, status string) (*WebhookEndpointServiceDataResult, error) { return &weResult, nil },
 		}
 		h := NewWebhookEndpointGRPCHandler(resolver, svc)
 		_, err := h.CreateWebhookEndpoint(ctx, &authv1.CreateWebhookEndpointRequest{TenantUuid: tenantUUID.String(), Url: "https://h", Description: "Test", Status: "active"})
@@ -98,7 +98,7 @@ func TestWebhookEndpointGRPCHandler_RPCS(t *testing.T) {
 
 	t.Run("update success", func(t *testing.T) {
 		svc := &testWebhookEndpointService{
-			updateFn: func(ctx context.Context, tenantID int64, weUUID uuid.UUID, url, secret string, events []string, maxRetries, timeoutSeconds *int, description, rStatus string) (*WebhookEndpointServiceDataResult, error) { return &weResult, nil },
+			updateFn: func(ctx context.Context, tenantID int64, weUUID uuid.UUID, url string, rotateSecret bool, subscribeAll bool, maxRetries, timeoutSeconds *int, description, rStatus string) (*WebhookEndpointServiceDataResult, error) { return &weResult, nil },
 		}
 		h := NewWebhookEndpointGRPCHandler(resolver, svc)
 		_, err := h.UpdateWebhookEndpoint(ctx, &authv1.UpdateWebhookEndpointRequest{TenantUuid: tenantUUID.String(), WebhookEndpointUuid: weUUID.String(), Url: "https://h"})
@@ -107,7 +107,7 @@ func TestWebhookEndpointGRPCHandler_RPCS(t *testing.T) {
 
 	t.Run("update service error", func(t *testing.T) {
 		svc := &testWebhookEndpointService{
-			updateFn: func(ctx context.Context, tenantID int64, weUUID uuid.UUID, url, secret string, events []string, maxRetries, timeoutSeconds *int, description, rStatus string) (*WebhookEndpointServiceDataResult, error) { return nil, errors.New("db") },
+			updateFn: func(ctx context.Context, tenantID int64, weUUID uuid.UUID, url string, rotateSecret bool, subscribeAll bool, maxRetries, timeoutSeconds *int, description, rStatus string) (*WebhookEndpointServiceDataResult, error) { return nil, errors.New("db") },
 		}
 		h := NewWebhookEndpointGRPCHandler(resolver, svc)
 		_, err := h.UpdateWebhookEndpoint(ctx, &authv1.UpdateWebhookEndpointRequest{TenantUuid: tenantUUID.String(), WebhookEndpointUuid: weUUID.String(), Url: "https://h"})
@@ -161,7 +161,7 @@ func TestWebhookEndpointGRPCHandler_RPCS(t *testing.T) {
 
 	t.Run("create service error", func(t *testing.T) {
 		svc := &testWebhookEndpointService{
-			createFn: func(ctx context.Context, tenantID int64, url, secret string, events []string, maxRetries, timeoutSeconds *int, description, rStatus string) (*WebhookEndpointServiceDataResult, error) { return nil, errors.New("db") },
+			createFn: func(ctx context.Context, tenantID int64, url string, subscribeAll bool, maxRetries, timeoutSeconds *int, description, rStatus string) (*WebhookEndpointServiceDataResult, error) { return nil, errors.New("db") },
 		}
 		h := NewWebhookEndpointGRPCHandler(resolver, svc)
 		_, err := h.CreateWebhookEndpoint(ctx, &authv1.CreateWebhookEndpointRequest{TenantUuid: tenantUUID.String(), Url: "https://h"})

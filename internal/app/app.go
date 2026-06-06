@@ -7,6 +7,7 @@ import (
 	"github.com/maintainerd/auth/internal/authn"
 	"github.com/maintainerd/auth/internal/branding"
 	"github.com/maintainerd/auth/internal/client"
+	"github.com/maintainerd/auth/internal/event"
 	"github.com/maintainerd/auth/internal/iam"
 	"github.com/maintainerd/auth/internal/idp"
 	"github.com/maintainerd/auth/internal/invite"
@@ -28,55 +29,59 @@ type App struct {
 	RedisClient *redis.Client
 	Cache       *cache.Cache
 	// Services
-	ServiceService            iam.ServiceService
-	APIService                iam.APIService
-	PermissionService         iam.PermissionService
-	PolicyService             iam.PolicyService
-	TenantService             tenant.TenantService
-	TenantMemberService       tenant.TenantMemberService
-	IdentityProviderService   idp.IdentityProviderService
-	ClientService             client.ClientService
-	RoleService               iam.RoleService
-	UserService               user.UserService
-	RegisterService           authn.RegisterService
-	LoginService              authn.LoginService
-	ProfileService            user.ProfileService
-	UserSettingService        user.UserSettingService
-	InviteService             invite.InviteService
-	ForgotPasswordService     authn.ForgotPasswordService
-	ResetPasswordService      authn.ResetPasswordService
-	EmailVerificationService  authn.EmailVerificationService
-	MagicLinkService          authn.MagicLinkService
-	SetupService              setup.SetupService
-	SignupFlowService         idp.SignupFlowService
-	APIKeyService             client.APIKeyService
-	SecuritySettingService    secpolicy.SecuritySettingService
-	IPRestrictionRuleService  secpolicy.IPRestrictionRuleService
-	EmailTemplateService      branding.EmailTemplateService
-	SMSTemplateService        branding.SMSTemplateService
-	LoginTemplateService      branding.LoginTemplateService
-	BrandingService           branding.BrandingService
-	TenantSettingService      tenant.TenantSettingService
-	EmailConfigService        notifier.EmailConfigService
-	SMSConfigService          notifier.SMSConfigService
-	WebhookEndpointService    webhook.WebhookEndpointService
-	AuthEventService          authevent.AuthEventService
-	AuthorizationService      iam.ServiceAuthorizationService
-	OAuthAuthorizeService     oauth.OAuthAuthorizeService
-	OAuthTokenService         oauth.OAuthTokenService
-	OAuthConsentService       oauth.OAuthConsentService
-	OAuthPARService           oauth.OAuthPARService
-	OAuthDeviceService        oauth.OAuthDeviceService
-	OAuthTokenExchangeService oauth.OAuthTokenExchangeService
-	OAuthSessionService       oauth.OAuthSessionService
-	OAuthCIBAService          oauth.OAuthCIBAService
-	OAuthRegisterService      oauth.OAuthRegisterService
-	AccountService            user.AccountService
-	SessionService            authn.SessionService
-	SMSLoginService           authn.SMSLoginService
-	MFAService                mfa.MFAService
-	WebAuthnService           mfa.WebAuthnService
-	FederationService         idp.FederationService
+	ServiceService               iam.ServiceService
+	APIService                   iam.APIService
+	PermissionService            iam.PermissionService
+	PolicyService                iam.PolicyService
+	TenantService                tenant.TenantService
+	TenantMemberService          tenant.TenantMemberService
+	IdentityProviderService      idp.IdentityProviderService
+	ClientService                client.ClientService
+	RoleService                  iam.RoleService
+	UserService                  user.UserService
+	RegisterService              authn.RegisterService
+	LoginService                 authn.LoginService
+	ProfileService               user.ProfileService
+	UserSettingService           user.UserSettingService
+	InviteService                invite.InviteService
+	ForgotPasswordService        authn.ForgotPasswordService
+	ResetPasswordService         authn.ResetPasswordService
+	EmailVerificationService     authn.EmailVerificationService
+	MagicLinkService             authn.MagicLinkService
+	SetupService                 setup.SetupService
+	SignupFlowService            idp.SignupFlowService
+	APIKeyService                client.APIKeyService
+	SecuritySettingService       secpolicy.SecuritySettingService
+	IPRestrictionRuleService     secpolicy.IPRestrictionRuleService
+	EmailTemplateService         branding.EmailTemplateService
+	SMSTemplateService           branding.SMSTemplateService
+	LoginTemplateService         branding.LoginTemplateService
+	BrandingService              branding.BrandingService
+	TenantSettingService         tenant.TenantSettingService
+	EmailConfigService           notifier.EmailConfigService
+	SMSConfigService             notifier.SMSConfigService
+	WebhookEndpointService       webhook.WebhookEndpointService
+	AuthEventService             authevent.AuthEventService
+	AuthorizationService         iam.ServiceAuthorizationService
+	OAuthAuthorizeService        oauth.OAuthAuthorizeService
+	OAuthTokenService            oauth.OAuthTokenService
+	OAuthConsentService          oauth.OAuthConsentService
+	OAuthPARService              oauth.OAuthPARService
+	OAuthDeviceService           oauth.OAuthDeviceService
+	OAuthTokenExchangeService    oauth.OAuthTokenExchangeService
+	OAuthSessionService          oauth.OAuthSessionService
+	OAuthCIBAService             oauth.OAuthCIBAService
+	OAuthRegisterService         oauth.OAuthRegisterService
+	AccountService               user.AccountService
+	SessionService               authn.SessionService
+	SMSLoginService              authn.SMSLoginService
+	MFAService                   mfa.MFAService
+	WebAuthnService              mfa.WebAuthnService
+	FederationService            idp.FederationService
+	EventService                 event.EventService
+	EventTypeService             event.EventTypeService
+	TenantEventTypeConfigService event.TenantEventTypeConfigService
+	EventRouteService            event.EventRouteService
 }
 
 // NewApp wires the full dependency graph in two focused steps:
@@ -87,7 +92,7 @@ type App struct {
 func NewApp(db *gorm.DB, redisClient *redis.Client) (*App, error) {
 	r := initRepos(db)
 	appCache := cache.New(redisClient)
-	s, err := initServices(db, r, appCache)
+	s, err := initServices(db, r, appCache, redisClient)
 	if err != nil {
 		return nil, fmt.Errorf("service init failed: %w", err)
 	}
@@ -97,54 +102,58 @@ func NewApp(db *gorm.DB, redisClient *redis.Client) (*App, error) {
 		RedisClient: redisClient,
 		Cache:       appCache,
 		// Services
-		ServiceService:            s.serviceService,
-		APIService:                s.apiService,
-		PermissionService:         s.permissionService,
-		PolicyService:             s.policyService,
-		TenantService:             s.tenantService,
-		TenantMemberService:       s.tenantMemberService,
-		IdentityProviderService:   s.idpService,
-		ClientService:             s.clientService,
-		RoleService:               s.roleService,
-		UserService:               s.userService,
-		RegisterService:           s.registerService,
-		LoginService:              s.loginService,
-		ProfileService:            s.profileService,
-		UserSettingService:        s.userSettingService,
-		InviteService:             s.inviteService,
-		ForgotPasswordService:     s.forgotPasswordService,
-		ResetPasswordService:      s.resetPasswordService,
-		EmailVerificationService:  s.emailVerificationService,
-		MagicLinkService:          s.magicLinkService,
-		SetupService:              s.setupService,
-		SignupFlowService:         s.signupFlowService,
-		APIKeyService:             s.apiKeyService,
-		SecuritySettingService:    s.securitySettingService,
-		IPRestrictionRuleService:  s.ipRestrictionRuleService,
-		EmailTemplateService:      s.emailTemplateService,
-		SMSTemplateService:        s.smsTemplateService,
-		LoginTemplateService:      s.loginTemplateService,
-		BrandingService:           s.brandingService,
-		TenantSettingService:      s.tenantSettingService,
-		EmailConfigService:        s.emailConfigService,
-		SMSConfigService:          s.smsConfigService,
-		WebhookEndpointService:    s.webhookEndpointService,
-		AuthEventService:          s.authEventService,
-		AuthorizationService:      s.authorizationService,
-		OAuthAuthorizeService:     s.oauthAuthorizeService,
-		OAuthTokenService:         s.oauthTokenService,
-		OAuthConsentService:       s.oauthConsentService,
-		OAuthPARService:           s.oauthPARService,
-		OAuthDeviceService:        s.oauthDeviceService,
-		OAuthTokenExchangeService: s.oauthTokenExchangeService,
-		OAuthSessionService:       s.oauthSessionService,
-		OAuthCIBAService:          s.oauthCIBAService,
-		OAuthRegisterService:      s.oauthRegisterService,
-		AccountService:            s.accountService,
-		SessionService:            s.sessionService,
-		SMSLoginService:           s.smsLoginService,
-		MFAService:                s.mfaService,
-		WebAuthnService:           s.webAuthnService,
-		FederationService:         s.federationService,
+		ServiceService:               s.serviceService,
+		APIService:                   s.apiService,
+		PermissionService:            s.permissionService,
+		PolicyService:                s.policyService,
+		TenantService:                s.tenantService,
+		TenantMemberService:          s.tenantMemberService,
+		IdentityProviderService:      s.idpService,
+		ClientService:                s.clientService,
+		RoleService:                  s.roleService,
+		UserService:                  s.userService,
+		RegisterService:              s.registerService,
+		LoginService:                 s.loginService,
+		ProfileService:               s.profileService,
+		UserSettingService:           s.userSettingService,
+		InviteService:                s.inviteService,
+		ForgotPasswordService:        s.forgotPasswordService,
+		ResetPasswordService:         s.resetPasswordService,
+		EmailVerificationService:     s.emailVerificationService,
+		MagicLinkService:             s.magicLinkService,
+		SetupService:                 s.setupService,
+		SignupFlowService:            s.signupFlowService,
+		APIKeyService:                s.apiKeyService,
+		SecuritySettingService:       s.securitySettingService,
+		IPRestrictionRuleService:     s.ipRestrictionRuleService,
+		EmailTemplateService:         s.emailTemplateService,
+		SMSTemplateService:           s.smsTemplateService,
+		LoginTemplateService:         s.loginTemplateService,
+		BrandingService:              s.brandingService,
+		TenantSettingService:         s.tenantSettingService,
+		EmailConfigService:           s.emailConfigService,
+		SMSConfigService:             s.smsConfigService,
+		WebhookEndpointService:       s.webhookEndpointService,
+		AuthEventService:             s.authEventService,
+		AuthorizationService:         s.authorizationService,
+		OAuthAuthorizeService:        s.oauthAuthorizeService,
+		OAuthTokenService:            s.oauthTokenService,
+		OAuthConsentService:          s.oauthConsentService,
+		OAuthPARService:              s.oauthPARService,
+		OAuthDeviceService:           s.oauthDeviceService,
+		OAuthTokenExchangeService:    s.oauthTokenExchangeService,
+		OAuthSessionService:          s.oauthSessionService,
+		OAuthCIBAService:             s.oauthCIBAService,
+		OAuthRegisterService:         s.oauthRegisterService,
+		AccountService:               s.accountService,
+		SessionService:               s.sessionService,
+		SMSLoginService:              s.smsLoginService,
+		MFAService:                   s.mfaService,
+		WebAuthnService:              s.webAuthnService,
+		FederationService:            s.federationService,
+		EventService:                 s.eventService,
+		EventTypeService:             s.eventTypeService,
+		TenantEventTypeConfigService: s.tenantEventTypeConfigService,
+		EventRouteService:            s.eventRouteService,
 	}, nil
 }

@@ -7,6 +7,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/authevent"
+	"github.com/maintainerd/auth/internal/event"
 	"github.com/maintainerd/auth/internal/platform/apperror"
 	"github.com/maintainerd/auth/internal/platform/cache"
 	"github.com/maintainerd/auth/internal/platform/middleware"
@@ -111,6 +112,7 @@ type userService struct {
 	securitySettingRepo  secpolicy.SecuritySettingRepository // nil → use defaults
 	passwordHistoryRepo  UserPasswordHistoryRepository       // nil → skip history
 	authEventService     authevent.AuthEventService
+	eventService         event.EventService // nil → skip integration events
 }
 
 func NewUserService(
@@ -128,6 +130,7 @@ func NewUserService(
 	securitySettingRepo secpolicy.SecuritySettingRepository,
 	passwordHistoryRepo UserPasswordHistoryRepository,
 	authEventService authevent.AuthEventService,
+	eventService event.EventService,
 ) UserService {
 	return &userService{
 		db:                   db,
@@ -144,6 +147,7 @@ func NewUserService(
 		securitySettingRepo:  securitySettingRepo,
 		passwordHistoryRepo:  passwordHistoryRepo,
 		authEventService:     coalesceAuthEventService(authEventService),
+		eventService:         eventService,
 	}
 }
 
@@ -457,6 +461,13 @@ func (s *userService) Create(ctx context.Context, username string, fullname stri
 			return err
 		}
 
+		// Emit integration event inside the transaction
+		if s.eventService != nil {
+			s.eventService.Emit(ctx, tx, event.NewIntegrationEvent(
+				event.EventTypeUserCreated, 1, targetTenant.TenantID,
+			).SetActor(&creatorUser.UserID).SetSubject(&createdUser.UserUUID, "user"))
+		}
+
 		return nil
 	})
 
@@ -548,7 +559,27 @@ func (s *userService) Update(ctx context.Context, userUUID uuid.UUID, tenantID i
 			}
 		}
 
-		// Update user
+		// Update user - build changed fields list
+		var changed []string
+		if username != user.Username {
+			changed = append(changed, "username")
+		}
+		if fullname != user.Fullname {
+			changed = append(changed, "fullname")
+		}
+		if status != user.Status {
+			changed = append(changed, "status")
+		}
+		if email != nil && emailStr != user.Email {
+			changed = append(changed, "email")
+		}
+		if phone != nil && phoneStr != user.Phone {
+			changed = append(changed, "phone")
+		}
+		if metadata != nil {
+			changed = append(changed, "metadata")
+		}
+
 		user.Username = username
 		user.Fullname = fullname
 		user.Status = status
@@ -567,14 +598,19 @@ func (s *userService) Update(ctx context.Context, userUUID uuid.UUID, tenantID i
 			return err
 		}
 
-		// NOTE: users.fullname was removed; persisting a name change requires
-		// updating the user's default Profile. Orchestration callers should
-		// invoke the profile service after this update if fullname changed.
-
 		// Fetch updated user with relationships
 		updatedUser, err = txUserRepo.FindByUUID(userUUID, "UserIdentities.Client", "UserIdentities.Tenant", "Roles", "Profile")
 		if err != nil {
 			return err
+		}
+
+		// Emit integration event inside the transaction
+		if s.eventService != nil && len(changed) > 0 {
+			s.eventService.Emit(ctx, tx, event.NewIntegrationEvent(
+				event.EventTypeUserUpdated, 1, tenantID,
+			).SetActor(&updaterUser.UserID).
+				SetSubject(&updatedUser.UserUUID, "user").
+				SetChangedFields(changed...))
 		}
 
 		return nil
@@ -655,6 +691,14 @@ func (s *userService) SetStatus(ctx context.Context, userUUID uuid.UUID, tenantI
 		Result:       authevent.AuthEventResultSuccess,
 		Description:  ptr.Ptr(fmt.Sprintf("User status set to %s: %s", status, user.Username)),
 	})
+	// Emit user.status_changed integration event
+	if s.eventService != nil {
+		s.eventService.Emit(ctx, nil, event.NewIntegrationEvent(
+			event.EventTypeUserStatusChanged, 1, tenantID,
+		).SetActor(&updaterUser.UserID).
+			SetSubject(&updatedUser.UserUUID, "user").
+			SetChangedFields("status"))
+	}
 	return toUserServiceDataResult(updatedUser), nil
 }
 
@@ -818,6 +862,12 @@ func (s *userService) DeleteByUUID(ctx context.Context, userUUID uuid.UUID, tena
 		Result:       authevent.AuthEventResultSuccess,
 		Description:  ptr.Ptr(fmt.Sprintf("User deleted: %s", user.Username)),
 	})
+	// Emit user.deleted integration event
+	if s.eventService != nil {
+		s.eventService.Emit(ctx, nil, event.NewIntegrationEvent(
+			event.EventTypeUserDeleted, 1, tenantID,
+		).SetActor(&deleterUser.UserID).SetSubject(&user.UserUUID, "user"))
+	}
 	return toUserServiceDataResult(user), nil
 }
 
@@ -898,7 +948,7 @@ func (s *userService) AssignUserRoles(ctx context.Context, userUUID uuid.UUID, r
 		_ = s.userTokenRepo.RevokeAllSessionsByUserID(userWithRoles.UserID)
 	}
 	s.authEventService.Log(ctx, authevent.AuthEventInput{
-		TenantID:     tenantID,
+		TenantID:    tenantID,
 		TargetUserID: &userWithRoles.UserID,
 		IPAddress:    middleware.ClientIPFromContext(ctx),
 		UserAgent:    ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),
@@ -908,6 +958,12 @@ func (s *userService) AssignUserRoles(ctx context.Context, userUUID uuid.UUID, r
 		Result:       authevent.AuthEventResultSuccess,
 		Description:  ptr.Ptr(fmt.Sprintf("Roles assigned to user: %s", userWithRoles.Username)),
 	})
+	// Emit user.role_assigned integration event
+	if s.eventService != nil {
+		s.eventService.Emit(ctx, nil, event.NewIntegrationEvent(
+			event.EventTypeUserRoleAssigned, 1, tenantID,
+		).SetSubject(&userWithRoles.UserUUID, "user"))
+	}
 
 	return toUserServiceDataResult(userWithRoles), nil
 }
@@ -972,7 +1028,7 @@ func (s *userService) RemoveUserRole(ctx context.Context, userUUID uuid.UUID, ro
 		_ = s.userTokenRepo.RevokeAllSessionsByUserID(userWithRoles.UserID)
 	}
 	s.authEventService.Log(ctx, authevent.AuthEventInput{
-		TenantID:     tenantID,
+		TenantID:    tenantID,
 		TargetUserID: &userWithRoles.UserID,
 		IPAddress:    middleware.ClientIPFromContext(ctx),
 		UserAgent:    ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),
@@ -982,6 +1038,12 @@ func (s *userService) RemoveUserRole(ctx context.Context, userUUID uuid.UUID, ro
 		Result:       authevent.AuthEventResultSuccess,
 		Description:  ptr.Ptr(fmt.Sprintf("Role removed from user: %s", userWithRoles.Username)),
 	})
+	// Emit user.role_removed integration event
+	if s.eventService != nil {
+		s.eventService.Emit(ctx, nil, event.NewIntegrationEvent(
+			event.EventTypeUserRoleRemoved, 1, tenantID,
+		).SetSubject(&userWithRoles.UserUUID, "user"))
+	}
 
 	return toUserServiceDataResult(userWithRoles), nil
 }

@@ -89,6 +89,12 @@ func RunAll(db *gorm.DB, appVersion string) error {
 		return err
 	}
 
+	// Seed integration event types catalog
+	if err := SeedEventTypes(db); err != nil {
+		slog.Error("Failed to seed event types", "error", err)
+		return err
+	}
+
 	slog.Info("Default seeding process completed")
 	return nil
 }

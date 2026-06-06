@@ -1,6 +1,6 @@
 # gRPC Feature List — Service-to-Service Control Plane Transport
 
-**Status:** Phase 0 foundation complete; Phase 1 management surface mostly complete. Remaining control-plane RPC backlog and production-hardening recommendations are explicitly listed below — proposed for **v1.1.0** (post REST/S2S-authz baseline).
+**Status:** Phase 0 foundation complete; Phase 1 management surface complete. Optional production-hardening recommendations are explicitly listed below — proposed for **v1.1.0** (post REST/S2S-authz baseline).
 **Owner:** rseguma@lula.life
 **Created:** 2026-06-04
 **Related:** [service-to-service-authorization.md](../documentations/service-to-service-authorization/service-to-service-authorization.md) · [architecture.md](../documentations/architecture/architecture.md) · [code-structure.md](../contributing/code-structure.md) · [testing.md](../contributing/testing.md)
@@ -63,7 +63,7 @@ auth ceremonies in this backlog. Per-RPC status lives in each service's table.
 | **What it mirrors** | The **management/configuration subset** of the internal/private REST port (`:8080`, VPN/private-network only — see [router.go](../../internal/server/router.go) `buildInternalRouter`). gRPC becomes a private-network-only control surface beside REST, **never** exposed to the public internet (the public port `:8081` stays REST-only). Operational probes/spec endpoints are covered by gRPC health, reflection, and generated proto contracts. |
 | **Two use-cases**   | **(a) Control/configuration** — external services (e.g. the core/control plane) mutate auth resources (tenants, clients, policies, users, settings…). **(b) Verification/decision reads** — peer services confirm auth facts needed to serve their own users (introspect tokens, ask `Authorize`, fetch policy bundles, read identities/roles where needed).                                                                                         |
 | **Auth model**      | Transport-agnostic S2S. REST and gRPC both use **service-account access tokens** and PDP policy checks. For gRPC, every RPC carries the token in metadata and is policy-gated. **A policy must always exist** for a caller to reach a protected REST endpoint or gRPC RPC — default-deny. See §6.                                                                                                                                         |
-| **Out of scope**    | Browser/public/end-user-interactive traffic stays on REST: self-registration, login, logout, password reset, magic-link/SMS login, user self-profile/account settings, and MFA ceremonies. gRPC-Web/public gateway and breaking v2 changes are also out of scope — see §10.                                                                                                                                                             |
+| **Out of scope**    | Browser/public/end-user-interactive traffic stays on REST: self-registration, login, logout, password reset, magic-link/SMS login, user **self**-profile/account settings, and MFA ceremonies (including **admin MFA reset** — user-account remediation, not service config). gRPC handles **admin** user-profile management (§GRPC-142) but not self-service profile editing. gRPC-Web/public gateway and breaking v2 changes are also out of scope — see §10.                                                                                                                                                             |
 
 ---
 
@@ -641,6 +641,23 @@ permission string shown. Status is per-RPC.
 |-----|-------------|-----------|--------|
 | `SendInvite` | `POST /invite/` | `user:invite` | ✅ done |
 
+### GRPC-142 · UserProfileService — `user.proto`
+Admin management of a user's profile records. Serves both **management** (a
+controller maintaining profiles) and **verification reads** (a peer service
+fetching a user's display profile to render its own UI). Mirrors the REST admin
+profile routes under `/users/{user_uuid}/profiles` and reuses the same `user:*`
+permissions, so no new permission namespace or control-policy change is needed.
+Self-service profile editing (`/profile/*`) stays REST-only — see §10.
+
+| RPC | REST origin | Permission | Status |
+|-----|-------------|-----------|--------|
+| `ListUserProfiles` | `GET /users/{uuid}/profiles` | `user:read` | ✅ done |
+| `GetUserProfile` | `GET /users/{uuid}/profiles/{p}` | `user:read` | ✅ done |
+| `CreateUserProfile` | `POST /users/{uuid}/profiles` | `user:update` | ✅ done |
+| `UpdateUserProfile` | `PUT /users/{uuid}/profiles/{p}` | `user:update` | ✅ done |
+| `SetDefaultUserProfile` | `PUT /users/{uuid}/profiles/{p}/set-default` | `user:update` | ✅ done |
+| `DeleteUserProfile` | `DELETE /users/{uuid}/profiles/{p}` | `user:delete` | ✅ done |
+
 ### GRPC-150 · SecuritySettingService — `security.proto`
 | RPC | REST origin | Permission | Status |
 |-----|-------------|-----------|--------|
@@ -781,13 +798,21 @@ surface that another service should use to control this app:
   security settings, IP restrictions, branding, email/SMS/login templates,
   email/SMS delivery config, webhook endpoints, auth event reads, and OAuth token
   introspection.
-- User administration: admin user CRUD/status/verification/role operations and
-  `InviteService.SendInvite`.
+- User administration: admin user CRUD/status/verification/role operations,
+  `InviteService.SendInvite`, and admin user-profile management
+  (`UserProfileService`, GRPC-142).
 
-The current remaining **RPC surface** backlog is empty. Everything private and
-management-oriented is either implemented in Phase 1
-or explicitly excluded in §10. End-user flows are not missing backlog items; they
-are REST-only by design.
+The private management/configuration and verification-read surface is now
+implemented for Phase 1. Remaining items below are optional hardening or future
+client-SDK work, not missing product RPCs. User-driven security ceremonies and
+self-service profile/account flows remain explicitly excluded in §10.
+
+**What is deliberately NOT on gRPC** — and why: gRPC is for background
+service-to-service management, configuration, and verification. It is **not** a
+path for user-driven security ceremonies. Registration, login/logout, password
+reset, MFA enrollment/authentication, **and admin MFA reset** are user-account
+actions, not service configuration, so they stay REST (§10). They are not missing
+backlog items; they are out of scope by design.
 
 ---
 
@@ -856,15 +881,17 @@ Do **not** add gRPC checklist items or proto services for these REST flows:
 | Email verification and magic links | `/email-verification/*`, `/magic-link/*` | Public/user token ceremony bound to email links and frontend redirects. |
 | SMS login OTP | `/sms-login/*` | Public/user OTP ceremony. |
 | Self profile/account/settings | `/profile/*`, `/profiles/*`, `/account/*`, `/user-settings/*` | Authenticated user self-service. Core/admin management belongs in Phase 1 `UserService`. |
-| User MFA enrollment/authentication | `/mfa/totp/*`, `/mfa/webauthn/*`, `/mfa/step-up/*` | User challenge ceremony. Only admin/configuration MFA surfaces should be considered for gRPC. |
+| User MFA & admin MFA reset | `/mfa/totp/*`, `/mfa/webauthn/*`, `/mfa/step-up/*`, `POST /mfa/admin/users/{uuid}/reset` | User security ceremonies. Enrollment/authentication is a user challenge flow; **admin MFA reset is user-account remediation, not service configuration**, so it stays REST. MFA *policy/config* (enable/require MFA) is the only MFA surface on gRPC — via `SecuritySettingService` (GRPC-150). Promote admin reset to gRPC only if a concrete S2S consumer (e.g. a helpdesk integration) later requires it. |
 | Federation callback/exchange | `/federation/token`, `/federation/oauth2/callback`, `/federation/hrd`, `/account/identities/*` | External IdP redirects/tokens and authenticated user account-linking ceremonies. IdP configuration belongs in Phase 1. |
 
 Allowed exceptions must fit one of these buckets:
 
-- **Management/configuration:** for example admin reset of another user's MFA,
-  IdP configuration, signup-flow configuration, client/API-key management, and
-  security/branding/notifier settings. Invite sending is included here because it
-  is a service-triggered management action.
+- **Management/configuration:** for example admin management of user profiles
+  (`UserProfileService`), IdP configuration, signup-flow configuration,
+  client/API-key management, and security/branding/notifier settings. Invite
+  sending is included here because it is a service-triggered management action.
+  **User-account security remediation (password reset, MFA enrollment/reset) is
+  excluded** — it is user-driven and stays REST.
 - **Verification/decision reads:** for example token introspection, `Authorize`,
   policy-bundle distribution, or narrowly scoped identity/permission reads needed
   by a peer service to serve its own request.
@@ -923,6 +950,6 @@ Per [testing.md](../contributing/testing.md), gRPC work carries the same bar as 
 |-----------|-------|---------|
 | **M0 — Foundation** | GRPC-001…017, GRPC-024…030 | buf layout, codegen, auth/authz/observability interceptors, health, reflection, TLS, error mapping, **default control policy seed** + **independence guarantees** (GRPC-015/016/017), coverage guard, production hardening, test harness. **Blocks production-solid gRPC.** |
 | **M1 — IAM + Tenant core + controller lifecycle** | GRPC-101/102/110–115, GRPC-190/191, GRPC-018…023 | The control plane can register itself at init (TOFU, lockable via explicit `CompleteSetup` — GRPC-021/022/023), be un-registered, and run multiple instances; then manage tenants, services, policies, roles, ask `Authorize`, and fetch policy bundles. Highest S2S value. |
-| **M2 — Clients, Users, IdP** | GRPC-120/121/130/131/140/141 | Management/provisioning surface only: clients, API keys, admin user management, identity-provider configuration, signup-flow configuration, and invites. |
+| **M2 — Clients, Users, IdP** | GRPC-120/121/130/131/140/141/142 | Management/provisioning surface only: clients, API keys, admin user management, **admin user-profile management (GRPC-142)**, identity-provider configuration, signup-flow configuration, and invites. |
 | **M3 — Settings, Branding, Notifier, Webhooks, Events, OAuth, Setup** | GRPC-150…190 | Remaining management surface + introspection + provisioning. |
 | **M4 — Consumer SDK** | GRPC-181 | Optional but recommended SDK/wrapper for consistent service-consumer auth metadata, deadlines, request IDs, retry/backoff, connection pooling, and typed error handling. |

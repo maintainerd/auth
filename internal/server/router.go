@@ -9,6 +9,7 @@ import (
 	"github.com/maintainerd/auth/internal/authn"
 	"github.com/maintainerd/auth/internal/branding"
 	"github.com/maintainerd/auth/internal/client"
+	"github.com/maintainerd/auth/internal/event"
 	"github.com/maintainerd/auth/internal/iam"
 	"github.com/maintainerd/auth/internal/idp"
 	"github.com/maintainerd/auth/internal/invite"
@@ -79,6 +80,7 @@ func buildInternalRouter(h *handlers, application *Application) http.Handler {
 		notifier.SMSConfigRoute(api, h.smsConfig, userProvider, application.Cache)
 		webhook.WebhookEndpointRoute(api, h.webhookEndpoint, userProvider, application.Cache)
 		authevent.AuthEventRoute(api, h.authEvent, userProvider, application.Cache)
+		event.ConfigRoute(api, h.eventConfig, h.eventManagement, userProvider, application.Cache)
 		oauth.OAuthInternalRoute(api, h.oauthToken, userProvider, application.Cache)
 		iam.AuthorizationRoute(api, h.authorization)
 

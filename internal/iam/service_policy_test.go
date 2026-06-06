@@ -12,7 +12,7 @@ import (
 )
 
 func newPolicyService(policyRepo *mockPolicyRepo, serviceRepo *mockServiceRepo, apiRepo *mockAPIRepo) PolicyService {
-	return NewPolicyService(nil, policyRepo, serviceRepo, apiRepo)
+	return NewPolicyService(nil, policyRepo, serviceRepo, apiRepo, nil)
 }
 
 func newPolicy(tenantID int64, name, version string) *Policy {
@@ -202,7 +202,7 @@ func TestPolicyService_Create(t *testing.T) {
 				return nil, errors.New("lookup failed")
 			},
 		}
-		svc := NewPolicyService(db, policyRepo, &mockServiceRepo{}, &mockAPIRepo{})
+		svc := NewPolicyService(db, policyRepo, &mockServiceRepo{}, &mockAPIRepo{}, nil)
 		_, err := svc.Create(context.Background(), tenantID, "p", nil, nil, "v1", shared.StatusActive, false)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "lookup failed")
@@ -217,7 +217,7 @@ func TestPolicyService_Create(t *testing.T) {
 				return newPolicy(tenantID, "read-only", "v1"), nil
 			},
 		}
-		svc := NewPolicyService(db, policyRepo, &mockServiceRepo{}, &mockAPIRepo{})
+		svc := NewPolicyService(db, policyRepo, &mockServiceRepo{}, &mockAPIRepo{}, nil)
 		_, err := svc.Create(context.Background(), tenantID, "read-only", nil, nil, "v1", shared.StatusActive, false)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "already exists")
@@ -232,7 +232,7 @@ func TestPolicyService_Create(t *testing.T) {
 				return nil, errors.New("insert failed")
 			},
 		}
-		svc := NewPolicyService(db, policyRepo, &mockServiceRepo{}, &mockAPIRepo{})
+		svc := NewPolicyService(db, policyRepo, &mockServiceRepo{}, &mockAPIRepo{}, nil)
 		_, err := svc.Create(context.Background(), tenantID, "new-policy", nil, nil, "v1", shared.StatusActive, false)
 		require.Error(t, err)
 	})
@@ -241,7 +241,7 @@ func TestPolicyService_Create(t *testing.T) {
 		db, mock := newMockGormDB(t)
 		mock.ExpectBegin()
 		mock.ExpectCommit()
-		svc := NewPolicyService(db, &mockPolicyRepo{}, &mockServiceRepo{}, &mockAPIRepo{})
+		svc := NewPolicyService(db, &mockPolicyRepo{}, &mockServiceRepo{}, &mockAPIRepo{}, nil)
 		result, err := svc.Create(context.Background(), tenantID, "new-policy", nil, nil, "v1", shared.StatusActive, false)
 		require.NoError(t, err)
 		assert.Equal(t, "new-policy", result.Name)
@@ -265,7 +265,7 @@ func TestPolicyService_Update(t *testing.T) {
 				return nil, errors.New("db error")
 			},
 		}
-		svc := NewPolicyService(db, policyRepo, &mockServiceRepo{}, &mockAPIRepo{})
+		svc := NewPolicyService(db, policyRepo, &mockServiceRepo{}, &mockAPIRepo{}, nil)
 		_, err := svc.Update(context.Background(), policyUUID, tenantID, "n", nil, nil, "v1", shared.StatusActive)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "db error")
@@ -278,7 +278,7 @@ func TestPolicyService_Update(t *testing.T) {
 		policyRepo := &mockPolicyRepo{
 			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*Policy, error) { return nil, nil },
 		}
-		svc := NewPolicyService(db, policyRepo, &mockServiceRepo{}, &mockAPIRepo{})
+		svc := NewPolicyService(db, policyRepo, &mockServiceRepo{}, &mockAPIRepo{}, nil)
 		_, err := svc.Update(context.Background(), policyUUID, tenantID, "n", nil, nil, "v1", shared.StatusActive)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "not found")
@@ -293,7 +293,7 @@ func TestPolicyService_Update(t *testing.T) {
 		policyRepo := &mockPolicyRepo{
 			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*Policy, error) { return p, nil },
 		}
-		svc := NewPolicyService(db, policyRepo, &mockServiceRepo{}, &mockAPIRepo{})
+		svc := NewPolicyService(db, policyRepo, &mockServiceRepo{}, &mockAPIRepo{}, nil)
 		_, err := svc.Update(context.Background(), policyUUID, tenantID, "n", nil, nil, "v1", shared.StatusActive)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "system policy")
@@ -311,7 +311,7 @@ func TestPolicyService_Update(t *testing.T) {
 				return nil, errors.New("lookup error")
 			},
 		}
-		svc := NewPolicyService(db, policyRepo, &mockServiceRepo{}, &mockAPIRepo{})
+		svc := NewPolicyService(db, policyRepo, &mockServiceRepo{}, &mockAPIRepo{}, nil)
 		_, err := svc.Update(context.Background(), policyUUID, tenantID, "new-name", nil, nil, "v1", shared.StatusActive)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "lookup error")
@@ -332,7 +332,7 @@ func TestPolicyService_Update(t *testing.T) {
 				return dup, nil
 			},
 		}
-		svc := NewPolicyService(db, policyRepo, &mockServiceRepo{}, &mockAPIRepo{})
+		svc := NewPolicyService(db, policyRepo, &mockServiceRepo{}, &mockAPIRepo{}, nil)
 		_, err := svc.Update(context.Background(), policyUUID, tenantID, "new-name", nil, nil, "v1", shared.StatusActive)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "already exists")
@@ -350,7 +350,7 @@ func TestPolicyService_Update(t *testing.T) {
 				return nil, errors.New("update failed")
 			},
 		}
-		svc := NewPolicyService(db, policyRepo, &mockServiceRepo{}, &mockAPIRepo{})
+		svc := NewPolicyService(db, policyRepo, &mockServiceRepo{}, &mockAPIRepo{}, nil)
 		_, err := svc.Update(context.Background(), policyUUID, tenantID, "read-only", nil, nil, "v1", shared.StatusActive)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "update failed")
@@ -365,7 +365,7 @@ func TestPolicyService_Update(t *testing.T) {
 		policyRepo := &mockPolicyRepo{
 			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*Policy, error) { return p, nil },
 		}
-		svc := NewPolicyService(db, policyRepo, &mockServiceRepo{}, &mockAPIRepo{})
+		svc := NewPolicyService(db, policyRepo, &mockServiceRepo{}, &mockAPIRepo{}, nil)
 		result, err := svc.Update(context.Background(), policyUUID, tenantID, "read-only", nil, nil, "v1", shared.StatusActive)
 		require.NoError(t, err)
 		assert.Equal(t, "read-only", result.Name)
@@ -380,7 +380,7 @@ func TestPolicyService_Update(t *testing.T) {
 		policyRepo := &mockPolicyRepo{
 			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*Policy, error) { return p, nil },
 		}
-		svc := NewPolicyService(db, policyRepo, &mockServiceRepo{}, &mockAPIRepo{})
+		svc := NewPolicyService(db, policyRepo, &mockServiceRepo{}, &mockAPIRepo{}, nil)
 		result, err := svc.Update(context.Background(), policyUUID, tenantID, "new-name", nil, nil, "v2", shared.StatusActive)
 		require.NoError(t, err)
 		assert.Equal(t, "new-name", result.Name)
@@ -404,7 +404,7 @@ func TestPolicyService_SetStatusByUUID(t *testing.T) {
 				return nil, errors.New("db error")
 			},
 		}
-		svc := NewPolicyService(db, policyRepo, &mockServiceRepo{}, &mockAPIRepo{})
+		svc := NewPolicyService(db, policyRepo, &mockServiceRepo{}, &mockAPIRepo{}, nil)
 		_, err := svc.SetStatusByUUID(context.Background(), policyUUID, tenantID, shared.StatusInactive)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "db error")
@@ -417,7 +417,7 @@ func TestPolicyService_SetStatusByUUID(t *testing.T) {
 		policyRepo := &mockPolicyRepo{
 			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*Policy, error) { return nil, nil },
 		}
-		svc := NewPolicyService(db, policyRepo, &mockServiceRepo{}, &mockAPIRepo{})
+		svc := NewPolicyService(db, policyRepo, &mockServiceRepo{}, &mockAPIRepo{}, nil)
 		_, err := svc.SetStatusByUUID(context.Background(), policyUUID, tenantID, shared.StatusInactive)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "not found")
@@ -432,7 +432,7 @@ func TestPolicyService_SetStatusByUUID(t *testing.T) {
 		policyRepo := &mockPolicyRepo{
 			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*Policy, error) { return p, nil },
 		}
-		svc := NewPolicyService(db, policyRepo, &mockServiceRepo{}, &mockAPIRepo{})
+		svc := NewPolicyService(db, policyRepo, &mockServiceRepo{}, &mockAPIRepo{}, nil)
 		_, err := svc.SetStatusByUUID(context.Background(), policyUUID, tenantID, shared.StatusInactive)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "system policy")
@@ -449,7 +449,7 @@ func TestPolicyService_SetStatusByUUID(t *testing.T) {
 				return errors.New("status update failed")
 			},
 		}
-		svc := NewPolicyService(db, policyRepo, &mockServiceRepo{}, &mockAPIRepo{})
+		svc := NewPolicyService(db, policyRepo, &mockServiceRepo{}, &mockAPIRepo{}, nil)
 		_, err := svc.SetStatusByUUID(context.Background(), policyUUID, tenantID, shared.StatusInactive)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "status update failed")
@@ -470,7 +470,7 @@ func TestPolicyService_SetStatusByUUID(t *testing.T) {
 				return nil, errors.New("re-fetch failed")
 			},
 		}
-		svc := NewPolicyService(db, policyRepo, &mockServiceRepo{}, &mockAPIRepo{})
+		svc := NewPolicyService(db, policyRepo, &mockServiceRepo{}, &mockAPIRepo{}, nil)
 		_, err := svc.SetStatusByUUID(context.Background(), policyUUID, tenantID, shared.StatusInactive)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "re-fetch failed")
@@ -490,7 +490,7 @@ func TestPolicyService_SetStatusByUUID(t *testing.T) {
 				return &updated, nil
 			},
 		}
-		svc := NewPolicyService(db, policyRepo, &mockServiceRepo{}, &mockAPIRepo{})
+		svc := NewPolicyService(db, policyRepo, &mockServiceRepo{}, &mockAPIRepo{}, nil)
 		result, err := svc.SetStatusByUUID(context.Background(), policyUUID, tenantID, shared.StatusInactive)
 		require.NoError(t, err)
 		assert.Equal(t, shared.StatusInactive, result.Status)
@@ -514,7 +514,7 @@ func TestPolicyService_DeleteByUUID(t *testing.T) {
 				return nil, errors.New("db error")
 			},
 		}
-		svc := NewPolicyService(db, policyRepo, &mockServiceRepo{}, &mockAPIRepo{})
+		svc := NewPolicyService(db, policyRepo, &mockServiceRepo{}, &mockAPIRepo{}, nil)
 		_, err := svc.DeleteByUUID(context.Background(), policyUUID, tenantID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "db error")
@@ -527,7 +527,7 @@ func TestPolicyService_DeleteByUUID(t *testing.T) {
 		policyRepo := &mockPolicyRepo{
 			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*Policy, error) { return nil, nil },
 		}
-		svc := NewPolicyService(db, policyRepo, &mockServiceRepo{}, &mockAPIRepo{})
+		svc := NewPolicyService(db, policyRepo, &mockServiceRepo{}, &mockAPIRepo{}, nil)
 		_, err := svc.DeleteByUUID(context.Background(), policyUUID, tenantID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "not found")
@@ -542,7 +542,7 @@ func TestPolicyService_DeleteByUUID(t *testing.T) {
 		policyRepo := &mockPolicyRepo{
 			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*Policy, error) { return p, nil },
 		}
-		svc := NewPolicyService(db, policyRepo, &mockServiceRepo{}, &mockAPIRepo{})
+		svc := NewPolicyService(db, policyRepo, &mockServiceRepo{}, &mockAPIRepo{}, nil)
 		_, err := svc.DeleteByUUID(context.Background(), policyUUID, tenantID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "system")
@@ -559,7 +559,7 @@ func TestPolicyService_DeleteByUUID(t *testing.T) {
 				return errors.New("delete failed")
 			},
 		}
-		svc := NewPolicyService(db, policyRepo, &mockServiceRepo{}, &mockAPIRepo{})
+		svc := NewPolicyService(db, policyRepo, &mockServiceRepo{}, &mockAPIRepo{}, nil)
 		_, err := svc.DeleteByUUID(context.Background(), policyUUID, tenantID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "delete failed")
@@ -573,7 +573,7 @@ func TestPolicyService_DeleteByUUID(t *testing.T) {
 		policyRepo := &mockPolicyRepo{
 			findByUUIDAndTenantIDFn: func(_ uuid.UUID, _ int64) (*Policy, error) { return p, nil },
 		}
-		svc := NewPolicyService(db, policyRepo, &mockServiceRepo{}, &mockAPIRepo{})
+		svc := NewPolicyService(db, policyRepo, &mockServiceRepo{}, &mockAPIRepo{}, nil)
 		result, err := svc.DeleteByUUID(context.Background(), policyUUID, tenantID)
 		require.NoError(t, err)
 		assert.Equal(t, p.Name, result.Name)

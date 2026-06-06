@@ -135,8 +135,8 @@ This file is intentionally an implementation-facing checklist. Marketing copy an
 - [x] Service identity claims in access tokens (`sub_type=service`, `svc`)
 - [x] IAM policy evaluator with default deny, explicit-deny-wins, and wildcard matching
 - [x] Service policy bundle endpoint with `ETag` and `304 Not Modified`
-- [x] Service-to-service authorization endpoint for non-Go callers
-- [x] Go `authzclient` module with token acquisition, bundle cache, polling, webhook refresh, and shared evaluator
+- [x] Service-to-service authorization endpoint for external callers
+- [x] Backend service-to-service APIs remain in this repo; external SDKs are separate consumers of these APIs
 - [x] IAM policy update and service-policy assignment/removal webhook invalidation events
 - [x] API keys scoped to APIs and permissions
 - [x] Signup flows with automatic role assignment

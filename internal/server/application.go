@@ -5,6 +5,7 @@ import (
 	"github.com/maintainerd/auth/internal/authn"
 	"github.com/maintainerd/auth/internal/branding"
 	"github.com/maintainerd/auth/internal/client"
+	"github.com/maintainerd/auth/internal/event"
 	"github.com/maintainerd/auth/internal/iam"
 	"github.com/maintainerd/auth/internal/idp"
 	"github.com/maintainerd/auth/internal/invite"
@@ -77,5 +78,8 @@ type Application struct {
 	SMSLoginService           authn.SMSLoginService
 	MFAService                mfa.MFAService
 	WebAuthnService           mfa.WebAuthnService
-	FederationService         idp.FederationService
+	FederationService            idp.FederationService
+	EventTypeService             event.EventTypeService
+	TenantEventTypeConfigService event.TenantEventTypeConfigService
+	EventRouteService            event.EventRouteService
 }

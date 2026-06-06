@@ -2,7 +2,6 @@ package webhook
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"testing"
 	"time"
@@ -12,7 +11,6 @@ import (
 	"github.com/maintainerd/auth/internal/shared"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"gorm.io/datatypes"
 )
 
 func newWebhookEndpointSvc(repo *mockWebhookEndpointRepo) WebhookEndpointService {
@@ -20,7 +18,6 @@ func newWebhookEndpointSvc(repo *mockWebhookEndpointRepo) WebhookEndpointService
 }
 
 func newWebhookEndpoint(tenantID int64) *WebhookEndpoint {
-	evts, _ := json.Marshal([]string{"user.created", "user.deleted"})
 	now := time.Now()
 	return &WebhookEndpoint{
 		WebhookEndpointID:   1,
@@ -28,7 +25,7 @@ func newWebhookEndpoint(tenantID int64) *WebhookEndpoint {
 		TenantID:            tenantID,
 		URL:                 "https://example.com/webhook",
 		SecretEncrypted:     "sec123",
-		Events:              datatypes.JSON(evts),
+		SubscribeAll:        true,
 		MaxRetries:          3,
 		TimeoutSeconds:      30,
 		Status:              shared.StatusActive,
@@ -139,8 +136,8 @@ func TestWebhookEndpointService_Create(t *testing.T) {
 			},
 		})
 		res, err := svc.Create(context.Background(), 1,
-			"https://example.com/hook", "secret",
-			[]string{"user.created"}, nil, nil, "desc", shared.StatusActive,
+			"https://example.com/hook",
+			true, nil, nil, "desc", shared.StatusActive,
 		)
 		require.NoError(t, err)
 		assert.Equal(t, "https://example.com/hook", res.URL)
@@ -156,8 +153,8 @@ func TestWebhookEndpointService_Create(t *testing.T) {
 			},
 		})
 		res, err := svc.Create(context.Background(), 1,
-			"https://example.com/hook", "secret",
-			[]string{"user.created"}, intPtr(5), intPtr(60), "desc", shared.StatusActive,
+			"https://example.com/hook",
+			true, intPtr(5), intPtr(60), "desc", shared.StatusActive,
 		)
 		require.NoError(t, err)
 		assert.Equal(t, 5, res.MaxRetries)
@@ -171,8 +168,8 @@ func TestWebhookEndpointService_Create(t *testing.T) {
 			},
 		})
 		_, err := svc.Create(context.Background(), 1,
-			"https://example.com/hook", "",
-			[]string{"user.created"}, nil, nil, "", shared.StatusActive,
+			"https://example.com/hook",
+			true, nil, nil, "", shared.StatusActive,
 		)
 		require.Error(t, err)
 	})
@@ -193,8 +190,8 @@ func TestWebhookEndpointService_Create(t *testing.T) {
 		})
 
 		_, err := svc.Create(context.Background(), 1,
-			"https://example.com/hook", "secret",
-			[]string{"user.created"}, nil, nil, "", shared.StatusActive,
+			"https://example.com/hook",
+			true, nil, nil, "", shared.StatusActive,
 		)
 
 		require.ErrorIs(t, err, assert.AnError)
@@ -217,8 +214,8 @@ func TestWebhookEndpointService_Update(t *testing.T) {
 			},
 		})
 		res, err := svc.Update(context.Background(), 1, ep.WebhookEndpointUUID,
-			"https://new.example.com/hook", "new-secret",
-			[]string{"user.updated"}, intPtr(5), intPtr(60), "updated", shared.StatusActive,
+			"https://new.example.com/hook", true,
+		true, intPtr(5), intPtr(60), "updated", shared.StatusActive,
 		)
 		require.NoError(t, err)
 		assert.Equal(t, "https://new.example.com/hook", res.URL)
@@ -234,8 +231,8 @@ func TestWebhookEndpointService_Update(t *testing.T) {
 			},
 		})
 		_, err := svc.Update(context.Background(), 1, ep.WebhookEndpointUUID,
-			"https://example.com/hook", "",
-			[]string{"user.created"}, nil, nil, "", shared.StatusActive,
+			"https://example.com/hook", false,
+			true, nil, nil, "", shared.StatusActive,
 		)
 		require.NoError(t, err)
 		assert.Equal(t, original, ep.SecretEncrypted)
@@ -246,8 +243,8 @@ func TestWebhookEndpointService_Update(t *testing.T) {
 			findByUUIDAndTenantFn: func(_ uuid.UUID, _ int64) (*WebhookEndpoint, error) { return nil, nil },
 		})
 		_, err := svc.Update(context.Background(), 1, uuid.New(),
-			"https://example.com", "",
-			[]string{"user.created"}, nil, nil, "", shared.StatusActive,
+			"https://example.com", false,
+			true, nil, nil, "", shared.StatusActive,
 		)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "not found")
@@ -260,8 +257,8 @@ func TestWebhookEndpointService_Update(t *testing.T) {
 			},
 		})
 		_, err := svc.Update(context.Background(), 1, uuid.New(),
-			"https://example.com", "",
-			[]string{"user.created"}, nil, nil, "", shared.StatusActive,
+			"https://example.com", false,
+			true, nil, nil, "", shared.StatusActive,
 		)
 		require.Error(t, err)
 	})
@@ -275,8 +272,8 @@ func TestWebhookEndpointService_Update(t *testing.T) {
 			},
 		})
 		_, err := svc.Update(context.Background(), 1, ep.WebhookEndpointUUID,
-			"https://example.com", "",
-			[]string{}, nil, nil, "", shared.StatusActive,
+			"https://example.com", false,
+			true, nil, nil, "", shared.StatusActive,
 		)
 		require.Error(t, err)
 	})
@@ -299,8 +296,8 @@ func TestWebhookEndpointService_Update(t *testing.T) {
 		})
 
 		_, err := svc.Update(context.Background(), 1, ep.WebhookEndpointUUID,
-			"https://example.com", "secret",
-			[]string{"user.created"}, nil, nil, "", shared.StatusActive,
+			"https://example.com", true,
+			true, nil, nil, "", shared.StatusActive,
 		)
 
 		require.ErrorIs(t, err, assert.AnError)
@@ -408,32 +405,15 @@ func TestWebhookEndpointService_Delete(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestToWebhookEndpointServiceDataResult(t *testing.T) {
-	t.Run("nil events produces empty array", func(t *testing.T) {
-		ep := &WebhookEndpoint{WebhookEndpointUUID: uuid.New(), TenantID: 1}
+	t.Run("subscribe_all false", func(t *testing.T) {
+		ep := &WebhookEndpoint{WebhookEndpointUUID: uuid.New(), TenantID: 1, SubscribeAll: false}
 		result := toWebhookEndpointServiceDataResult(ep)
-		assert.Equal(t, []any{}, result.Events)
+		assert.False(t, result.SubscribeAll)
 	})
 
-	t.Run("valid events are unmarshalled", func(t *testing.T) {
-		evts, _ := json.Marshal([]string{"user.created"})
-		ep := &WebhookEndpoint{
-			WebhookEndpointUUID: uuid.New(),
-			TenantID:            1,
-			Events:              datatypes.JSON(evts),
-		}
+	t.Run("subscribe_all true", func(t *testing.T) {
+		ep := &WebhookEndpoint{WebhookEndpointUUID: uuid.New(), TenantID: 1, SubscribeAll: true}
 		result := toWebhookEndpointServiceDataResult(ep)
-		arr, ok := result.Events.([]any)
-		require.True(t, ok)
-		assert.Len(t, arr, 1)
-	})
-
-	t.Run("invalid JSON events falls back to empty array", func(t *testing.T) {
-		ep := &WebhookEndpoint{
-			WebhookEndpointUUID: uuid.New(),
-			TenantID:            1,
-			Events:              datatypes.JSON([]byte(`not json`)),
-		}
-		result := toWebhookEndpointServiceDataResult(ep)
-		assert.Equal(t, []any{}, result.Events)
+		assert.True(t, result.SubscribeAll)
 	})
 }

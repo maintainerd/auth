@@ -1634,8 +1634,9 @@ paths:
       summary: Get the current service principal policy bundle
       operationId: getServicePolicyBundle
       description: >
-        Returns the active IAM policies attached to the service principal
-        represented by the caller's OAuth client_credentials access token.
+        Backend API used by services or external SDKs to fetch the active IAM
+        policies attached to the service principal represented by the caller's
+        OAuth client_credentials access token.
         Service tokens must include either svc=<service name> or sub_type=service
         with sub=<service name>.
       parameters:
@@ -1670,9 +1671,10 @@ paths:
       summary: Evaluate a service-to-service authorization decision
       operationId: authorizeServiceRequest
       description: >
-        Convenience endpoint for callers that cannot embed the Go authzclient.
-        The request is evaluated with the same IAM policy evaluator used by
-        policy bundles and the SDK.
+        Backend API used by services or external SDKs that need a
+        service-to-service authorization decision without fetching and evaluating
+        policy bundles locally. The request is evaluated with the same IAM
+        policy evaluator used by policy bundles.
       requestBody:
         required: true
         content:

@@ -7,6 +7,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/authevent"
+	"github.com/maintainerd/auth/internal/event"
 	"github.com/maintainerd/auth/internal/platform/apperror"
 	"github.com/maintainerd/auth/internal/platform/cache"
 	"github.com/maintainerd/auth/internal/platform/middleware"
@@ -89,6 +90,7 @@ type roleService struct {
 	tenantRepo         TenantRepository
 	authzInvalidator   AuthorizationTokenInvalidator
 	authEventService   authevent.AuthEventService
+	eventService       event.EventService
 }
 
 func NewRoleService(
@@ -100,6 +102,7 @@ func NewRoleService(
 	tenantRepo TenantRepository,
 	cacheInvalidator cache.Invalidator,
 	authEventService authevent.AuthEventService,
+	eventService event.EventService,
 	authzInvalidator ...AuthorizationTokenInvalidator,
 ) RoleService {
 	invalidator := AuthorizationTokenInvalidator(noopAuthorizationTokenInvalidator{})
@@ -115,6 +118,7 @@ func NewRoleService(
 		tenantRepo:         tenantRepo,
 		authzInvalidator:   invalidator,
 		authEventService:   coalesceAuthEventService(authEventService),
+		eventService:       eventService,
 	}
 }
 
@@ -293,6 +297,13 @@ func (s *roleService) Create(ctx context.Context, name string, description strin
 
 		createdRole = newRole
 
+		// Emit role.created integration event inside the transaction
+		if s.eventService != nil {
+			s.eventService.Emit(ctx, tx, event.NewIntegrationEvent(
+				event.EventTypeRoleCreated, 1, targetTenant.TenantID,
+			).SetActor(&actorUser.UserID).SetSubject(&createdRole.RoleUUID, "role"))
+		}
+
 		return nil
 	})
 
@@ -372,6 +383,24 @@ func (s *roleService) Update(ctx context.Context, roleUUID uuid.UUID, tenantID i
 			}
 		}
 
+		// Track changed fields
+		var changed []string
+		if role.Name != name {
+			changed = append(changed, "name")
+		}
+		if role.Description != description {
+			changed = append(changed, "description")
+		}
+		if role.IsDefault != isDefault {
+			changed = append(changed, "is_default")
+		}
+		if role.IsSystem != isSystem {
+			changed = append(changed, "is_system")
+		}
+		if role.Status != status {
+			changed = append(changed, "status")
+		}
+
 		// Update role
 		role.Name = name
 		role.Description = description
@@ -385,6 +414,15 @@ func (s *roleService) Update(ctx context.Context, roleUUID uuid.UUID, tenantID i
 		}
 
 		updatedRole = role
+
+		// Emit role.updated integration event inside the transaction
+		if s.eventService != nil && len(changed) > 0 {
+			s.eventService.Emit(ctx, tx, event.NewIntegrationEvent(
+				event.EventTypeRoleUpdated, 1, tenantID,
+			).SetActor(&actorUser.UserID).
+				SetSubject(&updatedRole.RoleUUID, "role").
+				SetChangedFields(changed...))
+		}
 
 		return nil
 	})
@@ -569,6 +607,12 @@ func (s *roleService) DeleteByUUID(ctx context.Context, roleUUID uuid.UUID, tena
 		Result:      authevent.AuthEventResultSuccess,
 		Description: ptr.Ptr(fmt.Sprintf("Role deleted: %s", role.Name)),
 	})
+	// Emit role.deleted integration event
+	if s.eventService != nil {
+		s.eventService.Emit(ctx, nil, event.NewIntegrationEvent(
+			event.EventTypeRoleDeleted, 1, tenantID,
+		).SetActor(&actorUser.UserID).SetSubject(&role.RoleUUID, "role"))
+	}
 	return toRoleServiceDataResult(role), nil
 }
 
@@ -697,6 +741,13 @@ func (s *roleService) AddRolePermissions(ctx context.Context, roleUUID uuid.UUID
 		Result:      authevent.AuthEventResultSuccess,
 		Description: ptr.Ptr(fmt.Sprintf("Permissions added to role: %s", roleWithPermissions.Name)),
 	})
+	// Emit role.permissions_changed integration event
+	if s.eventService != nil {
+		s.eventService.Emit(ctx, nil, event.NewIntegrationEvent(
+			event.EventTypeRolePermissionsChanged, 1, tenantID,
+		).SetActor(&capturedActorID).SetSubject(&roleWithPermissions.RoleUUID, "role").
+			SetChangedFields("permissions"))
+	}
 	return toRoleServiceDataResult(roleWithPermissions), nil
 }
 
@@ -813,6 +864,13 @@ func (s *roleService) RemoveRolePermissions(ctx context.Context, roleUUID uuid.U
 		Result:      authevent.AuthEventResultSuccess,
 		Description: ptr.Ptr(fmt.Sprintf("Permission removed from role: %s", roleWithPermissions.Name)),
 	})
+	// Emit role.permissions_changed integration event
+	if s.eventService != nil {
+		s.eventService.Emit(ctx, nil, event.NewIntegrationEvent(
+			event.EventTypeRolePermissionsChanged, 1, tenantID,
+		).SetActor(&capturedActorID).SetSubject(&roleWithPermissions.RoleUUID, "role").
+			SetChangedFields("permissions"))
+	}
 	return toRoleServiceDataResult(roleWithPermissions), nil
 }
 

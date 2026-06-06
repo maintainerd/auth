@@ -2,7 +2,6 @@ package webhook
 
 import (
 	"context"
-	"encoding/json"
 	"log/slog"
 	"sync"
 
@@ -10,6 +9,8 @@ import (
 )
 
 // Dispatcher delivers auth events to subscribed webhook endpoints.
+// Deprecated: The integration event plane now uses the outbox + relay pattern.
+// This dispatcher is kept for backward compatibility with audit event webhook delivery.
 type Dispatcher struct {
 	repo   WebhookEndpointRepository
 	jobs   chan webhookDelivery
@@ -43,9 +44,7 @@ func NewDispatcher(repo WebhookEndpointRepository) *Dispatcher {
 }
 
 // Dispatch finds all active webhook endpoints for the event's tenant and
-// delivers the event to those that subscribe to the event type. Matching
-// deliveries are queued into a bounded worker pool; overflow is logged and
-// dropped so webhook pressure cannot create unbounded goroutines.
+// delivers the event to those that subscribe to the event type.
 func (d *Dispatcher) Dispatch(ctx context.Context, event *authevent.AuthEvent) {
 	endpoints, err := d.repo.FindActiveByTenantID(event.TenantID)
 	if err != nil {
@@ -55,7 +54,7 @@ func (d *Dispatcher) Dispatch(ctx context.Context, event *authevent.AuthEvent) {
 
 	for _, ep := range endpoints {
 		ep := ep
-		if !matchesEvent(ep.Events, event.EventType) {
+		if !matchesEventType(ep, event.EventType) {
 			continue
 		}
 		d.enqueue(webhookDelivery{ctx: ctx, event: event, ep: ep})
@@ -86,25 +85,10 @@ func (d *Dispatcher) worker() {
 	}
 }
 
-// matchesEvent returns true when the endpoint's event list contains the given
-// event type, "*" (wildcard), or is empty (matches all).
-func matchesEvent(events []byte, eventType string) bool {
-	if len(events) == 0 {
-		return true
-	}
-	var list []string
-	if err := json.Unmarshal(events, &list); err != nil {
-		return false
-	}
-	if len(list) == 0 {
-		return true
-	}
-	for _, e := range list {
-		if e == "*" || e == eventType {
-			return true
-		}
-	}
-	return false
+// matchesEventType returns true when the endpoint subscribes to the event type.
+// subscribe_all = true means all events are delivered.
+func matchesEventType(ep WebhookEndpoint, _ string) bool {
+	return ep.SubscribeAll
 }
 
 // Shutdown waits for all in-flight webhook deliveries to complete.

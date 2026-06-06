@@ -15,7 +15,7 @@ CREATE TABLE IF NOT EXISTS webhook_endpoints (
     tenant_id               BIGINT NOT NULL,
     url                     TEXT NOT NULL,
     secret_encrypted        TEXT,
-    events                  JSONB DEFAULT '[]',
+    subscribe_all           BOOLEAN NOT NULL DEFAULT false,
     max_retries             INTEGER NOT NULL DEFAULT 3,
     timeout_seconds         INTEGER NOT NULL DEFAULT 30,
     status                  VARCHAR(20) NOT NULL DEFAULT 'active',
@@ -44,7 +44,7 @@ BEGIN
         SELECT 1 FROM pg_constraint WHERE conname = 'chk_webhook_endpoints_status'
     ) THEN
         ALTER TABLE webhook_endpoints
-            ADD CONSTRAINT chk_webhook_endpoints_status CHECK (status IN ('active', 'inactive'));
+            ADD CONSTRAINT chk_webhook_endpoints_status CHECK (status IN ('active', 'inactive', 'quarantined'));
     END IF;
 END$$;
 

@@ -2,19 +2,16 @@ package webhook
 
 import (
 	"context"
-	"encoding/json"
 	"io"
 	"net/http"
 	"strings"
 	"testing"
 	"time"
 
-	"github.com/maintainerd/auth/internal/authevent"
 	"github.com/maintainerd/auth/internal/platform/crypto"
 	"github.com/maintainerd/auth/internal/shared"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"gorm.io/datatypes"
 )
 
 func TestNewDispatcher(t *testing.T) {
@@ -41,16 +38,12 @@ func TestDispatcher_Dispatch(t *testing.T) {
 	})
 
 	t.Run("queues matching endpoints and skips nonmatching", func(t *testing.T) {
-		events, err := json.Marshal([]string{authevent.AuthEventTypeLoginSuccess})
-		require.NoError(t, err)
-		otherEvents, err := json.Marshal([]string{"user.deleted"})
-		require.NoError(t, err)
 		dispatcher := &Dispatcher{
 			repo: &mockWebhookEndpointRepo{
 				findActiveByTenantIDFn: func(_ int64) ([]WebhookEndpoint, error) {
 					return []WebhookEndpoint{
-						{WebhookEndpointID: 1, Events: datatypes.JSON(events), Status: shared.StatusActive},
-						{WebhookEndpointID: 2, Events: datatypes.JSON(otherEvents), Status: shared.StatusActive},
+						{WebhookEndpointID: 1, SubscribeAll: true, Status: shared.StatusActive},
+						{WebhookEndpointID: 2, SubscribeAll: false, Status: shared.StatusActive},
 					}, nil
 				},
 			},
@@ -124,28 +117,6 @@ func TestDispatcher_Worker(t *testing.T) {
 
 		assert.Equal(t, int64(7), <-updated)
 	})
-}
-
-func TestMatchesEvent(t *testing.T) {
-	tests := []struct {
-		name      string
-		events    []byte
-		eventType string
-		want      bool
-	}{
-		{name: "nil matches all", events: nil, eventType: "any", want: true},
-		{name: "invalid json does not match", events: []byte(`not json`), eventType: "any", want: false},
-		{name: "empty list matches all", events: []byte(`[]`), eventType: "any", want: true},
-		{name: "wildcard matches", events: []byte(`["*"]`), eventType: "any", want: true},
-		{name: "specific event matches", events: []byte(`["user.login.success"]`), eventType: "user.login.success", want: true},
-		{name: "specific event misses", events: []byte(`["user.deleted"]`), eventType: "user.login.success", want: false},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.want, matchesEvent(tt.events, tt.eventType))
-		})
-	}
 }
 
 func TestDispatcher_Shutdown(t *testing.T) {

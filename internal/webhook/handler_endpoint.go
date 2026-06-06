@@ -125,7 +125,7 @@ func (h *WebhookEndpointHandler) Create(w http.ResponseWriter, r *http.Request) 
 
 	result, err := h.webhookEndpointService.Create(
 		r.Context(), tenant.TenantID,
-		req.URL, req.Secret, req.Events,
+		req.URL, req.SubscribeAll,
 		req.MaxRetries, req.TimeoutSeconds,
 		req.Description, status,
 	)
@@ -172,7 +172,7 @@ func (h *WebhookEndpointHandler) Update(w http.ResponseWriter, r *http.Request) 
 
 	result, err := h.webhookEndpointService.Update(
 		r.Context(), tenant.TenantID, webhookUUID,
-		req.URL, req.Secret, req.Events,
+		req.URL, req.RotateSecret, req.SubscribeAll,
 		req.MaxRetries, req.TimeoutSeconds,
 		req.Description, status,
 	)
@@ -257,7 +257,8 @@ func toWebhookEndpointResponseDTO(we WebhookEndpointServiceDataResult) WebhookEn
 	return WebhookEndpointResponseDTO{
 		WebhookEndpointID: we.WebhookEndpointUUID.String(),
 		URL:               we.URL,
-		Events:            we.Events,
+		SigningSecret:     we.SigningSecret,
+		SubscribeAll:      we.SubscribeAll,
 		MaxRetries:        we.MaxRetries,
 		TimeoutSeconds:    we.TimeoutSeconds,
 		Status:            we.Status,

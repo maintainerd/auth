@@ -48,7 +48,7 @@ func (h *WebhookEndpointGRPCHandler) GetWebhookEndpoint(ctx context.Context, req
 func (h *WebhookEndpointGRPCHandler) CreateWebhookEndpoint(ctx context.Context, req *authv1.CreateWebhookEndpointRequest) (*authv1.CreateWebhookEndpointResponse, error) {
 	t, err := h.tenant(ctx, req.GetTenantUuid())
 	if err != nil { return nil, err }
-	r, err := h.svc.Create(ctx, t.TenantID, req.GetUrl(), req.GetSecret(), req.GetEvents(),
+	r, err := h.svc.Create(ctx, t.TenantID, req.GetUrl(), true,
 		intPtr(req.MaxRetries), intPtr(req.TimeoutSeconds), req.GetDescription(), req.GetStatus())
 	if err != nil { return nil, apperror.ToGRPCError(err) }
 	return &authv1.CreateWebhookEndpointResponse{Endpoint: webhookProto(r)}, nil
@@ -59,7 +59,7 @@ func (h *WebhookEndpointGRPCHandler) UpdateWebhookEndpoint(ctx context.Context, 
 	if err != nil { return nil, err }
 	id, err := parseUUID(req.GetWebhookEndpointUuid(), "Webhook endpoint UUID")
 	if err != nil { return nil, err }
-	r, err := h.svc.Update(ctx, t.TenantID, id, req.GetUrl(), req.GetSecret(), req.GetEvents(),
+	r, err := h.svc.Update(ctx, t.TenantID, id, req.GetUrl(), false, true,
 		intPtr(req.MaxRetries), intPtr(req.TimeoutSeconds), req.GetDescription(), req.GetStatus())
 	if err != nil { return nil, apperror.ToGRPCError(err) }
 	return &authv1.UpdateWebhookEndpointResponse{Endpoint: webhookProto(r)}, nil

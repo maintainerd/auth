@@ -34,10 +34,9 @@ func TestWebhookURLRule(t *testing.T) {
 
 func validWebhookCreate() WebhookEndpointCreateRequestDTO {
 	return WebhookEndpointCreateRequestDTO{
-		URL:         "https://example.com/hook",
-		Secret:      "s3cret",
-		Events:      []string{"user.created", "user.deleted"},
-		Description: "Test hook",
+		URL:          "https://example.com/hook",
+		SubscribeAll: true,
+		Description:  "Test hook",
 	}
 }
 
@@ -81,63 +80,31 @@ func TestWebhookEndpointCreateRequestDTO_Validate(t *testing.T) {
 		require.Error(t, d.Validate())
 	})
 
-	t.Run("missing events", func(t *testing.T) {
-		d := validWebhookCreate()
-		d.Events = nil
-		require.Error(t, d.Validate())
-	})
-
-	t.Run("empty events", func(t *testing.T) {
-		d := validWebhookCreate()
-		d.Events = []string{}
-		require.Error(t, d.Validate())
-	})
-
-	t.Run("event name too long", func(t *testing.T) {
-		d := validWebhookCreate()
-		d.Events = []string{strings.Repeat("a", 101)}
-		require.Error(t, d.Validate())
-	})
-
-	t.Run("max_retries too high", func(t *testing.T) {
-		d := validWebhookCreate()
-		v := 11
-		d.MaxRetries = &v
-		require.Error(t, d.Validate())
-	})
-
-	t.Run("timeout too high", func(t *testing.T) {
-		d := validWebhookCreate()
-		v := 121
-		d.TimeoutSeconds = &v
-		require.Error(t, d.Validate())
-	})
-
 	t.Run("description too long", func(t *testing.T) {
 		d := validWebhookCreate()
 		d.Description = strings.Repeat("a", 501)
 		require.Error(t, d.Validate())
 	})
 
-	t.Run("invalid status", func(t *testing.T) {
+	t.Run("invalid max retries", func(t *testing.T) {
 		d := validWebhookCreate()
-		bad := "pending"
-		d.Status = &bad
+		neg := -1
+		d.MaxRetries = &neg
 		require.Error(t, d.Validate())
 	})
 
-	t.Run("valid status active", func(t *testing.T) {
+	t.Run("invalid timeout", func(t *testing.T) {
 		d := validWebhookCreate()
-		active := shared.StatusActive
-		d.Status = &active
-		assert.NoError(t, d.Validate())
+		tooLong := 200
+		d.TimeoutSeconds = &tooLong
+		require.Error(t, d.Validate())
 	})
 
-	t.Run("valid status inactive", func(t *testing.T) {
+	t.Run("invalid status", func(t *testing.T) {
 		d := validWebhookCreate()
-		inactive := shared.StatusInactive
-		d.Status = &inactive
-		assert.NoError(t, d.Validate())
+		bad := "deleted"
+		d.Status = &bad
+		require.Error(t, d.Validate())
 	})
 }
 
@@ -147,15 +114,26 @@ func TestWebhookEndpointCreateRequestDTO_Validate(t *testing.T) {
 
 func validWebhookUpdate() WebhookEndpointUpdateRequestDTO {
 	return WebhookEndpointUpdateRequestDTO{
-		URL:         "https://example.com/hook",
-		Events:      []string{"user.created"},
-		Description: "Updated hook",
+		URL:          "https://example.com/hook",
+		SubscribeAll: true,
+		Description:  "Test hook",
 	}
 }
 
 func TestWebhookEndpointUpdateRequestDTO_Validate(t *testing.T) {
 	t.Run("valid", func(t *testing.T) {
 		assert.NoError(t, validWebhookUpdate().Validate())
+	})
+
+	t.Run("valid with optional fields", func(t *testing.T) {
+		d := validWebhookUpdate()
+		retries := 5
+		timeout := 60
+		status := shared.StatusActive
+		d.MaxRetries = &retries
+		d.TimeoutSeconds = &timeout
+		d.Status = &status
+		assert.NoError(t, d.Validate())
 	})
 
 	t.Run("missing url", func(t *testing.T) {
@@ -170,63 +148,39 @@ func TestWebhookEndpointUpdateRequestDTO_Validate(t *testing.T) {
 		require.Error(t, d.Validate())
 	})
 
-	t.Run("missing events", func(t *testing.T) {
+	t.Run("http url rejected", func(t *testing.T) {
 		d := validWebhookUpdate()
-		d.Events = nil
-		require.Error(t, d.Validate())
-	})
-
-	t.Run("max_retries too high", func(t *testing.T) {
-		d := validWebhookUpdate()
-		v := 11
-		d.MaxRetries = &v
-		require.Error(t, d.Validate())
-	})
-
-	t.Run("timeout too high", func(t *testing.T) {
-		d := validWebhookUpdate()
-		v := 121
-		d.TimeoutSeconds = &v
-		require.Error(t, d.Validate())
-	})
-
-	t.Run("description too long", func(t *testing.T) {
-		d := validWebhookUpdate()
-		d.Description = strings.Repeat("a", 501)
+		d.URL = "http://example.com/hook"
 		require.Error(t, d.Validate())
 	})
 
 	t.Run("invalid status", func(t *testing.T) {
 		d := validWebhookUpdate()
-		bad := "pending"
+		bad := "deleted"
 		d.Status = &bad
 		require.Error(t, d.Validate())
 	})
 }
 
 // ---------------------------------------------------------------------------
-// UpdateStatus
+// Update status
 // ---------------------------------------------------------------------------
 
 func TestWebhookEndpointUpdateStatusRequestDTO_Validate(t *testing.T) {
 	t.Run("valid active", func(t *testing.T) {
-		d := WebhookEndpointUpdateStatusRequestDTO{Status: shared.StatusActive}
-		assert.NoError(t, d.Validate())
+		assert.NoError(t, WebhookEndpointUpdateStatusRequestDTO{Status: shared.StatusActive}.Validate())
 	})
 
 	t.Run("valid inactive", func(t *testing.T) {
-		d := WebhookEndpointUpdateStatusRequestDTO{Status: shared.StatusInactive}
-		assert.NoError(t, d.Validate())
+		assert.NoError(t, WebhookEndpointUpdateStatusRequestDTO{Status: shared.StatusInactive}.Validate())
 	})
 
 	t.Run("missing status", func(t *testing.T) {
-		d := WebhookEndpointUpdateStatusRequestDTO{}
-		require.Error(t, d.Validate())
+		require.Error(t, WebhookEndpointUpdateStatusRequestDTO{}.Validate())
 	})
 
 	t.Run("invalid status", func(t *testing.T) {
-		d := WebhookEndpointUpdateStatusRequestDTO{Status: "paused"}
-		require.Error(t, d.Validate())
+		require.Error(t, WebhookEndpointUpdateStatusRequestDTO{Status: "deleted"}.Validate())
 	})
 }
 
@@ -236,22 +190,10 @@ func TestWebhookEndpointUpdateStatusRequestDTO_Validate(t *testing.T) {
 
 func TestWebhookEndpointFilterDTO_Validate(t *testing.T) {
 	t.Run("valid", func(t *testing.T) {
-		d := WebhookEndpointFilterDTO{
-			PaginationRequestDTO: PaginationRequestDTO{Page: 1, Limit: 10},
-		}
-		assert.NoError(t, d.Validate())
-	})
-
-	t.Run("valid with status", func(t *testing.T) {
-		d := WebhookEndpointFilterDTO{
+		filter := WebhookEndpointFilterDTO{
 			Status:               []string{shared.StatusActive},
 			PaginationRequestDTO: PaginationRequestDTO{Page: 1, Limit: 10},
 		}
-		assert.NoError(t, d.Validate())
-	})
-
-	t.Run("missing pagination", func(t *testing.T) {
-		d := WebhookEndpointFilterDTO{}
-		require.Error(t, d.Validate())
+		assert.NoError(t, filter.Validate())
 	})
 }

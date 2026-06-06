@@ -28,8 +28,8 @@ var (
 type mockWebhookEndpointService struct {
 	getAllFn       func(int64, []string, int, int, string, string) (*WebhookEndpointServiceListResult, error)
 	getByUUIDFn    func(int64, uuid.UUID) (*WebhookEndpointServiceDataResult, error)
-	createFn       func(int64, string, string, []string, *int, *int, string, string) (*WebhookEndpointServiceDataResult, error)
-	updateFn       func(int64, uuid.UUID, string, string, []string, *int, *int, string, string) (*WebhookEndpointServiceDataResult, error)
+	createFn       func(int64, string, bool, *int, *int, string, string) (*WebhookEndpointServiceDataResult, error)
+	updateFn       func(int64, uuid.UUID, string, bool, bool, *int, *int, string, string) (*WebhookEndpointServiceDataResult, error)
 	updateStatusFn func(int64, uuid.UUID, string) (*WebhookEndpointServiceDataResult, error)
 	deleteFn       func(int64, uuid.UUID) (*WebhookEndpointServiceDataResult, error)
 }
@@ -48,16 +48,16 @@ func (m *mockWebhookEndpointService) GetByUUID(_ context.Context, tid int64, id 
 	return nil, nil
 }
 
-func (m *mockWebhookEndpointService) Create(_ context.Context, tid int64, url, secret string, events []string, maxRetries, timeoutSeconds *int, description, status string) (*WebhookEndpointServiceDataResult, error) {
+func (m *mockWebhookEndpointService) Create(_ context.Context, tid int64, url string, subscribeAll bool, maxRetries, timeoutSeconds *int, description, status string) (*WebhookEndpointServiceDataResult, error) {
 	if m.createFn != nil {
-		return m.createFn(tid, url, secret, events, maxRetries, timeoutSeconds, description, status)
+		return m.createFn(tid, url, subscribeAll, maxRetries, timeoutSeconds, description, status)
 	}
 	return nil, nil
 }
 
-func (m *mockWebhookEndpointService) Update(_ context.Context, tid int64, id uuid.UUID, url, secret string, events []string, maxRetries, timeoutSeconds *int, description, status string) (*WebhookEndpointServiceDataResult, error) {
+func (m *mockWebhookEndpointService) Update(_ context.Context, tid int64, id uuid.UUID, url string, rotateSecret bool, subscribeAll bool, maxRetries, timeoutSeconds *int, description, status string) (*WebhookEndpointServiceDataResult, error) {
 	if m.updateFn != nil {
-		return m.updateFn(tid, id, url, secret, events, maxRetries, timeoutSeconds, description, status)
+		return m.updateFn(tid, id, url, rotateSecret, subscribeAll, maxRetries, timeoutSeconds, description, status)
 	}
 	return nil, nil
 }

@@ -6,6 +6,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/authevent"
+	"github.com/maintainerd/auth/internal/event"
 	"github.com/maintainerd/auth/internal/platform/apperror"
 	"github.com/maintainerd/auth/internal/platform/ptr"
 	"go.opentelemetry.io/otel"
@@ -97,6 +98,7 @@ type policyService struct {
 	serviceRepo      ServiceRepository
 	apiRepo          APIRepository
 	authEventService authevent.AuthEventService
+	eventService     event.EventService
 }
 
 func NewPolicyService(
@@ -104,6 +106,7 @@ func NewPolicyService(
 	policyRepo PolicyRepository,
 	serviceRepo ServiceRepository,
 	apiRepo APIRepository,
+	eventService event.EventService,
 	authEventService ...authevent.AuthEventService,
 ) PolicyService {
 	eventSvc := authevent.NoopService()
@@ -116,6 +119,7 @@ func NewPolicyService(
 		serviceRepo:      serviceRepo,
 		apiRepo:          apiRepo,
 		authEventService: eventSvc,
+		eventService:     eventService,
 	}
 }
 
@@ -281,6 +285,14 @@ func (s *policyService) Create(ctx context.Context, tenantID int64, name string,
 		}
 
 		createdPolicy = policy
+
+		// Emit policy.created integration event inside the transaction
+		if s.eventService != nil {
+			s.eventService.Emit(ctx, tx, event.NewIntegrationEvent(
+				event.EventTypePolicyCreated, 1, tenantID,
+			).SetSubject(&createdPolicy.PolicyUUID, "policy"))
+		}
+
 		return nil
 	})
 
@@ -338,6 +350,24 @@ func (s *policyService) Update(ctx context.Context, policyUUID uuid.UUID, tenant
 			}
 		}
 
+		// Track changed fields
+		var changed []string
+		if policy.Name != name {
+			changed = append(changed, "name")
+		}
+		if policy.Description != description && (policy.Description == nil || description == nil || *policy.Description != *description) {
+			changed = append(changed, "description")
+		}
+		if policy.Version != version {
+			changed = append(changed, "version")
+		}
+		if policy.Status != status {
+			changed = append(changed, "status")
+		}
+		if string(policy.Document) != string(document) {
+			changed = append(changed, "document")
+		}
+
 		// Update policy
 		policy.Name = name
 		policy.Description = description
@@ -348,6 +378,14 @@ func (s *policyService) Update(ctx context.Context, policyUUID uuid.UUID, tenant
 		updatedPolicy, err = txPolicyRepo.UpdateByUUID(policy.PolicyUUID, policy)
 		if err != nil {
 			return err
+		}
+
+		// Emit policy.updated integration event inside the transaction
+		if s.eventService != nil && len(changed) > 0 {
+			s.eventService.Emit(ctx, tx, event.NewIntegrationEvent(
+				event.EventTypeIAMPolicyUpdated, 1, tenantID,
+			).SetSubject(&updatedPolicy.PolicyUUID, "policy").
+				SetChangedFields(changed...))
 		}
 
 		return nil
@@ -478,6 +516,12 @@ func (s *policyService) DeleteByUUID(ctx context.Context, policyUUID uuid.UUID, 
 	}
 
 	span.SetStatus(codes.Ok, "")
+	// Emit policy.deleted integration event
+	if s.eventService != nil {
+		s.eventService.Emit(ctx, nil, event.NewIntegrationEvent(
+			event.EventTypePolicyDeleted, 1, tenantID,
+		).SetSubject(&deletedPolicy.PolicyUUID, "policy"))
+	}
 	return &PolicyServiceDataResult{
 		PolicyUUID:  deletedPolicy.PolicyUUID,
 		Name:        deletedPolicy.Name,

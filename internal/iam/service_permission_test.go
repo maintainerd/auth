@@ -24,7 +24,7 @@ func newPermission(id int64, name string, tenantID int64) *Permission {
 }
 
 func newPermissionService(permRepo *mockPermissionRepo, apiRepo *mockAPIRepo, roleRepo *mockRoleRepo, clientRepo *mockClientRepo) PermissionService {
-	return NewPermissionService(nil, permRepo, apiRepo, roleRepo, clientRepo, cache.NopInvalidator{})
+	return NewPermissionService(nil, permRepo, apiRepo, roleRepo, clientRepo, cache.NopInvalidator{}, nil)
 }
 
 // ---------------------------------------------------------------------------
@@ -205,7 +205,7 @@ func TestPermissionService_SetStatus(t *testing.T) {
 				return nil, nil
 			},
 		}
-		svc := NewPermissionService(db, permRepo, &mockAPIRepo{}, &mockRoleRepo{}, &mockClientRepo{}, cache.NopInvalidator{})
+		svc := NewPermissionService(db, permRepo, &mockAPIRepo{}, &mockRoleRepo{}, &mockClientRepo{}, cache.NopInvalidator{}, nil)
 		result, err := svc.SetStatus(context.Background(), permUUID, tenantID, shared.StatusInactive)
 		require.Error(t, err)
 		assert.Nil(t, result)
@@ -221,7 +221,7 @@ func TestPermissionService_SetStatus(t *testing.T) {
 				return nil, errors.New("db err")
 			},
 		}
-		svc := NewPermissionService(db, permRepo, &mockAPIRepo{}, &mockRoleRepo{}, &mockClientRepo{}, cache.NopInvalidator{})
+		svc := NewPermissionService(db, permRepo, &mockAPIRepo{}, &mockRoleRepo{}, &mockClientRepo{}, cache.NopInvalidator{}, nil)
 		_, err := svc.SetStatus(context.Background(), permUUID, tenantID, shared.StatusInactive)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "db err")
@@ -240,7 +240,7 @@ func TestPermissionService_SetStatus(t *testing.T) {
 				return nil, errors.New("save err")
 			},
 		}
-		svc := NewPermissionService(db, permRepo, &mockAPIRepo{}, &mockRoleRepo{}, &mockClientRepo{}, cache.NopInvalidator{})
+		svc := NewPermissionService(db, permRepo, &mockAPIRepo{}, &mockRoleRepo{}, &mockClientRepo{}, cache.NopInvalidator{}, nil)
 		_, err := svc.SetStatus(context.Background(), permUUID, tenantID, shared.StatusInactive)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "save err")
@@ -256,7 +256,7 @@ func TestPermissionService_SetStatus(t *testing.T) {
 				return perm, nil
 			},
 		}
-		svc := NewPermissionService(db, permRepo, &mockAPIRepo{}, &mockRoleRepo{}, &mockClientRepo{}, cache.NopInvalidator{})
+		svc := NewPermissionService(db, permRepo, &mockAPIRepo{}, &mockRoleRepo{}, &mockClientRepo{}, cache.NopInvalidator{}, nil)
 		result, err := svc.SetStatus(context.Background(), permUUID, tenantID, shared.StatusInactive)
 		require.NoError(t, err)
 		assert.NotNil(t, result)
@@ -277,7 +277,7 @@ func TestPermissionService_SetActiveStatusByUUID(t *testing.T) {
 				return nil, errors.New("db err")
 			},
 		}
-		svc := NewPermissionService(db, permRepo, &mockAPIRepo{}, &mockRoleRepo{}, &mockClientRepo{}, cache.NopInvalidator{})
+		svc := NewPermissionService(db, permRepo, &mockAPIRepo{}, &mockRoleRepo{}, &mockClientRepo{}, cache.NopInvalidator{}, nil)
 		_, err := svc.SetActiveStatusByUUID(context.Background(), permUUID, tenantID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "db err")
@@ -292,7 +292,7 @@ func TestPermissionService_SetActiveStatusByUUID(t *testing.T) {
 				return nil, nil
 			},
 		}
-		svc := NewPermissionService(db, permRepo, &mockAPIRepo{}, &mockRoleRepo{}, &mockClientRepo{}, cache.NopInvalidator{})
+		svc := NewPermissionService(db, permRepo, &mockAPIRepo{}, &mockRoleRepo{}, &mockClientRepo{}, cache.NopInvalidator{}, nil)
 		_, err := svc.SetActiveStatusByUUID(context.Background(), permUUID, tenantID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "permission not found")
@@ -309,7 +309,7 @@ func TestPermissionService_SetActiveStatusByUUID(t *testing.T) {
 				return perm, nil
 			},
 		}
-		svc := NewPermissionService(db, permRepo, &mockAPIRepo{}, &mockRoleRepo{}, &mockClientRepo{}, cache.NopInvalidator{})
+		svc := NewPermissionService(db, permRepo, &mockAPIRepo{}, &mockRoleRepo{}, &mockClientRepo{}, cache.NopInvalidator{}, nil)
 		result, err := svc.SetActiveStatusByUUID(context.Background(), permUUID, tenantID)
 		require.Error(t, err)
 		assert.Nil(t, result)
@@ -328,7 +328,7 @@ func TestPermissionService_SetActiveStatusByUUID(t *testing.T) {
 				return nil, errors.New("save err")
 			},
 		}
-		svc := NewPermissionService(db, permRepo, &mockAPIRepo{}, &mockRoleRepo{}, &mockClientRepo{}, cache.NopInvalidator{})
+		svc := NewPermissionService(db, permRepo, &mockAPIRepo{}, &mockRoleRepo{}, &mockClientRepo{}, cache.NopInvalidator{}, nil)
 		_, err := svc.SetActiveStatusByUUID(context.Background(), permUUID, tenantID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "save err")
@@ -345,7 +345,7 @@ func TestPermissionService_SetActiveStatusByUUID(t *testing.T) {
 				return perm, nil
 			},
 		}
-		svc := NewPermissionService(db, permRepo, &mockAPIRepo{}, &mockRoleRepo{}, &mockClientRepo{}, cache.NopInvalidator{})
+		svc := NewPermissionService(db, permRepo, &mockAPIRepo{}, &mockRoleRepo{}, &mockClientRepo{}, cache.NopInvalidator{}, nil)
 		result, err := svc.SetActiveStatusByUUID(context.Background(), permUUID, tenantID)
 		require.NoError(t, err)
 		assert.Equal(t, shared.StatusInactive, result.Status)
@@ -362,7 +362,7 @@ func TestPermissionService_SetActiveStatusByUUID(t *testing.T) {
 				return perm, nil
 			},
 		}
-		svc := NewPermissionService(db, permRepo, &mockAPIRepo{}, &mockRoleRepo{}, &mockClientRepo{}, cache.NopInvalidator{})
+		svc := NewPermissionService(db, permRepo, &mockAPIRepo{}, &mockRoleRepo{}, &mockClientRepo{}, cache.NopInvalidator{}, nil)
 		result, err := svc.SetActiveStatusByUUID(context.Background(), permUUID, tenantID)
 		require.NoError(t, err)
 		assert.Equal(t, shared.StatusActive, result.Status)
@@ -460,7 +460,7 @@ func TestPermissionService_Create(t *testing.T) {
 				return nil, errors.New("db err")
 			},
 		}
-		svc := NewPermissionService(db, permRepo, &mockAPIRepo{}, &mockRoleRepo{}, &mockClientRepo{}, cache.NopInvalidator{})
+		svc := NewPermissionService(db, permRepo, &mockAPIRepo{}, &mockRoleRepo{}, &mockClientRepo{}, cache.NopInvalidator{}, nil)
 		_, err := svc.Create(context.Background(), tenantID, "read:users", "desc", shared.StatusActive, false, apiUUID.String())
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "db err")
@@ -475,7 +475,7 @@ func TestPermissionService_Create(t *testing.T) {
 				return newPermission(1, "read:users", tenantID), nil
 			},
 		}
-		svc := NewPermissionService(db, permRepo, &mockAPIRepo{}, &mockRoleRepo{}, &mockClientRepo{}, cache.NopInvalidator{})
+		svc := NewPermissionService(db, permRepo, &mockAPIRepo{}, &mockRoleRepo{}, &mockClientRepo{}, cache.NopInvalidator{}, nil)
 		_, err := svc.Create(context.Background(), tenantID, "read:users", "desc", shared.StatusActive, false, apiUUID.String())
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "already exists")
@@ -486,7 +486,7 @@ func TestPermissionService_Create(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		permRepo := &mockPermissionRepo{}
-		svc := NewPermissionService(db, permRepo, &mockAPIRepo{}, &mockRoleRepo{}, &mockClientRepo{}, cache.NopInvalidator{})
+		svc := NewPermissionService(db, permRepo, &mockAPIRepo{}, &mockRoleRepo{}, &mockClientRepo{}, cache.NopInvalidator{}, nil)
 		_, err := svc.Create(context.Background(), tenantID, "read:users", "desc", shared.StatusActive, false, "not-a-uuid")
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "invalid api uuid")
@@ -501,7 +501,7 @@ func TestPermissionService_Create(t *testing.T) {
 				return nil, errors.New("api db err")
 			},
 		}
-		svc := NewPermissionService(db, &mockPermissionRepo{}, apiRepo, &mockRoleRepo{}, &mockClientRepo{}, cache.NopInvalidator{})
+		svc := NewPermissionService(db, &mockPermissionRepo{}, apiRepo, &mockRoleRepo{}, &mockClientRepo{}, cache.NopInvalidator{}, nil)
 		_, err := svc.Create(context.Background(), tenantID, "read:users", "desc", shared.StatusActive, false, apiUUID.String())
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "api db err")
@@ -516,7 +516,7 @@ func TestPermissionService_Create(t *testing.T) {
 				return nil, nil
 			},
 		}
-		svc := NewPermissionService(db, &mockPermissionRepo{}, apiRepo, &mockRoleRepo{}, &mockClientRepo{}, cache.NopInvalidator{})
+		svc := NewPermissionService(db, &mockPermissionRepo{}, apiRepo, &mockRoleRepo{}, &mockClientRepo{}, cache.NopInvalidator{}, nil)
 		_, err := svc.Create(context.Background(), tenantID, "read:users", "desc", shared.StatusActive, false, apiUUID.String())
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "api not found")
@@ -536,7 +536,7 @@ func TestPermissionService_Create(t *testing.T) {
 				return nil, errors.New("create err")
 			},
 		}
-		svc := NewPermissionService(db, permRepo, apiRepo, &mockRoleRepo{}, &mockClientRepo{}, cache.NopInvalidator{})
+		svc := NewPermissionService(db, permRepo, apiRepo, &mockRoleRepo{}, &mockClientRepo{}, cache.NopInvalidator{}, nil)
 		_, err := svc.Create(context.Background(), tenantID, "read:users", "desc", shared.StatusActive, false, apiUUID.String())
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "create err")
@@ -559,7 +559,7 @@ func TestPermissionService_Create(t *testing.T) {
 				return nil, errors.New("fetch err")
 			},
 		}
-		svc := NewPermissionService(db, permRepo, apiRepo, &mockRoleRepo{}, &mockClientRepo{}, cache.NopInvalidator{})
+		svc := NewPermissionService(db, permRepo, apiRepo, &mockRoleRepo{}, &mockClientRepo{}, cache.NopInvalidator{}, nil)
 		_, err := svc.Create(context.Background(), tenantID, "read:users", "desc", shared.StatusActive, false, apiUUID.String())
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "fetch err")
@@ -582,7 +582,7 @@ func TestPermissionService_Create(t *testing.T) {
 				return p, nil
 			},
 		}
-		svc := NewPermissionService(db, permRepo, apiRepo, &mockRoleRepo{}, &mockClientRepo{}, cache.NopInvalidator{})
+		svc := NewPermissionService(db, permRepo, apiRepo, &mockRoleRepo{}, &mockClientRepo{}, cache.NopInvalidator{}, nil)
 		result, err := svc.Create(context.Background(), tenantID, "read:users", "desc", shared.StatusActive, false, apiUUID.String())
 		require.NoError(t, err)
 		assert.NotNil(t, result)
@@ -608,7 +608,7 @@ func TestPermissionService_Update(t *testing.T) {
 				return nil, errors.New("db err")
 			},
 		}
-		svc := NewPermissionService(db, permRepo, &mockAPIRepo{}, &mockRoleRepo{}, &mockClientRepo{}, cache.NopInvalidator{})
+		svc := NewPermissionService(db, permRepo, &mockAPIRepo{}, &mockRoleRepo{}, &mockClientRepo{}, cache.NopInvalidator{}, nil)
 		_, err := svc.Update(context.Background(), permUUID, tenantID, "new-name", "desc", shared.StatusActive)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "db err")
@@ -623,7 +623,7 @@ func TestPermissionService_Update(t *testing.T) {
 				return nil, nil
 			},
 		}
-		svc := NewPermissionService(db, permRepo, &mockAPIRepo{}, &mockRoleRepo{}, &mockClientRepo{}, cache.NopInvalidator{})
+		svc := NewPermissionService(db, permRepo, &mockAPIRepo{}, &mockRoleRepo{}, &mockClientRepo{}, cache.NopInvalidator{}, nil)
 		_, err := svc.Update(context.Background(), permUUID, tenantID, "new-name", "desc", shared.StatusActive)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "permission not found")
@@ -640,7 +640,7 @@ func TestPermissionService_Update(t *testing.T) {
 				return perm, nil
 			},
 		}
-		svc := NewPermissionService(db, permRepo, &mockAPIRepo{}, &mockRoleRepo{}, &mockClientRepo{}, cache.NopInvalidator{})
+		svc := NewPermissionService(db, permRepo, &mockAPIRepo{}, &mockRoleRepo{}, &mockClientRepo{}, cache.NopInvalidator{}, nil)
 		_, err := svc.Update(context.Background(), permUUID, tenantID, "new-name", "desc", shared.StatusActive)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "default permission")
@@ -659,7 +659,7 @@ func TestPermissionService_Update(t *testing.T) {
 				return nil, errors.New("name lookup err")
 			},
 		}
-		svc := NewPermissionService(db, permRepo, &mockAPIRepo{}, &mockRoleRepo{}, &mockClientRepo{}, cache.NopInvalidator{})
+		svc := NewPermissionService(db, permRepo, &mockAPIRepo{}, &mockRoleRepo{}, &mockClientRepo{}, cache.NopInvalidator{}, nil)
 		_, err := svc.Update(context.Background(), permUUID, tenantID, "write:users", "desc", shared.StatusActive)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "name lookup err")
@@ -679,7 +679,7 @@ func TestPermissionService_Update(t *testing.T) {
 				return otherPerm, nil
 			},
 		}
-		svc := NewPermissionService(db, permRepo, &mockAPIRepo{}, &mockRoleRepo{}, &mockClientRepo{}, cache.NopInvalidator{})
+		svc := NewPermissionService(db, permRepo, &mockAPIRepo{}, &mockRoleRepo{}, &mockClientRepo{}, cache.NopInvalidator{}, nil)
 		_, err := svc.Update(context.Background(), permUUID, tenantID, "write:users", "desc", shared.StatusActive)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "already exists")
@@ -698,7 +698,7 @@ func TestPermissionService_Update(t *testing.T) {
 				return nil, errors.New("save err")
 			},
 		}
-		svc := NewPermissionService(db, permRepo, &mockAPIRepo{}, &mockRoleRepo{}, &mockClientRepo{}, cache.NopInvalidator{})
+		svc := NewPermissionService(db, permRepo, &mockAPIRepo{}, &mockRoleRepo{}, &mockClientRepo{}, cache.NopInvalidator{}, nil)
 		// Same name so no findByName path
 		_, err := svc.Update(context.Background(), permUUID, tenantID, "read:users", "new desc", shared.StatusActive)
 		require.Error(t, err)
@@ -716,7 +716,7 @@ func TestPermissionService_Update(t *testing.T) {
 				return perm, nil
 			},
 		}
-		svc := NewPermissionService(db, permRepo, &mockAPIRepo{}, &mockRoleRepo{}, &mockClientRepo{}, cache.NopInvalidator{})
+		svc := NewPermissionService(db, permRepo, &mockAPIRepo{}, &mockRoleRepo{}, &mockClientRepo{}, cache.NopInvalidator{}, nil)
 		result, err := svc.Update(context.Background(), permUUID, tenantID, "read:users", "updated desc", shared.StatusActive)
 		require.NoError(t, err)
 		assert.NotNil(t, result)
@@ -736,7 +736,7 @@ func TestPermissionService_Update(t *testing.T) {
 				return nil, nil // no conflict
 			},
 		}
-		svc := NewPermissionService(db, permRepo, &mockAPIRepo{}, &mockRoleRepo{}, &mockClientRepo{}, cache.NopInvalidator{})
+		svc := NewPermissionService(db, permRepo, &mockAPIRepo{}, &mockRoleRepo{}, &mockClientRepo{}, cache.NopInvalidator{}, nil)
 		result, err := svc.Update(context.Background(), permUUID, tenantID, "write:users", "desc", shared.StatusActive)
 		require.NoError(t, err)
 		assert.NotNil(t, result)
@@ -797,8 +797,9 @@ func TestPermissionService_InvalidatorErrors(t *testing.T) {
 				&mockAPIRepo{},
 				&mockRoleRepo{},
 				&mockClientRepo{},
-				cache.NopInvalidator{},
-				failingAuthorizationTokenInvalidator{},
+			cache.NopInvalidator{},
+			nil,
+			failingAuthorizationTokenInvalidator{},
 			)
 
 			result, err := tc.run(svc)

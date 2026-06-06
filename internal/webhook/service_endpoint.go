@@ -2,7 +2,6 @@ package webhook
 
 import (
 	"context"
-	"encoding/json"
 	"time"
 
 	"github.com/google/uuid"
@@ -11,7 +10,6 @@ import (
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
-	"gorm.io/datatypes"
 )
 
 // WebhookEndpointServiceDataResult is the service-layer representation of a
@@ -20,7 +18,8 @@ type WebhookEndpointServiceDataResult struct {
 	WebhookEndpointUUID uuid.UUID
 	TenantID            int64
 	URL                 string
-	Events              any
+	SigningSecret       string // plaintext, only populated on create
+	SubscribeAll        bool
 	MaxRetries          int
 	TimeoutSeconds      int
 	Status              string
@@ -43,8 +42,8 @@ type WebhookEndpointServiceListResult struct {
 type WebhookEndpointService interface {
 	GetAll(ctx context.Context, tenantID int64, status []string, page, limit int, sortBy, sortOrder string) (*WebhookEndpointServiceListResult, error)
 	GetByUUID(ctx context.Context, tenantID int64, webhookEndpointUUID uuid.UUID) (*WebhookEndpointServiceDataResult, error)
-	Create(ctx context.Context, tenantID int64, url, secret string, events []string, maxRetries, timeoutSeconds *int, description, status string) (*WebhookEndpointServiceDataResult, error)
-	Update(ctx context.Context, tenantID int64, webhookEndpointUUID uuid.UUID, url, secret string, events []string, maxRetries, timeoutSeconds *int, description, status string) (*WebhookEndpointServiceDataResult, error)
+	Create(ctx context.Context, tenantID int64, url string, subscribeAll bool, maxRetries, timeoutSeconds *int, description, status string) (*WebhookEndpointServiceDataResult, error)
+	Update(ctx context.Context, tenantID int64, webhookEndpointUUID uuid.UUID, url string, rotateSecret bool, subscribeAll bool, maxRetries, timeoutSeconds *int, description, status string) (*WebhookEndpointServiceDataResult, error)
 	UpdateStatus(ctx context.Context, tenantID int64, webhookEndpointUUID uuid.UUID, status string) (*WebhookEndpointServiceDataResult, error)
 	Delete(ctx context.Context, tenantID int64, webhookEndpointUUID uuid.UUID) (*WebhookEndpointServiceDataResult, error)
 }
@@ -59,19 +58,11 @@ func NewWebhookEndpointService(webhookEndpointRepo WebhookEndpointRepository) We
 }
 
 func toWebhookEndpointServiceDataResult(we *WebhookEndpoint) WebhookEndpointServiceDataResult {
-	var events any
-	if len(we.Events) > 0 {
-		_ = json.Unmarshal(we.Events, &events)
-	}
-	if events == nil {
-		events = []any{}
-	}
-
 	return WebhookEndpointServiceDataResult{
 		WebhookEndpointUUID: we.WebhookEndpointUUID,
 		TenantID:            we.TenantID,
 		URL:                 we.URL,
-		Events:              events,
+		SubscribeAll:        we.SubscribeAll,
 		MaxRetries:          we.MaxRetries,
 		TimeoutSeconds:      we.TimeoutSeconds,
 		Status:              we.Status,
@@ -117,8 +108,7 @@ func (s *webhookEndpointService) GetAll(ctx context.Context, tenantID int64, sta
 	}, nil
 }
 
-// GetByUUID retrieves a single webhook endpoint by UUID, verifying tenant
-// ownership.
+// GetByUUID retrieves a single webhook endpoint by UUID, verifying tenant ownership.
 func (s *webhookEndpointService) GetByUUID(ctx context.Context, tenantID int64, webhookEndpointUUID uuid.UUID) (*WebhookEndpointServiceDataResult, error) {
 	_, span := otel.Tracer("service").Start(ctx, "webhookEndpoint.get")
 	defer span.End()
@@ -144,31 +134,29 @@ func (s *webhookEndpointService) GetByUUID(ctx context.Context, tenantID int64, 
 }
 
 // Create creates a new webhook endpoint for a tenant.
-func (s *webhookEndpointService) Create(ctx context.Context, tenantID int64, url, secret string, events []string, maxRetries, timeoutSeconds *int, description, status string) (*WebhookEndpointServiceDataResult, error) {
+// The signing secret is generated server-side and returned in the result.
+func (s *webhookEndpointService) Create(ctx context.Context, tenantID int64, url string, subscribeAll bool, maxRetries, timeoutSeconds *int, description, status string) (*WebhookEndpointServiceDataResult, error) {
 	_, span := otel.Tracer("service").Start(ctx, "webhookEndpoint.create")
 	defer span.End()
 	span.SetAttributes(attribute.Int64("tenant.id", tenantID))
 
-	eventsJSON, _ := json.Marshal(events)
+	rawSecret, _ := crypto.GenerateRandomString(48)
+	encrypted, encErr := crypto.EncryptAtRest(rawSecret)
+	if encErr != nil {
+		span.RecordError(encErr)
+		span.SetStatus(codes.Error, "encrypt webhook secret failed")
+		return nil, encErr
+	}
 
 	ep := &WebhookEndpoint{
 		TenantID:        tenantID,
 		URL:             url,
-		SecretEncrypted: secret,
-		Events:          datatypes.JSON(eventsJSON),
+		SecretEncrypted: encrypted,
+		SubscribeAll:    subscribeAll,
 		Status:          status,
 		Description:     description,
 		MaxRetries:      3,
 		TimeoutSeconds:  30,
-	}
-	if secret != "" {
-		enc, encErr := crypto.EncryptAtRest(secret)
-		if encErr != nil {
-			span.RecordError(encErr)
-			span.SetStatus(codes.Error, "encrypt webhook secret failed")
-			return nil, encErr
-		}
-		ep.SecretEncrypted = enc
 	}
 	if maxRetries != nil {
 		ep.MaxRetries = *maxRetries
@@ -184,13 +172,16 @@ func (s *webhookEndpointService) Create(ctx context.Context, tenantID int64, url
 		return nil, err
 	}
 
-	span.SetStatus(codes.Ok, "")
 	result := toWebhookEndpointServiceDataResult(created)
+	result.SigningSecret = rawSecret
+
+	span.SetStatus(codes.Ok, "")
 	return &result, nil
 }
 
 // Update updates an existing webhook endpoint, verifying tenant ownership.
-func (s *webhookEndpointService) Update(ctx context.Context, tenantID int64, webhookEndpointUUID uuid.UUID, url, secret string, events []string, maxRetries, timeoutSeconds *int, description, status string) (*WebhookEndpointServiceDataResult, error) {
+// When rotateSecret is true, a new signing secret is generated server-side.
+func (s *webhookEndpointService) Update(ctx context.Context, tenantID int64, webhookEndpointUUID uuid.UUID, url string, rotateSecret bool, subscribeAll bool, maxRetries, timeoutSeconds *int, description, status string) (*WebhookEndpointServiceDataResult, error) {
 	_, span := otel.Tracer("service").Start(ctx, "webhookEndpoint.update")
 	defer span.End()
 	span.SetAttributes(
@@ -209,14 +200,13 @@ func (s *webhookEndpointService) Update(ctx context.Context, tenantID int64, web
 		return nil, apperror.NewNotFoundWithReason("webhook endpoint not found")
 	}
 
-	eventsJSON, _ := json.Marshal(events)
-
 	ep.URL = url
-	ep.Events = datatypes.JSON(eventsJSON)
+	ep.SubscribeAll = subscribeAll
 	ep.Description = description
 	ep.Status = status
-	if secret != "" {
-		enc, encErr := crypto.EncryptAtRest(secret)
+	if rotateSecret {
+	rawSecret, _ := crypto.GenerateRandomString(48)
+		enc, encErr := crypto.EncryptAtRest(rawSecret)
 		if encErr != nil {
 			span.RecordError(encErr)
 			span.SetStatus(codes.Error, "encrypt webhook secret failed")

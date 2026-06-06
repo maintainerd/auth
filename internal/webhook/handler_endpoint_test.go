@@ -15,7 +15,7 @@ func webhookResult() *WebhookEndpointServiceDataResult {
 		WebhookEndpointUUID: uuid.New(),
 		TenantID:            testTenantID,
 		URL:                 "https://example.com/hook",
-		Events:              []string{"user.created"},
+		SubscribeAll:        true,
 		MaxRetries:          3,
 		TimeoutSeconds:      30,
 		Status:              "active",
@@ -182,12 +182,12 @@ func TestWebhookEndpointHandler_Create_ValidationError(t *testing.T) {
 
 func TestWebhookEndpointHandler_Create_ServiceError(t *testing.T) {
 	svc := &mockWebhookEndpointService{
-		createFn: func(_ int64, _, _ string, _ []string, _, _ *int, _, _ string) (*WebhookEndpointServiceDataResult, error) {
+		createFn: func(_ int64, _ string, _ bool, _, _ *int, _, _ string) (*WebhookEndpointServiceDataResult, error) {
 			return nil, assert.AnError
 		},
 	}
 	h := NewWebhookEndpointHandler(svc)
-	body := map[string]any{"url": "https://example.com/hook", "events": []string{"user.created"}}
+	body := map[string]any{"url": "https://example.com/hook", "subscribe_all": true}
 	w := httptest.NewRecorder()
 	h.Create(w, withTenant(jsonReq(t, http.MethodPost, "/webhook-endpoints", body)))
 	assert.Equal(t, http.StatusInternalServerError, w.Code)
@@ -195,12 +195,12 @@ func TestWebhookEndpointHandler_Create_ServiceError(t *testing.T) {
 
 func TestWebhookEndpointHandler_Create_Success(t *testing.T) {
 	svc := &mockWebhookEndpointService{
-		createFn: func(_ int64, _, _ string, _ []string, _, _ *int, _, _ string) (*WebhookEndpointServiceDataResult, error) {
+		createFn: func(_ int64, _ string, _ bool, _, _ *int, _, _ string) (*WebhookEndpointServiceDataResult, error) {
 			return webhookResult(), nil
 		},
 	}
 	h := NewWebhookEndpointHandler(svc)
-	body := map[string]any{"url": "https://example.com/hook", "events": []string{"user.created"}}
+	body := map[string]any{"url": "https://example.com/hook", "subscribe_all": true}
 	w := httptest.NewRecorder()
 	h.Create(w, withTenant(jsonReq(t, http.MethodPost, "/webhook-endpoints", body)))
 	assert.Equal(t, http.StatusCreated, w.Code)
@@ -208,7 +208,7 @@ func TestWebhookEndpointHandler_Create_Success(t *testing.T) {
 
 func TestWebhookEndpointHandler_Create_WithExplicitStatus(t *testing.T) {
 	svc := &mockWebhookEndpointService{
-		createFn: func(_ int64, _, _ string, _ []string, _, _ *int, _, status string) (*WebhookEndpointServiceDataResult, error) {
+		createFn: func(_ int64, _ string, _ bool, _, _ *int, _, status string) (*WebhookEndpointServiceDataResult, error) {
 			assert.Equal(t, "inactive", status)
 			return webhookResult(), nil
 		},
@@ -261,12 +261,12 @@ func TestWebhookEndpointHandler_Update_ValidationError(t *testing.T) {
 
 func TestWebhookEndpointHandler_Update_ServiceError(t *testing.T) {
 	svc := &mockWebhookEndpointService{
-		updateFn: func(_ int64, _ uuid.UUID, _, _ string, _ []string, _, _ *int, _, _ string) (*WebhookEndpointServiceDataResult, error) {
+		updateFn: func(_ int64, _ uuid.UUID, _ string, _ bool, _ bool, _, _ *int, _, _ string) (*WebhookEndpointServiceDataResult, error) {
 			return nil, assert.AnError
 		},
 	}
 	h := NewWebhookEndpointHandler(svc)
-	body := map[string]any{"url": "https://example.com/hook", "events": []string{"user.created"}}
+	body := map[string]any{"url": "https://example.com/hook", "subscribe_all": true}
 	r := withTenant(jsonReq(t, http.MethodPut, "/webhook-endpoints/"+testResourceUUID.String(), body))
 	r = withChiParam(r, "webhook_endpoint_uuid", testResourceUUID.String())
 	w := httptest.NewRecorder()
@@ -276,12 +276,12 @@ func TestWebhookEndpointHandler_Update_ServiceError(t *testing.T) {
 
 func TestWebhookEndpointHandler_Update_Success(t *testing.T) {
 	svc := &mockWebhookEndpointService{
-		updateFn: func(_ int64, _ uuid.UUID, _, _ string, _ []string, _, _ *int, _, _ string) (*WebhookEndpointServiceDataResult, error) {
+		updateFn: func(_ int64, _ uuid.UUID, _ string, _ bool, _ bool, _, _ *int, _, _ string) (*WebhookEndpointServiceDataResult, error) {
 			return webhookResult(), nil
 		},
 	}
 	h := NewWebhookEndpointHandler(svc)
-	body := map[string]any{"url": "https://example.com/hook", "events": []string{"user.created"}}
+	body := map[string]any{"url": "https://example.com/hook", "subscribe_all": true}
 	r := withTenant(jsonReq(t, http.MethodPut, "/webhook-endpoints/"+testResourceUUID.String(), body))
 	r = withChiParam(r, "webhook_endpoint_uuid", testResourceUUID.String())
 	w := httptest.NewRecorder()
@@ -291,7 +291,7 @@ func TestWebhookEndpointHandler_Update_Success(t *testing.T) {
 
 func TestWebhookEndpointHandler_Update_WithExplicitStatus(t *testing.T) {
 	svc := &mockWebhookEndpointService{
-		updateFn: func(_ int64, _ uuid.UUID, _, _ string, _ []string, _, _ *int, _, status string) (*WebhookEndpointServiceDataResult, error) {
+		updateFn: func(_ int64, _ uuid.UUID, _ string, _ bool, _ bool, _, _ *int, _, status string) (*WebhookEndpointServiceDataResult, error) {
 			assert.Equal(t, "inactive", status)
 			return webhookResult(), nil
 		},
