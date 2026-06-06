@@ -18,9 +18,10 @@ func TestGRPCServicePermissions_InviteIsPolicyGated(t *testing.T) {
 
 func TestGRPCServicePermissions_VerificationReadsStayServiceAccountOnly(t *testing.T) {
 	for name, method := range map[string]string{
-		"authorize":     grpcMethod(authv1.AuthorizationService_ServiceDesc.ServiceName, "Authorize"),
-		"introspect":    grpcMethod(authv1.OAuthIntrospectionService_ServiceDesc.ServiceName, "Introspect"),
-		"defaultTenant": grpcMethod(authv1.TenantService_ServiceDesc.ServiceName, "GetDefaultTenant"),
+		"authorize":         grpcMethod(authv1.AuthorizationService_ServiceDesc.ServiceName, "Authorize"),
+		"introspect":        grpcMethod(authv1.OAuthIntrospectionService_ServiceDesc.ServiceName, "Introspect"),
+		"defaultTenant":     grpcMethod(authv1.TenantService_ServiceDesc.ServiceName, "GetDefaultTenant"),
+		"getMyPolicyBundle": grpcMethod(authv1.ServiceService_ServiceDesc.ServiceName, "GetMyPolicyBundle"),
 	} {
 		t.Run(name, func(t *testing.T) {
 			permission, protected := grpcServicePermissions[method]

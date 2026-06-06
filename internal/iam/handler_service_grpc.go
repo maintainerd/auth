@@ -6,17 +6,41 @@ import (
 	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/platform/apperror"
 	authv1 "github.com/maintainerd/auth/internal/platform/gen/go/maintainerd/auth"
+	"github.com/maintainerd/auth/internal/platform/middleware"
 	"github.com/maintainerd/auth/internal/tenant"
+	"google.golang.org/protobuf/types/known/structpb"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 type ServiceGRPCHandler struct {
 	authv1.UnimplementedServiceServiceServer
-	tenantService  TenantResolver
-	serviceService ServiceService
+	tenantService        TenantResolver
+	serviceService       ServiceService
+	authorizationService ServiceAuthorizationService
 }
 
-func NewServiceGRPCHandler(tenantService TenantResolver, serviceService ServiceService) *ServiceGRPCHandler {
-	return &ServiceGRPCHandler{tenantService: tenantService, serviceService: serviceService}
+func NewServiceGRPCHandler(tenantService TenantResolver, serviceService ServiceService, authorizationService ServiceAuthorizationService) *ServiceGRPCHandler {
+	return &ServiceGRPCHandler{tenantService: tenantService, serviceService: serviceService, authorizationService: authorizationService}
+}
+
+func (h *ServiceGRPCHandler) GetMyPolicyBundle(ctx context.Context, req *authv1.GetMyPolicyBundleRequest) (*authv1.GetMyPolicyBundleResponse, error) {
+	identity, ok := serviceIdentityFromContext(ctx)
+	if !ok {
+		return nil, apperror.ToGRPCError(apperror.NewUnauthorized("service token required"))
+	}
+	if h.authorizationService == nil {
+		return nil, apperror.ToGRPCError(apperror.NewInternal("authorization service unavailable", nil))
+	}
+
+	bundle, etag, err := h.authorizationService.PolicyBundle(ctx, identity)
+	if err != nil {
+		return nil, apperror.ToGRPCError(err)
+	}
+	if req.GetIfNoneMatch() == etag {
+		return &authv1.GetMyPolicyBundleResponse{Etag: etag, NotModified: true}, nil
+	}
+	protoBundle := servicePolicyBundleProto(bundle)
+	return &authv1.GetMyPolicyBundleResponse{Bundle: protoBundle, Etag: etag}, nil
 }
 
 func (h *ServiceGRPCHandler) ListServices(ctx context.Context, req *authv1.ListServicesRequest) (*authv1.ListServicesResponse, error) {
@@ -57,6 +81,61 @@ func (h *ServiceGRPCHandler) ListServices(ctx context.Context, req *authv1.ListS
 		rows[i] = serviceProto(&result.Data[i])
 	}
 	return &authv1.ListServicesResponse{Services: rows, Page: iamPageProto(result.Total, result.Page, result.Limit, result.TotalPages)}, nil
+}
+
+func serviceIdentityFromContext(ctx context.Context) (ServiceIdentity, bool) {
+	claims := middleware.JWTClaimsFromContext(ctx)
+	if claims == nil {
+		return ServiceIdentity{}, false
+	}
+	serviceName := claims.Service
+	if serviceName == "" && claims.SubjectType == "service" {
+		serviceName = claims.Sub
+	}
+	if serviceName == "" {
+		return ServiceIdentity{}, false
+	}
+	return ServiceIdentity{ServiceName: serviceName, ClientID: claims.ClientID}, true
+}
+
+func servicePolicyBundleProto(bundle *PolicyBundle) *authv1.ServicePolicyBundle {
+	if bundle == nil {
+		return nil
+	}
+	policies := make([]*structpb.Struct, 0, len(bundle.Policies))
+	for _, policy := range bundle.Policies {
+		policies = append(policies, policyDocumentStruct(policy))
+	}
+	return &authv1.ServicePolicyBundle{
+		Service:     bundle.Service,
+		Version:     bundle.Version,
+		Policies:    policies,
+		GeneratedAt: timestamppb.New(bundle.GeneratedAt),
+	}
+}
+
+func policyDocumentStruct(policy PolicyDocument) *structpb.Struct {
+	statements := make([]any, 0, len(policy.Statement))
+	for _, statement := range policy.Statement {
+		statements = append(statements, map[string]any{
+			"effect":   statement.Effect,
+			"action":   stringValues(statement.Action),
+			"resource": stringValues(statement.Resource),
+		})
+	}
+	result, _ := structpb.NewStruct(map[string]any{
+		"version":   policy.Version,
+		"statement": statements,
+	})
+	return result
+}
+
+func stringValues(values []string) []any {
+	out := make([]any, 0, len(values))
+	for _, value := range values {
+		out = append(out, value)
+	}
+	return out
 }
 
 func (h *ServiceGRPCHandler) GetService(ctx context.Context, req *authv1.GetServiceRequest) (*authv1.GetServiceResponse, error) {
