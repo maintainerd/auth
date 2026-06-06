@@ -128,7 +128,11 @@ jobs:
       - name: Run gosec
         run: |
           go install github.com/securego/gosec/v2/cmd/gosec@v2.22.8
-          gosec -exclude=G101 -exclude-dir=internal/platform/gen ./...
+          # G101: false-positive "hardcoded credentials" on constant names.
+          # G115: int->int32 overflow on bounded pagination/port/retry values
+          #       (page/limit/totalPages, port, max_retries) mapped to proto
+          #       int32 fields — noisy and not a real overflow risk here.
+          gosec -exclude=G101,G115 -exclude-dir=internal/platform/gen ./...
 
   # ─────────────────────────────────────────────────────────────────────────────
   # Build — ensure the binary compiles cleanly

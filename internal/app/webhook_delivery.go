@@ -224,7 +224,9 @@ func jitteredBackoff(attempt int) time.Duration {
 	if half <= 0 {
 		return base
 	}
-	return time.Duration(half) + time.Duration(rand.Int64N(half+1))
+	// Jitter for retry backoff is timing variance, not a security primitive, so a
+	// non-cryptographic PRNG is appropriate here.
+	return time.Duration(half) + time.Duration(rand.Int64N(half+1)) // #nosec G404 -- non-security retry-backoff jitter
 }
 
 func computeWebhookSignature(secret string, timestamp int64, body []byte) string {
