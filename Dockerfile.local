@@ -3,17 +3,19 @@ FROM golang:1.26-alpine
 # Install system dependencies
 RUN apk add --no-cache bash git make protobuf curl
 
-# Install goose (migration tool)
-RUN go install github.com/pressly/goose/v3/cmd/goose@latest
+# Pure-Go builds only — keeps installs off the missing C toolchain on alpine.
+ENV CGO_ENABLED=0
 
 # Install air (live reload) - compatible version for Go 1.26
+# NOTE: schema migrations run in-process at startup via
+# internal/platform/runner/migration.go, so no external migration tool is needed.
 RUN go install github.com/air-verse/air@v1.62.0
 
 # Set working directory
 WORKDIR /usr/src/app
 
-# Copy go mod file first for better caching
-COPY go.mod ./
+# Copy go mod files first for better caching
+COPY go.mod go.sum ./
 RUN go mod download
 
 # Copy Makefile
@@ -26,9 +28,7 @@ RUN mkdir -p tmp
 EXPOSE 8080 8081
 
 # Set environment for development
-ENV CGO_ENABLED=0
 ENV GOOS=linux
-ENV GOARCH=amd64
 
 # Use air for hot reloading
 CMD ["air", "-c", ".air.toml"]

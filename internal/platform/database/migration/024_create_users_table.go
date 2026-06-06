@@ -55,8 +55,10 @@ DECLARE
     t TEXT;
     tables TEXT[] := ARRAY[
         'tenants', 'user_pools', 'branding', 'email_config', 'sms_config',
-        'webhook_endpoints', 'services', 'policies', 'apis', 'permissions',
+        'services', 'policies', 'apis', 'permissions',
         'identity_providers', 'clients', 'api_keys', 'roles'
+        -- webhook_endpoints is created AFTER users (migration 056, grouped with
+        -- the event tables), so it attaches its own created_by/updated_by FKs there.
     ];
 BEGIN
     FOREACH t IN ARRAY tables LOOP
