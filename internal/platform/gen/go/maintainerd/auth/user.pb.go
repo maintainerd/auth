@@ -339,6 +339,210 @@ func (x *UserRole) GetUpdatedAt() *timestamppb.Timestamp {
 	return nil
 }
 
+type UserProfile struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ProfileUuid   string                 `protobuf:"bytes,1,opt,name=profile_uuid,json=profileUuid,proto3" json:"profile_uuid,omitempty"`
+	FirstName     string                 `protobuf:"bytes,2,opt,name=first_name,json=firstName,proto3" json:"first_name,omitempty"`
+	MiddleName    string                 `protobuf:"bytes,3,opt,name=middle_name,json=middleName,proto3" json:"middle_name,omitempty"`
+	LastName      string                 `protobuf:"bytes,4,opt,name=last_name,json=lastName,proto3" json:"last_name,omitempty"`
+	Suffix        string                 `protobuf:"bytes,5,opt,name=suffix,proto3" json:"suffix,omitempty"`
+	DisplayName   string                 `protobuf:"bytes,6,opt,name=display_name,json=displayName,proto3" json:"display_name,omitempty"`
+	Bio           string                 `protobuf:"bytes,7,opt,name=bio,proto3" json:"bio,omitempty"`
+	Birthdate     string                 `protobuf:"bytes,8,opt,name=birthdate,proto3" json:"birthdate,omitempty"`
+	Gender        string                 `protobuf:"bytes,9,opt,name=gender,proto3" json:"gender,omitempty"`
+	Phone         string                 `protobuf:"bytes,10,opt,name=phone,proto3" json:"phone,omitempty"`
+	Email         string                 `protobuf:"bytes,11,opt,name=email,proto3" json:"email,omitempty"`
+	Address       string                 `protobuf:"bytes,12,opt,name=address,proto3" json:"address,omitempty"`
+	City          string                 `protobuf:"bytes,13,opt,name=city,proto3" json:"city,omitempty"`
+	Country       string                 `protobuf:"bytes,14,opt,name=country,proto3" json:"country,omitempty"`
+	Timezone      string                 `protobuf:"bytes,15,opt,name=timezone,proto3" json:"timezone,omitempty"`
+	Language      string                 `protobuf:"bytes,16,opt,name=language,proto3" json:"language,omitempty"`
+	ProfileUrl    string                 `protobuf:"bytes,17,opt,name=profile_url,json=profileUrl,proto3" json:"profile_url,omitempty"`
+	IsDefault     bool                   `protobuf:"varint,18,opt,name=is_default,json=isDefault,proto3" json:"is_default,omitempty"`
+	Metadata      *structpb.Struct       `protobuf:"bytes,19,opt,name=metadata,proto3" json:"metadata,omitempty"`
+	CreatedAt     *timestamppb.Timestamp `protobuf:"bytes,20,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	UpdatedAt     *timestamppb.Timestamp `protobuf:"bytes,21,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UserProfile) Reset() {
+	*x = UserProfile{}
+	mi := &file_maintainerd_auth_v1_user_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UserProfile) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UserProfile) ProtoMessage() {}
+
+func (x *UserProfile) ProtoReflect() protoreflect.Message {
+	mi := &file_maintainerd_auth_v1_user_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UserProfile.ProtoReflect.Descriptor instead.
+func (*UserProfile) Descriptor() ([]byte, []int) {
+	return file_maintainerd_auth_v1_user_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *UserProfile) GetProfileUuid() string {
+	if x != nil {
+		return x.ProfileUuid
+	}
+	return ""
+}
+
+func (x *UserProfile) GetFirstName() string {
+	if x != nil {
+		return x.FirstName
+	}
+	return ""
+}
+
+func (x *UserProfile) GetMiddleName() string {
+	if x != nil {
+		return x.MiddleName
+	}
+	return ""
+}
+
+func (x *UserProfile) GetLastName() string {
+	if x != nil {
+		return x.LastName
+	}
+	return ""
+}
+
+func (x *UserProfile) GetSuffix() string {
+	if x != nil {
+		return x.Suffix
+	}
+	return ""
+}
+
+func (x *UserProfile) GetDisplayName() string {
+	if x != nil {
+		return x.DisplayName
+	}
+	return ""
+}
+
+func (x *UserProfile) GetBio() string {
+	if x != nil {
+		return x.Bio
+	}
+	return ""
+}
+
+func (x *UserProfile) GetBirthdate() string {
+	if x != nil {
+		return x.Birthdate
+	}
+	return ""
+}
+
+func (x *UserProfile) GetGender() string {
+	if x != nil {
+		return x.Gender
+	}
+	return ""
+}
+
+func (x *UserProfile) GetPhone() string {
+	if x != nil {
+		return x.Phone
+	}
+	return ""
+}
+
+func (x *UserProfile) GetEmail() string {
+	if x != nil {
+		return x.Email
+	}
+	return ""
+}
+
+func (x *UserProfile) GetAddress() string {
+	if x != nil {
+		return x.Address
+	}
+	return ""
+}
+
+func (x *UserProfile) GetCity() string {
+	if x != nil {
+		return x.City
+	}
+	return ""
+}
+
+func (x *UserProfile) GetCountry() string {
+	if x != nil {
+		return x.Country
+	}
+	return ""
+}
+
+func (x *UserProfile) GetTimezone() string {
+	if x != nil {
+		return x.Timezone
+	}
+	return ""
+}
+
+func (x *UserProfile) GetLanguage() string {
+	if x != nil {
+		return x.Language
+	}
+	return ""
+}
+
+func (x *UserProfile) GetProfileUrl() string {
+	if x != nil {
+		return x.ProfileUrl
+	}
+	return ""
+}
+
+func (x *UserProfile) GetIsDefault() bool {
+	if x != nil {
+		return x.IsDefault
+	}
+	return false
+}
+
+func (x *UserProfile) GetMetadata() *structpb.Struct {
+	if x != nil {
+		return x.Metadata
+	}
+	return nil
+}
+
+func (x *UserProfile) GetCreatedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return nil
+}
+
+func (x *UserProfile) GetUpdatedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.UpdatedAt
+	}
+	return nil
+}
+
 type ListUsersRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	TenantUuid    string                 `protobuf:"bytes,1,opt,name=tenant_uuid,json=tenantUuid,proto3" json:"tenant_uuid,omitempty"`
@@ -353,7 +557,7 @@ type ListUsersRequest struct {
 
 func (x *ListUsersRequest) Reset() {
 	*x = ListUsersRequest{}
-	mi := &file_maintainerd_auth_v1_user_proto_msgTypes[3]
+	mi := &file_maintainerd_auth_v1_user_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -365,7 +569,7 @@ func (x *ListUsersRequest) String() string {
 func (*ListUsersRequest) ProtoMessage() {}
 
 func (x *ListUsersRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_maintainerd_auth_v1_user_proto_msgTypes[3]
+	mi := &file_maintainerd_auth_v1_user_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -378,7 +582,7 @@ func (x *ListUsersRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListUsersRequest.ProtoReflect.Descriptor instead.
 func (*ListUsersRequest) Descriptor() ([]byte, []int) {
-	return file_maintainerd_auth_v1_user_proto_rawDescGZIP(), []int{3}
+	return file_maintainerd_auth_v1_user_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *ListUsersRequest) GetTenantUuid() string {
@@ -433,7 +637,7 @@ type ListUsersResponse struct {
 
 func (x *ListUsersResponse) Reset() {
 	*x = ListUsersResponse{}
-	mi := &file_maintainerd_auth_v1_user_proto_msgTypes[4]
+	mi := &file_maintainerd_auth_v1_user_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -445,7 +649,7 @@ func (x *ListUsersResponse) String() string {
 func (*ListUsersResponse) ProtoMessage() {}
 
 func (x *ListUsersResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_maintainerd_auth_v1_user_proto_msgTypes[4]
+	mi := &file_maintainerd_auth_v1_user_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -458,7 +662,7 @@ func (x *ListUsersResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListUsersResponse.ProtoReflect.Descriptor instead.
 func (*ListUsersResponse) Descriptor() ([]byte, []int) {
-	return file_maintainerd_auth_v1_user_proto_rawDescGZIP(), []int{4}
+	return file_maintainerd_auth_v1_user_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *ListUsersResponse) GetUsers() []*User {
@@ -485,7 +689,7 @@ type GetUserRequest struct {
 
 func (x *GetUserRequest) Reset() {
 	*x = GetUserRequest{}
-	mi := &file_maintainerd_auth_v1_user_proto_msgTypes[5]
+	mi := &file_maintainerd_auth_v1_user_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -497,7 +701,7 @@ func (x *GetUserRequest) String() string {
 func (*GetUserRequest) ProtoMessage() {}
 
 func (x *GetUserRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_maintainerd_auth_v1_user_proto_msgTypes[5]
+	mi := &file_maintainerd_auth_v1_user_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -510,7 +714,7 @@ func (x *GetUserRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetUserRequest.ProtoReflect.Descriptor instead.
 func (*GetUserRequest) Descriptor() ([]byte, []int) {
-	return file_maintainerd_auth_v1_user_proto_rawDescGZIP(), []int{5}
+	return file_maintainerd_auth_v1_user_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *GetUserRequest) GetTenantUuid() string {
@@ -536,7 +740,7 @@ type GetUserResponse struct {
 
 func (x *GetUserResponse) Reset() {
 	*x = GetUserResponse{}
-	mi := &file_maintainerd_auth_v1_user_proto_msgTypes[6]
+	mi := &file_maintainerd_auth_v1_user_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -548,7 +752,7 @@ func (x *GetUserResponse) String() string {
 func (*GetUserResponse) ProtoMessage() {}
 
 func (x *GetUserResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_maintainerd_auth_v1_user_proto_msgTypes[6]
+	mi := &file_maintainerd_auth_v1_user_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -561,7 +765,7 @@ func (x *GetUserResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetUserResponse.ProtoReflect.Descriptor instead.
 func (*GetUserResponse) Descriptor() ([]byte, []int) {
-	return file_maintainerd_auth_v1_user_proto_rawDescGZIP(), []int{6}
+	return file_maintainerd_auth_v1_user_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *GetUserResponse) GetUser() *User {
@@ -588,7 +792,7 @@ type CreateUserRequest struct {
 
 func (x *CreateUserRequest) Reset() {
 	*x = CreateUserRequest{}
-	mi := &file_maintainerd_auth_v1_user_proto_msgTypes[7]
+	mi := &file_maintainerd_auth_v1_user_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -600,7 +804,7 @@ func (x *CreateUserRequest) String() string {
 func (*CreateUserRequest) ProtoMessage() {}
 
 func (x *CreateUserRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_maintainerd_auth_v1_user_proto_msgTypes[7]
+	mi := &file_maintainerd_auth_v1_user_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -613,7 +817,7 @@ func (x *CreateUserRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateUserRequest.ProtoReflect.Descriptor instead.
 func (*CreateUserRequest) Descriptor() ([]byte, []int) {
-	return file_maintainerd_auth_v1_user_proto_rawDescGZIP(), []int{7}
+	return file_maintainerd_auth_v1_user_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *CreateUserRequest) GetTenantUuid() string {
@@ -688,7 +892,7 @@ type CreateUserResponse struct {
 
 func (x *CreateUserResponse) Reset() {
 	*x = CreateUserResponse{}
-	mi := &file_maintainerd_auth_v1_user_proto_msgTypes[8]
+	mi := &file_maintainerd_auth_v1_user_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -700,7 +904,7 @@ func (x *CreateUserResponse) String() string {
 func (*CreateUserResponse) ProtoMessage() {}
 
 func (x *CreateUserResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_maintainerd_auth_v1_user_proto_msgTypes[8]
+	mi := &file_maintainerd_auth_v1_user_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -713,7 +917,7 @@ func (x *CreateUserResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateUserResponse.ProtoReflect.Descriptor instead.
 func (*CreateUserResponse) Descriptor() ([]byte, []int) {
-	return file_maintainerd_auth_v1_user_proto_rawDescGZIP(), []int{8}
+	return file_maintainerd_auth_v1_user_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *CreateUserResponse) GetUser() *User {
@@ -740,7 +944,7 @@ type UpdateUserRequest struct {
 
 func (x *UpdateUserRequest) Reset() {
 	*x = UpdateUserRequest{}
-	mi := &file_maintainerd_auth_v1_user_proto_msgTypes[9]
+	mi := &file_maintainerd_auth_v1_user_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -752,7 +956,7 @@ func (x *UpdateUserRequest) String() string {
 func (*UpdateUserRequest) ProtoMessage() {}
 
 func (x *UpdateUserRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_maintainerd_auth_v1_user_proto_msgTypes[9]
+	mi := &file_maintainerd_auth_v1_user_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -765,7 +969,7 @@ func (x *UpdateUserRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateUserRequest.ProtoReflect.Descriptor instead.
 func (*UpdateUserRequest) Descriptor() ([]byte, []int) {
-	return file_maintainerd_auth_v1_user_proto_rawDescGZIP(), []int{9}
+	return file_maintainerd_auth_v1_user_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *UpdateUserRequest) GetTenantUuid() string {
@@ -840,7 +1044,7 @@ type UpdateUserResponse struct {
 
 func (x *UpdateUserResponse) Reset() {
 	*x = UpdateUserResponse{}
-	mi := &file_maintainerd_auth_v1_user_proto_msgTypes[10]
+	mi := &file_maintainerd_auth_v1_user_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -852,7 +1056,7 @@ func (x *UpdateUserResponse) String() string {
 func (*UpdateUserResponse) ProtoMessage() {}
 
 func (x *UpdateUserResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_maintainerd_auth_v1_user_proto_msgTypes[10]
+	mi := &file_maintainerd_auth_v1_user_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -865,7 +1069,7 @@ func (x *UpdateUserResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateUserResponse.ProtoReflect.Descriptor instead.
 func (*UpdateUserResponse) Descriptor() ([]byte, []int) {
-	return file_maintainerd_auth_v1_user_proto_rawDescGZIP(), []int{10}
+	return file_maintainerd_auth_v1_user_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *UpdateUserResponse) GetUser() *User {
@@ -887,7 +1091,7 @@ type SetUserStatusRequest struct {
 
 func (x *SetUserStatusRequest) Reset() {
 	*x = SetUserStatusRequest{}
-	mi := &file_maintainerd_auth_v1_user_proto_msgTypes[11]
+	mi := &file_maintainerd_auth_v1_user_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -899,7 +1103,7 @@ func (x *SetUserStatusRequest) String() string {
 func (*SetUserStatusRequest) ProtoMessage() {}
 
 func (x *SetUserStatusRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_maintainerd_auth_v1_user_proto_msgTypes[11]
+	mi := &file_maintainerd_auth_v1_user_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -912,7 +1116,7 @@ func (x *SetUserStatusRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetUserStatusRequest.ProtoReflect.Descriptor instead.
 func (*SetUserStatusRequest) Descriptor() ([]byte, []int) {
-	return file_maintainerd_auth_v1_user_proto_rawDescGZIP(), []int{11}
+	return file_maintainerd_auth_v1_user_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *SetUserStatusRequest) GetTenantUuid() string {
@@ -952,7 +1156,7 @@ type SetUserStatusResponse struct {
 
 func (x *SetUserStatusResponse) Reset() {
 	*x = SetUserStatusResponse{}
-	mi := &file_maintainerd_auth_v1_user_proto_msgTypes[12]
+	mi := &file_maintainerd_auth_v1_user_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -964,7 +1168,7 @@ func (x *SetUserStatusResponse) String() string {
 func (*SetUserStatusResponse) ProtoMessage() {}
 
 func (x *SetUserStatusResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_maintainerd_auth_v1_user_proto_msgTypes[12]
+	mi := &file_maintainerd_auth_v1_user_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -977,7 +1181,7 @@ func (x *SetUserStatusResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetUserStatusResponse.ProtoReflect.Descriptor instead.
 func (*SetUserStatusResponse) Descriptor() ([]byte, []int) {
-	return file_maintainerd_auth_v1_user_proto_rawDescGZIP(), []int{12}
+	return file_maintainerd_auth_v1_user_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *SetUserStatusResponse) GetUser() *User {
@@ -997,7 +1201,7 @@ type VerifyUserEmailRequest struct {
 
 func (x *VerifyUserEmailRequest) Reset() {
 	*x = VerifyUserEmailRequest{}
-	mi := &file_maintainerd_auth_v1_user_proto_msgTypes[13]
+	mi := &file_maintainerd_auth_v1_user_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1009,7 +1213,7 @@ func (x *VerifyUserEmailRequest) String() string {
 func (*VerifyUserEmailRequest) ProtoMessage() {}
 
 func (x *VerifyUserEmailRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_maintainerd_auth_v1_user_proto_msgTypes[13]
+	mi := &file_maintainerd_auth_v1_user_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1022,7 +1226,7 @@ func (x *VerifyUserEmailRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use VerifyUserEmailRequest.ProtoReflect.Descriptor instead.
 func (*VerifyUserEmailRequest) Descriptor() ([]byte, []int) {
-	return file_maintainerd_auth_v1_user_proto_rawDescGZIP(), []int{13}
+	return file_maintainerd_auth_v1_user_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *VerifyUserEmailRequest) GetTenantUuid() string {
@@ -1048,7 +1252,7 @@ type VerifyUserEmailResponse struct {
 
 func (x *VerifyUserEmailResponse) Reset() {
 	*x = VerifyUserEmailResponse{}
-	mi := &file_maintainerd_auth_v1_user_proto_msgTypes[14]
+	mi := &file_maintainerd_auth_v1_user_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1060,7 +1264,7 @@ func (x *VerifyUserEmailResponse) String() string {
 func (*VerifyUserEmailResponse) ProtoMessage() {}
 
 func (x *VerifyUserEmailResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_maintainerd_auth_v1_user_proto_msgTypes[14]
+	mi := &file_maintainerd_auth_v1_user_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1073,7 +1277,7 @@ func (x *VerifyUserEmailResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use VerifyUserEmailResponse.ProtoReflect.Descriptor instead.
 func (*VerifyUserEmailResponse) Descriptor() ([]byte, []int) {
-	return file_maintainerd_auth_v1_user_proto_rawDescGZIP(), []int{14}
+	return file_maintainerd_auth_v1_user_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *VerifyUserEmailResponse) GetUser() *User {
@@ -1093,7 +1297,7 @@ type VerifyUserPhoneRequest struct {
 
 func (x *VerifyUserPhoneRequest) Reset() {
 	*x = VerifyUserPhoneRequest{}
-	mi := &file_maintainerd_auth_v1_user_proto_msgTypes[15]
+	mi := &file_maintainerd_auth_v1_user_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1105,7 +1309,7 @@ func (x *VerifyUserPhoneRequest) String() string {
 func (*VerifyUserPhoneRequest) ProtoMessage() {}
 
 func (x *VerifyUserPhoneRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_maintainerd_auth_v1_user_proto_msgTypes[15]
+	mi := &file_maintainerd_auth_v1_user_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1118,7 +1322,7 @@ func (x *VerifyUserPhoneRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use VerifyUserPhoneRequest.ProtoReflect.Descriptor instead.
 func (*VerifyUserPhoneRequest) Descriptor() ([]byte, []int) {
-	return file_maintainerd_auth_v1_user_proto_rawDescGZIP(), []int{15}
+	return file_maintainerd_auth_v1_user_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *VerifyUserPhoneRequest) GetTenantUuid() string {
@@ -1144,7 +1348,7 @@ type VerifyUserPhoneResponse struct {
 
 func (x *VerifyUserPhoneResponse) Reset() {
 	*x = VerifyUserPhoneResponse{}
-	mi := &file_maintainerd_auth_v1_user_proto_msgTypes[16]
+	mi := &file_maintainerd_auth_v1_user_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1156,7 +1360,7 @@ func (x *VerifyUserPhoneResponse) String() string {
 func (*VerifyUserPhoneResponse) ProtoMessage() {}
 
 func (x *VerifyUserPhoneResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_maintainerd_auth_v1_user_proto_msgTypes[16]
+	mi := &file_maintainerd_auth_v1_user_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1169,7 +1373,7 @@ func (x *VerifyUserPhoneResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use VerifyUserPhoneResponse.ProtoReflect.Descriptor instead.
 func (*VerifyUserPhoneResponse) Descriptor() ([]byte, []int) {
-	return file_maintainerd_auth_v1_user_proto_rawDescGZIP(), []int{16}
+	return file_maintainerd_auth_v1_user_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *VerifyUserPhoneResponse) GetUser() *User {
@@ -1189,7 +1393,7 @@ type CompleteUserAccountRequest struct {
 
 func (x *CompleteUserAccountRequest) Reset() {
 	*x = CompleteUserAccountRequest{}
-	mi := &file_maintainerd_auth_v1_user_proto_msgTypes[17]
+	mi := &file_maintainerd_auth_v1_user_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1201,7 +1405,7 @@ func (x *CompleteUserAccountRequest) String() string {
 func (*CompleteUserAccountRequest) ProtoMessage() {}
 
 func (x *CompleteUserAccountRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_maintainerd_auth_v1_user_proto_msgTypes[17]
+	mi := &file_maintainerd_auth_v1_user_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1214,7 +1418,7 @@ func (x *CompleteUserAccountRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CompleteUserAccountRequest.ProtoReflect.Descriptor instead.
 func (*CompleteUserAccountRequest) Descriptor() ([]byte, []int) {
-	return file_maintainerd_auth_v1_user_proto_rawDescGZIP(), []int{17}
+	return file_maintainerd_auth_v1_user_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *CompleteUserAccountRequest) GetTenantUuid() string {
@@ -1240,7 +1444,7 @@ type CompleteUserAccountResponse struct {
 
 func (x *CompleteUserAccountResponse) Reset() {
 	*x = CompleteUserAccountResponse{}
-	mi := &file_maintainerd_auth_v1_user_proto_msgTypes[18]
+	mi := &file_maintainerd_auth_v1_user_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1252,7 +1456,7 @@ func (x *CompleteUserAccountResponse) String() string {
 func (*CompleteUserAccountResponse) ProtoMessage() {}
 
 func (x *CompleteUserAccountResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_maintainerd_auth_v1_user_proto_msgTypes[18]
+	mi := &file_maintainerd_auth_v1_user_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1265,7 +1469,7 @@ func (x *CompleteUserAccountResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CompleteUserAccountResponse.ProtoReflect.Descriptor instead.
 func (*CompleteUserAccountResponse) Descriptor() ([]byte, []int) {
-	return file_maintainerd_auth_v1_user_proto_rawDescGZIP(), []int{18}
+	return file_maintainerd_auth_v1_user_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *CompleteUserAccountResponse) GetUser() *User {
@@ -1286,7 +1490,7 @@ type DeleteUserRequest struct {
 
 func (x *DeleteUserRequest) Reset() {
 	*x = DeleteUserRequest{}
-	mi := &file_maintainerd_auth_v1_user_proto_msgTypes[19]
+	mi := &file_maintainerd_auth_v1_user_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1298,7 +1502,7 @@ func (x *DeleteUserRequest) String() string {
 func (*DeleteUserRequest) ProtoMessage() {}
 
 func (x *DeleteUserRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_maintainerd_auth_v1_user_proto_msgTypes[19]
+	mi := &file_maintainerd_auth_v1_user_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1311,7 +1515,7 @@ func (x *DeleteUserRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteUserRequest.ProtoReflect.Descriptor instead.
 func (*DeleteUserRequest) Descriptor() ([]byte, []int) {
-	return file_maintainerd_auth_v1_user_proto_rawDescGZIP(), []int{19}
+	return file_maintainerd_auth_v1_user_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *DeleteUserRequest) GetTenantUuid() string {
@@ -1344,7 +1548,7 @@ type DeleteUserResponse struct {
 
 func (x *DeleteUserResponse) Reset() {
 	*x = DeleteUserResponse{}
-	mi := &file_maintainerd_auth_v1_user_proto_msgTypes[20]
+	mi := &file_maintainerd_auth_v1_user_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1356,7 +1560,7 @@ func (x *DeleteUserResponse) String() string {
 func (*DeleteUserResponse) ProtoMessage() {}
 
 func (x *DeleteUserResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_maintainerd_auth_v1_user_proto_msgTypes[20]
+	mi := &file_maintainerd_auth_v1_user_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1369,7 +1573,7 @@ func (x *DeleteUserResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteUserResponse.ProtoReflect.Descriptor instead.
 func (*DeleteUserResponse) Descriptor() ([]byte, []int) {
-	return file_maintainerd_auth_v1_user_proto_rawDescGZIP(), []int{20}
+	return file_maintainerd_auth_v1_user_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *DeleteUserResponse) GetUser() *User {
@@ -1390,7 +1594,7 @@ type ForceUserPasswordChangeRequest struct {
 
 func (x *ForceUserPasswordChangeRequest) Reset() {
 	*x = ForceUserPasswordChangeRequest{}
-	mi := &file_maintainerd_auth_v1_user_proto_msgTypes[21]
+	mi := &file_maintainerd_auth_v1_user_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1402,7 +1606,7 @@ func (x *ForceUserPasswordChangeRequest) String() string {
 func (*ForceUserPasswordChangeRequest) ProtoMessage() {}
 
 func (x *ForceUserPasswordChangeRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_maintainerd_auth_v1_user_proto_msgTypes[21]
+	mi := &file_maintainerd_auth_v1_user_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1415,7 +1619,7 @@ func (x *ForceUserPasswordChangeRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ForceUserPasswordChangeRequest.ProtoReflect.Descriptor instead.
 func (*ForceUserPasswordChangeRequest) Descriptor() ([]byte, []int) {
-	return file_maintainerd_auth_v1_user_proto_rawDescGZIP(), []int{21}
+	return file_maintainerd_auth_v1_user_proto_rawDescGZIP(), []int{22}
 }
 
 func (x *ForceUserPasswordChangeRequest) GetTenantUuid() string {
@@ -1448,7 +1652,7 @@ type ForceUserPasswordChangeResponse struct {
 
 func (x *ForceUserPasswordChangeResponse) Reset() {
 	*x = ForceUserPasswordChangeResponse{}
-	mi := &file_maintainerd_auth_v1_user_proto_msgTypes[22]
+	mi := &file_maintainerd_auth_v1_user_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1460,7 +1664,7 @@ func (x *ForceUserPasswordChangeResponse) String() string {
 func (*ForceUserPasswordChangeResponse) ProtoMessage() {}
 
 func (x *ForceUserPasswordChangeResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_maintainerd_auth_v1_user_proto_msgTypes[22]
+	mi := &file_maintainerd_auth_v1_user_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1473,7 +1677,7 @@ func (x *ForceUserPasswordChangeResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ForceUserPasswordChangeResponse.ProtoReflect.Descriptor instead.
 func (*ForceUserPasswordChangeResponse) Descriptor() ([]byte, []int) {
-	return file_maintainerd_auth_v1_user_proto_rawDescGZIP(), []int{22}
+	return file_maintainerd_auth_v1_user_proto_rawDescGZIP(), []int{23}
 }
 
 func (x *ForceUserPasswordChangeResponse) GetSuccess() bool {
@@ -1494,7 +1698,7 @@ type ListUserRolesRequest struct {
 
 func (x *ListUserRolesRequest) Reset() {
 	*x = ListUserRolesRequest{}
-	mi := &file_maintainerd_auth_v1_user_proto_msgTypes[23]
+	mi := &file_maintainerd_auth_v1_user_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1506,7 +1710,7 @@ func (x *ListUserRolesRequest) String() string {
 func (*ListUserRolesRequest) ProtoMessage() {}
 
 func (x *ListUserRolesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_maintainerd_auth_v1_user_proto_msgTypes[23]
+	mi := &file_maintainerd_auth_v1_user_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1519,7 +1723,7 @@ func (x *ListUserRolesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListUserRolesRequest.ProtoReflect.Descriptor instead.
 func (*ListUserRolesRequest) Descriptor() ([]byte, []int) {
-	return file_maintainerd_auth_v1_user_proto_rawDescGZIP(), []int{23}
+	return file_maintainerd_auth_v1_user_proto_rawDescGZIP(), []int{24}
 }
 
 func (x *ListUserRolesRequest) GetTenantUuid() string {
@@ -1553,7 +1757,7 @@ type ListUserRolesResponse struct {
 
 func (x *ListUserRolesResponse) Reset() {
 	*x = ListUserRolesResponse{}
-	mi := &file_maintainerd_auth_v1_user_proto_msgTypes[24]
+	mi := &file_maintainerd_auth_v1_user_proto_msgTypes[25]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1565,7 +1769,7 @@ func (x *ListUserRolesResponse) String() string {
 func (*ListUserRolesResponse) ProtoMessage() {}
 
 func (x *ListUserRolesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_maintainerd_auth_v1_user_proto_msgTypes[24]
+	mi := &file_maintainerd_auth_v1_user_proto_msgTypes[25]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1578,7 +1782,7 @@ func (x *ListUserRolesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListUserRolesResponse.ProtoReflect.Descriptor instead.
 func (*ListUserRolesResponse) Descriptor() ([]byte, []int) {
-	return file_maintainerd_auth_v1_user_proto_rawDescGZIP(), []int{24}
+	return file_maintainerd_auth_v1_user_proto_rawDescGZIP(), []int{25}
 }
 
 func (x *ListUserRolesResponse) GetRoles() []*UserRole {
@@ -1606,7 +1810,7 @@ type ListUserIdentitiesRequest struct {
 
 func (x *ListUserIdentitiesRequest) Reset() {
 	*x = ListUserIdentitiesRequest{}
-	mi := &file_maintainerd_auth_v1_user_proto_msgTypes[25]
+	mi := &file_maintainerd_auth_v1_user_proto_msgTypes[26]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1618,7 +1822,7 @@ func (x *ListUserIdentitiesRequest) String() string {
 func (*ListUserIdentitiesRequest) ProtoMessage() {}
 
 func (x *ListUserIdentitiesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_maintainerd_auth_v1_user_proto_msgTypes[25]
+	mi := &file_maintainerd_auth_v1_user_proto_msgTypes[26]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1631,7 +1835,7 @@ func (x *ListUserIdentitiesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListUserIdentitiesRequest.ProtoReflect.Descriptor instead.
 func (*ListUserIdentitiesRequest) Descriptor() ([]byte, []int) {
-	return file_maintainerd_auth_v1_user_proto_rawDescGZIP(), []int{25}
+	return file_maintainerd_auth_v1_user_proto_rawDescGZIP(), []int{26}
 }
 
 func (x *ListUserIdentitiesRequest) GetTenantUuid() string {
@@ -1665,7 +1869,7 @@ type ListUserIdentitiesResponse struct {
 
 func (x *ListUserIdentitiesResponse) Reset() {
 	*x = ListUserIdentitiesResponse{}
-	mi := &file_maintainerd_auth_v1_user_proto_msgTypes[26]
+	mi := &file_maintainerd_auth_v1_user_proto_msgTypes[27]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1677,7 +1881,7 @@ func (x *ListUserIdentitiesResponse) String() string {
 func (*ListUserIdentitiesResponse) ProtoMessage() {}
 
 func (x *ListUserIdentitiesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_maintainerd_auth_v1_user_proto_msgTypes[26]
+	mi := &file_maintainerd_auth_v1_user_proto_msgTypes[27]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1690,7 +1894,7 @@ func (x *ListUserIdentitiesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListUserIdentitiesResponse.ProtoReflect.Descriptor instead.
 func (*ListUserIdentitiesResponse) Descriptor() ([]byte, []int) {
-	return file_maintainerd_auth_v1_user_proto_rawDescGZIP(), []int{26}
+	return file_maintainerd_auth_v1_user_proto_rawDescGZIP(), []int{27}
 }
 
 func (x *ListUserIdentitiesResponse) GetIdentities() []*UserIdentity {
@@ -1718,7 +1922,7 @@ type AssignUserRolesRequest struct {
 
 func (x *AssignUserRolesRequest) Reset() {
 	*x = AssignUserRolesRequest{}
-	mi := &file_maintainerd_auth_v1_user_proto_msgTypes[27]
+	mi := &file_maintainerd_auth_v1_user_proto_msgTypes[28]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1730,7 +1934,7 @@ func (x *AssignUserRolesRequest) String() string {
 func (*AssignUserRolesRequest) ProtoMessage() {}
 
 func (x *AssignUserRolesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_maintainerd_auth_v1_user_proto_msgTypes[27]
+	mi := &file_maintainerd_auth_v1_user_proto_msgTypes[28]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1743,7 +1947,7 @@ func (x *AssignUserRolesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AssignUserRolesRequest.ProtoReflect.Descriptor instead.
 func (*AssignUserRolesRequest) Descriptor() ([]byte, []int) {
-	return file_maintainerd_auth_v1_user_proto_rawDescGZIP(), []int{27}
+	return file_maintainerd_auth_v1_user_proto_rawDescGZIP(), []int{28}
 }
 
 func (x *AssignUserRolesRequest) GetTenantUuid() string {
@@ -1776,7 +1980,7 @@ type AssignUserRolesResponse struct {
 
 func (x *AssignUserRolesResponse) Reset() {
 	*x = AssignUserRolesResponse{}
-	mi := &file_maintainerd_auth_v1_user_proto_msgTypes[28]
+	mi := &file_maintainerd_auth_v1_user_proto_msgTypes[29]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1788,7 +1992,7 @@ func (x *AssignUserRolesResponse) String() string {
 func (*AssignUserRolesResponse) ProtoMessage() {}
 
 func (x *AssignUserRolesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_maintainerd_auth_v1_user_proto_msgTypes[28]
+	mi := &file_maintainerd_auth_v1_user_proto_msgTypes[29]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1801,7 +2005,7 @@ func (x *AssignUserRolesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AssignUserRolesResponse.ProtoReflect.Descriptor instead.
 func (*AssignUserRolesResponse) Descriptor() ([]byte, []int) {
-	return file_maintainerd_auth_v1_user_proto_rawDescGZIP(), []int{28}
+	return file_maintainerd_auth_v1_user_proto_rawDescGZIP(), []int{29}
 }
 
 func (x *AssignUserRolesResponse) GetUser() *User {
@@ -1822,7 +2026,7 @@ type RemoveUserRoleRequest struct {
 
 func (x *RemoveUserRoleRequest) Reset() {
 	*x = RemoveUserRoleRequest{}
-	mi := &file_maintainerd_auth_v1_user_proto_msgTypes[29]
+	mi := &file_maintainerd_auth_v1_user_proto_msgTypes[30]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1834,7 +2038,7 @@ func (x *RemoveUserRoleRequest) String() string {
 func (*RemoveUserRoleRequest) ProtoMessage() {}
 
 func (x *RemoveUserRoleRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_maintainerd_auth_v1_user_proto_msgTypes[29]
+	mi := &file_maintainerd_auth_v1_user_proto_msgTypes[30]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1847,7 +2051,7 @@ func (x *RemoveUserRoleRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RemoveUserRoleRequest.ProtoReflect.Descriptor instead.
 func (*RemoveUserRoleRequest) Descriptor() ([]byte, []int) {
-	return file_maintainerd_auth_v1_user_proto_rawDescGZIP(), []int{29}
+	return file_maintainerd_auth_v1_user_proto_rawDescGZIP(), []int{30}
 }
 
 func (x *RemoveUserRoleRequest) GetTenantUuid() string {
@@ -1880,7 +2084,7 @@ type RemoveUserRoleResponse struct {
 
 func (x *RemoveUserRoleResponse) Reset() {
 	*x = RemoveUserRoleResponse{}
-	mi := &file_maintainerd_auth_v1_user_proto_msgTypes[30]
+	mi := &file_maintainerd_auth_v1_user_proto_msgTypes[31]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1892,7 +2096,7 @@ func (x *RemoveUserRoleResponse) String() string {
 func (*RemoveUserRoleResponse) ProtoMessage() {}
 
 func (x *RemoveUserRoleResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_maintainerd_auth_v1_user_proto_msgTypes[30]
+	mi := &file_maintainerd_auth_v1_user_proto_msgTypes[31]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1905,7 +2109,7 @@ func (x *RemoveUserRoleResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RemoveUserRoleResponse.ProtoReflect.Descriptor instead.
 func (*RemoveUserRoleResponse) Descriptor() ([]byte, []int) {
-	return file_maintainerd_auth_v1_user_proto_rawDescGZIP(), []int{30}
+	return file_maintainerd_auth_v1_user_proto_rawDescGZIP(), []int{31}
 }
 
 func (x *RemoveUserRoleResponse) GetUser() *User {
@@ -1927,7 +2131,7 @@ type SendInviteRequest struct {
 
 func (x *SendInviteRequest) Reset() {
 	*x = SendInviteRequest{}
-	mi := &file_maintainerd_auth_v1_user_proto_msgTypes[31]
+	mi := &file_maintainerd_auth_v1_user_proto_msgTypes[32]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1939,7 +2143,7 @@ func (x *SendInviteRequest) String() string {
 func (*SendInviteRequest) ProtoMessage() {}
 
 func (x *SendInviteRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_maintainerd_auth_v1_user_proto_msgTypes[31]
+	mi := &file_maintainerd_auth_v1_user_proto_msgTypes[32]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1952,7 +2156,7 @@ func (x *SendInviteRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SendInviteRequest.ProtoReflect.Descriptor instead.
 func (*SendInviteRequest) Descriptor() ([]byte, []int) {
-	return file_maintainerd_auth_v1_user_proto_rawDescGZIP(), []int{31}
+	return file_maintainerd_auth_v1_user_proto_rawDescGZIP(), []int{32}
 }
 
 func (x *SendInviteRequest) GetTenantUuid() string {
@@ -1992,7 +2196,7 @@ type SendInviteResponse struct {
 
 func (x *SendInviteResponse) Reset() {
 	*x = SendInviteResponse{}
-	mi := &file_maintainerd_auth_v1_user_proto_msgTypes[32]
+	mi := &file_maintainerd_auth_v1_user_proto_msgTypes[33]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2004,7 +2208,7 @@ func (x *SendInviteResponse) String() string {
 func (*SendInviteResponse) ProtoMessage() {}
 
 func (x *SendInviteResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_maintainerd_auth_v1_user_proto_msgTypes[32]
+	mi := &file_maintainerd_auth_v1_user_proto_msgTypes[33]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2017,7 +2221,7 @@ func (x *SendInviteResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SendInviteResponse.ProtoReflect.Descriptor instead.
 func (*SendInviteResponse) Descriptor() ([]byte, []int) {
-	return file_maintainerd_auth_v1_user_proto_rawDescGZIP(), []int{32}
+	return file_maintainerd_auth_v1_user_proto_rawDescGZIP(), []int{33}
 }
 
 func (x *SendInviteResponse) GetMessage() string {
@@ -2025,6 +2229,958 @@ func (x *SendInviteResponse) GetMessage() string {
 		return x.Message
 	}
 	return ""
+}
+
+type ListUserProfilesRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	TenantUuid    string                 `protobuf:"bytes,1,opt,name=tenant_uuid,json=tenantUuid,proto3" json:"tenant_uuid,omitempty"`
+	UserUuid      string                 `protobuf:"bytes,2,opt,name=user_uuid,json=userUuid,proto3" json:"user_uuid,omitempty"`
+	FirstName     string                 `protobuf:"bytes,3,opt,name=first_name,json=firstName,proto3" json:"first_name,omitempty"`
+	LastName      string                 `protobuf:"bytes,4,opt,name=last_name,json=lastName,proto3" json:"last_name,omitempty"`
+	Email         string                 `protobuf:"bytes,5,opt,name=email,proto3" json:"email,omitempty"`
+	Phone         string                 `protobuf:"bytes,6,opt,name=phone,proto3" json:"phone,omitempty"`
+	City          string                 `protobuf:"bytes,7,opt,name=city,proto3" json:"city,omitempty"`
+	Country       string                 `protobuf:"bytes,8,opt,name=country,proto3" json:"country,omitempty"`
+	IsDefault     *bool                  `protobuf:"varint,9,opt,name=is_default,json=isDefault,proto3,oneof" json:"is_default,omitempty"`
+	Pagination    *Pagination            `protobuf:"bytes,10,opt,name=pagination,proto3" json:"pagination,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListUserProfilesRequest) Reset() {
+	*x = ListUserProfilesRequest{}
+	mi := &file_maintainerd_auth_v1_user_proto_msgTypes[34]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListUserProfilesRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListUserProfilesRequest) ProtoMessage() {}
+
+func (x *ListUserProfilesRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_maintainerd_auth_v1_user_proto_msgTypes[34]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListUserProfilesRequest.ProtoReflect.Descriptor instead.
+func (*ListUserProfilesRequest) Descriptor() ([]byte, []int) {
+	return file_maintainerd_auth_v1_user_proto_rawDescGZIP(), []int{34}
+}
+
+func (x *ListUserProfilesRequest) GetTenantUuid() string {
+	if x != nil {
+		return x.TenantUuid
+	}
+	return ""
+}
+
+func (x *ListUserProfilesRequest) GetUserUuid() string {
+	if x != nil {
+		return x.UserUuid
+	}
+	return ""
+}
+
+func (x *ListUserProfilesRequest) GetFirstName() string {
+	if x != nil {
+		return x.FirstName
+	}
+	return ""
+}
+
+func (x *ListUserProfilesRequest) GetLastName() string {
+	if x != nil {
+		return x.LastName
+	}
+	return ""
+}
+
+func (x *ListUserProfilesRequest) GetEmail() string {
+	if x != nil {
+		return x.Email
+	}
+	return ""
+}
+
+func (x *ListUserProfilesRequest) GetPhone() string {
+	if x != nil {
+		return x.Phone
+	}
+	return ""
+}
+
+func (x *ListUserProfilesRequest) GetCity() string {
+	if x != nil {
+		return x.City
+	}
+	return ""
+}
+
+func (x *ListUserProfilesRequest) GetCountry() string {
+	if x != nil {
+		return x.Country
+	}
+	return ""
+}
+
+func (x *ListUserProfilesRequest) GetIsDefault() bool {
+	if x != nil && x.IsDefault != nil {
+		return *x.IsDefault
+	}
+	return false
+}
+
+func (x *ListUserProfilesRequest) GetPagination() *Pagination {
+	if x != nil {
+		return x.Pagination
+	}
+	return nil
+}
+
+type ListUserProfilesResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Profiles      []*UserProfile         `protobuf:"bytes,1,rep,name=profiles,proto3" json:"profiles,omitempty"`
+	Page          *PageMetadata          `protobuf:"bytes,2,opt,name=page,proto3" json:"page,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListUserProfilesResponse) Reset() {
+	*x = ListUserProfilesResponse{}
+	mi := &file_maintainerd_auth_v1_user_proto_msgTypes[35]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListUserProfilesResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListUserProfilesResponse) ProtoMessage() {}
+
+func (x *ListUserProfilesResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_maintainerd_auth_v1_user_proto_msgTypes[35]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListUserProfilesResponse.ProtoReflect.Descriptor instead.
+func (*ListUserProfilesResponse) Descriptor() ([]byte, []int) {
+	return file_maintainerd_auth_v1_user_proto_rawDescGZIP(), []int{35}
+}
+
+func (x *ListUserProfilesResponse) GetProfiles() []*UserProfile {
+	if x != nil {
+		return x.Profiles
+	}
+	return nil
+}
+
+func (x *ListUserProfilesResponse) GetPage() *PageMetadata {
+	if x != nil {
+		return x.Page
+	}
+	return nil
+}
+
+type GetUserProfileRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	TenantUuid    string                 `protobuf:"bytes,1,opt,name=tenant_uuid,json=tenantUuid,proto3" json:"tenant_uuid,omitempty"`
+	UserUuid      string                 `protobuf:"bytes,2,opt,name=user_uuid,json=userUuid,proto3" json:"user_uuid,omitempty"`
+	ProfileUuid   string                 `protobuf:"bytes,3,opt,name=profile_uuid,json=profileUuid,proto3" json:"profile_uuid,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetUserProfileRequest) Reset() {
+	*x = GetUserProfileRequest{}
+	mi := &file_maintainerd_auth_v1_user_proto_msgTypes[36]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetUserProfileRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetUserProfileRequest) ProtoMessage() {}
+
+func (x *GetUserProfileRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_maintainerd_auth_v1_user_proto_msgTypes[36]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetUserProfileRequest.ProtoReflect.Descriptor instead.
+func (*GetUserProfileRequest) Descriptor() ([]byte, []int) {
+	return file_maintainerd_auth_v1_user_proto_rawDescGZIP(), []int{36}
+}
+
+func (x *GetUserProfileRequest) GetTenantUuid() string {
+	if x != nil {
+		return x.TenantUuid
+	}
+	return ""
+}
+
+func (x *GetUserProfileRequest) GetUserUuid() string {
+	if x != nil {
+		return x.UserUuid
+	}
+	return ""
+}
+
+func (x *GetUserProfileRequest) GetProfileUuid() string {
+	if x != nil {
+		return x.ProfileUuid
+	}
+	return ""
+}
+
+type GetUserProfileResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Profile       *UserProfile           `protobuf:"bytes,1,opt,name=profile,proto3" json:"profile,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetUserProfileResponse) Reset() {
+	*x = GetUserProfileResponse{}
+	mi := &file_maintainerd_auth_v1_user_proto_msgTypes[37]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetUserProfileResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetUserProfileResponse) ProtoMessage() {}
+
+func (x *GetUserProfileResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_maintainerd_auth_v1_user_proto_msgTypes[37]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetUserProfileResponse.ProtoReflect.Descriptor instead.
+func (*GetUserProfileResponse) Descriptor() ([]byte, []int) {
+	return file_maintainerd_auth_v1_user_proto_rawDescGZIP(), []int{37}
+}
+
+func (x *GetUserProfileResponse) GetProfile() *UserProfile {
+	if x != nil {
+		return x.Profile
+	}
+	return nil
+}
+
+type CreateUserProfileRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	TenantUuid    string                 `protobuf:"bytes,1,opt,name=tenant_uuid,json=tenantUuid,proto3" json:"tenant_uuid,omitempty"`
+	UserUuid      string                 `protobuf:"bytes,2,opt,name=user_uuid,json=userUuid,proto3" json:"user_uuid,omitempty"`
+	FirstName     string                 `protobuf:"bytes,3,opt,name=first_name,json=firstName,proto3" json:"first_name,omitempty"`
+	MiddleName    string                 `protobuf:"bytes,4,opt,name=middle_name,json=middleName,proto3" json:"middle_name,omitempty"`
+	LastName      string                 `protobuf:"bytes,5,opt,name=last_name,json=lastName,proto3" json:"last_name,omitempty"`
+	Suffix        string                 `protobuf:"bytes,6,opt,name=suffix,proto3" json:"suffix,omitempty"`
+	DisplayName   string                 `protobuf:"bytes,7,opt,name=display_name,json=displayName,proto3" json:"display_name,omitempty"`
+	Bio           string                 `protobuf:"bytes,8,opt,name=bio,proto3" json:"bio,omitempty"`
+	Birthdate     string                 `protobuf:"bytes,9,opt,name=birthdate,proto3" json:"birthdate,omitempty"`
+	Gender        string                 `protobuf:"bytes,10,opt,name=gender,proto3" json:"gender,omitempty"`
+	Phone         string                 `protobuf:"bytes,11,opt,name=phone,proto3" json:"phone,omitempty"`
+	Email         string                 `protobuf:"bytes,12,opt,name=email,proto3" json:"email,omitempty"`
+	Address       string                 `protobuf:"bytes,13,opt,name=address,proto3" json:"address,omitempty"`
+	City          string                 `protobuf:"bytes,14,opt,name=city,proto3" json:"city,omitempty"`
+	Country       string                 `protobuf:"bytes,15,opt,name=country,proto3" json:"country,omitempty"`
+	Timezone      string                 `protobuf:"bytes,16,opt,name=timezone,proto3" json:"timezone,omitempty"`
+	Language      string                 `protobuf:"bytes,17,opt,name=language,proto3" json:"language,omitempty"`
+	ProfileUrl    string                 `protobuf:"bytes,18,opt,name=profile_url,json=profileUrl,proto3" json:"profile_url,omitempty"`
+	Metadata      *structpb.Struct       `protobuf:"bytes,19,opt,name=metadata,proto3" json:"metadata,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CreateUserProfileRequest) Reset() {
+	*x = CreateUserProfileRequest{}
+	mi := &file_maintainerd_auth_v1_user_proto_msgTypes[38]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreateUserProfileRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreateUserProfileRequest) ProtoMessage() {}
+
+func (x *CreateUserProfileRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_maintainerd_auth_v1_user_proto_msgTypes[38]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreateUserProfileRequest.ProtoReflect.Descriptor instead.
+func (*CreateUserProfileRequest) Descriptor() ([]byte, []int) {
+	return file_maintainerd_auth_v1_user_proto_rawDescGZIP(), []int{38}
+}
+
+func (x *CreateUserProfileRequest) GetTenantUuid() string {
+	if x != nil {
+		return x.TenantUuid
+	}
+	return ""
+}
+
+func (x *CreateUserProfileRequest) GetUserUuid() string {
+	if x != nil {
+		return x.UserUuid
+	}
+	return ""
+}
+
+func (x *CreateUserProfileRequest) GetFirstName() string {
+	if x != nil {
+		return x.FirstName
+	}
+	return ""
+}
+
+func (x *CreateUserProfileRequest) GetMiddleName() string {
+	if x != nil {
+		return x.MiddleName
+	}
+	return ""
+}
+
+func (x *CreateUserProfileRequest) GetLastName() string {
+	if x != nil {
+		return x.LastName
+	}
+	return ""
+}
+
+func (x *CreateUserProfileRequest) GetSuffix() string {
+	if x != nil {
+		return x.Suffix
+	}
+	return ""
+}
+
+func (x *CreateUserProfileRequest) GetDisplayName() string {
+	if x != nil {
+		return x.DisplayName
+	}
+	return ""
+}
+
+func (x *CreateUserProfileRequest) GetBio() string {
+	if x != nil {
+		return x.Bio
+	}
+	return ""
+}
+
+func (x *CreateUserProfileRequest) GetBirthdate() string {
+	if x != nil {
+		return x.Birthdate
+	}
+	return ""
+}
+
+func (x *CreateUserProfileRequest) GetGender() string {
+	if x != nil {
+		return x.Gender
+	}
+	return ""
+}
+
+func (x *CreateUserProfileRequest) GetPhone() string {
+	if x != nil {
+		return x.Phone
+	}
+	return ""
+}
+
+func (x *CreateUserProfileRequest) GetEmail() string {
+	if x != nil {
+		return x.Email
+	}
+	return ""
+}
+
+func (x *CreateUserProfileRequest) GetAddress() string {
+	if x != nil {
+		return x.Address
+	}
+	return ""
+}
+
+func (x *CreateUserProfileRequest) GetCity() string {
+	if x != nil {
+		return x.City
+	}
+	return ""
+}
+
+func (x *CreateUserProfileRequest) GetCountry() string {
+	if x != nil {
+		return x.Country
+	}
+	return ""
+}
+
+func (x *CreateUserProfileRequest) GetTimezone() string {
+	if x != nil {
+		return x.Timezone
+	}
+	return ""
+}
+
+func (x *CreateUserProfileRequest) GetLanguage() string {
+	if x != nil {
+		return x.Language
+	}
+	return ""
+}
+
+func (x *CreateUserProfileRequest) GetProfileUrl() string {
+	if x != nil {
+		return x.ProfileUrl
+	}
+	return ""
+}
+
+func (x *CreateUserProfileRequest) GetMetadata() *structpb.Struct {
+	if x != nil {
+		return x.Metadata
+	}
+	return nil
+}
+
+type CreateUserProfileResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Profile       *UserProfile           `protobuf:"bytes,1,opt,name=profile,proto3" json:"profile,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CreateUserProfileResponse) Reset() {
+	*x = CreateUserProfileResponse{}
+	mi := &file_maintainerd_auth_v1_user_proto_msgTypes[39]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreateUserProfileResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreateUserProfileResponse) ProtoMessage() {}
+
+func (x *CreateUserProfileResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_maintainerd_auth_v1_user_proto_msgTypes[39]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreateUserProfileResponse.ProtoReflect.Descriptor instead.
+func (*CreateUserProfileResponse) Descriptor() ([]byte, []int) {
+	return file_maintainerd_auth_v1_user_proto_rawDescGZIP(), []int{39}
+}
+
+func (x *CreateUserProfileResponse) GetProfile() *UserProfile {
+	if x != nil {
+		return x.Profile
+	}
+	return nil
+}
+
+type UpdateUserProfileRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	TenantUuid    string                 `protobuf:"bytes,1,opt,name=tenant_uuid,json=tenantUuid,proto3" json:"tenant_uuid,omitempty"`
+	UserUuid      string                 `protobuf:"bytes,2,opt,name=user_uuid,json=userUuid,proto3" json:"user_uuid,omitempty"`
+	ProfileUuid   string                 `protobuf:"bytes,3,opt,name=profile_uuid,json=profileUuid,proto3" json:"profile_uuid,omitempty"`
+	FirstName     string                 `protobuf:"bytes,4,opt,name=first_name,json=firstName,proto3" json:"first_name,omitempty"`
+	MiddleName    string                 `protobuf:"bytes,5,opt,name=middle_name,json=middleName,proto3" json:"middle_name,omitempty"`
+	LastName      string                 `protobuf:"bytes,6,opt,name=last_name,json=lastName,proto3" json:"last_name,omitempty"`
+	Suffix        string                 `protobuf:"bytes,7,opt,name=suffix,proto3" json:"suffix,omitempty"`
+	DisplayName   string                 `protobuf:"bytes,8,opt,name=display_name,json=displayName,proto3" json:"display_name,omitempty"`
+	Bio           string                 `protobuf:"bytes,9,opt,name=bio,proto3" json:"bio,omitempty"`
+	Birthdate     string                 `protobuf:"bytes,10,opt,name=birthdate,proto3" json:"birthdate,omitempty"`
+	Gender        string                 `protobuf:"bytes,11,opt,name=gender,proto3" json:"gender,omitempty"`
+	Phone         string                 `protobuf:"bytes,12,opt,name=phone,proto3" json:"phone,omitempty"`
+	Email         string                 `protobuf:"bytes,13,opt,name=email,proto3" json:"email,omitempty"`
+	Address       string                 `protobuf:"bytes,14,opt,name=address,proto3" json:"address,omitempty"`
+	City          string                 `protobuf:"bytes,15,opt,name=city,proto3" json:"city,omitempty"`
+	Country       string                 `protobuf:"bytes,16,opt,name=country,proto3" json:"country,omitempty"`
+	Timezone      string                 `protobuf:"bytes,17,opt,name=timezone,proto3" json:"timezone,omitempty"`
+	Language      string                 `protobuf:"bytes,18,opt,name=language,proto3" json:"language,omitempty"`
+	ProfileUrl    string                 `protobuf:"bytes,19,opt,name=profile_url,json=profileUrl,proto3" json:"profile_url,omitempty"`
+	Metadata      *structpb.Struct       `protobuf:"bytes,20,opt,name=metadata,proto3" json:"metadata,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UpdateUserProfileRequest) Reset() {
+	*x = UpdateUserProfileRequest{}
+	mi := &file_maintainerd_auth_v1_user_proto_msgTypes[40]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpdateUserProfileRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpdateUserProfileRequest) ProtoMessage() {}
+
+func (x *UpdateUserProfileRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_maintainerd_auth_v1_user_proto_msgTypes[40]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpdateUserProfileRequest.ProtoReflect.Descriptor instead.
+func (*UpdateUserProfileRequest) Descriptor() ([]byte, []int) {
+	return file_maintainerd_auth_v1_user_proto_rawDescGZIP(), []int{40}
+}
+
+func (x *UpdateUserProfileRequest) GetTenantUuid() string {
+	if x != nil {
+		return x.TenantUuid
+	}
+	return ""
+}
+
+func (x *UpdateUserProfileRequest) GetUserUuid() string {
+	if x != nil {
+		return x.UserUuid
+	}
+	return ""
+}
+
+func (x *UpdateUserProfileRequest) GetProfileUuid() string {
+	if x != nil {
+		return x.ProfileUuid
+	}
+	return ""
+}
+
+func (x *UpdateUserProfileRequest) GetFirstName() string {
+	if x != nil {
+		return x.FirstName
+	}
+	return ""
+}
+
+func (x *UpdateUserProfileRequest) GetMiddleName() string {
+	if x != nil {
+		return x.MiddleName
+	}
+	return ""
+}
+
+func (x *UpdateUserProfileRequest) GetLastName() string {
+	if x != nil {
+		return x.LastName
+	}
+	return ""
+}
+
+func (x *UpdateUserProfileRequest) GetSuffix() string {
+	if x != nil {
+		return x.Suffix
+	}
+	return ""
+}
+
+func (x *UpdateUserProfileRequest) GetDisplayName() string {
+	if x != nil {
+		return x.DisplayName
+	}
+	return ""
+}
+
+func (x *UpdateUserProfileRequest) GetBio() string {
+	if x != nil {
+		return x.Bio
+	}
+	return ""
+}
+
+func (x *UpdateUserProfileRequest) GetBirthdate() string {
+	if x != nil {
+		return x.Birthdate
+	}
+	return ""
+}
+
+func (x *UpdateUserProfileRequest) GetGender() string {
+	if x != nil {
+		return x.Gender
+	}
+	return ""
+}
+
+func (x *UpdateUserProfileRequest) GetPhone() string {
+	if x != nil {
+		return x.Phone
+	}
+	return ""
+}
+
+func (x *UpdateUserProfileRequest) GetEmail() string {
+	if x != nil {
+		return x.Email
+	}
+	return ""
+}
+
+func (x *UpdateUserProfileRequest) GetAddress() string {
+	if x != nil {
+		return x.Address
+	}
+	return ""
+}
+
+func (x *UpdateUserProfileRequest) GetCity() string {
+	if x != nil {
+		return x.City
+	}
+	return ""
+}
+
+func (x *UpdateUserProfileRequest) GetCountry() string {
+	if x != nil {
+		return x.Country
+	}
+	return ""
+}
+
+func (x *UpdateUserProfileRequest) GetTimezone() string {
+	if x != nil {
+		return x.Timezone
+	}
+	return ""
+}
+
+func (x *UpdateUserProfileRequest) GetLanguage() string {
+	if x != nil {
+		return x.Language
+	}
+	return ""
+}
+
+func (x *UpdateUserProfileRequest) GetProfileUrl() string {
+	if x != nil {
+		return x.ProfileUrl
+	}
+	return ""
+}
+
+func (x *UpdateUserProfileRequest) GetMetadata() *structpb.Struct {
+	if x != nil {
+		return x.Metadata
+	}
+	return nil
+}
+
+type UpdateUserProfileResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Profile       *UserProfile           `protobuf:"bytes,1,opt,name=profile,proto3" json:"profile,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UpdateUserProfileResponse) Reset() {
+	*x = UpdateUserProfileResponse{}
+	mi := &file_maintainerd_auth_v1_user_proto_msgTypes[41]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpdateUserProfileResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpdateUserProfileResponse) ProtoMessage() {}
+
+func (x *UpdateUserProfileResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_maintainerd_auth_v1_user_proto_msgTypes[41]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpdateUserProfileResponse.ProtoReflect.Descriptor instead.
+func (*UpdateUserProfileResponse) Descriptor() ([]byte, []int) {
+	return file_maintainerd_auth_v1_user_proto_rawDescGZIP(), []int{41}
+}
+
+func (x *UpdateUserProfileResponse) GetProfile() *UserProfile {
+	if x != nil {
+		return x.Profile
+	}
+	return nil
+}
+
+type SetDefaultUserProfileRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	TenantUuid    string                 `protobuf:"bytes,1,opt,name=tenant_uuid,json=tenantUuid,proto3" json:"tenant_uuid,omitempty"`
+	UserUuid      string                 `protobuf:"bytes,2,opt,name=user_uuid,json=userUuid,proto3" json:"user_uuid,omitempty"`
+	ProfileUuid   string                 `protobuf:"bytes,3,opt,name=profile_uuid,json=profileUuid,proto3" json:"profile_uuid,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SetDefaultUserProfileRequest) Reset() {
+	*x = SetDefaultUserProfileRequest{}
+	mi := &file_maintainerd_auth_v1_user_proto_msgTypes[42]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SetDefaultUserProfileRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SetDefaultUserProfileRequest) ProtoMessage() {}
+
+func (x *SetDefaultUserProfileRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_maintainerd_auth_v1_user_proto_msgTypes[42]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SetDefaultUserProfileRequest.ProtoReflect.Descriptor instead.
+func (*SetDefaultUserProfileRequest) Descriptor() ([]byte, []int) {
+	return file_maintainerd_auth_v1_user_proto_rawDescGZIP(), []int{42}
+}
+
+func (x *SetDefaultUserProfileRequest) GetTenantUuid() string {
+	if x != nil {
+		return x.TenantUuid
+	}
+	return ""
+}
+
+func (x *SetDefaultUserProfileRequest) GetUserUuid() string {
+	if x != nil {
+		return x.UserUuid
+	}
+	return ""
+}
+
+func (x *SetDefaultUserProfileRequest) GetProfileUuid() string {
+	if x != nil {
+		return x.ProfileUuid
+	}
+	return ""
+}
+
+type SetDefaultUserProfileResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Profile       *UserProfile           `protobuf:"bytes,1,opt,name=profile,proto3" json:"profile,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SetDefaultUserProfileResponse) Reset() {
+	*x = SetDefaultUserProfileResponse{}
+	mi := &file_maintainerd_auth_v1_user_proto_msgTypes[43]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SetDefaultUserProfileResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SetDefaultUserProfileResponse) ProtoMessage() {}
+
+func (x *SetDefaultUserProfileResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_maintainerd_auth_v1_user_proto_msgTypes[43]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SetDefaultUserProfileResponse.ProtoReflect.Descriptor instead.
+func (*SetDefaultUserProfileResponse) Descriptor() ([]byte, []int) {
+	return file_maintainerd_auth_v1_user_proto_rawDescGZIP(), []int{43}
+}
+
+func (x *SetDefaultUserProfileResponse) GetProfile() *UserProfile {
+	if x != nil {
+		return x.Profile
+	}
+	return nil
+}
+
+type DeleteUserProfileRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	TenantUuid    string                 `protobuf:"bytes,1,opt,name=tenant_uuid,json=tenantUuid,proto3" json:"tenant_uuid,omitempty"`
+	UserUuid      string                 `protobuf:"bytes,2,opt,name=user_uuid,json=userUuid,proto3" json:"user_uuid,omitempty"`
+	ProfileUuid   string                 `protobuf:"bytes,3,opt,name=profile_uuid,json=profileUuid,proto3" json:"profile_uuid,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeleteUserProfileRequest) Reset() {
+	*x = DeleteUserProfileRequest{}
+	mi := &file_maintainerd_auth_v1_user_proto_msgTypes[44]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeleteUserProfileRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeleteUserProfileRequest) ProtoMessage() {}
+
+func (x *DeleteUserProfileRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_maintainerd_auth_v1_user_proto_msgTypes[44]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeleteUserProfileRequest.ProtoReflect.Descriptor instead.
+func (*DeleteUserProfileRequest) Descriptor() ([]byte, []int) {
+	return file_maintainerd_auth_v1_user_proto_rawDescGZIP(), []int{44}
+}
+
+func (x *DeleteUserProfileRequest) GetTenantUuid() string {
+	if x != nil {
+		return x.TenantUuid
+	}
+	return ""
+}
+
+func (x *DeleteUserProfileRequest) GetUserUuid() string {
+	if x != nil {
+		return x.UserUuid
+	}
+	return ""
+}
+
+func (x *DeleteUserProfileRequest) GetProfileUuid() string {
+	if x != nil {
+		return x.ProfileUuid
+	}
+	return ""
+}
+
+type DeleteUserProfileResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Profile       *UserProfile           `protobuf:"bytes,1,opt,name=profile,proto3" json:"profile,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeleteUserProfileResponse) Reset() {
+	*x = DeleteUserProfileResponse{}
+	mi := &file_maintainerd_auth_v1_user_proto_msgTypes[45]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeleteUserProfileResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeleteUserProfileResponse) ProtoMessage() {}
+
+func (x *DeleteUserProfileResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_maintainerd_auth_v1_user_proto_msgTypes[45]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeleteUserProfileResponse.ProtoReflect.Descriptor instead.
+func (*DeleteUserProfileResponse) Descriptor() ([]byte, []int) {
+	return file_maintainerd_auth_v1_user_proto_rawDescGZIP(), []int{45}
+}
+
+func (x *DeleteUserProfileResponse) GetProfile() *UserProfile {
+	if x != nil {
+		return x.Profile
+	}
+	return nil
 }
 
 var File_maintainerd_auth_v1_user_proto protoreflect.FileDescriptor
@@ -2068,7 +3224,36 @@ const file_maintainerd_auth_v1_user_proto_rawDesc = "" +
 	"\n" +
 	"created_at\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x129\n" +
 	"\n" +
-	"updated_at\x18\b \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\"\xd4\x01\n" +
+	"updated_at\x18\b \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\"\xa7\x05\n" +
+	"\vUserProfile\x12!\n" +
+	"\fprofile_uuid\x18\x01 \x01(\tR\vprofileUuid\x12\x1d\n" +
+	"\n" +
+	"first_name\x18\x02 \x01(\tR\tfirstName\x12\x1f\n" +
+	"\vmiddle_name\x18\x03 \x01(\tR\n" +
+	"middleName\x12\x1b\n" +
+	"\tlast_name\x18\x04 \x01(\tR\blastName\x12\x16\n" +
+	"\x06suffix\x18\x05 \x01(\tR\x06suffix\x12!\n" +
+	"\fdisplay_name\x18\x06 \x01(\tR\vdisplayName\x12\x10\n" +
+	"\x03bio\x18\a \x01(\tR\x03bio\x12\x1c\n" +
+	"\tbirthdate\x18\b \x01(\tR\tbirthdate\x12\x16\n" +
+	"\x06gender\x18\t \x01(\tR\x06gender\x12\x14\n" +
+	"\x05phone\x18\n" +
+	" \x01(\tR\x05phone\x12\x14\n" +
+	"\x05email\x18\v \x01(\tR\x05email\x12\x18\n" +
+	"\aaddress\x18\f \x01(\tR\aaddress\x12\x12\n" +
+	"\x04city\x18\r \x01(\tR\x04city\x12\x18\n" +
+	"\acountry\x18\x0e \x01(\tR\acountry\x12\x1a\n" +
+	"\btimezone\x18\x0f \x01(\tR\btimezone\x12\x1a\n" +
+	"\blanguage\x18\x10 \x01(\tR\blanguage\x12\x1f\n" +
+	"\vprofile_url\x18\x11 \x01(\tR\n" +
+	"profileUrl\x12\x1d\n" +
+	"\n" +
+	"is_default\x18\x12 \x01(\bR\tisDefault\x123\n" +
+	"\bmetadata\x18\x13 \x01(\v2\x17.google.protobuf.StructR\bmetadata\x129\n" +
+	"\n" +
+	"created_at\x18\x14 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x129\n" +
+	"\n" +
+	"updated_at\x18\x15 \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\"\xd4\x01\n" +
 	"\x10ListUsersRequest\x12\x1f\n" +
 	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
 	"tenantUuid\x12\x1a\n" +
@@ -2199,7 +3384,104 @@ const file_maintainerd_auth_v1_user_proto_rawDesc = "" +
 	"role_uuids\x18\x03 \x03(\tR\troleUuids\x12&\n" +
 	"\x0factor_user_uuid\x18\x04 \x01(\tR\ractorUserUuid\".\n" +
 	"\x12SendInviteResponse\x12\x18\n" +
-	"\amessage\x18\x01 \x01(\tR\amessage2\xd9\v\n" +
+	"\amessage\x18\x01 \x01(\tR\amessage\"\xe1\x02\n" +
+	"\x17ListUserProfilesRequest\x12\x1f\n" +
+	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
+	"tenantUuid\x12\x1b\n" +
+	"\tuser_uuid\x18\x02 \x01(\tR\buserUuid\x12\x1d\n" +
+	"\n" +
+	"first_name\x18\x03 \x01(\tR\tfirstName\x12\x1b\n" +
+	"\tlast_name\x18\x04 \x01(\tR\blastName\x12\x14\n" +
+	"\x05email\x18\x05 \x01(\tR\x05email\x12\x14\n" +
+	"\x05phone\x18\x06 \x01(\tR\x05phone\x12\x12\n" +
+	"\x04city\x18\a \x01(\tR\x04city\x12\x18\n" +
+	"\acountry\x18\b \x01(\tR\acountry\x12\"\n" +
+	"\n" +
+	"is_default\x18\t \x01(\bH\x00R\tisDefault\x88\x01\x01\x12?\n" +
+	"\n" +
+	"pagination\x18\n" +
+	" \x01(\v2\x1f.maintainerd.auth.v1.PaginationR\n" +
+	"paginationB\r\n" +
+	"\v_is_default\"\x8f\x01\n" +
+	"\x18ListUserProfilesResponse\x12<\n" +
+	"\bprofiles\x18\x01 \x03(\v2 .maintainerd.auth.v1.UserProfileR\bprofiles\x125\n" +
+	"\x04page\x18\x02 \x01(\v2!.maintainerd.auth.v1.PageMetadataR\x04page\"x\n" +
+	"\x15GetUserProfileRequest\x12\x1f\n" +
+	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
+	"tenantUuid\x12\x1b\n" +
+	"\tuser_uuid\x18\x02 \x01(\tR\buserUuid\x12!\n" +
+	"\fprofile_uuid\x18\x03 \x01(\tR\vprofileUuid\"T\n" +
+	"\x16GetUserProfileResponse\x12:\n" +
+	"\aprofile\x18\x01 \x01(\v2 .maintainerd.auth.v1.UserProfileR\aprofile\"\xba\x04\n" +
+	"\x18CreateUserProfileRequest\x12\x1f\n" +
+	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
+	"tenantUuid\x12\x1b\n" +
+	"\tuser_uuid\x18\x02 \x01(\tR\buserUuid\x12\x1d\n" +
+	"\n" +
+	"first_name\x18\x03 \x01(\tR\tfirstName\x12\x1f\n" +
+	"\vmiddle_name\x18\x04 \x01(\tR\n" +
+	"middleName\x12\x1b\n" +
+	"\tlast_name\x18\x05 \x01(\tR\blastName\x12\x16\n" +
+	"\x06suffix\x18\x06 \x01(\tR\x06suffix\x12!\n" +
+	"\fdisplay_name\x18\a \x01(\tR\vdisplayName\x12\x10\n" +
+	"\x03bio\x18\b \x01(\tR\x03bio\x12\x1c\n" +
+	"\tbirthdate\x18\t \x01(\tR\tbirthdate\x12\x16\n" +
+	"\x06gender\x18\n" +
+	" \x01(\tR\x06gender\x12\x14\n" +
+	"\x05phone\x18\v \x01(\tR\x05phone\x12\x14\n" +
+	"\x05email\x18\f \x01(\tR\x05email\x12\x18\n" +
+	"\aaddress\x18\r \x01(\tR\aaddress\x12\x12\n" +
+	"\x04city\x18\x0e \x01(\tR\x04city\x12\x18\n" +
+	"\acountry\x18\x0f \x01(\tR\acountry\x12\x1a\n" +
+	"\btimezone\x18\x10 \x01(\tR\btimezone\x12\x1a\n" +
+	"\blanguage\x18\x11 \x01(\tR\blanguage\x12\x1f\n" +
+	"\vprofile_url\x18\x12 \x01(\tR\n" +
+	"profileUrl\x123\n" +
+	"\bmetadata\x18\x13 \x01(\v2\x17.google.protobuf.StructR\bmetadata\"W\n" +
+	"\x19CreateUserProfileResponse\x12:\n" +
+	"\aprofile\x18\x01 \x01(\v2 .maintainerd.auth.v1.UserProfileR\aprofile\"\xdd\x04\n" +
+	"\x18UpdateUserProfileRequest\x12\x1f\n" +
+	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
+	"tenantUuid\x12\x1b\n" +
+	"\tuser_uuid\x18\x02 \x01(\tR\buserUuid\x12!\n" +
+	"\fprofile_uuid\x18\x03 \x01(\tR\vprofileUuid\x12\x1d\n" +
+	"\n" +
+	"first_name\x18\x04 \x01(\tR\tfirstName\x12\x1f\n" +
+	"\vmiddle_name\x18\x05 \x01(\tR\n" +
+	"middleName\x12\x1b\n" +
+	"\tlast_name\x18\x06 \x01(\tR\blastName\x12\x16\n" +
+	"\x06suffix\x18\a \x01(\tR\x06suffix\x12!\n" +
+	"\fdisplay_name\x18\b \x01(\tR\vdisplayName\x12\x10\n" +
+	"\x03bio\x18\t \x01(\tR\x03bio\x12\x1c\n" +
+	"\tbirthdate\x18\n" +
+	" \x01(\tR\tbirthdate\x12\x16\n" +
+	"\x06gender\x18\v \x01(\tR\x06gender\x12\x14\n" +
+	"\x05phone\x18\f \x01(\tR\x05phone\x12\x14\n" +
+	"\x05email\x18\r \x01(\tR\x05email\x12\x18\n" +
+	"\aaddress\x18\x0e \x01(\tR\aaddress\x12\x12\n" +
+	"\x04city\x18\x0f \x01(\tR\x04city\x12\x18\n" +
+	"\acountry\x18\x10 \x01(\tR\acountry\x12\x1a\n" +
+	"\btimezone\x18\x11 \x01(\tR\btimezone\x12\x1a\n" +
+	"\blanguage\x18\x12 \x01(\tR\blanguage\x12\x1f\n" +
+	"\vprofile_url\x18\x13 \x01(\tR\n" +
+	"profileUrl\x123\n" +
+	"\bmetadata\x18\x14 \x01(\v2\x17.google.protobuf.StructR\bmetadata\"W\n" +
+	"\x19UpdateUserProfileResponse\x12:\n" +
+	"\aprofile\x18\x01 \x01(\v2 .maintainerd.auth.v1.UserProfileR\aprofile\"\x7f\n" +
+	"\x1cSetDefaultUserProfileRequest\x12\x1f\n" +
+	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
+	"tenantUuid\x12\x1b\n" +
+	"\tuser_uuid\x18\x02 \x01(\tR\buserUuid\x12!\n" +
+	"\fprofile_uuid\x18\x03 \x01(\tR\vprofileUuid\"[\n" +
+	"\x1dSetDefaultUserProfileResponse\x12:\n" +
+	"\aprofile\x18\x01 \x01(\v2 .maintainerd.auth.v1.UserProfileR\aprofile\"{\n" +
+	"\x18DeleteUserProfileRequest\x12\x1f\n" +
+	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
+	"tenantUuid\x12\x1b\n" +
+	"\tuser_uuid\x18\x02 \x01(\tR\buserUuid\x12!\n" +
+	"\fprofile_uuid\x18\x03 \x01(\tR\vprofileUuid\"W\n" +
+	"\x19DeleteUserProfileResponse\x12:\n" +
+	"\aprofile\x18\x01 \x01(\v2 .maintainerd.auth.v1.UserProfileR\aprofile2\xd9\v\n" +
 	"\vUserService\x12Z\n" +
 	"\tListUsers\x12%.maintainerd.auth.v1.ListUsersRequest\x1a&.maintainerd.auth.v1.ListUsersResponse\x12T\n" +
 	"\aGetUser\x12#.maintainerd.auth.v1.GetUserRequest\x1a$.maintainerd.auth.v1.GetUserResponse\x12]\n" +
@@ -2220,7 +3502,14 @@ const file_maintainerd_auth_v1_user_proto_rawDesc = "" +
 	"\x0eRemoveUserRole\x12*.maintainerd.auth.v1.RemoveUserRoleRequest\x1a+.maintainerd.auth.v1.RemoveUserRoleResponse2n\n" +
 	"\rInviteService\x12]\n" +
 	"\n" +
-	"SendInvite\x12&.maintainerd.auth.v1.SendInviteRequest\x1a'.maintainerd.auth.v1.SendInviteResponseBNZLgithub.com/maintainerd/auth/internal/platform/gen/go/maintainerd/auth;authv1b\x06proto3"
+	"SendInvite\x12&.maintainerd.auth.v1.SendInviteRequest\x1a'.maintainerd.auth.v1.SendInviteResponse2\xcc\x05\n" +
+	"\x12UserProfileService\x12o\n" +
+	"\x10ListUserProfiles\x12,.maintainerd.auth.v1.ListUserProfilesRequest\x1a-.maintainerd.auth.v1.ListUserProfilesResponse\x12i\n" +
+	"\x0eGetUserProfile\x12*.maintainerd.auth.v1.GetUserProfileRequest\x1a+.maintainerd.auth.v1.GetUserProfileResponse\x12r\n" +
+	"\x11CreateUserProfile\x12-.maintainerd.auth.v1.CreateUserProfileRequest\x1a..maintainerd.auth.v1.CreateUserProfileResponse\x12r\n" +
+	"\x11UpdateUserProfile\x12-.maintainerd.auth.v1.UpdateUserProfileRequest\x1a..maintainerd.auth.v1.UpdateUserProfileResponse\x12~\n" +
+	"\x15SetDefaultUserProfile\x121.maintainerd.auth.v1.SetDefaultUserProfileRequest\x1a2.maintainerd.auth.v1.SetDefaultUserProfileResponse\x12r\n" +
+	"\x11DeleteUserProfile\x12-.maintainerd.auth.v1.DeleteUserProfileRequest\x1a..maintainerd.auth.v1.DeleteUserProfileResponseBNZLgithub.com/maintainerd/auth/internal/platform/gen/go/maintainerd/auth;authv1b\x06proto3"
 
 var (
 	file_maintainerd_auth_v1_user_proto_rawDescOnce sync.Once
@@ -2234,110 +3523,148 @@ func file_maintainerd_auth_v1_user_proto_rawDescGZIP() []byte {
 	return file_maintainerd_auth_v1_user_proto_rawDescData
 }
 
-var file_maintainerd_auth_v1_user_proto_msgTypes = make([]protoimpl.MessageInfo, 33)
+var file_maintainerd_auth_v1_user_proto_msgTypes = make([]protoimpl.MessageInfo, 46)
 var file_maintainerd_auth_v1_user_proto_goTypes = []any{
 	(*User)(nil),                            // 0: maintainerd.auth.v1.User
 	(*UserIdentity)(nil),                    // 1: maintainerd.auth.v1.UserIdentity
 	(*UserRole)(nil),                        // 2: maintainerd.auth.v1.UserRole
-	(*ListUsersRequest)(nil),                // 3: maintainerd.auth.v1.ListUsersRequest
-	(*ListUsersResponse)(nil),               // 4: maintainerd.auth.v1.ListUsersResponse
-	(*GetUserRequest)(nil),                  // 5: maintainerd.auth.v1.GetUserRequest
-	(*GetUserResponse)(nil),                 // 6: maintainerd.auth.v1.GetUserResponse
-	(*CreateUserRequest)(nil),               // 7: maintainerd.auth.v1.CreateUserRequest
-	(*CreateUserResponse)(nil),              // 8: maintainerd.auth.v1.CreateUserResponse
-	(*UpdateUserRequest)(nil),               // 9: maintainerd.auth.v1.UpdateUserRequest
-	(*UpdateUserResponse)(nil),              // 10: maintainerd.auth.v1.UpdateUserResponse
-	(*SetUserStatusRequest)(nil),            // 11: maintainerd.auth.v1.SetUserStatusRequest
-	(*SetUserStatusResponse)(nil),           // 12: maintainerd.auth.v1.SetUserStatusResponse
-	(*VerifyUserEmailRequest)(nil),          // 13: maintainerd.auth.v1.VerifyUserEmailRequest
-	(*VerifyUserEmailResponse)(nil),         // 14: maintainerd.auth.v1.VerifyUserEmailResponse
-	(*VerifyUserPhoneRequest)(nil),          // 15: maintainerd.auth.v1.VerifyUserPhoneRequest
-	(*VerifyUserPhoneResponse)(nil),         // 16: maintainerd.auth.v1.VerifyUserPhoneResponse
-	(*CompleteUserAccountRequest)(nil),      // 17: maintainerd.auth.v1.CompleteUserAccountRequest
-	(*CompleteUserAccountResponse)(nil),     // 18: maintainerd.auth.v1.CompleteUserAccountResponse
-	(*DeleteUserRequest)(nil),               // 19: maintainerd.auth.v1.DeleteUserRequest
-	(*DeleteUserResponse)(nil),              // 20: maintainerd.auth.v1.DeleteUserResponse
-	(*ForceUserPasswordChangeRequest)(nil),  // 21: maintainerd.auth.v1.ForceUserPasswordChangeRequest
-	(*ForceUserPasswordChangeResponse)(nil), // 22: maintainerd.auth.v1.ForceUserPasswordChangeResponse
-	(*ListUserRolesRequest)(nil),            // 23: maintainerd.auth.v1.ListUserRolesRequest
-	(*ListUserRolesResponse)(nil),           // 24: maintainerd.auth.v1.ListUserRolesResponse
-	(*ListUserIdentitiesRequest)(nil),       // 25: maintainerd.auth.v1.ListUserIdentitiesRequest
-	(*ListUserIdentitiesResponse)(nil),      // 26: maintainerd.auth.v1.ListUserIdentitiesResponse
-	(*AssignUserRolesRequest)(nil),          // 27: maintainerd.auth.v1.AssignUserRolesRequest
-	(*AssignUserRolesResponse)(nil),         // 28: maintainerd.auth.v1.AssignUserRolesResponse
-	(*RemoveUserRoleRequest)(nil),           // 29: maintainerd.auth.v1.RemoveUserRoleRequest
-	(*RemoveUserRoleResponse)(nil),          // 30: maintainerd.auth.v1.RemoveUserRoleResponse
-	(*SendInviteRequest)(nil),               // 31: maintainerd.auth.v1.SendInviteRequest
-	(*SendInviteResponse)(nil),              // 32: maintainerd.auth.v1.SendInviteResponse
-	(*structpb.Struct)(nil),                 // 33: google.protobuf.Struct
-	(*timestamppb.Timestamp)(nil),           // 34: google.protobuf.Timestamp
-	(*Pagination)(nil),                      // 35: maintainerd.auth.v1.Pagination
-	(*PageMetadata)(nil),                    // 36: maintainerd.auth.v1.PageMetadata
+	(*UserProfile)(nil),                     // 3: maintainerd.auth.v1.UserProfile
+	(*ListUsersRequest)(nil),                // 4: maintainerd.auth.v1.ListUsersRequest
+	(*ListUsersResponse)(nil),               // 5: maintainerd.auth.v1.ListUsersResponse
+	(*GetUserRequest)(nil),                  // 6: maintainerd.auth.v1.GetUserRequest
+	(*GetUserResponse)(nil),                 // 7: maintainerd.auth.v1.GetUserResponse
+	(*CreateUserRequest)(nil),               // 8: maintainerd.auth.v1.CreateUserRequest
+	(*CreateUserResponse)(nil),              // 9: maintainerd.auth.v1.CreateUserResponse
+	(*UpdateUserRequest)(nil),               // 10: maintainerd.auth.v1.UpdateUserRequest
+	(*UpdateUserResponse)(nil),              // 11: maintainerd.auth.v1.UpdateUserResponse
+	(*SetUserStatusRequest)(nil),            // 12: maintainerd.auth.v1.SetUserStatusRequest
+	(*SetUserStatusResponse)(nil),           // 13: maintainerd.auth.v1.SetUserStatusResponse
+	(*VerifyUserEmailRequest)(nil),          // 14: maintainerd.auth.v1.VerifyUserEmailRequest
+	(*VerifyUserEmailResponse)(nil),         // 15: maintainerd.auth.v1.VerifyUserEmailResponse
+	(*VerifyUserPhoneRequest)(nil),          // 16: maintainerd.auth.v1.VerifyUserPhoneRequest
+	(*VerifyUserPhoneResponse)(nil),         // 17: maintainerd.auth.v1.VerifyUserPhoneResponse
+	(*CompleteUserAccountRequest)(nil),      // 18: maintainerd.auth.v1.CompleteUserAccountRequest
+	(*CompleteUserAccountResponse)(nil),     // 19: maintainerd.auth.v1.CompleteUserAccountResponse
+	(*DeleteUserRequest)(nil),               // 20: maintainerd.auth.v1.DeleteUserRequest
+	(*DeleteUserResponse)(nil),              // 21: maintainerd.auth.v1.DeleteUserResponse
+	(*ForceUserPasswordChangeRequest)(nil),  // 22: maintainerd.auth.v1.ForceUserPasswordChangeRequest
+	(*ForceUserPasswordChangeResponse)(nil), // 23: maintainerd.auth.v1.ForceUserPasswordChangeResponse
+	(*ListUserRolesRequest)(nil),            // 24: maintainerd.auth.v1.ListUserRolesRequest
+	(*ListUserRolesResponse)(nil),           // 25: maintainerd.auth.v1.ListUserRolesResponse
+	(*ListUserIdentitiesRequest)(nil),       // 26: maintainerd.auth.v1.ListUserIdentitiesRequest
+	(*ListUserIdentitiesResponse)(nil),      // 27: maintainerd.auth.v1.ListUserIdentitiesResponse
+	(*AssignUserRolesRequest)(nil),          // 28: maintainerd.auth.v1.AssignUserRolesRequest
+	(*AssignUserRolesResponse)(nil),         // 29: maintainerd.auth.v1.AssignUserRolesResponse
+	(*RemoveUserRoleRequest)(nil),           // 30: maintainerd.auth.v1.RemoveUserRoleRequest
+	(*RemoveUserRoleResponse)(nil),          // 31: maintainerd.auth.v1.RemoveUserRoleResponse
+	(*SendInviteRequest)(nil),               // 32: maintainerd.auth.v1.SendInviteRequest
+	(*SendInviteResponse)(nil),              // 33: maintainerd.auth.v1.SendInviteResponse
+	(*ListUserProfilesRequest)(nil),         // 34: maintainerd.auth.v1.ListUserProfilesRequest
+	(*ListUserProfilesResponse)(nil),        // 35: maintainerd.auth.v1.ListUserProfilesResponse
+	(*GetUserProfileRequest)(nil),           // 36: maintainerd.auth.v1.GetUserProfileRequest
+	(*GetUserProfileResponse)(nil),          // 37: maintainerd.auth.v1.GetUserProfileResponse
+	(*CreateUserProfileRequest)(nil),        // 38: maintainerd.auth.v1.CreateUserProfileRequest
+	(*CreateUserProfileResponse)(nil),       // 39: maintainerd.auth.v1.CreateUserProfileResponse
+	(*UpdateUserProfileRequest)(nil),        // 40: maintainerd.auth.v1.UpdateUserProfileRequest
+	(*UpdateUserProfileResponse)(nil),       // 41: maintainerd.auth.v1.UpdateUserProfileResponse
+	(*SetDefaultUserProfileRequest)(nil),    // 42: maintainerd.auth.v1.SetDefaultUserProfileRequest
+	(*SetDefaultUserProfileResponse)(nil),   // 43: maintainerd.auth.v1.SetDefaultUserProfileResponse
+	(*DeleteUserProfileRequest)(nil),        // 44: maintainerd.auth.v1.DeleteUserProfileRequest
+	(*DeleteUserProfileResponse)(nil),       // 45: maintainerd.auth.v1.DeleteUserProfileResponse
+	(*structpb.Struct)(nil),                 // 46: google.protobuf.Struct
+	(*timestamppb.Timestamp)(nil),           // 47: google.protobuf.Timestamp
+	(*Pagination)(nil),                      // 48: maintainerd.auth.v1.Pagination
+	(*PageMetadata)(nil),                    // 49: maintainerd.auth.v1.PageMetadata
 }
 var file_maintainerd_auth_v1_user_proto_depIdxs = []int32{
-	33, // 0: maintainerd.auth.v1.User.metadata:type_name -> google.protobuf.Struct
-	34, // 1: maintainerd.auth.v1.User.created_at:type_name -> google.protobuf.Timestamp
-	34, // 2: maintainerd.auth.v1.User.updated_at:type_name -> google.protobuf.Timestamp
-	34, // 3: maintainerd.auth.v1.UserIdentity.created_at:type_name -> google.protobuf.Timestamp
-	34, // 4: maintainerd.auth.v1.UserIdentity.updated_at:type_name -> google.protobuf.Timestamp
-	34, // 5: maintainerd.auth.v1.UserRole.created_at:type_name -> google.protobuf.Timestamp
-	34, // 6: maintainerd.auth.v1.UserRole.updated_at:type_name -> google.protobuf.Timestamp
-	35, // 7: maintainerd.auth.v1.ListUsersRequest.pagination:type_name -> maintainerd.auth.v1.Pagination
-	0,  // 8: maintainerd.auth.v1.ListUsersResponse.users:type_name -> maintainerd.auth.v1.User
-	36, // 9: maintainerd.auth.v1.ListUsersResponse.page:type_name -> maintainerd.auth.v1.PageMetadata
-	0,  // 10: maintainerd.auth.v1.GetUserResponse.user:type_name -> maintainerd.auth.v1.User
-	33, // 11: maintainerd.auth.v1.CreateUserRequest.metadata:type_name -> google.protobuf.Struct
-	0,  // 12: maintainerd.auth.v1.CreateUserResponse.user:type_name -> maintainerd.auth.v1.User
-	33, // 13: maintainerd.auth.v1.UpdateUserRequest.metadata:type_name -> google.protobuf.Struct
-	0,  // 14: maintainerd.auth.v1.UpdateUserResponse.user:type_name -> maintainerd.auth.v1.User
-	0,  // 15: maintainerd.auth.v1.SetUserStatusResponse.user:type_name -> maintainerd.auth.v1.User
-	0,  // 16: maintainerd.auth.v1.VerifyUserEmailResponse.user:type_name -> maintainerd.auth.v1.User
-	0,  // 17: maintainerd.auth.v1.VerifyUserPhoneResponse.user:type_name -> maintainerd.auth.v1.User
-	0,  // 18: maintainerd.auth.v1.CompleteUserAccountResponse.user:type_name -> maintainerd.auth.v1.User
-	0,  // 19: maintainerd.auth.v1.DeleteUserResponse.user:type_name -> maintainerd.auth.v1.User
-	35, // 20: maintainerd.auth.v1.ListUserRolesRequest.pagination:type_name -> maintainerd.auth.v1.Pagination
-	2,  // 21: maintainerd.auth.v1.ListUserRolesResponse.roles:type_name -> maintainerd.auth.v1.UserRole
-	36, // 22: maintainerd.auth.v1.ListUserRolesResponse.page:type_name -> maintainerd.auth.v1.PageMetadata
-	35, // 23: maintainerd.auth.v1.ListUserIdentitiesRequest.pagination:type_name -> maintainerd.auth.v1.Pagination
-	1,  // 24: maintainerd.auth.v1.ListUserIdentitiesResponse.identities:type_name -> maintainerd.auth.v1.UserIdentity
-	36, // 25: maintainerd.auth.v1.ListUserIdentitiesResponse.page:type_name -> maintainerd.auth.v1.PageMetadata
-	0,  // 26: maintainerd.auth.v1.AssignUserRolesResponse.user:type_name -> maintainerd.auth.v1.User
-	0,  // 27: maintainerd.auth.v1.RemoveUserRoleResponse.user:type_name -> maintainerd.auth.v1.User
-	3,  // 28: maintainerd.auth.v1.UserService.ListUsers:input_type -> maintainerd.auth.v1.ListUsersRequest
-	5,  // 29: maintainerd.auth.v1.UserService.GetUser:input_type -> maintainerd.auth.v1.GetUserRequest
-	7,  // 30: maintainerd.auth.v1.UserService.CreateUser:input_type -> maintainerd.auth.v1.CreateUserRequest
-	9,  // 31: maintainerd.auth.v1.UserService.UpdateUser:input_type -> maintainerd.auth.v1.UpdateUserRequest
-	11, // 32: maintainerd.auth.v1.UserService.SetUserStatus:input_type -> maintainerd.auth.v1.SetUserStatusRequest
-	13, // 33: maintainerd.auth.v1.UserService.VerifyUserEmail:input_type -> maintainerd.auth.v1.VerifyUserEmailRequest
-	15, // 34: maintainerd.auth.v1.UserService.VerifyUserPhone:input_type -> maintainerd.auth.v1.VerifyUserPhoneRequest
-	17, // 35: maintainerd.auth.v1.UserService.CompleteUserAccount:input_type -> maintainerd.auth.v1.CompleteUserAccountRequest
-	19, // 36: maintainerd.auth.v1.UserService.DeleteUser:input_type -> maintainerd.auth.v1.DeleteUserRequest
-	21, // 37: maintainerd.auth.v1.UserService.ForceUserPasswordChange:input_type -> maintainerd.auth.v1.ForceUserPasswordChangeRequest
-	23, // 38: maintainerd.auth.v1.UserService.ListUserRoles:input_type -> maintainerd.auth.v1.ListUserRolesRequest
-	25, // 39: maintainerd.auth.v1.UserService.ListUserIdentities:input_type -> maintainerd.auth.v1.ListUserIdentitiesRequest
-	27, // 40: maintainerd.auth.v1.UserService.AssignUserRoles:input_type -> maintainerd.auth.v1.AssignUserRolesRequest
-	29, // 41: maintainerd.auth.v1.UserService.RemoveUserRole:input_type -> maintainerd.auth.v1.RemoveUserRoleRequest
-	31, // 42: maintainerd.auth.v1.InviteService.SendInvite:input_type -> maintainerd.auth.v1.SendInviteRequest
-	4,  // 43: maintainerd.auth.v1.UserService.ListUsers:output_type -> maintainerd.auth.v1.ListUsersResponse
-	6,  // 44: maintainerd.auth.v1.UserService.GetUser:output_type -> maintainerd.auth.v1.GetUserResponse
-	8,  // 45: maintainerd.auth.v1.UserService.CreateUser:output_type -> maintainerd.auth.v1.CreateUserResponse
-	10, // 46: maintainerd.auth.v1.UserService.UpdateUser:output_type -> maintainerd.auth.v1.UpdateUserResponse
-	12, // 47: maintainerd.auth.v1.UserService.SetUserStatus:output_type -> maintainerd.auth.v1.SetUserStatusResponse
-	14, // 48: maintainerd.auth.v1.UserService.VerifyUserEmail:output_type -> maintainerd.auth.v1.VerifyUserEmailResponse
-	16, // 49: maintainerd.auth.v1.UserService.VerifyUserPhone:output_type -> maintainerd.auth.v1.VerifyUserPhoneResponse
-	18, // 50: maintainerd.auth.v1.UserService.CompleteUserAccount:output_type -> maintainerd.auth.v1.CompleteUserAccountResponse
-	20, // 51: maintainerd.auth.v1.UserService.DeleteUser:output_type -> maintainerd.auth.v1.DeleteUserResponse
-	22, // 52: maintainerd.auth.v1.UserService.ForceUserPasswordChange:output_type -> maintainerd.auth.v1.ForceUserPasswordChangeResponse
-	24, // 53: maintainerd.auth.v1.UserService.ListUserRoles:output_type -> maintainerd.auth.v1.ListUserRolesResponse
-	26, // 54: maintainerd.auth.v1.UserService.ListUserIdentities:output_type -> maintainerd.auth.v1.ListUserIdentitiesResponse
-	28, // 55: maintainerd.auth.v1.UserService.AssignUserRoles:output_type -> maintainerd.auth.v1.AssignUserRolesResponse
-	30, // 56: maintainerd.auth.v1.UserService.RemoveUserRole:output_type -> maintainerd.auth.v1.RemoveUserRoleResponse
-	32, // 57: maintainerd.auth.v1.InviteService.SendInvite:output_type -> maintainerd.auth.v1.SendInviteResponse
-	43, // [43:58] is the sub-list for method output_type
-	28, // [28:43] is the sub-list for method input_type
-	28, // [28:28] is the sub-list for extension type_name
-	28, // [28:28] is the sub-list for extension extendee
-	0,  // [0:28] is the sub-list for field type_name
+	46, // 0: maintainerd.auth.v1.User.metadata:type_name -> google.protobuf.Struct
+	47, // 1: maintainerd.auth.v1.User.created_at:type_name -> google.protobuf.Timestamp
+	47, // 2: maintainerd.auth.v1.User.updated_at:type_name -> google.protobuf.Timestamp
+	47, // 3: maintainerd.auth.v1.UserIdentity.created_at:type_name -> google.protobuf.Timestamp
+	47, // 4: maintainerd.auth.v1.UserIdentity.updated_at:type_name -> google.protobuf.Timestamp
+	47, // 5: maintainerd.auth.v1.UserRole.created_at:type_name -> google.protobuf.Timestamp
+	47, // 6: maintainerd.auth.v1.UserRole.updated_at:type_name -> google.protobuf.Timestamp
+	46, // 7: maintainerd.auth.v1.UserProfile.metadata:type_name -> google.protobuf.Struct
+	47, // 8: maintainerd.auth.v1.UserProfile.created_at:type_name -> google.protobuf.Timestamp
+	47, // 9: maintainerd.auth.v1.UserProfile.updated_at:type_name -> google.protobuf.Timestamp
+	48, // 10: maintainerd.auth.v1.ListUsersRequest.pagination:type_name -> maintainerd.auth.v1.Pagination
+	0,  // 11: maintainerd.auth.v1.ListUsersResponse.users:type_name -> maintainerd.auth.v1.User
+	49, // 12: maintainerd.auth.v1.ListUsersResponse.page:type_name -> maintainerd.auth.v1.PageMetadata
+	0,  // 13: maintainerd.auth.v1.GetUserResponse.user:type_name -> maintainerd.auth.v1.User
+	46, // 14: maintainerd.auth.v1.CreateUserRequest.metadata:type_name -> google.protobuf.Struct
+	0,  // 15: maintainerd.auth.v1.CreateUserResponse.user:type_name -> maintainerd.auth.v1.User
+	46, // 16: maintainerd.auth.v1.UpdateUserRequest.metadata:type_name -> google.protobuf.Struct
+	0,  // 17: maintainerd.auth.v1.UpdateUserResponse.user:type_name -> maintainerd.auth.v1.User
+	0,  // 18: maintainerd.auth.v1.SetUserStatusResponse.user:type_name -> maintainerd.auth.v1.User
+	0,  // 19: maintainerd.auth.v1.VerifyUserEmailResponse.user:type_name -> maintainerd.auth.v1.User
+	0,  // 20: maintainerd.auth.v1.VerifyUserPhoneResponse.user:type_name -> maintainerd.auth.v1.User
+	0,  // 21: maintainerd.auth.v1.CompleteUserAccountResponse.user:type_name -> maintainerd.auth.v1.User
+	0,  // 22: maintainerd.auth.v1.DeleteUserResponse.user:type_name -> maintainerd.auth.v1.User
+	48, // 23: maintainerd.auth.v1.ListUserRolesRequest.pagination:type_name -> maintainerd.auth.v1.Pagination
+	2,  // 24: maintainerd.auth.v1.ListUserRolesResponse.roles:type_name -> maintainerd.auth.v1.UserRole
+	49, // 25: maintainerd.auth.v1.ListUserRolesResponse.page:type_name -> maintainerd.auth.v1.PageMetadata
+	48, // 26: maintainerd.auth.v1.ListUserIdentitiesRequest.pagination:type_name -> maintainerd.auth.v1.Pagination
+	1,  // 27: maintainerd.auth.v1.ListUserIdentitiesResponse.identities:type_name -> maintainerd.auth.v1.UserIdentity
+	49, // 28: maintainerd.auth.v1.ListUserIdentitiesResponse.page:type_name -> maintainerd.auth.v1.PageMetadata
+	0,  // 29: maintainerd.auth.v1.AssignUserRolesResponse.user:type_name -> maintainerd.auth.v1.User
+	0,  // 30: maintainerd.auth.v1.RemoveUserRoleResponse.user:type_name -> maintainerd.auth.v1.User
+	48, // 31: maintainerd.auth.v1.ListUserProfilesRequest.pagination:type_name -> maintainerd.auth.v1.Pagination
+	3,  // 32: maintainerd.auth.v1.ListUserProfilesResponse.profiles:type_name -> maintainerd.auth.v1.UserProfile
+	49, // 33: maintainerd.auth.v1.ListUserProfilesResponse.page:type_name -> maintainerd.auth.v1.PageMetadata
+	3,  // 34: maintainerd.auth.v1.GetUserProfileResponse.profile:type_name -> maintainerd.auth.v1.UserProfile
+	46, // 35: maintainerd.auth.v1.CreateUserProfileRequest.metadata:type_name -> google.protobuf.Struct
+	3,  // 36: maintainerd.auth.v1.CreateUserProfileResponse.profile:type_name -> maintainerd.auth.v1.UserProfile
+	46, // 37: maintainerd.auth.v1.UpdateUserProfileRequest.metadata:type_name -> google.protobuf.Struct
+	3,  // 38: maintainerd.auth.v1.UpdateUserProfileResponse.profile:type_name -> maintainerd.auth.v1.UserProfile
+	3,  // 39: maintainerd.auth.v1.SetDefaultUserProfileResponse.profile:type_name -> maintainerd.auth.v1.UserProfile
+	3,  // 40: maintainerd.auth.v1.DeleteUserProfileResponse.profile:type_name -> maintainerd.auth.v1.UserProfile
+	4,  // 41: maintainerd.auth.v1.UserService.ListUsers:input_type -> maintainerd.auth.v1.ListUsersRequest
+	6,  // 42: maintainerd.auth.v1.UserService.GetUser:input_type -> maintainerd.auth.v1.GetUserRequest
+	8,  // 43: maintainerd.auth.v1.UserService.CreateUser:input_type -> maintainerd.auth.v1.CreateUserRequest
+	10, // 44: maintainerd.auth.v1.UserService.UpdateUser:input_type -> maintainerd.auth.v1.UpdateUserRequest
+	12, // 45: maintainerd.auth.v1.UserService.SetUserStatus:input_type -> maintainerd.auth.v1.SetUserStatusRequest
+	14, // 46: maintainerd.auth.v1.UserService.VerifyUserEmail:input_type -> maintainerd.auth.v1.VerifyUserEmailRequest
+	16, // 47: maintainerd.auth.v1.UserService.VerifyUserPhone:input_type -> maintainerd.auth.v1.VerifyUserPhoneRequest
+	18, // 48: maintainerd.auth.v1.UserService.CompleteUserAccount:input_type -> maintainerd.auth.v1.CompleteUserAccountRequest
+	20, // 49: maintainerd.auth.v1.UserService.DeleteUser:input_type -> maintainerd.auth.v1.DeleteUserRequest
+	22, // 50: maintainerd.auth.v1.UserService.ForceUserPasswordChange:input_type -> maintainerd.auth.v1.ForceUserPasswordChangeRequest
+	24, // 51: maintainerd.auth.v1.UserService.ListUserRoles:input_type -> maintainerd.auth.v1.ListUserRolesRequest
+	26, // 52: maintainerd.auth.v1.UserService.ListUserIdentities:input_type -> maintainerd.auth.v1.ListUserIdentitiesRequest
+	28, // 53: maintainerd.auth.v1.UserService.AssignUserRoles:input_type -> maintainerd.auth.v1.AssignUserRolesRequest
+	30, // 54: maintainerd.auth.v1.UserService.RemoveUserRole:input_type -> maintainerd.auth.v1.RemoveUserRoleRequest
+	32, // 55: maintainerd.auth.v1.InviteService.SendInvite:input_type -> maintainerd.auth.v1.SendInviteRequest
+	34, // 56: maintainerd.auth.v1.UserProfileService.ListUserProfiles:input_type -> maintainerd.auth.v1.ListUserProfilesRequest
+	36, // 57: maintainerd.auth.v1.UserProfileService.GetUserProfile:input_type -> maintainerd.auth.v1.GetUserProfileRequest
+	38, // 58: maintainerd.auth.v1.UserProfileService.CreateUserProfile:input_type -> maintainerd.auth.v1.CreateUserProfileRequest
+	40, // 59: maintainerd.auth.v1.UserProfileService.UpdateUserProfile:input_type -> maintainerd.auth.v1.UpdateUserProfileRequest
+	42, // 60: maintainerd.auth.v1.UserProfileService.SetDefaultUserProfile:input_type -> maintainerd.auth.v1.SetDefaultUserProfileRequest
+	44, // 61: maintainerd.auth.v1.UserProfileService.DeleteUserProfile:input_type -> maintainerd.auth.v1.DeleteUserProfileRequest
+	5,  // 62: maintainerd.auth.v1.UserService.ListUsers:output_type -> maintainerd.auth.v1.ListUsersResponse
+	7,  // 63: maintainerd.auth.v1.UserService.GetUser:output_type -> maintainerd.auth.v1.GetUserResponse
+	9,  // 64: maintainerd.auth.v1.UserService.CreateUser:output_type -> maintainerd.auth.v1.CreateUserResponse
+	11, // 65: maintainerd.auth.v1.UserService.UpdateUser:output_type -> maintainerd.auth.v1.UpdateUserResponse
+	13, // 66: maintainerd.auth.v1.UserService.SetUserStatus:output_type -> maintainerd.auth.v1.SetUserStatusResponse
+	15, // 67: maintainerd.auth.v1.UserService.VerifyUserEmail:output_type -> maintainerd.auth.v1.VerifyUserEmailResponse
+	17, // 68: maintainerd.auth.v1.UserService.VerifyUserPhone:output_type -> maintainerd.auth.v1.VerifyUserPhoneResponse
+	19, // 69: maintainerd.auth.v1.UserService.CompleteUserAccount:output_type -> maintainerd.auth.v1.CompleteUserAccountResponse
+	21, // 70: maintainerd.auth.v1.UserService.DeleteUser:output_type -> maintainerd.auth.v1.DeleteUserResponse
+	23, // 71: maintainerd.auth.v1.UserService.ForceUserPasswordChange:output_type -> maintainerd.auth.v1.ForceUserPasswordChangeResponse
+	25, // 72: maintainerd.auth.v1.UserService.ListUserRoles:output_type -> maintainerd.auth.v1.ListUserRolesResponse
+	27, // 73: maintainerd.auth.v1.UserService.ListUserIdentities:output_type -> maintainerd.auth.v1.ListUserIdentitiesResponse
+	29, // 74: maintainerd.auth.v1.UserService.AssignUserRoles:output_type -> maintainerd.auth.v1.AssignUserRolesResponse
+	31, // 75: maintainerd.auth.v1.UserService.RemoveUserRole:output_type -> maintainerd.auth.v1.RemoveUserRoleResponse
+	33, // 76: maintainerd.auth.v1.InviteService.SendInvite:output_type -> maintainerd.auth.v1.SendInviteResponse
+	35, // 77: maintainerd.auth.v1.UserProfileService.ListUserProfiles:output_type -> maintainerd.auth.v1.ListUserProfilesResponse
+	37, // 78: maintainerd.auth.v1.UserProfileService.GetUserProfile:output_type -> maintainerd.auth.v1.GetUserProfileResponse
+	39, // 79: maintainerd.auth.v1.UserProfileService.CreateUserProfile:output_type -> maintainerd.auth.v1.CreateUserProfileResponse
+	41, // 80: maintainerd.auth.v1.UserProfileService.UpdateUserProfile:output_type -> maintainerd.auth.v1.UpdateUserProfileResponse
+	43, // 81: maintainerd.auth.v1.UserProfileService.SetDefaultUserProfile:output_type -> maintainerd.auth.v1.SetDefaultUserProfileResponse
+	45, // 82: maintainerd.auth.v1.UserProfileService.DeleteUserProfile:output_type -> maintainerd.auth.v1.DeleteUserProfileResponse
+	62, // [62:83] is the sub-list for method output_type
+	41, // [41:62] is the sub-list for method input_type
+	41, // [41:41] is the sub-list for extension type_name
+	41, // [41:41] is the sub-list for extension extendee
+	0,  // [0:41] is the sub-list for field type_name
 }
 
 func init() { file_maintainerd_auth_v1_user_proto_init() }
@@ -2346,15 +3673,16 @@ func file_maintainerd_auth_v1_user_proto_init() {
 		return
 	}
 	file_maintainerd_auth_v1_tenant_proto_init()
+	file_maintainerd_auth_v1_user_proto_msgTypes[34].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_maintainerd_auth_v1_user_proto_rawDesc), len(file_maintainerd_auth_v1_user_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   33,
+			NumMessages:   46,
 			NumExtensions: 0,
-			NumServices:   2,
+			NumServices:   3,
 		},
 		GoTypes:           file_maintainerd_auth_v1_user_proto_goTypes,
 		DependencyIndexes: file_maintainerd_auth_v1_user_proto_depIdxs,

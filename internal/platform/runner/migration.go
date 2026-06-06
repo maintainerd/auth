@@ -102,6 +102,14 @@ var migrations = []migrationEntry{
 	{"054_create_user_password_history_table", migration.CreateUserPasswordHistoryTable},
 	// Block 15: Setup process state
 	{"055_create_setup_states_table", migration.CreateSetupStatesTable},
+	// Block 16: Event routing registry
+	{"056_create_event_types_table", migration.CreateEventTypesTable},
+	{"057_create_webhook_endpoint_events_table", migration.CreateWebhookEndpointEventsTable},
+	{"058_create_event_routes_table", migration.CreateEventRoutesTable},
+	{"059_create_tenant_event_types_table", migration.CreateTenantEventTypesTable},
+	// Block 17: Integration event outbox & delivery
+	{"060_create_integration_event_outbox_table", migration.CreateIntegrationEventOutboxTable},
+	{"061_create_webhook_delivery_history_table", migration.CreateWebhookDeliveryHistoryTable},
 }
 
 // RunMigrations bootstraps the schema_migrations tracking table, acquires a

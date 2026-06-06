@@ -4,6 +4,7 @@ import (
 	"github.com/maintainerd/auth/internal/authevent"
 	"github.com/maintainerd/auth/internal/branding"
 	"github.com/maintainerd/auth/internal/client"
+	"github.com/maintainerd/auth/internal/event"
 	"github.com/maintainerd/auth/internal/iam"
 	"github.com/maintainerd/auth/internal/idp"
 	"github.com/maintainerd/auth/internal/invite"
@@ -59,7 +60,13 @@ type repos struct {
 	emailConfigRepo           notifier.EmailConfigRepository
 	smsConfigRepo             notifier.SMSConfigRepository
 	webhookEndpointRepo       webhook.WebhookEndpointRepository
+	webhookEndpointEventRepo  webhook.WebhookEndpointEventRepository
+	deliveryHistoryRepo       webhook.DeliveryHistoryRepository
 	authEventRepo             authevent.AuthEventRepository
+	eventTypeRepo             event.EventTypeRepository
+	eventRouteRepo            event.EventRouteRepository
+	tenantEventTypeRepo       event.TenantEventTypeRepository
+	outboxRepo                event.OutboxRepository
 	oauthAuthCodeRepo         oauth.OAuthAuthorizationCodeRepository
 	oauthRefreshTokenRepo     oauth.OAuthRefreshTokenRepository
 	oauthConsentGrantRepo     oauth.OAuthConsentGrantRepository
@@ -115,7 +122,13 @@ func initRepos(db *gorm.DB) *repos {
 		emailConfigRepo:           notifier.NewEmailConfigRepository(db),
 		smsConfigRepo:             notifier.NewSMSConfigRepository(db),
 		webhookEndpointRepo:       webhook.NewWebhookEndpointRepository(db),
+		webhookEndpointEventRepo:  webhook.NewWebhookEndpointEventRepository(db),
+		deliveryHistoryRepo:       webhook.NewDeliveryHistoryRepository(db),
 		authEventRepo:             authevent.NewAuthEventRepository(db),
+		eventTypeRepo:             event.NewEventTypeRepository(db),
+		eventRouteRepo:            event.NewEventRouteRepository(db),
+		tenantEventTypeRepo:       event.NewTenantEventTypeRepository(db),
+		outboxRepo:                event.NewOutboxRepository(db),
 		oauthAuthCodeRepo:         oauth.NewOAuthAuthorizationCodeRepository(db),
 		oauthRefreshTokenRepo:     oauth.NewOAuthRefreshTokenRepository(db),
 		oauthConsentGrantRepo:     oauth.NewOAuthConsentGrantRepository(db),

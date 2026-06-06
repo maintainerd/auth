@@ -5,6 +5,7 @@ import (
 	"github.com/maintainerd/auth/internal/authn"
 	"github.com/maintainerd/auth/internal/branding"
 	"github.com/maintainerd/auth/internal/client"
+	"github.com/maintainerd/auth/internal/event"
 	"github.com/maintainerd/auth/internal/iam"
 	"github.com/maintainerd/auth/internal/idp"
 	"github.com/maintainerd/auth/internal/invite"
@@ -68,6 +69,8 @@ type handlers struct {
 	smsLogin           *authn.SMSLoginHandler
 	mfa                *mfa.MFAHandler
 	federation         *idp.FederationHandler
+	eventConfig        *event.ConfigHandler
+	eventManagement    *event.ManagementHandler
 }
 
 func initHandlers(application *Application) *handlers {
@@ -120,5 +123,7 @@ func initHandlers(application *Application) *handlers {
 		smsLogin:           authn.NewSMSLoginHandler(application.SMSLoginService),
 		mfa:                mfa.NewMFAHandler(application.MFAService, application.WebAuthnService),
 		federation:         idp.NewFederationHandler(application.FederationService),
+		eventConfig:        event.NewConfigHandler(application.EventTypeService, application.TenantEventTypeConfigService),
+		eventManagement:    event.NewManagementHandler(application.EventRouteService),
 	}
 }

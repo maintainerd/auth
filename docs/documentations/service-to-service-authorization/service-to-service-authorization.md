@@ -106,8 +106,8 @@ client's original create migration in place (per
 ## 4. Component 2 — The PDP (evaluation engine)
 
 New file: `internal/iam/policy_evaluator.go` (+ `policy_evaluator_test.go`). Pure, no I/O —
-takes already-loaded policy documents and answers a decision. This is the same logic that
-gets compiled into the client SDK (§6), so it must be standalone.
+takes already-loaded policy documents and answers a decision. Keep it standalone so the
+server-side bundle and authorize paths stay consistent.
 
 ```go
 // Decision is the PDP verdict.
@@ -139,10 +139,14 @@ func Evaluate(docs []PolicyDocument, req AuthzRequest) Decision
 Validation of the *structure* already exists in
 [`internal/iam/validation_policy.go`](../../internal/iam/validation_policy.go) — reuse it.
 
-**Optional convenience endpoint** (for services that can't embed the SDK, e.g. another
-language): `POST /api/v1/authorize/ { principal, action, resource } → { decision }`. Same
-`Evaluate()` under the hood. Lower priority than the bundle path since the whole point is to
-*avoid* per-request calls.
+**Backend API ownership:** the auth server owns and keeps the service-to-service
+authorization APIs. Any SDK should live in a separate repository/module and consume
+these backend APIs; it should not move or duplicate them.
+
+**Convenience endpoint** for external callers:
+`POST /api/v1/authorize/ { principal, action, resource } → { decision }`. Same
+`Evaluate()` under the hood. Prefer local bundle evaluation for high-volume service paths,
+and use this endpoint when a caller needs a direct decision from the auth service.
 
 ---
 
@@ -168,6 +172,8 @@ Cache-Control: max-age=30
 304 Not Modified          # when If-None-Match matches current ETag  (cheap path)
 ```
 
+- This endpoint is part of the auth backend API surface. External services and future
+  SDKs call it; the endpoint itself remains implemented in this repository.
 - **`me` resolves from the token**, never a path param — a service can only fetch *its own*
   bundle. (Reject if the token isn't a service token, or doesn't map to a `Service`.)
 - **ETag derivation:** hash of the service's attached policy set, or `MAX(policies.updated_at,
@@ -180,9 +186,11 @@ Cache-Control: max-age=30
   endpoint for callers it hasn't cached. Pick one; recommend: B caches caller bundles with
   the same ETag mechanism.
 
-**Client behavior (SDK, §6):** fetch at startup → evaluate locally → re-poll every
-`max-age` (e.g. 30s) with `If-None-Match` → swap cache only on `200`. On auth-server
-unavailability, keep serving from the last good bundle (fail-static).
+**Client behavior:** fetch at startup → evaluate locally → re-poll every `max-age`
+(e.g. 30s) with `If-None-Match` → swap cache only on `200`. On auth-server
+unavailability, keep serving from the last good bundle (fail-static). Any reusable
+SDK for this behavior should live in a separate repository/module rather than this server
+repository.
 
 ---
 
@@ -210,33 +218,7 @@ so if it already has the change it's a cheap `304`). This means revocation propa
 
 ---
 
-## 7. Component 5 — Client SDK (`maintainerd-authz` Go module)
-
-A small library each service imports so they don't reimplement caching/eval:
-
-```go
-authz, _ := authzclient.New(authzclient.Config{
-    AuthServerURL: "https://auth.lula...",
-    ClientID:      "serviceA", ClientSecret: "...",   // client_credentials
-    PollInterval:  30 * time.Second,
-    WebhookListen: ":9099",                            // optional, for push refresh
-})
-defer authz.Close()
-
-// outbound (service A)
-if !authz.Can("serviceB:invoke", "serviceB:grpc") { return ErrForbidden }
-
-// inbound (service B) — caller identity from gRPC metadata token
-if !authz.CanPrincipal(callerSvc, "serviceB:invoke", "serviceB:grpc") { ... }
-```
-
-The SDK = token acquisition + bundle cache + `Evaluate()` (the **same** code from §4) +
-poll loop + optional webhook receiver. Ships in this repo or a sibling module; the
-evaluator is shared so server `/authorize/` and SDK never diverge.
-
----
-
-## 8. Build checklist (v1.0.0)
+## 7. Build checklist (v1.0.0)
 
 Stable IDs `S2S-*` for tracking in [bugs-and-enhancements.md](./bugs-and-enhancements.md).
 
@@ -244,10 +226,9 @@ Stable IDs `S2S-*` for tracking in [bugs-and-enhancements.md](./bugs-and-enhance
 - [x] **S2S-02** — PDP engine `internal/iam/policy_evaluator.go`: default-deny, explicit-deny-wins, action/resource wildcard matching, v1-only. Exhaustive table tests. _(iam)_
 - [x] **S2S-03** — Bundle endpoint `GET /api/v1/services/me/policy-bundle` with `ETag`/`If-None-Match`/`304`, principal-from-token, active-only resolution. _(iam)_
 - [x] **S2S-04** — Webhook events `iam.policy.updated`, `iam.service.policy.assigned`/`iam.service.policy.removed` wired into existing dispatcher. _(webhook, iam)_
-- [x] **S2S-05** — Client SDK module: token acquisition + bundle cache + shared `Evaluate()` + poll loop + optional webhook receiver. _(new module)_
 - [x] **S2S-06** — Short service-token TTL default + denylist integration verified for instant revocation. _(oauth)_
-- [x] **S2S-07** — (Optional) `POST /api/v1/authorize/` convenience endpoint reusing `Evaluate()` for non-Go callers. _(iam)_
-- [x] **S2S-08** — Docs: `docs/apis/iam/authorization.md` (bundle + authorize), integration guide for service A/B. _(docs)_
+- [x] **S2S-07** — `POST /api/v1/authorize/` convenience endpoint reusing `Evaluate()` for external callers. _(iam)_
+- [x] **S2S-08** — Docs: `docs/documentations/service-to-service-authorization/service-to-service-authorization.md` (bundle + authorize), integration guide for service A/B. _(docs)_
 
 **Test obligations** (per [`docs/contributing/testing.md`](../contributing/testing.md)):
 service-layer success/error branches for the bundle resolver; validation tests for the

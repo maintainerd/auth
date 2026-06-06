@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/maintainerd/auth/internal/event"
 	"github.com/maintainerd/auth/internal/platform/apperror"
 	"github.com/maintainerd/auth/internal/platform/cache"
 	"github.com/maintainerd/auth/internal/shared"
@@ -67,6 +68,7 @@ type permissionService struct {
 	roleRepo         RoleRepository
 	clientRepo       ClientRepository
 	authzInvalidator AuthorizationTokenInvalidator
+	eventService     event.EventService
 }
 
 func NewPermissionService(
@@ -76,6 +78,7 @@ func NewPermissionService(
 	roleRepo RoleRepository,
 	clientRepo ClientRepository,
 	cacheInvalidator cache.Invalidator,
+	eventService event.EventService,
 	authzInvalidator ...AuthorizationTokenInvalidator,
 ) PermissionService {
 	invalidator := AuthorizationTokenInvalidator(noopAuthorizationTokenInvalidator{})
@@ -89,6 +92,7 @@ func NewPermissionService(
 		roleRepo:         roleRepo,
 		clientRepo:       clientRepo,
 		authzInvalidator: invalidator,
+		eventService:     eventService,
 	}
 }
 
@@ -235,6 +239,13 @@ func (s *permissionService) Create(ctx context.Context, tenantID int64, name str
 			return err
 		}
 
+		// Emit permission.created integration event inside the transaction
+		if s.eventService != nil {
+			s.eventService.Emit(ctx, tx, event.NewIntegrationEvent(
+				event.EventTypePermissionCreated, 1, tenantID,
+			).SetSubject(&createdPermission.PermissionUUID, "permission"))
+		}
+
 		return nil
 	})
 
@@ -282,6 +293,18 @@ func (s *permissionService) Update(ctx context.Context, permissionUUID uuid.UUID
 			}
 		}
 
+		// Track changed fields
+		var changed []string
+		if permission.Name != name {
+			changed = append(changed, "name")
+		}
+		if permission.Description != description {
+			changed = append(changed, "description")
+		}
+		if permission.Status != status {
+			changed = append(changed, "status")
+		}
+
 		// Set values
 		permission.Name = name
 		permission.Description = description
@@ -294,6 +317,14 @@ func (s *permissionService) Update(ctx context.Context, permissionUUID uuid.UUID
 		}
 
 		updatedPermission = permission
+
+		// Emit permission.updated integration event inside the transaction
+		if s.eventService != nil && len(changed) > 0 {
+			s.eventService.Emit(ctx, tx, event.NewIntegrationEvent(
+				event.EventTypePermissionUpdated, 1, tenantID,
+			).SetSubject(&updatedPermission.PermissionUUID, "permission").
+				SetChangedFields(changed...))
+		}
 
 		return nil
 	})
@@ -446,6 +477,12 @@ func (s *permissionService) DeleteByUUID(ctx context.Context, permissionUUID uui
 		return nil, apperror.NewInternal("failed to invalidate affected permission sessions", err)
 	}
 	span.SetStatus(codes.Ok, "")
+	// Emit permission.deleted integration event
+	if s.eventService != nil {
+		s.eventService.Emit(ctx, nil, event.NewIntegrationEvent(
+			event.EventTypePermissionDeleted, 1, tenantID,
+		).SetSubject(&permission.PermissionUUID, "permission"))
+	}
 	return toPermissionServiceDataResult(permission), nil
 }
 

@@ -92,7 +92,7 @@ func TestPolicyService_Update_EmitsPolicyUpdatedEvent(t *testing.T) {
 		updateByUUIDFn: func(any, any) (*Policy, error) {
 			return policy, nil
 		},
-	}, &mockServiceRepo{}, &mockAPIRepo{}, events)
+	}, &mockServiceRepo{}, &mockAPIRepo{}, nil, events)
 	_, err := svc.Update(context.Background(), policyUUID, tenantID, "new", nil, policy.Document, "v1", "active")
 	require.NoError(t, err)
 	require.Len(t, events.events, 1)

@@ -61,6 +61,9 @@ func (a *App) ServerApplication() *server.Application {
 		SMSLoginService:           a.SMSLoginService,
 		MFAService:                a.MFAService,
 		WebAuthnService:           a.WebAuthnService,
-		FederationService:         a.FederationService,
+		FederationService:            a.FederationService,
+		EventTypeService:             a.EventTypeService,
+		TenantEventTypeConfigService: a.TenantEventTypeConfigService,
+		EventRouteService:            a.EventRouteService,
 	}
 }
