@@ -1,6 +1,6 @@
 # gRPC Feature List — Service-to-Service Control Plane Transport
 
-**Status:** Phase 0 foundation complete; Phase 1 management surface mostly complete. Remaining Phase 1 backlog is explicitly listed below — proposed for **v1.1.0** (post REST/S2S-authz baseline).
+**Status:** Phase 0 foundation complete; Phase 1 management surface mostly complete. Remaining control-plane RPC backlog and production-hardening recommendations are explicitly listed below — proposed for **v1.1.0** (post REST/S2S-authz baseline).
 **Owner:** rseguma@lula.life
 **Created:** 2026-06-04
 **Related:** [service-to-service-authorization.md](../documentations/service-to-service-authorization/service-to-service-authorization.md) · [architecture.md](../documentations/architecture/architecture.md) · [code-structure.md](../contributing/code-structure.md) · [testing.md](../contributing/testing.md)
@@ -83,9 +83,12 @@ the contract stays idiomatic and forward-compatible.
    `google.protobuf.FieldMask` (`update_mask`) for partial updates (AIP-134),
    `string` UUIDs to match REST path params, enums for status with a
    `*_UNSPECIFIED = 0` zero value (AIP-126).
-4. **Pagination** (AIP-158): `page_size` + `page_token` → `next_page_token` +
-   `total_size`. (The REST layer uses `page`/`limit`; the gRPC layer adopts the
-   token form and the service layer adapts — see [pagination](../../internal/platform/pagination).)
+4. **Pagination decision must be explicit.** Current RPCs use the existing
+   REST-shaped `Pagination` / `PageMetadata` messages (`page`, `limit`,
+   `sort_by`, `sort_order`) so handlers can reuse the current service-layer DTOs.
+   `common.proto` also contains AIP-158-style `PageRequest` / `PageResponse`, but
+   those are not the active contract yet. Do not mix both styles in new RPCs
+   without resolving GRPC-029.
 5. **Canonical status codes + rich errors** (AIP-193): map `apperror` →
    `google.rpc.Code` and attach `google.rpc.ErrorInfo`/`BadRequest` details. No
    leaking raw Go errors. See GRPC-004.
@@ -94,6 +97,9 @@ the contract stays idiomatic and forward-compatible.
    `buf breaking`. See §4.
 7. **Health + reflection are first-class.** Ship `grpc.health.v1.Health` and
    server reflection so the control plane and `grpcurl` can probe the server.
+   Health must eventually reflect readiness, not only process liveness
+   (GRPC-026). Reflection is non-production-only unless an authenticated production
+   policy is deliberately implemented (GRPC-010/027).
 8. **Interceptors over per-handler glue.** Auth, authz, logging, recovery,
    rate-limit, and telemetry are interceptor-chain concerns, mirroring the REST
    `mountCommonMiddleware` stack. See §5.
@@ -186,25 +192,33 @@ These three are tracked as completed Phase-0 items GRPC-001/002/003 below.
 
 ---
 
-## 5. Interceptor chain (mirrors REST `mountCommonMiddleware`)
+## 5. gRPC server chain and operational controls
 
-The gRPC server gets a unary + stream interceptor chain, ordered like the REST
-middleware stack in [router.go](../../internal/server/router.go):
+The implemented gRPC server uses `grpc.StatsHandler(otelgrpc.NewServerHandler())`
+plus unary and stream interceptor chains in [grpc_interceptors.go](../../internal/server/grpc_interceptors.go).
+This intentionally mirrors the REST security posture, but the mechanics are not
+one-to-one with [router.go](../../internal/server/router.go):
 
-| Order | Interceptor | REST analogue | Phase-0 item |
-|-------|-------------|---------------|--------------|
-| 1 | **Recovery** (panic → `codes.Internal`, structured log) | `RecoveryMiddleware` | GRPC-005 |
-| 2 | **Telemetry** (otelgrpc — already wired) | otelhttp | ✅ exists |
-| 3 | **Logging** (request_id, method, peer, latency, code) | `LoggingMiddleware` | GRPC-005 |
-| 4 | **Auth** (extract + verify service-account token from metadata) | `JWTAuthMiddleware` | GRPC-006 |
-| 5 | **Authz** (PDP / permission check per-RPC) | `RequirePermission` | GRPC-007 |
-| 6 | **Rate-limit** (per-caller-identity) | `IPRateLimitMiddleware` | GRPC-008 |
-| 7 | **Request-size / timeout / panic budget** | `RequestSizeLimit` / `Timeout` | GRPC-008 |
+| Control | Current implementation | Compliance note |
+|---------|------------------------|-----------------|
+| Telemetry | `otelgrpc` **StatsHandler**, not an interceptor | ✅ implemented |
+| Recovery + error mapping | First unary/stream interceptor; panics become `codes.Internal`, app errors become canonical gRPC statuses | ✅ implemented |
+| Logging | Unary/stream interceptor logs method, code, duration, and peer | 🟡 request/correlation ID is missing; see GRPC-025 |
+| Timeout | Unary/stream interceptor wraps the incoming context with a 60s server ceiling | ✅ implemented; shorter caller deadlines still propagate through the parent context |
+| Auth + authz + rate-limit | One combined interceptor extracts bearer metadata, verifies service-account token, applies per-RPC PDP permission, step-up, and identity rate limit | ✅ implemented |
+| Request/response size | `grpc.MaxRecvMsgSize` / `grpc.MaxSendMsgSize` server options | ✅ implemented |
 
 Per-RPC permission/scope requirements are declared in a **registry** (a map of
 `/maintainerd.auth.v1.XxxService/Method` → required permission string), reusing the
 **exact same permission identifiers** the REST routes use (e.g. `tenant:read`,
 `service:create`). This keeps one authorization vocabulary across both transports.
+
+**Required operational gap:** gRPC must propagate a request/correlation ID the same
+way REST does. The logging interceptor should accept caller-supplied metadata
+(`x-request-id` preferred, with common aliases such as `request-id` tolerated),
+synthesize one when missing, attach it to context/log fields, and return it in
+trailing metadata. This is required for audit correlation across services
+(GRPC-025).
 
 ---
 
@@ -426,17 +440,24 @@ lives in one place.
 | GRPC-002 | ✅ done | Restructure proto layout: `v1` becomes a directory, split per-domain files (see §4). Removed the obsolete standalone seeder contract; seeders run from tenant creation only.                                                                 | `proto/maintainerd/auth/v1/`                                         |
 | GRPC-003 | ✅ done | Fix `go_package` ↔ output-path ↔ import mismatch; standardize generated code under `internal/platform/gen/go`.                                                                                                                                   | `*.proto`, `Makefile`, [grpc.go](../../internal/server/grpc.go)      |
 | GRPC-004 | ✅ done | **Error mapping**: `apperror` → `google.rpc.Code` + `ErrorInfo`/`BadRequest` details helper, used by every handler.                                                                                                                              | `internal/platform/apperror`, new grpc error adapter                 |
-| GRPC-005 | ✅ done | Recovery + structured logging interceptors (request_id correlation).                                                                                                                                                                             | [internal/server](../../internal/server)                             |
+| GRPC-005 | ✅ done | Recovery + structured logging interceptors. Basic request logging is implemented; request/correlation ID propagation is tracked separately in GRPC-025.                                                                                           | [internal/server](../../internal/server)                             |
 | GRPC-006 | ✅ done | **Auth interceptor**: extract `authorization` metadata, verify service-account token, denylist check, populate JWT claims context.                                                                                                               | `internal/server`, [jwt](../../internal/platform/jwt)                |
+| GRPC-007 | ✅ done | **Authz interceptor + per-RPC permission registry** reusing REST permission strings + PDP `iam.Evaluate()`.                                                                                                                                      | `internal/server`, [iam](../../internal/iam)                         |
 | GRPC-008 | ✅ done | Per-identity rate-limit + request-size + timeout interceptors.                                                                                                                                                                                   | `internal/server`, [middleware](../../internal/platform/middleware)  |
-| GRPC-009 | ✅ done | Register `grpc.health.v1.Health` (wire to readiness probes in [health.go](../../internal/server/health.go)).                                                                                                                                     | [internal/server](../../internal/server)                             |
-| GRPC-010 | ✅ done | Enable **server reflection** (gated to non-prod or behind authz) for `grpcurl`/control-plane discovery.                                                                                                                                          | [internal/server](../../internal/server)                             |
+| GRPC-009 | ✅ done | Register `grpc.health.v1.Health`. Current implementation reports process/service registration status only; dependency-aware readiness is tracked separately in GRPC-026.                                                                          | [internal/server](../../internal/server)                             |
+| GRPC-010 | ✅ done | Enable **server reflection** for non-production environments only. Production reflection is disabled today; any authenticated production reflection policy is tracked separately in GRPC-027.                                                     | [internal/server](../../internal/server)                             |
 | GRPC-011 | ✅ done | TLS/mTLS transport config (cert loading, mesh cert verification, fail-closed).                                                                                                                                                                   | `internal/server`, [config](../../internal/platform/config)          |
 | GRPC-012 | ✅ done | `common.proto`: shared pagination (`PageRequest`/`PageResponse`), status enums, audit/timestamp fields.                                                                                                                                          | `proto/maintainerd/auth/v1/common.proto`                             |
 | GRPC-013 | ✅ done | Base server wiring pattern is established: gRPC server options, interceptor registration, health/reflection registration, and a no-domain-service baseline. Future per-domain service registrations are tracked with each Phase 1 service table. | [internal/server](../../internal/server)                             |
 | GRPC-014 | ✅ done | gRPC test harness and conventions are established: `internal/server/grpctest` provides a reusable bufconn harness, and [testing.md](../contributing/testing.md) documents the RPC checklist.                                                     | `internal/server/grpctest`, [testing.md](../contributing/testing.md) |
 | GRPC-015 | ✅ done | **Seed the default control policy** (`Policy.IsSystem=true`, *unattached*) — the "manager" template granting management/config actions over this app, including invite trigger. Granted/revoked by attaching/detaching it. See §7.2.             | `internal/setup/seeder/`, [iam](../../internal/iam)                  |
 | GRPC-024 | ✅ done | Control-policy coverage guard: seeded `auth-control` action namespaces stay synchronized with gRPC management/config permission strings.                                                                                                           | `internal/setup/seeder/`, [internal/server](../../internal/server)   |
+| GRPC-025 | 🔴 todo | Request/correlation ID propagation for gRPC: accept/synthesize request ID metadata, put it into context/logs, and return it in trailing metadata for audit traceability.                                                                          | [internal/server](../../internal/server)                             |
+| GRPC-026 | 🔴 todo | Dependency-aware gRPC health: the overall health service must reflect REST readiness checks for DB, Redis, and JWKS instead of remaining static `SERVING` after startup.                                                                          | [internal/server](../../internal/server)                             |
+| GRPC-027 | 🔴 todo | Production reflection decision: either keep reflection non-production-only and document that as the policy, or implement an authenticated/admin-only production reflection path.                                                                   | [internal/server](../../internal/server), docs                       |
+| GRPC-028 | 🔴 todo | Proto validation policy: adopt `buf.validate`/protovalidate for high-risk request fields, or explicitly document that handler DTO validation remains the project standard for v1.                                                                | `proto/`, gRPC handlers                                             |
+| GRPC-029 | 🔴 todo | Pagination contract decision: either standardize on current REST-shaped `Pagination`/`PageMetadata`, or migrate new v1-compatible RPCs to AIP-158-style `PageRequest`/`PageResponse` without mixing styles silently.                             | `proto/maintainerd/auth/v1/`, gRPC handlers                         |
+| GRPC-030 | 🔴 todo | Consumer reliability guidance: document required client deadlines, retryable status codes, backoff, circuit-breaking expectations, and `ResourceExhausted` handling for service consumers.                                                        | docs, future client SDK                                             |
 
 ---
 
@@ -761,7 +782,7 @@ surface that another service should use to control this app:
 - User administration: admin user CRUD/status/verification/role operations and
   `InviteService.SendInvite`.
 
-The current remaining backlog is intentionally narrow:
+The current remaining **RPC surface** backlog is intentionally narrow:
 
 | ID | Status | Item | Why it remains |
 |----|--------|------|----------------|
@@ -770,6 +791,30 @@ The current remaining backlog is intentionally narrow:
 Everything else private and management-oriented is either implemented in Phase 1
 or explicitly excluded in §10. End-user flows are not missing backlog items; they
 are REST-only by design.
+
+---
+
+## 9.2 Reviewer / compliance hardening backlog
+
+These items are not extra product features. They are the controls a reviewer should
+expect before calling the gRPC transport production-solid for cross-service control.
+They are ordered by compliance and operational risk.
+
+| ID | Priority | Status | Recommendation | Why it matters |
+|----|----------|--------|----------------|----------------|
+| GRPC-110 | Required | 🔴 todo | Implement `ServiceService.GetMyPolicyBundle`. Include a `version`, `etag`, `hash`, or equivalent response field so gRPC consumers can avoid unnecessary policy-bundle reloads. | Policy bundle distribution is a core S2S authorization primitive. REST has `GET /services/me/policy-bundle` with ETag/304 behavior; gRPC peers need an equivalent. |
+| GRPC-025 | Required | 🔴 todo | Add request/correlation ID propagation to gRPC metadata, context, and logs. | SOC2/ISO audit trails and incident response require stitching one cross-service request across logs. REST has request ID middleware; gRPC currently does not. |
+| GRPC-026 | Required | 🔴 todo | Make `grpc.health.v1.Health` reflect dependency readiness for the overall service status. Reuse the REST readiness checks for DB, Redis, and JWKS. | Static `SERVING` only proves the process started; it does not prove auth can issue/verify decisions safely. |
+| GRPC-029 | Required | 🔴 todo | Decide the pagination contract. Either standardize on current REST-shaped `Pagination`/`PageMetadata` for v1, or migrate deliberately to AIP-158 tokens. Update docs/protos/tests together. | Mixed pagination contracts are a client-compatibility risk and will leak inconsistent behavior into generated SDKs. |
+| GRPC-030 | Required | 🔴 todo | Document service-consumer reliability rules: every client sets deadlines, retries only idempotent/declared-safe RPCs, backs off on `ResourceExhausted`, and uses circuit breaking/connection pooling. | gRPC reliability is half server behavior and half client behavior. Without guidance, peer services will guess differently. |
+| GRPC-027 | Recommended | 🔴 todo | Keep reflection non-production-only unless there is a concrete need for production reflection. If needed, implement an authenticated/admin-only reflection endpoint and test it. | Reflection exposes schema discovery. Non-prod-only is safer; production reflection needs deliberate access control. |
+| GRPC-028 | Recommended | 🔴 todo | Adopt `buf.validate`/protovalidate for high-risk fields (`*_uuid`, names, limits, enum-like strings), or explicitly document handler DTO validation as the v1 standard. | Proto-level validation rejects bad requests earlier and makes generated clients more self-documenting. Handler validation exists, but it is not visible in the proto contract. |
+| GRPC-181 | Recommended | 🔴 todo | Add a minimal gRPC consumer SDK/wrapper after `GetMyPolicyBundle` lands: token metadata injection, request ID propagation, deadline defaults, connection pooling, retry/backoff policy, and typed error handling. | Generated clients alone are not enough for consistent S2S behavior. A thin SDK prevents every service from reimplementing security and reliability glue. |
+
+**Not a blocker:** server-side deadline propagation is not missing. gRPC caller
+deadlines arrive through the request context, and the server timeout wraps that
+context with a 60-second ceiling. The required action is client guidance (GRPC-030),
+not a server deadline rewrite.
 
 ---
 
@@ -833,7 +878,14 @@ Per [testing.md](../contributing/testing.md), gRPC work carries the same bar as 
   server tests (GRPC-014).
 - **Interceptor tests** — the auth and authz interceptors get dedicated tests:
   default-deny when no policy, allow on matching statement, deny on explicit deny,
-  token expiry/denylist rejection.
+  token expiry/denylist rejection. Request ID propagation tests must cover
+  caller-supplied metadata, synthesized IDs, log/context propagation, and trailing
+  metadata.
+- **Health tests** — gRPC health must have tests for serving, not-serving during
+  shutdown, and dependency-unready behavior once GRPC-026 lands.
+- **Consumer contract tests** — client SDK/reliability work must cover deadline
+  defaults, metadata injection, retry/backoff behavior, and `ResourceExhausted`
+  handling.
 - **Error-mapping tests** — one sub-test per `apperror` → `codes.*` mapping
   (GRPC-004).
 - **Reuse the service layer's existing unit tests** — gRPC handlers are thin
@@ -848,7 +900,8 @@ Per [testing.md](../contributing/testing.md), gRPC work carries the same bar as 
 
 | Milestone | Items | Outcome |
 |-----------|-------|---------|
-| **M0 — Foundation** | GRPC-001…017, GRPC-024 | buf layout, codegen, auth/authz/observability interceptors, health, reflection, TLS, error mapping, **default control policy seed** + **independence guarantees** (GRPC-015/016/017), coverage guard, test harness. **Blocks everything.** |
-| **M1 — IAM + Tenant core + controller lifecycle** | GRPC-101/102/110–115, GRPC-190/191, GRPC-018…023 | The control plane can register itself at init (TOFU, lockable via explicit `CompleteSetup` — GRPC-021/022/023), be un-registered, and run multiple instances; then manage tenants, services, policies, roles, and ask `Authorize`. Highest S2S value. |
+| **M0 — Foundation** | GRPC-001…017, GRPC-024…030 | buf layout, codegen, auth/authz/observability interceptors, health, reflection, TLS, error mapping, **default control policy seed** + **independence guarantees** (GRPC-015/016/017), coverage guard, production hardening, test harness. **Blocks production-solid gRPC.** |
+| **M1 — IAM + Tenant core + controller lifecycle** | GRPC-101/102/110–115, GRPC-190/191, GRPC-018…023 | The control plane can register itself at init (TOFU, lockable via explicit `CompleteSetup` — GRPC-021/022/023), be un-registered, and run multiple instances; then manage tenants, services, policies, roles, ask `Authorize`, and fetch policy bundles. Highest S2S value. |
 | **M2 — Clients, Users, IdP** | GRPC-120/121/130/131/140/141 | Management/provisioning surface only: clients, API keys, admin user management, identity-provider configuration, signup-flow configuration, and invites. |
 | **M3 — Settings, Branding, Notifier, Webhooks, Events, OAuth, Setup** | GRPC-150…190 | Remaining management surface + introspection + provisioning. |
+| **M4 — Consumer SDK** | GRPC-181 | Optional but recommended SDK/wrapper for consistent service-consumer auth metadata, deadlines, request IDs, retry/backoff, connection pooling, and typed error handling. |
