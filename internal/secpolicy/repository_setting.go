@@ -49,7 +49,7 @@ func (r *securitySettingRepository) FindDefaultByTenantID(tenantID int64) (*Secu
 	var ss SecuritySetting
 	err := r.DB().
 		Joins("JOIN user_pools ON user_pools.user_pool_id = security_settings.user_pool_id").
-		Where("user_pools.tenant_id = ? AND user_pools.is_default = true AND user_pools.deleted_at IS NULL", tenantID).
+		Where("user_pools.tenant_id = ? AND user_pools.is_system = true AND user_pools.deleted_at IS NULL", tenantID).
 		First(&ss).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {

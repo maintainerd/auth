@@ -44,6 +44,7 @@ type Application struct {
 	LoginService                 authn.LoginService
 	ProfileService               user.ProfileService
 	UserSettingService           user.UserSettingService
+	UserPoolService              user.UserPoolService
 	InviteService                invite.InviteService
 	ForgotPasswordService        authn.ForgotPasswordService
 	ResetPasswordService         authn.ResetPasswordService

@@ -68,50 +68,6 @@ func TestUserPoolRepository_FindByIdentifier(t *testing.T) {
 	})
 }
 
-func TestUserPoolRepository_FindDefault(t *testing.T) {
-	t.Run("success", func(t *testing.T) {
-		db, mock := newMockGormDB(t)
-		repo := NewUserPoolRepository(db)
-
-		rows := sqlmock.NewRows([]string{"user_pool_id", "user_pool_uuid", "tenant_id", "is_default", "name"}).
-			AddRow(1, testResourceUUID, 1, true, "Default Pool")
-		mock.ExpectQuery(`SELECT \* FROM "user_pools" WHERE \(tenant_id = \$1 AND is_default = \$2 AND deleted_at IS NULL\) AND "user_pools"\."deleted_at" IS NULL ORDER BY "user_pools"\."user_pool_id" LIMIT \$3`).
-			WithArgs(int64(1), true, 1).
-			WillReturnRows(rows)
-
-		result, err := repo.FindDefault(1)
-		require.NoError(t, err)
-		require.NotNil(t, result)
-		assert.True(t, result.IsDefault)
-		assert.NoError(t, mock.ExpectationsWereMet())
-	})
-
-	t.Run("not found", func(t *testing.T) {
-		db, mock := newMockGormDB(t)
-		repo := NewUserPoolRepository(db)
-
-		mock.ExpectQuery(`SELECT \* FROM "user_pools" WHERE`).
-			WillReturnRows(sqlmock.NewRows([]string{"user_pool_id"}))
-
-		result, err := repo.FindDefault(1)
-		require.NoError(t, err)
-		assert.Nil(t, result)
-		assert.NoError(t, mock.ExpectationsWereMet())
-	})
-
-	t.Run("db error", func(t *testing.T) {
-		db, mock := newMockGormDB(t)
-		repo := NewUserPoolRepository(db)
-
-		mock.ExpectQuery(`SELECT \* FROM "user_pools" WHERE`).
-			WillReturnError(errors.New("db error"))
-
-		_, err := repo.FindDefault(1)
-		require.Error(t, err)
-		assert.NoError(t, mock.ExpectationsWereMet())
-	})
-}
-
 func TestUserPoolRepository_FindSystem(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		db, mock := newMockGormDB(t)

@@ -3,6 +3,7 @@ package authn
 import (
 	"encoding/json"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/maintainerd/auth/internal/platform/cookie"
@@ -208,10 +209,83 @@ func (h *LoginHandler) Logout(w http.ResponseWriter, r *http.Request) {
 }
 
 func extractAccessToken(r *http.Request) string {
-	if cookie, err := r.Cookie("access_token"); err == nil {
-		return cookie.Value
+	for _, name := range []string{"access_token", "__Host-access_token"} {
+		if cookie, err := r.Cookie(name); err == nil {
+			return cookie.Value
+		}
 	}
 	return ""
+}
+
+func extractRefreshToken(r *http.Request) string {
+	for _, name := range []string{"refresh_token", "__Secure-refresh_token"} {
+		if cookie, err := r.Cookie(name); err == nil {
+			return cookie.Value
+		}
+	}
+	return ""
+}
+
+// RefreshToken exchanges a refresh token for a fresh access/id/refresh token set.
+//
+// The refresh token is read from the JSON body ({"refresh_token": "..."}) or the
+// refresh-token cookie. The session id is taken from the X-Session-ID header, or
+// derived from the access_token cookie's sid claim, so the flow works for both
+// bearer-token and cookie-based clients.
+func (h *LoginHandler) RefreshToken(w http.ResponseWriter, r *http.Request) {
+	startTime := time.Now()
+	sc := extractSecurityContext(r)
+	clientIPStr, userAgentStr, requestIDStr := sc.clientIP, sc.userAgent, sc.requestID
+
+	// Refresh token: request body takes precedence, then the cookie.
+	var req RefreshTokenRequestDTO
+	_ = json.NewDecoder(r.Body).Decode(&req) // body is optional in cookie mode
+	refreshToken := strings.TrimSpace(req.RefreshToken)
+	if refreshToken == "" {
+		refreshToken = extractRefreshToken(r)
+	}
+	if refreshToken == "" {
+		resp.Error(w, http.StatusUnauthorized, "Refresh token is required")
+		return
+	}
+
+	// Session id: explicit header wins, otherwise derive from the access token cookie.
+	sessionID := strings.TrimSpace(r.Header.Get("X-Session-ID"))
+	if sessionID == "" {
+		sessionID = sessionIDFromAccessToken(extractAccessToken(r))
+	}
+
+	tokenResponse, err := h.loginService.RefreshToken(r.Context(), refreshToken, sessionID)
+	if err != nil {
+		security.LogSecurityEvent(security.SecurityEvent{
+			EventType: "token_refresh_failure",
+			ClientIP:  clientIPStr,
+			UserAgent: userAgentStr,
+			RequestID: requestIDStr,
+			Endpoint:  "/refresh-token",
+			Method:    r.Method,
+			Timestamp: startTime,
+			Details:   "Refresh token rejected",
+			Severity:  "MEDIUM",
+		})
+		resp.HandleServiceError(w, r, "Token refresh failed", err)
+		return
+	}
+
+	security.LogSecurityEvent(security.SecurityEvent{
+		EventType: "token_refresh_success",
+		ClientIP:  clientIPStr,
+		UserAgent: userAgentStr,
+		RequestID: requestIDStr,
+		Endpoint:  "/refresh-token",
+		Method:    r.Method,
+		Timestamp: startTime,
+		Details:   "Access token refreshed",
+		Severity:  "LOW",
+	})
+
+	// Response with optional cookie delivery based on X-Token-Delivery header.
+	resp.SuccessWithCookies(w, r, tokenResponse, "Token refreshed successfully")
 }
 
 func (h *LoginHandler) Login(w http.ResponseWriter, r *http.Request) {

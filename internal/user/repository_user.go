@@ -151,7 +151,7 @@ func (r *userRepository) FindSuperAdmin() (*User, error) {
 		Joins("JOIN tenants ON user_identities.tenant_id = tenants.tenant_id").
 		Joins("JOIN user_roles ON users.user_id = user_roles.user_id").
 		Joins("JOIN roles ON user_roles.role_id = roles.role_id").
-		Where("tenants.status = ? AND tenants.is_default = ?", shared.StatusActive, true).
+		Where("tenants.status = ? AND tenants.is_system = ?", shared.StatusActive, true).
 		Where("roles.name = ?", shared.RoleSuperAdmin).
 		First(&user).Error
 
@@ -201,14 +201,14 @@ func (r *userRepository) FindBySubAndClientID(sub string, clientID string) (*Use
 		Preload("UserIdentities.Client.IdentityProvider.Tenant").
 		Preload("UserIdentities.Client.IdentityProvider").
 		Preload("UserIdentities.Client").
-		Preload("Roles.Permissions").
+		Preload("UserRoles.Role.RolePermissions.Permission").
 		// Profile is preloaded so OIDC userinfo and other handlers can derive
 		// the display name from profiles.first_name/last_name/display_name
 		// (the users.fullname column was removed).
 		Preload("Profile", "is_default = ?", true).
 		Joins("JOIN user_identities ON users.user_id = user_identities.user_id").
 		Joins("JOIN clients ON user_identities.client_id = clients.client_id").
-		Where("user_identities.sub = ? AND clients.client_id = ?", sub, clientID).
+		Where("user_identities.sub = ? AND clients.identifier = ?", sub, clientID).
 		First(&user).Error
 
 	if err != nil {

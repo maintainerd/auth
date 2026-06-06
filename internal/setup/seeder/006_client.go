@@ -53,6 +53,7 @@ func SeedClients(db *gorm.DB, tenantID int64, identityProviderID int64) error {
 			GrantTypes:              pq.StringArray{model.GrantTypeAuthorizationCode, model.GrantTypeRefreshToken},
 			ResponseTypes:           pq.StringArray{model.ResponseTypeCode},
 			RequireConsent:          false,
+			AllowedScopes:           pq.StringArray{},
 			CreatedAt:               time.Now(),
 			UpdatedAt:               time.Now(),
 		},

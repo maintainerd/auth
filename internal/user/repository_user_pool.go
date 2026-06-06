@@ -14,7 +14,6 @@ type UserPoolRepository interface {
 	BaseRepositoryMethods[UserPool]
 	WithTx(tx *gorm.DB) UserPoolRepository
 	FindByIdentifier(tenantID int64, identifier string) (*UserPool, error)
-	FindDefault(tenantID int64) (*UserPool, error)
 	FindSystem(tenantID int64) (*UserPool, error)
 	FindAllByTenantID(tenantID int64) ([]UserPool, error)
 }
@@ -42,21 +41,6 @@ func (r *userPoolRepository) FindByIdentifier(tenantID int64, identifier string)
 	var pool UserPool
 	err := r.DB().
 		Where("tenant_id = ? AND identifier = ? AND deleted_at IS NULL", tenantID, identifier).
-		First(&pool).Error
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, nil
-		}
-		return nil, err
-	}
-	return &pool, nil
-}
-
-// FindDefault retrieves the default user pool for the given tenant.
-func (r *userPoolRepository) FindDefault(tenantID int64) (*UserPool, error) {
-	var pool UserPool
-	err := r.DB().
-		Where("tenant_id = ? AND is_default = ? AND deleted_at IS NULL", tenantID, true).
 		First(&pool).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {

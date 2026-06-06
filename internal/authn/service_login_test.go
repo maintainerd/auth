@@ -151,6 +151,7 @@ type mockUserRepo struct {
 	findByPhoneFn            func(phone string) (*User, error)
 	setStatusFn              func(id uuid.UUID, s string) error
 	deleteByUUIDFn           func(id any) error
+	findBySubAndClientIDFn   func(sub, clientID string) (*User, error)
 }
 
 func (m *mockUserRepo) WithTx(_ *gorm.DB) UserRepository { return m }
@@ -233,7 +234,12 @@ func (m *mockUserRepo) FindRoles(userID int64) ([]Role, error) {
 	}
 	return nil, nil
 }
-func (m *mockUserRepo) FindBySubAndClientID(sub, cID string) (*User, error) { return nil, nil }
+func (m *mockUserRepo) FindBySubAndClientID(sub, cID string) (*User, error) {
+	if m.findBySubAndClientIDFn != nil {
+		return m.findBySubAndClientIDFn(sub, cID)
+	}
+	return nil, nil
+}
 func (m *mockUserRepo) FindPaginated(f UserRepositoryGetFilter) (*PaginationResult[User], error) {
 	if m.findPaginatedFn != nil {
 		return m.findPaginatedFn(f)
@@ -1506,6 +1512,7 @@ func TestLogin_GenerateAccessTokenError(t *testing.T) {
 type mockSessionService struct {
 	enforceConcurrentLimitFn func(ctx context.Context, userUUID uuid.UUID, userID int64) error
 	createSessionFn          func(ctx context.Context, userID int64, ipAddress, userAgent string) (*UserToken, error)
+	validateAndTouchFn       func(ctx context.Context, sessionUUID uuid.UUID, userID int64) error
 }
 
 func (m *mockSessionService) ListSessions(ctx context.Context, userID int64) ([]*SessionDataResult, error) {
@@ -1530,6 +1537,9 @@ func (m *mockSessionService) EnforceConcurrentLimit(ctx context.Context, userUUI
 	return nil
 }
 func (m *mockSessionService) ValidateAndTouch(ctx context.Context, sessionUUID uuid.UUID, userID int64) error {
+	if m.validateAndTouchFn != nil {
+		return m.validateAndTouchFn(ctx, sessionUUID, userID)
+	}
 	return nil
 }
 

@@ -27,6 +27,7 @@ var (
 	errNotFound   = apperror.NewNotFoundWithReason("not found")
 	errValidation = apperror.NewValidation("validation error")
 	errForbidden  = apperror.NewForbidden("access denied")
+	errConflict   = apperror.NewConflict("conflict")
 )
 
 const tenantID int64 = 1
@@ -620,12 +621,32 @@ type mockUserPoolRepo struct {
 	mockBaseRepo[UserPool]
 	findByUUIDFn        func(any, ...string) (*UserPool, error)
 	findByIdentifierFn  func(int64, string) (*UserPool, error)
-	findDefaultFn       func(int64) (*UserPool, error)
 	findSystemFn        func(int64) (*UserPool, error)
 	findAllByTenantIDFn func(int64) ([]UserPool, error)
+	createFn            func(*UserPool) (*UserPool, error)
+	updateByUUIDFn      func(any, any) (*UserPool, error)
+	deleteByUUIDFn      func(any) error
 }
 
 func (m *mockUserPoolRepo) WithTx(_ *gorm.DB) UserPoolRepository { return m }
+func (m *mockUserPoolRepo) Create(e *UserPool) (*UserPool, error) {
+	if m.createFn != nil {
+		return m.createFn(e)
+	}
+	return e, nil
+}
+func (m *mockUserPoolRepo) UpdateByUUID(id, data any) (*UserPool, error) {
+	if m.updateByUUIDFn != nil {
+		return m.updateByUUIDFn(id, data)
+	}
+	return nil, nil
+}
+func (m *mockUserPoolRepo) DeleteByUUID(id any) error {
+	if m.deleteByUUIDFn != nil {
+		return m.deleteByUUIDFn(id)
+	}
+	return nil
+}
 func (m *mockUserPoolRepo) FindByUUID(id any, p ...string) (*UserPool, error) {
 	if m.findByUUIDFn != nil {
 		return m.findByUUIDFn(id, p...)
@@ -635,12 +656,6 @@ func (m *mockUserPoolRepo) FindByUUID(id any, p ...string) (*UserPool, error) {
 func (m *mockUserPoolRepo) FindByIdentifier(tenantID int64, identifier string) (*UserPool, error) {
 	if m.findByIdentifierFn != nil {
 		return m.findByIdentifierFn(tenantID, identifier)
-	}
-	return nil, nil
-}
-func (m *mockUserPoolRepo) FindDefault(tenantID int64) (*UserPool, error) {
-	if m.findDefaultFn != nil {
-		return m.findDefaultFn(tenantID)
 	}
 	return nil, nil
 }
@@ -861,6 +876,45 @@ func (m *mockUserSettingService) DeleteByUUID(_ context.Context, userSettingUUID
 		return m.deleteByUUIDFn(userSettingUUID)
 	}
 	return &UserSettingServiceDataResult{}, nil
+}
+
+type mockUserPoolService struct {
+	listFn       func(int64) ([]*UserPoolServiceDataResult, error)
+	getByUUIDFn  func(uuid.UUID, int64) (*UserPoolServiceDataResult, error)
+	createFn     func(int64, string, string, string, datatypes.JSON, *int64) (*UserPoolServiceDataResult, error)
+	updateFn     func(uuid.UUID, int64, string, string, string, datatypes.JSON, *int64) (*UserPoolServiceDataResult, error)
+	deleteFn     func(uuid.UUID, int64) (*UserPoolServiceDataResult, error)
+}
+
+func (m *mockUserPoolService) List(_ context.Context, tenantID int64) ([]*UserPoolServiceDataResult, error) {
+	if m.listFn != nil {
+		return m.listFn(tenantID)
+	}
+	return nil, nil
+}
+func (m *mockUserPoolService) GetByUUID(_ context.Context, userPoolUUID uuid.UUID, tenantID int64) (*UserPoolServiceDataResult, error) {
+	if m.getByUUIDFn != nil {
+		return m.getByUUIDFn(userPoolUUID, tenantID)
+	}
+	return &UserPoolServiceDataResult{}, nil
+}
+func (m *mockUserPoolService) Create(_ context.Context, tenantID int64, name, displayName, status string, metadata datatypes.JSON, creatorUserID *int64) (*UserPoolServiceDataResult, error) {
+	if m.createFn != nil {
+		return m.createFn(tenantID, name, displayName, status, metadata, creatorUserID)
+	}
+	return &UserPoolServiceDataResult{}, nil
+}
+func (m *mockUserPoolService) Update(_ context.Context, userPoolUUID uuid.UUID, tenantID int64, name, displayName, status string, metadata datatypes.JSON, updaterUserID *int64) (*UserPoolServiceDataResult, error) {
+	if m.updateFn != nil {
+		return m.updateFn(userPoolUUID, tenantID, name, displayName, status, metadata, updaterUserID)
+	}
+	return &UserPoolServiceDataResult{}, nil
+}
+func (m *mockUserPoolService) Delete(_ context.Context, userPoolUUID uuid.UUID, tenantID int64) (*UserPoolServiceDataResult, error) {
+	if m.deleteFn != nil {
+		return m.deleteFn(userPoolUUID, tenantID)
+	}
+	return &UserPoolServiceDataResult{}, nil
 }
 
 type mockUserTokenRepo struct {

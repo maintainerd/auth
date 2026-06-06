@@ -199,6 +199,37 @@ type UserAssignRolesRequestDTO struct {
 	RoleUUIDs []uuid.UUID `json:"role_ids"`
 }
 
+// UserPool input/output structures
+
+// UserPoolCreateRequestDTO is the request body to create a user pool.
+type UserPoolCreateRequestDTO struct {
+	Name        string         `json:"name"`
+	DisplayName string         `json:"display_name"`
+	Status      string         `json:"status,omitempty"`
+	Metadata    datatypes.JSON `json:"metadata,omitempty"`
+}
+
+// UserPoolUpdateRequestDTO is the request body to update a user pool.
+type UserPoolUpdateRequestDTO struct {
+	Name        string         `json:"name"`
+	DisplayName string         `json:"display_name"`
+	Status      string         `json:"status"`
+	Metadata    datatypes.JSON `json:"metadata,omitempty"`
+}
+
+// UserPoolResponseDTO is the API representation of a user pool.
+type UserPoolResponseDTO struct {
+	UserPoolUUID uuid.UUID      `json:"user_pool_id"`
+	Name         string         `json:"name"`
+	DisplayName  string         `json:"display_name"`
+	Identifier   string         `json:"identifier"`
+	IsSystem     bool           `json:"is_system"`
+	Status       string         `json:"status"`
+	Metadata     datatypes.JSON `json:"metadata"`
+	CreatedAt    time.Time      `json:"created_at"`
+	UpdatedAt    time.Time      `json:"updated_at"`
+}
+
 // User filter structure
 type UserFilterDTO struct {
 	Username     *string  `json:"username,omitempty"`
