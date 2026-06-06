@@ -184,6 +184,12 @@ func defaultPermissions(tenantID, apiID int64) []model.Permission {
 		newPermission("api_key:update", "Update API key and manage API/permission assignments", tenantID, apiID),
 		newPermission("api_key:delete", "Delete API key", tenantID, apiID),
 
+		// User Pools
+		newPermission("user-pool:read", "Read user pools", tenantID, apiID),
+		newPermission("user-pool:create", "Create user pool", tenantID, apiID),
+		newPermission("user-pool:update", "Update user pool", tenantID, apiID),
+		newPermission("user-pool:delete", "Delete user pool", tenantID, apiID),
+
 		// User Administration
 		newPermission("user:read", "Read users", tenantID, apiID),
 		newPermission("user:create", "Create user", tenantID, apiID),

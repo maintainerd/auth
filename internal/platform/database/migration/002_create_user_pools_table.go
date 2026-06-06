@@ -16,7 +16,6 @@ CREATE TABLE IF NOT EXISTS user_pools (
     name           VARCHAR(255) NOT NULL,
     display_name   VARCHAR(255),
     identifier     VARCHAR(255) NOT NULL,
-    is_default     BOOLEAN     NOT NULL DEFAULT FALSE,
     is_system      BOOLEAN     NOT NULL DEFAULT FALSE,
     status         VARCHAR(16) NOT NULL DEFAULT 'active',
     metadata       JSONB       NOT NULL DEFAULT '{}',
@@ -35,8 +34,6 @@ CREATE TABLE IF NOT EXISTS user_pools (
 );
 
 CREATE INDEX IF NOT EXISTS idx_user_pools_tenant_id ON user_pools (tenant_id);
-CREATE INDEX IF NOT EXISTS idx_user_pools_is_default ON user_pools (tenant_id, is_default)
-    WHERE is_default = TRUE;
 CREATE INDEX IF NOT EXISTS idx_user_pools_deleted_at ON user_pools (deleted_at)
     WHERE deleted_at IS NULL;
 `

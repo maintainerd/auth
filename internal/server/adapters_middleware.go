@@ -15,12 +15,52 @@ func newMiddlewareUserContextProvider(userService user.UserService) *middlewareU
 	return &middlewareUserContextProvider{userService: userService}
 }
 
-func (p *middlewareUserContextProvider) FindBySubAndClientID(ctx context.Context, sub string, clientID string) (*authctx.AuthUser, error) {
+func (p *middlewareUserContextProvider) FindBySubAndClientID(ctx context.Context, sub string, clientID string) (*authctx.UserContext, error) {
 	u, err := p.userService.FindBySubAndClientID(ctx, sub, clientID)
 	if err != nil || u == nil {
 		return nil, err
 	}
-	return toAuthUser(u), nil
+	return toUserContext(u, clientID), nil
+}
+
+// toUserContext builds the full auth context for a resolved user. The tenant,
+// identity provider, and client are taken from the user identity whose client
+// identifier matches the clientID the subject authenticated with — the same
+// identity the lookup query matched on.
+func toUserContext(u *user.User, clientID string) *authctx.UserContext {
+	uc := &authctx.UserContext{User: toAuthUser(u)}
+
+	for i := range u.UserIdentities {
+		identity := &u.UserIdentities[i]
+		if identity.Client == nil || identity.Client.Identifier == nil || *identity.Client.Identifier != clientID {
+			continue
+		}
+
+		if identity.Tenant != nil {
+			uc.Tenant = &authctx.AuthTenant{
+				TenantID:   identity.Tenant.TenantID,
+				TenantUUID: identity.Tenant.TenantUUID,
+			}
+		} else if identity.TenantID != 0 {
+			uc.Tenant = &authctx.AuthTenant{TenantID: identity.TenantID}
+		}
+
+		uc.Client = &authctx.AuthClient{
+			ClientID:   identity.Client.ClientID,
+			ClientUUID: identity.Client.ClientUUID,
+			Identifier: identity.Client.Identifier,
+		}
+
+		if identity.Client.IdentityProvider != nil {
+			uc.Provider = &authctx.AuthProvider{
+				IdentityProviderID:   identity.Client.IdentityProvider.IdentityProviderID,
+				IdentityProviderUUID: identity.Client.IdentityProvider.IdentityProviderUUID,
+			}
+		}
+		break
+	}
+
+	return uc
 }
 
 func toAuthUser(u *user.User) *authctx.AuthUser {
@@ -28,13 +68,26 @@ func toAuthUser(u *user.User) *authctx.AuthUser {
 		return nil
 	}
 
-	roles := make([]authctx.AuthRole, len(u.Roles))
-	for i, role := range u.Roles {
-		roles[i] = authctx.AuthRole{
-			RoleID:   role.RoleID,
-			RoleUUID: role.RoleUUID,
-			Name:     role.Name,
+	roles := make([]authctx.AuthRole, 0, len(u.UserRoles))
+	for _, ur := range u.UserRoles {
+		if ur.Role == nil {
+			continue
 		}
+		role := ur.Role
+		perms := make([]authctx.AuthPermission, 0, len(role.RolePermissions))
+		for _, rp := range role.RolePermissions {
+			perms = append(perms, authctx.AuthPermission{
+				PermissionID:   rp.Permission.PermissionID,
+				PermissionUUID: rp.Permission.PermissionUUID,
+				Name:           rp.Permission.Name,
+			})
+		}
+		roles = append(roles, authctx.AuthRole{
+			RoleID:      role.RoleID,
+			RoleUUID:    role.RoleUUID,
+			Name:        role.Name,
+			Permissions: perms,
+		})
 	}
 
 	var profile *authctx.AuthProfile

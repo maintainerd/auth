@@ -55,6 +55,32 @@ func setAuthCookie(w http.ResponseWriter, name, value, path string, maxAge int) 
 	})
 }
 
+func accessTokenCookieName() string {
+	if cookieSecure() {
+		return "__Host-access_token"
+	}
+	return "access_token"
+}
+
+func idTokenCookieName() string {
+	if cookieSecure() {
+		return "__Host-id_token"
+	}
+	return "id_token"
+}
+
+func refreshTokenCookieName() string {
+	if cookieSecure() {
+		return "__Secure-refresh_token"
+	}
+	return "refresh_token"
+}
+
+// refreshTokenCookiePath scopes the refresh-token cookie to the refresh
+// endpoint only, so it is never sent on ordinary API requests. It must match the
+// mounted route path (POST /api/v1/refresh-token).
+const refreshTokenCookiePath = "/api/v1/refresh-token"
+
 // SetAuthCookies sets authentication tokens as secure HTTP-only cookies.
 //
 // Cookie naming conventions:
@@ -62,7 +88,8 @@ func setAuthCookie(w http.ResponseWriter, name, value, path string, maxAge int) 
 //   - __Secure-refresh_token                  — __Secure- prefix (Secure, narrow path)
 //
 // The __Host- prefix prevents subdomain fixation attacks; __Secure- is used for
-// the refresh token because it has a non-root path (/auth/refresh).
+// the refresh token because it has a non-root path (/api/v1/refresh-token) so it
+// is only sent to the refresh endpoint.
 func SetAuthCookies(w http.ResponseWriter, authResponse interface{}) {
 	var accessToken, idToken, refreshToken string
 	var expiresIn int64 = shared.DefaultAccessTokenExpiresIn
@@ -110,21 +137,21 @@ func SetAuthCookies(w http.ResponseWriter, authResponse interface{}) {
 	}
 
 	if accessToken != "" {
-		setAuthCookie(w, "__Host-access_token", accessToken, "/", int(expiresIn))
+		setAuthCookie(w, accessTokenCookieName(), accessToken, "/", int(expiresIn))
 	}
 
 	if idToken != "" {
-		setAuthCookie(w, "__Host-id_token", idToken, "/", shared.DefaultAccessTokenExpiresIn)
+		setAuthCookie(w, idTokenCookieName(), idToken, "/", shared.DefaultAccessTokenExpiresIn)
 	}
 
 	if refreshToken != "" {
-		setAuthCookie(w, "__Secure-refresh_token", refreshToken, "/auth/refresh", 7*24*60*60)
+		setAuthCookie(w, refreshTokenCookieName(), refreshToken, refreshTokenCookiePath, 7*24*60*60)
 	}
 }
 
 // ClearAuthCookies clears all authentication-related cookies.
 func ClearAuthCookies(w http.ResponseWriter) {
-	setAuthCookie(w, "__Host-access_token", "", "/", -1)
-	setAuthCookie(w, "__Host-id_token", "", "/", -1)
-	setAuthCookie(w, "__Secure-refresh_token", "", "/auth/refresh", -1)
+	setAuthCookie(w, accessTokenCookieName(), "", "/", -1)
+	setAuthCookie(w, idTokenCookieName(), "", "/", -1)
+	setAuthCookie(w, refreshTokenCookieName(), "", refreshTokenCookiePath, -1)
 }

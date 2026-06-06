@@ -91,9 +91,11 @@ func JWTAuthMiddleware(next http.Handler) http.Handler {
 			apiKey = strings.TrimSpace(r.Header.Get("X-API-Key"))
 		}
 		if apiKey == "" && token == "" {
-			// Fallback to cookie if no Authorization header
-			if cookie, err := r.Cookie("access_token"); err == nil {
-				token = cookie.Value
+			for _, name := range []string{"access_token", "__Host-access_token"} {
+				if cookie, err := r.Cookie(name); err == nil {
+					token = cookie.Value
+					break
+				}
 			}
 		}
 

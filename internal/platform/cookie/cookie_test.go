@@ -55,7 +55,7 @@ func TestSetAuthCookies_FromMap(t *testing.T) {
 	require.NotNil(t, rt)
 	assert.Equal(t, "rt-value", rt.Value)
 	assert.Equal(t, 7*24*60*60, rt.MaxAge)
-	assert.Equal(t, "/auth/refresh", rt.Path)
+	assert.Equal(t, "/api/v1/refresh-token", rt.Path)
 }
 
 func TestSetAuthCookies_FromStruct(t *testing.T) {
@@ -146,7 +146,7 @@ func TestClearAuthCookies(t *testing.T) {
 
 	rt := findCookie(t, rr, "__Secure-refresh_token")
 	require.NotNil(t, rt)
-	assert.Equal(t, "/auth/refresh", rt.Path)
+	assert.Equal(t, "/api/v1/refresh-token", rt.Path)
 }
 
 func TestCookieSecure(t *testing.T) {

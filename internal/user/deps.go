@@ -63,7 +63,22 @@ type Role struct {
 	UpdatedAt       time.Time
 	Tenant          *Tenant          `gorm:"foreignKey:TenantID;references:TenantID"`
 	RolePermissions []RolePermission `gorm:"foreignKey:RoleID;references:RoleID"`
+	Permissions     []Permission     `gorm:"many2many:role_permissions;joinForeignKey:RoleID;joinReferences:PermissionID"`
 }
+
+type Permission struct {
+	PermissionID   int64     `gorm:"column:permission_id;primaryKey"`
+	PermissionUUID uuid.UUID `gorm:"column:permission_uuid"`
+	Name           string    `gorm:"column:name"`
+	Description    string    `gorm:"column:description"`
+	Status         string    `gorm:"column:status"`
+	IsDefault      bool      `gorm:"column:is_default"`
+	IsSystem       bool      `gorm:"column:is_system"`
+	CreatedAt      time.Time `gorm:"column:created_at"`
+	UpdatedAt      time.Time `gorm:"column:updated_at"`
+}
+
+func (Permission) TableName() string { return "permissions" }
 
 func (Role) TableName() string { return "roles" }
 
@@ -71,6 +86,7 @@ type RolePermission struct {
 	RolePermissionID int64
 	RoleID           int64
 	PermissionID     int64
+	Permission       Permission `gorm:"foreignKey:PermissionID;references:PermissionID"`
 }
 
 func (RolePermission) TableName() string { return "role_permissions" }

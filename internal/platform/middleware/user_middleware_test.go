@@ -34,10 +34,10 @@ func newMiniredisClient(t *testing.T) (*miniredis.Miniredis, *redis.Client) {
 
 // mockContextProvider implements UserContextProvider with ctx support.
 type mockContextProvider struct {
-	findFn func(sub, cID string) (*authctx.AuthUser, error)
+	findFn func(sub, cID string) (*authctx.UserContext, error)
 }
 
-func (m *mockContextProvider) FindBySubAndClientID(_ context.Context, sub, cID string) (*authctx.AuthUser, error) {
+func (m *mockContextProvider) FindBySubAndClientID(_ context.Context, sub, cID string) (*authctx.UserContext, error) {
 	if m.findFn != nil {
 		return m.findFn(sub, cID)
 	}
@@ -76,14 +76,14 @@ func TestUserContextMiddleware(t *testing.T) {
 
 	cases := []struct {
 		name              string
-		findBySubClientID func(sub, cID string) (*authctx.AuthUser, error)
+		findBySubClientID func(sub, cID string) (*authctx.UserContext, error)
 		wantStatus        int
 		checkContext      func(t *testing.T, captured *authctx.AuthUser)
 	}{
 		{
 			name: "user found -> context populated -> 200",
-			findBySubClientID: func(_, _ string) (*authctx.AuthUser, error) {
-				return &authctx.AuthUser{UserID: 1, UserUUID: userUUID}, nil
+			findBySubClientID: func(_, _ string) (*authctx.UserContext, error) {
+				return &authctx.UserContext{User: &authctx.AuthUser{UserID: 1, UserUUID: userUUID}}, nil
 			},
 			wantStatus: http.StatusOK,
 			checkContext: func(t *testing.T, captured *authctx.AuthUser) {
@@ -92,13 +92,20 @@ func TestUserContextMiddleware(t *testing.T) {
 			},
 		},
 		{
-			name:              "user not found -> 401",
-			findBySubClientID: func(_, _ string) (*authctx.AuthUser, error) { return nil, nil },
+			name:              "nil context -> 401",
+			findBySubClientID: func(_, _ string) (*authctx.UserContext, error) { return nil, nil },
 			wantStatus:        http.StatusUnauthorized,
 		},
 		{
+			name: "context with nil user -> 401",
+			findBySubClientID: func(_, _ string) (*authctx.UserContext, error) {
+				return &authctx.UserContext{}, nil
+			},
+			wantStatus: http.StatusUnauthorized,
+		},
+		{
 			name: "db error -> 500",
-			findBySubClientID: func(_, _ string) (*authctx.AuthUser, error) {
+			findBySubClientID: func(_, _ string) (*authctx.UserContext, error) {
 				return nil, errors.New("db error")
 			},
 			wantStatus: http.StatusInternalServerError,
@@ -161,12 +168,18 @@ func TestUserContextMiddleware_CacheHit(t *testing.T) {
 	assert.Equal(t, userUUID, captured.UserUUID)
 }
 
-func TestUserContextMiddleware_IdentityFiltering(t *testing.T) {
+// TestUserContextMiddleware_PopulatesTenant verifies the middleware propagates
+// the tenant (and other context fields) resolved by the provider into the
+// request AuthContext, so downstream tenant-scoped handlers can read it.
+func TestUserContextMiddleware_PopulatesTenant(t *testing.T) {
 	const sub = "user-sub-identity"
 	const clientID = "my-client-id"
 	userUUID := uuid.New()
-	user := &authctx.AuthUser{
-		UserUUID: userUUID,
+	tenantUUID := uuid.New()
+
+	resolved := &authctx.UserContext{
+		User:   &authctx.AuthUser{UserUUID: userUUID},
+		Tenant: &authctx.AuthTenant{TenantID: 42, TenantUUID: tenantUUID},
 	}
 
 	var capturedTenant *authctx.AuthTenant
@@ -176,7 +189,7 @@ func TestUserContextMiddleware_IdentityFiltering(t *testing.T) {
 	})
 
 	repo := &mockContextProvider{
-		findFn: func(_, _ string) (*authctx.AuthUser, error) { return user, nil },
+		findFn: func(_, _ string) (*authctx.UserContext, error) { return resolved, nil },
 	}
 	mw := UserContextMiddleware(repo, newFakeCache())
 	req := withJWTContext(httptest.NewRequest(http.MethodGet, "/", nil), sub, clientID)
@@ -184,5 +197,7 @@ func TestUserContextMiddleware_IdentityFiltering(t *testing.T) {
 	mw(next).ServeHTTP(rr, req)
 
 	assert.Equal(t, http.StatusOK, rr.Code)
-	assert.Nil(t, capturedTenant)
+	require.NotNil(t, capturedTenant)
+	assert.Equal(t, int64(42), capturedTenant.TenantID)
+	assert.Equal(t, tenantUUID, capturedTenant.TenantUUID)
 }

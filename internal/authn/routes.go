@@ -75,6 +75,9 @@ func LoginRoute(r chi.Router, loginHandler *LoginHandler) {
 		// Internal login (no client_id/provider_id required)
 		r.Post("/login", loginHandler.Login)
 
+		// Refresh endpoint — exchanges a refresh token for a new token set
+		r.Post("/refresh-token", loginHandler.RefreshToken)
+
 		// Logout endpoint (clears cookies if they exist)
 		r.Post("/logout", loginHandler.Logout)
 	})

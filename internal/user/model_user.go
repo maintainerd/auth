@@ -36,7 +36,7 @@ type User struct {
 	DeletedAt               gorm.DeletedAt `gorm:"column:deleted_at;index"`
 
 	UserIdentities []UserIdentity `gorm:"foreignKey:UserID;references:UserID;constraint:OnDelete:CASCADE"`
-	UserRoles      []UserRole     `gorm:"foreignKey:UserID;references:UserID"`
+	UserRoles      []UserRole     `gorm:"foreignKey:UserID;references:UserID;constraint:OnDelete:CASCADE"`
 	Roles          []Role         `gorm:"many2many:user_roles;joinForeignKey:UserID;joinReferences:RoleID"`
 	UserTokens     []UserToken    `gorm:"foreignKey:UserID;references:UserID;constraint:OnDelete:CASCADE"`
 	Profile        *Profile       `gorm:"foreignKey:UserID;references:UserID"`

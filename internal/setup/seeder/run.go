@@ -4,7 +4,6 @@ import (
 	"log/slog"
 
 	"github.com/maintainerd/auth/internal/tenant"
-	"github.com/maintainerd/auth/internal/user"
 	"gorm.io/gorm"
 )
 
@@ -39,6 +38,11 @@ func RunAll(db *gorm.DB, appVersion string) error {
 
 	if err := SeedPermissions(db, sysTenant.TenantID, api.APIID); err != nil {
 		slog.Error("Failed to seed permissions", "error", err)
+		return err
+	}
+
+	if err := SeedAPIPermissions(db, sysTenant.TenantID); err != nil {
+		slog.Error("Failed to seed api permissions", "error", err)
 		return err
 	}
 
@@ -79,9 +83,9 @@ func RunAll(db *gorm.DB, appVersion string) error {
 		return err
 	}
 
-	var systemPool user.UserPool
-	if err := db.Where("tenant_id = ? AND is_system = ?", sysTenant.TenantID, true).First(&systemPool).Error; err != nil {
-		slog.Error("Failed to find system user pool", "error", err)
+	systemPool, err := SeedUserPool(db, sysTenant.TenantID)
+	if err != nil {
+		slog.Error("Failed to seed user pool", "error", err)
 		return err
 	}
 	if err := SeedSecuritySettings(db, systemPool.UserPoolID); err != nil {

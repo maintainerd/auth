@@ -40,6 +40,7 @@ type svcs struct {
 	loginService                 authn.LoginService
 	profileService               user.ProfileService
 	userSettingService           user.UserSettingService
+	userPoolService              user.UserPoolService
 	inviteService                invite.InviteService
 	forgotPasswordService        authn.ForgotPasswordService
 	resetPasswordService         authn.ResetPasswordService
@@ -231,6 +232,7 @@ func initServices(db *gorm.DB, r *repos, appCache *cache.Cache, redisClient *red
 		sessionService:           sessionSvc,
 		profileService:           user.NewProfileService(db, r.profileRepo, r.userRepo),
 		userSettingService:       user.NewUserSettingService(db, r.userSettingRepo, r.userRepo),
+		userPoolService:          user.NewUserPoolService(db, r.userPoolRepo),
 		inviteService:            invite.NewInviteService(db, r.inviteRepo, newInviteClientRepo(db), newInviteRoleRepo(db), r.emailTemplateRepo),
 		forgotPasswordService:    authn.NewForgotPasswordService(db, newAuthnUserRepoAdapter(r.userRepo), newAuthnUserTokenRepoAdapter(r.userTokenRepo), newAuthnClientRepoAdapter(r.clientRepo), r.emailTemplateRepo),
 		resetPasswordService:     authn.NewResetPasswordService(db, newAuthnUserRepoAdapter(r.userRepo), newAuthnUserTokenRepoAdapter(r.userTokenRepo), newAuthnClientRepoAdapter(r.clientRepo), r.securitySettingRepo, newAuthnPasswordHistoryRepoAdapter(r.userPasswordHistoryRepo)),

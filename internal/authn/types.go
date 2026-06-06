@@ -46,6 +46,13 @@ type LoginQueryDTO struct {
 	ProviderID string `json:"provider_id"`
 }
 
+// RefreshTokenRequestDTO is the request body for the token refresh endpoint.
+// The refresh token may instead be supplied via the refresh-token cookie, in
+// which case the body is optional.
+type RefreshTokenRequestDTO struct {
+	RefreshToken string `json:"refresh_token"`
+}
+
 // LoginResponseDTO is the response structure for login operations
 type LoginResponseDTO struct {
 	AccessToken           string   `json:"access_token,omitempty"`

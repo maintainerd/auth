@@ -18,7 +18,6 @@ type UserPool struct {
 	Name         string         `gorm:"column:name;not null"`
 	DisplayName  string         `gorm:"column:display_name"`
 	Identifier   string         `gorm:"column:identifier;not null"`
-	IsDefault    bool           `gorm:"column:is_default;default:false"`
 	IsSystem     bool           `gorm:"column:is_system;default:false"`
 	Status       string         `gorm:"column:status;type:varchar(16);default:'active'"`
 	Metadata     datatypes.JSON `gorm:"column:metadata;type:jsonb;default:'{}'"`

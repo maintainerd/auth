@@ -65,7 +65,7 @@ func TestSecuritySettingRepository_FindByUserPoolID(t *testing.T) {
 func TestSecuritySettingRepository_FindDefaultByTenantID(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		db, mock := newSecpolicyMockGormDB(t)
-		mock.ExpectQuery(`SELECT "security_settings"\."security_setting_id".*FROM "security_settings" JOIN user_pools ON user_pools\.user_pool_id = security_settings\.user_pool_id WHERE .*user_pools\.tenant_id = \$1.*AND user_pools\.is_default = true.*AND user_pools\.deleted_at IS NULL ORDER BY "security_settings"\."security_setting_id" LIMIT \$2`).
+		mock.ExpectQuery(`SELECT "security_settings"\."security_setting_id".*FROM "security_settings" JOIN user_pools ON user_pools\.user_pool_id = security_settings\.user_pool_id WHERE .*user_pools\.tenant_id = \$1.*AND user_pools\.is_system = true.*AND user_pools\.deleted_at IS NULL ORDER BY "security_settings"\."security_setting_id" LIMIT \$2`).
 			WithArgs(int64(1), 1).
 			WillReturnRows(sqlmock.NewRows([]string{"security_setting_id", "security_setting_uuid", "user_pool_id"}).
 				AddRow(1, testResourceUUID, 10))

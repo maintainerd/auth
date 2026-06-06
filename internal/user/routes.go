@@ -205,6 +205,39 @@ func UserRoute(
 	})
 }
 
+// UserPoolRoute mounts tenant-scoped user pool management endpoints.
+func UserPoolRoute(
+	r chi.Router,
+	userPoolHandler *UserPoolHandler,
+	userService middleware.UserContextProvider,
+	appCache *cache.Cache,
+) {
+	r.Route("/user-pools", func(r chi.Router) {
+		r.Use(middleware.JWTAuthMiddleware)
+		r.Use(middleware.UserContextMiddleware(userService, appCache))
+
+		// List user pools
+		r.With(middleware.PermissionMiddleware([]string{"user-pool:read"})).
+			Get("/", userPoolHandler.GetUserPools)
+
+		// Get user pool by UUID
+		r.With(middleware.PermissionMiddleware([]string{"user-pool:read"})).
+			Get("/{user_pool_uuid}", userPoolHandler.GetUserPool)
+
+		// Create user pool
+		r.With(middleware.PermissionMiddleware([]string{"user-pool:create"})).
+			Post("/", userPoolHandler.CreateUserPool)
+
+		// Update user pool
+		r.With(middleware.PermissionMiddleware([]string{"user-pool:update"})).
+			Put("/{user_pool_uuid}", userPoolHandler.UpdateUserPool)
+
+		// Delete user pool
+		r.With(middleware.PermissionMiddleware([]string{"user-pool:delete"}), middleware.RequireStepUp).
+			Delete("/{user_pool_uuid}", userPoolHandler.DeleteUserPool)
+	})
+}
+
 func UserSettingRoute(
 	r chi.Router,
 	userSettingHandler *UserSettingHandler,

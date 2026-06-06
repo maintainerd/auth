@@ -28,6 +28,7 @@ import (
 type LoginService interface {
 	LoginPublic(ctx context.Context, usernameOrEmail, password, clientID, providerID string) (*LoginResponseDTO, error)
 	Login(ctx context.Context, usernameOrEmail, password string, clientID, providerID *string) (*LoginResponseDTO, error)
+	RefreshToken(ctx context.Context, refreshToken string, sessionID string) (*LoginResponseDTO, error)
 	GetUserByEmail(ctx context.Context, email string, tenantID int64) (*User, error)
 	Logout(ctx context.Context, accessToken string) error
 }

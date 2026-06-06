@@ -212,6 +212,7 @@ var (
 type mockLoginService struct {
 	loginPublicFn    func(usernameOrEmail, password, clientID, providerID string) (*LoginResponseDTO, error)
 	loginFn          func(usernameOrEmail, password string, clientID, providerID *string) (*LoginResponseDTO, error)
+	refreshTokenFn   func(refreshToken, sessionID string) (*LoginResponseDTO, error)
 	getUserByEmailFn func(ctx context.Context, email string, tenantID int64) (*User, error)
 	logoutFn         func(ctx context.Context, accessToken string) error
 }
@@ -226,6 +227,13 @@ func (m *mockLoginService) LoginPublic(ctx context.Context, usernameOrEmail, pas
 func (m *mockLoginService) Login(ctx context.Context, usernameOrEmail, password string, clientID, providerID *string) (*LoginResponseDTO, error) {
 	if m.loginFn != nil {
 		return m.loginFn(usernameOrEmail, password, clientID, providerID)
+	}
+	return nil, nil
+}
+
+func (m *mockLoginService) RefreshToken(ctx context.Context, refreshToken string, sessionID string) (*LoginResponseDTO, error) {
+	if m.refreshTokenFn != nil {
+		return m.refreshTokenFn(refreshToken, sessionID)
 	}
 	return nil, nil
 }

@@ -34,6 +34,7 @@ type handlers struct {
 	login              *authn.LoginHandler
 	profile            *user.ProfileHandler
 	userSetting        *user.UserSettingHandler
+	userPool           *user.UserPoolHandler
 	invite             *invite.InviteHandler
 	forgotPassword     *authn.ForgotPasswordHandler
 	resetPassword      *authn.ResetPasswordHandler
@@ -88,6 +89,7 @@ func initHandlers(application *Application) *handlers {
 		login:              authn.NewLoginHandler(application.LoginService),
 		profile:            user.NewProfileHandler(application.ProfileService),
 		userSetting:        user.NewUserSettingHandler(application.UserSettingService),
+		userPool:           user.NewUserPoolHandler(application.UserPoolService),
 		invite:             invite.NewInviteHandler(application.InviteService),
 		forgotPassword:     authn.NewForgotPasswordHandler(application.ForgotPasswordService),
 		resetPassword:      authn.NewResetPasswordHandler(application.ResetPasswordService),

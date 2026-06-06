@@ -66,6 +66,7 @@ func buildInternalRouter(h *handlers, application *Application) http.Handler {
 		client.ClientRoute(api, h.client, userProvider, application.Cache)
 		iam.RoleRoute(api, h.role, userProvider, application.Cache)
 		user.UserRoute(api, h.user, h.profile, userProvider, application.Cache)
+		user.UserPoolRoute(api, h.userPool, userProvider, application.Cache)
 		invite.InviteRoute(api, h.invite, userProvider, application.Cache)
 		client.APIKeyRoute(api, h.apiKey, userProvider, application.Cache)
 		idp.SignupFlowRoute(api, h.signupFlow, userProvider, application.Cache)
