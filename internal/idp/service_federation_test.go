@@ -1343,8 +1343,12 @@ func TestFederationService_LinkIdentity_Branches(t *testing.T) {
 
 	t.Run("create error", func(t *testing.T) {
 		stubOIDCClaims(t, map[string]interface{}{"sub": "external-sub"})
+		gdb, mock := newMockGormDB(t)
+		mock.ExpectBegin()
+		mock.ExpectRollback()
 		idp := activeOIDCProvider("idp-1")
 		svc := &federationService{
+			db: gdb,
 			idpRepo: &mockIdentityProviderRepo{
 				findByIdentifierFn: func(string) (*IdentityProvider, error) { return idp, nil },
 			},
@@ -1362,9 +1366,13 @@ func TestFederationService_LinkIdentity_Branches(t *testing.T) {
 
 	t.Run("success creates identity", func(t *testing.T) {
 		stubOIDCClaims(t, map[string]interface{}{"sub": "external-sub", "email": "user@example.com"})
+		gdb, mock := newMockGormDB(t)
+		mock.ExpectBegin()
+		mock.ExpectCommit()
 		idp := activeOIDCProvider("idp-1")
 		var logged bool
 		svc := &federationService{
+			db: gdb,
 			idpRepo: &mockIdentityProviderRepo{
 				findByIdentifierFn: func(string) (*IdentityProvider, error) { return idp, nil },
 			},
@@ -1593,7 +1601,11 @@ func TestFederationService_UnlinkIdentity(t *testing.T) {
 			},
 			deleteByIDFn: func(any) error { return errors.New("del err") },
 		}
+		gdb, mock := newMockGormDB(t)
+		mock.ExpectBegin()
+		mock.ExpectRollback()
 		svc := &federationService{
+			db:               gdb,
 			userIdentityRepo: identityRepo,
 			authEventService: &mockAuthEventService{},
 		}
@@ -1614,7 +1626,11 @@ func TestFederationService_UnlinkIdentity(t *testing.T) {
 				return []UserIdentity{extIdent}, nil
 			},
 		}
+		gdb, mock := newMockGormDB(t)
+		mock.ExpectBegin()
+		mock.ExpectCommit()
 		svc := &federationService{
+			db:               gdb,
 			userIdentityRepo: identityRepo,
 			authEventService: &mockAuthEventService{},
 		}

@@ -65,5 +65,8 @@ func (a *App) ServerApplication() *server.Application {
 		EventTypeService:             a.EventTypeService,
 		TenantEventTypeConfigService: a.TenantEventTypeConfigService,
 		EventRouteService:            a.EventRouteService,
+		WebhookEndpointRepo:          a.WebhookEndpointRepo,
+		WebhookSubscriptionHandler:   a.WebhookSubscriptionHandler,
+		WebhookReplayHandler:         a.WebhookReplayHandler,
 	}
 }

@@ -39,39 +39,39 @@ var migrations = []migrationEntry{
 	{"004_create_tenant_settings_table", migration.CreateTenantSettingsTable},
 	{"005_create_email_config_table", migration.CreateEmailConfigTable},
 	{"006_create_sms_config_table", migration.CreateSMSConfigTable},
-	{"007_create_webhook_endpoints_table", migration.CreateWebhookEndpointsTable},
 	// Block 2: Services & policies
-	{"008_create_services_table", migration.CreateServiceTable},
-	{"009_create_tenant_services_table", migration.CreateTenantServicesTable},
-	{"010_create_policies_table", migration.CreatePoliciesTable},
-	{"011_create_service_policies_table", migration.CreateServicePoliciesTable},
+	{"007_create_services_table", migration.CreateServiceTable},
+	{"008_create_tenant_services_table", migration.CreateTenantServicesTable},
+	{"009_create_policies_table", migration.CreatePoliciesTable},
+	{"010_create_service_policies_table", migration.CreateServicePoliciesTable},
 	// Block 3: APIs & permissions
-	{"012_create_apis_table", migration.CreateAPITable},
-	{"013_create_permissions_table", migration.CreatePermissionTable},
-	{"014_create_api_permissions_table", migration.CreateApiPermissionTable},
+	{"011_create_apis_table", migration.CreateAPITable},
+	{"012_create_permissions_table", migration.CreatePermissionTable},
+	{"013_create_api_permissions_table", migration.CreateApiPermissionTable},
 	// Block 4: Identity providers & clients
-	{"015_create_identity_providers_table", migration.CreateIdentityProviderTable},
-	{"016_create_clients_table", migration.CreateClientTable},
-	{"017_create_client_uris_table", migration.CreateClientURIsTable},
-	{"018_create_client_apis_table", migration.CreateClientAPIsTable},
-	{"019_create_client_permissions_table", migration.CreateClientPermissionTable},
+	{"014_create_identity_providers_table", migration.CreateIdentityProviderTable},
+	{"015_create_clients_table", migration.CreateClientTable},
+	{"016_create_client_uris_table", migration.CreateClientURIsTable},
+	{"017_create_client_apis_table", migration.CreateClientAPIsTable},
+	{"018_create_client_permissions_table", migration.CreateClientPermissionTable},
 	// Block 5: API keys
-	{"020_create_api_keys_table", migration.CreateAPIKeysTable},
-	{"021_create_api_key_apis_table", migration.CreateAPIKeyAPITable},
-	{"022_create_api_key_permissions_table", migration.CreateAPIKeyPermissionsTable},
+	{"019_create_api_keys_table", migration.CreateAPIKeysTable},
+	{"020_create_api_key_apis_table", migration.CreateAPIKeyAPITable},
+	{"021_create_api_key_permissions_table", migration.CreateAPIKeyPermissionsTable},
 	// Block 6: Roles
-	{"023_create_roles_table", migration.CreateRoleTable},
-	{"024_create_role_permissions_table", migration.CreateRolePermissionTable},
+	{"022_create_roles_table", migration.CreateRoleTable},
+	{"023_create_role_permissions_table", migration.CreateRolePermissionTable},
 	// Block 7: Users — core + all user-scoped tables grouped together
-	{"025_create_users_table", migration.CreateUserTable},
-	{"026_create_user_identities_table", migration.CreateUserIdentityTable},
-	{"027_create_user_roles_table", migration.CreateUserRoleTable},
-	{"028_create_user_tokens_table", migration.CreateUserTokenTable},
-	{"029_create_user_settings_table", migration.CreateUserSettingsTable},
-	{"030_create_profiles_table", migration.CreateProfileTable},
-	{"031_create_user_backup_codes_table", migration.CreateUserBackupCodesTable},
-	{"032_create_user_totp_secrets_table", migration.CreateUserTOTPSecretsTable},
-	{"033_create_user_webauthn_credentials_table", migration.CreateUserWebAuthnCredentialsTable},
+	{"024_create_users_table", migration.CreateUserTable},
+	{"025_create_user_identities_table", migration.CreateUserIdentityTable},
+	{"026_create_user_roles_table", migration.CreateUserRoleTable},
+	{"027_create_user_tokens_table", migration.CreateUserTokenTable},
+	{"028_create_user_settings_table", migration.CreateUserSettingsTable},
+	{"029_create_profiles_table", migration.CreateProfileTable},
+	{"030_create_user_backup_codes_table", migration.CreateUserBackupCodesTable},
+	{"031_create_user_totp_secrets_table", migration.CreateUserTOTPSecretsTable},
+	{"032_create_user_webauthn_credentials_table", migration.CreateUserWebAuthnCredentialsTable},
+	{"033_create_user_password_history_table", migration.CreateUserPasswordHistoryTable},
 	// Block 8: Tenant organisation & flows
 	{"034_create_tenant_members_table", migration.CreateTenantMembersTable},
 	{"035_create_signup_flows_table", migration.CreateSignupFlowTable},
@@ -86,7 +86,10 @@ var migrations = []migrationEntry{
 	{"042_create_login_templates_table", migration.CreateLoginTemplatesTable},
 	{"043_create_email_templates_table", migration.CreateEmailTemplatesTable},
 	{"044_create_sms_templates_table", migration.CreateSMSTemplatesTable},
-	// Block 11: Auth events
+	// Block 11: Auth events — the AUDIT plane (append-only security log for the
+	// tenant's SIEM: login, MFA, token, OAuth activity). NOT the same as the
+	// integration event tables in Block 15 (event_types/outbox), which are a
+	// data-change delivery pipeline for external consumers. Distinct on purpose.
 	{"045_create_auth_events_table", migration.CreateAuthEventsTable},
 	// Block 12: OAuth
 	{"046_create_oauth_authorization_codes_table", migration.CreateOAuthAuthorizationCodesTable},
@@ -98,16 +101,18 @@ var migrations = []migrationEntry{
 	{"052_create_oauth_ciba_requests_table", migration.CreateOAuthCIBARequestsTable},
 	// Block 13: SMS OTP
 	{"053_create_sms_otps_table", migration.CreateSMSOtpsTable},
-	// Block 14: Password policy
-	{"054_create_user_password_history_table", migration.CreateUserPasswordHistoryTable},
-	// Block 15: Setup process state
-	{"055_create_setup_states_table", migration.CreateSetupStatesTable},
-	// Block 16: Event routing registry
-	{"056_create_event_types_table", migration.CreateEventTypesTable},
+	// Block 14: Setup process state
+	{"054_create_setup_states_table", migration.CreateSetupStatesTable},
+	// Block 15: Webhooks & event-driven integration — the INTEGRATION plane
+	// (data-change events delivered to external consumers). Separate from the
+	// auth_events AUDIT plane (Block 11); not a duplicate.
+	// (catalog -> endpoints -> subscriptions -> broker routes -> per-tenant
+	// switches -> outbox -> delivery history; ordered by FK dependency)
+	{"055_create_event_types_table", migration.CreateEventTypesTable},
+	{"056_create_webhook_endpoints_table", migration.CreateWebhookEndpointsTable},
 	{"057_create_webhook_endpoint_events_table", migration.CreateWebhookEndpointEventsTable},
 	{"058_create_event_routes_table", migration.CreateEventRoutesTable},
 	{"059_create_tenant_event_types_table", migration.CreateTenantEventTypesTable},
-	// Block 17: Integration event outbox & delivery
 	{"060_create_integration_event_outbox_table", migration.CreateIntegrationEventOutboxTable},
 	{"061_create_webhook_delivery_history_table", migration.CreateWebhookDeliveryHistoryTable},
 }

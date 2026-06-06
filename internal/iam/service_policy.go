@@ -506,6 +506,13 @@ func (s *policyService) DeleteByUUID(ctx context.Context, policyUUID uuid.UUID, 
 			return err
 		}
 
+		if s.eventService != nil {
+			if _, emitErr := s.eventService.Emit(ctx, tx, event.NewIntegrationEvent(
+				event.EventTypePolicyDeleted, 1, tenantID,
+			).SetSubject(&policy.PolicyUUID, "policy")); emitErr != nil {
+				return emitErr
+			}
+		}
 		return nil
 	})
 
@@ -516,12 +523,6 @@ func (s *policyService) DeleteByUUID(ctx context.Context, policyUUID uuid.UUID, 
 	}
 
 	span.SetStatus(codes.Ok, "")
-	// Emit policy.deleted integration event
-	if s.eventService != nil {
-		s.eventService.Emit(ctx, nil, event.NewIntegrationEvent(
-			event.EventTypePolicyDeleted, 1, tenantID,
-		).SetSubject(&deletedPolicy.PolicyUUID, "policy"))
-	}
 	return &PolicyServiceDataResult{
 		PolicyUUID:  deletedPolicy.PolicyUUID,
 		Name:        deletedPolicy.Name,

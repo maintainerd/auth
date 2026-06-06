@@ -431,7 +431,22 @@ func (s *federationService) LinkIdentity(ctx context.Context, userID int64, req 
 		Metadata:           datatypes.JSON(metaJSON),
 	}
 
-	created, err := s.userIdentityRepo.Create(identity)
+	var created *UserIdentity
+	err = s.db.Transaction(func(tx *gorm.DB) error {
+		c, e := s.userIdentityRepo.WithTx(tx).Create(identity)
+		if e != nil {
+			return e
+		}
+		created = c
+		if s.eventService != nil {
+			if _, emitErr := s.eventService.Emit(ctx, tx, event.NewIntegrationEvent(
+				event.EventTypeIdentityLinked, 1, idp.TenantID,
+			).SetActor(&userID).SetSubject(&created.UserIdentityUUID, "identity")); emitErr != nil {
+				return emitErr
+			}
+		}
+		return nil
+	})
 	if err != nil {
 		span.RecordError(err)
 		return nil, apperror.NewInternal("failed to link identity", err)
@@ -447,13 +462,6 @@ func (s *federationService) LinkIdentity(ctx context.Context, userID int64, req 
 		Result:      authevent.AuthEventResultSuccess,
 		Description: ptr.Ptr(fmt.Sprintf("linked external identity: %s", idp.Provider)),
 	})
-
-	// Emit identity.linked integration event
-	if s.eventService != nil {
-		s.eventService.Emit(ctx, nil, event.NewIntegrationEvent(
-			event.EventTypeIdentityLinked, 1, idp.TenantID,
-		).SetActor(&userID).SetSubject(&created.UserIdentityUUID, "identity"))
-	}
 
 	span.SetStatus(codes.Ok, "")
 	return identityToDTO(created), nil
@@ -486,7 +494,19 @@ func (s *federationService) UnlinkIdentity(ctx context.Context, userID int64, id
 		return apperror.NewValidation("the built-in identity cannot be unlinked")
 	}
 
-	if err := s.userIdentityRepo.DeleteByID(target.UserIdentityID); err != nil {
+	if err := s.db.Transaction(func(tx *gorm.DB) error {
+		if e := s.userIdentityRepo.WithTx(tx).DeleteByID(target.UserIdentityID); e != nil {
+			return e
+		}
+		if s.eventService != nil {
+			if _, emitErr := s.eventService.Emit(ctx, tx, event.NewIntegrationEvent(
+				event.EventTypeIdentityUnlinked, 1, target.TenantID,
+			).SetActor(&userID).SetSubject(&target.UserIdentityUUID, "identity")); emitErr != nil {
+				return emitErr
+			}
+		}
+		return nil
+	}); err != nil {
 		return apperror.NewInternal("failed to unlink identity", err)
 	}
 
@@ -500,13 +520,6 @@ func (s *federationService) UnlinkIdentity(ctx context.Context, userID int64, id
 		Result:      authevent.AuthEventResultSuccess,
 		Description: ptr.Ptr(fmt.Sprintf("unlinked external identity: %s", target.Provider)),
 	})
-
-	// Emit identity.unlinked integration event
-	if s.eventService != nil {
-		s.eventService.Emit(ctx, nil, event.NewIntegrationEvent(
-			event.EventTypeIdentityUnlinked, 1, target.TenantID,
-		).SetActor(&userID).SetSubject(&target.UserIdentityUUID, "identity"))
-	}
 
 	span.SetStatus(codes.Ok, "")
 	return nil

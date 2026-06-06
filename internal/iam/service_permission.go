@@ -464,7 +464,20 @@ func (s *permissionService) DeleteByUUID(ctx context.Context, permissionUUID uui
 		return nil, apperror.NewValidation("default permission cannot be deleted")
 	}
 
-	err = s.permissionRepo.DeleteByUUIDAndTenantID(permissionUUID, tenantID)
+	// Delete + event emission commit together; cache invalidation runs after.
+	err = s.db.Transaction(func(tx *gorm.DB) error {
+		if err := s.permissionRepo.WithTx(tx).DeleteByUUIDAndTenantID(permissionUUID, tenantID); err != nil {
+			return err
+		}
+		if s.eventService != nil {
+			if _, emitErr := s.eventService.Emit(ctx, tx, event.NewIntegrationEvent(
+				event.EventTypePermissionDeleted, 1, tenantID,
+			).SetSubject(&permission.PermissionUUID, "permission")); emitErr != nil {
+				return emitErr
+			}
+		}
+		return nil
+	})
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "delete permission failed")
@@ -477,12 +490,6 @@ func (s *permissionService) DeleteByUUID(ctx context.Context, permissionUUID uui
 		return nil, apperror.NewInternal("failed to invalidate affected permission sessions", err)
 	}
 	span.SetStatus(codes.Ok, "")
-	// Emit permission.deleted integration event
-	if s.eventService != nil {
-		s.eventService.Emit(ctx, nil, event.NewIntegrationEvent(
-			event.EventTypePermissionDeleted, 1, tenantID,
-		).SetSubject(&permission.PermissionUUID, "permission"))
-	}
 	return toPermissionServiceDataResult(permission), nil
 }
 

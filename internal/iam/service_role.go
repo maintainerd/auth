@@ -581,8 +581,21 @@ func (s *roleService) DeleteByUUID(ctx context.Context, roleUUID uuid.UUID, tena
 		return nil, apperror.NewValidation("system role is not allowed to be deleted")
 	}
 
-	// Delete role
-	err = s.roleRepo.DeleteByUUID(roleUUID)
+	// Delete role + emit role.deleted atomically; cache invalidation and the
+	// audit log run after the commit.
+	err = s.db.Transaction(func(tx *gorm.DB) error {
+		if err := s.roleRepo.WithTx(tx).DeleteByUUID(roleUUID); err != nil {
+			return err
+		}
+		if s.eventService != nil {
+			if _, emitErr := s.eventService.Emit(ctx, tx, event.NewIntegrationEvent(
+				event.EventTypeRoleDeleted, 1, tenantID,
+			).SetActor(&actorUser.UserID).SetSubject(&role.RoleUUID, "role")); emitErr != nil {
+				return emitErr
+			}
+		}
+		return nil
+	})
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "delete role failed")
@@ -607,12 +620,6 @@ func (s *roleService) DeleteByUUID(ctx context.Context, roleUUID uuid.UUID, tena
 		Result:      authevent.AuthEventResultSuccess,
 		Description: ptr.Ptr(fmt.Sprintf("Role deleted: %s", role.Name)),
 	})
-	// Emit role.deleted integration event
-	if s.eventService != nil {
-		s.eventService.Emit(ctx, nil, event.NewIntegrationEvent(
-			event.EventTypeRoleDeleted, 1, tenantID,
-		).SetActor(&actorUser.UserID).SetSubject(&role.RoleUUID, "role"))
-	}
 	return toRoleServiceDataResult(role), nil
 }
 
@@ -714,6 +721,14 @@ func (s *roleService) AddRolePermissions(ctx context.Context, roleUUID uuid.UUID
 			return err
 		}
 
+		if s.eventService != nil {
+			if _, emitErr := s.eventService.Emit(ctx, tx, event.NewIntegrationEvent(
+				event.EventTypeRolePermissionsChanged, 1, tenantID,
+			).SetActor(&capturedActorID).SetSubject(&roleWithPermissions.RoleUUID, "role").
+				SetChangedFields("permissions")); emitErr != nil {
+				return emitErr
+			}
+		}
 		return nil
 	})
 
@@ -741,13 +756,6 @@ func (s *roleService) AddRolePermissions(ctx context.Context, roleUUID uuid.UUID
 		Result:      authevent.AuthEventResultSuccess,
 		Description: ptr.Ptr(fmt.Sprintf("Permissions added to role: %s", roleWithPermissions.Name)),
 	})
-	// Emit role.permissions_changed integration event
-	if s.eventService != nil {
-		s.eventService.Emit(ctx, nil, event.NewIntegrationEvent(
-			event.EventTypeRolePermissionsChanged, 1, tenantID,
-		).SetActor(&capturedActorID).SetSubject(&roleWithPermissions.RoleUUID, "role").
-			SetChangedFields("permissions"))
-	}
 	return toRoleServiceDataResult(roleWithPermissions), nil
 }
 
@@ -837,6 +845,14 @@ func (s *roleService) RemoveRolePermissions(ctx context.Context, roleUUID uuid.U
 			return err
 		}
 
+		if s.eventService != nil {
+			if _, emitErr := s.eventService.Emit(ctx, tx, event.NewIntegrationEvent(
+				event.EventTypeRolePermissionsChanged, 1, tenantID,
+			).SetActor(&capturedActorID).SetSubject(&roleWithPermissions.RoleUUID, "role").
+				SetChangedFields("permissions")); emitErr != nil {
+				return emitErr
+			}
+		}
 		return nil
 	})
 
@@ -864,13 +880,6 @@ func (s *roleService) RemoveRolePermissions(ctx context.Context, roleUUID uuid.U
 		Result:      authevent.AuthEventResultSuccess,
 		Description: ptr.Ptr(fmt.Sprintf("Permission removed from role: %s", roleWithPermissions.Name)),
 	})
-	// Emit role.permissions_changed integration event
-	if s.eventService != nil {
-		s.eventService.Emit(ctx, nil, event.NewIntegrationEvent(
-			event.EventTypeRolePermissionsChanged, 1, tenantID,
-		).SetActor(&capturedActorID).SetSubject(&roleWithPermissions.RoleUUID, "role").
-			SetChangedFields("permissions"))
-	}
 	return toRoleServiceDataResult(roleWithPermissions), nil
 }
 

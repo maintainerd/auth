@@ -857,7 +857,9 @@ func TestUserService_SetStatus(t *testing.T) {
 			return userWithAccess(2, 1), nil
 		}
 		ur.setStatusFn = func(_ uuid.UUID, _ string) error { return errors.New("status err") }
-		_, svc := fullUserSvc(t, ur, ui, urr, rr, tr, idp, cr, up)
+		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr, up)
+		mock.ExpectBegin()
+		mock.ExpectRollback()
 		_, err := svc.SetStatus(context.Background(), uid, tenantID, "inactive", updaterUUID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "status err")
@@ -876,7 +878,9 @@ func TestUserService_SetStatus(t *testing.T) {
 			}
 			return nil, errors.New("fetch err")
 		}
-		_, svc := fullUserSvc(t, ur, ui, urr, rr, tr, idp, cr, up)
+		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr, up)
+		mock.ExpectBegin()
+		mock.ExpectRollback()
 		_, err := svc.SetStatus(context.Background(), uid, tenantID, "inactive", updaterUUID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "fetch err")
@@ -895,7 +899,9 @@ func TestUserService_SetStatus(t *testing.T) {
 			}
 			return &User{UserUUID: uid, Status: "inactive"}, nil
 		}
-		_, svc := fullUserSvc(t, ur, ui, urr, rr, tr, idp, cr, up)
+		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr, up)
+		mock.ExpectBegin()
+		mock.ExpectCommit()
 		res, err := svc.SetStatus(context.Background(), uid, tenantID, "inactive", updaterUUID)
 		require.NoError(t, err)
 		assert.NotNil(t, res)
@@ -1189,7 +1195,9 @@ func TestUserService_DeleteByUUID(t *testing.T) {
 			return userWithAccess(2, 1), nil
 		}
 		ur.deleteByUUIDFn = func(_ any) error { return errors.New("del err") }
-		_, svc := fullUserSvc(t, ur, ui, urr, rr, tr, idp, cr, up)
+		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr, up)
+		mock.ExpectBegin()
+		mock.ExpectRollback()
 		_, err := svc.DeleteByUUID(context.Background(), uid, 1, deleterUUID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "del err")
@@ -1205,7 +1213,9 @@ func TestUserService_DeleteByUUID(t *testing.T) {
 			}
 			return userWithAccess(2, 1), nil
 		}
-		_, svc := fullUserSvc(t, ur, ui, urr, rr, tr, idp, cr, up)
+		_, mock, svc := fullUserSvcWithMock(t, ur, ui, urr, rr, tr, idp, cr, up)
+		mock.ExpectBegin()
+		mock.ExpectCommit()
 		res, err := svc.DeleteByUUID(context.Background(), uid, 1, deleterUUID)
 		require.NoError(t, err)
 		assert.NotNil(t, res)

@@ -21,21 +21,30 @@ const (
 func RateLimitAndCapMiddleware(repo WebhookEndpointRepository) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			// Defensive: if the repo was not wired, do not panic — log and pass
+			// through (the cap simply isn't enforced until wiring is fixed).
+			if repo == nil {
+				slog.Error("webhook rate limit: endpoint repo not wired; cap not enforced")
+				next.ServeHTTP(w, r)
+				return
+			}
 			tenant := middleware.AuthFromRequest(r).Tenant
 			if tenant == nil {
 				next.ServeHTTP(w, r)
 				return
 			}
 
-			endpoints, err := repo.FindByTenantID(tenant.TenantID)
+			count, err := repo.CountByTenantID(tenant.TenantID)
 			if err != nil {
 				slog.Error("webhook rate limit: failed to count endpoints",
 					"tenant_id", tenant.TenantID, "err", err)
-				next.ServeHTTP(w, r)
+				// Fail closed: do not allow creation when the cap cannot be verified.
+				resp.Error(w, http.StatusServiceUnavailable,
+					"Unable to verify webhook endpoint quota, try again later")
 				return
 			}
 
-			if len(endpoints) >= maxEndpointsPerTenant {
+			if count >= maxEndpointsPerTenant {
 				resp.Error(w, http.StatusTooManyRequests,
 					"Maximum number of webhook endpoints reached for this tenant")
 				return
@@ -75,6 +84,12 @@ type replayRequestDTO struct {
 //
 // POST /webhook-endpoints/replay
 func (h *ReplayHandler) ReplayDelivery(w http.ResponseWriter, r *http.Request) {
+	// Guards the unwired-route case (router passes a nil handler) so the method
+	// value does not nil-panic when invoked.
+	if h == nil {
+		resp.Error(w, http.StatusServiceUnavailable, "Webhook replay is not available on this deployment")
+		return
+	}
 	tenant := middleware.AuthFromRequest(r).Tenant
 	if tenant == nil {
 		resp.Error(w, http.StatusUnauthorized, "Tenant not found in context")

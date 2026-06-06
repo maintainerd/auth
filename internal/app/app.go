@@ -82,6 +82,10 @@ type App struct {
 	EventTypeService             event.EventTypeService
 	TenantEventTypeConfigService event.TenantEventTypeConfigService
 	EventRouteService            event.EventRouteService
+	// Webhook management wiring used by the REST router.
+	WebhookEndpointRepo        webhook.WebhookEndpointRepository
+	WebhookSubscriptionHandler *webhook.SubscriptionHandler
+	WebhookReplayHandler       *webhook.ReplayHandler
 }
 
 // NewApp wires the full dependency graph in two focused steps:
@@ -155,5 +159,8 @@ func NewApp(db *gorm.DB, redisClient *redis.Client) (*App, error) {
 		EventTypeService:             s.eventTypeService,
 		TenantEventTypeConfigService: s.tenantEventTypeConfigService,
 		EventRouteService:            s.eventRouteService,
+		WebhookEndpointRepo:          s.webhookEndpointRepo,
+		WebhookSubscriptionHandler:   s.webhookSubscriptionHandler,
+		WebhookReplayHandler:         s.webhookReplayHandler,
 	}, nil
 }

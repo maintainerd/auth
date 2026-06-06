@@ -323,6 +323,13 @@ func (s *apiService) Update(ctx context.Context, apiUUID uuid.UUID, tenantID int
 
 		updatedAPI = api
 
+		if s.eventService != nil {
+			if _, emitErr := s.eventService.Emit(ctx, tx, event.NewIntegrationEvent(
+				event.EventTypeAPIUpdated, 1, tenantID,
+			).SetSubject(&api.APIUUID, "api")); emitErr != nil {
+				return emitErr
+			}
+		}
 		return nil
 	})
 
@@ -333,12 +340,6 @@ func (s *apiService) Update(ctx context.Context, apiUUID uuid.UUID, tenantID int
 	}
 
 	span.SetStatus(codes.Ok, "")
-	// Emit api.updated integration event
-	if s.eventService != nil {
-		s.eventService.Emit(ctx, nil, event.NewIntegrationEvent(
-			event.EventTypeAPIUpdated, 1, tenantID,
-		).SetSubject(&updatedAPI.APIUUID, "api"))
-	}
 	return toAPIServiceDataResult(updatedAPI), nil
 }
 
@@ -388,6 +389,13 @@ func (s *apiService) SetStatusByUUID(ctx context.Context, apiUUID uuid.UUID, ten
 
 		updatedAPI = api
 
+		if s.eventService != nil {
+			if _, emitErr := s.eventService.Emit(ctx, tx, event.NewIntegrationEvent(
+				event.EventTypeAPIStatusChanged, 1, tenantID,
+			).SetSubject(&api.APIUUID, "api").SetChangedFields("status")); emitErr != nil {
+				return emitErr
+			}
+		}
 		return nil
 	})
 
@@ -398,12 +406,6 @@ func (s *apiService) SetStatusByUUID(ctx context.Context, apiUUID uuid.UUID, ten
 	}
 
 	span.SetStatus(codes.Ok, "")
-	// Emit api.status_changed integration event
-	if s.eventService != nil {
-		s.eventService.Emit(ctx, nil, event.NewIntegrationEvent(
-			event.EventTypeAPIStatusChanged, 1, tenantID,
-		).SetSubject(&updatedAPI.APIUUID, "api").SetChangedFields("status"))
-	}
 	return toAPIServiceDataResult(updatedAPI), nil
 }
 
@@ -442,7 +444,19 @@ func (s *apiService) DeleteByUUID(ctx context.Context, apiUUID uuid.UUID, tenant
 		return nil, apperror.NewValidation("system API cannot be deleted")
 	}
 
-	err = s.apiRepo.DeleteByUUIDAndTenantID(apiUUID, tenantID)
+	err = s.db.Transaction(func(tx *gorm.DB) error {
+		if err := s.apiRepo.WithTx(tx).DeleteByUUIDAndTenantID(apiUUID, tenantID); err != nil {
+			return err
+		}
+		if s.eventService != nil {
+			if _, emitErr := s.eventService.Emit(ctx, tx, event.NewIntegrationEvent(
+				event.EventTypeAPIDeleted, 1, tenantID,
+			).SetSubject(&api.APIUUID, "api")); emitErr != nil {
+				return emitErr
+			}
+		}
+		return nil
+	})
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "failed to delete api")
@@ -450,12 +464,6 @@ func (s *apiService) DeleteByUUID(ctx context.Context, apiUUID uuid.UUID, tenant
 	}
 
 	span.SetStatus(codes.Ok, "")
-	// Emit api.deleted integration event
-	if s.eventService != nil {
-		s.eventService.Emit(ctx, nil, event.NewIntegrationEvent(
-			event.EventTypeAPIDeleted, 1, tenantID,
-		).SetSubject(&api.APIUUID, "api"))
-	}
 	return toAPIServiceDataResult(api), nil
 }
 

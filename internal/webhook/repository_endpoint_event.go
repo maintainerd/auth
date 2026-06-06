@@ -9,6 +9,9 @@ import (
 type WebhookEndpointEventRepository interface {
 	BaseRepositoryMethods[WebhookEndpointEvent]
 	FindByEndpointID(webhookEndpointID int64) ([]WebhookEndpointEvent, error)
+	// ExistsByEndpointAndEventKey reports whether the endpoint subscribes to the
+	// exact event type (resolved via the event_types catalog by canonical key).
+	ExistsByEndpointAndEventKey(webhookEndpointID int64, eventTypeKey string) (bool, error)
 	FindByEndpointIDAndEventTypeID(webhookEndpointID, eventTypeID int64) (*WebhookEndpointEvent, error)
 	DeleteByEndpointIDAndEventTypeID(webhookEndpointID, eventTypeID int64) error
 	DeleteByEndpointID(webhookEndpointID int64) error
@@ -36,6 +39,16 @@ func (r *webhookEndpointEventRepository) FindByEndpointID(webhookEndpointID int6
 	var subs []WebhookEndpointEvent
 	err := r.DB().Where("webhook_endpoint_id = ?", webhookEndpointID).Find(&subs).Error
 	return subs, err
+}
+
+func (r *webhookEndpointEventRepository) ExistsByEndpointAndEventKey(webhookEndpointID int64, eventTypeKey string) (bool, error) {
+	var count int64
+	err := r.DB().
+		Table("webhook_endpoint_events AS wee").
+		Joins("JOIN event_types et ON et.event_type_id = wee.event_type_id").
+		Where("wee.webhook_endpoint_id = ? AND et.key = ?", webhookEndpointID, eventTypeKey).
+		Count(&count).Error
+	return count > 0, err
 }
 
 func (r *webhookEndpointEventRepository) FindByEndpointIDAndEventTypeID(webhookEndpointID, eventTypeID int64) (*WebhookEndpointEvent, error) {

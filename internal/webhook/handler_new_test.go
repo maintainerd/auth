@@ -148,8 +148,8 @@ func TestRateLimitAndCapMiddleware(t *testing.T) {
 
 	t.Run("under limit passes through", func(t *testing.T) {
 		repo := &mockWebhookEndpointRepo{
-			findByTenantIDFn: func(_ int64) ([]WebhookEndpoint, error) {
-				return make([]WebhookEndpoint, 10), nil
+			countByTenantIDFn: func(_ int64) (int64, error) {
+				return 10, nil
 			},
 		}
 		mw := RateLimitAndCapMiddleware(repo)
@@ -165,8 +165,8 @@ func TestRateLimitAndCapMiddleware(t *testing.T) {
 
 	t.Run("at capacity returns 429", func(t *testing.T) {
 		repo := &mockWebhookEndpointRepo{
-			findByTenantIDFn: func(_ int64) ([]WebhookEndpoint, error) {
-				return make([]WebhookEndpoint, 50), nil
+			countByTenantIDFn: func(_ int64) (int64, error) {
+				return 50, nil
 			},
 		}
 		mw := RateLimitAndCapMiddleware(repo)

@@ -140,7 +140,12 @@ func (s *webhookEndpointService) Create(ctx context.Context, tenantID int64, url
 	defer span.End()
 	span.SetAttributes(attribute.Int64("tenant.id", tenantID))
 
-	rawSecret, _ := crypto.GenerateRandomString(48)
+	rawSecret, secretErr := crypto.GenerateRandomString(48)
+	if secretErr != nil {
+		span.RecordError(secretErr)
+		span.SetStatus(codes.Error, "generate webhook secret failed")
+		return nil, apperror.NewInternal("failed to generate webhook signing secret", secretErr)
+	}
 	encrypted, encErr := crypto.EncryptAtRest(rawSecret)
 	if encErr != nil {
 		span.RecordError(encErr)
@@ -205,7 +210,12 @@ func (s *webhookEndpointService) Update(ctx context.Context, tenantID int64, web
 	ep.Description = description
 	ep.Status = status
 	if rotateSecret {
-	rawSecret, _ := crypto.GenerateRandomString(48)
+		rawSecret, secretErr := crypto.GenerateRandomString(48)
+		if secretErr != nil {
+			span.RecordError(secretErr)
+			span.SetStatus(codes.Error, "generate webhook secret failed")
+			return nil, apperror.NewInternal("failed to generate webhook signing secret", secretErr)
+		}
 		enc, encErr := crypto.EncryptAtRest(rawSecret)
 		if encErr != nil {
 			span.RecordError(encErr)

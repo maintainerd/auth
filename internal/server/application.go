@@ -82,4 +82,9 @@ type Application struct {
 	EventTypeService             event.EventTypeService
 	TenantEventTypeConfigService event.TenantEventTypeConfigService
 	EventRouteService            event.EventRouteService
+	// Webhook management wiring (subscription + replay handlers, endpoint repo
+	// for the per-tenant creation cap).
+	WebhookEndpointRepo        webhook.WebhookEndpointRepository
+	WebhookSubscriptionHandler *webhook.SubscriptionHandler
+	WebhookReplayHandler       *webhook.ReplayHandler
 }

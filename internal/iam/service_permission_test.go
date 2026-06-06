@@ -424,7 +424,10 @@ func TestPermissionService_DeleteByUUID(t *testing.T) {
 				return errors.New("delete fail")
 			},
 		}
-		svc := newPermissionService(permRepo, &mockAPIRepo{}, &mockRoleRepo{}, &mockClientRepo{})
+		db, mock := newMockGormDB(t)
+		mock.ExpectBegin()
+		mock.ExpectRollback()
+		svc := NewPermissionService(db, permRepo, &mockAPIRepo{}, &mockRoleRepo{}, &mockClientRepo{}, cache.NopInvalidator{}, nil)
 		_, err := svc.DeleteByUUID(context.Background(), permUUID, tenantID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "delete fail")
@@ -436,7 +439,10 @@ func TestPermissionService_DeleteByUUID(t *testing.T) {
 				return newPermission(1, "read:users", tenantID), nil
 			},
 		}
-		svc := newPermissionService(permRepo, &mockAPIRepo{}, &mockRoleRepo{}, &mockClientRepo{})
+		db, mock := newMockGormDB(t)
+		mock.ExpectBegin()
+		mock.ExpectCommit()
+		svc := NewPermissionService(db, permRepo, &mockAPIRepo{}, &mockRoleRepo{}, &mockClientRepo{}, cache.NopInvalidator{}, nil)
 		result, err := svc.DeleteByUUID(context.Background(), permUUID, tenantID)
 		require.NoError(t, err)
 		assert.NotNil(t, result)
@@ -787,10 +793,10 @@ func TestPermissionService_InvalidatorErrors(t *testing.T) {
 					return nil
 				},
 			}
-			if tc.name != "delete" {
-				mock.ExpectBegin()
-				mock.ExpectCommit()
-			}
+			// All of these (including delete) now wrap the mutation + event
+			// emission in a transaction that commits before the invalidator runs.
+			mock.ExpectBegin()
+			mock.ExpectCommit()
 			svc := NewPermissionService(
 				db,
 				permRepo,

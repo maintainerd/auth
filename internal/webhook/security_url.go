@@ -7,6 +7,14 @@ import (
 	"net/url"
 )
 
+// ValidateDeliveryURL validates a webhook destination URL at delivery time:
+// it resolves DNS and rejects loopback/private/link-local/metadata addresses.
+// Use this on every outbound request (and on each redirect hop) to close the
+// DNS-rebinding / TOCTOU SSRF window left by registration-time validation.
+func ValidateDeliveryURL(ctx context.Context, raw string) error {
+	return validateWebhookURL(ctx, raw, true)
+}
+
 func validateWebhookURL(ctx context.Context, raw string, resolve bool) error {
 	parsed, err := url.Parse(raw)
 	if err != nil || parsed.Scheme == "" || parsed.Host == "" {

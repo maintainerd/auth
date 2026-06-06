@@ -498,7 +498,10 @@ func TestServiceService_DeleteByUUID(t *testing.T) {
 	})
 
 	t.Run("DeleteByUUID repo error", func(t *testing.T) {
-		svc := newServiceSvc(t, &mockServiceRepo{
+		db, mock := newMockGormDB(t)
+		mock.ExpectBegin()
+		mock.ExpectRollback()
+		svc := NewServiceService(db, &mockServiceRepo{
 			findByUUIDFn: func(_ any, _ ...string) (*Service, error) {
 				return &Service{ServiceUUID: id, Name: "svc"}, nil
 			},
@@ -510,7 +513,10 @@ func TestServiceService_DeleteByUUID(t *testing.T) {
 	})
 
 	t.Run("success", func(t *testing.T) {
-		svc := newServiceSvc(t, &mockServiceRepo{
+		db, mock := newMockGormDB(t)
+		mock.ExpectBegin()
+		mock.ExpectCommit()
+		svc := NewServiceService(db, &mockServiceRepo{
 			findByUUIDFn: func(_ any, _ ...string) (*Service, error) {
 				return &Service{ServiceUUID: id, Name: "svc"}, nil
 			},

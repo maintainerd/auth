@@ -93,6 +93,11 @@ func (s *eventRouteServiceImpl) Create(ctx context.Context, tenantID int64, even
 		span.SetStatus(codes.Error, "event type not found")
 		return nil, apperror.NewNotFound("event type")
 	}
+	// Do not allow routing a retired/disabled event type.
+	if !et.IsActive {
+		span.SetStatus(codes.Error, "event type is not active")
+		return nil, apperror.NewValidation("event type is not active and cannot be routed")
+	}
 
 	route := &EventRoute{
 		TenantID:    tenantID,
