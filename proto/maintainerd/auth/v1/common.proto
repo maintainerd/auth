@@ -6,16 +6,6 @@ import "google/protobuf/timestamp.proto";
 
 option go_package = "github.com/maintainerd/auth/internal/platform/gen/go/maintainerd/auth;authv1";
 
-message PageRequest {
-  int32 page_size = 1;
-  string page_token = 2;
-}
-
-message PageResponse {
-  string next_page_token = 1;
-  int32 total_size = 2;
-}
-
 enum Status {
   STATUS_UNSPECIFIED = 0;
   STATUS_ACTIVE = 1;

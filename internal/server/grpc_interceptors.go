@@ -25,7 +25,10 @@ const (
 	defaultGRPCTimeout   = 60 * time.Second
 	defaultGRPCRateLimit = 600
 	defaultGRPCWindow    = time.Minute
+	grpcRequestIDKey     = "x-request-id"
 )
+
+type grpcRequestIDContextKey struct{}
 
 type grpcLimiter struct {
 	mu      sync.Mutex
@@ -108,7 +111,9 @@ func grpcRecoveryStreamInterceptor() grpc.StreamServerInterceptor {
 func grpcLoggingUnaryInterceptor() grpc.UnaryServerInterceptor {
 	return func(ctx context.Context, req any, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (any, error) {
 		start := time.Now()
+		ctx, requestID := grpcContextWithRequestID(ctx)
 		resp, err := handler(ctx, req)
+		_ = grpc.SetTrailer(ctx, metadata.Pairs(grpcRequestIDKey, requestID))
 		logGRPC(ctx, info.FullMethod, start, err)
 		return resp, err
 	}
@@ -117,8 +122,11 @@ func grpcLoggingUnaryInterceptor() grpc.UnaryServerInterceptor {
 func grpcLoggingStreamInterceptor() grpc.StreamServerInterceptor {
 	return func(srv any, stream grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
 		start := time.Now()
-		err := handler(srv, stream)
-		logGRPC(stream.Context(), info.FullMethod, start, err)
+		ctx, requestID := grpcContextWithRequestID(stream.Context())
+		wrapped := &grpcContextServerStream{ServerStream: stream, ctx: ctx}
+		err := handler(srv, wrapped)
+		_ = grpc.SetTrailer(ctx, metadata.Pairs(grpcRequestIDKey, requestID))
+		logGRPC(ctx, info.FullMethod, start, err)
 		return err
 	}
 }
@@ -266,7 +274,30 @@ func logGRPC(ctx context.Context, method string, start time.Time, err error) {
 			addr = p.Addr.String()
 		}
 	}
-	slog.Info("gRPC request", "method", method, "code", code.String(), "duration_ms", time.Since(start).Milliseconds(), "peer", addr)
+	slog.Info("gRPC request", "method", method, "code", code.String(), "duration_ms", time.Since(start).Milliseconds(), "peer", addr, "request_id", grpcRequestIDFromContext(ctx))
+}
+
+func grpcContextWithRequestID(ctx context.Context) (context.Context, string) {
+	requestID := grpcRequestIDFromMetadata(ctx)
+	if requestID == "" {
+		requestID = uuid.NewString()
+	}
+	return context.WithValue(ctx, grpcRequestIDContextKey{}, requestID), requestID
+}
+
+func grpcRequestIDFromContext(ctx context.Context) string {
+	requestID, _ := ctx.Value(grpcRequestIDContextKey{}).(string)
+	return requestID
+}
+
+func grpcRequestIDFromMetadata(ctx context.Context) string {
+	md, _ := metadata.FromIncomingContext(ctx)
+	for _, key := range []string{grpcRequestIDKey, "request-id", "x-correlation-id", "correlation-id"} {
+		if values := md.Get(key); len(values) > 0 && strings.TrimSpace(values[0]) != "" {
+			return strings.TrimSpace(values[0])
+		}
+	}
+	return ""
 }
 
 type grpcContextServerStream struct {

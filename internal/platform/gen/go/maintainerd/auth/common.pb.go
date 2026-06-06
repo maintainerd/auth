@@ -77,110 +77,6 @@ func (Status) EnumDescriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_common_proto_rawDescGZIP(), []int{0}
 }
 
-type PageRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	PageSize      int32                  `protobuf:"varint,1,opt,name=page_size,json=pageSize,proto3" json:"page_size,omitempty"`
-	PageToken     string                 `protobuf:"bytes,2,opt,name=page_token,json=pageToken,proto3" json:"page_token,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *PageRequest) Reset() {
-	*x = PageRequest{}
-	mi := &file_maintainerd_auth_v1_common_proto_msgTypes[0]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *PageRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*PageRequest) ProtoMessage() {}
-
-func (x *PageRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_maintainerd_auth_v1_common_proto_msgTypes[0]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use PageRequest.ProtoReflect.Descriptor instead.
-func (*PageRequest) Descriptor() ([]byte, []int) {
-	return file_maintainerd_auth_v1_common_proto_rawDescGZIP(), []int{0}
-}
-
-func (x *PageRequest) GetPageSize() int32 {
-	if x != nil {
-		return x.PageSize
-	}
-	return 0
-}
-
-func (x *PageRequest) GetPageToken() string {
-	if x != nil {
-		return x.PageToken
-	}
-	return ""
-}
-
-type PageResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	NextPageToken string                 `protobuf:"bytes,1,opt,name=next_page_token,json=nextPageToken,proto3" json:"next_page_token,omitempty"`
-	TotalSize     int32                  `protobuf:"varint,2,opt,name=total_size,json=totalSize,proto3" json:"total_size,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *PageResponse) Reset() {
-	*x = PageResponse{}
-	mi := &file_maintainerd_auth_v1_common_proto_msgTypes[1]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *PageResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*PageResponse) ProtoMessage() {}
-
-func (x *PageResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_maintainerd_auth_v1_common_proto_msgTypes[1]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use PageResponse.ProtoReflect.Descriptor instead.
-func (*PageResponse) Descriptor() ([]byte, []int) {
-	return file_maintainerd_auth_v1_common_proto_rawDescGZIP(), []int{1}
-}
-
-func (x *PageResponse) GetNextPageToken() string {
-	if x != nil {
-		return x.NextPageToken
-	}
-	return ""
-}
-
-func (x *PageResponse) GetTotalSize() int32 {
-	if x != nil {
-		return x.TotalSize
-	}
-	return 0
-}
-
 type AuditFields struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	CreatedAt     *timestamppb.Timestamp `protobuf:"bytes,1,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
@@ -193,7 +89,7 @@ type AuditFields struct {
 
 func (x *AuditFields) Reset() {
 	*x = AuditFields{}
-	mi := &file_maintainerd_auth_v1_common_proto_msgTypes[2]
+	mi := &file_maintainerd_auth_v1_common_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -205,7 +101,7 @@ func (x *AuditFields) String() string {
 func (*AuditFields) ProtoMessage() {}
 
 func (x *AuditFields) ProtoReflect() protoreflect.Message {
-	mi := &file_maintainerd_auth_v1_common_proto_msgTypes[2]
+	mi := &file_maintainerd_auth_v1_common_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -218,7 +114,7 @@ func (x *AuditFields) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AuditFields.ProtoReflect.Descriptor instead.
 func (*AuditFields) Descriptor() ([]byte, []int) {
-	return file_maintainerd_auth_v1_common_proto_rawDescGZIP(), []int{2}
+	return file_maintainerd_auth_v1_common_proto_rawDescGZIP(), []int{0}
 }
 
 func (x *AuditFields) GetCreatedAt() *timestamppb.Timestamp {
@@ -253,15 +149,7 @@ var File_maintainerd_auth_v1_common_proto protoreflect.FileDescriptor
 
 const file_maintainerd_auth_v1_common_proto_rawDesc = "" +
 	"\n" +
-	" maintainerd/auth/v1/common.proto\x12\x13maintainerd.auth.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"I\n" +
-	"\vPageRequest\x12\x1b\n" +
-	"\tpage_size\x18\x01 \x01(\x05R\bpageSize\x12\x1d\n" +
-	"\n" +
-	"page_token\x18\x02 \x01(\tR\tpageToken\"U\n" +
-	"\fPageResponse\x12&\n" +
-	"\x0fnext_page_token\x18\x01 \x01(\tR\rnextPageToken\x12\x1d\n" +
-	"\n" +
-	"total_size\x18\x02 \x01(\x05R\ttotalSize\"\xc1\x01\n" +
+	" maintainerd/auth/v1/common.proto\x12\x13maintainerd.auth.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\xc1\x01\n" +
 	"\vAuditFields\x129\n" +
 	"\n" +
 	"created_at\x18\x01 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x129\n" +
@@ -291,17 +179,15 @@ func file_maintainerd_auth_v1_common_proto_rawDescGZIP() []byte {
 }
 
 var file_maintainerd_auth_v1_common_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_maintainerd_auth_v1_common_proto_msgTypes = make([]protoimpl.MessageInfo, 3)
+var file_maintainerd_auth_v1_common_proto_msgTypes = make([]protoimpl.MessageInfo, 1)
 var file_maintainerd_auth_v1_common_proto_goTypes = []any{
 	(Status)(0),                   // 0: maintainerd.auth.v1.Status
-	(*PageRequest)(nil),           // 1: maintainerd.auth.v1.PageRequest
-	(*PageResponse)(nil),          // 2: maintainerd.auth.v1.PageResponse
-	(*AuditFields)(nil),           // 3: maintainerd.auth.v1.AuditFields
-	(*timestamppb.Timestamp)(nil), // 4: google.protobuf.Timestamp
+	(*AuditFields)(nil),           // 1: maintainerd.auth.v1.AuditFields
+	(*timestamppb.Timestamp)(nil), // 2: google.protobuf.Timestamp
 }
 var file_maintainerd_auth_v1_common_proto_depIdxs = []int32{
-	4, // 0: maintainerd.auth.v1.AuditFields.created_at:type_name -> google.protobuf.Timestamp
-	4, // 1: maintainerd.auth.v1.AuditFields.updated_at:type_name -> google.protobuf.Timestamp
+	2, // 0: maintainerd.auth.v1.AuditFields.created_at:type_name -> google.protobuf.Timestamp
+	2, // 1: maintainerd.auth.v1.AuditFields.updated_at:type_name -> google.protobuf.Timestamp
 	2, // [2:2] is the sub-list for method output_type
 	2, // [2:2] is the sub-list for method input_type
 	2, // [2:2] is the sub-list for extension type_name
@@ -320,7 +206,7 @@ func file_maintainerd_auth_v1_common_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_maintainerd_auth_v1_common_proto_rawDesc), len(file_maintainerd_auth_v1_common_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   3,
+			NumMessages:   1,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

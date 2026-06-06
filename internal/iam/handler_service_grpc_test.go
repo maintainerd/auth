@@ -9,6 +9,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/platform/apperror"
 	authv1 "github.com/maintainerd/auth/internal/platform/gen/go/maintainerd/auth"
+	"github.com/maintainerd/auth/internal/platform/middleware"
 	"github.com/maintainerd/auth/internal/shared"
 	tenantpkg "github.com/maintainerd/auth/internal/tenant"
 	"github.com/stretchr/testify/assert"
@@ -90,7 +91,7 @@ func TestServiceGRPCHandler_RPCS(t *testing.T) {
 				return nil
 			},
 		}
-		h := NewServiceGRPCHandler(tenantResolver, svc)
+		h := NewServiceGRPCHandler(tenantResolver, svc, nil)
 
 		list, err := h.ListServices(ctx, &authv1.ListServicesRequest{
 			TenantUuid: tenantUUID.String(),
@@ -132,7 +133,7 @@ func TestServiceGRPCHandler_RPCS(t *testing.T) {
 	})
 
 	t.Run("validation and dependency errors", func(t *testing.T) {
-		h := NewServiceGRPCHandler(mockTenantResolver{}, &mockServiceService{})
+		h := NewServiceGRPCHandler(mockTenantResolver{}, &mockServiceService{}, nil)
 		_, err := h.ListServices(ctx, &authv1.ListServicesRequest{TenantUuid: "bad"})
 		assert.Equal(t, codes.InvalidArgument, status.Code(err))
 		_, err = h.ListServices(ctx, &authv1.ListServicesRequest{TenantUuid: tenantUUID.String(), Status: []string{"bad"}})
@@ -170,7 +171,7 @@ func TestServiceGRPCHandler_RPCS(t *testing.T) {
 
 		h = NewServiceGRPCHandler(mockTenantResolver{getByUUIDFn: func(uuid.UUID) (*tenantpkg.TenantServiceDataResult, error) {
 			return nil, apperror.NewNotFound("missing tenant")
-		}}, &mockServiceService{})
+		}}, &mockServiceService{}, nil)
 		_, err = h.ListServices(ctx, &authv1.ListServicesRequest{TenantUuid: tenantUUID.String()})
 		assert.Equal(t, codes.NotFound, status.Code(err))
 
@@ -188,7 +189,7 @@ func TestServiceGRPCHandler_RPCS(t *testing.T) {
 			deleteByUUIDFn:    func(uuid.UUID, int64) (*ServiceServiceDataResult, error) { return nil, serviceErr },
 			assignPolicyFn:    func(uuid.UUID, uuid.UUID, int64) error { return serviceErr },
 			removePolicyFn:    func(uuid.UUID, uuid.UUID, int64) error { return serviceErr },
-		})
+		}, nil)
 		_, err = h.ListServices(ctx, &authv1.ListServicesRequest{TenantUuid: tenantUUID.String()})
 		assert.Equal(t, codes.Internal, status.Code(err))
 		_, err = h.GetService(ctx, &authv1.GetServiceRequest{TenantUuid: tenantUUID.String(), ServiceUuid: serviceUUID.String()})
@@ -205,6 +206,102 @@ func TestServiceGRPCHandler_RPCS(t *testing.T) {
 		assert.Equal(t, codes.Internal, status.Code(err))
 		_, err = h.RemoveServicePolicy(ctx, &authv1.RemoveServicePolicyRequest{TenantUuid: tenantUUID.String(), ServiceUuid: serviceUUID.String(), PolicyUuid: policyUUID.String()})
 		assert.Equal(t, codes.Internal, status.Code(err))
+	})
+}
+
+func TestServiceGRPCHandler_GetMyPolicyBundle(t *testing.T) {
+	generatedAt := time.Date(2026, 6, 6, 10, 0, 0, 0, time.UTC)
+	serviceCtx := middleware.ContextWithJWTClaims(context.Background(), &middleware.JWTClaims{
+		Sub:         "ignored",
+		Service:     "core",
+		SubjectType: "service",
+		ClientID:    "client-1",
+	})
+	subjectServiceCtx := middleware.ContextWithJWTClaims(context.Background(), &middleware.JWTClaims{
+		Sub:         "core-sub",
+		SubjectType: "service",
+		ClientID:    "client-2",
+	})
+
+	t.Run("success returns bundle and etag", func(t *testing.T) {
+		h := NewServiceGRPCHandler(nil, nil, &mockAuthorizationService{
+			policyBundleFn: func(identity ServiceIdentity) (*PolicyBundle, string, error) {
+				assert.Equal(t, ServiceIdentity{ServiceName: "core", ClientID: "client-1"}, identity)
+				return &PolicyBundle{
+					Service:     "core",
+					Version:     "vabc",
+					GeneratedAt: generatedAt,
+					Policies: []PolicyDocument{{
+						Version: "v1",
+						Statement: []PolicyStatement{{
+							Effect:   "allow",
+							Action:   []string{"*"},
+							Resource: []string{"*"},
+						}},
+					}},
+				}, `"vabc"`, nil
+			},
+		})
+
+		resp, err := h.GetMyPolicyBundle(serviceCtx, &authv1.GetMyPolicyBundleRequest{})
+
+		require.NoError(t, err)
+		require.NotNil(t, resp.Bundle)
+		assert.Equal(t, `"vabc"`, resp.Etag)
+		assert.False(t, resp.NotModified)
+		assert.Equal(t, "core", resp.Bundle.Service)
+		assert.Equal(t, "vabc", resp.Bundle.Version)
+		assert.Equal(t, generatedAt, resp.Bundle.GeneratedAt.AsTime())
+		require.Len(t, resp.Bundle.Policies, 1)
+		assert.Equal(t, "v1", resp.Bundle.Policies[0].Fields["version"].GetStringValue())
+	})
+
+	t.Run("not modified skips bundle payload", func(t *testing.T) {
+		h := NewServiceGRPCHandler(nil, nil, &mockAuthorizationService{
+			policyBundleFn: func(identity ServiceIdentity) (*PolicyBundle, string, error) {
+				assert.Equal(t, ServiceIdentity{ServiceName: "core-sub", ClientID: "client-2"}, identity)
+				return &PolicyBundle{Service: "core-sub", Version: "v1", GeneratedAt: generatedAt}, `"v1"`, nil
+			},
+		})
+
+		resp, err := h.GetMyPolicyBundle(subjectServiceCtx, &authv1.GetMyPolicyBundleRequest{IfNoneMatch: `"v1"`})
+
+		require.NoError(t, err)
+		assert.Nil(t, resp.Bundle)
+		assert.True(t, resp.NotModified)
+		assert.Equal(t, `"v1"`, resp.Etag)
+	})
+
+	t.Run("requires service identity", func(t *testing.T) {
+		h := NewServiceGRPCHandler(nil, nil, &mockAuthorizationService{})
+		_, err := h.GetMyPolicyBundle(context.Background(), &authv1.GetMyPolicyBundleRequest{})
+		assert.Equal(t, codes.Unauthenticated, status.Code(err))
+
+		userCtx := middleware.ContextWithJWTClaims(context.Background(), &middleware.JWTClaims{Sub: uuid.NewString()})
+		_, err = h.GetMyPolicyBundle(userCtx, &authv1.GetMyPolicyBundleRequest{})
+		assert.Equal(t, codes.Unauthenticated, status.Code(err))
+	})
+
+	t.Run("requires authorization service", func(t *testing.T) {
+		h := NewServiceGRPCHandler(nil, nil, nil)
+		_, err := h.GetMyPolicyBundle(serviceCtx, &authv1.GetMyPolicyBundleRequest{})
+		assert.Equal(t, codes.Internal, status.Code(err))
+	})
+
+	t.Run("propagates service error", func(t *testing.T) {
+		h := NewServiceGRPCHandler(nil, nil, &mockAuthorizationService{
+			policyBundleFn: func(ServiceIdentity) (*PolicyBundle, string, error) {
+				return nil, "", apperror.NewNotFoundWithReason("service principal not found or inactive")
+			},
+		})
+
+		_, err := h.GetMyPolicyBundle(serviceCtx, &authv1.GetMyPolicyBundleRequest{})
+		assert.Equal(t, codes.NotFound, status.Code(err))
+	})
+
+	t.Run("nil bundle is allowed", func(t *testing.T) {
+		got := servicePolicyBundleProto(nil)
+		assert.Nil(t, got)
 	})
 }
 

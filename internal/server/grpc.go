@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"net"
 	"os"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/authevent"
@@ -20,6 +21,7 @@ import (
 	"github.com/maintainerd/auth/internal/oauth"
 	"github.com/maintainerd/auth/internal/platform/config"
 	authv1 "github.com/maintainerd/auth/internal/platform/gen/go/maintainerd/auth"
+	"github.com/maintainerd/auth/internal/platform/jwt"
 	"github.com/maintainerd/auth/internal/secpolicy"
 	"github.com/maintainerd/auth/internal/setup"
 	"github.com/maintainerd/auth/internal/shared"
@@ -33,6 +35,8 @@ import (
 	healthpb "google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/reflection"
 )
+
+const grpcHealthRefreshInterval = 5 * time.Second
 
 // StartGRPCServer binds to shared.DefaultGRPCAddr and serves until ctx is cancelled, at which
 // point it drains in-flight RPCs via GracefulStop. It returns an error for any
@@ -54,33 +58,9 @@ func serveGRPC(ctx context.Context, application *Application, lis net.Listener) 
 	s := grpc.NewServer(opts...)
 	healthServer := health.NewServer()
 	healthpb.RegisterHealthServer(s, healthServer)
-	healthServer.SetServingStatus("", healthpb.HealthCheckResponse_SERVING)
-	healthServer.SetServingStatus(authv1.SetupService_ServiceDesc.ServiceName, healthpb.HealthCheckResponse_SERVING)
-	healthServer.SetServingStatus(authv1.TenantService_ServiceDesc.ServiceName, healthpb.HealthCheckResponse_SERVING)
-	healthServer.SetServingStatus(authv1.TenantSettingService_ServiceDesc.ServiceName, healthpb.HealthCheckResponse_SERVING)
-	healthServer.SetServingStatus(authv1.ServiceService_ServiceDesc.ServiceName, healthpb.HealthCheckResponse_SERVING)
-	healthServer.SetServingStatus(authv1.APIService_ServiceDesc.ServiceName, healthpb.HealthCheckResponse_SERVING)
-	healthServer.SetServingStatus(authv1.PermissionService_ServiceDesc.ServiceName, healthpb.HealthCheckResponse_SERVING)
-	healthServer.SetServingStatus(authv1.PolicyService_ServiceDesc.ServiceName, healthpb.HealthCheckResponse_SERVING)
-	healthServer.SetServingStatus(authv1.RoleService_ServiceDesc.ServiceName, healthpb.HealthCheckResponse_SERVING)
-	healthServer.SetServingStatus(authv1.AuthorizationService_ServiceDesc.ServiceName, healthpb.HealthCheckResponse_SERVING)
-	healthServer.SetServingStatus(authv1.IdentityProviderService_ServiceDesc.ServiceName, healthpb.HealthCheckResponse_SERVING)
-	healthServer.SetServingStatus(authv1.SignupFlowService_ServiceDesc.ServiceName, healthpb.HealthCheckResponse_SERVING)
-	healthServer.SetServingStatus(authv1.ClientService_ServiceDesc.ServiceName, healthpb.HealthCheckResponse_SERVING)
-	healthServer.SetServingStatus(authv1.APIKeyService_ServiceDesc.ServiceName, healthpb.HealthCheckResponse_SERVING)
-	healthServer.SetServingStatus(authv1.UserService_ServiceDesc.ServiceName, healthpb.HealthCheckResponse_SERVING)
-	healthServer.SetServingStatus(authv1.InviteService_ServiceDesc.ServiceName, healthpb.HealthCheckResponse_SERVING)
-	healthServer.SetServingStatus(authv1.SecuritySettingService_ServiceDesc.ServiceName, healthpb.HealthCheckResponse_SERVING)
-	healthServer.SetServingStatus(authv1.IPRestrictionRuleService_ServiceDesc.ServiceName, healthpb.HealthCheckResponse_SERVING)
-	healthServer.SetServingStatus(authv1.BrandingService_ServiceDesc.ServiceName, healthpb.HealthCheckResponse_SERVING)
-	healthServer.SetServingStatus(authv1.EmailTemplateService_ServiceDesc.ServiceName, healthpb.HealthCheckResponse_SERVING)
-	healthServer.SetServingStatus(authv1.SMSTemplateService_ServiceDesc.ServiceName, healthpb.HealthCheckResponse_SERVING)
-	healthServer.SetServingStatus(authv1.LoginTemplateService_ServiceDesc.ServiceName, healthpb.HealthCheckResponse_SERVING)
-	healthServer.SetServingStatus(authv1.EmailConfigService_ServiceDesc.ServiceName, healthpb.HealthCheckResponse_SERVING)
-	healthServer.SetServingStatus(authv1.SMSConfigService_ServiceDesc.ServiceName, healthpb.HealthCheckResponse_SERVING)
-	healthServer.SetServingStatus(authv1.WebhookEndpointService_ServiceDesc.ServiceName, healthpb.HealthCheckResponse_SERVING)
-	healthServer.SetServingStatus(authv1.AuthEventService_ServiceDesc.ServiceName, healthpb.HealthCheckResponse_SERVING)
-	healthServer.SetServingStatus(authv1.OAuthIntrospectionService_ServiceDesc.ServiceName, healthpb.HealthCheckResponse_SERVING)
+	setGRPCServiceHealth(healthServer, healthpb.HealthCheckResponse_SERVING)
+	updateGRPCOverallHealth(ctx, healthServer, application)
+	go refreshGRPCOverallHealth(ctx, healthServer, application, grpcHealthRefreshInterval)
 
 	if config.AppEnv != "production" {
 		reflection.Register(s)
@@ -89,7 +69,7 @@ func serveGRPC(ctx context.Context, application *Application, lis net.Listener) 
 	authv1.RegisterSetupServiceServer(s, setup.NewSetupGRPCHandler(application.SetupService))
 	authv1.RegisterTenantServiceServer(s, tenant.NewTenantGRPCHandler(application.TenantService, application.TenantMemberService))
 	authv1.RegisterTenantSettingServiceServer(s, tenant.NewTenantSettingGRPCHandler(application.TenantService, application.TenantSettingService))
-	authv1.RegisterServiceServiceServer(s, iam.NewServiceGRPCHandler(application.TenantService, application.ServiceService))
+	authv1.RegisterServiceServiceServer(s, iam.NewServiceGRPCHandler(application.TenantService, application.ServiceService, application.AuthorizationService))
 	authv1.RegisterAPIServiceServer(s, iam.NewAPIGRPCHandler(application.TenantService, application.APIService))
 	authv1.RegisterPermissionServiceServer(s, iam.NewPermissionGRPCHandler(application.TenantService, application.PermissionService))
 	authv1.RegisterPolicyServiceServer(s, iam.NewPolicyGRPCHandler(application.TenantService, application.PolicyService))
@@ -126,6 +106,69 @@ func serveGRPC(ctx context.Context, application *Application, lis net.Listener) 
 		return fmt.Errorf("gRPC server failed: %w", err)
 	}
 	return nil
+}
+
+func setGRPCServiceHealth(healthServer *health.Server, status healthpb.HealthCheckResponse_ServingStatus) {
+	healthServer.SetServingStatus(authv1.SetupService_ServiceDesc.ServiceName, status)
+	healthServer.SetServingStatus(authv1.TenantService_ServiceDesc.ServiceName, status)
+	healthServer.SetServingStatus(authv1.TenantSettingService_ServiceDesc.ServiceName, status)
+	healthServer.SetServingStatus(authv1.ServiceService_ServiceDesc.ServiceName, status)
+	healthServer.SetServingStatus(authv1.APIService_ServiceDesc.ServiceName, status)
+	healthServer.SetServingStatus(authv1.PermissionService_ServiceDesc.ServiceName, status)
+	healthServer.SetServingStatus(authv1.PolicyService_ServiceDesc.ServiceName, status)
+	healthServer.SetServingStatus(authv1.RoleService_ServiceDesc.ServiceName, status)
+	healthServer.SetServingStatus(authv1.AuthorizationService_ServiceDesc.ServiceName, status)
+	healthServer.SetServingStatus(authv1.IdentityProviderService_ServiceDesc.ServiceName, status)
+	healthServer.SetServingStatus(authv1.SignupFlowService_ServiceDesc.ServiceName, status)
+	healthServer.SetServingStatus(authv1.ClientService_ServiceDesc.ServiceName, status)
+	healthServer.SetServingStatus(authv1.APIKeyService_ServiceDesc.ServiceName, status)
+	healthServer.SetServingStatus(authv1.UserService_ServiceDesc.ServiceName, status)
+	healthServer.SetServingStatus(authv1.InviteService_ServiceDesc.ServiceName, status)
+	healthServer.SetServingStatus(authv1.SecuritySettingService_ServiceDesc.ServiceName, status)
+	healthServer.SetServingStatus(authv1.IPRestrictionRuleService_ServiceDesc.ServiceName, status)
+	healthServer.SetServingStatus(authv1.BrandingService_ServiceDesc.ServiceName, status)
+	healthServer.SetServingStatus(authv1.EmailTemplateService_ServiceDesc.ServiceName, status)
+	healthServer.SetServingStatus(authv1.SMSTemplateService_ServiceDesc.ServiceName, status)
+	healthServer.SetServingStatus(authv1.LoginTemplateService_ServiceDesc.ServiceName, status)
+	healthServer.SetServingStatus(authv1.EmailConfigService_ServiceDesc.ServiceName, status)
+	healthServer.SetServingStatus(authv1.SMSConfigService_ServiceDesc.ServiceName, status)
+	healthServer.SetServingStatus(authv1.WebhookEndpointService_ServiceDesc.ServiceName, status)
+	healthServer.SetServingStatus(authv1.AuthEventService_ServiceDesc.ServiceName, status)
+	healthServer.SetServingStatus(authv1.OAuthIntrospectionService_ServiceDesc.ServiceName, status)
+}
+
+func refreshGRPCOverallHealth(ctx context.Context, healthServer *health.Server, application *Application, interval time.Duration) {
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			updateGRPCOverallHealth(ctx, healthServer, application)
+		}
+	}
+}
+
+func updateGRPCOverallHealth(ctx context.Context, healthServer *health.Server, application *Application) {
+	healthServer.SetServingStatus("", grpcOverallHealthStatus(ctx, application))
+}
+
+func grpcOverallHealthStatus(ctx context.Context, application *Application) healthpb.HealthCheckResponse_ServingStatus {
+	if application == nil || application.DB == nil {
+		return healthpb.HealthCheckResponse_NOT_SERVING
+	}
+	sqlDB, err := application.DB.DB()
+	if err != nil || sqlDB.PingContext(ctx) != nil {
+		return healthpb.HealthCheckResponse_NOT_SERVING
+	}
+	if application.RedisClient != nil && application.RedisClient.Ping(ctx).Err() != nil {
+		return healthpb.HealthCheckResponse_NOT_SERVING
+	}
+	if jwt.GetPublicKey() == nil {
+		return healthpb.HealthCheckResponse_NOT_SERVING
+	}
+	return healthpb.HealthCheckResponse_SERVING
 }
 
 func grpcServerOptions(application *Application) ([]grpc.ServerOption, error) {
@@ -262,7 +305,9 @@ type inviteTenantResolver struct {
 
 func (r inviteTenantResolver) GetTenantIDByUUID(ctx context.Context, tenantUUID uuid.UUID) (int64, error) {
 	t, err := r.svc.GetByUUID(ctx, tenantUUID)
-	if err != nil { return 0, err }
+	if err != nil {
+		return 0, err
+	}
 	return t.TenantID, nil
 }
 
@@ -270,7 +315,9 @@ type secpolicyTenantResolver struct{ svc tenant.TenantService }
 
 func (r secpolicyTenantResolver) GetByUUID(ctx context.Context, tenantUUID uuid.UUID) (*secpolicy.TenantServiceDataResult, error) {
 	t, err := r.svc.GetByUUID(ctx, tenantUUID)
-	if err != nil { return nil, err }
+	if err != nil {
+		return nil, err
+	}
 	return &secpolicy.TenantServiceDataResult{
 		TenantID: t.TenantID, TenantUUID: t.TenantUUID, Name: t.Name, DisplayName: t.DisplayName,
 		Description: t.Description, Identifier: t.Identifier, Status: t.Status,
@@ -282,7 +329,9 @@ type brandingTenantResolver struct{ svc tenant.TenantService }
 
 func (r brandingTenantResolver) GetByUUID(ctx context.Context, tenantUUID uuid.UUID) (*branding.TenantServiceDataResult, error) {
 	t, err := r.svc.GetByUUID(ctx, tenantUUID)
-	if err != nil { return nil, err }
+	if err != nil {
+		return nil, err
+	}
 	return &branding.TenantServiceDataResult{
 		TenantID: t.TenantID, TenantUUID: t.TenantUUID, Name: t.Name, DisplayName: t.DisplayName,
 		Description: t.Description, Identifier: t.Identifier, Status: t.Status,
@@ -294,7 +343,9 @@ type notifierTenantResolver struct{ svc tenant.TenantService }
 
 func (r notifierTenantResolver) GetByUUID(ctx context.Context, tenantUUID uuid.UUID) (*notifier.TenantServiceDataResult, error) {
 	t, err := r.svc.GetByUUID(ctx, tenantUUID)
-	if err != nil { return nil, err }
+	if err != nil {
+		return nil, err
+	}
 	return &notifier.TenantServiceDataResult{
 		TenantID: t.TenantID, TenantUUID: t.TenantUUID, Name: t.Name, DisplayName: t.DisplayName,
 		Description: t.Description, Identifier: t.Identifier, Status: t.Status,
@@ -306,7 +357,9 @@ type webhookTenantResolver struct{ svc tenant.TenantService }
 
 func (r webhookTenantResolver) GetByUUID(ctx context.Context, tenantUUID uuid.UUID) (*webhook.TenantServiceDataResult, error) {
 	t, err := r.svc.GetByUUID(ctx, tenantUUID)
-	if err != nil { return nil, err }
+	if err != nil {
+		return nil, err
+	}
 	return &webhook.TenantServiceDataResult{
 		TenantID: t.TenantID, TenantUUID: t.TenantUUID, Name: t.Name, DisplayName: t.DisplayName,
 		Description: t.Description, Identifier: t.Identifier, Status: t.Status,
@@ -318,7 +371,9 @@ type autheventTenantResolver struct{ svc tenant.TenantService }
 
 func (r autheventTenantResolver) GetByUUID(ctx context.Context, tenantUUID uuid.UUID) (*authevent.TenantServiceDataResult, error) {
 	t, err := r.svc.GetByUUID(ctx, tenantUUID)
-	if err != nil { return nil, err }
+	if err != nil {
+		return nil, err
+	}
 	return &authevent.TenantServiceDataResult{
 		TenantID: t.TenantID, TenantUUID: t.TenantUUID, Name: t.Name, DisplayName: t.DisplayName,
 		Description: t.Description, Identifier: t.Identifier, Status: t.Status,

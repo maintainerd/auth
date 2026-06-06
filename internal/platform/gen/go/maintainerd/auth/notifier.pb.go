@@ -9,7 +9,6 @@ package authv1
 import (
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
-	_ "google.golang.org/protobuf/types/known/structpb"
 	reflect "reflect"
 	sync "sync"
 	unsafe "unsafe"
@@ -722,7 +721,7 @@ var File_maintainerd_auth_v1_notifier_proto protoreflect.FileDescriptor
 
 const file_maintainerd_auth_v1_notifier_proto_rawDesc = "" +
 	"\n" +
-	"\"maintainerd/auth/v1/notifier.proto\x12\x13maintainerd.auth.v1\x1a\x1cgoogle/protobuf/struct.proto\x1a maintainerd/auth/v1/tenant.proto\"\xc9\x02\n" +
+	"\"maintainerd/auth/v1/notifier.proto\x12\x13maintainerd.auth.v1\"\xc9\x02\n" +
 	"\vEmailConfig\x12*\n" +
 	"\x11email_config_uuid\x18\x01 \x01(\tR\x0femailConfigUuid\x12\x1a\n" +
 	"\bprovider\x18\x02 \x01(\tR\bprovider\x12\x12\n" +
@@ -851,7 +850,6 @@ func file_maintainerd_auth_v1_notifier_proto_init() {
 	if File_maintainerd_auth_v1_notifier_proto != nil {
 		return
 	}
-	file_maintainerd_auth_v1_tenant_proto_init()
 	file_maintainerd_auth_v1_notifier_proto_msgTypes[3].OneofWrappers = []any{}
 	file_maintainerd_auth_v1_notifier_proto_msgTypes[8].OneofWrappers = []any{}
 	type x struct{}

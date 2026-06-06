@@ -63,7 +63,9 @@ func TestGRPCInterceptors_BasicBranches(t *testing.T) {
 	t.Run("logging and timeout pass through", func(t *testing.T) {
 		logging := grpcLoggingUnaryInterceptor()
 		timeout := grpcTimeoutUnaryInterceptor(time.Second)
-		resp, err := logging(context.Background(), nil, &grpc.UnaryServerInfo{FullMethod: "/svc/Ok"}, func(ctx context.Context, req any) (any, error) {
+		ctx := metadata.NewIncomingContext(context.Background(), metadata.Pairs(grpcRequestIDKey, "req-123"))
+		resp, err := logging(ctx, nil, &grpc.UnaryServerInfo{FullMethod: "/svc/Ok"}, func(ctx context.Context, req any) (any, error) {
+			assert.Equal(t, "req-123", grpcRequestIDFromContext(ctx))
 			return timeout(ctx, req, &grpc.UnaryServerInfo{FullMethod: "/svc/Ok"}, func(ctx context.Context, _ any) (any, error) {
 				_, ok := ctx.Deadline()
 				assert.True(t, ok)
@@ -263,14 +265,26 @@ func TestGRPCInterceptors_BasicBranches(t *testing.T) {
 		logGRPC(peer.NewContext(context.Background(), &peer.Peer{Addr: testAddr("pipe")}), "/svc/Ok", time.Now(), nil)
 	})
 
+	t.Run("request id helpers accept aliases and synthesize missing id", func(t *testing.T) {
+		assert.Equal(t, "req-a", grpcRequestIDFromMetadata(metadata.NewIncomingContext(context.Background(), metadata.Pairs("request-id", " req-a "))))
+		assert.Equal(t, "req-b", grpcRequestIDFromMetadata(metadata.NewIncomingContext(context.Background(), metadata.Pairs("x-correlation-id", "req-b"))))
+		assert.Equal(t, "req-c", grpcRequestIDFromMetadata(metadata.NewIncomingContext(context.Background(), metadata.Pairs("correlation-id", "req-c"))))
+		assert.Empty(t, grpcRequestIDFromMetadata(metadata.NewIncomingContext(context.Background(), metadata.Pairs(grpcRequestIDKey, " "))))
+
+		ctx, requestID := grpcContextWithRequestID(context.Background())
+		assert.NotEmpty(t, requestID)
+		assert.Equal(t, requestID, grpcRequestIDFromContext(ctx))
+	})
+
 	t.Run("stream logging timeout and auth interceptors pass through", func(t *testing.T) {
-		stream := &testServerStream{ctx: context.Background()}
+		stream := &testServerStream{ctx: metadata.NewIncomingContext(context.Background(), metadata.Pairs(grpcRequestIDKey, "stream-req"))}
 		logging := grpcLoggingStreamInterceptor()
 		timeout := grpcTimeoutStreamInterceptor(time.Second)
 		auth := grpcAuthStreamInterceptor(&Application{}, newGRPCLimiter(1, time.Minute))
 
-		require.NoError(t, logging(nil, stream, &grpc.StreamServerInfo{FullMethod: "/unknown.Service/Stream"}, func(any, grpc.ServerStream) error {
-			return timeout(nil, stream, &grpc.StreamServerInfo{FullMethod: "/unknown.Service/Stream"}, func(_ any, wrapped grpc.ServerStream) error {
+		require.NoError(t, logging(nil, stream, &grpc.StreamServerInfo{FullMethod: "/unknown.Service/Stream"}, func(_ any, logged grpc.ServerStream) error {
+			return timeout(nil, logged, &grpc.StreamServerInfo{FullMethod: "/unknown.Service/Stream"}, func(_ any, wrapped grpc.ServerStream) error {
+				assert.Equal(t, "stream-req", grpcRequestIDFromContext(wrapped.Context()))
 				_, ok := wrapped.Context().Deadline()
 				assert.True(t, ok)
 				return auth(nil, wrapped, &grpc.StreamServerInfo{FullMethod: "/unknown.Service/Stream"}, func(_ any, authed grpc.ServerStream) error {
@@ -544,7 +558,7 @@ func TestServeGRPC_HealthAndShutdown(t *testing.T) {
 	defer checkCancel()
 	resp, err := grpc_health_v1.NewHealthClient(conn).Check(checkCtx, &grpc_health_v1.HealthCheckRequest{})
 	require.NoError(t, err)
-	assert.Equal(t, grpc_health_v1.HealthCheckResponse_SERVING, resp.Status)
+	assert.Equal(t, grpc_health_v1.HealthCheckResponse_NOT_SERVING, resp.Status)
 
 	cancel()
 	require.NoError(t, <-done)

@@ -9,6 +9,7 @@ import "maintainerd/auth/v1/tenant.proto";
 option go_package = "github.com/maintainerd/auth/internal/platform/gen/go/maintainerd/auth;authv1";
 
 service ServiceService {
+  rpc GetMyPolicyBundle(GetMyPolicyBundleRequest) returns (GetMyPolicyBundleResponse);
   rpc ListServices(ListServicesRequest) returns (ListServicesResponse);
   rpc GetService(GetServiceRequest) returns (GetServiceResponse);
   rpc CreateService(CreateServiceRequest) returns (CreateServiceResponse);
@@ -75,6 +76,23 @@ message Service {
   int64 policy_count = 9;
   google.protobuf.Timestamp created_at = 10;
   google.protobuf.Timestamp updated_at = 11;
+}
+
+message ServicePolicyBundle {
+  string service = 1;
+  string version = 2;
+  repeated google.protobuf.Struct policies = 3;
+  google.protobuf.Timestamp generated_at = 4;
+}
+
+message GetMyPolicyBundleRequest {
+  string if_none_match = 1;
+}
+
+message GetMyPolicyBundleResponse {
+  ServicePolicyBundle bundle = 1;
+  string etag = 2;
+  bool not_modified = 3;
 }
 
 message API {

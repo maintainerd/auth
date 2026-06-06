@@ -2,9 +2,6 @@ syntax = "proto3";
 
 package maintainerd.auth.v1;
 
-import "google/protobuf/struct.proto";
-import "maintainerd/auth/v1/tenant.proto";
-
 option go_package = "github.com/maintainerd/auth/internal/platform/gen/go/maintainerd/auth;authv1";
 
 service EmailConfigService {

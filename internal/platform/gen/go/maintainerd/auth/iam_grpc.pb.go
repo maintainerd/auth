@@ -19,6 +19,7 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
+	ServiceService_GetMyPolicyBundle_FullMethodName   = "/maintainerd.auth.v1.ServiceService/GetMyPolicyBundle"
 	ServiceService_ListServices_FullMethodName        = "/maintainerd.auth.v1.ServiceService/ListServices"
 	ServiceService_GetService_FullMethodName          = "/maintainerd.auth.v1.ServiceService/GetService"
 	ServiceService_CreateService_FullMethodName       = "/maintainerd.auth.v1.ServiceService/CreateService"
@@ -33,6 +34,7 @@ const (
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type ServiceServiceClient interface {
+	GetMyPolicyBundle(ctx context.Context, in *GetMyPolicyBundleRequest, opts ...grpc.CallOption) (*GetMyPolicyBundleResponse, error)
 	ListServices(ctx context.Context, in *ListServicesRequest, opts ...grpc.CallOption) (*ListServicesResponse, error)
 	GetService(ctx context.Context, in *GetServiceRequest, opts ...grpc.CallOption) (*GetServiceResponse, error)
 	CreateService(ctx context.Context, in *CreateServiceRequest, opts ...grpc.CallOption) (*CreateServiceResponse, error)
@@ -49,6 +51,16 @@ type serviceServiceClient struct {
 
 func NewServiceServiceClient(cc grpc.ClientConnInterface) ServiceServiceClient {
 	return &serviceServiceClient{cc}
+}
+
+func (c *serviceServiceClient) GetMyPolicyBundle(ctx context.Context, in *GetMyPolicyBundleRequest, opts ...grpc.CallOption) (*GetMyPolicyBundleResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetMyPolicyBundleResponse)
+	err := c.cc.Invoke(ctx, ServiceService_GetMyPolicyBundle_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
 }
 
 func (c *serviceServiceClient) ListServices(ctx context.Context, in *ListServicesRequest, opts ...grpc.CallOption) (*ListServicesResponse, error) {
@@ -135,6 +147,7 @@ func (c *serviceServiceClient) RemoveServicePolicy(ctx context.Context, in *Remo
 // All implementations must embed UnimplementedServiceServiceServer
 // for forward compatibility.
 type ServiceServiceServer interface {
+	GetMyPolicyBundle(context.Context, *GetMyPolicyBundleRequest) (*GetMyPolicyBundleResponse, error)
 	ListServices(context.Context, *ListServicesRequest) (*ListServicesResponse, error)
 	GetService(context.Context, *GetServiceRequest) (*GetServiceResponse, error)
 	CreateService(context.Context, *CreateServiceRequest) (*CreateServiceResponse, error)
@@ -153,6 +166,9 @@ type ServiceServiceServer interface {
 // pointer dereference when methods are called.
 type UnimplementedServiceServiceServer struct{}
 
+func (UnimplementedServiceServiceServer) GetMyPolicyBundle(context.Context, *GetMyPolicyBundleRequest) (*GetMyPolicyBundleResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetMyPolicyBundle not implemented")
+}
 func (UnimplementedServiceServiceServer) ListServices(context.Context, *ListServicesRequest) (*ListServicesResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ListServices not implemented")
 }
@@ -196,6 +212,24 @@ func RegisterServiceServiceServer(s grpc.ServiceRegistrar, srv ServiceServiceSer
 		t.testEmbeddedByValue()
 	}
 	s.RegisterService(&ServiceService_ServiceDesc, srv)
+}
+
+func _ServiceService_GetMyPolicyBundle_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetMyPolicyBundleRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ServiceServiceServer).GetMyPolicyBundle(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ServiceService_GetMyPolicyBundle_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ServiceServiceServer).GetMyPolicyBundle(ctx, req.(*GetMyPolicyBundleRequest))
+	}
+	return interceptor(ctx, in, info, handler)
 }
 
 func _ServiceService_ListServices_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
@@ -349,6 +383,10 @@ var ServiceService_ServiceDesc = grpc.ServiceDesc{
 	ServiceName: "maintainerd.auth.v1.ServiceService",
 	HandlerType: (*ServiceServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
+		{
+			MethodName: "GetMyPolicyBundle",
+			Handler:    _ServiceService_GetMyPolicyBundle_Handler,
+		},
 		{
 			MethodName: "ListServices",
 			Handler:    _ServiceService_ListServices_Handler,

@@ -25,6 +25,7 @@ var grpcServicePermissions = map[string]string{
 	grpcMethod(authv1.TenantSettingService_ServiceDesc.ServiceName, "UpdateMaintenanceConfig"): "tenant-setting:update",
 	grpcMethod(authv1.TenantSettingService_ServiceDesc.ServiceName, "GetFeatureFlags"):         "tenant-setting:read",
 	grpcMethod(authv1.TenantSettingService_ServiceDesc.ServiceName, "UpdateFeatureFlags"):      "tenant-setting:update",
+	grpcMethod(authv1.ServiceService_ServiceDesc.ServiceName, "GetMyPolicyBundle"):             "",
 	grpcMethod(authv1.ServiceService_ServiceDesc.ServiceName, "ListServices"):                  "service:read",
 	grpcMethod(authv1.ServiceService_ServiceDesc.ServiceName, "GetService"):                    "service:read",
 	grpcMethod(authv1.ServiceService_ServiceDesc.ServiceName, "CreateService"):                 "service:create",
