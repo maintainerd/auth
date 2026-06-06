@@ -47,6 +47,24 @@ BEGIN
         ALTER TABLE webhook_endpoints
             ADD CONSTRAINT chk_webhook_endpoints_status CHECK (status IN ('active', 'inactive', 'quarantined'));
     END IF;
+
+    -- Audit FKs to users. webhook_endpoints is created after the users table
+    -- (migration 024), so unlike the pre-users tables it attaches these itself.
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint WHERE conname = 'fk_webhook_endpoints_created_by'
+    ) THEN
+        ALTER TABLE webhook_endpoints
+            ADD CONSTRAINT fk_webhook_endpoints_created_by FOREIGN KEY (created_by)
+            REFERENCES users(user_id) ON DELETE SET NULL;
+    END IF;
+
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint WHERE conname = 'fk_webhook_endpoints_updated_by'
+    ) THEN
+        ALTER TABLE webhook_endpoints
+            ADD CONSTRAINT fk_webhook_endpoints_updated_by FOREIGN KEY (updated_by)
+            REFERENCES users(user_id) ON DELETE SET NULL;
+    END IF;
 END$$;
 
 -- CREATE INDEXES

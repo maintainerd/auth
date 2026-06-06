@@ -33,5 +33,5 @@ func TestGetDBConnectionString(t *testing.T) {
 	DBStatementTimeoutMs = 30000
 
 	got := GetDBConnectionString()
-	assert.Equal(t, "host=db.example.com port=5432 user=admin password=s3cret dbname=mydb sslmode=require options=-c statement_timeout=30000", got)
+	assert.Equal(t, "host=db.example.com port=5432 user=admin password=s3cret dbname=mydb sslmode=require options='-c statement_timeout=30000'", got)
 }
