@@ -123,7 +123,7 @@ func initServices(db *gorm.DB, r *repos, appCache *cache.Cache, redisClient *red
 
 	deliveryAdapter := event.NewDeliveryAdapter(
 		func(ctx context.Context, outbox *event.Outbox) error {
-			return deliverToWebhooks(ctx, outbox, r.webhookEndpointRepo, r.deliveryHistoryRepo)
+			return deliverToWebhooks(ctx, outbox, r.webhookEndpointRepo, r.deliveryHistoryRepo, r.webhookEndpointEventRepo)
 		},
 		nil, // Broker (RabbitMQ) not yet implemented
 	)
@@ -184,12 +184,12 @@ func initServices(db *gorm.DB, r *repos, appCache *cache.Cache, redisClient *red
 
 	s := &svcs{
 		serviceService:               iam.NewServiceService(db, r.serviceRepo, iamTenantServiceRepo, r.apiRepo, r.servicePolicyRepo, r.policyRepo, authEventSvc),
-		apiService:                   iam.NewAPIService(db, r.apiRepo, r.serviceRepo, iamTenantServiceRepo),
+		apiService:                   iam.NewAPIService(db, r.apiRepo, r.serviceRepo, iamTenantServiceRepo, eventSvc),
 		permissionService:            iam.NewPermissionService(db, r.permissionRepo, r.apiRepo, r.roleRepo, iamClientRepo, appCache, eventSvc, authzInvalidator),
-		tenantService:                tenant.NewTenantService(r.tenantRepo, tenantUOW),
-		tenantMemberService:          tenant.NewTenantMemberService(r.tenantMemberRepo, newTenantUserReader(r.userRepo), r.tenantRepo, tenantUOW),
+		tenantService:                tenant.NewTenantService(r.tenantRepo, tenantUOW, eventSvc),
+		tenantMemberService:          tenant.NewTenantMemberService(r.tenantMemberRepo, newTenantUserReader(r.userRepo), r.tenantRepo, tenantUOW, eventSvc),
 		idpService:                   idp.NewIdentityProviderService(db, r.idpRepo, idpTenantRepo, idpUserRepo),
-		clientService:                client.NewClientService(db, r.clientRepo, r.clientURIRepo, clientIDPRepo, clientPermissionRepo, r.clientPermissionRepo, r.clientAPIRepo, clientAPIRepo, clientUserRepo, clientTenantRepo, authEventSvc),
+		clientService:                client.NewClientService(db, r.clientRepo, r.clientURIRepo, clientIDPRepo, clientPermissionRepo, r.clientPermissionRepo, r.clientAPIRepo, clientAPIRepo, clientUserRepo, clientTenantRepo, authEventSvc, eventSvc),
 		roleService:                  iam.NewRoleService(db, r.roleRepo, r.permissionRepo, r.rolePermissionRepo, iamUserRepo, iamTenantRepo, appCache, authEventSvc, eventSvc, authzInvalidator),
 		userService:                  user.NewUserService(db, r.userRepo, r.userIdentityRepo, r.userRoleRepo, userRoleRepo, userTenantRepo, userIDPRepo, userClientRepo, r.userPoolRepo, appCache, r.userTokenRepo, r.securitySettingRepo, r.userPasswordHistoryRepo, authEventSvc, eventSvc),
 		registerService:              authn.NewRegistrationService(db, newAuthnClientRepoAdapter(r.clientRepo), newAuthnUserRepoAdapter(r.userRepo), newAuthnUserRoleRepoAdapter(r.userRoleRepo), newAuthnUserTokenRepoAdapter(r.userTokenRepo), newAuthnUserIdentityRepoAdapter(r.userIdentityRepo), newAuthnRoleRepoAdapter(r.roleRepo), newAuthnInviteRepoAdapter(r.inviteRepo), newAuthnIDPRepoAdapter(r.idpRepo), r.securitySettingRepo, newAuthnPasswordHistoryRepoAdapter(r.userPasswordHistoryRepo)),
@@ -212,7 +212,7 @@ func initServices(db *gorm.DB, r *repos, appCache *cache.Cache, redisClient *red
 		),
 		signupFlowService:            idp.NewSignupFlowService(db, r.signupFlowRepo, r.signupFlowRoleRepo, idpRoleRepo, idpClientRepo),
 		policyService:                iam.NewPolicyService(db, r.policyRepo, r.serviceRepo, r.apiRepo, eventSvc, authEventSvc),
-		apiKeyService:                client.NewAPIKeyService(db, r.apiKeyRepo, r.apiKeyAPIRepo, r.apiKeyPermissionRepo, clientAPIRepo, clientUserRepo, clientPermissionRepo),
+		apiKeyService:                client.NewAPIKeyService(db, r.apiKeyRepo, r.apiKeyAPIRepo, r.apiKeyPermissionRepo, clientAPIRepo, clientUserRepo, clientPermissionRepo, eventSvc),
 		securitySettingService:       secpolicy.NewSecuritySettingService(db, r.securitySettingRepo, r.securitySettingsAuditRepo),
 		ipRestrictionRuleService:     secpolicy.NewIPRestrictionRuleService(db, r.ipRestrictionRuleRepo),
 		emailTemplateService:         branding.NewEmailTemplateService(r.emailTemplateRepo),
@@ -238,7 +238,7 @@ func initServices(db *gorm.DB, r *repos, appCache *cache.Cache, redisClient *red
 		smsLoginService:              authn.NewSMSLoginService(db, newAuthnUserRepoAdapter(r.userRepo), r.smsOtpRepo, newAuthnClientRepoAdapter(r.clientRepo), newAuthnUserIdentityRepoAdapter(r.userIdentityRepo), newAuthnIDPRepoAdapter(r.idpRepo), authEventSvc, sessionSvc),
 		mfaService:                   mfa.NewMFAService(db, mfaUserRepo, r.totpSecretRepo, r.webAuthnCredRepo, r.userBackupCodeRepo, r.securitySettingRepo, authEventSvc),
 		webAuthnService:              webAuthnSvc,
-		federationService:            idp.NewFederationService(db, idpUserRepo, idpUserIdentityRepo, r.idpRepo, idpClientRepo, idpUserRoleRepo, idpRoleRepo, authEventSvc, sessionSvc),
+		federationService:            idp.NewFederationService(db, idpUserRepo, idpUserIdentityRepo, r.idpRepo, idpClientRepo, idpUserRoleRepo, idpRoleRepo, authEventSvc, eventSvc, sessionSvc),
 		eventService:                 eventSvc,
 		eventTypeService:             eventTypeSvc,
 		tenantEventTypeConfigService: tenantEventTypeConfigSvc,
@@ -246,6 +246,8 @@ func initServices(db *gorm.DB, r *repos, appCache *cache.Cache, redisClient *red
 		writeGate:                    writeGate,
 		relay:                        relay,
 	}
+	// Inject event service into ServiceService (uses setter to avoid breaking test constructors)
+	iam.SetServiceEventService(s.serviceService, eventSvc)
 	return s, nil
 }
 

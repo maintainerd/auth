@@ -12,7 +12,7 @@ import (
 )
 
 func newTenantMemberServiceForTest(db *gorm.DB, memberRepo TenantMemberRepository, userRepo UserReader, tenantRepo TenantRepository) TenantMemberService {
-	return NewTenantMemberService(memberRepo, userRepo, tenantRepo, NewGormUnitOfWork(db, tenantRepo, memberRepo, nil))
+	return NewTenantMemberService(memberRepo, userRepo, tenantRepo, NewGormUnitOfWork(db, tenantRepo, memberRepo, nil), nil)
 }
 
 func TestTenantMemberService_GetByUUID(t *testing.T) {
@@ -601,7 +601,7 @@ func TestTenantMemberService_DeleteByUUID_Extra(t *testing.T) {
 }
 
 func TestTenantMemberService_NewWithNilUnitOfWork(t *testing.T) {
-	svc := NewTenantMemberService(&mockTenantMemberRepo{}, &mockUserRepo{}, &mockTenantRepo{}, nil)
+	svc := NewTenantMemberService(&mockTenantMemberRepo{}, &mockUserRepo{}, &mockTenantRepo{}, nil, nil)
 
 	result, err := svc.Create(context.Background(), 1, 2, "member")
 

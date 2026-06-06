@@ -8,6 +8,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/authevent"
+	"github.com/maintainerd/auth/internal/event"
 	"github.com/maintainerd/auth/internal/platform/apperror"
 	"github.com/maintainerd/auth/internal/platform/crypto"
 	"github.com/maintainerd/auth/internal/platform/middleware"
@@ -136,6 +137,7 @@ type clientService struct {
 	userRepo             UserRepository
 	tenantRepo           TenantRepository
 	authEventService     authevent.AuthEventService
+	eventService         event.EventService
 }
 
 func NewClientService(
@@ -150,6 +152,7 @@ func NewClientService(
 	userRepo UserRepository,
 	tenantRepo TenantRepository,
 	authEventService authevent.AuthEventService,
+	eventService event.EventService,
 ) ClientService {
 	return &clientService{
 		db:                   db,
@@ -163,6 +166,7 @@ func NewClientService(
 		userRepo:             userRepo,
 		tenantRepo:           tenantRepo,
 		authEventService:     coalesceAuthEventService(authEventService),
+		eventService:         eventService,
 	}
 }
 
@@ -394,6 +398,12 @@ func (s *clientService) Create(ctx context.Context, tenantID int64, name string,
 		Result:      authevent.AuthEventResultSuccess,
 		Description: ptr.Ptr(fmt.Sprintf("Client created: %s", createdClient.Name)),
 	})
+	// Emit client.created integration event
+	if s.eventService != nil {
+		s.eventService.Emit(ctx, nil, event.NewIntegrationEvent(
+			event.EventTypeClientCreated, 1, tenantID,
+		).SetActor(&capturedActorID).SetSubject(&createdClient.ClientUUID, "client"))
+	}
 	return &ClientCreateServiceResult{
 		Client:           ToClientServiceDataResult(createdClient),
 		ClientIdentifier: identifier,
@@ -455,7 +465,16 @@ func (s *clientService) RotateSecret(ctx context.Context, clientUUID uuid.UUID, 
 		client.SecretEncrypted = &newEncrypted
 
 		_, err = txClientRepo.CreateOrUpdate(client)
-		return err
+		if err != nil {
+			return err
+		}
+		// Emit client.secret_rotated inside the transaction
+		if s.eventService != nil {
+			s.eventService.Emit(ctx, tx, event.NewIntegrationEvent(
+				event.EventTypeClientSecretRotated, 1, tenantID,
+			).SetSubject(&client.ClientUUID, "client"))
+		}
+		return nil
 	})
 
 	if err != nil {
@@ -555,6 +574,12 @@ func (s *clientService) Update(ctx context.Context, ClientUUID uuid.UUID, tenant
 		Result:      authevent.AuthEventResultSuccess,
 		Description: ptr.Ptr(fmt.Sprintf("Client updated: %s", updatedClient.Name)),
 	})
+	// Emit client.updated integration event
+	if s.eventService != nil {
+		s.eventService.Emit(ctx, nil, event.NewIntegrationEvent(
+			event.EventTypeClientUpdated, 1, tenantID,
+		).SetActor(&capturedActorID).SetSubject(&updatedClient.ClientUUID, "client"))
+	}
 	return ToClientServiceDataResult(updatedClient), nil
 }
 
@@ -632,6 +657,13 @@ func (s *clientService) SetStatusByUUID(ctx context.Context, ClientUUID uuid.UUI
 		Result:      authevent.AuthEventResultSuccess,
 		Description: ptr.Ptr(fmt.Sprintf("Client status set to %s: %s", status, updatedClient.Name)),
 	})
+	// Emit client.status_changed integration event
+	if s.eventService != nil {
+		s.eventService.Emit(ctx, nil, event.NewIntegrationEvent(
+			event.EventTypeClientStatusChanged, 1, tenantID,
+		).SetActor(&capturedActorID).SetSubject(&updatedClient.ClientUUID, "client").
+			SetChangedFields("status"))
+	}
 	return ToClientServiceDataResult(updatedClient), nil
 }
 
@@ -701,6 +733,12 @@ func (s *clientService) DeleteByUUID(ctx context.Context, ClientUUID uuid.UUID, 
 		Result:      authevent.AuthEventResultSuccess,
 		Description: ptr.Ptr(fmt.Sprintf("Client deleted: %s", deletedClient.Name)),
 	})
+	// Emit client.deleted integration event
+	if s.eventService != nil {
+		s.eventService.Emit(ctx, nil, event.NewIntegrationEvent(
+			event.EventTypeClientDeleted, 1, tenantID,
+		).SetSubject(&deletedClient.ClientUUID, "client"))
+	}
 	return ToClientServiceDataResult(deletedClient), nil
 }
 

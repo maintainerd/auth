@@ -11,6 +11,8 @@ type Transaction interface {
 	TenantRepository() TenantRepository
 	TenantMemberRepository() TenantMemberRepository
 	DeleteTenantCascade(ctx context.Context, tenantID int64) error
+	// Tx returns the underlying GORM transaction, or nil for direct (non-tx) units.
+	Tx() *gorm.DB
 }
 
 // UnitOfWork wraps transaction management so services do not depend on GORM.
@@ -53,6 +55,8 @@ func (t *directTransaction) TenantMemberRepository() TenantMemberRepository {
 func (t *directTransaction) DeleteTenantCascade(context.Context, int64) error {
 	return nil
 }
+
+func (t *directTransaction) Tx() *gorm.DB { return nil }
 
 type gormUnitOfWork struct {
 	db               *gorm.DB
@@ -108,3 +112,5 @@ func (t *gormTransaction) TenantMemberRepository() TenantMemberRepository {
 func (t *gormTransaction) DeleteTenantCascade(ctx context.Context, tenantID int64) error {
 	return t.tenantRepo.DeleteCascade(ctx, t.tx, tenantID, t.cascadeModels)
 }
+
+func (t *gormTransaction) Tx() *gorm.DB { return t.tx }

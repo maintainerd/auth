@@ -10,6 +10,9 @@ import (
 func WebhookEndpointRoute(
 	r chi.Router,
 	webhookEndpointHandler *WebhookEndpointHandler,
+	replayHandler *ReplayHandler,
+	subscriptionHandler *SubscriptionHandler,
+	endpointRepo WebhookEndpointRepository,
 	userService middleware.UserContextProvider,
 	appCache *cache.Cache,
 ) {
@@ -25,8 +28,9 @@ func WebhookEndpointRoute(
 		r.With(middleware.PermissionMiddleware([]string{"webhook-endpoint:read"})).
 			Get("/{webhook_endpoint_uuid}", webhookEndpointHandler.Get)
 
-		// Create webhook endpoint
+		// Create webhook endpoint (rate-limited + capped)
 		r.With(middleware.PermissionMiddleware([]string{"webhook-endpoint:create"})).
+			With(RateLimitAndCapMiddleware(endpointRepo)).
 			Post("/", webhookEndpointHandler.Create)
 
 		// Update webhook endpoint
@@ -40,5 +44,20 @@ func WebhookEndpointRoute(
 		// Update webhook endpoint status
 		r.With(middleware.PermissionMiddleware([]string{"webhook-endpoint:update"})).
 			Patch("/{webhook_endpoint_uuid}/status", webhookEndpointHandler.UpdateStatus)
+
+		// Manage endpoint subscriptions
+		r.With(middleware.PermissionMiddleware([]string{"webhook-endpoint:update"})).
+			Post("/{webhook_endpoint_uuid}/subscriptions", subscriptionHandler.AddSubscription)
+
+		r.With(middleware.PermissionMiddleware([]string{"webhook-endpoint:update"})).
+			Delete("/{webhook_endpoint_uuid}/subscriptions", subscriptionHandler.RemoveSubscription)
+	})
+
+	r.Route("/webhook-replay", func(r chi.Router) {
+		r.Use(middleware.JWTAuthMiddleware)
+		r.Use(middleware.UserContextMiddleware(userService, appCache))
+
+		r.With(middleware.PermissionMiddleware([]string{"webhook-endpoint:update"})).
+			Post("/", replayHandler.ReplayDelivery)
 	})
 }

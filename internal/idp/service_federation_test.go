@@ -384,12 +384,12 @@ func TestFederationServiceProvisionUser_VerifiedEmailLookupErrorFailsClosed(t *t
 
 func TestNewFederationService(t *testing.T) {
 	t.Run("without session service", func(t *testing.T) {
-		svc := NewFederationService(nil, &mockUserRepo{}, &mockFederationUserIdentityRepo{}, &mockIdentityProviderRepo{}, &mockClientRepo{}, nil, &mockRoleRepo{}, &mockAuthEventService{})
+		svc := NewFederationService(nil, &mockUserRepo{}, &mockFederationUserIdentityRepo{}, &mockIdentityProviderRepo{}, &mockClientRepo{}, nil, &mockRoleRepo{}, &mockAuthEventService{}, nil)
 		require.NotNil(t, svc)
 	})
 
 	t.Run("with session service", func(t *testing.T) {
-		svc := NewFederationService(nil, &mockUserRepo{}, &mockFederationUserIdentityRepo{}, &mockIdentityProviderRepo{}, &mockClientRepo{}, nil, &mockRoleRepo{}, &mockAuthEventService{}, &mockSessionService{})
+		svc := NewFederationService(nil, &mockUserRepo{}, &mockFederationUserIdentityRepo{}, &mockIdentityProviderRepo{}, &mockClientRepo{}, nil, &mockRoleRepo{}, &mockAuthEventService{}, nil, &mockSessionService{})
 		require.NotNil(t, svc)
 	})
 }

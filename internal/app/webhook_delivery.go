@@ -21,6 +21,7 @@ import (
 const (
 	webhookSuccessMaxStatus = 300
 	webhookMaxBackoff       = 60 * time.Second
+	quarantineThreshold     = 10 // consecutive dead-letter deliveries before quarantine
 )
 
 // deliverToWebhooks finds active webhook endpoints for the outbox event's tenant,
@@ -30,6 +31,7 @@ func deliverToWebhooks(
 	outbox *event.Outbox,
 	endpointRepo webhook.WebhookEndpointRepository,
 	historyRepo webhook.DeliveryHistoryRepository,
+	endpointEventRepo webhook.WebhookEndpointEventRepository,
 ) error {
 	endpoints, err := endpointRepo.FindActiveByTenantID(outbox.TenantID)
 	if err != nil {
@@ -37,7 +39,7 @@ func deliverToWebhooks(
 	}
 
 	for _, ep := range endpoints {
-		if !endpointMatchesEvent(ep, outbox.EventType) {
+		if !endpointMatchesEvent(ep, endpointEventRepo, outbox.EventType) {
 			continue
 		}
 
@@ -63,7 +65,7 @@ func deliverToWebhooks(
 			continue
 		}
 
-		attemptDelivery(ctx, ep, outbox, body, created, historyRepo)
+		attemptDelivery(ctx, ep, outbox, body, created, historyRepo, endpointRepo)
 
 		_ = endpointRepo.UpdateLastTriggeredAt(ep.WebhookEndpointID, time.Now())
 	}
@@ -72,11 +74,20 @@ func deliverToWebhooks(
 }
 
 // endpointMatchesEvent checks if an endpoint should receive this event type.
-func endpointMatchesEvent(ep webhook.WebhookEndpoint, eventType string) bool {
+// subscribe_all = true → all events; otherwise checks webhook_endpoint_events table.
+func endpointMatchesEvent(ep webhook.WebhookEndpoint, repo webhook.WebhookEndpointEventRepository, eventType string) bool {
 	if ep.SubscribeAll {
 		return true
 	}
-	return true // Subscription matching via webhook_endpoint_events queried in relay filter
+	if repo == nil {
+		return false
+	}
+	subs, err := repo.FindByEndpointID(ep.WebhookEndpointID)
+	if err != nil {
+		slog.Warn("webhook: subscription lookup failed", "endpoint_id", ep.WebhookEndpointID, "err", err)
+		return false
+	}
+	return len(subs) > 0
 }
 
 func attemptDelivery(
@@ -86,6 +97,7 @@ func attemptDelivery(
 	body []byte,
 	history *webhook.DeliveryHistory,
 	historyRepo webhook.DeliveryHistoryRepository,
+	endpointRepo webhook.WebhookEndpointRepository,
 ) {
 	timestamp := time.Now().Unix()
 	secret := crypto.SafeDecryptAtRest(ep.SecretEncrypted)
@@ -132,6 +144,8 @@ func attemptDelivery(
 				history.DeliveryHistoryID,
 				deliveryErr.Error(),
 			)
+			// Auto-quarantine endpoint after sustained failures
+			go autoQuarantineEndpoint(context.Background(), ep, endpointRepo, historyRepo)
 		}
 	}
 }
@@ -166,4 +180,36 @@ func computeWebhookSignature(secret string, timestamp int64, body []byte) string
 	mac.Write([]byte("."))
 	mac.Write(body)
 	return "sha256=" + hex.EncodeToString(mac.Sum(nil))
+}
+
+func autoQuarantineEndpoint(
+	ctx context.Context,
+	ep webhook.WebhookEndpoint,
+	endpointRepo webhook.WebhookEndpointRepository,
+	historyRepo webhook.DeliveryHistoryRepository,
+) {
+	recent, err := historyRepo.FindByEndpointID(ep.WebhookEndpointID, quarantineThreshold+5)
+	if err != nil {
+		slog.Warn("webhook: quarantine check failed", "endpoint_id", ep.WebhookEndpointID, "err", err)
+		return
+	}
+
+	consecutiveDLQ := 0
+	for _, h := range recent {
+		if h.FinalStatus == "dead_letter" {
+			consecutiveDLQ++
+		} else {
+			break
+		}
+	}
+
+	if consecutiveDLQ >= quarantineThreshold {
+		slog.Warn("webhook: quarantining endpoint after sustained failures",
+			"endpoint_id", ep.WebhookEndpointID,
+			"consecutive_dlq", consecutiveDLQ,
+		)
+		_, _ = endpointRepo.UpdateByUUID(ep.WebhookEndpointUUID, &webhook.WebhookEndpoint{
+			Status: "quarantined",
+		})
+	}
 }

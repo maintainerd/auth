@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/maintainerd/auth/internal/event"
 	"github.com/maintainerd/auth/internal/platform/apperror"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
@@ -55,9 +56,10 @@ type tenantMemberService struct {
 	userRepo         UserReader
 	tenantRepo       TenantRepository
 	uow              UnitOfWork
+	eventService     event.EventService
 }
 
-func NewTenantMemberService(tenantMemberRepo TenantMemberRepository, userRepo UserReader, tenantRepo TenantRepository, uow UnitOfWork) TenantMemberService {
+func NewTenantMemberService(tenantMemberRepo TenantMemberRepository, userRepo UserReader, tenantRepo TenantRepository, uow UnitOfWork, eventService event.EventService) TenantMemberService {
 	if uow == nil {
 		uow = newDirectUnitOfWork(tenantRepo, tenantMemberRepo)
 	}
@@ -66,6 +68,7 @@ func NewTenantMemberService(tenantMemberRepo TenantMemberRepository, userRepo Us
 		userRepo:         userRepo,
 		tenantRepo:       tenantRepo,
 		uow:              uow,
+		eventService:     eventService,
 	}
 }
 
@@ -84,7 +87,18 @@ func (s *tenantMemberService) Create(ctx context.Context, tenantID int64, userID
 		}
 		var err error
 		created, err = repo.Create(tu)
-		return err
+		if err != nil {
+			return err
+		}
+
+		// Emit tenant_member.added inside the transaction
+		if s.eventService != nil {
+			s.eventService.Emit(ctx, tx.Tx(), event.NewIntegrationEvent(
+				event.EventTypeTenantMemberAdded, 1, tenantID,
+			).SetSubject(&created.TenantMemberUUID, "tenant_member"))
+		}
+
+		return nil
 	})
 	if err != nil {
 		span.RecordError(err)
@@ -281,7 +295,18 @@ func (s *tenantMemberService) DeleteByUUID(ctx context.Context, tenantID int64, 
 		if tu.TenantID != tenantID {
 			return apperror.NewNotFoundWithReason("tenant member not found")
 		}
-		return repo.DeleteByUUID(tenantMemberUUID)
+		if err := repo.DeleteByUUID(tenantMemberUUID); err != nil {
+			return err
+		}
+
+		// Emit tenant_member.removed inside the transaction
+		if s.eventService != nil {
+			s.eventService.Emit(ctx, tx.Tx(), event.NewIntegrationEvent(
+				event.EventTypeTenantMemberRemoved, 1, tenantID,
+			).SetSubject(&tenantMemberUUID, "tenant_member"))
+		}
+
+		return nil
 	})
 	if err != nil {
 		span.RecordError(err)

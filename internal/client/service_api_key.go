@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/maintainerd/auth/internal/event"
 	"github.com/maintainerd/auth/internal/platform/apperror"
 	"github.com/maintainerd/auth/internal/platform/pagination"
 	"go.opentelemetry.io/otel"
@@ -95,6 +96,7 @@ type apiKeyService struct {
 	apiRepo              APIRepository
 	userRepo             UserRepository
 	permissionRepo       PermissionRepository
+	eventService         event.EventService
 }
 
 var apiKeyRandRead = rand.Read
@@ -107,6 +109,7 @@ func NewAPIKeyService(
 	apiRepo APIRepository,
 	userRepo UserRepository,
 	permissionRepo PermissionRepository,
+	eventService event.EventService,
 ) APIKeyService {
 	return &apiKeyService{
 		db:                   db,
@@ -116,6 +119,7 @@ func NewAPIKeyService(
 		apiRepo:              apiRepo,
 		userRepo:             userRepo,
 		permissionRepo:       permissionRepo,
+		eventService:         eventService,
 	}
 }
 
@@ -312,6 +316,13 @@ func (s *apiKeyService) Create(ctx context.Context, tenantID int64, name, descri
 			return err
 		}
 
+		// Emit api_key.created inside the transaction
+		if s.eventService != nil {
+			s.eventService.Emit(ctx, tx, event.NewIntegrationEvent(
+				event.EventTypeAPIKeyCreated, 1, tenantID,
+			).SetSubject(&createdAPIKey.APIKeyUUID, "api_key"))
+		}
+
 		return nil
 	})
 
@@ -457,6 +468,13 @@ func (s *apiKeyService) Delete(ctx context.Context, apiKeyUUID uuid.UUID, tenant
 			return err
 		}
 
+		// Emit api_key.revoked inside the transaction
+		if s.eventService != nil {
+			s.eventService.Emit(ctx, tx, event.NewIntegrationEvent(
+				event.EventTypeAPIKeyRevoked, 1, tenantID,
+			).SetSubject(&apiKeyUUID, "api_key"))
+		}
+
 		return nil
 	})
 
@@ -501,7 +519,6 @@ func (s *apiKeyService) SetStatusByUUID(ctx context.Context, apiKeyUUID uuid.UUI
 			return err
 		}
 
-		// Map to result
 		result = &APIKeyServiceDataResult{
 			APIKeyUUID:  updatedAPIKey.APIKeyUUID,
 			Name:        updatedAPIKey.Name,
@@ -513,6 +530,13 @@ func (s *apiKeyService) SetStatusByUUID(ctx context.Context, apiKeyUUID uuid.UUI
 			Status:      updatedAPIKey.Status,
 			CreatedAt:   updatedAPIKey.CreatedAt,
 			UpdatedAt:   updatedAPIKey.UpdatedAt,
+		}
+
+		// Emit api_key.status_changed inside the transaction
+		if s.eventService != nil {
+			s.eventService.Emit(ctx, tx, event.NewIntegrationEvent(
+				event.EventTypeAPIKeyStatusChanged, 1, tenantID,
+			).SetSubject(&apiKeyUUID, "api_key").SetChangedFields("status"))
 		}
 
 		return nil
