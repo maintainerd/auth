@@ -13,6 +13,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/authevent"
 	"github.com/maintainerd/auth/internal/authn"
+	"github.com/maintainerd/auth/internal/event"
 	"github.com/maintainerd/auth/internal/platform/apperror"
 	jwtlib "github.com/maintainerd/auth/internal/platform/jwt"
 	"github.com/maintainerd/auth/internal/platform/middleware"
@@ -84,6 +85,7 @@ type federationService struct {
 	roleRepo         RoleRepository
 	authEventService authevent.AuthEventService
 	sessionService   authn.SessionService
+	eventService     event.EventService
 }
 
 func NewFederationService(
@@ -95,6 +97,7 @@ func NewFederationService(
 	userRoleRepo UserRoleRepository,
 	roleRepo RoleRepository,
 	authEventService authevent.AuthEventService,
+	eventService event.EventService,
 	sessionService ...authn.SessionService,
 ) FederationService {
 	var sessions authn.SessionService
@@ -111,6 +114,7 @@ func NewFederationService(
 		roleRepo:         roleRepo,
 		authEventService: authEventService,
 		sessionService:   sessions,
+		eventService:     eventService,
 	}
 }
 
@@ -444,6 +448,13 @@ func (s *federationService) LinkIdentity(ctx context.Context, userID int64, req 
 		Description: ptr.Ptr(fmt.Sprintf("linked external identity: %s", idp.Provider)),
 	})
 
+	// Emit identity.linked integration event
+	if s.eventService != nil {
+		s.eventService.Emit(ctx, nil, event.NewIntegrationEvent(
+			event.EventTypeIdentityLinked, 1, idp.TenantID,
+		).SetActor(&userID).SetSubject(&created.UserIdentityUUID, "identity"))
+	}
+
 	span.SetStatus(codes.Ok, "")
 	return identityToDTO(created), nil
 }
@@ -489,6 +500,13 @@ func (s *federationService) UnlinkIdentity(ctx context.Context, userID int64, id
 		Result:      authevent.AuthEventResultSuccess,
 		Description: ptr.Ptr(fmt.Sprintf("unlinked external identity: %s", target.Provider)),
 	})
+
+	// Emit identity.unlinked integration event
+	if s.eventService != nil {
+		s.eventService.Emit(ctx, nil, event.NewIntegrationEvent(
+			event.EventTypeIdentityUnlinked, 1, target.TenantID,
+		).SetActor(&userID).SetSubject(&target.UserIdentityUUID, "identity"))
+	}
 
 	span.SetStatus(codes.Ok, "")
 	return nil

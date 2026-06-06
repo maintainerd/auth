@@ -6,6 +6,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/maintainerd/auth/internal/authevent"
+	"github.com/maintainerd/auth/internal/event"
 	"github.com/maintainerd/auth/internal/platform/apperror"
 	"github.com/maintainerd/auth/internal/platform/ptr"
 	"go.opentelemetry.io/otel"
@@ -69,6 +70,7 @@ type serviceService struct {
 	servicePolicyRepo ServicePolicyRepository
 	policyRepo        PolicyRepository
 	authEventService  authevent.AuthEventService
+	eventService      event.EventService
 }
 
 func NewServiceService(
@@ -92,6 +94,14 @@ func NewServiceService(
 		servicePolicyRepo: servicePolicyRepo,
 		policyRepo:        policyRepo,
 		authEventService:  eventSvc,
+		eventService:      nil,
+	}
+}
+
+// SetServiceEventService injects the event service after construction.
+func SetServiceEventService(svc ServiceService, es event.EventService) {
+	if impl, ok := svc.(*serviceService); ok {
+		impl.eventService = es
 	}
 }
 
@@ -210,6 +220,13 @@ func (s *serviceService) Create(ctx context.Context, name string, displayName st
 
 		createdService = newService
 
+		// Emit service.created inside the transaction
+		if s.eventService != nil {
+			s.eventService.Emit(ctx, tx, event.NewIntegrationEvent(
+				event.EventTypeServiceCreated, 1, tenantID,
+			).SetSubject(&createdService.ServiceUUID, "service"))
+		}
+
 		return nil
 	})
 
@@ -284,6 +301,12 @@ func (s *serviceService) Update(ctx context.Context, serviceUUID uuid.UUID, tena
 	}
 
 	span.SetStatus(codes.Ok, "")
+	// Emit service.updated
+	if s.eventService != nil {
+		s.eventService.Emit(ctx, nil, event.NewIntegrationEvent(
+			event.EventTypeServiceUpdated, 1, tenantID,
+		).SetSubject(&updatedService.ServiceUUID, "service"))
+	}
 	return s.toServiceServiceDataResult(updatedService, tenantID), nil
 }
 
@@ -333,6 +356,12 @@ func (s *serviceService) SetStatusByUUID(ctx context.Context, serviceUUID uuid.U
 	}
 
 	span.SetStatus(codes.Ok, "")
+	// Emit service.status_changed
+	if s.eventService != nil {
+		s.eventService.Emit(ctx, nil, event.NewIntegrationEvent(
+			event.EventTypeServiceStatusChanged, 1, tenantID,
+		).SetSubject(&updatedService.ServiceUUID, "service").SetChangedFields("status"))
+	}
 	return s.toServiceServiceDataResult(updatedService, tenantID), nil
 }
 
@@ -368,6 +397,12 @@ func (s *serviceService) DeleteByUUID(ctx context.Context, serviceUUID uuid.UUID
 	}
 
 	span.SetStatus(codes.Ok, "")
+	// Emit service.deleted
+	if s.eventService != nil {
+		s.eventService.Emit(ctx, nil, event.NewIntegrationEvent(
+			event.EventTypeServiceDeleted, 1, tenantID,
+		).SetSubject(&service.ServiceUUID, "service"))
+	}
 	return s.toServiceServiceDataResult(service, tenantID), nil
 }
 

@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/maintainerd/auth/internal/event"
 	"github.com/maintainerd/auth/internal/platform/apperror"
 	"github.com/maintainerd/auth/internal/platform/crypto"
 	"go.opentelemetry.io/otel"
@@ -64,17 +65,19 @@ type TenantService interface {
 }
 
 type tenantService struct {
-	tenantRepo TenantRepository
-	uow        UnitOfWork
+	tenantRepo   TenantRepository
+	uow          UnitOfWork
+	eventService event.EventService
 }
 
-func NewTenantService(tenantRepo TenantRepository, uow UnitOfWork) TenantService {
+func NewTenantService(tenantRepo TenantRepository, uow UnitOfWork, eventService event.EventService) TenantService {
 	if uow == nil {
 		uow = newDirectUnitOfWork(tenantRepo, nil)
 	}
 	return &tenantService{
-		tenantRepo: tenantRepo,
-		uow:        uow,
+		tenantRepo:   tenantRepo,
+		uow:          uow,
+		eventService: eventService,
 	}
 }
 
@@ -218,6 +221,13 @@ func (s *tenantService) Create(ctx context.Context, name string, displayName str
 			return err
 		}
 
+		// Emit tenant.created inside the transaction
+		if s.eventService != nil {
+			s.eventService.Emit(ctx, tx.Tx(), event.NewIntegrationEvent(
+				event.EventTypeTenantCreated, 1, createdTenant.TenantID,
+			).SetSubject(&createdTenant.TenantUUID, "tenant"))
+		}
+
 		return nil
 	})
 
@@ -260,6 +270,24 @@ func (s *tenantService) Update(ctx context.Context, tenantUUID uuid.UUID, name s
 			}
 		}
 
+		// Track changed fields
+		var changed []string
+		if tenant.Name != name {
+			changed = append(changed, "name")
+		}
+		if tenant.DisplayName != displayName {
+			changed = append(changed, "display_name")
+		}
+		if tenant.Description != description {
+			changed = append(changed, "description")
+		}
+		if tenant.Status != status {
+			changed = append(changed, "status")
+		}
+		if tenant.IsPublic != isPublic {
+			changed = append(changed, "is_public")
+		}
+
 		// Update tenant
 		tenant.Name = name
 		tenant.DisplayName = displayName
@@ -270,6 +298,14 @@ func (s *tenantService) Update(ctx context.Context, tenantUUID uuid.UUID, name s
 		updatedTenant, err = txTenantRepo.CreateOrUpdate(tenant)
 		if err != nil {
 			return err
+		}
+
+		// Emit tenant.updated inside the transaction
+		if s.eventService != nil && len(changed) > 0 {
+			s.eventService.Emit(ctx, tx.Tx(), event.NewIntegrationEvent(
+				event.EventTypeTenantUpdated, 1, updatedTenant.TenantID,
+			).SetSubject(&updatedTenant.TenantUUID, "tenant").
+				SetChangedFields(changed...))
 		}
 
 		return nil
@@ -315,6 +351,13 @@ func (s *tenantService) SetStatusByUUID(ctx context.Context, tenantUUID uuid.UUI
 	}
 
 	span.SetStatus(codes.Ok, "")
+	// Emit tenant.status_changed integration event
+	if s.eventService != nil {
+		s.eventService.Emit(ctx, nil, event.NewIntegrationEvent(
+			event.EventTypeTenantStatusChanged, 1, updatedTenant.TenantID,
+		).SetSubject(&updatedTenant.TenantUUID, "tenant").
+			SetChangedFields("status"))
+	}
 	return toTenantServiceDataResult(updatedTenant), nil
 }
 
@@ -380,7 +423,18 @@ func (s *tenantService) DeleteByUUID(ctx context.Context, tenantUUID uuid.UUID) 
 			return err
 		}
 
-		return txTenantRepo.DeleteByUUID(tenantUUID)
+		if err := txTenantRepo.DeleteByUUID(tenantUUID); err != nil {
+			return err
+		}
+
+		// Emit tenant.deleted inside the transaction
+		if s.eventService != nil {
+			s.eventService.Emit(ctx, tx.Tx(), event.NewIntegrationEvent(
+				event.EventTypeTenantDeleted, 1, tenant.TenantID,
+			).SetSubject(&tenant.TenantUUID, "tenant"))
+		}
+
+		return nil
 	})
 
 	if err != nil {

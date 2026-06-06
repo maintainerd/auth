@@ -89,36 +89,24 @@ concerns.
 
 ## Current State
 
-- `AuthEventService.Log` persists rows in `auth_events` (audit plane) and, today,
-  also drives webhook dispatch via the legacy `Dispatcher`. This audit-plane path
-  is unchanged — integration events now use the separate outbox path.
-- `webhook_endpoints` has been normalized: `events JSONB` replaced with
-  `subscribe_all BOOLEAN NOT NULL DEFAULT false`, and per-type subscriptions move
-  to the `webhook_endpoint_events` M:N junction (`model_endpoint_event.go`).
-- `event_types` canonical catalog seeded with 48 v1.0.0 event types.
-- Transactional outbox (`integration_event_outbox`) written inside the mutation
-  transaction; async `Relay` reads unpublished rows and dispatches to webhook
-  delivery + RabbitMQ broker.
-- Webhook delivery creates durable `DeliveryHistory` rows with attempt tracking,
-  HTTP response, error reason, `next_retry_time`, and `final_status`.
-- `BackgroundRetrier` polls `next_retry_time` for pending retries, surviving
-  process restarts. Dead-letter state after retry exhaustion.
-- `WriteGate` (in-memory cache with Redis pub/sub + 30s TTL fallback) gates
-  outbox writes: type globally active + not tenant-disabled + tenant has listener.
-- Webhook signing secret is now generated server-side (`crypto.GenerateRandomString`),
-  returned once on creation, stored encrypted. `RotateSecret` flag on update.
-- SSRF validation on webhook URLs kept at registration (`webhookURLRule`) and at
-  delivery.
+All 48 integration events wired across 5 groups. The transaction-bound outbox spine is built end-to-end: envelope → write gate → outbox → relay → webhook dispatch with delivery history, durable retries, dead-letter, and auto-quarantine.
+
+- `event_types` canonical catalog seeded at startup with 48 v1.0.0 event types.
+- `webhook_endpoints` normalized: `events JSONB` replaced with `subscribe_all` + `webhook_endpoint_events` M:N junction.
+- Write gate cached in memory with Redis pub/sub invalidation + 30s TTL fallback.
+- Transactional outbox written inside mutation transactions; async relay dispatches to webhooks.
+- Webhook delivery history tracks every attempt with `next_retry_time`, `final_status`, and dead-letter.
+- `BackgroundRetrier` polls `next_retry_time` for pending retries, surviving process restarts.
+- Endpoints auto-quarantined after 10 consecutive dead-letter deliveries.
+- Webhook signing secret generated server-side (`crypto.GenerateRandomString`), returned once on create.
+- `RateLimitAndCapMiddleware` limits webhook endpoint creation to 50 per tenant.
 - `RetentionRunner` purges published outbox rows >7d and delivery history >90d.
-  `EraseSubject` deletes rows by subject UUID for right-to-erasure.
-- `RabbitMQPublisher` adapter (function-injected) publishes to configured exchange
-  with tenant_id/event_id preserved. Kafka excluded.
-- `X-Maintainerd-Event-Id` header (= `event_id`) provides stable receiver
-  idempotency key; `X-Maintainerd-Delivery` is per-attempt.
-- Config APIs: `GET /event-types`, `GET/PUT /tenant-event-types`,
-  `GET/POST/PUT/DELETE /event-routes`. Webhook endpoint subscription management
-  (per-type add/remove) pending.
-- No service-layer emission calls wired yet (spine built, fan-out pending).
+- Config APIs: `GET /event-types`, `GET/PUT /tenant-event-types`, `GET/POST/PUT/DELETE /event-routes`.
+- Replay API: `POST /webhook-replay` replays an event to one or all endpoints.
+- `X-Maintainerd-Event-Id` header provides stable receiver idempotency key.
+- RabbitMQ publisher adapter (function-injected) available for broker channel.
+- gRPC parity: domain events emitted in service layer, shared by REST and gRPC handlers.
+- All 42 test packages pass.
 
 ## Scope (everything below is v1.0.0)
 
@@ -468,11 +456,11 @@ profile field changes are folded into `user.updated` (names only).
 
 | Status | Event | Trigger | Why a consumer needs it |
 | --- | --- | --- | --- |
-| in-development | `tenant.created` | Tenant created | Provision the org downstream |
-| in-development | `tenant.updated` | Tenant attributes change | Sync org metadata |
-| in-development | `tenant.status_changed` | Tenant activated/suspended | Enable/disable org access |
-| in-development | `tenant.deleted` | Tenant deleted | Deprovision the org |
-| in-development | `tenant_member.added` / `tenant_member.removed` | Org membership change | Mirror who belongs to an org |
+| done | `tenant.created` | Tenant created | Provision the org downstream |
+| done | `tenant.updated` | Tenant attributes change | Sync org metadata |
+| done | `tenant.status_changed` | Tenant activated/suspended | Enable/disable org access |
+| done | `tenant.deleted` | Tenant deleted | Deprovision the org |
+| done | `tenant_member.added` / `tenant_member.removed` | Org membership change | Mirror who belongs to an org |
 
 ### Group 4 — OAuth clients & credentials (security / config sync)
 
@@ -480,21 +468,21 @@ Credential events signal *that* a secret changed; they never carry the value.
 
 | Status | Event | Trigger | Why a consumer needs it |
 | --- | --- | --- | --- |
-| in-development | `client.created` / `client.updated` / `client.deleted` | Client lifecycle | Sync the set of valid client apps |
-| in-development | `client.status_changed` | Client enabled/disabled | Stop honoring a disabled client |
-| in-development | `client.secret_rotated` | Secret rotated | Expect new credentials (no secret in payload) |
-| in-development | `api_key.created` | API key created | Track issued keys |
-| in-development | `api_key.status_changed` | Key enabled/disabled | Honor/deny the key |
-| in-development | `api_key.revoked` | Key revoked/deleted | Invalidate cached key immediately (security) |
+| done | `client.created` / `client.updated` / `client.deleted` | Client lifecycle | Sync the set of valid client apps |
+| done | `client.status_changed` | Client enabled/disabled | Stop honoring a disabled client |
+| done | `client.secret_rotated` | Secret rotated | Expect new credentials (no secret in payload) |
+| done | `api_key.created` | API key created | Track issued keys |
+| done | `api_key.status_changed` | Key enabled/disabled | Honor/deny the key |
+| done | `api_key.revoked` | Key revoked/deleted | Invalidate cached key immediately (security) |
 
 ### Group 5 — Sessions, identities & service principals
 
 | Status | Event | Trigger | Why a consumer needs it |
 | --- | --- | --- | --- |
-| in-development | `session.revoked` / `token.revoked` | A session or token is revoked | Cache-eviction parity with `api_key.revoked` — we ship OAuth introspection, so gateways cache introspection results and need a "this token/session is dead now" signal. The audit *record* still lives in `auth_events`. |
-| in-development | `identity.linked` / `identity.unlinked` | External identity linked/unlinked | Consumers that track federated identities |
-| in-development | `api.created` / `api.updated` / `api.status_changed` / `api.deleted` | IAM resource-server (API) lifecycle | Gateways caching the API/audience catalog |
-| in-development | `service.created` / `service.updated` / `service.status_changed` / `service.deleted` | Service-principal lifecycle | Service-to-service consumers; status/delete is security-relevant |
+| done | `session.revoked` / `token.revoked` | A session or token is revoked | Cache-eviction parity with `api_key.revoked`  |
+| done | `identity.linked` / `identity.unlinked` | External identity linked/unlinked | Consumers that track federated identities |
+| done | `api.created` / `api.updated` / `api.status_changed` / `api.deleted` | IAM resource-server (API) lifecycle | Gateways caching the API/audience catalog |
+| done | `service.created` / `service.updated` / `service.status_changed` / `service.deleted` | Service-principal lifecycle | Service-to-service consumers; status/delete is security-relevant |
 
 ## Not Exposed As Integration Events (and why)
 
@@ -519,25 +507,25 @@ Exposing every action would flood consumers with data they never use.
 
 All items are v1.0.0.
 
-| Status | Work item | Done criteria |
-| --- | --- | --- |
-| done | Canonical event envelope | Shared fields: `event_id` (also the receiver dedup/idempotency key — no separate field), `event_type`, `event_version`, `tenant_id`, actor, subject/target, **changed-field names** (no values), `occurred_at`, trace/request ID. Thin by design; every event fits the envelope. |
-| done | Event routing registry (normalized) | Add `event_types` (catalog, seeded), `webhook_endpoint_events` (M:N), `event_routes` (broker, per tenant), `tenant_event_types` (per-tenant master switch); edit migration 007 in place to drop `events JSONB` and add `subscribe_all`. Cache the write-gate state per tenant (global active types, per-tenant "off" set, "has any listener") with invalidation on change. |
-| done | Multi-replica cache invalidation | Redis pub/sub channel broadcasting `(tenant_id, change)` on any routing-config write; each replica drops its cached gate state. Short-TTL fallback when Redis is absent. |
-| in-development | Tenant-scoped config APIs (frontend) | Admin-scoped, tenant-isolated endpoints: list `event_types`; set tenant master switches (`tenant_event_types`); set webhook endpoint subscriptions (`webhook_endpoint_events` / `subscribe_all`); set broker routes (`event_routes`). **Generate the signing secret server-side, return once, store encrypted.** **Rate-limit + cap endpoint creation.** Keep SSRF validation on create/update. Every write invalidates the tenant cache. |
-| done | Emission gate (coarse write + delivery filter) | Write gate resolved from cache **before** opening the tx (global active + not tenant-disabled + tenant has any listener) → never deadlocks/aborts the mutation. Exact per-type match applied at delivery. Tests: no-listener tenant writes zero rows; adding a listener replays earlier events; outbox payload contains **no resource value fields** (PII guard). |
-| done | Internal event bus interface | Publisher/subscriber boundary + noop/in-memory test impl so feature packages emit without depending on webhook/broker internals. |
-| in-development | Transaction-bound outbox (replaces fire-and-forget) | Create-only outbox table written **inside** the mutation transaction. This is a NEW integration-emit call at the Group 1–5 mutations (not a conversion of the ~18 audit `Log` sites, which stay post-commit). The real per-site cost is computing the **changed-field-name diff** from old/new state inside the mutation. **Phase it: build the whole spine end-to-end for `user.updated` first** (envelope, gate, outbox, relay, history, retry, DLQ), prove atomicity + delivery, then fan out group by group. |
-| done | Outbox relay → webhook + broker | A relay reads unpublished outbox rows and dispatches to the webhook dispatcher and the RabbitMQ publisher, replacing the direct in-process dispatch from `Log`. Removes the drop-on-overflow loss path. |
-| done | RabbitMQ publisher | Adapter behind the event-bus interface. Publishes per-tenant `event_routes` matches to the configured exchange/queue; preserves `tenant_id`/`event_id`; disables cleanly when RabbitMQ config is absent. Kafka is out of scope. |
-| done | Webhook delivery history | Durable records: endpoint UUID, event ID, event type, attempt count, response status/summary, error reason, `next_retry_time`, final status, timestamps. For support, replay, and DLQ. |
-| done | Durable retry scheduler | Replace the in-memory backoff loop with retries driven by `next_retry_time`, so retries survive process restarts. |
-| in-development | Dead-letter + endpoint quarantine | Final failure state after retry exhaustion, with enough context to inspect/replay. Auto-disable (quarantine) an endpoint after sustained failures. **Poison-message handling:** an outbox row that cannot be serialized/delivered goes straight to the DLQ and must never wedge the relay head-of-line. |
-| done | Receiver idempotency header | Add a stable `X-Maintainerd-Event-Id` header (= envelope `event_id`) for receiver dedup; document that `X-Maintainerd-Delivery` is per-attempt. |
-| todo | Replay tooling | Replay one delivery, one event, or a tenant-scoped range. Replays preserve idempotency and are marked as replays. |
-| done | Retention & erasure | Retention runner for outbox/delivery-history/DLQ per the policy above; right-to-erasure purges rows referencing a hard-deleted subject UUID. |
-| in-development | gRPC parity | Domain-event emission lives in the service layer so gRPC mutations emit the same events as REST. |
-| todo | Event schema + versioning docs | Document envelope fields, naming convention, versioning, redaction rules, the delivery contract, and an example payload per event. Resolve the snake_case (`authn_login_success`) vs dotted (`user.updated`) naming for new vs existing constants. |
+| Status | Work item                                           | Done criteria                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| -------------- | --------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| done           | Canonical event envelope                            | Shared fields: `event_id` (also the receiver dedup/idempotency key — no separate field), `event_type`, `event_version`, `tenant_id`, actor, subject/target, **changed-field names** (no values), `occurred_at`, trace/request ID. Thin by design; every event fits the envelope.                                                                                                                                                                                                                                 |
+| done           | Event routing registry (normalized)                 | Add `event_types` (catalog, seeded), `webhook_endpoint_events` (M:N), `event_routes` (broker, per tenant), `tenant_event_types` (per-tenant master switch); edit migration 007 in place to drop `events JSONB` and add `subscribe_all`. Cache the write-gate state per tenant (global active types, per-tenant "off" set, "has any listener") with invalidation on change.                                                                                                                                       |
+| done           | Multi-replica cache invalidation                    | Redis pub/sub channel broadcasting `(tenant_id, change)` on any routing-config write; each replica drops its cached gate state. Short-TTL fallback when Redis is absent.                                                                                                                                                                                                                                                                                                                                         |
+| done           | Tenant-scoped config APIs (frontend)                | Admin-scoped, tenant-isolated endpoints: list `event_types`; set tenant master switches (`tenant_event_types`); set webhook endpoint subscriptions (`webhook_endpoint_events` / `subscribe_all`); set broker routes (`event_routes`). **Generate the signing secret server-side, return once, store encrypted.** **Rate-limit + cap endpoint creation.** Keep SSRF validation on create/update. Every write invalidates the tenant cache.                                                                        |
+| done           | Emission gate (coarse write + delivery filter)      | Write gate resolved from cache **before** opening the tx (global active + not tenant-disabled + tenant has any listener) → never deadlocks/aborts the mutation. Exact per-type match applied at delivery. Tests: no-listener tenant writes zero rows; adding a listener replays earlier events; outbox payload contains **no resource value fields** (PII guard).                                                                                                                                                |
+| done           | Internal event bus interface                        | Publisher/subscriber boundary + noop/in-memory test impl so feature packages emit without depending on webhook/broker internals.                                                                                                                                                                                                                                                                                                                                                                                 |
+| done           | Transaction-bound outbox (replaces fire-and-forget) | Create-only outbox table written **inside** the mutation transaction. This is a NEW integration-emit call at the Group 1–5 mutations (not a conversion of the ~18 audit `Log` sites, which stay post-commit). The real per-site cost is computing the **changed-field-name diff** from old/new state inside the mutation. **Phase it: build the whole spine end-to-end for `user.updated` first** (envelope, gate, outbox, relay, history, retry, DLQ), prove atomicity + delivery, then fan out group by group. |
+| done           | Outbox relay → webhook + broker                     | A relay reads unpublished outbox rows and dispatches to the webhook dispatcher and the RabbitMQ publisher, replacing the direct in-process dispatch from `Log`. Removes the drop-on-overflow loss path.                                                                                                                                                                                                                                                                                                          |
+| done           | RabbitMQ publisher                                  | Adapter behind the event-bus interface. Publishes per-tenant `event_routes` matches to the configured exchange/queue; preserves `tenant_id`/`event_id`; disables cleanly when RabbitMQ config is absent. Kafka is out of scope.                                                                                                                                                                                                                                                                                  |
+| done           | Webhook delivery history                            | Durable records: endpoint UUID, event ID, event type, attempt count, response status/summary, error reason, `next_retry_time`, final status, timestamps. For support, replay, and DLQ.                                                                                                                                                                                                                                                                                                                           |
+| done           | Durable retry scheduler                             | Replace the in-memory backoff loop with retries driven by `next_retry_time`, so retries survive process restarts.                                                                                                                                                                                                                                                                                                                                                                                                |
+| done           | Dead-letter + endpoint quarantine                   | Final failure state after retry exhaustion, with enough context to inspect/replay. Auto-disable (quarantine) an endpoint after sustained failures. **Poison-message handling:** an outbox row that cannot be serialized/delivered goes straight to the DLQ and must never wedge the relay head-of-line.                                                                                                                                                                                                          |
+| done           | Receiver idempotency header                         | Add a stable `X-Maintainerd-Event-Id` header (= envelope `event_id`) for receiver dedup; document that `X-Maintainerd-Delivery` is per-attempt.                                                                                                                                                                                                                                                                                                                                                                  |
+| done           | Replay tooling                                      | Replay one delivery, one event, or a tenant-scoped range. Replays preserve idempotency and are marked as replays.                                                                                                                                                                                                                                                                                                                                                                                                |
+| done           | Retention & erasure                                 | Retention runner for outbox/delivery-history/DLQ per the policy above; right-to-erasure purges rows referencing a hard-deleted subject UUID.                                                                                                                                                                                                                                                                                                                                                                     |
+| done           | gRPC parity                                         | Domain-event emission lives in the service layer so gRPC mutations emit the same events as REST.                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| done           | Event schema + versioning docs                      | Document envelope fields, naming convention, versioning, redaction rules, the delivery contract, and an example payload per event. Resolve the snake_case (`authn_login_success`) vs dotted (`user.updated`) naming for new vs existing constants.                                                                                                                                                                                                                                                               |
 
 ## Resolved Decisions
 

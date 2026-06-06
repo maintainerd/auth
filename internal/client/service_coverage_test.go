@@ -35,7 +35,7 @@ func TestAPIKeyService_RemainingBranches(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 
-		svc := NewAPIKeyService(db, &mockAPIKeyRepo{}, &mockAPIKeyAPIRepo{}, &mockAPIKeyPermissionRepo{}, &mockAPIRepo{}, &mockUserRepo{}, &mockPermissionRepo{})
+		svc := NewAPIKeyService(db, &mockAPIKeyRepo{}, &mockAPIKeyAPIRepo{}, &mockAPIKeyPermissionRepo{}, &mockAPIRepo{}, &mockUserRepo{}, &mockPermissionRepo{}, nil)
 		result, plain, err := svc.Create(context.Background(), tenantID, "key", "desc", nil, nil, nil, shared.StatusActive)
 
 		require.Error(t, err)
@@ -95,7 +95,7 @@ func TestAPIKeyService_RemainingBranches(t *testing.T) {
 					return nil, errors.New("api key find error")
 				},
 			}
-			svc := NewAPIKeyService(db, akRepo, &mockAPIKeyAPIRepo{}, &mockAPIKeyPermissionRepo{}, &mockAPIRepo{}, &mockUserRepo{}, &mockPermissionRepo{})
+			svc := NewAPIKeyService(db, akRepo, &mockAPIKeyAPIRepo{}, &mockAPIKeyPermissionRepo{}, &mockAPIRepo{}, &mockUserRepo{}, &mockPermissionRepo{}, nil)
 
 			err := tc.run(svc)
 
@@ -147,7 +147,7 @@ func TestAPIKeyService_RemainingBranches(t *testing.T) {
 				mock.ExpectBegin()
 				mock.ExpectRollback()
 			}
-			svc := NewAPIKeyService(db, &mockAPIKeyRepo{}, &mockAPIKeyAPIRepo{}, &mockAPIKeyPermissionRepo{}, &mockAPIRepo{}, &mockUserRepo{}, &mockPermissionRepo{})
+			svc := NewAPIKeyService(db, &mockAPIKeyRepo{}, &mockAPIKeyAPIRepo{}, &mockAPIKeyPermissionRepo{}, &mockAPIRepo{}, &mockUserRepo{}, &mockPermissionRepo{}, nil)
 
 			err := tc.run(svc)
 
@@ -166,7 +166,7 @@ func TestAPIKeyService_RemainingBranches(t *testing.T) {
 		apiRepo := &mockAPIRepo{findByUUIDFn: func(any, ...string) (*API, error) {
 			return &API{APIID: 1, TenantID: tenantID + 1}, nil
 		}}
-		svc := NewAPIKeyService(db, akRepo, &mockAPIKeyAPIRepo{}, &mockAPIKeyPermissionRepo{}, apiRepo, &mockUserRepo{}, &mockPermissionRepo{})
+		svc := NewAPIKeyService(db, akRepo, &mockAPIKeyAPIRepo{}, &mockAPIKeyPermissionRepo{}, apiRepo, &mockUserRepo{}, &mockPermissionRepo{}, nil)
 
 		err := svc.AddAPIKeyAPIs(context.Background(), tenantID, akUUID, []uuid.UUID{apiUUID})
 
@@ -229,7 +229,7 @@ func TestAPIKeyService_RemainingBranches(t *testing.T) {
 			permRepo := &mockPermissionRepo{findByUUIDFn: func(any, ...string) (*Permission, error) {
 				return tc.perm, nil
 			}}
-			svc := NewAPIKeyService(db, akRepo, akaRepo, &mockAPIKeyPermissionRepo{}, apiRepo, &mockUserRepo{}, permRepo)
+			svc := NewAPIKeyService(db, akRepo, akaRepo, &mockAPIKeyPermissionRepo{}, apiRepo, &mockUserRepo{}, permRepo, nil)
 
 			err := tc.run(svc)
 
@@ -254,7 +254,7 @@ func TestClientService_RemainingBranches(t *testing.T) {
 			},
 		}
 		userRepo := &mockUserRepo{findByUUIDFn: func(any, ...string) (*User, error) { return actorUser(tenantID), nil }}
-		svc := NewClientService(db, &mockClientRepo{}, &mockClientURIRepo{}, idpRepo, &mockPermissionRepo{}, &mockClientPermissionRepo{}, &mockClientAPIRepo{}, &mockAPIRepo{}, userRepo, &mockTenantRepo{}, nil)
+		svc := NewClientService(db, &mockClientRepo{}, &mockClientURIRepo{}, idpRepo, &mockPermissionRepo{}, &mockClientPermissionRepo{}, &mockClientAPIRepo{}, &mockAPIRepo{}, userRepo, &mockTenantRepo{}, nil, nil)
 
 		result, err := svc.Create(context.Background(), tenantID, "name", "Name", "public", "example.com", nil, shared.StatusActive, false, uuid.NewString(), uuid.New())
 
@@ -277,7 +277,7 @@ func TestClientService_RemainingBranches(t *testing.T) {
 			},
 		}
 		userRepo := &mockUserRepo{findByUUIDFn: func(any, ...string) (*User, error) { return actorUser(tenantID), nil }}
-		svc := NewClientService(db, &mockClientRepo{}, &mockClientURIRepo{}, idpRepo, &mockPermissionRepo{}, &mockClientPermissionRepo{}, &mockClientAPIRepo{}, &mockAPIRepo{}, userRepo, &mockTenantRepo{}, nil)
+		svc := NewClientService(db, &mockClientRepo{}, &mockClientURIRepo{}, idpRepo, &mockPermissionRepo{}, &mockClientPermissionRepo{}, &mockClientAPIRepo{}, &mockAPIRepo{}, userRepo, &mockTenantRepo{}, nil, nil)
 
 		result, err := svc.Create(context.Background(), tenantID, "name", "Name", "public", "example.com", nil, shared.StatusActive, false, uuid.NewString(), uuid.New())
 
@@ -302,7 +302,7 @@ func TestClientService_RemainingBranches(t *testing.T) {
 				return &Client{ClientUUID: uuid.New(), Name: "name", Identifier: &identifier, IdentityProvider: &IdentityProvider{}, TenantID: tenantID}, nil
 			},
 		}
-		svc := NewClientService(db, clientRepo, &mockClientURIRepo{}, idpRepo, &mockPermissionRepo{}, &mockClientPermissionRepo{}, &mockClientAPIRepo{}, &mockAPIRepo{}, userRepo, &mockTenantRepo{}, nil)
+		svc := NewClientService(db, clientRepo, &mockClientURIRepo{}, idpRepo, &mockPermissionRepo{}, &mockClientPermissionRepo{}, &mockClientAPIRepo{}, &mockAPIRepo{}, userRepo, &mockTenantRepo{}, nil, nil)
 
 		result, err := svc.Create(context.Background(), tenantID, "name", "Name", "public", "example.com", nil, shared.StatusActive, false, uuid.NewString(), uuid.New())
 
@@ -321,7 +321,7 @@ func TestClientService_RemainingBranches(t *testing.T) {
 		clientRepo := &mockClientRepo{findByUUIDAndTenantIDFn: func(uuid.UUID, int64) (*Client, error) {
 			return &Client{ClientUUID: uuid.New(), TenantID: tenantID}, nil
 		}}
-		svc := NewClientService(db, clientRepo, &mockClientURIRepo{}, &mockIdentityProviderRepo{}, &mockPermissionRepo{}, &mockClientPermissionRepo{}, &mockClientAPIRepo{}, &mockAPIRepo{}, &mockUserRepo{}, &mockTenantRepo{}, nil)
+		svc := NewClientService(db, clientRepo, &mockClientURIRepo{}, &mockIdentityProviderRepo{}, &mockPermissionRepo{}, &mockClientPermissionRepo{}, &mockClientAPIRepo{}, &mockAPIRepo{}, &mockUserRepo{}, &mockTenantRepo{}, nil, nil)
 
 		secret, err := svc.RotateSecret(context.Background(), uuid.New(), tenantID, uuid.New(), 0)
 
@@ -340,7 +340,7 @@ func TestClientService_RemainingBranches(t *testing.T) {
 		clientRepo := &mockClientRepo{findByUUIDAndTenantIDFn: func(uuid.UUID, int64) (*Client, error) {
 			return &Client{ClientUUID: uuid.New(), TenantID: tenantID}, nil
 		}}
-		svc := NewClientService(db, clientRepo, &mockClientURIRepo{}, &mockIdentityProviderRepo{}, &mockPermissionRepo{}, &mockClientPermissionRepo{}, &mockClientAPIRepo{}, &mockAPIRepo{}, &mockUserRepo{}, &mockTenantRepo{}, nil)
+		svc := NewClientService(db, clientRepo, &mockClientURIRepo{}, &mockIdentityProviderRepo{}, &mockPermissionRepo{}, &mockClientPermissionRepo{}, &mockClientAPIRepo{}, &mockAPIRepo{}, &mockUserRepo{}, &mockTenantRepo{}, nil, nil)
 
 		secret, err := svc.RotateSecret(context.Background(), uuid.New(), tenantID, uuid.New(), 0)
 
@@ -359,7 +359,7 @@ func TestClientService_RemainingBranches(t *testing.T) {
 		clientRepo := &mockClientRepo{findByUUIDAndTenantIDFn: func(uuid.UUID, int64) (*Client, error) {
 			return &Client{ClientUUID: uuid.New(), TenantID: tenantID}, nil
 		}}
-		svc := NewClientService(db, clientRepo, &mockClientURIRepo{}, &mockIdentityProviderRepo{}, &mockPermissionRepo{}, &mockClientPermissionRepo{}, &mockClientAPIRepo{}, &mockAPIRepo{}, &mockUserRepo{}, &mockTenantRepo{}, nil)
+		svc := NewClientService(db, clientRepo, &mockClientURIRepo{}, &mockIdentityProviderRepo{}, &mockPermissionRepo{}, &mockClientPermissionRepo{}, &mockClientAPIRepo{}, &mockAPIRepo{}, &mockUserRepo{}, &mockTenantRepo{}, nil, nil)
 
 		secret, err := svc.RotateSecret(context.Background(), uuid.New(), tenantID, uuid.New(), 0)
 
@@ -375,7 +375,7 @@ func TestClientService_RemainingBranches(t *testing.T) {
 			return &Client{ClientID: 1, ClientUUID: uuid.New(), TenantID: tenantID}, nil
 		}}
 		userRepo := &mockUserRepo{findByUUIDFn: func(any, ...string) (*User, error) { return actorUser(tenantID), nil }}
-		svc := NewClientService(db, clientRepo, &mockClientURIRepo{}, &mockIdentityProviderRepo{}, &mockPermissionRepo{}, &mockClientPermissionRepo{}, &mockClientAPIRepo{}, &mockAPIRepo{}, userRepo, &mockTenantRepo{}, nil)
+		svc := NewClientService(db, clientRepo, &mockClientURIRepo{}, &mockIdentityProviderRepo{}, &mockPermissionRepo{}, &mockClientPermissionRepo{}, &mockClientAPIRepo{}, &mockAPIRepo{}, userRepo, &mockTenantRepo{}, nil, nil)
 
 		result, err := svc.CreateURI(context.Background(), uuid.New(), tenantID, "javascript:alert(1)", shared.ClientURITypeRedirect, uuid.New())
 
@@ -394,7 +394,7 @@ func TestClientService_RemainingBranches(t *testing.T) {
 			return &ClientURI{ClientID: 1}, nil
 		}}
 		userRepo := &mockUserRepo{findByUUIDFn: func(any, ...string) (*User, error) { return actorUser(tenantID), nil }}
-		svc := NewClientService(db, clientRepo, uriRepo, &mockIdentityProviderRepo{}, &mockPermissionRepo{}, &mockClientPermissionRepo{}, &mockClientAPIRepo{}, &mockAPIRepo{}, userRepo, &mockTenantRepo{}, nil)
+		svc := NewClientService(db, clientRepo, uriRepo, &mockIdentityProviderRepo{}, &mockPermissionRepo{}, &mockClientPermissionRepo{}, &mockClientAPIRepo{}, &mockAPIRepo{}, userRepo, &mockTenantRepo{}, nil, nil)
 
 		result, err := svc.UpdateURI(context.Background(), uuid.New(), tenantID, uuid.New(), "javascript:alert(1)", shared.ClientURITypeRedirect, uuid.New())
 

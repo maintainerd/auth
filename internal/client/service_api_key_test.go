@@ -30,7 +30,7 @@ func buildAPIKey() *APIKey {
 func newAPIKeySvc(t *testing.T, akRepo *mockAPIKeyRepo, userRepo *mockUserRepo) APIKeyService {
 	t.Helper()
 	gormDB, _ := newMockGormDB(t)
-	return NewAPIKeyService(gormDB, akRepo, &mockAPIKeyAPIRepo{}, &mockAPIKeyPermissionRepo{}, &mockAPIRepo{}, userRepo, &mockPermissionRepo{})
+	return NewAPIKeyService(gormDB, akRepo, &mockAPIKeyAPIRepo{}, &mockAPIKeyPermissionRepo{}, &mockAPIRepo{}, userRepo, &mockPermissionRepo{}, nil)
 }
 
 // ---------------------------------------------------------------------------
@@ -80,7 +80,7 @@ func TestAPIKeyService_GetByUUID(t *testing.T) {
 			} else {
 				mock.ExpectCommit()
 			}
-			svc := NewAPIKeyService(gormDB, akRepo, &mockAPIKeyAPIRepo{}, &mockAPIKeyPermissionRepo{}, &mockAPIRepo{}, &mockUserRepo{}, &mockPermissionRepo{})
+			svc := NewAPIKeyService(gormDB, akRepo, &mockAPIKeyAPIRepo{}, &mockAPIKeyPermissionRepo{}, &mockAPIRepo{}, &mockUserRepo{}, &mockPermissionRepo{}, nil)
 			res, err := svc.GetByUUID(context.Background(), ak.APIKeyUUID, 1, requesterUUID)
 			if tc.wantErr != "" {
 				require.Error(t, err)
@@ -132,7 +132,7 @@ func TestAPIKeyService_Create(t *testing.T) {
 			} else {
 				mock.ExpectCommit()
 			}
-			svc := NewAPIKeyService(gormDB, akRepo, &mockAPIKeyAPIRepo{}, &mockAPIKeyPermissionRepo{}, &mockAPIRepo{}, &mockUserRepo{}, &mockPermissionRepo{})
+			svc := NewAPIKeyService(gormDB, akRepo, &mockAPIKeyAPIRepo{}, &mockAPIKeyPermissionRepo{}, &mockAPIRepo{}, &mockUserRepo{}, &mockPermissionRepo{}, nil)
 			res, plainKey, err := svc.Create(context.Background(), 1, "test-key", "desc", nil, nil, nil, shared.StatusActive)
 			if tc.wantErr != "" {
 				require.Error(t, err)
@@ -201,7 +201,7 @@ func TestAPIKeyService_SetStatusByUUID(t *testing.T) {
 			} else {
 				mock.ExpectCommit()
 			}
-			svc := NewAPIKeyService(gormDB, akRepo, &mockAPIKeyAPIRepo{}, &mockAPIKeyPermissionRepo{}, &mockAPIRepo{}, &mockUserRepo{}, &mockPermissionRepo{})
+			svc := NewAPIKeyService(gormDB, akRepo, &mockAPIKeyAPIRepo{}, &mockAPIKeyPermissionRepo{}, &mockAPIRepo{}, &mockUserRepo{}, &mockPermissionRepo{}, nil)
 			res, err := svc.SetStatusByUUID(context.Background(), ak.APIKeyUUID, 1, shared.StatusActive)
 			if tc.wantErr != "" {
 				require.Error(t, err)
@@ -269,7 +269,7 @@ func TestAPIKeyService_Delete(t *testing.T) {
 			} else {
 				mock.ExpectCommit()
 			}
-			svc := NewAPIKeyService(gormDB, akRepo, &mockAPIKeyAPIRepo{}, &mockAPIKeyPermissionRepo{}, &mockAPIRepo{}, &mockUserRepo{}, &mockPermissionRepo{})
+			svc := NewAPIKeyService(gormDB, akRepo, &mockAPIKeyAPIRepo{}, &mockAPIKeyPermissionRepo{}, &mockAPIRepo{}, &mockUserRepo{}, &mockPermissionRepo{}, nil)
 			res, err := svc.Delete(context.Background(), ak.APIKeyUUID, 1, deleterUUID)
 			if tc.wantErr != "" {
 				require.Error(t, err)
@@ -468,7 +468,7 @@ func TestAPIKeyService_Update(t *testing.T) {
 			} else {
 				mock.ExpectRollback()
 			}
-			svc := NewAPIKeyService(gormDB, akRepo, &mockAPIKeyAPIRepo{}, &mockAPIKeyPermissionRepo{}, &mockAPIRepo{}, &mockUserRepo{}, &mockPermissionRepo{})
+			svc := NewAPIKeyService(gormDB, akRepo, &mockAPIKeyAPIRepo{}, &mockAPIKeyPermissionRepo{}, &mockAPIRepo{}, &mockUserRepo{}, &mockPermissionRepo{}, nil)
 			res, err := svc.Update(context.Background(), ak.APIKeyUUID, 1, tc.nameArg, tc.descArg, tc.configArg, tc.expiresArg, tc.rateLimArg, tc.statusArg, updaterUUID)
 			if tc.wantErr != "" {
 				require.Error(t, err)
@@ -533,7 +533,7 @@ func TestAPIKeyService_GetAPIKeyAPIs(t *testing.T) {
 				return &APIKey{APIKeyID: 1, APIKeyUUID: akUUID, TenantID: tenantID}, nil
 			},
 		}
-		svc := NewAPIKeyService(gormDB, akRepo, akaRepo, &mockAPIKeyPermissionRepo{}, &mockAPIRepo{}, &mockUserRepo{}, &mockPermissionRepo{})
+		svc := NewAPIKeyService(gormDB, akRepo, akaRepo, &mockAPIKeyPermissionRepo{}, &mockAPIRepo{}, &mockUserRepo{}, &mockPermissionRepo{}, nil)
 		// Pass 0 for page/limit to test defaults
 		res, err := svc.GetAPIKeyAPIs(context.Background(), tenantID, akUUID, 0, 0, "", "")
 		require.NoError(t, err)
@@ -556,7 +556,7 @@ func TestAPIKeyService_GetAPIKeyAPIs(t *testing.T) {
 				return &APIKey{APIKeyID: 1, APIKeyUUID: akUUID, TenantID: tenantID}, nil
 			},
 		}
-		svc := NewAPIKeyService(gormDB, akRepo, akaRepo, &mockAPIKeyPermissionRepo{}, &mockAPIRepo{}, &mockUserRepo{}, &mockPermissionRepo{})
+		svc := NewAPIKeyService(gormDB, akRepo, akaRepo, &mockAPIKeyPermissionRepo{}, &mockAPIRepo{}, &mockUserRepo{}, &mockPermissionRepo{}, nil)
 		res, err := svc.GetAPIKeyAPIs(context.Background(), tenantID, akUUID, 1, 10, "", "")
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "paginate err")
@@ -711,7 +711,7 @@ func TestAPIKeyService_AddAPIKeyAPIs(t *testing.T) {
 			} else {
 				mock.ExpectRollback()
 			}
-			svc := NewAPIKeyService(gormDB, akRepo, akaRepo, &mockAPIKeyPermissionRepo{}, apiRepo, &mockUserRepo{}, &mockPermissionRepo{})
+			svc := NewAPIKeyService(gormDB, akRepo, akaRepo, &mockAPIKeyPermissionRepo{}, apiRepo, &mockUserRepo{}, &mockPermissionRepo{}, nil)
 			err := svc.AddAPIKeyAPIs(context.Background(), tenantID, akUUID, tc.apiUUIDs)
 			if tc.wantErr != "" {
 				require.Error(t, err)
@@ -785,7 +785,7 @@ func TestAPIKeyService_RemoveAPIKeyAPI(t *testing.T) {
 					return &APIKey{APIKeyID: 1, APIKeyUUID: akUUID, TenantID: tenantID}, nil
 				},
 			}
-			svc := NewAPIKeyService(gormDB, akRepo, akaRepo, &mockAPIKeyPermissionRepo{}, &mockAPIRepo{}, &mockUserRepo{}, &mockPermissionRepo{})
+			svc := NewAPIKeyService(gormDB, akRepo, akaRepo, &mockAPIKeyPermissionRepo{}, &mockAPIRepo{}, &mockUserRepo{}, &mockPermissionRepo{}, nil)
 			err := svc.RemoveAPIKeyAPI(context.Background(), tenantID, akUUID, apiUUID)
 			if tc.wantErr != "" {
 				require.Error(t, err)
@@ -816,7 +816,7 @@ func TestAPIKeyService_GetAPIKeyAPIPermissions(t *testing.T) {
 				return &APIKey{APIKeyID: 1, APIKeyUUID: akUUID, TenantID: tenantID}, nil
 			},
 		}
-		svc := NewAPIKeyService(gormDB, akRepo, akaRepo, &mockAPIKeyPermissionRepo{}, &mockAPIRepo{}, &mockUserRepo{}, &mockPermissionRepo{})
+		svc := NewAPIKeyService(gormDB, akRepo, akaRepo, &mockAPIKeyPermissionRepo{}, &mockAPIRepo{}, &mockUserRepo{}, &mockPermissionRepo{}, nil)
 		res, err := svc.GetAPIKeyAPIPermissions(context.Background(), tenantID, akUUID, apiUUID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "find err")
@@ -833,7 +833,7 @@ func TestAPIKeyService_GetAPIKeyAPIPermissions(t *testing.T) {
 				return &APIKey{APIKeyID: 1, APIKeyUUID: akUUID, TenantID: tenantID}, nil
 			},
 		}
-		svc := NewAPIKeyService(gormDB, akRepo, akaRepo, &mockAPIKeyPermissionRepo{}, &mockAPIRepo{}, &mockUserRepo{}, &mockPermissionRepo{})
+		svc := NewAPIKeyService(gormDB, akRepo, akaRepo, &mockAPIKeyPermissionRepo{}, &mockAPIRepo{}, &mockUserRepo{}, &mockPermissionRepo{}, nil)
 		res, err := svc.GetAPIKeyAPIPermissions(context.Background(), tenantID, akUUID, apiUUID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "API key API relationship not found")
@@ -855,7 +855,7 @@ func TestAPIKeyService_GetAPIKeyAPIPermissions(t *testing.T) {
 				return &APIKey{APIKeyID: 1, APIKeyUUID: akUUID, TenantID: tenantID}, nil
 			},
 		}
-		svc := NewAPIKeyService(gormDB, akRepo, akaRepo, akpRepo, &mockAPIRepo{}, &mockUserRepo{}, &mockPermissionRepo{})
+		svc := NewAPIKeyService(gormDB, akRepo, akaRepo, akpRepo, &mockAPIRepo{}, &mockUserRepo{}, &mockPermissionRepo{}, nil)
 		res, err := svc.GetAPIKeyAPIPermissions(context.Background(), tenantID, akUUID, apiUUID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "perm err")
@@ -881,7 +881,7 @@ func TestAPIKeyService_GetAPIKeyAPIPermissions(t *testing.T) {
 				return &APIKey{APIKeyID: 1, APIKeyUUID: akUUID, TenantID: tenantID}, nil
 			},
 		}
-		svc := NewAPIKeyService(gormDB, akRepo, akaRepo, akpRepo, &mockAPIRepo{}, &mockUserRepo{}, &mockPermissionRepo{})
+		svc := NewAPIKeyService(gormDB, akRepo, akaRepo, akpRepo, &mockAPIRepo{}, &mockUserRepo{}, &mockPermissionRepo{}, nil)
 		res, err := svc.GetAPIKeyAPIPermissions(context.Background(), tenantID, akUUID, apiUUID)
 		require.NoError(t, err)
 		require.Len(t, res, 1)
@@ -1104,7 +1104,7 @@ func TestAPIKeyService_AddAPIKeyAPIPermissions(t *testing.T) {
 					return &APIKey{APIKeyID: 1, APIKeyUUID: akUUID, TenantID: tenantID}, nil
 				},
 			}
-			svc := NewAPIKeyService(gormDB, akRepo, akaRepo, akpRepo, apiRepo, &mockUserRepo{}, permRepo)
+			svc := NewAPIKeyService(gormDB, akRepo, akaRepo, akpRepo, apiRepo, &mockUserRepo{}, permRepo, nil)
 			err := svc.AddAPIKeyAPIPermissions(context.Background(), tenantID, akUUID, apiUUID, tc.permUUIDs)
 			if tc.wantErr != "" {
 				require.Error(t, err)
@@ -1281,7 +1281,7 @@ func TestAPIKeyService_RemoveAPIKeyAPIPermission(t *testing.T) {
 					return &APIKey{APIKeyID: 1, APIKeyUUID: akUUID, TenantID: tenantID}, nil
 				},
 			}
-			svc := NewAPIKeyService(gormDB, akRepo, akaRepo, akpRepo, apiRepo, &mockUserRepo{}, permRepo)
+			svc := NewAPIKeyService(gormDB, akRepo, akaRepo, akpRepo, apiRepo, &mockUserRepo{}, permRepo, nil)
 			err := svc.RemoveAPIKeyAPIPermission(context.Background(), tenantID, akUUID, apiUUID, permUUID)
 			if tc.wantErr != "" {
 				require.Error(t, err)

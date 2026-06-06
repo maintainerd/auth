@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/maintainerd/auth/internal/event"
 	"github.com/maintainerd/auth/internal/platform/apperror"
 	"github.com/maintainerd/auth/internal/platform/crypto"
 	"go.opentelemetry.io/otel"
@@ -66,6 +67,7 @@ type apiService struct {
 	apiRepo           APIRepository
 	serviceRepo       ServiceRepository
 	tenantServiceRepo TenantServiceRepository
+	eventService      event.EventService
 }
 
 func NewAPIService(
@@ -73,12 +75,18 @@ func NewAPIService(
 	apiRepo APIRepository,
 	serviceRepo ServiceRepository,
 	tenantServiceRepo TenantServiceRepository,
+	eventService ...event.EventService,
 ) APIService {
+	evtSvc := event.EventService(nil)
+	if len(eventService) > 0 {
+		evtSvc = eventService[0]
+	}
 	return &apiService{
 		db:                db,
 		apiRepo:           apiRepo,
 		serviceRepo:       serviceRepo,
 		tenantServiceRepo: tenantServiceRepo,
+		eventService:      evtSvc,
 	}
 }
 
@@ -214,6 +222,13 @@ func (s *apiService) Create(ctx context.Context, tenantID int64, name string, di
 			return err
 		}
 
+		// Emit api.created inside the transaction
+		if s.eventService != nil {
+			s.eventService.Emit(ctx, tx, event.NewIntegrationEvent(
+				event.EventTypeAPICreated, 1, tenantID,
+			).SetSubject(&createdAPI.APIUUID, "api"))
+		}
+
 		return nil
 	})
 
@@ -318,6 +333,12 @@ func (s *apiService) Update(ctx context.Context, apiUUID uuid.UUID, tenantID int
 	}
 
 	span.SetStatus(codes.Ok, "")
+	// Emit api.updated integration event
+	if s.eventService != nil {
+		s.eventService.Emit(ctx, nil, event.NewIntegrationEvent(
+			event.EventTypeAPIUpdated, 1, tenantID,
+		).SetSubject(&updatedAPI.APIUUID, "api"))
+	}
 	return toAPIServiceDataResult(updatedAPI), nil
 }
 
@@ -377,6 +398,12 @@ func (s *apiService) SetStatusByUUID(ctx context.Context, apiUUID uuid.UUID, ten
 	}
 
 	span.SetStatus(codes.Ok, "")
+	// Emit api.status_changed integration event
+	if s.eventService != nil {
+		s.eventService.Emit(ctx, nil, event.NewIntegrationEvent(
+			event.EventTypeAPIStatusChanged, 1, tenantID,
+		).SetSubject(&updatedAPI.APIUUID, "api").SetChangedFields("status"))
+	}
 	return toAPIServiceDataResult(updatedAPI), nil
 }
 
@@ -423,6 +450,12 @@ func (s *apiService) DeleteByUUID(ctx context.Context, apiUUID uuid.UUID, tenant
 	}
 
 	span.SetStatus(codes.Ok, "")
+	// Emit api.deleted integration event
+	if s.eventService != nil {
+		s.eventService.Emit(ctx, nil, event.NewIntegrationEvent(
+			event.EventTypeAPIDeleted, 1, tenantID,
+		).SetSubject(&api.APIUUID, "api"))
+	}
 	return toAPIServiceDataResult(api), nil
 }
 

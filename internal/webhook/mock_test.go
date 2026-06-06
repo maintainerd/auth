@@ -101,3 +101,50 @@ func (m *mockWebhookEndpointRepo) UpdateLastTriggeredAt(webhookEndpointID int64,
 	}
 	return nil
 }
+
+// mockWebhookEndpointEventRepo is a test mock for WebhookEndpointEventRepository.
+type mockWebhookEndpointEventRepo struct {
+	mockBaseRepo[WebhookEndpointEvent]
+	findByEndpointIDFn     func(int64) ([]WebhookEndpointEvent, error)
+	findByEndpointAndEvtFn func(int64, int64) (*WebhookEndpointEvent, error)
+	deleteByIdAndEvtFn     func(int64, int64) error
+	deleteByEndpointIDFn   func(int64) error
+	bulkCreateFn           func([]WebhookEndpointEvent) error
+	createFn               func(*WebhookEndpointEvent) (*WebhookEndpointEvent, error)
+	withTxFn               func(*gorm.DB) WebhookEndpointEventRepository
+}
+
+func (m *mockWebhookEndpointEventRepo) WithTx(tx *gorm.DB) WebhookEndpointEventRepository {
+	if m.withTxFn != nil { return m.withTxFn(tx) }
+	return m
+}
+
+func (m *mockWebhookEndpointEventRepo) FindByEndpointID(id int64) ([]WebhookEndpointEvent, error) {
+	if m.findByEndpointIDFn != nil { return m.findByEndpointIDFn(id) }
+	return nil, nil
+}
+
+func (m *mockWebhookEndpointEventRepo) FindByEndpointIDAndEventTypeID(epID, etID int64) (*WebhookEndpointEvent, error) {
+	if m.findByEndpointAndEvtFn != nil { return m.findByEndpointAndEvtFn(epID, etID) }
+	return nil, nil
+}
+
+func (m *mockWebhookEndpointEventRepo) DeleteByEndpointIDAndEventTypeID(epID, etID int64) error {
+	if m.deleteByIdAndEvtFn != nil { return m.deleteByIdAndEvtFn(epID, etID) }
+	return nil
+}
+
+func (m *mockWebhookEndpointEventRepo) DeleteByEndpointID(id int64) error {
+	if m.deleteByEndpointIDFn != nil { return m.deleteByEndpointIDFn(id) }
+	return nil
+}
+
+func (m *mockWebhookEndpointEventRepo) BulkCreate(entries []WebhookEndpointEvent) error {
+	if m.bulkCreateFn != nil { return m.bulkCreateFn(entries) }
+	return nil
+}
+
+func (m *mockWebhookEndpointEventRepo) Create(e *WebhookEndpointEvent) (*WebhookEndpointEvent, error) {
+	if m.createFn != nil { return m.createFn(e) }
+	return e, nil
+}
