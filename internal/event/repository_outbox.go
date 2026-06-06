@@ -12,6 +12,7 @@ import (
 type OutboxRepository interface {
 	BaseRepositoryMethods[Outbox]
 	FindUnpublished(batchSize int) ([]Outbox, error)
+	ClaimUnpublished(batchSize int) ([]Outbox, error)
 	FindByTenantID(tenantID int64) ([]Outbox, error)
 	FindByEventID(eventID uuid.UUID) (*Outbox, error)
 	MarkPublished(outboxID int64) error
@@ -42,6 +43,32 @@ func (r *outboxRepository) FindUnpublished(batchSize int) ([]Outbox, error) {
 		Order("created_at ASC").
 		Limit(batchSize).
 		Find(&rows).Error
+	return rows, err
+}
+
+// claimVisibilityTimeout is how long a claimed-but-unpublished row stays
+// invisible to other relay workers before it can be re-claimed.
+const claimVisibilityTimeout = "5 minutes"
+
+// ClaimUnpublished atomically claims a batch of unpublished outbox rows using
+// FOR UPDATE SKIP LOCKED so that concurrent relay workers (multiple replicas)
+// never process the same row. A claimed row is hidden for claimVisibilityTimeout;
+// if delivery hand-off fails and the row is never marked published, the claim
+// expires and the row becomes re-claimable.
+func (r *outboxRepository) ClaimUnpublished(batchSize int) ([]Outbox, error) {
+	var rows []Outbox
+	err := r.DB().Raw(`
+		UPDATE integration_event_outbox SET claimed_at = now()
+		WHERE outbox_id IN (
+			SELECT outbox_id FROM integration_event_outbox
+			WHERE is_published = false
+			  AND (claimed_at IS NULL OR claimed_at < now() - interval '`+claimVisibilityTimeout+`')
+			ORDER BY created_at ASC
+			LIMIT ?
+			FOR UPDATE SKIP LOCKED
+		)
+		RETURNING *
+	`, batchSize).Scan(&rows).Error
 	return rows, err
 }
 

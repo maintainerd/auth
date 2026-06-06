@@ -223,9 +223,11 @@ func (s *tenantService) Create(ctx context.Context, name string, displayName str
 
 		// Emit tenant.created inside the transaction
 		if s.eventService != nil {
-			s.eventService.Emit(ctx, tx.Tx(), event.NewIntegrationEvent(
+			if _, emitErr := s.eventService.Emit(ctx, tx.Tx(), event.NewIntegrationEvent(
 				event.EventTypeTenantCreated, 1, createdTenant.TenantID,
-			).SetSubject(&createdTenant.TenantUUID, "tenant"))
+			).SetSubject(&createdTenant.TenantUUID, "tenant")); emitErr != nil {
+				return emitErr
+			}
 		}
 
 		return nil
@@ -302,10 +304,12 @@ func (s *tenantService) Update(ctx context.Context, tenantUUID uuid.UUID, name s
 
 		// Emit tenant.updated inside the transaction
 		if s.eventService != nil && len(changed) > 0 {
-			s.eventService.Emit(ctx, tx.Tx(), event.NewIntegrationEvent(
+			if _, emitErr := s.eventService.Emit(ctx, tx.Tx(), event.NewIntegrationEvent(
 				event.EventTypeTenantUpdated, 1, updatedTenant.TenantID,
 			).SetSubject(&updatedTenant.TenantUUID, "tenant").
-				SetChangedFields(changed...))
+				SetChangedFields(changed...)); emitErr != nil {
+				return emitErr
+			}
 		}
 
 		return nil
@@ -326,38 +330,45 @@ func (s *tenantService) SetStatusByUUID(ctx context.Context, tenantUUID uuid.UUI
 	defer span.End()
 	span.SetAttributes(attribute.String("tenant.uuid", tenantUUID.String()), attribute.String("tenant.status", status))
 
-	tenant, err := s.tenantRepo.FindByUUID(tenantUUID)
-	if err != nil || tenant == nil {
-		if err != nil {
-			span.RecordError(err)
-		}
-		span.SetStatus(codes.Error, "tenant not found")
-		return nil, apperror.NewNotFound("tenant not found")
-	}
+	var updatedTenant *Tenant
+	err := s.uow.Do(ctx, func(tx Transaction) error {
+		txTenantRepo := tx.TenantRepository()
 
-	err = s.tenantRepo.SetStatusByUUID(tenantUUID, status)
+		tenant, err := txTenantRepo.FindByUUID(tenantUUID)
+		if err != nil {
+			return err
+		}
+		if tenant == nil {
+			return apperror.NewNotFound("tenant not found")
+		}
+
+		if err := txTenantRepo.SetStatusByUUID(tenantUUID, status); err != nil {
+			return err
+		}
+
+		updatedTenant, err = txTenantRepo.FindByUUID(tenantUUID)
+		if err != nil {
+			return err
+		}
+
+		// Emit tenant.status_changed inside the transaction.
+		if s.eventService != nil {
+			if _, emitErr := s.eventService.Emit(ctx, tx.Tx(), event.NewIntegrationEvent(
+				event.EventTypeTenantStatusChanged, 1, updatedTenant.TenantID,
+			).SetSubject(&updatedTenant.TenantUUID, "tenant").
+				SetChangedFields("status")); emitErr != nil {
+				return emitErr
+			}
+		}
+		return nil
+	})
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "set tenant status failed")
 		return nil, err
 	}
 
-	// Fetch updated tenant
-	updatedTenant, err := s.tenantRepo.FindByUUID(tenantUUID)
-	if err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, "get updated tenant failed")
-		return nil, err
-	}
-
 	span.SetStatus(codes.Ok, "")
-	// Emit tenant.status_changed integration event
-	if s.eventService != nil {
-		s.eventService.Emit(ctx, nil, event.NewIntegrationEvent(
-			event.EventTypeTenantStatusChanged, 1, updatedTenant.TenantID,
-		).SetSubject(&updatedTenant.TenantUUID, "tenant").
-			SetChangedFields("status"))
-	}
 	return toTenantServiceDataResult(updatedTenant), nil
 }
 

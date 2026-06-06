@@ -313,7 +313,13 @@ func TestAPIService_DeleteByUUID(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			svc := newAPIService(tc.apiRepo, &mockServiceRepo{}, tc.tsRepo)
+			// DeleteByUUID now wraps the delete + event emission in a transaction.
+			db, mock := newMockGormDB(t)
+			if !tc.expectError {
+				mock.ExpectBegin()
+				mock.ExpectCommit()
+			}
+			svc := NewAPIService(db, tc.apiRepo, &mockServiceRepo{}, tc.tsRepo)
 			result, err := svc.DeleteByUUID(context.Background(), apiUUID, tenantID)
 			if tc.expectError {
 				require.Error(t, err)
@@ -349,7 +355,10 @@ func TestAPIService_DeleteByUUID_ServiceTenantValidation(t *testing.T) {
 				return &TenantService{}, nil
 			},
 		}
-		svc := newAPIService(apiRepo, &mockServiceRepo{}, tsRepo)
+		db, mock := newMockGormDB(t)
+		mock.ExpectBegin()
+		mock.ExpectCommit()
+		svc := NewAPIService(db, apiRepo, &mockServiceRepo{}, tsRepo)
 		result, err := svc.DeleteByUUID(context.Background(), apiUUID, tenantID)
 		require.NoError(t, err)
 		assert.NotNil(t, result)
@@ -383,7 +392,10 @@ func TestAPIService_DeleteByUUID_ServiceTenantValidation(t *testing.T) {
 				return errors.New("delete failed")
 			},
 		}
-		svc := newAPIService(apiRepo, &mockServiceRepo{}, &mockTenantServiceRepo{})
+		db, mock := newMockGormDB(t)
+		mock.ExpectBegin()
+		mock.ExpectRollback()
+		svc := NewAPIService(db, apiRepo, &mockServiceRepo{}, &mockTenantServiceRepo{})
 		_, err := svc.DeleteByUUID(context.Background(), apiUUID, tenantID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "delete failed")

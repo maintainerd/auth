@@ -372,7 +372,17 @@ func (s *clientService) Create(ctx context.Context, tenantID int64, name string,
 		}
 
 		createdClient, err = txClientRepo.FindByUUID(newClient.ClientUUID, "IdentityProvider", "ClientURIs")
-		return err
+		if err != nil {
+			return err
+		}
+		if s.eventService != nil {
+			if _, emitErr := s.eventService.Emit(ctx, tx, event.NewIntegrationEvent(
+				event.EventTypeClientCreated, 1, tenantID,
+			).SetActor(&capturedActorID).SetSubject(&createdClient.ClientUUID, "client")); emitErr != nil {
+				return emitErr
+			}
+		}
+		return nil
 	})
 
 	if err != nil {
@@ -398,12 +408,6 @@ func (s *clientService) Create(ctx context.Context, tenantID int64, name string,
 		Result:      authevent.AuthEventResultSuccess,
 		Description: ptr.Ptr(fmt.Sprintf("Client created: %s", createdClient.Name)),
 	})
-	// Emit client.created integration event
-	if s.eventService != nil {
-		s.eventService.Emit(ctx, nil, event.NewIntegrationEvent(
-			event.EventTypeClientCreated, 1, tenantID,
-		).SetActor(&capturedActorID).SetSubject(&createdClient.ClientUUID, "client"))
-	}
 	return &ClientCreateServiceResult{
 		Client:           ToClientServiceDataResult(createdClient),
 		ClientIdentifier: identifier,
@@ -553,6 +557,13 @@ func (s *clientService) Update(ctx context.Context, ClientUUID uuid.UUID, tenant
 
 		updatedClient = Client
 
+		if s.eventService != nil {
+			if _, emitErr := s.eventService.Emit(ctx, tx, event.NewIntegrationEvent(
+				event.EventTypeClientUpdated, 1, tenantID,
+			).SetActor(&capturedActorID).SetSubject(&updatedClient.ClientUUID, "client")); emitErr != nil {
+				return emitErr
+			}
+		}
 		return nil
 	})
 
@@ -574,12 +585,6 @@ func (s *clientService) Update(ctx context.Context, ClientUUID uuid.UUID, tenant
 		Result:      authevent.AuthEventResultSuccess,
 		Description: ptr.Ptr(fmt.Sprintf("Client updated: %s", updatedClient.Name)),
 	})
-	// Emit client.updated integration event
-	if s.eventService != nil {
-		s.eventService.Emit(ctx, nil, event.NewIntegrationEvent(
-			event.EventTypeClientUpdated, 1, tenantID,
-		).SetActor(&capturedActorID).SetSubject(&updatedClient.ClientUUID, "client"))
-	}
 	return ToClientServiceDataResult(updatedClient), nil
 }
 
@@ -636,6 +641,14 @@ func (s *clientService) SetStatusByUUID(ctx context.Context, ClientUUID uuid.UUI
 
 		updatedClient = Client
 
+		if s.eventService != nil {
+			if _, emitErr := s.eventService.Emit(ctx, tx, event.NewIntegrationEvent(
+				event.EventTypeClientStatusChanged, 1, tenantID,
+			).SetActor(&capturedActorID).SetSubject(&updatedClient.ClientUUID, "client").
+				SetChangedFields("status")); emitErr != nil {
+				return emitErr
+			}
+		}
 		return nil
 	})
 
@@ -657,13 +670,6 @@ func (s *clientService) SetStatusByUUID(ctx context.Context, ClientUUID uuid.UUI
 		Result:      authevent.AuthEventResultSuccess,
 		Description: ptr.Ptr(fmt.Sprintf("Client status set to %s: %s", status, updatedClient.Name)),
 	})
-	// Emit client.status_changed integration event
-	if s.eventService != nil {
-		s.eventService.Emit(ctx, nil, event.NewIntegrationEvent(
-			event.EventTypeClientStatusChanged, 1, tenantID,
-		).SetActor(&capturedActorID).SetSubject(&updatedClient.ClientUUID, "client").
-			SetChangedFields("status"))
-	}
 	return ToClientServiceDataResult(updatedClient), nil
 }
 
@@ -712,6 +718,13 @@ func (s *clientService) DeleteByUUID(ctx context.Context, ClientUUID uuid.UUID, 
 
 		deletedClient = Client
 
+		if s.eventService != nil {
+			if _, emitErr := s.eventService.Emit(ctx, tx, event.NewIntegrationEvent(
+				event.EventTypeClientDeleted, 1, tenantID,
+			).SetSubject(&Client.ClientUUID, "client")); emitErr != nil {
+				return emitErr
+			}
+		}
 		return nil
 	})
 
@@ -733,12 +746,6 @@ func (s *clientService) DeleteByUUID(ctx context.Context, ClientUUID uuid.UUID, 
 		Result:      authevent.AuthEventResultSuccess,
 		Description: ptr.Ptr(fmt.Sprintf("Client deleted: %s", deletedClient.Name)),
 	})
-	// Emit client.deleted integration event
-	if s.eventService != nil {
-		s.eventService.Emit(ctx, nil, event.NewIntegrationEvent(
-			event.EventTypeClientDeleted, 1, tenantID,
-		).SetSubject(&deletedClient.ClientUUID, "client"))
-	}
 	return ToClientServiceDataResult(deletedClient), nil
 }
 

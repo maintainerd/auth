@@ -291,6 +291,15 @@ func (s *serviceService) Update(ctx context.Context, serviceUUID uuid.UUID, tena
 
 		updatedService = service
 
+		// Emit service.updated inside the mutation transaction so the data
+		// change and the event commit (or roll back) together.
+		if s.eventService != nil {
+			if _, emitErr := s.eventService.Emit(ctx, tx, event.NewIntegrationEvent(
+				event.EventTypeServiceUpdated, 1, tenantID,
+			).SetSubject(&service.ServiceUUID, "service")); emitErr != nil {
+				return emitErr
+			}
+		}
 		return nil
 	})
 
@@ -301,12 +310,6 @@ func (s *serviceService) Update(ctx context.Context, serviceUUID uuid.UUID, tena
 	}
 
 	span.SetStatus(codes.Ok, "")
-	// Emit service.updated
-	if s.eventService != nil {
-		s.eventService.Emit(ctx, nil, event.NewIntegrationEvent(
-			event.EventTypeServiceUpdated, 1, tenantID,
-		).SetSubject(&updatedService.ServiceUUID, "service"))
-	}
 	return s.toServiceServiceDataResult(updatedService, tenantID), nil
 }
 
@@ -346,6 +349,13 @@ func (s *serviceService) SetStatusByUUID(ctx context.Context, serviceUUID uuid.U
 
 		updatedService = service
 
+		if s.eventService != nil {
+			if _, emitErr := s.eventService.Emit(ctx, tx, event.NewIntegrationEvent(
+				event.EventTypeServiceStatusChanged, 1, tenantID,
+			).SetSubject(&service.ServiceUUID, "service").SetChangedFields("status")); emitErr != nil {
+				return emitErr
+			}
+		}
 		return nil
 	})
 
@@ -356,12 +366,6 @@ func (s *serviceService) SetStatusByUUID(ctx context.Context, serviceUUID uuid.U
 	}
 
 	span.SetStatus(codes.Ok, "")
-	// Emit service.status_changed
-	if s.eventService != nil {
-		s.eventService.Emit(ctx, nil, event.NewIntegrationEvent(
-			event.EventTypeServiceStatusChanged, 1, tenantID,
-		).SetSubject(&updatedService.ServiceUUID, "service").SetChangedFields("status"))
-	}
 	return s.toServiceServiceDataResult(updatedService, tenantID), nil
 }
 
@@ -389,7 +393,20 @@ func (s *serviceService) DeleteByUUID(ctx context.Context, serviceUUID uuid.UUID
 		return nil, apperror.NewValidation("system service cannot be deleted")
 	}
 
-	err = s.serviceRepo.DeleteByUUID(serviceUUID)
+	// Wrap delete + event emission in one transaction so they commit together.
+	err = s.db.Transaction(func(tx *gorm.DB) error {
+		if err := s.serviceRepo.WithTx(tx).DeleteByUUID(serviceUUID); err != nil {
+			return err
+		}
+		if s.eventService != nil {
+			if _, emitErr := s.eventService.Emit(ctx, tx, event.NewIntegrationEvent(
+				event.EventTypeServiceDeleted, 1, tenantID,
+			).SetSubject(&service.ServiceUUID, "service")); emitErr != nil {
+				return emitErr
+			}
+		}
+		return nil
+	})
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "delete service failed")
@@ -397,12 +414,6 @@ func (s *serviceService) DeleteByUUID(ctx context.Context, serviceUUID uuid.UUID
 	}
 
 	span.SetStatus(codes.Ok, "")
-	// Emit service.deleted
-	if s.eventService != nil {
-		s.eventService.Emit(ctx, nil, event.NewIntegrationEvent(
-			event.EventTypeServiceDeleted, 1, tenantID,
-		).SetSubject(&service.ServiceUUID, "service"))
-	}
 	return s.toServiceServiceDataResult(service, tenantID), nil
 }
 

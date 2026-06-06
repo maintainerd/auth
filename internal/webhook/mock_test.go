@@ -33,6 +33,10 @@ type mockWebhookEndpointRepo struct {
 	updateByUUIDFn         func(any, any) (*WebhookEndpoint, error)
 	deleteByUUIDFn         func(any) error
 	updateLastTriggeredFn  func(int64, time.Time) error
+	countByTenantIDFn      func(int64) (int64, error)
+	incrementFailuresFn    func(int64) (int, error)
+	resetFailuresFn        func(int64) error
+	quarantineFn           func(int64) error
 	withTxFn               func(*gorm.DB) WebhookEndpointRepository
 }
 
@@ -102,11 +106,40 @@ func (m *mockWebhookEndpointRepo) UpdateLastTriggeredAt(webhookEndpointID int64,
 	return nil
 }
 
+func (m *mockWebhookEndpointRepo) CountByTenantID(tenantID int64) (int64, error) {
+	if m.countByTenantIDFn != nil {
+		return m.countByTenantIDFn(tenantID)
+	}
+	return 0, nil
+}
+
+func (m *mockWebhookEndpointRepo) IncrementConsecutiveFailures(webhookEndpointID int64) (int, error) {
+	if m.incrementFailuresFn != nil {
+		return m.incrementFailuresFn(webhookEndpointID)
+	}
+	return 0, nil
+}
+
+func (m *mockWebhookEndpointRepo) ResetConsecutiveFailures(webhookEndpointID int64) error {
+	if m.resetFailuresFn != nil {
+		return m.resetFailuresFn(webhookEndpointID)
+	}
+	return nil
+}
+
+func (m *mockWebhookEndpointRepo) Quarantine(webhookEndpointID int64) error {
+	if m.quarantineFn != nil {
+		return m.quarantineFn(webhookEndpointID)
+	}
+	return nil
+}
+
 // mockWebhookEndpointEventRepo is a test mock for WebhookEndpointEventRepository.
 type mockWebhookEndpointEventRepo struct {
 	mockBaseRepo[WebhookEndpointEvent]
-	findByEndpointIDFn     func(int64) ([]WebhookEndpointEvent, error)
-	findByEndpointAndEvtFn func(int64, int64) (*WebhookEndpointEvent, error)
+	findByEndpointIDFn       func(int64) ([]WebhookEndpointEvent, error)
+	existsByEndpointAndKeyFn func(int64, string) (bool, error)
+	findByEndpointAndEvtFn   func(int64, int64) (*WebhookEndpointEvent, error)
 	deleteByIdAndEvtFn     func(int64, int64) error
 	deleteByEndpointIDFn   func(int64) error
 	bulkCreateFn           func([]WebhookEndpointEvent) error
@@ -122,6 +155,11 @@ func (m *mockWebhookEndpointEventRepo) WithTx(tx *gorm.DB) WebhookEndpointEventR
 func (m *mockWebhookEndpointEventRepo) FindByEndpointID(id int64) ([]WebhookEndpointEvent, error) {
 	if m.findByEndpointIDFn != nil { return m.findByEndpointIDFn(id) }
 	return nil, nil
+}
+
+func (m *mockWebhookEndpointEventRepo) ExistsByEndpointAndEventKey(epID int64, eventTypeKey string) (bool, error) {
+	if m.existsByEndpointAndKeyFn != nil { return m.existsByEndpointAndKeyFn(epID, eventTypeKey) }
+	return false, nil
 }
 
 func (m *mockWebhookEndpointEventRepo) FindByEndpointIDAndEventTypeID(epID, etID int64) (*WebhookEndpointEvent, error) {

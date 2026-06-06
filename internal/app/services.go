@@ -82,6 +82,11 @@ type svcs struct {
 	eventRouteService            event.EventRouteService
 	writeGate                    *event.WriteGate
 	relay                        *event.Relay
+	retrier                      *event.BackgroundRetrier
+	retentionRunner              *event.RetentionRunner
+	webhookEndpointRepo          webhook.WebhookEndpointRepository
+	webhookSubscriptionHandler   *webhook.SubscriptionHandler
+	webhookReplayHandler         *webhook.ReplayHandler
 }
 
 // listenerChecker adapts webhook and event-route repos for the write gate.
@@ -121,11 +126,28 @@ func initServices(db *gorm.DB, r *repos, appCache *cache.Cache, redisClient *red
 		redisClient,
 	)
 
+	// RabbitMQ broker publisher. No AMQP publishFunc is configured in this
+	// deployment, so the publisher is disabled (a no-op) and activates the
+	// moment a publishFunc is injected — matching the "disables cleanly when
+	// RabbitMQ config is absent" contract. The broker arm still filters by the
+	// tenant's enabled event_routes.
+	brokerPublisher := event.NewRabbitMQPublisher(nil)
+
 	deliveryAdapter := event.NewDeliveryAdapter(
 		func(ctx context.Context, outbox *event.Outbox) error {
 			return deliverToWebhooks(ctx, outbox, r.webhookEndpointRepo, r.deliveryHistoryRepo, r.webhookEndpointEventRepo)
 		},
-		nil, // Broker (RabbitMQ) not yet implemented
+		newBrokerDeliverFn(brokerPublisher, r.eventTypeRepo, r.eventRouteRepo),
+	)
+
+	// Webhook management handlers (subscription + replay) that the REST router
+	// wires onto /webhook-endpoints. Built here because they need the webhook
+	// repos and the shared replay delivery path.
+	webhookSubscriptionHandler := webhook.NewSubscriptionHandler(r.webhookEndpointEventRepo, r.webhookEndpointRepo)
+	webhookReplayHandler := webhook.NewReplayHandler(
+		r.deliveryHistoryRepo,
+		r.webhookEndpointRepo,
+		newReplayFn(r.outboxRepo, r.deliveryHistoryRepo, r.webhookEndpointRepo),
 	)
 
 	relay := event.NewRelay(
@@ -133,6 +155,18 @@ func initServices(db *gorm.DB, r *repos, appCache *cache.Cache, redisClient *red
 		deliveryAdapter.DeliverWebhook,
 		deliveryAdapter.DeliverBroker,
 	)
+
+	// Durable retry engine: re-attempts pending delivery_history rows driven by
+	// next_retry_time, surviving process restarts. Shares the single attemptOnce
+	// delivery path so state transitions and quarantine stay consistent.
+	retrier := event.NewBackgroundRetrier(
+		&deliveryRetrierAdapter{historyRepo: r.deliveryHistoryRepo, endpointRepo: r.webhookEndpointRepo},
+		newRetryDeliveryFn(r.outboxRepo, r.webhookEndpointRepo, r.deliveryHistoryRepo),
+	)
+
+	// Retention: purge published outbox rows (>7d) and delivery history (>90d).
+	retentionRunner := event.NewRetentionRunner(r.outboxRepo, r.deliveryHistoryRepo)
+	retentionRunner.Start()
 
 	eventSvc := event.NewEventService(r.outboxRepo, writeGate, relay)
 
@@ -245,6 +279,11 @@ func initServices(db *gorm.DB, r *repos, appCache *cache.Cache, redisClient *red
 		eventRouteService:            eventRouteSvc,
 		writeGate:                    writeGate,
 		relay:                        relay,
+		retrier:                      retrier,
+		retentionRunner:              retentionRunner,
+		webhookEndpointRepo:          r.webhookEndpointRepo,
+		webhookSubscriptionHandler:   webhookSubscriptionHandler,
+		webhookReplayHandler:         webhookReplayHandler,
 	}
 	// Inject event service into ServiceService (uses setter to avoid breaking test constructors)
 	iam.SetServiceEventService(s.serviceService, eventSvc)

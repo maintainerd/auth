@@ -26,6 +26,7 @@ type Outbox struct {
 	RequestID     string         `gorm:"column:request_id;type:varchar(255)" json:"request_id"`
 	IsPublished   bool           `gorm:"column:is_published;not null;default:false" json:"is_published"`
 	PublishedAt   *time.Time     `gorm:"column:published_at" json:"published_at"`
+	ClaimedAt     *time.Time     `gorm:"column:claimed_at" json:"claimed_at"`
 	CreatedAt     time.Time      `gorm:"column:created_at;autoCreateTime" json:"created_at"`
 }
 

@@ -19,6 +19,7 @@ CREATE TABLE IF NOT EXISTS webhook_endpoints (
     max_retries             INTEGER NOT NULL DEFAULT 3,
     timeout_seconds         INTEGER NOT NULL DEFAULT 30,
     status                  VARCHAR(20) NOT NULL DEFAULT 'active',
+    consecutive_failures    INTEGER NOT NULL DEFAULT 0,
     description             TEXT,
     metadata                JSONB DEFAULT '{}',
     last_triggered_at       TIMESTAMPTZ,

@@ -93,9 +93,11 @@ func (s *tenantMemberService) Create(ctx context.Context, tenantID int64, userID
 
 		// Emit tenant_member.added inside the transaction
 		if s.eventService != nil {
-			s.eventService.Emit(ctx, tx.Tx(), event.NewIntegrationEvent(
+			if _, emitErr := s.eventService.Emit(ctx, tx.Tx(), event.NewIntegrationEvent(
 				event.EventTypeTenantMemberAdded, 1, tenantID,
-			).SetSubject(&created.TenantMemberUUID, "tenant_member"))
+			).SetSubject(&created.TenantMemberUUID, "tenant_member")); emitErr != nil {
+				return emitErr
+			}
 		}
 
 		return nil
@@ -301,9 +303,11 @@ func (s *tenantMemberService) DeleteByUUID(ctx context.Context, tenantID int64, 
 
 		// Emit tenant_member.removed inside the transaction
 		if s.eventService != nil {
-			s.eventService.Emit(ctx, tx.Tx(), event.NewIntegrationEvent(
+			if _, emitErr := s.eventService.Emit(ctx, tx.Tx(), event.NewIntegrationEvent(
 				event.EventTypeTenantMemberRemoved, 1, tenantID,
-			).SetSubject(&tenantMemberUUID, "tenant_member"))
+			).SetSubject(&tenantMemberUUID, "tenant_member")); emitErr != nil {
+				return emitErr
+			}
 		}
 
 		return nil

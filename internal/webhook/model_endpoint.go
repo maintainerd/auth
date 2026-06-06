@@ -21,6 +21,7 @@ type WebhookEndpoint struct {
 	MaxRetries          int            `gorm:"column:max_retries;not null;default:3" json:"max_retries"`
 	TimeoutSeconds      int            `gorm:"column:timeout_seconds;not null;default:30" json:"timeout_seconds"`
 	Status              string         `gorm:"column:status;type:varchar(20);not null;default:'active'" json:"status"`
+	ConsecutiveFailures int            `gorm:"column:consecutive_failures;not null;default:0" json:"consecutive_failures"`
 	Description         string         `gorm:"column:description;type:text" json:"description"`
 	Metadata            datatypes.JSON `gorm:"column:metadata;type:jsonb;default:'{}'" json:"metadata"`
 	LastTriggeredAt     *time.Time     `gorm:"column:last_triggered_at" json:"last_triggered_at"`

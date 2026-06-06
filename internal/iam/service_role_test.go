@@ -831,7 +831,10 @@ func TestRoleService_DeleteByUUID(t *testing.T) {
 	})
 
 	t.Run("DeleteByUUID repo error → propagated", func(t *testing.T) {
-		svc := newRoleService(&mockRoleRepo{
+		db, mock := newMockGormDB(t)
+		mock.ExpectBegin()
+		mock.ExpectRollback()
+		svc := NewRoleService(db, &mockRoleRepo{
 			findByUUIDFn: func(_ any, _ ...string) (*Role, error) {
 				return newRole(1, "admin", tenantID), nil
 			},
@@ -840,14 +843,17 @@ func TestRoleService_DeleteByUUID(t *testing.T) {
 			findByUUIDFn: func(_ any, _ ...string) (*User, error) {
 				return roleActorUser(tenantID), nil
 			},
-		}, &mockTenantRepo{})
+		}, &mockTenantRepo{}, cache.NopInvalidator{}, nil, nil)
 		_, err := svc.DeleteByUUID(context.Background(), roleUUID, tenantID, actorUUID)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "delete failed")
 	})
 
 	t.Run("success", func(t *testing.T) {
-		svc := newRoleService(&mockRoleRepo{
+		db, mock := newMockGormDB(t)
+		mock.ExpectBegin()
+		mock.ExpectCommit()
+		svc := NewRoleService(db, &mockRoleRepo{
 			findByUUIDFn: func(_ any, _ ...string) (*Role, error) {
 				return newRole(1, "admin", tenantID), nil
 			},
@@ -855,7 +861,7 @@ func TestRoleService_DeleteByUUID(t *testing.T) {
 			findByUUIDFn: func(_ any, _ ...string) (*User, error) {
 				return roleActorUser(tenantID), nil
 			},
-		}, &mockTenantRepo{})
+		}, &mockTenantRepo{}, cache.NopInvalidator{}, nil, nil)
 		result, err := svc.DeleteByUUID(context.Background(), roleUUID, tenantID, actorUUID)
 		require.NoError(t, err)
 		assert.NotNil(t, result)
@@ -921,8 +927,11 @@ func TestRoleService_InvalidatorErrors(t *testing.T) {
 	})
 
 	t.Run("delete", func(t *testing.T) {
+		db, mock := newMockGormDB(t)
+		mock.ExpectBegin()
+		mock.ExpectCommit()
 		role := newRole(1, "admin", tenantID)
-		svc := newSvc(nil, &mockRoleRepo{
+		svc := newSvc(db, &mockRoleRepo{
 			findByUUIDFn:   func(_ any, _ ...string) (*Role, error) { return role, nil },
 			deleteByUUIDFn: func(any) error { return nil },
 		}, &mockPermissionRepo{}, &mockRolePermissionRepo{})
@@ -932,6 +941,7 @@ func TestRoleService_InvalidatorErrors(t *testing.T) {
 		require.Error(t, err)
 		assert.Nil(t, result)
 		assert.Contains(t, err.Error(), "invalidate")
+		assert.NoError(t, mock.ExpectationsWereMet())
 	})
 
 	t.Run("add permissions", func(t *testing.T) {

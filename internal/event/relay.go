@@ -44,17 +44,33 @@ func NewRelay(
 	}
 
 	r.wg.Add(1)
-	go func() {
-		defer func() { recover() }()
-		r.loop()
-	}()
+	go r.runLoop()
 
 	return r
 }
 
-func (r *Relay) loop() {
+// runLoop runs the relay loop and restarts it if a panic escapes processing,
+// so a single bad batch never permanently kills the relay.
+func (r *Relay) runLoop() {
 	defer r.wg.Done()
+	for {
+		select {
+		case <-r.stopCh:
+			return
+		default:
+		}
+		func() {
+			defer func() {
+				if rec := recover(); rec != nil {
+					slog.Error("relay: loop panicked, restarting", "panic", rec)
+				}
+			}()
+			r.loop()
+		}()
+	}
+}
 
+func (r *Relay) loop() {
 	ticker := time.NewTicker(relayPollInterval)
 	defer ticker.Stop()
 
@@ -69,9 +85,11 @@ func (r *Relay) loop() {
 }
 
 func (r *Relay) processBatch(ctx context.Context) {
-	rows, err := r.outboxRepo.FindUnpublished(relayBatchSize)
+	// ClaimUnpublished uses FOR UPDATE SKIP LOCKED so concurrent relay replicas
+	// never process the same outbox row.
+	rows, err := r.outboxRepo.ClaimUnpublished(relayBatchSize)
 	if err != nil {
-		slog.Error("relay: find unpublished failed", "err", err)
+		slog.Error("relay: claim unpublished failed", "err", err)
 		return
 	}
 	if len(rows) == 0 {
@@ -121,6 +139,16 @@ func (r *Relay) deliverOne(ctx context.Context, row *Outbox) {
 				"err", brokerErr,
 			)
 		}
+	}
+
+	// Mark published only when the hand-off to BOTH channels succeeded. A
+	// hand-off failure leaves the row unpublished; its claim expires and a relay
+	// worker re-claims it on a later poll (at-least-once). Per-endpoint HTTP
+	// outcomes are NOT a hand-off failure — those are durably recorded in
+	// delivery_history and retried by the BackgroundRetrier, so a failed POST
+	// does not block the outbox row from being marked published.
+	if webhookErr != nil || brokerErr != nil {
+		return
 	}
 
 	if err := r.outboxRepo.MarkPublished(row.OutboxID); err != nil {

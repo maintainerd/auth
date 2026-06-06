@@ -124,7 +124,7 @@ func (wg *WriteGate) listenInvalidation() {
 // ShouldEmit checks whether an event of the given type for the given tenant
 // should be written to the outbox.
 func (wg *WriteGate) ShouldEmit(ctx context.Context, eventType string, tenantID int64) bool {
-	if wg.ttlOnly && time.Since(wg.lastRefresh) > writeGateCacheTTL {
+	if wg.needsRefresh() {
 		wg.refreshActiveTypes(ctx)
 	}
 
@@ -188,6 +188,17 @@ func (wg *WriteGate) ensureTenantState(ctx context.Context, tenantID int64) {
 	}
 }
 
+// needsRefresh reports whether the TTL-only cache is stale. Reads lastRefresh
+// under the read lock to avoid a data race with refreshActiveTypes.
+func (wg *WriteGate) needsRefresh() bool {
+	if !wg.ttlOnly {
+		return false
+	}
+	wg.mu.RLock()
+	defer wg.mu.RUnlock()
+	return time.Since(wg.lastRefresh) > writeGateCacheTTL
+}
+
 func (wg *WriteGate) refreshActiveTypes(ctx context.Context) {
 	defer func() {
 		if r := recover(); r != nil {
@@ -220,7 +231,11 @@ func (wg *WriteGate) InvalidateTenant(ctx context.Context, tenantID int64) {
 	wg.mu.Unlock()
 
 	if wg.rdb != nil {
-		wg.rdb.Publish(ctx, writeGateInvalidationChan, tenantID)
+		// Best-effort cross-replica invalidation; log failures so a dropped
+		// publish (Redis blip) that leaves other replicas stale is visible.
+		if err := wg.rdb.Publish(ctx, writeGateInvalidationChan, tenantID).Err(); err != nil {
+			slog.Error("write gate: publish invalidation failed", "tenant_id", tenantID, "err", err)
+		}
 	}
 }
 

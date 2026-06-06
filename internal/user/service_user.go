@@ -666,14 +666,31 @@ func (s *userService) SetStatus(ctx context.Context, userUUID uuid.UUID, tenantI
 		return nil, err
 	}
 
-	err = s.userRepo.SetStatus(userUUID, status)
+	var updatedUser *User
+	err = s.db.Transaction(func(tx *gorm.DB) error {
+		txUserRepo := s.userRepo.WithTx(tx)
+		if e := txUserRepo.SetStatus(userUUID, status); e != nil {
+			return e
+		}
+		u, e := txUserRepo.FindByUUID(userUUID, "UserIdentities.Client", "UserIdentities.Tenant", "Roles")
+		if e != nil {
+			return e
+		}
+		updatedUser = u
+		if s.eventService != nil {
+			if _, emitErr := s.eventService.Emit(ctx, tx, event.NewIntegrationEvent(
+				event.EventTypeUserStatusChanged, 1, tenantID,
+			).SetActor(&updaterUser.UserID).
+				SetSubject(&updatedUser.UserUUID, "user").
+				SetChangedFields("status")); emitErr != nil {
+				return emitErr
+			}
+		}
+		return nil
+	})
 	if err != nil {
-		return nil, err
-	}
-
-	// Fetch updated user with relationships
-	updatedUser, err := s.userRepo.FindByUUID(userUUID, "UserIdentities.Client", "UserIdentities.Tenant", "Roles")
-	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "set user status failed")
 		return nil, err
 	}
 
@@ -691,14 +708,6 @@ func (s *userService) SetStatus(ctx context.Context, userUUID uuid.UUID, tenantI
 		Result:       authevent.AuthEventResultSuccess,
 		Description:  ptr.Ptr(fmt.Sprintf("User status set to %s: %s", status, user.Username)),
 	})
-	// Emit user.status_changed integration event
-	if s.eventService != nil {
-		s.eventService.Emit(ctx, nil, event.NewIntegrationEvent(
-			event.EventTypeUserStatusChanged, 1, tenantID,
-		).SetActor(&updaterUser.UserID).
-			SetSubject(&updatedUser.UserUUID, "user").
-			SetChangedFields("status"))
-	}
 	return toUserServiceDataResult(updatedUser), nil
 }
 
@@ -842,7 +851,19 @@ func (s *userService) DeleteByUUID(ctx context.Context, userUUID uuid.UUID, tena
 	s.invalidateUserCache(ctx, user.UserIdentities)
 
 	// Delete user (cascade will handle related records)
-	err = s.userRepo.DeleteByUUID(userUUID)
+	err = s.db.Transaction(func(tx *gorm.DB) error {
+		if e := s.userRepo.WithTx(tx).DeleteByUUID(userUUID); e != nil {
+			return e
+		}
+		if s.eventService != nil {
+			if _, emitErr := s.eventService.Emit(ctx, tx, event.NewIntegrationEvent(
+				event.EventTypeUserDeleted, 1, tenantID,
+			).SetActor(&deleterUser.UserID).SetSubject(&user.UserUUID, "user")); emitErr != nil {
+				return emitErr
+			}
+		}
+		return nil
+	})
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "delete user failed")
@@ -862,12 +883,6 @@ func (s *userService) DeleteByUUID(ctx context.Context, userUUID uuid.UUID, tena
 		Result:       authevent.AuthEventResultSuccess,
 		Description:  ptr.Ptr(fmt.Sprintf("User deleted: %s", user.Username)),
 	})
-	// Emit user.deleted integration event
-	if s.eventService != nil {
-		s.eventService.Emit(ctx, nil, event.NewIntegrationEvent(
-			event.EventTypeUserDeleted, 1, tenantID,
-		).SetActor(&deleterUser.UserID).SetSubject(&user.UserUUID, "user"))
-	}
 	return toUserServiceDataResult(user), nil
 }
 
@@ -932,6 +947,13 @@ func (s *userService) AssignUserRoles(ctx context.Context, userUUID uuid.UUID, r
 			return err
 		}
 
+		if s.eventService != nil {
+			if _, emitErr := s.eventService.Emit(ctx, tx, event.NewIntegrationEvent(
+				event.EventTypeUserRoleAssigned, 1, tenantID,
+			).SetSubject(&userWithRoles.UserUUID, "user")); emitErr != nil {
+				return emitErr
+			}
+		}
 		return nil
 	})
 
@@ -958,12 +980,6 @@ func (s *userService) AssignUserRoles(ctx context.Context, userUUID uuid.UUID, r
 		Result:       authevent.AuthEventResultSuccess,
 		Description:  ptr.Ptr(fmt.Sprintf("Roles assigned to user: %s", userWithRoles.Username)),
 	})
-	// Emit user.role_assigned integration event
-	if s.eventService != nil {
-		s.eventService.Emit(ctx, nil, event.NewIntegrationEvent(
-			event.EventTypeUserRoleAssigned, 1, tenantID,
-		).SetSubject(&userWithRoles.UserUUID, "user"))
-	}
 
 	return toUserServiceDataResult(userWithRoles), nil
 }
@@ -1012,6 +1028,13 @@ func (s *userService) RemoveUserRole(ctx context.Context, userUUID uuid.UUID, ro
 			return err
 		}
 
+		if s.eventService != nil {
+			if _, emitErr := s.eventService.Emit(ctx, tx, event.NewIntegrationEvent(
+				event.EventTypeUserRoleRemoved, 1, tenantID,
+			).SetSubject(&userWithRoles.UserUUID, "user")); emitErr != nil {
+				return emitErr
+			}
+		}
 		return nil
 	})
 
@@ -1038,12 +1061,6 @@ func (s *userService) RemoveUserRole(ctx context.Context, userUUID uuid.UUID, ro
 		Result:       authevent.AuthEventResultSuccess,
 		Description:  ptr.Ptr(fmt.Sprintf("Role removed from user: %s", userWithRoles.Username)),
 	})
-	// Emit user.role_removed integration event
-	if s.eventService != nil {
-		s.eventService.Emit(ctx, nil, event.NewIntegrationEvent(
-			event.EventTypeUserRoleRemoved, 1, tenantID,
-		).SetSubject(&userWithRoles.UserUUID, "user"))
-	}
 
 	return toUserServiceDataResult(userWithRoles), nil
 }

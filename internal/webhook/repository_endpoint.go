@@ -8,6 +8,7 @@ import (
 	"github.com/maintainerd/auth/internal/platform/database"
 	"github.com/maintainerd/auth/internal/shared"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 // WebhookEndpointRepositoryGetFilter holds query parameters for paginated
@@ -31,6 +32,14 @@ type WebhookEndpointRepository interface {
 	FindByUUIDAndTenantID(webhookEndpointUUID uuid.UUID, tenantID int64) (*WebhookEndpoint, error)
 	FindPaginated(filter WebhookEndpointRepositoryGetFilter) (*PaginationResult[WebhookEndpoint], error)
 	UpdateLastTriggeredAt(webhookEndpointID int64, t time.Time) error
+	// CountByTenantID returns the number of (non-deleted) endpoints for a tenant.
+	CountByTenantID(tenantID int64) (int64, error)
+	// IncrementConsecutiveFailures atomically bumps the failure counter and returns the new value.
+	IncrementConsecutiveFailures(webhookEndpointID int64) (int, error)
+	// ResetConsecutiveFailures zeroes the failure counter after a successful delivery.
+	ResetConsecutiveFailures(webhookEndpointID int64) error
+	// Quarantine marks an endpoint inactive after sustained failures.
+	Quarantine(webhookEndpointID int64) error
 }
 
 type webhookEndpointRepository struct {
@@ -107,4 +116,40 @@ func (r *webhookEndpointRepository) UpdateLastTriggeredAt(webhookEndpointID int6
 	return r.DB().Model(&WebhookEndpoint{}).
 		Where("webhook_endpoint_id = ?", webhookEndpointID).
 		Update("last_triggered_at", t).Error
+}
+
+// CountByTenantID returns the number of non-deleted endpoints for a tenant.
+func (r *webhookEndpointRepository) CountByTenantID(tenantID int64) (int64, error) {
+	var count int64
+	err := r.DB().Model(&WebhookEndpoint{}).Where("tenant_id = ?", tenantID).Count(&count).Error
+	return count, err
+}
+
+// IncrementConsecutiveFailures atomically increments the failure counter and
+// returns the new value, so callers can decide whether to quarantine.
+func (r *webhookEndpointRepository) IncrementConsecutiveFailures(webhookEndpointID int64) (int, error) {
+	var ep WebhookEndpoint
+	err := r.DB().Model(&WebhookEndpoint{}).
+		Clauses(clause.Returning{Columns: []clause.Column{{Name: "consecutive_failures"}}}).
+		Where("webhook_endpoint_id = ?", webhookEndpointID).
+		UpdateColumn("consecutive_failures", gorm.Expr("consecutive_failures + 1")).
+		Scan(&ep).Error
+	if err != nil {
+		return 0, err
+	}
+	return ep.ConsecutiveFailures, nil
+}
+
+// ResetConsecutiveFailures zeroes the failure counter (called after a success).
+func (r *webhookEndpointRepository) ResetConsecutiveFailures(webhookEndpointID int64) error {
+	return r.DB().Model(&WebhookEndpoint{}).
+		Where("webhook_endpoint_id = ? AND consecutive_failures > 0", webhookEndpointID).
+		UpdateColumn("consecutive_failures", 0).Error
+}
+
+// Quarantine marks an endpoint inactive (quarantined) after sustained failures.
+func (r *webhookEndpointRepository) Quarantine(webhookEndpointID int64) error {
+	return r.DB().Model(&WebhookEndpoint{}).
+		Where("webhook_endpoint_id = ?", webhookEndpointID).
+		Update("status", "quarantined").Error
 }

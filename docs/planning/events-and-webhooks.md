@@ -104,7 +104,12 @@ All 48 integration events wired across 5 groups. The transaction-bound outbox sp
 - Config APIs: `GET /event-types`, `GET/PUT /tenant-event-types`, `GET/POST/PUT/DELETE /event-routes`.
 - Replay API: `POST /webhook-replay` replays an event to one or all endpoints.
 - `X-Maintainerd-Event-Id` header provides stable receiver idempotency key.
-- RabbitMQ publisher adapter (function-injected) available for broker channel.
+- RabbitMQ publisher adapter (function-injected) wired into the relay's broker
+  arm with per-tenant `event_routes` filtering. It is **disabled** until an AMQP
+  `publishFunc` is injected (no AMQP connection/config exists in this repo yet),
+  so the broker path is code-complete and no-ops cleanly until configured.
+- Webhook subscription management, replay (`POST /webhook-replay`), and the
+  per-tenant endpoint-creation cap are wired into the REST router.
 - gRPC parity: domain events emitted in service layer, shared by REST and gRPC handlers.
 - All 42 test packages pass.
 
