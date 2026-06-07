@@ -15,7 +15,7 @@ func LoadPasswordPolicy(repo SecuritySettingRepository, tenantID int64) security
 	if repo == nil {
 		return security.DefaultPasswordPolicy()
 	}
-	ss, err := repo.FindDefaultByTenantID(tenantID)
+	ss, err := repo.FindByTenantID(tenantID)
 	if err != nil || ss == nil {
 		return security.DefaultPasswordPolicy()
 	}

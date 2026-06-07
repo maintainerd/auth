@@ -52,7 +52,10 @@ func (m *mockSecuritySettingRepo) FindDefaultByTenantID(tenantID int64) (*secpol
 	}
 	return nil, nil
 }
-func (m *mockSecuritySettingRepo) FindByUserPoolID(tenantID int64) (*secpolicy.SecuritySetting, error) {
+func (m *mockSecuritySettingRepo) FindByTenantID(tenantID int64) (*secpolicy.SecuritySetting, error) {
+	if m.findDefaultByTenantIDFn != nil {
+		return m.findDefaultByTenantIDFn(tenantID)
+	}
 	return nil, nil
 }
 func (m *mockSecuritySettingRepo) FindPaginated(f secpolicy.SecuritySettingRepositoryGetFilter) (*PaginationResult[secpolicy.SecuritySetting], error) {

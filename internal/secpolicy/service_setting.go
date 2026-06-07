@@ -17,7 +17,7 @@ import (
 
 type SecuritySettingServiceDataResult struct {
 	SecuritySettingUUID uuid.UUID
-	UserPoolID          int64
+	TenantID          int64
 	MFAConfig           map[string]any
 	PasswordConfig      map[string]any
 	SessionConfig       map[string]any
@@ -33,21 +33,21 @@ type SecuritySettingServiceDataResult struct {
 }
 
 type SecuritySettingService interface {
-	GetByUserPoolID(ctx context.Context, userPoolID int64) (*SecuritySettingServiceDataResult, error)
-	GetMFAConfig(ctx context.Context, userPoolID int64) (map[string]any, error)
-	GetPasswordConfig(ctx context.Context, userPoolID int64) (map[string]any, error)
-	GetSessionConfig(ctx context.Context, userPoolID int64) (map[string]any, error)
-	GetThreatConfig(ctx context.Context, userPoolID int64) (map[string]any, error)
-	GetLockoutConfig(ctx context.Context, userPoolID int64) (map[string]any, error)
-	GetRegistrationConfig(ctx context.Context, userPoolID int64) (map[string]any, error)
-	GetTokenConfig(ctx context.Context, userPoolID int64) (map[string]any, error)
-	UpdateMFAConfig(ctx context.Context, userPoolID int64, config map[string]any, updatedBy int64, ipAddress, userAgent string) (*SecuritySettingServiceDataResult, error)
-	UpdatePasswordConfig(ctx context.Context, userPoolID int64, config map[string]any, updatedBy int64, ipAddress, userAgent string) (*SecuritySettingServiceDataResult, error)
-	UpdateSessionConfig(ctx context.Context, userPoolID int64, config map[string]any, updatedBy int64, ipAddress, userAgent string) (*SecuritySettingServiceDataResult, error)
-	UpdateThreatConfig(ctx context.Context, userPoolID int64, config map[string]any, updatedBy int64, ipAddress, userAgent string) (*SecuritySettingServiceDataResult, error)
-	UpdateLockoutConfig(ctx context.Context, userPoolID int64, config map[string]any, updatedBy int64, ipAddress, userAgent string) (*SecuritySettingServiceDataResult, error)
-	UpdateRegistrationConfig(ctx context.Context, userPoolID int64, config map[string]any, updatedBy int64, ipAddress, userAgent string) (*SecuritySettingServiceDataResult, error)
-	UpdateTokenConfig(ctx context.Context, userPoolID int64, config map[string]any, updatedBy int64, ipAddress, userAgent string) (*SecuritySettingServiceDataResult, error)
+	GetByTenantID(ctx context.Context, tenantID int64) (*SecuritySettingServiceDataResult, error)
+	GetMFAConfig(ctx context.Context, tenantID int64) (map[string]any, error)
+	GetPasswordConfig(ctx context.Context, tenantID int64) (map[string]any, error)
+	GetSessionConfig(ctx context.Context, tenantID int64) (map[string]any, error)
+	GetThreatConfig(ctx context.Context, tenantID int64) (map[string]any, error)
+	GetLockoutConfig(ctx context.Context, tenantID int64) (map[string]any, error)
+	GetRegistrationConfig(ctx context.Context, tenantID int64) (map[string]any, error)
+	GetTokenConfig(ctx context.Context, tenantID int64) (map[string]any, error)
+	UpdateMFAConfig(ctx context.Context, tenantID int64, config map[string]any, updatedBy int64, ipAddress, userAgent string) (*SecuritySettingServiceDataResult, error)
+	UpdatePasswordConfig(ctx context.Context, tenantID int64, config map[string]any, updatedBy int64, ipAddress, userAgent string) (*SecuritySettingServiceDataResult, error)
+	UpdateSessionConfig(ctx context.Context, tenantID int64, config map[string]any, updatedBy int64, ipAddress, userAgent string) (*SecuritySettingServiceDataResult, error)
+	UpdateThreatConfig(ctx context.Context, tenantID int64, config map[string]any, updatedBy int64, ipAddress, userAgent string) (*SecuritySettingServiceDataResult, error)
+	UpdateLockoutConfig(ctx context.Context, tenantID int64, config map[string]any, updatedBy int64, ipAddress, userAgent string) (*SecuritySettingServiceDataResult, error)
+	UpdateRegistrationConfig(ctx context.Context, tenantID int64, config map[string]any, updatedBy int64, ipAddress, userAgent string) (*SecuritySettingServiceDataResult, error)
+	UpdateTokenConfig(ctx context.Context, tenantID int64, config map[string]any, updatedBy int64, ipAddress, userAgent string) (*SecuritySettingServiceDataResult, error)
 }
 
 type securitySettingService struct {
@@ -126,7 +126,7 @@ func NewSecuritySettingService(
 func toSecuritySettingServiceDataResult(ss *SecuritySetting) *SecuritySettingServiceDataResult {
 	return &SecuritySettingServiceDataResult{
 		SecuritySettingUUID: ss.SecuritySettingUUID,
-		UserPoolID:          ss.UserPoolID,
+		TenantID:          ss.TenantID,
 		MFAConfig:           jsonutil.JSONToMap(ss.MFAConfig),
 		PasswordConfig:      jsonutil.JSONToMap(ss.PasswordConfig),
 		SessionConfig:       jsonutil.JSONToMap(ss.SessionConfig),
@@ -142,12 +142,12 @@ func toSecuritySettingServiceDataResult(ss *SecuritySetting) *SecuritySettingSer
 	}
 }
 
-func (s *securitySettingService) GetByUserPoolID(ctx context.Context, userPoolID int64) (*SecuritySettingServiceDataResult, error) {
+func (s *securitySettingService) GetByTenantID(ctx context.Context, tenantID int64) (*SecuritySettingServiceDataResult, error) {
 	_, span := otel.Tracer("service").Start(ctx, "securitySetting.get")
 	defer span.End()
-	span.SetAttributes(attribute.Int64("user_pool.id", userPoolID))
+	span.SetAttributes(attribute.Int64("tenant.id", tenantID))
 
-	setting, err := s.securitySettingRepo.FindByUserPoolID(userPoolID)
+	setting, err := s.securitySettingRepo.FindByTenantID(tenantID)
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "get security setting failed")
@@ -161,35 +161,35 @@ func (s *securitySettingService) GetByUserPoolID(ctx context.Context, userPoolID
 	return toSecuritySettingServiceDataResult(setting), nil
 }
 
-func (s *securitySettingService) GetMFAConfig(ctx context.Context, userPoolID int64) (map[string]any, error) {
-	return s.getConfig(ctx, userPoolID, "mfa")
+func (s *securitySettingService) GetMFAConfig(ctx context.Context, tenantID int64) (map[string]any, error) {
+	return s.getConfig(ctx, tenantID, "mfa")
 }
 
-func (s *securitySettingService) GetPasswordConfig(ctx context.Context, userPoolID int64) (map[string]any, error) {
-	return s.getConfig(ctx, userPoolID, "password")
+func (s *securitySettingService) GetPasswordConfig(ctx context.Context, tenantID int64) (map[string]any, error) {
+	return s.getConfig(ctx, tenantID, "password")
 }
 
-func (s *securitySettingService) GetSessionConfig(ctx context.Context, userPoolID int64) (map[string]any, error) {
-	return s.getConfig(ctx, userPoolID, "session")
+func (s *securitySettingService) GetSessionConfig(ctx context.Context, tenantID int64) (map[string]any, error) {
+	return s.getConfig(ctx, tenantID, "session")
 }
 
-func (s *securitySettingService) GetThreatConfig(ctx context.Context, userPoolID int64) (map[string]any, error) {
-	return s.getConfig(ctx, userPoolID, "threat")
+func (s *securitySettingService) GetThreatConfig(ctx context.Context, tenantID int64) (map[string]any, error) {
+	return s.getConfig(ctx, tenantID, "threat")
 }
 
-func (s *securitySettingService) GetLockoutConfig(ctx context.Context, userPoolID int64) (map[string]any, error) {
-	return s.getConfig(ctx, userPoolID, "lockout")
+func (s *securitySettingService) GetLockoutConfig(ctx context.Context, tenantID int64) (map[string]any, error) {
+	return s.getConfig(ctx, tenantID, "lockout")
 }
 
-func (s *securitySettingService) GetRegistrationConfig(ctx context.Context, userPoolID int64) (map[string]any, error) {
-	return s.getConfig(ctx, userPoolID, "registration")
+func (s *securitySettingService) GetRegistrationConfig(ctx context.Context, tenantID int64) (map[string]any, error) {
+	return s.getConfig(ctx, tenantID, "registration")
 }
 
-func (s *securitySettingService) GetTokenConfig(ctx context.Context, userPoolID int64) (map[string]any, error) {
-	return s.getConfig(ctx, userPoolID, "token")
+func (s *securitySettingService) GetTokenConfig(ctx context.Context, tenantID int64) (map[string]any, error) {
+	return s.getConfig(ctx, tenantID, "token")
 }
 
-func (s *securitySettingService) getConfig(ctx context.Context, userPoolID int64, configType string) (map[string]any, error) {
+func (s *securitySettingService) getConfig(ctx context.Context, tenantID int64, configType string) (map[string]any, error) {
 	def, ok := securityConfigDefinitions[configType]
 	if !ok {
 		return nil, apperror.NewValidation("invalid config type")
@@ -197,9 +197,9 @@ func (s *securitySettingService) getConfig(ctx context.Context, userPoolID int64
 
 	_, span := otel.Tracer("service").Start(ctx, def.spanGet)
 	defer span.End()
-	span.SetAttributes(attribute.Int64("user_pool.id", userPoolID))
+	span.SetAttributes(attribute.Int64("tenant.id", tenantID))
 
-	setting, err := s.getOrCreateSecuritySetting(userPoolID)
+	setting, err := s.getOrCreateSecuritySetting(tenantID)
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, def.errGet)
@@ -209,35 +209,35 @@ func (s *securitySettingService) getConfig(ctx context.Context, userPoolID int64
 	return jsonutil.JSONToMap(def.selectJSON(setting)), nil
 }
 
-func (s *securitySettingService) UpdateMFAConfig(ctx context.Context, userPoolID int64, config map[string]any, updatedBy int64, ipAddress, userAgent string) (*SecuritySettingServiceDataResult, error) {
-	return s.updateConfigByDefinition(ctx, userPoolID, "mfa", config, updatedBy, ipAddress, userAgent)
+func (s *securitySettingService) UpdateMFAConfig(ctx context.Context, tenantID int64, config map[string]any, updatedBy int64, ipAddress, userAgent string) (*SecuritySettingServiceDataResult, error) {
+	return s.updateConfigByDefinition(ctx, tenantID, "mfa", config, updatedBy, ipAddress, userAgent)
 }
 
-func (s *securitySettingService) UpdatePasswordConfig(ctx context.Context, userPoolID int64, config map[string]any, updatedBy int64, ipAddress, userAgent string) (*SecuritySettingServiceDataResult, error) {
-	return s.updateConfigByDefinition(ctx, userPoolID, "password", config, updatedBy, ipAddress, userAgent)
+func (s *securitySettingService) UpdatePasswordConfig(ctx context.Context, tenantID int64, config map[string]any, updatedBy int64, ipAddress, userAgent string) (*SecuritySettingServiceDataResult, error) {
+	return s.updateConfigByDefinition(ctx, tenantID, "password", config, updatedBy, ipAddress, userAgent)
 }
 
-func (s *securitySettingService) UpdateSessionConfig(ctx context.Context, userPoolID int64, config map[string]any, updatedBy int64, ipAddress, userAgent string) (*SecuritySettingServiceDataResult, error) {
-	return s.updateConfigByDefinition(ctx, userPoolID, "session", config, updatedBy, ipAddress, userAgent)
+func (s *securitySettingService) UpdateSessionConfig(ctx context.Context, tenantID int64, config map[string]any, updatedBy int64, ipAddress, userAgent string) (*SecuritySettingServiceDataResult, error) {
+	return s.updateConfigByDefinition(ctx, tenantID, "session", config, updatedBy, ipAddress, userAgent)
 }
 
-func (s *securitySettingService) UpdateThreatConfig(ctx context.Context, userPoolID int64, config map[string]any, updatedBy int64, ipAddress, userAgent string) (*SecuritySettingServiceDataResult, error) {
-	return s.updateConfigByDefinition(ctx, userPoolID, "threat", config, updatedBy, ipAddress, userAgent)
+func (s *securitySettingService) UpdateThreatConfig(ctx context.Context, tenantID int64, config map[string]any, updatedBy int64, ipAddress, userAgent string) (*SecuritySettingServiceDataResult, error) {
+	return s.updateConfigByDefinition(ctx, tenantID, "threat", config, updatedBy, ipAddress, userAgent)
 }
 
-func (s *securitySettingService) UpdateLockoutConfig(ctx context.Context, userPoolID int64, config map[string]any, updatedBy int64, ipAddress, userAgent string) (*SecuritySettingServiceDataResult, error) {
-	return s.updateConfigByDefinition(ctx, userPoolID, "lockout", config, updatedBy, ipAddress, userAgent)
+func (s *securitySettingService) UpdateLockoutConfig(ctx context.Context, tenantID int64, config map[string]any, updatedBy int64, ipAddress, userAgent string) (*SecuritySettingServiceDataResult, error) {
+	return s.updateConfigByDefinition(ctx, tenantID, "lockout", config, updatedBy, ipAddress, userAgent)
 }
 
-func (s *securitySettingService) UpdateRegistrationConfig(ctx context.Context, userPoolID int64, config map[string]any, updatedBy int64, ipAddress, userAgent string) (*SecuritySettingServiceDataResult, error) {
-	return s.updateConfigByDefinition(ctx, userPoolID, "registration", config, updatedBy, ipAddress, userAgent)
+func (s *securitySettingService) UpdateRegistrationConfig(ctx context.Context, tenantID int64, config map[string]any, updatedBy int64, ipAddress, userAgent string) (*SecuritySettingServiceDataResult, error) {
+	return s.updateConfigByDefinition(ctx, tenantID, "registration", config, updatedBy, ipAddress, userAgent)
 }
 
-func (s *securitySettingService) UpdateTokenConfig(ctx context.Context, userPoolID int64, config map[string]any, updatedBy int64, ipAddress, userAgent string) (*SecuritySettingServiceDataResult, error) {
-	return s.updateConfigByDefinition(ctx, userPoolID, "token", config, updatedBy, ipAddress, userAgent)
+func (s *securitySettingService) UpdateTokenConfig(ctx context.Context, tenantID int64, config map[string]any, updatedBy int64, ipAddress, userAgent string) (*SecuritySettingServiceDataResult, error) {
+	return s.updateConfigByDefinition(ctx, tenantID, "token", config, updatedBy, ipAddress, userAgent)
 }
 
-func (s *securitySettingService) updateConfigByDefinition(ctx context.Context, userPoolID int64, configType string, config map[string]any, updatedBy int64, ipAddress, userAgent string) (*SecuritySettingServiceDataResult, error) {
+func (s *securitySettingService) updateConfigByDefinition(ctx context.Context, tenantID int64, configType string, config map[string]any, updatedBy int64, ipAddress, userAgent string) (*SecuritySettingServiceDataResult, error) {
 	def, ok := securityConfigDefinitions[configType]
 	if !ok {
 		return nil, apperror.NewValidation("invalid config type")
@@ -245,9 +245,9 @@ func (s *securitySettingService) updateConfigByDefinition(ctx context.Context, u
 
 	_, span := otel.Tracer("service").Start(ctx, def.spanUpdate)
 	defer span.End()
-	span.SetAttributes(attribute.Int64("user_pool.id", userPoolID))
+	span.SetAttributes(attribute.Int64("tenant.id", tenantID))
 
-	result, err := s.updateConfig(userPoolID, def, config, updatedBy, ipAddress, userAgent)
+	result, err := s.updateConfig(tenantID, def, config, updatedBy, ipAddress, userAgent)
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, def.errUpdate)
@@ -257,8 +257,8 @@ func (s *securitySettingService) updateConfigByDefinition(ctx context.Context, u
 	return result, nil
 }
 
-func (s *securitySettingService) getOrCreateSecuritySetting(userPoolID int64) (*SecuritySetting, error) {
-	setting, err := s.securitySettingRepo.FindByUserPoolID(userPoolID)
+func (s *securitySettingService) getOrCreateSecuritySetting(tenantID int64) (*SecuritySetting, error) {
+	setting, err := s.securitySettingRepo.FindByTenantID(tenantID)
 	if err != nil {
 		return nil, err
 	}
@@ -266,7 +266,7 @@ func (s *securitySettingService) getOrCreateSecuritySetting(userPoolID int64) (*
 	if setting == nil {
 		// Create default security setting
 		setting = &SecuritySetting{
-			UserPoolID:         userPoolID,
+			TenantID:         tenantID,
 			MFAConfig:          datatypes.JSON([]byte("{}")),
 			PasswordConfig:     datatypes.JSON([]byte("{}")),
 			SessionConfig:      datatypes.JSON([]byte("{}")),
@@ -286,7 +286,7 @@ func (s *securitySettingService) getOrCreateSecuritySetting(userPoolID int64) (*
 	return setting, nil
 }
 
-func (s *securitySettingService) updateConfig(userPoolID int64, def securityConfigDefinition, config map[string]any, updatedBy int64, ipAddress, userAgent string) (*SecuritySettingServiceDataResult, error) {
+func (s *securitySettingService) updateConfig(tenantID int64, def securityConfigDefinition, config map[string]any, updatedBy int64, ipAddress, userAgent string) (*SecuritySettingServiceDataResult, error) {
 	var updatedSetting *SecuritySetting
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
@@ -294,7 +294,7 @@ func (s *securitySettingService) updateConfig(userPoolID int64, def securityConf
 		txAuditRepo := s.securitySettingsAuditRepo.WithTx(tx)
 
 		// Get or create security setting
-		setting, err := txSecuritySettingRepo.FindByUserPoolID(userPoolID)
+		setting, err := txSecuritySettingRepo.FindByTenantID(tenantID)
 		if err != nil {
 			return err
 		}
@@ -306,7 +306,7 @@ func (s *securitySettingService) updateConfig(userPoolID int64, def securityConf
 			// Create new security setting
 			isNew = true
 			setting = &SecuritySetting{
-				UserPoolID:         userPoolID,
+				TenantID:         tenantID,
 				MFAConfig:          datatypes.JSON([]byte("{}")),
 				PasswordConfig:     datatypes.JSON([]byte("{}")),
 				SessionConfig:      datatypes.JSON([]byte("{}")),
@@ -349,7 +349,7 @@ func (s *securitySettingService) updateConfig(userPoolID int64, def securityConf
 
 		// Create audit record
 		audit := &SecuritySettingsAudit{
-			UserPoolID:        userPoolID,
+			TenantID:        tenantID,
 			SecuritySettingID: saved.SecuritySettingID,
 			ChangeType:        "update_" + def.key + "_config",
 			OldConfig:         oldConfigJSON,

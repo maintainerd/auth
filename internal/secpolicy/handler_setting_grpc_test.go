@@ -12,67 +12,67 @@ import (
 )
 
 type testSecuritySettingService struct {
-	getMFAConfigFn             func(ctx context.Context, userPoolID int64) (map[string]any, error)
-	updateMFAConfigFn          func(ctx context.Context, userPoolID int64, config map[string]any, updatedBy int64, ipAddress, userAgent string) (*SecuritySettingServiceDataResult, error)
-	getPasswordConfigFn        func(ctx context.Context, userPoolID int64) (map[string]any, error)
-	updatePasswordConfigFn     func(ctx context.Context, userPoolID int64, config map[string]any, updatedBy int64, ipAddress, userAgent string) (*SecuritySettingServiceDataResult, error)
-	getSessionConfigFn         func(ctx context.Context, userPoolID int64) (map[string]any, error)
-	updateSessionConfigFn      func(ctx context.Context, userPoolID int64, config map[string]any, updatedBy int64, ipAddress, userAgent string) (*SecuritySettingServiceDataResult, error)
-	getThreatConfigFn          func(ctx context.Context, userPoolID int64) (map[string]any, error)
-	updateThreatConfigFn       func(ctx context.Context, userPoolID int64, config map[string]any, updatedBy int64, ipAddress, userAgent string) (*SecuritySettingServiceDataResult, error)
-	getLockoutConfigFn         func(ctx context.Context, userPoolID int64) (map[string]any, error)
-	updateLockoutConfigFn      func(ctx context.Context, userPoolID int64, config map[string]any, updatedBy int64, ipAddress, userAgent string) (*SecuritySettingServiceDataResult, error)
-	getRegistrationConfigFn    func(ctx context.Context, userPoolID int64) (map[string]any, error)
-	updateRegistrationConfigFn func(ctx context.Context, userPoolID int64, config map[string]any, updatedBy int64, ipAddress, userAgent string) (*SecuritySettingServiceDataResult, error)
-	getTokenConfigFn           func(ctx context.Context, userPoolID int64) (map[string]any, error)
-	updateTokenConfigFn        func(ctx context.Context, userPoolID int64, config map[string]any, updatedBy int64, ipAddress, userAgent string) (*SecuritySettingServiceDataResult, error)
-	getByUserPoolIDFn          func(ctx context.Context, userPoolID int64) (*SecuritySettingServiceDataResult, error)
+	getMFAConfigFn             func(ctx context.Context, tenantID int64) (map[string]any, error)
+	updateMFAConfigFn          func(ctx context.Context, tenantID int64, config map[string]any, updatedBy int64, ipAddress, userAgent string) (*SecuritySettingServiceDataResult, error)
+	getPasswordConfigFn        func(ctx context.Context, tenantID int64) (map[string]any, error)
+	updatePasswordConfigFn     func(ctx context.Context, tenantID int64, config map[string]any, updatedBy int64, ipAddress, userAgent string) (*SecuritySettingServiceDataResult, error)
+	getSessionConfigFn         func(ctx context.Context, tenantID int64) (map[string]any, error)
+	updateSessionConfigFn      func(ctx context.Context, tenantID int64, config map[string]any, updatedBy int64, ipAddress, userAgent string) (*SecuritySettingServiceDataResult, error)
+	getThreatConfigFn          func(ctx context.Context, tenantID int64) (map[string]any, error)
+	updateThreatConfigFn       func(ctx context.Context, tenantID int64, config map[string]any, updatedBy int64, ipAddress, userAgent string) (*SecuritySettingServiceDataResult, error)
+	getLockoutConfigFn         func(ctx context.Context, tenantID int64) (map[string]any, error)
+	updateLockoutConfigFn      func(ctx context.Context, tenantID int64, config map[string]any, updatedBy int64, ipAddress, userAgent string) (*SecuritySettingServiceDataResult, error)
+	getRegistrationConfigFn    func(ctx context.Context, tenantID int64) (map[string]any, error)
+	updateRegistrationConfigFn func(ctx context.Context, tenantID int64, config map[string]any, updatedBy int64, ipAddress, userAgent string) (*SecuritySettingServiceDataResult, error)
+	getTokenConfigFn           func(ctx context.Context, tenantID int64) (map[string]any, error)
+	updateTokenConfigFn        func(ctx context.Context, tenantID int64, config map[string]any, updatedBy int64, ipAddress, userAgent string) (*SecuritySettingServiceDataResult, error)
+	getByTenantIDFn          func(ctx context.Context, tenantID int64) (*SecuritySettingServiceDataResult, error)
 }
 
-func (m *testSecuritySettingService) GetByUserPoolID(ctx context.Context, userPoolID int64) (*SecuritySettingServiceDataResult, error) {
-	return m.getByUserPoolIDFn(ctx, userPoolID)
+func (m *testSecuritySettingService) GetByTenantID(ctx context.Context, tenantID int64) (*SecuritySettingServiceDataResult, error) {
+	return m.getByTenantIDFn(ctx, tenantID)
 }
-func (m *testSecuritySettingService) GetMFAConfig(ctx context.Context, userPoolID int64) (map[string]any, error) {
-	return m.getMFAConfigFn(ctx, userPoolID)
+func (m *testSecuritySettingService) GetMFAConfig(ctx context.Context, tenantID int64) (map[string]any, error) {
+	return m.getMFAConfigFn(ctx, tenantID)
 }
-func (m *testSecuritySettingService) GetPasswordConfig(ctx context.Context, userPoolID int64) (map[string]any, error) {
-	return m.getPasswordConfigFn(ctx, userPoolID)
+func (m *testSecuritySettingService) GetPasswordConfig(ctx context.Context, tenantID int64) (map[string]any, error) {
+	return m.getPasswordConfigFn(ctx, tenantID)
 }
-func (m *testSecuritySettingService) GetSessionConfig(ctx context.Context, userPoolID int64) (map[string]any, error) {
-	return m.getSessionConfigFn(ctx, userPoolID)
+func (m *testSecuritySettingService) GetSessionConfig(ctx context.Context, tenantID int64) (map[string]any, error) {
+	return m.getSessionConfigFn(ctx, tenantID)
 }
-func (m *testSecuritySettingService) GetThreatConfig(ctx context.Context, userPoolID int64) (map[string]any, error) {
-	return m.getThreatConfigFn(ctx, userPoolID)
+func (m *testSecuritySettingService) GetThreatConfig(ctx context.Context, tenantID int64) (map[string]any, error) {
+	return m.getThreatConfigFn(ctx, tenantID)
 }
-func (m *testSecuritySettingService) GetLockoutConfig(ctx context.Context, userPoolID int64) (map[string]any, error) {
-	return m.getLockoutConfigFn(ctx, userPoolID)
+func (m *testSecuritySettingService) GetLockoutConfig(ctx context.Context, tenantID int64) (map[string]any, error) {
+	return m.getLockoutConfigFn(ctx, tenantID)
 }
-func (m *testSecuritySettingService) GetRegistrationConfig(ctx context.Context, userPoolID int64) (map[string]any, error) {
-	return m.getRegistrationConfigFn(ctx, userPoolID)
+func (m *testSecuritySettingService) GetRegistrationConfig(ctx context.Context, tenantID int64) (map[string]any, error) {
+	return m.getRegistrationConfigFn(ctx, tenantID)
 }
-func (m *testSecuritySettingService) GetTokenConfig(ctx context.Context, userPoolID int64) (map[string]any, error) {
-	return m.getTokenConfigFn(ctx, userPoolID)
+func (m *testSecuritySettingService) GetTokenConfig(ctx context.Context, tenantID int64) (map[string]any, error) {
+	return m.getTokenConfigFn(ctx, tenantID)
 }
-func (m *testSecuritySettingService) UpdateMFAConfig(ctx context.Context, userPoolID int64, config map[string]any, updatedBy int64, ipAddress, userAgent string) (*SecuritySettingServiceDataResult, error) {
-	return m.updateMFAConfigFn(ctx, userPoolID, config, updatedBy, ipAddress, userAgent)
+func (m *testSecuritySettingService) UpdateMFAConfig(ctx context.Context, tenantID int64, config map[string]any, updatedBy int64, ipAddress, userAgent string) (*SecuritySettingServiceDataResult, error) {
+	return m.updateMFAConfigFn(ctx, tenantID, config, updatedBy, ipAddress, userAgent)
 }
-func (m *testSecuritySettingService) UpdatePasswordConfig(ctx context.Context, userPoolID int64, config map[string]any, updatedBy int64, ipAddress, userAgent string) (*SecuritySettingServiceDataResult, error) {
-	return m.updatePasswordConfigFn(ctx, userPoolID, config, updatedBy, ipAddress, userAgent)
+func (m *testSecuritySettingService) UpdatePasswordConfig(ctx context.Context, tenantID int64, config map[string]any, updatedBy int64, ipAddress, userAgent string) (*SecuritySettingServiceDataResult, error) {
+	return m.updatePasswordConfigFn(ctx, tenantID, config, updatedBy, ipAddress, userAgent)
 }
-func (m *testSecuritySettingService) UpdateSessionConfig(ctx context.Context, userPoolID int64, config map[string]any, updatedBy int64, ipAddress, userAgent string) (*SecuritySettingServiceDataResult, error) {
-	return m.updateSessionConfigFn(ctx, userPoolID, config, updatedBy, ipAddress, userAgent)
+func (m *testSecuritySettingService) UpdateSessionConfig(ctx context.Context, tenantID int64, config map[string]any, updatedBy int64, ipAddress, userAgent string) (*SecuritySettingServiceDataResult, error) {
+	return m.updateSessionConfigFn(ctx, tenantID, config, updatedBy, ipAddress, userAgent)
 }
-func (m *testSecuritySettingService) UpdateThreatConfig(ctx context.Context, userPoolID int64, config map[string]any, updatedBy int64, ipAddress, userAgent string) (*SecuritySettingServiceDataResult, error) {
-	return m.updateThreatConfigFn(ctx, userPoolID, config, updatedBy, ipAddress, userAgent)
+func (m *testSecuritySettingService) UpdateThreatConfig(ctx context.Context, tenantID int64, config map[string]any, updatedBy int64, ipAddress, userAgent string) (*SecuritySettingServiceDataResult, error) {
+	return m.updateThreatConfigFn(ctx, tenantID, config, updatedBy, ipAddress, userAgent)
 }
-func (m *testSecuritySettingService) UpdateLockoutConfig(ctx context.Context, userPoolID int64, config map[string]any, updatedBy int64, ipAddress, userAgent string) (*SecuritySettingServiceDataResult, error) {
-	return m.updateLockoutConfigFn(ctx, userPoolID, config, updatedBy, ipAddress, userAgent)
+func (m *testSecuritySettingService) UpdateLockoutConfig(ctx context.Context, tenantID int64, config map[string]any, updatedBy int64, ipAddress, userAgent string) (*SecuritySettingServiceDataResult, error) {
+	return m.updateLockoutConfigFn(ctx, tenantID, config, updatedBy, ipAddress, userAgent)
 }
-func (m *testSecuritySettingService) UpdateRegistrationConfig(ctx context.Context, userPoolID int64, config map[string]any, updatedBy int64, ipAddress, userAgent string) (*SecuritySettingServiceDataResult, error) {
-	return m.updateRegistrationConfigFn(ctx, userPoolID, config, updatedBy, ipAddress, userAgent)
+func (m *testSecuritySettingService) UpdateRegistrationConfig(ctx context.Context, tenantID int64, config map[string]any, updatedBy int64, ipAddress, userAgent string) (*SecuritySettingServiceDataResult, error) {
+	return m.updateRegistrationConfigFn(ctx, tenantID, config, updatedBy, ipAddress, userAgent)
 }
-func (m *testSecuritySettingService) UpdateTokenConfig(ctx context.Context, userPoolID int64, config map[string]any, updatedBy int64, ipAddress, userAgent string) (*SecuritySettingServiceDataResult, error) {
-	return m.updateTokenConfigFn(ctx, userPoolID, config, updatedBy, ipAddress, userAgent)
+func (m *testSecuritySettingService) UpdateTokenConfig(ctx context.Context, tenantID int64, config map[string]any, updatedBy int64, ipAddress, userAgent string) (*SecuritySettingServiceDataResult, error) {
+	return m.updateTokenConfigFn(ctx, tenantID, config, updatedBy, ipAddress, userAgent)
 }
 
 func TestSecuritySettingGRPCHandler_RPCS(t *testing.T) {

@@ -207,7 +207,7 @@ func TestMFAService_GetMFAPolicy(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			svc := &mfaService{secSettingRepo: &mockSecuritySettingRepo{findByUserPoolID: tt.setting, findByUserPoolIDErr: tt.err}}
+			svc := &mfaService{secSettingRepo: &mockSecuritySettingRepo{findByTenantID: tt.setting, findByTenantIDErr: tt.err}}
 
 			got, err := svc.GetMFAPolicy(t.Context(), 7)
 
@@ -219,7 +219,7 @@ func TestMFAService_GetMFAPolicy(t *testing.T) {
 
 func TestMFAService_IsMFARequired(t *testing.T) {
 	svc := &mfaService{secSettingRepo: &mockSecuritySettingRepo{
-		findByUserPoolID: &secpolicy.SecuritySetting{
+		findByTenantID: &secpolicy.SecuritySetting{
 			MFAConfig: datatypes.JSON([]byte(`{"required":true,"allowed_methods":["totp"]}`)),
 		},
 	}}
@@ -895,13 +895,13 @@ func (m *mockWebAuthnCredentialRepo) DeleteAllByUserID(int64) error           { 
 
 type mockSecuritySettingRepo struct {
 	mockBaseRepositoryMethods[secpolicy.SecuritySetting]
-	findByUserPoolID    *secpolicy.SecuritySetting
-	findByUserPoolIDErr error
+	findByTenantID    *secpolicy.SecuritySetting
+	findByTenantIDErr error
 }
 
 func (m *mockSecuritySettingRepo) WithTx(*gorm.DB) secpolicy.SecuritySettingRepository { return m }
-func (m *mockSecuritySettingRepo) FindByUserPoolID(int64) (*secpolicy.SecuritySetting, error) {
-	return m.findByUserPoolID, m.findByUserPoolIDErr
+func (m *mockSecuritySettingRepo) FindByTenantID(int64) (*secpolicy.SecuritySetting, error) {
+	return m.findByTenantID, m.findByTenantIDErr
 }
 func (m *mockSecuritySettingRepo) FindDefaultByTenantID(int64) (*secpolicy.SecuritySetting, error) {
 	return nil, nil

@@ -83,12 +83,7 @@ func RunAll(db *gorm.DB, appVersion string) error {
 		return err
 	}
 
-	systemPool, err := SeedUserPool(db, sysTenant.TenantID)
-	if err != nil {
-		slog.Error("Failed to seed user pool", "error", err)
-		return err
-	}
-	if err := SeedSecuritySettings(db, systemPool.UserPoolID); err != nil {
+	if err := SeedSecuritySettings(db, sysTenant.TenantID); err != nil {
 		slog.Error("Failed to seed security settings", "error", err)
 		return err
 	}

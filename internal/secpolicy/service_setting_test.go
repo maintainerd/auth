@@ -17,11 +17,11 @@ func newSecuritySettingSvc(repo *mockSecuritySettingRepo, auditRepo *mockSecurit
 }
 
 // helper: minimal SecuritySetting fixture
-func newSecSetting(userPoolID int64) *SecuritySetting {
+func newSecSetting(tenantID int64) *SecuritySetting {
 	return &SecuritySetting{
 		SecuritySettingID:   1,
 		SecuritySettingUUID: uuid.New(),
-		UserPoolID:          userPoolID,
+		TenantID:          tenantID,
 		MFAConfig:           datatypes.JSON([]byte(`{}`)),
 		PasswordConfig:      datatypes.JSON([]byte(`{}`)),
 		SessionConfig:       datatypes.JSON([]byte(`{}`)),
@@ -34,37 +34,37 @@ func newSecSetting(userPoolID int64) *SecuritySetting {
 }
 
 // ---------------------------------------------------------------------------
-// GetByUserPoolID
+// GetByTenantID
 // ---------------------------------------------------------------------------
 
-func TestSecuritySettingService_GetByUserPoolID(t *testing.T) {
+func TestSecuritySettingService_GetByTenantID(t *testing.T) {
 	t.Run("not found", func(t *testing.T) {
 		svc := newSecuritySettingSvc(&mockSecuritySettingRepo{
-			findByUserPoolIDFn: func(_ int64) (*SecuritySetting, error) { return nil, nil },
+			findByTenantIDFn: func(_ int64) (*SecuritySetting, error) { return nil, nil },
 		}, &mockSecuritySettingsAuditRepo{})
-		_, err := svc.GetByUserPoolID(context.Background(), 1)
+		_, err := svc.GetByTenantID(context.Background(), 1)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "not found")
 	})
 
 	t.Run("repo error", func(t *testing.T) {
 		svc := newSecuritySettingSvc(&mockSecuritySettingRepo{
-			findByUserPoolIDFn: func(_ int64) (*SecuritySetting, error) { return nil, errors.New("db") },
+			findByTenantIDFn: func(_ int64) (*SecuritySetting, error) { return nil, errors.New("db") },
 		}, &mockSecuritySettingsAuditRepo{})
-		_, err := svc.GetByUserPoolID(context.Background(), 1)
+		_, err := svc.GetByTenantID(context.Background(), 1)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "db")
 	})
 
 	t.Run("success", func(t *testing.T) {
 		svc := newSecuritySettingSvc(&mockSecuritySettingRepo{
-			findByUserPoolIDFn: func(tid int64) (*SecuritySetting, error) {
+			findByTenantIDFn: func(tid int64) (*SecuritySetting, error) {
 				return newSecSetting(tid), nil
 			},
 		}, &mockSecuritySettingsAuditRepo{})
-		res, err := svc.GetByUserPoolID(context.Background(), 1)
+		res, err := svc.GetByTenantID(context.Background(), 1)
 		require.NoError(t, err)
-		assert.Equal(t, int64(1), res.UserPoolID)
+		assert.Equal(t, int64(1), res.TenantID)
 	})
 }
 
@@ -75,7 +75,7 @@ func TestSecuritySettingService_GetByUserPoolID(t *testing.T) {
 func TestSecuritySettingService_GetMFAConfig(t *testing.T) {
 	t.Run("repo error", func(t *testing.T) {
 		svc := newSecuritySettingSvc(&mockSecuritySettingRepo{
-			findByUserPoolIDFn: func(_ int64) (*SecuritySetting, error) { return nil, errors.New("fail") },
+			findByTenantIDFn: func(_ int64) (*SecuritySetting, error) { return nil, errors.New("fail") },
 		}, &mockSecuritySettingsAuditRepo{})
 		_, err := svc.GetMFAConfig(context.Background(), 1)
 		require.Error(t, err)
@@ -83,7 +83,7 @@ func TestSecuritySettingService_GetMFAConfig(t *testing.T) {
 
 	t.Run("creates default when not found", func(t *testing.T) {
 		svc := newSecuritySettingSvc(&mockSecuritySettingRepo{
-			findByUserPoolIDFn: func(_ int64) (*SecuritySetting, error) { return nil, nil },
+			findByTenantIDFn: func(_ int64) (*SecuritySetting, error) { return nil, nil },
 		}, &mockSecuritySettingsAuditRepo{})
 		cfg, err := svc.GetMFAConfig(context.Background(), 1)
 		require.NoError(t, err)
@@ -92,7 +92,7 @@ func TestSecuritySettingService_GetMFAConfig(t *testing.T) {
 
 	t.Run("create default error", func(t *testing.T) {
 		svc := newSecuritySettingSvc(&mockSecuritySettingRepo{
-			findByUserPoolIDFn: func(_ int64) (*SecuritySetting, error) { return nil, nil },
+			findByTenantIDFn: func(_ int64) (*SecuritySetting, error) { return nil, nil },
 			createFn: func(_ *SecuritySetting) (*SecuritySetting, error) {
 				return nil, errors.New("create error")
 			},
@@ -104,7 +104,7 @@ func TestSecuritySettingService_GetMFAConfig(t *testing.T) {
 
 	t.Run("success with existing", func(t *testing.T) {
 		svc := newSecuritySettingSvc(&mockSecuritySettingRepo{
-			findByUserPoolIDFn: func(_ int64) (*SecuritySetting, error) {
+			findByTenantIDFn: func(_ int64) (*SecuritySetting, error) {
 				return &SecuritySetting{
 					MFAConfig: datatypes.JSON([]byte(`{"key":"val"}`)),
 				}, nil
@@ -123,7 +123,7 @@ func TestSecuritySettingService_GetMFAConfig(t *testing.T) {
 func TestSecuritySettingService_GetPasswordConfig(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		svc := newSecuritySettingSvc(&mockSecuritySettingRepo{
-			findByUserPoolIDFn: func(_ int64) (*SecuritySetting, error) {
+			findByTenantIDFn: func(_ int64) (*SecuritySetting, error) {
 				return &SecuritySetting{
 					PasswordConfig: datatypes.JSON([]byte(`{"min_length":8}`)),
 				}, nil
@@ -136,7 +136,7 @@ func TestSecuritySettingService_GetPasswordConfig(t *testing.T) {
 
 	t.Run("error", func(t *testing.T) {
 		svc := newSecuritySettingSvc(&mockSecuritySettingRepo{
-			findByUserPoolIDFn: func(_ int64) (*SecuritySetting, error) { return nil, errors.New("fail") },
+			findByTenantIDFn: func(_ int64) (*SecuritySetting, error) { return nil, errors.New("fail") },
 		}, &mockSecuritySettingsAuditRepo{})
 		_, err := svc.GetPasswordConfig(context.Background(), 1)
 		require.Error(t, err)
@@ -150,7 +150,7 @@ func TestSecuritySettingService_GetPasswordConfig(t *testing.T) {
 func TestSecuritySettingService_GetSessionConfig(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		svc := newSecuritySettingSvc(&mockSecuritySettingRepo{
-			findByUserPoolIDFn: func(_ int64) (*SecuritySetting, error) {
+			findByTenantIDFn: func(_ int64) (*SecuritySetting, error) {
 				return &SecuritySetting{
 					SessionConfig: datatypes.JSON([]byte(`{"timeout":3600}`)),
 				}, nil
@@ -163,7 +163,7 @@ func TestSecuritySettingService_GetSessionConfig(t *testing.T) {
 
 	t.Run("error", func(t *testing.T) {
 		svc := newSecuritySettingSvc(&mockSecuritySettingRepo{
-			findByUserPoolIDFn: func(_ int64) (*SecuritySetting, error) { return nil, errors.New("fail") },
+			findByTenantIDFn: func(_ int64) (*SecuritySetting, error) { return nil, errors.New("fail") },
 		}, &mockSecuritySettingsAuditRepo{})
 		_, err := svc.GetSessionConfig(context.Background(), 1)
 		require.Error(t, err)
@@ -177,7 +177,7 @@ func TestSecuritySettingService_GetSessionConfig(t *testing.T) {
 func TestSecuritySettingService_GetThreatConfig(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		svc := newSecuritySettingSvc(&mockSecuritySettingRepo{
-			findByUserPoolIDFn: func(_ int64) (*SecuritySetting, error) {
+			findByTenantIDFn: func(_ int64) (*SecuritySetting, error) {
 				return &SecuritySetting{
 					ThreatConfig: datatypes.JSON([]byte(`{"max_attempts":5}`)),
 				}, nil
@@ -190,7 +190,7 @@ func TestSecuritySettingService_GetThreatConfig(t *testing.T) {
 
 	t.Run("error", func(t *testing.T) {
 		svc := newSecuritySettingSvc(&mockSecuritySettingRepo{
-			findByUserPoolIDFn: func(_ int64) (*SecuritySetting, error) { return nil, errors.New("fail") },
+			findByTenantIDFn: func(_ int64) (*SecuritySetting, error) { return nil, errors.New("fail") },
 		}, &mockSecuritySettingsAuditRepo{})
 		_, err := svc.GetThreatConfig(context.Background(), 1)
 		require.Error(t, err)
@@ -204,7 +204,7 @@ func TestSecuritySettingService_GetThreatConfig(t *testing.T) {
 func TestSecuritySettingService_GetLockoutConfig(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		svc := newSecuritySettingSvc(&mockSecuritySettingRepo{
-			findByUserPoolIDFn: func(_ int64) (*SecuritySetting, error) {
+			findByTenantIDFn: func(_ int64) (*SecuritySetting, error) {
 				return &SecuritySetting{
 					LockoutConfig: datatypes.JSON([]byte(`{"enabled":true}`)),
 				}, nil
@@ -217,7 +217,7 @@ func TestSecuritySettingService_GetLockoutConfig(t *testing.T) {
 
 	t.Run("error", func(t *testing.T) {
 		svc := newSecuritySettingSvc(&mockSecuritySettingRepo{
-			findByUserPoolIDFn: func(_ int64) (*SecuritySetting, error) { return nil, errors.New("fail") },
+			findByTenantIDFn: func(_ int64) (*SecuritySetting, error) { return nil, errors.New("fail") },
 		}, &mockSecuritySettingsAuditRepo{})
 		_, err := svc.GetLockoutConfig(context.Background(), 1)
 		require.Error(t, err)
@@ -229,18 +229,18 @@ func TestSecuritySettingService_GetLockoutConfig(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestSecuritySettingService_UpdateMFAConfig(t *testing.T) {
-	userPoolID := int64(1)
+	tenantID := int64(1)
 	updatedBy := int64(10)
 	cfg := map[string]any{"enforce_mfa": true}
 
-	t.Run("FindByUserPoolID error → rollback", func(t *testing.T) {
+	t.Run("FindByTenantID error → rollback", func(t *testing.T) {
 		db, mock := newMockGormDB(t)
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		svc := NewSecuritySettingService(db, &mockSecuritySettingRepo{
-			findByUserPoolIDFn: func(_ int64) (*SecuritySetting, error) { return nil, errors.New("db") },
+			findByTenantIDFn: func(_ int64) (*SecuritySetting, error) { return nil, errors.New("db") },
 		}, &mockSecuritySettingsAuditRepo{})
-		_, err := svc.UpdateMFAConfig(context.Background(), userPoolID, cfg, updatedBy, "1.2.3.4", "agent")
+		_, err := svc.UpdateMFAConfig(context.Background(), tenantID, cfg, updatedBy, "1.2.3.4", "agent")
 		require.Error(t, err)
 	})
 
@@ -250,21 +250,21 @@ func TestSecuritySettingService_UpdateMFAConfig(t *testing.T) {
 		mock.ExpectCommit()
 		settingUUID := uuid.New()
 		svc := NewSecuritySettingService(db, &mockSecuritySettingRepo{
-			findByUserPoolIDFn: func(_ int64) (*SecuritySetting, error) { return nil, nil },
+			findByTenantIDFn: func(_ int64) (*SecuritySetting, error) { return nil, nil },
 			createFn: func(e *SecuritySetting) (*SecuritySetting, error) {
 				e.SecuritySettingUUID = settingUUID
 				e.SecuritySettingID = 1
 				return e, nil
 			},
 			findByUUIDFn: func(_ any, _ ...string) (*SecuritySetting, error) {
-				ss := newSecSetting(userPoolID)
+				ss := newSecSetting(tenantID)
 				ss.SecuritySettingUUID = settingUUID
 				ss.MFAConfig = datatypes.JSON([]byte(`{"enforce_mfa":true}`))
 				ss.Version = 2
 				return ss, nil
 			},
 		}, &mockSecuritySettingsAuditRepo{})
-		res, err := svc.UpdateMFAConfig(context.Background(), userPoolID, cfg, updatedBy, "1.2.3.4", "agent")
+		res, err := svc.UpdateMFAConfig(context.Background(), tenantID, cfg, updatedBy, "1.2.3.4", "agent")
 		require.NoError(t, err)
 		assert.Equal(t, 2, res.Version)
 	})
@@ -273,15 +273,15 @@ func TestSecuritySettingService_UpdateMFAConfig(t *testing.T) {
 		db, mock := newMockGormDB(t)
 		mock.ExpectBegin()
 		mock.ExpectCommit()
-		existing := newSecSetting(userPoolID)
+		existing := newSecSetting(tenantID)
 		svc := NewSecuritySettingService(db, &mockSecuritySettingRepo{
-			findByUserPoolIDFn: func(_ int64) (*SecuritySetting, error) { return existing, nil },
+			findByTenantIDFn: func(_ int64) (*SecuritySetting, error) { return existing, nil },
 			createOrUpdateFn:   func(e *SecuritySetting) (*SecuritySetting, error) { return e, nil },
 			findByUUIDFn: func(_ any, _ ...string) (*SecuritySetting, error) {
 				return existing, nil
 			},
 		}, &mockSecuritySettingsAuditRepo{})
-		res, err := svc.UpdateMFAConfig(context.Background(), userPoolID, cfg, updatedBy, "1.2.3.4", "agent")
+		res, err := svc.UpdateMFAConfig(context.Background(), tenantID, cfg, updatedBy, "1.2.3.4", "agent")
 		require.NoError(t, err)
 		assert.NotNil(t, res)
 	})
@@ -290,12 +290,12 @@ func TestSecuritySettingService_UpdateMFAConfig(t *testing.T) {
 		db, mock := newMockGormDB(t)
 		mock.ExpectBegin()
 		mock.ExpectRollback()
-		existing := newSecSetting(userPoolID)
+		existing := newSecSetting(tenantID)
 		svc := NewSecuritySettingService(db, &mockSecuritySettingRepo{
-			findByUserPoolIDFn: func(_ int64) (*SecuritySetting, error) { return existing, nil },
+			findByTenantIDFn: func(_ int64) (*SecuritySetting, error) { return existing, nil },
 		}, &mockSecuritySettingsAuditRepo{})
 		badCfg := map[string]any{"bad": math.Inf(1)}
-		_, err := svc.UpdateMFAConfig(context.Background(), userPoolID, badCfg, updatedBy, "1.2.3.4", "agent")
+		_, err := svc.UpdateMFAConfig(context.Background(), tenantID, badCfg, updatedBy, "1.2.3.4", "agent")
 		require.Error(t, err)
 	})
 
@@ -303,14 +303,14 @@ func TestSecuritySettingService_UpdateMFAConfig(t *testing.T) {
 		db, mock := newMockGormDB(t)
 		mock.ExpectBegin()
 		mock.ExpectRollback()
-		existing := newSecSetting(userPoolID)
+		existing := newSecSetting(tenantID)
 		svc := NewSecuritySettingService(db, &mockSecuritySettingRepo{
-			findByUserPoolIDFn: func(_ int64) (*SecuritySetting, error) { return existing, nil },
+			findByTenantIDFn: func(_ int64) (*SecuritySetting, error) { return existing, nil },
 			createOrUpdateFn: func(_ *SecuritySetting) (*SecuritySetting, error) {
 				return nil, errors.New("save error")
 			},
 		}, &mockSecuritySettingsAuditRepo{})
-		_, err := svc.UpdateMFAConfig(context.Background(), userPoolID, cfg, updatedBy, "1.2.3.4", "agent")
+		_, err := svc.UpdateMFAConfig(context.Background(), tenantID, cfg, updatedBy, "1.2.3.4", "agent")
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "save error")
 	})
@@ -319,13 +319,13 @@ func TestSecuritySettingService_UpdateMFAConfig(t *testing.T) {
 		db, mock := newMockGormDB(t)
 		mock.ExpectBegin()
 		mock.ExpectRollback()
-		existing := newSecSetting(userPoolID)
+		existing := newSecSetting(tenantID)
 		svc := NewSecuritySettingService(db, &mockSecuritySettingRepo{
-			findByUserPoolIDFn: func(_ int64) (*SecuritySetting, error) { return existing, nil },
+			findByTenantIDFn: func(_ int64) (*SecuritySetting, error) { return existing, nil },
 			createOrUpdateFn:   func(e *SecuritySetting) (*SecuritySetting, error) { return e, nil },
 			incrementVersionFn: func(_ int64) error { return errors.New("version error") },
 		}, &mockSecuritySettingsAuditRepo{})
-		_, err := svc.UpdateMFAConfig(context.Background(), userPoolID, cfg, updatedBy, "1.2.3.4", "agent")
+		_, err := svc.UpdateMFAConfig(context.Background(), tenantID, cfg, updatedBy, "1.2.3.4", "agent")
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "version error")
 	})
@@ -334,16 +334,16 @@ func TestSecuritySettingService_UpdateMFAConfig(t *testing.T) {
 		db, mock := newMockGormDB(t)
 		mock.ExpectBegin()
 		mock.ExpectRollback()
-		existing := newSecSetting(userPoolID)
+		existing := newSecSetting(tenantID)
 		svc := NewSecuritySettingService(db, &mockSecuritySettingRepo{
-			findByUserPoolIDFn: func(_ int64) (*SecuritySetting, error) { return existing, nil },
+			findByTenantIDFn: func(_ int64) (*SecuritySetting, error) { return existing, nil },
 			createOrUpdateFn:   func(e *SecuritySetting) (*SecuritySetting, error) { return e, nil },
 		}, &mockSecuritySettingsAuditRepo{
 			createFn: func(_ *SecuritySettingsAudit) (*SecuritySettingsAudit, error) {
 				return nil, errors.New("audit error")
 			},
 		})
-		_, err := svc.UpdateMFAConfig(context.Background(), userPoolID, cfg, updatedBy, "1.2.3.4", "agent")
+		_, err := svc.UpdateMFAConfig(context.Background(), tenantID, cfg, updatedBy, "1.2.3.4", "agent")
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "audit error")
 	})
@@ -352,15 +352,15 @@ func TestSecuritySettingService_UpdateMFAConfig(t *testing.T) {
 		db, mock := newMockGormDB(t)
 		mock.ExpectBegin()
 		mock.ExpectCommit()
-		existing := newSecSetting(userPoolID)
+		existing := newSecSetting(tenantID)
 		svc := NewSecuritySettingService(db, &mockSecuritySettingRepo{
-			findByUserPoolIDFn: func(_ int64) (*SecuritySetting, error) { return existing, nil },
+			findByTenantIDFn: func(_ int64) (*SecuritySetting, error) { return existing, nil },
 			createOrUpdateFn:   func(e *SecuritySetting) (*SecuritySetting, error) { return e, nil },
 			findByUUIDFn: func(_ any, _ ...string) (*SecuritySetting, error) {
 				return nil, errors.New("refresh error")
 			},
 		}, &mockSecuritySettingsAuditRepo{})
-		_, err := svc.UpdateMFAConfig(context.Background(), userPoolID, cfg, updatedBy, "1.2.3.4", "agent")
+		_, err := svc.UpdateMFAConfig(context.Background(), tenantID, cfg, updatedBy, "1.2.3.4", "agent")
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "refresh error")
 	})
@@ -370,12 +370,12 @@ func TestSecuritySettingService_UpdateMFAConfig(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		svc := NewSecuritySettingService(db, &mockSecuritySettingRepo{
-			findByUserPoolIDFn: func(_ int64) (*SecuritySetting, error) { return nil, nil },
+			findByTenantIDFn: func(_ int64) (*SecuritySetting, error) { return nil, nil },
 			createFn: func(_ *SecuritySetting) (*SecuritySetting, error) {
 				return nil, errors.New("create error")
 			},
 		}, &mockSecuritySettingsAuditRepo{})
-		_, err := svc.UpdateMFAConfig(context.Background(), userPoolID, cfg, updatedBy, "1.2.3.4", "agent")
+		_, err := svc.UpdateMFAConfig(context.Background(), tenantID, cfg, updatedBy, "1.2.3.4", "agent")
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "create error")
 	})
@@ -386,20 +386,20 @@ func TestSecuritySettingService_UpdateMFAConfig(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestSecuritySettingService_UpdatePasswordConfig(t *testing.T) {
-	userPoolID := int64(1)
+	tenantID := int64(1)
 	cfg := map[string]any{"min_length": 12}
 
 	t.Run("success", func(t *testing.T) {
 		db, mock := newMockGormDB(t)
 		mock.ExpectBegin()
 		mock.ExpectCommit()
-		existing := newSecSetting(userPoolID)
+		existing := newSecSetting(tenantID)
 		svc := NewSecuritySettingService(db, &mockSecuritySettingRepo{
-			findByUserPoolIDFn: func(_ int64) (*SecuritySetting, error) { return existing, nil },
+			findByTenantIDFn: func(_ int64) (*SecuritySetting, error) { return existing, nil },
 			createOrUpdateFn:   func(e *SecuritySetting) (*SecuritySetting, error) { return e, nil },
 			findByUUIDFn:       func(_ any, _ ...string) (*SecuritySetting, error) { return existing, nil },
 		}, &mockSecuritySettingsAuditRepo{})
-		res, err := svc.UpdatePasswordConfig(context.Background(), userPoolID, cfg, 10, "1.2.3.4", "agent")
+		res, err := svc.UpdatePasswordConfig(context.Background(), tenantID, cfg, 10, "1.2.3.4", "agent")
 		require.NoError(t, err)
 		assert.NotNil(t, res)
 	})
@@ -409,9 +409,9 @@ func TestSecuritySettingService_UpdatePasswordConfig(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		svc := NewSecuritySettingService(db, &mockSecuritySettingRepo{
-			findByUserPoolIDFn: func(_ int64) (*SecuritySetting, error) { return nil, errors.New("db") },
+			findByTenantIDFn: func(_ int64) (*SecuritySetting, error) { return nil, errors.New("db") },
 		}, &mockSecuritySettingsAuditRepo{})
-		_, err := svc.UpdatePasswordConfig(context.Background(), userPoolID, cfg, 10, "1.2.3.4", "agent")
+		_, err := svc.UpdatePasswordConfig(context.Background(), tenantID, cfg, 10, "1.2.3.4", "agent")
 		require.Error(t, err)
 	})
 }
@@ -421,20 +421,20 @@ func TestSecuritySettingService_UpdatePasswordConfig(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestSecuritySettingService_UpdateSessionConfig(t *testing.T) {
-	userPoolID := int64(1)
+	tenantID := int64(1)
 	cfg := map[string]any{"timeout": 7200}
 
 	t.Run("success", func(t *testing.T) {
 		db, mock := newMockGormDB(t)
 		mock.ExpectBegin()
 		mock.ExpectCommit()
-		existing := newSecSetting(userPoolID)
+		existing := newSecSetting(tenantID)
 		svc := NewSecuritySettingService(db, &mockSecuritySettingRepo{
-			findByUserPoolIDFn: func(_ int64) (*SecuritySetting, error) { return existing, nil },
+			findByTenantIDFn: func(_ int64) (*SecuritySetting, error) { return existing, nil },
 			createOrUpdateFn:   func(e *SecuritySetting) (*SecuritySetting, error) { return e, nil },
 			findByUUIDFn:       func(_ any, _ ...string) (*SecuritySetting, error) { return existing, nil },
 		}, &mockSecuritySettingsAuditRepo{})
-		res, err := svc.UpdateSessionConfig(context.Background(), userPoolID, cfg, 10, "1.2.3.4", "agent")
+		res, err := svc.UpdateSessionConfig(context.Background(), tenantID, cfg, 10, "1.2.3.4", "agent")
 		require.NoError(t, err)
 		assert.NotNil(t, res)
 	})
@@ -444,9 +444,9 @@ func TestSecuritySettingService_UpdateSessionConfig(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		svc := NewSecuritySettingService(db, &mockSecuritySettingRepo{
-			findByUserPoolIDFn: func(_ int64) (*SecuritySetting, error) { return nil, errors.New("db") },
+			findByTenantIDFn: func(_ int64) (*SecuritySetting, error) { return nil, errors.New("db") },
 		}, &mockSecuritySettingsAuditRepo{})
-		_, err := svc.UpdateSessionConfig(context.Background(), userPoolID, cfg, 10, "1.2.3.4", "agent")
+		_, err := svc.UpdateSessionConfig(context.Background(), tenantID, cfg, 10, "1.2.3.4", "agent")
 		require.Error(t, err)
 	})
 }
@@ -456,20 +456,20 @@ func TestSecuritySettingService_UpdateSessionConfig(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestSecuritySettingService_UpdateThreatConfig(t *testing.T) {
-	userPoolID := int64(1)
+	tenantID := int64(1)
 	cfg := map[string]any{"max_attempts": 10}
 
 	t.Run("success", func(t *testing.T) {
 		db, mock := newMockGormDB(t)
 		mock.ExpectBegin()
 		mock.ExpectCommit()
-		existing := newSecSetting(userPoolID)
+		existing := newSecSetting(tenantID)
 		svc := NewSecuritySettingService(db, &mockSecuritySettingRepo{
-			findByUserPoolIDFn: func(_ int64) (*SecuritySetting, error) { return existing, nil },
+			findByTenantIDFn: func(_ int64) (*SecuritySetting, error) { return existing, nil },
 			createOrUpdateFn:   func(e *SecuritySetting) (*SecuritySetting, error) { return e, nil },
 			findByUUIDFn:       func(_ any, _ ...string) (*SecuritySetting, error) { return existing, nil },
 		}, &mockSecuritySettingsAuditRepo{})
-		res, err := svc.UpdateThreatConfig(context.Background(), userPoolID, cfg, 10, "1.2.3.4", "agent")
+		res, err := svc.UpdateThreatConfig(context.Background(), tenantID, cfg, 10, "1.2.3.4", "agent")
 		require.NoError(t, err)
 		assert.NotNil(t, res)
 	})
@@ -479,9 +479,9 @@ func TestSecuritySettingService_UpdateThreatConfig(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		svc := NewSecuritySettingService(db, &mockSecuritySettingRepo{
-			findByUserPoolIDFn: func(_ int64) (*SecuritySetting, error) { return nil, errors.New("db") },
+			findByTenantIDFn: func(_ int64) (*SecuritySetting, error) { return nil, errors.New("db") },
 		}, &mockSecuritySettingsAuditRepo{})
-		_, err := svc.UpdateThreatConfig(context.Background(), userPoolID, cfg, 10, "1.2.3.4", "agent")
+		_, err := svc.UpdateThreatConfig(context.Background(), tenantID, cfg, 10, "1.2.3.4", "agent")
 		require.Error(t, err)
 	})
 }
@@ -491,20 +491,20 @@ func TestSecuritySettingService_UpdateThreatConfig(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestSecuritySettingService_UpdateLockoutConfig(t *testing.T) {
-	userPoolID := int64(1)
+	tenantID := int64(1)
 	cfg := map[string]any{"enabled": false}
 
 	t.Run("success", func(t *testing.T) {
 		db, mock := newMockGormDB(t)
 		mock.ExpectBegin()
 		mock.ExpectCommit()
-		existing := newSecSetting(userPoolID)
+		existing := newSecSetting(tenantID)
 		svc := NewSecuritySettingService(db, &mockSecuritySettingRepo{
-			findByUserPoolIDFn: func(_ int64) (*SecuritySetting, error) { return existing, nil },
+			findByTenantIDFn: func(_ int64) (*SecuritySetting, error) { return existing, nil },
 			createOrUpdateFn:   func(e *SecuritySetting) (*SecuritySetting, error) { return e, nil },
 			findByUUIDFn:       func(_ any, _ ...string) (*SecuritySetting, error) { return existing, nil },
 		}, &mockSecuritySettingsAuditRepo{})
-		res, err := svc.UpdateLockoutConfig(context.Background(), userPoolID, cfg, 10, "1.2.3.4", "agent")
+		res, err := svc.UpdateLockoutConfig(context.Background(), tenantID, cfg, 10, "1.2.3.4", "agent")
 		require.NoError(t, err)
 		assert.NotNil(t, res)
 	})
@@ -514,9 +514,9 @@ func TestSecuritySettingService_UpdateLockoutConfig(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		svc := NewSecuritySettingService(db, &mockSecuritySettingRepo{
-			findByUserPoolIDFn: func(_ int64) (*SecuritySetting, error) { return nil, errors.New("db") },
+			findByTenantIDFn: func(_ int64) (*SecuritySetting, error) { return nil, errors.New("db") },
 		}, &mockSecuritySettingsAuditRepo{})
-		_, err := svc.UpdateLockoutConfig(context.Background(), userPoolID, cfg, 10, "1.2.3.4", "agent")
+		_, err := svc.UpdateLockoutConfig(context.Background(), tenantID, cfg, 10, "1.2.3.4", "agent")
 		require.Error(t, err)
 	})
 }
@@ -539,7 +539,7 @@ func TestSecuritySettingService_UpdateConfig_InvalidConfigType(t *testing.T) {
 func TestSecuritySettingService_GetRegistrationConfig(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		svc := newSecuritySettingSvc(&mockSecuritySettingRepo{
-			findByUserPoolIDFn: func(_ int64) (*SecuritySetting, error) {
+			findByTenantIDFn: func(_ int64) (*SecuritySetting, error) {
 				return &SecuritySetting{
 					RegistrationConfig: datatypes.JSON([]byte(`{"enabled":true}`)),
 				}, nil
@@ -552,7 +552,7 @@ func TestSecuritySettingService_GetRegistrationConfig(t *testing.T) {
 
 	t.Run("error", func(t *testing.T) {
 		svc := newSecuritySettingSvc(&mockSecuritySettingRepo{
-			findByUserPoolIDFn: func(_ int64) (*SecuritySetting, error) { return nil, errors.New("fail") },
+			findByTenantIDFn: func(_ int64) (*SecuritySetting, error) { return nil, errors.New("fail") },
 		}, &mockSecuritySettingsAuditRepo{})
 		_, err := svc.GetRegistrationConfig(context.Background(), 1)
 		require.Error(t, err)
@@ -566,7 +566,7 @@ func TestSecuritySettingService_GetRegistrationConfig(t *testing.T) {
 func TestSecuritySettingService_GetTokenConfig(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		svc := newSecuritySettingSvc(&mockSecuritySettingRepo{
-			findByUserPoolIDFn: func(_ int64) (*SecuritySetting, error) {
+			findByTenantIDFn: func(_ int64) (*SecuritySetting, error) {
 				return &SecuritySetting{
 					TokenConfig: datatypes.JSON([]byte(`{"expiry":3600}`)),
 				}, nil
@@ -579,7 +579,7 @@ func TestSecuritySettingService_GetTokenConfig(t *testing.T) {
 
 	t.Run("error", func(t *testing.T) {
 		svc := newSecuritySettingSvc(&mockSecuritySettingRepo{
-			findByUserPoolIDFn: func(_ int64) (*SecuritySetting, error) { return nil, errors.New("fail") },
+			findByTenantIDFn: func(_ int64) (*SecuritySetting, error) { return nil, errors.New("fail") },
 		}, &mockSecuritySettingsAuditRepo{})
 		_, err := svc.GetTokenConfig(context.Background(), 1)
 		require.Error(t, err)
@@ -591,20 +591,20 @@ func TestSecuritySettingService_GetTokenConfig(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestSecuritySettingService_UpdateRegistrationConfig(t *testing.T) {
-	userPoolID := int64(1)
+	tenantID := int64(1)
 	cfg := map[string]any{"enabled": true}
 
 	t.Run("success", func(t *testing.T) {
 		db, mock := newMockGormDB(t)
 		mock.ExpectBegin()
 		mock.ExpectCommit()
-		existing := newSecSetting(userPoolID)
+		existing := newSecSetting(tenantID)
 		svc := NewSecuritySettingService(db, &mockSecuritySettingRepo{
-			findByUserPoolIDFn: func(_ int64) (*SecuritySetting, error) { return existing, nil },
+			findByTenantIDFn: func(_ int64) (*SecuritySetting, error) { return existing, nil },
 			createOrUpdateFn:   func(e *SecuritySetting) (*SecuritySetting, error) { return e, nil },
 			findByUUIDFn:       func(_ any, _ ...string) (*SecuritySetting, error) { return existing, nil },
 		}, &mockSecuritySettingsAuditRepo{})
-		res, err := svc.UpdateRegistrationConfig(context.Background(), userPoolID, cfg, 10, "1.2.3.4", "agent")
+		res, err := svc.UpdateRegistrationConfig(context.Background(), tenantID, cfg, 10, "1.2.3.4", "agent")
 		require.NoError(t, err)
 		assert.NotNil(t, res)
 	})
@@ -614,9 +614,9 @@ func TestSecuritySettingService_UpdateRegistrationConfig(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		svc := NewSecuritySettingService(db, &mockSecuritySettingRepo{
-			findByUserPoolIDFn: func(_ int64) (*SecuritySetting, error) { return nil, errors.New("db") },
+			findByTenantIDFn: func(_ int64) (*SecuritySetting, error) { return nil, errors.New("db") },
 		}, &mockSecuritySettingsAuditRepo{})
-		_, err := svc.UpdateRegistrationConfig(context.Background(), userPoolID, cfg, 10, "1.2.3.4", "agent")
+		_, err := svc.UpdateRegistrationConfig(context.Background(), tenantID, cfg, 10, "1.2.3.4", "agent")
 		require.Error(t, err)
 	})
 }
@@ -626,20 +626,20 @@ func TestSecuritySettingService_UpdateRegistrationConfig(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestSecuritySettingService_UpdateTokenConfig(t *testing.T) {
-	userPoolID := int64(1)
+	tenantID := int64(1)
 	cfg := map[string]any{"expiry": 7200}
 
 	t.Run("success", func(t *testing.T) {
 		db, mock := newMockGormDB(t)
 		mock.ExpectBegin()
 		mock.ExpectCommit()
-		existing := newSecSetting(userPoolID)
+		existing := newSecSetting(tenantID)
 		svc := NewSecuritySettingService(db, &mockSecuritySettingRepo{
-			findByUserPoolIDFn: func(_ int64) (*SecuritySetting, error) { return existing, nil },
+			findByTenantIDFn: func(_ int64) (*SecuritySetting, error) { return existing, nil },
 			createOrUpdateFn:   func(e *SecuritySetting) (*SecuritySetting, error) { return e, nil },
 			findByUUIDFn:       func(_ any, _ ...string) (*SecuritySetting, error) { return existing, nil },
 		}, &mockSecuritySettingsAuditRepo{})
-		res, err := svc.UpdateTokenConfig(context.Background(), userPoolID, cfg, 10, "1.2.3.4", "agent")
+		res, err := svc.UpdateTokenConfig(context.Background(), tenantID, cfg, 10, "1.2.3.4", "agent")
 		require.NoError(t, err)
 		assert.NotNil(t, res)
 	})
@@ -649,9 +649,9 @@ func TestSecuritySettingService_UpdateTokenConfig(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectRollback()
 		svc := NewSecuritySettingService(db, &mockSecuritySettingRepo{
-			findByUserPoolIDFn: func(_ int64) (*SecuritySetting, error) { return nil, errors.New("db") },
+			findByTenantIDFn: func(_ int64) (*SecuritySetting, error) { return nil, errors.New("db") },
 		}, &mockSecuritySettingsAuditRepo{})
-		_, err := svc.UpdateTokenConfig(context.Background(), userPoolID, cfg, 10, "1.2.3.4", "agent")
+		_, err := svc.UpdateTokenConfig(context.Background(), tenantID, cfg, 10, "1.2.3.4", "agent")
 		require.Error(t, err)
 	})
 }

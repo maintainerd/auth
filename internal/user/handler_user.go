@@ -61,12 +61,6 @@ func (h *UserHandler) GetUsers(w http.ResponseWriter, r *http.Request) {
 		roleUUID = &v
 	}
 
-	// Parse user pool UUID filter
-	var userPoolUUID *string
-	if v := q.Get("user_pool_id"); v != "" {
-		userPoolUUID = &v
-	}
-
 	// Parse client UUID filter
 	var clientUUID *string
 	if v := q.Get("client_id"); v != "" {
@@ -80,7 +74,6 @@ func (h *UserHandler) GetUsers(w http.ResponseWriter, r *http.Request) {
 		Phone:                ptr.PtrOrNil(q.Get("phone")),
 		Status:               status,
 		RoleUUID:             roleUUID,
-		UserPoolUUID:         userPoolUUID,
 		ClientUUID:           clientUUID,
 		PaginationRequestDTO: pagination.ParseQuery(r),
 	}
@@ -99,7 +92,6 @@ func (h *UserHandler) GetUsers(w http.ResponseWriter, r *http.Request) {
 		Status:       reqParams.Status,
 		TenantID:     tenant.TenantID,
 		RoleUUID:     reqParams.RoleUUID,
-		UserPoolUUID: reqParams.UserPoolUUID,
 		ClientUUID:   reqParams.ClientUUID,
 		Page:         reqParams.Page,
 		Limit:        reqParams.Limit,

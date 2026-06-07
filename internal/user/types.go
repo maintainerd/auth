@@ -199,52 +199,15 @@ type UserAssignRolesRequestDTO struct {
 	RoleUUIDs []uuid.UUID `json:"role_ids"`
 }
 
-// UserPool input/output structures
-
-// UserPoolCreateRequestDTO is the request body to create a user pool.
-type UserPoolCreateRequestDTO struct {
-	Name        string         `json:"name"`
-	DisplayName string         `json:"display_name"`
-	Status      string         `json:"status,omitempty"`
-	Metadata    datatypes.JSON `json:"metadata,omitempty"`
-}
-
-// UserPoolUpdateRequestDTO is the request body to update a user pool.
-type UserPoolUpdateRequestDTO struct {
-	Name        string         `json:"name"`
-	DisplayName string         `json:"display_name"`
-	Status      string         `json:"status"`
-	Metadata    datatypes.JSON `json:"metadata,omitempty"`
-}
-
-// UserPoolSetStatusRequestDTO is the request body to update only a user pool's status.
-type UserPoolSetStatusRequestDTO struct {
-	Status string `json:"status"`
-}
-
-// UserPoolResponseDTO is the API representation of a user pool.
-type UserPoolResponseDTO struct {
-	UserPoolUUID uuid.UUID      `json:"user_pool_id"`
-	Name         string         `json:"name"`
-	DisplayName  string         `json:"display_name"`
-	Identifier   string         `json:"identifier"`
-	IsSystem     bool           `json:"is_system"`
-	Status       string         `json:"status"`
-	Metadata     datatypes.JSON `json:"metadata"`
-	CreatedAt    time.Time      `json:"created_at"`
-	UpdatedAt    time.Time      `json:"updated_at"`
-}
-
 // User filter structure
 type UserFilterDTO struct {
-	Username     *string  `json:"username,omitempty"`
-	Email        *string  `json:"email,omitempty"`
-	Phone        *string  `json:"phone,omitempty"`
-	Status       []string `json:"status,omitempty"`
-	TenantUUID   *string  `json:"tenant_id,omitempty"`
-	RoleUUID     *string  `json:"role_id,omitempty"`
-	UserPoolUUID *string  `json:"user_pool_id,omitempty"`
-	ClientUUID   *string  `json:"client_id,omitempty"`
+	Username   *string  `json:"username,omitempty"`
+	Email      *string  `json:"email,omitempty"`
+	Phone      *string  `json:"phone,omitempty"`
+	Status     []string `json:"status,omitempty"`
+	TenantUUID *string  `json:"tenant_id,omitempty"`
+	RoleUUID   *string  `json:"role_id,omitempty"`
+	ClientUUID *string  `json:"client_id,omitempty"`
 
 	// Pagination and sorting
 	PaginationRequestDTO

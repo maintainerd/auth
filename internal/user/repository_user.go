@@ -18,7 +18,6 @@ type UserRepositoryGetFilter struct {
 	TenantID   *int64
 	RoleID     *int64
 	ClientID   *int64
-	UserPoolID *int64
 	Page       int
 	Limit      int
 	SortBy     string
@@ -296,7 +295,6 @@ func (r *userRepository) FindPaginated(filter UserRepositoryGetFilter) (*Paginat
 		if filter.ClientID != nil {
 			query = query.Where("user_identities.client_id = ?", *filter.ClientID)
 		}
-		// TODO(Phase 2): add user_identities.user_pool_id filter once the column exists.
 	}
 
 	// Apply filters

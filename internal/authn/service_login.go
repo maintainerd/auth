@@ -607,7 +607,7 @@ func (s *loginService) loginMFAChallengeResponse(ctx context.Context, user *User
 		return nil, nil
 	}
 
-	setting, err := s.securitySettingRepo.FindDefaultByTenantID(tenantID)
+	setting, err := s.securitySettingRepo.FindByTenantID(tenantID)
 	if err != nil || setting == nil || len(setting.MFAConfig) == 0 {
 		return nil, nil
 	}

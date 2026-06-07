@@ -93,16 +93,16 @@ func (m *mockMFAService) GetMFAStatus(ctx context.Context, userID int64) (*MFASt
 	return &MFAStatusResponseDTO{IsTOTPEnabled: true, BackupCodesCount: 3}, nil
 }
 
-func (m *mockMFAService) GetMFAPolicy(ctx context.Context, userPoolID int64) (*MFAPolicyDTO, error) {
+func (m *mockMFAService) GetMFAPolicy(ctx context.Context, tenantID int64) (*MFAPolicyDTO, error) {
 	if m.getMFAPolicyFn != nil {
-		return m.getMFAPolicyFn(ctx, userPoolID)
+		return m.getMFAPolicyFn(ctx, tenantID)
 	}
 	return &MFAPolicyDTO{}, nil
 }
 
-func (m *mockMFAService) IsMFARequired(ctx context.Context, userPoolID int64) (bool, error) {
+func (m *mockMFAService) IsMFARequired(ctx context.Context, tenantID int64) (bool, error) {
 	if m.isMFARequiredFn != nil {
-		return m.isMFARequiredFn(ctx, userPoolID)
+		return m.isMFARequiredFn(ctx, tenantID)
 	}
 	return false, nil
 }

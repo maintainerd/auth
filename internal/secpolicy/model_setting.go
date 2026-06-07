@@ -9,11 +9,11 @@ import (
 )
 
 // SecuritySetting holds pool-level security configuration as a set of JSONB
-// columns. Each user pool has exactly one SecuritySetting row.
+// columns. Each tenant has exactly one SecuritySetting row.
 type SecuritySetting struct {
 	SecuritySettingID   int64          `gorm:"column:security_setting_id;primaryKey;autoIncrement" json:"security_setting_id"`
 	SecuritySettingUUID uuid.UUID      `gorm:"column:security_setting_uuid;type:uuid;uniqueIndex;not null" json:"security_setting_uuid"`
-	UserPoolID          int64          `gorm:"column:user_pool_id;not null" json:"user_pool_id"`
+	TenantID          int64          `gorm:"column:tenant_id;not null" json:"tenant_id"`
 	MFAConfig           datatypes.JSON `gorm:"column:mfa_config;type:jsonb;default:'{}'" json:"mfa_config"`
 	PasswordConfig      datatypes.JSON `gorm:"column:password_config;type:jsonb;default:'{}'" json:"password_config"`
 	SessionConfig       datatypes.JSON `gorm:"column:session_config;type:jsonb;default:'{}'" json:"session_config"`

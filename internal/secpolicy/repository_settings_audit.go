@@ -6,7 +6,7 @@ import (
 )
 
 type SecuritySettingsAuditRepositoryGetFilter struct {
-	UserPoolID        *int64
+	TenantID        *int64
 	SecuritySettingID *int64
 	ChangeType        *string
 	CreatedBy         *int64
@@ -20,7 +20,7 @@ type SecuritySettingsAuditRepository interface {
 	BaseRepositoryMethods[SecuritySettingsAudit]
 	WithTx(tx *gorm.DB) SecuritySettingsAuditRepository
 	FindBySecuritySettingID(securitySettingID int64) ([]SecuritySettingsAudit, error)
-	FindByUserPoolID(tenantID int64) ([]SecuritySettingsAudit, error)
+	FindByTenantID(tenantID int64) ([]SecuritySettingsAudit, error)
 	FindPaginated(filter SecuritySettingsAuditRepositoryGetFilter) (*PaginationResult[SecuritySettingsAudit], error)
 }
 
@@ -49,9 +49,9 @@ func (r *securitySettingsAuditRepository) FindBySecuritySettingID(securitySettin
 	return audits, nil
 }
 
-func (r *securitySettingsAuditRepository) FindByUserPoolID(tenantID int64) ([]SecuritySettingsAudit, error) {
+func (r *securitySettingsAuditRepository) FindByTenantID(tenantID int64) ([]SecuritySettingsAudit, error) {
 	var audits []SecuritySettingsAudit
-	err := r.DB().Where("user_pool_id = ?", tenantID).Order("created_at DESC").Find(&audits).Error
+	err := r.DB().Where("tenant_id = ?", tenantID).Order("created_at DESC").Find(&audits).Error
 	if err != nil {
 		return nil, err
 	}
@@ -61,8 +61,8 @@ func (r *securitySettingsAuditRepository) FindByUserPoolID(tenantID int64) ([]Se
 func (r *securitySettingsAuditRepository) FindPaginated(filter SecuritySettingsAuditRepositoryGetFilter) (*PaginationResult[SecuritySettingsAudit], error) {
 	query := r.DB().Model(&SecuritySettingsAudit{})
 
-	if filter.UserPoolID != nil {
-		query = query.Where("user_pool_id = ?", *filter.UserPoolID)
+	if filter.TenantID != nil {
+		query = query.Where("tenant_id = ?", *filter.TenantID)
 	}
 	if filter.SecuritySettingID != nil {
 		query = query.Where("security_setting_id = ?", *filter.SecuritySettingID)

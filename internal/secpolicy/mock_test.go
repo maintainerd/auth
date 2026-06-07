@@ -185,7 +185,7 @@ func (m *mockIPRestrictionRuleRepo) DeleteByUUID(id any) error {
 type mockSecuritySettingRepo struct {
 	mockBaseRepo[SecuritySetting]
 	findByUUIDFn            func(any, ...string) (*SecuritySetting, error)
-	findByUserPoolIDFn      func(int64) (*SecuritySetting, error)
+	findByTenantIDFn      func(int64) (*SecuritySetting, error)
 	findDefaultByTenantIDFn func(int64) (*SecuritySetting, error)
 	findPaginatedFn         func(SecuritySettingRepositoryGetFilter) (*PaginationResult[SecuritySetting], error)
 	createFn                func(*SecuritySetting) (*SecuritySetting, error)
@@ -201,9 +201,9 @@ func (m *mockSecuritySettingRepo) FindByUUID(id any, p ...string) (*SecuritySett
 	}
 	return nil, nil
 }
-func (m *mockSecuritySettingRepo) FindByUserPoolID(userPoolID int64) (*SecuritySetting, error) {
-	if m.findByUserPoolIDFn != nil {
-		return m.findByUserPoolIDFn(userPoolID)
+func (m *mockSecuritySettingRepo) FindByTenantID(tenantID int64) (*SecuritySetting, error) {
+	if m.findByTenantIDFn != nil {
+		return m.findByTenantIDFn(tenantID)
 	}
 	return nil, nil
 }
@@ -251,7 +251,7 @@ type mockSecuritySettingsAuditRepo struct {
 	mockBaseRepo[SecuritySettingsAudit]
 	createFn                  func(*SecuritySettingsAudit) (*SecuritySettingsAudit, error)
 	findBySecuritySettingIDFn func(int64) ([]SecuritySettingsAudit, error)
-	findByUserPoolIDFn        func(int64) ([]SecuritySettingsAudit, error)
+	findByTenantIDFn        func(int64) ([]SecuritySettingsAudit, error)
 	findPaginatedFn           func(SecuritySettingsAuditRepositoryGetFilter) (*PaginationResult[SecuritySettingsAudit], error)
 }
 
@@ -270,9 +270,9 @@ func (m *mockSecuritySettingsAuditRepo) FindBySecuritySettingID(securitySettingI
 	}
 	return nil, nil
 }
-func (m *mockSecuritySettingsAuditRepo) FindByUserPoolID(userPoolID int64) ([]SecuritySettingsAudit, error) {
-	if m.findByUserPoolIDFn != nil {
-		return m.findByUserPoolIDFn(userPoolID)
+func (m *mockSecuritySettingsAuditRepo) FindByTenantID(tenantID int64) ([]SecuritySettingsAudit, error) {
+	if m.findByTenantIDFn != nil {
+		return m.findByTenantIDFn(tenantID)
 	}
 	return nil, nil
 }
@@ -284,7 +284,7 @@ func (m *mockSecuritySettingsAuditRepo) FindPaginated(filter SecuritySettingsAud
 }
 
 type mockSecuritySettingService struct {
-	getByUserPoolIDFn          func(context.Context, int64) (*SecuritySettingServiceDataResult, error)
+	getByTenantIDFn          func(context.Context, int64) (*SecuritySettingServiceDataResult, error)
 	getMFAConfigFn             func(int64) (map[string]any, error)
 	getPasswordConfigFn        func(int64) (map[string]any, error)
 	getSessionConfigFn         func(int64) (map[string]any, error)
@@ -301,93 +301,93 @@ type mockSecuritySettingService struct {
 	updateTokenConfigFn        func(int64, map[string]any, int64, string, string) (*SecuritySettingServiceDataResult, error)
 }
 
-func (m *mockSecuritySettingService) GetByUserPoolID(ctx context.Context, userPoolID int64) (*SecuritySettingServiceDataResult, error) {
-	if m.getByUserPoolIDFn != nil {
-		return m.getByUserPoolIDFn(ctx, userPoolID)
+func (m *mockSecuritySettingService) GetByTenantID(ctx context.Context, tenantID int64) (*SecuritySettingServiceDataResult, error) {
+	if m.getByTenantIDFn != nil {
+		return m.getByTenantIDFn(ctx, tenantID)
 	}
 	return &SecuritySettingServiceDataResult{}, nil
 }
-func (m *mockSecuritySettingService) GetMFAConfig(_ context.Context, userPoolID int64) (map[string]any, error) {
+func (m *mockSecuritySettingService) GetMFAConfig(_ context.Context, tenantID int64) (map[string]any, error) {
 	if m.getMFAConfigFn != nil {
-		return m.getMFAConfigFn(userPoolID)
+		return m.getMFAConfigFn(tenantID)
 	}
 	return map[string]any{}, nil
 }
-func (m *mockSecuritySettingService) GetPasswordConfig(_ context.Context, userPoolID int64) (map[string]any, error) {
+func (m *mockSecuritySettingService) GetPasswordConfig(_ context.Context, tenantID int64) (map[string]any, error) {
 	if m.getPasswordConfigFn != nil {
-		return m.getPasswordConfigFn(userPoolID)
+		return m.getPasswordConfigFn(tenantID)
 	}
 	return map[string]any{}, nil
 }
-func (m *mockSecuritySettingService) GetSessionConfig(_ context.Context, userPoolID int64) (map[string]any, error) {
+func (m *mockSecuritySettingService) GetSessionConfig(_ context.Context, tenantID int64) (map[string]any, error) {
 	if m.getSessionConfigFn != nil {
-		return m.getSessionConfigFn(userPoolID)
+		return m.getSessionConfigFn(tenantID)
 	}
 	return map[string]any{}, nil
 }
-func (m *mockSecuritySettingService) GetThreatConfig(_ context.Context, userPoolID int64) (map[string]any, error) {
+func (m *mockSecuritySettingService) GetThreatConfig(_ context.Context, tenantID int64) (map[string]any, error) {
 	if m.getThreatConfigFn != nil {
-		return m.getThreatConfigFn(userPoolID)
+		return m.getThreatConfigFn(tenantID)
 	}
 	return map[string]any{}, nil
 }
-func (m *mockSecuritySettingService) GetLockoutConfig(_ context.Context, userPoolID int64) (map[string]any, error) {
+func (m *mockSecuritySettingService) GetLockoutConfig(_ context.Context, tenantID int64) (map[string]any, error) {
 	if m.getLockoutConfigFn != nil {
-		return m.getLockoutConfigFn(userPoolID)
+		return m.getLockoutConfigFn(tenantID)
 	}
 	return map[string]any{}, nil
 }
-func (m *mockSecuritySettingService) GetRegistrationConfig(_ context.Context, userPoolID int64) (map[string]any, error) {
+func (m *mockSecuritySettingService) GetRegistrationConfig(_ context.Context, tenantID int64) (map[string]any, error) {
 	if m.getRegistrationConfigFn != nil {
-		return m.getRegistrationConfigFn(userPoolID)
+		return m.getRegistrationConfigFn(tenantID)
 	}
 	return map[string]any{}, nil
 }
-func (m *mockSecuritySettingService) GetTokenConfig(_ context.Context, userPoolID int64) (map[string]any, error) {
+func (m *mockSecuritySettingService) GetTokenConfig(_ context.Context, tenantID int64) (map[string]any, error) {
 	if m.getTokenConfigFn != nil {
-		return m.getTokenConfigFn(userPoolID)
+		return m.getTokenConfigFn(tenantID)
 	}
 	return map[string]any{}, nil
 }
-func (m *mockSecuritySettingService) UpdateMFAConfig(_ context.Context, userPoolID int64, config map[string]any, updatedBy int64, ipAddress, userAgent string) (*SecuritySettingServiceDataResult, error) {
+func (m *mockSecuritySettingService) UpdateMFAConfig(_ context.Context, tenantID int64, config map[string]any, updatedBy int64, ipAddress, userAgent string) (*SecuritySettingServiceDataResult, error) {
 	if m.updateMFAConfigFn != nil {
-		return m.updateMFAConfigFn(userPoolID, config, updatedBy, ipAddress, userAgent)
+		return m.updateMFAConfigFn(tenantID, config, updatedBy, ipAddress, userAgent)
 	}
 	return &SecuritySettingServiceDataResult{}, nil
 }
-func (m *mockSecuritySettingService) UpdatePasswordConfig(_ context.Context, userPoolID int64, config map[string]any, updatedBy int64, ipAddress, userAgent string) (*SecuritySettingServiceDataResult, error) {
+func (m *mockSecuritySettingService) UpdatePasswordConfig(_ context.Context, tenantID int64, config map[string]any, updatedBy int64, ipAddress, userAgent string) (*SecuritySettingServiceDataResult, error) {
 	if m.updatePasswordConfigFn != nil {
-		return m.updatePasswordConfigFn(userPoolID, config, updatedBy, ipAddress, userAgent)
+		return m.updatePasswordConfigFn(tenantID, config, updatedBy, ipAddress, userAgent)
 	}
 	return &SecuritySettingServiceDataResult{}, nil
 }
-func (m *mockSecuritySettingService) UpdateSessionConfig(_ context.Context, userPoolID int64, config map[string]any, updatedBy int64, ipAddress, userAgent string) (*SecuritySettingServiceDataResult, error) {
+func (m *mockSecuritySettingService) UpdateSessionConfig(_ context.Context, tenantID int64, config map[string]any, updatedBy int64, ipAddress, userAgent string) (*SecuritySettingServiceDataResult, error) {
 	if m.updateSessionConfigFn != nil {
-		return m.updateSessionConfigFn(userPoolID, config, updatedBy, ipAddress, userAgent)
+		return m.updateSessionConfigFn(tenantID, config, updatedBy, ipAddress, userAgent)
 	}
 	return &SecuritySettingServiceDataResult{}, nil
 }
-func (m *mockSecuritySettingService) UpdateThreatConfig(_ context.Context, userPoolID int64, config map[string]any, updatedBy int64, ipAddress, userAgent string) (*SecuritySettingServiceDataResult, error) {
+func (m *mockSecuritySettingService) UpdateThreatConfig(_ context.Context, tenantID int64, config map[string]any, updatedBy int64, ipAddress, userAgent string) (*SecuritySettingServiceDataResult, error) {
 	if m.updateThreatConfigFn != nil {
-		return m.updateThreatConfigFn(userPoolID, config, updatedBy, ipAddress, userAgent)
+		return m.updateThreatConfigFn(tenantID, config, updatedBy, ipAddress, userAgent)
 	}
 	return &SecuritySettingServiceDataResult{}, nil
 }
-func (m *mockSecuritySettingService) UpdateLockoutConfig(_ context.Context, userPoolID int64, config map[string]any, updatedBy int64, ipAddress, userAgent string) (*SecuritySettingServiceDataResult, error) {
+func (m *mockSecuritySettingService) UpdateLockoutConfig(_ context.Context, tenantID int64, config map[string]any, updatedBy int64, ipAddress, userAgent string) (*SecuritySettingServiceDataResult, error) {
 	if m.updateLockoutConfigFn != nil {
-		return m.updateLockoutConfigFn(userPoolID, config, updatedBy, ipAddress, userAgent)
+		return m.updateLockoutConfigFn(tenantID, config, updatedBy, ipAddress, userAgent)
 	}
 	return &SecuritySettingServiceDataResult{}, nil
 }
-func (m *mockSecuritySettingService) UpdateRegistrationConfig(_ context.Context, userPoolID int64, config map[string]any, updatedBy int64, ipAddress, userAgent string) (*SecuritySettingServiceDataResult, error) {
+func (m *mockSecuritySettingService) UpdateRegistrationConfig(_ context.Context, tenantID int64, config map[string]any, updatedBy int64, ipAddress, userAgent string) (*SecuritySettingServiceDataResult, error) {
 	if m.updateRegistrationConfigFn != nil {
-		return m.updateRegistrationConfigFn(userPoolID, config, updatedBy, ipAddress, userAgent)
+		return m.updateRegistrationConfigFn(tenantID, config, updatedBy, ipAddress, userAgent)
 	}
 	return &SecuritySettingServiceDataResult{}, nil
 }
-func (m *mockSecuritySettingService) UpdateTokenConfig(_ context.Context, userPoolID int64, config map[string]any, updatedBy int64, ipAddress, userAgent string) (*SecuritySettingServiceDataResult, error) {
+func (m *mockSecuritySettingService) UpdateTokenConfig(_ context.Context, tenantID int64, config map[string]any, updatedBy int64, ipAddress, userAgent string) (*SecuritySettingServiceDataResult, error) {
 	if m.updateTokenConfigFn != nil {
-		return m.updateTokenConfigFn(userPoolID, config, updatedBy, ipAddress, userAgent)
+		return m.updateTokenConfigFn(tenantID, config, updatedBy, ipAddress, userAgent)
 	}
 	return &SecuritySettingServiceDataResult{}, nil
 }

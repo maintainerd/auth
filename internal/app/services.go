@@ -40,7 +40,6 @@ type svcs struct {
 	loginService                 authn.LoginService
 	profileService               user.ProfileService
 	userSettingService           user.UserSettingService
-	userPoolService              user.UserPoolService
 	inviteService                invite.InviteService
 	forgotPasswordService        authn.ForgotPasswordService
 	resetPasswordService         authn.ResetPasswordService
@@ -226,13 +225,12 @@ func initServices(db *gorm.DB, r *repos, appCache *cache.Cache, redisClient *red
 		idpService:               idp.NewIdentityProviderService(db, r.idpRepo, idpTenantRepo, idpUserRepo),
 		clientService:            client.NewClientService(db, r.clientRepo, r.clientURIRepo, clientIDPRepo, clientPermissionRepo, r.clientPermissionRepo, r.clientAPIRepo, clientAPIRepo, clientUserRepo, clientTenantRepo, authEventSvc, eventSvc),
 		roleService:              iam.NewRoleService(db, r.roleRepo, r.permissionRepo, r.rolePermissionRepo, iamUserRepo, iamTenantRepo, appCache, authEventSvc, eventSvc, authzInvalidator),
-		userService:              user.NewUserService(db, r.userRepo, r.userIdentityRepo, r.userRoleRepo, userRoleRepo, userTenantRepo, userIDPRepo, userClientRepo, r.userPoolRepo, appCache, r.userTokenRepo, r.securitySettingRepo, r.userPasswordHistoryRepo, authEventSvc, eventSvc),
+		userService:              user.NewUserService(db, r.userRepo, r.userIdentityRepo, r.userRoleRepo, userRoleRepo, userTenantRepo, userIDPRepo, userClientRepo, appCache, r.userTokenRepo, r.securitySettingRepo, r.userPasswordHistoryRepo, authEventSvc, eventSvc),
 		registerService:          authn.NewRegistrationService(db, newAuthnClientRepoAdapter(r.clientRepo), newAuthnUserRepoAdapter(r.userRepo), newAuthnUserRoleRepoAdapter(r.userRoleRepo), newAuthnUserTokenRepoAdapter(r.userTokenRepo), newAuthnUserIdentityRepoAdapter(r.userIdentityRepo), newAuthnRoleRepoAdapter(r.roleRepo), newAuthnInviteRepoAdapter(r.inviteRepo), newAuthnIDPRepoAdapter(r.idpRepo), r.securitySettingRepo, newAuthnPasswordHistoryRepoAdapter(r.userPasswordHistoryRepo)),
 		loginService:             authn.NewLoginService(db, newAuthnClientRepoAdapter(r.clientRepo), newAuthnUserRepoAdapter(r.userRepo), newAuthnUserTokenRepoAdapter(r.userTokenRepo), newAuthnUserIdentityRepoAdapter(r.userIdentityRepo), newAuthnIDPRepoAdapter(r.idpRepo), authEventSvc, sessionSvc, r.securitySettingRepo, appCache),
 		sessionService:           sessionSvc,
 		profileService:           user.NewProfileService(db, r.profileRepo, r.userRepo),
 		userSettingService:       user.NewUserSettingService(db, r.userSettingRepo, r.userRepo),
-		userPoolService:          user.NewUserPoolService(db, r.userPoolRepo),
 		inviteService:            invite.NewInviteService(db, r.inviteRepo, newInviteClientRepo(db), newInviteRoleRepo(db), r.emailTemplateRepo),
 		forgotPasswordService:    authn.NewForgotPasswordService(db, newAuthnUserRepoAdapter(r.userRepo), newAuthnUserTokenRepoAdapter(r.userTokenRepo), newAuthnClientRepoAdapter(r.clientRepo), r.emailTemplateRepo),
 		resetPasswordService:     authn.NewResetPasswordService(db, newAuthnUserRepoAdapter(r.userRepo), newAuthnUserTokenRepoAdapter(r.userTokenRepo), newAuthnClientRepoAdapter(r.clientRepo), r.securitySettingRepo, newAuthnPasswordHistoryRepoAdapter(r.userPasswordHistoryRepo)),
@@ -332,7 +330,6 @@ func tenantCascadeModels() []any {
 		&iam.TenantService{},
 
 		&user.UserIdentity{},
-		&user.UserPool{},
 
 		&tenant.TenantServiceLink{},
 		&tenant.TenantSetting{},
