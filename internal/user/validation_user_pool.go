@@ -19,6 +19,15 @@ func (dto UserPoolCreateRequestDTO) Validate() error {
 	)
 }
 
+// Validate validates the user pool set-status request DTO.
+func (dto UserPoolSetStatusRequestDTO) Validate() error {
+	return validation.ValidateStruct(&dto,
+		validation.Field(&dto.Status,
+			validation.Required.Error("Status is required"),
+			validation.In(shared.StatusActive, shared.StatusInactive).Error("Status must be 'active' or 'inactive'")),
+	)
+}
+
 // Validate validates the user pool update request DTO.
 func (dto UserPoolUpdateRequestDTO) Validate() error {
 	return validation.ValidateStruct(&dto,

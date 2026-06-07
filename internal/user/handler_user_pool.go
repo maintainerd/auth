@@ -140,6 +140,42 @@ func (h *UserPoolHandler) UpdateUserPool(w http.ResponseWriter, r *http.Request)
 	resp.Success(w, toUserPoolResponseDTO(pool), "User pool updated successfully")
 }
 
+// SetStatus updates only the status of a user pool.
+//
+// PATCH /user-pools/{user_pool_uuid}/status
+func (h *UserPoolHandler) SetStatus(w http.ResponseWriter, r *http.Request) {
+	tenant := middleware.AuthFromRequest(r).Tenant
+	if tenant == nil {
+		resp.Error(w, http.StatusUnauthorized, "Tenant not found in context")
+		return
+	}
+
+	userPoolUUID, err := uuid.Parse(chi.URLParam(r, "user_pool_uuid"))
+	if err != nil {
+		resp.Error(w, http.StatusBadRequest, "Invalid user pool UUID")
+		return
+	}
+
+	var req UserPoolSetStatusRequestDTO
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		resp.BadRequestBody(w)
+		return
+	}
+
+	if err := req.Validate(); err != nil {
+		resp.ValidationError(w, err)
+		return
+	}
+
+	pool, err := h.userPoolService.SetStatus(r.Context(), userPoolUUID, tenant.TenantID, req.Status, creatorUserID(r))
+	if err != nil {
+		resp.HandleServiceError(w, r, "Failed to update user pool status", err)
+		return
+	}
+
+	resp.Success(w, toUserPoolResponseDTO(pool), "User pool status updated successfully")
+}
+
 // DeleteUserPool deletes a user pool.
 //
 // DELETE /user-pools/{user_pool_uuid}

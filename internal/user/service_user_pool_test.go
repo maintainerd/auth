@@ -190,6 +190,63 @@ func TestUserPoolService_Update(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
+// SetStatus
+// ---------------------------------------------------------------------------
+
+func TestUserPoolService_SetStatus(t *testing.T) {
+	id := uuid.New()
+
+	t.Run("not found", func(t *testing.T) {
+		svc := newUserPoolSvc(nil, &mockUserPoolRepo{
+			findByUUIDFn: func(_ any, _ ...string) (*UserPool, error) { return nil, nil },
+		})
+		_, err := svc.SetStatus(context.Background(), id, tenantID, "inactive", nil)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "not found")
+	})
+
+	t.Run("system pool status cannot be changed", func(t *testing.T) {
+		svc := newUserPoolSvc(nil, &mockUserPoolRepo{
+			findByUUIDFn: func(_ any, _ ...string) (*UserPool, error) {
+				return &UserPool{UserPoolUUID: id, TenantID: tenantID, IsSystem: true}, nil
+			},
+		})
+		_, err := svc.SetStatus(context.Background(), id, tenantID, "inactive", nil)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "system")
+	})
+
+	t.Run("repo update error", func(t *testing.T) {
+		svc := newUserPoolSvc(nil, &mockUserPoolRepo{
+			findByUUIDFn: func(_ any, _ ...string) (*UserPool, error) {
+				return &UserPool{UserPoolUUID: id, TenantID: tenantID, Status: "active"}, nil
+			},
+			updateByUUIDFn: func(_, _ any) (*UserPool, error) { return nil, errors.New("update failed") },
+		})
+		_, err := svc.SetStatus(context.Background(), id, tenantID, "inactive", nil)
+		require.Error(t, err)
+	})
+
+	t.Run("success", func(t *testing.T) {
+		actor := int64(5)
+		var captured *UserPool
+		svc := newUserPoolSvc(nil, &mockUserPoolRepo{
+			findByUUIDFn: func(_ any, _ ...string) (*UserPool, error) {
+				return &UserPool{UserPoolUUID: id, TenantID: tenantID, Status: "active"}, nil
+			},
+			updateByUUIDFn: func(_, data any) (*UserPool, error) { captured = data.(*UserPool); return captured, nil },
+		})
+		res, err := svc.SetStatus(context.Background(), id, tenantID, "inactive", &actor)
+		require.NoError(t, err)
+		assert.Equal(t, "inactive", res.Status)
+		require.NotNil(t, captured)
+		assert.Equal(t, "inactive", captured.Status)
+		require.NotNil(t, captured.UpdatedBy)
+		assert.Equal(t, actor, *captured.UpdatedBy)
+	})
+}
+
+// ---------------------------------------------------------------------------
 // Delete
 // ---------------------------------------------------------------------------
 

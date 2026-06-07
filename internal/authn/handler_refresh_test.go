@@ -51,6 +51,40 @@ func TestLoginHandler_RefreshToken_FromCookie(t *testing.T) {
 	h.RefreshToken(w, r)
 	assert.Equal(t, http.StatusOK, w.Code)
 	assert.Equal(t, "rt-cookie", gotToken) // cookie used when body is empty
+	// Rotation: the new tokens MUST be re-issued as cookies so the browser
+	// replaces the now-revoked refresh cookie.
+	assert.NotEmpty(t, w.Result().Cookies(), "rotated tokens must be set as cookies for cookie-mode refresh")
+}
+
+func TestLoginHandler_RefreshToken_BearerDoesNotSetCookies(t *testing.T) {
+	svc := &mockLoginService{
+		refreshTokenFn: func(_, _ string) (*LoginResponseDTO, error) {
+			return &LoginResponseDTO{AccessToken: "a", RefreshToken: "r"}, nil
+		},
+	}
+	h := NewLoginHandler(svc)
+	// Bearer mode: token in body, no cookie, no X-Token-Delivery header.
+	r := withSecurityCtx(newLoginRequest(t, http.MethodPost, "/refresh-token", RefreshTokenRequestDTO{RefreshToken: "rt"}))
+	w := httptest.NewRecorder()
+	h.RefreshToken(w, r)
+	assert.Equal(t, http.StatusOK, w.Code)
+	assert.Empty(t, w.Result().Cookies(), "bearer-mode refresh must not set cookies")
+}
+
+func TestLoginHandler_RefreshToken_ExplicitCookieDelivery(t *testing.T) {
+	svc := &mockLoginService{
+		refreshTokenFn: func(_, _ string) (*LoginResponseDTO, error) {
+			return &LoginResponseDTO{AccessToken: "a", RefreshToken: "r"}, nil
+		},
+	}
+	h := NewLoginHandler(svc)
+	// Body token but client explicitly opts into cookie delivery.
+	r := withSecurityCtx(newLoginRequest(t, http.MethodPost, "/refresh-token", RefreshTokenRequestDTO{RefreshToken: "rt"}))
+	r.Header.Set("X-Token-Delivery", "cookie")
+	w := httptest.NewRecorder()
+	h.RefreshToken(w, r)
+	assert.Equal(t, http.StatusOK, w.Code)
+	assert.NotEmpty(t, w.Result().Cookies(), "X-Token-Delivery: cookie must set cookies")
 }
 
 func TestLoginHandler_RefreshToken_BodyTakesPrecedenceOverCookie(t *testing.T) {
