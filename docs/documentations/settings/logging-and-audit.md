@@ -407,7 +407,7 @@ The `security_settings_audit` table is **fully active** and well-designed:
 CREATE TABLE IF NOT EXISTS security_settings_audit (
     security_settings_audit_id   SERIAL PRIMARY KEY,
     security_settings_audit_uuid UUID NOT NULL UNIQUE,
-    user_pool_id                 INTEGER NOT NULL REFERENCES user_pools(user_pool_id) ON DELETE CASCADE,
+    tenant_id                 INTEGER NOT NULL REFERENCES tenants(tenant_id) ON DELETE CASCADE,
     security_setting_id          INTEGER NOT NULL REFERENCES security_settings(security_setting_id) ON DELETE CASCADE,
     change_type                  VARCHAR(50) NOT NULL,
     old_config                   JSONB,

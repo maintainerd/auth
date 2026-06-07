@@ -34,39 +34,39 @@ service IPRestrictionRuleService {
   rpc DeleteIPRestrictionRule(DeleteIPRestrictionRuleRequest) returns (DeleteIPRestrictionRuleResponse);
 }
 
-message GetMFAConfigRequest { int64 user_pool_id = 1; }
+message GetMFAConfigRequest { int64 tenant_id = 1; }
 message GetMFAConfigResponse { google.protobuf.Struct config = 1; }
-message UpdateMFAConfigRequest { int64 user_pool_id = 1; google.protobuf.Struct config = 2; string updated_by = 3; string ip_address = 4; string user_agent = 5; }
+message UpdateMFAConfigRequest { int64 tenant_id = 1; google.protobuf.Struct config = 2; string updated_by = 3; string ip_address = 4; string user_agent = 5; }
 message UpdateMFAConfigResponse { google.protobuf.Struct config = 1; }
 
-message GetPasswordConfigRequest { int64 user_pool_id = 1; }
+message GetPasswordConfigRequest { int64 tenant_id = 1; }
 message GetPasswordConfigResponse { google.protobuf.Struct config = 1; }
-message UpdatePasswordConfigRequest { int64 user_pool_id = 1; google.protobuf.Struct config = 2; string updated_by = 3; string ip_address = 4; string user_agent = 5; }
+message UpdatePasswordConfigRequest { int64 tenant_id = 1; google.protobuf.Struct config = 2; string updated_by = 3; string ip_address = 4; string user_agent = 5; }
 message UpdatePasswordConfigResponse { google.protobuf.Struct config = 1; }
 
-message GetSessionConfigRequest { int64 user_pool_id = 1; }
+message GetSessionConfigRequest { int64 tenant_id = 1; }
 message GetSessionConfigResponse { google.protobuf.Struct config = 1; }
-message UpdateSessionConfigRequest { int64 user_pool_id = 1; google.protobuf.Struct config = 2; string updated_by = 3; string ip_address = 4; string user_agent = 5; }
+message UpdateSessionConfigRequest { int64 tenant_id = 1; google.protobuf.Struct config = 2; string updated_by = 3; string ip_address = 4; string user_agent = 5; }
 message UpdateSessionConfigResponse { google.protobuf.Struct config = 1; }
 
-message GetThreatConfigRequest { int64 user_pool_id = 1; }
+message GetThreatConfigRequest { int64 tenant_id = 1; }
 message GetThreatConfigResponse { google.protobuf.Struct config = 1; }
-message UpdateThreatConfigRequest { int64 user_pool_id = 1; google.protobuf.Struct config = 2; string updated_by = 3; string ip_address = 4; string user_agent = 5; }
+message UpdateThreatConfigRequest { int64 tenant_id = 1; google.protobuf.Struct config = 2; string updated_by = 3; string ip_address = 4; string user_agent = 5; }
 message UpdateThreatConfigResponse { google.protobuf.Struct config = 1; }
 
-message GetLockoutConfigRequest { int64 user_pool_id = 1; }
+message GetLockoutConfigRequest { int64 tenant_id = 1; }
 message GetLockoutConfigResponse { google.protobuf.Struct config = 1; }
-message UpdateLockoutConfigRequest { int64 user_pool_id = 1; google.protobuf.Struct config = 2; string updated_by = 3; string ip_address = 4; string user_agent = 5; }
+message UpdateLockoutConfigRequest { int64 tenant_id = 1; google.protobuf.Struct config = 2; string updated_by = 3; string ip_address = 4; string user_agent = 5; }
 message UpdateLockoutConfigResponse { google.protobuf.Struct config = 1; }
 
-message GetRegistrationConfigRequest { int64 user_pool_id = 1; }
+message GetRegistrationConfigRequest { int64 tenant_id = 1; }
 message GetRegistrationConfigResponse { google.protobuf.Struct config = 1; }
-message UpdateRegistrationConfigRequest { int64 user_pool_id = 1; google.protobuf.Struct config = 2; string updated_by = 3; string ip_address = 4; string user_agent = 5; }
+message UpdateRegistrationConfigRequest { int64 tenant_id = 1; google.protobuf.Struct config = 2; string updated_by = 3; string ip_address = 4; string user_agent = 5; }
 message UpdateRegistrationConfigResponse { google.protobuf.Struct config = 1; }
 
-message GetTokenConfigRequest { int64 user_pool_id = 1; }
+message GetTokenConfigRequest { int64 tenant_id = 1; }
 message GetTokenConfigResponse { google.protobuf.Struct config = 1; }
-message UpdateTokenConfigRequest { int64 user_pool_id = 1; google.protobuf.Struct config = 2; string updated_by = 3; string ip_address = 4; string user_agent = 5; }
+message UpdateTokenConfigRequest { int64 tenant_id = 1; google.protobuf.Struct config = 2; string updated_by = 3; string ip_address = 4; string user_agent = 5; }
 message UpdateTokenConfigResponse { google.protobuf.Struct config = 1; }
 
 message IPRestrictionRule {

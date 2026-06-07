@@ -6,7 +6,7 @@ import (
 )
 
 type SecuritySettingsAuditRepositoryGetFilter struct {
-	TenantID        *int64
+	TenantID          *int64
 	SecuritySettingID *int64
 	ChangeType        *string
 	CreatedBy         *int64

@@ -1,6 +1,6 @@
 # Multi-Factor Authentication (MFA) Configuration
 
-> **Scope**: User Pool · **API Prefix**: `/security-settings/mfa` · **Storage**: `security_settings.mfa_config` (JSONB)
+> **Scope**: Tenant · **API Prefix**: `/security-settings/mfa` · **Storage**: `security_settings.mfa_config` (JSONB)
 
 ## Overview
 
@@ -214,8 +214,8 @@ Stored in `security_settings.mfa_config` (JSONB column). The config is schema-fr
 
 ### Service Layer
 
-- **`GetMFAConfig(ctx, userPoolID)`** — Lazy-creates the security setting row, then returns the `mfa_config` JSONB.
-- **`UpdateMFAConfig(ctx, userPoolID, config, updatedBy, ipAddress, userAgent)`** — Calls `updateConfig` with the config type.
+- **`GetMFAConfig(ctx, tenantID)`** — Lazy-creates the security setting row, then returns the `mfa_config` JSONB.
+- **`UpdateMFAConfig(ctx, tenantID, config, updatedBy, ipAddress, userAgent)`** — Calls `updateConfig` with the config type.
 
 ### ⚠️ Known Bug
 

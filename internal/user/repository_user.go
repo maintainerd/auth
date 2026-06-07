@@ -11,17 +11,17 @@ import (
 )
 
 type UserRepositoryGetFilter struct {
-	Username   *string
-	Email      *string
-	Phone      *string
-	Status     []string
-	TenantID   *int64
-	RoleID     *int64
-	ClientID   *int64
-	Page       int
-	Limit      int
-	SortBy     string
-	SortOrder  string
+	Username  *string
+	Email     *string
+	Phone     *string
+	Status    []string
+	TenantID  *int64
+	RoleID    *int64
+	ClientID  *int64
+	Page      int
+	Limit     int
+	SortBy    string
+	SortOrder string
 }
 
 type GetUserRolesFilter struct {

@@ -86,17 +86,17 @@ func (h *UserHandler) GetUsers(w http.ResponseWriter, r *http.Request) {
 
 	// Build service filter with tenant context
 	filter := UserServiceGetFilter{
-		Username:     reqParams.Username,
-		Email:        reqParams.Email,
-		Phone:        reqParams.Phone,
-		Status:       reqParams.Status,
-		TenantID:     tenant.TenantID,
-		RoleUUID:     reqParams.RoleUUID,
-		ClientUUID:   reqParams.ClientUUID,
-		Page:         reqParams.Page,
-		Limit:        reqParams.Limit,
-		SortBy:       reqParams.SortBy,
-		SortOrder:    reqParams.SortOrder,
+		Username:   reqParams.Username,
+		Email:      reqParams.Email,
+		Phone:      reqParams.Phone,
+		Status:     reqParams.Status,
+		TenantID:   tenant.TenantID,
+		RoleUUID:   reqParams.RoleUUID,
+		ClientUUID: reqParams.ClientUUID,
+		Page:       reqParams.Page,
+		Limit:      reqParams.Limit,
+		SortBy:     reqParams.SortBy,
+		SortOrder:  reqParams.SortOrder,
 	}
 
 	// Fetch users from service layer

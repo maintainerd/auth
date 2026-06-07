@@ -260,14 +260,13 @@ user/
 ├── registry.go                     # new: type Deps, Registry, NewRegistry for user wiring
 ├── routes.go                       # was: rest/route/user.go, profile.go, user_setting.go, account.go
 ├── types.go                        # was: dto/user.go, dto/profile.go, dto/user_setting.go, dto/account.go
-├── repository.go                   # interfaces for user, user_identity, user_role, user_pool, user_password_history, user_token, profile, user_setting
+├── repository.go                   # interfaces for user, user_identity, user_role, user_password_history, user_token, profile, user_setting
 ├── repository_gorm.go              # was: repository/user*.go, profile.go, user_setting.go
 ├── user.go                         # User model + UserService — was: model/user.go + service/user.go
 ├── handler_user.go                 # was: rest/handler/user.go
 ├── user_test.go                    # was: service/user_test.go, if present
 ├── user_identity.go                # UserIdentity model — was: model/user_identity.go
 ├── user_role.go                    # UserRole model — was: model/user_role.go
-├── user_pool.go                    # UserPool model — was: model/user_pool.go
 ├── user_password_history.go        # UserPasswordHistory model — was: model/user_password_history.go
 ├── user_token.go                   # UserToken model — was: model/user_token.go
 ├── profile.go                      # Profile model + ProfileService — was: model/profile.go + service/profile.go
@@ -278,7 +277,7 @@ user/
 └── handler_account.go              # was: rest/handler/account.go
 ```
 
-**Owns aggregates (GORM models):** `User`, `UserIdentity`, `UserRole`, `UserPool`, `UserPasswordHistory`, `UserToken`, `Profile`, `UserSetting`. Cross-aggregate references (`TenantID`, `IdentityProviderID`) are `uuid.UUID`.
+**Owns aggregates (GORM models):** `User`, `UserIdentity`, `UserRole`, `UserPasswordHistory`, `UserToken`, `Profile`, `UserSetting`. Cross-aggregate references (`TenantID`, `IdentityProviderID`) are `uuid.UUID`.
 
 ---
 
@@ -926,7 +925,6 @@ Each file in `internal/rest/route/*.go` becomes part of the matching domain's `r
 | `internal/repository/user_backup_code.go` | `internal/mfa/repository_gorm.go` |
 | `internal/repository/user_identity.go` | `internal/user/repository_gorm.go` |
 | `internal/repository/user_password_history.go` | `internal/user/repository_gorm.go` |
-| `internal/repository/user_pool.go` | `internal/user/repository_gorm.go` |
 | `internal/repository/user_role.go` | `internal/user/repository_gorm.go` |
 | `internal/repository/user_setting.go` | `internal/user/repository_gorm.go` |
 | `internal/repository/user_token.go` | `internal/user/repository_gorm.go` |
@@ -992,7 +990,6 @@ Each model file in `internal/model/` moves into the domain that owns the aggrega
 | `internal/model/user.go` | `internal/user/user.go` |
 | `internal/model/user_identity.go` | `internal/user/user_identity.go` |
 | `internal/model/user_role.go` | `internal/user/user_role.go` |
-| `internal/model/user_pool.go` | `internal/user/user_pool.go` |
 | `internal/model/user_password_history.go` | `internal/user/user_password_history.go` |
 | `internal/model/user_token.go` | `internal/user/user_token.go` |
 | `internal/model/profile.go` | `internal/user/profile.go` |

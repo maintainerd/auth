@@ -184,14 +184,13 @@ func (m *mockIPRestrictionRuleRepo) DeleteByUUID(id any) error {
 
 type mockSecuritySettingRepo struct {
 	mockBaseRepo[SecuritySetting]
-	findByUUIDFn            func(any, ...string) (*SecuritySetting, error)
-	findByTenantIDFn      func(int64) (*SecuritySetting, error)
-	findDefaultByTenantIDFn func(int64) (*SecuritySetting, error)
-	findPaginatedFn         func(SecuritySettingRepositoryGetFilter) (*PaginationResult[SecuritySetting], error)
-	createFn                func(*SecuritySetting) (*SecuritySetting, error)
-	createOrUpdateFn        func(*SecuritySetting) (*SecuritySetting, error)
-	updateByUUIDFn          func(any, any) (*SecuritySetting, error)
-	incrementVersionFn      func(int64) error
+	findByUUIDFn       func(any, ...string) (*SecuritySetting, error)
+	findByTenantIDFn   func(int64) (*SecuritySetting, error)
+	findPaginatedFn    func(SecuritySettingRepositoryGetFilter) (*PaginationResult[SecuritySetting], error)
+	createFn           func(*SecuritySetting) (*SecuritySetting, error)
+	createOrUpdateFn   func(*SecuritySetting) (*SecuritySetting, error)
+	updateByUUIDFn     func(any, any) (*SecuritySetting, error)
+	incrementVersionFn func(int64) error
 }
 
 func (m *mockSecuritySettingRepo) WithTx(_ *gorm.DB) SecuritySettingRepository { return m }
@@ -204,12 +203,6 @@ func (m *mockSecuritySettingRepo) FindByUUID(id any, p ...string) (*SecuritySett
 func (m *mockSecuritySettingRepo) FindByTenantID(tenantID int64) (*SecuritySetting, error) {
 	if m.findByTenantIDFn != nil {
 		return m.findByTenantIDFn(tenantID)
-	}
-	return nil, nil
-}
-func (m *mockSecuritySettingRepo) FindDefaultByTenantID(tenantID int64) (*SecuritySetting, error) {
-	if m.findDefaultByTenantIDFn != nil {
-		return m.findDefaultByTenantIDFn(tenantID)
 	}
 	return nil, nil
 }
@@ -251,7 +244,7 @@ type mockSecuritySettingsAuditRepo struct {
 	mockBaseRepo[SecuritySettingsAudit]
 	createFn                  func(*SecuritySettingsAudit) (*SecuritySettingsAudit, error)
 	findBySecuritySettingIDFn func(int64) ([]SecuritySettingsAudit, error)
-	findByTenantIDFn        func(int64) ([]SecuritySettingsAudit, error)
+	findByTenantIDFn          func(int64) ([]SecuritySettingsAudit, error)
 	findPaginatedFn           func(SecuritySettingsAuditRepositoryGetFilter) (*PaginationResult[SecuritySettingsAudit], error)
 }
 
@@ -284,7 +277,7 @@ func (m *mockSecuritySettingsAuditRepo) FindPaginated(filter SecuritySettingsAud
 }
 
 type mockSecuritySettingService struct {
-	getByTenantIDFn          func(context.Context, int64) (*SecuritySettingServiceDataResult, error)
+	getByTenantIDFn            func(context.Context, int64) (*SecuritySettingServiceDataResult, error)
 	getMFAConfigFn             func(int64) (map[string]any, error)
 	getPasswordConfigFn        func(int64) (map[string]any, error)
 	getSessionConfigFn         func(int64) (map[string]any, error)

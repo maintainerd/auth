@@ -1,10 +1,10 @@
 # Security Settings
 
-> **Scope**: User Pool · **API Prefix**: `/security-settings/*` · **Storage**: `security_settings` table (7 JSONB columns)
+> **Scope**: Tenant · **API Prefix**: `/security-settings/*` · **Storage**: `security_settings` table (7 JSONB columns)
 
 ## Overview
 
-Security settings control the authentication and session security posture for a user pool. Unlike other settings entities that use dedicated tables, all seven security sub-configurations live in a single `security_settings` row as JSONB columns — providing atomic reads and version-tracked, audited updates.
+Security settings control the authentication and session security posture for a tenant. Unlike other settings entities that use dedicated tables, all seven security sub-configurations live in a single `security_settings` row as JSONB columns — providing atomic reads and version-tracked, audited updates.
 
 ## Sub-Configurations
 
@@ -25,13 +25,13 @@ Security settings control the authentication and session security posture for a 
 
 ### Data Model
 
-All seven configs share a single table row per user pool:
+All seven configs share a single table row per tenant:
 
 ```
 security_settings
 ├── security_setting_id     (PK, uint)
 ├── security_setting_uuid   (UUID, unique)
-├── user_pool_id            (FK → user_pools)
+├── tenant_id            (FK → tenants)
 ├── password_config         (JSONB)
 ├── mfa_config              (JSONB)
 ├── session_config          (JSONB)
@@ -54,7 +54,7 @@ Every config update creates a row in `security_settings_audit`:
 security_settings_audit
 ├── security_settings_audit_id      (PK, uint)
 ├── security_settings_audit_uuid    (UUID, unique)
-├── user_pool_id                    (FK → user_pools)
+├── tenant_id                    (FK → tenants)
 ├── security_setting_id             (FK → security_settings)
 ├── change_type                     (string: "update_password_config", "update_mfa_config", etc.)
 ├── old_config                      (JSONB — previous value of the changed config)
@@ -72,7 +72,7 @@ The `SecuritySettingService` exposes 15 methods:
 
 | Method | Description |
 |--------|-------------|
-| `GetByUserPoolID` | Returns the full security settings row (all 7 configs) |
+| `GetByTenantID` | Returns the full security settings row (all 7 configs) |
 | `GetPasswordConfig` | Returns only the `password_config` JSONB |
 | `UpdatePasswordConfig` | Replaces `password_config`, increments version, creates audit record |
 | `GetMFAConfig` | Returns only the `mfa_config` JSONB |
@@ -89,7 +89,7 @@ The `SecuritySettingService` exposes 15 methods:
 | `UpdateTokenConfig` | Replaces `token_config`, increments version, creates audit record |
 
 All update methods share an internal `updateConfig` helper that runs in a transaction:
-1. Find or create the `security_settings` row for the user pool
+1. Find or create the `security_settings` row for the tenant
 2. Set the appropriate JSONB column
 3. Increment `version`
 4. Create a `security_settings_audit` record
@@ -112,7 +112,7 @@ All update methods share an internal `updateConfig` helper that runs in a transa
 | `internal/service/security_setting.go` | 15-method service with shared `updateConfig` helper |
 | `internal/rest/security_setting_handler.go` | 14 HTTP handlers (7 GET + 7 PUT) |
 | `internal/rest/security_setting_routes.go` | Route registration |
-| `internal/repository/security_setting.go` | `FindByUserPoolID`, `IncrementVersion`, `WithTx` |
-| `internal/repository/security_settings_audit.go` | `FindBySecuritySettingID`, `FindByUserPoolID` |
+| `internal/repository/security_setting.go` | `FindByTenantID`, `IncrementVersion`, `WithTx` |
+| `internal/repository/security_settings_audit.go` | `FindBySecuritySettingID`, `FindByTenantID` |
 | `internal/database/migration/037_create_security_settings_table.go` | Main table migration |
 | `internal/database/migration/039_create_security_settings_audit_table.go` | Audit table migration |

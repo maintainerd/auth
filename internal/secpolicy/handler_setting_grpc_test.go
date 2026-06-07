@@ -26,7 +26,7 @@ type testSecuritySettingService struct {
 	updateRegistrationConfigFn func(ctx context.Context, tenantID int64, config map[string]any, updatedBy int64, ipAddress, userAgent string) (*SecuritySettingServiceDataResult, error)
 	getTokenConfigFn           func(ctx context.Context, tenantID int64) (map[string]any, error)
 	updateTokenConfigFn        func(ctx context.Context, tenantID int64, config map[string]any, updatedBy int64, ipAddress, userAgent string) (*SecuritySettingServiceDataResult, error)
-	getByTenantIDFn          func(ctx context.Context, tenantID int64) (*SecuritySettingServiceDataResult, error)
+	getByTenantIDFn            func(ctx context.Context, tenantID int64) (*SecuritySettingServiceDataResult, error)
 }
 
 func (m *testSecuritySettingService) GetByTenantID(ctx context.Context, tenantID int64) (*SecuritySettingServiceDataResult, error) {
@@ -115,7 +115,7 @@ func TestSecuritySettingGRPCHandler_RPCS(t *testing.T) {
 	h := NewSecuritySettingGRPCHandler(svc)
 
 	t.Run("get mfa config", func(t *testing.T) {
-		res, err := h.GetMFAConfig(ctx, &authv1.GetMFAConfigRequest{UserPoolId: 1})
+		res, err := h.GetMFAConfig(ctx, &authv1.GetMFAConfigRequest{TenantId: 1})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -125,7 +125,7 @@ func TestSecuritySettingGRPCHandler_RPCS(t *testing.T) {
 	})
 
 	t.Run("update mfa config", func(t *testing.T) {
-		res, err := h.UpdateMFAConfig(ctx, &authv1.UpdateMFAConfigRequest{UserPoolId: 1, IpAddress: "1.2.3.4", UserAgent: "test"})
+		res, err := h.UpdateMFAConfig(ctx, &authv1.UpdateMFAConfigRequest{TenantId: 1, IpAddress: "1.2.3.4", UserAgent: "test"})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -135,49 +135,49 @@ func TestSecuritySettingGRPCHandler_RPCS(t *testing.T) {
 	})
 
 	t.Run("get password config", func(t *testing.T) {
-		_, err := h.GetPasswordConfig(ctx, &authv1.GetPasswordConfigRequest{UserPoolId: 1})
+		_, err := h.GetPasswordConfig(ctx, &authv1.GetPasswordConfigRequest{TenantId: 1})
 		if err != nil {
 			t.Fatal(err)
 		}
 	})
 
 	t.Run("update password config", func(t *testing.T) {
-		_, err := h.UpdatePasswordConfig(ctx, &authv1.UpdatePasswordConfigRequest{UserPoolId: 1, IpAddress: "1.2.3.4", UserAgent: "test"})
+		_, err := h.UpdatePasswordConfig(ctx, &authv1.UpdatePasswordConfigRequest{TenantId: 1, IpAddress: "1.2.3.4", UserAgent: "test"})
 		if err != nil {
 			t.Fatal(err)
 		}
 	})
 
 	t.Run("get session config", func(t *testing.T) {
-		_, err := h.GetSessionConfig(ctx, &authv1.GetSessionConfigRequest{UserPoolId: 1})
+		_, err := h.GetSessionConfig(ctx, &authv1.GetSessionConfigRequest{TenantId: 1})
 		if err != nil {
 			t.Fatal(err)
 		}
 	})
 
 	t.Run("get threat config", func(t *testing.T) {
-		_, err := h.GetThreatConfig(ctx, &authv1.GetThreatConfigRequest{UserPoolId: 1})
+		_, err := h.GetThreatConfig(ctx, &authv1.GetThreatConfigRequest{TenantId: 1})
 		if err != nil {
 			t.Fatal(err)
 		}
 	})
 
 	t.Run("get lockout config", func(t *testing.T) {
-		_, err := h.GetLockoutConfig(ctx, &authv1.GetLockoutConfigRequest{UserPoolId: 1})
+		_, err := h.GetLockoutConfig(ctx, &authv1.GetLockoutConfigRequest{TenantId: 1})
 		if err != nil {
 			t.Fatal(err)
 		}
 	})
 
 	t.Run("get registration config", func(t *testing.T) {
-		_, err := h.GetRegistrationConfig(ctx, &authv1.GetRegistrationConfigRequest{UserPoolId: 1})
+		_, err := h.GetRegistrationConfig(ctx, &authv1.GetRegistrationConfigRequest{TenantId: 1})
 		if err != nil {
 			t.Fatal(err)
 		}
 	})
 
 	t.Run("get token config", func(t *testing.T) {
-		_, err := h.GetTokenConfig(ctx, &authv1.GetTokenConfigRequest{UserPoolId: 1})
+		_, err := h.GetTokenConfig(ctx, &authv1.GetTokenConfigRequest{TenantId: 1})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -188,7 +188,7 @@ func TestSecuritySettingGRPCHandler_RPCS(t *testing.T) {
 			getMFAConfigFn: func(ctx context.Context, id int64) (map[string]any, error) { return nil, errors.New("db error") },
 		}
 		h := NewSecuritySettingGRPCHandler(errSvc)
-		_, err := h.GetMFAConfig(ctx, &authv1.GetMFAConfigRequest{UserPoolId: 1})
+		_, err := h.GetMFAConfig(ctx, &authv1.GetMFAConfigRequest{TenantId: 1})
 		if code := status.Code(err); code != codes.Internal {
 			t.Errorf("expected Internal, got %v", code)
 		}
@@ -201,7 +201,7 @@ func TestSecuritySettingGRPCHandler_RPCS(t *testing.T) {
 			},
 		}
 		h := NewSecuritySettingGRPCHandler(errSvc)
-		_, err := h.UpdateMFAConfig(ctx, &authv1.UpdateMFAConfigRequest{UserPoolId: 1, IpAddress: "1.2.3.4", UserAgent: "test"})
+		_, err := h.UpdateMFAConfig(ctx, &authv1.UpdateMFAConfigRequest{TenantId: 1, IpAddress: "1.2.3.4", UserAgent: "test"})
 		if code := status.Code(err); code != codes.Internal {
 			t.Errorf("expected Internal, got %v", code)
 		}
@@ -214,7 +214,7 @@ func TestSecuritySettingGRPCHandler_RPCS(t *testing.T) {
 			},
 		}
 		h := NewSecuritySettingGRPCHandler(errSvc)
-		_, err := h.UpdatePasswordConfig(ctx, &authv1.UpdatePasswordConfigRequest{UserPoolId: 1, IpAddress: "1.2.3.4", UserAgent: "test"})
+		_, err := h.UpdatePasswordConfig(ctx, &authv1.UpdatePasswordConfigRequest{TenantId: 1, IpAddress: "1.2.3.4", UserAgent: "test"})
 		if code := status.Code(err); code != codes.Internal {
 			t.Errorf("expected Internal, got %v", code)
 		}
@@ -225,7 +225,7 @@ func TestSecuritySettingGRPCHandler_RPCS(t *testing.T) {
 			getPasswordConfigFn: func(ctx context.Context, id int64) (map[string]any, error) { return nil, errors.New("db") },
 		}
 		h := NewSecuritySettingGRPCHandler(errSvc)
-		_, err := h.GetPasswordConfig(ctx, &authv1.GetPasswordConfigRequest{UserPoolId: 1})
+		_, err := h.GetPasswordConfig(ctx, &authv1.GetPasswordConfigRequest{TenantId: 1})
 		if code := status.Code(err); code != codes.Internal {
 			t.Errorf("expected Internal, got %v", code)
 		}
@@ -236,7 +236,7 @@ func TestSecuritySettingGRPCHandler_RPCS(t *testing.T) {
 			getSessionConfigFn: func(ctx context.Context, id int64) (map[string]any, error) { return nil, errors.New("db") },
 		}
 		h := NewSecuritySettingGRPCHandler(errSvc)
-		_, err := h.GetSessionConfig(ctx, &authv1.GetSessionConfigRequest{UserPoolId: 1})
+		_, err := h.GetSessionConfig(ctx, &authv1.GetSessionConfigRequest{TenantId: 1})
 		if code := status.Code(err); code != codes.Internal {
 			t.Errorf("expected Internal, got %v", code)
 		}
@@ -247,7 +247,7 @@ func TestSecuritySettingGRPCHandler_RPCS(t *testing.T) {
 			getThreatConfigFn: func(ctx context.Context, id int64) (map[string]any, error) { return nil, errors.New("db") },
 		}
 		h := NewSecuritySettingGRPCHandler(errSvc)
-		_, err := h.GetThreatConfig(ctx, &authv1.GetThreatConfigRequest{UserPoolId: 1})
+		_, err := h.GetThreatConfig(ctx, &authv1.GetThreatConfigRequest{TenantId: 1})
 		if code := status.Code(err); code != codes.Internal {
 			t.Errorf("expected Internal, got %v", code)
 		}
@@ -258,7 +258,7 @@ func TestSecuritySettingGRPCHandler_RPCS(t *testing.T) {
 			getLockoutConfigFn: func(ctx context.Context, id int64) (map[string]any, error) { return nil, errors.New("db") },
 		}
 		h := NewSecuritySettingGRPCHandler(errSvc)
-		_, err := h.GetLockoutConfig(ctx, &authv1.GetLockoutConfigRequest{UserPoolId: 1})
+		_, err := h.GetLockoutConfig(ctx, &authv1.GetLockoutConfigRequest{TenantId: 1})
 		if code := status.Code(err); code != codes.Internal {
 			t.Errorf("expected Internal, got %v", code)
 		}
@@ -269,7 +269,7 @@ func TestSecuritySettingGRPCHandler_RPCS(t *testing.T) {
 			getRegistrationConfigFn: func(ctx context.Context, id int64) (map[string]any, error) { return nil, errors.New("db") },
 		}
 		h := NewSecuritySettingGRPCHandler(errSvc)
-		_, err := h.GetRegistrationConfig(ctx, &authv1.GetRegistrationConfigRequest{UserPoolId: 1})
+		_, err := h.GetRegistrationConfig(ctx, &authv1.GetRegistrationConfigRequest{TenantId: 1})
 		if code := status.Code(err); code != codes.Internal {
 			t.Errorf("expected Internal, got %v", code)
 		}
@@ -280,7 +280,7 @@ func TestSecuritySettingGRPCHandler_RPCS(t *testing.T) {
 			getTokenConfigFn: func(ctx context.Context, id int64) (map[string]any, error) { return nil, errors.New("db") },
 		}
 		h := NewSecuritySettingGRPCHandler(errSvc)
-		_, err := h.GetTokenConfig(ctx, &authv1.GetTokenConfigRequest{UserPoolId: 1})
+		_, err := h.GetTokenConfig(ctx, &authv1.GetTokenConfigRequest{TenantId: 1})
 		if code := status.Code(err); code != codes.Internal {
 			t.Errorf("expected Internal, got %v", code)
 		}
@@ -294,7 +294,7 @@ func TestSecuritySettingGRPCHandler_RPCS(t *testing.T) {
 			getSessionConfigFn: func(ctx context.Context, id int64) (map[string]any, error) { return map[string]any{}, nil },
 		}
 		h := NewSecuritySettingGRPCHandler(uSvc)
-		_, err := h.UpdateSessionConfig(ctx, &authv1.UpdateSessionConfigRequest{UserPoolId: 1, IpAddress: "1.2.3.4", UserAgent: "test"})
+		_, err := h.UpdateSessionConfig(ctx, &authv1.UpdateSessionConfigRequest{TenantId: 1, IpAddress: "1.2.3.4", UserAgent: "test"})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -307,7 +307,7 @@ func TestSecuritySettingGRPCHandler_RPCS(t *testing.T) {
 			},
 		}
 		h := NewSecuritySettingGRPCHandler(uSvc)
-		_, err := h.UpdateSessionConfig(ctx, &authv1.UpdateSessionConfigRequest{UserPoolId: 1, IpAddress: "1.2.3.4", UserAgent: "test"})
+		_, err := h.UpdateSessionConfig(ctx, &authv1.UpdateSessionConfigRequest{TenantId: 1, IpAddress: "1.2.3.4", UserAgent: "test"})
 		if code := status.Code(err); code != codes.Internal {
 			t.Errorf("expected Internal, got %v", code)
 		}
@@ -321,7 +321,7 @@ func TestSecuritySettingGRPCHandler_RPCS(t *testing.T) {
 			getThreatConfigFn: func(ctx context.Context, id int64) (map[string]any, error) { return map[string]any{}, nil },
 		}
 		h := NewSecuritySettingGRPCHandler(uSvc)
-		_, err := h.UpdateThreatConfig(ctx, &authv1.UpdateThreatConfigRequest{UserPoolId: 1, IpAddress: "1.2.3.4", UserAgent: "test"})
+		_, err := h.UpdateThreatConfig(ctx, &authv1.UpdateThreatConfigRequest{TenantId: 1, IpAddress: "1.2.3.4", UserAgent: "test"})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -334,7 +334,7 @@ func TestSecuritySettingGRPCHandler_RPCS(t *testing.T) {
 			},
 		}
 		h := NewSecuritySettingGRPCHandler(uSvc)
-		_, err := h.UpdateThreatConfig(ctx, &authv1.UpdateThreatConfigRequest{UserPoolId: 1, IpAddress: "1.2.3.4", UserAgent: "test"})
+		_, err := h.UpdateThreatConfig(ctx, &authv1.UpdateThreatConfigRequest{TenantId: 1, IpAddress: "1.2.3.4", UserAgent: "test"})
 		if code := status.Code(err); code != codes.Internal {
 			t.Errorf("expected Internal, got %v", code)
 		}
@@ -348,7 +348,7 @@ func TestSecuritySettingGRPCHandler_RPCS(t *testing.T) {
 			getLockoutConfigFn: func(ctx context.Context, id int64) (map[string]any, error) { return map[string]any{}, nil },
 		}
 		h := NewSecuritySettingGRPCHandler(uSvc)
-		_, err := h.UpdateLockoutConfig(ctx, &authv1.UpdateLockoutConfigRequest{UserPoolId: 1, IpAddress: "1.2.3.4", UserAgent: "test"})
+		_, err := h.UpdateLockoutConfig(ctx, &authv1.UpdateLockoutConfigRequest{TenantId: 1, IpAddress: "1.2.3.4", UserAgent: "test"})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -361,7 +361,7 @@ func TestSecuritySettingGRPCHandler_RPCS(t *testing.T) {
 			},
 		}
 		h := NewSecuritySettingGRPCHandler(uSvc)
-		_, err := h.UpdateLockoutConfig(ctx, &authv1.UpdateLockoutConfigRequest{UserPoolId: 1, IpAddress: "1.2.3.4", UserAgent: "test"})
+		_, err := h.UpdateLockoutConfig(ctx, &authv1.UpdateLockoutConfigRequest{TenantId: 1, IpAddress: "1.2.3.4", UserAgent: "test"})
 		if code := status.Code(err); code != codes.Internal {
 			t.Errorf("expected Internal, got %v", code)
 		}
@@ -375,7 +375,7 @@ func TestSecuritySettingGRPCHandler_RPCS(t *testing.T) {
 			getRegistrationConfigFn: func(ctx context.Context, id int64) (map[string]any, error) { return map[string]any{}, nil },
 		}
 		h := NewSecuritySettingGRPCHandler(uSvc)
-		_, err := h.UpdateRegistrationConfig(ctx, &authv1.UpdateRegistrationConfigRequest{UserPoolId: 1, IpAddress: "1.2.3.4", UserAgent: "test"})
+		_, err := h.UpdateRegistrationConfig(ctx, &authv1.UpdateRegistrationConfigRequest{TenantId: 1, IpAddress: "1.2.3.4", UserAgent: "test"})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -388,7 +388,7 @@ func TestSecuritySettingGRPCHandler_RPCS(t *testing.T) {
 			},
 		}
 		h := NewSecuritySettingGRPCHandler(uSvc)
-		_, err := h.UpdateRegistrationConfig(ctx, &authv1.UpdateRegistrationConfigRequest{UserPoolId: 1, IpAddress: "1.2.3.4", UserAgent: "test"})
+		_, err := h.UpdateRegistrationConfig(ctx, &authv1.UpdateRegistrationConfigRequest{TenantId: 1, IpAddress: "1.2.3.4", UserAgent: "test"})
 		if code := status.Code(err); code != codes.Internal {
 			t.Errorf("expected Internal, got %v", code)
 		}
@@ -402,7 +402,7 @@ func TestSecuritySettingGRPCHandler_RPCS(t *testing.T) {
 			getTokenConfigFn: func(ctx context.Context, id int64) (map[string]any, error) { return map[string]any{}, nil },
 		}
 		h := NewSecuritySettingGRPCHandler(uSvc)
-		_, err := h.UpdateTokenConfig(ctx, &authv1.UpdateTokenConfigRequest{UserPoolId: 1, IpAddress: "1.2.3.4", UserAgent: "test"})
+		_, err := h.UpdateTokenConfig(ctx, &authv1.UpdateTokenConfigRequest{TenantId: 1, IpAddress: "1.2.3.4", UserAgent: "test"})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -415,7 +415,7 @@ func TestSecuritySettingGRPCHandler_RPCS(t *testing.T) {
 			},
 		}
 		h := NewSecuritySettingGRPCHandler(uSvc)
-		_, err := h.UpdateTokenConfig(ctx, &authv1.UpdateTokenConfigRequest{UserPoolId: 1, IpAddress: "1.2.3.4", UserAgent: "test"})
+		_, err := h.UpdateTokenConfig(ctx, &authv1.UpdateTokenConfigRequest{TenantId: 1, IpAddress: "1.2.3.4", UserAgent: "test"})
 		if code := status.Code(err); code != codes.Internal {
 			t.Errorf("expected Internal, got %v", code)
 		}
