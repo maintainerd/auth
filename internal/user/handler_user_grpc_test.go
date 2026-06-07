@@ -83,6 +83,12 @@ func (m *testUserService) GetUserRoles(ctx context.Context, userUUID uuid.UUID, 
 func (m *testUserService) GetUserIdentities(ctx context.Context, userUUID uuid.UUID, tenantID int64, filter GetUserIdentitiesFilter) ([]UserIdentityServiceDataResult, int64, error) {
 	return m.getUserIdentitiesFn(ctx, userUUID, tenantID, filter)
 }
+func (m *testUserService) GetUserSessions(_ context.Context, _ uuid.UUID, _ int64) ([]*SessionDataResult, error) {
+	return nil, nil
+}
+func (m *testUserService) RevokeUserSession(_ context.Context, _ uuid.UUID, _ int64, _ uuid.UUID) error {
+	return nil
+}
 func (m *testUserService) FindBySubAndClientID(ctx context.Context, sub string, clientID string) (*User, error) {
 	return nil, nil
 }

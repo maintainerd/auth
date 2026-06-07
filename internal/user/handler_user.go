@@ -763,3 +763,58 @@ func (h *UserHandler) GetUserIdentities(w http.ResponseWriter, r *http.Request) 
 
 	resp.Success(w, response, "User identities fetched successfully")
 }
+
+// GetUserSessions returns the active sessions for a user.
+//
+// GET /users/{user_uuid}/sessions
+func (h *UserHandler) GetUserSessions(w http.ResponseWriter, r *http.Request) {
+	userUUID, err := uuid.Parse(chi.URLParam(r, "user_uuid"))
+	if err != nil {
+		resp.Error(w, http.StatusBadRequest, "Invalid user UUID")
+		return
+	}
+
+	tenant := middleware.AuthFromRequest(r).Tenant
+	if tenant == nil {
+		resp.Error(w, http.StatusUnauthorized, "Tenant not found in context")
+		return
+	}
+
+	sessions, err := h.userService.GetUserSessions(r.Context(), userUUID, tenant.TenantID)
+	if err != nil {
+		resp.HandleServiceError(w, r, "Failed to fetch user sessions", err)
+		return
+	}
+
+	resp.Success(w, sessions, "User sessions fetched successfully")
+}
+
+// RevokeUserSession revokes a single active session for a user.
+//
+// DELETE /users/{user_uuid}/sessions/{session_uuid}
+func (h *UserHandler) RevokeUserSession(w http.ResponseWriter, r *http.Request) {
+	userUUID, err := uuid.Parse(chi.URLParam(r, "user_uuid"))
+	if err != nil {
+		resp.Error(w, http.StatusBadRequest, "Invalid user UUID")
+		return
+	}
+
+	sessionUUID, err := uuid.Parse(chi.URLParam(r, "session_uuid"))
+	if err != nil {
+		resp.Error(w, http.StatusBadRequest, "Invalid session UUID")
+		return
+	}
+
+	tenant := middleware.AuthFromRequest(r).Tenant
+	if tenant == nil {
+		resp.Error(w, http.StatusUnauthorized, "Tenant not found in context")
+		return
+	}
+
+	if err := h.userService.RevokeUserSession(r.Context(), userUUID, tenant.TenantID, sessionUUID); err != nil {
+		resp.HandleServiceError(w, r, "Failed to revoke session", err)
+		return
+	}
+
+	resp.Success(w, nil, "Session revoked successfully")
+}
