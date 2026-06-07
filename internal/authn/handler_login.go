@@ -237,12 +237,16 @@ func (h *LoginHandler) RefreshToken(w http.ResponseWriter, r *http.Request) {
 	sc := extractSecurityContext(r)
 	clientIPStr, userAgentStr, requestIDStr := sc.clientIP, sc.userAgent, sc.requestID
 
-	// Refresh token: request body takes precedence, then the cookie.
+	// Refresh token: request body takes precedence, then the cookie. Track
+	// whether it came from a cookie so we can deliver the rotated tokens the
+	// same way (see cookie reissue below).
 	var req RefreshTokenRequestDTO
 	_ = json.NewDecoder(r.Body).Decode(&req) // body is optional in cookie mode
 	refreshToken := strings.TrimSpace(req.RefreshToken)
+	fromCookie := false
 	if refreshToken == "" {
 		refreshToken = extractRefreshToken(r)
+		fromCookie = refreshToken != ""
 	}
 	if refreshToken == "" {
 		resp.Error(w, http.StatusUnauthorized, "Refresh token is required")
@@ -284,8 +288,16 @@ func (h *LoginHandler) RefreshToken(w http.ResponseWriter, r *http.Request) {
 		Severity:  "LOW",
 	})
 
-	// Response with optional cookie delivery based on X-Token-Delivery header.
-	resp.SuccessWithCookies(w, r, tokenResponse, "Token refreshed successfully")
+	// Deliver the rotated tokens the same way they arrived. Because refresh
+	// rotates (and revokes) the old refresh token, a cookie-based client MUST
+	// receive the new cookies on this response — otherwise the browser keeps the
+	// now-revoked cookie and the next refresh fails. So set cookies whenever the
+	// token came from a cookie, or when the client explicitly asks for cookie
+	// delivery. Cookies keep their HttpOnly/Secure/SameSite attributes.
+	if fromCookie || r.Header.Get("X-Token-Delivery") == "cookie" {
+		cookie.SetAuthCookies(w, tokenResponse)
+	}
+	resp.Success(w, tokenResponse, "Token refreshed successfully")
 }
 
 func (h *LoginHandler) Login(w http.ResponseWriter, r *http.Request) {

@@ -217,6 +217,11 @@ type UserPoolUpdateRequestDTO struct {
 	Metadata    datatypes.JSON `json:"metadata,omitempty"`
 }
 
+// UserPoolSetStatusRequestDTO is the request body to update only a user pool's status.
+type UserPoolSetStatusRequestDTO struct {
+	Status string `json:"status"`
+}
+
 // UserPoolResponseDTO is the API representation of a user pool.
 type UserPoolResponseDTO struct {
 	UserPoolUUID uuid.UUID      `json:"user_pool_id"`

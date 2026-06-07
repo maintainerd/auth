@@ -883,6 +883,7 @@ type mockUserPoolService struct {
 	getByUUIDFn  func(uuid.UUID, int64) (*UserPoolServiceDataResult, error)
 	createFn     func(int64, string, string, string, datatypes.JSON, *int64) (*UserPoolServiceDataResult, error)
 	updateFn     func(uuid.UUID, int64, string, string, string, datatypes.JSON, *int64) (*UserPoolServiceDataResult, error)
+	setStatusFn  func(uuid.UUID, int64, string, *int64) (*UserPoolServiceDataResult, error)
 	deleteFn     func(uuid.UUID, int64) (*UserPoolServiceDataResult, error)
 }
 
@@ -907,6 +908,12 @@ func (m *mockUserPoolService) Create(_ context.Context, tenantID int64, name, di
 func (m *mockUserPoolService) Update(_ context.Context, userPoolUUID uuid.UUID, tenantID int64, name, displayName, status string, metadata datatypes.JSON, updaterUserID *int64) (*UserPoolServiceDataResult, error) {
 	if m.updateFn != nil {
 		return m.updateFn(userPoolUUID, tenantID, name, displayName, status, metadata, updaterUserID)
+	}
+	return &UserPoolServiceDataResult{}, nil
+}
+func (m *mockUserPoolService) SetStatus(_ context.Context, userPoolUUID uuid.UUID, tenantID int64, status string, updaterUserID *int64) (*UserPoolServiceDataResult, error) {
+	if m.setStatusFn != nil {
+		return m.setStatusFn(userPoolUUID, tenantID, status, updaterUserID)
 	}
 	return &UserPoolServiceDataResult{}, nil
 }

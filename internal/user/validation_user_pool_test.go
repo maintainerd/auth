@@ -58,6 +58,28 @@ func TestUserPoolCreateRequestDTO_Validate(t *testing.T) {
 	})
 }
 
+func TestUserPoolSetStatusRequestDTO_Validate(t *testing.T) {
+	t.Run("valid active", func(t *testing.T) {
+		require.NoError(t, UserPoolSetStatusRequestDTO{Status: "active"}.Validate())
+	})
+
+	t.Run("valid inactive", func(t *testing.T) {
+		require.NoError(t, UserPoolSetStatusRequestDTO{Status: "inactive"}.Validate())
+	})
+
+	t.Run("status required", func(t *testing.T) {
+		err := UserPoolSetStatusRequestDTO{Status: ""}.Validate()
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "Status")
+	})
+
+	t.Run("invalid status", func(t *testing.T) {
+		err := UserPoolSetStatusRequestDTO{Status: "suspended"}.Validate()
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "Status")
+	})
+}
+
 func TestUserPoolUpdateRequestDTO_Validate(t *testing.T) {
 	valid := UserPoolUpdateRequestDTO{Name: "Customers", DisplayName: "Customer Pool", Status: "active"}
 

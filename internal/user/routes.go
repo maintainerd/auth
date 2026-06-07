@@ -232,6 +232,10 @@ func UserPoolRoute(
 		r.With(middleware.PermissionMiddleware([]string{"user-pool:update"})).
 			Put("/{user_pool_uuid}", userPoolHandler.UpdateUserPool)
 
+		// Update user pool status
+		r.With(middleware.PermissionMiddleware([]string{"user-pool:update"})).
+			Patch("/{user_pool_uuid}/status", userPoolHandler.SetStatus)
+
 		// Delete user pool
 		r.With(middleware.PermissionMiddleware([]string{"user-pool:delete"}), middleware.RequireStepUp).
 			Delete("/{user_pool_uuid}", userPoolHandler.DeleteUserPool)

@@ -214,6 +214,75 @@ func TestUserPoolHandler_UpdateUserPool(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
+// SetStatus
+// ---------------------------------------------------------------------------
+
+func TestUserPoolHandler_SetStatus(t *testing.T) {
+	valid := UserPoolSetStatusRequestDTO{Status: "inactive"}
+
+	t.Run("no tenant in context", func(t *testing.T) {
+		h := NewUserPoolHandler(&mockUserPoolService{})
+		r := withChiParam(jsonReq(t, http.MethodPatch, "/user-pools/x/status", valid), "user_pool_uuid", uuid.New().String())
+		w := httptest.NewRecorder()
+		h.SetStatus(w, r)
+		assert.Equal(t, http.StatusUnauthorized, w.Code)
+	})
+
+	t.Run("invalid uuid", func(t *testing.T) {
+		h := NewUserPoolHandler(&mockUserPoolService{})
+		r := withChiParam(withTenantAndUser(jsonReq(t, http.MethodPatch, "/user-pools/x/status", valid)), "user_pool_uuid", "bad")
+		w := httptest.NewRecorder()
+		h.SetStatus(w, r)
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+	})
+
+	t.Run("bad json", func(t *testing.T) {
+		h := NewUserPoolHandler(&mockUserPoolService{})
+		r := withChiParam(withTenantAndUser(badJSONReq(t, http.MethodPatch, "/user-pools/x/status")), "user_pool_uuid", uuid.New().String())
+		w := httptest.NewRecorder()
+		h.SetStatus(w, r)
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+	})
+
+	t.Run("validation error", func(t *testing.T) {
+		h := NewUserPoolHandler(&mockUserPoolService{})
+		r := withChiParam(withTenantAndUser(jsonReq(t, http.MethodPatch, "/user-pools/x/status", UserPoolSetStatusRequestDTO{Status: "bogus"})), "user_pool_uuid", uuid.New().String())
+		w := httptest.NewRecorder()
+		h.SetStatus(w, r)
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+	})
+
+	t.Run("service error", func(t *testing.T) {
+		h := NewUserPoolHandler(&mockUserPoolService{
+			setStatusFn: func(uuid.UUID, int64, string, *int64) (*UserPoolServiceDataResult, error) {
+				return nil, errConflict
+			},
+		})
+		r := withChiParam(withTenantAndUser(jsonReq(t, http.MethodPatch, "/user-pools/x/status", valid)), "user_pool_uuid", uuid.New().String())
+		w := httptest.NewRecorder()
+		h.SetStatus(w, r)
+		assert.Equal(t, http.StatusConflict, w.Code)
+	})
+
+	t.Run("success", func(t *testing.T) {
+		var gotStatus string
+		var gotUpdater *int64
+		h := NewUserPoolHandler(&mockUserPoolService{
+			setStatusFn: func(_ uuid.UUID, _ int64, status string, updater *int64) (*UserPoolServiceDataResult, error) {
+				gotStatus, gotUpdater = status, updater
+				return &UserPoolServiceDataResult{Status: status}, nil
+			},
+		})
+		r := withChiParam(withTenantAndUser(jsonReq(t, http.MethodPatch, "/user-pools/x/status", valid)), "user_pool_uuid", uuid.New().String())
+		w := httptest.NewRecorder()
+		h.SetStatus(w, r)
+		assert.Equal(t, http.StatusOK, w.Code)
+		assert.Equal(t, "inactive", gotStatus)
+		assert.NotNil(t, gotUpdater) // acting user forwarded for audit
+	})
+}
+
+// ---------------------------------------------------------------------------
 // DeleteUserPool
 // ---------------------------------------------------------------------------
 
